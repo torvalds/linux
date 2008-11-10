@@ -1917,6 +1917,8 @@ platforms are moved over to use the flattened-device-tree model.
 			inverse clock polarity (CPOL) mode
     - spi-cpha        - (optional) Empty property indicating device requires
 			shifted clock phase (CPHA) mode
+    - spi-cs-high     - (optional) Empty property indicating device requires
+			chip select active high
 
     SPI example for an MPC5200 SPI bus:
 		spi@f00 {

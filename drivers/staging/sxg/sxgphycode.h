@@ -34,7 +34,7 @@ static PHY_UCODE PhyUcode[] = {
 	 */
 	/* Addr, Data */
 	{0xc017, 0xfeb0},	/* flip RX_LOS polarity (mandatory */
-				/*  patch for SFP+ applications) */
+	/*  patch for SFP+ applications) */
 	{0xC001, 0x0428},	/* flip RX serial polarity */
 
 	{0xc013, 0xf341},	/* invert lxmit clock (mandatory patch) */
@@ -43,7 +43,7 @@ static PHY_UCODE PhyUcode[] = {
 	{0xc210, 0x8000},	/* reset datapath (mandatory patch) */
 	{0xc210, 0x0000},	/* reset datapath (mandatory patch) */
 	{0x0000, 0x0032},	/* wait for 50ms for datapath reset to */
-				/* complete. (mandatory patch) */
+	/* complete. (mandatory patch) */
 
 	/* Configure the LED's */
 	{0xc214, 0x0099},	/* configure the LED drivers */
@@ -52,15 +52,15 @@ static PHY_UCODE PhyUcode[] = {
 
 	/* Transceiver-specific MDIO Patches: */
 	{0xc010, 0x448a},	/* (bit 14) mask out high BER input from the */
-				/* LOS signal in 1.000A */
-				/* (mandatory patch for SR code)*/
+	/* LOS signal in 1.000A */
+	/* (mandatory patch for SR code) */
 	{0xc003, 0x0181},	/* (bit 7) enable the CDR inc setting in */
-				/* 1.C005 (mandatory patch for SR code) */
+	/* 1.C005 (mandatory patch for SR code) */
 
 	/* Transceiver-specific Microcontroller Initialization: */
 	{0xc04a, 0x5200},	/* activate microcontroller and pause */
 	{0x0000, 0x0032},	/* wait 50ms for microcontroller before */
-				/* writing in code. */
+	/* writing in code. */
 
 	/* code block starts here: */
 	{0xcc00, 0x2009},

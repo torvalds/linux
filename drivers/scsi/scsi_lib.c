@@ -529,11 +529,28 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
+static inline int scsi_device_is_busy(struct scsi_device *sdev)
+{
+	if (sdev->device_busy >= sdev->queue_depth || sdev->device_blocked)
+		return 1;
+
+	return 0;
+}
+
 static inline int scsi_target_is_busy(struct scsi_target *starget)
 {
 	return ((starget->can_queue > 0 &&
 		 starget->target_busy >= starget->can_queue) ||
 		 starget->target_blocked);
+}
+
+static inline int scsi_host_is_busy(struct Scsi_Host *shost)
+{
+	if ((shost->can_queue > 0 && shost->host_busy >= shost->can_queue) ||
+	    shost->host_blocked || shost->host_self_blocked)
+		return 1;
+
+	return 0;
 }
 
 /*
@@ -558,11 +575,7 @@ static void scsi_run_queue(struct request_queue *q)
 		scsi_single_lun_run(sdev);
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	while (!list_empty(&shost->starved_list) &&
-	       !shost->host_blocked && !shost->host_self_blocked &&
-		!((shost->can_queue > 0) &&
-		  (shost->host_busy >= shost->can_queue))) {
-
+	while (!list_empty(&shost->starved_list) && !scsi_host_is_busy(shost)) {
 		int flagset;
 
 		/*
@@ -1348,8 +1361,6 @@ int scsi_prep_fn(struct request_queue *q, struct request *req)
 static inline int scsi_dev_queue_ready(struct request_queue *q,
 				  struct scsi_device *sdev)
 {
-	if (sdev->device_busy >= sdev->queue_depth)
-		return 0;
 	if (sdev->device_busy == 0 && sdev->device_blocked) {
 		/*
 		 * unblock after device_blocked iterates to zero
@@ -1363,7 +1374,7 @@ static inline int scsi_dev_queue_ready(struct request_queue *q,
 			return 0;
 		}
 	}
-	if (sdev->device_blocked)
+	if (scsi_device_is_busy(sdev))
 		return 0;
 
 	return 1;
@@ -1440,8 +1451,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 			return 0;
 		}
 	}
-	if ((shost->can_queue > 0 && shost->host_busy >= shost->can_queue) ||
-	    shost->host_blocked || shost->host_self_blocked) {
+	if (scsi_host_is_busy(shost)) {
 		if (list_empty(&sdev->starved_entry))
 			list_add_tail(&sdev->starved_entry, &shost->starved_list);
 		return 0;
@@ -1452,6 +1462,37 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 		list_del_init(&sdev->starved_entry);
 
 	return 1;
+}
+
+/*
+ * Busy state exporting function for request stacking drivers.
+ *
+ * For efficiency, no lock is taken to check the busy state of
+ * shost/starget/sdev, since the returned value is not guaranteed and
+ * may be changed after request stacking drivers call the function,
+ * regardless of taking lock or not.
+ *
+ * When scsi can't dispatch I/Os anymore and needs to kill I/Os
+ * (e.g. !sdev), scsi needs to return 'not busy'.
+ * Otherwise, request stacking drivers may hold requests forever.
+ */
+static int scsi_lld_busy(struct request_queue *q)
+{
+	struct scsi_device *sdev = q->queuedata;
+	struct Scsi_Host *shost;
+	struct scsi_target *starget;
+
+	if (!sdev)
+		return 0;
+
+	shost = sdev->host;
+	starget = scsi_target(sdev);
+
+	if (scsi_host_in_recovery(shost) || scsi_host_is_busy(shost) ||
+	    scsi_target_is_busy(starget) || scsi_device_is_busy(sdev))
+		return 1;
+
+	return 0;
 }
 
 /*
@@ -1757,6 +1798,7 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 	blk_queue_prep_rq(q, scsi_prep_fn);
 	blk_queue_softirq_done(q, scsi_softirq_done);
 	blk_queue_rq_timed_out(q, scsi_times_out);
+	blk_queue_lld_busy(q, scsi_lld_busy);
 	return q;
 }
 
@@ -2105,22 +2147,21 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
 	do {
 		result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sshdr,
 					  timeout, retries);
-	} while ((driver_byte(result) & DRIVER_SENSE) &&
-		 sshdr && sshdr->sense_key == UNIT_ATTENTION &&
-		 --retries);
+		if (sdev->removable && scsi_sense_valid(sshdr) &&
+		    sshdr->sense_key == UNIT_ATTENTION)
+			sdev->changed = 1;
+	} while (scsi_sense_valid(sshdr) &&
+		 sshdr->sense_key == UNIT_ATTENTION && --retries);
 
 	if (!sshdr)
 		/* could not allocate sense buffer, so can't process it */
 		return result;
 
-	if ((driver_byte(result) & DRIVER_SENSE) && sdev->removable) {
-
-		if ((scsi_sense_valid(sshdr)) &&
-		    ((sshdr->sense_key == UNIT_ATTENTION) ||
-		     (sshdr->sense_key == NOT_READY))) {
-			sdev->changed = 1;
-			result = 0;
-		}
+	if (sdev->removable && scsi_sense_valid(sshdr) &&
+	    (sshdr->sense_key == UNIT_ATTENTION ||
+	     sshdr->sense_key == NOT_READY)) {
+		sdev->changed = 1;
+		result = 0;
 	}
 	if (!sshdr_external)
 		kfree(sshdr);

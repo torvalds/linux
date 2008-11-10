@@ -596,12 +596,8 @@ static struct dentry *fuse_get_dentry(struct super_block *sb,
 	if (inode->i_generation != handle->generation)
 		goto out_iput;
 
-	entry = d_alloc_anon(inode);
-	err = -ENOMEM;
-	if (!entry)
-		goto out_iput;
-
-	if (get_node_id(inode) != FUSE_ROOT_ID) {
+	entry = d_obtain_alias(inode);
+	if (!IS_ERR(entry) && get_node_id(inode) != FUSE_ROOT_ID) {
 		entry->d_op = &fuse_dentry_operations;
 		fuse_invalidate_entry_cache(entry);
 	}
@@ -696,17 +692,14 @@ static struct dentry *fuse_get_parent(struct dentry *child)
 	name.name = "..";
 	err = fuse_lookup_name(child_inode->i_sb, get_node_id(child_inode),
 			       &name, &outarg, &inode);
-	if (err && err != -ENOENT)
+	if (err) {
+		if (err == -ENOENT)
+			return ERR_PTR(-ESTALE);
 		return ERR_PTR(err);
-	if (err || !inode)
-		return ERR_PTR(-ESTALE);
-
-	parent = d_alloc_anon(inode);
-	if (!parent) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
 	}
-	if (get_node_id(inode) != FUSE_ROOT_ID) {
+
+	parent = d_obtain_alias(inode);
+	if (!IS_ERR(parent) && get_node_id(inode) != FUSE_ROOT_ID) {
 		parent->d_op = &fuse_dentry_operations;
 		fuse_invalidate_entry_cache(parent);
 	}
@@ -865,7 +858,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (is_bdev) {
 		fc->destroy_req = fuse_request_alloc();
 		if (!fc->destroy_req)
-			goto err_put_root;
+			goto err_free_init_req;
 	}
 
 	mutex_lock(&fuse_mutex);
@@ -895,6 +888,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
  err_unlock:
 	mutex_unlock(&fuse_mutex);
+ err_free_init_req:
 	fuse_request_free(init_req);
  err_put_root:
 	dput(root_dentry);

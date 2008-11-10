@@ -8,6 +8,7 @@
 #include <linux/preempt.h>
 #include <linux/cpumask.h>
 #include <linux/irqreturn.h>
+#include <linux/irqnr.h>
 #include <linux/hardirq.h>
 #include <linux/sched.h>
 #include <linux/irqflags.h>

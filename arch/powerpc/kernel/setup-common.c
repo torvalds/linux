@@ -59,6 +59,7 @@
 #include <asm/mmu.h>
 #include <asm/xmon.h>
 #include <asm/cputhreads.h>
+#include <mm/mmu_decl.h>
 
 #include "setup.h"
 
@@ -189,6 +190,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 		if (ppc_md.show_cpuinfo != NULL)
 			ppc_md.show_cpuinfo(m);
+
+#ifdef CONFIG_PPC32
+		/* Display the amount of memory */
+		seq_printf(m, "Memory\t\t: %d MB\n",
+			   (unsigned int)(total_memory / (1024 * 1024)));
+#endif
 
 		return 0;
 	}

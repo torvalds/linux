@@ -37,13 +37,16 @@
 # 	dmesg | perl scripts/bootgraph.pl > output.svg
 #
 
-my @rows;
-my %start, %end, %row;
+use strict;
+
+my %start;
+my %end;
 my $done = 0;
-my $rowcount = 0;
 my $maxtime = 0;
 my $firsttime = 100;
 my $count = 0;
+my %pids;
+
 while (<>) {
 	my $line = $_;
 	if ($line =~ /([0-9\.]+)\] calling  ([a-zA-Z0-9\_]+)\+/) {
@@ -54,14 +57,8 @@ while (<>) {
 				$firsttime = $1;
 			}
 		}
-		$row{$func} = 1;
 		if ($line =~ /\@ ([0-9]+)/) {
-			my $pid = $1;
-			if (!defined($rows[$pid])) {
-				$rowcount = $rowcount + 1;
-				$rows[$pid] = $rowcount;
-			}
-			$row{$func} = $rows[$pid];
+			$pids{$func} = $1;
 		}
 		$count = $count + 1;
 	}
@@ -109,17 +106,27 @@ $styles[11] = "fill:rgb(128,255,255);fill-opacity:0.5;stroke-width:1;stroke:rgb(
 my $mult = 950.0 / ($maxtime - $firsttime);
 my $threshold = ($maxtime - $firsttime) / 60.0;
 my $stylecounter = 0;
-while (($key,$value) = each %start) {
+my %rows;
+my $rowscount = 1;
+my @initcalls = sort { $start{$a} <=> $start{$b} } keys(%start);
+my $key;
+foreach $key (@initcalls) {
 	my $duration = $end{$key} - $start{$key};
 
 	if ($duration >= $threshold) {
-		my $s, $s2, $e, $y;
-		$s = ($value - $firsttime) * $mult;
+		my ($s, $s2, $e, $w, $y, $y2, $style);
+		my $pid = $pids{$key};
+
+		if (!defined($rows{$pid})) {
+			$rows{$pid} = $rowscount;
+			$rowscount = $rowscount + 1;
+		}
+		$s = ($start{$key} - $firsttime) * $mult;
 		$s2 = $s + 6;
 		$e = ($end{$key} - $firsttime) * $mult;
 		$w = $e - $s;
 
-		$y = $row{$key} * 150;
+		$y = $rows{$pid} * 150;
 		$y2 = $y + 4;
 
 		$style = $styles[$stylecounter];
@@ -138,9 +145,9 @@ while (($key,$value) = each %start) {
 my $time = $firsttime;
 my $step = ($maxtime - $firsttime) / 15;
 while ($time < $maxtime) {
-	my $s2 = ($time - $firsttime) * $mult;
+	my $s3 = ($time - $firsttime) * $mult;
 	my $tm = int($time * 100) / 100.0;
-	print "<text transform=\"translate($s2,89) rotate(90)\">$tm</text>\n";
+	print "<text transform=\"translate($s3,89) rotate(90)\">$tm</text>\n";
 	$time = $time + $step;
 }
 

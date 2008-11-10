@@ -82,14 +82,14 @@ static int stk17ta8_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	flags = readb(pdata->ioaddr + RTC_FLAGS);
 	writeb(flags | RTC_WRITE, pdata->ioaddr + RTC_FLAGS);
 
-	writeb(BIN2BCD(tm->tm_year % 100), ioaddr + RTC_YEAR);
-	writeb(BIN2BCD(tm->tm_mon + 1), ioaddr + RTC_MONTH);
-	writeb(BIN2BCD(tm->tm_wday) & RTC_DAY_MASK, ioaddr + RTC_DAY);
-	writeb(BIN2BCD(tm->tm_mday), ioaddr + RTC_DATE);
-	writeb(BIN2BCD(tm->tm_hour), ioaddr + RTC_HOURS);
-	writeb(BIN2BCD(tm->tm_min), ioaddr + RTC_MINUTES);
-	writeb(BIN2BCD(tm->tm_sec) & RTC_SECONDS_MASK, ioaddr + RTC_SECONDS);
-	writeb(BIN2BCD((tm->tm_year + 1900) / 100), ioaddr + RTC_CENTURY);
+	writeb(bin2bcd(tm->tm_year % 100), ioaddr + RTC_YEAR);
+	writeb(bin2bcd(tm->tm_mon + 1), ioaddr + RTC_MONTH);
+	writeb(bin2bcd(tm->tm_wday) & RTC_DAY_MASK, ioaddr + RTC_DAY);
+	writeb(bin2bcd(tm->tm_mday), ioaddr + RTC_DATE);
+	writeb(bin2bcd(tm->tm_hour), ioaddr + RTC_HOURS);
+	writeb(bin2bcd(tm->tm_min), ioaddr + RTC_MINUTES);
+	writeb(bin2bcd(tm->tm_sec) & RTC_SECONDS_MASK, ioaddr + RTC_SECONDS);
+	writeb(bin2bcd((tm->tm_year + 1900) / 100), ioaddr + RTC_CENTURY);
 
 	writeb(flags & ~RTC_WRITE, pdata->ioaddr + RTC_FLAGS);
 	return 0;
@@ -120,14 +120,14 @@ static int stk17ta8_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	year = readb(ioaddr + RTC_YEAR);
 	century = readb(ioaddr + RTC_CENTURY);
 	writeb(flags & ~RTC_READ, ioaddr + RTC_FLAGS);
-	tm->tm_sec = BCD2BIN(second);
-	tm->tm_min = BCD2BIN(minute);
-	tm->tm_hour = BCD2BIN(hour);
-	tm->tm_mday = BCD2BIN(day);
-	tm->tm_wday = BCD2BIN(week);
-	tm->tm_mon = BCD2BIN(month) - 1;
+	tm->tm_sec = bcd2bin(second);
+	tm->tm_min = bcd2bin(minute);
+	tm->tm_hour = bcd2bin(hour);
+	tm->tm_mday = bcd2bin(day);
+	tm->tm_wday = bcd2bin(week);
+	tm->tm_mon = bcd2bin(month) - 1;
 	/* year is 1900 + tm->tm_year */
-	tm->tm_year = BCD2BIN(year) + BCD2BIN(century) * 100 - 1900;
+	tm->tm_year = bcd2bin(year) + bcd2bin(century) * 100 - 1900;
 
 	if (rtc_valid_tm(tm) < 0) {
 		dev_err(dev, "retrieved date/time is not valid.\n");
@@ -148,16 +148,16 @@ static void stk17ta8_rtc_update_alarm(struct rtc_plat_data *pdata)
 	writeb(flags | RTC_WRITE, ioaddr + RTC_FLAGS);
 
 	writeb(pdata->alrm_mday < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : BIN2BCD(pdata->alrm_mday),
+	       0x80 : bin2bcd(pdata->alrm_mday),
 	       ioaddr + RTC_DATE_ALARM);
 	writeb(pdata->alrm_hour < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : BIN2BCD(pdata->alrm_hour),
+	       0x80 : bin2bcd(pdata->alrm_hour),
 	       ioaddr + RTC_HOURS_ALARM);
 	writeb(pdata->alrm_min < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : BIN2BCD(pdata->alrm_min),
+	       0x80 : bin2bcd(pdata->alrm_min),
 	       ioaddr + RTC_MINUTES_ALARM);
 	writeb(pdata->alrm_sec < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : BIN2BCD(pdata->alrm_sec),
+	       0x80 : bin2bcd(pdata->alrm_sec),
 	       ioaddr + RTC_SECONDS_ALARM);
 	writeb(pdata->irqen ? RTC_INTS_AIE : 0, ioaddr + RTC_INTERRUPTS);
 	readb(ioaddr + RTC_FLAGS);	/* clear interrupts */
@@ -280,7 +280,6 @@ static struct bin_attribute stk17ta8_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = RTC_OFFSET,
 	.read = stk17ta8_nvram_read,

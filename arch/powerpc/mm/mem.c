@@ -134,23 +134,6 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	return __add_pages(zone, start_pfn, nr_pages);
 }
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-int remove_memory(u64 start, u64 size)
-{
-	unsigned long start_pfn, end_pfn;
-	int ret;
-
-	start_pfn = start >> PAGE_SHIFT;
-	end_pfn = start_pfn + (size >> PAGE_SHIFT);
-	ret = offline_pages(start_pfn, end_pfn, 120 * HZ);
-	if (ret)
-		goto out;
-	/* Arch-specific calls go here - next patch */
-out:
-	return ret;
-}
-#endif /* CONFIG_MEMORY_HOTREMOVE */
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 /*

@@ -45,7 +45,6 @@ extern struct list_head dmar_drhd_units;
 	list_for_each_entry(drhd, &dmar_drhd_units, list)
 
 extern int dmar_table_init(void);
-extern int early_dmar_detect(void);
 extern int dmar_dev_scope_init(void);
 
 /* Intel IOMMU detection */

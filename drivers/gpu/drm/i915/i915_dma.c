@@ -844,8 +844,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * correctly in testing on 945G.
 	 * This may be a side effect of MSI having been made available for PEG
 	 * and the registers being closely associated.
+	 *
+	 * According to chipset errata, on the 965GM, MSI interrupts may
+	 * be lost or delayed
 	 */
-	if (!IS_I945G(dev) && !IS_I945GM(dev))
+	if (!IS_I945G(dev) && !IS_I945GM(dev) && !IS_I965GM(dev))
 		if (pci_enable_msi(dev->pdev))
 			DRM_ERROR("failed to enable MSI\n");
 
@@ -957,6 +960,7 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_GEM_SW_FINISH, i915_gem_sw_finish_ioctl, 0),
 	DRM_IOCTL_DEF(DRM_I915_GEM_SET_TILING, i915_gem_set_tiling, 0),
 	DRM_IOCTL_DEF(DRM_I915_GEM_GET_TILING, i915_gem_get_tiling, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_GET_APERTURE, i915_gem_get_aperture_ioctl, 0),
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

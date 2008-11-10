@@ -145,7 +145,7 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_button *button = seq->private;
 	acpi_status status;
-	unsigned long state;
+	unsigned long long state;
 
 	if (!button || !button->device)
 		return 0;
@@ -253,7 +253,7 @@ static int acpi_button_remove_fs(struct acpi_device *device)
    -------------------------------------------------------------------------- */
 static int acpi_lid_send_state(struct acpi_button *button)
 {
-	unsigned long state;
+	unsigned long long state;
 	acpi_status status;
 
 	status = acpi_evaluate_integer(button->device->handle, "_LID", NULL,
@@ -262,6 +262,7 @@ static int acpi_lid_send_state(struct acpi_button *button)
 		return -ENODEV;
 	/* input layer checks if event is redundant */
 	input_report_switch(button->input, SW_LID, !state);
+	input_sync(button->input);
 	return 0;
 }
 
@@ -285,8 +286,8 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 			input_report_key(input, keycode, 1);
 			input_sync(input);
 			input_report_key(input, keycode, 0);
+			input_sync(input);
 		}
-		input_sync(input);
 
 		acpi_bus_generate_proc_event(button->device, event,
 					++button->pushed);
@@ -384,7 +385,7 @@ static int acpi_button_add(struct acpi_device *device)
 		return -ENOMEM;
 
 	button->device = device;
-	acpi_driver_data(device) = button;
+	device->driver_data = button;
 
 	button->input = input = input_allocate_device();
 	if (!input) {

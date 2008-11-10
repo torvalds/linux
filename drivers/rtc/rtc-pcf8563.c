@@ -97,13 +97,13 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		buf[8]);
 
 
-	tm->tm_sec = BCD2BIN(buf[PCF8563_REG_SC] & 0x7F);
-	tm->tm_min = BCD2BIN(buf[PCF8563_REG_MN] & 0x7F);
-	tm->tm_hour = BCD2BIN(buf[PCF8563_REG_HR] & 0x3F); /* rtc hr 0-23 */
-	tm->tm_mday = BCD2BIN(buf[PCF8563_REG_DM] & 0x3F);
+	tm->tm_sec = bcd2bin(buf[PCF8563_REG_SC] & 0x7F);
+	tm->tm_min = bcd2bin(buf[PCF8563_REG_MN] & 0x7F);
+	tm->tm_hour = bcd2bin(buf[PCF8563_REG_HR] & 0x3F); /* rtc hr 0-23 */
+	tm->tm_mday = bcd2bin(buf[PCF8563_REG_DM] & 0x3F);
 	tm->tm_wday = buf[PCF8563_REG_DW] & 0x07;
-	tm->tm_mon = BCD2BIN(buf[PCF8563_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
-	tm->tm_year = BCD2BIN(buf[PCF8563_REG_YR]);
+	tm->tm_mon = bcd2bin(buf[PCF8563_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
+	tm->tm_year = bcd2bin(buf[PCF8563_REG_YR]);
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;	/* assume we are in 1970...2069 */
 	/* detect the polarity heuristically. see note above. */
@@ -138,17 +138,17 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
 	/* hours, minutes and seconds */
-	buf[PCF8563_REG_SC] = BIN2BCD(tm->tm_sec);
-	buf[PCF8563_REG_MN] = BIN2BCD(tm->tm_min);
-	buf[PCF8563_REG_HR] = BIN2BCD(tm->tm_hour);
+	buf[PCF8563_REG_SC] = bin2bcd(tm->tm_sec);
+	buf[PCF8563_REG_MN] = bin2bcd(tm->tm_min);
+	buf[PCF8563_REG_HR] = bin2bcd(tm->tm_hour);
 
-	buf[PCF8563_REG_DM] = BIN2BCD(tm->tm_mday);
+	buf[PCF8563_REG_DM] = bin2bcd(tm->tm_mday);
 
 	/* month, 1 - 12 */
-	buf[PCF8563_REG_MO] = BIN2BCD(tm->tm_mon + 1);
+	buf[PCF8563_REG_MO] = bin2bcd(tm->tm_mon + 1);
 
 	/* year and century */
-	buf[PCF8563_REG_YR] = BIN2BCD(tm->tm_year % 100);
+	buf[PCF8563_REG_YR] = bin2bcd(tm->tm_year % 100);
 	if (pcf8563->c_polarity ? (tm->tm_year >= 100) : (tm->tm_year < 100))
 		buf[PCF8563_REG_MO] |= PCF8563_MO_C;
 

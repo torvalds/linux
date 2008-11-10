@@ -594,11 +594,14 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 			goto done;
 		}
 
+		/* Get a refcount on the vblank, which will be released by
+		 * drm_vbl_send_signals().
+		 */
 		ret = drm_vblank_get(dev, crtc);
 		if (ret) {
 			drm_free(vbl_sig, sizeof(struct drm_vbl_sig),
 				 DRM_MEM_DRIVER);
-			return ret;
+			goto done;
 		}
 
 		atomic_inc(&dev->vbl_signal_pending);

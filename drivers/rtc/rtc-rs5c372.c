@@ -148,9 +148,9 @@ static unsigned rs5c_reg2hr(struct rs5c372 *rs5c, unsigned reg)
 	unsigned	hour;
 
 	if (rs5c->time24)
-		return BCD2BIN(reg & 0x3f);
+		return bcd2bin(reg & 0x3f);
 
-	hour = BCD2BIN(reg & 0x1f);
+	hour = bcd2bin(reg & 0x1f);
 	if (hour == 12)
 		hour = 0;
 	if (reg & 0x20)
@@ -161,15 +161,15 @@ static unsigned rs5c_reg2hr(struct rs5c372 *rs5c, unsigned reg)
 static unsigned rs5c_hr2reg(struct rs5c372 *rs5c, unsigned hour)
 {
 	if (rs5c->time24)
-		return BIN2BCD(hour);
+		return bin2bcd(hour);
 
 	if (hour > 12)
-		return 0x20 | BIN2BCD(hour - 12);
+		return 0x20 | bin2bcd(hour - 12);
 	if (hour == 12)
-		return 0x20 | BIN2BCD(12);
+		return 0x20 | bin2bcd(12);
 	if (hour == 0)
-		return BIN2BCD(12);
-	return BIN2BCD(hour);
+		return bin2bcd(12);
+	return bin2bcd(hour);
 }
 
 static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
@@ -180,18 +180,18 @@ static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	if (status < 0)
 		return status;
 
-	tm->tm_sec = BCD2BIN(rs5c->regs[RS5C372_REG_SECS] & 0x7f);
-	tm->tm_min = BCD2BIN(rs5c->regs[RS5C372_REG_MINS] & 0x7f);
+	tm->tm_sec = bcd2bin(rs5c->regs[RS5C372_REG_SECS] & 0x7f);
+	tm->tm_min = bcd2bin(rs5c->regs[RS5C372_REG_MINS] & 0x7f);
 	tm->tm_hour = rs5c_reg2hr(rs5c, rs5c->regs[RS5C372_REG_HOURS]);
 
-	tm->tm_wday = BCD2BIN(rs5c->regs[RS5C372_REG_WDAY] & 0x07);
-	tm->tm_mday = BCD2BIN(rs5c->regs[RS5C372_REG_DAY] & 0x3f);
+	tm->tm_wday = bcd2bin(rs5c->regs[RS5C372_REG_WDAY] & 0x07);
+	tm->tm_mday = bcd2bin(rs5c->regs[RS5C372_REG_DAY] & 0x3f);
 
 	/* tm->tm_mon is zero-based */
-	tm->tm_mon = BCD2BIN(rs5c->regs[RS5C372_REG_MONTH] & 0x1f) - 1;
+	tm->tm_mon = bcd2bin(rs5c->regs[RS5C372_REG_MONTH] & 0x1f) - 1;
 
 	/* year is 1900 + tm->tm_year */
-	tm->tm_year = BCD2BIN(rs5c->regs[RS5C372_REG_YEAR]) + 100;
+	tm->tm_year = bcd2bin(rs5c->regs[RS5C372_REG_YEAR]) + 100;
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -216,13 +216,13 @@ static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
 	addr   = RS5C_ADDR(RS5C372_REG_SECS);
-	buf[0] = BIN2BCD(tm->tm_sec);
-	buf[1] = BIN2BCD(tm->tm_min);
+	buf[0] = bin2bcd(tm->tm_sec);
+	buf[1] = bin2bcd(tm->tm_min);
 	buf[2] = rs5c_hr2reg(rs5c, tm->tm_hour);
-	buf[3] = BIN2BCD(tm->tm_wday);
-	buf[4] = BIN2BCD(tm->tm_mday);
-	buf[5] = BIN2BCD(tm->tm_mon + 1);
-	buf[6] = BIN2BCD(tm->tm_year - 100);
+	buf[3] = bin2bcd(tm->tm_wday);
+	buf[4] = bin2bcd(tm->tm_mday);
+	buf[5] = bin2bcd(tm->tm_mon + 1);
+	buf[6] = bin2bcd(tm->tm_year - 100);
 
 	if (i2c_smbus_write_i2c_block_data(client, addr, sizeof(buf), buf) < 0) {
 		dev_err(&client->dev, "%s: write error\n", __func__);
@@ -367,7 +367,7 @@ static int rs5c_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 	/* report alarm time */
 	t->time.tm_sec = 0;
-	t->time.tm_min = BCD2BIN(rs5c->regs[RS5C_REG_ALARM_A_MIN] & 0x7f);
+	t->time.tm_min = bcd2bin(rs5c->regs[RS5C_REG_ALARM_A_MIN] & 0x7f);
 	t->time.tm_hour = rs5c_reg2hr(rs5c, rs5c->regs[RS5C_REG_ALARM_A_HOURS]);
 	t->time.tm_mday = -1;
 	t->time.tm_mon = -1;
@@ -413,7 +413,7 @@ static int rs5c_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	}
 
 	/* set alarm */
-	buf[0] = BIN2BCD(t->time.tm_min);
+	buf[0] = bin2bcd(t->time.tm_min);
 	buf[1] = rs5c_hr2reg(rs5c, t->time.tm_hour);
 	buf[2] = 0x7f;	/* any/all days */
 

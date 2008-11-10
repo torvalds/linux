@@ -167,11 +167,6 @@ config MACH_GTWX5715
 
 comment "IXP4xx Options"
 
-config DMABOUNCE
-	bool
-	default y
-	depends on PCI
-
 config IXP4XX_INDIRECT_PCI
 	bool "Use indirect PCI memory access"
 	depends on PCI

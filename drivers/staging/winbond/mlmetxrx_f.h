@@ -20,7 +20,7 @@ MLMEGetMMPDUBuffer(
      PWB32_ADAPTER    Adapter
    );
 
-void MLMEfreeMMPDUBuffer( PWB32_ADAPTER Adapter,  PCHAR pData);
+void MLMEfreeMMPDUBuffer( PWB32_ADAPTER Adapter,  s8 * pData);
 
 void MLME_GetNextPacket(  PADAPTER Adapter,  PDESCRIPTOR pDes );
 u8 MLMESendFrame( PWB32_ADAPTER Adapter,
@@ -42,7 +42,7 @@ MLMERcvFrame(
 void
 MLMEReturnPacket(
      PWB32_ADAPTER    Adapter,
-     PUCHAR           pRxBufer
+     u8 *          pRxBufer
    );
 #ifdef _IBSS_BEACON_SEQ_STICK_
 s8 SendBCNullData(PWB32_ADAPTER Adapter, u16 wIdx);

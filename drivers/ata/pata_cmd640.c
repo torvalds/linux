@@ -1,7 +1,6 @@
 /*
  * pata_cmd640.c 	- CMD640 PCI PATA for new ATA layer
  *			  (C) 2007 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  * Based upon
  *  linux/drivers/ide/pci/cmd640.c		Version 1.02  Sep 01, 1996

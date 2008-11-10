@@ -1173,11 +1173,48 @@ int ipoib_add_pkey_attr(struct net_device *dev)
 	return device_create_file(&dev->dev, &dev_attr_pkey);
 }
 
+int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
+{
+	struct ib_device_attr *device_attr;
+	int result = -ENOMEM;
+
+	device_attr = kmalloc(sizeof *device_attr, GFP_KERNEL);
+	if (!device_attr) {
+		printk(KERN_WARNING "%s: allocation of %zu bytes failed\n",
+		       hca->name, sizeof *device_attr);
+		return result;
+	}
+
+	result = ib_query_device(hca, device_attr);
+	if (result) {
+		printk(KERN_WARNING "%s: ib_query_device failed (ret = %d)\n",
+		       hca->name, result);
+		kfree(device_attr);
+		return result;
+	}
+	priv->hca_caps = device_attr->device_cap_flags;
+
+	kfree(device_attr);
+
+	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
+		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
+		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+	}
+
+	if (lro)
+		priv->dev->features |= NETIF_F_LRO;
+
+	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
+		priv->dev->features |= NETIF_F_TSO;
+
+	return 0;
+}
+
+
 static struct net_device *ipoib_add_port(const char *format,
 					 struct ib_device *hca, u8 port)
 {
 	struct ipoib_dev_priv *priv;
-	struct ib_device_attr *device_attr;
 	struct ib_port_attr attr;
 	int result = -ENOMEM;
 
@@ -1206,31 +1243,8 @@ static struct net_device *ipoib_add_port(const char *format,
 		goto device_init_failed;
 	}
 
-	device_attr = kmalloc(sizeof *device_attr, GFP_KERNEL);
-	if (!device_attr) {
-		printk(KERN_WARNING "%s: allocation of %zu bytes failed\n",
-		       hca->name, sizeof *device_attr);
+	if (ipoib_set_dev_features(priv, hca))
 		goto device_init_failed;
-	}
-
-	result = ib_query_device(hca, device_attr);
-	if (result) {
-		printk(KERN_WARNING "%s: ib_query_device failed (ret = %d)\n",
-		       hca->name, result);
-		kfree(device_attr);
-		goto device_init_failed;
-	}
-	priv->hca_caps = device_attr->device_cap_flags;
-
-	kfree(device_attr);
-
-	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
-		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
-		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
-	}
-
-	if (lro)
-		priv->dev->features |= NETIF_F_LRO;
 
 	/*
 	 * Set the full membership bit, so that we join the right
@@ -1265,9 +1279,6 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto event_failed;
 	}
-
-	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
-		priv->dev->features |= NETIF_F_TSO;
 
 	result = register_netdev(priv->dev);
 	if (result) {

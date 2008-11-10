@@ -561,7 +561,13 @@ static void __init reserve_standard_io_resources(void)
 
 }
 
-#ifdef CONFIG_PROC_VMCORE
+/*
+ * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
+ * is_kdump_kernel() to determine if we are booting after a panic. Hence
+ * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
+ */
+
+#ifdef CONFIG_CRASH_DUMP
 /* elfcorehdr= specifies the location of elf core header
  * stored by the crashed kernel. This option will be passed
  * by kexec loader to the capture kernel.
@@ -1067,12 +1073,16 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	prefill_possible_map();
+
 #ifdef CONFIG_X86_64
 	init_cpu_to_node();
 #endif
 
 	init_apic_mappings();
 	ioapic_init_mappings();
+
+	/* need to wait for io_apic is mapped */
+	nr_irqs = probe_nr_irqs();
 
 	kvm_guest_init();
 

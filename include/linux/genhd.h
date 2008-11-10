@@ -25,9 +25,6 @@ extern struct device_type part_type;
 extern struct kobject *block_depr;
 extern struct class block_class;
 
-extern const struct seq_operations partitions_op;
-extern const struct seq_operations diskstats_op;
-
 enum {
 /* These three have identical behaviour; use the second one if DOS FDISK gets
    confused about extended/logical partitions starting past cylinder 1023. */

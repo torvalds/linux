@@ -2049,7 +2049,7 @@ static void cirrusfb_pci_unmap(struct fb_info *info)
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ZORRO
-static void __devexit cirrusfb_zorro_unmap(struct fb_info *info)
+static void cirrusfb_zorro_unmap(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	struct zorro_dev *zdev = to_zorro_dev(info->device);

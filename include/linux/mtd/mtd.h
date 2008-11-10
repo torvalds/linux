@@ -25,8 +25,10 @@
 #define MTD_ERASE_DONE          0x08
 #define MTD_ERASE_FAILED        0x10
 
+#define MTD_FAIL_ADDR_UNKNOWN 0xffffffff
+
 /* If the erase fails, fail_addr might indicate exactly which block failed.  If
-   fail_addr = 0xffffffff, the failure was not at the device level or was not
+   fail_addr = MTD_FAIL_ADDR_UNKNOWN, the failure was not at the device level or was not
    specific to any particular block. */
 struct erase_info {
 	struct mtd_info *mtd;

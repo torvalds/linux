@@ -51,7 +51,7 @@ static int emu10k1_playback_constraints(struct snd_pcm_runtime *runtime)
 	if (err < 0)
 		return err;
 	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256, UINT_MAX);
-	if (err) < 0)
+	if (err < 0)
 		return err;
 	return 0;
 }

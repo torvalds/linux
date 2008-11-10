@@ -122,7 +122,7 @@ struct cm_counter_attribute {
 
 #define CM_COUNTER_ATTR(_name, _index) \
 struct cm_counter_attribute cm_##_name##_counter_attr = { \
-	.attr = { .name = __stringify(_name), .mode = 0444, .owner = THIS_MODULE }, \
+	.attr = { .name = __stringify(_name), .mode = 0444 }, \
 	.index = _index \
 }
 

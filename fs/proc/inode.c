@@ -106,14 +106,13 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-int __init proc_init_inodecache(void)
+void __init proc_init_inodecache(void)
 {
 	proc_inode_cachep = kmem_cache_create("proc_inode_cache",
 					     sizeof(struct proc_inode),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_PANIC),
 					     init_once);
-	return 0;
 }
 
 static const struct super_operations proc_sops = {

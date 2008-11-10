@@ -47,7 +47,7 @@ typedef struct irq_swizzle_struct
 
 static irq_swizzle_t *sable_lynx_irq_swizzle;
 
-static void sable_lynx_init_irq(int nr_irqs);
+static void sable_lynx_init_irq(int nr_of_irqs);
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_SABLE)
 
@@ -530,11 +530,11 @@ sable_lynx_srm_device_interrupt(unsigned long vector)
 }
 
 static void __init
-sable_lynx_init_irq(int nr_irqs)
+sable_lynx_init_irq(int nr_of_irqs)
 {
 	long i;
 
-	for (i = 0; i < nr_irqs; ++i) {
+	for (i = 0; i < nr_of_irqs; ++i) {
 		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
 		irq_desc[i].chip = &sable_lynx_irq_type;
 	}

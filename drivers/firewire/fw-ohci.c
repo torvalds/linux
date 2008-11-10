@@ -476,6 +476,7 @@ static int ar_context_add_page(struct ar_context *ctx)
 	if (ab == NULL)
 		return -ENOMEM;
 
+	ab->next = NULL;
 	memset(&ab->descriptor, 0, sizeof(ab->descriptor));
 	ab->descriptor.control        = cpu_to_le16(DESCRIPTOR_INPUT_MORE |
 						    DESCRIPTOR_STATUS |
@@ -494,6 +495,21 @@ static int ar_context_add_page(struct ar_context *ctx)
 	flush_writes(ctx->ohci);
 
 	return 0;
+}
+
+static void ar_context_release(struct ar_context *ctx)
+{
+	struct ar_buffer *ab, *ab_next;
+	size_t offset;
+	dma_addr_t ab_bus;
+
+	for (ab = ctx->current_buffer; ab; ab = ab_next) {
+		ab_next = ab->next;
+		offset = offsetof(struct ar_buffer, data);
+		ab_bus = le32_to_cpu(ab->descriptor.data_address) - offset;
+		dma_free_coherent(ctx->ohci->card.device, PAGE_SIZE,
+				  ab, ab_bus);
+	}
 }
 
 #if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
@@ -2349,8 +2365,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
 	if (ohci == NULL) {
-		fw_error("Could not malloc fw_ohci data.\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto fail;
 	}
 
 	fw_card_initialize(&ohci->card, &ohci_driver, &dev->dev);
@@ -2359,7 +2375,7 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(dev);
 	if (err) {
-		fw_error("Failed to enable OHCI hardware.\n");
+		fw_error("Failed to enable OHCI hardware\n");
 		goto fail_free;
 	}
 
@@ -2427,9 +2443,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	ohci->ir_context_list = kzalloc(size, GFP_KERNEL);
 
 	if (ohci->it_context_list == NULL || ohci->ir_context_list == NULL) {
-		fw_error("Out of memory for it/ir contexts.\n");
 		err = -ENOMEM;
-		goto fail_registers;
+		goto fail_contexts;
 	}
 
 	/* self-id dma buffer allocation */
@@ -2438,9 +2453,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 					       &ohci->self_id_bus,
 					       GFP_KERNEL);
 	if (ohci->self_id_cpu == NULL) {
-		fw_error("Out of memory for self ID buffer.\n");
 		err = -ENOMEM;
-		goto fail_registers;
+		goto fail_contexts;
 	}
 
 	bus_options = reg_read(ohci, OHCI1394_BusOptions);
@@ -2454,15 +2468,19 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		goto fail_self_id;
 
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
-		  dev->dev.bus_id, version >> 16, version & 0xff);
+		  dev_name(&dev->dev), version >> 16, version & 0xff);
 	return 0;
 
  fail_self_id:
 	dma_free_coherent(ohci->card.device, SELF_ID_BUF_SIZE,
 			  ohci->self_id_cpu, ohci->self_id_bus);
- fail_registers:
-	kfree(ohci->it_context_list);
+ fail_contexts:
 	kfree(ohci->ir_context_list);
+	kfree(ohci->it_context_list);
+	context_release(&ohci->at_response_ctx);
+	context_release(&ohci->at_request_ctx);
+	ar_context_release(&ohci->ar_response_ctx);
+	ar_context_release(&ohci->ar_request_ctx);
 	pci_iounmap(dev, ohci->registers);
  fail_iomem:
 	pci_release_region(dev, 0);
@@ -2471,6 +2489,9 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
  fail_free:
 	kfree(&ohci->card);
 	ohci_pmac_off(dev);
+ fail:
+	if (err == -ENOMEM)
+		fw_error("Out of memory\n");
 
 	return err;
 }
@@ -2491,8 +2512,19 @@ static void pci_remove(struct pci_dev *dev)
 
 	software_reset(ohci);
 	free_irq(dev->irq, ohci);
+
+	if (ohci->next_config_rom && ohci->next_config_rom != ohci->config_rom)
+		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+				  ohci->next_config_rom, ohci->next_config_rom_bus);
+	if (ohci->config_rom)
+		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+				  ohci->config_rom, ohci->config_rom_bus);
 	dma_free_coherent(ohci->card.device, SELF_ID_BUF_SIZE,
 			  ohci->self_id_cpu, ohci->self_id_bus);
+	ar_context_release(&ohci->ar_request_ctx);
+	ar_context_release(&ohci->ar_response_ctx);
+	context_release(&ohci->at_request_ctx);
+	context_release(&ohci->at_response_ctx);
 	kfree(ohci->it_context_list);
 	kfree(ohci->ir_context_list);
 	pci_iounmap(dev, ohci->registers);

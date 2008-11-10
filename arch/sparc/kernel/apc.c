@@ -31,7 +31,7 @@
 #define APC_DEVNAME "apc"
 
 static u8 __iomem *regs;
-static int apc_no_idle __initdata = 0;
+static int apc_no_idle __devinitdata = 0;
 
 #define apc_readb(offs)		(sbus_readb(regs+offs))
 #define apc_writeb(val, offs) 	(sbus_writeb(val, regs+offs))

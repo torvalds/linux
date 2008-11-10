@@ -6,6 +6,9 @@
   See the file COPYING.
 */
 
+#ifndef _FS_FUSE_I_H
+#define _FS_FUSE_I_H
+
 #include <linux/fuse.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -655,3 +658,5 @@ void fuse_set_nowrite(struct inode *inode);
 void fuse_release_nowrite(struct inode *inode);
 
 u64 fuse_get_attr_version(struct fuse_conn *fc);
+
+#endif /* _FS_FUSE_I_H */

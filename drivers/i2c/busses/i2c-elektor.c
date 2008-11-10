@@ -104,7 +104,8 @@ static int pcf_isa_getclock(void *data)
 	return (clock);
 }
 
-static void pcf_isa_waitforpin(void) {
+static void pcf_isa_waitforpin(void *data)
+{
 	DEFINE_WAIT(wait);
 	int timeout = 2;
 	unsigned long flags;

@@ -319,35 +319,24 @@ out:
 }
 
 /*
- * On this chip, voltages are given as a count of steps between a minimum
- * and maximum voltage, not a direct voltage.
+ * Conversions
  */
-static const int volt_convert_table[][2] = {
-	{2997, 3},
-	{4395, 4},
+
+/* IN are scaled acording to built-in resistors */
+static const int adt7473_scaling[] = {  /* .001 Volts */
+	2250, 3300
 };
+#define SCALE(val, from, to)	(((val) * (to) + ((from) / 2)) / (from))
 
 static int decode_volt(int volt_index, u8 raw)
 {
-	int cmax = volt_convert_table[volt_index][0];
-	int cmin = volt_convert_table[volt_index][1];
-	return ((raw * (cmax - cmin)) / 255) + cmin;
+	return SCALE(raw, 192, adt7473_scaling[volt_index]);
 }
 
 static u8 encode_volt(int volt_index, int cooked)
 {
-	int cmax = volt_convert_table[volt_index][0];
-	int cmin = volt_convert_table[volt_index][1];
-	u8 x;
-
-	if (cooked > cmax)
-		cooked = cmax;
-	else if (cooked < cmin)
-		cooked = cmin;
-
-	x = ((cooked - cmin) * 255) / (cmax - cmin);
-
-	return x;
+	int raw = SCALE(cooked, adt7473_scaling[volt_index], 192);
+	return SENSORS_LIMIT(raw, 0, 255);
 }
 
 static ssize_t show_volt_min(struct device *dev,

@@ -3,6 +3,7 @@
  */
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/mmiotrace.h>
 
 #define MODULE_NAME "testmmiotrace"
 
@@ -13,6 +14,7 @@ MODULE_PARM_DESC(mmio_address, "Start address of the mapping of 16 kB.");
 static void do_write_test(void __iomem *p)
 {
 	unsigned int i;
+	mmiotrace_printk("Write test.\n");
 	for (i = 0; i < 256; i++)
 		iowrite8(i, p + i);
 	for (i = 1024; i < (5 * 1024); i += 2)
@@ -24,6 +26,7 @@ static void do_write_test(void __iomem *p)
 static void do_read_test(void __iomem *p)
 {
 	unsigned int i;
+	mmiotrace_printk("Read test.\n");
 	for (i = 0; i < 256; i++)
 		ioread8(p + i);
 	for (i = 1024; i < (5 * 1024); i += 2)
@@ -39,6 +42,7 @@ static void do_test(void)
 		pr_err(MODULE_NAME ": could not ioremap, aborting.\n");
 		return;
 	}
+	mmiotrace_printk("ioremap returned %p.\n", p);
 	do_write_test(p);
 	do_read_test(p);
 	iounmap(p);

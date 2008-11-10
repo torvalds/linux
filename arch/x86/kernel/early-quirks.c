@@ -95,7 +95,8 @@ static void __init nvidia_bugs(int num, int slot, int func)
 
 }
 
-static u32 ati_ixp4x0_rev(int num, int slot, int func)
+#if defined(CONFIG_ACPI) && defined(CONFIG_X86_IO_APIC)
+static u32 __init ati_ixp4x0_rev(int num, int slot, int func)
 {
 	u32 d;
 	u8  b;
@@ -115,7 +116,6 @@ static u32 ati_ixp4x0_rev(int num, int slot, int func)
 
 static void __init ati_bugs(int num, int slot, int func)
 {
-#if defined(CONFIG_ACPI) && defined (CONFIG_X86_IO_APIC)
 	u32 d;
 	u8  b;
 
@@ -138,8 +138,55 @@ static void __init ati_bugs(int num, int slot, int func)
 		printk(KERN_INFO "If you got timer trouble "
 		       "try acpi_use_timer_override\n");
 	}
-#endif
 }
+
+static u32 __init ati_sbx00_rev(int num, int slot, int func)
+{
+	u32 old, d;
+
+	d = read_pci_config(num, slot, func, 0x70);
+	old = d;
+	d &= ~(1<<8);
+	write_pci_config(num, slot, func, 0x70, d);
+	d = read_pci_config(num, slot, func, 0x8);
+	d &= 0xff;
+	write_pci_config(num, slot, func, 0x70, old);
+
+	return d;
+}
+
+static void __init ati_bugs_contd(int num, int slot, int func)
+{
+	u32 d, rev;
+
+	if (acpi_use_timer_override)
+		return;
+
+	rev = ati_sbx00_rev(num, slot, func);
+	if (rev > 0x13)
+		return;
+
+	/* check for IRQ0 interrupt swap */
+	d = read_pci_config(num, slot, func, 0x64);
+	if (!(d & (1<<14)))
+		acpi_skip_timer_override = 1;
+
+	if (acpi_skip_timer_override) {
+		printk(KERN_INFO "SB600 revision 0x%x\n", rev);
+		printk(KERN_INFO "Ignoring ACPI timer override.\n");
+		printk(KERN_INFO "If you got timer trouble "
+		       "try acpi_use_timer_override\n");
+	}
+}
+#else
+static void __init ati_bugs(int num, int slot, int func)
+{
+}
+
+static void __init ati_bugs_contd(int num, int slot, int func)
+{
+}
+#endif
 
 #ifdef CONFIG_DMAR
 static void __init intel_g33_dmar(int num, int slot, int func)
@@ -176,6 +223,8 @@ static struct chipset early_qrk[] __initdata = {
 	  PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, fix_hypertransport_config },
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_SMBUS,
 	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs },
+	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
+	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs_contd },
 #ifdef CONFIG_DMAR
 	{ PCI_VENDOR_ID_INTEL, 0x29c0,
 	  PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, intel_g33_dmar },

@@ -115,7 +115,6 @@ static void acpi_table_attr_init(struct acpi_table_attr *table_attr,
 	table_attr->attr.read = acpi_table_show;
 	table_attr->attr.attr.name = table_attr->name;
 	table_attr->attr.attr.mode = 0444;
-	table_attr->attr.attr.owner = THIS_MODULE;
 
 	return;
 }
@@ -387,8 +386,8 @@ static ssize_t counter_set(struct kobject *kobj,
 		goto end;
 
 	if (!(all_counters[index].flags & ACPI_EVENT_VALID)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-			"Can not change Invalid GPE/Fixed Event status\n"));
+		printk(KERN_WARNING PREFIX
+			"Can not change Invalid GPE/Fixed Event status\n");
 		return -EINVAL;
 	}
 

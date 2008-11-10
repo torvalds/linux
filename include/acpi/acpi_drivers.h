@@ -93,6 +93,7 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 int acpi_power_get_inferred_state(struct acpi_device *device);
 int acpi_power_transition(struct acpi_device *device, int state);
+extern int acpi_power_nocheck;
 #endif
 
 /* --------------------------------------------------------------------------
@@ -100,6 +101,7 @@ int acpi_power_transition(struct acpi_device *device, int state);
    -------------------------------------------------------------------------- */
 #ifdef CONFIG_ACPI_EC
 int acpi_ec_ecdt_probe(void);
+int acpi_boot_ec_enable(void);
 #endif
 
 /* --------------------------------------------------------------------------
@@ -115,12 +117,17 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type);
 /*--------------------------------------------------------------------------
                                   Dock Station
   -------------------------------------------------------------------------- */
+struct acpi_dock_ops {
+	acpi_notify_handler handler;
+	acpi_notify_handler uevent;
+};
+
 #if defined(CONFIG_ACPI_DOCK) || defined(CONFIG_ACPI_DOCK_MODULE)
 extern int is_dock_device(acpi_handle handle);
 extern int register_dock_notifier(struct notifier_block *nb);
 extern void unregister_dock_notifier(struct notifier_block *nb);
 extern int register_hotplug_dock_device(acpi_handle handle,
-					acpi_notify_handler handler,
+					struct acpi_dock_ops *ops,
 					void *context);
 extern void unregister_hotplug_dock_device(acpi_handle handle);
 #else
@@ -136,7 +143,7 @@ static inline void unregister_dock_notifier(struct notifier_block *nb)
 {
 }
 static inline int register_hotplug_dock_device(acpi_handle handle,
-					       acpi_notify_handler handler,
+					       struct acpi_dock_ops *ops,
 					       void *context)
 {
 	return -ENODEV;

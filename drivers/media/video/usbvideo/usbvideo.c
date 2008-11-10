@@ -1059,7 +1059,7 @@ int usbvideo_RegisterVideoDevice(struct uvd *uvd)
 
 	dev_info(&uvd->dev->dev, "%s on /dev/video%d: canvas=%s videosize=%s\n",
 		 (uvd->handle != NULL) ? uvd->handle->drvName : "???",
-		 uvd->vdev.minor, tmp2, tmp1);
+		 uvd->vdev.num, tmp2, tmp1);
 
 	usb_get_dev(uvd->dev);
 	return 0;

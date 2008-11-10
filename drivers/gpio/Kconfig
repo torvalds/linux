@@ -127,6 +127,13 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
+config GPIO_TWL4030
+	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
+	depends on TWL4030_CORE
+	help
+	  Say yes here to access the GPIO signals of various multi-function
+	  power management chips from Texas Instruments.
+
 comment "PCI GPIO expanders:"
 
 config GPIO_BT8XX

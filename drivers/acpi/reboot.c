@@ -15,9 +15,28 @@ void acpi_reboot(void)
 
 	rr = &acpi_gbl_FADT.reset_register;
 
-	/* Is the reset register supported? */
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER) ||
-	    rr->bit_width != 8 || rr->bit_offset != 0)
+	/*
+	 * Is the ACPI reset register supported?
+	 *
+	 * According to ACPI 3.0, FADT.flags.RESET_REG_SUP indicates
+	 * whether the ACPI reset mechanism is supported.
+	 *
+	 * However, some boxes have this bit clear, yet a valid
+	 * ACPI_RESET_REG & RESET_VALUE, and ACPI reboot is the only
+	 * mechanism that works for them after S3.
+	 *
+	 * This suggests that other operating systems may not be checking
+	 * the RESET_REG_SUP bit, and are using other means to decide
+	 * whether to use the ACPI reboot mechanism or not.
+	 *
+	 * So when acpi reboot is requested,
+	 * only the reset_register is checked. If the following
+	 * conditions are met, it indicates that the reset register is supported.
+	 * 	a. reset_register is not zero
+	 * 	b. the access width is eight
+	 * 	c. the bit_offset is zero
+	 */
+	if (!(rr->address) || rr->bit_width != 8 || rr->bit_offset != 0)
 		return;
 
 	reset_value = acpi_gbl_FADT.reset_value;

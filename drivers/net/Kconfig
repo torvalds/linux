@@ -464,6 +464,12 @@ config MIPS_JAZZ_SONIC
 	  This is the driver for the onboard card of MIPS Magnum 4000,
 	  Acer PICA, Olivetti M700-10 and a few other identical OEM systems.
 
+config XTENSA_XT2000_SONIC
+	tristate "Xtensa XT2000 onboard SONIC Ethernet support"
+	depends on XTENSA_PLATFORM_XT2000
+	help
+	  This is the driver for the onboard card of the Xtensa XT2000 board.
+
 config MIPS_AU1X00_ENET
 	bool "MIPS AU1000 Ethernet support"
 	depends on SOC_AU1X00
@@ -888,7 +894,7 @@ config SMC91X
 	select CRC32
 	select MII
 	depends on ARM || REDWOOD_5 || REDWOOD_6 || M32R || SUPERH || \
-		SOC_AU1X00 || BLACKFIN || MN10300
+		MIPS || BLACKFIN || MN10300
 	help
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
@@ -960,7 +966,7 @@ config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
 	select MII
-	depends on ARCH_PXA || SUPERH
+	depends on ARM || SUPERH
 	help
 	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
@@ -2003,6 +2009,15 @@ config IGB_LRO
 
 	  If in doubt, say N.
 
+config IGB_DCA
+	bool "Direct Cache Access (DCA) Support"
+	default y
+	depends on IGB && DCA && !(IGB=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
+
 source "drivers/net/ixp2000/Kconfig"
 
 config MYRI_SBUS
@@ -2426,9 +2441,13 @@ config IXGBE
 	  will be called ixgbe.
 
 config IXGBE_DCA
-	bool
+	bool "Direct Cache Access (DCA) Support"
 	default y
 	depends on IXGBE && DCA && !(IXGBE=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
 
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
@@ -2478,9 +2497,13 @@ config MYRI10GE
 	  will be called myri10ge.
 
 config MYRI10GE_DCA
-	bool
+	bool "Direct Cache Access (DCA) Support"
 	default y
 	depends on MYRI10GE && DCA && !(MYRI10GE=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
 
 config NETXEN_NIC
 	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
@@ -2503,6 +2526,15 @@ config PASEMI_MAC
 	help
 	  This driver supports the on-chip 1/10Gbit Ethernet controller on
 	  PA Semi's PWRficient line of chips.
+
+config MLX4_EN
+	tristate "Mellanox Technologies 10Gbit Ethernet support"
+	depends on PCI && INET
+	select MLX4_CORE
+	select INET_LRO
+	help
+	  This driver supports Mellanox Technologies ConnectX Ethernet
+	  devices.
 
 config MLX4_CORE
 	tristate

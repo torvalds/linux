@@ -27,7 +27,7 @@ struct op_counter_config {
 /* Per-architecture configury and hooks.  */
 struct op_mips_model {
 	void (*reg_setup) (struct op_counter_config *);
-	void (*cpu_setup) (void * dummy);
+	void (*cpu_setup) (void *dummy);
 	int (*init)(void);
 	void (*exit)(void);
 	void (*cpu_start)(void *args);

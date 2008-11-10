@@ -248,7 +248,7 @@ clear:
  * This will be saved when ever the FP and extended state context is
  * saved on the user stack during the signal handler delivery to the user.
  */
-void prepare_fx_sw_frame(void)
+static void prepare_fx_sw_frame(void)
 {
 	int size_extended = (xstate_size - sizeof(struct i387_fxsave_struct)) +
 			     FP_XSTATE_MAGIC2_SIZE;

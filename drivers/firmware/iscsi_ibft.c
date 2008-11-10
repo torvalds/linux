@@ -732,7 +732,6 @@ static int __init ibft_create_attribute(struct ibft_kobject *kobj_data,
 
 	attr->attr.name = name;
 	attr->attr.mode = S_IRUSR;
-	attr->attr.owner = THIS_MODULE;
 
 	attr->hdr = hdr;
 	attr->show = show;

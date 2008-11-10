@@ -212,7 +212,7 @@ static void __init iommu_set_exclusion_range(struct amd_iommu *iommu)
 /* Programs the physical address of the device table into the IOMMU hardware */
 static void __init iommu_set_device_table(struct amd_iommu *iommu)
 {
-	u32 entry;
+	u64 entry;
 
 	BUG_ON(iommu->mmio_base == NULL);
 

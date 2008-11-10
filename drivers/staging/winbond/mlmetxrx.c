@@ -113,13 +113,13 @@ MLME_GetNextPacket(PADAPTER Adapter, PDESCRIPTOR pDes)
 	pDes->Type = Adapter->sMlmeFrame.DataType;
 }
 
-void MLMEfreeMMPDUBuffer(PWB32_ADAPTER Adapter, PCHAR pData)
+void MLMEfreeMMPDUBuffer(PWB32_ADAPTER Adapter, s8 *pData)
 {
 	int i;
 
 	// Reclaim the data buffer
 	for (i = 0; i < MAX_NUM_TX_MMPDU; i++) {
-		if (pData == (PCHAR)&(Adapter->sMlmeFrame.TxMMPDU[i]))
+		if (pData == (s8 *)&(Adapter->sMlmeFrame.TxMMPDU[i]))
 			break;
 	}
 	if (Adapter->sMlmeFrame.TxMMPDUInUse[i])

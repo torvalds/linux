@@ -275,9 +275,12 @@ static int cifs_permission(struct inode *inode, int mask)
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
-		return 0;
-	else /* file mode might have been restricted at mount time
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) {
+		if ((mask & MAY_EXEC) && !execute_ok(inode))
+			return -EACCES;
+		else
+			return 0;
+	} else /* file mode might have been restricted at mount time
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
@@ -309,6 +312,7 @@ cifs_alloc_inode(struct super_block *sb)
 	file data or metadata */
 	cifs_inode->clientCanCacheRead = false;
 	cifs_inode->clientCanCacheAll = false;
+	cifs_inode->delete_pending = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 
 	/* Can not set i_flags here - they get immediately overwritten
@@ -617,6 +621,37 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 	return generic_file_llseek_unlocked(file, offset, origin);
 }
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
+{
+	/* note that this is called by vfs setlease with the BKL held
+	   although I doubt that BKL is needed here in cifs */
+	struct inode *inode = file->f_path.dentry->d_inode;
+
+	if (!(S_ISREG(inode->i_mode)))
+		return -EINVAL;
+
+	/* check if file is oplocked */
+	if (((arg == F_RDLCK) &&
+		(CIFS_I(inode)->clientCanCacheRead)) ||
+	    ((arg == F_WRLCK) &&
+		(CIFS_I(inode)->clientCanCacheAll)))
+		return generic_setlease(file, arg, lease);
+	else if (CIFS_SB(inode->i_sb)->tcon->local_lease &&
+			!CIFS_I(inode)->clientCanCacheRead)
+		/* If the server claims to support oplock on this
+		   file, then we still need to check oplock even
+		   if the local_lease mount option is set, but there
+		   are servers which do not support oplock for which
+		   this mount option may be useful if the user
+		   knows that the file won't be changed on the server
+		   by anyone else */
+		return generic_setlease(file, arg, lease);
+	else
+		return -EAGAIN;
+}
+#endif
+
 struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
@@ -695,6 +730,7 @@ const struct file_operations cifs_file_ops = {
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+	.setlease = cifs_setlease,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
@@ -715,6 +751,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+	.setlease = cifs_setlease,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 const struct file_operations cifs_file_nobrl_ops = {
@@ -735,6 +772,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+	.setlease = cifs_setlease,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
@@ -754,6 +792,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+	.setlease = cifs_setlease,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
@@ -765,6 +804,7 @@ const struct file_operations cifs_dir_ops = {
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 	.unlocked_ioctl  = cifs_ioctl,
+	.llseek = generic_file_llseek,
 };
 
 static void
@@ -945,6 +985,12 @@ static int cifs_oplock_thread(void *dummyarg)
 				the call */
 			/* mutex_lock(&inode->i_mutex);*/
 			if (S_ISREG(inode->i_mode)) {
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+				if (CIFS_I(inode)->clientCanCacheAll == 0)
+					break_lease(inode, FMODE_READ);
+				else if (CIFS_I(inode)->clientCanCacheRead == 0)
+					break_lease(inode, FMODE_WRITE);
+#endif
 				rc = filemap_fdatawrite(inode->i_mapping);
 				if (CIFS_I(inode)->clientCanCacheRead == 0) {
 					waitrc = filemap_fdatawait(

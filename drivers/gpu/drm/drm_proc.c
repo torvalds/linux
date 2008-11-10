@@ -522,12 +522,12 @@ static int drm_gem_one_name_info(int id, void *ptr, void *data)
 	struct drm_gem_object *obj = ptr;
 	struct drm_gem_name_info_data   *nid = data;
 
-	DRM_INFO("name %d size %d\n", obj->name, obj->size);
+	DRM_INFO("name %d size %zd\n", obj->name, obj->size);
 	if (nid->eof)
 		return 0;
 
 	nid->len += sprintf(&nid->buf[nid->len],
-			    "%6d%9d%8d%9d\n",
+			    "%6d %8zd %7d %8d\n",
 			    obj->name, obj->size,
 			    atomic_read(&obj->handlecount.refcount),
 			    atomic_read(&obj->refcount.refcount));

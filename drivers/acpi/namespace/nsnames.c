@@ -115,7 +115,6 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 	return (AE_OK);
 }
 
-#ifdef ACPI_DEBUG_OUTPUT
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_get_external_pathname
@@ -142,7 +141,7 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	size = acpi_ns_get_pathname_length(node);
 	if (!size) {
-		return (NULL);
+		return_PTR(NULL);
 	}
 
 	/* Allocate a buffer to be returned to caller */
@@ -157,12 +156,12 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	status = acpi_ns_build_external_path(node, size, name_buffer);
 	if (ACPI_FAILURE(status)) {
-		return (NULL);
+		ACPI_FREE(name_buffer);
+		return_PTR(NULL);
 	}
 
 	return_PTR(name_buffer);
 }
-#endif
 
 /*******************************************************************************
  *

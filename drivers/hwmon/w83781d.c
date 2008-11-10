@@ -1968,7 +1968,7 @@ exit:
 	return res;
 }
 
-static void __exit
+static void
 w83781d_isa_unregister(void)
 {
 	if (pdev) {
@@ -2017,7 +2017,7 @@ w83781d_isa_register(void)
 	return 0;
 }
 
-static void __exit
+static void
 w83781d_isa_unregister(void)
 {
 }

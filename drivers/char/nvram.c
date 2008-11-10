@@ -338,7 +338,7 @@ nvram_open(struct inode *inode, struct file *file)
 
 	if ((nvram_open_cnt && (file->f_flags & O_EXCL)) ||
 	    (nvram_open_mode & NVRAM_EXCL) ||
-	    ((file->f_mode & 2) && (nvram_open_mode & NVRAM_WRITE))) {
+	    ((file->f_mode & FMODE_WRITE) && (nvram_open_mode & NVRAM_WRITE))) {
 		spin_unlock(&nvram_state_lock);
 		unlock_kernel();
 		return -EBUSY;
@@ -346,7 +346,7 @@ nvram_open(struct inode *inode, struct file *file)
 
 	if (file->f_flags & O_EXCL)
 		nvram_open_mode |= NVRAM_EXCL;
-	if (file->f_mode & 2)
+	if (file->f_mode & FMODE_WRITE)
 		nvram_open_mode |= NVRAM_WRITE;
 	nvram_open_cnt++;
 
@@ -366,7 +366,7 @@ nvram_release(struct inode *inode, struct file *file)
 	/* if only one instance is open, clear the EXCL bit */
 	if (nvram_open_mode & NVRAM_EXCL)
 		nvram_open_mode &= ~NVRAM_EXCL;
-	if (file->f_mode & 2)
+	if (file->f_mode & FMODE_WRITE)
 		nvram_open_mode &= ~NVRAM_WRITE;
 
 	spin_unlock(&nvram_state_lock);

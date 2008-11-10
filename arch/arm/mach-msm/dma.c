@@ -26,7 +26,7 @@ enum {
 };
 
 static DEFINE_SPINLOCK(msm_dmov_lock);
-static struct msm_dmov_cmd active_command;
+static unsigned int channel_active;
 static struct list_head ready_commands[MSM_DMOV_CHANNEL_COUNT];
 static struct list_head active_commands[MSM_DMOV_CHANNEL_COUNT];
 unsigned int msm_dmov_print_mask = MSM_DMOV_PRINT_ERRORS;
@@ -42,6 +42,11 @@ unsigned int msm_dmov_print_mask = MSM_DMOV_PRINT_ERRORS;
 	MSM_DMOV_DPRINTF(MSM_DMOV_PRINT_IO, format, args);
 #define PRINT_FLOW(format, args...) \
 	MSM_DMOV_DPRINTF(MSM_DMOV_PRINT_FLOW, format, args);
+
+void msm_dmov_stop_cmd(unsigned id, struct msm_dmov_cmd *cmd, int graceful)
+{
+	writel((graceful << 31), DMOV_FLUSH0(id));
+}
 
 void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd)
 {
@@ -60,6 +65,9 @@ void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd)
 #endif
 		PRINT_IO("msm_dmov_enqueue_cmd(%d), start command, status %x\n", id, status);
 		list_add_tail(&cmd->list, &active_commands[id]);
+		if (!channel_active)
+			enable_irq(INT_ADM_AARM);
+		channel_active |= 1U << id;
 		writel(cmd->cmdptr, DMOV_CMD_PTR(id));
 	} else {
 		if (list_empty(&active_commands[id]))
@@ -76,21 +84,19 @@ struct msm_dmov_exec_cmdptr_cmd {
 	struct completion complete;
 	unsigned id;
 	unsigned int result;
-	unsigned int flush[6];
+	struct msm_dmov_errdata err;
 };
 
-static void dmov_exec_cmdptr_complete_func(struct msm_dmov_cmd *_cmd, unsigned int result)
+static void
+dmov_exec_cmdptr_complete_func(struct msm_dmov_cmd *_cmd,
+			       unsigned int result,
+			       struct msm_dmov_errdata *err)
 {
 	struct msm_dmov_exec_cmdptr_cmd *cmd = container_of(_cmd, struct msm_dmov_exec_cmdptr_cmd, dmov_cmd);
 	cmd->result = result;
-	if (result != 0x80000002) {
-		cmd->flush[0] = readl(DMOV_FLUSH0(cmd->id));
-		cmd->flush[1] = readl(DMOV_FLUSH1(cmd->id));
-		cmd->flush[2] = readl(DMOV_FLUSH2(cmd->id));
-		cmd->flush[3] = readl(DMOV_FLUSH3(cmd->id));
-		cmd->flush[4] = readl(DMOV_FLUSH4(cmd->id));
-		cmd->flush[5] = readl(DMOV_FLUSH5(cmd->id));
-	}
+	if (result != 0x80000002 && err)
+		memcpy(&cmd->err, err, sizeof(struct msm_dmov_errdata));
+
 	complete(&cmd->complete);
 }
 
@@ -111,7 +117,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr)
 	if (cmd.result != 0x80000002) {
 		PRINT_ERROR("dmov_exec_cmdptr(%d): ERROR, result: %x\n", id, cmd.result);
 		PRINT_ERROR("dmov_exec_cmdptr(%d):  flush: %x %x %x %x\n",
-			id, cmd.flush[0], cmd.flush[1], cmd.flush[2], cmd.flush[3]);
+			id, cmd.err.flush[0], cmd.err.flush[1], cmd.err.flush[2], cmd.err.flush[3]);
 		return -EIO;
 	}
 	PRINT_FLOW("dmov_exec_cmdptr(%d, %x) done\n", id, cmdptr);
@@ -159,25 +165,40 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 					"for %p, result %x\n", id, cmd, ch_result);
 				if (cmd) {
 					list_del(&cmd->list);
-					cmd->complete_func(cmd, ch_result);
+					cmd->complete_func(cmd, ch_result, NULL);
 				}
 			}
 			if (ch_result & DMOV_RSLT_FLUSH) {
-				unsigned int flush0 = readl(DMOV_FLUSH0(id));
+				struct msm_dmov_errdata errdata;
+
+				errdata.flush[0] = readl(DMOV_FLUSH0(id));
+				errdata.flush[1] = readl(DMOV_FLUSH1(id));
+				errdata.flush[2] = readl(DMOV_FLUSH2(id));
+				errdata.flush[3] = readl(DMOV_FLUSH3(id));
+				errdata.flush[4] = readl(DMOV_FLUSH4(id));
+				errdata.flush[5] = readl(DMOV_FLUSH5(id));
 				PRINT_FLOW("msm_datamover_irq_handler id %d, status %x\n", id, ch_status);
-				PRINT_FLOW("msm_datamover_irq_handler id %d, flush, result %x, flush0 %x\n", id, ch_result, flush0);
+				PRINT_FLOW("msm_datamover_irq_handler id %d, flush, result %x, flush0 %x\n", id, ch_result, errdata.flush[0]);
 				if (cmd) {
 					list_del(&cmd->list);
-					cmd->complete_func(cmd, ch_result);
+					cmd->complete_func(cmd, ch_result, &errdata);
 				}
 			}
 			if (ch_result & DMOV_RSLT_ERROR) {
-				unsigned int flush0 = readl(DMOV_FLUSH0(id));
+				struct msm_dmov_errdata errdata;
+
+				errdata.flush[0] = readl(DMOV_FLUSH0(id));
+				errdata.flush[1] = readl(DMOV_FLUSH1(id));
+				errdata.flush[2] = readl(DMOV_FLUSH2(id));
+				errdata.flush[3] = readl(DMOV_FLUSH3(id));
+				errdata.flush[4] = readl(DMOV_FLUSH4(id));
+				errdata.flush[5] = readl(DMOV_FLUSH5(id));
+
 				PRINT_ERROR("msm_datamover_irq_handler id %d, status %x\n", id, ch_status);
-				PRINT_ERROR("msm_datamover_irq_handler id %d, error, result %x, flush0 %x\n", id, ch_result, flush0);
+				PRINT_ERROR("msm_datamover_irq_handler id %d, error, result %x, flush0 %x\n", id, ch_result, errdata.flush[0]);
 				if (cmd) {
 					list_del(&cmd->list);
-					cmd->complete_func(cmd, ch_result);
+					cmd->complete_func(cmd, ch_result, &errdata);
 				}
 				/* this does not seem to work, once we get an error */
 				/* the datamover will no longer accept commands */
@@ -193,8 +214,14 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 				writel(cmd->cmdptr, DMOV_CMD_PTR(id));
 			}
 		} while (ch_status & DMOV_STATUS_RSLT_VALID);
+		if (list_empty(&active_commands[id]) && list_empty(&ready_commands[id]))
+			channel_active &= ~(1U << id);
 		PRINT_FLOW("msm_datamover_irq_handler id %d, status %x\n", id, ch_status);
 	}
+
+	if (!channel_active)
+		disable_irq(INT_ADM_AARM);
+
 	spin_unlock_irqrestore(&msm_dmov_lock, irq_flags);
 	return IRQ_HANDLED;
 }
@@ -202,12 +229,17 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 static int __init msm_init_datamover(void)
 {
 	int i;
+	int ret;
 	for (i = 0; i < MSM_DMOV_CHANNEL_COUNT; i++) {
 		INIT_LIST_HEAD(&ready_commands[i]);
 		INIT_LIST_HEAD(&active_commands[i]);
 		writel(DMOV_CONFIG_IRQ_EN | DMOV_CONFIG_FORCE_TOP_PTR_RSLT | DMOV_CONFIG_FORCE_FLUSH_RSLT, DMOV_CONFIG(i));
 	}
-	return request_irq(INT_ADM_AARM, msm_datamover_irq_handler, 0, "msmdatamover", NULL);
+	ret = request_irq(INT_ADM_AARM, msm_datamover_irq_handler, 0, "msmdatamover", NULL);
+	if (ret)
+		return ret;
+	disable_irq(INT_ADM_AARM);
+	return 0;
 }
 
 arch_initcall(msm_init_datamover);

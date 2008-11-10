@@ -174,7 +174,7 @@ static int cmt_timer_init(void)
 	return 0;
 }
 
-struct sys_timer_ops cmt_timer_ops = {
+static struct sys_timer_ops cmt_timer_ops = {
 	.init		= cmt_timer_init,
 	.start		= cmt_timer_start,
 	.stop		= cmt_timer_stop,

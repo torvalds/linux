@@ -11,17 +11,17 @@
 
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
+#include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/percpu.h>
 #include <linux/init.h>
 #include <linux/list.h>
 
-#include <asm/alternative.h>
 #include <asm/ftrace.h>
+#include <asm/nops.h>
 
 
-/* Long is fine, even if it is only 4 bytes ;-) */
-static long *ftrace_nop;
+static unsigned char ftrace_nop[MCOUNT_INSN_SIZE];
 
 union ftrace_code_union {
 	char code[MCOUNT_INSN_SIZE];
@@ -32,17 +32,17 @@ union ftrace_code_union {
 };
 
 
-static int notrace ftrace_calc_offset(long ip, long addr)
+static int ftrace_calc_offset(long ip, long addr)
 {
 	return (int)(addr - ip);
 }
 
-notrace unsigned char *ftrace_nop_replace(void)
+unsigned char *ftrace_nop_replace(void)
 {
-	return (char *)ftrace_nop;
+	return ftrace_nop;
 }
 
-notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
+unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
 	static union ftrace_code_union calc;
 
@@ -56,48 +56,40 @@ notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 	return calc.code;
 }
 
-notrace int
+int
 ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
 {
-	unsigned replaced;
-	unsigned old = *(unsigned *)old_code; /* 4 bytes */
-	unsigned new = *(unsigned *)new_code; /* 4 bytes */
-	unsigned char newch = new_code[4];
-	int faulted = 0;
+	unsigned char replaced[MCOUNT_INSN_SIZE];
 
 	/*
 	 * Note: Due to modules and __init, code can
 	 *  disappear and change, we need to protect against faulting
-	 *  as well as code changing.
+	 *  as well as code changing. We do this by using the
+	 *  probe_kernel_* functions.
 	 *
 	 * No real locking needed, this code is run through
-	 * kstop_machine.
+	 * kstop_machine, or before SMP starts.
 	 */
-	asm volatile (
-		"1: lock\n"
-		"   cmpxchg %3, (%2)\n"
-		"   jnz 2f\n"
-		"   movb %b4, 4(%2)\n"
-		"2:\n"
-		".section .fixup, \"ax\"\n"
-		"3:	movl $1, %0\n"
-		"	jmp 2b\n"
-		".previous\n"
-		_ASM_EXTABLE(1b, 3b)
-		: "=r"(faulted), "=a"(replaced)
-		: "r"(ip), "r"(new), "c"(newch),
-		  "0"(faulted), "a"(old)
-		: "memory");
+
+	/* read the text we want to modify */
+	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
+		return -EFAULT;
+
+	/* Make sure it is what we expect it to be */
+	if (memcmp(replaced, old_code, MCOUNT_INSN_SIZE) != 0)
+		return -EINVAL;
+
+	/* replace the text with the new text */
+	if (probe_kernel_write((void *)ip, new_code, MCOUNT_INSN_SIZE))
+		return -EPERM;
+
 	sync_core();
 
-	if (replaced != old && replaced != new)
-		faulted = 2;
-
-	return faulted;
+	return 0;
 }
 
-notrace int ftrace_update_ftrace_func(ftrace_func_t func)
+int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
 	unsigned char old[MCOUNT_INSN_SIZE], *new;
@@ -110,32 +102,66 @@ notrace int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
-notrace int ftrace_mcount_set(unsigned long *data)
-{
-	unsigned long ip = (long)(&mcount_call);
-	unsigned long *addr = data;
-	unsigned char old[MCOUNT_INSN_SIZE], *new;
-
-	/*
-	 * Replace the mcount stub with a pointer to the
-	 * ip recorder function.
-	 */
-	memcpy(old, &mcount_call, MCOUNT_INSN_SIZE);
-	new = ftrace_call_replace(ip, *addr);
-	*addr = ftrace_modify_code(ip, old, new);
-
-	return 0;
-}
-
 int __init ftrace_dyn_arch_init(void *data)
 {
-	const unsigned char *const *noptable = find_nop_table();
+	extern const unsigned char ftrace_test_p6nop[];
+	extern const unsigned char ftrace_test_nop5[];
+	extern const unsigned char ftrace_test_jmp[];
+	int faulted = 0;
 
-	/* This is running in kstop_machine */
+	/*
+	 * There is no good nop for all x86 archs.
+	 * We will default to using the P6_NOP5, but first we
+	 * will test to make sure that the nop will actually
+	 * work on this CPU. If it faults, we will then
+	 * go to a lesser efficient 5 byte nop. If that fails
+	 * we then just use a jmp as our nop. This isn't the most
+	 * efficient nop, but we can not use a multi part nop
+	 * since we would then risk being preempted in the middle
+	 * of that nop, and if we enabled tracing then, it might
+	 * cause a system crash.
+	 *
+	 * TODO: check the cpuid to determine the best nop.
+	 */
+	asm volatile (
+		"ftrace_test_jmp:"
+		"jmp ftrace_test_p6nop\n"
+		"nop\n"
+		"nop\n"
+		"nop\n"  /* 2 byte jmp + 3 bytes */
+		"ftrace_test_p6nop:"
+		P6_NOP5
+		"jmp 1f\n"
+		"ftrace_test_nop5:"
+		".byte 0x66,0x66,0x66,0x66,0x90\n"
+		"1:"
+		".section .fixup, \"ax\"\n"
+		"2:	movl $1, %0\n"
+		"	jmp ftrace_test_nop5\n"
+		"3:	movl $2, %0\n"
+		"	jmp 1b\n"
+		".previous\n"
+		_ASM_EXTABLE(ftrace_test_p6nop, 2b)
+		_ASM_EXTABLE(ftrace_test_nop5, 3b)
+		: "=r"(faulted) : "0" (faulted));
 
-	ftrace_mcount_set(data);
+	switch (faulted) {
+	case 0:
+		pr_info("ftrace: converting mcount calls to 0f 1f 44 00 00\n");
+		memcpy(ftrace_nop, ftrace_test_p6nop, MCOUNT_INSN_SIZE);
+		break;
+	case 1:
+		pr_info("ftrace: converting mcount calls to 66 66 66 66 90\n");
+		memcpy(ftrace_nop, ftrace_test_nop5, MCOUNT_INSN_SIZE);
+		break;
+	case 2:
+		pr_info("ftrace: converting mcount calls to jmp . + 5\n");
+		memcpy(ftrace_nop, ftrace_test_jmp, MCOUNT_INSN_SIZE);
+		break;
+	}
 
-	ftrace_nop = (unsigned long *)noptable[MCOUNT_INSN_SIZE];
+	/* The return code is retured via data */
+	*(unsigned long *)data = 0;
 
 	return 0;
 }

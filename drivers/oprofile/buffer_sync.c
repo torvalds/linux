@@ -41,7 +41,6 @@ static cpumask_t marked_cpus = CPU_MASK_NONE;
 static DEFINE_SPINLOCK(task_mortuary);
 static void process_task_mortuary(void);
 
-
 /* Take ownership of the task struct and place it on the
  * list for processing. Only after two full buffer syncs
  * does the task eventually get freed, because by then
@@ -341,7 +340,7 @@ static void add_trace_begin(void)
  * Add IBS fetch and op entries to event buffer
  */
 static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
-	int in_kernel, struct mm_struct *mm)
+			  struct mm_struct *mm)
 {
 	unsigned long rip;
 	int i, count;
@@ -565,9 +564,11 @@ void sync_buffer(int cpu)
 	struct task_struct *new;
 	unsigned long cookie = 0;
 	int in_kernel = 1;
-	unsigned int i;
 	sync_buffer_state state = sb_buffer_start;
+#ifndef CONFIG_OPROFILE_IBS
+	unsigned int i;
 	unsigned long available;
+#endif
 
 	mutex_lock(&buffer_mutex);
 
@@ -575,9 +576,13 @@ void sync_buffer(int cpu)
 
 	/* Remember, only we can modify tail_pos */
 
+#ifndef CONFIG_OPROFILE_IBS
 	available = get_slots(cpu_buf);
 
 	for (i = 0; i < available; ++i) {
+#else
+	while (get_slots(cpu_buf)) {
+#endif
 		struct op_sample *s = &cpu_buf->buffer[cpu_buf->tail_pos];
 
 		if (is_code(s->eip)) {
@@ -593,12 +598,10 @@ void sync_buffer(int cpu)
 #ifdef CONFIG_OPROFILE_IBS
 			} else if (s->event == IBS_FETCH_BEGIN) {
 				state = sb_bt_start;
-				add_ibs_begin(cpu_buf,
-					IBS_FETCH_CODE, in_kernel, mm);
+				add_ibs_begin(cpu_buf, IBS_FETCH_CODE, mm);
 			} else if (s->event == IBS_OP_BEGIN) {
 				state = sb_bt_start;
-				add_ibs_begin(cpu_buf,
-					IBS_OP_CODE, in_kernel, mm);
+				add_ibs_begin(cpu_buf, IBS_OP_CODE, mm);
 #endif
 			} else {
 				struct mm_struct *oldmm = mm;
@@ -628,3 +631,27 @@ void sync_buffer(int cpu)
 
 	mutex_unlock(&buffer_mutex);
 }
+
+/* The function can be used to add a buffer worth of data directly to
+ * the kernel buffer. The buffer is assumed to be a circular buffer.
+ * Take the entries from index start and end at index end, wrapping
+ * at max_entries.
+ */
+void oprofile_put_buff(unsigned long *buf, unsigned int start,
+		       unsigned int stop, unsigned int max)
+{
+	int i;
+
+	i = start;
+
+	mutex_lock(&buffer_mutex);
+	while (i != stop) {
+		add_event_entry(buf[i++]);
+
+		if (i >= max)
+			i = 0;
+	}
+
+	mutex_unlock(&buffer_mutex);
+}
+

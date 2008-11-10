@@ -69,6 +69,7 @@ enum {
 enum {
 	STAC_92HD73XX_REF,
 	STAC_DELL_M6,
+	STAC_DELL_EQ,
 	STAC_92HD73XX_MODELS
 };
 
@@ -566,10 +567,8 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 			nid = codec->slave_dig_outs[smux_idx - 1];
 		if (spec->cur_smux[smux_idx] == smux->num_items - 1)
 			val = AMP_OUT_MUTE;
-		if (smux_idx == 0)
-			nid = spec->multiout.dig_out_nid;
 		else
-			nid = codec->slave_dig_outs[smux_idx - 1];
+			val = AMP_OUT_UNMUTE;
 		/* un/mute SPDIF out */
 		snd_hda_codec_write_cache(codec, nid, 0,
 			AC_VERB_SET_AMP_GAIN_MUTE, val);
@@ -775,9 +774,7 @@ static struct hda_verb dell_eq_core_init[] = {
 };
 
 static struct hda_verb dell_m6_core_init[] = {
-	/* set master volume to max value without distortion
-	 * and direct control */
-	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xec},
+	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
 	/* setup audio connections */
 	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
 	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
@@ -1282,7 +1279,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 			return err;
 		spec->multiout.share_spdif = 1;
 	}
-	if (spec->dig_in_nid && (!spec->gpio_dir & 0x01)) {
+	if (spec->dig_in_nid && !(spec->gpio_dir & 0x01)) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
 		if (err < 0)
 			return err;
@@ -1602,11 +1599,13 @@ static unsigned int dell_m6_pin_configs[13] = {
 static unsigned int *stac92hd73xx_brd_tbl[STAC_92HD73XX_MODELS] = {
 	[STAC_92HD73XX_REF]	= ref92hd73xx_pin_configs,
 	[STAC_DELL_M6]	= dell_m6_pin_configs,
+	[STAC_DELL_EQ]	= dell_m6_pin_configs,
 };
 
 static const char *stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
 	[STAC_92HD73XX_REF] = "ref",
 	[STAC_DELL_M6] = "dell-m6",
+	[STAC_DELL_EQ] = "dell-eq",
 };
 
 static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
@@ -4133,12 +4132,17 @@ again:
 			sizeof(stac92hd73xx_dmux));
 
 	switch (spec->board_config) {
-	case STAC_DELL_M6:
+	case STAC_DELL_EQ:
 		spec->init = dell_eq_core_init;
+		/* fallthru */
+	case STAC_DELL_M6:
 		spec->num_smuxes = 0;
 		spec->mixer = &stac92hd73xx_6ch_mixer[DELL_M6_MIXER];
 		spec->amp_nids = &stac92hd73xx_amp_nids[DELL_M6_AMP];
 		spec->num_amps = 1;
+
+		if (!spec->init)
+			spec->init = dell_m6_core_init;
 		switch (codec->subsystem_id) {
 		case 0x1028025e: /* Analog Mics */
 		case 0x1028025f:
@@ -4148,8 +4152,6 @@ again:
 			break;
 		case 0x10280271: /* Digital Mics */
 		case 0x10280272:
-			spec->init = dell_m6_core_init;
-			/* fall-through */
 		case 0x10280254:
 		case 0x10280255:
 			stac92xx_set_config_reg(codec, 0x13, 0x90A60160);

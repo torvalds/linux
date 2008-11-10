@@ -143,7 +143,7 @@ static struct irq_chip ixdp2x00_cpld_irq_chip = {
 	.unmask	= ixdp2x00_irq_unmask
 };
 
-void __init ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long *mask_reg, unsigned long nr_irqs)
+void __init ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long *mask_reg, unsigned long nr_of_irqs)
 {
 	unsigned int irq;
 
@@ -154,7 +154,7 @@ void __init ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigne
 
 	board_irq_stat = stat_reg;
 	board_irq_mask = mask_reg;
-	board_irq_count = nr_irqs;
+	board_irq_count = nr_of_irqs;
 
 	*board_irq_mask = 0xffffffff;
 

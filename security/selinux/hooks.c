@@ -75,6 +75,7 @@
 #include <linux/string.h>
 #include <linux/selinux.h>
 #include <linux/mutex.h>
+#include <linux/posix-timers.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -2125,14 +2126,16 @@ static inline void flush_unauthorized_files(struct files_struct *files)
 	tty = get_current_tty();
 	if (tty) {
 		file_list_lock();
-		file = list_entry(tty->tty_files.next, typeof(*file), f_u.fu_list);
-		if (file) {
+		if (!list_empty(&tty->tty_files)) {
+			struct inode *inode;
+
 			/* Revalidate access to controlling tty.
 			   Use inode_has_perm on the tty inode directly rather
 			   than using file_has_perm, as this particular open
 			   file may belong to another process and we are only
 			   interested in the inode-based check here. */
-			struct inode *inode = file->f_path.dentry->d_inode;
+			file = list_first_entry(&tty->tty_files, struct file, f_u.fu_list);
+			inode = file->f_path.dentry->d_inode;
 			if (inode_has_perm(current, inode,
 					   FILE__READ | FILE__WRITE, NULL)) {
 				drop_tty = 1;
@@ -2322,13 +2325,7 @@ static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 			initrlim = init_task.signal->rlim+i;
 			rlim->rlim_cur = min(rlim->rlim_max, initrlim->rlim_cur);
 		}
-		if (current->signal->rlim[RLIMIT_CPU].rlim_cur != RLIM_INFINITY) {
-			/*
-			 * This will cause RLIMIT_CPU calculations
-			 * to be refigured.
-			 */
-			current->it_prof_expires = jiffies_to_cputime(1);
-		}
+		update_rlimit_cpu(rlim->rlim_cur);
 	}
 
 	/* Wake up the parent if it is waiting so that it can

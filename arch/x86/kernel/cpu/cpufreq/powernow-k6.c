@@ -246,7 +246,7 @@ static void __exit powernow_k6_exit(void)
 }
 
 
-MODULE_AUTHOR("Arjan van de Ven <arjanv@redhat.com>, Dave Jones <davej@codemonkey.org.uk>, Dominik Brodowski <linux@brodo.de>");
+MODULE_AUTHOR("Arjan van de Ven, Dave Jones <davej@redhat.com>, Dominik Brodowski <linux@brodo.de>");
 MODULE_DESCRIPTION("PowerNow! driver for AMD K6-2+ / K6-3+ processors.");
 MODULE_LICENSE("GPL");
 

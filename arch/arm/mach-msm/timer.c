@@ -45,7 +45,7 @@ struct msm_clock {
 	struct clock_event_device   clockevent;
 	struct clocksource          clocksource;
 	struct irqaction            irq;
-	uint32_t                    regbase;
+	void __iomem                *regbase;
 	uint32_t                    freq;
 	uint32_t                    shift;
 };

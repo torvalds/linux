@@ -3044,8 +3044,8 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 
 	memcpy(&core->board, &cx88_boards[core->boardnr], sizeof(core->board));
 
-	if (!core->board.num_frontends)
-		core->board.num_frontends=1;
+	if (!core->board.num_frontends && (core->board.mpeg & CX88_MPEG_DVB))
+		core->board.num_frontends = 1;
 
 	info_printk(core, "subsystem: %04x:%04x, board: %s [card=%d,%s], frontend(s): %d\n",
 		pci->subsystem_vendor, pci->subsystem_device, core->board.name,

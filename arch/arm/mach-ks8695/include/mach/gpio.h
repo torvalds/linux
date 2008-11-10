@@ -11,6 +11,8 @@
 #ifndef __ASM_ARCH_GPIO_H_
 #define __ASM_ARCH_GPIO_H_
 
+#include <linux/kernel.h>
+
 #define KS8695_GPIO_0		0
 #define KS8695_GPIO_1		1
 #define KS8695_GPIO_2		2
@@ -74,6 +76,7 @@ static inline int gpio_request(unsigned int pin, const char *label)
 
 static inline void gpio_free(unsigned int pin)
 {
+	might_sleep();
 }
 
 #endif

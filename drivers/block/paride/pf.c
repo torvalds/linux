@@ -201,13 +201,13 @@ module_param_array(drive3, int, NULL, 0);
 #define ATAPI_READ_10		0x28
 #define ATAPI_WRITE_10		0x2a
 
-static int pf_open(struct inode *inode, struct file *file);
+static int pf_open(struct block_device *bdev, fmode_t mode);
 static void do_pf_request(struct request_queue * q);
-static int pf_ioctl(struct inode *inode, struct file *file,
+static int pf_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long arg);
 static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
-static int pf_release(struct inode *inode, struct file *file);
+static int pf_release(struct gendisk *disk, fmode_t mode);
 
 static int pf_detect(void);
 static void do_pf_read(void);
@@ -266,7 +266,7 @@ static struct block_device_operations pf_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pf_open,
 	.release	= pf_release,
-	.ioctl		= pf_ioctl,
+	.locked_ioctl	= pf_ioctl,
 	.getgeo		= pf_getgeo,
 	.media_changed	= pf_check_media,
 };
@@ -296,16 +296,16 @@ static void __init pf_init_units(void)
 	}
 }
 
-static int pf_open(struct inode *inode, struct file *file)
+static int pf_open(struct block_device *bdev, fmode_t mode)
 {
-	struct pf_unit *pf = inode->i_bdev->bd_disk->private_data;
+	struct pf_unit *pf = bdev->bd_disk->private_data;
 
 	pf_identify(pf);
 
 	if (pf->media_status == PF_NM)
 		return -ENODEV;
 
-	if ((pf->media_status == PF_RO) && (file->f_mode & 2))
+	if ((pf->media_status == PF_RO) && (mode & FMODE_WRITE))
 		return -EROFS;
 
 	pf->access++;
@@ -333,9 +333,9 @@ static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int pf_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static int pf_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
 {
-	struct pf_unit *pf = inode->i_bdev->bd_disk->private_data;
+	struct pf_unit *pf = bdev->bd_disk->private_data;
 
 	if (cmd != CDROMEJECT)
 		return -EINVAL;
@@ -346,9 +346,9 @@ static int pf_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	return 0;
 }
 
-static int pf_release(struct inode *inode, struct file *file)
+static int pf_release(struct gendisk *disk, fmode_t mode)
 {
-	struct pf_unit *pf = inode->i_bdev->bd_disk->private_data;
+	struct pf_unit *pf = disk->private_data;
 
 	if (pf->access <= 0)
 		return -EINVAL;

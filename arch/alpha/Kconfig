@@ -70,6 +70,7 @@ config AUTO_IRQ_AFFINITY
 	default y
 
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 
 
 menu "System setup"

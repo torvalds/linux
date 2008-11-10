@@ -92,15 +92,6 @@
 #define outsw_swapw(port, addr, n)	raw_outsw_swapw((u16 *)port, addr, n)
 #endif
 
-
-/* Q40 and Atari have byteswapped IDE busses and since many interesting
- * values in the identification string are text, chars and words they
- * happened to be almost correct without swapping.. However *_capacity
- * is needed for drives over 8 GB. RZ */
-#if defined(CONFIG_Q40) || defined(CONFIG_ATARI)
-#define M68K_IDE_SWAPW  (MACH_IS_Q40 || MACH_IS_ATARI)
-#endif
-
 #ifdef CONFIG_BLK_DEV_FALCON_IDE
 #define IDE_ARCH_LOCK
 

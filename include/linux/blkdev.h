@@ -717,10 +717,10 @@ extern void blk_plug_device(struct request_queue *);
 extern void blk_plug_device_unlocked(struct request_queue *);
 extern int blk_remove_plug(struct request_queue *);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
-extern int scsi_cmd_ioctl(struct file *, struct request_queue *,
-			  struct gendisk *, unsigned int, void __user *);
-extern int sg_scsi_ioctl(struct file *, struct request_queue *,
-		struct gendisk *, struct scsi_ioctl_command __user *);
+extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
+			  unsigned int, void __user *);
+extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
+			 struct scsi_ioctl_command __user *);
 
 /*
  * Temporary export, until SCSI gets fixed up.
@@ -910,7 +910,8 @@ static inline int sb_issue_discard(struct super_block *sb,
 * command filter functions
 */
 extern int blk_verify_command(struct blk_cmd_filter *filter,
-			      unsigned char *cmd, int has_write_perm);
+			      unsigned char *cmd, fmode_t has_write_perm);
+extern void blk_unregister_filter(struct gendisk *disk);
 extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 
 #define MAX_PHYS_SEGMENTS 128
@@ -1056,6 +1057,22 @@ static inline int blk_integrity_rq(struct request *rq)
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
+struct block_device_operations {
+	int (*open) (struct block_device *, fmode_t);
+	int (*release) (struct gendisk *, fmode_t);
+	int (*locked_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*direct_access) (struct block_device *, sector_t,
+						void **, unsigned long *);
+	int (*media_changed) (struct gendisk *);
+	int (*revalidate_disk) (struct gendisk *);
+	int (*getgeo)(struct block_device *, struct hd_geometry *);
+	struct module *owner;
+};
+
+extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
+				 unsigned long);
 #else /* CONFIG_BLOCK */
 /*
  * stubs for when the block layer is configured out

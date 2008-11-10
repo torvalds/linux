@@ -497,8 +497,10 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 		printk("hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n",
 		       (unsigned long long)*hwdev->dma_mask,
 		       (unsigned long long)dev_addr);
-		panic("swiotlb_alloc_coherent: allocated memory is out of "
-		      "range for device");
+
+		/* DMA_TO_DEVICE to avoid memcpy in unmap_single */
+		unmap_single(hwdev, ret, size, DMA_TO_DEVICE);
+		return NULL;
 	}
 	*dma_handle = dev_addr;
 	return ret;

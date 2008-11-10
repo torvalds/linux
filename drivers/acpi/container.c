@@ -76,7 +76,7 @@ static int is_device_present(acpi_handle handle)
 {
 	acpi_handle temp;
 	acpi_status status;
-	unsigned long sta;
+	unsigned long long sta;
 
 
 	status = acpi_get_handle(handle, "_STA", &temp);
@@ -108,7 +108,7 @@ static int acpi_container_add(struct acpi_device *device)
 	container->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_CONTAINER_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_CONTAINER_CLASS);
-	acpi_driver_data(device) = container;
+	device->driver_data = container;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device <%s> bid <%s>\n",
 			  acpi_device_name(device), acpi_device_bid(device)));

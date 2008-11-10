@@ -113,6 +113,7 @@
  * Shared data structures
  */
 extern struct platform_device corgiscoop_device;
+extern struct platform_device corgissp_device;
 
 #endif /* __ASM_ARCH_CORGI_H  */
 

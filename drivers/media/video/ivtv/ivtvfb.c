@@ -48,6 +48,7 @@
 #endif
 
 #include "ivtv-driver.h"
+#include "ivtv-i2c.h"
 #include "ivtv-udma.h"
 #include "ivtv-mailbox.h"
 
@@ -894,11 +895,16 @@ static int ivtvfb_blank(int blank_mode, struct fb_info *info)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 1);
+		ivtv_saa7127(itv, VIDIOC_STREAMON, NULL);
 		break;
 	case FB_BLANK_NORMAL:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_VSYNC_SUSPEND:
+		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 0);
+		ivtv_saa7127(itv, VIDIOC_STREAMON, NULL);
+		break;
 	case FB_BLANK_POWERDOWN:
+		ivtv_saa7127(itv, VIDIOC_STREAMOFF, NULL);
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 0);
 		break;
 	}

@@ -177,6 +177,9 @@ int __pnp_add_device(struct pnp_dev *dev)
 int pnp_add_device(struct pnp_dev *dev)
 {
 	int ret;
+	char buf[128];
+	int len = 0;
+	struct pnp_id *id;
 
 	if (dev->card)
 		return -EINVAL;
@@ -185,17 +188,12 @@ int pnp_add_device(struct pnp_dev *dev)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_PNP_DEBUG
-	{
-		struct pnp_id *id;
+	buf[0] = '\0';
+	for (id = dev->id; id; id = id->next)
+		len += scnprintf(buf + len, sizeof(buf) - len, " %s", id->id);
 
-		dev_printk(KERN_DEBUG, &dev->dev, "%s device, IDs",
-			dev->protocol->name);
-		for (id = dev->id; id; id = id->next)
-			printk(" %s", id->id);
-		printk(" (%s)\n", dev->active ? "active" : "disabled");
-	}
-#endif
+	pnp_dbg(&dev->dev, "%s device, IDs%s (%s)\n",
+		dev->protocol->name, buf, dev->active ? "active" : "disabled");
 	return 0;
 }
 
@@ -214,3 +212,14 @@ static int __init pnp_init(void)
 }
 
 subsys_initcall(pnp_init);
+
+int pnp_debug;
+
+#if defined(CONFIG_PNP_DEBUG_MESSAGES)
+static int __init pnp_debug_setup(char *__unused)
+{
+	pnp_debug = 1;
+	return 1;
+}
+__setup("pnp.debug", pnp_debug_setup);
+#endif

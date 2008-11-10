@@ -72,6 +72,7 @@ struct phonetmsg {
 	} pn_msg_u;
 };
 #define PN_COMMON_MESSAGE	0xF0
+#define PN_COMMGR		0x10
 #define PN_PREFIX		0xE0 /* resource for extended messages */
 #define pn_submsg_id		pn_msg_u.base.pn_submsg_id
 #define pn_e_submsg_id		pn_msg_u.ext.pn_e_submsg_id

@@ -2153,8 +2153,17 @@ void ata_sff_error_handler(struct ata_port *ap)
  */
 void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc)
 {
-	if (qc->ap->ioaddr.bmdma_addr)
+	struct ata_port *ap = qc->ap;
+	unsigned long flags;
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	ap->hsm_task_state = HSM_ST_IDLE;
+
+	if (ap->ioaddr.bmdma_addr)
 		ata_bmdma_stop(qc);
+
+	spin_unlock_irqrestore(ap->lock, flags);
 }
 
 /**

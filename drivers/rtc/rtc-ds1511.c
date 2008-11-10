@@ -153,8 +153,8 @@ ds1511_wdog_set(unsigned long deciseconds)
 	/*
 	 * set the wdog values in the wdog registers
 	 */
-	rtc_write(BIN2BCD(deciseconds % 100), DS1511_WD_MSEC);
-	rtc_write(BIN2BCD(deciseconds / 100), DS1511_WD_SEC);
+	rtc_write(bin2bcd(deciseconds % 100), DS1511_WD_MSEC);
+	rtc_write(bin2bcd(deciseconds / 100), DS1511_WD_SEC);
 	/*
 	 * set wdog enable and wdog 'steering' bit to issue a reset
 	 */
@@ -220,13 +220,13 @@ static int ds1511_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)
 	/*
 	 * each register is a different number of valid bits
 	 */
-	sec = BIN2BCD(sec) & 0x7f;
-	min = BIN2BCD(min) & 0x7f;
-	hrs = BIN2BCD(hrs) & 0x3f;
-	day = BIN2BCD(day) & 0x3f;
-	mon = BIN2BCD(mon) & 0x1f;
-	yrs = BIN2BCD(yrs) & 0xff;
-	cen = BIN2BCD(cen) & 0xff;
+	sec = bin2bcd(sec) & 0x7f;
+	min = bin2bcd(min) & 0x7f;
+	hrs = bin2bcd(hrs) & 0x3f;
+	day = bin2bcd(day) & 0x3f;
+	mon = bin2bcd(mon) & 0x1f;
+	yrs = bin2bcd(yrs) & 0xff;
+	cen = bin2bcd(cen) & 0xff;
 
 	spin_lock_irqsave(&ds1511_lock, flags);
 	rtc_disable_update();
@@ -264,14 +264,14 @@ static int ds1511_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
 	rtc_enable_update();
 	spin_unlock_irqrestore(&ds1511_lock, flags);
 
-	rtc_tm->tm_sec = BCD2BIN(rtc_tm->tm_sec);
-	rtc_tm->tm_min = BCD2BIN(rtc_tm->tm_min);
-	rtc_tm->tm_hour = BCD2BIN(rtc_tm->tm_hour);
-	rtc_tm->tm_mday = BCD2BIN(rtc_tm->tm_mday);
-	rtc_tm->tm_wday = BCD2BIN(rtc_tm->tm_wday);
-	rtc_tm->tm_mon = BCD2BIN(rtc_tm->tm_mon);
-	rtc_tm->tm_year = BCD2BIN(rtc_tm->tm_year);
-	century = BCD2BIN(century) * 100;
+	rtc_tm->tm_sec = bcd2bin(rtc_tm->tm_sec);
+	rtc_tm->tm_min = bcd2bin(rtc_tm->tm_min);
+	rtc_tm->tm_hour = bcd2bin(rtc_tm->tm_hour);
+	rtc_tm->tm_mday = bcd2bin(rtc_tm->tm_mday);
+	rtc_tm->tm_wday = bcd2bin(rtc_tm->tm_wday);
+	rtc_tm->tm_mon = bcd2bin(rtc_tm->tm_mon);
+	rtc_tm->tm_year = bcd2bin(rtc_tm->tm_year);
+	century = bcd2bin(century) * 100;
 
 	/*
 	 * Account for differences between how the RTC uses the values
@@ -304,16 +304,16 @@ ds1511_rtc_update_alarm(struct rtc_plat_data *pdata)
 
 	spin_lock_irqsave(&pdata->rtc->irq_lock, flags);
 	rtc_write(pdata->alrm_mday < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : BIN2BCD(pdata->alrm_mday) & 0x3f,
+	       0x80 : bin2bcd(pdata->alrm_mday) & 0x3f,
 	       RTC_ALARM_DATE);
 	rtc_write(pdata->alrm_hour < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : BIN2BCD(pdata->alrm_hour) & 0x3f,
+	       0x80 : bin2bcd(pdata->alrm_hour) & 0x3f,
 	       RTC_ALARM_HOUR);
 	rtc_write(pdata->alrm_min < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : BIN2BCD(pdata->alrm_min) & 0x7f,
+	       0x80 : bin2bcd(pdata->alrm_min) & 0x7f,
 	       RTC_ALARM_MIN);
 	rtc_write(pdata->alrm_sec < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : BIN2BCD(pdata->alrm_sec) & 0x7f,
+	       0x80 : bin2bcd(pdata->alrm_sec) & 0x7f,
 	       RTC_ALARM_SEC);
 	rtc_write(rtc_read(RTC_CMD) | (pdata->irqen ? RTC_TIE : 0), RTC_CMD);
 	rtc_read(RTC_CMD1);	/* clear interrupts */
@@ -481,7 +481,6 @@ static struct bin_attribute ds1511_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUGO | S_IWUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = DS1511_RAM_MAX,
 	.read = ds1511_nvram_read,

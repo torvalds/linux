@@ -165,14 +165,11 @@ osf_getdirentries(unsigned int fd, struct osf_dirent __user *dirent,
 	buf.error = 0;
 
 	error = vfs_readdir(file, osf_filldir, &buf);
-	if (error < 0)
-		goto out_putf;
-
-	error = buf.error;
+	if (error >= 0)
+		error = buf.error;
 	if (count != buf.count)
 		error = count - buf.count;
 
- out_putf:
 	fput(file);
  out:
 	return error;
@@ -986,9 +983,11 @@ asmlinkage int
 osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 	   struct timeval32 __user *tvp)
 {
-	s64 timeout = MAX_SCHEDULE_TIMEOUT;
+	struct timespec end_time, *to = NULL;
 	if (tvp) {
 		time_t sec, usec;
+
+		to = &end_time;
 
 		if (!access_ok(VERIFY_READ, tvp, sizeof(*tvp))
 		    || __get_user(sec, &tvp->tv_sec)
@@ -999,14 +998,13 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 		if (sec < 0 || usec < 0)
 			return -EINVAL;
 
-		if ((unsigned long) sec < MAX_SELECT_SECONDS) {
-			timeout = (usec + 1000000/HZ - 1) / (1000000/HZ);
-			timeout += sec * (unsigned long) HZ;
-		}
+		if (poll_select_set_timeout(to, sec, usec * NSEC_PER_USEC))
+			return -EINVAL;		
+
 	}
 
 	/* OSF does not copy back the remaining time.  */
-	return core_sys_select(n, inp, outp, exp, &timeout);
+	return core_sys_select(n, inp, outp, exp, to);
 }
 
 struct rusage32 {

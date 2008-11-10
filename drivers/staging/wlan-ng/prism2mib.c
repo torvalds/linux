@@ -90,8 +90,6 @@
 #include <linux/usb.h>
 //#endif
 
-#include "wlan_compat.h"
-
 /*================================================================*/
 /* Project Includes */
 

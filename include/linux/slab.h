@@ -288,9 +288,4 @@ static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
 	return kmalloc_node(size, flags | __GFP_ZERO, node);
 }
 
-#ifdef CONFIG_SLABINFO
-extern const struct seq_operations slabinfo_op;
-ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
-#endif
-
 #endif	/* _LINUX_SLAB_H */

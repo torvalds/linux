@@ -24,8 +24,8 @@
 
 typedef struct _WBLINUX
 {
-	OS_SPIN_LOCK	AtomicSpinLock;
-	OS_SPIN_LOCK	SpinLock;
+	spinlock_t	AtomicSpinLock;
+	spinlock_t	SpinLock;
 	u32	shutdown;
 
 	OS_ATOMIC	ThreadCount;

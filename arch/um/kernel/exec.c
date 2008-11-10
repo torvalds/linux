@@ -15,6 +15,7 @@
 #include "mem_user.h"
 #include "skas.h"
 #include "os.h"
+#include "internal.h"
 
 void flush_thread(void)
 {

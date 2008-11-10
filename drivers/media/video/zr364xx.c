@@ -885,7 +885,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, cam);
 
 	dev_info(&udev->dev, DRIVER_DESC " controlling video device %d\n",
-		 cam->vdev->minor);
+		 cam->vdev->num);
 	return 0;
 }
 

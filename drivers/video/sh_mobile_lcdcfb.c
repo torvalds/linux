@@ -16,7 +16,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <asm/sh_mobile_lcdc.h>
+#include <video/sh_mobile_lcdc.h>
 
 #define PALETTE_NR 16
 
@@ -34,7 +34,9 @@ struct sh_mobile_lcdc_chan {
 
 struct sh_mobile_lcdc_priv {
 	void __iomem *base;
+#ifdef CONFIG_HAVE_CLK
 	struct clk *clk;
+#endif
 	unsigned long lddckr;
 	struct sh_mobile_lcdc_chan ch[2];
 };
@@ -260,6 +262,11 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		tmp = ch->ldmt1r_value;
 		tmp |= (lcd_cfg->sync & FB_SYNC_VERT_HIGH_ACT) ? 0 : 1 << 28;
 		tmp |= (lcd_cfg->sync & FB_SYNC_HOR_HIGH_ACT) ? 0 : 1 << 27;
+		tmp |= (ch->cfg.flags & LCDC_FLAGS_DWPOL) ? 1 << 26 : 0;
+		tmp |= (ch->cfg.flags & LCDC_FLAGS_DIPOL) ? 1 << 25 : 0;
+		tmp |= (ch->cfg.flags & LCDC_FLAGS_DAPOL) ? 1 << 24 : 0;
+		tmp |= (ch->cfg.flags & LCDC_FLAGS_HSCNT) ? 1 << 17 : 0;
+		tmp |= (ch->cfg.flags & LCDC_FLAGS_DWCNT) ? 1 << 16 : 0;
 		lcdc_write_chan(ch, LDMT1R, tmp);
 
 		/* setup SYS bus */
@@ -422,6 +429,7 @@ static int sh_mobile_lcdc_setup_clocks(struct device *dev, int clock_source,
 
 	priv->lddckr = icksel << 16;
 
+#ifdef CONFIG_HAVE_CLK
 	if (str) {
 		priv->clk = clk_get(dev, str);
 		if (IS_ERR(priv->clk)) {
@@ -431,6 +439,7 @@ static int sh_mobile_lcdc_setup_clocks(struct device *dev, int clock_source,
 
 		clk_enable(priv->clk);
 	}
+#endif
 
 	return 0;
 }
@@ -585,7 +594,6 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	priv->lddckr = pdata->lddckr;
 	priv->base = ioremap_nocache(res->start, (res->end - res->start) + 1);
 
 	for (i = 0; i < j; i++) {
@@ -688,10 +696,12 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 		fb_dealloc_cmap(&info->cmap);
 	}
 
+#ifdef CONFIG_HAVE_CLK
 	if (priv->clk) {
 		clk_disable(priv->clk);
 		clk_put(priv->clk);
 	}
+#endif
 
 	if (priv->base)
 		iounmap(priv->base);

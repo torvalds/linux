@@ -123,7 +123,7 @@ int rpaphp_enable_slot(struct slot *slot)
 			slot->state = CONFIGURED;
 		}
 
-		if (debug) {
+		if (rpaphp_debug) {
 			struct pci_dev *dev;
 			dbg("%s: pci_devs of slot[%s]\n", __func__, slot->dn->full_name);
 			list_for_each_entry (dev, &bus->devices, bus_list)

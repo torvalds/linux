@@ -222,17 +222,17 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 			ds1307->regs[4], ds1307->regs[5],
 			ds1307->regs[6]);
 
-	t->tm_sec = BCD2BIN(ds1307->regs[DS1307_REG_SECS] & 0x7f);
-	t->tm_min = BCD2BIN(ds1307->regs[DS1307_REG_MIN] & 0x7f);
+	t->tm_sec = bcd2bin(ds1307->regs[DS1307_REG_SECS] & 0x7f);
+	t->tm_min = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
 	tmp = ds1307->regs[DS1307_REG_HOUR] & 0x3f;
-	t->tm_hour = BCD2BIN(tmp);
-	t->tm_wday = BCD2BIN(ds1307->regs[DS1307_REG_WDAY] & 0x07) - 1;
-	t->tm_mday = BCD2BIN(ds1307->regs[DS1307_REG_MDAY] & 0x3f);
+	t->tm_hour = bcd2bin(tmp);
+	t->tm_wday = bcd2bin(ds1307->regs[DS1307_REG_WDAY] & 0x07) - 1;
+	t->tm_mday = bcd2bin(ds1307->regs[DS1307_REG_MDAY] & 0x3f);
 	tmp = ds1307->regs[DS1307_REG_MONTH] & 0x1f;
-	t->tm_mon = BCD2BIN(tmp) - 1;
+	t->tm_mon = bcd2bin(tmp) - 1;
 
 	/* assume 20YY not 19YY, and ignore DS1337_BIT_CENTURY */
-	t->tm_year = BCD2BIN(ds1307->regs[DS1307_REG_YEAR]) + 100;
+	t->tm_year = bcd2bin(ds1307->regs[DS1307_REG_YEAR]) + 100;
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -258,16 +258,16 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		t->tm_mon, t->tm_year, t->tm_wday);
 
 	*buf++ = 0;		/* first register addr */
-	buf[DS1307_REG_SECS] = BIN2BCD(t->tm_sec);
-	buf[DS1307_REG_MIN] = BIN2BCD(t->tm_min);
-	buf[DS1307_REG_HOUR] = BIN2BCD(t->tm_hour);
-	buf[DS1307_REG_WDAY] = BIN2BCD(t->tm_wday + 1);
-	buf[DS1307_REG_MDAY] = BIN2BCD(t->tm_mday);
-	buf[DS1307_REG_MONTH] = BIN2BCD(t->tm_mon + 1);
+	buf[DS1307_REG_SECS] = bin2bcd(t->tm_sec);
+	buf[DS1307_REG_MIN] = bin2bcd(t->tm_min);
+	buf[DS1307_REG_HOUR] = bin2bcd(t->tm_hour);
+	buf[DS1307_REG_WDAY] = bin2bcd(t->tm_wday + 1);
+	buf[DS1307_REG_MDAY] = bin2bcd(t->tm_mday);
+	buf[DS1307_REG_MONTH] = bin2bcd(t->tm_mon + 1);
 
 	/* assume 20YY not 19YY */
 	tmp = t->tm_year - 100;
-	buf[DS1307_REG_YEAR] = BIN2BCD(tmp);
+	buf[DS1307_REG_YEAR] = bin2bcd(tmp);
 
 	switch (ds1307->type) {
 	case ds_1337:
@@ -551,7 +551,6 @@ static struct bin_attribute nvram = {
 	.attr = {
 		.name	= "nvram",
 		.mode	= S_IRUGO | S_IWUSR,
-		.owner	= THIS_MODULE,
 	},
 
 	.read	= ds1307_nvram_read,
@@ -709,18 +708,18 @@ read_rtc:
 	}
 
 	tmp = ds1307->regs[DS1307_REG_SECS];
-	tmp = BCD2BIN(tmp & 0x7f);
+	tmp = bcd2bin(tmp & 0x7f);
 	if (tmp > 60)
 		goto exit_bad;
-	tmp = BCD2BIN(ds1307->regs[DS1307_REG_MIN] & 0x7f);
+	tmp = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
 	if (tmp > 60)
 		goto exit_bad;
 
-	tmp = BCD2BIN(ds1307->regs[DS1307_REG_MDAY] & 0x3f);
+	tmp = bcd2bin(ds1307->regs[DS1307_REG_MDAY] & 0x3f);
 	if (tmp == 0 || tmp > 31)
 		goto exit_bad;
 
-	tmp = BCD2BIN(ds1307->regs[DS1307_REG_MONTH] & 0x1f);
+	tmp = bcd2bin(ds1307->regs[DS1307_REG_MONTH] & 0x1f);
 	if (tmp == 0 || tmp > 12)
 		goto exit_bad;
 
@@ -739,14 +738,14 @@ read_rtc:
 		/* Be sure we're in 24 hour mode.  Multi-master systems
 		 * take note...
 		 */
-		tmp = BCD2BIN(tmp & 0x1f);
+		tmp = bcd2bin(tmp & 0x1f);
 		if (tmp == 12)
 			tmp = 0;
 		if (ds1307->regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
 			tmp += 12;
 		i2c_smbus_write_byte_data(client,
 				DS1307_REG_HOUR,
-				BIN2BCD(tmp));
+				bin2bcd(tmp));
 	}
 
 	ds1307->rtc = rtc_device_register(client->name, &client->dev,

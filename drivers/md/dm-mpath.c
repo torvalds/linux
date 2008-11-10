@@ -5,7 +5,8 @@
  * This file is released under the GPL.
  */
 
-#include "dm.h"
+#include <linux/device-mapper.h>
+
 #include "dm-path-selector.h"
 #include "dm-bio-list.h"
 #include "dm-bio-record.h"
@@ -1395,18 +1396,14 @@ error:
 	return -EINVAL;
 }
 
-static int multipath_ioctl(struct dm_target *ti, struct inode *inode,
-			   struct file *filp, unsigned int cmd,
+static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 			   unsigned long arg)
 {
 	struct multipath *m = (struct multipath *) ti->private;
 	struct block_device *bdev = NULL;
+	fmode_t mode = 0;
 	unsigned long flags;
-	struct file fake_file = {};
-	struct dentry fake_dentry = {};
 	int r = 0;
-
-	fake_file.f_path.dentry = &fake_dentry;
 
 	spin_lock_irqsave(&m->lock, flags);
 
@@ -1415,8 +1412,7 @@ static int multipath_ioctl(struct dm_target *ti, struct inode *inode,
 
 	if (m->current_pgpath) {
 		bdev = m->current_pgpath->path.dev->bdev;
-		fake_dentry.d_inode = bdev->bd_inode;
-		fake_file.f_mode = m->current_pgpath->path.dev->mode;
+		mode = m->current_pgpath->path.dev->mode;
 	}
 
 	if (m->queue_io)
@@ -1426,8 +1422,7 @@ static int multipath_ioctl(struct dm_target *ti, struct inode *inode,
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	return r ? : blkdev_driver_ioctl(bdev->bd_inode, &fake_file,
-					 bdev->bd_disk, cmd, arg);
+	return r ? : __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 }
 
 /*-----------------------------------------------------------------

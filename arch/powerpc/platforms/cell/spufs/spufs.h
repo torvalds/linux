@@ -65,7 +65,6 @@ enum {
 };
 
 struct switch_log {
-	spinlock_t		lock;
 	wait_queue_head_t	wait;
 	unsigned long		head;
 	unsigned long		tail;

@@ -54,7 +54,6 @@ static int phone_open(struct inode *inode, struct file *file)
 	if (minor >= PHONE_NUM_DEVICES)
 		return -ENODEV;
 
-	lock_kernel();
 	mutex_lock(&phone_lock);
 	p = phone_device[minor];
 	if (p)
@@ -81,7 +80,6 @@ static int phone_open(struct inode *inode, struct file *file)
 	fops_put(old_fops);
 end:
 	mutex_unlock(&phone_lock);
-	unlock_kernel();
 	return err;
 }
 

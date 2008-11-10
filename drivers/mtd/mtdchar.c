@@ -96,7 +96,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 
 	/* You can't open the RO devices RW */
-	if ((file->f_mode & 2) && (minor & 1))
+	if ((file->f_mode & FMODE_WRITE) && (minor & 1))
 		return -EACCES;
 
 	lock_kernel();
@@ -114,7 +114,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 	}
 
 	/* You can't open it RW if it's not a writeable device */
-	if ((file->f_mode & 2) && !(mtd->flags & MTD_WRITEABLE)) {
+	if ((file->f_mode & FMODE_WRITE) && !(mtd->flags & MTD_WRITEABLE)) {
 		put_mtd_device(mtd);
 		ret = -EACCES;
 		goto out;
@@ -144,7 +144,7 @@ static int mtd_close(struct inode *inode, struct file *file)
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_close\n");
 
 	/* Only sync if opened RW */
-	if ((file->f_mode & 2) && mtd->sync)
+	if ((file->f_mode & FMODE_WRITE) && mtd->sync)
 		mtd->sync(mtd);
 
 	put_mtd_device(mtd);
@@ -348,7 +348,7 @@ static void mtdchar_erase_callback (struct erase_info *instr)
 	wake_up((wait_queue_head_t *)instr->priv);
 }
 
-#if defined(CONFIG_MTD_OTP) || defined(CONFIG_MTD_ONENAND_OTP)
+#ifdef CONFIG_HAVE_MTD_OTP
 static int otp_select_filemode(struct mtd_file_info *mfi, int mode)
 {
 	struct mtd_info *mtd = mfi->mtd;
@@ -443,7 +443,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	{
 		struct erase_info *erase;
 
-		if(!(file->f_mode & 2))
+		if(!(file->f_mode & FMODE_WRITE))
 			return -EPERM;
 
 		erase=kzalloc(sizeof(struct erase_info),GFP_KERNEL);
@@ -497,7 +497,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		struct mtd_oob_buf __user *user_buf = argp;
 	        uint32_t retlen;
 
-		if(!(file->f_mode & 2))
+		if(!(file->f_mode & FMODE_WRITE))
 			return -EPERM;
 
 		if (copy_from_user(&buf, argp, sizeof(struct mtd_oob_buf)))
@@ -665,7 +665,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-#if defined(CONFIG_MTD_OTP) || defined(CONFIG_MTD_ONENAND_OTP)
+#ifdef CONFIG_HAVE_MTD_OTP
 	case OTPSELECT:
 	{
 		int mode;

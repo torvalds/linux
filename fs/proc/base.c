@@ -1712,9 +1712,9 @@ static struct dentry *proc_fd_instantiate(struct inode *dir,
 	file = fcheck_files(files, fd);
 	if (!file)
 		goto out_unlock;
-	if (file->f_mode & 1)
+	if (file->f_mode & FMODE_READ)
 		inode->i_mode |= S_IRUSR | S_IXUSR;
-	if (file->f_mode & 2)
+	if (file->f_mode & FMODE_WRITE)
 		inode->i_mode |= S_IWUSR | S_IXUSR;
 	spin_unlock(&files->file_lock);
 	put_files_struct(files);

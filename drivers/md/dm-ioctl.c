@@ -988,9 +988,9 @@ static int dev_wait(struct dm_ioctl *param, size_t param_size)
 	return r;
 }
 
-static inline int get_mode(struct dm_ioctl *param)
+static inline fmode_t get_mode(struct dm_ioctl *param)
 {
-	int mode = FMODE_READ | FMODE_WRITE;
+	fmode_t mode = FMODE_READ | FMODE_WRITE;
 
 	if (param->flags & DM_READONLY_FLAG)
 		mode = FMODE_READ;

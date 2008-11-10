@@ -1,7 +1,8 @@
 #
 # Makefile for miscellaneous I2C chip drivers.
 #
-# Think twice before you add a new driver to this directory.
+# Do not add new drivers to this directory! It is DEPRECATED.
+#
 # Device drivers are better grouped according to the functionality they
 # implement rather than to the bus they are connected to. In particular:
 # * Hardware monitoring chip drivers go to drivers/hwmon

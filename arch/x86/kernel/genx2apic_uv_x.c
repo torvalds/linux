@@ -15,7 +15,6 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
 #include <asm/smp.h>
@@ -30,7 +29,7 @@ DEFINE_PER_CPU(int, x2apic_extra_bits);
 
 static enum uv_system_type uv_system_type;
 
-static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	if (!strcmp(oem_id, "SGI")) {
 		if (!strcmp(oem_table_id, "UVL"))
@@ -341,12 +340,12 @@ static __init void map_mmioh_high(int max_pnode)
 
 static __init void uv_rtc_init(void)
 {
-	long status, ticks_per_sec, drift;
+	long status;
+	u64 ticks_per_sec;
 
-	status =
-	    x86_bios_freq_base(BIOS_FREQ_BASE_REALTIME_CLOCK, &ticks_per_sec,
-					&drift);
-	if (status != 0 || ticks_per_sec < 100000) {
+	status = uv_bios_freq_base(BIOS_FREQ_BASE_REALTIME_CLOCK,
+					&ticks_per_sec);
+	if (status != BIOS_STATUS_SUCCESS || ticks_per_sec < 100000) {
 		printk(KERN_WARNING
 			"unable to determine platform RTC clock frequency, "
 			"guessing.\n");
@@ -356,7 +355,22 @@ static __init void uv_rtc_init(void)
 		sn_rtc_cycles_per_second = ticks_per_sec;
 }
 
-static bool uv_system_inited;
+/*
+ * Called on each cpu to initialize the per_cpu UV data area.
+ * 	ZZZ hotplug not supported yet
+ */
+void __cpuinit uv_cpu_init(void)
+{
+	/* CPU 0 initilization will be done via uv_system_init. */
+	if (!uv_blade_info)
+		return;
+
+	uv_blade_info[uv_numa_blade_id()].nr_online_cpus++;
+
+	if (get_uv_system_type() == UV_NON_UNIQUE_APIC)
+		set_x2apic_extra_bits(uv_hub_info->pnode);
+}
+
 
 void __init uv_system_init(void)
 {
@@ -383,16 +397,16 @@ void __init uv_system_init(void)
 	printk(KERN_DEBUG "UV: Found %d blades\n", uv_num_possible_blades());
 
 	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
-	uv_blade_info = alloc_bootmem_pages(bytes);
+	uv_blade_info = kmalloc(bytes, GFP_KERNEL);
 
 	get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
 
 	bytes = sizeof(uv_node_to_blade[0]) * num_possible_nodes();
-	uv_node_to_blade = alloc_bootmem_pages(bytes);
+	uv_node_to_blade = kmalloc(bytes, GFP_KERNEL);
 	memset(uv_node_to_blade, 255, bytes);
 
 	bytes = sizeof(uv_cpu_to_blade[0]) * num_possible_cpus();
-	uv_cpu_to_blade = alloc_bootmem_pages(bytes);
+	uv_cpu_to_blade = kmalloc(bytes, GFP_KERNEL);
 	memset(uv_cpu_to_blade, 255, bytes);
 
 	blade = 0;
@@ -412,6 +426,9 @@ void __init uv_system_init(void)
 	gnode_upper = (((unsigned long)node_id.s.node_id) &
 		       ~((1 << n_val) - 1)) << m_val;
 
+	uv_bios_init();
+	uv_bios_get_sn_info(0, &uv_type, &sn_partition_id,
+			    &uv_coherency_id, &uv_region_size);
 	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
@@ -433,7 +450,7 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info(cpu)->gpa_mask = (1 << (m_val + n_val)) - 1;
 		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
-		uv_cpu_hub_info(cpu)->coherency_domain_number = 0;/* ZZZ */
+		uv_cpu_hub_info(cpu)->coherency_domain_number = uv_coherency_id;
 		uv_node_to_blade[nid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 		max_pnode = max(pnode, max_pnode);
@@ -448,21 +465,6 @@ void __init uv_system_init(void)
 	map_mmr_high(max_pnode);
 	map_config_high(max_pnode);
 	map_mmioh_high(max_pnode);
-	uv_system_inited = true;
+
+	uv_cpu_init();
 }
-
-/*
- * Called on each cpu to initialize the per_cpu UV data area.
- * 	ZZZ hotplug not supported yet
- */
-void __cpuinit uv_cpu_init(void)
-{
-	BUG_ON(!uv_system_inited);
-
-	uv_blade_info[uv_numa_blade_id()].nr_online_cpus++;
-
-	if (get_uv_system_type() == UV_NON_UNIQUE_APIC)
-		set_x2apic_extra_bits(uv_hub_info->pnode);
-}
-
-

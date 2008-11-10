@@ -31,6 +31,7 @@
 #include <linux/gpio.h>
 #include <linux/pda_power.h>
 #include <linux/rfkill.h>
+#include <linux/spi/spi.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -42,6 +43,7 @@
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
+#include <mach/pxa2xx_spi.h>
 
 #include <asm/mach/arch.h>
 #include <mach/tosa.h>
@@ -612,7 +614,7 @@ static int tosa_tc6393xb_enable(struct platform_device *dev)
 	rc = gpio_request(TOSA_GPIO_TC6393XB_SUSPEND, "tc6393xb #suspend");
 	if (rc)
 		goto err_req_suspend;
-	rc = gpio_request(TOSA_GPIO_TC6393XB_L3V_ON, "l3v");
+	rc = gpio_request(TOSA_GPIO_TC6393XB_L3V_ON, "tc6393xb l3v");
 	if (rc)
 		goto err_req_l3v;
 	rc = gpio_direction_output(TOSA_GPIO_TC6393XB_L3V_ON, 0);
@@ -706,16 +708,39 @@ static struct tmio_nand_data tosa_tc6393xb_nand_config = {
 	.badblock_pattern = &tosa_tc6393xb_nand_bbt,
 };
 
-static struct tc6393xb_platform_data tosa_tc6393xb_setup = {
+static int tosa_tc6393xb_setup(struct platform_device *dev)
+{
+	int rc;
+
+	rc = gpio_request(TOSA_GPIO_CARD_VCC_ON, "CARD_VCC_ON");
+	if (rc)
+		goto err_req;
+
+	rc = gpio_direction_output(TOSA_GPIO_CARD_VCC_ON, 1);
+	if (rc)
+		goto err_dir;
+
+	return rc;
+
+err_dir:
+	gpio_free(TOSA_GPIO_CARD_VCC_ON);
+err_req:
+	return rc;
+}
+
+static void tosa_tc6393xb_teardown(struct platform_device *dev)
+{
+	gpio_free(TOSA_GPIO_CARD_VCC_ON);
+}
+
+static struct tc6393xb_platform_data tosa_tc6393xb_data = {
 	.scr_pll2cr	= 0x0cc1,
 	.scr_gper	= 0x3300,
-	.scr_gpo_dsr	=
-		TOSA_TC6393XB_GPIO_BIT(TOSA_GPIO_CARD_VCC_ON),
-	.scr_gpo_doecr	=
-		TOSA_TC6393XB_GPIO_BIT(TOSA_GPIO_CARD_VCC_ON),
 
 	.irq_base	= IRQ_BOARD_START,
 	.gpio_base	= TOSA_TC6393XB_GPIO_BASE,
+	.setup		= tosa_tc6393xb_setup,
+	.teardown	= tosa_tc6393xb_teardown,
 
 	.enable		= tosa_tc6393xb_enable,
 	.disable	= tosa_tc6393xb_disable,
@@ -723,6 +748,8 @@ static struct tc6393xb_platform_data tosa_tc6393xb_setup = {
 	.resume		= tosa_tc6393xb_resume,
 
 	.nand_data	= &tosa_tc6393xb_nand_config,
+
+	.resume_restore = 1,
 };
 
 
@@ -730,7 +757,7 @@ static struct platform_device tc6393xb_device = {
 	.name	= "tc6393xb",
 	.id	= -1,
 	.dev	= {
-		.platform_data	= &tosa_tc6393xb_setup,
+		.platform_data	= &tosa_tc6393xb_data,
 	},
 	.num_resources	= ARRAY_SIZE(tc6393xb_resources),
 	.resource	= tc6393xb_resources,
@@ -747,6 +774,20 @@ static struct platform_device tosa_bt_device = {
 	.dev.platform_data = &tosa_bt_data,
 };
 
+static struct pxa2xx_spi_master pxa_ssp_master_info = {
+	.num_chipselect	= 1,
+};
+
+static struct spi_board_info spi_board_info[] __initdata = {
+	{
+		.modalias	= "tosa-lcd",
+		// .platform_data
+		.max_speed_hz	= 28750,
+		.bus_num	= 2,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_0,
+	},
+};
 
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
@@ -800,6 +841,9 @@ static void __init tosa_init(void)
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
 	platform_scoop_config = &tosa_pcmcia_config;
+
+	pxa2xx_set_spi_info(2, &pxa_ssp_master_info);
+	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 
 	clk_add_alias("CLK_CK3P6MI", &tc6393xb_device.dev, "GPIO11_CLK", NULL);
 

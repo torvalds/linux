@@ -62,15 +62,6 @@ void dm_put_target_type(struct target_type *t);
 int dm_target_iterate(void (*iter_func)(struct target_type *tt,
 					void *param), void *param);
 
-/*-----------------------------------------------------------------
- * Useful inlines.
- *---------------------------------------------------------------*/
-static inline int array_too_big(unsigned long fixed, unsigned long obj,
-				unsigned long num)
-{
-	return (num > (ULONG_MAX - fixed) / obj);
-}
-
 int dm_split_args(int *argc, char ***argvp, char *input);
 
 /*

@@ -5,7 +5,7 @@
  *
  *  nfs inode and superblock handling functions
  *
- *  Modularised by Alan Cox <Alan.Cox@linux.org>, while hacking some
+ *  Modularised by Alan Cox <alan@lxorguk.ukuu.org.uk>, while hacking some
  *  experimental NFS changes. Modularisation taken straight from SYS5 fs.
  *
  *  Change to nfs_read_super() to permit NFS mounts to multi-homed hosts.
@@ -908,21 +908,16 @@ static int nfs_size_need_update(const struct inode *inode, const struct nfs_fatt
 	return nfs_size_to_loff_t(fattr->size) > i_size_read(inode);
 }
 
-static unsigned long nfs_attr_generation_counter;
+static atomic_long_t nfs_attr_generation_counter;
 
 static unsigned long nfs_read_attr_generation_counter(void)
 {
-	smp_rmb();
-	return nfs_attr_generation_counter;
+	return atomic_long_read(&nfs_attr_generation_counter);
 }
 
 unsigned long nfs_inc_attr_generation_counter(void)
 {
-	unsigned long ret;
-	smp_rmb();
-	ret = ++nfs_attr_generation_counter;
-	smp_wmb();
-	return ret;
+	return atomic_long_inc_return(&nfs_attr_generation_counter);
 }
 
 void nfs_fattr_init(struct nfs_fattr *fattr)

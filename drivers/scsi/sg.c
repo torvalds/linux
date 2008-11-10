@@ -327,7 +327,6 @@ sg_release(struct inode *inode, struct file *filp)
 	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
 		return -ENXIO;
 	SCSI_LOG_TIMEOUT(3, printk("sg_release: %s\n", sdp->disk->disk_name));
-	sg_fasync(-1, filp, 0);	/* remove filp from async notification list */
 	if (0 == sg_remove_sfp(sdp, sfp)) {	/* Returns 1 when sdp gone */
 		if (!sdp->detached) {
 			scsi_device_put(sdp->device);
@@ -1059,7 +1058,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			if (sg_allow_access(filp, &opcode))
 				return -EPERM;
 		}
-		return sg_scsi_ioctl(filp, sdp->device->request_queue, NULL, p);
+		return sg_scsi_ioctl(sdp->device->request_queue, NULL, filp->f_mode, p);
 	case SG_SET_DEBUG:
 		result = get_user(val, ip);
 		if (result)

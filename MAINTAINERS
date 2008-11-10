@@ -347,7 +347,7 @@ S:	Maintained
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
 M:	r.marek@assembler.cz
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 ALPHA PORT
@@ -378,8 +378,9 @@ T:	git://git.kernel.org/pub/scm/linux/kernel/git/joro/linux-2.6-iommu.git
 S:	Supported
 
 AMD MICROCODE UPDATE SUPPORT
-P:      Peter Oruba
-M:      peter.oruba@amd.com
+P:      Andreas Herrmann
+M:      andeas.herrmann3@amd.com
+L:      amd64-microcode@amd64.org
 S:      Supported
 
 AMS (Apple Motion Sensor) DRIVER
@@ -609,6 +610,11 @@ P:	Philipp Zabel
 M:	philipp.zabel@gmail.com
 S:	Maintained
 
+ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
+P:	Michael Petchkovsky
+M:	mkpetch@internode.on.net
+S:	Maintained
+
 ARM/TOSA MACHINE SUPPORT
 P:	Dmitry Baryshkov
 M:	dbaryshkov@gmail.com
@@ -715,7 +721,7 @@ W:	http://sourceforge.net/projects/acpi4asus
 W:	http://xf.iksaif.net/acpi4asus
 S:	Maintained
 
-ASYNCHRONOUS TRANSFERS/TRANSFORMS API
+ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 P:	Dan Williams
 M:	dan.j.williams@intel.com
 P:	Maciej Sosnowski
@@ -737,6 +743,8 @@ P:	Nick Kossifidis
 M:	mickflemm@gmail.com
 P:	Luis R. Rodriguez
 M:	mcgrof@gmail.com
+P:	Bob Copeland
+M:	me@bobcopeland.com
 L:	linux-wireless@vger.kernel.org
 L:	ath5k-devel@lists.ath5k.org
 S:	Maintained
@@ -1053,6 +1061,12 @@ L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 
+CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
+P:	David Vrabel
+M:	david.vrabel@csr.com
+L:	linux-usb@vger.kernel.org
+S:	Supported
+
 CFAG12864B LCD DRIVER
 P:	Miguel Ojeda Sandonis
 M:	miguel.ojeda.sandonis@gmail.com
@@ -1198,7 +1212,7 @@ S:	Maintained
 
 CPU FREQUENCY DRIVERS
 P:	Dave Jones
-M:	davej@codemonkey.org.uk
+M:	davej@redhat.com
 L:	cpufreq@vger.kernel.org
 W:	http://www.codemonkey.org.uk/projects/cpufreq/
 T:	git kernel.org/pub/scm/linux/kernel/git/davej/cpufreq.git
@@ -1427,8 +1441,8 @@ M:	rdunlap@xenotime.net
 S:	Maintained
 
 DOCKING STATION DRIVER
-P:	Kristen Carlson Accardi
-M:	kristen.c.accardi@intel.com
+P:	Shaohua Li
+M:	shaohua.li@intel.com
 L:	linux-acpi@vger.kernel.org
 S:	Supported
 
@@ -1742,7 +1756,7 @@ FREESCALE I2C CPM DRIVER
 P:	Jochen Friedrich
 M:	jochen@scram.de
 L:	linuxppc-dev@ozlabs.org
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 FREESCALE SOC FS_ENET DRIVER
@@ -2015,7 +2029,7 @@ S:	Maintained
 I2C/SMBUS STUB DRIVER
 P:	Mark M. Hoffman
 M:	mhoffman@lightlink.com
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 I2C SUBSYSTEM
@@ -2023,14 +2037,14 @@ P:	Jean Delvare (PC drivers, core)
 M:	khali@linux-fr.org
 P:	Ben Dooks (embedded platforms)
 M:	ben-linux@fluff.org
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
 I2C-TINY-USB DRIVER
 P:	Till Harbaum
 M:	till@harbaum.org
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 T:	http://www.harbaum.org/till/i2c_tiny_usb
 S:	Maintained
 
@@ -2103,6 +2117,12 @@ L:	linux-ide@vger.kernel.org
 L:	linux-scsi@vger.kernel.org
 S:	Orphan
 
+IDLE-I7300
+P:	Andy Henroid
+M:	andrew.d.henroid@intel.com
+L:	linux-pm@lists.linux-foundation.org
+S:	Supported
+
 IEEE 1394 SUBSYSTEM (drivers/ieee1394)
 P:	Ben Collins
 M:	ben.collins@ubuntu.com
@@ -2174,6 +2194,13 @@ INTEL I/OAT DMA DRIVER
 P:	Maciej Sosnowski
 M:	maciej.sosnowski@intel.com
 L:	linux-kernel@vger.kernel.org
+S:	Supported
+
+INTEL IOMMU (VT-d)
+P:	David Woodhouse
+M:	dwmw2@infradead.org
+L:	iommu@lists.linux-foundation.org
+T:	git://git.infradead.org/iommu-2.6.git
 S:	Supported
 
 INTEL IOP-ADMA DMA DRIVER
@@ -2681,6 +2708,16 @@ M:	matthew@wil.cx
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+LTP (Linux Test Project)
+P:	Subrata Modak
+M:	subrata@linux.vnet.ibm.com
+P:	Mike Frysinger
+M:	vapier@gentoo.org
+L:	ltp-list@lists.sourceforge.net (subscribers-only)
+W:	http://ltp.sourceforge.net/
+T:	git kernel.org/pub/scm/linux/kernel/git/galak/ltp.git
+S:	Maintained
+
 M32R ARCHITECTURE
 P:	Hirokazu Takata
 M:	takata@linux-m32r.org
@@ -2928,9 +2965,9 @@ S:	Maintained
 
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 P:	Faisal Latif
-M:	flatif@neteffect.com
+M:	faisal.latif@intel.com
 P:	Chien Tung
-M:	ctung@neteffect.com
+M:	chien.tin.tung@intel.com
 L:	general@lists.openfabrics.org
 W:	http://www.neteffect.com
 S:	Supported
@@ -3123,7 +3160,7 @@ S:	Maintained
 OPENCORES I2C BUS DRIVER
 P:	Peter Korsgaard
 M:	jacmet@sunsite.dk
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 OPROFILE
@@ -3170,7 +3207,12 @@ S:	Maintained
 PA SEMI SMBUS DRIVER
 P:	Olof Johansson
 M:	olof@lixom.net
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+
+PANASONIC LAPTOP ACPI EXTRAS DRIVER
+P:	Harald Welte
+M:	laforge@gnumonks.org
 S:	Maintained
 
 PANASONIC MN10300/AM33 PORT
@@ -3244,11 +3286,6 @@ L:	linux-pci@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jbarnes/pci-2.6.git
 S:	Supported
 
-PCI HOTPLUG CORE
-P:	Kristen Carlson Accardi
-M:	kristen.c.accardi@intel.com
-S:	Supported
-
 PCIE HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
@@ -3315,7 +3352,7 @@ S:	Maintained
 PNXxxxx I2C DRIVER
 P:	Vitaly Wool
 M:	vitalywool@gmail.com
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 PPP PROTOCOL DRIVERS AND COMPRESSORS
@@ -3779,7 +3816,7 @@ S:	Maintained
 SIS 96X I2C/SMBUS DRIVER
 P:	Mark M. Hoffman
 M:	mhoffman@lightlink.com
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 SIS FRAMEBUFFER DRIVER
@@ -4191,6 +4228,12 @@ L:	sparclinux@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 S:	Maintained
 
+ULTRA-WIDEBAND (UWB) SUBSYSTEM:
+P:	David Vrabel
+M:	david.vrabel@csr.com
+L:	linux-usb@vger.kernel.org
+S:	Supported
+
 UNIFORM CDROM DRIVER
 P:	Jens Axboe
 M:	axboe@kernel.dk
@@ -4520,7 +4563,7 @@ S:	Maintained
 VIAPRO SMBUS DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
@@ -4614,6 +4657,11 @@ WD7000 SCSI DRIVER
 P:	Miroslav Zagorac
 M:	zaga@fly.cc.fer.hr
 L:	linux-scsi@vger.kernel.org
+S:	Maintained
+
+WIMEDIA LLC PROTOCOL (WLP) SUBSYSTEM
+P:	David Vrabel
+M:	david.vrabel@csr.com
 S:	Maintained
 
 WISTRON LAPTOP BUTTON DRIVER

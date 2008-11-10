@@ -236,10 +236,8 @@ software system can set different pages for controlling accesses to the
 MSI-X structure. The implementation of MSI support requires the PCI
 subsystem, not a device driver, to maintain full control of the MSI-X
 table/MSI-X PBA (Pending Bit Array) and MMIO address space of the MSI-X
-table/MSI-X PBA.  A device driver is prohibited from requesting the MMIO
-address space of the MSI-X table/MSI-X PBA. Otherwise, the PCI subsystem
-will fail enabling MSI-X on its hardware device when it calls the function
-pci_enable_msix().
+table/MSI-X PBA.  A device driver should not access the MMIO address
+space of the MSI-X table/MSI-X PBA.
 
 5.3.2 API pci_enable_msix
 

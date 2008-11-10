@@ -34,13 +34,6 @@ ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
 
 EXPORT_SYMBOL(panic_notifier_list);
 
-static int __init panic_setup(char *str)
-{
-	panic_timeout = simple_strtoul(str, NULL, 0);
-	return 1;
-}
-__setup("panic=", panic_setup);
-
 static long no_blink(long time)
 {
 	return 0;
@@ -218,13 +211,6 @@ void add_taint(unsigned flag)
 }
 EXPORT_SYMBOL(add_taint);
 
-static int __init pause_on_oops_setup(char *str)
-{
-	pause_on_oops = simple_strtoul(str, NULL, 0);
-	return 1;
-}
-__setup("pause_on_oops=", pause_on_oops_setup);
-
 static void spin_msec(int msecs)
 {
 	int i;
@@ -384,3 +370,6 @@ void __stack_chk_fail(void)
 }
 EXPORT_SYMBOL(__stack_chk_fail);
 #endif
+
+core_param(panic, panic_timeout, int, 0644);
+core_param(pause_on_oops, pause_on_oops, int, 0644);

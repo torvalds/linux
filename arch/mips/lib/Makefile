@@ -18,6 +18,7 @@ obj-$(CONFIG_CPU_R4300)		+= dump_tlb.o
 obj-$(CONFIG_CPU_R4X00)		+= dump_tlb.o
 obj-$(CONFIG_CPU_R5000)		+= dump_tlb.o
 obj-$(CONFIG_CPU_R5432)		+= dump_tlb.o
+obj-$(CONFIG_CPU_R5500)		+= dump_tlb.o
 obj-$(CONFIG_CPU_R6000)		+=
 obj-$(CONFIG_CPU_R8000)		+=
 obj-$(CONFIG_CPU_RM7000)	+= dump_tlb.o

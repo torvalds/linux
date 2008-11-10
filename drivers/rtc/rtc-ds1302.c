@@ -40,7 +40,7 @@
 #define	RTC_SCLK	0x0400
 
 #ifdef CONFIG_SH_SECUREEDGE5410
-#include <asm/snapgear.h>
+#include <mach/snapgear.h>
 #define set_dp(x)	SECUREEDGE_WRITE_IOPORT(x, 0x1c00)
 #define get_dp()	SECUREEDGE_READ_IOPORT()
 #else
@@ -107,13 +107,13 @@ static int ds1302_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	spin_lock_irq(&rtc->lock);
 
-	tm->tm_sec	= BCD2BIN(ds1302_readbyte(RTC_ADDR_SEC));
-	tm->tm_min	= BCD2BIN(ds1302_readbyte(RTC_ADDR_MIN));
-	tm->tm_hour	= BCD2BIN(ds1302_readbyte(RTC_ADDR_HOUR));
-	tm->tm_wday	= BCD2BIN(ds1302_readbyte(RTC_ADDR_DAY));
-	tm->tm_mday	= BCD2BIN(ds1302_readbyte(RTC_ADDR_DATE));
-	tm->tm_mon	= BCD2BIN(ds1302_readbyte(RTC_ADDR_MON)) - 1;
-	tm->tm_year	= BCD2BIN(ds1302_readbyte(RTC_ADDR_YEAR));
+	tm->tm_sec	= bcd2bin(ds1302_readbyte(RTC_ADDR_SEC));
+	tm->tm_min	= bcd2bin(ds1302_readbyte(RTC_ADDR_MIN));
+	tm->tm_hour	= bcd2bin(ds1302_readbyte(RTC_ADDR_HOUR));
+	tm->tm_wday	= bcd2bin(ds1302_readbyte(RTC_ADDR_DAY));
+	tm->tm_mday	= bcd2bin(ds1302_readbyte(RTC_ADDR_DATE));
+	tm->tm_mon	= bcd2bin(ds1302_readbyte(RTC_ADDR_MON)) - 1;
+	tm->tm_year	= bcd2bin(ds1302_readbyte(RTC_ADDR_YEAR));
 
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;
@@ -141,13 +141,13 @@ static int ds1302_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	/* Stop RTC */
 	ds1302_writebyte(RTC_ADDR_SEC, ds1302_readbyte(RTC_ADDR_SEC) | 0x80);
 
-	ds1302_writebyte(RTC_ADDR_SEC, BIN2BCD(tm->tm_sec));
-	ds1302_writebyte(RTC_ADDR_MIN, BIN2BCD(tm->tm_min));
-	ds1302_writebyte(RTC_ADDR_HOUR, BIN2BCD(tm->tm_hour));
-	ds1302_writebyte(RTC_ADDR_DAY, BIN2BCD(tm->tm_wday));
-	ds1302_writebyte(RTC_ADDR_DATE, BIN2BCD(tm->tm_mday));
-	ds1302_writebyte(RTC_ADDR_MON, BIN2BCD(tm->tm_mon + 1));
-	ds1302_writebyte(RTC_ADDR_YEAR, BIN2BCD(tm->tm_year % 100));
+	ds1302_writebyte(RTC_ADDR_SEC, bin2bcd(tm->tm_sec));
+	ds1302_writebyte(RTC_ADDR_MIN, bin2bcd(tm->tm_min));
+	ds1302_writebyte(RTC_ADDR_HOUR, bin2bcd(tm->tm_hour));
+	ds1302_writebyte(RTC_ADDR_DAY, bin2bcd(tm->tm_wday));
+	ds1302_writebyte(RTC_ADDR_DATE, bin2bcd(tm->tm_mday));
+	ds1302_writebyte(RTC_ADDR_MON, bin2bcd(tm->tm_mon + 1));
+	ds1302_writebyte(RTC_ADDR_YEAR, bin2bcd(tm->tm_year % 100));
 
 	/* Start RTC */
 	ds1302_writebyte(RTC_ADDR_SEC, ds1302_readbyte(RTC_ADDR_SEC) & ~0x80);

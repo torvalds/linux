@@ -23,7 +23,7 @@
 int string_get_size(u64 size, const enum string_size_units units,
 		    char *buf, int len)
 {
-	const char *units_10[] = { "B", "KB", "MB", "GB", "TB", "PB",
+	const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
 				   "EB", "ZB", "YB", NULL};
 	const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
 				 "EiB", "ZiB", "YiB", NULL };
@@ -31,7 +31,7 @@ int string_get_size(u64 size, const enum string_size_units units,
 		[STRING_UNITS_10] =  units_10,
 		[STRING_UNITS_2] = units_2,
 	};
-	const int divisor[] = {
+	const unsigned int divisor[] = {
 		[STRING_UNITS_10] = 1000,
 		[STRING_UNITS_2] = 1024,
 	};
@@ -40,23 +40,27 @@ int string_get_size(u64 size, const enum string_size_units units,
 	char tmp[8];
 
 	tmp[0] = '\0';
+	i = 0;
+	if (size >= divisor[units]) {
+		while (size >= divisor[units] && units_str[units][i]) {
+			remainder = do_div(size, divisor[units]);
+			i++;
+		}
 
-	for (i = 0; size > divisor[units] && units_str[units][i]; i++)
-		remainder = do_div(size, divisor[units]);
+		sf_cap = size;
+		for (j = 0; sf_cap*10 < 1000; j++)
+			sf_cap *= 10;
 
-	sf_cap = size;
-	for (j = 0; sf_cap*10 < 1000; j++)
-		sf_cap *= 10;
-
-	if (j) {
-		remainder *= 1000;
-		do_div(remainder, divisor[units]);
-		snprintf(tmp, sizeof(tmp), ".%03lld",
-			 (unsigned long long)remainder);
-		tmp[j+1] = '\0';
+		if (j) {
+			remainder *= 1000;
+			do_div(remainder, divisor[units]);
+			snprintf(tmp, sizeof(tmp), ".%03lld",
+				 (unsigned long long)remainder);
+			tmp[j+1] = '\0';
+		}
 	}
 
-	snprintf(buf, len, "%lld%s%s", (unsigned long long)size,
+	snprintf(buf, len, "%lld%s %s", (unsigned long long)size,
 		 tmp, units_str[units][i]);
 
 	return 0;

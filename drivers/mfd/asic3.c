@@ -123,7 +123,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 					irqnr = asic->irq_base +
 						(ASIC3_GPIOS_PER_BANK * bank)
 						+ i;
-					desc = irq_desc + irqnr;
+					desc = irq_to_desc(irqnr);
 					desc->handle_irq(irqnr, desc);
 					if (asic->irq_bothedge[bank] & bit)
 						asic3_irq_flip_edge(asic, base,
@@ -136,7 +136,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 		for (i = ASIC3_NUM_GPIOS; i < ASIC3_NR_IRQS; i++) {
 			/* They start at bit 4 and go up */
 			if (status & (1 << (i - ASIC3_NUM_GPIOS + 4))) {
-				desc = irq_desc + asic->irq_base + i;
+				desc = irq_to_desc(asic->irq_base + i);
 				desc->handle_irq(asic->irq_base + i,
 						 desc);
 			}

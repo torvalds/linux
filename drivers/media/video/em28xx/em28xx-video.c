@@ -2042,7 +2042,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			goto fail_unreg;
 		}
 		em28xx_info("Registered radio device as /dev/radio%d\n",
-			    dev->radio_dev->minor & 0x1f);
+			    dev->radio_dev->num);
 	}
 
 	/* init video dma queues */

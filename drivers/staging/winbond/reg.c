@@ -922,16 +922,16 @@ Uxx_ReadEthernetAddress(  phw_data_t pHwData )
 	// Only unplug and plug again can make hardware read EEPROM again. 20060727
 	Wb35Reg_WriteSync( pHwData, 0x03b4, 0x08000000 ); // Start EEPROM access + Read + address(0x0d)
 	Wb35Reg_ReadSync( pHwData, 0x03b4, &ltmp );
-	*(PUSHORT)pHwData->PermanentMacAddress = cpu_to_le16((u16)ltmp); //20060926 anson's endian
+	*(u16 *)pHwData->PermanentMacAddress = cpu_to_le16((u16)ltmp); //20060926 anson's endian
 	Wb35Reg_WriteSync( pHwData, 0x03b4, 0x08010000 ); // Start EEPROM access + Read + address(0x0d)
 	Wb35Reg_ReadSync( pHwData, 0x03b4, &ltmp );
-	*(PUSHORT)(pHwData->PermanentMacAddress + 2) = cpu_to_le16((u16)ltmp); //20060926 anson's endian
+	*(u16 *)(pHwData->PermanentMacAddress + 2) = cpu_to_le16((u16)ltmp); //20060926 anson's endian
 	Wb35Reg_WriteSync( pHwData, 0x03b4, 0x08020000 ); // Start EEPROM access + Read + address(0x0d)
 	Wb35Reg_ReadSync( pHwData, 0x03b4, &ltmp );
-	*(PUSHORT)(pHwData->PermanentMacAddress + 4) = cpu_to_le16((u16)ltmp); //20060926 anson's endian
-	*(PUSHORT)(pHwData->PermanentMacAddress + 6) = 0;
-	Wb35Reg_WriteSync( pHwData, 0x03e8, cpu_to_le32(*(PULONG)pHwData->PermanentMacAddress) ); //20060926 anson's endian
-	Wb35Reg_WriteSync( pHwData, 0x03ec, cpu_to_le32(*(PULONG)(pHwData->PermanentMacAddress+4)) ); //20060926 anson's endian
+	*(u16 *)(pHwData->PermanentMacAddress + 4) = cpu_to_le16((u16)ltmp); //20060926 anson's endian
+	*(u16 *)(pHwData->PermanentMacAddress + 6) = 0;
+	Wb35Reg_WriteSync( pHwData, 0x03e8, cpu_to_le32(*(u32 *)pHwData->PermanentMacAddress) ); //20060926 anson's endian
+	Wb35Reg_WriteSync( pHwData, 0x03ec, cpu_to_le32(*(u32 *)(pHwData->PermanentMacAddress+4)) ); //20060926 anson's endian
 }
 
 
@@ -1038,7 +1038,7 @@ void
 RFSynthesizer_initial(phw_data_t pHwData)
 {
 	u32	altmp[32];
-	PULONG	pltmp = altmp;
+	u32 *	pltmp = altmp;
 	u32	ltmp;
 	u8	number=0x00; // The number of register vale
 	u8	i;
@@ -2358,11 +2358,11 @@ void Mxx_initial(  phw_data_t pHwData )
 	pltmp[2] = pWb35Reg->M2C_MacControl;
 
 	// M30 BSSID
-	pltmp[3] = *(PULONG)pHwData->bssid;
+	pltmp[3] = *(u32 *)pHwData->bssid;
 
 	// M34
 	pHwData->AID = DEFAULT_AID;
-	tmp = *(PUSHORT)(pHwData->bssid+4);
+	tmp = *(u16 *)(pHwData->bssid+4);
 	tmp |= DEFAULT_AID << 16;
 	pltmp[4] = tmp;
 
@@ -2428,7 +2428,7 @@ void GetTxVgaFromEEPROM(  phw_data_t pHwData )
 {
 	u32		i, j, ltmp;
 	u16		Value[MAX_TXVGA_EEPROM];
-	PUCHAR		pctmp;
+	u8		*pctmp;
 	u8		ctmp=0;
 
 	// Get the entire TxVga setting in EEPROM
@@ -2441,7 +2441,7 @@ void GetTxVgaFromEEPROM(  phw_data_t pHwData )
 	}
 
 	// Adjust the filed which fills with reserved value.
-	pctmp = (PUCHAR)Value;
+	pctmp = (u8 *)Value;
 	for( i=0; i<(MAX_TXVGA_EEPROM*2); i++ )
 	{
 		if( pctmp[i] != 0xff )
@@ -2480,7 +2480,7 @@ void GetTxVgaFromEEPROM(  phw_data_t pHwData )
 // This function will use default TxVgaSettingInEEPROM data to calculate new TxVga.
 void EEPROMTxVgaAdjust(  phw_data_t pHwData ) // 20060619.5 Add
 {
-	PUCHAR		pTxVga = pHwData->TxVgaSettingInEEPROM;
+	u8	*	pTxVga = pHwData->TxVgaSettingInEEPROM;
 	s16		i, stmp;
 
 	//-- 2.4G -- 20060704.2 Request from Tiger

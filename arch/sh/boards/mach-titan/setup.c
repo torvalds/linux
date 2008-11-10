@@ -9,7 +9,7 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <asm/titan.h>
+#include <mach/titan.h>
 #include <asm/io.h>
 
 static void __init init_titan_irq(void)

@@ -289,8 +289,10 @@ static int __init cs553x_init(void)
 	int i;
 	uint64_t val;
 
+#ifdef CONFIG_MTD_PARTITIONS
 	int mtd_parts_nb = 0;
 	struct mtd_partition *mtd_parts = NULL;
+#endif
 
 	/* If the CPU isn't a Geode GX or LX, abort */
 	if (!is_geode())

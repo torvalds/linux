@@ -1,0 +1,22 @@
+# Favr-32 customization
+
+if BOARD_FAVR_32
+
+config BOARD_FAVR32_ABDAC_RATE
+	int "DAC target rate"
+	default 44100
+	range 32000 50000
+	help
+	  Specify the target rate the internal DAC should try to match. This
+	  will use PLL1 to generate a frequency as close as possible to this
+	  rate.
+
+	  Must be within the range 32000 to 50000, which should be suitable to
+	  generate most other frequencies in power of 2 steps.
+
+	  Ex:
+		48000 will also suit 24000 and 12000
+		44100 will also suit 22050 and 11025
+		32000 will also suit 16000 and 8000
+
+endif # BOARD_FAVR_32

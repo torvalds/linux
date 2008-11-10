@@ -824,7 +824,7 @@ PD Record codes
 #define		HFA384x_CMD_MACPORT_SET(value)		((UINT16)HFA384x_CMD_AINFO_SET(value))
 #define		HFA384x_CMD_ISRECL(value)		((UINT16)(HFA384x_CMD_AINFO_GET((UINT16)(value) & HFA384x_CMD_RECL)))
 #define		HFA384x_CMD_RECL_SET(value)		((UINT16)HFA384x_CMD_AINFO_SET(value))
-#define		HFA384x_CMD_QOS_GET(value)		((UINT16((((UINT16)(value))&((UINT16)0x3000)) >> 12))
+#define		HFA384x_CMD_QOS_GET(value)		((UINT16)((((UINT16)(value))&((UINT16)0x3000)) >> 12))
 #define		HFA384x_CMD_QOS_SET(value)		((UINT16)((((UINT16)(value)) << 12) & 0x3000))
 #define		HFA384x_CMD_ISWRITE(value)		((UINT16)(HFA384x_CMD_AINFO_GET((UINT16)(value) & HFA384x_CMD_WRITE)))
 #define		HFA384x_CMD_WRITE_SET(value)		((UINT16)HFA384x_CMD_AINFO_SET((UINT16)value))

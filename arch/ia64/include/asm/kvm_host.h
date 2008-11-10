@@ -365,7 +365,8 @@ struct kvm_vcpu_arch {
 	long itc_offset;
 	unsigned long itc_check;
 	unsigned long timer_check;
-	unsigned long timer_pending;
+	unsigned int timer_pending;
+	unsigned int timer_fired;
 
 	unsigned long vrr[8];
 	unsigned long ibr[8];
@@ -417,6 +418,9 @@ struct kvm_arch {
 	struct list_head assigned_dev_head;
 	struct dmar_domain *intel_iommu_domain;
 	struct hlist_head irq_ack_notifier_list;
+
+	unsigned long irq_sources_bitmap;
+	unsigned long irq_states[KVM_IOAPIC_NUM_PINS];
 };
 
 union cpuid3_t {

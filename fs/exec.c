@@ -1386,7 +1386,7 @@ EXPORT_SYMBOL(set_binfmt);
  * name into corename, which must have space for at least
  * CORENAME_MAX_SIZE bytes plus one byte for the zero terminator.
  */
-static int format_corename(char *corename, int nr_threads, long signr)
+static int format_corename(char *corename, long signr)
 {
 	const char *pat_ptr = core_pattern;
 	int ispipe = (*pat_ptr == '|');
@@ -1493,8 +1493,7 @@ static int format_corename(char *corename, int nr_threads, long signr)
 	 * If core_pattern does not include a %p (as is the default)
 	 * and core_uses_pid is set, then .%pid will be appended to
 	 * the filename. Do not do this for piped commands. */
-	if (!ispipe && !pid_in_pattern
-	    && (core_uses_pid || nr_threads)) {
+	if (!ispipe && !pid_in_pattern && core_uses_pid) {
 		rc = snprintf(out_ptr, out_end - out_ptr,
 			      ".%d", task_tgid_vnr(current));
 		if (rc > out_end - out_ptr)
@@ -1757,7 +1756,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 * uses lock_kernel()
 	 */
  	lock_kernel();
-	ispipe = format_corename(corename, retval, signr);
+	ispipe = format_corename(corename, signr);
 	unlock_kernel();
 	/*
 	 * Don't bother to check the RLIMIT_CORE value if core_pattern points

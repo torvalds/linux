@@ -208,7 +208,7 @@ s8 sme_set_tx_antenna(void *pcore_data, u32 TxAntenna);
 s8 sme_set_IBSS_chan(void *pcore_data, ChanInfo chan);
 
 //20061108 WPS
-s8 sme_set_IE_append(void *pcore_data, PUCHAR buffer, u16 buf_len);
+s8 sme_set_IE_append(void *pcore_data, u8 *buffer, u16 buf_len);
 
 
 

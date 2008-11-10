@@ -49,7 +49,7 @@
 	};
 
 	bcsr@e2400000 {
-		device_type = "board-control";
+		compatible = "fsl,mpc8349mds-bcsr";
 		reg = <0xe2400000 0x8000>;
 	};
 

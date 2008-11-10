@@ -85,6 +85,7 @@ float64 float64_div(float64 a, float64 b);
 float32 float32_div(float32 a, float32 b);
 float32 float32_mul(float32 a, float32 b);
 float64 float64_mul(float64 a, float64 b);
+float32 float64_to_float32(float64 a);
 inline void add128(bits64 a0, bits64 a1, bits64 b0, bits64 b1, bits64 * z0Ptr,
 		   bits64 * z1Ptr);
 inline void sub128(bits64 a0, bits64 a1, bits64 b0, bits64 b1, bits64 * z0Ptr,
@@ -889,4 +890,32 @@ float64 float64_mul(float64 a, float64 b)
 		--zExp;
 	}
 	return roundAndPackFloat64(zSign, zExp, zSig0);
+}
+
+/*
+ * -------------------------------------------------------------------------------
+ *  Returns the result of converting the double-precision floating-point value
+ *  `a' to the single-precision floating-point format.  The conversion is
+ *  performed according to the IEC/IEEE Standard for Binary Floating-point
+ *  Arithmetic.
+ *  -------------------------------------------------------------------------------
+ *  */
+float32 float64_to_float32(float64 a)
+{
+    flag aSign;
+    int16 aExp;
+    bits64 aSig;
+    bits32 zSig;
+
+    aSig = extractFloat64Frac( a );
+    aExp = extractFloat64Exp( a );
+    aSign = extractFloat64Sign( a );
+
+    shift64RightJamming( aSig, 22, &aSig );
+    zSig = aSig;
+    if ( aExp || zSig ) {
+        zSig |= 0x40000000;
+        aExp -= 0x381;
+    }
+    return roundAndPackFloat32(aSign, aExp, zSig);
 }

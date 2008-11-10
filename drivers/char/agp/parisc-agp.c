@@ -20,8 +20,8 @@
 #include <linux/agp_backend.h>
 #include <linux/log2.h>
 
-#include <asm-parisc/parisc-device.h>
-#include <asm-parisc/ropes.h>
+#include <asm/parisc-device.h>
+#include <asm/ropes.h>
 
 #include "agp.h"
 

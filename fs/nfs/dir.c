@@ -707,9 +707,7 @@ static int nfs_is_exclusive_create(struct inode *dir, struct nameidata *nd)
 {
 	if (NFS_PROTO(dir)->version == 2)
 		return 0;
-	if (nd == NULL || nfs_lookup_check_intent(nd, LOOKUP_CREATE) == 0)
-		return 0;
-	return (nd->intent.open.flags & O_EXCL) != 0;
+	return nd && nfs_lookup_check_intent(nd, LOOKUP_EXCL);
 }
 
 /*
@@ -1009,7 +1007,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 
 	/* Let vfs_create() deal with O_EXCL. Instantiate, but don't hash
 	 * the dentry. */
-	if (nd->intent.open.flags & O_EXCL) {
+	if (nd->flags & LOOKUP_EXCL) {
 		d_instantiate(dentry, NULL);
 		goto out;
 	}
@@ -1517,7 +1515,7 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 	if (!add_to_page_cache(page, dentry->d_inode->i_mapping, 0,
 							GFP_KERNEL)) {
 		pagevec_add(&lru_pvec, page);
-		pagevec_lru_add(&lru_pvec);
+		pagevec_lru_add_file(&lru_pvec);
 		SetPageUptodate(page);
 		unlock_page(page);
 	} else
@@ -1959,6 +1957,9 @@ force_lookup:
 	} else
 		res = PTR_ERR(cred);
 out:
+	if (!res && (mask & MAY_EXEC) && !execute_ok(inode))
+		res = -EACCES;
+
 	dfprintk(VFS, "NFS: permission(%s/%ld), mask=0x%x, res=%d\n",
 		inode->i_sb->s_id, inode->i_ino, mask, res);
 	return res;

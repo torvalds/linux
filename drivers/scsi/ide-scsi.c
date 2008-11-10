@@ -343,6 +343,11 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 }
 
 #ifdef CONFIG_IDE_PROC_FS
+static ide_proc_entry_t idescsi_proc[] = {
+	{ "capacity", S_IFREG|S_IRUGO, proc_ide_read_capacity, NULL },
+	{ NULL, 0, NULL, NULL }
+};
+
 #define ide_scsi_devset_get(name, field) \
 static int get_##name(ide_drive_t *drive) \
 { \
@@ -378,6 +383,16 @@ static const struct ide_proc_devset idescsi_settings[] = {
 	IDE_PROC_DEVSET(transform, 0,	 3),
 	{ 0 },
 };
+
+static ide_proc_entry_t *ide_scsi_proc_entries(ide_drive_t *drive)
+{
+	return idescsi_proc;
+}
+
+static const struct ide_proc_devset *ide_scsi_proc_devsets(ide_drive_t *drive)
+{
+	return idescsi_settings;
+}
 #endif
 
 /*
@@ -419,13 +434,6 @@ static void ide_scsi_remove(ide_drive_t *drive)
 
 static int ide_scsi_probe(ide_drive_t *);
 
-#ifdef CONFIG_IDE_PROC_FS
-static ide_proc_entry_t idescsi_proc[] = {
-	{ "capacity", S_IFREG|S_IRUGO, proc_ide_read_capacity, NULL },
-	{ NULL, 0, NULL, NULL }
-};
-#endif
-
 static ide_driver_t idescsi_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
@@ -439,45 +447,39 @@ static ide_driver_t idescsi_driver = {
 	.end_request		= idescsi_end_request,
 	.error                  = idescsi_atapi_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= idescsi_proc,
-	.settings		= idescsi_settings,
+	.proc_entries		= ide_scsi_proc_entries,
+	.proc_devsets		= ide_scsi_proc_devsets,
 #endif
 };
 
-static int idescsi_ide_open(struct inode *inode, struct file *filp)
+static int idescsi_ide_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_scsi_obj *scsi;
+	struct ide_scsi_obj *scsi = ide_scsi_get(bdev->bd_disk);
 
-	if (!(scsi = ide_scsi_get(disk)))
+	if (!scsi)
 		return -ENXIO;
 
 	return 0;
 }
 
-static int idescsi_ide_release(struct inode *inode, struct file *filp)
+static int idescsi_ide_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_scsi_obj *scsi = ide_scsi_g(disk);
-
-	ide_scsi_put(scsi);
-
+	ide_scsi_put(ide_scsi_g(disk));
 	return 0;
 }
 
-static int idescsi_ide_ioctl(struct inode *inode, struct file *file,
+static int idescsi_ide_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct ide_scsi_obj *scsi = ide_scsi_g(bdev->bd_disk);
-	return generic_ide_ioctl(scsi->drive, file, bdev, cmd, arg);
+	return generic_ide_ioctl(scsi->drive, bdev, cmd, arg);
 }
 
 static struct block_device_operations idescsi_ops = {
 	.owner		= THIS_MODULE,
 	.open		= idescsi_ide_open,
 	.release	= idescsi_ide_release,
-	.ioctl		= idescsi_ide_ioctl,
+	.locked_ioctl	= idescsi_ide_ioctl,
 };
 
 static int idescsi_slave_configure(struct scsi_device * sdp)

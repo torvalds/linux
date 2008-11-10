@@ -362,6 +362,17 @@ struct tcp_out_options {
 	__u32 tsval, tsecr;	/* need to include OPTION_TS */
 };
 
+/* Beware: Something in the Internet is very sensitive to the ordering of
+ * TCP options, we learned this through the hard way, so be careful here.
+ * Luckily we can at least blame others for their non-compliance but from
+ * inter-operatibility perspective it seems that we're somewhat stuck with
+ * the ordering which we have been using if we want to keep working with
+ * those broken things (not that it currently hurts anybody as there isn't
+ * particular reason why the ordering would need to be changed).
+ *
+ * At least SACK_PERM as the first option is known to lead to a disaster
+ * (but it may well be that other scenarios fail similarly).
+ */
 static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 			      const struct tcp_out_options *opts,
 			      __u8 **md5_hash) {
@@ -374,6 +385,12 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 		ptr += 4;
 	} else {
 		*md5_hash = NULL;
+	}
+
+	if (unlikely(opts->mss)) {
+		*ptr++ = htonl((TCPOPT_MSS << 24) |
+			       (TCPOLEN_MSS << 16) |
+			       opts->mss);
 	}
 
 	if (likely(OPTION_TS & opts->options)) {
@@ -390,12 +407,6 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 		}
 		*ptr++ = htonl(opts->tsval);
 		*ptr++ = htonl(opts->tsecr);
-	}
-
-	if (unlikely(opts->mss)) {
-		*ptr++ = htonl((TCPOPT_MSS << 24) |
-			       (TCPOLEN_MSS << 16) |
-			       opts->mss);
 	}
 
 	if (unlikely(OPTION_SACK_ADVERTISE & opts->options &&
@@ -432,7 +443,7 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 
 		if (tp->rx_opt.dsack) {
 			tp->rx_opt.dsack = 0;
-			tp->rx_opt.eff_sacks--;
+			tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks;
 		}
 	}
 }
@@ -2268,6 +2279,11 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	}
 
 	memset(&opts, 0, sizeof(opts));
+#ifdef CONFIG_SYN_COOKIES
+	if (unlikely(req->cookie_ts))
+		TCP_SKB_CB(skb)->when = cookie_init_timestamp(req);
+	else
+#endif
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	tcp_header_size = tcp_synack_options(sk, req, mss,
 					     skb, &opts, &md5) +
@@ -2293,11 +2309,6 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 
 	/* RFC1323: The window in SYN & SYN/ACK segments is never scaled. */
 	th->window = htons(min(req->rcv_wnd, 65535U));
-#ifdef CONFIG_SYN_COOKIES
-	if (unlikely(req->cookie_ts))
-		TCP_SKB_CB(skb)->when = cookie_init_timestamp(req);
-	else
-#endif
 	tcp_options_write((__be32 *)(th + 1), tp, &opts, &md5_hash_location);
 	th->doff = (tcp_header_size >> 2);
 	TCP_INC_STATS(sock_net(sk), TCP_MIB_OUTSEGS);

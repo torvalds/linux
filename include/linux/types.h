@@ -190,6 +190,7 @@ typedef __u32 __bitwise __wsum;
 
 #ifdef __KERNEL__
 typedef unsigned __bitwise__ gfp_t;
+typedef unsigned __bitwise__ fmode_t;
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 typedef u64 phys_addr_t;

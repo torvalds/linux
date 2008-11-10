@@ -2064,8 +2064,6 @@ static int qeth_l3_stop_card(struct qeth_card *card, int recovery_mode)
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
 
 	qeth_set_allowed_threads(card, 0, 1);
-	if (qeth_wait_for_threads(card, ~QETH_RECOVER_THREAD))
-		return -ERESTARTSYS;
 	if (card->read.state == CH_STATE_UP &&
 	    card->write.state == CH_STATE_UP &&
 	    (card->state == CARD_STATE_UP)) {
@@ -3049,11 +3047,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
 
 	qeth_set_allowed_threads(card, QETH_RECOVER_THREAD, 1);
-	if (qeth_wait_for_threads(card, ~QETH_RECOVER_THREAD)) {
-		PRINT_WARN("set_online of card %s interrupted by user!\n",
-			   CARD_BUS_ID(card));
-		return -ERESTARTSYS;
-	}
 
 	recover_flag = card->state;
 	rc = ccw_device_set_online(CARD_RDEV(card));
@@ -3170,11 +3163,7 @@ static int __qeth_l3_set_offline(struct ccwgroup_device *cgdev,
 	if (card->dev && netif_carrier_ok(card->dev))
 		netif_carrier_off(card->dev);
 	recover_flag = card->state;
-	if (qeth_l3_stop_card(card, recovery_mode) == -ERESTARTSYS) {
-		PRINT_WARN("Stopping card %s interrupted by user!\n",
-			   CARD_BUS_ID(card));
-		return -ERESTARTSYS;
-	}
+	qeth_l3_stop_card(card, recovery_mode);
 	rc  = ccw_device_set_offline(CARD_DDEV(card));
 	rc2 = ccw_device_set_offline(CARD_WDEV(card));
 	rc3 = ccw_device_set_offline(CARD_RDEV(card));

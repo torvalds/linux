@@ -128,6 +128,8 @@ struct ehca_shca {
 	/* MR pgsize: bit 0-3 means 4K, 64K, 1M, 16M respectively */
 	u32 hca_cap_mr_pgsize;
 	int max_mtu;
+	int max_num_qps;
+	int max_num_cqs;
 	atomic_t num_cqs;
 	atomic_t num_qps;
 };

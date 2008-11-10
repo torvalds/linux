@@ -75,7 +75,7 @@ typedef struct _REG_QUEUE
 	union
 	{
 		u32	VALUE;
-		PULONG	pBuffer;
+		u32 *	pBuffer;
 	};
 	u8	RESERVED[4];// space reserved for communication
 
@@ -143,7 +143,7 @@ typedef struct _WB35REG
 	//-------------------
 	// VM
 	//-------------------
-	OS_SPIN_LOCK	EP0VM_spin_lock; // 4B
+	spinlock_t	EP0VM_spin_lock; // 4B
 	u32	        EP0VM_status;//$$
 	PREG_QUEUE	    pRegFirst;
 	PREG_QUEUE	    pRegLast;

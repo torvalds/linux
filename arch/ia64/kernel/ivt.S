@@ -580,7 +580,7 @@ ENTRY(dirty_bit)
 	mov b0=r29				// restore b0
 	;;
 	st8 [r17]=r18				// store back updated PTE
-	itc.d r18				// install updated PTE
+	ITC_D(p0, r18, r16)			// install updated PTE
 #endif
 	mov pr=r31,-1				// restore pr
 	RFI
@@ -646,7 +646,7 @@ ENTRY(iaccess_bit)
 	mov b0=r29				// restore b0
 	;;
 	st8 [r17]=r18				// store back updated PTE
-	itc.i r18				// install updated PTE
+	ITC_I(p0, r18, r16)			// install updated PTE
 #endif /* !CONFIG_SMP */
 	mov pr=r31,-1
 	RFI
@@ -698,7 +698,7 @@ ENTRY(daccess_bit)
 	or r18=_PAGE_A,r18			// set the accessed bit
 	;;
 	st8 [r17]=r18				// store back updated PTE
-	itc.d r18				// install updated PTE
+	ITC_D(p0, r18, r16)			// install updated PTE
 #endif
 	mov b0=r29				// restore b0
 	mov pr=r31,-1

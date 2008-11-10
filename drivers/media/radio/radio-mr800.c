@@ -469,16 +469,21 @@ static int usb_amradio_open(struct inode *inode, struct file *file)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
 
+	lock_kernel();
+
 	radio->users = 1;
 	radio->muted = 1;
 
 	if (amradio_start(radio) < 0) {
 		warn("Radio did not start up properly");
 		radio->users = 0;
+		unlock_kernel();
 		return -EIO;
 	}
 	if (amradio_setfreq(radio, radio->curfreq) < 0)
 		warn("Set frequency failed");
+
+	unlock_kernel();
 	return 0;
 }
 

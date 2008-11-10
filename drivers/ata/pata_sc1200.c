@@ -1,5 +1,5 @@
 /*
- * New ATA layer SC1200 driver		Alan Cox <alan@redhat.com>
+ * New ATA layer SC1200 driver		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * TODO: Mode selection filtering
  * TODO: Can't enable second channel until ATA core has serialize

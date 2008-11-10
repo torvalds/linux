@@ -21,7 +21,7 @@
  * between the ROM and other resources, so enabling it may disable access
  * to MMIO registers or other card memory.
  */
-static int pci_enable_rom(struct pci_dev *pdev)
+int pci_enable_rom(struct pci_dev *pdev)
 {
 	struct resource *res = pdev->resource + PCI_ROM_RESOURCE;
 	struct pci_bus_region region;
@@ -45,7 +45,7 @@ static int pci_enable_rom(struct pci_dev *pdev)
  * Disable ROM decoding on a PCI device by turning off the last bit in the
  * ROM BAR.
  */
-static void pci_disable_rom(struct pci_dev *pdev)
+void pci_disable_rom(struct pci_dev *pdev)
 {
 	u32 rom_addr;
 	pci_read_config_dword(pdev, pdev->rom_base_reg, &rom_addr);
@@ -100,7 +100,8 @@ size_t pci_get_rom_size(void __iomem *rom, size_t size)
  * pci_map_rom - map a PCI ROM to kernel space
  * @pdev: pointer to pci device struct
  * @size: pointer to receive size of pci window over ROM
- * @return: kernel virtual pointer to image of ROM
+ *
+ * Return: kernel virtual pointer to image of ROM
  *
  * Map a PCI ROM into kernel space. If ROM is boot video ROM,
  * the shadow BIOS copy will be returned instead of the
@@ -167,7 +168,8 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
  * pci_map_rom_copy - map a PCI ROM to kernel space, create a copy
  * @pdev: pointer to pci device struct
  * @size: pointer to receive size of pci window over ROM
- * @return: kernel virtual pointer to image of ROM
+ *
+ * Return: kernel virtual pointer to image of ROM
  *
  * Map a PCI ROM into kernel space. If ROM is boot video ROM,
  * the shadow BIOS copy will be returned instead of the
@@ -260,3 +262,5 @@ void pci_cleanup_rom(struct pci_dev *pdev)
 
 EXPORT_SYMBOL(pci_map_rom);
 EXPORT_SYMBOL(pci_unmap_rom);
+EXPORT_SYMBOL_GPL(pci_enable_rom);
+EXPORT_SYMBOL_GPL(pci_disable_rom);

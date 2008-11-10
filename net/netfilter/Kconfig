@@ -271,7 +271,6 @@ config NF_CONNTRACK_TFTP
 config NF_CT_NETLINK
 	tristate 'Connection tracking netlink interface'
 	select NETFILTER_NETLINK
-	depends on NF_NAT=n || NF_NAT
 	default m if NETFILTER_ADVANCED=n
 	help
 	  This option enables support for a netlink-based userspace interface

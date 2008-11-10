@@ -75,4 +75,18 @@ static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 }
 #endif
 
+static cpumask_t vector_allocation_domain(int cpu)
+{
+	/* Careful. Some cpus do not strictly honor the set of cpus
+	 * specified in the interrupt destination when using lowest
+	 * priority interrupt delivery mode.
+	 *
+	 * In particular there was a hyperthreading cpu observed to
+	 * deliver interrupts to the wrong hyperthread when only one
+	 * hyperthread was specified in the interrupt desitination.
+	 */
+	cpumask_t domain = { { [0] = APIC_ALL_CPUS, } };
+	return domain;
+}
+
 struct genapic __initdata_refok apic_es7000 = APIC_INIT("es7000", probe_es7000);

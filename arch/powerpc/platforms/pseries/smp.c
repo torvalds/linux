@@ -52,8 +52,8 @@
 
 
 /*
- * The primary thread of each non-boot processor is recorded here before
- * smp init.
+ * The Primary thread of each non-boot processor was started from the OF client
+ * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
 static cpumask_t of_spin_map;
 
@@ -161,8 +161,7 @@ static void __devinit smp_pSeries_kick_cpu(int nr)
 static int smp_pSeries_cpu_bootable(unsigned int nr)
 {
 	/* Special case - we inhibit secondary thread startup
-	 * during boot if the user requests it.  Odd-numbered
-	 * cpus are assumed to be secondary threads.
+	 * during boot if the user requests it.
 	 */
 	if (system_state < SYSTEM_RUNNING &&
 	    cpu_has_feature(CPU_FTR_SMT) &&
@@ -199,11 +198,7 @@ static void __init smp_init_pseries(void)
 	/* Mark threads which are still spinning in hold loops. */
 	if (cpu_has_feature(CPU_FTR_SMT)) {
 		for_each_present_cpu(i) { 
-			if (i % 2 == 0)
-				/*
-				 * Even-numbered logical cpus correspond to
-				 * primary threads.
-				 */
+			if (cpu_thread_in_core(i) == 0)
 				cpu_set(i, of_spin_map);
 		}
 	} else {

@@ -487,67 +487,6 @@ static int __init prom_setprop(phandle node, const char *nodename,
 	return call_prom("interpret", 1, 1, (u32)(unsigned long) cmd);
 }
 
-/* We can't use the standard versions because of RELOC headaches. */
-#define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
-			 || ('a' <= (c) && (c) <= 'f') \
-			 || ('A' <= (c) && (c) <= 'F'))
-
-#define isdigit(c)	('0' <= (c) && (c) <= '9')
-#define islower(c)	('a' <= (c) && (c) <= 'z')
-#define toupper(c)	(islower(c) ? ((c) - 'a' + 'A') : (c))
-
-unsigned long prom_strtoul(const char *cp, const char **endp)
-{
-	unsigned long result = 0, base = 10, value;
-
-	if (*cp == '0') {
-		base = 8;
-		cp++;
-		if (toupper(*cp) == 'X') {
-			cp++;
-			base = 16;
-		}
-	}
-
-	while (isxdigit(*cp) &&
-	       (value = isdigit(*cp) ? *cp - '0' : toupper(*cp) - 'A' + 10) < base) {
-		result = result * base + value;
-		cp++;
-	}
-
-	if (endp)
-		*endp = cp;
-
-	return result;
-}
-
-unsigned long prom_memparse(const char *ptr, const char **retptr)
-{
-	unsigned long ret = prom_strtoul(ptr, retptr);
-	int shift = 0;
-
-	/*
-	 * We can't use a switch here because GCC *may* generate a
-	 * jump table which won't work, because we're not running at
-	 * the address we're linked at.
-	 */
-	if ('G' == **retptr || 'g' == **retptr)
-		shift = 30;
-
-	if ('M' == **retptr || 'm' == **retptr)
-		shift = 20;
-
-	if ('K' == **retptr || 'k' == **retptr)
-		shift = 10;
-
-	if (shift) {
-		ret <<= shift;
-		(*retptr)++;
-	}
-
-	return ret;
-}
-
 /*
  * Early parsing of the command line passed to the kernel, used for
  * "mem=x" and the options that affect the iommu
@@ -732,7 +671,7 @@ static struct fake_elf {
 			u32	ignore_me;
 		} rpadesc;
 	} rpanote;
-} fake_elf __section(.fakeelf) = {
+} fake_elf = {
 	.elfhdr = {
 		.e_ident = { 0x7f, 'E', 'L', 'F',
 			     ELFCLASS32, ELFDATA2MSB, EV_CURRENT },
@@ -774,13 +713,13 @@ static struct fake_elf {
 		.type = 0x12759999,
 		.name = "IBM,RPA-Client-Config",
 		.rpadesc = {
-			.lpar_affinity = 1,
-			.min_rmo_size = 128,	/* in megabytes */
+			.lpar_affinity = 0,
+			.min_rmo_size = 64,	/* in megabytes */
 			.min_rmo_percent = 0,
-			.max_pft_size = 46,	/* 2^46 bytes max PFT size */
+			.max_pft_size = 48,	/* 2^48 bytes max PFT size */
 			.splpar = 1,
 			.min_load = ~0U,
-			.new_mem_def = 1
+			.new_mem_def = 0
 		}
 	}
 };
