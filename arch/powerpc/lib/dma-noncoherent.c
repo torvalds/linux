@@ -320,7 +320,6 @@ static int __init dma_alloc_init(void)
 			ret = -ENOMEM;
 			break;
 		}
-		WARN_ON(!pmd_none(*pmd));
 
 		pte = pte_alloc_kernel(pmd, CONSISTENT_BASE);
 		if (!pte) {
