@@ -9196,11 +9196,12 @@ struct cgroup_subsys cpu_cgroup_subsys = {
  * (balbir@in.ibm.com).
  */
 
-/* track cpu usage of a group of tasks */
+/* track cpu usage of a group of tasks and its child groups */
 struct cpuacct {
 	struct cgroup_subsys_state css;
 	/* cpuusage holds pointer to a u64-type object on every cpu */
 	u64 *cpuusage;
+	struct cpuacct *parent;
 };
 
 struct cgroup_subsys cpuacct_subsys;
@@ -9233,6 +9234,9 @@ static struct cgroup_subsys_state *cpuacct_create(
 		kfree(ca);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	if (cgrp->parent)
+		ca->parent = cgroup_ca(cgrp->parent);
 
 	return &ca->css;
 }
@@ -9313,14 +9317,16 @@ static int cpuacct_populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
 static void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 {
 	struct cpuacct *ca;
+	int cpu;
 
 	if (!cpuacct_subsys.active)
 		return;
 
+	cpu = task_cpu(tsk);
 	ca = task_ca(tsk);
-	if (ca) {
-		u64 *cpuusage = percpu_ptr(ca->cpuusage, task_cpu(tsk));
 
+	for (; ca; ca = ca->parent) {
+		u64 *cpuusage = percpu_ptr(ca->cpuusage, cpu);
 		*cpuusage += cputime;
 	}
 }
