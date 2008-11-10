@@ -135,7 +135,6 @@ static int serio_raw_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&serio_raw_mutex);
 
-	serio_raw_fasync(-1, file, 0);
 	serio_raw_cleanup(serio_raw);
 
 	mutex_unlock(&serio_raw_mutex);

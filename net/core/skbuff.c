@@ -449,6 +449,18 @@ void kfree_skb(struct sk_buff *skb)
 	__kfree_skb(skb);
 }
 
+/**
+ *	skb_recycle_check - check if skb can be reused for receive
+ *	@skb: buffer
+ *	@skb_size: minimum receive buffer size
+ *
+ *	Checks that the skb passed in is not shared or cloned, and
+ *	that it is linear and its head portion at least as large as
+ *	skb_size so that it can be recycled as a receive buffer.
+ *	If these conditions are met, this function does any necessary
+ *	reference count dropping and cleans up the skbuff as if it
+ *	just came from __alloc_skb().
+ */
 int skb_recycle_check(struct sk_buff *skb, int skb_size)
 {
 	struct skb_shared_info *shinfo;

@@ -1097,28 +1097,17 @@ static int cfg_fasync(int fd, struct file *fp, int on)
 static int cfg_release(struct inode *inode, struct file *file)
 {
 	ulong id = (ulong) file->private_data;
-	struct i2o_cfg_info *p1, *p2;
+	struct i2o_cfg_info *p, **q;
 	unsigned long flags;
 
 	lock_kernel();
-	p1 = p2 = NULL;
-
 	spin_lock_irqsave(&i2o_config_lock, flags);
-	for (p1 = open_files; p1;) {
-		if (p1->q_id == id) {
-
-			if (p1->fasync)
-				cfg_fasync(-1, file, 0);
-			if (p2)
-				p2->next = p1->next;
-			else
-				open_files = p1->next;
-
-			kfree(p1);
+	for (q = &open_files; (p = *q) != NULL; q = &p->next) {
+		if (p->q_id == id) {
+			*q = p->next;
+			kfree(p);
 			break;
 		}
-		p2 = p1;
-		p1 = p1->next;
 	}
 	spin_unlock_irqrestore(&i2o_config_lock, flags);
 	unlock_kernel();

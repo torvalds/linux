@@ -1,5 +1,5 @@
 menuconfig RT2X00
-	bool "Ralink driver support"
+	tristate "Ralink driver support"
 	depends on MAC80211 && WLAN_80211 && EXPERIMENTAL
 	---help---
 	  This will enable the experimental support for the Ralink drivers,

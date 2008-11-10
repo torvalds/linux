@@ -593,31 +593,30 @@ static void dma_fixed_free_coherent(struct device *dev, size_t size,
 		dma_direct_ops.free_coherent(dev, size, vaddr, dma_handle);
 }
 
-static dma_addr_t dma_fixed_map_single(struct device *dev, void *ptr,
-				       size_t size,
-				       enum dma_data_direction direction,
-				       struct dma_attrs *attrs)
+static dma_addr_t dma_fixed_map_page(struct device *dev, struct page *page,
+				     unsigned long offset, size_t size,
+				     enum dma_data_direction direction,
+				     struct dma_attrs *attrs)
 {
 	if (iommu_fixed_is_weak == dma_get_attr(DMA_ATTR_WEAK_ORDERING, attrs))
-		return dma_direct_ops.map_single(dev, ptr, size, direction,
-						 attrs);
+		return dma_direct_ops.map_page(dev, page, offset, size,
+					       direction, attrs);
 	else
-		return iommu_map_single(dev, cell_get_iommu_table(dev), ptr,
-					size, device_to_mask(dev), direction,
-					attrs);
+		return iommu_map_page(dev, cell_get_iommu_table(dev), page,
+				      offset, size, device_to_mask(dev),
+				      direction, attrs);
 }
 
-static void dma_fixed_unmap_single(struct device *dev, dma_addr_t dma_addr,
-				   size_t size,
-				   enum dma_data_direction direction,
-				   struct dma_attrs *attrs)
+static void dma_fixed_unmap_page(struct device *dev, dma_addr_t dma_addr,
+				 size_t size, enum dma_data_direction direction,
+				 struct dma_attrs *attrs)
 {
 	if (iommu_fixed_is_weak == dma_get_attr(DMA_ATTR_WEAK_ORDERING, attrs))
-		dma_direct_ops.unmap_single(dev, dma_addr, size, direction,
-					    attrs);
+		dma_direct_ops.unmap_page(dev, dma_addr, size, direction,
+					  attrs);
 	else
-		iommu_unmap_single(cell_get_iommu_table(dev), dma_addr, size,
-				   direction, attrs);
+		iommu_unmap_page(cell_get_iommu_table(dev), dma_addr, size,
+				 direction, attrs);
 }
 
 static int dma_fixed_map_sg(struct device *dev, struct scatterlist *sg,
@@ -652,12 +651,12 @@ static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask);
 struct dma_mapping_ops dma_iommu_fixed_ops = {
 	.alloc_coherent = dma_fixed_alloc_coherent,
 	.free_coherent  = dma_fixed_free_coherent,
-	.map_single     = dma_fixed_map_single,
-	.unmap_single   = dma_fixed_unmap_single,
 	.map_sg         = dma_fixed_map_sg,
 	.unmap_sg       = dma_fixed_unmap_sg,
 	.dma_supported  = dma_fixed_dma_supported,
 	.set_dma_mask   = dma_set_mask_and_switch,
+	.map_page       = dma_fixed_map_page,
+	.unmap_page     = dma_fixed_unmap_page,
 };
 
 static void cell_dma_dev_setup_fixed(struct device *dev);

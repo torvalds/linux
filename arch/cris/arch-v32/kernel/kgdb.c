@@ -174,10 +174,10 @@
 #include <asm/ptrace.h>
 
 #include <asm/irq.h>
-#include <asm/arch/hwregs/reg_map.h>
-#include <asm/arch/hwregs/reg_rdwr.h>
-#include <asm/arch/hwregs/intr_vect_defs.h>
-#include <asm/arch/hwregs/ser_defs.h>
+#include <arch/hwregs/reg_map.h>
+#include <arch/hwregs/reg_rdwr.h>
+#include <arch/hwregs/intr_vect_defs.h>
+#include <arch/hwregs/ser_defs.h>
 
 /* From entry.S. */
 extern void gdb_handle_exception(void);

@@ -113,7 +113,6 @@ static int hdpu_nexus_probe(struct platform_device *pdev)
 	if (!hdpu_chassis_id)
 		printk(KERN_WARNING "sky_nexus: "
 		       "Unable to create proc dir entry: sky_chassis_id\n");
-	}
 
 	return 0;
 }

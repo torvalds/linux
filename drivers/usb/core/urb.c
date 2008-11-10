@@ -474,6 +474,12 @@ EXPORT_SYMBOL_GPL(usb_submit_urb);
  * indicating that the request has been canceled (rather than any other
  * code).
  *
+ * Drivers should not call this routine or related routines, such as
+ * usb_kill_urb() or usb_unlink_anchored_urbs(), after their disconnect
+ * method has returned.  The disconnect function should synchronize with
+ * a driver's I/O routines to insure that all URB-related activity has
+ * completed before it returns.
+ *
  * This request is always asynchronous.  Success is indicated by
  * returning -EINPROGRESS, at which time the URB will probably not yet
  * have been given back to the device driver.  When it is eventually
@@ -550,6 +556,9 @@ EXPORT_SYMBOL_GPL(usb_unlink_urb);
  * This routine may not be used in an interrupt context (such as a bottom
  * half or a completion handler), or when holding a spinlock, or in other
  * situations where the caller can't schedule().
+ *
+ * This routine should not be called by a driver after its disconnect
+ * method has returned.
  */
 void usb_kill_urb(struct urb *urb)
 {
@@ -588,6 +597,9 @@ EXPORT_SYMBOL_GPL(usb_kill_urb);
  * This routine may not be used in an interrupt context (such as a bottom
  * half or a completion handler), or when holding a spinlock, or in other
  * situations where the caller can't schedule().
+ *
+ * This routine should not be called by a driver after its disconnect
+ * method has returned.
  */
 void usb_poison_urb(struct urb *urb)
 {
@@ -622,6 +634,9 @@ EXPORT_SYMBOL_GPL(usb_unpoison_urb);
  *
  * this allows all outstanding URBs to be killed starting
  * from the back of the queue
+ *
+ * This routine should not be called by a driver after its disconnect
+ * method has returned.
  */
 void usb_kill_anchored_urbs(struct usb_anchor *anchor)
 {
@@ -651,6 +666,9 @@ EXPORT_SYMBOL_GPL(usb_kill_anchored_urbs);
  * this allows all outstanding URBs to be poisoned starting
  * from the back of the queue. Newly added URBs will also be
  * poisoned
+ *
+ * This routine should not be called by a driver after its disconnect
+ * method has returned.
  */
 void usb_poison_anchored_urbs(struct usb_anchor *anchor)
 {
@@ -672,6 +690,7 @@ void usb_poison_anchored_urbs(struct usb_anchor *anchor)
 	spin_unlock_irq(&anchor->lock);
 }
 EXPORT_SYMBOL_GPL(usb_poison_anchored_urbs);
+
 /**
  * usb_unlink_anchored_urbs - asynchronously cancel transfer requests en masse
  * @anchor: anchor the requests are bound to
@@ -680,6 +699,9 @@ EXPORT_SYMBOL_GPL(usb_poison_anchored_urbs);
  * from the back of the queue. This function is asynchronous.
  * The unlinking is just tiggered. It may happen after this
  * function has returned.
+ *
+ * This routine should not be called by a driver after its disconnect
+ * method has returned.
  */
 void usb_unlink_anchored_urbs(struct usb_anchor *anchor)
 {

@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kallsyms.h>
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 
 extern int ftrace_enabled;
 extern int
@@ -36,16 +36,14 @@ void clear_ftrace_function(void);
 
 extern void ftrace_stub(unsigned long a0, unsigned long a1);
 
-#else /* !CONFIG_FTRACE */
+#else /* !CONFIG_FUNCTION_TRACER */
 # define register_ftrace_function(ops) do { } while (0)
 # define unregister_ftrace_function(ops) do { } while (0)
 # define clear_ftrace_function(ops) do { } while (0)
-static inline void ftrace_kill_atomic(void) { }
-#endif /* CONFIG_FTRACE */
+static inline void ftrace_kill(void) { }
+#endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-# define FTRACE_HASHBITS	10
-# define FTRACE_HASHSIZE	(1<<FTRACE_HASHBITS)
 
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
@@ -58,9 +56,9 @@ enum {
 };
 
 struct dyn_ftrace {
-	struct hlist_node node;
-	unsigned long	  ip; /* address of mcount call-site */
-	unsigned long	  flags;
+	struct list_head	list;
+	unsigned long		ip; /* address of mcount call-site */
+	unsigned long		flags;
 };
 
 int ftrace_force_update(void);
@@ -71,13 +69,32 @@ extern int ftrace_ip_converted(unsigned long ip);
 extern unsigned char *ftrace_nop_replace(void);
 extern unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr);
 extern int ftrace_dyn_arch_init(void *data);
-extern int ftrace_mcount_set(unsigned long *data);
-extern int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
-			      unsigned char *new_code);
 extern int ftrace_update_ftrace_func(ftrace_func_t func);
 extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
+
+/**
+ * ftrace_modify_code - modify code segment
+ * @ip: the address of the code segment
+ * @old_code: the contents of what is expected to be there
+ * @new_code: the code to patch in
+ *
+ * This is a very sensitive operation and great care needs
+ * to be taken by the arch.  The operation should carefully
+ * read the location, check to see if what is read is indeed
+ * what we expect it to be, and then on success of the compare,
+ * it should write to the location.
+ *
+ * Return must be:
+ *  0 on success
+ *  -EFAULT on error reading the location
+ *  -EINVAL on a failed compare of the contents
+ *  -EPERM  on error writing to the location
+ * Any other value will be considered a failure.
+ */
+extern int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
+			      unsigned char *new_code);
 
 extern int skip_trace(unsigned long ip);
 
@@ -97,11 +114,10 @@ static inline void ftrace_release(void *start, unsigned long size) { }
 
 /* totally disable ftrace - can not re-enable after this */
 void ftrace_kill(void);
-void ftrace_kill_atomic(void);
 
 static inline void tracer_disable(void)
 {
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	ftrace_enabled = 0;
 #endif
 }
@@ -113,7 +129,7 @@ static inline void tracer_disable(void)
  */
 static inline int __ftrace_enabled_save(void)
 {
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	int saved_ftrace_enabled = ftrace_enabled;
 	ftrace_enabled = 0;
 	return saved_ftrace_enabled;
@@ -124,7 +140,7 @@ static inline int __ftrace_enabled_save(void)
 
 static inline void __ftrace_enabled_restore(int enabled)
 {
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	ftrace_enabled = enabled;
 #endif
 }

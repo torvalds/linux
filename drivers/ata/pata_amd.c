@@ -1,7 +1,6 @@
 /*
  * pata_amd.c 	- AMD PATA for new ATA layer
  *			  (C) 2005-2006 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  *  Based on pata-sil680. Errata information is taken from data sheets
  *  and the amd74xx.c driver by Vojtech Pavlik. Nvidia SATA devices are

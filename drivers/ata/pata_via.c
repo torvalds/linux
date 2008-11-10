@@ -1,7 +1,6 @@
 /*
  * pata_via.c 	- VIA PATA for new ATA layer
  *			  (C) 2005-2006 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  *  Documentation
  *	Most chipset documentation available under NDA only

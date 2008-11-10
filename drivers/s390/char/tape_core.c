@@ -1200,7 +1200,7 @@ tape_open(struct tape_device *device)
 {
 	int rc;
 
-	spin_lock(get_ccwdev_lock(device->cdev));
+	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	if (device->tape_state == TS_NOT_OPER) {
 		DBF_EVENT(6, "TAPE:nodev\n");
 		rc = -ENODEV;
@@ -1218,7 +1218,7 @@ tape_open(struct tape_device *device)
 		tape_state_set(device, TS_IN_USE);
 		rc = 0;
 	}
-	spin_unlock(get_ccwdev_lock(device->cdev));
+	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	return rc;
 }
 
@@ -1228,11 +1228,11 @@ tape_open(struct tape_device *device)
 int
 tape_release(struct tape_device *device)
 {
-	spin_lock(get_ccwdev_lock(device->cdev));
+	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	if (device->tape_state == TS_IN_USE)
 		tape_state_set(device, TS_UNUSED);
 	module_put(device->discipline->owner);
-	spin_unlock(get_ccwdev_lock(device->cdev));
+	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	return 0;
 }
 

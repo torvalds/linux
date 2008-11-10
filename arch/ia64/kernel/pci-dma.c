@@ -12,13 +12,11 @@
 #include <asm/machvec.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/machvec.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_DMAR
 
 #include <linux/kernel.h>
-#include <linux/string.h>
 
 #include <asm/page.h>
 #include <asm/iommu.h>
@@ -88,13 +86,6 @@ EXPORT_SYMBOL(dma_ops);
 int iommu_dma_supported(struct device *dev, u64 mask)
 {
 	struct dma_mapping_ops *ops = get_dma_ops(dev);
-
-#ifdef CONFIG_PCI
-	if (mask > 0xffffffff && forbid_dac > 0) {
-		dev_info(dev, "Disallowing DAC for device\n");
-		return 0;
-	}
-#endif
 
 	if (ops->dma_supported_op)
 		return ops->dma_supported_op(dev, mask);

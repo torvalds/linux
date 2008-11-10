@@ -1920,7 +1920,6 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 
 static int sonypi_misc_release(struct inode *inode, struct file *file)
 {
-	sonypi_misc_fasync(-1, file, 0);
 	atomic_dec(&sonypi_compat.open_count);
 	return 0;
 }
@@ -2315,8 +2314,10 @@ end:
  */
 static int sony_pic_disable(struct acpi_device *device)
 {
-	if (ACPI_FAILURE(acpi_evaluate_object(device->handle,
-			"_DIS", NULL, NULL)))
+	acpi_status ret = acpi_evaluate_object(device->handle, "_DIS", NULL,
+					       NULL);
+
+	if (ACPI_FAILURE(ret) && ret != AE_NOT_FOUND)
 		return -ENXIO;
 
 	dprintk("Device disabled\n");

@@ -386,7 +386,6 @@ struct cfs_rq {
 
 	u64 exec_clock;
 	u64 min_vruntime;
-	u64 pair_start;
 
 	struct rb_root tasks_timeline;
 	struct rb_node *rb_leftmost;
@@ -398,7 +397,7 @@ struct cfs_rq {
 	 * 'curr' points to currently running entity on this cfs_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
 	 */
-	struct sched_entity *curr, *next;
+	struct sched_entity *curr, *next, *last;
 
 	unsigned long nr_spread_over;
 
@@ -1806,7 +1805,9 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 	/*
 	 * Buddy candidates are cache hot:
 	 */
-	if (sched_feat(CACHE_HOT_BUDDY) && (&p->se == cfs_rq_of(&p->se)->next))
+	if (sched_feat(CACHE_HOT_BUDDY) &&
+			(&p->se == cfs_rq_of(&p->se)->next ||
+			 &p->se == cfs_rq_of(&p->se)->last))
 		return 1;
 
 	if (p->sched_class != &fair_sched_class)
@@ -3344,7 +3345,7 @@ small_imbalance:
 		} else
 			this_load_per_task = cpu_avg_load_per_task(this_cpu);
 
-		if (max_load - this_load + 2*busiest_load_per_task >=
+		if (max_load - this_load + busiest_load_per_task >=
 					busiest_load_per_task * imbn) {
 			*imbalance = busiest_load_per_task;
 			return busiest;
@@ -6876,15 +6877,17 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 	struct sched_domain *tmp;
 
 	/* Remove the sched domains which do not contribute to scheduling. */
-	for (tmp = sd; tmp; tmp = tmp->parent) {
+	for (tmp = sd; tmp; ) {
 		struct sched_domain *parent = tmp->parent;
 		if (!parent)
 			break;
+
 		if (sd_parent_degenerate(tmp, parent)) {
 			tmp->parent = parent->parent;
 			if (parent->parent)
 				parent->parent->child = tmp;
-		}
+		} else
+			tmp = tmp->parent;
 	}
 
 	if (sd && sd_degenerate(sd)) {
@@ -7673,6 +7676,7 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 error:
 	free_sched_groups(cpu_map, tmpmask);
 	SCHED_CPUMASK_FREE((void *)allmasks);
+	kfree(rd);
 	return -ENOMEM;
 #endif
 }

@@ -319,7 +319,7 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	void *tmp;
 	int err;
 	u8 *end = (u8 *)eeprom + len;
-	u16 synth;
+	u16 synth = 0;
 	DECLARE_MAC_BUF(mac);
 
 	wrap = (struct eeprom_pda_wrap *) eeprom;
@@ -422,7 +422,8 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		entry = (void *)entry + (entry_len + 1)*2;
 	}
 
-	if (!priv->iq_autocal || !priv->output_limit || !priv->curve_data) {
+	if (!synth || !priv->iq_autocal || !priv->output_limit ||
+	    !priv->curve_data) {
 		printk(KERN_ERR "p54: not all required entries found in eeprom!\n");
 		err = -EINVAL;
 		goto err;
