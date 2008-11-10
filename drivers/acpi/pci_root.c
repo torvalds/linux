@@ -194,7 +194,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	unsigned long long value = 0;
 	acpi_handle handle = NULL;
 	struct acpi_device *child;
-	u32 flags;
+	u32 flags, base_flags;
 
 
 	if (!device)
@@ -216,7 +216,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 * All supported architectures that use ACPI have support for
 	 * PCI domains, so we indicate this in _OSC support capabilities.
 	 */
-	flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
+	flags = base_flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
 	pci_acpi_osc_support(device->handle, flags);
 
 	/* 
@@ -343,6 +343,12 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 */
 	list_for_each_entry(child, &device->children, node)
 		acpi_pci_bridge_scan(child);
+
+	/* Indicate support for various _OSC capabilities. */
+	if (pci_ext_cfg_avail(root->bus->self))
+		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
+	if (flags != base_flags)
+		pci_acpi_osc_support(device->handle, flags);
 
       end:
 	if (result) {
