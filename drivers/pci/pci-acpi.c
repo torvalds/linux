@@ -175,31 +175,6 @@ out:
 	return rc;
 }
 
-static acpi_status acpi_query_osc(acpi_handle handle, u32 level,
-				  void *context, void **retval)
-{
-	pci_acpi_osc_support(handle, (unsigned long)context);
-	return AE_OK;
-}
-
-/**
- * __pci_osc_support_set - register OS support to Firmware
- * @flags: OS support bits
- * @hid: hardware ID
- *
- * Update OS support fields and doing a _OSC Query to obtain an update
- * from Firmware on supported control bits.
- **/
-acpi_status __pci_osc_support_set(u32 flags, const char *hid)
-{
-	if (!(flags & OSC_SUPPORT_MASKS))
-		return AE_TYPE;
-
-	acpi_get_devices(hid, acpi_query_osc,
-			 (void *)(unsigned long)flags, NULL);
-	return AE_OK;
-}
-
 /**
  * pci_osc_control_set - commit requested control to Firmware
  * @handle: acpi_handle for the target ACPI object

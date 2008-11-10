@@ -50,16 +50,7 @@
 
 #ifdef CONFIG_ACPI
 extern acpi_status pci_osc_control_set(acpi_handle handle, u32 flags);
-extern acpi_status __pci_osc_support_set(u32 flags, const char *hid);
 int pci_acpi_osc_support(acpi_handle handle, u32 flags);
-static inline acpi_status pci_osc_support_set(u32 flags)
-{
-	return __pci_osc_support_set(flags, PCI_ROOT_HID_STRING);
-}
-static inline acpi_status pcie_osc_support_set(u32 flags)
-{
-	return __pci_osc_support_set(flags, PCI_EXPRESS_ROOT_HID_STRING);
-}
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 {
 	/* Find root host bridge */
@@ -76,8 +67,6 @@ typedef u32 		acpi_status;
 #endif    
 static inline acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {return AE_ERROR;}
-static inline acpi_status pci_osc_support_set(u32 flags) {return AE_ERROR;} 
-static inline acpi_status pcie_osc_support_set(u32 flags) {return AE_ERROR;}
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 { return NULL; }
 #endif
