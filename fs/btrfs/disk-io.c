@@ -1201,6 +1201,16 @@ void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 		return;
 
 	inode = mapping->host;
+
+	/*
+	 * don't do the expensive searching for a small number of
+	 * devices
+	 */
+	if (BTRFS_I(inode)->root->fs_info->fs_devices->open_devices <= 2) {
+		__unplug_io_fn(bdi, page);
+		return;
+	}
+
 	offset = page_offset(page);
 
 	em_tree = &BTRFS_I(inode)->extent_tree;
