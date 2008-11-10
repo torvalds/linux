@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/hardirq.h>
 #include <linux/timer.h>
+#include <linux/proc_fs.h>
 #include <asm/current.h>
 #include <asm/smp.h>
 #include <asm/ipi.h>
@@ -570,4 +571,5 @@ void __init uv_system_init(void)
 
 	uv_cpu_init();
 	uv_scir_register_cpu_notifier();
+	proc_mkdir("sgi_uv", NULL);
 }

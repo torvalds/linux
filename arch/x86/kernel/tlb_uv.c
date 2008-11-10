@@ -566,14 +566,10 @@ static int __init uv_ptc_init(void)
 	if (!is_uv_system())
 		return 0;
 
-	if (!proc_mkdir("sgi_uv", NULL))
-		return -EINVAL;
-
 	proc_uv_ptc = create_proc_entry(UV_PTC_BASENAME, 0444, NULL);
 	if (!proc_uv_ptc) {
 		printk(KERN_ERR "unable to create %s proc entry\n",
 		       UV_PTC_BASENAME);
-		remove_proc_entry("sgi_uv", NULL);
 		return -EINVAL;
 	}
 	proc_uv_ptc->proc_fops = &proc_uv_ptc_operations;
