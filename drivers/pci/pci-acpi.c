@@ -143,28 +143,42 @@ static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data,
 	return status;
 }
 
-static acpi_status acpi_query_osc(acpi_handle handle,
-				  u32 level, void *context, void **retval)
+/*
+ * pci_acpi_osc_support: Invoke _OSC indicating support for the given feature
+ * @flags: Bitmask of flags to support
+ *
+ * See the ACPI spec for the definition of the flags
+ */
+int pci_acpi_osc_support(acpi_handle handle, u32 flags)
 {
+	u32 dummy;
 	acpi_status status;
-	struct acpi_osc_data *osc_data;
-	u32 flags = (unsigned long)context, dummy;
 	acpi_handle tmp;
+	struct acpi_osc_data *osc_data;
+	int rc = 0;
 
 	status = acpi_get_handle(handle, "_OSC", &tmp);
 	if (ACPI_FAILURE(status))
-		return AE_OK;
+		return -ENOTTY;
 
 	mutex_lock(&pci_acpi_lock);
 	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
+		rc = -ENOMEM;
 		goto out;
 	}
 
 	__acpi_query_osc(flags, osc_data, &dummy);
 out:
 	mutex_unlock(&pci_acpi_lock);
+	return rc;
+}
+
+static acpi_status acpi_query_osc(acpi_handle handle, u32 level,
+				  void *context, void **retval)
+{
+	pci_acpi_osc_support(handle, (unsigned long)context);
 	return AE_OK;
 }
 

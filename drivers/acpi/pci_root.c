@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/pm.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -193,6 +194,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	unsigned long long value = 0;
 	acpi_handle handle = NULL;
 	struct acpi_device *child;
+	u32 flags;
 
 
 	if (!device)
@@ -209,6 +211,13 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	device->driver_data = root;
 
 	device->ops.bind = acpi_pci_bind;
+
+	/*
+	 * All supported architectures that use ACPI have support for
+	 * PCI domains, so we indicate this in _OSC support capabilities.
+	 */
+	flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
+	pci_acpi_osc_support(device->handle, flags);
 
 	/* 
 	 * Segment
