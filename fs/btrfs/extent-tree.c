@@ -2123,6 +2123,7 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 	int allowed_chunk_alloc = 0;
 	struct list_head *head = NULL, *cur = NULL;
 	int loop = 0;
+	int extra_loop = 0;
 	struct btrfs_space_info *space_info;
 
 	WARN_ON(num_bytes < root->sectorsize);
@@ -2191,6 +2192,9 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 
 		free_space = btrfs_find_free_space(block_group, search_start,
 						   total_needed);
+		if (empty_size)
+			extra_loop = 1;
+
 		if (free_space) {
 			u64 start = block_group->key.objectid;
 			u64 end = block_group->key.objectid +
@@ -2254,11 +2258,11 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 new_group:
 		mutex_unlock(&block_group->alloc_mutex);
 new_group_no_lock:
+		/* don't try to compare new allocations against the
+		 * last allocation any more
+		 */
 		last_wanted = 0;
-		if (!allowed_chunk_alloc) {
-			total_needed -= empty_size;
-			empty_size = 0;
-		}
+
 		/*
 		 * Here's how this works.
 		 * loop == 0: we were searching a block group via a hint
@@ -2276,9 +2280,21 @@ new_group_no_lock:
 			cur = head->next;
 			loop++;
 		} else if (loop == 1 && cur == head) {
+			int keep_going;
 
+			/* at this point we give up on the empty_size
+			 * allocations and just try to allocate the min
+			 * space.
+			 *
+			 * The extra_loop field was set if an empty_size
+			 * allocation was attempted above, and if this
+			 * is try we need to try the loop again without
+			 * the additional empty_size.
+			 */
 			total_needed -= empty_size;
 			empty_size = 0;
+			keep_going = extra_loop;
+			loop++;
 
 			if (allowed_chunk_alloc && !chunk_alloc_done) {
 				up_read(&space_info->groups_sem);
@@ -2287,13 +2303,19 @@ new_group_no_lock:
 				if (ret < 0)
 					break;
 				down_read(&space_info->groups_sem);
-				loop++;
 				head = &space_info->block_groups;
-				cur = head->next;
+				/*
+				 * we've allocated a new chunk, keep
+				 * trying
+				 */
+				keep_going = 1;
 				chunk_alloc_done = 1;
 			} else if (!allowed_chunk_alloc) {
 				space_info->force_alloc = 1;
-				break;
+			}
+			if (keep_going) {
+				cur = head->next;
+				extra_loop = 0;
 			} else {
 				break;
 			}
