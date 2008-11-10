@@ -672,12 +672,8 @@ static int __init calibrate_APIC_clock(void)
 		while (lapic_cal_loops <= LAPIC_CAL_LOOPS)
 			cpu_relax();
 
-		local_irq_disable();
-
 		/* Stop the lapic timer */
 		lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, levt);
-
-		local_irq_enable();
 
 		/* Jiffies delta */
 		deltaj = lapic_cal_j2 - lapic_cal_j1;
