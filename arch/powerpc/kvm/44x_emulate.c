@@ -21,6 +21,7 @@
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 #include <asm/disassemble.h>
+#include <asm/kvm_44x.h>
 
 #include "booke.h"
 #include "44x_tlb.h"
@@ -37,14 +38,6 @@
 #define XOP_TLBSX   914
 #define XOP_ICCCI   966
 #define XOP_TLBWE   978
-
-static inline void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 new_pid)
-{
-	if (vcpu->arch.pid != new_pid) {
-		vcpu->arch.pid = new_pid;
-		vcpu->arch.swap_pid = 1;
-	}
-}
 
 static void kvmppc_emul_rfi(struct kvm_vcpu *vcpu)
 {

@@ -268,31 +268,34 @@ static void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	}
 }
 
-/* Invalidate all mappings on the privilege switch after PID has been changed.
- * The guest always runs with PID=1, so we must clear the entire TLB when
- * switching address spaces. */
 void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
+{
+	vcpu->arch.shadow_pid = !usermode;
+}
+
+void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 new_pid)
 {
 	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	int i;
 
-	if (vcpu->arch.swap_pid) {
-		/* XXX Replace loop with fancy data structures. */
-		for (i = 0; i <= tlb_44x_hwater; i++) {
-			struct kvmppc_44x_tlbe *stlbe = &vcpu_44x->shadow_tlb[i];
+	if (unlikely(vcpu->arch.pid == new_pid))
+		return;
 
-			/* Future optimization: clear only userspace mappings. */
+	vcpu->arch.pid = new_pid;
+
+	/* Guest userspace runs with TID=0 mappings and PID=0, to make sure it
+	 * can't access guest kernel mappings (TID=1). When we switch to a new
+	 * guest PID, which will also use host PID=0, we must discard the old guest
+	 * userspace mappings. */
+	for (i = 0; i < ARRAY_SIZE(vcpu_44x->shadow_tlb); i++) {
+		struct kvmppc_44x_tlbe *stlbe = &vcpu_44x->shadow_tlb[i];
+
+		if (get_tlb_tid(stlbe) == 0) {
 			kvmppc_44x_shadow_release(vcpu, i);
 			stlbe->word0 = 0;
 			kvmppc_tlbe_set_modified(vcpu, i);
-			KVMTRACE_5D(STLB_INVAL, vcpu, i,
-			            stlbe->tid, stlbe->word0, stlbe->word1,
-			            stlbe->word2, handler);
 		}
-		vcpu->arch.swap_pid = 0;
 	}
-
-	vcpu->arch.shadow_pid = !usermode;
 }
 
 static int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,

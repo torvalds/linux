@@ -44,4 +44,6 @@ static inline struct kvmppc_vcpu_44x *to_44x(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct kvmppc_vcpu_44x, vcpu);
 }
 
+void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 new_pid);
+
 #endif /* __ASM_44X_H__ */
