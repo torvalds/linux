@@ -847,7 +847,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
 			sd->brightness * desired_avg_lum / 127,
 			deadzone, GAIN_KNEE, EXPOSURE_KNEE)) {
-		PDEBUG(D_FRAM, "autogain: gain changed: gain: %d expo: %d\n",
+		PDEBUG(D_FRAM, "autogain: gain changed: gain: %d expo: %d",
 			(int)sd->gain, (int)sd->exposure);
 		sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
 	}

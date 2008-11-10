@@ -1998,7 +1998,7 @@ int gspca_auto_gain_n_exposure(struct gspca_dev *gspca_dev, int avg_lum,
 	   desired lumination fast (with the risc of a slight overshoot) */
 	steps = abs(desired_avg_lum - avg_lum) / deadzone;
 
-	PDEBUG(D_FRAM, "autogain: lum: %d, desired: %d, steps: %d\n",
+	PDEBUG(D_FRAM, "autogain: lum: %d, desired: %d, steps: %d",
 		avg_lum, desired_avg_lum, steps);
 
 	for (i = 0; i < steps; i++) {
