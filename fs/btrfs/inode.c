@@ -3949,6 +3949,8 @@ again:
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
 		em->start = extent_start;
 		em->len = extent_end - extent_start;
+		em->orig_start = extent_start -
+				 btrfs_file_extent_offset(leaf, item);
 		bytenr = btrfs_file_extent_disk_bytenr(leaf, item);
 		if (bytenr == 0) {
 			em->block_start = EXTENT_MAP_HOLE;
@@ -3988,6 +3990,7 @@ again:
 		em->start = extent_start + extent_offset;
 		em->len = (copy_size + root->sectorsize - 1) &
 			~((u64)root->sectorsize - 1);
+		em->orig_start = EXTENT_MAP_INLINE;
 		if (compressed)
 			set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 		ptr = btrfs_file_extent_inline_start(item) + extent_offset;

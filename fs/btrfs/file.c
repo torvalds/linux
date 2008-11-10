@@ -222,6 +222,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		    em->start < start) {
 			split->start = em->start;
 			split->len = start - em->start;
+			split->orig_start = em->orig_start;
 			split->block_start = em->block_start;
 
 			if (compressed)
@@ -243,6 +244,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 
 			split->start = start + len;
 			split->len = em->start + em->len - (start + len);
+			split->orig_start = em->orig_start;
 			split->bdev = em->bdev;
 			split->flags = flags;
 

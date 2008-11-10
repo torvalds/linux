@@ -505,7 +505,6 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	struct block_device *bdev;
 	struct bio *comp_bio;
 	u64 cur_disk_byte = (u64)bio->bi_sector << 9;
-	u64 em_len;
 	struct extent_map *em;
 	int ret;
 
@@ -524,9 +523,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	cb->errors = 0;
 	cb->inode = inode;
 
-	cb->start = em->start;
+	cb->start = em->orig_start;
 	compressed_len = em->block_len;
-	em_len = em->len;
 	free_extent_map(em);
 
 	cb->len = uncompressed_len;
@@ -545,7 +543,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	}
 	cb->nr_pages = nr_pages;
 
-	add_ra_bio_pages(inode, cb->start + em_len, cb);
+	add_ra_bio_pages(inode, em->start + em->len, cb);
 
 	if (!btrfs_test_opt(root, NODATASUM) &&
 	    !btrfs_test_flag(inode, NODATASUM)) {
