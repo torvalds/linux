@@ -200,7 +200,7 @@ static int		ath5k_pci_resume(struct pci_dev *pdev);
 #endif /* CONFIG_PM */
 
 static struct pci_driver ath5k_pci_driver = {
-	.name		= "ath5k_pci",
+	.name		= KBUILD_MODNAME,
 	.id_table	= ath5k_pci_id_table,
 	.probe		= ath5k_pci_probe,
 	.remove		= __devexit_p(ath5k_pci_remove),
