@@ -780,7 +780,6 @@ xfs_setup_inode(
 	inode->i_ino = ip->i_ino;
 	inode->i_state = I_NEW|I_LOCK;
 	inode_add_to_lists(ip->i_mount->m_super, inode);
-	ASSERT(atomic_read(&inode->i_count) == 1);
 
 	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;

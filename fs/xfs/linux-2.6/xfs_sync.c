@@ -117,8 +117,9 @@ xfs_sync_inodes_ag(
 		}
 		read_unlock(&pag->pag_ici_lock);
 
-		/* bad inodes are dealt with elsewhere */
-		if (is_bad_inode(inode)) {
+		/* avoid new or bad inodes */
+		if (is_bad_inode(inode) ||
+		    xfs_iflags_test(ip, XFS_INEW)) {
 			IRELE(ip);
 			continue;
 		}

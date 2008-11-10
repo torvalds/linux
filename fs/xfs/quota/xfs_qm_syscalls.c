@@ -1080,6 +1080,12 @@ xfs_qm_dqrele_inodes_ag(
 		}
 		read_unlock(&pag->pag_ici_lock);
 
+		/* avoid new inodes though we shouldn't find any here */
+		if (xfs_iflags_test(ip, XFS_INEW)) {
+			IRELE(ip);
+			continue;
+		}
+
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
 			xfs_qm_dqrele(ip->i_udquot);
