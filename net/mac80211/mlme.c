@@ -14,7 +14,6 @@
 #include <linux/delay.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/random.h>
