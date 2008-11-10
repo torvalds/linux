@@ -35,7 +35,7 @@
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
 		moveq	\rx,      #0x10000000
-		movne	\rx,      #0xf0000000	@ virtual base
+		movne	\rx,      #0xfb000000	@ virtual base
 		orr	\rx, \rx, #DEBUG_LL_UART_OFFSET
 		.endm
 
