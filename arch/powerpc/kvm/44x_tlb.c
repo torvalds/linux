@@ -339,7 +339,7 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 
 	switch (ws) {
 	case PPC44x_TLB_PAGEID:
-		tlbe->tid = vcpu->arch.mmucr & 0xff;
+		tlbe->tid = get_mmucr_stid(vcpu);
 		tlbe->word0 = vcpu->arch.gpr[rs];
 		break;
 
