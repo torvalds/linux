@@ -2174,11 +2174,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
 	if (page->index > end_index ||
 	   (page->index == end_index && !pg_offset)) {
-		if (epd->extent_locked) {
-			if (tree->ops && tree->ops->writepage_end_io_hook)
-				tree->ops->writepage_end_io_hook(page, start,
-							 page_end, NULL, 1);
-		}
+		page->mapping->a_ops->invalidatepage(page, 0);
 		unlock_page(page);
 		return 0;
 	}

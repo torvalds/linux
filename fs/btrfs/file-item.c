@@ -185,6 +185,7 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 				       "%llu\n", inode->i_ino,
 				       (unsigned long long)offset);
 				item = NULL;
+				btrfs_release_path(root, path);
 				goto found;
 			}
 			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
