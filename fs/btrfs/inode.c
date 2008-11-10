@@ -610,6 +610,7 @@ static noinline int submit_compressed_extents(struct inode *inode,
 		em = alloc_extent_map(GFP_NOFS);
 		em->start = async_extent->start;
 		em->len = async_extent->ram_size;
+		em->orig_start = em->start;
 
 		em->block_start = ins.objectid;
 		em->block_len = ins.offset;
@@ -743,6 +744,7 @@ static noinline int cow_file_range(struct inode *inode,
 		}
 		em = alloc_extent_map(GFP_NOFS);
 		em->start = start;
+		em->orig_start = em->start;
 
 		ram_size = ins.offset;
 		em->len = ins.offset;
@@ -1057,6 +1059,7 @@ out_check:
 			em_tree = &BTRFS_I(inode)->extent_tree;
 			em = alloc_extent_map(GFP_NOFS);
 			em->start = cur_offset;
+			em->orig_start = em->start;
 			em->len = num_bytes;
 			em->block_len = num_bytes;
 			em->block_start = disk_bytenr;
@@ -3876,6 +3879,7 @@ again:
 	}
 	em->bdev = root->fs_info->fs_devices->latest_bdev;
 	em->start = EXTENT_MAP_HOLE;
+	em->orig_start = EXTENT_MAP_HOLE;
 	em->len = (u64)-1;
 	em->block_len = (u64)-1;
 
