@@ -1205,7 +1205,8 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 			 */
 			if (pages[i] != locked_page) {
 				lock_page(pages[i]);
-				if (pages[i]->mapping != inode->i_mapping) {
+				if (!PageDirty(pages[i]) ||
+				    pages[i]->mapping != inode->i_mapping) {
 					ret = -EAGAIN;
 					unlock_page(pages[i]);
 					page_cache_release(pages[i]);
