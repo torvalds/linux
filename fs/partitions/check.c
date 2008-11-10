@@ -395,7 +395,7 @@ int add_partition(struct gendisk *disk, int partno,
 
 	err = blk_alloc_devt(p, &devt);
 	if (err)
-		goto out_free;
+		goto out_free_stats;
 	pdev->devt = devt;
 
 	/* delay uevent until 'holders' subdir is created */
@@ -426,6 +426,8 @@ int add_partition(struct gendisk *disk, int partno,
 
 	return 0;
 
+out_free_stats:
+	free_part_stats(p);
 out_free:
 	kfree(p);
 	return err;
