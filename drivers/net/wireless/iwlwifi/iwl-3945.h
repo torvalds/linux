@@ -828,8 +828,6 @@ struct iwl3945_priv {
 	unsigned long last_statistics_time;
 
 	/* context information */
-	u8 essid[IW_ESSID_MAX_SIZE];
-	u8 essid_len;
 	u16 rates_mask;
 
 	u32 power_mode;

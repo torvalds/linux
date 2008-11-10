@@ -1297,22 +1297,6 @@ static void adm8211_set_bssid(struct ieee80211_hw *dev, const u8 *bssid)
 	ADM8211_CSR_WRITE(ABDA1, reg);
 }
 
-static int adm8211_set_ssid(struct ieee80211_hw *dev, u8 *ssid, size_t ssid_len)
-{
-	struct adm8211_priv *priv = dev->priv;
-	u8 buf[36];
-
-	if (ssid_len > 32)
-		return -EINVAL;
-
-	memset(buf, 0, sizeof(buf));
-	buf[0] = ssid_len;
-	memcpy(buf + 1, ssid, ssid_len);
-	adm8211_write_sram_bytes(dev, ADM8211_SRAM_SSID, buf, 33);
-	/* TODO: configure beacon for adhoc? */
-	return 0;
-}
-
 static int adm8211_config(struct ieee80211_hw *dev, u32 changed)
 {
 	struct adm8211_priv *priv = dev->priv;
@@ -1336,13 +1320,6 @@ static int adm8211_config_interface(struct ieee80211_hw *dev,
 	if (memcmp(conf->bssid, priv->bssid, ETH_ALEN)) {
 		adm8211_set_bssid(dev, conf->bssid);
 		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
-	}
-
-	if (conf->ssid_len != priv->ssid_len ||
-	    memcmp(conf->ssid, priv->ssid, conf->ssid_len)) {
-		adm8211_set_ssid(dev, conf->ssid, conf->ssid_len);
-		priv->ssid_len = conf->ssid_len;
-		memcpy(priv->ssid, conf->ssid, conf->ssid_len);
 	}
 
 	return 0;

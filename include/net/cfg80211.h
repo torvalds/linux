@@ -280,11 +280,16 @@ struct mpath_info {
  *	(0 = no, 1 = yes, -1 = do not change)
  * @use_short_slot_time: Whether the use of short slot time is allowed
  *	(0 = no, 1 = yes, -1 = do not change)
+ * @basic_rates: basic rates in IEEE 802.11 format
+ *	(or NULL for no change)
+ * @basic_rates_len: number of basic rates
  */
 struct bss_parameters {
 	int use_cts_prot;
 	int use_short_preamble;
 	int use_short_slot_time;
+	u8 *basic_rates;
+	u8 basic_rates_len;
 };
 
 /**
@@ -331,19 +336,19 @@ struct ieee80211_regdomain {
 	struct ieee80211_reg_rule reg_rules[];
 };
 
-#define MHZ_TO_KHZ(freq) (freq * 1000)
-#define KHZ_TO_MHZ(freq) (freq / 1000)
-#define DBI_TO_MBI(gain) (gain * 100)
-#define MBI_TO_DBI(gain) (gain / 100)
-#define DBM_TO_MBM(gain) (gain * 100)
-#define MBM_TO_DBM(gain) (gain / 100)
+#define MHZ_TO_KHZ(freq) ((freq) * 1000)
+#define KHZ_TO_MHZ(freq) ((freq) / 1000)
+#define DBI_TO_MBI(gain) ((gain) * 100)
+#define MBI_TO_DBI(gain) ((gain) / 100)
+#define DBM_TO_MBM(gain) ((gain) * 100)
+#define MBM_TO_DBM(gain) ((gain) / 100)
 
 #define REG_RULE(start, end, bw, gain, eirp, reg_flags) { \
-	.freq_range.start_freq_khz = (start) * 1000, \
-	.freq_range.end_freq_khz = (end) * 1000, \
-	.freq_range.max_bandwidth_khz = (bw) * 1000, \
-	.power_rule.max_antenna_gain = (gain) * 100, \
-	.power_rule.max_eirp = (eirp) * 100, \
+	.freq_range.start_freq_khz = MHZ_TO_KHZ(start), \
+	.freq_range.end_freq_khz = MHZ_TO_KHZ(end), \
+	.freq_range.max_bandwidth_khz = MHZ_TO_KHZ(bw), \
+	.power_rule.max_antenna_gain = DBI_TO_MBI(gain), \
+	.power_rule.max_eirp = DBM_TO_MBM(eirp), \
 	.flags = reg_flags, \
 	}
 
@@ -364,6 +369,24 @@ struct mesh_config {
 	u32 dot11MeshHWMPactivePathTimeout;
 	u16 dot11MeshHWMPpreqMinInterval;
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
+};
+
+/**
+ * struct ieee80211_txq_params - TX queue parameters
+ * @queue: TX queue identifier (NL80211_TXQ_Q_*)
+ * @txop: Maximum burst time in units of 32 usecs, 0 meaning disabled
+ * @cwmin: Minimum contention window [a value of the form 2^n-1 in the range
+ *	1..32767]
+ * @cwmax: Maximum contention window [a value of the form 2^n-1 in the range
+ *	1..32767]
+ * @aifs: Arbitration interframe space [0..255]
+ */
+struct ieee80211_txq_params {
+	enum nl80211_txq_q queue;
+	u16 txop;
+	u16 cwmin;
+	u16 cwmax;
+	u8 aifs;
 };
 
 /* from net/wireless.h */
@@ -425,6 +448,8 @@ struct wiphy;
  * @set_mesh_cfg: set mesh parameters (by now, just mesh id)
  *
  * @change_bss: Modify parameters for a given BSS.
+ *
+ * @set_txq_params: Set TX queue parameters
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -485,6 +510,9 @@ struct cfg80211_ops {
 				const struct mesh_config *nconf, u32 mask);
 	int	(*change_bss)(struct wiphy *wiphy, struct net_device *dev,
 			      struct bss_parameters *params);
+
+	int	(*set_txq_params)(struct wiphy *wiphy,
+				  struct ieee80211_txq_params *params);
 };
 
 #endif /* __NET_CFG80211_H */

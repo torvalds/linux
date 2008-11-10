@@ -816,7 +816,7 @@ void ath_rate_detach(struct ath_rate_softc *asc)
 }
 
 u8 ath_rate_findrateix(struct ath_softc *sc,
-			     u8 dot11rate)
+		       u8 dot11rate)
 {
 	const struct ath_rate_table *ratetable;
 	struct ath_rate_softc *rsc = sc->sc_rc;
@@ -1867,9 +1867,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	/* XXX: UGLY HACK!! */
 	tx_info_priv = (struct ath_tx_info_priv *)tx_info->control.vif;
 
-	spin_lock_bh(&sc->node_lock);
-	an = ath_node_find(sc, hdr->addr1);
-	spin_unlock_bh(&sc->node_lock);
+	an = (struct ath_node *)sta->drv_priv;
 
 	if (tx_info_priv == NULL)
 		return;
@@ -1879,49 +1877,6 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	kfree(tx_info_priv);
 	tx_info->control.vif = NULL;
-}
-
-static void ath_tx_aggr_resp(struct ath_softc *sc,
-			     struct ieee80211_supported_band *sband,
-			     struct ieee80211_sta *sta,
-			     struct ath_node *an,
-			     u8 tidno)
-{
-	struct ath_atx_tid *txtid;
-	u16 buffersize = 0;
-	int state;
-	struct sta_info *si;
-
-	if (!(sc->sc_flags & SC_OP_TXAGGR))
-		return;
-
-	txtid = ATH_AN_2_TID(an, tidno);
-	if (!txtid->paused)
-		return;
-
-	/*
-	 * XXX: This is entirely busted, we aren't supposed to
-	 *	access the sta from here because it's internal
-	 *	to mac80211, and looking at the state without
-	 *	locking is wrong too.
-	 */
-	si = container_of(sta, struct sta_info, sta);
-	buffersize = IEEE80211_MIN_AMPDU_BUF <<
-		sband->ht_cap.ampdu_factor; /* FIXME */
-	state = si->ampdu_mlme.tid_state_tx[tidno];
-
-	if (state & HT_ADDBA_RECEIVED_MSK) {
-		txtid->addba_exchangecomplete = 1;
-		txtid->addba_exchangeinprogress = 0;
-		txtid->baw_size = buffersize;
-
-		DPRINTF(sc, ATH_DBG_AGGR,
-			"%s: Resuming tid, buffersize: %d\n",
-			__func__,
-			buffersize);
-
-		ath_tx_resume_tid(sc, txtid);
-	}
 }
 
 static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
@@ -1936,7 +1891,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct ath_rate_node *ath_rc_priv = priv_sta;
 	struct ath_node *an;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	int is_probe = FALSE, chk, ret;
+	int is_probe = FALSE;
 	s8 lowest_idx;
 	__le16 fc = hdr->frame_control;
 	u8 *qc, tid;
@@ -1983,35 +1938,10 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 		if (ieee80211_is_data_qos(fc)) {
 			qc = ieee80211_get_qos_ctl(hdr);
 			tid = qc[0] & 0xf;
+			an = (struct ath_node *)sta->drv_priv;
 
-			spin_lock_bh(&sc->node_lock);
-			an = ath_node_find(sc, hdr->addr1);
-			spin_unlock_bh(&sc->node_lock);
-
-			if (!an) {
-				DPRINTF(sc, ATH_DBG_AGGR,
-					"%s: Node not found to "
-					"init/chk TX aggr\n", __func__);
-				return;
-			}
-
-			chk = ath_tx_aggr_check(sc, an, tid);
-			if (chk == AGGR_REQUIRED) {
-				ret = ieee80211_start_tx_ba_session(hw,
-					hdr->addr1, tid);
-				if (ret)
-					DPRINTF(sc, ATH_DBG_AGGR,
-						"%s: Unable to start tx "
-						"aggr for: %pM\n",
-						__func__,
-						hdr->addr1);
-				else
-					DPRINTF(sc, ATH_DBG_AGGR,
-						"%s: Started tx aggr for: %pM\n",
-						__func__,
-						hdr->addr1);
-			} else if (chk == AGGR_EXCHANGE_PROGRESS)
-				ath_tx_aggr_resp(sc, sband, sta, an, tid);
+			if(ath_tx_aggr_check(sc, an, tid))
+				ieee80211_start_tx_ba_session(hw, hdr->addr1, tid);
 		}
 	}
 }
@@ -2053,11 +1983,17 @@ static void ath_rate_free(void *priv)
 
 static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
+	struct ieee80211_vif *vif;
 	struct ath_softc *sc = priv;
-	struct ath_vap *avp = sc->sc_vaps[0];
+	struct ath_vap *avp;
 	struct ath_rate_node *rate_priv;
 
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
+
+	vif = sc->sc_vaps[0];
+	ASSERT(vif);
+
+	avp = (void *)vif->drv_priv;
 
 	rate_priv = ath_rate_node_alloc(avp, sc->sc_rc, gfp);
 	if (!rate_priv) {

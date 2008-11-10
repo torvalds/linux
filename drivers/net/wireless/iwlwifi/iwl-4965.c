@@ -2323,7 +2323,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.reset = iwl4965_apm_reset,
 		.stop = iwl4965_apm_stop,
 		.config = iwl4965_nic_config,
-		.set_pwr_src = iwl4965_set_pwr_src,
+		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -2342,7 +2342,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.query_addr = iwlcore_eeprom_query_addr,
 	},
 	.send_tx_power	= iwl4965_send_tx_power,
-	.update_chain_flags = iwl4965_update_chain_flags,
+	.update_chain_flags = iwl_update_chain_flags,
 	.temperature = iwl4965_temperature_calib,
 };
 

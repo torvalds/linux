@@ -718,7 +718,6 @@ struct b43_wldev {
 
 	bool bad_frames_preempt;	/* Use "Bad Frames Preemption" (default off) */
 	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM) */
-	bool short_slot;	/* TRUE, if short slot timing is enabled. */
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
 	bool suspend_in_progress;	/* TRUE, if we are in a suspend/resume cycle */
 

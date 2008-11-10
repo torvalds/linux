@@ -9,7 +9,7 @@
  * - the islsm (softmac prism54) driver, which is:
  *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
  * - stlc45xx driver
- * C  Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -214,12 +214,17 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		printk(KERN_INFO "p54: FW rev %s - Softmac protocol %x.%x\n",
 			fw_version, priv->fw_var >> 8, priv->fw_var & 0xff);
 
+	if (priv->fw_var < 0x500)
+		printk(KERN_INFO "p54: you are using an obsolete firmware. "
+		       "visit http://wireless.kernel.org/en/users/Drivers/p54 "
+		       "and grab one for \"kernel >= 2.6.28\"!\n");
+
 	if (priv->fw_var >= 0x300) {
 		/* Firmware supports QoS, use it! */
-		priv->tx_stats[4].limit = 3;
-		priv->tx_stats[5].limit = 4;
-		priv->tx_stats[6].limit = 3;
-		priv->tx_stats[7].limit = 1;
+		priv->tx_stats[4].limit = 3;		/* AC_VO */
+		priv->tx_stats[5].limit = 4;		/* AC_VI */
+		priv->tx_stats[6].limit = 3;		/* AC_BE */
+		priv->tx_stats[7].limit = 2;		/* AC_BK */
 		dev->queues = 4;
 	}
 
@@ -415,6 +420,30 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			/* make it overrun */
 			entry_len = len;
 			break;
+		case PDR_MANUFACTURING_PART_NUMBER:
+		case PDR_PDA_VERSION:
+		case PDR_NIC_SERIAL_NUMBER:
+		case PDR_REGULATORY_DOMAIN_LIST:
+		case PDR_TEMPERATURE_TYPE:
+		case PDR_PRISM_PCI_IDENTIFIER:
+		case PDR_COUNTRY_INFORMATION:
+		case PDR_OEM_NAME:
+		case PDR_PRODUCT_NAME:
+		case PDR_UTF8_OEM_NAME:
+		case PDR_UTF8_PRODUCT_NAME:
+		case PDR_COUNTRY_LIST:
+		case PDR_DEFAULT_COUNTRY:
+		case PDR_ANTENNA_GAIN:
+		case PDR_PRISM_INDIGO_PA_CALIBRATION_DATA:
+		case PDR_RSSI_LINEAR_APPROXIMATION:
+		case PDR_RSSI_LINEAR_APPROXIMATION_DUAL_BAND:
+		case PDR_REGULATORY_POWER_LIMITS:
+		case PDR_RSSI_LINEAR_APPROXIMATION_EXTENDED:
+		case PDR_RADIATED_TRANSMISSION_CORRECTION:
+		case PDR_PRISM_TX_IQ_CALIBRATION:
+		case PDR_BASEBAND_REGISTERS:
+		case PDR_PER_CHANNEL_BASEBAND_REGISTERS:
+			break;
 		default:
 			printk(KERN_INFO "p54: unknown eeprom code : 0x%x\n",
 				le16_to_cpu(entry->code));
@@ -431,12 +460,12 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		goto err;
 	}
 
-	priv->rxhw = synth & 0x07;
+	priv->rxhw = synth & PDR_SYNTH_FRONTEND_MASK;
 	if (priv->rxhw == 4)
 		p54_init_xbow_synth(dev);
-	if (!(synth & 0x40))
+	if (!(synth & PDR_SYNTH_24_GHZ_DISABLED))
 		dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
-	if (!(synth & 0x80))
+	if (!(synth & PDR_SYNTH_5_GHZ_DISABLED))
 		dev->wiphy->bands[IEEE80211_BAND_5GHZ] = &band_5GHz;
 
 	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
@@ -621,6 +650,12 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		__skb_unlink(entry, &priv->tx_queue);
 		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
+		if (unlikely(entry == priv->cached_beacon)) {
+			kfree_skb(entry);
+			priv->cached_beacon = NULL;
+			goto out;
+		}
+
 		/*
 		 * Clear manually, ieee80211_tx_info_clear_status would
 		 * clear the counts too and we need them.
@@ -654,7 +689,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
 		     (!payload->status))
 			info->flags |= IEEE80211_TX_STAT_ACK;
-		if (payload->status & 0x02)
+		if (payload->status & P54_TX_PSM_CANCELLED)
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 		info->status.ack_signal = p54_rssi_to_dbm(dev,
 				(int)payload->ack_rssi);
@@ -706,6 +741,35 @@ static void p54_rx_stats(struct ieee80211_hw *dev, struct sk_buff *skb)
 	mod_timer(&priv->stats_timer, jiffies + 5 * HZ);
 }
 
+static void p54_rx_trap(struct ieee80211_hw *dev, struct sk_buff *skb)
+{
+	struct p54_hdr *hdr = (struct p54_hdr *) skb->data;
+	struct p54_trap *trap = (struct p54_trap *) hdr->data;
+	u16 event = le16_to_cpu(trap->event);
+	u16 freq = le16_to_cpu(trap->frequency);
+
+	switch (event) {
+	case P54_TRAP_BEACON_TX:
+		break;
+	case P54_TRAP_RADAR:
+		printk(KERN_INFO "%s: radar (freq:%d MHz)\n",
+			wiphy_name(dev->wiphy), freq);
+		break;
+	case P54_TRAP_NO_BEACON:
+		break;
+	case P54_TRAP_SCAN:
+		break;
+	case P54_TRAP_TBTT:
+		break;
+	case P54_TRAP_TIMER:
+		break;
+	default:
+		printk(KERN_INFO "%s: received event:%x freq:%d\n",
+		       wiphy_name(dev->wiphy), event, freq);
+		break;
+	}
+}
+
 static int p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54_hdr *hdr = (struct p54_hdr *) skb->data;
@@ -713,6 +777,9 @@ static int p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 	switch (le16_to_cpu(hdr->type)) {
 	case P54_CONTROL_TYPE_TXDONE:
 		p54_rx_frame_sent(dev, skb);
+		break;
+	case P54_CONTROL_TYPE_TRAP:
+		p54_rx_trap(dev, skb);
 		break;
 	case P54_CONTROL_TYPE_BBP:
 		break;
@@ -734,9 +801,9 @@ static int p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 /* returns zero if skb can be reused */
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
-	u8 type = le16_to_cpu(*((__le16 *)skb->data)) >> 8;
+	u16 type = le16_to_cpu(*((__le16 *)skb->data));
 
-	if (type == 0x80)
+	if (type & P54_HDR_FLAG_CONTROL)
 		return p54_rx_control(dev, skb);
 	else
 		return p54_rx_data(dev, skb);
@@ -897,41 +964,162 @@ free:
 }
 EXPORT_SYMBOL_GPL(p54_read_eeprom);
 
+static int p54_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
+		bool set)
+{
+	struct p54_common *priv = dev->priv;
+	struct sk_buff *skb;
+	struct p54_tim *tim;
+
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
+		      sizeof(struct p54_hdr) + sizeof(*tim),
+		      P54_CONTROL_TYPE_TIM, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	tim = (struct p54_tim *) skb_put(skb, sizeof(*tim));
+	tim->count = 1;
+	tim->entry[0] = cpu_to_le16(set ? (sta->aid | 0x8000) : sta->aid);
+	priv->tx(dev, skb, 1);
+	return 0;
+}
+
+static int p54_sta_unlock(struct ieee80211_hw *dev, u8 *addr)
+{
+	struct p54_common *priv = dev->priv;
+	struct sk_buff *skb;
+	struct p54_sta_unlock *sta;
+
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
+		sizeof(struct p54_hdr) + sizeof(*sta),
+		P54_CONTROL_TYPE_PSM_STA_UNLOCK, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	sta = (struct p54_sta_unlock *)skb_put(skb, sizeof(*sta));
+	memcpy(sta->addr, addr, ETH_ALEN);
+	priv->tx(dev, skb, 1);
+	return 0;
+}
+
+static int p54_tx_cancel(struct ieee80211_hw *dev, struct sk_buff *entry)
+{
+	struct p54_common *priv = dev->priv;
+	struct sk_buff *skb;
+	struct p54_hdr *hdr;
+	struct p54_txcancel *cancel;
+
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
+		sizeof(struct p54_hdr) + sizeof(*cancel),
+		P54_CONTROL_TYPE_TXCANCEL, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = (void *)entry->data;
+	cancel = (struct p54_txcancel *)skb_put(skb, sizeof(*cancel));
+	cancel->req_id = hdr->req_id;
+	priv->tx(dev, skb, 1);
+	return 0;
+}
+
+static int p54_tx_fill(struct ieee80211_hw *dev, struct sk_buff *skb,
+		struct ieee80211_tx_info *info, u8 *queue, size_t *extra_len,
+		u16 *flags, u16 *aid)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct p54_common *priv = dev->priv;
+	int ret = 0;
+
+	if (unlikely(ieee80211_is_mgmt(hdr->frame_control))) {
+		if (ieee80211_is_beacon(hdr->frame_control)) {
+			*aid = 0;
+			*queue = 0;
+			*extra_len = IEEE80211_MAX_TIM_LEN;
+			*flags = P54_HDR_FLAG_DATA_OUT_TIMESTAMP;
+			return 0;
+		} else if (ieee80211_is_probe_resp(hdr->frame_control)) {
+			*aid = 0;
+			*queue = 2;
+			*flags = P54_HDR_FLAG_DATA_OUT_TIMESTAMP |
+				 P54_HDR_FLAG_DATA_OUT_NOCANCEL;
+			return 0;
+		} else {
+			*queue = 2;
+			ret = 0;
+		}
+	} else {
+		*queue += 4;
+		ret = 1;
+	}
+
+	switch (priv->mode) {
+	case NL80211_IFTYPE_STATION:
+		*aid = 1;
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+		if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
+			*aid = 0;
+			*queue = 3;
+			return 0;
+		}
+		if (info->control.sta)
+			*aid = info->control.sta->aid;
+		else
+			*flags = P54_HDR_FLAG_DATA_OUT_NOCANCEL;
+	}
+	return ret;
+}
+
 static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_queue_stats *current_queue;
+	struct ieee80211_tx_queue_stats *current_queue = NULL;
 	struct p54_common *priv = dev->priv;
 	struct p54_hdr *hdr;
 	struct p54_tx_data *txhdr;
-	size_t padding, len;
+	size_t padding, len, tim_len = 0;
 	int i, j, ridx;
-	u8 rate;
+	u16 hdr_flags = 0, aid = 0;
+	u8 rate, queue;
 	u8 cts_rate = 0x20;
 	u8 rc_flags;
 	u8 calculated_tries[4];
 	u8 nrates = 0, nremaining = 8;
 
-	current_queue = &priv->tx_stats[skb_get_queue_mapping(skb) + 4];
-	if (unlikely(current_queue->len > current_queue->limit))
-		return NETDEV_TX_BUSY;
-	current_queue->len++;
-	current_queue->count++;
-	if (current_queue->len == current_queue->limit)
-		ieee80211_stop_queue(dev, skb_get_queue_mapping(skb));
+	queue = skb_get_queue_mapping(skb);
+
+	if (p54_tx_fill(dev, skb, info, &queue, &tim_len, &hdr_flags, &aid)) {
+		current_queue = &priv->tx_stats[queue];
+		if (unlikely(current_queue->len > current_queue->limit))
+			return NETDEV_TX_BUSY;
+		current_queue->len++;
+		current_queue->count++;
+		if (current_queue->len == current_queue->limit)
+			ieee80211_stop_queue(dev, skb_get_queue_mapping(skb));
+	}
 
 	padding = (unsigned long)(skb->data - (sizeof(*hdr) + sizeof(*txhdr))) & 3;
 	len = skb->len;
+
+	if (info->flags & IEEE80211_TX_CTL_CLEAR_PS_FILT) {
+		if (info->control.sta)
+			if (p54_sta_unlock(dev, info->control.sta->addr)) {
+				if (current_queue) {
+					current_queue->len--;
+					current_queue->count--;
+				}
+				return NETDEV_TX_BUSY;
+			}
+	}
 
 	txhdr = (struct p54_tx_data *) skb_push(skb, sizeof(*txhdr) + padding);
 	hdr = (struct p54_hdr *) skb_push(skb, sizeof(*hdr));
 
 	if (padding)
-		hdr->flags = cpu_to_le16(P54_HDR_FLAG_DATA_ALIGN);
-	else
-		hdr->flags = cpu_to_le16(0);
+		hdr_flags |= P54_HDR_FLAG_DATA_ALIGN;
 	hdr->len = cpu_to_le16(len);
-	hdr->type = (info->flags & IEEE80211_TX_CTL_NO_ACK) ? 0 : cpu_to_le16(1);
+	hdr->type = cpu_to_le16(aid);
 	hdr->rts_tries = info->control.rates[0].count;
 
 	/*
@@ -998,12 +1186,18 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 			ridx++;
 		}
 	}
+
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
+		hdr_flags |= P54_HDR_FLAG_DATA_OUT_SEQNR;
+
+	/* TODO: enable bursting */
+	hdr->flags = cpu_to_le16(hdr_flags);
 	hdr->tries = ridx;
 	txhdr->crypt_offset = 0;
 	txhdr->rts_rate_idx = 0;
 	txhdr->key_type = 0;
 	txhdr->key_len = 0;
-	txhdr->hw_queue = skb_get_queue_mapping(skb) + 4;
+	txhdr->hw_queue = queue;
 	txhdr->backlog = 32;
 	memset(txhdr->durations, 0, sizeof(txhdr->durations));
 	txhdr->tx_antenna = (info->antenna_sel_tx == 0) ?
@@ -1014,8 +1208,12 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		txhdr->align[0] = padding;
 
 	/* modifies skb->cb and with it info, so must be last! */
-	if (unlikely(p54_assign_address(dev, skb, hdr, skb->len))) {
+	if (unlikely(p54_assign_address(dev, skb, hdr, skb->len + tim_len))) {
 		skb_pull(skb, sizeof(*hdr) + sizeof(*txhdr) + padding);
+		if (current_queue) {
+			current_queue->len--;
+			current_queue->count--;
+		}
 		return NETDEV_TX_BUSY;
 	}
 	priv->tx(dev, skb, 0);
@@ -1043,8 +1241,10 @@ static int p54_setup_mac(struct ieee80211_hw *dev, u16 mode, const u8 *bssid)
 	else
 		memcpy(setup->bssid, bssid, ETH_ALEN);
 	setup->rx_antenna = priv->rx_antenna;
+	setup->rx_align = 0;
 	if (priv->fw_var < 0x500) {
 		setup->v1.basic_rate_mask = cpu_to_le32(0x15f);
+		memset(setup->v1.rts_rates, 0, 8);
 		setup->v1.rx_addr = cpu_to_le32(priv->rx_end);
 		setup->v1.max_rx = cpu_to_le16(priv->rx_mtu);
 		setup->v1.rxhw = cpu_to_le16(priv->rxhw);
@@ -1069,13 +1269,14 @@ static int p54_setup_mac(struct ieee80211_hw *dev, u16 mode, const u8 *bssid)
 	return 0;
 }
 
-static int p54_set_freq(struct ieee80211_hw *dev, __le16 freq)
+static int p54_set_freq(struct ieee80211_hw *dev, u16 frequency)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
 	struct p54_scan *chan;
 	unsigned int i;
 	void *entry;
+	__le16 freq = cpu_to_le16(frequency);
 
 	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*chan) +
 			    sizeof(struct p54_hdr), P54_CONTROL_TYPE_SCAN,
@@ -1127,11 +1328,11 @@ static int p54_set_freq(struct ieee80211_hw *dev, __le16 freq)
 		}
 
 		entry += sizeof(__le16);
-		chan->pa_points_per_curve =
-			min(priv->curve_data->points_per_channel, (u8) 8);
-
-		memcpy(chan->curve_data, entry, sizeof(*chan->curve_data) *
-		       chan->pa_points_per_curve);
+		chan->pa_points_per_curve = 8;
+		memset(chan->curve_data, 0, sizeof(*chan->curve_data));
+		memcpy(chan->curve_data, entry,
+		       sizeof(struct p54_pa_curve_data_sample) *
+		       min((u8)8, priv->curve_data->points_per_channel));
 		break;
 	}
 
@@ -1207,6 +1408,7 @@ static int p54_set_edcf(struct ieee80211_hw *dev)
 	/* (see prism54/isl_oid.h for further details) */
 	edcf->frameburst = cpu_to_le16(0);
 	edcf->round_trip_delay = cpu_to_le16(0);
+	edcf->flags = 0;
 	memset(edcf->mapping, 0, sizeof(edcf->mapping));
 	memcpy(edcf->queue, priv->qos_params, sizeof(edcf->queue));
 	priv->tx(dev, skb, 1);
@@ -1227,11 +1429,94 @@ static int p54_init_stats(struct ieee80211_hw *dev)
 	return 0;
 }
 
+static int p54_beacon_tim(struct sk_buff *skb)
+{
+	/*
+	 * the good excuse for this mess is ... the firmware.
+	 * The dummy TIM MUST be at the end of the beacon frame,
+	 * because it'll be overwritten!
+	 */
+
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
+	u8 *pos, *end;
+
+	if (skb->len <= sizeof(mgmt)) {
+		printk(KERN_ERR "p54: beacon is too short!\n");
+		return -EINVAL;
+	}
+
+	pos = (u8 *)mgmt->u.beacon.variable;
+	end = skb->data + skb->len;
+	while (pos < end) {
+		if (pos + 2 + pos[1] > end) {
+			printk(KERN_ERR "p54: parsing beacon failed\n");
+			return -EINVAL;
+		}
+
+		if (pos[0] == WLAN_EID_TIM) {
+			u8 dtim_len = pos[1];
+			u8 dtim_period = pos[3];
+			u8 *next = pos + 2 + dtim_len;
+
+			if (dtim_len < 3) {
+				printk(KERN_ERR "p54: invalid dtim len!\n");
+				return -EINVAL;
+			}
+			memmove(pos, next, end - next);
+
+			if (dtim_len > 3)
+				skb_trim(skb, skb->len - (dtim_len - 3));
+
+			pos = end - (dtim_len + 2);
+
+			/* add the dummy at the end */
+			pos[0] = WLAN_EID_TIM;
+			pos[1] = 3;
+			pos[2] = 0;
+			pos[3] = dtim_period;
+			pos[4] = 0;
+			return 0;
+		}
+		pos += 2 + pos[1];
+	}
+	return 0;
+}
+
+static int p54_beacon_update(struct ieee80211_hw *dev,
+			struct ieee80211_vif *vif)
+{
+	struct p54_common *priv = dev->priv;
+	struct sk_buff *beacon;
+	int ret;
+
+	if (priv->cached_beacon) {
+		p54_tx_cancel(dev, priv->cached_beacon);
+		/* wait for the last beacon the be freed */
+		msleep(10);
+	}
+
+	beacon = ieee80211_beacon_get(dev, vif);
+	if (!beacon)
+		return -ENOMEM;
+	ret = p54_beacon_tim(beacon);
+	if (ret)
+		return ret;
+	ret = p54_tx(dev, beacon);
+	if (ret)
+		return ret;
+	priv->cached_beacon = beacon;
+	priv->tsf_high32 = 0;
+	priv->tsf_low32 = 0;
+
+	return 0;
+}
+
 static int p54_start(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	int err;
 
+	mutex_lock(&priv->conf_mutex);
 	err = priv->open(dev);
 	if (!err)
 		priv->mode = NL80211_IFTYPE_MONITOR;
@@ -1243,6 +1528,7 @@ static int p54_start(struct ieee80211_hw *dev)
 	if (!err)
 		err = p54_init_stats(dev);
 
+	mutex_unlock(&priv->conf_mutex);
 	return err;
 }
 
@@ -1251,15 +1537,22 @@ static void p54_stop(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
 
+	mutex_lock(&priv->conf_mutex);
 	del_timer(&priv->stats_timer);
 	p54_free_skb(dev, priv->cached_stats);
 	priv->cached_stats = NULL;
+	if (priv->cached_beacon)
+		p54_tx_cancel(dev, priv->cached_beacon);
+
 	while ((skb = skb_dequeue(&priv->tx_queue)))
 		kfree_skb(skb);
 
+	kfree(priv->cached_beacon);
+	priv->cached_beacon = NULL;
 	priv->stop(dev);
 	priv->tsf_high32 = priv->tsf_low32 = 0;
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
+	mutex_unlock(&priv->conf_mutex);
 }
 
 static int p54_add_interface(struct ieee80211_hw *dev,
@@ -1267,14 +1560,20 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	if (priv->mode != NL80211_IFTYPE_MONITOR)
+	mutex_lock(&priv->conf_mutex);
+	if (priv->mode != NL80211_IFTYPE_MONITOR) {
+		mutex_unlock(&priv->conf_mutex);
 		return -EOPNOTSUPP;
+	}
 
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_AP:
 		priv->mode = conf->type;
 		break;
 	default:
+		mutex_unlock(&priv->conf_mutex);
 		return -EOPNOTSUPP;
 	}
 
@@ -1286,6 +1585,12 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 	case NL80211_IFTYPE_STATION:
 		p54_setup_mac(dev, P54_FILTER_TYPE_STATION, NULL);
 		break;
+	case NL80211_IFTYPE_AP:
+		p54_setup_mac(dev, P54_FILTER_TYPE_AP, priv->mac_addr);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		p54_setup_mac(dev, P54_FILTER_TYPE_IBSS, NULL);
+		break;
 	default:
 		BUG();	/* impossible */
 		break;
@@ -1293,6 +1598,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 
 	p54_set_leds(dev, 1, 0, 0);
 
+	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
@@ -1300,9 +1606,14 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
 {
 	struct p54_common *priv = dev->priv;
+
+	mutex_lock(&priv->conf_mutex);
+	if (priv->cached_beacon)
+		p54_tx_cancel(dev, priv->cached_beacon);
+	p54_setup_mac(dev, P54_FILTER_TYPE_NONE, NULL);
 	priv->mode = NL80211_IFTYPE_MONITOR;
 	memset(priv->mac_addr, 0, ETH_ALEN);
-	p54_setup_mac(dev, P54_FILTER_TYPE_NONE, NULL);
+	mutex_unlock(&priv->conf_mutex);
 }
 
 static int p54_config(struct ieee80211_hw *dev, u32 changed)
@@ -1314,7 +1625,7 @@ static int p54_config(struct ieee80211_hw *dev, u32 changed)
 	mutex_lock(&priv->conf_mutex);
 	priv->rx_antenna = 2; /* automatic */
 	priv->output_power = conf->power_level << 2;
-	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
+	ret = p54_set_freq(dev, conf->channel->center_freq);
 	if (!ret)
 		ret = p54_set_edcf(dev);
 	mutex_unlock(&priv->conf_mutex);
@@ -1326,13 +1637,41 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 				struct ieee80211_if_conf *conf)
 {
 	struct p54_common *priv = dev->priv;
+	int ret = 0;
 
 	mutex_lock(&priv->conf_mutex);
-	p54_setup_mac(dev, P54_FILTER_TYPE_STATION, conf->bssid);
-	p54_set_leds(dev, 1, !is_multicast_ether_addr(conf->bssid), 0);
-	memcpy(priv->bssid, conf->bssid, ETH_ALEN);
+	switch (priv->mode) {
+	case NL80211_IFTYPE_STATION:
+		ret = p54_setup_mac(dev, P54_FILTER_TYPE_STATION, conf->bssid);
+		if (ret)
+			goto out;
+		ret = p54_set_leds(dev, 1,
+				   !is_multicast_ether_addr(conf->bssid), 0);
+		if (ret)
+			goto out;
+		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
+		ret = p54_set_freq(dev, dev->conf.channel->center_freq);
+		if (ret)
+			goto out;
+		ret = p54_setup_mac(dev, priv->mac_mode, priv->bssid);
+		if (ret)
+			goto out;
+		if (conf->changed & IEEE80211_IFCC_BEACON) {
+			ret = p54_beacon_update(dev, vif);
+			if (ret)
+				goto out;
+			ret = p54_set_edcf(dev);
+			if (ret)
+				goto out;
+		}
+	}
+out:
 	mutex_unlock(&priv->conf_mutex);
-	return 0;
+	return ret;
 }
 
 static void p54_configure_filter(struct ieee80211_hw *dev,
@@ -1367,14 +1706,18 @@ static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 		       const struct ieee80211_tx_queue_params *params)
 {
 	struct p54_common *priv = dev->priv;
+	int ret;
 
+	mutex_lock(&priv->conf_mutex);
 	if ((params) && !(queue > 4)) {
 		P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
 			params->cw_min, params->cw_max, params->txop);
 	} else
-		return -EINVAL;
-
-	return p54_set_edcf(dev);
+		ret = -EINVAL;
+	if (!ret)
+		ret = p54_set_edcf(dev);
+	mutex_unlock(&priv->conf_mutex);
+	return ret;
 }
 
 static int p54_init_xbow_synth(struct ieee80211_hw *dev)
@@ -1457,6 +1800,7 @@ static const struct ieee80211_ops p54_ops = {
 	.stop			= p54_stop,
 	.add_interface		= p54_add_interface,
 	.remove_interface	= p54_remove_interface,
+	.set_tim		= p54_set_tim,
 	.config			= p54_config,
 	.config_interface	= p54_config_interface,
 	.bss_info_changed	= p54_bss_info_changed,
@@ -1478,24 +1822,20 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv = dev->priv;
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	skb_queue_head_init(&priv->tx_queue);
-	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
-		     IEEE80211_HW_RX_INCLUDES_FCS |
+	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_NOISE_DBM;
 
-	/*
-	 * XXX: when this driver gets support for any mode that
-	 *	requires beacons (AP, MESH, IBSS) then it must
-	 *	implement IEEE80211_TX_CTL_ASSIGN_SEQ.
-	 */
-	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION |
+					  NL80211_IFTYPE_ADHOC |
+					  NL80211_IFTYPE_AP);
 
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
-	priv->tx_stats[0].limit = 1;
-	priv->tx_stats[1].limit = 1;
-	priv->tx_stats[2].limit = 1;
-	priv->tx_stats[3].limit = 1;
-	priv->tx_stats[4].limit = 5;
+	priv->tx_stats[0].limit = 1;		/* Beacon queue */
+	priv->tx_stats[1].limit = 1;		/* Probe queue for HW scan */
+	priv->tx_stats[2].limit = 3;		/* queue for MLMEs */
+	priv->tx_stats[3].limit = 3;		/* Broadcast / MC queue */
+	priv->tx_stats[4].limit = 5;		/* Data */
 	dev->queues = 1;
 	priv->noise = -94;
 	/*

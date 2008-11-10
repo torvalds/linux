@@ -1123,7 +1123,8 @@ static void ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 	reason_code = le16_to_cpu(mgmt->u.deauth.reason_code);
 
 	if (ifsta->flags & IEEE80211_STA_AUTHENTICATED)
-		printk(KERN_DEBUG "%s: deauthenticated\n", sdata->dev->name);
+		printk(KERN_DEBUG "%s: deauthenticated (Reason: %u)\n",
+				sdata->dev->name, reason_code);
 
 	if (ifsta->state == IEEE80211_STA_MLME_AUTHENTICATE ||
 	    ifsta->state == IEEE80211_STA_MLME_ASSOCIATE ||
@@ -1154,7 +1155,8 @@ static void ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	reason_code = le16_to_cpu(mgmt->u.disassoc.reason_code);
 
 	if (ifsta->flags & IEEE80211_STA_ASSOCIATED)
-		printk(KERN_DEBUG "%s: disassociated\n", sdata->dev->name);
+		printk(KERN_DEBUG "%s: disassociated (Reason: %u)\n",
+				sdata->dev->name, reason_code);
 
 	if (ifsta->state == IEEE80211_STA_MLME_ASSOCIATED) {
 		ifsta->state = IEEE80211_STA_MLME_ASSOCIATE;
@@ -1289,29 +1291,35 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	for (i = 0; i < elems.supp_rates_len; i++) {
 		int rate = (elems.supp_rates[i] & 0x7f) * 5;
+		bool is_basic = !!(elems.supp_rates[i] & 0x80);
 
 		if (rate > 110)
 			have_higher_than_11mbit = true;
 
 		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].bitrate == rate)
+			if (sband->bitrates[j].bitrate == rate) {
 				rates |= BIT(j);
-			if (elems.supp_rates[i] & 0x80)
-				basic_rates |= BIT(j);
+				if (is_basic)
+					basic_rates |= BIT(j);
+				break;
+			}
 		}
 	}
 
 	for (i = 0; i < elems.ext_supp_rates_len; i++) {
 		int rate = (elems.ext_supp_rates[i] & 0x7f) * 5;
+		bool is_basic = !!(elems.supp_rates[i] & 0x80);
 
 		if (rate > 110)
 			have_higher_than_11mbit = true;
 
 		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].bitrate == rate)
+			if (sband->bitrates[j].bitrate == rate) {
 				rates |= BIT(j);
-			if (elems.ext_supp_rates[i] & 0x80)
-				basic_rates |= BIT(j);
+				if (is_basic)
+					basic_rates |= BIT(j);
+				break;
+			}
 		}
 	}
 
@@ -2414,7 +2422,6 @@ void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata,
 int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len)
 {
 	struct ieee80211_if_sta *ifsta;
-	int res;
 
 	if (len > IEEE80211_MAX_SSID_LEN)
 		return -EINVAL;
@@ -2426,19 +2433,6 @@ int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size
 		memcpy(ifsta->ssid, ssid, len);
 		ifsta->ssid_len = len;
 		ifsta->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
-
-		res = 0;
-		/*
-		 * Hack! MLME code needs to be cleaned up to have different
-		 * entry points for configuration and internal selection change
-		 */
-		if (netif_running(sdata->dev))
-			res = ieee80211_if_config(sdata, IEEE80211_IFCC_SSID);
-		if (res) {
-			printk(KERN_DEBUG "%s: Failed to config new SSID to "
-			       "the low-level driver\n", sdata->dev->name);
-			return res;
-		}
 	}
 
 	if (len)

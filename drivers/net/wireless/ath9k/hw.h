@@ -923,7 +923,7 @@ struct ath_hal_5416 {
 #define OFDM_PLCP_BITS_QUARTER      22
 #define OFDM_SYMBOL_TIME_QUARTER    16
 
-u32 ath9k_hw_get_eeprom(struct ath_hal_5416 *ahp,
+u32 ath9k_hw_get_eeprom(struct ath_hal *ah,
 			enum eeprom_param param);
 
 #endif

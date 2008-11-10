@@ -1160,29 +1160,6 @@ static void b43legacy_update_templates(struct b43legacy_wl *wl)
 	wl->beacon1_uploaded = 0;
 }
 
-static void b43legacy_set_ssid(struct b43legacy_wldev *dev,
-			       const u8 *ssid, u8 ssid_len)
-{
-	u32 tmp;
-	u16 i;
-	u16 len;
-
-	len = min((u16)ssid_len, (u16)0x100);
-	for (i = 0; i < len; i += sizeof(u32)) {
-		tmp = (u32)(ssid[i + 0]);
-		if (i + 1 < len)
-			tmp |= (u32)(ssid[i + 1]) << 8;
-		if (i + 2 < len)
-			tmp |= (u32)(ssid[i + 2]) << 16;
-		if (i + 3 < len)
-			tmp |= (u32)(ssid[i + 3]) << 24;
-		b43legacy_shm_write32(dev, B43legacy_SHM_SHARED,
-				      0x380 + i, tmp);
-	}
-	b43legacy_shm_write16(dev, B43legacy_SHM_SHARED,
-			      0x48, len);
-}
-
 static void b43legacy_set_beacon_int(struct b43legacy_wldev *dev,
 				     u16 beacon_int)
 {
@@ -2744,7 +2721,6 @@ static int b43legacy_op_config_interface(struct ieee80211_hw *hw,
 	if (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED) {
 		if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP)) {
 			B43legacy_WARN_ON(vif->type != NL80211_IFTYPE_AP);
-			b43legacy_set_ssid(dev, conf->ssid, conf->ssid_len);
 			if (conf->changed & IEEE80211_IFCC_BEACON)
 				b43legacy_update_templates(wl);
 		} else if (b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC)) {

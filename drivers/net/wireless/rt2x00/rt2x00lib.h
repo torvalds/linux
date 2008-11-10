@@ -96,7 +96,8 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 			      enum antenna rx, enum antenna tx);
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
-		      struct ieee80211_conf *conf, const int force_config);
+		      struct ieee80211_conf *conf,
+		      const unsigned int changed_flags);
 
 /**
  * DOC: Queue handlers

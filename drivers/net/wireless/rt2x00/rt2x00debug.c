@@ -424,16 +424,21 @@ static ssize_t rt2x00debug_read_##__name(struct file *file,	\
 	const struct rt2x00debug *debug = intf->debug;		\
 	char line[16];						\
 	size_t size;						\
+	unsigned int index = intf->offset_##__name;		\
 	__type value;						\
 								\
 	if (*offset)						\
 		return 0;					\
 								\
-	if (intf->offset_##__name >= debug->__name.word_count)	\
+	if (index >= debug->__name.word_count)			\
 		return -EINVAL;					\
 								\
-	debug->__name.read(intf->rt2x00dev,			\
-			   intf->offset_##__name, &value);	\
+	if (debug->__name.flags & RT2X00DEBUGFS_OFFSET)		\
+		index *= debug->__name.word_size;		\
+								\
+	index += debug->__name.word_base;			\
+								\
+	debug->__name.read(intf->rt2x00dev, index, &value);	\
 								\
 	size = sprintf(line, __format, value);			\
 								\
@@ -454,12 +459,13 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 	const struct rt2x00debug *debug = intf->debug;		\
 	char line[16];						\
 	size_t size;						\
+	unsigned int index = intf->offset_##__name;		\
 	__type value;						\
 								\
 	if (*offset)						\
 		return 0;					\
 								\
-	if (intf->offset_##__name >= debug->__name.word_count)	\
+	if (index >= debug->__name.word_count)			\
 		return -EINVAL;					\
 								\
 	if (copy_from_user(line, buf, length))			\
@@ -468,8 +474,12 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 	size = strlen(line);					\
 	value = simple_strtoul(line, NULL, 0);			\
 								\
-	debug->__name.write(intf->rt2x00dev,			\
-			    intf->offset_##__name, value);	\
+	if (debug->__name.flags & RT2X00DEBUGFS_OFFSET)		\
+		index *= debug->__name.word_size;		\
+								\
+	index += debug->__name.word_base;			\
+								\
+	debug->__name.write(intf->rt2x00dev, index, value);	\
 								\
 	*offset += size;					\
 	return size;						\

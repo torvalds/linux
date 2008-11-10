@@ -535,7 +535,7 @@ static int iwl5000_load_section(struct iwl_priv *priv,
 	iwl_write_direct32(priv,
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	|
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE_VAL |
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
 	iwl_release_nic_access(priv);
@@ -549,14 +549,13 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 {
 	int ret = 0;
 
-	ret = iwl5000_load_section(
-		priv, inst_image, RTC_INST_LOWER_BOUND);
+	ret = iwl5000_load_section(priv, inst_image, RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
 	IWL_DEBUG_INFO("INST uCode section being loaded...\n");
 	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-				priv->ucode_write_complete, 5 * HZ);
+					priv->ucode_write_complete, 5 * HZ);
 	if (ret == -ERESTARTSYS) {
 		IWL_ERROR("Could not load the INST uCode section due "
 			"to interrupt\n");
@@ -753,6 +752,7 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 7));
 
 	iwl5000_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
+
 	/* map qos queues to fifos one-to-one */
 	for (i = 0; i < ARRAY_SIZE(iwl5000_default_queue_to_tx_fifo); i++) {
 		int ac = iwl5000_default_queue_to_tx_fifo[i];
@@ -1474,13 +1474,13 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
 	.temperature = iwl5000_temperature,
-	.update_chain_flags = iwl4965_update_chain_flags,
+	.update_chain_flags = iwl_update_chain_flags,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
 		.stop = iwl5000_apm_stop,
 		.config = iwl5000_nic_config,
-		.set_pwr_src = iwl4965_set_pwr_src,
+		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {

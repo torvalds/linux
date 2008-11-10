@@ -1593,7 +1593,7 @@ static u16 iwl3945_supported_rate_to_ie(u8 *ie, u16 supported_rate,
  */
 static u16 iwl3945_fill_probe_req(struct iwl3945_priv *priv,
 			      struct ieee80211_mgmt *frame,
-			      int left, int is_direct)
+			      int left)
 {
 	int len = 0;
 	u8 *pos = NULL;
@@ -1622,20 +1622,6 @@ static u16 iwl3945_fill_probe_req(struct iwl3945_priv *priv,
 	pos = &(frame->u.probe_req.variable[0]);
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = 0;
-
-	/* fill in our direct SSID IE... */
-	if (is_direct) {
-		/* ...next IE... */
-		left -= 2 + priv->essid_len;
-		if (left < 0)
-			return 0;
-		/* ... fill it in... */
-		*pos++ = WLAN_EID_SSID;
-		*pos++ = priv->essid_len;
-		memcpy(pos, priv->essid, priv->essid_len);
-		pos += priv->essid_len;
-		len += 2 + priv->essid_len;
-	}
 
 	/* fill in supported rate */
 	/* ...next IE... */
@@ -2189,13 +2175,14 @@ static void iwl3945_set_flags_for_phymode(struct iwl3945_priv *priv,
 /*
  * initialize rxon structure with default values from eeprom
  */
-static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv)
+static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv,
+					      int mode)
 {
 	const struct iwl3945_channel_info *ch_info;
 
 	memset(&priv->staging_rxon, 0, sizeof(priv->staging_rxon));
 
-	switch (priv->iw_mode) {
+	switch (mode) {
 	case NL80211_IFTYPE_AP:
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_AP;
 		break;
@@ -2218,7 +2205,7 @@ static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv)
 		    RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 	default:
-		IWL_ERROR("Unsupported interface type %d\n", priv->iw_mode);
+		IWL_ERROR("Unsupported interface type %d\n", mode);
 		break;
 	}
 
@@ -2241,8 +2228,7 @@ static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv)
 	 * in some case A channels are all non IBSS
 	 * in this case force B/G channel
 	 */
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
-	    !(is_channel_ibss(ch_info)))
+	if ((mode == NL80211_IFTYPE_ADHOC) && !(is_channel_ibss(ch_info)))
 		ch_info = &priv->channel_info[0];
 
 	priv->staging_rxon.channel = cpu_to_le16(ch_info->channel);
@@ -2275,9 +2261,7 @@ static int iwl3945_set_mode(struct iwl3945_priv *priv, int mode)
 		}
 	}
 
-	priv->iw_mode = mode;
-
-	iwl3945_connection_init_rx_config(priv);
+	iwl3945_connection_init_rx_config(priv, mode);
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
 	iwl3945_clear_stations_table(priv);
@@ -5699,7 +5683,7 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		/* Initialize our rx_config data */
-		iwl3945_connection_init_rx_config(priv);
+		iwl3945_connection_init_rx_config(priv, priv->iw_mode);
 		memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 	}
 
@@ -6015,6 +5999,7 @@ static void iwl3945_bg_set_monitor(struct work_struct *work)
 			IWL_ERROR("iwl3945_set_mode() failed\n");
 
 	mutex_unlock(&priv->mutex);
+	ieee80211_notify_mac(priv->hw, IEEE80211_NOTIFY_RE_ASSOC);
 }
 
 #define IWL_SCAN_CHECK_WATCHDOG (7 * HZ)
@@ -6162,14 +6147,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		memcpy(scan->direct_scan[0].ssid,
 		       priv->direct_ssid, priv->direct_ssid_len);
 		n_probes++;
-	} else if (!iwl3945_is_associated(priv) && priv->essid_len) {
-		IWL_DEBUG_SCAN
-		  ("Kicking off one direct scan for '%s' when not associated\n",
-		   print_ssid(ssid, priv->essid, priv->essid_len));
-		scan->direct_scan[0].id = WLAN_EID_SSID;
-		scan->direct_scan[0].len = priv->essid_len;
-		memcpy(scan->direct_scan[0].ssid, priv->essid, priv->essid_len);
-		n_probes++;
 	} else
 		IWL_DEBUG_SCAN("Kicking off one indirect scan.\n");
 
@@ -6177,7 +6154,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	 * that based on the direct_mask added to each channel entry */
 	scan->tx_cmd.len = cpu_to_le16(
 		iwl3945_fill_probe_req(priv, (struct ieee80211_mgmt *)scan->data,
-			IWL_MAX_SCAN_SIZE - sizeof(*scan), 0));
+			IWL_MAX_SCAN_SIZE - sizeof(*scan)));
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
 	scan->tx_cmd.sta_id = priv->hw_setting.bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
@@ -6566,6 +6543,7 @@ static int iwl3945_mac_add_interface(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->vif = conf->vif;
+	priv->iw_mode = conf->type;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -6742,7 +6720,6 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 				    struct ieee80211_if_conf *conf)
 {
 	struct iwl3945_priv *priv = hw->priv;
-	unsigned long flags;
 	int rc;
 
 	if (conf == NULL)
@@ -6762,15 +6739,6 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 		rc = iwl3945_mac_beacon_update(hw, beacon);
 		if (rc)
 			return rc;
-	}
-
-	/* XXX: this MUST use conf->mac_addr */
-
-	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
-	    (!conf->ssid_len)) {
-		IWL_DEBUG_MAC80211
-		    ("Leaving in AP mode because HostAPD is not ready.\n");
-		return 0;
 	}
 
 	if (!iwl3945_is_alive(priv))
@@ -6839,15 +6807,6 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 	}
 
  done:
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!conf->ssid_len)
-		memset(priv->essid, 0, IW_ESSID_MAX_SIZE);
-	else
-		memcpy(priv->essid, conf->ssid, conf->ssid_len);
-
-	priv->essid_len = conf->ssid_len;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	IWL_DEBUG_MAC80211("leave\n");
 	mutex_unlock(&priv->mutex);
 
@@ -6890,8 +6849,6 @@ static void iwl3945_mac_remove_interface(struct ieee80211_hw *hw,
 	if (priv->vif == conf->vif) {
 		priv->vif = NULL;
 		memset(priv->bssid, 0, ETH_ALEN);
-		memset(priv->essid, 0, IW_ESSID_MAX_SIZE);
-		priv->essid_len = 0;
 	}
 	mutex_unlock(&priv->mutex);
 

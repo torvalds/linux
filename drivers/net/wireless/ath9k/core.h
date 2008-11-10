@@ -84,9 +84,6 @@ struct ath_node;
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
-#define ATH9K_BH_STATUS_INTACT		0
-#define ATH9K_BH_STATUS_CHANGE		1
-
 #define	ATH_TXQ_SETUP(sc, i)        ((sc)->sc_txqsetup & (1<<i))
 
 static inline unsigned long get_timestamp(void)
@@ -209,6 +206,7 @@ struct ath_buf_state {
 	struct ath_rc_series bfs_rcs[4];	/* rate series */
 	u32 bf_type;				/* BUF_* (enum buffer_type) */
 	/* key type use to encrypt this frame */
+	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
 };
 
@@ -219,6 +217,7 @@ struct ath_buf_state {
 #define bf_seqno        	bf_state.bfs_seqno
 #define bf_tidno        	bf_state.bfs_tidno
 #define bf_rcs          	bf_state.bfs_rcs
+#define bf_keyix                bf_state.bfs_keyix
 #define bf_keytype      	bf_state.bfs_keytype
 #define bf_isdata(bf)		(bf->bf_state.bf_type & BUF_DATA)
 #define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
@@ -244,7 +243,6 @@ struct ath_buf {
 	struct ath_buf *bf_next;	/* next subframe in the aggregate */
 	struct ath_buf *bf_rifslast;	/* last buf for RIFS burst */
 	void *bf_mpdu;			/* enclosing frame structure */
-	void *bf_node;			/* pointer to the node */
 	struct ath_desc *bf_desc;	/* virtual addr of desc */
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
@@ -306,15 +304,7 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 
 #define ATH_MAX_ANTENNA          3
 #define ATH_RXBUF                512
-#define ATH_RX_TIMEOUT           40      /* 40 milliseconds */
 #define WME_NUM_TID              16
-#define IEEE80211_BAR_CTL_TID_M  0xF000  /* tid mask */
-#define IEEE80211_BAR_CTL_TID_S  12      /* tid shift */
-
-enum ATH_RX_TYPE {
-	ATH_RX_NON_CONSUMED = 0,
-	ATH_RX_CONSUMED
-};
 
 /* per frame rx status block */
 struct ath_recv_status {
@@ -348,48 +338,18 @@ struct ath_rxbuf {
 	struct ath_recv_status rx_status;	/* cached rx status */
 };
 
-/* Per-TID aggregate receiver state for a node */
-struct ath_arx_tid {
-	struct ath_node *an;
-	struct ath_rxbuf *rxbuf;	/* re-ordering buffer */
-	struct timer_list timer;
-	spinlock_t tidlock;
-	int baw_head;			/* seq_next at head */
-	int baw_tail;			/* tail of block-ack window */
-	int seq_reset;			/* need to reset start sequence */
-	int addba_exchangecomplete;
-	u16 seq_next;			/* next expected sequence */
-	u16 baw_size;			/* block-ack window size */
-};
-
-/* Per-node receiver aggregate state */
-struct ath_arx {
-	struct ath_arx_tid tid[WME_NUM_TID];
-};
-
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
-void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an);
-void ath_rx_node_free(struct ath_softc *sc, struct ath_node *an);
-void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_handle_rx_intr(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush);
-int ath_rx_input(struct ath_softc *sc,
-		 struct ath_node *node,
-		 struct sk_buff *skb,
-		 struct ath_recv_status *rx_status,
-		 enum ATH_RX_TYPE *status);
 int _ath_rx_indicate(struct ath_softc *sc,
 		     struct sk_buff *skb,
 		     struct ath_recv_status *status,
 		     u16 keyix);
-int ath_rx_subframe(struct ath_node *an, struct sk_buff *skb,
-		    struct ath_recv_status *status);
-
 /******/
 /* TX */
 /******/
@@ -417,12 +377,6 @@ int ath_rx_subframe(struct ath_node *an, struct sk_buff *skb,
 #define WME_AC_VI               2 /* video */
 #define WME_AC_VO               3 /* voice */
 #define WME_NUM_AC              4
-
-enum ATH_SM_PWRSAV{
-	ATH_SM_ENABLE,
-	ATH_SM_PWRSAV_STATIC,
-	ATH_SM_PWRSAV_DYNAMIC,
-};
 
 /*
  * Data transmit queue state.  One of these exists for each
@@ -456,6 +410,10 @@ struct ath_txq {
 	struct list_head axq_acq;
 };
 
+#define AGGR_CLEANUP         BIT(1)
+#define AGGR_ADDBA_COMPLETE  BIT(2)
+#define AGGR_ADDBA_PROGRESS  BIT(3)
+
 /* per TID aggregate tx state for a destination */
 struct ath_atx_tid {
 	struct list_head list;		/* round-robin tid entry */
@@ -471,9 +429,7 @@ struct ath_atx_tid {
 	int baw_tail;			/* next unused tx buffer slot */
 	int sched;
 	int paused;
-	int cleanup_inprogress;
-	u32 addba_exchangecomplete:1;
-	int32_t addba_exchangeinprogress;
+	u8 state;
 	int addba_exchangeattempts;
 };
 
@@ -494,24 +450,8 @@ struct ath_atx {
 
 /* per-frame tx control block */
 struct ath_tx_control {
-	struct ath_node *an;
+	struct ath_txq *txq;
 	int if_id;
-	int qnum;
-	u32 ht:1;
-	u32 ps:1;
-	u32 use_minrate:1;
-	enum ath9k_pkt_type atype;
-	enum ath9k_key_type keytype;
-	u32 flags;
-	u16 seqno;
-	u16 tidno;
-	u16 txpower;
-	u16 frmlen;
-	u32 keyix;
-	int min_rate;
-	int mcast_rate;
-	struct ath_softc *dev;
-	dma_addr_t dmacontext;
 };
 
 /* per frame tx status block */
@@ -546,32 +486,28 @@ void ath_draintxq(struct ath_softc *sc, bool retry_tx);
 void ath_tx_draintxq(struct ath_softc *sc,
 		     struct ath_txq *txq, bool retry_tx);
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an);
-void ath_tx_node_cleanup(struct ath_softc *sc,
-			 struct ath_node *an, bool bh_flag);
+void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_tx_node_free(struct ath_softc *sc, struct ath_node *an);
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
 int ath_tx_cleanup(struct ath_softc *sc);
 int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
+struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
-int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb);
+int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
+		 struct ath_tx_control *txctl);
 void ath_tx_tasklet(struct ath_softc *sc);
 u32 ath_txq_depth(struct ath_softc *sc, int qnum);
 u32 ath_txq_aggr_depth(struct ath_softc *sc, int qnum);
 void ath_notify_txq_status(struct ath_softc *sc, u16 queue_depth);
 void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-		     struct ath_xmit_status *tx_status, struct ath_node *an);
+		     struct ath_xmit_status *tx_status);
 void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 
 /**********************/
 /* Node / Aggregation */
 /**********************/
-
-/* indicates the node is clened up */
-#define ATH_NODE_CLEAN          0x1
-/* indicates the node is 80211 power save */
-#define ATH_NODE_PWRSAVE        0x2
 
 #define ADDBA_EXCHANGE_ATTEMPTS    10
 #define ATH_AGGR_DELIM_SZ          4   /* delimiter size   */
@@ -584,6 +520,7 @@ void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 #define IEEE80211_SEQ_SEQ_SHIFT    4
 #define IEEE80211_SEQ_MAX          4096
 #define IEEE80211_MIN_AMPDU_BUF    0x8
+#define IEEE80211_HTCAP_MAXRXAMPDU_FACTOR 13
 
 /* return whether a bit at index _n in bitmap _bm is set
  * _sz is the size of the bitmap  */
@@ -614,14 +551,6 @@ enum ATH_AGGR_STATUS {
 	ATH_AGGR_8K_LIMITED,
 };
 
-enum ATH_AGGR_CHECK {
-	AGGR_NOT_REQUIRED,
-	AGGR_REQUIRED,
-	AGGR_CLEANUP_PROGRESS,
-	AGGR_EXCHANGE_PROGRESS,
-	AGGR_EXCHANGE_DONE
-};
-
 struct aggr_rifs_param {
 	int param_max_frames;
 	int param_max_len;
@@ -633,54 +562,30 @@ struct aggr_rifs_param {
 /* Per-node aggregation state */
 struct ath_node_aggr {
 	struct ath_atx tx;	/* node transmit state */
-	struct ath_arx rx;	/* node receive state */
 };
 
 /* driver-specific node state */
 struct ath_node {
-	struct list_head list;
 	struct ath_softc *an_sc;
-	atomic_t an_refcnt;
 	struct ath_chainmask_sel an_chainmask_sel;
 	struct ath_node_aggr an_aggr;
-	u8 an_smmode; /* SM Power save mode */
-	u8 an_flags;
-	u8 an_addr[ETH_ALEN];
-
 	u16 maxampdu;
 	u8 mpdudensity;
 };
 
 void ath_tx_resume_tid(struct ath_softc *sc,
 	struct ath_atx_tid *tid);
-enum ATH_AGGR_CHECK ath_tx_aggr_check(struct ath_softc *sc,
-	struct ath_node *an, u8 tidno);
+bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
 void ath_tx_aggr_teardown(struct ath_softc *sc,
 	struct ath_node *an, u8 tidno);
-void ath_rx_aggr_teardown(struct ath_softc *sc,
-	struct ath_node *an, u8 tidno);
-int ath_rx_aggr_start(struct ath_softc *sc,
-		      const u8 *addr,
-		      u16 tid,
-		      u16 *ssn);
-int ath_rx_aggr_stop(struct ath_softc *sc,
-		     const u8 *addr,
-		     u16 tid);
-int ath_tx_aggr_start(struct ath_softc *sc,
-		      const u8 *addr,
-		      u16 tid,
-		      u16 *ssn);
-int ath_tx_aggr_stop(struct ath_softc *sc,
-		     const u8 *addr,
-		     u16 tid);
+int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
+		      u16 tid, u16 *ssn);
+int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
+void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_newassoc(struct ath_softc *sc,
 	struct ath_node *node, int isnew, int isuapsd);
-struct ath_node *ath_node_attach(struct ath_softc *sc,
-	u8 addr[ETH_ALEN], int if_id);
-void ath_node_detach(struct ath_softc *sc, struct ath_node *an, bool bh_flag);
-struct ath_node *ath_node_get(struct ath_softc *sc, u8 addr[ETH_ALEN]);
-void ath_node_put(struct ath_softc *sc, struct ath_node *an, bool bh_flag);
-struct ath_node *ath_node_find(struct ath_softc *sc, u8 *addr);
+void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta);
+void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta);
 
 /*******************/
 /* Beacon Handling */
@@ -744,22 +649,13 @@ struct ath_vap_config {
 
 /* driver-specific vap state */
 struct ath_vap {
-	struct ieee80211_vif *av_if_data;
+	int av_bslot;			/* beacon slot index */
 	enum ath9k_opmode av_opmode;	/* VAP operational mode */
 	struct ath_buf *av_bcbuf;	/* beacon buffer */
 	struct ath_tx_control av_btxctl;  /* txctl information for beacon */
-	int av_bslot;			/* beacon slot index */
 	struct ath_vap_config av_config;/* vap configuration parameters*/
 	struct ath_rate_node *rc_node;
 };
-
-int ath_vap_attach(struct ath_softc *sc,
-		   int if_id,
-		   struct ieee80211_vif *if_data,
-		   enum ath9k_opmode opmode);
-int ath_vap_detach(struct ath_softc *sc, int if_id);
-int ath_vap_config(struct ath_softc *sc,
-		   int if_id, struct ath_vap_config *if_config);
 
 /*********************/
 /* Antenna diversity */
@@ -968,14 +864,13 @@ struct ath_softc {
 
 	u8 sc_nbcnvaps;			/* # of vaps sending beacons */
 	u16 sc_nvaps;			/* # of active virtual ap's */
-	struct ath_vap *sc_vaps[ATH_BCBUF];
+	struct ieee80211_vif *sc_vaps[ATH_BCBUF];
 
 	u8 sc_mcastantenna;
 	u8 sc_defant;			/* current default antenna */
 	u8 sc_rxotherant;		/* rx's on non-default antenna */
 
 	struct ath9k_node_stats sc_halstats; /* station-mode rssi stats */
-	struct list_head node_list;
 	struct ath_ht_info sc_ht_info;
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
 
@@ -1036,7 +931,6 @@ struct ath_softc {
 	spinlock_t sc_rxbuflock;
 	spinlock_t sc_txbuflock;
 	spinlock_t sc_resetlock;
-	spinlock_t node_lock;
 
 	/* LEDs */
 	struct ath_led radio_led;
@@ -1052,9 +946,8 @@ struct ath_softc {
 };
 
 int ath_init(u16 devid, struct ath_softc *sc);
-void ath_deinit(struct ath_softc *sc);
 int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan);
-int ath_suspend(struct ath_softc *sc);
+void ath_stop(struct ath_softc *sc);
 irqreturn_t ath_isr(int irq, void *dev);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
 int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan);
@@ -1073,8 +966,6 @@ int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 void ath_setslottime(struct ath_softc *sc);
 void ath_update_txpow(struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
-void ath_get_currentCountry(struct ath_softc *sc,
-	struct ath9k_country_entry *ctry);
 u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp);
 
 #endif /* CORE_H */

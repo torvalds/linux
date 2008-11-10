@@ -7,6 +7,10 @@
 #ifndef _LBS_SCAN_H
 #define _LBS_SCAN_H
 
+#include <net/iw_handler.h>
+
+#define MAX_NETWORK_COUNT 128
+
 /**
  *  @brief Maximum number of channels that can be sent in a setuserscan ioctl
  */

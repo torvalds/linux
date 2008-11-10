@@ -114,7 +114,7 @@ static void ath_beacon_setup(struct ath_softc *sc,
 	ath9k_hw_set11n_txdesc(ah, ds,
 			       skb->len + FCS_LEN,     /* frame length */
 			       ATH9K_PKT_TYPE_BEACON,  /* Atheros packet type */
-			       avp->av_btxctl.txpower, /* txpower XXX */
+			       MAX_RATE_POWER,         /* FIXME */
 			       ATH9K_TXKEYIX_INVALID,  /* no encryption */
 			       ATH9K_KEY_TYPE_CLEAR,   /* no encryption */
 			       flags                   /* no ack,
@@ -152,12 +152,14 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	struct ath_vap *avp;
 	struct sk_buff *skb;
 	struct ath_txq *cabq;
+	struct ieee80211_vif *vif;
 	struct ieee80211_tx_info *info;
 	int cabq_depth;
 
-	avp = sc->sc_vaps[if_id];
-	ASSERT(avp);
+	vif = sc->sc_vaps[if_id];
+	ASSERT(vif);
 
+	avp = (void *)vif->drv_priv;
 	cabq = sc->sc_cabq;
 
 	if (avp->av_bcbuf == NULL) {
@@ -174,7 +176,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 				 PCI_DMA_TODEVICE);
 	}
 
-	skb = ieee80211_beacon_get(sc->hw, avp->av_if_data);
+	skb = ieee80211_beacon_get(sc->hw, vif);
 	bf->bf_mpdu = skb;
 	if (skb == NULL)
 		return NULL;
@@ -196,7 +198,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 			       skb_end_pointer(skb) - skb->head,
 			       PCI_DMA_TODEVICE);
 
-	skb = ieee80211_get_buffered_bc(sc->hw, avp->av_if_data);
+	skb = ieee80211_get_buffered_bc(sc->hw, vif);
 
 	/*
 	 * if the CABQ traffic from previous DTIM is pending and the current
@@ -232,7 +234,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	 */
 	while (skb) {
 		ath_tx_cabq(sc, skb);
-		skb = ieee80211_get_buffered_bc(sc->hw, avp->av_if_data);
+		skb = ieee80211_get_buffered_bc(sc->hw, vif);
 	}
 
 	return bf;
@@ -244,13 +246,16 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 */
 static void ath_beacon_start_adhoc(struct ath_softc *sc, int if_id)
 {
+	struct ieee80211_vif *vif;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
 	struct ath_vap *avp;
 	struct sk_buff *skb;
 
-	avp = sc->sc_vaps[if_id];
-	ASSERT(avp);
+	vif = sc->sc_vaps[if_id];
+	ASSERT(vif);
+
+	avp = (void *)vif->drv_priv;
 
 	if (avp->av_bcbuf == NULL) {
 		DPRINTF(sc, ATH_DBG_BEACON, "%s: avp=%p av_bcbuf=%p\n",
@@ -300,14 +305,17 @@ int ath_beaconq_setup(struct ath_hal *ah)
 */
 int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 {
+	struct ieee80211_vif *vif;
 	struct ath_vap *avp;
 	struct ieee80211_hdr *hdr;
 	struct ath_buf *bf;
 	struct sk_buff *skb;
 	__le64 tstamp;
 
-	avp = sc->sc_vaps[if_id];
-	ASSERT(avp);
+	vif = sc->sc_vaps[if_id];
+	ASSERT(vif);
+
+	avp = (void *)vif->drv_priv;
 
 	/* Allocate a beacon descriptor if we haven't done so. */
 	if (!avp->av_bcbuf) {
@@ -363,7 +371,7 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 	 * FIXME: Fill avp->av_btxctl.txpower and
 	 * avp->av_btxctl.shortPreamble
 	 */
-	skb = ieee80211_beacon_get(sc->hw, avp->av_if_data);
+	skb = ieee80211_beacon_get(sc->hw, vif);
 	if (skb == NULL) {
 		DPRINTF(sc, ATH_DBG_BEACON, "%s: cannot get skb\n",
 			__func__);
@@ -652,15 +660,21 @@ void ath_bstuck_process(struct ath_softc *sc)
  */
 void ath_beacon_config(struct ath_softc *sc, int if_id)
 {
+	struct ieee80211_vif *vif;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_beacon_config conf;
+	struct ath_vap *avp;
 	enum ath9k_opmode av_opmode;
 	u32 nexttbtt, intval;
 
-	if (if_id != ATH_IF_ID_ANY)
-		av_opmode = sc->sc_vaps[if_id]->av_opmode;
-	else
+	if (if_id != ATH_IF_ID_ANY) {
+		vif = sc->sc_vaps[if_id];
+		ASSERT(vif);
+		avp = (void *)vif->drv_priv;
+		av_opmode = avp->av_opmode;
+	} else {
 		av_opmode = sc->sc_ah->ah_opmode;
+	}
 
 	memset(&conf, 0, sizeof(struct ath_beacon_config));
 

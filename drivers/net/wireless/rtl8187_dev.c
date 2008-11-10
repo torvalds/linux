@@ -152,8 +152,6 @@ void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 	rtl818x_iowrite8(priv, &priv->map->PHY[2], (data >> 16) & 0xFF);
 	rtl818x_iowrite8(priv, &priv->map->PHY[1], (data >> 8) & 0xFF);
 	rtl818x_iowrite8(priv, &priv->map->PHY[0], data & 0xFF);
-
-	msleep(1);
 }
 
 static void rtl8187_tx_cb(struct urb *urb)
@@ -669,7 +667,7 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	rtl818x_iowrite16(priv, &priv->map->RFPinsOutput, 0x0480);
 	rtl818x_iowrite16(priv, &priv->map->RFPinsSelect, 0x2488);
 	rtl818x_iowrite16(priv, &priv->map->RFPinsEnable, 0x1FFF);
-	msleep(1100);
+	msleep(100);
 
 	priv->rf->init(dev);
 
@@ -872,7 +870,6 @@ static int rtl8187_config(struct ieee80211_hw *dev, u32 changed)
 	 */
 	rtl818x_iowrite32(priv, &priv->map->TX_CONF,
 			  reg | RTL818X_TX_CONF_LOOPBACK_MAC);
-	msleep(10);
 	priv->rf->set_chan(dev, conf);
 	msleep(10);
 	rtl818x_iowrite32(priv, &priv->map->TX_CONF, reg);

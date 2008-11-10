@@ -215,7 +215,7 @@ ath9k_hw_set_rf_regs(struct ath_hal *ah, struct ath9k_channel *chan,
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		return true;
 
-	eepMinorRev = ath9k_hw_get_eeprom(ahp, EEP_MINOR_REV);
+	eepMinorRev = ath9k_hw_get_eeprom(ah, EEP_MINOR_REV);
 
 	RF_BANK_SETUP(ahp->ah_analogBank0Data, &ahp->ah_iniBank0, 1);
 
@@ -235,15 +235,15 @@ ath9k_hw_set_rf_regs(struct ath_hal *ah, struct ath9k_channel *chan,
 
 	if (eepMinorRev >= 2) {
 		if (IS_CHAN_2GHZ(chan)) {
-			ob2GHz = ath9k_hw_get_eeprom(ahp, EEP_OB_2);
-			db2GHz = ath9k_hw_get_eeprom(ahp, EEP_DB_2);
+			ob2GHz = ath9k_hw_get_eeprom(ah, EEP_OB_2);
+			db2GHz = ath9k_hw_get_eeprom(ah, EEP_DB_2);
 			ath9k_phy_modify_rx_buffer(ahp->ah_analogBank6Data,
 						   ob2GHz, 3, 197, 0);
 			ath9k_phy_modify_rx_buffer(ahp->ah_analogBank6Data,
 						   db2GHz, 3, 194, 0);
 		} else {
-			ob5GHz = ath9k_hw_get_eeprom(ahp, EEP_OB_5);
-			db5GHz = ath9k_hw_get_eeprom(ahp, EEP_DB_5);
+			ob5GHz = ath9k_hw_get_eeprom(ah, EEP_OB_5);
+			db5GHz = ath9k_hw_get_eeprom(ah, EEP_DB_5);
 			ath9k_phy_modify_rx_buffer(ahp->ah_analogBank6Data,
 						   ob5GHz, 3, 203, 0);
 			ath9k_phy_modify_rx_buffer(ahp->ah_analogBank6Data,

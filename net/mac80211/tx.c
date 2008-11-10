@@ -698,7 +698,6 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	left = payload_len - per_fragm;
 	for (i = 0; i < num_fragm - 1; i++) {
 		struct ieee80211_hdr *fhdr;
-		struct ieee80211_tx_info *info;
 		size_t copylen;
 
 		if (left <= 0)

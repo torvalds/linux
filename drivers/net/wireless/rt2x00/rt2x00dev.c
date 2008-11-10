@@ -417,7 +417,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	 */
 	spin_lock(&intf->lock);
 
-	memcpy(&conf, &intf->conf, sizeof(conf));
+	memcpy(&conf, &vif->bss_conf, sizeof(conf));
 	delayed_flags = intf->delayed_flags;
 	intf->delayed_flags = 0;
 
@@ -1056,10 +1056,16 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->hw->vif_data_size = sizeof(struct rt2x00_intf);
 
-	rt2x00dev->hw->wiphy->interface_modes =
-	    BIT(NL80211_IFTYPE_AP) |
-	    BIT(NL80211_IFTYPE_STATION) |
-	    BIT(NL80211_IFTYPE_ADHOC);
+	/*
+	 * Determine which operating modes are supported, all modes
+	 * which require beaconing, depend on the availability of
+	 * beacon entries.
+	 */
+	rt2x00dev->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	if (rt2x00dev->ops->bcn->entry_num > 0)
+		rt2x00dev->hw->wiphy->interface_modes |=
+		    BIT(NL80211_IFTYPE_ADHOC) |
+		    BIT(NL80211_IFTYPE_AP);
 
 	/*
 	 * Let the driver probe the device to detect the capabilities.

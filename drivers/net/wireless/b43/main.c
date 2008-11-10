@@ -703,13 +703,11 @@ static void b43_set_slot_time(struct b43_wldev *dev, u16 slot_time)
 static void b43_short_slot_timing_enable(struct b43_wldev *dev)
 {
 	b43_set_slot_time(dev, 9);
-	dev->short_slot = 1;
 }
 
 static void b43_short_slot_timing_disable(struct b43_wldev *dev)
 {
 	b43_set_slot_time(dev, 20);
-	dev->short_slot = 0;
 }
 
 /* Enable a Generic IRQ. "mask" is the mask of which IRQs to enable.
@@ -1672,25 +1670,6 @@ static void b43_update_templates(struct b43_wl *wl)
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
 	queue_work(wl->hw->workqueue, &wl->beacon_update_trigger);
-}
-
-static void b43_set_ssid(struct b43_wldev *dev, const u8 * ssid, u8 ssid_len)
-{
-	u32 tmp;
-	u16 i, len;
-
-	len = min((u16) ssid_len, (u16) 0x100);
-	for (i = 0; i < len; i += sizeof(u32)) {
-		tmp = (u32) (ssid[i + 0]);
-		if (i + 1 < len)
-			tmp |= (u32) (ssid[i + 1]) << 8;
-		if (i + 2 < len)
-			tmp |= (u32) (ssid[i + 2]) << 16;
-		if (i + 3 < len)
-			tmp |= (u32) (ssid[i + 3]) << 24;
-		b43_shm_write32(dev, B43_SHM_SHARED, 0x380 + i, tmp);
-	}
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x48, len);
 }
 
 static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
@@ -3380,16 +3359,6 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (conf->channel->hw_value != phy->channel)
 		b43_switch_channel(dev, conf->channel->hw_value);
 
-	/* Enable/Disable ShortSlot timing. */
-	if ((!!(conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME)) !=
-	    dev->short_slot) {
-		B43_WARN_ON(phy->type != B43_PHYTYPE_G);
-		if (conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME)
-			b43_short_slot_timing_enable(dev);
-		else
-			b43_short_slot_timing_disable(dev);
-	}
-
 	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_RADIOTAP);
 
 	/* Adjust the desired TX power level. */
@@ -3438,6 +3407,104 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_unlock(&wl->mutex);
 
 	return err;
+}
+
+static void b43_update_basic_rates(struct b43_wldev *dev, u64 brates)
+{
+	struct ieee80211_supported_band *sband =
+		dev->wl->hw->wiphy->bands[b43_current_band(dev->wl)];
+	struct ieee80211_rate *rate;
+	int i;
+	u16 basic, direct, offset, basic_offset, rateptr;
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		rate = &sband->bitrates[i];
+
+		if (b43_is_cck_rate(rate->hw_value)) {
+			direct = B43_SHM_SH_CCKDIRECT;
+			basic = B43_SHM_SH_CCKBASIC;
+			offset = b43_plcp_get_ratecode_cck(rate->hw_value);
+			offset &= 0xF;
+		} else {
+			direct = B43_SHM_SH_OFDMDIRECT;
+			basic = B43_SHM_SH_OFDMBASIC;
+			offset = b43_plcp_get_ratecode_ofdm(rate->hw_value);
+			offset &= 0xF;
+		}
+
+		rate = ieee80211_get_response_rate(sband, brates, rate->bitrate);
+
+		if (b43_is_cck_rate(rate->hw_value)) {
+			basic_offset = b43_plcp_get_ratecode_cck(rate->hw_value);
+			basic_offset &= 0xF;
+		} else {
+			basic_offset = b43_plcp_get_ratecode_ofdm(rate->hw_value);
+			basic_offset &= 0xF;
+		}
+
+		/*
+		 * Get the pointer that we need to point to
+		 * from the direct map
+		 */
+		rateptr = b43_shm_read16(dev, B43_SHM_SHARED,
+					 direct + 2 * basic_offset);
+		/* and write it to the basic map */
+		b43_shm_write16(dev, B43_SHM_SHARED, basic + 2 * offset,
+				rateptr);
+	}
+}
+
+static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_bss_conf *conf,
+				    u32 changed)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev;
+	struct b43_phy *phy;
+	unsigned long flags;
+	u32 savedirqs;
+
+	mutex_lock(&wl->mutex);
+
+	dev = wl->current_dev;
+	phy = &dev->phy;
+
+	/* Disable IRQs while reconfiguring the device.
+	 * This makes it possible to drop the spinlock throughout
+	 * the reconfiguration process. */
+	spin_lock_irqsave(&wl->irq_lock, flags);
+	if (b43_status(dev) < B43_STAT_STARTED) {
+		spin_unlock_irqrestore(&wl->irq_lock, flags);
+		goto out_unlock_mutex;
+	}
+	savedirqs = b43_interrupt_disable(dev, B43_IRQ_ALL);
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
+	b43_synchronize_irq(dev);
+
+	b43_mac_suspend(dev);
+
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		b43_update_basic_rates(dev, conf->basic_rates);
+
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		if (conf->use_short_slot)
+			b43_short_slot_timing_enable(dev);
+		else
+			b43_short_slot_timing_disable(dev);
+	}
+
+	b43_mac_enable(dev);
+
+	spin_lock_irqsave(&wl->irq_lock, flags);
+	b43_interrupt_enable(dev, savedirqs);
+	/* XXX: why? */
+	mmiowb();
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
+ out_unlock_mutex:
+	mutex_unlock(&wl->mutex);
+
+	return;
 }
 
 static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -3602,8 +3669,6 @@ static int b43_op_config_interface(struct ieee80211_hw *hw,
 		if (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
 		    b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT)) {
 			B43_WARN_ON(vif->type != wl->if_type);
-			if (conf->changed & IEEE80211_IFCC_SSID)
-				b43_set_ssid(dev, conf->ssid, conf->ssid_len);
 			if (conf->changed & IEEE80211_IFCC_BEACON)
 				b43_update_templates(wl);
 		} else if (b43_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
@@ -4231,6 +4296,7 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.add_interface		= b43_op_add_interface,
 	.remove_interface	= b43_op_remove_interface,
 	.config			= b43_op_config,
+	.bss_info_changed	= b43_op_bss_info_changed,
 	.config_interface	= b43_op_config_interface,
 	.configure_filter	= b43_op_configure_filter,
 	.set_key		= b43_op_set_key,

@@ -341,6 +341,22 @@ ieee80211_get_channel(struct wiphy *wiphy, int freq)
 }
 
 /**
+ * ieee80211_get_response_rate - get basic rate for a given rate
+ *
+ * @sband: the band to look for rates in
+ * @basic_rates: bitmap of basic rates
+ * @bitrate: the bitrate for which to find the basic rate
+ *
+ * This function returns the basic rate corresponding to a given
+ * bitrate, that is the next lower bitrate contained in the basic
+ * rate map, which is, for this function, given as a bitmap of
+ * indices of rates in the band's bitrate table.
+ */
+struct ieee80211_rate *
+ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
+			    u64 basic_rates, int bitrate);
+
+/**
  * regulatory_hint - driver hint to the wireless core a regulatory domain
  * @wiphy: the wireless device giving the hint (used only for reporting
  *	conflicts)

@@ -294,7 +294,7 @@ static inline u8 first_antenna(u8 mask)
 }
 
 
-static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
+static inline u8 iwl_get_prev_ieee_rate(u8 rate_index)
 {
 	u8 rate = iwl_rates[rate_index].prev_ieee;
 
@@ -304,11 +304,11 @@ static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
 }
 
 /**
- * iwl4965_rate_control_register - Register the rate control algorithm callbacks
+ * iwl_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
  * or reason to place it as a stand alone module.  The driver can call
- * iwl4965_rate_control_register in order to register the rate control callbacks
+ * iwl_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling
  * ieee80211_register_hw
  *
@@ -316,7 +316,7 @@ static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
 extern int iwlagn_rate_control_register(void);
 
 /**
- * iwl4965_rate_control_unregister - Unregister the rate control callbacks
+ * iwl_rate_control_unregister - Unregister the rate control callbacks
  *
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.

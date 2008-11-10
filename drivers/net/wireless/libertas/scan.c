@@ -6,8 +6,8 @@
   */
 #include <linux/types.h>
 #include <linux/etherdevice.h>
+#include <linux/if_arp.h>
 #include <asm/unaligned.h>
-
 #include <net/lib80211.h>
 
 #include "host.h"
@@ -54,6 +54,8 @@
 
 //! Scan time specified in the channel TLV for each channel for active scans
 #define MRVDRV_ACTIVE_SCAN_CHAN_TIME   100
+
+#define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 
 static int lbs_ret_80211_scan(struct lbs_private *priv, unsigned long dummy,
 			      struct cmd_header *resp);
@@ -591,38 +593,36 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 
 	/* process variable IE */
 	while (pos <= end - 2) {
-		struct ieee80211_info_element * elem = (void *)pos;
-
-		if (pos + elem->len > end) {
+		if (pos + pos[1] > end) {
 			lbs_deb_scan("process_bss: error in processing IE, "
 				     "bytes left < IE length\n");
 			break;
 		}
 
-		switch (elem->id) {
-		case MFIE_TYPE_SSID:
-			bss->ssid_len = min_t(int, 32, elem->len);
-			memcpy(bss->ssid, elem->data, bss->ssid_len);
+		switch (pos[0]) {
+		case WLAN_EID_SSID:
+			bss->ssid_len = min_t(int, IEEE80211_MAX_SSID_LEN, pos[1]);
+			memcpy(bss->ssid, pos + 2, bss->ssid_len);
 			lbs_deb_scan("got SSID IE: '%s', len %u\n",
 			             print_ssid(ssid, bss->ssid, bss->ssid_len),
 			             bss->ssid_len);
 			break;
 
-		case MFIE_TYPE_RATES:
-			n_basic_rates = min_t(uint8_t, MAX_RATES, elem->len);
-			memcpy(bss->rates, elem->data, n_basic_rates);
+		case WLAN_EID_SUPP_RATES:
+			n_basic_rates = min_t(uint8_t, MAX_RATES, pos[1]);
+			memcpy(bss->rates, pos + 2, n_basic_rates);
 			got_basic_rates = 1;
 			lbs_deb_scan("got RATES IE\n");
 			break;
 
-		case MFIE_TYPE_FH_SET:
+		case WLAN_EID_FH_PARAMS:
 			pFH = (struct ieeetypes_fhparamset *) pos;
 			memmove(&bss->phyparamset.fhparamset, pFH,
 				sizeof(struct ieeetypes_fhparamset));
 			lbs_deb_scan("got FH IE\n");
 			break;
 
-		case MFIE_TYPE_DS_SET:
+		case WLAN_EID_DS_PARAMS:
 			pDS = (struct ieeetypes_dsparamset *) pos;
 			bss->channel = pDS->currentchan;
 			memcpy(&bss->phyparamset.dsparamset, pDS,
@@ -630,14 +630,14 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 			lbs_deb_scan("got DS IE, channel %d\n", bss->channel);
 			break;
 
-		case MFIE_TYPE_CF_SET:
+		case WLAN_EID_CF_PARAMS:
 			pCF = (struct ieeetypes_cfparamset *) pos;
 			memcpy(&bss->ssparamset.cfparamset, pCF,
 			       sizeof(struct ieeetypes_cfparamset));
 			lbs_deb_scan("got CF IE\n");
 			break;
 
-		case MFIE_TYPE_IBSS_SET:
+		case WLAN_EID_IBSS_PARAMS:
 			pibss = (struct ieeetypes_ibssparamset *) pos;
 			bss->atimwindow = le16_to_cpu(pibss->atimwindow);
 			memmove(&bss->ssparamset.ibssparamset, pibss,
@@ -645,7 +645,7 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 			lbs_deb_scan("got IBSS IE\n");
 			break;
 
-		case MFIE_TYPE_COUNTRY:
+		case WLAN_EID_COUNTRY:
 			pcountryinfo = (struct ieeetypes_countryinfoset *) pos;
 			lbs_deb_scan("got COUNTRY IE\n");
 			if (pcountryinfo->len < sizeof(pcountryinfo->countrycode)
@@ -662,7 +662,7 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 				    (int) (pcountryinfo->len + 2));
 			break;
 
-		case MFIE_TYPE_RATES_EX:
+		case WLAN_EID_EXT_SUPP_RATES:
 			/* only process extended supported rate if data rate is
 			 * already found. Data rate IE should come before
 			 * extended supported rate IE
@@ -673,50 +673,51 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 				break;
 			}
 
-			n_ex_rates = elem->len;
+			n_ex_rates = pos[1];
 			if (n_basic_rates + n_ex_rates > MAX_RATES)
 				n_ex_rates = MAX_RATES - n_basic_rates;
 
 			p = bss->rates + n_basic_rates;
-			memcpy(p, elem->data, n_ex_rates);
+			memcpy(p, pos + 2, n_ex_rates);
 			break;
 
-		case MFIE_TYPE_GENERIC:
-			if (elem->len >= 4 &&
-			    elem->data[0] == 0x00 && elem->data[1] == 0x50 &&
-			    elem->data[2] == 0xf2 && elem->data[3] == 0x01) {
-				bss->wpa_ie_len = min(elem->len + 2, MAX_WPA_IE_LEN);
-				memcpy(bss->wpa_ie, elem, bss->wpa_ie_len);
+		case WLAN_EID_GENERIC:
+			if (pos[1] >= 4 &&
+			    pos[2] == 0x00 && pos[3] == 0x50 &&
+			    pos[4] == 0xf2 && pos[5] == 0x01) {
+				bss->wpa_ie_len = min(pos[1] + 2, MAX_WPA_IE_LEN);
+				memcpy(bss->wpa_ie, pos, bss->wpa_ie_len);
 				lbs_deb_scan("got WPA IE\n");
-				lbs_deb_hex(LBS_DEB_SCAN, "WPA IE", bss->wpa_ie, elem->len);
-			} else if (elem->len >= MARVELL_MESH_IE_LENGTH &&
-				   elem->data[0] == 0x00 && elem->data[1] == 0x50 &&
-				   elem->data[2] == 0x43 && elem->data[3] == 0x04) {
+				lbs_deb_hex(LBS_DEB_SCAN, "WPA IE", bss->wpa_ie,
+					    bss->wpa_ie_len);
+			} else if (pos[1] >= MARVELL_MESH_IE_LENGTH &&
+				   pos[2] == 0x00 && pos[3] == 0x50 &&
+				   pos[4] == 0x43 && pos[4] == 0x04) {
 				lbs_deb_scan("got mesh IE\n");
 				bss->mesh = 1;
 			} else {
 				lbs_deb_scan("got generic IE: %02x:%02x:%02x:%02x, len %d\n",
-					elem->data[0], elem->data[1],
-					elem->data[2], elem->data[3],
-					elem->len);
+					pos[2], pos[3],
+					pos[4], pos[5],
+					pos[1]);
 			}
 			break;
 
-		case MFIE_TYPE_RSN:
+		case WLAN_EID_RSN:
 			lbs_deb_scan("got RSN IE\n");
-			bss->rsn_ie_len = min(elem->len + 2, MAX_WPA_IE_LEN);
-			memcpy(bss->rsn_ie, elem, bss->rsn_ie_len);
+			bss->rsn_ie_len = min(pos[1] + 2, MAX_WPA_IE_LEN);
+			memcpy(bss->rsn_ie, pos, bss->rsn_ie_len);
 			lbs_deb_hex(LBS_DEB_SCAN, "process_bss: RSN_IE",
-				    bss->rsn_ie, elem->len);
+				    bss->rsn_ie, bss->rsn_ie_len);
 			break;
 
 		default:
 			lbs_deb_scan("got IE 0x%04x, len %d\n",
-				     elem->id, elem->len);
+				     pos[0], pos[1]);
 			break;
 		}
 
-		pos += elem->len + 2;
+		pos += pos[1] + 2;
 	}
 
 	/* Timestamp */

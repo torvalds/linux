@@ -97,7 +97,10 @@
 #define IEEE80211_MAX_FRAME_LEN		2352
 
 #define IEEE80211_MAX_SSID_LEN		32
+
 #define IEEE80211_MAX_MESH_ID_LEN	32
+#define IEEE80211_MESH_CONFIG_LEN	19
+
 #define IEEE80211_QOS_CTL_LEN		2
 #define IEEE80211_QOS_CTL_TID_MASK	0x000F
 #define IEEE80211_QOS_CTL_TAG1D_MASK	0x0007
@@ -664,6 +667,13 @@ struct ieee80211_cts {
 	__le16 frame_control;
 	__le16 duration;
 	u8 ra[6];
+} __attribute__ ((packed));
+
+struct ieee80211_pspoll {
+	__le16 frame_control;
+	__le16 aid;
+	u8 bssid[6];
+	u8 ta[6];
 } __attribute__ ((packed));
 
 /**
