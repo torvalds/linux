@@ -149,7 +149,7 @@ int atm_register_sysfs(struct atm_dev *adev)
 	cdev->class = &atm_class;
 	dev_set_drvdata(cdev, adev);
 
-	snprintf(cdev->bus_id, BUS_ID_SIZE, "%s%d", adev->type, adev->number);
+	dev_set_name(cdev, "%s%d", adev->type, adev->number);
 	err = device_register(cdev);
 	if (err < 0)
 		return err;

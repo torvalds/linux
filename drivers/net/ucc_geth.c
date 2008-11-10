@@ -1615,8 +1615,8 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT, priv->ug_info->mdio_bus,
-			priv->ug_info->phy_address);
+	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, priv->ug_info->mdio_bus,
+		 priv->ug_info->phy_address);
 
 	phydev = phy_connect(dev, phy_id, &adjust_link, 0, priv->phy_interface);
 

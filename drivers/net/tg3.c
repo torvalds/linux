@@ -1396,7 +1396,7 @@ static int tg3_phy_init(struct tg3 *tp)
 	phydev = tp->mdio_bus->phy_map[PHY_ADDR];
 
 	/* Attach the MAC to the PHY. */
-	phydev = phy_connect(tp->dev, phydev->dev.bus_id, tg3_adjust_link,
+	phydev = phy_connect(tp->dev, dev_name(&phydev->dev), tg3_adjust_link,
 			     phydev->dev_flags, phydev->interface);
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", tp->dev->name);
@@ -13645,7 +13645,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		       "%s: attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
 		       tp->dev->name,
 		       tp->mdio_bus->phy_map[PHY_ADDR]->drv->name,
-		       tp->mdio_bus->phy_map[PHY_ADDR]->dev.bus_id);
+		       dev_name(&tp->mdio_bus->phy_map[PHY_ADDR]->dev));
 	else
 		printk(KERN_INFO
 		       "%s: attached PHY is %s (%s Ethernet) (WireSpeed[%d])\n",

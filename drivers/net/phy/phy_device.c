@@ -74,7 +74,7 @@ int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 	if (!fixup)
 		return -ENOMEM;
 
-	strncpy(fixup->bus_id, bus_id, BUS_ID_SIZE);
+	strlcpy(fixup->bus_id, bus_id, sizeof(fixup->bus_id));
 	fixup->phy_uid = phy_uid;
 	fixup->phy_uid_mask = phy_uid_mask;
 	fixup->run = run;
@@ -109,7 +109,7 @@ EXPORT_SYMBOL(phy_register_fixup_for_id);
  */
 static int phy_needs_fixup(struct phy_device *phydev, struct phy_fixup *fixup)
 {
-	if (strcmp(fixup->bus_id, phydev->dev.bus_id) != 0)
+	if (strcmp(fixup->bus_id, dev_name(&phydev->dev)) != 0)
 		if (strcmp(fixup->bus_id, PHY_ANY_ID) != 0)
 			return 0;
 

@@ -546,7 +546,7 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT, priv->einfo->bus_id, priv->einfo->phy_id);
+	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, priv->einfo->bus_id, priv->einfo->phy_id);
 
 	interface = gfar_get_interface(dev);
 

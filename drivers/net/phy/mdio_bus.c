@@ -97,7 +97,7 @@ int mdiobus_register(struct mii_bus *bus)
 	bus->dev.parent = bus->parent;
 	bus->dev.class = &mdio_bus_class;
 	bus->dev.groups = NULL;
-	memcpy(bus->dev.bus_id, bus->id, MII_BUS_ID_SIZE);
+	dev_set_name(&bus->dev, bus->id);
 
 	err = device_register(&bus->dev);
 	if (err) {
@@ -191,7 +191,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 
 	phydev->dev.parent = bus->parent;
 	phydev->dev.bus = &mdio_bus_type;
-	snprintf(phydev->dev.bus_id, BUS_ID_SIZE, PHY_ID_FMT, bus->id, addr);
+	dev_set_name(&phydev->dev, PHY_ID_FMT, bus->id, addr);
 
 	phydev->bus = bus;
 

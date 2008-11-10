@@ -5987,7 +5987,7 @@ static void orinoco_get_drvinfo(struct net_device *dev,
 	strncpy(info->version, DRIVER_VERSION, sizeof(info->version) - 1);
 	strncpy(info->fw_version, priv->fw_name, sizeof(info->fw_version) - 1);
 	if (dev->dev.parent)
-		strncpy(info->bus_info, dev->dev.parent->bus_id,
+		strncpy(info->bus_info, dev_name(dev->dev.parent),
 			sizeof(info->bus_info) - 1);
 	else
 		snprintf(info->bus_info, sizeof(info->bus_info) - 1,

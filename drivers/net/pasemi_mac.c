@@ -1105,7 +1105,8 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 		goto err;
 
 	phy_id = *prop;
-	snprintf(mac->phy_id, BUS_ID_SIZE, "%x:%02x", (int)r.start, phy_id);
+	snprintf(mac->phy_id, sizeof(mac->phy_id), "%x:%02x",
+		 (int)r.start, phy_id);
 
 	of_node_put(phy_dn);
 

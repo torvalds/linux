@@ -1025,7 +1025,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 		}
 
 		if ((edev = DEVICE_EISA(gendev))) {
-			print_name = edev->dev.bus_id;
+			print_name = dev_name(&edev->dev);
 		}
 	}
 
@@ -2883,7 +2883,7 @@ static void vortex_get_drvinfo(struct net_device *dev,
 		strcpy(info->bus_info, pci_name(VORTEX_PCI(vp)));
 	} else {
 		if (VORTEX_EISA(vp))
-			sprintf(info->bus_info, vp->gendev->bus_id);
+			sprintf(info->bus_info, dev_name(vp->gendev));
 		else
 			sprintf(info->bus_info, "EISA 0x%lx %d",
 					dev->base_addr, dev->irq);

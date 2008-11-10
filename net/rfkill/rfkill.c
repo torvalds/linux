@@ -774,7 +774,7 @@ static void rfkill_led_trigger_register(struct rfkill *rfkill)
 	int error;
 
 	if (!rfkill->led_trigger.name)
-		rfkill->led_trigger.name = rfkill->dev.bus_id;
+		rfkill->led_trigger.name = dev_name(&rfkill->dev);
 	if (!rfkill->led_trigger.activate)
 		rfkill->led_trigger.activate = rfkill_led_trigger_activate;
 	error = led_trigger_register(&rfkill->led_trigger);
@@ -815,8 +815,7 @@ int __must_check rfkill_register(struct rfkill *rfkill)
 			"badly initialized rfkill struct\n"))
 		return -EINVAL;
 
-	snprintf(dev->bus_id, sizeof(dev->bus_id),
-		 "rfkill%ld", (long)atomic_inc_return(&rfkill_no) - 1);
+	dev_set_name(dev, "rfkill%ld", (long)atomic_inc_return(&rfkill_no) - 1);
 
 	rfkill_led_trigger_register(rfkill);
 

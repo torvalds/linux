@@ -1118,7 +1118,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     }
 
     dev->base_addr = iobase;
-    printk ("%s: %s at 0x%04lx", gendev->bus_id, name, iobase);
+    printk ("%s: %s at 0x%04lx", dev_name(gendev), name, iobase);
 
     status = get_hw_addr(dev);
     printk(", h/w address %pM\n", dev->dev_addr);
@@ -1153,7 +1153,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
             }
         }
 	lp->fdx = lp->params.fdx;
-	sprintf(lp->adapter_name,"%s (%s)", name, gendev->bus_id);
+	sprintf(lp->adapter_name,"%s (%s)", name, dev_name(gendev));
 
 	lp->dma_size = (NUM_RX_DESC + NUM_TX_DESC) * sizeof(struct de4x5_desc);
 #if defined(__alpha__) || defined(__powerpc__) || defined(CONFIG_SPARC) || defined(DE4X5_DO_MEMCPY)

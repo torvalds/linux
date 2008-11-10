@@ -216,7 +216,7 @@ static int mpc52xx_fec_init_phy(struct net_device *dev)
 	struct phy_device *phydev;
 	char phy_id[BUS_ID_SIZE];
 
-	snprintf(phy_id, BUS_ID_SIZE, "%x:%02x",
+	snprintf(phy_id, sizeof(phy_id), "%x:%02x",
 			(unsigned int)dev->base_addr, priv->phy_addr);
 
 	priv->link = PHY_DOWN;

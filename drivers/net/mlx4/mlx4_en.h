@@ -58,17 +58,17 @@
 #define mlx4_dbg(mlevel, priv, format, arg...)	\
 	if (NETIF_MSG_##mlevel & priv->msg_enable) \
 	printk(KERN_DEBUG "%s %s: " format , DRV_NAME ,\
-		(&priv->mdev->pdev->dev)->bus_id , ## arg)
+		(dev_name(&priv->mdev->pdev->dev)) , ## arg)
 
 #define mlx4_err(mdev, format, arg...) \
 	printk(KERN_ERR "%s %s: " format , DRV_NAME ,\
-		(&mdev->pdev->dev)->bus_id , ## arg)
+		(dev_name(&mdev->pdev->dev)) , ## arg)
 #define mlx4_info(mdev, format, arg...) \
 	printk(KERN_INFO "%s %s: " format , DRV_NAME ,\
-		(&mdev->pdev->dev)->bus_id , ## arg)
+		(dev_name(&mdev->pdev->dev)) , ## arg)
 #define mlx4_warn(mdev, format, arg...) \
 	printk(KERN_WARNING "%s %s: " format , DRV_NAME ,\
-		(&mdev->pdev->dev)->bus_id , ## arg)
+		(dev_name(&mdev->pdev->dev)) , ## arg)
 
 /*
  * Device constants

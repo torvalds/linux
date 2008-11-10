@@ -263,9 +263,9 @@ static inline struct device *wiphy_dev(struct wiphy *wiphy)
 /**
  * wiphy_name - get wiphy name
  */
-static inline char *wiphy_name(struct wiphy *wiphy)
+static inline const char *wiphy_name(struct wiphy *wiphy)
 {
-	return wiphy->dev.bus_id;
+	return dev_name(&wiphy->dev);
 }
 
 /**

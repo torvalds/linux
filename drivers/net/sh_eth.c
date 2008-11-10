@@ -799,7 +799,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	char phy_id[BUS_ID_SIZE];
 	struct phy_device *phydev = NULL;
 
-	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT,
+	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
 		mdp->mii_bus->id , mdp->phy_id);
 
 	mdp->link = PHY_DOWN;

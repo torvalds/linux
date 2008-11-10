@@ -236,8 +236,7 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 	mutex_unlock(&cfg80211_drv_mutex);
 
 	/* give it a proper name */
-	snprintf(drv->wiphy.dev.bus_id, BUS_ID_SIZE,
-		 PHY_NAME "%d", drv->idx);
+	dev_set_name(&drv->wiphy.dev, PHY_NAME "%d", drv->idx);
 
 	mutex_init(&drv->mtx);
 	mutex_init(&drv->devlist_mtx);

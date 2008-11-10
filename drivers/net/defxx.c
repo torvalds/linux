@@ -511,7 +511,7 @@ static int __devinit dfx_register(struct device *bdev)
 	int dfx_bus_pci = DFX_BUS_PCI(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
-	char *print_name = bdev->bus_id;
+	const char *print_name = dev_name(bdev);
 	struct net_device *dev;
 	DFX_board_t	  *bp;			/* board pointer */
 	resource_size_t bar_start = 0;		/* pointer to port */
