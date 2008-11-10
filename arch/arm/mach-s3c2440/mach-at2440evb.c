@@ -28,6 +28,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/fb.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
@@ -167,6 +168,39 @@ static struct s3c24xx_mci_pdata at2440evb_mci_pdata = {
 	.gpio_detect	= S3C2410_GPG10,
 };
 
+/* 7" LCD panel */
+
+static struct s3c2410fb_display at2440evb_lcd_cfg __initdata = {
+
+	.lcdcon5	= S3C2410_LCDCON5_FRM565 |
+			  S3C2410_LCDCON5_INVVLINE |
+			  S3C2410_LCDCON5_INVVFRAME |
+			  S3C2410_LCDCON5_PWREN |
+			  S3C2410_LCDCON5_HWSWP,
+
+	.type		= S3C2410_LCDCON1_TFT,
+
+	.width		= 800,
+	.height		= 480,
+
+	.pixclock	= 33333, /* HCLK 60 MHz, divisor 2 */
+	.xres		= 800,
+	.yres		= 480,
+	.bpp		= 16,
+	.left_margin	= 88,
+	.right_margin	= 40,
+	.hsync_len	= 128,
+	.upper_margin	= 32,
+	.lower_margin	= 11,
+	.vsync_len	= 2,
+};
+
+static struct s3c2410fb_mach_info at2440evb_fb_info __initdata = {
+	.displays	= &at2440evb_lcd_cfg,
+	.num_displays	= 1,
+	.default_display = 0,
+};
+
 static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_wdt,
@@ -175,6 +209,7 @@ static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_nand,
 	&s3c_device_sdi,
+	&s3c_device_lcd,
 	&at2440evb_device_eth,
 };
 
@@ -191,6 +226,7 @@ static void __init at2440evb_map_io(void)
 
 static void __init at2440evb_init(void)
 {
+	s3c24xx_fb_set_platdata(&at2440evb_fb_info);
 	platform_add_devices(at2440evb_devices, ARRAY_SIZE(at2440evb_devices));
 }
 
