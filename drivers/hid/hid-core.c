@@ -1736,7 +1736,7 @@ static int __init hid_init(void)
 		goto err_bus;
 
 #ifdef CONFIG_HID_COMPAT
-	hid_compat_wq = create_workqueue("hid_compat");
+	hid_compat_wq = create_singlethread_workqueue("hid_compat");
 	if (!hid_compat_wq) {
 		hidraw_exit();
 		goto err;
