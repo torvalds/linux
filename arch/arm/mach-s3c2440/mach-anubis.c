@@ -366,6 +366,8 @@ static struct sm501_initdata anubis_sm501_initdata = {
 		.mask	= 0,
 	},
 
+	.devices	= SM501_USE_GPIO,
+
 	/* set the SDRAM and bus clocks */
 	.mclk		= 72 * MHZ,
 	.m1xclk		= 144 * MHZ,
@@ -373,10 +375,12 @@ static struct sm501_initdata anubis_sm501_initdata = {
 
 static struct sm501_platdata_gpio_i2c anubis_sm501_gpio_i2c[] = {
 	[0] = {
+		.bus_num	= 1,
 		.pin_scl	= 44,
 		.pin_sda	= 45,
 	},
 	[1] = {
+		.bus_num	= 2,
 		.pin_scl	= 40,
 		.pin_sda	= 41,
 	},
@@ -384,6 +388,7 @@ static struct sm501_platdata_gpio_i2c anubis_sm501_gpio_i2c[] = {
 
 static struct sm501_platdata anubis_sm501_platdata = {
 	.init		= &anubis_sm501_initdata,
+	.gpio_base	= -1,
 	.gpio_i2c	= anubis_sm501_gpio_i2c,
 	.gpio_i2c_nr	= ARRAY_SIZE(anubis_sm501_gpio_i2c),
 };
