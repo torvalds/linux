@@ -1563,7 +1563,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	char pci_info[30];
 	char fw_str[30];
 	struct scsi_host_template *sht;
-	int bars, mem_only, max_id = 0;
+	int bars, max_id, mem_only = 0;
 	uint16_t req_length = 0, rsp_length = 0;
 
 	bars = pci_select_bars(pdev, IORESOURCE_MEM | IORESOURCE_IO);
