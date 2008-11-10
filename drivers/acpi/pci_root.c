@@ -350,6 +350,8 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	if (pcie_aspm_enabled())
 		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
 			OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
+	if (pci_msi_enabled())
+		flags |= OSC_MSI_SUPPORT;
 	if (flags != base_flags)
 		pci_acpi_osc_support(device->handle, flags);
 
