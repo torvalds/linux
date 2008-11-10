@@ -236,6 +236,29 @@ static struct clcd_panel vga = {
 	.bpp		= 16,
 };
 
+static struct clcd_panel xvga = {
+	.mode		= {
+		.name		= "XVGA",
+		.refresh	= 60,
+		.xres		= 1024,
+		.yres		= 768,
+		.pixclock	= 15748,
+		.left_margin	= 152,
+		.right_margin	= 48,
+		.upper_margin	= 23,
+		.lower_margin	= 3,
+		.hsync_len	= 104,
+		.vsync_len	= 4,
+		.sync		= 0,
+		.vmode		= FB_VMODE_NONINTERLACED,
+	},
+	.width		= -1,
+	.height		= -1,
+	.tim2		= TIM2_BCD | TIM2_IPC,
+	.cntl		= CNTL_LCDTFT | CNTL_LCDVCOMP(1),
+	.bpp		= 16,
+};
+
 static struct clcd_panel sanyo_3_8_in = {
 	.mode		= {
 		.name		= "Sanyo QVGA",
@@ -314,8 +337,14 @@ static struct clcd_panel epson_2_2_in = {
 static struct clcd_panel *realview_clcd_panel(void)
 {
 	void __iomem *sys_clcd = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_CLCD_OFFSET;
-	struct clcd_panel *panel = &vga;
+	struct clcd_panel *vga_panel;
+	struct clcd_panel *panel;
 	u32 val;
+
+	if (machine_is_realview_eb())
+		vga_panel = &vga;
+	else
+		vga_panel = &xvga;
 
 	val = readl(sys_clcd) & SYS_CLCD_ID_MASK;
 	if (val == SYS_CLCD_ID_SANYO_3_8)
@@ -325,11 +354,11 @@ static struct clcd_panel *realview_clcd_panel(void)
 	else if (val == SYS_CLCD_ID_EPSON_2_2)
 		panel = &epson_2_2_in;
 	else if (val == SYS_CLCD_ID_VGA)
-		panel = &vga;
+		panel = vga_panel;
 	else {
 		printk(KERN_ERR "CLCD: unknown LCD panel ID 0x%08x, using VGA\n",
 			val);
-		panel = &vga;
+		panel = vga_panel;
 	}
 
 	return panel;
@@ -364,11 +393,17 @@ static void realview_clcd_enable(struct clcd_fb *fb)
 	writel(val, sys_clcd);
 }
 
-static unsigned long framesize = SZ_1M;
-
 static int realview_clcd_setup(struct clcd_fb *fb)
 {
+	unsigned long framesize;
 	dma_addr_t dma;
+
+	if (machine_is_realview_eb())
+		/* VGA, 16bpp */
+		framesize = 640 * 480 * 2;
+	else
+		/* XVGA, 16bpp */
+		framesize = 1024 * 768 * 2;
 
 	fb->panel		= realview_clcd_panel();
 
