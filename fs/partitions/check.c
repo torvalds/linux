@@ -577,7 +577,7 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		}
 #ifdef CONFIG_BLK_DEV_MD
 		if (state->parts[p].flags & ADDPART_FLAG_RAID)
-			md_autodetect_dev(bdev->bd_dev+p);
+			md_autodetect_dev(part_to_dev(part)->devt);
 #endif
 	}
 	kfree(state);
