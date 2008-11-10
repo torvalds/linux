@@ -539,6 +539,16 @@ static inline void snd_array_init(struct snd_array *array, unsigned int size,
 	array->alloc_align = align;
 }
 
+static inline void *snd_array_elem(struct snd_array *array, unsigned int idx)
+{
+	return array->list + idx * array->elem_size;
+}
+
+static inline unsigned int snd_array_index(struct snd_array *array, void *ptr)
+{
+	return (unsigned long)(ptr - array->list) / array->elem_size;
+}
+
 /*
  * Structures
  */

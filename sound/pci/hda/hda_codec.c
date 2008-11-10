@@ -887,11 +887,10 @@ static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
 {
 	u16 idx = key % (u16)ARRAY_SIZE(cache->hash);
 	u16 cur = cache->hash[idx];
-	struct hda_cache_head *info_head = cache->buf.list;
 	struct hda_cache_head *info;
 
 	while (cur != 0xffff) {
-		info = &info_head[cur];
+		info = snd_array_elem(&cache->buf, cur);
 		if (info->key == key)
 			return info;
 		cur = info->next;
@@ -901,7 +900,7 @@ static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
 	info = snd_array_new(&cache->buf);
 	if (!info)
 		return NULL;
-	cur = cache->buf.used - 1; /* the last entry */
+	cur = snd_array_index(&cache->buf, info);
 	info->key = key;
 	info->val = 0;
 	info->next = cache->hash[idx];
@@ -3414,7 +3413,7 @@ void *snd_array_new(struct snd_array *array)
 		array->list = nlist;
 		array->alloced = num;
 	}
-	return array->list + (array->used++ * array->elem_size);
+	return snd_array_elem(array, array->used++);
 }
 
 /* free the given array elements */
