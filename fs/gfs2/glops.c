@@ -260,10 +260,13 @@ static int inode_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 	const struct gfs2_inode *ip = gl->gl_object;
 	if (ip == NULL)
 		return 0;
-	gfs2_print_dbg(seq, " I: n:%llu/%llu t:%u f:0x%08lx\n",
+	gfs2_print_dbg(seq, " I: n:%llu/%llu t:%u f:0x%02lx d:0x%08x s:%llu/%llu\n",
 		  (unsigned long long)ip->i_no_formal_ino,
 		  (unsigned long long)ip->i_no_addr,
-		  IF2DT(ip->i_inode.i_mode), ip->i_flags);
+		  IF2DT(ip->i_inode.i_mode), ip->i_flags,
+		  (unsigned int)ip->i_diskflags,
+		  (unsigned long long)ip->i_inode.i_size,
+		  (unsigned long long)ip->i_disksize);
 	return 0;
 }
 
@@ -318,7 +321,9 @@ static int rgrp_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 	const struct gfs2_rgrpd *rgd = gl->gl_object;
 	if (rgd == NULL)
 		return 0;
-	gfs2_print_dbg(seq, " R: n:%llu\n", (unsigned long long)rgd->rd_addr);
+	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u\n",
+		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
+		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes);
 	return 0;
 }
 
