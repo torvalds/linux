@@ -23,7 +23,7 @@ menuconfig STAGING
 
 
 config STAGING_EXCLUDE_BUILD
-	bool "Exclude Staging drivers from being built"
+	bool "Exclude Staging drivers from being built" if STAGING
 	default y
 	---help---
 	  Are you sure you really want to build the staging drivers?
