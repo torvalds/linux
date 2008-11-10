@@ -2174,6 +2174,9 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		 * group thats not of the proper type, while looping this
 		 * should never happen
 		 */
+		if (empty_size)
+			extra_loop = 1;
+
 		if (!block_group)
 			goto new_group_no_lock;
 
@@ -2192,9 +2195,6 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 
 		free_space = btrfs_find_free_space(block_group, search_start,
 						   total_needed);
-		if (empty_size)
-			extra_loop = 1;
-
 		if (free_space) {
 			u64 start = block_group->key.objectid;
 			u64 end = block_group->key.objectid +
@@ -2212,6 +2212,7 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 
 			if (last_wanted && search_start != last_wanted) {
 				total_needed += empty_cluster;
+				empty_size += empty_cluster;
 				last_wanted = 0;
 				/*
 				 * if search_start is still in this block group
