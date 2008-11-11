@@ -721,7 +721,7 @@ W:	http://sourceforge.net/projects/acpi4asus
 W:	http://xf.iksaif.net/acpi4asus
 S:	Maintained
 
-ASYNCHRONOUS TRANSFERS/TRANSFORMS API
+ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 P:	Dan Williams
 M:	dan.j.williams@intel.com
 P:	Maciej Sosnowski

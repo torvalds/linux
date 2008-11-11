@@ -55,7 +55,7 @@ u64 native_sched_clock(void)
 	rdtscll(this_offset);
 
 	/* return the value in ns */
-	return cycles_2_ns(this_offset);
+	return __cycles_2_ns(this_offset);
 }
 
 /* We need to define a real function for sched_clock, to override the
@@ -813,10 +813,6 @@ void __init tsc_init(void)
 		cpu_khz = calibrate_cpu();
 #endif
 
-	lpj = ((u64)tsc_khz * 1000);
-	do_div(lpj, HZ);
-	lpj_fine = lpj;
-
 	printk("Detected %lu.%03lu MHz processor.\n",
 			(unsigned long)cpu_khz / 1000,
 			(unsigned long)cpu_khz % 1000);
@@ -835,6 +831,10 @@ void __init tsc_init(void)
 
 	/* now allow native_sched_clock() to use rdtsc */
 	tsc_disabled = 0;
+
+	lpj = ((u64)tsc_khz * 1000);
+	do_div(lpj, HZ);
+	lpj_fine = lpj;
 
 	use_tsc_delay();
 	/* Check and install the TSC clocksource */

@@ -161,7 +161,7 @@ void DeleteTconOplockQEntries(struct cifsTconInfo *tcon)
 
 int
 smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
-	 unsigned int smb_buf_length, struct sockaddr *sin)
+	 unsigned int smb_buf_length, struct sockaddr *sin, bool noblocksnd)
 {
 	int rc = 0;
 	int i = 0;
@@ -178,7 +178,10 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	smb_msg.msg_namelen = sizeof(struct sockaddr);
 	smb_msg.msg_control = NULL;
 	smb_msg.msg_controllen = 0;
-	smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL; /* BB add more flags?*/
+	if (noblocksnd)
+		smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL;
+	else
+		smb_msg.msg_flags = MSG_NOSIGNAL;
 
 	/* smb header is converted in header_assemble. bcc and rest of SMB word
 	   area, and byte area if necessary, is converted to littleendian in
@@ -229,8 +232,8 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 }
 
 static int
-smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
-	  struct sockaddr *sin)
+smb_send2(struct TCP_Server_Info *server, struct kvec *iov, int n_vec,
+	  struct sockaddr *sin, bool noblocksnd)
 {
 	int rc = 0;
 	int i = 0;
@@ -240,6 +243,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 	unsigned int total_len;
 	int first_vec = 0;
 	unsigned int smb_buf_length = smb_buffer->smb_buf_length;
+	struct socket *ssocket = server->ssocket;
 
 	if (ssocket == NULL)
 		return -ENOTSOCK; /* BB eventually add reconnect code here */
@@ -248,7 +252,10 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 	smb_msg.msg_namelen = sizeof(struct sockaddr);
 	smb_msg.msg_control = NULL;
 	smb_msg.msg_controllen = 0;
-	smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL; /* BB add more flags?*/
+	if (noblocksnd)
+		smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL;
+	else
+		smb_msg.msg_flags = MSG_NOSIGNAL;
 
 	/* smb header is converted in header_assemble. bcc and rest of SMB word
 	   area, and byte area if necessary, is converted to littleendian in
@@ -283,8 +290,11 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 		if (rc < 0)
 			break;
 
-		if (rc >= total_len) {
-			WARN_ON(rc > total_len);
+		if (rc == total_len) {
+			total_len = 0;
+			break;
+		} else if (rc > total_len) {
+			cERROR(1, ("sent %d requested %d", rc, total_len));
 			break;
 		}
 		if (rc == 0) {
@@ -310,6 +320,16 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 			}
 		}
 		i = 0; /* in case we get ENOSPC on the next send */
+	}
+
+	if ((total_len > 0) && (total_len != smb_buf_length + 4)) {
+		cFYI(1, ("partial send (%d remaining), terminating session",
+			total_len));
+		/* If we have only sent part of an SMB then the next SMB
+		   could be taken as the remainder of this one.  We need
+		   to kill the socket so the server throws away the partial
+		   SMB */
+		server->tcpStatus = CifsNeedReconnect;
 	}
 
 	if (rc < 0) {
@@ -518,8 +538,9 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 #ifdef CONFIG_CIFS_STATS2
 	atomic_inc(&ses->server->inSend);
 #endif
-	rc = smb_send2(ses->server->ssocket, iov, n_vec,
-		      (struct sockaddr *) &(ses->server->addr.sockAddr));
+	rc = smb_send2(ses->server, iov, n_vec,
+		      (struct sockaddr *) &(ses->server->addr.sockAddr),
+		       ses->server->noblocksnd);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&ses->server->inSend);
 	midQ->when_sent = jiffies;
@@ -711,7 +732,8 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	atomic_inc(&ses->server->inSend);
 #endif
 	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
-		      (struct sockaddr *) &(ses->server->addr.sockAddr));
+		      (struct sockaddr *) &(ses->server->addr.sockAddr),
+		      ses->server->noblocksnd);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&ses->server->inSend);
 	midQ->when_sent = jiffies;
@@ -851,7 +873,8 @@ send_nt_cancel(struct cifsTconInfo *tcon, struct smb_hdr *in_buf,
 		return rc;
 	}
 	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
-	      (struct sockaddr *) &(ses->server->addr.sockAddr));
+	      (struct sockaddr *) &(ses->server->addr.sockAddr),
+	      ses->server->noblocksnd);
 	up(&ses->server->tcpSem);
 	return rc;
 }
@@ -941,7 +964,8 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	atomic_inc(&ses->server->inSend);
 #endif
 	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
-		      (struct sockaddr *) &(ses->server->addr.sockAddr));
+		      (struct sockaddr *) &(ses->server->addr.sockAddr),
+		      ses->server->noblocksnd);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&ses->server->inSend);
 	midQ->when_sent = jiffies;

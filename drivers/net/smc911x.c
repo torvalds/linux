@@ -499,7 +499,7 @@ static void smc911x_hardware_send_pkt(struct net_device *dev)
 #else
 	SMC_PUSH_DATA(lp, buf, len);
 	dev->trans_start = jiffies;
-	dev_kfree_skb(skb);
+	dev_kfree_skb_irq(skb);
 #endif
 	if (!lp->tx_throttle) {
 		netif_wake_queue(dev);
