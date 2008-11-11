@@ -282,9 +282,25 @@ struct cfi_private {
 /*
  * Returns the command address according to the given geometry.
  */
-static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs, int interleave, int type)
+static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs,
+				struct map_info *map, struct cfi_private *cfi)
 {
-	return (cmd_ofs * type) * interleave;
+	unsigned bankwidth = map_bankwidth(map);
+	unsigned interleave = cfi_interleave(cfi);
+	unsigned type = cfi->device_type;
+	uint32_t addr;
+	
+	addr = (cmd_ofs * type) * interleave;
+
+	/* Modify the unlock address if we are in compatiblity mode.
+	 * For 16bit devices on 8 bit busses
+	 * and 32bit devices on 16 bit busses
+	 * set the low bit of the alternating bit sequence of the address.
+	 */
+	if (((type * interleave) > bankwidth) && ((uint8_t)cmd_ofs == 0xaa))
+		addr |= (type >> 1)*interleave;
+
+	return  addr;
 }
 
 /*
@@ -430,7 +446,7 @@ static inline uint32_t cfi_send_gen_cmd(u_char cmd, uint32_t cmd_addr, uint32_t 
 				int type, map_word *prev_val)
 {
 	map_word val;
-	uint32_t addr = base + cfi_build_cmd_addr(cmd_addr, cfi_interleave(cfi), type);
+	uint32_t addr = base + cfi_build_cmd_addr(cmd_addr, map, cfi);
 	val = cfi_build_cmd(cmd, map, cfi);
 
 	if (prev_val)

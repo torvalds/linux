@@ -83,7 +83,7 @@ static const struct cx18_api_info api_info[] = {
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL_ACK,			0),
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL,			API_FAST),
 	API_ENTRY(CPU, CX18_APU_RESETAI,			API_FAST),
-	API_ENTRY(CPU, CX18_CPU_DE_RELEASE_MDL,			0),
+	API_ENTRY(CPU, CX18_CPU_DE_RELEASE_MDL,			API_SLOW),
 	API_ENTRY(0, 0,						0),
 };
 
@@ -176,7 +176,7 @@ long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb)
 
 	cx18_setup_page(cx, SCB_OFFSET);
 	cx18_write_sync(cx, mb->request, &ack_mb->ack);
-	cx18_write_reg(cx, ack_irq, SW2_INT_SET);
+	cx18_write_reg_expect(cx, ack_irq, SW2_INT_SET, ack_irq, ack_irq);
 	return 0;
 }
 
@@ -225,7 +225,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	}
 	if (info->flags & API_FAST)
 		timeout /= 2;
-	cx18_write_reg(cx, irq, SW1_INT_SET);
+	cx18_write_reg_expect(cx, irq, SW1_INT_SET, irq, irq);
 
 	while (!sig && cx18_readl(cx, &mb->ack) != cx18_readl(cx, &mb->request)
 	       && cnt < 660) {

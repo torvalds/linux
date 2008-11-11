@@ -603,7 +603,7 @@ static int rfkill_check_duplicity(const struct rfkill *rfkill)
 	}
 
 	/* 0: first switch of its kind */
-	return test_bit(rfkill->type, seen);
+	return (test_bit(rfkill->type, seen)) ? 1 : 0;
 }
 
 static int rfkill_add_switch(struct rfkill *rfkill)
