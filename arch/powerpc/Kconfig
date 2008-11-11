@@ -141,7 +141,7 @@ config GENERIC_NVRAM
 	bool
 	default y if PPC32
 
-config SCHED_NO_NO_OMIT_FRAME_POINTER
+config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
 

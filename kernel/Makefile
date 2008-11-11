@@ -91,7 +91,7 @@ obj-$(CONFIG_FUNCTION_TRACER) += trace/
 obj-$(CONFIG_TRACING) += trace/
 obj-$(CONFIG_SMP) += sched_cpupri.o
 
-ifneq ($(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER),y)
+ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
 # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is
 # needed for x86 only.  Why this used to be enabled for all architectures is beyond
 # me.  I suspect most platforms don't need this, but until we know that for sure
