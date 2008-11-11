@@ -14,6 +14,7 @@
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/percpu.h>
+#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
 
