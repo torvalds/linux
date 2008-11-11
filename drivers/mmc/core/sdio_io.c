@@ -388,6 +388,39 @@ u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret)
 EXPORT_SYMBOL_GPL(sdio_readb);
 
 /**
+ *	sdio_readb_ext - read a single byte from a SDIO function
+ *	@func: SDIO function to access
+ *	@addr: address to read
+ *	@err_ret: optional status value from transfer
+ *	@in: value to add to argument
+ *
+ *	Reads a single byte from the address space of a given SDIO
+ *	function. If there is a problem reading the address, 0xff
+ *	is returned and @err_ret will contain the error code.
+ */
+unsigned char sdio_readb_ext(struct sdio_func *func, unsigned int addr,
+	int *err_ret, unsigned in)
+{
+	int ret;
+	unsigned char val;
+
+	BUG_ON(!func);
+
+	if (err_ret)
+		*err_ret = 0;
+
+	ret = mmc_io_rw_direct(func->card, 0, func->num, addr, (u8)in, &val);
+	if (ret) {
+		if (err_ret)
+			*err_ret = ret;
+		return 0xFF;
+	}
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(sdio_readb_ext);
+
+/**
  *	sdio_writeb - write a single byte to a SDIO function
  *	@func: SDIO function to access
  *	@b: byte to write
