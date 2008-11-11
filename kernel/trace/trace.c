@@ -960,6 +960,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
+	unsigned long flags;
 	int cpu;
 	int pc;
 
@@ -967,14 +968,15 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 		return;
 
 	pc = preempt_count();
-	preempt_disable_notrace();
+	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
-	if (likely(!atomic_read(&data->disabled)))
+	if (likely(atomic_inc_return(&data->disabled) == 1))
 		ftrace_trace_special(tr, data, arg1, arg2, arg3, pc);
 
-	preempt_enable_notrace();
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_FUNCTION_TRACER
