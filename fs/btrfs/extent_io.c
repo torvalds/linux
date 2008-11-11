@@ -1157,7 +1157,8 @@ static noinline int __unlock_for_delalloc(struct inode *inode,
 
 	while(nr_pages > 0) {
 		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min(nr_pages, ARRAY_SIZE(pages)), pages);
+				     min_t(unsigned long, nr_pages,
+				     ARRAY_SIZE(pages)), pages);
 		for (i = 0; i < ret; i++) {
 			if (pages[i] != locked_page)
 				unlock_page(pages[i]);
@@ -1192,7 +1193,8 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 	nrpages = end_index - index + 1;
 	while(nrpages > 0) {
 		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min(nrpages, ARRAY_SIZE(pages)), pages);
+				     min_t(unsigned long,
+				     nrpages, ARRAY_SIZE(pages)), pages);
 		if (ret == 0) {
 			ret = -EAGAIN;
 			goto done;
@@ -1346,7 +1348,8 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 
 	while(nr_pages > 0) {
 		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min(nr_pages, ARRAY_SIZE(pages)), pages);
+				     min_t(unsigned long,
+				     nr_pages, ARRAY_SIZE(pages)), pages);
 		for (i = 0; i < ret; i++) {
 			if (pages[i] == locked_page) {
 				page_cache_release(pages[i]);
@@ -1896,7 +1899,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 	int contig = 0;
 	int this_compressed = bio_flags & EXTENT_BIO_COMPRESSED;
 	int old_compressed = prev_bio_flags & EXTENT_BIO_COMPRESSED;
-	size_t page_size = min(size, PAGE_CACHE_SIZE);
+	size_t page_size = min_t(size_t, size, PAGE_CACHE_SIZE);
 
 	if (bio_ret && *bio_ret) {
 		bio = *bio_ret;

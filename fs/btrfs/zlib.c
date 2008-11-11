@@ -370,7 +370,7 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 
 	data_in = kmap(pages_in[page_in_index]);
 	workspace->inf_strm.next_in = data_in;
-	workspace->inf_strm.avail_in = min(srclen, PAGE_CACHE_SIZE);
+	workspace->inf_strm.avail_in = min_t(size_t, srclen, PAGE_CACHE_SIZE);
 	workspace->inf_strm.total_in = 0;
 
 	workspace->inf_strm.total_out = 0;

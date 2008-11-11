@@ -174,7 +174,8 @@ static noinline int end_compressed_writeback(struct inode *inode, u64 start,
 
 	while(nr_pages > 0) {
 		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min(nr_pages, ARRAY_SIZE(pages)), pages);
+				     min_t(unsigned long,
+				     nr_pages, ARRAY_SIZE(pages)), pages);
 		if (ret == 0) {
 			nr_pages -= 1;
 			index += 1;

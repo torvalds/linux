@@ -184,7 +184,7 @@ static int noinline insert_inline_extent(struct btrfs_trans_handle *trans,
 		int i = 0;
 		while(compressed_size > 0) {
 			cpage = compressed_pages[i];
-			cur_size = min(compressed_size,
+			cur_size = min_t(unsigned long, compressed_size,
 				       PAGE_CACHE_SIZE);
 
 			kaddr = kmap(cpage);
@@ -3812,7 +3812,7 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 
 	read_extent_buffer(leaf, tmp, ptr, inline_size);
 
-	max_size = min(PAGE_CACHE_SIZE, max_size);
+	max_size = min_t(unsigned long, PAGE_CACHE_SIZE, max_size);
 	ret = btrfs_zlib_decompress(tmp, page, extent_offset,
 				    inline_size, max_size);
 	if (ret) {
