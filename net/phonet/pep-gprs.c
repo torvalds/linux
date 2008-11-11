@@ -41,7 +41,6 @@ struct gprs_dev {
 	void			(*old_write_space)(struct sock *);
 
 	struct net_device	*net;
-	struct net_device_stats	stats;
 
 	struct sk_buff_head	tx_queue;
 	struct work_struct	tx_work;
@@ -83,6 +82,7 @@ static void gprs_state_change(struct sock *sk)
 
 static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
 {
+	struct net_device *net = dev->net;
 	int err = 0;
 	__be16 protocol = gprs_type_trans(skb);
 
@@ -99,7 +99,7 @@ static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
 		 * so wrap the IP packet as a single fragment of an head-less
 		 * socket buffer. The network stack will pull what it needs,
 		 * but at least, the whole IP payload is not memcpy'd. */
-		rskb = netdev_alloc_skb(dev->net, 0);
+		rskb = netdev_alloc_skb(net, 0);
 		if (!rskb) {
 			err = -ENOBUFS;
 			goto drop;
@@ -123,11 +123,11 @@ static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
 
 	skb->protocol = protocol;
 	skb_reset_mac_header(skb);
-	skb->dev = dev->net;
+	skb->dev = net;
 
-	if (likely(dev->net->flags & IFF_UP)) {
-		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += skb->len;
+	if (likely(net->flags & IFF_UP)) {
+		net->stats.rx_packets++;
+		net->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 		skb = NULL;
 	} else
@@ -136,7 +136,7 @@ static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
 drop:
 	if (skb) {
 		dev_kfree_skb(skb);
-		dev->stats.rx_dropped++;
+		net->stats.rx_dropped++;
 	}
 	return err;
 }
@@ -199,14 +199,15 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *net)
 static void gprs_tx(struct work_struct *work)
 {
 	struct gprs_dev *dev = container_of(work, struct gprs_dev, tx_work);
+	struct net_device *net = dev->net;
 	struct sock *sk = dev->sk;
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&dev->tx_queue)) != NULL) {
 		int err;
 
-		dev->stats.tx_bytes += skb->len;
-		dev->stats.tx_packets++;
+		net->stats.tx_bytes += skb->len;
+		net->stats.tx_packets++;
 
 		skb_orphan(skb);
 		skb_set_owner_w(skb, sk);
@@ -215,9 +216,9 @@ static void gprs_tx(struct work_struct *work)
 		err = pep_write(sk, skb);
 		if (err) {
 			LIMIT_NETDEBUG(KERN_WARNING"%s: TX error (%d)\n",
-					dev->net->name, err);
-			dev->stats.tx_aborted_errors++;
-			dev->stats.tx_errors++;
+					net->name, err);
+			net->stats.tx_aborted_errors++;
+			net->stats.tx_errors++;
 		}
 		release_sock(sk);
 	}
@@ -236,13 +237,6 @@ static int gprs_set_mtu(struct net_device *net, int new_mtu)
 	return 0;
 }
 
-static struct net_device_stats *gprs_get_stats(struct net_device *net)
-{
-	struct gprs_dev *dev = netdev_priv(net);
-
-	return &dev->stats;
-}
-
 static void gprs_setup(struct net_device *net)
 {
 	net->features		= NETIF_F_FRAGLIST;
@@ -256,7 +250,6 @@ static void gprs_setup(struct net_device *net)
 	net->destructor		= free_netdev;
 	net->hard_start_xmit	= gprs_xmit; /* mandatory */
 	net->change_mtu		= gprs_set_mtu;
-	net->get_stats		= gprs_get_stats;
 }
 
 /*
