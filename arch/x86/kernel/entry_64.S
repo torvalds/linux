@@ -627,6 +627,46 @@ END(stub_rt_sigreturn)
    vector already pushed) */
 #define XCPT_FRAME _frame ORIG_RAX
 
+/*
+ * Build the entry stubs and pointer table with some assembler magic.
+ * We pack 7 stubs into a single 32-byte chunk, which will fit in a
+ * single cache line on all modern x86 implementations.
+ */
+	.section .init.rodata,"a"
+ENTRY(interrupt)
+	.text
+	.p2align 5
+	.p2align CONFIG_X86_L1_CACHE_SHIFT
+ENTRY(irq_entries_start)
+	INTR_FRAME
+vector=FIRST_EXTERNAL_VECTOR
+.rept (NR_VECTORS-FIRST_EXTERNAL_VECTOR+6)/7
+	.balign 32
+  .rept	7
+    .if vector < NR_VECTORS
+      .if vector != FIRST_EXTERNAL_VECTOR
+	CFI_ADJUST_CFA_OFFSET -8
+      .endif
+1:	pushq $(~vector+0x80)	/* Note: always in signed byte range */
+	CFI_ADJUST_CFA_OFFSET 8
+      .if ((vector-FIRST_EXTERNAL_VECTOR)%7) != 6
+	jmp 2f
+      .endif
+      .previous
+	.quad 1b
+      .text
+vector=vector+1
+    .endif
+  .endr
+2:	jmp common_interrupt
+.endr
+	CFI_ENDPROC
+END(irq_entries_start)
+
+.previous
+END(interrupt)
+.previous
+
 /* 
  * Interrupt entry/exit.
  *
@@ -635,11 +675,12 @@ END(stub_rt_sigreturn)
  * Entry runs with interrupts off.	
  */ 
 
-/* 0(%rsp): interrupt number */ 
+/* 0(%rsp): ~(interrupt number)+0x80 */ 
 	.macro interrupt func
+	addq $-0x80,(%rsp)		/* Adjust vector to [-256,-1] range */
 	cld
 	SAVE_ARGS
-	leaq -ARGOFFSET(%rsp),%rdi	# arg1 for handler
+	leaq -ARGOFFSET(%rsp),%rdi	/* arg1 for handler */
 	pushq %rbp
 	/*
 	 * Save rbp twice: One is for marking the stack frame, as usual, and the
@@ -670,7 +711,8 @@ END(stub_rt_sigreturn)
 	call \func
 	.endm
 
-ENTRY(common_interrupt)
+	.p2align CONFIG_X86_L1_CACHE_SHIFT
+common_interrupt:
 	XCPT_FRAME
 	interrupt do_IRQ
 	/* 0(%rsp): oldrsp-ARGOFFSET */
