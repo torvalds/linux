@@ -210,6 +210,7 @@
 #define  PCI_CAP_ID_AGP3	0x0E	/* AGP Target PCI-PCI bridge */
 #define  PCI_CAP_ID_EXP 	0x10	/* PCI Express */
 #define  PCI_CAP_ID_MSIX	0x11	/* MSI-X */
+#define  PCI_CAP_ID_AF		0x13	/* PCI Advanced Features */
 #define PCI_CAP_LIST_NEXT	1	/* Next capability in the list */
 #define PCI_CAP_FLAGS		2	/* Capability defined flags (16 bits) */
 #define PCI_CAP_SIZEOF		4
@@ -315,6 +316,17 @@
 #define  PCI_CHSWP_PI		0x30	/* Programming Interface */
 #define  PCI_CHSWP_EXT		0x40	/* ENUM# status - extraction */
 #define  PCI_CHSWP_INS		0x80	/* ENUM# status - insertion */
+
+/* PCI Advanced Feature registers */
+
+#define PCI_AF_LENGTH		2
+#define PCI_AF_CAP		3
+#define  PCI_AF_CAP_TP		0x01
+#define  PCI_AF_CAP_FLR		0x02
+#define PCI_AF_CTRL		4
+#define  PCI_AF_CTRL_FLR	0x01
+#define PCI_AF_STATUS		5
+#define  PCI_AF_STATUS_TP	0x01
 
 /* PCI-X registers */
 
