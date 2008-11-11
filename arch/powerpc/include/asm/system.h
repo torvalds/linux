@@ -45,14 +45,14 @@
 #ifdef CONFIG_SMP
 
 #ifdef __SUBARCH_HAS_LWSYNC
-#    define SMPWMB      lwsync
+#    define SMPWMB      LWSYNC
 #else
 #    define SMPWMB      eieio
 #endif
 
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	__asm__ __volatile__ (__stringify(SMPWMB) : : :"memory")
+#define smp_wmb()	__asm__ __volatile__ (stringify_in_c(SMPWMB) : : :"memory")
 #define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	barrier()
