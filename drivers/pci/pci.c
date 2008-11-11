@@ -1789,11 +1789,52 @@ static int __pcie_flr(struct pci_dev *dev, int probe)
 	return 0;
 }
 
+static int __pci_af_flr(struct pci_dev *dev, int probe)
+{
+	int cappos = pci_find_capability(dev, PCI_CAP_ID_AF);
+	u8 status;
+	u8 cap;
+
+	if (!cappos)
+		return -ENOTTY;
+	pci_read_config_byte(dev, cappos + PCI_AF_CAP, &cap);
+	if (!(cap & PCI_AF_CAP_TP) || !(cap & PCI_AF_CAP_FLR))
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	pci_block_user_cfg_access(dev);
+
+	/* Wait for Transaction Pending bit clean */
+	msleep(100);
+	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
+	if (status & PCI_AF_STATUS_TP) {
+		dev_info(&dev->dev, "Busy after 100ms while trying to"
+				" reset; sleeping for 1 second\n");
+		ssleep(1);
+		pci_read_config_byte(dev,
+				cappos + PCI_AF_STATUS, &status);
+		if (status & PCI_AF_STATUS_TP)
+			dev_info(&dev->dev, "Still busy after 1s; "
+					"proceeding with reset anyway\n");
+	}
+	pci_write_config_byte(dev, cappos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
+	mdelay(100);
+
+	pci_unblock_user_cfg_access(dev);
+	return 0;
+}
+
 static int __pci_reset_function(struct pci_dev *pdev, int probe)
 {
 	int res;
 
 	res = __pcie_flr(pdev, probe);
+	if (res != -ENOTTY)
+		return res;
+
+	res = __pci_af_flr(pdev, probe);
 	if (res != -ENOTTY)
 		return res;
 
