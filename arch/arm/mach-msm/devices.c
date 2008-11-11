@@ -24,6 +24,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
+#include <mach/mmc.h>
+
 static struct resource resources_uart1[] = {
 	{
 		.start	= INT_UART1,
@@ -266,3 +268,23 @@ struct platform_device msm_device_sdc4 = {
 		.coherent_dma_mask	= 0xffffffff,
 	},
 };
+
+static struct platform_device *msm_sdcc_devices[] __initdata = {
+	&msm_device_sdc1,
+	&msm_device_sdc2,
+	&msm_device_sdc3,
+	&msm_device_sdc4,
+};
+
+int __init msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat)
+{
+	struct platform_device	*pdev;
+
+	if (controller < 1 || controller > 4)
+		return -EINVAL;
+
+	pdev = msm_sdcc_devices[controller-1];
+	pdev->dev.platform_data = plat;
+	return platform_device_register(pdev);
+}
+
