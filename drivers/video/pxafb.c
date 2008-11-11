@@ -1372,7 +1372,7 @@ static void pxafb_decode_mach_info(struct pxafb_info *fbi,
 	fbi->cmap_inverse	= inf->cmap_inverse;
 	fbi->cmap_static	= inf->cmap_static;
 
-	switch (lcd_conn & 0xf) {
+	switch (lcd_conn & LCD_TYPE_MASK) {
 	case LCD_TYPE_MONO_STN:
 		fbi->lccr0 = LCCR0_CMS;
 		break;
