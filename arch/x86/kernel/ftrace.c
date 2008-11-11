@@ -151,7 +151,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		"   .long 2b, 3b\n"
 		".previous\n"
 
-		: [parent_replaced] "=rm" (parent), [old] "=r" (old),
+		: [parent_replaced] "=r" (parent), [old] "=r" (old),
 		  [faulted] "=r" (faulted)
 		: [parent_old] "0" (parent), [return_hooker] "r" (return_hooker)
 		: "memory"
