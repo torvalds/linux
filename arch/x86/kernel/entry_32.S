@@ -619,28 +619,37 @@ END(syscall_badsys)
 27:;
 
 /*
- * Build the entry stubs and pointer table with
- * some assembler magic.
+ * Build the entry stubs and pointer table with some assembler magic.
+ * We pack 7 stubs into a single 32-byte chunk, which will fit in a
+ * single cache line on all modern x86 implementations.
  */
 .section .init.rodata,"a"
 ENTRY(interrupt)
 .text
-
+	.p2align 5
+	.p2align CONFIG_X86_L1_CACHE_SHIFT
 ENTRY(irq_entries_start)
 	RING0_INT_FRAME
 vector=FIRST_EXTERNAL_VECTOR
-.rept NR_VECTORS
-	ALIGN
- .if vector != FIRST_EXTERNAL_VECTOR
+.rept (NR_VECTORS-FIRST_EXTERNAL_VECTOR+6)/7
+	.balign 32
+  .rept	7
+    .if vector < NR_VECTORS
+      .if vector != FIRST_EXTERNAL_VECTOR
 	CFI_ADJUST_CFA_OFFSET -4
- .endif
-1:	pushl $~(vector)
+      .endif
+1:	pushl $(~vector+0x80)	/* Note: always in signed byte range */
 	CFI_ADJUST_CFA_OFFSET 4
-	jmp common_interrupt
- .previous
+      .if ((vector-FIRST_EXTERNAL_VECTOR)%7) != 6
+	jmp 2f
+      .endif
+      .previous
 	.long 1b
- .text
+      .text
 vector=vector+1
+    .endif
+  .endr
+2:	jmp common_interrupt
 .endr
 END(irq_entries_start)
 
@@ -652,8 +661,9 @@ END(interrupt)
  * the CPU automatically disables interrupts when executing an IRQ vector,
  * so IRQ-flags tracing has to follow that:
  */
-	ALIGN
+	.p2align CONFIG_X86_L1_CACHE_SHIFT
 common_interrupt:
+	addl $-0x80,(%esp)	/* Adjust vector into the [-256,-1] range */
 	SAVE_ALL
 	TRACE_IRQS_OFF
 	movl %esp,%eax
