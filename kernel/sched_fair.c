@@ -716,6 +716,15 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 		__enqueue_entity(cfs_rq, se);
 }
 
+static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	if (cfs_rq->last == se)
+		cfs_rq->last = NULL;
+
+	if (cfs_rq->next == se)
+		cfs_rq->next = NULL;
+}
+
 static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
@@ -738,11 +747,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 #endif
 	}
 
-	if (cfs_rq->last == se)
-		cfs_rq->last = NULL;
-
-	if (cfs_rq->next == se)
-		cfs_rq->next = NULL;
+	clear_buddies(cfs_rq, se);
 
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
@@ -976,6 +981,8 @@ static void yield_task_fair(struct rq *rq)
 	 */
 	if (unlikely(cfs_rq->nr_running == 1))
 		return;
+
+	clear_buddies(cfs_rq, se);
 
 	if (likely(!sysctl_sched_compat_yield) && curr->policy != SCHED_BATCH) {
 		update_rq_clock(rq);
