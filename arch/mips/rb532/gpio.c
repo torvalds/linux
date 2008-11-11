@@ -119,13 +119,11 @@ static inline void rb532_set_bit(unsigned bitval,
 	unsigned long flags;
 	u32 val;
 
-	bitval = !!bitval;              /* map parameter to {0,1} */
-
 	local_irq_save(flags);
 
 	val = readl(ioaddr);
-	val &= ~( ~bitval << offset );   /* unset bit if bitval == 0 */
-	val |=  (  bitval << offset );   /* set bit if bitval == 1 */
+	val &= ~(!bitval << offset);   /* unset bit if bitval == 0 */
+	val |= (!!bitval << offset);   /* set bit if bitval == 1 */
 	writel(val, ioaddr);
 
 	local_irq_restore(flags);
