@@ -237,43 +237,45 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
+static void icmpmsg_put_line(struct seq_file *seq, unsigned long *vals,
+			     unsigned short *type, int count)
+{
+	int j;
+
+	if (count) {
+		seq_printf(seq, "\nIcmpMsg:");
+		for (j = 0; j < count; ++j)
+			seq_printf(seq, " %sType%u",
+				type[j] & 0x100 ? "Out" : "In",
+				type[j] & 0xff);
+		seq_printf(seq, "\nIcmpMsg:");
+		for (j = 0; j < count; ++j)
+			seq_printf(seq, " %lu", vals[j]);
+	}
+}
+
 static void icmpmsg_put(struct seq_file *seq)
 {
 #define PERLINE	16
 
-	int j, i, count;
-	static int out[PERLINE];
+	int i, count;
+	unsigned short type[PERLINE];
+	unsigned long vals[PERLINE], val;
 	struct net *net = seq->private;
 
 	count = 0;
 	for (i = 0; i < ICMPMSG_MIB_MAX; i++) {
-
-		if (snmp_fold_field((void **) net->mib.icmpmsg_statistics, i))
-			out[count++] = i;
-		if (count < PERLINE)
-			continue;
-
-		seq_printf(seq, "\nIcmpMsg:");
-		for (j = 0; j < PERLINE; ++j)
-			seq_printf(seq, " %sType%u", i & 0x100 ? "Out" : "In",
-					i & 0xff);
-		seq_printf(seq, "\nIcmpMsg: ");
-		for (j = 0; j < PERLINE; ++j)
-			seq_printf(seq, " %lu",
-				snmp_fold_field((void **) net->mib.icmpmsg_statistics,
-				out[j]));
-		seq_putc(seq, '\n');
+		val = snmp_fold_field((void **) net->mib.icmpmsg_statistics, i);
+		if (val) {
+			type[count] = i;
+			vals[count++] = val;
+		}
+		if (count == PERLINE) {
+			icmpmsg_put_line(seq, vals, type, count);
+			count = 0;
+		}
 	}
-	if (count) {
-		seq_printf(seq, "\nIcmpMsg:");
-		for (j = 0; j < count; ++j)
-			seq_printf(seq, " %sType%u", out[j] & 0x100 ? "Out" :
-				"In", out[j] & 0xff);
-		seq_printf(seq, "\nIcmpMsg:");
-		for (j = 0; j < count; ++j)
-			seq_printf(seq, " %lu", snmp_fold_field((void **)
-				net->mib.icmpmsg_statistics, out[j]));
-	}
+	icmpmsg_put_line(seq, vals, type, count);
 
 #undef PERLINE
 }
