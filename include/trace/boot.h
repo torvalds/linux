@@ -2,22 +2,30 @@
 #define _LINUX_TRACE_BOOT_H
 
 /*
- * Structure which defines the trace of an initcall.
+ * Structure which defines the trace of an initcall
+ * while it is called.
  * You don't have to fill the func field since it is
  * only used internally by the tracer.
  */
-struct boot_trace {
+struct boot_trace_call {
 	pid_t			caller;
 	char			func[KSYM_NAME_LEN];
-	int			result;
-	unsigned long long	duration;		/* usecs */
-	ktime_t			calltime;
-	ktime_t			rettime;
+};
+
+/*
+ * Structure which defines the trace of an initcall
+ * while it returns.
+ */
+struct boot_trace_ret {
+	char			func[KSYM_NAME_LEN];
+	int				result;
+	unsigned long long	duration;		/* nsecs */
 };
 
 #ifdef CONFIG_BOOT_TRACER
-/* Append the trace on the ring-buffer */
-extern void trace_boot(struct boot_trace *it, initcall_t fn);
+/* Append the traces on the ring-buffer */
+extern void trace_boot_call(struct boot_trace_call *bt, initcall_t fn);
+extern void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn);
 
 /* Tells the tracer that smp_pre_initcall is finished.
  * So we can start the tracing
@@ -34,7 +42,12 @@ extern void enable_boot_trace(void);
  */
 extern void disable_boot_trace(void);
 #else
-static inline void trace_boot(struct boot_trace *it, initcall_t fn) { }
+static inline
+void trace_boot_call(struct boot_trace_call *bt, initcall_t fn) { }
+
+static inline
+void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn) { }
+
 static inline void start_boot_trace(void) { }
 static inline void enable_boot_trace(void) { }
 static inline void disable_boot_trace(void) { }

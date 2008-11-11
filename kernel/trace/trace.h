@@ -22,7 +22,8 @@ enum trace_type {
 	TRACE_SPECIAL,
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
-	TRACE_BOOT,
+	TRACE_BOOT_CALL,
+	TRACE_BOOT_RET,
 	TRACE_FN_RET,
 
 	__TRACE_LAST_TYPE
@@ -123,9 +124,14 @@ struct trace_mmiotrace_map {
 	struct mmiotrace_map	map;
 };
 
-struct trace_boot {
+struct trace_boot_call {
 	struct trace_entry	ent;
-	struct boot_trace	initcall;
+	struct boot_trace_call boot_call;
+};
+
+struct trace_boot_ret {
+	struct trace_entry	ent;
+	struct boot_trace_ret boot_ret;
 };
 
 /*
@@ -228,8 +234,9 @@ extern void __ftrace_bad_type(void);
 			  TRACE_MMIO_RW);				\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_map,		\
 			  TRACE_MMIO_MAP);				\
-		IF_ASSIGN(var, ent, struct trace_boot, TRACE_BOOT);	\
-		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET); \
+		IF_ASSIGN(var, ent, struct trace_boot_call, TRACE_BOOT_CALL);\
+		IF_ASSIGN(var, ent, struct trace_boot_ret, TRACE_BOOT_RET);\
+		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET);\
 		__ftrace_bad_type();					\
 	} while (0)
 
