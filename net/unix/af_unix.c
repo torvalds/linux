@@ -1302,14 +1302,23 @@ static void unix_destruct_fds(struct sk_buff *skb)
 	sock_wfree(skb);
 }
 
-static void unix_attach_fds(struct scm_cookie *scm, struct sk_buff *skb)
+static int unix_attach_fds(struct scm_cookie *scm, struct sk_buff *skb)
 {
 	int i;
+
+	/*
+	 * Need to duplicate file references for the sake of garbage
+	 * collection.  Otherwise a socket in the fps might become a
+	 * candidate for GC while the skb is not yet queued.
+	 */
+	UNIXCB(skb).fp = scm_fp_dup(scm->fp);
+	if (!UNIXCB(skb).fp)
+		return -ENOMEM;
+
 	for (i=scm->fp->count-1; i>=0; i--)
 		unix_inflight(scm->fp->fp[i]);
-	UNIXCB(skb).fp = scm->fp;
 	skb->destructor = unix_destruct_fds;
-	scm->fp = NULL;
+	return 0;
 }
 
 /*
@@ -1368,8 +1377,11 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto out;
 
 	memcpy(UNIXCREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
-	if (siocb->scm->fp)
-		unix_attach_fds(siocb->scm, skb);
+	if (siocb->scm->fp) {
+		err = unix_attach_fds(siocb->scm, skb);
+		if (err)
+			goto out_free;
+	}
 	unix_get_secdata(siocb->scm, skb);
 
 	skb_reset_transport_header(skb);
@@ -1538,8 +1550,13 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		size = min_t(int, size, skb_tailroom(skb));
 
 		memcpy(UNIXCREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
-		if (siocb->scm->fp)
-			unix_attach_fds(siocb->scm, skb);
+		if (siocb->scm->fp) {
+			err = unix_attach_fds(siocb->scm, skb);
+			if (err) {
+				kfree_skb(skb);
+				goto out_err;
+			}
+		}
 
 		if ((err = memcpy_fromiovec(skb_put(skb,size), msg->msg_iov, size)) != 0) {
 			kfree_skb(skb);

@@ -34,6 +34,8 @@ static inline cycles_t get_cycles(void)
 
 static __always_inline cycles_t vget_cycles(void)
 {
+	cycles_t cycles;
+
 	/*
 	 * We only do VDSOs on TSC capable CPUs, so this shouldnt
 	 * access boot_cpu_data (which is not VDSO-safe):
@@ -42,7 +44,11 @@ static __always_inline cycles_t vget_cycles(void)
 	if (!cpu_has_tsc)
 		return 0;
 #endif
-	return (cycles_t)__native_read_tsc();
+	rdtsc_barrier();
+	cycles = (cycles_t)__native_read_tsc();
+	rdtsc_barrier();
+
+	return cycles;
 }
 
 extern void tsc_init(void);
