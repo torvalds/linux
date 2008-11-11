@@ -53,6 +53,7 @@ typedef struct __user_cap_data_struct {
 #define XATTR_NAME_CAPS XATTR_SECURITY_PREFIX XATTR_CAPS_SUFFIX
 
 #define VFS_CAP_REVISION_MASK	0xFF000000
+#define VFS_CAP_REVISION_SHIFT	24
 #define VFS_CAP_FLAGS_MASK	~VFS_CAP_REVISION_MASK
 #define VFS_CAP_FLAGS_EFFECTIVE	0x000001
 
@@ -533,6 +534,10 @@ kernel_cap_t cap_set_effective(const kernel_cap_t pE_new);
 #define has_capability(t, cap) (security_capable((t), (cap)) == 0)
 
 extern int capable(int cap);
+
+/* audit system wants to get cap info from files as well */
+struct dentry;
+extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);
 
 #endif /* __KERNEL__ */
 

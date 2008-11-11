@@ -65,6 +65,7 @@
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
 #include <linux/inotify.h>
+#include <linux/capability.h>
 
 #include "audit.h"
 
@@ -84,6 +85,15 @@ int audit_n_rules;
 /* determines whether we collect data for signals sent */
 int audit_signals;
 
+struct audit_cap_data {
+	kernel_cap_t		permitted;
+	kernel_cap_t		inheritable;
+	union {
+		unsigned int	fE;		/* effective bit of a file capability */
+		kernel_cap_t	effective;	/* effective set of a process */
+	};
+};
+
 /* When fs/namei.c:getname() is called, we store the pointer in name and
  * we don't let putname() free it (instead we free all of the saved
  * pointers at syscall exit time).
@@ -100,6 +110,8 @@ struct audit_names {
 	gid_t		gid;
 	dev_t		rdev;
 	u32		osid;
+	struct audit_cap_data fcap;
+	unsigned int	fcap_ver;
 };
 
 struct audit_aux_data {
@@ -1171,6 +1183,35 @@ static void audit_log_execve_info(struct audit_context *context,
 	kfree(buf);
 }
 
+static void audit_log_cap(struct audit_buffer *ab, char *prefix, kernel_cap_t *cap)
+{
+	int i;
+
+	audit_log_format(ab, " %s=", prefix);
+	CAP_FOR_EACH_U32(i) {
+		audit_log_format(ab, "%08x", cap->cap[(_KERNEL_CAPABILITY_U32S-1) - i]);
+	}
+}
+
+static void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
+{
+	kernel_cap_t *perm = &name->fcap.permitted;
+	kernel_cap_t *inh = &name->fcap.inheritable;
+	int log = 0;
+
+	if (!cap_isclear(*perm)) {
+		audit_log_cap(ab, "cap_fp", perm);
+		log = 1;
+	}
+	if (!cap_isclear(*inh)) {
+		audit_log_cap(ab, "cap_fi", inh);
+		log = 1;
+	}
+
+	if (log)
+		audit_log_format(ab, " cap_fe=%d cap_fver=%x", name->fcap.fE, name->fcap_ver);
+}
+
 static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
 {
 	int i, call_panic = 0;
@@ -1420,6 +1461,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				security_release_secctx(ctx, len);
 			}
 		}
+
+		audit_log_fcaps(ab, n);
 
 		audit_log_end(ab);
 	}
@@ -1787,8 +1830,36 @@ static int audit_inc_name_count(struct audit_context *context,
 	return 0;
 }
 
+
+static inline int audit_copy_fcaps(struct audit_names *name, const struct dentry *dentry)
+{
+	struct cpu_vfs_cap_data caps;
+	int rc;
+
+	memset(&name->fcap.permitted, 0, sizeof(kernel_cap_t));
+	memset(&name->fcap.inheritable, 0, sizeof(kernel_cap_t));
+	name->fcap.fE = 0;
+	name->fcap_ver = 0;
+
+	if (!dentry)
+		return 0;
+
+	rc = get_vfs_caps_from_disk(dentry, &caps);
+	if (rc)
+		return rc;
+
+	name->fcap.permitted = caps.permitted;
+	name->fcap.inheritable = caps.inheritable;
+	name->fcap.fE = !!(caps.magic_etc & VFS_CAP_FLAGS_EFFECTIVE);
+	name->fcap_ver = (caps.magic_etc & VFS_CAP_REVISION_MASK) >> VFS_CAP_REVISION_SHIFT;
+
+	return 0;
+}
+
+
 /* Copy inode data into an audit_names. */
-static void audit_copy_inode(struct audit_names *name, const struct inode *inode)
+static void audit_copy_inode(struct audit_names *name, const struct dentry *dentry,
+			     const struct inode *inode)
 {
 	name->ino   = inode->i_ino;
 	name->dev   = inode->i_sb->s_dev;
@@ -1797,6 +1868,7 @@ static void audit_copy_inode(struct audit_names *name, const struct inode *inode
 	name->gid   = inode->i_gid;
 	name->rdev  = inode->i_rdev;
 	security_inode_getsecid(inode, &name->osid);
+	audit_copy_fcaps(name, dentry);
 }
 
 /**
@@ -1831,7 +1903,7 @@ void __audit_inode(const char *name, const struct dentry *dentry)
 		context->names[idx].name = NULL;
 	}
 	handle_path(dentry);
-	audit_copy_inode(&context->names[idx], inode);
+	audit_copy_inode(&context->names[idx], dentry, inode);
 }
 
 /**
@@ -1892,7 +1964,7 @@ void __audit_inode_child(const char *dname, const struct dentry *dentry,
 		if (!strcmp(dname, n->name) ||
 		     !audit_compare_dname_path(dname, n->name, &dirlen)) {
 			if (inode)
-				audit_copy_inode(n, inode);
+				audit_copy_inode(n, NULL, inode);
 			else
 				n->ino = (unsigned long)-1;
 			found_child = n->name;
@@ -1906,7 +1978,7 @@ add_names:
 			return;
 		idx = context->name_count - 1;
 		context->names[idx].name = NULL;
-		audit_copy_inode(&context->names[idx], parent);
+		audit_copy_inode(&context->names[idx], NULL, parent);
 	}
 
 	if (!found_child) {
@@ -1927,7 +1999,7 @@ add_names:
 		}
 
 		if (inode)
-			audit_copy_inode(&context->names[idx], inode);
+			audit_copy_inode(&context->names[idx], NULL, inode);
 		else
 			context->names[idx].ino = (unsigned long)-1;
 	}
