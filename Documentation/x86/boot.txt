@@ -349,7 +349,7 @@ Protocol:	2.00+
 	3  SYSLINUX
 	4  EtherBoot
 	5  ELILO
-	7  GRuB
+	7  GRUB
 	8  U-BOOT
 	9  Xen
 	A  Gujin
