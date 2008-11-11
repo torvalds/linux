@@ -406,7 +406,7 @@ static int tevii_dvbs_set_voltage(struct dvb_frontend *fe,
 			cx_write(MO_GP0_IO, 0x00006060);
 			break;
 		case SEC_VOLTAGE_OFF:
-		   	printk("LNB Voltage SEC_VOLTAGE_off\n");
+			printk("LNB Voltage SEC_VOLTAGE_off\n");
 			break;
 	}
 
@@ -1091,7 +1091,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	}
 
-        if ( (NULL == fe0->dvb.frontend) || (fe1 && NULL == fe1->dvb.frontend) ) {
+	if ( (NULL == fe0->dvb.frontend) || (fe1 && NULL == fe1->dvb.frontend) ) {
 		printk(KERN_ERR
 		       "%s/2: frontend initialization failed\n",
 		       core->name);
