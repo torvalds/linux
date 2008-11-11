@@ -22,6 +22,7 @@ enum trace_type {
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
 	TRACE_BOOT,
+	TRACE_FN_RET,
 
 	__TRACE_LAST_TYPE
 };
@@ -47,6 +48,15 @@ struct ftrace_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
 	unsigned long		parent_ip;
+};
+
+/* Function return entry */
+struct ftrace_ret_entry {
+	struct trace_entry	ent;
+	unsigned long		ip;
+	unsigned long		parent_ip;
+	unsigned long long	calltime;
+	unsigned long long	rettime;
 };
 extern struct tracer boot_tracer;
 
@@ -218,6 +228,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_map,		\
 			  TRACE_MMIO_MAP);				\
 		IF_ASSIGN(var, ent, struct trace_boot, TRACE_BOOT);	\
+		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET); \
 		__ftrace_bad_type();					\
 	} while (0)
 
@@ -321,6 +332,8 @@ void trace_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
 		    unsigned long flags, int pc);
+void
+trace_function_return(struct ftrace_retfunc *trace);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
@@ -393,12 +406,27 @@ extern void *head_page(struct trace_array_cpu *data);
 extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...);
 extern void trace_seq_print_cont(struct trace_seq *s,
 				 struct trace_iterator *iter);
+
+extern int
+seq_print_ip_sym(struct trace_seq *s, unsigned long ip,
+		unsigned long sym_flags);
 extern ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf,
 				 size_t cnt);
 extern long ns2usecs(cycle_t nsec);
 extern int trace_vprintk(unsigned long ip, const char *fmt, va_list args);
 
 extern unsigned long trace_flags;
+
+/* Standard output formatting function used for function return traces */
+#ifdef CONFIG_FUNCTION_RET_TRACER
+extern enum print_line_t print_return_function(struct trace_iterator *iter);
+#else
+static inline enum print_line_t
+print_return_function(struct trace_iterator *iter)
+{
+	return TRACE_TYPE_UNHANDLED;
+}
+#endif
 
 /*
  * trace_iterator_flags is an enumeration that defines bit
@@ -421,6 +449,13 @@ enum trace_iterator_flags {
 	TRACE_ITER_PRINTK		= 0x400,
 	TRACE_ITER_PREEMPTONLY		= 0x800,
 };
+
+/*
+ * TRACE_ITER_SYM_MASK masks the options in trace_flags that
+ * control the output of kernel symbols.
+ */
+#define TRACE_ITER_SYM_MASK \
+	(TRACE_ITER_PRINT_PARENT|TRACE_ITER_SYM_OFFSET|TRACE_ITER_SYM_ADDR)
 
 extern struct tracer nop_trace;
 

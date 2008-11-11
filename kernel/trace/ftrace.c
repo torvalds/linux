@@ -1484,3 +1484,19 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	return ret;
 }
 
+#ifdef CONFIG_FUNCTION_RET_TRACER
+trace_function_return_t ftrace_function_return =
+			(trace_function_return_t)ftrace_stub;
+void register_ftrace_return(trace_function_return_t func)
+{
+	ftrace_function_return = func;
+}
+
+void unregister_ftrace_return(void)
+{
+	ftrace_function_return = (trace_function_return_t)ftrace_stub;
+}
+#endif
+
+
+
