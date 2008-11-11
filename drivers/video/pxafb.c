@@ -1429,7 +1429,7 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 	memset(fbi, 0, sizeof(struct pxafb_info));
 	fbi->dev = dev;
 
-	fbi->clk = clk_get(dev, "LCDCLK");
+	fbi->clk = clk_get(dev, NULL);
 	if (IS_ERR(fbi->clk)) {
 		kfree(fbi);
 		return NULL;
