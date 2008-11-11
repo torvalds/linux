@@ -73,6 +73,8 @@ struct mmci_platform_data {
 	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
 	void *dma_rx_param;
 	void *dma_tx_param;
+	unsigned int status_irq;
+	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
 };
 
 #endif
