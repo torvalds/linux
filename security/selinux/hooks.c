@@ -1365,12 +1365,14 @@ static int task_has_perm(struct task_struct *tsk1,
 
 /* Check whether a task is allowed to use a capability. */
 static int task_has_capability(struct task_struct *tsk,
-			       int cap)
+			       int cap, int audit)
 {
 	struct task_security_struct *tsec;
 	struct avc_audit_data ad;
+	struct av_decision avd;
 	u16 sclass;
 	u32 av = CAP_TO_MASK(cap);
+	int rc;
 
 	tsec = tsk->security;
 
@@ -1390,7 +1392,11 @@ static int task_has_capability(struct task_struct *tsk,
 		       "SELinux:  out of range capability %d\n", cap);
 		BUG();
 	}
-	return avc_has_perm(tsec->sid, tsec->sid, sclass, av, &ad);
+
+	rc = avc_has_perm_noaudit(tsec->sid, tsec->sid, sclass, av, 0, &avd);
+	if (audit == SECURITY_CAP_AUDIT)
+		avc_audit(tsec->sid, tsec->sid, sclass, av, &avd, rc, &ad);
+	return rc;
 }
 
 /* Check whether a task is allowed to use a system operation. */
@@ -1802,15 +1808,15 @@ static void selinux_capset_set(struct task_struct *target, kernel_cap_t *effecti
 	secondary_ops->capset_set(target, effective, inheritable, permitted);
 }
 
-static int selinux_capable(struct task_struct *tsk, int cap)
+static int selinux_capable(struct task_struct *tsk, int cap, int audit)
 {
 	int rc;
 
-	rc = secondary_ops->capable(tsk, cap);
+	rc = secondary_ops->capable(tsk, cap, audit);
 	if (rc)
 		return rc;
 
-	return task_has_capability(tsk, cap);
+	return task_has_capability(tsk, cap, audit);
 }
 
 static int selinux_sysctl_get_sid(ctl_table *table, u16 tclass, u32 *sid)
@@ -1975,7 +1981,7 @@ static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 	int rc, cap_sys_admin = 0;
 	struct task_security_struct *tsec = current->security;
 
-	rc = secondary_ops->capable(current, CAP_SYS_ADMIN);
+	rc = secondary_ops->capable(current, CAP_SYS_ADMIN, SECURITY_CAP_NOAUDIT);
 	if (rc == 0)
 		rc = avc_has_perm_noaudit(tsec->sid, tsec->sid,
 					  SECCLASS_CAPABILITY,
@@ -2829,7 +2835,7 @@ static int selinux_inode_getsecurity(const struct inode *inode, const char *name
 	 * and lack of permission just means that we fall back to the
 	 * in-core context value, not a denial.
 	 */
-	error = secondary_ops->capable(current, CAP_MAC_ADMIN);
+	error = secondary_ops->capable(current, CAP_MAC_ADMIN, SECURITY_CAP_NOAUDIT);
 	if (!error)
 		error = avc_has_perm_noaudit(tsec->sid, tsec->sid,
 					     SECCLASS_CAPABILITY2,

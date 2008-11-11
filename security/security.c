@@ -163,7 +163,12 @@ void security_capset_set(struct task_struct *target,
 
 int security_capable(struct task_struct *tsk, int cap)
 {
-	return security_ops->capable(tsk, cap);
+	return security_ops->capable(tsk, cap, SECURITY_CAP_AUDIT);
+}
+
+int security_capable_noaudit(struct task_struct *tsk, int cap)
+{
+	return security_ops->capable(tsk, cap, SECURITY_CAP_NOAUDIT);
 }
 
 int security_acct(struct file *file)

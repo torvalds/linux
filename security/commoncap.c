@@ -49,7 +49,7 @@ EXPORT_SYMBOL(cap_netlink_recv);
  * returns 0 when a task has a capability, but the kernel's capable()
  * returns 1 for this case.
  */
-int cap_capable (struct task_struct *tsk, int cap)
+int cap_capable(struct task_struct *tsk, int cap, int audit)
 {
 	/* Derived from include/linux/sched.h:capable. */
 	if (cap_raised(tsk->cap_effective, cap))
@@ -112,7 +112,7 @@ static inline int cap_inh_is_capped(void)
 	 * to the old permitted set. That is, if the current task
 	 * does *not* possess the CAP_SETPCAP capability.
 	 */
-	return (cap_capable(current, CAP_SETPCAP) != 0);
+	return (cap_capable(current, CAP_SETPCAP, SECURITY_CAP_AUDIT) != 0);
 }
 
 static inline int cap_limit_ptraced_target(void) { return 1; }
@@ -677,7 +677,7 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		    || ((current->securebits & SECURE_ALL_LOCKS
 			 & ~arg2))                                    /*[2]*/
 		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS)) /*[3]*/
-		    || (cap_capable(current, CAP_SETPCAP) != 0)) {    /*[4]*/
+		    || (cap_capable(current, CAP_SETPCAP, SECURITY_CAP_AUDIT) != 0)) { /*[4]*/
 			/*
 			 * [1] no changing of bits that are locked
 			 * [2] no unlocking of locks
@@ -742,7 +742,7 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	int cap_sys_admin = 0;
 
-	if (cap_capable(current, CAP_SYS_ADMIN) == 0)
+	if (cap_capable(current, CAP_SYS_ADMIN, SECURITY_CAP_NOAUDIT) == 0)
 		cap_sys_admin = 1;
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
 }

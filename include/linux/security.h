@@ -37,6 +37,10 @@
 /* Maximum number of letters for an LSM name string */
 #define SECURITY_NAME_MAX	10
 
+/* If capable should audit the security request */
+#define SECURITY_CAP_NOAUDIT 0
+#define SECURITY_CAP_AUDIT 1
+
 struct ctl_table;
 struct audit_krule;
 
@@ -44,7 +48,7 @@ struct audit_krule;
  * These functions are in security/capability.c and are used
  * as the default capabilities functions
  */
-extern int cap_capable(struct task_struct *tsk, int cap);
+extern int cap_capable(struct task_struct *tsk, int cap, int audit);
 extern int cap_settime(struct timespec *ts, struct timezone *tz);
 extern int cap_ptrace_may_access(struct task_struct *child, unsigned int mode);
 extern int cap_ptrace_traceme(struct task_struct *parent);
@@ -1307,7 +1311,7 @@ struct security_operations {
 			    kernel_cap_t *effective,
 			    kernel_cap_t *inheritable,
 			    kernel_cap_t *permitted);
-	int (*capable) (struct task_struct *tsk, int cap);
+	int (*capable) (struct task_struct *tsk, int cap, int audit);
 	int (*acct) (struct file *file);
 	int (*sysctl) (struct ctl_table *table, int op);
 	int (*quotactl) (int cmds, int type, int id, struct super_block *sb);
@@ -1577,6 +1581,7 @@ void security_capset_set(struct task_struct *target,
 			 kernel_cap_t *inheritable,
 			 kernel_cap_t *permitted);
 int security_capable(struct task_struct *tsk, int cap);
+int security_capable_noaudit(struct task_struct *tsk, int cap);
 int security_acct(struct file *file);
 int security_sysctl(struct ctl_table *table, int op);
 int security_quotactl(int cmds, int type, int id, struct super_block *sb);
@@ -1782,7 +1787,12 @@ static inline void security_capset_set(struct task_struct *target,
 
 static inline int security_capable(struct task_struct *tsk, int cap)
 {
-	return cap_capable(tsk, cap);
+	return cap_capable(tsk, cap, SECURITY_CAP_AUDIT);
+}
+
+static inline int security_capable_noaudit(struct task_struct *tsk, int cap)
+{
+	return cap_capable(tsk, cap, SECURITY_CAP_NOAUDIT);
 }
 
 static inline int security_acct(struct file *file)
