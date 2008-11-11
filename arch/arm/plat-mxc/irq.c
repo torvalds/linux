@@ -115,7 +115,6 @@ static struct irq_chip mxc_avic_chip = {
 void __init mxc_init_irq(void)
 {
 	int i;
-	u32 reg;
 
 	/* put the AVIC into the reset value with
 	 * all interrupts disabled
