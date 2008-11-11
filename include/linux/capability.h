@@ -457,6 +457,13 @@ static inline int cap_isclear(const kernel_cap_t a)
 	return 1;
 }
 
+/*
+ * Check if "a" is a subset of "set".
+ * return 1 if ALL of the capabilities in "a" are also in "set"
+ *	cap_issubset(0101, 1111) will return 1
+ * return 0 if ANY of the capabilities in "a" are not in "set"
+ *	cap_issubset(1111, 0101) will return 0
+ */
 static inline int cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
 {
 	kernel_cap_t dest;
