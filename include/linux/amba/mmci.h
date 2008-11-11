@@ -13,6 +13,8 @@ struct mmci_platform_data {
 	int	gpio_wp;
 	int	gpio_cd;
 	unsigned long capabilities;
+	unsigned int status_irq;
+	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
 };
 
 #endif
