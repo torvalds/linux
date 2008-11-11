@@ -7,6 +7,7 @@
  * 30 May 2002:	Cleanup, Robert M. Love <rml@tech9.net>
  */
 
+#include <linux/audit.h>
 #include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -467,6 +468,10 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 		inheritable.cap[i] = 0;
 		i++;
 	}
+
+	ret = audit_log_capset(pid, &effective, &inheritable, &permitted);
+	if (ret)
+		return ret;
 
 	if (pid && (pid != task_pid_vnr(current)))
 		ret = do_sys_capset_other_tasks(pid, &effective, &inheritable,

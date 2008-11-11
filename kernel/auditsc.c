@@ -204,6 +204,12 @@ struct audit_aux_data_bprm_fcaps {
 	struct audit_cap_data	new_pcap;
 };
 
+struct audit_aux_data_capset {
+	struct audit_aux_data	d;
+	pid_t			pid;
+	struct audit_cap_data	cap;
+};
+
 struct audit_tree_refs {
 	struct audit_tree_refs *next;
 	struct audit_chunk *c[31];
@@ -1397,6 +1403,14 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			audit_log_cap(ab, "new_pe", &axs->new_pcap.effective);
 			break; }
 
+		case AUDIT_CAPSET: {
+			struct audit_aux_data_capset *axs = (void *)aux;
+			audit_log_format(ab, "pid=%d", axs->pid);
+			audit_log_cap(ab, "cap_pi", &axs->cap.inheritable);
+			audit_log_cap(ab, "cap_pp", &axs->cap.permitted);
+			audit_log_cap(ab, "cap_pe", &axs->cap.effective);
+			break; }
+
 		}
 		audit_log_end(ab);
 	}
@@ -2567,6 +2581,40 @@ void __audit_log_bprm_fcaps(struct linux_binprm *bprm, kernel_cap_t *pP, kernel_
 	ax->new_pcap.permitted = current->cap_permitted;
 	ax->new_pcap.inheritable = current->cap_inheritable;
 	ax->new_pcap.effective = current->cap_effective;
+}
+
+/**
+ * __audit_log_capset - store information about the arguments to the capset syscall
+ * @pid target pid of the capset call
+ * @eff effective cap set
+ * @inh inheritible cap set
+ * @perm permited cap set
+ *
+ * Record the aguments userspace sent to sys_capset for later printing by the
+ * audit system if applicable
+ */
+int __audit_log_capset(pid_t pid, kernel_cap_t *eff, kernel_cap_t *inh, kernel_cap_t *perm)
+{
+	struct audit_aux_data_capset *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (likely(!audit_enabled || !context || context->dummy))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->d.type = AUDIT_CAPSET;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+
+	ax->pid = pid;
+	ax->cap.effective = *eff;
+	ax->cap.inheritable = *eff;
+	ax->cap.permitted = *perm;
+
+	return 0;
 }
 
 /**
