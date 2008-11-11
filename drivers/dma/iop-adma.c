@@ -431,7 +431,7 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 	BUG_ON(iop_desc_get_next_desc(old_chain_tail) != next_dma); /* flush */
 
 	/* check for pre-chained descriptors */
-	BUG_ON(iop_desc_get_next_desc(sw_desc));
+	iop_paranoia(iop_desc_get_next_desc(sw_desc));
 
 	/* increment the pending count by the number of slots
 	 * memcpy operations have a 1:1 (slot:operation) relation
