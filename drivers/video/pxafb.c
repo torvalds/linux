@@ -804,6 +804,9 @@ static int pxafb_smart_thread(void *arg)
 
 static int pxafb_smart_init(struct pxafb_info *fbi)
 {
+	if (!(fbi->lccr0 | LCCR0_LCDT))
+		return 0;
+
 	fbi->smart_thread = kthread_run(pxafb_smart_thread, fbi,
 					"lcd_refresh");
 	if (IS_ERR(fbi->smart_thread)) {
