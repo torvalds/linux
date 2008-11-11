@@ -461,6 +461,11 @@ static void native_machine_restart(char *__unused)
 
 static void native_machine_halt(void)
 {
+	/* stop other cpus and apics */
+	machine_shutdown();
+
+	/* stop this cpu */
+	stop_this_cpu(NULL);
 }
 
 static void native_machine_power_off(void)

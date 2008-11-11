@@ -140,19 +140,6 @@ void native_send_call_func_ipi(cpumask_t mask)
 		send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
 }
 
-static void stop_this_cpu(void *dummy)
-{
-	local_irq_disable();
-	/*
-	 * Remove this CPU:
-	 */
-	cpu_clear(smp_processor_id(), cpu_online_map);
-	disable_local_APIC();
-	if (hlt_works(smp_processor_id()))
-		for (;;) halt();
-	for (;;);
-}
-
 /*
  * this function calls the 'stop' function on all other CPUs in the system.
  */
