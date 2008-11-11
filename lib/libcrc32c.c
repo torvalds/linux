@@ -57,6 +57,8 @@ u32 crc32c(u32 crc, const void *address, unsigned int length)
 	return *(u32 *)desc.ctx;
 }
 
+EXPORT_SYMBOL(crc32c);
+
 static int __init libcrc32c_mod_init(void)
 {
 	tfm = crypto_alloc_shash("crc32c", 0, 0);
