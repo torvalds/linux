@@ -581,9 +581,12 @@ static u32 acpi_ec_gpe_handler(void *data)
 	pr_debug(PREFIX "~~~> interrupt\n");
 	status = acpi_ec_read_status(ec);
 
-	gpe_transaction(ec, status);
-	if (ec_transaction_done(ec) && (status & ACPI_EC_FLAG_IBF) == 0)
-		wake_up(&ec->wait);
+	if (test_bit(EC_FLAGS_GPE_MODE, &ec->flags)) {
+		gpe_transaction(ec, status);
+		if (ec_transaction_done(ec) &&
+		    (status & ACPI_EC_FLAG_IBF) == 0)
+			wake_up(&ec->wait);
+	}
 
 	ec_check_sci(ec, status);
 	if (!test_bit(EC_FLAGS_GPE_MODE, &ec->flags) &&
