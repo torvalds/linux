@@ -590,7 +590,8 @@ static void __init lguest_init_IRQ(void)
 		 * a straightforward 1 to 1 mapping, so force that here. */
 		__get_cpu_var(vector_irq)[vector] = i;
 		if (vector != SYSCALL_VECTOR) {
-			set_intr_gate(vector, interrupt[vector]);
+			set_intr_gate(vector,
+				      interrupt[vector-FIRST_EXTERNAL_VECTOR]);
 			set_irq_chip_and_handler_name(i, &lguest_irq_controller,
 						      handle_level_irq,
 						      "level");

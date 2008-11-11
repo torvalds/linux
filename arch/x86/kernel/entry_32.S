@@ -622,16 +622,16 @@ END(syscall_badsys)
  * Build the entry stubs and pointer table with
  * some assembler magic.
  */
-.section .rodata,"a"
+.section .init.rodata,"a"
 ENTRY(interrupt)
 .text
 
 ENTRY(irq_entries_start)
 	RING0_INT_FRAME
-vector=0
+vector=FIRST_EXTERNAL_VECTOR
 .rept NR_VECTORS
 	ALIGN
- .if vector
+ .if vector != FIRST_EXTERNAL_VECTOR
 	CFI_ADJUST_CFA_OFFSET -4
  .endif
 1:	pushl $~(vector)
