@@ -3530,6 +3530,12 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 	if ((err = stac9200_auto_create_lfe_ctls(codec, &spec->autocfg)) < 0)
 		return err;
 
+	if (spec->num_muxes > 0) {
+		err = stac92xx_auto_create_mux_input_ctls(codec);
+		if (err < 0)
+			return err;
+	}
+
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = 0x05;
 	if (spec->autocfg.dig_in_pin)
