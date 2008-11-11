@@ -182,13 +182,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	spin_lock_init(&ieee->lock);
 
-	ieee->crypt_info.name = dev->name;
-	ieee->crypt_info.lock = &ieee->lock;
-	INIT_LIST_HEAD(&ieee->crypt_info.crypt_deinit_list);
-	setup_timer(&ieee->crypt_info.crypt_deinit_timer,
-			lib80211_crypt_deinit_handler,
-			(unsigned long)&ieee->crypt_info);
-	ieee->crypt_info.crypt_quiesced = 0;
+	lib80211_crypt_info_init(&ieee->crypt_info, dev->name, &ieee->lock);
 
 	ieee->wpa_enabled = 0;
 	ieee->drop_unencrypted = 0;
@@ -206,23 +200,7 @@ void free_ieee80211(struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 
-	int i;
-
-	lib80211_crypt_quiescing(&ieee->crypt_info);
-	del_timer_sync(&ieee->crypt_info.crypt_deinit_timer);
-	lib80211_crypt_deinit_entries(&ieee->crypt_info, 1);
-
-	for (i = 0; i < WEP_KEYS; i++) {
-		struct lib80211_crypt_data *crypt = ieee->crypt_info.crypt[i];
-		if (crypt) {
-			if (crypt->ops) {
-				crypt->ops->deinit(crypt->priv);
-				module_put(crypt->ops->owner);
-			}
-			kfree(crypt);
-			ieee->crypt_info.crypt[i] = NULL;
-		}
-	}
+	lib80211_crypt_info_free(&ieee->crypt_info);
 
 	ieee80211_networks_free(ieee);
 	free_netdev(dev);

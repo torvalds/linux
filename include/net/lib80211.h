@@ -114,6 +114,9 @@ struct lib80211_crypt_info {
 	int crypt_quiesced;
 };
 
+int lib80211_crypt_info_init(struct lib80211_crypt_info *info, char *name,
+                                spinlock_t *lock);
+void lib80211_crypt_info_free(struct lib80211_crypt_info *info);
 int lib80211_register_crypto_ops(struct lib80211_crypto_ops *ops);
 int lib80211_unregister_crypto_ops(struct lib80211_crypto_ops *ops);
 struct lib80211_crypto_ops *lib80211_get_crypto_ops(const char *name);

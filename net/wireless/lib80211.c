@@ -71,6 +71,44 @@ const char *print_ssid(char *buf, const char *ssid, u8 ssid_len)
 }
 EXPORT_SYMBOL(print_ssid);
 
+int lib80211_crypt_info_init(struct lib80211_crypt_info *info, char *name,
+				spinlock_t *lock)
+{
+	memset(info, 0, sizeof(*info));
+
+	info->name = name;
+	info->lock = lock;
+
+	INIT_LIST_HEAD(&info->crypt_deinit_list);
+	setup_timer(&info->crypt_deinit_timer, lib80211_crypt_deinit_handler,
+			(unsigned long)info);
+
+	return 0;
+}
+EXPORT_SYMBOL(lib80211_crypt_info_init);
+
+void lib80211_crypt_info_free(struct lib80211_crypt_info *info)
+{
+	int i;
+
+        lib80211_crypt_quiescing(info);
+        del_timer_sync(&info->crypt_deinit_timer);
+        lib80211_crypt_deinit_entries(info, 1);
+
+        for (i = 0; i < NUM_WEP_KEYS; i++) {
+                struct lib80211_crypt_data *crypt = info->crypt[i];
+                if (crypt) {
+                        if (crypt->ops) {
+                                crypt->ops->deinit(crypt->priv);
+                                module_put(crypt->ops->owner);
+                        }
+                        kfree(crypt);
+                        info->crypt[i] = NULL;
+                }
+        }
+}
+EXPORT_SYMBOL(lib80211_crypt_info_free);
+
 void lib80211_crypt_deinit_entries(struct lib80211_crypt_info *info, int force)
 {
 	struct lib80211_crypt_data *entry, *next;
