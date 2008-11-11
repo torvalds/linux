@@ -142,14 +142,11 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 	ctrl->wCompQuality = le16_to_cpup((__le16 *)&data[12]);
 	ctrl->wCompWindowSize = le16_to_cpup((__le16 *)&data[14]);
 	ctrl->wDelay = le16_to_cpup((__le16 *)&data[16]);
-	ctrl->dwMaxVideoFrameSize =
-		le32_to_cpu(get_unaligned((__le32 *)&data[18]));
-	ctrl->dwMaxPayloadTransferSize =
-		le32_to_cpu(get_unaligned((__le32 *)&data[22]));
+	ctrl->dwMaxVideoFrameSize = get_unaligned_le32(&data[18]);
+	ctrl->dwMaxPayloadTransferSize = get_unaligned_le32(&data[22]);
 
 	if (size == 34) {
-		ctrl->dwClockFrequency =
-			le32_to_cpu(get_unaligned((__le32 *)&data[26]));
+		ctrl->dwClockFrequency = get_unaligned_le32(&data[26]);
 		ctrl->bmFramingInfo = data[30];
 		ctrl->bPreferedVersion = data[31];
 		ctrl->bMinVersion = data[32];
@@ -197,14 +194,11 @@ static int uvc_set_video_ctrl(struct uvc_video_device *video,
 	/* Note: Some of the fields below are not required for IN devices (see
 	 * UVC spec, 4.3.1.1), but we still copy them in case support for OUT
 	 * devices is added in the future. */
-	put_unaligned(cpu_to_le32(ctrl->dwMaxVideoFrameSize),
-		(__le32 *)&data[18]);
-	put_unaligned(cpu_to_le32(ctrl->dwMaxPayloadTransferSize),
-		(__le32 *)&data[22]);
+	put_unaligned_le32(ctrl->dwMaxVideoFrameSize, &data[18]);
+	put_unaligned_le32(ctrl->dwMaxPayloadTransferSize, &data[22]);
 
 	if (size == 34) {
-		put_unaligned(cpu_to_le32(ctrl->dwClockFrequency),
-			(__le32 *)&data[26]);
+		put_unaligned_le32(ctrl->dwClockFrequency, &data[26]);
 		data[30] = ctrl->bmFramingInfo;
 		data[31] = ctrl->bPreferedVersion;
 		data[32] = ctrl->bMinVersion;
