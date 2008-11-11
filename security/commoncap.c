@@ -8,6 +8,7 @@
  */
 
 #include <linux/capability.h>
+#include <linux/audit.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -376,6 +377,9 @@ int cap_bprm_set_security (struct linux_binprm *bprm)
 
 void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 {
+	kernel_cap_t pP = current->cap_permitted;
+	kernel_cap_t pE = current->cap_effective;
+
 	if (bprm->e_uid != current->uid || bprm->e_gid != current->gid ||
 	    !cap_issubset(bprm->cap_post_exec_permitted,
 			  current->cap_permitted)) {
@@ -409,7 +413,24 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 			cap_clear(current->cap_effective);
 	}
 
-	/* AUD: Audit candidate if current->cap_effective is set */
+	/*
+	 * Audit candidate if current->cap_effective is set
+	 *
+	 * We do not bother to audit if 3 things are true:
+	 *   1) cap_effective has all caps
+	 *   2) we are root
+	 *   3) root is supposed to have all caps (SECURE_NOROOT)
+	 * Since this is just a normal root execing a process.
+	 *
+	 * Number 1 above might fail if you don't have a full bset, but I think
+	 * that is interesting information to audit.
+	 */
+	if (!cap_isclear(current->cap_effective)) {
+		if (!cap_issubset(CAP_FULL_SET, current->cap_effective) ||
+		    (bprm->e_uid != 0) || (current->uid != 0) ||
+		    issecure(SECURE_NOROOT))
+			audit_log_bprm_fcaps(bprm, &pP, &pE);
+	}
 
 	current->securebits &= ~issecure_mask(SECURE_KEEP_CAPS);
 }

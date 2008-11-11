@@ -196,6 +196,14 @@ struct audit_aux_data_pids {
 	int			pid_count;
 };
 
+struct audit_aux_data_bprm_fcaps {
+	struct audit_aux_data	d;
+	struct audit_cap_data	fcap;
+	unsigned int		fcap_ver;
+	struct audit_cap_data	old_pcap;
+	struct audit_cap_data	new_pcap;
+};
+
 struct audit_tree_refs {
 	struct audit_tree_refs *next;
 	struct audit_chunk *c[31];
@@ -1375,6 +1383,20 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			audit_log_format(ab, "fd0=%d fd1=%d", axs->fd[0], axs->fd[1]);
 			break; }
 
+		case AUDIT_BPRM_FCAPS: {
+			struct audit_aux_data_bprm_fcaps *axs = (void *)aux;
+			audit_log_format(ab, "fver=%x", axs->fcap_ver);
+			audit_log_cap(ab, "fp", &axs->fcap.permitted);
+			audit_log_cap(ab, "fi", &axs->fcap.inheritable);
+			audit_log_format(ab, " fe=%d", axs->fcap.fE);
+			audit_log_cap(ab, "old_pp", &axs->old_pcap.permitted);
+			audit_log_cap(ab, "old_pi", &axs->old_pcap.inheritable);
+			audit_log_cap(ab, "old_pe", &axs->old_pcap.effective);
+			audit_log_cap(ab, "new_pp", &axs->new_pcap.permitted);
+			audit_log_cap(ab, "new_pi", &axs->new_pcap.inheritable);
+			audit_log_cap(ab, "new_pe", &axs->new_pcap.effective);
+			break; }
+
 		}
 		audit_log_end(ab);
 	}
@@ -2499,6 +2521,52 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	axp->pid_count++;
 
 	return 0;
+}
+
+/**
+ * __audit_log_bprm_fcaps - store information about a loading bprm and relevant fcaps
+ * @bprm pointer to the bprm being processed
+ * @caps the caps read from the disk
+ *
+ * Simply check if the proc already has the caps given by the file and if not
+ * store the priv escalation info for later auditing at the end of the syscall
+ *
+ * this can fail and we don't care.  See the note in audit.h for
+ * audit_log_bprm_fcaps() for my explaination....
+ *
+ * -Eric
+ */
+void __audit_log_bprm_fcaps(struct linux_binprm *bprm, kernel_cap_t *pP, kernel_cap_t *pE)
+{
+	struct audit_aux_data_bprm_fcaps *ax;
+	struct audit_context *context = current->audit_context;
+	struct cpu_vfs_cap_data vcaps;
+	struct dentry *dentry;
+
+	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
+	if (!ax)
+		return;
+
+	ax->d.type = AUDIT_BPRM_FCAPS;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+
+	dentry = dget(bprm->file->f_dentry);
+	get_vfs_caps_from_disk(dentry, &vcaps);
+	dput(dentry);
+
+	ax->fcap.permitted = vcaps.permitted;
+	ax->fcap.inheritable = vcaps.inheritable;
+	ax->fcap.fE = !!(vcaps.magic_etc & VFS_CAP_FLAGS_EFFECTIVE);
+	ax->fcap_ver = (vcaps.magic_etc & VFS_CAP_REVISION_MASK) >> VFS_CAP_REVISION_SHIFT;
+
+	ax->old_pcap.permitted = *pP;
+	ax->old_pcap.inheritable = current->cap_inheritable;
+	ax->old_pcap.effective = *pE;
+
+	ax->new_pcap.permitted = current->cap_permitted;
+	ax->new_pcap.inheritable = current->cap_inheritable;
+	ax->new_pcap.effective = current->cap_effective;
 }
 
 /**
