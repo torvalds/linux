@@ -160,3 +160,22 @@ struct platform_device mxc_w1_master_device = {
 	.num_resources = ARRAY_SIZE(mxc_w1_master_resources),
 	.resource = mxc_w1_master_resources,
 };
+
+static struct resource mxc_nand_resources[] = {
+	{
+		.start	= NFC_BASE_ADDR,
+		.end	= NFC_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MXC_INT_NANDFC,
+		.end	= MXC_INT_NANDFC,
+		.flags	= IORESOURCE_IRQ
+	},
+};
+
+struct platform_device mxc_nand_device = {
+	.name = "mxc_nand",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_nand_resources),
+	.resource = mxc_nand_resources,
+};
