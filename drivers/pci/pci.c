@@ -1751,24 +1751,7 @@ int pci_set_dma_seg_boundary(struct pci_dev *dev, unsigned long mask)
 EXPORT_SYMBOL(pci_set_dma_seg_boundary);
 #endif
 
-/**
- * pci_execute_reset_function() - Reset a PCI device function
- * @dev: Device function to reset
- *
- * Some devices allow an individual function to be reset without affecting
- * other functions in the same device.  The PCI device must be responsive
- * to PCI config space in order to use this function.
- *
- * The device function is presumed to be unused when this function is called.
- * Resetting the device will make the contents of PCI configuration space
- * random, so any caller of this must be prepared to reinitialise the
- * device including MSI, bus mastering, BARs, decoding IO and memory spaces,
- * etc.
- *
- * Returns 0 if the device function was successfully reset or -ENOTTY if the
- * device doesn't support resetting a single function.
- */
-int pci_execute_reset_function(struct pci_dev *dev)
+static int __pcie_flr(struct pci_dev *dev, int probe)
 {
 	u16 status;
 	u32 cap;
@@ -1779,6 +1762,9 @@ int pci_execute_reset_function(struct pci_dev *dev)
 	pci_read_config_dword(dev, exppos + PCI_EXP_DEVCAP, &cap);
 	if (!(cap & PCI_EXP_DEVCAP_FLR))
 		return -ENOTTY;
+
+	if (probe)
+		return 0;
 
 	pci_block_user_cfg_access(dev);
 
@@ -1802,6 +1788,39 @@ int pci_execute_reset_function(struct pci_dev *dev)
 	pci_unblock_user_cfg_access(dev);
 	return 0;
 }
+
+static int __pci_reset_function(struct pci_dev *pdev, int probe)
+{
+	int res;
+
+	res = __pcie_flr(pdev, probe);
+	if (res != -ENOTTY)
+		return res;
+
+	return res;
+}
+
+/**
+ * pci_execute_reset_function() - Reset a PCI device function
+ * @dev: Device function to reset
+ *
+ * Some devices allow an individual function to be reset without affecting
+ * other functions in the same device.  The PCI device must be responsive
+ * to PCI config space in order to use this function.
+ *
+ * The device function is presumed to be unused when this function is called.
+ * Resetting the device will make the contents of PCI configuration space
+ * random, so any caller of this must be prepared to reinitialise the
+ * device including MSI, bus mastering, BARs, decoding IO and memory spaces,
+ * etc.
+ *
+ * Returns 0 if the device function was successfully reset or -ENOTTY if the
+ * device doesn't support resetting a single function.
+ */
+int pci_execute_reset_function(struct pci_dev *dev)
+{
+	return __pci_reset_function(dev, 0);
+}
 EXPORT_SYMBOL_GPL(pci_execute_reset_function);
 
 /**
@@ -1822,15 +1841,10 @@ EXPORT_SYMBOL_GPL(pci_execute_reset_function);
  */
 int pci_reset_function(struct pci_dev *dev)
 {
-	u32 cap;
-	int exppos = pci_find_capability(dev, PCI_CAP_ID_EXP);
-	int r;
+	int r = __pci_reset_function(dev, 1);
 
-	if (!exppos)
-		return -ENOTTY;
-	pci_read_config_dword(dev, exppos + PCI_EXP_DEVCAP, &cap);
-	if (!(cap & PCI_EXP_DEVCAP_FLR))
-		return -ENOTTY;
+	if (r < 0)
+		return r;
 
 	if (!dev->msi_enabled && !dev->msix_enabled && dev->irq != 0)
 		disable_irq(dev->irq);
