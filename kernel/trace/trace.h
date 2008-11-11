@@ -8,6 +8,7 @@
 #include <linux/ring_buffer.h>
 #include <linux/mmiotrace.h>
 #include <linux/ftrace.h>
+#include <trace/boot.h>
 
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,

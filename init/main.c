@@ -63,6 +63,7 @@
 #include <linux/signal.h>
 #include <linux/idr.h>
 #include <linux/ftrace.h>
+#include <trace/boot.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
