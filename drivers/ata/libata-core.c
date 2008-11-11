@@ -1712,6 +1712,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	else
 		tag = 0;
 
+	if (test_and_set_bit(tag, &ap->qc_allocated))
+		BUG();
 	qc = __ata_qc_from_tag(ap, tag);
 
 	qc->tag = tag;
@@ -4024,6 +4026,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 
 	/* Weird ATAPI devices */
 	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 },
+	{ "QUANTUM DAT    DAT72-000", NULL,	ATA_HORKAGE_ATAPI_MOD16_DMA },
 
 	/* Devices we expect to fail diagnostics */
 
@@ -4444,7 +4447,8 @@ int atapi_check_dma(struct ata_queued_cmd *qc)
 	/* Don't allow DMA if it isn't multiple of 16 bytes.  Quite a
 	 * few ATAPI devices choke on such DMA requests.
 	 */
-	if (unlikely(qc->nbytes & 15))
+	if (!(qc->dev->horkage & ATA_HORKAGE_ATAPI_MOD16_DMA) &&
+	    unlikely(qc->nbytes & 15))
 		return 1;
 
 	if (ap->ops->check_atapi_dma)
@@ -4561,6 +4565,37 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 }
 
 /**
+ *	ata_qc_new - Request an available ATA command, for queueing
+ *	@ap: Port associated with device @dev
+ *	@dev: Device from whom we request an available command structure
+ *
+ *	LOCKING:
+ *	None.
+ */
+
+static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
+{
+	struct ata_queued_cmd *qc = NULL;
+	unsigned int i;
+
+	/* no command while frozen */
+	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
+		return NULL;
+
+	/* the last tag is reserved for internal command. */
+	for (i = 0; i < ATA_MAX_QUEUE - 1; i++)
+		if (!test_and_set_bit(i, &ap->qc_allocated)) {
+			qc = __ata_qc_from_tag(ap, i);
+			break;
+		}
+
+	if (qc)
+		qc->tag = i;
+
+	return qc;
+}
+
+/**
  *	ata_qc_new_init - Request an available ATA command, and initialize it
  *	@dev: Device from whom we request an available command structure
  *	@tag: command tag
@@ -4569,25 +4604,46 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	None.
  */
 
-struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev, int tag)
+struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 	struct ata_queued_cmd *qc;
 
-	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
-		return NULL;
-
-	qc = __ata_qc_from_tag(ap, tag);
+	qc = ata_qc_new(ap);
 	if (qc) {
 		qc->scsicmd = NULL;
 		qc->ap = ap;
 		qc->dev = dev;
-		qc->tag = tag;
 
 		ata_qc_reinit(qc);
 	}
 
 	return qc;
+}
+
+/**
+ *	ata_qc_free - free unused ata_queued_cmd
+ *	@qc: Command to complete
+ *
+ *	Designed to free unused ata_queued_cmd object
+ *	in case something prevents using it.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_qc_free(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	unsigned int tag;
+
+	WARN_ON(qc == NULL);	/* ata_qc_from_tag _might_ return NULL */
+
+	qc->flags = 0;
+	tag = qc->tag;
+	if (likely(ata_tag_valid(tag))) {
+		qc->tag = ATA_TAG_POISON;
+		clear_bit(tag, &ap->qc_allocated);
+	}
 }
 
 void __ata_qc_complete(struct ata_queued_cmd *qc)
@@ -5934,7 +5990,7 @@ static void ata_port_detach(struct ata_port *ap)
 	 * to us.  Restore SControl and disable all existing devices.
 	 */
 	__ata_port_for_each_link(link, ap) {
-		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol);
+		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol & 0xff0);
 		ata_link_for_each_dev(dev, link)
 			ata_dev_disable(dev);
 	}

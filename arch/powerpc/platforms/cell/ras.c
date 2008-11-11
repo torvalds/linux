@@ -16,6 +16,7 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 
+#include <asm/kexec.h>
 #include <asm/reg.h>
 #include <asm/io.h>
 #include <asm/prom.h>
