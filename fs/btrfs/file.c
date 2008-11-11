@@ -436,7 +436,7 @@ next_slot:
 			goto out;
 		}
 		if (recow) {
-			search_start = key.offset;
+			search_start = max(key.offset, start);
 			continue;
 		}
 		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY) {
