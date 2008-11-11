@@ -470,6 +470,8 @@ _GLOBAL(_tlbil_pid)
 	mfspr	r3,SPRN_MMUCSR0
 	andi.	r3,r3,MMUCSR0_TLBFI@l
 	bne	1b
+	msync
+	isync
 	blr
 
 /*
@@ -486,6 +488,8 @@ _GLOBAL(_tlbil_va)
 	rlwinm	r4,r4,0,1,31
 	mtspr	SPRN_MAS1,r4
 	tlbwe
+	msync
+	isync
 	blr
 #endif /* CONFIG_FSL_BOOKE */
 
