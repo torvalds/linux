@@ -39,6 +39,7 @@
 #include <mach/iomux-mx3.h>
 #include <mach/board-pcm037.h>
 #include <mach/mxc_nand.h>
+#include <mach/mmc.h>
 #ifdef CONFIG_I2C_IMX
 #include <mach/i2c.h>
 #endif
@@ -162,6 +163,32 @@ static struct i2c_board_info pcm037_i2c_devices[] = {
 };
 #endif
 
+static int sdhc1_pins[] = {
+	MX31_PIN_SD1_DATA3__SD1_DATA3,
+	MX31_PIN_SD1_DATA2__SD1_DATA2,
+	MX31_PIN_SD1_DATA1__SD1_DATA1,
+	MX31_PIN_SD1_DATA0__SD1_DATA0,
+	MX31_PIN_SD1_CLK__SD1_CLK,
+	MX31_PIN_SD1_CMD__SD1_CMD,
+};
+
+static int pcm970_sdhc1_init(struct device *dev, irq_handler_t h, void *data)
+{
+	return mxc_iomux_setup_multiple_pins(sdhc1_pins, ARRAY_SIZE(sdhc1_pins),
+				"sdhc-1");
+}
+
+static void pcm970_sdhc1_exit(struct device *dev, void *data)
+{
+	mxc_iomux_release_multiple_pins(sdhc1_pins, ARRAY_SIZE(sdhc1_pins));
+}
+
+/* No card and rw detection at the moment */
+static struct imxmmc_platform_data sdhc_pdata = {
+	.init = pcm970_sdhc1_init,
+	.exit = pcm970_sdhc1_exit,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_eth,
@@ -208,6 +235,7 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_i2c_device1, &pcm037_i2c_1_data);
 #endif
 	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
+	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
 }
 
 static void __init pcm037_timer_init(void)
