@@ -72,7 +72,7 @@ static bool kprobe_enabled;
 DEFINE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 static struct {
-	spinlock_t lock ____cacheline_aligned;
+	spinlock_t lock ____cacheline_aligned_in_smp;
 } kretprobe_table_locks[KPROBE_TABLE_SIZE];
 
 static spinlock_t *kretprobe_table_lock_ptr(unsigned long hash)
