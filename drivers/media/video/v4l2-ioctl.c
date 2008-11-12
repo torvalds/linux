@@ -1479,9 +1479,15 @@ static int __video_do_ioctl(struct file *file,
 	case VIDIOC_G_CROP:
 	{
 		struct v4l2_crop *p = arg;
+		__u32 type;
 
 		if (!ops->vidioc_g_crop)
 			break;
+
+		type = p->type;
+		memset(p, 0, sizeof(*p));
+		p->type = type;
+
 		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
 		ret = ops->vidioc_g_crop(file, fh, p);
 		if (!ret)
@@ -1502,10 +1508,16 @@ static int __video_do_ioctl(struct file *file,
 	case VIDIOC_CROPCAP:
 	{
 		struct v4l2_cropcap *p = arg;
+		__u32 type;
 
 		/*FIXME: Should also show v4l2_fract pixelaspect */
 		if (!ops->vidioc_cropcap)
 			break;
+
+		type = p->type;
+		memset(p, 0, sizeof(*p));
+		p->type = type;
+
 		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
 		ret = ops->vidioc_cropcap(file, fh, p);
 		if (!ret) {
@@ -1520,6 +1532,9 @@ static int __video_do_ioctl(struct file *file,
 
 		if (!ops->vidioc_g_jpegcomp)
 			break;
+
+		memset(p, 0, sizeof(*p));
+
 		ret = ops->vidioc_g_jpegcomp(file, fh, p);
 		if (!ret)
 			dbgarg(cmd, "quality=%d, APPn=%d, "
