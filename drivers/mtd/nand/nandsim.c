@@ -1736,13 +1736,17 @@ static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 
 		/* Check if chip is expecting command */
 		if (NS_STATE(ns->nxstate) != STATE_UNKNOWN && !(ns->nxstate & STATE_CMD_MASK)) {
-			/*
-			 * We are in situation when something else (not command)
-			 * was expected but command was input. In this case ignore
-			 * previous command(s)/state(s) and accept the last one.
-			 */
-			NS_WARN("write_byte: command (%#x) wasn't expected, expected state is %s, "
-				"ignore previous states\n", (uint)byte, get_state_name(ns->nxstate));
+			/* Do not warn if only 2 id bytes are read */
+			if (!(ns->regs.command == NAND_CMD_READID &&
+			    NS_STATE(ns->state) == STATE_DATAOUT_ID && ns->regs.count == 2)) {
+				/*
+				 * We are in situation when something else (not command)
+				 * was expected but command was input. In this case ignore
+				 * previous command(s)/state(s) and accept the last one.
+				 */
+				NS_WARN("write_byte: command (%#x) wasn't expected, expected state is %s, "
+					"ignore previous states\n", (uint)byte, get_state_name(ns->nxstate));
+			}
 			switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
 		}
 
