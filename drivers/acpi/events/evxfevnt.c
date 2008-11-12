@@ -521,6 +521,9 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	if (value)
 		*event_status |= ACPI_EVENT_FLAG_SET;
 
+	if (acpi_gbl_fixed_event_handlers[event].handler)
+		*event_status |= ACPI_EVENT_FLAG_HANDLE;
+
 	return_ACPI_STATUS(status);
 }
 
@@ -570,6 +573,9 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 	/* Obtain status on the requested GPE number */
 
 	status = acpi_hw_get_gpe_status(gpe_event_info, event_status);
+
+	if (gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK)
+		*event_status |= ACPI_EVENT_FLAG_HANDLE;
 
       unlock_and_exit:
 	if (flags & ACPI_NOT_ISR) {
