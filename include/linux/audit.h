@@ -391,6 +391,7 @@ extern int audit_classify_arch(int arch);
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */
+extern void audit_finish_fork(struct task_struct *child);
 extern int  audit_alloc(struct task_struct *task);
 extern void audit_free(struct task_struct *task);
 extern void audit_syscall_entry(int arch,
@@ -504,6 +505,7 @@ static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 extern int audit_n_rules;
 extern int audit_signals;
 #else
+#define audit_finish_fork(t)
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
 #define audit_syscall_entry(ta,a,b,c,d,e) do { ; } while (0)

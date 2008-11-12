@@ -1548,6 +1548,23 @@ void audit_syscall_entry(int arch, int major,
 	context->ppid       = 0;
 }
 
+void audit_finish_fork(struct task_struct *child)
+{
+	struct audit_context *ctx = current->audit_context;
+	struct audit_context *p = child->audit_context;
+	if (!p || !ctx || !ctx->auditable)
+		return;
+	p->arch = ctx->arch;
+	p->major = ctx->major;
+	memcpy(p->argv, ctx->argv, sizeof(ctx->argv));
+	p->ctime = ctx->ctime;
+	p->dummy = ctx->dummy;
+	p->auditable = ctx->auditable;
+	p->in_syscall = ctx->in_syscall;
+	p->filterkey = kstrdup(ctx->filterkey, GFP_KERNEL);
+	p->ppid = current->pid;
+}
+
 /**
  * audit_syscall_exit - deallocate audit context after a system call
  * @tsk: task being audited
