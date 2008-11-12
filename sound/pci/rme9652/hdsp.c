@@ -1452,7 +1452,7 @@ static int snd_hdsp_create_midi (struct snd_card *card, struct hdsp *hdsp, int i
 	if (snd_rawmidi_new (card, buf, id, 1, 1, &hdsp->midi[id].rmidi) < 0)
 		return -1;
 
-	sprintf (hdsp->midi[id].rmidi->name, "%s MIDI %d", card->id, id+1);
+	sprintf(hdsp->midi[id].rmidi->name, "HDSP MIDI %d", id+1);
 	hdsp->midi[id].rmidi->private_data = &hdsp->midi[id];
 
 	snd_rawmidi_set_ops (hdsp->midi[id].rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &snd_hdsp_midi_output);
