@@ -1600,8 +1600,6 @@ static void em28xx_release_resources(struct em28xx *dev)
 
 	/*FIXME: I2C IR should be disconnected */
 
-	em28xx_info("V4L2 devices /dev/video%d and /dev/vbi%d deregistered\n",
-				dev->vdev->num, dev->vbi_dev->num);
 	list_del(&dev->devlist);
 	if (dev->sbutton_input_dev)
 		em28xx_deregister_snapshot_button(dev);
@@ -1613,6 +1611,8 @@ static void em28xx_release_resources(struct em28xx *dev)
 		dev->radio_dev = NULL;
 	}
 	if (dev->vbi_dev) {
+		em28xx_info("V4L2 device /dev/vbi%d deregistered\n",
+			    dev->vbi_dev->num);
 		if (-1 != dev->vbi_dev->minor)
 			video_unregister_device(dev->vbi_dev);
 		else
@@ -1620,6 +1620,8 @@ static void em28xx_release_resources(struct em28xx *dev)
 		dev->vbi_dev = NULL;
 	}
 	if (dev->vdev) {
+		em28xx_info("V4L2 device /dev/video%d deregistered\n",
+			    dev->vdev->num);
 		if (-1 != dev->vdev->minor)
 			video_unregister_device(dev->vdev);
 		else
