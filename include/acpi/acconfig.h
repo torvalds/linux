@@ -119,6 +119,10 @@
 
 #define ACPI_ROOT_TABLE_SIZE_INCREMENT  4
 
+/* Maximum number of While() loop iterations before forced abort */
+
+#define ACPI_MAX_LOOP_ITERATIONS        0xFFFF
+
 /******************************************************************************
  *
  * ACPI Specification constants (Do not change unless the specification changes)

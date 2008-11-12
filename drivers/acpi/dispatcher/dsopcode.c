@@ -1262,13 +1262,31 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "[WHILE_OP] Op=%p\n", op));
 
-		if (walk_state->control_state->common.value) {
+		control_state = walk_state->control_state;
+		if (control_state->common.value) {
 
-			/* Predicate was true, go back and evaluate it again! */
+			/* Predicate was true, the body of the loop was just executed */
 
+			/*
+			 * This loop counter mechanism allows the interpreter to escape
+			 * possibly infinite loops. This can occur in poorly written AML
+			 * when the hardware does not respond within a while loop and the
+			 * loop does not implement a timeout.
+			 */
+			control_state->control.loop_count++;
+			if (control_state->control.loop_count >
+				ACPI_MAX_LOOP_ITERATIONS) {
+				status = AE_AML_INFINITE_LOOP;
+				break;
+			}
+
+			/*
+			 * Go back and evaluate the predicate and maybe execute the loop
+			 * another time
+			 */
 			status = AE_CTRL_PENDING;
 			walk_state->aml_last_while =
-			    walk_state->control_state->control.aml_predicate_start;
+			    control_state->control.aml_predicate_start;
 			break;
 		}
 
