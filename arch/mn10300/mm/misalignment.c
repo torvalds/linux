@@ -44,7 +44,8 @@
 
 static int misalignment_addr(unsigned long *registers, unsigned params,
 			     unsigned opcode, unsigned long disp,
-			     void **_address, unsigned long **_postinc);
+			     void **_address, unsigned long **_postinc,
+			     unsigned long *_inc);
 
 static int misalignment_reg(unsigned long *registers, unsigned params,
 			    unsigned opcode, unsigned long disp,
@@ -150,7 +151,7 @@ enum value_id {
 };
 
 struct mn10300_opcode {
-	const char	*name;
+	const char	name[8];
 	u_int32_t	opcode;
 	u_int32_t	opmask;
 	unsigned	exclusion;
@@ -310,7 +311,7 @@ static const struct mn10300_opcode mn10300_opcodes[] = {
 { "mov_lne",	0xf7e00009,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
 { "mov_lra",	0xf7e0000a,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
 
-{ 0, 0, 0, 0, 0, 0, {0}},
+{ "", 0, 0, 0, 0, 0, {0}},
 };
 
 /*
@@ -321,11 +322,11 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	const struct exception_table_entry *fixup;
 	const struct mn10300_opcode *pop;
 	unsigned long *registers = (unsigned long *) regs;
-	unsigned long data, *store, *postinc, disp;
+	unsigned long data, *store, *postinc, disp, inc;
 	mm_segment_t seg;
 	siginfo_t info;
 	uint32_t opcode, noc, xo, xm;
-	uint8_t *pc, byte;
+	uint8_t *pc, byte, datasz;
 	void *address;
 	unsigned tmp, npop, dispsz, loop;
 
@@ -347,7 +348,7 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	opcode = byte;
 	noc = 8;
 
-	for (pop = mn10300_opcodes; pop->name; pop++) {
+	for (pop = mn10300_opcodes; pop->name[0]; pop++) {
 		npop = ilog2(pop->opcode | pop->opmask);
 		if (npop <= 0 || npop > 31)
 			continue;
@@ -484,32 +485,31 @@ found_opcode:
 		goto failed;
 	}
 
+	/* determine the data transfer size of the move */
+	if (pop->name[3] == 0 || /* "mov" */
+	    pop->name[4] == 'l') /* mov_lcc */
+		inc = datasz = 4;
+	else if (pop->name[3] == 'h') /* movhu */
+		inc = datasz = 2;
+	else
+		goto unsupported_instruction;
+
 	if (pop->params[0] & 0x80000000) {
 		/* move memory to register */
 		if (!misalignment_addr(registers, pop->params[0], opcode, disp,
-				       &address, &postinc))
+				       &address, &postinc, &inc))
 			goto bad_addr_mode;
 
 		if (!misalignment_reg(registers, pop->params[1], opcode, disp,
 				      &store))
 			goto bad_reg_mode;
 
-		if (strcmp(pop->name, "mov") == 0 ||
-		    memcmp(pop->name, "mov_l", 5) == 0) {
-			kdebug("mov (%p),DARn", address);
-			if (copy_from_user(&data, (void *) address, 4) != 0)
-				goto transfer_failed;
-			if (pop->params[0] & 0x1000000)
-				*postinc += 4;
-		} else if (strcmp(pop->name, "movhu") == 0) {
-			kdebug("movhu (%p),DARn", address);
-			data = 0;
-			if (copy_from_user(&data, (void *) address, 2) != 0)
-				goto transfer_failed;
-			if (pop->params[0] & 0x1000000)
-				*postinc += 2;
-		} else {
-			goto unsupported_instruction;
+		kdebug("mov%u (%p),DARn", datasz, address);
+		if (copy_from_user(&data, (void *) address, datasz) != 0)
+			goto transfer_failed;
+		if (pop->params[0] & 0x1000000) {
+			kdebug("inc=%lx", inc);
+			*postinc += inc;
 		}
 
 		*store = data;
@@ -521,26 +521,16 @@ found_opcode:
 			goto bad_reg_mode;
 
 		if (!misalignment_addr(registers, pop->params[1], opcode, disp,
-				       &address, &postinc))
+				       &address, &postinc, &inc))
 			goto bad_addr_mode;
 
 		data = *store;
 
-		if (strcmp(pop->name, "mov") == 0) {
-			kdebug("mov %lx,(%p)", data, address);
-			if (copy_to_user((void *) address, &data, 4) != 0)
-				goto transfer_failed;
-			if (pop->params[1] & 0x1000000)
-				*postinc += 4;
-		} else if (strcmp(pop->name, "movhu") == 0) {
-			kdebug("movhu %hx,(%p)", (uint16_t) data, address);
-			if (copy_to_user((void *) address, &data, 2) != 0)
-				goto transfer_failed;
-			if (pop->params[1] & 0x1000000)
-				*postinc += 2;
-		} else {
-			goto unsupported_instruction;
-		}
+		kdebug("mov%u %lx,(%p)", datasz, data, address);
+		if (copy_to_user((void *) address, &data, datasz) != 0)
+			goto transfer_failed;
+		if (pop->params[1] & 0x1000000)
+			*postinc += inc;
 	}
 
 	tmp = format_tbl[pop->format].opsz + format_tbl[pop->format].dispsz;
@@ -560,9 +550,16 @@ found_opcode:
  */
 static int misalignment_addr(unsigned long *registers, unsigned params,
 			     unsigned opcode, unsigned long disp,
-			     void **_address, unsigned long **_postinc)
+			     void **_address, unsigned long **_postinc,
+			     unsigned long *_inc)
 {
 	unsigned long *postinc = NULL, address = 0, tmp;
+
+	if (!(params & 0x1000000)) {
+		kdebug("noinc");
+		*_inc = 0;
+		_inc = NULL;
+	}
 
 	params &= 0x00ffffff;
 
@@ -624,32 +621,40 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			address += registers[REG_SP >> 2];
 			break;
 
+			/* displacements are either to be added to the address
+			 * before use, or, in the case of post-inc addressing,
+			 * to be added into the base register after use */
 		case SD8:
 		case SIMM8:
-			address += (int32_t) (int8_t) (disp & 0xff);
-			break;
+			disp = (long) (int8_t) (disp & 0xff);
+			goto displace_or_inc;
 		case SD16:
-			address += (int32_t) (int16_t) (disp & 0xffff);
-			break;
+			disp = (long) (int16_t) (disp & 0xffff);
+			goto displace_or_inc;
 		case SD24:
 			tmp = disp << 8;
 			asm("asr 8,%0" : "=r"(tmp) : "0"(tmp));
-			address += tmp;
-			break;
+			disp = (long) tmp;
+			goto displace_or_inc;
 		case SIMM4_2:
 			tmp = opcode >> 4 & 0x0f;
 			tmp <<= 28;
 			asm("asr 28,%0" : "=r"(tmp) : "0"(tmp));
-			address += tmp;
-			break;
+			disp = (long) tmp;
+			goto displace_or_inc;
 		case IMM24:
-			address += disp & 0x00ffffff;
-			break;
+			disp &= 0x00ffffff;
+			goto displace_or_inc;
 		case IMM32:
 		case IMM32_MEM:
 		case IMM32_HIGH8:
 		case IMM32_HIGH8_MEM:
-			address += disp;
+		displace_or_inc:
+			kdebug("%s %lx", _inc ? "incr" : "disp", disp);
+			if (!_inc)
+				address += disp;
+			else
+				*_inc = disp;
 			break;
 		default:
 			BUG();
