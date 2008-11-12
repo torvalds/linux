@@ -45,6 +45,28 @@
 # define FIX_EFLAGS	__FIX_EFLAGS
 #endif
 
+static const struct {
+	u16 poplmovl;
+	u32 val;
+	u16 int80;
+} __attribute__((packed)) retcode = {
+	0xb858,		/* popl %eax; movl $..., %eax */
+	__NR_sigreturn,
+	0x80cd,		/* int $0x80 */
+};
+
+static const struct {
+	u8  movl;
+	u32 val;
+	u16 int80;
+	u8  pad;
+} __attribute__((packed)) rt_retcode = {
+	0xb8,		/* movl $..., %eax */
+	__NR_rt_sigreturn,
+	0x80cd,		/* int $0x80 */
+	0
+};
+
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
@@ -427,9 +449,7 @@ __setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	 * reasons and because gdb uses it as a signature to notice
 	 * signal handler stack frames.
 	 */
-	err |= __put_user(0xb858, (short __user *)(frame->retcode+0));
-	err |= __put_user(__NR_sigreturn, (int __user *)(frame->retcode+2));
-	err |= __put_user(0x80cd, (short __user *)(frame->retcode+6));
+	err |= __put_user(*((u64 *)&retcode), (u64 *)frame->retcode);
 
 	if (err)
 		return -EFAULT;
@@ -498,9 +518,7 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * reasons and because gdb uses it as a signature to notice
 	 * signal handler stack frames.
 	 */
-	err |= __put_user(0xb8, (char __user *)(frame->retcode+0));
-	err |= __put_user(__NR_rt_sigreturn, (int __user *)(frame->retcode+1));
-	err |= __put_user(0x80cd, (short __user *)(frame->retcode+5));
+	err |= __put_user(*((u64 *)&rt_retcode), (u64 *)frame->retcode);
 
 	if (err)
 		return -EFAULT;
