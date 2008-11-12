@@ -498,13 +498,12 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 			return_ACPI_STATUS(status);
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-				  "I/O to Data Register: ValuePtr %p\n",
-				  value));
-
 		if (read_write == ACPI_READ) {
 
 			/* Read the datum from the data_register */
+
+			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+					  "Read from Data Register\n"));
 
 			status =
 			    acpi_ex_extract_from_field(obj_desc->index_field.
@@ -512,6 +511,10 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 						       sizeof(acpi_integer));
 		} else {
 			/* Write the datum to the data_register */
+
+			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+					  "Write to Data Register: Value %8.8X%8.8X\n",
+					  ACPI_FORMAT_UINT64(*value)));
 
 			status =
 			    acpi_ex_insert_into_field(obj_desc->index_field.
