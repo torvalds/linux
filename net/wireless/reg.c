@@ -352,6 +352,9 @@ static bool is_valid_rd(const struct ieee80211_regdomain *rd)
 	if (!rd->n_reg_rules)
 		return false;
 
+	if (WARN_ON(rd->n_reg_rules > NL80211_MAX_SUPP_REG_RULES))
+		return false;
+
 	for (i = 0; i < rd->n_reg_rules; i++) {
 		reg_rule = &rd->reg_rules[i];
 		if (!is_valid_reg_rule(reg_rule))
