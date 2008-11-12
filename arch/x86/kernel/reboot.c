@@ -29,14 +29,17 @@ EXPORT_SYMBOL(pm_power_off);
 
 static const struct desc_ptr no_idt = {};
 static int reboot_mode;
-enum reboot_type reboot_type = BOOT_KBD;
+enum reboot_type reboot_type = BOOT_CF9_COND;
 int reboot_force;
 
 #if defined(CONFIG_X86_32) && defined(CONFIG_SMP)
 static int reboot_cpu = -1;
 #endif
 
-/* reboot=b[ios] | s[mp] | t[riple] | k[bd] | e[fi] [, [w]arm | [c]old]
+/* This is set by the PCI code if either type 1 or type 2 PCI is detected */
+bool port_cf9_safe = false;
+
+/* reboot=b[ios] | s[mp] | t[riple] | k[bd] | e[fi] [, [w]arm | [c]old] | p[ci]
    warm   Don't set the cold reboot flag
    cold   Set the cold reboot flag
    bios   Reboot by jumping through the BIOS (only for X86_32)
@@ -45,6 +48,7 @@ static int reboot_cpu = -1;
    kbd    Use the keyboard controller. cold reset (default)
    acpi   Use the RESET_REG in the FADT
    efi    Use efi reset_system runtime service
+   pci    Use the so-called "PCI reset register", CF9
    force  Avoid anything that could hang.
  */
 static int __init reboot_setup(char *str)
@@ -79,6 +83,7 @@ static int __init reboot_setup(char *str)
 		case 'k':
 		case 't':
 		case 'e':
+		case 'p':
 			reboot_type = *str;
 			break;
 
@@ -379,28 +384,43 @@ static void native_machine_emergency_restart(void)
 			load_idt(&no_idt);
 			__asm__ __volatile__("int3");
 
-			reboot_type = BOOT_KBD;
+			reboot_type = BOOT_CF9_COND;
 			break;
 
 #ifdef CONFIG_X86_32
 		case BOOT_BIOS:
 			machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
 
-			reboot_type = BOOT_KBD;
+			reboot_type = BOOT_CF9_COND;
 			break;
 #endif
 
 		case BOOT_ACPI:
 			acpi_reboot();
-			reboot_type = BOOT_KBD;
+			reboot_type = BOOT_CF9_COND;
 			break;
-
 
 		case BOOT_EFI:
 			if (efi_enabled)
-				efi.reset_system(reboot_mode ? EFI_RESET_WARM : EFI_RESET_COLD,
+				efi.reset_system(reboot_mode ?
+						 EFI_RESET_WARM :
+						 EFI_RESET_COLD,
 						 EFI_SUCCESS, 0, NULL);
+			reboot_type = BOOT_CF9_COND;
+			break;
 
+		case BOOT_CF9:
+			port_cf9_safe = true;
+			/* fall through */
+
+		case BOOT_CF9_COND:
+			if (port_cf9_safe) {
+				u8 cf9 = inb(0xcf9) & ~6;
+				outb(cf9|2, 0xcf9); /* Request hard reset */
+				udelay(50);
+				outb(cf9|6, 0xcf9); /* Actually do the reset */
+				udelay(50);
+			}
 			reboot_type = BOOT_KBD;
 			break;
 		}
