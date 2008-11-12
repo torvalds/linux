@@ -1038,7 +1038,7 @@ static int sony_nc_add(struct acpi_device *device)
 		goto outinput;
 	}
 
-	if (!acpi_video_backlight_support()) {
+	if (acpi_video_backlight_support()) {
 		printk(KERN_INFO DRV_PFX "Sony: Brightness ignored, must be "
 		       "controlled by ACPI video driver\n");
 	} else if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "GBRT",
