@@ -30,28 +30,26 @@ static void dma_iommu_free_coherent(struct device *dev, size_t size,
 }
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
- * contiguous real kernel storage (not vmalloc).  The address of the buffer
- * passed here is the kernel (virtual) address of the buffer.  The buffer
- * need not be page aligned, the dma_addr_t returned will point to the same
- * byte within the page as vaddr.
+ * contiguous real kernel storage (not vmalloc).  The address passed here
+ * comprises a page address and offset into that page. The dma_addr_t
+ * returned will point to the same byte within the page as was passed in.
  */
-static dma_addr_t dma_iommu_map_single(struct device *dev, void *vaddr,
-				       size_t size,
-				       enum dma_data_direction direction,
-				       struct dma_attrs *attrs)
+static dma_addr_t dma_iommu_map_page(struct device *dev, struct page *page,
+				     unsigned long offset, size_t size,
+				     enum dma_data_direction direction,
+				     struct dma_attrs *attrs)
 {
-	return iommu_map_single(dev, dev->archdata.dma_data, vaddr, size,
-				device_to_mask(dev), direction, attrs);
+	return iommu_map_page(dev, dev->archdata.dma_data, page, offset, size,
+			      device_to_mask(dev), direction, attrs);
 }
 
 
-static void dma_iommu_unmap_single(struct device *dev, dma_addr_t dma_handle,
-				   size_t size,
-				   enum dma_data_direction direction,
-				   struct dma_attrs *attrs)
+static void dma_iommu_unmap_page(struct device *dev, dma_addr_t dma_handle,
+				 size_t size, enum dma_data_direction direction,
+				 struct dma_attrs *attrs)
 {
-	iommu_unmap_single(dev->archdata.dma_data, dma_handle, size, direction,
-			   attrs);
+	iommu_unmap_page(dev->archdata.dma_data, dma_handle, size, direction,
+			 attrs);
 }
 
 
@@ -94,10 +92,10 @@ static int dma_iommu_dma_supported(struct device *dev, u64 mask)
 struct dma_mapping_ops dma_iommu_ops = {
 	.alloc_coherent	= dma_iommu_alloc_coherent,
 	.free_coherent	= dma_iommu_free_coherent,
-	.map_single	= dma_iommu_map_single,
-	.unmap_single	= dma_iommu_unmap_single,
 	.map_sg		= dma_iommu_map_sg,
 	.unmap_sg	= dma_iommu_unmap_sg,
 	.dma_supported	= dma_iommu_dma_supported,
+	.map_page	= dma_iommu_map_page,
+	.unmap_page	= dma_iommu_unmap_page,
 };
 EXPORT_SYMBOL(dma_iommu_ops);

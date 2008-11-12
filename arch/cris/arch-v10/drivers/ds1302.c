@@ -24,10 +24,10 @@
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 #include <asm/io.h>
 #include <asm/rtc.h>
-#include <asm/arch/io_interface_mux.h>
+#include <arch/io_interface_mux.h>
 
 #include "i2c.h"
 

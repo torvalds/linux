@@ -162,9 +162,13 @@ static int freezer_can_attach(struct cgroup_subsys *ss,
 			      struct task_struct *task)
 {
 	struct freezer *freezer;
-	int retval;
 
-	/* Anything frozen can't move or be moved to/from */
+	/*
+	 * Anything frozen can't move or be moved to/from.
+	 *
+	 * Since orig_freezer->state == FROZEN means that @task has been
+	 * frozen, so it's sufficient to check the latter condition.
+	 */
 
 	if (is_task_frozen_enough(task))
 		return -EBUSY;
@@ -173,13 +177,7 @@ static int freezer_can_attach(struct cgroup_subsys *ss,
 	if (freezer->state == CGROUP_FROZEN)
 		return -EBUSY;
 
-	retval = 0;
-	task_lock(task);
-	freezer = task_freezer(task);
-	if (freezer->state == CGROUP_FROZEN)
-		retval = -EBUSY;
-	task_unlock(task);
-	return retval;
+	return 0;
 }
 
 static void freezer_fork(struct cgroup_subsys *ss, struct task_struct *task)
@@ -190,8 +188,9 @@ static void freezer_fork(struct cgroup_subsys *ss, struct task_struct *task)
 	freezer = task_freezer(task);
 	task_unlock(task);
 
-	BUG_ON(freezer->state == CGROUP_FROZEN);
 	spin_lock_irq(&freezer->lock);
+	BUG_ON(freezer->state == CGROUP_FROZEN);
+
 	/* Locking avoids race with FREEZING -> THAWED transitions. */
 	if (freezer->state == CGROUP_FREEZING)
 		freeze_task(task, true);
@@ -276,25 +275,18 @@ static int try_to_freeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
 	return num_cant_freeze_now ? -EBUSY : 0;
 }
 
-static int unfreeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
+static void unfreeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
 {
 	struct cgroup_iter it;
 	struct task_struct *task;
 
 	cgroup_iter_start(cgroup, &it);
 	while ((task = cgroup_iter_next(cgroup, &it))) {
-		int do_wake;
-
-		task_lock(task);
-		do_wake = __thaw_process(task);
-		task_unlock(task);
-		if (do_wake)
-			wake_up_process(task);
+		thaw_process(task);
 	}
 	cgroup_iter_end(cgroup, &it);
-	freezer->state = CGROUP_THAWED;
 
-	return 0;
+	freezer->state = CGROUP_THAWED;
 }
 
 static int freezer_change_state(struct cgroup *cgroup,
@@ -304,27 +296,22 @@ static int freezer_change_state(struct cgroup *cgroup,
 	int retval = 0;
 
 	freezer = cgroup_freezer(cgroup);
+
 	spin_lock_irq(&freezer->lock);
+
 	update_freezer_state(cgroup, freezer);
 	if (goal_state == freezer->state)
 		goto out;
-	switch (freezer->state) {
+
+	switch (goal_state) {
 	case CGROUP_THAWED:
+		unfreeze_cgroup(cgroup, freezer);
+		break;
+	case CGROUP_FROZEN:
 		retval = try_to_freeze_cgroup(cgroup, freezer);
 		break;
-	case CGROUP_FREEZING:
-		if (goal_state == CGROUP_FROZEN) {
-			/* Userspace is retrying after
-			 * "/bin/echo FROZEN > freezer.state" returned -EBUSY */
-			retval = try_to_freeze_cgroup(cgroup, freezer);
-			break;
-		}
-		/* state == FREEZING and goal_state == THAWED, so unfreeze */
-	case CGROUP_FROZEN:
-		retval = unfreeze_cgroup(cgroup, freezer);
-		break;
 	default:
-		break;
+		BUG();
 	}
 out:
 	spin_unlock_irq(&freezer->lock);

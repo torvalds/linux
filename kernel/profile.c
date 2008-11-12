@@ -102,7 +102,7 @@ int profile_setup(char *str)
 __setup("profile=", profile_setup);
 
 
-int profile_init(void)
+int __ref profile_init(void)
 {
 	int buffer_bytes;
 	if (!prof_on)

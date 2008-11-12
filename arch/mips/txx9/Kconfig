@@ -46,9 +46,10 @@ config TOSHIBA_RBTX4938
 	  support this machine type
 
 config TOSHIBA_RBTX4939
-	bool "Toshiba RBTX4939 bobard"
+	bool "Toshiba RBTX4939 board"
 	depends on MACH_TX49XX
 	select SOC_TX4939
+	select TXX9_7SEGLED
 	help
 	  This Toshiba board is based on the TX4939 processor. Say Y here to
 	  support this machine type
@@ -85,6 +86,9 @@ config SOC_TX4939
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
 	select PCI_TX4927
+
+config TXX9_7SEGLED
+	bool
 
 config TOSHIBA_FPCIB0
 	bool "FPCIB0 Backplane Support"

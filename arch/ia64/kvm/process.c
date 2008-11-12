@@ -713,7 +713,7 @@ void leave_hypervisor_tail(void)
 				if (!(VCPU(v, itv) & (1 << 16))) {
 					vcpu_pend_interrupt(v, VCPU(v, itv)
 							& 0xff);
-				VMX(v, itc_check) = 0;
+					VMX(v, itc_check) = 0;
 				} else {
 					v->arch.timer_pending = 1;
 				}

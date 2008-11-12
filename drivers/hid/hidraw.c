@@ -264,6 +264,7 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 		default:
 			ret = -ENOTTY;
 	}
+	unlock_kernel();
 	return ret;
 }
 
@@ -403,7 +404,7 @@ out:
 	return result;
 }
 
-void __exit hidraw_exit(void)
+void hidraw_exit(void)
 {
 	dev_t dev_id = MKDEV(hidraw_major, 0);
 

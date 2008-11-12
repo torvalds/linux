@@ -936,7 +936,6 @@ extern void sock_init_data(struct socket *sock, struct sock *sk);
 
 /**
  *	sk_filter_release: Release a socket filter
- *	@sk: socket
  *	@fp: filter to remove
  *
  *	Remove a filter from a socket and release its resources.

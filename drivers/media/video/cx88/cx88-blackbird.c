@@ -1078,7 +1078,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 		}
 	}
 
-	if (blackbird_initialize_codec(dev) < 0) {
+	if (!atomic_read(&dev->core->mpeg_users) && blackbird_initialize_codec(dev) < 0) {
 		if (drv)
 			drv->request_release(drv);
 		unlock_kernel();
@@ -1109,6 +1109,8 @@ static int mpeg_open(struct inode *inode, struct file *file)
 			fh->mpegq.field);
 	unlock_kernel();
 
+	atomic_inc(&dev->core->mpeg_users);
+
 	return 0;
 }
 
@@ -1118,7 +1120,7 @@ static int mpeg_release(struct inode *inode, struct file *file)
 	struct cx8802_dev *dev = fh->dev;
 	struct cx8802_driver *drv = NULL;
 
-	if (dev->mpeg_active)
+	if (dev->mpeg_active && atomic_read(&dev->core->mpeg_users) == 1)
 		blackbird_stop_codec(dev);
 
 	cx8802_cancel_buffers(fh->dev);
@@ -1137,6 +1139,8 @@ static int mpeg_release(struct inode *inode, struct file *file)
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
 	if (drv)
 		drv->request_release(drv);
+
+	atomic_dec(&dev->core->mpeg_users);
 
 	return 0;
 }
@@ -1158,6 +1162,10 @@ static unsigned int
 mpeg_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct cx8802_fh *fh = file->private_data;
+	struct cx8802_dev *dev = fh->dev;
+
+	if (!dev->mpeg_active)
+		blackbird_start_codec(file, fh);
 
 	return videobuf_poll_stream(file, &fh->mpegq, wait);
 }

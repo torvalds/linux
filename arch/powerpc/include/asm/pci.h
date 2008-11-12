@@ -208,6 +208,8 @@ extern void pcibios_setup_new_device(struct pci_dev *dev);
 
 extern void pcibios_claim_one_bus(struct pci_bus *b);
 
+extern void pcibios_allocate_bus_resources(struct pci_bus *bus);
+
 extern void pcibios_resource_survey(void);
 
 extern struct pci_controller *init_phb_dynamic(struct device_node *dn);

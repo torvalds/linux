@@ -261,6 +261,8 @@ static inline int can_respond(struct sk_buff *skb)
 		return 0; /* we are not the destination */
 	if (ph->pn_res == PN_PREFIX && !pskb_may_pull(skb, 5))
 		return 0;
+	if (ph->pn_res == PN_COMMGR) /* indications */
+		return 0;
 
 	ph = pn_hdr(skb); /* re-acquires the pointer */
 	pm = pn_msg(skb);
@@ -309,7 +311,8 @@ static int send_reset_indications(struct sk_buff *rskb)
 
 	return pn_raw_send(data, sizeof(data), rskb->dev,
 				pn_object(oph->pn_sdev, 0x00),
-				pn_object(oph->pn_rdev, oph->pn_robj), 0x10);
+				pn_object(oph->pn_rdev, oph->pn_robj),
+				PN_COMMGR);
 }
 
 

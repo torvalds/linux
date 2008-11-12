@@ -34,14 +34,14 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <asm/system.h>
 #include <linux/delay.h>
 
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 
 /* non-arch dependent serial structures are in linux/serial.h */
 #include <linux/serial.h>
 /* while we keep our own stuff (struct e100_serial) in a local .h file */
 #include "crisv10.h"
 #include <asm/fasttimer.h>
-#include <asm/arch/io_interface_mux.h>
+#include <arch/io_interface_mux.h>
 
 #ifdef CONFIG_ETRAX_SERIAL_FAST_TIMER
 #ifndef CONFIG_ETRAX_FAST_TIMER

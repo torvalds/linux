@@ -372,7 +372,7 @@ syscall_exit:
 7:	.long	do_syscall_trace_enter
 8:	.long	do_syscall_trace_leave
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	.align 2
 	.globl	_mcount
 	.type	_mcount,@function
@@ -414,4 +414,4 @@ skip_trace:
 ftrace_stub:
 	rts
 	 nop
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */

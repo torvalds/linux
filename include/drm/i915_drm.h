@@ -159,6 +159,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_SW_FINISH	0x20
 #define DRM_I915_GEM_SET_TILING	0x21
 #define DRM_I915_GEM_GET_TILING	0x22
+#define DRM_I915_GEM_GET_APERTURE 0x23
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -190,6 +191,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_SW_FINISH	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_SW_FINISH, struct drm_i915_gem_sw_finish)
 #define DRM_IOCTL_I915_GEM_SET_TILING	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_SET_TILING, struct drm_i915_gem_set_tiling)
 #define DRM_IOCTL_I915_GEM_GET_TILING	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_GET_TILING, struct drm_i915_gem_get_tiling)
+#define DRM_IOCTL_I915_GEM_GET_APERTURE	DRM_IOR  (DRM_COMMAND_BASE + DRM_I915_GEM_GET_APERTURE, struct drm_i915_gem_get_aperture)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -598,6 +600,17 @@ struct drm_i915_gem_get_tiling {
 	 * mmap mapping.
 	 */
 	uint32_t swizzle_mode;
+};
+
+struct drm_i915_gem_get_aperture {
+	/** Total size of the aperture used by i915_gem_execbuffer, in bytes */
+	uint64_t aper_size;
+
+	/**
+	 * Available space in the aperture used by i915_gem_execbuffer, in
+	 * bytes
+	 */
+	uint64_t aper_available_size;
 };
 
 #endif				/* _I915_DRM_H_ */
