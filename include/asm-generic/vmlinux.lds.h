@@ -45,6 +45,17 @@
 #define MCOUNT_REC()
 #endif
 
+#ifdef CONFIG_TRACE_UNLIKELY_PROFILE
+#define LIKELY_PROFILE()	VMLINUX_SYMBOL(__start_likely_profile) = .;   \
+				*(_ftrace_likely)			      \
+				VMLINUX_SYMBOL(__stop_likely_profile) = .;    \
+				VMLINUX_SYMBOL(__start_unlikely_profile) = .; \
+				*(_ftrace_unlikely)			      \
+				VMLINUX_SYMBOL(__stop_unlikely_profile) = .;
+#else
+#define LIKELY_PROFILE()
+#endif
+
 /* .data section */
 #define DATA_DATA							\
 	*(.data)							\
@@ -62,7 +73,8 @@
 	VMLINUX_SYMBOL(__stop___markers) = .;				\
 	VMLINUX_SYMBOL(__start___tracepoints) = .;			\
 	*(__tracepoints)						\
-	VMLINUX_SYMBOL(__stop___tracepoints) = .;
+	VMLINUX_SYMBOL(__stop___tracepoints) = .;			\
+	LIKELY_PROFILE()
 
 #define RO_DATA(align)							\
 	. = ALIGN((align));						\

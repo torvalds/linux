@@ -59,8 +59,65 @@ extern void __chk_io_ptr(const volatile void __iomem *);
  * specific implementations come from the above header files
  */
 
-#define likely(x)	__builtin_expect(!!(x), 1)
-#define unlikely(x)	__builtin_expect(!!(x), 0)
+#ifdef CONFIG_TRACE_UNLIKELY_PROFILE
+struct ftrace_likely_data {
+	const char *func;
+	const char *file;
+	unsigned line;
+	unsigned long correct;
+	unsigned long incorrect;
+};
+void ftrace_likely_update(struct ftrace_likely_data *f, int val, int expect);
+
+#define likely_notrace(x)	__builtin_expect(!!(x), 1)
+#define unlikely_notrace(x)	__builtin_expect(!!(x), 0)
+
+#define likely_check(x) ({						\
+			int ______r;					\
+			static struct ftrace_likely_data		\
+				__attribute__((__aligned__(4)))		\
+				__attribute__((section("_ftrace_likely"))) \
+				______f = {				\
+				.func = __func__,			\
+				.file = __FILE__,			\
+				.line = __LINE__,			\
+			};						\
+			______f.line = __LINE__;			\
+			______r = likely_notrace(x);			\
+			ftrace_likely_update(&______f, ______r, 1);	\
+			______r;					\
+		})
+#define unlikely_check(x) ({						\
+			int ______r;					\
+			static struct ftrace_likely_data		\
+				__attribute__((__aligned__(4)))		\
+				__attribute__((section("_ftrace_unlikely"))) \
+				______f = {				\
+				.func = __func__,			\
+				.file = __FILE__,			\
+				.line = __LINE__,			\
+			};						\
+			______f.line = __LINE__;			\
+			______r = unlikely_notrace(x);			\
+			ftrace_likely_update(&______f, ______r, 0);	\
+			______r;					\
+		})
+
+/*
+ * Using __builtin_constant_p(x) to ignore cases where the return
+ * value is always the same.  This idea is taken from a similar patch
+ * written by Daniel Walker.
+ */
+# ifndef likely
+#  define likely(x)	(__builtin_constant_p(x) ? !!(x) : likely_check(x))
+# endif
+# ifndef unlikely
+#  define unlikely(x)	(__builtin_constant_p(x) ? !!(x) : unlikely_check(x))
+# endif
+#else
+# define likely(x)	__builtin_expect(!!(x), 1)
+# define unlikely(x)	__builtin_expect(!!(x), 0)
+#endif
 
 /* Optimization barrier */
 #ifndef barrier
