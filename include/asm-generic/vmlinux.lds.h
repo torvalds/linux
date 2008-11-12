@@ -45,7 +45,7 @@
 #define MCOUNT_REC()
 #endif
 
-#ifdef CONFIG_TRACE_UNLIKELY_PROFILE
+#ifdef CONFIG_TRACE_BRANCH_PROFILING
 #define LIKELY_PROFILE()	VMLINUX_SYMBOL(__start_likely_profile) = .;   \
 				*(_ftrace_likely)			      \
 				VMLINUX_SYMBOL(__stop_likely_profile) = .;    \

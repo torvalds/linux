@@ -258,7 +258,7 @@ static const char *trace_options[] = {
 	"sched-tree",
 	"ftrace_printk",
 	"ftrace_preempt",
-#ifdef CONFIG_UNLIKELY_TRACER
+#ifdef CONFIG_BRANCH_TRACER
 	"unlikely",
 #endif
 	NULL

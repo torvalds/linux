@@ -15,7 +15,7 @@
 #include <asm/local.h>
 #include "trace.h"
 
-#ifdef CONFIG_UNLIKELY_TRACER
+#ifdef CONFIG_BRANCH_TRACER
 
 static int unlikely_tracing_enabled __read_mostly;
 static DEFINE_MUTEX(unlikely_tracing_mutex);
@@ -119,7 +119,7 @@ static inline
 void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
 }
-#endif /* CONFIG_UNLIKELY_TRACER */
+#endif /* CONFIG_BRANCH_TRACER */
 
 void ftrace_likely_update(struct ftrace_likely_data *f, int val, int expect)
 {

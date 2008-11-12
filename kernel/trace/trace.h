@@ -468,7 +468,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_SCHED_TREE		= 0x200,
 	TRACE_ITER_PRINTK		= 0x400,
 	TRACE_ITER_PREEMPTONLY		= 0x800,
-#ifdef CONFIG_UNLIKELY_TRACER
+#ifdef CONFIG_BRANCH_TRACER
 	TRACE_ITER_UNLIKELY		= 0x1000,
 #endif
 };
@@ -530,7 +530,7 @@ static inline void ftrace_preempt_enable(int resched)
 		preempt_enable_notrace();
 }
 
-#ifdef CONFIG_UNLIKELY_TRACER
+#ifdef CONFIG_BRANCH_TRACER
 extern int enable_unlikely_tracing(struct trace_array *tr);
 extern void disable_unlikely_tracing(void);
 static inline int trace_unlikely_enable(struct trace_array *tr)
@@ -552,6 +552,6 @@ static inline int trace_unlikely_enable(struct trace_array *tr)
 static inline void trace_unlikely_disable(void)
 {
 }
-#endif /* CONFIG_UNLIKELY_TRACER */
+#endif /* CONFIG_BRANCH_TRACER */
 
 #endif /* _LINUX_KERNEL_TRACE_H */

@@ -18,7 +18,7 @@
  */
 
 /* Disable profiling for userspace code: */
-#define DISABLE_UNLIKELY_PROFILE
+#define DISABLE_BRANCH_PROFILING
 
 #include <linux/time.h>
 #include <linux/init.h>

@@ -159,7 +159,7 @@ config BOOT_TRACER
 	    selected, because the self-tests are an initcall as well and that
 	    would invalidate the boot trace. )
 
-config TRACE_UNLIKELY_PROFILE
+config TRACE_BRANCH_PROFILING
 	bool "Trace likely/unlikely profiler"
 	depends on DEBUG_KERNEL
 	select TRACING
@@ -175,7 +175,7 @@ config TRACE_UNLIKELY_PROFILE
 
 	  Say N if unsure.
 
-config TRACING_UNLIKELY
+config TRACING_BRANCHES
 	bool
 	help
 	  Selected by tracers that will trace the likely and unlikely
@@ -183,10 +183,10 @@ config TRACING_UNLIKELY
 	  profiled. Profiling the tracing infrastructure can only happen
 	  when the likelys and unlikelys are not being traced.
 
-config UNLIKELY_TRACER
+config BRANCH_TRACER
 	bool "Trace likely/unlikely instances"
-	depends on TRACE_UNLIKELY_PROFILE
-	select TRACING_UNLIKELY
+	depends on TRACE_BRANCH_PROFILING
+	select TRACING_BRANCHES
 	help
 	  This traces the events of likely and unlikely condition
 	  calls in the kernel.  The difference between this and the

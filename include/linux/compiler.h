@@ -59,26 +59,27 @@ extern void __chk_io_ptr(const volatile void __iomem *);
  * specific implementations come from the above header files
  */
 
-/*
- * Note: DISABLE_UNLIKELY_PROFILE can be used by special lowlevel code
- * to disable branch tracing on a per file basis.
- */
-#if defined(CONFIG_TRACE_UNLIKELY_PROFILE) && !defined(DISABLE_UNLIKELY_PROFILE)
-struct ftrace_likely_data {
+struct ftrace_branch_data {
 	const char *func;
 	const char *file;
 	unsigned line;
 	unsigned long correct;
 	unsigned long incorrect;
 };
-void ftrace_likely_update(struct ftrace_likely_data *f, int val, int expect);
+
+/*
+ * Note: DISABLE_BRANCH_PROFILING can be used by special lowlevel code
+ * to disable branch tracing on a per file basis.
+ */
+#if defined(CONFIG_TRACE_BRANCH_PROFILING) && !defined(DISABLE_BRANCH_PROFILING)
+void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 
 #define likely_notrace(x)	__builtin_expect(!!(x), 1)
 #define unlikely_notrace(x)	__builtin_expect(!!(x), 0)
 
 #define likely_check(x) ({						\
 			int ______r;					\
-			static struct ftrace_likely_data		\
+			static struct ftrace_branch_data		\
 				__attribute__((__aligned__(4)))		\
 				__attribute__((section("_ftrace_likely"))) \
 				______f = {				\
@@ -93,7 +94,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val, int expect);
 		})
 #define unlikely_check(x) ({						\
 			int ______r;					\
-			static struct ftrace_likely_data		\
+			static struct ftrace_branch_data		\
 				__attribute__((__aligned__(4)))		\
 				__attribute__((section("_ftrace_unlikely"))) \
 				______f = {				\
