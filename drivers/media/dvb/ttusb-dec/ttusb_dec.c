@@ -1260,6 +1260,7 @@ static int ttusb_dec_init_usb(struct ttusb_dec *dec)
 		dec->irq_buffer = usb_buffer_alloc(dec->udev,IRQ_PACKET_SIZE,
 					GFP_ATOMIC, &dec->irq_dma_handle);
 		if(!dec->irq_buffer) {
+			usb_free_urb(dec->irq_urb);
 			return -ENOMEM;
 		}
 		usb_fill_int_urb(dec->irq_urb, dec->udev,dec->irq_pipe,
