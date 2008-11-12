@@ -1719,6 +1719,11 @@ static inline int btrfs_del_item(struct btrfs_trans_handle *trans,
 
 int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, void *data, u32 data_size);
+int btrfs_insert_some_items(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root,
+			    struct btrfs_path *path,
+			    struct btrfs_key *cpu_key, u32 *data_size,
+			    int nr);
 int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path,

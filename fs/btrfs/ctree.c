@@ -431,6 +431,25 @@ static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 	return 0;
 }
 
+/*
+ * same as comp_keys only with two btrfs_key's
+ */
+static int comp_cpu_keys(struct btrfs_key *k1, struct btrfs_key *k2)
+{
+	if (k1->objectid > k2->objectid)
+		return 1;
+	if (k1->objectid < k2->objectid)
+		return -1;
+	if (k1->type > k2->type)
+		return 1;
+	if (k1->type < k2->type)
+		return -1;
+	if (k1->offset > k2->offset)
+		return 1;
+	if (k1->offset < k2->offset)
+		return -1;
+	return 0;
+}
 
 /*
  * this is used by the defrag code to go through all the
@@ -2996,6 +3015,157 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans,
 		btrfs_print_leaf(root, leaf);
 		BUG();
 	}
+	return ret;
+}
+
+/*
+ * Given a key and some data, insert items into the tree.
+ * This does all the path init required, making room in the tree if needed.
+ * Returns the number of keys that were inserted.
+ */
+int btrfs_insert_some_items(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root,
+			    struct btrfs_path *path,
+			    struct btrfs_key *cpu_key, u32 *data_size,
+			    int nr)
+{
+	struct extent_buffer *leaf;
+	struct btrfs_item *item;
+	int ret = 0;
+	int slot;
+	int slot_orig;
+	int i;
+	u32 nritems;
+	u32 total_data = 0;
+	u32 total_size = 0;
+	unsigned int data_end;
+	struct btrfs_disk_key disk_key;
+	struct btrfs_key found_key;
+
+	found_key.objectid = 0;
+	nr = min_t(int, nr, BTRFS_NODEPTRS_PER_BLOCK(root));
+
+	for (i = 0; i < nr; i++)
+		total_data += data_size[i];
+
+	total_data = min_t(u32, total_data, BTRFS_LEAF_DATA_SIZE(root));
+	total_size = total_data + (nr * sizeof(struct btrfs_item));
+	ret = btrfs_search_slot(trans, root, cpu_key, path, total_size, 1);
+	if (ret == 0)
+		return -EEXIST;
+	if (ret < 0)
+		goto out;
+
+	slot_orig = path->slots[0];
+	leaf = path->nodes[0];
+
+	nritems = btrfs_header_nritems(leaf);
+	data_end = leaf_data_end(root, leaf);
+
+	if (btrfs_leaf_free_space(root, leaf) < total_size) {
+		for (i = nr; i >= 0; i--) {
+			total_data -= data_size[i];
+			total_size -= data_size[i] + sizeof(struct btrfs_item);
+			if (total_size < btrfs_leaf_free_space(root, leaf))
+				break;
+		}
+		nr = i;
+	}
+
+	slot = path->slots[0];
+	BUG_ON(slot < 0);
+
+	if (slot != nritems) {
+		unsigned int old_data = btrfs_item_end_nr(leaf, slot);
+
+		item = btrfs_item_nr(leaf, slot);
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+
+		/* figure out how many keys we can insert in here */
+		total_data = data_size[0];
+		for (i = 1; i < nr; i++) {
+			if (comp_cpu_keys(&found_key, cpu_key + i) <= 0)
+				break;
+			total_data += data_size[i];
+		}
+		nr = i;
+
+		if (old_data < data_end) {
+			btrfs_print_leaf(root, leaf);
+			printk("slot %d old_data %d data_end %d\n",
+			       slot, old_data, data_end);
+			BUG_ON(1);
+		}
+		/*
+		 * item0..itemN ... dataN.offset..dataN.size .. data0.size
+		 */
+		/* first correct the data pointers */
+		WARN_ON(leaf->map_token);
+		for (i = slot; i < nritems; i++) {
+			u32 ioff;
+
+			item = btrfs_item_nr(leaf, i);
+			if (!leaf->map_token) {
+				map_extent_buffer(leaf, (unsigned long)item,
+					sizeof(struct btrfs_item),
+					&leaf->map_token, &leaf->kaddr,
+					&leaf->map_start, &leaf->map_len,
+					KM_USER1);
+			}
+
+			ioff = btrfs_item_offset(leaf, item);
+			btrfs_set_item_offset(leaf, item, ioff - total_data);
+		}
+		if (leaf->map_token) {
+			unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
+			leaf->map_token = NULL;
+		}
+
+		/* shift the items */
+		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot + nr),
+			      btrfs_item_nr_offset(slot),
+			      (nritems - slot) * sizeof(struct btrfs_item));
+
+		/* shift the data */
+		memmove_extent_buffer(leaf, btrfs_leaf_data(leaf) +
+			      data_end - total_data, btrfs_leaf_data(leaf) +
+			      data_end, old_data - data_end);
+		data_end = old_data;
+	} else {
+		/*
+		 * this sucks but it has to be done, if we are inserting at
+		 * the end of the leaf only insert 1 of the items, since we
+		 * have no way of knowing whats on the next leaf and we'd have
+		 * to drop our current locks to figure it out
+		 */
+		nr = 1;
+	}
+
+	/* setup the item for the new data */
+	for (i = 0; i < nr; i++) {
+		btrfs_cpu_key_to_disk(&disk_key, cpu_key + i);
+		btrfs_set_item_key(leaf, &disk_key, slot + i);
+		item = btrfs_item_nr(leaf, slot + i);
+		btrfs_set_item_offset(leaf, item, data_end - data_size[i]);
+		data_end -= data_size[i];
+		btrfs_set_item_size(leaf, item, data_size[i]);
+	}
+	btrfs_set_header_nritems(leaf, nritems + nr);
+	btrfs_mark_buffer_dirty(leaf);
+
+	ret = 0;
+	if (slot == 0) {
+		btrfs_cpu_key_to_disk(&disk_key, cpu_key);
+		ret = fixup_low_keys(trans, root, path, &disk_key, 1);
+	}
+
+	if (btrfs_leaf_free_space(root, leaf) < 0) {
+		btrfs_print_leaf(root, leaf);
+		BUG();
+	}
+out:
+	if (!ret)
+		ret = nr;
 	return ret;
 }
 
