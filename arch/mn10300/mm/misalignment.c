@@ -650,3 +650,164 @@ static int misalignment_reg(unsigned long *registers, unsigned params,
 
 	return 1;
 }
+
+/*
+ * misalignment handler tests
+ */
+#ifdef CONFIG_TEST_MISALIGNMENT_HANDLER
+static u8 __initdata testbuf[512] __attribute__((aligned(16))) = {
+	[257] = 0x11,
+	[258] = 0x22,
+	[259] = 0x33,
+	[260] = 0x44,
+};
+
+#define ASSERTCMP(X, OP, Y)						\
+do {									\
+	if (unlikely(!((X) OP (Y)))) {					\
+		printk(KERN_ERR "\n");					\
+		printk(KERN_ERR "MISALIGN: Assertion failed at line %u\n", \
+		       __LINE__);					\
+		printk(KERN_ERR "0x%lx " #OP " 0x%lx is false\n",	\
+		       (unsigned long)(X), (unsigned long)(Y));		\
+		BUG();							\
+	}								\
+} while(0)
+
+static int __init test_misalignment(void)
+{
+	register void *r asm("e0");
+	register u32 y asm("e1");
+	void *p = testbuf, *q;
+	u32 tmp, tmp2, x;
+
+	printk(KERN_NOTICE "==>test_misalignment() [testbuf=%p]\n", p);
+	p++;
+
+	printk(KERN_NOTICE "___ MOV (Am),Dn ___\n");
+	q = p + 256;
+	asm volatile("mov	(%0),%1" : "+a"(q), "=d"(x));
+	ASSERTCMP(q, ==, p + 256);
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (256,Am),Dn ___\n");
+	q = p;
+	asm volatile("mov	(256,%0),%1" : "+a"(q), "=d"(x));
+	ASSERTCMP(q, ==, p);
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (Di,Am),Dn ___\n");
+	tmp = 256;
+	q = p;
+	asm volatile("mov	(%2,%0),%1" : "+a"(q), "=d"(x), "+d"(tmp));
+	ASSERTCMP(q, ==, p);
+	ASSERTCMP(x, ==, 0x44332211);
+	ASSERTCMP(tmp, ==, 256);
+
+	printk(KERN_NOTICE "___ MOV (256,Rm),Rn ___\n");
+	r = p;
+	asm volatile("mov	(256,%0),%1" : "+r"(r), "=r"(y));
+	ASSERTCMP(r, ==, p);
+	ASSERTCMP(y, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (Rm+),Rn ___\n");
+	r = p + 256;
+	asm volatile("mov	(%0+),%1" : "+r"(r), "=r"(y));
+	ASSERTCMP(r, ==, p + 256 + 4);
+	ASSERTCMP(y, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (Rm+,8),Rn ___\n");
+	r = p + 256;
+	asm volatile("mov	(%0+,8),%1" : "+r"(r), "=r"(y));
+	ASSERTCMP(r, ==, p + 256 + 8);
+	ASSERTCMP(y, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (7,SP),Rn ___\n");
+	asm volatile(
+		"add	-16,sp		\n"
+		"mov	+0x11,%0	\n"
+		"movbu	%0,(7,sp)	\n"
+		"mov	+0x22,%0	\n"
+		"movbu	%0,(8,sp)	\n"
+		"mov	+0x33,%0	\n"
+		"movbu	%0,(9,sp)	\n"
+		"mov	+0x44,%0	\n"
+		"movbu	%0,(10,sp)	\n"
+		"mov	(7,sp),%1	\n"
+		"add	+16,sp		\n"
+		: "+a"(q), "=d"(x));
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV (259,SP),Rn ___\n");
+	asm volatile(
+		"add	-264,sp		\n"
+		"mov	+0x11,%0	\n"
+		"movbu	%0,(259,sp)	\n"
+		"mov	+0x22,%0	\n"
+		"movbu	%0,(260,sp)	\n"
+		"mov	+0x33,%0	\n"
+		"movbu	%0,(261,sp)	\n"
+		"mov	+0x55,%0	\n"
+		"movbu	%0,(262,sp)	\n"
+		"mov	(259,sp),%1	\n"
+		"add	+264,sp		\n"
+		: "+d"(tmp), "=d"(x));
+	ASSERTCMP(x, ==, 0x55332211);
+
+	printk(KERN_NOTICE "___ MOV (260,SP),Rn ___\n");
+	asm volatile(
+		"add	-264,sp		\n"
+		"mov	+0x11,%0	\n"
+		"movbu	%0,(260,sp)	\n"
+		"mov	+0x22,%0	\n"
+		"movbu	%0,(261,sp)	\n"
+		"mov	+0x33,%0	\n"
+		"movbu	%0,(262,sp)	\n"
+		"mov	+0x55,%0	\n"
+		"movbu	%0,(263,sp)	\n"
+		"mov	(260,sp),%1	\n"
+		"add	+264,sp		\n"
+		: "+d"(tmp), "=d"(x));
+	ASSERTCMP(x, ==, 0x55332211);
+
+
+	printk(KERN_NOTICE "___ MOV_LNE ___\n");
+	tmp = 1;
+	tmp2 = 2;
+	q = p + 256;
+	asm volatile(
+		"setlb			\n"
+		"mov	%2,%3		\n"
+		"mov	%1,%2		\n"
+		"cmp	+0,%1		\n"
+		"mov_lne	(%0+,4),%1"
+		: "+r"(q), "+d"(tmp), "+d"(tmp2), "=d"(x)
+		:
+		: "cc");
+	ASSERTCMP(q, ==, p + 256 + 12);
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "___ MOV in SETLB ___\n");
+	tmp = 1;
+	tmp2 = 2;
+	q = p + 256;
+	asm volatile(
+		"setlb			\n"
+		"mov	%1,%3		\n"
+		"mov	(%0+),%1	\n"
+		"cmp	+0,%1		\n"
+		"lne			"
+		: "+a"(q), "+d"(tmp), "+d"(tmp2), "=d"(x)
+		:
+		: "cc");
+
+	ASSERTCMP(q, ==, p + 256 + 8);
+	ASSERTCMP(x, ==, 0x44332211);
+
+	printk(KERN_NOTICE "<==test_misalignment()\n");
+	return 0;
+}
+
+arch_initcall(test_misalignment);
+
+#endif /* CONFIG_TEST_MISALIGNMENT_HANDLER */
