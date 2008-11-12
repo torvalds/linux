@@ -635,12 +635,12 @@ vector=FIRST_EXTERNAL_VECTOR
 	.balign 32
   .rept	7
     .if vector < NR_VECTORS
-      .if vector != FIRST_EXTERNAL_VECTOR
+      .if vector <> FIRST_EXTERNAL_VECTOR
 	CFI_ADJUST_CFA_OFFSET -4
       .endif
 1:	pushl $(~vector+0x80)	/* Note: always in signed byte range */
 	CFI_ADJUST_CFA_OFFSET 4
-      .if ((vector-FIRST_EXTERNAL_VECTOR)%7) != 6
+      .if ((vector-FIRST_EXTERNAL_VECTOR)%7) <> 6
 	jmp 2f
       .endif
       .previous
