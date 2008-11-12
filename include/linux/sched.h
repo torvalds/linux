@@ -2006,6 +2006,17 @@ static inline void setup_thread_stack(struct task_struct *p, struct task_struct 
 {
 	*task_thread_info(p) = *task_thread_info(org);
 	task_thread_info(p)->task = p;
+
+#ifdef CONFIG_FUNCTION_RET_TRACER
+	/*
+	 * When fork() creates a child process, this function is called.
+	 * But the child task may not inherit the return adresses traced
+	 * by the return function tracer because it will directly execute
+	 * in userspace and will not return to kernel functions its parent
+	 * used.
+	 */
+	task_thread_info(p)->curr_ret_stack = -1;
+#endif
 }
 
 static inline unsigned long *end_of_stack(struct task_struct *p)

@@ -268,6 +268,26 @@ ftrace_init_module(unsigned long *start, unsigned long *end) { }
 
 
 /*
+ * Structure that defines a return function trace.
+ */
+struct ftrace_retfunc {
+	unsigned long ret; /* Return address */
+	unsigned long func; /* Current function */
+	unsigned long long calltime;
+	unsigned long long rettime;
+};
+
+#ifdef CONFIG_FUNCTION_RET_TRACER
+/* Type of a callback handler of tracing return function */
+typedef void (*trace_function_return_t)(struct ftrace_retfunc *);
+
+extern void register_ftrace_return(trace_function_return_t func);
+/* The current handler in use */
+extern trace_function_return_t ftrace_function_return;
+extern void unregister_ftrace_return(void);
+#endif
+
+/*
  * Structure which defines the trace of an initcall.
  * You don't have to fill the func field since it is
  * only used internally by the tracer.

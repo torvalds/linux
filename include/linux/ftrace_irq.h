@@ -2,7 +2,7 @@
 #define _LINUX_FTRACE_IRQ_H
 
 
-#ifdef CONFIG_DYNAMIC_FTRACE
+#if defined(CONFIG_DYNAMIC_FTRACE) || defined(CONFIG_FUNCTION_RET_TRACER)
 extern void ftrace_nmi_enter(void);
 extern void ftrace_nmi_exit(void);
 #else

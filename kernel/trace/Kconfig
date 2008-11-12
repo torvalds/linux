@@ -9,6 +9,9 @@ config NOP_TRACER
 config HAVE_FUNCTION_TRACER
 	bool
 
+config HAVE_FUNCTION_RET_TRACER
+	bool
+
 config HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	bool
 	help
@@ -53,6 +56,17 @@ config FUNCTION_TRACER
 	  tracing is enabled by the administrator. If it's runtime disabled
 	  (the bootup default), then the overhead of the instructions is very
 	  small and not measurable even in micro-benchmarks.
+
+config FUNCTION_RET_TRACER
+	bool "Kernel Function return Tracer"
+	depends on !DYNAMIC_FTRACE
+	depends on HAVE_FUNCTION_RET_TRACER
+	depends on FUNCTION_TRACER
+	help
+	  Enable the kernel to trace a function at its return.
+	  It's first purpose is to trace the duration of functions.
+	  This is done by setting the current return address on the thread
+	  info structure of the current task.
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"

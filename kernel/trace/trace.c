@@ -244,13 +244,6 @@ unsigned long nsecs_to_usecs(unsigned long nsecs)
 	return nsecs / 1000;
 }
 
-/*
- * TRACE_ITER_SYM_MASK masks the options in trace_flags that
- * control the output of kernel symbols.
- */
-#define TRACE_ITER_SYM_MASK \
-	(TRACE_ITER_PRINT_PARENT|TRACE_ITER_SYM_OFFSET|TRACE_ITER_SYM_ADDR)
-
 /* These must match the bit postions in trace_iterator_flags */
 static const char *trace_options[] = {
 	"print-parent",
@@ -810,6 +803,35 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 }
 
+#ifdef CONFIG_FUNCTION_RET_TRACER
+static void __trace_function_return(struct trace_array *tr,
+				struct trace_array_cpu *data,
+				struct ftrace_retfunc *trace,
+				unsigned long flags,
+				int pc)
+{
+	struct ring_buffer_event *event;
+	struct ftrace_ret_entry *entry;
+	unsigned long irq_flags;
+
+	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+		return;
+
+	event = ring_buffer_lock_reserve(global_trace.buffer, sizeof(*entry),
+					 &irq_flags);
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	tracing_generic_entry_update(&entry->ent, flags, pc);
+	entry->ent.type			= TRACE_FN_RET;
+	entry->ip			= trace->func;
+	entry->parent_ip	= trace->ret;
+	entry->rettime		= trace->rettime;
+	entry->calltime		= trace->calltime;
+	ring_buffer_unlock_commit(global_trace.buffer, event, irq_flags);
+}
+#endif
+
 void
 ftrace(struct trace_array *tr, struct trace_array_cpu *data,
        unsigned long ip, unsigned long parent_ip, unsigned long flags,
@@ -1037,6 +1059,29 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	atomic_dec(&data->disabled);
 	raw_local_irq_restore(flags);
 }
+
+#ifdef CONFIG_FUNCTION_RET_TRACER
+void trace_function_return(struct ftrace_retfunc *trace)
+{
+	struct trace_array *tr = &global_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int cpu;
+	int pc;
+
+	raw_local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+	if (likely(disabled == 1)) {
+		pc = preempt_count();
+		__trace_function_return(tr, data, trace, flags, pc);
+	}
+	atomic_dec(&data->disabled);
+	raw_local_irq_restore(flags);
+}
+#endif /* CONFIG_FUNCTION_RET_TRACER */
 
 static struct ftrace_ops trace_ops __read_mostly =
 {
@@ -1285,7 +1330,7 @@ seq_print_sym_offset(struct trace_seq *s, const char *fmt,
 # define IP_FMT "%016lx"
 #endif
 
-static int
+int
 seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 {
 	int ret;
@@ -1736,6 +1781,10 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 		trace_seq_printf(s, ": %s", field->buf);
 		if (entry->flags & TRACE_FLAG_CONT)
 			trace_seq_print_cont(s, iter);
+		break;
+	}
+	case TRACE_FN_RET: {
+		return print_return_function(iter);
 		break;
 	}
 	}
