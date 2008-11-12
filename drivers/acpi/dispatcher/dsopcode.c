@@ -1140,8 +1140,27 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 			  op->common.aml_opcode, walk_state));
 
 	switch (op->common.aml_opcode) {
-	case AML_IF_OP:
 	case AML_WHILE_OP:
+
+		/*
+		 * If this is an additional iteration of a while loop, continue.
+		 * There is no need to allocate a new control state.
+		 */
+		if (walk_state->control_state) {
+			if (walk_state->control_state->control.aml_predicate_start
+				== (walk_state->parser_state.aml - 1)) {
+
+				/* Reset the state to start-of-loop */
+
+				walk_state->control_state->common.state =
+				    ACPI_CONTROL_CONDITIONAL_EXECUTING;
+				break;
+			}
+		}
+
+		/*lint -fallthrough */
+
+	case AML_IF_OP:
 
 		/*
 		 * IF/WHILE: Create a new control state to manage these
@@ -1248,7 +1267,12 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 			/* Predicate was true, go back and evaluate it again! */
 
 			status = AE_CTRL_PENDING;
+			walk_state->aml_last_while =
+			    walk_state->control_state->control.aml_predicate_start;
+			break;
 		}
+
+		/* Predicate was false, terminate this while loop */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 				  "[WHILE_OP] termination! Op=%p\n", op));
@@ -1257,9 +1281,6 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 
 		control_state =
 		    acpi_ut_pop_generic_state(&walk_state->control_state);
-
-		walk_state->aml_last_while =
-		    control_state->control.aml_predicate_start;
 		acpi_ut_delete_generic_state(control_state);
 		break;
 
