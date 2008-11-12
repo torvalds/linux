@@ -826,10 +826,6 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	if (WARN_ON(!reg_is_valid_request(rd->alpha2)))
 		return -EINVAL;
 
-	reset_regdomains();
-
-	/* Country IE parsing coming soon */
-
 	if (!is_valid_rd(rd)) {
 		printk(KERN_ERR "cfg80211: Invalid "
 			"regulatory domain detected:\n");
@@ -837,16 +833,33 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		return -EINVAL;
 	}
 
-	if (unlikely(last_request->intersect)) {
+	if (!last_request->intersect) {
+		reset_regdomains();
+		cfg80211_regdomain = rd;
+		return 0;
+	}
+
+	/* Intersection requires a bit more work */
+
+	if (last_request->initiator != REGDOM_SET_BY_COUNTRY_IE) {
+
 		intersected_rd = regdom_intersect(rd, cfg80211_regdomain);
 		if (!intersected_rd)
 			return -EINVAL;
+
+		/* We can trash what CRDA provided now */
 		kfree(rd);
-		rd = intersected_rd;
+		rd = NULL;
+
+		reset_regdomains();
+		cfg80211_regdomain = intersected_rd;
+
+		return 0;
 	}
 
-	/* Tada! */
-	cfg80211_regdomain = rd;
+	/* Country IE parsing coming soon */
+	reset_regdomains();
+	WARN_ON(1);
 
 	return 0;
 }
