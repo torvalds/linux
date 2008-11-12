@@ -22,7 +22,7 @@ enum trace_type {
 	TRACE_SPECIAL,
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
-	TRACE_UNLIKELY,
+	TRACE_BRANCH,
 	TRACE_BOOT_CALL,
 	TRACE_BOOT_RET,
 	TRACE_FN_RET,
@@ -137,7 +137,7 @@ struct trace_boot_ret {
 
 #define TRACE_FUNC_SIZE 30
 #define TRACE_FILE_SIZE 20
-struct trace_unlikely {
+struct trace_branch {
 	struct trace_entry	ent;
 	unsigned	        line;
 	char			func[TRACE_FUNC_SIZE+1];
@@ -247,7 +247,7 @@ extern void __ftrace_bad_type(void);
 			  TRACE_MMIO_MAP);				\
 		IF_ASSIGN(var, ent, struct trace_boot_call, TRACE_BOOT_CALL);\
 		IF_ASSIGN(var, ent, struct trace_boot_ret, TRACE_BOOT_RET);\
-		IF_ASSIGN(var, ent, struct trace_unlikely, TRACE_UNLIKELY); \
+		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
 		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET);\
 		__ftrace_bad_type();					\
 	} while (0)
@@ -469,7 +469,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_PRINTK		= 0x400,
 	TRACE_ITER_PREEMPTONLY		= 0x800,
 #ifdef CONFIG_BRANCH_TRACER
-	TRACE_ITER_UNLIKELY		= 0x1000,
+	TRACE_ITER_BRANCH		= 0x1000,
 #endif
 };
 
@@ -531,25 +531,25 @@ static inline void ftrace_preempt_enable(int resched)
 }
 
 #ifdef CONFIG_BRANCH_TRACER
-extern int enable_unlikely_tracing(struct trace_array *tr);
-extern void disable_unlikely_tracing(void);
-static inline int trace_unlikely_enable(struct trace_array *tr)
+extern int enable_branch_tracing(struct trace_array *tr);
+extern void disable_branch_tracing(void);
+static inline int trace_branch_enable(struct trace_array *tr)
 {
-	if (trace_flags & TRACE_ITER_UNLIKELY)
-		return enable_unlikely_tracing(tr);
+	if (trace_flags & TRACE_ITER_BRANCH)
+		return enable_branch_tracing(tr);
 	return 0;
 }
-static inline void trace_unlikely_disable(void)
+static inline void trace_branch_disable(void)
 {
 	/* due to races, always disable */
-	disable_unlikely_tracing();
+	disable_branch_tracing();
 }
 #else
-static inline int trace_unlikely_enable(struct trace_array *tr)
+static inline int trace_branch_enable(struct trace_array *tr)
 {
 	return 0;
 }
-static inline void trace_unlikely_disable(void)
+static inline void trace_branch_disable(void)
 {
 }
 #endif /* CONFIG_BRANCH_TRACER */

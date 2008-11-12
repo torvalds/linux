@@ -17,16 +17,16 @@
 
 #ifdef CONFIG_BRANCH_TRACER
 
-static int unlikely_tracing_enabled __read_mostly;
-static DEFINE_MUTEX(unlikely_tracing_mutex);
-static struct trace_array *unlikely_tracer;
+static int branch_tracing_enabled __read_mostly;
+static DEFINE_MUTEX(branch_tracing_mutex);
+static struct trace_array *branch_tracer;
 
 static void
-probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
+probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 {
-	struct trace_array *tr = unlikely_tracer;
+	struct trace_array *tr = branch_tracer;
 	struct ring_buffer_event *event;
-	struct trace_unlikely *entry;
+	struct trace_branch *entry;
 	unsigned long flags, irq_flags;
 	int cpu, pc;
 	const char *p;
@@ -54,7 +54,7 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 	pc = preempt_count();
 	entry	= ring_buffer_event_data(event);
 	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type		= TRACE_UNLIKELY;
+	entry->ent.type		= TRACE_BRANCH;
 
 	/* Strip off the path, only save the file */
 	p = f->file + strlen(f->file);
@@ -77,51 +77,51 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 }
 
 static inline
-void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
+void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 {
-	if (!unlikely_tracing_enabled)
+	if (!branch_tracing_enabled)
 		return;
 
 	probe_likely_condition(f, val, expect);
 }
 
-int enable_unlikely_tracing(struct trace_array *tr)
+int enable_branch_tracing(struct trace_array *tr)
 {
 	int ret = 0;
 
-	mutex_lock(&unlikely_tracing_mutex);
-	unlikely_tracer = tr;
+	mutex_lock(&branch_tracing_mutex);
+	branch_tracer = tr;
 	/*
 	 * Must be seen before enabling. The reader is a condition
 	 * where we do not need a matching rmb()
 	 */
 	smp_wmb();
-	unlikely_tracing_enabled++;
-	mutex_unlock(&unlikely_tracing_mutex);
+	branch_tracing_enabled++;
+	mutex_unlock(&branch_tracing_mutex);
 
 	return ret;
 }
 
-void disable_unlikely_tracing(void)
+void disable_branch_tracing(void)
 {
-	mutex_lock(&unlikely_tracing_mutex);
+	mutex_lock(&branch_tracing_mutex);
 
-	if (!unlikely_tracing_enabled)
+	if (!branch_tracing_enabled)
 		goto out_unlock;
 
-	unlikely_tracing_enabled--;
+	branch_tracing_enabled--;
 
  out_unlock:
-	mutex_unlock(&unlikely_tracing_mutex);
+	mutex_unlock(&branch_tracing_mutex);
 }
 #else
 static inline
-void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
+void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 {
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
-void ftrace_likely_update(struct ftrace_likely_data *f, int val, int expect)
+void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect)
 {
 	/*
 	 * I would love to have a trace point here instead, but the
@@ -148,7 +148,7 @@ static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct ftrace_pointer *f = m->private;
-	struct ftrace_likely_data *p = v;
+	struct ftrace_branch_data *p = v;
 
 	(*pos)++;
 
@@ -180,7 +180,7 @@ static void t_stop(struct seq_file *m, void *p)
 
 static int t_show(struct seq_file *m, void *v)
 {
-	struct ftrace_likely_data *p = v;
+	struct ftrace_branch_data *p = v;
 	const char *f;
 	unsigned long percent;
 
@@ -252,7 +252,7 @@ static struct ftrace_pointer ftrace_unlikely_pos = {
 	.stop			= __stop_unlikely_profile,
 };
 
-static __init int ftrace_unlikely_init(void)
+static __init int ftrace_branch_init(void)
 {
 	struct dentry *d_tracer;
 	struct dentry *entry;
@@ -275,4 +275,4 @@ static __init int ftrace_unlikely_init(void)
 	return 0;
 }
 
-device_initcall(ftrace_unlikely_init);
+device_initcall(ftrace_branch_init);

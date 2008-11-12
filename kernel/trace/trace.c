@@ -259,7 +259,7 @@ static const char *trace_options[] = {
 	"ftrace_printk",
 	"ftrace_preempt",
 #ifdef CONFIG_BRANCH_TRACER
-	"unlikely",
+	"branch",
 #endif
 	NULL
 };
@@ -1651,8 +1651,8 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 			trace_seq_print_cont(s, iter);
 		break;
 	}
-	case TRACE_UNLIKELY: {
-		struct trace_unlikely *field;
+	case TRACE_BRANCH: {
+		struct trace_branch *field;
 
 		trace_assign_type(field, entry);
 
@@ -1802,8 +1802,8 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 		return print_return_function(iter);
 		break;
 	}
-	case TRACE_UNLIKELY: {
-		struct trace_unlikely *field;
+	case TRACE_BRANCH: {
+		struct trace_branch *field;
 
 		trace_assign_type(field, entry);
 
@@ -2619,7 +2619,7 @@ static int tracing_set_tracer(char *buf)
 	if (t == current_trace)
 		goto out;
 
-	trace_unlikely_disable();
+	trace_branch_disable();
 	if (current_trace && current_trace->reset)
 		current_trace->reset(tr);
 
@@ -2627,7 +2627,7 @@ static int tracing_set_tracer(char *buf)
 	if (t->init)
 		t->init(tr);
 
-	trace_unlikely_enable(tr);
+	trace_branch_enable(tr);
  out:
 	mutex_unlock(&trace_types_lock);
 
