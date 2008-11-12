@@ -1087,6 +1087,20 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+	[EM2874_BOARD_PINNACLE_PCTV_80E] = {
+		.name         = "Pinnacle PCTV HD Mini",
+		.vchannels    = 0,
+		.tuner_type   = TUNER_ABSENT,
+		.has_dvb        = 1,
+		.decoder      = EM28XX_NODECODER,
+#ifdef DJH_DEBUG
+		.input          = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+#endif
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1180,6 +1194,8 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2882_BOARD_PINNACLE_HYBRID_PRO },
 	{ USB_DEVICE(0x2304, 0x0227),
 			.driver_info = EM2880_BOARD_PINNACLE_PCTV_HD_PRO },
+	{ USB_DEVICE(0x2304, 0x023f),
+			.driver_info = EM2874_BOARD_PINNACLE_PCTV_80E },
 	{ USB_DEVICE(0x0413, 0x6023),
 			.driver_info = EM2800_BOARD_LEADTEK_WINFAST_USBII },
 	{ USB_DEVICE(0x093b, 0xa005),
@@ -1252,6 +1268,17 @@ static struct em28xx_reg_seq em2882_terratec_hybrid_xs_digital[] = {
 	{EM28XX_R08_GPIO,       0x3e,   ~EM_GPIO_4,	   6},
 	{EM2880_R04_GPO,        0x04,   0xff,		  10},
 	{EM2880_R04_GPO,        0x0c,   0xff,		  10},
+	{  -1,			-1,	-1,		  -1},
+};
+
+/* Pinnacle PCTV HD Mini (80e) GPIOs
+   0-5: not used
+   6:   demod reset, active low
+   7:   LED on, active high */
+static struct em28xx_reg_seq em2874_pinnacle_80e_digital[] = {
+	{EM28XX_R06_I2C_CLK,    0x45,   0xff,		  10}, /*400 KHz*/
+	{EM2874_R80_GPIO,       0x80,   0xff,		  100},/*Demod reset*/
+	{EM2874_R80_GPIO,       0xc0,   0xff,		  10},
 	{  -1,			-1,	-1,		  -1},
 };
 
@@ -1517,6 +1544,13 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
 		/* enables audio for that device */
 		em28xx_write_regs_req(dev, 0x00, 0x08, "\xfd", 1);
+		break;
+
+	case EM2874_BOARD_PINNACLE_PCTV_80E:
+		/* Set 400 KHz clock */
+		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x45", 1);
+
+		dev->digital_gpio = em2874_pinnacle_80e_digital;
 		break;
 	}
 
