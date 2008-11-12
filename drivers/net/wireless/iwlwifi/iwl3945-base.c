@@ -1425,9 +1425,9 @@ static u8 iwl3945_rate_get_lowest_plcp(struct iwl3945_priv *priv)
 
 	/* Set rate mask*/
 	if (priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK)
-		rate_mask = priv->active_rate_basic & 0xF;
+		rate_mask = priv->active_rate_basic & IWL_CCK_RATES_MASK;
 	else
-		rate_mask = priv->active_rate_basic & 0xFF0;
+		rate_mask = priv->active_rate_basic & IWL_OFDM_RATES_MASK;
 
 	for (i = IWL_RATE_1M_INDEX; i != IWL_RATE_INVALID;
 	     i = iwl3945_rates[i].next_ieee) {
