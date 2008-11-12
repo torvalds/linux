@@ -698,34 +698,25 @@ int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
 	else if (r)
 		return r;
 
-	switch (set_by) {
-	case REGDOM_SET_BY_CORE:
-	case REGDOM_SET_BY_COUNTRY_IE:
-	case REGDOM_SET_BY_DRIVER:
-	case REGDOM_SET_BY_USER:
-		request = kzalloc(sizeof(struct regulatory_request),
-				  GFP_KERNEL);
-		if (!request)
-			return -ENOMEM;
+	request = kzalloc(sizeof(struct regulatory_request),
+			  GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
 
-		request->alpha2[0] = alpha2[0];
-		request->alpha2[1] = alpha2[1];
-		request->initiator = set_by;
-		request->wiphy = wiphy;
-		request->intersect = intersect;
+	request->alpha2[0] = alpha2[0];
+	request->alpha2[1] = alpha2[1];
+	request->initiator = set_by;
+	request->wiphy = wiphy;
+	request->intersect = intersect;
 
-		kfree(last_request);
-		last_request = request;
-		r = call_crda(alpha2);
+	kfree(last_request);
+	last_request = request;
+	r = call_crda(alpha2);
+
 #ifndef CONFIG_WIRELESS_OLD_REGULATORY
-		if (r)
-			printk(KERN_ERR "cfg80211: Failed calling CRDA\n");
+	if (r)
+		printk(KERN_ERR "cfg80211: Failed calling CRDA\n");
 #endif
-		break;
-	default:
-		r = -ENOTSUPP;
-		break;
-	}
 
 	return r;
 }
