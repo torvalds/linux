@@ -271,6 +271,7 @@ struct em28xx_input {
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
 
 enum em28xx_decoder {
+	EM28XX_NODECODER,
 	EM28XX_TVP5150,
 	EM28XX_SAA7113,
 	EM28XX_SAA7114
