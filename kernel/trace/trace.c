@@ -204,7 +204,7 @@ static DEFINE_MUTEX(trace_types_lock);
 /* trace_wait is a waitqueue for tasks blocked on trace_poll */
 static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
-/* trace_flags holds iter_ctrl options */
+/* trace_flags holds trace_options default values */
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK;
 
 /**
@@ -2411,7 +2411,7 @@ static struct file_operations tracing_cpumask_fops = {
 };
 
 static ssize_t
-tracing_iter_ctrl_read(struct file *filp, char __user *ubuf,
+tracing_trace_options_read(struct file *filp, char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
 	char *buf;
@@ -2448,7 +2448,7 @@ tracing_iter_ctrl_read(struct file *filp, char __user *ubuf,
 }
 
 static ssize_t
-tracing_iter_ctrl_write(struct file *filp, const char __user *ubuf,
+tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 			size_t cnt, loff_t *ppos)
 {
 	char buf[64];
@@ -2493,8 +2493,8 @@ tracing_iter_ctrl_write(struct file *filp, const char __user *ubuf,
 
 static struct file_operations tracing_iter_fops = {
 	.open		= tracing_open_generic,
-	.read		= tracing_iter_ctrl_read,
-	.write		= tracing_iter_ctrl_write,
+	.read		= tracing_trace_options_read,
+	.write		= tracing_trace_options_write,
 };
 
 static const char readme_msg[] =
@@ -2508,9 +2508,9 @@ static const char readme_msg[] =
 	"# echo sched_switch > /debug/tracing/current_tracer\n"
 	"# cat /debug/tracing/current_tracer\n"
 	"sched_switch\n"
-	"# cat /debug/tracing/iter_ctrl\n"
+	"# cat /debug/tracing/trace_options\n"
 	"noprint-parent nosym-offset nosym-addr noverbose\n"
-	"# echo print-parent > /debug/tracing/iter_ctrl\n"
+	"# echo print-parent > /debug/tracing/trace_options\n"
 	"# echo 1 > /debug/tracing/tracing_enabled\n"
 	"# cat /debug/tracing/trace > /tmp/trace.txt\n"
 	"echo 0 > /debug/tracing/tracing_enabled\n"
@@ -3148,10 +3148,10 @@ static __init int tracer_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs 'tracing_enabled' entry\n");
 
-	entry = debugfs_create_file("iter_ctrl", 0644, d_tracer,
+	entry = debugfs_create_file("trace_options", 0644, d_tracer,
 				    NULL, &tracing_iter_fops);
 	if (!entry)
-		pr_warning("Could not create debugfs 'iter_ctrl' entry\n");
+		pr_warning("Could not create debugfs 'trace_options' entry\n");
 
 	entry = debugfs_create_file("tracing_cpumask", 0644, d_tracer,
 				    NULL, &tracing_cpumask_fops);

@@ -82,7 +82,7 @@ of ftrace. Here is a list of some of the key files:
 		tracer is not adding more data, they will display
 		the same information every time they are read.
 
-  iter_ctrl: This file lets the user control the amount of data
+  trace_options: This file lets the user control the amount of data
 		that is displayed in one of the above output
 		files.
 
@@ -316,23 +316,23 @@ The above is mostly meaningful for kernel developers.
   The rest is the same as the 'trace' file.
 
 
-iter_ctrl
----------
+trace_options
+-------------
 
-The iter_ctrl file is used to control what gets printed in the trace
+The trace_options file is used to control what gets printed in the trace
 output. To see what is available, simply cat the file:
 
-  cat /debug/tracing/iter_ctrl
+  cat /debug/tracing/trace_options
   print-parent nosym-offset nosym-addr noverbose noraw nohex nobin \
  noblock nostacktrace nosched-tree
 
 To disable one of the options, echo in the option prepended with "no".
 
-  echo noprint-parent > /debug/tracing/iter_ctrl
+  echo noprint-parent > /debug/tracing/trace_options
 
 To enable an option, leave off the "no".
 
-  echo sym-offset > /debug/tracing/iter_ctrl
+  echo sym-offset > /debug/tracing/trace_options
 
 Here are the available options:
 
