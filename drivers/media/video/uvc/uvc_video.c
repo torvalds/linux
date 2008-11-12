@@ -889,7 +889,7 @@ int uvc_video_resume(struct uvc_video_device *video)
 
 	video->frozen = 0;
 
-	if ((ret = uvc_set_video_ctrl(video, &video->streaming->ctrl, 0)) < 0) {
+	if ((ret = uvc_commit_video(video, &video->streaming->ctrl)) < 0) {
 		uvc_queue_enable(&video->queue, 0);
 		return ret;
 	}
@@ -970,11 +970,8 @@ int uvc_video_init(struct uvc_video_device *video)
 			break;
 	}
 
-	/* Commit the default settings. */
 	probe->bFormatIndex = format->index;
 	probe->bFrameIndex = frame->bFrameIndex;
-	if ((ret = uvc_set_video_ctrl(video, probe, 0)) < 0)
-		return ret;
 
 	video->streaming->cur_format = format;
 	video->streaming->cur_frame = frame;
@@ -1012,6 +1009,10 @@ int uvc_video_enable(struct uvc_video_device *video, int enable)
 		video->queue.flags |= UVC_QUEUE_DROP_INCOMPLETE;
 
 	if ((ret = uvc_queue_enable(&video->queue, 1)) < 0)
+		return ret;
+
+	/* Commit the streaming parameters. */
+	if ((ret = uvc_commit_video(video, &video->streaming->ctrl)) < 0)
 		return ret;
 
 	return uvc_init_video(video, GFP_KERNEL);

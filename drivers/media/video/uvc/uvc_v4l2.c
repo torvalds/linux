@@ -252,9 +252,6 @@ static int uvc_v4l2_set_format(struct uvc_video_device *video,
 	if (ret < 0)
 		return ret;
 
-	if ((ret = uvc_commit_video(video, &probe)) < 0)
-		return ret;
-
 	memcpy(&video->streaming->ctrl, &probe, sizeof probe);
 	video->streaming->cur_format = format;
 	video->streaming->cur_frame = frame;
@@ -313,10 +310,6 @@ static int uvc_v4l2_set_streamparm(struct uvc_video_device *video,
 
 	/* Probe the device with the new settings. */
 	if ((ret = uvc_probe_video(video, &probe)) < 0)
-		return ret;
-
-	/* Commit the new settings. */
-	if ((ret = uvc_commit_video(video, &probe)) < 0)
 		return ret;
 
 	memcpy(&video->streaming->ctrl, &probe, sizeof probe);
