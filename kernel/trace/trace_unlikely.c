@@ -114,6 +114,48 @@ void disable_branch_tracing(void)
  out_unlock:
 	mutex_unlock(&branch_tracing_mutex);
 }
+
+static void start_branch_trace(struct trace_array *tr)
+{
+	enable_branch_tracing(tr);
+}
+
+static void stop_branch_trace(struct trace_array *tr)
+{
+	disable_branch_tracing();
+}
+
+static void branch_trace_init(struct trace_array *tr)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		tracing_reset(tr, cpu);
+
+	start_branch_trace(tr);
+}
+
+static void branch_trace_reset(struct trace_array *tr)
+{
+	stop_branch_trace(tr);
+}
+
+struct tracer branch_trace __read_mostly =
+{
+	.name		= "branch",
+	.init		= branch_trace_init,
+	.reset		= branch_trace_reset,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest	= trace_selftest_startup_branch,
+#endif
+};
+
+__init static int init_branch_trace(void)
+{
+	return register_tracer(&branch_trace);
+}
+
+device_initcall(init_branch_trace);
 #else
 static inline
 void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)

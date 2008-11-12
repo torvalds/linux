@@ -13,6 +13,7 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_STACK:
 	case TRACE_PRINT:
 	case TRACE_SPECIAL:
+	case TRACE_BRANCH:
 		return 1;
 	}
 	return 0;
@@ -544,3 +545,25 @@ trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
 	return ret;
 }
 #endif /* CONFIG_SYSPROF_TRACER */
+
+#ifdef CONFIG_BRANCH_TRACER
+int
+trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
+{
+	unsigned long count;
+	int ret;
+
+	/* start the tracing */
+	trace->init(tr);
+	/* Sleep for a 1/10 of a second */
+	msleep(100);
+	/* stop the tracing. */
+	tracing_stop();
+	/* check the trace buffer */
+	ret = trace_test_buffer(tr, &count);
+	trace->reset(tr);
+	tracing_start();
+
+	return ret;
+}
+#endif /* CONFIG_BRANCH_TRACER */
