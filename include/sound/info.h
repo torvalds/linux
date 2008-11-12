@@ -40,30 +40,34 @@ struct snd_info_buffer {
 struct snd_info_entry;
 
 struct snd_info_entry_text {
-	void (*read) (struct snd_info_entry *entry, struct snd_info_buffer *buffer);
-	void (*write) (struct snd_info_entry *entry, struct snd_info_buffer *buffer);
+	void (*read)(struct snd_info_entry *entry,
+		     struct snd_info_buffer *buffer);
+	void (*write)(struct snd_info_entry *entry,
+		      struct snd_info_buffer *buffer);
 };
 
 struct snd_info_entry_ops {
-	int (*open) (struct snd_info_entry *entry,
-		     unsigned short mode, void **file_private_data);
-	int (*release) (struct snd_info_entry * entry,
-			unsigned short mode, void *file_private_data);
-	long (*read) (struct snd_info_entry *entry, void *file_private_data,
-		      struct file * file, char __user *buf,
+	int (*open)(struct snd_info_entry *entry,
+		    unsigned short mode, void **file_private_data);
+	int (*release)(struct snd_info_entry *entry,
+		       unsigned short mode, void *file_private_data);
+	long (*read)(struct snd_info_entry *entry, void *file_private_data,
+		     struct file *file, char __user *buf,
+		     unsigned long count, unsigned long pos);
+	long (*write)(struct snd_info_entry *entry, void *file_private_data,
+		      struct file *file, const char __user *buf,
 		      unsigned long count, unsigned long pos);
-	long (*write) (struct snd_info_entry *entry, void *file_private_data,
-		       struct file * file, const char __user *buf,
-		       unsigned long count, unsigned long pos);
-	long long (*llseek) (struct snd_info_entry *entry, void *file_private_data,
-			    struct file * file, long long offset, int orig);
-	unsigned int (*poll) (struct snd_info_entry *entry, void *file_private_data,
-			      struct file * file, poll_table * wait);
-	int (*ioctl) (struct snd_info_entry *entry, void *file_private_data,
-		      struct file * file, unsigned int cmd, unsigned long arg);
-	int (*mmap) (struct snd_info_entry *entry, void *file_private_data,
-		     struct inode * inode, struct file * file,
-		     struct vm_area_struct * vma);
+	long long (*llseek)(struct snd_info_entry *entry,
+			    void *file_private_data, struct file *file,
+			    long long offset, int orig);
+	unsigned int(*poll)(struct snd_info_entry *entry,
+			    void *file_private_data, struct file *file,
+			    poll_table *wait);
+	int (*ioctl)(struct snd_info_entry *entry, void *file_private_data,
+		     struct file *file, unsigned int cmd, unsigned long arg);
+	int (*mmap)(struct snd_info_entry *entry, void *file_private_data,
+		    struct inode *inode, struct file *file,
+		    struct vm_area_struct *vma);
 };
 
 struct snd_info_entry {
@@ -106,35 +110,37 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer);
 static inline void snd_card_info_read_oss(struct snd_info_buffer *buffer) {}
 #endif
 
-int snd_iprintf(struct snd_info_buffer * buffer, char *fmt,...) __attribute__ ((format (printf, 2, 3)));
+int snd_iprintf(struct snd_info_buffer *buffer, char *fmt, ...) \
+				__attribute__ ((format (printf, 2, 3)));
 int snd_info_init(void);
 int snd_info_done(void);
 
-int snd_info_get_line(struct snd_info_buffer * buffer, char *line, int len);
+int snd_info_get_line(struct snd_info_buffer *buffer, char *line, int len);
 char *snd_info_get_str(char *dest, char *src, int len);
-struct snd_info_entry *snd_info_create_module_entry(struct module * module,
+struct snd_info_entry *snd_info_create_module_entry(struct module *module,
 					       const char *name,
-					       struct snd_info_entry * parent);
-struct snd_info_entry *snd_info_create_card_entry(struct snd_card * card,
+					       struct snd_info_entry *parent);
+struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
-					     struct snd_info_entry * parent);
-void snd_info_free_entry(struct snd_info_entry * entry);
-int snd_info_store_text(struct snd_info_entry * entry);
-int snd_info_restore_text(struct snd_info_entry * entry);
+					     struct snd_info_entry *parent);
+void snd_info_free_entry(struct snd_info_entry *entry);
+int snd_info_store_text(struct snd_info_entry *entry);
+int snd_info_restore_text(struct snd_info_entry *entry);
 
-int snd_info_card_create(struct snd_card * card);
-int snd_info_card_register(struct snd_card * card);
-int snd_info_card_free(struct snd_card * card);
-void snd_info_card_disconnect(struct snd_card * card);
-void snd_info_card_id_change(struct snd_card * card);
-int snd_info_register(struct snd_info_entry * entry);
+int snd_info_card_create(struct snd_card *card);
+int snd_info_card_register(struct snd_card *card);
+int snd_info_card_free(struct snd_card *card);
+void snd_info_card_disconnect(struct snd_card *card);
+void snd_info_card_id_change(struct snd_card *card);
+int snd_info_register(struct snd_info_entry *entry);
 
 /* for card drivers */
-int snd_card_proc_new(struct snd_card *card, const char *name, struct snd_info_entry **entryp);
+int snd_card_proc_new(struct snd_card *card, const char *name,
+		      struct snd_info_entry **entryp);
 
 static inline void snd_info_set_text_ops(struct snd_info_entry *entry, 
-					 void *private_data,
-					 void (*read)(struct snd_info_entry *, struct snd_info_buffer *))
+	void *private_data,
+	void (*read)(struct snd_info_entry *, struct snd_info_buffer *))
 {
 	entry->private_data = private_data;
 	entry->c.text.read = read;
@@ -147,22 +153,22 @@ int snd_info_check_reserved_words(const char *str);
 #define snd_seq_root NULL
 #define snd_oss_root NULL
 
-static inline int snd_iprintf(struct snd_info_buffer * buffer, char *fmt,...) { return 0; }
+static inline int snd_iprintf(struct snd_info_buffer *buffer, char *fmt, ...) { return 0; }
 static inline int snd_info_init(void) { return 0; }
 static inline int snd_info_done(void) { return 0; }
 
-static inline int snd_info_get_line(struct snd_info_buffer * buffer, char *line, int len) { return 0; }
+static inline int snd_info_get_line(struct snd_info_buffer *buffer, char *line, int len) { return 0; }
 static inline char *snd_info_get_str(char *dest, char *src, int len) { return NULL; }
-static inline struct snd_info_entry *snd_info_create_module_entry(struct module * module, const char *name, struct snd_info_entry * parent) { return NULL; }
-static inline struct snd_info_entry *snd_info_create_card_entry(struct snd_card * card, const char *name, struct snd_info_entry * parent) { return NULL; }
-static inline void snd_info_free_entry(struct snd_info_entry * entry) { ; }
+static inline struct snd_info_entry *snd_info_create_module_entry(struct module *module, const char *name, struct snd_info_entry *parent) { return NULL; }
+static inline struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card, const char *name, struct snd_info_entry *parent) { return NULL; }
+static inline void snd_info_free_entry(struct snd_info_entry *entry) { ; }
 
-static inline int snd_info_card_create(struct snd_card * card) { return 0; }
-static inline int snd_info_card_register(struct snd_card * card) { return 0; }
-static inline int snd_info_card_free(struct snd_card * card) { return 0; }
-static inline void snd_info_card_disconnect(struct snd_card * card) { }
-static inline void snd_info_card_id_change(struct snd_card * card) { }
-static inline int snd_info_register(struct snd_info_entry * entry) { return 0; }
+static inline int snd_info_card_create(struct snd_card *card) { return 0; }
+static inline int snd_info_card_register(struct snd_card *card) { return 0; }
+static inline int snd_info_card_free(struct snd_card *card) { return 0; }
+static inline void snd_info_card_disconnect(struct snd_card *card) { }
+static inline void snd_info_card_id_change(struct snd_card *card) { }
+static inline int snd_info_register(struct snd_info_entry *entry) { return 0; }
 
 static inline int snd_card_proc_new(struct snd_card *card, const char *name,
 				    struct snd_info_entry **entryp) { return -EINVAL; }
