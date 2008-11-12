@@ -521,8 +521,6 @@ extern const kernel_cap_t __cap_init_eff_set;
 
 kernel_cap_t cap_set_effective(const kernel_cap_t pE_new);
 
-extern int security_capable(struct task_struct *t, int cap);
-extern int security_capable_noaudit(struct task_struct *t, int cap);
 /**
  * has_capability - Determine if a task has a superior capability available
  * @t: The task in question
