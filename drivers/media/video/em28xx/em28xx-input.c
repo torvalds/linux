@@ -67,6 +67,7 @@ struct em28xx_IR {
 	u32 mask_keycode;
 	u32 mask_keydown;
 	u32 mask_keyup;
+	u32 mask_repeat;
 
 	int  (*get_key)(struct em28xx_IR *);
 };
@@ -165,15 +166,17 @@ static int default_polling_getkey(struct em28xx_IR *ir)
 {
 	struct em28xx *dev = ir->dev;
 	int rc;
-	u32 msg;
+	u8 msg[4] = { 0, 0, 0, 0 };
 
-	/* Read key toggle, brand, and key code */
+	/* Read key toggle, brand, and key code
+	   on registers 0x45, 0x46 and 0x47
+	 */
 	rc = dev->em28xx_read_reg_req_len(dev, 0, EM28XX_R45_IR,
-					  (u8 *)&msg, sizeof(msg));
+					  msg, sizeof(msg));
 	if (rc < 0)
 		return rc;
 
-	return (int)(msg & 0x7fffffffl);
+	return (int)(le32_to_cpu(*(u32 *)msg));
 }
 
 /**********************************************************
@@ -192,6 +195,7 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 
 	if (gpio == ir->last_gpio)
 		return;
+
 	ir->last_gpio = gpio;
 
 	/* extract data */
@@ -214,6 +218,14 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 			ir_input_keydown(ir->input, &ir->ir, data, data);
 		else
 			ir_input_nokey(ir->input, &ir->ir);
+	} else if (ir->mask_repeat) {
+		int count = ir->mask_repeat & gpio;
+
+		/* Avoid keyboard bouncing */
+		if ((count == 1) || (count >= 5)) {
+			ir_input_keydown(ir->input, &ir->ir, data, data);
+			ir_input_nokey(ir->input, &ir->ir);
+		}
 	} else {
 		/* can't distinguish keydown/up :-/ */
 		ir_input_keydown(ir->input, &ir->ir, data, data);
@@ -274,6 +286,7 @@ int em28xx_ir_init(struct em28xx *dev)
 		ir_type          = IR_TYPE_OTHER;
 		ir_codes         = ir_codes_hauppauge_new;
 		ir->mask_keycode = 0x007f0000;
+		ir->mask_repeat	 = 0x0000007f;
 		break;
 	}
 
