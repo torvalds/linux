@@ -2050,7 +2050,9 @@ err_out:
  */
 static int smc911x_drv_probe(struct platform_device *pdev)
 {
+#ifdef SMC_DYNAMIC_BUS_CONFIG
 	struct smc911x_platdata *pd = pdev->dev.platform_data;
+#endif
 	struct net_device *ndev;
 	struct resource *res;
 	struct smc911x_local *lp;
@@ -2182,9 +2184,9 @@ static int smc911x_drv_resume(struct platform_device *dev)
 
 		if (netif_running(ndev)) {
 			smc911x_reset(ndev);
-			smc911x_enable(ndev);
 			if (lp->phy_type != 0)
 				smc911x_phy_configure(&lp->phy_configure);
+			smc911x_enable(ndev);
 			netif_device_attach(ndev);
 		}
 	}
