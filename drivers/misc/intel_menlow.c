@@ -52,6 +52,11 @@ MODULE_LICENSE("GPL");
 #define MEMORY_ARG_CUR_BANDWIDTH 1
 #define MEMORY_ARG_MAX_BANDWIDTH 0
 
+/*
+ * GTHS returning 'n' would mean that [0,n-1] states are supported
+ * In that case max_cstate would be n-1
+ * GTHS returning '0' would mean that no bandwidth control states are supported
+ */
 static int memory_get_int_max_bandwidth(struct thermal_cooling_device *cdev,
 					unsigned long *max_state)
 {
@@ -70,6 +75,9 @@ static int memory_get_int_max_bandwidth(struct thermal_cooling_device *cdev,
 				       &arg_list, &value);
 	if (ACPI_FAILURE(status))
 		return -EFAULT;
+
+	if (!value)
+		return -EINVAL;
 
 	*max_state = value - 1;
 	return 0;
@@ -121,7 +129,7 @@ static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
 	if (memory_get_int_max_bandwidth(cdev, &max_state))
 		return -EFAULT;
 
-	if (max_state < 0 || state > max_state)
+	if (state > max_state)
 		return -EINVAL;
 
 	arg_list.count = 1;

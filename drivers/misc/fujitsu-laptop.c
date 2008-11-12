@@ -464,6 +464,14 @@ static int dmi_check_cb_s6410(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int dmi_check_cb_s6420(const struct dmi_system_id *id)
+{
+	dmi_check_cb_common(id);
+	fujitsu->keycode1 = KEY_SCREENLOCK;	/* "Lock" */
+	fujitsu->keycode2 = KEY_HELP;	/* "Mobility Center" */
+	return 0;
+}
+
 static int dmi_check_cb_p8010(const struct dmi_system_id *id)
 {
 	dmi_check_cb_common(id);
@@ -473,7 +481,7 @@ static int dmi_check_cb_p8010(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id __initdata fujitsu_dmi_table[] = {
+static struct dmi_system_id fujitsu_dmi_table[] = {
 	{
 	 .ident = "Fujitsu Siemens S6410",
 	 .matches = {
@@ -481,6 +489,13 @@ static struct dmi_system_id __initdata fujitsu_dmi_table[] = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6410"),
 		     },
 	 .callback = dmi_check_cb_s6410},
+	{
+	 .ident = "Fujitsu Siemens S6420",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6420"),
+		     },
+	 .callback = dmi_check_cb_s6420},
 	{
 	 .ident = "Fujitsu LifeBook P8010",
 	 .matches = {
@@ -990,16 +1005,16 @@ static int __init fujitsu_init(void)
 
 	/* Register backlight stuff */
 
-	fujitsu->bl_device =
-	    backlight_device_register("fujitsu-laptop", NULL, NULL,
-				      &fujitsubl_ops);
-	if (IS_ERR(fujitsu->bl_device))
-		return PTR_ERR(fujitsu->bl_device);
-
-	max_brightness = fujitsu->max_brightness;
-
-	fujitsu->bl_device->props.max_brightness = max_brightness - 1;
-	fujitsu->bl_device->props.brightness = fujitsu->brightness_level;
+	if (!acpi_video_backlight_support()) {
+		fujitsu->bl_device =
+			backlight_device_register("fujitsu-laptop", NULL, NULL,
+						  &fujitsubl_ops);
+		if (IS_ERR(fujitsu->bl_device))
+			return PTR_ERR(fujitsu->bl_device);
+		max_brightness = fujitsu->max_brightness;
+		fujitsu->bl_device->props.max_brightness = max_brightness - 1;
+		fujitsu->bl_device->props.brightness = fujitsu->brightness_level;
+	}
 
 	ret = platform_driver_register(&fujitsupf_driver);
 	if (ret)
@@ -1035,7 +1050,8 @@ fail_hotkey:
 
 fail_backlight:
 
-	backlight_device_unregister(fujitsu->bl_device);
+	if (fujitsu->bl_device)
+		backlight_device_unregister(fujitsu->bl_device);
 
 fail_platform_device2:
 
@@ -1062,7 +1078,8 @@ static void __exit fujitsu_cleanup(void)
 			   &fujitsupf_attribute_group);
 	platform_device_unregister(fujitsu->pf_device);
 	platform_driver_unregister(&fujitsupf_driver);
-	backlight_device_unregister(fujitsu->bl_device);
+	if (fujitsu->bl_device)
+		backlight_device_unregister(fujitsu->bl_device);
 
 	acpi_bus_unregister_driver(&acpi_fujitsu_driver);
 
