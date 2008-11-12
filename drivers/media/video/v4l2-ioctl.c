@@ -1747,6 +1747,73 @@ static int __video_do_ioctl(struct file *file,
 		ret = ops->vidioc_s_hw_freq_seek(file, fh, p);
 		break;
 	}
+	case VIDIOC_ENUM_FRAMESIZES:
+	{
+		struct v4l2_frmsizeenum *p = arg;
+
+		if (!ops->vidioc_enum_framesizes)
+			break;
+
+		memset(p, 0, sizeof(*p));
+
+		ret = ops->vidioc_enum_framesizes(file, fh, p);
+		dbgarg(cmd,
+			"index=%d, pixelformat=%d, type=%d ",
+			p->index, p->pixel_format, p->type);
+		switch (p->type) {
+		case V4L2_FRMSIZE_TYPE_DISCRETE:
+			dbgarg2("width = %d, height=%d\n",
+				p->discrete.width, p->discrete.height);
+			break;
+		case V4L2_FRMSIZE_TYPE_STEPWISE:
+			dbgarg2("min %dx%d, max %dx%d, step %dx%d\n",
+				p->stepwise.min_width,  p->stepwise.min_height,
+				p->stepwise.step_width, p->stepwise.step_height,
+				p->stepwise.max_width,  p->stepwise.max_height);
+			break;
+		case V4L2_FRMSIZE_TYPE_CONTINUOUS:
+			dbgarg2("continuous\n");
+			break;
+		default:
+			dbgarg2("- Unknown type!\n");
+		}
+
+		break;
+	}
+	case VIDIOC_ENUM_FRAMEINTERVALS:
+	{
+		struct v4l2_frmivalenum *p = arg;
+
+		if (!ops->vidioc_enum_frameintervals)
+			break;
+
+		memset(p, 0, sizeof(*p));
+
+		ret = ops->vidioc_enum_frameintervals(file, fh, p);
+		dbgarg(cmd,
+			"index=%d, pixelformat=%d, width=%d, height=%d, type=%d ",
+			p->index, p->pixel_format,
+			p->width, p->height, p->type);
+		switch (p->type) {
+		case V4L2_FRMIVAL_TYPE_DISCRETE:
+			dbgarg2("fps=%d/%d\n",
+				p->discrete.numerator,
+				p->discrete.denominator);
+			break;
+		case V4L2_FRMIVAL_TYPE_STEPWISE:
+			dbgarg2("min=%d, max=%d, step=%d\n",
+				p->stepwise.min, p->stepwise.max,
+				p->stepwise.step);
+			break;
+		case V4L2_FRMIVAL_TYPE_CONTINUOUS:
+			dbgarg2("continuous\n");
+			break;
+		default:
+			dbgarg2("- Unknown type!\n");
+		}
+		break;
+	}
+
 	default:
 	{
 		if (!ops->vidioc_default)

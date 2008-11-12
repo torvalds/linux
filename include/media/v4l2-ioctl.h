@@ -232,6 +232,12 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_chip_ident)     (struct file *file, void *fh,
 					struct v4l2_chip_ident *chip);
 
+	int (*vidioc_enum_framesizes)   (struct file *file, void *fh,
+					 struct v4l2_frmsizeenum *fsize);
+
+	int (*vidioc_enum_frameintervals) (struct file *file, void *fh,
+					   struct v4l2_frmivalenum *fival);
+
 	/* For other private ioctls */
 	int (*vidioc_default)	       (struct file *file, void *fh,
 					int cmd, void *arg);
