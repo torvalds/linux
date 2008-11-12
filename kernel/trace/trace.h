@@ -22,6 +22,7 @@ enum trace_type {
 	TRACE_SPECIAL,
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
+	TRACE_UNLIKELY,
 	TRACE_BOOT_CALL,
 	TRACE_BOOT_RET,
 	TRACE_FN_RET,
@@ -134,6 +135,16 @@ struct trace_boot_ret {
 	struct boot_trace_ret boot_ret;
 };
 
+#define TRACE_FUNC_SIZE 30
+#define TRACE_FILE_SIZE 20
+struct trace_unlikely {
+	struct trace_entry	ent;
+	unsigned	        line;
+	char			func[TRACE_FUNC_SIZE+1];
+	char			file[TRACE_FILE_SIZE+1];
+	char			correct;
+};
+
 /*
  * trace_flag_type is an enumeration that holds different
  * states when a trace occurs. These are:
@@ -236,6 +247,7 @@ extern void __ftrace_bad_type(void);
 			  TRACE_MMIO_MAP);				\
 		IF_ASSIGN(var, ent, struct trace_boot_call, TRACE_BOOT_CALL);\
 		IF_ASSIGN(var, ent, struct trace_boot_ret, TRACE_BOOT_RET);\
+		IF_ASSIGN(var, ent, struct trace_unlikely, TRACE_UNLIKELY); \
 		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET);\
 		__ftrace_bad_type();					\
 	} while (0)
@@ -456,6 +468,9 @@ enum trace_iterator_flags {
 	TRACE_ITER_SCHED_TREE		= 0x200,
 	TRACE_ITER_PRINTK		= 0x400,
 	TRACE_ITER_PREEMPTONLY		= 0x800,
+#ifdef CONFIG_UNLIKELY_TRACER
+	TRACE_ITER_UNLIKELY		= 0x1000,
+#endif
 };
 
 /*
@@ -514,5 +529,29 @@ static inline void ftrace_preempt_enable(int resched)
 	else
 		preempt_enable_notrace();
 }
+
+#ifdef CONFIG_UNLIKELY_TRACER
+extern int enable_unlikely_tracing(struct trace_array *tr);
+extern void disable_unlikely_tracing(void);
+static inline int trace_unlikely_enable(struct trace_array *tr)
+{
+	if (trace_flags & TRACE_ITER_UNLIKELY)
+		return enable_unlikely_tracing(tr);
+	return 0;
+}
+static inline void trace_unlikely_disable(void)
+{
+	/* due to races, always disable */
+	disable_unlikely_tracing();
+}
+#else
+static inline int trace_unlikely_enable(struct trace_array *tr)
+{
+	return 0;
+}
+static inline void trace_unlikely_disable(void)
+{
+}
+#endif /* CONFIG_UNLIKELY_TRACER */
 
 #endif /* _LINUX_KERNEL_TRACE_H */

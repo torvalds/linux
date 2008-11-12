@@ -258,6 +258,9 @@ static const char *trace_options[] = {
 	"sched-tree",
 	"ftrace_printk",
 	"ftrace_preempt",
+#ifdef CONFIG_UNLIKELY_TRACER
+	"unlikely",
+#endif
 	NULL
 };
 
@@ -1648,6 +1651,18 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 			trace_seq_print_cont(s, iter);
 		break;
 	}
+	case TRACE_UNLIKELY: {
+		struct trace_unlikely *field;
+
+		trace_assign_type(field, entry);
+
+		trace_seq_printf(s, "[%s] %s:%s:%d\n",
+				 field->correct ? "correct" : "INCORRECT",
+				 field->func,
+				 field->file,
+				 field->line);
+		break;
+	}
 	default:
 		trace_seq_printf(s, "Unknown type %d\n", entry->type);
 	}
@@ -1785,6 +1800,18 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	}
 	case TRACE_FN_RET: {
 		return print_return_function(iter);
+		break;
+	}
+	case TRACE_UNLIKELY: {
+		struct trace_unlikely *field;
+
+		trace_assign_type(field, entry);
+
+		trace_seq_printf(s, "[%s] %s:%s:%d\n",
+				 field->correct ? "correct" : "INCORRECT",
+				 field->func,
+				 field->file,
+				 field->line);
 		break;
 	}
 	}
@@ -2592,6 +2619,7 @@ static int tracing_set_tracer(char *buf)
 	if (t == current_trace)
 		goto out;
 
+	trace_unlikely_disable();
 	if (current_trace && current_trace->reset)
 		current_trace->reset(tr);
 
@@ -2599,6 +2627,7 @@ static int tracing_set_tracer(char *buf)
 	if (t->init)
 		t->init(tr);
 
+	trace_unlikely_enable(tr);
  out:
 	mutex_unlock(&trace_types_lock);
 

@@ -10,6 +10,12 @@ CFLAGS_trace_selftest_dynamic.o = -pg
 obj-y += trace_selftest_dynamic.o
 endif
 
+# If unlikely tracing is enabled, do not trace these files
+ifdef CONFIG_TRACING_UNLIKELY
+KBUILD_CFLAGS += '-Dlikely(x)=likely_notrace(x)'
+KBUILD_CFLAGS += '-Dunlikely(x)=unlikely_notrace(x)'
+endif
+
 obj-$(CONFIG_FUNCTION_TRACER) += libftrace.o
 obj-$(CONFIG_RING_BUFFER) += ring_buffer.o
 

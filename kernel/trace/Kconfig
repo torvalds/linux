@@ -175,6 +175,28 @@ config TRACE_UNLIKELY_PROFILE
 
 	  Say N if unsure.
 
+config TRACING_UNLIKELY
+	bool
+	help
+	  Selected by tracers that will trace the likely and unlikely
+	  conditions. This prevents the tracers themselves from being
+	  profiled. Profiling the tracing infrastructure can only happen
+	  when the likelys and unlikelys are not being traced.
+
+config UNLIKELY_TRACER
+	bool "Trace likely/unlikely instances"
+	depends on TRACE_UNLIKELY_PROFILE
+	select TRACING_UNLIKELY
+	help
+	  This traces the events of likely and unlikely condition
+	  calls in the kernel.  The difference between this and the
+	  "Trace likely/unlikely profiler" is that this is not a
+	  histogram of the callers, but actually places the calling
+	  events into a running trace buffer to see when and where the
+	  events happened, as well as their results.
+
+	  Say N if unsure.
+
 config STACK_TRACER
 	bool "Trace max stack"
 	depends on HAVE_FUNCTION_TRACER

@@ -15,8 +15,122 @@
 #include <asm/local.h>
 #include "trace.h"
 
+#ifdef CONFIG_UNLIKELY_TRACER
+
+static int unlikely_tracing_enabled __read_mostly;
+static DEFINE_MUTEX(unlikely_tracing_mutex);
+static struct trace_array *unlikely_tracer;
+
+static void
+probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
+{
+	struct trace_array *tr = unlikely_tracer;
+	struct ring_buffer_event *event;
+	struct trace_unlikely *entry;
+	unsigned long flags, irq_flags;
+	int cpu, pc;
+	const char *p;
+
+	/*
+	 * I would love to save just the ftrace_likely_data pointer, but
+	 * this code can also be used by modules. Ugly things can happen
+	 * if the module is unloaded, and then we go and read the
+	 * pointer.  This is slower, but much safer.
+	 */
+
+	if (unlikely(!tr))
+		return;
+
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	if (atomic_inc_return(&tr->data[cpu]->disabled) != 1)
+		goto out;
+
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
+					 &irq_flags);
+	if (!event)
+		goto out;
+
+	pc = preempt_count();
+	entry	= ring_buffer_event_data(event);
+	tracing_generic_entry_update(&entry->ent, flags, pc);
+	entry->ent.type		= TRACE_UNLIKELY;
+
+	/* Strip off the path, only save the file */
+	p = f->file + strlen(f->file);
+	while (p >= f->file && *p != '/')
+		p--;
+	p++;
+
+	strncpy(entry->func, f->func, TRACE_FUNC_SIZE);
+	strncpy(entry->file, p, TRACE_FILE_SIZE);
+	entry->func[TRACE_FUNC_SIZE] = 0;
+	entry->file[TRACE_FILE_SIZE] = 0;
+	entry->line = f->line;
+	entry->correct = val == expect;
+
+	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+
+ out:
+	atomic_dec(&tr->data[cpu]->disabled);
+	local_irq_restore(flags);
+}
+
+static inline
+void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
+{
+	if (!unlikely_tracing_enabled)
+		return;
+
+	probe_likely_condition(f, val, expect);
+}
+
+int enable_unlikely_tracing(struct trace_array *tr)
+{
+	int ret = 0;
+
+	mutex_lock(&unlikely_tracing_mutex);
+	unlikely_tracer = tr;
+	/*
+	 * Must be seen before enabling. The reader is a condition
+	 * where we do not need a matching rmb()
+	 */
+	smp_wmb();
+	unlikely_tracing_enabled++;
+	mutex_unlock(&unlikely_tracing_mutex);
+
+	return ret;
+}
+
+void disable_unlikely_tracing(void)
+{
+	mutex_lock(&unlikely_tracing_mutex);
+
+	if (!unlikely_tracing_enabled)
+		goto out_unlock;
+
+	unlikely_tracing_enabled--;
+
+ out_unlock:
+	mutex_unlock(&unlikely_tracing_mutex);
+}
+#else
+static inline
+void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
+{
+}
+#endif /* CONFIG_UNLIKELY_TRACER */
+
 void ftrace_likely_update(struct ftrace_likely_data *f, int val, int expect)
 {
+	/*
+	 * I would love to have a trace point here instead, but the
+	 * trace point code is so inundated with unlikely and likely
+	 * conditions that the recursive nightmare that exists is too
+	 * much to try to get working. At least for now.
+	 */
+	trace_likely_condition(f, val, expect);
+
 	/* FIXME: Make this atomic! */
 	if (val == expect)
 		f->correct++;
