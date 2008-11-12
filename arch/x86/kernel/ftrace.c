@@ -95,7 +95,6 @@ unsigned long ftrace_return_to_handler(void)
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
  */
-asmlinkage
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 {
 	unsigned long old;
