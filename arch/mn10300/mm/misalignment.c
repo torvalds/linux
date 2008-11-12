@@ -543,7 +543,7 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 {
 	unsigned long *postinc = NULL, address = 0, tmp;
 
-	params &= 0x7fffffff;
+	params &= 0x00ffffff;
 
 	do {
 		switch (params & 0xff) {
@@ -631,6 +631,7 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			address += disp;
 			break;
 		default:
+			BUG();
 			return 0;
 		}
 	} while ((params >>= 8));
@@ -697,6 +698,7 @@ static int misalignment_reg(unsigned long *registers, unsigned params,
 		break;
 
 	default:
+		BUG();
 		return 0;
 	}
 
