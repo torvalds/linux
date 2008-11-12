@@ -440,7 +440,7 @@ static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
  * @lo: low [31:0] portion of the dma address of TX buffer
  * 	every even is unaligned on 16 bit boundary
  * @hi_n_len 0-3 [35:32] portion of dma
- *	     4-16 length of the tx buffer
+ *	     4-15 length of the tx buffer
  */
 struct iwl_tfd_tb {
 	__le32 lo;
@@ -453,7 +453,8 @@ struct iwl_tfd_tb {
  * Transmit Frame Descriptor (TFD)
  *
  * @ __reserved1[3] reserved
- * @ num_tbs 0-5 number of active tbs
+ * @ num_tbs 0-4 number of active tbs
+ *	     5   reserved
  * 	     6-7 padding (not used)
  * @ tbs[20]	transmit frame buffer descriptors
  * @ __pad 	padding
@@ -473,8 +474,6 @@ struct iwl_tfd_tb {
  * Tx frame, up to 8 KBytes in size.
  *
  * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
- *
- * Bit fields in the control dword (val0):
  */
 struct iwl_tfd {
 	u8 __reserved1[3];
@@ -485,6 +484,6 @@ struct iwl_tfd {
 
 
 /* Keep Warm Size */
-#define IWL_KW_SIZE 0x1000	/*4k */
+#define IWL_KW_SIZE 0x1000	/* 4k */
 
 #endif /* !__iwl_fh_h__ */
