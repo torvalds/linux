@@ -1456,6 +1456,8 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 
 	if (rq->nr_running)
 		rq->avg_load_per_task = rq->load.weight / rq->nr_running;
+	else
+		rq->avg_load_per_task = 0;
 
 	return rq->avg_load_per_task;
 }
