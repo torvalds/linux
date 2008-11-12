@@ -167,11 +167,15 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb);
  */
 struct ocfs2_cached_dealloc_ctxt {
 	struct ocfs2_per_slot_free_list		*c_first_suballocator;
+	struct ocfs2_cached_block_free 		*c_global_allocator;
 };
 static inline void ocfs2_init_dealloc_ctxt(struct ocfs2_cached_dealloc_ctxt *c)
 {
 	c->c_first_suballocator = NULL;
+	c->c_global_allocator = NULL;
 }
+int ocfs2_cache_cluster_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
+				u64 blkno, unsigned int bit);
 int ocfs2_run_deallocs(struct ocfs2_super *osb,
 		       struct ocfs2_cached_dealloc_ctxt *ctxt);
 
