@@ -1323,6 +1323,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		case CHIP_ID_EM2860:
 			em28xx_info("chip ID is em2860\n");
 			break;
+		case CHIP_ID_EM2874:
+			em28xx_info("chip ID is em2874\n");
+			dev->wait_after_write = 0;
+			break;
 		case CHIP_ID_EM2883:
 			em28xx_info("chip ID is em2882/em2883\n");
 			dev->wait_after_write = 0;
