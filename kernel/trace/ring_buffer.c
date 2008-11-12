@@ -1475,19 +1475,9 @@ unsigned long ring_buffer_overruns(struct ring_buffer *buffer)
 	return overruns;
 }
 
-/**
- * ring_buffer_iter_reset - reset an iterator
- * @iter: The iterator to reset
- *
- * Resets the iterator, so that it will start from the beginning
- * again.
- */
-void ring_buffer_iter_reset(struct ring_buffer_iter *iter)
+static void rb_iter_reset(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 
 	/* Iterator usage is expected to have record disabled */
 	if (list_empty(&cpu_buffer->reader_page->list)) {
@@ -1501,7 +1491,22 @@ void ring_buffer_iter_reset(struct ring_buffer_iter *iter)
 		iter->read_stamp = cpu_buffer->read_stamp;
 	else
 		iter->read_stamp = iter->head_page->time_stamp;
+}
 
+/**
+ * ring_buffer_iter_reset - reset an iterator
+ * @iter: The iterator to reset
+ *
+ * Resets the iterator, so that it will start from the beginning
+ * again.
+ */
+void ring_buffer_iter_reset(struct ring_buffer_iter *iter)
+{
+	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
+	unsigned long flags;
+
+	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+	rb_iter_reset(iter);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 }
 
@@ -1957,7 +1962,7 @@ ring_buffer_read_start(struct ring_buffer *buffer, int cpu)
 
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 	__raw_spin_lock(&cpu_buffer->lock);
-	ring_buffer_iter_reset(iter);
+	rb_iter_reset(iter);
 	__raw_spin_unlock(&cpu_buffer->lock);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
