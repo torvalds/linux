@@ -267,7 +267,7 @@ acpi_install_notify_handler(acpi_handle device,
 	/*
 	 * Root Object:
 	 * Registering a notify handler on the root object indicates that the
-	 * caller wishes to receive notifications for all objects.  Note that
+	 * caller wishes to receive notifications for all objects. Note that
 	 * only one <external> global handler can be regsitered (per notify type).
 	 */
 	if (device == ACPI_ROOT_OBJECT) {

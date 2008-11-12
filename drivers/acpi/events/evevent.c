@@ -72,8 +72,8 @@ acpi_status acpi_ev_initialize_events(void)
 
 	/*
 	 * Initialize the Fixed and General Purpose Events. This is done prior to
-	 * enabling SCIs to prevent interrupts from occurring before the handlers are
-	 * installed.
+	 * enabling SCIs to prevent interrupts from occurring before the handlers
+	 * are installed.
 	 */
 	status = acpi_ev_fixed_event_initialize();
 	if (ACPI_FAILURE(status)) {
@@ -192,8 +192,8 @@ static acpi_status acpi_ev_fixed_event_initialize(void)
 	acpi_status status;
 
 	/*
-	 * Initialize the structure that keeps track of fixed event handlers
-	 * and enable the fixed events.
+	 * Initialize the structure that keeps track of fixed event handlers and
+	 * enable the fixed events.
 	 */
 	for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++) {
 		acpi_gbl_fixed_event_handlers[i].handler = NULL;
@@ -237,7 +237,7 @@ u32 acpi_ev_fixed_event_detect(void)
 
 	/*
 	 * Read the fixed feature status and enable registers, as all the cases
-	 * depend on their values.  Ignore errors here.
+	 * depend on their values. Ignore errors here.
 	 */
 	(void)acpi_hw_register_read(ACPI_REGISTER_PM1_STATUS, &fixed_status);
 	(void)acpi_hw_register_read(ACPI_REGISTER_PM1_ENABLE, &fixed_enable);
@@ -291,8 +291,8 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 				status_register_id, 1);
 
 	/*
-	 * Make sure we've got a handler.  If not, report an error.
-	 * The event is disabled to prevent further interrupts.
+	 * Make sure we've got a handler. If not, report an error. The event is
+	 * disabled to prevent further interrupts.
 	 */
 	if (NULL == acpi_gbl_fixed_event_handlers[event].handler) {
 		(void)acpi_set_register(acpi_gbl_fixed_event_info[event].

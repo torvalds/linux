@@ -48,16 +48,8 @@
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evregion")
-#define ACPI_NUM_DEFAULT_SPACES     4
-static u8 acpi_gbl_default_address_spaces[ACPI_NUM_DEFAULT_SPACES] = {
-	ACPI_ADR_SPACE_SYSTEM_MEMORY,
-	ACPI_ADR_SPACE_SYSTEM_IO,
-	ACPI_ADR_SPACE_PCI_CONFIG,
-	ACPI_ADR_SPACE_DATA_TABLE
-};
 
 /* Local prototypes */
-
 static acpi_status
 acpi_ev_reg_run(acpi_handle obj_handle,
 		u32 level, void *context, void **return_value);
@@ -65,6 +57,17 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 static acpi_status
 acpi_ev_install_handler(acpi_handle obj_handle,
 			u32 level, void *context, void **return_value);
+
+/* These are the address spaces that will get default handlers */
+
+#define ACPI_NUM_DEFAULT_SPACES     4
+
+static u8 acpi_gbl_default_address_spaces[ACPI_NUM_DEFAULT_SPACES] = {
+	ACPI_ADR_SPACE_SYSTEM_MEMORY,
+	ACPI_ADR_SPACE_SYSTEM_IO,
+	ACPI_ADR_SPACE_PCI_CONFIG,
+	ACPI_ADR_SPACE_DATA_TABLE
+};
 
 /*******************************************************************************
  *
@@ -91,18 +94,19 @@ acpi_status acpi_ev_install_region_handlers(void)
 	}
 
 	/*
-	 * All address spaces (PCI Config, EC, SMBus) are scope dependent
-	 * and registration must occur for a specific device.
+	 * All address spaces (PCI Config, EC, SMBus) are scope dependent and
+	 * registration must occur for a specific device.
 	 *
-	 * In the case of the system memory and IO address spaces there is currently
-	 * no device associated with the address space.  For these we use the root.
+	 * In the case of the system memory and IO address spaces there is
+	 * currently no device associated with the address space. For these we
+	 * use the root.
 	 *
-	 * We install the default PCI config space handler at the root so
-	 * that this space is immediately available even though the we have
-	 * not enumerated all the PCI Root Buses yet.  This is to conform
-	 * to the ACPI specification which states that the PCI config
-	 * space must be always available -- even though we are nowhere
-	 * near ready to find the PCI root buses at this point.
+	 * We install the default PCI config space handler at the root so that
+	 * this space is immediately available even though the we have not
+	 * enumerated all the PCI Root Buses yet. This is to conform to the ACPI
+	 * specification which states that the PCI config space must be always
+	 * available -- even though we are nowhere near ready to find the PCI root
+	 * buses at this point.
 	 *
 	 * NOTE: We ignore AE_ALREADY_EXISTS because this means that a handler
 	 * has already been installed (via acpi_install_address_space_handler).
@@ -160,12 +164,11 @@ acpi_status acpi_ev_initialize_op_regions(void)
 		return_ACPI_STATUS(status);
 	}
 
-	/*
-	 * Run the _REG methods for op_regions in each default address space
-	 */
-	for (i = 0; i < ACPI_NUM_DEFAULT_SPACES; i++) {
+	/* Run the _REG methods for op_regions in each default address space */
 
-		/* TBD: Make sure handler is the DEFAULT handler, otherwise
+	for (i = 0; i < ACPI_NUM_DEFAULT_SPACES; i++) {
+		/*
+		 * TBD: Make sure handler is the DEFAULT handler, otherwise
 		 * _REG will have already been run.
 		 */
 		status = acpi_ev_execute_reg_methods(acpi_gbl_root_node,
@@ -318,13 +321,13 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	}
 
 	/*
-	 * It may be the case that the region has never been initialized
+	 * It may be the case that the region has never been initialized.
 	 * Some types of regions require special init code
 	 */
 	if (!(region_obj->region.flags & AOPOBJ_SETUP_COMPLETE)) {
-		/*
-		 * This region has not been initialized yet, do it
-		 */
+
+		/* This region has not been initialized yet, do it */
+
 		region_setup = handler_desc->address_space.setup;
 		if (!region_setup) {
 
@@ -339,9 +342,9 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		}
 
 		/*
-		 * We must exit the interpreter because the region
-		 * setup will potentially execute control methods
-		 * (e.g., _REG method for this region)
+		 * We must exit the interpreter because the region setup will
+		 * potentially execute control methods (for example, the _REG method
+		 * for this region)
 		 */
 		acpi_ex_exit_interpreter();
 
@@ -364,9 +367,8 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			return_ACPI_STATUS(status);
 		}
 
-		/*
-		 * Region initialization may have been completed by region_setup
-		 */
+		/* Region initialization may have been completed by region_setup */
+
 		if (!(region_obj->region.flags & AOPOBJ_SETUP_COMPLETE)) {
 			region_obj->region.flags |= AOPOBJ_SETUP_COMPLETE;
 
@@ -521,8 +523,8 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 			}
 
 			/*
-			 * If the region has been activated, call the setup handler
-			 * with the deactivate notification
+			 * If the region has been activated, call the setup handler with
+			 * the deactivate notification
 			 */
 			if (region_obj->region.flags & AOPOBJ_SETUP_COMPLETE) {
 				region_setup = handler_obj->address_space.setup;
@@ -668,8 +670,8 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 	}
 
 	/*
-	 * We only care about regions.and objects
-	 * that are allowed to have address space handlers
+	 * We only care about regions and objects that are allowed to have
+	 * address space handlers
 	 */
 	if ((node->type != ACPI_TYPE_DEVICE) &&
 	    (node->type != ACPI_TYPE_REGION) && (node != acpi_gbl_root_node)) {
@@ -710,9 +712,9 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 				/*
 				 * Since the object we found it on was a device, then it
 				 * means that someone has already installed a handler for
-				 * the branch of the namespace from this device on.  Just
+				 * the branch of the namespace from this device on. Just
 				 * bail out telling the walk routine to not traverse this
-				 * branch.  This preserves the scoping rule for handlers.
+				 * branch. This preserves the scoping rule for handlers.
 				 */
 				return (AE_CTRL_DEPTH);
 			}
@@ -723,9 +725,8 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 		}
 
 		/*
-		 * As long as the device didn't have a handler for this
-		 * space we don't care about it.  We just ignore it and
-		 * proceed.
+		 * As long as the device didn't have a handler for this space we
+		 * don't care about it. We just ignore it and proceed.
 		 */
 		return (AE_OK);
 	}
@@ -733,16 +734,14 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 	/* Object is a Region */
 
 	if (obj_desc->region.space_id != handler_obj->address_space.space_id) {
-		/*
-		 * This region is for a different address space
-		 * -- just ignore it
-		 */
+
+		/* This region is for a different address space, just ignore it */
+
 		return (AE_OK);
 	}
 
 	/*
-	 * Now we have a region and it is for the handler's address
-	 * space type.
+	 * Now we have a region and it is for the handler's address space type.
 	 *
 	 * First disconnect region for any previous handler (if any)
 	 */
@@ -786,9 +785,8 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 	ACPI_FUNCTION_TRACE(ev_install_space_handler);
 
 	/*
-	 * This registration is valid for only the types below
-	 * and the root.  This is where the default handlers
-	 * get placed.
+	 * This registration is valid for only the types below and the root. This
+	 * is where the default handlers get placed.
 	 */
 	if ((node->type != ACPI_TYPE_DEVICE) &&
 	    (node->type != ACPI_TYPE_PROCESSOR) &&
@@ -848,8 +846,8 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 	obj_desc = acpi_ns_get_attached_object(node);
 	if (obj_desc) {
 		/*
-		 * The attached device object already exists.
-		 * Make sure the handler is not already installed.
+		 * The attached device object already exists. Make sure the handler
+		 * is not already installed.
 		 */
 		handler_obj = obj_desc->device.handler;
 
@@ -864,8 +862,8 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 				    handler) {
 					/*
 					 * It is (relatively) OK to attempt to install the SAME
-					 * handler twice. This can easily happen
-					 * with PCI_Config space.
+					 * handler twice. This can easily happen with the
+					 * PCI_Config space.
 					 */
 					status = AE_SAME_HANDLER;
 					goto unlock_and_exit;
@@ -925,9 +923,8 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 	/*
 	 * Install the handler
 	 *
-	 * At this point there is no existing handler.
-	 * Just allocate the object for the handler and link it
-	 * into the list.
+	 * At this point there is no existing handler. Just allocate the object
+	 * for the handler and link it into the list.
 	 */
 	handler_obj =
 	    acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_ADDRESS_HANDLER);
@@ -1000,11 +997,10 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 	ACPI_FUNCTION_TRACE(ev_execute_reg_methods);
 
 	/*
-	 * Run all _REG methods for all Operation Regions for this
-	 * space ID.  This is a separate walk in order to handle any
-	 * interdependencies between regions and _REG methods.  (i.e. handlers
-	 * must be installed for all regions of this Space ID before we
-	 * can run any _REG methods)
+	 * Run all _REG methods for all Operation Regions for this space ID. This
+	 * is a separate walk in order to handle any interdependencies between
+	 * regions and _REG methods. (i.e. handlers must be installed for all
+	 * regions of this Space ID before we can run any _REG methods)
 	 */
 	status = acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, ACPI_UINT32_MAX,
 					ACPI_NS_WALK_UNLOCK, acpi_ev_reg_run,
@@ -1042,8 +1038,8 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 	}
 
 	/*
-	 * We only care about regions.and objects
-	 * that are allowed to have address space handlers
+	 * We only care about regions.and objects that are allowed to have address
+	 * space handlers
 	 */
 	if ((node->type != ACPI_TYPE_REGION) && (node != acpi_gbl_root_node)) {
 		return (AE_OK);
@@ -1062,10 +1058,9 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 	/* Object is a Region */
 
 	if (obj_desc->region.space_id != space_id) {
-		/*
-		 * This region is for a different address space
-		 * -- just ignore it
-		 */
+
+		/* This region is for a different address space, just ignore it */
+
 		return (AE_OK);
 	}
 

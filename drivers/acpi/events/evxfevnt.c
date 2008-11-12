@@ -161,8 +161,8 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 	}
 
 	/*
-	 * Enable the requested fixed event (by writing a one to the
-	 * enable register bit)
+	 * Enable the requested fixed event (by writing a one to the enable
+	 * register bit)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].
@@ -343,8 +343,8 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 	}
 
 	/*
-	 * Disable the requested fixed event (by writing a zero to the
-	 * enable register bit)
+	 * Disable the requested fixed event (by writing a zero to the enable
+	 * register bit)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].
@@ -396,8 +396,8 @@ acpi_status acpi_clear_event(u32 event)
 	}
 
 	/*
-	 * Clear the requested fixed event (By writing a one to the
-	 * status register bit)
+	 * Clear the requested fixed event (By writing a one to the status
+	 * register bit)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].

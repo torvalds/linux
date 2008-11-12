@@ -309,17 +309,17 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	     (gpe_block->block_base_number +
 	      (gpe_block->register_count * 8)))) {
 		/*
-		 * Not valid for this GPE block, just ignore it
-		 * However, it may be valid for a different GPE block, since GPE0 and GPE1
-		 * methods both appear under \_GPE.
+		 * Not valid for this GPE block, just ignore it. However, it may be
+		 * valid for a different GPE block, since GPE0 and GPE1 methods both
+		 * appear under \_GPE.
 		 */
 		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
-	 * Now we can add this information to the gpe_event_info block
-	 * for use during dispatch of this GPE. Default type is RUNTIME, although
-	 * this may change when the _PRW methods are executed later.
+	 * Now we can add this information to the gpe_event_info block for use
+	 * during dispatch of this GPE. Default type is RUNTIME, although this may
+	 * change when the _PRW methods are executed later.
 	 */
 	gpe_event_info =
 	    &gpe_block->event_info[gpe_number - gpe_block->block_base_number];
@@ -394,8 +394,8 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	gpe_block = gpe_info->gpe_block;
 
 	/*
-	 * The _PRW object must return a package, we are only interested
-	 * in the first element
+	 * The _PRW object must return a package, we are only interested in the
+	 * first element
 	 */
 	obj_desc = pkg_desc->package.elements[0];
 
@@ -434,7 +434,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	/*
 	 * Is this GPE within this block?
 	 *
-	 * TRUE iff these conditions are true:
+	 * TRUE if and only if these conditions are true:
 	 *     1) The GPE devices match.
 	 *     2) The GPE index(number) is within the range of the Gpe Block
 	 *          associated with the GPE device.
@@ -457,6 +457,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 		if (ACPI_FAILURE(status)) {
 			goto cleanup;
 		}
+
 		status =
 		    acpi_ev_update_gpe_enable_masks(gpe_event_info,
 						    ACPI_GPE_DISABLE);
@@ -476,9 +477,9 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
  * RETURN:      A GPE interrupt block
  *
  * DESCRIPTION: Get or Create a GPE interrupt block. There is one interrupt
- *              block per unique interrupt level used for GPEs.
- *              Should be called only when the GPE lists are semaphore locked
- *              and not subject to change.
+ *              block per unique interrupt level used for GPEs. Should be
+ *              called only when the GPE lists are semaphore locked and not
+ *              subject to change.
  *
  ******************************************************************************/
 
@@ -608,8 +609,9 @@ acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt)
  *
  * FUNCTION:    acpi_ev_install_gpe_block
  *
- * PARAMETERS:  gpe_block       - New GPE block
- *              interrupt_number - Xrupt to be associated with this GPE block
+ * PARAMETERS:  gpe_block               - New GPE block
+ *              interrupt_number        - Xrupt to be associated with this
+ *                                        GPE block
  *
  * RETURN:      Status
  *
@@ -666,7 +668,7 @@ acpi_ev_install_gpe_block(struct acpi_gpe_block_info *gpe_block,
  *
  * FUNCTION:    acpi_ev_delete_gpe_block
  *
- * PARAMETERS:  gpe_block       - Existing GPE block
+ * PARAMETERS:  gpe_block           - Existing GPE block
  *
  * RETURN:      Status
  *
@@ -786,9 +788,9 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 	/*
 	 * Initialize the GPE Register and Event structures. A goal of these
-	 * tables is to hide the fact that there are two separate GPE register sets
-	 * in a given GPE hardware block, the status registers occupy the first half,
-	 * and the enable registers occupy the second half.
+	 * tables is to hide the fact that there are two separate GPE register
+	 * sets in a given GPE hardware block, the status registers occupy the
+	 * first half, and the enable registers occupy the second half.
 	 */
 	this_register = gpe_register_info;
 	this_event = gpe_event_info;

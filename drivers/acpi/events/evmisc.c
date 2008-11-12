@@ -148,7 +148,9 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 			break;
 
 		default:
+
 			/* All other types are not supported */
+
 			return (AE_TYPE);
 		}
 	}
@@ -189,9 +191,8 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 			acpi_ut_delete_generic_state(notify_info);
 		}
 	} else {
-		/*
-		 * There is no notify handler (per-device or system) for this device.
-		 */
+		/* There is no notify handler (per-device or system) for this device */
+
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "No notify handler for Notify (%4.4s, %X) node %p\n",
 				  acpi_ut_get_node_name(node), notify_value,
@@ -225,9 +226,8 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context)
 	ACPI_FUNCTION_ENTRY();
 
 	/*
-	 * We will invoke a global notify handler if installed.
-	 * This is done _before_ we invoke the per-device handler attached
-	 * to the device.
+	 * We will invoke a global notify handler if installed. This is done
+	 * _before_ we invoke the per-device handler attached to the device.
 	 */
 	if (notify_info->notify.value <= ACPI_MAX_SYS_NOTIFY) {
 
@@ -339,11 +339,10 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 						  NULL);
 
 	/*
-	 * If the global lock does not exist on this platform, the attempt
-	 * to enable GBL_STATUS will fail (the GBL_ENABLE bit will not stick)
-	 * Map to AE_OK, but mark global lock as not present.
-	 * Any attempt to actually use the global lock will be flagged
-	 * with an error.
+	 * If the global lock does not exist on this platform, the attempt to
+	 * enable GBL_STATUS will fail (the GBL_ENABLE bit will not stick).
+	 * Map to AE_OK, but mark global lock as not present. Any attempt to
+	 * actually use the global lock will be flagged with an error.
 	 */
 	if (status == AE_NO_HARDWARE_RESPONSE) {
 		ACPI_ERROR((AE_INFO,
@@ -452,8 +451,8 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 	}
 
 	/*
-	 * Make sure that a global lock actually exists. If not, just treat
-	 * the lock as a standard mutex.
+	 * Make sure that a global lock actually exists. If not, just treat the
+	 * lock as a standard mutex.
 	 */
 	if (!acpi_gbl_global_lock_present) {
 		acpi_gbl_global_lock_acquired = TRUE;
@@ -572,8 +571,8 @@ void acpi_ev_terminate(void)
 
 	if (acpi_gbl_events_initialized) {
 		/*
-		 * Disable all event-related functionality.
-		 * In all cases, on error, print a message but obviously we don't abort.
+		 * Disable all event-related functionality. In all cases, on error,
+		 * print a message but obviously we don't abort.
 		 */
 
 		/* Disable all fixed events */

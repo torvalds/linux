@@ -125,7 +125,7 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info,
 	    (1 <<
 	     (gpe_event_info->gpe_number - gpe_register_info->base_gpe_number));
 
-	/* 1) Disable case.  Simply clear all enable bits */
+	/* 1) Disable case. Simply clear all enable bits */
 
 	if (type == ACPI_GPE_DISABLE) {
 		ACPI_CLEAR_BIT(gpe_register_info->enable_for_wake,
@@ -134,7 +134,7 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* 2) Enable case.  Set/Clear the appropriate enable bits */
+	/* 2) Enable case. Set/Clear the appropriate enable bits */
 
 	switch (gpe_event_info->flags & ACPI_GPE_TYPE_MASK) {
 	case ACPI_GPE_TYPE_WAKE:
@@ -295,7 +295,7 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
  *
  * FUNCTION:    acpi_ev_get_gpe_event_info
  *
- * PARAMETERS:  gpe_device          - Device node.  NULL for GPE0/GPE1
+ * PARAMETERS:  gpe_device          - Device node. NULL for GPE0/GPE1
  *              gpe_number          - Raw GPE number
  *
  * RETURN:      A GPE event_info struct. NULL if not a valid GPE
@@ -372,7 +372,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
  *
  * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
  *
- * DESCRIPTION: Detect if any GP events have occurred.  This function is
+ * DESCRIPTION: Detect if any GP events have occurred. This function is
  *              executed at interrupt level.
  *
  ******************************************************************************/
@@ -400,8 +400,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 	/*
 	 * We need to obtain the GPE lock for both the data structs and registers
-	 * Note: Not necessary to obtain the hardware lock, since the GPE registers
-	 * are owned by the gpe_lock.
+	 * Note: Not necessary to obtain the hardware lock, since the GPE
+	 * registers are owned by the gpe_lock.
 	 */
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
@@ -410,9 +410,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 	gpe_block = gpe_xrupt_list->gpe_block_list_head;
 	while (gpe_block) {
 		/*
-		 * Read all of the 8-bit GPE status and enable registers
-		 * in this GPE block, saving all of them.
-		 * Find all currently active GP events.
+		 * Read all of the 8-bit GPE status and enable registers in this GPE
+		 * block, saving all of them. Find all currently active GP events.
 		 */
 		for (i = 0; i < gpe_block->register_count; i++) {
 
@@ -527,8 +526,8 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	(void)acpi_ev_enable_gpe(gpe_event_info, FALSE);
 
 	/*
-	 * Take a snapshot of the GPE info for this level - we copy the
-	 * info to prevent a race condition with remove_handler/remove_block.
+	 * Take a snapshot of the GPE info for this level - we copy the info to
+	 * prevent a race condition with remove_handler/remove_block.
 	 */
 	ACPI_MEMCPY(&local_gpe_event_info, gpe_event_info,
 		    sizeof(struct acpi_gpe_event_info));
@@ -539,8 +538,8 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	}
 
 	/*
-	 * Must check for control method type dispatch one more
-	 * time to avoid race with ev_gpe_install_handler
+	 * Must check for control method type dispatch one more time to avoid a
+	 * race with ev_gpe_install_handler
 	 */
 	if ((local_gpe_event_info.flags & ACPI_GPE_DISPATCH_MASK) ==
 	    ACPI_GPE_DISPATCH_METHOD) {
@@ -584,8 +583,8 @@ static void acpi_ev_asynch_enable_gpe(void *context)
 	if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
 	    ACPI_GPE_LEVEL_TRIGGERED) {
 		/*
-		 * GPE is level-triggered, we clear the GPE status bit after
-		 * handling the event.
+		 * GPE is level-triggered, we clear the GPE status bit after handling
+		 * the event.
 		 */
 		status = acpi_hw_clear_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
@@ -624,7 +623,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 	acpi_os_gpe_count(gpe_number);
 
 	/*
-	 * If edge-triggered, clear the GPE status bit now.  Note that
+	 * If edge-triggered, clear the GPE status bit now. Note that
 	 * level-triggered events are cleared after the GPE is serviced.
 	 */
 	if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
@@ -650,7 +649,8 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 
 		/*
 		 * Invoke the installed handler (at interrupt level)
-		 * Ignore return status for now.  TBD: leave GPE disabled on error?
+		 * Ignore return status for now.
+		 * TBD: leave GPE disabled on error?
 		 */
 		(void)gpe_event_info->dispatch.handler->address(gpe_event_info->
 								dispatch.
@@ -708,7 +708,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 			    gpe_number));
 
 		/*
-		 * Disable the GPE. The GPE will remain disabled until the ACPI
+		 * Disable the GPE. The GPE will remain disabled until the ACPICA
 		 * Core Subsystem is restarted, or a handler is installed.
 		 */
 		status = acpi_ev_disable_gpe(gpe_event_info);
