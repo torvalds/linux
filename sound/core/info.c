@@ -653,6 +653,23 @@ int snd_info_card_register(struct snd_card *card)
 }
 
 /*
+ * called on card->id change
+ */
+void snd_info_card_id_change(struct snd_card *card)
+{
+	mutex_lock(&info_mutex);
+	if (card->proc_root_link) {
+		snd_remove_proc_entry(snd_proc_root, card->proc_root_link);
+		card->proc_root_link = NULL;
+	}
+	if (strcmp(card->id, card->proc_root->name))
+		card->proc_root_link = proc_symlink(card->id,
+						    snd_proc_root,
+						    card->proc_root->name);
+	mutex_unlock(&info_mutex);
+}
+
+/*
  * de-register the card proc file
  * called from init.c
  */

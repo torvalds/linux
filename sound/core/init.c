@@ -571,6 +571,7 @@ card_id_store_attr(struct device *dev, struct device_attribute *attr,
 			goto __exist;
 	}
 	strcpy(card->id, buf1);
+	snd_info_card_id_change(card);
 	mutex_unlock(&snd_card_mutex);
 
 	return count;

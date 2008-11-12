@@ -126,6 +126,7 @@ int snd_info_card_create(struct snd_card * card);
 int snd_info_card_register(struct snd_card * card);
 int snd_info_card_free(struct snd_card * card);
 void snd_info_card_disconnect(struct snd_card * card);
+void snd_info_card_id_change(struct snd_card * card);
 int snd_info_register(struct snd_info_entry * entry);
 
 /* for card drivers */
@@ -160,6 +161,7 @@ static inline int snd_info_card_create(struct snd_card * card) { return 0; }
 static inline int snd_info_card_register(struct snd_card * card) { return 0; }
 static inline int snd_info_card_free(struct snd_card * card) { return 0; }
 static inline void snd_info_card_disconnect(struct snd_card * card) { }
+static inline void snd_info_card_id_change(struct snd_card * card) { }
 static inline int snd_info_register(struct snd_info_entry * entry) { return 0; }
 
 static inline int snd_card_proc_new(struct snd_card *card, const char *name,
