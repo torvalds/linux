@@ -1657,7 +1657,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 		trace_assign_type(field, entry);
 
 		trace_seq_printf(s, "[%s] %s:%s:%d\n",
-				 field->correct ? " .... " : " MISS ",
+				 field->correct ? "  ok  " : " MISS ",
 				 field->func,
 				 field->file,
 				 field->line);
@@ -1808,7 +1808,7 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 		trace_assign_type(field, entry);
 
 		trace_seq_printf(s, "[%s] %s:%s:%d\n",
-				 field->correct ? " .... " : " MISS ",
+				 field->correct ? "  ok  " : " MISS ",
 				 field->func,
 				 field->file,
 				 field->line);
