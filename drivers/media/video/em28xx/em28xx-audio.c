@@ -424,7 +424,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	struct snd_pcm      *pcm;
 	struct snd_card     *card;
 	static int          devnr;
-	int                 ret, err;
+	int                 err;
 
 	if (dev->has_audio_class) {
 		/* This device does not support the extension (in this case
