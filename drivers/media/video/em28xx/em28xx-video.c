@@ -1603,6 +1603,10 @@ static void em28xx_release_resources(struct em28xx *dev)
 	list_del(&dev->devlist);
 	if (dev->sbutton_input_dev)
 		em28xx_deregister_snapshot_button(dev);
+
+	if (dev->ir)
+		em28xx_ir_fini(dev);
+
 	if (dev->radio_dev) {
 		if (-1 != dev->radio_dev->minor)
 			video_unregister_device(dev->radio_dev);

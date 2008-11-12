@@ -384,6 +384,8 @@ struct em28xx {
 	unsigned int has_snapshot_button:1;
 	unsigned int valid:1;		/* report for validated boards */
 
+	struct em28xx_IR *ir;
+
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
 
@@ -544,13 +546,15 @@ void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 
 /* Provided by em28xx-input.c */
-/* TODO: Check if the standard get_key handlers on ir-common can be used */
 int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 				     u32 *ir_raw);
 void em28xx_register_snapshot_button(struct em28xx *dev);
 void em28xx_deregister_snapshot_button(struct em28xx *dev);
+
+int em28xx_ir_init(struct em28xx *dev);
+int em28xx_ir_fini(struct em28xx *dev);
 
 /* printk macros */
 

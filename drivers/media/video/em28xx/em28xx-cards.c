@@ -1843,4 +1843,6 @@ void em28xx_card_setup(struct em28xx *dev)
 #endif
 
 	em28xx_config_tuner(dev);
+
+	em28xx_ir_init(dev);
 }

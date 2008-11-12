@@ -71,6 +71,13 @@
 #define EM28XX_R42_AC97ADDR	0x42
 #define EM28XX_R43_AC97BUSY	0x43
 
+#define EM28XX_R45_IR		0x45
+	/* 0x45  bit 7    - parity bit
+		 bits 6-0 - count
+	   0x46  IR brand
+	   0x47  IR data
+	 */
+
 /* em202 registers */
 #define EM28XX_R02_MASTER_AC97	0x02
 #define EM28XX_R10_LINE_IN_AC97    0x10
