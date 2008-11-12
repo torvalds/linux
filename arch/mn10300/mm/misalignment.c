@@ -314,9 +314,6 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 
 	kdebug("==>misalignment({pc=%lx})", regs->pc);
 
-	if (in_interrupt())
-		die("Misalignment trap in interrupt context", regs, code);
-
 	if (regs->epsw & EPSW_IE)
 		asm volatile("or %0,epsw" : : "i"(EPSW_IE));
 
