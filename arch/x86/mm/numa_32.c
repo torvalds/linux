@@ -222,6 +222,41 @@ static void __init remap_numa_kva(void)
 	}
 }
 
+#ifdef CONFIG_HIBERNATION
+/**
+ * resume_map_numa_kva - add KVA mapping to the temporary page tables created
+ *                       during resume from hibernation
+ * @pgd_base - temporary resume page directory
+ */
+void resume_map_numa_kva(pgd_t *pgd_base)
+{
+	int node;
+
+	for_each_online_node(node) {
+		unsigned long start_va, start_pfn, size, pfn;
+
+		start_va = (unsigned long)node_remap_start_vaddr[node];
+		start_pfn = node_remap_start_pfn[node];
+		size = node_remap_size[node];
+
+		printk(KERN_DEBUG "%s: node %d\n", __FUNCTION__, node);
+
+		for (pfn = 0; pfn < size; pfn += PTRS_PER_PTE) {
+			unsigned long vaddr = start_va + (pfn << PAGE_SHIFT);
+			pgd_t *pgd = pgd_base + pgd_index(vaddr);
+			pud_t *pud = pud_offset(pgd, vaddr);
+			pmd_t *pmd = pmd_offset(pud, vaddr);
+
+			set_pmd(pmd, pfn_pmd(start_pfn + pfn,
+						PAGE_KERNEL_LARGE_EXEC));
+
+			printk(KERN_DEBUG "%s: %08lx -> pfn %08lx\n",
+				__FUNCTION__, vaddr, start_pfn + pfn);
+		}
+	}
+}
+#endif
+
 static unsigned long calculate_numa_remap_pages(void)
 {
 	int nid;
