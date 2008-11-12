@@ -50,6 +50,8 @@ static int misalignment_reg(unsigned long *registers, unsigned params,
 			    unsigned opcode, unsigned long disp,
 			    unsigned long **_register);
 
+static void misalignment_MOV_Lcc(struct pt_regs *regs, uint32_t opcode);
+
 static const unsigned Dreg_index[] = {
 	REG_D0 >> 2, REG_D1 >> 2, REG_D2 >> 2, REG_D3 >> 2
 };
@@ -78,6 +80,7 @@ enum format_id {
 	FMT_D7,
 	FMT_D8,
 	FMT_D9,
+	FMT_D10,
 };
 
 static const struct {
@@ -95,6 +98,7 @@ static const struct {
 	[FMT_D7]	= { 24,	8	},
 	[FMT_D8]	= { 24,	24	},
 	[FMT_D9]	= { 24,	32	},
+	[FMT_D10]	= { 32,	0	},
 };
 
 enum value_id {
@@ -293,6 +297,19 @@ static const struct mn10300_opcode mn10300_opcodes[] = {
 { "movhu",	0xfeda0000,  0xffff0f00,  0,    FMT_D9, AM33,	{RM2, MEM2(IMM32_HIGH8, SP)}},
 { "movhu",	0xfeea0000,  0xffff0000,  0x22, FMT_D9, AM33,	{MEMINC2 (RM0, IMM32_HIGH8), RN2}},
 { "movhu",	0xfefa0000,  0xffff0000,  0,	FMT_D9, AM33,	{RN2, MEMINC2 (RM0, IMM32_HIGH8)}},
+
+{ "mov_llt",	0xf7e00000,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lgt",	0xf7e00001,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lge",	0xf7e00002,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lle",	0xf7e00003,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lcs",	0xf7e00004,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lhi",	0xf7e00005,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lcc",	0xf7e00006,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lls",	0xf7e00007,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_leq",	0xf7e00008,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lne",	0xf7e00009,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+{ "mov_lra",	0xf7e0000a,  0xffff000f,  0x22, FMT_D10, AM33,	 {MEMINC2 (RN4,SIMM4_2), RM6}},
+
 { 0, 0, 0, 0, 0, 0, {0}},
 };
 
@@ -477,7 +494,8 @@ found_opcode:
 				      &store))
 			goto bad_reg_mode;
 
-		if (strcmp(pop->name, "mov") == 0) {
+		if (strcmp(pop->name, "mov") == 0 ||
+		    memcmp(pop->name, "mov_l", 5) == 0) {
 			kdebug("mov (%p),DARn", address);
 			if (copy_from_user(&data, (void *) address, 4) != 0)
 				goto transfer_failed;
@@ -495,6 +513,7 @@ found_opcode:
 		}
 
 		*store = data;
+		kdebug("loaded %lx", data);
 	} else {
 		/* move register to memory */
 		if (!misalignment_reg(registers, pop->params[0], opcode, disp,
@@ -526,6 +545,11 @@ found_opcode:
 
 	tmp = format_tbl[pop->format].opsz + format_tbl[pop->format].dispsz;
 	regs->pc += tmp >> 3;
+
+	/* handle MOV_Lcc, which are currently the only FMT_D10 insns that
+	 * access memory */
+	if (pop->format == FMT_D10)
+		misalignment_MOV_Lcc(regs, opcode);
 
 	set_fs(seg);
 	return;
@@ -700,6 +724,75 @@ static int misalignment_reg(unsigned long *registers, unsigned params,
 	}
 
 	return 1;
+}
+
+/*
+ * handle the conditional loop part of the move-and-loop instructions
+ */
+static void misalignment_MOV_Lcc(struct pt_regs *regs, uint32_t opcode)
+{
+	unsigned long epsw = regs->epsw;
+	unsigned long NxorV;
+
+	kdebug("MOV_Lcc %x [flags=%lx]", opcode, epsw & 0xf);
+
+	/* calculate N^V and shift onto the same bit position as Z */
+	NxorV = ((epsw >> 3) ^ epsw >> 1) & 1;
+
+	switch (opcode & 0xf) {
+	case 0x0: /* MOV_LLT: N^V */
+		if (NxorV)
+			goto take_the_loop;
+		return;
+	case 0x1: /* MOV_LGT: ~(Z or (N^V))*/
+		if (!((epsw & EPSW_FLAG_Z) | NxorV))
+			goto take_the_loop;
+		return;
+	case 0x2: /* MOV_LGE: ~(N^V) */
+		if (!NxorV)
+			goto take_the_loop;
+		return;
+	case 0x3: /* MOV_LLE: Z or (N^V) */
+		if ((epsw & EPSW_FLAG_Z) | NxorV)
+			goto take_the_loop;
+		return;
+
+	case 0x4: /* MOV_LCS: C */
+		if (epsw & EPSW_FLAG_C)
+			goto take_the_loop;
+		return;
+	case 0x5: /* MOV_LHI: ~(C or Z) */
+		if (!(epsw & (EPSW_FLAG_C | EPSW_FLAG_Z)))
+			goto take_the_loop;
+		return;
+	case 0x6: /* MOV_LCC: ~C */
+		if (!(epsw & EPSW_FLAG_C))
+			goto take_the_loop;
+		return;
+	case 0x7: /* MOV_LLS: C or Z */
+		if (epsw & (EPSW_FLAG_C | EPSW_FLAG_Z))
+			goto take_the_loop;
+		return;
+
+	case 0x8: /* MOV_LEQ: Z */
+		if (epsw & EPSW_FLAG_Z)
+			goto take_the_loop;
+		return;
+	case 0x9: /* MOV_LNE: ~Z */
+		if (!(epsw & EPSW_FLAG_Z))
+			goto take_the_loop;
+		return;
+	case 0xa: /* MOV_LRA: always */
+		goto take_the_loop;
+
+	default:
+		BUG();
+	}
+
+take_the_loop:
+	/* wind the PC back to just after the SETLB insn */
+	kdebug("loop LAR=%lx", regs->lar);
+	regs->pc = regs->lar - 4;
 }
 
 /*
