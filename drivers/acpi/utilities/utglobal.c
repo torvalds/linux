@@ -352,7 +352,7 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"PCI_Config",
 	"EmbeddedControl",
 	"SMBus",
-	"CMOS",
+	"SystemCMOS",
 	"PCIBARTarget",
 	"DataTable"
 };
