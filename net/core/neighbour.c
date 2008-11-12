@@ -1424,9 +1424,8 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 		panic("cannot create neighbour cache statistics");
 
 #ifdef CONFIG_PROC_FS
-	tbl->pde = proc_create_data(tbl->id, 0, init_net.proc_net_stat,
-				    &neigh_stat_seq_fops, tbl);
-	if (!tbl->pde)
+	if (!proc_create_data(tbl->id, 0, init_net.proc_net_stat,
+			      &neigh_stat_seq_fops, tbl))
 		panic("cannot create neighbour proc dir entry");
 #endif
 

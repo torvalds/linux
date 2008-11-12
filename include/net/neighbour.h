@@ -180,9 +180,6 @@ struct neigh_table
 	__u32			hash_rnd;
 	unsigned int		hash_chain_gc;
 	struct pneigh_entry	**phash_buckets;
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry	*pde;
-#endif
 };
 
 /* flags for neigh_update() */
