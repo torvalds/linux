@@ -473,6 +473,7 @@ enum trace_iterator_flags {
 #ifdef CONFIG_BRANCH_TRACER
 	TRACE_ITER_BRANCH		= 0x1000,
 #endif
+	TRACE_ITER_ANNOTATE		= 0x2000,
 };
 
 /*

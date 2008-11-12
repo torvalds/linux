@@ -205,7 +205,8 @@ static DEFINE_MUTEX(trace_types_lock);
 static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
 /* trace_flags holds trace_options default values */
-unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK;
+unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
+	TRACE_ITER_ANNOTATE;
 
 /**
  * trace_wake_up - wake up tasks waiting for trace input
@@ -261,6 +262,7 @@ static const char *trace_options[] = {
 #ifdef CONFIG_BRANCH_TRACER
 	"branch",
 #endif
+	"annotate",
 	NULL
 };
 
@@ -1113,6 +1115,7 @@ void tracing_stop_function_trace(void)
 
 enum trace_file_type {
 	TRACE_FILE_LAT_FMT	= 1,
+	TRACE_FILE_ANNOTATE	= 2,
 };
 
 static void trace_iterator_increment(struct trace_iterator *iter, int cpu)
@@ -1531,6 +1534,12 @@ void trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
 static void test_cpu_buff_start(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
+
+	if (!(trace_flags & TRACE_ITER_ANNOTATE))
+		return;
+
+	if (!(iter->iter_flags & TRACE_FILE_ANNOTATE))
+		return;
 
 	if (cpu_isset(iter->cpu, iter->started))
 		return;
@@ -2131,6 +2140,11 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 		iter->tr = inode->i_private;
 	iter->trace = current_trace;
 	iter->pos = -1;
+
+	/* Annotate start of buffers if we had overruns */
+	if (ring_buffer_overruns(iter->tr->buffer))
+		iter->iter_flags |= TRACE_FILE_ANNOTATE;
+
 
 	for_each_tracing_cpu(cpu) {
 
