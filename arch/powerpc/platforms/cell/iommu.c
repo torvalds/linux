@@ -1053,10 +1053,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	}
 
 	/* We must have dma-ranges properties for fixed mapping to work */
-	for (np = NULL; (np = of_find_all_nodes(np));) {
-		if (of_find_property(np, "dma-ranges", NULL))
-			break;
-	}
+	np = of_find_node_with_property(NULL, "dma-ranges");
 	of_node_put(np);
 
 	if (!np) {
