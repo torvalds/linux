@@ -1927,6 +1927,19 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	return vfd;
 }
 
+int em28xx_supports_audio_extension(struct em28xx *dev)
+{
+	/* The chip dictates whether we support the Empia analog audio
+	   extension */
+	switch (dev->chip_id) {
+	case CHIP_ID_EM2874:
+		/* Either a digital-only device or provides AC97 audio */
+		return 0;
+	case CHIP_ID_EM2883:
+	default:
+		return 1;
+	}
+}
 
 static int register_analog_devices(struct em28xx *dev)
 {
@@ -2121,7 +2134,7 @@ static void request_module_async(struct work_struct *work)
 
 	if (dev->has_audio_class)
 		request_module("snd-usb-audio");
-	else
+	else if (dev->has_alsa_audio)
 		request_module("em28xx-alsa");
 
 	if (dev->has_dvb)
@@ -2230,9 +2243,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		}
 	}
 
-	printk(KERN_INFO DRIVER_NAME " %s usb audio class\n",
-		   dev->has_audio_class ? "Has" : "Doesn't have");
-
 	/* compute alternate max packet sizes */
 	uif = udev->actconfig->interface[0];
 
@@ -2270,6 +2280,17 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	em28xx_info("Found %s\n", em28xx_boards[dev->model].name);
+
+	if (dev->has_audio_class == 0) {
+		/* We don't have a USB audio class, let's see if we support
+		   ALSA Audio */
+		dev->has_alsa_audio = em28xx_supports_audio_extension(dev);
+		if (dev->has_alsa_audio)
+			printk(KERN_INFO DRIVER_NAME " supports alsa audio\n");
+	} else {
+		printk(KERN_INFO DRIVER_NAME " has usb audio class\n");
+	}
+
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);

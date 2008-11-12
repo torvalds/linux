@@ -376,6 +376,7 @@ struct em28xx {
 	unsigned int has_tda9887:1;
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
+	unsigned int has_alsa_audio:1;
 	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
