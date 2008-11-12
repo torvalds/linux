@@ -295,6 +295,7 @@ static int add_sock(struct socket *sock, struct connection *con)
 	con->sock->sk->sk_write_space = lowcomms_write_space;
 	con->sock->sk->sk_state_change = lowcomms_state_change;
 	con->sock->sk->sk_user_data = con;
+	con->sock->sk->sk_allocation = GFP_NOFS;
 	return 0;
 }
 
