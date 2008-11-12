@@ -37,7 +37,7 @@
 #include <asm/asm-offsets.h>
 
 #if 0
-#define kdebug(FMT, ...) printk(KERN_DEBUG FMT, ##__VA_ARGS__)
+#define kdebug(FMT, ...) printk(KERN_DEBUG "MISALIGN: "FMT"\n", ##__VA_ARGS__)
 #else
 #define kdebug(FMT, ...) do {} while (0)
 #endif
@@ -49,14 +49,6 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 static int misalignment_reg(unsigned long *registers, unsigned params,
 			    unsigned opcode, unsigned disp,
 			    unsigned long **_register);
-
-static inline unsigned int_log2(unsigned x)
-{
-	unsigned y;
-	asm("bsch %1,%0" : "=r"(y) : "r"(x), "0"(0));
-	return y;
-}
-#define log2(x) int_log2(x)
 
 static const unsigned Dreg_index[] = {
 	REG_D0 >> 2, REG_D1 >> 2, REG_D2 >> 2, REG_D3 >> 2
@@ -88,7 +80,7 @@ enum format_id {
 	FMT_D9,
 };
 
-struct {
+static const struct {
 	u_int8_t opsz, dispsz;
 } format_tbl[16] = {
 	[FMT_S0]	= { 8,	0	},
@@ -273,7 +265,7 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	void *address;
 	unsigned tmp, npop;
 
-	kdebug("MISALIGN at %lx\n", regs->pc);
+	kdebug("==>misalignment({pc=%lx})", regs->pc);
 
 	if (in_interrupt())
 		die("Misalignment trap in interrupt context", regs, code);
@@ -295,7 +287,7 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	noc = 8;
 
 	for (pop = mn10300_opcodes; pop->name; pop++) {
-		npop = log2(pop->opcode | pop->opmask);
+		npop = ilog2(pop->opcode | pop->opmask);
 		if (npop <= 0 || npop > 31)
 			continue;
 		npop = (npop + 8) & ~7;
@@ -391,7 +383,7 @@ transfer_failed:
 
 	/* we matched the opcode */
 found_opcode:
-	kdebug("MISALIGN: %lx: %x==%x { %x, %x }\n",
+	kdebug("%lx: %x==%x { %x, %x }",
 	       regs->pc, opcode, pop->opcode, pop->params[0], pop->params[1]);
 
 	tmp = format_tbl[pop->format].opsz;
@@ -442,13 +434,13 @@ found_opcode:
 			goto bad_reg_mode;
 
 		if (strcmp(pop->name, "mov") == 0) {
-			kdebug("FIXUP: mov (%p),DARn\n", address);
+			kdebug("mov (%p),DARn", address);
 			if (copy_from_user(&data, (void *) address, 4) != 0)
 				goto transfer_failed;
 			if (pop->params[0] & 0x1000000)
 				*postinc += 4;
 		} else if (strcmp(pop->name, "movhu") == 0) {
-			kdebug("FIXUP: movhu (%p),DARn\n", address);
+			kdebug("movhu (%p),DARn", address);
 			data = 0;
 			if (copy_from_user(&data, (void *) address, 2) != 0)
 				goto transfer_failed;
@@ -472,14 +464,13 @@ found_opcode:
 		data = *store;
 
 		if (strcmp(pop->name, "mov") == 0) {
-			kdebug("FIXUP: mov %lx,(%p)\n", data, address);
+			kdebug("mov %lx,(%p)", data, address);
 			if (copy_to_user((void *) address, &data, 4) != 0)
 				goto transfer_failed;
 			if (pop->params[1] & 0x1000000)
 				*postinc += 4;
 		} else if (strcmp(pop->name, "movhu") == 0) {
-			kdebug("FIXUP: movhu %hx,(%p)\n",
-			       (uint16_t) data, address);
+			kdebug("movhu %hx,(%p)", (uint16_t) data, address);
 			if (copy_to_user((void *) address, &data, 2) != 0)
 				goto transfer_failed;
 			if (pop->params[1] & 0x1000000)
