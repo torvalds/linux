@@ -131,7 +131,6 @@ static struct dst_ops dn_dst_ops = {
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
-	.entry_size =		sizeof(struct dn_route),
 	.entries =		ATOMIC_INIT(0),
 };
 

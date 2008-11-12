@@ -160,7 +160,6 @@ static struct dst_ops ipv4_dst_ops = {
 	.link_failure =		ipv4_link_failure,
 	.update_pmtu =		ip_rt_update_pmtu,
 	.local_out =		__ip_local_out,
-	.entry_size =		sizeof(struct rtable),
 	.entries =		ATOMIC_INIT(0),
 };
 
@@ -2701,7 +2700,6 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.destroy		=	ipv4_dst_destroy,
 	.check			=	ipv4_dst_check,
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
-	.entry_size		=	sizeof(struct rtable),
 	.entries		=	ATOMIC_INIT(0),
 };
 

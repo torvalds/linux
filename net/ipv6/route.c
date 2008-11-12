@@ -108,7 +108,6 @@ static struct dst_ops ip6_dst_ops_template = {
 	.link_failure		=	ip6_link_failure,
 	.update_pmtu		=	ip6_rt_update_pmtu,
 	.local_out		=	__ip6_local_out,
-	.entry_size		=	sizeof(struct rt6_info),
 	.entries		=	ATOMIC_INIT(0),
 };
 
@@ -122,7 +121,6 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.destroy		=	ip6_dst_destroy,
 	.check			=	ip6_dst_check,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
-	.entry_size		=	sizeof(struct rt6_info),
 	.entries		=	ATOMIC_INIT(0),
 };
 

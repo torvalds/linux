@@ -104,7 +104,6 @@ struct dst_ops
 	void			(*link_failure)(struct sk_buff *);
 	void			(*update_pmtu)(struct dst_entry *dst, u32 mtu);
 	int			(*local_out)(struct sk_buff *skb);
-	int			entry_size;
 
 	atomic_t		entries;
 	struct kmem_cache 		*kmem_cachep;

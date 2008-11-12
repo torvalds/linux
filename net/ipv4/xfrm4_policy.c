@@ -246,7 +246,6 @@ static struct dst_ops xfrm4_dst_ops = {
 	.ifdown =		xfrm4_dst_ifdown,
 	.local_out =		__ip_local_out,
 	.gc_thresh =		1024,
-	.entry_size =		sizeof(struct xfrm_dst),
 	.entries =		ATOMIC_INIT(0),
 };
 
