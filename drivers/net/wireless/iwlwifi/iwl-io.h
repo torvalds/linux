@@ -109,7 +109,7 @@ static inline int __iwl_poll_bit(const char *f, u32 l,
 	int ret = _iwl_poll_bit(priv, addr, bits, mask, timeout);
 	IWL_DEBUG_IO("poll_bit(0x%08X, 0x%08X, 0x%08X) - %s- %s %d\n",
 		     addr, bits, mask,
-		     unlikely(ret  == -ETIMEDOUT)?"timeout":"", f, l);
+		     unlikely(ret  == -ETIMEDOUT) ? "timeout" : "", f, l);
 	return ret;
 }
 #define iwl_poll_bit(priv, addr, bits, mask, timeout) \

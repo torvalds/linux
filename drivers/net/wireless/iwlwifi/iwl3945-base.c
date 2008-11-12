@@ -519,7 +519,7 @@ static inline int iwl3945_is_ready_rf(struct iwl3945_priv *priv)
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
-#define IWL_CMD(x) case x : return #x
+#define IWL_CMD(x) case x: return #x
 
 static const char *get_cmd_string(u8 cmd)
 {
@@ -4320,7 +4320,7 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 
 		IWL_DEBUG(IWL_DL_INFO | IWL_DL_RF_KILL | IWL_DL_ISR,
 				"RF_KILL bit toggled to %s.\n",
-				hw_rf_kill ? "disable radio":"enable radio");
+				hw_rf_kill ? "disable radio" : "enable radio");
 
 		/* Queue restart only if RF_KILL switch was set to "kill"
 		 *   when we loaded driver, and is now set to "enable".

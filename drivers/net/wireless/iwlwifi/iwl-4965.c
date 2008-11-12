@@ -661,7 +661,7 @@ static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
 	int txq_id = txq->q.id;
 
 	/* Find out whether to activate Tx queue */
-	int active = test_bit(txq_id, &priv->txq_ctx_active_msk)?1:0;
+	int active = test_bit(txq_id, &priv->txq_ctx_active_msk) ? 1 : 0;
 
 	/* Set up and activate */
 	iwl_write_prph(priv, IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
@@ -2025,7 +2025,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-		info->flags |= iwl_is_tx_success(status)?
+		info->flags |= iwl_is_tx_success(status) ?
 			IEEE80211_TX_STAT_ACK : 0;
 		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
 		/* FIXME: code repetition end */
