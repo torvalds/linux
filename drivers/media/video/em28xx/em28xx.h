@@ -370,6 +370,7 @@ struct em28xx {
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
+	enum em28xx_chip_id chip_id;
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;
 	unsigned int has_tda9887:1;
