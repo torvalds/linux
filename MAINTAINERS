@@ -2703,6 +2703,11 @@ P:	Arnaldo Carvalho de Melo
 M:	acme@ghostprotocols.net
 S:	Maintained
 
+LIS3LV02D ACCELEROMETER DRIVER
+P:	Eric Piel
+M:	eric.piel@tremplin-utc.net
+S:	Maintained
+
 LM83 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
