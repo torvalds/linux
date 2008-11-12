@@ -541,6 +541,7 @@ struct btrfs_space_info {
 	u64 bytes_used;
 	u64 bytes_pinned;
 	u64 bytes_reserved;
+	u64 bytes_readonly;
 	int full;
 	int force_alloc;
 	struct list_head list;

@@ -1075,10 +1075,12 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
-	ret = btrfs_find_dead_roots(fs_info->tree_root,
-				    root->root_key.objectid, root);
-	BUG_ON(ret);
-
+	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
+		ret = btrfs_find_dead_roots(fs_info->tree_root,
+					    root->root_key.objectid, root);
+		BUG_ON(ret);
+		btrfs_orphan_cleanup(root);
+	}
 	return root;
 }
 
@@ -1700,7 +1702,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	btrfs_read_block_groups(extent_root);
 
-	fs_info->generation = btrfs_super_generation(disk_super) + 1;
+	fs_info->generation = generation + 1;
+	fs_info->last_trans_committed = generation;
 	fs_info->data_alloc_profile = (u64)-1;
 	fs_info->metadata_alloc_profile = (u64)-1;
 	fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
@@ -1714,6 +1717,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 						   "btrfs-transaction");
 	if (!fs_info->transaction_kthread)
 		goto fail_cleaner;
+
+	if (sb->s_flags & MS_RDONLY)
+		return tree_root;
 
 	if (btrfs_super_log_root(disk_super) != 0) {
 		u32 blocksize;
@@ -1735,7 +1741,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		ret = btrfs_recover_log_trees(log_tree_root);
 		BUG_ON(ret);
 	}
-	fs_info->last_trans_committed = btrfs_super_generation(disk_super);
 
 	ret = btrfs_cleanup_reloc_trees(tree_root);
 	BUG_ON(ret);
@@ -1955,11 +1960,56 @@ static int del_fs_roots(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
+int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
+{
+	u64 root_objectid = 0;
+	struct btrfs_root *gang[8];
+	int i;
+	int ret;
+
+	while (1) {
+		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+					     (void **)gang, root_objectid,
+					     ARRAY_SIZE(gang));
+		if (!ret)
+			break;
+		for (i = 0; i < ret; i++) {
+			root_objectid = gang[i]->root_key.objectid;
+			ret = btrfs_find_dead_roots(fs_info->tree_root,
+						    root_objectid, gang[i]);
+			BUG_ON(ret);
+			btrfs_orphan_cleanup(gang[i]);
+		}
+		root_objectid++;
+	}
+	return 0;
+}
+
+int btrfs_commit_super(struct btrfs_root *root)
+{
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	mutex_lock(&root->fs_info->cleaner_mutex);
+	btrfs_clean_old_snapshots(root);
+	mutex_unlock(&root->fs_info->cleaner_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	ret = btrfs_commit_transaction(trans, root);
+	BUG_ON(ret);
+	/* run commit again to drop the original snapshot */
+	trans = btrfs_start_transaction(root, 1);
+	btrfs_commit_transaction(trans, root);
+	ret = btrfs_write_and_wait_transaction(NULL, root);
+	BUG_ON(ret);
+
+	ret = write_ctree_super(NULL, root);
+	return ret;
+}
+
 int close_ctree(struct btrfs_root *root)
 {
-	int ret;
-	struct btrfs_trans_handle *trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	int ret;
 
 	fs_info->closing = 1;
 	smp_mb();
@@ -1967,16 +2017,12 @@ int close_ctree(struct btrfs_root *root)
 	kthread_stop(root->fs_info->transaction_kthread);
 	kthread_stop(root->fs_info->cleaner_kthread);
 
-	btrfs_clean_old_snapshots(root);
-	trans = btrfs_start_transaction(root, 1);
-	ret = btrfs_commit_transaction(trans, root);
-	/* run commit again to  drop the original snapshot */
-	trans = btrfs_start_transaction(root, 1);
-	btrfs_commit_transaction(trans, root);
-	ret = btrfs_write_and_wait_transaction(NULL, root);
-	BUG_ON(ret);
-
-	write_ctree_super(NULL, root);
+	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
+		ret =  btrfs_commit_super(root);
+		if (ret) {
+			printk("btrfs: commit super returns %d\n", ret);
+		}
+	}
 
 	if (fs_info->delalloc_bytes) {
 		printk("btrfs: at unmount delalloc count %Lu\n",
@@ -2000,12 +2046,10 @@ int close_ctree(struct btrfs_root *root)
 		free_extent_buffer(root->fs_info->dev_root->node);
 
 	btrfs_free_block_groups(root->fs_info);
-	fs_info->closing = 2;
+
 	del_fs_roots(fs_info);
 
-	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
-
-	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
+	iput(fs_info->btree_inode);
 
 	btrfs_stop_workers(&fs_info->fixup_workers);
 	btrfs_stop_workers(&fs_info->delalloc_workers);
@@ -2014,7 +2058,6 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 
-	iput(fs_info->btree_inode);
 #if 0
 	while(!list_empty(&fs_info->hashers)) {
 		struct btrfs_hasher *hasher;

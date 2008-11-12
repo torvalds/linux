@@ -378,6 +378,9 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 	int namelen;
 	int mod = 0;
 
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
 	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
 
 	if (!vol_args)
@@ -478,6 +481,9 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 	int namelen;
 	int ret;
 
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
 	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
 
 	if (!vol_args)
@@ -534,6 +540,11 @@ static int btrfs_ioctl_defrag(struct file *file)
 {
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret;
+
+	ret = mnt_want_write(file->f_path.mnt);
+	if (ret)
+		return ret;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFDIR:
@@ -574,6 +585,9 @@ long btrfs_ioctl_rm_dev(struct btrfs_root *root, void __user *arg)
 {
 	struct btrfs_ioctl_vol_args *vol_args;
 	int ret;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
 
 	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
 
@@ -620,6 +634,10 @@ long btrfs_ioctl_clone(struct file *file, unsigned long srcfd, u64 off,
 	 * - allow ranges within the same file to be cloned (provided
 	 *   they don't overlap)?
 	 */
+
+	ret = mnt_want_write(file->f_path.mnt);
+	if (ret)
+		return ret;
 
 	src_file = fget(srcfd);
 	if (!src_file)
@@ -957,6 +975,10 @@ long btrfs_ioctl_trans_start(struct file *file)
 		ret = -EINPROGRESS;
 		goto out;
 	}
+
+	ret = mnt_want_write(file->f_path.mnt);
+	if (ret)
+		goto out;
 
 	mutex_lock(&root->fs_info->trans_mutex);
 	root->fs_info->open_ioctl_trans++;

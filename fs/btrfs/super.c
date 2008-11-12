@@ -370,6 +370,9 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	int ret;
 	root = btrfs_sb(sb);
 
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
 	sb->s_dirt = 0;
 	if (!wait) {
 		filemap_flush(root->fs_info->btree_inode->i_mapping);
@@ -438,7 +441,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 			up_write(&s->s_umount);
 			deactivate_super(s);
 			error = -EBUSY;
-			goto error_bdev;
+			goto error_close_devices;
 		}
 
 	} else {
@@ -487,12 +490,41 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 
 error_s:
 	error = PTR_ERR(s);
-error_bdev:
+error_close_devices:
 	btrfs_close_devices(fs_devices);
 error_free_subvol_name:
 	kfree(subvol_name);
 error:
 	return error;
+}
+
+static int btrfs_remount(struct super_block *sb, int *flags, char *data)
+{
+	struct btrfs_root *root = btrfs_sb(sb);
+	int ret;
+
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+		return 0;
+
+	if (*flags & MS_RDONLY) {
+		sb->s_flags |= MS_RDONLY;
+
+		ret =  btrfs_commit_super(root);
+		WARN_ON(ret);
+	} else {
+		if (btrfs_super_log_root(&root->fs_info->super_copy) != 0)
+			return -EINVAL;
+
+		ret = btrfs_cleanup_reloc_trees(root);
+		WARN_ON(ret);
+
+		ret = btrfs_cleanup_fs_roots(root->fs_info);
+		WARN_ON(ret);
+
+		sb->s_flags &= ~MS_RDONLY;
+	}
+
+	return 0;
 }
 
 static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -582,6 +614,7 @@ static struct super_operations btrfs_super_ops = {
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,
+	.remount_fs	= btrfs_remount,
 	.write_super_lockfs = btrfs_write_super_lockfs,
 	.unlockfs	= btrfs_unlockfs,
 };

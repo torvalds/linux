@@ -1808,10 +1808,6 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 	struct inode *inode;
 	int ret = 0, nr_unlink = 0, nr_truncate = 0;
 
-	/* don't do orphan cleanup if the fs is readonly. */
-	if (root->fs_info->sb->s_flags & MS_RDONLY)
-		return;
-
 	path = btrfs_alloc_path();
 	if (!path)
 		return;
@@ -3050,7 +3046,7 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct btrfs_root *root = bi->root;
 	struct btrfs_root *sub_root = root;
 	struct btrfs_key location;
-	int ret, new, do_orphan = 0;
+	int ret, new;
 
 	if (dentry->d_name.len > BTRFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -3076,12 +3072,8 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 		if (new && root != sub_root) {
 			igrab(inode);
 			sub_root->inode = inode;
-			do_orphan = 1;
 		}
 	}
-
-	if (unlikely(do_orphan))
-		btrfs_orphan_cleanup(sub_root);
 
 	return d_splice_alias(inode, dentry);
 }
@@ -3237,7 +3229,7 @@ int btrfs_write_inode(struct inode *inode, int wait)
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
 
-	if (root->fs_info->closing > 1)
+	if (root->fs_info->btree_inode == inode)
 		return 0;
 
 	if (wait) {
@@ -4624,6 +4616,9 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root)
 	struct btrfs_inode *binode;
 	struct inode *inode;
 	unsigned long flags;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
 
 	spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
 	while(!list_empty(head)) {

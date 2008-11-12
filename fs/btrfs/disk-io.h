@@ -38,6 +38,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 int close_ctree(struct btrfs_root *root);
 int write_ctree_super(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root);
+int btrfs_commit_super(struct btrfs_root *root);
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 					    u64 bytenr, u32 blocksize);
 struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
@@ -49,6 +50,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 					       struct btrfs_key *location);
 struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 					      struct btrfs_key *location);
+int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info);
 int btrfs_insert_dev_radix(struct btrfs_root *root,
 			   struct block_device *bdev,
 			   u64 device_id,
