@@ -208,6 +208,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		}
 	}
 	obj_priv->tiling_mode = args->tiling_mode;
+	obj_priv->stride = args->stride;
 
 	mutex_unlock(&dev->struct_mutex);
 

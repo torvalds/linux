@@ -107,6 +107,11 @@ struct drm_i915_master_private {
 	drm_local_map_t *sarea;
 	struct _drm_i915_sarea *sarea_priv;
 };
+#define I915_FENCE_REG_NONE -1
+
+struct drm_i915_fence_reg {
+	struct drm_gem_object *obj;
+};
 
 typedef struct drm_i915_private {
 	struct drm_device *dev;
@@ -148,6 +153,10 @@ typedef struct drm_i915_private {
 	int vblank_pipe;
 
 	struct intel_opregion opregion;
+
+	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
+	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
+	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
 	/* Register state */
 	u8 saveLBB;
@@ -367,6 +376,21 @@ struct drm_i915_gem_object {
 	 * This is the same as gtt_space->start
 	 */
 	uint32_t gtt_offset;
+	/**
+	 * Required alignment for the object
+	 */
+	uint32_t gtt_alignment;
+	/**
+	 * Fake offset for use by mmap(2)
+	 */
+	uint64_t mmap_offset;
+
+	/**
+	 * Fence register bits (if any) for this object.  Will be set
+	 * as needed when mapped into the GTT.
+	 * Protected by dev->struct_mutex.
+	 */
+	int fence_reg;
 
 	/** Boolean whether this object has a valid gtt offset. */
 	int gtt_bound;
@@ -379,6 +403,7 @@ struct drm_i915_gem_object {
 
 	/** Current tiling mode for the object. */
 	uint32_t tiling_mode;
+	uint32_t stride;
 
 	/** AGP mapping type (AGP_USER_MEMORY or AGP_USER_CACHED_MEMORY */
 	uint32_t agp_type;
@@ -493,6 +518,8 @@ int i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 int i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
 int i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
@@ -529,6 +556,7 @@ uint32_t i915_get_gem_seqno(struct drm_device *dev);
 void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_work_handler(struct work_struct *work);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
+int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
@@ -584,6 +612,13 @@ static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 #define I915_WRITE16(reg, val)	writel(val, dev_priv->regs + (reg))
 #define I915_READ8(reg)		readb(dev_priv->regs + (reg))
 #define I915_WRITE8(reg, val)	writeb(val, dev_priv->regs + (reg))
+#ifdef writeq
+#define I915_WRITE64(reg, val)	writeq(val, dev_priv->regs + (reg))
+#else
+#define I915_WRITE64(reg, val)	(writel(val, dev_priv->regs + (reg)), \
+				 writel(upper_32_bits(val), dev_priv->regs + \
+					(reg) + 4))
+#endif
 
 #define I915_VERBOSE 0
 

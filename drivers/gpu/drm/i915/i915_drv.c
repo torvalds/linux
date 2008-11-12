@@ -81,6 +81,10 @@ static int i915_resume(struct drm_device *dev)
 	return 0;
 }
 
+static struct vm_operations_struct i915_gem_vm_ops = {
+	.fault = i915_gem_fault,
+};
+
 static struct drm_driver driver = {
 	/* don't use mtrr's here, the Xserver or user space app should
 	 * deal with them for intel hardware.
@@ -113,13 +117,14 @@ static struct drm_driver driver = {
 	.proc_cleanup = i915_gem_proc_cleanup,
 	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,
+	.gem_vm_ops = &i915_gem_vm_ops,
 	.ioctls = i915_ioctls,
 	.fops = {
 		 .owner = THIS_MODULE,
 		 .open = drm_open,
 		 .release = drm_release,
 		 .ioctl = drm_ioctl,
-		 .mmap = drm_mmap,
+		 .mmap = drm_gem_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
