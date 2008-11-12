@@ -171,7 +171,8 @@ static int worker_loop(void *arg)
 		} else {
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(&worker->lock);
-			schedule();
+			if (!kthread_should_stop())
+				schedule();
 			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
