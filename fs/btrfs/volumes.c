@@ -2755,6 +2755,8 @@ static struct btrfs_device *add_missing_dev(struct btrfs_root *root,
 	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
 
 	device = kzalloc(sizeof(*device), GFP_NOFS);
+	if (!device)
+		return NULL;
 	list_add(&device->dev_list,
 		 &fs_devices->devices);
 	device->barriers = 1;
