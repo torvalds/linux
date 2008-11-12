@@ -611,12 +611,10 @@ real_mode:	/* assume normal blr return */
 
 
 /*
- * kexec_sequence(newstack, start, image, control, clear_all(), kdump_flag)
+ * kexec_sequence(newstack, start, image, control, clear_all())
  *
  * does the grungy work with stack switching and real mode switches
  * also does simple calls to other code
- *
- * kdump_flag says whether the next kernel should be a kdump kernel.
  */
 
 _GLOBAL(kexec_sequence)
@@ -649,7 +647,7 @@ _GLOBAL(kexec_sequence)
 	mr	r29,r5			/* image (virt) */
 	mr	r28,r6			/* control, unused */
 	mr	r27,r7			/* clear_all() fn desc */
-	mr	r26,r8			/* kdump flag */
+	mr	r26,r8			/* spare */
 	lhz	r25,PACAHWCPUID(r13)	/* get our phys cpu from paca */
 
 	/* disable interrupts, we are overwriting kernel data next */
@@ -711,6 +709,5 @@ _GLOBAL(kexec_sequence)
 	mr	r4,r30	# start, aka phys mem offset
 	mtlr	4
 	li	r5,0
-	mr	r6,r26			/* kdump_flag */
-	blr	/* image->start(physid, image->start, 0, kdump_flag); */
+	blr	/* image->start(physid, image->start, 0); */
 #endif /* CONFIG_KEXEC */

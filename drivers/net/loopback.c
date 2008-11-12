@@ -76,15 +76,6 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb->protocol = eth_type_trans(skb,dev);
 
-#ifdef LOOPBACK_TSO
-	if (skb_is_gso(skb)) {
-		BUG_ON(skb->protocol != htons(ETH_P_IP));
-		BUG_ON(ip_hdr(skb)->protocol != IPPROTO_TCP);
-
-		emulate_large_send_offload(skb);
-		return 0;
-	}
-#endif
 	dev->last_rx = jiffies;
 
 	/* it's OK to use per_cpu_ptr() because BHs are off */

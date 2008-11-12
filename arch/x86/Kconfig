@@ -957,7 +957,7 @@ config ARCH_PHYS_ADDR_T_64BIT
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
 	depends on SMP
-	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_BIGSMP || X86_SUMMIT && ACPI) && EXPERIMENTAL)
+	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_BIGSMP || X86_SUMMIT && ACPI) && BROKEN)
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT || X86_BIGSMP)
 	help
@@ -1494,7 +1494,7 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool X86_64
 	depends on NUMA
 
-menu "Power management options"
+menu "Power management and ACPI options"
 	depends on !X86_VOYAGER
 
 config ARCH_HIBERNATION_HEADER
@@ -1893,6 +1893,10 @@ config SYSVIPC_COMPAT
 
 endmenu
 
+
+config HAVE_ATOMIC_IOMAP
+	def_bool y
+	depends on X86_32
 
 source "net/Kconfig"
 

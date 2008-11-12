@@ -141,6 +141,8 @@ struct TCP_Server_Info {
 	char versionMajor;
 	char versionMinor;
 	bool svlocal:1;			/* local server or remote */
+	bool noblocksnd;		/* use blocking sendmsg */
+	bool noautotune;		/* do not autotune send buf sizes */
 	atomic_t socketUseCount; /* number of open cifs sessions on socket */
 	atomic_t inFlight;  /* number of requests on the wire to server */
 #ifdef CONFIG_CIFS_STATS2

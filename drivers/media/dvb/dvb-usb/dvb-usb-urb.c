@@ -13,13 +13,13 @@ int dvb_usb_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 {
 	int actlen,ret = -ENOMEM;
 
+	if (!d || wbuf == NULL || wlen == 0)
+		return -EINVAL;
+
 	if (d->props.generic_bulk_ctrl_endpoint == 0) {
 		err("endpoint for generic control not specified.");
 		return -EINVAL;
 	}
-
-	if (wbuf == NULL || wlen == 0)
-		return -EINVAL;
 
 	if ((ret = mutex_lock_interruptible(&d->usb_mutex)))
 		return ret;

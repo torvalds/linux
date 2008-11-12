@@ -215,10 +215,7 @@ struct usb_ctlr {
 	u8	usb_usadr;
 	u8	usb_uscom;
 	u8	res1[1];
-	__be16	usb_usep1;
-	__be16	usb_usep2;
-	__be16	usb_usep3;
-	__be16	usb_usep4;
+	__be16  usb_usep[4];
 	u8	res2[4];
 	__be16	usb_usber;
 	u8	res3[2];

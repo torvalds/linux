@@ -644,10 +644,6 @@ This function frees the  transmiter and receiver descriptor rings.
 */
 static void amd8111e_free_ring(struct amd8111e_priv* lp)
 {
-
-	/* Free transmit and receive skbs */
-	amd8111e_free_skbs(lp->amd8111e_net_dev);
-
 	/* Free transmit and receive descriptor rings */
 	if(lp->rx_ring){
 		pci_free_consistent(lp->pci_dev,
@@ -1233,7 +1229,9 @@ static int amd8111e_close(struct net_device * dev)
 
 	amd8111e_disable_interrupt(lp);
 	amd8111e_stop_chip(lp);
-	amd8111e_free_ring(lp);
+
+	/* Free transmit and receive skbs */
+	amd8111e_free_skbs(lp->amd8111e_net_dev);
 
 	netif_carrier_off(lp->amd8111e_net_dev);
 
@@ -1243,6 +1241,7 @@ static int amd8111e_close(struct net_device * dev)
 
 	spin_unlock_irq(&lp->lock);
 	free_irq(dev->irq, dev);
+	amd8111e_free_ring(lp);
 
 	/* Update the statistics before closing */
 	amd8111e_get_stats(dev);

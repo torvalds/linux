@@ -448,7 +448,14 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	mutex_init(&cx->gpio_lock);
 
 	spin_lock_init(&cx->lock);
-	spin_lock_init(&cx->dma_reg_lock);
+
+	cx->work_queue = create_singlethread_workqueue(cx->name);
+	if (cx->work_queue == NULL) {
+		CX18_ERR("Could not create work queue\n");
+		return -1;
+	}
+
+	INIT_WORK(&cx->work, cx18_work_handler);
 
 	/* start counting open_id at 1 */
 	cx->open_id = 1;
@@ -581,10 +588,10 @@ static void cx18_load_and_init_modules(struct cx18 *cx)
 
 #ifdef MODULE
 	/* load modules */
-#ifndef CONFIG_MEDIA_TUNER
+#ifdef CONFIG_MEDIA_TUNER_MODULE
 	hw = cx18_request_module(cx, hw, "tuner", CX18_HW_TUNER);
 #endif
-#ifndef CONFIG_VIDEO_CS5345
+#ifdef CONFIG_VIDEO_CS5345_MODULE
 	hw = cx18_request_module(cx, hw, "cs5345", CX18_HW_CS5345);
 #endif
 #endif
@@ -832,6 +839,7 @@ free_map:
 free_mem:
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 free_workqueue:
+	destroy_workqueue(cx->work_queue);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -931,6 +939,9 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	cx18_sw2_irq_disable(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
 
 	cx18_halt_firmware(cx);
+
+	flush_workqueue(cx->work_queue);
+	destroy_workqueue(cx->work_queue);
 
 	cx18_streams_cleanup(cx, 1);
 

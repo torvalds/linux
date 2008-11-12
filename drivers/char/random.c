@@ -1139,18 +1139,12 @@ static int random_fasync(int fd, struct file *filp, int on)
 	return fasync_helper(fd, filp, on, &fasync);
 }
 
-static int random_release(struct inode *inode, struct file *filp)
-{
-	return fasync_helper(-1, filp, 0, &fasync);
-}
-
 const struct file_operations random_fops = {
 	.read  = random_read,
 	.write = random_write,
 	.poll  = random_poll,
 	.unlocked_ioctl = random_ioctl,
 	.fasync = random_fasync,
-	.release = random_release,
 };
 
 const struct file_operations urandom_fops = {
@@ -1158,7 +1152,6 @@ const struct file_operations urandom_fops = {
 	.write = random_write,
 	.unlocked_ioctl = random_ioctl,
 	.fasync = random_fasync,
-	.release = random_release,
 };
 
 /***************************************************************

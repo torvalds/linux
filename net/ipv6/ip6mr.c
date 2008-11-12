@@ -981,14 +981,15 @@ int __init ip6_mr_init(void)
 		goto proc_cache_fail;
 #endif
 	return 0;
-reg_notif_fail:
-	kmem_cache_destroy(mrt_cachep);
 #ifdef CONFIG_PROC_FS
-proc_vif_fail:
-	unregister_netdevice_notifier(&ip6_mr_notifier);
 proc_cache_fail:
 	proc_net_remove(&init_net, "ip6_mr_vif");
+proc_vif_fail:
+	unregister_netdevice_notifier(&ip6_mr_notifier);
 #endif
+reg_notif_fail:
+	del_timer(&ipmr_expire_timer);
+	kmem_cache_destroy(mrt_cachep);
 	return err;
 }
 

@@ -355,6 +355,20 @@ config USB_SI470X
 	tristate "Silicon Labs Si470x FM Radio Receiver support"
 	depends on USB && VIDEO_V4L2
 	---help---
+	  This is a driver for USB devices with the Silicon Labs SI470x
+	  chip. Currently these devices are known to work:
+	  - 10c4:818a: Silicon Labs USB FM Radio Reference Design
+	  - 06e1:a155: ADS/Tech FM Radio Receiver (formerly Instant FM Music)
+	  - 1b80:d700: KWorld USB FM Radio SnapMusic Mobile 700 (FM700)
+
+	  Sound is provided by the ALSA USB Audio/MIDI driver. Therefore
+	  if you don't want to use the device solely for RDS receiving,
+	  it is recommended to also select SND_USB_AUDIO.
+
+	  Please have a look at the documentation, especially on how
+	  to redirect the audio stream from the radio to your sound device:
+	  Documentation/video4linux/si470x.txt
+
 	  Say Y here if you want to connect this type of radio to your
 	  computer's USB port.
 
