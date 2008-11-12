@@ -664,7 +664,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			skb_push(skb, sizeof *phdr);
 			__skb_queue_tail(&path->queue, skb);
 
-			if (path_rec_start(dev, path)) {
+			if (!path->query && path_rec_start(dev, path)) {
 				spin_unlock_irqrestore(&priv->lock, flags);
 				path_free(dev, path);
 				return;
