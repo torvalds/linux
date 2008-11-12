@@ -43,11 +43,11 @@
 #endif
 
 static int misalignment_addr(unsigned long *registers, unsigned params,
-			     unsigned opcode, unsigned disp,
+			     unsigned opcode, unsigned long disp,
 			     void **_address, unsigned long **_postinc);
 
 static int misalignment_reg(unsigned long *registers, unsigned params,
-			    unsigned opcode, unsigned disp,
+			    unsigned opcode, unsigned long disp,
 			    unsigned long **_register);
 
 static const unsigned Dreg_index[] = {
@@ -304,13 +304,13 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	const struct exception_table_entry *fixup;
 	const struct mn10300_opcode *pop;
 	unsigned long *registers = (unsigned long *) regs;
-	unsigned long data, *store, *postinc;
+	unsigned long data, *store, *postinc, disp;
 	mm_segment_t seg;
 	siginfo_t info;
-	uint32_t opcode, disp, noc, xo, xm;
+	uint32_t opcode, noc, xo, xm;
 	uint8_t *pc, byte;
 	void *address;
-	unsigned tmp, npop;
+	unsigned tmp, npop, dispsz, loop;
 
 	kdebug("==>misalignment({pc=%lx})", regs->pc);
 
@@ -445,16 +445,16 @@ found_opcode:
 
 	/* grab the extra displacement (note it's LSB first) */
 	disp = 0;
-	tmp = format_tbl[pop->format].dispsz >> 3;
-	while (tmp > 0) {
-		tmp--;
-		disp <<= 8;
-
+	dispsz = format_tbl[pop->format].dispsz;
+	for (loop = 0; loop < dispsz; loop += 8) {
 		pc++;
 		if (__get_user(byte, pc) != 0)
 			goto fetch_error;
-		disp |= byte;
+		disp |= byte << loop;
+		kdebug("{%p} disp[%02x]=%02x", pc, loop, byte);
 	}
+
+	kdebug("disp=%lx", disp);
 
 	set_fs(KERNEL_XDS);
 	if (fixup || regs->epsw & EPSW_nSL)
@@ -538,7 +538,7 @@ found_opcode:
  * determine the address that was being accessed
  */
 static int misalignment_addr(unsigned long *registers, unsigned params,
-			     unsigned opcode, unsigned disp,
+			     unsigned opcode, unsigned long disp,
 			     void **_address, unsigned long **_postinc)
 {
 	unsigned long *postinc = NULL, address = 0, tmp;
@@ -644,7 +644,7 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
  * determine the register that is acting as source/dest
  */
 static int misalignment_reg(unsigned long *registers, unsigned params,
-			    unsigned opcode, unsigned disp,
+			    unsigned opcode, unsigned long disp,
 			    unsigned long **_register)
 {
 	params &= 0x7fffffff;
