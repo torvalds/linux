@@ -19,7 +19,6 @@
 #include "nl80211.h"
 #include "core.h"
 #include "sysfs.h"
-#include "reg.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -347,6 +346,10 @@ void wiphy_unregister(struct wiphy *wiphy)
 	mutex_lock(&drv->mtx);
 	/* unlock again before freeing */
 	mutex_unlock(&drv->mtx);
+
+	/* If this device got a regulatory hint tell core its
+	 * free to listen now to a new shiny device regulatory hint */
+	reg_device_remove(wiphy);
 
 	list_del(&drv->list);
 	device_del(&drv->wiphy.dev);

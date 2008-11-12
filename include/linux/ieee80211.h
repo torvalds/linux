@@ -1042,6 +1042,68 @@ enum ieee80211_spectrum_mgmt_actioncode {
 	WLAN_ACTION_SPCT_CHL_SWITCH = 4,
 };
 
+/*
+ * IEEE 802.11-2007 7.3.2.9 Country information element
+ *
+ * Minimum length is 8 octets, ie len must be evenly
+ * divisible by 2
+ */
+
+/* Although the spec says 8 I'm seeing 6 in practice */
+#define IEEE80211_COUNTRY_IE_MIN_LEN	6
+
+/*
+ * For regulatory extension stuff see IEEE 802.11-2007
+ * Annex I (page 1141) and Annex J (page 1147). Also
+ * review 7.3.2.9.
+ *
+ * When dot11RegulatoryClassesRequired is true and the
+ * first_channel/reg_extension_id is >= 201 then the IE
+ * compromises of the 'ext' struct represented below:
+ *
+ *  - Regulatory extension ID - when generating IE this just needs
+ *    to be monotonically increasing for each triplet passed in
+ *    the IE
+ *  - Regulatory class - index into set of rules
+ *  - Coverage class - index into air propagation time (Table 7-27),
+ *    in microseconds, you can compute the air propagation time from
+ *    the index by multiplying by 3, so index 10 yields a propagation
+ *    of 10 us. Valid values are 0-31, values 32-255 are not defined
+ *    yet. A value of 0 inicates air propagation of <= 1 us.
+ *
+ *  See also Table I.2 for Emission limit sets and table
+ *  I.3 for Behavior limit sets. Table J.1 indicates how to map
+ *  a reg_class to an emission limit set and behavior limit set.
+ */
+#define IEEE80211_COUNTRY_EXTENSION_ID 201
+
+/*
+ *  Channels numbers in the IE must be monotonically increasing
+ *  if dot11RegulatoryClassesRequired is not true.
+ *
+ *  If dot11RegulatoryClassesRequired is true consecutive
+ *  subband triplets following a regulatory triplet shall
+ *  have monotonically increasing first_channel number fields.
+ *
+ *  Channel numbers shall not overlap.
+ *
+ *  Note that max_power is signed.
+ */
+struct ieee80211_country_ie_triplet {
+	union {
+		struct {
+			u8 first_channel;
+			u8 num_channels;
+			s8 max_power;
+		} __attribute__ ((packed)) chans;
+		struct {
+			u8 reg_extension_id;
+			u8 reg_class;
+			u8 coverage_class;
+		} __attribute__ ((packed)) ext;
+	};
+} __attribute__ ((packed));
+
 /* BACK action code */
 enum ieee80211_back_actioncode {
 	WLAN_ACTION_ADDBA_REQ = 0,

@@ -1736,6 +1736,13 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					       ap_ht_cap_flags);
 	}
 
+	if (elems.country_elem) {
+		/* Note we are only reviewing this on beacons
+		 * for the BSSID we are associated to */
+		regulatory_hint_11d(local->hw.wiphy,
+			elems.country_elem, elems.country_elem_len);
+	}
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 }
 

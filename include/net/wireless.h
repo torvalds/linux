@@ -373,4 +373,19 @@ ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
  * for a regulatory domain structure for the respective country.
  */
 extern void regulatory_hint(struct wiphy *wiphy, const char *alpha2);
+
+/**
+ * regulatory_hint_11d - hints a country IE as a regulatory domain
+ * @wiphy: the wireless device giving the hint (used only for reporting
+ *	conflicts)
+ * @country_ie: pointer to the country IE
+ * @country_ie_len: length of the country IE
+ *
+ * We will intersect the rd with the what CRDA tells us should apply
+ * for the alpha2 this country IE belongs to, this prevents APs from
+ * sending us incorrect or outdated information against a country.
+ */
+extern void regulatory_hint_11d(struct wiphy *wiphy,
+				u8 *country_ie,
+				u8 country_ie_len);
 #endif /* __NET_WIRELESS_H */
