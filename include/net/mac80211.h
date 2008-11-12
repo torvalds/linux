@@ -341,6 +341,7 @@ struct ieee80211_tx_info {
 	u8 antenna_sel_tx;
 
 	/* 2 byte hole */
+	u8 pad[2];
 
 	union {
 		struct {
