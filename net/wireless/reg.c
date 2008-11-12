@@ -829,21 +829,12 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	reset_regdomains();
 
 	/* Country IE parsing coming soon */
-	switch (last_request->initiator) {
-	case REGDOM_SET_BY_CORE:
-	case REGDOM_SET_BY_DRIVER:
-	case REGDOM_SET_BY_USER:
-		if (!is_valid_rd(rd)) {
-			printk(KERN_ERR "cfg80211: Invalid "
-				"regulatory domain detected:\n");
-			print_regdomain_info(rd);
-			return -EINVAL;
-		}
-		break;
-	case REGDOM_SET_BY_COUNTRY_IE: /* Not yet */
-		WARN_ON(1);
-	default:
-		return -EOPNOTSUPP;
+
+	if (!is_valid_rd(rd)) {
+		printk(KERN_ERR "cfg80211: Invalid "
+			"regulatory domain detected:\n");
+		print_regdomain_info(rd);
+		return -EINVAL;
 	}
 
 	if (unlikely(last_request->intersect)) {
