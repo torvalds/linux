@@ -265,6 +265,34 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 				break;
 			}
 		default:
+			{
+				struct hid_device *hid = dev->hid;
+				if (_IOC_TYPE(cmd) != 'H' || _IOC_DIR(cmd) != _IOC_READ)
+					return -EINVAL;
+
+				if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGRAWNAME(0))) {
+					int len;
+					if (!hid->name)
+						return 0;
+					len = strlen(hid->name) + 1;
+					if (len > _IOC_SIZE(cmd))
+						len = _IOC_SIZE(cmd);
+					return copy_to_user(user_arg, hid->name, len) ?
+						-EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGRAWPHYS(0))) {
+					int len;
+					if (!hid->phys)
+						return 0;
+					len = strlen(hid->phys) + 1;
+					if (len > _IOC_SIZE(cmd))
+						len = _IOC_SIZE(cmd);
+					return copy_to_user(user_arg, hid->phys, len) ?
+						-EFAULT : len;
+				}
+                }
+
 			ret = -ENOTTY;
 	}
 	unlock_kernel();
