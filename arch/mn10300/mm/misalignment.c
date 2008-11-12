@@ -204,8 +204,6 @@ static const struct mn10300_opcode mn10300_opcodes[] = {
 { "mov",	0xf81000,    0xfff000,    0,    FMT_D1, 0,	{DM1, MEM2(SD8, AN0)}},
 { "mov",	0xf82000,    0xfff000,    0,    FMT_D1, 0,	{MEM2(SD8,AM0), AN1}},
 { "mov",	0xf83000,    0xfff000,    0,    FMT_D1, 0,	{AM1, MEM2(SD8, AN0)}},
-{ "mov",	0xf8f000,    0xfffc00,    0,    FMT_D1, AM33,	{MEM2(SD8, AM0), SP}},
-{ "mov",	0xf8f400,    0xfffc00,    0,    FMT_D1, AM33,	{SP, MEM2(SD8, AN0)}},
 { "mov",	0xf90a00,    0xffff00,    0,    FMT_D6, AM33,	{MEM(RM0), RN2}},
 { "mov",	0xf91a00,    0xffff00,    0,    FMT_D6, AM33,	{RM2, MEM(RN0)}},
 { "mov",	0xf96a00,    0xffff00,    0x12, FMT_D6, AM33,	{MEMINC(RM0), RN2}},
