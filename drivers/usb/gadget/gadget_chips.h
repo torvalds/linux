@@ -110,7 +110,6 @@
 #define gadget_is_at91(g)	0
 #endif
 
-/* status unclear */
 #ifdef CONFIG_USB_GADGET_IMX
 #define gadget_is_imx(g)	!strcmp("imx_udc", (g)->name)
 #else
