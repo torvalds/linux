@@ -746,6 +746,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	u64 other_end;
 	u64 split = start;
 	u64 locked_end = end;
+	u64 orig_parent;
 	int extent_type;
 	int split_end = 1;
 	int ret;
@@ -890,6 +891,12 @@ again:
 	}
 
 	btrfs_mark_buffer_dirty(leaf);
+
+	orig_parent = leaf->start;
+	ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes,
+				   orig_parent, root->root_key.objectid,
+				   trans->transid, inode->i_ino);
+	BUG_ON(ret);
 	btrfs_release_path(root, path);
 
 	key.offset = start;
@@ -910,10 +917,13 @@ again:
 	btrfs_set_file_extent_encryption(leaf, fi, 0);
 	btrfs_set_file_extent_other_encoding(leaf, fi, 0);
 
-	ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes,
-				   leaf->start, root->root_key.objectid,
-				   trans->transid, inode->i_ino);
-	BUG_ON(ret);
+	if (orig_parent != leaf->start) {
+		ret = btrfs_update_extent_ref(trans, root, bytenr,
+					      orig_parent, leaf->start,
+					      root->root_key.objectid,
+					      trans->transid, inode->i_ino);
+		BUG_ON(ret);
+	}
 done:
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(root, path);
