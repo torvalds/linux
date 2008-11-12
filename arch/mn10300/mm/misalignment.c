@@ -570,11 +570,11 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			address += *postinc;
 			break;
 		case DM1:
-			postinc = &registers[Dreg_index[opcode >> 2 & 0x0c]];
+			postinc = &registers[Dreg_index[opcode >> 2 & 0x03]];
 			address += *postinc;
 			break;
 		case DM2:
-			postinc = &registers[Dreg_index[opcode >> 4 & 0x30]];
+			postinc = &registers[Dreg_index[opcode >> 4 & 0x03]];
 			address += *postinc;
 			break;
 		case AM0:
@@ -582,11 +582,11 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			address += *postinc;
 			break;
 		case AM1:
-			postinc = &registers[Areg_index[opcode >> 2 & 0x0c]];
+			postinc = &registers[Areg_index[opcode >> 2 & 0x03]];
 			address += *postinc;
 			break;
 		case AM2:
-			postinc = &registers[Areg_index[opcode >> 4 & 0x30]];
+			postinc = &registers[Areg_index[opcode >> 4 & 0x03]];
 			address += *postinc;
 			break;
 		case RM0:
