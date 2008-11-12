@@ -29,7 +29,6 @@
 
 #include <mach_ipi.h>
 
-typedef void (*nmi_shootdown_cb)(int, struct die_args*);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_LOCAL_APIC)
 
@@ -100,7 +99,7 @@ static struct notifier_block crash_nmi_nb = {
 	.notifier_call = crash_nmi_callback,
 };
 
-static void nmi_shootdown_cpus(nmi_shootdown_cb callback)
+void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 {
 	unsigned long msecs;
 
