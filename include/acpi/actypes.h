@@ -291,7 +291,7 @@ typedef u32 acpi_physical_address;
 #endif
 
 /*
- * Mescellaneous types
+ * Miscellaneous types
  */
 typedef u32 acpi_status;	/* All ACPI Exceptions */
 typedef u32 acpi_name;		/* 4-byte ACPI name */
@@ -319,7 +319,7 @@ struct uint32_struct {
 #define acpi_semaphore                  void *
 
 /*
- * Acpi integer width. In ACPI version 1, integers are 32 bits.  In ACPI
+ * Acpi integer width. In ACPI version 1, integers are 32 bits. In ACPI
  * version 2, integers are 64 bits. Note that this pertains to the ACPI integer
  * type only, not other integers used in the implementation of the ACPI CA
  * subsystem.
@@ -414,7 +414,7 @@ typedef unsigned long long acpi_integer;
 #define ACPI_NOTIFY_MAX                 0x0B
 
 /*
- * Types associated with ACPI names and objects.  The first group of
+ * Types associated with ACPI names and objects. The first group of
  * values (up to ACPI_TYPE_EXTERNAL_MAX) correspond to the definition
  * of the ACPI object_type() operator (See the ACPI Spec). Therefore,
  * only add to the first group if the spec changes.
@@ -787,7 +787,7 @@ acpi_status(*acpi_exception_handler) (acpi_status aml_status,
 				      u16 opcode,
 				      u32 aml_offset, void *context);
 
-/* Table Event handler (Load, load_table etc) and types */
+/* Table Event handler (Load, load_table, etc.) and types */
 
 typedef
 acpi_status(*acpi_tbl_handler) (u32 event, void *table, void *context);
