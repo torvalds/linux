@@ -373,6 +373,24 @@ int em28xx_colorlevels_set_default(struct em28xx *dev)
 int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
+
+	if (dev->chip_id == CHIP_ID_EM2874) {
+		/* The Transport Stream Enable Register moved in em2874 */
+		if (!start) {
+			rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
+						   0x00,
+						   EM2874_TS1_CAPTURE_ENABLE);
+			return rc;
+		}
+
+		/* Enable Transport Stream */
+		rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
+					   EM2874_TS1_CAPTURE_ENABLE,
+					   EM2874_TS1_CAPTURE_ENABLE);
+		return rc;
+	}
+
+
 	/* FIXME: which is the best order? */
 	/* video registers are sampled by VREF */
 	rc = em28xx_write_reg_bits(dev, EM28XX_R0C_USBSUSP,

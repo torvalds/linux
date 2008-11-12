@@ -77,7 +77,16 @@
 #define EM28XX_R14_VIDEO_AC97	0x14
 
 /* em2874 registers */
+#define EM2874_R5F_TS_ENABLE    0x5f
 #define EM2874_R80_GPIO         0x80
+
+/* em2874 Transport Stream Enable Register (0x5f) */
+#define EM2874_TS1_CAPTURE_ENABLE (1 << 0)
+#define EM2874_TS1_FILTER_ENABLE  (1 << 1)
+#define EM2874_TS1_NULL_DISCARD   (1 << 2)
+#define EM2874_TS2_CAPTURE_ENABLE (1 << 4)
+#define EM2874_TS2_FILTER_ENABLE  (1 << 5)
+#define EM2874_TS2_NULL_DISCARD   (1 << 6)
 
 /* register settings */
 #define EM2800_AUDIO_SRC_TUNER  0x0d
