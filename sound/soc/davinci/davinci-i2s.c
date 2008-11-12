@@ -111,16 +111,59 @@ static void davinci_mcbsp_start(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_platform *platform = socdev->platform;
 	u32 w;
+	int ret;
 
 	/* Start the sample generator and enable transmitter/receiver */
 	w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
 	MOD_REG_BIT(w, DAVINCI_MCBSP_SPCR_GRST, 1);
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		MOD_REG_BIT(w, DAVINCI_MCBSP_SPCR_XRST, 1);
-	else
-		MOD_REG_BIT(w, DAVINCI_MCBSP_SPCR_RRST, 1);
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, w);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		/* Stop the DMA to avoid data loss */
+		/* while the transmitter is out of reset to handle XSYNCERR */
+		if (platform->pcm_ops->trigger) {
+			ret = platform->pcm_ops->trigger(substream,
+				SNDRV_PCM_TRIGGER_STOP);
+			if (ret < 0)
+				printk(KERN_DEBUG "Playback DMA stop failed\n");
+		}
+
+		/* Enable the transmitter */
+		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
+		MOD_REG_BIT(w, DAVINCI_MCBSP_SPCR_XRST, 1);
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, w);
+
+		/* wait for any unexpected frame sync error to occur */
+		udelay(100);
+
+		/* Disable the transmitter to clear any outstanding XSYNCERR */
+		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
+		MOD_REG_BIT(w, DAVINCI_MCBSP_SPCR_XRST, 0);
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, w);
+
+		/* Restart the DMA */
+		if (platform->pcm_ops->trigger) {
+			ret = platform->pcm_ops->trigger(substream,
+				SNDRV_PCM_TRIGGER_START);
+			if (ret < 0)
+				printk(KERN_DEBUG "Playback DMA start failed\n");
+		}
+		/* Enable the transmitter */
+		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
+		MOD_REG_BIT(w, DAVINCI_MCBSP_SPCR_XRST, 1);
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, w);
+
+	} else {
+
+		/* Enable the reciever */
+		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
+		MOD_REG_BIT(w, DAVINCI_MCBSP_SPCR_RRST, 1);
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, w);
+	}
+
 
 	/* Start frame sync */
 	w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
