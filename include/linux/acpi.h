@@ -190,6 +190,50 @@ extern bool wmi_has_guid(const char *guid);
 
 #endif	/* CONFIG_ACPI_WMI */
 
+#define ACPI_VIDEO_OUTPUT_SWITCHING			0x0001
+#define ACPI_VIDEO_DEVICE_POSTING			0x0002
+#define ACPI_VIDEO_ROM_AVAILABLE			0x0004
+#define ACPI_VIDEO_BACKLIGHT				0x0008
+#define ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR		0x0010
+#define ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO		0x0020
+#define ACPI_VIDEO_OUTPUT_SWITCHING_FORCE_VENDOR	0x0040
+#define ACPI_VIDEO_OUTPUT_SWITCHING_FORCE_VIDEO		0x0080
+#define ACPI_VIDEO_BACKLIGHT_DMI_VENDOR			0x0100
+#define ACPI_VIDEO_BACKLIGHT_DMI_VIDEO			0x0200
+#define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VENDOR		0x0400
+#define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VIDEO		0x0800
+
+#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
+
+extern long acpi_video_get_capabilities(acpi_handle graphics_dev_handle);
+extern long acpi_is_video_device(struct acpi_device *device);
+extern int acpi_video_backlight_support(void);
+extern int acpi_video_display_switch_support(void);
+
+#else
+
+static inline long acpi_video_get_capabilities(acpi_handle graphics_dev_handle)
+{
+	return 0;
+}
+
+static inline long acpi_is_video_device(struct acpi_device *device)
+{
+	return 0;
+}
+
+static inline int acpi_video_backlight_support(void)
+{
+	return 0;
+}
+
+static inline int acpi_video_display_switch_support(void)
+{
+	return 0;
+}
+
+#endif /* defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE) */
+
 extern int acpi_blacklisted(void);
 #ifdef CONFIG_DMI
 extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
