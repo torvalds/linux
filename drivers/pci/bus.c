@@ -158,6 +158,10 @@ void pci_bus_add_devices(struct pci_bus *bus)
 				dev_err(&dev->dev,
 					"Error creating cpulistaffinity"
 					" file, continuing...\n");
+
+			/* Create legacy_io and legacy_mem files for this bus */
+			pci_create_legacy_files(child_bus);
+
 		}
 	}
 }
