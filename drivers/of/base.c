@@ -329,6 +329,41 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 EXPORT_SYMBOL(of_find_compatible_node);
 
 /**
+ *	of_find_node_with_property - Find a node which has a property with
+ *                                   the given name.
+ *	@from:		The node to start searching from or NULL, the node
+ *			you pass will not be searched, only the next one
+ *			will; typically, you pass what the previous call
+ *			returned. of_node_put() will be called on it
+ *	@prop_name:	The name of the property to look for.
+ *
+ *	Returns a node pointer with refcount incremented, use
+ *	of_node_put() on it when done.
+ */
+struct device_node *of_find_node_with_property(struct device_node *from,
+	const char *prop_name)
+{
+	struct device_node *np;
+	struct property *pp;
+
+	read_lock(&devtree_lock);
+	np = from ? from->allnext : allnodes;
+	for (; np; np = np->allnext) {
+		for (pp = np->properties; pp != 0; pp = pp->next) {
+			if (of_prop_cmp(pp->name, prop_name) == 0) {
+				of_node_get(np);
+				goto out;
+			}
+		}
+	}
+out:
+	of_node_put(from);
+	read_unlock(&devtree_lock);
+	return np;
+}
+EXPORT_SYMBOL(of_find_node_with_property);
+
+/**
  * of_match_node - Tell if an device_node has a matching of_match structure
  *	@matches:	array of of device match structures to search in
  *	@node:		the of device structure to match against
