@@ -187,9 +187,9 @@ int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len)
 	   Not sure what happens on reading GPO register.
 	 */
 	if (rc >= 0) {
-		if (reg == EM2880_R04_GPO)
+		if (reg == dev->reg_gpo_num)
 			dev->reg_gpo = buf[0];
-		else if (reg == EM28XX_R08_GPIO)
+		else if (reg == dev->reg_gpio_num)
 			dev->reg_gpio = buf[0];
 	}
 
@@ -208,9 +208,9 @@ static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 	u8 newval;
 
 	/* Uses cache for gpo/gpio registers */
-	if (reg == EM2880_R04_GPO)
+	if (reg == dev->reg_gpo_num)
 		oldval = dev->reg_gpo;
-	else if (reg == EM28XX_R08_GPIO)
+	else if (reg == dev->reg_gpio_num)
 		oldval = dev->reg_gpio;
 	else
 		oldval = em28xx_read_reg(dev, reg);

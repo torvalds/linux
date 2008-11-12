@@ -1312,11 +1312,13 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	int rc;
 
-	rc = em28xx_read_reg(dev, EM2880_R04_GPO);
-	if (rc >= 0)
-		dev->reg_gpo = rc;
+	/* Set the default GPO/GPIO for legacy devices */
+	dev->reg_gpo_num = EM2880_R04_GPO;
+	dev->reg_gpio_num = EM28XX_R08_GPIO;
 
 	dev->wait_after_write = 5;
+
+	/* Based on the Chip ID, set the device configuration */
 	rc = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
 	if (rc > 0) {
 		dev->chip_id = rc;
@@ -1326,6 +1328,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 			break;
 		case CHIP_ID_EM2874:
 			em28xx_info("chip ID is em2874\n");
+			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM2883:
@@ -1336,6 +1339,12 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 			em28xx_info("em28xx chip ID = %d\n", rc);
 		}
 	}
+
+	/* Prepopulate cached GPO register content */
+	rc = em28xx_read_reg(dev, dev->reg_gpo_num);
+	if (rc >= 0)
+		dev->reg_gpo = rc;
+
 	em28xx_set_model(dev);
 
 	/* request some modules */

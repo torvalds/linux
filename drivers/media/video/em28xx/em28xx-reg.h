@@ -76,6 +76,9 @@
 #define EM28XX_R10_LINE_IN_AC97    0x10
 #define EM28XX_R14_VIDEO_AC97	0x14
 
+/* em2874 registers */
+#define EM2874_R80_GPIO         0x80
+
 /* register settings */
 #define EM2800_AUDIO_SRC_TUNER  0x0d
 #define EM2800_AUDIO_SRC_LINE   0x0c
