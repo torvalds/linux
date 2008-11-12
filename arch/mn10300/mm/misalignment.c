@@ -329,10 +329,11 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	void *address;
 	unsigned tmp, npop, dispsz, loop;
 
+	/* we don't fix up userspace misalignment faults */
 	if (user_mode(regs))
-		sp = regs->sp;
-	else
-		sp = (unsigned long) regs + sizeof(*regs);
+		goto bus_error;
+
+	sp = (unsigned long) regs + sizeof(*regs);
 
 	kdebug("==>misalignment({pc=%lx,sp=%lx})", regs->pc, sp);
 
@@ -386,15 +387,15 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	}
 
 	/* didn't manage to find a fixup */
-	if (!user_mode(regs))
-		printk(KERN_CRIT "MISALIGN: %lx: unsupported instruction %x\n",
-		       regs->pc, opcode);
+	printk(KERN_CRIT "MISALIGN: %lx: unsupported instruction %x\n",
+	       regs->pc, opcode);
 
 failed:
 	set_fs(seg);
 	if (die_if_no_fixup("misalignment error", regs, code))
 		return;
 
+bus_error:
 	info.si_signo	= SIGBUS;
 	info.si_errno	= 0;
 	info.si_code	= BUS_ADRALN;
@@ -404,31 +405,27 @@ failed:
 
 	/* error reading opcodes */
 fetch_error:
-	if (!user_mode(regs))
-		printk(KERN_CRIT
-		       "MISALIGN: %p: fault whilst reading instruction data\n",
-		       pc);
+	printk(KERN_CRIT
+	       "MISALIGN: %p: fault whilst reading instruction data\n",
+	       pc);
 	goto failed;
 
 bad_addr_mode:
-	if (!user_mode(regs))
-		printk(KERN_CRIT
-		       "MISALIGN: %lx: unsupported addressing mode %x\n",
-		       regs->pc, opcode);
+	printk(KERN_CRIT
+	       "MISALIGN: %lx: unsupported addressing mode %x\n",
+	       regs->pc, opcode);
 	goto failed;
 
 bad_reg_mode:
-	if (!user_mode(regs))
-		printk(KERN_CRIT
-		       "MISALIGN: %lx: unsupported register mode %x\n",
-		       regs->pc, opcode);
+	printk(KERN_CRIT
+	       "MISALIGN: %lx: unsupported register mode %x\n",
+	       regs->pc, opcode);
 	goto failed;
 
 unsupported_instruction:
-	if (!user_mode(regs))
-		printk(KERN_CRIT
-		       "MISALIGN: %lx: unsupported instruction %x (%s)\n",
-		       regs->pc, opcode, pop->name);
+	printk(KERN_CRIT
+	       "MISALIGN: %lx: unsupported instruction %x (%s)\n",
+	       regs->pc, opcode, pop->name);
 	goto failed;
 
 transfer_failed:
@@ -476,16 +473,14 @@ found_opcode:
 	kdebug("disp=%lx", disp);
 
 	set_fs(KERNEL_XDS);
-	if (fixup || regs->epsw & EPSW_nSL)
+	if (fixup)
 		set_fs(seg);
 
 	tmp = (pop->params[0] ^ pop->params[1]) & 0x80000000;
 	if (!tmp) {
-		if (!user_mode(regs))
-			printk(KERN_CRIT
-			       "MISALIGN: %lx:"
-			       " insn not move to/from memory %x\n",
-			       regs->pc, opcode);
+		printk(KERN_CRIT
+		       "MISALIGN: %lx: insn not move to/from memory %x\n",
+		       regs->pc, opcode);
 		goto failed;
 	}
 
@@ -548,7 +543,6 @@ found_opcode:
 		misalignment_MOV_Lcc(regs, opcode);
 
 	set_fs(seg);
-	return;
 }
 
 /*
