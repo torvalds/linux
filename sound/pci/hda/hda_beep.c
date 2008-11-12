@@ -37,6 +37,9 @@ static void snd_hda_generate_beep(struct work_struct *work)
 		container_of(work, struct hda_beep, beep_work);
 	struct hda_codec *codec = beep->codec;
 
+	if (!beep->enabled)
+		return;
+
 	/* generate tone */
 	snd_hda_codec_write_cache(codec, beep->nid, 0,
 			AC_VERB_SET_BEEP_CONTROL, beep->tone);
@@ -115,6 +118,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	beep->nid = nid;
 	beep->dev = input_dev;
 	beep->codec = codec;
+	beep->enabled = 1;
 	codec->beep = beep;
 
 	INIT_WORK(&beep->beep_work, &snd_hda_generate_beep);
