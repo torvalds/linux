@@ -36,9 +36,7 @@
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
 
-#define OMAP_MCBSP_RATES	(SNDRV_PCM_RATE_44100 | \
-				 SNDRV_PCM_RATE_48000 | \
-				 SNDRV_PCM_RATE_KNOT)
+#define OMAP_MCBSP_RATES	(SNDRV_PCM_RATE_8000_96000)
 
 struct omap_mcbsp_data {
 	unsigned int			bus_id;
