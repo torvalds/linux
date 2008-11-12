@@ -985,7 +985,6 @@ struct iwl_priv {
 	struct work_struct report_work;
 	struct work_struct request_scan;
 	struct work_struct beacon_update;
-	struct work_struct set_monitor;
 
 	struct tasklet_struct irq_tasklet;
 

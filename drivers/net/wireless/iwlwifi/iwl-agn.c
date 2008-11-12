@@ -2224,27 +2224,6 @@ static void iwl_bg_rf_kill(struct work_struct *work)
 	iwl_rfkill_set_hw_state(priv);
 }
 
-static void iwl_bg_set_monitor(struct work_struct *work)
-{
-	struct iwl_priv *priv = container_of(work,
-				struct iwl_priv, set_monitor);
-	int ret;
-
-	IWL_DEBUG(IWL_DL_STATE, "setting monitor mode\n");
-
-	mutex_lock(&priv->mutex);
-
-	ret = iwl_set_mode(priv, NL80211_IFTYPE_MONITOR);
-	if (ret) {
-		if (ret == -EAGAIN)
-			IWL_DEBUG(IWL_DL_STATE, "leave - not ready\n");
-		else
-			IWL_ERROR("iwl_set_mode() failed ret = %d\n", ret);
-	}
-
-	mutex_unlock(&priv->mutex);
-}
-
 static void iwl_bg_run_time_calib_work(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
@@ -2890,16 +2869,43 @@ static void iwl_configure_filter(struct ieee80211_hw *hw,
 				 int mc_count, struct dev_addr_list *mc_list)
 {
 	struct iwl_priv *priv = hw->priv;
+	__le32 *filter_flags = &priv->staging_rxon.filter_flags;
 
-	if (changed_flags & (*total_flags) & FIF_OTHER_BSS) {
-		IWL_DEBUG_MAC80211("Enter: type %d (0x%x, 0x%x)\n",
-				   NL80211_IFTYPE_MONITOR,
-				   changed_flags, *total_flags);
-		/* queue work 'cuz mac80211 is holding a lock which
-		 * prevents us from issuing (synchronous) f/w cmds */
-		queue_work(priv->workqueue, &priv->set_monitor);
+	IWL_DEBUG_MAC80211("Enter: changed: 0x%x, total: 0x%x\n",
+			changed_flags, *total_flags);
+
+	if (changed_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS)) {
+		if (*total_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS))
+			*filter_flags |= RXON_FILTER_PROMISC_MSK;
+		else
+			*filter_flags &= ~RXON_FILTER_PROMISC_MSK;
 	}
-	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI |
+	if (changed_flags & FIF_ALLMULTI) {
+		if (*total_flags & FIF_ALLMULTI)
+			*filter_flags |= RXON_FILTER_ACCEPT_GRP_MSK;
+		else
+			*filter_flags &= ~RXON_FILTER_ACCEPT_GRP_MSK;
+	}
+	if (changed_flags & FIF_CONTROL) {
+		if (*total_flags & FIF_CONTROL)
+			*filter_flags |= RXON_FILTER_CTL2HOST_MSK;
+		else
+			*filter_flags &= ~RXON_FILTER_CTL2HOST_MSK;
+	}
+	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
+		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
+			*filter_flags |= RXON_FILTER_BCON_AWARE_MSK;
+		else
+			*filter_flags &= ~RXON_FILTER_BCON_AWARE_MSK;
+	}
+
+	/* We avoid iwl_commit_rxon here to commit the new filter flags
+	 * since mac80211 will call ieee80211_hw_config immediately.
+	 * (mc_list is not supported at this time). Otherwise, we need to
+	 * queue a background iwl_commit_rxon work.
+	 */
+
+	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI | FIF_PROMISC_IN_BSS |
 			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
 }
 
@@ -3796,7 +3802,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
 	INIT_WORK(&priv->rf_kill, iwl_bg_rf_kill);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
-	INIT_WORK(&priv->set_monitor, iwl_bg_set_monitor);
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
