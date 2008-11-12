@@ -880,12 +880,13 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	}
 
 	/* This would make this whole thing pointless */
-	BUG_ON(rd != cfg80211_regdomain);
+	if (!last_request->intersect)
+		BUG_ON(rd != cfg80211_regdomain);
 
 	/* update all wiphys now with the new established regulatory domain */
 	update_all_wiphy_regulatory(last_request->initiator);
 
-	print_regdomain(rd);
+	print_regdomain(cfg80211_regdomain);
 
 	return r;
 }
