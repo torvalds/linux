@@ -2149,7 +2149,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	struct usb_interface *uif;
 	struct em28xx *dev = NULL;
 	int retval = -ENODEV;
-	int i, nr, ifnum;
+	int i, nr, ifnum, isoc_pipe;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
@@ -2176,19 +2176,29 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			ifnum,
 			interface->altsetting[0].desc.bInterfaceClass);
 
-	endpoint = &interface->cur_altsetting->endpoint[1].desc;
+	endpoint = &interface->cur_altsetting->endpoint[0].desc;
 
 	/* check if the device has the iso in endpoint at the correct place */
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
-	    USB_ENDPOINT_XFER_ISOC) {
-		em28xx_err(DRIVER_NAME " probing error: endpoint is non-ISO endpoint!\n");
-		em28xx_devused &= ~(1<<nr);
-		return -ENODEV;
-	}
-	if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) {
-		em28xx_err(DRIVER_NAME " probing error: endpoint is ISO OUT endpoint!\n");
-		em28xx_devused &= ~(1<<nr);
-		return -ENODEV;
+	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+	    USB_ENDPOINT_XFER_ISOC &&
+	    (interface->altsetting[1].endpoint[0].desc.wMaxPacketSize == 940))
+	{
+		/* It's a newer em2874/em2875 device */
+		isoc_pipe = 0;
+	} else {
+		isoc_pipe = 1;
+		endpoint = &interface->cur_altsetting->endpoint[1].desc;
+		if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
+		    USB_ENDPOINT_XFER_ISOC) {
+			em28xx_err(DRIVER_NAME " probing error: endpoint is non-ISO endpoint!\n");
+			em28xx_devused &= ~(1<<nr);
+			return -ENODEV;
+		}
+		if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) {
+			em28xx_err(DRIVER_NAME " probing error: endpoint is ISO OUT endpoint!\n");
+			em28xx_devused &= ~(1<<nr);
+			return -ENODEV;
+		}
 	}
 
 	if (nr >= EM28XX_MAXBOARDS) {
@@ -2239,7 +2249,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	for (i = 0; i < dev->num_alt ; i++) {
-		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
+		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
 							wMaxPacketSize);
 		dev->alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
