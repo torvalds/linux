@@ -212,7 +212,6 @@ enum {
 };
 
 static int ftrace_filtered;
-static int tracing_on;
 
 static LIST_HEAD(ftrace_new_addrs);
 
@@ -533,13 +532,10 @@ static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
 
-	if (*command & FTRACE_ENABLE_CALLS) {
+	if (*command & FTRACE_ENABLE_CALLS)
 		ftrace_replace_code(1);
-		tracing_on = 1;
-	} else if (*command & FTRACE_DISABLE_CALLS) {
+	else if (*command & FTRACE_DISABLE_CALLS)
 		ftrace_replace_code(0);
-		tracing_on = 0;
-	}
 
 	if (*command & FTRACE_UPDATE_TRACE_FUNC)
 		ftrace_update_ftrace_func(ftrace_trace_function);

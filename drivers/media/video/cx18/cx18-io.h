@@ -133,6 +133,8 @@ static inline void cx18_writel(struct cx18 *cx, u32 val, void __iomem *addr)
 		cx18_writel_noretry(cx, val, addr);
 }
 
+void _cx18_writel_expect(struct cx18 *cx, u32 val, void __iomem *addr,
+			 u32 eval, u32 mask);
 
 static inline
 void cx18_writew_noretry(struct cx18 *cx, u16 val, void __iomem *addr)
@@ -267,6 +269,21 @@ static inline void cx18_write_reg(struct cx18 *cx, u32 val, u32 reg)
 {
 	if (cx18_retry_mmio)
 		cx18_write_reg_retry(cx, val, reg);
+	else
+		cx18_write_reg_noretry(cx, val, reg);
+}
+
+static inline void _cx18_write_reg_expect(struct cx18 *cx, u32 val, u32 reg,
+					  u32 eval, u32 mask)
+{
+	_cx18_writel_expect(cx, val, cx->reg_mem + reg, eval, mask);
+}
+
+static inline void cx18_write_reg_expect(struct cx18 *cx, u32 val, u32 reg,
+					 u32 eval, u32 mask)
+{
+	if (cx18_retry_mmio)
+		_cx18_write_reg_expect(cx, val, reg, eval, mask);
 	else
 		cx18_write_reg_noretry(cx, val, reg);
 }

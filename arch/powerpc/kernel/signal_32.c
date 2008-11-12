@@ -941,9 +941,21 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 #ifdef CONFIG_PPC64
 	unsigned long new_msr = 0;
 
-	if (new_ctx &&
-	    get_user(new_msr, &new_ctx->uc_mcontext.mc_gregs[PT_MSR]))
-		return -EFAULT;
+	if (new_ctx) {
+		struct mcontext __user *mcp;
+		u32 cmcp;
+
+		/*
+		 * Get pointer to the real mcontext.  No need for
+		 * access_ok since we are dealing with compat
+		 * pointers.
+		 */
+		if (__get_user(cmcp, &new_ctx->uc_regs))
+			return -EFAULT;
+		mcp = (struct mcontext __user *)(u64)cmcp;
+		if (__get_user(new_msr, &mcp->mc_gregs[PT_MSR]))
+			return -EFAULT;
+	}
 	/*
 	 * Check that the context is not smaller than the original
 	 * size (with VMX but without VSX)
