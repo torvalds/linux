@@ -808,6 +808,12 @@ static int ttusb_alloc_iso_urbs(struct ttusb *ttusb)
 						 ISO_BUF_COUNT,
 						 &ttusb->iso_dma_handle);
 
+	if (!ttusb->iso_buffer) {
+		dprintk("%s: pci_alloc_consistent - not enough memory\n",
+			__func__);
+		return -ENOMEM;
+	}
+
 	memset(ttusb->iso_buffer, 0,
 	       ISO_FRAME_SIZE * FRAMES_PER_ISO_BUF * ISO_BUF_COUNT);
 
