@@ -51,8 +51,14 @@ void tracing_off(void)
 /* FIXME!!! */
 u64 ring_buffer_time_stamp(int cpu)
 {
+	u64 time;
+
+	preempt_disable_notrace();
 	/* shift to debug/test normalization and TIME_EXTENTS */
-	return sched_clock() << DEBUG_SHIFT;
+	time = sched_clock() << DEBUG_SHIFT;
+	preempt_enable_notrace();
+
+	return time;
 }
 
 void ring_buffer_normalize_time_stamp(int cpu, u64 *ts)
