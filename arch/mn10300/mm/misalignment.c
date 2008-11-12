@@ -42,8 +42,9 @@
 #define kdebug(FMT, ...) do {} while (0)
 #endif
 
-static int misalignment_addr(unsigned long *registers, unsigned params,
-			     unsigned opcode, unsigned long disp,
+static int misalignment_addr(unsigned long *registers, unsigned long sp,
+			     unsigned params, unsigned opcode,
+			     unsigned long disp,
 			     void **_address, unsigned long **_postinc,
 			     unsigned long *_inc);
 
@@ -322,7 +323,7 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	const struct exception_table_entry *fixup;
 	const struct mn10300_opcode *pop;
 	unsigned long *registers = (unsigned long *) regs;
-	unsigned long data, *store, *postinc, disp, inc;
+	unsigned long data, *store, *postinc, disp, inc, sp;
 	mm_segment_t seg;
 	siginfo_t info;
 	uint32_t opcode, noc, xo, xm;
@@ -330,7 +331,12 @@ asmlinkage void misalignment(struct pt_regs *regs, enum exception_code code)
 	void *address;
 	unsigned tmp, npop, dispsz, loop;
 
-	kdebug("==>misalignment({pc=%lx})", regs->pc);
+	if (user_mode(regs))
+		sp = regs->sp;
+	else
+		sp = (unsigned long) regs + sizeof(*regs);
+
+	kdebug("==>misalignment({pc=%lx,sp=%lx})", regs->pc, sp);
 
 	if (regs->epsw & EPSW_IE)
 		asm volatile("or %0,epsw" : : "i"(EPSW_IE));
@@ -496,7 +502,8 @@ found_opcode:
 
 	if (pop->params[0] & 0x80000000) {
 		/* move memory to register */
-		if (!misalignment_addr(registers, pop->params[0], opcode, disp,
+		if (!misalignment_addr(registers, sp,
+				       pop->params[0], opcode, disp,
 				       &address, &postinc, &inc))
 			goto bad_addr_mode;
 
@@ -520,7 +527,8 @@ found_opcode:
 				      &store))
 			goto bad_reg_mode;
 
-		if (!misalignment_addr(registers, pop->params[1], opcode, disp,
+		if (!misalignment_addr(registers, sp,
+				       pop->params[1], opcode, disp,
 				       &address, &postinc, &inc))
 			goto bad_addr_mode;
 
@@ -548,8 +556,9 @@ found_opcode:
 /*
  * determine the address that was being accessed
  */
-static int misalignment_addr(unsigned long *registers, unsigned params,
-			     unsigned opcode, unsigned long disp,
+static int misalignment_addr(unsigned long *registers, unsigned long sp,
+			     unsigned params, unsigned opcode,
+			     unsigned long disp,
 			     void **_address, unsigned long **_postinc,
 			     unsigned long *_inc)
 {
@@ -618,7 +627,7 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			address += *postinc;
 			break;
 		case SP:
-			address += registers[REG_SP >> 2];
+			address += sp;
 			break;
 
 			/* displacements are either to be added to the address
@@ -641,6 +650,12 @@ static int misalignment_addr(unsigned long *registers, unsigned params,
 			tmp <<= 28;
 			asm("asr 28,%0" : "=r"(tmp) : "0"(tmp));
 			disp = (long) tmp;
+			goto displace_or_inc;
+		case IMM8:
+			disp &= 0x000000ff;
+			goto displace_or_inc;
+		case IMM16:
+			disp &= 0x0000ffff;
 			goto displace_or_inc;
 		case IMM24:
 			disp &= 0x00ffffff;
