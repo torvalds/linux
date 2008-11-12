@@ -613,30 +613,37 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 		return -EINVAL;
 	p->addr = addr;
 
-	if (!kernel_text_address((unsigned long) p->addr) ||
-	    in_kprobes_functions((unsigned long) p->addr))
+	preempt_disable();
+	if (!__kernel_text_address((unsigned long) p->addr) ||
+	    in_kprobes_functions((unsigned long) p->addr)) {
+		preempt_enable();
 		return -EINVAL;
+	}
 
 	p->mod_refcounted = 0;
 
 	/*
 	 * Check if are we probing a module.
 	 */
-	probed_mod = module_text_address((unsigned long) p->addr);
+	probed_mod = __module_text_address((unsigned long) p->addr);
 	if (probed_mod) {
-		struct module *calling_mod = module_text_address(called_from);
+		struct module *calling_mod;
+		calling_mod = __module_text_address(called_from);
 		/*
 		 * We must allow modules to probe themself and in this case
 		 * avoid incrementing the module refcount, so as to allow
 		 * unloading of self probing modules.
 		 */
 		if (calling_mod && calling_mod != probed_mod) {
-			if (unlikely(!try_module_get(probed_mod)))
+			if (unlikely(!try_module_get(probed_mod))) {
+				preempt_enable();
 				return -EINVAL;
+			}
 			p->mod_refcounted = 1;
 		} else
 			probed_mod = NULL;
 	}
+	preempt_enable();
 
 	p->nmissed = 0;
 	INIT_LIST_HEAD(&p->list);
@@ -718,6 +725,10 @@ static void __kprobes __unregister_kprobe_bottom(struct kprobe *p)
 	struct kprobe *old_p;
 
 	if (p->mod_refcounted) {
+		/*
+		 * Since we've already incremented refcount,
+		 * we don't need to disable preemption.
+		 */
 		mod = module_text_address((unsigned long)p->addr);
 		if (mod)
 			module_put(mod);
