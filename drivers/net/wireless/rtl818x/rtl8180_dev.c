@@ -720,6 +720,17 @@ static int rtl8180_config_interface(struct ieee80211_hw *dev,
 	return 0;
 }
 
+static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *info,
+				     u32 changed)
+{
+	struct rtl8180_priv *priv = dev->priv;
+
+	if (changed & BSS_CHANGED_ERP_SLOT && priv->rf->conf_erp)
+	        priv->rf->conf_erp(dev, info);
+}
+
 static void rtl8180_configure_filter(struct ieee80211_hw *dev,
 				     unsigned int changed_flags,
 				     unsigned int *total_flags,
@@ -760,6 +771,7 @@ static const struct ieee80211_ops rtl8180_ops = {
 	.remove_interface	= rtl8180_remove_interface,
 	.config			= rtl8180_config,
 	.config_interface	= rtl8180_config_interface,
+	.bss_info_changed	= rtl8180_bss_info_changed,
 	.configure_filter	= rtl8180_configure_filter,
 };
 
