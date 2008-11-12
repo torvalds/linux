@@ -427,12 +427,10 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 		u16 poplmovl;
 		u32 val;
 		u16 int80;
-		u16 pad;
 	} __attribute__((packed)) code = {
 		0xb858,		 /* popl %eax ; movl $...,%eax */
 		__NR_ia32_sigreturn,
 		0x80cd,		/* int $0x80 */
-		0,
 	};
 
 	frame = get_sigframe(ka, regs, sizeof(*frame), &fpstate);
@@ -508,8 +506,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		u8 movl;
 		u32 val;
 		u16 int80;
-		u16 pad;
-		u8  pad2;
+		u8  pad;
 	} __attribute__((packed)) code = {
 		0xb8,
 		__NR_ia32_rt_sigreturn,
