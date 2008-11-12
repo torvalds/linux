@@ -1816,9 +1816,13 @@ static int __video_do_ioctl(struct file *file,
 				p->discrete.denominator);
 			break;
 		case V4L2_FRMIVAL_TYPE_STEPWISE:
-			dbgarg2("min=%d, max=%d, step=%d\n",
-				p->stepwise.min, p->stepwise.max,
-				p->stepwise.step);
+			dbgarg2("min=%d/%d, max=%d/%d, step=%d/%d\n",
+				p->stepwise.min.numerator,
+				p->stepwise.min.denominator,
+				p->stepwise.max.numerator,
+				p->stepwise.max.denominator,
+				p->stepwise.step.numerator,
+				p->stepwise.step.denominator);
 			break;
 		case V4L2_FRMIVAL_TYPE_CONTINUOUS:
 			dbgarg2("continuous\n");
