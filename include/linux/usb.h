@@ -398,6 +398,7 @@ struct usb_tt;
  * @urbnum: number of URBs submitted for the whole device
  * @active_duration: total time device is not suspended
  * @autosuspend: for delayed autosuspends
+ * @autoresume: for autoresumes requested while in_interrupt
  * @pm_mutex: protects PM operations
  * @last_busy: time of last use
  * @autosuspend_delay: in jiffies
@@ -476,6 +477,7 @@ struct usb_device {
 
 #ifdef CONFIG_PM
 	struct delayed_work autosuspend;
+	struct work_struct autoresume;
 	struct mutex pm_mutex;
 
 	unsigned long last_busy;
@@ -513,6 +515,8 @@ extern struct usb_device *usb_find_device(u16 vendor_id, u16 product_id);
 extern int usb_autopm_set_interface(struct usb_interface *intf);
 extern int usb_autopm_get_interface(struct usb_interface *intf);
 extern void usb_autopm_put_interface(struct usb_interface *intf);
+extern int usb_autopm_get_interface_async(struct usb_interface *intf);
+extern void usb_autopm_put_interface_async(struct usb_interface *intf);
 
 static inline void usb_autopm_enable(struct usb_interface *intf)
 {
@@ -539,7 +543,12 @@ static inline int usb_autopm_set_interface(struct usb_interface *intf)
 static inline int usb_autopm_get_interface(struct usb_interface *intf)
 { return 0; }
 
+static inline int usb_autopm_get_interface_async(struct usb_interface *intf)
+{ return 0; }
+
 static inline void usb_autopm_put_interface(struct usb_interface *intf)
+{ }
+static inline void usb_autopm_put_interface_async(struct usb_interface *intf)
 { }
 static inline void usb_autopm_enable(struct usb_interface *intf)
 { }

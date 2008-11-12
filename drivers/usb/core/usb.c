@@ -402,6 +402,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 #ifdef	CONFIG_PM
 	mutex_init(&dev->pm_mutex);
 	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
+	INIT_WORK(&dev->autoresume, usb_autoresume_work);
 	dev->autosuspend_delay = usb_autosuspend_delay * HZ;
 	dev->connect_time = jiffies;
 	dev->active_duration = -jiffies;

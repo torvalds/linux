@@ -1374,8 +1374,9 @@ static void usb_stop_pm(struct usb_device *udev)
 		usb_autosuspend_device(udev->parent);
 	usb_pm_unlock(udev);
 
-	/* Stop any autosuspend requests already submitted */
-	cancel_rearming_delayed_work(&udev->autosuspend);
+	/* Stop any autosuspend or autoresume requests already submitted */
+	cancel_delayed_work_sync(&udev->autosuspend);
+	cancel_work_sync(&udev->autoresume);
 }
 
 #else
