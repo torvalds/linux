@@ -94,6 +94,8 @@ void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded);
 /*
  * tbutils - table manager utilities
  */
+acpi_status acpi_tb_initialize_facs(void);
+
 u8 acpi_tb_tables_loaded(void);
 
 void

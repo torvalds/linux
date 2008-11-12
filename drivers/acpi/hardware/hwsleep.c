@@ -63,20 +63,8 @@ ACPI_MODULE_NAME("hwsleep")
 acpi_status
 acpi_set_firmware_waking_vector(u32 physical_address)
 {
-	struct acpi_table_facs *facs;
-	acpi_status status;
-
 	ACPI_FUNCTION_TRACE(acpi_set_firmware_waking_vector);
 
-	/* Get the FACS */
-
-	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-					 ACPI_CAST_INDIRECT_PTR(struct
-								acpi_table_header,
-								&facs));
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
 
 	/*
 	 * According to the ACPI specification 2.0c and later, the 64-bit
@@ -88,12 +76,12 @@ acpi_set_firmware_waking_vector(u32 physical_address)
 
 	/* Set the 32-bit vector */
 
-	facs->firmware_waking_vector = physical_address;
+	acpi_gbl_FACS->firmware_waking_vector = physical_address;
 
 	/* Clear the 64-bit vector if it exists */
 
-	if ((facs->length > 32) && (facs->version >= 1)) {
-		facs->xfirmware_waking_vector = 0;
+	if ((acpi_gbl_FACS->length > 32) && (acpi_gbl_FACS->version >= 1)) {
+		acpi_gbl_FACS->xfirmware_waking_vector = 0;
 	}
 
 	return_ACPI_STATUS(AE_OK);
@@ -117,32 +105,19 @@ ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector)
 acpi_status
 acpi_set_firmware_waking_vector64(u64 physical_address)
 {
-	struct acpi_table_facs *facs;
-	acpi_status status;
-
 	ACPI_FUNCTION_TRACE(acpi_set_firmware_waking_vector64);
 
 
-	/* Get the FACS */
-
-	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-					 ACPI_CAST_INDIRECT_PTR(struct
-								acpi_table_header,
-								&facs));
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
 	/* Determine if the 64-bit vector actually exists */
 
-	if ((facs->length <= 32) || (facs->version < 1)) {
+	if ((acpi_gbl_FACS->length <= 32) || (acpi_gbl_FACS->version < 1)) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
 	/* Clear 32-bit vector, set the 64-bit X_ vector */
 
-	facs->firmware_waking_vector = 0;
-	facs->xfirmware_waking_vector = physical_address;
+	acpi_gbl_FACS->firmware_waking_vector = 0;
+	acpi_gbl_FACS->xfirmware_waking_vector = physical_address;
 
 	return_ACPI_STATUS(AE_OK);
 }

@@ -49,11 +49,7 @@
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evmisc")
 
-/* Pointer to FACS needed for the Global Lock */
-static struct acpi_table_facs *facs = NULL;
-
 /* Local prototypes */
-
 static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context);
 
 static u32 acpi_ev_global_lock_handler(void *context);
@@ -299,7 +295,7 @@ static u32 acpi_ev_global_lock_handler(void *context)
 	 * If we don't get it now, it will be marked pending and we will
 	 * take another interrupt when it becomes free.
 	 */
-	ACPI_ACQUIRE_GLOBAL_LOCK(facs, acquired);
+	ACPI_ACQUIRE_GLOBAL_LOCK(acpi_gbl_FACS, acquired);
 	if (acquired) {
 
 		/* Got the lock, now wake all threads waiting for it */
@@ -336,15 +332,8 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 
 	ACPI_FUNCTION_TRACE(ev_init_global_lock_handler);
 
-	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-					 ACPI_CAST_INDIRECT_PTR(struct
-								acpi_table_header,
-								&facs));
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
+	/* Attempt installation of the global lock handler */
 
-	acpi_gbl_global_lock_present = TRUE;
 	status = acpi_install_fixed_event_handler(ACPI_EVENT_GLOBAL,
 						  acpi_ev_global_lock_handler,
 						  NULL);
@@ -361,9 +350,10 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 			    "No response from Global Lock hardware, disabling lock"));
 
 		acpi_gbl_global_lock_present = FALSE;
-		status = AE_OK;
+		return_ACPI_STATUS(AE_OK);
 	}
 
+	acpi_gbl_global_lock_present = TRUE;
 	return_ACPI_STATUS(status);
 }
 
@@ -472,7 +462,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 
 	/* Attempt to acquire the actual hardware lock */
 
-	ACPI_ACQUIRE_GLOBAL_LOCK(facs, acquired);
+	ACPI_ACQUIRE_GLOBAL_LOCK(acpi_gbl_FACS, acquired);
 	if (acquired) {
 
 		/* We got the lock */
@@ -536,7 +526,7 @@ acpi_status acpi_ev_release_global_lock(void)
 
 		/* Allow any thread to release the lock */
 
-		ACPI_RELEASE_GLOBAL_LOCK(facs, pending);
+		ACPI_RELEASE_GLOBAL_LOCK(acpi_gbl_FACS, pending);
 
 		/*
 		 * If the pending bit was set, we must write GBL_RLS to the control

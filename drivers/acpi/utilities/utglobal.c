@@ -771,6 +771,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_global_lock_mutex = NULL;
 	acpi_gbl_global_lock_acquired = FALSE;
 	acpi_gbl_global_lock_handle = 0;
+	acpi_gbl_global_lock_present = FALSE;
 
 	/* Miscellaneous variables */
 
