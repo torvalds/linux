@@ -451,6 +451,14 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 	thread = acpi_ut_create_thread_state();
 	if (!thread) {
+		if (walk_state->method_desc) {
+
+			/* Executing a control method - additional cleanup */
+
+			acpi_ds_terminate_control_method(
+				walk_state->method_desc, walk_state);
+		}
+
 		acpi_ds_delete_walk_state(walk_state);
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
