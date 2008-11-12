@@ -1307,8 +1307,10 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	u32 fw_vers = 0;
 	u32 tp_vers = 0;
 
+	spin_lock(&adapter->stats_lock);
 	t3_get_fw_version(adapter, &fw_vers);
 	t3_get_tp_version(adapter, &tp_vers);
+	spin_unlock(&adapter->stats_lock);
 
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
