@@ -7787,6 +7787,10 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	struct iwl_3945_cfg *cfg = (struct iwl_3945_cfg *)(ent->driver_data);
 	unsigned long flags;
 
+	/***********************
+	 * 1. Allocating HW data
+	 * ********************/
+
 	/* Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan. */
 	if (iwl3945_param_disable_hw_scan) {
@@ -7810,17 +7814,17 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		err = -ENOMEM;
 		goto out;
 	}
+
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
-	hw->rate_control_algorithm = "iwl-3945-rs";
-	hw->sta_data_size = sizeof(struct iwl3945_sta_priv);
-
-	IWL_DEBUG_INFO("*** LOAD DRIVER ***\n");
 	priv = hw->priv;
 	priv->hw = hw;
-
 	priv->pci_dev = pdev;
 	priv->cfg = cfg;
+
+	IWL_DEBUG_INFO("*** LOAD DRIVER ***\n");
+	hw->rate_control_algorithm = "iwl-3945-rs";
+	hw->sta_data_size = sizeof(struct iwl3945_sta_priv);
 
 	/* Select antenna (may be helpful if only one antenna is connected) */
 	priv->antenna = (enum iwl3945_antenna)iwl3945_param_antenna;
@@ -7828,9 +7832,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	iwl3945_debug_level = iwl3945_param_debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
-	priv->retry_rate = 1;
-
-	priv->ibss_beacon = NULL;
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
@@ -7844,28 +7845,15 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* 4 EDCA QOS priorities */
 	hw->queues = 4;
 
-	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->power_data.lock);
-	spin_lock_init(&priv->sta_lock);
-	spin_lock_init(&priv->hcmd_lock);
-
-	INIT_LIST_HEAD(&priv->free_frames);
-
-	mutex_init(&priv->mutex);
+	/***************************
+	 * 2. Initializing PCI bus
+	 * *************************/
 	if (pci_enable_device(pdev)) {
 		err = -ENODEV;
 		goto out_ieee80211_free_hw;
 	}
 
 	pci_set_master(pdev);
-
-	/* Clear the driver's (not device's) station table */
-	iwl3945_clear_stations_table(priv);
-
-	priv->data_retry_limit = -1;
-	priv->ieee_channels = NULL;
-	priv->ieee_rates = NULL;
-	priv->band = IEEE80211_BAND_2GHZ;
 
 	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (!err)
@@ -7880,10 +7868,9 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	if (err)
 		goto out_pci_disable_device;
 
-	/* We disable the RETRY_TIMEOUT register (0x41) to keep
-	 * PCI Tx retries from interfering with C3 CPU state */
-	pci_write_config_byte(pdev, 0x41, 0x00);
-
+	/***********************
+	 * 3. Read REV Register
+	 * ********************/
 	priv->hw_base = pci_iomap(pdev, 0, 0);
 	if (!priv->hw_base) {
 		err = -ENODEV;
@@ -7894,51 +7881,9 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 			(unsigned long long) pci_resource_len(pdev, 0));
 	IWL_DEBUG_INFO("pci_resource_base = %p\n", priv->hw_base);
 
-	/* Initialize module parameter values here */
-
-	/* Disable radio (SW RF KILL) via parameter when loading driver */
-	if (iwl3945_param_disable) {
-		set_bit(STATUS_RF_KILL_SW, &priv->status);
-		IWL_DEBUG_INFO("Radio disabled.\n");
-	}
-
-	priv->iw_mode = NL80211_IFTYPE_STATION;
-
-	printk(KERN_INFO DRV_NAME
-		": Detected Intel Wireless WiFi Link %s\n", priv->cfg->name);
-
-	/* Device-specific setup */
-	if (iwl3945_hw_set_hw_setting(priv)) {
-		IWL_ERROR("failed to set hw settings\n");
-		goto out_iounmap;
-	}
-
-	if (iwl3945_param_qos_enable)
-		priv->qos_data.qos_enable = 1;
-
-	iwl3945_reset_qos(priv);
-
-	priv->qos_data.qos_active = 0;
-	priv->qos_data.qos_cap.val = 0;
-
-	iwl3945_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
-	iwl3945_setup_deferred_work(priv);
-	iwl3945_setup_rx_handlers(priv);
-
-	priv->rates_mask = IWL_RATES_MASK;
-	/* If power management is turned on, default to AC mode */
-	priv->power_mode = IWL_POWER_AC;
-	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl3945_disable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	err = sysfs_create_group(&pdev->dev.kobj, &iwl3945_attribute_group);
-	if (err) {
-		IWL_ERROR("failed to create sysfs device attributes\n");
-		goto out_release_irq;
-	}
+	/* We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state */
+	pci_write_config_byte(pdev, 0x41, 0x00);
 
 	/* nic init */
 	iwl3945_set_bit(priv, CSR_GIO_CHICKEN_BITS,
@@ -7952,6 +7897,10 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		IWL_DEBUG_INFO("Failed to init the card\n");
 		goto out_remove_sysfs;
 	}
+
+	/***********************
+	 * 4. Read EEPROM
+	 * ********************/
 	/* Read the EEPROM */
 	err = iwl3945_eeprom_init(priv);
 	if (err) {
@@ -7963,10 +7912,57 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_DEBUG_INFO("MAC address: %pM\n", priv->mac_addr);
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
+	/***********************
+	 * 5. Setup HW Constants
+	 * ********************/
+	/* Device-specific setup */
+	if (iwl3945_hw_set_hw_setting(priv)) {
+		IWL_ERROR("failed to set hw settings\n");
+		goto out_iounmap;
+	}
+
+	/***********************
+	 * 6. Setup priv
+	 * ********************/
+	priv->retry_rate = 1;
+	priv->ibss_beacon = NULL;
+
+	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->power_data.lock);
+	spin_lock_init(&priv->sta_lock);
+	spin_lock_init(&priv->hcmd_lock);
+
+	INIT_LIST_HEAD(&priv->free_frames);
+	mutex_init(&priv->mutex);
+
+	/* Clear the driver's (not device's) station table */
+	iwl3945_clear_stations_table(priv);
+
+	priv->data_retry_limit = -1;
+	priv->ieee_channels = NULL;
+	priv->ieee_rates = NULL;
+	priv->band = IEEE80211_BAND_2GHZ;
+
+	priv->iw_mode = NL80211_IFTYPE_STATION;
+
+	if (iwl3945_param_qos_enable)
+		priv->qos_data.qos_enable = 1;
+
+	iwl3945_reset_qos(priv);
+
+	priv->qos_data.qos_active = 0;
+	priv->qos_data.qos_cap.val = 0;
+
+
+	priv->rates_mask = IWL_RATES_MASK;
+	/* If power management is turned on, default to AC mode */
+	priv->power_mode = IWL_POWER_AC;
+	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
+
 	err = iwl3945_init_channel_map(priv);
 	if (err) {
 		IWL_ERROR("initializing regulatory failed: %d\n", err);
-		goto out_remove_sysfs;
+		goto out_release_irq;
 	}
 
 	err = iwl3945_init_geos(priv);
@@ -7975,16 +7971,58 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		goto out_free_channel_map;
 	}
 
+	printk(KERN_INFO DRV_NAME
+		": Detected Intel Wireless WiFi Link %s\n", priv->cfg->name);
+
+	/***********************************
+	 * 7. Initialize Module Parameters
+	 * **********************************/
+
+	/* Initialize module parameter values here */
+	/* Disable radio (SW RF KILL) via parameter when loading driver */
+	if (iwl3945_param_disable) {
+		set_bit(STATUS_RF_KILL_SW, &priv->status);
+		IWL_DEBUG_INFO("Radio disabled.\n");
+	}
+
+
+	/***********************
+	 * 8. Setup Services
+	 * ********************/
+
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl3945_disable_interrupts(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	err = sysfs_create_group(&pdev->dev.kobj, &iwl3945_attribute_group);
+	if (err) {
+		IWL_ERROR("failed to create sysfs device attributes\n");
+		goto out_free_geos;
+	}
+
+	iwl3945_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
+	iwl3945_setup_deferred_work(priv);
+	iwl3945_setup_rx_handlers(priv);
+
+	/***********************
+	 * 9. Conclude
+	 * ********************/
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+
+	/*********************************
+	 * 10. Setup and Register mac80211
+	 * *******************************/
+
 	err = ieee80211_register_hw(priv->hw);
 	if (err) {
 		IWL_ERROR("Failed to register network device (error %d)\n", err);
-		goto out_free_geos;
+		goto  out_remove_sysfs;
 	}
 
 	priv->hw->conf.beacon_int = 100;
 	priv->mac80211_registered = 1;
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
+
 
 	err = iwl3945_rfkill_init(priv);
 	if (err)
@@ -7993,12 +8031,13 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	return 0;
 
+ out_remove_sysfs:
+	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
  out_free_geos:
 	iwl3945_free_geos(priv);
  out_free_channel_map:
 	iwl3945_free_channel_map(priv);
- out_remove_sysfs:
-	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
+
 
  out_release_irq:
 	destroy_workqueue(priv->workqueue);
