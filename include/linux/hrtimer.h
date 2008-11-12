@@ -46,9 +46,6 @@ enum hrtimer_restart {
  * hrtimer callback modes:
  *
  *	HRTIMER_CB_SOFTIRQ:		Callback must run in softirq context
- *	HRTIMER_CB_IRQSAFE:		Callback may run in hardirq context
- *	HRTIMER_CB_IRQSAFE_NO_RESTART:	Callback may run in hardirq context and
- *					does not restart the timer
  *	HRTIMER_CB_IRQSAFE_PERCPU:	Callback must run in hardirq context
  *					Special mode for tick emulation and
  *					scheduler timer. Such timers are per
@@ -61,8 +58,6 @@ enum hrtimer_restart {
  */
 enum hrtimer_cb_mode {
 	HRTIMER_CB_SOFTIRQ,
-	HRTIMER_CB_IRQSAFE,
-	HRTIMER_CB_IRQSAFE_NO_RESTART,
 	HRTIMER_CB_IRQSAFE_PERCPU,
 	HRTIMER_CB_IRQSAFE_UNLOCKED,
 };
