@@ -270,16 +270,17 @@ int em28xx_ir_init(struct em28xx *dev)
 
 	/* detect & configure */
 	switch (dev->model) {
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
+		ir_type          = IR_TYPE_OTHER;
+		ir_codes         = ir_codes_hauppauge_new;
+		ir->mask_keycode = 0x007f0000;
+		break;
 	}
 
 	if (NULL == ir_codes) {
 		err = -ENODEV;
 		goto err_out_free;
 	}
-
-	/* Get the current key status, to avoid adding an
-	   unexistent key code */
-	ir->last_gpio    = ir->get_key(ir);
 
 	/* init input device */
 	snprintf(ir->name, sizeof(ir->name), "em28xx IR (%s)",
@@ -300,6 +301,10 @@ int em28xx_ir_init(struct em28xx *dev)
 	/* record handles to ourself */
 	ir->dev = dev;
 	dev->ir = ir;
+
+	/* Get the current key status, to avoid adding an
+	   unexistent key code */
+	ir->last_gpio    = ir->get_key(ir);
 
 	em28xx_ir_start(ir);
 
