@@ -267,12 +267,8 @@ static ssize_t regulator_name_show(struct device *dev,
 	return sprintf(buf, "%s\n", name);
 }
 
-static ssize_t regulator_opmode_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t regulator_print_opmode(char *buf, int mode)
 {
-	struct regulator_dev *rdev = dev_get_drvdata(dev);
-	int mode = _regulator_get_mode(rdev);
-
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
 		return sprintf(buf, "fast\n");
@@ -286,18 +282,30 @@ static ssize_t regulator_opmode_show(struct device *dev,
 	return sprintf(buf, "unknown\n");
 }
 
-static ssize_t regulator_state_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t regulator_opmode_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
-	int state = _regulator_is_enabled(rdev);
 
+	return regulator_print_opmode(buf, _regulator_get_mode(rdev));
+}
+
+static ssize_t regulator_print_state(char *buf, int state)
+{
 	if (state > 0)
 		return sprintf(buf, "enabled\n");
 	else if (state == 0)
 		return sprintf(buf, "disabled\n");
 	else
 		return sprintf(buf, "unknown\n");
+}
+
+static ssize_t regulator_state_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct regulator_dev *rdev = dev_get_drvdata(dev);
+
+	return regulator_print_state(buf, _regulator_is_enabled(rdev));
 }
 
 static ssize_t regulator_min_uA_show(struct device *dev,
@@ -409,22 +417,6 @@ static ssize_t regulator_suspend_standby_uV_show(struct device *dev,
 	return sprintf(buf, "%d\n", rdev->constraints->state_standby.uV);
 }
 
-static ssize_t suspend_opmode_show(struct regulator_dev *rdev,
-	unsigned int mode, char *buf)
-{
-	switch (mode) {
-	case REGULATOR_MODE_FAST:
-		return sprintf(buf, "fast\n");
-	case REGULATOR_MODE_NORMAL:
-		return sprintf(buf, "normal\n");
-	case REGULATOR_MODE_IDLE:
-		return sprintf(buf, "idle\n");
-	case REGULATOR_MODE_STANDBY:
-		return sprintf(buf, "standby\n");
-	}
-	return sprintf(buf, "unknown\n");
-}
-
 static ssize_t regulator_suspend_mem_mode_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -432,8 +424,8 @@ static ssize_t regulator_suspend_mem_mode_show(struct device *dev,
 
 	if (!rdev->constraints)
 		return sprintf(buf, "not defined\n");
-	return suspend_opmode_show(rdev,
-		rdev->constraints->state_mem.mode, buf);
+	return regulator_print_opmode(buf,
+		rdev->constraints->state_mem.mode);
 }
 
 static ssize_t regulator_suspend_disk_mode_show(struct device *dev,
@@ -443,8 +435,8 @@ static ssize_t regulator_suspend_disk_mode_show(struct device *dev,
 
 	if (!rdev->constraints)
 		return sprintf(buf, "not defined\n");
-	return suspend_opmode_show(rdev,
-		rdev->constraints->state_disk.mode, buf);
+	return regulator_print_opmode(buf,
+		rdev->constraints->state_disk.mode);
 }
 
 static ssize_t regulator_suspend_standby_mode_show(struct device *dev,
@@ -454,8 +446,8 @@ static ssize_t regulator_suspend_standby_mode_show(struct device *dev,
 
 	if (!rdev->constraints)
 		return sprintf(buf, "not defined\n");
-	return suspend_opmode_show(rdev,
-		rdev->constraints->state_standby.mode, buf);
+	return regulator_print_opmode(buf,
+		rdev->constraints->state_standby.mode);
 }
 
 static ssize_t regulator_suspend_mem_state_show(struct device *dev,
@@ -466,10 +458,8 @@ static ssize_t regulator_suspend_mem_state_show(struct device *dev,
 	if (!rdev->constraints)
 		return sprintf(buf, "not defined\n");
 
-	if (rdev->constraints->state_mem.enabled)
-		return sprintf(buf, "enabled\n");
-	else
-		return sprintf(buf, "disabled\n");
+	return regulator_print_state(buf,
+			rdev->constraints->state_mem.enabled);
 }
 
 static ssize_t regulator_suspend_disk_state_show(struct device *dev,
@@ -480,10 +470,8 @@ static ssize_t regulator_suspend_disk_state_show(struct device *dev,
 	if (!rdev->constraints)
 		return sprintf(buf, "not defined\n");
 
-	if (rdev->constraints->state_disk.enabled)
-		return sprintf(buf, "enabled\n");
-	else
-		return sprintf(buf, "disabled\n");
+	return regulator_print_state(buf,
+			rdev->constraints->state_disk.enabled);
 }
 
 static ssize_t regulator_suspend_standby_state_show(struct device *dev,
@@ -494,10 +482,8 @@ static ssize_t regulator_suspend_standby_state_show(struct device *dev,
 	if (!rdev->constraints)
 		return sprintf(buf, "not defined\n");
 
-	if (rdev->constraints->state_standby.enabled)
-		return sprintf(buf, "enabled\n");
-	else
-		return sprintf(buf, "disabled\n");
+	return regulator_print_state(buf,
+			rdev->constraints->state_standby.enabled);
 }
 
 static struct device_attribute regulator_dev_attrs[] = {
@@ -1773,20 +1759,14 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	/* preform any regulator specific init */
 	if (init_data->regulator_init) {
 		ret = init_data->regulator_init(rdev->reg_data);
-		if (ret < 0) {
-			kfree(rdev);
-			rdev = ERR_PTR(ret);
-			goto out;
-		}
+		if (ret < 0)
+			goto clean;
 	}
 
 	/* set regulator constraints */
 	ret = set_machine_constraints(rdev, &init_data->constraints);
-	if (ret < 0) {
-		kfree(rdev);
-		rdev = ERR_PTR(ret);
-		goto out;
-	}
+	if (ret < 0)
+		goto clean;
 
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
@@ -1794,11 +1774,8 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	dev_set_name(&rdev->dev, "regulator.%d",
 		     atomic_inc_return(&regulator_no) - 1);
 	ret = device_register(&rdev->dev);
-	if (ret != 0) {
-		kfree(rdev);
-		rdev = ERR_PTR(ret);
-		goto out;
-	}
+	if (ret != 0)
+		goto clean;
 
 	dev_set_drvdata(&rdev->dev, rdev);
 
@@ -1806,12 +1783,8 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (init_data->supply_regulator_dev) {
 		ret = set_supply(rdev,
 			dev_get_drvdata(init_data->supply_regulator_dev));
-		if (ret < 0) {
-			device_unregister(&rdev->dev);
-			kfree(rdev);
-			rdev = ERR_PTR(ret);
-			goto out;
-		}
+		if (ret < 0)
+			goto scrub;
 	}
 
 	/* add consumers devices */
@@ -1823,10 +1796,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 			for (--i; i >= 0; i--)
 				unset_consumer_device_supply(rdev,
 					init_data->consumer_supplies[i].dev);
-			device_unregister(&rdev->dev);
-			kfree(rdev);
-			rdev = ERR_PTR(ret);
-			goto out;
+			goto scrub;
 		}
 	}
 
@@ -1834,6 +1804,13 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 out:
 	mutex_unlock(&regulator_list_mutex);
 	return rdev;
+
+scrub:
+	device_unregister(&rdev->dev);
+clean:
+	kfree(rdev);
+	rdev = ERR_PTR(ret);
+	goto out;
 }
 EXPORT_SYMBOL_GPL(regulator_register);
 
