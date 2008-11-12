@@ -220,11 +220,7 @@ extern void			neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *p
 static inline
 struct net			*neigh_parms_net(const struct neigh_parms *parms)
 {
-#ifdef CONFIG_NET_NS
-	return parms->net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&parms->net);
 }
 
 extern unsigned long		neigh_rand_reach_time(unsigned long base);
@@ -241,11 +237,7 @@ extern int			pneigh_delete(struct neigh_table *tbl, struct net *net, const void 
 static inline
 struct net			*pneigh_net(const struct pneigh_entry *pneigh)
 {
-#ifdef CONFIG_NET_NS
-	return pneigh->net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&pneigh->net);
 }
 
 extern void neigh_app_ns(struct neighbour *n);

@@ -531,9 +531,7 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 	if (!n)
 		goto out;
 
-#ifdef CONFIG_NET_NS
-	n->net = hold_net(net);
-#endif
+	write_pnet(&n->net, hold_net(net));
 	memcpy(n->key, pkey, key_len);
 	n->dev = dev;
 	if (dev)
@@ -1350,9 +1348,7 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 
 		dev_hold(dev);
 		p->dev = dev;
-#ifdef CONFIG_NET_NS
-		p->net = hold_net(net);
-#endif
+		write_pnet(&p->net, hold_net(net));
 		p->sysctl_table = NULL;
 		write_lock_bh(&tbl->lock);
 		p->next		= tbl->parms.next;
@@ -1407,9 +1403,7 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	unsigned long now = jiffies;
 	unsigned long phsize;
 
-#ifdef CONFIG_NET_NS
-	tbl->parms.net = &init_net;
-#endif
+	write_pnet(&tbl->parms.net, &init_net);
 	atomic_set(&tbl->parms.refcnt, 1);
 	tbl->parms.reachable_time =
 			  neigh_rand_reach_time(tbl->parms.base_reachable_time);
