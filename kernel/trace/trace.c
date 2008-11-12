@@ -3198,11 +3198,11 @@ static __init int tracer_init_debugfs(void)
 		pr_warning("Could not create debugfs "
 			   "'trace_pipe' entry\n");
 
-	entry = debugfs_create_file("trace_entries", 0644, d_tracer,
+	entry = debugfs_create_file("buffer_size_kb", 0644, d_tracer,
 				    &global_trace, &tracing_entries_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
-			   "'trace_entries' entry\n");
+			   "'buffer_size_kb' entry\n");
 
 	entry = debugfs_create_file("trace_marker", 0220, d_tracer,
 				    NULL, &tracing_mark_fops);

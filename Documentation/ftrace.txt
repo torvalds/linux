@@ -94,7 +94,7 @@ of ftrace. Here is a list of some of the key files:
 		only be recorded if the latency is greater than
 		the value in this file. (in microseconds)
 
-  trace_entries: This sets or displays the number of bytes each CPU
+  buffer_size_kb: This sets or displays the number of bytes each CPU
 		buffer can hold. The tracer buffers are the same size
 		for each CPU. The displayed number is the size of the
 		 CPU buffer and not total size of all buffers. The
@@ -1299,13 +1299,13 @@ trace entries
 -------------
 
 Having too much or not enough data can be troublesome in diagnosing
-an issue in the kernel. The file trace_entries is used to modify
+an issue in the kernel. The file buffer_size_kb is used to modify
 the size of the internal trace buffers. The number listed
 is the number of entries that can be recorded per CPU. To know
 the full size, multiply the number of possible CPUS with the
 number of entries.
 
- # cat /debug/tracing/trace_entries
+ # cat /debug/tracing/buffer_size_kb
 65620
 
 Note, to modify this, you must have tracing completely disabled. To do that,
@@ -1313,8 +1313,8 @@ echo "nop" into the current_tracer. If the current_tracer is not set
 to "nop", an EINVAL error will be returned.
 
  # echo nop > /debug/tracing/current_tracer
- # echo 100000 > /debug/tracing/trace_entries
- # cat /debug/tracing/trace_entries
+ # echo 100000 > /debug/tracing/buffer_size_kb
+ # cat /debug/tracing/buffer_size_kb
 100045
 
 
@@ -1323,8 +1323,8 @@ are held in individual pages. It allocates the number of pages it takes
 to fulfill the request. If more entries may fit on the last page
 then they will be added.
 
- # echo 1 > /debug/tracing/trace_entries
- # cat /debug/tracing/trace_entries
+ # echo 1 > /debug/tracing/buffer_size_kb
+ # cat /debug/tracing/buffer_size_kb
 85
 
 This shows us that 85 entries can fit in a single page.
@@ -1332,8 +1332,8 @@ This shows us that 85 entries can fit in a single page.
 The number of pages which will be allocated is limited to a percentage
 of available memory. Allocating too much will produce an error.
 
- # echo 1000000000000 > /debug/tracing/trace_entries
+ # echo 1000000000000 > /debug/tracing/buffer_size_kb
 -bash: echo: write error: Cannot allocate memory
- # cat /debug/tracing/trace_entries
+ # cat /debug/tracing/buffer_size_kb
 85
 
