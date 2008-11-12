@@ -87,17 +87,6 @@ static void dccp_retransmit_timer(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	/* retransmit timer is used for feature negotiation throughout
-	 * connection.  In this case, no packet is re-transmitted, but rather an
-	 * ack is generated and pending changes are placed into its options.
-	 */
-	if (sk->sk_send_head == NULL) {
-		dccp_pr_debug("feat negotiation retransmit timeout %p\n", sk);
-		if (sk->sk_state == DCCP_OPEN)
-			dccp_send_ack(sk);
-		goto backoff;
-	}
-
 	/*
 	 * More than than 4MSL (8 minutes) has passed, a RESET(aborted) was
 	 * sent, no need to retransmit, this sock is dead.
@@ -126,7 +115,6 @@ static void dccp_retransmit_timer(struct sock *sk)
 		return;
 	}
 
-backoff:
 	icsk->icsk_backoff++;
 
 	icsk->icsk_rto = min(icsk->icsk_rto << 1, DCCP_RTO_MAX);
