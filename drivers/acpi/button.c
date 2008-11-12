@@ -478,7 +478,7 @@ static int acpi_button_add(struct acpi_device *device)
 				  device->wakeup.gpe_number,
 				  ACPI_GPE_TYPE_WAKE_RUN);
 		acpi_enable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number, ACPI_NOT_ISR);
+				device->wakeup.gpe_number);
 		device->wakeup.state.enabled = 1;
 	}
 
