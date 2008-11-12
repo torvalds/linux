@@ -59,7 +59,11 @@ extern void __chk_io_ptr(const volatile void __iomem *);
  * specific implementations come from the above header files
  */
 
-#ifdef CONFIG_TRACE_UNLIKELY_PROFILE
+/*
+ * Note: DISABLE_UNLIKELY_PROFILE can be used by special lowlevel code
+ * to disable branch tracing on a per file basis.
+ */
+#if defined(CONFIG_TRACE_UNLIKELY_PROFILE) && !defined(DISABLE_UNLIKELY_PROFILE)
 struct ftrace_likely_data {
 	const char *func;
 	const char *file;

@@ -17,13 +17,8 @@
  *  want per guest time just set the kernel.vsyscall64 sysctl to 0.
  */
 
-/* Protect userspace from profiling */
-#ifdef CONFIG_TRACE_UNLIKELY_PROFILE
-# undef likely
-# undef unlikely
-# define likely(x)		likely_notrace(x)
-# define unlikely(x)		unlikely_notrace(x)
-#endif
+/* Disable profiling for userspace code: */
+#define DISABLE_UNLIKELY_PROFILE
 
 #include <linux/time.h>
 #include <linux/init.h>
