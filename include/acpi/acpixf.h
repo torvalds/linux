@@ -320,12 +320,10 @@ acpi_status acpi_get_register_unlocked(u32 register_id, u32 *return_value);
 acpi_status acpi_set_register(u32 register_id, u32 value);
 
 acpi_status
-acpi_set_firmware_waking_vector(acpi_physical_address physical_address);
+acpi_set_firmware_waking_vector(u32 physical_address);
 
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
-acpi_get_firmware_waking_vector(acpi_physical_address * physical_address);
-#endif
+acpi_set_firmware_waking_vector64(u64 physical_address);
 
 acpi_status
 acpi_get_sleep_type_data(u8 sleep_state, u8 * slp_typ_a, u8 * slp_typ_b);
