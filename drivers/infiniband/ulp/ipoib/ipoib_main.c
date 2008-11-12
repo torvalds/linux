@@ -106,11 +106,12 @@ int ipoib_open(struct net_device *dev)
 
 	ipoib_dbg(priv, "bringing up interface\n");
 
-	napi_enable(&priv->napi);
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
 	if (ipoib_pkey_dev_delay_open(dev))
 		return 0;
+
+	napi_enable(&priv->napi);
 
 	if (ipoib_ib_dev_open(dev)) {
 		napi_disable(&priv->napi);
