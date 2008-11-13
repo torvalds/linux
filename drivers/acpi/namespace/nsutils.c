@@ -314,9 +314,15 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 	 *
 	 * strlen() + 1 covers the first name_seg, which has no path separator
 	 */
-	if (acpi_ns_valid_root_prefix(next_external_char[0])) {
+	if (acpi_ns_valid_root_prefix(*next_external_char)) {
 		info->fully_qualified = TRUE;
 		next_external_char++;
+
+		/* Skip redundant root_prefix, like \\_SB.PCI0.SBRG.EC0 */
+
+		while (acpi_ns_valid_root_prefix(*next_external_char)) {
+			next_external_char++;
+		}
 	} else {
 		/*
 		 * Handle Carat prefixes
