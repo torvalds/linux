@@ -708,6 +708,10 @@ static int parse_hw_handler(struct arg_set *as, struct multipath *m)
 		m->hw_handler_name = NULL;
 		return -EINVAL;
 	}
+
+	if (hw_argc > 1)
+		DMWARN("Ignoring user-specified arguments for "
+		       "hardware handler \"%s\"", m->hw_handler_name);
 	consume(as, hw_argc - 1);
 
 	return 0;
