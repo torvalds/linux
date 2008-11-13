@@ -408,27 +408,10 @@
 #define uHAL_MEMORY_SIZE                INTEGRATOR_SSRAM_SIZE
 
 /*
- *  Application Flash
- *
- */
-#define FLASH_BASE                      INTEGRATOR_FLASH_BASE
-#define FLASH_SIZE                      INTEGRATOR_FLASH_SIZE
-#define FLASH_END                       (FLASH_BASE + FLASH_SIZE - 1)
-#define FLASH_BLOCK_SIZE                SZ_128K
-
-/*
- *  Boot Flash
- *
- */
-#define EPROM_BASE                      INTEGRATOR_BOOT_ROM_HI
-#define EPROM_SIZE                      INTEGRATOR_BOOT_ROM_SIZE
-#define EPROM_END                       (EPROM_BASE + EPROM_SIZE - 1)
-
-/*
  *  Clean base - dummy
  *
  */
-#define CLEAN_BASE                      EPROM_BASE
+#define CLEAN_BASE                      INTEGRATOR_BOOT_ROM_HI
 
 /*
  *  Timer definitions
