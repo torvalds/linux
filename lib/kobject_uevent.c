@@ -165,7 +165,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	/* keys passed in from the caller */
 	if (envp_ext) {
 		for (i = 0; envp_ext[i]; i++) {
-			retval = add_uevent_var(env, envp_ext[i]);
+			retval = add_uevent_var(env, "%s", envp_ext[i]);
 			if (retval)
 				goto exit;
 		}
