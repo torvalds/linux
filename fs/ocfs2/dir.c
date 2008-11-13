@@ -231,44 +231,16 @@ static int ocfs2_read_dir_block(struct inode *inode, u64 v_block,
 {
 	int rc = 0;
 	struct buffer_head *tmp = *bh;
-	u64 p_blkno;
 
-	if (((u64)v_block << inode->i_sb->s_blocksize_bits) >=
-	    i_size_read(inode)) {
-		BUG_ON(!(flags & OCFS2_BH_READAHEAD));
-		goto out;
-	}
-
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
-	rc = ocfs2_extent_map_get_blocks(inode, v_block, &p_blkno, NULL,
-					 NULL);
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
-	if (rc) {
+	rc = ocfs2_read_virt_blocks(inode, v_block, 1, &tmp, flags,
+				    ocfs2_validate_dir_block);
+	if (rc)
 		mlog_errno(rc);
-		goto out;
-	}
 
-	if (!p_blkno) {
-		rc = -EIO;
-		mlog(ML_ERROR,
-		     "Directory #%llu contains a hole at offset %llu\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		     (unsigned long long)v_block << inode->i_sb->s_blocksize_bits);
-		goto out;
-	}
-
-	rc = ocfs2_read_blocks(inode, p_blkno, 1, &tmp, flags,
-			       ocfs2_validate_dir_block);
-	if (rc) {
-		mlog_errno(rc);
-		goto out;
-	}
-
-	/* If ocfs2_read_blocks() got us a new bh, pass it up.  */
-	if (!*bh)
+	/* If ocfs2_read_virt_blocks() got us a new bh, pass it up. */
+	if (!rc && !*bh)
 		*bh = tmp;
 
-out:
 	return rc ? -EIO : 0;
 }
 
