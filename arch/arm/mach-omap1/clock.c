@@ -628,9 +628,6 @@ static int omap1_clk_set_rate(struct clk *clk, unsigned long rate)
 		ret = 0;
 	}
 
-	if (unlikely(ret == 0 && (clk->flags & RATE_PROPAGATES)))
-		propagate_rate(clk);
-
 	return ret;
 }
 

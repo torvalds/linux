@@ -684,9 +684,6 @@ int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk->set_rate != NULL)
 		ret = clk->set_rate(clk, rate);
 
-	if (unlikely(ret == 0 && (clk->flags & RATE_PROPAGATES)))
-		propagate_rate(clk);
-
 	return ret;
 }
 
@@ -773,9 +770,6 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 
 	pr_debug("clock: set parent of %s to %s (new rate %ld)\n",
 		 clk->name, clk->parent->name, clk->rate);
-
-	if (unlikely(clk->flags & RATE_PROPAGATES))
-		propagate_rate(clk);
 
 	return 0;
 }

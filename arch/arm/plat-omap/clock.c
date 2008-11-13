@@ -182,6 +182,8 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	spin_lock_irqsave(&clockfw_lock, flags);
 	if (arch_clock->clk_set_rate)
 		ret = arch_clock->clk_set_rate(clk, rate);
+	if (ret == 0 && (clk->flags & RATE_PROPAGATES))
+		propagate_rate(clk);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return ret;
@@ -198,7 +200,9 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 
 	spin_lock_irqsave(&clockfw_lock, flags);
 	if (arch_clock->clk_set_parent)
-		ret =  arch_clock->clk_set_parent(clk, parent);
+		ret = arch_clock->clk_set_parent(clk, parent);
+	if (ret == 0 && (clk->flags & RATE_PROPAGATES))
+		propagate_rate(clk);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return ret;
