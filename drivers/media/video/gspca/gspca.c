@@ -736,7 +736,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 			if (fmtdesc->index == index)
 				break;		/* new format */
 			index++;
-			if (index >= sizeof fmt_tb / sizeof fmt_tb[0])
+			if (index >= ARRAY_SIZE(fmt_tb))
 				return -EINVAL;
 		}
 	}
