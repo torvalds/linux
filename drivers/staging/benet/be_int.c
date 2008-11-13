@@ -717,12 +717,10 @@ irqreturn_t be_int(int irq, void *dev)
  */
 int be_poll(struct napi_struct *napi, int budget)
 {
-	struct net_device *netdev = napi->dev;
-	struct be_net_object *pnob = netdev_priv(netdev);
-	struct be_adapter *adapter = pnob->adapter;
+	struct be_net_object *pnob = container_of(napi, struct be_net_object, napi);
 	u32 work_done;
 
-	adapter->be_stat.bes_polls++;
+	pnob->adapter->be_stat.bes_polls++;
 	work_done = process_rx_completions(pnob, budget);
 	BUG_ON(work_done > budget);
 

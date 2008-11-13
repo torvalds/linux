@@ -2,7 +2,6 @@ TODO:
 	- fix minor checkpatch.pl issues
 	- remove wrappers around common iowrite functions
 	- full netdev audit of common problems/issues
-	- fix build errors when CONFIG_NETPOLL is not enabled
 
 Please send all patches and questions to Subbu Seetharaman
 <subbus@serverengines.com> and Greg Kroah-Hartman <greg@kroah.com>
