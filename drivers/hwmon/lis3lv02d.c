@@ -33,7 +33,6 @@
 #include <linux/wait.h>
 #include <linux/poll.h>
 #include <linux/freezer.h>
-#include <linux/version.h>
 #include <linux/uaccess.h>
 #include <acpi/acpi_drivers.h>
 #include <asm/atomic.h>
