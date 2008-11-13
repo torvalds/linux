@@ -460,7 +460,7 @@ void br_net_exit(struct net *net)
 restart:
 	for_each_netdev(net, dev) {
 		if (dev->priv_flags & IFF_EBRIDGE) {
-			del_br(dev->priv);
+			del_br(netdev_priv(dev));
 			goto restart;
 		}
 	}

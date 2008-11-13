@@ -785,7 +785,7 @@ static int atm_mpoa_mpoad_attach (struct atm_vcc *vcc, int arg)
 	}
 
 	if (mpc->dev) { /* check if the lec is LANE2 capable */
-		priv = (struct lec_priv *)mpc->dev->priv;
+		priv = netdev_priv(mpc->dev);
 		if (priv->lane_version < 2) {
 			dev_put(mpc->dev);
 			mpc->dev = NULL;
@@ -845,7 +845,7 @@ static void mpoad_close(struct atm_vcc *vcc)
 
 	mpc->mpoad_vcc = NULL;
 	if (mpc->dev) {
-		struct lec_priv *priv = (struct lec_priv *)mpc->dev->priv;
+		struct lec_priv *priv = netdev_priv(mpc->dev);
 		priv->lane2_ops->associate_indicator = NULL;
 		stop_mpc(mpc);
 		dev_put(mpc->dev);
@@ -976,7 +976,7 @@ static int mpoa_event_listener(struct notifier_block *mpoa_notifier, unsigned lo
 
 	switch (event) {
 	case NETDEV_REGISTER:       /* a new lec device was allocated */
-		priv = (struct lec_priv *)dev->priv;
+		priv = netdev_priv(dev);
 		if (priv->lane_version < 2)
 			break;
 		priv->lane2_ops->associate_indicator = lane2_assoc_ind;
@@ -1324,7 +1324,7 @@ static void set_mpc_ctrl_addr_rcvd(struct k_message *mesg, struct mpoa_client *m
 	dprintk("\n");
 
 	if (mpc->dev) {
-		priv = (struct lec_priv *)mpc->dev->priv;
+		priv = netdev_priv(mpc->dev);
 		retval = priv->lane2_ops->associate_req(mpc->dev, mpc->dev->dev_addr, tlv, sizeof(tlv));
 		if (retval == 0)
 			printk("mpoa: (%s) MPOA device type TLV association failed\n", mpc->dev->name);
@@ -1474,7 +1474,7 @@ static void __exit atm_mpoa_cleanup(void)
 		tmp = mpc->next;
 		if (mpc->dev != NULL) {
 			stop_mpc(mpc);
-			priv = (struct lec_priv *)mpc->dev->priv;
+			priv = netdev_priv(mpc->dev);
 			if (priv->lane2_ops != NULL)
 				priv->lane2_ops->associate_indicator = NULL;
 		}

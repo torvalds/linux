@@ -62,14 +62,14 @@ static int bnep_net_close(struct net_device *dev)
 
 static struct net_device_stats *bnep_net_get_stats(struct net_device *dev)
 {
-	struct bnep_session *s = dev->priv;
+	struct bnep_session *s = netdev_priv(dev);
 	return &s->stats;
 }
 
 static void bnep_net_set_mc_list(struct net_device *dev)
 {
 #ifdef CONFIG_BT_BNEP_MC_FILTER
-	struct bnep_session *s = dev->priv;
+	struct bnep_session *s = netdev_priv(dev);
 	struct sock *sk = s->sock->sk;
 	struct bnep_set_filter_req *r;
 	struct sk_buff *skb;
@@ -183,7 +183,7 @@ static inline int bnep_net_proto_filter(struct sk_buff *skb, struct bnep_session
 
 static int bnep_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct bnep_session *s = dev->priv;
+	struct bnep_session *s = netdev_priv(dev);
 	struct sock *sk = s->sock->sk;
 
 	BT_DBG("skb %p, dev %p", skb, dev);
