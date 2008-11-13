@@ -64,6 +64,7 @@ config CRC7
 
 config LIBCRC32C
 	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
+	select CRYPTO
 	select CRYPTO_CRC32C
 	help
 	  This option is provided for the case where no in-kernel-tree
