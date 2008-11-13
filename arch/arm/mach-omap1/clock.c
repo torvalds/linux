@@ -308,7 +308,6 @@ static int omap1_select_table_rate(struct clk * clk, unsigned long rate)
 		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
 
 	ck_dpll1.rate = ptr->pll_rate;
-	propagate_rate(&ck_dpll1);
 	return 0;
 }
 
@@ -332,9 +331,6 @@ static int omap1_clk_set_rate_dsp_domain(struct clk *clk, unsigned long rate)
 		clk->rate = clk->parent->rate / (1 << dsor_exp);
 		ret = 0;
 	}
-
-	if (unlikely(ret == 0 && (clk->flags & RATE_PROPAGATES)))
-		propagate_rate(clk);
 
 	return ret;
 }
@@ -442,8 +438,6 @@ static int omap1_set_sossi_rate(struct clk *clk, unsigned long rate)
 	omap_writel(l, MOD_CONF_CTRL_1);
 
 	clk->rate = p_rate / (div + 1);
-	if (unlikely(clk->flags & RATE_PROPAGATES))
-		propagate_rate(clk);
 
 	return 0;
 }
@@ -787,7 +781,6 @@ int __init omap1_clk_init(void)
 			}
 		}
 	}
-	propagate_rate(&ck_dpll1);
 #else
 	/* Find the highest supported frequency and enable it */
 	if (omap1_select_table_rate(&virtual_ck_mpu, ~0)) {
@@ -796,9 +789,9 @@ int __init omap1_clk_init(void)
 		omap_writew(0x2290, DPLL_CTL);
 		omap_writew(cpu_is_omap730() ? 0x3005 : 0x1005, ARM_CKCTL);
 		ck_dpll1.rate = 60000000;
-		propagate_rate(&ck_dpll1);
 	}
 #endif
+	propagate_rate(&ck_dpll1);
 	/* Cache rates for clocks connected to ck_ref (not dpll1) */
 	propagate_rate(&ck_ref);
 	printk(KERN_INFO "Clocking rate (xtal/DPLL1/MPU): "
