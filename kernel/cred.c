@@ -17,6 +17,17 @@
 #include <linux/security.h>
 
 /*
+ * The common credentials for the initial task's thread group
+ */
+#ifdef CONFIG_KEYS
+static struct thread_group_cred init_tgcred = {
+	.usage	= ATOMIC_INIT(2),
+	.tgid	= 0,
+	.lock	= SPIN_LOCK_UNLOCKED,
+};
+#endif
+
+/*
  * The initial credentials for the initial task
  */
 struct cred init_cred = {
@@ -28,7 +39,40 @@ struct cred init_cred = {
 	.cap_bset		= CAP_INIT_BSET,
 	.user			= INIT_USER,
 	.group_info		= &init_groups,
+#ifdef CONFIG_KEYS
+	.tgcred			= &init_tgcred,
+#endif
 };
+
+/*
+ * Dispose of the shared task group credentials
+ */
+#ifdef CONFIG_KEYS
+static void release_tgcred_rcu(struct rcu_head *rcu)
+{
+	struct thread_group_cred *tgcred =
+		container_of(rcu, struct thread_group_cred, rcu);
+
+	BUG_ON(atomic_read(&tgcred->usage) != 0);
+
+	key_put(tgcred->session_keyring);
+	key_put(tgcred->process_keyring);
+	kfree(tgcred);
+}
+#endif
+
+/*
+ * Release a set of thread group credentials.
+ */
+static void release_tgcred(struct cred *cred)
+{
+#ifdef CONFIG_KEYS
+	struct thread_group_cred *tgcred = cred->tgcred;
+
+	if (atomic_dec_and_test(&tgcred->usage))
+		call_rcu(&tgcred->rcu, release_tgcred_rcu);
+#endif
+}
 
 /*
  * The RCU callback to actually dispose of a set of credentials
@@ -41,6 +85,7 @@ static void put_cred_rcu(struct rcu_head *rcu)
 
 	key_put(cred->thread_keyring);
 	key_put(cred->request_key_auth);
+	release_tgcred(cred);
 	put_group_info(cred->group_info);
 	free_uid(cred->user);
 	security_cred_free(cred);
@@ -71,12 +116,30 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 	if (!pcred)
 		return -ENOMEM;
 
+#ifdef CONFIG_KEYS
+	if (clone_flags & CLONE_THREAD) {
+		atomic_inc(&pcred->tgcred->usage);
+	} else {
+		pcred->tgcred = kmalloc(sizeof(struct cred), GFP_KERNEL);
+		if (!pcred->tgcred) {
+			kfree(pcred);
+			return -ENOMEM;
+		}
+		atomic_set(&pcred->tgcred->usage, 1);
+		spin_lock_init(&pcred->tgcred->lock);
+		pcred->tgcred->process_keyring = NULL;
+		pcred->tgcred->session_keyring =
+			key_get(p->cred->tgcred->session_keyring);
+	}
+#endif
+
 #ifdef CONFIG_SECURITY
 	pcred->security = NULL;
 #endif
 
 	ret = security_cred_alloc(pcred);
 	if (ret < 0) {
+		release_tgcred(pcred);
 		kfree(pcred);
 		return ret;
 	}

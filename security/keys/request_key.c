@@ -66,7 +66,6 @@ static int call_sbin_request_key(struct key_construction *cons,
 				 const char *op,
 				 void *aux)
 {
-	struct task_struct *tsk = current;
 	const struct cred *cred = current_cred();
 	key_serial_t prkey, sskey;
 	struct key *key = cons->key, *authkey = cons->authkey, *keyring;
@@ -109,18 +108,13 @@ static int call_sbin_request_key(struct key_construction *cons,
 		cred->thread_keyring->serial : 0);
 
 	prkey = 0;
-	if (tsk->signal->process_keyring)
-		prkey = tsk->signal->process_keyring->serial;
+	if (cred->tgcred->process_keyring)
+		prkey = cred->tgcred->process_keyring->serial;
 
-	sprintf(keyring_str[1], "%d", prkey);
-
-	if (tsk->signal->session_keyring) {
-		rcu_read_lock();
-		sskey = rcu_dereference(tsk->signal->session_keyring)->serial;
-		rcu_read_unlock();
-	} else {
+	if (cred->tgcred->session_keyring)
+		sskey = rcu_dereference(cred->tgcred->session_keyring)->serial;
+	else
 		sskey = cred->user->session_keyring->serial;
-	}
 
 	sprintf(keyring_str[2], "%d", sskey);
 
@@ -222,7 +216,7 @@ static int construct_key(struct key *key, const void *callout_info,
 static void construct_get_dest_keyring(struct key **_dest_keyring)
 {
 	struct request_key_auth *rka;
-	struct task_struct *tsk = current;
+	const struct cred *cred = current_cred();
 	struct key *dest_keyring = *_dest_keyring, *authkey;
 
 	kenter("%p", dest_keyring);
@@ -234,11 +228,11 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 	} else {
 		/* use a default keyring; falling through the cases until we
 		 * find one that we actually have */
-		switch (tsk->cred->jit_keyring) {
+		switch (cred->jit_keyring) {
 		case KEY_REQKEY_DEFL_DEFAULT:
 		case KEY_REQKEY_DEFL_REQUESTOR_KEYRING:
-			if (tsk->cred->request_key_auth) {
-				authkey = tsk->cred->request_key_auth;
+			if (cred->request_key_auth) {
+				authkey = cred->request_key_auth;
 				down_read(&authkey->sem);
 				rka = authkey->payload.data;
 				if (!test_bit(KEY_FLAG_REVOKED,
@@ -251,19 +245,19 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 			}
 
 		case KEY_REQKEY_DEFL_THREAD_KEYRING:
-			dest_keyring = key_get(tsk->cred->thread_keyring);
+			dest_keyring = key_get(cred->thread_keyring);
 			if (dest_keyring)
 				break;
 
 		case KEY_REQKEY_DEFL_PROCESS_KEYRING:
-			dest_keyring = key_get(tsk->signal->process_keyring);
+			dest_keyring = key_get(cred->tgcred->process_keyring);
 			if (dest_keyring)
 				break;
 
 		case KEY_REQKEY_DEFL_SESSION_KEYRING:
 			rcu_read_lock();
 			dest_keyring = key_get(
-				rcu_dereference(tsk->signal->session_keyring));
+				rcu_dereference(cred->tgcred->session_keyring));
 			rcu_read_unlock();
 
 			if (dest_keyring)
@@ -271,11 +265,11 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 
 		case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
 			dest_keyring =
-				key_get(tsk->cred->user->session_keyring);
+				key_get(cred->user->session_keyring);
 			break;
 
 		case KEY_REQKEY_DEFL_USER_KEYRING:
-			dest_keyring = key_get(tsk->cred->user->uid_keyring);
+			dest_keyring = key_get(cred->user->uid_keyring);
 			break;
 
 		case KEY_REQKEY_DEFL_GROUP_KEYRING:
