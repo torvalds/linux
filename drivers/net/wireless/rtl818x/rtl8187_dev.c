@@ -935,7 +935,7 @@ static void rtl8187_conf_erp(struct rtl8187_priv *priv, bool use_short_slot,
 			difs = 0x32;
 			eifs = 0x5b;
 		}
-		rtl818x_iowrite8(priv, &priv->map->SIFS, 0xa);
+		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
 		rtl818x_iowrite8(priv, &priv->map->SLOT, slot_time);
 		rtl818x_iowrite8(priv, &priv->map->DIFS, difs);
 
