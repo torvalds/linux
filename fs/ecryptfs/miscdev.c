@@ -42,11 +42,12 @@ ecryptfs_miscdev_poll(struct file *file, poll_table *pt)
 {
 	struct ecryptfs_daemon *daemon;
 	unsigned int mask = 0;
+	uid_t euid = current_euid();
 	int rc;
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
 	/* TODO: Just use file->private_data? */
-	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid,
+	rc = ecryptfs_find_daemon_by_euid(&daemon, euid,
 					  current->nsproxy->user_ns);
 	BUG_ON(rc || !daemon);
 	mutex_lock(&daemon->mux);
@@ -83,6 +84,7 @@ static int
 ecryptfs_miscdev_open(struct inode *inode, struct file *file)
 {
 	struct ecryptfs_daemon *daemon = NULL;
+	uid_t euid = current_euid();
 	int rc;
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
@@ -93,10 +95,10 @@ ecryptfs_miscdev_open(struct inode *inode, struct file *file)
 		       "count; rc = [%d]\n", __func__, rc);
 		goto out_unlock_daemon_list;
 	}
-	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid,
+	rc = ecryptfs_find_daemon_by_euid(&daemon, euid,
 					  current->nsproxy->user_ns);
 	if (rc || !daemon) {
-		rc = ecryptfs_spawn_daemon(&daemon, current->euid,
+		rc = ecryptfs_spawn_daemon(&daemon, euid,
 					   current->nsproxy->user_ns,
 					   task_pid(current));
 		if (rc) {
@@ -147,10 +149,11 @@ static int
 ecryptfs_miscdev_release(struct inode *inode, struct file *file)
 {
 	struct ecryptfs_daemon *daemon = NULL;
+	uid_t euid = current_euid();
 	int rc;
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
-	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid,
+	rc = ecryptfs_find_daemon_by_euid(&daemon, euid,
 					  current->nsproxy->user_ns);
 	BUG_ON(rc || !daemon);
 	mutex_lock(&daemon->mux);
@@ -246,11 +249,12 @@ ecryptfs_miscdev_read(struct file *file, char __user *buf, size_t count,
 	char packet_length[3];
 	size_t i;
 	size_t total_length;
+	uid_t euid = current_euid();
 	int rc;
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
 	/* TODO: Just use file->private_data? */
-	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid,
+	rc = ecryptfs_find_daemon_by_euid(&daemon, euid,
 					  current->nsproxy->user_ns);
 	BUG_ON(rc || !daemon);
 	mutex_lock(&daemon->mux);
@@ -290,7 +294,7 @@ check_list:
 		 * message from the queue; try again */
 		goto check_list;
 	}
-	BUG_ON(current->euid != daemon->euid);
+	BUG_ON(euid != daemon->euid);
 	BUG_ON(current->nsproxy->user_ns != daemon->user_ns);
 	BUG_ON(task_pid(current) != daemon->pid);
 	msg_ctx = list_first_entry(&daemon->msg_ctx_out_queue,
@@ -414,6 +418,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 	size_t packet_size, packet_size_length, i;
 	ssize_t sz = 0;
 	char *data;
+	uid_t euid = current_euid();
 	int rc;
 
 	if (count == 0)
@@ -463,8 +468,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 			goto out_free;
 		}
 		rc = ecryptfs_miscdev_response(&data[i], packet_size,
-					       current->euid,
-					       current->nsproxy->user_ns,
+					       euid, current->nsproxy->user_ns,
 					       task_pid(current), seq);
 		if (rc)
 			printk(KERN_WARNING "%s: Failed to deliver miscdev "
