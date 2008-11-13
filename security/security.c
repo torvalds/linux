@@ -606,9 +606,9 @@ int security_file_receive(struct file *file)
 	return security_ops->file_receive(file);
 }
 
-int security_dentry_open(struct file *file)
+int security_dentry_open(struct file *file, const struct cred *cred)
 {
-	return security_ops->dentry_open(file);
+	return security_ops->dentry_open(file, cred);
 }
 
 int security_task_create(unsigned long clone_flags)

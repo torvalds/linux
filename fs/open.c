@@ -783,7 +783,8 @@ static inline int __get_file_write_access(struct inode *inode,
 
 static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 					int flags, struct file *f,
-					int (*open)(struct inode *, struct file *))
+					int (*open)(struct inode *, struct file *),
+					const struct cred *cred)
 {
 	struct inode *inode;
 	int error;
@@ -807,7 +808,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	f->f_op = fops_get(inode->i_fop);
 	file_move(f, &inode->i_sb->s_files);
 
-	error = security_dentry_open(f);
+	error = security_dentry_open(f, cred);
 	if (error)
 		goto cleanup_all;
 
@@ -882,6 +883,8 @@ cleanup_file:
 struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
 		int (*open)(struct inode *, struct file *))
 {
+	const struct cred *cred = current_cred();
+
 	if (IS_ERR(nd->intent.open.file))
 		goto out;
 	if (IS_ERR(dentry))
@@ -889,7 +892,7 @@ struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry
 	nd->intent.open.file = __dentry_open(dget(dentry), mntget(nd->path.mnt),
 					     nd->intent.open.flags - 1,
 					     nd->intent.open.file,
-					     open);
+					     open, cred);
 out:
 	return nd->intent.open.file;
 out_err:
@@ -908,6 +911,7 @@ EXPORT_SYMBOL_GPL(lookup_instantiate_filp);
  */
 struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 {
+	const struct cred *cred = current_cred();
 	struct file *filp;
 
 	/* Pick up the filp from the open intent */
@@ -915,7 +919,7 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 	/* Has the filesystem initialised the file for us? */
 	if (filp->f_path.dentry == NULL)
 		filp = __dentry_open(nd->path.dentry, nd->path.mnt, flags, filp,
-				     NULL);
+				     NULL, cred);
 	else
 		path_put(&nd->path);
 	return filp;
@@ -925,7 +929,8 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
  * dentry_open() will have done dput(dentry) and mntput(mnt) if it returns an
  * error.
  */
-struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
+struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
+			 const struct cred *cred)
 {
 	int error;
 	struct file *f;
@@ -950,7 +955,7 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 		return ERR_PTR(error);
 	}
 
-	return __dentry_open(dentry, mnt, flags, f, NULL);
+	return __dentry_open(dentry, mnt, flags, f, NULL, cred);
 }
 EXPORT_SYMBOL(dentry_open);
 

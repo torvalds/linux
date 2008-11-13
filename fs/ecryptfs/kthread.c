@@ -73,7 +73,7 @@ static int ecryptfs_threadfn(void *ignored)
 				mntget(req->lower_mnt);
 				(*req->lower_file) = dentry_open(
 					req->lower_dentry, req->lower_mnt,
-					(O_RDWR | O_LARGEFILE));
+					(O_RDWR | O_LARGEFILE), current_cred());
 				req->flags |= ECRYPTFS_REQ_PROCESSED;
 			}
 			wake_up(&req->wait);
@@ -132,7 +132,8 @@ void ecryptfs_destroy_kthread(void)
  */
 int ecryptfs_privileged_open(struct file **lower_file,
 			     struct dentry *lower_dentry,
-			     struct vfsmount *lower_mnt)
+			     struct vfsmount *lower_mnt,
+			     const struct cred *cred)
 {
 	struct ecryptfs_open_req *req;
 	int rc = 0;
@@ -143,7 +144,7 @@ int ecryptfs_privileged_open(struct file **lower_file,
 	dget(lower_dentry);
 	mntget(lower_mnt);
 	(*lower_file) = dentry_open(lower_dentry, lower_mnt,
-				    (O_RDWR | O_LARGEFILE));
+				    (O_RDWR | O_LARGEFILE), cred);
 	if (!IS_ERR(*lower_file))
 		goto out;
 	req = kmem_cache_alloc(ecryptfs_open_req_cache, GFP_KERNEL);
@@ -184,7 +185,7 @@ int ecryptfs_privileged_open(struct file **lower_file,
 		dget(lower_dentry);
 		mntget(lower_mnt);
 		(*lower_file) = dentry_open(lower_dentry, lower_mnt,
-					    (O_RDONLY | O_LARGEFILE));
+					    (O_RDONLY | O_LARGEFILE), cred);
 		if (IS_ERR(*lower_file)) {
 			rc = PTR_ERR(*req->lower_file);
 			(*lower_file) = NULL;

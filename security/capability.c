@@ -330,7 +330,7 @@ static int cap_file_receive(struct file *file)
 	return 0;
 }
 
-static int cap_dentry_open(struct file *file)
+static int cap_dentry_open(struct file *file, const struct cred *cred)
 {
 	return 0;
 }

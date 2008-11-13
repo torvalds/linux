@@ -2150,9 +2150,9 @@ extern struct vfsmount *selinuxfs_mount;
 extern struct dentry *selinux_null;
 
 /* Derived from fs/exec.c:flush_old_files. */
-static inline void flush_unauthorized_files(struct files_struct *files)
+static inline void flush_unauthorized_files(const struct cred *cred,
+					    struct files_struct *files)
 {
-	const struct cred *cred = current_cred();
 	struct avc_audit_data ad;
 	struct file *file, *devnull = NULL;
 	struct tty_struct *tty;
@@ -2222,7 +2222,10 @@ static inline void flush_unauthorized_files(struct files_struct *files)
 					if (devnull) {
 						get_file(devnull);
 					} else {
-						devnull = dentry_open(dget(selinux_null), mntget(selinuxfs_mount), O_RDWR);
+						devnull = dentry_open(
+							dget(selinux_null),
+							mntget(selinuxfs_mount),
+							O_RDWR, cred);
 						if (IS_ERR(devnull)) {
 							devnull = NULL;
 							put_unused_fd(fd);
@@ -2302,6 +2305,7 @@ static void selinux_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
  */
 static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 {
+	const struct cred *cred = current_cred();
 	struct task_security_struct *tsec;
 	struct rlimit *rlim, *initrlim;
 	struct itimerval itimer;
@@ -2321,7 +2325,7 @@ static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 		return;
 
 	/* Close files for which the new task SID is not authorized. */
-	flush_unauthorized_files(current->files);
+	flush_unauthorized_files(cred, current->files);
 
 	/* Check whether the new SID can inherit signal state
 	   from the old SID.  If not, clear itimers to avoid
@@ -3202,9 +3206,8 @@ static int selinux_file_receive(struct file *file)
 	return file_has_perm(cred, file, file_to_av(file));
 }
 
-static int selinux_dentry_open(struct file *file)
+static int selinux_dentry_open(struct file *file, const struct cred *cred)
 {
-	const struct cred *cred = current_cred();
 	struct file_security_struct *fsec;
 	struct inode *inode;
 	struct inode_security_struct *isec;

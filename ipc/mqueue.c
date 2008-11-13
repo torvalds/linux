@@ -594,6 +594,7 @@ static int mq_attr_ok(struct mq_attr *attr)
 static struct file *do_create(struct dentry *dir, struct dentry *dentry,
 			int oflag, mode_t mode, struct mq_attr __user *u_attr)
 {
+	const struct cred *cred = current_cred();
 	struct mq_attr attr;
 	struct file *result;
 	int ret;
@@ -618,7 +619,7 @@ static struct file *do_create(struct dentry *dir, struct dentry *dentry,
 	if (ret)
 		goto out_drop_write;
 
-	result = dentry_open(dentry, mqueue_mnt, oflag);
+	result = dentry_open(dentry, mqueue_mnt, oflag, cred);
 	/*
 	 * dentry_open() took a persistent mnt_want_write(),
 	 * so we can now drop this one.
@@ -637,8 +638,10 @@ out:
 /* Opens existing queue */
 static struct file *do_open(struct dentry *dentry, int oflag)
 {
-static int oflag2acc[O_ACCMODE] = { MAY_READ, MAY_WRITE,
-					MAY_READ | MAY_WRITE };
+	const struct cred *cred = current_cred();
+
+	static const int oflag2acc[O_ACCMODE] = { MAY_READ, MAY_WRITE,
+						  MAY_READ | MAY_WRITE };
 
 	if ((oflag & O_ACCMODE) == (O_RDWR | O_WRONLY)) {
 		dput(dentry);
@@ -652,7 +655,7 @@ static int oflag2acc[O_ACCMODE] = { MAY_READ, MAY_WRITE,
 		return ERR_PTR(-EACCES);
 	}
 
-	return dentry_open(dentry, mqueue_mnt, oflag);
+	return dentry_open(dentry, mqueue_mnt, oflag, cred);
 }
 
 asmlinkage long sys_mq_open(const char __user *u_name, int oflag, mode_t mode,
