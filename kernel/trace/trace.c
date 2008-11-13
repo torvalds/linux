@@ -2905,7 +2905,7 @@ tracing_entries_read(struct file *filp, char __user *ubuf,
 	char buf[64];
 	int r;
 
-	r = sprintf(buf, "%lu\n", tr->entries);
+	r = sprintf(buf, "%lu\n", tr->entries >> 10);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
@@ -2944,6 +2944,9 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 		if (max_tr.data[cpu])
 			atomic_inc(&max_tr.data[cpu]->disabled);
 	}
+
+	/* value is in KB */
+	val <<= 10;
 
 	if (val != global_trace.entries) {
 		ret = ring_buffer_resize(global_trace.buffer, val);
