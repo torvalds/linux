@@ -557,6 +557,54 @@ static int ath9k_hw_init_macaddr(struct ath_hal *ah)
 	return 0;
 }
 
+static void ath9k_hw_init_rxgain_ini(struct ath_hal *ah)
+{
+	u32 rxgain_type;
+	struct ath_hal_5416 *ahp = AH5416(ah);
+
+	if (ath9k_hw_get_eeprom(ah, EEP_MINOR_REV) >= AR5416_EEP_MINOR_VER_17) {
+		rxgain_type = ath9k_hw_get_eeprom(ah, EEP_RXGAIN_TYPE);
+
+		if (rxgain_type == AR5416_EEP_RXGAIN_13DB_BACKOFF)
+			INIT_INI_ARRAY(&ahp->ah_iniModesRxGain,
+			ar9280Modes_backoff_13db_rxgain_9280_2,
+			ARRAY_SIZE(ar9280Modes_backoff_13db_rxgain_9280_2), 6);
+		else if (rxgain_type == AR5416_EEP_RXGAIN_23DB_BACKOFF)
+			INIT_INI_ARRAY(&ahp->ah_iniModesRxGain,
+			ar9280Modes_backoff_23db_rxgain_9280_2,
+			ARRAY_SIZE(ar9280Modes_backoff_23db_rxgain_9280_2), 6);
+		else
+			INIT_INI_ARRAY(&ahp->ah_iniModesRxGain,
+			ar9280Modes_original_rxgain_9280_2,
+			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 6);
+	} else
+		INIT_INI_ARRAY(&ahp->ah_iniModesRxGain,
+			ar9280Modes_original_rxgain_9280_2,
+			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 6);
+}
+
+static void ath9k_hw_init_txgain_ini(struct ath_hal *ah)
+{
+	u32 txgain_type;
+	struct ath_hal_5416 *ahp = AH5416(ah);
+
+	if (ath9k_hw_get_eeprom(ah, EEP_MINOR_REV) >= AR5416_EEP_MINOR_VER_19) {
+		txgain_type = ath9k_hw_get_eeprom(ah, EEP_TXGAIN_TYPE);
+
+		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
+			INIT_INI_ARRAY(&ahp->ah_iniModesTxGain,
+			ar9280Modes_high_power_tx_gain_9280_2,
+			ARRAY_SIZE(ar9280Modes_high_power_tx_gain_9280_2), 6);
+		else
+			INIT_INI_ARRAY(&ahp->ah_iniModesTxGain,
+			ar9280Modes_original_tx_gain_9280_2,
+			ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 6);
+	} else
+		INIT_INI_ARRAY(&ahp->ah_iniModesTxGain,
+		ar9280Modes_original_tx_gain_9280_2,
+		ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 6);
+}
+
 static int ath9k_hw_post_attach(struct ath_hal *ah)
 {
 	int ecode;
@@ -799,6 +847,14 @@ static struct ath_hal *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 	ecode = ath9k_hw_post_attach(ah);
 	if (ecode != 0)
 		goto bad;
+
+	/* rxgain table */
+	if (AR_SREV_9280_20_OR_LATER(ah))
+		ath9k_hw_init_rxgain_ini(ah);
+
+	/* txgain table */
+	if (AR_SREV_9280_20_OR_LATER(ah))
+		ath9k_hw_init_txgain_ini(ah);
 
 #ifndef CONFIG_SLOW_ANT_DIV
 	if (ah->ah_devid == AR9280_DEVID_PCI) {
@@ -1257,6 +1313,12 @@ static int ath9k_hw_process_ini(struct ath_hal *ah,
 
 		DO_DELAY(regWrites);
 	}
+
+	if (AR_SREV_9280_20_OR_LATER(ah))
+		REG_WRITE_ARRAY(&ahp->ah_iniModesRxGain, modesIndex, regWrites);
+
+	if (AR_SREV_9280_20_OR_LATER(ah))
+		REG_WRITE_ARRAY(&ahp->ah_iniModesTxGain, modesIndex, regWrites);
 
 	for (i = 0; i < ahp->ah_iniCommon.ia_rows; i++) {
 		u32 reg = INI_RA(&ahp->ah_iniCommon, i, 0);

@@ -1584,6 +1584,11 @@ u32 ath9k_hw_get_eeprom(struct ath_hal *ah,
 		return pBase->txMask;
 	case EEP_RX_MASK:
 		return pBase->rxMask;
+	case EEP_RXGAIN_TYPE:
+		return pBase->rxGainType;
+	case EEP_TXGAIN_TYPE:
+		return pBase->txGainType;
+
 	default:
 		return 0;
 	}
