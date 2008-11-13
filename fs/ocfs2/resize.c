@@ -394,7 +394,7 @@ static int ocfs2_check_new_group(struct inode *inode,
 		(struct ocfs2_group_desc *)group_bh->b_data;
 	u16 cl_bpc = le16_to_cpu(di->id2.i_chain.cl_bpc);
 
-	ret = ocfs2_validate_group_descriptor(inode->i_sb, di, group_bh, 1);
+	ret = ocfs2_check_group_descriptor(inode->i_sb, di, group_bh);
 	if (ret)
 		goto out;
 

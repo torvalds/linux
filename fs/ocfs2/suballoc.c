@@ -145,14 +145,6 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 	return (u32)le16_to_cpu(cl->cl_cpg) * (u32)le16_to_cpu(cl->cl_bpc);
 }
 
-int ocfs2_validate_group_descriptor(struct super_block *sb,
-				    struct ocfs2_dinode *di,
-				    struct buffer_head *bh,
-				    int clean_error)
-{
-	unsigned int max_bits;
-	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
-
 #define do_error(fmt, ...)						\
 	do{								\
 		if (clean_error)					\
@@ -160,6 +152,12 @@ int ocfs2_validate_group_descriptor(struct super_block *sb,
 		else							\
 			ocfs2_error(sb, fmt, ##__VA_ARGS__);		\
 	} while (0)
+
+static int ocfs2_validate_gd_self(struct super_block *sb,
+				  struct buffer_head *bh,
+				  int clean_error)
+{
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
 
 	if (!OCFS2_IS_VALID_GROUP_DESC(gd)) {
 		do_error("Group descriptor #%llu has bad signature %.*s",
@@ -183,6 +181,35 @@ int ocfs2_validate_group_descriptor(struct super_block *sb,
 			 le32_to_cpu(gd->bg_generation));
 		return -EINVAL;
 	}
+
+	if (le16_to_cpu(gd->bg_free_bits_count) > le16_to_cpu(gd->bg_bits)) {
+		do_error("Group descriptor #%llu has bit count %u but "
+			 "claims that %u are free",
+			 (unsigned long long)bh->b_blocknr,
+			 le16_to_cpu(gd->bg_bits),
+			 le16_to_cpu(gd->bg_free_bits_count));
+		return -EINVAL;
+	}
+
+	if (le16_to_cpu(gd->bg_bits) > (8 * le16_to_cpu(gd->bg_size))) {
+		do_error("Group descriptor #%llu has bit count %u but "
+			 "max bitmap bits of %u",
+			 (unsigned long long)bh->b_blocknr,
+			 le16_to_cpu(gd->bg_bits),
+			 8 * le16_to_cpu(gd->bg_size));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ocfs2_validate_gd_parent(struct super_block *sb,
+				    struct ocfs2_dinode *di,
+				    struct buffer_head *bh,
+				    int clean_error)
+{
+	unsigned int max_bits;
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
 
 	if (di->i_blkno != gd->bg_parent_dinode) {
 		do_error("Group descriptor #%llu has bad parent "
@@ -209,26 +236,35 @@ int ocfs2_validate_group_descriptor(struct super_block *sb,
 		return -EINVAL;
 	}
 
-	if (le16_to_cpu(gd->bg_free_bits_count) > le16_to_cpu(gd->bg_bits)) {
-		do_error("Group descriptor #%llu has bit count %u but "
-			 "claims that %u are free",
-			 (unsigned long long)bh->b_blocknr,
-			 le16_to_cpu(gd->bg_bits),
-			 le16_to_cpu(gd->bg_free_bits_count));
-		return -EINVAL;
-	}
+	return 0;
+}
 
-	if (le16_to_cpu(gd->bg_bits) > (8 * le16_to_cpu(gd->bg_size))) {
-		do_error("Group descriptor #%llu has bit count %u but "
-			 "max bitmap bits of %u",
-			 (unsigned long long)bh->b_blocknr,
-			 le16_to_cpu(gd->bg_bits),
-			 8 * le16_to_cpu(gd->bg_size));
-		return -EINVAL;
-	}
 #undef do_error
 
-	return 0;
+/*
+ * This version only prints errors.  It does not fail the filesystem, and
+ * exists only for resize.
+ */
+int ocfs2_check_group_descriptor(struct super_block *sb,
+				 struct ocfs2_dinode *di,
+				 struct buffer_head *bh)
+{
+	int rc;
+
+	rc = ocfs2_validate_gd_self(sb, bh, 1);
+	if (!rc)
+		rc = ocfs2_validate_gd_parent(sb, di, bh, 1);
+
+	return rc;
+}
+
+static int ocfs2_validate_group_descriptor(struct super_block *sb,
+					   struct buffer_head *bh)
+{
+	mlog(0, "Validating group descriptor %llu\n",
+	     (unsigned long long)bh->b_blocknr);
+
+	return ocfs2_validate_gd_self(sb, bh, 0);
 }
 
 int ocfs2_read_group_descriptor(struct inode *inode, struct ocfs2_dinode *di,
@@ -237,11 +273,12 @@ int ocfs2_read_group_descriptor(struct inode *inode, struct ocfs2_dinode *di,
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_block(inode, gd_blkno, &tmp);
+	rc = ocfs2_read_block(inode, gd_blkno, &tmp,
+			      ocfs2_validate_group_descriptor);
 	if (rc)
 		goto out;
 
-	rc = ocfs2_validate_group_descriptor(inode->i_sb, di, tmp, 0);
+	rc = ocfs2_validate_gd_parent(inode->i_sb, di, tmp, 0);
 	if (rc) {
 		brelse(tmp);
 		goto out;

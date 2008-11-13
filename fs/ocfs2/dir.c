@@ -214,6 +214,8 @@ static int ocfs2_validate_dir_block(struct super_block *sb,
 	 * Nothing yet.  We don't validate dirents here, that's handled
 	 * in-place when the code walks them.
 	 */
+	mlog(0, "Validating dirblock %llu\n",
+	     (unsigned long long)bh->b_blocknr);
 
 	return 0;
 }
@@ -255,18 +257,11 @@ static int ocfs2_read_dir_block(struct inode *inode, u64 v_block,
 		goto out;
 	}
 
-	rc = ocfs2_read_blocks(inode, p_blkno, 1, &tmp, flags);
+	rc = ocfs2_read_blocks(inode, p_blkno, 1, &tmp, flags,
+			       ocfs2_validate_dir_block);
 	if (rc) {
 		mlog_errno(rc);
 		goto out;
-	}
-
-	if (!(flags & OCFS2_BH_READAHEAD)) {
-		rc = ocfs2_validate_dir_block(inode->i_sb, tmp);
-		if (rc) {
-			brelse(tmp);
-			goto out;
-		}
 	}
 
 	/* If ocfs2_read_blocks() got us a new bh, pass it up.  */

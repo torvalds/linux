@@ -684,6 +684,9 @@ static int ocfs2_validate_extent_block(struct super_block *sb,
 	struct ocfs2_extent_block *eb =
 		(struct ocfs2_extent_block *)bh->b_data;
 
+	mlog(0, "Validating extent block %llu\n",
+	     (unsigned long long)bh->b_blocknr);
+
 	if (!OCFS2_IS_VALID_EXTENT_BLOCK(eb)) {
 		ocfs2_error(sb,
 			    "Extent block #%llu has bad signature %.*s",
@@ -719,21 +722,13 @@ int ocfs2_read_extent_block(struct inode *inode, u64 eb_blkno,
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_block(inode, eb_blkno, &tmp);
-	if (rc)
-		goto out;
-
-	rc = ocfs2_validate_extent_block(inode->i_sb, tmp);
-	if (rc) {
-		brelse(tmp);
-		goto out;
-	}
+	rc = ocfs2_read_block(inode, eb_blkno, &tmp,
+			      ocfs2_validate_extent_block);
 
 	/* If ocfs2_read_block() got us a new bh, pass it up. */
-	if (!*bh)
+	if (!rc && !*bh)
 		*bh = tmp;
 
-out:
 	return rc;
 }
 

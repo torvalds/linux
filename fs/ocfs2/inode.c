@@ -1255,6 +1255,9 @@ int ocfs2_validate_inode_block(struct super_block *sb,
 	int rc = -EINVAL;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 
+	mlog(0, "Validating dinode %llu\n",
+	     (unsigned long long)bh->b_blocknr);
+
 	BUG_ON(!buffer_uptodate(bh));
 
 	if (!OCFS2_IS_VALID_DINODE(di)) {
@@ -1300,23 +1303,12 @@ int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
 	struct buffer_head *tmp = *bh;
 
 	rc = ocfs2_read_blocks(inode, OCFS2_I(inode)->ip_blkno, 1, &tmp,
-			       flags);
-	if (rc)
-		goto out;
-
-	if (!(flags & OCFS2_BH_READAHEAD)) {
-		rc = ocfs2_validate_inode_block(inode->i_sb, tmp);
-		if (rc) {
-			brelse(tmp);
-			goto out;
-		}
-	}
+			       flags, ocfs2_validate_inode_block);
 
 	/* If ocfs2_read_blocks() got us a new bh, pass it up. */
-	if (!*bh)
+	if (!rc && !*bh)
 		*bh = tmp;
 
-out:
 	return rc;
 }
 
