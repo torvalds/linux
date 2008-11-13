@@ -362,7 +362,7 @@ int cap_bprm_set_security (struct linux_binprm *bprm)
 		 * If only the real uid is 0, we do not set the effective
 		 * bit.
 		 */
-		if (bprm->e_uid == 0 || current->uid == 0) {
+		if (bprm->e_uid == 0 || current_uid() == 0) {
 			/* pP' = (cap_bset & ~0) | (pI & ~0) */
 			bprm->cap_post_exec_permitted = cap_combine(
 				current->cap_bset, current->cap_inheritable
@@ -379,8 +379,12 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 {
 	kernel_cap_t pP = current->cap_permitted;
 	kernel_cap_t pE = current->cap_effective;
+	uid_t uid;
+	gid_t gid;
 
-	if (bprm->e_uid != current->uid || bprm->e_gid != current->gid ||
+	current_uid_gid(&uid, &gid);
+
+	if (bprm->e_uid != uid || bprm->e_gid != gid ||
 	    !cap_issubset(bprm->cap_post_exec_permitted,
 			  current->cap_permitted)) {
 		set_dumpable(current->mm, suid_dumpable);
@@ -388,8 +392,8 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 
 		if (unsafe & ~LSM_UNSAFE_PTRACE_CAP) {
 			if (!capable(CAP_SETUID)) {
-				bprm->e_uid = current->uid;
-				bprm->e_gid = current->gid;
+				bprm->e_uid = uid;
+				bprm->e_gid = gid;
 			}
 			if (cap_limit_ptraced_target()) {
 				bprm->cap_post_exec_permitted = cap_intersect(
@@ -437,15 +441,15 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 
 int cap_bprm_secureexec (struct linux_binprm *bprm)
 {
-	if (current->uid != 0) {
+	if (current_uid() != 0) {
 		if (bprm->cap_effective)
 			return 1;
 		if (!cap_isclear(bprm->cap_post_exec_permitted))
 			return 1;
 	}
 
-	return (current->euid != current->uid ||
-		current->egid != current->gid);
+	return (current_euid() != current_uid() ||
+		current_egid() != current_gid());
 }
 
 int cap_inode_setxattr(struct dentry *dentry, const char *name,
@@ -508,16 +512,18 @@ int cap_inode_removexattr(struct dentry *dentry, const char *name)
 static inline void cap_emulate_setxuid (int old_ruid, int old_euid,
 					int old_suid)
 {
+	uid_t euid = current_euid();
+
 	if ((old_ruid == 0 || old_euid == 0 || old_suid == 0) &&
-	    (current->uid != 0 && current->euid != 0 && current->suid != 0) &&
+	    (current_uid()  != 0 && euid != 0 && current_suid() != 0) &&
 	    !issecure(SECURE_KEEP_CAPS)) {
 		cap_clear (current->cap_permitted);
 		cap_clear (current->cap_effective);
 	}
-	if (old_euid == 0 && current->euid != 0) {
+	if (old_euid == 0 && euid != 0) {
 		cap_clear (current->cap_effective);
 	}
-	if (old_euid != 0 && current->euid == 0) {
+	if (old_euid != 0 && euid == 0) {
 		current->cap_effective = current->cap_permitted;
 	}
 }
@@ -546,12 +552,12 @@ int cap_task_post_setuid (uid_t old_ruid, uid_t old_euid, uid_t old_suid,
 			 */
 
 			if (!issecure (SECURE_NO_SETUID_FIXUP)) {
-				if (old_fsuid == 0 && current->fsuid != 0) {
+				if (old_fsuid == 0 && current_fsuid() != 0) {
 					current->cap_effective =
 						cap_drop_fs_set(
 						    current->cap_effective);
 				}
-				if (old_fsuid != 0 && current->fsuid == 0) {
+				if (old_fsuid != 0 && current_fsuid() == 0) {
 					current->cap_effective =
 						cap_raise_fs_set(
 						    current->cap_effective,
