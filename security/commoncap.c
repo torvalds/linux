@@ -118,8 +118,9 @@ static inline int cap_limit_ptraced_target(void)
 
 #endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
 
-int cap_capset_check (kernel_cap_t *effective,
-		      kernel_cap_t *inheritable, kernel_cap_t *permitted)
+int cap_capset_check(const kernel_cap_t *effective,
+		     const kernel_cap_t *inheritable,
+		     const kernel_cap_t *permitted)
 {
 	if (cap_inh_is_capped()
 	    && !cap_issubset(*inheritable,
@@ -150,8 +151,9 @@ int cap_capset_check (kernel_cap_t *effective,
 	return 0;
 }
 
-void cap_capset_set (kernel_cap_t *effective,
-		     kernel_cap_t *inheritable, kernel_cap_t *permitted)
+void cap_capset_set(const kernel_cap_t *effective,
+		    const kernel_cap_t *inheritable,
+		    const kernel_cap_t *permitted)
 {
 	current->cap_effective = *effective;
 	current->cap_inheritable = *inheritable;

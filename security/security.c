@@ -145,16 +145,16 @@ int security_capget(struct task_struct *target,
 	return security_ops->capget(target, effective, inheritable, permitted);
 }
 
-int security_capset_check(kernel_cap_t *effective,
-			  kernel_cap_t *inheritable,
-			  kernel_cap_t *permitted)
+int security_capset_check(const kernel_cap_t *effective,
+			  const kernel_cap_t *inheritable,
+			  const kernel_cap_t *permitted)
 {
 	return security_ops->capset_check(effective, inheritable, permitted);
 }
 
-void security_capset_set(kernel_cap_t *effective,
-			 kernel_cap_t *inheritable,
-			 kernel_cap_t *permitted)
+void security_capset_set(const kernel_cap_t *effective,
+			 const kernel_cap_t *inheritable,
+			 const kernel_cap_t *permitted)
 {
 	security_ops->capset_set(effective, inheritable, permitted);
 }

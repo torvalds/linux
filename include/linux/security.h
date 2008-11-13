@@ -53,8 +53,12 @@ extern int cap_settime(struct timespec *ts, struct timezone *tz);
 extern int cap_ptrace_may_access(struct task_struct *child, unsigned int mode);
 extern int cap_ptrace_traceme(struct task_struct *parent);
 extern int cap_capget(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
-extern int cap_capset_check(kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
-extern void cap_capset_set(kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
+extern int cap_capset_check(const kernel_cap_t *effective,
+			    const kernel_cap_t *inheritable,
+			    const kernel_cap_t *permitted);
+extern void cap_capset_set(const kernel_cap_t *effective,
+			   const kernel_cap_t *inheritable,
+			   const kernel_cap_t *permitted);
 extern int cap_bprm_set_security(struct linux_binprm *bprm);
 extern void cap_bprm_apply_creds(struct linux_binprm *bprm, int unsafe);
 extern int cap_bprm_secureexec(struct linux_binprm *bprm);
@@ -1293,12 +1297,12 @@ struct security_operations {
 	int (*capget) (struct task_struct *target,
 		       kernel_cap_t *effective,
 		       kernel_cap_t *inheritable, kernel_cap_t *permitted);
-	int (*capset_check) (kernel_cap_t *effective,
-			     kernel_cap_t *inheritable,
-			     kernel_cap_t *permitted);
-	void (*capset_set) (kernel_cap_t *effective,
-			    kernel_cap_t *inheritable,
-			    kernel_cap_t *permitted);
+	int (*capset_check) (const kernel_cap_t *effective,
+			     const kernel_cap_t *inheritable,
+			     const kernel_cap_t *permitted);
+	void (*capset_set) (const kernel_cap_t *effective,
+			    const kernel_cap_t *inheritable,
+			    const kernel_cap_t *permitted);
 	int (*capable) (struct task_struct *tsk, int cap, int audit);
 	int (*acct) (struct file *file);
 	int (*sysctl) (struct ctl_table *table, int op);
@@ -1560,12 +1564,12 @@ int security_capget(struct task_struct *target,
 		    kernel_cap_t *effective,
 		    kernel_cap_t *inheritable,
 		    kernel_cap_t *permitted);
-int security_capset_check(kernel_cap_t *effective,
-			  kernel_cap_t *inheritable,
-			  kernel_cap_t *permitted);
-void security_capset_set(kernel_cap_t *effective,
-			 kernel_cap_t *inheritable,
-			 kernel_cap_t *permitted);
+int security_capset_check(const kernel_cap_t *effective,
+			  const kernel_cap_t *inheritable,
+			  const kernel_cap_t *permitted);
+void security_capset_set(const kernel_cap_t *effective,
+			 const kernel_cap_t *inheritable,
+			 const kernel_cap_t *permitted);
 int security_capable(struct task_struct *tsk, int cap);
 int security_capable_noaudit(struct task_struct *tsk, int cap);
 int security_acct(struct file *file);
@@ -1755,16 +1759,16 @@ static inline int security_capget(struct task_struct *target,
 	return cap_capget(target, effective, inheritable, permitted);
 }
 
-static inline int security_capset_check(kernel_cap_t *effective,
-					kernel_cap_t *inheritable,
-					kernel_cap_t *permitted)
+static inline int security_capset_check(const kernel_cap_t *effective,
+					const kernel_cap_t *inheritable,
+					const kernel_cap_t *permitted)
 {
 	return cap_capset_check(effective, inheritable, permitted);
 }
 
-static inline void security_capset_set(kernel_cap_t *effective,
-				       kernel_cap_t *inheritable,
-				       kernel_cap_t *permitted)
+static inline void security_capset_set(const kernel_cap_t *effective,
+				       const kernel_cap_t *inheritable,
+				       const kernel_cap_t *permitted)
 {
 	cap_capset_set(effective, inheritable, permitted);
 }
