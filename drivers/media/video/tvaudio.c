@@ -1260,6 +1260,7 @@ static struct CHIPDESC chiplist[] = {
 		.addr_hi    = I2C_ADDR_TDA9840 >> 1,
 		.registers  = 5,
 
+		/* callbacks */
 		.checkit    = tda9840_checkit,
 		.getmode    = tda9840_getmode,
 		.setmode    = tda9840_setmode,
@@ -1270,13 +1271,14 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tda9873h",
-		.checkit    = tda9873_checkit,
 		.insmodopt  = &tda9873,
 		.addr_lo    = I2C_ADDR_TDA985x_L >> 1,
 		.addr_hi    = I2C_ADDR_TDA985x_H >> 1,
 		.registers  = 3,
 		.flags      = CHIP_HAS_INPUTSEL,
 
+		/* callbacks */
+		.checkit    = tda9873_checkit,
 		.getmode    = tda9873_getmode,
 		.setmode    = tda9873_setmode,
 		.checkmode  = generic_checkmode,
@@ -1290,12 +1292,13 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tda9874h/a",
-		.checkit    = tda9874a_checkit,
-		.initialize = tda9874a_initialize,
 		.insmodopt  = &tda9874a,
 		.addr_lo    = I2C_ADDR_TDA9874 >> 1,
 		.addr_hi    = I2C_ADDR_TDA9874 >> 1,
 
+		/* callbacks */
+		.initialize = tda9874a_initialize,
+		.checkit    = tda9874a_checkit,
 		.getmode    = tda9874a_getmode,
 		.setmode    = tda9874a_setmode,
 		.checkmode  = generic_checkmode,
@@ -1324,10 +1327,11 @@ static struct CHIPDESC chiplist[] = {
 		.rightreg   = TDA9855_VR,
 		.bassreg    = TDA9855_BA,
 		.treblereg  = TDA9855_TR,
+
+		/* callbacks */
 		.volfunc    = tda9855_volume,
 		.bassfunc   = tda9855_bass,
 		.treblefunc = tda9855_treble,
-
 		.getmode    = tda985x_getmode,
 		.setmode    = tda985x_setmode,
 
@@ -1348,6 +1352,8 @@ static struct CHIPDESC chiplist[] = {
 		.rightreg   = TEA6300_VL,
 		.bassreg    = TEA6300_BA,
 		.treblereg  = TEA6300_TR,
+
+		/* callbacks */
 		.volfunc    = tea6300_shift10,
 		.bassfunc   = tea6300_shift12,
 		.treblefunc = tea6300_shift12,
@@ -1358,7 +1364,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tea6320",
-		.initialize = tea6320_initialize,
 		.insmodopt  = &tea6320,
 		.addr_lo    = I2C_ADDR_TEA6300 >> 1,
 		.addr_hi    = I2C_ADDR_TEA6300 >> 1,
@@ -1369,6 +1374,9 @@ static struct CHIPDESC chiplist[] = {
 		.rightreg   = TEA6320_V,
 		.bassreg    = TEA6320_BA,
 		.treblereg  = TEA6320_TR,
+
+		/* callbacks */
+		.initialize = tea6320_initialize,
 		.volfunc    = tea6320_volume,
 		.bassfunc   = tea6320_shift11,
 		.treblefunc = tea6320_shift11,
@@ -1401,16 +1409,18 @@ static struct CHIPDESC chiplist[] = {
 		.rightreg   = TDA8425_VR,
 		.bassreg    = TDA8425_BA,
 		.treblereg  = TDA8425_TR,
+
+		/* callbacks */
+		.initialize = tda8425_initialize,
 		.volfunc    = tda8425_shift10,
 		.bassfunc   = tda8425_shift12,
 		.treblefunc = tda8425_shift12,
+		.setmode    = tda8425_setmode,
 
 		.inputreg   = TDA8425_S1,
 		.inputmap   = { TDA8425_S1_CH1, TDA8425_S1_CH1, TDA8425_S1_CH1 },
 		.inputmute  = TDA8425_S1_OFF,
 
-		.setmode    = tda8425_setmode,
-		.initialize = tda8425_initialize,
 	},
 	{
 		.name       = "pic16c54 (PV951)",
@@ -1435,6 +1445,7 @@ static struct CHIPDESC chiplist[] = {
 		.addr_hi    = I2C_ADDR_TDA9840 >> 1,
 		.registers  = 2,
 
+		/* callbacks */
 		.getmode    = ta8874z_getmode,
 		.setmode    = ta8874z_setmode,
 		.checkmode  = generic_checkmode,
