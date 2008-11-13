@@ -475,8 +475,8 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	init_MUTEX(&sbi->hpfs_creation_de);
 
-	uid = current->uid;
-	gid = current->gid;
+	uid = current_uid();
+	gid = current_gid();
 	umask = current->fs->umask;
 	lowercase = 0;
 	conv = CONV_BINARY;
