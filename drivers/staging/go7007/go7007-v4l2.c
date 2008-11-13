@@ -327,6 +327,7 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 	return 0;
 }
 
+#if 0
 static int clip_to_modet_map(struct go7007 *go, int region,
 		struct v4l2_clip *clip_list)
 {
@@ -599,6 +600,7 @@ static int mpeg_g_control(struct v4l2_control *ctrl, struct go7007 *go)
 	}
 	return 0;
 }
+#endif
 
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
@@ -1089,7 +1091,7 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 
    The two functions bellow implements the newer ioctls
 */
-
+#if 0
 static int vidioc_enum_framesizes(struct file *filp, void *priv,
 				  struct v4l2_frmsizeenum *fsize)
 {
@@ -1131,6 +1133,7 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 
 	return 0;
 }
+#endif
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 {
