@@ -1511,20 +1511,49 @@ static int chip_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		chip_cmd(chip,"init",&desc->init);
 
 	if (desc->flags & CHIP_HAS_VOLUME) {
-		chip->left   = desc->leftinit   ? desc->leftinit   : 65535;
-		chip->right  = desc->rightinit  ? desc->rightinit  : 65535;
-		chip_write(chip,desc->leftreg,desc->volfunc(chip->left));
-		chip_write(chip,desc->rightreg,desc->volfunc(chip->right));
+		if (!desc->volfunc) {
+			/* This shouldn't be happen. Warn user, but keep working
+			   without volume controls
+			 */
+			v4l_info(chip->c, "volume callback undefined!\n");
+			desc->flags &= ~CHIP_HAS_VOLUME;
+		} else {
+			chip->left  = desc->leftinit  ? desc->leftinit  : 65535;
+			chip->right = desc->rightinit ? desc->rightinit : 65535;
+			chip_write(chip, desc->leftreg,
+				   desc->volfunc(chip->left));
+			chip_write(chip, desc->rightreg,
+				   desc->volfunc(chip->right));
+		}
 	}
 	if (desc->flags & CHIP_HAS_BASSTREBLE) {
-		chip->treble = desc->trebleinit ? desc->trebleinit : 32768;
-		chip->bass   = desc->bassinit   ? desc->bassinit   : 32768;
-		chip_write(chip,desc->bassreg,desc->bassfunc(chip->bass));
-		chip_write(chip,desc->treblereg,desc->treblefunc(chip->treble));
+		if (!desc->bassfunc || !desc->treblefunc) {
+			/* This shouldn't be happen. Warn user, but keep working
+			   without bass/treble controls
+			 */
+			v4l_info(chip->c, "bass/treble callbacks undefined!\n");
+			desc->flags &= ~CHIP_HAS_BASSTREBLE;
+		} else {
+			chip->treble = desc->trebleinit ?
+						desc->trebleinit : 32768;
+			chip->bass   = desc->bassinit   ?
+						desc->bassinit   : 32768;
+			chip_write(chip, desc->bassreg,
+				   desc->bassfunc(chip->bass));
+			chip_write(chip, desc->treblereg,
+				   desc->treblefunc(chip->treble));
+		}
 	}
 
 	chip->thread = NULL;
 	if (desc->flags & CHIP_NEED_CHECKMODE) {
+		if (!desc->getmode || !desc->setmode) {
+			/* This shouldn't be happen. Warn user, but keep working
+			   without kthread
+			 */
+			v4l_info(chip->c, "set/get mode callbacks undefined!\n");
+			return 0;
+		}
 		/* start async thread */
 		init_timer(&chip->wt);
 		chip->wt.function = chip_thread_wake;
