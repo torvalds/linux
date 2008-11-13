@@ -413,6 +413,12 @@ int cap_inode_killpriv(struct dentry *dentry)
 	return 0;
 }
 
+int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps)
+{
+	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
+ 	return -ENODATA;
+}
+
 static inline int get_file_caps(struct linux_binprm *bprm, bool *effective)
 {
 	bprm_clear_caps(bprm);
