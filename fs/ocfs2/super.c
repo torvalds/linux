@@ -1918,6 +1918,12 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	bbits = le32_to_cpu(di->id2.i_super.s_blocksize_bits);
 	sb->s_maxbytes = ocfs2_max_file_offset(bbits, cbits);
 
+	osb->osb_dx_mask = (1 << (cbits - bbits)) - 1;
+
+	for (i = 0; i < 3; i++)
+		osb->osb_dx_seed[i] = le32_to_cpu(di->id2.i_super.s_dx_seed[i]);
+	osb->osb_dx_seed[3] = le32_to_cpu(di->id2.i_super.s_uuid_hash);
+
 	osb->sb = sb;
 	/* Save off for ocfs2_rw_direct */
 	osb->s_sectsize_bits = blksize_bits(sector_size);

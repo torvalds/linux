@@ -38,6 +38,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "dir.h"
 #include "blockcheck.h"
 #include "dlmglue.h"
 #include "extent_map.h"
@@ -606,7 +607,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	}
 
 	handle = ocfs2_start_trans(osb, OCFS2_DELETE_INODE_CREDITS +
-					ocfs2_quota_trans_credits(inode->i_sb));
+				   ocfs2_quota_trans_credits(inode->i_sb));
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -738,6 +739,15 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail_unlock_dir;
+	}
+
+	/* Remove any dir index tree */
+	if (S_ISDIR(inode->i_mode)) {
+		status = ocfs2_dx_dir_truncate(inode, di_bh);
+		if (status) {
+			mlog_errno(status);
+			goto bail_unlock_dir;
+		}
 	}
 
 	/*Free extended attribute resources associated with this inode.*/

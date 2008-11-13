@@ -484,6 +484,22 @@ static struct ocfs2_triggers dq_triggers = {
 	},
 };
 
+static struct ocfs2_triggers dr_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+	.ot_offset	= offsetof(struct ocfs2_dx_root_block, dr_check),
+};
+
+static struct ocfs2_triggers dl_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+	.ot_offset	= offsetof(struct ocfs2_dx_leaf, dl_check),
+};
+
 static int __ocfs2_journal_access(handle_t *handle,
 				  struct inode *inode,
 				  struct buffer_head *bh,
@@ -585,6 +601,20 @@ int ocfs2_journal_access_dq(handle_t *handle, struct inode *inode,
 			    struct buffer_head *bh, int type)
 {
 	return __ocfs2_journal_access(handle, inode, bh, &dq_triggers,
+				      type);
+}
+
+int ocfs2_journal_access_dr(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, inode, bh, &dr_triggers,
+				      type);
+}
+
+int ocfs2_journal_access_dl(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, inode, bh, &dl_triggers,
 				      type);
 }
 

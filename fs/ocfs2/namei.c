@@ -231,8 +231,9 @@ static int ocfs2_mknod(struct inode *dir,
 	struct inode *inode = NULL;
 	struct ocfs2_alloc_context *inode_ac = NULL;
 	struct ocfs2_alloc_context *data_ac = NULL;
-	struct ocfs2_alloc_context *xattr_ac = NULL;
+	struct ocfs2_alloc_context *meta_ac = NULL;
 	int want_clusters = 0;
+	int want_meta = 0;
 	int xattr_credits = 0;
 	struct ocfs2_security_xattr_info si = {
 		.enable = 1,
@@ -308,16 +309,30 @@ static int ocfs2_mknod(struct inode *dir,
 
 	/* calculate meta data/clusters for setting security and acl xattr */
 	status = ocfs2_calc_xattr_init(dir, parent_fe_bh, mode,
-					&si, &want_clusters,
-					&xattr_credits, &xattr_ac);
+				       &si, &want_clusters,
+				       &xattr_credits, &want_meta);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
 	}
 
 	/* Reserve a cluster if creating an extent based directory. */
-	if (S_ISDIR(mode) && !ocfs2_supports_inline_data(osb))
+	if (S_ISDIR(mode) && !ocfs2_supports_inline_data(osb)) {
 		want_clusters += 1;
+
+		/* Dir indexing requires extra space as well */
+		if (ocfs2_supports_indexed_dirs(osb)) {
+			want_clusters++;
+			want_meta++;
+		}
+	}
+
+	status = ocfs2_reserve_new_metadata_blocks(osb, want_meta, &meta_ac);
+	if (status < 0) {
+		if (status != -ENOSPC)
+			mlog_errno(status);
+		goto leave;
+	}
 
 	status = ocfs2_reserve_clusters(osb, want_clusters, &data_ac);
 	if (status < 0) {
@@ -326,8 +341,9 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	handle = ocfs2_start_trans(osb, ocfs2_mknod_credits(osb->sb) +
-				   xattr_credits);
+	handle = ocfs2_start_trans(osb, ocfs2_mknod_credits(osb->sb,
+							    S_ISDIR(mode),
+							    xattr_credits));
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -355,7 +371,7 @@ static int ocfs2_mknod(struct inode *dir,
 
 	if (S_ISDIR(mode)) {
 		status = ocfs2_fill_new_dir(osb, handle, dir, inode,
-					    new_fe_bh, data_ac);
+					    new_fe_bh, data_ac, meta_ac);
 		if (status < 0) {
 			mlog_errno(status);
 			goto leave;
@@ -377,7 +393,7 @@ static int ocfs2_mknod(struct inode *dir,
 	}
 
 	status = ocfs2_init_acl(handle, inode, dir, new_fe_bh, parent_fe_bh,
-				xattr_ac, data_ac);
+				meta_ac, data_ac);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
@@ -385,7 +401,7 @@ static int ocfs2_mknod(struct inode *dir,
 
 	if (si.enable) {
 		status = ocfs2_init_security_set(handle, inode, new_fe_bh, &si,
-						 xattr_ac, data_ac);
+						 meta_ac, data_ac);
 		if (status < 0) {
 			mlog_errno(status);
 			goto leave;
@@ -440,8 +456,8 @@ leave:
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);
 
-	if (xattr_ac)
-		ocfs2_free_alloc_context(xattr_ac);
+	if (meta_ac)
+		ocfs2_free_alloc_context(meta_ac);
 
 	mlog_exit(status);
 
@@ -463,6 +479,7 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	struct ocfs2_extent_list *fel;
 	u64 fe_blkno = 0;
 	u16 suballoc_bit;
+	u16 feat;
 
 	mlog_entry("(0x%p, 0x%p, %d, %lu, '%.*s')\n", dir, dentry,
 		   inode->i_mode, (unsigned long)dev, dentry->d_name.len,
@@ -526,11 +543,11 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	fe->i_dtime = 0;
 
 	/*
-	 * If supported, directories start with inline data.
+	 * If supported, directories start with inline data. If inline
+	 * isn't supported, but indexing is, we start them as indexed.
 	 */
+	feat = le16_to_cpu(fe->i_dyn_features);
 	if (S_ISDIR(inode->i_mode) && ocfs2_supports_inline_data(osb)) {
-		u16 feat = le16_to_cpu(fe->i_dyn_features);
-
 		fe->i_dyn_features = cpu_to_le16(feat | OCFS2_INLINE_DATA_FL);
 
 		fe->id2.i_data.id_count = cpu_to_le16(
