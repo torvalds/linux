@@ -2301,9 +2301,9 @@ new_group_no_lock:
 				up_read(&space_info->groups_sem);
 				ret = do_chunk_alloc(trans, root, num_bytes +
 						     2 * 1024 * 1024, data, 1);
-				if (ret < 0)
-					break;
 				down_read(&space_info->groups_sem);
+				if (ret < 0)
+					goto loop_check;
 				head = &space_info->block_groups;
 				/*
 				 * we've allocated a new chunk, keep
@@ -2314,6 +2314,7 @@ new_group_no_lock:
 			} else if (!allowed_chunk_alloc) {
 				space_info->force_alloc = 1;
 			}
+loop_check:
 			if (keep_going) {
 				cur = head->next;
 				extra_loop = 0;
