@@ -1048,6 +1048,7 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 	struct task_struct *task;
 	struct mm_struct *mm;
 	int err;
+	uid_t uid, euid;
 
 	/* Check flags */
 	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
@@ -1075,8 +1076,10 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 	 * capabilities, superuser privileges or the same
 	 * userid as the target process.
 	 */
-	if ((current->euid != task->suid) && (current->euid != task->uid) &&
-	    (current->uid != task->suid) && (current->uid != task->uid) &&
+	uid = current_uid();
+	euid = current_euid();
+	if (euid != task->suid && euid != task->uid &&
+	    uid  != task->suid && uid  != task->uid &&
 	    !capable(CAP_SYS_NICE)) {
 		err = -EPERM;
 		goto out;

@@ -114,10 +114,10 @@ void (*pm_power_off_prepare)(void);
 
 static int set_one_prio(struct task_struct *p, int niceval, int error)
 {
+	uid_t euid = current_euid();
 	int no_nice;
 
-	if (p->uid != current->euid &&
-		p->euid != current->euid && !capable(CAP_SYS_NICE)) {
+	if (p->uid != euid && p->euid != euid && !capable(CAP_SYS_NICE)) {
 		error = -EPERM;
 		goto out;
 	}
@@ -176,16 +176,16 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 		case PRIO_USER:
 			user = current->user;
 			if (!who)
-				who = current->uid;
+				who = current_uid();
 			else
-				if ((who != current->uid) && !(user = find_user(who)))
+				if (who != current_uid() && !(user = find_user(who)))
 					goto out_unlock;	/* No processes for this user */
 
 			do_each_thread(g, p)
 				if (p->uid == who)
 					error = set_one_prio(p, niceval, error);
 			while_each_thread(g, p);
-			if (who != current->uid)
+			if (who != current_uid())
 				free_uid(user);		/* For find_user() */
 			break;
 	}
@@ -238,9 +238,9 @@ asmlinkage long sys_getpriority(int which, int who)
 		case PRIO_USER:
 			user = current->user;
 			if (!who)
-				who = current->uid;
+				who = current_uid();
 			else
-				if ((who != current->uid) && !(user = find_user(who)))
+				if (who != current_uid() && !(user = find_user(who)))
 					goto out_unlock;	/* No processes for this user */
 
 			do_each_thread(g, p)
@@ -250,7 +250,7 @@ asmlinkage long sys_getpriority(int which, int who)
 						retval = niceval;
 				}
 			while_each_thread(g, p);
-			if (who != current->uid)
+			if (who != current_uid())
 				free_uid(user);		/* for find_user() */
 			break;
 	}

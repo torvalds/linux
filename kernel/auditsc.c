@@ -2628,7 +2628,8 @@ void audit_core_dumps(long signr)
 {
 	struct audit_buffer *ab;
 	u32 sid;
-	uid_t auid = audit_get_loginuid(current);
+	uid_t auid = audit_get_loginuid(current), uid;
+	gid_t gid;
 	unsigned int sessionid = audit_get_sessionid(current);
 
 	if (!audit_enabled)
@@ -2638,8 +2639,9 @@ void audit_core_dumps(long signr)
 		return;
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_ANOM_ABEND);
+	current_uid_gid(&uid, &gid);
 	audit_log_format(ab, "auid=%u uid=%u gid=%u ses=%u",
-			auid, current->uid, current->gid, sessionid);
+			 auid, uid, gid, sessionid);
 	security_task_getsecid(current, &sid);
 	if (sid) {
 		char *ctx = NULL;

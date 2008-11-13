@@ -38,7 +38,7 @@ static struct user_namespace *clone_user_ns(struct user_namespace *old_ns)
 	}
 
 	/* Reset current->user with a new one */
-	new_user = alloc_uid(ns, current->uid);
+	new_user = alloc_uid(ns, current_uid());
 	if (!new_user) {
 		free_uid(ns->root_user);
 		kfree(ns);

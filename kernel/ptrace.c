@@ -123,16 +123,19 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 	 * because setting up the necessary parent/child relationship
 	 * or halting the specified task is impossible.
 	 */
+	uid_t uid;
+	gid_t gid;
 	int dumpable = 0;
 	/* Don't let security modules deny introspection */
 	if (task == current)
 		return 0;
-	if (((current->uid != task->euid) ||
-	     (current->uid != task->suid) ||
-	     (current->uid != task->uid) ||
-	     (current->gid != task->egid) ||
-	     (current->gid != task->sgid) ||
-	     (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
+	current_uid_gid(&uid, &gid);
+	if ((uid != task->euid ||
+	     uid != task->suid ||
+	     uid != task->uid  ||
+	     gid != task->egid ||
+	     gid != task->sgid ||
+	     gid != task->gid) && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 	smp_rmb();
 	if (task->mm)

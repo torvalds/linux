@@ -135,6 +135,7 @@ compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 {
 	struct compat_robust_list_head __user *head;
 	unsigned long ret;
+	uid_t euid = current_euid();
 
 	if (!futex_cmpxchg_enabled)
 		return -ENOSYS;
@@ -150,7 +151,7 @@ compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 		if (!p)
 			goto err_unlock;
 		ret = -EPERM;
-		if ((current->euid != p->euid) && (current->euid != p->uid) &&
+		if (euid != p->euid && euid != p->uid &&
 				!capable(CAP_SYS_PTRACE))
 			goto err_unlock;
 		head = p->compat_robust_list;

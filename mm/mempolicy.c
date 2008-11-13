@@ -1115,6 +1115,7 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 	nodemask_t old;
 	nodemask_t new;
 	nodemask_t task_nodes;
+	uid_t uid, euid;
 	int err;
 
 	err = get_nodes(&old, old_nodes, maxnode);
@@ -1144,8 +1145,10 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 	 * capabilities, superuser privileges or the same
 	 * userid as the target process.
 	 */
-	if ((current->euid != task->suid) && (current->euid != task->uid) &&
-	    (current->uid != task->suid) && (current->uid != task->uid) &&
+	uid = current_uid();
+	euid = current_euid();
+	if (euid != task->suid && euid != task->uid &&
+	    uid  != task->suid && uid  != task->uid &&
 	    !capable(CAP_SYS_NICE)) {
 		err = -EPERM;
 		goto out;
