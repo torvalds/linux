@@ -158,7 +158,7 @@ static int selinux_secmark_enabled(void)
 
 /* Allocate and free functions for each kind of security blob. */
 
-static int task_alloc_security(struct task_struct *task)
+static int cred_alloc_security(struct cred *cred)
 {
 	struct task_security_struct *tsec;
 
@@ -167,16 +167,9 @@ static int task_alloc_security(struct task_struct *task)
 		return -ENOMEM;
 
 	tsec->osid = tsec->sid = SECINITSID_UNLABELED;
-	task->cred->security = tsec;
+	cred->security = tsec;
 
 	return 0;
-}
-
-static void task_free_security(struct task_struct *task)
-{
-	struct task_security_struct *tsec = task->cred->security;
-	task->cred->security = NULL;
-	kfree(tsec);
 }
 
 static int inode_alloc_security(struct inode *inode)
@@ -3184,17 +3177,17 @@ static int selinux_task_create(unsigned long clone_flags)
 	return task_has_perm(current, current, PROCESS__FORK);
 }
 
-static int selinux_task_alloc_security(struct task_struct *tsk)
+static int selinux_cred_alloc_security(struct cred *cred)
 {
 	struct task_security_struct *tsec1, *tsec2;
 	int rc;
 
 	tsec1 = current->cred->security;
 
-	rc = task_alloc_security(tsk);
+	rc = cred_alloc_security(cred);
 	if (rc)
 		return rc;
-	tsec2 = tsk->cred->security;
+	tsec2 = cred->security;
 
 	tsec2->osid = tsec1->osid;
 	tsec2->sid = tsec1->sid;
@@ -3208,9 +3201,14 @@ static int selinux_task_alloc_security(struct task_struct *tsk)
 	return 0;
 }
 
-static void selinux_task_free_security(struct task_struct *tsk)
+/*
+ * detach and free the LSM part of a set of credentials
+ */
+static void selinux_cred_free(struct cred *cred)
 {
-	task_free_security(tsk);
+	struct task_security_struct *tsec = cred->security;
+	cred->security = NULL;
+	kfree(tsec);
 }
 
 static int selinux_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
@@ -5552,8 +5550,8 @@ static struct security_operations selinux_ops = {
 	.dentry_open =			selinux_dentry_open,
 
 	.task_create =			selinux_task_create,
-	.task_alloc_security =		selinux_task_alloc_security,
-	.task_free_security =		selinux_task_free_security,
+	.cred_alloc_security =		selinux_cred_alloc_security,
+	.cred_free =			selinux_cred_free,
 	.task_setuid =			selinux_task_setuid,
 	.task_post_setuid =		selinux_task_post_setuid,
 	.task_setgid =			selinux_task_setgid,
@@ -5683,7 +5681,7 @@ static __init int selinux_init(void)
 	printk(KERN_INFO "SELinux:  Initializing.\n");
 
 	/* Set the security state for the initial task. */
-	if (task_alloc_security(current))
+	if (cred_alloc_security(current->cred))
 		panic("SELinux:  Failed to initialize initial task.\n");
 	tsec = current->cred->security;
 	tsec->osid = tsec->sid = SECINITSID_KERNEL;

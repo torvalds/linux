@@ -158,4 +158,33 @@ do {						\
 	*(_gid) = current->cred->fsgid;		\
 } while(0)
 
+extern void __put_cred(struct cred *);
+extern int copy_creds(struct task_struct *, unsigned long);
+
+/**
+ * get_cred - Get a reference on a set of credentials
+ * @cred: The credentials to reference
+ *
+ * Get a reference on the specified set of credentials.  The caller must
+ * release the reference.
+ */
+static inline struct cred *get_cred(struct cred *cred)
+{
+	atomic_inc(&cred->usage);
+	return cred;
+}
+
+/**
+ * put_cred - Release a reference to a set of credentials
+ * @cred: The credentials to release
+ *
+ * Release a reference to a set of credentials, deleting them when the last ref
+ * is released.
+ */
+static inline void put_cred(struct cred *cred)
+{
+	if (atomic_dec_and_test(&(cred)->usage))
+		__put_cred(cred);
+}
+
 #endif /* _LINUX_CRED_H */

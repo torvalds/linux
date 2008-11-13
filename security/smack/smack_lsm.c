@@ -975,8 +975,8 @@ static int smack_file_receive(struct file *file)
  */
 
 /**
- * smack_task_alloc_security - "allocate" a task blob
- * @tsk: the task in need of a blob
+ * smack_cred_alloc_security - "allocate" a task cred blob
+ * @cred: the task creds in need of a blob
  *
  * Smack isn't using copies of blobs. Everyone
  * points to an immutable list. No alloc required.
@@ -984,24 +984,24 @@ static int smack_file_receive(struct file *file)
  *
  * Always returns 0
  */
-static int smack_task_alloc_security(struct task_struct *tsk)
+static int smack_cred_alloc_security(struct cred *cred)
 {
-	tsk->cred->security = current->cred->security;
+	cred->security = current->cred->security;
 
 	return 0;
 }
 
 /**
- * smack_task_free_security - "free" a task blob
- * @task: the task with the blob
+ * smack_cred_free - "free" task-level security credentials
+ * @cred: the credentials in question
  *
  * Smack isn't using copies of blobs. Everyone
  * points to an immutable list. The blobs never go away.
  * There is no leak here.
  */
-static void smack_task_free_security(struct task_struct *task)
+static void smack_cred_free(struct cred *cred)
 {
-	task->cred->security = NULL;
+	cred->security = NULL;
 }
 
 /**
@@ -2630,8 +2630,8 @@ struct security_operations smack_ops = {
 	.file_send_sigiotask = 		smack_file_send_sigiotask,
 	.file_receive = 		smack_file_receive,
 
-	.task_alloc_security = 		smack_task_alloc_security,
-	.task_free_security = 		smack_task_free_security,
+	.cred_alloc_security = 		smack_cred_alloc_security,
+	.cred_free =			smack_cred_free,
 	.task_post_setuid =		cap_task_post_setuid,
 	.task_setpgid = 		smack_task_setpgid,
 	.task_getpgid = 		smack_task_getpgid,

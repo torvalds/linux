@@ -616,14 +616,14 @@ int security_task_create(unsigned long clone_flags)
 	return security_ops->task_create(clone_flags);
 }
 
-int security_task_alloc(struct task_struct *p)
+int security_cred_alloc(struct cred *cred)
 {
-	return security_ops->task_alloc_security(p);
+	return security_ops->cred_alloc_security(cred);
 }
 
-void security_task_free(struct task_struct *p)
+void security_cred_free(struct cred *cred)
 {
-	security_ops->task_free_security(p);
+	security_ops->cred_free(cred);
 }
 
 int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)

@@ -593,15 +593,15 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	manual page for definitions of the @clone_flags.
  *	@clone_flags contains the flags indicating what should be shared.
  *	Return 0 if permission is granted.
- * @task_alloc_security:
- *	@p contains the task_struct for child process.
- *	Allocate and attach a security structure to the p->security field. The
- *	security field is initialized to NULL when the task structure is
+ * @cred_alloc_security:
+ *	@cred contains the cred struct for child process.
+ *	Allocate and attach a security structure to the cred->security field.
+ *	The security field is initialized to NULL when the task structure is
  *	allocated.
  *	Return 0 if operation was successful.
- * @task_free_security:
- *	@p contains the task_struct for process.
- *	Deallocate and clear the p->security field.
+ * @cred_free:
+ *	@cred points to the credentials.
+ *	Deallocate and clear the cred->security field in a set of credentials.
  * @task_setuid:
  *	Check permission before setting one or more of the user identity
  *	attributes of the current process.  The @flags parameter indicates
@@ -1405,8 +1405,8 @@ struct security_operations {
 	int (*dentry_open) (struct file *file);
 
 	int (*task_create) (unsigned long clone_flags);
-	int (*task_alloc_security) (struct task_struct *p);
-	void (*task_free_security) (struct task_struct *p);
+	int (*cred_alloc_security) (struct cred *cred);
+	void (*cred_free) (struct cred *cred);
 	int (*task_setuid) (uid_t id0, uid_t id1, uid_t id2, int flags);
 	int (*task_post_setuid) (uid_t old_ruid /* or fsuid */ ,
 				 uid_t old_euid, uid_t old_suid, int flags);
@@ -1660,8 +1660,8 @@ int security_file_send_sigiotask(struct task_struct *tsk,
 int security_file_receive(struct file *file);
 int security_dentry_open(struct file *file);
 int security_task_create(unsigned long clone_flags);
-int security_task_alloc(struct task_struct *p);
-void security_task_free(struct task_struct *p);
+int security_cred_alloc(struct cred *cred);
+void security_cred_free(struct cred *cred);
 int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags);
 int security_task_post_setuid(uid_t old_ruid, uid_t old_euid,
 			      uid_t old_suid, int flags);
@@ -2181,12 +2181,12 @@ static inline int security_task_create(unsigned long clone_flags)
 	return 0;
 }
 
-static inline int security_task_alloc(struct task_struct *p)
+static inline int security_cred_alloc(struct cred *cred)
 {
 	return 0;
 }
 
-static inline void security_task_free(struct task_struct *p)
+static inline void security_cred_free(struct cred *cred)
 { }
 
 static inline int security_task_setuid(uid_t id0, uid_t id1, uid_t id2,

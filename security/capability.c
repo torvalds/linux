@@ -340,12 +340,12 @@ static int cap_task_create(unsigned long clone_flags)
 	return 0;
 }
 
-static int cap_task_alloc_security(struct task_struct *p)
+static int cap_cred_alloc_security(struct cred *cred)
 {
 	return 0;
 }
 
-static void cap_task_free_security(struct task_struct *p)
+static void cap_cred_free(struct cred *cred)
 {
 }
 
@@ -890,8 +890,8 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, file_receive);
 	set_to_cap_if_null(ops, dentry_open);
 	set_to_cap_if_null(ops, task_create);
-	set_to_cap_if_null(ops, task_alloc_security);
-	set_to_cap_if_null(ops, task_free_security);
+	set_to_cap_if_null(ops, cred_alloc_security);
+	set_to_cap_if_null(ops, cred_free);
 	set_to_cap_if_null(ops, task_setuid);
 	set_to_cap_if_null(ops, task_post_setuid);
 	set_to_cap_if_null(ops, task_setgid);
