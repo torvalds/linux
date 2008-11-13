@@ -75,6 +75,7 @@ static struct console bios_console = {
 #endif
 
 static struct uart_port scif_port = {
+	.type		= PORT_SCIF,
 	.mapbase	= CONFIG_EARLY_SCIF_CONSOLE_PORT,
 	.membase	= (char __iomem *)CONFIG_EARLY_SCIF_CONSOLE_PORT,
 };
