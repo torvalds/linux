@@ -106,7 +106,6 @@ struct CHIPDESC {
 	int  inputmute;
 	int  inputmask;
 };
-static struct CHIPDESC chiplist[];
 
 /* current state of the chip */
 struct CHIPSTATE {
@@ -1856,11 +1855,13 @@ static int chip_command(struct i2c_client *client,
 	case VIDIOC_S_FREQUENCY:
 		chip->mode = 0; /* automatic */
 
-		/* For chips that provide getmode, setmode and checkmode,
-		   a kthread is created to automatically to set the audio
-		   standard. In this case, start with MONO and wait 2 seconds
-		   for the decoding to stablize. Then, run kthread to change
-		   to stereo, if carrier detected.
+		/* For chips that provide getmode and setmode, and doesn't
+		   automatically follows the stereo carrier, a kthread is
+		   created to set the audio standard. In this case, when then
+		   the video channel is changed, tvaudio starts on MONO mode.
+		   After waiting for 2 seconds, the kernel thread is called,
+		   to follow whatever audio standard is pointed by the
+		   audio carrier.
 		 */
 		if (chip->thread) {
 			desc->setmode(chip,V4L2_TUNER_MODE_MONO);
@@ -1905,9 +1906,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.legacy_probe = chip_legacy_probe,
 	.id_table = chip_id,
 };
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
