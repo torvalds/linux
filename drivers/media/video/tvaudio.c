@@ -112,8 +112,9 @@ static struct CHIPDESC chiplist[];
 struct CHIPSTATE {
 	struct i2c_client *c;
 
-	/* index into CHIPDESC array */
-	int type;
+	/* chip-specific description - should point to
+	   an entry at CHIPDESC table */
+	struct CHIPDESC *desc;
 
 	/* shadow register set */
 	audiocmd   shadow;
@@ -264,7 +265,7 @@ static void chip_thread_wake(unsigned long data)
 static int chip_thread(void *data)
 {
 	struct CHIPSTATE *chip = data;
-	struct CHIPDESC  *desc = chiplist + chip->type;
+	struct CHIPDESC  *desc = chip->desc;
 	int mode;
 
 	v4l_dbg(1, debug, chip->c, "%s: thread started\n", chip->c->name);
@@ -1087,7 +1088,7 @@ static int tda8425_shift12(int val) { return (val >> 12) | 0xf0; }
 
 static int tda8425_initialize(struct CHIPSTATE *chip)
 {
-	struct CHIPDESC *desc = chiplist + chip->type;
+	struct CHIPDESC *desc = chip->desc;
 	int inputmap[4] = { /* tuner	*/ TDA8425_S1_CH2, /* radio  */ TDA8425_S1_CH1,
 			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF};
 
@@ -1503,7 +1504,7 @@ static int chip_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* fill required data structures */
 	if (!id)
 		strlcpy(client->name, desc->name, I2C_NAME_SIZE);
-	chip->type = desc-chiplist;
+	chip->desc = desc;
 	chip->shadow.count = desc->registers+1;
 	chip->prevmode = -1;
 	chip->audmode = V4L2_TUNER_MODE_LANG1;
@@ -1590,7 +1591,7 @@ static int chip_remove(struct i2c_client *client)
 static int tvaudio_get_ctrl(struct CHIPSTATE *chip,
 			    struct v4l2_control *ctrl)
 {
-	struct CHIPDESC *desc = chiplist + chip->type;
+	struct CHIPDESC *desc = chip->desc;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -1630,7 +1631,7 @@ static int tvaudio_get_ctrl(struct CHIPSTATE *chip,
 static int tvaudio_set_ctrl(struct CHIPSTATE *chip,
 			    struct v4l2_control *ctrl)
 {
-	struct CHIPDESC *desc = chiplist + chip->type;
+	struct CHIPDESC *desc = chip->desc;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -1706,7 +1707,7 @@ static int chip_command(struct i2c_client *client,
 			unsigned int cmd, void *arg)
 {
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
-	struct CHIPDESC  *desc = chiplist + chip->type;
+	struct CHIPDESC  *desc = chip->desc;
 
 	v4l_dbg(1, debug, chip->c, "%s: chip_command 0x%x\n", chip->c->name, cmd);
 
