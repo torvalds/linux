@@ -295,6 +295,22 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 		goto cleanup;
 	}
 
+	/*
+	 * Start method evaluation with an implicit return of zero.
+	 * This is done for Windows compatibility.
+	 */
+	if (acpi_gbl_enable_interpreter_slack) {
+		walk_state->implicit_return_obj =
+		    acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		if (!walk_state->implicit_return_obj) {
+			status = AE_NO_MEMORY;
+			acpi_ds_delete_walk_state(walk_state);
+			goto cleanup;
+		}
+
+		walk_state->implicit_return_obj->integer.value = 0;
+	}
+
 	/* Parse the AML */
 
 	status = acpi_ps_parse_aml(walk_state);
