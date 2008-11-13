@@ -2701,7 +2701,7 @@ static void set_nqsets(struct adapter *adap)
 	int hwports = adap->params.nports;
 	int nqsets = SGE_QSETS;
 
-	if (adap->params.rev > 0) {
+	if (adap->params.rev > 0 && adap->flags & USING_MSIX) {
 		if (hwports == 2 &&
 		    (hwports * nqsets > SGE_QSETS ||
 		     num_cpus >= nqsets / hwports))
