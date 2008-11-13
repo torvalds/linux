@@ -31,6 +31,8 @@
 #include "i915_drv.h"
 #include <linux/swap.h>
 
+#define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+
 static int
 i915_gem_object_set_domain(struct drm_gem_object *obj,
 			    uint32_t read_domains,
@@ -2299,28 +2301,51 @@ i915_gem_idle(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev);
 
-	/* Active and flushing should now be empty as we've
-	 * waited for a sequence higher than any pending execbuffer
-	 */
-	BUG_ON(!list_empty(&dev_priv->mm.active_list));
-	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
+	if (!dev_priv->mm.wedged) {
+		/* Active and flushing should now be empty as we've
+		 * waited for a sequence higher than any pending execbuffer
+		 */
+		WARN_ON(!list_empty(&dev_priv->mm.active_list));
+		WARN_ON(!list_empty(&dev_priv->mm.flushing_list));
+		/* Request should now be empty as we've also waited
+		 * for the last request in the list
+		 */
+		WARN_ON(!list_empty(&dev_priv->mm.request_list));
+	}
 
-	/* Request should now be empty as we've also waited
-	 * for the last request in the list
+	/* Empty the active and flushing lists to inactive.  If there's
+	 * anything left at this point, it means that we're wedged and
+	 * nothing good's going to happen by leaving them there.  So strip
+	 * the GPU domains and just stuff them onto inactive.
 	 */
-	BUG_ON(!list_empty(&dev_priv->mm.request_list));
+	while (!list_empty(&dev_priv->mm.active_list)) {
+		struct drm_i915_gem_object *obj_priv;
 
-	/* Move all buffers out of the GTT. */
+		obj_priv = list_first_entry(&dev_priv->mm.active_list,
+					    struct drm_i915_gem_object,
+					    list);
+		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
+		i915_gem_object_move_to_inactive(obj_priv->obj);
+	}
+
+	while (!list_empty(&dev_priv->mm.flushing_list)) {
+		struct drm_i915_gem_object *obj_priv;
+
+		obj_priv = list_first_entry(&dev_priv->mm.active_list,
+					    struct drm_i915_gem_object,
+					    list);
+		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
+		i915_gem_object_move_to_inactive(obj_priv->obj);
+	}
+
+
+	/* Move all inactive buffers out of the GTT. */
 	ret = i915_gem_evict_from_list(dev, &dev_priv->mm.inactive_list);
+	WARN_ON(!list_empty(&dev_priv->mm.inactive_list));
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
-
-	BUG_ON(!list_empty(&dev_priv->mm.active_list));
-	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
-	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
-	BUG_ON(!list_empty(&dev_priv->mm.request_list));
 
 	i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);
