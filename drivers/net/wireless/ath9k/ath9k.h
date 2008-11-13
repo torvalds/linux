@@ -904,7 +904,7 @@ u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio);
 void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
 			 u32 ah_signal_type);
 void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 val);
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 void ath9k_enable_rfkill(struct ath_hal *ah);
 #endif
 int ath9k_hw_select_antconfig(struct ath_hal *ah, u32 cfg);

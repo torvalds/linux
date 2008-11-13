@@ -594,7 +594,7 @@ fail:
 	ath_deinit_leds(sc);
 }
 
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 
 /*******************/
 /*	Rfkill	   */
@@ -838,7 +838,7 @@ static void ath_detach(struct ath_softc *sc)
 
 	ath_deinit_leds(sc);
 
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	ath_deinit_rfkill(sc);
 #endif
 	ath_rate_control_unregister();
@@ -921,7 +921,7 @@ static int ath_attach(u16 devid, struct ath_softc *sc)
 	/* Initialize LED control */
 	ath_init_leds(sc);
 
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	/* Initialze h/w Rfkill */
 	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
 		INIT_DELAYED_WORK(&sc->rf_kill.rfkill_poll, ath_rfkill_poll);
@@ -978,7 +978,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		goto exit;
 	}
 
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	error = ath_start_rfkill_poll(sc);
 #endif
 
@@ -1722,7 +1722,7 @@ static int ath_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
 
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
 		cancel_delayed_work_sync(&sc->rf_kill.rfkill_poll);
 #endif
@@ -1759,7 +1759,7 @@ static int ath_pci_resume(struct pci_dev *pdev)
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
 
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	/*
 	 * check the h/w rfkill state on resume
 	 * and start the rfkill poll timer
