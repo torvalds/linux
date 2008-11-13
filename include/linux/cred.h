@@ -1,4 +1,4 @@
-/* Credentials management
+/* Credentials management - see Documentation/credentials.txt
  *
  * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -169,6 +169,12 @@ static inline struct cred *get_new_cred(struct cred *cred)
  *
  * Get a reference on the specified set of credentials.  The caller must
  * release the reference.
+ *
+ * This is used to deal with a committed set of credentials.  Although the
+ * pointer is const, this will temporarily discard the const and increment the
+ * usage count.  The purpose of this is to attempt to catch at compile time the
+ * accidental alteration of a set of credentials that should be considered
+ * immutable.
  */
 static inline const struct cred *get_cred(const struct cred *cred)
 {
@@ -181,6 +187,10 @@ static inline const struct cred *get_cred(const struct cred *cred)
  *
  * Release a reference to a set of credentials, deleting them when the last ref
  * is released.
+ *
+ * This takes a const pointer to a set of credentials because the credentials
+ * on task_struct are attached by const pointers to prevent accidental
+ * alteration of otherwise immutable credential sets.
  */
 static inline void put_cred(const struct cred *_cred)
 {
