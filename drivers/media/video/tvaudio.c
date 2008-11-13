@@ -1481,6 +1481,7 @@ static int chip_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 	if (desc->name == NULL) {
 		v4l_dbg(1, debug, client, "no matching chip description found\n");
+		kfree(chip);
 		return -EIO;
 	}
 	v4l_info(client, "%s found @ 0x%x (%s)\n", desc->name, client->addr<<1, client->adapter->name);
