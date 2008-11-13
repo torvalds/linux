@@ -223,9 +223,10 @@ remainder:
 	}
 
 	/*
-	 * Copy up to the next whole block size
+	 * Copy any data less than an entire block
 	 */
 	if (byte_count < DEFAULT_BLK_SZ) {
+empty_rbuf:
 		for (; ctx->rand_data_valid < DEFAULT_BLK_SZ;
 			ctx->rand_data_valid++) {
 			*ptr = ctx->rand_data[ctx->rand_data_valid];
@@ -240,18 +241,22 @@ remainder:
 	 * Now copy whole blocks
 	 */
 	for (; byte_count >= DEFAULT_BLK_SZ; byte_count -= DEFAULT_BLK_SZ) {
-		if (_get_more_prng_bytes(ctx) < 0) {
-			memset(buf, 0, nbytes);
-			err = -EINVAL;
-			goto done;
+		if (ctx->rand_data_valid == DEFAULT_BLK_SZ) {
+			if (_get_more_prng_bytes(ctx) < 0) {
+				memset(buf, 0, nbytes);
+				err = -EINVAL;
+				goto done;
+			}
 		}
+		if (ctx->rand_data_valid > 0)
+			goto empty_rbuf;
 		memcpy(ptr, ctx->rand_data, DEFAULT_BLK_SZ);
 		ctx->rand_data_valid += DEFAULT_BLK_SZ;
 		ptr += DEFAULT_BLK_SZ;
 	}
 
 	/*
-	 * Now copy any extra partial data
+	 * Now go back and get any remaining partial block
 	 */
 	if (byte_count)
 		goto remainder;
