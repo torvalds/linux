@@ -30,6 +30,8 @@
 
 #include "smack.h"
 
+#define task_security(task)	(task_cred_xxx((task), security))
+
 /*
  * I hope these are the hokeyist lines of code in the module. Casey.
  */
@@ -1012,7 +1014,7 @@ static void smack_cred_free(struct cred *cred)
  */
 static int smack_task_setpgid(struct task_struct *p, pid_t pgid)
 {
-	return smk_curacc(p->cred->security, MAY_WRITE);
+	return smk_curacc(task_security(p), MAY_WRITE);
 }
 
 /**
@@ -1023,7 +1025,7 @@ static int smack_task_setpgid(struct task_struct *p, pid_t pgid)
  */
 static int smack_task_getpgid(struct task_struct *p)
 {
-	return smk_curacc(p->cred->security, MAY_READ);
+	return smk_curacc(task_security(p), MAY_READ);
 }
 
 /**
@@ -1034,7 +1036,7 @@ static int smack_task_getpgid(struct task_struct *p)
  */
 static int smack_task_getsid(struct task_struct *p)
 {
-	return smk_curacc(p->cred->security, MAY_READ);
+	return smk_curacc(task_security(p), MAY_READ);
 }
 
 /**
@@ -1046,7 +1048,7 @@ static int smack_task_getsid(struct task_struct *p)
  */
 static void smack_task_getsecid(struct task_struct *p, u32 *secid)
 {
-	*secid = smack_to_secid(p->cred->security);
+	*secid = smack_to_secid(task_security(p));
 }
 
 /**
@@ -1062,7 +1064,7 @@ static int smack_task_setnice(struct task_struct *p, int nice)
 
 	rc = cap_task_setnice(p, nice);
 	if (rc == 0)
-		rc = smk_curacc(p->cred->security, MAY_WRITE);
+		rc = smk_curacc(task_security(p), MAY_WRITE);
 	return rc;
 }
 
@@ -1079,7 +1081,7 @@ static int smack_task_setioprio(struct task_struct *p, int ioprio)
 
 	rc = cap_task_setioprio(p, ioprio);
 	if (rc == 0)
-		rc = smk_curacc(p->cred->security, MAY_WRITE);
+		rc = smk_curacc(task_security(p), MAY_WRITE);
 	return rc;
 }
 
@@ -1091,7 +1093,7 @@ static int smack_task_setioprio(struct task_struct *p, int ioprio)
  */
 static int smack_task_getioprio(struct task_struct *p)
 {
-	return smk_curacc(p->cred->security, MAY_READ);
+	return smk_curacc(task_security(p), MAY_READ);
 }
 
 /**
@@ -1109,7 +1111,7 @@ static int smack_task_setscheduler(struct task_struct *p, int policy,
 
 	rc = cap_task_setscheduler(p, policy, lp);
 	if (rc == 0)
-		rc = smk_curacc(p->cred->security, MAY_WRITE);
+		rc = smk_curacc(task_security(p), MAY_WRITE);
 	return rc;
 }
 
@@ -1121,7 +1123,7 @@ static int smack_task_setscheduler(struct task_struct *p, int policy,
  */
 static int smack_task_getscheduler(struct task_struct *p)
 {
-	return smk_curacc(p->cred->security, MAY_READ);
+	return smk_curacc(task_security(p), MAY_READ);
 }
 
 /**
@@ -1132,7 +1134,7 @@ static int smack_task_getscheduler(struct task_struct *p)
  */
 static int smack_task_movememory(struct task_struct *p)
 {
-	return smk_curacc(p->cred->security, MAY_WRITE);
+	return smk_curacc(task_security(p), MAY_WRITE);
 }
 
 /**
@@ -1155,13 +1157,13 @@ static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 	 * can write the receiver.
 	 */
 	if (secid == 0)
-		return smk_curacc(p->cred->security, MAY_WRITE);
+		return smk_curacc(task_security(p), MAY_WRITE);
 	/*
 	 * If the secid isn't 0 we're dealing with some USB IO
 	 * specific behavior. This is not clean. For one thing
 	 * we can't take privilege into account.
 	 */
-	return smk_access(smack_from_secid(secid), p->cred->security, MAY_WRITE);
+	return smk_access(smack_from_secid(secid), task_security(p), MAY_WRITE);
 }
 
 /**
@@ -1174,7 +1176,7 @@ static int smack_task_wait(struct task_struct *p)
 {
 	int rc;
 
-	rc = smk_access(current->cred->security, p->cred->security, MAY_WRITE);
+	rc = smk_access(current_security(), task_security(p), MAY_WRITE);
 	if (rc == 0)
 		return 0;
 
@@ -1205,7 +1207,7 @@ static int smack_task_wait(struct task_struct *p)
 static void smack_task_to_inode(struct task_struct *p, struct inode *inode)
 {
 	struct inode_smack *isp = inode->i_security;
-	isp->smk_inode = p->cred->security;
+	isp->smk_inode = task_security(p);
 }
 
 /*
@@ -2010,7 +2012,7 @@ static int smack_getprocattr(struct task_struct *p, char *name, char **value)
 	if (strcmp(name, "current") != 0)
 		return -EINVAL;
 
-	cp = kstrdup(p->cred->security, GFP_KERNEL);
+	cp = kstrdup(task_security(p), GFP_KERNEL);
 	if (cp == NULL)
 		return -ENOMEM;
 

@@ -1279,7 +1279,7 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 static int attach_task_by_pid(struct cgroup *cgrp, u64 pid)
 {
 	struct task_struct *tsk;
-	uid_t euid;
+	const struct cred *cred = current_cred(), *tcred;
 	int ret;
 
 	if (pid) {
@@ -1289,16 +1289,16 @@ static int attach_task_by_pid(struct cgroup *cgrp, u64 pid)
 			rcu_read_unlock();
 			return -ESRCH;
 		}
-		get_task_struct(tsk);
-		rcu_read_unlock();
 
-		euid = current_euid();
-		if (euid &&
-		    euid != tsk->cred->uid &&
-		    euid != tsk->cred->suid) {
-			put_task_struct(tsk);
+		tcred = __task_cred(tsk);
+		if (cred->euid &&
+		    cred->euid != tcred->uid &&
+		    cred->euid != tcred->suid) {
+			rcu_read_unlock();
 			return -EACCES;
 		}
+		get_task_struct(tsk);
+		rcu_read_unlock();
 	} else {
 		tsk = current;
 		get_task_struct(tsk);

@@ -31,10 +31,16 @@ static int set_task_ioprio(struct task_struct *task, int ioprio)
 {
 	int err;
 	struct io_context *ioc;
+	const struct cred *cred = current_cred(), *tcred;
 
-	if (task->cred->uid != current_euid() &&
-	    task->cred->uid != current_uid() && !capable(CAP_SYS_NICE))
+	rcu_read_lock();
+	tcred = __task_cred(task);
+	if (tcred->uid != cred->euid &&
+	    tcred->uid != cred->uid && !capable(CAP_SYS_NICE)) {
+		rcu_read_unlock();
 		return -EPERM;
+	}
+	rcu_read_unlock();
 
 	err = security_task_setioprio(task, ioprio);
 	if (err)
@@ -131,7 +137,7 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 				break;
 
 			do_each_thread(g, p) {
-				if (p->cred->uid != who)
+				if (__task_cred(p)->uid != who)
 					continue;
 				ret = set_task_ioprio(p, ioprio);
 				if (ret)
@@ -224,7 +230,7 @@ asmlinkage long sys_ioprio_get(int which, int who)
 				break;
 
 			do_each_thread(g, p) {
-				if (p->cred->uid != user->uid)
+				if (__task_cred(p)->uid != user->uid)
 					continue;
 				tmpio = get_task_ioprio(p);
 				if (tmpio < 0)

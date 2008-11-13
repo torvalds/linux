@@ -401,10 +401,17 @@ static const long band_table[NSIGPOLL] = {
 static inline int sigio_perm(struct task_struct *p,
                              struct fown_struct *fown, int sig)
 {
-	return (((fown->euid == 0) ||
-		 (fown->euid == p->cred->suid) || (fown->euid == p->cred->uid) ||
-		 (fown->uid == p->cred->suid) || (fown->uid == p->cred->uid)) &&
-		!security_file_send_sigiotask(p, fown, sig));
+	const struct cred *cred;
+	int ret;
+
+	rcu_read_lock();
+	cred = __task_cred(p);
+	ret = ((fown->euid == 0 ||
+		fown->euid == cred->suid || fown->euid == cred->uid ||
+		fown->uid  == cred->suid || fown->uid  == cred->uid) &&
+	       !security_file_send_sigiotask(p, fown, sig));
+	rcu_read_unlock();
+	return ret;
 }
 
 static void send_sigio_to_task(struct task_struct *p,

@@ -147,8 +147,9 @@ static inline struct cred *get_cred(struct cred *cred)
  * Release a reference to a set of credentials, deleting them when the last ref
  * is released.
  */
-static inline void put_cred(struct cred *cred)
+static inline void put_cred(const struct cred *_cred)
 {
+	struct cred *cred = (struct cred *) _cred;
 	if (atomic_dec_and_test(&(cred)->usage))
 		__put_cred(cred);
 }

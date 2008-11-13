@@ -51,10 +51,13 @@ EXPORT_SYMBOL(cap_netlink_recv);
  */
 int cap_capable(struct task_struct *tsk, int cap, int audit)
 {
+	__u32 cap_raised;
+
 	/* Derived from include/linux/sched.h:capable. */
-	if (cap_raised(tsk->cred->cap_effective, cap))
-		return 0;
-	return -EPERM;
+	rcu_read_lock();
+	cap_raised = cap_raised(__task_cred(tsk)->cap_effective, cap);
+	rcu_read_unlock();
+	return cap_raised ? 0 : -EPERM;
 }
 
 int cap_settime(struct timespec *ts, struct timezone *tz)
@@ -66,34 +69,42 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
 
 int cap_ptrace_may_access(struct task_struct *child, unsigned int mode)
 {
-	/* Derived from arch/i386/kernel/ptrace.c:sys_ptrace. */
-	if (cap_issubset(child->cred->cap_permitted,
-			 current->cred->cap_permitted))
-		return 0;
-	if (capable(CAP_SYS_PTRACE))
-		return 0;
-	return -EPERM;
+	int ret = 0;
+
+	rcu_read_lock();
+	if (!cap_issubset(child->cred->cap_permitted,
+			  current->cred->cap_permitted) &&
+	    !capable(CAP_SYS_PTRACE))
+		ret = -EPERM;
+	rcu_read_unlock();
+	return ret;
 }
 
 int cap_ptrace_traceme(struct task_struct *parent)
 {
-	if (cap_issubset(current->cred->cap_permitted,
-			 parent->cred->cap_permitted))
-		return 0;
-	if (has_capability(parent, CAP_SYS_PTRACE))
-		return 0;
-	return -EPERM;
+	int ret = 0;
+
+	rcu_read_lock();
+	if (!cap_issubset(current->cred->cap_permitted,
+			 parent->cred->cap_permitted) &&
+	    !has_capability(parent, CAP_SYS_PTRACE))
+		ret = -EPERM;
+	rcu_read_unlock();
+	return ret;
 }
 
 int cap_capget (struct task_struct *target, kernel_cap_t *effective,
 		kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
-	struct cred *cred = target->cred;
+	const struct cred *cred;
 
 	/* Derived from kernel/capability.c:sys_capget. */
+	rcu_read_lock();
+	cred = __task_cred(target);
 	*effective   = cred->cap_effective;
 	*inheritable = cred->cap_inheritable;
 	*permitted   = cred->cap_permitted;
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -433,7 +444,7 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 
 int cap_bprm_secureexec (struct linux_binprm *bprm)
 {
-	const struct cred *cred = current->cred;
+	const struct cred *cred = current_cred();
 
 	if (cred->uid != 0) {
 		if (bprm->cap_effective)
@@ -511,11 +522,11 @@ static inline void cap_emulate_setxuid (int old_ruid, int old_euid,
 	if ((old_ruid == 0 || old_euid == 0 || old_suid == 0) &&
 	    (cred->uid != 0 && cred->euid != 0 && cred->suid != 0) &&
 	    !issecure(SECURE_KEEP_CAPS)) {
-		cap_clear (cred->cap_permitted);
-		cap_clear (cred->cap_effective);
+		cap_clear(cred->cap_permitted);
+		cap_clear(cred->cap_effective);
 	}
 	if (old_euid == 0 && cred->euid != 0) {
-		cap_clear (cred->cap_effective);
+		cap_clear(cred->cap_effective);
 	}
 	if (old_euid != 0 && cred->euid == 0) {
 		cred->cap_effective = cred->cap_permitted;
@@ -582,9 +593,14 @@ int cap_task_post_setuid (uid_t old_ruid, uid_t old_euid, uid_t old_suid,
  */
 static int cap_safe_nice(struct task_struct *p)
 {
-	if (!cap_issubset(p->cred->cap_permitted,
-			  current->cred->cap_permitted) &&
-	    !capable(CAP_SYS_NICE))
+	int is_subset;
+
+	rcu_read_lock();
+	is_subset = cap_issubset(__task_cred(p)->cap_permitted,
+				 current_cred()->cap_permitted);
+	rcu_read_unlock();
+
+	if (!is_subset && !capable(CAP_SYS_NICE))
 		return -EPERM;
 	return 0;
 }

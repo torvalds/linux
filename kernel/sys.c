@@ -112,14 +112,17 @@ EXPORT_SYMBOL(cad_pid);
 
 void (*pm_power_off_prepare)(void);
 
+/*
+ * set the priority of a task
+ * - the caller must hold the RCU read lock
+ */
 static int set_one_prio(struct task_struct *p, int niceval, int error)
 {
-	uid_t euid = current_euid();
+	const struct cred *cred = current_cred(), *pcred = __task_cred(p);
 	int no_nice;
 
-	if (p->cred->uid  != euid &&
-	    p->cred->euid != euid &&
-	    !capable(CAP_SYS_NICE)) {
+	if (pcred->uid  != cred->euid &&
+	    pcred->euid != cred->euid && !capable(CAP_SYS_NICE)) {
 		error = -EPERM;
 		goto out;
 	}

@@ -115,7 +115,7 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 
 int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 {
-	struct cred *cred = current->cred, *tcred = task->cred;
+	const struct cred *cred = current_cred(), *tcred;
 
 	/* May we inspect the given task?
 	 * This check is used both for attaching with ptrace
@@ -125,19 +125,23 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 	 * because setting up the necessary parent/child relationship
 	 * or halting the specified task is impossible.
 	 */
-	uid_t uid = cred->uid;
-	gid_t gid = cred->gid;
 	int dumpable = 0;
 	/* Don't let security modules deny introspection */
 	if (task == current)
 		return 0;
-	if ((uid != tcred->euid ||
-	     uid != tcred->suid ||
-	     uid != tcred->uid  ||
-	     gid != tcred->egid ||
-	     gid != tcred->sgid ||
-	     gid != tcred->gid) && !capable(CAP_SYS_PTRACE))
+	rcu_read_lock();
+	tcred = __task_cred(task);
+	if ((cred->uid != tcred->euid ||
+	     cred->uid != tcred->suid ||
+	     cred->uid != tcred->uid  ||
+	     cred->gid != tcred->egid ||
+	     cred->gid != tcred->sgid ||
+	     cred->gid != tcred->gid) &&
+	    !capable(CAP_SYS_PTRACE)) {
+		rcu_read_unlock();
 		return -EPERM;
+	}
+	rcu_read_unlock();
 	smp_rmb();
 	if (task->mm)
 		dumpable = get_dumpable(task->mm);

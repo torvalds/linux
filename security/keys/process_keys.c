@@ -412,9 +412,12 @@ key_ref_t search_process_keyrings(struct key_type *type,
 				  struct task_struct *context)
 {
 	struct request_key_auth *rka;
+	struct cred *cred;
 	key_ref_t key_ref, ret, err;
 
 	might_sleep();
+
+	cred = get_task_cred(context);
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -428,9 +431,9 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	err = ERR_PTR(-EAGAIN);
 
 	/* search the thread keyring first */
-	if (context->cred->thread_keyring) {
+	if (cred->thread_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(context->cred->thread_keyring, 1),
+			make_key_ref(cred->thread_keyring, 1),
 			context, type, description, match);
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -495,9 +498,9 @@ key_ref_t search_process_keyrings(struct key_type *type,
 		}
 	}
 	/* or search the user-session keyring */
-	else if (context->cred->user->session_keyring) {
+	else if (cred->user->session_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(context->cred->user->session_keyring, 1),
+			make_key_ref(cred->user->session_keyring, 1),
 			context, type, description, match);
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -519,20 +522,20 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	 * search the keyrings of the process mentioned there
 	 * - we don't permit access to request_key auth keys via this method
 	 */
-	if (context->cred->request_key_auth &&
+	if (cred->request_key_auth &&
 	    context == current &&
 	    type != &key_type_request_key_auth
 	    ) {
 		/* defend against the auth key being revoked */
-		down_read(&context->cred->request_key_auth->sem);
+		down_read(&cred->request_key_auth->sem);
 
-		if (key_validate(context->cred->request_key_auth) == 0) {
-			rka = context->cred->request_key_auth->payload.data;
+		if (key_validate(cred->request_key_auth) == 0) {
+			rka = cred->request_key_auth->payload.data;
 
 			key_ref = search_process_keyrings(type, description,
 							  match, rka->context);
 
-			up_read(&context->cred->request_key_auth->sem);
+			up_read(&cred->request_key_auth->sem);
 
 			if (!IS_ERR(key_ref))
 				goto found;
@@ -549,7 +552,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 				break;
 			}
 		} else {
-			up_read(&context->cred->request_key_auth->sem);
+			up_read(&cred->request_key_auth->sem);
 		}
 	}
 
@@ -557,6 +560,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	key_ref = ret ? ret : err;
 
 found:
+	put_cred(cred);
 	return key_ref;
 
 } /* end search_process_keyrings() */
