@@ -40,9 +40,9 @@ struct key_user root_key_user = {
 /*
  * install user and user session keyrings for a particular UID
  */
-static int install_user_keyrings(struct task_struct *tsk)
+int install_user_keyrings(void)
 {
-	struct user_struct *user = tsk->user;
+	struct user_struct *user = current->user;
 	struct key *uid_keyring, *session_keyring;
 	char buf[20];
 	int ret;
@@ -67,7 +67,7 @@ static int install_user_keyrings(struct task_struct *tsk)
 		uid_keyring = find_keyring_by_name(buf, true);
 		if (IS_ERR(uid_keyring)) {
 			uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1,
-						    tsk, KEY_ALLOC_IN_QUOTA,
+						    current, KEY_ALLOC_IN_QUOTA,
 						    NULL);
 			if (IS_ERR(uid_keyring)) {
 				ret = PTR_ERR(uid_keyring);
@@ -83,7 +83,8 @@ static int install_user_keyrings(struct task_struct *tsk)
 		if (IS_ERR(session_keyring)) {
 			session_keyring =
 				keyring_alloc(buf, user->uid, (gid_t) -1,
-					      tsk, KEY_ALLOC_IN_QUOTA, NULL);
+					      current, KEY_ALLOC_IN_QUOTA,
+					      NULL);
 			if (IS_ERR(session_keyring)) {
 				ret = PTR_ERR(session_keyring);
 				goto error_release;
@@ -146,8 +147,9 @@ void switch_uid_keyring(struct user_struct *new_user)
 /*
  * install a fresh thread keyring, discarding the old one
  */
-int install_thread_keyring(struct task_struct *tsk)
+int install_thread_keyring(void)
 {
+	struct task_struct *tsk = current;
 	struct key *keyring, *old;
 	char buf[20];
 	int ret;
@@ -178,8 +180,9 @@ error:
 /*
  * make sure a process keyring is installed
  */
-int install_process_keyring(struct task_struct *tsk)
+int install_process_keyring(void)
 {
+	struct task_struct *tsk = current;
 	struct key *keyring;
 	char buf[20];
 	int ret;
@@ -218,9 +221,9 @@ error:
  * install a session keyring, discarding the old one
  * - if a keyring is not supplied, an empty one is invented
  */
-static int install_session_keyring(struct task_struct *tsk,
-				   struct key *keyring)
+static int install_session_keyring(struct key *keyring)
 {
+	struct task_struct *tsk = current;
 	unsigned long flags;
 	struct key *old;
 	char buf[20];
@@ -572,93 +575,91 @@ static int lookup_user_key_possessed(const struct key *key, const void *target)
  * - don't create special keyrings unless so requested
  * - partially constructed keys aren't found unless requested
  */
-key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
-			  int create, int partial, key_perm_t perm)
+key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
+			  key_perm_t perm)
 {
+	struct request_key_auth *rka;
+	struct task_struct *t = current;
 	key_ref_t key_ref, skey_ref;
 	struct key *key;
 	int ret;
-
-	if (!context)
-		context = current;
 
 	key_ref = ERR_PTR(-ENOKEY);
 
 	switch (id) {
 	case KEY_SPEC_THREAD_KEYRING:
-		if (!context->thread_keyring) {
+		if (!t->thread_keyring) {
 			if (!create)
 				goto error;
 
-			ret = install_thread_keyring(context);
+			ret = install_thread_keyring();
 			if (ret < 0) {
 				key = ERR_PTR(ret);
 				goto error;
 			}
 		}
 
-		key = context->thread_keyring;
+		key = t->thread_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_PROCESS_KEYRING:
-		if (!context->signal->process_keyring) {
+		if (!t->signal->process_keyring) {
 			if (!create)
 				goto error;
 
-			ret = install_process_keyring(context);
+			ret = install_process_keyring();
 			if (ret < 0) {
 				key = ERR_PTR(ret);
 				goto error;
 			}
 		}
 
-		key = context->signal->process_keyring;
+		key = t->signal->process_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_SESSION_KEYRING:
-		if (!context->signal->session_keyring) {
+		if (!t->signal->session_keyring) {
 			/* always install a session keyring upon access if one
 			 * doesn't exist yet */
-			ret = install_user_keyrings(context);
+			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
-			ret = install_session_keyring(
-				context, context->user->session_keyring);
+			ret = install_session_keyring(t->user->session_keyring);
 			if (ret < 0)
 				goto error;
 		}
 
 		rcu_read_lock();
-		key = rcu_dereference(context->signal->session_keyring);
+		key = rcu_dereference(t->signal->session_keyring);
 		atomic_inc(&key->usage);
 		rcu_read_unlock();
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_KEYRING:
-		if (!context->user->uid_keyring) {
-			ret = install_user_keyrings(context);
+		if (!t->user->uid_keyring) {
+			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
 		}
 
-		key = context->user->uid_keyring;
+		key = t->user->uid_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_SESSION_KEYRING:
-		if (!context->user->session_keyring) {
-			ret = install_user_keyrings(context);
+		if (!t->user->session_keyring) {
+			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
 		}
 
-		key = context->user->session_keyring;
+		key = t->user->session_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
 		break;
@@ -669,11 +670,30 @@ key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
 		goto error;
 
 	case KEY_SPEC_REQKEY_AUTH_KEY:
-		key = context->request_key_auth;
+		key = t->request_key_auth;
 		if (!key)
 			goto error;
 
 		atomic_inc(&key->usage);
+		key_ref = make_key_ref(key, 1);
+		break;
+
+	case KEY_SPEC_REQUESTOR_KEYRING:
+		if (!t->request_key_auth)
+			goto error;
+
+		down_read(&t->request_key_auth->sem);
+		if (t->request_key_auth->flags & KEY_FLAG_REVOKED) {
+			key_ref = ERR_PTR(-EKEYREVOKED);
+			key = NULL;
+		} else {
+			rka = t->request_key_auth->payload.data;
+			key = rka->dest_keyring;
+			atomic_inc(&key->usage);
+		}
+		up_read(&t->request_key_auth->sem);
+		if (!key)
+			goto error;
 		key_ref = make_key_ref(key, 1);
 		break;
 
@@ -725,7 +745,7 @@ key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
 		goto invalid_key;
 
 	/* check the permissions */
-	ret = key_task_permission(key_ref, context, perm);
+	ret = key_task_permission(key_ref, t, perm);
 	if (ret < 0)
 		goto invalid_key;
 
@@ -754,7 +774,7 @@ long join_session_keyring(const char *name)
 
 	/* if no name is provided, install an anonymous keyring */
 	if (!name) {
-		ret = install_session_keyring(tsk, NULL);
+		ret = install_session_keyring(NULL);
 		if (ret < 0)
 			goto error;
 
@@ -784,7 +804,7 @@ long join_session_keyring(const char *name)
 	}
 
 	/* we've got a keyring - now to install it */
-	ret = install_session_keyring(tsk, keyring);
+	ret = install_session_keyring(keyring);
 	if (ret < 0)
 		goto error2;
 

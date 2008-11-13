@@ -128,6 +128,7 @@ static void request_key_auth_destroy(struct key *key)
 	}
 
 	key_put(rka->target_key);
+	key_put(rka->dest_keyring);
 	kfree(rka->callout_info);
 	kfree(rka);
 
@@ -139,7 +140,7 @@ static void request_key_auth_destroy(struct key *key)
  * access to the caller's security data
  */
 struct key *request_key_auth_new(struct key *target, const void *callout_info,
-				 size_t callout_len)
+				 size_t callout_len, struct key *dest_keyring)
 {
 	struct request_key_auth *rka, *irka;
 	struct key *authkey = NULL;
@@ -188,6 +189,7 @@ struct key *request_key_auth_new(struct key *target, const void *callout_info,
 	}
 
 	rka->target_key = key_get(target);
+	rka->dest_keyring = key_get(dest_keyring);
 	memcpy(rka->callout_info, callout_info, callout_len);
 	rka->callout_len = callout_len;
 
@@ -223,6 +225,7 @@ error_inst:
 	key_put(authkey);
 error_alloc:
 	key_put(rka->target_key);
+	key_put(rka->dest_keyring);
 	kfree(rka->callout_info);
 	kfree(rka);
 	kleave("= %d", ret);

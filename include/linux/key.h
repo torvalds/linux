@@ -287,11 +287,11 @@ extern void key_fsuid_changed(struct task_struct *tsk);
 extern void key_fsgid_changed(struct task_struct *tsk);
 extern void key_init(void);
 
-#define __install_session_keyring(tsk, keyring)			\
-({								\
-	struct key *old_session = tsk->signal->session_keyring;	\
-	tsk->signal->session_keyring = keyring;			\
-	old_session;						\
+#define __install_session_keyring(keyring)				\
+({									\
+	struct key *old_session = current->signal->session_keyring;	\
+	current->signal->session_keyring = keyring;			\
+	old_session;							\
 })
 
 #else /* CONFIG_KEYS */
@@ -302,11 +302,11 @@ extern void key_init(void);
 #define key_revoke(k)			do { } while(0)
 #define key_put(k)			do { } while(0)
 #define key_ref_put(k)			do { } while(0)
-#define make_key_ref(k, p)			({ NULL; })
-#define key_ref_to_ptr(k)		({ NULL; })
+#define make_key_ref(k, p)		NULL
+#define key_ref_to_ptr(k)		NULL
 #define is_key_possessed(k)		0
 #define switch_uid_keyring(u)		do { } while(0)
-#define __install_session_keyring(t, k)	({ NULL; })
+#define __install_session_keyring(k)	({ NULL; })
 #define copy_keys(f,t)			0
 #define copy_thread_group_keys(t)	0
 #define exit_keys(t)			do { } while(0)

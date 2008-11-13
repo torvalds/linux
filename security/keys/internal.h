@@ -109,8 +109,9 @@ extern key_ref_t search_process_keyrings(struct key_type *type,
 
 extern struct key *find_keyring_by_name(const char *name, bool skip_perm_check);
 
-extern int install_thread_keyring(struct task_struct *tsk);
-extern int install_process_keyring(struct task_struct *tsk);
+extern int install_user_keyrings(void);
+extern int install_thread_keyring(void);
+extern int install_process_keyring(void);
 
 extern struct key *request_key_and_link(struct key_type *type,
 					const char *description,
@@ -120,8 +121,7 @@ extern struct key *request_key_and_link(struct key_type *type,
 					struct key *dest_keyring,
 					unsigned long flags);
 
-extern key_ref_t lookup_user_key(struct task_struct *context,
-				 key_serial_t id, int create, int partial,
+extern key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 				 key_perm_t perm);
 
 extern long join_session_keyring(const char *name);
@@ -152,6 +152,7 @@ static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
  */
 struct request_key_auth {
 	struct key		*target_key;
+	struct key		*dest_keyring;
 	struct task_struct	*context;
 	void			*callout_info;
 	size_t			callout_len;
@@ -161,7 +162,8 @@ struct request_key_auth {
 extern struct key_type key_type_request_key_auth;
 extern struct key *request_key_auth_new(struct key *target,
 					const void *callout_info,
-					size_t callout_len);
+					size_t callout_len,
+					struct key *dest_keyring);
 
 extern struct key *key_get_instantiation_authkey(key_serial_t target_id);
 

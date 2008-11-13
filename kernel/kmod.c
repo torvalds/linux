@@ -140,7 +140,7 @@ static int ____call_usermodehelper(void *data)
 	/* Unblock all signals and set the session keyring. */
 	new_session = key_get(sub_info->ring);
 	spin_lock_irq(&current->sighand->siglock);
-	old_session = __install_session_keyring(current, new_session);
+	old_session = __install_session_keyring(new_session);
 	flush_signal_handlers(current, 1);
 	sigemptyset(&current->blocked);
 	recalc_sigpending();
