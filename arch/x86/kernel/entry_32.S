@@ -1217,12 +1217,9 @@ trace_return:
 	pushl %eax
 	pushl %ecx
 	pushl %edx
-	movl 0xc(%esp), %eax
-	pushl %eax
+	movl 0xc(%esp), %edx
 	lea 0x4(%ebp), %eax
-	pushl %eax
 	call prepare_ftrace_return
-	addl $8, %esp
 	popl %edx
 	popl %ecx
 	popl %eax

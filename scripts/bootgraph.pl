@@ -109,8 +109,8 @@ my $stylecounter = 0;
 my %rows;
 my $rowscount = 1;
 my @initcalls = sort { $start{$a} <=> $start{$b} } keys(%start);
-my $key;
-foreach $key (@initcalls) {
+
+foreach my $key (@initcalls) {
 	my $duration = $end{$key} - $start{$key};
 
 	if ($duration >= $threshold) {

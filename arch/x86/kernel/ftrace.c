@@ -44,62 +44,37 @@ void ftrace_nmi_exit(void)
 	atomic_dec(&in_nmi);
 }
 
-/*
- * Synchronize accesses to return adresses stack with
- * interrupts.
- */
-static raw_spinlock_t ret_stack_lock;
-
 /* Add a function return address to the trace stack on thread info.*/
 static int push_return_trace(unsigned long ret, unsigned long long time,
 				unsigned long func)
 {
 	int index;
-	struct thread_info *ti;
-	unsigned long flags;
-	int err = 0;
+	struct thread_info *ti = current_thread_info();
 
-	raw_local_irq_save(flags);
-	__raw_spin_lock(&ret_stack_lock);
-
-	ti = current_thread_info();
 	/* The return trace stack is full */
-	if (ti->curr_ret_stack == FTRACE_RET_STACK_SIZE - 1) {
-		err = -EBUSY;
-		goto out;
-	}
+	if (ti->curr_ret_stack == FTRACE_RET_STACK_SIZE - 1)
+		return -EBUSY;
 
 	index = ++ti->curr_ret_stack;
 	ti->ret_stack[index].ret = ret;
 	ti->ret_stack[index].func = func;
 	ti->ret_stack[index].calltime = time;
 
-out:
-	__raw_spin_unlock(&ret_stack_lock);
-	raw_local_irq_restore(flags);
-	return err;
+	return 0;
 }
 
 /* Retrieve a function return address to the trace stack on thread info.*/
 static void pop_return_trace(unsigned long *ret, unsigned long long *time,
 				unsigned long *func)
 {
-	struct thread_info *ti;
 	int index;
-	unsigned long flags;
 
-	raw_local_irq_save(flags);
-	__raw_spin_lock(&ret_stack_lock);
-
-	ti = current_thread_info();
+	struct thread_info *ti = current_thread_info();
 	index = ti->curr_ret_stack;
 	*ret = ti->ret_stack[index].ret;
 	*func = ti->ret_stack[index].func;
 	*time = ti->ret_stack[index].calltime;
 	ti->curr_ret_stack--;
-
-	__raw_spin_unlock(&ret_stack_lock);
-	raw_local_irq_restore(flags);
 }
 
 /*
@@ -120,7 +95,6 @@ unsigned long ftrace_return_to_handler(void)
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
  */
-asmlinkage
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 {
 	unsigned long old;
@@ -174,14 +148,6 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	if (push_return_trace(old, calltime, self_addr) == -EBUSY)
 		*parent = old;
 }
-
-static int __init init_ftrace_function_return(void)
-{
-	ret_stack_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
-	return 0;
-}
-device_initcall(init_ftrace_function_return);
-
 
 #endif
 
