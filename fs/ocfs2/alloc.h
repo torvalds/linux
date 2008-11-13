@@ -73,6 +73,14 @@ void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
 					struct buffer_head *bh,
 					struct ocfs2_xattr_value_root *xv);
 
+/*
+ * Read an extent block into *bh.  If *bh is NULL, a bh will be
+ * allocated.  This is a cached read.  The extent block will be validated
+ * with ocfs2_validate_extent_block().
+ */
+int ocfs2_read_extent_block(struct inode *inode, u64 eb_blkno,
+			    struct buffer_head **bh);
+
 struct ocfs2_alloc_context;
 int ocfs2_insert_extent(struct ocfs2_super *osb,
 			handle_t *handle,

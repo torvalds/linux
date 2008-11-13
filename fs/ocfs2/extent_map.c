@@ -293,7 +293,7 @@ static int ocfs2_last_eb_is_empty(struct inode *inode,
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
 
-	ret = ocfs2_read_block(inode, last_eb_blk, &eb_bh);
+	ret = ocfs2_read_extent_block(inode, last_eb_blk, &eb_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -301,12 +301,6 @@ static int ocfs2_last_eb_is_empty(struct inode *inode,
 
 	eb = (struct ocfs2_extent_block *) eb_bh->b_data;
 	el = &eb->h_list;
-
-	if (!OCFS2_IS_VALID_EXTENT_BLOCK(eb)) {
-		ret = -EROFS;
-		OCFS2_RO_ON_INVALID_EXTENT_BLOCK(inode->i_sb, eb);
-		goto out;
-	}
 
 	if (el->l_tree_depth) {
 		ocfs2_error(inode->i_sb,
@@ -381,23 +375,16 @@ static int ocfs2_figure_hole_clusters(struct inode *inode,
 		if (le64_to_cpu(eb->h_next_leaf_blk) == 0ULL)
 			goto no_more_extents;
 
-		ret = ocfs2_read_block(inode,
-				       le64_to_cpu(eb->h_next_leaf_blk),
-				       &next_eb_bh);
+		ret = ocfs2_read_extent_block(inode,
+					      le64_to_cpu(eb->h_next_leaf_blk),
+					      &next_eb_bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
+
 		next_eb = (struct ocfs2_extent_block *)next_eb_bh->b_data;
-
-		if (!OCFS2_IS_VALID_EXTENT_BLOCK(next_eb)) {
-			ret = -EROFS;
-			OCFS2_RO_ON_INVALID_EXTENT_BLOCK(inode->i_sb, next_eb);
-			goto out;
-		}
-
 		el = &next_eb->h_list;
-
 		i = ocfs2_search_for_hole_index(el, v_cluster);
 	}
 

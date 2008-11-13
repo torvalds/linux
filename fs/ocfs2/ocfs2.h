@@ -447,14 +447,6 @@ static inline int ocfs2_uses_extended_slot_map(struct ocfs2_super *osb)
 #define OCFS2_IS_VALID_EXTENT_BLOCK(ptr)				\
 	(!strcmp((ptr)->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE))
 
-#define OCFS2_RO_ON_INVALID_EXTENT_BLOCK(__sb, __eb)	do {		\
-	typeof(__eb) ____eb = (__eb);					\
-	ocfs2_error((__sb), 						\
-		"Extent Block # %llu has bad signature %.*s",		\
-		(unsigned long long)le64_to_cpu((____eb)->h_blkno), 7,	\
-		(____eb)->h_signature);					\
-} while (0)
-
 #define OCFS2_IS_VALID_GROUP_DESC(ptr)					\
 	(!strcmp((ptr)->bg_signature, OCFS2_GROUP_DESC_SIGNATURE))
 
