@@ -723,6 +723,7 @@ static inline void set_adhoc_mode(struct agnx_priv *priv)
 	agnx_write32(ctl, AGNX_SYSITF_SYSMODE, 0x0);
 }
 
+#if 0
 static void unknow_register_write(struct agnx_priv *priv)
 {
 	void __iomem *ctl = priv->ctl;
@@ -752,6 +753,7 @@ static void unknow_register_write(struct agnx_priv *priv)
 	agnx_write32(ctl, AGNX_UNKNOWN_BASE + 0x58, 0x1F);
 	agnx_write32(ctl, AGNX_UNKNOWN_BASE + 0x5c, 0x1a);
 }
+#endif
 
 static void card_interface_init(struct agnx_priv *priv)
 {

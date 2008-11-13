@@ -207,7 +207,7 @@ static void rings_free(struct agnx_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-
+#if 0
 static void agnx_periodic_work_handler(struct work_struct *work)
 {
 	struct agnx_priv *priv = container_of(work, struct agnx_priv,
@@ -233,12 +233,12 @@ static void agnx_periodic_work_handler(struct work_struct *work)
 
 //	spin_unlock_irqrestore(&priv->lock, flags);
 }
-
+#endif
 
 static int agnx_start(struct ieee80211_hw *dev)
 {
 	struct agnx_priv *priv = dev->priv;
-	unsigned long delay;
+	/* unsigned long delay; */
 	int err = 0;
 	AGNX_TRACE;
 
