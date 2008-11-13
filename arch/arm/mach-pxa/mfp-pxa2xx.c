@@ -39,6 +39,7 @@ struct gpio_desc {
 	unsigned	can_wakeup	: 1;
 	unsigned	keypad_gpio	: 1;
 	unsigned int	mask; /* bit mask in PWER or PKWR */
+	unsigned int	mux_mask; /* bit mask of muxed gpio bits, 0 if no mux */
 	unsigned long	config;
 };
 
@@ -169,7 +170,7 @@ void pxa2xx_mfp_set_lpm(int mfp, unsigned long lpm)
 int gpio_set_wake(unsigned int gpio, unsigned int on)
 {
 	struct gpio_desc *d;
-	unsigned long c;
+	unsigned long c, mux_taken;
 
 	if (gpio > mfp_to_gpio(MFP_PIN_GPIO127))
 		return -EINVAL;
@@ -183,9 +184,13 @@ int gpio_set_wake(unsigned int gpio, unsigned int on)
 	if (d->keypad_gpio)
 		return -EINVAL;
 
+	mux_taken = (PWER & d->mux_mask) & (~d->mask);
+	if (on && mux_taken)
+		return -EBUSY;
+
 	if (d->can_wakeup && (c & MFP_LPM_CAN_WAKEUP)) {
 		if (on) {
-			PWER |= d->mask;
+			PWER = (PWER & ~d->mux_mask) | d->mask;
 
 			if (c & MFP_LPM_EDGE_RISE)
 				PRER |= d->mask;
@@ -251,6 +256,22 @@ int keypad_set_wake(unsigned int on)
 	return 0;
 }
 
+#define PWER_WEMUX2_GPIO38	(1 << 16)
+#define PWER_WEMUX2_GPIO53	(2 << 16)
+#define PWER_WEMUX2_GPIO40	(3 << 16)
+#define PWER_WEMUX2_GPIO36	(4 << 16)
+#define PWER_WEMUX2_MASK	(7 << 16)
+#define PWER_WEMUX3_GPIO31	(1 << 19)
+#define PWER_WEMUX3_GPIO113	(2 << 19)
+#define PWER_WEMUX3_MASK	(3 << 19)
+
+#define INIT_GPIO_DESC_MUXED(mux, gpio)				\
+do {								\
+	gpio_desc[(gpio)].can_wakeup = 1;			\
+	gpio_desc[(gpio)].mask = PWER_ ## mux ## _GPIO ##gpio;	\
+	gpio_desc[(gpio)].mux_mask = PWER_ ## mux ## _MASK;	\
+} while (0)
+
 static void __init pxa27x_mfp_init(void)
 {
 	int i, gpio;
@@ -286,6 +307,12 @@ static void __init pxa27x_mfp_init(void)
 	gpio_desc[35].can_wakeup = 1;
 	gpio_desc[35].mask = PWER_WE35;
 
+	INIT_GPIO_DESC_MUXED(WEMUX3, 31);
+	INIT_GPIO_DESC_MUXED(WEMUX3, 113);
+	INIT_GPIO_DESC_MUXED(WEMUX2, 38);
+	INIT_GPIO_DESC_MUXED(WEMUX2, 53);
+	INIT_GPIO_DESC_MUXED(WEMUX2, 40);
+	INIT_GPIO_DESC_MUXED(WEMUX2, 36);
 	gpio_nr = 121;
 }
 #else
