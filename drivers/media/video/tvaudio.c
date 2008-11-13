@@ -154,7 +154,7 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 {
 	unsigned char buffer[2];
 
-	if (-1 == subaddr) {
+	if (subaddr < 0) {
 		v4l_dbg(1, debug, chip->c, "%s: chip_write: 0x%x\n",
 			chip->c->name, val);
 		chip->shadow.bytes[1] = val;
@@ -165,6 +165,13 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 			return -1;
 		}
 	} else {
+		if (subaddr + 1 >= ARRAY_SIZE(chip->shadow.bytes)) {
+			v4l_info(chip->c,
+				"Tried to access a non-existent register: %d\n",
+				subaddr);
+			return -EINVAL;
+		}
+
 		v4l_dbg(1, debug, chip->c, "%s: chip_write: reg%d=0x%x\n",
 			chip->c->name, subaddr, val);
 		chip->shadow.bytes[subaddr+1] = val;
@@ -179,12 +186,20 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 	return 0;
 }
 
-static int chip_write_masked(struct CHIPSTATE *chip, int subaddr, int val, int mask)
+static int chip_write_masked(struct CHIPSTATE *chip,
+			     int subaddr, int val, int mask)
 {
 	if (mask != 0) {
-		if (-1 == subaddr) {
+		if (subaddr < 0) {
 			val = (chip->shadow.bytes[1] & ~mask) | (val & mask);
 		} else {
+			if (subaddr + 1 >= ARRAY_SIZE(chip->shadow.bytes)) {
+				v4l_info(chip->c,
+					"Tried to access a non-existent register: %d\n",
+					subaddr);
+				return -EINVAL;
+			}
+
 			val = (chip->shadow.bytes[subaddr+1] & ~mask) | (val & mask);
 		}
 	}
@@ -229,6 +244,15 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 
 	if (0 == cmd->count)
 		return 0;
+
+	if (cmd->count + cmd->bytes[0] - 1 >= ARRAY_SIZE(chip->shadow.bytes)) {
+		v4l_info(chip->c,
+			 "Tried to access a non-existent register range: %d to %d\n",
+			 cmd->bytes[0] + 1, cmd->bytes[0] + cmd->count - 1);
+		return -EINVAL;
+	}
+
+	/* FIXME: it seems that the shadow bytes are wrong bellow !*/
 
 	/* update our shadow register set; print bytes if (debug > 0) */
 	v4l_dbg(1, debug, chip->c, "%s: chip_cmd(%s): reg=%d, data:",
