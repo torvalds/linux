@@ -3277,6 +3277,50 @@ static void selinux_cred_commit(struct cred *new, const struct cred *old)
 	secondary_ops->cred_commit(new, old);
 }
 
+/*
+ * set the security data for a kernel service
+ * - all the creation contexts are set to unlabelled
+ */
+static int selinux_kernel_act_as(struct cred *new, u32 secid)
+{
+	struct task_security_struct *tsec = new->security;
+	u32 sid = current_sid();
+	int ret;
+
+	ret = avc_has_perm(sid, secid,
+			   SECCLASS_KERNEL_SERVICE,
+			   KERNEL_SERVICE__USE_AS_OVERRIDE,
+			   NULL);
+	if (ret == 0) {
+		tsec->sid = secid;
+		tsec->create_sid = 0;
+		tsec->keycreate_sid = 0;
+		tsec->sockcreate_sid = 0;
+	}
+	return ret;
+}
+
+/*
+ * set the file creation context in a security record to the same as the
+ * objective context of the specified inode
+ */
+static int selinux_kernel_create_files_as(struct cred *new, struct inode *inode)
+{
+	struct inode_security_struct *isec = inode->i_security;
+	struct task_security_struct *tsec = new->security;
+	u32 sid = current_sid();
+	int ret;
+
+	ret = avc_has_perm(sid, isec->sid,
+			   SECCLASS_KERNEL_SERVICE,
+			   KERNEL_SERVICE__CREATE_FILES_AS,
+			   NULL);
+
+	if (ret == 0)
+		tsec->create_sid = isec->sid;
+	return 0;
+}
+
 static int selinux_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
 {
 	/* Since setuid only affects the current process, and
@@ -5593,6 +5637,8 @@ static struct security_operations selinux_ops = {
 	.cred_free =			selinux_cred_free,
 	.cred_prepare =			selinux_cred_prepare,
 	.cred_commit =			selinux_cred_commit,
+	.kernel_act_as =		selinux_kernel_act_as,
+	.kernel_create_files_as =	selinux_kernel_create_files_as,
 	.task_setuid =			selinux_task_setuid,
 	.task_fix_setuid =		selinux_task_fix_setuid,
 	.task_setgid =			selinux_task_setgid,

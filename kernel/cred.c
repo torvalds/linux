@@ -462,3 +462,116 @@ void __init cred_init(void)
 	cred_jar = kmem_cache_create("cred_jar", sizeof(struct cred),
 				     0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 }
+
+/**
+ * prepare_kernel_cred - Prepare a set of credentials for a kernel service
+ * @daemon: A userspace daemon to be used as a reference
+ *
+ * Prepare a set of credentials for a kernel service.  This can then be used to
+ * override a task's own credentials so that work can be done on behalf of that
+ * task that requires a different subjective context.
+ *
+ * @daemon is used to provide a base for the security record, but can be NULL.
+ * If @daemon is supplied, then the security data will be derived from that;
+ * otherwise they'll be set to 0 and no groups, full capabilities and no keys.
+ *
+ * The caller may change these controls afterwards if desired.
+ *
+ * Returns the new credentials or NULL if out of memory.
+ *
+ * Does not take, and does not return holding current->cred_replace_mutex.
+ */
+struct cred *prepare_kernel_cred(struct task_struct *daemon)
+{
+	const struct cred *old;
+	struct cred *new;
+
+	new = kmem_cache_alloc(cred_jar, GFP_KERNEL);
+	if (!new)
+		return NULL;
+
+	if (daemon)
+		old = get_task_cred(daemon);
+	else
+		old = get_cred(&init_cred);
+
+	get_uid(new->user);
+	get_group_info(new->group_info);
+
+#ifdef CONFIG_KEYS
+	atomic_inc(&init_tgcred.usage);
+	new->tgcred = &init_tgcred;
+	new->request_key_auth = NULL;
+	new->thread_keyring = NULL;
+	new->jit_keyring = KEY_REQKEY_DEFL_THREAD_KEYRING;
+#endif
+
+#ifdef CONFIG_SECURITY
+	new->security = NULL;
+#endif
+	if (security_prepare_creds(new, old, GFP_KERNEL) < 0)
+		goto error;
+
+	atomic_set(&new->usage, 1);
+	put_cred(old);
+	return new;
+
+error:
+	put_cred(new);
+	return NULL;
+}
+EXPORT_SYMBOL(prepare_kernel_cred);
+
+/**
+ * set_security_override - Set the security ID in a set of credentials
+ * @new: The credentials to alter
+ * @secid: The LSM security ID to set
+ *
+ * Set the LSM security ID in a set of credentials so that the subjective
+ * security is overridden when an alternative set of credentials is used.
+ */
+int set_security_override(struct cred *new, u32 secid)
+{
+	return security_kernel_act_as(new, secid);
+}
+EXPORT_SYMBOL(set_security_override);
+
+/**
+ * set_security_override_from_ctx - Set the security ID in a set of credentials
+ * @new: The credentials to alter
+ * @secctx: The LSM security context to generate the security ID from.
+ *
+ * Set the LSM security ID in a set of credentials so that the subjective
+ * security is overridden when an alternative set of credentials is used.  The
+ * security ID is specified in string form as a security context to be
+ * interpreted by the LSM.
+ */
+int set_security_override_from_ctx(struct cred *new, const char *secctx)
+{
+	u32 secid;
+	int ret;
+
+	ret = security_secctx_to_secid(secctx, strlen(secctx), &secid);
+	if (ret < 0)
+		return ret;
+
+	return set_security_override(new, secid);
+}
+EXPORT_SYMBOL(set_security_override_from_ctx);
+
+/**
+ * set_create_files_as - Set the LSM file create context in a set of credentials
+ * @new: The credentials to alter
+ * @inode: The inode to take the context from
+ *
+ * Change the LSM file creation context in a set of credentials to be the same
+ * as the object context of the specified inode, so that the new inodes have
+ * the same MAC context as that inode.
+ */
+int set_create_files_as(struct cred *new, struct inode *inode)
+{
+	new->fsuid = inode->i_uid;
+	new->fsgid = inode->i_gid;
+	return security_kernel_create_files_as(new, inode);
+}
+EXPORT_SYMBOL(set_create_files_as);

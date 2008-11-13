@@ -1012,6 +1012,41 @@ static void smack_cred_commit(struct cred *new, const struct cred *old)
 }
 
 /**
+ * smack_kernel_act_as - Set the subjective context in a set of credentials
+ * @new points to the set of credentials to be modified.
+ * @secid specifies the security ID to be set
+ *
+ * Set the security data for a kernel service.
+ */
+static int smack_kernel_act_as(struct cred *new, u32 secid)
+{
+	char *smack = smack_from_secid(secid);
+
+	if (smack == NULL)
+		return -EINVAL;
+
+	new->security = smack;
+	return 0;
+}
+
+/**
+ * smack_kernel_create_files_as - Set the file creation label in a set of creds
+ * @new points to the set of credentials to be modified
+ * @inode points to the inode to use as a reference
+ *
+ * Set the file creation context in a set of credentials to the same
+ * as the objective context of the specified inode
+ */
+static int smack_kernel_create_files_as(struct cred *new,
+					struct inode *inode)
+{
+	struct inode_smack *isp = inode->i_security;
+
+	new->security = isp->smk_inode;
+	return 0;
+}
+
+/**
  * smack_task_setpgid - Smack check on setting pgid
  * @p: the task object
  * @pgid: unused
@@ -2641,6 +2676,8 @@ struct security_operations smack_ops = {
 	.cred_free =			smack_cred_free,
 	.cred_prepare =			smack_cred_prepare,
 	.cred_commit =			smack_cred_commit,
+	.kernel_act_as =		smack_kernel_act_as,
+	.kernel_create_files_as =	smack_kernel_create_files_as,
 	.task_fix_setuid =		cap_task_fix_setuid,
 	.task_setpgid = 		smack_task_setpgid,
 	.task_getpgid = 		smack_task_getpgid,

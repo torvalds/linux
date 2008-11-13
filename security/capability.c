@@ -348,6 +348,16 @@ static void cap_cred_commit(struct cred *new, const struct cred *old)
 {
 }
 
+static int cap_kernel_act_as(struct cred *new, u32 secid)
+{
+	return 0;
+}
+
+static int cap_kernel_create_files_as(struct cred *new, struct inode *inode)
+{
+	return 0;
+}
+
 static int cap_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
 {
 	return 0;
@@ -889,6 +899,8 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, cred_free);
 	set_to_cap_if_null(ops, cred_prepare);
 	set_to_cap_if_null(ops, cred_commit);
+	set_to_cap_if_null(ops, kernel_act_as);
+	set_to_cap_if_null(ops, kernel_create_files_as);
 	set_to_cap_if_null(ops, task_setuid);
 	set_to_cap_if_null(ops, task_fix_setuid);
 	set_to_cap_if_null(ops, task_setgid);

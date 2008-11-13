@@ -616,6 +616,16 @@ void security_commit_creds(struct cred *new, const struct cred *old)
 	return security_ops->cred_commit(new, old);
 }
 
+int security_kernel_act_as(struct cred *new, u32 secid)
+{
+	return security_ops->kernel_act_as(new, secid);
+}
+
+int security_kernel_create_files_as(struct cred *new, struct inode *inode)
+{
+	return security_ops->kernel_create_files_as(new, inode);
+}
+
 int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
 {
 	return security_ops->task_setuid(id0, id1, id2, flags);
