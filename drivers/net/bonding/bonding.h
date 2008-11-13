@@ -257,7 +257,7 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 		return NULL;
 	}
 
-	return (struct bonding *)slave->dev->master->priv;
+	return (struct bonding *)netdev_priv(slave->dev->master);
 }
 
 #define BOND_FOM_NONE			0
@@ -287,7 +287,7 @@ static inline unsigned long slave_last_rx(struct bonding *bond,
 
 static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
-	struct bonding *bond = slave->dev->master->priv;
+	struct bonding *bond = netdev_priv(slave->dev->master);
 	if (bond->params.mode != BOND_MODE_TLB &&
 	    bond->params.mode != BOND_MODE_ALB)
 		slave->state = BOND_STATE_BACKUP;

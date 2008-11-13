@@ -2487,7 +2487,7 @@ static pci_ers_result_t
 atl1e_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct atl1e_adapter *adapter = netdev->priv;
+	struct atl1e_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
 
@@ -2510,7 +2510,7 @@ atl1e_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 static pci_ers_result_t atl1e_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct atl1e_adapter *adapter = netdev->priv;
+	struct atl1e_adapter *adapter = netdev_priv(netdev);
 
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
@@ -2538,7 +2538,7 @@ static pci_ers_result_t atl1e_io_slot_reset(struct pci_dev *pdev)
 static void atl1e_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct atl1e_adapter *adapter = netdev->priv;
+	struct atl1e_adapter *adapter = netdev_priv(netdev);
 
 	if (netif_running(netdev)) {
 		if (atl1e_up(adapter)) {

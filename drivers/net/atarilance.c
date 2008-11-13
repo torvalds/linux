@@ -520,7 +520,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	return( 0 );
 
   probe_ok:
-	lp = (struct lance_private *)dev->priv;
+	lp = netdev_priv(dev);
 	MEM = (struct lance_memory *)memaddr;
 	IO = lp->iobase = (struct lance_ioreg *)ioaddr;
 	dev->base_addr = (unsigned long)ioaddr; /* informational only */
@@ -639,8 +639,8 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 
 
 static int lance_open( struct net_device *dev )
-
-{	struct lance_private *lp = (struct lance_private *)dev->priv;
+{
+	struct lance_private *lp = netdev_priv(dev);
 	struct lance_ioreg	 *IO = lp->iobase;
 	int i;
 
@@ -680,8 +680,8 @@ static int lance_open( struct net_device *dev )
 /* Initialize the LANCE Rx and Tx rings. */
 
 static void lance_init_ring( struct net_device *dev )
-
-{	struct lance_private *lp = (struct lance_private *)dev->priv;
+{
+	struct lance_private *lp = netdev_priv(dev);
 	int i;
 	unsigned offset;
 
@@ -729,7 +729,7 @@ static void lance_init_ring( struct net_device *dev )
 
 static void lance_tx_timeout (struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	struct lance_ioreg	 *IO = lp->iobase;
 
 	AREG = CSR0;
@@ -771,8 +771,8 @@ static void lance_tx_timeout (struct net_device *dev)
 /* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
 
 static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
-
-{	struct lance_private *lp = (struct lance_private *)dev->priv;
+{
+	struct lance_private *lp = netdev_priv(dev);
 	struct lance_ioreg	 *IO = lp->iobase;
 	int entry, len;
 	struct lance_tx_head *head;
@@ -860,7 +860,7 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 		return IRQ_NONE;
 	}
 
-	lp = (struct lance_private *)dev->priv;
+	lp = netdev_priv(dev);
 	IO = lp->iobase;
 	spin_lock (&lp->devlock);
 
@@ -960,8 +960,8 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 
 
 static int lance_rx( struct net_device *dev )
-
-{	struct lance_private *lp = (struct lance_private *)dev->priv;
+{
+	struct lance_private *lp = netdev_priv(dev);
 	int entry = lp->cur_rx & RX_RING_MOD_MASK;
 	int i;
 
@@ -1049,8 +1049,8 @@ static int lance_rx( struct net_device *dev )
 
 
 static int lance_close( struct net_device *dev )
-
-{	struct lance_private *lp = (struct lance_private *)dev->priv;
+{
+	struct lance_private *lp = netdev_priv(dev);
 	struct lance_ioreg	 *IO = lp->iobase;
 
 	netif_stop_queue (dev);
@@ -1076,8 +1076,8 @@ static int lance_close( struct net_device *dev )
  */
 
 static void set_multicast_list( struct net_device *dev )
-
-{	struct lance_private *lp = (struct lance_private *)dev->priv;
+{
+	struct lance_private *lp = netdev_priv(dev);
 	struct lance_ioreg	 *IO = lp->iobase;
 
 	if (netif_running(dev))
@@ -1118,8 +1118,8 @@ static void set_multicast_list( struct net_device *dev )
 /* This is needed for old RieblCards and possible for new RieblCards */
 
 static int lance_set_mac_address( struct net_device *dev, void *addr )
-
-{	struct lance_private *lp = (struct lance_private *)dev->priv;
+{
+	struct lance_private *lp = netdev_priv(dev);
 	struct sockaddr *saddr = addr;
 	int i;
 

@@ -143,7 +143,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	}
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 
-	mp = dev->priv;
+	mp = netdev_priv(dev);
 	mp->mdev = mdev;
 	macio_set_drvdata(mdev, dev);
 
@@ -164,7 +164,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 			in_8(&mp->mace->chipid_lo);
 
 
-	mp = (struct mace_data *) dev->priv;
+	mp = netdev_priv(dev);
 	mp->maccc = ENXMT | ENRCV;
 
 	mp->tx_dma = ioremap(macio_resource_start(mdev, 1), 0x1000);
@@ -275,7 +275,7 @@ static int __devexit mace_remove(struct macio_dev *mdev)
 
 	macio_set_drvdata(mdev, NULL);
 
-	mp = dev->priv;
+	mp = netdev_priv(dev);
 
 	unregister_netdev(dev);
 
@@ -311,7 +311,7 @@ static void dbdma_reset(volatile struct dbdma_regs __iomem *dma)
 
 static void mace_reset(struct net_device *dev)
 {
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
     int i;
 
@@ -366,7 +366,7 @@ static void mace_reset(struct net_device *dev)
 
 static void __mace_set_address(struct net_device *dev, void *addr)
 {
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
     unsigned char *p = addr;
     int i;
@@ -387,7 +387,7 @@ static void __mace_set_address(struct net_device *dev, void *addr)
 
 static int mace_set_address(struct net_device *dev, void *addr)
 {
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
     unsigned long flags;
 
@@ -422,7 +422,7 @@ static inline void mace_clean_rings(struct mace_data *mp)
 
 static int mace_open(struct net_device *dev)
 {
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
     volatile struct dbdma_regs __iomem *rd = mp->rx_dma;
     volatile struct dbdma_regs __iomem *td = mp->tx_dma;
@@ -492,7 +492,7 @@ static int mace_open(struct net_device *dev)
 
 static int mace_close(struct net_device *dev)
 {
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
     volatile struct dbdma_regs __iomem *rd = mp->rx_dma;
     volatile struct dbdma_regs __iomem *td = mp->tx_dma;
@@ -512,7 +512,7 @@ static int mace_close(struct net_device *dev)
 
 static inline void mace_set_timeout(struct net_device *dev)
 {
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
 
     if (mp->timeout_active)
 	del_timer(&mp->tx_timeout);
@@ -525,7 +525,7 @@ static inline void mace_set_timeout(struct net_device *dev)
 
 static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 {
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct dbdma_regs __iomem *td = mp->tx_dma;
     volatile struct dbdma_cmd *cp, *np;
     unsigned long flags;
@@ -580,7 +580,7 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 
 static void mace_set_multicast(struct net_device *dev)
 {
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
     int i, j;
     u32 crc;
@@ -655,7 +655,7 @@ static void mace_handle_misc_intrs(struct mace_data *mp, int intr, struct net_de
 static irqreturn_t mace_interrupt(int irq, void *dev_id)
 {
     struct net_device *dev = (struct net_device *) dev_id;
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
     volatile struct dbdma_regs __iomem *td = mp->tx_dma;
     volatile struct dbdma_cmd *cp;
@@ -801,7 +801,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 static void mace_tx_timeout(unsigned long data)
 {
     struct net_device *dev = (struct net_device *) data;
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
     volatile struct dbdma_regs __iomem *td = mp->tx_dma;
     volatile struct dbdma_regs __iomem *rd = mp->rx_dma;
@@ -872,7 +872,7 @@ static irqreturn_t mace_txdma_intr(int irq, void *dev_id)
 static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 {
     struct net_device *dev = (struct net_device *) dev_id;
-    struct mace_data *mp = (struct mace_data *) dev->priv;
+    struct mace_data *mp = netdev_priv(dev);
     volatile struct dbdma_regs __iomem *rd = mp->rx_dma;
     volatile struct dbdma_cmd *cp, *np;
     int i, nb, stat, next;
