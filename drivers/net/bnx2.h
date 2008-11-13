@@ -6679,8 +6679,6 @@ struct bnx2_napi {
 	struct bnx2_tx_ring_info	tx_ring;
 };
 
-#define BNX2_TIMER_INTERVAL			HZ
-
 struct bnx2 {
 	/* Fields used in the tx and intr/napi performance paths are grouped */
 	/* together in the beginning of the structure. */
@@ -6728,7 +6726,11 @@ struct bnx2 {
 
 	/* End of fields used in the performance code paths. */
 
-	int			current_interval;
+	unsigned int		current_interval;
+#define BNX2_TIMER_INTERVAL		HZ
+#define BNX2_SERDES_AN_TIMEOUT		(HZ / 3)
+#define BNX2_SERDES_FORCED_TIMEOUT	(HZ / 10)
+
 	struct			timer_list timer;
 	struct work_struct	reset_task;
 
@@ -6860,8 +6862,6 @@ struct bnx2 {
 #define PHY_LOOPBACK		2
 
 	u8			serdes_an_pending;
-#define SERDES_AN_TIMEOUT	(HZ / 3)
-#define SERDES_FORCED_TIMEOUT	(HZ / 10)
 
 	u8			mac_addr[8];
 
@@ -6959,14 +6959,14 @@ struct fw_info {
 /* This value (in milliseconds) determines the frequency of the driver
  * issuing the PULSE message code.  The firmware monitors this periodic
  * pulse to determine when to switch to an OS-absent mode. */
-#define DRV_PULSE_PERIOD_MS                 250
+#define BNX2_DRV_PULSE_PERIOD_MS                 250
 
 /* This value (in milliseconds) determines how long the driver should
  * wait for an acknowledgement from the firmware before timing out.  Once
  * the firmware has timed out, the driver will assume there is no firmware
  * running and there won't be any firmware-driver synchronization during a
  * driver reset. */
-#define FW_ACK_TIME_OUT_MS                  1000
+#define BNX2_FW_ACK_TIME_OUT_MS                  1000
 
 
 #define BNX2_DRV_RESET_SIGNATURE		0x00000000

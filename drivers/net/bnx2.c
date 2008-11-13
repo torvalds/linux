@@ -1656,7 +1656,7 @@ bnx2_setup_serdes_phy(struct bnx2 *bp, u8 port)
 		 * exchanging base pages plus 3 next pages and
 		 * normally completes in about 120 msec.
 		 */
-		bp->current_interval = SERDES_AN_TIMEOUT;
+		bp->current_interval = BNX2_SERDES_AN_TIMEOUT;
 		bp->serdes_an_pending = 1;
 		mod_timer(&bp->timer, jiffies + bp->current_interval);
 	} else {
@@ -2278,7 +2278,7 @@ bnx2_fw_sync(struct bnx2 *bp, u32 msg_data, int ack, int silent)
 		return 0;
 
 	/* wait for an acknowledgement. */
-	for (i = 0; i < (FW_ACK_TIME_OUT_MS / 10); i++) {
+	for (i = 0; i < (BNX2_FW_ACK_TIME_OUT_MS / 10); i++) {
 		msleep(10);
 
 		val = bnx2_shmem_rd(bp, BNX2_FW_MB);
@@ -5705,7 +5705,7 @@ bnx2_5708_serdes_timer(struct bnx2 *bp)
 		bnx2_read_phy(bp, bp->mii_bmcr, &bmcr);
 		if (bmcr & BMCR_ANENABLE) {
 			bnx2_enable_forced_2g5(bp);
-			bp->current_interval = SERDES_FORCED_TIMEOUT;
+			bp->current_interval = BNX2_SERDES_FORCED_TIMEOUT;
 		} else {
 			bnx2_disable_forced_2g5(bp);
 			bp->serdes_an_pending = 2;
@@ -6522,7 +6522,7 @@ bnx2_nway_reset(struct net_device *dev)
 
 		spin_lock_bh(&bp->phy_lock);
 
-		bp->current_interval = SERDES_AN_TIMEOUT;
+		bp->current_interval = BNX2_SERDES_AN_TIMEOUT;
 		bp->serdes_an_pending = 1;
 		mod_timer(&bp->timer, jiffies + bp->current_interval);
 	}
