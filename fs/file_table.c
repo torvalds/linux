@@ -36,7 +36,9 @@ static struct percpu_counter nr_files __cacheline_aligned_in_smp;
 
 static inline void file_free_rcu(struct rcu_head *head)
 {
-	struct file *f =  container_of(head, struct file, f_u.fu_rcuhead);
+	struct file *f = container_of(head, struct file, f_u.fu_rcuhead);
+
+	put_cred(f->f_cred);
 	kmem_cache_free(filp_cachep, f);
 }
 
@@ -121,8 +123,7 @@ struct file *get_empty_filp(void)
 	INIT_LIST_HEAD(&f->f_u.fu_list);
 	atomic_long_set(&f->f_count, 1);
 	rwlock_init(&f->f_owner.lock);
-	f->f_uid = cred->fsuid;
-	f->f_gid = cred->fsgid;
+	f->f_cred = get_cred(cred);
 	eventpoll_init_file(f);
 	/* f->f_version: 0 */
 	return f;

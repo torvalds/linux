@@ -1085,8 +1085,8 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->load_addr = NULL;
 	v->len = 0;
 
-	v->uid = filp->f_uid;
-	v->gid = filp->f_gid;
+	v->uid = filp->f_cred->fsuid;
+	v->gid = filp->f_cred->fsgid;
 
 #ifdef CONFIG_MIPS_APSP_KSPD
 	/* get kspd to tell us when a syscall_exit happens */

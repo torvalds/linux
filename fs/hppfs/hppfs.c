@@ -426,7 +426,7 @@ static int file_mode(int fmode)
 
 static int hppfs_open(struct inode *inode, struct file *file)
 {
-	const struct cred *cred = current_cred();
+	const struct cred *cred = file->f_cred;
 	struct hppfs_private *data;
 	struct vfsmount *proc_mnt;
 	struct dentry *proc_dentry;
@@ -490,7 +490,7 @@ static int hppfs_open(struct inode *inode, struct file *file)
 
 static int hppfs_dir_open(struct inode *inode, struct file *file)
 {
-	const struct cred *cred = current_cred();
+	const struct cred *cred = file->f_cred;
 	struct hppfs_private *data;
 	struct vfsmount *proc_mnt;
 	struct dentry *proc_dentry;
