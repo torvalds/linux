@@ -555,8 +555,7 @@ struct rt2x00lib_ops {
 			       struct txentry_desc *txdesc);
 	int (*write_tx_data) (struct queue_entry *entry);
 	void (*write_beacon) (struct queue_entry *entry);
-	int (*get_tx_data_len) (struct rt2x00_dev *rt2x00dev,
-				struct sk_buff *skb);
+	int (*get_tx_data_len) (struct queue_entry *entry);
 	void (*kick_tx_queue) (struct rt2x00_dev *rt2x00dev,
 			       const enum data_queue_qid queue);
 
@@ -797,11 +796,6 @@ struct rt2x00_dev {
 	 * LNA gain
 	 */
 	short lna_gain;
-
-	/*
-	 * USB Max frame size (for rt2500usb & rt73usb).
-	 */
-	u16 usb_maxpacket;
 
 	/*
 	 * Current TX power value.

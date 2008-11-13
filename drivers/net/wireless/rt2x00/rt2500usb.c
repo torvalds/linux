@@ -1108,7 +1108,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
-	int pipe = usb_sndbulkpipe(usb_dev, 1);
+	int pipe = usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint);
 	int length;
 	u16 reg;
 
@@ -1134,7 +1134,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	 * length of the data to usb_fill_bulk_urb. Pass the skb
 	 * to the driver to determine what the length should be.
 	 */
-	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev, entry->skb);
+	length = rt2x00dev->ops->lib->get_tx_data_len(entry);
 
 	usb_fill_bulk_urb(bcn_priv->urb, usb_dev, pipe,
 			  entry->skb->data, length, rt2500usb_beacondone,
@@ -1156,8 +1156,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	usb_submit_urb(bcn_priv->guardian_urb, GFP_ATOMIC);
 }
 
-static int rt2500usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
-				     struct sk_buff *skb)
+static int rt2500usb_get_tx_data_len(struct queue_entry *entry)
 {
 	int length;
 
@@ -1165,8 +1164,8 @@ static int rt2500usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 	 * The length _must_ be a multiple of 2,
 	 * but it must _not_ be a multiple of the USB packet size.
 	 */
-	length = roundup(skb->len, 2);
-	length += (2 * !(length % rt2x00dev->usb_maxpacket));
+	length = roundup(entry->skb->len, 2);
+	length += (2 * !(length % entry->queue->usb_maxpacket));
 
 	return length;
 }

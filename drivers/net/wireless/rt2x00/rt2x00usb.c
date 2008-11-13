@@ -234,10 +234,10 @@ int rt2x00usb_write_tx_data(struct queue_entry *entry)
 	 * length of the data to usb_fill_bulk_urb. Pass the skb
 	 * to the driver to determine what the length should be.
 	 */
-	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev, entry->skb);
+	length = rt2x00dev->ops->lib->get_tx_data_len(entry);
 
 	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
-			  usb_sndbulkpipe(usb_dev, 1),
+			  usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint),
 			  entry->skb->data, length,
 			  rt2x00usb_interrupt_txdone, entry);
 
@@ -378,10 +378,11 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 	struct usb_device *usb_dev =
 	    to_usb_device_intf(entry->queue->rt2x00dev->dev);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
+	int pipe;
 
 	if (entry->queue->qid == QID_RX) {
-		usb_fill_bulk_urb(entry_priv->urb, usb_dev,
-				usb_rcvbulkpipe(usb_dev, 1),
+		pipe = usb_rcvbulkpipe(usb_dev, entry->queue->usb_endpoint);
+		usb_fill_bulk_urb(entry_priv->urb, usb_dev, pipe,
 				entry->skb->data, entry->skb->len,
 				rt2x00usb_interrupt_rxdone, entry);
 
@@ -392,6 +393,76 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_clear_entry);
+
+static void rt2x00usb_assign_endpoint(struct data_queue *queue,
+				      struct usb_endpoint_descriptor *ep_desc)
+{
+	struct usb_device *usb_dev = to_usb_device_intf(queue->rt2x00dev->dev);
+	int pipe;
+
+	queue->usb_endpoint = usb_endpoint_num(ep_desc);
+
+	if (queue->qid == QID_RX) {
+		pipe = usb_rcvbulkpipe(usb_dev, queue->usb_endpoint);
+		queue->usb_maxpacket = usb_maxpacket(usb_dev, pipe, 0);
+	} else {
+		pipe = usb_sndbulkpipe(usb_dev, queue->usb_endpoint);
+		queue->usb_maxpacket = usb_maxpacket(usb_dev, pipe, 1);
+	}
+
+	if (!queue->usb_maxpacket)
+		queue->usb_maxpacket = 1;
+}
+
+static int rt2x00usb_find_endpoints(struct rt2x00_dev *rt2x00dev)
+{
+	struct usb_interface *intf = to_usb_interface(rt2x00dev->dev);
+	struct usb_host_interface *intf_desc = intf->cur_altsetting;
+	struct usb_endpoint_descriptor *ep_desc;
+	struct data_queue *queue = rt2x00dev->tx;
+	struct usb_endpoint_descriptor *tx_ep_desc = NULL;
+	unsigned int i;
+
+	/*
+	 * Walk through all available endpoints to search for "bulk in"
+	 * and "bulk out" endpoints. When we find such endpoints collect
+	 * the information we need from the descriptor and assign it
+	 * to the queue.
+	 */
+	for (i = 0; i < intf_desc->desc.bNumEndpoints; i++) {
+		ep_desc = &intf_desc->endpoint[i].desc;
+
+		if (usb_endpoint_is_bulk_in(ep_desc)) {
+			rt2x00usb_assign_endpoint(rt2x00dev->rx, ep_desc);
+		} else if (usb_endpoint_is_bulk_out(ep_desc)) {
+			rt2x00usb_assign_endpoint(queue, ep_desc);
+
+			if (queue != queue_end(rt2x00dev))
+				queue = queue_next(queue);
+			tx_ep_desc = ep_desc;
+		}
+	}
+
+	/*
+	 * At least 1 endpoint for RX and 1 endpoint for TX must be available.
+	 */
+	if (!rt2x00dev->rx->usb_endpoint || !rt2x00dev->tx->usb_endpoint) {
+		ERROR(rt2x00dev, "Bulk-in/Bulk-out endpoints not found\n");
+		return -EPIPE;
+	}
+
+	/*
+	 * It might be possible not all queues have a dedicated endpoint.
+	 * Loop through all TX queues and copy the endpoint information
+	 * which we have gathered from already assigned endpoints.
+	 */
+	txall_queue_for_each(rt2x00dev, queue) {
+		if (!queue->usb_endpoint)
+			rt2x00usb_assign_endpoint(queue, tx_ep_desc);
+	}
+
+	return 0;
+}
 
 static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 			       struct data_queue *queue)
@@ -462,6 +533,13 @@ int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	int status;
+
+	/*
+	 * Find endpoints for each queue
+	 */
+	status = rt2x00usb_find_endpoints(rt2x00dev);
+	if (status)
+		goto exit;
 
 	/*
 	 * Allocate DMA
@@ -553,11 +631,6 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->dev = &usb_intf->dev;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
-
-	rt2x00dev->usb_maxpacket =
-	    usb_maxpacket(usb_dev, usb_sndbulkpipe(usb_dev, 1), 1);
-	if (!rt2x00dev->usb_maxpacket)
-		rt2x00dev->usb_maxpacket = 1;
 
 	retval = rt2x00usb_alloc_reg(rt2x00dev);
 	if (retval)

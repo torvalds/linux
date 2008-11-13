@@ -1508,8 +1508,7 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	entry->skb = NULL;
 }
 
-static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
-				   struct sk_buff *skb)
+static int rt73usb_get_tx_data_len(struct queue_entry *entry)
 {
 	int length;
 
@@ -1517,8 +1516,8 @@ static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 	 * The length _must_ be a multiple of 4,
 	 * but it must _not_ be a multiple of the USB packet size.
 	 */
-	length = roundup(skb->len, 4);
-	length += (4 * !(length % rt2x00dev->usb_maxpacket));
+	length = roundup(entry->skb->len, 4);
+	length += (4 * !(length % entry->queue->usb_maxpacket));
 
 	return length;
 }
