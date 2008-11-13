@@ -34,6 +34,7 @@
 
 #include <media/tvaudio.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 
@@ -1732,7 +1733,10 @@ static int chip_command(struct i2c_client *client,
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
 	struct CHIPDESC  *desc = chip->desc;
 
-	v4l_dbg(1, debug, chip->c, "%s: chip_command 0x%x\n", chip->c->name, cmd);
+	if (debug > 0) {
+		v4l_i2c_print_ioctl(chip->c, cmd);
+		printk("\n");
+	}
 
 	switch (cmd) {
 	case AUDC_SET_RADIO:
