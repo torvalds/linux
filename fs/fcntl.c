@@ -211,7 +211,7 @@ int __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 	if (err)
 		return err;
 
-	f_modown(filp, pid, type, current->uid, current->euid, force);
+	f_modown(filp, pid, type, current_uid(), current_euid(), force);
 	return 0;
 }
 EXPORT_SYMBOL(__f_setown);

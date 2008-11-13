@@ -79,7 +79,7 @@ static int generic_quotactl_valid(struct super_block *sb, int type, int cmd, qid
 
 	/* Check privileges */
 	if (cmd == Q_GETQUOTA) {
-		if (((type == USRQUOTA && current->euid != id) ||
+		if (((type == USRQUOTA && current_euid() != id) ||
 		     (type == GRPQUOTA && !in_egroup_p(id))) &&
 		    !capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -130,7 +130,7 @@ static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t i
 
 	/* Check privileges */
 	if (cmd == Q_XGETQUOTA) {
-		if (((type == XQM_USRQUOTA && current->euid != id) ||
+		if (((type == XQM_USRQUOTA && current_euid() != id) ||
 		     (type == XQM_GRPQUOTA && !in_egroup_p(id))) &&
 		     !capable(CAP_SYS_ADMIN))
 			return -EPERM;

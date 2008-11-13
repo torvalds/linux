@@ -601,7 +601,7 @@ asmlinkage long sys_inotify_init1(int flags)
 		goto out_put_fd;
 	}
 
-	user = get_uid(current->user);
+	user = get_current_user();
 	if (unlikely(atomic_read(&user->inotify_devs) >=
 			inotify_max_user_instances)) {
 		ret = -EMFILE;
