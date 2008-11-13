@@ -2608,8 +2608,10 @@ static struct snd_kcontrol_new stac92xx_control_templates[] = {
 };
 
 /* add dynamic controls */
-static int stac92xx_add_control_idx(struct sigmatel_spec *spec, int type,
-		int idx, const char *name, unsigned long val)
+static int stac92xx_add_control_temp(struct sigmatel_spec *spec,
+				     struct snd_kcontrol_new *ktemp,
+				     int idx, const char *name,
+				     unsigned long val)
 {
 	struct snd_kcontrol_new *knew;
 
@@ -2617,19 +2619,28 @@ static int stac92xx_add_control_idx(struct sigmatel_spec *spec, int type,
 	knew = snd_array_new(&spec->kctls);
 	if (!knew)
 		return -ENOMEM;
-	*knew = stac92xx_control_templates[type];
+	*knew = *ktemp;
 	knew->index = idx;
 	knew->name = kstrdup(name, GFP_KERNEL);
-	if (! knew->name)
+	if (!knew->name)
 		return -ENOMEM;
 	knew->private_value = val;
 	return 0;
 }
 
+static inline int stac92xx_add_control_idx(struct sigmatel_spec *spec,
+					   int type, int idx, const char *name,
+					   unsigned long val)
+{
+	return stac92xx_add_control_temp(spec,
+					 &stac92xx_control_templates[type],
+					 idx, name, val);
+}
+
 
 /* add dynamic controls */
-static int stac92xx_add_control(struct sigmatel_spec *spec, int type,
-		const char *name, unsigned long val)
+static inline int stac92xx_add_control(struct sigmatel_spec *spec, int type,
+				       const char *name, unsigned long val)
 {
 	return stac92xx_add_control_idx(spec, type, 0, name, val);
 }
@@ -3071,6 +3082,43 @@ static int stac92xx_auto_create_beep_ctls(struct hda_codec *codec,
 	return 0;
 }
 
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+#define stac92xx_dig_beep_switch_info snd_ctl_boolean_mono_info
+
+static int stac92xx_dig_beep_switch_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	ucontrol->value.integer.value[0] = codec->beep->enabled;
+	return 0;
+}
+
+static int stac92xx_dig_beep_switch_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	int enabled = !!ucontrol->value.integer.value[0];
+	if (codec->beep->enabled != enabled) {
+		codec->beep->enabled = enabled;
+		return 1;
+	}
+	return 0;
+}
+
+static struct snd_kcontrol_new stac92xx_dig_beep_ctrl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = stac92xx_dig_beep_switch_info,
+	.get = stac92xx_dig_beep_switch_get,
+	.put = stac92xx_dig_beep_switch_put,
+};
+
+static int stac92xx_beep_switch_ctl(struct hda_codec *codec)
+{
+	return stac92xx_add_control_temp(codec->spec, &stac92xx_dig_beep_ctrl,
+					 0, "PC Beep Playback Switch", 0);
+}
+#endif
+
 static int stac92xx_auto_create_mux_input_ctls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -3377,6 +3425,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 	if (spec->digbeep_nid > 0) {
 		hda_nid_t nid = spec->digbeep_nid;
+		unsigned int caps;
 
 		err = stac92xx_auto_create_beep_ctls(codec, nid);
 		if (err < 0)
@@ -3384,6 +3433,14 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		err = snd_hda_attach_beep_device(codec, nid);
 		if (err < 0)
 			return err;
+		/* if no beep switch is available, make its own one */
+		caps = query_amp_caps(codec, nid, HDA_OUTPUT);
+		if (codec->beep &&
+		    !((caps & AC_AMPCAP_MUTE) >> AC_AMPCAP_MUTE_SHIFT)) {
+			err = stac92xx_beep_switch_ctl(codec);
+			if (err < 0)
+				return err;
+		}
 	}
 #endif
 
