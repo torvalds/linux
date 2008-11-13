@@ -129,7 +129,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 
 			/* The interface is supported */
 
-			return_ACPI_STATUS(AE_CTRL_TERMINATE);
+			return_ACPI_STATUS(AE_OK);
 		}
 	}
 
@@ -143,13 +143,13 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 
 		/* The interface is supported */
 
-		return_ACPI_STATUS(AE_CTRL_TERMINATE);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* The interface is not supported */
 
 	return_desc->integer.value = 0;
-	return_ACPI_STATUS(AE_CTRL_TERMINATE);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************

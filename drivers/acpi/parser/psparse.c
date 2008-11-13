@@ -447,6 +447,10 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			  walk_state, walk_state->parser_state.aml,
 			  walk_state->parser_state.aml_size));
 
+	if (!walk_state->parser_state.aml) {
+		return_ACPI_STATUS(AE_NULL_OBJECT);
+	}
+
 	/* Create and initialize a new thread state */
 
 	thread = acpi_ut_create_thread_state();
