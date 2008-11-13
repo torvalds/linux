@@ -1,11 +1,15 @@
 /*
- * experimental driver for simple i2c audio chips.
+ * Driver for simple i2c audio chips.
  *
  * Copyright (c) 2000 Gerd Knorr
  * based on code by:
  *   Eric Sandeen (eric_sandeen@bigfoot.com)
  *   Steve VanDeBogart (vandebo@uclink.berkeley.edu)
  *   Greg Alexander (galexand@acm.org)
+ *
+ * Copyright(c) 2005-2008 Mauro Carvalho Chehab
+ *	- Some cleanups, code fixes, etc
+ *	- Convert it to V4L2 API
  *
  * This code is placed under the terms of the GNU General Public License
  *
