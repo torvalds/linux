@@ -13,6 +13,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WM8510 if (I2C || SPI_MASTER)
 	select SND_SOC_WM8580 if I2C
+	select SND_SOC_WM8728 if (I2C || SPI_MASTER)
 	select SND_SOC_WM8731 if (I2C || SPI_MASTER)
 	select SND_SOC_WM8750 if (I2C || SPI_MASTER)
 	select SND_SOC_WM8753 if (I2C || SPI_MASTER)
@@ -91,6 +92,9 @@ config SND_SOC_WM8510
 	tristate
 
 config SND_SOC_WM8580
+	tristate
+
+config SND_SOC_WM8728
 	tristate
 
 config SND_SOC_WM8731
