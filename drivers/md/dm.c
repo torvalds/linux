@@ -937,16 +937,24 @@ static void dm_unplug_all(struct request_queue *q)
 
 static int dm_any_congested(void *congested_data, int bdi_bits)
 {
-	int r;
-	struct mapped_device *md = (struct mapped_device *) congested_data;
-	struct dm_table *map = dm_get_table(md);
+	int r = bdi_bits;
+	struct mapped_device *md = congested_data;
+	struct dm_table *map;
 
-	if (!map || test_bit(DMF_BLOCK_IO, &md->flags))
-		r = bdi_bits;
-	else
-		r = dm_table_any_congested(map, bdi_bits);
+	atomic_inc(&md->pending);
 
-	dm_table_put(map);
+	if (!test_bit(DMF_BLOCK_IO, &md->flags)) {
+		map = dm_get_table(md);
+		if (map) {
+			r = dm_table_any_congested(map, bdi_bits);
+			dm_table_put(map);
+		}
+	}
+
+	if (!atomic_dec_return(&md->pending))
+		/* nudge anyone waiting on suspend queue */
+		wake_up(&md->wait);
+
 	return r;
 }
 
