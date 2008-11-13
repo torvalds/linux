@@ -1409,9 +1409,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	}
 
 	if (priv->is_rtl8187b) {
-		printk(KERN_WARNING "rtl8187: 8187B chip detected. Support "
-			"is EXPERIMENTAL, and could damage your\n"
-			"         hardware, use at your own risk\n");
+		printk(KERN_WARNING "rtl8187: 8187B chip detected.\n");
 		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
 	} else {
 		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
