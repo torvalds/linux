@@ -144,9 +144,9 @@ static void put_char(struct uart_port *port, char c)
 		status = sci_in(port, SCxSR);
 	} while (!(status & SCxSR_TDxE(port)));
 
-	sci_out(port, SCxTDR, c);
 	sci_in(port, SCxSR);            /* Dummy read */
 	sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
+	sci_out(port, SCxTDR, c);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }

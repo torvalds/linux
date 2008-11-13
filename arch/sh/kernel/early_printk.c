@@ -85,9 +85,9 @@ static void scif_sercon_putc(int c)
 	while (((sci_in(&scif_port, SCFDR) & EPK_FIFO_BITS) >= EPK_FIFO_SIZE))
 		;
 
-	sci_out(&scif_port, SCxTDR, c);
 	sci_in(&scif_port, SCxSR);
 	sci_out(&scif_port, SCxSR, 0xf3 & ~(0x20 | 0x40));
+	sci_out(&scif_port, SCxTDR, c);
 
 	while ((sci_in(&scif_port, SCxSR) & 0x40) == 0)
 		;
