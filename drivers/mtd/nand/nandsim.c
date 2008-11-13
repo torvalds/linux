@@ -303,6 +303,9 @@ struct nandsim {
 	/* The simulated NAND flash pages array */
 	union ns_mem *pages;
 
+	/* Slab allocator for nand pages */
+	struct kmem_cache *nand_pages_slab;
+
 	/* Internal buffer of page + OOB size bytes */
 	union ns_mem buf;
 
@@ -435,8 +438,8 @@ static struct mtd_info *nsmtd;
 static u_char ns_verify_buf[NS_LARGEST_PAGE_SIZE];
 
 /*
- * Allocate array of page pointers and initialize the array to NULL
- * pointers.
+ * Allocate array of page pointers, create slab allocation for an array
+ * and initialize the array by NULL pointers.
  *
  * RETURNS: 0 if success, -ENOMEM if memory alloc fails.
  */
@@ -484,6 +487,12 @@ static int alloc_device(struct nandsim *ns)
 	for (i = 0; i < ns->geom.pgnum; i++) {
 		ns->pages[i].byte = NULL;
 	}
+	ns->nand_pages_slab = kmem_cache_create("nandsim",
+						ns->geom.pgszoob, 0, 0, NULL);
+	if (!ns->nand_pages_slab) {
+		NS_ERR("cache_create: unable to create kmem_cache\n");
+		return -ENOMEM;
+	}
 
 	return 0;
 
@@ -511,8 +520,10 @@ static void free_device(struct nandsim *ns)
 	if (ns->pages) {
 		for (i = 0; i < ns->geom.pgnum; i++) {
 			if (ns->pages[i].byte)
-				kfree(ns->pages[i].byte);
+				kmem_cache_free(ns->nand_pages_slab,
+						ns->pages[i].byte);
 		}
+		kmem_cache_destroy(ns->nand_pages_slab);
 		vfree(ns->pages);
 	}
 }
@@ -1475,7 +1486,7 @@ static void erase_sector(struct nandsim *ns)
 	for (i = 0; i < ns->geom.pgsec; i++) {
 		if (mypage->byte != NULL) {
 			NS_DBG("erase_sector: freeing page %d\n", ns->regs.row+i);
-			kfree(mypage->byte);
+			kmem_cache_free(ns->nand_pages_slab, mypage->byte);
 			mypage->byte = NULL;
 		}
 		mypage++;
@@ -1538,10 +1549,10 @@ static int prog_page(struct nandsim *ns, int num)
 		/*
 		 * We allocate memory with GFP_NOFS because a flash FS may
 		 * utilize this. If it is holding an FS lock, then gets here,
-		 * then kmalloc runs writeback which goes to the FS again
-		 * and deadlocks. This was seen in practice.
+		 * then kernel memory alloc runs writeback which goes to the FS
+		 * again and deadlocks. This was seen in practice.
 		 */
-		mypage->byte = kmalloc(ns->geom.pgszoob, GFP_NOFS);
+		mypage->byte = kmem_cache_alloc(ns->nand_pages_slab, GFP_NOFS);
 		if (mypage->byte == NULL) {
 			NS_ERR("prog_page: error allocating memory for page %d\n", ns->regs.row);
 			return -1;
