@@ -605,7 +605,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		BUG_ON(ret);
 
 		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
-				     mirror_num, 1);
+				     mirror_num, 0);
 	}
 	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num, 0,
@@ -1139,11 +1139,11 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	struct list_head *cur;
 	struct btrfs_device *device;
 	struct backing_dev_info *bdi;
-
+#if 0
 	if ((bdi_bits & (1 << BDI_write_congested)) &&
 	    btrfs_congested_async(info, 0))
 		return 1;
-
+#endif
 	list_for_each(cur, &info->fs_devices->devices) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
 		if (!device->bdev)

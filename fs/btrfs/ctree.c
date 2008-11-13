@@ -1285,16 +1285,16 @@ static noinline void reada_for_search(struct btrfs_root *root,
 		}
 		search = btrfs_node_blockptr(node, nr);
 		if ((search >= lowest_read && search <= highest_read) ||
-		    (search < lowest_read && lowest_read - search <= 32768) ||
-		    (search > highest_read && search - highest_read <= 32768)) {
+		    (search < lowest_read && lowest_read - search <= 16384) ||
+		    (search > highest_read && search - highest_read <= 16384)) {
 			readahead_tree_block(root, search, blocksize,
 				     btrfs_node_ptr_generation(node, nr));
 			nread += blocksize;
 		}
 		nscan++;
-		if (path->reada < 2 && (nread > (256 * 1024) || nscan > 32))
+		if (path->reada < 2 && (nread > (64 * 1024) || nscan > 32))
 			break;
-		if(nread > (1024 * 1024) || nscan > 128)
+		if(nread > (256 * 1024) || nscan > 128)
 			break;
 
 		if (search < lowest_read)
