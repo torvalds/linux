@@ -1988,8 +1988,7 @@ static int e1000_clean(struct napi_struct *napi, int budget)
 	struct net_device *poll_dev = adapter->netdev;
 	int tx_cleaned = 0, work_done = 0;
 
-	/* Must NOT use netdev_priv macro here. */
-	adapter = poll_dev->priv;
+	adapter = netdev_priv(poll_dev);
 
 	if (adapter->msix_entries &&
 	    !(adapter->rx_ring->ims_val & adapter->tx_ring->ims_val))

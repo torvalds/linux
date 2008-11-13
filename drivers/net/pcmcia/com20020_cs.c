@@ -155,7 +155,7 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     if (!dev)
 	goto fail_alloc_dev;
 
-    lp = dev->priv;
+    lp = netdev_priv(dev);
     lp->timeout = timeout;
     lp->backplane = backplane;
     lp->clockp = clockp;
@@ -303,7 +303,7 @@ static int com20020_config(struct pcmcia_device *link)
 	goto failed;
     }
     
-    lp = dev->priv;
+    lp = netdev_priv(dev);
     lp->card_name = "PCMCIA COM20020";
     lp->card_flags = ARC_CAN_10MBIT; /* pretend all of them can 10Mbit */
 
@@ -364,7 +364,7 @@ static int com20020_resume(struct pcmcia_device *link)
 
 	if (link->open) {
 		int ioaddr = dev->base_addr;
-		struct arcnet_local *lp = dev->priv;
+		struct arcnet_local *lp = netdev_priv(dev);
 		ARCRESET;
 	}
 

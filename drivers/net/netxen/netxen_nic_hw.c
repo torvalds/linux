@@ -537,7 +537,7 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 static int nx_p3_sre_macaddr_change(struct net_device *dev,
 		u8 *addr, unsigned op)
 {
-	struct netxen_adapter *adapter = (struct netxen_adapter *)dev->priv;
+	struct netxen_adapter *adapter = netdev_priv(dev);
 	nx_nic_req_t req;
 	nx_mac_req_t mac_req;
 	int rv;

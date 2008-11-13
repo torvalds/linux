@@ -584,14 +584,14 @@ EXPORT_SYMBOL(sirdev_receive);
 
 static struct net_device_stats *sirdev_get_stats(struct net_device *ndev)
 {
-	struct sir_dev *dev = ndev->priv;
+	struct sir_dev *dev = netdev_priv(ndev);
 
 	return (dev) ? &dev->stats : NULL;
 }
 
 static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
-	struct sir_dev *dev = ndev->priv;
+	struct sir_dev *dev = netdev_priv(ndev);
 	unsigned long flags;
 	int actual = 0;
 	int err;
@@ -683,7 +683,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 static int sirdev_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
 	struct if_irda_req *irq = (struct if_irda_req *) rq;
-	struct sir_dev *dev = ndev->priv;
+	struct sir_dev *dev = netdev_priv(ndev);
 	int ret = 0;
 
 	IRDA_ASSERT(dev != NULL, return -1;);
@@ -795,7 +795,7 @@ static void sirdev_free_buffers(struct sir_dev *dev)
 
 static int sirdev_open(struct net_device *ndev)
 {
-	struct sir_dev *dev = ndev->priv;
+	struct sir_dev *dev = netdev_priv(ndev);
 	const struct sir_driver *drv = dev->drv;
 
 	if (!drv)
@@ -840,7 +840,7 @@ errout_dec:
 
 static int sirdev_close(struct net_device *ndev)
 {
-	struct sir_dev *dev = ndev->priv;
+	struct sir_dev *dev = netdev_priv(ndev);
 	const struct sir_driver *drv;
 
 //	IRDA_DEBUG(0, "%s\n", __func__);
@@ -896,7 +896,7 @@ struct sir_dev * sirdev_get_instance(const struct sir_driver *drv, const char *n
 		IRDA_ERROR("%s - Can't allocate memory for IrDA control block!\n", __func__);
 		goto out;
 	}
-	dev = ndev->priv;
+	dev = netdev_priv(ndev);
 
 	irda_init_max_qos_capabilies(&dev->qos);
 	dev->qos.baud_rate.bits = IR_9600|IR_19200|IR_38400|IR_57600|IR_115200;

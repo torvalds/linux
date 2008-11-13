@@ -178,7 +178,7 @@ int w83977af_open(int i, unsigned int iobase, unsigned int irq,
 		goto err_out;
 	}
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 	spin_lock_init(&self->lock);
    
 
@@ -497,7 +497,7 @@ int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	__u8 set;
 	int mtt;
 	
-	self = (struct w83977af_ir *) dev->priv;
+	self = netdev_priv(dev);
 
 	iobase = self->io.fir_base;
 
@@ -1118,7 +1118,7 @@ static irqreturn_t w83977af_interrupt(int irq, void *dev_id)
 	__u8 set, icr, isr;
 	int iobase;
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 
 	iobase = self->io.fir_base;
 
@@ -1191,7 +1191,7 @@ static int w83977af_net_open(struct net_device *dev)
 	IRDA_DEBUG(0, "%s()\n", __func__ );
 	
 	IRDA_ASSERT(dev != NULL, return -1;);
-	self = (struct w83977af_ir *) dev->priv;
+	self = netdev_priv(dev);
 	
 	IRDA_ASSERT(self != NULL, return 0;);
 	
@@ -1255,7 +1255,7 @@ static int w83977af_net_close(struct net_device *dev)
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 	
-	self = (struct w83977af_ir *) dev->priv;
+	self = netdev_priv(dev);
 	
 	IRDA_ASSERT(self != NULL, return 0;);
 	
@@ -1302,7 +1302,7 @@ static int w83977af_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 
-	self = dev->priv;
+	self = netdev_priv(dev);
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -1338,7 +1338,7 @@ out:
 
 static struct net_device_stats *w83977af_net_get_stats(struct net_device *dev)
 {
-	struct w83977af_ir *self = (struct w83977af_ir *) dev->priv;
+	struct w83977af_ir *self = netdev_priv(dev);
 	
 	return &self->stats;
 }

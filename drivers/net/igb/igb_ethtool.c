@@ -101,8 +101,8 @@ static const struct igb_stats igb_gstrings_stats[] = {
 };
 
 #define IGB_QUEUE_STATS_LEN \
-	((((struct igb_adapter *)netdev->priv)->num_rx_queues + \
-	 ((struct igb_adapter *)netdev->priv)->num_tx_queues) * \
+	((((struct igb_adapter *)netdev_priv(netdev))->num_rx_queues + \
+	 ((struct igb_adapter *)netdev_priv(netdev))->num_tx_queues) * \
 	(sizeof(struct igb_queue_stats) / sizeof(u64)))
 #define IGB_GLOBAL_STATS_LEN	\
 	sizeof(igb_gstrings_stats) / sizeof(struct igb_stats)
