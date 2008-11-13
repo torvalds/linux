@@ -777,7 +777,7 @@ static struct tda9874a_MODES {
 	char *name;
 	audiocmd cmd;
 } tda9874a_modelist[9] = {
-  {	"A2, B/G",
+  {	"A2, B/G", /* default */
 	{ 9, { TDA9874A_C1FRA, 0x72,0x95,0x55, 0x77,0xA0,0x00, 0x00,0x00 }} },
   {	"A2, M (Korea)",
 	{ 9, { TDA9874A_C1FRA, 0x5D,0xC0,0x00, 0x62,0x6A,0xAA, 0x20,0x22 }} },
@@ -791,7 +791,7 @@ static struct tda9874a_MODES {
 	{ 9, { TDA9874A_C1FRA, 0x7D,0x00,0x00, 0x88,0x8A,0xAA, 0x08,0x33 }} },
   {	"NICAM, B/G",
 	{ 9, { TDA9874A_C1FRA, 0x72,0x95,0x55, 0x79,0xEA,0xAA, 0x08,0x33 }} },
-  {	"NICAM, D/K", /* default */
+  {	"NICAM, D/K",
 	{ 9, { TDA9874A_C1FRA, 0x87,0x6A,0xAA, 0x79,0xEA,0xAA, 0x08,0x33 }} },
   {	"NICAM, L",
 	{ 9, { TDA9874A_C1FRA, 0x87,0x6A,0xAA, 0x79,0xEA,0xAA, 0x09,0x33 }} }
@@ -981,7 +981,7 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 {
 	if (tda9874a_SIF > 2)
 		tda9874a_SIF = 1;
-	if (tda9874a_STD > 8)
+	if (tda9874a_STD >= ARRAY_SIZE(tda9874a_modelist))
 		tda9874a_STD = 0;
 	if(tda9874a_AMSEL > 1)
 		tda9874a_AMSEL = 0;
