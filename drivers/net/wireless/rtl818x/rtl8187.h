@@ -111,6 +111,8 @@ struct rtl8187_priv {
 	u8 signal;
 	u8 quality;
 	u8 noise;
+	u8 slot_time;
+	u8 aifsn[4];
 };
 
 void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data);

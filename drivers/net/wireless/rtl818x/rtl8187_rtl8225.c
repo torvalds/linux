@@ -878,12 +878,6 @@ static void rtl8225z2_b_rf_init(struct ieee80211_hw *dev)
 	for (i = 0; i < ARRAY_SIZE(rtl8225z2_ofdm); i++)
 		rtl8225_write_phy_ofdm(dev, i, rtl8225z2_ofdm[i]);
 
-	rtl818x_iowrite32(priv, (__le32 *)0xFFF0, (7 << 12) | (3 << 8) | 28);
-	rtl818x_iowrite32(priv, (__le32 *)0xFFF4, (7 << 12) | (3 << 8) | 28);
-	rtl818x_iowrite32(priv, (__le32 *)0xFFF8, (7 << 12) | (3 << 8) | 28);
-	rtl818x_iowrite32(priv, (__le32 *)0xFFFC, (7 << 12) | (3 << 8) | 28);
-	rtl818x_iowrite8(priv, &priv->map->ACM_CONTROL, 0);
-
 	rtl8225_write_phy_ofdm(dev, 0x97, 0x46);
 	rtl8225_write_phy_ofdm(dev, 0xa4, 0xb6);
 	rtl8225_write_phy_ofdm(dev, 0x85, 0xfc);

@@ -712,6 +712,13 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite16_idx(priv, (__le16 *)0xFFEC, 0x0800, 1);
 
+	priv->slot_time = 0x9;
+	priv->aifsn[0] = 2; /* AIFSN[AC_VO] */
+	priv->aifsn[1] = 2; /* AIFSN[AC_VI] */
+	priv->aifsn[2] = 7; /* AIFSN[AC_BK] */
+	priv->aifsn[3] = 3; /* AIFSN[AC_BE] */
+	rtl818x_iowrite8(priv, &priv->map->ACM_CONTROL, 0);
+
 	return 0;
 }
 
@@ -919,24 +926,38 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev,
 	return 0;
 }
 
+/*
+ * With 8187B, AC_*_PARAM clashes with FEMR definition in struct rtl818x_csr for
+ * example. Thus we have to use raw values for AC_*_PARAM register addresses.
+ */
+static __le32 *rtl8187b_ac_addr[4] = {
+	(__le32 *) 0xFFF0, /* AC_VO */
+	(__le32 *) 0xFFF4, /* AC_VI */
+	(__le32 *) 0xFFFC, /* AC_BK */
+	(__le32 *) 0xFFF8, /* AC_BE */
+};
+
+#define SIFS_TIME 0xa
+
 static void rtl8187_conf_erp(struct rtl8187_priv *priv, bool use_short_slot,
 			     bool use_short_preamble)
 {
 	if (priv->is_rtl8187b) {
-		u8 difs, eifs, slot_time;
+		u8 difs, eifs;
 		u16 ack_timeout;
+		int queue;
 
 		if (use_short_slot) {
-			slot_time = 0x9;
+			priv->slot_time = 0x9;
 			difs = 0x1c;
 			eifs = 0x53;
 		} else {
-			slot_time = 0x14;
+			priv->slot_time = 0x14;
 			difs = 0x32;
 			eifs = 0x5b;
 		}
 		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
-		rtl818x_iowrite8(priv, &priv->map->SLOT, slot_time);
+		rtl818x_iowrite8(priv, &priv->map->SLOT, priv->slot_time);
 		rtl818x_iowrite8(priv, &priv->map->DIFS, difs);
 
 		/*
@@ -957,18 +978,21 @@ static void rtl8187_conf_erp(struct rtl8187_priv *priv, bool use_short_slot,
 			ack_timeout += 144;
 		rtl818x_iowrite8(priv, &priv->map->CARRIER_SENSE_COUNTER,
 				 DIV_ROUND_UP(ack_timeout, 4));
+
+		for (queue = 0; queue < 4; queue++)
+			rtl818x_iowrite8(priv, (u8 *) rtl8187b_ac_addr[queue],
+					 priv->aifsn[queue] * priv->slot_time +
+					 SIFS_TIME);
 	} else {
 		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
 		if (use_short_slot) {
 			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x9);
 			rtl818x_iowrite8(priv, &priv->map->DIFS, 0x14);
 			rtl818x_iowrite8(priv, &priv->map->EIFS, 91 - 0x14);
-			rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0x73);
 		} else {
 			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x14);
 			rtl818x_iowrite8(priv, &priv->map->DIFS, 0x24);
 			rtl818x_iowrite8(priv, &priv->map->EIFS, 91 - 0x24);
-			rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0xa5);
 		}
 	}
 }
@@ -1017,6 +1041,42 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 	rtl818x_iowrite32_async(priv, &priv->map->RX_CONF, priv->rx_conf);
 }
 
+static int rtl8187_conf_tx(struct ieee80211_hw *dev, u16 queue,
+			   const struct ieee80211_tx_queue_params *params)
+{
+	struct rtl8187_priv *priv = dev->priv;
+	u8 cw_min, cw_max;
+
+	if (queue > 3)
+		return -EINVAL;
+
+	cw_min = fls(params->cw_min);
+	cw_max = fls(params->cw_max);
+
+	if (priv->is_rtl8187b) {
+		priv->aifsn[queue] = params->aifs;
+
+		/*
+		 * This is the structure of AC_*_PARAM registers in 8187B:
+		 * - TXOP limit field, bit offset = 16
+		 * - ECWmax, bit offset = 12
+		 * - ECWmin, bit offset = 8
+		 * - AIFS, bit offset = 0
+		 */
+		rtl818x_iowrite32(priv, rtl8187b_ac_addr[queue],
+				  (params->txop << 16) | (cw_max << 12) |
+				  (cw_min << 8) | (params->aifs *
+				  priv->slot_time + SIFS_TIME));
+	} else {
+		if (queue != 0)
+			return -EINVAL;
+
+		rtl818x_iowrite8(priv, &priv->map->CW_VAL,
+				 cw_min | (cw_max << 4));
+	}
+	return 0;
+}
+
 static const struct ieee80211_ops rtl8187_ops = {
 	.tx			= rtl8187_tx,
 	.start			= rtl8187_start,
@@ -1027,6 +1087,7 @@ static const struct ieee80211_ops rtl8187_ops = {
 	.config_interface	= rtl8187_config_interface,
 	.bss_info_changed	= rtl8187_bss_info_changed,
 	.configure_filter	= rtl8187_configure_filter,
+	.conf_tx		= rtl8187_conf_tx
 };
 
 static void rtl8187_eeprom_register_read(struct eeprom_93cx6 *eeprom)
