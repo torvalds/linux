@@ -1636,6 +1636,10 @@ int usb_new_device(struct usb_device *udev)
 {
 	int err;
 
+	/* Increment the parent's count of unsuspended children */
+	if (udev->parent)
+		usb_autoresume_device(udev->parent);
+
 	usb_detect_quirks(udev);		/* Determine quirks */
 	err = usb_configure_device(udev);	/* detect & probe dev/intfs */
 	if (err < 0)
@@ -1644,9 +1648,8 @@ int usb_new_device(struct usb_device *udev)
 	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
 			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
 
-	/* Increment the parent's count of unsuspended children */
-	if (udev->parent)
-		usb_autoresume_device(udev->parent);
+	/* Tell the world! */
+	announce_device(udev);
 
 	/* Register the device.  The device driver is responsible
 	 * for adding the device files to sysfs and for configuring
@@ -1660,13 +1663,11 @@ int usb_new_device(struct usb_device *udev)
 
 	/* put device-specific files into sysfs */
 	usb_create_sysfs_dev_files(udev);
-
-	/* Tell the world! */
-	announce_device(udev);
 	return err;
 
 fail:
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
+	usb_stop_pm(udev);
 	return err;
 }
 
