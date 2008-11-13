@@ -259,11 +259,7 @@ u32_t zfLnxPutUsbRxBuffer(zdev_t *dev, zbuf_t *buf)
     return 0;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 void zfLnxUsbDataOut_callback(urb_t *urb)
-#else
-void zfLnxUsbDataOut_callback(urb_t *urb, struct pt_regs *regs)
-#endif
 {
     zdev_t* dev = urb->context;
     //UsbTxQ_t *TxData;
@@ -289,11 +285,7 @@ void zfLnxUsbDataOut_callback(urb_t *urb, struct pt_regs *regs)
     }
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 void zfLnxUsbDataIn_callback(urb_t *urb)
-#else
-void zfLnxUsbDataIn_callback(urb_t *urb, struct pt_regs *regs)
-#endif
 {
     zdev_t* dev = urb->context;
     struct usbdrv_private *macp = dev->ml_priv;
@@ -526,22 +518,14 @@ void zfLnxUsbDataIn_callback(urb_t *urb, struct pt_regs *regs)
 #endif
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 void zfLnxUsbRegOut_callback(urb_t *urb)
-#else
-void zfLnxUsbRegOut_callback(urb_t *urb, struct pt_regs *regs)
-#endif
 {
     //dev_t* dev = urb->context;
 
     //printk(KERN_ERR "zfwUsbRegOut_callback\n");
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 void zfLnxUsbRegIn_callback(urb_t *urb)
-#else
-void zfLnxUsbRegIn_callback(urb_t *urb, struct pt_regs *regs)
-#endif
 {
     zdev_t* dev = urb->context;
     u32_t rsp[64/4];
