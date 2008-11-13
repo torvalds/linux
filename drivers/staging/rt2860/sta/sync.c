@@ -1300,8 +1300,6 @@ VOID PeerBeacon(
 						{
 							if (pAd->StaCfg.Adhoc20NJoined == FALSE)
 							{
-								UCHAR	ByteValue = 0;
-
 								pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel;
 
 								pAd->StaCfg.Adhoc20NJoined = TRUE;

@@ -943,9 +943,6 @@ BOOLEAN RTMP_FillTxBlkInfo(
 	}
 
 	return TRUE;
-
-FillTxBlkErr:
-	return FALSE;
 }
 
 

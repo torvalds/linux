@@ -1022,7 +1022,7 @@ BOOLEAN RT28XXNetDevInit(
 	IN RTMP_ADAPTER 		*pAd)
 {
 	struct pci_dev *pci_dev = (struct pci_dev *)_dev_p;
-    CHAR	*print_name;
+    const CHAR	*print_name;
     ULONG	csr_addr;
 
 
