@@ -2220,8 +2220,8 @@ pfm_alloc_file(pfm_context_t *ctx)
 	DPRINT(("new inode ino=%ld @%p\n", inode->i_ino, inode));
 
 	inode->i_mode = S_IFCHR|S_IRUGO;
-	inode->i_uid  = current->fsuid;
-	inode->i_gid  = current->fsgid;
+	inode->i_uid  = current_fsuid();
+	inode->i_gid  = current_fsgid();
 
 	sprintf(name, "[%lu]", inode->i_ino);
 	this.name = name;
@@ -2399,22 +2399,25 @@ error_kmem:
 static int
 pfm_bad_permissions(struct task_struct *task)
 {
+	uid_t uid = current_uid();
+	gid_t gid = current_gid();
+
 	/* inspired by ptrace_attach() */
 	DPRINT(("cur: uid=%d gid=%d task: euid=%d suid=%d uid=%d egid=%d sgid=%d\n",
-		current->uid,
-		current->gid,
+		uid,
+		gid,
 		task->euid,
 		task->suid,
 		task->uid,
 		task->egid,
 		task->sgid));
 
-	return ((current->uid != task->euid)
-	    || (current->uid != task->suid)
-	    || (current->uid != task->uid)
-	    || (current->gid != task->egid)
-	    || (current->gid != task->sgid)
-	    || (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE);
+	return (uid != task->euid)
+	    || (uid != task->suid)
+	    || (uid != task->uid)
+	    || (gid != task->egid)
+	    || (gid != task->sgid)
+	    || (gid != task->gid)) && !capable(CAP_SYS_PTRACE);
 }
 
 static int
