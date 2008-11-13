@@ -330,9 +330,34 @@ void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
 	pxa_register_device(&pxa_device_ficp, info);
 }
 
-struct platform_device pxa_device_rtc = {
+static struct resource pxa_rtc_resources[] = {
+	[0] = {
+		.start  = 0x40900000,
+		.end	= 0x40900000 + 0x3b,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_RTC1Hz,
+		.end    = IRQ_RTC1Hz,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start  = IRQ_RTCAlrm,
+		.end    = IRQ_RTCAlrm,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sa1100_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
+};
+
+struct platform_device pxa_device_rtc = {
+	.name		= "pxa-rtc",
+	.id		= -1,
+	.num_resources  = ARRAY_SIZE(pxa_rtc_resources),
+	.resource       = pxa_rtc_resources,
 };
 
 static struct resource pxa_ac97_resources[] = {

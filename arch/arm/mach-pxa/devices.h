@@ -11,6 +11,7 @@ extern struct platform_device pxa_device_hwuart;
 extern struct platform_device pxa_device_i2c;
 extern struct platform_device pxa_device_i2s;
 extern struct platform_device pxa_device_ficp;
+extern struct platform_device sa1100_device_rtc;
 extern struct platform_device pxa_device_rtc;
 extern struct platform_device pxa_device_ac97;
 

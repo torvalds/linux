@@ -312,7 +312,7 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa_device_btuart,
 	&pxa_device_stuart,
 	&pxa_device_i2s,
-	&pxa_device_rtc,
+	&sa1100_device_rtc,
 	&pxa25x_device_ssp,
 	&pxa25x_device_nssp,
 	&pxa25x_device_assp,
