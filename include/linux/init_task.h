@@ -149,6 +149,7 @@ extern struct cred init_cred;
 	.children	= LIST_HEAD_INIT(tsk.children),			\
 	.sibling	= LIST_HEAD_INIT(tsk.sibling),			\
 	.group_leader	= &tsk,						\
+	.real_cred	= &init_cred,					\
 	.cred		= &init_cred,					\
 	.cred_exec_mutex =						\
 		 __MUTEX_INITIALIZER(tsk.cred_exec_mutex),		\

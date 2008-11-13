@@ -146,8 +146,8 @@ extern struct cred *prepare_exec_creds(void);
 extern struct cred *prepare_usermodehelper_creds(void);
 extern int commit_creds(struct cred *);
 extern void abort_creds(struct cred *);
-extern const struct cred *override_creds(const struct cred *) __deprecated;
-extern void revert_creds(const struct cred *) __deprecated;
+extern const struct cred *override_creds(const struct cred *);
+extern void revert_creds(const struct cred *);
 extern void __init cred_init(void);
 
 /**
@@ -202,32 +202,32 @@ static inline void put_cred(const struct cred *_cred)
 }
 
 /**
- * current_cred - Access the current task's credentials
+ * current_cred - Access the current task's subjective credentials
  *
- * Access the credentials of the current task.
+ * Access the subjective credentials of the current task.
  */
 #define current_cred() \
 	(current->cred)
 
 /**
- * __task_cred - Access another task's credentials
+ * __task_cred - Access a task's objective credentials
  * @task: The task to query
  *
- * Access the credentials of another task.  The caller must hold the
- * RCU readlock.
+ * Access the objective credentials of a task.  The caller must hold the RCU
+ * readlock.
  *
  * The caller must make sure task doesn't go away, either by holding a ref on
  * task or by holding tasklist_lock to prevent it from being unlinked.
  */
 #define __task_cred(task) \
-	((const struct cred *)(rcu_dereference((task)->cred)))
+	((const struct cred *)(rcu_dereference((task)->real_cred)))
 
 /**
- * get_task_cred - Get another task's credentials
+ * get_task_cred - Get another task's objective credentials
  * @task: The task to query
  *
- * Get the credentials of a task, pinning them so that they can't go away.
- * Accessing a task's credentials directly is not permitted.
+ * Get the objective credentials of a task, pinning them so that they can't go
+ * away.  Accessing a task's credentials directly is not permitted.
  *
  * The caller must make sure task doesn't go away, either by holding a ref on
  * task or by holding tasklist_lock to prevent it from being unlinked.
@@ -243,10 +243,11 @@ static inline void put_cred(const struct cred *_cred)
 })
 
 /**
- * get_current_cred - Get the current task's credentials
+ * get_current_cred - Get the current task's subjective credentials
  *
- * Get the credentials of the current task, pinning them so that they can't go
- * away.  Accessing the current task's credentials directly is not permitted.
+ * Get the subjective credentials of the current task, pinning them so that
+ * they can't go away.  Accessing the current task's credentials directly is
+ * not permitted.
  */
 #define get_current_cred()				\
 	(get_cred(current_cred()))

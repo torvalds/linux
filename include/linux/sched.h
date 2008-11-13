@@ -1145,7 +1145,10 @@ struct task_struct {
 	struct list_head cpu_timers[3];
 
 /* process credentials */
-	const struct cred *cred;	/* actual/objective task credentials (COW) */
+	const struct cred *real_cred;	/* objective and real subjective task
+					 * credentials (COW) */
+	const struct cred *cred;	/* effective (overridable) subjective task
+					 * credentials (COW) */
 	struct mutex cred_exec_mutex;	/* execve vs ptrace cred calculation mutex */
 
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
