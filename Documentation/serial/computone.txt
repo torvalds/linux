@@ -247,7 +247,7 @@ shar archive to make it easier to extract the script from the documentation.
 To create the ip2mkdev shell script change to a convenient directory (/tmp
 works just fine) and run the following command:
 
-	unshar Documentation/computone.txt
+	unshar Documentation/serial/computone.txt
 		(This file)
 
 You should now have a file ip2mkdev in your current working directory with

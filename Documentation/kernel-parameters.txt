@@ -629,7 +629,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
-			Documentation/digiepca.txt.
+			Documentation/serial/digiepca.txt.
 
 	disable_mtrr_cleanup [X86]
 	enable_mtrr_cleanup [X86]
@@ -740,7 +740,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See header of drivers/scsi/fdomain.c.
 
 	floppy=		[HW]
-			See Documentation/floppy.txt.
+			See Documentation/blockdev/floppy.txt.
 
 	force_pal_cache_flush
 			[IA-64] Avoid check_sal_cache_flush which may hang on
@@ -1101,7 +1101,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			the same attribute, the last one is used.
 
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	lockd.nlm_grace_period=P  [NFS] Assign grace period.
 			Format: <integer>
@@ -1596,7 +1596,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	pcd.		[PARIDE]
 			See header of drivers/block/paride/pcd.c.
-			See also Documentation/paride.txt.
+			See also Documentation/blockdev/paride.txt.
 
 	pci=option[,option...]	[PCI] various PCI subsystem options:
 		off		[X86] don't probe for the PCI bus
@@ -1697,7 +1697,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pdcchassis=	[PARISC,HW] Disable/Enable PDC Chassis Status codes at
 			boot time.
@@ -1705,10 +1705,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			See arch/parisc/kernel/pdc_chassis.c
 
 	pf.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pg.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pirq=		[SMP,APIC] Manual mp-table setup
 			See Documentation/x86/i386/IO-APIC.txt.
@@ -1778,7 +1778,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
 			before loading.
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	psmouse.proto=	[HW,MOUSE] Highest PS2 mouse protocol extension to
 			probe for; one of (bare|imps|exps|lifebook|any).
@@ -1798,7 +1798,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			<io>,<mss_io>,<mss_irq>,<mss_dma>,<mpu_io>,<mpu_irq>
 
 	pt.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in
@@ -1812,10 +1812,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/md.txt.
 
 	ramdisk_blocksize=	[RAM]
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	rcupdate.blimit=	[KNL,BOOT]
 			Set maximum number of finished RCU callbacks to process
@@ -2147,7 +2147,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/sonypi.txt
 
 	specialix=	[HW,SERIAL] Specialix multi-serial port adapter
-			See Documentation/specialix.txt.
+			See Documentation/serial/specialix.txt.
 
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=
