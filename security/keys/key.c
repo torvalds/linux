@@ -802,7 +802,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	}
 
 	/* allocate a new key */
-	key = key_alloc(ktype, description, current->fsuid, current->fsgid,
+	key = key_alloc(ktype, description, current_fsuid(), current_fsgid(),
 			current, perm, flags);
 	if (IS_ERR(key)) {
 		key_ref = ERR_CAST(key);
