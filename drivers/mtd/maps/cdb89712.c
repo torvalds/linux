@@ -15,7 +15,9 @@
 #include <linux/mtd/partitions.h>
 
 
-
+#define FLASH_START      0x00000000
+#define FLASH_SIZE       0x800000
+#define FLASH_WIDTH      4
 
 static struct mtd_info *flash_mtd;
 

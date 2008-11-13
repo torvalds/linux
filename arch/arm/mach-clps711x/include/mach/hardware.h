@@ -95,10 +95,6 @@
 #include <asm/hardware/cs89712.h>
 
 /* dynamic ioremap() areas */
-#define FLASH_START      0x00000000
-#define FLASH_SIZE       0x800000
-#define FLASH_WIDTH      4
-
 #define SRAM_START       0x60000000
 #define SRAM_SIZE        0xc000
 #define SRAM_WIDTH       4
