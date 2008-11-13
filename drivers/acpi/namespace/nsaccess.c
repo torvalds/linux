@@ -588,6 +588,10 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			 * segments).
 			 */
 			if (this_node->type == ACPI_TYPE_LOCAL_ALIAS) {
+				if (!this_node->object) {
+					return_ACPI_STATUS(AE_NOT_EXIST);
+				}
+
 				if (acpi_ns_opens_scope
 				    (((struct acpi_namespace_node *)this_node->
 				      object)->type)) {
