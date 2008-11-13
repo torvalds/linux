@@ -113,6 +113,21 @@ extern struct group_info init_groups;
 # define CAP_INIT_BSET  CAP_INIT_EFF_SET
 #endif
 
+extern struct cred init_cred;
+
+#define INIT_CRED(p)						\
+{								\
+	.usage			= ATOMIC_INIT(3),		\
+	.securebits		= SECUREBITS_DEFAULT,		\
+	.cap_inheritable	= CAP_INIT_INH_SET,		\
+	.cap_permitted		= CAP_FULL_SET,			\
+	.cap_effective		= CAP_INIT_EFF_SET,		\
+	.cap_bset		= CAP_INIT_BSET,		\
+	.user			= INIT_USER,			\
+	.group_info		= &init_groups,			\
+	.lock			= __SPIN_LOCK_UNLOCKED(p.lock),	\
+}
+
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x1fffff (=2MB)
@@ -147,13 +162,8 @@ extern struct group_info init_groups;
 	.children	= LIST_HEAD_INIT(tsk.children),			\
 	.sibling	= LIST_HEAD_INIT(tsk.sibling),			\
 	.group_leader	= &tsk,						\
-	.group_info	= &init_groups,					\
-	.cap_effective	= CAP_INIT_EFF_SET,				\
-	.cap_inheritable = CAP_INIT_INH_SET,				\
-	.cap_permitted	= CAP_FULL_SET,					\
-	.cap_bset 	= CAP_INIT_BSET,				\
-	.securebits     = SECUREBITS_DEFAULT,				\
-	.user		= INIT_USER,					\
+	.__temp_cred	= INIT_CRED(tsk.__temp_cred),			\
+	.cred		= &tsk.__temp_cred,				\
 	.comm		= "swapper",					\
 	.thread		= INIT_THREAD,					\
 	.fs		= &init_fs,					\

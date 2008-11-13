@@ -148,9 +148,9 @@ asmlinkage long sys32_getresuid16(u16 __user *ruid, u16 __user *euid, u16 __user
 {
 	int retval;
 
-	if (!(retval = put_user(high2lowuid(current->uid), ruid)) &&
-	    !(retval = put_user(high2lowuid(current->euid), euid)))
-		retval = put_user(high2lowuid(current->suid), suid);
+	if (!(retval = put_user(high2lowuid(current->cred->uid), ruid)) &&
+	    !(retval = put_user(high2lowuid(current->cred->euid), euid)))
+		retval = put_user(high2lowuid(current->cred->suid), suid);
 
 	return retval;
 }
@@ -165,9 +165,9 @@ asmlinkage long sys32_getresgid16(u16 __user *rgid, u16 __user *egid, u16 __user
 {
 	int retval;
 
-	if (!(retval = put_user(high2lowgid(current->gid), rgid)) &&
-	    !(retval = put_user(high2lowgid(current->egid), egid)))
-		retval = put_user(high2lowgid(current->sgid), sgid);
+	if (!(retval = put_user(high2lowgid(current->cred->gid), rgid)) &&
+	    !(retval = put_user(high2lowgid(current->cred->egid), egid)))
+		retval = put_user(high2lowgid(current->cred->sgid), sgid);
 
 	return retval;
 }
@@ -217,20 +217,20 @@ asmlinkage long sys32_getgroups16(int gidsetsize, u16 __user *grouplist)
 	if (gidsetsize < 0)
 		return -EINVAL;
 
-	get_group_info(current->group_info);
-	i = current->group_info->ngroups;
+	get_group_info(current->cred->group_info);
+	i = current->cred->group_info->ngroups;
 	if (gidsetsize) {
 		if (i > gidsetsize) {
 			i = -EINVAL;
 			goto out;
 		}
-		if (groups16_to_user(grouplist, current->group_info)) {
+		if (groups16_to_user(grouplist, current->cred->group_info)) {
 			i = -EFAULT;
 			goto out;
 		}
 	}
 out:
-	put_group_info(current->group_info);
+	put_group_info(current->cred->group_info);
 	return i;
 }
 
@@ -261,22 +261,22 @@ asmlinkage long sys32_setgroups16(int gidsetsize, u16 __user *grouplist)
 
 asmlinkage long sys32_getuid16(void)
 {
-	return high2lowuid(current->uid);
+	return high2lowuid(current->cred->uid);
 }
 
 asmlinkage long sys32_geteuid16(void)
 {
-	return high2lowuid(current->euid);
+	return high2lowuid(current->cred->euid);
 }
 
 asmlinkage long sys32_getgid16(void)
 {
-	return high2lowgid(current->gid);
+	return high2lowgid(current->cred->gid);
 }
 
 asmlinkage long sys32_getegid16(void)
 {
-	return high2lowgid(current->egid);
+	return high2lowgid(current->cred->egid);
 }
 
 /*

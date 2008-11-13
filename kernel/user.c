@@ -457,11 +457,11 @@ void switch_uid(struct user_struct *new_user)
 	 * cheaply with the new uid cache, so if it matters
 	 * we should be checking for it.  -DaveM
 	 */
-	old_user = current->user;
+	old_user = current->cred->user;
 	atomic_inc(&new_user->processes);
 	atomic_dec(&old_user->processes);
 	switch_uid_keyring(new_user);
-	current->user = new_user;
+	current->cred->user = new_user;
 	sched_switch_user(current);
 
 	/*

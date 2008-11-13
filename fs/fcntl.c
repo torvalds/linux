@@ -401,8 +401,8 @@ static inline int sigio_perm(struct task_struct *p,
                              struct fown_struct *fown, int sig)
 {
 	return (((fown->euid == 0) ||
-		 (fown->euid == p->suid) || (fown->euid == p->uid) ||
-		 (fown->uid == p->suid) || (fown->uid == p->uid)) &&
+		 (fown->euid == p->cred->suid) || (fown->euid == p->cred->uid) ||
+		 (fown->uid == p->cred->suid) || (fown->uid == p->cred->uid)) &&
 		!security_file_send_sigiotask(p, fown, sig));
 }
 

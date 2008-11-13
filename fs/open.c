@@ -425,6 +425,7 @@ out:
  */
 asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 {
+	struct cred *cred = current->cred;
 	struct path path;
 	struct inode *inode;
 	int old_fsuid, old_fsgid;
@@ -434,18 +435,18 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
 		return -EINVAL;
 
-	old_fsuid = current->fsuid;
-	old_fsgid = current->fsgid;
+	old_fsuid = cred->fsuid;
+	old_fsgid = cred->fsgid;
 
-	current->fsuid = current->uid;
-	current->fsgid = current->gid;
+	cred->fsuid = cred->uid;
+	cred->fsgid = cred->gid;
 
 	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
 		/* Clear the capabilities if we switch to a non-root user */
-		if (current->uid)
+		if (current->cred->uid)
 			old_cap = cap_set_effective(__cap_empty_set);
 		else
-			old_cap = cap_set_effective(current->cap_permitted);
+			old_cap = cap_set_effective(cred->cap_permitted);
 	}
 
 	res = user_path_at(dfd, filename, LOOKUP_FOLLOW, &path);
@@ -484,8 +485,8 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 out_path_release:
 	path_put(&path);
 out:
-	current->fsuid = old_fsuid;
-	current->fsgid = old_fsgid;
+	cred->fsuid = old_fsuid;
+	cred->fsgid = old_fsgid;
 
 	if (!issecure(SECURE_NO_SETUID_FIXUP))
 		cap_set_effective(old_cap);

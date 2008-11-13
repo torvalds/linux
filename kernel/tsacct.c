@@ -53,8 +53,8 @@ void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 		stats->ac_flag |= AXSIG;
 	stats->ac_nice	 = task_nice(tsk);
 	stats->ac_sched	 = tsk->policy;
-	stats->ac_uid	 = tsk->uid;
-	stats->ac_gid	 = tsk->gid;
+	stats->ac_uid	 = tsk->cred->uid;
+	stats->ac_gid	 = tsk->cred->gid;
 	stats->ac_pid	 = tsk->pid;
 	rcu_read_lock();
 	stats->ac_ppid	 = pid_alive(tsk) ?

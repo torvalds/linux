@@ -39,7 +39,7 @@ EXPORT_SYMBOL_GPL(selinux_string_to_sid);
 int selinux_secmark_relabel_packet_permission(u32 sid)
 {
 	if (selinux_enabled) {
-		struct task_security_struct *tsec = current->security;
+		struct task_security_struct *tsec = current->cred->security;
 
 		return avc_has_perm(tsec->sid, sid, SECCLASS_PACKET,
 				    PACKET__RELABELTO, NULL);

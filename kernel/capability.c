@@ -171,8 +171,8 @@ kernel_cap_t cap_set_effective(const kernel_cap_t pE_new)
 
 	spin_lock(&task_capability_lock);
 
-	pE_old = current->cap_effective;
-	current->cap_effective = pE_new;
+	pE_old = current->cred->cap_effective;
+	current->cred->cap_effective = pE_new;
 
 	spin_unlock(&task_capability_lock);
 

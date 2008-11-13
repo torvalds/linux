@@ -872,12 +872,12 @@ int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task)
 	if (fc->flags & FUSE_ALLOW_OTHER)
 		return 1;
 
-	if (task->euid == fc->user_id &&
-	    task->suid == fc->user_id &&
-	    task->uid == fc->user_id &&
-	    task->egid == fc->group_id &&
-	    task->sgid == fc->group_id &&
-	    task->gid == fc->group_id)
+	if (task->cred->euid == fc->user_id &&
+	    task->cred->suid == fc->user_id &&
+	    task->cred->uid == fc->user_id &&
+	    task->cred->egid == fc->group_id &&
+	    task->cred->sgid == fc->group_id &&
+	    task->cred->gid == fc->group_id)
 		return 1;
 
 	return 0;

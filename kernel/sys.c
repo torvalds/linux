@@ -117,7 +117,9 @@ static int set_one_prio(struct task_struct *p, int niceval, int error)
 	uid_t euid = current_euid();
 	int no_nice;
 
-	if (p->uid != euid && p->euid != euid && !capable(CAP_SYS_NICE)) {
+	if (p->cred->uid  != euid &&
+	    p->cred->euid != euid &&
+	    !capable(CAP_SYS_NICE)) {
 		error = -EPERM;
 		goto out;
 	}
@@ -174,7 +176,7 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
-			user = current->user;
+			user = current->cred->user;
 			if (!who)
 				who = current_uid();
 			else
@@ -182,7 +184,7 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 					goto out_unlock;	/* No processes for this user */
 
 			do_each_thread(g, p)
-				if (p->uid == who)
+				if (p->cred->uid == who)
 					error = set_one_prio(p, niceval, error);
 			while_each_thread(g, p);
 			if (who != current_uid())
@@ -236,7 +238,7 @@ asmlinkage long sys_getpriority(int which, int who)
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
-			user = current->user;
+			user = current->cred->user;
 			if (!who)
 				who = current_uid();
 			else
@@ -244,7 +246,7 @@ asmlinkage long sys_getpriority(int which, int who)
 					goto out_unlock;	/* No processes for this user */
 
 			do_each_thread(g, p)
-				if (p->uid == who) {
+				if (p->cred->uid == who) {
 					niceval = 20 - task_nice(p);
 					if (niceval > retval)
 						retval = niceval;
@@ -472,8 +474,9 @@ void ctrl_alt_del(void)
  */
 asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 {
-	int old_rgid = current->gid;
-	int old_egid = current->egid;
+	struct cred *cred = current->cred;
+	int old_rgid = cred->gid;
+	int old_egid = cred->egid;
 	int new_rgid = old_rgid;
 	int new_egid = old_egid;
 	int retval;
@@ -484,7 +487,7 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 
 	if (rgid != (gid_t) -1) {
 		if ((old_rgid == rgid) ||
-		    (current->egid==rgid) ||
+		    (cred->egid == rgid) ||
 		    capable(CAP_SETGID))
 			new_rgid = rgid;
 		else
@@ -492,8 +495,8 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 	}
 	if (egid != (gid_t) -1) {
 		if ((old_rgid == egid) ||
-		    (current->egid == egid) ||
-		    (current->sgid == egid) ||
+		    (cred->egid == egid) ||
+		    (cred->sgid == egid) ||
 		    capable(CAP_SETGID))
 			new_egid = egid;
 		else
@@ -505,10 +508,10 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 	}
 	if (rgid != (gid_t) -1 ||
 	    (egid != (gid_t) -1 && egid != old_rgid))
-		current->sgid = new_egid;
-	current->fsgid = new_egid;
-	current->egid = new_egid;
-	current->gid = new_rgid;
+		cred->sgid = new_egid;
+	cred->fsgid = new_egid;
+	cred->egid = new_egid;
+	cred->gid = new_rgid;
 	key_fsgid_changed(current);
 	proc_id_connector(current, PROC_EVENT_GID);
 	return 0;
@@ -521,7 +524,8 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
  */
 asmlinkage long sys_setgid(gid_t gid)
 {
-	int old_egid = current->egid;
+	struct cred *cred = current->cred;
+	int old_egid = cred->egid;
 	int retval;
 
 	retval = security_task_setgid(gid, (gid_t)-1, (gid_t)-1, LSM_SETID_ID);
@@ -533,13 +537,13 @@ asmlinkage long sys_setgid(gid_t gid)
 			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
-		current->gid = current->egid = current->sgid = current->fsgid = gid;
-	} else if ((gid == current->gid) || (gid == current->sgid)) {
+		cred->gid = cred->egid = cred->sgid = cred->fsgid = gid;
+	} else if ((gid == cred->gid) || (gid == cred->sgid)) {
 		if (old_egid != gid) {
 			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
-		current->egid = current->fsgid = gid;
+		cred->egid = cred->fsgid = gid;
 	}
 	else
 		return -EPERM;
@@ -570,7 +574,7 @@ static int set_user(uid_t new_ruid, int dumpclear)
 		set_dumpable(current->mm, suid_dumpable);
 		smp_wmb();
 	}
-	current->uid = new_ruid;
+	current->cred->uid = new_ruid;
 	return 0;
 }
 
@@ -591,6 +595,7 @@ static int set_user(uid_t new_ruid, int dumpclear)
  */
 asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 {
+	struct cred *cred = current->cred;
 	int old_ruid, old_euid, old_suid, new_ruid, new_euid;
 	int retval;
 
@@ -598,14 +603,14 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 	if (retval)
 		return retval;
 
-	new_ruid = old_ruid = current->uid;
-	new_euid = old_euid = current->euid;
-	old_suid = current->suid;
+	new_ruid = old_ruid = cred->uid;
+	new_euid = old_euid = cred->euid;
+	old_suid = cred->suid;
 
 	if (ruid != (uid_t) -1) {
 		new_ruid = ruid;
 		if ((old_ruid != ruid) &&
-		    (current->euid != ruid) &&
+		    (cred->euid != ruid) &&
 		    !capable(CAP_SETUID))
 			return -EPERM;
 	}
@@ -613,8 +618,8 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 	if (euid != (uid_t) -1) {
 		new_euid = euid;
 		if ((old_ruid != euid) &&
-		    (current->euid != euid) &&
-		    (current->suid != euid) &&
+		    (cred->euid != euid) &&
+		    (cred->suid != euid) &&
 		    !capable(CAP_SETUID))
 			return -EPERM;
 	}
@@ -626,11 +631,11 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 		set_dumpable(current->mm, suid_dumpable);
 		smp_wmb();
 	}
-	current->fsuid = current->euid = new_euid;
+	cred->fsuid = cred->euid = new_euid;
 	if (ruid != (uid_t) -1 ||
 	    (euid != (uid_t) -1 && euid != old_ruid))
-		current->suid = current->euid;
-	current->fsuid = current->euid;
+		cred->suid = cred->euid;
+	cred->fsuid = cred->euid;
 
 	key_fsuid_changed(current);
 	proc_id_connector(current, PROC_EVENT_UID);
@@ -653,7 +658,8 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
  */
 asmlinkage long sys_setuid(uid_t uid)
 {
-	int old_euid = current->euid;
+	struct cred *cred = current->cred;
+	int old_euid = cred->euid;
 	int old_ruid, old_suid, new_suid;
 	int retval;
 
@@ -661,23 +667,23 @@ asmlinkage long sys_setuid(uid_t uid)
 	if (retval)
 		return retval;
 
-	old_ruid = current->uid;
-	old_suid = current->suid;
+	old_ruid = cred->uid;
+	old_suid = cred->suid;
 	new_suid = old_suid;
 	
 	if (capable(CAP_SETUID)) {
 		if (uid != old_ruid && set_user(uid, old_euid != uid) < 0)
 			return -EAGAIN;
 		new_suid = uid;
-	} else if ((uid != current->uid) && (uid != new_suid))
+	} else if ((uid != cred->uid) && (uid != new_suid))
 		return -EPERM;
 
 	if (old_euid != uid) {
 		set_dumpable(current->mm, suid_dumpable);
 		smp_wmb();
 	}
-	current->fsuid = current->euid = uid;
-	current->suid = new_suid;
+	cred->fsuid = cred->euid = uid;
+	cred->suid = new_suid;
 
 	key_fsuid_changed(current);
 	proc_id_connector(current, PROC_EVENT_UID);
@@ -692,9 +698,10 @@ asmlinkage long sys_setuid(uid_t uid)
  */
 asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 {
-	int old_ruid = current->uid;
-	int old_euid = current->euid;
-	int old_suid = current->suid;
+	struct cred *cred = current->cred;
+	int old_ruid = cred->uid;
+	int old_euid = cred->euid;
+	int old_suid = cred->suid;
 	int retval;
 
 	retval = security_task_setuid(ruid, euid, suid, LSM_SETID_RES);
@@ -702,30 +709,31 @@ asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 		return retval;
 
 	if (!capable(CAP_SETUID)) {
-		if ((ruid != (uid_t) -1) && (ruid != current->uid) &&
-		    (ruid != current->euid) && (ruid != current->suid))
+		if ((ruid != (uid_t) -1) && (ruid != cred->uid) &&
+		    (ruid != cred->euid) && (ruid != cred->suid))
 			return -EPERM;
-		if ((euid != (uid_t) -1) && (euid != current->uid) &&
-		    (euid != current->euid) && (euid != current->suid))
+		if ((euid != (uid_t) -1) && (euid != cred->uid) &&
+		    (euid != cred->euid) && (euid != cred->suid))
 			return -EPERM;
-		if ((suid != (uid_t) -1) && (suid != current->uid) &&
-		    (suid != current->euid) && (suid != current->suid))
+		if ((suid != (uid_t) -1) && (suid != cred->uid) &&
+		    (suid != cred->euid) && (suid != cred->suid))
 			return -EPERM;
 	}
 	if (ruid != (uid_t) -1) {
-		if (ruid != current->uid && set_user(ruid, euid != current->euid) < 0)
+		if (ruid != cred->uid &&
+		    set_user(ruid, euid != cred->euid) < 0)
 			return -EAGAIN;
 	}
 	if (euid != (uid_t) -1) {
-		if (euid != current->euid) {
+		if (euid != cred->euid) {
 			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
-		current->euid = euid;
+		cred->euid = euid;
 	}
-	current->fsuid = current->euid;
+	cred->fsuid = cred->euid;
 	if (suid != (uid_t) -1)
-		current->suid = suid;
+		cred->suid = suid;
 
 	key_fsuid_changed(current);
 	proc_id_connector(current, PROC_EVENT_UID);
@@ -735,11 +743,12 @@ asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 
 asmlinkage long sys_getresuid(uid_t __user *ruid, uid_t __user *euid, uid_t __user *suid)
 {
+	struct cred *cred = current->cred;
 	int retval;
 
-	if (!(retval = put_user(current->uid, ruid)) &&
-	    !(retval = put_user(current->euid, euid)))
-		retval = put_user(current->suid, suid);
+	if (!(retval = put_user(cred->uid, ruid)) &&
+	    !(retval = put_user(cred->euid, euid)))
+		retval = put_user(cred->suid, suid);
 
 	return retval;
 }
@@ -749,6 +758,7 @@ asmlinkage long sys_getresuid(uid_t __user *ruid, uid_t __user *euid, uid_t __us
  */
 asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 {
+	struct cred *cred = current->cred;
 	int retval;
 
 	retval = security_task_setgid(rgid, egid, sgid, LSM_SETID_RES);
@@ -756,28 +766,28 @@ asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 		return retval;
 
 	if (!capable(CAP_SETGID)) {
-		if ((rgid != (gid_t) -1) && (rgid != current->gid) &&
-		    (rgid != current->egid) && (rgid != current->sgid))
+		if ((rgid != (gid_t) -1) && (rgid != cred->gid) &&
+		    (rgid != cred->egid) && (rgid != cred->sgid))
 			return -EPERM;
-		if ((egid != (gid_t) -1) && (egid != current->gid) &&
-		    (egid != current->egid) && (egid != current->sgid))
+		if ((egid != (gid_t) -1) && (egid != cred->gid) &&
+		    (egid != cred->egid) && (egid != cred->sgid))
 			return -EPERM;
-		if ((sgid != (gid_t) -1) && (sgid != current->gid) &&
-		    (sgid != current->egid) && (sgid != current->sgid))
+		if ((sgid != (gid_t) -1) && (sgid != cred->gid) &&
+		    (sgid != cred->egid) && (sgid != cred->sgid))
 			return -EPERM;
 	}
 	if (egid != (gid_t) -1) {
-		if (egid != current->egid) {
+		if (egid != cred->egid) {
 			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
-		current->egid = egid;
+		cred->egid = egid;
 	}
-	current->fsgid = current->egid;
+	cred->fsgid = cred->egid;
 	if (rgid != (gid_t) -1)
-		current->gid = rgid;
+		cred->gid = rgid;
 	if (sgid != (gid_t) -1)
-		current->sgid = sgid;
+		cred->sgid = sgid;
 
 	key_fsgid_changed(current);
 	proc_id_connector(current, PROC_EVENT_GID);
@@ -786,11 +796,12 @@ asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 
 asmlinkage long sys_getresgid(gid_t __user *rgid, gid_t __user *egid, gid_t __user *sgid)
 {
+	struct cred *cred = current->cred;
 	int retval;
 
-	if (!(retval = put_user(current->gid, rgid)) &&
-	    !(retval = put_user(current->egid, egid)))
-		retval = put_user(current->sgid, sgid);
+	if (!(retval = put_user(cred->gid, rgid)) &&
+	    !(retval = put_user(cred->egid, egid)))
+		retval = put_user(cred->sgid, sgid);
 
 	return retval;
 }
@@ -804,20 +815,21 @@ asmlinkage long sys_getresgid(gid_t __user *rgid, gid_t __user *egid, gid_t __us
  */
 asmlinkage long sys_setfsuid(uid_t uid)
 {
+	struct cred *cred = current->cred;
 	int old_fsuid;
 
-	old_fsuid = current->fsuid;
+	old_fsuid = cred->fsuid;
 	if (security_task_setuid(uid, (uid_t)-1, (uid_t)-1, LSM_SETID_FS))
 		return old_fsuid;
 
-	if (uid == current->uid || uid == current->euid ||
-	    uid == current->suid || uid == current->fsuid || 
+	if (uid == cred->uid || uid == cred->euid ||
+	    uid == cred->suid || uid == cred->fsuid ||
 	    capable(CAP_SETUID)) {
 		if (uid != old_fsuid) {
 			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
-		current->fsuid = uid;
+		cred->fsuid = uid;
 	}
 
 	key_fsuid_changed(current);
@@ -833,20 +845,21 @@ asmlinkage long sys_setfsuid(uid_t uid)
  */
 asmlinkage long sys_setfsgid(gid_t gid)
 {
+	struct cred *cred = current->cred;
 	int old_fsgid;
 
-	old_fsgid = current->fsgid;
+	old_fsgid = cred->fsgid;
 	if (security_task_setgid(gid, (gid_t)-1, (gid_t)-1, LSM_SETID_FS))
 		return old_fsgid;
 
-	if (gid == current->gid || gid == current->egid ||
-	    gid == current->sgid || gid == current->fsgid || 
+	if (gid == cred->gid || gid == cred->egid ||
+	    gid == cred->sgid || gid == cred->fsgid ||
 	    capable(CAP_SETGID)) {
 		if (gid != old_fsgid) {
 			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
-		current->fsgid = gid;
+		cred->fsgid = gid;
 		key_fsgid_changed(current);
 		proc_id_connector(current, PROC_EVENT_GID);
 	}
@@ -1208,8 +1221,15 @@ int groups_search(struct group_info *group_info, gid_t grp)
 	return 0;
 }
 
-/* validate and set current->group_info */
-int set_current_groups(struct group_info *group_info)
+/**
+ * set_groups - Change a group subscription in a security record
+ * @sec: The security record to alter
+ * @group_info: The group list to impose
+ *
+ * Validate a group subscription and, if valid, impose it upon a task security
+ * record.
+ */
+int set_groups(struct cred *cred, struct group_info *group_info)
 {
 	int retval;
 	struct group_info *old_info;
@@ -1221,20 +1241,34 @@ int set_current_groups(struct group_info *group_info)
 	groups_sort(group_info);
 	get_group_info(group_info);
 
-	task_lock(current);
-	old_info = current->group_info;
-	current->group_info = group_info;
-	task_unlock(current);
+	spin_lock(&cred->lock);
+	old_info = cred->group_info;
+	cred->group_info = group_info;
+	spin_unlock(&cred->lock);
 
 	put_group_info(old_info);
-
 	return 0;
+}
+
+EXPORT_SYMBOL(set_groups);
+
+/**
+ * set_current_groups - Change current's group subscription
+ * @group_info: The group list to impose
+ *
+ * Validate a group subscription and, if valid, impose it upon current's task
+ * security record.
+ */
+int set_current_groups(struct group_info *group_info)
+{
+	return set_groups(current->cred, group_info);
 }
 
 EXPORT_SYMBOL(set_current_groups);
 
 asmlinkage long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
 {
+	struct cred *cred = current->cred;
 	int i = 0;
 
 	/*
@@ -1246,13 +1280,13 @@ asmlinkage long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
 		return -EINVAL;
 
 	/* no need to grab task_lock here; it cannot change */
-	i = current->group_info->ngroups;
+	i = cred->group_info->ngroups;
 	if (gidsetsize) {
 		if (i > gidsetsize) {
 			i = -EINVAL;
 			goto out;
 		}
-		if (groups_to_user(grouplist, current->group_info)) {
+		if (groups_to_user(grouplist, cred->group_info)) {
 			i = -EFAULT;
 			goto out;
 		}
@@ -1296,9 +1330,10 @@ asmlinkage long sys_setgroups(int gidsetsize, gid_t __user *grouplist)
  */
 int in_group_p(gid_t grp)
 {
+	struct cred *cred = current->cred;
 	int retval = 1;
-	if (grp != current->fsgid)
-		retval = groups_search(current->group_info, grp);
+	if (grp != cred->fsgid)
+		retval = groups_search(cred->group_info, grp);
 	return retval;
 }
 
@@ -1306,9 +1341,10 @@ EXPORT_SYMBOL(in_group_p);
 
 int in_egroup_p(gid_t grp)
 {
+	struct cred *cred = current->cred;
 	int retval = 1;
-	if (grp != current->egid)
-		retval = groups_search(current->group_info, grp);
+	if (grp != cred->egid)
+		retval = groups_search(cred->group_info, grp);
 	return retval;
 }
 
@@ -1624,7 +1660,9 @@ asmlinkage long sys_umask(int mask)
 asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			  unsigned long arg4, unsigned long arg5)
 {
-	long error = 0;
+	struct task_struct *me = current;
+	unsigned char comm[sizeof(me->comm)];
+	long error;
 
 	if (security_task_prctl(option, arg2, arg3, arg4, arg5, &error))
 		return error;
@@ -1635,39 +1673,41 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 				error = -EINVAL;
 				break;
 			}
-			current->pdeath_signal = arg2;
+			me->pdeath_signal = arg2;
+			error = 0;
 			break;
 		case PR_GET_PDEATHSIG:
-			error = put_user(current->pdeath_signal, (int __user *)arg2);
+			error = put_user(me->pdeath_signal, (int __user *)arg2);
 			break;
 		case PR_GET_DUMPABLE:
-			error = get_dumpable(current->mm);
+			error = get_dumpable(me->mm);
 			break;
 		case PR_SET_DUMPABLE:
 			if (arg2 < 0 || arg2 > 1) {
 				error = -EINVAL;
 				break;
 			}
-			set_dumpable(current->mm, arg2);
+			set_dumpable(me->mm, arg2);
+			error = 0;
 			break;
 
 		case PR_SET_UNALIGN:
-			error = SET_UNALIGN_CTL(current, arg2);
+			error = SET_UNALIGN_CTL(me, arg2);
 			break;
 		case PR_GET_UNALIGN:
-			error = GET_UNALIGN_CTL(current, arg2);
+			error = GET_UNALIGN_CTL(me, arg2);
 			break;
 		case PR_SET_FPEMU:
-			error = SET_FPEMU_CTL(current, arg2);
+			error = SET_FPEMU_CTL(me, arg2);
 			break;
 		case PR_GET_FPEMU:
-			error = GET_FPEMU_CTL(current, arg2);
+			error = GET_FPEMU_CTL(me, arg2);
 			break;
 		case PR_SET_FPEXC:
-			error = SET_FPEXC_CTL(current, arg2);
+			error = SET_FPEXC_CTL(me, arg2);
 			break;
 		case PR_GET_FPEXC:
-			error = GET_FPEXC_CTL(current, arg2);
+			error = GET_FPEXC_CTL(me, arg2);
 			break;
 		case PR_GET_TIMING:
 			error = PR_TIMING_STATISTICAL;
@@ -1675,33 +1715,28 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 		case PR_SET_TIMING:
 			if (arg2 != PR_TIMING_STATISTICAL)
 				error = -EINVAL;
+			else
+				error = 0;
 			break;
 
-		case PR_SET_NAME: {
-			struct task_struct *me = current;
-			unsigned char ncomm[sizeof(me->comm)];
-
-			ncomm[sizeof(me->comm)-1] = 0;
-			if (strncpy_from_user(ncomm, (char __user *)arg2,
-						sizeof(me->comm)-1) < 0)
+		case PR_SET_NAME:
+			comm[sizeof(me->comm)-1] = 0;
+			if (strncpy_from_user(comm, (char __user *)arg2,
+					      sizeof(me->comm) - 1) < 0)
 				return -EFAULT;
-			set_task_comm(me, ncomm);
+			set_task_comm(me, comm);
 			return 0;
-		}
-		case PR_GET_NAME: {
-			struct task_struct *me = current;
-			unsigned char tcomm[sizeof(me->comm)];
-
-			get_task_comm(tcomm, me);
-			if (copy_to_user((char __user *)arg2, tcomm, sizeof(tcomm)))
+		case PR_GET_NAME:
+			get_task_comm(comm, me);
+			if (copy_to_user((char __user *)arg2, comm,
+					 sizeof(comm)))
 				return -EFAULT;
 			return 0;
-		}
 		case PR_GET_ENDIAN:
-			error = GET_ENDIAN(current, arg2);
+			error = GET_ENDIAN(me, arg2);
 			break;
 		case PR_SET_ENDIAN:
-			error = SET_ENDIAN(current, arg2);
+			error = SET_ENDIAN(me, arg2);
 			break;
 
 		case PR_GET_SECCOMP:
@@ -1725,6 +1760,7 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 					current->default_timer_slack_ns;
 			else
 				current->timer_slack_ns = arg2;
+			error = 0;
 			break;
 		default:
 			error = -EINVAL;

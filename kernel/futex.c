@@ -443,7 +443,8 @@ static struct task_struct * futex_find_get_task(pid_t pid)
 
 	rcu_read_lock();
 	p = find_task_by_vpid(pid);
-	if (!p || (euid != p->euid && euid != p->uid))
+	if (!p || (euid != p->cred->euid &&
+		   euid != p->cred->uid))
 		p = ERR_PTR(-ESRCH);
 	else
 		get_task_struct(p);
@@ -1846,7 +1847,8 @@ sys_get_robust_list(int pid, struct robust_list_head __user * __user *head_ptr,
 		if (!p)
 			goto err_unlock;
 		ret = -EPERM;
-		if (euid != p->euid && euid != p->uid &&
+		if (euid != p->cred->euid &&
+		    euid != p->cred->uid &&
 		    !capable(CAP_SYS_PTRACE))
 			goto err_unlock;
 		head = p->robust_list;

@@ -42,7 +42,7 @@ struct key_user root_key_user = {
  */
 int install_user_keyrings(void)
 {
-	struct user_struct *user = current->user;
+	struct user_struct *user = current->cred->user;
 	struct key *uid_keyring, *session_keyring;
 	char buf[20];
 	int ret;
@@ -156,7 +156,7 @@ int install_thread_keyring(void)
 
 	sprintf(buf, "_tid.%u", tsk->pid);
 
-	keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+	keyring = keyring_alloc(buf, tsk->cred->uid, tsk->cred->gid, tsk,
 				KEY_ALLOC_QUOTA_OVERRUN, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
@@ -164,8 +164,8 @@ int install_thread_keyring(void)
 	}
 
 	task_lock(tsk);
-	old = tsk->thread_keyring;
-	tsk->thread_keyring = keyring;
+	old = tsk->cred->thread_keyring;
+	tsk->cred->thread_keyring = keyring;
 	task_unlock(tsk);
 
 	ret = 0;
@@ -192,7 +192,7 @@ int install_process_keyring(void)
 	if (!tsk->signal->process_keyring) {
 		sprintf(buf, "_pid.%u", tsk->tgid);
 
-		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+		keyring = keyring_alloc(buf, tsk->cred->uid, tsk->cred->gid, tsk,
 					KEY_ALLOC_QUOTA_OVERRUN, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
@@ -238,7 +238,7 @@ static int install_session_keyring(struct key *keyring)
 		if (tsk->signal->session_keyring)
 			flags = KEY_ALLOC_IN_QUOTA;
 
-		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+		keyring = keyring_alloc(buf, tsk->cred->uid, tsk->cred->gid, tsk,
 					flags, NULL);
 		if (IS_ERR(keyring))
 			return PTR_ERR(keyring);
@@ -292,14 +292,14 @@ int copy_thread_group_keys(struct task_struct *tsk)
  */
 int copy_keys(unsigned long clone_flags, struct task_struct *tsk)
 {
-	key_check(tsk->thread_keyring);
-	key_check(tsk->request_key_auth);
+	key_check(tsk->cred->thread_keyring);
+	key_check(tsk->cred->request_key_auth);
 
 	/* no thread keyring yet */
-	tsk->thread_keyring = NULL;
+	tsk->cred->thread_keyring = NULL;
 
 	/* copy the request_key() authorisation for this thread */
-	key_get(tsk->request_key_auth);
+	key_get(tsk->cred->request_key_auth);
 
 	return 0;
 
@@ -322,8 +322,8 @@ void exit_thread_group_keys(struct signal_struct *tg)
  */
 void exit_keys(struct task_struct *tsk)
 {
-	key_put(tsk->thread_keyring);
-	key_put(tsk->request_key_auth);
+	key_put(tsk->cred->thread_keyring);
+	key_put(tsk->cred->request_key_auth);
 
 } /* end exit_keys() */
 
@@ -337,8 +337,8 @@ int exec_keys(struct task_struct *tsk)
 
 	/* newly exec'd tasks don't get a thread keyring */
 	task_lock(tsk);
-	old = tsk->thread_keyring;
-	tsk->thread_keyring = NULL;
+	old = tsk->cred->thread_keyring;
+	tsk->cred->thread_keyring = NULL;
 	task_unlock(tsk);
 
 	key_put(old);
@@ -373,10 +373,11 @@ int suid_keys(struct task_struct *tsk)
 void key_fsuid_changed(struct task_struct *tsk)
 {
 	/* update the ownership of the thread keyring */
-	if (tsk->thread_keyring) {
-		down_write(&tsk->thread_keyring->sem);
-		tsk->thread_keyring->uid = tsk->fsuid;
-		up_write(&tsk->thread_keyring->sem);
+	BUG_ON(!tsk->cred);
+	if (tsk->cred->thread_keyring) {
+		down_write(&tsk->cred->thread_keyring->sem);
+		tsk->cred->thread_keyring->uid = tsk->cred->fsuid;
+		up_write(&tsk->cred->thread_keyring->sem);
 	}
 
 } /* end key_fsuid_changed() */
@@ -388,10 +389,11 @@ void key_fsuid_changed(struct task_struct *tsk)
 void key_fsgid_changed(struct task_struct *tsk)
 {
 	/* update the ownership of the thread keyring */
-	if (tsk->thread_keyring) {
-		down_write(&tsk->thread_keyring->sem);
-		tsk->thread_keyring->gid = tsk->fsgid;
-		up_write(&tsk->thread_keyring->sem);
+	BUG_ON(!tsk->cred);
+	if (tsk->cred->thread_keyring) {
+		down_write(&tsk->cred->thread_keyring->sem);
+		tsk->cred->thread_keyring->gid = tsk->cred->fsgid;
+		up_write(&tsk->cred->thread_keyring->sem);
 	}
 
 } /* end key_fsgid_changed() */
@@ -426,9 +428,9 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	err = ERR_PTR(-EAGAIN);
 
 	/* search the thread keyring first */
-	if (context->thread_keyring) {
+	if (context->cred->thread_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(context->thread_keyring, 1),
+			make_key_ref(context->cred->thread_keyring, 1),
 			context, type, description, match);
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -493,9 +495,9 @@ key_ref_t search_process_keyrings(struct key_type *type,
 		}
 	}
 	/* or search the user-session keyring */
-	else if (context->user->session_keyring) {
+	else if (context->cred->user->session_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(context->user->session_keyring, 1),
+			make_key_ref(context->cred->user->session_keyring, 1),
 			context, type, description, match);
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -517,20 +519,20 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	 * search the keyrings of the process mentioned there
 	 * - we don't permit access to request_key auth keys via this method
 	 */
-	if (context->request_key_auth &&
+	if (context->cred->request_key_auth &&
 	    context == current &&
 	    type != &key_type_request_key_auth
 	    ) {
 		/* defend against the auth key being revoked */
-		down_read(&context->request_key_auth->sem);
+		down_read(&context->cred->request_key_auth->sem);
 
-		if (key_validate(context->request_key_auth) == 0) {
-			rka = context->request_key_auth->payload.data;
+		if (key_validate(context->cred->request_key_auth) == 0) {
+			rka = context->cred->request_key_auth->payload.data;
 
 			key_ref = search_process_keyrings(type, description,
 							  match, rka->context);
 
-			up_read(&context->request_key_auth->sem);
+			up_read(&context->cred->request_key_auth->sem);
 
 			if (!IS_ERR(key_ref))
 				goto found;
@@ -547,7 +549,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 				break;
 			}
 		} else {
-			up_read(&context->request_key_auth->sem);
+			up_read(&context->cred->request_key_auth->sem);
 		}
 	}
 
@@ -580,15 +582,16 @@ key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 {
 	struct request_key_auth *rka;
 	struct task_struct *t = current;
-	key_ref_t key_ref, skey_ref;
+	struct cred *cred = t->cred;
 	struct key *key;
+	key_ref_t key_ref, skey_ref;
 	int ret;
 
 	key_ref = ERR_PTR(-ENOKEY);
 
 	switch (id) {
 	case KEY_SPEC_THREAD_KEYRING:
-		if (!t->thread_keyring) {
+		if (!cred->thread_keyring) {
 			if (!create)
 				goto error;
 
@@ -599,7 +602,7 @@ key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 			}
 		}
 
-		key = t->thread_keyring;
+		key = cred->thread_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
 		break;
@@ -628,7 +631,8 @@ key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
-			ret = install_session_keyring(t->user->session_keyring);
+			ret = install_session_keyring(
+				cred->user->session_keyring);
 			if (ret < 0)
 				goto error;
 		}
@@ -641,25 +645,25 @@ key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 		break;
 
 	case KEY_SPEC_USER_KEYRING:
-		if (!t->user->uid_keyring) {
+		if (!cred->user->uid_keyring) {
 			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
 		}
 
-		key = t->user->uid_keyring;
+		key = cred->user->uid_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_SESSION_KEYRING:
-		if (!t->user->session_keyring) {
+		if (!cred->user->session_keyring) {
 			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
 		}
 
-		key = t->user->session_keyring;
+		key = cred->user->session_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
 		break;
@@ -670,7 +674,7 @@ key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 		goto error;
 
 	case KEY_SPEC_REQKEY_AUTH_KEY:
-		key = t->request_key_auth;
+		key = cred->request_key_auth;
 		if (!key)
 			goto error;
 
@@ -679,19 +683,19 @@ key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 		break;
 
 	case KEY_SPEC_REQUESTOR_KEYRING:
-		if (!t->request_key_auth)
+		if (!cred->request_key_auth)
 			goto error;
 
-		down_read(&t->request_key_auth->sem);
-		if (t->request_key_auth->flags & KEY_FLAG_REVOKED) {
+		down_read(&cred->request_key_auth->sem);
+		if (cred->request_key_auth->flags & KEY_FLAG_REVOKED) {
 			key_ref = ERR_PTR(-EKEYREVOKED);
 			key = NULL;
 		} else {
-			rka = t->request_key_auth->payload.data;
+			rka = cred->request_key_auth->payload.data;
 			key = rka->dest_keyring;
 			atomic_inc(&key->usage);
 		}
-		up_read(&t->request_key_auth->sem);
+		up_read(&cred->request_key_auth->sem);
 		if (!key)
 			goto error;
 		key_ref = make_key_ref(key, 1);
@@ -791,7 +795,7 @@ long join_session_keyring(const char *name)
 	keyring = find_keyring_by_name(name, false);
 	if (PTR_ERR(keyring) == -ENOKEY) {
 		/* not found - try and create a new one */
-		keyring = keyring_alloc(name, tsk->uid, tsk->gid, tsk,
+		keyring = keyring_alloc(name, tsk->cred->uid, tsk->cred->gid, tsk,
 					KEY_ALLOC_IN_QUOTA, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);

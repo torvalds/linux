@@ -187,7 +187,7 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 	 * In order to avoid problems with "switch_user()", we want to make
 	 * sure that the compiler doesn't re-load "t->user"
 	 */
-	user = t->user;
+	user = t->cred->user;
 	barrier();
 	atomic_inc(&user->sigpending);
 	if (override_rlimit ||
@@ -582,8 +582,8 @@ static int check_kill_permission(int sig, struct siginfo *info,
 
 	uid = current_uid();
 	euid = current_euid();
-	if ((euid ^ t->suid) && (euid ^ t->uid) &&
-	    (uid  ^ t->suid) && (uid  ^ t->uid) &&
+	if ((euid ^ t->cred->suid) && (euid ^ t->cred->uid) &&
+	    (uid  ^ t->cred->suid) && (uid  ^ t->cred->uid) &&
 	    !capable(CAP_KILL)) {
 		switch (sig) {
 		case SIGCONT:
@@ -1100,8 +1100,8 @@ int kill_pid_info_as_uid(int sig, struct siginfo *info, struct pid *pid,
 		goto out_unlock;
 	}
 	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
-	    && (euid != p->suid) && (euid != p->uid)
-	    && (uid != p->suid) && (uid != p->uid)) {
+	    && (euid != p->cred->suid) && (euid != p->cred->uid)
+	    && (uid != p->cred->suid) && (uid != p->cred->uid)) {
 		ret = -EPERM;
 		goto out_unlock;
 	}
@@ -1374,7 +1374,7 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 	info.si_pid = task_pid_nr_ns(tsk, tsk->parent->nsproxy->pid_ns);
 	rcu_read_unlock();
 
-	info.si_uid = tsk->uid;
+	info.si_uid = tsk->cred->uid;
 
 	thread_group_cputime(tsk, &cputime);
 	info.si_utime = cputime_to_jiffies(cputime.utime);
@@ -1445,7 +1445,7 @@ static void do_notify_parent_cldstop(struct task_struct *tsk, int why)
 	info.si_pid = task_pid_nr_ns(tsk, tsk->parent->nsproxy->pid_ns);
 	rcu_read_unlock();
 
-	info.si_uid = tsk->uid;
+	info.si_uid = tsk->cred->uid;
 
 	info.si_utime = cputime_to_clock_t(tsk->utime);
 	info.si_stime = cputime_to_clock_t(tsk->stime);
@@ -1713,7 +1713,7 @@ static int ptrace_signal(int signr, siginfo_t *info,
 		info->si_errno = 0;
 		info->si_code = SI_USER;
 		info->si_pid = task_pid_vnr(current->parent);
-		info->si_uid = current->parent->uid;
+		info->si_uid = current->parent->cred->uid;
 	}
 
 	/* If the (new) signal is now blocked, requeue it.  */

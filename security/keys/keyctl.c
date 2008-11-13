@@ -889,7 +889,7 @@ long keyctl_instantiate_key(key_serial_t id,
 	/* the appropriate instantiation authorisation key must have been
 	 * assumed before calling this */
 	ret = -EPERM;
-	instkey = current->request_key_auth;
+	instkey = current->cred->request_key_auth;
 	if (!instkey)
 		goto error;
 
@@ -932,8 +932,8 @@ long keyctl_instantiate_key(key_serial_t id,
 	/* discard the assumed authority if it's just been disabled by
 	 * instantiation of the key */
 	if (ret == 0) {
-		key_put(current->request_key_auth);
-		current->request_key_auth = NULL;
+		key_put(current->cred->request_key_auth);
+		current->cred->request_key_auth = NULL;
 	}
 
 error2:
@@ -960,7 +960,7 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 	/* the appropriate instantiation authorisation key must have been
 	 * assumed before calling this */
 	ret = -EPERM;
-	instkey = current->request_key_auth;
+	instkey = current->cred->request_key_auth;
 	if (!instkey)
 		goto error;
 
@@ -983,8 +983,8 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 	/* discard the assumed authority if it's just been disabled by
 	 * instantiation of the key */
 	if (ret == 0) {
-		key_put(current->request_key_auth);
-		current->request_key_auth = NULL;
+		key_put(current->cred->request_key_auth);
+		current->cred->request_key_auth = NULL;
 	}
 
 error:
@@ -999,6 +999,7 @@ error:
  */
 long keyctl_set_reqkey_keyring(int reqkey_defl)
 {
+	struct cred *cred = current->cred;
 	int ret;
 
 	switch (reqkey_defl) {
@@ -1018,10 +1019,10 @@ long keyctl_set_reqkey_keyring(int reqkey_defl)
 	case KEY_REQKEY_DEFL_USER_KEYRING:
 	case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
 	set:
-		current->jit_keyring = reqkey_defl;
+		cred->jit_keyring = reqkey_defl;
 
 	case KEY_REQKEY_DEFL_NO_CHANGE:
-		return current->jit_keyring;
+		return cred->jit_keyring;
 
 	case KEY_REQKEY_DEFL_GROUP_KEYRING:
 	default:
@@ -1086,8 +1087,8 @@ long keyctl_assume_authority(key_serial_t id)
 
 	/* we divest ourselves of authority if given an ID of 0 */
 	if (id == 0) {
-		key_put(current->request_key_auth);
-		current->request_key_auth = NULL;
+		key_put(current->cred->request_key_auth);
+		current->cred->request_key_auth = NULL;
 		ret = 0;
 		goto error;
 	}
@@ -1103,8 +1104,8 @@ long keyctl_assume_authority(key_serial_t id)
 		goto error;
 	}
 
-	key_put(current->request_key_auth);
-	current->request_key_auth = authkey;
+	key_put(current->cred->request_key_auth);
+	current->cred->request_key_auth = authkey;
 	ret = authkey->serial;
 
 error:

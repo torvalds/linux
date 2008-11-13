@@ -164,22 +164,22 @@ struct key *request_key_auth_new(struct key *target, const void *callout_info,
 
 	/* see if the calling process is already servicing the key request of
 	 * another process */
-	if (current->request_key_auth) {
+	if (current->cred->request_key_auth) {
 		/* it is - use that instantiation context here too */
-		down_read(&current->request_key_auth->sem);
+		down_read(&current->cred->request_key_auth->sem);
 
 		/* if the auth key has been revoked, then the key we're
 		 * servicing is already instantiated */
 		if (test_bit(KEY_FLAG_REVOKED,
-			     &current->request_key_auth->flags))
+			     &current->cred->request_key_auth->flags))
 			goto auth_key_revoked;
 
-		irka = current->request_key_auth->payload.data;
+		irka = current->cred->request_key_auth->payload.data;
 		rka->context = irka->context;
 		rka->pid = irka->pid;
 		get_task_struct(rka->context);
 
-		up_read(&current->request_key_auth->sem);
+		up_read(&current->cred->request_key_auth->sem);
 	}
 	else {
 		/* it isn't - use this process as the context */
@@ -214,7 +214,7 @@ struct key *request_key_auth_new(struct key *target, const void *callout_info,
 	return authkey;
 
 auth_key_revoked:
-	up_read(&current->request_key_auth->sem);
+	up_read(&current->cred->request_key_auth->sem);
 	kfree(rka->callout_info);
 	kfree(rka);
 	kleave("= -EKEYREVOKED");

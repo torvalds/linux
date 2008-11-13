@@ -122,8 +122,8 @@ struct file *get_empty_filp(void)
 	INIT_LIST_HEAD(&f->f_u.fu_list);
 	atomic_long_set(&f->f_count, 1);
 	rwlock_init(&f->f_owner.lock);
-	f->f_uid = tsk->fsuid;
-	f->f_gid = tsk->fsgid;
+	f->f_uid = tsk->cred->fsuid;
+	f->f_gid = tsk->cred->fsgid;
 	eventpoll_init_file(f);
 	/* f->f_version: 0 */
 	return f;

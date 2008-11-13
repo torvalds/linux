@@ -1738,7 +1738,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 */
 	if (get_dumpable(mm) == 2) {	/* Setuid core dump mode */
 		flag = O_EXCL;		/* Stop rewrite attacks */
-		current->fsuid = 0;	/* Dump root private */
+		current->cred->fsuid = 0;	/* Dump root private */
 	}
 
 	retval = coredump_wait(exit_code, &core_state);
@@ -1834,7 +1834,7 @@ fail_unlock:
 	if (helper_argv)
 		argv_free(helper_argv);
 
-	current->fsuid = fsuid;
+	current->cred->fsuid = fsuid;
 	coredump_finish(mm);
 fail:
 	return retval;

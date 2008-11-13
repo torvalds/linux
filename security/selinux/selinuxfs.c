@@ -97,7 +97,7 @@ static int task_has_security(struct task_struct *tsk,
 {
 	struct task_security_struct *tsec;
 
-	tsec = tsk->security;
+	tsec = tsk->cred->security;
 	if (!tsec)
 		return -EACCES;
 

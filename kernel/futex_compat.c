@@ -151,8 +151,9 @@ compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 		if (!p)
 			goto err_unlock;
 		ret = -EPERM;
-		if (euid != p->euid && euid != p->uid &&
-				!capable(CAP_SYS_PTRACE))
+		if (euid != p->cred->euid &&
+		    euid != p->cred->uid &&
+		    !capable(CAP_SYS_PTRACE))
 			goto err_unlock;
 		head = p->compat_robust_list;
 		read_unlock(&tasklist_lock);

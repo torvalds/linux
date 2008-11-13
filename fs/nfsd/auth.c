@@ -27,6 +27,7 @@ int nfsexp_flags(struct svc_rqst *rqstp, struct svc_export *exp)
 
 int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 {
+	struct cred *act_as = current->cred ;
 	struct svc_cred	cred = rqstp->rq_cred;
 	int i;
 	int flags = nfsexp_flags(rqstp, exp);
@@ -55,25 +56,26 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 		get_group_info(cred.cr_group_info);
 
 	if (cred.cr_uid != (uid_t) -1)
-		current->fsuid = cred.cr_uid;
+		act_as->fsuid = cred.cr_uid;
 	else
-		current->fsuid = exp->ex_anon_uid;
+		act_as->fsuid = exp->ex_anon_uid;
 	if (cred.cr_gid != (gid_t) -1)
-		current->fsgid = cred.cr_gid;
+		act_as->fsgid = cred.cr_gid;
 	else
-		current->fsgid = exp->ex_anon_gid;
+		act_as->fsgid = exp->ex_anon_gid;
 
 	if (!cred.cr_group_info)
 		return -ENOMEM;
-	ret = set_current_groups(cred.cr_group_info);
+	ret = set_groups(act_as, cred.cr_group_info);
 	put_group_info(cred.cr_group_info);
 	if ((cred.cr_uid)) {
-		current->cap_effective =
-			cap_drop_nfsd_set(current->cap_effective);
+		act_as->cap_effective =
+			cap_drop_nfsd_set(act_as->cap_effective);
 	} else {
-		current->cap_effective =
-			cap_raise_nfsd_set(current->cap_effective,
-					   current->cap_permitted);
+		act_as->cap_effective =
+			cap_raise_nfsd_set(act_as->cap_effective,
+					   act_as->cap_permitted);
 	}
 	return ret;
 }
+

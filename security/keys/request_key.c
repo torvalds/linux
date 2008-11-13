@@ -104,7 +104,8 @@ static int call_sbin_request_key(struct key_construction *cons,
 
 	/* we specify the process's default keyrings */
 	sprintf(keyring_str[0], "%d",
-		tsk->thread_keyring ? tsk->thread_keyring->serial : 0);
+		tsk->cred->thread_keyring ?
+		tsk->cred->thread_keyring->serial : 0);
 
 	prkey = 0;
 	if (tsk->signal->process_keyring)
@@ -117,7 +118,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 		sskey = rcu_dereference(tsk->signal->session_keyring)->serial;
 		rcu_read_unlock();
 	} else {
-		sskey = tsk->user->session_keyring->serial;
+		sskey = tsk->cred->user->session_keyring->serial;
 	}
 
 	sprintf(keyring_str[2], "%d", sskey);
@@ -232,11 +233,11 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 	} else {
 		/* use a default keyring; falling through the cases until we
 		 * find one that we actually have */
-		switch (tsk->jit_keyring) {
+		switch (tsk->cred->jit_keyring) {
 		case KEY_REQKEY_DEFL_DEFAULT:
 		case KEY_REQKEY_DEFL_REQUESTOR_KEYRING:
-			if (tsk->request_key_auth) {
-				authkey = tsk->request_key_auth;
+			if (tsk->cred->request_key_auth) {
+				authkey = tsk->cred->request_key_auth;
 				down_read(&authkey->sem);
 				rka = authkey->payload.data;
 				if (!test_bit(KEY_FLAG_REVOKED,
@@ -249,7 +250,7 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 			}
 
 		case KEY_REQKEY_DEFL_THREAD_KEYRING:
-			dest_keyring = key_get(tsk->thread_keyring);
+			dest_keyring = key_get(tsk->cred->thread_keyring);
 			if (dest_keyring)
 				break;
 
@@ -268,11 +269,12 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 				break;
 
 		case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
-			dest_keyring = key_get(tsk->user->session_keyring);
+			dest_keyring =
+				key_get(tsk->cred->user->session_keyring);
 			break;
 
 		case KEY_REQKEY_DEFL_USER_KEYRING:
-			dest_keyring = key_get(tsk->user->uid_keyring);
+			dest_keyring = key_get(tsk->cred->user->uid_keyring);
 			break;
 
 		case KEY_REQKEY_DEFL_GROUP_KEYRING:

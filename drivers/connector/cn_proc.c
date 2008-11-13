@@ -116,11 +116,11 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	ev->event_data.id.process_pid = task->pid;
 	ev->event_data.id.process_tgid = task->tgid;
 	if (which_id == PROC_EVENT_UID) {
-	 	ev->event_data.id.r.ruid = task->uid;
-	 	ev->event_data.id.e.euid = task->euid;
+		ev->event_data.id.r.ruid = task->cred->uid;
+		ev->event_data.id.e.euid = task->cred->euid;
 	} else if (which_id == PROC_EVENT_GID) {
-	   	ev->event_data.id.r.rgid = task->gid;
-	   	ev->event_data.id.e.egid = task->egid;
+		ev->event_data.id.r.rgid = task->cred->gid;
+		ev->event_data.id.e.egid = task->cred->egid;
 	} else
 	     	return;
 	get_seq(&msg->seq, &ev->cpu);

@@ -345,7 +345,7 @@ static inline struct task_group *task_group(struct task_struct *p)
 	struct task_group *tg;
 
 #ifdef CONFIG_USER_SCHED
-	tg = p->user->tg;
+	tg = p->cred->user->tg;
 #elif defined(CONFIG_CGROUP_SCHED)
 	tg = container_of(task_subsys_state(p, cpu_cgroup_subsys_id),
 				struct task_group, css);
@@ -5182,8 +5182,8 @@ recheck:
 
 		/* can't change other user's priorities */
 		euid = current_euid();
-		if (euid != p->euid &&
-		    euid != p->uid)
+		if (euid != p->cred->euid &&
+		    euid != p->cred->uid)
 			return -EPERM;
 	}
 
@@ -5417,7 +5417,9 @@ long sched_setaffinity(pid_t pid, const cpumask_t *in_mask)
 
 	euid = current_euid();
 	retval = -EPERM;
-	if (euid != p->euid && euid != p->uid && !capable(CAP_SYS_NICE))
+	if (euid != p->cred->euid &&
+	    euid != p->cred->uid &&
+	    !capable(CAP_SYS_NICE))
 		goto out_unlock;
 
 	retval = security_task_setscheduler(p, 0, NULL);

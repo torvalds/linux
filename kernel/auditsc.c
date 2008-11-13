@@ -447,6 +447,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 			      struct audit_names *name,
 			      enum audit_state *state)
 {
+	struct cred *cred = tsk->cred;
 	int i, j, need_sid = 1;
 	u32 sid;
 
@@ -466,28 +467,28 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_UID:
-			result = audit_comparator(tsk->uid, f->op, f->val);
+			result = audit_comparator(cred->uid, f->op, f->val);
 			break;
 		case AUDIT_EUID:
-			result = audit_comparator(tsk->euid, f->op, f->val);
+			result = audit_comparator(cred->euid, f->op, f->val);
 			break;
 		case AUDIT_SUID:
-			result = audit_comparator(tsk->suid, f->op, f->val);
+			result = audit_comparator(cred->suid, f->op, f->val);
 			break;
 		case AUDIT_FSUID:
-			result = audit_comparator(tsk->fsuid, f->op, f->val);
+			result = audit_comparator(cred->fsuid, f->op, f->val);
 			break;
 		case AUDIT_GID:
-			result = audit_comparator(tsk->gid, f->op, f->val);
+			result = audit_comparator(cred->gid, f->op, f->val);
 			break;
 		case AUDIT_EGID:
-			result = audit_comparator(tsk->egid, f->op, f->val);
+			result = audit_comparator(cred->egid, f->op, f->val);
 			break;
 		case AUDIT_SGID:
-			result = audit_comparator(tsk->sgid, f->op, f->val);
+			result = audit_comparator(cred->sgid, f->op, f->val);
 			break;
 		case AUDIT_FSGID:
-			result = audit_comparator(tsk->fsgid, f->op, f->val);
+			result = audit_comparator(cred->fsgid, f->op, f->val);
 			break;
 		case AUDIT_PERS:
 			result = audit_comparator(tsk->personality, f->op, f->val);
@@ -1228,6 +1229,7 @@ static void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
 
 static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
 {
+	struct cred *cred = tsk->cred;
 	int i, call_panic = 0;
 	struct audit_buffer *ab;
 	struct audit_aux_data *aux;
@@ -1237,14 +1239,14 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 	context->pid = tsk->pid;
 	if (!context->ppid)
 		context->ppid = sys_getppid();
-	context->uid = tsk->uid;
-	context->gid = tsk->gid;
-	context->euid = tsk->euid;
-	context->suid = tsk->suid;
-	context->fsuid = tsk->fsuid;
-	context->egid = tsk->egid;
-	context->sgid = tsk->sgid;
-	context->fsgid = tsk->fsgid;
+	context->uid = cred->uid;
+	context->gid = cred->gid;
+	context->euid = cred->euid;
+	context->suid = cred->suid;
+	context->fsuid = cred->fsuid;
+	context->egid = cred->egid;
+	context->sgid = cred->sgid;
+	context->fsgid = cred->fsgid;
 	context->personality = tsk->personality;
 
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
@@ -2086,7 +2088,7 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 			audit_log_format(ab, "login pid=%d uid=%u "
 				"old auid=%u new auid=%u"
 				" old ses=%u new ses=%u",
-				task->pid, task->uid,
+				task->pid, task->cred->uid,
 				task->loginuid, loginuid,
 				task->sessionid, sessionid);
 			audit_log_end(ab);
@@ -2469,7 +2471,7 @@ void __audit_ptrace(struct task_struct *t)
 
 	context->target_pid = t->pid;
 	context->target_auid = audit_get_loginuid(t);
-	context->target_uid = t->uid;
+	context->target_uid = t->cred->uid;
 	context->target_sessionid = audit_get_sessionid(t);
 	security_task_getsecid(t, &context->target_sid);
 	memcpy(context->target_comm, t->comm, TASK_COMM_LEN);
@@ -2495,7 +2497,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 			if (tsk->loginuid != -1)
 				audit_sig_uid = tsk->loginuid;
 			else
-				audit_sig_uid = tsk->uid;
+				audit_sig_uid = tsk->cred->uid;
 			security_task_getsecid(tsk, &audit_sig_sid);
 		}
 		if (!audit_signals || audit_dummy_context())
@@ -2507,7 +2509,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	if (!ctx->target_pid) {
 		ctx->target_pid = t->tgid;
 		ctx->target_auid = audit_get_loginuid(t);
-		ctx->target_uid = t->uid;
+		ctx->target_uid = t->cred->uid;
 		ctx->target_sessionid = audit_get_sessionid(t);
 		security_task_getsecid(t, &ctx->target_sid);
 		memcpy(ctx->target_comm, t->comm, TASK_COMM_LEN);
@@ -2528,7 +2530,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 
 	axp->target_pid[axp->pid_count] = t->tgid;
 	axp->target_auid[axp->pid_count] = audit_get_loginuid(t);
-	axp->target_uid[axp->pid_count] = t->uid;
+	axp->target_uid[axp->pid_count] = t->cred->uid;
 	axp->target_sessionid[axp->pid_count] = audit_get_sessionid(t);
 	security_task_getsecid(t, &axp->target_sid[axp->pid_count]);
 	memcpy(axp->target_comm[axp->pid_count], t->comm, TASK_COMM_LEN);
@@ -2575,12 +2577,12 @@ void __audit_log_bprm_fcaps(struct linux_binprm *bprm, kernel_cap_t *pP, kernel_
 	ax->fcap_ver = (vcaps.magic_etc & VFS_CAP_REVISION_MASK) >> VFS_CAP_REVISION_SHIFT;
 
 	ax->old_pcap.permitted = *pP;
-	ax->old_pcap.inheritable = current->cap_inheritable;
+	ax->old_pcap.inheritable = current->cred->cap_inheritable;
 	ax->old_pcap.effective = *pE;
 
-	ax->new_pcap.permitted = current->cap_permitted;
-	ax->new_pcap.inheritable = current->cap_inheritable;
-	ax->new_pcap.effective = current->cap_effective;
+	ax->new_pcap.permitted = current->cred->cap_permitted;
+	ax->new_pcap.inheritable = current->cred->cap_inheritable;
+	ax->new_pcap.effective = current->cred->cap_effective;
 }
 
 /**

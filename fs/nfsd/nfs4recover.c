@@ -57,17 +57,17 @@ static int rec_dir_init = 0;
 static void
 nfs4_save_user(uid_t *saveuid, gid_t *savegid)
 {
-	*saveuid = current->fsuid;
-	*savegid = current->fsgid;
-	current->fsuid = 0;
-	current->fsgid = 0;
+	*saveuid = current->cred->fsuid;
+	*savegid = current->cred->fsgid;
+	current->cred->fsuid = 0;
+	current->cred->fsgid = 0;
 }
 
 static void
 nfs4_reset_user(uid_t saveuid, gid_t savegid)
 {
-	current->fsuid = saveuid;
-	current->fsgid = savegid;
+	current->cred->fsuid = saveuid;
+	current->cred->fsgid = savegid;
 }
 
 static void

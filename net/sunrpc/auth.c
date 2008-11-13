@@ -353,7 +353,7 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	struct auth_cred acred = {
 		.uid = current_fsuid(),
 		.gid = current_fsgid(),
-		.group_info = current->group_info,
+		.group_info = current->cred->group_info,
 	};
 	struct rpc_cred *ret;
 

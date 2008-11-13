@@ -147,8 +147,8 @@ void __put_task_struct(struct task_struct *tsk)
 	WARN_ON(tsk == current);
 
 	security_task_free(tsk);
-	free_uid(tsk->user);
-	put_group_info(tsk->group_info);
+	free_uid(tsk->__temp_cred.user);
+	put_group_info(tsk->__temp_cred.group_info);
 	delayacct_tsk_free(tsk);
 
 	if (!profile_handoff_task(tsk))
@@ -969,17 +969,18 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	DEBUG_LOCKS_WARN_ON(!p->hardirqs_enabled);
 	DEBUG_LOCKS_WARN_ON(!p->softirqs_enabled);
 #endif
+	p->cred = &p->__temp_cred;
 	retval = -EAGAIN;
-	if (atomic_read(&p->user->processes) >=
+	if (atomic_read(&p->cred->user->processes) >=
 			p->signal->rlim[RLIMIT_NPROC].rlim_cur) {
 		if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RESOURCE) &&
-		    p->user != current->nsproxy->user_ns->root_user)
+		    p->cred->user != current->nsproxy->user_ns->root_user)
 			goto bad_fork_free;
 	}
 
-	atomic_inc(&p->user->__count);
-	atomic_inc(&p->user->processes);
-	get_group_info(p->group_info);
+	atomic_inc(&p->cred->user->__count);
+	atomic_inc(&p->cred->user->processes);
+	get_group_info(p->cred->group_info);
 
 	/*
 	 * If multiple threads are within copy_process(), then this check
@@ -1035,9 +1036,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->real_start_time = p->start_time;
 	monotonic_to_bootbased(&p->real_start_time);
 #ifdef CONFIG_SECURITY
-	p->security = NULL;
+	p->cred->security = NULL;
 #endif
-	p->cap_bset = current->cap_bset;
 	p->io_context = NULL;
 	p->audit_context = NULL;
 	cgroup_fork(p);
@@ -1298,9 +1298,9 @@ bad_fork_cleanup_cgroup:
 bad_fork_cleanup_put_domain:
 	module_put(task_thread_info(p)->exec_domain->module);
 bad_fork_cleanup_count:
-	put_group_info(p->group_info);
-	atomic_dec(&p->user->processes);
-	free_uid(p->user);
+	put_group_info(p->cred->group_info);
+	atomic_dec(&p->cred->user->processes);
+	free_uid(p->cred->user);
 bad_fork_free:
 	free_task(p);
 fork_out:

@@ -22,6 +22,7 @@ int key_task_permission(const key_ref_t key_ref,
 			struct task_struct *context,
 			key_perm_t perm)
 {
+	struct cred *cred = context->cred;
 	struct key *key;
 	key_perm_t kperm;
 	int ret;
@@ -29,7 +30,7 @@ int key_task_permission(const key_ref_t key_ref,
 	key = key_ref_to_ptr(key_ref);
 
 	/* use the second 8-bits of permissions for keys the caller owns */
-	if (key->uid == context->fsuid) {
+	if (key->uid == cred->fsuid) {
 		kperm = key->perm >> 16;
 		goto use_these_perms;
 	}
@@ -37,14 +38,14 @@ int key_task_permission(const key_ref_t key_ref,
 	/* use the third 8-bits of permissions for keys the caller has a group
 	 * membership in common with */
 	if (key->gid != -1 && key->perm & KEY_GRP_ALL) {
-		if (key->gid == context->fsgid) {
+		if (key->gid == cred->fsgid) {
 			kperm = key->perm >> 8;
 			goto use_these_perms;
 		}
 
-		task_lock(context);
-		ret = groups_search(context->group_info, key->gid);
-		task_unlock(context);
+		spin_lock(&cred->lock);
+		ret = groups_search(cred->group_info, key->gid);
+		spin_unlock(&cred->lock);
 
 		if (ret) {
 			kperm = key->perm >> 8;

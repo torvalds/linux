@@ -160,7 +160,7 @@ void release_task(struct task_struct * p)
 	int zap_leader;
 repeat:
 	tracehook_prepare_release_task(p);
-	atomic_dec(&p->user->processes);
+	atomic_dec(&p->cred->user->processes);
 	proc_flush_task(p);
 	write_lock_irq(&tasklist_lock);
 	tracehook_finish_release_task(p);
@@ -1272,7 +1272,7 @@ static int wait_task_zombie(struct task_struct *p, int options,
 		return 0;
 
 	if (unlikely(options & WNOWAIT)) {
-		uid_t uid = p->uid;
+		uid_t uid = p->cred->uid;
 		int exit_code = p->exit_code;
 		int why, status;
 
@@ -1393,7 +1393,7 @@ static int wait_task_zombie(struct task_struct *p, int options,
 	if (!retval && infop)
 		retval = put_user(pid, &infop->si_pid);
 	if (!retval && infop)
-		retval = put_user(p->uid, &infop->si_uid);
+		retval = put_user(p->cred->uid, &infop->si_uid);
 	if (!retval)
 		retval = pid;
 
@@ -1458,7 +1458,7 @@ static int wait_task_stopped(int ptrace, struct task_struct *p,
 	if (!unlikely(options & WNOWAIT))
 		p->exit_code = 0;
 
-	uid = p->uid;
+	uid = p->cred->uid;
 unlock_sig:
 	spin_unlock_irq(&p->sighand->siglock);
 	if (!exit_code)
@@ -1535,7 +1535,7 @@ static int wait_task_continued(struct task_struct *p, int options,
 	spin_unlock_irq(&p->sighand->siglock);
 
 	pid = task_pid_vnr(p);
-	uid = p->uid;
+	uid = p->cred->uid;
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
 
