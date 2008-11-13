@@ -344,14 +344,14 @@ out:
 static int mcs7830_mdio_read(struct net_device *netdev, int phy_id,
 			     int location)
 {
-	struct usbnet *dev = netdev->priv;
+	struct usbnet *dev = netdev_priv(netdev);
 	return mcs7830_read_phy(dev, location);
 }
 
 static void mcs7830_mdio_write(struct net_device *netdev, int phy_id,
 				int location, int val)
 {
-	struct usbnet *dev = netdev->priv;
+	struct usbnet *dev = netdev_priv(netdev);
 	mcs7830_write_phy(dev, location, val);
 }
 

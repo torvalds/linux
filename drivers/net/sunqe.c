@@ -512,7 +512,7 @@ static irqreturn_t qec_interrupt(int irq, void *dev_id)
 
 static int qe_open(struct net_device *dev)
 {
-	struct sunqe *qep = (struct sunqe *) dev->priv;
+	struct sunqe *qep = netdev_priv(dev);
 
 	qep->mconfig = (MREGS_MCONFIG_TXENAB |
 			MREGS_MCONFIG_RXENAB |
@@ -522,7 +522,7 @@ static int qe_open(struct net_device *dev)
 
 static int qe_close(struct net_device *dev)
 {
-	struct sunqe *qep = (struct sunqe *) dev->priv;
+	struct sunqe *qep = netdev_priv(dev);
 
 	qe_stop(qep);
 	return 0;
@@ -548,7 +548,7 @@ static void qe_tx_reclaim(struct sunqe *qep)
 
 static void qe_tx_timeout(struct net_device *dev)
 {
-	struct sunqe *qep = (struct sunqe *) dev->priv;
+	struct sunqe *qep = netdev_priv(dev);
 	int tx_full;
 
 	spin_lock_irq(&qep->lock);
@@ -574,7 +574,7 @@ out:
 /* Get a packet queued to go onto the wire. */
 static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct sunqe *qep = (struct sunqe *) dev->priv;
+	struct sunqe *qep = netdev_priv(dev);
 	struct sunqe_buffers *qbufs = qep->buffers;
 	__u32 txbuf_dvma, qbufs_dvma = qep->buffers_dvma;
 	unsigned char *txbuf;
@@ -626,7 +626,7 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void qe_set_multicast(struct net_device *dev)
 {
-	struct sunqe *qep = (struct sunqe *) dev->priv;
+	struct sunqe *qep = netdev_priv(dev);
 	struct dev_mc_list *dmi = dev->mc_list;
 	u8 new_mconfig = qep->mconfig;
 	char *addrs;
@@ -692,7 +692,7 @@ static void qe_set_multicast(struct net_device *dev)
 static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	const struct linux_prom_registers *regs;
-	struct sunqe *qep = dev->priv;
+	struct sunqe *qep = netdev_priv(dev);
 	struct of_device *op;
 
 	strcpy(info->driver, "sunqe");
@@ -707,7 +707,7 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 
 static u32 qe_get_link(struct net_device *dev)
 {
-	struct sunqe *qep = dev->priv;
+	struct sunqe *qep = netdev_priv(dev);
 	void __iomem *mregs = qep->mregs;
 	u8 phyconfig;
 

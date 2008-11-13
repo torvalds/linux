@@ -125,7 +125,8 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 		unsigned int i;
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-			give_a_page(dev->priv, skb_shinfo(skb)->frags[i].page);
+			give_a_page(netdev_priv(dev),
+				    skb_shinfo(skb)->frags[i].page);
 		skb->data_len = 0;
 		skb_shinfo(skb)->nr_frags = 0;
 	}

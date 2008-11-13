@@ -890,7 +890,7 @@ static struct net_device_stats * uli526x_get_stats(struct net_device *dev)
 
 static void uli526x_set_filter_mode(struct net_device * dev)
 {
-	struct uli526x_board_info *db = dev->priv;
+	struct uli526x_board_info *db = netdev_priv(dev);
 	unsigned long flags;
 
 	ULI526X_DBUG(0, "uli526x_set_filter_mode()", 0);

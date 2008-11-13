@@ -251,7 +251,7 @@ static void bdx_isr_extra(struct bdx_priv *priv, u32 isr)
 static irqreturn_t bdx_isr_napi(int irq, void *dev)
 {
 	struct net_device *ndev = dev;
-	struct bdx_priv *priv = ndev->priv;
+	struct bdx_priv *priv = netdev_priv(ndev);
 	u32 isr;
 
 	ENTER;
@@ -559,7 +559,7 @@ static int bdx_close(struct net_device *ndev)
 	struct bdx_priv *priv = NULL;
 
 	ENTER;
-	priv = ndev->priv;
+	priv = netdev_priv(ndev);
 
 	napi_disable(&priv->napi);
 
@@ -588,7 +588,7 @@ static int bdx_open(struct net_device *ndev)
 	int rc;
 
 	ENTER;
-	priv = ndev->priv;
+	priv = netdev_priv(ndev);
 	bdx_reset(priv);
 	if (netif_running(ndev))
 		netif_stop_queue(priv->ndev);
@@ -633,7 +633,7 @@ static int bdx_range_check(struct bdx_priv *priv, u32 offset)
 
 static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 {
-	struct bdx_priv *priv = ndev->priv;
+	struct bdx_priv *priv = netdev_priv(ndev);
 	u32 data[3];
 	int error;
 
@@ -698,7 +698,7 @@ static int bdx_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
  */
 static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
 {
-	struct bdx_priv *priv = ndev->priv;
+	struct bdx_priv *priv = netdev_priv(ndev);
 	u32 reg, bit, val;
 
 	ENTER;
@@ -748,7 +748,7 @@ static void bdx_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
 static void
 bdx_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
 {
-	struct bdx_priv *priv = ndev->priv;
+	struct bdx_priv *priv = netdev_priv(ndev);
 
 	ENTER;
 	DBG("device='%s', group='%p'\n", ndev->name, grp);
@@ -787,7 +787,7 @@ static int bdx_change_mtu(struct net_device *ndev, int new_mtu)
 
 static void bdx_setmulti(struct net_device *ndev)
 {
-	struct bdx_priv *priv = ndev->priv;
+	struct bdx_priv *priv = netdev_priv(ndev);
 
 	u32 rxf_val =
 	    GMAC_RX_FILTER_AM | GMAC_RX_FILTER_AB | GMAC_RX_FILTER_OSEN;
@@ -847,7 +847,7 @@ static void bdx_setmulti(struct net_device *ndev)
 
 static int bdx_set_mac(struct net_device *ndev, void *p)
 {
-	struct bdx_priv *priv = ndev->priv;
+	struct bdx_priv *priv = netdev_priv(ndev);
 	struct sockaddr *addr = p;
 
 	ENTER;
@@ -929,7 +929,7 @@ static void bdx_update_stats(struct bdx_priv *priv)
 
 static struct net_device_stats *bdx_get_stats(struct net_device *ndev)
 {
-	struct bdx_priv *priv = ndev->priv;
+	struct bdx_priv *priv = netdev_priv(ndev);
 	struct net_device_stats *net_stat = &priv->net_stats;
 	return net_stat;
 }
@@ -1623,7 +1623,7 @@ static inline int bdx_tx_space(struct bdx_priv *priv)
  */
 static int bdx_tx_transmit(struct sk_buff *skb, struct net_device *ndev)
 {
-	struct bdx_priv *priv = ndev->priv;
+	struct bdx_priv *priv = netdev_priv(ndev);
 	struct txd_fifo *f = &priv->txd_fifo0;
 	int txd_checksum = 7;	/* full checksum */
 	int txd_lgsnd = 0;
@@ -2026,7 +2026,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ndev->features |= NETIF_F_HIGHDMA;
 
 	/************** priv ****************/
-		priv = nic->priv[port] = ndev->priv;
+		priv = nic->priv[port] = netdev_priv(ndev);
 
 		memset(priv, 0, sizeof(struct bdx_priv));
 		priv->pBdxRegs = nic->regs + port * 0x8000;
@@ -2149,7 +2149,7 @@ static int bdx_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	u32 rdintcm;
 	u32 tdintcm;
-	struct bdx_priv *priv = netdev->priv;
+	struct bdx_priv *priv = netdev_priv(netdev);
 
 	rdintcm = priv->rdintcm;
 	tdintcm = priv->tdintcm;
@@ -2180,7 +2180,7 @@ static int bdx_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 static void
 bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
-	struct bdx_priv *priv = netdev->priv;
+	struct bdx_priv *priv = netdev_priv(netdev);
 
 	strlcat(drvinfo->driver, BDX_DRV_NAME, sizeof(drvinfo->driver));
 	strlcat(drvinfo->version, BDX_DRV_VERSION, sizeof(drvinfo->version));
@@ -2222,7 +2222,7 @@ bdx_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
 {
 	u32 rdintcm;
 	u32 tdintcm;
-	struct bdx_priv *priv = netdev->priv;
+	struct bdx_priv *priv = netdev_priv(netdev);
 
 	rdintcm = priv->rdintcm;
 	tdintcm = priv->tdintcm;
@@ -2251,7 +2251,7 @@ bdx_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
 {
 	u32 rdintcm;
 	u32 tdintcm;
-	struct bdx_priv *priv = netdev->priv;
+	struct bdx_priv *priv = netdev_priv(netdev);
 	int rx_coal;
 	int tx_coal;
 	int rx_max_coal;
@@ -2309,7 +2309,7 @@ static inline int bdx_tx_fifo_size_to_packets(int tx_size)
 static void
 bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 {
-	struct bdx_priv *priv = netdev->priv;
+	struct bdx_priv *priv = netdev_priv(netdev);
 
 	/*max_pending - the maximum-sized FIFO we allow */
 	ring->rx_max_pending = bdx_rx_fifo_size_to_packets(3);
@@ -2326,7 +2326,7 @@ bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 static int
 bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 {
-	struct bdx_priv *priv = netdev->priv;
+	struct bdx_priv *priv = netdev_priv(netdev);
 	int rx_size = 0;
 	int tx_size = 0;
 
@@ -2387,7 +2387,7 @@ static void bdx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
  */
 static int bdx_get_stats_count(struct net_device *netdev)
 {
-	struct bdx_priv *priv = netdev->priv;
+	struct bdx_priv *priv = netdev_priv(netdev);
 	BDX_ASSERT(ARRAY_SIZE(bdx_stat_names)
 		   != sizeof(struct bdx_stats) / sizeof(u64));
 	return ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names)	: 0);
@@ -2402,7 +2402,7 @@ static int bdx_get_stats_count(struct net_device *netdev)
 static void bdx_get_ethtool_stats(struct net_device *netdev,
 				  struct ethtool_stats *stats, u64 *data)
 {
-	struct bdx_priv *priv = netdev->priv;
+	struct bdx_priv *priv = netdev_priv(netdev);
 
 	if (priv->stats_flag) {
 

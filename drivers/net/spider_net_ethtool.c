@@ -118,7 +118,7 @@ spider_net_ethtool_nway_reset(struct net_device *netdev)
 static u32
 spider_net_ethtool_get_rx_csum(struct net_device *netdev)
 {
-	struct spider_net_card *card = netdev->priv;
+	struct spider_net_card *card = netdev_priv(netdev);
 
 	return card->options.rx_csum;
 }
@@ -126,7 +126,7 @@ spider_net_ethtool_get_rx_csum(struct net_device *netdev)
 static int
 spider_net_ethtool_set_rx_csum(struct net_device *netdev, u32 n)
 {
-	struct spider_net_card *card = netdev->priv;
+	struct spider_net_card *card = netdev_priv(netdev);
 
 	card->options.rx_csum = n;
 	return 0;
@@ -137,7 +137,7 @@ static void
 spider_net_ethtool_get_ringparam(struct net_device *netdev,
 				 struct ethtool_ringparam *ering)
 {
-	struct spider_net_card *card = netdev->priv;
+	struct spider_net_card *card = netdev_priv(netdev);
 
 	ering->tx_max_pending = SPIDER_NET_TX_DESCRIPTORS_MAX;
 	ering->tx_pending = card->tx_chain.num_desc;
@@ -158,7 +158,7 @@ static int spider_net_get_sset_count(struct net_device *netdev, int sset)
 static void spider_net_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, u64 *data)
 {
-	struct spider_net_card *card = netdev->priv;
+	struct spider_net_card *card = netdev_priv(netdev);
 
 	data[0] = netdev->stats.tx_packets;
 	data[1] = netdev->stats.tx_bytes;

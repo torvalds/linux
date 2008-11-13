@@ -656,7 +656,7 @@ static void timeout(struct net_device *dev)
 
 static void sgiseeq_set_multicast(struct net_device *dev)
 {
-	struct sgiseeq_private *sp = (struct sgiseeq_private *) dev->priv;
+	struct sgiseeq_private *sp = netdev_priv(dev);
 	unsigned char oldmode = sp->mode;
 
 	if(dev->flags & IFF_PROMISC)

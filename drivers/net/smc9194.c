@@ -1034,7 +1034,7 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 	printk("ADDR: %pM\n", dev->dev_addr);
 
 	/* set the private data to zero by default */
-	memset(dev->priv, 0, sizeof(struct smc_local));
+	memset(netdev_priv(dev), 0, sizeof(struct smc_local));
 
 	/* Grab the IRQ */
       	retval = request_irq(dev->irq, &smc_interrupt, 0, DRV_NAME, dev);
@@ -1108,7 +1108,7 @@ static int smc_open(struct net_device *dev)
 	int	i;	/* used to set hw ethernet address */
 
 	/* clear out all the junk that was put here before... */
-	memset(dev->priv, 0, sizeof(struct smc_local));
+	memset(netdev_priv(dev), 0, sizeof(struct smc_local));
 
 	/* reset the hardware */
 
@@ -1164,7 +1164,7 @@ static void smc_timeout(struct net_device *dev)
 	smc_enable( dev->base_addr );
 	dev->trans_start = jiffies;
 	/* clear anything saved */
-	((struct smc_local *)dev->priv)->saved_skb = NULL;
+	((struct smc_local *)netdev_priv(dev))->saved_skb = NULL;
 	netif_wake_queue(dev);
 }
 

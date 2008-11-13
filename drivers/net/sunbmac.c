@@ -916,7 +916,7 @@ static irqreturn_t bigmac_interrupt(int irq, void *dev_id)
 
 static int bigmac_open(struct net_device *dev)
 {
-	struct bigmac *bp = (struct bigmac *) dev->priv;
+	struct bigmac *bp = netdev_priv(dev);
 	int ret;
 
 	ret = request_irq(dev->irq, &bigmac_interrupt, IRQF_SHARED, dev->name, bp);
@@ -933,7 +933,7 @@ static int bigmac_open(struct net_device *dev)
 
 static int bigmac_close(struct net_device *dev)
 {
-	struct bigmac *bp = (struct bigmac *) dev->priv;
+	struct bigmac *bp = netdev_priv(dev);
 
 	del_timer(&bp->bigmac_timer);
 	bp->timer_state = asleep;
@@ -947,7 +947,7 @@ static int bigmac_close(struct net_device *dev)
 
 static void bigmac_tx_timeout(struct net_device *dev)
 {
-	struct bigmac *bp = (struct bigmac *) dev->priv;
+	struct bigmac *bp = netdev_priv(dev);
 
 	bigmac_init_hw(bp, 0);
 	netif_wake_queue(dev);
@@ -956,7 +956,7 @@ static void bigmac_tx_timeout(struct net_device *dev)
 /* Put a packet on the wire. */
 static int bigmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct bigmac *bp = (struct bigmac *) dev->priv;
+	struct bigmac *bp = netdev_priv(dev);
 	int len, entry;
 	u32 mapping;
 
@@ -989,7 +989,7 @@ static int bigmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *bigmac_get_stats(struct net_device *dev)
 {
-	struct bigmac *bp = (struct bigmac *) dev->priv;
+	struct bigmac *bp = netdev_priv(dev);
 
 	bigmac_get_counters(bp, bp->bregs);
 	return &bp->enet_stats;
@@ -997,7 +997,7 @@ static struct net_device_stats *bigmac_get_stats(struct net_device *dev)
 
 static void bigmac_set_multicast(struct net_device *dev)
 {
-	struct bigmac *bp = (struct bigmac *) dev->priv;
+	struct bigmac *bp = netdev_priv(dev);
 	void __iomem *bregs = bp->bregs;
 	struct dev_mc_list *dmi = dev->mc_list;
 	char *addrs;
@@ -1060,7 +1060,7 @@ static void bigmac_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 
 static u32 bigmac_get_link(struct net_device *dev)
 {
-	struct bigmac *bp = dev->priv;
+	struct bigmac *bp = netdev_priv(dev);
 
 	spin_lock_irq(&bp->lock);
 	bp->sw_bmsr = bigmac_tcvr_read(bp, bp->tregs, BIGMAC_BMSR);
