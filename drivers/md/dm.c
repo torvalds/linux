@@ -375,7 +375,7 @@ static void start_io_acct(struct dm_io *io)
 	dm_disk(md)->part0.in_flight = atomic_inc_return(&md->pending);
 }
 
-static int end_io_acct(struct dm_io *io)
+static void end_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
 	struct bio *bio = io->bio;
@@ -391,7 +391,9 @@ static int end_io_acct(struct dm_io *io)
 	dm_disk(md)->part0.in_flight = pending =
 		atomic_dec_return(&md->pending);
 
-	return !pending;
+	/* nudge anyone waiting on suspend queue */
+	if (!pending)
+		wake_up(&md->wait);
 }
 
 /*
@@ -499,9 +501,7 @@ static void dec_pending(struct dm_io *io, int error)
 			spin_unlock_irqrestore(&io->md->pushback_lock, flags);
 		}
 
-		if (end_io_acct(io))
-			/* nudge anyone waiting on suspend queue */
-			wake_up(&io->md->wait);
+		end_io_acct(io);
 
 		if (io->error != DM_ENDIO_REQUEUE) {
 			blk_add_trace_bio(io->md->queue, io->bio,
