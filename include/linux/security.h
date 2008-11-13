@@ -53,8 +53,8 @@ extern int cap_settime(struct timespec *ts, struct timezone *tz);
 extern int cap_ptrace_may_access(struct task_struct *child, unsigned int mode);
 extern int cap_ptrace_traceme(struct task_struct *parent);
 extern int cap_capget(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
-extern int cap_capset_check(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
-extern void cap_capset_set(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
+extern int cap_capset_check(kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
+extern void cap_capset_set(kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern int cap_bprm_set_security(struct linux_binprm *bprm);
 extern void cap_bprm_apply_creds(struct linux_binprm *bprm, int unsafe);
 extern int cap_bprm_secureexec(struct linux_binprm *bprm);
@@ -1191,24 +1191,14 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Return 0 if the capability sets were successfully obtained.
  * @capset_check:
  *	Check permission before setting the @effective, @inheritable, and
- *	@permitted capability sets for the @target process.
- *	Caveat:  @target is also set to current if a set of processes is
- *	specified (i.e. all processes other than current and init or a
- *	particular process group).  Hence, the capset_set hook may need to
- *	revalidate permission to the actual target process.
- *	@target contains the task_struct structure for target process.
+ *	@permitted capability sets for the current process.
  *	@effective contains the effective capability set.
  *	@inheritable contains the inheritable capability set.
  *	@permitted contains the permitted capability set.
  *	Return 0 if permission is granted.
  * @capset_set:
  *	Set the @effective, @inheritable, and @permitted capability sets for
- *	the @target process.  Since capset_check cannot always check permission
- *	to the real @target process, this hook may also perform permission
- *	checking to determine if the current process is allowed to set the
- *	capability sets of the @target process.  However, this hook has no way
- *	of returning an error due to the structure of the sys_capset code.
- *	@target contains the task_struct structure for target process.
+ *	the current process.
  *	@effective contains the effective capability set.
  *	@inheritable contains the inheritable capability set.
  *	@permitted contains the permitted capability set.
@@ -1303,12 +1293,10 @@ struct security_operations {
 	int (*capget) (struct task_struct *target,
 		       kernel_cap_t *effective,
 		       kernel_cap_t *inheritable, kernel_cap_t *permitted);
-	int (*capset_check) (struct task_struct *target,
-			     kernel_cap_t *effective,
+	int (*capset_check) (kernel_cap_t *effective,
 			     kernel_cap_t *inheritable,
 			     kernel_cap_t *permitted);
-	void (*capset_set) (struct task_struct *target,
-			    kernel_cap_t *effective,
+	void (*capset_set) (kernel_cap_t *effective,
 			    kernel_cap_t *inheritable,
 			    kernel_cap_t *permitted);
 	int (*capable) (struct task_struct *tsk, int cap, int audit);
@@ -1572,12 +1560,10 @@ int security_capget(struct task_struct *target,
 		    kernel_cap_t *effective,
 		    kernel_cap_t *inheritable,
 		    kernel_cap_t *permitted);
-int security_capset_check(struct task_struct *target,
-			  kernel_cap_t *effective,
+int security_capset_check(kernel_cap_t *effective,
 			  kernel_cap_t *inheritable,
 			  kernel_cap_t *permitted);
-void security_capset_set(struct task_struct *target,
-			 kernel_cap_t *effective,
+void security_capset_set(kernel_cap_t *effective,
 			 kernel_cap_t *inheritable,
 			 kernel_cap_t *permitted);
 int security_capable(struct task_struct *tsk, int cap);
@@ -1769,20 +1755,18 @@ static inline int security_capget(struct task_struct *target,
 	return cap_capget(target, effective, inheritable, permitted);
 }
 
-static inline int security_capset_check(struct task_struct *target,
-					 kernel_cap_t *effective,
-					 kernel_cap_t *inheritable,
-					 kernel_cap_t *permitted)
-{
-	return cap_capset_check(target, effective, inheritable, permitted);
-}
-
-static inline void security_capset_set(struct task_struct *target,
-					kernel_cap_t *effective,
+static inline int security_capset_check(kernel_cap_t *effective,
 					kernel_cap_t *inheritable,
 					kernel_cap_t *permitted)
 {
-	cap_capset_set(target, effective, inheritable, permitted);
+	return cap_capset_check(effective, inheritable, permitted);
+}
+
+static inline void security_capset_set(kernel_cap_t *effective,
+				       kernel_cap_t *inheritable,
+				       kernel_cap_t *permitted)
+{
+	cap_capset_set(effective, inheritable, permitted);
 }
 
 static inline int security_capable(struct task_struct *tsk, int cap)

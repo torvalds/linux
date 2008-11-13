@@ -441,17 +441,7 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 	current->fsgid = current->gid;
 
 	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
-		/*
-		 * Clear the capabilities if we switch to a non-root user
-		 */
-#ifndef CONFIG_SECURITY_FILE_CAPABILITIES
-		/*
-		 * FIXME: There is a race here against sys_capset.  The
-		 * capabilities can change yet we will restore the old
-		 * value below.  We should hold task_capabilities_lock,
-		 * but we cannot because user_path_at can sleep.
-		 */
-#endif /* ndef CONFIG_SECURITY_FILE_CAPABILITIES */
+		/* Clear the capabilities if we switch to a non-root user */
 		if (current->uid)
 			old_cap = cap_set_effective(__cap_empty_set);
 		else

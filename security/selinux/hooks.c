@@ -1790,22 +1790,22 @@ static int selinux_capget(struct task_struct *target, kernel_cap_t *effective,
 	return secondary_ops->capget(target, effective, inheritable, permitted);
 }
 
-static int selinux_capset_check(struct task_struct *target, kernel_cap_t *effective,
+static int selinux_capset_check(kernel_cap_t *effective,
 				kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
 	int error;
 
-	error = secondary_ops->capset_check(target, effective, inheritable, permitted);
+	error = secondary_ops->capset_check(effective, inheritable, permitted);
 	if (error)
 		return error;
 
-	return task_has_perm(current, target, PROCESS__SETCAP);
+	return task_has_perm(current, current, PROCESS__SETCAP);
 }
 
-static void selinux_capset_set(struct task_struct *target, kernel_cap_t *effective,
+static void selinux_capset_set(kernel_cap_t *effective,
 			       kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
-	secondary_ops->capset_set(target, effective, inheritable, permitted);
+	secondary_ops->capset_set(effective, inheritable, permitted);
 }
 
 static int selinux_capable(struct task_struct *tsk, int cap, int audit)

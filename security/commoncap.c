@@ -96,15 +96,6 @@ int cap_capget (struct task_struct *target, kernel_cap_t *effective,
 
 #ifdef CONFIG_SECURITY_FILE_CAPABILITIES
 
-static inline int cap_block_setpcap(struct task_struct *target)
-{
-	/*
-	 * No support for remote process capability manipulation with
-	 * filesystem capability support.
-	 */
-	return (target != current);
-}
-
 static inline int cap_inh_is_capped(void)
 {
 	/*
@@ -119,7 +110,6 @@ static inline int cap_limit_ptraced_target(void) { return 1; }
 
 #else /* ie., ndef CONFIG_SECURITY_FILE_CAPABILITIES */
 
-static inline int cap_block_setpcap(struct task_struct *t) { return 0; }
 static inline int cap_inh_is_capped(void) { return 1; }
 static inline int cap_limit_ptraced_target(void)
 {
@@ -128,21 +118,18 @@ static inline int cap_limit_ptraced_target(void)
 
 #endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
 
-int cap_capset_check (struct task_struct *target, kernel_cap_t *effective,
+int cap_capset_check (kernel_cap_t *effective,
 		      kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
-	if (cap_block_setpcap(target)) {
-		return -EPERM;
-	}
 	if (cap_inh_is_capped()
 	    && !cap_issubset(*inheritable,
-			     cap_combine(target->cap_inheritable,
+			     cap_combine(current->cap_inheritable,
 					 current->cap_permitted))) {
 		/* incapable of using this inheritable set */
 		return -EPERM;
 	}
 	if (!cap_issubset(*inheritable,
-			   cap_combine(target->cap_inheritable,
+			   cap_combine(current->cap_inheritable,
 				       current->cap_bset))) {
 		/* no new pI capabilities outside bounding set */
 		return -EPERM;
@@ -150,7 +137,7 @@ int cap_capset_check (struct task_struct *target, kernel_cap_t *effective,
 
 	/* verify restrictions on target's new Permitted set */
 	if (!cap_issubset (*permitted,
-			   cap_combine (target->cap_permitted,
+			   cap_combine (current->cap_permitted,
 					current->cap_permitted))) {
 		return -EPERM;
 	}
@@ -163,12 +150,12 @@ int cap_capset_check (struct task_struct *target, kernel_cap_t *effective,
 	return 0;
 }
 
-void cap_capset_set (struct task_struct *target, kernel_cap_t *effective,
+void cap_capset_set (kernel_cap_t *effective,
 		     kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
-	target->cap_effective = *effective;
-	target->cap_inheritable = *inheritable;
-	target->cap_permitted = *permitted;
+	current->cap_effective = *effective;
+	current->cap_inheritable = *inheritable;
+	current->cap_permitted = *permitted;
 }
 
 static inline void bprm_clear_caps(struct linux_binprm *bprm)
