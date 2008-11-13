@@ -921,7 +921,6 @@ int wlan_unsetup(wlandevice_t *wlandev)
 int register_wlandev(wlandevice_t *wlandev)
 {
 	int		i = 0;
-	netdevice_t	*dev = wlandev->netdev;
 
 	DBFENTER;
 

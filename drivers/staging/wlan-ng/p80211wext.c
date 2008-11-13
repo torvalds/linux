@@ -591,7 +591,6 @@ static int p80211wext_siwencode(netdevice_t *dev,
 
 	int err = 0;
 	int result = 0;
-	int enable = 0;
 	int i;
 
 	DBFENTER;
