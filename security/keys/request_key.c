@@ -19,6 +19,8 @@
 #include <linux/slab.h>
 #include "internal.h"
 
+#define key_negative_timeout	60	/* default timeout on a negative key's existence */
+
 /*
  * wait_on_bit() sleep function for uninterruptible waiting
  */

@@ -16,6 +16,7 @@
 #include <linux/security.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
+#include <keys/keyring-type.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 

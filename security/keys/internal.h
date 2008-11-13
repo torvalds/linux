@@ -13,7 +13,6 @@
 #define _INTERNAL_H
 
 #include <linux/key-type.h>
-#include <linux/key-ui.h>
 
 static inline __attribute__((format(printf, 1, 2)))
 void no_printk(const char *fmt, ...)
@@ -82,6 +81,9 @@ extern struct mutex key_construction_mutex;
 extern wait_queue_head_t request_key_conswq;
 
 
+extern struct key_type *key_type_lookup(const char *type);
+extern void key_type_put(struct key_type *ktype);
+
 extern int __key_link(struct key *keyring, struct key *key);
 
 extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
@@ -117,6 +119,33 @@ extern struct key *request_key_and_link(struct key_type *type,
 					void *aux,
 					struct key *dest_keyring,
 					unsigned long flags);
+
+extern key_ref_t lookup_user_key(struct task_struct *context,
+				 key_serial_t id, int create, int partial,
+				 key_perm_t perm);
+
+extern long join_session_keyring(const char *name);
+
+/*
+ * check to see whether permission is granted to use a key in the desired way
+ */
+extern int key_task_permission(const key_ref_t key_ref,
+			       struct task_struct *context,
+			       key_perm_t perm);
+
+static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
+{
+	return key_task_permission(key_ref, current, perm);
+}
+
+/* required permissions */
+#define	KEY_VIEW	0x01	/* require permission to view attributes */
+#define	KEY_READ	0x02	/* require permission to read content */
+#define	KEY_WRITE	0x04	/* require permission to update / modify */
+#define	KEY_SEARCH	0x08	/* require permission to search (keyring) or find (key) */
+#define	KEY_LINK	0x10	/* require permission to link */
+#define	KEY_SETATTR	0x20	/* require permission to change attributes */
+#define	KEY_ALL		0x3f	/* all the above permissions */
 
 /*
  * request_key authorisation
