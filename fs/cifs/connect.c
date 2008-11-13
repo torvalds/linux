@@ -149,7 +149,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		ses = list_entry(tmp, struct cifsSesInfo, cifsSessionList);
 		if (ses->server) {
 			if (ses->server == server) {
-				ses->status = CifsNeedReconnect;
+				ses->need_reconnect = true;
 				ses->ipc_tid = 0;
 			}
 		}
@@ -158,7 +158,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		if ((tcon->ses) && (tcon->ses->server == server))
-			tcon->tidStatus = CifsNeedReconnect;
+			tcon->need_reconnect = true;
 	}
 	read_unlock(&GlobalSMBSeslock);
 	/* do not want to be sending data on a socket we are freeing */
@@ -1891,6 +1891,92 @@ kill_cifsd(struct TCP_Server_Info *server)
 		force_sig(SIGKILL, task);
 }
 
+static void setup_cifs_sb(struct smb_vol *pvolume_info,
+			  struct cifs_sb_info *cifs_sb)
+{
+	if (pvolume_info->rsize > CIFSMaxBufSize) {
+		cERROR(1, ("rsize %d too large, using MaxBufSize",
+			pvolume_info->rsize));
+		cifs_sb->rsize = CIFSMaxBufSize;
+	} else if ((pvolume_info->rsize) &&
+			(pvolume_info->rsize <= CIFSMaxBufSize))
+		cifs_sb->rsize = pvolume_info->rsize;
+	else /* default */
+		cifs_sb->rsize = CIFSMaxBufSize;
+
+	if (pvolume_info->wsize > PAGEVEC_SIZE * PAGE_CACHE_SIZE) {
+		cERROR(1, ("wsize %d too large, using 4096 instead",
+			  pvolume_info->wsize));
+		cifs_sb->wsize = 4096;
+	} else if (pvolume_info->wsize)
+		cifs_sb->wsize = pvolume_info->wsize;
+	else
+		cifs_sb->wsize = min_t(const int,
+					PAGEVEC_SIZE * PAGE_CACHE_SIZE,
+					127*1024);
+		/* old default of CIFSMaxBufSize was too small now
+		   that SMB Write2 can send multiple pages in kvec.
+		   RFC1001 does not describe what happens when frame
+		   bigger than 128K is sent so use that as max in
+		   conjunction with 52K kvec constraint on arch with 4K
+		   page size  */
+
+	if (cifs_sb->rsize < 2048) {
+		cifs_sb->rsize = 2048;
+		/* Windows ME may prefer this */
+		cFYI(1, ("readsize set to minimum: 2048"));
+	}
+	/* calculate prepath */
+	cifs_sb->prepath = pvolume_info->prepath;
+	if (cifs_sb->prepath) {
+		cifs_sb->prepathlen = strlen(cifs_sb->prepath);
+		/* we can not convert the / to \ in the path
+		separators in the prefixpath yet because we do not
+		know (until reset_cifs_unix_caps is called later)
+		whether POSIX PATH CAP is available. We normalize
+		the / to \ after reset_cifs_unix_caps is called */
+		pvolume_info->prepath = NULL;
+	} else
+		cifs_sb->prepathlen = 0;
+	cifs_sb->mnt_uid = pvolume_info->linux_uid;
+	cifs_sb->mnt_gid = pvolume_info->linux_gid;
+	cifs_sb->mnt_file_mode = pvolume_info->file_mode;
+	cifs_sb->mnt_dir_mode = pvolume_info->dir_mode;
+	cFYI(1, ("file mode: 0x%x  dir mode: 0x%x",
+		cifs_sb->mnt_file_mode, cifs_sb->mnt_dir_mode));
+
+	if (pvolume_info->noperm)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
+	if (pvolume_info->setuids)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SET_UID;
+	if (pvolume_info->server_ino)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SERVER_INUM;
+	if (pvolume_info->remap)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
+	if (pvolume_info->no_xattr)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
+	if (pvolume_info->sfu_emul)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
+	if (pvolume_info->nobrl)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+	if (pvolume_info->cifs_acl)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
+	if (pvolume_info->override_uid)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;
+	if (pvolume_info->override_gid)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_GID;
+	if (pvolume_info->dynperm)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DYNPERM;
+	if (pvolume_info->direct_io) {
+		cFYI(1, ("mounting share using direct i/o"));
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
+	}
+
+	if ((pvolume_info->cifs_acl) && (pvolume_info->dynperm))
+		cERROR(1, ("mount option dynperm ignored if cifsacl "
+			   "mount option supported"));
+}
+
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	   char *mount_data, const char *devname)
@@ -1996,9 +2082,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		goto out;
 	}
 
-	if (srvTcp) {
-		cFYI(1, ("Existing tcp session with server found"));
-	} else {	/* create socket */
+	if (!srvTcp) {	/* create socket */
 		if (volume_info.port)
 			sin_server.sin_port = htons(volume_info.port);
 		else
@@ -2074,7 +2158,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cFYI(1, ("Existing smb sess found (status=%d)",
 			pSesInfo->status));
 		down(&pSesInfo->sesSem);
-		if (pSesInfo->status == CifsNeedReconnect) {
+		if (pSesInfo->need_reconnect) {
 			cFYI(1, ("Session needs reconnect"));
 			rc = cifs_setup_session(xid, pSesInfo,
 						cifs_sb->local_nls);
@@ -2124,146 +2208,59 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	/* search for existing tcon to this server share */
 	if (!rc) {
-		if (volume_info.rsize > CIFSMaxBufSize) {
-			cERROR(1, ("rsize %d too large, using MaxBufSize",
-				volume_info.rsize));
-			cifs_sb->rsize = CIFSMaxBufSize;
-		} else if ((volume_info.rsize) &&
-				(volume_info.rsize <= CIFSMaxBufSize))
-			cifs_sb->rsize = volume_info.rsize;
-		else /* default */
-			cifs_sb->rsize = CIFSMaxBufSize;
-
-		if (volume_info.wsize > PAGEVEC_SIZE * PAGE_CACHE_SIZE) {
-			cERROR(1, ("wsize %d too large, using 4096 instead",
-				  volume_info.wsize));
-			cifs_sb->wsize = 4096;
-		} else if (volume_info.wsize)
-			cifs_sb->wsize = volume_info.wsize;
-		else
-			cifs_sb->wsize =
-				min_t(const int, PAGEVEC_SIZE * PAGE_CACHE_SIZE,
-					127*1024);
-			/* old default of CIFSMaxBufSize was too small now
-			   that SMB Write2 can send multiple pages in kvec.
-			   RFC1001 does not describe what happens when frame
-			   bigger than 128K is sent so use that as max in
-			   conjunction with 52K kvec constraint on arch with 4K
-			   page size  */
-
-		if (cifs_sb->rsize < 2048) {
-			cifs_sb->rsize = 2048;
-			/* Windows ME may prefer this */
-			cFYI(1, ("readsize set to minimum: 2048"));
-		}
-		/* calculate prepath */
-		cifs_sb->prepath = volume_info.prepath;
-		if (cifs_sb->prepath) {
-			cifs_sb->prepathlen = strlen(cifs_sb->prepath);
-			/* we can not convert the / to \ in the path
-			separators in the prefixpath yet because we do not
-			know (until reset_cifs_unix_caps is called later)
-			whether POSIX PATH CAP is available. We normalize
-			the / to \ after reset_cifs_unix_caps is called */
-			volume_info.prepath = NULL;
-		} else
-			cifs_sb->prepathlen = 0;
-		cifs_sb->mnt_uid = volume_info.linux_uid;
-		cifs_sb->mnt_gid = volume_info.linux_gid;
-		cifs_sb->mnt_file_mode = volume_info.file_mode;
-		cifs_sb->mnt_dir_mode = volume_info.dir_mode;
-		cFYI(1, ("file mode: 0x%x  dir mode: 0x%x",
-			cifs_sb->mnt_file_mode, cifs_sb->mnt_dir_mode));
-
-		if (volume_info.noperm)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
-		if (volume_info.setuids)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SET_UID;
-		if (volume_info.server_ino)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SERVER_INUM;
-		if (volume_info.remap)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
-		if (volume_info.no_xattr)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
-		if (volume_info.sfu_emul)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
-		if (volume_info.nobrl)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
-		if (volume_info.cifs_acl)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
-		if (volume_info.override_uid)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;
-		if (volume_info.override_gid)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_GID;
-		if (volume_info.dynperm)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DYNPERM;
-		if (volume_info.direct_io) {
-			cFYI(1, ("mounting share using direct i/o"));
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
-		}
-
-		if ((volume_info.cifs_acl) && (volume_info.dynperm))
-			cERROR(1, ("mount option dynperm ignored if cifsacl "
-				   "mount option supported"));
+		setup_cifs_sb(&volume_info, cifs_sb);
 
 		tcon =
 		    find_unc(sin_server.sin_addr.s_addr, volume_info.UNC,
 			     volume_info.username);
 		if (tcon) {
 			cFYI(1, ("Found match on UNC path"));
-			/* we can have only one retry value for a connection
-			   to a share so for resources mounted more than once
-			   to the same server share the last value passed in
-			   for the retry flag is used */
-			tcon->retry = volume_info.retry;
-			tcon->nocase = volume_info.nocase;
-			tcon->local_lease = volume_info.local_lease;
 			if (tcon->seal != volume_info.seal)
 				cERROR(1, ("transport encryption setting "
 					   "conflicts with existing tid"));
 		} else {
 			tcon = tconInfoAlloc();
-			if (tcon == NULL)
+			if (tcon == NULL) {
 				rc = -ENOMEM;
-			else {
-				/* check for null share name ie connecting to
-				 * dfs root */
+				goto mount_fail_check;
+			}
 
-				/* BB check if this works for exactly length
-				 * three strings */
-				if ((strchr(volume_info.UNC + 3, '\\') == NULL)
-				    && (strchr(volume_info.UNC + 3, '/') ==
-					NULL)) {
-/*					rc = connect_to_dfs_path(xid, pSesInfo,
-						"", cifs_sb->local_nls,
-						cifs_sb->mnt_cifs_flags &
-						  CIFS_MOUNT_MAP_SPECIAL_CHR);*/
-					cFYI(1, ("DFS root not supported"));
-					rc = -ENODEV;
-					goto out;
-				} else {
-					/* BB Do we need to wrap sesSem around
-					 * this TCon call and Unix SetFS as
-					 * we do on SessSetup and reconnect? */
-					rc = CIFSTCon(xid, pSesInfo,
-						volume_info.UNC,
-						tcon, cifs_sb->local_nls);
-					cFYI(1, ("CIFS Tcon rc = %d", rc));
-					if (volume_info.nodfs) {
-						tcon->Flags &=
-							~SMB_SHARE_IS_IN_DFS;
-						cFYI(1, ("DFS disabled (%d)",
-							tcon->Flags));
-					}
-				}
-				if (!rc) {
-					atomic_inc(&pSesInfo->inUse);
-					tcon->retry = volume_info.retry;
-					tcon->nocase = volume_info.nocase;
-					tcon->seal = volume_info.seal;
+			/* check for null share name ie connect to dfs root */
+
+			/* BB check if works for exactly length 3 strings */
+			if ((strchr(volume_info.UNC + 3, '\\') == NULL)
+			    && (strchr(volume_info.UNC + 3, '/') == NULL)) {
+				/* rc = connect_to_dfs_path(...) */
+				cFYI(1, ("DFS root not supported"));
+				rc = -ENODEV;
+				goto mount_fail_check;
+			} else {
+				/* BB Do we need to wrap sesSem around
+				 * this TCon call and Unix SetFS as
+				 * we do on SessSetup and reconnect? */
+				rc = CIFSTCon(xid, pSesInfo, volume_info.UNC,
+					      tcon, cifs_sb->local_nls);
+				cFYI(1, ("CIFS Tcon rc = %d", rc));
+				if (volume_info.nodfs) {
+					tcon->Flags &= ~SMB_SHARE_IS_IN_DFS;
+					cFYI(1, ("DFS disabled (%d)",
+						tcon->Flags));
 				}
 			}
+			if (!rc) {
+				atomic_inc(&pSesInfo->inUse);
+				tcon->seal = volume_info.seal;
+			} else
+				goto mount_fail_check;
 		}
+
+		/* we can have only one retry value for a connection
+		   to a share so for resources mounted more than once
+		   to the same server share the last value passed in
+		   for the retry flag is used */
+		tcon->retry = volume_info.retry;
+		tcon->nocase = volume_info.nocase;
+		tcon->local_lease = volume_info.local_lease;
 	}
 	if (pSesInfo) {
 		if (pSesInfo->capabilities & CAP_LARGE_FILES) {
@@ -2276,6 +2273,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	sb->s_time_gran = 100;
 
 /* on error free sesinfo and tcon struct if needed */
+mount_fail_check:
 	if (rc) {
 		/* if session setup failed, use count is zero but
 		we still need to free cifsd thread */
@@ -3518,6 +3516,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	/* above now done in SendReceive */
 	if ((rc == 0) && (tcon != NULL)) {
 		tcon->tidStatus = CifsGood;
+		tcon->need_reconnect = false;
 		tcon->tid = smb_buffer_response->Tid;
 		bcc_ptr = pByteArea(smb_buffer_response);
 		length = strnlen(bcc_ptr, BCC(smb_buffer_response) - 2);
@@ -3746,6 +3745,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		cFYI(1, ("CIFS Session Established successfully"));
 			spin_lock(&GlobalMid_Lock);
 			pSesInfo->status = CifsGood;
+			pSesInfo->need_reconnect = false;
 			spin_unlock(&GlobalMid_Lock);
 	}
 

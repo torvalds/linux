@@ -122,6 +122,8 @@ struct cifs_cred {
  */
 
 struct TCP_Server_Info {
+	struct list_head tcp_ses_list;
+	struct list_head smb_ses_list;
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
@@ -195,6 +197,7 @@ struct cifsUidInfo {
  */
 struct cifsSesInfo {
 	struct list_head cifsSessionList;
+	struct list_head tcon_list;
 	struct semaphore sesSem;
 #if 0
 	struct cifsUidInfo *uidInfo;	/* pointer to user info */
@@ -216,6 +219,7 @@ struct cifsSesInfo {
 	char userName[MAX_USERNAME_SIZE + 1];
 	char *domainName;
 	char *password;
+	bool need_reconnect:1; /* connection reset, uid now invalid */
 };
 /* no more than one of the following three session flags may be set */
 #define CIFS_SES_NT4 1
@@ -288,6 +292,7 @@ struct cifsTconInfo {
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
 	bool local_lease:1; /* check leases (only) on local system not remote */
+	bool need_reconnect:1; /* connection reset, tid now invalid */
 	/* BB add field for back pointer to sb struct(s)? */
 };
 
