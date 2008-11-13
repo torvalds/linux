@@ -675,9 +675,8 @@ END(interrupt)
  * Entry runs with interrupts off.	
  */ 
 
-/* 0(%rsp): ~(interrupt number)+0x80 */ 
+/* 0(%rsp): ~(interrupt number) */
 	.macro interrupt func
-	addq $-0x80,(%rsp)		/* Adjust vector to [-256,-1] range */
 	cld
 	SAVE_ARGS
 	leaq -ARGOFFSET(%rsp),%rdi	/* arg1 for handler */
@@ -711,9 +710,14 @@ END(interrupt)
 	call \func
 	.endm
 
+	/*
+	 * The interrupt stubs push (~vector+0x80) onto the stack and
+	 * then jump to common_interrupt.
+	 */
 	.p2align CONFIG_X86_L1_CACHE_SHIFT
 common_interrupt:
 	XCPT_FRAME
+	addq $-0x80,(%rsp)		/* Adjust vector to [-256,-1] range */
 	interrupt do_IRQ
 	/* 0(%rsp): oldrsp-ARGOFFSET */
 ret_from_intr:
