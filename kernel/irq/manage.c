@@ -365,7 +365,7 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		 * IRQF_TRIGGER_* but the PIC does not support multiple
 		 * flow-types?
 		 */
-		pr_warning("No set_type function for IRQ %d (%s)\n", irq,
+		pr_debug("No set_type function for IRQ %d (%s)\n", irq,
 				chip ? (chip->name ? : "unknown") : "unknown");
 		return 0;
 	}
