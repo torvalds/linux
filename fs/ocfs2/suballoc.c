@@ -842,10 +842,9 @@ static int ocfs2_block_group_find_clear_bits(struct ocfs2_super *osb,
 	int offset, start, found, status = 0;
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) bg_bh->b_data;
 
-	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(osb->sb, bg);
-		return -EIO;
-	}
+	/* Callers got this descriptor from
+	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 
 	found = start = best_offset = best_size = 0;
 	bitmap = bg->bg_bitmap;
@@ -910,11 +909,9 @@ static inline int ocfs2_block_group_set_bits(handle_t *handle,
 
 	mlog_entry_void();
 
-	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, bg);
-		status = -EIO;
-		goto bail;
-	}
+	/* All callers get the descriptor via
+	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 	BUG_ON(le16_to_cpu(bg->bg_free_bits_count) < num_bits);
 
 	mlog(0, "block_group_set_bits: off = %u, num = %u\n", bit_off,
@@ -983,16 +980,10 @@ static int ocfs2_relink_block_group(handle_t *handle,
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) bg_bh->b_data;
 	struct ocfs2_group_desc *prev_bg = (struct ocfs2_group_desc *) prev_bg_bh->b_data;
 
-	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, bg);
-		status = -EIO;
-		goto out;
-	}
-	if (!OCFS2_IS_VALID_GROUP_DESC(prev_bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, prev_bg);
-		status = -EIO;
-		goto out;
-	}
+	/* The caller got these descriptors from
+	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(prev_bg));
 
 	mlog(0, "Suballoc %llu, chain %u, move group %llu to top, prev = %llu\n",
 	     (unsigned long long)le64_to_cpu(fe->i_blkno), chain,
@@ -1055,7 +1046,7 @@ out_rollback:
 		bg->bg_next_group = cpu_to_le64(bg_ptr);
 		prev_bg->bg_next_group = cpu_to_le64(prev_bg_ptr);
 	}
-out:
+
 	mlog_exit(status);
 	return status;
 }
@@ -1758,11 +1749,9 @@ static inline int ocfs2_block_group_clear_bits(handle_t *handle,
 
 	mlog_entry_void();
 
-	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, bg);
-		status = -EIO;
-		goto bail;
-	}
+	/* The caller got this descriptor from
+	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 
 	mlog(0, "off = %u, num = %u\n", bit_off, num_bits);
 

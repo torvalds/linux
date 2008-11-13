@@ -458,13 +458,6 @@ static inline int ocfs2_uses_extended_slot_map(struct ocfs2_super *osb)
 #define OCFS2_IS_VALID_GROUP_DESC(ptr)					\
 	(!strcmp((ptr)->bg_signature, OCFS2_GROUP_DESC_SIGNATURE))
 
-#define OCFS2_RO_ON_INVALID_GROUP_DESC(__sb, __gd)	do {		\
-	typeof(__gd) ____gd = (__gd);					\
-		ocfs2_error((__sb),					\
-		"Group Descriptor # %llu has bad signature %.*s",	\
-		(unsigned long long)le64_to_cpu((____gd)->bg_blkno), 7, \
-		(____gd)->bg_signature);				\
-} while (0)
 
 #define OCFS2_IS_VALID_XATTR_BLOCK(ptr)					\
 	(!strcmp((ptr)->xb_signature, OCFS2_XATTR_BLOCK_SIGNATURE))
