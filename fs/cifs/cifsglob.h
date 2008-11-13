@@ -592,22 +592,15 @@ require use of the stronger protocol */
 #define GLOBAL_EXTERN extern
 #endif
 
-/*
- * The list of servers that did not respond with NT LM 0.12.
- * This list helps improve performance and eliminate the messages indicating
- * that we had a communications error talking to the server in this list.
- */
-/* Feature not supported */
-/* GLOBAL_EXTERN struct servers_not_supported *NotSuppList; */
 
-/*
- * The following is a hash table of all the users we know about.
- */
-GLOBAL_EXTERN struct smbUidInfo *GlobalUidList[UID_HASH];
-
-/* GLOBAL_EXTERN struct list_head GlobalServerList; BB not implemented yet */
-GLOBAL_EXTERN struct list_head GlobalSMBSessionList;
-GLOBAL_EXTERN struct list_head GlobalTreeConnectionList;
+/* the list of TCP_Server_Info structures, ie each of the sockets
+ * connecting our client to a distinct server (ip address), is
+ * chained together by global_cifs_sock_list. The list of all our SMB
+ * sessions (and from that the tree connections) can be found
+ * by iterating over global_cifs_sock_list */
+GLOBAL_EXTERN struct list_head global_cifs_sock_list;
+GLOBAL_EXTERN struct list_head GlobalSMBSessionList; /* BB to be removed by jl*/
+GLOBAL_EXTERN struct list_head GlobalTreeConnectionList; /* BB to be removed */
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
 
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;

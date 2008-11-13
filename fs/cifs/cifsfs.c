@@ -1059,9 +1059,9 @@ init_cifs(void)
 {
 	int rc = 0;
 	cifs_proc_init();
-/*	INIT_LIST_HEAD(&GlobalServerList);*/	/* BB not implemented yet */
-	INIT_LIST_HEAD(&GlobalSMBSessionList);
-	INIT_LIST_HEAD(&GlobalTreeConnectionList);
+	INIT_LIST_HEAD(&global_cifs_sock_list);
+	INIT_LIST_HEAD(&GlobalSMBSessionList); /* BB to be removed by jl */
+	INIT_LIST_HEAD(&GlobalTreeConnectionList); /* BB to be removed by jl */
 	INIT_LIST_HEAD(&GlobalOplock_Q);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	INIT_LIST_HEAD(&GlobalDnotifyReqList);

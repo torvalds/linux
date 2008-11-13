@@ -204,7 +204,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		else
 			seq_printf(m, " type: %d ", dev_type);
 
-		if (tcon->tidStatus == CifsNeedReconnect)
+		if (tcon->need_reconnect)
 			seq_puts(m, "\tDISCONNECTED ");
 	}
 	read_unlock(&GlobalSMBSeslock);
@@ -311,7 +311,7 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 		i++;
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		seq_printf(m, "\n%d) %s", i, tcon->treeName);
-		if (tcon->tidStatus == CifsNeedReconnect)
+		if (tcon->need_reconnect)
 			seq_puts(m, "\tDISCONNECTED ");
 		seq_printf(m, "\nSMBs: %d Oplock Breaks: %d",
 			atomic_read(&tcon->num_smbs_sent),
