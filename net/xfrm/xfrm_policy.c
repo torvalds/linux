@@ -521,7 +521,7 @@ static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize);
 
 /* Generate new index... KAME seems to generate them ordered by cost
  * of an absolute inpredictability of ordering of rules. This will not pass. */
-static u32 xfrm_gen_index(u8 type, int dir)
+static u32 xfrm_gen_index(int dir)
 {
 	static u32 idx_generator;
 
@@ -608,7 +608,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 		list_del(&delpol->walk.all);
 		xfrm_policy_count[dir]--;
 	}
-	policy->index = delpol ? delpol->index : xfrm_gen_index(policy->type, dir);
+	policy->index = delpol ? delpol->index : xfrm_gen_index(dir);
 	hlist_add_head(&policy->byidx, xfrm_policy_byidx+idx_hash(policy->index));
 	policy->curlft.add_time = get_seconds();
 	policy->curlft.use_time = 0;
@@ -1138,7 +1138,7 @@ int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
 	sk->sk_policy[dir] = pol;
 	if (pol) {
 		pol->curlft.add_time = get_seconds();
-		pol->index = xfrm_gen_index(pol->type, XFRM_POLICY_MAX+dir);
+		pol->index = xfrm_gen_index(XFRM_POLICY_MAX+dir);
 		__xfrm_policy_link(pol, XFRM_POLICY_MAX+dir);
 	}
 	if (old_pol)
