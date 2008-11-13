@@ -17,7 +17,7 @@
  */
 int valid_phys_addr_range(unsigned long addr, size_t count)
 {
-	if (addr < (PAGE_OFFSET + (PFN_START << PAGE_SHIFT)))
+	if (addr < __MEMORY_START)
 		return 0;
 	if (addr + count > __pa(high_memory))
 		return 0;
