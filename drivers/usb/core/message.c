@@ -1441,6 +1441,46 @@ static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
 	return retval;
 }
 
+
+/*
+ * Internal function to queue a device reset
+ *
+ * This is initialized into the workstruct in 'struct
+ * usb_device->reset_ws' that is launched by
+ * message.c:usb_set_configuration() when initializing each 'struct
+ * usb_interface'.
+ *
+ * It is safe to get the USB device without reference counts because
+ * the life cycle of @iface is bound to the life cycle of @udev. Then,
+ * this function will be ran only if @iface is alive (and before
+ * freeing it any scheduled instances of it will have been cancelled).
+ *
+ * We need to set a flag (usb_dev->reset_running) because when we call
+ * the reset, the interfaces might be unbound. The current interface
+ * cannot try to remove the queued work as it would cause a deadlock
+ * (you cannot remove your work from within your executing
+ * workqueue). This flag lets it know, so that
+ * usb_cancel_queued_reset() doesn't try to do it.
+ *
+ * See usb_queue_reset_device() for more details
+ */
+void __usb_queue_reset_device(struct work_struct *ws)
+{
+	int rc;
+	struct usb_interface *iface =
+		container_of(ws, struct usb_interface, reset_ws);
+	struct usb_device *udev = interface_to_usbdev(iface);
+
+	rc = usb_lock_device_for_reset(udev, iface);
+	if (rc >= 0) {
+		iface->reset_running = 1;
+		usb_reset_device(udev);
+		iface->reset_running = 0;
+		usb_unlock_device(udev);
+	}
+}
+
+
 /*
  * usb_set_configuration - Makes a particular device setting be current
  * @dev: the device whose configuration is being updated
@@ -1611,6 +1651,7 @@ free_interfaces:
 		intf->dev.type = &usb_if_device_type;
 		intf->dev.groups = usb_interface_groups;
 		intf->dev.dma_mask = dev->dev.dma_mask;
+		INIT_WORK(&intf->reset_ws, __usb_queue_reset_device);
 		device_initialize(&intf->dev);
 		mark_quiesced(intf);
 		dev_set_name(&intf->dev, "%d-%s:%d.%d",

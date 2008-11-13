@@ -3518,3 +3518,46 @@ int usb_reset_device(struct usb_device *udev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_reset_device);
+
+
+/**
+ * usb_queue_reset_device - Reset a USB device from an atomic context
+ * @iface: USB interface belonging to the device to reset
+ *
+ * This function can be used to reset a USB device from an atomic
+ * context, where usb_reset_device() won't work (as it blocks).
+ *
+ * Doing a reset via this method is functionally equivalent to calling
+ * usb_reset_device(), except for the fact that it is delayed to a
+ * workqueue. This means that any drivers bound to other interfaces
+ * might be unbound, as well as users from usbfs in user space.
+ *
+ * Corner cases:
+ *
+ * - Scheduling two resets at the same time from two different drivers
+ *   attached to two different interfaces of the same device is
+ *   possible; depending on how the driver attached to each interface
+ *   handles ->pre_reset(), the second reset might happen or not.
+ *
+ * - If a driver is unbound and it had a pending reset, the reset will
+ *   be cancelled.
+ *
+ * - This function can be called during .probe() or .disconnect()
+ *   times. On return from .disconnect(), any pending resets will be
+ *   cancelled.
+ *
+ * There is no no need to lock/unlock the @reset_ws as schedule_work()
+ * does its own.
+ *
+ * NOTE: We don't do any reference count tracking because it is not
+ *     needed. The lifecycle of the work_struct is tied to the
+ *     usb_interface. Before destroying the interface we cancel the
+ *     work_struct, so the fact that work_struct is queued and or
+ *     running means the interface (and thus, the device) exist and
+ *     are referenced.
+ */
+void usb_queue_reset_device(struct usb_interface *iface)
+{
+	schedule_work(&iface->reset_ws);
+}
+EXPORT_SYMBOL_GPL(usb_queue_reset_device);
