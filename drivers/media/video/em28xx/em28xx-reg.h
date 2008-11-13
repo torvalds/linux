@@ -84,8 +84,16 @@
 #define EM28XX_R14_VIDEO_AC97	0x14
 
 /* em2874 registers */
+#define EM2874_R50_IR_CONFIG    0x50
+#define EM2874_R51_IR           0x51
 #define EM2874_R5F_TS_ENABLE    0x5f
 #define EM2874_R80_GPIO         0x80
+
+/* em2874 IR config register (0x50) */
+#define EM2874_IR_NEC           0x00
+#define EM2874_IR_RC5           0x04
+#define EM2874_IR_RC5_MODE_0    0x08
+#define EM2874_IR_RC5_MODE_6A   0x0b
 
 /* em2874 Transport Stream Enable Register (0x5f) */
 #define EM2874_TS1_CAPTURE_ENABLE (1 << 0)

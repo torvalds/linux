@@ -592,6 +592,7 @@ struct em28xx_board em28xx_boards[] = {
 		.mts_firmware   = 1,
 		.has_12mhz_i2s  = 1,
 		.has_dvb        = 1,
+		.ir_codes       = ir_codes_hauppauge_new,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -615,6 +616,7 @@ struct em28xx_board em28xx_boards[] = {
 		.mts_firmware   = 1,
 		.has_12mhz_i2s  = 1,
 		.has_dvb        = 1,
+		.ir_codes       = ir_codes_pinnacle_pctv_hd,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1092,6 +1094,7 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels    = 0,
 		.tuner_type   = TUNER_ABSENT,
 		.has_dvb        = 1,
+		.ir_codes       = ir_codes_pinnacle_pctv_hd,
 		.decoder      = EM28XX_NODECODER,
 #ifdef DJH_DEBUG
 		.input          = { {
@@ -1329,6 +1332,7 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
 	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
 	dev->has_snapshot_button = em28xx_boards[dev->model].has_snapshot_button;
+	dev->ir_codes = em28xx_boards[dev->model].ir_codes;
 	dev->valid = em28xx_boards[dev->model].valid;
 }
 

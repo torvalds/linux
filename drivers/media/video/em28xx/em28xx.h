@@ -305,6 +305,7 @@ struct em28xx_board {
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
+	IR_KEYTAB_TYPE            *ir_codes;
 };
 
 struct em28xx_eeprom {
@@ -480,6 +481,9 @@ struct em28xx {
 
 	/* Caches GPO and GPIO registers */
 	unsigned char	reg_gpo, reg_gpio;
+
+	/* Infrared remote control support */
+	IR_KEYTAB_TYPE *ir_codes;
 
 	/* Snapshot button */
 	char snapshot_button_path[30];	/* path of the input dev */
