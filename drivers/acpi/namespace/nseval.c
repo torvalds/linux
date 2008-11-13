@@ -89,6 +89,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 	/* Initialize the return value to an invalid object */
 
 	info->return_object = NULL;
+	info->param_count = 0;
 
 	/*
 	 * Get the actual namespace node for the target object. Handles these cases:
@@ -141,41 +142,17 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 			return_ACPI_STATUS(AE_NULL_OBJECT);
 		}
 
-		/*
-		 * Calculate the number of arguments being passed to the method
-		 */
+		/* Count the number of arguments being passed to the method */
 
-		info->param_count = 0;
 		if (info->parameters) {
-			while (info->parameters[info->param_count])
+			while (info->parameters[info->param_count]) {
+				if (info->param_count > ACPI_METHOD_MAX_ARG) {
+					return_ACPI_STATUS(AE_LIMIT);
+				}
 				info->param_count++;
+			}
 		}
 
-		/*
-		 * Warning if too few or too many arguments have been passed by the
-		 * caller. We don't want to abort here with an error because an
-		 * incorrect number of arguments may not cause the method to fail.
-		 * However, the method will fail if there are too few arguments passed
-		 * and the method attempts to use one of the missing ones.
-		 */
-
-		if (info->param_count < info->obj_desc->method.param_count) {
-			ACPI_WARNING((AE_INFO,
-				    "Insufficient arguments - "
-				    "method [%4.4s] needs %d, found %d",
-				    acpi_ut_get_node_name(info->resolved_node),
-				    info->obj_desc->method.param_count,
-				    info->param_count));
-		} else if (info->param_count >
-				info->obj_desc->method.param_count) {
-			ACPI_WARNING((AE_INFO,
-				      "Excess arguments - "
-				      "method [%4.4s] needs %d, found %d",
-				      acpi_ut_get_node_name(info->
-							    resolved_node),
-				      info->obj_desc->method.param_count,
-				      info->param_count));
-		}
 
 		ACPI_DUMP_PATHNAME(info->resolved_node, "Execute Method:",
 				   ACPI_LV_INFO, _COMPONENT);
@@ -264,31 +241,13 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 		}
 	}
 
-	/* Validation of return values for ACPI-predefined methods and objects */
-
-	if ((status == AE_OK) || (status == AE_CTRL_RETURN_VALUE)) {
-		/*
-		 * If this is the first evaluation, check the return value. This
-		 * ensures that any warnings will only be emitted during the very
-		 * first evaluation of the object.
-		 */
-		if (!(node->flags & ANOBJ_EVALUATED)) {
-			/*
-			 * Check for a predefined ACPI name. If found, validate the
-			 * returned object.
-			 *
-			 * Note: Ignore return status for now, emit warnings if there are
-			 * problems with the returned object. May change later to abort
-			 * the method on invalid return object.
-			 */
-			(void)acpi_ns_check_predefined_names(node,
-			     &info->return_object);
-		}
-
-		/* Mark the node as having been evaluated */
-
-		node->flags |= ANOBJ_EVALUATED;
-	}
+	/*
+	 * Check input argument count against the ASL-defined count for a method.
+	 * Also check predefined names: argument count and return value against
+	 * the ACPI specification. Some incorrect return value types are repaired.
+	 */
+	(void)acpi_ns_check_predefined_names(node, info->param_count,
+		status, &info->return_object);
 
 	/* Check if there is a return value that must be dealt with */
 

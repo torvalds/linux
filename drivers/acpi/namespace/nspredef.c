@@ -124,6 +124,8 @@ static const char *acpi_rtype_names[] = {
 
 acpi_status
 acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
+			       u32 user_param_count,
+			       acpi_status return_status,
 			       union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
@@ -134,12 +136,6 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	/* Match the name for this method/object against the predefined list */
 
 	predefined = acpi_ns_check_for_predefined_name(node);
-	if (!predefined) {
-
-		/* Name was not one of the predefined names */
-
-		return (AE_OK);
-	}
 
 	/* Get the full pathname to the object, for use in error messages */
 
@@ -149,10 +145,37 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	}
 
 	/*
-	 * Check that the parameter count for this method is in accordance
-	 * with the ACPI specification.
+	 * Check that the parameter count for this method matches the ASL
+	 * definition. For predefined names, ensure that both the caller and
+	 * the method itself are in accordance with the ACPI specification.
 	 */
-	acpi_ns_check_parameter_count(pathname, node, predefined);
+	acpi_ns_check_parameter_count(pathname, node, user_param_count,
+				      predefined);
+
+	/* If not a predefined name, we cannot validate the return object */
+
+	if (!predefined) {
+		goto exit;
+	}
+
+	/* If the method failed, we cannot validate the return object */
+
+	if ((return_status != AE_OK) && (return_status != AE_CTRL_RETURN_VALUE)) {
+		goto exit;
+	}
+
+	/*
+	 * Only validate the return value on the first successful evaluation of
+	 * the method. This ensures that any warnings will only be emitted during
+	 * the very first evaluation of the method/object.
+	 */
+	if (node->flags & ANOBJ_EVALUATED) {
+		goto exit;
+	}
+
+	/* Mark the node as having been successfully evaluated */
+
+	node->flags |= ANOBJ_EVALUATED;
 
 	/*
 	 * If there is no return value, check if we require a return value for
@@ -177,7 +200,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	 * We have a return value, but if one wasn't expected, just exit, this is
 	 * not a problem
 	 *
-	 * For example, if "Implicit return value" is enabled, methods will
+	 * For example, if the "Implicit Return" feature is enabled, methods will
 	 * always return a value
 	 */
 	if (!predefined->info.expected_btypes) {
@@ -204,7 +227,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	}
 
       exit:
-	if (pathname) {
+	if (pathname != predefined->info.name) {
 		ACPI_FREE(pathname);
 	}
 
@@ -217,6 +240,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
  *
  * PARAMETERS:  Pathname        - Full pathname to the node (for error msgs)
  *              Node            - Namespace node for the method/object
+ *              user_param_count - Number of args passed in by the caller
  *              Predefined      - Pointer to entry in predefined name table
  *
  * RETURN:      None
@@ -230,32 +254,76 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 void
 acpi_ns_check_parameter_count(char *pathname,
 			      struct acpi_namespace_node *node,
+			      u32 user_param_count,
 			      const union acpi_predefined_info *predefined)
 {
 	u32 param_count;
 	u32 required_params_current;
 	u32 required_params_old;
 
-	/*
-	 * Check that the ASL-defined parameter count is what is expected for
-	 * this predefined name.
-	 *
-	 * Methods have 0-7 parameters. All other types have zero.
-	 */
+	/* Methods have 0-7 parameters. All other types have zero. */
+
 	param_count = 0;
 	if (node->type == ACPI_TYPE_METHOD) {
 		param_count = node->object->method.param_count;
 	}
 
-	/* Validate parameter count - allow two different legal counts (_SCP) */
+	/* Argument count check for non-predefined methods/objects */
+
+	if (!predefined) {
+		/*
+		 * Warning if too few or too many arguments have been passed by the
+		 * caller. An incorrect number of arguments may not cause the method
+		 * to fail. However, the method will fail if there are too few
+		 * arguments and the method attempts to use one of the missing ones.
+		 */
+		if (user_param_count < param_count) {
+			ACPI_WARNING((AE_INFO,
+				      "%s: Insufficient arguments - needs %d, found %d",
+				      pathname, param_count, user_param_count));
+		} else if (user_param_count > param_count) {
+			ACPI_WARNING((AE_INFO,
+				      "%s: Excess arguments - needs %d, found %d",
+				      pathname, param_count, user_param_count));
+		}
+		return;
+	}
+
+	/* Allow two different legal argument counts (_SCP, etc.) */
 
 	required_params_current = predefined->info.param_count & 0x0F;
 	required_params_old = predefined->info.param_count >> 4;
 
+	if (user_param_count != ACPI_UINT32_MAX) {
+
+		/* Validate the user-supplied parameter count */
+
+		if ((user_param_count != required_params_current) &&
+		    (user_param_count != required_params_old)) {
+			ACPI_WARNING((AE_INFO,
+				      "%s: Parameter count mismatch - caller passed %d, ACPI requires %d",
+				      pathname, user_param_count,
+				      required_params_current));
+		}
+	}
+
+	/*
+	 * Only validate the argument count on the first successful evaluation of
+	 * the method. This ensures that any warnings will only be emitted during
+	 * the very first evaluation of the method/object.
+	 */
+	if (node->flags & ANOBJ_EVALUATED) {
+		return;
+	}
+
+	/*
+	 * Check that the ASL-defined parameter count is what is expected for
+	 * this predefined name.
+	 */
 	if ((param_count != required_params_current) &&
 	    (param_count != required_params_old)) {
 		ACPI_WARNING((AE_INFO,
-			      "%s: Parameter count mismatch - ASL declared %d, expected %d",
+			      "%s: Parameter count mismatch - ASL declared %d, ACPI requires %d",
 			      pathname, param_count, required_params_current));
 	}
 }
