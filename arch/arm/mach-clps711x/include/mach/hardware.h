@@ -94,16 +94,6 @@
 #include <asm/hardware/ep7212.h>
 #include <asm/hardware/cs89712.h>
 
-/* dynamic ioremap() areas */
-#define SRAM_START       0x60000000
-#define SRAM_SIZE        0xc000
-#define SRAM_WIDTH       4
-
-#define BOOTROM_START    0x70000000
-#define BOOTROM_SIZE     0x80
-#define BOOTROM_WIDTH    4
-
-
 /* static cdb89712_map_io() areas */
 #define REGISTER_START   0x80000000
 #define REGISTER_SIZE    0x4000
@@ -193,14 +183,6 @@
 
 #define CEIVA_FLASH_SIZE        0x100000
 #define CEIVA_FLASH_WIDTH       2
-
-#define SRAM_START       0x60000000
-#define SRAM_SIZE        0xc000
-#define SRAM_WIDTH       4
-
-#define BOOTROM_START    0x70000000
-#define BOOTROM_SIZE     0x80
-#define BOOTROM_WIDTH    4
 
 /*
  * SED1355 LCD controller
