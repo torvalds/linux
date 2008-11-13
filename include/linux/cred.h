@@ -84,6 +84,8 @@ struct thread_group_cred {
 	struct key	*process_keyring;	/* keyring private to this process */
 	struct rcu_head	rcu;			/* RCU deletion hook */
 };
+
+extern void release_tgcred(struct cred *cred);
 #endif
 
 /*
@@ -137,11 +139,30 @@ struct cred {
 	struct user_struct *user;	/* real user ID subscription */
 	struct group_info *group_info;	/* supplementary groups for euid/fsgid */
 	struct rcu_head	rcu;		/* RCU deletion hook */
-	spinlock_t	lock;		/* lock for pointer changes */
 };
 
 extern void __put_cred(struct cred *);
 extern int copy_creds(struct task_struct *, unsigned long);
+extern struct cred *prepare_creds(void);
+extern struct cred *prepare_usermodehelper_creds(void);
+extern int commit_creds(struct cred *);
+extern void abort_creds(struct cred *);
+extern const struct cred *override_creds(const struct cred *) __deprecated;
+extern void revert_creds(const struct cred *) __deprecated;
+extern void __init cred_init(void);
+
+/**
+ * get_new_cred - Get a reference on a new set of credentials
+ * @cred: The new credentials to reference
+ *
+ * Get a reference on the specified set of new credentials.  The caller must
+ * release the reference.
+ */
+static inline struct cred *get_new_cred(struct cred *cred)
+{
+	atomic_inc(&cred->usage);
+	return cred;
+}
 
 /**
  * get_cred - Get a reference on a set of credentials
@@ -150,10 +171,9 @@ extern int copy_creds(struct task_struct *, unsigned long);
  * Get a reference on the specified set of credentials.  The caller must
  * release the reference.
  */
-static inline struct cred *get_cred(struct cred *cred)
+static inline const struct cred *get_cred(const struct cred *cred)
 {
-	atomic_inc(&cred->usage);
-	return cred;
+	return get_new_cred((struct cred *) cred);
 }
 
 /**
@@ -166,6 +186,8 @@ static inline struct cred *get_cred(struct cred *cred)
 static inline void put_cred(const struct cred *_cred)
 {
 	struct cred *cred = (struct cred *) _cred;
+
+	BUG_ON(atomic_read(&(cred)->usage) <= 0);
 	if (atomic_dec_and_test(&(cred)->usage))
 		__put_cred(cred);
 }
@@ -250,13 +272,13 @@ static inline void put_cred(const struct cred *_cred)
 	__groups;					\
 })
 
-#define task_cred_xxx(task, xxx)		\
-({						\
-	__typeof__(task->cred->xxx) ___val;	\
-	rcu_read_lock();			\
-	___val = __task_cred((task))->xxx;	\
-	rcu_read_unlock();			\
-	___val;					\
+#define task_cred_xxx(task, xxx)			\
+({							\
+	__typeof__(((struct cred *)NULL)->xxx) ___val;	\
+	rcu_read_lock();				\
+	___val = __task_cred((task))->xxx;		\
+	rcu_read_unlock();				\
+	___val;						\
 })
 
 #define task_uid(task)		(task_cred_xxx((task), uid))

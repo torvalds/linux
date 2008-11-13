@@ -340,12 +340,16 @@ static int cap_task_create(unsigned long clone_flags)
 	return 0;
 }
 
-static int cap_cred_alloc_security(struct cred *cred)
+static void cap_cred_free(struct cred *cred)
+{
+}
+
+static int cap_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp)
 {
 	return 0;
 }
 
-static void cap_cred_free(struct cred *cred)
+static void cap_cred_commit(struct cred *new, const struct cred *old)
 {
 }
 
@@ -750,7 +754,7 @@ static void cap_release_secctx(char *secdata, u32 seclen)
 }
 
 #ifdef CONFIG_KEYS
-static int cap_key_alloc(struct key *key, struct task_struct *ctx,
+static int cap_key_alloc(struct key *key, const struct cred *cred,
 			 unsigned long flags)
 {
 	return 0;
@@ -760,7 +764,7 @@ static void cap_key_free(struct key *key)
 {
 }
 
-static int cap_key_permission(key_ref_t key_ref, struct task_struct *context,
+static int cap_key_permission(key_ref_t key_ref, const struct cred *cred,
 			      key_perm_t perm)
 {
 	return 0;
@@ -814,8 +818,7 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, ptrace_may_access);
 	set_to_cap_if_null(ops, ptrace_traceme);
 	set_to_cap_if_null(ops, capget);
-	set_to_cap_if_null(ops, capset_check);
-	set_to_cap_if_null(ops, capset_set);
+	set_to_cap_if_null(ops, capset);
 	set_to_cap_if_null(ops, acct);
 	set_to_cap_if_null(ops, capable);
 	set_to_cap_if_null(ops, quotactl);
@@ -890,10 +893,11 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, file_receive);
 	set_to_cap_if_null(ops, dentry_open);
 	set_to_cap_if_null(ops, task_create);
-	set_to_cap_if_null(ops, cred_alloc_security);
 	set_to_cap_if_null(ops, cred_free);
+	set_to_cap_if_null(ops, cred_prepare);
+	set_to_cap_if_null(ops, cred_commit);
 	set_to_cap_if_null(ops, task_setuid);
-	set_to_cap_if_null(ops, task_post_setuid);
+	set_to_cap_if_null(ops, task_fix_setuid);
 	set_to_cap_if_null(ops, task_setgid);
 	set_to_cap_if_null(ops, task_setpgid);
 	set_to_cap_if_null(ops, task_getpgid);
@@ -910,7 +914,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, task_wait);
 	set_to_cap_if_null(ops, task_kill);
 	set_to_cap_if_null(ops, task_prctl);
-	set_to_cap_if_null(ops, task_reparent_to_init);
 	set_to_cap_if_null(ops, task_to_inode);
 	set_to_cap_if_null(ops, ipc_permission);
 	set_to_cap_if_null(ops, ipc_getsecid);

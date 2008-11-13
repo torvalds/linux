@@ -156,20 +156,20 @@ static int selinux_secmark_enabled(void)
 	return (atomic_read(&selinux_secmark_refcount) > 0);
 }
 
-/* Allocate and free functions for each kind of security blob. */
-
-static int cred_alloc_security(struct cred *cred)
+/*
+ * initialise the security for the init task
+ */
+static void cred_init_security(void)
 {
+	struct cred *cred = (struct cred *) current->cred;
 	struct task_security_struct *tsec;
 
 	tsec = kzalloc(sizeof(struct task_security_struct), GFP_KERNEL);
 	if (!tsec)
-		return -ENOMEM;
+		panic("SELinux:  Failed to initialize initial task.\n");
 
-	tsec->osid = tsec->sid = SECINITSID_UNLABELED;
+	tsec->osid = tsec->sid = SECINITSID_KERNEL;
 	cred->security = tsec;
-
-	return 0;
 }
 
 /*
@@ -1379,6 +1379,19 @@ static inline u32 signal_to_av(int sig)
 }
 
 /*
+ * Check permission between a pair of credentials
+ * fork check, ptrace check, etc.
+ */
+static int cred_has_perm(const struct cred *actor,
+			 const struct cred *target,
+			 u32 perms)
+{
+	u32 asid = cred_sid(actor), tsid = cred_sid(target);
+
+	return avc_has_perm(asid, tsid, SECCLASS_PROCESS, perms, NULL);
+}
+
+/*
  * Check permission between a pair of tasks, e.g. signal checks,
  * fork check, ptrace check, etc.
  * tsk1 is the actor and tsk2 is the target
@@ -1820,24 +1833,19 @@ static int selinux_capget(struct task_struct *target, kernel_cap_t *effective,
 	return secondary_ops->capget(target, effective, inheritable, permitted);
 }
 
-static int selinux_capset_check(const kernel_cap_t *effective,
-				const kernel_cap_t *inheritable,
-				const kernel_cap_t *permitted)
+static int selinux_capset(struct cred *new, const struct cred *old,
+			  const kernel_cap_t *effective,
+			  const kernel_cap_t *inheritable,
+			  const kernel_cap_t *permitted)
 {
 	int error;
 
-	error = secondary_ops->capset_check(effective, inheritable, permitted);
+	error = secondary_ops->capset(new, old,
+				      effective, inheritable, permitted);
 	if (error)
 		return error;
 
-	return task_has_perm(current, current, PROCESS__SETCAP);
-}
-
-static void selinux_capset_set(const kernel_cap_t *effective,
-			       const kernel_cap_t *inheritable,
-			       const kernel_cap_t *permitted)
-{
-	secondary_ops->capset_set(effective, inheritable, permitted);
+	return cred_has_perm(old, new, PROCESS__SETCAP);
 }
 
 static int selinux_capable(struct task_struct *tsk, int cap, int audit)
@@ -2244,16 +2252,23 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 	spin_unlock(&files->file_lock);
 }
 
-static void selinux_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
+static int selinux_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
 {
 	struct task_security_struct *tsec;
 	struct bprm_security_struct *bsec;
+	struct cred *new;
 	u32 sid;
 	int rc;
 
-	secondary_ops->bprm_apply_creds(bprm, unsafe);
+	rc = secondary_ops->bprm_apply_creds(bprm, unsafe);
+	if (rc < 0)
+		return rc;
 
-	tsec = current_security();
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+
+	tsec = new->security;
 
 	bsec = bprm->security;
 	sid = bsec->sid;
@@ -2268,7 +2283,7 @@ static void selinux_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
 					PROCESS__SHARE, NULL);
 			if (rc) {
 				bsec->unsafe = 1;
-				return;
+				goto out;
 			}
 		}
 
@@ -2292,12 +2307,16 @@ static void selinux_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
 						  PROCESS__PTRACE, NULL);
 				if (rc) {
 					bsec->unsafe = 1;
-					return;
+					goto out;
 				}
 			}
 		}
 		tsec->sid = sid;
 	}
+
+out:
+	commit_creds(new);
+	return 0;
 }
 
 /*
@@ -3021,6 +3040,7 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 static int file_map_prot_check(struct file *file, unsigned long prot, int shared)
 {
 	const struct cred *cred = current_cred();
+	int rc = 0;
 
 #ifndef CONFIG_PPC32
 	if ((prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
@@ -3029,9 +3049,9 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
 		 * private file mapping that will also be writable.
 		 * This has an additional check.
 		 */
-		int rc = task_has_perm(current, current, PROCESS__EXECMEM);
+		rc = cred_has_perm(cred, cred, PROCESS__EXECMEM);
 		if (rc)
-			return rc;
+			goto error;
 	}
 #endif
 
@@ -3048,7 +3068,9 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
 
 		return file_has_perm(cred, file, av);
 	}
-	return 0;
+
+error:
+	return rc;
 }
 
 static int selinux_file_mmap(struct file *file, unsigned long reqprot,
@@ -3090,8 +3112,7 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		rc = 0;
 		if (vma->vm_start >= vma->vm_mm->start_brk &&
 		    vma->vm_end <= vma->vm_mm->brk) {
-			rc = task_has_perm(current, current,
-					   PROCESS__EXECHEAP);
+			rc = cred_has_perm(cred, cred, PROCESS__EXECHEAP);
 		} else if (!vma->vm_file &&
 			   vma->vm_start <= vma->vm_mm->start_stack &&
 			   vma->vm_end >= vma->vm_mm->start_stack) {
@@ -3104,8 +3125,7 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 			 * modified content.  This typically should only
 			 * occur for text relocations.
 			 */
-			rc = file_has_perm(cred, vma->vm_file,
-					   FILE__EXECMOD);
+			rc = file_has_perm(cred, vma->vm_file, FILE__EXECMOD);
 		}
 		if (rc)
 			return rc;
@@ -3211,6 +3231,7 @@ static int selinux_dentry_open(struct file *file, const struct cred *cred)
 	struct file_security_struct *fsec;
 	struct inode *inode;
 	struct inode_security_struct *isec;
+
 	inode = file->f_path.dentry->d_inode;
 	fsec = file->f_security;
 	isec = inode->i_security;
@@ -3247,30 +3268,6 @@ static int selinux_task_create(unsigned long clone_flags)
 	return task_has_perm(current, current, PROCESS__FORK);
 }
 
-static int selinux_cred_alloc_security(struct cred *cred)
-{
-	struct task_security_struct *tsec1, *tsec2;
-	int rc;
-
-	tsec1 = current_security();
-
-	rc = cred_alloc_security(cred);
-	if (rc)
-		return rc;
-	tsec2 = cred->security;
-
-	tsec2->osid = tsec1->osid;
-	tsec2->sid = tsec1->sid;
-
-	/* Retain the exec, fs, key, and sock SIDs across fork */
-	tsec2->exec_sid = tsec1->exec_sid;
-	tsec2->create_sid = tsec1->create_sid;
-	tsec2->keycreate_sid = tsec1->keycreate_sid;
-	tsec2->sockcreate_sid = tsec1->sockcreate_sid;
-
-	return 0;
-}
-
 /*
  * detach and free the LSM part of a set of credentials
  */
@@ -3279,6 +3276,33 @@ static void selinux_cred_free(struct cred *cred)
 	struct task_security_struct *tsec = cred->security;
 	cred->security = NULL;
 	kfree(tsec);
+}
+
+/*
+ * prepare a new set of credentials for modification
+ */
+static int selinux_cred_prepare(struct cred *new, const struct cred *old,
+				gfp_t gfp)
+{
+	const struct task_security_struct *old_tsec;
+	struct task_security_struct *tsec;
+
+	old_tsec = old->security;
+
+	tsec = kmemdup(old_tsec, sizeof(struct task_security_struct), gfp);
+	if (!tsec)
+		return -ENOMEM;
+
+	new->security = tsec;
+	return 0;
+}
+
+/*
+ * commit new credentials
+ */
+static void selinux_cred_commit(struct cred *new, const struct cred *old)
+{
+	secondary_ops->cred_commit(new, old);
 }
 
 static int selinux_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
@@ -3292,9 +3316,10 @@ static int selinux_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
 	return 0;
 }
 
-static int selinux_task_post_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
+static int selinux_task_fix_setuid(struct cred *new, const struct cred *old,
+				   int flags)
 {
-	return secondary_ops->task_post_setuid(id0, id1, id2, flags);
+	return secondary_ops->task_fix_setuid(new, old, flags);
 }
 
 static int selinux_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags)
@@ -3368,7 +3393,7 @@ static int selinux_task_setrlimit(unsigned int resource, struct rlimit *new_rlim
 	/* Control the ability to change the hard limit (whether
 	   lowering or raising it), so that the hard limit can
 	   later be used as a safe reset point for the soft limit
-	   upon context transitions. See selinux_bprm_apply_creds. */
+	   upon context transitions.  See selinux_bprm_committing_creds. */
 	if (old_rlim->rlim_max != new_rlim->rlim_max)
 		return task_has_perm(current, current, PROCESS__SETRLIMIT);
 
@@ -3422,30 +3447,17 @@ static int selinux_task_prctl(int option,
 			      unsigned long arg2,
 			      unsigned long arg3,
 			      unsigned long arg4,
-			      unsigned long arg5,
-			      long *rc_p)
+			      unsigned long arg5)
 {
 	/* The current prctl operations do not appear to require
 	   any SELinux controls since they merely observe or modify
 	   the state of the current process. */
-	return secondary_ops->task_prctl(option, arg2, arg3, arg4, arg5, rc_p);
+	return secondary_ops->task_prctl(option, arg2, arg3, arg4, arg5);
 }
 
 static int selinux_task_wait(struct task_struct *p)
 {
 	return task_has_perm(p, current, PROCESS__SIGCHLD);
-}
-
-static void selinux_task_reparent_to_init(struct task_struct *p)
-{
-	struct task_security_struct *tsec;
-
-	secondary_ops->task_reparent_to_init(p);
-
-	tsec = p->cred->security;
-	tsec->osid = tsec->sid;
-	tsec->sid = SECINITSID_KERNEL;
-	return;
 }
 
 static void selinux_task_to_inode(struct task_struct *p,
@@ -5325,7 +5337,8 @@ static int selinux_setprocattr(struct task_struct *p,
 {
 	struct task_security_struct *tsec;
 	struct task_struct *tracer;
-	u32 sid = 0;
+	struct cred *new;
+	u32 sid = 0, ptsid;
 	int error;
 	char *str = value;
 
@@ -5372,86 +5385,75 @@ static int selinux_setprocattr(struct task_struct *p,
 			return error;
 	}
 
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+
 	/* Permission checking based on the specified context is
 	   performed during the actual operation (execve,
 	   open/mkdir/...), when we know the full context of the
-	   operation.  See selinux_bprm_set_security for the execve
+	   operation.  See selinux_bprm_set_creds for the execve
 	   checks and may_create for the file creation checks. The
 	   operation will then fail if the context is not permitted. */
-	tsec = p->cred->security;
-	if (!strcmp(name, "exec"))
+	tsec = new->security;
+	if (!strcmp(name, "exec")) {
 		tsec->exec_sid = sid;
-	else if (!strcmp(name, "fscreate"))
+	} else if (!strcmp(name, "fscreate")) {
 		tsec->create_sid = sid;
-	else if (!strcmp(name, "keycreate")) {
+	} else if (!strcmp(name, "keycreate")) {
 		error = may_create_key(sid, p);
 		if (error)
-			return error;
+			goto abort_change;
 		tsec->keycreate_sid = sid;
-	} else if (!strcmp(name, "sockcreate"))
+	} else if (!strcmp(name, "sockcreate")) {
 		tsec->sockcreate_sid = sid;
-	else if (!strcmp(name, "current")) {
-		struct av_decision avd;
-
+	} else if (!strcmp(name, "current")) {
+		error = -EINVAL;
 		if (sid == 0)
-			return -EINVAL;
-		/*
-		 * SELinux allows to change context in the following case only.
-		 *  - Single threaded processes.
-		 *  - Multi threaded processes intend to change its context into
-		 *    more restricted domain (defined by TYPEBOUNDS statement).
-		 */
-		if (atomic_read(&p->mm->mm_users) != 1) {
-			struct task_struct *g, *t;
-			struct mm_struct *mm = p->mm;
-			read_lock(&tasklist_lock);
-			do_each_thread(g, t) {
-				if (t->mm == mm && t != p) {
-					read_unlock(&tasklist_lock);
-					error = security_bounded_transition(tsec->sid, sid);
-					if (!error)
-						goto boundary_ok;
+			goto abort_change;
 
-					return error;
-				}
-			} while_each_thread(g, t);
-			read_unlock(&tasklist_lock);
+		/* Only allow single threaded processes to change context */
+		error = -EPERM;
+		if (!is_single_threaded(p)) {
+			error = security_bounded_transition(tsec->sid, sid);
+			if (error)
+				goto abort_change;
 		}
-boundary_ok:
 
 		/* Check permissions for the transition. */
 		error = avc_has_perm(tsec->sid, sid, SECCLASS_PROCESS,
 				     PROCESS__DYNTRANSITION, NULL);
 		if (error)
-			return error;
+			goto abort_change;
 
 		/* Check for ptracing, and update the task SID if ok.
 		   Otherwise, leave SID unchanged and fail. */
+		ptsid = 0;
 		task_lock(p);
-		rcu_read_lock();
 		tracer = tracehook_tracer_task(p);
-		if (tracer != NULL) {
-			u32 ptsid = task_sid(tracer);
-			rcu_read_unlock();
-			error = avc_has_perm_noaudit(ptsid, sid,
-						     SECCLASS_PROCESS,
-						     PROCESS__PTRACE, 0, &avd);
-			if (!error)
-				tsec->sid = sid;
-			task_unlock(p);
-			avc_audit(ptsid, sid, SECCLASS_PROCESS,
-				  PROCESS__PTRACE, &avd, error, NULL);
-			if (error)
-				return error;
-		} else {
-			rcu_read_unlock();
-			tsec->sid = sid;
-			task_unlock(p);
-		}
-	} else
-		return -EINVAL;
+		if (tracer)
+			ptsid = task_sid(tracer);
+		task_unlock(p);
 
+		if (tracer) {
+			error = avc_has_perm(ptsid, sid, SECCLASS_PROCESS,
+					     PROCESS__PTRACE, NULL);
+			if (error)
+				goto abort_change;
+		}
+
+		tsec->sid = sid;
+	} else {
+		error = -EINVAL;
+		goto abort_change;
+	}
+
+	commit_creds(new);
 	return size;
+
+abort_change:
+	abort_creds(new);
+	return error;
 }
 
 static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
@@ -5471,23 +5473,21 @@ static void selinux_release_secctx(char *secdata, u32 seclen)
 
 #ifdef CONFIG_KEYS
 
-static int selinux_key_alloc(struct key *k, struct task_struct *tsk,
+static int selinux_key_alloc(struct key *k, const struct cred *cred,
 			     unsigned long flags)
 {
-	const struct task_security_struct *__tsec;
+	const struct task_security_struct *tsec;
 	struct key_security_struct *ksec;
 
 	ksec = kzalloc(sizeof(struct key_security_struct), GFP_KERNEL);
 	if (!ksec)
 		return -ENOMEM;
 
-	rcu_read_lock();
-	__tsec = __task_cred(tsk)->security;
-	if (__tsec->keycreate_sid)
-		ksec->sid = __tsec->keycreate_sid;
+	tsec = cred->security;
+	if (tsec->keycreate_sid)
+		ksec->sid = tsec->keycreate_sid;
 	else
-		ksec->sid = __tsec->sid;
-	rcu_read_unlock();
+		ksec->sid = tsec->sid;
 
 	k->security = ksec;
 	return 0;
@@ -5502,8 +5502,8 @@ static void selinux_key_free(struct key *k)
 }
 
 static int selinux_key_permission(key_ref_t key_ref,
-			    struct task_struct *ctx,
-			    key_perm_t perm)
+				  const struct cred *cred,
+				  key_perm_t perm)
 {
 	struct key *key;
 	struct key_security_struct *ksec;
@@ -5515,7 +5515,7 @@ static int selinux_key_permission(key_ref_t key_ref,
 	if (perm == 0)
 		return 0;
 
-	sid = task_sid(ctx);
+	sid = cred_sid(cred);
 
 	key = key_ref_to_ptr(key_ref);
 	ksec = key->security;
@@ -5545,8 +5545,7 @@ static struct security_operations selinux_ops = {
 	.ptrace_may_access =		selinux_ptrace_may_access,
 	.ptrace_traceme =		selinux_ptrace_traceme,
 	.capget =			selinux_capget,
-	.capset_check =			selinux_capset_check,
-	.capset_set =			selinux_capset_set,
+	.capset =			selinux_capset,
 	.sysctl =			selinux_sysctl,
 	.capable =			selinux_capable,
 	.quotactl =			selinux_quotactl,
@@ -5621,10 +5620,11 @@ static struct security_operations selinux_ops = {
 	.dentry_open =			selinux_dentry_open,
 
 	.task_create =			selinux_task_create,
-	.cred_alloc_security =		selinux_cred_alloc_security,
 	.cred_free =			selinux_cred_free,
+	.cred_prepare =			selinux_cred_prepare,
+	.cred_commit =			selinux_cred_commit,
 	.task_setuid =			selinux_task_setuid,
-	.task_post_setuid =		selinux_task_post_setuid,
+	.task_fix_setuid =		selinux_task_fix_setuid,
 	.task_setgid =			selinux_task_setgid,
 	.task_setpgid =			selinux_task_setpgid,
 	.task_getpgid =			selinux_task_getpgid,
@@ -5641,7 +5641,6 @@ static struct security_operations selinux_ops = {
 	.task_kill =			selinux_task_kill,
 	.task_wait =			selinux_task_wait,
 	.task_prctl =			selinux_task_prctl,
-	.task_reparent_to_init =	selinux_task_reparent_to_init,
 	.task_to_inode =		selinux_task_to_inode,
 
 	.ipc_permission =		selinux_ipc_permission,
@@ -5737,8 +5736,6 @@ static struct security_operations selinux_ops = {
 
 static __init int selinux_init(void)
 {
-	struct task_security_struct *tsec;
-
 	if (!security_module_enable(&selinux_ops)) {
 		selinux_enabled = 0;
 		return 0;
@@ -5752,10 +5749,7 @@ static __init int selinux_init(void)
 	printk(KERN_INFO "SELinux:  Initializing.\n");
 
 	/* Set the security state for the initial task. */
-	if (cred_alloc_security(current->cred))
-		panic("SELinux:  Failed to initialize initial task.\n");
-	tsec = current->cred->security;
-	tsec->osid = tsec->sid = SECINITSID_KERNEL;
+	cred_init_security();
 
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),

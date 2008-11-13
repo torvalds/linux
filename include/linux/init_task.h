@@ -150,6 +150,8 @@ extern struct cred init_cred;
 	.sibling	= LIST_HEAD_INIT(tsk.sibling),			\
 	.group_leader	= &tsk,						\
 	.cred		= &init_cred,					\
+	.cred_exec_mutex =						\
+		 __MUTEX_INITIALIZER(tsk.cred_exec_mutex),		\
 	.comm		= "swapper",					\
 	.thread		= INIT_THREAD,					\
 	.fs		= &init_fs,					\

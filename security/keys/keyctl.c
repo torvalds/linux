@@ -866,6 +866,23 @@ static long get_instantiation_keyring(key_serial_t ringid,
 	return -ENOKEY;
 }
 
+/*
+ * change the request_key authorisation key on the current process
+ */
+static int keyctl_change_reqkey_auth(struct key *key)
+{
+	struct cred *new;
+
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+
+	key_put(new->request_key_auth);
+	new->request_key_auth = key_get(key);
+
+	return commit_creds(new);
+}
+
 /*****************************************************************************/
 /*
  * instantiate the key with the specified payload, and, if one is given, link
@@ -876,11 +893,14 @@ long keyctl_instantiate_key(key_serial_t id,
 			    size_t plen,
 			    key_serial_t ringid)
 {
+	const struct cred *cred = current_cred();
 	struct request_key_auth *rka;
 	struct key *instkey, *dest_keyring;
 	void *payload;
 	long ret;
 	bool vm = false;
+
+	kenter("%d,,%zu,%d", id, plen, ringid);
 
 	ret = -EINVAL;
 	if (plen > 1024 * 1024 - 1)
@@ -889,7 +909,7 @@ long keyctl_instantiate_key(key_serial_t id,
 	/* the appropriate instantiation authorisation key must have been
 	 * assumed before calling this */
 	ret = -EPERM;
-	instkey = current->cred->request_key_auth;
+	instkey = cred->request_key_auth;
 	if (!instkey)
 		goto error;
 
@@ -931,10 +951,8 @@ long keyctl_instantiate_key(key_serial_t id,
 
 	/* discard the assumed authority if it's just been disabled by
 	 * instantiation of the key */
-	if (ret == 0) {
-		key_put(current->cred->request_key_auth);
-		current->cred->request_key_auth = NULL;
-	}
+	if (ret == 0)
+		keyctl_change_reqkey_auth(NULL);
 
 error2:
 	if (!vm)
@@ -953,14 +971,17 @@ error:
  */
 long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 {
+	const struct cred *cred = current_cred();
 	struct request_key_auth *rka;
 	struct key *instkey, *dest_keyring;
 	long ret;
 
+	kenter("%d,%u,%d", id, timeout, ringid);
+
 	/* the appropriate instantiation authorisation key must have been
 	 * assumed before calling this */
 	ret = -EPERM;
-	instkey = current->cred->request_key_auth;
+	instkey = cred->request_key_auth;
 	if (!instkey)
 		goto error;
 
@@ -982,10 +1003,8 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 
 	/* discard the assumed authority if it's just been disabled by
 	 * instantiation of the key */
-	if (ret == 0) {
-		key_put(current->cred->request_key_auth);
-		current->cred->request_key_auth = NULL;
-	}
+	if (ret == 0)
+		keyctl_change_reqkey_auth(NULL);
 
 error:
 	return ret;
@@ -999,35 +1018,55 @@ error:
  */
 long keyctl_set_reqkey_keyring(int reqkey_defl)
 {
-	struct cred *cred = current->cred;
-	int ret;
+	struct cred *new;
+	int ret, old_setting;
+
+	old_setting = current_cred_xxx(jit_keyring);
+
+	if (reqkey_defl == KEY_REQKEY_DEFL_NO_CHANGE)
+		return old_setting;
+
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
 
 	switch (reqkey_defl) {
 	case KEY_REQKEY_DEFL_THREAD_KEYRING:
-		ret = install_thread_keyring();
+		ret = install_thread_keyring_to_cred(new);
 		if (ret < 0)
-			return ret;
+			goto error;
 		goto set;
 
 	case KEY_REQKEY_DEFL_PROCESS_KEYRING:
-		ret = install_process_keyring();
-		if (ret < 0)
-			return ret;
+		ret = install_process_keyring_to_cred(new);
+		if (ret < 0) {
+			if (ret != -EEXIST)
+				goto error;
+			ret = 0;
+		}
+		goto set;
 
 	case KEY_REQKEY_DEFL_DEFAULT:
 	case KEY_REQKEY_DEFL_SESSION_KEYRING:
 	case KEY_REQKEY_DEFL_USER_KEYRING:
 	case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
-	set:
-		cred->jit_keyring = reqkey_defl;
+	case KEY_REQKEY_DEFL_REQUESTOR_KEYRING:
+		goto set;
 
 	case KEY_REQKEY_DEFL_NO_CHANGE:
-		return cred->jit_keyring;
-
 	case KEY_REQKEY_DEFL_GROUP_KEYRING:
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
+
+set:
+	new->jit_keyring = reqkey_defl;
+	commit_creds(new);
+	return old_setting;
+error:
+	abort_creds(new);
+	return -EINVAL;
 
 } /* end keyctl_set_reqkey_keyring() */
 
@@ -1087,9 +1126,7 @@ long keyctl_assume_authority(key_serial_t id)
 
 	/* we divest ourselves of authority if given an ID of 0 */
 	if (id == 0) {
-		key_put(current->cred->request_key_auth);
-		current->cred->request_key_auth = NULL;
-		ret = 0;
+		ret = keyctl_change_reqkey_auth(NULL);
 		goto error;
 	}
 
@@ -1104,10 +1141,12 @@ long keyctl_assume_authority(key_serial_t id)
 		goto error;
 	}
 
-	key_put(current->cred->request_key_auth);
-	current->cred->request_key_auth = authkey;
-	ret = authkey->serial;
+	ret = keyctl_change_reqkey_auth(authkey);
+	if (ret < 0)
+		goto error;
+	key_put(authkey);
 
+	ret = authkey->serial;
 error:
 	return ret;
 

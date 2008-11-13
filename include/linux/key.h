@@ -73,6 +73,7 @@ struct key;
 struct seq_file;
 struct user_struct;
 struct signal_struct;
+struct cred;
 
 struct key_type;
 struct key_owner;
@@ -181,7 +182,7 @@ struct key {
 extern struct key *key_alloc(struct key_type *type,
 			     const char *desc,
 			     uid_t uid, gid_t gid,
-			     struct task_struct *ctx,
+			     const struct cred *cred,
 			     key_perm_t perm,
 			     unsigned long flags);
 
@@ -249,7 +250,7 @@ extern int key_unlink(struct key *keyring,
 		      struct key *key);
 
 extern struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
-				 struct task_struct *ctx,
+				 const struct cred *cred,
 				 unsigned long flags,
 				 struct key *dest);
 
@@ -276,21 +277,11 @@ extern ctl_table key_sysctls[];
 /*
  * the userspace interface
  */
-extern void switch_uid_keyring(struct user_struct *new_user);
-extern int copy_keys(unsigned long clone_flags, struct task_struct *tsk);
-extern void exit_keys(struct task_struct *tsk);
-extern int suid_keys(struct task_struct *tsk);
+extern int install_thread_keyring_to_cred(struct cred *cred);
 extern int exec_keys(struct task_struct *tsk);
 extern void key_fsuid_changed(struct task_struct *tsk);
 extern void key_fsgid_changed(struct task_struct *tsk);
 extern void key_init(void);
-
-#define __install_session_keyring(keyring)				\
-({									\
-	struct key *old_session = current->cred->tgcred->session_keyring; \
-	current->cred->tgcred->session_keyring = keyring;		\
-	old_session;							\
-})
 
 #else /* CONFIG_KEYS */
 
@@ -303,11 +294,6 @@ extern void key_init(void);
 #define make_key_ref(k, p)		NULL
 #define key_ref_to_ptr(k)		NULL
 #define is_key_possessed(k)		0
-#define switch_uid_keyring(u)		do { } while(0)
-#define __install_session_keyring(k)	({ NULL; })
-#define copy_keys(f,t)			0
-#define exit_keys(t)			do { } while(0)
-#define suid_keys(t)			do { } while(0)
 #define exec_keys(t)			do { } while(0)
 #define key_fsuid_changed(t)		do { } while(0)
 #define key_fsgid_changed(t)		do { } while(0)

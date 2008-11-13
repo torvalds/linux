@@ -72,8 +72,8 @@ int cap_ptrace_may_access(struct task_struct *child, unsigned int mode)
 	int ret = 0;
 
 	rcu_read_lock();
-	if (!cap_issubset(child->cred->cap_permitted,
-			  current->cred->cap_permitted) &&
+	if (!cap_issubset(__task_cred(child)->cap_permitted,
+			  current_cred()->cap_permitted) &&
 	    !capable(CAP_SYS_PTRACE))
 		ret = -EPERM;
 	rcu_read_unlock();
@@ -85,8 +85,8 @@ int cap_ptrace_traceme(struct task_struct *parent)
 	int ret = 0;
 
 	rcu_read_lock();
-	if (!cap_issubset(current->cred->cap_permitted,
-			 parent->cred->cap_permitted) &&
+	if (!cap_issubset(current_cred()->cap_permitted,
+			  __task_cred(parent)->cap_permitted) &&
 	    !has_capability(parent, CAP_SYS_PTRACE))
 		ret = -EPERM;
 	rcu_read_unlock();
@@ -117,7 +117,7 @@ static inline int cap_inh_is_capped(void)
 	 * to the old permitted set. That is, if the current task
 	 * does *not* possess the CAP_SETPCAP capability.
 	 */
-	return (cap_capable(current, CAP_SETPCAP, SECURITY_CAP_AUDIT) != 0);
+	return cap_capable(current, CAP_SETPCAP, SECURITY_CAP_AUDIT) != 0;
 }
 
 static inline int cap_limit_ptraced_target(void) { return 1; }
@@ -132,50 +132,37 @@ static inline int cap_limit_ptraced_target(void)
 
 #endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
 
-int cap_capset_check(const kernel_cap_t *effective,
-		     const kernel_cap_t *inheritable,
-		     const kernel_cap_t *permitted)
+int cap_capset(struct cred *new,
+	       const struct cred *old,
+	       const kernel_cap_t *effective,
+	       const kernel_cap_t *inheritable,
+	       const kernel_cap_t *permitted)
 {
-	const struct cred *cred = current->cred;
-
-	if (cap_inh_is_capped()
-	    && !cap_issubset(*inheritable,
-			     cap_combine(cred->cap_inheritable,
-					 cred->cap_permitted))) {
+	if (cap_inh_is_capped() &&
+	    !cap_issubset(*inheritable,
+			  cap_combine(old->cap_inheritable,
+				      old->cap_permitted)))
 		/* incapable of using this inheritable set */
 		return -EPERM;
-	}
+
 	if (!cap_issubset(*inheritable,
-			   cap_combine(cred->cap_inheritable,
-				       cred->cap_bset))) {
+			  cap_combine(old->cap_inheritable,
+				      old->cap_bset)))
 		/* no new pI capabilities outside bounding set */
 		return -EPERM;
-	}
 
 	/* verify restrictions on target's new Permitted set */
-	if (!cap_issubset (*permitted,
-			   cap_combine (cred->cap_permitted,
-					cred->cap_permitted))) {
+	if (!cap_issubset(*permitted, old->cap_permitted))
 		return -EPERM;
-	}
 
 	/* verify the _new_Effective_ is a subset of the _new_Permitted_ */
-	if (!cap_issubset (*effective, *permitted)) {
+	if (!cap_issubset(*effective, *permitted))
 		return -EPERM;
-	}
 
+	new->cap_effective   = *effective;
+	new->cap_inheritable = *inheritable;
+	new->cap_permitted   = *permitted;
 	return 0;
-}
-
-void cap_capset_set(const kernel_cap_t *effective,
-		    const kernel_cap_t *inheritable,
-		    const kernel_cap_t *permitted)
-{
-	struct cred *cred = current->cred;
-
-	cred->cap_effective   = *effective;
-	cred->cap_inheritable = *inheritable;
-	cred->cap_permitted   = *permitted;
 }
 
 static inline void bprm_clear_caps(struct linux_binprm *bprm)
@@ -382,41 +369,46 @@ int cap_bprm_set_security (struct linux_binprm *bprm)
 	return ret;
 }
 
-void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
+int cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 {
-	struct cred *cred = current->cred;
+	const struct cred *old = current_cred();
+	struct cred *new;
 
-	if (bprm->e_uid != cred->uid || bprm->e_gid != cred->gid ||
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+
+	if (bprm->e_uid != old->uid || bprm->e_gid != old->gid ||
 	    !cap_issubset(bprm->cap_post_exec_permitted,
-			  cred->cap_permitted)) {
+			  old->cap_permitted)) {
 		set_dumpable(current->mm, suid_dumpable);
 		current->pdeath_signal = 0;
 
 		if (unsafe & ~LSM_UNSAFE_PTRACE_CAP) {
 			if (!capable(CAP_SETUID)) {
-				bprm->e_uid = cred->uid;
-				bprm->e_gid = cred->gid;
+				bprm->e_uid = old->uid;
+				bprm->e_gid = old->gid;
 			}
 			if (cap_limit_ptraced_target()) {
 				bprm->cap_post_exec_permitted = cap_intersect(
 					bprm->cap_post_exec_permitted,
-					cred->cap_permitted);
+					new->cap_permitted);
 			}
 		}
 	}
 
-	cred->suid = cred->euid = cred->fsuid = bprm->e_uid;
-	cred->sgid = cred->egid = cred->fsgid = bprm->e_gid;
+	new->suid = new->euid = new->fsuid = bprm->e_uid;
+	new->sgid = new->egid = new->fsgid = bprm->e_gid;
 
 	/* For init, we want to retain the capabilities set
 	 * in the init_task struct. Thus we skip the usual
 	 * capability rules */
 	if (!is_global_init(current)) {
-		cred->cap_permitted = bprm->cap_post_exec_permitted;
+		new->cap_permitted = bprm->cap_post_exec_permitted;
 		if (bprm->cap_effective)
-			cred->cap_effective = bprm->cap_post_exec_permitted;
+			new->cap_effective = bprm->cap_post_exec_permitted;
 		else
-			cap_clear(cred->cap_effective);
+			cap_clear(new->cap_effective);
 	}
 
 	/*
@@ -431,15 +423,15 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 	 * Number 1 above might fail if you don't have a full bset, but I think
 	 * that is interesting information to audit.
 	 */
-	if (!cap_isclear(cred->cap_effective)) {
-		if (!cap_issubset(CAP_FULL_SET, cred->cap_effective) ||
-		    (bprm->e_uid != 0) || (cred->uid != 0) ||
+	if (!cap_isclear(new->cap_effective)) {
+		if (!cap_issubset(CAP_FULL_SET, new->cap_effective) ||
+		    bprm->e_uid != 0 || new->uid != 0 ||
 		    issecure(SECURE_NOROOT))
-			audit_log_bprm_fcaps(bprm, &cred->cap_permitted,
-					     &cred->cap_effective);
+			audit_log_bprm_fcaps(bprm, new, old);
 	}
 
-	cred->securebits &= ~issecure_mask(SECURE_KEEP_CAPS);
+	new->securebits &= ~issecure_mask(SECURE_KEEP_CAPS);
+	return commit_creds(new);
 }
 
 int cap_bprm_secureexec (struct linux_binprm *bprm)
@@ -514,65 +506,49 @@ int cap_inode_removexattr(struct dentry *dentry, const char *name)
  * files..
  * Thanks to Olaf Kirch and Peter Benie for spotting this.
  */
-static inline void cap_emulate_setxuid (int old_ruid, int old_euid,
-					int old_suid)
+static inline void cap_emulate_setxuid(struct cred *new, const struct cred *old)
 {
-	struct cred *cred = current->cred;
-
-	if ((old_ruid == 0 || old_euid == 0 || old_suid == 0) &&
-	    (cred->uid != 0 && cred->euid != 0 && cred->suid != 0) &&
+	if ((old->uid == 0 || old->euid == 0 || old->suid == 0) &&
+	    (new->uid != 0 && new->euid != 0 && new->suid != 0) &&
 	    !issecure(SECURE_KEEP_CAPS)) {
-		cap_clear(cred->cap_permitted);
-		cap_clear(cred->cap_effective);
+		cap_clear(new->cap_permitted);
+		cap_clear(new->cap_effective);
 	}
-	if (old_euid == 0 && cred->euid != 0) {
-		cap_clear(cred->cap_effective);
-	}
-	if (old_euid != 0 && cred->euid == 0) {
-		cred->cap_effective = cred->cap_permitted;
-	}
+	if (old->euid == 0 && new->euid != 0)
+		cap_clear(new->cap_effective);
+	if (old->euid != 0 && new->euid == 0)
+		new->cap_effective = new->cap_permitted;
 }
 
-int cap_task_post_setuid (uid_t old_ruid, uid_t old_euid, uid_t old_suid,
-			  int flags)
+int cap_task_fix_setuid(struct cred *new, const struct cred *old, int flags)
 {
-	struct cred *cred = current->cred;
-
 	switch (flags) {
 	case LSM_SETID_RE:
 	case LSM_SETID_ID:
 	case LSM_SETID_RES:
 		/* Copied from kernel/sys.c:setreuid/setuid/setresuid. */
-		if (!issecure (SECURE_NO_SETUID_FIXUP)) {
-			cap_emulate_setxuid (old_ruid, old_euid, old_suid);
-		}
+		if (!issecure(SECURE_NO_SETUID_FIXUP))
+			cap_emulate_setxuid(new, old);
 		break;
 	case LSM_SETID_FS:
-		{
-			uid_t old_fsuid = old_ruid;
+		/* Copied from kernel/sys.c:setfsuid. */
 
-			/* Copied from kernel/sys.c:setfsuid. */
-
-			/*
-			 * FIXME - is fsuser used for all CAP_FS_MASK capabilities?
-			 *          if not, we might be a bit too harsh here.
-			 */
-
-			if (!issecure (SECURE_NO_SETUID_FIXUP)) {
-				if (old_fsuid == 0 && cred->fsuid != 0) {
-					cred->cap_effective =
-						cap_drop_fs_set(
-							cred->cap_effective);
-				}
-				if (old_fsuid != 0 && cred->fsuid == 0) {
-					cred->cap_effective =
-						cap_raise_fs_set(
-						    cred->cap_effective,
-						    cred->cap_permitted);
-				}
+		/*
+		 * FIXME - is fsuser used for all CAP_FS_MASK capabilities?
+		 *          if not, we might be a bit too harsh here.
+		 */
+		if (!issecure(SECURE_NO_SETUID_FIXUP)) {
+			if (old->fsuid == 0 && new->fsuid != 0) {
+				new->cap_effective =
+					cap_drop_fs_set(new->cap_effective);
 			}
-			break;
+			if (old->fsuid != 0 && new->fsuid == 0) {
+				new->cap_effective =
+					cap_raise_fs_set(new->cap_effective,
+							 new->cap_permitted);
+			}
 		}
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -628,13 +604,14 @@ int cap_task_setnice (struct task_struct *p, int nice)
  * this task could get inconsistent info.  There can be no
  * racing writer bc a task can only change its own caps.
  */
-static long cap_prctl_drop(unsigned long cap)
+static long cap_prctl_drop(struct cred *new, unsigned long cap)
 {
 	if (!capable(CAP_SETPCAP))
 		return -EPERM;
 	if (!cap_valid(cap))
 		return -EINVAL;
-	cap_lower(current->cred->cap_bset, cap);
+
+	cap_lower(new->cap_bset, cap);
 	return 0;
 }
 
@@ -655,22 +632,29 @@ int cap_task_setnice (struct task_struct *p, int nice)
 #endif
 
 int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
-		   unsigned long arg4, unsigned long arg5, long *rc_p)
+		   unsigned long arg4, unsigned long arg5)
 {
-	struct cred *cred = current_cred();
+	struct cred *new;
 	long error = 0;
+
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
 
 	switch (option) {
 	case PR_CAPBSET_READ:
+		error = -EINVAL;
 		if (!cap_valid(arg2))
-			error = -EINVAL;
-		else
-			error = !!cap_raised(cred->cap_bset, arg2);
-		break;
+			goto error;
+		error = !!cap_raised(new->cap_bset, arg2);
+		goto no_change;
+
 #ifdef CONFIG_SECURITY_FILE_CAPABILITIES
 	case PR_CAPBSET_DROP:
-		error = cap_prctl_drop(arg2);
-		break;
+		error = cap_prctl_drop(new, arg2);
+		if (error < 0)
+			goto error;
+		goto changed;
 
 	/*
 	 * The next four prctl's remain to assist with transitioning a
@@ -692,12 +676,12 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 	 * capability-based-privilege environment.
 	 */
 	case PR_SET_SECUREBITS:
-		if ((((cred->securebits & SECURE_ALL_LOCKS) >> 1)
-		     & (cred->securebits ^ arg2))                  /*[1]*/
-		    || ((cred->securebits & SECURE_ALL_LOCKS
-			 & ~arg2))                                    /*[2]*/
-		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS)) /*[3]*/
-		    || (cap_capable(current, CAP_SETPCAP, SECURITY_CAP_AUDIT) != 0)) { /*[4]*/
+		error = -EPERM;
+		if ((((new->securebits & SECURE_ALL_LOCKS) >> 1)
+		     & (new->securebits ^ arg2))			/*[1]*/
+		    || ((new->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
+		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS))	/*[3]*/
+		    || (cap_capable(current, CAP_SETPCAP, SECURITY_CAP_AUDIT) != 0) /*[4]*/
 			/*
 			 * [1] no changing of bits that are locked
 			 * [2] no unlocking of locks
@@ -705,50 +689,51 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 * [4] doing anything requires privilege (go read about
 			 *     the "sendmail capabilities bug")
 			 */
-			error = -EPERM;  /* cannot change a locked bit */
-		} else {
-			cred->securebits = arg2;
-		}
-		break;
+		    )
+			/* cannot change a locked bit */
+			goto error;
+		new->securebits = arg2;
+		goto changed;
+
 	case PR_GET_SECUREBITS:
-		error = cred->securebits;
-		break;
+		error = new->securebits;
+		goto no_change;
 
 #endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
 
 	case PR_GET_KEEPCAPS:
 		if (issecure(SECURE_KEEP_CAPS))
 			error = 1;
-		break;
+		goto no_change;
+
 	case PR_SET_KEEPCAPS:
+		error = -EINVAL;
 		if (arg2 > 1) /* Note, we rely on arg2 being unsigned here */
-			error = -EINVAL;
-		else if (issecure(SECURE_KEEP_CAPS_LOCKED))
-			error = -EPERM;
-		else if (arg2)
-			cred->securebits |= issecure_mask(SECURE_KEEP_CAPS);
+			goto error;
+		error = -EPERM;
+		if (issecure(SECURE_KEEP_CAPS_LOCKED))
+			goto error;
+		if (arg2)
+			new->securebits |= issecure_mask(SECURE_KEEP_CAPS);
 		else
-			cred->securebits &= ~issecure_mask(SECURE_KEEP_CAPS);
-		break;
+			new->securebits &= ~issecure_mask(SECURE_KEEP_CAPS);
+		goto changed;
 
 	default:
 		/* No functionality available - continue with default */
-		return 0;
+		error = -ENOSYS;
+		goto error;
 	}
 
 	/* Functionality provided */
-	*rc_p = error;
-	return 1;
-}
+changed:
+	return commit_creds(new);
 
-void cap_task_reparent_to_init (struct task_struct *p)
-{
-	struct cred *cred = p->cred;
-
-	cap_set_init_eff(cred->cap_effective);
-	cap_clear(cred->cap_inheritable);
-	cap_set_full(cred->cap_permitted);
-	p->cred->securebits = SECUREBITS_DEFAULT;
+no_change:
+	error = 0;
+error:
+	abort_creds(new);
+	return error;
 }
 
 int cap_syslog (int type)

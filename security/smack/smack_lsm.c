@@ -104,8 +104,7 @@ static int smack_ptrace_may_access(struct task_struct *ctp, unsigned int mode)
 	if (rc != 0)
 		return rc;
 
-	rc = smk_access(current->cred->security, ctp->cred->security,
-			MAY_READWRITE);
+	rc = smk_access(current_security(), task_security(ctp), MAY_READWRITE);
 	if (rc != 0 && capable(CAP_MAC_OVERRIDE))
 		return 0;
 	return rc;
@@ -127,8 +126,7 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
 	if (rc != 0)
 		return rc;
 
-	rc = smk_access(ptp->cred->security, current->cred->security,
-			MAY_READWRITE);
+	rc = smk_access(task_security(ptp), current_security(), MAY_READWRITE);
 	if (rc != 0 && has_capability(ptp, CAP_MAC_OVERRIDE))
 		return 0;
 	return rc;
@@ -977,22 +975,6 @@ static int smack_file_receive(struct file *file)
  */
 
 /**
- * smack_cred_alloc_security - "allocate" a task cred blob
- * @cred: the task creds in need of a blob
- *
- * Smack isn't using copies of blobs. Everyone
- * points to an immutable list. No alloc required.
- * No data copy required.
- *
- * Always returns 0
- */
-static int smack_cred_alloc_security(struct cred *cred)
-{
-	cred->security = current_security();
-	return 0;
-}
-
-/**
  * smack_cred_free - "free" task-level security credentials
  * @cred: the credentials in question
  *
@@ -1003,6 +985,30 @@ static int smack_cred_alloc_security(struct cred *cred)
 static void smack_cred_free(struct cred *cred)
 {
 	cred->security = NULL;
+}
+
+/**
+ * smack_cred_prepare - prepare new set of credentials for modification
+ * @new: the new credentials
+ * @old: the original credentials
+ * @gfp: the atomicity of any memory allocations
+ *
+ * Prepare a new set of credentials for modification.
+ */
+static int smack_cred_prepare(struct cred *new, const struct cred *old,
+			      gfp_t gfp)
+{
+	new->security = old->security;
+	return 0;
+}
+
+/*
+ * commit new credentials
+ * @new: the new credentials
+ * @old: the original credentials
+ */
+static void smack_cred_commit(struct cred *new, const struct cred *old)
+{
 }
 
 /**
@@ -2036,6 +2042,7 @@ static int smack_getprocattr(struct task_struct *p, char *name, char **value)
 static int smack_setprocattr(struct task_struct *p, char *name,
 			     void *value, size_t size)
 {
+	struct cred *new;
 	char *newsmack;
 
 	/*
@@ -2058,7 +2065,11 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 	if (newsmack == NULL)
 		return -EINVAL;
 
-	p->cred->security = newsmack;
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+	new->security = newsmack;
+	commit_creds(new);
 	return size;
 }
 
@@ -2354,17 +2365,17 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 /**
  * smack_key_alloc - Set the key security blob
  * @key: object
- * @tsk: the task associated with the key
+ * @cred: the credentials to use
  * @flags: unused
  *
  * No allocation required
  *
  * Returns 0
  */
-static int smack_key_alloc(struct key *key, struct task_struct *tsk,
+static int smack_key_alloc(struct key *key, const struct cred *cred,
 			   unsigned long flags)
 {
-	key->security = tsk->cred->security;
+	key->security = cred->security;
 	return 0;
 }
 
@@ -2382,14 +2393,14 @@ static void smack_key_free(struct key *key)
 /*
  * smack_key_permission - Smack access on a key
  * @key_ref: gets to the object
- * @context: task involved
+ * @cred: the credentials to use
  * @perm: unused
  *
  * Return 0 if the task has read and write to the object,
  * an error code otherwise
  */
 static int smack_key_permission(key_ref_t key_ref,
-				struct task_struct *context, key_perm_t perm)
+				const struct cred *cred, key_perm_t perm)
 {
 	struct key *keyp;
 
@@ -2405,11 +2416,10 @@ static int smack_key_permission(key_ref_t key_ref,
 	/*
 	 * This should not occur
 	 */
-	if (context->cred->security == NULL)
+	if (cred->security == NULL)
 		return -EACCES;
 
-	return smk_access(context->cred->security, keyp->security,
-			  MAY_READWRITE);
+	return smk_access(cred->security, keyp->security, MAY_READWRITE);
 }
 #endif /* CONFIG_KEYS */
 
@@ -2580,8 +2590,7 @@ struct security_operations smack_ops = {
 	.ptrace_may_access =		smack_ptrace_may_access,
 	.ptrace_traceme =		smack_ptrace_traceme,
 	.capget = 			cap_capget,
-	.capset_check = 		cap_capset_check,
-	.capset_set = 			cap_capset_set,
+	.capset = 			cap_capset,
 	.capable = 			cap_capable,
 	.syslog = 			smack_syslog,
 	.settime = 			cap_settime,
@@ -2630,9 +2639,10 @@ struct security_operations smack_ops = {
 	.file_send_sigiotask = 		smack_file_send_sigiotask,
 	.file_receive = 		smack_file_receive,
 
-	.cred_alloc_security = 		smack_cred_alloc_security,
 	.cred_free =			smack_cred_free,
-	.task_post_setuid =		cap_task_post_setuid,
+	.cred_prepare =			smack_cred_prepare,
+	.cred_commit =			smack_cred_commit,
+	.task_fix_setuid =		cap_task_fix_setuid,
 	.task_setpgid = 		smack_task_setpgid,
 	.task_getpgid = 		smack_task_getpgid,
 	.task_getsid = 			smack_task_getsid,
@@ -2645,7 +2655,6 @@ struct security_operations smack_ops = {
 	.task_movememory = 		smack_task_movememory,
 	.task_kill = 			smack_task_kill,
 	.task_wait = 			smack_task_wait,
-	.task_reparent_to_init =	cap_task_reparent_to_init,
 	.task_to_inode = 		smack_task_to_inode,
 	.task_prctl =			cap_task_prctl,
 
@@ -2721,6 +2730,8 @@ struct security_operations smack_ops = {
  */
 static __init int smack_init(void)
 {
+	struct cred *cred;
+
 	if (!security_module_enable(&smack_ops))
 		return 0;
 
@@ -2729,7 +2740,8 @@ static __init int smack_init(void)
 	/*
 	 * Set the security state for the initial task.
 	 */
-	current->cred->security = &smack_known_floor.smk_known;
+	cred = (struct cred *) current->cred;
+	cred->security = &smack_known_floor.smk_known;
 
 	/*
 	 * Initialize locks

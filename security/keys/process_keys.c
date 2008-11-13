@@ -42,10 +42,14 @@ struct key_user root_key_user = {
  */
 int install_user_keyrings(void)
 {
-	struct user_struct *user = current->cred->user;
+	struct user_struct *user;
+	const struct cred *cred;
 	struct key *uid_keyring, *session_keyring;
 	char buf[20];
 	int ret;
+
+	cred = current_cred();
+	user = cred->user;
 
 	kenter("%p{%u}", user, user->uid);
 
@@ -67,7 +71,7 @@ int install_user_keyrings(void)
 		uid_keyring = find_keyring_by_name(buf, true);
 		if (IS_ERR(uid_keyring)) {
 			uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1,
-						    current, KEY_ALLOC_IN_QUOTA,
+						    cred, KEY_ALLOC_IN_QUOTA,
 						    NULL);
 			if (IS_ERR(uid_keyring)) {
 				ret = PTR_ERR(uid_keyring);
@@ -83,8 +87,7 @@ int install_user_keyrings(void)
 		if (IS_ERR(session_keyring)) {
 			session_keyring =
 				keyring_alloc(buf, user->uid, (gid_t) -1,
-					      current, KEY_ALLOC_IN_QUOTA,
-					      NULL);
+					      cred, KEY_ALLOC_IN_QUOTA, NULL);
 			if (IS_ERR(session_keyring)) {
 				ret = PTR_ERR(session_keyring);
 				goto error_release;
@@ -116,142 +119,128 @@ error:
 	return ret;
 }
 
-/*****************************************************************************/
 /*
- * deal with the UID changing
+ * install a fresh thread keyring directly to new credentials
  */
-void switch_uid_keyring(struct user_struct *new_user)
+int install_thread_keyring_to_cred(struct cred *new)
 {
-#if 0 /* do nothing for now */
-	struct key *old;
+	struct key *keyring;
 
-	/* switch to the new user's session keyring if we were running under
-	 * root's default session keyring */
-	if (new_user->uid != 0 &&
-	    current->session_keyring == &root_session_keyring
-	    ) {
-		atomic_inc(&new_user->session_keyring->usage);
+	keyring = keyring_alloc("_tid", new->uid, new->gid, new,
+				KEY_ALLOC_QUOTA_OVERRUN, NULL);
+	if (IS_ERR(keyring))
+		return PTR_ERR(keyring);
 
-		task_lock(current);
-		old = current->session_keyring;
-		current->session_keyring = new_user->session_keyring;
-		task_unlock(current);
+	new->thread_keyring = keyring;
+	return 0;
+}
 
-		key_put(old);
-	}
-#endif
-
-} /* end switch_uid_keyring() */
-
-/*****************************************************************************/
 /*
  * install a fresh thread keyring, discarding the old one
  */
-int install_thread_keyring(void)
+static int install_thread_keyring(void)
 {
-	struct task_struct *tsk = current;
-	struct key *keyring, *old;
-	char buf[20];
+	struct cred *new;
 	int ret;
 
-	sprintf(buf, "_tid.%u", tsk->pid);
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
 
-	keyring = keyring_alloc(buf, tsk->cred->uid, tsk->cred->gid, tsk,
-				KEY_ALLOC_QUOTA_OVERRUN, NULL);
-	if (IS_ERR(keyring)) {
-		ret = PTR_ERR(keyring);
-		goto error;
+	BUG_ON(new->thread_keyring);
+
+	ret = install_thread_keyring_to_cred(new);
+	if (ret < 0) {
+		abort_creds(new);
+		return ret;
 	}
 
-	task_lock(tsk);
-	old = tsk->cred->thread_keyring;
-	tsk->cred->thread_keyring = keyring;
-	task_unlock(tsk);
+	return commit_creds(new);
+}
 
-	ret = 0;
+/*
+ * install a process keyring directly to a credentials struct
+ * - returns -EEXIST if there was already a process keyring, 0 if one installed,
+ *   and other -ve on any other error
+ */
+int install_process_keyring_to_cred(struct cred *new)
+{
+	struct key *keyring;
+	int ret;
 
-	key_put(old);
-error:
+	if (new->tgcred->process_keyring)
+		return -EEXIST;
+
+	keyring = keyring_alloc("_pid", new->uid, new->gid,
+				new, KEY_ALLOC_QUOTA_OVERRUN, NULL);
+	if (IS_ERR(keyring))
+		return PTR_ERR(keyring);
+
+	spin_lock_irq(&new->tgcred->lock);
+	if (!new->tgcred->process_keyring) {
+		new->tgcred->process_keyring = keyring;
+		keyring = NULL;
+		ret = 0;
+	} else {
+		ret = -EEXIST;
+	}
+	spin_unlock_irq(&new->tgcred->lock);
+	key_put(keyring);
 	return ret;
+}
 
-} /* end install_thread_keyring() */
-
-/*****************************************************************************/
 /*
  * make sure a process keyring is installed
+ * - we
  */
-int install_process_keyring(void)
+static int install_process_keyring(void)
 {
-	struct task_struct *tsk = current;
-	struct key *keyring;
-	char buf[20];
+	struct cred *new;
 	int ret;
 
-	might_sleep();
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
 
-	if (!tsk->cred->tgcred->process_keyring) {
-		sprintf(buf, "_pid.%u", tsk->tgid);
-
-		keyring = keyring_alloc(buf, tsk->cred->uid, tsk->cred->gid, tsk,
-					KEY_ALLOC_QUOTA_OVERRUN, NULL);
-		if (IS_ERR(keyring)) {
-			ret = PTR_ERR(keyring);
-			goto error;
-		}
-
-		/* attach keyring */
-		spin_lock_irq(&tsk->cred->tgcred->lock);
-		if (!tsk->cred->tgcred->process_keyring) {
-			tsk->cred->tgcred->process_keyring = keyring;
-			keyring = NULL;
-		}
-		spin_unlock_irq(&tsk->cred->tgcred->lock);
-
-		key_put(keyring);
+	ret = install_process_keyring_to_cred(new);
+	if (ret < 0) {
+		abort_creds(new);
+		return ret != -EEXIST ?: 0;
 	}
 
-	ret = 0;
-error:
-	return ret;
+	return commit_creds(new);
+}
 
-} /* end install_process_keyring() */
-
-/*****************************************************************************/
 /*
- * install a session keyring, discarding the old one
- * - if a keyring is not supplied, an empty one is invented
+ * install a session keyring directly to a credentials struct
  */
-static int install_session_keyring(struct key *keyring)
+static int install_session_keyring_to_cred(struct cred *cred,
+					   struct key *keyring)
 {
-	struct task_struct *tsk = current;
 	unsigned long flags;
 	struct key *old;
-	char buf[20];
 
 	might_sleep();
 
 	/* create an empty session keyring */
 	if (!keyring) {
-		sprintf(buf, "_ses.%u", tsk->tgid);
-
 		flags = KEY_ALLOC_QUOTA_OVERRUN;
-		if (tsk->cred->tgcred->session_keyring)
+		if (cred->tgcred->session_keyring)
 			flags = KEY_ALLOC_IN_QUOTA;
 
-		keyring = keyring_alloc(buf, tsk->cred->uid, tsk->cred->gid,
-					tsk, flags, NULL);
+		keyring = keyring_alloc("_ses", cred->uid, cred->gid,
+					cred, flags, NULL);
 		if (IS_ERR(keyring))
 			return PTR_ERR(keyring);
-	}
-	else {
+	} else {
 		atomic_inc(&keyring->usage);
 	}
 
 	/* install the keyring */
-	spin_lock_irq(&tsk->cred->tgcred->lock);
-	old = tsk->cred->tgcred->session_keyring;
-	rcu_assign_pointer(tsk->cred->tgcred->session_keyring, keyring);
-	spin_unlock_irq(&tsk->cred->tgcred->lock);
+	spin_lock_irq(&cred->tgcred->lock);
+	old = cred->tgcred->session_keyring;
+	rcu_assign_pointer(cred->tgcred->session_keyring, keyring);
+	spin_unlock_irq(&cred->tgcred->lock);
 
 	/* we're using RCU on the pointer, but there's no point synchronising
 	 * on it if it didn't previously point to anything */
@@ -261,38 +250,29 @@ static int install_session_keyring(struct key *keyring)
 	}
 
 	return 0;
+}
 
-} /* end install_session_keyring() */
-
-/*****************************************************************************/
 /*
- * copy the keys for fork
+ * install a session keyring, discarding the old one
+ * - if a keyring is not supplied, an empty one is invented
  */
-int copy_keys(unsigned long clone_flags, struct task_struct *tsk)
+static int install_session_keyring(struct key *keyring)
 {
-	key_check(tsk->cred->thread_keyring);
-	key_check(tsk->cred->request_key_auth);
+	struct cred *new;
+	int ret;
 
-	/* no thread keyring yet */
-	tsk->cred->thread_keyring = NULL;
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
 
-	/* copy the request_key() authorisation for this thread */
-	key_get(tsk->cred->request_key_auth);
+	ret = install_session_keyring_to_cred(new, NULL);
+	if (ret < 0) {
+		abort_creds(new);
+		return ret;
+	}
 
-	return 0;
-
-} /* end copy_keys() */
-
-/*****************************************************************************/
-/*
- * dispose of per-thread keys upon thread exit
- */
-void exit_keys(struct task_struct *tsk)
-{
-	key_put(tsk->cred->thread_keyring);
-	key_put(tsk->cred->request_key_auth);
-
-} /* end exit_keys() */
+	return commit_creds(new);
+}
 
 /*****************************************************************************/
 /*
@@ -300,38 +280,41 @@ void exit_keys(struct task_struct *tsk)
  */
 int exec_keys(struct task_struct *tsk)
 {
-	struct key *old;
+	struct thread_group_cred *tgcred = NULL;
+	struct cred *new;
+
+#ifdef CONFIG_KEYS
+	tgcred = kmalloc(sizeof(*tgcred), GFP_KERNEL);
+	if (!tgcred)
+		return -ENOMEM;
+#endif
+
+	new = prepare_creds();
+	if (new < 0)
+		return -ENOMEM;
 
 	/* newly exec'd tasks don't get a thread keyring */
-	task_lock(tsk);
-	old = tsk->cred->thread_keyring;
-	tsk->cred->thread_keyring = NULL;
-	task_unlock(tsk);
+	key_put(new->thread_keyring);
+	new->thread_keyring = NULL;
 
-	key_put(old);
+	/* create a new per-thread-group creds for all this set of threads to
+	 * share */
+	memcpy(tgcred, new->tgcred, sizeof(struct thread_group_cred));
 
-	/* discard the process keyring from a newly exec'd task */
-	spin_lock_irq(&tsk->cred->tgcred->lock);
-	old = tsk->cred->tgcred->process_keyring;
-	tsk->cred->tgcred->process_keyring = NULL;
-	spin_unlock_irq(&tsk->cred->tgcred->lock);
+	atomic_set(&tgcred->usage, 1);
+	spin_lock_init(&tgcred->lock);
 
-	key_put(old);
+	/* inherit the session keyring; new process keyring */
+	key_get(tgcred->session_keyring);
+	tgcred->process_keyring = NULL;
 
+	release_tgcred(new);
+	new->tgcred = tgcred;
+
+	commit_creds(new);
 	return 0;
 
 } /* end exec_keys() */
-
-/*****************************************************************************/
-/*
- * deal with SUID programs
- * - we might want to make this invent a new session keyring
- */
-int suid_keys(struct task_struct *tsk)
-{
-	return 0;
-
-} /* end suid_keys() */
 
 /*****************************************************************************/
 /*
@@ -376,15 +359,12 @@ void key_fsgid_changed(struct task_struct *tsk)
 key_ref_t search_process_keyrings(struct key_type *type,
 				  const void *description,
 				  key_match_func_t match,
-				  struct task_struct *context)
+				  const struct cred *cred)
 {
 	struct request_key_auth *rka;
-	struct cred *cred;
 	key_ref_t key_ref, ret, err;
 
 	might_sleep();
-
-	cred = get_task_cred(context);
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -401,7 +381,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	if (cred->thread_keyring) {
 		key_ref = keyring_search_aux(
 			make_key_ref(cred->thread_keyring, 1),
-			context, type, description, match);
+			cred, type, description, match);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -422,7 +402,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	if (cred->tgcred->process_keyring) {
 		key_ref = keyring_search_aux(
 			make_key_ref(cred->tgcred->process_keyring, 1),
-			context, type, description, match);
+			cred, type, description, match);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -446,7 +426,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 			make_key_ref(rcu_dereference(
 					     cred->tgcred->session_keyring),
 				     1),
-			context, type, description, match);
+			cred, type, description, match);
 		rcu_read_unlock();
 
 		if (!IS_ERR(key_ref))
@@ -468,7 +448,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	else if (cred->user->session_keyring) {
 		key_ref = keyring_search_aux(
 			make_key_ref(cred->user->session_keyring, 1),
-			context, type, description, match);
+			cred, type, description, match);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -490,7 +470,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	 * - we don't permit access to request_key auth keys via this method
 	 */
 	if (cred->request_key_auth &&
-	    context == current &&
+	    cred == current_cred() &&
 	    type != &key_type_request_key_auth
 	    ) {
 		/* defend against the auth key being revoked */
@@ -500,7 +480,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 			rka = cred->request_key_auth->payload.data;
 
 			key_ref = search_process_keyrings(type, description,
-							  match, rka->context);
+							  match, rka->cred);
 
 			up_read(&cred->request_key_auth->sem);
 
@@ -527,7 +507,6 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	key_ref = ret ? ret : err;
 
 found:
-	put_cred(cred);
 	return key_ref;
 
 } /* end search_process_keyrings() */
@@ -552,8 +531,7 @@ key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 			  key_perm_t perm)
 {
 	struct request_key_auth *rka;
-	struct task_struct *t = current;
-	struct cred *cred;
+	const struct cred *cred;
 	struct key *key;
 	key_ref_t key_ref, skey_ref;
 	int ret;
@@ -608,6 +586,7 @@ try_again:
 				goto error;
 			ret = install_session_keyring(
 				cred->user->session_keyring);
+
 			if (ret < 0)
 				goto error;
 			goto reget_creds;
@@ -693,7 +672,7 @@ try_again:
 		/* check to see if we possess the key */
 		skey_ref = search_process_keyrings(key->type, key,
 						   lookup_user_key_possessed,
-						   current);
+						   cred);
 
 		if (!IS_ERR(skey_ref)) {
 			key_put(key);
@@ -725,7 +704,7 @@ try_again:
 		goto invalid_key;
 
 	/* check the permissions */
-	ret = key_task_permission(key_ref, t, perm);
+	ret = key_task_permission(key_ref, cred, perm);
 	if (ret < 0)
 		goto invalid_key;
 
@@ -755,21 +734,33 @@ reget_creds:
  */
 long join_session_keyring(const char *name)
 {
-	struct task_struct *tsk = current;
-	struct cred *cred = current->cred;
+	const struct cred *old;
+	struct cred *new;
 	struct key *keyring;
-	long ret;
+	long ret, serial;
+
+	/* only permit this if there's a single thread in the thread group -
+	 * this avoids us having to adjust the creds on all threads and risking
+	 * ENOMEM */
+	if (!is_single_threaded(current))
+		return -EMLINK;
+
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+	old = current_cred();
 
 	/* if no name is provided, install an anonymous keyring */
 	if (!name) {
-		ret = install_session_keyring(NULL);
+		ret = install_session_keyring_to_cred(new, NULL);
 		if (ret < 0)
 			goto error;
 
-		rcu_read_lock();
-		ret = rcu_dereference(cred->tgcred->session_keyring)->serial;
-		rcu_read_unlock();
-		goto error;
+		serial = new->tgcred->session_keyring->serial;
+		ret = commit_creds(new);
+		if (ret == 0)
+			ret = serial;
+		goto okay;
 	}
 
 	/* allow the user to join or create a named keyring */
@@ -779,29 +770,33 @@ long join_session_keyring(const char *name)
 	keyring = find_keyring_by_name(name, false);
 	if (PTR_ERR(keyring) == -ENOKEY) {
 		/* not found - try and create a new one */
-		keyring = keyring_alloc(name, cred->uid, cred->gid, tsk,
+		keyring = keyring_alloc(name, old->uid, old->gid, old,
 					KEY_ALLOC_IN_QUOTA, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error2;
 		}
-	}
-	else if (IS_ERR(keyring)) {
+	} else if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error2;
 	}
 
 	/* we've got a keyring - now to install it */
-	ret = install_session_keyring(keyring);
+	ret = install_session_keyring_to_cred(new, keyring);
 	if (ret < 0)
 		goto error2;
 
+	commit_creds(new);
+	mutex_unlock(&key_session_mutex);
+
 	ret = keyring->serial;
 	key_put(keyring);
+okay:
+	return ret;
 
 error2:
 	mutex_unlock(&key_session_mutex);
 error:
+	abort_creds(new);
 	return ret;
-
-} /* end join_session_keyring() */
+}

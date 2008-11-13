@@ -136,8 +136,12 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	int rc;
 
 	/* check whether the current task is allowed to view the key (assuming
-	 * non-possession) */
-	rc = key_task_permission(make_key_ref(key, 0), current, KEY_VIEW);
+	 * non-possession)
+	 * - the caller holds a spinlock, and thus the RCU read lock, making our
+	 *   access to __current_cred() safe
+	 */
+	rc = key_task_permission(make_key_ref(key, 0), current_cred(),
+				 KEY_VIEW);
 	if (rc < 0)
 		return 0;
 

@@ -83,8 +83,10 @@ static int call_sbin_request_key(struct key_construction *cons,
 	/* allocate a new session keyring */
 	sprintf(desc, "_req.%u", key->serial);
 
-	keyring = keyring_alloc(desc, current_fsuid(), current_fsgid(), current,
+	cred = get_current_cred();
+	keyring = keyring_alloc(desc, cred->fsuid, cred->fsgid, cred,
 				KEY_ALLOC_QUOTA_OVERRUN, NULL);
+	put_cred(cred);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error_alloc;
@@ -104,8 +106,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 
 	/* we specify the process's default keyrings */
 	sprintf(keyring_str[0], "%d",
-		cred->thread_keyring ?
-		cred->thread_keyring->serial : 0);
+		cred->thread_keyring ? cred->thread_keyring->serial : 0);
 
 	prkey = 0;
 	if (cred->tgcred->process_keyring)
@@ -155,8 +156,8 @@ error_link:
 	key_put(keyring);
 
 error_alloc:
-	kleave(" = %d", ret);
 	complete_request_key(cons, ret);
+	kleave(" = %d", ret);
 	return ret;
 }
 
@@ -295,6 +296,7 @@ static int construct_alloc_key(struct key_type *type,
 			       struct key_user *user,
 			       struct key **_key)
 {
+	const struct cred *cred = current_cred();
 	struct key *key;
 	key_ref_t key_ref;
 
@@ -302,9 +304,8 @@ static int construct_alloc_key(struct key_type *type,
 
 	mutex_lock(&user->cons_lock);
 
-	key = key_alloc(type, description,
-			current_fsuid(), current_fsgid(), current, KEY_POS_ALL,
-			flags);
+	key = key_alloc(type, description, cred->fsuid, cred->fsgid, cred,
+			KEY_POS_ALL, flags);
 	if (IS_ERR(key))
 		goto alloc_failed;
 
@@ -317,8 +318,7 @@ static int construct_alloc_key(struct key_type *type,
 	 * waited for locks */
 	mutex_lock(&key_construction_mutex);
 
-	key_ref = search_process_keyrings(type, description, type->match,
-					  current);
+	key_ref = search_process_keyrings(type, description, type->match, cred);
 	if (!IS_ERR(key_ref))
 		goto key_already_present;
 
@@ -363,6 +363,8 @@ static struct key *construct_key_and_link(struct key_type *type,
 	struct key *key;
 	int ret;
 
+	kenter("");
+
 	user = key_user_lookup(current_fsuid());
 	if (!user)
 		return ERR_PTR(-ENOMEM);
@@ -376,17 +378,21 @@ static struct key *construct_key_and_link(struct key_type *type,
 	if (ret == 0) {
 		ret = construct_key(key, callout_info, callout_len, aux,
 				    dest_keyring);
-		if (ret < 0)
+		if (ret < 0) {
+			kdebug("cons failed");
 			goto construction_failed;
+		}
 	}
 
 	key_put(dest_keyring);
+	kleave(" = key %d", key_serial(key));
 	return key;
 
 construction_failed:
 	key_negate_and_link(key, key_negative_timeout, NULL, NULL);
 	key_put(key);
 	key_put(dest_keyring);
+	kleave(" = %d", ret);
 	return ERR_PTR(ret);
 }
 
@@ -405,6 +411,7 @@ struct key *request_key_and_link(struct key_type *type,
 				 struct key *dest_keyring,
 				 unsigned long flags)
 {
+	const struct cred *cred = current_cred();
 	struct key *key;
 	key_ref_t key_ref;
 
@@ -414,7 +421,7 @@ struct key *request_key_and_link(struct key_type *type,
 
 	/* search all the process keyrings for a key */
 	key_ref = search_process_keyrings(type, description, type->match,
-					  current);
+					  cred);
 
 	if (!IS_ERR(key_ref)) {
 		key = key_ref_to_ptr(key_ref);

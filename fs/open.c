@@ -425,29 +425,32 @@ out:
  */
 asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 {
-	struct cred *cred = current->cred;
+	const struct cred *old_cred;
+	struct cred *override_cred;
 	struct path path;
 	struct inode *inode;
-	int old_fsuid, old_fsgid;
-	kernel_cap_t uninitialized_var(old_cap);  /* !SECURE_NO_SETUID_FIXUP */
 	int res;
 
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
 		return -EINVAL;
 
-	old_fsuid = cred->fsuid;
-	old_fsgid = cred->fsgid;
+	override_cred = prepare_creds();
+	if (!override_cred)
+		return -ENOMEM;
 
-	cred->fsuid = cred->uid;
-	cred->fsgid = cred->gid;
+	override_cred->fsuid = override_cred->uid;
+	override_cred->fsgid = override_cred->gid;
 
 	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
 		/* Clear the capabilities if we switch to a non-root user */
-		if (current->cred->uid)
-			old_cap = cap_set_effective(__cap_empty_set);
+		if (override_cred->uid)
+			cap_clear(override_cred->cap_effective);
 		else
-			old_cap = cap_set_effective(cred->cap_permitted);
+			override_cred->cap_effective =
+				override_cred->cap_permitted;
 	}
+
+	old_cred = override_creds(override_cred);
 
 	res = user_path_at(dfd, filename, LOOKUP_FOLLOW, &path);
 	if (res)
@@ -485,12 +488,8 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 out_path_release:
 	path_put(&path);
 out:
-	cred->fsuid = old_fsuid;
-	cred->fsgid = old_fsgid;
-
-	if (!issecure(SECURE_NO_SETUID_FIXUP))
-		cap_set_effective(old_cap);
-
+	revert_creds(old_cred);
+	put_cred(override_cred);
 	return res;
 }
 

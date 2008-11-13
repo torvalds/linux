@@ -171,6 +171,14 @@ int ptrace_attach(struct task_struct *task)
 	if (same_thread_group(task, current))
 		goto out;
 
+	/* Protect exec's credential calculations against our interference;
+	 * SUID, SGID and LSM creds get determined differently under ptrace.
+	 */
+	retval = mutex_lock_interruptible(&current->cred_exec_mutex);
+	if (retval  < 0)
+		goto out;
+
+	retval = -EPERM;
 repeat:
 	/*
 	 * Nasty, nasty.
@@ -210,6 +218,7 @@ repeat:
 bad:
 	write_unlock_irqrestore(&tasklist_lock, flags);
 	task_unlock(task);
+	mutex_unlock(&current->cred_exec_mutex);
 out:
 	return retval;
 }

@@ -2546,18 +2546,17 @@ int __audit_signal_info(int sig, struct task_struct *t)
 
 /**
  * __audit_log_bprm_fcaps - store information about a loading bprm and relevant fcaps
- * @bprm pointer to the bprm being processed
- * @caps the caps read from the disk
+ * @bprm: pointer to the bprm being processed
+ * @new: the proposed new credentials
+ * @old: the old credentials
  *
  * Simply check if the proc already has the caps given by the file and if not
  * store the priv escalation info for later auditing at the end of the syscall
  *
- * this can fail and we don't care.  See the note in audit.h for
- * audit_log_bprm_fcaps() for my explaination....
- *
  * -Eric
  */
-void __audit_log_bprm_fcaps(struct linux_binprm *bprm, kernel_cap_t *pP, kernel_cap_t *pE)
+int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
+			   const struct cred *new, const struct cred *old)
 {
 	struct audit_aux_data_bprm_fcaps *ax;
 	struct audit_context *context = current->audit_context;
@@ -2566,7 +2565,7 @@ void __audit_log_bprm_fcaps(struct linux_binprm *bprm, kernel_cap_t *pP, kernel_
 
 	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
 	if (!ax)
-		return;
+		return -ENOMEM;
 
 	ax->d.type = AUDIT_BPRM_FCAPS;
 	ax->d.next = context->aux;
@@ -2581,26 +2580,27 @@ void __audit_log_bprm_fcaps(struct linux_binprm *bprm, kernel_cap_t *pP, kernel_
 	ax->fcap.fE = !!(vcaps.magic_etc & VFS_CAP_FLAGS_EFFECTIVE);
 	ax->fcap_ver = (vcaps.magic_etc & VFS_CAP_REVISION_MASK) >> VFS_CAP_REVISION_SHIFT;
 
-	ax->old_pcap.permitted = *pP;
-	ax->old_pcap.inheritable = current->cred->cap_inheritable;
-	ax->old_pcap.effective = *pE;
+	ax->old_pcap.permitted   = old->cap_permitted;
+	ax->old_pcap.inheritable = old->cap_inheritable;
+	ax->old_pcap.effective   = old->cap_effective;
 
-	ax->new_pcap.permitted = current->cred->cap_permitted;
-	ax->new_pcap.inheritable = current->cred->cap_inheritable;
-	ax->new_pcap.effective = current->cred->cap_effective;
+	ax->new_pcap.permitted   = new->cap_permitted;
+	ax->new_pcap.inheritable = new->cap_inheritable;
+	ax->new_pcap.effective   = new->cap_effective;
+	return 0;
 }
 
 /**
  * __audit_log_capset - store information about the arguments to the capset syscall
- * @pid target pid of the capset call
- * @eff effective cap set
- * @inh inheritible cap set
- * @perm permited cap set
+ * @pid: target pid of the capset call
+ * @new: the new credentials
+ * @old: the old (current) credentials
  *
  * Record the aguments userspace sent to sys_capset for later printing by the
  * audit system if applicable
  */
-int __audit_log_capset(pid_t pid, kernel_cap_t *eff, kernel_cap_t *inh, kernel_cap_t *perm)
+int __audit_log_capset(pid_t pid,
+		       const struct cred *new, const struct cred *old)
 {
 	struct audit_aux_data_capset *ax;
 	struct audit_context *context = current->audit_context;
@@ -2617,9 +2617,9 @@ int __audit_log_capset(pid_t pid, kernel_cap_t *eff, kernel_cap_t *inh, kernel_c
 	context->aux = (void *)ax;
 
 	ax->pid = pid;
-	ax->cap.effective = *eff;
-	ax->cap.inheritable = *eff;
-	ax->cap.permitted = *perm;
+	ax->cap.effective   = new->cap_effective;
+	ax->cap.inheritable = new->cap_effective;
+	ax->cap.permitted   = new->cap_permitted;
 
 	return 0;
 }

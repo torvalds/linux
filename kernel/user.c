@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/user_namespace.h>
+#include "cred-internals.h"
 
 struct user_namespace init_user_ns = {
 	.kref = {
@@ -104,16 +105,10 @@ static int sched_create_user(struct user_struct *up)
 	return rc;
 }
 
-static void sched_switch_user(struct task_struct *p)
-{
-	sched_move_task(p);
-}
-
 #else	/* CONFIG_USER_SCHED */
 
 static void sched_destroy_user(struct user_struct *up) { }
 static int sched_create_user(struct user_struct *up) { return 0; }
-static void sched_switch_user(struct task_struct *p) { }
 
 #endif	/* CONFIG_USER_SCHED */
 
@@ -446,36 +441,6 @@ out_free_user:
 out_unlock:
 	uids_mutex_unlock();
 	return NULL;
-}
-
-void switch_uid(struct user_struct *new_user)
-{
-	struct user_struct *old_user;
-
-	/* What if a process setreuid()'s and this brings the
-	 * new uid over his NPROC rlimit?  We can check this now
-	 * cheaply with the new uid cache, so if it matters
-	 * we should be checking for it.  -DaveM
-	 */
-	old_user = current->cred->user;
-	atomic_inc(&new_user->processes);
-	atomic_dec(&old_user->processes);
-	switch_uid_keyring(new_user);
-	current->cred->user = new_user;
-	sched_switch_user(current);
-
-	/*
-	 * We need to synchronize with __sigqueue_alloc()
-	 * doing a get_uid(p->user).. If that saw the old
-	 * user value, we need to wait until it has exited
-	 * its critical region before we can free the old
-	 * structure.
-	 */
-	smp_mb();
-	spin_unlock_wait(&current->sighand->siglock);
-
-	free_uid(old_user);
-	suid_keys(current);
 }
 
 #ifdef CONFIG_USER_NS

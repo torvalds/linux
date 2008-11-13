@@ -1145,7 +1145,8 @@ struct task_struct {
 	struct list_head cpu_timers[3];
 
 /* process credentials */
-	struct cred *cred;	/* actual/objective task credentials */
+	const struct cred *cred;	/* actual/objective task credentials (COW) */
+	struct mutex cred_exec_mutex;	/* execve vs ptrace cred calculation mutex */
 
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
 				     - access with [gs]et_task_comm (which lock
@@ -1720,7 +1721,6 @@ static inline struct user_struct *get_uid(struct user_struct *u)
 	return u;
 }
 extern void free_uid(struct user_struct *);
-extern void switch_uid(struct user_struct *);
 extern void release_uids(struct user_namespace *ns);
 
 #include <asm/current.h>
@@ -1869,6 +1869,8 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 
 #define for_each_process(p) \
 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
+
+extern bool is_single_threaded(struct task_struct *);
 
 /*
  * Careful: do_each_thread/while_each_thread is a double loop so

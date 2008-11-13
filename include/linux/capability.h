@@ -519,8 +519,6 @@ extern const kernel_cap_t __cap_empty_set;
 extern const kernel_cap_t __cap_full_set;
 extern const kernel_cap_t __cap_init_eff_set;
 
-kernel_cap_t cap_set_effective(const kernel_cap_t pE_new);
-
 /**
  * has_capability - Determine if a task has a superior capability available
  * @t: The task in question

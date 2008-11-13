@@ -145,18 +145,13 @@ int security_capget(struct task_struct *target,
 	return security_ops->capget(target, effective, inheritable, permitted);
 }
 
-int security_capset_check(const kernel_cap_t *effective,
-			  const kernel_cap_t *inheritable,
-			  const kernel_cap_t *permitted)
+int security_capset(struct cred *new, const struct cred *old,
+		    const kernel_cap_t *effective,
+		    const kernel_cap_t *inheritable,
+		    const kernel_cap_t *permitted)
 {
-	return security_ops->capset_check(effective, inheritable, permitted);
-}
-
-void security_capset_set(const kernel_cap_t *effective,
-			 const kernel_cap_t *inheritable,
-			 const kernel_cap_t *permitted)
-{
-	security_ops->capset_set(effective, inheritable, permitted);
+	return security_ops->capset(new, old,
+				    effective, inheritable, permitted);
 }
 
 int security_capable(struct task_struct *tsk, int cap)
@@ -228,9 +223,9 @@ void security_bprm_free(struct linux_binprm *bprm)
 	security_ops->bprm_free_security(bprm);
 }
 
-void security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
+int security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
 {
-	security_ops->bprm_apply_creds(bprm, unsafe);
+	return security_ops->bprm_apply_creds(bprm, unsafe);
 }
 
 void security_bprm_post_apply_creds(struct linux_binprm *bprm)
@@ -616,14 +611,19 @@ int security_task_create(unsigned long clone_flags)
 	return security_ops->task_create(clone_flags);
 }
 
-int security_cred_alloc(struct cred *cred)
-{
-	return security_ops->cred_alloc_security(cred);
-}
-
 void security_cred_free(struct cred *cred)
 {
 	security_ops->cred_free(cred);
+}
+
+int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
+{
+	return security_ops->cred_prepare(new, old, gfp);
+}
+
+void security_commit_creds(struct cred *new, const struct cred *old)
+{
+	return security_ops->cred_commit(new, old);
 }
 
 int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
@@ -631,10 +631,10 @@ int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
 	return security_ops->task_setuid(id0, id1, id2, flags);
 }
 
-int security_task_post_setuid(uid_t old_ruid, uid_t old_euid,
-			       uid_t old_suid, int flags)
+int security_task_fix_setuid(struct cred *new, const struct cred *old,
+			     int flags)
 {
-	return security_ops->task_post_setuid(old_ruid, old_euid, old_suid, flags);
+	return security_ops->task_fix_setuid(new, old, flags);
 }
 
 int security_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags)
@@ -716,14 +716,9 @@ int security_task_wait(struct task_struct *p)
 }
 
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
-			 unsigned long arg4, unsigned long arg5, long *rc_p)
+			 unsigned long arg4, unsigned long arg5)
 {
-	return security_ops->task_prctl(option, arg2, arg3, arg4, arg5, rc_p);
-}
-
-void security_task_reparent_to_init(struct task_struct *p)
-{
-	security_ops->task_reparent_to_init(p);
+	return security_ops->task_prctl(option, arg2, arg3, arg4, arg5);
 }
 
 void security_task_to_inode(struct task_struct *p, struct inode *inode)
@@ -1123,9 +1118,10 @@ EXPORT_SYMBOL(security_skb_classify_flow);
 
 #ifdef CONFIG_KEYS
 
-int security_key_alloc(struct key *key, struct task_struct *tsk, unsigned long flags)
+int security_key_alloc(struct key *key, const struct cred *cred,
+		       unsigned long flags)
 {
-	return security_ops->key_alloc(key, tsk, flags);
+	return security_ops->key_alloc(key, cred, flags);
 }
 
 void security_key_free(struct key *key)
@@ -1134,9 +1130,9 @@ void security_key_free(struct key *key)
 }
 
 int security_key_permission(key_ref_t key_ref,
-			    struct task_struct *context, key_perm_t perm)
+			    const struct cred *cred, key_perm_t perm)
 {
-	return security_ops->key_permission(key_ref, context, perm);
+	return security_ops->key_permission(key_ref, cred, perm);
 }
 
 int security_key_getsecurity(struct key *key, char **_buffer)

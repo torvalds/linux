@@ -12,6 +12,7 @@
 #ifndef _INTERNAL_H
 #define _INTERNAL_H
 
+#include <linux/sched.h>
 #include <linux/key-type.h>
 
 static inline __attribute__((format(printf, 1, 2)))
@@ -25,7 +26,7 @@ void no_printk(const char *fmt, ...)
 #define kleave(FMT, ...) \
 	printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
 #define kdebug(FMT, ...) \
-	printk(KERN_DEBUG "xxx" FMT"yyy\n", ##__VA_ARGS__)
+	printk(KERN_DEBUG "   "FMT"\n", ##__VA_ARGS__)
 #else
 #define kenter(FMT, ...) \
 	no_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
@@ -97,7 +98,7 @@ extern struct key *keyring_search_instkey(struct key *keyring,
 typedef int (*key_match_func_t)(const struct key *, const void *);
 
 extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
-				    struct task_struct *tsk,
+				    const struct cred *cred,
 				    struct key_type *type,
 				    const void *description,
 				    key_match_func_t match);
@@ -105,13 +106,13 @@ extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 extern key_ref_t search_process_keyrings(struct key_type *type,
 					 const void *description,
 					 key_match_func_t match,
-					 struct task_struct *tsk);
+					 const struct cred *cred);
 
 extern struct key *find_keyring_by_name(const char *name, bool skip_perm_check);
 
 extern int install_user_keyrings(void);
-extern int install_thread_keyring(void);
-extern int install_process_keyring(void);
+extern int install_thread_keyring_to_cred(struct cred *);
+extern int install_process_keyring_to_cred(struct cred *);
 
 extern struct key *request_key_and_link(struct key_type *type,
 					const char *description,
@@ -130,12 +131,12 @@ extern long join_session_keyring(const char *name);
  * check to see whether permission is granted to use a key in the desired way
  */
 extern int key_task_permission(const key_ref_t key_ref,
-			       struct task_struct *context,
+			       const struct cred *cred,
 			       key_perm_t perm);
 
 static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
 {
-	return key_task_permission(key_ref, current, perm);
+	return key_task_permission(key_ref, current_cred(), perm);
 }
 
 /* required permissions */
@@ -153,7 +154,7 @@ static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
 struct request_key_auth {
 	struct key		*target_key;
 	struct key		*dest_keyring;
-	struct task_struct	*context;
+	const struct cred	*cred;
 	void			*callout_info;
 	size_t			callout_len;
 	pid_t			pid;

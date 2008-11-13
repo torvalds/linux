@@ -1007,13 +1007,12 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 */
 	current->mm->task_size = TASK_SIZE;
 
-	if (bprm->e_uid != current_euid() || bprm->e_gid != current_egid()) {
-		suid_keys(current);
+	if (bprm->e_uid != current_euid() ||
+	    bprm->e_gid != current_egid()) {
 		set_dumpable(current->mm, suid_dumpable);
 		current->pdeath_signal = 0;
 	} else if (file_permission(bprm->file, MAY_READ) ||
 			(bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)) {
-		suid_keys(current);
 		set_dumpable(current->mm, suid_dumpable);
 	}
 
@@ -1096,10 +1095,8 @@ void compute_creds(struct linux_binprm *bprm)
 {
 	int unsafe;
 
-	if (bprm->e_uid != current_uid()) {
-		suid_keys(current);
+	if (bprm->e_uid != current_uid())
 		current->pdeath_signal = 0;
-	}
 	exec_keys(current);
 
 	task_lock(current);
@@ -1709,8 +1706,9 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	struct linux_binfmt * binfmt;
 	struct inode * inode;
 	struct file * file;
+	const struct cred *old_cred;
+	struct cred *cred;
 	int retval = 0;
-	int fsuid = current_fsuid();
 	int flag = 0;
 	int ispipe = 0;
 	unsigned long core_limit = current->signal->rlim[RLIMIT_CORE].rlim_cur;
@@ -1723,12 +1721,20 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	binfmt = current->binfmt;
 	if (!binfmt || !binfmt->core_dump)
 		goto fail;
+
+	cred = prepare_creds();
+	if (!cred) {
+		retval = -ENOMEM;
+		goto fail;
+	}
+
 	down_write(&mm->mmap_sem);
 	/*
 	 * If another thread got here first, or we are not dumpable, bail out.
 	 */
 	if (mm->core_state || !get_dumpable(mm)) {
 		up_write(&mm->mmap_sem);
+		put_cred(cred);
 		goto fail;
 	}
 
@@ -1739,12 +1745,16 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 */
 	if (get_dumpable(mm) == 2) {	/* Setuid core dump mode */
 		flag = O_EXCL;		/* Stop rewrite attacks */
-		current->cred->fsuid = 0;	/* Dump root private */
+		cred->fsuid = 0;	/* Dump root private */
 	}
 
 	retval = coredump_wait(exit_code, &core_state);
-	if (retval < 0)
+	if (retval < 0) {
+		put_cred(cred);
 		goto fail;
+	}
+
+	old_cred = override_creds(cred);
 
 	/*
 	 * Clear any false indication of pending signals that might
@@ -1835,7 +1845,8 @@ fail_unlock:
 	if (helper_argv)
 		argv_free(helper_argv);
 
-	current->cred->fsuid = fsuid;
+	revert_creds(old_cred);
+	put_cred(cred);
 	coredump_finish(mm);
 fail:
 	return retval;
