@@ -246,8 +246,6 @@ void followparent_recalc(struct clk *clk)
 		return;
 
 	clk->rate = clk->parent->rate;
-	if (unlikely(clk->flags & RATE_PROPAGATES))
-		propagate_rate(clk);
 }
 
 /* Propagate rate to children */
@@ -261,8 +259,10 @@ void propagate_rate(struct clk * tclk)
 	list_for_each_entry(clkp, &clocks, node) {
 		if (likely(clkp->parent != tclk))
 			continue;
-		if (likely((u32)clkp->recalc))
+		if (clkp->recalc)
 			clkp->recalc(clkp);
+		if (clkp->flags & RATE_PROPAGATES)
+			propagate_rate(clkp);
 	}
 }
 
@@ -278,8 +278,12 @@ void recalculate_root_clocks(void)
 	struct clk *clkp;
 
 	list_for_each_entry(clkp, &clocks, node) {
-		if (unlikely(!clkp->parent) && likely((u32)clkp->recalc))
-			clkp->recalc(clkp);
+		if (!clkp->parent) {
+			if (clkp->recalc)
+				clkp->recalc(clkp);
+			if (clkp->flags & RATE_PROPAGATES)
+				propagate_rate(clkp);
+		}
 	}
 }
 

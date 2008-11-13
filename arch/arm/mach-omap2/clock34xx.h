@@ -58,7 +58,6 @@ static struct clk omap_32k_fck = {
 	.ops		= &clkops_null,
 	.rate		= 32768,
 	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 static struct clk secure_32k_fck = {
@@ -66,7 +65,6 @@ static struct clk secure_32k_fck = {
 	.ops		= &clkops_null,
 	.rate		= 32768,
 	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 /* Virtual source clocks for osc_sys_ck */
@@ -75,7 +73,6 @@ static struct clk virt_12m_ck = {
 	.ops		= &clkops_null,
 	.rate		= 12000000,
 	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_13m_ck = {
@@ -83,7 +80,6 @@ static struct clk virt_13m_ck = {
 	.ops		= &clkops_null,
 	.rate		= 13000000,
 	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_16_8m_ck = {
@@ -91,7 +87,6 @@ static struct clk virt_16_8m_ck = {
 	.ops		= &clkops_null,
 	.rate		= 16800000,
 	.flags		= CLOCK_IN_OMAP3430ES2 | RATE_FIXED | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_19_2m_ck = {
@@ -99,7 +94,6 @@ static struct clk virt_19_2m_ck = {
 	.ops		= &clkops_null,
 	.rate		= 19200000,
 	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_26m_ck = {
@@ -107,7 +101,6 @@ static struct clk virt_26m_ck = {
 	.ops		= &clkops_null,
 	.rate		= 26000000,
 	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_38_4m_ck = {
@@ -115,7 +108,6 @@ static struct clk virt_38_4m_ck = {
 	.ops		= &clkops_null,
 	.rate		= 38400000,
 	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 static const struct clksel_rate osc_sys_12m_rates[] = {
@@ -201,7 +193,6 @@ static struct clk sys_altclk = {
 	.name		= "sys_altclk",
 	.ops		= &clkops_null,
 	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 /* Optional external clock input for some McBSPs */
@@ -209,7 +200,6 @@ static struct clk mcbsp_clks = {
 	.name		= "mcbsp_clks",
 	.ops		= &clkops_null,
 	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
-	.recalc		= &propagate_rate,
 };
 
 /* PRM EXTERNAL CLOCK OUTPUT */

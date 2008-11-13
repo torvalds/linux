@@ -244,9 +244,6 @@ static void omap1_ckctl_recalc(struct clk * clk)
 	if (unlikely(clk->rate == clk->parent->rate / dsor))
 		return; /* No change, quick exit */
 	clk->rate = clk->parent->rate / dsor;
-
-	if (unlikely(clk->flags & RATE_PROPAGATES))
-		propagate_rate(clk);
 }
 
 static void omap1_ckctl_recalc_dsp_domain(struct clk * clk)
@@ -267,9 +264,6 @@ static void omap1_ckctl_recalc_dsp_domain(struct clk * clk)
 	if (unlikely(clk->rate == clk->parent->rate / dsor))
 		return; /* No change, quick exit */
 	clk->rate = clk->parent->rate / dsor;
-
-	if (unlikely(clk->flags & RATE_PROPAGATES))
-		propagate_rate(clk);
 }
 
 /* MPU virtual clock functions */

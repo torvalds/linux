@@ -57,8 +57,6 @@ static const struct clkops clkops_noncore_dpll_ops;
 static void omap3_dpll_recalc(struct clk *clk)
 {
 	clk->rate = omap2_get_dpll_rate(clk);
-
-	propagate_rate(clk);
 }
 
 /* _omap3_dpll_write_clken - write clken_bits arg to a DPLL's enable bits */
@@ -388,9 +386,6 @@ static void omap3_clkoutx2_recalc(struct clk *clk)
 		clk->rate = clk->parent->rate;
 	else
 		clk->rate = clk->parent->rate * 2;
-
-	if (clk->flags & RATE_PROPAGATES)
-		propagate_rate(clk);
 }
 
 /* Common clock code */
