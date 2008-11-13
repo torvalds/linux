@@ -810,9 +810,9 @@ static int ath_start_rfkill_poll(struct ath_softc *sc)
 			rfkill_free(sc->rf_kill.rfkill);
 
 			/* Deinitialize the device */
+			ath_detach(sc);
 			if (sc->pdev->irq)
 				free_irq(sc->pdev->irq, sc);
-			ath_detach(sc);
 			pci_iounmap(sc->pdev, sc->mem);
 			pci_release_region(sc->pdev, 0);
 			pci_disable_device(sc->pdev);
