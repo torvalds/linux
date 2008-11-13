@@ -52,13 +52,13 @@ static int pcspkr_event(struct input_dev *dev, unsigned int type, unsigned int c
 	spin_lock_irqsave(&i8253_lock, flags);
 
 	if (count) {
-		/* enable counter 2 */
-		outb_p(inb_p(0x61) | 3, 0x61);
 		/* set command for counter 2, 2 byte write */
 		outb_p(0xB6, 0x43);
 		/* select desired HZ */
 		outb_p(count & 0xff, 0x42);
 		outb((count >> 8) & 0xff, 0x42);
+		/* enable counter 2 */
+		outb_p(inb_p(0x61) | 3, 0x61);
 	} else {
 		/* disable counter 2 */
 		outb(inb_p(0x61) & 0xFC, 0x61);
