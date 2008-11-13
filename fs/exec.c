@@ -1388,6 +1388,7 @@ EXPORT_SYMBOL(set_binfmt);
  */
 static int format_corename(char *corename, long signr)
 {
+	const struct cred *cred = current_cred();
 	const char *pat_ptr = core_pattern;
 	int ispipe = (*pat_ptr == '|');
 	char *out_ptr = corename;
@@ -1424,7 +1425,7 @@ static int format_corename(char *corename, long signr)
 			/* uid */
 			case 'u':
 				rc = snprintf(out_ptr, out_end - out_ptr,
-					      "%d", current_uid());
+					      "%d", cred->uid);
 				if (rc > out_end - out_ptr)
 					goto out;
 				out_ptr += rc;
@@ -1432,7 +1433,7 @@ static int format_corename(char *corename, long signr)
 			/* gid */
 			case 'g':
 				rc = snprintf(out_ptr, out_end - out_ptr,
-					      "%d", current_gid());
+					      "%d", cred->gid);
 				if (rc > out_end - out_ptr)
 					goto out;
 				out_ptr += rc;

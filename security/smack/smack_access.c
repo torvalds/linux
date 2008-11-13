@@ -164,7 +164,7 @@ int smk_curacc(char *obj_label, u32 mode)
 {
 	int rc;
 
-	rc = smk_access(current->cred->security, obj_label, mode);
+	rc = smk_access(current_security(), obj_label, mode);
 	if (rc == 0)
 		return 0;
 

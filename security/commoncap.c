@@ -641,7 +641,7 @@ int cap_task_setnice (struct task_struct *p, int nice)
 int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		   unsigned long arg4, unsigned long arg5, long *rc_p)
 {
-	struct cred *cred = current->cred;
+	struct cred *cred = current_cred();
 	long error = 0;
 
 	switch (option) {

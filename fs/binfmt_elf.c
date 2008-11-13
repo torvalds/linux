@@ -157,7 +157,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	int items;
 	elf_addr_t *elf_info;
 	int ei_index = 0;
-	struct task_struct *tsk = current;
+	const struct cred *cred = current_cred();
 	struct vm_area_struct *vma;
 
 	/*
@@ -223,10 +223,10 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	NEW_AUX_ENT(AT_BASE, interp_load_addr);
 	NEW_AUX_ENT(AT_FLAGS, 0);
 	NEW_AUX_ENT(AT_ENTRY, exec->e_entry);
-	NEW_AUX_ENT(AT_UID, tsk->cred->uid);
-	NEW_AUX_ENT(AT_EUID, tsk->cred->euid);
-	NEW_AUX_ENT(AT_GID, tsk->cred->gid);
-	NEW_AUX_ENT(AT_EGID, tsk->cred->egid);
+	NEW_AUX_ENT(AT_UID, cred->uid);
+	NEW_AUX_ENT(AT_EUID, cred->euid);
+	NEW_AUX_ENT(AT_GID, cred->gid);
+	NEW_AUX_ENT(AT_EGID, cred->egid);
  	NEW_AUX_ENT(AT_SECURE, security_bprm_secureexec(bprm));
 	NEW_AUX_ENT(AT_EXECFN, bprm->exec);
 	if (k_platform) {

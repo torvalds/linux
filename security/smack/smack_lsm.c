@@ -143,7 +143,7 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
 static int smack_syslog(int type)
 {
 	int rc;
-	char *sp = current->cred->security;
+	char *sp = current_security();
 
 	rc = cap_syslog(type);
 	if (rc != 0)
@@ -375,7 +375,7 @@ static int smack_sb_umount(struct vfsmount *mnt, int flags)
  */
 static int smack_inode_alloc_security(struct inode *inode)
 {
-	inode->i_security = new_inode_smack(current->cred->security);
+	inode->i_security = new_inode_smack(current_security());
 	if (inode->i_security == NULL)
 		return -ENOMEM;
 	return 0;
@@ -820,7 +820,7 @@ static int smack_file_permission(struct file *file, int mask)
  */
 static int smack_file_alloc_security(struct file *file)
 {
-	file->f_security = current->cred->security;
+	file->f_security = current_security();
 	return 0;
 }
 
@@ -918,7 +918,7 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
  */
 static int smack_file_set_fowner(struct file *file)
 {
-	file->f_security = current->cred->security;
+	file->f_security = current_security();
 	return 0;
 }
 
@@ -986,8 +986,7 @@ static int smack_file_receive(struct file *file)
  */
 static int smack_cred_alloc_security(struct cred *cred)
 {
-	cred->security = current->cred->security;
-
+	cred->security = current_security();
 	return 0;
 }
 
@@ -1225,7 +1224,7 @@ static void smack_task_to_inode(struct task_struct *p, struct inode *inode)
  */
 static int smack_sk_alloc_security(struct sock *sk, int family, gfp_t gfp_flags)
 {
-	char *csp = current->cred->security;
+	char *csp = current_security();
 	struct socket_smack *ssp;
 
 	ssp = kzalloc(sizeof(struct socket_smack), gfp_flags);
@@ -1450,7 +1449,7 @@ static int smack_flags_to_may(int flags)
  */
 static int smack_msg_msg_alloc_security(struct msg_msg *msg)
 {
-	msg->security = current->cred->security;
+	msg->security = current_security();
 	return 0;
 }
 
@@ -1486,7 +1485,7 @@ static int smack_shm_alloc_security(struct shmid_kernel *shp)
 {
 	struct kern_ipc_perm *isp = &shp->shm_perm;
 
-	isp->security = current->cred->security;
+	isp->security = current_security();
 	return 0;
 }
 
@@ -1595,7 +1594,7 @@ static int smack_sem_alloc_security(struct sem_array *sma)
 {
 	struct kern_ipc_perm *isp = &sma->sem_perm;
 
-	isp->security = current->cred->security;
+	isp->security = current_security();
 	return 0;
 }
 
@@ -1699,7 +1698,7 @@ static int smack_msg_queue_alloc_security(struct msg_queue *msq)
 {
 	struct kern_ipc_perm *kisp = &msq->q_perm;
 
-	kisp->security = current->cred->security;
+	kisp->security = current_security();
 	return 0;
 }
 
@@ -1854,7 +1853,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	struct super_block *sbp;
 	struct superblock_smack *sbsp;
 	struct inode_smack *isp;
-	char *csp = current->cred->security;
+	char *csp = current_security();
 	char *fetched;
 	char *final;
 	struct dentry *dp;
@@ -2290,8 +2289,7 @@ static void smack_sock_graft(struct sock *sk, struct socket *parent)
 		return;
 
 	ssp = sk->sk_security;
-	ssp->smk_in = current->cred->security;
-	ssp->smk_out = current->cred->security;
+	ssp->smk_in = ssp->smk_out = current_security();
 	ssp->smk_packet[0] = '\0';
 
 	rc = smack_netlabel(sk);

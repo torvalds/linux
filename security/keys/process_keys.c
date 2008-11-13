@@ -582,7 +582,7 @@ key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
 {
 	struct request_key_auth *rka;
 	struct task_struct *t = current;
-	struct cred *cred = t->cred;
+	struct cred *cred = current_cred();
 	struct key *key;
 	key_ref_t key_ref, skey_ref;
 	int ret;

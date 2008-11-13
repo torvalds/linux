@@ -951,6 +951,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size)
 	struct inode *inode;
 	struct dentry *dentry, *root;
 	struct qstr quick_string;
+	struct user_struct *user = current_user();
 
 	if (!hugetlbfs_vfsmount)
 		return ERR_PTR(-ENOENT);
@@ -958,7 +959,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size)
 	if (!can_do_hugetlb_shm())
 		return ERR_PTR(-EPERM);
 
-	if (!user_shm_lock(size, current->cred->user))
+	if (!user_shm_lock(size, user))
 		return ERR_PTR(-ENOMEM);
 
 	root = hugetlbfs_vfsmount->mnt_root;
@@ -998,7 +999,7 @@ out_inode:
 out_dentry:
 	dput(dentry);
 out_shm_unlock:
-	user_shm_unlock(size, current->cred->user);
+	user_shm_unlock(size, user);
 	return ERR_PTR(error);
 }
 

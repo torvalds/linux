@@ -123,7 +123,7 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 			break;
 		case IOPRIO_WHO_USER:
 			if (!who)
-				user = current->cred->user;
+				user = current_user();
 			else
 				user = find_user(who);
 
@@ -216,7 +216,7 @@ asmlinkage long sys_ioprio_get(int which, int who)
 			break;
 		case IOPRIO_WHO_USER:
 			if (!who)
-				user = current->cred->user;
+				user = current_user();
 			else
 				user = find_user(who);
 

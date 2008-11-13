@@ -94,7 +94,7 @@ int proc_nr_files(ctl_table *table, int write, struct file *filp,
  */
 struct file *get_empty_filp(void)
 {
-	struct task_struct *tsk;
+	const struct cred *cred = current_cred();
 	static int old_max;
 	struct file * f;
 
@@ -118,12 +118,11 @@ struct file *get_empty_filp(void)
 	if (security_file_alloc(f))
 		goto fail_sec;
 
-	tsk = current;
 	INIT_LIST_HEAD(&f->f_u.fu_list);
 	atomic_long_set(&f->f_count, 1);
 	rwlock_init(&f->f_owner.lock);
-	f->f_uid = tsk->cred->fsuid;
-	f->f_gid = tsk->cred->fsgid;
+	f->f_uid = cred->fsuid;
+	f->f_gid = cred->fsgid;
 	eventpoll_init_file(f);
 	/* f->f_version: 0 */
 	return f;

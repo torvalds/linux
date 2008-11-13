@@ -37,15 +37,16 @@ struct group_info {
  * get_group_info - Get a reference to a group info structure
  * @group_info: The group info to reference
  *
- * This must be called with the owning task locked (via task_lock()) when task
- * != current.  The reason being that the vast majority of callers are looking
- * at current->group_info, which can not be changed except by the current task.
- * Changing current->group_info requires the task lock, too.
+ * This gets a reference to a set of supplementary groups.
+ *
+ * If the caller is accessing a task's credentials, they must hold the RCU read
+ * lock when reading.
  */
-#define get_group_info(group_info)		\
-do {						\
-	atomic_inc(&(group_info)->usage);	\
-} while (0)
+static inline struct group_info *get_group_info(struct group_info *gi)
+{
+	atomic_inc(&gi->usage);
+	return gi;
+}
 
 /**
  * put_group_info - Release a reference to a group info structure
@@ -61,7 +62,7 @@ extern struct group_info *groups_alloc(int);
 extern void groups_free(struct group_info *);
 extern int set_current_groups(struct group_info *);
 extern int set_groups(struct cred *, struct group_info *);
-extern int groups_search(struct group_info *, gid_t);
+extern int groups_search(const struct group_info *, gid_t);
 
 /* access the groups "array" with this macro */
 #define GROUP_AT(gi, i) \
@@ -123,41 +124,6 @@ struct cred {
 	spinlock_t	lock;		/* lock for pointer changes */
 };
 
-#define get_current_user()	(get_uid(current->cred->user))
-
-#define task_uid(task)		((task)->cred->uid)
-#define task_gid(task)		((task)->cred->gid)
-#define task_euid(task)		((task)->cred->euid)
-#define task_egid(task)		((task)->cred->egid)
-
-#define current_uid()		(current->cred->uid)
-#define current_gid()		(current->cred->gid)
-#define current_euid()		(current->cred->euid)
-#define current_egid()		(current->cred->egid)
-#define current_suid()		(current->cred->suid)
-#define current_sgid()		(current->cred->sgid)
-#define current_fsuid()		(current->cred->fsuid)
-#define current_fsgid()		(current->cred->fsgid)
-#define current_cap()		(current->cred->cap_effective)
-
-#define current_uid_gid(_uid, _gid)		\
-do {						\
-	*(_uid) = current->cred->uid;		\
-	*(_gid) = current->cred->gid;		\
-} while(0)
-
-#define current_euid_egid(_uid, _gid)		\
-do {						\
-	*(_uid) = current->cred->euid;		\
-	*(_gid) = current->cred->egid;		\
-} while(0)
-
-#define current_fsuid_fsgid(_uid, _gid)		\
-do {						\
-	*(_uid) = current->cred->fsuid;		\
-	*(_gid) = current->cred->fsgid;		\
-} while(0)
-
 extern void __put_cred(struct cred *);
 extern int copy_creds(struct task_struct *, unsigned long);
 
@@ -186,5 +152,138 @@ static inline void put_cred(struct cred *cred)
 	if (atomic_dec_and_test(&(cred)->usage))
 		__put_cred(cred);
 }
+
+/**
+ * current_cred - Access the current task's credentials
+ *
+ * Access the credentials of the current task.
+ */
+#define current_cred() \
+	(current->cred)
+
+/**
+ * __task_cred - Access another task's credentials
+ * @task: The task to query
+ *
+ * Access the credentials of another task.  The caller must hold the
+ * RCU readlock.
+ *
+ * The caller must make sure task doesn't go away, either by holding a ref on
+ * task or by holding tasklist_lock to prevent it from being unlinked.
+ */
+#define __task_cred(task) \
+	((const struct cred *)(rcu_dereference((task)->cred)))
+
+/**
+ * get_task_cred - Get another task's credentials
+ * @task: The task to query
+ *
+ * Get the credentials of a task, pinning them so that they can't go away.
+ * Accessing a task's credentials directly is not permitted.
+ *
+ * The caller must make sure task doesn't go away, either by holding a ref on
+ * task or by holding tasklist_lock to prevent it from being unlinked.
+ */
+#define get_task_cred(task)				\
+({							\
+	struct cred *__cred;				\
+	rcu_read_lock();				\
+	__cred = (struct cred *) __task_cred((task));	\
+	get_cred(__cred);				\
+	rcu_read_unlock();				\
+	__cred;						\
+})
+
+/**
+ * get_current_cred - Get the current task's credentials
+ *
+ * Get the credentials of the current task, pinning them so that they can't go
+ * away.  Accessing the current task's credentials directly is not permitted.
+ */
+#define get_current_cred()				\
+	(get_cred(current_cred()))
+
+/**
+ * get_current_user - Get the current task's user_struct
+ *
+ * Get the user record of the current task, pinning it so that it can't go
+ * away.
+ */
+#define get_current_user()				\
+({							\
+	struct user_struct *__u;			\
+	struct cred *__cred;				\
+	__cred = (struct cred *) current_cred();	\
+	__u = get_uid(__cred->user);			\
+	__u;						\
+})
+
+/**
+ * get_current_groups - Get the current task's supplementary group list
+ *
+ * Get the supplementary group list of the current task, pinning it so that it
+ * can't go away.
+ */
+#define get_current_groups()				\
+({							\
+	struct group_info *__groups;			\
+	struct cred *__cred;				\
+	__cred = (struct cred *) current_cred();	\
+	__groups = get_group_info(__cred->group_info);	\
+	__groups;					\
+})
+
+#define task_cred_xxx(task, xxx)		\
+({						\
+	__typeof__(task->cred->xxx) ___val;	\
+	rcu_read_lock();			\
+	___val = __task_cred((task))->xxx;	\
+	rcu_read_unlock();			\
+	___val;					\
+})
+
+#define task_uid(task)		(task_cred_xxx((task), uid))
+#define task_euid(task)		(task_cred_xxx((task), euid))
+
+#define current_cred_xxx(xxx)			\
+({						\
+	current->cred->xxx;			\
+})
+
+#define current_uid()		(current_cred_xxx(uid))
+#define current_gid()		(current_cred_xxx(gid))
+#define current_euid()		(current_cred_xxx(euid))
+#define current_egid()		(current_cred_xxx(egid))
+#define current_suid()		(current_cred_xxx(suid))
+#define current_sgid()		(current_cred_xxx(sgid))
+#define current_fsuid() 	(current_cred_xxx(fsuid))
+#define current_fsgid() 	(current_cred_xxx(fsgid))
+#define current_cap()		(current_cred_xxx(cap_effective))
+#define current_user()		(current_cred_xxx(user))
+#define current_security()	(current_cred_xxx(security))
+
+#define current_uid_gid(_uid, _gid)		\
+do {						\
+	const struct cred *__cred;		\
+	__cred = current_cred();		\
+	*(_uid) = __cred->uid;			\
+	*(_gid) = __cred->gid;			\
+} while(0)
+
+#define current_euid_egid(_euid, _egid)		\
+do {						\
+	const struct cred *__cred;		\
+	__cred = current_cred();		\
+	*(_euid) = __cred->euid;		\
+	*(_egid) = __cred->egid;		\
+} while(0)
+
+#define current_fsuid_fsgid(_fsuid, _fsgid)	\
+do {						\
+	const struct cred *__cred;		\
+	__cred = current_cred();		\
+	*(_fsuid) = __cred->fsuid;		\
+	*(_fsgid) = __cred->fsgid;		\
+} while(0)
 
 #endif /* _LINUX_CRED_H */

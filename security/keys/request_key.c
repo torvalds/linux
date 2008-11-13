@@ -67,6 +67,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 				 void *aux)
 {
 	struct task_struct *tsk = current;
+	const struct cred *cred = current_cred();
 	key_serial_t prkey, sskey;
 	struct key *key = cons->key, *authkey = cons->authkey, *keyring;
 	char *argv[9], *envp[3], uid_str[12], gid_str[12];
@@ -96,16 +97,16 @@ static int call_sbin_request_key(struct key_construction *cons,
 		goto error_link;
 
 	/* record the UID and GID */
-	sprintf(uid_str, "%d", current_fsuid());
-	sprintf(gid_str, "%d", current_fsgid());
+	sprintf(uid_str, "%d", cred->fsuid);
+	sprintf(gid_str, "%d", cred->fsgid);
 
 	/* we say which key is under construction */
 	sprintf(key_str, "%d", key->serial);
 
 	/* we specify the process's default keyrings */
 	sprintf(keyring_str[0], "%d",
-		tsk->cred->thread_keyring ?
-		tsk->cred->thread_keyring->serial : 0);
+		cred->thread_keyring ?
+		cred->thread_keyring->serial : 0);
 
 	prkey = 0;
 	if (tsk->signal->process_keyring)
@@ -118,7 +119,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 		sskey = rcu_dereference(tsk->signal->session_keyring)->serial;
 		rcu_read_unlock();
 	} else {
-		sskey = tsk->cred->user->session_keyring->serial;
+		sskey = cred->user->session_keyring->serial;
 	}
 
 	sprintf(keyring_str[2], "%d", sskey);

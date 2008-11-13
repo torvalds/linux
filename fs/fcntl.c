@@ -205,13 +205,14 @@ static void f_modown(struct file *filp, struct pid *pid, enum pid_type type,
 int __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 		int force)
 {
+	const struct cred *cred = current_cred();
 	int err;
 	
 	err = security_file_set_fowner(filp);
 	if (err)
 		return err;
 
-	f_modown(filp, pid, type, current_uid(), current_euid(), force);
+	f_modown(filp, pid, type, cred->uid, cred->euid, force);
 	return 0;
 }
 EXPORT_SYMBOL(__f_setown);

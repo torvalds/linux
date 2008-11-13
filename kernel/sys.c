@@ -143,6 +143,7 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 {
 	struct task_struct *g, *p;
 	struct user_struct *user;
+	const struct cred *cred = current_cred();
 	int error = -EINVAL;
 	struct pid *pgrp;
 
@@ -176,18 +177,18 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
-			user = current->cred->user;
+			user = cred->user;
 			if (!who)
-				who = current_uid();
-			else
-				if (who != current_uid() && !(user = find_user(who)))
-					goto out_unlock;	/* No processes for this user */
+				who = cred->uid;
+			else if ((who != cred->uid) &&
+				 !(user = find_user(who)))
+				goto out_unlock;	/* No processes for this user */
 
 			do_each_thread(g, p)
-				if (p->cred->uid == who)
+				if (__task_cred(p)->uid == who)
 					error = set_one_prio(p, niceval, error);
 			while_each_thread(g, p);
-			if (who != current_uid())
+			if (who != cred->uid)
 				free_uid(user);		/* For find_user() */
 			break;
 	}
@@ -207,6 +208,7 @@ asmlinkage long sys_getpriority(int which, int who)
 {
 	struct task_struct *g, *p;
 	struct user_struct *user;
+	const struct cred *cred = current_cred();
 	long niceval, retval = -ESRCH;
 	struct pid *pgrp;
 
@@ -238,21 +240,21 @@ asmlinkage long sys_getpriority(int which, int who)
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
-			user = current->cred->user;
+			user = (struct user_struct *) cred->user;
 			if (!who)
-				who = current_uid();
-			else
-				if (who != current_uid() && !(user = find_user(who)))
-					goto out_unlock;	/* No processes for this user */
+				who = cred->uid;
+			else if ((who != cred->uid) &&
+				 !(user = find_user(who)))
+				goto out_unlock;	/* No processes for this user */
 
 			do_each_thread(g, p)
-				if (p->cred->uid == who) {
+				if (__task_cred(p)->uid == who) {
 					niceval = 20 - task_nice(p);
 					if (niceval > retval)
 						retval = niceval;
 				}
 			while_each_thread(g, p);
-			if (who != current_uid())
+			if (who != cred->uid)
 				free_uid(user);		/* for find_user() */
 			break;
 	}
@@ -743,11 +745,11 @@ asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 
 asmlinkage long sys_getresuid(uid_t __user *ruid, uid_t __user *euid, uid_t __user *suid)
 {
-	struct cred *cred = current->cred;
+	const struct cred *cred = current_cred();
 	int retval;
 
-	if (!(retval = put_user(cred->uid, ruid)) &&
-	    !(retval = put_user(cred->euid, euid)))
+	if (!(retval   = put_user(cred->uid,  ruid)) &&
+	    !(retval   = put_user(cred->euid, euid)))
 		retval = put_user(cred->suid, suid);
 
 	return retval;
@@ -796,11 +798,11 @@ asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 
 asmlinkage long sys_getresgid(gid_t __user *rgid, gid_t __user *egid, gid_t __user *sgid)
 {
-	struct cred *cred = current->cred;
+	const struct cred *cred = current_cred();
 	int retval;
 
-	if (!(retval = put_user(cred->gid, rgid)) &&
-	    !(retval = put_user(cred->egid, egid)))
+	if (!(retval   = put_user(cred->gid,  rgid)) &&
+	    !(retval   = put_user(cred->egid, egid)))
 		retval = put_user(cred->sgid, sgid);
 
 	return retval;
@@ -1199,7 +1201,7 @@ static void groups_sort(struct group_info *group_info)
 }
 
 /* a simple bsearch */
-int groups_search(struct group_info *group_info, gid_t grp)
+int groups_search(const struct group_info *group_info, gid_t grp)
 {
 	unsigned int left, right;
 
@@ -1268,13 +1270,8 @@ EXPORT_SYMBOL(set_current_groups);
 
 asmlinkage long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
 {
-	struct cred *cred = current->cred;
-	int i = 0;
-
-	/*
-	 *	SMP: Nobody else can change our grouplist. Thus we are
-	 *	safe.
-	 */
+	const struct cred *cred = current_cred();
+	int i;
 
 	if (gidsetsize < 0)
 		return -EINVAL;
@@ -1330,8 +1327,9 @@ asmlinkage long sys_setgroups(int gidsetsize, gid_t __user *grouplist)
  */
 int in_group_p(gid_t grp)
 {
-	struct cred *cred = current->cred;
+	const struct cred *cred = current_cred();
 	int retval = 1;
+
 	if (grp != cred->fsgid)
 		retval = groups_search(cred->group_info, grp);
 	return retval;
@@ -1341,8 +1339,9 @@ EXPORT_SYMBOL(in_group_p);
 
 int in_egroup_p(gid_t grp)
 {
-	struct cred *cred = current->cred;
+	const struct cred *cred = current_cred();
 	int retval = 1;
+
 	if (grp != cred->egid)
 		retval = groups_search(cred->group_info, grp);
 	return retval;

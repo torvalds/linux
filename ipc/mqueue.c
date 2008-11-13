@@ -112,6 +112,7 @@ static inline struct mqueue_inode_info *MQUEUE_I(struct inode *inode)
 static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
 							struct mq_attr *attr)
 {
+	struct user_struct *u = current_user();
 	struct inode *inode;
 
 	inode = new_inode(sb);
@@ -126,7 +127,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
 		if (S_ISREG(mode)) {
 			struct mqueue_inode_info *info;
 			struct task_struct *p = current;
-			struct user_struct *u = p->cred->user;
 			unsigned long mq_bytes, mq_msg_tblsz;
 
 			inode->i_fop = &mqueue_file_operations;

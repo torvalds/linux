@@ -336,7 +336,7 @@ static void smk_cipso_doi(void)
 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
-	audit_info.secid = smack_to_secid(current->cred->security);
+	audit_info.secid = smack_to_secid(current_security());
 
 	rc = netlbl_cfg_map_del(NULL, &audit_info);
 	if (rc != 0)
@@ -371,7 +371,7 @@ static void smk_unlbl_ambient(char *oldambient)
 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
-	audit_info.secid = smack_to_secid(current->cred->security);
+	audit_info.secid = smack_to_secid(current_security());
 
 	if (oldambient != NULL) {
 		rc = netlbl_cfg_map_del(oldambient, &audit_info);
