@@ -19,7 +19,7 @@
 #define _CIFS_FS_SB_H
 
 #define CIFS_MOUNT_NO_PERM      1 /* do not do client vfs_perm check */
-#define CIFS_MOUNT_SET_UID      2 /* set current->euid in create etc. */
+#define CIFS_MOUNT_SET_UID      2 /* set current's euid in create etc. */
 #define CIFS_MOUNT_SERVER_INUM  4 /* inode numbers from uniqueid from server */
 #define CIFS_MOUNT_DIRECT_IO    8 /* do not write nor read through page cache */
 #define CIFS_MOUNT_NO_XATTR     0x10  /* if set - disable xattr support       */

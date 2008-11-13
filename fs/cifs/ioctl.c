@@ -65,7 +65,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	switch (command) {
 		case CIFS_IOC_CHECKUMOUNT:
 			cFYI(1, ("User unmount attempted"));
-			if (cifs_sb->mnt_uid == current->uid)
+			if (cifs_sb->mnt_uid == current_uid())
 				rc = 0;
 			else {
 				rc = -EACCES;
