@@ -88,6 +88,10 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	snprintf(beep->phys, sizeof(beep->phys),
 		"card%d/codec#%d/beep0", codec->bus->card->number, codec->addr);
 	input_dev = input_allocate_device();
+	if (!input_dev) {
+		kfree(beep);
+		return -ENOMEM;
+	}
 
 	/* setup digital beep device */
 	input_dev->name = "HDA Digital PCBeep";
