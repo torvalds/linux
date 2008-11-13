@@ -912,14 +912,14 @@ static int ath_attach(u16 devid, struct ath_softc *sc)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
 
-	error = ieee80211_register_hw(hw);
-	if (error != 0) {
-		ath_rate_control_unregister();
-		goto bad;
-	}
+	/* initialize tx/rx engine */
+	error = ath_tx_init(sc, ATH_TXBUF);
+	if (error != 0)
+		goto detach;
 
-	/* Initialize LED control */
-	ath_init_leds(sc);
+	error = ath_rx_init(sc, ATH_RXBUF);
+	if (error != 0)
+		goto detach;
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	/* Initialze h/w Rfkill */
@@ -931,15 +931,14 @@ static int ath_attach(u16 devid, struct ath_softc *sc)
 		goto detach;
 #endif
 
-	/* initialize tx/rx engine */
+	error = ieee80211_register_hw(hw);
+	if (error != 0) {
+		ath_rate_control_unregister();
+		goto bad;
+	}
 
-	error = ath_tx_init(sc, ATH_TXBUF);
-	if (error != 0)
-		goto detach;
-
-	error = ath_rx_init(sc, ATH_RXBUF);
-	if (error != 0)
-		goto detach;
+	/* Initialize LED control */
+	ath_init_leds(sc);
 
 	return 0;
 detach:
