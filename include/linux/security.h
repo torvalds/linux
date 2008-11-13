@@ -57,8 +57,7 @@ extern int cap_capset(struct cred *new, const struct cred *old,
 		      const kernel_cap_t *effective,
 		      const kernel_cap_t *inheritable,
 		      const kernel_cap_t *permitted);
-extern int cap_bprm_set_security(struct linux_binprm *bprm);
-extern int cap_bprm_apply_creds(struct linux_binprm *bprm, int unsafe);
+extern int cap_bprm_set_creds(struct linux_binprm *bprm);
 extern int cap_bprm_secureexec(struct linux_binprm *bprm);
 extern int cap_inode_setxattr(struct dentry *dentry, const char *name,
 			      const void *value, size_t size, int flags);
@@ -110,7 +109,7 @@ extern unsigned long mmap_min_addr;
 struct sched_param;
 struct request_sock;
 
-/* bprm_apply_creds unsafe reasons */
+/* bprm->unsafe reasons */
 #define LSM_UNSAFE_SHARE	1
 #define LSM_UNSAFE_PTRACE	2
 #define LSM_UNSAFE_PTRACE_CAP	4
@@ -154,36 +153,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *
  * Security hooks for program execution operations.
  *
- * @bprm_alloc_security:
- *	Allocate and attach a security structure to the @bprm->security field.
- *	The security field is initialized to NULL when the bprm structure is
- *	allocated.
- *	@bprm contains the linux_binprm structure to be modified.
- *	Return 0 if operation was successful.
- * @bprm_free_security:
- *	@bprm contains the linux_binprm structure to be modified.
- *	Deallocate and clear the @bprm->security field.
- * @bprm_apply_creds:
- *	Compute and set the security attributes of a process being transformed
- *	by an execve operation based on the old attributes (current->security)
- *	and the information saved in @bprm->security by the set_security hook.
- *	Since this function may return an error, in which case the process will
- *      be killed.  However, it can leave the security attributes of the
- *	process unchanged if an access failure occurs at this point.
- *	bprm_apply_creds is called under task_lock.  @unsafe indicates various
- *	reasons why it may be unsafe to change security state.
- *	@bprm contains the linux_binprm structure.
- * @bprm_post_apply_creds:
- *	Runs after bprm_apply_creds with the task_lock dropped, so that
- *	functions which cannot be called safely under the task_lock can
- *	be used.  This hook is a good place to perform state changes on
- *	the process such as closing open file descriptors to which access
- *	is no longer granted if the attributes were changed.
- *	Note that a security module might need to save state between
- *	bprm_apply_creds and bprm_post_apply_creds to store the decision
- *	on whether the process may proceed.
- *	@bprm contains the linux_binprm structure.
- * @bprm_set_security:
+ * @bprm_set_creds:
  *	Save security information in the bprm->security field, typically based
  *	on information about the bprm->file, for later use by the apply_creds
  *	hook.  This hook may also optionally check permissions (e.g. for
@@ -196,15 +166,30 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@bprm contains the linux_binprm structure.
  *	Return 0 if the hook is successful and permission is granted.
  * @bprm_check_security:
- *	This hook mediates the point when a search for a binary handler	will
- *	begin.  It allows a check the @bprm->security value which is set in
- *	the preceding set_security call.  The primary difference from
- *	set_security is that the argv list and envp list are reliably
- *	available in @bprm.  This hook may be called multiple times
- *	during a single execve; and in each pass set_security is called
- *	first.
+ *	This hook mediates the point when a search for a binary handler will
+ *	begin.  It allows a check the @bprm->security value which is set in the
+ *	preceding set_creds call.  The primary difference from set_creds is
+ *	that the argv list and envp list are reliably available in @bprm.  This
+ *	hook may be called multiple times during a single execve; and in each
+ *	pass set_creds is called first.
  *	@bprm contains the linux_binprm structure.
  *	Return 0 if the hook is successful and permission is granted.
+ * @bprm_committing_creds:
+ *	Prepare to install the new security attributes of a process being
+ *	transformed by an execve operation, based on the old credentials
+ *	pointed to by @current->cred and the information set in @bprm->cred by
+ *	the bprm_set_creds hook.  @bprm points to the linux_binprm structure.
+ *	This hook is a good place to perform state changes on the process such
+ *	as closing open file descriptors to which access will no longer be
+ *	granted when the attributes are changed.  This is called immediately
+ *	before commit_creds().
+ * @bprm_committed_creds:
+ *	Tidy up after the installation of the new security attributes of a
+ *	process being transformed by an execve operation.  The new credentials
+ *	have, by this point, been set to @current->cred.  @bprm points to the
+ *	linux_binprm structure.  This hook is a good place to perform state
+ *	changes on the process such as clearing out non-inheritable signal
+ *	state.  This is called immediately after commit_creds().
  * @bprm_secureexec:
  *	Return a boolean value (0 or 1) indicating whether a "secure exec"
  *	is required.  The flag is passed in the auxiliary table
@@ -1301,13 +1286,11 @@ struct security_operations {
 	int (*settime) (struct timespec *ts, struct timezone *tz);
 	int (*vm_enough_memory) (struct mm_struct *mm, long pages);
 
-	int (*bprm_alloc_security) (struct linux_binprm *bprm);
-	void (*bprm_free_security) (struct linux_binprm *bprm);
-	int (*bprm_apply_creds) (struct linux_binprm *bprm, int unsafe);
-	void (*bprm_post_apply_creds) (struct linux_binprm *bprm);
-	int (*bprm_set_security) (struct linux_binprm *bprm);
+	int (*bprm_set_creds) (struct linux_binprm *bprm);
 	int (*bprm_check_security) (struct linux_binprm *bprm);
 	int (*bprm_secureexec) (struct linux_binprm *bprm);
+	void (*bprm_committing_creds) (struct linux_binprm *bprm);
+	void (*bprm_committed_creds) (struct linux_binprm *bprm);
 
 	int (*sb_alloc_security) (struct super_block *sb);
 	void (*sb_free_security) (struct super_block *sb);
@@ -1569,12 +1552,10 @@ int security_settime(struct timespec *ts, struct timezone *tz);
 int security_vm_enough_memory(long pages);
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
 int security_vm_enough_memory_kern(long pages);
-int security_bprm_alloc(struct linux_binprm *bprm);
-void security_bprm_free(struct linux_binprm *bprm);
-int security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe);
-void security_bprm_post_apply_creds(struct linux_binprm *bprm);
-int security_bprm_set(struct linux_binprm *bprm);
+int security_bprm_set_creds(struct linux_binprm *bprm);
 int security_bprm_check(struct linux_binprm *bprm);
+void security_bprm_committing_creds(struct linux_binprm *bprm);
+void security_bprm_committed_creds(struct linux_binprm *bprm);
 int security_bprm_secureexec(struct linux_binprm *bprm);
 int security_sb_alloc(struct super_block *sb);
 void security_sb_free(struct super_block *sb);
@@ -1812,32 +1793,22 @@ static inline int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 	return cap_vm_enough_memory(mm, pages);
 }
 
-static inline int security_bprm_alloc(struct linux_binprm *bprm)
+static inline int security_bprm_set_creds(struct linux_binprm *bprm)
 {
-	return 0;
-}
-
-static inline void security_bprm_free(struct linux_binprm *bprm)
-{ }
-
-static inline int security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
-{
-	return cap_bprm_apply_creds(bprm, unsafe);
-}
-
-static inline void security_bprm_post_apply_creds(struct linux_binprm *bprm)
-{
-	return;
-}
-
-static inline int security_bprm_set(struct linux_binprm *bprm)
-{
-	return cap_bprm_set_security(bprm);
+	return cap_bprm_set_creds(bprm);
 }
 
 static inline int security_bprm_check(struct linux_binprm *bprm)
 {
 	return 0;
+}
+
+static inline void security_bprm_committing_creds(struct linux_binprm *bprm)
+{
+}
+
+static inline void security_bprm_committed_creds(struct linux_binprm *bprm)
+{
 }
 
 static inline int security_bprm_secureexec(struct linux_binprm *bprm)

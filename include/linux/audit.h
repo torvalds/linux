@@ -508,22 +508,6 @@ static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 	return 0;
 }
 
-/*
- * ieieeeeee, an audit function without a return code!
- *
- * This function might fail!  I decided that it didn't matter.  We are too late
- * to fail the syscall and the information isn't REQUIRED for any purpose.  It's
- * just nice to have.  We should be able to look at past audit logs to figure
- * out this process's current cap set along with the fcaps from the PATH record
- * and use that to come up with the final set.  Yeah, its ugly, but all the info
- * is still in the audit log.  So I'm not going to bother mentioning we failed
- * if we couldn't allocate memory.
- *
- * If someone changes their mind they could create the aux record earlier and
- * then search here and use that earlier allocation.  But I don't wanna.
- *
- * -Eric
- */
 static inline int audit_log_bprm_fcaps(struct linux_binprm *bprm,
 				       const struct cred *new,
 				       const struct cred *old)

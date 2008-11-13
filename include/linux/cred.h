@@ -84,8 +84,6 @@ struct thread_group_cred {
 	struct key	*process_keyring;	/* keyring private to this process */
 	struct rcu_head	rcu;			/* RCU deletion hook */
 };
-
-extern void release_tgcred(struct cred *cred);
 #endif
 
 /*
@@ -144,6 +142,7 @@ struct cred {
 extern void __put_cred(struct cred *);
 extern int copy_creds(struct task_struct *, unsigned long);
 extern struct cred *prepare_creds(void);
+extern struct cred *prepare_exec_creds(void);
 extern struct cred *prepare_usermodehelper_creds(void);
 extern int commit_creds(struct cred *);
 extern void abort_creds(struct cred *);

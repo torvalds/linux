@@ -2596,8 +2596,7 @@ struct security_operations smack_ops = {
 	.settime = 			cap_settime,
 	.vm_enough_memory = 		cap_vm_enough_memory,
 
-	.bprm_apply_creds = 		cap_bprm_apply_creds,
-	.bprm_set_security = 		cap_bprm_set_security,
+	.bprm_set_creds = 		cap_bprm_set_creds,
 	.bprm_secureexec = 		cap_bprm_secureexec,
 
 	.sb_alloc_security = 		smack_sb_alloc_security,

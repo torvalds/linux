@@ -10,6 +10,7 @@
  */
 
 struct super_block;
+struct linux_binprm;
 
 /*
  * block_dev.c
@@ -38,6 +39,11 @@ static inline int sb_is_blkdev_sb(struct super_block *sb)
  * char_dev.c
  */
 extern void __init chrdev_init(void);
+
+/*
+ * exec.c
+ */
+extern void check_unsafe_exec(struct linux_binprm *);
 
 /*
  * namespace.c

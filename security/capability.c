@@ -32,22 +32,17 @@ static int cap_quota_on(struct dentry *dentry)
 	return 0;
 }
 
-static int cap_bprm_alloc_security(struct linux_binprm *bprm)
+static int cap_bprm_check_security (struct linux_binprm *bprm)
 {
 	return 0;
 }
 
-static void cap_bprm_free_security(struct linux_binprm *bprm)
+static void cap_bprm_committing_creds(struct linux_binprm *bprm)
 {
 }
 
-static void cap_bprm_post_apply_creds(struct linux_binprm *bprm)
+static void cap_bprm_committed_creds(struct linux_binprm *bprm)
 {
-}
-
-static int cap_bprm_check_security(struct linux_binprm *bprm)
-{
-	return 0;
 }
 
 static int cap_sb_alloc_security(struct super_block *sb)
@@ -827,11 +822,9 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, syslog);
 	set_to_cap_if_null(ops, settime);
 	set_to_cap_if_null(ops, vm_enough_memory);
-	set_to_cap_if_null(ops, bprm_alloc_security);
-	set_to_cap_if_null(ops, bprm_free_security);
-	set_to_cap_if_null(ops, bprm_apply_creds);
-	set_to_cap_if_null(ops, bprm_post_apply_creds);
-	set_to_cap_if_null(ops, bprm_set_security);
+	set_to_cap_if_null(ops, bprm_set_creds);
+	set_to_cap_if_null(ops, bprm_committing_creds);
+	set_to_cap_if_null(ops, bprm_committed_creds);
 	set_to_cap_if_null(ops, bprm_check_security);
 	set_to_cap_if_null(ops, bprm_secureexec);
 	set_to_cap_if_null(ops, sb_alloc_security);

@@ -276,48 +276,6 @@ static int install_session_keyring(struct key *keyring)
 
 /*****************************************************************************/
 /*
- * deal with execve()
- */
-int exec_keys(struct task_struct *tsk)
-{
-	struct thread_group_cred *tgcred = NULL;
-	struct cred *new;
-
-#ifdef CONFIG_KEYS
-	tgcred = kmalloc(sizeof(*tgcred), GFP_KERNEL);
-	if (!tgcred)
-		return -ENOMEM;
-#endif
-
-	new = prepare_creds();
-	if (new < 0)
-		return -ENOMEM;
-
-	/* newly exec'd tasks don't get a thread keyring */
-	key_put(new->thread_keyring);
-	new->thread_keyring = NULL;
-
-	/* create a new per-thread-group creds for all this set of threads to
-	 * share */
-	memcpy(tgcred, new->tgcred, sizeof(struct thread_group_cred));
-
-	atomic_set(&tgcred->usage, 1);
-	spin_lock_init(&tgcred->lock);
-
-	/* inherit the session keyring; new process keyring */
-	key_get(tgcred->session_keyring);
-	tgcred->process_keyring = NULL;
-
-	release_tgcred(new);
-	new->tgcred = tgcred;
-
-	commit_creds(new);
-	return 0;
-
-} /* end exec_keys() */
-
-/*****************************************************************************/
-/*
  * the filesystem user ID changed
  */
 void key_fsuid_changed(struct task_struct *tsk)

@@ -55,9 +55,9 @@ static int rootplug_bprm_check_security (struct linux_binprm *bprm)
 	struct usb_device *dev;
 
 	root_dbg("file %s, e_uid = %d, e_gid = %d\n",
-		 bprm->filename, bprm->e_uid, bprm->e_gid);
+		 bprm->filename, bprm->cred->euid, bprm->cred->egid);
 
-	if (bprm->e_gid == 0) {
+	if (bprm->cred->egid == 0) {
 		dev = usb_find_device(vendor_id, product_id);
 		if (!dev) {
 			root_dbg("e_gid = 0, and device not found, "
@@ -75,15 +75,12 @@ static struct security_operations rootplug_security_ops = {
 	.ptrace_may_access =		cap_ptrace_may_access,
 	.ptrace_traceme =		cap_ptrace_traceme,
 	.capget =			cap_capget,
-	.capset_check =			cap_capset_check,
-	.capset_set =			cap_capset_set,
+	.capset =			cap_capset,
 	.capable =			cap_capable,
 
-	.bprm_apply_creds =		cap_bprm_apply_creds,
-	.bprm_set_security =		cap_bprm_set_security,
+	.bprm_set_creds =		cap_bprm_set_creds,
 
-	.task_post_setuid =		cap_task_post_setuid,
-	.task_reparent_to_init =	cap_task_reparent_to_init,
+	.task_fix_setuid =		cap_task_fix_setuid,
 	.task_prctl =			cap_task_prctl,
 
 	.bprm_check_security =		rootplug_bprm_check_security,

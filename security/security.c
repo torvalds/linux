@@ -213,34 +213,24 @@ int security_vm_enough_memory_kern(long pages)
 	return security_ops->vm_enough_memory(current->mm, pages);
 }
 
-int security_bprm_alloc(struct linux_binprm *bprm)
+int security_bprm_set_creds(struct linux_binprm *bprm)
 {
-	return security_ops->bprm_alloc_security(bprm);
-}
-
-void security_bprm_free(struct linux_binprm *bprm)
-{
-	security_ops->bprm_free_security(bprm);
-}
-
-int security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
-{
-	return security_ops->bprm_apply_creds(bprm, unsafe);
-}
-
-void security_bprm_post_apply_creds(struct linux_binprm *bprm)
-{
-	security_ops->bprm_post_apply_creds(bprm);
-}
-
-int security_bprm_set(struct linux_binprm *bprm)
-{
-	return security_ops->bprm_set_security(bprm);
+	return security_ops->bprm_set_creds(bprm);
 }
 
 int security_bprm_check(struct linux_binprm *bprm)
 {
 	return security_ops->bprm_check_security(bprm);
+}
+
+void security_bprm_committing_creds(struct linux_binprm *bprm)
+{
+	return security_ops->bprm_committing_creds(bprm);
+}
+
+void security_bprm_committed_creds(struct linux_binprm *bprm)
+{
+	return security_ops->bprm_committed_creds(bprm);
 }
 
 int security_bprm_secureexec(struct linux_binprm *bprm)

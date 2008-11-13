@@ -2029,59 +2029,45 @@ static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 
 /* binprm security operations */
 
-static int selinux_bprm_alloc_security(struct linux_binprm *bprm)
+static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 {
-	struct bprm_security_struct *bsec;
-
-	bsec = kzalloc(sizeof(struct bprm_security_struct), GFP_KERNEL);
-	if (!bsec)
-		return -ENOMEM;
-
-	bsec->sid = SECINITSID_UNLABELED;
-	bsec->set = 0;
-
-	bprm->security = bsec;
-	return 0;
-}
-
-static int selinux_bprm_set_security(struct linux_binprm *bprm)
-{
-	struct task_security_struct *tsec;
-	struct inode *inode = bprm->file->f_path.dentry->d_inode;
+	const struct task_security_struct *old_tsec;
+	struct task_security_struct *new_tsec;
 	struct inode_security_struct *isec;
-	struct bprm_security_struct *bsec;
-	u32 newsid;
 	struct avc_audit_data ad;
+	struct inode *inode = bprm->file->f_path.dentry->d_inode;
 	int rc;
 
-	rc = secondary_ops->bprm_set_security(bprm);
+	rc = secondary_ops->bprm_set_creds(bprm);
 	if (rc)
 		return rc;
 
-	bsec = bprm->security;
-
-	if (bsec->set)
+	/* SELinux context only depends on initial program or script and not
+	 * the script interpreter */
+	if (bprm->cred_prepared)
 		return 0;
 
-	tsec = current_security();
+	old_tsec = current_security();
+	new_tsec = bprm->cred->security;
 	isec = inode->i_security;
 
 	/* Default to the current task SID. */
-	bsec->sid = tsec->sid;
+	new_tsec->sid = old_tsec->sid;
+	new_tsec->osid = old_tsec->sid;
 
 	/* Reset fs, key, and sock SIDs on execve. */
-	tsec->create_sid = 0;
-	tsec->keycreate_sid = 0;
-	tsec->sockcreate_sid = 0;
+	new_tsec->create_sid = 0;
+	new_tsec->keycreate_sid = 0;
+	new_tsec->sockcreate_sid = 0;
 
-	if (tsec->exec_sid) {
-		newsid = tsec->exec_sid;
+	if (old_tsec->exec_sid) {
+		new_tsec->sid = old_tsec->exec_sid;
 		/* Reset exec SID on execve. */
-		tsec->exec_sid = 0;
+		new_tsec->exec_sid = 0;
 	} else {
 		/* Check for a default transition on this program. */
-		rc = security_transition_sid(tsec->sid, isec->sid,
-					     SECCLASS_PROCESS, &newsid);
+		rc = security_transition_sid(old_tsec->sid, isec->sid,
+					     SECCLASS_PROCESS, &new_tsec->sid);
 		if (rc)
 			return rc;
 	}
@@ -2090,33 +2076,63 @@ static int selinux_bprm_set_security(struct linux_binprm *bprm)
 	ad.u.fs.path = bprm->file->f_path;
 
 	if (bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)
-		newsid = tsec->sid;
+		new_tsec->sid = old_tsec->sid;
 
-	if (tsec->sid == newsid) {
-		rc = avc_has_perm(tsec->sid, isec->sid,
+	if (new_tsec->sid == old_tsec->sid) {
+		rc = avc_has_perm(old_tsec->sid, isec->sid,
 				  SECCLASS_FILE, FILE__EXECUTE_NO_TRANS, &ad);
 		if (rc)
 			return rc;
 	} else {
 		/* Check permissions for the transition. */
-		rc = avc_has_perm(tsec->sid, newsid,
+		rc = avc_has_perm(old_tsec->sid, new_tsec->sid,
 				  SECCLASS_PROCESS, PROCESS__TRANSITION, &ad);
 		if (rc)
 			return rc;
 
-		rc = avc_has_perm(newsid, isec->sid,
+		rc = avc_has_perm(new_tsec->sid, isec->sid,
 				  SECCLASS_FILE, FILE__ENTRYPOINT, &ad);
 		if (rc)
 			return rc;
 
-		/* Clear any possibly unsafe personality bits on exec: */
-		current->personality &= ~PER_CLEAR_ON_SETID;
+		/* Check for shared state */
+		if (bprm->unsafe & LSM_UNSAFE_SHARE) {
+			rc = avc_has_perm(old_tsec->sid, new_tsec->sid,
+					  SECCLASS_PROCESS, PROCESS__SHARE,
+					  NULL);
+			if (rc)
+				return -EPERM;
+		}
 
-		/* Set the security field to the new SID. */
-		bsec->sid = newsid;
+		/* Make sure that anyone attempting to ptrace over a task that
+		 * changes its SID has the appropriate permit */
+		if (bprm->unsafe &
+		    (LSM_UNSAFE_PTRACE | LSM_UNSAFE_PTRACE_CAP)) {
+			struct task_struct *tracer;
+			struct task_security_struct *sec;
+			u32 ptsid = 0;
+
+			rcu_read_lock();
+			tracer = tracehook_tracer_task(current);
+			if (likely(tracer != NULL)) {
+				sec = __task_cred(tracer)->security;
+				ptsid = sec->sid;
+			}
+			rcu_read_unlock();
+
+			if (ptsid != 0) {
+				rc = avc_has_perm(ptsid, new_tsec->sid,
+						  SECCLASS_PROCESS,
+						  PROCESS__PTRACE, NULL);
+				if (rc)
+					return -EPERM;
+			}
+		}
+
+		/* Clear any possibly unsafe personality bits on exec: */
+		bprm->per_clear |= PER_CLEAR_ON_SETID;
 	}
 
-	bsec->set = 1;
 	return 0;
 }
 
@@ -2124,7 +2140,6 @@ static int selinux_bprm_check_security(struct linux_binprm *bprm)
 {
 	return secondary_ops->bprm_check_security(bprm);
 }
-
 
 static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 {
@@ -2141,17 +2156,11 @@ static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 		   the noatsecure permission is granted between
 		   the two SIDs, i.e. ahp returns 0. */
 		atsecure = avc_has_perm(osid, sid,
-					 SECCLASS_PROCESS,
-					 PROCESS__NOATSECURE, NULL);
+					SECCLASS_PROCESS,
+					PROCESS__NOATSECURE, NULL);
 	}
 
 	return (atsecure || secondary_ops->bprm_secureexec(bprm));
-}
-
-static void selinux_bprm_free_security(struct linux_binprm *bprm)
-{
-	kfree(bprm->security);
-	bprm->security = NULL;
 }
 
 extern struct vfsmount *selinuxfs_mount;
@@ -2252,108 +2261,78 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 	spin_unlock(&files->file_lock);
 }
 
-static int selinux_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
-{
-	struct task_security_struct *tsec;
-	struct bprm_security_struct *bsec;
-	struct cred *new;
-	u32 sid;
-	int rc;
-
-	rc = secondary_ops->bprm_apply_creds(bprm, unsafe);
-	if (rc < 0)
-		return rc;
-
-	new = prepare_creds();
-	if (!new)
-		return -ENOMEM;
-
-	tsec = new->security;
-
-	bsec = bprm->security;
-	sid = bsec->sid;
-
-	tsec->osid = tsec->sid;
-	bsec->unsafe = 0;
-	if (tsec->sid != sid) {
-		/* Check for shared state.  If not ok, leave SID
-		   unchanged and kill. */
-		if (unsafe & LSM_UNSAFE_SHARE) {
-			rc = avc_has_perm(tsec->sid, sid, SECCLASS_PROCESS,
-					PROCESS__SHARE, NULL);
-			if (rc) {
-				bsec->unsafe = 1;
-				goto out;
-			}
-		}
-
-		/* Check for ptracing, and update the task SID if ok.
-		   Otherwise, leave SID unchanged and kill. */
-		if (unsafe & (LSM_UNSAFE_PTRACE | LSM_UNSAFE_PTRACE_CAP)) {
-			struct task_struct *tracer;
-			struct task_security_struct *sec;
-			u32 ptsid = 0;
-
-			rcu_read_lock();
-			tracer = tracehook_tracer_task(current);
-			if (likely(tracer != NULL)) {
-				sec = __task_cred(tracer)->security;
-				ptsid = sec->sid;
-			}
-			rcu_read_unlock();
-
-			if (ptsid != 0) {
-				rc = avc_has_perm(ptsid, sid, SECCLASS_PROCESS,
-						  PROCESS__PTRACE, NULL);
-				if (rc) {
-					bsec->unsafe = 1;
-					goto out;
-				}
-			}
-		}
-		tsec->sid = sid;
-	}
-
-out:
-	commit_creds(new);
-	return 0;
-}
-
 /*
- * called after apply_creds without the task lock held
+ * Prepare a process for imminent new credential changes due to exec
  */
-static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
+static void selinux_bprm_committing_creds(struct linux_binprm *bprm)
 {
-	const struct cred *cred = current_cred();
-	struct task_security_struct *tsec;
+	struct task_security_struct *new_tsec;
 	struct rlimit *rlim, *initrlim;
-	struct itimerval itimer;
-	struct bprm_security_struct *bsec;
-	struct sighand_struct *psig;
 	int rc, i;
-	unsigned long flags;
 
-	tsec = current_security();
-	bsec = bprm->security;
+	secondary_ops->bprm_committing_creds(bprm);
 
-	if (bsec->unsafe) {
-		force_sig_specific(SIGKILL, current);
-		return;
-	}
-	if (tsec->osid == tsec->sid)
+	new_tsec = bprm->cred->security;
+	if (new_tsec->sid == new_tsec->osid)
 		return;
 
 	/* Close files for which the new task SID is not authorized. */
-	flush_unauthorized_files(cred, current->files);
+	flush_unauthorized_files(bprm->cred, current->files);
 
-	/* Check whether the new SID can inherit signal state
-	   from the old SID.  If not, clear itimers to avoid
-	   subsequent signal generation and flush and unblock
-	   signals. This must occur _after_ the task SID has
-	  been updated so that any kill done after the flush
-	  will be checked against the new SID. */
-	rc = avc_has_perm(tsec->osid, tsec->sid, SECCLASS_PROCESS,
-			  PROCESS__SIGINH, NULL);
+	/* Always clear parent death signal on SID transitions. */
+	current->pdeath_signal = 0;
+
+	/* Check whether the new SID can inherit resource limits from the old
+	 * SID.  If not, reset all soft limits to the lower of the current
+	 * task's hard limit and the init task's soft limit.
+	 *
+	 * Note that the setting of hard limits (even to lower them) can be
+	 * controlled by the setrlimit check.  The inclusion of the init task's
+	 * soft limit into the computation is to avoid resetting soft limits
+	 * higher than the default soft limit for cases where the default is
+	 * lower than the hard limit, e.g. RLIMIT_CORE or RLIMIT_STACK.
+	 */
+	rc = avc_has_perm(new_tsec->osid, new_tsec->sid, SECCLASS_PROCESS,
+			  PROCESS__RLIMITINH, NULL);
+	if (rc) {
+		for (i = 0; i < RLIM_NLIMITS; i++) {
+			rlim = current->signal->rlim + i;
+			initrlim = init_task.signal->rlim + i;
+			rlim->rlim_cur = min(rlim->rlim_max, initrlim->rlim_cur);
+		}
+		update_rlimit_cpu(rlim->rlim_cur);
+	}
+}
+
+/*
+ * Clean up the process immediately after the installation of new credentials
+ * due to exec
+ */
+static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
+{
+	const struct task_security_struct *tsec = current_security();
+	struct itimerval itimer;
+	struct sighand_struct *psig;
+	u32 osid, sid;
+	int rc, i;
+	unsigned long flags;
+
+	secondary_ops->bprm_committed_creds(bprm);
+
+	osid = tsec->osid;
+	sid = tsec->sid;
+
+	if (sid == osid)
+		return;
+
+	/* Check whether the new SID can inherit signal state from the old SID.
+	 * If not, clear itimers to avoid subsequent signal generation and
+	 * flush and unblock signals.
+	 *
+	 * This must occur _after_ the task SID has been updated so that any
+	 * kill done after the flush will be checked against the new SID.
+	 */
+	rc = avc_has_perm(osid, sid, SECCLASS_PROCESS, PROCESS__SIGINH, NULL);
 	if (rc) {
 		memset(&itimer, 0, sizeof itimer);
 		for (i = 0; i < 3; i++)
@@ -2366,32 +2345,8 @@ static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 		spin_unlock_irq(&current->sighand->siglock);
 	}
 
-	/* Always clear parent death signal on SID transitions. */
-	current->pdeath_signal = 0;
-
-	/* Check whether the new SID can inherit resource limits
-	   from the old SID.  If not, reset all soft limits to
-	   the lower of the current task's hard limit and the init
-	   task's soft limit.  Note that the setting of hard limits
-	   (even to lower them) can be controlled by the setrlimit
-	   check. The inclusion of the init task's soft limit into
-	   the computation is to avoid resetting soft limits higher
-	   than the default soft limit for cases where the default
-	   is lower than the hard limit, e.g. RLIMIT_CORE or
-	   RLIMIT_STACK.*/
-	rc = avc_has_perm(tsec->osid, tsec->sid, SECCLASS_PROCESS,
-			  PROCESS__RLIMITINH, NULL);
-	if (rc) {
-		for (i = 0; i < RLIM_NLIMITS; i++) {
-			rlim = current->signal->rlim + i;
-			initrlim = init_task.signal->rlim+i;
-			rlim->rlim_cur = min(rlim->rlim_max, initrlim->rlim_cur);
-		}
-		update_rlimit_cpu(rlim->rlim_cur);
-	}
-
-	/* Wake up the parent if it is waiting so that it can
-	   recheck wait permission to the new task SID. */
+	/* Wake up the parent if it is waiting so that it can recheck
+	 * wait permission to the new task SID. */
 	read_lock_irq(&tasklist_lock);
 	psig = current->parent->sighand;
 	spin_lock_irqsave(&psig->siglock, flags);
@@ -5556,12 +5511,10 @@ static struct security_operations selinux_ops = {
 	.netlink_send =			selinux_netlink_send,
 	.netlink_recv =			selinux_netlink_recv,
 
-	.bprm_alloc_security =		selinux_bprm_alloc_security,
-	.bprm_free_security =		selinux_bprm_free_security,
-	.bprm_apply_creds =		selinux_bprm_apply_creds,
-	.bprm_post_apply_creds =	selinux_bprm_post_apply_creds,
-	.bprm_set_security =		selinux_bprm_set_security,
+	.bprm_set_creds =		selinux_bprm_set_creds,
 	.bprm_check_security =		selinux_bprm_check_security,
+	.bprm_committing_creds =	selinux_bprm_committing_creds,
+	.bprm_committed_creds =		selinux_bprm_committed_creds,
 	.bprm_secureexec =		selinux_bprm_secureexec,
 
 	.sb_alloc_security =		selinux_sb_alloc_security,
