@@ -187,20 +187,12 @@ static int ocfs2_dinode_insert_check(struct inode *inode,
 static int ocfs2_dinode_sanity_check(struct inode *inode,
 				     struct ocfs2_extent_tree *et)
 {
-	int ret = 0;
-	struct ocfs2_dinode *di;
+	struct ocfs2_dinode *di = et->et_object;
 
 	BUG_ON(et->et_ops != &ocfs2_dinode_et_ops);
+	BUG_ON(!OCFS2_IS_VALID_DINODE(di));
 
-	di = et->et_object;
-	if (!OCFS2_IS_VALID_DINODE(di)) {
-		ret = -EIO;
-		ocfs2_error(inode->i_sb,
-			"Inode %llu has invalid path root",
-			(unsigned long long)OCFS2_I(inode)->ip_blkno);
-	}
-
-	return ret;
+	return 0;
 }
 
 static void ocfs2_dinode_fill_root_el(struct ocfs2_extent_tree *et)
@@ -5380,13 +5372,13 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	start_cluster = ocfs2_blocks_to_clusters(osb->sb, start_blk);
 
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
-	tl = &di->id2.i_dealloc;
-	if (!OCFS2_IS_VALID_DINODE(di)) {
-		OCFS2_RO_ON_INVALID_DINODE(osb->sb, di);
-		status = -EIO;
-		goto bail;
-	}
 
+	/* tl_bh is loaded from ocfs2_truncate_log_init().  It's validated
+	 * by the underlying call to ocfs2_read_inode_block(), so any
+	 * corruption is a code bug */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(di));
+
+	tl = &di->id2.i_dealloc;
 	tl_count = le16_to_cpu(tl->tl_count);
 	mlog_bug_on_msg(tl_count > ocfs2_truncate_recs_per_inode(osb->sb) ||
 			tl_count == 0,
@@ -5536,13 +5528,13 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	BUG_ON(mutex_trylock(&tl_inode->i_mutex));
 
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
-	tl = &di->id2.i_dealloc;
-	if (!OCFS2_IS_VALID_DINODE(di)) {
-		OCFS2_RO_ON_INVALID_DINODE(osb->sb, di);
-		status = -EIO;
-		goto out;
-	}
 
+	/* tl_bh is loaded from ocfs2_truncate_log_init().  It's validated
+	 * by the underlying call to ocfs2_read_inode_block(), so any
+	 * corruption is a code bug */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(di));
+
+	tl = &di->id2.i_dealloc;
 	num_to_flush = le16_to_cpu(tl->tl_used);
 	mlog(0, "Flush %u records from truncate log #%llu\n",
 	     num_to_flush, (unsigned long long)OCFS2_I(tl_inode)->ip_blkno);
@@ -5697,13 +5689,13 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 	}
 
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
-	tl = &di->id2.i_dealloc;
-	if (!OCFS2_IS_VALID_DINODE(di)) {
-		OCFS2_RO_ON_INVALID_DINODE(tl_inode->i_sb, di);
-		status = -EIO;
-		goto bail;
-	}
 
+	/* tl_bh is loaded from ocfs2_get_truncate_log_info().  It's
+	 * validated by the underlying call to ocfs2_read_inode_block(),
+	 * so any corruption is a code bug */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(di));
+
+	tl = &di->id2.i_dealloc;
 	if (le16_to_cpu(tl->tl_used)) {
 		mlog(0, "We'll have %u logs to recover\n",
 		     le16_to_cpu(tl->tl_used));

@@ -441,11 +441,11 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 	ac->ac_alloc_slot = slot;
 
 	fe = (struct ocfs2_dinode *) bh->b_data;
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(alloc_inode->i_sb, fe);
-		status = -EIO;
-		goto bail;
-	}
+
+	/* The bh was validated by the inode read inside
+	 * ocfs2_inode_lock().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
+
 	if (!(fe->i_flags & cpu_to_le32(OCFS2_CHAIN_FL))) {
 		ocfs2_error(alloc_inode->i_sb, "Invalid chain allocator %llu",
 			    (unsigned long long)le64_to_cpu(fe->i_blkno));
@@ -931,11 +931,6 @@ static int ocfs2_relink_block_group(handle_t *handle,
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) bg_bh->b_data;
 	struct ocfs2_group_desc *prev_bg = (struct ocfs2_group_desc *) prev_bg_bh->b_data;
 
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(alloc_inode->i_sb, fe);
-		status = -EIO;
-		goto out;
-	}
 	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
 		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, bg);
 		status = -EIO;
@@ -1392,11 +1387,11 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 	BUG_ON(!ac->ac_bh);
 
 	fe = (struct ocfs2_dinode *) ac->ac_bh->b_data;
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(osb->sb, fe);
-		status = -EIO;
-		goto bail;
-	}
+
+	/* The bh was validated by the inode read during
+	 * ocfs2_reserve_suballoc_bits().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
+
 	if (le32_to_cpu(fe->id1.bitmap1.i_used) >=
 	    le32_to_cpu(fe->id1.bitmap1.i_total)) {
 		ocfs2_error(osb->sb, "Chain allocator dinode %llu has %u used "
@@ -1782,11 +1777,12 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 
 	mlog_entry_void();
 
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(alloc_inode->i_sb, fe);
-		status = -EIO;
-		goto bail;
-	}
+	/* The alloc_bh comes from ocfs2_free_dinode() or
+	 * ocfs2_free_clusters().  The callers have all locked the
+	 * allocator and gotten alloc_bh from the lock call.  This
+	 * validates the dinode buffer.  Any corruption that has happended
+	 * is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
 	BUG_ON((count + start_bit) > ocfs2_bits_per_group(cl));
 
 	mlog(0, "%llu: freeing %u bits from group %llu, starting at %u\n",
