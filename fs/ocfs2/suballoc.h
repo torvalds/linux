@@ -165,9 +165,23 @@ void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac);
 u64 ocfs2_which_cluster_group(struct inode *inode, u32 cluster);
 
 /* somewhat more expensive than our other checks, so use sparingly. */
-int ocfs2_check_group_descriptor(struct super_block *sb,
-				 struct ocfs2_dinode *di,
-				 struct ocfs2_group_desc *gd);
+/*
+ * By default, ocfs2_validate_group_descriptor() calls ocfs2_error() when it
+ * finds a problem.  A caller that wants to check a group descriptor
+ * without going readonly passes a nonzero clean_error.  This is only
+ * resize, really.
+ */
+int ocfs2_validate_group_descriptor(struct super_block *sb,
+				    struct ocfs2_dinode *di,
+				    struct ocfs2_group_desc *gd,
+				    int clean_error);
+static inline int ocfs2_check_group_descriptor(struct super_block *sb,
+					       struct ocfs2_dinode *di,
+					       struct ocfs2_group_desc *gd)
+{
+	return ocfs2_validate_group_descriptor(sb, di, gd, 0);
+}
+
 int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_extent_tree *et,
 			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,

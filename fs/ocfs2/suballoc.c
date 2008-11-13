@@ -146,59 +146,71 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 }
 
 /* somewhat more expensive than our other checks, so use sparingly. */
-int ocfs2_check_group_descriptor(struct super_block *sb,
-				 struct ocfs2_dinode *di,
-				 struct ocfs2_group_desc *gd)
+int ocfs2_validate_group_descriptor(struct super_block *sb,
+				    struct ocfs2_dinode *di,
+				    struct ocfs2_group_desc *gd,
+				    int clean_error)
 {
 	unsigned int max_bits;
 
+#define do_error(fmt, ...)						\
+	do{								\
+		if (clean_error)					\
+			mlog(ML_ERROR, fmt "\n", ##__VA_ARGS__);	\
+		else							\
+			ocfs2_error(sb, fmt, ##__VA_ARGS__);		\
+	} while (0)
+
 	if (!OCFS2_IS_VALID_GROUP_DESC(gd)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(sb, gd);
-		return -EIO;
+		do_error("Group Descriptor #%llu has bad signature %.*s",
+			 (unsigned long long)le64_to_cpu(gd->bg_blkno), 7,
+			 gd->bg_signature);
+		return -EINVAL;
 	}
 
 	if (di->i_blkno != gd->bg_parent_dinode) {
-		ocfs2_error(sb, "Group descriptor # %llu has bad parent "
-			    "pointer (%llu, expected %llu)",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    (unsigned long long)le64_to_cpu(gd->bg_parent_dinode),
-			    (unsigned long long)le64_to_cpu(di->i_blkno));
-		return -EIO;
+		do_error("Group descriptor # %llu has bad parent "
+			 "pointer (%llu, expected %llu)",
+			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+			 (unsigned long long)le64_to_cpu(gd->bg_parent_dinode),
+			 (unsigned long long)le64_to_cpu(di->i_blkno));
+		return -EINVAL;
 	}
 
 	max_bits = le16_to_cpu(di->id2.i_chain.cl_cpg) * le16_to_cpu(di->id2.i_chain.cl_bpc);
 	if (le16_to_cpu(gd->bg_bits) > max_bits) {
-		ocfs2_error(sb, "Group descriptor # %llu has bit count of %u",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    le16_to_cpu(gd->bg_bits));
-		return -EIO;
+		do_error("Group descriptor # %llu has bit count of %u",
+			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+			 le16_to_cpu(gd->bg_bits));
+		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_chain) >=
 	    le16_to_cpu(di->id2.i_chain.cl_next_free_rec)) {
-		ocfs2_error(sb, "Group descriptor # %llu has bad chain %u",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    le16_to_cpu(gd->bg_chain));
-		return -EIO;
+		do_error("Group descriptor # %llu has bad chain %u",
+			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+			 le16_to_cpu(gd->bg_chain));
+		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_free_bits_count) > le16_to_cpu(gd->bg_bits)) {
-		ocfs2_error(sb, "Group descriptor # %llu has bit count %u but "
-			    "claims that %u are free",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    le16_to_cpu(gd->bg_bits),
-			    le16_to_cpu(gd->bg_free_bits_count));
-		return -EIO;
+		do_error("Group descriptor # %llu has bit count %u but "
+			 "claims that %u are free",
+			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+			 le16_to_cpu(gd->bg_bits),
+			 le16_to_cpu(gd->bg_free_bits_count));
+		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_bits) > (8 * le16_to_cpu(gd->bg_size))) {
-		ocfs2_error(sb, "Group descriptor # %llu has bit count %u but "
-			    "max bitmap bits of %u",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    le16_to_cpu(gd->bg_bits),
-			    8 * le16_to_cpu(gd->bg_size));
-		return -EIO;
+		do_error("Group descriptor # %llu has bit count %u but "
+			 "max bitmap bits of %u",
+			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+			 le16_to_cpu(gd->bg_bits),
+			 8 * le16_to_cpu(gd->bg_size));
+		return -EINVAL;
 	}
+#undef do_error
 
 	return 0;
 }

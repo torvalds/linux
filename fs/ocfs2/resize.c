@@ -396,41 +396,16 @@ static int ocfs2_check_new_group(struct inode *inode,
 				 struct buffer_head *group_bh)
 {
 	int ret;
-	struct ocfs2_group_desc *gd;
+	struct ocfs2_group_desc *gd =
+		(struct ocfs2_group_desc *)group_bh->b_data;
 	u16 cl_bpc = le16_to_cpu(di->id2.i_chain.cl_bpc);
-	unsigned int max_bits = le16_to_cpu(di->id2.i_chain.cl_cpg) *
-				le16_to_cpu(di->id2.i_chain.cl_bpc);
 
+	ret = ocfs2_validate_group_descriptor(inode->i_sb, di, gd, 1);
+	if (ret)
+		goto out;
 
-	gd = (struct ocfs2_group_desc *)group_bh->b_data;
-
-	ret = -EIO;
-	if (!OCFS2_IS_VALID_GROUP_DESC(gd))
-		mlog(ML_ERROR, "Group descriptor # %llu isn't valid.\n",
-		     (unsigned long long)le64_to_cpu(gd->bg_blkno));
-	else if (di->i_blkno != gd->bg_parent_dinode)
-		mlog(ML_ERROR, "Group descriptor # %llu has bad parent "
-		     "pointer (%llu, expected %llu)\n",
-		     (unsigned long long)le64_to_cpu(gd->bg_blkno),
-		     (unsigned long long)le64_to_cpu(gd->bg_parent_dinode),
-		     (unsigned long long)le64_to_cpu(di->i_blkno));
-	else if (le16_to_cpu(gd->bg_bits) > max_bits)
-		mlog(ML_ERROR, "Group descriptor # %llu has bit count of %u\n",
-		     (unsigned long long)le64_to_cpu(gd->bg_blkno),
-		     le16_to_cpu(gd->bg_bits));
-	else if (le16_to_cpu(gd->bg_free_bits_count) > le16_to_cpu(gd->bg_bits))
-		mlog(ML_ERROR, "Group descriptor # %llu has bit count %u but "
-		     "claims that %u are free\n",
-		     (unsigned long long)le64_to_cpu(gd->bg_blkno),
-		     le16_to_cpu(gd->bg_bits),
-		     le16_to_cpu(gd->bg_free_bits_count));
-	else if (le16_to_cpu(gd->bg_bits) > (8 * le16_to_cpu(gd->bg_size)))
-		mlog(ML_ERROR, "Group descriptor # %llu has bit count %u but "
-		     "max bitmap bits of %u\n",
-		     (unsigned long long)le64_to_cpu(gd->bg_blkno),
-		     le16_to_cpu(gd->bg_bits),
-		     8 * le16_to_cpu(gd->bg_size));
-	else if (le16_to_cpu(gd->bg_chain) != input->chain)
+	ret = -EINVAL;
+	if (le16_to_cpu(gd->bg_chain) != input->chain)
 		mlog(ML_ERROR, "Group descriptor # %llu has bad chain %u "
 		     "while input has %u set.\n",
 		     (unsigned long long)le64_to_cpu(gd->bg_blkno),
@@ -449,6 +424,7 @@ static int ocfs2_check_new_group(struct inode *inode,
 	else
 		ret = 0;
 
+out:
 	return ret;
 }
 
