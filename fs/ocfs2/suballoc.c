@@ -145,13 +145,13 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 	return (u32)le16_to_cpu(cl->cl_cpg) * (u32)le16_to_cpu(cl->cl_bpc);
 }
 
-/* somewhat more expensive than our other checks, so use sparingly. */
 int ocfs2_validate_group_descriptor(struct super_block *sb,
 				    struct ocfs2_dinode *di,
-				    struct ocfs2_group_desc *gd,
+				    struct buffer_head *bh,
 				    int clean_error)
 {
 	unsigned int max_bits;
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
 
 #define do_error(fmt, ...)						\
 	do{								\
@@ -162,16 +162,32 @@ int ocfs2_validate_group_descriptor(struct super_block *sb,
 	} while (0)
 
 	if (!OCFS2_IS_VALID_GROUP_DESC(gd)) {
-		do_error("Group Descriptor #%llu has bad signature %.*s",
-			 (unsigned long long)le64_to_cpu(gd->bg_blkno), 7,
+		do_error("Group descriptor #%llu has bad signature %.*s",
+			 (unsigned long long)bh->b_blocknr, 7,
 			 gd->bg_signature);
 		return -EINVAL;
 	}
 
+	if (le64_to_cpu(gd->bg_blkno) != bh->b_blocknr) {
+		do_error("Group descriptor #%llu has an invalid bg_blkno "
+			 "of %llu",
+			 (unsigned long long)bh->b_blocknr,
+			 (unsigned long long)le64_to_cpu(gd->bg_blkno));
+		return -EINVAL;
+	}
+
+	if (le32_to_cpu(gd->bg_generation) != OCFS2_SB(sb)->fs_generation) {
+		do_error("Group descriptor #%llu has an invalid "
+			 "fs_generation of #%u",
+			 (unsigned long long)bh->b_blocknr,
+			 le32_to_cpu(gd->bg_generation));
+		return -EINVAL;
+	}
+
 	if (di->i_blkno != gd->bg_parent_dinode) {
-		do_error("Group descriptor # %llu has bad parent "
+		do_error("Group descriptor #%llu has bad parent "
 			 "pointer (%llu, expected %llu)",
-			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+			 (unsigned long long)bh->b_blocknr,
 			 (unsigned long long)le64_to_cpu(gd->bg_parent_dinode),
 			 (unsigned long long)le64_to_cpu(di->i_blkno));
 		return -EINVAL;
@@ -179,33 +195,33 @@ int ocfs2_validate_group_descriptor(struct super_block *sb,
 
 	max_bits = le16_to_cpu(di->id2.i_chain.cl_cpg) * le16_to_cpu(di->id2.i_chain.cl_bpc);
 	if (le16_to_cpu(gd->bg_bits) > max_bits) {
-		do_error("Group descriptor # %llu has bit count of %u",
-			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+		do_error("Group descriptor #%llu has bit count of %u",
+			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_bits));
 		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_chain) >=
 	    le16_to_cpu(di->id2.i_chain.cl_next_free_rec)) {
-		do_error("Group descriptor # %llu has bad chain %u",
-			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+		do_error("Group descriptor #%llu has bad chain %u",
+			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_chain));
 		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_free_bits_count) > le16_to_cpu(gd->bg_bits)) {
-		do_error("Group descriptor # %llu has bit count %u but "
+		do_error("Group descriptor #%llu has bit count %u but "
 			 "claims that %u are free",
-			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_bits),
 			 le16_to_cpu(gd->bg_free_bits_count));
 		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_bits) > (8 * le16_to_cpu(gd->bg_size))) {
-		do_error("Group descriptor # %llu has bit count %u but "
+		do_error("Group descriptor #%llu has bit count %u but "
 			 "max bitmap bits of %u",
-			 (unsigned long long)le64_to_cpu(gd->bg_blkno),
+			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_bits),
 			 8 * le16_to_cpu(gd->bg_size));
 		return -EINVAL;
@@ -213,6 +229,30 @@ int ocfs2_validate_group_descriptor(struct super_block *sb,
 #undef do_error
 
 	return 0;
+}
+
+int ocfs2_read_group_descriptor(struct inode *inode, struct ocfs2_dinode *di,
+				u64 gd_blkno, struct buffer_head **bh)
+{
+	int rc;
+	struct buffer_head *tmp = *bh;
+
+	rc = ocfs2_read_block(inode, gd_blkno, &tmp);
+	if (rc)
+		goto out;
+
+	rc = ocfs2_validate_group_descriptor(inode->i_sb, di, tmp, 0);
+	if (rc) {
+		brelse(tmp);
+		goto out;
+	}
+
+	/* If ocfs2_read_block() got us a new bh, pass it up. */
+	if (!*bh)
+		*bh = tmp;
+
+out:
+	return rc;
 }
 
 static int ocfs2_block_group_fill(handle_t *handle,
@@ -1177,21 +1217,17 @@ static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
 	u16 found;
 	struct buffer_head *group_bh = NULL;
 	struct ocfs2_group_desc *gd;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)ac->ac_bh->b_data;
 	struct inode *alloc_inode = ac->ac_inode;
 
-	ret = ocfs2_read_block(alloc_inode, gd_blkno, &group_bh);
+	ret = ocfs2_read_group_descriptor(alloc_inode, di, gd_blkno,
+					  &group_bh);
 	if (ret < 0) {
 		mlog_errno(ret);
 		return ret;
 	}
 
 	gd = (struct ocfs2_group_desc *) group_bh->b_data;
-	if (!OCFS2_IS_VALID_GROUP_DESC(gd)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, gd);
-		ret = -EIO;
-		goto out;
-	}
-
 	ret = ac->ac_group_search(alloc_inode, group_bh, bits_wanted, min_bits,
 				  ac->ac_max_block, bit_off, &found);
 	if (ret < 0) {
@@ -1248,19 +1284,14 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	     bits_wanted, chain,
 	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno);
 
-	status = ocfs2_read_block(alloc_inode,
-				  le64_to_cpu(cl->cl_recs[chain].c_blkno),
-				  &group_bh);
+	status = ocfs2_read_group_descriptor(alloc_inode, fe,
+					     le64_to_cpu(cl->cl_recs[chain].c_blkno),
+					     &group_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
 	bg = (struct ocfs2_group_desc *) group_bh->b_data;
-	status = ocfs2_check_group_descriptor(alloc_inode->i_sb, fe, bg);
-	if (status) {
-		mlog_errno(status);
-		goto bail;
-	}
 
 	status = -ENOSPC;
 	/* for now, the chain search is a bit simplistic. We just use
@@ -1278,18 +1309,13 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		next_group = le64_to_cpu(bg->bg_next_group);
 		prev_group_bh = group_bh;
 		group_bh = NULL;
-		status = ocfs2_read_block(alloc_inode,
-					  next_group, &group_bh);
+		status = ocfs2_read_group_descriptor(alloc_inode, fe,
+						     next_group, &group_bh);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
 		}
 		bg = (struct ocfs2_group_desc *) group_bh->b_data;
-		status = ocfs2_check_group_descriptor(alloc_inode->i_sb, fe, bg);
-		if (status) {
-			mlog_errno(status);
-			goto bail;
-		}
 	}
 	if (status < 0) {
 		if (status != -ENOSPC)
@@ -1801,18 +1827,14 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno, count,
 	     (unsigned long long)bg_blkno, start_bit);
 
-	status = ocfs2_read_block(alloc_inode, bg_blkno, &group_bh);
+	status = ocfs2_read_group_descriptor(alloc_inode, fe, bg_blkno,
+					     &group_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
-
 	group = (struct ocfs2_group_desc *) group_bh->b_data;
-	status = ocfs2_check_group_descriptor(alloc_inode->i_sb, fe, group);
-	if (status) {
-		mlog_errno(status);
-		goto bail;
-	}
+
 	BUG_ON((count + start_bit) > le16_to_cpu(group->bg_bits));
 
 	status = ocfs2_block_group_clear_bits(handle, alloc_inode,

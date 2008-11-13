@@ -330,19 +330,13 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 	lgd_blkno = ocfs2_which_cluster_group(main_bm_inode,
 					      first_new_cluster - 1);
 
-	ret = ocfs2_read_block(main_bm_inode, lgd_blkno, &group_bh);
+	ret = ocfs2_read_group_descriptor(main_bm_inode, fe, lgd_blkno,
+					  &group_bh);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_unlock;
 	}
-
 	group = (struct ocfs2_group_desc *)group_bh->b_data;
-
-	ret = ocfs2_check_group_descriptor(inode->i_sb, fe, group);
-	if (ret) {
-		mlog_errno(ret);
-		goto out_unlock;
-	}
 
 	cl_bpc = le16_to_cpu(fe->id2.i_chain.cl_bpc);
 	if (le16_to_cpu(group->bg_bits) / cl_bpc + new_clusters >
@@ -400,7 +394,7 @@ static int ocfs2_check_new_group(struct inode *inode,
 		(struct ocfs2_group_desc *)group_bh->b_data;
 	u16 cl_bpc = le16_to_cpu(di->id2.i_chain.cl_bpc);
 
-	ret = ocfs2_validate_group_descriptor(inode->i_sb, di, gd, 1);
+	ret = ocfs2_validate_group_descriptor(inode->i_sb, di, group_bh, 1);
 	if (ret)
 		goto out;
 
