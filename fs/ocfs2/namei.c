@@ -531,15 +531,7 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 		goto leave;
 	}
 
-	if (ocfs2_populate_inode(inode, fe, 1) < 0) {
-		mlog(ML_ERROR, "populate inode failed! bh->b_blocknr=%llu, "
-		     "i_blkno=%llu, i_ino=%lu\n",
-		     (unsigned long long)(*new_fe_bh)->b_blocknr,
-		     (unsigned long long)le64_to_cpu(fe->i_blkno),
-		     inode->i_ino);
-		BUG();
-	}
-
+	ocfs2_populate_inode(inode, fe, 1);
 	ocfs2_inode_set_new(osb, inode);
 	if (!ocfs2_mount_local(osb)) {
 		status = ocfs2_create_new_inode_locks(inode);
@@ -1864,9 +1856,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 
 	mlog_entry("(inode->i_ino = %lu)\n", inode->i_ino);
 
-	status = ocfs2_read_block(orphan_dir_inode,
-				  OCFS2_I(orphan_dir_inode)->ip_blkno,
-				  &orphan_dir_bh);
+	status = ocfs2_read_inode_block(orphan_dir_inode, &orphan_dir_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;

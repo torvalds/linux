@@ -630,7 +630,7 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 	if (ret == 0)
 		goto out;
 
-	ret = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &di_bh);
+	ret = ocfs2_read_inode_block(inode, &di_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;

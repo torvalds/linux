@@ -402,12 +402,9 @@ static int ocfs2_truncate_file(struct inode *inode,
 		   (unsigned long long)OCFS2_I(inode)->ip_blkno,
 		   (unsigned long long)new_i_size);
 
+	/* We trust di_bh because it comes from ocfs2_inode_lock(), which
+	 * already validated it */
 	fe = (struct ocfs2_dinode *) di_bh->b_data;
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(inode->i_sb, fe);
-		status = -EIO;
-		goto bail;
-	}
 
 	mlog_bug_on_msg(le64_to_cpu(fe->i_size) != i_size_read(inode),
 			"Inode %llu, inode i_size = %lld != di "
@@ -546,18 +543,12 @@ static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 	 */
 	BUG_ON(mark_unwritten && !ocfs2_sparse_alloc(osb));
 
-	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &bh);
+	status = ocfs2_read_inode_block(inode, &bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
 	}
-
 	fe = (struct ocfs2_dinode *) bh->b_data;
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(inode->i_sb, fe);
-		status = -EIO;
-		goto leave;
-	}
 
 restart_all:
 	BUG_ON(le32_to_cpu(fe->i_clusters) != OCFS2_I(inode)->ip_clusters);
@@ -1135,9 +1126,8 @@ static int ocfs2_write_remove_suid(struct inode *inode)
 {
 	int ret;
 	struct buffer_head *bh = NULL;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
-	ret = ocfs2_read_block(inode, oi->ip_blkno, &bh);
+	ret = ocfs2_read_inode_block(inode, &bh);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
@@ -1163,8 +1153,7 @@ static int ocfs2_allocate_unwritten_extents(struct inode *inode,
 	struct buffer_head *di_bh = NULL;
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
-		ret = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno,
-				       &di_bh);
+		ret = ocfs2_read_inode_block(inode, &di_bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;

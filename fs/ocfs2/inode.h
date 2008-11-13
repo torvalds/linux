@@ -128,8 +128,8 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, unsigned flags,
 			 int sysfile_type);
 int ocfs2_inode_init_private(struct inode *inode);
 int ocfs2_inode_revalidate(struct dentry *dentry);
-int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
-			 int create_ino);
+void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
+			  int create_ino);
 void ocfs2_read_inode(struct inode *inode);
 void ocfs2_read_inode2(struct inode *inode, void *opaque);
 ssize_t ocfs2_rw_direct(int rw, struct file *filp, char *buf,
@@ -153,4 +153,16 @@ static inline blkcnt_t ocfs2_inode_sector_count(struct inode *inode)
 	return (blkcnt_t)(OCFS2_I(inode)->ip_clusters << c_to_s_bits);
 }
 
+/* Validate that a bh contains a valid inode */
+int ocfs2_validate_inode_block(struct super_block *sb,
+			       struct buffer_head *bh);
+/*
+ * Read an inode block into *bh.  If *bh is NULL, a bh will be allocated.
+ * This is a cached read.  The inode will be validated with
+ * ocfs2_validate_inode_block().
+ */
+int ocfs2_read_inode_block(struct inode *inode, struct buffer_head **bh);
+/* The same, but can be passed OCFS2_BH_* flags */
+int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
+				int flags);
 #endif /* OCFS2_INODE_H */

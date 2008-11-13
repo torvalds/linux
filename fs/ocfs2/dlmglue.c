@@ -2024,7 +2024,7 @@ static int ocfs2_inode_lock_update(struct inode *inode,
 	} else {
 		/* Boo, we have to go to disk. */
 		/* read bh, cast, ocfs2_refresh_inode */
-		status = ocfs2_read_block(inode, oi->ip_blkno, bh);
+		status = ocfs2_read_inode_block(inode, bh);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail_refresh;
@@ -2032,18 +2032,14 @@ static int ocfs2_inode_lock_update(struct inode *inode,
 		fe = (struct ocfs2_dinode *) (*bh)->b_data;
 
 		/* This is a good chance to make sure we're not
-		 * locking an invalid object.
+		 * locking an invalid object.  ocfs2_read_inode_block()
+		 * already checked that the inode block is sane.
 		 *
 		 * We bug on a stale inode here because we checked
 		 * above whether it was wiped from disk. The wiping
 		 * node provides a guarantee that we receive that
 		 * message and can mark the inode before dropping any
 		 * locks associated with it. */
-		if (!OCFS2_IS_VALID_DINODE(fe)) {
-			OCFS2_RO_ON_INVALID_DINODE(inode->i_sb, fe);
-			status = -EIO;
-			goto bail_refresh;
-		}
 		mlog_bug_on_msg(inode->i_generation !=
 				le32_to_cpu(fe->i_generation),
 				"Invalid dinode %llu disk generation: %u "
@@ -2085,7 +2081,7 @@ static int ocfs2_assign_bh(struct inode *inode,
 		return 0;
 	}
 
-	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, ret_bh);
+	status = ocfs2_read_inode_block(inode, ret_bh);
 	if (status < 0)
 		mlog_errno(status);
 
