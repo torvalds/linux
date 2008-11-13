@@ -24,7 +24,7 @@
  * Credentials
  */
 typedef struct cred {
-	/* EMPTY */
+       /* EMPTY */
 } cred_t;
 
 extern struct cred *sys_cred;
