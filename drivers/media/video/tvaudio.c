@@ -58,7 +58,6 @@ typedef int  (*checkit)(struct CHIPSTATE*);
 typedef int  (*initialize)(struct CHIPSTATE*);
 typedef int  (*getmode)(struct CHIPSTATE*);
 typedef void (*setmode)(struct CHIPSTATE*, int mode);
-typedef void (*checkmode)(struct CHIPSTATE*);
 
 /* i2c command */
 typedef struct AUDIOCMD {
@@ -79,6 +78,7 @@ struct CHIPDESC {
 #define CHIP_HAS_VOLUME      1
 #define CHIP_HAS_BASSTREBLE  2
 #define CHIP_HAS_INPUTSEL    4
+#define CHIP_NEED_CHECKMODE  8
 
 	/* various i2c command sequences */
 	audiocmd   init;
@@ -95,9 +95,6 @@ struct CHIPDESC {
 	/* get/set mode */
 	getmode  getmode;
 	setmode  setmode;
-
-	/* check / autoswitch audio after channel switches */
-	checkmode  checkmode;
 
 	/* input switch register + values for v4l inputs */
 	int  inputreg;
@@ -264,6 +261,7 @@ static int chip_thread(void *data)
 {
 	struct CHIPSTATE *chip = data;
 	struct CHIPDESC  *desc = chiplist + chip->type;
+	int mode;
 
 	v4l_dbg(1, debug, chip->c, "%s: thread started\n", chip->c->name);
 	set_freezable();
@@ -282,7 +280,26 @@ static int chip_thread(void *data)
 			continue;
 
 		/* have a look what's going on */
-		desc->checkmode(chip);
+		mode = desc->getmode(chip);
+		if (mode == chip->prevmode)
+			continue;
+
+		/* chip detected a new audio mode - set it */
+		v4l_dbg(1, debug, chip->c, "%s: thread checkmode\n",
+			chip->c->name);
+
+		chip->prevmode = mode;
+
+		if (mode & V4L2_TUNER_MODE_STEREO)
+			desc->setmode(chip, V4L2_TUNER_MODE_STEREO);
+		if (mode & V4L2_TUNER_MODE_LANG1_LANG2)
+			desc->setmode(chip, V4L2_TUNER_MODE_STEREO);
+		else if (mode & V4L2_TUNER_MODE_LANG1)
+			desc->setmode(chip, V4L2_TUNER_MODE_LANG1);
+		else if (mode & V4L2_TUNER_MODE_LANG2)
+			desc->setmode(chip, V4L2_TUNER_MODE_LANG2);
+		else
+			desc->setmode(chip, V4L2_TUNER_MODE_MONO);
 
 		/* schedule next check */
 		mod_timer(&chip->wt, jiffies+msecs_to_jiffies(2000));
@@ -290,29 +307,6 @@ static int chip_thread(void *data)
 
 	v4l_dbg(1, debug, chip->c, "%s: thread exiting\n", chip->c->name);
 	return 0;
-}
-
-static void generic_checkmode(struct CHIPSTATE *chip)
-{
-	struct CHIPDESC  *desc = chiplist + chip->type;
-	int mode = desc->getmode(chip);
-
-	if (mode == chip->prevmode)
-	return;
-
-	v4l_dbg(1, debug, chip->c, "%s: thread checkmode\n", chip->c->name);
-	chip->prevmode = mode;
-
-	if (mode & V4L2_TUNER_MODE_STEREO)
-		desc->setmode(chip,V4L2_TUNER_MODE_STEREO);
-	if (mode & V4L2_TUNER_MODE_LANG1_LANG2)
-		desc->setmode(chip,V4L2_TUNER_MODE_STEREO);
-	else if (mode & V4L2_TUNER_MODE_LANG1)
-		desc->setmode(chip,V4L2_TUNER_MODE_LANG1);
-	else if (mode & V4L2_TUNER_MODE_LANG2)
-		desc->setmode(chip,V4L2_TUNER_MODE_LANG2);
-	else
-		desc->setmode(chip,V4L2_TUNER_MODE_MONO);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1259,12 +1253,12 @@ static struct CHIPDESC chiplist[] = {
 		.addr_lo    = I2C_ADDR_TDA9840 >> 1,
 		.addr_hi    = I2C_ADDR_TDA9840 >> 1,
 		.registers  = 5,
+		.flags      = CHIP_NEED_CHECKMODE,
 
 		/* callbacks */
 		.checkit    = tda9840_checkit,
 		.getmode    = tda9840_getmode,
 		.setmode    = tda9840_setmode,
-		.checkmode  = generic_checkmode,
 
 		.init       = { 2, { TDA9840_TEST, TDA9840_TEST_INT1SN
 				/* ,TDA9840_SW, TDA9840_MONO */} }
@@ -1275,13 +1269,12 @@ static struct CHIPDESC chiplist[] = {
 		.addr_lo    = I2C_ADDR_TDA985x_L >> 1,
 		.addr_hi    = I2C_ADDR_TDA985x_H >> 1,
 		.registers  = 3,
-		.flags      = CHIP_HAS_INPUTSEL,
+		.flags      = CHIP_HAS_INPUTSEL | CHIP_NEED_CHECKMODE,
 
 		/* callbacks */
 		.checkit    = tda9873_checkit,
 		.getmode    = tda9873_getmode,
 		.setmode    = tda9873_setmode,
-		.checkmode  = generic_checkmode,
 
 		.init       = { 4, { TDA9873_SW, 0xa4, 0x06, 0x03 } },
 		.inputreg   = TDA9873_SW,
@@ -1295,13 +1288,13 @@ static struct CHIPDESC chiplist[] = {
 		.insmodopt  = &tda9874a,
 		.addr_lo    = I2C_ADDR_TDA9874 >> 1,
 		.addr_hi    = I2C_ADDR_TDA9874 >> 1,
+		.flags      = CHIP_NEED_CHECKMODE,
 
 		/* callbacks */
 		.initialize = tda9874a_initialize,
 		.checkit    = tda9874a_checkit,
 		.getmode    = tda9874a_getmode,
 		.setmode    = tda9874a_setmode,
-		.checkmode  = generic_checkmode,
 	},
 	{
 		.name       = "tda9850",
@@ -1444,11 +1437,11 @@ static struct CHIPDESC chiplist[] = {
 		.addr_lo    = I2C_ADDR_TDA9840 >> 1,
 		.addr_hi    = I2C_ADDR_TDA9840 >> 1,
 		.registers  = 2,
+		.flags      = CHIP_NEED_CHECKMODE,
 
 		/* callbacks */
 		.getmode    = ta8874z_getmode,
 		.setmode    = ta8874z_setmode,
-		.checkmode  = generic_checkmode,
 
 		.init       = {2, { TA8874Z_MONO_SET, TA8874Z_SEPARATION_DEFAULT}},
 	},
@@ -1531,7 +1524,7 @@ static int chip_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	chip->thread = NULL;
-	if (desc->checkmode) {
+	if (desc->flags & CHIP_NEED_CHECKMODE) {
 		/* start async thread */
 		init_timer(&chip->wt);
 		chip->wt.function = chip_thread_wake;
@@ -1804,12 +1797,18 @@ static int chip_command(struct i2c_client *client,
 		break;
 	case VIDIOC_S_FREQUENCY:
 		chip->mode = 0; /* automatic */
-		if (desc->checkmode && desc->setmode) {
+
+		/* For chips that provide getmode, setmode and checkmode,
+		   a kthread is created to automatically to set the audio
+		   standard. In this case, start with MONO and wait 2 seconds
+		   for the decoding to stablize. Then, run kthread to change
+		   to stereo, if carrier detected.
+		 */
+		if (chip->thread) {
 			desc->setmode(chip,V4L2_TUNER_MODE_MONO);
 			if (chip->prevmode != V4L2_TUNER_MODE_MONO)
 				chip->prevmode = -1; /* reset previous mode */
 			mod_timer(&chip->wt, jiffies+msecs_to_jiffies(2000));
-			/* the thread will call checkmode() later */
 		}
 		break;
 
