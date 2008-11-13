@@ -86,10 +86,12 @@ static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_TTY);
 	if (ab) {
 		char name[sizeof(tsk->comm)];
+		uid_t uid = task_uid(tsk);
 
 		audit_log_format(ab, "tty pid=%u uid=%u auid=%u ses=%u "
-				 "major=%d minor=%d comm=", tsk->pid, tsk->uid,
-				 loginuid, sessionid, buf->major, buf->minor);
+				 "major=%d minor=%d comm=",
+				 tsk->pid, uid, loginuid, sessionid,
+				 buf->major, buf->minor);
 		get_task_comm(name, tsk);
 		audit_log_untrustedstring(ab, name);
 		audit_log_format(ab, " data=");
