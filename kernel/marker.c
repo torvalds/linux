@@ -81,7 +81,7 @@ struct marker_entry {
  * though the function pointer change and the marker enabling are two distinct
  * operations that modifies the execution flow of preemptible code.
  */
-void __mark_empty_function(void *probe_private, void *call_private,
+notrace void __mark_empty_function(void *probe_private, void *call_private,
 	const char *fmt, va_list *args)
 {
 }
@@ -97,7 +97,8 @@ EXPORT_SYMBOL_GPL(__mark_empty_function);
  * need to put a full smp_rmb() in this branch. This is why we do not use
  * rcu_dereference() for the pointer read.
  */
-void marker_probe_cb(const struct marker *mdata, void *call_private, ...)
+notrace void marker_probe_cb(const struct marker *mdata,
+		void *call_private, ...)
 {
 	va_list args;
 	char ptype;
@@ -107,7 +108,7 @@ void marker_probe_cb(const struct marker *mdata, void *call_private, ...)
 	 * sure the teardown of the callbacks can be done correctly when they
 	 * are in modules and they insure RCU read coherency.
 	 */
-	rcu_read_lock_sched();
+	rcu_read_lock_sched_notrace();
 	ptype = mdata->ptype;
 	if (likely(!ptype)) {
 		marker_probe_func *func;
@@ -145,7 +146,7 @@ void marker_probe_cb(const struct marker *mdata, void *call_private, ...)
 			va_end(args);
 		}
 	}
-	rcu_read_unlock_sched();
+	rcu_read_unlock_sched_notrace();
 }
 EXPORT_SYMBOL_GPL(marker_probe_cb);
 
@@ -157,12 +158,13 @@ EXPORT_SYMBOL_GPL(marker_probe_cb);
  *
  * Should be connected to markers "MARK_NOARGS".
  */
-static void marker_probe_cb_noarg(const struct marker *mdata, void *call_private, ...)
+static notrace void marker_probe_cb_noarg(const struct marker *mdata,
+		void *call_private, ...)
 {
 	va_list args;	/* not initialized */
 	char ptype;
 
-	rcu_read_lock_sched();
+	rcu_read_lock_sched_notrace();
 	ptype = mdata->ptype;
 	if (likely(!ptype)) {
 		marker_probe_func *func;
@@ -195,7 +197,7 @@ static void marker_probe_cb_noarg(const struct marker *mdata, void *call_private
 			multi[i].func(multi[i].probe_private, call_private,
 				mdata->format, &args);
 	}
-	rcu_read_unlock_sched();
+	rcu_read_unlock_sched_notrace();
 }
 
 static void free_old_closure(struct rcu_head *head)
