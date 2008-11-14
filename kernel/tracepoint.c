@@ -262,6 +262,7 @@ static void set_tracepoint(struct tracepoint_entry **entry,
 static void disable_tracepoint(struct tracepoint *elem)
 {
 	elem->state = 0;
+	rcu_assign_pointer(elem->funcs, NULL);
 }
 
 /**
