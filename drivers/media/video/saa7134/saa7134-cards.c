@@ -6048,7 +6048,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 		struct v4l2_priv_tun_config  xc2028_cfg;
 		struct xc2028_ctrl           ctl;
 
-		memset(&xc2028_cfg, 0, sizeof(ctl));
+		memset(&xc2028_cfg, 0, sizeof(xc2028_cfg));
 		memset(&ctl, 0, sizeof(ctl));
 
 		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
