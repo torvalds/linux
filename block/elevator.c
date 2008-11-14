@@ -773,12 +773,6 @@ struct request *elv_next_request(struct request_queue *q)
 			 */
 			rq->cmd_flags |= REQ_STARTED;
 			blk_add_trace_rq(q, rq, BLK_TA_ISSUE);
-
-			/*
-			 * We are now handing the request to the hardware,
-			 * add the timeout handler
-			 */
-			blk_add_timer(rq);
 		}
 
 		if (!q->boundary_rq || q->boundary_rq == rq) {
@@ -850,6 +844,12 @@ void elv_dequeue_request(struct request_queue *q, struct request *rq)
 	 */
 	if (blk_account_rq(rq))
 		q->in_flight++;
+
+	/*
+	 * We are now handing the request to the hardware, add the
+	 * timeout handler.
+	 */
+	blk_add_timer(rq);
 }
 EXPORT_SYMBOL(elv_dequeue_request);
 

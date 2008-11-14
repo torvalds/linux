@@ -1815,8 +1815,8 @@ static void shrink_submounts(struct vfsmount *mnt, struct list_head *umounts)
 		while (!list_empty(&graveyard)) {
 			m = list_first_entry(&graveyard, struct vfsmount,
 						mnt_expire);
-			touch_mnt_namespace(mnt->mnt_ns);
-			umount_tree(mnt, 1, umounts);
+			touch_mnt_namespace(m->mnt_ns);
+			umount_tree(m, 1, umounts);
 		}
 	}
 }

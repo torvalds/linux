@@ -240,6 +240,10 @@ int i915_save_state(struct drm_device *dev)
 
 	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
 
+	/* Render Standby */
+	if (IS_I965G(dev) && IS_MOBILE(dev))
+		dev_priv->saveRENDERSTANDBY = I915_READ(MCHBAR_RENDER_STANDBY);
+
 	/* Display arbitration control */
 	dev_priv->saveDSPARB = I915_READ(DSPARB);
 
@@ -365,6 +369,11 @@ int i915_restore_state(struct drm_device *dev)
 
 	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
 
+	/* Render Standby */
+	if (IS_I965G(dev) && IS_MOBILE(dev))
+		I915_WRITE(MCHBAR_RENDER_STANDBY, dev_priv->saveRENDERSTANDBY);
+
+	/* Display arbitration */
 	I915_WRITE(DSPARB, dev_priv->saveDSPARB);
 
 	/* Pipe & plane A info */

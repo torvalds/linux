@@ -46,9 +46,6 @@ enum hrtimer_restart {
  * hrtimer callback modes:
  *
  *	HRTIMER_CB_SOFTIRQ:		Callback must run in softirq context
- *	HRTIMER_CB_IRQSAFE:		Callback may run in hardirq context
- *	HRTIMER_CB_IRQSAFE_NO_RESTART:	Callback may run in hardirq context and
- *					does not restart the timer
  *	HRTIMER_CB_IRQSAFE_PERCPU:	Callback must run in hardirq context
  *					Special mode for tick emulation and
  *					scheduler timer. Such timers are per
@@ -61,8 +58,6 @@ enum hrtimer_restart {
  */
 enum hrtimer_cb_mode {
 	HRTIMER_CB_SOFTIRQ,
-	HRTIMER_CB_IRQSAFE,
-	HRTIMER_CB_IRQSAFE_NO_RESTART,
 	HRTIMER_CB_IRQSAFE_PERCPU,
 	HRTIMER_CB_IRQSAFE_UNLOCKED,
 };
@@ -239,7 +234,7 @@ static inline void hrtimer_add_expires(struct hrtimer *timer, ktime_t time)
 	timer->_softexpires = ktime_add_safe(timer->_softexpires, time);
 }
 
-static inline void hrtimer_add_expires_ns(struct hrtimer *timer, unsigned long ns)
+static inline void hrtimer_add_expires_ns(struct hrtimer *timer, u64 ns)
 {
 	timer->_expires = ktime_add_ns(timer->_expires, ns);
 	timer->_softexpires = ktime_add_ns(timer->_softexpires, ns);

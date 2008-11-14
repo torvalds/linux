@@ -1770,8 +1770,6 @@ static void end_that_request_last(struct request *req, int error)
 {
 	struct gendisk *disk = req->rq_disk;
 
-	blk_delete_timer(req);
-
 	if (blk_rq_tagged(req))
 		blk_queue_end_tag(req->q, req);
 
@@ -1780,6 +1778,8 @@ static void end_that_request_last(struct request *req, int error)
 
 	if (unlikely(laptop_mode) && blk_fs_request(req))
 		laptop_io_completion();
+
+	blk_delete_timer(req);
 
 	/*
 	 * Account IO completion.  bar_rq isn't accounted as a normal

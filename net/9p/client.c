@@ -189,6 +189,9 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 			printk(KERN_ERR "Couldn't grow tag array\n");
 			kfree(req->tc);
 			kfree(req->rc);
+			kfree(req->wq);
+			req->tc = req->rc = NULL;
+			req->wq = NULL;
 			return ERR_PTR(-ENOMEM);
 		}
 		req->tc->sdata = (char *) req->tc + sizeof(struct p9_fcall);
@@ -311,12 +314,6 @@ static void p9_free_req(struct p9_client *c, struct p9_req_t *r)
 	r->status = REQ_STATUS_IDLE;
 	if (tag != P9_NOTAG && p9_idpool_check(tag, c->tagpool))
 		p9_idpool_put(tag, c->tagpool);
-
-	/* if this was a flush request we have to free response fcall */
-	if (r->rc->id == P9_RFLUSH) {
-		kfree(r->tc);
-		kfree(r->rc);
-	}
 }
 
 /**
@@ -611,19 +608,21 @@ reterr:
 
 static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 {
-	int err;
+	int ret;
 	struct p9_fid *fid;
+	unsigned long flags;
 
 	P9_DPRINTK(P9_DEBUG_FID, "clnt %p\n", clnt);
 	fid = kmalloc(sizeof(struct p9_fid), GFP_KERNEL);
 	if (!fid)
 		return ERR_PTR(-ENOMEM);
 
-	fid->fid = p9_idpool_get(clnt->fidpool);
+	ret = p9_idpool_get(clnt->fidpool);
 	if (fid->fid < 0) {
-		err = -ENOSPC;
+		ret = -ENOSPC;
 		goto error;
 	}
+	fid->fid = ret;
 
 	memset(&fid->qid, 0, sizeof(struct p9_qid));
 	fid->mode = -1;
@@ -632,27 +631,28 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 	fid->clnt = clnt;
 	fid->aux = NULL;
 
-	spin_lock(&clnt->lock);
+	spin_lock_irqsave(&clnt->lock, flags);
 	list_add(&fid->flist, &clnt->fidlist);
-	spin_unlock(&clnt->lock);
+	spin_unlock_irqrestore(&clnt->lock, flags);
 
 	return fid;
 
 error:
 	kfree(fid);
-	return ERR_PTR(err);
+	return ERR_PTR(ret);
 }
 
 static void p9_fid_destroy(struct p9_fid *fid)
 {
 	struct p9_client *clnt;
+	unsigned long flags;
 
 	P9_DPRINTK(P9_DEBUG_FID, "fid %d\n", fid->fid);
 	clnt = fid->clnt;
 	p9_idpool_put(fid->fid, clnt->fidpool);
-	spin_lock(&clnt->lock);
+	spin_lock_irqsave(&clnt->lock, flags);
 	list_del(&fid->flist);
-	spin_unlock(&clnt->lock);
+	spin_unlock_irqrestore(&clnt->lock, flags);
 	kfree(fid);
 }
 
@@ -818,7 +818,9 @@ struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RATTACH qid %x.%llx.%x\n",
-					qid.type, qid.path, qid.version);
+					qid.type,
+					(unsigned long long)qid.path,
+					qid.version);
 
 	memmove(&fid->qid, &qid, sizeof(struct p9_qid));
 
@@ -865,7 +867,9 @@ p9_client_auth(struct p9_client *clnt, char *uname, u32 n_uname, char *aname)
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RAUTH qid %x.%llx.%x\n",
-					qid.type, qid.path, qid.version);
+					qid.type,
+					(unsigned long long)qid.path,
+					qid.version);
 
 	memmove(&afid->qid, &qid, sizeof(struct p9_qid));
 	p9_free_req(clnt, req);
@@ -930,7 +934,8 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 
 	for (count = 0; count < nwqids; count++)
 		P9_DPRINTK(P9_DEBUG_9P, "<<<     [%d] %x.%llx.%x\n",
-			count, wqids[count].type, wqids[count].path,
+			count, wqids[count].type,
+			(unsigned long long)wqids[count].path,
 			wqids[count].version);
 
 	if (nwname)
@@ -980,7 +985,9 @@ int p9_client_open(struct p9_fid *fid, int mode)
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< ROPEN qid %x.%llx.%x iounit %x\n",
-				qid.type, qid.path, qid.version, iounit);
+				qid.type,
+				(unsigned long long)qid.path,
+				qid.version, iounit);
 
 	fid->mode = mode;
 	fid->iounit = iounit;
@@ -1023,7 +1030,9 @@ int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RCREATE qid %x.%llx.%x iounit %x\n",
-				qid.type, qid.path, qid.version, iounit);
+				qid.type,
+				(unsigned long long)qid.path,
+				qid.version, iounit);
 
 	fid->mode = mode;
 	fid->iounit = iounit;
@@ -1230,9 +1239,9 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 		"<<<    name=%s uid=%s gid=%s muid=%s extension=(%s)\n"
 		"<<<    uid=%d gid=%d n_muid=%d\n",
 		ret->size, ret->type, ret->dev, ret->qid.type,
-		ret->qid.path, ret->qid.version, ret->mode,
-		ret->atime, ret->mtime, ret->length, ret->name,
-		ret->uid, ret->gid, ret->muid, ret->extension,
+		(unsigned long long)ret->qid.path, ret->qid.version, ret->mode,
+		ret->atime, ret->mtime, (unsigned long long)ret->length,
+		ret->name, ret->uid, ret->gid, ret->muid, ret->extension,
 		ret->n_uid, ret->n_gid, ret->n_muid);
 
 free_and_error:
@@ -1255,9 +1264,9 @@ int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst)
 		"     name=%s uid=%s gid=%s muid=%s extension=(%s)\n"
 		"     uid=%d gid=%d n_muid=%d\n",
 		wst->size, wst->type, wst->dev, wst->qid.type,
-		wst->qid.path, wst->qid.version, wst->mode,
-		wst->atime, wst->mtime, wst->length, wst->name,
-		wst->uid, wst->gid, wst->muid, wst->extension,
+		(unsigned long long)wst->qid.path, wst->qid.version, wst->mode,
+		wst->atime, wst->mtime, (unsigned long long)wst->length,
+		wst->name, wst->uid, wst->gid, wst->muid, wst->extension,
 		wst->n_uid, wst->n_gid, wst->n_muid);
 	err = 0;
 	clnt = fid->clnt;

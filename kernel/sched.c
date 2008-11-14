@@ -399,9 +399,9 @@ struct cfs_rq {
 	 * 'curr' points to currently running entity on this cfs_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
 	 */
-	struct sched_entity *curr, *next;
+	struct sched_entity *curr, *next, *last;
 
-	unsigned long nr_spread_over;
+	unsigned int nr_spread_over;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	struct rq *rq;	/* cpu runqueue to which this cfs_rq is attached */
@@ -971,6 +971,14 @@ static struct rq *task_rq_lock(struct task_struct *p, unsigned long *flags)
 	}
 }
 
+void task_rq_unlock_wait(struct task_struct *p)
+{
+	struct rq *rq = task_rq(p);
+
+	smp_mb(); /* spin-unlock-wait is not a full memory barrier */
+	spin_unlock_wait(&rq->lock);
+}
+
 static void __task_rq_unlock(struct rq *rq)
 	__releases(rq->lock)
 {
@@ -1450,6 +1458,8 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 
 	if (rq->nr_running)
 		rq->avg_load_per_task = rq->load.weight / rq->nr_running;
+	else
+		rq->avg_load_per_task = 0;
 
 	return rq->avg_load_per_task;
 }
@@ -1807,7 +1817,9 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 	/*
 	 * Buddy candidates are cache hot:
 	 */
-	if (sched_feat(CACHE_HOT_BUDDY) && (&p->se == cfs_rq_of(&p->se)->next))
+	if (sched_feat(CACHE_HOT_BUDDY) &&
+			(&p->se == cfs_rq_of(&p->se)->next ||
+			 &p->se == cfs_rq_of(&p->se)->last))
 		return 1;
 
 	if (p->sched_class != &fair_sched_class)
@@ -5874,6 +5886,8 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long flags;
 
+	spin_lock_irqsave(&rq->lock, flags);
+
 	__sched_fork(idle);
 	idle->se.exec_start = sched_clock();
 
@@ -5881,7 +5895,6 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	idle->cpus_allowed = cpumask_of_cpu(cpu);
 	__set_task_cpu(idle, cpu);
 
-	spin_lock_irqsave(&rq->lock, flags);
 	rq->curr = rq->idle = idle;
 #if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
 	idle->oncpu = 1;
@@ -6891,15 +6904,17 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 	struct sched_domain *tmp;
 
 	/* Remove the sched domains which do not contribute to scheduling. */
-	for (tmp = sd; tmp; tmp = tmp->parent) {
+	for (tmp = sd; tmp; ) {
 		struct sched_domain *parent = tmp->parent;
 		if (!parent)
 			break;
+
 		if (sd_parent_degenerate(tmp, parent)) {
 			tmp->parent = parent->parent;
 			if (parent->parent)
 				parent->parent->child = tmp;
-		}
+		} else
+			tmp = tmp->parent;
 	}
 
 	if (sd && sd_degenerate(sd)) {
@@ -7688,6 +7703,7 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 error:
 	free_sched_groups(cpu_map, tmpmask);
 	SCHED_CPUMASK_FREE((void *)allmasks);
+	kfree(rd);
 	return -ENOMEM;
 #endif
 }

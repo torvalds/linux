@@ -38,7 +38,6 @@ static DEFINE_SPINLOCK(zone_scan_mutex);
  * badness - calculate a numeric value for how bad this task has been
  * @p: task struct of which task we should calculate
  * @uptime: current uptime in seconds
- * @mem: target memory controller
  *
  * The formula used is relatively simple and documented inline in the
  * function. The main rationale is that we want to select a good task
@@ -294,6 +293,8 @@ static void dump_tasks(const struct mem_cgroup *mem)
 		if (!p->mm)
 			continue;
 		if (mem && !task_in_mem_cgroup(p, mem))
+			continue;
+		if (!thread_group_leader(p))
 			continue;
 
 		task_lock(p);

@@ -404,7 +404,8 @@ static inline void iop_desc_set_next_desc(struct iop_adma_desc_slot *desc,
 					u32 next_desc_addr)
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
-	BUG_ON(hw_desc->next_desc);
+
+	iop_paranoia(hw_desc->next_desc);
 	hw_desc->next_desc = next_desc_addr;
 }
 

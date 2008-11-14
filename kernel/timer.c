@@ -112,6 +112,44 @@ timer_set_base(struct timer_list *timer, struct tvec_base *new_base)
 				      tbase_get_deferrable(timer->base));
 }
 
+static unsigned long round_jiffies_common(unsigned long j, int cpu,
+		bool force_up)
+{
+	int rem;
+	unsigned long original = j;
+
+	/*
+	 * We don't want all cpus firing their timers at once hitting the
+	 * same lock or cachelines, so we skew each extra cpu with an extra
+	 * 3 jiffies. This 3 jiffies came originally from the mm/ code which
+	 * already did this.
+	 * The skew is done by adding 3*cpunr, then round, then subtract this
+	 * extra offset again.
+	 */
+	j += cpu * 3;
+
+	rem = j % HZ;
+
+	/*
+	 * If the target jiffie is just after a whole second (which can happen
+	 * due to delays of the timer irq, long irq off times etc etc) then
+	 * we should round down to the whole second, not up. Use 1/4th second
+	 * as cutoff for this rounding as an extreme upper bound for this.
+	 * But never round down if @force_up is set.
+	 */
+	if (rem < HZ/4 && !force_up) /* round down */
+		j = j - rem;
+	else /* round up */
+		j = j - rem + HZ;
+
+	/* now that we have rounded, subtract the extra skew again */
+	j -= cpu * 3;
+
+	if (j <= jiffies) /* rounding ate our timeout entirely; */
+		return original;
+	return j;
+}
+
 /**
  * __round_jiffies - function to round jiffies to a full second
  * @j: the time in (absolute) jiffies that should be rounded
@@ -134,38 +172,7 @@ timer_set_base(struct timer_list *timer, struct tvec_base *new_base)
  */
 unsigned long __round_jiffies(unsigned long j, int cpu)
 {
-	int rem;
-	unsigned long original = j;
-
-	/*
-	 * We don't want all cpus firing their timers at once hitting the
-	 * same lock or cachelines, so we skew each extra cpu with an extra
-	 * 3 jiffies. This 3 jiffies came originally from the mm/ code which
-	 * already did this.
-	 * The skew is done by adding 3*cpunr, then round, then subtract this
-	 * extra offset again.
-	 */
-	j += cpu * 3;
-
-	rem = j % HZ;
-
-	/*
-	 * If the target jiffie is just after a whole second (which can happen
-	 * due to delays of the timer irq, long irq off times etc etc) then
-	 * we should round down to the whole second, not up. Use 1/4th second
-	 * as cutoff for this rounding as an extreme upper bound for this.
-	 */
-	if (rem < HZ/4) /* round down */
-		j = j - rem;
-	else /* round up */
-		j = j - rem + HZ;
-
-	/* now that we have rounded, subtract the extra skew again */
-	j -= cpu * 3;
-
-	if (j <= jiffies) /* rounding ate our timeout entirely; */
-		return original;
-	return j;
+	return round_jiffies_common(j, cpu, false);
 }
 EXPORT_SYMBOL_GPL(__round_jiffies);
 
@@ -191,13 +198,10 @@ EXPORT_SYMBOL_GPL(__round_jiffies);
  */
 unsigned long __round_jiffies_relative(unsigned long j, int cpu)
 {
-	/*
-	 * In theory the following code can skip a jiffy in case jiffies
-	 * increments right between the addition and the later subtraction.
-	 * However since the entire point of this function is to use approximate
-	 * timeouts, it's entirely ok to not handle that.
-	 */
-	return  __round_jiffies(j + jiffies, cpu) - jiffies;
+	unsigned long j0 = jiffies;
+
+	/* Use j0 because jiffies might change while we run */
+	return round_jiffies_common(j + j0, cpu, false) - j0;
 }
 EXPORT_SYMBOL_GPL(__round_jiffies_relative);
 
@@ -218,7 +222,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies_relative);
  */
 unsigned long round_jiffies(unsigned long j)
 {
-	return __round_jiffies(j, raw_smp_processor_id());
+	return round_jiffies_common(j, raw_smp_processor_id(), false);
 }
 EXPORT_SYMBOL_GPL(round_jiffies);
 
@@ -242,6 +246,71 @@ unsigned long round_jiffies_relative(unsigned long j)
 	return __round_jiffies_relative(j, raw_smp_processor_id());
 }
 EXPORT_SYMBOL_GPL(round_jiffies_relative);
+
+/**
+ * __round_jiffies_up - function to round jiffies up to a full second
+ * @j: the time in (absolute) jiffies that should be rounded
+ * @cpu: the processor number on which the timeout will happen
+ *
+ * This is the same as __round_jiffies() except that it will never
+ * round down.  This is useful for timeouts for which the exact time
+ * of firing does not matter too much, as long as they don't fire too
+ * early.
+ */
+unsigned long __round_jiffies_up(unsigned long j, int cpu)
+{
+	return round_jiffies_common(j, cpu, true);
+}
+EXPORT_SYMBOL_GPL(__round_jiffies_up);
+
+/**
+ * __round_jiffies_up_relative - function to round jiffies up to a full second
+ * @j: the time in (relative) jiffies that should be rounded
+ * @cpu: the processor number on which the timeout will happen
+ *
+ * This is the same as __round_jiffies_relative() except that it will never
+ * round down.  This is useful for timeouts for which the exact time
+ * of firing does not matter too much, as long as they don't fire too
+ * early.
+ */
+unsigned long __round_jiffies_up_relative(unsigned long j, int cpu)
+{
+	unsigned long j0 = jiffies;
+
+	/* Use j0 because jiffies might change while we run */
+	return round_jiffies_common(j + j0, cpu, true) - j0;
+}
+EXPORT_SYMBOL_GPL(__round_jiffies_up_relative);
+
+/**
+ * round_jiffies_up - function to round jiffies up to a full second
+ * @j: the time in (absolute) jiffies that should be rounded
+ *
+ * This is the same as round_jiffies() except that it will never
+ * round down.  This is useful for timeouts for which the exact time
+ * of firing does not matter too much, as long as they don't fire too
+ * early.
+ */
+unsigned long round_jiffies_up(unsigned long j)
+{
+	return round_jiffies_common(j, raw_smp_processor_id(), true);
+}
+EXPORT_SYMBOL_GPL(round_jiffies_up);
+
+/**
+ * round_jiffies_up_relative - function to round jiffies up to a full second
+ * @j: the time in (relative) jiffies that should be rounded
+ *
+ * This is the same as round_jiffies_relative() except that it will never
+ * round down.  This is useful for timeouts for which the exact time
+ * of firing does not matter too much, as long as they don't fire too
+ * early.
+ */
+unsigned long round_jiffies_up_relative(unsigned long j)
+{
+	return __round_jiffies_up_relative(j, raw_smp_processor_id());
+}
+EXPORT_SYMBOL_GPL(round_jiffies_up_relative);
 
 
 static inline void set_running_timer(struct tvec_base *base,

@@ -709,11 +709,7 @@ static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 {
 	struct ata_queued_cmd *qc;
 
-	if (cmd->request->tag != -1)
-		qc = ata_qc_new_init(dev, cmd->request->tag);
-	else
-		qc = ata_qc_new_init(dev, 0);
-
+	qc = ata_qc_new_init(dev);
 	if (qc) {
 		qc->scsicmd = cmd;
 		qc->scsidone = done;
@@ -1108,17 +1104,7 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 
 		depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
 		depth = min(ATA_MAX_QUEUE - 1, depth);
-
-		/*
-		 * If this device is behind a port multiplier, we have
-		 * to share the tag map between all devices on that PMP.
-		 * Set up the shared tag map here and we get automatic.
-		 */
-		if (dev->link->ap->pmp_link)
-			scsi_init_shared_tag_map(sdev->host, ATA_MAX_QUEUE - 1);
-
-		scsi_set_tag_type(sdev, MSG_SIMPLE_TAG);
-		scsi_activate_tcq(sdev, depth);
+		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, depth);
 	}
 
 	return 0;
@@ -1958,11 +1944,6 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 		hdr[1] |= (1 << 7);
 
 	memcpy(rbuf, hdr, sizeof(hdr));
-
-	/* if ncq, set tags supported */
-	if (ata_id_has_ncq(args->id))
-		rbuf[7] |= (1 << 1);
-
 	memcpy(&rbuf[8], "ATA     ", 8);
 	ata_id_string(args->id, &rbuf[16], ATA_ID_PROD, 16);
 	ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV, 4);

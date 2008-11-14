@@ -841,12 +841,12 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 	struct page_to_node *pp;
 	LIST_HEAD(pagelist);
 
+	migrate_prep();
 	down_read(&mm->mmap_sem);
 
 	/*
 	 * Build a list of pages to migrate
 	 */
-	migrate_prep();
 	for (pp = pm; pp->node != MAX_NUMNODES; pp++) {
 		struct vm_area_struct *vma;
 		struct page *page;

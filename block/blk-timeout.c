@@ -75,14 +75,7 @@ void blk_delete_timer(struct request *req)
 {
 	struct request_queue *q = req->q;
 
-	/*
-	 * Nothing to detach
-	 */
-	if (!q->rq_timed_out_fn || !req->deadline)
-		return;
-
 	list_del_init(&req->timeout_list);
-
 	if (list_empty(&q->timeout_list))
 		del_timer(&q->timeout);
 }
@@ -142,7 +135,7 @@ void blk_rq_timed_out_timer(unsigned long data)
 	}
 
 	if (next_set && !list_empty(&q->timeout_list))
-		mod_timer(&q->timeout, round_jiffies(next));
+		mod_timer(&q->timeout, round_jiffies_up(next));
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
@@ -198,17 +191,10 @@ void blk_add_timer(struct request *req)
 
 	/*
 	 * If the timer isn't already pending or this timeout is earlier
-	 * than an existing one, modify the timer. Round to next nearest
+	 * than an existing one, modify the timer. Round up to next nearest
 	 * second.
 	 */
-	expiry = round_jiffies(req->deadline);
-
-	/*
-	 * We use ->deadline == 0 to detect whether a timer was added or
-	 * not, so just increase to next jiffy for that specific case
-	 */
-	if (unlikely(!req->deadline))
-		req->deadline = 1;
+	expiry = round_jiffies_up(req->deadline);
 
 	if (!timer_pending(&q->timeout) ||
 	    time_before(expiry, q->timeout.expires))
