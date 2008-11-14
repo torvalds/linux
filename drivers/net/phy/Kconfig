@@ -84,7 +84,7 @@ config MDIO_BITBANG
 
 	  If in doubt, say N.
 
-config MDIO_OF_GPIO
+config MDIO_GPIO
 	tristate "Support for GPIO lib-based bitbanged MDIO buses"
 	depends on MDIO_BITBANG && OF_GPIO
 	---help---
