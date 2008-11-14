@@ -628,8 +628,8 @@ static void ace_fsm_dostate(struct ace_device *ace)
 
 		/* Okay, it's a data request, set it up for transfer */
 		dev_dbg(ace->dev,
-			"request: sec=%lx hcnt=%lx, ccnt=%x, dir=%i\n",
-			req->sector, req->hard_nr_sectors,
+			"request: sec=%llx hcnt=%lx, ccnt=%x, dir=%i\n",
+			(unsigned long long) req->sector, req->hard_nr_sectors,
 			req->current_nr_sectors, rq_data_dir(req));
 
 		ace->req = req;
