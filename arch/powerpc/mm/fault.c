@@ -324,7 +324,7 @@ good_area:
 #ifdef CONFIG_PPC_SMLPAR
 		if (firmware_has_feature(FW_FEATURE_CMO)) {
 			preempt_disable();
-			get_lppaca()->page_ins++;
+			get_lppaca()->page_ins += (1 << PAGE_FACTOR);
 			preempt_enable();
 		}
 #endif
