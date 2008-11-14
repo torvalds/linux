@@ -1639,13 +1639,13 @@ static int tvaudio_get_ctrl(struct CHIPSTATE *chip,
 		return 0;
 	}
 	case V4L2_CID_AUDIO_BASS:
-		if (desc->flags & CHIP_HAS_BASSTREBLE)
+		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
 			break;
 		ctrl->value = chip->bass;
 		return 0;
 	case V4L2_CID_AUDIO_TREBLE:
-		if (desc->flags & CHIP_HAS_BASSTREBLE)
-			return -EINVAL;
+		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
+			break;
 		ctrl->value = chip->treble;
 		return 0;
 	}
@@ -1705,16 +1705,15 @@ static int tvaudio_set_ctrl(struct CHIPSTATE *chip,
 		return 0;
 	}
 	case V4L2_CID_AUDIO_BASS:
-		if (desc->flags & CHIP_HAS_BASSTREBLE)
+		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
 			break;
 		chip->bass = ctrl->value;
 		chip_write(chip,desc->bassreg,desc->bassfunc(chip->bass));
 
 		return 0;
 	case V4L2_CID_AUDIO_TREBLE:
-		if (desc->flags & CHIP_HAS_BASSTREBLE)
-			return -EINVAL;
-
+		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
+			break;
 		chip->treble = ctrl->value;
 		chip_write(chip,desc->treblereg,desc->treblefunc(chip->treble));
 
@@ -1761,7 +1760,7 @@ static int chip_command(struct i2c_client *client,
 				break;
 			case V4L2_CID_AUDIO_BASS:
 			case V4L2_CID_AUDIO_TREBLE:
-				if (desc->flags & CHIP_HAS_BASSTREBLE)
+				if (!(desc->flags & CHIP_HAS_BASSTREBLE))
 					return -EINVAL;
 				break;
 			default:
