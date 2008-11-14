@@ -18,6 +18,7 @@
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/idr.h>
+#include <linux/sched.h>
 
 #include <linux/c2port.h>
 
