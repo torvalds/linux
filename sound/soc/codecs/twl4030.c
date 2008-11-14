@@ -192,10 +192,10 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 	SOC_DOUBLE_R("Master Playback Volume",
 		 TWL4030_REG_ARXL2PGA, TWL4030_REG_ARXR2PGA,
-		0, 127, 0),
+		0, 0x3f, 0),
 	SOC_DOUBLE_R("Capture Volume",
 		 TWL4030_REG_ATXL1PGA, TWL4030_REG_ATXR1PGA,
-		0, 127, 0),
+		0, 0x1f, 0),
 };
 
 /* add non dapm controls */
