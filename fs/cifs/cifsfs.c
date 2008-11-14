@@ -1059,7 +1059,7 @@ init_cifs(void)
 {
 	int rc = 0;
 	cifs_proc_init();
-	INIT_LIST_HEAD(&global_cifs_sock_list);
+	INIT_LIST_HEAD(&cifs_tcp_ses_list);
 	INIT_LIST_HEAD(&GlobalSMBSessionList); /* BB to be removed by jl */
 	INIT_LIST_HEAD(&GlobalTreeConnectionList); /* BB to be removed by jl */
 	INIT_LIST_HEAD(&GlobalOplock_Q);
@@ -1089,6 +1089,7 @@ init_cifs(void)
 	GlobalMaxActiveXid = 0;
 	memset(Local_System_Name, 0, 15);
 	rwlock_init(&GlobalSMBSeslock);
+	rwlock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&GlobalMid_Lock);
 
 	if (cifs_max_pending < 2) {

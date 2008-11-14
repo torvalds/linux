@@ -664,8 +664,9 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			rc = -EIO;
 			goto neg_err_exit;
 		}
-
-		if (server->socketUseCount.counter > 1) {
+		read_lock(&cifs_tcp_ses_lock);
+		if (server->srv_count > 1) {
+			read_unlock(&cifs_tcp_ses_lock);
 			if (memcmp(server->server_GUID,
 				   pSMBr->u.extended_response.
 				   GUID, 16) != 0) {
@@ -674,9 +675,11 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 					pSMBr->u.extended_response.GUID,
 					16);
 			}
-		} else
+		} else {
+			read_unlock(&cifs_tcp_ses_lock);
 			memcpy(server->server_GUID,
 			       pSMBr->u.extended_response.GUID, 16);
+		}
 
 		if (count == 16) {
 			server->secType = RawNTLMSSP;
@@ -830,12 +833,9 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 	pSMB->AndXCommand = 0xFF;
 	rc = SendReceiveNoRsp(xid, ses, (struct smb_hdr *) pSMB, 0);
 session_already_dead:
-	atomic_dec(&ses->server->socketUseCount);
-	if (atomic_read(&ses->server->socketUseCount) == 0) {
-		spin_lock(&GlobalMid_Lock);
-		ses->server->tcpStatus = CifsExiting;
-		spin_unlock(&GlobalMid_Lock);
-		rc = -ESHUTDOWN;
+	if (ses->server) {
+		cifs_put_tcp_session(ses->server);
+		rc = 0;
 	}
 	up(&ses->sesSem);
 

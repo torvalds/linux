@@ -123,6 +123,7 @@ struct cifs_cred {
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
+	int srv_count; /* reference counter */
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
@@ -144,7 +145,6 @@ struct TCP_Server_Info {
 	bool svlocal:1;			/* local server or remote */
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
-	atomic_t socketUseCount; /* number of open cifs sessions on socket */
 	atomic_t inFlight;  /* number of requests on the wire to server */
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t inSend; /* requests trying to send */
@@ -591,13 +591,18 @@ require use of the stronger protocol */
 #define GLOBAL_EXTERN extern
 #endif
 
-
-/* the list of TCP_Server_Info structures, ie each of the sockets
+/*
+ * the list of TCP_Server_Info structures, ie each of the sockets
  * connecting our client to a distinct server (ip address), is
- * chained together by global_cifs_sock_list. The list of all our SMB
+ * chained together by cifs_tcp_ses_list. The list of all our SMB
  * sessions (and from that the tree connections) can be found
- * by iterating over global_cifs_sock_list */
-GLOBAL_EXTERN struct list_head global_cifs_sock_list;
+ * by iterating over cifs_tcp_ses_list
+ */
+GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
+
+/* protects cifs_tcp_ses_list and srv_count for each tcp session */
+GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
+
 GLOBAL_EXTERN struct list_head GlobalSMBSessionList; /* BB to be removed by jl*/
 GLOBAL_EXTERN struct list_head GlobalTreeConnectionList; /* BB to be removed */
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */

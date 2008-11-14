@@ -144,7 +144,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			seq_printf(m, "TCP status: %d\n\tLocal Users To "
 				    "Server: %d SecMode: 0x%x Req On Wire: %d",
 				ses->server->tcpStatus,
-				atomic_read(&ses->server->socketUseCount),
+				ses->server->srv_count,
 				ses->server->secMode,
 				atomic_read(&ses->server->inFlight));
 
