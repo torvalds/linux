@@ -12,6 +12,7 @@
  * See the file COPYING for more details.
  */
 
+#include <stdarg.h>
 #include <linux/types.h>
 
 struct module;
