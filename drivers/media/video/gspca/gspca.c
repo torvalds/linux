@@ -203,6 +203,7 @@ static void bulk_irq(struct urb *urb
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
 	struct gspca_frame *frame;
+	int st;
 
 	PDEBUG(D_PACK, "bulk irq");
 	if (!gspca_dev->streaming)
@@ -225,6 +226,13 @@ static void bulk_irq(struct urb *urb
 					frame,
 					urb->transfer_buffer,
 					urb->actual_length);
+	}
+
+	/* resubmit the URB */
+	if (gspca_dev->cam.bulk_nurbs != 0) {
+		st = usb_submit_urb(urb, GFP_ATOMIC);
+		if (st < 0)
+			PDEBUG(D_ERR|D_PACK, "usb_submit_urb() ret %d", st);
 	}
 }
 
@@ -523,11 +531,14 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 		nurbs = DEF_NURBS;
 	} else {				/* bulk */
 		npkt = 0;
-		bsize = gspca_dev->cam.	bulk_size;
+		bsize = gspca_dev->cam.bulk_size;
 		if (bsize == 0)
 			bsize = psize;
 		PDEBUG(D_STREAM, "bulk bsize:%d", bsize);
-		nurbs = 1;
+		if (gspca_dev->cam.bulk_nurbs != 0)
+			nurbs = gspca_dev->cam.bulk_nurbs;
+		else
+			nurbs = 1;
 	}
 
 	gspca_dev->nurbs = nurbs;
@@ -615,8 +626,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		gspca_dev->streaming = 1;
 		atomic_set(&gspca_dev->nevent, 0);
 
-		/* bulk transfers are started by the subdriver */
-		if (gspca_dev->alt == 0)
+		/* some bulk transfers are started by the subdriver */
+		if (gspca_dev->alt == 0 && gspca_dev->cam.bulk_nurbs == 0)
 			break;
 
 		/* submit the URBs */

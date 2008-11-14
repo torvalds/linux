@@ -58,6 +58,10 @@ struct cam {
 	int bulk_size;		/* buffer size when image transfer by bulk */
 	struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
+	__u8 bulk_nurbs;	/* number of URBs in bulk mode
+				 * - cannot be > MAX_NURBS
+				 * - when 0 and bulk_size != 0 means
+				 *   1 URB and submit done by subdriver */
 	__u8 epaddr;
 };
 
