@@ -4,6 +4,7 @@
 # Comedi "helper" modules
 obj-$(CONFIG_COMEDI)			+= comedi_fc.o
 obj-$(CONFIG_COMEDI)			+= comedi_bond.o
+obj-$(CONFIG_COMEDI)			+= comedi_test.o
 
 # Comedi PCI drivers
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= mite.o
