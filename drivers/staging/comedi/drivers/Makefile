@@ -9,3 +9,4 @@ obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= mite.o
 
 # Comedi USB drivers
 obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= usbdux.o
+obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= usbduxfast.o
