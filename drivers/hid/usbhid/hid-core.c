@@ -849,12 +849,6 @@ static int usbhid_start(struct hid_device *hid)
 		}
 	}
 
-	if (!usbhid->urbin) {
-		err_hid("couldn't find an input interrupt endpoint");
-		ret = -ENODEV;
-		goto fail;
-	}
-
 	init_waitqueue_head(&usbhid->wait);
 	INIT_WORK(&usbhid->reset_work, hid_reset);
 	setup_timer(&usbhid->io_retry, hid_retry_timeout, (unsigned long) hid);
@@ -948,14 +942,25 @@ static struct hid_ll_driver usb_hid_driver = {
 
 static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
+	struct usb_host_interface *interface = intf->cur_altsetting;
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usbhid_device *usbhid;
 	struct hid_device *hid;
+	unsigned int n, has_in = 0;
 	size_t len;
 	int ret;
 
 	dbg_hid("HID probe called for ifnum %d\n",
 			intf->altsetting->desc.bInterfaceNumber);
+
+	for (n = 0; n < interface->desc.bNumEndpoints; n++)
+		if (usb_endpoint_is_int_in(&interface->endpoint[n].desc))
+			has_in++;
+	if (!has_in) {
+		dev_err(&intf->dev, "couldn't find an input interrupt "
+				"endpoint\n");
+		return -ENODEV;
+	}
 
 	hid = hid_allocate_device();
 	if (IS_ERR(hid))
