@@ -1249,20 +1249,20 @@ static int p54_setup_mac(struct ieee80211_hw *dev, u16 mode, const u8 *bssid)
 	setup->rx_antenna = priv->rx_antenna;
 	setup->rx_align = 0;
 	if (priv->fw_var < 0x500) {
-		setup->v1.basic_rate_mask = cpu_to_le32(0x15f);
+		setup->v1.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		memset(setup->v1.rts_rates, 0, 8);
 		setup->v1.rx_addr = cpu_to_le32(priv->rx_end);
 		setup->v1.max_rx = cpu_to_le16(priv->rx_mtu);
 		setup->v1.rxhw = cpu_to_le16(priv->rxhw);
-		setup->v1.wakeup_timer = cpu_to_le16(500);
+		setup->v1.wakeup_timer = cpu_to_le16(priv->wakeup_timer);
 		setup->v1.unalloc0 = cpu_to_le16(0);
 	} else {
 		setup->v2.rx_addr = cpu_to_le32(priv->rx_end);
 		setup->v2.max_rx = cpu_to_le16(priv->rx_mtu);
 		setup->v2.rxhw = cpu_to_le16(priv->rxhw);
-		setup->v2.timer = cpu_to_le16(1000);
+		setup->v2.timer = cpu_to_le16(priv->wakeup_timer);
 		setup->v2.truncate = cpu_to_le16(48896);
-		setup->v2.basic_rate_mask = cpu_to_le32(0x15f);
+		setup->v2.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		setup->v2.sbss_offset = 0;
 		setup->v2.mcast_window = 0;
 		setup->v2.rx_rssi_threshold = 0;
@@ -1348,7 +1348,7 @@ static int p54_set_freq(struct ieee80211_hw *dev, u16 frequency)
 	} else {
 		chan->v2.rssical_mul = cpu_to_le16(130);
 		chan->v2.rssical_add = cpu_to_le16(0xfe70);
-		chan->v2.basic_rate_mask = cpu_to_le32(0x15f);
+		chan->v2.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		memset(chan->v2.rts_rates, 0, 8);
 	}
 	priv->tx(dev, skb, 1);
@@ -1808,6 +1808,24 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 		priv->use_short_slot = info->use_short_slot;
 		p54_set_edcf(dev);
 	}
+	if (changed & BSS_CHANGED_BASIC_RATES) {
+		if (dev->conf.channel->band == IEEE80211_BAND_5GHZ)
+			priv->basic_rate_mask = (info->basic_rates << 4);
+		else
+			priv->basic_rate_mask = info->basic_rates;
+		p54_setup_mac(dev, priv->mac_mode, priv->bssid);
+		if (priv->fw_var >= 0x500)
+			p54_set_freq(dev, dev->conf.channel->center_freq);
+	}
+	if (changed & BSS_CHANGED_ASSOC) {
+		if (info->assoc) {
+			priv->aid = info->aid;
+			priv->wakeup_timer = info->beacon_int *
+					     info->dtim_period * 5;
+			p54_setup_mac(dev, priv->mac_mode, priv->bssid);
+		}
+	}
+
 }
 
 static const struct ieee80211_ops p54_ops = {
@@ -1837,6 +1855,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 
 	priv = dev->priv;
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
+	priv->basic_rate_mask = 0x15f;
 	skb_queue_head_init(&priv->tx_queue);
 	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_DBM |
