@@ -799,20 +799,16 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 	int rc = 0;
 
 	cFYI(1, ("In SMBLogoff for session disconnect"));
-	if (ses)
-		down(&ses->sesSem);
-	else
+
+	/*
+	 * BB: do we need to check validity of ses and server? They should
+	 * always be valid since we have an active reference. If not, that
+	 * should probably be a BUG()
+	 */
+	if (!ses || !ses->server)
 		return -EIO;
 
-	atomic_dec(&ses->inUse);
-	if (atomic_read(&ses->inUse) > 0) {
-		up(&ses->sesSem);
-		return -EBUSY;
-	}
-
-	if (ses->server == NULL)
-		return -EIO;
-
+	down(&ses->sesSem);
 	if (ses->need_reconnect)
 		goto session_already_dead; /* no need to send SMBlogoff if uid
 					      already closed due to reconnect */
@@ -833,10 +829,6 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 	pSMB->AndXCommand = 0xFF;
 	rc = SendReceiveNoRsp(xid, ses, (struct smb_hdr *) pSMB, 0);
 session_already_dead:
-	if (ses->server) {
-		cifs_put_tcp_session(ses->server);
-		rc = 0;
-	}
 	up(&ses->sesSem);
 
 	/* if session dead then we do not need to do ulogoff,

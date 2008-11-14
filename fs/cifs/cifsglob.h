@@ -195,14 +195,14 @@ struct cifsUidInfo {
  * Session structure.  One of these for each uid session with a particular host
  */
 struct cifsSesInfo {
-	struct list_head cifsSessionList;
+	struct list_head smb_ses_list;
 	struct list_head tcon_list;
 	struct semaphore sesSem;
 #if 0
 	struct cifsUidInfo *uidInfo;	/* pointer to user info */
 #endif
 	struct TCP_Server_Info *server;	/* pointer to server info */
-	atomic_t inUse; /* # of mounts (tree connections) on this ses */
+	int ses_count;		/* reference counter */
 	enum statusEnum status;
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
@@ -602,8 +602,6 @@ GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
 
 /* protects cifs_tcp_ses_list and srv_count for each tcp session */
 GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
-
-GLOBAL_EXTERN struct list_head GlobalSMBSessionList; /* BB to be removed by jl*/
 GLOBAL_EXTERN struct list_head GlobalTreeConnectionList; /* BB to be removed */
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
 

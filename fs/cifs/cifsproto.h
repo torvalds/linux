@@ -102,7 +102,6 @@ extern void acl_to_uid_mode(struct inode *inode, const char *path,
 			    const __u16 *pfid);
 extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 
-extern void cifs_put_tcp_session(struct TCP_Server_Info *server);
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 			const char *);
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);

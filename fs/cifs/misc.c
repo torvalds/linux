@@ -75,12 +75,11 @@ sesInfoAlloc(void)
 
 	ret_buf = kzalloc(sizeof(struct cifsSesInfo), GFP_KERNEL);
 	if (ret_buf) {
-		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&sesInfoAllocCount);
 		ret_buf->status = CifsNew;
-		list_add(&ret_buf->cifsSessionList, &GlobalSMBSessionList);
+		++ret_buf->ses_count;
+		INIT_LIST_HEAD(&ret_buf->smb_ses_list);
 		init_MUTEX(&ret_buf->sesSem);
-		write_unlock(&GlobalSMBSeslock);
 	}
 	return ret_buf;
 }
@@ -93,10 +92,7 @@ sesInfoFree(struct cifsSesInfo *buf_to_free)
 		return;
 	}
 
-	write_lock(&GlobalSMBSeslock);
 	atomic_dec(&sesInfoAllocCount);
-	list_del(&buf_to_free->cifsSessionList);
-	write_unlock(&GlobalSMBSeslock);
 	kfree(buf_to_free->serverOS);
 	kfree(buf_to_free->serverDomain);
 	kfree(buf_to_free->serverNOS);
@@ -350,9 +346,9 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 				if (current->fsuid != treeCon->ses->linux_uid) {
 					cFYI(1, ("Multiuser mode and UID "
 						 "did not match tcon uid"));
-					read_lock(&GlobalSMBSeslock);
-					list_for_each(temp_item, &GlobalSMBSessionList) {
-						ses = list_entry(temp_item, struct cifsSesInfo, cifsSessionList);
+					read_lock(&cifs_tcp_ses_lock);
+					list_for_each(temp_item, &treeCon->ses->server->smb_ses_list) {
+						ses = list_entry(temp_item, struct cifsSesInfo, smb_ses_list);
 						if (ses->linux_uid == current->fsuid) {
 							if (ses->server == treeCon->ses->server) {
 								cFYI(1, ("found matching uid substitute right smb_uid"));
@@ -364,7 +360,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 							}
 						}
 					}
-					read_unlock(&GlobalSMBSeslock);
+					read_unlock(&cifs_tcp_ses_lock);
 				}
 			}
 		}

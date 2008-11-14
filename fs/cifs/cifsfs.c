@@ -1031,24 +1031,24 @@ static int cifs_oplock_thread(void *dummyarg)
 static int cifs_dnotify_thread(void *dummyarg)
 {
 	struct list_head *tmp;
-	struct cifsSesInfo *ses;
+	struct TCP_Server_Info *server;
 
 	do {
 		if (try_to_freeze())
 			continue;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(15*HZ);
-		read_lock(&GlobalSMBSeslock);
 		/* check if any stuck requests that need
 		   to be woken up and wakeq so the
 		   thread can wake up and error out */
-		list_for_each(tmp, &GlobalSMBSessionList) {
-			ses = list_entry(tmp, struct cifsSesInfo,
-				cifsSessionList);
-			if (ses->server && atomic_read(&ses->server->inFlight))
-				wake_up_all(&ses->server->response_q);
+		read_lock(&cifs_tcp_ses_lock);
+		list_for_each(tmp, &cifs_tcp_ses_list) {
+			server = list_entry(tmp, struct TCP_Server_Info,
+					 tcp_ses_list);
+			if (atomic_read(&server->inFlight))
+				wake_up_all(&server->response_q);
 		}
-		read_unlock(&GlobalSMBSeslock);
+		read_unlock(&cifs_tcp_ses_lock);
 	} while (!kthread_should_stop());
 
 	return 0;
@@ -1060,7 +1060,6 @@ init_cifs(void)
 	int rc = 0;
 	cifs_proc_init();
 	INIT_LIST_HEAD(&cifs_tcp_ses_list);
-	INIT_LIST_HEAD(&GlobalSMBSessionList); /* BB to be removed by jl */
 	INIT_LIST_HEAD(&GlobalTreeConnectionList); /* BB to be removed by jl */
 	INIT_LIST_HEAD(&GlobalOplock_Q);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
