@@ -229,6 +229,12 @@ static int ocfs2_mknod(struct inode *dir,
 	struct inode *inode = NULL;
 	struct ocfs2_alloc_context *inode_ac = NULL;
 	struct ocfs2_alloc_context *data_ac = NULL;
+	struct ocfs2_alloc_context *xattr_ac = NULL;
+	int want_clusters = 0;
+	int xattr_credits = 0;
+	struct ocfs2_security_xattr_info si = {
+		.enable = 1,
+	};
 
 	mlog_entry("(0x%p, 0x%p, %d, %lu, '%.*s')\n", dir, dentry, mode,
 		   (unsigned long)dev, dentry->d_name.len,
@@ -285,17 +291,39 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	/* Reserve a cluster if creating an extent based directory. */
-	if (S_ISDIR(mode) && !ocfs2_supports_inline_data(osb)) {
-		status = ocfs2_reserve_clusters(osb, 1, &data_ac);
-		if (status < 0) {
-			if (status != -ENOSPC)
-				mlog_errno(status);
+	/* get security xattr */
+	status = ocfs2_init_security_get(inode, dir, &si);
+	if (status) {
+		if (status == -EOPNOTSUPP)
+			si.enable = 0;
+		else {
+			mlog_errno(status);
 			goto leave;
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_MKNOD_CREDITS);
+	/* calculate meta data/clusters for setting security xattr */
+	if (si.enable) {
+		status = ocfs2_calc_security_init(dir, &si, &want_clusters,
+						  &xattr_credits, &xattr_ac);
+		if (status < 0) {
+			mlog_errno(status);
+			goto leave;
+		}
+	}
+
+	/* Reserve a cluster if creating an extent based directory. */
+	if (S_ISDIR(mode) && !ocfs2_supports_inline_data(osb))
+		want_clusters += 1;
+
+	status = ocfs2_reserve_clusters(osb, want_clusters, &data_ac);
+	if (status < 0) {
+		if (status != -ENOSPC)
+			mlog_errno(status);
+		goto leave;
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_MKNOD_CREDITS + xattr_credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -335,6 +363,15 @@ static int ocfs2_mknod(struct inode *dir,
 		inc_nlink(dir);
 	}
 
+	if (si.enable) {
+		status = ocfs2_init_security_set(handle, inode, new_fe_bh, &si,
+						 xattr_ac, data_ac);
+		if (status < 0) {
+			mlog_errno(status);
+			goto leave;
+		}
+	}
+
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 OCFS2_I(inode)->ip_blkno, parent_fe_bh,
 				 de_bh);
@@ -366,6 +403,8 @@ leave:
 	brelse(new_fe_bh);
 	brelse(de_bh);
 	brelse(parent_fe_bh);
+	kfree(si.name);
+	kfree(si.value);
 
 	if ((status < 0) && inode) {
 		clear_nlink(inode);
@@ -377,6 +416,9 @@ leave:
 
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);
+
+	if (xattr_ac)
+		ocfs2_free_alloc_context(xattr_ac);
 
 	mlog_exit(status);
 
@@ -1508,6 +1550,12 @@ static int ocfs2_symlink(struct inode *dir,
 	handle_t *handle = NULL;
 	struct ocfs2_alloc_context *inode_ac = NULL;
 	struct ocfs2_alloc_context *data_ac = NULL;
+	struct ocfs2_alloc_context *xattr_ac = NULL;
+	int want_clusters = 0;
+	int xattr_credits = 0;
+	struct ocfs2_security_xattr_info si = {
+		.enable = 1,
+	};
 
 	mlog_entry("(0x%p, 0x%p, symname='%s' actual='%.*s')\n", dir,
 		   dentry, symname, dentry->d_name.len, dentry->d_name.name);
@@ -1561,17 +1609,39 @@ static int ocfs2_symlink(struct inode *dir,
 		goto bail;
 	}
 
-	/* don't reserve bitmap space for fast symlinks. */
-	if (l > ocfs2_fast_symlink_chars(sb)) {
-		status = ocfs2_reserve_clusters(osb, 1, &data_ac);
-		if (status < 0) {
-			if (status != -ENOSPC)
-				mlog_errno(status);
+	/* get security xattr */
+	status = ocfs2_init_security_get(inode, dir, &si);
+	if (status) {
+		if (status == -EOPNOTSUPP)
+			si.enable = 0;
+		else {
+			mlog_errno(status);
 			goto bail;
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, credits);
+	/* calculate meta data/clusters for setting security xattr */
+	if (si.enable) {
+		status = ocfs2_calc_security_init(dir, &si, &want_clusters,
+						  &xattr_credits, &xattr_ac);
+		if (status < 0) {
+			mlog_errno(status);
+			goto bail;
+		}
+	}
+
+	/* don't reserve bitmap space for fast symlinks. */
+	if (l > ocfs2_fast_symlink_chars(sb))
+		want_clusters += 1;
+
+	status = ocfs2_reserve_clusters(osb, want_clusters, &data_ac);
+	if (status < 0) {
+		if (status != -ENOSPC)
+			mlog_errno(status);
+		goto bail;
+	}
+
+	handle = ocfs2_start_trans(osb, credits + xattr_credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -1632,6 +1702,15 @@ static int ocfs2_symlink(struct inode *dir,
 		}
 	}
 
+	if (si.enable) {
+		status = ocfs2_init_security_set(handle, inode, new_fe_bh, &si,
+						 xattr_ac, data_ac);
+		if (status < 0) {
+			mlog_errno(status);
+			goto bail;
+		}
+	}
+
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 le64_to_cpu(fe->i_blkno), parent_fe_bh,
 				 de_bh);
@@ -1658,10 +1737,14 @@ bail:
 	brelse(new_fe_bh);
 	brelse(parent_fe_bh);
 	brelse(de_bh);
+	kfree(si.name);
+	kfree(si.value);
 	if (inode_ac)
 		ocfs2_free_alloc_context(inode_ac);
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);
+	if (xattr_ac)
+		ocfs2_free_alloc_context(xattr_ac);
 	if ((status < 0) && inode) {
 		clear_nlink(inode);
 		iput(inode);

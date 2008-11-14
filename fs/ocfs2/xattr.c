@@ -81,6 +81,9 @@ struct ocfs2_xattr_set_ctxt {
 
 #define OCFS2_XATTR_ROOT_SIZE	(sizeof(struct ocfs2_xattr_def_value_root))
 #define OCFS2_XATTR_INLINE_SIZE	80
+#define OCFS2_XATTR_FREE_IN_IBODY	(OCFS2_MIN_XATTR_INLINE_SIZE \
+					 - sizeof(struct ocfs2_xattr_header) \
+					 - sizeof(__u32))
 
 static struct ocfs2_xattr_def_value_root def_xv = {
 	.xv.xr_list.l_count = cpu_to_le16(1),
@@ -341,6 +344,52 @@ static void ocfs2_xattr_hash_entry(struct inode *inode,
 	entry->xe_name_hash = cpu_to_le32(hash);
 
 	return;
+}
+
+static int ocfs2_xattr_entry_real_size(int name_len, size_t value_len)
+{
+	int size = 0;
+
+	if (value_len <= OCFS2_XATTR_INLINE_SIZE)
+		size = OCFS2_XATTR_SIZE(name_len) + OCFS2_XATTR_SIZE(value_len);
+	else
+		size = OCFS2_XATTR_SIZE(name_len) + OCFS2_XATTR_ROOT_SIZE;
+	size += sizeof(struct ocfs2_xattr_entry);
+
+	return size;
+}
+
+int ocfs2_calc_security_init(struct inode *dir,
+			     struct ocfs2_security_xattr_info *si,
+			     int *want_clusters,
+			     int *xattr_credits,
+			     struct ocfs2_alloc_context **xattr_ac)
+{
+	int ret = 0;
+	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
+	int s_size = ocfs2_xattr_entry_real_size(strlen(si->name),
+						 si->value_len);
+
+	/*
+	 * The max space of security xattr taken inline is
+	 * 256(name) + 80(value) + 16(entry) = 352 bytes,
+	 * So reserve one metadata block for it is ok.
+	 */
+	if (dir->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE ||
+	    s_size > OCFS2_XATTR_FREE_IN_IBODY) {
+		ret = ocfs2_reserve_new_metadata_blocks(osb, 1, xattr_ac);
+		if (ret) {
+			mlog_errno(ret);
+			return ret;
+		}
+		*xattr_credits += OCFS2_XATTR_BLOCK_CREATE_CREDITS;
+	}
+
+	/* reserve clusters for xattr value which will be set in B tree*/
+	if (si->value_len > OCFS2_XATTR_INLINE_SIZE)
+		*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb,
+							   si->value_len);
+	return ret;
 }
 
 static int ocfs2_xattr_extend_allocation(struct inode *inode,
@@ -5014,6 +5063,27 @@ static int ocfs2_xattr_security_set(struct inode *inode, const char *name,
 
 	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_SECURITY, name, value,
 			       size, flags);
+}
+
+int ocfs2_init_security_get(struct inode *inode,
+			    struct inode *dir,
+			    struct ocfs2_security_xattr_info *si)
+{
+	return security_inode_init_security(inode, dir, &si->name, &si->value,
+					    &si->value_len);
+}
+
+int ocfs2_init_security_set(handle_t *handle,
+			    struct inode *inode,
+			    struct buffer_head *di_bh,
+			    struct ocfs2_security_xattr_info *si,
+			    struct ocfs2_alloc_context *xattr_ac,
+			    struct ocfs2_alloc_context *data_ac)
+{
+	return ocfs2_xattr_set_handle(handle, inode, di_bh,
+				     OCFS2_XATTR_INDEX_SECURITY,
+				     si->name, si->value, si->value_len, 0,
+				     xattr_ac, data_ac);
 }
 
 struct xattr_handler ocfs2_xattr_security_handler = {

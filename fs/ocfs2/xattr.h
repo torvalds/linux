@@ -30,6 +30,13 @@ enum ocfs2_xattr_type {
 	OCFS2_XATTR_MAX
 };
 
+struct ocfs2_security_xattr_info {
+	int enable;
+	char *name;
+	void *value;
+	size_t value_len;
+};
+
 extern struct xattr_handler ocfs2_xattr_user_handler;
 extern struct xattr_handler ocfs2_xattr_trusted_handler;
 extern struct xattr_handler ocfs2_xattr_security_handler;
@@ -43,5 +50,15 @@ int ocfs2_xattr_set_handle(handle_t *, struct inode *, struct buffer_head *,
 			   struct ocfs2_alloc_context *,
 			   struct ocfs2_alloc_context *);
 int ocfs2_xattr_remove(struct inode *, struct buffer_head *);
+int ocfs2_init_security_get(struct inode *, struct inode *,
+			    struct ocfs2_security_xattr_info *);
+int ocfs2_init_security_set(handle_t *, struct inode *,
+			    struct buffer_head *,
+			    struct ocfs2_security_xattr_info *,
+			    struct ocfs2_alloc_context *,
+			    struct ocfs2_alloc_context *);
+int ocfs2_calc_security_init(struct inode *,
+			     struct ocfs2_security_xattr_info *,
+			     int *, int *, struct ocfs2_alloc_context **);
 
 #endif /* OCFS2_XATTR_H */
