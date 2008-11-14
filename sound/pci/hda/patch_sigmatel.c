@@ -5132,29 +5132,11 @@ static struct hda_verb vaio_ar_init[] = {
 	{}
 };
 
-/* bind volumes of both NID 0x02 and 0x05 */
-static struct hda_bind_ctls vaio_bind_master_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x05, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-/* bind volumes of both NID 0x02 and 0x05 */
-static struct hda_bind_ctls vaio_bind_master_sw = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x05, 3, 0, HDA_OUTPUT),
-		0,
-	},
-};
-
 static struct snd_kcontrol_new vaio_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &vaio_bind_master_vol),
-	HDA_BIND_SW("Master Playback Switch", &vaio_bind_master_sw),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x02, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x02, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x05, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x05, 0, HDA_OUTPUT),
 	/* HDA_CODEC_VOLUME("CD Capture Volume", 0x07, 0, HDA_INPUT), */
 	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_INPUT),
@@ -5170,8 +5152,10 @@ static struct snd_kcontrol_new vaio_mixer[] = {
 };
 
 static struct snd_kcontrol_new vaio_ar_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &vaio_bind_master_vol),
-	HDA_BIND_SW("Master Playback Switch", &vaio_bind_master_sw),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x02, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x02, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x05, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x05, 0, HDA_OUTPUT),
 	/* HDA_CODEC_VOLUME("CD Capture Volume", 0x07, 0, HDA_INPUT), */
 	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_INPUT),
