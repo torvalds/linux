@@ -32,6 +32,10 @@
 # endif
 #endif
 
+#ifdef CONFIG_ARCH_MX1
+# include <mach/mx1.h>
+#endif
+
 #include <mach/mxc.h>
 
 #endif /* __ASM_ARCH_MXC_HARDWARE_H__ */
