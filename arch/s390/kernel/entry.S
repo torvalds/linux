@@ -1116,6 +1116,8 @@ cleanup_io_leave_insn:
 .Ltrace_irq_on: .long	trace_hardirqs_on
 .Ltrace_irq_off:
 		.long	trace_hardirqs_off
+#endif
+#ifdef CONFIG_LOCKDEP
 .Llockdep_sys_exit:
 		.long	lockdep_sys_exit
 #endif
