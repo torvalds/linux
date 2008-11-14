@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/security.h>
 
 #define MLOG_MASK_PREFIX ML_XATTR
 #include <cluster/masklog.h>
@@ -88,12 +89,14 @@ static struct ocfs2_xattr_def_value_root def_xv = {
 struct xattr_handler *ocfs2_xattr_handlers[] = {
 	&ocfs2_xattr_user_handler,
 	&ocfs2_xattr_trusted_handler,
+	&ocfs2_xattr_security_handler,
 	NULL
 };
 
 static struct xattr_handler *ocfs2_xattr_handler_map[OCFS2_XATTR_MAX] = {
 	[OCFS2_XATTR_INDEX_USER]	= &ocfs2_xattr_user_handler,
 	[OCFS2_XATTR_INDEX_TRUSTED]	= &ocfs2_xattr_trusted_handler,
+	[OCFS2_XATTR_INDEX_SECURITY]	= &ocfs2_xattr_security_handler,
 };
 
 struct ocfs2_xattr_info {
@@ -4975,6 +4978,50 @@ static int ocfs2_delete_xattr_index_block(struct inode *inode,
 out:
 	return ret;
 }
+
+/*
+ * 'security' attributes support
+ */
+static size_t ocfs2_xattr_security_list(struct inode *inode, char *list,
+					size_t list_size, const char *name,
+					size_t name_len)
+{
+	const size_t prefix_len = XATTR_SECURITY_PREFIX_LEN;
+	const size_t total_len = prefix_len + name_len + 1;
+
+	if (list && total_len <= list_size) {
+		memcpy(list, XATTR_SECURITY_PREFIX, prefix_len);
+		memcpy(list + prefix_len, name, name_len);
+		list[prefix_len + name_len] = '\0';
+	}
+	return total_len;
+}
+
+static int ocfs2_xattr_security_get(struct inode *inode, const char *name,
+				    void *buffer, size_t size)
+{
+	if (strcmp(name, "") == 0)
+		return -EINVAL;
+	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_SECURITY, name,
+			       buffer, size);
+}
+
+static int ocfs2_xattr_security_set(struct inode *inode, const char *name,
+				    const void *value, size_t size, int flags)
+{
+	if (strcmp(name, "") == 0)
+		return -EINVAL;
+
+	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_SECURITY, name, value,
+			       size, flags);
+}
+
+struct xattr_handler ocfs2_xattr_security_handler = {
+	.prefix	= XATTR_SECURITY_PREFIX,
+	.list	= ocfs2_xattr_security_list,
+	.get	= ocfs2_xattr_security_get,
+	.set	= ocfs2_xattr_security_set,
+};
 
 /*
  * 'trusted' attributes support
