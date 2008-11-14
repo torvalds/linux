@@ -653,10 +653,11 @@ int marker_probe_register(const char *name, const char *format,
 		goto end;
 	}
 	mutex_unlock(&markers_mutex);
-	marker_update_probes();		/* may update entry */
+	marker_update_probes();
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
-	WARN_ON(!entry);
+	if (!entry)
+		goto end;
 	if (entry->rcu_pending)
 		rcu_barrier_sched();
 	entry->oldptr = old;
@@ -697,7 +698,7 @@ int marker_probe_unregister(const char *name,
 		rcu_barrier_sched();
 	old = marker_entry_remove_probe(entry, probe, probe_private);
 	mutex_unlock(&markers_mutex);
-	marker_update_probes();		/* may update entry */
+	marker_update_probes();
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
 	if (!entry)
@@ -778,10 +779,11 @@ int marker_probe_unregister_private_data(marker_probe_func *probe,
 		rcu_barrier_sched();
 	old = marker_entry_remove_probe(entry, NULL, probe_private);
 	mutex_unlock(&markers_mutex);
-	marker_update_probes();		/* may update entry */
+	marker_update_probes();
 	mutex_lock(&markers_mutex);
 	entry = get_marker_from_private_data(probe, probe_private);
-	WARN_ON(!entry);
+	if (!entry)
+		goto end;
 	if (entry->rcu_pending)
 		rcu_barrier_sched();
 	entry->oldptr = old;
