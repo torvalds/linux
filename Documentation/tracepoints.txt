@@ -71,7 +71,7 @@ Connecting a function (probe) to a tracepoint is done by providing a probe
 (function to call) for the specific tracepoint through
 register_trace_subsys_eventname().  Removing a probe is done through
 unregister_trace_subsys_eventname(); it will remove the probe.
-marker_synchronize_unregister() must be called before the end of the module exit
+tracepoint_synchronize_unregister() must be called before the end of the module exit
 function to make sure there is no caller left using the probe. This, and the
 fact that preemption is disabled around the probe call, make sure that probe
 removal and module unload are safe. See the "Probe example" section below for a
