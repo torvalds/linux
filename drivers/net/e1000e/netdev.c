@@ -5009,6 +5009,7 @@ err_hw_init:
 err_sw_init:
 	if (adapter->hw.flash_address)
 		iounmap(adapter->hw.flash_address);
+	e1000e_reset_interrupt_capability(adapter);
 err_flashmap:
 	iounmap(adapter->hw.hw_addr);
 err_ioremap:
