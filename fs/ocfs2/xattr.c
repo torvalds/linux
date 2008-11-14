@@ -84,6 +84,10 @@ struct ocfs2_xattr_set_ctxt {
 #define OCFS2_XATTR_FREE_IN_IBODY	(OCFS2_MIN_XATTR_INLINE_SIZE \
 					 - sizeof(struct ocfs2_xattr_header) \
 					 - sizeof(__u32))
+#define OCFS2_XATTR_FREE_IN_BLOCK(ptr)	((ptr)->i_sb->s_blocksize \
+					 - sizeof(struct ocfs2_xattr_block) \
+					 - sizeof(struct ocfs2_xattr_header) \
+					 - sizeof(__u32))
 
 static struct ocfs2_xattr_def_value_root def_xv = {
 	.xv.xr_list.l_count = cpu_to_le16(1),
@@ -399,6 +403,81 @@ int ocfs2_calc_security_init(struct inode *dir,
 	if (si->value_len > OCFS2_XATTR_INLINE_SIZE)
 		*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb,
 							   si->value_len);
+	return ret;
+}
+
+int ocfs2_calc_xattr_init(struct inode *dir,
+			  struct buffer_head *dir_bh,
+			  int mode,
+			  struct ocfs2_security_xattr_info *si,
+			  int *want_clusters,
+			  int *xattr_credits,
+			  struct ocfs2_alloc_context **xattr_ac)
+{
+	int ret = 0;
+	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
+	int s_size = 0;
+	int a_size = 0;
+	int acl_len = 0;
+
+	if (si->enable)
+		s_size = ocfs2_xattr_entry_real_size(strlen(si->name),
+						     si->value_len);
+
+	if (osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) {
+		acl_len = ocfs2_xattr_get_nolock(dir, dir_bh,
+					OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT,
+					"", NULL, 0);
+		if (acl_len > 0) {
+			a_size = ocfs2_xattr_entry_real_size(0, acl_len);
+			if (S_ISDIR(mode))
+				a_size <<= 1;
+		} else if (acl_len != 0 && acl_len != -ENODATA) {
+			mlog_errno(ret);
+			return ret;
+		}
+	}
+
+	if (!(s_size + a_size))
+		return ret;
+
+	/*
+	 * The max space of security xattr taken inline is
+	 * 256(name) + 80(value) + 16(entry) = 352 bytes,
+	 * The max space of acl xattr taken inline is
+	 * 80(value) + 16(entry) * 2(if directory) = 192 bytes,
+	 * when blocksize = 512, may reserve one more cluser for
+	 * xattr bucket, otherwise reserve one metadata block
+	 * for them is ok.
+	 */
+	if (dir->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE ||
+	    (s_size + a_size) > OCFS2_XATTR_FREE_IN_IBODY) {
+		ret = ocfs2_reserve_new_metadata_blocks(osb, 1, xattr_ac);
+		if (ret) {
+			mlog_errno(ret);
+			return ret;
+		}
+		*xattr_credits += OCFS2_XATTR_BLOCK_CREATE_CREDITS;
+	}
+
+	if (dir->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE &&
+	    (s_size + a_size) > OCFS2_XATTR_FREE_IN_BLOCK(dir)) {
+		*want_clusters += 1;
+		*xattr_credits += ocfs2_blocks_per_xattr_bucket(dir->i_sb);
+	}
+
+	/* reserve clusters for xattr value which will be set in B tree*/
+	if (si->enable && si->value_len > OCFS2_XATTR_INLINE_SIZE)
+		*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb,
+							   si->value_len);
+	if (osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL &&
+	    acl_len > OCFS2_XATTR_INLINE_SIZE) {
+		*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb, acl_len);
+		if (S_ISDIR(mode))
+			*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb,
+								   acl_len);
+	}
+
 	return ret;
 }
 

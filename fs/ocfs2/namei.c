@@ -61,6 +61,7 @@
 #include "sysfile.h"
 #include "uptodate.h"
 #include "xattr.h"
+#include "acl.h"
 
 #include "buffer_head_io.h"
 
@@ -302,14 +303,13 @@ static int ocfs2_mknod(struct inode *dir,
 		}
 	}
 
-	/* calculate meta data/clusters for setting security xattr */
-	if (si.enable) {
-		status = ocfs2_calc_security_init(dir, &si, &want_clusters,
-						  &xattr_credits, &xattr_ac);
-		if (status < 0) {
-			mlog_errno(status);
-			goto leave;
-		}
+	/* calculate meta data/clusters for setting security and acl xattr */
+	status = ocfs2_calc_xattr_init(dir, parent_fe_bh, mode,
+					&si, &want_clusters,
+					&xattr_credits, &xattr_ac);
+	if (status < 0) {
+		mlog_errno(status);
+		goto leave;
 	}
 
 	/* Reserve a cluster if creating an extent based directory. */
@@ -361,6 +361,13 @@ static int ocfs2_mknod(struct inode *dir,
 			goto leave;
 		}
 		inc_nlink(dir);
+	}
+
+	status = ocfs2_init_acl(handle, inode, dir, new_fe_bh, parent_fe_bh,
+				xattr_ac, data_ac);
+	if (status < 0) {
+		mlog_errno(status);
+		goto leave;
 	}
 
 	if (si.enable) {

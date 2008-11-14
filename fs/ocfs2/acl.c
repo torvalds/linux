@@ -272,6 +272,65 @@ int ocfs2_acl_chmod(struct inode *inode)
 	return ret;
 }
 
+/*
+ * Initialize the ACLs of a new inode. If parent directory has default ACL,
+ * then clone to new inode. Called from ocfs2_mknod.
+ */
+int ocfs2_init_acl(handle_t *handle,
+		   struct inode *inode,
+		   struct inode *dir,
+		   struct buffer_head *di_bh,
+		   struct buffer_head *dir_bh,
+		   struct ocfs2_alloc_context *meta_ac,
+		   struct ocfs2_alloc_context *data_ac)
+{
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct posix_acl *acl = NULL;
+	int ret = 0;
+
+	if (!S_ISLNK(inode->i_mode)) {
+		if (osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) {
+			acl = ocfs2_get_acl_nolock(dir, ACL_TYPE_DEFAULT,
+						   dir_bh);
+			if (IS_ERR(acl))
+				return PTR_ERR(acl);
+		}
+		if (!acl)
+			inode->i_mode &= ~current->fs->umask;
+	}
+	if ((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) && acl) {
+		struct posix_acl *clone;
+		mode_t mode;
+
+		if (S_ISDIR(inode->i_mode)) {
+			ret = ocfs2_set_acl(handle, inode, di_bh,
+					    ACL_TYPE_DEFAULT, acl,
+					    meta_ac, data_ac);
+			if (ret)
+				goto cleanup;
+		}
+		clone = posix_acl_clone(acl, GFP_NOFS);
+		ret = -ENOMEM;
+		if (!clone)
+			goto cleanup;
+
+		mode = inode->i_mode;
+		ret = posix_acl_create_masq(clone, &mode);
+		if (ret >= 0) {
+			inode->i_mode = mode;
+			if (ret > 0) {
+				ret = ocfs2_set_acl(handle, inode,
+						    di_bh, ACL_TYPE_ACCESS,
+						    clone, meta_ac, data_ac);
+			}
+		}
+		posix_acl_release(clone);
+	}
+cleanup:
+	posix_acl_release(acl);
+	return ret;
+}
+
 static size_t ocfs2_xattr_list_acl_access(struct inode *inode,
 					  char *list,
 					  size_t list_len,

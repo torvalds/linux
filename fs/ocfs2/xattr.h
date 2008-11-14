@@ -66,5 +66,8 @@ int ocfs2_init_security_set(handle_t *, struct inode *,
 int ocfs2_calc_security_init(struct inode *,
 			     struct ocfs2_security_xattr_info *,
 			     int *, int *, struct ocfs2_alloc_context **);
+int ocfs2_calc_xattr_init(struct inode *, struct buffer_head *,
+			  int, struct ocfs2_security_xattr_info *,
+			  int *, int *, struct ocfs2_alloc_context **);
 
 #endif /* OCFS2_XATTR_H */
