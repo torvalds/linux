@@ -70,10 +70,12 @@ Where :
 Connecting a function (probe) to a tracepoint is done by providing a probe
 (function to call) for the specific tracepoint through
 register_trace_subsys_eventname().  Removing a probe is done through
-unregister_trace_subsys_eventname(); it will remove the probe sure there is no
-caller left using the probe when it returns. Probe removal is preempt-safe
-because preemption is disabled around the probe call. See the "Probe example"
-section below for a sample probe module.
+unregister_trace_subsys_eventname(); it will remove the probe.
+marker_synchronize_unregister() must be called before the end of the module exit
+function to make sure there is no caller left using the probe. This, and the
+fact that preemption is disabled around the probe call, make sure that probe
+removal and module unload are safe. See the "Probe example" section below for a
+sample probe module.
 
 The tracepoint mechanism supports inserting multiple instances of the same
 tracepoint, but a single definition must be made of a given tracepoint name over
