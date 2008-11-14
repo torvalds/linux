@@ -29,10 +29,15 @@ struct ocfs2_acl_entry {
 #ifdef CONFIG_OCFS2_FS_POSIX_ACL
 
 extern int ocfs2_check_acl(struct inode *, int);
+extern int ocfs2_acl_chmod(struct inode *);
 
 #else /* CONFIG_OCFS2_FS_POSIX_ACL*/
 
 #define ocfs2_check_acl NULL
+static inline int ocfs2_acl_chmod(struct inode *inode)
+{
+	return 0;
+}
 
 #endif /* CONFIG_OCFS2_FS_POSIX_ACL*/
 

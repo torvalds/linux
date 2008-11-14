@@ -990,6 +990,12 @@ bail_unlock_rw:
 bail:
 	brelse(bh);
 
+	if (!status && attr->ia_valid & ATTR_MODE) {
+		status = ocfs2_acl_chmod(inode);
+		if (status < 0)
+			mlog_errno(status);
+	}
+
 	mlog_exit(status);
 	return status;
 }
