@@ -1244,7 +1244,7 @@ bool ath9k_hw_eeprom_set_board_values(struct ath_hal *ah,
 
 	txRxAttenLocal = IS_CHAN_2GHZ(chan) ? 23 : 44;
 
-	ath9k_hw_get_eeprom_antenna_cfg(ah, chan, 1, &ant_config);
+	ath9k_hw_get_eeprom_antenna_cfg(ah, chan, 0, &ant_config);
 	REG_WRITE(ah, AR_PHY_SWITCH_COM, ant_config);
 
 	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
