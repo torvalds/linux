@@ -918,7 +918,7 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 		return ret;
 
 	qla_printk(KERN_INFO, vha->hw,
-	    "scsi(%ld:%d:%d): LOOP RESET ISSUED.\n", vha->host_no, id, lun);
+	    "scsi(%ld:%d:%d): BUS RESET ISSUED.\n", vha->host_no, id, lun);
 
 	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 		DEBUG2(printk("%s failed:board disabled\n",__func__));
@@ -1039,20 +1039,23 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 	struct fc_port *fcport;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (ha->flags.enable_lip_full_login) {
+	if (ha->flags.enable_lip_full_login && !vha->vp_idx) {
 		ret = qla2x00_full_login_lip(vha);
 		if (ret != QLA_SUCCESS) {
-			DEBUG2_3(printk("%s(%ld): bus_reset failed: "
+			DEBUG2_3(printk("%s(%ld): failed: "
 			    "full_login_lip=%d.\n", __func__, vha->host_no,
 			    ret));
-		} else
-			qla2x00_wait_for_loop_ready(vha);
+		}
+		atomic_set(&vha->loop_state, LOOP_DOWN);
+		atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
+		qla2x00_mark_all_devices_lost(vha, 0);
+		qla2x00_wait_for_loop_ready(vha);
 	}
 
-	if (ha->flags.enable_lip_reset) {
+	if (ha->flags.enable_lip_reset && !vha->vp_idx) {
 		ret = qla2x00_lip_reset(vha);
 		if (ret != QLA_SUCCESS) {
-			DEBUG2_3(printk("%s(%ld): bus_reset failed: "
+			DEBUG2_3(printk("%s(%ld): failed: "
 			    "lip_reset=%d.\n", __func__, vha->host_no, ret));
 		} else
 			qla2x00_wait_for_loop_ready(vha);
