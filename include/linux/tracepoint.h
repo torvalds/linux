@@ -73,9 +73,9 @@ struct tracepoint {
 		return tracepoint_probe_register(#name ":" #proto,	\
 			(void *)probe);					\
 	}								\
-	static inline void unregister_trace_##name(void (*probe)(proto))\
+	static inline int unregister_trace_##name(void (*probe)(proto))	\
 	{								\
-		tracepoint_probe_unregister(#name ":" #proto,		\
+		return tracepoint_probe_unregister(#name ":" #proto,	\
 			(void *)probe);					\
 	}
 
@@ -92,8 +92,10 @@ extern void tracepoint_update_probe_range(struct tracepoint *begin,
 	{								\
 		return -ENOSYS;						\
 	}								\
-	static inline void unregister_trace_##name(void (*probe)(proto))\
-	{ }
+	static inline int unregister_trace_##name(void (*probe)(proto))	\
+	{								\
+		return -ENOSYS;						\
+	}
 
 static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	struct tracepoint *end)
