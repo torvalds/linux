@@ -379,8 +379,8 @@ struct drm_i915_gem_object {
 	uint32_t agp_type;
 
 	/**
-	 * Flagging of which individual pages are valid in GEM_DOMAIN_CPU when
-	 * GEM_DOMAIN_CPU is not in the object's read domain.
+	 * If present, while GEM_DOMAIN_CPU is in the read domain this array
+	 * flags which individual pages are valid.
 	 */
 	uint8_t *page_cpu_valid;
 };
