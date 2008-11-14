@@ -1591,9 +1591,8 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_enable_device(pdev))
 		return -EIO;
 
-	/* XXX 32-bit addressing only */
-	if (pci_set_dma_mask(pdev, 0xffffffff)) {
-		printk(KERN_ERR "ath_pci: 32-bit DMA not available\n");
+	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+		printk(KERN_ERR "ath9k: 32-bit DMA not available\n");
 		ret = -ENODEV;
 		goto bad;
 	}
