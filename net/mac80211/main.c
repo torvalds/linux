@@ -722,7 +722,6 @@ EXPORT_SYMBOL(ieee80211_alloc_hw);
 int ieee80211_register_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	const char *name;
 	int result;
 	enum ieee80211_band band;
 	struct net_device *mdev;
@@ -787,8 +786,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	mdev->header_ops = &ieee80211_header_ops;
 	mdev->set_multicast_list = ieee80211_master_set_multicast_list;
 
-	name = wiphy_dev(local->hw.wiphy)->driver->name;
-	local->hw.workqueue = create_freezeable_workqueue(name);
+	local->hw.workqueue =
+		create_freezeable_workqueue(wiphy_name(local->hw.wiphy));
 	if (!local->hw.workqueue) {
 		result = -ENOMEM;
 		goto fail_workqueue;
