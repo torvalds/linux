@@ -2184,10 +2184,6 @@ static noinline struct module *load_module(void __user *umod,
 		struct mod_debug *debug;
 		unsigned int num_debug;
 
-#ifdef CONFIG_MARKERS
-		marker_update_probe_range(mod->markers,
-			mod->markers + mod->num_markers);
-#endif
 		debug = section_objs(hdr, sechdrs, secstrings, "__verbose",
 				     sizeof(*debug), &num_debug);
 		dynamic_printk_setup(debug, num_debug);

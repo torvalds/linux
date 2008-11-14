@@ -846,3 +846,32 @@ void *marker_get_private_data(const char *name, marker_probe_func *probe,
 	return ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL_GPL(marker_get_private_data);
+
+int marker_module_notify(struct notifier_block *self,
+			 unsigned long val, void *data)
+{
+	struct module *mod = data;
+
+	switch (val) {
+	case MODULE_STATE_COMING:
+		marker_update_probe_range(mod->markers,
+			mod->markers + mod->num_markers);
+		break;
+	case MODULE_STATE_GOING:
+		marker_update_probe_range(mod->markers,
+			mod->markers + mod->num_markers);
+		break;
+	}
+	return 0;
+}
+
+struct notifier_block marker_module_nb = {
+	.notifier_call = marker_module_notify,
+	.priority = 0,
+};
+
+static int init_markers(void)
+{
+	return register_module_notifier(&marker_module_nb);
+}
+__initcall(init_markers);
