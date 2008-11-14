@@ -2187,11 +2187,6 @@ static noinline struct module *load_module(void __user *umod,
 		debug = section_objs(hdr, sechdrs, secstrings, "__verbose",
 				     sizeof(*debug), &num_debug);
 		dynamic_printk_setup(debug, num_debug);
-
-#ifdef CONFIG_TRACEPOINTS
-		tracepoint_update_probe_range(mod->tracepoints,
-			mod->tracepoints + mod->num_tracepoints);
-#endif
 	}
 
 	/* sechdrs[0].sh_size is always zero */

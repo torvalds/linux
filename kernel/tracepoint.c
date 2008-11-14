@@ -541,3 +541,32 @@ void tracepoint_iter_reset(struct tracepoint_iter *iter)
 	iter->tracepoint = NULL;
 }
 EXPORT_SYMBOL_GPL(tracepoint_iter_reset);
+
+int tracepoint_module_notify(struct notifier_block *self,
+			     unsigned long val, void *data)
+{
+	struct module *mod = data;
+
+	switch (val) {
+	case MODULE_STATE_COMING:
+		tracepoint_update_probe_range(mod->tracepoints,
+			mod->tracepoints + mod->num_tracepoints);
+		break;
+	case MODULE_STATE_GOING:
+		tracepoint_update_probe_range(mod->tracepoints,
+			mod->tracepoints + mod->num_tracepoints);
+		break;
+	}
+	return 0;
+}
+
+struct notifier_block tracepoint_module_nb = {
+	.notifier_call = tracepoint_module_notify,
+	.priority = 0,
+};
+
+static int init_tracepoints(void)
+{
+	return register_module_notifier(&tracepoint_module_nb);
+}
+__initcall(init_tracepoints);
