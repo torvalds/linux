@@ -182,7 +182,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info);
  */
 acpi_status
 acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
-			       union acpi_operand_object *return_object);
+			       union acpi_operand_object **return_object);
 
 const union acpi_predefined_info *acpi_ns_check_for_predefined_name(struct
 								    acpi_namespace_node

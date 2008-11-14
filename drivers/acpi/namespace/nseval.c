@@ -282,8 +282,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 			 * the method on invalid return object.
 			 */
 			(void)acpi_ns_check_predefined_names(node,
-							     info->
-							     return_object);
+			     &info->return_object);
 		}
 
 		/* Mark the node as having been evaluated */
