@@ -86,8 +86,11 @@ config MDIO_BITBANG
 
 config MDIO_GPIO
 	tristate "Support for GPIO lib-based bitbanged MDIO buses"
-	depends on MDIO_BITBANG && OF_GPIO
+	depends on MDIO_BITBANG && GENERIC_GPIO
 	---help---
 	  Supports GPIO lib-based MDIO busses.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mdio-gpio.
 
 endif # PHYLIB
