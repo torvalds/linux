@@ -206,10 +206,10 @@
 #define DBG_ASSERT(C)						\
 	do {							\
 		if (!(C)) {					\
-			DBG_PRINT("ASSERT(%s) -- %s#%d (%s) ", \
+			DBG_PRINT("ASSERT(%s) -- %s#%d (%s) ",  \
 			     #C, __FILE__, __LINE__, __func__); \
 			DBG_TRAP;				\
-		}
+		}						\
 	} while (0)
 
 #define STATIC
