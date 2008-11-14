@@ -193,7 +193,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	while ((server->tcpStatus != CifsExiting) &&
 	       (server->tcpStatus != CifsGood)) {
 		try_to_freeze();
-		if (server->protocolType == IPV6) {
+		if (server->addr.sockAddr6.sin6_family == AF_INET6) {
 			rc = ipv6_connect(&server->addr.sockAddr6,
 					  &server->ssocket, server->noautotune);
 		} else {
@@ -1983,10 +1983,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 {
 	int rc = 0;
 	int xid;
-	int address_type = AF_INET;
 	struct socket *csocket = NULL;
-	struct sockaddr_in sin_server;
-	struct sockaddr_in6 sin_server6;
+	struct sockaddr addr;
+	struct sockaddr_in *sin_server = (struct sockaddr_in *) &addr;
+	struct sockaddr_in6 *sin_server6 = (struct sockaddr_in6 *) &addr;
 	struct smb_vol volume_info;
 	struct cifsSesInfo *pSesInfo = NULL;
 	struct cifsSesInfo *existingCifsSes = NULL;
@@ -1997,6 +1997,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 /* cFYI(1, ("Entering cifs_mount. Xid: %d with: %s", xid, mount_data)); */
 
+	memset(&addr, 0, sizeof(struct sockaddr));
 	memset(&volume_info, 0, sizeof(struct smb_vol));
 	if (cifs_parse_mount_options(mount_data, devname, &volume_info)) {
 		rc = -EINVAL;
@@ -2019,16 +2020,16 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	if (volume_info.UNCip && volume_info.UNC) {
 		rc = cifs_inet_pton(AF_INET, volume_info.UNCip,
-				    &sin_server.sin_addr.s_addr);
+				    &sin_server->sin_addr.s_addr);
 
 		if (rc <= 0) {
 			/* not ipv4 address, try ipv6 */
 			rc = cifs_inet_pton(AF_INET6, volume_info.UNCip,
-					    &sin_server6.sin6_addr.in6_u);
+					    &sin_server6->sin6_addr.in6_u);
 			if (rc > 0)
-				address_type = AF_INET6;
+				addr.sa_family = AF_INET6;
 		} else {
-			address_type = AF_INET;
+			addr.sa_family = AF_INET;
 		}
 
 		if (rc <= 0) {
@@ -2068,39 +2069,38 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		}
 	}
 
-	if (address_type == AF_INET)
-		existingCifsSes = cifs_find_tcp_session(&sin_server.sin_addr,
+	if (addr.sa_family == AF_INET)
+		existingCifsSes = cifs_find_tcp_session(&sin_server->sin_addr,
 			NULL /* no ipv6 addr */,
 			volume_info.username, &srvTcp);
-	else if (address_type == AF_INET6) {
+	else if (addr.sa_family == AF_INET6) {
 		cFYI(1, ("looking for ipv6 address"));
 		existingCifsSes = cifs_find_tcp_session(NULL /* no ipv4 addr */,
-			&sin_server6.sin6_addr,
+			&sin_server6->sin6_addr,
 			volume_info.username, &srvTcp);
 	} else {
 		rc = -EINVAL;
 		goto out;
 	}
 
-	if (!srvTcp) {	/* create socket */
-		if (volume_info.port)
-			sin_server.sin_port = htons(volume_info.port);
-		else
-			sin_server.sin_port = 0;
-		if (address_type == AF_INET6) {
+	if (!srvTcp) {
+		if (addr.sa_family == AF_INET6) {
 			cFYI(1, ("attempting ipv6 connect"));
 			/* BB should we allow ipv6 on port 139? */
 			/* other OS never observed in Wild doing 139 with v6 */
-			rc = ipv6_connect(&sin_server6, &csocket,
+			sin_server6->sin6_port = htons(volume_info.port);
+			rc = ipv6_connect(sin_server6, &csocket,
 					volume_info.noblocksnd);
-		} else
-			rc = ipv4_connect(&sin_server, &csocket,
+		} else {
+			sin_server->sin_port = htons(volume_info.port);
+			rc = ipv4_connect(sin_server, &csocket,
 				  volume_info.source_rfc1001_name,
 				  volume_info.target_rfc1001_name,
 				  volume_info.noblocksnd,
 				  volume_info.noautotune);
+		}
 		if (rc < 0) {
-			cERROR(1, ("Error connecting to IPv4 socket. "
+			cERROR(1, ("Error connecting to socket. "
 				   "Aborting operation"));
 			if (csocket != NULL)
 				sock_release(csocket);
@@ -2115,12 +2115,15 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		} else {
 			srvTcp->noblocksnd = volume_info.noblocksnd;
 			srvTcp->noautotune = volume_info.noautotune;
-			memcpy(&srvTcp->addr.sockAddr, &sin_server,
-				sizeof(struct sockaddr_in));
+			if (addr.sa_family == AF_INET6)
+				memcpy(&srvTcp->addr.sockAddr6, sin_server6,
+					sizeof(struct sockaddr_in6));
+			else
+				memcpy(&srvTcp->addr.sockAddr, sin_server,
+					sizeof(struct sockaddr_in));
 			atomic_set(&srvTcp->inFlight, 0);
 			/* BB Add code for ipv6 case too */
 			srvTcp->ssocket = csocket;
-			srvTcp->protocolType = IPV4;
 			srvTcp->hostname = extract_hostname(volume_info.UNC);
 			if (IS_ERR(srvTcp->hostname)) {
 				rc = PTR_ERR(srvTcp->hostname);
@@ -2172,7 +2175,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		else {
 			pSesInfo->server = srvTcp;
 			sprintf(pSesInfo->serverName, "%u.%u.%u.%u",
-				NIPQUAD(sin_server.sin_addr.s_addr));
+				NIPQUAD(sin_server->sin_addr.s_addr));
 		}
 
 		if (!rc) {
@@ -2211,7 +2214,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		setup_cifs_sb(&volume_info, cifs_sb);
 
 		tcon =
-		    find_unc(sin_server.sin_addr.s_addr, volume_info.UNC,
+		    find_unc(sin_server->sin_addr.s_addr, volume_info.UNC,
 			     volume_info.username);
 		if (tcon) {
 			cFYI(1, ("Found match on UNC path"));

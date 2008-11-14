@@ -85,8 +85,7 @@ enum securityEnum {
 };
 
 enum protocolEnum {
-	IPV4 = 0,
-	IPV6,
+	TCP = 0,
 	SCTP
 	/* Netbios frames protocol not supported at this time */
 };
