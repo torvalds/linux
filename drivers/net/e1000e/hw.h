@@ -87,6 +87,7 @@ enum e1e_registers {
 	E1000_EEMNGCTL = 0x01010, /* MNG EEprom Control */
 	E1000_EEWR     = 0x0102C, /* EEPROM Write Register - RW */
 	E1000_FLOP     = 0x0103C, /* FLASH Opcode Register */
+	E1000_PBA_ECC  = 0x01100, /* PBA ECC Register */
 	E1000_ERT      = 0x02008, /* Early Rx Threshold - RW */
 	E1000_FCRTL    = 0x02160, /* Flow Control Receive Threshold Low - RW */
 	E1000_FCRTH    = 0x02168, /* Flow Control Receive Threshold High - RW */

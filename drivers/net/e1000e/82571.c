@@ -973,6 +973,12 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		ew32(CTRL_EXT, reg);
 	}
 
+	if (hw->mac.type == e1000_82571) {
+		reg = er32(PBA_ECC);
+		reg |= E1000_PBA_ECC_CORR_EN;
+		ew32(PBA_ECC, reg);
+	}
+
 	/* PCI-Ex Control Register */
 	if (hw->mac.type == e1000_82574) {
 		reg = er32(GCR);

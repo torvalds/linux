@@ -372,6 +372,13 @@
 #define E1000_ICR_TXQ1          0x00800000 /* Tx Queue 1 Interrupt */
 #define E1000_ICR_OTHER         0x01000000 /* Other Interrupts */
 
+/* PBA ECC Register */
+#define E1000_PBA_ECC_COUNTER_MASK  0xFFF00000 /* ECC counter mask */
+#define E1000_PBA_ECC_COUNTER_SHIFT 20         /* ECC counter shift value */
+#define E1000_PBA_ECC_CORR_EN       0x00000001 /* ECC correction enable */
+#define E1000_PBA_ECC_STAT_CLR      0x00000002 /* Clear ECC error counter */
+#define E1000_PBA_ECC_INT_EN        0x00000004 /* Enable ICR bit 5 for ECC */
+
 /*
  * This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
