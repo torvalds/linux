@@ -24,7 +24,7 @@
 #ifndef _LINUX_COMEDILIB_H
 #define _LINUX_COMEDILIB_H
 
-#include <linux/comedi.h>
+#include "comedi.h"
 
 /* Kernel internal stuff.  Needed by real-time modules and such. */
 
