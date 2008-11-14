@@ -2,6 +2,7 @@ obj-$(CONFIG_COMEDI) += comedi.o
 obj-$(CONFIG_COMEDI_RT) += comedi_rt.o
 
 obj-$(CONFIG_COMEDI)	+= kcomedilib/
+obj-$(CONFIG_COMEDI)	+= drivers/
 
 comedi-objs :=		\
 	comedi_fops.o	\
