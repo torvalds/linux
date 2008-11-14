@@ -2326,6 +2326,74 @@ out:
 }
 
 /*
+ * This function only called duing creating inode
+ * for init security/acl xattrs of the new inode.
+ * The xattrs could be put into ibody or extent block,
+ * xattr bucket would not be use in this case.
+ * transanction credits also be reserved in here.
+ */
+int ocfs2_xattr_set_handle(handle_t *handle,
+			   struct inode *inode,
+			   struct buffer_head *di_bh,
+			   int name_index,
+			   const char *name,
+			   const void *value,
+			   size_t value_len,
+			   int flags,
+			   struct ocfs2_alloc_context *meta_ac,
+			   struct ocfs2_alloc_context *data_ac)
+{
+	struct ocfs2_dinode *di;
+	int ret;
+
+	struct ocfs2_xattr_info xi = {
+		.name_index = name_index,
+		.name = name,
+		.value = value,
+		.value_len = value_len,
+	};
+
+	struct ocfs2_xattr_search xis = {
+		.not_found = -ENODATA,
+	};
+
+	struct ocfs2_xattr_search xbs = {
+		.not_found = -ENODATA,
+	};
+
+	struct ocfs2_xattr_set_ctxt ctxt = {
+		.handle = handle,
+		.meta_ac = meta_ac,
+		.data_ac = data_ac,
+	};
+
+	if (!ocfs2_supports_xattr(OCFS2_SB(inode->i_sb)))
+		return -EOPNOTSUPP;
+
+	xis.inode_bh = xbs.inode_bh = di_bh;
+	di = (struct ocfs2_dinode *)di_bh->b_data;
+
+	down_write(&OCFS2_I(inode)->ip_xattr_sem);
+
+	ret = ocfs2_xattr_ibody_find(inode, name_index, name, &xis);
+	if (ret)
+		goto cleanup;
+	if (xis.not_found) {
+		ret = ocfs2_xattr_block_find(inode, name_index, name, &xbs);
+		if (ret)
+			goto cleanup;
+	}
+
+	ret = __ocfs2_xattr_set_handle(inode, di, &xi, &xis, &xbs, &ctxt);
+
+cleanup:
+	up_write(&OCFS2_I(inode)->ip_xattr_sem);
+	brelse(xbs.xattr_bh);
+
+	return ret;
+}
+
+/*
  * ocfs2_xattr_set()
  *
  * Set, replace or remove an extended attribute for this inode.

@@ -37,6 +37,10 @@ extern struct xattr_handler *ocfs2_xattr_handlers[];
 ssize_t ocfs2_listxattr(struct dentry *, char *, size_t);
 int ocfs2_xattr_set(struct inode *, int, const char *, const void *,
 		    size_t, int);
+int ocfs2_xattr_set_handle(handle_t *, struct inode *, struct buffer_head *,
+			   int, const char *, const void *, size_t, int,
+			   struct ocfs2_alloc_context *,
+			   struct ocfs2_alloc_context *);
 int ocfs2_xattr_remove(struct inode *, struct buffer_head *);
 
 #endif /* OCFS2_XATTR_H */
