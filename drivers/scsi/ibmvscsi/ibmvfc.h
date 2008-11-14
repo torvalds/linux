@@ -523,10 +523,10 @@ enum ibmvfc_async_event {
 };
 
 struct ibmvfc_crq {
-	u8 valid;
-	u8 format;
+	volatile u8 valid;
+	volatile u8 format;
 	u8 reserved[6];
-	u64 ioba;
+	volatile u64 ioba;
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_crq_queue {
@@ -536,13 +536,13 @@ struct ibmvfc_crq_queue {
 };
 
 struct ibmvfc_async_crq {
-	u8 valid;
+	volatile u8 valid;
 	u8 pad[3];
 	u32 pad2;
-	u64 event;
-	u64 scsi_id;
-	u64 wwpn;
-	u64 node_name;
+	volatile u64 event;
+	volatile u64 scsi_id;
+	volatile u64 wwpn;
+	volatile u64 node_name;
 	u64 reserved;
 }__attribute__((packed, aligned (8)));
 
