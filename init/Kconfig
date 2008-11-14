@@ -808,6 +808,7 @@ config TRACEPOINTS
 
 config MARKERS
 	bool "Activate markers"
+	depends on TRACEPOINTS
 	help
 	  Place an empty function call at each marker site. Can be
 	  dynamically changed for a probe function.

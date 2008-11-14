@@ -479,7 +479,7 @@ static int marker_set_format(struct marker_entry *entry, const char *format)
 static int set_marker(struct marker_entry *entry, struct marker *elem,
 		int active)
 {
-	int ret;
+	int ret = 0;
 	WARN_ON(strcmp(entry->name, elem->name) != 0);
 
 	if (entry->format) {
@@ -531,9 +531,40 @@ static int set_marker(struct marker_entry *entry, struct marker *elem,
 	 */
 	smp_wmb();
 	elem->ptype = entry->ptype;
+
+	if (elem->tp_name && (active ^ elem->state)) {
+		WARN_ON(!elem->tp_cb);
+		/*
+		 * It is ok to directly call the probe registration because type
+		 * checking has been done in the __trace_mark_tp() macro.
+		 */
+
+		if (active) {
+			/*
+			 * try_module_get should always succeed because we hold
+			 * lock_module() to get the tp_cb address.
+			 */
+			ret = try_module_get(__module_text_address(
+				(unsigned long)elem->tp_cb));
+			BUG_ON(!ret);
+			ret = tracepoint_probe_register_noupdate(
+				elem->tp_name,
+				elem->tp_cb);
+		} else {
+			ret = tracepoint_probe_unregister_noupdate(
+				elem->tp_name,
+				elem->tp_cb);
+			/*
+			 * tracepoint_probe_update_all() must be called
+			 * before the module containing tp_cb is unloaded.
+			 */
+			module_put(__module_text_address(
+				(unsigned long)elem->tp_cb));
+		}
+	}
 	elem->state = active;
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -544,7 +575,24 @@ static int set_marker(struct marker_entry *entry, struct marker *elem,
  */
 static void disable_marker(struct marker *elem)
 {
+	int ret;
+
 	/* leave "call" as is. It is known statically. */
+	if (elem->tp_name && elem->state) {
+		WARN_ON(!elem->tp_cb);
+		/*
+		 * It is ok to directly call the probe registration because type
+		 * checking has been done in the __trace_mark_tp() macro.
+		 */
+		ret = tracepoint_probe_unregister_noupdate(elem->tp_name,
+			elem->tp_cb);
+		WARN_ON(ret);
+		/*
+		 * tracepoint_probe_update_all() must be called
+		 * before the module containing tp_cb is unloaded.
+		 */
+		module_put(__module_text_address((unsigned long)elem->tp_cb));
+	}
 	elem->state = 0;
 	elem->single.func = __mark_empty_function;
 	/* Update the function before setting the ptype */
@@ -608,6 +656,7 @@ static void marker_update_probes(void)
 	marker_update_probe_range(__start___markers, __stop___markers);
 	/* Markers in modules. */
 	module_update_markers();
+	tracepoint_probe_update_all();
 }
 
 /**
