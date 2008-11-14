@@ -39,17 +39,18 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include "comedi.h"
 
-#define DPRINTK(format, args...)	do{				\
-	if(comedi_debug)printk("comedi: " format , ## args );		\
-} while(0)
+#define DPRINTK(format, args...)	do {		\
+	if (comedi_debug)				\
+		printk(KERN_DEBUG "comedi: " format , ## args);	\
+} while (0)
 
-#define COMEDI_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#define COMEDI_VERSION_CODE COMEDI_VERSION(COMEDI_MAJORVERSION,COMEDI_MINORVERSION,COMEDI_MICROVERSION)
+#define COMEDI_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
+#define COMEDI_VERSION_CODE COMEDI_VERSION(COMEDI_MAJORVERSION, COMEDI_MINORVERSION, COMEDI_MICROVERSION)
 #define COMEDI_RELEASE VERSION
 
 #define COMEDI_INITCLEANUP_NOMODULE(x)					\
@@ -82,21 +83,22 @@
 	static struct pci_driver comedi_driver ## _pci_driver = \
 	{ \
 		.id_table = pci_id_table, \
-		.probe = & comedi_driver ## _pci_probe, \
-		.remove = __devexit_p(& comedi_driver ## _pci_remove) \
+		.probe = &comedi_driver ## _pci_probe, \
+		.remove = __devexit_p(&comedi_driver ## _pci_remove) \
 	}; \
 	static int __init comedi_driver ## _init_module(void) \
 	{ \
 		int retval; \
-		retval = comedi_driver_register(& comedi_driver); \
-		if(retval < 0) return retval; \
-		comedi_driver ## _pci_driver.name = (char*)comedi_driver.driver_name; \
-		return pci_register_driver(& comedi_driver ## _pci_driver); \
+		retval = comedi_driver_register(&comedi_driver); \
+		if (retval < 0) \
+			return retval; \
+		comedi_driver ## _pci_driver.name = (char *)comedi_driver.driver_name; \
+		return pci_register_driver(&comedi_driver ## _pci_driver); \
 	} \
 	static void __exit comedi_driver ## _cleanup_module(void) \
 	{ \
-		pci_unregister_driver(& comedi_driver ## _pci_driver); \
-		comedi_driver_unregister(& comedi_driver); \
+		pci_unregister_driver(&comedi_driver ## _pci_driver); \
+		comedi_driver_unregister(&comedi_driver); \
 	} \
 	module_init(comedi_driver ## _init_module); \
 	module_exit(comedi_driver ## _cleanup_module);
@@ -177,14 +179,14 @@ struct comedi_subdevice_struct {
 	int (*do_cmdtest) (comedi_device *, comedi_subdevice *, comedi_cmd *);
 	int (*poll) (comedi_device *, comedi_subdevice *);
 	int (*cancel) (comedi_device *, comedi_subdevice *);
-	//int (*do_lock)(comedi_device *,comedi_subdevice *);
-	//int (*do_unlock)(comedi_device *,comedi_subdevice *);
+	/* int (*do_lock)(comedi_device *,comedi_subdevice *); */
+	/* int (*do_unlock)(comedi_device *,comedi_subdevice *); */
 
 	/* called when the buffer changes */
-	int (*buf_change) (comedi_device * dev, comedi_subdevice * s,
+	int (*buf_change) (comedi_device *dev, comedi_subdevice *s,
 		unsigned long new_size);
 
-	void (*munge) (comedi_device * dev, comedi_subdevice * s, void *data,
+	void (*munge) (comedi_device *dev, comedi_subdevice *s, void *data,
 		unsigned int num_bytes, unsigned int start_chan_index);
 	enum dma_data_direction async_dma_dir;
 
@@ -234,13 +236,13 @@ struct comedi_async_struct {
 
 	wait_queue_head_t wait_head;
 
-	// callback stuff
+	/* callback stuff */
 	unsigned int cb_mask;
 	int (*cb_func) (unsigned int flags, void *);
 	void *cb_arg;
 
-	int (*inttrig) (comedi_device * dev, comedi_subdevice * s,
-		unsigned int x);
+	int (*inttrig) (comedi_device *dev, comedi_subdevice *s,
+			unsigned int x);
 };
 
 struct comedi_driver_struct {
@@ -265,8 +267,9 @@ struct comedi_device_struct {
 
 	device_create_result_type *class_dev;
 	int minor;
-	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers for subdevices
-	   that have async_dma_dir set to something other than DMA_NONE */
+	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers
+	 * for subdevices that have async_dma_dir set to something other than
+	 * DMA_NONE */
 	struct device *hw_dev;
 
 	const char *board_name;
@@ -289,8 +292,8 @@ struct comedi_device_struct {
 
 	struct fasync_struct *async_queue;
 
-	void (*open) (comedi_device * dev);
-	void (*close) (comedi_device * dev);
+	void (*open) (comedi_device *dev);
+	void (*close) (comedi_device *dev);
 };
 
 struct comedi_device_file_info {
@@ -302,15 +305,15 @@ struct comedi_device_file_info {
 #ifdef CONFIG_COMEDI_DEBUG
 extern int comedi_debug;
 #else
-static const int comedi_debug = 0;
+static const int comedi_debug;
 #endif
 
 /*
  * function prototypes
  */
 
-void comedi_event(comedi_device * dev, comedi_subdevice * s);
-void comedi_error(const comedi_device * dev, const char *s);
+void comedi_event(comedi_device *dev, comedi_subdevice *s);
+void comedi_error(const comedi_device *dev, const char *s);
 
 /* we can expand the number of bits used to encode devices/subdevices into
  the minor number soon, after more distros support > 8 bit minor numbers
@@ -322,24 +325,30 @@ enum comedi_minor_bits {
 static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
 static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
 
-struct comedi_device_file_info* comedi_get_device_file_info(unsigned minor);
+struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor);
 
-static inline comedi_subdevice* comedi_get_read_subdevice(const struct comedi_device_file_info *info)
+static inline comedi_subdevice *comedi_get_read_subdevice(
+				const struct comedi_device_file_info *info)
 {
-	if(info->read_subdevice) return info->read_subdevice;
-	if(info->device == NULL) return NULL;
+	if (info->read_subdevice)
+		return info->read_subdevice;
+	if (info->device == NULL)
+		return NULL;
 	return info->device->read_subdev;
 }
 
-static inline comedi_subdevice* comedi_get_write_subdevice(const struct comedi_device_file_info *info)
+static inline comedi_subdevice *comedi_get_write_subdevice(
+				const struct comedi_device_file_info *info)
 {
-	if(info->write_subdevice) return info->write_subdevice;
-	if(info->device == NULL) return NULL;
+	if (info->write_subdevice)
+		return info->write_subdevice;
+	if (info->device == NULL)
+		return NULL;
 	return info->device->write_subdev;
 }
 
-void comedi_device_detach(comedi_device * dev);
-int comedi_device_attach(comedi_device * dev, comedi_devconfig * it);
+void comedi_device_detach(comedi_device *dev);
+int comedi_device_attach(comedi_device *dev, comedi_devconfig *it);
 int comedi_driver_register(comedi_driver *);
 int comedi_driver_unregister(comedi_driver *);
 
@@ -348,7 +357,7 @@ void cleanup_polling(void);
 void start_polling(comedi_device *);
 void stop_polling(comedi_device *);
 
-int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s, unsigned long
+int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s, unsigned long
 	new_size);
 
 #ifdef CONFIG_PROC_FS
@@ -367,7 +376,8 @@ static inline void comedi_proc_cleanup(void)
 enum subdevice_runflags {
 	SRF_USER = 0x00000001,
 	SRF_RT = 0x00000002,
-	/* indicates an COMEDI_CB_ERROR event has occurred since the last command was started */
+	/* indicates an COMEDI_CB_ERROR event has occurred since the last
+	 * command was started */
 	SRF_ERROR = 0x00000004,
 	SRF_RUNNING = 0x08000000
 };
@@ -376,22 +386,22 @@ enum subdevice_runflags {
    various internal comedi functions
  */
 
-int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo * arg);
-int check_chanlist(comedi_subdevice * s, int n, unsigned int *chanlist);
-void comedi_set_subdevice_runflags(comedi_subdevice * s, unsigned mask,
+int do_rangeinfo_ioctl(comedi_device *dev, comedi_rangeinfo *arg);
+int check_chanlist(comedi_subdevice *s, int n, unsigned int *chanlist);
+void comedi_set_subdevice_runflags(comedi_subdevice *s, unsigned mask,
 	unsigned bits);
-unsigned comedi_get_subdevice_runflags(comedi_subdevice * s);
-int insn_inval(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+unsigned comedi_get_subdevice_runflags(comedi_subdevice *s);
+int insn_inval(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
 
 /* range stuff */
 
-#define RANGE(a,b)		{(a)*1e6,(b)*1e6,0}
-#define RANGE_ext(a,b)		{(a)*1e6,(b)*1e6,RF_EXTERNAL}
-#define RANGE_mA(a,b)		{(a)*1e6,(b)*1e6,UNIT_mA}
-#define RANGE_unitless(a,b)	{(a)*1e6,(b)*1e6,0}	/* XXX */
-#define BIP_RANGE(a)		{-(a)*1e6,(a)*1e6,0}
-#define UNI_RANGE(a)		{0,(a)*1e6,0}
+#define RANGE(a, b)		{(a)*1e6, (b)*1e6, 0}
+#define RANGE_ext(a, b)		{(a)*1e6, (b)*1e6, RF_EXTERNAL}
+#define RANGE_mA(a, b)		{(a)*1e6, (b)*1e6, UNIT_mA}
+#define RANGE_unitless(a, b)	{(a)*1e6, (b)*1e6, 0}	/* XXX */
+#define BIP_RANGE(a)		{-(a)*1e6, (a)*1e6, 0}
+#define UNI_RANGE(a)		{0, (a)*1e6, 0}
 
 extern const comedi_lrange range_bipolar10;
 extern const comedi_lrange range_bipolar5;
@@ -415,8 +425,8 @@ struct comedi_lrange_struct {
 
 /* some silly little inline functions */
 
-static inline int alloc_subdevices(comedi_device * dev,
-	unsigned int num_subdevices)
+static inline int alloc_subdevices(comedi_device *dev,
+				   unsigned int num_subdevices)
 {
 	unsigned i;
 
@@ -434,7 +444,7 @@ static inline int alloc_subdevices(comedi_device * dev,
 	return 0;
 }
 
-static inline int alloc_private(comedi_device * dev, int size)
+static inline int alloc_private(comedi_device *dev, int size)
 {
 	dev->private = kzalloc(size, GFP_KERNEL);
 	if (!dev->private)
@@ -442,7 +452,7 @@ static inline int alloc_private(comedi_device * dev, int size)
 	return 0;
 }
 
-static inline unsigned int bytes_per_sample(const comedi_subdevice * subd)
+static inline unsigned int bytes_per_sample(const comedi_subdevice *subd)
 {
 	if (subd->subdev_flags & SDF_LSAMPL)
 		return sizeof(lsampl_t);
@@ -452,11 +462,11 @@ static inline unsigned int bytes_per_sample(const comedi_subdevice * subd)
 
 /* must be used in attach to set dev->hw_dev if you wish to dma directly
 into comedi's buffer */
-static inline void comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev)
+static inline void comedi_set_hw_dev(comedi_device *dev, struct device *hw_dev)
 {
-	if (dev->hw_dev) {
+	if (dev->hw_dev)
 		put_device(dev->hw_dev);
-	}
+
 	dev->hw_dev = hw_dev;
 	if (dev->hw_dev) {
 		dev->hw_dev = get_device(dev->hw_dev);
@@ -464,31 +474,31 @@ static inline void comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev)
 	}
 }
 
-int comedi_buf_put(comedi_async * async, sampl_t x);
-int comedi_buf_get(comedi_async * async, sampl_t * x);
+int comedi_buf_put(comedi_async *async, sampl_t x);
+int comedi_buf_get(comedi_async *async, sampl_t *x);
 
-unsigned int comedi_buf_write_n_available(comedi_async * async);
-unsigned int comedi_buf_write_alloc(comedi_async * async, unsigned int nbytes);
-unsigned int comedi_buf_write_alloc_strict(comedi_async * async,
+unsigned int comedi_buf_write_n_available(comedi_async *async);
+unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes);
+unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
 	unsigned int nbytes);
-unsigned comedi_buf_write_free(comedi_async * async, unsigned int nbytes);
-unsigned comedi_buf_read_alloc(comedi_async * async, unsigned nbytes);
-unsigned comedi_buf_read_free(comedi_async * async, unsigned int nbytes);
-unsigned int comedi_buf_read_n_available(comedi_async * async);
-void comedi_buf_memcpy_to(comedi_async * async, unsigned int offset,
+unsigned comedi_buf_write_free(comedi_async *async, unsigned int nbytes);
+unsigned comedi_buf_read_alloc(comedi_async *async, unsigned nbytes);
+unsigned comedi_buf_read_free(comedi_async *async, unsigned int nbytes);
+unsigned int comedi_buf_read_n_available(comedi_async *async);
+void comedi_buf_memcpy_to(comedi_async *async, unsigned int offset,
 	const void *source, unsigned int num_bytes);
-void comedi_buf_memcpy_from(comedi_async * async, unsigned int offset,
+void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
 	void *destination, unsigned int num_bytes);
-static inline unsigned comedi_buf_write_n_allocated(comedi_async * async)
+static inline unsigned comedi_buf_write_n_allocated(comedi_async *async)
 {
 	return async->buf_write_alloc_count - async->buf_write_count;
 }
-static inline unsigned comedi_buf_read_n_allocated(comedi_async * async)
+static inline unsigned comedi_buf_read_n_allocated(comedi_async *async)
 {
 	return async->buf_read_alloc_count - async->buf_read_count;
 }
 
-void comedi_reset_async_buf(comedi_async * async);
+void comedi_reset_async_buf(comedi_async *async);
 
 static inline void *comedi_aux_data(int options[], int n)
 {
@@ -522,8 +532,6 @@ void comedi_free_subdevice_minor(comedi_subdevice *s);
 int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 
-//#ifdef CONFIG_COMEDI_RT
 #include "comedi_rt.h"
-//#endif
 
 #endif /* _COMEDIDEV_H */

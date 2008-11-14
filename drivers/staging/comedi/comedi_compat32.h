@@ -36,8 +36,8 @@
 
 extern long comedi_compat_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg);
-#define comedi_register_ioctl32() do{}while(0)
-#define comedi_unregister_ioctl32() do{}while(0)
+#define comedi_register_ioctl32() do {} while (0)
+#define comedi_unregister_ioctl32() do {} while (0)
 
 #else /* HAVE_COMPAT_IOCTL */
 
@@ -50,8 +50,8 @@ extern void comedi_unregister_ioctl32(void);
 #else /* CONFIG_COMPAT */
 
 #define comedi_compat_ioctl 0	/* NULL */
-#define comedi_register_ioctl32() do{}while(0)
-#define comedi_unregister_ioctl32() do{}while(0)
+#define comedi_register_ioctl32() do {} while (0)
+#define comedi_unregister_ioctl32() do {} while (0)
 
 #endif /* CONFIG_COMPAT */
 

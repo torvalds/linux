@@ -19,13 +19,7 @@
 #ifndef __COMPAT_LINUX_WRAPPER_H_
 #define __COMPAT_LINUX_WRAPPER_H_
 
-#include <linux/version.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #define mem_map_reserve(p)      set_bit(PG_reserved, &((p)->flags))
 #define mem_map_unreserve(p)    clear_bit(PG_reserved, &((p)->flags))
-#else
-#include_next <linux/wrapper.h>
-#endif
 
 #endif /* __COMPAT_LINUX_WRAPPER_H_ */
