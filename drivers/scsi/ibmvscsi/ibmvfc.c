@@ -2721,7 +2721,7 @@ static irqreturn_t ibmvfc_interrupt(int irq, void *dev_instance)
 		} else if ((async = ibmvfc_next_async_crq(vhost)) != NULL) {
 			vio_disable_interrupts(vdev);
 			ibmvfc_handle_async(async, vhost);
-			crq->valid = 0;
+			async->valid = 0;
 		} else
 			done = 1;
 	}
