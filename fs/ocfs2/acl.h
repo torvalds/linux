@@ -26,4 +26,14 @@ struct ocfs2_acl_entry {
 	__le32 e_id;
 };
 
+#ifdef CONFIG_OCFS2_FS_POSIX_ACL
+
+extern int ocfs2_check_acl(struct inode *, int);
+
+#else /* CONFIG_OCFS2_FS_POSIX_ACL*/
+
+#define ocfs2_check_acl NULL
+
+#endif /* CONFIG_OCFS2_FS_POSIX_ACL*/
+
 #endif /* OCFS2_ACL_H */
