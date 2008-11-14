@@ -62,7 +62,7 @@ struct atm_qdisc_data {
 	struct atm_flow_data	link;		/* unclassified skbs go here */
 	struct atm_flow_data	*flows;		/* NB: "link" is also on this
 						   list */
-	struct tasklet_struct	task;		/* requeue tasklet */
+	struct tasklet_struct	task;		/* dequeue tasklet */
 };
 
 /* ------------------------- Class/flow operations ------------------------- */
@@ -534,23 +534,6 @@ static struct sk_buff *atm_tc_peek(struct Qdisc *sch)
 	return p->link.q->ops->peek(p->link.q);
 }
 
-static int atm_tc_requeue(struct sk_buff *skb, struct Qdisc *sch)
-{
-	struct atm_qdisc_data *p = qdisc_priv(sch);
-	int ret;
-
-	pr_debug("atm_tc_requeue(skb %p,sch %p,[qdisc %p])\n", skb, sch, p);
-	ret = p->link.q->ops->requeue(skb, p->link.q);
-	if (!ret) {
-		sch->q.qlen++;
-		sch->qstats.requeues++;
-	} else if (net_xmit_drop_count(ret)) {
-		sch->qstats.drops++;
-		p->link.qstats.drops++;
-	}
-	return ret;
-}
-
 static unsigned int atm_tc_drop(struct Qdisc *sch)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
@@ -707,7 +690,6 @@ static struct Qdisc_ops atm_qdisc_ops __read_mostly = {
 	.enqueue	= atm_tc_enqueue,
 	.dequeue	= atm_tc_dequeue,
 	.peek		= atm_tc_peek,
-	.requeue	= atm_tc_requeue,
 	.drop		= atm_tc_drop,
 	.init		= atm_tc_init,
 	.reset		= atm_tc_reset,
