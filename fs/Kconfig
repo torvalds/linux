@@ -268,6 +268,15 @@ config OCFS2_COMPAT_JBD
 	  is backwards compatible with JBD.  It is safe to say N here.
 	  However, if you really want to use the original JBD, say Y here.
 
+config OCFS2_FS_POSIX_ACL
+	bool "OCFS2 POSIX Access Control Lists"
+	depends on OCFS2_FS
+	select FS_POSIX_ACL
+	default n
+	help
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
 endif # BLOCK
 
 source "fs/notify/Kconfig"
