@@ -40,14 +40,14 @@ struct tracepoint {
 	do {								\
 		void **it_func;						\
 									\
-		rcu_read_lock_sched();					\
+		rcu_read_lock_sched_notrace();				\
 		it_func = rcu_dereference((tp)->funcs);			\
 		if (it_func) {						\
 			do {						\
 				((void(*)(proto))(*it_func))(args);	\
 			} while (*(++it_func));				\
 		}							\
-		rcu_read_unlock_sched();				\
+		rcu_read_unlock_sched_notrace();			\
 	} while (0)
 
 /*
