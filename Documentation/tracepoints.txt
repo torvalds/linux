@@ -42,13 +42,15 @@ In include/trace/subsys.h :
 
 #include <linux/tracepoint.h>
 
-DEFINE_TRACE(subsys_eventname,
+DECLARE_TRACE(subsys_eventname,
 	TPPTOTO(int firstarg, struct task_struct *p),
 	TPARGS(firstarg, p));
 
 In subsys/file.c (where the tracing statement must be added) :
 
 #include <trace/subsys.h>
+
+DEFINE_TRACE(subsys_eventname);
 
 void somefct(void)
 {
@@ -86,6 +88,9 @@ to limit collisions. Tracepoint names are global to the kernel: they are
 considered as being the same whether they are in the core kernel image or in
 modules.
 
+If the tracepoint has to be used in kernel modules, an
+EXPORT_TRACEPOINT_SYMBOL_GPL() or EXPORT_TRACEPOINT_SYMBOL() can be used to
+export the defined tracepoints.
 
 * Probe / tracepoint example
 

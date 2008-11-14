@@ -24,8 +24,12 @@ struct tracepoint {
 	const char *name;		/* Tracepoint name */
 	int state;			/* State. */
 	void **funcs;
-} __attribute__((aligned(8)));
-
+} __attribute__((aligned(32)));		/*
+					 * Aligned on 32 bytes because it is
+					 * globally visible and gcc happily
+					 * align these on the structure size.
+					 * Keep in sync with vmlinux.lds.h.
+					 */
 
 #define TPPROTO(args...)	args
 #define TPARGS(args...)		args
@@ -55,15 +59,10 @@ struct tracepoint {
  * not add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
  */
-#define DEFINE_TRACE(name, proto, args)					\
+#define DECLARE_TRACE(name, proto, args)				\
+	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
-		static const char __tpstrtab_##name[]			\
-		__attribute__((section("__tracepoints_strings")))	\
-		= #name;						\
-		static struct tracepoint __tracepoint_##name		\
-		__attribute__((section("__tracepoints"), aligned(8))) =	\
-		{ __tpstrtab_##name, 0, NULL };				\
 		if (unlikely(__tracepoint_##name.state))		\
 			__DO_TRACE(&__tracepoint_##name,		\
 				TPPROTO(proto), TPARGS(args));		\
@@ -77,11 +76,23 @@ struct tracepoint {
 		return tracepoint_probe_unregister(#name, (void *)probe);\
 	}
 
+#define DEFINE_TRACE(name)						\
+	static const char __tpstrtab_##name[]				\
+	__attribute__((section("__tracepoints_strings"))) = #name;	\
+	struct tracepoint __tracepoint_##name				\
+	__attribute__((section("__tracepoints"), aligned(32))) =	\
+		{ __tpstrtab_##name, 0, NULL }
+
+#define EXPORT_TRACEPOINT_SYMBOL_GPL(name)				\
+	EXPORT_SYMBOL_GPL(__tracepoint_##name)
+#define EXPORT_TRACEPOINT_SYMBOL(name)					\
+	EXPORT_SYMBOL(__tracepoint_##name)
+
 extern void tracepoint_update_probe_range(struct tracepoint *begin,
 	struct tracepoint *end);
 
 #else /* !CONFIG_TRACEPOINTS */
-#define DEFINE_TRACE(name, proto, args)			\
+#define DECLARE_TRACE(name, proto, args)				\
 	static inline void _do_trace_##name(struct tracepoint *tp, proto) \
 	{ }								\
 	static inline void trace_##name(proto)				\
@@ -94,6 +105,10 @@ extern void tracepoint_update_probe_range(struct tracepoint *begin,
 	{								\
 		return -ENOSYS;						\
 	}
+
+#define DEFINE_TRACE(name)
+#define EXPORT_TRACEPOINT_SYMBOL_GPL(name)
+#define EXPORT_TRACEPOINT_SYMBOL(name)
 
 static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	struct tracepoint *end)
