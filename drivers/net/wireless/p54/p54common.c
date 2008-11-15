@@ -1058,6 +1058,7 @@ static int p54_tx_fill(struct ieee80211_hw *dev, struct sk_buff *skb,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
 		if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 			*aid = 0;
 			*queue = 3;
@@ -1570,6 +1571,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
 		priv->mode = conf->type;
 		break;
 	default:
@@ -1589,6 +1591,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 		p54_setup_mac(dev, P54_FILTER_TYPE_AP, priv->mac_addr);
 		break;
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
 		p54_setup_mac(dev, P54_FILTER_TYPE_IBSS, NULL);
 		break;
 	default:
@@ -1653,6 +1656,7 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
 		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 		ret = p54_set_freq(dev, dev->conf.channel->center_freq);
 		if (ret)
@@ -1826,9 +1830,10 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_NOISE_DBM;
 
-	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION |
-					  NL80211_IFTYPE_ADHOC |
-					  NL80211_IFTYPE_AP);
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				      BIT(NL80211_IFTYPE_ADHOC) |
+				      BIT(NL80211_IFTYPE_AP) |
+				      BIT(NL80211_IFTYPE_MESH_POINT);
 
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
 	priv->tx_stats[0].limit = 1;		/* Beacon queue */
