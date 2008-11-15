@@ -289,18 +289,18 @@
 #define CPU_SCIx_FNS(name, sci_offset, sci_size, scif_offset, scif_size)\
   static inline unsigned int sci_##name##_in(struct uart_port *port)	\
   {									\
-    if (port->type == PORT_SCI) {					\
-      SCI_IN(sci_size, sci_offset)					\
-    } else {								\
-      SCI_IN(scif_size, scif_offset);					\
+    if (port->type == PORT_SCIF) {					\
+      SCI_IN(scif_size, scif_offset)					\
+    } else {	/* PORT_SCI or PORT_SCIFA */				\
+      SCI_IN(sci_size, sci_offset);					\
     }									\
   }									\
   static inline void sci_##name##_out(struct uart_port *port, unsigned int value) \
   {									\
-    if (port->type == PORT_SCI) {					\
-      SCI_OUT(sci_size, sci_offset, value)				\
-    } else {								\
-      SCI_OUT(scif_size, scif_offset, value);				\
+    if (port->type == PORT_SCIF) {					\
+      SCI_OUT(scif_size, scif_offset, value)				\
+    } else {	/* PORT_SCI or PORT_SCIFA */				\
+      SCI_OUT(sci_size, sci_offset, value);				\
     }									\
   }
 
