@@ -34,6 +34,11 @@ struct mod_arch_specific {
 #ifdef __powerpc64__
 	unsigned int stubs_section;	/* Index of stubs section in module */
 	unsigned int toc_section;	/* What section is the TOC? */
+#ifdef CONFIG_DYNAMIC_FTRACE
+	unsigned long toc;
+	unsigned long tramp;
+#endif
+
 #else
 	/* Indices of PLT sections within module. */
 	unsigned int core_plt_section;
@@ -65,6 +70,12 @@ struct mod_arch_specific {
 #    ifdef MODULE
 	asm(".section .plt,\"ax\",@nobits; .align 3; .previous");
 	asm(".section .init.plt,\"ax\",@nobits; .align 3; .previous");
+#    endif	/* MODULE */
+#endif
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+#    ifdef MODULE
+	asm(".section .ftrace.tramp,\"ax\",@nobits; .align 3; .previous");
 #    endif	/* MODULE */
 #endif
 

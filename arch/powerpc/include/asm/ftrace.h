@@ -16,7 +16,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 }
 
 struct dyn_arch_ftrace {
-	/* nothing yet */
+	struct module *mod;
 };
 #endif /*  CONFIG_DYNAMIC_FTRACE */
 #endif /* __ASSEMBLY__ */
