@@ -124,7 +124,7 @@ static int
 cifs_reconnect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
-	struct list_head *tmp;
+	struct list_head *tmp, *tmp2;
 	struct cifsSesInfo *ses;
 	struct cifsTconInfo *tcon;
 	struct mid_q_entry *mid_entry;
@@ -149,13 +149,12 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
 		ses->need_reconnect = true;
 		ses->ipc_tid = 0;
+		list_for_each(tmp2, &ses->tcon_list) {
+			tcon = list_entry(tmp2, struct cifsTconInfo, tcon_list);
+			tcon->need_reconnect = true;
+		}
 	}
 	read_unlock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &GlobalTreeConnectionList) {
-		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		if ((tcon->ses) && (tcon->ses->server == server))
-			tcon->need_reconnect = true;
-	}
 	/* do not want to be sending data on a socket we are freeing */
 	down(&server->tcpSem);
 	if (server->ssocket) {
@@ -1462,6 +1461,52 @@ cifs_put_smb_ses(struct cifsSesInfo *ses)
 	cifs_put_tcp_session(server);
 }
 
+static struct cifsTconInfo *
+cifs_find_tcon(struct cifsSesInfo *ses, const char *unc)
+{
+	struct list_head *tmp;
+	struct cifsTconInfo *tcon;
+
+	write_lock(&cifs_tcp_ses_lock);
+	list_for_each(tmp, &ses->tcon_list) {
+		tcon = list_entry(tmp, struct cifsTconInfo, tcon_list);
+		if (tcon->tidStatus == CifsExiting)
+			continue;
+		if (strncmp(tcon->treeName, unc, MAX_TREE_SIZE))
+			continue;
+
+		++tcon->tc_count;
+		write_unlock(&cifs_tcp_ses_lock);
+		return tcon;
+	}
+	write_unlock(&cifs_tcp_ses_lock);
+	return NULL;
+}
+
+static void
+cifs_put_tcon(struct cifsTconInfo *tcon)
+{
+	int xid;
+	struct cifsSesInfo *ses = tcon->ses;
+
+	write_lock(&cifs_tcp_ses_lock);
+	if (--tcon->tc_count > 0) {
+		write_unlock(&cifs_tcp_ses_lock);
+		return;
+	}
+
+	list_del_init(&tcon->tcon_list);
+	write_unlock(&cifs_tcp_ses_lock);
+
+	xid = GetXid();
+	CIFSSMBTDis(xid, tcon);
+	_FreeXid(xid);
+
+	DeleteTconOplockQEntries(tcon);
+	tconInfoFree(tcon);
+	cifs_put_smb_ses(ses);
+}
+
 int
 get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
 	     const struct nls_table *nls_codepage, unsigned int *pnum_referrals,
@@ -2220,11 +2265,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	if (!rc) {
 		setup_cifs_sb(&volume_info, cifs_sb);
 
+		tcon = cifs_find_tcon(pSesInfo, volume_info.UNC);
 		if (tcon) {
 			cFYI(1, ("Found match on UNC path"));
-			if (tcon->seal != volume_info.seal)
-				cERROR(1, ("transport encryption setting "
-					   "conflicts with existing tid"));
+			/* existing tcon already has a reference */
+			cifs_put_smb_ses(pSesInfo);
 		} else {
 			tcon = tconInfoAlloc();
 			if (tcon == NULL) {
@@ -2257,6 +2302,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			if (rc)
 				goto mount_fail_check;
 			tcon->seal = volume_info.seal;
+			tcon->ses = pSesInfo;
+			write_lock(&cifs_tcp_ses_lock);
+			list_add(&tcon->tcon_list, &pSesInfo->tcon_list);
+			write_unlock(&cifs_tcp_ses_lock);
 		}
 
 		/* we can have only one retry value for a connection
@@ -2283,18 +2332,14 @@ mount_fail_check:
 		/* If find_unc succeeded then rc == 0 so we can not end */
 		/* up accidently freeing someone elses tcon struct */
 		if (tcon)
-			tconInfoFree(tcon);
-
-		/* should also end up putting our tcp session ref if needed */
-		if (pSesInfo)
+			cifs_put_tcon(tcon);
+		else if (pSesInfo)
 			cifs_put_smb_ses(pSesInfo);
 		else
 			cifs_put_tcp_session(srvTcp);
 		goto out;
 	}
-	atomic_inc(&tcon->useCount);
 	cifs_sb->tcon = tcon;
-	tcon->ses = pSesInfo;
 
 	/* do not care if following two calls succeed - informational */
 	if (!tcon->ipc) {
@@ -3565,23 +3610,10 @@ int
 cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 {
 	int rc = 0;
-	int xid;
-	struct cifsSesInfo *ses = NULL;
 	char *tmp;
 
-	xid = GetXid();
-
-	if (cifs_sb->tcon) {
-		ses = cifs_sb->tcon->ses; /* save ptr to ses before delete tcon!*/
-		rc = CIFSSMBTDis(xid, cifs_sb->tcon);
-		if (rc == -EBUSY) {
-			FreeXid(xid);
-			return 0;
-		}
-		DeleteTconOplockQEntries(cifs_sb->tcon);
-		tconInfoFree(cifs_sb->tcon);
-		cifs_put_smb_ses(ses);
-	}
+	if (cifs_sb->tcon)
+		cifs_put_tcon(cifs_sb->tcon);
 
 	cifs_sb->tcon = NULL;
 	tmp = cifs_sb->prepath;
@@ -3589,7 +3621,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	cifs_sb->prepath = NULL;
 	kfree(tmp);
 
-	FreeXid(xid);
 	return rc;
 }
 

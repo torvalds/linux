@@ -107,12 +107,13 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 #ifdef CONFIG_PROC_FS
 static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 {
-	struct list_head *tmp, *tmp2, *tmp3;
+	struct list_head *tmp1, *tmp2, *tmp3;
 	struct mid_q_entry *mid_entry;
 	struct TCP_Server_Info *server;
 	struct cifsSesInfo *ses;
 	struct cifsTconInfo *tcon;
-	int i;
+	int i, j;
+	__u32 dev_type;
 
 	seq_puts(m,
 		    "Display Internal CIFS Data Structures for Debugging\n"
@@ -123,8 +124,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 
 	i = 0;
 	read_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &cifs_tcp_ses_list) {
-		server = list_entry(tmp, struct TCP_Server_Info,
+	list_for_each(tmp1, &cifs_tcp_ses_list) {
+		server = list_entry(tmp1, struct TCP_Server_Info,
 				    tcp_ses_list);
 		i++;
 		list_for_each(tmp2, &server->smb_ses_list) {
@@ -133,12 +134,12 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			if ((ses->serverDomain == NULL) ||
 				(ses->serverOS == NULL) ||
 				(ses->serverNOS == NULL)) {
-				seq_printf(m, "\nentry for %s not fully "
-					   "displayed\n\t", ses->serverName);
+				seq_printf(m, "\n%d) entry for %s not fully "
+					   "displayed\n\t", i, ses->serverName);
 			} else {
 				seq_printf(m,
-				    "\n%d) Name: %s  Domain: %s Mounts: %d OS:"
-				    " %s  \n\tNOS: %s\tCapability: 0x%x\n\tSMB"
+				    "\n%d) Name: %s  Domain: %s Uses: %d OS:"
+				    " %s\n\tNOS: %s\tCapability: 0x%x\n\tSMB"
 				    " session status: %d\t",
 				i, ses->serverName, ses->serverDomain,
 				ses->ses_count, ses->serverOS, ses->serverNOS,
@@ -156,14 +157,44 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 				atomic_read(&server->num_waiters));
 #endif
 
-			seq_puts(m, "\nMIDs:\n");
+			seq_puts(m, "\n\tShares:");
+			j = 0;
+			list_for_each(tmp3, &ses->tcon_list) {
+				tcon = list_entry(tmp3, struct cifsTconInfo,
+						  tcon_list);
+				++j;
+				dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
+				seq_printf(m, "\n\t%d) %s Mounts: %d ", j,
+					   tcon->treeName, tcon->tc_count);
+				if (tcon->nativeFileSystem) {
+					seq_printf(m, "Type: %s ",
+						   tcon->nativeFileSystem);
+				}
+				seq_printf(m, "DevInfo: 0x%x Attributes: 0x%x"
+					"\nPathComponentMax: %d Status: 0x%d",
+					le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics),
+					le32_to_cpu(tcon->fsAttrInfo.Attributes),
+					le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
+					tcon->tidStatus);
+				if (dev_type == FILE_DEVICE_DISK)
+					seq_puts(m, " type: DISK ");
+				else if (dev_type == FILE_DEVICE_CD_ROM)
+					seq_puts(m, " type: CDROM ");
+				else
+					seq_printf(m, " type: %d ", dev_type);
+
+				if (tcon->need_reconnect)
+					seq_puts(m, "\tDISCONNECTED ");
+				seq_putc(m, '\n');
+			}
+
+			seq_puts(m, "\n\tMIDs:\n");
 
 			spin_lock(&GlobalMid_Lock);
 			list_for_each(tmp3, &server->pending_mid_q) {
-				mid_entry = list_entry(tmp3, struct
-					mid_q_entry,
+				mid_entry = list_entry(tmp3, struct mid_q_entry,
 					qhead);
-				seq_printf(m, "State: %d com: %d pid:"
+				seq_printf(m, "\tState: %d com: %d pid:"
 						" %d tsk: %p mid %d\n",
 						mid_entry->midState,
 						(int)mid_entry->command,
@@ -175,41 +206,6 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		}
 	}
 	read_unlock(&cifs_tcp_ses_lock);
-	seq_putc(m, '\n');
-
-	seq_puts(m, "Shares:");
-
-	i = 0;
-	read_lock(&GlobalSMBSeslock);
-	list_for_each(tmp, &GlobalTreeConnectionList) {
-		__u32 dev_type;
-		i++;
-		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
-		seq_printf(m, "\n%d) %s Uses: %d ", i,
-				 tcon->treeName, atomic_read(&tcon->useCount));
-		if (tcon->nativeFileSystem) {
-			seq_printf(m, "Type: %s ",
-					 tcon->nativeFileSystem);
-		}
-		seq_printf(m, "DevInfo: 0x%x Attributes: 0x%x"
-				 "\nPathComponentMax: %d Status: %d",
-			    le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics),
-			    le32_to_cpu(tcon->fsAttrInfo.Attributes),
-			    le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
-			    tcon->tidStatus);
-		if (dev_type == FILE_DEVICE_DISK)
-			seq_puts(m, " type: DISK ");
-		else if (dev_type == FILE_DEVICE_CD_ROM)
-			seq_puts(m, " type: CDROM ");
-		else
-			seq_printf(m, " type: %d ", dev_type);
-
-		if (tcon->need_reconnect)
-			seq_puts(m, "\tDISCONNECTED ");
-	}
-	read_unlock(&GlobalSMBSeslock);
-
 	seq_putc(m, '\n');
 
 	/* BB add code to dump additional info such as TCP session info now */
@@ -235,7 +231,9 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 {
 	char c;
 	int rc;
-	struct list_head *tmp;
+	struct list_head *tmp1, *tmp2, *tmp3;
+	struct TCP_Server_Info *server;
+	struct cifsSesInfo *ses;
 	struct cifsTconInfo *tcon;
 
 	rc = get_user(c, buffer);
@@ -243,33 +241,42 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 		return rc;
 
 	if (c == '1' || c == 'y' || c == 'Y' || c == '0') {
-		read_lock(&GlobalSMBSeslock);
 #ifdef CONFIG_CIFS_STATS2
 		atomic_set(&totBufAllocCount, 0);
 		atomic_set(&totSmBufAllocCount, 0);
 #endif /* CONFIG_CIFS_STATS2 */
-		list_for_each(tmp, &GlobalTreeConnectionList) {
-			tcon = list_entry(tmp, struct cifsTconInfo,
-					cifsConnectionList);
-			atomic_set(&tcon->num_smbs_sent, 0);
-			atomic_set(&tcon->num_writes, 0);
-			atomic_set(&tcon->num_reads, 0);
-			atomic_set(&tcon->num_oplock_brks, 0);
-			atomic_set(&tcon->num_opens, 0);
-			atomic_set(&tcon->num_closes, 0);
-			atomic_set(&tcon->num_deletes, 0);
-			atomic_set(&tcon->num_mkdirs, 0);
-			atomic_set(&tcon->num_rmdirs, 0);
-			atomic_set(&tcon->num_renames, 0);
-			atomic_set(&tcon->num_t2renames, 0);
-			atomic_set(&tcon->num_ffirst, 0);
-			atomic_set(&tcon->num_fnext, 0);
-			atomic_set(&tcon->num_fclose, 0);
-			atomic_set(&tcon->num_hardlinks, 0);
-			atomic_set(&tcon->num_symlinks, 0);
-			atomic_set(&tcon->num_locks, 0);
+		read_lock(&cifs_tcp_ses_lock);
+		list_for_each(tmp1, &cifs_tcp_ses_list) {
+			server = list_entry(tmp1, struct TCP_Server_Info,
+					    tcp_ses_list);
+			list_for_each(tmp2, &server->smb_session_list) {
+				ses = list_entry(tmp2, struct cifsSesInfo,
+						 smb_session_list);
+				list_for_each(tmp3, &ses->tcon_list) {
+					tcon = list_entry(tmp3,
+							  struct cifsTconInfo,
+							  tcon_list);
+					atomic_set(&tcon->num_smbs_sent, 0);
+					atomic_set(&tcon->num_writes, 0);
+					atomic_set(&tcon->num_reads, 0);
+					atomic_set(&tcon->num_oplock_brks, 0);
+					atomic_set(&tcon->num_opens, 0);
+					atomic_set(&tcon->num_closes, 0);
+					atomic_set(&tcon->num_deletes, 0);
+					atomic_set(&tcon->num_mkdirs, 0);
+					atomic_set(&tcon->num_rmdirs, 0);
+					atomic_set(&tcon->num_renames, 0);
+					atomic_set(&tcon->num_t2renames, 0);
+					atomic_set(&tcon->num_ffirst, 0);
+					atomic_set(&tcon->num_fnext, 0);
+					atomic_set(&tcon->num_fclose, 0);
+					atomic_set(&tcon->num_hardlinks, 0);
+					atomic_set(&tcon->num_symlinks, 0);
+					atomic_set(&tcon->num_locks, 0);
+				}
+			}
 		}
-		read_unlock(&GlobalSMBSeslock);
+		read_unlock(&cifs_tcp_ses_lock);
 	}
 
 	return count;
@@ -278,7 +285,9 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 static int cifs_stats_proc_show(struct seq_file *m, void *v)
 {
 	int i;
-	struct list_head *tmp;
+	struct list_head *tmp1, *tmp2, *tmp3;
+	struct TCP_Server_Info *server;
+	struct cifsSesInfo *ses;
 	struct cifsTconInfo *tcon;
 
 	seq_printf(m,
@@ -307,44 +316,55 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 		GlobalCurrentXid, GlobalMaxActiveXid);
 
 	i = 0;
-	read_lock(&GlobalSMBSeslock);
-	list_for_each(tmp, &GlobalTreeConnectionList) {
-		i++;
-		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		seq_printf(m, "\n%d) %s", i, tcon->treeName);
-		if (tcon->need_reconnect)
-			seq_puts(m, "\tDISCONNECTED ");
-		seq_printf(m, "\nSMBs: %d Oplock Breaks: %d",
-			atomic_read(&tcon->num_smbs_sent),
-			atomic_read(&tcon->num_oplock_brks));
-		seq_printf(m, "\nReads:  %d Bytes: %lld",
-			atomic_read(&tcon->num_reads),
-			(long long)(tcon->bytes_read));
-		seq_printf(m, "\nWrites: %d Bytes: %lld",
-			atomic_read(&tcon->num_writes),
-			(long long)(tcon->bytes_written));
-		seq_printf(m,
-			"\nLocks: %d HardLinks: %d Symlinks: %d",
-			atomic_read(&tcon->num_locks),
-			atomic_read(&tcon->num_hardlinks),
-			atomic_read(&tcon->num_symlinks));
-
-		seq_printf(m, "\nOpens: %d Closes: %d Deletes: %d",
-			atomic_read(&tcon->num_opens),
-			atomic_read(&tcon->num_closes),
-			atomic_read(&tcon->num_deletes));
-		seq_printf(m, "\nMkdirs: %d Rmdirs: %d",
-			atomic_read(&tcon->num_mkdirs),
-			atomic_read(&tcon->num_rmdirs));
-		seq_printf(m, "\nRenames: %d T2 Renames %d",
-			atomic_read(&tcon->num_renames),
-			atomic_read(&tcon->num_t2renames));
-		seq_printf(m, "\nFindFirst: %d FNext %d FClose %d",
-			atomic_read(&tcon->num_ffirst),
-			atomic_read(&tcon->num_fnext),
-			atomic_read(&tcon->num_fclose));
+	read_lock(&cifs_tcp_ses_lock);
+	list_for_each(tmp1, &cifs_tcp_ses_list) {
+		server = list_entry(tmp1, struct TCP_Server_Info,
+				    tcp_ses_list);
+		list_for_each(tmp2, &server->smb_ses_list) {
+			ses = list_entry(tmp2, struct cifsSesInfo,
+					 smb_ses_list);
+			list_for_each(tmp3, &ses->tcon_list) {
+				tcon = list_entry(tmp3,
+						  struct cifsTconInfo,
+						  tcon_list);
+				i++;
+				seq_printf(m, "\n%d) %s", i, tcon->treeName);
+				if (tcon->need_reconnect)
+					seq_puts(m, "\tDISCONNECTED ");
+				seq_printf(m, "\nSMBs: %d Oplock Breaks: %d",
+					atomic_read(&tcon->num_smbs_sent),
+					atomic_read(&tcon->num_oplock_brks));
+				seq_printf(m, "\nReads:  %d Bytes: %lld",
+					atomic_read(&tcon->num_reads),
+					(long long)(tcon->bytes_read));
+				seq_printf(m, "\nWrites: %d Bytes: %lld",
+					atomic_read(&tcon->num_writes),
+					(long long)(tcon->bytes_written));
+				seq_printf(m, "\nLocks: %d HardLinks: %d "
+					      "Symlinks: %d",
+					atomic_read(&tcon->num_locks),
+					atomic_read(&tcon->num_hardlinks),
+					atomic_read(&tcon->num_symlinks));
+				seq_printf(m, "\nOpens: %d Closes: %d"
+					      "Deletes: %d",
+					atomic_read(&tcon->num_opens),
+					atomic_read(&tcon->num_closes),
+					atomic_read(&tcon->num_deletes));
+				seq_printf(m, "\nMkdirs: %d Rmdirs: %d",
+					atomic_read(&tcon->num_mkdirs),
+					atomic_read(&tcon->num_rmdirs));
+				seq_printf(m, "\nRenames: %d T2 Renames %d",
+					atomic_read(&tcon->num_renames),
+					atomic_read(&tcon->num_t2renames));
+				seq_printf(m, "\nFindFirst: %d FNext %d "
+					      "FClose %d",
+					atomic_read(&tcon->num_ffirst),
+					atomic_read(&tcon->num_fnext),
+					atomic_read(&tcon->num_fclose));
+			}
+		}
 	}
-	read_unlock(&GlobalSMBSeslock);
+	read_unlock(&cifs_tcp_ses_lock);
 
 	seq_putc(m, '\n');
 	return 0;

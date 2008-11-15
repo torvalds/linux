@@ -514,10 +514,11 @@ static void cifs_umount_begin(struct super_block *sb)
 	tcon = cifs_sb->tcon;
 	if (tcon == NULL)
 		return;
-	down(&tcon->tconSem);
-	if (atomic_read(&tcon->useCount) == 1)
+
+	read_lock(&cifs_tcp_ses_lock);
+	if (tcon->tc_count == 1)
 		tcon->tidStatus = CifsExiting;
-	up(&tcon->tconSem);
+	read_unlock(&cifs_tcp_ses_lock);
 
 	/* cancel_brl_requests(tcon); */ /* BB mark all brl mids as exiting */
 	/* cancel_notify_requests(tcon); */
@@ -1060,7 +1061,6 @@ init_cifs(void)
 	int rc = 0;
 	cifs_proc_init();
 	INIT_LIST_HEAD(&cifs_tcp_ses_list);
-	INIT_LIST_HEAD(&GlobalTreeConnectionList); /* BB to be removed by jl */
 	INIT_LIST_HEAD(&GlobalOplock_Q);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	INIT_LIST_HEAD(&GlobalDnotifyReqList);

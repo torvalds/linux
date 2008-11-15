@@ -233,16 +233,15 @@ struct cifsSesInfo {
  * session
  */
 struct cifsTconInfo {
-	struct list_head cifsConnectionList;
+	struct list_head tcon_list;
+	int tc_count;
 	struct list_head openFileList;
-	struct semaphore tconSem;
 	struct cifsSesInfo *ses;	/* pointer to session associated with */
 	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
 	char *nativeFileSystem;
 	__u16 tid;		/* The 2 byte tree id */
 	__u16 Flags;		/* optional support bits */
 	enum statusEnum tidStatus;
-	atomic_t useCount;	/* how many explicit/implicit mounts to share */
 #ifdef CONFIG_CIFS_STATS
 	atomic_t num_smbs_sent;
 	atomic_t num_writes;
@@ -600,9 +599,13 @@ require use of the stronger protocol */
  */
 GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
 
-/* protects cifs_tcp_ses_list and srv_count for each tcp session */
+/*
+ * This lock protects the cifs_tcp_ses_list, the list of smb sessions per
+ * tcp session, and the list of tcon's per smb session. It also protects
+ * the reference counters for the server, smb session, and tcon. Finally,
+ * changes to the tcon->tidStatus should be done while holding this lock.
+ */
 GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
-GLOBAL_EXTERN struct list_head GlobalTreeConnectionList; /* BB to be removed */
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
 
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;
