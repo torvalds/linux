@@ -898,13 +898,13 @@ static void mioa701_machine_exit(void);
 static void mioa701_poweroff(void)
 {
 	mioa701_machine_exit();
-	gpio_set_value(GPIO18_POWEROFF, 1);
+	arm_machine_restart('s');
 }
 
 static void mioa701_restart(char c)
 {
 	mioa701_machine_exit();
-	arm_machine_restart(c);
+	arm_machine_restart('s');
 }
 
 struct gpio_ress global_gpios[] = {
