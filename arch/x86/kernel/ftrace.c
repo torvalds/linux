@@ -56,6 +56,7 @@ static int push_return_trace(unsigned long ret, unsigned long long time,
 		return -EBUSY;
 
 	index = ++ti->curr_ret_stack;
+	barrier();
 	ti->ret_stack[index].ret = ret;
 	ti->ret_stack[index].func = func;
 	ti->ret_stack[index].calltime = time;
