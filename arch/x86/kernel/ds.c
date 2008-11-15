@@ -384,8 +384,9 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
 
 	spin_lock(&ds_lock);
 
+	error = -EPERM;
 	if (!check_tracer(task))
-		return -EPERM;
+		goto out_unlock;
 
 	error = -ENOMEM;
 	context = ds_alloc_context(task);
