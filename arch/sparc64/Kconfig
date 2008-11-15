@@ -250,8 +250,6 @@ config HUGETLB_PAGE_SIZE_64K
 
 endchoice
 
-endmenu
-
 config NUMA
 	bool "NUMA support"
 	depends on SMP
@@ -284,6 +282,46 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 
 source "mm/Kconfig"
+
+config SCHED_SMT
+	bool "SMT (Hyperthreading) scheduler support"
+	depends on SMP
+	default y
+	help
+	  SMT scheduler support improves the CPU scheduler's decision making
+	  when dealing with SPARC cpus at a cost of slightly increased overhead
+	  in some places. If unsure say N here.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+source "kernel/Kconfig.preempt"
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+
+config CMDLINE
+	string "Initial kernel command string"
+	depends on CMDLINE_BOOL
+	default "console=ttyS0,9600 root=/dev/sda1"
+	help
+	  Say Y here if you want to be able to pass default arguments to
+	  the kernel. This will be overridden by the bootloader, if you
+	  use one (such as SILO). This is most useful if you want to boot
+	  a kernel from TFTP, and want default options to be available
+	  with having them passed on the command line.
+
+	  NOTE: This option WILL override the PROM bootargs setting!
+
+endmenu
+
+menu "Bus options (PCI etc.)"
 
 config ISA
 	bool
@@ -364,6 +402,8 @@ config SUN_OPENPROMFS
 	  To compile the /proc/openprom support as a module, choose M here: the
 	  module will be called openpromfs.  If unsure, choose M.
 
+endmenu
+
 menu "Executable file formats"
 
 source "fs/Kconfig.binfmt"
@@ -379,42 +419,6 @@ config SYSVIPC_COMPAT
 	default y
 
 endmenu
-
-config SCHED_SMT
-	bool "SMT (Hyperthreading) scheduler support"
-	depends on SMP
-	default y
-	help
-	  SMT scheduler support improves the CPU scheduler's decision making
-	  when dealing with SPARC cpus at a cost of slightly increased overhead
-	  in some places. If unsure say N here.
-
-config SCHED_MC
-	bool "Multi-core scheduler support"
-	depends on SMP
-	default y
-	help
-	  Multi-core scheduler support improves the CPU scheduler's decision
-	  making when dealing with multi-core CPU chips at a cost of slightly
-	  increased overhead in some places. If unsure say N here.
-
-source "kernel/Kconfig.preempt"
-
-config CMDLINE_BOOL
-	bool "Default bootloader kernel arguments"
-
-config CMDLINE
-	string "Initial kernel command string"
-	depends on CMDLINE_BOOL
-	default "console=ttyS0,9600 root=/dev/sda1"
-	help
-	  Say Y here if you want to be able to pass default arguments to
-	  the kernel. This will be overridden by the bootloader, if you
-	  use one (such as SILO). This is most useful if you want to boot
-	  a kernel from TFTP, and want default options to be available
-	  with having them passed on the command line.
-
-	  NOTE: This option WILL override the PROM bootargs setting!
 
 source "net/Kconfig"
 
