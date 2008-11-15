@@ -4488,8 +4488,8 @@ again:
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		break;
 	case 0x111d7608: /* 5 Port with Analog Mixer */
-		switch (codec->subsystem_id) {
-		case 0x103c361a:
+		switch (spec->board_config) {
+		case STAC_HP_M4:
 			/* Enable VREF power saving on GPIO1 detect */
 			snd_hda_codec_write(codec, codec->afg, 0,
 				AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
