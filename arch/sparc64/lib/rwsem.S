@@ -17,7 +17,6 @@ __down_read:
 	bne,pn		%icc, 1b
 	 add		%g7, 1, %g7
 	cmp		%g7, 0
-	membar		#StoreLoad | #StoreStore
 	bl,pn		%icc, 3f
 	 nop
 2:
@@ -42,7 +41,6 @@ __down_read_trylock:
 	cmp		%g1, %g7
 	bne,pn		%icc, 1b
 	 mov		1, %o1
-	membar		#StoreLoad | #StoreStore
 2:	retl
 	 mov		%o1, %o0
 	.size		__down_read_trylock, .-__down_read_trylock
@@ -58,7 +56,6 @@ __down_write:
 	cmp		%g3, %g7
 	bne,pn		%icc, 1b
 	 cmp		%g7, 0
-	membar		#StoreLoad | #StoreStore
 	bne,pn		%icc, 3f
 	 nop
 2:	retl
@@ -85,7 +82,6 @@ __down_write_trylock:
 	cmp		%g3, %g7
 	bne,pn		%icc, 1b
 	 mov		1, %o1
-	membar		#StoreLoad | #StoreStore
 2:	retl
 	 mov		%o1, %o0
 	.size		__down_write_trylock, .-__down_write_trylock
@@ -99,7 +95,6 @@ __up_read:
 	cmp		%g1, %g7
 	bne,pn		%icc, 1b
 	 cmp		%g7, 0
-	membar		#StoreLoad | #StoreStore
 	bl,pn		%icc, 3f
 	 nop
 2:	retl
@@ -129,7 +124,6 @@ __up_write:
 	bne,pn		%icc, 1b
 	 sub		%g7, %g1, %g7
 	cmp		%g7, 0
-	membar		#StoreLoad | #StoreStore
 	bl,pn		%icc, 3f
 	 nop
 2:
@@ -155,7 +149,6 @@ __downgrade_write:
 	bne,pn		%icc, 1b
 	 sub		%g7, %g1, %g7
 	cmp		%g7, 0
-	membar		#StoreLoad | #StoreStore
 	bl,pn		%icc, 3f
 	 nop
 2:

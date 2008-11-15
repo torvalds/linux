@@ -125,7 +125,6 @@ __spitfire_flush_tlb_mm_slow:
 	.align		32
 	.globl		__flush_icache_page
 __flush_icache_page:	/* %o0 = phys_page */
-	membar		#StoreStore
 	srlx		%o0, PAGE_SHIFT, %o0
 	sethi		%uhi(PAGE_OFFSET), %g1
 	sllx		%o0, PAGE_SHIFT, %o0
@@ -507,7 +506,6 @@ xcall_fetch_glob_regs:
 	sllx		%g2, TRAP_BLOCK_SZ_SHIFT, %g2
 	add		%g7, %g2, %g7
 	ldx		[%g7 + TRAP_PER_CPU_THREAD], %g3
-	membar		#StoreStore
 	stx		%g3, [%g1 + GR_SNAP_THREAD]
 	retry
 

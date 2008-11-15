@@ -41,10 +41,8 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 					      KERNEL_TSB_NENTRIES);
 		struct tsb *ent = &swapper_tsb[hash];
 
-		if (tag_compare(ent->tag, v)) {
+		if (tag_compare(ent->tag, v))
 			ent->tag = (1UL << TSB_TAG_INVALID_BIT);
-			membar_storeload_storestore();
-		}
 	}
 }
 

@@ -317,7 +317,7 @@ tsb_flush:
 	srlx	%g1, 32, %o3
 	andcc	%o3, %g2, %g0
 	bne,pn	%icc, 1b
-	 membar	#LoadLoad
+	 nop
 	cmp	%g1, %o1
 	mov	1, %o3
 	bne,pt	%xcc, 2f
@@ -327,7 +327,7 @@ tsb_flush:
 	bne,pn	%xcc, 1b
 	 nop
 2:	retl
-	 TSB_MEMBAR
+	 nop
 	.size	tsb_flush, .-tsb_flush
 
 	/* Reload MMU related context switch state at
@@ -478,7 +478,7 @@ copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 	 nop
 
 	retl
-	 TSB_MEMBAR
+	 nop
 	.size		copy_tsb, .-copy_tsb
 
 	/* Set the invalid bit in all TSB entries.  */

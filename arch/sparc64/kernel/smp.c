@@ -163,7 +163,7 @@ static inline long get_delta (long *rt, long *master)
 	for (i = 0; i < NUM_ITERS; i++) {
 		t0 = tick_ops->get_tick();
 		go[MASTER] = 1;
-		membar_storeload();
+		membar_safe("#StoreLoad");
 		while (!(tm = go[SLAVE]))
 			rmb();
 		go[SLAVE] = 0;
@@ -257,7 +257,7 @@ static void smp_synchronize_one_tick(int cpu)
 
 	/* now let the client proceed into his loop */
 	go[MASTER] = 0;
-	membar_storeload();
+	membar_safe("#StoreLoad");
 
 	spin_lock_irqsave(&itc_sync_lock, flags);
 	{
@@ -267,7 +267,7 @@ static void smp_synchronize_one_tick(int cpu)
 			go[MASTER] = 0;
 			wmb();
 			go[SLAVE] = tick_ops->get_tick();
-			membar_storeload();
+			membar_safe("#StoreLoad");
 		}
 	}
 	spin_unlock_irqrestore(&itc_sync_lock, flags);
@@ -1122,7 +1122,6 @@ void smp_capture(void)
 		       smp_processor_id());
 #endif
 		penguins_are_doing_time = 1;
-		membar_storestore_loadstore();
 		atomic_inc(&smp_capture_registry);
 		smp_cross_call(&xcall_capture, 0, 0, 0);
 		while (atomic_read(&smp_capture_registry) != ncpus)
@@ -1142,7 +1141,7 @@ void smp_release(void)
 		       smp_processor_id());
 #endif
 		penguins_are_doing_time = 0;
-		membar_storeload_storestore();
+		membar_safe("#StoreLoad");
 		atomic_dec(&smp_capture_registry);
 	}
 }
@@ -1161,7 +1160,7 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	__asm__ __volatile__("flushw");
 	prom_world(1);
 	atomic_inc(&smp_capture_registry);
-	membar_storeload_storestore();
+	membar_safe("#StoreLoad");
 	while (penguins_are_doing_time)
 		rmb();
 	atomic_dec(&smp_capture_registry);
