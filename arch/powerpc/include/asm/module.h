@@ -39,11 +39,14 @@ struct mod_arch_specific {
 	unsigned long tramp;
 #endif
 
-#else
+#else /* powerpc64 */
 	/* Indices of PLT sections within module. */
 	unsigned int core_plt_section;
 	unsigned int init_plt_section;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	unsigned long tramp;
 #endif
+#endif /* powerpc64 */
 
 	/* List of BUG addresses, source line numbers and filenames */
 	struct list_head bug_list;
