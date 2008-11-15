@@ -1340,9 +1340,10 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * LLD/transport was disrupted during processing of the IO.
 		 * The transport class is now blocked/blocking,
 		 * and the transport will decide what to do with the IO
-		 * based on its timers and recovery capablilities.
+		 * based on its timers and recovery capablilities if
+		 * there are enough retries.
 		 */
-		return ADD_TO_MLQUEUE;
+		goto maybe_retry;
 	case DID_TRANSPORT_FAILFAST:
 		/*
 		 * The transport decided to failfast the IO (most likely
