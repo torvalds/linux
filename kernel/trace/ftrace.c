@@ -334,7 +334,7 @@ ftrace_record_ip(unsigned long ip)
 {
 	struct dyn_ftrace *rec;
 
-	if (!ftrace_enabled || ftrace_disabled)
+	if (ftrace_disabled)
 		return NULL;
 
 	rec = ftrace_alloc_dyn_node(ip);
