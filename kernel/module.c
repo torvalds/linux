@@ -2201,7 +2201,7 @@ static noinline struct module *load_module(void __user *umod,
 	/* sechdrs[0].sh_size is always zero */
 	mseg = section_objs(hdr, sechdrs, secstrings, "__mcount_loc",
 			    sizeof(*mseg), &num_mcount);
-	ftrace_init_module(mseg, mseg + num_mcount);
+	ftrace_init_module(mod, mseg, mseg + num_mcount);
 
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)

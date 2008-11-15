@@ -358,9 +358,7 @@ static void print_ip_ins(const char *fmt, unsigned char *p)
 		printk(KERN_CONT "%s%02x", i ? ":" : "", p[i]);
 }
 
-static void ftrace_bug(int failed, unsigned long ip,
-		       unsigned char *expected,
-		       unsigned char *replace)
+static void ftrace_bug(int failed, unsigned long ip)
 {
 	switch (failed) {
 	case -EFAULT:
@@ -372,9 +370,7 @@ static void ftrace_bug(int failed, unsigned long ip,
 		FTRACE_WARN_ON_ONCE(1);
 		pr_info("ftrace failed to modify ");
 		print_ip_sym(ip);
-		print_ip_ins(" expected: ", expected);
 		print_ip_ins(" actual: ", (unsigned char *)ip);
-		print_ip_ins(" replace: ", replace);
 		printk(KERN_CONT "\n");
 		break;
 	case -EPERM:
@@ -392,8 +388,7 @@ static void ftrace_bug(int failed, unsigned long ip,
 #define FTRACE_ADDR ((long)(ftrace_caller))
 
 static int
-__ftrace_replace_code(struct dyn_ftrace *rec,
-		      unsigned char *old, unsigned char *new, int enable)
+__ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
 	unsigned long ip, fl;
 
@@ -435,12 +430,10 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 		 * otherwise enable it!
 		 */
 		if (fl & FTRACE_FL_ENABLED) {
-			/* swap new and old */
-			new = old;
-			old = ftrace_call_replace(ip, FTRACE_ADDR);
+			enable = 0;
 			rec->flags &= ~FTRACE_FL_ENABLED;
 		} else {
-			new = ftrace_call_replace(ip, FTRACE_ADDR);
+			enable = 1;
 			rec->flags |= FTRACE_FL_ENABLED;
 		}
 	} else {
@@ -453,10 +446,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 			fl = rec->flags & (FTRACE_FL_NOTRACE | FTRACE_FL_ENABLED);
 			if (fl == FTRACE_FL_NOTRACE)
 				return 0;
-
-			new = ftrace_call_replace(ip, FTRACE_ADDR);
-		} else
-			old = ftrace_call_replace(ip, FTRACE_ADDR);
+		}
 
 		if (enable) {
 			if (rec->flags & FTRACE_FL_ENABLED)
@@ -469,20 +459,17 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 		}
 	}
 
-	return ftrace_modify_code(ip, old, new);
+	if (enable)
+		return ftrace_make_call(rec, FTRACE_ADDR);
+	else
+		return ftrace_make_nop(NULL, rec, FTRACE_ADDR);
 }
 
 static void ftrace_replace_code(int enable)
 {
 	int i, failed;
-	unsigned char *new = NULL, *old = NULL;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
-
-	if (enable)
-		old = ftrace_nop_replace();
-	else
-		new = ftrace_nop_replace();
 
 	for (pg = ftrace_pages_start; pg; pg = pg->next) {
 		for (i = 0; i < pg->index; i++) {
@@ -504,34 +491,30 @@ static void ftrace_replace_code(int enable)
 				unfreeze_record(rec);
 			}
 
-			failed = __ftrace_replace_code(rec, old, new, enable);
+			failed = __ftrace_replace_code(rec, enable);
 			if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
 				rec->flags |= FTRACE_FL_FAILED;
 				if ((system_state == SYSTEM_BOOTING) ||
 				    !core_kernel_text(rec->ip)) {
 					ftrace_free_rec(rec);
 				} else
-					ftrace_bug(failed, rec->ip, old, new);
+					ftrace_bug(failed, rec->ip);
 			}
 		}
 	}
 }
 
 static int
-ftrace_code_disable(struct dyn_ftrace *rec)
+ftrace_code_disable(struct module *mod, struct dyn_ftrace *rec)
 {
 	unsigned long ip;
-	unsigned char *nop, *call;
 	int ret;
 
 	ip = rec->ip;
 
-	nop = ftrace_nop_replace();
-	call = ftrace_call_replace(ip, mcount_addr);
-
-	ret = ftrace_modify_code(ip, call, nop);
+	ret = ftrace_make_nop(mod, rec, mcount_addr);
 	if (ret) {
-		ftrace_bug(ret, ip, call, nop);
+		ftrace_bug(ret, ip);
 		rec->flags |= FTRACE_FL_FAILED;
 		return 0;
 	}
@@ -650,7 +633,7 @@ static cycle_t		ftrace_update_time;
 static unsigned long	ftrace_update_cnt;
 unsigned long		ftrace_update_tot_cnt;
 
-static int ftrace_update_code(void)
+static int ftrace_update_code(struct module *mod)
 {
 	struct dyn_ftrace *p, *t;
 	cycle_t start, stop;
@@ -667,7 +650,7 @@ static int ftrace_update_code(void)
 		list_del_init(&p->list);
 
 		/* convert record (i.e, patch mcount-call with NOP) */
-		if (ftrace_code_disable(p)) {
+		if (ftrace_code_disable(mod, p)) {
 			p->flags |= FTRACE_FL_CONVERTED;
 			ftrace_update_cnt++;
 		} else
@@ -1309,7 +1292,8 @@ static __init int ftrace_init_debugfs(void)
 
 fs_initcall(ftrace_init_debugfs);
 
-static int ftrace_convert_nops(unsigned long *start,
+static int ftrace_convert_nops(struct module *mod,
+			       unsigned long *start,
 			       unsigned long *end)
 {
 	unsigned long *p;
@@ -1325,18 +1309,19 @@ static int ftrace_convert_nops(unsigned long *start,
 
 	/* disable interrupts to prevent kstop machine */
 	local_irq_save(flags);
-	ftrace_update_code();
+	ftrace_update_code(mod);
 	local_irq_restore(flags);
 	mutex_unlock(&ftrace_start_lock);
 
 	return 0;
 }
 
-void ftrace_init_module(unsigned long *start, unsigned long *end)
+void ftrace_init_module(struct module *mod,
+			unsigned long *start, unsigned long *end)
 {
 	if (ftrace_disabled || start == end)
 		return;
-	ftrace_convert_nops(start, end);
+	ftrace_convert_nops(mod, start, end);
 }
 
 extern unsigned long __start_mcount_loc[];
@@ -1366,7 +1351,8 @@ void __init ftrace_init(void)
 
 	last_ftrace_enabled = ftrace_enabled = 1;
 
-	ret = ftrace_convert_nops(__start_mcount_loc,
+	ret = ftrace_convert_nops(NULL,
+				  __start_mcount_loc,
 				  __stop_mcount_loc);
 
 	return;
