@@ -809,7 +809,7 @@ static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 			wstats->qual.qual = (int)le16_to_cpu(cq.qual);
 			wstats->qual.level = (int)le16_to_cpu(cq.signal) - 0x95;
 			wstats->qual.noise = (int)le16_to_cpu(cq.noise) - 0x95;
-			wstats->qual.updated = 7;
+			wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		}
 	}
 
@@ -1168,7 +1168,7 @@ static inline void orinoco_spy_gather(struct net_device *dev, u_char *mac,
 	wstats.level = level - 0x95;
 	wstats.noise = noise - 0x95;
 	wstats.qual = (level > noise) ? (level - noise) : 0;
-	wstats.updated = 7;
+	wstats.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	/* Update spy records */
 	wireless_spy_update(dev, mac, &wstats);
 }
