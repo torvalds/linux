@@ -394,72 +394,62 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 
 	ip = rec->ip;
 
-	if (ftrace_filtered && enable) {
-		/*
-		 * If filtering is on:
-		 *
-		 * If this record is set to be filtered and
-		 * is enabled then do nothing.
-		 *
-		 * If this record is set to be filtered and
-		 * it is not enabled, enable it.
-		 *
-		 * If this record is not set to be filtered
-		 * and it is not enabled do nothing.
-		 *
-		 * If this record is set not to trace then
-		 * do nothing.
-		 *
-		 * If this record is set not to trace and
-		 * it is enabled then disable it.
-		 *
-		 * If this record is not set to be filtered and
-		 * it is enabled, disable it.
-		 */
-
-		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_NOTRACE |
-				   FTRACE_FL_ENABLED);
-
-		if ((fl ==  (FTRACE_FL_FILTER | FTRACE_FL_ENABLED)) ||
-		    (fl ==  (FTRACE_FL_FILTER | FTRACE_FL_NOTRACE)) ||
-		    !fl || (fl == FTRACE_FL_NOTRACE))
+	/*
+	 * If this record is not to be traced and
+	 * it is not enabled then do nothing.
+	 *
+	 * If this record is not to be traced and
+	 * it is enabled then disabled it.
+	 *
+	 */
+	if (rec->flags & FTRACE_FL_NOTRACE) {
+		if (rec->flags & FTRACE_FL_ENABLED)
+			rec->flags &= ~FTRACE_FL_ENABLED;
+		else
 			return 0;
 
+	} else if (ftrace_filtered && enable) {
 		/*
-		 * If it is enabled disable it,
-		 * otherwise enable it!
+		 * Filtering is on:
 		 */
-		if (fl & FTRACE_FL_ENABLED) {
-			enable = 0;
+
+		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_ENABLED);
+
+		/* Record is filtered and enabled, do nothing */
+		if (fl == (FTRACE_FL_FILTER | FTRACE_FL_ENABLED))
+			return 0;
+
+		/* Record is not filtered and is not enabled do nothing */
+		if (!fl)
+			return 0;
+
+		/* Record is not filtered but enabled, disable it */
+		if (fl == FTRACE_FL_ENABLED)
 			rec->flags &= ~FTRACE_FL_ENABLED;
-		} else {
-			enable = 1;
+		else
+		/* Otherwise record is filtered but not enabled, enable it */
 			rec->flags |= FTRACE_FL_ENABLED;
-		}
 	} else {
+		/* Disable or not filtered */
 
 		if (enable) {
-			/*
-			 * If this record is set not to trace and is
-			 * not enabled, do nothing.
-			 */
-			fl = rec->flags & (FTRACE_FL_NOTRACE | FTRACE_FL_ENABLED);
-			if (fl == FTRACE_FL_NOTRACE)
-				return 0;
-		}
-
-		if (enable) {
+			/* if record is enabled, do nothing */
 			if (rec->flags & FTRACE_FL_ENABLED)
 				return 0;
+
 			rec->flags |= FTRACE_FL_ENABLED;
+
 		} else {
+
+			/* if record is not enabled do nothing */
 			if (!(rec->flags & FTRACE_FL_ENABLED))
 				return 0;
+
 			rec->flags &= ~FTRACE_FL_ENABLED;
 		}
 	}
 
-	if (enable)
+	if (rec->flags & FTRACE_FL_ENABLED)
 		return ftrace_make_call(rec, FTRACE_ADDR);
 	else
 		return ftrace_make_nop(NULL, rec, FTRACE_ADDR);
@@ -554,8 +544,7 @@ static void ftrace_startup(void)
 
 	mutex_lock(&ftrace_start_lock);
 	ftrace_start_up++;
-	if (ftrace_start_up == 1)
-		command |= FTRACE_ENABLE_CALLS;
+	command |= FTRACE_ENABLE_CALLS;
 
 	if (saved_ftrace_func != ftrace_trace_function) {
 		saved_ftrace_func = ftrace_trace_function;
