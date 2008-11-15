@@ -22,6 +22,7 @@
 /* keyb */
 #include <linux/init.h>
 #include <linux/vt_kern.h>
+#include <linux/platform_device.h>
 
 #define BOOTINFO_COMPAT_1_0
 #include <asm/setup.h>
@@ -42,6 +43,10 @@
 #include <asm/mac_via.h>
 #include <asm/mac_oss.h>
 #include <asm/mac_psc.h>
+
+/* platform device info */
+
+#define SWIM_IO_SIZE 0x2000	/* SWIM IO resource size */
 
 /* Mac bootinfo struct */
 
@@ -870,3 +875,42 @@ static void mac_get_model(char *str)
 	strcpy(str, "Macintosh ");
 	strcat(str, macintosh_config->name);
 }
+
+static struct resource swim_resources[1];
+
+static struct platform_device swim_device = {
+	.name		= "swim",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(swim_resources),
+	.resource	= swim_resources,
+};
+
+static struct platform_device *mac_platform_devices[] __initdata = {
+	&swim_device
+};
+
+int __init mac_platform_init(void)
+{
+	u8 *swim_base;
+
+	switch (macintosh_config->floppy_type) {
+	case MAC_FLOPPY_SWIM_ADDR1:
+		swim_base = (u8 *)(VIA1_BASE + 0x1E000);
+		break;
+	case MAC_FLOPPY_SWIM_ADDR2:
+		swim_base = (u8 *)(VIA1_BASE + 0x16000);
+		break;
+	default:
+		return 0;
+	}
+
+	swim_resources[0].name = "swim-regs";
+	swim_resources[0].start = (resource_size_t)swim_base;
+	swim_resources[0].end = (resource_size_t)(swim_base + SWIM_IO_SIZE);
+	swim_resources[0].flags = IORESOURCE_MEM;
+
+	return platform_add_devices(mac_platform_devices,
+				    ARRAY_SIZE(mac_platform_devices));
+}
+
+arch_initcall(mac_platform_init);
