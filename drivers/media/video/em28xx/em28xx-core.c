@@ -270,6 +270,8 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 			break;
 		case EM28XX_AMUX_LINE_IN:
 			input = EM28XX_AUDIO_SRC_LINE;
+			video = disable;
+			line  = enable;
 			break;
 		case EM28XX_AMUX_AC97_VIDEO:
 			input = EM28XX_AUDIO_SRC_LINE;
