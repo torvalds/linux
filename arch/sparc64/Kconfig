@@ -424,7 +424,7 @@ source "drivers/sbus/char/Kconfig"
 
 source "fs/Kconfig"
 
-source "arch/sparc64/Kconfig.debug"
+source "arch/sparc/Kconfig.debug"
 
 source "security/Kconfig"
 
