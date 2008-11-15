@@ -85,6 +85,7 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	return l;
 }
 
+#ifdef CONFIG_PROC_FS
 void comedi_proc_init(void)
 {
 	struct proc_dir_entry *comedi_proc;
@@ -98,3 +99,4 @@ void comedi_proc_cleanup(void)
 {
 	remove_proc_entry("comedi", 0);
 }
+#endif
