@@ -44,3 +44,8 @@ config SND_S3C24XX_SOC_LN2440SBC_ALC650
 	  Say Y if you want to add support for SoC audio on ln2440sbc
 	  with the ALC650.
 
+config SND_S3C24XX_SOC_S3C24XX_UDA134X
+	tristate "SoC I2S Audio support UDA134X wired to a S3C24XX"
+       	depends on SND_S3C24XX_SOC
+       	select SND_S3C24XX_SOC_I2S
+       	select SND_SOC_UDA134X
