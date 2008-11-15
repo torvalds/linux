@@ -1368,7 +1368,6 @@ cifs_find_tcp_session(struct sockaddr *addr)
 	list_for_each(tmp, &cifs_tcp_ses_list) {
 		server = list_entry(tmp, struct TCP_Server_Info,
 				    tcp_ses_list);
-
 		/*
 		 * the demux thread can exit on its own while still in CifsNew
 		 * so don't accept any sockets in that state. Since the
@@ -1389,6 +1388,7 @@ cifs_find_tcp_session(struct sockaddr *addr)
 
 		++server->srv_count;
 		write_unlock(&cifs_tcp_ses_lock);
+		cFYI(1, ("Existing tcp session with server found"));
 		return server;
 	}
 	write_unlock(&cifs_tcp_ses_lock);
@@ -2076,9 +2076,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	}
 
 	srvTcp = cifs_find_tcp_session(&addr);
-	if (srvTcp) {
-		cFYI(1, ("Existing tcp session with server found"));
-	} else {	/* create socket */
+	if (!srvTcp) { /* create socket */
 		if (addr.sa_family == AF_INET6) {
 			cFYI(1, ("attempting ipv6 connect"));
 			/* BB should we allow ipv6 on port 139? */
@@ -2292,44 +2290,40 @@ mount_fail_check:
 			cifs_put_smb_ses(pSesInfo);
 		else
 			cifs_put_tcp_session(srvTcp);
-	} else {
-		atomic_inc(&tcon->useCount);
-		cifs_sb->tcon = tcon;
-		tcon->ses = pSesInfo;
-
-		/* do not care if following two calls succeed - informational */
-		if (!tcon->ipc) {
-			CIFSSMBQFSDeviceInfo(xid, tcon);
-			CIFSSMBQFSAttributeInfo(xid, tcon);
-		}
-
-		/* tell server which Unix caps we support */
-		if (tcon->ses->capabilities & CAP_UNIX)
-			/* reset of caps checks mount to see if unix extensions
-			   disabled for just this mount */
-			reset_cifs_unix_caps(xid, tcon, sb, &volume_info);
-		else
-			tcon->unix_ext = 0; /* server does not support them */
-
-		/* convert forward to back slashes in prepath here if needed */
-		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) == 0)
-			convert_delimiter(cifs_sb->prepath,
-					  CIFS_DIR_SEP(cifs_sb));
-
-		if ((tcon->unix_ext == 0) && (cifs_sb->rsize > (1024 * 127))) {
-			cifs_sb->rsize = 1024 * 127;
-			cFYI(DBG2,
-				("no very large read support, rsize now 127K"));
-		}
-		if (!(tcon->ses->capabilities & CAP_LARGE_WRITE_X))
-			cifs_sb->wsize = min(cifs_sb->wsize,
-					     (tcon->ses->server->maxBuf -
-					      MAX_CIFS_HDR_SIZE));
-		if (!(tcon->ses->capabilities & CAP_LARGE_READ_X))
-			cifs_sb->rsize = min(cifs_sb->rsize,
-					     (tcon->ses->server->maxBuf -
-					      MAX_CIFS_HDR_SIZE));
+		goto out;
 	}
+	atomic_inc(&tcon->useCount);
+	cifs_sb->tcon = tcon;
+	tcon->ses = pSesInfo;
+
+	/* do not care if following two calls succeed - informational */
+	if (!tcon->ipc) {
+		CIFSSMBQFSDeviceInfo(xid, tcon);
+		CIFSSMBQFSAttributeInfo(xid, tcon);
+	}
+
+	/* tell server which Unix caps we support */
+	if (tcon->ses->capabilities & CAP_UNIX)
+		/* reset of caps checks mount to see if unix extensions
+		   disabled for just this mount */
+		reset_cifs_unix_caps(xid, tcon, sb, &volume_info);
+	else
+		tcon->unix_ext = 0; /* server does not support them */
+
+	/* convert forward to back slashes in prepath here if needed */
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) == 0)
+		convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
+
+	if ((tcon->unix_ext == 0) && (cifs_sb->rsize > (1024 * 127))) {
+		cifs_sb->rsize = 1024 * 127;
+		cFYI(DBG2, ("no very large read support, rsize now 127K"));
+	}
+	if (!(tcon->ses->capabilities & CAP_LARGE_WRITE_X))
+		cifs_sb->wsize = min(cifs_sb->wsize,
+			       (tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE));
+	if (!(tcon->ses->capabilities & CAP_LARGE_READ_X))
+		cifs_sb->rsize = min(cifs_sb->rsize,
+			       (tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE));
 
 	/* volume_info.password is freed above when existing session found
 	(in which case it is not needed anymore) but when new sesion is created
