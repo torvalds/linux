@@ -55,10 +55,6 @@ config ARCH_NO_VIRT_TO_BUS
 config OF
 	def_bool y
 
-config HZ
-	int
-	default 100
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -93,6 +89,7 @@ config NR_CPUS
 	depends on SMP
 	default "32"
 
+source "kernel/Kconfig.hz"
 
 # Global things across all Sun machines.
 config ISA
