@@ -348,6 +348,47 @@ ftrace_record_ip(unsigned long ip)
 	return rec;
 }
 
+static void print_ip_ins(const char *fmt, unsigned char *p)
+{
+	int i;
+
+	printk(KERN_CONT "%s", fmt);
+
+	for (i = 0; i < MCOUNT_INSN_SIZE; i++)
+		printk(KERN_CONT "%s%02x", i ? ":" : "", p[i]);
+}
+
+static void ftrace_bug(int failed, unsigned long ip,
+		       unsigned char *expected,
+		       unsigned char *replace)
+{
+	switch (failed) {
+	case -EFAULT:
+		FTRACE_WARN_ON_ONCE(1);
+		pr_info("ftrace faulted on modifying ");
+		print_ip_sym(ip);
+		break;
+	case -EINVAL:
+		FTRACE_WARN_ON_ONCE(1);
+		pr_info("ftrace failed to modify ");
+		print_ip_sym(ip);
+		print_ip_ins(" expected: ", expected);
+		print_ip_ins(" actual: ", (unsigned char *)ip);
+		print_ip_ins(" replace: ", replace);
+		printk(KERN_CONT "\n");
+		break;
+	case -EPERM:
+		FTRACE_WARN_ON_ONCE(1);
+		pr_info("ftrace faulted on writing ");
+		print_ip_sym(ip);
+		break;
+	default:
+		FTRACE_WARN_ON_ONCE(1);
+		pr_info("ftrace faulted on unknown error ");
+		print_ip_sym(ip);
+	}
+}
+
 #define FTRACE_ADDR ((long)(ftrace_caller))
 
 static int
@@ -465,20 +506,11 @@ static void ftrace_replace_code(int enable)
 				if ((system_state == SYSTEM_BOOTING) ||
 				    !core_kernel_text(rec->ip)) {
 					ftrace_free_rec(rec);
-				}
+				} else
+					ftrace_bug(failed, rec->ip, old, new);
 			}
 		}
 	}
-}
-
-static void print_ip_ins(const char *fmt, unsigned char *p)
-{
-	int i;
-
-	printk(KERN_CONT "%s", fmt);
-
-	for (i = 0; i < MCOUNT_INSN_SIZE; i++)
-		printk(KERN_CONT "%s%02x", i ? ":" : "", p[i]);
 }
 
 static int
@@ -495,32 +527,7 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 
 	ret = ftrace_modify_code(ip, call, nop);
 	if (ret) {
-		switch (ret) {
-		case -EFAULT:
-			FTRACE_WARN_ON_ONCE(1);
-			pr_info("ftrace faulted on modifying ");
-			print_ip_sym(ip);
-			break;
-		case -EINVAL:
-			FTRACE_WARN_ON_ONCE(1);
-			pr_info("ftrace failed to modify ");
-			print_ip_sym(ip);
-			print_ip_ins(" expected: ", call);
-			print_ip_ins(" actual: ", (unsigned char *)ip);
-			print_ip_ins(" replace: ", nop);
-			printk(KERN_CONT "\n");
-			break;
-		case -EPERM:
-			FTRACE_WARN_ON_ONCE(1);
-			pr_info("ftrace faulted on writing ");
-			print_ip_sym(ip);
-			break;
-		default:
-			FTRACE_WARN_ON_ONCE(1);
-			pr_info("ftrace faulted on unknown error ");
-			print_ip_sym(ip);
-		}
-
+		ftrace_bug(ret, ip, call, nop);
 		rec->flags |= FTRACE_FL_FAILED;
 		return 0;
 	}
