@@ -36,10 +36,10 @@
 #include "hda_patch.h"
 #include "hda_beep.h"
 
+#define STAC_VREF_EVENT		0x00
 #define STAC_INSERT_EVENT	0x10
 #define STAC_PWR_EVENT		0x20
 #define STAC_HP_EVENT		0x30
-#define STAC_VREF_EVENT		0x40
 
 enum {
 	STAC_REF,
