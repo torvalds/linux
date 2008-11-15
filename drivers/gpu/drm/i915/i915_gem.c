@@ -1880,8 +1880,20 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		ret = i915_gem_object_set_domain(obj,
 						 obj->pending_read_domains,
 						 obj->pending_write_domain);
-		if (ret)
+		if (ret) {
+			/* As we've partially updated domains on our buffers,
+			 * we have to emit the flush we've accumulated
+			 * before exiting, or we'll have broken the
+			 * active/flushing/inactive invariants.
+			 *
+			 * We'll potentially have some things marked as
+			 * being in write domains that they actually aren't,
+			 * but that should be merely a minor performance loss.
+			 */
+			flush_domains = i915_gem_dev_set_domain(dev);
+			(void)i915_add_request(dev, flush_domains);
 			goto err;
+		}
 	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
