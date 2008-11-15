@@ -4,6 +4,30 @@
 
 mainmenu "Linux/SPARC Kernel Configuration"
 
+config SPARC
+	bool
+	default y
+	select HAVE_IDE
+	select HAVE_OPROFILE
+	select HAVE_ARCH_KGDB if !SMP
+	select HAVE_ARCH_TRACEHOOK
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select RTC_CLASS
+	select RTC_DRV_M48T59
+
+# Identify this as a Sparc32 build
+config SPARC32
+	bool
+	default y
+	help
+	  SPARC is a family of RISC microprocessors designed and marketed by
+	  Sun Microsystems, incorporated.  They are very widely found in Sun
+	  workstations and clones. This port covers the original 32-bit SPARC;
+	  it is old and stable and usually considered one of the "big three"
+	  along with the Intel and Alpha ports.  The UltraLinux project
+	  maintains both the SPARC32 and SPARC64 ports; its web page is
+	  available at <http://www.ultralinux.org/>.
+
 config MMU
 	bool
 	default y
@@ -69,29 +93,6 @@ config NR_CPUS
 	depends on SMP
 	default "32"
 
-config SPARC
-	bool
-	default y
-	select HAVE_IDE
-	select HAVE_OPROFILE
-	select HAVE_ARCH_KGDB if !SMP
-	select HAVE_ARCH_TRACEHOOK
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select RTC_CLASS
-	select RTC_DRV_M48T59
-
-# Identify this as a Sparc32 build
-config SPARC32
-	bool
-	default y
-	help
-	  SPARC is a family of RISC microprocessors designed and marketed by
-	  Sun Microsystems, incorporated.  They are very widely found in Sun
-	  workstations and clones. This port covers the original 32-bit SPARC;
-	  it is old and stable and usually considered one of the "big three"
-	  along with the Intel and Alpha ports.  The UltraLinux project
-	  maintains both the SPARC32 and SPARC64 ports; its web page is
-	  available at <http://www.ultralinux.org/>.
 
 # Global things across all Sun machines.
 config ISA
