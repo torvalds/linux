@@ -488,8 +488,12 @@ static void ftrace_replace_code(int enable)
 		for (i = 0; i < pg->index; i++) {
 			rec = &pg->records[i];
 
-			/* don't modify code that has already faulted */
-			if (rec->flags & FTRACE_FL_FAILED)
+			/*
+			 * Skip over free records and records that have
+			 * failed.
+			 */
+			if (rec->flags & FTRACE_FL_FREE ||
+			    rec->flags & FTRACE_FL_FAILED)
 				continue;
 
 			/* ignore updates to this record's mcount site */
