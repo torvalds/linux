@@ -245,9 +245,13 @@ config SPARC_LED
 	  by reading /proc/led and its blinking mode can be changed
 	  via writes to /proc/led
 
-source "fs/Kconfig.binfmt"
-
 source "mm/Kconfig"
+
+endmenu
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
 
 endmenu
 
