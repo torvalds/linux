@@ -34,7 +34,7 @@
 #include <linux/irq.h>
 #include <linux/pda_power.h>
 #include <linux/power_supply.h>
-#include <linux/wm97xx.h>
+#include <linux/wm97xx_batt.h>
 #include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
@@ -680,13 +680,19 @@ static char *supplicants[] = {
 	"mioa701_battery"
 };
 
+static int is_ac_connected(void)
+{
+	return gpio_get_value(GPIO96_AC_DETECT);
+}
+
 static void mioa701_set_charge(int flags)
 {
 	gpio_set_value(GPIO9_CHARGE_EN, (flags == PDA_POWER_CHARGE_USB));
 }
 
 static struct pda_power_pdata power_pdata = {
-	.is_ac_online	= is_usb_connected,
+	.is_ac_online	= is_ac_connected,
+	.is_usb_online	= is_usb_connected,
 	.set_charge = mioa701_set_charge,
 	.supplied_to = supplicants,
 	.num_supplicants = ARRAY_SIZE(supplicants),
@@ -695,6 +701,13 @@ static struct pda_power_pdata power_pdata = {
 static struct resource power_resources[] = {
 	[0] = {
 		.name	= "ac",
+		.start	= gpio_to_irq(GPIO96_AC_DETECT),
+		.end	= gpio_to_irq(GPIO96_AC_DETECT),
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+		IORESOURCE_IRQ_LOWEDGE,
+	},
+	[1] = {
+		.name	= "usb",
 		.start	= gpio_to_irq(GPIO13_nUSB_DETECT),
 		.end	= gpio_to_irq(GPIO13_nUSB_DETECT),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
@@ -712,120 +725,17 @@ static struct platform_device power_dev = {
 	},
 };
 
-#if defined(CONFIG_PDA_POWER) && defined(CONFIG_TOUCHSCREEN_WM97XX)
-static struct wm97xx *battery_wm;
-
-static enum power_supply_property battery_props[] = {
-	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,	/* Necessary for apm */
+static struct wm97xx_batt_info mioa701_battery_data = {
+	.batt_aux	= WM97XX_AUX_ID1,
+	.temp_aux	= -1,
+	.charge_gpio	= -1,
+	.min_voltage	= 0xc00,
+	.max_voltage	= 0xfc0,
+	.batt_tech	= POWER_SUPPLY_TECHNOLOGY_LION,
+	.batt_div	= 1,
+	.batt_mult	= 1,
+	.batt_name	= "mioa701_battery",
 };
-
-static int get_battery_voltage(void)
-{
-	int adc = -1;
-
-	if (battery_wm)
-		adc = wm97xx_read_aux_adc(battery_wm, WM97XX_AUX_ID1);
-	return adc;
-}
-
-static int get_battery_status(struct power_supply *b)
-{
-	int status;
-
-	if (is_usb_connected())
-		status = POWER_SUPPLY_STATUS_CHARGING;
-	else
-		status = POWER_SUPPLY_STATUS_DISCHARGING;
-
-	return status;
-}
-
-static int get_property(struct power_supply *b,
-			enum power_supply_property psp,
-			union power_supply_propval *val)
-{
-	int rc = 0;
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = get_battery_status(b);
-		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
-		val->intval = 0xfd0;
-		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
-		val->intval = 0xc00;
-		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = get_battery_voltage();
-		break;
-	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		val->intval = 100;
-		break;
-	default:
-		val->intval = -1;
-		rc = -1;
-	}
-
-	return rc;
-};
-
-static struct power_supply battery_ps = {
-	.name = "mioa701_battery",
-	.type = POWER_SUPPLY_TYPE_BATTERY,
-	.get_property = get_property,
-	.properties = battery_props,
-	.num_properties = ARRAY_SIZE(battery_props),
-};
-
-static int battery_probe(struct platform_device *pdev)
-{
-	struct wm97xx *wm = platform_get_drvdata(pdev);
-	int rc;
-
-	battery_wm = wm;
-
-	rc = power_supply_register(NULL, &battery_ps);
-	if (rc)
-		dev_err(&pdev->dev,
-		"Could not register mioa701 battery -> %d\n", rc);
-	return rc;
-}
-
-static int battery_remove(struct platform_device *pdev)
-{
-	battery_wm = NULL;
-	return 0;
-}
-
-static struct platform_driver mioa701_battery_driver = {
-	.driver = {
-		.name = "wm97xx-battery",
-	},
-	.probe = battery_probe,
-	.remove = battery_remove
-};
-
-static int __init mioa701_battery_init(void)
-{
-	int rc;
-
-	rc = platform_driver_register(&mioa701_battery_driver);
-	if (rc)
-		printk(KERN_ERR "Could not register mioa701 battery driver\n");
-	return rc;
-}
-
-#else
-static int __init mioa701_battery_init(void)
-{
-	return 0;
-}
-#endif
 
 /*
  * Camera interface
@@ -926,12 +836,12 @@ static void __init mioa701_machine_init(void)
 	set_pxa_fb_info(&mioa701_pxafb_info);
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
+	wm97xx_bat_set_pdata(&mioa701_battery_data);
 	udc_init();
 	pm_power_off = mioa701_poweroff;
 	arm_pm_restart = mioa701_restart;
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gsm_init();
-	mioa701_battery_init();
 
 	pxa_set_i2c_info(&i2c_pdata);
 	pxa_set_camera_info(&mioa701_pxacamera_platform_data);
