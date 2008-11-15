@@ -686,7 +686,6 @@ static void __init akita_init(void)
 	spitz_pcmcia_config.num_devs = 1;
 	platform_scoop_config = &spitz_pcmcia_config;
 
-	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(akita_i2c_board_info));
 
 	common_init();
