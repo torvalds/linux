@@ -50,6 +50,9 @@ static int last_ftrace_enabled;
 /* Quick disabling of function tracer. */
 int function_trace_stop;
 
+/* By default, current tracing type is normal tracing. */
+enum ftrace_tracing_type_t ftrace_tracing_type = FTRACE_TYPE_ENTER;
+
 /*
  * ftrace_disabled is set when an anomaly is discovered.
  * ftrace_disabled is much stronger than ftrace_enabled.
@@ -385,12 +388,21 @@ static void ftrace_bug(int failed, unsigned long ip)
 	}
 }
 
-#define FTRACE_ADDR ((long)(ftrace_caller))
 
 static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
 	unsigned long ip, fl;
+	unsigned long ftrace_addr;
+
+#ifdef CONFIG_FUNCTION_RET_TRACER
+	if (ftrace_tracing_type == FTRACE_TYPE_ENTER)
+		ftrace_addr = (unsigned long)ftrace_caller;
+	else
+		ftrace_addr = (unsigned long)ftrace_return_caller;
+#else
+	ftrace_addr = (unsigned long)ftrace_caller;
+#endif
 
 	ip = rec->ip;
 
@@ -450,9 +462,9 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 	}
 
 	if (rec->flags & FTRACE_FL_ENABLED)
-		return ftrace_make_call(rec, FTRACE_ADDR);
+		return ftrace_make_call(rec, ftrace_addr);
 	else
-		return ftrace_make_nop(NULL, rec, FTRACE_ADDR);
+		return ftrace_make_nop(NULL, rec, ftrace_addr);
 }
 
 static void ftrace_replace_code(int enable)
@@ -1405,10 +1417,17 @@ int register_ftrace_function(struct ftrace_ops *ops)
 		return -1;
 
 	mutex_lock(&ftrace_sysctl_lock);
+
+	if (ftrace_tracing_type == FTRACE_TYPE_RETURN) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	ret = __register_ftrace_function(ops);
 	ftrace_startup();
-	mutex_unlock(&ftrace_sysctl_lock);
 
+out:
+	mutex_unlock(&ftrace_sysctl_lock);
 	return ret;
 }
 
@@ -1474,16 +1493,45 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 }
 
 #ifdef CONFIG_FUNCTION_RET_TRACER
+
+/* The callback that hooks the return of a function */
 trace_function_return_t ftrace_function_return =
 			(trace_function_return_t)ftrace_stub;
-void register_ftrace_return(trace_function_return_t func)
+
+int register_ftrace_return(trace_function_return_t func)
 {
+	int ret = 0;
+
+	mutex_lock(&ftrace_sysctl_lock);
+
+	/*
+	 * Don't launch return tracing if normal function
+	 * tracing is already running.
+	 */
+	if (ftrace_trace_function != ftrace_stub) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ftrace_tracing_type = FTRACE_TYPE_RETURN;
 	ftrace_function_return = func;
+	ftrace_startup();
+
+out:
+	mutex_unlock(&ftrace_sysctl_lock);
+	return ret;
 }
 
 void unregister_ftrace_return(void)
 {
+	mutex_lock(&ftrace_sysctl_lock);
+
 	ftrace_function_return = (trace_function_return_t)ftrace_stub;
+	ftrace_shutdown();
+	/* Restore normal tracing type */
+	ftrace_tracing_type = FTRACE_TYPE_ENTER;
+
+	mutex_unlock(&ftrace_sysctl_lock);
 }
 #endif
 

@@ -25,6 +25,17 @@ struct ftrace_ops {
 
 extern int function_trace_stop;
 
+/*
+ * Type of the current tracing.
+ */
+enum ftrace_tracing_type_t {
+	FTRACE_TYPE_ENTER = 0, /* Hook the call of the function */
+	FTRACE_TYPE_RETURN,	/* Hook the return of the function */
+};
+
+/* Current tracing type, default is FTRACE_TYPE_ENTER */
+extern enum ftrace_tracing_type_t ftrace_tracing_type;
+
 /**
  * ftrace_stop - stop function tracer.
  *
@@ -104,6 +115,9 @@ extern int ftrace_update_ftrace_func(ftrace_func_t func);
 extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
+#ifdef CONFIG_FUNCTION_RET_TRACER
+extern void ftrace_return_caller(void);
+#endif
 
 /**
  * ftrace_make_nop - convert code into top
@@ -310,7 +324,7 @@ struct ftrace_retfunc {
 /* Type of a callback handler of tracing return function */
 typedef void (*trace_function_return_t)(struct ftrace_retfunc *);
 
-extern void register_ftrace_return(trace_function_return_t func);
+extern int register_ftrace_return(trace_function_return_t func);
 /* The current handler in use */
 extern trace_function_return_t ftrace_function_return;
 extern void unregister_ftrace_return(void);

@@ -24,134 +24,6 @@
 #include <asm/nmi.h>
 
 
-
-#ifdef CONFIG_FUNCTION_RET_TRACER
-
-/*
- * These functions are picked from those used on
- * this page for dynamic ftrace. They have been
- * simplified to ignore all traces in NMI context.
- */
-static atomic_t in_nmi;
-
-void ftrace_nmi_enter(void)
-{
-	atomic_inc(&in_nmi);
-}
-
-void ftrace_nmi_exit(void)
-{
-	atomic_dec(&in_nmi);
-}
-
-/* Add a function return address to the trace stack on thread info.*/
-static int push_return_trace(unsigned long ret, unsigned long long time,
-				unsigned long func)
-{
-	int index;
-	struct thread_info *ti = current_thread_info();
-
-	/* The return trace stack is full */
-	if (ti->curr_ret_stack == FTRACE_RET_STACK_SIZE - 1)
-		return -EBUSY;
-
-	index = ++ti->curr_ret_stack;
-	barrier();
-	ti->ret_stack[index].ret = ret;
-	ti->ret_stack[index].func = func;
-	ti->ret_stack[index].calltime = time;
-
-	return 0;
-}
-
-/* Retrieve a function return address to the trace stack on thread info.*/
-static void pop_return_trace(unsigned long *ret, unsigned long long *time,
-				unsigned long *func)
-{
-	int index;
-
-	struct thread_info *ti = current_thread_info();
-	index = ti->curr_ret_stack;
-	*ret = ti->ret_stack[index].ret;
-	*func = ti->ret_stack[index].func;
-	*time = ti->ret_stack[index].calltime;
-	ti->curr_ret_stack--;
-}
-
-/*
- * Send the trace to the ring-buffer.
- * @return the original return address.
- */
-unsigned long ftrace_return_to_handler(void)
-{
-	struct ftrace_retfunc trace;
-	pop_return_trace(&trace.ret, &trace.calltime, &trace.func);
-	trace.rettime = cpu_clock(raw_smp_processor_id());
-	ftrace_function_return(&trace);
-
-	return trace.ret;
-}
-
-/*
- * Hook the return address and push it in the stack of return addrs
- * in current thread info.
- */
-void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
-{
-	unsigned long old;
-	unsigned long long calltime;
-	int faulted;
-	unsigned long return_hooker = (unsigned long)
-				&return_to_handler;
-
-	/* Nmi's are currently unsupported */
-	if (atomic_read(&in_nmi))
-		return;
-
-	/*
-	 * Protect against fault, even if it shouldn't
-	 * happen. This tool is too much intrusive to
-	 * ignore such a protection.
-	 */
-	asm volatile(
-		"1: movl (%[parent_old]), %[old]\n"
-		"2: movl %[return_hooker], (%[parent_replaced])\n"
-		"   movl $0, %[faulted]\n"
-
-		".section .fixup, \"ax\"\n"
-		"3: movl $1, %[faulted]\n"
-		".previous\n"
-
-		".section __ex_table, \"a\"\n"
-		"   .long 1b, 3b\n"
-		"   .long 2b, 3b\n"
-		".previous\n"
-
-		: [parent_replaced] "=r" (parent), [old] "=r" (old),
-		  [faulted] "=r" (faulted)
-		: [parent_old] "0" (parent), [return_hooker] "r" (return_hooker)
-		: "memory"
-	);
-
-	if (WARN_ON(faulted)) {
-		unregister_ftrace_return();
-		return;
-	}
-
-	if (WARN_ON(!__kernel_text_address(old))) {
-		unregister_ftrace_return();
-		*parent = old;
-		return;
-	}
-
-	calltime = cpu_clock(raw_smp_processor_id());
-
-	if (push_return_trace(old, calltime, self_addr) == -EBUSY)
-		*parent = old;
-}
-
-#endif
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 union ftrace_code_union {
@@ -450,3 +322,133 @@ int __init ftrace_dyn_arch_init(void *data)
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_FUNCTION_RET_TRACER
+
+#ifndef CONFIG_DYNAMIC_FTRACE
+
+/*
+ * These functions are picked from those used on
+ * this page for dynamic ftrace. They have been
+ * simplified to ignore all traces in NMI context.
+ */
+static atomic_t in_nmi;
+
+void ftrace_nmi_enter(void)
+{
+	atomic_inc(&in_nmi);
+}
+
+void ftrace_nmi_exit(void)
+{
+	atomic_dec(&in_nmi);
+}
+#endif /* !CONFIG_DYNAMIC_FTRACE */
+
+/* Add a function return address to the trace stack on thread info.*/
+static int push_return_trace(unsigned long ret, unsigned long long time,
+				unsigned long func)
+{
+	int index;
+	struct thread_info *ti = current_thread_info();
+
+	/* The return trace stack is full */
+	if (ti->curr_ret_stack == FTRACE_RET_STACK_SIZE - 1)
+		return -EBUSY;
+
+	index = ++ti->curr_ret_stack;
+	barrier();
+	ti->ret_stack[index].ret = ret;
+	ti->ret_stack[index].func = func;
+	ti->ret_stack[index].calltime = time;
+
+	return 0;
+}
+
+/* Retrieve a function return address to the trace stack on thread info.*/
+static void pop_return_trace(unsigned long *ret, unsigned long long *time,
+				unsigned long *func)
+{
+	int index;
+
+	struct thread_info *ti = current_thread_info();
+	index = ti->curr_ret_stack;
+	*ret = ti->ret_stack[index].ret;
+	*func = ti->ret_stack[index].func;
+	*time = ti->ret_stack[index].calltime;
+	ti->curr_ret_stack--;
+}
+
+/*
+ * Send the trace to the ring-buffer.
+ * @return the original return address.
+ */
+unsigned long ftrace_return_to_handler(void)
+{
+	struct ftrace_retfunc trace;
+	pop_return_trace(&trace.ret, &trace.calltime, &trace.func);
+	trace.rettime = cpu_clock(raw_smp_processor_id());
+	ftrace_function_return(&trace);
+
+	return trace.ret;
+}
+
+/*
+ * Hook the return address and push it in the stack of return addrs
+ * in current thread info.
+ */
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
+{
+	unsigned long old;
+	unsigned long long calltime;
+	int faulted;
+	unsigned long return_hooker = (unsigned long)
+				&return_to_handler;
+
+	/* Nmi's are currently unsupported */
+	if (atomic_read(&in_nmi))
+		return;
+
+	/*
+	 * Protect against fault, even if it shouldn't
+	 * happen. This tool is too much intrusive to
+	 * ignore such a protection.
+	 */
+	asm volatile(
+		"1: movl (%[parent_old]), %[old]\n"
+		"2: movl %[return_hooker], (%[parent_replaced])\n"
+		"   movl $0, %[faulted]\n"
+
+		".section .fixup, \"ax\"\n"
+		"3: movl $1, %[faulted]\n"
+		".previous\n"
+
+		".section __ex_table, \"a\"\n"
+		"   .long 1b, 3b\n"
+		"   .long 2b, 3b\n"
+		".previous\n"
+
+		: [parent_replaced] "=r" (parent), [old] "=r" (old),
+		  [faulted] "=r" (faulted)
+		: [parent_old] "0" (parent), [return_hooker] "r" (return_hooker)
+		: "memory"
+	);
+
+	if (WARN_ON(faulted)) {
+		unregister_ftrace_return();
+		return;
+	}
+
+	if (WARN_ON(!__kernel_text_address(old))) {
+		unregister_ftrace_return();
+		*parent = old;
+		return;
+	}
+
+	calltime = cpu_clock(raw_smp_processor_id());
+
+	if (push_return_trace(old, calltime, self_addr) == -EBUSY)
+		*parent = old;
+}
+
+#endif /* CONFIG_FUNCTION_RET_TRACER */
