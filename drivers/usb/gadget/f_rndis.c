@@ -172,7 +172,6 @@ static struct usb_interface_descriptor rndis_data_intf __initdata = {
 	.bDescriptorType =	USB_DT_INTERFACE,
 
 	/* .bInterfaceNumber = DYNAMIC */
-	.bAlternateSetting =	1,
 	.bNumEndpoints =	2,
 	.bInterfaceClass =	USB_CLASS_CDC_DATA,
 	.bInterfaceSubClass =	0,
