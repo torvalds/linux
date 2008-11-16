@@ -409,7 +409,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 	 */
 	submit = epu_cmd_irq(cx, order, stale);
 	if (submit > 0) {
-		schedule_work(&order->work);
+		queue_work(cx18_work_queue, &order->work);
 	}
 }
 

@@ -56,6 +56,9 @@ struct cx18 *cx18_cards[CX18_MAX_CARDS];
 /* Protects cx18_cards_active */
 DEFINE_SPINLOCK(cx18_cards_lock);
 
+/* Queue for deferrable IRQ handling work for all cx18 cards in system */
+struct workqueue_struct *cx18_work_queue;
+
 /* add your revision and whatnot here */
 static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
 	{PCI_VENDOR_ID_CX, PCI_DEVICE_ID_CX23418,
@@ -920,6 +923,13 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	return 0;
 }
 
+static void cx18_cancel_epu_work_orders(struct cx18 *cx)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++)
+		cancel_work_sync(&cx->epu_work_order[i].work);
+}
+
 static void cx18_remove(struct pci_dev *pci_dev)
 {
 	struct cx18 *cx = pci_get_drvdata(pci_dev);
@@ -937,7 +947,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	cx18_halt_firmware(cx);
 
-	flush_scheduled_work();
+	cx18_cancel_epu_work_orders(cx);
 
 	cx18_streams_cleanup(cx, 1);
 
@@ -981,8 +991,17 @@ static int module_start(void)
 		printk(KERN_INFO "cx18:   Debug value must be >= 0 and <= 511!\n");
 	}
 
+	cx18_work_queue = create_singlethread_workqueue("cx18");
+	if (cx18_work_queue == NULL) {
+		printk(KERN_ERR
+		       "cx18:   Unable to create work hander thread\n");
+		return -ENOMEM;
+	}
+
 	if (pci_register_driver(&cx18_pci_driver)) {
 		printk(KERN_ERR "cx18:   Error detecting PCI card\n");
+		destroy_workqueue(cx18_work_queue);
+		cx18_work_queue = NULL;
 		return -ENODEV;
 	}
 	printk(KERN_INFO "cx18:  End initialization\n");
@@ -995,11 +1014,15 @@ static void module_cleanup(void)
 
 	pci_unregister_driver(&cx18_pci_driver);
 
+	destroy_workqueue(cx18_work_queue);
+	cx18_work_queue = NULL;
+
 	for (i = 0; i < cx18_cards_active; i++) {
 		if (cx18_cards[i] == NULL)
 			continue;
 		kfree(cx18_cards[i]);
 	}
+
 }
 
 module_init(module_start);

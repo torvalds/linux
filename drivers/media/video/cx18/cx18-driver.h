@@ -486,6 +486,7 @@ extern struct cx18 *cx18_cards[];
 extern int cx18_cards_active;
 extern int cx18_first_minor;
 extern spinlock_t cx18_cards_lock;
+extern struct workqueue_struct *cx18_work_queue;
 
 /*==============Prototypes==================*/
 
