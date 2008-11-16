@@ -256,7 +256,7 @@ static void rate_control_pid_tx_status(void *priv, struct ieee80211_supported_ba
 	if (!(info->flags & IEEE80211_TX_STAT_ACK)) {
 		spinfo->tx_num_failed += 2;
 		spinfo->tx_num_xmit++;
-	} else if (info->status.rates[0].count) {
+	} else if (info->status.rates[0].count > 1) {
 		spinfo->tx_num_failed++;
 		spinfo->tx_num_xmit++;
 	}
