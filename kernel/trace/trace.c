@@ -2638,8 +2638,11 @@ static int tracing_set_tracer(char *buf)
 		current_trace->reset(tr);
 
 	current_trace = t;
-	if (t->init)
-		t->init(tr);
+	if (t->init) {
+		ret = t->init(tr);
+		if (ret)
+			goto out;
+	}
 
 	trace_branch_enable(tr);
  out:

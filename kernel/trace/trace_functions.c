@@ -42,9 +42,10 @@ static void stop_function_trace(struct trace_array *tr)
 	tracing_stop_cmdline_record();
 }
 
-static void function_trace_init(struct trace_array *tr)
+static int function_trace_init(struct trace_array *tr)
 {
 	start_function_trace(tr);
+	return 0;
 }
 
 static void function_trace_reset(struct trace_array *tr)

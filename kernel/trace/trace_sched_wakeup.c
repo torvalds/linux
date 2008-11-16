@@ -331,10 +331,11 @@ static void stop_wakeup_tracer(struct trace_array *tr)
 	unregister_trace_sched_wakeup(probe_wakeup);
 }
 
-static void wakeup_tracer_init(struct trace_array *tr)
+static int wakeup_tracer_init(struct trace_array *tr)
 {
 	wakeup_trace = tr;
 	start_wakeup_tracer(tr);
+	return 0;
 }
 
 static void wakeup_tracer_reset(struct trace_array *tr)

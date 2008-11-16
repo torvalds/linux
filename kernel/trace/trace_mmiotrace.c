@@ -30,13 +30,14 @@ static void mmio_reset_data(struct trace_array *tr)
 		tracing_reset(tr, cpu);
 }
 
-static void mmio_trace_init(struct trace_array *tr)
+static int mmio_trace_init(struct trace_array *tr)
 {
 	pr_debug("in %s\n", __func__);
 	mmio_trace_array = tr;
 
 	mmio_reset_data(tr);
 	enable_mmiotrace();
+	return 0;
 }
 
 static void mmio_trace_reset(struct trace_array *tr)
