@@ -542,6 +542,8 @@ void tracepoint_iter_reset(struct tracepoint_iter *iter)
 }
 EXPORT_SYMBOL_GPL(tracepoint_iter_reset);
 
+#ifdef CONFIG_MODULES
+
 int tracepoint_module_notify(struct notifier_block *self,
 			     unsigned long val, void *data)
 {
@@ -570,3 +572,5 @@ static int init_tracepoints(void)
 	return register_module_notifier(&tracepoint_module_nb);
 }
 __initcall(init_tracepoints);
+
+#endif /* CONFIG_MODULES */

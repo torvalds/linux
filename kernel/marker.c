@@ -896,6 +896,8 @@ void *marker_get_private_data(const char *name, marker_probe_func *probe,
 }
 EXPORT_SYMBOL_GPL(marker_get_private_data);
 
+#ifdef CONFIG_MODULES
+
 int marker_module_notify(struct notifier_block *self,
 			 unsigned long val, void *data)
 {
@@ -924,3 +926,5 @@ static int init_markers(void)
 	return register_module_notifier(&marker_module_nb);
 }
 __initcall(init_markers);
+
+#endif /* CONFIG_MODULES */
