@@ -2655,6 +2655,9 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	char buf[max_tracer_type_len+1];
 	int i;
 	size_t ret;
+	int err;
+
+	ret = cnt;
 
 	if (cnt > max_tracer_type_len)
 		cnt = max_tracer_type_len;
@@ -2668,12 +2671,11 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	for (i = cnt - 1; i > 0 && isspace(buf[i]); i--)
 		buf[i] = 0;
 
-	ret = tracing_set_tracer(buf);
-	if (!ret)
-		ret = cnt;
+	err = tracing_set_tracer(buf);
+	if (err)
+		return err;
 
-	if (ret > 0)
-		filp->f_pos += ret;
+	filp->f_pos += ret;
 
 	return ret;
 }
