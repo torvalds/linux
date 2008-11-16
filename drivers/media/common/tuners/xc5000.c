@@ -193,7 +193,7 @@ static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 
 static int xc5000_is_firmware_loaded(struct dvb_frontend *fe);
 static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len);
-static int xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len);
+static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val);
 static int xc5000_TunerReset(struct dvb_frontend *fe);
 
 static int xc_send_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
@@ -202,10 +202,19 @@ static int xc_send_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 		? XC_RESULT_I2C_WRITE_FAILURE : XC_RESULT_SUCCESS;
 }
 
+/* This routine is never used because the only time we read data from the
+   i2c bus is when we read registers, and we want that to be an atomic i2c
+   transaction in case we are on a multi-master bus */
 static int xc_read_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 {
-	return xc5000_readregs(priv, buf, len)
-		? XC_RESULT_I2C_READ_FAILURE : XC_RESULT_SUCCESS;
+	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
+		.flags = I2C_M_RD, .buf = buf, .len = len };
+
+	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
+		printk(KERN_ERR "xc5000 I2C read failed (len=%i)\n", len);
+		return -EREMOTEIO;
+	}
+	return 0;
 }
 
 static void xc_wait(int wait_ms)
@@ -272,25 +281,6 @@ static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 	if (WatchDogTimer < 0)
 		result = XC_RESULT_I2C_WRITE_FAILURE;
 
-	return result;
-}
-
-static int xc_read_reg(struct xc5000_priv *priv, u16 regAddr, u16 *i2cData)
-{
-	u8 buf[2];
-	int result;
-
-	buf[0] = (regAddr >> 8) & 0xFF;
-	buf[1] = regAddr & 0xFF;
-	result = xc_send_i2c_data(priv, buf, 2);
-	if (result != XC_RESULT_SUCCESS)
-		return result;
-
-	result = xc_read_i2c_data(priv, buf, 2);
-	if (result != XC_RESULT_SUCCESS)
-		return result;
-
-	*i2cData = buf[0] * 256 + buf[1];
 	return result;
 }
 
@@ -423,7 +413,7 @@ static int xc_set_IF_frequency(struct xc5000_priv *priv, u32 freq_khz)
 
 static int xc_get_ADC_Envelope(struct xc5000_priv *priv, u16 *adc_envelope)
 {
-	return xc_read_reg(priv, XREG_ADC_ENV, adc_envelope);
+	return xc5000_readreg(priv, XREG_ADC_ENV, adc_envelope);
 }
 
 static int xc_get_frequency_error(struct xc5000_priv *priv, u32 *freq_error_hz)
@@ -432,7 +422,7 @@ static int xc_get_frequency_error(struct xc5000_priv *priv, u32 *freq_error_hz)
 	u16 regData;
 	u32 tmp;
 
-	result = xc_read_reg(priv, XREG_FREQ_ERROR, &regData);
+	result = xc5000_readreg(priv, XREG_FREQ_ERROR, &regData);
 	if (result)
 		return result;
 
@@ -443,7 +433,7 @@ static int xc_get_frequency_error(struct xc5000_priv *priv, u32 *freq_error_hz)
 
 static int xc_get_lock_status(struct xc5000_priv *priv, u16 *lock_status)
 {
-	return xc_read_reg(priv, XREG_LOCK, lock_status);
+	return xc5000_readreg(priv, XREG_LOCK, lock_status);
 }
 
 static int xc_get_version(struct xc5000_priv *priv,
@@ -453,7 +443,7 @@ static int xc_get_version(struct xc5000_priv *priv,
 	u16 data;
 	int result;
 
-	result = xc_read_reg(priv, XREG_VERSION, &data);
+	result = xc5000_readreg(priv, XREG_VERSION, &data);
 	if (result)
 		return result;
 
@@ -470,7 +460,7 @@ static int xc_get_hsync_freq(struct xc5000_priv *priv, u32 *hsync_freq_hz)
 	u16 regData;
 	int result;
 
-	result = xc_read_reg(priv, XREG_HSYNC_FREQ, &regData);
+	result = xc5000_readreg(priv, XREG_HSYNC_FREQ, &regData);
 	if (result)
 		return result;
 
@@ -480,12 +470,12 @@ static int xc_get_hsync_freq(struct xc5000_priv *priv, u32 *hsync_freq_hz)
 
 static int xc_get_frame_lines(struct xc5000_priv *priv, u16 *frame_lines)
 {
-	return xc_read_reg(priv, XREG_FRAME_LINES, frame_lines);
+	return xc5000_readreg(priv, XREG_FRAME_LINES, frame_lines);
 }
 
 static int xc_get_quality(struct xc5000_priv *priv, u16 *quality)
 {
-	return xc_read_reg(priv, XREG_QUALITY, quality);
+	return xc5000_readreg(priv, XREG_QUALITY, quality);
 }
 
 static u16 WaitForLock(struct xc5000_priv *priv)
@@ -535,7 +525,7 @@ static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 	}
 
 	*val = (bval[0] << 8) | bval[1];
-	return 0;
+	return XC_RESULT_SUCCESS;
 }
 
 static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len)
@@ -546,18 +536,6 @@ static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
 		printk(KERN_ERR "xc5000: I2C write failed (len=%i)\n",
 			(int)len);
-		return -EREMOTEIO;
-	}
-	return 0;
-}
-
-static int xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len)
-{
-	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
-		.flags = I2C_M_RD, .buf = buf, .len = len };
-
-	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
-		printk(KERN_ERR "xc5000 I2C read failed (len=%i)\n", (int)len);
 		return -EREMOTEIO;
 	}
 	return 0;
