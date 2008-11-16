@@ -201,6 +201,8 @@ struct udf_options {
 	mode_t umask;
 	gid_t gid;
 	uid_t uid;
+	mode_t fmode;
+	mode_t dmode;
 	struct nls_table *nls_map;
 };
 
@@ -282,6 +284,10 @@ static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",gid=%u", sbi->s_gid);
 	if (sbi->s_umask != 0)
 		seq_printf(seq, ",umask=%o", sbi->s_umask);
+	if (sbi->s_fmode != -1)
+		seq_printf(seq, ",mode=%o", sbi->s_fmode);
+	if (sbi->s_dmode != -1)
+		seq_printf(seq, ",dmode=%o", sbi->s_dmode);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_SESSION_SET))
 		seq_printf(seq, ",session=%u", sbi->s_session);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_LASTBLOCK_SET))
@@ -317,6 +323,8 @@ static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
  *
  *	gid=		Set the default group.
  *	umask=		Set the default umask.
+ *	mode=		Set the default file permissions.
+ *	dmode=		Set the default directory permissions.
  *	uid=		Set the default user.
  *	bs=		Set the block size.
  *	unhide		Show otherwise hidden files.
@@ -366,7 +374,8 @@ enum {
 	Opt_gid, Opt_uid, Opt_umask, Opt_session, Opt_lastblock,
 	Opt_anchor, Opt_volume, Opt_partition, Opt_fileset,
 	Opt_rootdir, Opt_utf8, Opt_iocharset,
-	Opt_err, Opt_uforget, Opt_uignore, Opt_gforget, Opt_gignore
+	Opt_err, Opt_uforget, Opt_uignore, Opt_gforget, Opt_gignore,
+	Opt_fmode, Opt_dmode
 };
 
 static const match_table_t tokens = {
@@ -395,6 +404,8 @@ static const match_table_t tokens = {
 	{Opt_rootdir,	"rootdir=%u"},
 	{Opt_utf8,	"utf8"},
 	{Opt_iocharset,	"iocharset=%s"},
+	{Opt_fmode,     "mode=%o"},
+	{Opt_dmode,     "dmode=%o"},
 	{Opt_err,	NULL}
 };
 
@@ -531,6 +542,16 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 		case Opt_gforget:
 			uopt->flags |= (1 << UDF_FLAG_GID_FORGET);
 			break;
+		case Opt_fmode:
+			if (match_octal(args, &option))
+				return 0;
+			uopt->fmode = option & 0777;
+			break;
+		case Opt_dmode:
+			if (match_octal(args, &option))
+				return 0;
+			uopt->dmode = option & 0777;
+			break;
 		default:
 			printk(KERN_ERR "udf: bad mount option \"%s\" "
 			       "or missing value\n", p);
@@ -560,6 +581,8 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	uopt.uid   = sbi->s_uid;
 	uopt.gid   = sbi->s_gid;
 	uopt.umask = sbi->s_umask;
+	uopt.fmode = sbi->s_fmode;
+	uopt.dmode = sbi->s_dmode;
 
 	if (!udf_parse_options(options, &uopt, true))
 		return -EINVAL;
@@ -568,6 +591,8 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	sbi->s_uid   = uopt.uid;
 	sbi->s_gid   = uopt.gid;
 	sbi->s_umask = uopt.umask;
+	sbi->s_fmode = uopt.fmode;
+	sbi->s_dmode = uopt.dmode;
 
 	if (sbi->s_lvid_bh) {
 		int write_rev = le16_to_cpu(udf_sb_lvidiu(sbi)->minUDFWriteRev);
@@ -1869,6 +1894,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	uopt.uid = -1;
 	uopt.gid = -1;
 	uopt.umask = 0;
+	uopt.fmode = -1;
+	uopt.dmode = -1;
 
 	sbi = kzalloc(sizeof(struct udf_sb_info), GFP_KERNEL);
 	if (!sbi)
@@ -1906,6 +1933,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sbi->s_uid = uopt.uid;
 	sbi->s_gid = uopt.gid;
 	sbi->s_umask = uopt.umask;
+	sbi->s_fmode = uopt.fmode;
+	sbi->s_dmode = uopt.dmode;
 	sbi->s_nls_map = uopt.nls_map;
 
 	/* Set the block size for all transfers */

@@ -123,6 +123,8 @@ struct udf_sb_info {
 	mode_t			s_umask;
 	gid_t			s_gid;
 	uid_t			s_uid;
+	mode_t			s_fmode;
+	mode_t			s_dmode;
 
 	/* Root Info */
 	struct timespec		s_record_time;

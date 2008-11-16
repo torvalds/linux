@@ -1222,8 +1222,15 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	inode->i_size = le64_to_cpu(fe->informationLength);
 	iinfo->i_lenExtents = inode->i_size;
 
-	inode->i_mode = udf_convert_permissions(fe);
-	inode->i_mode &= ~UDF_SB(inode->i_sb)->s_umask;
+	if (fe->icbTag.fileType != ICBTAG_FILE_TYPE_DIRECTORY &&
+			sbi->s_fmode != -1)
+		inode->i_mode = sbi->s_fmode;
+	else if (fe->icbTag.fileType == ICBTAG_FILE_TYPE_DIRECTORY &&
+			sbi->s_dmode != -1)
+		inode->i_mode = sbi->s_dmode;
+	else
+		inode->i_mode = udf_convert_permissions(fe);
+	inode->i_mode &= ~sbi->s_umask;
 
 	if (iinfo->i_efe == 0) {
 		inode->i_blocks = le64_to_cpu(fe->logicalBlocksRecorded) <<
