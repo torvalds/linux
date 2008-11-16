@@ -192,14 +192,19 @@ static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 };
 
 static int xc5000_is_firmware_loaded(struct dvb_frontend *fe);
-static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len);
 static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val);
 static int xc5000_TunerReset(struct dvb_frontend *fe);
 
 static int xc_send_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 {
-	return xc5000_writeregs(priv, buf, len)
-		? XC_RESULT_I2C_WRITE_FAILURE : XC_RESULT_SUCCESS;
+	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
+			       .flags = 0, .buf = buf, .len = len };
+
+	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
+		printk(KERN_ERR "xc5000: I2C write failed (len=%i)\n", len);
+		return XC_RESULT_I2C_WRITE_FAILURE;
+	}
+	return XC_RESULT_SUCCESS;
 }
 
 /* This routine is never used because the only time we read data from the
@@ -526,19 +531,6 @@ static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 
 	*val = (bval[0] << 8) | bval[1];
 	return XC_RESULT_SUCCESS;
-}
-
-static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len)
-{
-	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
-		.flags = 0, .buf = buf, .len = len };
-
-	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
-		printk(KERN_ERR "xc5000: I2C write failed (len=%i)\n",
-			(int)len);
-		return -EREMOTEIO;
-	}
-	return 0;
 }
 
 static int xc5000_fwupload(struct dvb_frontend *fe)
