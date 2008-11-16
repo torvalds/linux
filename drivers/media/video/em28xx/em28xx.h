@@ -288,6 +288,7 @@ struct em28xx_board {
 	char *name;
 	int vchannels;
 	int tuner_type;
+	int tuner_addr;
 
 	/* i2c flags */
 	unsigned int tda9887_conf;
