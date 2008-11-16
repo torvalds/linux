@@ -206,10 +206,11 @@ static void stop_sched_trace(struct trace_array *tr)
 	tracing_stop_sched_switch_record();
 }
 
-static void sched_switch_trace_init(struct trace_array *tr)
+static int sched_switch_trace_init(struct trace_array *tr)
 {
 	ctx_trace = tr;
 	start_sched_trace(tr);
+	return 0;
 }
 
 static void sched_switch_trace_reset(struct trace_array *tr)

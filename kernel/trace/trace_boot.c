@@ -47,7 +47,7 @@ static void reset_boot_trace(struct trace_array *tr)
 		tracing_reset(tr, cpu);
 }
 
-static void boot_trace_init(struct trace_array *tr)
+static int boot_trace_init(struct trace_array *tr)
 {
 	int cpu;
 	boot_trace = tr;
@@ -56,6 +56,7 @@ static void boot_trace_init(struct trace_array *tr)
 		tracing_reset(tr, cpu);
 
 	tracing_sched_switch_assign_trace(tr);
+	return 0;
 }
 
 static enum print_line_t

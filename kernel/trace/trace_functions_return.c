@@ -24,13 +24,14 @@ static void stop_return_trace(struct trace_array *tr)
 	unregister_ftrace_return();
 }
 
-static void return_trace_init(struct trace_array *tr)
+static int return_trace_init(struct trace_array *tr)
 {
 	int cpu;
 	for_each_online_cpu(cpu)
 		tracing_reset(tr, cpu);
 
 	start_return_trace(tr);
+	return 0;
 }
 
 static void return_trace_reset(struct trace_array *tr)

@@ -1051,7 +1051,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	 * Need to use raw, since this must be called before the
 	 * recursive protection is performed.
 	 */
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
@@ -1062,7 +1062,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	}
 
 	atomic_dec(&data->disabled);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_FUNCTION_RET_TRACER
@@ -2638,8 +2638,11 @@ static int tracing_set_tracer(char *buf)
 		current_trace->reset(tr);
 
 	current_trace = t;
-	if (t->init)
-		t->init(tr);
+	if (t->init) {
+		ret = t->init(tr);
+		if (ret)
+			goto out;
+	}
 
 	trace_branch_enable(tr);
  out:
@@ -2655,6 +2658,9 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	char buf[max_tracer_type_len+1];
 	int i;
 	size_t ret;
+	int err;
+
+	ret = cnt;
 
 	if (cnt > max_tracer_type_len)
 		cnt = max_tracer_type_len;
@@ -2668,12 +2674,11 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	for (i = cnt - 1; i > 0 && isspace(buf[i]); i--)
 		buf[i] = 0;
 
-	ret = tracing_set_tracer(buf);
-	if (!ret)
-		ret = cnt;
+	err = tracing_set_tracer(buf);
+	if (err)
+		return err;
 
-	if (ret > 0)
-		filp->f_pos += ret;
+	filp->f_pos += ret;
 
 	return ret;
 }

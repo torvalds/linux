@@ -416,11 +416,12 @@ static void irqsoff_tracer_close(struct trace_iterator *iter)
 }
 
 #ifdef CONFIG_IRQSOFF_TRACER
-static void irqsoff_tracer_init(struct trace_array *tr)
+static int irqsoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_IRQS_OFF;
 
 	__irqsoff_tracer_init(tr);
+	return 0;
 }
 static struct tracer irqsoff_tracer __read_mostly =
 {
@@ -442,11 +443,12 @@ static struct tracer irqsoff_tracer __read_mostly =
 #endif
 
 #ifdef CONFIG_PREEMPT_TRACER
-static void preemptoff_tracer_init(struct trace_array *tr)
+static int preemptoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_PREEMPT_OFF;
 
 	__irqsoff_tracer_init(tr);
+	return 0;
 }
 
 static struct tracer preemptoff_tracer __read_mostly =
@@ -471,11 +473,12 @@ static struct tracer preemptoff_tracer __read_mostly =
 #if defined(CONFIG_IRQSOFF_TRACER) && \
 	defined(CONFIG_PREEMPT_TRACER)
 
-static void preemptirqsoff_tracer_init(struct trace_array *tr)
+static int preemptirqsoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_IRQS_OFF | TRACER_PREEMPT_OFF;
 
 	__irqsoff_tracer_init(tr);
+	return 0;
 }
 
 static struct tracer preemptirqsoff_tracer __read_mostly =

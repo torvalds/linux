@@ -264,7 +264,8 @@ enum print_line_t {
  */
 struct tracer {
 	const char		*name;
-	void			(*init)(struct trace_array *tr);
+	/* Your tracer should raise a warning if init fails */
+	int			(*init)(struct trace_array *tr);
 	void			(*reset)(struct trace_array *tr);
 	void			(*start)(struct trace_array *tr);
 	void			(*stop)(struct trace_array *tr);
