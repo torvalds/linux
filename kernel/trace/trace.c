@@ -259,9 +259,7 @@ static const char *trace_options[] = {
 	"sched-tree",
 	"ftrace_printk",
 	"ftrace_preempt",
-#ifdef CONFIG_BRANCH_TRACER
 	"branch",
-#endif
 	"annotate",
 	NULL
 };
