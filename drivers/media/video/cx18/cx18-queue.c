@@ -44,34 +44,31 @@ void cx18_queue_init(struct cx18_queue *q)
 void cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 		struct cx18_queue *q)
 {
-	unsigned long flags = 0;
-
 	/* clear the buffer if it is going to be enqueued to the free queue */
 	if (q == &s->q_free) {
 		buf->bytesused = 0;
 		buf->readpos = 0;
 		buf->b_flags = 0;
 	}
-	spin_lock_irqsave(&s->qlock, flags);
+	mutex_lock(&s->qlock);
 	list_add_tail(&buf->list, &q->list);
 	atomic_inc(&q->buffers);
 	q->bytesused += buf->bytesused - buf->readpos;
-	spin_unlock_irqrestore(&s->qlock, flags);
+	mutex_unlock(&s->qlock);
 }
 
 struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 {
 	struct cx18_buffer *buf = NULL;
-	unsigned long flags = 0;
 
-	spin_lock_irqsave(&s->qlock, flags);
+	mutex_lock(&s->qlock);
 	if (!list_empty(&q->list)) {
 		buf = list_entry(q->list.next, struct cx18_buffer, list);
 		list_del_init(q->list.next);
 		atomic_dec(&q->buffers);
 		q->bytesused -= buf->bytesused - buf->readpos;
 	}
-	spin_unlock_irqrestore(&s->qlock, flags);
+	mutex_unlock(&s->qlock);
 	return buf;
 }
 
@@ -80,9 +77,8 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 {
 	struct cx18 *cx = s->cx;
 	struct list_head *p;
-	unsigned long flags = 0;
 
-	spin_lock_irqsave(&s->qlock, flags);
+	mutex_lock(&s->qlock);
 	list_for_each(p, &s->q_free.list) {
 		struct cx18_buffer *buf =
 			list_entry(p, struct cx18_buffer, list);
@@ -102,10 +98,10 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 			list_move_tail(&buf->list, &s->q_full.list);
 		}
 
-		spin_unlock_irqrestore(&s->qlock, flags);
+		mutex_unlock(&s->qlock);
 		return buf;
 	}
-	spin_unlock_irqrestore(&s->qlock, flags);
+	mutex_unlock(&s->qlock);
 	CX18_ERR("Cannot find buffer %d for stream %s\n", id, s->name);
 	return NULL;
 }
@@ -113,13 +109,12 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 /* Move all buffers of a queue to q_free, while flushing the buffers */
 static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 {
-	unsigned long flags;
 	struct cx18_buffer *buf;
 
 	if (q == &s->q_free)
 		return;
 
-	spin_lock_irqsave(&s->qlock, flags);
+	mutex_lock(&s->qlock);
 	while (!list_empty(&q->list)) {
 		buf = list_entry(q->list.next, struct cx18_buffer, list);
 		list_move_tail(q->list.next, &s->q_free.list);
@@ -127,7 +122,7 @@ static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 		atomic_inc(&s->q_free.buffers);
 	}
 	cx18_queue_init(q);
-	spin_unlock_irqrestore(&s->qlock, flags);
+	mutex_unlock(&s->qlock);
 }
 
 void cx18_flush_queues(struct cx18_stream *s)

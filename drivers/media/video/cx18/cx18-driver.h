@@ -271,7 +271,7 @@ struct cx18_stream {
 	unsigned mdl_offset;
 
 	u32 id;
-	spinlock_t qlock; 	/* locks access to the queues */
+	struct mutex qlock; 	/* locks access to the queues */
 	unsigned long s_flags;	/* status flags, see above */
 	int dma;		/* can be PCI_DMA_TODEVICE,
 				   PCI_DMA_FROMDEVICE or

@@ -132,7 +132,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 		s->buffers = 63;
 		s->buf_size = (max_size / s->buffers) & ~0xfff;
 	}
-	spin_lock_init(&s->qlock);
+	mutex_init(&s->qlock);
 	init_waitqueue_head(&s->waitq);
 	s->id = -1;
 	cx18_queue_init(&s->q_free);
