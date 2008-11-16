@@ -490,7 +490,9 @@ static u16 WaitForLock(struct xc5000_priv *priv)
 	return lockState;
 }
 
-static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz)
+#define XC_TUNE_ANALOG  0
+#define XC_TUNE_DIGITAL 1
+static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz, int mode)
 {
 	int found = 0;
 
@@ -499,8 +501,10 @@ static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz)
 	if (xc_set_RF_frequency(priv, freq_hz) != XC_RESULT_SUCCESS)
 		return 0;
 
-	if (WaitForLock(priv) == 1)
-		found = 1;
+	if (mode == XC_TUNE_ANALOG) {
+		if (WaitForLock(priv) == 1)
+			found = 1;
+	}
 
 	return found;
 }
@@ -662,7 +666,7 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 		return -EIO;
 	}
 
-	xc_tune_channel(priv, priv->freq_hz);
+	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
 
 	if (debug)
 		xc_debug_dump(priv);
@@ -769,7 +773,7 @@ tune_channel:
 		return -EREMOTEIO;
 	}
 
-	xc_tune_channel(priv, priv->freq_hz);
+	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
 
 	if (debug)
 		xc_debug_dump(priv);
