@@ -1355,6 +1355,12 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	if (rc > 0) {
 		dev->chip_id = rc;
 		switch (rc) {
+		case CHIP_ID_EM2820:
+			em28xx_info("chip ID is em2820\n");
+			break;
+		case CHIP_ID_EM2840:
+			em28xx_info("chip ID is em2840\n");
+			break;
 		case CHIP_ID_EM2860:
 			em28xx_info("chip ID is em2860\n");
 			break;
