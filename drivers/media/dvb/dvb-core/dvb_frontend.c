@@ -934,7 +934,8 @@ void dtv_property_dump(struct dtv_property *tvp)
 int is_legacy_delivery_system(fe_delivery_system_t s)
 {
 	if((s == SYS_UNDEFINED) || (s == SYS_DVBC_ANNEX_AC) ||
-		(s == SYS_DVBC_ANNEX_B) || (s == SYS_DVBT) || (s == SYS_DVBS))
+	   (s == SYS_DVBC_ANNEX_B) || (s == SYS_DVBT) || (s == SYS_DVBS) ||
+	   (s == SYS_ATSC))
 		return 1;
 
 	return 0;
