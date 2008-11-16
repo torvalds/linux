@@ -191,6 +191,7 @@ static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"FM Radio-INPUT1",   0x0208, 0x9002}
 };
 
+static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
 static int xc5000_is_firmware_loaded(struct dvb_frontend *fe);
 static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val);
 static int xc5000_TunerReset(struct dvb_frontend *fe);
@@ -363,15 +364,6 @@ static int xc_SetTVStandard(struct xc5000_priv *priv,
 		ret = xc_write_reg(priv, XREG_AUDIO_MODE, AudioMode);
 
 	return ret;
-}
-
-static int xc_shutdown(struct xc5000_priv *priv)
-{
-	return XC_RESULT_SUCCESS;
-	/* Fixme: cannot bring tuner back alive once shutdown
-	 *        without reloading the driver modules.
-	 *    return xc_write_reg(priv, XREG_POWER_DOWN, 0);
-	 */
 }
 
 static int xc_SetSignalSource(struct xc5000_priv *priv, u16 rf_mode)
@@ -617,6 +609,9 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
+		xc_load_fw_and_init_tuner(fe);
+
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
 
 	switch (params->u.vsb.modulation) {
@@ -693,8 +688,6 @@ static int xc5000_is_firmware_loaded(struct dvb_frontend *fe)
 		ret == XC_RESULT_SUCCESS ? "True" : "False", id);
 	return ret;
 }
-
-static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
 
 static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	struct analog_parameters *params)
@@ -849,13 +842,7 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 
 	dprintk(1, "%s()\n", __func__);
 
-	/* On Pinnacle PCTV HD 800i, the tuner cannot be reinitialized
-	 * once shutdown without reloading the driver. Maybe I am not
-	 * doing something right.
-	 *
-	 */
-
-	ret = xc_shutdown(priv);
+	ret = xc_write_reg(priv, XREG_POWER_DOWN, 0);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR
 			"xc5000: %s() unable to shutdown tuner\n",
