@@ -174,6 +174,16 @@ static int regulator_check_current_limit(struct regulator_dev *rdev,
 /* operating mode constraint check */
 static int regulator_check_mode(struct regulator_dev *rdev, int mode)
 {
+	switch (mode) {
+	case REGULATOR_MODE_FAST:
+	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_IDLE:
+	case REGULATOR_MODE_STANDBY:
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	if (!rdev->constraints) {
 		printk(KERN_ERR "%s: no constraints for %s\n", __func__,
 		       rdev->desc->name);
@@ -1494,7 +1504,8 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 	mode = rdev->desc->ops->get_optimum_mode(rdev,
 						 input_uV, output_uV,
 						 total_uA_load);
-	if (ret <= 0) {
+	ret = regulator_check_mode(rdev, mode);
+	if (ret < 0) {
 		printk(KERN_ERR "%s: failed to get optimum mode for %s @"
 			" %d uA %d -> %d uV\n", __func__, rdev->desc->name,
 			total_uA_load, input_uV, output_uV);
@@ -1502,7 +1513,7 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 	}
 
 	ret = rdev->desc->ops->set_mode(rdev, mode);
-	if (ret <= 0) {
+	if (ret < 0) {
 		printk(KERN_ERR "%s: failed to set optimum mode %x for %s\n",
 			__func__, mode, rdev->desc->name);
 		goto out;
