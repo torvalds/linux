@@ -423,10 +423,11 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 #undef __P
 
 	{
+		unsigned int this_cpu = raw_smp_processor_id();
 		u64 t0, t1;
 
-		t0 = sched_clock();
-		t1 = sched_clock();
+		t0 = cpu_clock(this_cpu);
+		t1 = cpu_clock(this_cpu);
 		SEQ_printf(m, "%-35s:%21Ld\n",
 			   "clock-delta", (long long)(t1-t0));
 	}
