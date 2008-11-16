@@ -37,6 +37,17 @@
 
 struct cx18;
 
+/*
+ * This structure is used by CPU to provide completed buffers information
+ * Its structure is dictrated by the layout of the SCB, required by the
+ * firmware, but its defintion needs to be here, instead of in cx18-scb.h,
+ * for mailbox work order scheduling
+ */
+struct cx18_mdl_ack {
+    u32 id;        /* ID of a completed MDL */
+    u32 data_used; /* Total data filled in the MDL for buffer 'id' */
+};
+
 /* The cx18_mailbox struct is the mailbox structure which is used for passing
    messages between processors */
 struct cx18_mailbox {
@@ -73,6 +84,9 @@ int cx18_vapi_result(struct cx18 *cx, u32 data[MAX_MB_ARGUMENTS], u32 cmd,
 int cx18_vapi(struct cx18 *cx, u32 cmd, int args, ...);
 int cx18_api_func(void *priv, u32 cmd, int in, int out,
 		u32 data[CX2341X_MBOX_MAX_DATA]);
-long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb, int rpu);
+
+void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu);
+
+void cx18_epu_work_handler(struct work_struct *work);
 
 #endif

@@ -85,12 +85,6 @@ struct cx18_mdl {
     u32 length; /* Length of the buffer segment */
 };
 
-/* This structure is used by CPU to provide completed buffers information */
-struct cx18_mdl_ack {
-    u32 id;        /* ID of a completed MDL */
-    u32 data_used; /* Total data filled in the MDL for buffer 'id' */
-};
-
 struct cx18_scb {
 	/* These fields form the System Control Block which is used at boot time
 	   for localizing the IPC data as well as the code positions for all
@@ -276,7 +270,7 @@ struct cx18_scb {
 	struct cx18_mailbox  hpu2epu_mb;
 	struct cx18_mailbox  ppu2epu_mb;
 
-	struct cx18_mdl_ack  cpu_mdl_ack[CX18_MAX_STREAMS][2];
+	struct cx18_mdl_ack  cpu_mdl_ack[CX18_MAX_STREAMS][CX18_MAX_MDL_ACKS];
 	struct cx18_mdl      cpu_mdl[1];
 };
 

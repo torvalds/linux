@@ -166,41 +166,6 @@ u8 cx18_readb_retry(struct cx18 *cx, const void __iomem *addr)
 	return val;
 }
 
-void cx18_memcpy_fromio(struct cx18 *cx, void *to,
-			const void __iomem *from, unsigned int len)
-{
-	const u8 __iomem *src = from;
-	u8 *dst = to;
-
-	/* Align reads on the CX23418's addresses */
-	if ((len > 0) && ((unsigned long) src & 1)) {
-		*dst = cx18_readb(cx, src);
-		len--;
-		dst++;
-		src++;
-	}
-	if ((len > 1) && ((unsigned long) src & 2)) {
-		*((u16 *)dst) = cx18_raw_readw(cx, src);
-		len -= 2;
-		dst += 2;
-		src += 2;
-	}
-	while (len > 3) {
-		*((u32 *)dst) = cx18_raw_readl(cx, src);
-		len -= 4;
-		dst += 4;
-		src += 4;
-	}
-	if (len > 1) {
-		*((u16 *)dst) = cx18_raw_readw(cx, src);
-		len -= 2;
-		dst += 2;
-		src += 2;
-	}
-	if (len > 0)
-		*dst = cx18_readb(cx, src);
-}
-
 void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count)
 {
 	u8 __iomem *dst = addr;

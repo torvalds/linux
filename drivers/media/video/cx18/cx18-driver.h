@@ -203,8 +203,6 @@ struct cx18_options {
 #define CX18_F_I_EOS			4 	/* End of encoder stream */
 #define CX18_F_I_RADIO_USER		5 	/* radio tuner is selected */
 #define CX18_F_I_ENC_PAUSED		13 	/* the encoder is paused */
-#define CX18_F_I_HAVE_WORK		15   	/* there is work to be done */
-#define CX18_F_I_WORK_HANDLER_DVB	18   	/* work to be done for DVB */
 #define CX18_F_I_INITED			21 	/* set after first open */
 #define CX18_F_I_FAILED			22 	/* set if first open failed */
 
@@ -246,6 +244,19 @@ struct cx18_dvb {
 
 struct cx18;	 /* forward reference */
 struct cx18_scb; /* forward reference */
+
+#define CX18_MAX_MDL_ACKS 2
+#define CX18_MAX_EPU_WORK_ORDERS 70 /* CPU_DE_RELEASE_MDL bursts 63 commands */
+
+struct cx18_epu_work_order {
+	struct work_struct work;
+	atomic_t pending;
+	struct cx18 *cx;
+	int rpu;
+	struct cx18_mailbox mb;
+	struct cx18_mdl_ack mdl_ack[CX18_MAX_MDL_ACKS];
+	char *str;
+};
 
 #define CX18_INVALID_TASK_HANDLE 0xffffffff
 
@@ -388,7 +399,6 @@ struct cx18 {
 	struct mutex epu2apu_mb_lock; /* protect driver to chip mailbox in SCB*/
 	struct mutex epu2cpu_mb_lock; /* protect driver to chip mailbox in SCB*/
 
-
 	struct cx18_av_state av_state;
 
 	/* codec settings */
@@ -441,7 +451,8 @@ struct cx18 {
 	/* when the current DMA is finished this queue is woken up */
 	wait_queue_head_t dma_waitq;
 
-	struct work_struct work;
+	struct cx18_epu_work_order epu_work_order[CX18_MAX_EPU_WORK_ORDERS];
+	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
 
 	/* i2c */
 	struct i2c_adapter i2c_adap[2];

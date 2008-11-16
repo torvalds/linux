@@ -22,6 +22,7 @@
  */
 
 u32 cx18_find_handle(struct cx18 *cx);
+struct cx18_stream *cx18_handle_to_stream(struct cx18 *cx, u32 handle);
 int cx18_streams_setup(struct cx18 *cx);
 int cx18_streams_register(struct cx18 *cx);
 void cx18_streams_cleanup(struct cx18 *cx, int unregister);

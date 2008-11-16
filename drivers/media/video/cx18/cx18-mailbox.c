@@ -26,6 +26,10 @@
 #include "cx18-scb.h"
 #include "cx18-irq.h"
 #include "cx18-mailbox.h"
+#include "cx18-queue.h"
+#include "cx18-streams.h"
+
+static const char *rpu_str[] = { "APU", "CPU", "EPU", "HPU" };
 
 #define API_FAST (1 << 2) /* Short timeout */
 #define API_SLOW (1 << 3) /* Additional 300ms timeout */
@@ -92,12 +96,149 @@ static const struct cx18_api_info *find_api_info(u32 cmd)
 	return NULL;
 }
 
-long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb, int rpu)
+static void dump_mb(struct cx18 *cx, struct cx18_mailbox *mb, char *name)
+{
+	char argstr[MAX_MB_ARGUMENTS*11+1];
+	char *p;
+	int i;
+
+	if (!(cx18_debug & CX18_DBGFLG_API))
+		return;
+
+	for (i = 0, p = argstr; i < MAX_MB_ARGUMENTS; i++, p += 11) {
+		/* kernel snprintf() appends '\0' always */
+		snprintf(p, 12, " %#010x", mb->args[i]);
+	}
+	CX18_DEBUG_API("%s: req %#010x ack %#010x cmd %#010x err %#010x args%s"
+		"\n", name, mb->request, mb->ack, mb->cmd, mb->error, argstr);
+}
+
+
+/*
+ * Functions that run in a work_queue work handling context
+ */
+
+static void epu_dma_done(struct cx18 *cx, struct cx18_epu_work_order *order)
+{
+	u32 handle, mdl_ack_count;
+	struct cx18_mailbox *mb;
+	struct cx18_mdl_ack *mdl_ack;
+	struct cx18_stream *s;
+	struct cx18_buffer *buf;
+	int i;
+
+	mb = &order->mb;
+	handle = mb->args[0];
+	s = cx18_handle_to_stream(cx, handle);
+
+	if (s == NULL) {
+		CX18_WARN("Got DMA done notification for unknown/inactive"
+			  " handle %d\n", handle);
+		return;
+	}
+
+	mdl_ack_count = mb->args[2];
+	mdl_ack = order->mdl_ack;
+	for (i = 0; i < mdl_ack_count; i++, mdl_ack++) {
+		buf = cx18_queue_get_buf(s, mdl_ack->id, mdl_ack->data_used);
+		CX18_DEBUG_HI_DMA("DMA DONE for %s (buffer %d)\n", s->name,
+				  mdl_ack->id);
+		if (buf == NULL) {
+			CX18_WARN("Could not find buf %d for stream %s\n",
+				  mdl_ack->id, s->name);
+			continue;
+		}
+
+		cx18_buf_sync_for_cpu(s, buf);
+		if (s->type == CX18_ENC_STREAM_TYPE_TS && s->dvb.enabled) {
+			CX18_DEBUG_HI_DMA("TS recv bytesused = %d\n",
+					  buf->bytesused);
+
+			dvb_dmx_swfilter(&s->dvb.demux, buf->buf,
+					 buf->bytesused);
+
+			cx18_buf_sync_for_device(s, buf);
+
+			if (s->handle != CX18_INVALID_TASK_HANDLE &&
+			    test_bit(CX18_F_S_STREAMING, &s->s_flags))
+				cx18_vapi(cx,
+				       CX18_CPU_DE_SET_MDL, 5, s->handle,
+				       (void __iomem *)
+				       &cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+				       1, buf->id, s->buf_size);
+		} else
+			set_bit(CX18_F_B_NEED_BUF_SWAP, &buf->b_flags);
+	}
+	wake_up(&cx->dma_waitq);
+	if (s->id != -1)
+		wake_up(&s->waitq);
+}
+
+static void epu_debug(struct cx18 *cx, struct cx18_epu_work_order *order)
+{
+	char *p;
+	char *str = order->str;
+
+	CX18_DEBUG_INFO("%x %s\n", order->mb.args[0], str);
+	p = strchr(str, '.');
+	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags) && p && p > str)
+		CX18_INFO("FW version: %s\n", p - 1);
+}
+
+static void epu_cmd(struct cx18 *cx, struct cx18_epu_work_order *order)
+{
+	switch (order->rpu) {
+	case CPU:
+	{
+		switch (order->mb.cmd) {
+		case CX18_EPU_DMA_DONE:
+			epu_dma_done(cx, order);
+			break;
+		case CX18_EPU_DEBUG:
+			epu_debug(cx, order);
+			break;
+		default:
+			CX18_WARN("Unknown CPU to EPU mailbox command %#0x\n",
+				  order->mb.cmd);
+			break;
+		}
+		break;
+	}
+	case APU:
+		CX18_WARN("Unknown APU to EPU mailbox command %#0x\n",
+			  order->mb.cmd);
+		break;
+	default:
+		break;
+	}
+}
+
+static
+void free_epu_work_order(struct cx18 *cx, struct cx18_epu_work_order *order)
+{
+	atomic_set(&order->pending, 0);
+}
+
+void cx18_epu_work_handler(struct work_struct *work)
+{
+	struct cx18_epu_work_order *order =
+			container_of(work, struct cx18_epu_work_order, work);
+	struct cx18 *cx = order->cx;
+	epu_cmd(cx, order);
+	free_epu_work_order(cx, order);
+}
+
+
+/*
+ * Functions that run in an interrupt handling context
+ */
+
+static void mb_ack_irq(struct cx18 *cx, const struct cx18_epu_work_order *order)
 {
 	struct cx18_mailbox __iomem *ack_mb;
-	u32 ack_irq;
+	u32 ack_irq, req;
 
-	switch (rpu) {
+	switch (order->rpu) {
 	case APU:
 		ack_irq = IRQ_EPU_TO_APU_ACK;
 		ack_mb = &cx->scb->apu2epu_mb;
@@ -108,15 +249,174 @@ long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb, int rpu)
 		break;
 	default:
 		CX18_WARN("Unhandled RPU (%d) for command %x ack\n",
-			  rpu, mb->cmd);
-		return -EINVAL;
+			  order->rpu, order->mb.cmd);
+		return;
 	}
 
-	cx18_setup_page(cx, SCB_OFFSET);
-	cx18_write_sync(cx, mb->request, &ack_mb->ack);
+	req = order->mb.request;
+	/* Don't ack if the RPU has gotten impatient and timed us out */
+	if (req != cx18_readl(cx, &ack_mb->request) ||
+	    req == cx18_readl(cx, &ack_mb->ack))
+		return;
+	cx18_writel(cx, req, &ack_mb->ack);
 	cx18_write_reg_expect(cx, ack_irq, SW2_INT_SET, ack_irq, ack_irq);
-	return 0;
+	return;
 }
+
+static int epu_dma_done_irq(struct cx18 *cx, struct cx18_epu_work_order *order,
+			    int stale)
+{
+	u32 handle, mdl_ack_offset, mdl_ack_count;
+	struct cx18_mailbox *mb;
+
+	mb = &order->mb;
+	handle = mb->args[0];
+	mdl_ack_offset = mb->args[1];
+	mdl_ack_count = mb->args[2];
+
+	if (handle == CX18_INVALID_TASK_HANDLE ||
+	    mdl_ack_count == 0 || mdl_ack_count > CX18_MAX_MDL_ACKS) {
+		if (!stale)
+			mb_ack_irq(cx, order);
+		return -1;
+	}
+
+	cx18_memcpy_fromio(cx, order->mdl_ack, cx->enc_mem + mdl_ack_offset,
+			   sizeof(struct cx18_mdl_ack) * mdl_ack_count);
+	if (!stale)
+		mb_ack_irq(cx, order);
+	return 1;
+}
+
+static
+int epu_debug_irq(struct cx18 *cx, struct cx18_epu_work_order *order, int stale)
+{
+	u32 str_offset;
+	char *str = order->str;
+
+	str[0] = '\0';
+	str_offset = order->mb.args[1];
+	if (str_offset) {
+		cx18_setup_page(cx, str_offset);
+		cx18_memcpy_fromio(cx, str, cx->enc_mem + str_offset, 252);
+		str[252] = '\0';
+		cx18_setup_page(cx, SCB_OFFSET);
+	}
+
+	if (!stale)
+		mb_ack_irq(cx, order);
+
+	return str_offset ? 1 : 0;
+}
+
+static inline
+int epu_cmd_irq(struct cx18 *cx, struct cx18_epu_work_order *order, int stale)
+{
+	int ret = -1;
+
+	switch (order->rpu) {
+	case CPU:
+	{
+		switch (order->mb.cmd) {
+		case CX18_EPU_DMA_DONE:
+			ret = epu_dma_done_irq(cx, order, stale);
+			break;
+		case CX18_EPU_DEBUG:
+			ret = epu_debug_irq(cx, order, stale);
+			break;
+		default:
+			CX18_WARN("Unknown CPU to EPU mailbox command %#0x\n",
+				  order->mb.cmd);
+			break;
+		}
+		break;
+	}
+	case APU:
+		CX18_WARN("Unknown APU to EPU mailbox command %#0x\n",
+			  order->mb.cmd);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+static inline
+struct cx18_epu_work_order *alloc_epu_work_order_irq(struct cx18 *cx)
+{
+	int i;
+	struct cx18_epu_work_order *order = NULL;
+
+	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++) {
+		/*
+		 * We only need "pending" atomic to inspect its contents,
+		 * and need not do a check and set because:
+		 * 1. Any work handler thread only clears "pending" and only
+		 * on one, particular work order at a time, per handler thread.
+		 * 2. "pending" is only set here, and we're serialized because
+		 * we're called in an IRQ handler context.
+		 */
+		if (atomic_read(&cx->epu_work_order[i].pending) == 0) {
+			order = &cx->epu_work_order[i];
+			atomic_set(&order->pending, 1);
+			break;
+		}
+	}
+	return order;
+}
+
+void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
+{
+	struct cx18_mailbox __iomem *mb;
+	struct cx18_mailbox *order_mb;
+	struct cx18_epu_work_order *order;
+	int stale = 0;
+	int submit;
+
+	switch (rpu) {
+	case CPU:
+		mb = &cx->scb->cpu2epu_mb;
+		break;
+	case APU:
+		mb = &cx->scb->apu2epu_mb;
+		break;
+	default:
+		return;
+	}
+
+	order = alloc_epu_work_order_irq(cx);
+	if (order == NULL) {
+		CX18_WARN("Unable to find blank work order form to schedule "
+			  "incoming mailbox command processing\n");
+		return;
+	}
+
+	order->rpu = rpu;
+	order_mb = &order->mb;
+	cx18_memcpy_fromio(cx, order_mb, mb, sizeof(struct cx18_mailbox));
+
+	if (order_mb->request == order_mb->ack) {
+		CX18_WARN("Possibly falling behind: %s self-ack'ed our incoming"
+			  " %s to EPU mailbox (sequence no. %u)\n",
+			  rpu_str[rpu], rpu_str[rpu], order_mb->request);
+		dump_mb(cx, order_mb, "incoming");
+		stale = 1;
+	}
+
+	/*
+	 * Individual EPU command processing is responsible for ack-ing
+	 * a non-stale mailbox as soon as possible
+	 */
+	submit = epu_cmd_irq(cx, order, stale);
+	if (submit > 0) {
+		schedule_work(&order->work);
+	}
+}
+
+
+/*
+ * Functions called from a non-interrupt, non work_queue context
+ */
 
 static void cx18_api_log_ack_delay(struct cx18 *cx, int msecs)
 {
@@ -167,8 +467,6 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	}
 
 	mutex_lock(mb_lock);
-	cx18_setup_page(cx, SCB_OFFSET);
-
 	/*
 	 * Wait for an in-use mailbox to complete
 	 *

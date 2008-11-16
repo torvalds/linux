@@ -75,30 +75,37 @@ struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 	return buf;
 }
 
-struct cx18_buffer *cx18_queue_get_buf_irq(struct cx18_stream *s, u32 id,
+struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 	u32 bytesused)
 {
 	struct cx18 *cx = s->cx;
 	struct list_head *p;
+	unsigned long flags = 0;
 
-	spin_lock(&s->qlock);
+	spin_lock_irqsave(&s->qlock, flags);
 	list_for_each(p, &s->q_free.list) {
 		struct cx18_buffer *buf =
 			list_entry(p, struct cx18_buffer, list);
 
-		if (buf->id != id)
+		if (buf->id != id) {
+			CX18_DEBUG_HI_DMA("Skipping buffer %d searching for %d "
+					  "in stream %s q_free\n", buf->id, id,
+					  s->name);
 			continue;
+		}
 
 		buf->bytesused = bytesused;
-		atomic_dec(&s->q_free.buffers);
-		atomic_inc(&s->q_full.buffers);
-		s->q_full.bytesused += buf->bytesused;
-		list_move_tail(&buf->list, &s->q_full.list);
+		if (s->type != CX18_ENC_STREAM_TYPE_TS) {
+			atomic_dec(&s->q_free.buffers);
+			atomic_inc(&s->q_full.buffers);
+			s->q_full.bytesused += buf->bytesused;
+			list_move_tail(&buf->list, &s->q_full.list);
+		}
 
-		spin_unlock(&s->qlock);
+		spin_unlock_irqrestore(&s->qlock, flags);
 		return buf;
 	}
-	spin_unlock(&s->qlock);
+	spin_unlock_irqrestore(&s->qlock, flags);
 	CX18_ERR("Cannot find buffer %d for stream %s\n", id, s->name);
 	return NULL;
 }

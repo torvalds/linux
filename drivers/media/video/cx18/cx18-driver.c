@@ -440,6 +440,8 @@ done:
  */
 static int __devinit cx18_init_struct1(struct cx18 *cx)
 {
+	int i;
+
 	cx->base_addr = pci_resource_start(cx->dev, 0);
 
 	mutex_init(&cx->serialize_lock);
@@ -451,7 +453,11 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 
 	spin_lock_init(&cx->lock);
 
-	INIT_WORK(&cx->work, cx18_work_handler);
+	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++) {
+		cx->epu_work_order[i].cx = cx;
+		cx->epu_work_order[i].str = cx->epu_debug_str;
+		INIT_WORK(&cx->epu_work_order[i].work, cx18_epu_work_handler);
+	}
 
 	/* start counting open_id at 1 */
 	cx->open_id = 1;

@@ -121,6 +121,7 @@ static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 			if (cx18_raw_readl(cx, dst) != *src) {
 				CX18_ERR("Mismatch at offset %x\n", i);
 				release_firmware(fw);
+				cx18_setup_page(cx, 0);
 				return -EIO;
 			}
 			dst++;
@@ -131,6 +132,7 @@ static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 		CX18_INFO("loaded %s firmware (%zd bytes)\n", fn, fw->size);
 	size = fw->size;
 	release_firmware(fw);
+	cx18_setup_page(cx, SCB_OFFSET);
 	return size;
 }
 
@@ -150,6 +152,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 	if (request_firmware(&fw, fn, &cx->dev->dev)) {
 		CX18_ERR("unable to open firmware %s\n", fn);
 		CX18_ERR("did you put the firmware in the hotplug firmware directory?\n");
+		cx18_setup_page(cx, 0);
 		return -ENOMEM;
 	}
 
@@ -185,6 +188,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 					CX18_ERR("Mismatch at offset %x\n",
 						 offset + j);
 					release_firmware(fw);
+					cx18_setup_page(cx, 0);
 					return -EIO;
 				}
 			}
@@ -196,6 +200,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 				fn, apu_version, fw->size);
 	size = fw->size;
 	release_firmware(fw);
+	cx18_setup_page(cx, 0);
 	return size;
 }
 

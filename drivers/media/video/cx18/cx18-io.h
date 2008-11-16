@@ -249,8 +249,13 @@ static inline u32 cx18_write_sync(struct cx18 *cx, u32 val, void __iomem *addr)
 }
 
 
+static inline
 void cx18_memcpy_fromio(struct cx18 *cx, void *to,
-			const void __iomem *from, unsigned int len);
+			const void __iomem *from, unsigned int len)
+{
+	memcpy_fromio(to, from, len);
+}
+
 void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count);
 
 

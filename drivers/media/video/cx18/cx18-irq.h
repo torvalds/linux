@@ -32,5 +32,3 @@
 #define SW2_INT_ENABLE_PCI              0xc7315c
 
 irqreturn_t cx18_irq_handler(int irq, void *dev_id);
-
-void cx18_work_handler(struct work_struct *work);
