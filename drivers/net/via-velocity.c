@@ -2296,7 +2296,7 @@ static void velocity_set_multi(struct net_device *dev)
 		}
 
 		mac_set_cam_mask(regs, vptr->mCAMmask);
-		rx_mode = (RCR_AM | RCR_AB);
+		rx_mode = RCR_AM | RCR_AB | RCR_AP;
 	}
 	if (dev->mtu > 1500)
 		rx_mode |= RCR_AL;
