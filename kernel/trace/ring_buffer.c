@@ -533,6 +533,12 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	LIST_HEAD(pages);
 	int i, cpu;
 
+	/*
+	 * Always succeed at resizing a non-existent buffer:
+	 */
+	if (!buffer)
+		return size;
+
 	size = DIV_ROUND_UP(size, BUF_PAGE_SIZE);
 	size *= BUF_PAGE_SIZE;
 	buffer_size = buffer->pages * BUF_PAGE_SIZE;

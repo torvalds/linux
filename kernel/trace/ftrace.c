@@ -179,8 +179,7 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 
 	if (ftrace_enabled) {
 		/* If we only have one func left, then call that directly */
-		if (ftrace_list == &ftrace_list_end ||
-		    ftrace_list->next == &ftrace_list_end)
+		if (ftrace_list->next == &ftrace_list_end)
 			ftrace_trace_function = ftrace_list->func;
 	}
 

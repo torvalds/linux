@@ -204,8 +204,9 @@ static DEFINE_MUTEX(trace_types_lock);
 /* trace_wait is a waitqueue for tasks blocked on trace_poll */
 static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
-/* trace_flags holds iter_ctrl options */
-unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK;
+/* trace_flags holds trace_options default values */
+unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
+	TRACE_ITER_ANNOTATE;
 
 /**
  * trace_wake_up - wake up tasks waiting for trace input
@@ -261,6 +262,7 @@ static const char *trace_options[] = {
 #ifdef CONFIG_BRANCH_TRACER
 	"branch",
 #endif
+	"annotate",
 	NULL
 };
 
@@ -1113,6 +1115,7 @@ void tracing_stop_function_trace(void)
 
 enum trace_file_type {
 	TRACE_FILE_LAT_FMT	= 1,
+	TRACE_FILE_ANNOTATE	= 2,
 };
 
 static void trace_iterator_increment(struct trace_iterator *iter, int cpu)
@@ -1531,6 +1534,12 @@ void trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
 static void test_cpu_buff_start(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
+
+	if (!(trace_flags & TRACE_ITER_ANNOTATE))
+		return;
+
+	if (!(iter->iter_flags & TRACE_FILE_ANNOTATE))
+		return;
 
 	if (cpu_isset(iter->cpu, iter->started))
 		return;
@@ -2132,6 +2141,11 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	iter->trace = current_trace;
 	iter->pos = -1;
 
+	/* Annotate start of buffers if we had overruns */
+	if (ring_buffer_overruns(iter->tr->buffer))
+		iter->iter_flags |= TRACE_FILE_ANNOTATE;
+
+
 	for_each_tracing_cpu(cpu) {
 
 		iter->buffer_iter[cpu] =
@@ -2411,7 +2425,7 @@ static struct file_operations tracing_cpumask_fops = {
 };
 
 static ssize_t
-tracing_iter_ctrl_read(struct file *filp, char __user *ubuf,
+tracing_trace_options_read(struct file *filp, char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
 	char *buf;
@@ -2448,7 +2462,7 @@ tracing_iter_ctrl_read(struct file *filp, char __user *ubuf,
 }
 
 static ssize_t
-tracing_iter_ctrl_write(struct file *filp, const char __user *ubuf,
+tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 			size_t cnt, loff_t *ppos)
 {
 	char buf[64];
@@ -2493,8 +2507,8 @@ tracing_iter_ctrl_write(struct file *filp, const char __user *ubuf,
 
 static struct file_operations tracing_iter_fops = {
 	.open		= tracing_open_generic,
-	.read		= tracing_iter_ctrl_read,
-	.write		= tracing_iter_ctrl_write,
+	.read		= tracing_trace_options_read,
+	.write		= tracing_trace_options_write,
 };
 
 static const char readme_msg[] =
@@ -2508,9 +2522,9 @@ static const char readme_msg[] =
 	"# echo sched_switch > /debug/tracing/current_tracer\n"
 	"# cat /debug/tracing/current_tracer\n"
 	"sched_switch\n"
-	"# cat /debug/tracing/iter_ctrl\n"
+	"# cat /debug/tracing/trace_options\n"
 	"noprint-parent nosym-offset nosym-addr noverbose\n"
-	"# echo print-parent > /debug/tracing/iter_ctrl\n"
+	"# echo print-parent > /debug/tracing/trace_options\n"
 	"# echo 1 > /debug/tracing/tracing_enabled\n"
 	"# cat /debug/tracing/trace > /tmp/trace.txt\n"
 	"echo 0 > /debug/tracing/tracing_enabled\n"
@@ -2905,7 +2919,7 @@ tracing_entries_read(struct file *filp, char __user *ubuf,
 	char buf[64];
 	int r;
 
-	r = sprintf(buf, "%lu\n", tr->entries);
+	r = sprintf(buf, "%lu\n", tr->entries >> 10);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
@@ -2944,6 +2958,9 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 		if (max_tr.data[cpu])
 			atomic_inc(&max_tr.data[cpu]->disabled);
 	}
+
+	/* value is in KB */
+	val <<= 10;
 
 	if (val != global_trace.entries) {
 		ret = ring_buffer_resize(global_trace.buffer, val);
@@ -3145,10 +3162,10 @@ static __init int tracer_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs 'tracing_enabled' entry\n");
 
-	entry = debugfs_create_file("iter_ctrl", 0644, d_tracer,
+	entry = debugfs_create_file("trace_options", 0644, d_tracer,
 				    NULL, &tracing_iter_fops);
 	if (!entry)
-		pr_warning("Could not create debugfs 'iter_ctrl' entry\n");
+		pr_warning("Could not create debugfs 'trace_options' entry\n");
 
 	entry = debugfs_create_file("tracing_cpumask", 0644, d_tracer,
 				    NULL, &tracing_cpumask_fops);
@@ -3198,11 +3215,11 @@ static __init int tracer_init_debugfs(void)
 		pr_warning("Could not create debugfs "
 			   "'trace_pipe' entry\n");
 
-	entry = debugfs_create_file("trace_entries", 0644, d_tracer,
+	entry = debugfs_create_file("buffer_size_kb", 0644, d_tracer,
 				    &global_trace, &tracing_entries_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
-			   "'trace_entries' entry\n");
+			   "'buffer_size_kb' entry\n");
 
 	entry = debugfs_create_file("trace_marker", 0220, d_tracer,
 				    NULL, &tracing_mark_fops);
