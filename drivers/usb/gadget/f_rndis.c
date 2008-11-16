@@ -302,7 +302,7 @@ static void rndis_response_available(void *_rndis)
 	__le32				*data = req->buf;
 	int				status;
 
-	if (atomic_inc_return(&rndis->notify_count))
+	if (atomic_inc_return(&rndis->notify_count) != 1)
 		return;
 
 	/* Send RNDIS RESPONSE_AVAILABLE notification; a
