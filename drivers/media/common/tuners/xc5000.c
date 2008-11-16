@@ -191,10 +191,10 @@ static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"FM Radio-INPUT1",   0x0208, 0x9002}
 };
 
-static int  xc5000_is_firmware_loaded(struct dvb_frontend *fe);
-static int  xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len);
-static int  xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len);
-static void xc5000_TunerReset(struct dvb_frontend *fe);
+static int xc5000_is_firmware_loaded(struct dvb_frontend *fe);
+static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len);
+static int xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len);
+static int xc5000_TunerReset(struct dvb_frontend *fe);
 
 static int xc_send_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 {
@@ -208,18 +208,12 @@ static int xc_read_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 		? XC_RESULT_I2C_READ_FAILURE : XC_RESULT_SUCCESS;
 }
 
-static int xc_reset(struct dvb_frontend *fe)
-{
-	xc5000_TunerReset(fe);
-	return XC_RESULT_SUCCESS;
-}
-
 static void xc_wait(int wait_ms)
 {
 	msleep(wait_ms);
 }
 
-static void xc5000_TunerReset(struct dvb_frontend *fe)
+static int xc5000_TunerReset(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
@@ -232,10 +226,15 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 					   priv->i2c_props.adap->algo_data,
 					   DVB_FRONTEND_COMPONENT_TUNER,
 					   XC5000_TUNER_RESET, 0);
-		if (ret)
+		if (ret) {
 			printk(KERN_ERR "xc5000: reset failed\n");
-	} else
+			return XC_RESULT_RESET_FAILURE;
+		}
+	} else {
 		printk(KERN_ERR "xc5000: no tuner reset callback function, fatal\n");
+		return XC_RESULT_RESET_FAILURE;
+	}
+	return XC_RESULT_SUCCESS;
 }
 
 static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
@@ -309,7 +308,7 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 		len = i2c_sequence[index] * 256 + i2c_sequence[index+1];
 		if (len == 0x0000) {
 			/* RESET command */
-			result = xc_reset(fe);
+			result = xc5000_TunerReset(fe);
 			index += 2;
 			if (result != XC_RESULT_SUCCESS)
 				return result;
