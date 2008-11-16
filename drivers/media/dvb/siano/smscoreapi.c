@@ -1187,6 +1187,76 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 }
 
 
+int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
+			   struct smscore_gpio_config *pinconfig)
+{
+	struct {
+		struct SmsMsgHdr_ST hdr;
+		u32 data[6];
+	} msg;
+
+	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
+		msg.hdr.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
+		msg.hdr.msgDstId = HIF_TASK;
+		msg.hdr.msgFlags = 0;
+		msg.hdr.msgType  = MSG_SMS_GPIO_CONFIG_EX_REQ;
+		msg.hdr.msgLength = sizeof(msg);
+
+		msg.data[0] = pin;
+		msg.data[1] = pinconfig->pullupdown;
+
+		/* Convert slew rate for Nova: Fast(0) = 3 / Slow(1) = 0; */
+		msg.data[2] = pinconfig->outputslewrate == 0 ? 3 : 0;
+
+		switch (pinconfig->outputdriving) {
+		case SMS_GPIO_OUTPUTDRIVING_16mA:
+			msg.data[3] = 7; /* Nova - 16mA */
+			break;
+		case SMS_GPIO_OUTPUTDRIVING_12mA:
+			msg.data[3] = 5; /* Nova - 11mA */
+			break;
+		case SMS_GPIO_OUTPUTDRIVING_8mA:
+			msg.data[3] = 3; /* Nova - 7mA */
+			break;
+		case SMS_GPIO_OUTPUTDRIVING_4mA:
+		default:
+			msg.data[3] = 2; /* Nova - 4mA */
+			break;
+		}
+
+		msg.data[4] = pinconfig->direction;
+		msg.data[5] = 0;
+	} else /* TODO: SMS_DEVICE_FAMILY1 */
+		return -EINVAL;
+
+	return coredev->sendrequest_handler(coredev->context,
+					    &msg, sizeof(msg));
+}
+
+int smscore_set_gpio(struct smscore_device_t *coredev, u32 pin, int level)
+{
+	struct {
+		struct SmsMsgHdr_ST hdr;
+		u32 data[3];
+	} msg;
+
+	if (pin > MAX_GPIO_PIN_NUMBER)
+		return -EINVAL;
+
+	msg.hdr.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
+	msg.hdr.msgDstId = HIF_TASK;
+	msg.hdr.msgFlags = 0;
+	msg.hdr.msgType  = MSG_SMS_GPIO_SET_LEVEL_REQ;
+	msg.hdr.msgLength = sizeof(msg);
+
+	msg.data[0] = pin;
+	msg.data[1] = level ? 1 : 0;
+	msg.data[2] = 0;
+
+	return coredev->sendrequest_handler(coredev->context,
+					    &msg, sizeof(msg));
+}
+
 static int __init smscore_module_init(void)
 {
 	int rc = 0;
