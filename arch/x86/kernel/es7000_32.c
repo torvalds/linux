@@ -40,6 +40,7 @@
 #include <asm/smp.h>
 #include <asm/apicdef.h>
 #include <mach_mpparse.h>
+#include <asm/setup.h>
 
 /*
  * ES7000 chipsets
@@ -161,6 +162,26 @@ es7000_rename_gsi(int ioapic, int gsi)
 	return gsi;
 }
 
+#ifdef CONFIG_ES7000_CLUSTERED_APIC
+static int wakeup_secondary_cpu_via_mip(int cpu, unsigned long eip)
+{
+	unsigned long vect = 0, psaival = 0;
+
+	if (psai == NULL)
+		return -1;
+
+	vect = ((unsigned long)__pa(eip)/0x1000) << 16;
+	psaival = (0x1000000 | vect | cpu);
+
+	while (*psai & 0x1000000)
+		;
+
+	*psai = psaival;
+
+	return 0;
+}
+#endif
+
 void __init
 setup_unisys(void)
 {
@@ -176,6 +197,9 @@ setup_unisys(void)
 	else
 		es7000_plat = ES7000_CLASSIC;
 	ioapic_renumber_irq = es7000_rename_gsi;
+#ifdef CONFIG_ES7000_CLUSTERED_APIC
+	x86_quirks->wakeup_secondary_cpu = wakeup_secondary_cpu_via_mip;
+#endif
 }
 
 /*
@@ -322,26 +346,6 @@ es7000_mip_write(struct mip_reg *mip_reg)
 	mip_reg->off_38 = ((unsigned long long)mip_reg->off_38 &
 		(unsigned long long)~MIP_VALID);
 	return status;
-}
-
-int
-es7000_start_cpu(int cpu, unsigned long eip)
-{
-	unsigned long vect = 0, psaival = 0;
-
-	if (psai == NULL)
-		return -1;
-
-	vect = ((unsigned long)__pa(eip)/0x1000) << 16;
-	psaival = (0x1000000 | vect | cpu);
-
-	while (*psai & 0x1000000)
-                ;
-
-	*psai = psaival;
-
-	return 0;
-
 }
 
 void __init

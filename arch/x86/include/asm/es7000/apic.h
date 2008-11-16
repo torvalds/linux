@@ -23,8 +23,6 @@ static inline cpumask_t target_cpus(void)
 #define INT_DELIVERY_MODE	(dest_LowestPrio)
 #define INT_DEST_MODE		(1)    /* logical delivery broadcast to all procs */
 #define NO_BALANCE_IRQ		(1)
-#undef  WAKE_SECONDARY_VIA_INIT
-#define WAKE_SECONDARY_VIA_MIP
 #else
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
 #define INT_DELIVERY_MODE	(dest_Fixed)
@@ -32,7 +30,6 @@ static inline cpumask_t target_cpus(void)
 #define NO_BALANCE_IRQ		(0)
 #undef  APIC_DEST_LOGICAL
 #define APIC_DEST_LOGICAL	0x0
-#define WAKE_SECONDARY_VIA_INIT
 #endif
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
