@@ -428,7 +428,7 @@ static int xc_get_frequency_error(struct xc5000_priv *priv, u32 *freq_error_hz)
 	u32 tmp;
 
 	result = xc5000_readreg(priv, XREG_FREQ_ERROR, &regData);
-	if (result)
+	if (result != XC_RESULT_SUCCESS)
 		return result;
 
 	tmp = (u32)regData;
@@ -449,7 +449,7 @@ static int xc_get_version(struct xc5000_priv *priv,
 	int result;
 
 	result = xc5000_readreg(priv, XREG_VERSION, &data);
-	if (result)
+	if (result != XC_RESULT_SUCCESS)
 		return result;
 
 	(*hw_majorversion) = (data >> 12) & 0x0F;
@@ -466,7 +466,7 @@ static int xc_get_hsync_freq(struct xc5000_priv *priv, u32 *hsync_freq_hz)
 	int result;
 
 	result = xc5000_readreg(priv, XREG_HSYNC_FREQ, &regData);
-	if (result)
+	if (result != XC_RESULT_SUCCESS)
 		return result;
 
 	(*hsync_freq_hz) = ((regData & 0x0fff) * 763)/100;
@@ -960,7 +960,7 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.
 	 */
-	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != 0)
+	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != XC_RESULT_SUCCESS)
 		goto fail;
 
 	switch (id) {
