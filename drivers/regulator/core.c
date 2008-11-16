@@ -79,7 +79,7 @@ struct regulator {
 	int uA_load;
 	int min_uV;
 	int max_uV;
-	int enabled; /* client has called enabled */
+	int enabled; /* count of client enables */
 	char *supply_name;
 	struct device_attribute dev_attr;
 	struct regulator_dev *rdev;
@@ -963,15 +963,12 @@ void regulator_put(struct regulator *regulator)
 	if (regulator == NULL || IS_ERR(regulator))
 		return;
 
-	if (regulator->enabled) {
-		printk(KERN_WARNING "Releasing supply %s while enabled\n",
-		       regulator->supply_name);
-		WARN_ON(regulator->enabled);
-		regulator_disable(regulator);
-	}
-
 	mutex_lock(&regulator_list_mutex);
 	rdev = regulator->rdev;
+
+	if (WARN(regulator->enabled, "Releasing supply %s while enabled\n",
+			       regulator->supply_name))
+		_regulator_disable(rdev);
 
 	/* remove any sysfs entries */
 	if (regulator->dev) {
@@ -1042,21 +1039,17 @@ static int _regulator_enable(struct regulator_dev *rdev)
  */
 int regulator_enable(struct regulator *regulator)
 {
-	int ret;
+	struct regulator_dev *rdev = regulator->rdev;
+	int ret = 0;
 
-	if (regulator->enabled) {
-		printk(KERN_CRIT "Regulator %s already enabled\n",
-		       regulator->supply_name);
-		WARN_ON(regulator->enabled);
-		return 0;
-	}
-
-	mutex_lock(&regulator->rdev->mutex);
-	regulator->enabled = 1;
-	ret = _regulator_enable(regulator->rdev);
-	if (ret != 0)
-		regulator->enabled = 0;
-	mutex_unlock(&regulator->rdev->mutex);
+	mutex_lock(&rdev->mutex);
+	if (regulator->enabled == 0)
+		ret = _regulator_enable(rdev);
+	else if (regulator->enabled < 0)
+		ret = -EIO;
+	if (ret == 0)
+		regulator->enabled++;
+	mutex_unlock(&rdev->mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_enable);
@@ -1108,19 +1101,21 @@ static int _regulator_disable(struct regulator_dev *rdev)
  */
 int regulator_disable(struct regulator *regulator)
 {
-	int ret;
+	struct regulator_dev *rdev = regulator->rdev;
+	int ret = 0;
 
-	if (!regulator->enabled) {
-		printk(KERN_ERR "%s: not in use by this consumer\n",
-			__func__);
-		return 0;
-	}
-
-	mutex_lock(&regulator->rdev->mutex);
-	regulator->enabled = 0;
-	regulator->uA_load = 0;
-	ret = _regulator_disable(regulator->rdev);
-	mutex_unlock(&regulator->rdev->mutex);
+	mutex_lock(&rdev->mutex);
+	if (regulator->enabled == 1) {
+		ret = _regulator_disable(rdev);
+		if (ret == 0)
+			regulator->uA_load = 0;
+	} else if (WARN(regulator->enabled <= 0,
+			"unbalanced disables for supply %s\n",
+			regulator->supply_name))
+		ret = -EIO;
+	if (ret == 0)
+		regulator->enabled--;
+	mutex_unlock(&rdev->mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_disable);
@@ -1196,7 +1191,13 @@ out:
  * regulator_is_enabled - is the regulator output enabled
  * @regulator: regulator source
  *
- * Returns zero for disabled otherwise return number of enable requests.
+ * Returns positive if the regulator driver backing the source/client
+ * has requested that the device be enabled, zero if it hasn't, else a
+ * negative errno code.
+ *
+ * Note that the device backing this regulator handle can have multiple
+ * users, so it might be enabled even if regulator_enable() was never
+ * called for this particular source.
  */
 int regulator_is_enabled(struct regulator *regulator)
 {
