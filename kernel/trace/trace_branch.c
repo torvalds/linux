@@ -41,7 +41,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	if (unlikely(!tr))
 		return;
 
-	local_irq_save(flags);
+	raw_local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	if (atomic_inc_return(&tr->data[cpu]->disabled) != 1)
 		goto out;
@@ -73,7 +73,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 
  out:
 	atomic_dec(&tr->data[cpu]->disabled);
-	local_irq_restore(flags);
+	raw_local_irq_restore(flags);
 }
 
 static inline
