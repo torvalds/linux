@@ -640,6 +640,7 @@ struct em28xx_board em28xx_boards[] = {
 		.mts_firmware   = 1,
 		.has_12mhz_i2s  = 1,
 		.has_dvb        = 1,
+		.ir_codes       = ir_codes_ati_tv_wonder_hd_600,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
