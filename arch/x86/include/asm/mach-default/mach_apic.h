@@ -32,11 +32,13 @@ static inline cpumask_t target_cpus(void)
 #define vector_allocation_domain    (genapic->vector_allocation_domain)
 #define read_apic_id()  (GET_APIC_ID(apic_read(APIC_ID)))
 #define send_IPI_self (genapic->send_IPI_self)
+#define wakeup_secondary_cpu (genapic->wakeup_cpu)
 extern void setup_apic_routing(void);
 #else
 #define INT_DELIVERY_MODE dest_LowestPrio
 #define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
 #define TARGET_CPUS (target_cpus())
+#define wakeup_secondary_cpu wakeup_secondary_cpu_via_init
 /*
  * Set up the logical destination ID.
  *

@@ -66,6 +66,7 @@ struct genapic {
 	void (*send_IPI_allbutself)(int vector);
 	void (*send_IPI_all)(int vector);
 #endif
+	int (*wakeup_cpu)(int apicid, unsigned long start_eip);
 	int trampoline_phys_low;
 	int trampoline_phys_high;
 	void (*wait_for_init_deassert)(atomic_t *deassert);

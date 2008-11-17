@@ -583,7 +583,18 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
-static struct x86_quirks default_x86_quirks __initdata;
+static int __init default_update_genapic(void)
+{
+#if defined(CONFIG_X86_GENERICARCH) || defined(CONFIG_X86_64)
+	genapic->wakeup_cpu = wakeup_secondary_cpu_via_nmi;
+#endif
+
+	return 0;
+}
+
+static struct x86_quirks default_x86_quirks __initdata = {
+	.update_genapic         = default_update_genapic,
+};
 
 struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
 

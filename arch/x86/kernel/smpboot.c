@@ -615,7 +615,7 @@ wakeup_secondary_cpu_via_nmi(int logical_apicid, unsigned long start_eip)
 	return (send_status | accept_status);
 }
 
-static int __devinit
+int __devinit
 wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 {
 	unsigned long send_status, accept_status = 0;
@@ -734,15 +734,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		printk(KERN_ERR "APIC delivery error (%lx).\n", accept_status);
 
 	return (send_status | accept_status);
-}
-
-static int __devinit
-wakeup_secondary_cpu(int apicid, unsigned long start_eip)
-{
-	if (x86_quirks->wakeup_secondary_cpu)
-		return x86_quirks->wakeup_secondary_cpu(apicid, start_eip);
-
-	return wakeup_secondary_cpu_via_init(apicid, start_eip);
 }
 
 struct create_idle {

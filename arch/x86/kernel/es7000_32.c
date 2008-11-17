@@ -40,6 +40,7 @@
 #include <asm/smp.h>
 #include <asm/apicdef.h>
 #include <mach_mpparse.h>
+#include <asm/genapic.h>
 #include <asm/setup.h>
 
 /*
@@ -180,6 +181,13 @@ static int wakeup_secondary_cpu_via_mip(int cpu, unsigned long eip)
 
 	return 0;
 }
+
+static int __init es7000_update_genapic(void)
+{
+	genapic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
+
+	return 0;
+}
 #endif
 
 void __init
@@ -197,8 +205,9 @@ setup_unisys(void)
 	else
 		es7000_plat = ES7000_CLASSIC;
 	ioapic_renumber_irq = es7000_rename_gsi;
+
 #ifdef CONFIG_ES7000_CLUSTERED_APIC
-	x86_quirks->wakeup_secondary_cpu = wakeup_secondary_cpu_via_mip;
+	x86_quirks->update_genapic = es7000_update_genapic;
 #endif
 }
 

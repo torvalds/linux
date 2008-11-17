@@ -15,6 +15,7 @@
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
 #include <asm/genapic.h>
+#include <asm/setup.h>
 
 extern struct genapic apic_numaq;
 extern struct genapic apic_summit;
@@ -56,6 +57,9 @@ static int __init parse_apic(char *arg)
 			return 0;
 		}
 	}
+
+	if (x86_quirks->update_genapic)
+		x86_quirks->update_genapic();
 
 	/* Parsed again by __setup for debug/verbose */
 	return 0;
