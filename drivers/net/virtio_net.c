@@ -481,6 +481,7 @@ static int virtnet_set_tx_csum(struct net_device *dev, u32 data)
 static struct ethtool_ops virtnet_ethtool_ops = {
 	.set_tx_csum = virtnet_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
+	.set_tso = ethtool_op_set_tso,
 };
 
 static int virtnet_probe(struct virtio_device *vdev)
