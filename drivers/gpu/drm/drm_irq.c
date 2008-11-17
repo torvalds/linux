@@ -280,8 +280,6 @@ int drm_irq_uninstall(struct drm_device * dev)
 
 	drm_vblank_cleanup(dev);
 
-	dev->locked_tasklet_func = NULL;
-
 	return 0;
 }
 EXPORT_SYMBOL(drm_irq_uninstall);
@@ -699,81 +697,3 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 	drm_vbl_send_signals(dev, crtc);
 }
 EXPORT_SYMBOL(drm_handle_vblank);
-
-/**
- * Tasklet wrapper function.
- *
- * \param data DRM device in disguise.
- *
- * Attempts to grab the HW lock and calls the driver callback on success. On
- * failure, leave the lock marked as contended so the callback can be called
- * from drm_unlock().
- */
-static void drm_locked_tasklet_func(unsigned long data)
-{
-	struct drm_device *dev = (struct drm_device *)data;
-	unsigned long irqflags;
-	void (*tasklet_func)(struct drm_device *);
-	
-	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
-	tasklet_func = dev->locked_tasklet_func;
-	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
-
-	if (!tasklet_func ||
-	    !drm_lock_take(&dev->lock,
-			   DRM_KERNEL_CONTEXT)) {
-		return;
-	}
-
-	dev->lock.lock_time = jiffies;
-	atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
-
-	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
-	tasklet_func = dev->locked_tasklet_func;
-	dev->locked_tasklet_func = NULL;
-	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
-	
-	if (tasklet_func != NULL)
-		tasklet_func(dev);
-
-	drm_lock_free(&dev->lock,
-		      DRM_KERNEL_CONTEXT);
-}
-
-/**
- * Schedule a tasklet to call back a driver hook with the HW lock held.
- *
- * \param dev DRM device.
- * \param func Driver callback.
- *
- * This is intended for triggering actions that require the HW lock from an
- * interrupt handler. The lock will be grabbed ASAP after the interrupt handler
- * completes. Note that the callback may be called from interrupt or process
- * context, it must not make any assumptions about this. Also, the HW lock will
- * be held with the kernel context or any client context.
- */
-void drm_locked_tasklet(struct drm_device *dev, void (*func)(struct drm_device *))
-{
-	unsigned long irqflags;
-	static DECLARE_TASKLET(drm_tasklet, drm_locked_tasklet_func, 0);
-
-	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ) ||
-	    test_bit(TASKLET_STATE_SCHED, &drm_tasklet.state))
-		return;
-
-	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
-
-	if (dev->locked_tasklet_func) {
-		spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
-		return;
-	}
-
-	dev->locked_tasklet_func = func;
-
-	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
-
-	drm_tasklet.data = (unsigned long)dev;
-
-	tasklet_hi_schedule(&drm_tasklet);
-}
-EXPORT_SYMBOL(drm_locked_tasklet);

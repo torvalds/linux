@@ -85,8 +85,8 @@ EXPORT_SYMBOL_GPL(usb_alloc_urb);
  * Must be called when a user of a urb is finished with it.  When the last user
  * of the urb calls this function, the memory of the urb is freed.
  *
- * Note: The transfer buffer associated with the urb is not freed, that must be
- * done elsewhere.
+ * Note: The transfer buffer associated with the urb is not freed unless the
+ * URB_FREE_BUFFER transfer flag is set.
  */
 void usb_free_urb(struct urb *urb)
 {

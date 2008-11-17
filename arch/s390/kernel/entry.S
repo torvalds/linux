@@ -61,22 +61,25 @@ STACK_SIZE  = 1 << STACK_SHIFT
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.macro	TRACE_IRQS_ON
-	l	%r1,BASED(.Ltrace_irq_on)
+	basr	%r2,%r0
+	l	%r1,BASED(.Ltrace_irq_on_caller)
 	basr	%r14,%r1
 	.endm
 
 	.macro	TRACE_IRQS_OFF
-	l	%r1,BASED(.Ltrace_irq_off)
+	basr	%r2,%r0
+	l	%r1,BASED(.Ltrace_irq_off_caller)
 	basr	%r14,%r1
 	.endm
 
 	.macro	TRACE_IRQS_CHECK
+	basr	%r2,%r0
 	tm	SP_PSW(%r15),0x03	# irqs enabled?
 	jz	0f
-	l	%r1,BASED(.Ltrace_irq_on)
+	l	%r1,BASED(.Ltrace_irq_on_caller)
 	basr	%r14,%r1
 	j	1f
-0:	l	%r1,BASED(.Ltrace_irq_off)
+0:	l	%r1,BASED(.Ltrace_irq_off_caller)
 	basr	%r14,%r1
 1:
 	.endm
@@ -1113,9 +1116,12 @@ cleanup_io_leave_insn:
 .Lschedtail:	.long	schedule_tail
 .Lsysc_table:	.long	sys_call_table
 #ifdef CONFIG_TRACE_IRQFLAGS
-.Ltrace_irq_on: .long	trace_hardirqs_on
-.Ltrace_irq_off:
-		.long	trace_hardirqs_off
+.Ltrace_irq_on_caller:
+		.long	trace_hardirqs_on_caller
+.Ltrace_irq_off_caller:
+		.long	trace_hardirqs_off_caller
+#endif
+#ifdef CONFIG_LOCKDEP
 .Llockdep_sys_exit:
 		.long	lockdep_sys_exit
 #endif

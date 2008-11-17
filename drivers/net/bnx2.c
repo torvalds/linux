@@ -7204,10 +7204,13 @@ static void
 poll_bnx2(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
+	int i;
 
-	disable_irq(bp->pdev->irq);
-	bnx2_interrupt(bp->pdev->irq, dev);
-	enable_irq(bp->pdev->irq);
+	for (i = 0; i < bp->irq_nvecs; i++) {
+		disable_irq(bp->irq_tbl[i].vector);
+		bnx2_interrupt(bp->irq_tbl[i].vector, &bp->bnx2_napi[i]);
+		enable_irq(bp->irq_tbl[i].vector);
+	}
 }
 #endif
 

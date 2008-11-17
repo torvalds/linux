@@ -4124,7 +4124,7 @@ static int __init floppy_setup(char *str)
 		printk("\n");
 	} else
 		DPRINT("botched floppy option\n");
-	DPRINT("Read Documentation/floppy.txt\n");
+	DPRINT("Read Documentation/blockdev/floppy.txt\n");
 	return 0;
 }
 

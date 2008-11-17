@@ -1060,7 +1060,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 
 		/* Did the write stamp get updated already? */
 		if (unlikely(ts < cpu_buffer->write_stamp))
-			goto again;
+			delta = 0;
 
 		if (test_time_stamp(delta)) {
 

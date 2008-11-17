@@ -116,7 +116,9 @@ static int zfcp_ccw_set_online(struct ccw_device *ccw_device)
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED, 85,
 				NULL);
 	zfcp_erp_wait(adapter);
-	goto out;
+	up(&zfcp_data.config_sema);
+	flush_work(&adapter->scan_work);
+	return 0;
 
  out_scsi_register:
 	zfcp_erp_thread_kill(adapter);

@@ -572,7 +572,7 @@ struct t3_vpd {
 	u32 pad;		/* for multiple-of-4 sizing and alignment */
 };
 
-#define EEPROM_MAX_POLL   4
+#define EEPROM_MAX_POLL   40
 #define EEPROM_STAT_ADDR  0x4000
 #define VPD_BASE          0xc00
 
@@ -3690,6 +3690,12 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 			;
 
 		pti = &port_types[adapter->params.vpd.port_type[j]];
+		if (!pti->phy_prep) {
+			CH_ALERT(adapter, "Invalid port type index %d\n",
+				 adapter->params.vpd.port_type[j]);
+			return -EINVAL;
+		}
+
 		ret = pti->phy_prep(&p->phy, adapter, ai->phy_base_addr + j,
 				    ai->mdio_ops);
 		if (ret)
