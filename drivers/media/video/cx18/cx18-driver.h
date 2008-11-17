@@ -245,13 +245,20 @@ struct cx18_dvb {
 struct cx18;	 /* forward reference */
 struct cx18_scb; /* forward reference */
 
+
 #define CX18_MAX_MDL_ACKS 2
 #define CX18_MAX_EPU_WORK_ORDERS 70 /* CPU_DE_RELEASE_MDL bursts 63 commands */
+
+#define CX18_F_EWO_MB_STALE_UPON_RECEIPT 0x1
+#define CX18_F_EWO_MB_STALE_WHILE_PROC   0x2
+#define CX18_F_EWO_MB_STALE \
+	     (CX18_F_EWO_MB_STALE_UPON_RECEIPT | CX18_F_EWO_MB_STALE_WHILE_PROC)
 
 struct cx18_epu_work_order {
 	struct work_struct work;
 	atomic_t pending;
 	struct cx18 *cx;
+	unsigned long flags;
 	int rpu;
 	struct cx18_mailbox mb;
 	struct cx18_mdl_ack mdl_ack[CX18_MAX_MDL_ACKS];

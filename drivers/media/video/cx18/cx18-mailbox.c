@@ -233,7 +233,7 @@ void cx18_epu_work_handler(struct work_struct *work)
  * Functions that run in an interrupt handling context
  */
 
-static void mb_ack_irq(struct cx18 *cx, const struct cx18_epu_work_order *order)
+static void mb_ack_irq(struct cx18 *cx, struct cx18_epu_work_order *order)
 {
 	struct cx18_mailbox __iomem *ack_mb;
 	u32 ack_irq, req;
@@ -256,15 +256,20 @@ static void mb_ack_irq(struct cx18 *cx, const struct cx18_epu_work_order *order)
 	req = order->mb.request;
 	/* Don't ack if the RPU has gotten impatient and timed us out */
 	if (req != cx18_readl(cx, &ack_mb->request) ||
-	    req == cx18_readl(cx, &ack_mb->ack))
+	    req == cx18_readl(cx, &ack_mb->ack)) {
+		CX18_WARN("Possibly falling behind: %s self-ack'ed our incoming"
+			  " %s to EPU mailbox (sequence no. %u) while "
+			  "processing\n",
+			  rpu_str[order->rpu], rpu_str[order->rpu], req);
+		order->flags |= CX18_F_EWO_MB_STALE_WHILE_PROC;
 		return;
+	}
 	cx18_writel(cx, req, &ack_mb->ack);
 	cx18_write_reg_expect(cx, ack_irq, SW2_INT_SET, ack_irq, ack_irq);
 	return;
 }
 
-static int epu_dma_done_irq(struct cx18 *cx, struct cx18_epu_work_order *order,
-			    int stale)
+static int epu_dma_done_irq(struct cx18 *cx, struct cx18_epu_work_order *order)
 {
 	u32 handle, mdl_ack_offset, mdl_ack_count;
 	struct cx18_mailbox *mb;
@@ -276,20 +281,21 @@ static int epu_dma_done_irq(struct cx18 *cx, struct cx18_epu_work_order *order,
 
 	if (handle == CX18_INVALID_TASK_HANDLE ||
 	    mdl_ack_count == 0 || mdl_ack_count > CX18_MAX_MDL_ACKS) {
-		if (!stale)
+		if ((order->flags & CX18_F_EWO_MB_STALE) == 0)
 			mb_ack_irq(cx, order);
 		return -1;
 	}
 
 	cx18_memcpy_fromio(cx, order->mdl_ack, cx->enc_mem + mdl_ack_offset,
 			   sizeof(struct cx18_mdl_ack) * mdl_ack_count);
-	if (!stale)
+
+	if ((order->flags & CX18_F_EWO_MB_STALE) == 0)
 		mb_ack_irq(cx, order);
 	return 1;
 }
 
 static
-int epu_debug_irq(struct cx18 *cx, struct cx18_epu_work_order *order, int stale)
+int epu_debug_irq(struct cx18 *cx, struct cx18_epu_work_order *order)
 {
 	u32 str_offset;
 	char *str = order->str;
@@ -303,14 +309,14 @@ int epu_debug_irq(struct cx18 *cx, struct cx18_epu_work_order *order, int stale)
 		cx18_setup_page(cx, SCB_OFFSET);
 	}
 
-	if (!stale)
+	if ((order->flags & CX18_F_EWO_MB_STALE) == 0)
 		mb_ack_irq(cx, order);
 
 	return str_offset ? 1 : 0;
 }
 
 static inline
-int epu_cmd_irq(struct cx18 *cx, struct cx18_epu_work_order *order, int stale)
+int epu_cmd_irq(struct cx18 *cx, struct cx18_epu_work_order *order)
 {
 	int ret = -1;
 
@@ -319,10 +325,10 @@ int epu_cmd_irq(struct cx18 *cx, struct cx18_epu_work_order *order, int stale)
 	{
 		switch (order->mb.cmd) {
 		case CX18_EPU_DMA_DONE:
-			ret = epu_dma_done_irq(cx, order, stale);
+			ret = epu_dma_done_irq(cx, order);
 			break;
 		case CX18_EPU_DEBUG:
-			ret = epu_debug_irq(cx, order, stale);
+			ret = epu_debug_irq(cx, order);
 			break;
 		default:
 			CX18_WARN("Unknown CPU to EPU mailbox command %#0x\n",
@@ -370,7 +376,6 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 	struct cx18_mailbox __iomem *mb;
 	struct cx18_mailbox *order_mb;
 	struct cx18_epu_work_order *order;
-	int stale = 0;
 	int submit;
 
 	switch (rpu) {
@@ -391,6 +396,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 		return;
 	}
 
+	order->flags = 0;
 	order->rpu = rpu;
 	order_mb = &order->mb;
 	cx18_memcpy_fromio(cx, order_mb, mb, sizeof(struct cx18_mailbox));
@@ -400,14 +406,14 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 			  " %s to EPU mailbox (sequence no. %u)\n",
 			  rpu_str[rpu], rpu_str[rpu], order_mb->request);
 		dump_mb(cx, order_mb, "incoming");
-		stale = 1;
+		order->flags = CX18_F_EWO_MB_STALE_UPON_RECEIPT;
 	}
 
 	/*
 	 * Individual EPU command processing is responsible for ack-ing
 	 * a non-stale mailbox as soon as possible
 	 */
-	submit = epu_cmd_irq(cx, order, stale);
+	submit = epu_cmd_irq(cx, order);
 	if (submit > 0) {
 		queue_work(cx18_work_queue, &order->work);
 	}
