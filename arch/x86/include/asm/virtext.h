@@ -19,6 +19,7 @@
 #include <asm/system.h>
 
 #include <asm/vmx.h>
+#include <asm/svm.h>
 
 /*
  * VMX functions:
@@ -64,6 +65,46 @@ static inline void cpu_emergency_vmxoff(void)
 {
 	if (cpu_has_vmx())
 		__cpu_emergency_vmxoff();
+}
+
+
+
+
+/*
+ * SVM functions:
+ */
+
+/** Check if the CPU has SVM support
+ *
+ * You can use the 'msg' arg to get a message describing the problem,
+ * if the function returns zero. Simply pass NULL if you are not interested
+ * on the messages; gcc should take care of not generating code for
+ * the messages on this case.
+ */
+static inline int cpu_has_svm(const char **msg)
+{
+	uint32_t eax, ebx, ecx, edx;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD) {
+		if (msg)
+			*msg = "not amd";
+		return 0;
+	}
+
+	cpuid(0x80000000, &eax, &ebx, &ecx, &edx);
+	if (eax < SVM_CPUID_FUNC) {
+		if (msg)
+			*msg = "can't execute cpuid_8000000a";
+		return 0;
+	}
+
+	cpuid(0x80000001, &eax, &ebx, &ecx, &edx);
+	if (!(ecx & (1 << SVM_CPUID_FEATURE_SHIFT))) {
+		if (msg)
+			*msg = "svm not available";
+		return 0;
+	}
+	return 1;
 }
 
 #endif /* _ASM_X86_VIRTEX_H */

@@ -28,6 +28,8 @@
 
 #include <asm/desc.h>
 
+#include <asm/virtext.h>
+
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 
 MODULE_AUTHOR("Qumranet");
@@ -245,24 +247,13 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 
 static int has_svm(void)
 {
-	uint32_t eax, ebx, ecx, edx;
+	const char *msg;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD) {
-		printk(KERN_INFO "has_svm: not amd\n");
+	if (!cpu_has_svm(&msg)) {
+		printk(KERN_INFO "has_svn: %s\n", msg);
 		return 0;
 	}
 
-	cpuid(0x80000000, &eax, &ebx, &ecx, &edx);
-	if (eax < SVM_CPUID_FUNC) {
-		printk(KERN_INFO "has_svm: can't execute cpuid_8000000a\n");
-		return 0;
-	}
-
-	cpuid(0x80000001, &eax, &ebx, &ecx, &edx);
-	if (!(ecx & (1 << SVM_CPUID_FEATURE_SHIFT))) {
-		printk(KERN_DEBUG "has_svm: svm not available\n");
-		return 0;
-	}
 	return 1;
 }
 
