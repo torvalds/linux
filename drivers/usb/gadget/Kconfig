@@ -377,6 +377,24 @@ config USB_FSL_QE
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_CI13XXX
+	boolean "MIPS USB CI13xxx"
+	depends on PCI
+	select USB_GADGET_DUALSPEED
+	help
+	  MIPS USB IP core family device controller
+	  Currently it only supports IP part number CI13412
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "ci13xxx_udc" and force all
+	  gadget drivers to also be dynamically linked.
+
+config USB_CI13XXX
+	tristate
+	depends on USB_GADGET_CI13XXX
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_NET2280
 	boolean "NetChip 228x"
 	depends on PCI
