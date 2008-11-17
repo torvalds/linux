@@ -16,7 +16,6 @@
  */
 
 #include "irq.h"
-#include "vmx.h"
 #include "mmu.h"
 
 #include <linux/kvm_host.h>
@@ -31,6 +30,7 @@
 
 #include <asm/io.h>
 #include <asm/desc.h>
+#include <asm/vmx.h>
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 

@@ -17,7 +17,6 @@
  *
  */
 
-#include "vmx.h"
 #include "mmu.h"
 
 #include <linux/kvm_host.h>
@@ -33,6 +32,7 @@
 #include <asm/page.h>
 #include <asm/cmpxchg.h>
 #include <asm/io.h>
+#include <asm/vmx.h>
 
 /*
  * When setting this variable to true it enables Two-Dimensional-Paging
