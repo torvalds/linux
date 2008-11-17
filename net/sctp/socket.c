@@ -3614,6 +3614,7 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 
 	SCTP_DBG_OBJCNT_INC(sock);
 	atomic_inc(&sctp_sockets_allocated);
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	return 0;
 }
 
@@ -3628,6 +3629,7 @@ SCTP_STATIC void sctp_destroy_sock(struct sock *sk)
 	ep = sctp_sk(sk)->ep;
 	sctp_endpoint_free(ep);
 	atomic_dec(&sctp_sockets_allocated);
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 }
 
 /* API 4.1.7 shutdown() - TCP Style Syntax
