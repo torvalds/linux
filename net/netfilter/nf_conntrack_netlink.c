@@ -1209,7 +1209,7 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 				goto out_unlock;
 			}
 			master_ct = nf_ct_tuplehash_to_ctrack(master_h);
-			atomic_inc(&master_ct->ct_general.use);
+			nf_conntrack_get(&master_ct->ct_general);
 		}
 
 		spin_unlock_bh(&nf_conntrack_lock);
