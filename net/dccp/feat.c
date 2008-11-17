@@ -166,6 +166,18 @@ static void dccp_feat_entry_destructor(struct dccp_feat_entry *entry)
  * - SP values are always freshly allocated
  * - list is sorted in increasing order of feature number (faster lookup)
  */
+static struct dccp_feat_entry *dccp_feat_list_lookup(struct list_head *fn_list,
+						     u8 feat_num, bool is_local)
+{
+	struct dccp_feat_entry *entry;
+
+	list_for_each_entry(entry, fn_list, node)
+		if (entry->feat_num == feat_num && entry->is_local == is_local)
+			return entry;
+		else if (entry->feat_num > feat_num)
+			break;
+	return NULL;
+}
 
 /**
  * dccp_feat_entry_new  -  Central list update routine (called by all others)
@@ -557,6 +569,31 @@ int dccp_feat_finalise_settings(struct dccp_sock *dp)
 	while (i--)
 		if (ccids[i] > 0 && dccp_feat_propagate_ccid(fn, ccids[i], i))
 			return -1;
+	return 0;
+}
+
+/**
+ * dccp_feat_server_ccid_dependencies  -  Resolve CCID-dependent features
+ * It is the server which resolves the dependencies once the CCID has been
+ * fully negotiated. If no CCID has been negotiated, it uses the default CCID.
+ */
+int dccp_feat_server_ccid_dependencies(struct dccp_request_sock *dreq)
+{
+	struct list_head *fn = &dreq->dreq_featneg;
+	struct dccp_feat_entry *entry;
+	u8 is_local, ccid;
+
+	for (is_local = 0; is_local <= 1; is_local++) {
+		entry = dccp_feat_list_lookup(fn, DCCPF_CCID, is_local);
+
+		if (entry != NULL && !entry->empty_confirm)
+			ccid = entry->val.sp.vec[0];
+		else
+			ccid = dccp_feat_default_value(DCCPF_CCID);
+
+		if (dccp_feat_propagate_ccid(fn, ccid, is_local))
+			return -1;
+	}
 	return 0;
 }
 
