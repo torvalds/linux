@@ -299,6 +299,7 @@ struct e1000_adapter {
 	unsigned long led_status;
 
 	unsigned int flags;
+	unsigned int flags2;
 	struct work_struct downshift_task;
 	struct work_struct update_phy_task;
 };
@@ -306,6 +307,7 @@ struct e1000_adapter {
 struct e1000_info {
 	enum e1000_mac_type	mac;
 	unsigned int		flags;
+	unsigned int            flags2;
 	u32			pba;
 	s32			(*get_variants)(struct e1000_adapter *);
 	struct e1000_mac_operations *mac_ops;
@@ -346,6 +348,9 @@ struct e1000_info {
 #define FLAG_TSO_FORCE                    (1 << 29)
 #define FLAG_RX_RESTART_NOW               (1 << 30)
 #define FLAG_MSI_TEST_FAILED              (1 << 31)
+
+/* CRC Stripping defines */
+#define FLAG2_CRC_STRIPPING               (1 << 0)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))

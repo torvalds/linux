@@ -144,8 +144,8 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 	struct phonethdr *ph;
 	int err;
 
-	if (skb->len + 2 > 0xffff) {
-		/* Phonet length field would overflow */
+	if (skb->len + 2 > 0xffff /* Phonet length field limit */ ||
+	    skb->len + sizeof(struct phonethdr) > dev->mtu) {
 		err = -EMSGSIZE;
 		goto drop;
 	}
