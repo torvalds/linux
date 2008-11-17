@@ -496,7 +496,7 @@ static void rtl8187b_status_cb(struct urb *urb)
 			__skb_unlink(skb, &priv->b_tx_status.queue);
 			if (tok)
 				info->flags |= IEEE80211_TX_STAT_ACK;
-			info->status.rates[0].count = pkt_rc;
+			info->status.rates[0].count = pkt_rc + 1;
 
 			ieee80211_tx_status_irqsafe(hw, skb);
 		}
