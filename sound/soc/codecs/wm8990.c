@@ -1272,9 +1272,11 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
 
 			/* disable POBCTRL, SOFT_ST and BUFDCOPEN */
 			wm8990_write(codec, WM8990_ANTIPOP2, WM8990_BUFIOEN);
-		} else {
-			/* ON -> standby */
 
+			/* Enable workaround for ADC clocking issue. */
+			wm8990_write(codec, WM8990_EXT_ACCESS_ENA, 0x2);
+			wm8990_write(codec, WM8990_EXT_CTL1, 0xa003);
+			wm8990_write(codec, WM8990_EXT_ACCESS_ENA, 0);
 		}
 		break;
 
