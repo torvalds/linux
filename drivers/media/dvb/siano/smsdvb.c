@@ -402,6 +402,8 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	sms_info("success");
 
+	sms_board_setup(coredev);
+
 	return 0;
 
 client_error:

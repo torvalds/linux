@@ -37,9 +37,14 @@
 struct sms_board {
 	enum sms_device_type_st type;
 	char *name, *fw[DEVICE_MODE_MAX];
+
+	/* gpios */
+	int led_power, led_hi, led_lo;
 };
 
 struct sms_board *sms_get_board(int id);
+
+int sms_board_setup(struct smscore_device_t *coredev);
 
 extern struct usb_device_id smsusb_id_table[];
 

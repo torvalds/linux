@@ -106,11 +106,21 @@ static struct sms_board sms_boards[] = {
 		.name	= "Hauppauge WinTV MiniStick",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.led_power = 26,
+		.led_lo    = 27,
+		.led_hi    = 28,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD] = {
 		.name	= "Hauppauge WinTV MiniCard",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.lna_ctrl  = 29,
+	},
+	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2] = {
+		.name	= "Hauppauge WinTV MiniCard",
+		.type	= SMS_NOVA_B0,
+		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.lna_ctrl  = 1,
 	},
 };
 
@@ -121,3 +131,40 @@ struct sms_board *sms_get_board(int id)
 	return &sms_boards[id];
 }
 
+static int sms_set_gpio(struct smscore_device_t *coredev, u32 pin, int enable)
+{
+	int ret;
+	struct smscore_gpio_config gpioconfig = {
+		.direction            = SMS_GPIO_DIRECTION_OUTPUT,
+		.pullupdown           = SMS_GPIO_PULLUPDOWN_NONE,
+		.inputcharacteristics = SMS_GPIO_INPUTCHARACTERISTICS_NORMAL,
+		.outputslewrate       = SMS_GPIO_OUTPUTSLEWRATE_FAST,
+		.outputdriving        = SMS_GPIO_OUTPUTDRIVING_4mA,
+	};
+
+	if (pin == 0)
+		return -EINVAL;
+
+	ret = smscore_configure_gpio(coredev, pin, &gpioconfig);
+
+	if (ret < 0)
+		return ret;
+
+	return smscore_set_gpio(coredev, pin, enable);
+}
+
+int sms_board_setup(struct smscore_device_t *coredev)
+{
+	int board_id = smscore_get_board_id(coredev);
+	struct sms_board *board = sms_get_board(board_id);
+
+	switch (board_id) {
+	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
+		/* turn off all LEDs */
+		sms_set_gpio(coredev, board->led_power, 0);
+		sms_set_gpio(coredev, board->led_hi, 0);
+		sms_set_gpio(coredev, board->led_lo, 0);
+		break;
+	}
+	return 0;
+}
