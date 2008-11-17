@@ -106,6 +106,7 @@ static const u16 wm8990_reg[] = {
 	0x0008,     /* R60 - PLL1 */
 	0x0031,     /* R61 - PLL2 */
 	0x0026,     /* R62 - PLL3 */
+	0x0000,	    /* R63 - Driver internal */
 };
 
 /*
@@ -126,10 +127,9 @@ static inline void wm8990_write_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg, unsigned int value)
 {
 	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > (ARRAY_SIZE(wm8990_reg)) - 1);
 
-	/* Reset register is uncached */
-	if (reg == 0)
+	/* Reset register and reserved registers are uncached */
+	if (reg == 0 || reg > ARRAY_SIZE(wm8990_reg) - 1)
 		return;
 
 	cache[reg] = value;
