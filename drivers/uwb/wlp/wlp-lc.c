@@ -543,7 +543,8 @@ int wlp_setup(struct wlp *wlp, struct uwb_rc *rc)
 	uwb_notifs_register(rc, &wlp->uwb_notifs_handler);
 
 	uwb_pal_init(&wlp->pal);
-	result = uwb_pal_register(rc, &wlp->pal);
+	wlp->pal.rc = rc;
+	result = uwb_pal_register(&wlp->pal);
 	if (result < 0)
 		uwb_notifs_deregister(wlp->rc, &wlp->uwb_notifs_handler);
 
@@ -557,7 +558,7 @@ void wlp_remove(struct wlp *wlp)
 	struct device *dev = &wlp->rc->uwb_dev.dev;
 	d_fnstart(6, dev, "wlp %p\n", wlp);
 	wlp_neighbors_release(wlp);
-	uwb_pal_unregister(wlp->rc, &wlp->pal);
+	uwb_pal_unregister(&wlp->pal);
 	uwb_notifs_deregister(wlp->rc, &wlp->uwb_notifs_handler);
 	wlp_eda_release(&wlp->eda);
 	mutex_lock(&wlp->mutex);

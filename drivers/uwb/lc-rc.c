@@ -189,9 +189,9 @@ static int uwb_rc_setup(struct uwb_rc *rc)
 	int result;
 	struct device *dev = &rc->uwb_dev.dev;
 
-	result = uwb_rc_reset(rc);
+	result = uwb_radio_setup(rc);
 	if (result < 0) {
-		dev_err(dev, "cannot reset UWB radio: %d\n", result);
+		dev_err(dev, "cannot setup UWB radio: %d\n", result);
 		goto error;
 	}
 	result = uwb_rc_mac_addr_setup(rc);
@@ -311,12 +311,7 @@ void uwb_rc_rm(struct uwb_rc *rc)
 
 	uwb_dbg_del_rc(rc);
 	uwb_rsv_remove_all(rc);
-	uwb_rc_ie_rm(rc, UWB_IDENTIFICATION_IE);
-	if (rc->beaconing >= 0)
-		uwb_rc_beacon(rc, -1, 0);
-	if (rc->scan_type != UWB_SCAN_DISABLED)
-		uwb_rc_scan(rc, rc->scanning, UWB_SCAN_DISABLED, 0);
-	uwb_rc_reset(rc);
+	uwb_radio_shutdown(rc);
 
 	rc->stop(rc);
 

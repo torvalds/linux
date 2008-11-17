@@ -91,8 +91,6 @@ static void whc_stop(struct usb_hcd *usb_hcd)
 
 	mutex_lock(&wusbhc->mutex);
 
-	wusbhc_stop(wusbhc);
-
 	/* stop HC */
 	le_writel(0, whc->base + WUSBINTR);
 	whc_write_wusbcmd(whc, WUSBCMD_RUN, 0);

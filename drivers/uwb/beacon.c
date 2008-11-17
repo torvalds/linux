@@ -119,7 +119,6 @@ int uwb_rc_beacon(struct uwb_rc *rc, int channel, unsigned bpst_offset)
 	int result;
 	struct device *dev = &rc->uwb_dev.dev;
 
-	mutex_lock(&rc->uwb_dev.mutex);
 	if (channel < 0)
 		channel = -1;
 	if (channel == -1)
@@ -128,7 +127,7 @@ int uwb_rc_beacon(struct uwb_rc *rc, int channel, unsigned bpst_offset)
 		/* channel >= 0...dah */
 		result = uwb_rc_start_beacon(rc, bpst_offset, channel);
 		if (result < 0)
-			goto out_up;
+			return result;
 		if (le16_to_cpu(rc->ies->wIELength) > 0) {
 			result = uwb_rc_set_ie(rc, rc->ies);
 			if (result < 0) {
@@ -137,19 +136,14 @@ int uwb_rc_beacon(struct uwb_rc *rc, int channel, unsigned bpst_offset)
 				result = uwb_rc_stop_beacon(rc);
 				channel = -1;
 				bpst_offset = 0;
-			} else
-				result = 0;
+			}
 		}
 	}
 
-	if (result < 0)
-		goto out_up;
-	rc->beaconing = channel;
-
-	uwb_notify(rc, NULL, uwb_bg_joined(rc) ? UWB_NOTIF_BG_JOIN : UWB_NOTIF_BG_LEAVE);
-
-out_up:
-	mutex_unlock(&rc->uwb_dev.mutex);
+	if (result >= 0) {
+		rc->beaconing = channel;
+		uwb_notify(rc, NULL, uwb_bg_joined(rc) ? UWB_NOTIF_BG_JOIN : UWB_NOTIF_BG_LEAVE);
+	}
 	return result;
 }
 
@@ -618,9 +612,6 @@ static ssize_t uwb_rc_beacon_show(struct device *dev,
 
 /*
  * Start beaconing on the specified channel, or stop beaconing.
- *
- * The BPST offset of when to start searching for a beacon group to
- * join may be specified.
  */
 static ssize_t uwb_rc_beacon_store(struct device *dev,
 				   struct device_attribute *attr,
@@ -629,12 +620,11 @@ static ssize_t uwb_rc_beacon_store(struct device *dev,
 	struct uwb_dev *uwb_dev = to_uwb_dev(dev);
 	struct uwb_rc *rc = uwb_dev->rc;
 	int channel;
-	unsigned bpst_offset = 0;
 	ssize_t result = -EINVAL;
 
-	result = sscanf(buf, "%d %u\n", &channel, &bpst_offset);
+	result = sscanf(buf, "%d", &channel);
 	if (result >= 1)
-		result = uwb_rc_beacon(rc, channel, bpst_offset);
+		result = uwb_radio_force_channel(rc, channel);
 
 	return result < 0 ? result : size;
 }

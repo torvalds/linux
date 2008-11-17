@@ -355,6 +355,7 @@ struct uwb_rc {
 	u8 ctx_roll;
 
 	int beaconing;			/* Beaconing state [channel number] */
+	int beaconing_forced;
 	int scanning;
 	enum uwb_scan_type scan_type:3;
 	unsigned ready:1;
@@ -373,8 +374,8 @@ struct uwb_rc {
 	struct uwb_rc_cmd_set_ie *ies;
 	size_t ies_capacity;
 
-	spinlock_t pal_lock;
 	struct list_head pals;
+	int active_pals;
 
 	struct uwb_dbg *dbg;
 };
@@ -382,11 +383,17 @@ struct uwb_rc {
 
 /**
  * struct uwb_pal - a UWB PAL
- * @name:    descriptive name for this PAL (wushc, wlp, etc.).
+ * @name:    descriptive name for this PAL (wusbhc, wlp, etc.).
  * @device:  a device for the PAL.  Used to link the PAL and the radio
  *           controller in sysfs.
+ * @rc:      the radio controller the PAL uses.
+ * @channel_changed: called when the channel used by the radio changes.
+ *           A channel of -1 means the channel has been stopped.
  * @new_rsv: called when a peer requests a reservation (may be NULL if
  *           the PAL cannot accept reservation requests).
+ * @channel: channel being used by the PAL; 0 if the PAL isn't using
+ *           the radio; -1 if the PAL wishes to use the radio but
+ *           cannot.
  *
  * A Protocol Adaptation Layer (PAL) is a user of the WiMedia UWB
  * radio platform (e.g., WUSB, WLP or Bluetooth UWB AMP).
@@ -405,12 +412,20 @@ struct uwb_pal {
 	struct list_head node;
 	const char *name;
 	struct device *device;
+	struct uwb_rc *rc;
+
+	void (*channel_changed)(struct uwb_pal *pal, int channel);
 	void (*new_rsv)(struct uwb_pal *pal, struct uwb_rsv *rsv);
+
+	int channel;
 };
 
 void uwb_pal_init(struct uwb_pal *pal);
-int uwb_pal_register(struct uwb_rc *rc, struct uwb_pal *pal);
-void uwb_pal_unregister(struct uwb_rc *rc, struct uwb_pal *pal);
+int uwb_pal_register(struct uwb_pal *pal);
+void uwb_pal_unregister(struct uwb_pal *pal);
+
+int uwb_radio_start(struct uwb_pal *pal);
+void uwb_radio_stop(struct uwb_pal *pal);
 
 /*
  * General public API

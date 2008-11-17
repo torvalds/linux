@@ -192,7 +192,7 @@ static ssize_t command_write(struct file *file, const char __user *buf,
 {
 	struct uwb_rc *rc = file->private_data;
 	struct uwb_dbg_cmd cmd;
-	int ret;
+	int ret = 0;
 
 	if (len != sizeof(struct uwb_dbg_cmd))
 		return -EINVAL;
@@ -212,6 +212,12 @@ static ssize_t command_write(struct file *file, const char __user *buf,
 		break;
 	case UWB_DBG_CMD_IE_RM:
 		ret = cmd_ie_rm(rc, &cmd.ie_rm);
+		break;
+	case UWB_DBG_CMD_RADIO_START:
+		ret = uwb_radio_start(&rc->dbg->pal);
+		break;
+	case UWB_DBG_CMD_RADIO_STOP:
+		uwb_radio_stop(&rc->dbg->pal);
 		break;
 	default:
 		return -EINVAL;
@@ -306,6 +312,17 @@ static struct file_operations drp_avail_fops = {
 	.owner   = THIS_MODULE,
 };
 
+static void uwb_dbg_channel_changed(struct uwb_pal *pal, int channel)
+{
+	struct uwb_dbg *dbg = container_of(pal, struct uwb_dbg, pal);
+	struct device *dev = &pal->rc->uwb_dev.dev;
+
+	if (channel > 0)
+		dev_info(dev, "debug: channel %d started\n", channel);
+	else
+		dev_info(dev, "debug: channel stopped\n");
+}
+
 static void uwb_dbg_new_rsv(struct uwb_pal *pal, struct uwb_rsv *rsv)
 {
 	struct uwb_dbg *dbg = container_of(pal, struct uwb_dbg, pal);
@@ -329,8 +346,11 @@ void uwb_dbg_add_rc(struct uwb_rc *rc)
 	INIT_LIST_HEAD(&rc->dbg->rsvs);
 
 	uwb_pal_init(&rc->dbg->pal);
+	rc->dbg->pal.rc = rc;
+	rc->dbg->pal.channel_changed = uwb_dbg_channel_changed;
 	rc->dbg->pal.new_rsv = uwb_dbg_new_rsv;
-	uwb_pal_register(rc, &rc->dbg->pal);
+	uwb_pal_register(&rc->dbg->pal);
+
 	if (root_dir) {
 		rc->dbg->root_d = debugfs_create_dir(dev_name(&rc->uwb_dev.dev),
 						     root_dir);
@@ -364,7 +384,7 @@ void uwb_dbg_del_rc(struct uwb_rc *rc)
 		uwb_rsv_terminate(rsv);
 	}
 
-	uwb_pal_unregister(rc, &rc->dbg->pal);
+	uwb_pal_unregister(&rc->dbg->pal);
 
 	if (root_dir) {
 		debugfs_remove(rc->dbg->drp_avail_f);

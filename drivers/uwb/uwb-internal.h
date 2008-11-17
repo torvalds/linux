@@ -238,6 +238,11 @@ struct uwb_dev *uwb_dev_get_by_devaddr(struct uwb_rc *rc,
 struct uwb_dev *uwb_dev_get_by_macaddr(struct uwb_rc *rc,
 				       const struct uwb_mac_addr *macaddr);
 
+int uwb_radio_setup(struct uwb_rc *rc);
+void uwb_radio_reset_state(struct uwb_rc *rc);
+void uwb_radio_shutdown(struct uwb_rc *rc);
+int uwb_radio_force_channel(struct uwb_rc *rc, int channel);
+
 /* -- UWB Sysfs representation */
 extern struct class uwb_rc_class;
 extern struct device_attribute dev_attr_mac_address;

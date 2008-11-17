@@ -1124,8 +1124,7 @@ void wusbhc_devconnect_destroy(struct wusbhc *wusbhc)
  * FIXME: This also enables the keep alives but this is not necessary
  * until there are connected and authenticated devices.
  */
-int wusbhc_devconnect_start(struct wusbhc *wusbhc,
-			    const struct wusb_ckhdid *chid)
+int wusbhc_devconnect_start(struct wusbhc *wusbhc)
 {
 	struct device *dev = wusbhc->dev;
 	struct wuie_host_info *hi;
@@ -1138,7 +1137,7 @@ int wusbhc_devconnect_start(struct wusbhc *wusbhc,
 	hi->hdr.bLength       = sizeof(*hi);
 	hi->hdr.bIEIdentifier = WUIE_ID_HOST_INFO;
 	hi->attributes        = cpu_to_le16((wusbhc->rsv->stream << 3) | WUIE_HI_CAP_ALL);
-	hi->CHID              = *chid;
+	hi->CHID              = wusbhc->chid;
 	result = wusbhc_mmcie_set(wusbhc, 0, 0, &hi->hdr);
 	if (result < 0) {
 		dev_err(dev, "Cannot add Host Info MMCIE: %d\n", result);

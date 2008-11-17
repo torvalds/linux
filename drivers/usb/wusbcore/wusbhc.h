@@ -252,7 +252,8 @@ struct wusbhc {
 	struct uwb_pal pal;
 
 	unsigned trust_timeout;			/* in jiffies */
-	struct wuie_host_info *wuie_host_info;	/* Includes CHID */
+	struct wusb_ckhdid chid;
+	struct wuie_host_info *wuie_host_info;
 
 	struct mutex mutex;			/* locks everything else */
 	u16 cluster_id;				/* Wireless USB Cluster ID */
@@ -376,15 +377,14 @@ static inline void wusbhc_put(struct wusbhc *wusbhc)
 	usb_put_hcd(&wusbhc->usb_hcd);
 }
 
-int wusbhc_start(struct wusbhc *wusbhc, const struct wusb_ckhdid *chid);
+int wusbhc_start(struct wusbhc *wusbhc);
 void wusbhc_stop(struct wusbhc *wusbhc);
 extern int wusbhc_chid_set(struct wusbhc *, const struct wusb_ckhdid *);
 
 /* Device connect handling */
 extern int wusbhc_devconnect_create(struct wusbhc *);
 extern void wusbhc_devconnect_destroy(struct wusbhc *);
-extern int wusbhc_devconnect_start(struct wusbhc *wusbhc,
-				   const struct wusb_ckhdid *chid);
+extern int wusbhc_devconnect_start(struct wusbhc *wusbhc);
 extern void wusbhc_devconnect_stop(struct wusbhc *wusbhc);
 extern void wusbhc_handle_dn(struct wusbhc *, u8 srcaddr,
 			     struct wusb_dn_hdr *dn_hdr, size_t size);

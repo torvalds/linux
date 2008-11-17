@@ -37,14 +37,13 @@
  *
  * A DRP Availability IE is appended.
  *
- * rc->uwb_dev.mutex is held
+ * rc->rsvs_mutex is held
  *
  * FIXME We currently ignore the returned value indicating the remaining space
  * in beacon. This could be used to deny reservation requests earlier if
  * determined that they would cause the beacon space to be exceeded.
  */
-static
-int uwb_rc_gen_send_drp_ie(struct uwb_rc *rc)
+int uwb_rc_send_all_drp_ie(struct uwb_rc *rc)
 {
 	int result;
 	struct device *dev = &rc->uwb_dev.dev;
@@ -101,25 +100,6 @@ int uwb_rc_gen_send_drp_ie(struct uwb_rc *rc)
 error_cmd:
 	kfree(cmd);
 error:
-	return result;
-
-}
-/**
- * Send all DRP IEs associated with this host
- *
- * @returns:    >= 0 number of bytes still available in the beacon
- *              < 0 errno code on error.
- *
- * As per the protocol we obtain the host controller device lock to access
- * bandwidth structures.
- */
-int uwb_rc_send_all_drp_ie(struct uwb_rc *rc)
-{
-	int result;
-
-	mutex_lock(&rc->uwb_dev.mutex);
-	result = uwb_rc_gen_send_drp_ie(rc);
-	mutex_unlock(&rc->uwb_dev.mutex);
 	return result;
 }
 

@@ -221,7 +221,6 @@ static void hwahc_op_stop(struct usb_hcd *usb_hcd)
 
 	d_fnstart(4, dev, "(hwahc %p)\n", hwahc);
 	mutex_lock(&wusbhc->mutex);
-	wusbhc_stop(wusbhc);
 	wusb_cluster_id_put(wusbhc->cluster_id);
 	mutex_unlock(&wusbhc->mutex);
 	d_fnend(4, dev, "(hwahc %p) = %d\n", hwahc, result);

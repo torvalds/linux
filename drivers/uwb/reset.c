@@ -365,11 +365,7 @@ void uwb_rc_pre_reset(struct uwb_rc *rc)
 	rc->stop(rc);
 	uwbd_flush(rc);
 
-	mutex_lock(&rc->uwb_dev.mutex);
-	rc->beaconing = -1;
-	rc->scanning = -1;
-	mutex_unlock(&rc->uwb_dev.mutex);
-
+	uwb_radio_reset_state(rc);
 	uwb_rsv_remove_all(rc);
 }
 EXPORT_SYMBOL_GPL(uwb_rc_pre_reset);

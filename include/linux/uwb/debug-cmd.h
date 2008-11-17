@@ -34,6 +34,8 @@ enum uwb_dbg_cmd_type {
 	UWB_DBG_CMD_RSV_TERMINATE = 2,
 	UWB_DBG_CMD_IE_ADD = 3,
 	UWB_DBG_CMD_IE_RM = 4,
+	UWB_DBG_CMD_RADIO_START = 5,
+	UWB_DBG_CMD_RADIO_STOP = 6,
 };
 
 struct uwb_dbg_cmd_rsv_establish {

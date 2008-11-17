@@ -18,6 +18,7 @@ uwb-objs :=		\
 	lc-rc.o		\
 	neh.o		\
 	pal.o		\
+	radio.o		\
 	reset.o		\
 	rsv.o		\
 	scan.o		\

@@ -555,14 +555,14 @@ static struct uwb_rsv *uwb_rsv_new_target(struct uwb_rc *rc,
 	 * deny the request.
 	 */
 	rsv->state = UWB_RSV_STATE_T_DENIED;
-	spin_lock(&rc->pal_lock);
+	mutex_lock(&rc->uwb_dev.mutex);
 	list_for_each_entry(pal, &rc->pals, node) {
 		if (pal->new_rsv)
 			pal->new_rsv(pal, rsv);
 		if (rsv->state == UWB_RSV_STATE_T_ACCEPTED)
 			break;
 	}
-	spin_unlock(&rc->pal_lock);
+	mutex_unlock(&rc->uwb_dev.mutex);
 
 	list_add_tail(&rsv->rc_node, &rc->reservations);
 	state = rsv->state;
