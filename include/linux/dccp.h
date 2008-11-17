@@ -527,8 +527,8 @@ struct dccp_sock {
 	__u32				dccps_timestamp_time;
 	__u16				dccps_l_ack_ratio;
 	__u16				dccps_r_ack_ratio;
-	__u16				dccps_pcslen;
-	__u16				dccps_pcrlen;
+	__u8				dccps_pcslen:4;
+	__u8				dccps_pcrlen:4;
 	__u64				dccps_ndp_count:48;
 	unsigned long			dccps_rate_last;
 	struct dccp_minisock		dccps_minisock;
