@@ -265,6 +265,18 @@ void __init pgtable_cache_init(void)
 	}
 }
 
+int sysctl_tsb_ratio = -2;
+
+static unsigned long tsb_size_to_rss_limit(unsigned long new_size)
+{
+	unsigned long num_ents = (new_size / sizeof(struct tsb));
+
+	if (sysctl_tsb_ratio < 0)
+		return num_ents - (num_ents >> -sysctl_tsb_ratio);
+	else
+		return num_ents + (num_ents >> sysctl_tsb_ratio);
+}
+
 /* When the RSS of an address space exceeds tsb_rss_limit for a TSB,
  * do_sparc64_fault() invokes this routine to try and grow it.
  *
@@ -295,19 +307,14 @@ void tsb_grow(struct mm_struct *mm, unsigned long tsb_index, unsigned long rss)
 
 	new_cache_index = 0;
 	for (new_size = 8192; new_size < max_tsb_size; new_size <<= 1UL) {
-		unsigned long n_entries = new_size / sizeof(struct tsb);
-
-		n_entries = (n_entries * 3) / 4;
-		if (n_entries > rss)
+		new_rss_limit = tsb_size_to_rss_limit(new_size);
+		if (new_rss_limit > rss)
 			break;
-
 		new_cache_index++;
 	}
 
 	if (new_size == max_tsb_size)
 		new_rss_limit = ~0UL;
-	else
-		new_rss_limit = ((new_size / sizeof(struct tsb)) * 3) / 4;
 
 retry_tsb_alloc:
 	gfp_flags = GFP_KERNEL;
