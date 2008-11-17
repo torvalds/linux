@@ -170,7 +170,7 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 
 #define MAC_ESP_PDMA_LOOP(operands) \
 	asm volatile ( \
-	     "       tstw %2                   \n" \
+	     "       tstw %1                   \n" \
 	     "       jbeq 20f                  \n" \
 	     "1:     movew " operands "        \n" \
 	     "2:     movew " operands "        \n" \
@@ -188,14 +188,14 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 	     "14:    movew " operands "        \n" \
 	     "15:    movew " operands "        \n" \
 	     "16:    movew " operands "        \n" \
-	     "       subqw #1,%2               \n" \
+	     "       subqw #1,%1               \n" \
 	     "       jbne 1b                   \n" \
-	     "20:    tstw %3                   \n" \
+	     "20:    tstw %2                   \n" \
 	     "       jbeq 30f                  \n" \
 	     "21:    movew " operands "        \n" \
-	     "       subqw #1,%3               \n" \
+	     "       subqw #1,%2               \n" \
 	     "       jbne 21b                  \n" \
-	     "30:    tstw %4                   \n" \
+	     "30:    tstw %3                   \n" \
 	     "       jbeq 40f                  \n" \
 	     "31:    moveb " operands "        \n" \
 	     "32:    nop                       \n" \
@@ -223,8 +223,8 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 	     "       .long  31b,40b            \n" \
 	     "       .long  32b,40b            \n" \
 	     "       .previous                 \n" \
-	     : "+a" (addr) \
-	     : "a" (mep->pdma_io), "r" (count32), "r" (count2), "g" (esp_count))
+	     : "+a" (addr), "+r" (count32), "+r" (count2) \
+	     : "g" (count1), "a" (mep->pdma_io))
 
 static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				  u32 dma_count, int write, u8 cmd)
@@ -247,19 +247,20 @@ static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 	do {
 		unsigned int count32 = esp_count >> 5;
 		unsigned int count2 = (esp_count & 0x1F) >> 1;
+		unsigned int count1 = esp_count & 1;
 		unsigned int start_addr = addr;
 
 		if (mac_esp_wait_for_dreq(esp))
 			break;
 
 		if (write) {
-			MAC_ESP_PDMA_LOOP("%1@,%0@+");
+			MAC_ESP_PDMA_LOOP("%4@,%0@+");
 
 			esp_count -= addr - start_addr;
 		} else {
 			unsigned int n;
 
-			MAC_ESP_PDMA_LOOP("%0@+,%1@");
+			MAC_ESP_PDMA_LOOP("%0@+,%4@");
 
 			if (mac_esp_wait_for_empty_fifo(esp))
 				break;
