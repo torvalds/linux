@@ -28,7 +28,7 @@ endif
 head-y := arch/sparc64/kernel/head.o arch/sparc64/kernel/init_task.o
 
 core-y				+= arch/sparc64/kernel/ arch/sparc64/mm/
-core-y				+= arch/sparc64/math-emu/
+core-y				+= arch/sparc/math-emu/
 libs-y				+= arch/sparc64/prom/ arch/sparc64/lib/
 drivers-$(CONFIG_OPROFILE)	+= arch/sparc64/oprofile/
 

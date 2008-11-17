@@ -16,7 +16,7 @@
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 
-#include "sfp-util.h"
+#include "sfp-util_64.h"
 #include <math-emu/soft-fp.h>
 #include <math-emu/single.h>
 #include <math-emu/double.h>
