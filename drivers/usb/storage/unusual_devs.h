@@ -167,6 +167,13 @@ UNUSUAL_DEV(  0x0421, 0x005d, 0x0001, 0x0600,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Patch for Nokia 5310 capacity */
+UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0591,
+		"Nokia",
+		"5310",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Reported by Mario Rettig <mariorettig@web.de> */
 UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
 		"Nokia",
@@ -233,7 +240,7 @@ UNUSUAL_DEV(  0x0421, 0x0495, 0x0370, 0x0370,
 		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Cedric Godin <cedric@belbone.be> */
-UNUSUAL_DEV(  0x0421, 0x04b9, 0x0551, 0x0551,
+UNUSUAL_DEV(  0x0421, 0x04b9, 0x0500, 0x0551,
 		"Nokia",
 		"5300",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
