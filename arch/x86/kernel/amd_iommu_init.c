@@ -1215,7 +1215,7 @@ static int __init parse_amd_iommu_options(char *str)
 			amd_iommu_isolate = 1;
 		if (strncmp(str, "share", 5) == 0)
 			amd_iommu_isolate = 0;
-		if (strncmp(str, "fullflush", 11) == 0)
+		if (strncmp(str, "fullflush", 9) == 0)
 			amd_iommu_unmap_flush = true;
 	}
 
