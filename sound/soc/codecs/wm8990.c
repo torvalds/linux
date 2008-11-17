@@ -1222,8 +1222,14 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
+
 	case SND_SOC_BIAS_PREPARE:
+		/* VMID=2*50k */
+		val = wm8990_read_reg_cache(codec, WM8990_POWER_MANAGEMENT_1) &
+			~WM8990_VMID_MODE_MASK;
+		wm8990_write(codec, WM8990_POWER_MANAGEMENT_1, val | 0x2);
 		break;
+
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			/* Enable all output discharge bits */
@@ -1278,6 +1284,11 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
 			wm8990_write(codec, WM8990_EXT_CTL1, 0xa003);
 			wm8990_write(codec, WM8990_EXT_ACCESS_ENA, 0);
 		}
+
+		/* VMID=2*250k */
+		val = wm8990_read_reg_cache(codec, WM8990_POWER_MANAGEMENT_1) &
+			~WM8990_VMID_MODE_MASK;
+		wm8990_write(codec, WM8990_POWER_MANAGEMENT_1, val | 0x4);
 		break;
 
 	case SND_SOC_BIAS_OFF:
