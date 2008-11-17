@@ -82,6 +82,16 @@ static void give_a_page(struct virtnet_info *vi, struct page *page)
 	vi->pages = page;
 }
 
+static void trim_pages(struct virtnet_info *vi, struct sk_buff *skb)
+{
+	unsigned int i;
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+		give_a_page(vi, skb_shinfo(skb)->frags[i].page);
+	skb_shinfo(skb)->nr_frags = 0;
+	skb->data_len = 0;
+}
+
 static struct page *get_a_page(struct virtnet_info *vi, gfp_t gfp_mask)
 {
 	struct page *p = vi->pages;
@@ -121,15 +131,8 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 	}
 	len -= sizeof(struct virtio_net_hdr);
 
-	if (len <= MAX_PACKET_LEN) {
-		unsigned int i;
-
-		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-			give_a_page(netdev_priv(dev),
-				    skb_shinfo(skb)->frags[i].page);
-		skb->data_len = 0;
-		skb_shinfo(skb)->nr_frags = 0;
-	}
+	if (len <= MAX_PACKET_LEN)
+		trim_pages(netdev_priv(dev), skb);
 
 	err = pskb_trim(skb, len);
 	if (err) {
@@ -233,6 +236,7 @@ static void try_fill_recv(struct virtnet_info *vi)
 		err = vi->rvq->vq_ops->add_buf(vi->rvq, sg, 0, num, skb);
 		if (err) {
 			skb_unlink(skb, &vi->recv);
+			trim_pages(vi, skb);
 			kfree_skb(skb);
 			break;
 		}
