@@ -834,13 +834,13 @@ static void ath_detach(struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Detach ATH hw\n", __func__);
 
-	ieee80211_unregister_hw(hw);
-
-	ath_deinit_leds(sc);
-
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	ath_deinit_rfkill(sc);
 #endif
+	ath_deinit_leds(sc);
+
+	ieee80211_unregister_hw(hw);
+
 	ath_rate_control_unregister();
 	ath_rate_detach(sc->sc_rc);
 
