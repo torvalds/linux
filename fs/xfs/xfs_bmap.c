@@ -4292,9 +4292,15 @@ xfs_bmap_finish(
 	 * We have a new transaction, so we should return committed=1,
 	 * even though we're returning an error.
 	 */
-	if (error) {
+	if (error)
 		return error;
-	}
+
+	/*
+	 * transaction commit worked ok so we can drop the extra ticket
+	 * reference that we gained in xfs_trans_dup()
+	 */
+	xfs_log_ticket_put(ntp->t_ticket);
+
 	if ((error = xfs_trans_reserve(ntp, 0, logres, 0, XFS_TRANS_PERM_LOG_RES,
 			logcount)))
 		return error;

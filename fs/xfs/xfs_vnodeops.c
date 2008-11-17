@@ -1019,6 +1019,12 @@ xfs_inactive_symlink_rmt(
 		goto error0;
 	}
 	/*
+	 * transaction commit worked ok so we can drop the extra ticket
+	 * reference that we gained in xfs_trans_dup()
+	 */
+	xfs_log_ticket_put(tp->t_ticket);
+
+	/*
 	 * Remove the memory for extent descriptions (just bookkeeping).
 	 */
 	if (ip->i_df.if_bytes)

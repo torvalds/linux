@@ -290,7 +290,7 @@ xfs_trans_dup(
 	ASSERT(tp->t_ticket != NULL);
 
 	ntp->t_flags = XFS_TRANS_PERM_LOG_RES | (tp->t_flags & XFS_TRANS_RESERVE);
-	ntp->t_ticket = tp->t_ticket;
+	ntp->t_ticket = xfs_log_ticket_get(tp->t_ticket);
 	ntp->t_blk_res = tp->t_blk_res - tp->t_blk_res_used;
 	tp->t_blk_res = tp->t_blk_res_used;
 	ntp->t_rtx_res = tp->t_rtx_res - tp->t_rtx_res_used;
@@ -1258,6 +1258,13 @@ xfs_trans_roll(
 		return (error);
 
 	trans = *tpp;
+
+	/*
+	 * transaction commit worked ok so we can drop the extra ticket
+	 * reference that we gained in xfs_trans_dup()
+	 */
+	xfs_log_ticket_put(trans->t_ticket);
+
 
 	/*
 	 * Reserve space in the log for th next transaction.
