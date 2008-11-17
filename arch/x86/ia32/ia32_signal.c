@@ -201,6 +201,12 @@ struct rt_sigframe
 	err |= __get_user(regs->x, &sc->x);	\
 }
 
+#define COPY_SEG_CPL3(seg)	{			\
+		unsigned short tmp;			\
+		err |= __get_user(tmp, &sc->seg);	\
+		regs->seg = tmp | 3;			\
+}
+
 #define RELOAD_SEG(seg,mask)						\
 	{ unsigned int cur;						\
 	  unsigned short pre;						\
@@ -246,10 +252,8 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	COPY(dx); COPY(cx); COPY(ip);
 	/* Don't touch extended registers */
 
-	err |= __get_user(regs->cs, &sc->cs);
-	regs->cs |= 3;
-	err |= __get_user(regs->ss, &sc->ss);
-	regs->ss |= 3;
+	COPY_SEG_CPL3(cs);
+	COPY_SEG_CPL3(ss);
 
 	err |= __get_user(tmpflags, &sc->flags);
 	regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
