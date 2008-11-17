@@ -566,9 +566,10 @@ static const struct proto_ops unix_seqpacket_ops = {
 };
 
 static struct proto unix_proto = {
-	.name	  = "UNIX",
-	.owner	  = THIS_MODULE,
-	.obj_size = sizeof(struct unix_sock),
+	.name			= "UNIX",
+	.owner			= THIS_MODULE,
+	.sockets_allocated	= &unix_nr_socks,
+	.obj_size		= sizeof(struct unix_sock),
 };
 
 /*
