@@ -249,9 +249,9 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 		list_for_each(tmp1, &cifs_tcp_ses_list) {
 			server = list_entry(tmp1, struct TCP_Server_Info,
 					    tcp_ses_list);
-			list_for_each(tmp2, &server->smb_session_list) {
+			list_for_each(tmp2, &server->smb_ses_list) {
 				ses = list_entry(tmp2, struct cifsSesInfo,
-						 smb_session_list);
+						 smb_ses_list);
 				list_for_each(tmp3, &ses->tcon_list) {
 					tcon = list_entry(tmp3,
 							  struct cifsTconInfo,
