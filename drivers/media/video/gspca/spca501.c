@@ -34,6 +34,8 @@ struct sd {
 	unsigned short contrast;
 	__u8 brightness;
 	__u8 colors;
+	__u8 blue_balance;
+	__u8 red_balance;
 
 	char subtype;
 #define Arowana300KCMOSCamera 0
@@ -52,6 +54,10 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 #define MY_BRIGHTNESS 0
@@ -63,7 +69,7 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 127,
 		.step    = 1,
-		.default_value = 63,
+		.default_value = 0,
 	    },
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
@@ -75,9 +81,9 @@ static struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Contrast",
 		.minimum = 0,
-		.maximum = 0xffff,
+		.maximum = 64725,
 		.step    = 1,
-		.default_value = 0xaa00,
+		.default_value = 64725,
 	    },
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
@@ -91,10 +97,38 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 63,
 		.step    = 1,
-		.default_value = 31,
+		.default_value = 20,
 	    },
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
+	},
+#define MY_BLUE_BALANCE 3
+	{
+	    {
+		.id      = V4L2_CID_BLUE_BALANCE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Blue Balance",
+		.minimum = 0,
+		.maximum = 127,
+		.step    = 1,
+		.default_value = 0,
+	    },
+	    .set = sd_setblue_balance,
+	    .get = sd_getblue_balance,
+	},
+#define MY_RED_BALANCE 4
+	{
+	    {
+		.id      = V4L2_CID_RED_BALANCE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Red Balance",
+		.minimum = 0,
+		.maximum = 127,
+		.step    = 1,
+		.default_value = 0,
+	    },
+	    .set = sd_setred_balance,
+	    .get = sd_getred_balance,
 	},
 };
 
@@ -1846,9 +1880,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x11, sd->brightness);
 	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x12, sd->brightness);
-	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x13, sd->brightness);
 }
 
 static void getbrightness(struct gspca_dev *gspca_dev)
@@ -1878,6 +1910,20 @@ static void setcolors(struct gspca_dev *gspca_dev)
 
 static void getcolors(struct gspca_dev *gspca_dev)
 {
+}
+
+static void setblue_balance(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x11, sd->blue_balance);
+}
+
+static void setred_balance(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x13, sd->red_balance);
 }
 
 /* this function is called at probe time */
@@ -2078,6 +2124,42 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 
 	getcolors(gspca_dev);
 	*val = sd->colors;
+	return 0;
+}
+
+static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->blue_balance = val;
+	if (gspca_dev->streaming)
+		setblue_balance(gspca_dev);
+	return 0;
+}
+
+static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->blue_balance;
+	return 0;
+}
+
+static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->red_balance = val;
+	if (gspca_dev->streaming)
+		setred_balance(gspca_dev);
+	return 0;
+}
+
+static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->red_balance;
 	return 0;
 }
 
