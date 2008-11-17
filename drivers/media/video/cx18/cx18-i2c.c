@@ -161,9 +161,9 @@ static void cx18_setscl(void *data, int state)
 	u32 r = cx18_read_reg(cx, addr);
 
 	if (state)
-		cx18_write_reg_sync(cx, r | SETSCL_BIT, addr);
+		cx18_write_reg(cx, r | SETSCL_BIT, addr);
 	else
-		cx18_write_reg_sync(cx, r & ~SETSCL_BIT, addr);
+		cx18_write_reg(cx, r & ~SETSCL_BIT, addr);
 }
 
 static void cx18_setsda(void *data, int state)
@@ -174,9 +174,9 @@ static void cx18_setsda(void *data, int state)
 	u32 r = cx18_read_reg(cx, addr);
 
 	if (state)
-		cx18_write_reg_sync(cx, r | SETSDL_BIT, addr);
+		cx18_write_reg(cx, r | SETSDL_BIT, addr);
 	else
-		cx18_write_reg_sync(cx, r & ~SETSDL_BIT, addr);
+		cx18_write_reg(cx, r & ~SETSDL_BIT, addr);
 }
 
 static int cx18_getscl(void *data)
@@ -405,16 +405,10 @@ int init_cx18_i2c(struct cx18 *cx)
 	}
 	/* courtesy of Steven Toth <stoth@hauppauge.com> */
 	cx18_write_reg_expect(cx, 0x00c00000, 0xc7001c, 0x00000000, 0x00c000c0);
-	if (!cx18_retry_mmio)
-		(void) cx18_read_reg(cx, 0xc7001c); /* sync */
 	mdelay(10);
 	cx18_write_reg_expect(cx, 0x00c000c0, 0xc7001c, 0x000000c0, 0x00c000c0);
-	if (!cx18_retry_mmio)
-		(void) cx18_read_reg(cx, 0xc7001c); /* sync */
 	mdelay(10);
 	cx18_write_reg_expect(cx, 0x00c00000, 0xc7001c, 0x00000000, 0x00c000c0);
-	if (!cx18_retry_mmio)
-		(void) cx18_read_reg(cx, 0xc7001c); /* sync */
 	mdelay(10);
 
 	/* Set to edge-triggered intrs. */
@@ -424,12 +418,12 @@ int init_cx18_i2c(struct cx18 *cx)
 		       ~(HW2_I2C1_INT|HW2_I2C2_INT), HW2_I2C1_INT|HW2_I2C2_INT);
 
 	/* Hw I2C1 Clock Freq ~100kHz */
-	cx18_write_reg_sync(cx, 0x00021c0f & ~4, CX18_REG_I2C_1_WR);
+	cx18_write_reg(cx, 0x00021c0f & ~4, CX18_REG_I2C_1_WR);
 	cx18_setscl(&cx->i2c_algo_cb_data[0], 1);
 	cx18_setsda(&cx->i2c_algo_cb_data[0], 1);
 
 	/* Hw I2C2 Clock Freq ~100kHz */
-	cx18_write_reg_sync(cx, 0x00021c0f & ~4, CX18_REG_I2C_2_WR);
+	cx18_write_reg(cx, 0x00021c0f & ~4, CX18_REG_I2C_2_WR);
 	cx18_setscl(&cx->i2c_algo_cb_data[1], 1);
 	cx18_setsda(&cx->i2c_algo_cb_data[1], 1);
 

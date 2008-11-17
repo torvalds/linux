@@ -80,11 +80,6 @@ u32 cx18_av_read4(struct cx18 *cx, u16 addr)
 	return cx18_read_reg(cx, 0xc40000 + addr);
 }
 
-u32 cx18_av_read4_noretry(struct cx18 *cx, u16 addr)
-{
-	return cx18_read_reg_noretry(cx, 0xc40000 + addr);
-}
-
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned and_mask,
 		   u8 or_value)
 {

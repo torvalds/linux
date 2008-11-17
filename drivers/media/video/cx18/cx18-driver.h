@@ -64,9 +64,6 @@
 #  error "This driver requires kernel PCI support."
 #endif
 
-/* Default delay to throttle mmio access to the CX23418 */
-#define CX18_DEFAULT_MMIO_NDELAY 0 /* 0 ns = 0 PCI clock(s) / 33 MHz */
-
 #define CX18_MEM_OFFSET	0x00000000
 #define CX18_MEM_SIZE	0x04000000
 #define CX18_REG_OFFSET	0x02000000
@@ -176,7 +173,6 @@
 
 #define CX18_MAX_PGM_INDEX (400)
 
-extern int cx18_retry_mmio;	/* enable check & retry of mmio accesses */
 extern int cx18_debug;
 
 
@@ -185,7 +181,6 @@ struct cx18_options {
 	int cardtype;		/* force card type on load */
 	int tuner;		/* set tuner on load */
 	int radio;		/* enable/disable radio */
-	unsigned long mmio_ndelay; /* delay in ns after every PCI mmio access */
 };
 
 /* per-buffer bit flags */
@@ -371,13 +366,6 @@ struct cx18_i2c_algo_callback_data {
 };
 
 #define CX18_MAX_MMIO_WR_RETRIES 10
-#define CX18_MAX_MMIO_RD_RETRIES  2
-
-struct cx18_mmio_stats {
-	atomic_t retried_write[CX18_MAX_MMIO_WR_RETRIES+1];
-	atomic_t retried_read[CX18_MAX_MMIO_RD_RETRIES+1];
-};
-
 #define CX18_MAX_MB_ACK_DELAY 100
 
 struct cx18_mbox_stats {
@@ -475,7 +463,6 @@ struct cx18 {
 	struct mutex gpio_lock;
 
 	/* Statistics */
-	struct cx18_mmio_stats mmio_stats;
 	struct cx18_mbox_stats mbox_stats;
 
 	/* v4l2 and User settings */

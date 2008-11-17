@@ -307,7 +307,6 @@ int cx18_av_write4_expect(struct cx18 *cx, u16 addr, u32 value, u32 eval,
 			  u32 mask);
 u8 cx18_av_read(struct cx18 *cx, u16 addr);
 u32 cx18_av_read4(struct cx18 *cx, u16 addr);
-u32 cx18_av_read4_noretry(struct cx18 *cx, u16 addr);
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned mask, u8 value);
 int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 mask, u32 value);
 int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg);

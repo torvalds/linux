@@ -68,8 +68,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 				cx18_av_write4_noretry(cx, CXADEC_DL_CTL,
 						       dl_control);
 				udelay(10);
-				value = cx18_av_read4_noretry(cx,
-							      CXADEC_DL_CTL);
+				value = cx18_av_read4(cx, CXADEC_DL_CTL);
 				if (value == dl_control)
 					break;
 				/* Check if we can correct the byte by changing
@@ -80,8 +79,6 @@ int cx18_av_loadfw(struct cx18 *cx)
 					break;
 				}
 			}
-			cx18_log_write_retries(cx, retries2,
-					cx->reg_mem + 0xc40000 + CXADEC_DL_CTL);
 			if (unrec_err || retries2 >= CX18_MAX_MMIO_WR_RETRIES)
 				break;
 		}

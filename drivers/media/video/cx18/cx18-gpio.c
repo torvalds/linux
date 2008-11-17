@@ -60,8 +60,6 @@ static void gpio_write(struct cx18 *cx)
 					CX18_REG_GPIO_DIR2, ~dir_hi, dir_hi);
 	cx18_write_reg_expect(cx, (dir_hi << 16) | val_hi,
 					CX18_REG_GPIO_OUT2, val_hi, dir_hi);
-	if (!cx18_retry_mmio)
-		(void) cx18_read_reg(cx, CX18_REG_GPIO_OUT2); /* sync */
 }
 
 void cx18_reset_i2c_slaves_gpio(struct cx18 *cx)
