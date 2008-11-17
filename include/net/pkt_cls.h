@@ -246,7 +246,7 @@ struct tcf_ematch_ops
 };
 
 extern int tcf_em_register(struct tcf_ematch_ops *);
-extern int tcf_em_unregister(struct tcf_ematch_ops *);
+extern void tcf_em_unregister(struct tcf_ematch_ops *);
 extern int tcf_em_tree_validate(struct tcf_proto *, struct nlattr *,
 				struct tcf_ematch_tree *);
 extern void tcf_em_tree_destroy(struct tcf_proto *, struct tcf_ematch_tree *);
