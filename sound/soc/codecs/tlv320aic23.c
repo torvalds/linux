@@ -331,10 +331,11 @@ static int find_rate(int mclk, u32 need_adc, u32 need_dac)
 	adc_h = need_adc + (need_adc >> 5);
 	dac_l = need_dac - (need_dac >> 5);
 	dac_h = need_dac + (need_dac >> 5);
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ARRAY_SIZE(bosr_usb_divisor_table); i++) {
 		int base = mclk / bosr_usb_divisor_table[i];
 		int mask = sr_valid_mask[i];
-		for (j = 0; j < 16; j++, mask >>= 1) {
+		for (j = 0; j < ARRAY_SIZE(sr_adc_mult_table);
+				j++, mask >>= 1) {
 			int adc;
 			int dac;
 			int score;
@@ -364,6 +365,7 @@ static int find_rate(int mclk, u32 need_adc, u32 need_dac)
 	return (best_j << 2) | best_i | (best_div << TLV320AIC23_CLKIN_SHIFT);
 }
 
+#ifdef DEBUG
 static void get_current_sample_rates(struct snd_soc_codec *codec, int mclk,
 		u32 *sample_rate_adc, u32 *sample_rate_dac)
 {
@@ -379,6 +381,7 @@ static void get_current_sample_rates(struct snd_soc_codec *codec, int mclk,
 	*sample_rate_adc = adc;
 	*sample_rate_dac = dac;
 }
+#endif
 
 static int set_sample_rate_control(struct snd_soc_codec *codec, int mclk,
 		u32 sample_rate_adc, u32 sample_rate_dac)
@@ -391,12 +394,14 @@ static int set_sample_rate_control(struct snd_soc_codec *codec, int mclk,
 		return -EINVAL;
 	}
 	tlv320aic23_write(codec, TLV320AIC23_SRATE, data);
-	if (1) {
-		int adc, dac;
+#ifdef DEBUG
+	{
+		u32 adc, dac;
 		get_current_sample_rates(codec, mclk, &adc, &dac);
 		printk(KERN_DEBUG "actual samplerate = %u,%u reg=%x\n",
 			adc, dac, data);
 	}
+#endif
 	return 0;
 }
 
