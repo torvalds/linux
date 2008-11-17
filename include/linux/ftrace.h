@@ -318,6 +318,8 @@ struct ftrace_retfunc {
 	unsigned long func; /* Current function */
 	unsigned long long calltime;
 	unsigned long long rettime;
+	/* Number of functions that overran the depth limit for current task */
+	unsigned long overrun;
 };
 
 #ifdef CONFIG_FUNCTION_RET_TRACER

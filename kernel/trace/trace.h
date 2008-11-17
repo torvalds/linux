@@ -60,6 +60,7 @@ struct ftrace_ret_entry {
 	unsigned long		parent_ip;
 	unsigned long long	calltime;
 	unsigned long long	rettime;
+	unsigned long		overrun;
 };
 extern struct tracer boot_tracer;
 

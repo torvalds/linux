@@ -853,6 +853,7 @@ static void __trace_function_return(struct trace_array *tr,
 	entry->parent_ip	= trace->ret;
 	entry->rettime		= trace->rettime;
 	entry->calltime		= trace->calltime;
+	entry->overrun		= trace->overrun;
 	ring_buffer_unlock_commit(global_trace.buffer, event, irq_flags);
 }
 #endif

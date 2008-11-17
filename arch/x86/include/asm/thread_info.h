@@ -21,6 +21,7 @@ struct task_struct;
 struct exec_domain;
 #include <asm/processor.h>
 #include <asm/ftrace.h>
+#include <asm/atomic.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
@@ -45,6 +46,11 @@ struct thread_info {
 	int		curr_ret_stack;
 	/* Stack of return addresses for return function tracing */
 	struct ftrace_ret_stack	ret_stack[FTRACE_RET_STACK_SIZE];
+	/*
+	 * Number of functions that haven't been traced
+	 * because of depth overrun.
+	 */
+	atomic_t	trace_overrun;
 #endif
 };
 
@@ -61,6 +67,7 @@ struct thread_info {
 		.fn = do_no_restart_syscall,	\
 	},					\
 	.curr_ret_stack = -1,\
+	.trace_overrun	= ATOMIC_INIT(0)	\
 }
 #else
 #define INIT_THREAD_INFO(tsk)			\
