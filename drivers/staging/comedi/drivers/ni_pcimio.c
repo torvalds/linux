@@ -111,6 +111,7 @@ Bugs:
 
 #include "../comedidev.h"
 
+#include <asm/byteorder.h>
 #include <linux/delay.h>
 
 #include "ni_stc.h"
@@ -1526,6 +1527,8 @@ static void m_series_init_eeprom_buffer(comedi_device * dev)
 {
 	static const int Start_Cal_EEPROM = 0x400;
 	static const unsigned window_size = 10;
+	static const int serial_number_eeprom_offset = 0x4;
+	static const int serial_number_eeprom_length = 0x4;
 	unsigned old_iodwbsr_bits;
 	unsigned old_iodwbsr1_bits;
 	unsigned old_iodwcr1_bits;
@@ -1537,8 +1540,15 @@ static void m_series_init_eeprom_buffer(comedi_device * dev)
 	writel(0x0, devpriv->mite->mite_io_addr + MITE_IODWBSR);
 	writel(((0x80 | window_size) | devpriv->mite->daq_phys_addr),
 		devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
-	writel(0x0, devpriv->mite->mite_io_addr + MITE_IODWCR_1);
+	writel(0x1 | old_iodwcr1_bits, devpriv->mite->mite_io_addr + MITE_IODWCR_1);
 	writel(0xf, devpriv->mite->mite_io_addr + 0x30);
+
+	BUG_ON(serial_number_eeprom_length > sizeof(devpriv->serial_number));
+	for (i = 0; i < serial_number_eeprom_length; ++i) {
+		char *byte_ptr = (char*)&devpriv->serial_number + i;
+		*byte_ptr = ni_readb(serial_number_eeprom_offset + i);
+	}
+	devpriv->serial_number = be32_to_cpu(devpriv->serial_number);
 
 	for (i = 0; i < M_SERIES_EEPROM_SIZE; ++i) {
 		devpriv->eeprom_buffer[i] = ni_readb(Start_Cal_EEPROM + i);
