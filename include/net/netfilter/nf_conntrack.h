@@ -298,5 +298,8 @@ do {							\
 	local_bh_enable();				\
 } while (0)
 
+#define MODULE_ALIAS_NFCT_HELPER(helper) \
+        MODULE_ALIAS("nfct-helper-" helper)
+
 #endif /* __KERNEL__ */
 #endif /* _NF_CONNTRACK_H */
