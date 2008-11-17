@@ -2082,7 +2082,9 @@ int proto_register(struct proto *prot, int alloc_slab)
 			prot->twsk_prot->twsk_slab =
 				kmem_cache_create(timewait_sock_slab_name,
 						  prot->twsk_prot->twsk_obj_size,
-						  0, SLAB_HWCACHE_ALIGN,
+						  0,
+						  SLAB_HWCACHE_ALIGN |
+							prot->slab_flags,
 						  NULL);
 			if (prot->twsk_prot->twsk_slab == NULL)
 				goto out_free_timewait_sock_slab_name;

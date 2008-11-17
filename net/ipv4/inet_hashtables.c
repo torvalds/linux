@@ -223,35 +223,65 @@ struct sock * __inet_lookup_established(struct net *net,
 	INET_ADDR_COOKIE(acookie, saddr, daddr)
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	struct sock *sk;
-	const struct hlist_node *node;
+	const struct hlist_nulls_node *node;
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
 	unsigned int hash = inet_ehashfn(net, daddr, hnum, saddr, sport);
-	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
-	rwlock_t *lock = inet_ehash_lockp(hashinfo, hash);
+	unsigned int slot = hash & (hashinfo->ehash_size - 1);
+	struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
 
-	prefetch(head->chain.first);
-	read_lock(lock);
-	sk_for_each(sk, node, &head->chain) {
+	rcu_read_lock();
+begin:
+	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (INET_MATCH(sk, net, hash, acookie,
-					saddr, daddr, ports, dif))
-			goto hit; /* You sunk my battleship! */
+					saddr, daddr, ports, dif)) {
+			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
+				goto begintw;
+			if (unlikely(!INET_MATCH(sk, net, hash, acookie,
+				saddr, daddr, ports, dif))) {
+				sock_put(sk);
+				goto begin;
+			}
+			goto out;
+		}
 	}
+	/*
+	 * if the nulls value we got at the end of this lookup is
+	 * not the expected one, we must restart lookup.
+	 * We probably met an item that was moved to another chain.
+	 */
+	if (get_nulls_value(node) != slot)
+		goto begin;
 
+begintw:
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &head->twchain) {
+	sk_nulls_for_each_rcu(sk, node, &head->twchain) {
 		if (INET_TW_MATCH(sk, net, hash, acookie,
-					saddr, daddr, ports, dif))
-			goto hit;
+					saddr, daddr, ports, dif)) {
+			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt))) {
+				sk = NULL;
+				goto out;
+			}
+			if (unlikely(!INET_TW_MATCH(sk, net, hash, acookie,
+				 saddr, daddr, ports, dif))) {
+				sock_put(sk);
+				goto begintw;
+			}
+			goto out;
+		}
 	}
+	/*
+	 * if the nulls value we got at the end of this lookup is
+	 * not the expected one, we must restart lookup.
+	 * We probably met an item that was moved to another chain.
+	 */
+	if (get_nulls_value(node) != slot)
+		goto begintw;
 	sk = NULL;
 out:
-	read_unlock(lock);
+	rcu_read_unlock();
 	return sk;
-hit:
-	sock_hold(sk);
-	goto out;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_established);
 
@@ -272,14 +302,14 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	rwlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
-	const struct hlist_node *node;
+	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw;
 
 	prefetch(head->chain.first);
 	write_lock(lock);
 
 	/* Check TIME-WAIT sockets first. */
-	sk_for_each(sk2, node, &head->twchain) {
+	sk_nulls_for_each(sk2, node, &head->twchain) {
 		tw = inet_twsk(sk2);
 
 		if (INET_TW_MATCH(sk2, net, hash, acookie,
@@ -293,7 +323,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	tw = NULL;
 
 	/* And established part... */
-	sk_for_each(sk2, node, &head->chain) {
+	sk_nulls_for_each(sk2, node, &head->chain) {
 		if (INET_MATCH(sk2, net, hash, acookie,
 					saddr, daddr, ports, dif))
 			goto not_unique;
@@ -306,7 +336,7 @@ unique:
 	inet->sport = htons(lport);
 	sk->sk_hash = hash;
 	WARN_ON(!sk_unhashed(sk));
-	__sk_add_node(sk, &head->chain);
+	__sk_nulls_add_node_rcu(sk, &head->chain);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock(lock);
 
@@ -338,7 +368,7 @@ static inline u32 inet_sk_port_offset(const struct sock *sk)
 void __inet_hash_nolisten(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	struct hlist_head *list;
+	struct hlist_nulls_head *list;
 	rwlock_t *lock;
 	struct inet_ehash_bucket *head;
 
@@ -350,7 +380,7 @@ void __inet_hash_nolisten(struct sock *sk)
 	lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 
 	write_lock(lock);
-	__sk_add_node(sk, list);
+	__sk_nulls_add_node_rcu(sk, list);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock(lock);
 }
@@ -400,13 +430,15 @@ void inet_unhash(struct sock *sk)
 		local_bh_disable();
 		inet_listen_wlock(hashinfo);
 		lock = &hashinfo->lhash_lock;
+		if (__sk_del_node_init(sk))
+			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	} else {
 		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 		write_lock_bh(lock);
+		if (__sk_nulls_del_node_init_rcu(sk))
+			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	}
 
-	if (__sk_del_node_init(sk))
-		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	write_unlock_bh(lock);
 out:
 	if (sk->sk_state == TCP_LISTEN)

@@ -2707,8 +2707,8 @@ void __init tcp_init(void)
 					thash_entries ? 0 : 512 * 1024);
 	tcp_hashinfo.ehash_size = 1 << tcp_hashinfo.ehash_size;
 	for (i = 0; i < tcp_hashinfo.ehash_size; i++) {
-		INIT_HLIST_HEAD(&tcp_hashinfo.ehash[i].chain);
-		INIT_HLIST_HEAD(&tcp_hashinfo.ehash[i].twchain);
+		INIT_HLIST_NULLS_HEAD(&tcp_hashinfo.ehash[i].chain, i);
+		INIT_HLIST_NULLS_HEAD(&tcp_hashinfo.ehash[i].twchain, i);
 	}
 	if (inet_ehash_locks_alloc(&tcp_hashinfo))
 		panic("TCP: failed to alloc ehash_locks");

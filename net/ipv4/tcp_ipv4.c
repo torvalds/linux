@@ -1857,16 +1857,16 @@ EXPORT_SYMBOL(tcp_v4_destroy_sock);
 #ifdef CONFIG_PROC_FS
 /* Proc filesystem TCP sock list dumping. */
 
-static inline struct inet_timewait_sock *tw_head(struct hlist_head *head)
+static inline struct inet_timewait_sock *tw_head(struct hlist_nulls_head *head)
 {
-	return hlist_empty(head) ? NULL :
+	return hlist_nulls_empty(head) ? NULL :
 		list_entry(head->first, struct inet_timewait_sock, tw_node);
 }
 
 static inline struct inet_timewait_sock *tw_next(struct inet_timewait_sock *tw)
 {
-	return tw->tw_node.next ?
-		hlist_entry(tw->tw_node.next, typeof(*tw), tw_node) : NULL;
+	return !is_a_nulls(tw->tw_node.next) ?
+		hlist_nulls_entry(tw->tw_node.next, typeof(*tw), tw_node) : NULL;
 }
 
 static void *listening_get_next(struct seq_file *seq, void *cur)
@@ -1954,8 +1954,8 @@ static void *listening_get_idx(struct seq_file *seq, loff_t *pos)
 
 static inline int empty_bucket(struct tcp_iter_state *st)
 {
-	return hlist_empty(&tcp_hashinfo.ehash[st->bucket].chain) &&
-		hlist_empty(&tcp_hashinfo.ehash[st->bucket].twchain);
+	return hlist_nulls_empty(&tcp_hashinfo.ehash[st->bucket].chain) &&
+		hlist_nulls_empty(&tcp_hashinfo.ehash[st->bucket].twchain);
 }
 
 static void *established_get_first(struct seq_file *seq)
@@ -1966,7 +1966,7 @@ static void *established_get_first(struct seq_file *seq)
 
 	for (st->bucket = 0; st->bucket < tcp_hashinfo.ehash_size; ++st->bucket) {
 		struct sock *sk;
-		struct hlist_node *node;
+		struct hlist_nulls_node *node;
 		struct inet_timewait_sock *tw;
 		rwlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, st->bucket);
 
@@ -1975,7 +1975,7 @@ static void *established_get_first(struct seq_file *seq)
 			continue;
 
 		read_lock_bh(lock);
-		sk_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
+		sk_nulls_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
 			if (sk->sk_family != st->family ||
 			    !net_eq(sock_net(sk), net)) {
 				continue;
@@ -2004,7 +2004,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 {
 	struct sock *sk = cur;
 	struct inet_timewait_sock *tw;
-	struct hlist_node *node;
+	struct hlist_nulls_node *node;
 	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
 
@@ -2032,11 +2032,11 @@ get_tw:
 			return NULL;
 
 		read_lock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
-		sk = sk_head(&tcp_hashinfo.ehash[st->bucket].chain);
+		sk = sk_nulls_head(&tcp_hashinfo.ehash[st->bucket].chain);
 	} else
-		sk = sk_next(sk);
+		sk = sk_nulls_next(sk);
 
-	sk_for_each_from(sk, node) {
+	sk_nulls_for_each_from(sk, node) {
 		if (sk->sk_family == st->family && net_eq(sock_net(sk), net))
 			goto found;
 	}
@@ -2375,6 +2375,7 @@ struct proto tcp_prot = {
 	.sysctl_rmem		= sysctl_tcp_rmem,
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp_sock),
+	.slab_flags		= SLAB_DESTROY_BY_RCU,
 	.twsk_prot		= &tcp_timewait_sock_ops,
 	.rsk_prot		= &tcp_request_sock_ops,
 	.h.hashinfo		= &tcp_hashinfo,

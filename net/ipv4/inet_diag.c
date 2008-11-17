@@ -778,18 +778,19 @@ skip_listen_ht:
 		struct inet_ehash_bucket *head = &hashinfo->ehash[i];
 		rwlock_t *lock = inet_ehash_lockp(hashinfo, i);
 		struct sock *sk;
-		struct hlist_node *node;
+		struct hlist_nulls_node *node;
 
 		num = 0;
 
-		if (hlist_empty(&head->chain) && hlist_empty(&head->twchain))
+		if (hlist_nulls_empty(&head->chain) &&
+			hlist_nulls_empty(&head->twchain))
 			continue;
 
 		if (i > s_i)
 			s_num = 0;
 
 		read_lock_bh(lock);
-		sk_for_each(sk, node, &head->chain) {
+		sk_nulls_for_each(sk, node, &head->chain) {
 			struct inet_sock *inet = inet_sk(sk);
 
 			if (num < s_num)

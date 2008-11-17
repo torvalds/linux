@@ -1090,8 +1090,8 @@ static int __init dccp_init(void)
 	}
 
 	for (i = 0; i < dccp_hashinfo.ehash_size; i++) {
-		INIT_HLIST_HEAD(&dccp_hashinfo.ehash[i].chain);
-		INIT_HLIST_HEAD(&dccp_hashinfo.ehash[i].twchain);
+		INIT_HLIST_NULLS_HEAD(&dccp_hashinfo.ehash[i].chain, i);
+		INIT_HLIST_NULLS_HEAD(&dccp_hashinfo.ehash[i].twchain, i);
 	}
 
 	if (inet_ehash_locks_alloc(&dccp_hashinfo))

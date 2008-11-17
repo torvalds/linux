@@ -23,12 +23,12 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 	rwlock_t *lock = inet_ehash_lockp(hashinfo, tw->tw_hash);
 
 	write_lock(lock);
-	if (hlist_unhashed(&tw->tw_node)) {
+	if (hlist_nulls_unhashed(&tw->tw_node)) {
 		write_unlock(lock);
 		return;
 	}
-	__hlist_del(&tw->tw_node);
-	sk_node_init(&tw->tw_node);
+	hlist_nulls_del_rcu(&tw->tw_node);
+	sk_nulls_node_init(&tw->tw_node);
 	write_unlock(lock);
 
 	/* Disassociate with bind bucket. */
@@ -92,13 +92,17 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 
 	write_lock(lock);
 
-	/* Step 2: Remove SK from established hash. */
-	if (__sk_del_node_init(sk))
-		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
-
-	/* Step 3: Hash TW into TIMEWAIT chain. */
-	inet_twsk_add_node(tw, &ehead->twchain);
+	/*
+	 * Step 2: Hash TW into TIMEWAIT chain.
+	 * Should be done before removing sk from established chain
+	 * because readers are lockless and search established first.
+	 */
 	atomic_inc(&tw->tw_refcnt);
+	inet_twsk_add_node_rcu(tw, &ehead->twchain);
+
+	/* Step 3: Remove SK from established hash. */
+	if (__sk_nulls_del_node_init_rcu(sk))
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 
 	write_unlock(lock);
 }
@@ -416,7 +420,7 @@ void inet_twsk_purge(struct net *net, struct inet_hashinfo *hashinfo,
 {
 	struct inet_timewait_sock *tw;
 	struct sock *sk;
-	struct hlist_node *node;
+	struct hlist_nulls_node *node;
 	int h;
 
 	local_bh_disable();
@@ -426,7 +430,7 @@ void inet_twsk_purge(struct net *net, struct inet_hashinfo *hashinfo,
 		rwlock_t *lock = inet_ehash_lockp(hashinfo, h);
 restart:
 		write_lock(lock);
-		sk_for_each(sk, node, &head->twchain) {
+		sk_nulls_for_each(sk, node, &head->twchain) {
 
 			tw = inet_twsk(sk);
 			if (!net_eq(twsk_net(tw), net) ||

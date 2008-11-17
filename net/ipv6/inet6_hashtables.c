@@ -25,24 +25,28 @@
 void __inet6_hash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	struct hlist_head *list;
 	rwlock_t *lock;
 
 	WARN_ON(!sk_unhashed(sk));
 
 	if (sk->sk_state == TCP_LISTEN) {
+		struct hlist_head *list;
+
 		list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 		lock = &hashinfo->lhash_lock;
 		inet_listen_wlock(hashinfo);
+		__sk_add_node(sk, list);
 	} else {
 		unsigned int hash;
+		struct hlist_nulls_head *list;
+
 		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
 		list = &inet_ehash_bucket(hashinfo, hash)->chain;
 		lock = inet_ehash_lockp(hashinfo, hash);
 		write_lock(lock);
+		__sk_nulls_add_node_rcu(sk, list);
 	}
 
-	__sk_add_node(sk, list);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock(lock);
 }
@@ -63,33 +67,53 @@ struct sock *__inet6_lookup_established(struct net *net,
 					   const int dif)
 {
 	struct sock *sk;
-	const struct hlist_node *node;
+	const struct hlist_nulls_node *node;
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
 	unsigned int hash = inet6_ehashfn(net, daddr, hnum, saddr, sport);
-	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
-	rwlock_t *lock = inet_ehash_lockp(hashinfo, hash);
+	unsigned int slot = hash & (hashinfo->ehash_size - 1);
+	struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
 
-	prefetch(head->chain.first);
-	read_lock(lock);
-	sk_for_each(sk, node, &head->chain) {
+
+	rcu_read_lock();
+begin:
+	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		/* For IPV6 do the cheaper port and family tests first. */
-		if (INET6_MATCH(sk, net, hash, saddr, daddr, ports, dif))
-			goto hit; /* You sunk my battleship! */
+		if (INET6_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
+				goto begintw;
+			if (!INET6_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+				sock_put(sk);
+				goto begin;
+			}
+		goto out;
+		}
 	}
-	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &head->twchain) {
-		if (INET6_TW_MATCH(sk, net, hash, saddr, daddr, ports, dif))
-			goto hit;
-	}
-	read_unlock(lock);
-	return NULL;
+	if (get_nulls_value(node) != slot)
+		goto begin;
 
-hit:
-	sock_hold(sk);
-	read_unlock(lock);
+begintw:
+	/* Must check for a TIME_WAIT'er before going to listener hash. */
+	sk_nulls_for_each_rcu(sk, node, &head->twchain) {
+		if (INET6_TW_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt))) {
+				sk = NULL;
+				goto out;
+			}
+			if (!INET6_TW_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+				sock_put(sk);
+				goto begintw;
+			}
+			goto out;
+		}
+	}
+	if (get_nulls_value(node) != slot)
+		goto begintw;
+	sk = NULL;
+out:
+	rcu_read_unlock();
 	return sk;
 }
 EXPORT_SYMBOL(__inet6_lookup_established);
@@ -172,14 +196,14 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	rwlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
-	const struct hlist_node *node;
+	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw;
 
 	prefetch(head->chain.first);
 	write_lock(lock);
 
 	/* Check TIME-WAIT sockets first. */
-	sk_for_each(sk2, node, &head->twchain) {
+	sk_nulls_for_each(sk2, node, &head->twchain) {
 		tw = inet_twsk(sk2);
 
 		if (INET6_TW_MATCH(sk2, net, hash, saddr, daddr, ports, dif)) {
@@ -192,7 +216,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	tw = NULL;
 
 	/* And established part... */
-	sk_for_each(sk2, node, &head->chain) {
+	sk_nulls_for_each(sk2, node, &head->chain) {
 		if (INET6_MATCH(sk2, net, hash, saddr, daddr, ports, dif))
 			goto not_unique;
 	}
@@ -203,7 +227,7 @@ unique:
 	inet->num = lport;
 	inet->sport = htons(lport);
 	WARN_ON(!sk_unhashed(sk));
-	__sk_add_node(sk, &head->chain);
+	__sk_nulls_add_node_rcu(sk, &head->chain);
 	sk->sk_hash = hash;
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock(lock);

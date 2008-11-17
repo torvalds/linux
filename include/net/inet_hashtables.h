@@ -41,8 +41,8 @@
  * I'll experiment with dynamic table growth later.
  */
 struct inet_ehash_bucket {
-	struct hlist_head chain;
-	struct hlist_head twchain;
+	struct hlist_nulls_head chain;
+	struct hlist_nulls_head twchain;
 };
 
 /* There are a few simple rules, which allow for local port reuse by
