@@ -197,10 +197,8 @@ struct rt_sigframe
 	/* fp state follows here */
 };
 
-#define COPY(x)		{ 		\
-	unsigned int reg;		\
-	err |= __get_user(reg, &sc->x);	\
-	regs->x = reg;			\
+#define COPY(x)			{		\
+	err |= __get_user(regs->x, &sc->x);	\
 }
 
 #define RELOAD_SEG(seg,mask)						\
