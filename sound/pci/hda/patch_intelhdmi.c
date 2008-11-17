@@ -312,16 +312,16 @@ static void hdmi_write_dip_byte(struct hda_codec *codec, hda_nid_t nid,
 
 static void hdmi_enable_output(struct hda_codec *codec)
 {
-	/* Enable pin out and unmute */
-	snd_hda_sequence_write(codec, pinout_enable_verb);
-	if (get_wcaps(codec, PIN_NID) & AC_WCAP_OUT_AMP)
-		snd_hda_codec_write(codec, PIN_NID, 0,
-				AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
-
 	/* Enable Audio InfoFrame Transmission */
 	hdmi_set_dip_index(codec, PIN_NID, 0x0, 0x0);
 	snd_hda_codec_write(codec, PIN_NID, 0, AC_VERB_SET_HDMI_DIP_XMIT,
 						AC_DIPXMIT_BEST);
+	/* Unmute */
+	if (get_wcaps(codec, PIN_NID) & AC_WCAP_OUT_AMP)
+		snd_hda_codec_write(codec, PIN_NID, 0,
+				AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	/* Enable pin out */
+	snd_hda_sequence_write(codec, pinout_enable_verb);
 }
 
 static void hdmi_disable_output(struct hda_codec *codec)
