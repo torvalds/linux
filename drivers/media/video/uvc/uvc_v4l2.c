@@ -464,9 +464,6 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
 	int ret = 0;
 
-	if (uvc_trace_param & UVC_TRACE_IOCTL)
-		v4l_printk_ioctl(cmd);
-
 	switch (cmd) {
 	/* Query capabilities */
 	case VIDIOC_QUERYCAP:
@@ -983,7 +980,12 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 static int uvc_v4l2_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
-	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_ioctl\n");
+	if (uvc_trace_param & UVC_TRACE_IOCTL) {
+		uvc_printk(KERN_DEBUG, "uvc_v4l2_ioctl(");
+		v4l_printk_ioctl(cmd);
+		printk(")\n");
+	}
+
 	return video_usercopy(file, cmd, arg, uvc_v4l2_do_ioctl);
 }
 
