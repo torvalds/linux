@@ -1930,6 +1930,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->contrast = sd_ctrls[MY_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[MY_COLOR].qctrl.default_value;
 
+	return 0;
+}
+
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
 	switch (sd->subtype) {
 	case Arowana300KCMOSCamera:
 	case SmileIntlCamera:
@@ -1948,15 +1956,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			goto error;
 		break;
 	}
+	PDEBUG(D_STREAM, "Initializing SPCA501 finished");
 	return 0;
 error:
 	return -EINVAL;
 }
 
-/* this function is called at probe and resume time */
-static int sd_init(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	struct usb_device *dev = gspca_dev->dev;
+	int mode;
 
 	switch (sd->subtype) {
 	case ThreeComHomeConnectLite:
@@ -1976,14 +1986,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		/* Generic 501 open data */
 		write_vector(gspca_dev, spca501_open_data);
 	}
-	PDEBUG(D_STREAM, "Initializing SPCA501 finished");
-	return 0;
-}
-
-static int sd_start(struct gspca_dev *gspca_dev)
-{
-	struct usb_device *dev = gspca_dev->dev;
-	int mode;
 
 	/* memorize the wanted pixel format */
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
