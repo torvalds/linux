@@ -470,44 +470,6 @@ static int dccp_setsockopt_service(struct sock *sk, const __be32 service,
 	return 0;
 }
 
-/* byte 1 is feature.  the rest is the preference list */
-static int dccp_setsockopt_change(struct sock *sk, int type,
-				  struct dccp_so_feat __user *optval)
-{
-	struct dccp_so_feat opt;
-	u8 *val;
-	int rc;
-
-	if (copy_from_user(&opt, optval, sizeof(opt)))
-		return -EFAULT;
-	/*
-	 * rfc4340: 6.1. Change Options
-	 */
-	if (opt.dccpsf_len < 1)
-		return -EINVAL;
-
-	val = kmalloc(opt.dccpsf_len, GFP_KERNEL);
-	if (!val)
-		return -ENOMEM;
-
-	if (copy_from_user(val, opt.dccpsf_val, opt.dccpsf_len)) {
-		rc = -EFAULT;
-		goto out_free_val;
-	}
-
-	rc = dccp_feat_change(dccp_msk(sk), type, opt.dccpsf_feat,
-			      val, opt.dccpsf_len, GFP_KERNEL);
-	if (rc)
-		goto out_free_val;
-
-out:
-	return rc;
-
-out_free_val:
-	kfree(val);
-	goto out;
-}
-
 static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 		char __user *optval, int optlen)
 {
@@ -530,20 +492,9 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 		err = 0;
 		break;
 	case DCCP_SOCKOPT_CHANGE_L:
-		if (optlen != sizeof(struct dccp_so_feat))
-			err = -EINVAL;
-		else
-			err = dccp_setsockopt_change(sk, DCCPO_CHANGE_L,
-						     (struct dccp_so_feat __user *)
-						     optval);
-		break;
 	case DCCP_SOCKOPT_CHANGE_R:
-		if (optlen != sizeof(struct dccp_so_feat))
-			err = -EINVAL;
-		else
-			err = dccp_setsockopt_change(sk, DCCPO_CHANGE_R,
-						     (struct dccp_so_feat __user *)
-						     optval);
+		DCCP_WARN("sockopt(CHANGE_L/R) is deprecated: fix your app\n");
+		err = 0;
 		break;
 	case DCCP_SOCKOPT_SERVER_TIMEWAIT:
 		if (dp->dccps_role != DCCP_ROLE_SERVER)
