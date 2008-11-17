@@ -218,7 +218,7 @@ struct rt_sigframe
 
 static int ia32_restore_sigcontext(struct pt_regs *regs,
 				   struct sigcontext_ia32 __user *sc,
-				   unsigned int *peax)
+				   unsigned int *pax)
 {
 	unsigned int tmpflags, gs, oldgs, err = 0;
 	void __user *buf;
@@ -265,9 +265,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	buf = compat_ptr(tmp);
 	err |= restore_i387_xstate_ia32(buf);
 
-	err |= __get_user(tmp, &sc->ax);
-	*peax = tmp;
-
+	err |= __get_user(*pax, &sc->ax);
 	return err;
 }
 
