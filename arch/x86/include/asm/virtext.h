@@ -43,4 +43,27 @@ static inline void cpu_vmxoff(void)
 	write_cr4(read_cr4() & ~X86_CR4_VMXE);
 }
 
+static inline int cpu_vmx_enabled(void)
+{
+	return read_cr4() & X86_CR4_VMXE;
+}
+
+/** Disable VMX if it is enabled on the current CPU
+ *
+ * You shouldn't call this if cpu_has_vmx() returns 0.
+ */
+static inline void __cpu_emergency_vmxoff(void)
+{
+	if (cpu_vmx_enabled())
+		cpu_vmxoff();
+}
+
+/** Disable VMX if it is supported and enabled on the current CPU
+ */
+static inline void cpu_emergency_vmxoff(void)
+{
+	if (cpu_has_vmx())
+		__cpu_emergency_vmxoff();
+}
+
 #endif /* _ASM_X86_VIRTEX_H */
