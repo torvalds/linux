@@ -48,6 +48,7 @@
 #define IP_CMSG_RECVOPTS	8
 #define IP_CMSG_RETOPTS		16
 #define IP_CMSG_PASSSEC		32
+#define IP_CMSG_ORIGDSTADDR     64
 
 /*
  *	SOL_IP control messages.
@@ -126,6 +127,27 @@ static void ip_cmsg_recv_security(struct msghdr *msg, struct sk_buff *skb)
 	security_release_secctx(secdata, seclen);
 }
 
+void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
+{
+	struct sockaddr_in sin;
+	struct iphdr *iph = ip_hdr(skb);
+	u16 *ports = (u16 *) skb_transport_header(skb);
+
+	if (skb_transport_offset(skb) + 4 > skb->len)
+		return;
+
+	/* All current transport protocols have the port numbers in the
+	 * first four bytes of the transport header and this function is
+	 * written with this assumption in mind.
+	 */
+
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = iph->daddr;
+	sin.sin_port = ports[1];
+	memset(sin.sin_zero, 0, sizeof(sin.sin_zero));
+
+	put_cmsg(msg, SOL_IP, IP_ORIGDSTADDR, sizeof(sin), &sin);
+}
 
 void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
 {
@@ -160,6 +182,12 @@ void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
 
 	if (flags & 1)
 		ip_cmsg_recv_security(msg, skb);
+
+	if ((flags>>=1) == 0)
+		return;
+	if (flags & 1)
+		ip_cmsg_recv_dstaddr(msg, skb);
+
 }
 
 int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
@@ -421,7 +449,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			     (1<<IP_ROUTER_ALERT) | (1<<IP_FREEBIND) |
 			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT))) ||
 	    optname == IP_MULTICAST_TTL ||
-	    optname == IP_MULTICAST_LOOP) {
+	    optname == IP_MULTICAST_LOOP ||
+	    optname == IP_RECVORIGDSTADDR) {
 		if (optlen >= sizeof(int)) {
 			if (get_user(val, (int __user *) optval))
 				return -EFAULT;
@@ -508,6 +537,12 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			inet->cmsg_flags |= IP_CMSG_PASSSEC;
 		else
 			inet->cmsg_flags &= ~IP_CMSG_PASSSEC;
+		break;
+	case IP_RECVORIGDSTADDR:
+		if (val)
+			inet->cmsg_flags |= IP_CMSG_ORIGDSTADDR;
+		else
+			inet->cmsg_flags &= ~IP_CMSG_ORIGDSTADDR;
 		break;
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		if (sk->sk_type == SOCK_STREAM) {
@@ -1021,6 +1056,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case IP_PASSSEC:
 		val = (inet->cmsg_flags & IP_CMSG_PASSSEC) != 0;
+		break;
+	case IP_RECVORIGDSTADDR:
+		val = (inet->cmsg_flags & IP_CMSG_ORIGDSTADDR) != 0;
 		break;
 	case IP_TOS:
 		val = inet->tos;
