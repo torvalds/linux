@@ -5,4 +5,4 @@
 # supress all warnings - as math.c produces a lot!
 ccflags-y := -w
 
-obj-y    := math.o
+obj-y    := math_$(BITS).o

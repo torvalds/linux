@@ -69,7 +69,7 @@
 #include <linux/mm.h>
 #include <asm/uaccess.h>
 
-#include "sfp-util.h"
+#include "sfp-util_32.h"
 #include <math-emu/soft-fp.h>
 #include <math-emu/single.h>
 #include <math-emu/double.h>
