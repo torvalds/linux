@@ -261,11 +261,12 @@ static void stop_stack_trace(struct trace_array *tr)
 	mutex_unlock(&sample_timer_lock);
 }
 
-static void stack_trace_init(struct trace_array *tr)
+static int stack_trace_init(struct trace_array *tr)
 {
 	sysprof_trace = tr;
 
 	start_stack_trace(tr);
+	return 0;
 }
 
 static void stack_trace_reset(struct trace_array *tr)

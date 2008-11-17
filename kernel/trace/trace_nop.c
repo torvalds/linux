@@ -24,7 +24,7 @@ static void stop_nop_trace(struct trace_array *tr)
 	/* Nothing to do! */
 }
 
-static void nop_trace_init(struct trace_array *tr)
+static int nop_trace_init(struct trace_array *tr)
 {
 	int cpu;
 	ctx_trace = tr;
@@ -33,6 +33,7 @@ static void nop_trace_init(struct trace_array *tr)
 		tracing_reset(tr, cpu);
 
 	start_nop_trace(tr);
+	return 0;
 }
 
 static void nop_trace_reset(struct trace_array *tr)

@@ -52,7 +52,7 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	int cpu, ret = 0;
 
 	/* Don't allow flipping of max traces now */
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	__raw_spin_lock(&ftrace_max_lock);
 
 	cnt = ring_buffer_entries(tr->buffer);
@@ -63,7 +63,7 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 			break;
 	}
 	__raw_spin_unlock(&ftrace_max_lock);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	if (count)
 		*count = cnt;
@@ -71,6 +71,11 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	return ret;
 }
 
+static inline void warn_failed_init_tracer(struct tracer *trace, int init_ret)
+{
+	printk(KERN_WARNING "Failed to init %s tracer, init returned %d\n",
+		trace->name, init_ret);
+}
 #ifdef CONFIG_FUNCTION_TRACER
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -111,7 +116,11 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	ftrace_set_filter(func_name, strlen(func_name), 1);
 
 	/* enable tracing */
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		goto out;
+	}
 
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
@@ -181,7 +190,12 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	ftrace_enabled = 1;
 	tracer_enabled = 1;
 
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		goto out;
+	}
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 	/* stop the tracing. */
@@ -223,7 +237,12 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	int ret;
 
 	/* start the tracing */
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* reset the max latency */
 	tracing_max_latency = 0;
 	/* disable interrupts for a bit */
@@ -272,7 +291,12 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	}
 
 	/* start the tracing */
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* reset the max latency */
 	tracing_max_latency = 0;
 	/* disable preemption for a bit */
@@ -321,7 +345,11 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	}
 
 	/* start the tracing */
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		goto out;
+	}
 
 	/* reset the max latency */
 	tracing_max_latency = 0;
@@ -449,7 +477,12 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	wait_for_completion(&isrt);
 
 	/* start the tracing */
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* reset the max latency */
 	tracing_max_latency = 0;
 
@@ -505,7 +538,12 @@ trace_selftest_startup_sched_switch(struct tracer *trace, struct trace_array *tr
 	int ret;
 
 	/* start the tracing */
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 	/* stop the tracing. */
@@ -532,7 +570,12 @@ trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
 	int ret;
 
 	/* start the tracing */
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return 0;
+	}
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 	/* stop the tracing. */
@@ -554,7 +597,12 @@ trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
 	int ret;
 
 	/* start the tracing */
-	trace->init(tr);
+	ret = trace->init(tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 	/* stop the tracing. */

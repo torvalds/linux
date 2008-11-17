@@ -25,6 +25,17 @@ struct ftrace_ops {
 
 extern int function_trace_stop;
 
+/*
+ * Type of the current tracing.
+ */
+enum ftrace_tracing_type_t {
+	FTRACE_TYPE_ENTER = 0, /* Hook the call of the function */
+	FTRACE_TYPE_RETURN,	/* Hook the return of the function */
+};
+
+/* Current tracing type, default is FTRACE_TYPE_ENTER */
+extern enum ftrace_tracing_type_t ftrace_tracing_type;
+
 /**
  * ftrace_stop - stop function tracer.
  *
@@ -74,6 +85,9 @@ static inline void ftrace_start(void) { }
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+/* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
+#include <asm/ftrace.h>
+
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
 	FTRACE_FL_FAILED	= (1 << 1),
@@ -88,6 +102,7 @@ struct dyn_ftrace {
 	struct list_head	list;
 	unsigned long		ip; /* address of mcount call-site */
 	unsigned long		flags;
+	struct dyn_arch_ftrace	arch;
 };
 
 int ftrace_force_update(void);
@@ -95,28 +110,28 @@ void ftrace_set_filter(unsigned char *buf, int len, int reset);
 
 /* defined in arch */
 extern int ftrace_ip_converted(unsigned long ip);
-extern unsigned char *ftrace_nop_replace(void);
-extern unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr);
 extern int ftrace_dyn_arch_init(void *data);
 extern int ftrace_update_ftrace_func(ftrace_func_t func);
 extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
-
-/* May be defined in arch */
-extern int ftrace_arch_read_dyn_info(char *buf, int size);
+#ifdef CONFIG_FUNCTION_RET_TRACER
+extern void ftrace_return_caller(void);
+#endif
 
 /**
- * ftrace_modify_code - modify code segment
- * @ip: the address of the code segment
- * @old_code: the contents of what is expected to be there
- * @new_code: the code to patch in
+ * ftrace_make_nop - convert code into top
+ * @mod: module structure if called by module load initialization
+ * @rec: the mcount call site record
+ * @addr: the address that the call site should be calling
  *
  * This is a very sensitive operation and great care needs
  * to be taken by the arch.  The operation should carefully
  * read the location, check to see if what is read is indeed
  * what we expect it to be, and then on success of the compare,
  * it should write to the location.
+ *
+ * The code segment at @rec->ip should be a caller to @addr
  *
  * Return must be:
  *  0 on success
@@ -125,8 +140,34 @@ extern int ftrace_arch_read_dyn_info(char *buf, int size);
  *  -EPERM  on error writing to the location
  * Any other value will be considered a failure.
  */
-extern int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
-			      unsigned char *new_code);
+extern int ftrace_make_nop(struct module *mod,
+			   struct dyn_ftrace *rec, unsigned long addr);
+
+/**
+ * ftrace_make_call - convert a nop call site into a call to addr
+ * @rec: the mcount call site record
+ * @addr: the address that the call site should call
+ *
+ * This is a very sensitive operation and great care needs
+ * to be taken by the arch.  The operation should carefully
+ * read the location, check to see if what is read is indeed
+ * what we expect it to be, and then on success of the compare,
+ * it should write to the location.
+ *
+ * The code segment at @rec->ip should be a nop
+ *
+ * Return must be:
+ *  0 on success
+ *  -EFAULT on error reading the location
+ *  -EINVAL on a failed compare of the contents
+ *  -EPERM  on error writing to the location
+ * Any other value will be considered a failure.
+ */
+extern int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr);
+
+
+/* May be defined in arch */
+extern int ftrace_arch_read_dyn_info(char *buf, int size);
 
 extern int skip_trace(unsigned long ip);
 
@@ -259,11 +300,13 @@ static inline void ftrace_dump(void) { }
 
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 extern void ftrace_init(void);
-extern void ftrace_init_module(unsigned long *start, unsigned long *end);
+extern void ftrace_init_module(struct module *mod,
+			       unsigned long *start, unsigned long *end);
 #else
 static inline void ftrace_init(void) { }
 static inline void
-ftrace_init_module(unsigned long *start, unsigned long *end) { }
+ftrace_init_module(struct module *mod,
+		   unsigned long *start, unsigned long *end) { }
 #endif
 
 
@@ -281,7 +324,7 @@ struct ftrace_retfunc {
 /* Type of a callback handler of tracing return function */
 typedef void (*trace_function_return_t)(struct ftrace_retfunc *);
 
-extern void register_ftrace_return(trace_function_return_t func);
+extern int register_ftrace_return(trace_function_return_t func);
 /* The current handler in use */
 extern trace_function_return_t ftrace_function_return;
 extern void unregister_ftrace_return(void);

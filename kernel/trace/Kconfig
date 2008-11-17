@@ -59,7 +59,6 @@ config FUNCTION_TRACER
 
 config FUNCTION_RET_TRACER
 	bool "Kernel Function return Tracer"
-	depends on !DYNAMIC_FTRACE
 	depends on HAVE_FUNCTION_RET_TRACER
 	depends on FUNCTION_TRACER
 	help

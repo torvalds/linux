@@ -17,6 +17,14 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	 */
 	return addr - 1;
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+struct dyn_arch_ftrace {
+	/* No extra data needed for x86 */
+};
+
+#endif /*  CONFIG_DYNAMIC_FTRACE */
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_FUNCTION_TRACER */
 

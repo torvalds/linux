@@ -125,7 +125,7 @@ static void stop_branch_trace(struct trace_array *tr)
 	disable_branch_tracing();
 }
 
-static void branch_trace_init(struct trace_array *tr)
+static int branch_trace_init(struct trace_array *tr)
 {
 	int cpu;
 
@@ -133,6 +133,7 @@ static void branch_trace_init(struct trace_array *tr)
 		tracing_reset(tr, cpu);
 
 	start_branch_trace(tr);
+	return 0;
 }
 
 static void branch_trace_reset(struct trace_array *tr)

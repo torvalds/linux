@@ -12,6 +12,7 @@
  * See the file COPYING for more details.
  */
 
+#include <stdarg.h>
 #include <linux/types.h>
 
 struct module;
@@ -48,9 +49,27 @@ struct marker {
 	void (*call)(const struct marker *mdata, void *call_private, ...);
 	struct marker_probe_closure single;
 	struct marker_probe_closure *multi;
+	const char *tp_name;	/* Optional tracepoint name */
+	void *tp_cb;		/* Optional tracepoint callback */
 } __attribute__((aligned(8)));
 
 #ifdef CONFIG_MARKERS
+
+#define _DEFINE_MARKER(name, tp_name_str, tp_cb, format)		\
+		static const char __mstrtab_##name[]			\
+		__attribute__((section("__markers_strings")))		\
+		= #name "\0" format;					\
+		static struct marker __mark_##name			\
+		__attribute__((section("__markers"), aligned(8))) =	\
+		{ __mstrtab_##name, &__mstrtab_##name[sizeof(#name)],	\
+		  0, 0, marker_probe_cb, { __mark_empty_function, NULL},\
+		  NULL, tp_name_str, tp_cb }
+
+#define DEFINE_MARKER(name, format)					\
+		_DEFINE_MARKER(name, NULL, NULL, format)
+
+#define DEFINE_MARKER_TP(name, tp_name, tp_cb, format)			\
+		_DEFINE_MARKER(name, #tp_name, tp_cb, format)
 
 /*
  * Note : the empty asm volatile with read constraint is used here instead of a
@@ -65,14 +84,7 @@ struct marker {
  */
 #define __trace_mark(generic, name, call_private, format, args...)	\
 	do {								\
-		static const char __mstrtab_##name[]			\
-		__attribute__((section("__markers_strings")))		\
-		= #name "\0" format;					\
-		static struct marker __mark_##name			\
-		__attribute__((section("__markers"), aligned(8))) =	\
-		{ __mstrtab_##name, &__mstrtab_##name[sizeof(#name)],	\
-		0, 0, marker_probe_cb,					\
-		{ __mark_empty_function, NULL}, NULL };			\
+		DEFINE_MARKER(name, format);				\
 		__mark_check_format(format, ## args);			\
 		if (unlikely(__mark_##name.state)) {			\
 			(*__mark_##name.call)				\
@@ -80,14 +92,39 @@ struct marker {
 		}							\
 	} while (0)
 
+#define __trace_mark_tp(name, call_private, tp_name, tp_cb, format, args...) \
+	do {								\
+		void __check_tp_type(void)				\
+		{							\
+			register_trace_##tp_name(tp_cb);		\
+		}							\
+		DEFINE_MARKER_TP(name, tp_name, tp_cb, format);		\
+		__mark_check_format(format, ## args);			\
+		(*__mark_##name.call)(&__mark_##name, call_private,	\
+					## args);			\
+	} while (0)
+
 extern void marker_update_probe_range(struct marker *begin,
 	struct marker *end);
+
+#define GET_MARKER(name)	(__mark_##name)
+
 #else /* !CONFIG_MARKERS */
+#define DEFINE_MARKER(name, tp_name, tp_cb, format)
 #define __trace_mark(generic, name, call_private, format, args...) \
 		__mark_check_format(format, ## args)
+#define __trace_mark_tp(name, call_private, tp_name, tp_cb, format, args...) \
+	do {								\
+		void __check_tp_type(void)				\
+		{							\
+			register_trace_##tp_name(tp_cb);		\
+		}							\
+		__mark_check_format(format, ## args);			\
+	} while (0)
 static inline void marker_update_probe_range(struct marker *begin,
 	struct marker *end)
 { }
+#define GET_MARKER(name)
 #endif /* CONFIG_MARKERS */
 
 /**
@@ -115,6 +152,20 @@ static inline void marker_update_probe_range(struct marker *begin,
  */
 #define _trace_mark(name, format, args...) \
 	__trace_mark(1, name, NULL, format, ## args)
+
+/**
+ * trace_mark_tp - Marker in a tracepoint callback
+ * @name: marker name, not quoted.
+ * @tp_name: tracepoint name, not quoted.
+ * @tp_cb: tracepoint callback. Should have an associated global symbol so it
+ *         is not optimized away by the compiler (should not be static).
+ * @format: format string
+ * @args...: variable argument list
+ *
+ * Places a marker in a tracepoint callback.
+ */
+#define trace_mark_tp(name, tp_name, tp_cb, format, args...)	\
+	__trace_mark_tp(name, NULL, tp_name, tp_cb, format, ## args)
 
 /**
  * MARK_NOARGS - Format string for a marker with no argument.
