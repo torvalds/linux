@@ -46,6 +46,8 @@
 #include <linux/bio.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -94,7 +96,7 @@ static int qd_alloc(struct gfs2_sbd *sdp, int user, u32 id,
 	struct gfs2_quota_data *qd;
 	int error;
 
-	qd = kzalloc(sizeof(struct gfs2_quota_data), GFP_NOFS);
+	qd = kmem_cache_zalloc(gfs2_quotad_cachep, GFP_NOFS);
 	if (!qd)
 		return -ENOMEM;
 
@@ -119,7 +121,7 @@ static int qd_alloc(struct gfs2_sbd *sdp, int user, u32 id,
 	return 0;
 
 fail:
-	kfree(qd);
+	kmem_cache_free(gfs2_quotad_cachep, qd);
 	return error;
 }
 
@@ -158,7 +160,7 @@ static int qd_get(struct gfs2_sbd *sdp, int user, u32 id, int create,
 		if (qd || !create) {
 			if (new_qd) {
 				gfs2_lvb_unhold(new_qd->qd_gl);
-				kfree(new_qd);
+				kmem_cache_free(gfs2_quotad_cachep, new_qd);
 			}
 			*qdp = qd;
 			return 0;
@@ -1195,7 +1197,7 @@ fail:
 	return error;
 }
 
-void gfs2_quota_scan(struct gfs2_sbd *sdp)
+static void gfs2_quota_scan(struct gfs2_sbd *sdp)
 {
 	struct gfs2_quota_data *qd, *safe;
 	LIST_HEAD(dead);
@@ -1222,7 +1224,7 @@ void gfs2_quota_scan(struct gfs2_sbd *sdp)
 		gfs2_assert_warn(sdp, !qd->qd_bh_count);
 
 		gfs2_lvb_unhold(qd->qd_gl);
-		kfree(qd);
+		kmem_cache_free(gfs2_quotad_cachep, qd);
 	}
 }
 
@@ -1257,7 +1259,7 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 		gfs2_assert_warn(sdp, !qd->qd_bh_count);
 
 		gfs2_lvb_unhold(qd->qd_gl);
-		kfree(qd);
+		kmem_cache_free(gfs2_quotad_cachep, qd);
 
 		spin_lock(&sdp->sd_quota_spin);
 	}
@@ -1270,5 +1272,67 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 			kfree(sdp->sd_quota_bitmap[x]);
 		kfree(sdp->sd_quota_bitmap);
 	}
+}
+
+static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)
+{
+	if (error == 0 || error == -EROFS)
+		return;
+	if (!test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
+		fs_err(sdp, "gfs2_quotad: %s error %d\n", msg, error);
+}
+
+static void quotad_check_timeo(struct gfs2_sbd *sdp, const char *msg,
+			       int (*fxn)(struct gfs2_sbd *sdp),
+			       unsigned long t, unsigned long *timeo,
+			       unsigned int *new_timeo)
+{
+	if (t >= *timeo) {
+		int error = fxn(sdp);
+		quotad_error(sdp, msg, error);
+		*timeo = gfs2_tune_get_i(&sdp->sd_tune, new_timeo) * HZ;
+	} else {
+		*timeo -= t;
+	}
+}
+
+/**
+ * gfs2_quotad - Write cached quota changes into the quota file
+ * @sdp: Pointer to GFS2 superblock
+ *
+ */
+
+int gfs2_quotad(void *data)
+{
+	struct gfs2_sbd *sdp = data;
+	struct gfs2_tune *tune = &sdp->sd_tune;
+	unsigned long statfs_timeo = 0;
+	unsigned long quotad_timeo = 0;
+	unsigned long t = 0;
+	DEFINE_WAIT(wait);
+
+	while (!kthread_should_stop()) {
+
+		/* Update the master statfs file */
+		quotad_check_timeo(sdp, "statfs", gfs2_statfs_sync, t,
+				   &statfs_timeo, &tune->gt_statfs_quantum);
+
+		/* Update quota file */
+		quotad_check_timeo(sdp, "sync", gfs2_quota_sync, t,
+				   &quotad_timeo, &tune->gt_quota_quantum);
+
+		/* FIXME: This should be turned into a shrinker */
+		gfs2_quota_scan(sdp);
+
+		if (freezing(current))
+			refrigerator();
+		t = min(quotad_timeo, statfs_timeo);
+
+		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_UNINTERRUPTIBLE);
+		t -= schedule_timeout(t);
+		finish_wait(&sdp->sd_quota_wait, &wait);
+	}
+
+	return 0;
 }
 

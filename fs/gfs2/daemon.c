@@ -23,7 +23,6 @@
 #include "daemon.h"
 #include "glock.h"
 #include "log.h"
-#include "quota.h"
 #include "recovery.h"
 #include "super.h"
 #include "util.h"
@@ -74,58 +73,6 @@ int gfs2_recoverd(void *data)
 	while (!kthread_should_stop()) {
 		gfs2_check_journals(sdp);
 		t = gfs2_tune_get(sdp,  gt_recoverd_secs) * HZ;
-		if (freezing(current))
-			refrigerator();
-		schedule_timeout_interruptible(t);
-	}
-
-	return 0;
-}
-
-/**
- * gfs2_quotad - Write cached quota changes into the quota file
- * @sdp: Pointer to GFS2 superblock
- *
- */
-
-int gfs2_quotad(void *data)
-{
-	struct gfs2_sbd *sdp = data;
-	unsigned long t;
-	int error;
-
-	while (!kthread_should_stop()) {
-		/* Update the master statfs file */
-
-		t = sdp->sd_statfs_sync_time +
-		    gfs2_tune_get(sdp, gt_statfs_quantum) * HZ;
-
-		if (time_after_eq(jiffies, t)) {
-			error = gfs2_statfs_sync(sdp);
-			if (error &&
-			    error != -EROFS &&
-			    !test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
-				fs_err(sdp, "quotad: (1) error=%d\n", error);
-			sdp->sd_statfs_sync_time = jiffies;
-		}
-
-		/* Update quota file */
-
-		t = sdp->sd_quota_sync_time +
-		    gfs2_tune_get(sdp, gt_quota_quantum) * HZ;
-
-		if (time_after_eq(jiffies, t)) {
-			error = gfs2_quota_sync(sdp);
-			if (error &&
-			    error != -EROFS &&
-			    !test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
-				fs_err(sdp, "quotad: (2) error=%d\n", error);
-			sdp->sd_quota_sync_time = jiffies;
-		}
-
-		gfs2_quota_scan(sdp);
-
-		t = gfs2_tune_get(sdp, gt_quotad_secs) * HZ;
 		if (freezing(current))
 			refrigerator();
 		schedule_timeout_interruptible(t);

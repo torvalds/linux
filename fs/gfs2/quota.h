@@ -29,7 +29,6 @@ int gfs2_quota_sync(struct gfs2_sbd *sdp);
 int gfs2_quota_refresh(struct gfs2_sbd *sdp, int user, u32 id);
 
 int gfs2_quota_init(struct gfs2_sbd *sdp);
-void gfs2_quota_scan(struct gfs2_sbd *sdp);
 void gfs2_quota_cleanup(struct gfs2_sbd *sdp);
 
 static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)

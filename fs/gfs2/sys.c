@@ -408,7 +408,6 @@ TUNE_ATTR(stall_secs, 1);
 TUNE_ATTR(statfs_quantum, 1);
 TUNE_ATTR_DAEMON(recoverd_secs, recoverd_process);
 TUNE_ATTR_DAEMON(logd_secs, logd_process);
-TUNE_ATTR_DAEMON(quotad_secs, quotad_process);
 TUNE_ATTR_3(quota_scale, quota_scale_show, quota_scale_store);
 
 static struct attribute *tune_attrs[] = {
@@ -426,7 +425,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_statfs_quantum.attr,
 	&tune_attr_recoverd_secs.attr,
 	&tune_attr_logd_secs.attr,
-	&tune_attr_quotad_secs.attr,
 	&tune_attr_quota_scale.attr,
 	&tune_attr_new_files_jdata.attr,
 	NULL,

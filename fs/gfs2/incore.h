@@ -402,7 +402,6 @@ struct gfs2_tune {
 
 	unsigned int gt_recoverd_secs;
 	unsigned int gt_logd_secs;
-	unsigned int gt_quotad_secs;
 
 	unsigned int gt_quota_simul_sync; /* Max quotavals to sync at once */
 	unsigned int gt_quota_warn_period; /* Secs between quota warn msgs */
@@ -509,7 +508,6 @@ struct gfs2_sbd {
 	spinlock_t sd_statfs_spin;
 	struct gfs2_statfs_change_host sd_statfs_master;
 	struct gfs2_statfs_change_host sd_statfs_local;
-	unsigned long sd_statfs_sync_time;
 
 	/* Resource group stuff */
 
@@ -551,13 +549,13 @@ struct gfs2_sbd {
 	atomic_t sd_quota_count;
 	spinlock_t sd_quota_spin;
 	struct mutex sd_quota_mutex;
+	wait_queue_head_t sd_quota_wait;
 
 	unsigned int sd_quota_slots;
 	unsigned int sd_quota_chunks;
 	unsigned char **sd_quota_bitmap;
 
 	u64 sd_quota_sync_gen;
-	unsigned long sd_quota_sync_time;
 
 	/* Log stuff */
 

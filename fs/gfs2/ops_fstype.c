@@ -60,7 +60,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_log_flush_secs = 60;
 	gt->gt_recoverd_secs = 60;
 	gt->gt_logd_secs = 1;
-	gt->gt_quotad_secs = 5;
 	gt->gt_quota_simul_sync = 64;
 	gt->gt_quota_warn_period = 10;
 	gt->gt_quota_scale_num = 1;
@@ -107,6 +106,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_quota_list);
 	spin_lock_init(&sdp->sd_quota_spin);
 	mutex_init(&sdp->sd_quota_mutex);
+	init_waitqueue_head(&sdp->sd_quota_wait);
 
 	spin_lock_init(&sdp->sd_log_lock);
 
@@ -969,9 +969,6 @@ static int init_threads(struct gfs2_sbd *sdp, int undo)
 		return error;
 	}
 	sdp->sd_logd_process = p;
-
-	sdp->sd_statfs_sync_time = jiffies;
-	sdp->sd_quota_sync_time = jiffies;
 
 	p = kthread_run(gfs2_quotad, sdp, "gfs2_quotad");
 	error = IS_ERR(p);
