@@ -361,6 +361,7 @@ static void unix_sock_destructor(struct sock *sk)
 		unix_release_addr(u->addr);
 
 	atomic_dec(&unix_nr_socks);
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 #ifdef UNIX_REFCNT_DEBUG
 	printk(KERN_DEBUG "UNIX %p is destroyed, %d are still alive.\n", sk,
 		atomic_read(&unix_nr_socks));
@@ -612,6 +613,9 @@ static struct sock *unix_create1(struct net *net, struct socket *sock)
 out:
 	if (sk == NULL)
 		atomic_dec(&unix_nr_socks);
+	else
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+
 	return sk;
 }
 
