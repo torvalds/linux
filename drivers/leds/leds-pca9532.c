@@ -151,8 +151,8 @@ static int pca9532_set_blink(struct led_classdev *led_cdev,
 	return pca9532_setpwm(client, 0, psc, led_cdev->brightness);
 }
 
-int pca9532_event(struct input_dev *dev, unsigned int type, unsigned int code,
-	int value)
+static int pca9532_event(struct input_dev *dev, unsigned int type,
+	unsigned int code, int value)
 {
 	struct pca9532_data *data = input_get_drvdata(dev);
 
