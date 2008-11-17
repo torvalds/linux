@@ -122,14 +122,7 @@ static struct timer_list balloon_timer;
 static void scrub_page(struct page *page)
 {
 #ifdef CONFIG_XEN_SCRUB_PAGES
-	if (PageHighMem(page)) {
-		void *v = kmap(page);
-		clear_page(v);
-		kunmap(v);
-	} else {
-		void *v = page_address(page);
-		clear_page(v);
-	}
+	clear_highpage(page);
 #endif
 }
 
