@@ -558,7 +558,7 @@ static struct uwb_rsv *uwb_rsv_new_target(struct uwb_rc *rc,
 	spin_lock(&rc->pal_lock);
 	list_for_each_entry(pal, &rc->pals, node) {
 		if (pal->new_rsv)
-			pal->new_rsv(rsv);
+			pal->new_rsv(pal, rsv);
 		if (rsv->state == UWB_RSV_STATE_T_ACCEPTED)
 			break;
 	}

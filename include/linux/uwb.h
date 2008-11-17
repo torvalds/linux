@@ -405,7 +405,7 @@ struct uwb_pal {
 	struct list_head node;
 	const char *name;
 	struct device *device;
-	void (*new_rsv)(struct uwb_rsv *rsv);
+	void (*new_rsv)(struct uwb_pal *pal, struct uwb_rsv *rsv);
 };
 
 void uwb_pal_init(struct uwb_pal *pal);

@@ -306,13 +306,13 @@ static struct file_operations drp_avail_fops = {
 	.owner   = THIS_MODULE,
 };
 
-static void uwb_dbg_new_rsv(struct uwb_rsv *rsv)
+static void uwb_dbg_new_rsv(struct uwb_pal *pal, struct uwb_rsv *rsv)
 {
-	struct uwb_rc *rc = rsv->rc;
+	struct uwb_dbg *dbg = container_of(pal, struct uwb_dbg, pal);
 
-	if (rc->dbg->accept) {
-		list_add_tail(&rsv->pal_node, &rc->dbg->rsvs);
-		uwb_rsv_accept(rsv, uwb_dbg_rsv_cb, NULL);
+	if (dbg->accept) {
+		list_add_tail(&rsv->pal_node, &dbg->rsvs);
+		uwb_rsv_accept(rsv, uwb_dbg_rsv_cb, dbg);
 	}
 }
 
