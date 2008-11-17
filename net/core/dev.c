@@ -108,7 +108,6 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
-#include <linux/kallsyms.h>
 #include <linux/netpoll.h>
 #include <linux/rcupdate.h>
 #include <linux/delay.h>
@@ -2801,31 +2800,6 @@ static void ptype_seq_stop(struct seq_file *seq, void *v)
 	rcu_read_unlock();
 }
 
-static void ptype_seq_decode(struct seq_file *seq, void *sym)
-{
-#ifdef CONFIG_KALLSYMS
-	unsigned long offset = 0, symsize;
-	const char *symname;
-	char *modname;
-	char namebuf[128];
-
-	symname = kallsyms_lookup((unsigned long)sym, &symsize, &offset,
-				  &modname, namebuf);
-
-	if (symname) {
-		char *delim = ":";
-
-		if (!modname)
-			modname = delim = "";
-		seq_printf(seq, "%s%s%s%s+0x%lx", delim, modname, delim,
-			   symname, offset);
-		return;
-	}
-#endif
-
-	seq_printf(seq, "[%p]", sym);
-}
-
 static int ptype_seq_show(struct seq_file *seq, void *v)
 {
 	struct packet_type *pt = v;
@@ -2838,10 +2812,8 @@ static int ptype_seq_show(struct seq_file *seq, void *v)
 		else
 			seq_printf(seq, "%04x", ntohs(pt->type));
 
-		seq_printf(seq, " %-8s ",
-			   pt->dev ? pt->dev->name : "");
-		ptype_seq_decode(seq,  pt->func);
-		seq_putc(seq, '\n');
+		seq_printf(seq, " %-8s %pF\n",
+			   pt->dev ? pt->dev->name : "", pt->func);
 	}
 
 	return 0;
