@@ -608,8 +608,10 @@ static int __init init_dlmfs_fs(void)
 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
 					SLAB_MEM_SPREAD),
 				dlmfs_init_once);
-	if (!dlmfs_inode_cache)
+	if (!dlmfs_inode_cache) {
+		status = -ENOMEM;
 		goto bail;
+	}
 	cleanup_inode = 1;
 
 	user_dlm_worker = create_singlethread_workqueue("user_dlm");
