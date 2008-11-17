@@ -31,6 +31,7 @@
 #include <asm/io.h>
 #include <asm/desc.h>
 #include <asm/vmx.h>
+#include <asm/virtext.h>
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 
@@ -1044,8 +1045,7 @@ static int vmx_get_irq(struct kvm_vcpu *vcpu)
 
 static __init int cpu_has_kvm_support(void)
 {
-	unsigned long ecx = cpuid_ecx(1);
-	return test_bit(5, &ecx); /* CPUID.1:ECX.VMX[bit 5] -> VT */
+	return cpu_has_vmx();
 }
 
 static __init int vmx_disabled_by_bios(void)
