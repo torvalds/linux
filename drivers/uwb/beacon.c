@@ -140,10 +140,8 @@ int uwb_rc_beacon(struct uwb_rc *rc, int channel, unsigned bpst_offset)
 		}
 	}
 
-	if (result >= 0) {
+	if (result >= 0)
 		rc->beaconing = channel;
-		uwb_notify(rc, NULL, uwb_bg_joined(rc) ? UWB_NOTIF_BG_JOIN : UWB_NOTIF_BG_LEAVE);
-	}
 	return result;
 }
 
@@ -580,19 +578,6 @@ int uwbd_evt_handle_rc_bpoie_change(struct uwb_event *evt)
 error:
 	return result;
 }
-
-/**
- * uwb_bg_joined - is the RC in a beacon group?
- * @rc: the radio controller
- *
- * Returns true if the radio controller is in a beacon group (even if
- * it's the sole member).
- */
-int uwb_bg_joined(struct uwb_rc *rc)
-{
-	return rc->beaconing != -1;
-}
-EXPORT_SYMBOL_GPL(uwb_bg_joined);
 
 /*
  * Print beaconing state.
