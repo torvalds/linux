@@ -1822,29 +1822,6 @@ static int reg_write(struct usb_device *dev,
 	return ret;
 }
 
-/* returns: negative is error, pos or zero is data */
-static int reg_read(struct gspca_dev *gspca_dev,
-			__u16 req,	/* bRequest */
-			__u16 index,	/* wIndex */
-			__u16 length)	/* wLength (1 or 2 only) */
-{
-	int ret;
-
-	gspca_dev->usb_buf[1] = 0;
-	ret = usb_control_msg(gspca_dev->dev,
-			usb_rcvctrlpipe(gspca_dev->dev, 0),
-			req,
-			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0,		/* value */
-			index,
-			gspca_dev->usb_buf, length,
-			500);			/* timeout */
-	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_read err %d", ret);
-		return -1;
-	}
-	return (gspca_dev->usb_buf[1] << 8) + gspca_dev->usb_buf[0];
-}
 
 static int write_vector(struct gspca_dev *gspca_dev,
 			const __u16 data[][3])
@@ -1876,11 +1853,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 
 static void getbrightness(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 brightness;
-
-	brightness = reg_read(gspca_dev, SPCA501_REG_CCDSP, 0x11, 2);
-	sd->brightness = brightness << 1;
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
@@ -1895,7 +1867,6 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 
 static void getcontrast(struct gspca_dev *gspca_dev)
 {
-/*	spca50x->contrast = 0xaa01; */
 }
 
 static void setcolors(struct gspca_dev *gspca_dev)
@@ -1907,11 +1878,6 @@ static void setcolors(struct gspca_dev *gspca_dev)
 
 static void getcolors(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->colors = reg_read(gspca_dev, SPCA501_REG_CCDSP, 0x0c, 2);
-/*	sd->hue = (reg_read(gspca_dev, SPCA501_REG_CCDSP, 0x13, */
-/*			2) & 0xFF) << 8; */
 }
 
 /* this function is called at probe time */
