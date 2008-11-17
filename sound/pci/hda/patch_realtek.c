@@ -232,6 +232,7 @@ enum {
 	ALC883_3ST_6ch_INTEL,
 	ALC888_ASUS_M90V,
 	ALC888_ASUS_EEE1601,
+	ALC1200_ASUS_P5Q,
 	ALC883_AUTO,
 	ALC883_MODEL_LAST,
 };
@@ -6868,6 +6869,8 @@ static int patch_alc882(struct hda_codec *codec)
 #define ALC883_DIGOUT_NID	0x06
 #define ALC883_DIGIN_NID	0x0a
 
+#define ALC1200_DIGOUT_NID	0x10
+
 static hda_nid_t alc883_dac_nids[4] = {
 	/* front, rear, clfe, rear_surr */
 	0x02, 0x03, 0x04, 0x05
@@ -8190,6 +8193,7 @@ static const char *alc883_models[ALC883_MODEL_LAST] = {
 	[ALC883_CLEVO_M720]	= "clevo-m720",
 	[ALC883_FUJITSU_PI2515] = "fujitsu-pi2515",
 	[ALC883_3ST_6ch_INTEL]	= "3stack-6ch-intel",
+	[ALC1200_ASUS_P5Q]	= "asus-p5q",
 	[ALC883_AUTO]		= "auto",
 };
 
@@ -8208,6 +8212,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x2a61, "HP Nettle", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1043, 0x1873, "Asus M90V", ALC888_ASUS_M90V),
 	SND_PCI_QUIRK(0x1043, 0x8249, "Asus M2A-VM HDMI", ALC883_3ST_6ch_DIG),
+	SND_PCI_QUIRK(0x1043, 0x82fe, "Asus P5Q-EM HDMI", ALC1200_ASUS_P5Q),
 	SND_PCI_QUIRK(0x1043, 0x835f, "Asus Eee 1601", ALC888_ASUS_EEE1601),
 	SND_PCI_QUIRK(0x105b, 0x0ce8, "Foxconn P35AX-S", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC883_6ST_DIG),
@@ -8554,6 +8559,17 @@ static struct alc_config_preset alc883_presets[] = {
 		.input_mux = &alc883_asus_eee1601_capture_source,
 		.unsol_event = alc883_eee1601_unsol_event,
 		.init_hook = alc883_eee1601_inithook,
+	},
+	[ALC1200_ASUS_P5Q] = {
+		.mixers = { alc883_base_mixer, alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.dig_out_nid = ALC1200_DIGOUT_NID,
+		.dig_in_nid = ALC883_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc883_sixstack_modes),
+		.channel_mode = alc883_sixstack_modes,
+		.input_mux = &alc883_capture_source,
 	},
 };
 
