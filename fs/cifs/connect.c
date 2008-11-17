@@ -2270,16 +2270,18 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cFYI(1, ("Found match on UNC path"));
 			/* existing tcon already has a reference */
 			cifs_put_smb_ses(pSesInfo);
+			if (tcon->seal != volume_info.seal)
+				cERROR(1, ("transport encryption setting "
+					   "conflicts with existing tid"));
 		} else {
 			tcon = tconInfoAlloc();
 			if (tcon == NULL) {
 				rc = -ENOMEM;
 				goto mount_fail_check;
 			}
+			tcon->ses = pSesInfo;
 
 			/* check for null share name ie connect to dfs root */
-
-			/* BB check if works for exactly length 3 strings */
 			if ((strchr(volume_info.UNC + 3, '\\') == NULL)
 			    && (strchr(volume_info.UNC + 3, '/') == NULL)) {
 				/* rc = connect_to_dfs_path(...) */
@@ -2302,7 +2304,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			if (rc)
 				goto mount_fail_check;
 			tcon->seal = volume_info.seal;
-			tcon->ses = pSesInfo;
 			write_lock(&cifs_tcp_ses_lock);
 			list_add(&tcon->tcon_list, &pSesInfo->tcon_list);
 			write_unlock(&cifs_tcp_ses_lock);
