@@ -206,7 +206,7 @@ int i1480u_add(struct i1480u *i1480u, struct usb_interface *iface)
 	wlp->fill_device_info = i1480u_fill_device_info;
 	wlp->stop_queue = i1480u_stop_queue;
 	wlp->start_queue = i1480u_start_queue;
-	result = wlp_setup(wlp, rc);
+	result = wlp_setup(wlp, rc, net_dev);
 	if (result < 0) {
 		dev_err(&iface->dev, "Cannot setup WLP\n");
 		goto error_wlp_setup;

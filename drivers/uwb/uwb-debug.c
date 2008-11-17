@@ -33,8 +33,6 @@
 #include <linux/seq_file.h>
 
 #include <linux/uwb/debug-cmd.h>
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
 #include "uwb-internal.h"
 
@@ -314,7 +312,6 @@ static struct file_operations drp_avail_fops = {
 
 static void uwb_dbg_channel_changed(struct uwb_pal *pal, int channel)
 {
-	struct uwb_dbg *dbg = container_of(pal, struct uwb_dbg, pal);
 	struct device *dev = &pal->rc->uwb_dev.dev;
 
 	if (channel > 0)

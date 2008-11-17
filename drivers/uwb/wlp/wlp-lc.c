@@ -526,7 +526,17 @@ void wlp_uwb_notifs_cb(void *_wlp, struct uwb_dev *uwb_dev,
 	}
 }
 
-int wlp_setup(struct wlp *wlp, struct uwb_rc *rc)
+static void wlp_channel_changed(struct uwb_pal *pal, int channel)
+{
+	struct wlp *wlp = container_of(pal, struct wlp, pal);
+
+	if (channel < 0)
+		netif_carrier_off(wlp->ndev);
+	else
+		netif_carrier_on(wlp->ndev);
+}
+
+int wlp_setup(struct wlp *wlp, struct uwb_rc *rc, struct net_device *ndev)
 {
 	struct device *dev = &rc->uwb_dev.dev;
 	int result;
@@ -537,6 +547,7 @@ int wlp_setup(struct wlp *wlp, struct uwb_rc *rc)
 	BUG_ON(wlp->stop_queue == NULL);
 	BUG_ON(wlp->start_queue == NULL);
 	wlp->rc = rc;
+	wlp->ndev = ndev;
 	wlp_eda_init(&wlp->eda);/* Set up address cache */
 	wlp->uwb_notifs_handler.cb = wlp_uwb_notifs_cb;
 	wlp->uwb_notifs_handler.data = wlp;
@@ -544,6 +555,7 @@ int wlp_setup(struct wlp *wlp, struct uwb_rc *rc)
 
 	uwb_pal_init(&wlp->pal);
 	wlp->pal.rc = rc;
+	wlp->pal.channel_changed = wlp_channel_changed;
 	result = uwb_pal_register(&wlp->pal);
 	if (result < 0)
 		uwb_notifs_deregister(wlp->rc, &wlp->uwb_notifs_handler);
