@@ -818,18 +818,18 @@ static int arp_process(struct sk_buff *skb)
 		addr_type = rt->rt_type;
 
 		if (addr_type == RTN_LOCAL) {
-			n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
-			if (n) {
-				int dont_send = 0;
+			int dont_send = 0;
 
-				if (!dont_send)
-					dont_send |= arp_ignore(in_dev, sip, tip);
-				if (!dont_send && IN_DEV_ARPFILTER(in_dev))
-					dont_send |= arp_filter(sip, tip, dev);
-				if (!dont_send)
+			if (!dont_send)
+				dont_send |= arp_ignore(in_dev,sip,tip);
+			if (!dont_send && IN_DEV_ARPFILTER(in_dev))
+				dont_send |= arp_filter(sip,tip,dev);
+			if (!dont_send) {
+				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
+				if (n) {
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
-
-				neigh_release(n);
+					neigh_release(n);
+				}
 			}
 			goto out;
 		} else if (IN_DEV_FORWARD(in_dev)) {
