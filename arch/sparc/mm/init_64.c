@@ -50,7 +50,7 @@
 #include <asm/cpudata.h>
 #include <asm/irq.h>
 
-#include "init.h"
+#include "init_64.h"
 
 unsigned long kern_linear_pte_xor[2] __read_mostly;
 
@@ -954,7 +954,7 @@ int of_node_to_nid(struct device_node *dp)
 	return nid;
 }
 
-static void __init add_node_ranges(void)
+static void add_node_ranges(void)
 {
 	int i;
 
