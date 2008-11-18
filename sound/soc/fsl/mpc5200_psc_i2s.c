@@ -187,7 +187,8 @@ static irqreturn_t psc_i2s_bcom_irq(int irq, void *_psc_i2s_stream)
  * If this is the first stream open, then grab the IRQ and program most of
  * the PSC registers.
  */
-static int psc_i2s_startup(struct snd_pcm_substream *substream)
+static int psc_i2s_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
@@ -220,7 +221,8 @@ static int psc_i2s_startup(struct snd_pcm_substream *substream)
 }
 
 static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
@@ -256,7 +258,8 @@ static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int psc_i2s_hw_free(struct snd_pcm_substream *substream)
+static int psc_i2s_hw_free(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	snd_pcm_set_runtime_buffer(substream, NULL);
 	return 0;
@@ -268,7 +271,8 @@ static int psc_i2s_hw_free(struct snd_pcm_substream *substream)
  * This function is called by ALSA to start, stop, pause, and resume the DMA
  * transfer of data.
  */
-static int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
+static int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
@@ -383,7 +387,8 @@ static int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
  *
  * Shutdown the PSC if there are no other substreams open.
  */
-static void psc_i2s_shutdown(struct snd_pcm_substream *substream)
+static void psc_i2s_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
@@ -483,8 +488,6 @@ static struct snd_soc_dai psc_i2s_dai_template = {
 		.hw_free = psc_i2s_hw_free,
 		.shutdown = psc_i2s_shutdown,
 		.trigger = psc_i2s_trigger,
-	},
-	.dai_ops = {
 		.set_sysclk = psc_i2s_set_sysclk,
 		.set_fmt = psc_i2s_set_fmt,
 	},

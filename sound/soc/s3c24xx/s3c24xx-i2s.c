@@ -243,7 +243,8 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 }
 
 static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	u32 iismod;
@@ -279,7 +280,8 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
+static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			       struct snd_soc_dai *dai)
 {
 	int ret = 0;
 
@@ -475,8 +477,7 @@ struct snd_soc_dai s3c24xx_i2s_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
 		.trigger = s3c24xx_i2s_trigger,
-		.hw_params = s3c24xx_i2s_hw_params,},
-	.dai_ops = {
+		.hw_params = s3c24xx_i2s_hw_params,
 		.set_fmt = s3c24xx_i2s_set_fmt,
 		.set_clkdiv = s3c24xx_i2s_set_clkdiv,
 		.set_sysclk = s3c24xx_i2s_set_sysclk,

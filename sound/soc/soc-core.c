@@ -134,7 +134,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 
 	/* startup the audio subsystem */
 	if (cpu_dai->ops.startup) {
-		ret = cpu_dai->ops.startup(substream);
+		ret = cpu_dai->ops.startup(substream, cpu_dai);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: can't open interface %s\n",
 				cpu_dai->name);
@@ -151,7 +151,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	if (codec_dai->ops.startup) {
-		ret = codec_dai->ops.startup(substream);
+		ret = codec_dai->ops.startup(substream, codec_dai);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: can't open codec %s\n",
 				codec_dai->name);
@@ -248,7 +248,7 @@ codec_dai_err:
 
 platform_err:
 	if (cpu_dai->ops.shutdown)
-		cpu_dai->ops.shutdown(substream);
+		cpu_dai->ops.shutdown(substream, cpu_dai);
 out:
 	mutex_unlock(&pcm_mutex);
 	return ret;
@@ -339,10 +339,10 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 		snd_soc_dai_digital_mute(codec_dai, 1);
 
 	if (cpu_dai->ops.shutdown)
-		cpu_dai->ops.shutdown(substream);
+		cpu_dai->ops.shutdown(substream, cpu_dai);
 
 	if (codec_dai->ops.shutdown)
-		codec_dai->ops.shutdown(substream);
+		codec_dai->ops.shutdown(substream, codec_dai);
 
 	if (machine->ops && machine->ops->shutdown)
 		machine->ops->shutdown(substream);
@@ -406,7 +406,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	}
 
 	if (codec_dai->ops.prepare) {
-		ret = codec_dai->ops.prepare(substream);
+		ret = codec_dai->ops.prepare(substream, codec_dai);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: codec DAI prepare error\n");
 			goto out;
@@ -414,7 +414,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	}
 
 	if (cpu_dai->ops.prepare) {
-		ret = cpu_dai->ops.prepare(substream);
+		ret = cpu_dai->ops.prepare(substream, cpu_dai);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: cpu DAI prepare error\n");
 			goto out;
@@ -491,7 +491,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (codec_dai->ops.hw_params) {
-		ret = codec_dai->ops.hw_params(substream, params);
+		ret = codec_dai->ops.hw_params(substream, params, codec_dai);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: can't set codec %s hw params\n",
 				codec_dai->name);
@@ -500,7 +500,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (cpu_dai->ops.hw_params) {
-		ret = cpu_dai->ops.hw_params(substream, params);
+		ret = cpu_dai->ops.hw_params(substream, params, cpu_dai);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: interface %s hw params failed\n",
 				cpu_dai->name);
@@ -523,11 +523,11 @@ out:
 
 platform_err:
 	if (cpu_dai->ops.hw_free)
-		cpu_dai->ops.hw_free(substream);
+		cpu_dai->ops.hw_free(substream, cpu_dai);
 
 interface_err:
 	if (codec_dai->ops.hw_free)
-		codec_dai->ops.hw_free(substream);
+		codec_dai->ops.hw_free(substream, codec_dai);
 
 codec_err:
 	if (machine->ops && machine->ops->hw_free)
@@ -566,10 +566,10 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	/* now free hw params for the DAI's  */
 	if (codec_dai->ops.hw_free)
-		codec_dai->ops.hw_free(substream);
+		codec_dai->ops.hw_free(substream, codec_dai);
 
 	if (cpu_dai->ops.hw_free)
-		cpu_dai->ops.hw_free(substream);
+		cpu_dai->ops.hw_free(substream, cpu_dai);
 
 	mutex_unlock(&pcm_mutex);
 	return 0;
@@ -586,7 +586,7 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	int ret;
 
 	if (codec_dai->ops.trigger) {
-		ret = codec_dai->ops.trigger(substream, cmd);
+		ret = codec_dai->ops.trigger(substream, cmd, codec_dai);
 		if (ret < 0)
 			return ret;
 	}
@@ -598,7 +598,7 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 
 	if (cpu_dai->ops.trigger) {
-		ret = cpu_dai->ops.trigger(substream, cmd);
+		ret = cpu_dai->ops.trigger(substream, cmd, cpu_dai);
 		if (ret < 0)
 			return ret;
 	}
@@ -637,10 +637,10 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	snd_power_change_state(codec->card, SNDRV_CTL_POWER_D3hot);
 
 	/* mute any active DAC's */
-	for (i = 0; i < machine->num_links; i++) {
-		struct snd_soc_dai *dai = machine->dai_link[i].codec_dai;
-		if (dai->dai_ops.digital_mute && dai->playback.active)
-			dai->dai_ops.digital_mute(dai, 1);
+	for (i = 0; i < card->num_links; i++) {
+		struct snd_soc_dai *dai = card->dai_link[i].codec_dai;
+		if (dai->ops.digital_mute && dai->playback.active)
+			dai->ops.digital_mute(dai, 1);
 	}
 
 	/* suspend all pcms */
@@ -733,10 +733,10 @@ static void soc_resume_deferred(struct work_struct *work)
 	}
 
 	/* unmute any active DACs */
-	for (i = 0; i < machine->num_links; i++) {
-		struct snd_soc_dai *dai = machine->dai_link[i].codec_dai;
-		if (dai->dai_ops.digital_mute && dai->playback.active)
-			dai->dai_ops.digital_mute(dai, 0);
+	for (i = 0; i < card->num_links; i++) {
+		struct snd_soc_dai *dai = card->dai_link[i].codec_dai;
+		if (dai->ops.digital_mute && dai->playback.active)
+			dai->ops.digital_mute(dai, 0);
 	}
 
 	for (i = 0; i < card->num_links; i++) {
@@ -1849,8 +1849,8 @@ EXPORT_SYMBOL_GPL(snd_soc_put_volsw_s8);
 int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	unsigned int freq, int dir)
 {
-	if (dai->dai_ops.set_sysclk)
-		return dai->dai_ops.set_sysclk(dai, clk_id, freq, dir);
+	if (dai->ops.set_sysclk)
+		return dai->ops.set_sysclk(dai, clk_id, freq, dir);
 	else
 		return -EINVAL;
 }
@@ -1869,8 +1869,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
 	int div_id, int div)
 {
-	if (dai->dai_ops.set_clkdiv)
-		return dai->dai_ops.set_clkdiv(dai, div_id, div);
+	if (dai->ops.set_clkdiv)
+		return dai->ops.set_clkdiv(dai, div_id, div);
 	else
 		return -EINVAL;
 }
@@ -1888,8 +1888,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_clkdiv);
 int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
 	int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
-	if (dai->dai_ops.set_pll)
-		return dai->dai_ops.set_pll(dai, pll_id, freq_in, freq_out);
+	if (dai->ops.set_pll)
+		return dai->ops.set_pll(dai, pll_id, freq_in, freq_out);
 	else
 		return -EINVAL;
 }
@@ -1905,8 +1905,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
  */
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	if (dai->dai_ops.set_fmt)
-		return dai->dai_ops.set_fmt(dai, fmt);
+	if (dai->ops.set_fmt)
+		return dai->ops.set_fmt(dai, fmt);
 	else
 		return -EINVAL;
 }
@@ -1924,8 +1924,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_fmt);
 int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int mask, int slots)
 {
-	if (dai->dai_ops.set_sysclk)
-		return dai->dai_ops.set_tdm_slot(dai, mask, slots);
+	if (dai->ops.set_sysclk)
+		return dai->ops.set_tdm_slot(dai, mask, slots);
 	else
 		return -EINVAL;
 }
@@ -1940,8 +1940,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tdm_slot);
  */
 int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
-	if (dai->dai_ops.set_sysclk)
-		return dai->dai_ops.set_tristate(dai, tristate);
+	if (dai->ops.set_sysclk)
+		return dai->ops.set_tristate(dai, tristate);
 	else
 		return -EINVAL;
 }
@@ -1956,8 +1956,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tristate);
  */
 int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute)
 {
-	if (dai->dai_ops.digital_mute)
-		return dai->dai_ops.digital_mute(dai, mute);
+	if (dai->ops.digital_mute)
+		return dai->ops.digital_mute(dai, mute);
 	else
 		return -EINVAL;
 }

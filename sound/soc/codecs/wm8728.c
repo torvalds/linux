@@ -147,7 +147,8 @@ static int wm8728_mute(struct snd_soc_dai *dai, int mute)
 }
 
 static int wm8728_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -269,8 +270,6 @@ struct snd_soc_dai wm8728_dai = {
 	},
 	.ops = {
 		 .hw_params = wm8728_hw_params,
-	},
-	.dai_ops = {
 		 .digital_mute = wm8728_mute,
 		 .set_fmt = wm8728_set_dai_fmt,
 	}

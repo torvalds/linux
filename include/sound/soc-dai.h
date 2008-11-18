@@ -156,6 +156,23 @@ struct snd_soc_dai_ops {
 	 * Called by soc-core to minimise any pops.
 	 */
 	int (*digital_mute)(struct snd_soc_dai *dai, int mute);
+
+	/*
+	 * ALSA PCM audio operations - all optional.
+	 * Called by soc-core during audio PCM operations.
+	 */
+	int (*startup)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+	void (*shutdown)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+	int (*hw_params)(struct snd_pcm_substream *,
+		struct snd_pcm_hw_params *, struct snd_soc_dai *);
+	int (*hw_free)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+	int (*prepare)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+	int (*trigger)(struct snd_pcm_substream *, int,
+		struct snd_soc_dai *);
 };
 
 /*
@@ -180,8 +197,7 @@ struct snd_soc_dai {
 		struct snd_soc_dai *dai);
 
 	/* ops */
-	struct snd_soc_ops ops;
-	struct snd_soc_dai_ops dai_ops;
+	struct snd_soc_dai_ops ops;
 
 	/* DAI capabilities */
 	struct snd_soc_pcm_stream capture;

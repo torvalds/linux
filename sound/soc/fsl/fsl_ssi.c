@@ -266,7 +266,8 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
  * If this is the first stream open, then grab the IRQ and program most of
  * the SSI registers.
  */
-static int fsl_ssi_startup(struct snd_pcm_substream *substream)
+static int fsl_ssi_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_ssi_private *ssi_private = rtd->dai->cpu_dai->private_data;
@@ -411,7 +412,8 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream)
  * Note: The SxCCR.DC and SxCCR.PM bits are only used if the SSI is the
  * clock master.
  */
-static int fsl_ssi_prepare(struct snd_pcm_substream *substream)
+static int fsl_ssi_prepare(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -441,7 +443,8 @@ static int fsl_ssi_prepare(struct snd_pcm_substream *substream)
  * The DMA channel is in external master start and pause mode, which
  * means the SSI completely controls the flow of data.
  */
-static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd)
+static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_ssi_private *ssi_private = rtd->dai->cpu_dai->private_data;
@@ -490,7 +493,8 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd)
  *
  * Shutdown the SSI if there are no other substreams open.
  */
-static void fsl_ssi_shutdown(struct snd_pcm_substream *substream)
+static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_ssi_private *ssi_private = rtd->dai->cpu_dai->private_data;
@@ -578,8 +582,6 @@ static struct snd_soc_dai fsl_ssi_dai_template = {
 		.prepare = fsl_ssi_prepare,
 		.shutdown = fsl_ssi_shutdown,
 		.trigger = fsl_ssi_trigger,
-	},
-	.dai_ops = {
 		.set_sysclk = fsl_ssi_set_sysclk,
 		.set_fmt = fsl_ssi_set_fmt,
 	},

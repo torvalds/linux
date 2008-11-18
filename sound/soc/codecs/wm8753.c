@@ -922,7 +922,8 @@ static int wm8753_vdac_adc_set_dai_fmt(struct snd_soc_dai *codec_dai,
  * Set PCM DAI bit size and sample rate.
  */
 static int wm8753_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -1155,7 +1156,8 @@ static int wm8753_i2s_set_dai_fmt(struct snd_soc_dai *codec_dai,
  * Set PCM DAI bit size and sample rate.
  */
 static int wm8753_i2s_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -1323,16 +1325,15 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM8753_RATES,
-		.formats = WM8753_FORMATS,},
+		.formats = WM8753_FORMATS},
 	.capture = { /* dummy for fast DAI switching */
 		.stream_name = "Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM8753_RATES,
-		.formats = WM8753_FORMATS,},
+		.formats = WM8753_FORMATS},
 	.ops = {
-		.hw_params = wm8753_i2s_hw_params,},
-	.dai_ops = {
+		.hw_params = wm8753_i2s_hw_params,
 		.digital_mute = wm8753_mute,
 		.set_fmt = wm8753_mode1h_set_dai_fmt,
 		.set_clkdiv = wm8753_set_dai_clkdiv,
@@ -1356,8 +1357,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS,},
 	.ops = {
-		.hw_params = wm8753_pcm_hw_params,},
-	.dai_ops = {
+		.hw_params = wm8753_pcm_hw_params,
 		.digital_mute = wm8753_mute,
 		.set_fmt = wm8753_mode1v_set_dai_fmt,
 		.set_clkdiv = wm8753_set_dai_clkdiv,
@@ -1385,8 +1385,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS,},
 	.ops = {
-		.hw_params = wm8753_pcm_hw_params,},
-	.dai_ops = {
+		.hw_params = wm8753_pcm_hw_params,
 		.digital_mute = wm8753_mute,
 		.set_fmt = wm8753_mode2_set_dai_fmt,
 		.set_clkdiv = wm8753_set_dai_clkdiv,
@@ -1410,8 +1409,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS,},
 	.ops = {
-		.hw_params = wm8753_i2s_hw_params,},
-	.dai_ops = {
+		.hw_params = wm8753_i2s_hw_params,
 		.digital_mute = wm8753_mute,
 		.set_fmt = wm8753_mode3_4_set_dai_fmt,
 		.set_clkdiv = wm8753_set_dai_clkdiv,
@@ -1439,8 +1437,7 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 		.rates = WM8753_RATES,
 		.formats = WM8753_FORMATS,},
 	.ops = {
-		.hw_params = wm8753_i2s_hw_params,},
-	.dai_ops = {
+		.hw_params = wm8753_i2s_hw_params,
 		.digital_mute = wm8753_mute,
 		.set_fmt = wm8753_mode3_4_set_dai_fmt,
 		.set_clkdiv = wm8753_set_dai_clkdiv,

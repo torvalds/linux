@@ -418,7 +418,8 @@ static int tlv320aic23_add_widgets(struct snd_soc_codec *codec)
 }
 
 static int tlv320aic23_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -465,7 +466,8 @@ static int tlv320aic23_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int tlv320aic23_pcm_prepare(struct snd_pcm_substream *substream)
+static int tlv320aic23_pcm_prepare(struct snd_pcm_substream *substream,
+				   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -477,7 +479,8 @@ static int tlv320aic23_pcm_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void tlv320aic23_shutdown(struct snd_pcm_substream *substream)
+static void tlv320aic23_shutdown(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -613,12 +616,10 @@ struct snd_soc_dai tlv320aic23_dai = {
 		.prepare = tlv320aic23_pcm_prepare,
 		.hw_params = tlv320aic23_hw_params,
 		.shutdown = tlv320aic23_shutdown,
-		},
-	.dai_ops = {
-		    .digital_mute = tlv320aic23_mute,
-		    .set_fmt = tlv320aic23_set_dai_fmt,
-		    .set_sysclk = tlv320aic23_set_dai_sysclk,
-		    }
+		.digital_mute = tlv320aic23_mute,
+		.set_fmt = tlv320aic23_set_dai_fmt,
+		.set_sysclk = tlv320aic23_set_dai_sysclk,
+	}
 };
 EXPORT_SYMBOL_GPL(tlv320aic23_dai);
 

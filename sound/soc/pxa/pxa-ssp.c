@@ -212,7 +212,8 @@ static struct pxa2xx_pcm_dma_params *ssp_dma_params[4][4] = {
 	},
 };
 
-static int pxa_ssp_startup(struct snd_pcm_substream *substream)
+static int pxa_ssp_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -228,7 +229,8 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static void pxa_ssp_shutdown(struct snd_pcm_substream *substream)
+static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -604,7 +606,8 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
  * Can be called multiple times by oss emulation.
  */
 static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -678,7 +681,8 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int pxa_ssp_trigger(struct snd_pcm_substream *substream, int cmd)
+static int pxa_ssp_trigger(struct snd_pcm_substream *substream, int cmd,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -806,8 +810,6 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.shutdown = pxa_ssp_shutdown,
 			.trigger = pxa_ssp_trigger,
 			.hw_params = pxa_ssp_hw_params,
-		 },
-		.dai_ops = {
 			.set_sysclk = pxa_ssp_set_dai_sysclk,
 			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
 			.set_pll = pxa_ssp_set_dai_pll,
@@ -840,8 +842,6 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.shutdown = pxa_ssp_shutdown,
 			.trigger = pxa_ssp_trigger,
 			.hw_params = pxa_ssp_hw_params,
-		 },
-		.dai_ops = {
 			.set_sysclk = pxa_ssp_set_dai_sysclk,
 			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
 			.set_pll = pxa_ssp_set_dai_pll,
@@ -875,8 +875,6 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.shutdown = pxa_ssp_shutdown,
 			.trigger = pxa_ssp_trigger,
 			.hw_params = pxa_ssp_hw_params,
-		 },
-		.dai_ops = {
 			.set_sysclk = pxa_ssp_set_dai_sysclk,
 			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
 			.set_pll = pxa_ssp_set_dai_pll,
@@ -910,8 +908,6 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.shutdown = pxa_ssp_shutdown,
 			.trigger = pxa_ssp_trigger,
 			.hw_params = pxa_ssp_hw_params,
-		 },
-		.dai_ops = {
 			.set_sysclk = pxa_ssp_set_dai_sysclk,
 			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
 			.set_pll = pxa_ssp_set_dai_pll,

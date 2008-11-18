@@ -928,7 +928,8 @@ static int wm9713_set_dai_fmt(struct snd_soc_dai *codec_dai,
 }
 
 static int wm9713_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -954,7 +955,8 @@ static int wm9713_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static void wm9713_voiceshutdown(struct snd_pcm_substream *substream)
+static void wm9713_voiceshutdown(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -969,7 +971,8 @@ static void wm9713_voiceshutdown(struct snd_pcm_substream *substream)
 	ac97_write(codec, AC97_EXTENDED_MID, status);
 }
 
-static int ac97_hifi_prepare(struct snd_pcm_substream *substream)
+static int ac97_hifi_prepare(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -989,7 +992,8 @@ static int ac97_hifi_prepare(struct snd_pcm_substream *substream)
 	return ac97_write(codec, reg, runtime->rate);
 }
 
-static int ac97_aux_prepare(struct snd_pcm_substream *substream)
+static int ac97_aux_prepare(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -1042,8 +1046,7 @@ struct snd_soc_dai wm9713_dai[] = {
 		.rates = WM9713_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
-		.prepare = ac97_hifi_prepare,},
-	.dai_ops = {
+		.prepare = ac97_hifi_prepare,
 		.set_clkdiv = wm9713_set_dai_clkdiv,
 		.set_pll = wm9713_set_dai_pll,},
 	},
@@ -1056,8 +1059,7 @@ struct snd_soc_dai wm9713_dai[] = {
 		.rates = WM9713_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
-		.prepare = ac97_aux_prepare,},
-	.dai_ops = {
+		.prepare = ac97_aux_prepare,
 		.set_clkdiv = wm9713_set_dai_clkdiv,
 		.set_pll = wm9713_set_dai_pll,},
 	},
@@ -1077,8 +1079,7 @@ struct snd_soc_dai wm9713_dai[] = {
 		.formats = WM9713_PCM_FORMATS,},
 	.ops = {
 		.hw_params = wm9713_pcm_hw_params,
-		.shutdown = wm9713_voiceshutdown,},
-	.dai_ops = {
+		.shutdown = wm9713_voiceshutdown,
 		.set_clkdiv = wm9713_set_dai_clkdiv,
 		.set_pll = wm9713_set_dai_pll,
 		.set_fmt = wm9713_set_dai_fmt,

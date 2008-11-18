@@ -202,7 +202,8 @@ static irqreturn_t atmel_ssc_interrupt(int irq, void *dev_id)
 /*
  * Startup.  Only that one substream allowed in each direction.
  */
-static int atmel_ssc_startup(struct snd_pcm_substream *substream)
+static int atmel_ssc_startup(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	struct atmel_ssc_info *ssc_p = &ssc_info[rtd->dai->cpu_dai->id];
@@ -231,7 +232,8 @@ static int atmel_ssc_startup(struct snd_pcm_substream *substream)
  * Shutdown.  Clear DMA parameters and shutdown the SSC if there
  * are no other substreams open.
  */
-static void atmel_ssc_shutdown(struct snd_pcm_substream *substream)
+static void atmel_ssc_shutdown(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	struct atmel_ssc_info *ssc_p = &ssc_info[rtd->dai->cpu_dai->id];
@@ -332,7 +334,8 @@ static int atmel_ssc_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
  * Configure the SSC.
  */
 static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	int id = rtd->dai->cpu_dai->id;
@@ -600,7 +603,8 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 }
 
 
-static int atmel_ssc_prepare(struct snd_pcm_substream *substream)
+static int atmel_ssc_prepare(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	struct atmel_ssc_info *ssc_p = &ssc_info[rtd->dai->cpu_dai->id];
@@ -715,8 +719,7 @@ struct snd_soc_dai atmel_ssc_dai[NUM_SSC_DEVICES] = {
 			.startup = atmel_ssc_startup,
 			.shutdown = atmel_ssc_shutdown,
 			.prepare = atmel_ssc_prepare,
-			.hw_params = atmel_ssc_hw_params,},
-		.dai_ops = {
+			.hw_params = atmel_ssc_hw_params,
 			.set_fmt = atmel_ssc_set_dai_fmt,
 			.set_clkdiv = atmel_ssc_set_dai_clkdiv,},
 		.private_data = &ssc_info[0],
@@ -741,8 +744,7 @@ struct snd_soc_dai atmel_ssc_dai[NUM_SSC_DEVICES] = {
 			.startup = atmel_ssc_startup,
 			.shutdown = atmel_ssc_shutdown,
 			.prepare = atmel_ssc_prepare,
-			.hw_params = atmel_ssc_hw_params,},
-		.dai_ops = {
+			.hw_params = atmel_ssc_hw_params,
 			.set_fmt = atmel_ssc_set_dai_fmt,
 			.set_clkdiv = atmel_ssc_set_dai_clkdiv,},
 		.private_data = &ssc_info[1],
@@ -766,8 +768,7 @@ struct snd_soc_dai atmel_ssc_dai[NUM_SSC_DEVICES] = {
 			.startup = atmel_ssc_startup,
 			.shutdown = atmel_ssc_shutdown,
 			.prepare = atmel_ssc_prepare,
-			.hw_params = atmel_ssc_hw_params,},
-		.dai_ops = {
+			.hw_params = atmel_ssc_hw_params,
 			.set_fmt = atmel_ssc_set_dai_fmt,
 			.set_clkdiv = atmel_ssc_set_dai_clkdiv,},
 		.private_data = &ssc_info[2],

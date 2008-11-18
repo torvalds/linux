@@ -360,13 +360,14 @@ static int cs4270_i2c_write(struct snd_soc_codec *codec, unsigned int reg,
 /*
  * Program the CS4270 with the given hardware parameters.
  *
- * The .dai_ops functions are used to provide board-specific data, like
+ * The .ops functions are used to provide board-specific data, like
  * input frequencies, to this driver.  This function takes that information,
  * combines it with the hardware parameters provided, and programs the
  * hardware accordingly.
  */
 static int cs4270_hw_params(struct snd_pcm_substream *substream,
-			    struct snd_pcm_hw_params *params)
+			    struct snd_pcm_hw_params *params,
+			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -710,10 +711,10 @@ static int cs4270_probe(struct platform_device *pdev)
 	if (codec->control_data) {
 		/* Initialize codec ops */
 		cs4270_dai.ops.hw_params = cs4270_hw_params;
-		cs4270_dai.dai_ops.set_sysclk = cs4270_set_dai_sysclk;
-		cs4270_dai.dai_ops.set_fmt = cs4270_set_dai_fmt;
+		cs4270_dai.ops.set_sysclk = cs4270_set_dai_sysclk;
+		cs4270_dai.ops.set_fmt = cs4270_set_dai_fmt;
 #ifdef CONFIG_SND_SOC_CS4270_HWMUTE
-		cs4270_dai.dai_ops.digital_mute = cs4270_mute;
+		cs4270_dai.ops.digital_mute = cs4270_mute;
 #endif
 	} else
 		printk(KERN_INFO "cs4270: no I2C device found, "

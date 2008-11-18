@@ -1257,7 +1257,8 @@ static struct {
 	{ 0,      0 },
 };
 
-static int wm8903_startup(struct snd_pcm_substream *substream)
+static int wm8903_startup(struct snd_pcm_substream *substream,
+			  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -1298,7 +1299,8 @@ static int wm8903_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void wm8903_shutdown(struct snd_pcm_substream *substream)
+static void wm8903_shutdown(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -1317,7 +1319,8 @@ static void wm8903_shutdown(struct snd_pcm_substream *substream)
 }
 
 static int wm8903_hw_params(struct snd_pcm_substream *substream,
-			    struct snd_pcm_hw_params *params)
+			    struct snd_pcm_hw_params *params,
+			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -1515,8 +1518,6 @@ struct snd_soc_dai wm8903_dai = {
 		 .startup = wm8903_startup,
 		 .shutdown = wm8903_shutdown,
 		 .hw_params = wm8903_hw_params,
-	},
-	.dai_ops = {
 		 .digital_mute = wm8903_digital_mute,
 		 .set_fmt = wm8903_set_dai_fmt,
 		 .set_sysclk = wm8903_set_dai_sysclk

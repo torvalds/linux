@@ -727,7 +727,8 @@ static int wm8900_add_widgets(struct snd_soc_codec *codec)
 }
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -1117,8 +1118,6 @@ struct snd_soc_dai wm8900_dai = {
 	 },
 	.ops = {
 		.hw_params = wm8900_hw_params,
-	 },
-	.dai_ops = {
 		 .set_clkdiv = wm8900_set_dai_clkdiv,
 		 .set_pll = wm8900_set_dai_pll,
 		 .set_fmt = wm8900_set_dai_fmt,

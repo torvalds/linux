@@ -285,7 +285,8 @@ static inline int get_coeff(int mclk, int rate)
 }
 
 static int ssm2602_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
 {
 	u16 srate;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -330,7 +331,8 @@ static int ssm2602_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int ssm2602_startup(struct snd_pcm_substream *substream)
+static int ssm2602_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -366,7 +368,8 @@ static int ssm2602_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int ssm2602_pcm_prepare(struct snd_pcm_substream *substream)
+static int ssm2602_pcm_prepare(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -377,7 +380,8 @@ static int ssm2602_pcm_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void ssm2602_shutdown(struct snd_pcm_substream *substream)
+static void ssm2602_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -536,8 +540,6 @@ struct snd_soc_dai ssm2602_dai = {
 		.prepare = ssm2602_pcm_prepare,
 		.hw_params = ssm2602_hw_params,
 		.shutdown = ssm2602_shutdown,
-	},
-	.dai_ops = {
 		.digital_mute = ssm2602_mute,
 		.set_sysclk = ssm2602_set_dai_sysclk,
 		.set_fmt = ssm2602_set_dai_fmt,

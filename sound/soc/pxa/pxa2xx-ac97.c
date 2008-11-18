@@ -117,7 +117,8 @@ static void pxa2xx_ac97_remove(struct platform_device *pdev,
 }
 
 static int pxa2xx_ac97_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -131,7 +132,8 @@ static int pxa2xx_ac97_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int pxa2xx_ac97_hw_aux_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+				     struct snd_pcm_hw_params *params,
+				     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -145,7 +147,8 @@ static int pxa2xx_ac97_hw_aux_params(struct snd_pcm_substream *substream,
 }
 
 static int pxa2xx_ac97_hw_mic_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+				     struct snd_pcm_hw_params *params,
+				     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;

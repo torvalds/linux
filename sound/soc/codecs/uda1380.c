@@ -407,7 +407,8 @@ static int uda1380_set_dai_fmt(struct snd_soc_dai *codec_dai,
  * when the DAI is being clocked by the CPU DAI. It's up to the
  * machine and cpu DAI driver to do this before we are called.
  */
-static int uda1380_pcm_prepare(struct snd_pcm_substream *substream)
+static int uda1380_pcm_prepare(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -439,7 +440,8 @@ static int uda1380_pcm_prepare(struct snd_pcm_substream *substream)
 }
 
 static int uda1380_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -477,7 +479,8 @@ static int uda1380_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static void uda1380_pcm_shutdown(struct snd_pcm_substream *substream)
+static void uda1380_pcm_shutdown(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -560,8 +563,6 @@ struct snd_soc_dai uda1380_dai[] = {
 		.hw_params = uda1380_pcm_hw_params,
 		.shutdown = uda1380_pcm_shutdown,
 		.prepare = uda1380_pcm_prepare,
-	},
-	.dai_ops = {
 		.digital_mute = uda1380_mute,
 		.set_fmt = uda1380_set_dai_fmt,
 	},
@@ -579,8 +580,6 @@ struct snd_soc_dai uda1380_dai[] = {
 		.hw_params = uda1380_pcm_hw_params,
 		.shutdown = uda1380_pcm_shutdown,
 		.prepare = uda1380_pcm_prepare,
-	},
-	.dai_ops = {
 		.digital_mute = uda1380_mute,
 		.set_fmt = uda1380_set_dai_fmt,
 	},
@@ -598,8 +597,6 @@ struct snd_soc_dai uda1380_dai[] = {
 		.hw_params = uda1380_pcm_hw_params,
 		.shutdown = uda1380_pcm_shutdown,
 		.prepare = uda1380_pcm_prepare,
-	},
-	.dai_ops = {
 		.set_fmt = uda1380_set_dai_fmt,
 	},
 },

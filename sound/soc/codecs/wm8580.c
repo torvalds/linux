@@ -548,13 +548,13 @@ static int wm8580_set_dai_pll(struct snd_soc_dai *codec_dai,
  * Set PCM DAI bit size and sample rate.
  */
 static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai_link *dai = rtd->dai;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->codec;
-	u16 paifb = wm8580_read(codec, WM8580_PAIF3 + dai->codec_dai->id);
+	u16 paifb = wm8580_read(codec, WM8580_PAIF3 + dai->id);
 
 	paifb &= ~WM8580_AIF_LENGTH_MASK;
 	/* bit size */
@@ -574,7 +574,7 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	wm8580_write(codec, WM8580_PAIF3 + dai->codec_dai->id, paifb);
+	wm8580_write(codec, WM8580_PAIF3 + dai->id, paifb);
 	return 0;
 }
 
@@ -798,8 +798,6 @@ struct snd_soc_dai wm8580_dai[] = {
 		},
 		.ops = {
 			 .hw_params = wm8580_paif_hw_params,
-		 },
-		.dai_ops = {
 			 .set_fmt = wm8580_set_paif_dai_fmt,
 			 .set_clkdiv = wm8580_set_dai_clkdiv,
 			 .set_pll = wm8580_set_dai_pll,
@@ -818,8 +816,6 @@ struct snd_soc_dai wm8580_dai[] = {
 		},
 		.ops = {
 			 .hw_params = wm8580_paif_hw_params,
-		 },
-		.dai_ops = {
 			 .set_fmt = wm8580_set_paif_dai_fmt,
 			 .set_clkdiv = wm8580_set_dai_clkdiv,
 			 .set_pll = wm8580_set_dai_pll,

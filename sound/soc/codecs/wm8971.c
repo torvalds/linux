@@ -541,7 +541,8 @@ static int wm8971_set_dai_fmt(struct snd_soc_dai *codec_dai,
 }
 
 static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -634,8 +635,6 @@ struct snd_soc_dai wm8971_dai = {
 		.formats = WM8971_FORMATS,},
 	.ops = {
 		.hw_params = wm8971_pcm_hw_params,
-	},
-	.dai_ops = {
 		.digital_mute = wm8971_mute,
 		.set_fmt = wm8971_set_dai_fmt,
 		.set_sysclk = wm8971_set_dai_sysclk,

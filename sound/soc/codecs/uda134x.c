@@ -168,7 +168,8 @@ static int uda134x_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static int uda134x_startup(struct snd_pcm_substream *substream)
+static int uda134x_startup(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -200,7 +201,8 @@ static int uda134x_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void uda134x_shutdown(struct snd_pcm_substream *substream)
+static void uda134x_shutdown(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -214,7 +216,8 @@ static void uda134x_shutdown(struct snd_pcm_substream *substream)
 }
 
 static int uda134x_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -484,9 +487,6 @@ struct snd_soc_dai uda134x_dai = {
 		.startup = uda134x_startup,
 		.shutdown = uda134x_shutdown,
 		.hw_params = uda134x_hw_params,
-	},
-	/* DAI operations */
-	.dai_ops = {
 		.digital_mute = uda134x_mute,
 		.set_sysclk = uda134x_set_dai_sysclk,
 		.set_fmt = uda134x_set_dai_fmt,

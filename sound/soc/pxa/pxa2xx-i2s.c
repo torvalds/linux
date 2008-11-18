@@ -121,7 +121,8 @@ static struct pxa2xx_gpio gpio_bus[] = {
 	},
 };
 
-static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream)
+static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -187,7 +188,8 @@ static int pxa2xx_i2s_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 }
 
 static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -248,7 +250,8 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int pxa2xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
+static int pxa2xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			      struct snd_soc_dai *dai)
 {
 	int ret = 0;
 
@@ -269,7 +272,8 @@ static int pxa2xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream)
+static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		SACR1 |= SACR1_DRPL;
@@ -353,8 +357,7 @@ struct snd_soc_dai pxa_i2s_dai = {
 		.startup = pxa2xx_i2s_startup,
 		.shutdown = pxa2xx_i2s_shutdown,
 		.trigger = pxa2xx_i2s_trigger,
-		.hw_params = pxa2xx_i2s_hw_params,},
-	.dai_ops = {
+		.hw_params = pxa2xx_i2s_hw_params,
 		.set_fmt = pxa2xx_i2s_set_dai_fmt,
 		.set_sysclk = pxa2xx_i2s_set_dai_sysclk,
 	},

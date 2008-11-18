@@ -188,7 +188,8 @@ static void davinci_mcbsp_stop(struct snd_pcm_substream *substream)
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, w);
 }
 
-static int davinci_i2s_startup(struct snd_pcm_substream *substream)
+static int davinci_i2s_startup(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
@@ -285,7 +286,8 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 }
 
 static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct davinci_pcm_dma_params *dma_params = rtd->dai->cpu_dai->dma_data;
@@ -349,7 +351,8 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
+static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			       struct snd_soc_dai *dai)
 {
 	int ret = 0;
 
@@ -473,8 +476,7 @@ struct snd_soc_dai davinci_i2s_dai = {
 	.ops = {
 		.startup = davinci_i2s_startup,
 		.trigger = davinci_i2s_trigger,
-		.hw_params = davinci_i2s_hw_params,},
-	.dai_ops = {
+		.hw_params = davinci_i2s_hw_params,
 		.set_fmt = davinci_i2s_set_dai_fmt,
 	},
 };
