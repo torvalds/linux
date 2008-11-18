@@ -1062,7 +1062,7 @@ config PM_WAKEUP_GPIO_NUMBER
 	int "GPIO number"
 	range 0 47
 	depends on PM_WAKEUP_BY_GPIO
-	default 2 if BFIN537_STAMP
+	default 2
 
 choice
 	prompt "GPIO Polarity"
