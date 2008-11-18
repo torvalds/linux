@@ -84,7 +84,7 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 	int slot;
 
 	search_key.objectid = objectid;
-	search_key.type = (u8)-1;
+	search_key.type = BTRFS_ROOT_ITEM_KEY;
 	search_key.offset = (u64)-1;
 
 	path = btrfs_alloc_path();
@@ -272,6 +272,80 @@ printk("failed to del %Lu %u %Lu\n", key->objectid, key->type, key->offset);
 	ret = btrfs_del_item(trans, root, path);
 out:
 	btrfs_release_path(root, path);
+	btrfs_free_path(path);
+	return ret;
+}
+
+int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *tree_root,
+		       u64 root_id, u8 type, u64 ref_id)
+{
+	struct btrfs_key key;
+	int ret;
+	struct btrfs_path *path;
+
+	path = btrfs_alloc_path();
+
+	key.objectid = root_id;
+	key.type = type;
+	key.offset = ref_id;
+
+	ret = btrfs_search_slot(trans, tree_root, &key, path, -1, 1);
+	BUG_ON(ret);
+
+	ret = btrfs_del_item(trans, tree_root, path);
+	BUG_ON(ret);
+
+	btrfs_free_path(path);
+	return ret;
+}
+
+/*
+ * add a btrfs_root_ref item.  type is either BTRFS_ROOT_REF_KEY
+ * or BTRFS_ROOT_BACKREF_KEY.
+ *
+ * The dirid, sequence, name and name_len refer to the directory entry
+ * that is referencing the root.
+ *
+ * For a forward ref, the root_id is the id of the tree referencing
+ * the root and ref_id is the id of the subvol  or snapshot.
+ *
+ * For a back ref the root_id is the id of the subvol or snapshot and
+ * ref_id is the id of the tree referencing it.
+ */
+int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *tree_root,
+		       u64 root_id, u8 type, u64 ref_id,
+		       u64 dirid, u64 sequence,
+		       const char *name, int name_len)
+{
+	struct btrfs_key key;
+	int ret;
+	struct btrfs_path *path;
+	struct btrfs_root_ref *ref;
+	struct extent_buffer *leaf;
+	unsigned long ptr;
+
+
+	path = btrfs_alloc_path();
+
+	key.objectid = root_id;
+	key.type = type;
+	key.offset = ref_id;
+
+	ret = btrfs_insert_empty_item(trans, tree_root, path, &key,
+				      sizeof(*ref) + name_len);
+	BUG_ON(ret);
+
+	leaf = path->nodes[0];
+	ref = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_ref);
+	btrfs_set_root_ref_dirid(leaf, ref, dirid);
+	btrfs_set_root_ref_sequence(leaf, ref, sequence);
+	btrfs_set_root_ref_name_len(leaf, ref, name_len);
+	ptr = (unsigned long)(ref + 1);
+	write_extent_buffer(leaf, name, ptr, name_len);
+	btrfs_mark_buffer_dirty(leaf);
+
 	btrfs_free_path(path);
 	return ret;
 }

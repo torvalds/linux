@@ -831,28 +831,43 @@ static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
 	struct btrfs_trans_handle *trans;
 	struct inode *parent_inode;
 	struct inode *inode;
+	struct btrfs_root *parent_root;
 
 	parent_inode = pending->dentry->d_parent->d_inode;
-	trans = btrfs_start_transaction(BTRFS_I(parent_inode)->root, 1);
+	parent_root = BTRFS_I(parent_inode)->root;
+	trans = btrfs_start_transaction(parent_root, 1);
 
 	/*
 	 * insert the directory item
 	 */
 	namelen = strlen(pending->name);
 	ret = btrfs_set_inode_index(parent_inode, &index);
-	ret = btrfs_insert_dir_item(trans,
-			    BTRFS_I(parent_inode)->root,
+	ret = btrfs_insert_dir_item(trans, parent_root,
 			    pending->name, namelen,
 			    parent_inode->i_ino,
 			    &pending->root_key, BTRFS_FT_DIR, index);
 
 	if (ret)
 		goto fail;
-#if 0
-	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
-			     pending->name, strlen(pending->name), objectid,
-			     root->fs_info->sb->s_root->d_inode->i_ino, 0);
-#endif
+
+	/* add the backref first */
+	ret = btrfs_add_root_ref(trans, parent_root->fs_info->tree_root,
+				 pending->root_key.objectid,
+				 BTRFS_ROOT_BACKREF_KEY,
+				 parent_root->root_key.objectid,
+				 parent_inode->i_ino, index, pending->name,
+				 namelen);
+
+	BUG_ON(ret);
+
+	/* now add the forward ref */
+	ret = btrfs_add_root_ref(trans, parent_root->fs_info->tree_root,
+				 parent_root->root_key.objectid,
+				 BTRFS_ROOT_REF_KEY,
+				 pending->root_key.objectid,
+				 parent_inode->i_ino, index, pending->name,
+				 namelen);
+
 	inode = btrfs_lookup_dentry(parent_inode, pending->dentry);
 	d_instantiate(pending->dentry, inode);
 fail:

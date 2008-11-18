@@ -145,13 +145,23 @@ static noinline int create_subvol(struct btrfs_root *root,
 				    BTRFS_FT_DIR, index);
 	if (ret)
 		goto fail;
-#if 0
-	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
-			     name, namelen, objectid,
-			     root->fs_info->sb->s_root->d_inode->i_ino, 0);
-	if (ret)
-		goto fail;
-#endif
+
+	/* add the backref first */
+	ret = btrfs_add_root_ref(trans, root->fs_info->tree_root,
+				 objectid, BTRFS_ROOT_BACKREF_KEY,
+				 root->root_key.objectid,
+				 dir->i_ino, index, name, namelen);
+
+	BUG_ON(ret);
+
+	/* now add the forward ref */
+	ret = btrfs_add_root_ref(trans, root->fs_info->tree_root,
+				 root->root_key.objectid, BTRFS_ROOT_REF_KEY,
+				 objectid,
+				 dir->i_ino, index, name, namelen);
+
+	BUG_ON(ret);
+
 	ret = btrfs_commit_transaction(trans, root);
 	if (ret)
 		goto fail_commit;

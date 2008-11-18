@@ -4580,6 +4580,12 @@ static int btrfs_rename(struct inode * old_dir, struct dentry *old_dentry,
 		return -ENOTEMPTY;
 	}
 
+	/* to rename a snapshot or subvolume, we need to juggle the
+	 * backrefs.  This isn't coded yet
+	 */
+	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
+		return -EXDEV;
+
 	ret = btrfs_check_free_space(root, 1, 0);
 	if (ret)
 		goto out_unlock;
