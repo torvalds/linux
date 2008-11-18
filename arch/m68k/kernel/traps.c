@@ -48,10 +48,7 @@ asmlinkage void nmihandler(void);
 asmlinkage void fpu_emu(void);
 #endif
 
-e_vector vectors[256] = {
-	[VEC_BUSERR]	= buserr,
-	[VEC_SYS]	= system_call,
-};
+e_vector vectors[256];
 
 /* nmi handler for the Amiga */
 asm(".text\n"
@@ -64,7 +61,7 @@ asm(".text\n"
  */
 void __init base_trap_init(void)
 {
-	if(MACH_IS_SUN3X) {
+	if (MACH_IS_SUN3X) {
 		extern e_vector *sun3x_prom_vbr;
 
 		__asm__ volatile ("movec %%vbr, %0" : "=r" (sun3x_prom_vbr));
@@ -79,6 +76,9 @@ void __init base_trap_init(void)
 
 		vectors[VEC_UNIMPII] = unimp_vec;
 	}
+
+	vectors[VEC_BUSERR] = buserr;
+	vectors[VEC_SYS] = system_call;
 }
 
 void __init trap_init (void)
