@@ -47,7 +47,7 @@ config SND_BF5XX_AC97
 	  properly with this driver. This driver is known to work with the
 	  Analog Devices line of AC97 codecs.
 
-config SND_MMAP_SUPPORT
+config SND_BF5XX_MMAP_SUPPORT
 	bool "Enable MMAP Support"
 	depends on SND_BF5XX_AC97
 	default y
@@ -55,9 +55,17 @@ config SND_MMAP_SUPPORT
 	  Say y if you want AC97 driver to support mmap mode.
 	  We introduce an intermediate buffer to simulate mmap.
 
+config SND_BF5XX_MULTICHAN_SUPPORT
+	bool "Enable Multichannel Support"
+	depends on SND_BF5XX_AC97
+	default n
+	help
+	  Say y if you want AC97 driver to support up to 5.1 channel audio.
+	  this mode will consume much more memory for DMA.
+
 config SND_BF5XX_SOC_SPORT
 	tristate
-	
+
 config SND_BF5XX_SOC_I2S
 	tristate
 	select SND_BF5XX_SOC_SPORT
@@ -90,7 +98,7 @@ config SND_BF5XX_HAVE_COLD_RESET
 	depends on SND_BF5XX_AC97
 	default y if BFIN548_EZKIT
 	default n if !BFIN548_EZKIT
-	
+
 config SND_BF5XX_RESET_GPIO_NUM
 	int "Set a GPIO for cold reset"
 	depends on SND_BF5XX_HAVE_COLD_RESET
