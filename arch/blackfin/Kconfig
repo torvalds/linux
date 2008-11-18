@@ -137,6 +137,16 @@ config BF537
 	help
 	  BF537 Processor Support.
 
+config BF538
+	bool "BF538"
+	help
+	  BF538 Processor Support.
+
+config BF539
+	bool "BF539"
+	help
+	  BF539 Processor Support.
+
 config BF542
 	bool "BF542"
 	help
@@ -174,12 +184,13 @@ config BF_REV_MIN
 	default 0 if (BF52x || BF54x)
 	default 2 if (BF537 || BF536 || BF534)
 	default 3 if (BF561 ||BF533 || BF532 || BF531)
+	default 4 if (BF538 || BF539)	
 
 config BF_REV_MAX
 	int
 	default 2 if (BF52x || BF54x)
 	default 3 if (BF537 || BF536 || BF534)
-	default 5 if (BF561)
+	default 5 if (BF561|| BF538 || BF539)
 	default 6 if (BF533 || BF532 || BF531)
 
 choice
@@ -206,11 +217,11 @@ config BF_REV_0_3
 
 config BF_REV_0_4
 	bool "0.4"
-	depends on (BF561 || BF533 || BF532 || BF531)
+	depends on (BF561 || BF533 || BF532 || BF531 || BF538 || BF539)
 
 config BF_REV_0_5
 	bool "0.5"
-	depends on (BF561 || BF533 || BF532 || BF531)
+	depends on (BF561 || BF533 || BF532 || BF531 || BF538 || BF539)
 
 config BF_REV_0_6
 	bool "0.6"
@@ -258,7 +269,7 @@ config MEM_MT48LC16M16A2TG_75
 
 config MEM_MT48LC32M8A2_75
 	bool
-	depends on (BFIN537_STAMP || PNAV10)
+	depends on (BFIN537_STAMP || PNAV10 || BFIN538_EZKIT)
 	default y
 
 config MEM_MT48LC8M32B2B5_7
@@ -275,6 +286,7 @@ source "arch/blackfin/mach-bf527/Kconfig"
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
 source "arch/blackfin/mach-bf537/Kconfig"
+source "arch/blackfin/mach-bf538/Kconfig"
 source "arch/blackfin/mach-bf548/Kconfig"
 
 menu "Board customizations"
@@ -318,7 +330,7 @@ config CLKIN_HZ
 	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD)
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN538_EZKIT)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	default "10000000" if BFIN532_IP0X
@@ -354,7 +366,7 @@ config VCO_MULT
 	range 1 64
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
-	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM)
+	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM || BFIN538_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
@@ -716,7 +728,7 @@ config BFIN_GPTIMERS
 
 config BFIN_DMA_5XX
 	bool "Enable DMA Support"
-	depends on (BF52x || BF53x || BF561 || BF54x)
+	depends on (BF52x || BF53x || BF561 || BF54x || BF538 || BF539)
 	default y
 	help
 	  DMA driver for BF5xx.

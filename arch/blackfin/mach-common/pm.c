@@ -82,7 +82,8 @@ void bfin_pm_suspend_standby_enter(void)
 
 	bfin_pm_standby_restore();
 
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)  || defined(CONFIG_BF561)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)  || defined(CONFIG_BF561) || \
+	defined(CONFIG_BF538) || defined(CONFIG_BF539)
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
 #if defined(CONFIG_BF52x)
 	/* BF52x system reset does not properly reset SIC_IWR1 which

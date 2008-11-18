@@ -103,12 +103,13 @@ static void __init search_IAR(void)
 		for (irqn = 0; irqn < NR_PERI_INTS; irqn++) {
 			int iar_shift = (irqn & 7) * 4;
 				if (ivg == (0xf &
-#ifndef CONFIG_BF52x
+#if defined(CONFIG_BF52x) || defined(CONFIG_BF538) || defined(CONFIG_BF539)
 			     bfin_read32((unsigned long *)SIC_IAR0 +
-					 (irqn >> 3)) >> iar_shift)) {
+					 ((irqn % 32) >> 3) + ((irqn / 32) *
+					 ((SIC_IAR4 - SIC_IAR0) / 4))) >> iar_shift)) {
 #else
 			     bfin_read32((unsigned long *)SIC_IAR0 +
-					 ((irqn%32) >> 3) + ((irqn / 32) * 16)) >> iar_shift)) {
+					 (irqn >> 3)) >> iar_shift)) {
 #endif
 				ivg_table[irq_pos].irqno = IVG7 + irqn;
 				ivg_table[irq_pos].isrflag = 1 << (irqn % 32);
@@ -537,6 +538,10 @@ static void bfin_demux_gpio_irq(unsigned int inta_irq,
 		irq = IRQ_PH0;
 		break;
 # endif
+#elif defined(CONFIG_BF538) || defined(CONFIG_BF539)
+	case IRQ_PORTF_INTA:
+		irq = IRQ_PF0;
+		break;
 #elif defined(CONFIG_BF52x)
 	case IRQ_PORTF_INTA:
 		irq = IRQ_PF0;
@@ -984,7 +989,7 @@ int __init init_arch_irq(void)
 	int irq;
 	unsigned long ilat = 0;
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) || defined(BF538_FAMILY)
 	bfin_write_SIC_IMASK0(SIC_UNMASK_ALL);
 	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
 # ifdef CONFIG_BF54x
@@ -1037,7 +1042,10 @@ int __init init_arch_irq(void)
 		case IRQ_PROG0_INTA:
 		case IRQ_PROG1_INTA:
 		case IRQ_PROG2_INTA:
+#elif defined(CONFIG_BF538) || defined(CONFIG_BF539)
+		case IRQ_PORTF_INTA:
 #endif
+
 			set_irq_chained_handler(irq,
 						bfin_demux_gpio_irq);
 			break;
@@ -1085,7 +1093,7 @@ int __init init_arch_irq(void)
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) || defined(BF538_FAMILY)
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
 #if defined(CONFIG_BF52x)
 	/* BF52x system reset does not properly reset SIC_IWR1 which
@@ -1117,7 +1125,7 @@ void do_irq(int vec, struct pt_regs *fp)
 	} else {
 		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) || defined(BF538_FAMILY)
 		unsigned long sic_status[3];
 
 		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();

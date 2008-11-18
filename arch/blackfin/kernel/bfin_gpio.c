@@ -119,7 +119,7 @@ enum {
 #define AWA_DUMMY_READ(...)  do { } while (0)
 #endif
 
-#ifdef BF533_FAMILY
+#if defined(BF533_FAMILY) || defined(BF538_FAMILY)
 static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(struct gpio_port_t *) FIO_FLAG_D,
 };
@@ -200,6 +200,10 @@ static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB
 
 #ifdef BF537_FAMILY
 static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB, IRQ_PORTG_INTB, IRQ_MAC_TX};
+#endif
+
+#ifdef BF538_FAMILY
+static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PORTF_INTB};
 #endif
 
 #ifdef BF527_FAMILY
