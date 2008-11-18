@@ -77,6 +77,26 @@ choice
 	prompt "CPU"
 	default BF533
 
+config BF512
+	bool "BF512"
+	help
+	  BF512 Processor Support.
+
+config BF514
+	bool "BF514"
+	help
+	  BF514 Processor Support.
+
+config BF516
+	bool "BF516"
+	help
+	  BF516 Processor Support.
+
+config BF518
+	bool "BF518"
+	help
+	  BF518 Processor Support.
+
 config BF522
 	bool "BF522"
 	help
@@ -181,27 +201,27 @@ endchoice
 
 config BF_REV_MIN
 	int
-	default 0 if (BF52x || BF54x)
+	default 0 if (BF51x || BF52x || BF54x)
 	default 2 if (BF537 || BF536 || BF534)
 	default 3 if (BF561 ||BF533 || BF532 || BF531)
-	default 4 if (BF538 || BF539)	
+	default 4 if (BF538 || BF539)
 
 config BF_REV_MAX
 	int
-	default 2 if (BF52x || BF54x)
+	default 2 if (BF51x || BF52x || BF54x)
 	default 3 if (BF537 || BF536 || BF534)
-	default 5 if (BF561|| BF538 || BF539)
+	default 5 if (BF561 || BF538 || BF539)
 	default 6 if (BF533 || BF532 || BF531)
 
 choice
 	prompt "Silicon Rev"
-	default BF_REV_0_1 if (BF52x || BF54x)
+	default BF_REV_0_1 if (BF51x || BF52x || BF54x)
 	default BF_REV_0_2 if (BF534 || BF536 || BF537)
 	default BF_REV_0_3 if (BF531 || BF532 || BF533 || BF561)
 
 config BF_REV_0_0
 	bool "0.0"
-	depends on (BF52x || BF54x)
+	depends on (BF51x || BF52x || BF54x)
 
 config BF_REV_0_1
 	bool "0.1"
@@ -234,6 +254,11 @@ config BF_REV_NONE
 	bool "none"
 
 endchoice
+
+config BF51x
+	bool
+	depends on (BF512 || BF514 || BF516 || BF518)
+	default y
 
 config BF52x
 	bool
@@ -282,6 +307,7 @@ config MEM_MT48LC32M16A2TG_75
 	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP || BFIN526_EZBRD)
 	default y
 
+source "arch/blackfin/mach-bf518/Kconfig"
 source "arch/blackfin/mach-bf527/Kconfig"
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
@@ -330,7 +356,7 @@ config CLKIN_HZ
 	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN538_EZKIT)
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN538_EZKIT || BFIN518F-EZBRD)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	default "10000000" if BFIN532_IP0X
@@ -370,7 +396,7 @@ config VCO_MULT
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
-	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD)
+	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN518F_EZBRD)
 	help
 	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
 	  PLL Frequency = (Crystal Frequency) * (this setting)
@@ -432,6 +458,10 @@ config MAX_MEM_SIZE
 #
 config MAX_VCO_HZ
 	int
+	default 400000000 if BF512
+	default 400000000 if BF514
+	default 400000000 if BF516
+	default 400000000 if BF518
 	default 600000000 if BF522
 	default 400000000 if BF523
 	default 400000000 if BF524
@@ -1025,7 +1055,7 @@ comment "Possible Suspend Mem / Hibernate Wake-Up Sources"
 
 config PM_BFIN_WAKE_PH6
 	bool "Allow Wake-Up from on-chip PHY or PH6 GP"
-	depends on PM && (BF52x || BF534 || BF536 || BF537)
+	depends on PM && (BF51x || BF52x || BF534 || BF536 || BF537)
 	default n
 	help
 	  Enable PHY and PH6 GP Wake-Up (Voltage Regulator Power-Up)

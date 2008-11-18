@@ -104,7 +104,8 @@ static void __init search_IAR(void)
 		for (irqn = 0; irqn < NR_PERI_INTS; irqn++) {
 			int iar_shift = (irqn & 7) * 4;
 				if (ivg == (0xf &
-#if defined(CONFIG_BF52x) || defined(CONFIG_BF538) || defined(CONFIG_BF539)
+#if defined(CONFIG_BF52x) || defined(CONFIG_BF538) \
+	|| defined(CONFIG_BF539) || defined(CONFIG_BF51x)
 			     bfin_read32((unsigned long *)SIC_IAR0 +
 					 ((irqn % 32) >> 3) + ((irqn / 32) *
 					 ((SIC_IAR4 - SIC_IAR0) / 4))) >> iar_shift)) {
@@ -543,7 +544,7 @@ static void bfin_demux_gpio_irq(unsigned int inta_irq,
 	case IRQ_PORTF_INTA:
 		irq = IRQ_PF0;
 		break;
-#elif defined(CONFIG_BF52x)
+#elif defined(CONFIG_BF52x) || defined(CONFIG_BF51x)
 	case IRQ_PORTF_INTA:
 		irq = IRQ_PF0;
 		break;
@@ -990,7 +991,8 @@ int __init init_arch_irq(void)
 	int irq;
 	unsigned long ilat = 0;
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) || defined(BF538_FAMILY)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) \
+	|| defined(BF538_FAMILY) || defined(CONFIG_BF51x)
 	bfin_write_SIC_IMASK0(SIC_UNMASK_ALL);
 	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
 # ifdef CONFIG_BF54x
@@ -1035,7 +1037,7 @@ int __init init_arch_irq(void)
 		case IRQ_PINT1:
 		case IRQ_PINT2:
 		case IRQ_PINT3:
-#elif defined(CONFIG_BF52x)
+#elif defined(CONFIG_BF52x) || defined(CONFIG_BF51x)
 		case IRQ_PORTF_INTA:
 		case IRQ_PORTG_INTA:
 		case IRQ_PORTH_INTA:
@@ -1094,10 +1096,11 @@ int __init init_arch_irq(void)
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) || defined(BF538_FAMILY)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) \
+	|| defined(BF538_FAMILY) || defined(CONFIG_BF51x)
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
-#if defined(CONFIG_BF52x)
-	/* BF52x system reset does not properly reset SIC_IWR1 which
+#if defined(CONFIG_BF52x) || defined(CONFIG_BF51x)
+	/* BF52x/BF51x system reset does not properly reset SIC_IWR1 which
 	 * will screw up the bootrom as it relies on MDMA0/1 waking it
 	 * up from IDLE instructions.  See this report for more info:
 	 * http://blackfin.uclinux.org/gf/tracker/4323
@@ -1126,7 +1129,8 @@ void do_irq(int vec, struct pt_regs *fp)
 	} else {
 		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) || defined(BF538_FAMILY)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) \
+	|| defined(BF538_FAMILY) || defined(CONFIG_BF51x)
 		unsigned long sic_status[3];
 
 		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();

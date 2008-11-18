@@ -125,7 +125,7 @@ static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 };
 #endif
 
-#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY) || defined(BF518_FAMILY)
 static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(struct gpio_port_t *) PORTFIO,
 	(struct gpio_port_t *) PORTGIO,
@@ -139,7 +139,7 @@ static unsigned short *port_fer[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 };
 #endif
 
-#ifdef BF527_FAMILY
+#if defined(BF527_FAMILY) || defined(BF518_FAMILY)
 static unsigned short *port_mux[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(unsigned short *) PORTF_MUX,
 	(unsigned short *) PORTG_MUX,
@@ -206,7 +206,7 @@ static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB
 static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PORTF_INTB};
 #endif
 
-#ifdef BF527_FAMILY
+#if defined(BF527_FAMILY) || defined(BF518_FAMILY)
 static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PORTF_INTB, IRQ_PORTG_INTB, IRQ_PORTH_INTB};
 #endif
 
@@ -268,7 +268,7 @@ static int cmp_label(unsigned short ident, const char *label)
 		return -EINVAL;
 }
 
-#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY) || defined(BF518_FAMILY)
 static void port_setup(unsigned gpio, unsigned short usage)
 {
 	if (!check_gpio(gpio)) {
@@ -383,7 +383,7 @@ inline u16 get_portmux(unsigned short portno)
 
 	return (pmux >> (2 * gpio_sub_n(portno)) & 0x3);
 }
-#elif defined(BF527_FAMILY)
+#elif defined(BF527_FAMILY) || defined(BF518_FAMILY)
 inline void portmux_setup(unsigned short portno, unsigned short function)
 {
 	u16 pmux, ident = P_IDENT(portno);
@@ -683,7 +683,7 @@ u32 bfin_pm_standby_setup(void)
 		gpio_bankb[bank]->maskb = 0;
 
 		if (mask) {
-#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY) || defined(BF518_FAMILY)
 			gpio_bank_saved[bank].fer   = *port_fer[bank];
 #endif
 			gpio_bank_saved[bank].inen  = gpio_bankb[bank]->inen;
@@ -728,7 +728,7 @@ void bfin_pm_standby_restore(void)
 		bank = gpio_bank(i);
 
 		if (mask) {
-#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY) || defined(BF518_FAMILY)
 			*port_fer[bank]   	= gpio_bank_saved[bank].fer;
 #endif
 			gpio_bankb[bank]->inen  = gpio_bank_saved[bank].inen;
@@ -754,9 +754,9 @@ void bfin_gpio_pm_hibernate_suspend(void)
 	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
 		bank = gpio_bank(i);
 
-#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY) || defined(BF518_FAMILY)
 			gpio_bank_saved[bank].fer   = *port_fer[bank];
-#ifdef BF527_FAMILY
+#if defined(BF527_FAMILY) || defined(BF518_FAMILY)
 			gpio_bank_saved[bank].mux   = *port_mux[bank];
 #else
 			if (bank == 0)
@@ -782,8 +782,8 @@ void bfin_gpio_pm_hibernate_restore(void)
 	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
 			bank = gpio_bank(i);
 
-#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
-#ifdef BF527_FAMILY
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY) || defined(BF518_FAMILY)
+#if defined(BF527_FAMILY) || defined(BF518_FAMILY)
 			*port_mux[bank] = gpio_bank_saved[bank].mux;
 #else
 			if (bank == 0)

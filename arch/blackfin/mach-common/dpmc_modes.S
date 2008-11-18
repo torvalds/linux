@@ -248,7 +248,7 @@ ENDPROC(_unset_dram_srfs)
 
 ENTRY(_set_sic_iwr)
 #if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) || \
-	defined(CONFIG_BF538) || defined(CONFIG_BF539)
+	defined(CONFIG_BF538) || defined(CONFIG_BF539) || defined(CONFIG_BF51x)
 	P0.H = hi(SIC_IWR0);
 	P0.L = lo(SIC_IWR0);
 	P1.H = hi(SIC_IWR1);
