@@ -111,7 +111,7 @@ extern unsigned long memory_mtd_start, memory_mtd_end, mtd_size;
 
 #ifdef CONFIG_BFIN_ICACHE_LOCK
 extern void cache_grab_lock(int way);
-extern void cache_lock(int way);
+extern void bfin_cache_lock(int way);
 #endif
 
 #endif
