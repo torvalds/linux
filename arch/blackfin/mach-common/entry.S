@@ -370,9 +370,10 @@ ENTRY(_ex_trap_c)
 ENDPROC(_ex_trap_c)
 
 /* We just realized we got an exception, while we were processing a different
- * exception. This is a unrecoverable event, so crash
+ * exception. This is a unrecoverable event, so crash.
+ * Note: this cannot be ENTRY() as we jump here with "if cc jump" ...
  */
-ENTRY(_double_fault)
+_double_fault:
 	/* Turn caches & protection off, to ensure we don't get any more
 	 * double exceptions
 	 */
