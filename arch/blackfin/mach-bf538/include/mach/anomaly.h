@@ -119,5 +119,6 @@
 #define ANOMALY_05000353 (1)
 #define ANOMALY_05000363 (0)
 #define ANOMALY_05000386 (1)
+#define ANOMALY_05000435 (0)
 
 #endif
