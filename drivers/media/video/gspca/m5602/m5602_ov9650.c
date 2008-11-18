@@ -18,6 +18,42 @@
 
 #include "m5602_ov9650.h"
 
+/* Vertically and horizontally flips the image if matched, needed for machines
+   where the sensor is mounted upside down */
+static
+    const
+	struct dmi_system_id ov9650_flip_dmi_table[] = {
+	{
+		.ident = "ASUS A6VC",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6VC")
+		}
+	},
+	{
+		.ident = "ASUS A6VM",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6VM")
+		}
+	},
+	{
+		.ident = "ASUS A6JC",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6JC")
+		}
+	},
+	{
+		.ident = "ASUS A6Kt",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6Kt")
+		}
+	},
+	{ }
+};
+
 int ov9650_read_sensor(struct sd *sd, const u8 address,
 		      u8 *i2c_data, const u8 len)
 {
