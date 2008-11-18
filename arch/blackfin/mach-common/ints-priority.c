@@ -167,7 +167,6 @@ static void bfin_internal_mask_irq(unsigned int irq)
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) &
 			     ~(1 << mask_bit));
 #endif
-	SSYNC();
 }
 
 static void bfin_internal_unmask_irq(unsigned int irq)
@@ -182,7 +181,6 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) |
 			     (1 << mask_bit));
 #endif
-	SSYNC();
 }
 
 #ifdef CONFIG_PM
@@ -960,8 +958,6 @@ static void bfin_demux_gpio_irq(unsigned int inta_irq,
 
 void __init init_exception_vectors(void)
 {
-	SSYNC();
-
 	/* cannot program in software:
 	 * evt0 - emulation (jtag)
 	 * evt1 - reset
