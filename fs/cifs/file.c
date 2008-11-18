@@ -1404,7 +1404,10 @@ retry:
 			if ((wbc->nr_to_write -= n_iov) <= 0)
 				done = 1;
 			index = next;
-		}
+		} else
+			/* Need to re-find the pages we skipped */
+			index = pvec.pages[0]->index + 1;
+
 		pagevec_release(&pvec);
 	}
 	if (!scanned && !done) {
