@@ -131,6 +131,7 @@ struct genapic {
 }
 
 extern struct genapic *genapic;
+extern void es7000_update_genapic_to_cluster(void);
 
 enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
 #define get_uv_system_type()		UV_NONE

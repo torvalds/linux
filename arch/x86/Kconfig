@@ -462,10 +462,6 @@ config X86_CYCLONE_TIMER
 	def_bool y
 	depends on X86_GENERICARCH
 
-config ES7000_CLUSTERED_APIC
-	def_bool y
-	depends on SMP && X86_ES7000 && MPENTIUMIII
-
 source "arch/x86/Kconfig.cpu"
 
 config HPET_TIMER
