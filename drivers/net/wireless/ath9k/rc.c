@@ -23,8 +23,6 @@
 /* FIXME: remove this include! */
 #include "../net/mac80211/rate.h"
 
-static u32 tx_triglevel_max;
-
 static struct ath_rate_table ar5416_11na_ratetable = {
 	42,
 	{
@@ -436,7 +434,7 @@ static inline int8_t median(int8_t a, int8_t b, int8_t c)
 	}
 }
 
-static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
+static void ath_rc_sort_validrates(struct ath_rate_table *rate_table,
 				   struct ath_rate_node *ath_rc_priv)
 {
 	u8 i, j, idx, idx_next;
@@ -481,7 +479,7 @@ static inline int ath_rc_isvalid_txmask(struct ath_rate_node *ath_rc_priv,
 
 /* Iterators for valid_txrate_mask */
 static inline int
-ath_rc_get_nextvalid_txrate(const struct ath_rate_table *rate_table,
+ath_rc_get_nextvalid_txrate(struct ath_rate_table *rate_table,
 			    struct ath_rate_node *ath_rc_priv,
 			    u8 cur_valid_txrate,
 			    u8 *next_idx)
@@ -519,7 +517,7 @@ static int ath_rc_valid_phyrate(u32 phy, u32 capflag, int ignore_cw)
 }
 
 static inline int
-ath_rc_get_nextlowervalid_txrate(const struct ath_rate_table *rate_table,
+ath_rc_get_nextlowervalid_txrate(struct ath_rate_table *rate_table,
 				 struct ath_rate_node *ath_rc_priv,
 				 u8 cur_valid_txrate, u8 *next_idx)
 {
@@ -539,7 +537,7 @@ ath_rc_get_nextlowervalid_txrate(const struct ath_rate_table *rate_table,
  */
 static u8
 ath_rc_sib_init_validrates(struct ath_rate_node *ath_rc_priv,
-			   const struct ath_rate_table *rate_table,
+			   struct ath_rate_table *rate_table,
 			   u32 capflag)
 {
 	u8 i, hi = 0;
@@ -572,7 +570,7 @@ ath_rc_sib_init_validrates(struct ath_rate_node *ath_rc_priv,
  */
 static u8
 ath_rc_sib_setvalid_rates(struct ath_rate_node *ath_rc_priv,
-			  const struct ath_rate_table *rate_table,
+			  struct ath_rate_table *rate_table,
 			  struct ath_rateset *rateset,
 			  u32 capflag)
 {
@@ -620,7 +618,7 @@ ath_rc_sib_setvalid_rates(struct ath_rate_node *ath_rc_priv,
 
 static u8
 ath_rc_sib_setvalid_htrates(struct ath_rate_node *ath_rc_priv,
-			    const struct ath_rate_table *rate_table,
+			    struct ath_rate_table *rate_table,
 			    u8 *mcs_set, u32 capflag)
 {
 	u8 i, j, hi = 0;
@@ -653,50 +651,13 @@ ath_rc_sib_setvalid_htrates(struct ath_rate_node *ath_rc_priv,
 	return hi;
 }
 
-struct ath_rate_softc *ath_rate_attach(struct ath_softc *sc)
-{
-	struct ath_rate_softc *asc;
-
-	asc = kzalloc(sizeof(struct ath_rate_softc), GFP_KERNEL);
-	if (asc == NULL)
-		return NULL;
-
-	asc->hw_rate_table[ATH9K_MODE_11B] = &ar5416_11b_ratetable;
-	asc->hw_rate_table[ATH9K_MODE_11A] = &ar5416_11a_ratetable;
-	asc->hw_rate_table[ATH9K_MODE_11G] = &ar5416_11g_ratetable;
-
-	asc->hw_rate_table[ATH9K_MODE_11NA_HT20] = &ar5416_11na_ratetable;
-	asc->hw_rate_table[ATH9K_MODE_11NG_HT20] = &ar5416_11ng_ratetable;
-
-	asc->hw_rate_table[ATH9K_MODE_11NA_HT40PLUS] =
-		&ar5416_11na_ratetable;
-	asc->hw_rate_table[ATH9K_MODE_11NA_HT40MINUS] =
-		&ar5416_11na_ratetable;
-	asc->hw_rate_table[ATH9K_MODE_11NG_HT40PLUS] =
-		&ar5416_11ng_ratetable;
-	asc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS] =
-		&ar5416_11ng_ratetable;
-
-	/* Save Maximum TX Trigger Level (used for 11n) */
-	tx_triglevel_max = sc->sc_ah->ah_caps.tx_triglevel_max;
-
-	return asc;
-}
-
-void ath_rate_detach(struct ath_rate_softc *asc)
-{
-	if (asc != NULL)
-		kfree(asc);
-}
-
 u8 ath_rate_findrateix(struct ath_softc *sc,
 		       u8 dot11rate)
 {
-	const struct ath_rate_table *ratetable;
-	struct ath_rate_softc *rsc = sc->sc_rc;
+	struct ath_rate_table *ratetable;
 	int i;
 
-	ratetable = rsc->hw_rate_table[sc->sc_curmode];
+	ratetable = sc->hw_rate_table[sc->sc_curmode];
 
 	if (WARN_ON(!ratetable))
 		return 0;
@@ -711,7 +672,7 @@ u8 ath_rate_findrateix(struct ath_softc *sc,
 
 static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 			     struct ath_rate_node *ath_rc_priv,
-			     const struct ath_rate_table *rate_table,
+			     struct ath_rate_table *rate_table,
 			     int probe_allowed, int *is_probing,
 			     int is_retry)
 {
@@ -843,7 +804,7 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 	return rate;
 }
 
-static void ath_rc_rate_set_series(const struct ath_rate_table *rate_table ,
+static void ath_rc_rate_set_series(struct ath_rate_table *rate_table ,
 				   struct ath_rc_series *series,
 				   u8 tries,
 				   u8 rix,
@@ -864,7 +825,7 @@ static void ath_rc_rate_set_series(const struct ath_rate_table *rate_table ,
 
 static u8 ath_rc_rate_getidx(struct ath_softc *sc,
 			     struct ath_rate_node *ath_rc_priv,
-			     const struct ath_rate_table *rate_table,
+			     struct ath_rate_table *rate_table,
 			     u8 rix, u16 stepdown,
 			     u16 min_rate)
 {
@@ -898,11 +859,9 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 			    int is_retry)
 {
 	u8 try_per_rate = 0, i = 0, rix, nrix;
-	struct ath_rate_softc  *asc = (struct ath_rate_softc *)sc->sc_rc;
 	struct ath_rate_table *rate_table;
 
-	rate_table =
-		(struct ath_rate_table *)asc->hw_rate_table[sc->sc_curmode];
+	rate_table = sc->hw_rate_table[sc->sc_curmode];
 	rix = ath_rc_ratefind_ht(sc, ath_rc_priv, rate_table,
 				 (rcflag & ATH_RC_PROBE_ALLOWED) ? 1 : 0,
 				 is_probe, is_retry);
@@ -1003,10 +962,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	u32 now_msec = jiffies_to_msecs(jiffies);
 	int state_change = FALSE, rate, count;
 	u8 last_per;
-	struct ath_rate_softc *asc = (struct ath_rate_softc *)sc->sc_rc;
-	struct ath_rate_table *rate_table =
-		(struct ath_rate_table *)asc->hw_rate_table[sc->sc_curmode];
-
+	struct ath_rate_table *rate_table = sc->hw_rate_table[sc->sc_curmode];
 	static u32 nretry_to_per_lookup[10] = {
 		100 * 0 / 1,
 		100 * 1 / 4,
@@ -1330,15 +1286,13 @@ static void ath_rc_update(struct ath_softc *sc,
 			  struct ath_tx_info_priv *info_priv, int final_ts_idx,
 			  int xretries, int long_retry)
 {
-	struct ath_rate_softc *asc = (struct ath_rate_softc *)sc->sc_rc;
 	struct ath_rate_table *rate_table;
 	struct ath_rc_series rcs[4];
 	u8 flags;
 	u32 series = 0, rix;
 
 	memcpy(rcs, info_priv->rcs, 4 * sizeof(rcs[0]));
-	rate_table = (struct ath_rate_table *)
-		asc->hw_rate_table[sc->sc_curmode];
+	rate_table = sc->hw_rate_table[sc->sc_curmode];
 	ASSERT(rcs[0].tries != 0);
 
 	/*
@@ -1432,7 +1386,7 @@ static void ath_rate_tx_complete(struct ath_softc *sc,
 	 */
 	if (info_priv->tx.ts_flags &
 		(ATH9K_TX_DATA_UNDERRUN | ATH9K_TX_DELIM_UNDERRUN) &&
-		((sc->sc_ah->ah_txTrigLevel) >= tx_triglevel_max)) {
+		((sc->sc_ah->ah_txTrigLevel) >= rc_priv->tx_triglevel_max)) {
 		tx_status = 1;
 		is_underrun = 1;
 	}
@@ -1452,21 +1406,17 @@ static void ath_rc_init(struct ath_softc *sc,
 			struct ieee80211_sta *sta)
 {
 	struct ath_rate_table *rate_table = NULL;
-	struct ath_rate_softc *asc = (struct ath_rate_softc *)sc->sc_rc;
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
 	u8 *ht_mcs = (u8 *)&ath_rc_priv->neg_ht_rates;
 	u8 i, j, k, hi = 0, hthi = 0;
 
-	rate_table = (struct ath_rate_table *)
-		asc->hw_rate_table[sc->sc_curmode];
+	rate_table = sc->hw_rate_table[sc->sc_curmode];
 
 	if (sta->ht_cap.ht_supported) {
 		if (sband->band == IEEE80211_BAND_2GHZ)
-			rate_table = (struct ath_rate_table *)
-				asc->hw_rate_table[ATH9K_MODE_11NG_HT20];
+			rate_table = sc->hw_rate_table[ATH9K_MODE_11NG_HT20];
 		else
-			rate_table = (struct ath_rate_table *)
-				asc->hw_rate_table[ATH9K_MODE_11NA_HT20];
+			rate_table = sc->hw_rate_table[ATH9K_MODE_11NA_HT20];
 
 		ath_rc_priv->ht_cap = (WLAN_RC_HT_FLAG | WLAN_RC_DS_FLAG);
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
@@ -1691,8 +1641,8 @@ static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp
 		return NULL;
 	}
 
-	rate_priv->asc = sc->sc_rc;
 	rate_priv->rssi_down_time = jiffies_to_msecs(jiffies);
+	rate_priv->tx_triglevel_max = sc->sc_ah->ah_caps.tx_triglevel_max;
 
 	return rate_priv;
 }
@@ -1716,6 +1666,28 @@ static struct rate_control_ops ath_rate_ops = {
 	.alloc_sta = ath_rate_alloc_sta,
 	.free_sta = ath_rate_free_sta,
 };
+
+void ath_rate_attach(struct ath_softc *sc)
+{
+	sc->hw_rate_table[ATH9K_MODE_11B] =
+		&ar5416_11b_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11A] =
+		&ar5416_11a_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11G] =
+		&ar5416_11g_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11NA_HT20] =
+		&ar5416_11na_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11NG_HT20] =
+		&ar5416_11ng_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11NA_HT40PLUS] =
+		&ar5416_11na_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11NA_HT40MINUS] =
+		&ar5416_11na_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11NG_HT40PLUS] =
+		&ar5416_11ng_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS] =
+		&ar5416_11ng_ratetable;
+}
 
 int ath_rate_control_register(void)
 {

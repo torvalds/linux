@@ -199,15 +199,6 @@ struct ath_rateset {
 	u8 rs_rates[ATH_RATE_MAX];
 };
 
-/* per-device state */
-struct ath_rate_softc {
-	/* phy tables that contain rate control data */
-	const void *hw_rate_table[ATH9K_MODE_MAX];
-
-	/* -1 or index of fixed rate */
-	int fixedrix;
-};
-
 /**
  * struct ath_rate_node - Rate Control priv data
  * @state: RC state
@@ -261,6 +252,7 @@ struct ath_rate_node {
 	u32 per_down_time;
 	u32 probe_interval;
 	u32 prev_data_rix;
+	u32 tx_triglevel_max;
 	struct ath_tx_ratectrl_state state[MAX_TX_RATE_TBL];
 	struct ath_rateset neg_rates;
 	struct ath_rateset neg_ht_rates;
@@ -276,8 +268,7 @@ struct ath_tx_info_priv {
 	u8 min_rate;
 };
 
-struct ath_rate_softc *ath_rate_attach(struct ath_softc *sch);
-void ath_rate_detach(struct ath_rate_softc *asc);
+void ath_rate_attach(struct ath_softc *sc);
 u8 ath_rate_findrateix(struct ath_softc *sc, u8 dot11_rate);
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);

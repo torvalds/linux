@@ -1071,11 +1071,7 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	sc->sc_ani.sc_noise_floor = ATH_DEFAULT_NOISE_FLOOR;
 	setup_timer(&sc->sc_ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
-	sc->sc_rc = ath_rate_attach(sc);
-	if (sc->sc_rc == NULL) {
-		error = -EIO;
-		goto bad2;
-	}
+	ath_rate_attach(sc);
 
 	if (ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
 				   ATH9K_CIPHER_TKIP, NULL)) {

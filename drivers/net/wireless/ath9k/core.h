@@ -784,7 +784,6 @@ struct ath_softc {
 	struct tasklet_struct bcon_tasklet;
 	struct ath_config sc_config;
 	struct ath_hal *sc_ah;
-	struct ath_rate_softc *sc_rc;
 	void __iomem *mem;
 
 	u8 sc_curbssid[ETH_ALEN];
@@ -859,6 +858,7 @@ struct ath_softc {
 
 	/* Rate */
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
+	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	const struct ath9k_rate_table *sc_currates;
 	u8 sc_protrix;		/* protection rate index */
 	struct {
