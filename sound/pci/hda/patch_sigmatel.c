@@ -1249,10 +1249,13 @@ static const char *slave_sws[] = {
 };
 
 static void stac92xx_free_kctls(struct hda_codec *codec);
+static int stac92xx_add_jack(struct hda_codec *codec, hda_nid_t nid, int type);
 
 static int stac92xx_build_controls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t nid;
 	int err;
 	int i;
 
@@ -1323,6 +1326,36 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 	}
 
 	stac92xx_free_kctls(codec); /* no longer needed */
+
+	/* create jack input elements */
+	if (spec->hp_detect) {
+		for (i = 0; i < cfg->hp_outs; i++) {
+			int type = SND_JACK_HEADPHONE;
+			nid = cfg->hp_pins[i];
+			/* jack detection */
+			if (cfg->hp_outs == i)
+				type |= SND_JACK_LINEOUT;
+			err = stac92xx_add_jack(codec, nid, type);
+			if (err < 0)
+				return err;
+		}
+	}
+	for (i = 0; i < cfg->line_outs; i++) {
+		err = stac92xx_add_jack(codec, cfg->line_out_pins[i],
+					SND_JACK_LINEOUT);
+		if (err < 0)
+			return err;
+	}
+	for (i = 0; i < AUTO_PIN_LAST; i++) {
+		nid = cfg->input_pins[i];
+		if (nid) {
+			err = stac92xx_add_jack(codec, nid,
+						SND_JACK_MICROPHONE);
+			if (err < 0)
+				return err;
+		}
+	}
+
 	return 0;	
 }
 
@@ -3658,6 +3691,7 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 static int stac92xx_add_jack(struct hda_codec *codec,
 		hda_nid_t nid, int type)
 {
+#ifdef CONFIG_SND_JACK
 	struct sigmatel_spec *spec = codec->spec;
 	struct sigmatel_jack *jack;
 	int def_conf = snd_hda_codec_read(codec, nid,
@@ -3681,6 +3715,9 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 		snd_hda_get_jack_location(def_conf));
 
 	return snd_jack_new(codec->bus->card, name, type, &jack->jack);
+#else
+	return 0;
+#endif
 }
 
 static int stac92xx_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
@@ -3748,7 +3785,7 @@ static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err;
+	int i;
 
 	snd_hda_sequence_write(codec, spec->init);
 
@@ -3762,16 +3799,8 @@ static int stac92xx_init(struct hda_codec *codec)
 	if (spec->hp_detect) {
 		/* Enable unsolicited responses on the HP widget */
 		for (i = 0; i < cfg->hp_outs; i++) {
-			int type = SND_JACK_HEADPHONE;
 			hda_nid_t nid = cfg->hp_pins[i];
 			enable_pin_detect(codec, nid, STAC_HP_EVENT | nid);
-			/* jack detection */
-			if (cfg->hp_outs == i)
-				type |= SND_JACK_LINEOUT;
-			err = stac92xx_add_jack(codec, nid, type);
-			if (err < 0)
-				return err;
-
 		}
 		/* force to enable the first line-out; the others are set up
 		 * in unsol_event
@@ -3784,12 +3813,6 @@ static int stac92xx_init(struct hda_codec *codec)
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
-	}
-	for (i = 0; i < cfg->line_outs; i++) {
-		err = stac92xx_add_jack(codec,
-				cfg->line_out_pins[i], SND_JACK_LINEOUT);
-		if (err < 0)
-			return err;
 	}
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = cfg->input_pins[i];
@@ -3807,10 +3830,6 @@ static int stac92xx_init(struct hda_codec *codec)
 			}
 			pinctl |= AC_PINCTL_IN_EN;
 			stac92xx_auto_set_pinctl(codec, nid, pinctl);
-			err = stac92xx_add_jack(codec, nid,
-				SND_JACK_MICROPHONE);
-			if (err < 0)
-				return err;
 			enable_pin_detect(codec, nid, STAC_INSERT_EVENT | nid);
 		}
 	}
@@ -3855,6 +3874,7 @@ static int stac92xx_init(struct hda_codec *codec)
 
 static void stac92xx_free_jacks(struct hda_codec *codec)
 {
+#ifdef CONFIG_SND_JACK
 	struct sigmatel_spec *spec = codec->spec;
 	if (spec->jacks.list) {
 		struct sigmatel_jack *jacks = spec->jacks.list;
@@ -3863,6 +3883,7 @@ static void stac92xx_free_jacks(struct hda_codec *codec)
 			snd_device_free(codec->bus->card, &jacks[i].jack);
 	}
 	snd_array_free(&spec->jacks);
+#endif
 }
 
 static void stac92xx_free_kctls(struct hda_codec *codec)
