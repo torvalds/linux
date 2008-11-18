@@ -34,22 +34,6 @@ cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a,) \
 					   $(call cc-option,-m4a-nofpu,)
 cflags-$(CONFIG_CPU_SH5)		:= $(call cc-option,-m5-32media-nofpu,)
 
-ifeq ($(cflags-y),)
-#
-# In the case where we are stuck with a compiler that has been uselessly
-# restricted to a particular ISA, a favourite default of newer GCCs when
-# extensive multilib targets are not provided, ensure we get the best fit
-# regarding FP generation. This is necessary to avoid references to FP
-# variants in libgcc where integer variants exist, which otherwise result
-# in link errors. This is intentionally stupid (albeit many orders of
-# magnitude less than GCC's default behaviour), as anything with a large
-# number of multilib targets better have been built correctly for
-# the target in mind.
-#
-cflags-y	+= $(shell $(CC) $(KBUILD_CFLAGS) -print-multi-lib | \
-		     grep nofpu | sed q | sed -e 's/^/-/;s/;.*$$//')
-endif
-
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 
@@ -176,8 +160,7 @@ KBUILD_AFLAGS		+= $(cflags-y)
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
-libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
-libs-y				+= $(LIBGCC)
+libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y) $(LIBGCC)
 
 PHONY += maketools FORCE
 
