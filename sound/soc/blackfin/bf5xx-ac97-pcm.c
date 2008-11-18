@@ -100,17 +100,14 @@ static void bf5xx_dma_irq(void *data)
  * The total rx/tx buffer is for ac97 frame to hold all pcm data
  * is  0x20000 * sizeof(struct ac97_frame) / 4.
  */
-#if defined(CONFIG_SND_BF5XX_MMAP_SUPPORT)
 static const struct snd_pcm_hardware bf5xx_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
+#if defined(CONFIG_SND_BF5XX_MMAP_SUPPORT)
 				   SNDRV_PCM_INFO_MMAP |
 				   SNDRV_PCM_INFO_MMAP_VALID |
-				   SNDRV_PCM_INFO_BLOCK_TRANSFER,
-#else
-static const struct snd_pcm_hardware bf5xx_pcm_hardware = {
-	.info			= SNDRV_PCM_INFO_INTERLEAVED |
-				  SNDRV_PCM_INFO_BLOCK_TRANSFER,
 #endif
+				   SNDRV_PCM_INFO_BLOCK_TRANSFER,
+
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 0x10000,
