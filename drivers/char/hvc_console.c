@@ -689,10 +689,8 @@ EXPORT_SYMBOL_GPL(hvc_poll);
  */
 void hvc_resize(struct hvc_struct *hp, struct winsize ws)
 {
-	if ((hp->ws.ws_row != ws.ws_row) || (hp->ws.ws_col != ws.ws_col)) {
-		hp->ws = ws;
-		schedule_work(&hp->tty_resize);
-	}
+	hp->ws = ws;
+	schedule_work(&hp->tty_resize);
 }
 
 /*
