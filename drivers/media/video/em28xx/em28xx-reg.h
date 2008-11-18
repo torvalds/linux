@@ -78,11 +78,6 @@
 	   0x47  IR data
 	 */
 
-/* em202 registers */
-#define EM28XX_R02_MASTER_AC97	0x02
-#define EM28XX_R10_LINE_IN_AC97    0x10
-#define EM28XX_R14_VIDEO_AC97	0x14
-
 /* em2874 registers */
 #define EM2874_R50_IR_CONFIG    0x50
 #define EM2874_R51_IR           0x51

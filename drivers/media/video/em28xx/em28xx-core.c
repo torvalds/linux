@@ -304,11 +304,11 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	/* Sets AC97 mixer registers
 	   This is seems to be needed, even for non-ac97 configs
 	 */
-	ret = em28xx_write_ac97(dev, EM28XX_R14_VIDEO_AC97, video);
+	ret = em28xx_write_ac97(dev, AC97_VIDEO_VOL, video);
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_ac97(dev, EM28XX_R10_LINE_IN_AC97, line);
+	ret = em28xx_write_ac97(dev, AC97_LINEIN_VOL, line);
 
 	return ret;
 }
@@ -324,7 +324,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 
 	/* Mute */
 	s[1] |= 0x80;
-	ret = em28xx_write_ac97(dev, EM28XX_R02_MASTER_AC97, s);
+	ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, s);
 
 	if (ret < 0)
 		return ret;
@@ -346,7 +346,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	/* Unmute device */
 	if (!dev->mute)
 		s[1] &= ~0x80;
-	ret = em28xx_write_ac97(dev, EM28XX_R02_MASTER_AC97, s);
+	ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, s);
 
 	return ret;
 }
