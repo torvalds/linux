@@ -80,7 +80,7 @@ config SND_BF5XX_SPORT_NUM
 	int "Set a SPORT for Sound chip"
 	depends on (SND_BF5XX_I2S || SND_BF5XX_AC97)
 	range 0 3 if BF54x
-	range 0 1 if (BF53x || BF561)
+	range 0 1 if !BF54x
 	default 0
 	help
 	  Set the correct SPORT for sound chip.
