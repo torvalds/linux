@@ -255,6 +255,14 @@ config NFBLOCK
 	  which allows direct access to the hard drives without using
 	  the hardware emulation.
 
+config NFCON
+	tristate "NatFeat console driver"
+	depends on NATFEAT
+	help
+	  Say Y to include support for the ARAnyM NatFeat console driver
+	  which allows the console output to be redirected to the stderr
+	  output of ARAnyM.
+
 comment "Processor type"
 
 config M68020

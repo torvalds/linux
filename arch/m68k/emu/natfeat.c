@@ -35,24 +35,6 @@ asm("\n"
 EXPORT_SYMBOL_GPL(nf_get_id);
 EXPORT_SYMBOL_GPL(nf_call);
 
-static int stderr_id;
-
-static void nf_write(struct console *co, const char *str, unsigned int count)
-{
-	char buf[68];
-
-	buf[64] = 0;
-	while (count > 64) {
-		memcpy(buf, str, 64);
-		nf_call(stderr_id, buf);
-		str += 64;
-		count -= 64;
-	}
-	memcpy(buf, str, count);
-	buf[count] = 0;
-	nf_call(stderr_id, buf);
-}
-
 void nfprint(const char *fmt, ...)
 {
 	static char buf[256];
@@ -64,26 +46,6 @@ void nfprint(const char *fmt, ...)
 	nf_call(nf_get_id("NF_STDERR"), buf);
 	va_end(ap);
 }
-
-static struct console nf_console_driver = {
-	.name	= "debug",
-	.write	= nf_write,
-	.flags	= CON_PRINTBUFFER,
-	.index	= -1,
-};
-
-static int __init nf_debug_setup(char *arg)
-{
-	if (strcmp(arg, "emu"))
-		return 0;
-
-	stderr_id = nf_get_id("NF_STDERR");
-	if (stderr_id)
-		register_console(&nf_console_driver);
-	return 0;
-}
-
-early_param("debug", nf_debug_setup);
 
 static void nf_poweroff(void)
 {
