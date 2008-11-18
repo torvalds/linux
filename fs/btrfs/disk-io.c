@@ -1214,7 +1214,7 @@ void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 	u64 offset;
 
 	/* the generic O_DIRECT read code does this */
-	if (!page) {
+	if (1 || !page) {
 		__unplug_io_fn(bdi, page);
 		return;
 	}
