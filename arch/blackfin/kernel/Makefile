@@ -16,6 +16,7 @@ else
 endif
 
 obj-$(CONFIG_BFIN_GPTIMERS)          += gptimers.o
+obj-$(CONFIG_CPLB_INFO)              += cplbinfo.o
 obj-$(CONFIG_MODULES)                += module.o
 obj-$(CONFIG_KGDB)                   += kgdb.o
 obj-$(CONFIG_EARLY_PRINTK)           += early_printk.o
