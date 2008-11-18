@@ -899,7 +899,8 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		if (skb != NULL) {
 			if (skb_queue_len(&mp->rx_recycle) <
 					mp->default_rx_ring_size &&
-			    skb_recycle_check(skb, mp->skb_size))
+			    skb_recycle_check(skb, mp->skb_size +
+					dma_get_cache_alignment() - 1))
 				__skb_queue_head(&mp->rx_recycle, skb);
 			else
 				dev_kfree_skb(skb);
