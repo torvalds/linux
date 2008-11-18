@@ -3455,7 +3455,8 @@ static void fbcon_exit(void)
 		return;
 
 #ifdef CONFIG_ATARI
-	free_irq(IRQ_AUTO_4, fb_vbl_handler);
+	if (MACH_IS_ATARI)
+		free_irq(IRQ_AUTO_4, fb_vbl_handler);
 #endif
 
 	kfree((void *)softback_buf);
