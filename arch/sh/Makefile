@@ -63,6 +63,9 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
 # Give the various platforms the opportunity to set default image types
 defaultimage-$(CONFIG_SUPERH32)			:= zImage
 defaultimage-$(CONFIG_SH_SH7785LCR)		:= uImage
+defaultimage-$(CONFIG_SH_RSK7203)		:= uImage
+defaultimage-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= vmlinux
+defaultimage-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= vmlinux
 
 # Set some sensible Kbuild defaults
 KBUILD_DEFCONFIG	:= shx3_defconfig
