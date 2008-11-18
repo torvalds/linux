@@ -1257,10 +1257,10 @@ static int gpio_proc_read(char *buf, char **start, off_t offset,
 
 	for (c = 0; c < MAX_RESOURCES; c++) {
 		if (!check_gpio(c) && (reserved_gpio_map[gpio_bank(c)] & gpio_bit(c)))
-			len = sprintf(buf, "GPIO_%d: %s \t\tGPIO %s\n", c,
+			len = sprintf(buf, "GPIO_%d: \t%s \t\tGPIO %s\n", c,
 				 get_label(c), get_gpio_dir(c) ? "OUTPUT" : "INPUT");
 		else if (reserved_peri_map[gpio_bank(c)] & gpio_bit(c))
-			len = sprintf(buf, "GPIO_%d: %s \t\tPeripheral\n", c, get_label(c));
+			len = sprintf(buf, "GPIO_%d: \t%s \t\tPeripheral\n", c, get_label(c));
 		else
 			continue;
 		buf += len;
