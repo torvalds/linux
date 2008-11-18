@@ -1732,29 +1732,6 @@ static void ath_rc_sib_update(struct ath_softc *sc,
 	ath_rc_priv->rate_max_phy = ath_rc_priv->valid_rate_index[k-4];
 }
 
-/*
- * Update rate-control state on station associate/reassociate.
- */
-static int ath_rate_newassoc(struct ath_softc *sc,
-			     struct ath_rate_node *ath_rc_priv,
-			     unsigned int capflag,
-			     struct ath_rateset *negotiated_rates,
-			     struct ath_rateset *negotiated_htrates)
-{
-
-
-	ath_rc_priv->ht_cap =
-		((capflag & ATH_RC_DS_FLAG) ? WLAN_RC_DS_FLAG : 0) |
-		((capflag & ATH_RC_SGI_FLAG) ? WLAN_RC_SGI_FLAG : 0) |
-		((capflag & ATH_RC_HT_FLAG)  ? WLAN_RC_HT_FLAG : 0) |
-		((capflag & ATH_RC_CW40_FLAG) ? WLAN_RC_40_FLAG : 0);
-
-	ath_rc_sib_update(sc, ath_rc_priv, ath_rc_priv->ht_cap, 0,
-			  negotiated_rates, negotiated_htrates);
-
-	return 0;
-}
-
 void ath_rc_node_update(struct ieee80211_hw *hw, struct ath_rate_node *rc_priv)
 {
 	struct ath_softc *sc = hw->priv;
@@ -1766,10 +1743,16 @@ void ath_rc_node_update(struct ieee80211_hw *hw, struct ath_rate_node *rc_priv)
 			capflag |= ATH_RC_CW40_FLAG;
 	}
 
-	ath_rate_newassoc(sc, rc_priv, capflag,
+	rc_priv->ht_cap =
+		((capflag & ATH_RC_DS_FLAG) ? WLAN_RC_DS_FLAG : 0) |
+		((capflag & ATH_RC_SGI_FLAG) ? WLAN_RC_SGI_FLAG : 0) |
+		((capflag & ATH_RC_HT_FLAG)  ? WLAN_RC_HT_FLAG : 0) |
+		((capflag & ATH_RC_CW40_FLAG) ? WLAN_RC_40_FLAG : 0);
+
+
+	ath_rc_sib_update(sc, rc_priv, rc_priv->ht_cap, 0,
 			  &rc_priv->neg_rates,
 			  &rc_priv->neg_ht_rates);
-
 }
 
 /* Rate Control callbacks */
