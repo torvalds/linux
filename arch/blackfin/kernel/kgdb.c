@@ -219,6 +219,7 @@ int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 		if (bfin_type == breakinfo[breakno].type
 			&& !breakinfo[breakno].occupied) {
 			breakinfo[breakno].occupied = 1;
+			breakinfo[breakno].skip = 0;
 			breakinfo[breakno].enabled = 1;
 			breakinfo[breakno].addr = addr;
 			breakinfo[breakno].dataacc = dataacc;
@@ -424,17 +425,6 @@ int kgdb_arch_handle_exception(int vector, int signo,
 			 * kgdb_single_step > 0 means in single step mode
 			 */
 			kgdb_single_step = i + 1;
-		}
-
-		if (vector == VEC_WATCH) {
-			wp_status = bfin_read_WPSTAT();
-			for (breakno = 0; breakno < HW_WATCHPOINT_NUM; breakno++) {
-				if (wp_status & (1 << breakno)) {
-					breakinfo->skip = 1;
-					break;
-				}
-			}
-			bfin_write_WPSTAT(0);
 		}
 
 		bfin_correct_hw_break();
