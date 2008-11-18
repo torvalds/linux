@@ -295,10 +295,14 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	u32 w;
 
 	/* general line settings */
-	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG,
-				DAVINCI_MCBSP_SPCR_RINTM(3) |
-				DAVINCI_MCBSP_SPCR_XINTM(3) |
-				DAVINCI_MCBSP_SPCR_FREE);
+	w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		w |= DAVINCI_MCBSP_SPCR_RINTM(3) | DAVINCI_MCBSP_SPCR_FREE;
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, w);
+	} else {
+		w |= DAVINCI_MCBSP_SPCR_XINTM(3) | DAVINCI_MCBSP_SPCR_FREE;
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, w);
+	}
 
 	i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
 	w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SRGR_REG);
@@ -329,16 +333,19 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_RCR_REG);
-	MOD_REG_BIT(w, DAVINCI_MCBSP_RCR_RWDLEN1(mcbsp_word_length) |
-		       DAVINCI_MCBSP_RCR_RWDLEN2(mcbsp_word_length), 1);
-	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_RCR_REG, w);
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_RCR_REG);
+		MOD_REG_BIT(w, DAVINCI_MCBSP_RCR_RWDLEN1(mcbsp_word_length) |
+			       DAVINCI_MCBSP_RCR_RWDLEN2(mcbsp_word_length), 1);
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_RCR_REG, w);
 
-	w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_XCR_REG);
-	MOD_REG_BIT(w, DAVINCI_MCBSP_XCR_XWDLEN1(mcbsp_word_length) |
-		       DAVINCI_MCBSP_XCR_XWDLEN2(mcbsp_word_length), 1);
-	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_XCR_REG, w);
+	} else {
+		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_XCR_REG);
+		MOD_REG_BIT(w, DAVINCI_MCBSP_XCR_XWDLEN1(mcbsp_word_length) |
+			       DAVINCI_MCBSP_XCR_XWDLEN2(mcbsp_word_length), 1);
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_XCR_REG, w);
 
+	}
 	return 0;
 }
 
