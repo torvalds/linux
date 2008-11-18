@@ -51,7 +51,6 @@ void ack_bad_irq(unsigned int irq)
 	atomic_inc(&irq_err_count);
 	printk(KERN_ERR "IRQ: spurious interrupt %d\n", irq);
 }
-EXPORT_SYMBOL(ack_bad_irq);
 
 static struct irq_chip bad_chip = {
 	.ack = dummy_mask_unmask_irq,
