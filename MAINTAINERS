@@ -3928,8 +3928,6 @@ M:	bootc@bootc.net
 S:	Maintained
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
-P:	Ingo Molnar
-M:	mingo@redhat.com
 P:	Neil Brown
 M:	neilb@suse.de
 L:	linux-raid@vger.kernel.org
