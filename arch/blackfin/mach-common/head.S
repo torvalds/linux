@@ -170,12 +170,8 @@ ENTRY(__start)
 	[p0] = p1;
 	csync;
 
-	p0.l = lo(IMASK);
-	p0.h = hi(IMASK);
-	p1.l = IMASK_IVG15;
-	p1.h = 0x0;
-	[p0] = p1;
-	csync;
+	r0 = EVT_IVG15 (z);
+	sti r0;
 
 	raise 15;
 	p0.l = .LWAIT_HERE;
