@@ -210,7 +210,6 @@ struct sigmatel_spec {
 	hda_nid_t *pin_nids;
 	unsigned int num_pins;
 	unsigned int *pin_configs;
-	unsigned int *bios_pin_configs;
 
 	/* codec specific stuff */
 	struct hda_verb *init;
@@ -2219,12 +2218,11 @@ static int stac92xx_save_bios_config_regs(struct hda_codec *codec)
 	int i;
 	struct sigmatel_spec *spec = codec->spec;
 	
-	if (! spec->bios_pin_configs) {
-		spec->bios_pin_configs = kcalloc(spec->num_pins,
-		                                 sizeof(*spec->bios_pin_configs), GFP_KERNEL);
-		if (! spec->bios_pin_configs)
-			return -ENOMEM;
-	}
+	kfree(spec->pin_configs);
+	spec->pin_configs = kcalloc(spec->num_pins, sizeof(*spec->pin_configs),
+				    GFP_KERNEL);
+	if (!spec->pin_configs)
+		return -ENOMEM;
 	
 	for (i = 0; i < spec->num_pins; i++) {
 		hda_nid_t nid = spec->pin_nids[i];
@@ -2234,7 +2232,7 @@ static int stac92xx_save_bios_config_regs(struct hda_codec *codec)
 			AC_VERB_GET_CONFIG_DEFAULT, 0x00);	
 		snd_printdd(KERN_INFO "hda_codec: pin nid %2.2x bios pin config %8.8x\n",
 					nid, pin_cfg);
-		spec->bios_pin_configs[i] = pin_cfg;
+		spec->pin_configs[i] = pin_cfg;
 	}
 	
 	return 0;
@@ -2274,6 +2272,39 @@ static void stac92xx_set_config_regs(struct hda_codec *codec)
 	for (i = 0; i < spec->num_pins; i++)
 		stac92xx_set_config_reg(codec, spec->pin_nids[i],
 					spec->pin_configs[i]);
+}
+
+static int stac_save_pin_cfgs(struct hda_codec *codec, unsigned int *pins)
+{
+	struct sigmatel_spec *spec = codec->spec;
+
+	if (!pins)
+		return stac92xx_save_bios_config_regs(codec);
+
+	kfree(spec->pin_configs);
+	spec->pin_configs = kmemdup(pins,
+				    spec->num_pins * sizeof(*pins),
+				    GFP_KERNEL);
+	if (!spec->pin_configs)
+		return -ENOMEM;
+
+	stac92xx_set_config_regs(codec);
+	return 0;
+}
+
+static void stac_change_pin_config(struct hda_codec *codec, hda_nid_t nid,
+				   unsigned int cfg)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->num_pins; i++) {
+		if (spec->pin_nids[i] == nid) {
+			spec->pin_configs[i] = cfg;
+			stac92xx_set_config_reg(codec, nid, cfg);
+			break;
+		}
+	}
 }
 
 /*
@@ -3906,8 +3937,7 @@ static void stac92xx_free(struct hda_codec *codec)
 	if (! spec)
 		return;
 
-	if (spec->bios_pin_configs)
-		kfree(spec->bios_pin_configs);
+	kfree(spec->pin_configs);
 	stac92xx_free_jacks(codec);
 	snd_array_free(&spec->events);
 
@@ -4182,14 +4212,12 @@ static int patch_stac9200(struct hda_codec *codec)
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC9200, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
-		if (err < 0) {
-			stac92xx_free(codec);
-			return err;
-		}
-		spec->pin_configs = spec->bios_pin_configs;
-	} else {
-		spec->pin_configs = stac9200_brd_tbl[spec->board_config];
-		stac92xx_set_config_regs(codec);
+	} else
+		err = stac_save_pin_cfgs(codec,
+					 stac9200_brd_tbl[spec->board_config]);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
 	}
 
 	spec->multiout.max_channels = 2;
@@ -4245,14 +4273,12 @@ static int patch_stac925x(struct hda_codec *codec)
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC925x," 
 				      "using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
-		if (err < 0) {
-			stac92xx_free(codec);
-			return err;
-		}
-		spec->pin_configs = spec->bios_pin_configs;
-	} else if (stac925x_brd_tbl[spec->board_config] != NULL){
-		spec->pin_configs = stac925x_brd_tbl[spec->board_config];
-		stac92xx_set_config_regs(codec);
+	} else
+		err = stac_save_pin_cfgs(codec,
+					 stac925x_brd_tbl[spec->board_config]);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
 	}
 
 	spec->multiout.max_channels = 2;
@@ -4334,14 +4360,12 @@ again:
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for"
 			" STAC92HD73XX, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
-		if (err < 0) {
-			stac92xx_free(codec);
-			return err;
-		}
-		spec->pin_configs = spec->bios_pin_configs;
-	} else {
-		spec->pin_configs = stac92hd73xx_brd_tbl[spec->board_config];
-		stac92xx_set_config_regs(codec);
+	} else
+		err = stac_save_pin_cfgs(codec,
+				stac92hd73xx_brd_tbl[spec->board_config]);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
 	}
 
 	spec->multiout.num_dacs = snd_hda_get_connections(codec, 0x0a,
@@ -4517,14 +4541,12 @@ again:
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for"
 			" STAC92HD83XXX, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
-		if (err < 0) {
-			stac92xx_free(codec);
-			return err;
-		}
-		spec->pin_configs = spec->bios_pin_configs;
-	} else {
-		spec->pin_configs = stac92hd83xxx_brd_tbl[spec->board_config];
-		stac92xx_set_config_regs(codec);
+	} else
+		err = stac_save_pin_cfgs(codec,
+				stac92hd83xxx_brd_tbl[spec->board_config]);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
 	}
 
 	err = stac92xx_parse_auto_config(codec, 0x1d, 0);
@@ -4631,14 +4653,12 @@ again:
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for"
 			" STAC92HD71BXX, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
-		if (err < 0) {
-			stac92xx_free(codec);
-			return err;
-		}
-		spec->pin_configs = spec->bios_pin_configs;
-	} else {
-		spec->pin_configs = stac92hd71bxx_brd_tbl[spec->board_config];
-		stac92xx_set_config_regs(codec);
+	} else
+		err = stac_save_pin_cfgs(codec,
+				stac92hd71bxx_brd_tbl[spec->board_config]);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
 	}
 
 	switch (codec->vendor_id) {
@@ -4680,7 +4700,7 @@ again:
 
 		/* disable VSW */
 		spec->init = &stac92hd71bxx_analog_core_init[HD_DISABLE_PORTF];
-		stac92xx_set_config_reg(codec, 0xf, 0x40f000f0);
+		stac_change_pin_config(codec, 0xf, 0x40f000f0);
 		break;
 	case 0x111d7603: /* 6 Port with Analog Mixer */
 		if ((codec->revision_id & 0xf) == 1) {
@@ -4729,7 +4749,7 @@ again:
 		spec->num_dmuxes = 0;
 
 		/* enable internal microphone */
-		stac92xx_set_config_reg(codec, 0x0e, 0x01813040);
+		stac_change_pin_config(codec, 0x0e, 0x01813040);
 		stac92xx_auto_set_pinctl(codec, 0x0e,
 			AC_PINCTL_IN_EN | AC_PINCTL_VREF_80);
 		break;
@@ -4824,14 +4844,12 @@ static int patch_stac922x(struct hda_codec *codec)
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC922x, "
 			"using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
-		if (err < 0) {
-			stac92xx_free(codec);
-			return err;
-		}
-		spec->pin_configs = spec->bios_pin_configs;
-	} else if (stac922x_brd_tbl[spec->board_config] != NULL) {
-		spec->pin_configs = stac922x_brd_tbl[spec->board_config];
-		stac92xx_set_config_regs(codec);
+	} else
+		err = stac_save_pin_cfgs(codec,
+				stac922x_brd_tbl[spec->board_config]);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
 	}
 
 	spec->adc_nids = stac922x_adc_nids;
@@ -4894,14 +4912,12 @@ static int patch_stac927x(struct hda_codec *codec)
 			snd_printdd(KERN_INFO "hda_codec: Unknown model for"
 				    "STAC927x, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
-		if (err < 0) {
-			stac92xx_free(codec);
-			return err;
-		}
-		spec->pin_configs = spec->bios_pin_configs;
-	} else {
-		spec->pin_configs = stac927x_brd_tbl[spec->board_config];
-		stac92xx_set_config_regs(codec);
+	} else
+		err = stac_save_pin_cfgs(codec,
+				stac927x_brd_tbl[spec->board_config]);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
 	}
 
 	spec->digbeep_nid = 0x23;
@@ -4931,15 +4947,15 @@ static int patch_stac927x(struct hda_codec *codec)
 		case 0x10280209:
 		case 0x1028022e:
 			/* correct the device field to SPDIF out */
-			stac92xx_set_config_reg(codec, 0x21, 0x01442070);
+			stac_change_pin_config(codec, 0x21, 0x01442070);
 			break;
 		};
 		/* configure the analog microphone on some laptops */
-		stac92xx_set_config_reg(codec, 0x0c, 0x90a79130);
+		stac_change_pin_config(codec, 0x0c, 0x90a79130);
 		/* correct the front output jack as a hp out */
-		stac92xx_set_config_reg(codec, 0x0f, 0x0227011f);
+		stac_change_pin_config(codec, 0x0f, 0x0227011f);
 		/* correct the front input jack as a mic */
-		stac92xx_set_config_reg(codec, 0x0e, 0x02a79130);
+		stac_change_pin_config(codec, 0x0e, 0x02a79130);
 		/* fallthru */
 	case STAC_DELL_3ST:
 		/* GPIO2 High = Enable EAPD */
@@ -5021,14 +5037,12 @@ static int patch_stac9205(struct hda_codec *codec)
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC9205, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
-		if (err < 0) {
-			stac92xx_free(codec);
-			return err;
-		}
-		spec->pin_configs = spec->bios_pin_configs;
-	} else {
-		spec->pin_configs = stac9205_brd_tbl[spec->board_config];
-		stac92xx_set_config_regs(codec);
+	} else
+		err = stac_save_pin_cfgs(codec,
+					 stac9205_brd_tbl[spec->board_config]);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
 	}
 
 	spec->digbeep_nid = 0x23;
@@ -5055,8 +5069,8 @@ static int patch_stac9205(struct hda_codec *codec)
 	switch (spec->board_config){
 	case STAC_9205_DELL_M43:
 		/* Enable SPDIF in/out */
-		stac92xx_set_config_reg(codec, 0x1f, 0x01441030);
-		stac92xx_set_config_reg(codec, 0x20, 0x1c410030);
+		stac_change_pin_config(codec, 0x1f, 0x01441030);
+		stac_change_pin_config(codec, 0x20, 0x1c410030);
 
 		/* Enable unsol response for GPIO4/Dock HP connection */
 		snd_hda_codec_write(codec, codec->afg, 0,
