@@ -3,3 +3,5 @@
 #
 
 obj-y			+= natfeat.o
+
+obj-$(CONFIG_NFBLOCK)	+= nfblock.o
