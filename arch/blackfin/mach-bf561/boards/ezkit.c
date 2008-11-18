@@ -43,7 +43,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "ADDS-BF561-EZKIT";
+const char bfin_board_name[] = "ADI BF561-EZKIT";
 
 #if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
 #include <linux/usb/isp1760.h>

@@ -55,7 +55,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "ADDS-BF537-STAMP";
+const char bfin_board_name[] = "ADI BF537-STAMP";
 
 /*
  *  Driver needs to know address, irq and flag pin.

@@ -47,7 +47,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "ADSP-BF538-EZKIT";
+const char bfin_board_name[] = "ADI BF538-EZKIT";
 
 /*
  *  Driver needs to know address, irq and flag pin.
