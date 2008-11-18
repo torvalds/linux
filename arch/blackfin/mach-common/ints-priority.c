@@ -1069,7 +1069,10 @@ int __init init_arch_irq(void)
 	 * up from IDLE instructions.  See this report for more info:
 	 * http://blackfin.uclinux.org/gf/tracker/4323
 	 */
-	bfin_write_SIC_IWR1(IWR_ENABLE(10) | IWR_ENABLE(11));
+	if (ANOMALY_05000435)
+		bfin_write_SIC_IWR1(IWR_ENABLE(10) | IWR_ENABLE(11));
+	else
+		bfin_write_SIC_IWR1(IWR_DISABLE_ALL);
 #else
 	bfin_write_SIC_IWR1(IWR_DISABLE_ALL);
 #endif
