@@ -69,19 +69,29 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	int ret, byte;
 
 	if (dev->state & DEV_DISCONNECTED)
-		return(-ENODEV);
+		return -ENODEV;
+
+	if (len > URB_MAX_CTRL_SIZE)
+		return -EINVAL;
 
 	em28xx_regdbg("req=%02x, reg=%02x ", req, reg);
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      0x0000, reg, buf, len, HZ);
+			      0x0000, reg, dev->urb_buf, len, HZ);
+	if (ret < 0) {
+		if (reg_debug)
+			printk(" failed!\n");
+		return ret;
+	}
+
+	if (len)
+		memcpy(buf, dev->urb_buf, len);
 
 	if (reg_debug) {
-		printk(ret < 0 ? " failed!\n" : "%02x values: ", ret);
+		printk("%02x values: ", ret);
 		for (byte = 0; byte < len; byte++)
 			printk(" %02x", (unsigned char)buf[byte]);
-
 		printk("\n");
 	}
 
@@ -104,14 +114,16 @@ int em28xx_read_reg_req(struct em28xx *dev, u8 req, u16 reg)
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      0x0000, reg, &val, 1, HZ);
+			      0x0000, reg, dev->urb_buf, 1, HZ);
+	if (ret < 0) {
+		printk(" failed!\n");
+		return ret;
+	}
+
+	val = dev->urb_buf[0];
 
 	if (reg_debug)
-		printk(ret < 0 ? " failed!\n" :
-				 "%02x\n", (unsigned char) val);
-
-	if (ret < 0)
-		return ret;
+		printk("%02x\n", (unsigned char) val);
 
 	return val;
 }
@@ -130,19 +142,13 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 {
 	int ret;
 
-	/*usb_control_msg seems to expect a kmalloced buffer */
-	unsigned char *bufs;
-
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
 
-	if (len < 1)
+	if ((len < 1) || (len > URB_MAX_CTRL_SIZE))
 		return -EINVAL;
 
-	bufs = kmalloc(len, GFP_KERNEL);
-
 	em28xx_regdbg("req=%02x reg=%02x:", req, reg);
-
 	if (reg_debug) {
 		int i;
 		for (i = 0; i < len; ++i)
@@ -150,16 +156,14 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 		printk("\n");
 	}
 
-	if (!bufs)
-		return -ENOMEM;
-	memcpy(bufs, buf, len);
+	memcpy(dev->urb_buf, buf, len);
 	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0), req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      0x0000, reg, bufs, len, HZ);
+			      0x0000, reg, dev->urb_buf, len, HZ);
+
 	if (dev->wait_after_write)
 		msleep(dev->wait_after_write);
 
-	kfree(bufs);
 	return ret;
 }
 

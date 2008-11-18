@@ -102,6 +102,9 @@
 #define EM28XX_MIN_BUF 4
 #define EM28XX_DEF_BUF 8
 
+/*Limits the max URB message size */
+#define URB_MAX_CTRL_SIZE 80
+
 /* Params for validated field */
 #define EM28XX_BOARD_NOT_VALIDATED 1
 #define EM28XX_BOARD_VALIDATED	   0
@@ -451,6 +454,8 @@ struct em28xx {
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	struct urb *urb[EM28XX_NUM_BUFS];	/* urb for isoc transfers */
 	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc transfer */
+	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
+
 	/* helper funcs that call usb_control_msg */
 	int (*em28xx_write_regs) (struct em28xx *dev, u16 reg,
 					char *buf, int len);
