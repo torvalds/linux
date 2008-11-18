@@ -338,36 +338,4 @@ static const unsigned char init_s5k4aa[][4] =
 	{SENSOR, S5K4AA_GAIN_2, 0xa0, 0x00}
 };
 
-static
-    const
-	struct dmi_system_id s5k4aa_vflip_dmi_table[] = {
-	{
-		.ident = "Fujitsu-Siemens Amilo Xa 2528",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xa 2528")
-		}
-	}, {
-		.ident = "Fujitsu-Siemens Amilo Xi 2550",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2550")
-		}
-	}, {
-		.ident = "MSI GX700",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
-			DMI_MATCH(DMI_BIOS_DATE, "07/26/2007")
-		}
-	}, {
-		.ident = "MSI GX700/GX705/EX700",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "GX700/GX705/EX700")
-		}
-	},
-	{ }
-};
-
 #endif
