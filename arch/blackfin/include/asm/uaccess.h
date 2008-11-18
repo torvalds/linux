@@ -149,54 +149,42 @@ static inline int bad_user_access_length(void)
 		 : /* no outputs */			\
 		 :"d" (x),"a" (__ptr(p)) : "memory")
 
-#define get_user(x,p)							\
-	({								\
-		int _err = 0;						\
-		typeof(*(p)) *_p = (p);					\
-		if (!access_ok(VERIFY_READ, _p, sizeof(*(_p)))) {	\
-			_err = -EFAULT;					\
-		}							\
-		else {							\
-		switch (sizeof(*(_p))) {				\
-		case 1:							\
-			__get_user_asm(x, _p, B,(Z));			\
-			break;						\
-		case 2:							\
-			__get_user_asm(x, _p, W,(Z));			\
-			break;						\
-		case 4:							\
-			__get_user_asm(x, _p,  , );			\
-			break;						\
-		case 8: {						\
-			unsigned long _xl, _xh;				\
-			__get_user_asm(_xl, ((unsigned long *)_p)+0,  , ); \
-			__get_user_asm(_xh, ((unsigned long *)_p)+1,  , ); \
-			((unsigned long *)&x)[0] = _xl;			\
-			((unsigned long *)&x)[1] = _xh;			\
-		} break;						\
-		default:						\
-			x = 0;						\
-			printk(KERN_INFO "get_user_bad: %s:%d %s\n",    \
-			       __FILE__, __LINE__, __func__);	\
-			_err = __get_user_bad();			\
-			break;						\
-		}							\
-		}							\
-		_err;							\
-	})
+#define get_user(x, ptr)					\
+({								\
+	int _err = 0;						\
+	unsigned long _val = 0;					\
+	const typeof(*(ptr)) __user *_p = (ptr);		\
+	const size_t ptr_size = sizeof(*(_p));			\
+	if (likely(access_ok(VERIFY_READ, _p, ptr_size))) {	\
+		BUILD_BUG_ON(ptr_size >= 8);			\
+		switch (ptr_size) {				\
+		case 1:						\
+			__get_user_asm(_val, _p, B,(Z));	\
+			break;					\
+		case 2:						\
+			__get_user_asm(_val, _p, W,(Z));	\
+			break;					\
+		case 4:						\
+			__get_user_asm(_val, _p,  , );		\
+			break;					\
+		}						\
+	} else							\
+		_err = -EFAULT;					\
+	x = (typeof(*(ptr)))_val;				\
+	_err;							\
+})
 
 #define __get_user(x,p) get_user(x,p)
 
 #define __get_user_bad() (bad_user_access_length(), (-EFAULT))
 
-#define __get_user_asm(x,p,bhw,option)				\
-	{							\
-		unsigned long _tmp;				\
-		__asm__ ("%0 =" #bhw "[%1]"#option";\n\t"	\
-			 : "=d" (_tmp)				\
-			 : "a" (__ptr(p)));			\
-		(x) = (__typeof__(*(p))) _tmp;			\
-	}
+#define __get_user_asm(x, ptr, bhw, option)	\
+({						\
+	__asm__ __volatile__ (			\
+		"%0 =" #bhw "[%1]" #option ";"	\
+		: "=d" (x)			\
+		: "a" (__ptr(ptr)));		\
+})
 
 #define __copy_from_user(to, from, n) copy_from_user(to, from, n)
 #define __copy_to_user(to, from, n) copy_to_user(to, from, n)
