@@ -1755,26 +1755,6 @@ static int ath_rate_newassoc(struct ath_softc *sc,
 	return 0;
 }
 
-static void ath_setup_rates(struct ath_softc *sc,
-			    struct ieee80211_supported_band *sband,
-			    struct ieee80211_sta *sta,
-			    struct ath_rate_node *rc_priv)
-
-{
-	int i, j = 0;
-
-	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
-
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sta->supp_rates[sband->band] & BIT(i)) {
-			rc_priv->neg_rates.rs_rates[j]
-				= (sband->bitrates[i].bitrate * 2) / 10;
-			j++;
-		}
-	}
-	rc_priv->neg_rates.rs_nrates = j;
-}
-
 void ath_rc_node_update(struct ieee80211_hw *hw, struct ath_rate_node *rc_priv)
 {
 	struct ath_softc *sc = hw->priv;
@@ -1895,11 +1875,17 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	struct ath_rate_node *ath_rc_priv = priv_sta;
 	int i, j = 0;
 
-	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if (sta->supp_rates[sband->band] & BIT(i)) {
+			ath_rc_priv->neg_rates.rs_rates[j]
+				= (sband->bitrates[i].bitrate * 2) / 10;
+			j++;
+		}
+	}
+	ath_rc_priv->neg_rates.rs_nrates = j;
 
-	ath_setup_rates(sc, sband, sta, ath_rc_priv);
 	if (sta->ht_cap.ht_supported) {
-		for (i = 0; i < 77; i++) {
+		for (i = 0, j = 0; i < 77; i++) {
 			if (sta->ht_cap.mcs.rx_mask[i/8] & (1<<(i%8)))
 				ath_rc_priv->neg_ht_rates.rs_rates[j++] = i;
 			if (j == ATH_RATE_MAX)
@@ -1907,14 +1893,12 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 		}
 		ath_rc_priv->neg_ht_rates.rs_nrates = j;
 	}
+
 	ath_rc_node_update(sc->hw, priv_sta);
 }
 
 static void *ath_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
-	struct ath_softc *sc = hw->priv;
-
-	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
 	return hw->priv;
 }
 
