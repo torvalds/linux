@@ -432,6 +432,7 @@ static const unsigned char init_ov9650[][3] =
 	{BRIDGE, M5602_XB_PIX_OF_LINE_L, 0x00},
 	{BRIDGE, M5602_XB_SIG_INI, 0x01},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	/* Moves the view window in a vertical orientation */
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x09},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
