@@ -769,8 +769,6 @@ static int dt9812_probe(struct usb_interface *interface,
 		 * Seems like a configuration reset is necessary if driver is
 		 * reloaded while device is attached
 		 */
-		int i;
-
 		usb_reset_configuration(dev->udev);
 		for (i = 0; i < 10; i++) {
 			retval = dt9812_read_info(dev, 1, &fw, sizeof(fw));
@@ -1060,7 +1058,7 @@ static int dt9812_attach(comedi_device *dev, comedi_devconfig *it)
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_read = &dt9812_ai_rinsn;
 
 	/* analog output subdevice */
@@ -1069,7 +1067,7 @@ static int dt9812_attach(comedi_device *dev, comedi_devconfig *it)
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_write = &dt9812_ao_winsn;
 	s->insn_read = &dt9812_ao_rinsn;
 
