@@ -378,6 +378,8 @@ static int bf5xx_ac97_probe(struct platform_device *pdev,
 		goto sport_config_err;
 	}
 
+	return 0;
+
 sport_config_err:
 	kfree(sport_handle);
 sport_err:
