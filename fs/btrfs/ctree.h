@@ -1801,6 +1801,9 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 			struct extent_buffer *node,
 			struct extent_buffer *parent);
 /* root-item.c */
+int btrfs_find_root_ref(struct btrfs_root *tree_root,
+		   struct btrfs_path *path,
+		   u64 root_id, u64 ref_id);
 int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *tree_root,
 		       u64 root_id, u8 type, u64 ref_id,

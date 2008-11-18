@@ -284,6 +284,56 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 	 * subvolume with specific mode bits.
 	 */
 	if (snap_src) {
+		struct dentry *dir = dentry->d_parent;
+		struct dentry *test = dir->d_parent;
+		struct btrfs_path *path = btrfs_alloc_path();
+		int ret;
+		u64 test_oid;
+		u64 parent_oid = BTRFS_I(dir->d_inode)->root->root_key.objectid;
+
+		test_oid = snap_src->root_key.objectid;
+
+		ret = btrfs_find_root_ref(snap_src->fs_info->tree_root,
+					  path, parent_oid, test_oid);
+		if (ret == 0)
+			goto create;
+		btrfs_release_path(snap_src->fs_info->tree_root, path);
+
+		/* we need to make sure we aren't creating a directory loop
+		 * by taking a snapshot of something that has our current
+		 * subvol in its directory tree.  So, this loops through
+		 * the dentries and checks the forward refs for each subvolume
+		 * to see if is references the subvolume where we are
+		 * placing this new snapshot.
+		 */
+		while(1) {
+			if (!test ||
+			    dir == snap_src->fs_info->sb->s_root ||
+			    test == snap_src->fs_info->sb->s_root ||
+			    test->d_inode->i_sb != snap_src->fs_info->sb) {
+				break;
+			}
+			if (S_ISLNK(test->d_inode->i_mode)) {
+				printk("Symlink in snapshot path, failed\n");
+				error = -EMLINK;
+				btrfs_free_path(path);
+				goto out_drop_write;
+			}
+			test_oid =
+				BTRFS_I(test->d_inode)->root->root_key.objectid;
+			ret = btrfs_find_root_ref(snap_src->fs_info->tree_root,
+				  path, test_oid, parent_oid);
+			if (ret == 0) {
+				printk("Snapshot creation failed, looping\n");
+				error = -EMLINK;
+				btrfs_free_path(path);
+				goto out_drop_write;
+			}
+			btrfs_release_path(snap_src->fs_info->tree_root, path);
+			test = test->d_parent;
+		}
+create:
+		btrfs_free_path(path);
 		error = create_snapshot(snap_src, dentry, name, namelen);
 	} else {
 		error = create_subvol(BTRFS_I(parent->dentry->d_inode)->root,

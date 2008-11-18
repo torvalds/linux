@@ -1129,7 +1129,7 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
-
+#if 0
 	ret = btrfs_sysfs_add_root(root);
 	if (ret) {
 		free_extent_buffer(root->node);
@@ -1137,6 +1137,7 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
+#endif
 	root->in_sysfs = 1;
 	return root;
 }
@@ -1963,8 +1964,10 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 		down_write(&root->anon_super.s_umount);
 		kill_anon_super(&root->anon_super);
 	}
+#if 0
 	if (root->in_sysfs)
 		btrfs_sysfs_del_root(root);
+#endif
 	if (root->node)
 		free_extent_buffer(root->node);
 	if (root->commit_root)
