@@ -49,16 +49,16 @@ static __inline__ int irq_canonicalize(int irq)
 /* Forward decl needed due to cdef inter dependencies */
 static inline uint32_t __pure bfin_dspid(void);
 # define blackfin_core_id() (bfin_dspid() & 0xff)
-# define irq_flags cpu_pda[blackfin_core_id()].imask
+# define bfin_irq_flags cpu_pda[blackfin_core_id()].imask
 #else
-extern unsigned long irq_flags;
+extern unsigned long bfin_irq_flags;
 #endif
 
 #define local_irq_enable() \
 	__asm__ __volatile__( \
 		"sti %0;" \
 		: \
-		: "d" (irq_flags) \
+		: "d" (bfin_irq_flags) \
 	)
 
 #define idle_with_irq_disabled() \
@@ -68,7 +68,7 @@ extern unsigned long irq_flags;
 		"sti %0;" \
 		"idle;" \
 		: \
-		: "d" (irq_flags) \
+		: "d" (bfin_irq_flags) \
 	)
 
 #ifdef CONFIG_DEBUG_HWERR

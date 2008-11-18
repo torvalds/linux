@@ -922,8 +922,8 @@ _schedule_and_signal_from_int:
 	GET_PDA(p0, r0); 	/* Fetch current PDA (can't migrate to other CPU here) */
 	r0 = [p0 + PDA_IRQFLAGS];
 #else
-	p0.l = _irq_flags;
-	p0.h = _irq_flags;
+	p0.l = _bfin_irq_flags;
+	p0.h = _bfin_irq_flags;
 	r0 = [p0];
 #endif
 	sti r0;

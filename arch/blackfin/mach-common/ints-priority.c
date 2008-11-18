@@ -64,8 +64,8 @@
  * it would live otherwise).  The 0x1f magic represents the IRQs we
  * cannot actually mask out in hardware.
  */
-unsigned long irq_flags = 0x1f;
-EXPORT_SYMBOL(irq_flags);
+unsigned long bfin_irq_flags = 0x1f;
+EXPORT_SYMBOL(bfin_irq_flags);
 #endif
 
 /* The number of spurious interrupts */
@@ -134,21 +134,21 @@ static void bfin_ack_noop(unsigned int irq)
 
 static void bfin_core_mask_irq(unsigned int irq)
 {
-	irq_flags &= ~(1 << irq);
+	bfin_irq_flags &= ~(1 << irq);
 	if (!irqs_disabled())
 		local_irq_enable();
 }
 
 static void bfin_core_unmask_irq(unsigned int irq)
 {
-	irq_flags |= 1 << irq;
+	bfin_irq_flags |= 1 << irq;
 	/*
 	 * If interrupts are enabled, IMASK must contain the same value
-	 * as irq_flags.  Make sure that invariant holds.  If interrupts
+	 * as bfin_irq_flags.  Make sure that invariant holds.  If interrupts
 	 * are currently disabled we need not do anything; one of the
 	 * callers will take care of setting IMASK to the proper value
 	 * when reenabling interrupts.
-	 * local_irq_enable just does "STI irq_flags", so it's exactly
+	 * local_irq_enable just does "STI bfin_irq_flags", so it's exactly
 	 * what we need.
 	 */
 	if (!irqs_disabled())
@@ -1048,7 +1048,7 @@ int __init init_arch_irq(void)
 	CSYNC();
 
 	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
-	/* IMASK=xxx is equivalent to STI xx or irq_flags=xx,
+	/* IMASK=xxx is equivalent to STI xx or bfin_irq_flags=xx,
 	 * local_irq_enable()
 	 */
 	program_IAR();
@@ -1056,7 +1056,7 @@ int __init init_arch_irq(void)
 	search_IAR();
 
 	/* Enable interrupts IVG7-15 */
-	irq_flags |= IMASK_IVG15 |
+	bfin_irq_flags |= IMASK_IVG15 |
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
