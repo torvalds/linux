@@ -244,6 +244,7 @@ struct gfs2_inode {
 	struct gfs2_alloc *i_alloc;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
+	struct list_head i_trunc_list;
 	u32 i_entries;
 	u32 i_diskflags;
 	u8 i_height;
@@ -550,6 +551,8 @@ struct gfs2_sbd {
 	spinlock_t sd_quota_spin;
 	struct mutex sd_quota_mutex;
 	wait_queue_head_t sd_quota_wait;
+	struct list_head sd_trunc_list;
+	spinlock_t sd_trunc_lock;
 
 	unsigned int sd_quota_slots;
 	unsigned int sd_quota_chunks;

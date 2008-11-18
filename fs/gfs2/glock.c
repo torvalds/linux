@@ -40,6 +40,7 @@
 #include "quota.h"
 #include "super.h"
 #include "util.h"
+#include "bmap.h"
 
 struct gfs2_gl_hash_bucket {
         struct hlist_head hb_list;
@@ -289,7 +290,8 @@ static void gfs2_holder_wake(struct gfs2_holder *gh)
  * do_promote - promote as many requests as possible on the current queue
  * @gl: The glock
  * 
- * Returns: true if there is a blocked holder at the head of the list
+ * Returns: 1 if there is a blocked holder at the head of the list, or 2
+ *          if a type specific operation is underway.
  */
 
 static int do_promote(struct gfs2_glock *gl)
@@ -312,6 +314,8 @@ restart:
 				ret = glops->go_lock(gh);
 				spin_lock(&gl->gl_spin);
 				if (ret) {
+					if (ret == 1)
+						return 2;
 					gh->gh_error = ret;
 					list_del_init(&gh->gh_list);
 					gfs2_holder_wake(gh);
@@ -416,6 +420,7 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh;
 	unsigned state = ret & LM_OUT_ST_MASK;
+	int rv;
 
 	spin_lock(&gl->gl_spin);
 	state_change(gl, state);
@@ -470,7 +475,6 @@ retry:
 		gfs2_demote_wake(gl);
 	if (state != LM_ST_UNLOCKED) {
 		if (glops->go_xmote_bh) {
-			int rv;
 			spin_unlock(&gl->gl_spin);
 			rv = glops->go_xmote_bh(gl, gh);
 			if (rv == -EAGAIN)
@@ -481,10 +485,13 @@ retry:
 				goto out;
 			}
 		}
-		do_promote(gl);
+		rv = do_promote(gl);
+		if (rv == 2)
+			goto out_locked;
 	}
 out:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
+out_locked:
 	spin_unlock(&gl->gl_spin);
 	gfs2_glock_put(gl);
 }
@@ -584,6 +591,7 @@ __releases(&gl->gl_spin)
 __acquires(&gl->gl_spin)
 {
 	struct gfs2_holder *gh = NULL;
+	int ret;
 
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags))
 		return;
@@ -602,8 +610,11 @@ __acquires(&gl->gl_spin)
 	} else {
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
 			gfs2_demote_wake(gl);
-		if (do_promote(gl) == 0)
+		ret = do_promote(gl);
+		if (ret == 0)
 			goto out;
+		if (ret == 2)
+			return;
 		gh = find_first_waiter(gl);
 		gl->gl_target = gh->gh_state;
 		if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
@@ -1554,6 +1565,20 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 		up_write(&gfs2_umount_flush_sem);
 		msleep(10);
 	}
+}
+
+void gfs2_glock_finish_truncate(struct gfs2_inode *ip)
+{
+	struct gfs2_glock *gl = ip->i_gl;
+	int ret;
+
+	ret = gfs2_truncatei_resume(ip);
+	gfs2_assert_withdraw(gl->gl_sbd, ret == 0);
+
+	spin_lock(&gl->gl_spin);
+	clear_bit(GLF_LOCK, &gl->gl_flags);
+	run_queue(gl, 1);
+	spin_unlock(&gl->gl_spin);
 }
 
 static const char *state2str(unsigned state)

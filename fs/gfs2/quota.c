@@ -1296,6 +1296,25 @@ static void quotad_check_timeo(struct gfs2_sbd *sdp, const char *msg,
 	}
 }
 
+static void quotad_check_trunc_list(struct gfs2_sbd *sdp)
+{
+	struct gfs2_inode *ip;
+
+	while(1) {
+		ip = NULL;
+		spin_lock(&sdp->sd_trunc_lock);
+		if (!list_empty(&sdp->sd_trunc_list)) {
+			ip = list_entry(sdp->sd_trunc_list.next,
+					struct gfs2_inode, i_trunc_list);
+			list_del_init(&ip->i_trunc_list);
+		}
+		spin_unlock(&sdp->sd_trunc_lock);
+		if (ip == NULL)
+			return;
+		gfs2_glock_finish_truncate(ip);
+	}
+}
+
 /**
  * gfs2_quotad - Write cached quota changes into the quota file
  * @sdp: Pointer to GFS2 superblock
@@ -1310,6 +1329,7 @@ int gfs2_quotad(void *data)
 	unsigned long quotad_timeo = 0;
 	unsigned long t = 0;
 	DEFINE_WAIT(wait);
+	int empty;
 
 	while (!kthread_should_stop()) {
 
@@ -1324,12 +1344,21 @@ int gfs2_quotad(void *data)
 		/* FIXME: This should be turned into a shrinker */
 		gfs2_quota_scan(sdp);
 
+		/* Check for & recover partially truncated inodes */
+		quotad_check_trunc_list(sdp);
+
 		if (freezing(current))
 			refrigerator();
 		t = min(quotad_timeo, statfs_timeo);
 
 		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_UNINTERRUPTIBLE);
-		t -= schedule_timeout(t);
+		spin_lock(&sdp->sd_trunc_lock);
+		empty = list_empty(&sdp->sd_trunc_list);
+		spin_unlock(&sdp->sd_trunc_lock);
+		if (empty)
+			t -= schedule_timeout(t);
+		else
+			t = 0;
 		finish_wait(&sdp->sd_quota_wait, &wait);
 	}
 
