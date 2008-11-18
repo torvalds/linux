@@ -108,6 +108,8 @@ static inline unsigned int readl(const volatile void __iomem *addr)
 #define iowrite16(val,X)		writew(val,X)
 #define iowrite32(val,X)		writel(val,X)
 
+#define mmiowb() wmb()
+
 #define IO_SPACE_LIMIT 0xffffffff
 
 /* Values for nocacheflag and cmode */
