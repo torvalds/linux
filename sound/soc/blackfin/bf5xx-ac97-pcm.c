@@ -193,8 +193,10 @@ static int bf5xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+#if defined(CONFIG_SND_BF5XX_MMAP_SUPPORT)
 			bf5xx_mmap_copy(substream, runtime->period_size);
 			sport->tx_delay_pos = 0;
+#endif
 			sport_tx_start(sport);
 		} else
 			sport_rx_start(sport);
@@ -267,23 +269,6 @@ static int bf5xx_pcm_open(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static int bf5xx_pcm_close(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct sport_device *sport = runtime->private_data;
-
-	pr_debug("%s enter\n", __func__);
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		sport->once = 0;
-		memset(sport->tx_dma_buf, 0, runtime->buffer_size *
-			sizeof(struct ac97_frame));
-	} else
-		memset(sport->rx_dma_buf, 0, runtime->buffer_size *
-			sizeof(struct ac97_frame));
-
-	return 0;
-}
-
 #if defined(CONFIG_SND_BF5XX_MMAP_SUPPORT)
 static int bf5xx_pcm_mmap(struct snd_pcm_substream *substream,
 	struct vm_area_struct *vma)
@@ -301,7 +286,7 @@ static	int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 		    void __user *buf, snd_pcm_uframes_t count)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-
+	unsigned int chan_mask = ac97_chan_mask[runtime->channels - 1];
 	pr_debug("%s copy pos:0x%lx count:0x%lx\n",
 			substream->stream ? "Capture" : "Playback", pos, count);
 
@@ -317,7 +302,6 @@ static	int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 
 struct snd_pcm_ops bf5xx_pcm_ac97_ops = {
 	.open		= bf5xx_pcm_open,
-	.close		= bf5xx_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= bf5xx_pcm_hw_params,
 	.hw_free	= bf5xx_pcm_hw_free,
