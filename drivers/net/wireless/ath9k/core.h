@@ -279,13 +279,6 @@ struct ath_descdma {
 	dma_addr_t dd_dmacontext;
 };
 
-/* Abstraction of a received RX MPDU/MMPDU, or a RX fragment */
-
-struct ath_rx_context {
-	struct ath_buf *ctx_rxbuf;	/* associated ath_buf for rx */
-};
-#define ATH_RX_CONTEXT(skb) ((struct ath_rx_context *)skb->cb)
-
 int ath_descdma_setup(struct ath_softc *sc,
 		      struct ath_descdma *dd,
 		      struct list_head *head,
@@ -298,61 +291,21 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 			 struct ath_descdma *dd,
 			 struct list_head *head);
 
-/******/
-/* RX */
-/******/
+/***********/
+/* RX / TX */
+/***********/
 
 #define ATH_MAX_ANTENNA          3
 #define ATH_RXBUF                512
 #define WME_NUM_TID              16
 
-/* per frame rx status block */
-struct ath_recv_status {
-	u64 tsf;		/* mac tsf */
-	int8_t rssi;		/* RSSI (noise floor ajusted) */
-	int8_t rssictl[ATH_MAX_ANTENNA];	/* RSSI (noise floor ajusted) */
-	int8_t rssiextn[ATH_MAX_ANTENNA];	/* RSSI (noise floor ajusted) */
-	int8_t abs_rssi;	/* absolute RSSI */
-	u8 rateieee;		/* data rate received (IEEE rate code) */
-	u8 ratecode;		/* phy rate code */
-	int rateKbps;		/* data rate received (Kbps) */
-	int antenna;		/* rx antenna */
-	int flags;		/* status of associated skb */
-#define ATH_RX_FCS_ERROR        0x01
-#define ATH_RX_MIC_ERROR        0x02
-#define ATH_RX_DECRYPT_ERROR    0x04
-#define ATH_RX_RSSI_VALID       0x08
-/* if any of ctl,extn chainrssis are valid */
-#define ATH_RX_CHAIN_RSSI_VALID 0x10
-/* if extn chain rssis are valid */
-#define ATH_RX_RSSI_EXTN_VALID  0x20
-/* set if 40Mhz, clear if 20Mhz */
-#define ATH_RX_40MHZ            0x40
-/* set if short GI, clear if full GI */
-#define ATH_RX_SHORT_GI         0x80
-};
-
-struct ath_rxbuf {
-	struct sk_buff *rx_wbuf;
-	unsigned long rx_time;			/* system time when received */
-	struct ath_recv_status rx_status;	/* cached rx status */
-};
-
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
-void ath_handle_rx_intr(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush);
-int _ath_rx_indicate(struct ath_softc *sc,
-		     struct sk_buff *skb,
-		     struct ath_recv_status *status,
-		     u16 keyix);
-/******/
-/* TX */
-/******/
 
 #define ATH_TXBUF               512
 /* max number of transmit attempts (tries) */

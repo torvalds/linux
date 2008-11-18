@@ -236,68 +236,6 @@ static void setup_ht_cap(struct ieee80211_sta_ht_cap *ht_info)
 	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 }
 
-static int ath_rate2idx(struct ath_softc *sc, int rate)
-{
-	int i = 0, cur_band, n_rates;
-	struct ieee80211_hw *hw = sc->hw;
-
-	cur_band = hw->conf.channel->band;
-	n_rates = sc->sbands[cur_band].n_bitrates;
-
-	for (i = 0; i < n_rates; i++) {
-		if (sc->sbands[cur_band].bitrates[i].bitrate == rate)
-			break;
-	}
-
-	/*
-	 * NB:mac80211 validates rx rate index against the supported legacy rate
-	 * index only (should be done against ht rates also), return the highest
-	 * legacy rate index for rx rate which does not match any one of the
-	 * supported basic and extended rates to make mac80211 happy.
-	 * The following hack will be cleaned up once the issue with
-	 * the rx rate index validation in mac80211 is fixed.
-	 */
-	if (i == n_rates)
-		return n_rates - 1;
-	return i;
-}
-
-static void ath9k_rx_prepare(struct ath_softc *sc,
-			     struct sk_buff *skb,
-			     struct ath_recv_status *status,
-			     struct ieee80211_rx_status *rx_status)
-{
-	struct ieee80211_hw *hw = sc->hw;
-	struct ieee80211_channel *curchan = hw->conf.channel;
-
-	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
-
-	rx_status->mactime = status->tsf;
-	rx_status->band = curchan->band;
-	rx_status->freq =  curchan->center_freq;
-	rx_status->noise = sc->sc_ani.sc_noise_floor;
-	rx_status->signal = rx_status->noise + status->rssi;
-	rx_status->rate_idx = ath_rate2idx(sc, (status->rateKbps / 100));
-	rx_status->antenna = status->antenna;
-
-	/* at 45 you will be able to use MCS 15 reliably. A more elaborate
-	 * scheme can be used here but it requires tables of SNR/throughput for
-	 * each possible mode used. */
-	rx_status->qual = status->rssi * 100 / 45;
-
-	/* rssi can be more than 45 though, anything above that
-	 * should be considered at 100% */
-	if (rx_status->qual > 100)
-		rx_status->qual = 100;
-
-	if (status->flags & ATH_RX_MIC_ERROR)
-		rx_status->flag |= RX_FLAG_MMIC_ERROR;
-	if (status->flags & ATH_RX_FCS_ERROR)
-		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-
-	rx_status->flag |= RX_FLAG_TSFT;
-}
-
 static void ath9k_ht_conf(struct ath_softc *sc,
 			  struct ieee80211_bss_conf *bss_conf)
 {
@@ -438,44 +376,6 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	tx_info->status.rates[0].count = tx_status->retries + 1;
 
 	ieee80211_tx_status(hw, skb);
-}
-
-int _ath_rx_indicate(struct ath_softc *sc,
-		     struct sk_buff *skb,
-		     struct ath_recv_status *status,
-		     u16 keyix)
-{
-	struct ieee80211_hw *hw = sc->hw;
-	struct ieee80211_rx_status rx_status;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	int padsize;
-
-	/* see if any padding is done by the hw and remove it */
-	if (hdrlen & 3) {
-		padsize = hdrlen % 4;
-		memmove(skb->data + padsize, skb->data, hdrlen);
-		skb_pull(skb, padsize);
-	}
-
-	/* Prepare rx status */
-	ath9k_rx_prepare(sc, skb, status, &rx_status);
-
-	if (!(keyix == ATH9K_RXKEYIX_INVALID) &&
-	    !(status->flags & ATH_RX_DECRYPT_ERROR)) {
-		rx_status.flag |= RX_FLAG_DECRYPTED;
-	} else if ((le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_PROTECTED)
-		   && !(status->flags & ATH_RX_DECRYPT_ERROR)
-		   && skb->len >= hdrlen + 4) {
-		keyix = skb->data[hdrlen + 3] >> 6;
-
-		if (test_bit(keyix, sc->sc_keymap))
-			rx_status.flag |= RX_FLAG_DECRYPTED;
-	}
-
-	__ieee80211_rx(hw, skb, &rx_status);
-
-	return 0;
 }
 
 /********************************/
