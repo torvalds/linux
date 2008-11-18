@@ -97,7 +97,7 @@ struct sd_desc {
 	cam_pkt_op pkt_scan;
 /* optional operations */
 	cam_v_op stopN;		/* called on stream off - main alt */
-	cam_v_op stop0;		/* called on stream off - alt 0 */
+	cam_v_op stop0;		/* called on stream off & disconnect - alt 0 */
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;
