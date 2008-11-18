@@ -453,8 +453,6 @@ void ath_tx_tasklet(struct ath_softc *sc);
 u32 ath_txq_depth(struct ath_softc *sc, int qnum);
 u32 ath_txq_aggr_depth(struct ath_softc *sc, int qnum);
 void ath_notify_txq_status(struct ath_softc *sc, u16 queue_depth);
-void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-		     struct ath_xmit_status *tx_status);
 void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 
 /**********************/

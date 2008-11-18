@@ -341,37 +341,6 @@ void ath_get_beaconconfig(struct ath_softc *sc,
 	conf->bmiss_timeout = ATH_DEFAULT_BMISS_LIMIT * conf->listen_interval;
 }
 
-void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-		     struct ath_xmit_status *tx_status)
-{
-	struct ieee80211_hw *hw = sc->hw;
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
-
-	DPRINTF(sc, ATH_DBG_XMIT,
-		"%s: TX complete: skb: %p\n", __func__, skb);
-
-	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK ||
-	    tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
-		kfree(tx_info_priv);
-		tx_info->rate_driver_data[0] = NULL;
-	}
-
-	if (tx_status->flags & ATH_TX_BAR) {
-		tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
-		tx_status->flags &= ~ATH_TX_BAR;
-	}
-
-	if (!(tx_status->flags & (ATH_TX_ERROR | ATH_TX_XRETRY))) {
-		/* Frame was ACKed */
-		tx_info->flags |= IEEE80211_TX_STAT_ACK;
-	}
-
-	tx_info->status.rates[0].count = tx_status->retries + 1;
-
-	ieee80211_tx_status(hw, skb);
-}
-
 /********************************/
 /*	 LED functions		*/
 /********************************/
