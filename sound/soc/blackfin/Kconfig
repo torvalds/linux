@@ -104,5 +104,6 @@ config SND_BF5XX_RESET_GPIO_NUM
 	range 0 159
 	default 19 if BFIN548_EZKIT
 	default 5 if BFIN537_STAMP
+	default 0
 	help
 	  Set the correct GPIO for RESET the sound chip.
