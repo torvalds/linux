@@ -26,10 +26,9 @@
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
 #include <asm/div64.h>
+#include <asm/cpu.h>
 #include <asm/fixed_code.h>
 #include <asm/early_printk.h>
-
-static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 u16 _bfin_swrst;
 EXPORT_SYMBOL(_bfin_swrst);
@@ -79,27 +78,74 @@ static struct change_member *change_point[2*BFIN_MEMMAP_MAX] __initdata;
 static struct bfin_memmap_entry *overlap_list[BFIN_MEMMAP_MAX] __initdata;
 static struct bfin_memmap_entry new_map[BFIN_MEMMAP_MAX] __initdata;
 
-void __init bfin_cache_init(void)
-{
+DEFINE_PER_CPU(struct blackfin_cpudata, cpu_data);
+
 #if defined(CONFIG_BFIN_DCACHE) || defined(CONFIG_BFIN_ICACHE)
-	generate_cplb_tables();
+void __init generate_cplb_tables(void)
+{
+	unsigned int cpu;
+
+	/* Generate per-CPU I&D CPLB tables */
+	for (cpu = 0; cpu < num_possible_cpus(); ++cpu)
+		generate_cplb_tables_cpu(cpu);
+}
 #endif
 
+void __cpuinit bfin_setup_caches(unsigned int cpu)
+{
 #ifdef CONFIG_BFIN_ICACHE
-	bfin_icache_init();
-	printk(KERN_INFO "Instruction Cache Enabled\n");
+#ifdef CONFIG_MPU
+	bfin_icache_init(icplb_tbl[cpu]);
+#else
+	bfin_icache_init(icplb_tables[cpu]);
+#endif
 #endif
 
 #ifdef CONFIG_BFIN_DCACHE
-	bfin_dcache_init();
-	printk(KERN_INFO "Data Cache Enabled"
+#ifdef CONFIG_MPU
+	bfin_dcache_init(dcplb_tbl[cpu]);
+#else
+	bfin_dcache_init(dcplb_tables[cpu]);
+#endif
+#endif
+
+	/*
+	 * In cache coherence emulation mode, we need to have the
+	 * D-cache enabled before running any atomic operation which
+	 * might invove cache invalidation (i.e. spinlock, rwlock).
+	 * So printk's are deferred until then.
+	 */
+#ifdef CONFIG_BFIN_ICACHE
+	printk(KERN_INFO "Instruction Cache Enabled for CPU%u\n", cpu);
+#endif
+#ifdef CONFIG_BFIN_DCACHE
+	printk(KERN_INFO "Data Cache Enabled for CPU%u"
 # if defined CONFIG_BFIN_WB
 		" (write-back)"
 # elif defined CONFIG_BFIN_WT
 		" (write-through)"
 # endif
-		"\n");
+		"\n", cpu);
 #endif
+}
+
+void __cpuinit bfin_setup_cpudata(unsigned int cpu)
+{
+	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu);
+
+	cpudata->idle = current;
+	cpudata->loops_per_jiffy = loops_per_jiffy;
+	cpudata->cclk = get_cclk();
+	cpudata->imemctl = bfin_read_IMEM_CONTROL();
+	cpudata->dmemctl = bfin_read_DMEM_CONTROL();
+}
+
+void __init bfin_cache_init(void)
+{
+#if defined(CONFIG_BFIN_DCACHE) || defined(CONFIG_BFIN_ICACHE)
+	generate_cplb_tables();
+#endif
+	bfin_setup_caches(0);
 }
 
 void __init bfin_relocate_l1_mem(void)
@@ -230,7 +276,7 @@ static int __init sanitize_memmap(struct bfin_memmap_entry *map, int *pnr_map)
 	/* record all known change-points (starting and ending addresses),
 	   omitting those that are for empty memory regions */
 	chgidx = 0;
-	for (i = 0; i < old_nr; i++)	{
+	for (i = 0; i < old_nr; i++) {
 		if (map[i].size != 0) {
 			change_point[chgidx]->addr = map[i].addr;
 			change_point[chgidx++]->pentry = &map[i];
@@ -238,13 +284,13 @@ static int __init sanitize_memmap(struct bfin_memmap_entry *map, int *pnr_map)
 			change_point[chgidx++]->pentry = &map[i];
 		}
 	}
-	chg_nr = chgidx;    	/* true number of change-points */
+	chg_nr = chgidx;	/* true number of change-points */
 
 	/* sort change-point list by memory addresses (low -> high) */
 	still_changing = 1;
-	while (still_changing)	{
+	while (still_changing) {
 		still_changing = 0;
-		for (i = 1; i < chg_nr; i++)  {
+		for (i = 1; i < chg_nr; i++) {
 			/* if <current_addr> > <last_addr>, swap */
 			/* or, if current=<start_addr> & last=<end_addr>, swap */
 			if ((change_point[i]->addr < change_point[i-1]->addr) ||
@@ -261,10 +307,10 @@ static int __init sanitize_memmap(struct bfin_memmap_entry *map, int *pnr_map)
 	}
 
 	/* create a new memmap, removing overlaps */
-	overlap_entries = 0;	 /* number of entries in the overlap table */
-	new_entry = 0;	 /* index for creating new memmap entries */
-	last_type = 0;		 /* start with undefined memory type */
-	last_addr = 0;		 /* start with 0 as last starting address */
+	overlap_entries = 0;	/* number of entries in the overlap table */
+	new_entry = 0;		/* index for creating new memmap entries */
+	last_type = 0;		/* start with undefined memory type */
+	last_addr = 0;		/* start with 0 as last starting address */
 	/* loop through change-points, determining affect on the new memmap */
 	for (chgidx = 0; chgidx < chg_nr; chgidx++) {
 		/* keep track of all overlapping memmap entries */
@@ -286,14 +332,14 @@ static int __init sanitize_memmap(struct bfin_memmap_entry *map, int *pnr_map)
 			if (overlap_list[i]->type > current_type)
 				current_type = overlap_list[i]->type;
 		/* continue building up new memmap based on this information */
-		if (current_type != last_type)	{
+		if (current_type != last_type) {
 			if (last_type != 0) {
 				new_map[new_entry].size =
 					change_point[chgidx]->addr - last_addr;
 				/* move forward only if the new size was non-zero */
 				if (new_map[new_entry].size != 0)
 					if (++new_entry >= BFIN_MEMMAP_MAX)
-						break; 	/* no more space left for new entries */
+						break;	/* no more space left for new entries */
 			}
 			if (current_type != 0) {
 				new_map[new_entry].addr = change_point[chgidx]->addr;
@@ -303,9 +349,9 @@ static int __init sanitize_memmap(struct bfin_memmap_entry *map, int *pnr_map)
 			last_type = current_type;
 		}
 	}
-	new_nr = new_entry;   /* retain count for new entries */
+	new_nr = new_entry;	/* retain count for new entries */
 
-	/* copy new  mapping into original location */
+	/* copy new mapping into original location */
 	memcpy(map, new_map, new_nr*sizeof(struct bfin_memmap_entry));
 	*pnr_map = new_nr;
 
@@ -361,7 +407,6 @@ static __init int parse_memmap(char *arg)
  *  - "memmap=XXX[KkmM][@][$]XXX[KkmM]" defines a memory region
  *       @ from <start> to <start>+<mem>, type RAM
  *       $ from <start> to <start>+<mem>, type RESERVED
- *
  */
 static __init void parse_cmdline_early(char *cmdline_p)
 {
@@ -383,12 +428,10 @@ static __init void parse_cmdline_early(char *cmdline_p)
 					if (*to != ' ') {
 						if (*to == '$'
 						    || *(to + 1) == '$')
-							reserved_mem_dcache_on =
-							    1;
+							reserved_mem_dcache_on = 1;
 						if (*to == '#'
 						    || *(to + 1) == '#')
-							reserved_mem_icache_on =
-							    1;
+							reserved_mem_icache_on = 1;
 					}
 				}
 			} else if (!memcmp(to, "earlyprintk=", 12)) {
@@ -417,9 +460,8 @@ static __init void parse_cmdline_early(char *cmdline_p)
  *	[_ramend - DMA_UNCACHED_REGION,
  *		_ramend]:			uncached DMA region
  *  [_ramend, physical_mem_end]:	memory not managed by kernel
- *
  */
-static __init void  memory_setup(void)
+static __init void memory_setup(void)
 {
 #ifdef CONFIG_MTD_UCLINUX
 	unsigned long mtd_phys = 0;
@@ -436,7 +478,7 @@ static __init void  memory_setup(void)
 	memory_end = _ramend - DMA_UNCACHED_REGION;
 
 #ifdef CONFIG_MPU
-	/* Round up to multiple of 4MB.  */
+	/* Round up to multiple of 4MB */
 	memory_start = (_ramstart + 0x3fffff) & ~0x3fffff;
 #else
 	memory_start = PAGE_ALIGN(_ramstart);
@@ -616,7 +658,7 @@ static __init void setup_bootmem_allocator(void)
 	end_pfn = memory_end >> PAGE_SHIFT;
 
 	/*
-	 * give all the memory to the bootmap allocator,  tell it to put the
+	 * give all the memory to the bootmap allocator, tell it to put the
 	 * boot mem_map at the start of memory.
 	 */
 	bootmap_size = init_bootmem_node(NODE_DATA(0),
@@ -791,7 +833,11 @@ void __init setup_arch(char **cmdline_p)
 	bfin_write_SWRST(_bfin_swrst | DOUBLE_FAULT);
 #endif
 
+#ifdef CONFIG_SMP
+	if (_bfin_swrst & SWRST_DBL_FAULT_A) {
+#else
 	if (_bfin_swrst & RESET_DOUBLE) {
+#endif
 		printk(KERN_EMERG "Recovering from DOUBLE FAULT event\n");
 #ifdef CONFIG_DEBUG_DOUBLEFAULT
 		/* We assume the crashing kernel, and the current symbol table match */
@@ -835,7 +881,7 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
-	       cclk / 1000000,  sclk / 1000000);
+	       cclk / 1000000, sclk / 1000000);
 
 	if (ANOMALY_05000273 && (cclk >> 1) <= sclk)
 		printk("\n\n\nANOMALY_05000273: CCLK must be >= 2*SCLK !!!\n\n\n");
@@ -867,18 +913,21 @@ void __init setup_arch(char **cmdline_p)
 	BUG_ON((char *)&safe_user_instruction - (char *)&fixed_code_start
 		!= SAFE_USER_INSTRUCTION - FIXED_CODE_START);
 
+#ifdef CONFIG_SMP
+	platform_init_cpus();
+#endif
 	init_exception_vectors();
-	bfin_cache_init();
+	bfin_cache_init();	/* Initialize caches for the boot CPU */
 }
 
 static int __init topology_init(void)
 {
-	int cpu;
+	unsigned int cpu;
+	/* Record CPU-private information for the boot processor. */
+	bfin_setup_cpudata(0);
 
 	for_each_possible_cpu(cpu) {
-		struct cpu *c = &per_cpu(cpu_devices, cpu);
-
-		register_cpu(c, cpu);
+		register_cpu(&per_cpu(cpu_data, cpu).cpu, cpu);
 	}
 
 	return 0;
@@ -983,15 +1032,15 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	char *cpu, *mmu, *fpu, *vendor, *cache;
 	uint32_t revid;
 
-	u_long cclk = 0, sclk = 0;
+	u_long sclk = 0;
 	u_int icache_size = BFIN_ICACHESIZE / 1024, dcache_size = 0, dsup_banks = 0;
+	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, *(unsigned int *)v);
 
 	cpu = CPU;
 	mmu = "none";
 	fpu = "none";
 	revid = bfin_revid();
 
-	cclk = get_cclk();
 	sclk = get_sclk();
 
 	switch (bfin_read_CHIPID() & CHIPID_MANUFACTURE) {
@@ -1003,10 +1052,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		break;
 	}
 
-	seq_printf(m, "processor\t: %d\n"
-		"vendor_id\t: %s\n",
-		*(unsigned int *)v,
-		vendor);
+	seq_printf(m, "processor\t: %d\n" "vendor_id\t: %s\n",
+		*(unsigned int *)v, vendor);
 
 	if (CPUID == bfin_cpuid())
 		seq_printf(m, "cpu family\t: 0x%04x\n", CPUID);
@@ -1016,7 +1063,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, "model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
 		"stepping\t: %d\n",
-		cpu, cclk/1000000, sclk/1000000,
+		cpu, cpudata->cclk/1000000, sclk/1000000,
 #ifdef CONFIG_MPU
 		"mpu on",
 #else
@@ -1025,16 +1072,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		revid);
 
 	seq_printf(m, "cpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
-		cclk/1000000, cclk%1000000,
+		cpudata->cclk/1000000, cpudata->cclk%1000000,
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"
 		"Calibration\t: %lu loops\n",
-		(loops_per_jiffy * HZ) / 500000,
-		((loops_per_jiffy * HZ) / 5000) % 100,
-		(loops_per_jiffy * HZ));
+		(cpudata->loops_per_jiffy * HZ) / 500000,
+		((cpudata->loops_per_jiffy * HZ) / 5000) % 100,
+		(cpudata->loops_per_jiffy * HZ));
 
 	/* Check Cache configutation */
-	switch (bfin_read_DMEM_CONTROL() & (1 << DMC0_P | 1 << DMC1_P)) {
+	switch (cpudata->dmemctl & (1 << DMC0_P | 1 << DMC1_P)) {
 	case ACACHE_BSRAM:
 		cache = "dbank-A/B\t: cache/sram";
 		dcache_size = 16;
@@ -1058,10 +1105,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 	/* Is it turned on? */
-	if ((bfin_read_DMEM_CONTROL() & (ENDCPLB | DMC_ENABLE)) != (ENDCPLB | DMC_ENABLE))
+	if ((cpudata->dmemctl & (ENDCPLB | DMC_ENABLE)) != (ENDCPLB | DMC_ENABLE))
 		dcache_size = 0;
 
-	if ((bfin_read_IMEM_CONTROL() & (IMC | ENICPLB)) != (IMC | ENICPLB))
+	if ((cpudata->imemctl & (IMC | ENICPLB)) != (IMC | ENICPLB))
 		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
@@ -1086,8 +1133,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   "dcache setup\t: %d Super-banks/%d Sub-banks/%d Ways, %d Lines/Way\n",
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
+#ifdef __ARCH_SYNC_CORE_DCACHE
+	seq_printf(m,
+		"SMP Dcache Flushes\t: %lu\n\n",
+		per_cpu(cpu_data, *(unsigned int *)v).dcache_invld_count);
+#endif
 #ifdef CONFIG_BFIN_ICACHE_LOCK
-	switch ((bfin_read_IMEM_CONTROL() >> 3) & WAYALL_L) {
+	switch ((cpudata->imemctl >> 3) & WAYALL_L) {
 	case WAY0_L:
 		seq_printf(m, "Way0 Locked-Down\n");
 		break;
@@ -1137,6 +1189,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "No Ways are locked\n");
 	}
 #endif
+	if (*(unsigned int *)v != NR_CPUS-1)
+		return 0;
+
+#if L2_LENGTH
+	seq_printf(m, "L2 SRAM\t\t: %dKB\n", L2_LENGTH/0x400);
+#endif
 	seq_printf(m, "board name\t: %s\n", bfin_board_name);
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
@@ -1144,6 +1202,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		((int)memory_end - (int)_stext) >> 10,
 		_stext,
 		(void *)memory_end);
+	seq_printf(m, "\n");
 
 	return 0;
 }

@@ -363,12 +363,12 @@ void kgdb_passive_cpu_callback(void *info)
 
 void kgdb_roundup_cpus(unsigned long flags)
 {
-	smp_call_function(kgdb_passive_cpu_callback, NULL, 0, 0);
+	smp_call_function(kgdb_passive_cpu_callback, NULL, 0);
 }
 
 void kgdb_roundup_cpu(int cpu, unsigned long flags)
 {
-	smp_call_function_single(cpu, kgdb_passive_cpu_callback, NULL, 0, 0);
+	smp_call_function_single(cpu, kgdb_passive_cpu_callback, NULL, 0);
 }
 #endif
 

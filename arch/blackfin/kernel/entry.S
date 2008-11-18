@@ -30,6 +30,7 @@
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/errno.h>
+#include <asm/blackfin.h>
 #include <asm/asm-offsets.h>
 
 #include <asm/context.S>

@@ -34,9 +34,11 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/irq.h>
+#include <linux/delay.h>
 
 #include <asm/blackfin.h>
 #include <asm/time.h>
+#include <asm/gptimers.h>
 
 /* This is an NTP setting */
 #define	TICK_SIZE (tick_nsec / 1000)
@@ -46,11 +48,14 @@ static unsigned long gettimeoffset(void);
 
 static struct irqaction bfin_timer_irq = {
 	.name = "BFIN Timer Tick",
+#ifdef CONFIG_IRQ_PER_CPU
+	.flags = IRQF_DISABLED  | IRQF_PERCPU,
+#else
 	.flags = IRQF_DISABLED
+#endif
 };
 
-static void
-time_sched_init(irq_handler_t timer_routine)
+void setup_core_timer(void)
 {
 	u32 tcount;
 
@@ -71,12 +76,41 @@ time_sched_init(irq_handler_t timer_routine)
 	CSYNC();
 
 	bfin_write_TCNTL(7);
+}
 
+#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+void setup_system_timer0(void)
+{
+	/* Power down the core timer, just to play safe. */
+	bfin_write_TCNTL(0);
+
+	disable_gptimers(TIMER0bit);
+	set_gptimer_status(0, TIMER_STATUS_TRUN0);
+	while (get_gptimer_status(0) & TIMER_STATUS_TRUN0)
+		udelay(10);
+
+	set_gptimer_config(0, 0x59); /* IRQ enable, periodic, PWM_OUT, SCLKed, OUT PAD disabled */
+	set_gptimer_period(TIMER0_id, get_sclk() / HZ);
+	set_gptimer_pwidth(TIMER0_id, 1);
+	SSYNC();
+	enable_gptimers(TIMER0bit);
+}
+#endif
+
+static void
+time_sched_init(irqreturn_t(*timer_routine) (int, void *))
+{
+#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+	setup_system_timer0();
+#else
+	setup_core_timer();
+#endif
 	bfin_timer_irq.handler = (irq_handler_t)timer_routine;
-	/* call setup_irq instead of request_irq because request_irq calls
-	 * kmalloc which has not been initialized yet
-	 */
+#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+	setup_irq(IRQ_TIMER0, &bfin_timer_irq);
+#else
 	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
+#endif
 }
 
 /*
@@ -87,17 +121,23 @@ static unsigned long gettimeoffset(void)
 	unsigned long offset;
 	unsigned long clocks_per_jiffy;
 
+#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+	clocks_per_jiffy =  bfin_read_TIMER0_PERIOD();
+	offset =  bfin_read_TIMER0_COUNTER() / \
+		(((clocks_per_jiffy + 1) * HZ) / USEC_PER_SEC);
+
+	if ((get_gptimer_status(0) & TIMER_STATUS_TIMIL0) && offset < (100000 / HZ / 2))
+		offset += (USEC_PER_SEC / HZ);
+#else
 	clocks_per_jiffy = bfin_read_TPERIOD();
-	offset =
-	    (clocks_per_jiffy -
-	     bfin_read_TCOUNT()) / (((clocks_per_jiffy + 1) * HZ) /
-				    USEC_PER_SEC);
+	offset = (clocks_per_jiffy - bfin_read_TCOUNT()) / \
+		(((clocks_per_jiffy + 1) * HZ)  / USEC_PER_SEC);
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
 	if ((bfin_read_ILAT() & (1 << IRQ_CORETMR))
-	    && (offset < (100000 / HZ / 2)))
+		&& (offset < (100000 / HZ / 2)))
 		offset += (USEC_PER_SEC / HZ);
-
+#endif
 	return offset;
 }
 
@@ -120,34 +160,38 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 	static long last_rtc_update;
 
 	write_seqlock(&xtime_lock);
+#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+	if (get_gptimer_status(0) & TIMER_STATUS_TIMIL0) {
+#endif
+		do_timer(1);
 
-	do_timer(1);
 
-	profile_tick(CPU_PROFILING);
+		/*
+		 * If we have an externally synchronized Linux clock, then update
+		 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
+		 * called as close as possible to 500 ms before the new second starts.
+		 */
 
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 */
-
-	if (ntp_synced() &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / NSEC_PER_USEC) >=
-	    500000 - ((unsigned)TICK_SIZE) / 2
-	    && (xtime.tv_nsec / NSEC_PER_USEC) <=
-	    500000 + ((unsigned)TICK_SIZE) / 2) {
-		if (set_rtc_mmss(xtime.tv_sec) == 0)
-			last_rtc_update = xtime.tv_sec;
-		else
-			/* Do it again in 60s. */
-			last_rtc_update = xtime.tv_sec - 600;
+		if (ntp_synced() &&
+		    xtime.tv_sec > last_rtc_update + 660 &&
+		    (xtime.tv_nsec / NSEC_PER_USEC) >=
+		    500000 - ((unsigned)TICK_SIZE) / 2
+		    && (xtime.tv_nsec / NSEC_PER_USEC) <=
+		    500000 + ((unsigned)TICK_SIZE) / 2) {
+			if (set_rtc_mmss(xtime.tv_sec) == 0)
+				last_rtc_update = xtime.tv_sec;
+			else
+				/* Do it again in 60s. */
+				last_rtc_update = xtime.tv_sec - 600;
+		}
+#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+		set_gptimer_status(0, TIMER_STATUS_TIMIL0);
 	}
+#endif
 	write_sequnlock(&xtime_lock);
 
-#ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));
-#endif
+	profile_tick(CPU_PROFILING);
 
 	return IRQ_HANDLED;
 }

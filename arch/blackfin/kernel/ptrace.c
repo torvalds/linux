@@ -220,8 +220,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				break;
 			pr_debug("ptrace: user address is valid\n");
 
-			if (L1_CODE_LENGTH != 0 && addr >= L1_CODE_START
-			    && addr + sizeof(tmp) <= L1_CODE_START + L1_CODE_LENGTH) {
+			if (L1_CODE_LENGTH != 0 && addr >= get_l1_code_start()
+			    && addr + sizeof(tmp) <= get_l1_code_start() + L1_CODE_LENGTH) {
 				safe_dma_memcpy (&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
 
@@ -300,8 +300,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				break;
 			pr_debug("ptrace: user address is valid\n");
 
-			if (L1_CODE_LENGTH != 0 && addr >= L1_CODE_START
-			    && addr + sizeof(data) <= L1_CODE_START + L1_CODE_LENGTH) {
+			if (L1_CODE_LENGTH != 0 && addr >= get_l1_code_start()
+			    && addr + sizeof(data) <= get_l1_code_start() + L1_CODE_LENGTH) {
 				safe_dma_memcpy ((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
 

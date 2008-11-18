@@ -343,7 +343,13 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		pr_debug("location is %x, value is %x type is %d \n",
 			 (unsigned int) location32, value,
 			 ELF32_R_TYPE(rel[i].r_info));
-
+#ifdef CONFIG_SMP
+		if ((unsigned long)location16 >= COREB_L1_DATA_A_START) {
+			printk(KERN_ERR "module %s: cannot relocate in L1: %u (SMP kernel)",
+				       mod->name, ELF32_R_TYPE(rel[i].r_info));
+			return -ENOEXEC;
+		}
+#endif
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 
 		case R_pcrel24:
@@ -436,6 +442,7 @@ module_finalize(const Elf_Ehdr * hdr,
 {
 	unsigned int i, strindex = 0, symindex = 0;
 	char *secstrings;
+	long err = 0;
 
 	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 
@@ -460,8 +467,10 @@ module_finalize(const Elf_Ehdr * hdr,
 		    (strcmp(".rela.l1.text", secstrings + sechdrs[i].sh_name) == 0) ||
 		    ((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) &&
 			(hdr->e_flags & (EF_BFIN_CODE_IN_L1|EF_BFIN_CODE_IN_L2))))) {
-			apply_relocate_add((Elf_Shdr *) sechdrs, strtab,
+			err = apply_relocate_add((Elf_Shdr *) sechdrs, strtab,
 					   symindex, i, mod);
+			if (err < 0)
+				return -ENOEXEC;
 		}
 	}
 	return 0;

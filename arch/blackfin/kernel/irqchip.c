@@ -36,7 +36,7 @@
 #include <linux/irq.h>
 #include <asm/trace.h>
 
-static unsigned long irq_err_count;
+static atomic_t irq_err_count;
 static spinlock_t irq_controller_lock;
 
 /*
@@ -48,7 +48,7 @@ void dummy_mask_unmask_irq(unsigned int irq)
 
 void ack_bad_irq(unsigned int irq)
 {
-	irq_err_count += 1;
+	atomic_inc(&irq_err_count);
 	printk(KERN_ERR "IRQ: spurious interrupt %d\n", irq);
 }
 EXPORT_SYMBOL(ack_bad_irq);
@@ -72,7 +72,7 @@ static struct irq_desc bad_irq_desc = {
 
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int i = *(loff_t *) v;
+	int i = *(loff_t *) v, j;
 	struct irqaction *action;
 	unsigned long flags;
 
@@ -80,19 +80,20 @@ int show_interrupts(struct seq_file *p, void *v)
 		spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
-			goto unlock;
-
-		seq_printf(p, "%3d: %10u ", i, kstat_irqs(i));
+			goto skip;
+		seq_printf(p, "%3d: ", i);
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
+		seq_printf(p, " %8s", irq_desc[i].chip->name);
 		seq_printf(p, "  %s", action->name);
 		for (action = action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
+			seq_printf(p, "  %s", action->name);
 
 		seq_putc(p, '\n');
- unlock:
+ skip:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
-		seq_printf(p, "Err: %10lu\n", irq_err_count);
-	}
+	} else if (i == NR_IRQS)
+		seq_printf(p, "Err: %10u\n",  atomic_read(&irq_err_count));
 	return 0;
 }
 
@@ -101,7 +102,6 @@ int show_interrupts(struct seq_file *p, void *v)
  * come via this function.  Instead, they should provide their
  * own 'handler'
  */
-
 #ifdef CONFIG_DO_IRQ_L1
 __attribute__((l1_text))
 #endif
