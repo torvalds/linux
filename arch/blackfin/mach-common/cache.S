@@ -25,9 +25,13 @@
  */
 .macro do_flush flushins:req optflushins optnopins label
 
+	R2 = -L1_CACHE_BYTES;
+
+	/* start = (start & -L1_CACHE_BYTES) */
+	R0 = R0 & R2;
+
 	/* end = ((end - 1) & -L1_CACHE_BYTES) + L1_CACHE_BYTES; */
 	R1 += -1;
-	R2 = -L1_CACHE_BYTES;
 	R1 = R1 & R2;
 	R1 += L1_CACHE_BYTES;
 
