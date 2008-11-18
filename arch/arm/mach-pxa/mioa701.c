@@ -57,10 +57,11 @@
 
 static unsigned long mioa701_pin_config[] = {
 	/* Mio global */
-	MIO_CFG_OUT(GPIO9_CHARGE_nEN, AF0, DRIVE_LOW),
+	MIO_CFG_OUT(GPIO9_CHARGE_EN, AF0, DRIVE_LOW),
 	MIO_CFG_OUT(GPIO18_POWEROFF, AF0, DRIVE_LOW),
 	MFP_CFG_OUT(GPIO3, AF0, DRIVE_HIGH),
 	MFP_CFG_OUT(GPIO4, AF0, DRIVE_HIGH),
+	MIO_CFG_IN(GPIO80_MAYBE_CHARGE_VDROP, AF0),
 
 	/* Backlight PWM 0 */
 	GPIO16_PWM0_OUT,
@@ -77,7 +78,7 @@ static unsigned long mioa701_pin_config[] = {
 	MIO_CFG_OUT(GPIO91_SDIO_EN, AF0, DRIVE_LOW),
 
 	/* USB */
-	MIO_CFG_IN(GPIO13_USB_DETECT, AF0),
+	MIO_CFG_IN(GPIO13_nUSB_DETECT, AF0),
 	MIO_CFG_OUT(GPIO22_USB_ENABLE, AF0, DRIVE_LOW),
 
 	/* LCD */
@@ -116,11 +117,14 @@ static unsigned long mioa701_pin_config[] = {
 	GPIO85_CIF_LV,
 
 	/* Bluetooth */
+	MIO_CFG_IN(GPIO14_BT_nACTIVITY, AF0),
 	GPIO44_BTUART_CTS,
 	GPIO42_BTUART_RXD,
 	GPIO45_BTUART_RTS,
 	GPIO43_BTUART_TXD,
 	MIO_CFG_OUT(GPIO83_BT_ON, AF0, DRIVE_LOW),
+	MIO_CFG_OUT(GPIO77_BT_UNKNOWN1, AF0, DRIVE_HIGH),
+	MIO_CFG_OUT(GPIO86_BT_MAYBE_nRESET, AF0, DRIVE_HIGH),
 
 	/* GPS */
 	MIO_CFG_OUT(GPIO23_GPS_UNKNOWN1, AF0, DRIVE_LOW),
@@ -173,15 +177,11 @@ static unsigned long mioa701_pin_config[] = {
 	GPIO118_I2C_SDA,
 
 	/* Unknown */
-	MFP_CFG_IN(GPIO14, AF0),
 	MFP_CFG_IN(GPIO20, AF0),
 	MFP_CFG_IN(GPIO21, AF0),
 	MFP_CFG_IN(GPIO33, AF0),
 	MFP_CFG_OUT(GPIO49, AF0, DRIVE_HIGH),
 	MFP_CFG_OUT(GPIO57, AF0, DRIVE_HIGH),
-	MFP_CFG_OUT(GPIO77, AF0, DRIVE_HIGH),
-	MFP_CFG_IN(GPIO80, AF0),
-	MFP_CFG_OUT(GPIO86, AF0, DRIVE_HIGH),
 	MFP_CFG_IN(GPIO96, AF0),
 	MFP_CFG_OUT(GPIO116, AF0, DRIVE_HIGH),
 };
@@ -428,7 +428,7 @@ static void udc_power_command(int cmd)
 
 static int is_usb_connected(void)
 {
-	return !!gpio_get_value(GPIO13_USB_DETECT);
+	return !gpio_get_value(GPIO13_nUSB_DETECT);
 }
 
 static struct pxa2xx_udc_mach_info mioa701_udc_info = {
@@ -682,7 +682,7 @@ static char *supplicants[] = {
 
 static void mioa701_set_charge(int flags)
 {
-	gpio_set_value(GPIO9_CHARGE_nEN, !flags);
+	gpio_set_value(GPIO9_CHARGE_EN, (flags == PDA_POWER_CHARGE_USB));
 }
 
 static struct pda_power_pdata power_pdata = {
@@ -695,8 +695,8 @@ static struct pda_power_pdata power_pdata = {
 static struct resource power_resources[] = {
 	[0] = {
 		.name	= "ac",
-		.start	= gpio_to_irq(GPIO13_USB_DETECT),
-		.end	= gpio_to_irq(GPIO13_USB_DETECT),
+		.start	= gpio_to_irq(GPIO13_nUSB_DETECT),
+		.end	= gpio_to_irq(GPIO13_nUSB_DETECT),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
 		IORESOURCE_IRQ_LOWEDGE,
 	},
@@ -908,7 +908,7 @@ static void mioa701_restart(char c)
 }
 
 struct gpio_ress global_gpios[] = {
-	MIO_GPIO_OUT(GPIO9_CHARGE_nEN, 1, "Charger enable"),
+	MIO_GPIO_OUT(GPIO9_CHARGE_EN, 1, "Charger enable"),
 	MIO_GPIO_OUT(GPIO18_POWEROFF, 0, "Power Off"),
 	MIO_GPIO_OUT(GPIO87_LCD_POWER, 0, "LCD Power")
 };
