@@ -127,7 +127,6 @@
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/bootinfo.h>
-#include <asm/machw.h>
 #include <asm/macintosh.h>
 #include <asm/mac_via.h>
 #include <asm/mac_psc.h>

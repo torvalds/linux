@@ -32,7 +32,6 @@
 #include <asm/bootinfo.h>
 #include <asm/macintosh.h>
 #include <asm/macints.h>
-#include <asm/machw.h>
 #include <asm/mac_via.h>
 #include <asm/mac_psc.h>
 

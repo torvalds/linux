@@ -36,7 +36,6 @@
 #include <asm/irq.h>
 #include <asm/macintosh.h>
 #include <asm/io.h>
-#include <asm/machw.h>
 
 /* Common DAC base address for the LC, RBV, Valkyrie, and IIvx */
 #define DAC_BASE 0x50f24000
