@@ -41,6 +41,16 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 	if (c->x86 == 15 && c->x86_cache_alignment == 64)
 		c->x86_cache_alignment = 128;
 #endif
+
+	/*
+	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
+	 * with P/T states and does not stop in deep C-states
+	 */
+	if (c->x86_power & (1 << 8)) {
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+	}
+
 }
 
 #ifdef CONFIG_X86_32
