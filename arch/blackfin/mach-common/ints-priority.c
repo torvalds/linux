@@ -428,8 +428,11 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 
 static void bfin_gpio_irq_shutdown(unsigned int irq)
 {
+	u32 gpionr = irq_to_gpio(irq);
+
 	bfin_gpio_mask_irq(irq);
-	__clear_bit(irq_to_gpio(irq), gpio_enabled);
+	__clear_bit(gpionr, gpio_enabled);
+	bfin_gpio_free(gpionr);
 }
 
 static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
@@ -730,6 +733,7 @@ static void bfin_gpio_irq_shutdown(unsigned int irq)
 
 	bfin_gpio_mask_irq(irq);
 	__clear_bit(gpionr, gpio_enabled);
+	bfin_gpio_free(gpionr);
 }
 
 static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
