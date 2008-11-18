@@ -641,19 +641,12 @@ void ath_get_beaconconfig(struct ath_softc *sc,
 #define ATH_SET_VAP_BSSID_MASK(bssid_mask) \
 	((bssid_mask)[0] &= ~(((ATH_BCBUF-1)<<2)|0x02))
 
-/* VAP configuration (from protocol layer) */
-struct ath_vap_config {
-	u32 av_fixed_rateset;
-	u32 av_fixed_retryset;
-};
-
 /* driver-specific vap state */
 struct ath_vap {
 	int av_bslot;			/* beacon slot index */
 	enum ath9k_opmode av_opmode;	/* VAP operational mode */
 	struct ath_buf *av_bcbuf;	/* beacon buffer */
 	struct ath_tx_control av_btxctl;  /* txctl information for beacon */
-	struct ath_vap_config av_config;/* vap configuration parameters*/
 	struct ath_rate_node *rc_node;
 };
 
@@ -915,7 +908,6 @@ struct ath_softc {
 	/* Rate */
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
 	const struct ath9k_rate_table *sc_currates;
-	u8 sc_rixmap[256];	/* IEEE to h/w rate table ix */
 	u8 sc_protrix;		/* protection rate index */
 	struct {
 		u32 rateKbps;	/* transfer rate in kbs */

@@ -60,16 +60,6 @@ struct ath_softc;
 
 #define ATH_RATE_MAX	30
 
-enum ieee80211_fixed_rate_mode {
-	IEEE80211_FIXED_RATE_NONE  = 0,
-	IEEE80211_FIXED_RATE_MCS   = 1  /* HT rates */
-};
-
-/*
- * Use the hal os glue code to get ms time
- */
-#define IEEE80211_RATE_IDX_ENTRY(val, idx) (((val&(0xff<<(idx*8)))>>(idx*8)))
-
 #define WLAN_PHY_HT_20_SS       WLAN_RC_PHY_HT_20_SS
 #define WLAN_PHY_HT_20_DS       WLAN_RC_PHY_HT_20_DS
 #define WLAN_PHY_HT_20_DS_HGI   WLAN_RC_PHY_HT_20_DS_HGI
@@ -287,27 +277,10 @@ struct ath_tx_info_priv {
 	u8 min_rate;
 };
 
-/*
- * Attach/detach a rate control module.
- */
 struct ath_rate_softc *ath_rate_attach(struct ath_softc *sch);
 void ath_rate_detach(struct ath_rate_softc *asc);
-
-/*
- * Update/reset rate control state for 802.11 state transitions.
- * Important mostly as the analog to ath_rate_newassoc when operating
- * in station mode.
- */
 void ath_rc_node_update(struct ieee80211_hw *hw, struct ath_rate_node *rc_priv);
-void ath_rate_newstate(struct ath_softc *sc, struct ath_vap *avp);
-
-/*
- * Return rate index for given Dot11 Rate.
- */
-u8 ath_rate_findrateix(struct ath_softc *sc,
-		       u8 dot11_rate);
-
-/* Routines to register/unregister rate control algorithm */
+u8 ath_rate_findrateix(struct ath_softc *sc, u8 dot11_rate);
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);
 

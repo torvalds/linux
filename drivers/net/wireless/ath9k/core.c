@@ -89,12 +89,8 @@ static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
 	const struct ath9k_rate_table *rt;
 	int i;
 
-	memset(sc->sc_rixmap, 0xff, sizeof(sc->sc_rixmap));
 	rt = ath9k_hw_getratetable(sc->sc_ah, mode);
 	BUG_ON(!rt);
-
-	for (i = 0; i < rt->rateCount; i++)
-		sc->sc_rixmap[rt->info[i].rateCode] = (u8) i;
 
 	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
 	for (i = 0; i < 256; i++) {

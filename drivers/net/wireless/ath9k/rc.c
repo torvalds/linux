@@ -709,27 +709,6 @@ u8 ath_rate_findrateix(struct ath_softc *sc,
 	return 0;
 }
 
-/*
- * Update rate-control state on a device state change.  When
- * operating as a station this includes associate/reassociate
- * with an AP.  Otherwise this gets called, for example, when
- * the we transition to run state when operating as an AP.
- */
-void ath_rate_newstate(struct ath_softc *sc, struct ath_vap *avp)
-{
-	struct ath_rate_softc *asc = sc->sc_rc;
-
-	if (avp->av_config.av_fixed_rateset != IEEE80211_FIXED_RATE_NONE) {
-		asc->fixedrix =
-			sc->sc_rixmap[avp->av_config.av_fixed_rateset & 0xff];
-		/* NB: check the fixed rate exists */
-		if (asc->fixedrix == 0xff)
-			asc->fixedrix = IEEE80211_FIXED_RATE_NONE;
-	} else {
-		asc->fixedrix = IEEE80211_FIXED_RATE_NONE;
-	}
-}
-
 static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 			     struct ath_rate_node *ath_rc_priv,
 			     const struct ath_rate_table *rate_table,
@@ -1009,73 +988,11 @@ static void ath_rate_findrate(struct ath_softc *sc,
 			      int *is_probe,
 			      int is_retry)
 {
-	struct ath_vap *avp = ath_rc_priv->avp;
-
-	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
-
 	if (!num_rates || !num_tries)
 		return;
 
-	if (avp->av_config.av_fixed_rateset == IEEE80211_FIXED_RATE_NONE) {
-		ath_rc_ratefind(sc, ath_rc_priv, num_tries, num_rates,
-				rcflag, series, is_probe, is_retry);
-	} else {
-		/* Fixed rate */
-		int idx;
-		u8 flags;
-		u32 rix;
-		struct ath_rate_softc *asc = ath_rc_priv->asc;
-		struct ath_rate_table *rate_table;
-
-		rate_table = (struct ath_rate_table *)
-			asc->hw_rate_table[sc->sc_curmode];
-
-		for (idx = 0; idx < 4; idx++) {
-			unsigned int    mcs;
-			u8 series_rix = 0;
-
-			series[idx].tries = IEEE80211_RATE_IDX_ENTRY(
-				avp->av_config.av_fixed_retryset, idx);
-
-			mcs = IEEE80211_RATE_IDX_ENTRY(
-				avp->av_config.av_fixed_rateset, idx);
-
-			if (idx == 3 && (mcs & 0xf0) == 0x70)
-				mcs = (mcs & ~0xf0)|0x80;
-
-			if (!(mcs & 0x80))
-				flags = 0;
-			else
-				flags = ((ath_rc_priv->ht_cap &
-						WLAN_RC_DS_FLAG) ?
-						ATH_RC_DS_FLAG : 0) |
-					((ath_rc_priv->ht_cap &
-						WLAN_RC_40_FLAG) ?
-						ATH_RC_CW40_FLAG : 0) |
-					((ath_rc_priv->ht_cap &
-						WLAN_RC_SGI_FLAG) ?
-					((ath_rc_priv->ht_cap &
-						WLAN_RC_40_FLAG) ?
-						ATH_RC_SGI_FLAG : 0) : 0);
-
-			series[idx].rix = sc->sc_rixmap[mcs];
-			series_rix  = series[idx].rix;
-
-			/* XXX: Give me some cleanup love */
-			if ((flags & ATH_RC_CW40_FLAG) &&
-				(flags & ATH_RC_SGI_FLAG))
-				rix = rate_table->info[series_rix].ht_index;
-			else if (flags & ATH_RC_SGI_FLAG)
-				rix = rate_table->info[series_rix].sgi_index;
-			else if (flags & ATH_RC_CW40_FLAG)
-				rix = rate_table->info[series_rix].cw40index;
-			else
-				rix = rate_table->info[series_rix].base_index;
-			series[idx].max_4ms_framelen =
-				rate_table->info[rix].max_4ms_framelen;
-			series[idx].flags = flags;
-		}
-	}
+	ath_rc_ratefind(sc, ath_rc_priv, num_tries, num_rates,
+			rcflag, series, is_probe, is_retry);
 }
 
 static void ath_rc_update_ht(struct ath_softc *sc,
@@ -1498,11 +1415,8 @@ static void ath_rate_tx_complete(struct ath_softc *sc,
 {
 	int final_ts_idx = info_priv->tx.ts_rateindex;
 	int tx_status = 0, is_underrun = 0;
-	struct ath_vap *avp;
 
-	avp = rc_priv->avp;
-	if ((avp->av_config.av_fixed_rateset != IEEE80211_FIXED_RATE_NONE) ||
-	    (info_priv->tx.ts_status & ATH9K_TXERR_FILT))
+	if (info_priv->tx.ts_status & ATH9K_TXERR_FILT)
 		return;
 
 	if (info_priv->tx.ts_rssi > 0) {

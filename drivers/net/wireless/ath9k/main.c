@@ -379,7 +379,6 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 				"%s: Unable to set channel\n",
 				__func__);
 
-		ath_rate_newstate(sc, avp);
 		/* Update ratectrl about the new state */
 		ath_rc_node_update(hw, avp->rc_node);
 
@@ -1099,10 +1098,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	/* Set the device opmode */
 	sc->sc_ah->ah_opmode = ic_opmode;
 
-	/* default VAP configuration */
-	avp->av_config.av_fixed_rateset = IEEE80211_FIXED_RATE_NONE;
-	avp->av_config.av_fixed_retryset = 0x03030303;
-
 	if (conf->type == NL80211_IFTYPE_AP) {
 		/* TODO: is this a suitable place to start ANI for AP mode? */
 		/* Start ANI */
@@ -1205,9 +1200,6 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 		switch (vif->type) {
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_ADHOC:
-			/* Update ratectrl about the new state */
-			ath_rate_newstate(sc, avp);
-
 			/* Set BSSID */
 			memcpy(sc->sc_curbssid, conf->bssid, ETH_ALEN);
 			sc->sc_curaid = 0;
