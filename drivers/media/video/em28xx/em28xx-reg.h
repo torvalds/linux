@@ -117,3 +117,55 @@ enum em28xx_chip_id {
 	CHIP_ID_EM2883 = 36,
 	CHIP_ID_EM2874 = 65,
 };
+
+/*
+ * Registers used by em202 and other AC97 chips
+ */
+
+/* Standard AC97 registers */
+#define AC97_RESET               0x00
+#define AC97_MASTER_VOL          0x02
+#define AC97_LINE_LEVEL_VOL      0x04
+#define AC97_MASTER_MONO_VOL     0x06
+
+#define AC97_PC_BEEP_VOL         0x0a
+#define AC97_PHONE_VOL           0x0c
+#define AC97_MIC_VOL             0x0e
+#define AC97_LINEIN_VOL          0x10
+#define AC97_CD_VOL              0x12
+#define AC97_VIDEO_VOL           0x14
+#define AC97_AUX_VOL             0x16
+#define AC97_PCM_OUT_VOL         0x18
+#define AC97_RECORD_SELECT       0x1a
+#define AC97_RECORD_GAIN         0x1c
+#define AC97_GENERAL_PURPOSE     0x20
+#define AC97_3D_CTRL             0x22
+#define AC97_AUD_INT_AND_PAG     0x24
+#define AC97_POWER_DOWN_CTRL     0x26
+#define AC97_EXT_AUD_ID          0x28
+#define AC97_EXT_AUD_CTRL        0x2a
+
+/* Supported rate varies for each AC97 device
+   if write an unsupported value, it will return the closest one
+ */
+#define AC97_PCM_OUT_FRONT_SRATE 0x2c
+#define AC97_PCM_OUT_SURR_SRATE  0x2e
+#define AC97_PCM_OUT_LFE_SRATE   0x30
+#define AC97_PCM_IN_SRATE        0x32
+#define AC97_LFE_MASTER_VOL      0x36
+#define AC97_SURR_MASTER_VOL     0x38
+#define AC97_SPDIF_OUT_CTRL      0x3a
+
+#define AC97_VENDOR_ID1          0x7c
+#define AC97_VENDOR_ID2          0x7e
+
+/* EMP202 vendor registers */
+#define EM202_EXT_MODEM_CTRL     0x3e
+#define EM202_GPIO_CONF          0x4c
+#define EM202_GPIO_POLARITY      0x4e
+#define EM202_GPIO_STICKY        0x50
+#define EM202_GPIO_MASK          0x52
+#define EM202_GPIO_STATUS        0x54
+#define EM202_SPDIF_OUT_SEL      0x6a
+#define EM202_ANTIPOP            0x72
+#define EM202_EAPD_GPIO_ACCESS   0x74
