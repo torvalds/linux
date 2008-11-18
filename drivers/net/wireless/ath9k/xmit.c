@@ -1646,7 +1646,7 @@ static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
 }
 
 static void ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
-				struct sk_buff *skb, struct scatterlist *sg,
+				struct sk_buff *skb,
 				struct ath_tx_control *txctl)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -1711,7 +1711,6 @@ static void ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 
 /* FIXME: tx power */
 static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
-			     struct scatterlist *sg, u32 n_sg,
 			     struct ath_tx_control *txctl)
 {
 	struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
@@ -1740,10 +1739,10 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			       bf->bf_keyix, bf->bf_keytype, bf->bf_flags);
 
 	ath9k_hw_filltxdesc(ah, ds,
-			    sg_dma_len(sg),		/* segment length */
-			    true,			/* first segment */
-			    (n_sg == 1) ? true : false,	/* last segment */
-			    ds);			/* first descriptor */
+			    skb->len,	/* segment length */
+			    true,	/* first segment */
+			    true,	/* last segment */
+			    ds);	/* first descriptor */
 
 	bf->bf_lastfrm = bf;
 
@@ -1783,7 +1782,6 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 		 struct ath_tx_control *txctl)
 {
 	struct ath_buf *bf;
-	struct scatterlist sg;
 
 	/* Check if a tx buffer is available */
 
@@ -1794,15 +1792,8 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 		return -1;
 	}
 
-	ath_tx_setup_buffer(sc, bf, skb, &sg, txctl);
-
-	/* Setup S/G */
-
-	memset(&sg, 0, sizeof(struct scatterlist));
-	sg_dma_address(&sg) = bf->bf_dmacontext;
-	sg_dma_len(&sg) = skb->len;
-
-	ath_tx_start_dma(sc, bf, &sg, 1, txctl);
+	ath_tx_setup_buffer(sc, bf, skb, txctl);
+	ath_tx_start_dma(sc, bf, txctl);
 
 	return 0;
 }
