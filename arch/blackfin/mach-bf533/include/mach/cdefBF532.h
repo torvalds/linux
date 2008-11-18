@@ -677,7 +677,7 @@
 #define bfin_write_PPI_FRAME(val)            bfin_write16(PPI_FRAME,val)
 
 /* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/system.h>
+#include <asm/irq.h>
 
 #if ANOMALY_05000311
 #define BFIN_WRITE_FIO_FLAG(name) \

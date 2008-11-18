@@ -23,7 +23,7 @@
 #ifndef _ASM_BLACKFIN_PDA_H
 #define _ASM_BLACKFIN_PDA_H
 
-#include <asm/mem_map.h>
+#include <mach/anomaly.h>
 
 #ifndef __ASSEMBLY__
 

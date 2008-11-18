@@ -109,7 +109,6 @@ SECTIONS
 #endif
 
 		DATA_DATA
-		*(.data)
 		CONSTRUCTORS
 
 		/* make sure the init_task is aligned to the

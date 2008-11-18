@@ -2053,7 +2053,7 @@
 #define bfin_write_CAN_MB31_ID1(val)   bfin_write16(CAN_MB31_ID1, val)
 
 /* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/system.h>
+#include <asm/irq.h>
 
 /* Writing to PLL_CTL initiates a PLL relock sequence. */
 static __inline__ void bfin_write_PLL_CTL(unsigned int val)

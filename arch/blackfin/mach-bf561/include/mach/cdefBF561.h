@@ -1527,7 +1527,7 @@
 #define bfin_write_MDMA_D0_START_ADDR(val) bfin_write_MDMA1_D0_START_ADDR(val)
 
 /* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/system.h>
+#include <asm/irq.h>
 
 /* Writing to PLL_CTL initiates a PLL relock sequence. */
 static __inline__ void bfin_write_PLL_CTL(unsigned int val)

@@ -39,95 +39,7 @@
 #include <mach/anomaly.h>
 #include <asm/pda.h>
 #include <asm/processor.h>
-
-/* Forward decl needed due to cdef inter dependencies */
-static inline uint32_t __pure bfin_dspid(void);
-#define blackfin_core_id() (bfin_dspid() & 0xff)
-
-/*
- * Interrupt configuring macros.
- */
-#define local_irq_disable() \
-	do { \
-		int __tmp_dummy; \
-		__asm__ __volatile__( \
-			"cli %0;" \
-			: "=d" (__tmp_dummy) \
-		); \
-	} while (0)
-
-#if ANOMALY_05000244 && defined(CONFIG_BFIN_ICACHE)
-# define NOP_PAD_ANOMALY_05000244 "nop; nop;"
-#else
-# define NOP_PAD_ANOMALY_05000244
-#endif
-
-#ifdef CONFIG_SMP
-# define irq_flags cpu_pda[blackfin_core_id()].imask
-#else
-extern unsigned long irq_flags;
-#endif
-
-#define local_irq_enable() \
-	__asm__ __volatile__( \
-		"sti %0;" \
-		: \
-		: "d" (irq_flags) \
-	)
-#define idle_with_irq_disabled() \
-	__asm__ __volatile__( \
-		NOP_PAD_ANOMALY_05000244 \
-		".align 8;" \
-		"sti %0;" \
-		"idle;" \
-		: \
-		: "d" (irq_flags) \
-	)
-
-#ifdef CONFIG_DEBUG_HWERR
-# define __save_and_cli(x) \
-	__asm__ __volatile__( \
-		"cli %0;" \
-		"sti %1;" \
-		: "=&d" (x) \
-		: "d" (0x3F) \
-	)
-#else
-# define __save_and_cli(x) \
-	__asm__ __volatile__( \
-		"cli %0;" \
-		: "=&d" (x) \
-	)
-#endif
-
-#define local_save_flags(x) \
-	__asm__ __volatile__( \
-		"cli %0;" \
-		"sti %0;" \
-		: "=d" (x) \
-	)
-
-#ifdef CONFIG_DEBUG_HWERR
-#define irqs_enabled_from_flags(x) (((x) & ~0x3f) != 0)
-#else
-#define irqs_enabled_from_flags(x) ((x) != 0x1f)
-#endif
-
-#define local_irq_restore(x) \
-	do { \
-		if (irqs_enabled_from_flags(x)) \
-			local_irq_enable(); \
-	} while (0)
-
-/* For spinlocks etc */
-#define local_irq_save(x) __save_and_cli(x)
-
-#define	irqs_disabled()				\
-({						\
-	unsigned long flags;			\
-	local_save_flags(flags);		\
-	!irqs_enabled_from_flags(flags);	\
-})
+#include <asm/irq.h>
 
 /*
  * Force strict CPU ordering.
@@ -279,7 +191,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
  * ptr isn't the current task, in which case it does nothing.
  */
 
-#include <asm/blackfin.h>
+#include <asm/l1layout.h>
 
 asmlinkage struct task_struct *resume(struct task_struct *prev, struct task_struct *next);
 
