@@ -170,6 +170,10 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->fflags & US_FL_CAPACITY_HEURISTICS)
 			sdev->guess_capacity = 1;
 
+		/* assume SPC3 or latter devices support sense size > 18 */
+		if (sdev->scsi_level > SCSI_SPC_2)
+			us->fflags |= US_FL_SANE_SENSE;
+
 		/* Some devices report a SCSI revision level above 2 but are
 		 * unable to handle the REPORT LUNS command (for which
 		 * support is mandatory at level 3).  Since we already have

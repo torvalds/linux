@@ -579,6 +579,20 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/*
+	 * Determine if this device is SAT by seeing if the
+	 * command executed successfully.  Otherwise we'll have
+	 * to wait for at least one CHECK_CONDITION to determine
+	 * SANE_SENSE support
+	 */
+	if ((srb->cmnd[0] == ATA_16 || srb->cmnd[0] == ATA_12) &&
+	    result == USB_STOR_TRANSPORT_GOOD &&
+	    !(us->fflags & US_FL_SANE_SENSE) &&
+	    !(srb->cmnd[2] & 0x20)) {
+		US_DEBUGP("-- SAT supported, increasing auto-sense\n");
+		us->fflags |= US_FL_SANE_SENSE;
+	}
+
+	/*
 	 * A short transfer on a command where we don't expect it
 	 * is unusual, but it doesn't mean we need to auto-sense.
 	 */
@@ -595,10 +609,15 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (need_auto_sense) {
 		int temp_result;
 		struct scsi_eh_save ses;
+		int sense_size = US_SENSE_SIZE;
+
+		/* device supports and needs bigger sense buffer */
+		if (us->fflags & US_FL_SANE_SENSE)
+			sense_size = ~0;
 
 		US_DEBUGP("Issuing auto-REQUEST_SENSE\n");
 
-		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, US_SENSE_SIZE);
+		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, sense_size);
 
 		/* FIXME: we must do the protocol translation here */
 		if (us->subclass == US_SC_RBC || us->subclass == US_SC_SCSI ||
@@ -630,6 +649,25 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 			if (!(us->fflags & US_FL_SCM_MULT_TARG))
 				goto Handle_Errors;
 			return;
+		}
+
+		/* If the sense data returned is larger than 18-bytes then we
+		 * assume this device supports requesting more in the future.
+		 * The response code must be 70h through 73h inclusive.
+		 */
+		if (srb->sense_buffer[7] > (US_SENSE_SIZE - 8) &&
+		    !(us->fflags & US_FL_SANE_SENSE) &&
+		    (srb->sense_buffer[0] & 0x7C) == 0x70) {
+			US_DEBUGP("-- SANE_SENSE support enabled\n");
+			us->fflags |= US_FL_SANE_SENSE;
+
+			/* Indicate to the user that we truncated their sense
+			 * because we didn't know it supported larger sense.
+			 */
+			US_DEBUGP("-- Sense data truncated to %i from %i\n",
+			          US_SENSE_SIZE,
+			          srb->sense_buffer[7] + 8);
+			srb->sense_buffer[7] = (US_SENSE_SIZE - 8);
 		}
 
 		US_DEBUGP("-- Result from auto-sense is %d\n", temp_result);
