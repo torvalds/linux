@@ -80,10 +80,12 @@ static inline struct pt_regs *get_user_regs(struct task_struct *task)
 /*
  * Get all user integer registers.
  */
-static inline int ptrace_getregs(struct task_struct *tsk, void __user * uregs)
+static inline int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
 {
-	struct pt_regs *regs = get_user_regs(tsk);
-	return copy_to_user(uregs, regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
+	struct pt_regs regs;
+	memcpy(&regs, get_user_regs(tsk), sizeof(regs));
+	regs.usp = tsk->thread.usp;
+	return copy_to_user(uregs, &regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
 }
 
 /* Mapping from PT_xxx to the stack offset at which the register is
