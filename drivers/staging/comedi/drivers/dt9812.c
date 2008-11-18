@@ -43,27 +43,25 @@ for my needs.
  *      says P1).
  */
 
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
+
 #include "../comedidev.h"
 #include "dt9812.h"
 
-#define DT9812_NUM_SLOTS 16
+#define DT9812_NUM_SLOTS	16
 
 static DECLARE_MUTEX(dt9812_mutex);
 
 static struct usb_device_id dt9812_table[] = {
 	{USB_DEVICE(0x0867, 0x9812)},
-	{}			/* Terminating entry */
+	{ }			/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(usb, dt9812_table);
@@ -119,7 +117,7 @@ static const comedi_lrange dt9812_2pt5_aout_range = { 1, {
 
 static slot_dt9812_t dt9812[DT9812_NUM_SLOTS];
 
-// Useful shorthand access to private data
+/* Useful shorthand access to private data */
 #define devpriv ((comedi_dt9812_t *)dev->private)
 
 static inline usb_dt9812_t *to_dt9812_dev(struct kref *d)
@@ -135,8 +133,8 @@ static void dt9812_delete(struct kref *kref)
 	kfree(dev);
 }
 
-static int dt9812_read_info(usb_dt9812_t * dev,
-	int offset, void *buf, size_t buf_size)
+static int dt9812_read_info(usb_dt9812_t *dev, int offset, void *buf,
+			    size_t buf_size)
 {
 	dt9812_usb_cmd_t cmd;
 	int count, retval;
@@ -146,41 +144,49 @@ static int dt9812_read_info(usb_dt9812_t * dev,
 		cpu_to_le16(DT9812_DIAGS_BOARD_INFO_ADDR + offset);
 	cmd.u.flash_data_info.numbytes = cpu_to_le16(buf_size);
 
+	/* DT9812 only responds to 32 byte writes!! */
 	count = 32;
-	retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->command_write.addr), &cmd, 32,	// DT9812 only responds to 32 byte writes!!
-		&count, HZ * 1);
-	if (retval == 0) {
-		retval = usb_bulk_msg(dev->udev,
-			usb_rcvbulkpipe(dev->udev, dev->command_read.addr),
-			buf, buf_size, &count, HZ * 1);
-	}
+	retval = usb_bulk_msg(dev->udev,
+			      usb_sndbulkpipe(dev->udev,
+					      dev->command_write.addr),
+			      &cmd, 32, &count, HZ * 1);
+	if (retval)
+		return retval;
+	retval = usb_bulk_msg(dev->udev,
+			      usb_rcvbulkpipe(dev->udev,
+					      dev->command_read.addr),
+			      buf, buf_size, &count, HZ * 1);
 	return retval;
 }
 
-static int dt9812_read_multiple_registers(usb_dt9812_t * dev,
-	int reg_count, u8 * address, u8 * value)
+static int dt9812_read_multiple_registers(usb_dt9812_t *dev, int reg_count,
+					  u8 *address, u8 *value)
 {
 	dt9812_usb_cmd_t cmd;
 	int i, count, retval;
 
 	cmd.cmd = cpu_to_le32(DT9812_R_MULTI_BYTE_REG);
 	cmd.u.read_multi_info.count = reg_count;
-	for (i = 0; i < reg_count; i++) {
+	for (i = 0; i < reg_count; i++)
 		cmd.u.read_multi_info.address[i] = address[i];
-	}
+
+	/* DT9812 only responds to 32 byte writes!! */
 	count = 32;
-	retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->command_write.addr), &cmd, 32,	// DT9812 only responds to 32 byte writes!!
-		&count, HZ * 1);
-	if (retval == 0) {
-		retval = usb_bulk_msg(dev->udev,
-			usb_rcvbulkpipe(dev->udev, dev->command_read.addr),
-			value, reg_count, &count, HZ * 1);
-	}
+	retval = usb_bulk_msg(dev->udev,
+			      usb_sndbulkpipe(dev->udev,
+					      dev->command_write.addr),
+			      &cmd, 32, &count, HZ * 1);
+	if (retval)
+		return retval;
+	retval = usb_bulk_msg(dev->udev,
+			      usb_rcvbulkpipe(dev->udev,
+					      dev->command_read.addr),
+			      value, reg_count, &count, HZ * 1);
 	return retval;
 }
 
-static int dt9812_write_multiple_registers(usb_dt9812_t * dev,
-	int reg_count, u8 * address, u8 * value)
+static int dt9812_write_multiple_registers(usb_dt9812_t *dev, int reg_count,
+					   u8 *address, u8 *value)
 {
 	dt9812_usb_cmd_t cmd;
 	int i, count, retval;
@@ -191,28 +197,34 @@ static int dt9812_write_multiple_registers(usb_dt9812_t * dev,
 		cmd.u.write_multi_info.write[i].address = address[i];
 		cmd.u.write_multi_info.write[i].value = value[i];
 	}
-	retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->command_write.addr), &cmd, 32,	// DT9812 only responds to 32 byte writes!!
-		&count, HZ * 1);
+	/* DT9812 only responds to 32 byte writes!! */
+	retval = usb_bulk_msg(dev->udev,
+			      usb_sndbulkpipe(dev->udev,
+					      dev->command_write.addr),
+			      &cmd, 32, &count, HZ * 1);
 	return retval;
 }
 
-static int dt9812_rmw_multiple_registers(usb_dt9812_t * dev,
-	int reg_count, dt9812_rmw_byte_t rmw[])
+static int dt9812_rmw_multiple_registers(usb_dt9812_t *dev, int reg_count,
+					 dt9812_rmw_byte_t rmw[])
 {
 	dt9812_usb_cmd_t cmd;
 	int i, count, retval;
 
 	cmd.cmd = cpu_to_le32(DT9812_RMW_MULTI_BYTE_REG);
 	cmd.u.rmw_multi_info.count = reg_count;
-	for (i = 0; i < reg_count; i++) {
+	for (i = 0; i < reg_count; i++)
 		cmd.u.rmw_multi_info.rmw[i] = rmw[i];
-	}
-	retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->command_write.addr), &cmd, 32,	// DT9812 only responds to 32 byte writes!!
-		&count, HZ * 1);
+
+	/* DT9812 only responds to 32 byte writes!! */
+	retval = usb_bulk_msg(dev->udev,
+			      usb_sndbulkpipe(dev->udev,
+					      dev->command_write.addr),
+			      &cmd, 32, &count, HZ * 1);
 	return retval;
 }
 
-static int dt9812_digital_in(slot_dt9812_t * slot, u8 * bits)
+static int dt9812_digital_in(slot_dt9812_t *slot, u8 *bits)
 {
 	int result = -ENODEV;
 
@@ -222,12 +234,16 @@ static int dt9812_digital_in(slot_dt9812_t * slot, u8 * bits)
 		u8 value[2];
 
 		result = dt9812_read_multiple_registers(slot->usb, 2, reg,
-			value);
+							value);
 		if (result == 0) {
-			// bits 0-6 in F020_SFR_P3 are bits 0-6 in the digital input port
-			// bit 3 in F020_SFR_P1 is bit 7 in the digital input port
+			/*
+			 * bits 0-6 in F020_SFR_P3 are bits 0-6 in the digital
+			 * input port bit 3 in F020_SFR_P1 is bit 7 in the
+			 * digital input port
+			 */
 			*bits = (value[0] & 0x7f) | ((value[1] & 0x08) << 4);
-//    printk("%2.2x, %2.2x -> %2.2x\n", value[0], value[1], *bits);
+			/* printk("%2.2x, %2.2x -> %2.2x\n",
+				  value[0], value[1], *bits); */
 		}
 	}
 	up(&slot->mutex);
@@ -235,7 +251,7 @@ static int dt9812_digital_in(slot_dt9812_t * slot, u8 * bits)
 	return result;
 }
 
-static int dt9812_digital_out(slot_dt9812_t * slot, u8 bits)
+static int dt9812_digital_out(slot_dt9812_t *slot, u8 bits)
 {
 	int result = -ENODEV;
 
@@ -247,14 +263,14 @@ static int dt9812_digital_out(slot_dt9812_t * slot, u8 bits)
 		reg[0] = F020_SFR_P2;
 		value[0] = bits;
 		result = dt9812_write_multiple_registers(slot->usb, 1, reg,
-			value);
+							 value);
 		slot->usb->digital_out_shadow = bits;
 	}
 	up(&slot->mutex);
 	return result;
 }
 
-static int dt9812_digital_out_shadow(slot_dt9812_t * slot, u8 * bits)
+static int dt9812_digital_out_shadow(slot_dt9812_t *slot, u8 *bits)
 {
 	int result = -ENODEV;
 
@@ -267,139 +283,137 @@ static int dt9812_digital_out_shadow(slot_dt9812_t * slot, u8 * bits)
 	return result;
 }
 
-static void dt9812_configure_mux(usb_dt9812_t * dev,
-	dt9812_rmw_byte_t * rmw, int channel)
+static void dt9812_configure_mux(usb_dt9812_t *dev, dt9812_rmw_byte_t *rmw,
+				 int channel)
 {
 	if (dev->device == DT9812_DEVID_DT9812_10) {
-		// In the DT9812/10V MUX is selected by P1.5-7
+		/* In the DT9812/10V MUX is selected by P1.5-7 */
 		rmw->address = F020_SFR_P1;
 		rmw->and_mask = 0xe0;
 		rmw->or_value = channel << 5;
 	} else {
-		// In the DT9812/2.5V, the internal mux is selected by bits 0:2
+		/* In the DT9812/2.5V, internal mux is selected by bits 0:2 */
 		rmw->address = F020_SFR_AMX0SL;
 		rmw->and_mask = 0xff;
 		rmw->or_value = channel & 0x07;
 	}
 }
 
-static void dt9812_configure_gain(usb_dt9812_t * dev,
-	dt9812_rmw_byte_t * rmw, dt9812_gain_t gain)
+static void dt9812_configure_gain(usb_dt9812_t *dev, dt9812_rmw_byte_t *rmw,
+				  dt9812_gain_t gain)
 {
 	if (dev->device == DT9812_DEVID_DT9812_10) {
-		// In the DT9812/10V, there is an external gain of 0.5
+		/* In the DT9812/10V, there is an external gain of 0.5 */
 		gain <<= 1;
 	}
 
 	rmw->address = F020_SFR_ADC0CF;
-	rmw->and_mask =
-		F020_MASK_ADC0CF_AMP0GN2 |
-		F020_MASK_ADC0CF_AMP0GN1 | F020_MASK_ADC0CF_AMP0GN0;
+	rmw->and_mask = F020_MASK_ADC0CF_AMP0GN2 |
+			F020_MASK_ADC0CF_AMP0GN1 |
+			F020_MASK_ADC0CF_AMP0GN0;
 	switch (gain) {
-		// 000 -> Gain =  1
-		// 001 -> Gain =  2
-		// 010 -> Gain =  4
-		// 011 -> Gain =  8
-		// 10x -> Gain = 16
-		// 11x -> Gain =  0.5
-	case DT9812_GAIN_0PT5:{
-			rmw->or_value = F020_MASK_ADC0CF_AMP0GN2
-				|| F020_MASK_ADC0CF_AMP0GN1;
-		}
+		/*
+		 * 000 -> Gain =  1
+		 * 001 -> Gain =  2
+		 * 010 -> Gain =  4
+		 * 011 -> Gain =  8
+		 * 10x -> Gain = 16
+		 * 11x -> Gain =  0.5
+		 */
+	case DT9812_GAIN_0PT5:
+		rmw->or_value = F020_MASK_ADC0CF_AMP0GN2 ||
+				F020_MASK_ADC0CF_AMP0GN1;
 		break;
-	case DT9812_GAIN_1:{
-			rmw->or_value = 0x00;
-		}
+	case DT9812_GAIN_1:
+		rmw->or_value = 0x00;
 		break;
-	case DT9812_GAIN_2:{
-			rmw->or_value = F020_MASK_ADC0CF_AMP0GN0;
-		}
+	case DT9812_GAIN_2:
+		rmw->or_value = F020_MASK_ADC0CF_AMP0GN0;
 		break;
-	case DT9812_GAIN_4:{
-			rmw->or_value = F020_MASK_ADC0CF_AMP0GN1;
-		}
+	case DT9812_GAIN_4:
+		rmw->or_value = F020_MASK_ADC0CF_AMP0GN1;
 		break;
-	case DT9812_GAIN_8:{
-			rmw->or_value = F020_MASK_ADC0CF_AMP0GN1
-				|| F020_MASK_ADC0CF_AMP0GN0;
-		}
+	case DT9812_GAIN_8:
+		rmw->or_value = F020_MASK_ADC0CF_AMP0GN1 ||
+				F020_MASK_ADC0CF_AMP0GN0;
 		break;
-	case DT9812_GAIN_16:{
-			rmw->or_value = F020_MASK_ADC0CF_AMP0GN2;
-		}
+	case DT9812_GAIN_16:
+		rmw->or_value = F020_MASK_ADC0CF_AMP0GN2;
 		break;
-	default:{
-			err("Illegal gain %d\n", gain);
-		}
+	default:
+		err("Illegal gain %d\n", gain);
+
 	}
 }
 
-static int dt9812_analog_in(slot_dt9812_t * slot,
-	int channel, u16 * value, dt9812_gain_t gain)
+static int dt9812_analog_in(slot_dt9812_t *slot, int channel, u16 *value,
+			    dt9812_gain_t gain)
 {
+	dt9812_rmw_byte_t rmw[3];
+	u8 reg[3] = {
+		F020_SFR_ADC0CN,
+		F020_SFR_ADC0H,
+		F020_SFR_ADC0L
+	};
+	u8 val[3];
 	int result = -ENODEV;
 
 	down(&slot->mutex);
-	if (slot->usb) {
-		dt9812_rmw_byte_t rmw[3];
+	if (!slot->usb)
+		goto exit;
 
-		// 1 select the gain
-		dt9812_configure_gain(slot->usb, &rmw[0], gain);
+	/* 1 select the gain */
+	dt9812_configure_gain(slot->usb, &rmw[0], gain);
 
-		// 2 set the MUX to select the channel
-		dt9812_configure_mux(slot->usb, &rmw[1], channel);
+	/* 2 set the MUX to select the channel */
+	dt9812_configure_mux(slot->usb, &rmw[1], channel);
 
-		// 3 start conversion
-		rmw[2].address = F020_SFR_ADC0CN;
-		rmw[2].and_mask = 0xff;
-		rmw[2].or_value =
-			F020_MASK_ADC0CN_AD0EN | F020_MASK_ADC0CN_AD0BUSY;
+	/* 3 start conversion */
+	rmw[2].address = F020_SFR_ADC0CN;
+	rmw[2].and_mask = 0xff;
+	rmw[2].or_value = F020_MASK_ADC0CN_AD0EN | F020_MASK_ADC0CN_AD0BUSY;
 
-		result = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
-		if (result == 0) {
-			// read the status and ADC
-			u8 reg[3] = { F020_SFR_ADC0CN, F020_SFR_ADC0H,
-				F020_SFR_ADC0L
-			};
-			u8 val[3];
-			result = dt9812_read_multiple_registers(slot->usb, 3,
-				reg, val);
-			if (result == 0) {
-				// An ADC conversion takes 16 SAR clocks cycles, i.e. about 9us.
-				// Therefore, between the instant that AD0BUSY was set via
-				// dt9812_rmw_multiple_registers and the read of AD0BUSY via
-				// dt9812_read_multiple_registers, the conversion
-				// should be complete since these two operations require two USB
-				// transactions each taking at least a millisecond to complete.
-				// However, lets make sure that conversion is finished.
-				if ((val[0] & (F020_MASK_ADC0CN_AD0INT |
-							F020_MASK_ADC0CN_AD0BUSY))
-					== F020_MASK_ADC0CN_AD0INT) {
-					switch (slot->usb->device) {
-					case DT9812_DEVID_DT9812_10:{
-							// For DT9812-10V the personality module set the encoding to 2's
-							// complement. Hence, convert it before returning it
-							*value = ((val[1] << 8)
-								| val[2]) +
-								0x800;
-						}
-						break;
-					case DT9812_DEVID_DT9812_2PT5:{
-							*value = (val[1] << 8) |
-								val[2];
-						}
-						break;
-					}
-				}
-			}
+	result = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
+	if (result)
+		goto exit;
+
+	/* read the status and ADC */
+	result = dt9812_read_multiple_registers(slot->usb, 3, reg, val);
+	if (result)
+		goto exit;
+	/*
+	 * An ADC conversion takes 16 SAR clocks cycles, i.e. about 9us.
+	 * Therefore, between the instant that AD0BUSY was set via
+	 * dt9812_rmw_multiple_registers and the read of AD0BUSY via
+	 * dt9812_read_multiple_registers, the conversion should be complete
+	 * since these two operations require two USB transactions each taking
+	 * at least a millisecond to complete.  However, lets make sure that
+	 * conversion is finished.
+	 */
+	if ((val[0] & (F020_MASK_ADC0CN_AD0INT | F020_MASK_ADC0CN_AD0BUSY)) ==
+	    F020_MASK_ADC0CN_AD0INT) {
+		switch (slot->usb->device) {
+		case DT9812_DEVID_DT9812_10:
+			/*
+			 * For DT9812-10V the personality module set the
+			 * encoding to 2's complement. Hence, convert it before
+			 * returning it
+			 */
+			*value = ((val[1] << 8) | val[2]) + 0x800;
+			break;
+		case DT9812_DEVID_DT9812_2PT5:
+			*value = (val[1] << 8) | val[2];
+			break;
 		}
 	}
+
+exit:
 	up(&slot->mutex);
 	return result;
 }
 
-static int dt9812_analog_out_shadow(slot_dt9812_t * slot, int channel,
-	u16 * value)
+static int dt9812_analog_out_shadow(slot_dt9812_t *slot, int channel,
+				    u16 *value)
 {
 	int result = -ENODEV;
 
@@ -413,7 +427,7 @@ static int dt9812_analog_out_shadow(slot_dt9812_t * slot, int channel,
 	return result;
 }
 
-static int dt9812_analog_out(slot_dt9812_t * slot, int channel, u16 value)
+static int dt9812_analog_out(slot_dt9812_t *slot, int channel, u16 value)
 {
 	int result = -ENODEV;
 
@@ -422,39 +436,40 @@ static int dt9812_analog_out(slot_dt9812_t * slot, int channel, u16 value)
 		dt9812_rmw_byte_t rmw[3];
 
 		switch (channel) {
-		case 0:{
-				// 1. Set DAC mode
-				rmw[0].address = F020_SFR_DAC0CN;
-				rmw[0].and_mask = 0xff;
-				rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
+		case 0:
+			/* 1. Set DAC mode */
+			rmw[0].address = F020_SFR_DAC0CN;
+			rmw[0].and_mask = 0xff;
+			rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
 
-				// 2 load low byte of DAC value first
-				rmw[1].address = F020_SFR_DAC0L;
-				rmw[1].and_mask = 0xff;
-				rmw[1].or_value = value & 0xff;
+			/* 2 load low byte of DAC value first */
+			rmw[1].address = F020_SFR_DAC0L;
+			rmw[1].and_mask = 0xff;
+			rmw[1].or_value = value & 0xff;
 
-				// 3 load high byte of DAC value next to latch the 12-bit value
-				rmw[2].address = F020_SFR_DAC0H;
-				rmw[2].and_mask = 0xff;
-				rmw[2].or_value = (value >> 8) & 0xf;
-			}
+			/* 3 load high byte of DAC value next to latch the
+			   12-bit value */
+			rmw[2].address = F020_SFR_DAC0H;
+			rmw[2].and_mask = 0xff;
+			rmw[2].or_value = (value >> 8) & 0xf;
 			break;
-		case 1:{
-				// 1. Set DAC mode
-				rmw[0].address = F020_SFR_DAC1CN;
-				rmw[0].and_mask = 0xff;
-				rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
 
-				// 2 load low byte of DAC value first
-				rmw[1].address = F020_SFR_DAC1L;
-				rmw[1].and_mask = 0xff;
-				rmw[1].or_value = value & 0xff;
+		case 1:
+			/* 1. Set DAC mode */
+			rmw[0].address = F020_SFR_DAC1CN;
+			rmw[0].and_mask = 0xff;
+			rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
 
-				// 3 load high byte of DAC value next to latch the 12-bit value
-				rmw[2].address = F020_SFR_DAC1H;
-				rmw[2].and_mask = 0xff;
-				rmw[2].or_value = (value >> 8) & 0xf;
-			}
+			/* 2 load low byte of DAC value first */
+			rmw[1].address = F020_SFR_DAC1L;
+			rmw[1].and_mask = 0xff;
+			rmw[1].or_value = value & 0xff;
+
+			/* 3 load high byte of DAC value next to latch the
+			   12-bit value */
+			rmw[2].address = F020_SFR_DAC1H;
+			rmw[2].and_mask = 0xff;
+			rmw[2].or_value = (value >> 8) & 0xf;
 			break;
 		}
 		result = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
@@ -470,7 +485,7 @@ static int dt9812_analog_out(slot_dt9812_t * slot, int channel, u16 value)
  */
 
 static int dt9812_probe(struct usb_interface *interface,
-	const struct usb_device_id *id)
+			const struct usb_device_id *id)
 {
 	int retval = -ENOMEM;
 	usb_dt9812_t *dev = NULL;
@@ -479,10 +494,10 @@ static int dt9812_probe(struct usb_interface *interface,
 	int i;
 	u8 fw;
 
-	// allocate memory for our device state and initialize it
+	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		err("Out of memory");
+		dev_err(&interface->dev, "Out of memory\n");
 		goto error;
 	}
 	kref_init(&dev->kref);
@@ -490,7 +505,7 @@ static int dt9812_probe(struct usb_interface *interface,
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
 
-	// Check endpoints
+	/* Check endpoints */
 	iface_desc = interface->cur_altsetting;
 
 	if (iface_desc->desc.bNumEndpoints != 5) {
@@ -503,63 +518,59 @@ static int dt9812_probe(struct usb_interface *interface,
 		int direction = -1;
 		endpoint = &iface_desc->endpoint[i].desc;
 		switch (i) {
-		case 0:{
-				direction = USB_DIR_IN;
-				dev->message_pipe.addr =
-					endpoint->bEndpointAddress;
-				dev->message_pipe.size =
+		case 0:
+			direction = USB_DIR_IN;
+			dev->message_pipe.addr = endpoint->bEndpointAddress;
+			dev->message_pipe.size =
 					le16_to_cpu(endpoint->wMaxPacketSize);
-			}
+
 			break;
-		case 1:{
-				direction = USB_DIR_OUT;
-				dev->command_write.addr =
-					endpoint->bEndpointAddress;
-				dev->command_write.size =
+		case 1:
+			direction = USB_DIR_OUT;
+			dev->command_write.addr = endpoint->bEndpointAddress;
+			dev->command_write.size =
 					le16_to_cpu(endpoint->wMaxPacketSize);
-			}
 			break;
-		case 2:{
-				direction = USB_DIR_IN;
-				dev->command_read.addr =
-					endpoint->bEndpointAddress;
-				dev->command_read.size =
+		case 2:
+			direction = USB_DIR_IN;
+			dev->command_read.addr = endpoint->bEndpointAddress;
+			dev->command_read.size =
 					le16_to_cpu(endpoint->wMaxPacketSize);
-			}
 			break;
-		case 3:{
-				direction = USB_DIR_OUT;
-				dev->write_stream.addr =
-					endpoint->bEndpointAddress;
-				dev->write_stream.size =
+		case 3:
+			direction = USB_DIR_OUT;
+			dev->write_stream.addr = endpoint->bEndpointAddress;
+			dev->write_stream.size =
 					le16_to_cpu(endpoint->wMaxPacketSize);
-			}
 			break;
-		case 4:{
-				direction = USB_DIR_IN;
-				dev->read_stream.addr =
-					endpoint->bEndpointAddress;
-				dev->read_stream.size =
+		case 4:
+			direction = USB_DIR_IN;
+			dev->read_stream.addr = endpoint->bEndpointAddress;
+			dev->read_stream.size =
 					le16_to_cpu(endpoint->wMaxPacketSize);
-			}
 			break;
 		}
 		if ((endpoint->bEndpointAddress & USB_DIR_IN) != direction) {
-			err("Endpoint has wrong direction.");
+			dev_err(&interface->dev,
+				"Endpoint has wrong direction.\n");
 			retval = -ENODEV;
 			goto error;
 		}
 	}
 	if (dt9812_read_info(dev, 0, &fw, sizeof(fw)) != 0) {
-		// Seems like a configuration reset is necessary if driver
-		// is reloaded while device is attached
+		/*
+		 * Seems like a configuration reset is necessary if driver is
+		 * reloaded while device is attached
+		 */
 		int i;
 
 		usb_reset_configuration(dev->udev);
 		for (i = 0; i < 10; i++) {
 			retval = dt9812_read_info(dev, 1, &fw, sizeof(fw));
 			if (retval == 0) {
-				printk("usb_reset_configuration succeded after %d iterations\n", i);
+				dev_info(&interface->dev,
+					 "usb_reset_configuration succeded "
+					 "after %d iterations\n", i);
 				break;
 			}
 		}
@@ -570,7 +581,8 @@ static int dt9812_probe(struct usb_interface *interface,
 		retval = -ENODEV;
 		goto error;
 	}
-	if (dt9812_read_info(dev, 3, &dev->product, sizeof(dev->product)) != 0) {
+	if (dt9812_read_info(dev, 3, &dev->product,
+			     sizeof(dev->product)) != 0) {
 		err("Failed to read product.");
 		retval = -ENODEV;
 		goto error;
@@ -591,44 +603,39 @@ static int dt9812_probe(struct usb_interface *interface,
 	dev->device = le16_to_cpu(dev->device);
 	dev->serial = le32_to_cpu(dev->serial);
 	switch (dev->device) {
-	case DT9812_DEVID_DT9812_10:{
-			dev->analog_out_shadow[0] = 0x0800;
-			dev->analog_out_shadow[1] = 0x800;
-		}
+	case DT9812_DEVID_DT9812_10:
+		dev->analog_out_shadow[0] = 0x0800;
+		dev->analog_out_shadow[1] = 0x800;
 		break;
-	case DT9812_DEVID_DT9812_2PT5:{
-			dev->analog_out_shadow[0] = 0x0000;
-			dev->analog_out_shadow[1] = 0x0000;
-		}
+	case DT9812_DEVID_DT9812_2PT5:
+		dev->analog_out_shadow[0] = 0x0000;
+		dev->analog_out_shadow[1] = 0x0000;
 		break;
 	}
 	dev->digital_out_shadow = 0;
 
-	// save our data pointer in this interface device a
+	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-	// let the user know what node this device is now attached to
+	/* let the user know what node this device is now attached to */
 	dev_info(&interface->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		 dev->vendor, dev->product, dev->device, dev->serial);
 
 	down(&dt9812_mutex);
 	{
-		// Find a slot for the USB device
+		/* Find a slot for the USB device */
 		slot_dt9812_t *first = NULL;
 		slot_dt9812_t *best = NULL;
 
 		for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-			if (!first && !dt9812[i].usb && dt9812[i].serial == 0) {
+			if (!first && !dt9812[i].usb && dt9812[i].serial == 0)
 				first = &dt9812[i];
-			}
-			if (!best && dt9812[i].serial == dev->serial) {
+			if (!best && dt9812[i].serial == dev->serial)
 				best = &dt9812[i];
-			}
 		}
 
-		if (!best) {
+		if (!best)
 			best = first;
-		}
 
 		if (best) {
 			down(&best->mutex);
@@ -641,10 +648,9 @@ static int dt9812_probe(struct usb_interface *interface,
 
 	return 0;
 
-      error:
-	if (dev) {
+error:
+	if (dev)
 		kref_put(&dev->kref, dt9812_delete);
-	}
 	return retval;
 }
 
@@ -684,11 +690,11 @@ static struct usb_driver dt9812_usb_driver = {
  * Comedi functions
  */
 
-static void dt9812_comedi_open(comedi_device * dev)
+static void dt9812_comedi_open(comedi_device *dev)
 {
 	down(&devpriv->slot->mutex);
 	if (devpriv->slot->usb) {
-		// We have an attached device, fill in current range info
+		/* We have an attached device, fill in current range info */
 		comedi_subdevice *s;
 
 		s = &dev->subdevices[0];
@@ -732,21 +738,20 @@ static void dt9812_comedi_open(comedi_device * dev)
 	up(&devpriv->slot->mutex);
 }
 
-static int dt9812_di_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int dt9812_di_rinsn(comedi_device *dev, comedi_subdevice *s,
+			   comedi_insn *insn, lsampl_t *data)
 {
 	int n;
 	u8 bits = 0;
 
 	dt9812_digital_in(devpriv->slot, &bits);
-	for (n = 0; n < insn->n; n++) {
+	for (n = 0; n < insn->n; n++)
 		data[n] = ((1 << insn->chanspec) & bits) != 0;
-	}
 	return n;
 }
 
-static int dt9812_do_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int dt9812_do_winsn(comedi_device *dev, comedi_subdevice *s,
+			   comedi_insn *insn, lsampl_t *data)
 {
 	int n;
 	u8 bits = 0;
@@ -756,16 +761,15 @@ static int dt9812_do_winsn(comedi_device * dev, comedi_subdevice * s,
 		u8 mask = 1 << insn->chanspec;
 
 		bits &= ~mask;
-		if (data[n]) {
+		if (data[n])
 			bits |= mask;
-		}
 	}
 	dt9812_digital_out(devpriv->slot, bits);
 	return n;
 }
 
-static int dt9812_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int dt9812_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
+			   comedi_insn *insn, lsampl_t *data)
 {
 	int n;
 
@@ -773,57 +777,57 @@ static int dt9812_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 		u16 value = 0;
 
 		dt9812_analog_in(devpriv->slot, insn->chanspec, &value,
-			DT9812_GAIN_1);
+				 DT9812_GAIN_1);
 		data[n] = value;
 	}
 	return n;
 }
 
-static int dt9812_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int dt9812_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
+			   comedi_insn *insn, lsampl_t *data)
 {
 	int n;
+	u16 value;
 
 	for (n = 0; n < insn->n; n++) {
-		u16 value = 0;
-
+		value = 0;
 		dt9812_analog_out_shadow(devpriv->slot, insn->chanspec, &value);
 		data[n] = value;
 	}
 	return n;
 }
 
-static int dt9812_ao_winsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int dt9812_ao_winsn(comedi_device *dev, comedi_subdevice *s,
+			   comedi_insn *insn, lsampl_t *data)
 {
 	int n;
 
-	for (n = 0; n < insn->n; n++) {
+	for (n = 0; n < insn->n; n++)
 		dt9812_analog_out(devpriv->slot, insn->chanspec, data[n]);
-	}
 	return n;
 }
 
-static int dt9812_attach(comedi_device * dev, comedi_devconfig * it)
+static int dt9812_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	int i;
 	comedi_subdevice *s;
 
 	dev->board_name = "dt9812";
 
-	if (alloc_private(dev, sizeof(comedi_dt9812_t)) < 0) {
+	if (alloc_private(dev, sizeof(comedi_dt9812_t)) < 0)
 		return -ENOMEM;
-	}
-	// Special open routine, since USB unit may be unattached at
-	// comedi_config time, hence range can not be determined
+
+	/*
+	 * Special open routine, since USB unit may be unattached at
+	 * comedi_config time, hence range can not be determined
+	 */
 	dev->open = dt9812_comedi_open;
 
 	devpriv->serial = it->options[0];
 
-	// Allocate subdevices
-	if (alloc_subdevices(dev, 4) < 0) {
+	/* Allocate subdevices */
+	if (alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
-	}
 
 	/* digital input subdevice */
 	s = dev->subdevices + 0;
@@ -862,28 +866,28 @@ static int dt9812_attach(comedi_device * dev, comedi_devconfig * it)
 	s->insn_write = &dt9812_ao_winsn;
 	s->insn_read = &dt9812_ao_rinsn;
 
-	printk("comedi%d: successfully attached to dt9812.\n", dev->minor);
+	printk(KERN_INFO "comedi%d: successfully attached to dt9812.\n",
+	       dev->minor);
 
 	down(&dt9812_mutex);
-	// Find a slot for the comedi device
+	/* Find a slot for the comedi device */
 	{
 		slot_dt9812_t *first = NULL;
 		slot_dt9812_t *best = NULL;
 		for (i = 0; i < DT9812_NUM_SLOTS; i++) {
 			if (!first && !dt9812[i].comedi) {
-				// First free slot from comedi side
+				/* First free slot from comedi side */
 				first = &dt9812[i];
 			}
 			if (!best &&
-				dt9812[i].usb
-				&& dt9812[i].usb->serial == devpriv->serial) {
-				// We have an attaced device with matching ID
+			    dt9812[i].usb &&
+			    dt9812[i].usb->serial == devpriv->serial) {
+				/* We have an attaced device with matching ID */
 				best = &dt9812[i];
 			}
 		}
-		if (!best) {
+		if (!best)
 			best = first;
-		}
 		if (best) {
 			down(&best->mutex);
 			best->comedi = devpriv;
@@ -897,9 +901,8 @@ static int dt9812_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int dt9812_detach(comedi_device * dev)
+static int dt9812_detach(comedi_device *dev)
 {
-
 	return 0;
 }
 
@@ -914,7 +917,7 @@ static int __init usb_dt9812_init(void)
 {
 	int result, i;
 
-	// Initialize all driver slots
+	/* Initialize all driver slots */
 	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
 		init_MUTEX(&dt9812[i].mutex);
 		dt9812[i].serial = 0;
@@ -923,12 +926,14 @@ static int __init usb_dt9812_init(void)
 	}
 	dt9812[12].serial = 0x0;
 
-	// register with the USB subsystem
+	/* register with the USB subsystem */
 	result = usb_register(&dt9812_usb_driver);
 	if (result) {
-		err("usb_register failed. Error number %d", result);
+		printk(KERN_ERR KBUILD_MODNAME
+		       ": usb_register failed. Error number %d\n", result);
+		return result;
 	}
-	// register with comedi
+	/* register with comedi */
 	result = comedi_driver_register(&dt9812_comedi_driver);
 	if (result) {
 		usb_deregister(&dt9812_usb_driver);
@@ -940,7 +945,7 @@ static int __init usb_dt9812_init(void)
 
 static void __exit usb_dt9812_exit(void)
 {
-	// unregister with comedi
+	/* unregister with comedi */
 	comedi_driver_unregister(&dt9812_comedi_driver);
 
 	/* deregister this driver with the USB subsystem */
@@ -953,5 +958,3 @@ module_exit(usb_dt9812_exit);
 MODULE_AUTHOR("Anders Blomdell <anders.blomdell@control.lth.se>");
 MODULE_DESCRIPTION("Comedi DT9812 driver");
 MODULE_LICENSE("GPL");
-
-#endif // LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)

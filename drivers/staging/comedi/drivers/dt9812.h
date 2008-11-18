@@ -35,12 +35,13 @@
 
 #define F020_MASK_DACxCN_DACxEN           0x80
 
-typedef enum {			//                      A/D      D/A     DI   DO    CT
-	DT9812_DEVID_DT9812_10,	//    8        2       8    8     1   +/- 10V
-	DT9812_DEVID_DT9812_2PT5,	//    8        2       8    8     1   0-2.44V
+typedef enum {
+				/* A/D  D/A  DI  DO  CT */
+	DT9812_DEVID_DT9812_10,	/*  8    2   8   8   1  +/- 10V */
+	DT9812_DEVID_DT9812_2PT5,/* 8    2   8   8   1  0-2.44V */
 #if 0
-	DT9812_DEVID_DT9813,	//    16       2       4    4     1   +/- 10V
-	DT9812_DEVID_DT9814	//    24       2       0    0     1   +/- 10V
+	DT9812_DEVID_DT9813,	/*  16   2   4   4   1  +/- 10V */
+	DT9812_DEVID_DT9814	/*  24   2   0   0   1  +/- 10V */
 #endif
 } dt9812_devid_t;
 
@@ -56,51 +57,84 @@ typedef enum {
 
 typedef enum {
 	DT9812_LEAST_USB_FIRMWARE_CMD_CODE = 0,
-	DT9812_W_FLASH_DATA = 0,	// Write Flash memory
-	DT9812_R_FLASH_DATA = 1,	// Read Flash memory (misc config info)
+	/* Write Flash memory */
+	DT9812_W_FLASH_DATA = 0,
+	/* Read Flash memory misc config info */
+	DT9812_R_FLASH_DATA = 1,
 
-	// Register read/write commands for processor
-	DT9812_R_SINGLE_BYTE_REG = 2,	// Read a single byte of USB memory
-	DT9812_W_SINGLE_BYTE_REG = 3,	// Write a single byte of USB memory
-	DT9812_R_MULTI_BYTE_REG = 4,	// Multiple Reads of USB memory
-	DT9812_W_MULTI_BYTE_REG = 5,	// Multiple Writes of USB memory
-	DT9812_RMW_SINGLE_BYTE_REG = 6,	// Read, (AND) with mask, OR value,
-	// then write (single)
-	DT9812_RMW_MULTI_BYTE_REG = 7,	// Read, (AND) with mask, OR value,
-	// then write (multiple)
+	/*
+	 * Register read/write commands for processor
+	 */
 
-	// Register read/write commands for SMBus
-	DT9812_R_SINGLE_BYTE_SMBUS = 8,	// Read a single byte of SMBus
-	DT9812_W_SINGLE_BYTE_SMBUS = 9,	// Write a single byte of SMBus
-	DT9812_R_MULTI_BYTE_SMBUS = 10,	// Multiple Reads of SMBus
-	DT9812_W_MULTI_BYTE_SMBUS = 11,	// Multiple Writes of SMBus
+	/* Read a single byte of USB memory */
+	DT9812_R_SINGLE_BYTE_REG = 2,
+	/* Write a single byte of USB memory */
+	DT9812_W_SINGLE_BYTE_REG = 3,
+	/* Multiple Reads of USB memory */
+	DT9812_R_MULTI_BYTE_REG = 4,
+	/* Multiple Writes of USB memory */
+	DT9812_W_MULTI_BYTE_REG = 5,
+	/* Read, (AND) with mask, OR value, then write (single) */
+	DT9812_RMW_SINGLE_BYTE_REG = 6,
+	/* Read, (AND) with mask, OR value, then write (multiple) */
+	DT9812_RMW_MULTI_BYTE_REG = 7,
 
-	// Register read/write commands for a device
-	DT9812_R_SINGLE_BYTE_DEV = 12,	// Read a single byte of a device
-	DT9812_W_SINGLE_BYTE_DEV = 13,	// Write a single byte of a device
-	DT9812_R_MULTI_BYTE_DEV = 14,	// Multiple Reads of a device
-	DT9812_W_MULTI_BYTE_DEV = 15,	// Multiple Writes of a device
+	/*
+	 * Register read/write commands for SMBus
+	 */
 
-	DT9812_W_DAC_THRESHOLD = 16,	// Not sure if we'll need this
+	/* Read a single byte of SMBus */
+	DT9812_R_SINGLE_BYTE_SMBUS = 8,
+	/* Write a single byte of SMBus */
+	DT9812_W_SINGLE_BYTE_SMBUS = 9,
+	/* Multiple Reads of SMBus */
+	DT9812_R_MULTI_BYTE_SMBUS = 10,
+	/* Multiple Writes of SMBus */
+	DT9812_W_MULTI_BYTE_SMBUS = 11,
 
-	DT9812_W_INT_ON_CHANGE_MASK = 17,	// Set interrupt on change mask
+	/*
+	 * Register read/write commands for a device
+	 */
 
-	DT9812_W_CGL = 18,	// Write (or Clear) the CGL for the ADC
-	DT9812_R_MULTI_BYTE_USBMEM = 19,	// Multiple Reads of USB memory
-	DT9812_W_MULTI_BYTE_USBMEM = 20,	// Multiple Writes to USB memory
+	/* Read a single byte of a device */
+	DT9812_R_SINGLE_BYTE_DEV = 12,
+	/* Write a single byte of a device */
+	DT9812_W_SINGLE_BYTE_DEV = 13,
+	/* Multiple Reads of a device */
+	DT9812_R_MULTI_BYTE_DEV = 14,
+	/* Multiple Writes of a device */
+	DT9812_W_MULTI_BYTE_DEV = 15,
 
-	DT9812_START_SUBSYSTEM = 21,	// Issue a start command to a
-	// given subsystem
-	DT9812_STOP_SUBSYSTEM = 22,	// Issue a stop command to a
-	// given subsystem
+	/* Not sure if we'll need this */
+	DT9812_W_DAC_THRESHOLD = 16,
 
-	DT9812_CALIBRATE_POT = 23,	//calibrate the board using CAL_POT_CMD
-	DT9812_W_DAC_FIFO_SIZE = 24,	// set the DAC FIFO size
-	DT9812_W_CGL_DAC = 25,	// Write (or Clear) the CGL for the DAC
-	DT9812_R_SINGLE_VALUE_CMD = 26,	// Read a single value from a subsystem
-	DT9812_W_SINGLE_VALUE_CMD = 27,	// Write a single value to a subsystem
-	DT9812_MAX_USB_FIRMWARE_CMD_CODE	// Valid DT9812_USB_FIRMWARE_CMD_CODE's
-		// will be less than this number
+	/* Set interrupt on change mask */
+	DT9812_W_INT_ON_CHANGE_MASK = 17,
+
+	/* Write (or Clear) the CGL for the ADC */
+	DT9812_W_CGL = 18,
+	/* Multiple Reads of USB memory */
+	DT9812_R_MULTI_BYTE_USBMEM = 19,
+	/* Multiple Writes to USB memory */
+	DT9812_W_MULTI_BYTE_USBMEM = 20,
+
+	/* Issue a start command to a given subsystem */
+	DT9812_START_SUBSYSTEM = 21,
+	/* Issue a stop command to a given subsystem */
+	DT9812_STOP_SUBSYSTEM = 22,
+
+	/* calibrate the board using CAL_POT_CMD */
+	DT9812_CALIBRATE_POT = 23,
+	/* set the DAC FIFO size */
+	DT9812_W_DAC_FIFO_SIZE = 24,
+	/* Write or Clear the CGL for the DAC */
+	DT9812_W_CGL_DAC = 25,
+	/* Read a single value from a subsystem */
+	DT9812_R_SINGLE_VALUE_CMD = 26,
+	/* Write a single value to a subsystem */
+	DT9812_W_SINGLE_VALUE_CMD = 27,
+	/* Valid DT9812_USB_FIRMWARE_CMD_CODE's will be less than this number */
+	DT9812_MAX_USB_FIRMWARE_CMD_CODE,
 } dt9812_usb_firmware_cmd_t;
 
 typedef struct {
