@@ -649,13 +649,13 @@ static bool get_instruction(unsigned short *val, unsigned short *address)
 	return false;
 }
 
-/* 
+/*
  * decode the instruction if we are printing out the trace, as it
  * makes things easier to follow, without running it through objdump
  * These are the normal instructions which cause change of flow, which
  * would be at the source of the trace buffer
  */
-#ifdef CONFIG_DEBUG_VERBOSE
+#if defined(CONFIG_DEBUG_VERBOSE) && defined(CONFIG_DEBUG_BFIN_HWTRACE_ON)
 static void decode_instruction(unsigned short *address)
 {
 	unsigned short opcode;
