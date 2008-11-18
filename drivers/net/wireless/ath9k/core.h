@@ -203,7 +203,6 @@ struct ath_buf_state {
 	int bfs_seqno;				/* sequence number */
 	int bfs_tidno;				/* tid of this frame */
 	int bfs_retries;			/* current retries */
-	struct ath_rc_series bfs_rcs[4];	/* rate series */
 	u32 bf_type;				/* BUF_* (enum buffer_type) */
 	/* key type use to encrypt this frame */
 	u32 bfs_keyix;

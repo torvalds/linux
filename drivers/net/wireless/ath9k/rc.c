@@ -805,22 +805,22 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 }
 
 static void ath_rc_rate_set_series(struct ath_rate_table *rate_table ,
-				   struct ath_rc_series *series,
+				   struct ieee80211_tx_rate *rate,
 				   u8 tries,
 				   u8 rix,
 				   int rtsctsenable)
 {
-	series->tries = tries;
-	series->flags = (rtsctsenable ? ATH_RC_RTSCTS_FLAG : 0) |
-		(WLAN_RC_PHY_DS(rate_table->info[rix].phy) ?
-		 ATH_RC_DS_FLAG : 0) |
-		(WLAN_RC_PHY_40(rate_table->info[rix].phy) ?
-		 ATH_RC_CW40_FLAG : 0) |
-		(WLAN_RC_PHY_SGI(rate_table->info[rix].phy) ?
-		 ATH_RC_SGI_FLAG : 0);
+	rate->count = tries;
+	rate->idx = rix;
 
-	series->rix = rate_table->info[rix].base_index;
-	series->max_4ms_framelen = rate_table->info[rix].max_4ms_framelen;
+	if (rtsctsenable)
+		rate->flags |= IEEE80211_TX_RC_USE_RTS_CTS;
+	if (WLAN_RC_PHY_40(rate_table->info[rix].phy))
+		rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+	if (WLAN_RC_PHY_SGI(rate_table->info[rix].phy))
+		rate->flags |= IEEE80211_TX_RC_SHORT_GI;
+	if (WLAN_RC_PHY_HT(rate_table->info[rix].phy))
+		rate->flags |= IEEE80211_TX_RC_MCS;
 }
 
 static u8 ath_rc_rate_getidx(struct ath_softc *sc,
@@ -855,11 +855,12 @@ static u8 ath_rc_rate_getidx(struct ath_softc *sc,
 static void ath_rc_ratefind(struct ath_softc *sc,
 			    struct ath_rate_node *ath_rc_priv,
 			    int num_tries, int num_rates, unsigned int rcflag,
-			    struct ath_rc_series series[], int *is_probe,
+			    struct ieee80211_tx_info *tx_info, int *is_probe,
 			    int is_retry)
 {
 	u8 try_per_rate = 0, i = 0, rix, nrix;
 	struct ath_rate_table *rate_table;
+	struct ieee80211_tx_rate *rates = tx_info->control.rates;
 
 	rate_table = sc->hw_rate_table[sc->sc_curmode];
 	rix = ath_rc_ratefind_ht(sc, ath_rc_priv, rate_table,
@@ -871,7 +872,7 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 		/* set one try for probe rates. For the
 		 * probes don't enable rts */
 		ath_rc_rate_set_series(rate_table,
-			&series[i++], 1, nrix, FALSE);
+			&rates[i++], 1, nrix, FALSE);
 
 		try_per_rate = (num_tries/num_rates);
 		/* Get the next tried/allowed rate. No RTS for the next series
@@ -880,12 +881,12 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 		nrix = ath_rc_rate_getidx(sc,
 			ath_rc_priv, rate_table, nrix, 1, FALSE);
 		ath_rc_rate_set_series(rate_table,
-			&series[i++], try_per_rate, nrix, 0);
+			&rates[i++], try_per_rate, nrix, 0);
 	} else {
 		try_per_rate = (num_tries/num_rates);
 		/* Set the choosen rate. No RTS for first series entry. */
 		ath_rc_rate_set_series(rate_table,
-			&series[i++], try_per_rate, nrix, FALSE);
+			&rates[i++], try_per_rate, nrix, FALSE);
 	}
 
 	/* Fill in the other rates for multirate retry */
@@ -902,7 +903,7 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 					  rate_table, nrix, 1, min_rate);
 		/* All other rates in the series have RTS enabled */
 		ath_rc_rate_set_series(rate_table,
-				       &series[i], try_num, nrix, TRUE);
+				       &rates[i], try_num, nrix, TRUE);
 	}
 
 	/*
@@ -928,9 +929,8 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 		if (i == 4 &&
 		    ((dot11rate == 2 && phy == WLAN_RC_PHY_HT_40_SS) ||
 		     (dot11rate == 3 && phy == WLAN_RC_PHY_HT_20_SS))) {
-			series[3].rix = series[2].rix;
-			series[3].flags = series[2].flags;
-			series[3].max_4ms_framelen = series[2].max_4ms_framelen;
+			rates[3].idx = rates[2].idx;
+			rates[3].flags = rates[2].flags;
 		}
 	}
 }
@@ -943,7 +943,7 @@ static void ath_rate_findrate(struct ath_softc *sc,
 			      int num_tries,
 			      int num_rates,
 			      unsigned int rcflag,
-			      struct ath_rc_series series[],
+			      struct ieee80211_tx_info *tx_info,
 			      int *is_probe,
 			      int is_retry)
 {
@@ -951,7 +951,7 @@ static void ath_rate_findrate(struct ath_softc *sc,
 		return;
 
 	ath_rc_ratefind(sc, ath_rc_priv, num_tries, num_rates,
-			rcflag, series, is_probe, is_retry);
+			rcflag, tx_info, is_probe, is_retry);
 }
 
 static void ath_rc_update_ht(struct ath_softc *sc,
@@ -1283,17 +1283,17 @@ static void ath_rc_update_ht(struct ath_softc *sc,
  */
 static void ath_rc_update(struct ath_softc *sc,
 			  struct ath_rate_node *ath_rc_priv,
-			  struct ath_tx_info_priv *info_priv, int final_ts_idx,
+			  struct ieee80211_tx_info *tx_info, int final_ts_idx,
 			  int xretries, int long_retry)
 {
+	struct ath_tx_info_priv *info_priv =
+		(struct ath_tx_info_priv *)tx_info->rate_driver_data[0];
 	struct ath_rate_table *rate_table;
-	struct ath_rc_series rcs[4];
+	struct ieee80211_tx_rate *rates = tx_info->status.rates;
 	u8 flags;
 	u32 series = 0, rix;
 
-	memcpy(rcs, info_priv->rcs, 4 * sizeof(rcs[0]));
 	rate_table = sc->hw_rate_table[sc->sc_curmode];
-	ASSERT(rcs[0].tries != 0);
 
 	/*
 	 * If the first rate is not the final index, there
@@ -1302,31 +1302,31 @@ static void ath_rc_update(struct ath_softc *sc,
 	if (final_ts_idx != 0) {
 		/* Process intermediate rates that failed.*/
 		for (series = 0; series < final_ts_idx ; series++) {
-			if (rcs[series].tries != 0) {
-				flags = rcs[series].flags;
+			if (rates[series].count != 0) {
+				flags = rates[series].flags;
 				/* If HT40 and we have switched mode from
 				 * 40 to 20 => don't update */
-				if ((flags & ATH_RC_CW40_FLAG) &&
+				if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
 					(ath_rc_priv->rc_phy_mode !=
-					(flags & ATH_RC_CW40_FLAG)))
+					(flags & IEEE80211_TX_RC_40_MHZ_WIDTH)))
 					return;
-				if ((flags & ATH_RC_CW40_FLAG) &&
-					(flags & ATH_RC_SGI_FLAG))
+				if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
+					(flags & IEEE80211_TX_RC_SHORT_GI))
 					rix = rate_table->info[
-						rcs[series].rix].ht_index;
-				else if (flags & ATH_RC_SGI_FLAG)
+						rates[series].idx].ht_index;
+				else if (flags & IEEE80211_TX_RC_SHORT_GI)
 					rix = rate_table->info[
-						rcs[series].rix].sgi_index;
-				else if (flags & ATH_RC_CW40_FLAG)
+						rates[series].idx].sgi_index;
+				else if (flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 					rix = rate_table->info[
-						rcs[series].rix].cw40index;
+						rates[series].idx].cw40index;
 				else
 					rix = rate_table->info[
-						rcs[series].rix].base_index;
+						rates[series].idx].base_index;
 				ath_rc_update_ht(sc, ath_rc_priv,
 						info_priv, rix,
 						xretries ? 1 : 2,
-						rcs[series].tries);
+						rates[series].count);
 			}
 		}
 	} else {
@@ -1336,24 +1336,24 @@ static void ath_rc_update(struct ath_softc *sc,
 		 * Treating it as an excessive retry penalizes the rate
 		 * inordinately.
 		 */
-		if (rcs[0].tries == 1 && xretries == 1)
+		if (rates[0].count == 1 && xretries == 1)
 			xretries = 2;
 	}
 
-	flags = rcs[series].flags;
+	flags = rates[series].flags;
 	/* If HT40 and we have switched mode from 40 to 20 => don't update */
-	if ((flags & ATH_RC_CW40_FLAG) &&
-		(ath_rc_priv->rc_phy_mode != (flags & ATH_RC_CW40_FLAG)))
+	if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
+		(ath_rc_priv->rc_phy_mode != (flags & IEEE80211_TX_RC_40_MHZ_WIDTH)))
 		return;
 
-	if ((flags & ATH_RC_CW40_FLAG) && (flags & ATH_RC_SGI_FLAG))
-		rix = rate_table->info[rcs[series].rix].ht_index;
-	else if (flags & ATH_RC_SGI_FLAG)
-		rix = rate_table->info[rcs[series].rix].sgi_index;
-	else if (flags & ATH_RC_CW40_FLAG)
-		rix = rate_table->info[rcs[series].rix].cw40index;
+	if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) && (flags & IEEE80211_TX_RC_SHORT_GI))
+		rix = rate_table->info[rates[series].idx].ht_index;
+	else if (flags & IEEE80211_TX_RC_SHORT_GI)
+		rix = rate_table->info[rates[series].idx].sgi_index;
+	else if (flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		rix = rate_table->info[rates[series].idx].cw40index;
 	else
-		rix = rate_table->info[rcs[series].rix].base_index;
+		rix = rate_table->info[rates[series].idx].base_index;
 
 	ath_rc_update_ht(sc, ath_rc_priv, info_priv, rix,
 		xretries, long_retry);
@@ -1365,8 +1365,10 @@ static void ath_rc_update(struct ath_softc *sc,
 static void ath_rate_tx_complete(struct ath_softc *sc,
 				 struct ath_node *an,
 				 struct ath_rate_node *rc_priv,
-				 struct ath_tx_info_priv *info_priv)
+				 struct ieee80211_tx_info *tx_info)
 {
+	struct ath_tx_info_priv *info_priv =
+		(struct ath_tx_info_priv *)tx_info->rate_driver_data[0];
 	int final_ts_idx = info_priv->tx.ts_rateindex;
 	int tx_status = 0, is_underrun = 0;
 
@@ -1395,7 +1397,7 @@ static void ath_rate_tx_complete(struct ath_softc *sc,
 			(info_priv->tx.ts_status & ATH9K_TXERR_FIFO))
 		tx_status = 1;
 
-	ath_rc_update(sc, rc_priv, info_priv, final_ts_idx, tx_status,
+	ath_rc_update(sc, rc_priv, tx_info, final_ts_idx, tx_status,
 		      (is_underrun) ? ATH_11N_TXMAXTRY :
 		      info_priv->tx.ts_longretry);
 }
@@ -1507,8 +1509,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
-	/* XXX: UGLY HACK!! */
-	tx_info_priv = (struct ath_tx_info_priv *)tx_info->control.vif;
+	tx_info_priv = (struct ath_tx_info_priv *)tx_info->rate_driver_data[0];
 
 	an = (struct ath_node *)sta->drv_priv;
 
@@ -1516,10 +1517,9 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		return;
 
 	if (an && priv_sta && ieee80211_is_data(fc))
-		ath_rate_tx_complete(sc, an, priv_sta, tx_info_priv);
+		ath_rate_tx_complete(sc, an, priv_sta, tx_info);
 
 	kfree(tx_info_priv);
-	tx_info->control.vif = NULL;
 }
 
 static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
@@ -1530,28 +1530,18 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath_softc *sc = priv;
 	struct ieee80211_hw *hw = sc->hw;
-	struct ath_tx_info_priv *tx_info_priv;
 	struct ath_rate_node *ath_rc_priv = priv_sta;
 	struct ath_node *an;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	int is_probe = FALSE;
-	s8 lowest_idx;
 	__le16 fc = hdr->frame_control;
 	u8 *qc, tid;
 
-	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
-
-	/* allocate driver private area of tx_info, XXX: UGLY HACK! */
-	tx_info->control.vif = kzalloc(sizeof(*tx_info_priv), GFP_ATOMIC);
-	tx_info_priv = (struct ath_tx_info_priv *)tx_info->control.vif;
-	ASSERT(tx_info_priv != NULL);
-
-	lowest_idx = rate_lowest_index(sband, sta);
-	tx_info_priv->min_rate = (sband->bitrates[lowest_idx].bitrate * 2) / 10;
 	/* lowest rate for management and multicast/broadcast frames */
-	if (!ieee80211_is_data(fc) ||
-	    is_multicast_ether_addr(hdr->addr1) || !sta) {
-		tx_info->control.rates[0].idx = lowest_idx;
+	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1)) {
+		tx_info->control.rates[0].idx = rate_lowest_index(sband, sta);
+		tx_info->control.rates[0].count =
+			is_multicast_ether_addr(hdr->addr1) ? 1 : ATH_MGT_TXMAXTRY;
 		return;
 	}
 
@@ -1559,24 +1549,11 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	ath_rate_findrate(sc, ath_rc_priv,
 			  ATH_11N_TXMAXTRY, 4,
 			  ATH_RC_PROBE_ALLOWED,
-			  tx_info_priv->rcs,
+			  tx_info,
 			  &is_probe,
 			  false);
-#if 0
-	if (is_probe)
-		sel->probe_idx = ath_rc_priv->tx_ratectrl.probe_rate;
-#endif
-
-	/* Ratecontrol sometimes returns invalid rate index */
-	if (tx_info_priv->rcs[0].rix != 0xff)
-		ath_rc_priv->prev_data_rix = tx_info_priv->rcs[0].rix;
-	else
-		tx_info_priv->rcs[0].rix = ath_rc_priv->prev_data_rix;
-
-	tx_info->control.rates[0].idx = tx_info_priv->rcs[0].rix;
 
 	/* Check if aggregation has to be enabled for this tid */
-
 	if (hw->conf.ht.enabled) {
 		if (ieee80211_is_data_qos(fc)) {
 			qc = ieee80211_get_qos_ctl(hdr);

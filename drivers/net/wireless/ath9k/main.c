@@ -350,13 +350,12 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	DPRINTF(sc, ATH_DBG_XMIT,
 		"%s: TX complete: skb: %p\n", __func__, skb);
 
-	ieee80211_tx_info_clear_status(tx_info);
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK ||
 		tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
-		/* free driver's private data area of tx_info, XXX: HACK! */
-		if (tx_info->control.vif != NULL)
-			kfree(tx_info->control.vif);
-			tx_info->control.vif = NULL;
+		if (tx_info->rate_driver_data[0] != NULL) {
+			kfree(tx_info->rate_driver_data[0]);
+			tx_info->rate_driver_data[0] = NULL;
+		}
 	}
 
 	if (tx_status->flags & ATH_TX_BAR) {

@@ -169,20 +169,6 @@ struct ath_rate_table {
 #define ATH_RC_PROBE_ALLOWED            0x00000001
 #define ATH_RC_MINRATE_LASTRATE         0x00000002
 
-struct ath_rc_series {
-	u8 rix;
-	u8 tries;
-	u8 flags;
-	u32 max_4ms_framelen;
-};
-
-/* rcs_flags definition */
-#define ATH_RC_DS_FLAG               0x01
-#define ATH_RC_CW40_FLAG             0x02    /* CW 40 */
-#define ATH_RC_SGI_FLAG              0x04    /* Short Guard Interval */
-#define ATH_RC_HT_FLAG               0x08    /* HT */
-#define ATH_RC_RTSCTS_FLAG           0x10    /* RTS-CTS */
-
 /*
  * State structures for new rate adaptation code
  */
@@ -259,13 +245,10 @@ struct ath_rate_node {
 	struct ath_rate_softc *asc;
 };
 
-/* Driver data of ieee80211_tx_info */
 struct ath_tx_info_priv {
-	struct ath_rc_series rcs[4];
 	struct ath_tx_status tx;
 	int n_frames;
 	int n_bad_frames;
-	u8 min_rate;
 };
 
 void ath_rate_attach(struct ath_softc *sc);
