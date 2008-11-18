@@ -484,4 +484,13 @@ int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
 int snd_hdmi_get_eld(struct sink_eld *, struct hda_codec *, hda_nid_t);
 void snd_hdmi_show_eld(struct sink_eld *eld);
 
+#ifdef CONFIG_PROC_FS
+int snd_hda_eld_proc_new(struct hda_codec *codec, struct sink_eld *eld);
+#else
+inline int snd_hda_eld_proc_new(struct hda_codec *codec, struct sink_eld *eld)
+{
+	return 0;
+}
+#endif
+
 #endif /* __SOUND_HDA_LOCAL_H */

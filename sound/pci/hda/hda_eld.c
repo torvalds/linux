@@ -452,3 +452,77 @@ void snd_hdmi_show_eld(struct sink_eld *e)
 	for (i = 0; i < e->sad_count; i++)
 		hdmi_show_short_audio_desc(e->sad + i);
 }
+
+#ifdef CONFIG_PROC_FS
+
+static void hdmi_print_sad_info(int i, struct cea_sad *a,
+				struct snd_info_buffer *buffer)
+{
+	char buf[80];
+
+	snd_iprintf(buffer, "sad%d_coding_type\t[0x%x] %s\n",
+			i, a->format, cea_audio_coding_type_names[a->format]);
+	snd_iprintf(buffer, "sad%d_channels\t\t%d\n", i, a->channels);
+
+	snd_print_pcm_rates(a->rates, buf, sizeof(buf));
+	snd_iprintf(buffer, "sad%d_sampling_rates\t[0x%x] %s\n",
+			i, a->rates, buf);
+
+	if (a->format == AUDIO_CODING_TYPE_LPCM)
+		snd_iprintf(buffer, "sad%d_sample_bits\t0x%x\n",
+							i, a->sample_bits);
+
+	if (a->max_bitrate)
+		snd_iprintf(buffer, "sad%d_max_bitrate\t%d\n",
+							i, a->max_bitrate);
+
+	if (a->profile)
+		snd_iprintf(buffer, "sad%d_profile\t\t%d\n", i, a->profile);
+}
+
+static void hdmi_print_eld_info(struct snd_info_entry *entry,
+				struct snd_info_buffer *buffer)
+{
+	struct sink_eld *e = entry->private_data;
+	char buf[HDMI_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
+	int i;
+
+	snd_iprintf(buffer, "monitor name\t\t%s\n", e->monitor_name);
+	snd_iprintf(buffer, "connection_type\t\t%s\n",
+				eld_connection_type_names[e->conn_type]);
+	snd_iprintf(buffer, "eld_version\t\t[0x%x] %s\n", e->eld_ver,
+					eld_versoin_names[e->eld_ver]);
+	snd_iprintf(buffer, "edid_version\t\t[0x%x] %s\n", e->cea_edid_ver,
+				cea_edid_version_names[e->cea_edid_ver]);
+	snd_iprintf(buffer, "manufacture_id\t\t0x%x\n", e->manufacture_id);
+	snd_iprintf(buffer, "product_id\t\t0x%x\n", e->product_id);
+	snd_iprintf(buffer, "port_id\t\t\t0x%llx\n", (long long)e->port_id);
+	snd_iprintf(buffer, "support_hdcp\t\t%d\n", e->support_hdcp);
+	snd_iprintf(buffer, "support_ai\t\t%d\n", e->support_ai);
+	snd_iprintf(buffer, "audio_sync_delay\t%d\n", e->aud_synch_delay);
+
+	hdmi_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+	snd_iprintf(buffer, "speakers\t\t[0x%x] %s\n", e->spk_alloc, buf);
+
+	snd_iprintf(buffer, "sad_count\t\t%d\n", e->sad_count);
+
+	for (i = 0; i < e->sad_count; i++)
+		hdmi_print_sad_info(i, e->sad + i, buffer);
+}
+
+int snd_hda_eld_proc_new(struct hda_codec *codec, struct sink_eld *eld)
+{
+	char name[32];
+	struct snd_info_entry *entry;
+	int err;
+
+	snprintf(name, sizeof(name), "eld#%d", codec->addr);
+	err = snd_card_proc_new(codec->bus->card, name, &entry);
+	if (err < 0)
+		return err;
+
+	snd_info_set_text_ops(entry, eld, hdmi_print_eld_info);
+	return 0;
+}
+
+#endif

@@ -446,6 +446,8 @@ static int patch_intel_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	codec->patch_ops = intel_hdmi_patch_ops;
 
+	snd_hda_eld_proc_new(codec, &spec->sink);
+
 	return 0;
 }
 
