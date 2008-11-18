@@ -332,7 +332,6 @@ int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 	int werr = 0;
 	struct page *page;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	struct extent_io_tree *io_tree = &BTRFS_I(btree_inode)->io_tree;
 	u64 start = 0;
 	u64 end;
 	unsigned long index;
@@ -373,11 +372,6 @@ int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 			page_cache_release(page);
 		}
 	}
-	/*
-	 * we unplug once and then use the wait_on_extent_bit for
-	 * everything else
-	 */
-	blk_run_address_space(btree_inode->i_mapping);
 	while(1) {
 		ret = find_first_extent_bit(dirty_pages, 0, &start, &end,
 					    EXTENT_DIRTY);
@@ -398,28 +392,7 @@ int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 				if (err)
 					werr = err;
 			}
-			if (PageWriteback(page)) {
-				/*
-				 * we don't wait on the page writeback bit
-				 * because that triggers a lot of unplugs.
-				 * The extent bits are much nicer to
-				 * the disks, but come with a slightly
-				 * higher latency because we aren't forcing
-				 * unplugs.
-				 */
-				wait_on_extent_writeback(io_tree,
-					 page_offset(page),
-					 page_offset(page) +
-					 PAGE_CACHE_SIZE - 1);
-			}
-			if (PageWriteback(page)) {
-				/*
-				 * the state bits get cleared before the
-				 * page bits, lets add some extra
-				 * paranoia here
-				 */
-				wait_on_page_writeback(page);
-			}
+			wait_on_page_writeback(page);
 			page_cache_release(page);
 			cond_resched();
 		}
