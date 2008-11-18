@@ -153,7 +153,7 @@ void clk_disable(struct clk *clk)
 	unsigned long flags;
 
 	if (!clk)
-		return -EINVAL;
+		return;
 
 	spin_lock_irqsave(&clock_lock, flags);
 	__clk_disable(clk);
