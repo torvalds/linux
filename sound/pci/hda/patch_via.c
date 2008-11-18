@@ -142,8 +142,6 @@ enum {
 	AUTO_SEQ_SIDE
 };
 
-#define get_amp_nid(kc)	((kc)->private_value & 0xffff)
-
 /* Some VT1708S based boards gets the micboost setting wrong, so we have
  * to apply some brute-force and re-write the TLV's by software. */
 static int mic_boost_tlv(struct snd_kcontrol *kcontrol, int op_flag,
