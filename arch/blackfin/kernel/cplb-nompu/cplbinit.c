@@ -160,13 +160,13 @@ static struct cplb_desc cplb_data[] = {
 	},
 };
 
-static u16 __init lock_kernel_check(u32 start, u32 end)
+static bool __init lock_kernel_check(u32 start, u32 end)
 {
 	if (start >= (u32)_end || end <= (u32)_stext)
-		return 0;
+		return false;
 
 	/* This cplb block overlapped with kernel area. */
-	return IN_KERNEL;
+	return true;
 }
 
 static unsigned short __init
@@ -198,7 +198,7 @@ fill_cplbtab(struct cplb_tab *table,
 
 		table->tab[table->pos++] = start;
 
-		if (lock_kernel_check(start, start + block_size) == IN_KERNEL)
+		if (lock_kernel_check(start, start + block_size))
 			table->tab[table->pos++] =
 			    cplb_data | CPLB_LOCK | CPLB_DIRTY;
 		else

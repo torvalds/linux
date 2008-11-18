@@ -46,8 +46,6 @@ extern void bfin_dcache_init(struct cplb_entry *icplb_tbl);
 #define I_CPLB    0x4
 #define D_CPLB    0x8
 
-#define IN_KERNEL 1
-
 #define ASYNC_MEMORY_CPLB_COVERAGE  ((ASYNC_BANK0_SIZE + ASYNC_BANK1_SIZE + \
 				ASYNC_BANK2_SIZE + ASYNC_BANK3_SIZE) / SIZE_4M)
 
