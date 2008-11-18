@@ -382,10 +382,14 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
-	const struct hda_input_mux *imux = spec->input_mux;
+	const struct hda_input_mux *imux;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	unsigned int mux_idx;
 	hda_nid_t nid = spec->capsrc_nids ?
 		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
+
+	mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
+	imux = &spec->input_mux[mux_idx];
 
 	if (spec->is_mix_capture) {
 		/* Matrix-mixer style (e.g. ALC882) */
@@ -407,10 +411,7 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 		return 1;
 	} else {
 		/* MUX style (e.g. ALC880) */
-		unsigned int mux_idx;
-		mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
-		return snd_hda_input_mux_put(codec, &spec->input_mux[mux_idx],
-					     ucontrol, nid,
+		return snd_hda_input_mux_put(codec, imux, ucontrol, nid,
 					     &spec->cur_mux[adc_idx]);
 	}
 }
