@@ -2435,8 +2435,8 @@ static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
 
 	if (pd == NULL || pd->shared_smi == NULL) {
-		mdiobus_free(msp->smi_bus);
 		mdiobus_unregister(msp->smi_bus);
+		mdiobus_free(msp->smi_bus);
 	}
 	if (msp->err_interrupt != NO_IRQ)
 		free_irq(msp->err_interrupt, msp);
