@@ -134,9 +134,6 @@ static int mvme147_bus_reset(struct scsi_cmnd *cmd)
 	return SUCCESS;
 }
 
-#define HOSTS_C
-
-#include "mvme147.h"
 
 static struct scsi_host_template driver_template = {
 	.proc_name		= "MVME147",
