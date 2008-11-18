@@ -532,6 +532,13 @@ int register_tracer(struct tracer *type)
 	}
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
+	/*
+	 * When this gets called we hold the BKL which means that preemption
+	 * is disabled. Various trace selftests however need to disable
+	 * and enable preemption for successful tests. So we drop the BKL here
+	 * and grab it after the tests again.
+	 */
+	unlock_kernel();
 	if (type->selftest) {
 		struct tracer *saved_tracer = current_trace;
 		struct trace_array *tr = &global_trace;
@@ -562,6 +569,7 @@ int register_tracer(struct tracer *type)
 		}
 		printk(KERN_CONT "PASSED\n");
 	}
+	lock_kernel();
 #endif
 
 	type->next = trace_types;
