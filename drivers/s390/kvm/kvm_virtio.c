@@ -299,13 +299,29 @@ static void scan_devices(void)
  */
 static void kvm_extint_handler(u16 code)
 {
-	void *data = (void *) *(long *) __LC_PFAULT_INTPARM;
-	u16 subcode = S390_lowcore.cpu_addr;
+	struct virtqueue *vq;
+	u16 subcode;
+	int config_changed;
 
+	subcode = S390_lowcore.cpu_addr;
 	if ((subcode & 0xff00) != VIRTIO_SUBCODE_64)
 		return;
 
-	vring_interrupt(0, data);
+	/* The LSB might be overloaded, we have to mask it */
+	vq = (struct virtqueue *) ((*(long *) __LC_PFAULT_INTPARM) & ~1UL);
+
+	/* We use the LSB of extparam, to decide, if this interrupt is a config
+	 * change or a "standard" interrupt */
+	config_changed =  (*(int *)  __LC_EXT_PARAMS & 1);
+
+	if (config_changed) {
+		struct virtio_driver *drv;
+		drv = container_of(vq->vdev->dev.driver,
+				   struct virtio_driver, driver);
+		if (drv->config_changed)
+			drv->config_changed(vq->vdev);
+	} else
+		vring_interrupt(0, vq);
 }
 
 /*
