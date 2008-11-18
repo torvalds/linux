@@ -2984,6 +2984,9 @@ loop_check:
 			*last_ptr = ins->objectid + ins->offset;
 		ret = 0;
 	} else if (!ret) {
+		printk(KERN_ERR "we were searching for %Lu bytes, num_bytes %Lu,"
+		       " loop %d, allowed_alloc %d\n", total_needed, num_bytes,
+		       loop, allowed_chunk_alloc);
 		ret = -ENOSPC;
 	}
 
