@@ -540,6 +540,29 @@ void ath_newassoc(struct ath_softc *sc,
 void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta);
 void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta);
 
+/********/
+/* VAPs */
+/********/
+
+/*
+ * Define the scheme that we select MAC address for multiple
+ * BSS on the same radio. The very first VAP will just use the MAC
+ * address from the EEPROM. For the next 3 VAPs, we set the
+ * U/L bit (bit 1) in MAC address, and use the next two bits as the
+ * index of the VAP.
+ */
+
+#define ATH_SET_VAP_BSSID_MASK(bssid_mask) \
+	((bssid_mask)[0] &= ~(((ATH_BCBUF-1)<<2)|0x02))
+
+/* driver-specific vap state */
+struct ath_vap {
+	int av_bslot;			/* beacon slot index */
+	enum ath9k_opmode av_opmode;	/* VAP operational mode */
+	struct ath_buf *av_bcbuf;	/* beacon buffer */
+	struct ath_tx_control av_btxctl;  /* txctl information for beacon */
+};
+
 /*******************/
 /* Beacon Handling */
 /*******************/
@@ -579,30 +602,6 @@ void ath_beacon_sync(struct ath_softc *sc, int if_id);
 void ath_get_beaconconfig(struct ath_softc *sc,
 			  int if_id,
 			  struct ath_beacon_config *conf);
-/********/
-/* VAPs */
-/********/
-
-/*
- * Define the scheme that we select MAC address for multiple
- * BSS on the same radio. The very first VAP will just use the MAC
- * address from the EEPROM. For the next 3 VAPs, we set the
- * U/L bit (bit 1) in MAC address, and use the next two bits as the
- * index of the VAP.
- */
-
-#define ATH_SET_VAP_BSSID_MASK(bssid_mask) \
-	((bssid_mask)[0] &= ~(((ATH_BCBUF-1)<<2)|0x02))
-
-/* driver-specific vap state */
-struct ath_vap {
-	int av_bslot;			/* beacon slot index */
-	enum ath9k_opmode av_opmode;	/* VAP operational mode */
-	struct ath_buf *av_bcbuf;	/* beacon buffer */
-	struct ath_tx_control av_btxctl;  /* txctl information for beacon */
-	struct ath_rate_node *rc_node;
-};
-
 /*********************/
 /* Antenna diversity */
 /*********************/

@@ -316,10 +316,6 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to set channel\n",
 				__func__);
-
-		/* Update ratectrl about the new state */
-		ath_rc_node_update(hw, avp->rc_node);
-
 		/* Start ANI */
 		mod_timer(&sc->sc_ani.timer,
 			jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));

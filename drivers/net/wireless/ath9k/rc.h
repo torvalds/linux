@@ -265,7 +265,6 @@ struct ath_rate_node {
 	struct ath_rateset neg_rates;
 	struct ath_rateset neg_ht_rates;
 	struct ath_rate_softc *asc;
-	struct ath_vap *avp;
 };
 
 /* Driver data of ieee80211_tx_info */
@@ -279,7 +278,6 @@ struct ath_tx_info_priv {
 
 struct ath_rate_softc *ath_rate_attach(struct ath_softc *sch);
 void ath_rate_detach(struct ath_rate_softc *asc);
-void ath_rc_node_update(struct ieee80211_hw *hw, struct ath_rate_node *rc_priv);
 u8 ath_rate_findrateix(struct ath_softc *sc, u8 dot11_rate);
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);
