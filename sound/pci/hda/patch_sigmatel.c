@@ -4502,7 +4502,7 @@ again:
 		switch (spec->board_config) {
 		case STAC_HP_M4:
 			/* Enable VREF power saving on GPIO1 detect */
-			snd_hda_codec_write(codec, codec->afg, 0,
+			snd_hda_codec_write_cache(codec, codec->afg, 0,
 				AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
 			snd_hda_codec_write_cache(codec, codec->afg, 0,
 					AC_VERB_SET_UNSOLICITED_ENABLE,
@@ -4895,7 +4895,7 @@ static int patch_stac9205(struct hda_codec *codec)
 		stac92xx_set_config_reg(codec, 0x20, 0x1c410030);
 
 		/* Enable unsol response for GPIO4/Dock HP connection */
-		snd_hda_codec_write(codec, codec->afg, 0,
+		snd_hda_codec_write_cache(codec, codec->afg, 0,
 			AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x10);
 		snd_hda_codec_write_cache(codec, codec->afg, 0,
 					  AC_VERB_SET_UNSOLICITED_ENABLE,
