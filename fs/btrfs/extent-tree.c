@@ -999,6 +999,14 @@ search:
 		path->slots[0] = extent_slot;
 		bytes_freed = op->num_bytes;
 
+		mutex_lock(&info->pinned_mutex);
+		ret = pin_down_bytes(trans, extent_root, op->bytenr,
+				     op->num_bytes, op->level >=
+				     BTRFS_FIRST_FREE_OBJECTID);
+		mutex_unlock(&info->pinned_mutex);
+		BUG_ON(ret < 0);
+		op->del = ret;
+
 		/*
 		 * we need to see if we can delete multiple things at once, so
 		 * start looping through the list of extents we are wanting to
