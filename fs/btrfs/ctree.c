@@ -3041,7 +3041,6 @@ int btrfs_insert_some_items(struct btrfs_trans_handle *trans,
 	struct btrfs_item *item;
 	int ret = 0;
 	int slot;
-	int slot_orig;
 	int i;
 	u32 nritems;
 	u32 total_data = 0;
@@ -3064,7 +3063,6 @@ int btrfs_insert_some_items(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto out;
 
-	slot_orig = path->slots[0];
 	leaf = path->nodes[0];
 
 	nritems = btrfs_header_nritems(leaf);

@@ -798,9 +798,12 @@ static int noinline insert_extents(struct btrfs_trans_handle *trans,
 			 */
 			i = last;
 			last = 0;
-			cur = insert_list->next;
-			op = list_entry(cur, struct pending_extent_op, list);
 			total--;
+			if (i < total) {
+				cur = insert_list->next;
+				op = list_entry(cur, struct pending_extent_op,
+						list);
+			}
 		} else {
 			i += ret;
 		}
@@ -2150,6 +2153,7 @@ again:
 		if (ret) {
 			if (skipped && all && !num_inserts) {
 				skipped = 0;
+				search = 0;
 				continue;
 			}
 			mutex_unlock(&info->extent_ins_mutex);
@@ -2189,7 +2193,7 @@ again:
 	}
 
 	/*
-	 * process teh update list, clear the writeback bit for it, and if
+	 * process the update list, clear the writeback bit for it, and if
 	 * somebody marked this thing for deletion then just unlock it and be
 	 * done, the free_extents will handle it
 	 */
