@@ -1953,8 +1953,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	errCode = em28xx_config(dev);
 	if (errCode) {
 		em28xx_errdev("error configuring device\n");
-		em28xx_devused &= ~(1<<dev->devno);
-		kfree(dev);
 		return -ENOMEM;
 	}
 
@@ -2088,7 +2086,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 fail_unreg:
 	em28xx_release_resources(dev);
 	mutex_unlock(&dev->lock);
-	kfree(dev);
 	return retval;
 }
 
@@ -2231,8 +2228,12 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* allocate device struct */
 	retval = em28xx_init_dev(&dev, udev, nr);
-	if (retval)
+	if (retval) {
+		em28xx_devused &= ~(1<<dev->devno);
+		kfree(dev);
+
 		return retval;
+	}
 
 	em28xx_info("Found %s\n", em28xx_boards[dev->model].name);
 
