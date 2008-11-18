@@ -244,18 +244,6 @@ ENTRY(_real_start)
 	r2.h = ___bss_stop;
 	call __init_clear_bss
 
-	/* In case there is a NULL pointer reference,
-	 * zero out region before stext
-	 */
-	p1 = r0;
-	r2.l = __stext;
-	r2.h = __stext;
-	r2 >>= 2;
-	p2 = r2;
-	lsetup (.L_clear_zero, .L_clear_zero) lc0 = p2;
-.L_clear_zero:
-	[p1++] = r0;
-
 	/* Pass the u-boot arguments to the global value command line */
 	R0 = R7;
 	call _cmdline_init;
