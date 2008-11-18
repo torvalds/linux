@@ -368,14 +368,14 @@ static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
 		/* large block, 2 cycles for column address
 		 * row address starts from 3rd cycle
 		 */
-		info->ndcb1 |= (page_addr << 16) | (column & 0xffff);
+		info->ndcb1 |= page_addr << 16;
 		if (info->row_addr_cycles == 3)
 			info->ndcb2 = (page_addr >> 16) & 0xff;
 	} else
 		/* small block, 1 cycles for column address
 		 * row address starts from 2nd cycle
 		 */
-		info->ndcb1 = (page_addr << 8) | (column & 0xff);
+		info->ndcb1 = page_addr << 8;
 
 	if (cmd == cmdset->program)
 		info->ndcb0 |= NDCB0_CMD_TYPE(1) | NDCB0_AUTO_RS;
