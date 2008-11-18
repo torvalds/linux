@@ -130,7 +130,7 @@ ia64_native_getreg_func(int regnum)
 	unsigned long res = -1;
 	switch (regnum) {
 	CASE_GET_REG(GP);
-	CASE_GET_REG(IP);
+	/*CASE_GET_REG(IP);*/ /* returned ip value shouldn't be constant */
 	CASE_GET_REG(PSR);
 	CASE_GET_REG(TP);
 	CASE_GET_REG(SP);
