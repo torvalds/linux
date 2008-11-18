@@ -4142,17 +4142,13 @@ static int stac92xx_resume(struct hda_codec *codec)
 	struct sigmatel_spec *spec = codec->spec;
 
 	stac92xx_set_config_regs(codec);
-	snd_hda_sequence_write(codec, spec->init);
-	stac_gpio_set(codec, spec->gpio_mask,
-		spec->gpio_dir, spec->gpio_data);
+	stac92xx_init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
-	/* power down inactive DACs */
-	if (spec->dac_list)
-		stac92xx_power_down(codec);
-	/* invoke unsolicited event to reset the HP state */
+	/* fake event to set up pins again to override cached values */
 	if (spec->hp_detect)
-		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
+		codec->patch_ops.unsol_event(codec,
+			(STAC_HP_EVENT | spec->autocfg.hp_pins[0]) << 26);
 	return 0;
 }
 #endif
