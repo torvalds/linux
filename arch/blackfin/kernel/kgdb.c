@@ -382,10 +382,8 @@ int kgdb_arch_handle_exception(int vector, int signo,
 			       struct pt_regs *regs)
 {
 	long addr;
-	long breakno;
 	char *ptr;
 	int newPC;
-	int wp_status;
 	int i;
 
 	switch (remcom_in_buffer[0]) {
@@ -568,12 +566,12 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 		default:
 			err = EFAULT;
 		}
-	} else if (cpu == 0 && (unsigned int)mem >= L1_CODE_START &&
-		(unsigned int)(mem + count) <= L1_CODE_START + L1_CODE_LENGTH
+	} else if ((cpu == 0 && (unsigned int)mem >= L1_CODE_START &&
+		(unsigned int)(mem + count) <= L1_CODE_START + L1_CODE_LENGTH)
 #ifdef CONFIG_SMP
-		|| cpu == 1 && (unsigned int)mem >= COREB_L1_CODE_START &&
+		|| (cpu == 1 && (unsigned int)mem >= COREB_L1_CODE_START &&
 		(unsigned int)(mem + count) <=
-		COREB_L1_CODE_START + L1_CODE_LENGTH
+		COREB_L1_CODE_START + L1_CODE_LENGTH)
 #endif
 		) {
 		/* access L1 instruction SRAM*/
@@ -644,12 +642,12 @@ int kgdb_ebin2mem(char *buf, char *mem, int count)
 		default:
 			return EFAULT;
 		}
-	} else if (cpu == 0 && (unsigned int)mem >= L1_CODE_START &&
-		(unsigned int)(mem + count) < L1_CODE_START + L1_CODE_LENGTH
+	} else if ((cpu == 0 && (unsigned int)mem >= L1_CODE_START &&
+		(unsigned int)(mem + count) < L1_CODE_START + L1_CODE_LENGTH)
 #ifdef CONFIG_SMP
-		|| cpu == 1 && (unsigned int)mem >= COREB_L1_CODE_START &&
+		|| (cpu == 1 && (unsigned int)mem >= COREB_L1_CODE_START &&
 		(unsigned int)(mem + count) <=
-		COREB_L1_CODE_START + L1_CODE_LENGTH
+		COREB_L1_CODE_START + L1_CODE_LENGTH)
 #endif
 		) {
 		/* access L1 instruction SRAM */
@@ -709,12 +707,12 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
 		default:
 			return EFAULT;
 		}
-	} else if (cpu == 0 && (unsigned int)mem >= L1_CODE_START &&
-		(unsigned int)(mem + count) <= L1_CODE_START + L1_CODE_LENGTH
+	} else if ((cpu == 0 && (unsigned int)mem >= L1_CODE_START &&
+		(unsigned int)(mem + count) <= L1_CODE_START + L1_CODE_LENGTH)
 #ifdef CONFIG_SMP
-		|| cpu == 1 && (unsigned int)mem >= COREB_L1_CODE_START &&
+		|| (cpu == 1 && (unsigned int)mem >= COREB_L1_CODE_START &&
 		(unsigned int)(mem + count) <=
-		COREB_L1_CODE_START + L1_CODE_LENGTH
+		COREB_L1_CODE_START + L1_CODE_LENGTH)
 #endif
 		) {
 		/* access L1 instruction SRAM */
