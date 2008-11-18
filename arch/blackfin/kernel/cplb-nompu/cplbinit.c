@@ -20,6 +20,7 @@
  * to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
 #include <linux/module.h>
 
 #include <asm/blackfin.h>
@@ -169,7 +170,7 @@ static bool __init lock_kernel_check(u32 start, u32 end)
 	return true;
 }
 
-static unsigned short __init
+static void __init
 fill_cplbtab(struct cplb_tab *table,
 	     unsigned long start, unsigned long end,
 	     unsigned long block_size, unsigned long cplb_data)
@@ -206,19 +207,12 @@ fill_cplbtab(struct cplb_tab *table,
 
 		start += block_size;
 	}
-	return 0;
 }
 
-static unsigned short __init
-close_cplbtab(struct cplb_tab *table)
+static void __init close_cplbtab(struct cplb_tab *table)
 {
-
-	while (table->pos < table->size) {
-
+	while (table->pos < table->size)
 		table->tab[table->pos++] = 0;
-		table->tab[table->pos++] = 0; /* !CPLB_VALID */
-	}
-	return 0;
 }
 
 /* helper function */
@@ -426,7 +420,7 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 		}
 	}
 
-/* close tables */
+	/* close tables */
 
 	close_cplbtab(&cplb.init_i);
 	close_cplbtab(&cplb.init_d);
@@ -437,5 +431,5 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 	cplb.switch_d.tab[cplb.switch_d.pos] = -1;
 
 }
-#endif
 
+#endif
