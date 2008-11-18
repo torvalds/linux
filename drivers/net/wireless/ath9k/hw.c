@@ -86,10 +86,11 @@ static u32 ath9k_hw_mac_to_clks(struct ath_hal *ah, u32 usecs)
 enum wireless_mode ath9k_hw_chan2wmode(struct ath_hal *ah,
 			       const struct ath9k_channel *chan)
 {
-	if (IS_CHAN_CCK(chan))
-		return ATH9K_MODE_11A;
+	if (IS_CHAN_B(chan))
+		return ATH9K_MODE_11B;
 	if (IS_CHAN_G(chan))
 		return ATH9K_MODE_11G;
+
 	return ATH9K_MODE_11A;
 }
 
@@ -909,7 +910,7 @@ static void ath9k_hw_init_bb(struct ath_hal *ah,
 	u32 synthDelay;
 
 	synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-	if (IS_CHAN_CCK(chan))
+	if (IS_CHAN_B(chan))
 		synthDelay = (4 * synthDelay) / 22;
 	else
 		synthDelay /= 10;
@@ -1647,7 +1648,7 @@ static struct ath9k_channel *ath9k_hw_check_chan(struct ath_hal *ah,
 	}
 
 	if (!IS_CHAN_OFDM(chan) &&
-	    !IS_CHAN_CCK(chan) &&
+	    !IS_CHAN_B(chan) &&
 	    !IS_CHAN_HT20(chan) &&
 	    !IS_CHAN_HT40(chan)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
@@ -1711,7 +1712,7 @@ static bool ath9k_hw_channel_change(struct ath_hal *ah,
 	}
 
 	synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-	if (IS_CHAN_CCK(chan))
+	if (IS_CHAN_B(chan))
 		synthDelay = (4 * synthDelay) / 22;
 	else
 		synthDelay /= 10;
