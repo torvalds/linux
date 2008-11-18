@@ -251,10 +251,8 @@ typedef struct {
 	int16_t *outBuffer;
 	// interface number
 	int ifnum;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	// interface structure in 2.6
 	struct usb_interface *interface;
-#endif
 	// comedi device for the interrupt context
 	comedi_device *comedidev;
 	// is it USB_SPEED_HIGH or not?
@@ -301,24 +299,14 @@ static DECLARE_MUTEX(start_stop_sem);
 static int usbduxsub_unlink_InURBs(usbduxsub_t * usbduxsub_tmp)
 {
 	int i = 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-	int j = 0;
-#endif
 	int err = 0;
 
 	if (usbduxsub_tmp && usbduxsub_tmp->urbIn) {
 		for (i = 0; i < usbduxsub_tmp->numOfInBuffers; i++) {
 			if (usbduxsub_tmp->urbIn[i]) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-				j = usb_unlink_urb(usbduxsub_tmp->urbIn[i]);
-				if (j < 0) {
-					err = j;
-				}
-#else
 				// We wait here until all transfers
 				// have been cancelled.
 				usb_kill_urb(usbduxsub_tmp->urbIn[i]);
-#endif
 			}
 #ifdef NOISY_DUX_DEBUGBUG
 			printk("comedi: usbdux: unlinked InURB %d, err=%d\n",
@@ -385,11 +373,7 @@ static int usbdux_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 
 // analogue IN
 // interrupt service routine
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 static void usbduxsub_ai_IsocIrq(struct urb *urb)
-#else
-static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
-#endif
 {
 	int i, err, n;
 	usbduxsub_t *this_usbduxsub;
@@ -537,23 +521,13 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 static int usbduxsub_unlink_OutURBs(usbduxsub_t * usbduxsub_tmp)
 {
 	int i = 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-	int j = 0;
-#endif
 
 	int err = 0;
 
 	if (usbduxsub_tmp && usbduxsub_tmp->urbOut) {
 		for (i = 0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
 			if (usbduxsub_tmp->urbOut[i]) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-				j = usb_unlink_urb(usbduxsub_tmp->urbOut[i]);
-				if (j < err) {
-					err = j;
-				}
-#else
 				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
-#endif
 			}
 #ifdef NOISY_DUX_DEBUGBUG
 			printk("comedi: usbdux: unlinked OutURB %d: res=%d\n",
@@ -612,13 +586,8 @@ static int usbdux_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 	return res;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 static void usbduxsub_ao_IsocIrq(struct urb *urb)
 {
-#else
-static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
-{
-#endif
 	int i, ret;
 	int8_t *datap;
 	usbduxsub_t *this_usbduxsub;
@@ -1851,23 +1820,11 @@ static int usbdux_counter_config(comedi_device * dev, comedi_subdevice * s,
 
 static int usbduxsub_unlink_PwmURBs(usbduxsub_t * usbduxsub_tmp)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-	int j = 0;
-#endif
-
 	int err = 0;
 
 	if (usbduxsub_tmp && usbduxsub_tmp->urbPwm) {
-		if (usbduxsub_tmp->urbPwm) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-			j = usb_unlink_urb(usbduxsub_tmp->urbPwm);
-			if (j < err) {
-				err = j;
-			}
-#else
+		if (usbduxsub_tmp->urbPwm)
 			usb_kill_urb(usbduxsub_tmp->urbPwm);
-#endif
-		}
 #ifdef NOISY_DUX_DEBUGBUG
 		printk("comedi: usbdux: unlinked PwmURB: res=%d\n", err);
 #endif
@@ -1921,13 +1878,8 @@ static int usbdux_pwm_cancel(comedi_device * dev, comedi_subdevice * s)
 	return res;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static void usbduxsub_pwm_irq(struct urb *urb)
 {
-#else
-static void usbduxsub_pwm_irq(struct urb *urb, struct pt_regs *regs)
-{
-#endif
 	int ret;
 	usbduxsub_t *this_usbduxsub;
 	comedi_device *this_comedidev;
@@ -2224,12 +2176,9 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 	if (!usbduxsub_tmp) {
 		return;
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	// shows the usb subsystem that the driver is down
-	if (usbduxsub_tmp->interface) {
+	if (usbduxsub_tmp->interface)
 		usb_set_intfdata(usbduxsub_tmp->interface, NULL);
-	}
-#endif
 
 	usbduxsub_tmp->probed = 0;
 
@@ -2244,9 +2193,7 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 				usbduxsub_tmp->urbIn[i]->transfer_buffer = NULL;
 			}
 			if (usbduxsub_tmp->urbIn[i]) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 				usb_kill_urb(usbduxsub_tmp->urbIn[i]);
-#endif
 				usb_free_urb(usbduxsub_tmp->urbIn[i]);
 				usbduxsub_tmp->urbIn[i] = NULL;
 			}
@@ -2267,9 +2214,7 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 					NULL;
 			}
 			if (usbduxsub_tmp->urbOut[i]) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
-#endif
 				usb_free_urb(usbduxsub_tmp->urbOut[i]);
 				usbduxsub_tmp->urbOut[i] = NULL;
 			}
@@ -2286,9 +2231,7 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 			kfree(usbduxsub_tmp->urbPwm->transfer_buffer);
 			usbduxsub_tmp->urbPwm->transfer_buffer = NULL;
 		}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 		usb_kill_urb(usbduxsub_tmp->urbPwm);
-#endif
 		usb_free_urb(usbduxsub_tmp->urbPwm);
 		usbduxsub_tmp->urbPwm = NULL;
 	}
@@ -2434,16 +2377,10 @@ static int read_firmware(usbduxsub_t * usbduxsub, void *firmwarePtr, long size)
 }
 
 // allocate memory for the urbs and initialise them
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void *usbduxsub_probe(struct usb_device *udev,
-	unsigned int interfnum, const struct usb_device_id *id)
-{
-#else
 static int usbduxsub_probe(struct usb_interface *uinterf,
 	const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
-#endif
 	int i;
 	int index;
 
@@ -2474,10 +2411,6 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	// save a pointer to the usb device
 	usbduxsub[index].usbdev = udev;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-	// save the interface number
-	usbduxsub[index].ifnum = interfnum;
-#else
 	// 2.6: save the interface itself
 	usbduxsub[index].interface = uinterf;
 	// get the interface number from the interface
@@ -2485,7 +2418,6 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	// hand the private data over to the usb subsystem
 	// will be needed for disconnect
 	usb_set_intfdata(uinterf, &(usbduxsub[index]));
-#endif
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi_: usbdux: ifnum=%d\n", usbduxsub[index].ifnum);
@@ -2678,24 +2610,15 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	usbduxsub[index].probed = 1;
 	up(&start_stop_sem);
 	printk("comedi_: usbdux%d has been successfully initialised.\n", index);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-	return (void *)(&usbduxsub[index]);
-#else
 	// success
 	return 0;
-#endif
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void usbduxsub_disconnect(struct usb_device *udev, void *ptr)
-{
-	usbduxsub_t *usbduxsub_tmp = (usbduxsub_t *) ptr;
-#else
 static void usbduxsub_disconnect(struct usb_interface *intf)
 {
 	usbduxsub_t *usbduxsub_tmp = usb_get_intfdata(intf);
 	struct usb_device *udev = interface_to_usbdev(intf);
-#endif
+
 	if (!usbduxsub_tmp) {
 		printk("comedi_: usbdux: disconnect called with null pointer.\n");
 		return;
