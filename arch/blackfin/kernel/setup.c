@@ -1032,7 +1032,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	char *cpu, *mmu, *fpu, *vendor, *cache;
 	uint32_t revid;
 
-	u_long sclk = 0;
+	u_long sclk, cclk;
 	u_int icache_size = BFIN_ICACHESIZE / 1024, dcache_size = 0, dsup_banks = 0;
 	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, *(unsigned int *)v);
 
@@ -1042,6 +1042,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	revid = bfin_revid();
 
 	sclk = get_sclk();
+	cclk = get_cclk();
 
 	switch (bfin_read_CHIPID() & CHIPID_MANUFACTURE) {
 	case 0xca:
@@ -1063,7 +1064,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, "model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
 		"stepping\t: %d\n",
-		cpu, cpudata->cclk/1000000, sclk/1000000,
+		cpu, cclk/1000000, sclk/1000000,
 #ifdef CONFIG_MPU
 		"mpu on",
 #else
@@ -1072,7 +1073,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		revid);
 
 	seq_printf(m, "cpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
-		cpudata->cclk/1000000, cpudata->cclk%1000000,
+		cclk/1000000, cclk%1000000,
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"
 		"Calibration\t: %lu loops\n",
