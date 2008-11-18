@@ -177,6 +177,9 @@ struct btrfs_dev_item {
 	/* type and info about this device */
 	__le64 type;
 
+	/* expected generation for this device */
+	__le64 generation;
+
 	/* grouping information for allocation decisions */
 	__le32 dev_group;
 
@@ -188,6 +191,9 @@ struct btrfs_dev_item {
 
 	/* btrfs generated uuid for this device */
 	u8 uuid[BTRFS_UUID_SIZE];
+
+	/* uuid of FS who owns this device */
+	u8 fsid[BTRFS_UUID_SIZE];
 } __attribute__ ((__packed__));
 
 struct btrfs_stripe {
@@ -263,6 +269,7 @@ struct btrfs_header {
 					sizeof(struct btrfs_item) - \
 					sizeof(struct btrfs_file_extent_item))
 
+#define BTRFS_SUPER_FLAG_SEEDING (1ULL << 32)
 
 /*
  * this is a very generous portion of the super block, giving us
@@ -278,7 +285,7 @@ struct btrfs_header {
 struct btrfs_super_block {
 	u8 csum[BTRFS_CSUM_SIZE];
 	/* the first 4 fields must match struct btrfs_header */
-	u8 fsid[16];    /* FS specific uuid */
+	u8 fsid[BTRFS_FSID_SIZE];    /* FS specific uuid */
 	__le64 bytenr; /* this block number */
 	__le64 flags;
 
@@ -941,6 +948,7 @@ BTRFS_SETGET_FUNCS(device_id, struct btrfs_dev_item, devid, 64);
 BTRFS_SETGET_FUNCS(device_group, struct btrfs_dev_item, dev_group, 32);
 BTRFS_SETGET_FUNCS(device_seek_speed, struct btrfs_dev_item, seek_speed, 8);
 BTRFS_SETGET_FUNCS(device_bandwidth, struct btrfs_dev_item, bandwidth, 8);
+BTRFS_SETGET_FUNCS(device_generation, struct btrfs_dev_item, generation, 64);
 
 BTRFS_SETGET_STACK_FUNCS(stack_device_type, struct btrfs_dev_item, type, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_device_total_bytes, struct btrfs_dev_item,
@@ -960,10 +968,17 @@ BTRFS_SETGET_STACK_FUNCS(stack_device_seek_speed, struct btrfs_dev_item,
 			 seek_speed, 8);
 BTRFS_SETGET_STACK_FUNCS(stack_device_bandwidth, struct btrfs_dev_item,
 			 bandwidth, 8);
+BTRFS_SETGET_STACK_FUNCS(stack_device_generation, struct btrfs_dev_item,
+			 generation, 64);
 
 static inline char *btrfs_device_uuid(struct btrfs_dev_item *d)
 {
 	return (char *)d + offsetof(struct btrfs_dev_item, uuid);
+}
+
+static inline char *btrfs_device_fsid(struct btrfs_dev_item *d)
+{
+	return (char *)d + offsetof(struct btrfs_dev_item, fsid);
 }
 
 BTRFS_SETGET_FUNCS(chunk_length, struct btrfs_chunk, length, 64);
@@ -1661,6 +1676,7 @@ int btrfs_reloc_tree_cache_ref(struct btrfs_trans_handle *trans,
 			       struct extent_buffer *buf, u64 orig_start);
 int btrfs_add_dead_reloc_root(struct btrfs_root *root);
 int btrfs_cleanup_reloc_trees(struct btrfs_root *root);
+u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags);
 /* ctree.c */
 int btrfs_previous_item(struct btrfs_root *root,
 			struct btrfs_path *path, u64 min_objectid,

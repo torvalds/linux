@@ -405,7 +405,7 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		devid = simple_strtoull(devstr, &end, 10);
 		printk(KERN_INFO "resizing devid %llu\n", devid);
 	}
-	device = btrfs_find_device(root, devid, NULL);
+	device = btrfs_find_device(root, devid, NULL, NULL);
 	if (!device) {
 		printk(KERN_INFO "resizer unable to find device %llu\n", devid);
 		ret = -EINVAL;

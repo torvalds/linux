@@ -345,6 +345,25 @@ out:
 	return 0;
 }
 
+static int check_tree_block_fsid(struct btrfs_root *root,
+				 struct extent_buffer *eb)
+{
+	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
+	u8 fsid[BTRFS_UUID_SIZE];
+	int ret = 1;
+
+	read_extent_buffer(eb, fsid, (unsigned long)btrfs_header_fsid(eb),
+			   BTRFS_FSID_SIZE);
+	while (fs_devices) {
+		if (!memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE)) {
+			ret = 0;
+			break;
+		}
+		fs_devices = fs_devices->seed;
+	}
+	return ret;
+}
+
 int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
@@ -382,9 +401,7 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		ret = -EIO;
 		goto err;
 	}
-	if (memcmp_extent_buffer(eb, root->fs_info->fsid,
-				 (unsigned long)btrfs_header_fsid(eb),
-				 BTRFS_FSID_SIZE)) {
+	if (check_tree_block_fsid(root, eb)) {
 		printk("bad fsid on block %Lu\n", eb->start);
 		ret = -EIO;
 		goto err;
@@ -1558,9 +1575,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!btrfs_super_root(disk_super))
 		goto fail_sb_buffer;
 
-	err = btrfs_parse_options(tree_root, options);
-	if (err)
+	ret = btrfs_parse_options(tree_root, options);
+	if (ret) {
+		err = ret;
 		goto fail_sb_buffer;
+	}
 
 	/*
 	 * we need to start all the end_io workers up front because the
@@ -1609,18 +1628,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
 	btrfs_start_workers(&fs_info->endio_write_workers,
 			    fs_info->thread_pool_size);
-
-	err = -EINVAL;
-	if (btrfs_super_num_devices(disk_super) > fs_devices->open_devices) {
-		printk("Btrfs: wanted %llu devices, but found %llu\n",
-		       (unsigned long long)btrfs_super_num_devices(disk_super),
-		       (unsigned long long)fs_devices->open_devices);
-		if (btrfs_test_opt(tree_root, DEGRADED))
-			printk("continuing in degraded mode\n");
-		else {
-			goto fail_sb_buffer;
-		}
-	}
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
@@ -1672,7 +1679,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_chunk_tree(chunk_root);
 	mutex_unlock(&fs_info->chunk_mutex);
-	BUG_ON(ret);
+	if (ret) {
+		printk("btrfs: failed to read chunk tree on %s\n", sb->s_id);
+		goto fail_chunk_root;
+	}
 
 	btrfs_close_extra_devices(fs_devices);
 
@@ -1684,7 +1694,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					  btrfs_super_root(disk_super),
 					  blocksize, generation);
 	if (!tree_root->node)
-		goto fail_sb_buffer;
+		goto fail_chunk_root;
 
 
 	ret = find_and_setup_root(tree_root, fs_info,
@@ -1753,6 +1763,8 @@ fail_extent_root:
 	free_extent_buffer(extent_root->node);
 fail_tree_root:
 	free_extent_buffer(tree_root->node);
+fail_chunk_root:
+	free_extent_buffer(chunk_root->node);
 fail_sys_array:
 fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->fixup_workers);
@@ -1823,9 +1835,10 @@ int write_all_supers(struct btrfs_root *root)
 			total_errors++;
 			continue;
 		}
-		if (!dev->in_fs_metadata)
+		if (!dev->in_fs_metadata || !dev->writeable)
 			continue;
 
+		btrfs_set_stack_device_generation(dev_item, 0);
 		btrfs_set_stack_device_type(dev_item, dev->type);
 		btrfs_set_stack_device_id(dev_item, dev->devid);
 		btrfs_set_stack_device_total_bytes(dev_item, dev->total_bytes);
@@ -1834,6 +1847,7 @@ int write_all_supers(struct btrfs_root *root)
 		btrfs_set_stack_device_io_width(dev_item, dev->io_width);
 		btrfs_set_stack_device_sector_size(dev_item, dev->sector_size);
 		memcpy(dev_item->uuid, dev->uuid, BTRFS_UUID_SIZE);
+		memcpy(dev_item->fsid, dev->fs_devices->fsid, BTRFS_UUID_SIZE);
 		flags = btrfs_super_flags(sb);
 		btrfs_set_super_flags(sb, flags | BTRFS_HEADER_FLAG_WRITTEN);
 
@@ -1881,7 +1895,7 @@ int write_all_supers(struct btrfs_root *root)
 		dev = list_entry(cur, struct btrfs_device, dev_list);
 		if (!dev->bdev)
 			continue;
-		if (!dev->in_fs_metadata)
+		if (!dev->in_fs_metadata || !dev->writeable)
 			continue;
 
 		BUG_ON(!dev->pending_io);

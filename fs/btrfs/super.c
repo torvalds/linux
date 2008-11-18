@@ -431,6 +431,11 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 	if (error)
 		goto error_free_subvol_name;
 
+	if (!(flags & MS_RDONLY) && fs_devices->rw_devices == 0) {
+		error = -EACCES;
+		goto error_close_devices;
+	}
+
 	bdev = fs_devices->latest_bdev;
 	s = sget(fs_type, btrfs_test_super, set_anon_super, fs_devices);
 	if (IS_ERR(s))
@@ -444,6 +449,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 			goto error_close_devices;
 		}
 
+		btrfs_close_devices(fs_devices);
 	} else {
 		char b[BDEVNAME_SIZE];
 
@@ -512,6 +518,9 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		ret =  btrfs_commit_super(root);
 		WARN_ON(ret);
 	} else {
+		if (root->fs_info->fs_devices->rw_devices == 0)
+			return -EACCES;
+
 		if (btrfs_super_log_root(&root->fs_info->super_copy) != 0)
 			return -EINVAL;
 

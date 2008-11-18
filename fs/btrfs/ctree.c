@@ -185,6 +185,10 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	btrfs_set_header_owner(cow, new_root_objectid);
 	btrfs_clear_header_flag(cow, BTRFS_HEADER_FLAG_WRITTEN);
 
+	write_extent_buffer(cow, root->fs_info->fsid,
+			    (unsigned long)btrfs_header_fsid(cow),
+			    BTRFS_FSID_SIZE);
+
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
 	ret = btrfs_inc_ref(trans, new_root, buf, cow, NULL);
 	kfree(new_root);
@@ -273,6 +277,10 @@ int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	btrfs_set_header_generation(cow, trans->transid);
 	btrfs_set_header_owner(cow, root->root_key.objectid);
 	btrfs_clear_header_flag(cow, BTRFS_HEADER_FLAG_WRITTEN);
+
+	write_extent_buffer(cow, root->fs_info->fsid,
+			    (unsigned long)btrfs_header_fsid(cow),
+			    BTRFS_FSID_SIZE);
 
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
 	if (btrfs_header_generation(buf) != trans->transid) {

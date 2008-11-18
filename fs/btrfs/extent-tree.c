@@ -355,7 +355,7 @@ __btrfs_find_block_group(struct btrfs_root *root,
 	if (search_start) {
 		struct btrfs_block_group_cache *shint;
 		shint = btrfs_lookup_first_block_group(info, search_start);
-		if (shint && block_group_bits(shint, data) && !shint->ro) {
+		if (shint && block_group_bits(shint, data)) {
 			spin_lock(&shint->lock);
 			used = btrfs_block_group_used(&shint->item);
 			if (used + shint->pinned + shint->reserved <
@@ -366,7 +366,7 @@ __btrfs_find_block_group(struct btrfs_root *root,
 			spin_unlock(&shint->lock);
 		}
 	}
-	if (hint && !hint->ro && block_group_bits(hint, data)) {
+	if (hint && block_group_bits(hint, data)) {
 		spin_lock(&hint->lock);
 		used = btrfs_block_group_used(&hint->item);
 		if (used + hint->pinned + hint->reserved <
@@ -392,7 +392,7 @@ again:
 		last = cache->key.objectid + cache->key.offset;
 		used = btrfs_block_group_used(&cache->item);
 
-		if (!cache->ro && block_group_bits(cache, data)) {
+		if (block_group_bits(cache, data)) {
 			free_check = div_factor(cache->key.offset, factor);
 			if (used + cache->pinned + cache->reserved <
 			    free_check) {
@@ -1843,9 +1843,9 @@ static void set_block_group_readonly(struct btrfs_block_group_cache *cache)
 	spin_unlock(&cache->space_info->lock);
 }
 
-static u64 reduce_alloc_profile(struct btrfs_root *root, u64 flags)
+u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 {
-	u64 num_devices = root->fs_info->fs_devices->num_devices;
+	u64 num_devices = root->fs_info->fs_devices->rw_devices;
 
 	if (num_devices == 1)
 		flags &= ~(BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID0);
@@ -1877,13 +1877,11 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_space_info *space_info;
 	u64 thresh;
-	u64 start;
-	u64 num_bytes;
 	int ret = 0;
 
 	mutex_lock(&extent_root->fs_info->chunk_mutex);
 
-	flags = reduce_alloc_profile(extent_root, flags);
+	flags = btrfs_reduce_alloc_profile(extent_root, flags);
 
 	space_info = __find_space_info(extent_root->fs_info, flags);
 	if (!space_info) {
@@ -1913,16 +1911,11 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	}
 	spin_unlock(&space_info->lock);
 
-	ret = btrfs_alloc_chunk(trans, extent_root, &start, &num_bytes, flags);
+	ret = btrfs_alloc_chunk(trans, extent_root, flags);
 	if (ret) {
 printk("space info full %Lu\n", flags);
 		space_info->full = 1;
-		goto out;
 	}
-
-	ret = btrfs_make_block_group(trans, extent_root, 0, flags,
-		     BTRFS_FIRST_CHUNK_TREE_OBJECTID, start, num_bytes);
-	BUG_ON(ret);
 out:
 	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 	return ret;
@@ -3040,7 +3033,7 @@ static int __btrfs_reserve_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_METADATA | alloc_profile;
 	}
 again:
-	data = reduce_alloc_profile(root, data);
+	data = btrfs_reduce_alloc_profile(root, data);
 	/*
 	 * the only place that sets empty_size is btrfs_realloc_node, which
 	 * is not called recursively on allocations
@@ -5136,7 +5129,8 @@ static int noinline relocate_one_path(struct btrfs_trans_handle *trans,
 			else
 				btrfs_node_key_to_cpu(eb, &keys[level], 0);
 		}
-		if (ref_path->owner_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
+		if (nodes[0] &&
+		    ref_path->owner_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
 			eb = path->nodes[0];
 			ret = replace_extents_in_leaf(trans, reloc_root, eb,
 						      group, reloc_inode);
@@ -5377,7 +5371,7 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	u64 stripped = BTRFS_BLOCK_GROUP_RAID0 |
 		BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10;
 
-	num_devices = root->fs_info->fs_devices->num_devices;
+	num_devices = root->fs_info->fs_devices->rw_devices;
 	if (num_devices == 1) {
 		stripped |= BTRFS_BLOCK_GROUP_DUP;
 		stripped = flags & ~stripped;
@@ -5801,6 +5795,8 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		BUG_ON(ret);
 
 		set_avail_alloc_bits(root->fs_info, cache->flags);
+		if (btrfs_chunk_readonly(root, cache->key.objectid))
+			set_block_group_readonly(cache);
 	}
 	ret = 0;
 error:
@@ -5889,6 +5885,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	block_group->space_info->total_bytes -= block_group->key.offset;
 	block_group->space_info->bytes_readonly -= block_group->key.offset;
 	spin_unlock(&block_group->space_info->lock);
+	block_group->space_info->full = 0;
 
 	/*
 	memset(shrink_block_group, 0, sizeof(*shrink_block_group));
