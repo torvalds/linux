@@ -1501,7 +1501,12 @@ out:
  * @bu: bulk-read parameters and results
  *
  * Lookup consecutive data node keys for the same inode that reside
- * consecutively in the same LEB.
+ * consecutively in the same LEB. This function returns zero in case of success
+ * and a negative error code in case of failure.
+ *
+ * Note, if the bulk-read buffer length (@bu->buf_len) is known, this function
+ * makes sure bulk-read nodes fit the buffer. Otherwise, this function prepares
+ * maxumum possible amount of nodes for bulk-read.
  */
 int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu)
 {

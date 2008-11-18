@@ -569,16 +569,16 @@ static int init_constants_early(struct ubifs_info *c)
 	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
 
 	/* Buffer size for bulk-reads */
-	c->bulk_read_buf_size = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
-	if (c->bulk_read_buf_size > c->leb_size)
-		c->bulk_read_buf_size = c->leb_size;
-	if (c->bulk_read_buf_size > UBIFS_KMALLOC_OK) {
+	c->max_bu_buf_len = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
+	if (c->max_bu_buf_len > c->leb_size)
+		c->max_bu_buf_len = c->leb_size;
+	if (c->max_bu_buf_len > UBIFS_KMALLOC_OK) {
 		/* Check if we can kmalloc that much */
-		void *try = kmalloc(c->bulk_read_buf_size,
+		void *try = kmalloc(c->max_bu_buf_len,
 				    GFP_KERNEL | __GFP_NOWARN);
 		kfree(try);
 		if (!try)
-			c->bulk_read_buf_size = UBIFS_KMALLOC_OK;
+			c->max_bu_buf_len = UBIFS_KMALLOC_OK;
 	}
 	return 0;
 }
