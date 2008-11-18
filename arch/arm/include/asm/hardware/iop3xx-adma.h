@@ -730,7 +730,8 @@ static inline void iop_desc_set_next_desc(struct iop_adma_desc_slot *desc,
 {
 	/* hw_desc->next_desc is the same location for all channels */
 	union iop3xx_desc hw_desc = { .ptr = desc->hw_desc, };
-	BUG_ON(hw_desc.dma->next_desc);
+
+	iop_paranoia(hw_desc.dma->next_desc);
 	hw_desc.dma->next_desc = next_desc_addr;
 }
 
@@ -760,7 +761,7 @@ static inline int iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
 	struct iop3xx_desc_aau *hw_desc = desc->hw_desc;
 	struct iop3xx_aau_desc_ctrl desc_ctrl = hw_desc->desc_ctrl_field;
 
-	BUG_ON(!(desc_ctrl.tx_complete && desc_ctrl.zero_result_en));
+	iop_paranoia(!(desc_ctrl.tx_complete && desc_ctrl.zero_result_en));
 	return desc_ctrl.zero_result_err;
 }
 

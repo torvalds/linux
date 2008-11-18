@@ -878,7 +878,9 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		if (ifm->ifi_change)
 			flags = (flags & ifm->ifi_change) |
 				(dev->flags & ~ifm->ifi_change);
-		dev_change_flags(dev, flags);
+		err = dev_change_flags(dev, flags);
+		if (err < 0)
+			goto errout;
 	}
 
 	if (tb[IFLA_TXQLEN])

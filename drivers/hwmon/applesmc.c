@@ -1280,7 +1280,7 @@ static __initdata struct dmi_match_data applesmc_dmi_data[] = {
 	{ .accelerometer = 0, .light = 0, .temperature_set = 4 },
 /* iMac: temperature set 5 */
 	{ .accelerometer = 0, .light = 0, .temperature_set = 5 },
-/* MacBook3: accelerometer and temperature set 6 */
+/* MacBook3, MacBook4: accelerometer and temperature set 6 */
 	{ .accelerometer = 1, .light = 0, .temperature_set = 6 },
 /* MacBook Air: accelerometer, backlight and temperature set 7 */
 	{ .accelerometer = 1, .light = 1, .temperature_set = 7 },
@@ -1328,6 +1328,10 @@ static __initdata struct dmi_system_id applesmc_whitelist[] = {
 	{ applesmc_dmi_match, "Apple MacBook (v3)", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook3") },
+		&applesmc_dmi_data[6]},
+	{ applesmc_dmi_match, "Apple MacBook 4", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBook4") },
 		&applesmc_dmi_data[6]},
 	{ applesmc_dmi_match, "Apple MacBook 5", {
 	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),

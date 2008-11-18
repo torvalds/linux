@@ -314,7 +314,7 @@ static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
 	if (r)
 		goto out;
 	r = mmu_topup_memory_cache(&vcpu->arch.mmu_rmap_desc_cache,
-				   rmap_desc_cache, 1);
+				   rmap_desc_cache, 4);
 	if (r)
 		goto out;
 	r = mmu_topup_memory_cache_page(&vcpu->arch.mmu_page_cache, 8);

@@ -664,14 +664,6 @@ static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
 
 		/* Timer is expired, act upon the callback mode */
 		switch(timer->cb_mode) {
-		case HRTIMER_CB_IRQSAFE_NO_RESTART:
-			debug_hrtimer_deactivate(timer);
-			/*
-			 * We can call the callback from here. No restart
-			 * happens, so no danger of recursion
-			 */
-			BUG_ON(timer->function(timer) != HRTIMER_NORESTART);
-			return 1;
 		case HRTIMER_CB_IRQSAFE_PERCPU:
 		case HRTIMER_CB_IRQSAFE_UNLOCKED:
 			/*
@@ -683,7 +675,6 @@ static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
 			 */
 			debug_hrtimer_deactivate(timer);
 			return 1;
-		case HRTIMER_CB_IRQSAFE:
 		case HRTIMER_CB_SOFTIRQ:
 			/*
 			 * Move everything else into the softirq pending list !
