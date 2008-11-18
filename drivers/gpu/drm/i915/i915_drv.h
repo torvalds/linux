@@ -47,6 +47,8 @@ enum pipe {
 	PIPE_B,
 };
 
+#define I915_NUM_PIPE	2
+
 /* Interface history:
  *
  * 1.1: Original.
