@@ -410,7 +410,8 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	struct nlattr *nest_parms;
-	struct nf_conn *ct = (struct nf_conn *)ptr;
+	struct nf_ct_event *item = (struct nf_ct_event *)ptr;
+	struct nf_conn *ct = item->ct;
 	struct sk_buff *skb;
 	unsigned int type;
 	sk_buff_data_t b;
@@ -443,7 +444,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	b = skb->tail;
 
 	type |= NFNL_SUBSYS_CTNETLINK << 8;
-	nlh   = NLMSG_PUT(skb, 0, 0, type, sizeof(struct nfgenmsg));
+	nlh   = NLMSG_PUT(skb, item->pid, 0, type, sizeof(struct nfgenmsg));
 	nfmsg = NLMSG_DATA(nlh);
 
 	nlh->nlmsg_flags    = flags;
@@ -511,7 +512,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	rcu_read_unlock();
 
 	nlh->nlmsg_len = skb->tail - b;
-	nfnetlink_send(skb, 0, group, 0);
+	nfnetlink_send(skb, item->pid, group, item->report);
 	return NOTIFY_DONE;
 
 nla_put_failure:
@@ -722,7 +723,9 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_REPLY, u3);
 	else {
 		/* Flush the whole table */
-		nf_conntrack_flush(&init_net);
+		nf_conntrack_flush(&init_net, 
+				   NETLINK_CB(skb).pid, 
+				   nlmsg_report(nlh));
 		return 0;
 	}
 
@@ -742,6 +745,14 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			return -ENOENT;
 		}
 	}
+
+	nf_conntrack_event_report(IPCT_DESTROY,
+				  ct,
+				  NETLINK_CB(skb).pid,
+				  nlmsg_report(nlh));
+
+	/* death_by_timeout would report the event again */
+	set_bit(IPS_DYING_BIT, &ct->status);
 
 	nf_ct_kill(ct);
 	nf_ct_put(ct);
@@ -1088,11 +1099,35 @@ ctnetlink_change_conntrack(struct nf_conn *ct, struct nlattr *cda[])
 	return 0;
 }
 
+static inline void
+ctnetlink_event_report(struct nf_conn *ct, u32 pid, int report)
+{
+	unsigned int events = 0;
+
+	if (test_bit(IPS_EXPECTED_BIT, &ct->status))
+		events |= IPCT_RELATED;
+	else
+		events |= IPCT_NEW;
+
+	nf_conntrack_event_report(IPCT_STATUS |
+				  IPCT_HELPER |
+				  IPCT_REFRESH |
+				  IPCT_PROTOINFO |
+				  IPCT_NATSEQADJ |
+				  IPCT_MARK |
+				  events,
+				  ct,
+				  pid,
+				  report);
+}
+
 static int
 ctnetlink_create_conntrack(struct nlattr *cda[],
 			   struct nf_conntrack_tuple *otuple,
 			   struct nf_conntrack_tuple *rtuple,
-			   struct nf_conn *master_ct)
+			   struct nf_conn *master_ct,
+			   u32 pid,
+			   int report)
 {
 	struct nf_conn *ct;
 	int err = -EINVAL;
@@ -1198,9 +1233,12 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 		ct->master = master_ct;
 	}
 
+	nf_conntrack_get(&ct->ct_general);
 	add_timer(&ct->timeout);
 	nf_conntrack_hash_insert(ct);
 	rcu_read_unlock();
+	ctnetlink_event_report(ct, pid, report);
+	nf_ct_put(ct);
 
 	return 0;
 
@@ -1265,7 +1303,9 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			err = ctnetlink_create_conntrack(cda,
 							 &otuple,
 							 &rtuple,
-							 master_ct);
+							 master_ct,
+							 NETLINK_CB(skb).pid,
+							 nlmsg_report(nlh));
 		if (err < 0 && master_ct)
 			nf_ct_put(master_ct);
 
@@ -1277,6 +1317,8 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	 * so there's no need to increase the refcount */
 	err = -EEXIST;
 	if (!(nlh->nlmsg_flags & NLM_F_EXCL)) {
+		struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+
 		/* we only allow nat config for new conntracks */
 		if (cda[CTA_NAT_SRC] || cda[CTA_NAT_DST]) {
 			err = -EOPNOTSUPP;
@@ -1287,8 +1329,19 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			err = -EOPNOTSUPP;
 			goto out_unlock;
 		}
-		err = ctnetlink_change_conntrack(nf_ct_tuplehash_to_ctrack(h),
-						 cda);
+
+		err = ctnetlink_change_conntrack(ct, cda);
+		if (err == 0) {
+			nf_conntrack_get(&ct->ct_general);
+			spin_unlock_bh(&nf_conntrack_lock);
+			ctnetlink_event_report(ct,
+					       NETLINK_CB(skb).pid,
+					       nlmsg_report(nlh));
+			nf_ct_put(ct);
+		} else
+			spin_unlock_bh(&nf_conntrack_lock);
+
+		return err;
 	}
 
 out_unlock:
@@ -1423,7 +1476,8 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	struct nf_conntrack_expect *exp = (struct nf_conntrack_expect *)ptr;
+	struct nf_exp_event *item = (struct nf_exp_event *)ptr;
+	struct nf_conntrack_expect *exp = item->exp;
 	struct sk_buff *skb;
 	unsigned int type;
 	sk_buff_data_t b;
@@ -1445,7 +1499,7 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 	b = skb->tail;
 
 	type |= NFNL_SUBSYS_CTNETLINK_EXP << 8;
-	nlh   = NLMSG_PUT(skb, 0, 0, type, sizeof(struct nfgenmsg));
+	nlh   = NLMSG_PUT(skb, item->pid, 0, type, sizeof(struct nfgenmsg));
 	nfmsg = NLMSG_DATA(nlh);
 
 	nlh->nlmsg_flags    = flags;
@@ -1459,7 +1513,7 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 	rcu_read_unlock();
 
 	nlh->nlmsg_len = skb->tail - b;
-	nfnetlink_send(skb, 0, NFNLGRP_CONNTRACK_EXP_NEW, 0);
+	nfnetlink_send(skb, item->pid, NFNLGRP_CONNTRACK_EXP_NEW, item->report);
 	return NOTIFY_DONE;
 
 nla_put_failure:
@@ -1673,7 +1727,7 @@ ctnetlink_change_expect(struct nf_conntrack_expect *x, struct nlattr *cda[])
 }
 
 static int
-ctnetlink_create_expect(struct nlattr *cda[], u_int8_t u3)
+ctnetlink_create_expect(struct nlattr *cda[], u_int8_t u3, u32 pid, int report)
 {
 	struct nf_conntrack_tuple tuple, mask, master_tuple;
 	struct nf_conntrack_tuple_hash *h = NULL;
@@ -1720,7 +1774,7 @@ ctnetlink_create_expect(struct nlattr *cda[], u_int8_t u3)
 	memcpy(&exp->mask.src.u3, &mask.src.u3, sizeof(exp->mask.src.u3));
 	exp->mask.src.u.all = mask.src.u.all;
 
-	err = nf_ct_expect_related(exp);
+	err = nf_ct_expect_related_report(exp, pid, report);
 	nf_ct_expect_put(exp);
 
 out:
@@ -1753,8 +1807,12 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (!exp) {
 		spin_unlock_bh(&nf_conntrack_lock);
 		err = -ENOENT;
-		if (nlh->nlmsg_flags & NLM_F_CREATE)
-			err = ctnetlink_create_expect(cda, u3);
+		if (nlh->nlmsg_flags & NLM_F_CREATE) {
+			err = ctnetlink_create_expect(cda,
+						      u3,
+						      NETLINK_CB(skb).pid,
+						      nlmsg_report(nlh));
+		}
 		return err;
 	}
 

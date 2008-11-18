@@ -181,7 +181,8 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	NF_CT_ASSERT(atomic_read(&nfct->use) == 0);
 	NF_CT_ASSERT(!timer_pending(&ct->timeout));
 
-	nf_conntrack_event(IPCT_DESTROY, ct);
+	if (!test_bit(IPS_DYING_BIT, &ct->status))
+		nf_conntrack_event(IPCT_DESTROY, ct);
 	set_bit(IPS_DYING_BIT, &ct->status);
 
 	/* To make sure we don't get any weird locking issues here:
@@ -972,8 +973,20 @@ void nf_ct_iterate_cleanup(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup);
 
+struct __nf_ct_flush_report {
+	u32 pid;
+	int report;
+};
+
 static int kill_all(struct nf_conn *i, void *data)
 {
+	struct __nf_ct_flush_report *fr = (struct __nf_ct_flush_report *)data;
+
+	/* get_next_corpse sets the dying bit for us */
+	nf_conntrack_event_report(IPCT_DESTROY,
+				  i,
+				  fr->pid,
+				  fr->report);
 	return 1;
 }
 
@@ -987,9 +1000,13 @@ void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced, unsigned int s
 }
 EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
-void nf_conntrack_flush(struct net *net)
+void nf_conntrack_flush(struct net *net, u32 pid, int report)
 {
-	nf_ct_iterate_cleanup(net, kill_all, NULL);
+	struct __nf_ct_flush_report fr = {
+		.pid 	= pid,
+		.report = report,
+	};
+	nf_ct_iterate_cleanup(net, kill_all, &fr);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_flush);
 
@@ -1005,7 +1022,7 @@ static void nf_conntrack_cleanup_net(struct net *net)
 	nf_ct_event_cache_flush(net);
 	nf_conntrack_ecache_fini(net);
  i_see_dead_people:
-	nf_conntrack_flush(net);
+	nf_conntrack_flush(net, 0, 0);
 	if (atomic_read(&net->ct.count) != 0) {
 		schedule();
 		goto i_see_dead_people;
