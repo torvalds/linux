@@ -23,6 +23,8 @@
 #include "cx18-dvb.h"
 #include "cx18-io.h"
 #include "cx18-streams.h"
+#include "cx18-queue.h"
+#include "cx18-scb.h"
 #include "cx18-cards.h"
 #include "s5h1409.h"
 #include "mxl5005s.h"
@@ -299,4 +301,25 @@ static int dvb_register(struct cx18_stream *stream)
 	}
 
 	return ret;
+}
+
+void cx18_dvb_work_handler(struct cx18 *cx)
+{
+	struct cx18_buffer *buf;
+	struct cx18_stream *s = &cx->streams[CX18_ENC_STREAM_TYPE_TS];
+
+	while ((buf = cx18_dequeue(s, &s->q_full)) != NULL) {
+		if (s->dvb.enabled)
+			dvb_dmx_swfilter(&s->dvb.demux, buf->buf,
+					 buf->bytesused);
+
+		cx18_enqueue(s, buf, &s->q_free);
+		cx18_buf_sync_for_device(s, buf);
+		if (s->handle == CX18_INVALID_TASK_HANDLE) /* FIXME: improve */
+			continue;
+
+		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
+		       (void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+		       1, buf->id, s->buf_size);
+	}
 }

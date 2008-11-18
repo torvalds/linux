@@ -1879,6 +1879,37 @@ M:	linux-kernel@vger.kernel.org
 W:	http://www.kernel.org/pub/linux/kernel/people/rml/hdaps/
 S:	Maintained
 
+GSPCA FINEPIX SUBDRIVER
+P:	Frank Zago
+M:	frank@zago.net
+L:	video4linux-list@redhat.com
+S:	Maintained
+
+GSPCA M5602 SUBDRIVER
+P:	Erik Andren
+M:	erik.andren@gmail.com
+L:	video4linux-list@redhat.com
+S:	Maintained
+
+GSPCA PAC207 SONIXB SUBDRIVER
+P:	Hans de Goede
+M:	hdegoede@redhat.com
+L:	video4linux-list@redhat.com
+S:	Maintained
+
+GSPCA T613 SUBDRIVER
+P:	Leandro Costantino
+M:	lcostantino@gmail.com
+L:	video4linux-list@redhat.com
+S:	Maintained
+
+GSPCA USB WEBCAM DRIVER
+P:	Jean-Francois Moine
+M:	moinejf@free.fr
+W:	http://moinejf.free.fr
+L:	video4linux-list@redhat.com
+S:	Maintained
+
 HARDWARE MONITORING
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
@@ -2184,6 +2215,13 @@ P:	Antonino Daplas
 M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
+
+INTEL MENLOW THERMAL DRIVER
+P:	Sujith Thomas
+M:	sujith.thomas@intel.com
+L:	linux-acpi@vger.kernel.org
+W:	http://www.lesswatts.org/projects/acpi/
+S:	Supported
 
 INTEL IA32 MICROCODE UPDATE SUPPORT
 P:	Tigran Aivazian
@@ -2663,6 +2701,11 @@ S:	Supported
 LLC (802.2)
 P:	Arnaldo Carvalho de Melo
 M:	acme@ghostprotocols.net
+S:	Maintained
+
+LIS3LV02D ACCELEROMETER DRIVER
+P:	Eric Piel
+M:	eric.piel@tremplin-utc.net
 S:	Maintained
 
 LM83 HARDWARE MONITOR DRIVER
@@ -3346,7 +3389,9 @@ S:	Maintained
 
 PNP SUPPORT
 P:	Adam Belay
-M:	ambx1@neo.rr.com
+M:	abelay@mit.edu
+P:	Bjorn Helgaas
+M:	bjorn.helgaas@hp.com
 S:	Maintained
 
 PNXxxxx I2C DRIVER

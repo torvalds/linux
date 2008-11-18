@@ -63,7 +63,7 @@ struct sdio_func {
 
 #define sdio_func_set_present(f) ((f)->state |= SDIO_STATE_PRESENT)
 
-#define sdio_func_id(f)		((f)->dev.bus_id)
+#define sdio_func_id(f)		(dev_name(&(f)->dev))
 
 #define sdio_get_drvdata(f)	dev_get_drvdata(&(f)->dev)
 #define sdio_set_drvdata(f,d)	dev_set_drvdata(&(f)->dev, d)

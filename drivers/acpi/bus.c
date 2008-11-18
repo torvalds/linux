@@ -688,6 +688,14 @@ void __init acpi_early_init(void)
 	if (acpi_disabled)
 		return;
 
+	/*
+	 * ACPI CA initializes acpi_dbg_level to non-zero, which means
+	 * we get debug output merely by turning on CONFIG_ACPI_DEBUG.
+	 * Turn it off so we don't get output unless the user specifies
+	 * acpi.debug_level.
+	 */
+	acpi_dbg_level = 0;
+
 	printk(KERN_INFO PREFIX "Core revision %08x\n", ACPI_CA_VERSION);
 
 	/* enable workarounds, unless strict ACPI spec. compliance */
@@ -774,7 +782,7 @@ static int __init acpi_bus_init(void)
 		       "Unable to initialize ACPI OS objects\n");
 		goto error1;
 	}
-#ifdef CONFIG_ACPI_EC
+
 	/*
 	 * ACPI 2.0 requires the EC driver to be loaded and work before
 	 * the EC device is found in the namespace (i.e. before acpi_initialize_objects()
@@ -785,7 +793,6 @@ static int __init acpi_bus_init(void)
 	 */
 	status = acpi_ec_ecdt_probe();
 	/* Ignore result. Not having an ECDT is not fatal. */
-#endif
 
 	status = acpi_initialize_objects(ACPI_FULL_INITIALIZATION);
 	if (ACPI_FAILURE(status)) {

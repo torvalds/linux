@@ -525,7 +525,7 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 	}
 
 	hw->ctl = IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
-	if (new->async_tx.callback) {
+	if (first->async_tx.callback) {
 		hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_INT_GN;
 		if (first != new) {
 			/* move callback into to last desc */
@@ -617,7 +617,7 @@ static dma_cookie_t ioat2_tx_submit(struct dma_async_tx_descriptor *tx)
 	}
 
 	hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
-	if (new->async_tx.callback) {
+	if (first->async_tx.callback) {
 		hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_INT_GN;
 		if (first != new) {
 			/* move callback into to last desc */
@@ -807,6 +807,12 @@ static void ioat_dma_free_chan_resources(struct dma_chan *chan)
 	struct ioat_desc_sw *desc, *_desc;
 	int in_use_descs = 0;
 
+	/* Before freeing channel resources first check
+	 * if they have been previously allocated for this channel.
+	 */
+	if (ioat_chan->desccount == 0)
+		return;
+
 	tasklet_disable(&ioat_chan->cleanup_task);
 	ioat_dma_memcpy_cleanup(ioat_chan);
 
@@ -869,6 +875,7 @@ static void ioat_dma_free_chan_resources(struct dma_chan *chan)
 	ioat_chan->last_completion = ioat_chan->completion_addr = 0;
 	ioat_chan->pending = 0;
 	ioat_chan->dmacount = 0;
+	ioat_chan->desccount = 0;
 	ioat_chan->watchdog_completion = 0;
 	ioat_chan->last_compl_desc_addr_hw = 0;
 	ioat_chan->watchdog_tcp_cookie =

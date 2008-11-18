@@ -722,6 +722,7 @@ done:
 static void
 qla2xxx_get_fdt_info(scsi_qla_host_t *ha)
 {
+#define FLASH_BLK_SIZE_4K	0x1000
 #define FLASH_BLK_SIZE_32K	0x8000
 #define FLASH_BLK_SIZE_64K	0x10000
 	const char *loc, *locations[] = { "MID", "FDT" };
@@ -755,7 +756,6 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *ha)
 	loc = locations[1];
 	mid = le16_to_cpu(fdt->man_id);
 	fid = le16_to_cpu(fdt->id);
-	ha->fdt_odd_index = mid == 0x1f;
 	ha->fdt_wrt_disable = fdt->wrt_disable_bits;
 	ha->fdt_erase_cmd = flash_conf_to_access_addr(0x0300 | fdt->erase_cmd);
 	ha->fdt_block_size = le32_to_cpu(fdt->block_size);
@@ -788,8 +788,7 @@ no_flash_data:
 		ha->fdt_block_size = FLASH_BLK_SIZE_64K;
 		break;
 	case 0x1f: /* Atmel 26DF081A. */
-		ha->fdt_odd_index = 1;
-		ha->fdt_block_size = FLASH_BLK_SIZE_64K;
+		ha->fdt_block_size = FLASH_BLK_SIZE_4K;
 		ha->fdt_erase_cmd = flash_conf_to_access_addr(0x0320);
 		ha->fdt_unprotect_sec_cmd = flash_conf_to_access_addr(0x0339);
 		ha->fdt_protect_sec_cmd = flash_conf_to_access_addr(0x0336);
@@ -801,9 +800,9 @@ no_flash_data:
 	}
 done:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FDT[%s]: (0x%x/0x%x) erase=0x%x "
-	    "pro=%x upro=%x idx=%d wrtd=0x%x blk=0x%x.\n", loc, mid, fid,
+	    "pro=%x upro=%x wrtd=0x%x blk=0x%x.\n", loc, mid, fid,
 	    ha->fdt_erase_cmd, ha->fdt_protect_sec_cmd,
-	    ha->fdt_unprotect_sec_cmd, ha->fdt_odd_index, ha->fdt_wrt_disable,
+	    ha->fdt_unprotect_sec_cmd, ha->fdt_wrt_disable,
 	    ha->fdt_block_size));
 }
 
@@ -987,13 +986,9 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 	qla24xx_unprotect_flash(ha);
 
 	for (liter = 0; liter < dwords; liter++, faddr++, dwptr++) {
-		if (ha->fdt_odd_index) {
-			findex = faddr << 2;
-			fdata = findex & sec_mask;
-		} else {
-			findex = faddr;
-			fdata = (findex & sec_mask) << 2;
-		}
+
+		findex = faddr;
+		fdata = (findex & sec_mask) << 2;
 
 		/* Are we at the beginning of a sector? */
 		if ((findex & rest_addr) == 0) {

@@ -322,7 +322,7 @@ static int hpet_next_event(unsigned long delta,
 	 * what we wrote hit the chip before we compare it to the
 	 * counter.
 	 */
-	WARN_ON((u32)hpet_readl(HPET_T0_CMP) != cnt);
+	WARN_ON_ONCE((u32)hpet_readl(HPET_Tn_CMP(timer)) != cnt);
 
 	return (s32)((u32)hpet_readl(HPET_COUNTER) - cnt) >= 0 ? -ETIME : 0;
 }
@@ -445,7 +445,7 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 {
 
 	if (request_irq(dev->irq, hpet_interrupt_handler,
-			IRQF_SHARED|IRQF_NOBALANCING, dev->name, dev))
+			IRQF_DISABLED|IRQF_NOBALANCING, dev->name, dev))
 		return -1;
 
 	disable_irq(dev->irq);

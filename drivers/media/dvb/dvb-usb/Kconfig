@@ -261,7 +261,7 @@ config DVB_USB_DW2102
 	  Say Y here to support the DvbWorld DVB-S/S2 USB2.0 receivers
 	  and the TeVii S650.
 
-config 	DVB_USB_CINERGY_T2
+config DVB_USB_CINERGY_T2
 	tristate "Terratec CinergyT2/qanu USB 2.0 DVB-T receiver"
 	depends on DVB_USB
 	help
@@ -283,6 +283,7 @@ config DVB_USB_ANYSEE
 config DVB_USB_DTV5100
 	tristate "AME DTV-5100 USB2.0 DVB-T support"
 	depends on DVB_USB
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the AME DTV-5100 USB2.0 DVB-T receiver.

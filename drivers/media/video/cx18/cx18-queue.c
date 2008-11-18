@@ -88,15 +88,13 @@ struct cx18_buffer *cx18_queue_get_buf_irq(struct cx18_stream *s, u32 id,
 
 		if (buf->id != id)
 			continue;
+
 		buf->bytesused = bytesused;
-		/* the transport buffers are handled differently,
-		   they are not moved to the full queue */
-		if (s->type != CX18_ENC_STREAM_TYPE_TS) {
-			atomic_dec(&s->q_free.buffers);
-			atomic_inc(&s->q_full.buffers);
-			s->q_full.bytesused += buf->bytesused;
-			list_move_tail(&buf->list, &s->q_full.list);
-		}
+		atomic_dec(&s->q_free.buffers);
+		atomic_inc(&s->q_full.buffers);
+		s->q_full.bytesused += buf->bytesused;
+		list_move_tail(&buf->list, &s->q_full.list);
+
 		spin_unlock(&s->qlock);
 		return buf;
 	}
