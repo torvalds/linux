@@ -21,8 +21,6 @@
 #include <mach/irq.h>
 #include <asm/ptrace.h>
 
-extern void ack_bad_irq(unsigned int irq);
-
 static __inline__ int irq_canonicalize(int irq)
 {
 	return irq;
