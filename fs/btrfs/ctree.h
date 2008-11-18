@@ -606,6 +606,7 @@ struct btrfs_fs_info {
 	struct btrfs_root *tree_root;
 	struct btrfs_root *chunk_root;
 	struct btrfs_root *dev_root;
+	struct btrfs_root *fs_root;
 
 	/* the log root tree is a directory of all the other log roots */
 	struct btrfs_root *log_root_tree;
@@ -758,7 +759,6 @@ struct btrfs_root {
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
 	struct btrfs_fs_info *fs_info;
-	struct inode *inode;
 	struct extent_io_tree dirty_log_pages;
 
 	struct kobject root_kobj;
@@ -1876,6 +1876,8 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 #define PageChecked PageFsMisc
 #endif
 
+struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry);
+int btrfs_set_inode_index(struct inode *dir, u64 *index);
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root,
 		       struct inode *dir, struct inode *inode,
@@ -1895,9 +1897,6 @@ int btrfs_writepages(struct address_space *mapping,
 int btrfs_create_subvol_root(struct btrfs_root *new_root, struct dentry *dentry,
 		struct btrfs_trans_handle *trans, u64 new_dirid,
 		struct btrfs_block_group_cache *block_group);
-
-void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
-				  int namelen);
 
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio, unsigned long bio_flags);

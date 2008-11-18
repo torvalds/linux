@@ -3038,8 +3038,7 @@ struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
 	return inode;
 }
 
-static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
-				   struct nameidata *nd)
+struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 {
 	struct inode * inode;
 	struct btrfs_inode *bi = BTRFS_I(dir);
@@ -3067,13 +3066,21 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = btrfs_iget(dir->i_sb, &location, sub_root, &new);
 		if (IS_ERR(inode))
 			return ERR_CAST(inode);
-
-		/* the inode and parent dir are two different roots */
-		if (new && root != sub_root) {
-			igrab(inode);
-			sub_root->inode = inode;
-		}
 	}
+	return inode;
+}
+
+static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
+				   struct nameidata *nd)
+{
+	struct inode *inode;
+
+	if (dentry->d_name.len > BTRFS_NAME_LEN)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	inode = btrfs_lookup_dentry(dir, dentry);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
 	return d_splice_alias(inode, dentry);
 }
@@ -3129,7 +3136,6 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 			return 0;
 		filp->f_pos = 2;
 	}
-
 	path = btrfs_alloc_path();
 	path->reada = 2;
 
@@ -3159,6 +3165,7 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 				path->slots[0]++;
 			}
 		}
+
 		advance = 1;
 		item = btrfs_item_nr(leaf, slot);
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
@@ -3194,16 +3201,25 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 
 			d_type = btrfs_filetype_table[btrfs_dir_type(leaf, di)];
 			btrfs_dir_item_key_to_cpu(leaf, di, &location);
+
+			/* is this a reference to our own snapshot? If so
+			 * skip it
+			 */
+			if (location.type == BTRFS_ROOT_ITEM_KEY &&
+			    location.objectid == root->root_key.objectid) {
+				over = 0;
+				goto skip;
+			}
 			over = filldir(dirent, name_ptr, name_len,
 				       found_key.offset, location.objectid,
 				       d_type);
 
+skip:
 			if (name_ptr != tmp_name)
 				kfree(name_ptr);
 
 			if (over)
 				goto nopos;
-
 			di_len = btrfs_dir_name_len(leaf, di) +
 				 btrfs_dir_data_len(leaf, di) + sizeof(*di);
 			di_cur += di_len;
@@ -3318,8 +3334,7 @@ out:
  * helper to find a free sequence number in a given directory.  This current
  * code is very simple, later versions will do smarter things in the btree
  */
-static int btrfs_set_inode_index(struct inode *dir, struct inode *inode,
-				 u64 *index)
+int btrfs_set_inode_index(struct inode *dir, u64 *index)
 {
 	int ret = 0;
 
@@ -3365,7 +3380,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		return ERR_PTR(-ENOMEM);
 
 	if (dir) {
-		ret = btrfs_set_inode_index(dir, inode, index);
+		ret = btrfs_set_inode_index(dir, index);
 		if (ret)
 			return ERR_PTR(ret);
 	}
@@ -3651,7 +3666,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	err = btrfs_check_free_space(root, 1, 0);
 	if (err)
 		goto fail;
-	err = btrfs_set_inode_index(dir, inode, &index);
+	err = btrfs_set_inode_index(dir, &index);
 	if (err)
 		goto fail;
 
@@ -4349,13 +4364,13 @@ out:
  * Invalidate a single dcache entry at the root of the filesystem.
  * Needed after creation of snapshot or subvolume.
  */
-void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
+void btrfs_invalidate_dcache_root(struct inode *dir, char *name,
 				  int namelen)
 {
 	struct dentry *alias, *entry;
 	struct qstr qstr;
 
-	alias = d_find_alias(root->fs_info->sb->s_root->d_inode);
+	alias = d_find_alias(dir);
 	if (alias) {
 		qstr.name = name;
 		qstr.len = namelen;
@@ -4387,7 +4402,6 @@ int btrfs_create_subvol_root(struct btrfs_root *new_root, struct dentry *dentry,
 		return PTR_ERR(inode);
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
-	new_root->inode = inode;
 
 	inode->i_nlink = 1;
 	btrfs_i_size_write(inode, 0);
@@ -4590,7 +4604,7 @@ static int btrfs_rename(struct inode * old_dir, struct dentry *old_dentry,
 		}
 
 	}
-	ret = btrfs_set_inode_index(new_dir, old_inode, &index);
+	ret = btrfs_set_inode_index(new_dir, &index);
 	if (ret)
 		goto out_fail;
 

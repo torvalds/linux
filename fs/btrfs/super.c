@@ -285,11 +285,11 @@ static int btrfs_parse_early_options(const char *options, int flags,
  out:
 	/*
 	 * If no subvolume name is specified we use the default one.  Allocate
-	 * a copy of the string "default" here so that code later in the
+	 * a copy of the string "." here so that code later in the
 	 * mount path doesn't care if it's the default volume or another one.
 	 */
 	if (!*subvol_name) {
-		*subvol_name = kstrdup("default", GFP_KERNEL);
+		*subvol_name = kstrdup(".", GFP_KERNEL);
 		if (!*subvol_name)
 			return -ENOMEM;
 	}
@@ -323,12 +323,12 @@ static int btrfs_fill_super(struct super_block * sb,
 	}
 	sb->s_fs_info = tree_root;
 	disk_super = &tree_root->fs_info->super_copy;
-	inode = btrfs_iget_locked(sb, btrfs_super_root_dir(disk_super),
-				  tree_root);
+	inode = btrfs_iget_locked(sb, BTRFS_FIRST_FREE_OBJECTID,
+				  tree_root->fs_info->fs_root);
 	bi = BTRFS_I(inode);
 	bi->location.objectid = inode->i_ino;
 	bi->location.offset = 0;
-	bi->root = tree_root;
+	bi->root = tree_root->fs_info->fs_root;
 
 	btrfs_set_key_type(&bi->location, BTRFS_INODE_ITEM_KEY);
 

@@ -47,8 +47,10 @@ struct btrfs_trans_handle {
 };
 
 struct btrfs_pending_snapshot {
+	struct dentry *dentry;
 	struct btrfs_root *root;
 	char *name;
+	struct btrfs_key root_key;
 	struct list_head list;
 };
 

@@ -779,7 +779,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
 	int ret;
-	int namelen;
 	u64 objectid;
 
 	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
@@ -816,28 +815,48 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto fail;
 
+	key.offset = (u64)-1;
+	memcpy(&pending->root_key, &key, sizeof(key));
+fail:
+	kfree(new_root_item);
+	return ret;
+}
+
+static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
+				   struct btrfs_pending_snapshot *pending)
+{
+	int ret;
+	int namelen;
+	u64 index = 0;
+	struct btrfs_trans_handle *trans;
+	struct inode *parent_inode;
+	struct inode *inode;
+
+	trans = btrfs_start_transaction(fs_info->fs_root, 1);
+
 	/*
 	 * insert the directory item
 	 */
-	key.offset = (u64)-1;
 	namelen = strlen(pending->name);
-	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
-				    pending->name, namelen,
-				    root->fs_info->sb->s_root->d_inode->i_ino,
-				    &key, BTRFS_FT_DIR, 0);
+	parent_inode = pending->dentry->d_parent->d_inode;
+	ret = btrfs_set_inode_index(parent_inode, &index);
+	ret = btrfs_insert_dir_item(trans,
+			    BTRFS_I(parent_inode)->root,
+			    pending->name, namelen,
+			    parent_inode->i_ino,
+			    &pending->root_key, BTRFS_FT_DIR, index);
 
 	if (ret)
 		goto fail;
-
+#if 0
 	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
 			     pending->name, strlen(pending->name), objectid,
 			     root->fs_info->sb->s_root->d_inode->i_ino, 0);
-
-	/* Invalidate existing dcache entry for new snapshot. */
-	btrfs_invalidate_dcache_root(root, pending->name, namelen);
-
+#endif
+	inode = btrfs_lookup_dentry(parent_inode, pending->dentry);
+	d_instantiate(pending->dentry, inode);
 fail:
-	kfree(new_root_item);
+	btrfs_end_transaction(trans, fs_info->fs_root);
 	return ret;
 }
 
@@ -849,12 +868,28 @@ static noinline int create_pending_snapshots(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_pending_snapshot *pending;
 	struct list_head *head = &trans->transaction->pending_snapshots;
+	struct list_head *cur;
+	int ret;
+
+	list_for_each(cur, head) {
+		pending = list_entry(cur, struct btrfs_pending_snapshot, list);
+		ret = create_pending_snapshot(trans, fs_info, pending);
+		BUG_ON(ret);
+	}
+	return 0;
+}
+
+static noinline int finish_pending_snapshots(struct btrfs_trans_handle *trans,
+					     struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_pending_snapshot *pending;
+	struct list_head *head = &trans->transaction->pending_snapshots;
 	int ret;
 
 	while(!list_empty(head)) {
 		pending = list_entry(head->next,
 				     struct btrfs_pending_snapshot, list);
-		ret = create_pending_snapshot(trans, fs_info, pending);
+		ret = finish_pending_snapshot(fs_info, pending);
 		BUG_ON(ret);
 		list_del(&pending->list);
 		kfree(pending->name);
@@ -1033,11 +1068,15 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	btrfs_drop_dead_reloc_roots(root);
 	mutex_unlock(&root->fs_info->tree_reloc_mutex);
 
+	/* do the directory inserts of any pending snapshot creations */
+	finish_pending_snapshots(trans, root->fs_info);
+
 	mutex_lock(&root->fs_info->trans_mutex);
 
 	cur_trans->commit_done = 1;
 	root->fs_info->last_trans_committed = cur_trans->transid;
 	wake_up(&cur_trans->commit_wait);
+
 	put_transaction(cur_trans);
 	put_transaction(cur_trans);
 
@@ -1046,6 +1085,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		list_splice_init(&root->fs_info->dead_roots, &dirty_fs_roots);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
+
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
 	if (root->fs_info->closing) {

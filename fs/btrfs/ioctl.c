@@ -67,6 +67,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	int err;
 	u64 objectid;
 	u64 new_dirid = BTRFS_FIRST_FREE_OBJECTID;
+	u64 index = 0;
 	unsigned long nr = 1;
 
 	ret = btrfs_check_free_space(root, 1, 0);
@@ -126,6 +127,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	key.objectid = objectid;
 	key.offset = 1;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+printk("inserting root objectid %Lu\n", objectid);
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&root_item);
 	if (ret)
@@ -135,24 +137,27 @@ static noinline int create_subvol(struct btrfs_root *root,
 	 * insert the directory item
 	 */
 	key.offset = (u64)-1;
-	dir = root->fs_info->sb->s_root->d_inode;
-	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
+	dir = dentry->d_parent->d_inode;
+	ret = btrfs_set_inode_index(dir, &index);
+	BUG_ON(ret);
+
+	ret = btrfs_insert_dir_item(trans, root,
 				    name, namelen, dir->i_ino, &key,
-				    BTRFS_FT_DIR, 0);
+				    BTRFS_FT_DIR, index);
 	if (ret)
 		goto fail;
-
+#if 0
 	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
 			     name, namelen, objectid,
 			     root->fs_info->sb->s_root->d_inode->i_ino, 0);
 	if (ret)
 		goto fail;
-
+#endif
 	ret = btrfs_commit_transaction(trans, root);
 	if (ret)
 		goto fail_commit;
 
-	new_root = btrfs_read_fs_root(root->fs_info, &key, name, namelen);
+	new_root = btrfs_read_fs_root_no_name(root->fs_info, &key);
 	BUG_ON(!new_root);
 
 	trans = btrfs_start_transaction(new_root, 1);
@@ -170,14 +175,16 @@ fail:
 		ret = err;
 fail_commit:
 	btrfs_btree_balance_dirty(root, nr);
+printk("all done ret %d\n", ret);
 	return ret;
 }
 
-static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
+static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
+			   char *name, int namelen)
 {
 	struct btrfs_pending_snapshot *pending_snapshot;
 	struct btrfs_trans_handle *trans;
-	int ret;
+	int ret = 0;
 	int err;
 	unsigned long nr = 0;
 
@@ -188,7 +195,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	if (ret)
 		goto fail_unlock;
 
-	pending_snapshot = kmalloc(sizeof(*pending_snapshot), GFP_NOFS);
+	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
 	if (!pending_snapshot) {
 		ret = -ENOMEM;
 		goto fail_unlock;
@@ -201,12 +208,12 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	}
 	memcpy(pending_snapshot->name, name, namelen);
 	pending_snapshot->name[namelen] = '\0';
+	pending_snapshot->dentry = dentry;
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
 	pending_snapshot->root = root;
 	list_add(&pending_snapshot->list,
 		 &trans->transaction->pending_snapshots);
-	ret = btrfs_update_inode(trans, root, root->inode);
 	err = btrfs_commit_transaction(trans, root);
 
 fail_unlock:
@@ -230,7 +237,8 @@ static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
  * inside this filesystem so it's quite a bit simpler.
  */
 static noinline int btrfs_mksubvol(struct path *parent, char *name,
-				   int mode, int namelen)
+				   int mode, int namelen,
+				   struct btrfs_root *snap_src)
 {
 	struct dentry *dentry;
 	int error;
@@ -248,6 +256,7 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 
 	if (!IS_POSIXACL(parent->dentry->d_inode))
 		mode &= ~current->fs->umask;
+
 	error = mnt_want_write(parent->mnt);
 	if (error)
 		goto out_dput;
@@ -266,8 +275,12 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 	 * Also we should pass on the mode eventually to allow creating new
 	 * subvolume with specific mode bits.
 	 */
-	error = create_subvol(BTRFS_I(parent->dentry->d_inode)->root, dentry,
-			      name, namelen);
+	if (snap_src) {
+		error = create_snapshot(snap_src, dentry, name, namelen);
+	} else {
+		error = create_subvol(BTRFS_I(parent->dentry->d_inode)->root,
+				      dentry, name, namelen);
+	}
 	if (error)
 		goto out_drop_write;
 
@@ -471,15 +484,16 @@ out:
 }
 
 static noinline int btrfs_ioctl_snap_create(struct file *file,
-					    void __user *arg)
+					    void __user *arg, int subvol)
 {
 	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
 	struct btrfs_ioctl_vol_args *vol_args;
 	struct btrfs_dir_item *di;
 	struct btrfs_path *path;
+	struct file *src_file;
 	u64 root_dirid;
 	int namelen;
-	int ret;
+	int ret = 0;
 
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
@@ -523,12 +537,29 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 		goto out;
 	}
 
-	if (root == root->fs_info->tree_root) {
+	if (subvol) {
 		ret = btrfs_mksubvol(&file->f_path, vol_args->name,
 				     file->f_path.dentry->d_inode->i_mode,
-				     namelen);
+				     namelen, NULL);
 	} else {
-		ret = create_snapshot(root, vol_args->name, namelen);
+		struct inode *src_inode;
+		src_file = fget(vol_args->fd);
+		if (!src_file) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		src_inode = src_file->f_path.dentry->d_inode;
+		if (src_inode->i_sb != file->f_path.dentry->d_inode->i_sb) {
+			printk("btrfs: Snapshot src from another FS\n");
+			ret = -EINVAL;
+			fput(src_file);
+			goto out;
+		}
+		ret = btrfs_mksubvol(&file->f_path, vol_args->name,
+			     file->f_path.dentry->d_inode->i_mode,
+			     namelen, BTRFS_I(src_inode)->root);
+		fput(src_file);
 	}
 
 out:
@@ -1030,7 +1061,9 @@ long btrfs_ioctl(struct file *file, unsigned int
 
 	switch (cmd) {
 	case BTRFS_IOC_SNAP_CREATE:
-		return btrfs_ioctl_snap_create(file, (void __user *)arg);
+		return btrfs_ioctl_snap_create(file, (void __user *)arg, 0);
+	case BTRFS_IOC_SUBVOL_CREATE:
+		return btrfs_ioctl_snap_create(file, (void __user *)arg, 1);
 	case BTRFS_IOC_DEFRAG:
 		return btrfs_ioctl_defrag(file);
 	case BTRFS_IOC_RESIZE:

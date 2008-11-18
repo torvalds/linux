@@ -838,7 +838,6 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 			u64 objectid)
 {
 	root->node = NULL;
-	root->inode = NULL;
 	root->commit_root = NULL;
 	root->ref_tree = NULL;
 	root->sectorsize = sectorsize;
@@ -1430,6 +1429,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	u32 blocksize;
 	u32 stripesize;
 	u64 generation;
+	struct btrfs_key location;
 	struct buffer_head *bh;
 	struct btrfs_root *extent_root = kzalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
@@ -1729,7 +1729,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_cleaner;
 
 	if (sb->s_flags & MS_RDONLY)
-		return tree_root;
+		goto read_fs_root;
 
 	if (btrfs_super_log_root(disk_super) != 0) {
 		u32 blocksize;
@@ -1755,6 +1755,14 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = btrfs_cleanup_reloc_trees(tree_root);
 	BUG_ON(ret);
 
+	location.objectid = BTRFS_FS_TREE_OBJECTID;
+	location.type = BTRFS_ROOT_ITEM_KEY;
+	location.offset = (u64)-1;
+
+read_fs_root:
+	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
+	if (!fs_info->fs_root)
+		goto fail_cleaner;
 	return tree_root;
 
 fail_cleaner:
@@ -1944,8 +1952,6 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 			  (unsigned long)root->root_key.objectid);
 	if (root->in_sysfs)
 		btrfs_sysfs_del_root(root);
-	if (root->inode)
-		iput(root->inode);
 	if (root->node)
 		free_extent_buffer(root->node);
 	if (root->commit_root)
