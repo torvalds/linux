@@ -188,6 +188,14 @@ UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0701,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Submitted by Ricky Wong Yung Fei <evilbladewarrior@gmail.com> */
+/* Nokia 7610 Supernova - Too many sectors reported in usb storage mode */
+UNUSUAL_DEV(  0x0421, 0x00f5, 0x0000, 0x0470,
+		"Nokia",
+		"7610 Supernova",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Reported by Mario Rettig <mariorettig@web.de> */
 UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
 		"Nokia",
@@ -273,21 +281,6 @@ UNUSUAL_DEV(  0x0421, 0x04fa, 0x0550, 0x0660,
 		"6300",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
-
-/* Patch for Nokia 5310 capacity */
-UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0591,
-	"Nokia",
-	"5310",
-	US_SC_DEVICE, US_PR_DEVICE, NULL,
-	US_FL_FIX_CAPACITY ),
-
-/* Submitted by Ricky Wong Yung Fei <evilbladewarrior@gmail.com> */
-/* Nokia 7610 Supernova - Too many sectors reported in usb storage mode */
-UNUSUAL_DEV(  0x0421, 0x00f5, 0x0000, 0x0470,
-	"Nokia",
-	"7610 Supernova",
-	US_SC_DEVICE, US_PR_DEVICE, NULL,
-	US_FL_FIX_CAPACITY ),
 
 /* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
 UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
@@ -395,6 +388,15 @@ UNUSUAL_DEV(  0x04a4, 0x0004, 0x0001, 0x0001,
 		"DVD-CAM DZ-MV100A Camcorder",
 		US_SC_SCSI, US_PR_CB, NULL, US_FL_SINGLE_LUN),
 
+/* BENQ DC5330
+ * Reported by Manuel Fombuena <mfombuena@ya.com> and
+ * Frank Copeland <fjc@thingy.apana.org.au> */
+UNUSUAL_DEV(  0x04a5, 0x3010, 0x0100, 0x0100,
+		"Tekom Technologies, Inc",
+		"300_CAMERA",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* Patch for Nikon coolpix 2000
  * Submitted by Fabien Cosse <fabien.cosse@wanadoo.fr>*/
 UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
@@ -486,15 +488,6 @@ UNUSUAL_DEV(  0x04b3, 0x4001, 0x0110, 0x0110,
 		"IBM RSA2",
 		US_SC_DEVICE, US_PR_CB, NULL,
 		US_FL_MAX_SECTORS_MIN),
-
-/* BENQ DC5330
- * Reported by Manuel Fombuena <mfombuena@ya.com> and
- * Frank Copeland <fjc@thingy.apana.org.au> */
-UNUSUAL_DEV(  0x04a5, 0x3010, 0x0100, 0x0100,
-		"Tekom Technologies, Inc",
-		"300_CAMERA",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
 
 #ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
 /* CY7C68300 : support atacb */
@@ -814,15 +807,15 @@ UNUSUAL_DEV(  0x054c, 0x006d, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
 
-/* Submitted by Mike Alborn <malborn@deandra.homeip.net> */
-UNUSUAL_DEV(  0x054c, 0x016a, 0x0000, 0x9999,
+/* Submitted by Frank Engel <frankie@cse.unsw.edu.au> */
+UNUSUAL_DEV(  0x054c, 0x0099, 0x0000, 0x9999,
 		"Sony",
 		"PEG Mass Storage",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
-		
-/* Submitted by Frank Engel <frankie@cse.unsw.edu.au> */
-UNUSUAL_DEV(  0x054c, 0x0099, 0x0000, 0x9999,
+
+/* Submitted by Mike Alborn <malborn@deandra.homeip.net> */
+UNUSUAL_DEV(  0x054c, 0x016a, 0x0000, 0x9999,
 		"Sony",
 		"PEG Mass Storage",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -1357,17 +1350,6 @@ UNUSUAL_DEV(  0x0851, 0x1543, 0x0200, 0x0200,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_NOT_LOCKABLE),
 
-/* Andrew Lunn <andrew@lunn.ch>
- * PanDigital Digital Picture Frame. Does not like ALLOW_MEDIUM_REMOVAL
- * on LUN 4.
- * Note: Vend:Prod clash with "Ltd Maxell WS30 Slim Digital Camera"
-*/
-UNUSUAL_DEV(  0x0851, 0x1543, 0x0200, 0x0200,
-		"PanDigital",
-		"Photo Frame",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_NOT_LOCKABLE),
-
 /* Submitted by Jan De Luyck <lkml@kcore.org> */
 UNUSUAL_DEV(  0x08bd, 0x1100, 0x0000, 0x0000,
 		"CITIZEN",
@@ -1493,6 +1475,16 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
 		US_FL_SINGLE_LUN ),
 #endif
 
+/*
+ * Pete Zaitcev <zaitcev@yahoo.com>, bz#164688.
+ * The device blatantly ignores LUN and returns 1 in GetMaxLUN.
+ */
+UNUSUAL_DEV( 0x0c45, 0x1060, 0x0100, 0x0100,
+		"Unknown",
+		"Unknown",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 /* Submitted by: Nick Sillik <n.sillik@temple.edu>
  * Needed for OneTouch extension to usb-storage
  *
@@ -1509,16 +1501,6 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
 			US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
 			0),
 #endif
-
-/*
- * Pete Zaitcev <zaitcev@yahoo.com>, bz#164688.
- * The device blatantly ignores LUN and returns 1 in GetMaxLUN.
- */
-UNUSUAL_DEV( 0x0c45, 0x1060, 0x0100, 0x0100,
-		"Unknown",
-		"Unknown",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_SINGLE_LUN ),
 
 /* Submitted by Joris Struyve <joris@struyve.be> */
 UNUSUAL_DEV( 0x0d96, 0x410a, 0x0001, 0xffff,
@@ -1666,19 +1648,19 @@ UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
 
-/* Reported by Ricardo Barberis <ricardo@dattatec.com> */
-UNUSUAL_DEV(  0x0fce, 0xe092, 0x0000, 0x0000,
-		"Sony Ericsson",
-		"P1i",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
-
 /* Reported by Emmanuel Vasilakis <evas@forthnet.gr> */
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"M600i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+
+/* Reported by Ricardo Barberis <ricardo@dattatec.com> */
+UNUSUAL_DEV(  0x0fce, 0xe092, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"P1i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
 
 /* Reported by Kevin Cernekee <kpc-usbdev@gelato.uiuc.edu>
  * Tested on hardware version 1.10.
