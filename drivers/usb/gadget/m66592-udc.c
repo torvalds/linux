@@ -1668,8 +1668,8 @@ clean_up3:
 #if defined(CONFIG_SUPERH_BUILT_IN_M66592) && defined(CONFIG_HAVE_CLK)
 	clk_disable(m66592->clk);
 	clk_put(m66592->clk);
-#endif
 clean_up2:
+#endif
 	free_irq(irq, m66592);
 clean_up:
 	if (m66592) {

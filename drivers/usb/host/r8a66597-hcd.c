@@ -2396,9 +2396,8 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 clean_up3:
 #if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
 	clk_put(r8a66597->clk);
-#endif
-
 clean_up2:
+#endif
 	usb_put_hcd(hcd);
 
 clean_up:
