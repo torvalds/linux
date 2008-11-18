@@ -14,10 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Implementation of transmit path.
- */
-
 #include "core.h"
 
 #define BITS_PER_BYTE           8
@@ -696,41 +692,6 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 
 		if (rtsctsena)
 			series[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;
-	}
-
-	/*
-	 * For non-HT devices, calculate RTS/CTS duration in software
-	 * and disable multi-rate retry.
-	 */
-	if (flags && !(ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)) {
-		/*
-		 * Compute the transmit duration based on the frame
-		 * size and the size of an ACK frame.  We call into the
-		 * HAL to do the computation since it depends on the
-		 * characteristics of the actual PHY being used.
-		 *
-		 * NB: CTS is assumed the same size as an ACK so we can
-		 *     use the precalculated ACK durations.
-		 */
-		if (flags & ATH9K_TXDESC_RTSENA) {    /* SIFS + CTS */
-			ctsduration += bf_isshpreamble(bf) ?
-				rt->info[cix].spAckDuration :
-				rt->info[cix].lpAckDuration;
-		}
-
-		ctsduration += series[0].PktDuration;
-
-		if ((bf->bf_flags & ATH9K_TXDESC_NOACK) == 0) { /* SIFS + ACK */
-			ctsduration += bf_isshpreamble(bf) ?
-				rt->info[rix].spAckDuration :
-				rt->info[rix].lpAckDuration;
-		}
-
-		/*
-		 * Disable multi-rate retry when using RTS/CTS by clearing
-		 * series 1, 2 and 3.
-		 */
-		memset(&series[1], 0, sizeof(struct ath9k_11n_rate_series) * 3);
 	}
 
 	/*
