@@ -84,13 +84,12 @@
 #ifndef __ARCH_BLACKFIN_GPIO_H__
 #define __ARCH_BLACKFIN_GPIO_H__
 
-#define gpio_bank(x) ((x) >> 4)
-#define gpio_bank_n(x) ((x) & 0xF ? ((x) >> 4) + 1 : (x) >> 4)
-#define gpio_bit(x)  (1<<((x) & 0xF))
-#define gpio_sub_n(x) ((x) & 0xF)
+#define gpio_bank(x) 	((x) >> 4)
+#define gpio_bit(x)  	(1<<((x) & 0xF))
+#define gpio_sub_n(x) 	((x) & 0xF)
+#define GPIO_BANK_NUM 	DIV_ROUND_UP(MAX_BLACKFIN_GPIOS, 16)
 
 #define GPIO_BANKSIZE 16
-#define GPIO_BANK_NUM gpio_bank_n(MAX_BLACKFIN_GPIOS)
 
 #define	GPIO_0	0
 #define	GPIO_1	1
@@ -546,20 +545,76 @@ struct gpio_port_s {
 * MODIFICATION HISTORY :
 **************************************************************/
 
-int gpio_request(unsigned, const char *);
-void gpio_free(unsigned);
 
-void gpio_set_value(unsigned gpio, int arg);
-int gpio_get_value(unsigned gpio);
+int bfin_gpio_request(unsigned gpio, const char *label);
+void bfin_gpio_free(unsigned gpio);
+int bfin_gpio_direction_input(unsigned gpio);
+int bfin_gpio_direction_output(unsigned gpio, int value);
+int bfin_gpio_get_value(unsigned gpio);
+void bfin_gpio_set_value(unsigned gpio, int value);
 
 #ifndef BF548_FAMILY
-#define gpio_set_value(gpio, value)	set_gpio_data(gpio, value)
+#define bfin_gpio_set_value(gpio, value)    set_gpio_data(gpio, value)
 #endif
 
-int gpio_direction_input(unsigned gpio);
-int gpio_direction_output(unsigned gpio, int value);
+#ifdef CONFIG_GPIOLIB
+#include <asm-generic/gpio.h>		/* cansleep wrappers */
+
+static inline int gpio_get_value(unsigned int gpio)
+{
+	if (gpio < MAX_BLACKFIN_GPIOS)
+		return bfin_gpio_get_value(gpio);
+	else
+		return __gpio_get_value(gpio);
+}
+
+static inline void gpio_set_value(unsigned int gpio, int value)
+{
+	if (gpio < MAX_BLACKFIN_GPIOS)
+		bfin_gpio_set_value(gpio, value);
+	else
+		__gpio_set_value(gpio, value);
+}
+
+static inline int gpio_cansleep(unsigned int gpio)
+{
+	return __gpio_cansleep(gpio);
+}
+
+#else /* !CONFIG_GPIOLIB */
+
+static inline int gpio_request(unsigned gpio, const char *label)
+{
+	return bfin_gpio_request(gpio, label);
+}
+
+static inline void gpio_free(unsigned gpio)
+{
+	return bfin_gpio_free(gpio);
+}
+
+static inline int gpio_direction_input(unsigned gpio)
+{
+	return bfin_gpio_direction_input(gpio);
+}
+
+static inline int gpio_direction_output(unsigned gpio, int value)
+{
+	return bfin_gpio_direction_output(gpio, value);
+}
+
+static inline int gpio_get_value(unsigned gpio)
+{
+	return bfin_gpio_get_value(gpio);
+}
+
+static inline void gpio_set_value(unsigned gpio, int value)
+{
+	return bfin_gpio_set_value(gpio, value);
+}
 
 #include <asm-generic/gpio.h>		/* cansleep wrappers */
+#endif	/* !CONFIG_GPIOLIB */
 #include <asm/irq.h>
 
 static inline int gpio_to_irq(unsigned gpio)

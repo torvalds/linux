@@ -26,6 +26,7 @@ config BLACKFIN
 	default y
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config ZONE_DMA
 	bool

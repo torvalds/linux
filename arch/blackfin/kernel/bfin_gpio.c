@@ -1020,7 +1020,7 @@ EXPORT_SYMBOL(peripheral_free_list);
 * MODIFICATION HISTORY :
 **************************************************************/
 
-int gpio_request(unsigned gpio, const char *label)
+int bfin_gpio_request(unsigned gpio, const char *label)
 {
 	unsigned long flags;
 
@@ -1065,9 +1065,9 @@ int gpio_request(unsigned gpio, const char *label)
 
 	return 0;
 }
-EXPORT_SYMBOL(gpio_request);
+EXPORT_SYMBOL(bfin_gpio_request);
 
-void gpio_free(unsigned gpio)
+void bfin_gpio_free(unsigned gpio)
 {
 	unsigned long flags;
 
@@ -1089,11 +1089,11 @@ void gpio_free(unsigned gpio)
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(gpio_free);
+EXPORT_SYMBOL(bfin_gpio_free);
 
 
 #ifdef BF548_FAMILY
-int gpio_direction_input(unsigned gpio)
+int bfin_gpio_direction_input(unsigned gpio)
 {
 	unsigned long flags;
 
@@ -1109,9 +1109,9 @@ int gpio_direction_input(unsigned gpio)
 
 	return 0;
 }
-EXPORT_SYMBOL(gpio_direction_input);
+EXPORT_SYMBOL(bfin_gpio_direction_input);
 
-int gpio_direction_output(unsigned gpio, int value)
+int bfin_gpio_direction_output(unsigned gpio, int value)
 {
 	unsigned long flags;
 
@@ -1128,22 +1128,22 @@ int gpio_direction_output(unsigned gpio, int value)
 
 	return 0;
 }
-EXPORT_SYMBOL(gpio_direction_output);
+EXPORT_SYMBOL(bfin_gpio_direction_output);
 
-void gpio_set_value(unsigned gpio, int arg)
+void bfin_gpio_set_value(unsigned gpio, int arg)
 {
 	if (arg)
 		gpio_array[gpio_bank(gpio)]->port_set = gpio_bit(gpio);
 	else
 		gpio_array[gpio_bank(gpio)]->port_clear = gpio_bit(gpio);
 }
-EXPORT_SYMBOL(gpio_set_value);
+EXPORT_SYMBOL(bfin_gpio_set_value);
 
-int gpio_get_value(unsigned gpio)
+int bfin_gpio_get_value(unsigned gpio)
 {
 	return (1 & (gpio_array[gpio_bank(gpio)]->port_data >> gpio_sub_n(gpio)));
 }
-EXPORT_SYMBOL(gpio_get_value);
+EXPORT_SYMBOL(bfin_gpio_get_value);
 
 void bfin_gpio_irq_prepare(unsigned gpio)
 {
@@ -1159,7 +1159,7 @@ void bfin_gpio_irq_prepare(unsigned gpio)
 
 #else
 
-int gpio_get_value(unsigned gpio)
+int bfin_gpio_get_value(unsigned gpio)
 {
 	unsigned long flags;
 	int ret;
@@ -1175,10 +1175,10 @@ int gpio_get_value(unsigned gpio)
 	} else
 		return get_gpio_data(gpio);
 }
-EXPORT_SYMBOL(gpio_get_value);
+EXPORT_SYMBOL(bfin_gpio_get_value);
 
 
-int gpio_direction_input(unsigned gpio)
+int bfin_gpio_direction_input(unsigned gpio)
 {
 	unsigned long flags;
 
@@ -1195,9 +1195,9 @@ int gpio_direction_input(unsigned gpio)
 
 	return 0;
 }
-EXPORT_SYMBOL(gpio_direction_input);
+EXPORT_SYMBOL(bfin_gpio_direction_input);
 
-int gpio_direction_output(unsigned gpio, int value)
+int bfin_gpio_direction_output(unsigned gpio, int value)
 {
 	unsigned long flags;
 
@@ -1220,7 +1220,7 @@ int gpio_direction_output(unsigned gpio, int value)
 
 	return 0;
 }
-EXPORT_SYMBOL(gpio_direction_output);
+EXPORT_SYMBOL(bfin_gpio_direction_output);
 
 /* If we are booting from SPI and our board lacks a strong enough pull up,
  * the core can reset and execute the bootrom faster than the resistor can
@@ -1279,4 +1279,58 @@ static __init int gpio_register_proc(void)
 	return proc_gpio != NULL;
 }
 __initcall(gpio_register_proc);
+#endif
+
+#ifdef CONFIG_GPIOLIB
+int bfin_gpiolib_direction_input(struct gpio_chip *chip, unsigned gpio)
+{
+	return bfin_gpio_direction_input(gpio);
+}
+
+int bfin_gpiolib_direction_output(struct gpio_chip *chip, unsigned gpio, int level)
+{
+	return bfin_gpio_direction_output(gpio, level);
+}
+
+int bfin_gpiolib_get_value(struct gpio_chip *chip, unsigned gpio)
+{
+	return bfin_gpio_get_value(gpio);
+}
+
+void bfin_gpiolib_set_value(struct gpio_chip *chip, unsigned gpio, int value)
+{
+#ifdef BF548_FAMILY
+	return bfin_gpio_set_value(gpio, value);
+#else
+	return set_gpio_data(gpio, value);
+#endif
+}
+
+int bfin_gpiolib_gpio_request(struct gpio_chip *chip, unsigned gpio)
+{
+	return bfin_gpio_request(gpio, chip->label);
+}
+
+void bfin_gpiolib_gpio_free(struct gpio_chip *chip, unsigned gpio)
+{
+	return bfin_gpio_free(gpio);
+}
+
+static struct gpio_chip bfin_chip = {
+	.label			= "Blackfin-GPIOlib",
+	.direction_input	= bfin_gpiolib_direction_input,
+	.get			= bfin_gpiolib_get_value,
+	.direction_output	= bfin_gpiolib_direction_output,
+	.set			= bfin_gpiolib_set_value,
+	.request		= bfin_gpiolib_gpio_request,
+	.free			= bfin_gpiolib_gpio_free,
+	.base			= 0,
+	.ngpio			= MAX_BLACKFIN_GPIOS,
+};
+
+static int __init bfin_gpiolib_setup(void)
+{
+	return gpiochip_add(&bfin_chip);
+}
+arch_initcall(bfin_gpiolib_setup);
 #endif
