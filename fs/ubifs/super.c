@@ -36,6 +36,12 @@
 #include <linux/mount.h>
 #include "ubifs.h"
 
+/*
+ * Maximum amount of memory we may 'kmalloc()' without worrying that we are
+ * allocating too much.
+ */
+#define UBIFS_KMALLOC_OK (128*1024)
+
 /* Slab cache for UBIFS inodes */
 struct kmem_cache *ubifs_inode_slab;
 
@@ -561,17 +567,18 @@ static int init_constants_early(struct ubifs_info *c)
 	 * calculations when reporting free space.
 	 */
 	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
+
 	/* Buffer size for bulk-reads */
 	c->bulk_read_buf_size = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
 	if (c->bulk_read_buf_size > c->leb_size)
 		c->bulk_read_buf_size = c->leb_size;
-	if (c->bulk_read_buf_size > 128 * 1024) {
-		/* Check if we can kmalloc more than 128KiB */
-		void *try = kmalloc(c->bulk_read_buf_size, GFP_KERNEL);
-
+	if (c->bulk_read_buf_size > UBIFS_KMALLOC_OK) {
+		/* Check if we can kmalloc that much */
+		void *try = kmalloc(c->bulk_read_buf_size,
+				    GFP_KERNEL | __GFP_NOWARN);
 		kfree(try);
 		if (!try)
-			c->bulk_read_buf_size = 128 * 1024;
+			c->bulk_read_buf_size = UBIFS_KMALLOC_OK;
 	}
 	return 0;
 }

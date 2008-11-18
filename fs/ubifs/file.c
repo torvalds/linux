@@ -705,12 +705,12 @@ static int ubifs_do_bulk_read(struct ubifs_info *c, struct page *page1)
 	int err, page_idx, page_cnt, ret = 0, n = 0;
 	loff_t isize;
 
-	bu = kmalloc(sizeof(struct bu_info), GFP_NOFS);
+	bu = kmalloc(sizeof(struct bu_info), GFP_NOFS | __GFP_NOWARN);
 	if (!bu)
 		return 0;
 
 	bu->buf_len = c->bulk_read_buf_size;
-	bu->buf = kmalloc(bu->buf_len, GFP_NOFS);
+	bu->buf = kmalloc(bu->buf_len, GFP_NOFS | __GFP_NOWARN);
 	if (!bu->buf)
 		goto out_free;
 

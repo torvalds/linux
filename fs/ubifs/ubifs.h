@@ -753,7 +753,7 @@ struct ubifs_znode {
 };
 
 /**
- * struct bu_info - bulk-read information
+ * struct bu_info - bulk-read information.
  * @key: first data node key
  * @zbranch: zbranches of data nodes to bulk read
  * @buf: buffer to read into
