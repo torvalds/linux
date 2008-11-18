@@ -58,6 +58,7 @@ asm(".text\n"
 /*
  * this must be called very early as the kernel might
  * use some instruction that are emulated on the 060
+ * and so we're prepared for early probe attempts (e.g. nf_init).
  */
 void __init base_trap_init(void)
 {
@@ -78,6 +79,7 @@ void __init base_trap_init(void)
 	}
 
 	vectors[VEC_BUSERR] = buserr;
+	vectors[VEC_ILLEGAL] = trap;
 	vectors[VEC_SYS] = system_call;
 }
 
@@ -1055,9 +1057,11 @@ asmlinkage void trap_c(struct frame *fp)
 	siginfo_t info;
 
 	if (fp->ptregs.sr & PS_S) {
-		if ((fp->ptregs.vector >> 2) == VEC_TRACE) {
-			/* traced a trapping instruction */
-		} else
+		if (fp->ptregs.vector == VEC_TRACE << 2) {
+			/* traced a trapping instruction on a 68020/30,
+			 * real exception will be executed afterwards.
+			 */
+		} else if (!handle_kernel_fault(&fp->ptregs))
 			bad_super_trap(fp);
 		return;
 	}
