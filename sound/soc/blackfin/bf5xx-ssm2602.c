@@ -44,7 +44,7 @@
 #include "bf5xx-i2s-pcm.h"
 #include "bf5xx-i2s.h"
 
-static struct snd_soc_machine bf5xx_ssm2602;
+static struct snd_soc_card bf5xx_ssm2602;
 
 static int bf5xx_ssm2602_startup(struct snd_pcm_substream *substream)
 {
@@ -135,14 +135,14 @@ static struct ssm2602_setup_data bf5xx_ssm2602_setup = {
 	.i2c_address = 0x1b,
 };
 
-static struct snd_soc_machine bf5xx_ssm2602 = {
+static struct snd_soc_card bf5xx_ssm2602 = {
 	.name = "bf5xx_ssm2602",
 	.dai_link = &bf5xx_ssm2602_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_device bf5xx_ssm2602_snd_devdata = {
-	.machine = &bf5xx_ssm2602,
+	.card = &bf5xx_ssm2602,
 	.platform = &bf5xx_i2s_soc_platform,
 	.codec_dev = &soc_codec_dev_ssm2602,
 	.codec_data = &bf5xx_ssm2602_setup,

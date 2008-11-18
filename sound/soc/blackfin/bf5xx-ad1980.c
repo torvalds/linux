@@ -43,7 +43,7 @@
 #include "bf5xx-ac97-pcm.h"
 #include "bf5xx-ac97.h"
 
-static struct snd_soc_machine bf5xx_board;
+static struct snd_soc_card bf5xx_board;
 
 static int bf5xx_board_startup(struct snd_pcm_substream *substream)
 {
@@ -67,14 +67,14 @@ static struct snd_soc_dai_link bf5xx_board_dai = {
 	.ops = &bf5xx_board_ops,
 };
 
-static struct snd_soc_machine bf5xx_board = {
+static struct snd_soc_card bf5xx_board = {
 	.name = "bf5xx-board",
 	.dai_link = &bf5xx_board_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_device bf5xx_board_snd_devdata = {
-	.machine = &bf5xx_board,
+	.card = &bf5xx_board,
 	.platform = &bf5xx_ac97_soc_platform,
 	.codec_dev = &soc_codec_dev_ad1980,
 };

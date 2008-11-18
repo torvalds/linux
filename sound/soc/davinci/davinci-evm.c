@@ -128,7 +128,7 @@ static struct snd_soc_dai_link evm_dai = {
 };
 
 /* davinci-evm audio machine driver */
-static struct snd_soc_machine snd_soc_machine_evm = {
+static struct snd_soc_card snd_soc_card_evm = {
 	.name = "DaVinci EVM",
 	.dai_link = &evm_dai,
 	.num_links = 1,
@@ -142,7 +142,7 @@ static struct aic3x_setup_data evm_aic3x_setup = {
 
 /* evm audio subsystem */
 static struct snd_soc_device evm_snd_devdata = {
-	.machine = &snd_soc_machine_evm,
+	.card = &snd_soc_card_evm,
 	.platform = &davinci_soc_platform,
 	.codec_dev = &soc_codec_dev_aic3x,
 	.codec_data = &evm_aic3x_setup,

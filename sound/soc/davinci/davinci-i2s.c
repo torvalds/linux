@@ -375,8 +375,8 @@ static int davinci_i2s_probe(struct platform_device *pdev,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_machine *machine = socdev->machine;
-	struct snd_soc_dai *cpu_dai = machine->dai_link[pdev->id].cpu_dai;
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_dai *cpu_dai = card->dai_link[pdev->id].cpu_dai;
 	struct davinci_mcbsp_dev *dev;
 	struct resource *mem, *ioarea;
 	struct evm_snd_platform_data *pdata;
@@ -437,8 +437,8 @@ static void davinci_i2s_remove(struct platform_device *pdev,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_machine *machine = socdev->machine;
-	struct snd_soc_dai *cpu_dai = machine->dai_link[pdev->id].cpu_dai;
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_dai *cpu_dai = card->dai_link[pdev->id].cpu_dai;
 	struct davinci_mcbsp_dev *dev = cpu_dai->private_data;
 	struct resource *mem;
 

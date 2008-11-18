@@ -53,14 +53,14 @@ static struct snd_soc_dai_link em_x270_dai[] = {
 	},
 };
 
-static struct snd_soc_machine em_x270 = {
+static struct snd_soc_card em_x270 = {
 	.name = "EM-X270",
 	.dai_link = em_x270_dai,
 	.num_links = ARRAY_SIZE(em_x270_dai),
 };
 
 static struct snd_soc_device em_x270_snd_devdata = {
-	.machine = &em_x270,
+	.card = &em_x270,
 	.platform = &pxa2xx_soc_platform,
 	.codec_dev = &soc_codec_dev_wm9712,
 };

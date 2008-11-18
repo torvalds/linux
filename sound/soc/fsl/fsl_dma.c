@@ -284,7 +284,7 @@ static irqreturn_t fsl_dma_isr(int irq, void *dev_id)
  * fsl_dma_new: initialize this PCM driver.
  *
  * This function is called when the codec driver calls snd_soc_new_pcms(),
- * once for each .dai_link in the machine driver's snd_soc_machine
+ * once for each .dai_link in the machine driver's snd_soc_card
  * structure.
  */
 static int fsl_dma_new(struct snd_card *card, struct snd_soc_dai *dai,

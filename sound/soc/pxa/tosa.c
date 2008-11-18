@@ -38,7 +38,7 @@
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
 
-static struct snd_soc_machine tosa;
+static struct snd_soc_card tosa;
 
 #define TOSA_HP        0
 #define TOSA_MIC_INT   1
@@ -230,14 +230,14 @@ static struct snd_soc_dai_link tosa_dai[] = {
 },
 };
 
-static struct snd_soc_machine tosa = {
+static struct snd_soc_card tosa = {
 	.name = "Tosa",
 	.dai_link = tosa_dai,
 	.num_links = ARRAY_SIZE(tosa_dai),
 };
 
 static struct snd_soc_device tosa_snd_devdata = {
-	.machine = &tosa,
+	.card = &tosa,
 	.platform = &pxa2xx_soc_platform,
 	.codec_dev = &soc_codec_dev_wm9712,
 };

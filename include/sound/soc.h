@@ -482,8 +482,8 @@ struct snd_soc_dai_link  {
 	struct snd_pcm *pcm;
 };
 
-/* SoC machine */
-struct snd_soc_machine {
+/* SoC card */
+struct snd_soc_card {
 	char *name;
 
 	int (*probe)(struct platform_device *pdev);
@@ -497,7 +497,7 @@ struct snd_soc_machine {
 	int (*resume_post)(struct platform_device *pdev);
 
 	/* callbacks */
-	int (*set_bias_level)(struct snd_soc_machine *,
+	int (*set_bias_level)(struct snd_soc_card *,
 			      enum snd_soc_bias_level level);
 
 	/* CPU <--> Codec DAI links  */
@@ -508,7 +508,7 @@ struct snd_soc_machine {
 /* SoC Device - the audio subsystem */
 struct snd_soc_device {
 	struct device *dev;
-	struct snd_soc_machine *machine;
+	struct snd_soc_card *card;
 	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;

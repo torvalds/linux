@@ -1402,11 +1402,11 @@ int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
 				enum snd_soc_bias_level level)
 {
 	struct snd_soc_codec *codec = socdev->codec;
-	struct snd_soc_machine *machine = socdev->machine;
+	struct snd_soc_card *card = socdev->card;
 	int ret = 0;
 
-	if (machine->set_bias_level)
-		ret = machine->set_bias_level(machine, level);
+	if (card->set_bias_level)
+		ret = card->set_bias_level(card, level);
 	if (ret == 0 && codec->set_bias_level)
 		ret = codec->set_bias_level(codec, level);
 
