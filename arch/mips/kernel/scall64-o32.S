@@ -174,14 +174,12 @@ not_o32_scall:
 	END(handle_sys)
 
 LEAF(sys32_syscall)
-	sltu	v0, a0, __NR_O32_Linux + __NR_O32_Linux_syscalls + 1
+	subu	t0, a0, __NR_O32_Linux	# check syscall number
+	sltiu	v0, t0, __NR_O32_Linux_syscalls + 1
+	beqz	t0, einval		# do not recurse
+	dsll	t1, t0, 3
 	beqz	v0, einval
-
-	dsll	v0, a0, 3
-	ld	t2, (sys_call_table - (__NR_O32_Linux * 8))(v0)
-
-	li	v1, 4000		# indirect syscall number
-	beq	a0, v1, einval		# do not recurse
+	ld	t2, sys_call_table(t1)		# syscall routine
 
 	move	a0, a1			# shift argument registers
 	move	a1, a2
