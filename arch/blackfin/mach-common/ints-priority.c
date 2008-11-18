@@ -42,6 +42,8 @@
 #include <asm/gpio.h>
 #include <asm/irq_handler.h>
 
+#define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
+
 #ifdef BF537_FAMILY
 # define BF537_GENERIC_ERROR_INT_DEMUX
 #else

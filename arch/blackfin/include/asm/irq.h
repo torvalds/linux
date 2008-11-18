@@ -26,6 +26,4 @@ static __inline__ int irq_canonicalize(int irq)
 	return irq;
 }
 
-#define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
-
 #endif				/* _BFIN_IRQ_H_ */
