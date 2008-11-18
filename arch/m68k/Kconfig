@@ -263,6 +263,14 @@ config NFCON
 	  which allows the console output to be redirected to the stderr
 	  output of ARAnyM.
 
+config NFETH
+	tristate "NatFeat Ethernet support"
+	depends on NET_ETHERNET && NATFEAT
+	help
+	  Say Y to include support for the ARAnyM NatFeat network device
+	  which will emulate a regular ethernet device while presenting an
+	  ethertap device to the host system.
+
 comment "Processor type"
 
 config M68020
