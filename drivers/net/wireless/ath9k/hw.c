@@ -155,14 +155,14 @@ u16 ath9k_hw_computetxtime(struct ath_hal *ah,
 		return 0;
 
 	switch (rates->info[rateix].phy) {
-	case PHY_CCK:
+	case WLAN_RC_PHY_CCK:
 		phyTime = CCK_PREAMBLE_BITS + CCK_PLCP_BITS;
 		if (shortPreamble && rates->info[rateix].short_preamble)
 			phyTime >>= 1;
 		numBits = frameLen << 3;
 		txTime = CCK_SIFS_TIME + phyTime + ((numBits * 1000) / kbps);
 		break;
-	case PHY_OFDM:
+	case WLAN_RC_PHY_OFDM:
 		if (ah->ah_curchan && IS_CHAN_QUARTER_RATE(ah->ah_curchan)) {
 			bitsPerSymbol =	(kbps * OFDM_SYMBOL_TIME_QUARTER) / 1000;
 			numBits = OFDM_PLCP_BITS + (frameLen << 3);

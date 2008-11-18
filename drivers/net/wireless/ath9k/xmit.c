@@ -536,7 +536,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
 	 */
 	if (sc->sc_protmode != PROT_M_NONE && !(bf->bf_flags & ATH9K_TXDESC_NOACK)
-	    && (rt->info[rix].phy == WLAN_PHY_OFDM ||
+	    && (rt->info[rix].phy == WLAN_RC_PHY_OFDM ||
 		WLAN_RC_PHY_HT(rt->info[rix].phy))) {
 		if (sc->sc_protmode == PROT_M_RTSCTS)
 			flags = ATH9K_TXDESC_RTSENA;

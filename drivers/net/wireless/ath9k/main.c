@@ -346,16 +346,15 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
 
 	DPRINTF(sc, ATH_DBG_XMIT,
 		"%s: TX complete: skb: %p\n", __func__, skb);
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK ||
-		tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
-		if (tx_info->rate_driver_data[0] != NULL) {
-			kfree(tx_info->rate_driver_data[0]);
-			tx_info->rate_driver_data[0] = NULL;
-		}
+	    tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
+		kfree(tx_info_priv);
+		tx_info->rate_driver_data[0] = NULL;
 	}
 
 	if (tx_status->flags & ATH_TX_BAR) {
