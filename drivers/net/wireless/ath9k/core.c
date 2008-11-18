@@ -80,38 +80,9 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 
 /*
  *  Set current operating mode
- *
- *  This function initializes and fills the rate table in the ATH object based
- *  on the operating mode.
 */
 static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
 {
-	const struct ath9k_rate_table *rt;
-	int i;
-
-	rt = ath9k_hw_getratetable(sc->sc_ah, mode);
-	BUG_ON(!rt);
-
-	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
-	for (i = 0; i < 256; i++) {
-		u8 ix = rt->rateCodeToIndex[i];
-
-		if (ix == 0xff)
-			continue;
-
-		sc->sc_hwmap[i].ieeerate =
-		    rt->info[ix].dot11Rate & IEEE80211_RATE_VAL;
-		sc->sc_hwmap[i].rateKbps = rt->info[ix].rateKbps;
-
-		if (rt->info[ix].shortPreamble ||
-		    rt->info[ix].phy == PHY_OFDM) {
-			/* XXX: Handle this */
-		}
-
-		/* NB: this uses the last entry if the rate isn't found */
-		/* XXX beware of overlow */
-	}
-	sc->sc_currates = rt;
 	sc->sc_curmode = mode;
 	/*
 	 * All protection frames are transmited at 2Mb/s for
@@ -126,37 +97,36 @@ static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
  */
 static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
 {
-	struct ath_hal *ah = sc->sc_ah;
-	const struct ath9k_rate_table *rt = NULL;
+	struct ath_rate_table *rate_table = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *rate;
 	int i, maxrates;
 
 	switch (band) {
 	case IEEE80211_BAND_2GHZ:
-		rt = ath9k_hw_getratetable(ah, ATH9K_MODE_11G);
+		rate_table = sc->hw_rate_table[ATH9K_MODE_11G];
 		break;
 	case IEEE80211_BAND_5GHZ:
-		rt = ath9k_hw_getratetable(ah, ATH9K_MODE_11A);
+		rate_table = sc->hw_rate_table[ATH9K_MODE_11A];
 		break;
 	default:
 		break;
 	}
 
-	if (rt == NULL)
+	if (rate_table == NULL)
 		return;
 
 	sband = &sc->sbands[band];
 	rate = sc->rates[band];
 
-	if (rt->rateCount > ATH_RATE_MAX)
+	if (rate_table->rate_cnt > ATH_RATE_MAX)
 		maxrates = ATH_RATE_MAX;
 	else
-		maxrates = rt->rateCount;
+		maxrates = rate_table->rate_cnt;
 
 	for (i = 0; i < maxrates; i++) {
-		rate[i].bitrate = rt->info[i].rateKbps / 100;
-		rate[i].hw_value = rt->info[i].rateCode;
+		rate[i].bitrate = rate_table->info[i].ratekbps / 100;
+		rate[i].hw_value = rate_table->info[i].ratecode;
 		sband->n_bitrates++;
 		DPRINTF(sc, ATH_DBG_CONFIG,
 			"%s: Rate: %2dMbps, ratecode: %2d\n",
@@ -1000,11 +970,9 @@ int ath_init(u16 devid, struct ath_softc *sc)
 
 	/* Setup rate tables */
 
+	ath_rate_attach(sc);
 	ath_setup_rates(sc, IEEE80211_BAND_2GHZ);
 	ath_setup_rates(sc, IEEE80211_BAND_5GHZ);
-
-	/* NB: setup here so ath_rate_update is happy */
-	ath_setcurmode(sc, ATH9K_MODE_11A);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -1070,8 +1038,6 @@ int ath_init(u16 devid, struct ath_softc *sc)
 
 	sc->sc_ani.sc_noise_floor = ATH_DEFAULT_NOISE_FLOOR;
 	setup_timer(&sc->sc_ani.timer, ath_ani_calibrate, (unsigned long)sc);
-
-	ath_rate_attach(sc);
 
 	if (ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
 				   ATH9K_CIPHER_TKIP, NULL)) {

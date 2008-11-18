@@ -68,7 +68,7 @@ static void ath_beacon_setup(struct ath_softc *sc,
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct ath9k_11n_rate_series series[4];
-	const struct ath9k_rate_table *rt;
+	struct ath_rate_table *rt;
 	int flags, antenna;
 	u8 rix, rate;
 	int ctsrate = 0;
@@ -106,10 +106,10 @@ static void ath_beacon_setup(struct ath_softc *sc,
 	 * XXX everything at min xmit rate
 	 */
 	rix = 0;
-	rt = sc->sc_currates;
-	rate = rt->info[rix].rateCode;
+	rt = sc->hw_rate_table[sc->sc_curmode];
+	rate = rt->info[rix].ratecode;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
-		rate |= rt->info[rix].shortPreamble;
+		rate |= rt->info[rix].short_preamble;
 
 	ath9k_hw_set11n_txdesc(ah, ds,
 			       skb->len + FCS_LEN,     /* frame length */

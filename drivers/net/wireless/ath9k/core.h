@@ -858,12 +858,7 @@ struct ath_softc {
 	/* Rate */
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
 	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
-	const struct ath9k_rate_table *sc_currates;
 	u8 sc_protrix;		/* protection rate index */
-	struct {
-		u32 rateKbps;	/* transfer rate in kbs */
-		u8 ieeerate;	/* IEEE rate */
-	} sc_hwmap[256];	/* h/w rate ix mappings */
 
 	/* Channel, Band */
 	struct ieee80211_channel channels[IEEE80211_NUM_BANDS][ATH_CHAN_MAX];

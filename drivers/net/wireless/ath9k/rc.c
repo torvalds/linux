@@ -25,6 +25,7 @@
 
 static struct ath_rate_table ar5416_11na_ratetable = {
 	42,
+	{0},
 	{
 		{ TRUE, TRUE, WLAN_PHY_OFDM, 6000, /* 6 Mb */
 			5400, 0x0b, 0x00, 12,
@@ -168,6 +169,7 @@ static struct ath_rate_table ar5416_11na_ratetable = {
 
 static struct ath_rate_table ar5416_11ng_ratetable = {
 	46,
+	{0},
 	{
 		{ TRUE_ALL, TRUE_ALL, WLAN_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b, 0x00, 2,
@@ -315,6 +317,7 @@ static struct ath_rate_table ar5416_11ng_ratetable = {
 
 static struct ath_rate_table ar5416_11a_ratetable = {
 	8,
+	{0},
 	{
 		{ TRUE, TRUE, WLAN_PHY_OFDM, 6000, /* 6 Mb */
 			5400, 0x0b, 0x00, (0x80|12),
@@ -348,6 +351,7 @@ static struct ath_rate_table ar5416_11a_ratetable = {
 
 static struct ath_rate_table ar5416_11g_ratetable = {
 	12,
+	{0},
 	{
 		{ TRUE, TRUE, WLAN_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b, 0x00, 2,
@@ -393,6 +397,7 @@ static struct ath_rate_table ar5416_11g_ratetable = {
 
 static struct ath_rate_table ar5416_11b_ratetable = {
 	4,
+	{0},
 	{
 		{ TRUE, TRUE, WLAN_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b,  0x00, (0x80|2),
@@ -1302,14 +1307,14 @@ static void ath_rc_update(struct ath_softc *sc,
 	if (final_ts_idx != 0) {
 		/* Process intermediate rates that failed.*/
 		for (series = 0; series < final_ts_idx ; series++) {
-			if (rates[series].count != 0) {
+			if (rates[series].count != 0 && (rates[series].idx >= 0)) {
 				flags = rates[series].flags;
 				/* If HT40 and we have switched mode from
 				 * 40 to 20 => don't update */
 				if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
-					(ath_rc_priv->rc_phy_mode !=
-					(flags & IEEE80211_TX_RC_40_MHZ_WIDTH)))
+				    (ath_rc_priv->rc_phy_mode != WLAN_RC_40_FLAG))
 					return;
+
 				if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
 					(flags & IEEE80211_TX_RC_SHORT_GI))
 					rix = rate_table->info[
@@ -1343,8 +1348,9 @@ static void ath_rc_update(struct ath_softc *sc,
 	flags = rates[series].flags;
 	/* If HT40 and we have switched mode from 40 to 20 => don't update */
 	if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
-		(ath_rc_priv->rc_phy_mode != (flags & IEEE80211_TX_RC_40_MHZ_WIDTH)))
+	    (ath_rc_priv->rc_phy_mode != WLAN_RC_40_FLAG)) {
 		return;
+	}
 
 	if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) && (flags & IEEE80211_TX_RC_SHORT_GI))
 		rix = rate_table->info[rates[series].idx].ht_index;
@@ -1628,7 +1634,6 @@ static void ath_rate_free_sta(void *priv, struct ieee80211_sta *sta,
 			      void *priv_sta)
 {
 	struct ath_rate_node *rate_priv = priv_sta;
-
 	kfree(rate_priv);
 }
 
@@ -1643,6 +1648,35 @@ static struct rate_control_ops ath_rate_ops = {
 	.alloc_sta = ath_rate_alloc_sta,
 	.free_sta = ath_rate_free_sta,
 };
+
+static void ath_setup_rate_table(struct ath_softc *sc,
+				 struct ath_rate_table *rate_table)
+{
+	int i;
+
+	for (i = 0; i < 256; i++)
+		rate_table->rateCodeToIndex[i] = (u8)-1;
+
+	for (i = 0; i < rate_table->rate_cnt; i++) {
+		u8 code = rate_table->info[i].ratecode;
+		u8 cix = rate_table->info[i].ctrl_rate;
+		u8 sh = rate_table->info[i].short_preamble;
+
+		rate_table->rateCodeToIndex[code] = i;
+		rate_table->rateCodeToIndex[code | sh] = i;
+
+		rate_table->info[i].lpAckDuration =
+			ath9k_hw_computetxtime(sc->sc_ah, rate_table,
+					       WLAN_CTRL_FRAME_SIZE,
+					       cix,
+					       false);
+		rate_table->info[i].spAckDuration =
+			ath9k_hw_computetxtime(sc->sc_ah, rate_table,
+					       WLAN_CTRL_FRAME_SIZE,
+					       cix,
+					       true);
+	}
+}
 
 void ath_rate_attach(struct ath_softc *sc)
 {
@@ -1664,6 +1698,12 @@ void ath_rate_attach(struct ath_softc *sc)
 		&ar5416_11ng_ratetable;
 	sc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS] =
 		&ar5416_11ng_ratetable;
+
+	ath_setup_rate_table(sc, &ar5416_11b_ratetable);
+	ath_setup_rate_table(sc, &ar5416_11a_ratetable);
+	ath_setup_rate_table(sc, &ar5416_11g_ratetable);
+	ath_setup_rate_table(sc, &ar5416_11na_ratetable);
+	ath_setup_rate_table(sc, &ar5416_11ng_ratetable);
 }
 
 int ath_rate_control_register(void)
@@ -1675,4 +1715,3 @@ void ath_rate_control_unregister(void)
 {
 	ieee80211_rate_control_unregister(&ath_rate_ops);
 }
-

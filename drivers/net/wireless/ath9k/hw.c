@@ -142,14 +142,14 @@ bool ath9k_get_channel_edges(struct ath_hal *ah,
 }
 
 u16 ath9k_hw_computetxtime(struct ath_hal *ah,
-			   const struct ath9k_rate_table *rates,
+			   struct ath_rate_table *rates,
 			   u32 frameLen, u16 rateix,
 			   bool shortPreamble)
 {
 	u32 bitsPerSymbol, numBits, numSymbols, phyTime, txTime;
 	u32 kbps;
 
-	kbps = rates->info[rateix].rateKbps;
+	kbps = rates->info[rateix].ratekbps;
 
 	if (kbps == 0)
 		return 0;
@@ -157,7 +157,7 @@ u16 ath9k_hw_computetxtime(struct ath_hal *ah,
 	switch (rates->info[rateix].phy) {
 	case PHY_CCK:
 		phyTime = CCK_PREAMBLE_BITS + CCK_PLCP_BITS;
-		if (shortPreamble && rates->info[rateix].shortPreamble)
+		if (shortPreamble && rates->info[rateix].short_preamble)
 			phyTime >>= 1;
 		numBits = frameLen << 3;
 		txTime = CCK_SIFS_TIME + phyTime + ((numBits * 1000) / kbps);
@@ -3188,190 +3188,6 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hal *ah,
 		    AR_TBTT_TIMER_EN | AR_TIM_TIMER_EN |
 		    AR_DTIM_TIMER_EN);
 
-}
-
-/***************/
-/* Rate tables */
-/***************/
-
-static struct ath9k_rate_table ar5416_11a_table = {
-	8,
-	{0},
-	{
-		{true, PHY_OFDM, 6000, 0x0b, 0x00, (0x80 | 12), 0},
-		{true, PHY_OFDM, 9000, 0x0f, 0x00, 18, 0},
-		{true, PHY_OFDM, 12000, 0x0a, 0x00, (0x80 | 24), 2},
-		{true, PHY_OFDM, 18000, 0x0e, 0x00, 36, 2},
-		{true, PHY_OFDM, 24000, 0x09, 0x00, (0x80 | 48), 4},
-		{true, PHY_OFDM, 36000, 0x0d, 0x00, 72, 4},
-		{true, PHY_OFDM, 48000, 0x08, 0x00, 96, 4},
-		{true, PHY_OFDM, 54000, 0x0c, 0x00, 108, 4}
-	},
-};
-
-static struct ath9k_rate_table ar5416_11b_table = {
-	4,
-	{0},
-	{
-		{true, PHY_CCK, 1000, 0x1b, 0x00, (0x80 | 2), 0},
-		{true, PHY_CCK, 2000, 0x1a, 0x04, (0x80 | 4), 1},
-		{true, PHY_CCK, 5500, 0x19, 0x04, (0x80 | 11), 1},
-		{true, PHY_CCK, 11000, 0x18, 0x04, (0x80 | 22), 1}
-	},
-};
-
-static struct ath9k_rate_table ar5416_11g_table = {
-	12,
-	{0},
-	{
-		{true, PHY_CCK, 1000, 0x1b, 0x00, (0x80 | 2), 0},
-		{true, PHY_CCK, 2000, 0x1a, 0x04, (0x80 | 4), 1},
-		{true, PHY_CCK, 5500, 0x19, 0x04, (0x80 | 11), 2},
-		{true, PHY_CCK, 11000, 0x18, 0x04, (0x80 | 22), 3},
-
-		{false, PHY_OFDM, 6000, 0x0b, 0x00, 12, 4},
-		{false, PHY_OFDM, 9000, 0x0f, 0x00, 18, 4},
-		{true, PHY_OFDM, 12000, 0x0a, 0x00, 24, 6},
-		{true, PHY_OFDM, 18000, 0x0e, 0x00, 36, 6},
-		{true, PHY_OFDM, 24000, 0x09, 0x00, 48, 8},
-		{true, PHY_OFDM, 36000, 0x0d, 0x00, 72, 8},
-		{true, PHY_OFDM, 48000, 0x08, 0x00, 96, 8},
-		{true, PHY_OFDM, 54000, 0x0c, 0x00, 108, 8}
-	},
-};
-
-static struct ath9k_rate_table ar5416_11ng_table = {
-	28,
-	{0},
-	{
-		{true, PHY_CCK, 1000, 0x1b, 0x00, (0x80 | 2), 0},
-		{true, PHY_CCK, 2000, 0x1a, 0x04, (0x80 | 4), 1},
-		{true, PHY_CCK, 5500, 0x19, 0x04, (0x80 | 11), 2},
-		{true, PHY_CCK, 11000, 0x18, 0x04, (0x80 | 22), 3},
-
-		{false, PHY_OFDM, 6000, 0x0b, 0x00, 12, 4},
-		{false, PHY_OFDM, 9000, 0x0f, 0x00, 18, 4},
-		{true, PHY_OFDM, 12000, 0x0a, 0x00, 24, 6},
-		{true, PHY_OFDM, 18000, 0x0e, 0x00, 36, 6},
-		{true, PHY_OFDM, 24000, 0x09, 0x00, 48, 8},
-		{true, PHY_OFDM, 36000, 0x0d, 0x00, 72, 8},
-		{true, PHY_OFDM, 48000, 0x08, 0x00, 96, 8},
-		{true, PHY_OFDM, 54000, 0x0c, 0x00, 108, 8},
-		{true, PHY_HT, 6500, 0x80, 0x00, 0, 4},
-		{true, PHY_HT, 13000, 0x81, 0x00, 1, 6},
-		{true, PHY_HT, 19500, 0x82, 0x00, 2, 6},
-		{true, PHY_HT, 26000, 0x83, 0x00, 3, 8},
-		{true, PHY_HT, 39000, 0x84, 0x00, 4, 8},
-		{true, PHY_HT, 52000, 0x85, 0x00, 5, 8},
-		{true, PHY_HT, 58500, 0x86, 0x00, 6, 8},
-		{true, PHY_HT, 65000, 0x87, 0x00, 7, 8},
-		{true, PHY_HT, 13000, 0x88, 0x00, 8, 4},
-		{true, PHY_HT, 26000, 0x89, 0x00, 9, 6},
-		{true, PHY_HT, 39000, 0x8a, 0x00, 10, 6},
-		{true, PHY_HT, 52000, 0x8b, 0x00, 11, 8},
-		{true, PHY_HT, 78000, 0x8c, 0x00, 12, 8},
-		{true, PHY_HT, 104000, 0x8d, 0x00, 13, 8},
-		{true, PHY_HT, 117000, 0x8e, 0x00, 14, 8},
-		{true, PHY_HT, 130000, 0x8f, 0x00, 15, 8},
-	},
-};
-
-static struct ath9k_rate_table ar5416_11na_table = {
-	24,
-	{0},
-	{
-		{true, PHY_OFDM, 6000, 0x0b, 0x00, (0x80 | 12), 0},
-		{true, PHY_OFDM, 9000, 0x0f, 0x00, 18, 0},
-		{true, PHY_OFDM, 12000, 0x0a, 0x00, (0x80 | 24), 2},
-		{true, PHY_OFDM, 18000, 0x0e, 0x00, 36, 2},
-		{true, PHY_OFDM, 24000, 0x09, 0x00, (0x80 | 48), 4},
-		{true, PHY_OFDM, 36000, 0x0d, 0x00, 72, 4},
-		{true, PHY_OFDM, 48000, 0x08, 0x00, 96, 4},
-		{true, PHY_OFDM, 54000, 0x0c, 0x00, 108, 4},
-		{true, PHY_HT, 6500, 0x80, 0x00, 0, 0},
-		{true, PHY_HT, 13000, 0x81, 0x00, 1, 2},
-		{true, PHY_HT, 19500, 0x82, 0x00, 2, 2},
-		{true, PHY_HT, 26000, 0x83, 0x00, 3, 4},
-		{true, PHY_HT, 39000, 0x84, 0x00, 4, 4},
-		{true, PHY_HT, 52000, 0x85, 0x00, 5, 4},
-		{true, PHY_HT, 58500, 0x86, 0x00, 6, 4},
-		{true, PHY_HT, 65000, 0x87, 0x00, 7, 4},
-		{true, PHY_HT, 13000, 0x88, 0x00, 8, 0},
-		{true, PHY_HT, 26000, 0x89, 0x00, 9, 2},
-		{true, PHY_HT, 39000, 0x8a, 0x00, 10, 2},
-		{true, PHY_HT, 52000, 0x8b, 0x00, 11, 4},
-		{true, PHY_HT, 78000, 0x8c, 0x00, 12, 4},
-		{true, PHY_HT, 104000, 0x8d, 0x00, 13, 4},
-		{true, PHY_HT, 117000, 0x8e, 0x00, 14, 4},
-		{true, PHY_HT, 130000, 0x8f, 0x00, 15, 4},
-	},
-};
-
-static void ath9k_hw_setup_rate_table(struct ath_hal *ah,
-				      struct ath9k_rate_table *rt)
-{
-	int i;
-
-	if (rt->rateCodeToIndex[0] != 0)
-		return;
-
-	for (i = 0; i < 256; i++)
-		rt->rateCodeToIndex[i] = (u8) -1;
-
-	for (i = 0; i < rt->rateCount; i++) {
-		u8 code = rt->info[i].rateCode;
-		u8 cix = rt->info[i].controlRate;
-
-		rt->rateCodeToIndex[code] = i;
-		rt->rateCodeToIndex[code | rt->info[i].shortPreamble] = i;
-
-		rt->info[i].lpAckDuration =
-			ath9k_hw_computetxtime(ah, rt,
-					       WLAN_CTRL_FRAME_SIZE,
-					       cix,
-					       false);
-		rt->info[i].spAckDuration =
-			ath9k_hw_computetxtime(ah, rt,
-					       WLAN_CTRL_FRAME_SIZE,
-					       cix,
-					       true);
-	}
-}
-
-const struct ath9k_rate_table *ath9k_hw_getratetable(struct ath_hal *ah,
-						     u32 mode)
-{
-	struct ath9k_rate_table *rt;
-
-	switch (mode) {
-	case ATH9K_MODE_11A:
-		rt = &ar5416_11a_table;
-		break;
-	case ATH9K_MODE_11B:
-		rt = &ar5416_11b_table;
-		break;
-	case ATH9K_MODE_11G:
-		rt = &ar5416_11g_table;
-		break;
-	case ATH9K_MODE_11NG_HT20:
-	case ATH9K_MODE_11NG_HT40PLUS:
-	case ATH9K_MODE_11NG_HT40MINUS:
-		rt = &ar5416_11ng_table;
-		break;
-	case ATH9K_MODE_11NA_HT20:
-	case ATH9K_MODE_11NA_HT40PLUS:
-	case ATH9K_MODE_11NA_HT40MINUS:
-		rt = &ar5416_11na_table;
-		break;
-	default:
-		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL, "%s: invalid mode 0x%x\n",
-			__func__, mode);
-		return NULL;
-	}
-
-	ath9k_hw_setup_rate_table(ah, rt);
-
-	return rt;
 }
 
 /*******************/

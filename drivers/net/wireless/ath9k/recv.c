@@ -140,8 +140,9 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 			  struct ieee80211_rx_status *rx_status, bool *decrypt_error,
 			  struct ath_softc *sc)
 {
+	struct ath_rate_table *rate_table = sc->hw_rate_table[sc->sc_curmode];
 	struct ieee80211_hdr *hdr;
-	int ratekbps;
+	int ratekbps, rix;
 	u8 ratecode;
 	__le16 fc;
 
@@ -196,7 +197,8 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	}
 
 	ratecode = ds->ds_rxstat.rs_rate;
-	ratekbps = sc->sc_hwmap[ratecode].rateKbps;
+	rix = rate_table->rateCodeToIndex[ratecode];
+	ratekbps = rate_table->info[rix].ratekbps;
 
 	/* HT rate */
 	if (ratecode & 0x80) {
