@@ -1,32 +1,11 @@
 /*
- * File:         arch/blackfin/kernel/time.c
- * Based on:     none - original work
- * Author:
+ * arch/blackfin/kernel/time.c
  *
- * Created:
- * Description:  This file contains the bfin-specific time handling details.
- *               Most of the stuff is located in the machine specific files.
- *		 FIXME: (This file is subject for removal)
+ * This file contains the Blackfin-specific time handling details.
+ * Most of the stuff is located in the machine specific files.
  *
- * Modified:
- *               Copyright 2004-2008 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Copyright 2004-2008 Analog Devices Inc.
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -43,40 +22,14 @@
 /* This is an NTP setting */
 #define	TICK_SIZE (tick_nsec / 1000)
 
-static void time_sched_init(irq_handler_t timer_routine);
-static unsigned long gettimeoffset(void);
-
 static struct irqaction bfin_timer_irq = {
-	.name = "BFIN Timer Tick",
+	.name = "Blackfin Timer Tick",
 #ifdef CONFIG_IRQ_PER_CPU
-	.flags = IRQF_DISABLED  | IRQF_PERCPU,
+	.flags = IRQF_DISABLED | IRQF_PERCPU,
 #else
 	.flags = IRQF_DISABLED
 #endif
 };
-
-void setup_core_timer(void)
-{
-	u32 tcount;
-
-	/* power up the timer, but don't enable it just yet */
-	bfin_write_TCNTL(1);
-	CSYNC();
-
-	/*
-	 * the TSCALE prescaler counter.
-	 */
-	bfin_write_TSCALE((TIME_SCALE - 1));
-
-	tcount = ((get_cclk() / (HZ * TIME_SCALE)) - 1);
-	bfin_write_TPERIOD(tcount);
-	bfin_write_TCOUNT(tcount);
-
-	/* now enable the timer */
-	CSYNC();
-
-	bfin_write_TCNTL(7);
-}
 
 #ifdef CONFIG_TICK_SOURCE_SYSTMR0
 void setup_system_timer0(void)
@@ -95,6 +48,27 @@ void setup_system_timer0(void)
 	SSYNC();
 	enable_gptimers(TIMER0bit);
 }
+#else
+void setup_core_timer(void)
+{
+	u32 tcount;
+
+	/* power up the timer, but don't enable it just yet */
+	bfin_write_TCNTL(1);
+	CSYNC();
+
+	/* the TSCALE prescaler counter */
+	bfin_write_TSCALE(TIME_SCALE - 1);
+
+	tcount = ((get_cclk() / (HZ * TIME_SCALE)) - 1);
+	bfin_write_TPERIOD(tcount);
+	bfin_write_TCOUNT(tcount);
+
+	/* now enable the timer */
+	CSYNC();
+
+	bfin_write_TCNTL(7);
+}
 #endif
 
 static void
@@ -102,13 +76,11 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *))
 {
 #ifdef CONFIG_TICK_SOURCE_SYSTMR0
 	setup_system_timer0();
-#else
-	setup_core_timer();
-#endif
-	bfin_timer_irq.handler = (irq_handler_t)timer_routine;
-#ifdef CONFIG_TICK_SOURCE_SYSTMR0
+	bfin_timer_irq.handler = timer_routine;
 	setup_irq(IRQ_TIMER0, &bfin_timer_irq);
 #else
+	setup_core_timer();
+	bfin_timer_irq.handler = timer_routine;
 	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
 #endif
 }
@@ -116,14 +88,15 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *))
 /*
  * Should return useconds since last timer tick
  */
+#ifndef CONFIG_GENERIC_TIME
 static unsigned long gettimeoffset(void)
 {
 	unsigned long offset;
 	unsigned long clocks_per_jiffy;
 
 #ifdef CONFIG_TICK_SOURCE_SYSTMR0
-	clocks_per_jiffy =  bfin_read_TIMER0_PERIOD();
-	offset =  bfin_read_TIMER0_COUNTER() / \
+	clocks_per_jiffy = bfin_read_TIMER0_PERIOD();
+	offset = bfin_read_TIMER0_COUNTER() / \
 		(((clocks_per_jiffy + 1) * HZ) / USEC_PER_SEC);
 
 	if ((get_gptimer_status(0) & TIMER_STATUS_TIMIL0) && offset < (100000 / HZ / 2))
@@ -131,7 +104,7 @@ static unsigned long gettimeoffset(void)
 #else
 	clocks_per_jiffy = bfin_read_TPERIOD();
 	offset = (clocks_per_jiffy - bfin_read_TCOUNT()) / \
-		(((clocks_per_jiffy + 1) * HZ)  / USEC_PER_SEC);
+		(((clocks_per_jiffy + 1) * HZ) / USEC_PER_SEC);
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
 	if ((bfin_read_ILAT() & (1 << IRQ_CORETMR))
@@ -140,6 +113,7 @@ static unsigned long gettimeoffset(void)
 #endif
 	return offset;
 }
+#endif
 
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
@@ -151,9 +125,8 @@ static inline int set_rtc_mmss(unsigned long nowtime)
  * as well as call the "do_timer()" routine every clocktick
  */
 #ifdef CONFIG_CORE_TIMER_IRQ_L1
-irqreturn_t timer_interrupt(int irq, void *dummy)__attribute__((l1_text));
+__attribute__((l1_text))
 #endif
-
 irqreturn_t timer_interrupt(int irq, void *dummy)
 {
 	/* last time the cmos clock got updated */
@@ -165,13 +138,11 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 #endif
 		do_timer(1);
 
-
 		/*
 		 * If we have an externally synchronized Linux clock, then update
 		 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
 		 * called as close as possible to 500 ms before the new second starts.
 		 */
-
 		if (ntp_synced() &&
 		    xtime.tv_sec > last_rtc_update + 660 &&
 		    (xtime.tv_nsec / NSEC_PER_USEC) >=
