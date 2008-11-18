@@ -85,10 +85,12 @@
 #define __ARCH_BLACKFIN_GPIO_H__
 
 #define gpio_bank(x) ((x) >> 4)
+#define gpio_bank_n(x) ((x) & 0xF ? ((x) >> 4) + 1 : (x) >> 4)
 #define gpio_bit(x)  (1<<((x) & 0xF))
 #define gpio_sub_n(x) ((x) & 0xF)
 
 #define GPIO_BANKSIZE 16
+#define GPIO_BANK_NUM gpio_bank_n(MAX_BLACKFIN_GPIOS)
 
 #define	GPIO_0	0
 #define	GPIO_1	1

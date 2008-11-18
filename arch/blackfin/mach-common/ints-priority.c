@@ -377,8 +377,8 @@ static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
 
 #if !defined(CONFIG_BF54x)
 
-static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
-static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)];
+static unsigned short gpio_enabled[GPIO_BANK_NUM];
+static unsigned short gpio_edge_triggered[GPIO_BANK_NUM];
 
 extern void bfin_gpio_irq_prepare(unsigned gpio);
 
@@ -620,7 +620,7 @@ static unsigned char irq2pint_lut[NR_PINTS];
 static unsigned char pint2irq_lut[NR_PINT_SYS_IRQS * NR_PINT_BITS];
 
 static unsigned int gpio_both_edge_triggered[NR_PINT_SYS_IRQS];
-static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
+static unsigned short gpio_enabled[GPIO_BANK_NUM];
 
 
 struct pin_int_t {

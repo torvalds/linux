@@ -120,19 +120,19 @@ enum {
 #endif
 
 #if defined(BF533_FAMILY) || defined(BF538_FAMILY)
-static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+static struct gpio_port_t *gpio_bankb[] = {
 	(struct gpio_port_t *) FIO_FLAG_D,
 };
 #endif
 
 #if defined(BF527_FAMILY) || defined(BF537_FAMILY) || defined(BF518_FAMILY)
-static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+static struct gpio_port_t *gpio_bankb[] = {
 	(struct gpio_port_t *) PORTFIO,
 	(struct gpio_port_t *) PORTGIO,
 	(struct gpio_port_t *) PORTHIO,
 };
 
-static unsigned short *port_fer[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+static unsigned short *port_fer[] = {
 	(unsigned short *) PORTF_FER,
 	(unsigned short *) PORTG_FER,
 	(unsigned short *) PORTH_FER,
@@ -140,7 +140,7 @@ static unsigned short *port_fer[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 #endif
 
 #if defined(BF527_FAMILY) || defined(BF518_FAMILY)
-static unsigned short *port_mux[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+static unsigned short *port_mux[] = {
 	(unsigned short *) PORTF_MUX,
 	(unsigned short *) PORTG_MUX,
 	(unsigned short *) PORTH_MUX,
@@ -155,7 +155,7 @@ u8 pmux_offset[][16] =
 #endif
 
 #ifdef BF561_FAMILY
-static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+static struct gpio_port_t *gpio_bankb[] = {
 	(struct gpio_port_t *) FIO0_FLAG_D,
 	(struct gpio_port_t *) FIO1_FLAG_D,
 	(struct gpio_port_t *) FIO2_FLAG_D,
@@ -163,7 +163,7 @@ static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 #endif
 
 #ifdef BF548_FAMILY
-static struct gpio_port_t *gpio_array[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+static struct gpio_port_t *gpio_array[] = {
 	(struct gpio_port_t *)PORTA_FER,
 	(struct gpio_port_t *)PORTB_FER,
 	(struct gpio_port_t *)PORTC_FER,
@@ -177,7 +177,7 @@ static struct gpio_port_t *gpio_array[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 };
 #endif
 
-static unsigned short reserved_gpio_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
+static unsigned short reserved_gpio_map[GPIO_BANK_NUM];
 static unsigned short reserved_peri_map[gpio_bank(MAX_RESOURCES)];
 
 #define RESOURCE_LABEL_SIZE 	16
@@ -188,30 +188,30 @@ static struct str_ident {
 
 #if defined(CONFIG_PM)
 #if defined(CONFIG_BF54x)
-static struct gpio_port_s gpio_bank_saved[gpio_bank(MAX_BLACKFIN_GPIOS)];
+static struct gpio_port_s gpio_bank_saved[GPIO_BANK_NUM];
 #else
-static unsigned short wakeup_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
+static unsigned short wakeup_map[GPIO_BANK_NUM];
 static unsigned char wakeup_flags_map[MAX_BLACKFIN_GPIOS];
-static struct gpio_port_s gpio_bank_saved[gpio_bank(MAX_BLACKFIN_GPIOS)];
+static struct gpio_port_s gpio_bank_saved[GPIO_BANK_NUM];
 
 #ifdef BF533_FAMILY
-static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB};
+static unsigned int sic_iwr_irqs[] = {IRQ_PROG_INTB};
 #endif
 
 #ifdef BF537_FAMILY
-static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB, IRQ_PORTG_INTB, IRQ_MAC_TX};
+static unsigned int sic_iwr_irqs[] = {IRQ_PROG_INTB, IRQ_PORTG_INTB, IRQ_MAC_TX};
 #endif
 
 #ifdef BF538_FAMILY
-static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PORTF_INTB};
+static unsigned int sic_iwr_irqs[] = {IRQ_PORTF_INTB};
 #endif
 
 #if defined(BF527_FAMILY) || defined(BF518_FAMILY)
-static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PORTF_INTB, IRQ_PORTG_INTB, IRQ_PORTH_INTB};
+static unsigned int sic_iwr_irqs[] = {IRQ_PORTF_INTB, IRQ_PORTG_INTB, IRQ_PORTH_INTB};
 #endif
 
 #ifdef BF561_FAMILY
-static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG0_INTB, IRQ_PROG1_INTB, IRQ_PROG2_INTB};
+static unsigned int sic_iwr_irqs[] = {IRQ_PROG0_INTB, IRQ_PROG1_INTB, IRQ_PROG2_INTB};
 #endif
 #endif
 #endif /* CONFIG_PM */
