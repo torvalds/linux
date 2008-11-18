@@ -228,7 +228,6 @@ struct snd_soc_dai_mode;
 struct snd_soc_pcm_runtime;
 struct snd_soc_dai;
 struct snd_soc_codec;
-struct snd_soc_machine_config;
 struct soc_enum;
 struct snd_soc_ac97_ops;
 struct snd_soc_clock_info;
