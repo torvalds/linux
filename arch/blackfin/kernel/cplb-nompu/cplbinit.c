@@ -163,7 +163,7 @@ static struct cplb_desc cplb_data[] = {
 
 static bool __init lock_kernel_check(u32 start, u32 end)
 {
-	if (start >= (u32)_end || end <= (u32)_stext)
+	if (start >= (u32)__init_begin || end <= (u32)_stext)
 		return false;
 
 	/* This cplb block overlapped with kernel area. */
