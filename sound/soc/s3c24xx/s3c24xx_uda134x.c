@@ -63,7 +63,7 @@ static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 
 static struct platform_device *s3c24xx_uda134x_snd_device;
 
-int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
+static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
 #ifdef ENFORCE_RATES
@@ -115,7 +115,7 @@ int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-void s3c24xx_uda134x_shutdown(struct snd_pcm_substream *substream)
+static void s3c24xx_uda134x_shutdown(struct snd_pcm_substream *substream)
 {
 	mutex_lock(&clk_lock);
 	pr_debug("%s %d\n", __func__, clk_users);
@@ -180,39 +180,38 @@ static int s3c24xx_uda134x_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ret = codec_dai->dai_ops.set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		return ret;
 
-	ret = cpu_dai->dai_ops.set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		return ret;
 
-	ret = cpu_dai->dai_ops.set_sysclk(cpu_dai, clk_source , clk,
-						SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(cpu_dai, clk_source , clk,
+			SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
-	ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai, S3C24XX_DIV_MCLK,
-						fs_mode);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C24XX_DIV_MCLK, fs_mode);
 	if (ret < 0)
 		return ret;
 
-	ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai, S3C24XX_DIV_BCLK,
-						S3C2410_IISMOD_32FS);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C24XX_DIV_BCLK,
+			S3C2410_IISMOD_32FS);
 	if (ret < 0)
 		return ret;
 
-	ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai, S3C24XX_DIV_PRESCALER,
-					  S3C24XX_PRESCALE(div, div));
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C24XX_DIV_PRESCALER,
+			S3C24XX_PRESCALE(div, div));
 	if (ret < 0)
 		return ret;
 
 	/* set the codec system clock for DAC and ADC */
-	ret = codec_dai->dai_ops.set_sysclk(codec_dai, 0, clk,
-						SND_SOC_CLOCK_OUT);
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, clk,
+			SND_SOC_CLOCK_OUT);
 	if (ret < 0)
 		return ret;
 
