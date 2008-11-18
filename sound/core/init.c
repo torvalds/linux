@@ -637,8 +637,12 @@ int snd_card_register(struct snd_card *card)
 #endif
 #ifndef CONFIG_SYSFS_DEPRECATED
 	if (card->card_dev) {
-		device_create_file(card->card_dev, &card_id_attrs);
-		device_create_file(card->card_dev, &card_number_attrs);
+		err = device_create_file(card->card_dev, &card_id_attrs);
+		if (err < 0)
+			return err;
+		err = device_create_file(card->card_dev, &card_number_attrs);
+		if (err < 0)
+			return err;
 	}
 #endif
 	return 0;
