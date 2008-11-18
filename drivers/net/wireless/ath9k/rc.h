@@ -204,8 +204,22 @@ struct ath_tx_ratectrl_state {
 	u8 per;			/* recent estimate of packet error rate (%) */
 };
 
+struct ath_rateset {
+	u8 rs_nrates;
+	u8 rs_rates[ATH_RATE_MAX];
+};
+
+/* per-device state */
+struct ath_rate_softc {
+	/* phy tables that contain rate control data */
+	const void *hw_rate_table[ATH9K_MODE_MAX];
+
+	/* -1 or index of fixed rate */
+	int fixedrix;
+};
+
 /**
- * struct ath_tx_ratectrl - TX Rate control Information
+ * struct ath_rate_node - Rate Control priv data
  * @state: RC state
  * @rssi_last: last ACK rssi
  * @rssi_last_lookup: last ACK rssi used for lookup
@@ -224,9 +238,15 @@ struct ath_tx_ratectrl_state {
  * @valid_phy_ratecnt: valid rate count
  * @rate_max_phy: phy index for the max rate
  * @probe_interval: interval for ratectrl to probe for other rates
+ * @prev_data_rix: rate idx of last data frame
+ * @ht_cap: HT capabilities
+ * @single_stream: When TRUE, only single TX stream possible
+ * @neg_rates: Negotatied rates
+ * @neg_ht_rates: Negotiated HT rates
  */
-struct ath_tx_ratectrl {
-	struct ath_tx_ratectrl_state state[MAX_TX_RATE_TBL];
+
+/* per-node state */
+struct ath_rate_node {
 	int8_t rssi_last;
 	int8_t rssi_last_lookup;
 	int8_t rssi_last_prev;
@@ -236,55 +256,24 @@ struct ath_tx_ratectrl {
 	int32_t rssi_sum;
 	u8 rate_table_size;
 	u8 probe_rate;
-	u32 rssi_time;
-	u32 rssi_down_time;
-	u32 probe_time;
 	u8 hw_maxretry_pktcnt;
 	u8 max_valid_rate;
 	u8 valid_rate_index[MAX_TX_RATE_TBL];
-	u32 per_down_time;
-
-	/* 11n state */
+	u8 ht_cap;
+	u8 single_stream;
 	u8 valid_phy_ratecnt[WLAN_RC_PHY_MAX];
 	u8 valid_phy_rateidx[WLAN_RC_PHY_MAX][MAX_TX_RATE_TBL];
 	u8 rc_phy_mode;
 	u8 rate_max_phy;
+	u32 rssi_time;
+	u32 rssi_down_time;
+	u32 probe_time;
+	u32 per_down_time;
 	u32 probe_interval;
-};
-
-struct ath_rateset {
-	u8 rs_nrates;
-	u8 rs_rates[ATH_RATE_MAX];
-};
-
-/* per-device state */
-struct ath_rate_softc {
-	/* phy tables that contain rate control data */
-	const void *hw_rate_table[ATH9K_MODE_MAX];
-
-	/* -1 or index of fixed rate */
-	int fixedrix;
-};
-
-/* per-node state */
-struct ath_rate_node {
-	struct ath_tx_ratectrl tx_ratectrl;
-
-	/* rate idx of last data frame */
 	u32 prev_data_rix;
-
-	/* ht capabilities */
-	u8 ht_cap;
-
-	/* When TRUE, only single stream Tx possible */
-	u8 single_stream;
-
-	/* Negotiated rates */
+	struct ath_tx_ratectrl_state state[MAX_TX_RATE_TBL];
 	struct ath_rateset neg_rates;
-
-	/* Negotiated HT rates */
 	struct ath_rateset neg_ht_rates;
-
 	struct ath_rate_softc *asc;
 	struct ath_vap *avp;
 };
