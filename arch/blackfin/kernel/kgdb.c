@@ -34,10 +34,6 @@ int gdb_bfin_vector = -1;
 #error change the definition of slavecpulocks
 #endif
 
-#ifdef CONFIG_BFIN_WDT
-# error "Please unselect blackfin watchdog driver before build KGDB."
-#endif
-
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
 	gdb_regs[BFIN_R0] = regs->r0;
