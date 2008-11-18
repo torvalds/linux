@@ -36,6 +36,8 @@
 #ifdef CONFIG_MPU
 
 #include <asm/cplb-mpu.h>
+extern void bfin_icache_init(struct cplb_entry *icplb_tbl);
+extern void bfin_dcache_init(struct cplb_entry *icplb_tbl);
 
 #else
 
@@ -46,8 +48,40 @@
 
 #define IN_KERNEL 1
 
-enum
-{ZERO_P, L1I_MEM, L1D_MEM, SDRAM_KERN , SDRAM_RAM_MTD, SDRAM_DMAZ, RES_MEM, ASYNC_MEM, L2_MEM};
+#define ASYNC_MEMORY_CPLB_COVERAGE  ((ASYNC_BANK0_SIZE + ASYNC_BANK1_SIZE + \
+				ASYNC_BANK2_SIZE + ASYNC_BANK3_SIZE) / SIZE_4M)
+
+#define CPLB_MEM CONFIG_MAX_MEM_SIZE
+
+/*
+* Number of required data CPLB switchtable entries
+* MEMSIZE / 4 (we mostly install 4M page size CPLBs
+* approx 16 for smaller 1MB page size CPLBs for allignment purposes
+* 1 for L1 Data Memory
+* possibly 1 for L2 Data Memory
+* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
+* 1 for ASYNC Memory
+*/
+#define MAX_SWITCH_D_CPLBS (((CPLB_MEM / 4) + 16 + 1 + 1 + 1 \
+				 + ASYNC_MEMORY_CPLB_COVERAGE) * 2)
+
+/*
+* Number of required instruction CPLB switchtable entries
+* MEMSIZE / 4 (we mostly install 4M page size CPLBs
+* approx 12 for smaller 1MB page size CPLBs for allignment purposes
+* 1 for L1 Instruction Memory
+* possibly 1 for L2 Instruction Memory
+* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
+*/
+#define MAX_SWITCH_I_CPLBS (((CPLB_MEM / 4) + 12 + 1 + 1 + 1) * 2)
+
+/* Number of CPLB table entries, used for cplb-nompu. */
+#define CPLB_TBL_ENTRIES (16 * 4)
+
+enum {
+	ZERO_P, L1I_MEM, L1D_MEM, L2_MEM, SDRAM_KERN, SDRAM_RAM_MTD, SDRAM_DMAZ,
+	RES_MEM, ASYNC_MEM, OCB_ROM
+};
 
 struct cplb_desc {
 	u32 start; /* start address */
@@ -66,8 +100,8 @@ struct cplb_tab {
 	u16 size;
 };
 
-extern u_long icplb_table[];
-extern u_long dcplb_table[];
+extern u_long icplb_tables[NR_CPUS][CPLB_TBL_ENTRIES+1];
+extern u_long dcplb_tables[NR_CPUS][CPLB_TBL_ENTRIES+1];
 
 /* Till here we are discussing about the static memory management model.
  * However, the operating envoronments commonly define more CPLB
@@ -78,15 +112,18 @@ extern u_long dcplb_table[];
  * This is how Page descriptor Table is implemented in uClinux/Blackfin.
  */
 
-extern u_long ipdt_table[];
-extern u_long dpdt_table[];
+extern u_long ipdt_tables[NR_CPUS][MAX_SWITCH_I_CPLBS+1];
+extern u_long dpdt_tables[NR_CPUS][MAX_SWITCH_D_CPLBS+1];
 #ifdef CONFIG_CPLB_INFO
-extern u_long ipdt_swapcount_table[];
-extern u_long dpdt_swapcount_table[];
+extern u_long ipdt_swapcount_tables[NR_CPUS][MAX_SWITCH_I_CPLBS];
+extern u_long dpdt_swapcount_tables[NR_CPUS][MAX_SWITCH_D_CPLBS];
 #endif
+extern void bfin_icache_init(u_long icplbs[]);
+extern void bfin_dcache_init(u_long dcplbs[]);
 
 #endif /* CONFIG_MPU */
 
-extern void generate_cplb_tables(void);
-
+#if defined(CONFIG_BFIN_DCACHE) || defined(CONFIG_BFIN_ICACHE)
+extern void generate_cplb_tables_cpu(unsigned int cpu);
+#endif
 #endif

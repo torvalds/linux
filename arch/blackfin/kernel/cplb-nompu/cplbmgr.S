@@ -52,6 +52,7 @@
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
 #include <asm/cplb.h>
+#include <asm/asm-offsets.h>
 
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text
@@ -164,10 +165,9 @@ ENTRY(_cplb_mgr)
 .Lifound_victim:
 #ifdef CONFIG_CPLB_INFO
 	R7 = [P0 - 0x104];
-	P2.L = _ipdt_table;
-	P2.H = _ipdt_table;
-	P3.L = _ipdt_swapcount_table;
-	P3.H = _ipdt_swapcount_table;
+	GET_PDA(P2, R2);
+	P3 = [P2 + PDA_IPDT_SWAPCOUNT];
+	P2 = [P2 + PDA_IPDT];
 	P3 += -4;
 .Licount:
 	R2 = [P2];	/* address from config table */
@@ -208,11 +208,10 @@ ENTRY(_cplb_mgr)
 	 * range.
  	 */
 
-	P2.L = _ipdt_table;
-	P2.H = _ipdt_table;
+	GET_PDA(P3, R0);
+	P2 = [P3 + PDA_IPDT];
 #ifdef	CONFIG_CPLB_INFO
-	P3.L = _ipdt_swapcount_table;
-	P3.H = _ipdt_swapcount_table;
+	P3 = [P3 + PDA_IPDT_SWAPCOUNT];
 	P3 += -8;
 #endif
 	P0.L = _page_size_table;
@@ -469,10 +468,9 @@ ENTRY(_cplb_mgr)
 
 #ifdef CONFIG_CPLB_INFO
 	R7 = [P0 - 0x104];
-	P2.L = _dpdt_table;
-	P2.H = _dpdt_table;
-	P3.L = _dpdt_swapcount_table;
-	P3.H = _dpdt_swapcount_table;
+	GET_PDA(P2, R2);
+	P3 = [P2 + PDA_DPDT_SWAPCOUNT];
+	P2 = [P2 + PDA_DPDT];
 	P3 += -4;
 .Ldicount:
 	R2 = [P2];
@@ -541,11 +539,10 @@ ENTRY(_cplb_mgr)
 
 	R0 = I0;		/* Our faulting address */
 
-	P2.L = _dpdt_table;
-	P2.H = _dpdt_table;
+	GET_PDA(P3, R1);
+	P2 = [P3 + PDA_DPDT];
 #ifdef	CONFIG_CPLB_INFO
-	P3.L = _dpdt_swapcount_table;
-	P3.H = _dpdt_swapcount_table;
+	P3 = [P3 + PDA_DPDT_SWAPCOUNT];
 	P3 += -8;
 #endif
 

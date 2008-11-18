@@ -27,46 +27,20 @@
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
-#define CPLB_MEM CONFIG_MAX_MEM_SIZE
-
-/*
-* Number of required data CPLB switchtable entries
-* MEMSIZE / 4 (we mostly install 4M page size CPLBs
-* approx 16 for smaller 1MB page size CPLBs for allignment purposes
-* 1 for L1 Data Memory
-* possibly 1 for L2 Data Memory
-* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
-* 1 for ASYNC Memory
-*/
-#define MAX_SWITCH_D_CPLBS (((CPLB_MEM / 4) + 16 + 1 + 1 + 1 \
-				 + ASYNC_MEMORY_CPLB_COVERAGE) * 2)
-
-/*
-* Number of required instruction CPLB switchtable entries
-* MEMSIZE / 4 (we mostly install 4M page size CPLBs
-* approx 12 for smaller 1MB page size CPLBs for allignment purposes
-* 1 for L1 Instruction Memory
-* possibly 1 for L2 Instruction Memory
-* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
-*/
-#define MAX_SWITCH_I_CPLBS (((CPLB_MEM / 4) + 12 + 1 + 1 + 1) * 2)
-
-
-u_long icplb_table[MAX_CPLBS + 1];
-u_long dcplb_table[MAX_CPLBS + 1];
+u_long icplb_tables[NR_CPUS][CPLB_TBL_ENTRIES+1];
+u_long dcplb_tables[NR_CPUS][CPLB_TBL_ENTRIES+1];
 
 #ifdef CONFIG_CPLB_SWITCH_TAB_L1
-# define PDT_ATTR __attribute__((l1_data))
+#define PDT_ATTR __attribute__((l1_data))
 #else
-# define PDT_ATTR
+#define PDT_ATTR
 #endif
 
-u_long ipdt_table[MAX_SWITCH_I_CPLBS + 1] PDT_ATTR;
-u_long dpdt_table[MAX_SWITCH_D_CPLBS + 1] PDT_ATTR;
-
+u_long ipdt_tables[NR_CPUS][MAX_SWITCH_I_CPLBS+1] PDT_ATTR;
+u_long dpdt_tables[NR_CPUS][MAX_SWITCH_D_CPLBS+1] PDT_ATTR;
 #ifdef CONFIG_CPLB_INFO
-u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS] PDT_ATTR;
-u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS] PDT_ATTR;
+u_long ipdt_swapcount_tables[NR_CPUS][MAX_SWITCH_I_CPLBS] PDT_ATTR;
+u_long dpdt_swapcount_tables[NR_CPUS][MAX_SWITCH_D_CPLBS] PDT_ATTR;
 #endif
 
 struct s_cplb {
@@ -93,8 +67,8 @@ static struct cplb_desc cplb_data[] = {
 		.name = "Zero Pointer Guard Page",
 	},
 	{
-		.start = L1_CODE_START,
-		.end = L1_CODE_START + L1_CODE_LENGTH,
+		.start = 0,	/* dyanmic */
+		.end = 0,	/* dynamic */
 		.psize = SIZE_4M,
 		.attr = INITIAL_T | SWITCH_T | I_CPLB,
 		.i_conf = L1_IMEMORY,
@@ -103,8 +77,8 @@ static struct cplb_desc cplb_data[] = {
 		.name = "L1 I-Memory",
 	},
 	{
-		.start = L1_DATA_A_START,
-		.end = L1_DATA_B_START + L1_DATA_B_LENGTH,
+		.start = 0,	/* dynamic */
+		.end = 0,	/* dynamic */
 		.psize = SIZE_4M,
 		.attr = INITIAL_T | SWITCH_T | D_CPLB,
 		.i_conf = 0,
@@ -115,6 +89,16 @@ static struct cplb_desc cplb_data[] = {
 		.valid = 0,
 #endif
 		.name = "L1 D-Memory",
+	},
+	{
+		.start = L2_START,
+		.end = L2_START + L2_LENGTH,
+		.psize = SIZE_1M,
+		.attr = L2_ATTR,
+		.i_conf = L2_IMEMORY,
+		.d_conf = L2_DMEMORY,
+		.valid = (L2_LENGTH > 0),
+		.name = "L2 Memory",
 	},
 	{
 		.start = 0,
@@ -163,16 +147,6 @@ static struct cplb_desc cplb_data[] = {
 		.d_conf = SDRAM_EBIU,
 		.valid = 1,
 		.name = "Asynchronous Memory Banks",
-	},
-	{
-		.start = L2_START,
-		.end = L2_START + L2_LENGTH,
-		.psize = SIZE_1M,
-		.attr = SWITCH_T | I_CPLB | D_CPLB,
-		.i_conf = L2_IMEMORY,
-		.d_conf = L2_DMEMORY,
-		.valid = (L2_LENGTH > 0),
-		.name = "L2 Memory",
 	},
 	{
 		.start = BOOT_ROM_START,
@@ -310,7 +284,7 @@ __fill_data_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
 	}
 }
 
-void __init generate_cplb_tables(void)
+void __init generate_cplb_tables_cpu(unsigned int cpu)
 {
 
 	u16 i, j, process;
@@ -322,8 +296,8 @@ void __init generate_cplb_tables(void)
 
 	printk(KERN_INFO "NOMPU: setting up cplb tables for global access\n");
 
-	cplb.init_i.size = MAX_CPLBS;
-	cplb.init_d.size = MAX_CPLBS;
+	cplb.init_i.size = CPLB_TBL_ENTRIES;
+	cplb.init_d.size = CPLB_TBL_ENTRIES;
 	cplb.switch_i.size = MAX_SWITCH_I_CPLBS;
 	cplb.switch_d.size = MAX_SWITCH_D_CPLBS;
 
@@ -332,11 +306,15 @@ void __init generate_cplb_tables(void)
 	cplb.switch_i.pos = 0;
 	cplb.switch_d.pos = 0;
 
-	cplb.init_i.tab = icplb_table;
-	cplb.init_d.tab = dcplb_table;
-	cplb.switch_i.tab = ipdt_table;
-	cplb.switch_d.tab = dpdt_table;
+	cplb.init_i.tab = icplb_tables[cpu];
+	cplb.init_d.tab = dcplb_tables[cpu];
+	cplb.switch_i.tab = ipdt_tables[cpu];
+	cplb.switch_d.tab = dpdt_tables[cpu];
 
+	cplb_data[L1I_MEM].start = get_l1_code_start_cpu(cpu);
+	cplb_data[L1I_MEM].end = cplb_data[L1I_MEM].start + L1_CODE_LENGTH;
+	cplb_data[L1D_MEM].start = get_l1_data_a_start_cpu(cpu);
+	cplb_data[L1D_MEM].end = get_l1_data_b_start_cpu(cpu) + L1_DATA_B_LENGTH;
 	cplb_data[SDRAM_KERN].end = memory_end;
 
 #ifdef CONFIG_MTD_UCLINUX
@@ -459,6 +437,5 @@ void __init generate_cplb_tables(void)
 	cplb.switch_d.tab[cplb.switch_d.pos] = -1;
 
 }
-
 #endif
 

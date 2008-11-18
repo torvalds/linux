@@ -66,32 +66,32 @@ static char *cplb_print_entry(char *buf, struct cplb_entry *tbl, int switched)
 	return buf;
 }
 
-int cplbinfo_proc_output(char *buf)
+int cplbinfo_proc_output(char *buf, void *data)
 {
 	char *p;
+	unsigned int cpu = (unsigned int)data;;
 
 	p = buf;
 
-	p += sprintf(p, "------------------ CPLB Information ------------------\n\n");
-
+	p += sprintf(p, "------------- CPLB Information on CPU%u --------------\n\n", cpu);
 	if (bfin_read_IMEM_CONTROL() & ENICPLB) {
 		p += sprintf(p, "Instruction CPLB entry:\n");
-		p = cplb_print_entry(p, icplb_tbl, first_switched_icplb);
+		p = cplb_print_entry(p, icplb_tbl[cpu], first_switched_icplb);
 	} else
 		p += sprintf(p, "Instruction CPLB is disabled.\n\n");
 
 	if (1 || bfin_read_DMEM_CONTROL() & ENDCPLB) {
 		p += sprintf(p, "Data CPLB entry:\n");
-		p = cplb_print_entry(p, dcplb_tbl, first_switched_dcplb);
+		p = cplb_print_entry(p, dcplb_tbl[cpu], first_switched_dcplb);
 	} else
 		p += sprintf(p, "Data CPLB is disabled.\n");
 
 	p += sprintf(p, "ICPLB miss: %d\nICPLB supervisor miss: %d\n",
-		     nr_icplb_miss, nr_icplb_supv_miss);
+		     nr_icplb_miss[cpu], nr_icplb_supv_miss[cpu]);
 	p += sprintf(p, "DCPLB miss: %d\nDCPLB protection fault:%d\n",
-		     nr_dcplb_miss, nr_dcplb_prot);
+		     nr_dcplb_miss[cpu], nr_dcplb_prot[cpu]);
 	p += sprintf(p, "CPLB flushes: %d\n",
-		     nr_cplb_flush);
+		     nr_cplb_flush[cpu]);
 
 	return p - buf;
 }
@@ -101,7 +101,7 @@ static int cplbinfo_read_proc(char *page, char **start, off_t off,
 {
 	int len;
 
-	len = cplbinfo_proc_output(page);
+	len = cplbinfo_proc_output(page, data);
 	if (len <= off + count)
 		*eof = 1;
 	*start = page + off;
@@ -115,20 +115,33 @@ static int cplbinfo_read_proc(char *page, char **start, off_t off,
 
 static int __init cplbinfo_init(void)
 {
-	struct proc_dir_entry *entry;
+	struct proc_dir_entry *parent, *entry;
+	unsigned int cpu;
+	unsigned char str[10];
 
-	entry = create_proc_entry("cplbinfo", 0, NULL);
-	if (!entry)
-		return -ENOMEM;
+	parent = proc_mkdir("cplbinfo", NULL);
 
-	entry->read_proc = cplbinfo_read_proc;
-	entry->data = NULL;
+	for_each_online_cpu(cpu) {
+		sprintf(str, "cpu%u", cpu);
+		entry = create_proc_entry(str, 0, parent);
+		if (!entry)
+			return -ENOMEM;
+
+		entry->read_proc = cplbinfo_read_proc;
+		entry->data = (void *)cpu;
+	}
 
 	return 0;
 }
 
 static void __exit cplbinfo_exit(void)
 {
+	unsigned int cpu;
+	unsigned char str[20];
+	for_each_online_cpu(cpu) {
+		sprintf(str, "cplbinfo/cpu%u", cpu);
+		remove_proc_entry(str, NULL);
+	}
 	remove_proc_entry("cplbinfo", NULL);
 }
 
