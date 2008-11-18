@@ -42,14 +42,8 @@ IRQ.txt
 	- description of what an IRQ is.
 ManagementStyle
 	- how to (attempt to) manage kernel hackers.
-MSI-HOWTO.txt
-	- the Message Signaled Interrupts (MSI) Driver Guide HOWTO and FAQ.
 RCU/
 	- directory with info on RCU (read-copy update).
-README.DAC960
-	- info on Mylex DAC960/DAC1100 PCI RAID Controller Driver for Linux.
-README.cycladesZ
-	- info on Cyclades-Z firmware loading.
 SAK.txt
 	- info on Secure Attention Keys.
 SM501.txt
@@ -86,20 +80,16 @@ blackfin/
 	- directory with documentation for the Blackfin arch.
 block/
 	- info on the Block I/O (BIO) layer.
+blockdev/
+	- info on block devices & drivers
 cachetlb.txt
 	- describes the cache/TLB flushing interfaces Linux uses.
-cciss.txt
-	- info, major/minor #'s for Compaq's SMART Array Controllers.
 cdrom/
 	- directory with information on the CD-ROM drivers that Linux has.
-computone.txt
-	- info on Computone Intelliport II/Plus Multiport Serial Driver.
 connector/
 	- docs on the netlink based userspace<->kernel space communication mod.
 console/
 	- documentation on Linux console drivers.
-cpqarray.txt
-	- info on using Compaq's SMART2 Intelligent Disk Array Controllers.
 cpu-freq/
 	- info on CPU frequency and voltage scaling.
 cpu-hotplug.txt
@@ -126,8 +116,6 @@ device-mapper/
 	- directory with info on Device Mapper.
 devices.txt
 	- plain ASCII listing of all the nodes in /dev/ with major minor #'s.
-digiepca.txt
-	- info on Digi Intl. {PC,PCI,EISA}Xx and Xem series cards.
 dontdiff
 	- file containing a list of files that should never be diff'ed.
 driver-model/
@@ -152,14 +140,10 @@ filesystems/
 	- info on the vfs and the various filesystems that Linux supports.
 firmware_class/
 	- request_firmware() hotplug interface info.
-floppy.txt
-	- notes and driver options for the floppy disk driver.
 frv/
 	- Fujitsu FR-V Linux documentation.
 gpio.txt
 	- overview of GPIO (General Purpose Input/Output) access conventions.
-hayes-esp.txt
-	- info on using the Hayes ESP serial driver.
 highuid.txt
 	- notes on the change from 16 bit to 32 bit user/group IDs.
 timers/
@@ -186,8 +170,6 @@ io_ordering.txt
 	- info on ordering I/O writes to memory-mapped addresses.
 ioctl/
 	- directory with documents describing various IOCTL calls.
-ioctl-number.txt
-	- how to implement and register device/driver ioctl calls.
 iostats.txt
 	- info on I/O statistics Linux kernel provides.
 irqflags-tracing.txt
@@ -250,14 +232,10 @@ mips/
 	- directory with info about Linux on MIPS architecture.
 mono.txt
 	- how to execute Mono-based .NET binaries with the help of BINFMT_MISC.
-moxa-smartio
-	- file with info on installing/using Moxa multiport serial driver.
 mutex-design.txt
 	- info on the generic mutex subsystem.
 namespaces/
 	- directory with various information about namespaces
-nbd.txt
-	- info on a TCP implementation of a network block device.
 netlabel/
 	- directory with information on the NetLabel subsystem.
 networking/
@@ -270,8 +248,6 @@ numastat.txt
 	- info on how to read Numa policy hit/miss statistics in sysfs.
 oops-tracing.txt
 	- how to decode those nasty internal kernel error dump messages.
-paride.txt
-	- information about the parallel port IDE subsystem.
 parisc/
 	- directory with info on using Linux on PA-RISC architecture.
 parport.txt
@@ -294,18 +270,12 @@ printk-formats.txt
 	- how to get printk format specifiers right
 prio_tree.txt
 	- info on radix-priority-search-tree use for indexing vmas.
-ramdisk.txt
-	- short guide on how to set up and use the RAM disk.
 rbtree.txt
 	- info on what red-black trees are and what they are for.
-riscom8.txt
-	- notes on using the RISCom/8 multi-port serial driver.
 robust-futex-ABI.txt
 	- documentation of the robust futex ABI.
 robust-futexes.txt
 	- a description of what robust futexes are.
-rocket.txt
-	- info on the Comtrol RocketPort multiport serial driver.
 rt-mutex-design.txt
 	- description of the RealTime mutex implementation design.
 rt-mutex.txt
@@ -334,8 +304,6 @@ sparc/
 	- directory with info on using Linux on Sparc architecture.
 sparse.txt
 	- info on how to obtain and use the sparse tool for typechecking.
-specialix.txt
-	- info on hardware/driver for specialix IO8+ multiport serial card.
 spi/
 	- overview of Linux kernel Serial Peripheral Interface (SPI) support.
 spinlocks.txt
@@ -344,14 +312,10 @@ stable_api_nonsense.txt
 	- info on why the kernel does not have a stable in-kernel api or abi.
 stable_kernel_rules.txt
 	- rules and procedures for the -stable kernel releases.
-stallion.txt
-	- info on using the Stallion multiport serial driver.
 svga.txt
 	- short guide on selecting video modes at boot via VGA BIOS.
 sysfs-rules.txt
 	- How not to use sysfs.
-sx.txt
-	- info on the Specialix SX/SI multiport serial driver.
 sysctl/
 	- directory with info on the /proc/sys/* files.
 sysrq.txt
@@ -360,8 +324,6 @@ telephony/
 	- directory with info on telephony (e.g. voice over IP) support.
 time_interpolators.txt
 	- info on time interpolators.
-tty.txt
-	- guide to the locking policies of the tty layer.
 uml/
 	- directory with information about User Mode Linux.
 unicode.txt

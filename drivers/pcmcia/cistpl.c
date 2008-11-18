@@ -351,10 +351,11 @@ int verify_cis_cache(struct pcmcia_socket *s)
 	char *buf;
 
 	buf = kmalloc(256, GFP_KERNEL);
-	if (buf == NULL)
+	if (buf == NULL) {
 		dev_printk(KERN_WARNING, &s->dev,
 			   "no memory for verifying CIS\n");
 		return -ENOMEM;
+	}
 	list_for_each_entry(cis, &s->cis_cache, node) {
 		int len = cis->len;
 

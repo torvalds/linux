@@ -1407,6 +1407,10 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 		if (bdp->status & TXBD_DEF)
 			dev->stats.collisions++;
 
+		/* Unmap the DMA memory */
+		dma_unmap_single(&priv->dev->dev, bdp->bufPtr,
+				bdp->length, DMA_TO_DEVICE);
+
 		/* Free the sk buffer associated with this TxBD */
 		dev_kfree_skb_irq(priv->tx_skbuff[priv->skb_dirtytx]);
 
@@ -1666,6 +1670,9 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 		skb = priv->rx_skbuff[priv->skb_currx];
 
+		dma_unmap_single(&priv->dev->dev, bdp->bufPtr,
+				priv->rx_buffer_size, DMA_FROM_DEVICE);
+
 		/* We drop the frame if we failed to allocate a new buffer */
 		if (unlikely(!newskb || !(bdp->status & RXBD_LAST) ||
 				 bdp->status & RXBD_ERR)) {
@@ -1674,14 +1681,8 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 			if (unlikely(!newskb))
 				newskb = skb;
 
-			if (skb) {
-				dma_unmap_single(&priv->dev->dev,
-						bdp->bufPtr,
-						priv->rx_buffer_size,
-						DMA_FROM_DEVICE);
-
+			if (skb)
 				dev_kfree_skb_any(skb);
-			}
 		} else {
 			/* Increment the number of packets */
 			dev->stats.rx_packets++;
