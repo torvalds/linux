@@ -290,7 +290,7 @@ struct ath_tx_info_priv {
 /*
  * Attach/detach a rate control module.
  */
-struct ath_rate_softc *ath_rate_attach(struct ath_hal *ah);
+struct ath_rate_softc *ath_rate_attach(struct ath_softc *sch);
 void ath_rate_detach(struct ath_rate_softc *asc);
 
 /*
