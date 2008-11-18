@@ -26,7 +26,7 @@
 
 #include "s3c24xx-pcm.h"
 #include "s3c24xx-i2s.h"
-#include "../codecs/uda134x_codec.h"
+#include "../codecs/uda134x.h"
 
 
 /* #define ENFORCE_RATES 1 */

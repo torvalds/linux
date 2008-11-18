@@ -24,7 +24,7 @@
 #include <sound/uda134x.h>
 #include <sound/l3.h>
 
-#include "uda134x_codec.h"
+#include "uda134x.h"
 
 
 #define POWER_OFF_ON_STANDBY 1
