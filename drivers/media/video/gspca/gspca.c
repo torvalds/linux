@@ -173,7 +173,6 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	}
 
 	/* resubmit the URB */
-	urb->status = 0;
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
 		PDEBUG(D_ERR|D_PACK, "usb_submit_urb() ret %d", st);
@@ -208,7 +207,13 @@ static void bulk_irq(struct urb *urb
 	PDEBUG(D_PACK, "bulk irq");
 	if (!gspca_dev->streaming)
 		return;
-	if (urb->status != 0 && urb->status != -ECONNRESET) {
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ECONNRESET:
+		urb->status = 0;
+		break;
+	default:
 #ifdef CONFIG_PM
 		if (!gspca_dev->frozen)
 #endif
