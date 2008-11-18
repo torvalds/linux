@@ -59,12 +59,7 @@ static char *cplb_print_entry(char *buf, cplb_type type, unsigned int cpu)
 
 #else
 
-static int page_size_table[4] = {
-	0x00000400,		/* 1K */
-	0x00001000,		/* 4K */
-	0x00100000,		/* 1M */
-	0x00400000		/* 4M */
-};
+extern int page_size_table[];
 
 static int cplb_find_entry(unsigned long *cplb_addr,
 			   unsigned long *cplb_data, unsigned long addr,

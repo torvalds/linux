@@ -629,15 +629,20 @@ ENTRY(_cplb_mgr)
 	RTS;
 ENDPROC(_cplb_mgr)
 
+#ifdef CONFIG_CPLB_SWITCH_TAB_L1
+.section .l1.data
+#else
 .data
-.align 4;
-_page_size_table:
+#endif
+
+ENTRY(_page_size_table)
 .byte4	0x00000400;	/* 1K */
 .byte4	0x00001000;	/* 4K */
 .byte4	0x00100000;	/* 1M */
 .byte4	0x00400000;	/* 4M */
+END(_page_size_table)
 
-.align 4;
-_dcplb_preference:
+ENTRY(_dcplb_preference)
 .byte4	0x00000001;	/* valid bit */
 .byte4	0x00000002;	/* lock bit */
+END(_dcplb_preference)
