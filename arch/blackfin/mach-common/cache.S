@@ -97,39 +97,3 @@ ENTRY(_blackfin_dflush_page)
 	P1 = 1 << (PAGE_SHIFT - L1_CACHE_SHIFT);
 	jump .Ldfr;
 ENDPROC(_blackfin_dflush_page)
-
-/* Invalidate the Entire Data cache by
- * clearing DMC[1:0] bits
- */
-ENTRY(_blackfin_invalidate_entire_dcache)
-	[--SP] = ( R7:5);
-
-	P0.L = LO(DMEM_CONTROL);
-	P0.H = HI(DMEM_CONTROL);
-	R7 = [P0];
-	R5 = R7;	/* Save DMEM_CNTR */
-
-	/* Clear the DMC[1:0] bits, All valid bits in the data
-	 * cache are set to the invalid state
-	 */
-	BITCLR(R7,DMC0_P);
-	BITCLR(R7,DMC1_P);
-	CLI R6;
-	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
-	.align 8;
-	[P0] = R7;
-	SSYNC;
-	STI R6;
-
-	/* Configures the data cache again */
-
-	CLI R6;
-	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
-	.align 8;
-	[P0] = R5;
-	SSYNC;
-	STI R6;
-
-	( R7:5) = [SP++];
-	RTS;
-ENDPROC(_blackfin_invalidate_entire_dcache)

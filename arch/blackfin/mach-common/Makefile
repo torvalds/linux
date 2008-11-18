@@ -3,7 +3,7 @@
 #
 
 obj-y := \
-	cache.o entry.o head.o \
+	cache.o cache-c.o entry.o head.o \
 	interrupt.o irqpanic.o arch_checks.o ints-priority.o
 
 obj-$(CONFIG_BFIN_ICACHE_LOCK) += lock.o
