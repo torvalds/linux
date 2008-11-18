@@ -159,6 +159,8 @@ static inline uint32_t __pure bfin_compiled_revid(void)
 	return 4;
 #elif defined(CONFIG_BF_REV_0_5)
 	return 5;
+#elif defined(CONFIG_BF_REV_0_6)
+	return 6;
 #elif defined(CONFIG_BF_REV_ANY)
 	return 0xffff;
 #else

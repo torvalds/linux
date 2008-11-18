@@ -87,9 +87,9 @@
 #define gpio_bank(x) 	((x) >> 4)
 #define gpio_bit(x)  	(1<<((x) & 0xF))
 #define gpio_sub_n(x) 	((x) & 0xF)
-#define GPIO_BANK_NUM 	DIV_ROUND_UP(MAX_BLACKFIN_GPIOS, 16)
 
-#define GPIO_BANKSIZE 16
+#define GPIO_BANKSIZE 	16
+#define GPIO_BANK_NUM 	DIV_ROUND_UP(MAX_BLACKFIN_GPIOS, GPIO_BANKSIZE)
 
 #define	GPIO_0	0
 #define	GPIO_1	1
