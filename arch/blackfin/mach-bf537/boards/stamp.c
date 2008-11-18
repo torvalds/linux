@@ -528,7 +528,7 @@ static struct bfin5xx_spi_chip ad9960_spi_chip_info = {
 
 #if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
 static struct bfin5xx_spi_chip spi_mmc_chip_info = {
-	.enable_dma = 1,
+	.enable_dma = 0,
 	.bits_per_word = 8,
 };
 #endif
