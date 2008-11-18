@@ -799,6 +799,12 @@ struct btrfs_root {
 	spinlock_t list_lock;
 	struct list_head dead_list;
 	struct list_head orphan_list;
+
+	/*
+	 * right now this just gets used so that a root has its own devid
+	 * for stat.  It may be used for more later
+	 */
+	struct super_block anon_super;
 };
 
 /*

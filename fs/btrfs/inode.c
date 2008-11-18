@@ -2212,7 +2212,12 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct btrfs_trans_handle *trans;
 	unsigned long nr = 0;
 
-	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE) {
+	/*
+	 * the FIRST_FREE_OBJECTID check makes sure we don't try to rmdir
+	 * the root of a subvolume or snapshot
+	 */
+	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE ||
+	    inode->i_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		return -ENOTEMPTY;
 	}
 
@@ -4410,7 +4415,6 @@ int btrfs_create_subvol_root(struct btrfs_root *new_root, struct dentry *dentry,
 	if (error)
 		return error;
 
-	atomic_inc(&inode->i_count);
 	d_instantiate(dentry, inode);
 	return 0;
 }
@@ -4548,6 +4552,7 @@ static int btrfs_getattr(struct vfsmount *mnt,
 {
 	struct inode *inode = dentry->d_inode;
 	generic_fillattr(inode, stat);
+	stat->dev = BTRFS_I(inode)->root->anon_super.s_dev;
 	stat->blksize = PAGE_CACHE_SIZE;
 	stat->blocks = (inode_get_bytes(inode) +
 			BTRFS_I(inode)->delalloc_bytes) >> 9;
@@ -4564,6 +4569,11 @@ static int btrfs_rename(struct inode * old_dir, struct dentry *old_dentry,
 	struct timespec ctime = CURRENT_TIME;
 	u64 index = 0;
 	int ret;
+
+	/* we're not allowed to rename between subvolumes */
+	if (BTRFS_I(old_inode)->root->root_key.objectid !=
+	    BTRFS_I(new_dir)->root->root_key.objectid)
+		return -EXDEV;
 
 	if (S_ISDIR(old_inode->i_mode) && new_inode &&
 	    new_inode->i_size > BTRFS_EMPTY_DIR_SIZE) {
@@ -4920,6 +4930,7 @@ static int btrfs_permission(struct inode *inode, int mask)
 }
 
 static struct inode_operations btrfs_dir_inode_operations = {
+	.getattr	= btrfs_getattr,
 	.lookup		= btrfs_lookup,
 	.create		= btrfs_create,
 	.unlink		= btrfs_unlink,

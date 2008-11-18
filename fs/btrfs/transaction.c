@@ -832,13 +832,13 @@ static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
 	struct inode *parent_inode;
 	struct inode *inode;
 
-	trans = btrfs_start_transaction(fs_info->fs_root, 1);
+	parent_inode = pending->dentry->d_parent->d_inode;
+	trans = btrfs_start_transaction(BTRFS_I(parent_inode)->root, 1);
 
 	/*
 	 * insert the directory item
 	 */
 	namelen = strlen(pending->name);
-	parent_inode = pending->dentry->d_parent->d_inode;
 	ret = btrfs_set_inode_index(parent_inode, &index);
 	ret = btrfs_insert_dir_item(trans,
 			    BTRFS_I(parent_inode)->root,

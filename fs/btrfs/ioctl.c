@@ -127,7 +127,6 @@ static noinline int create_subvol(struct btrfs_root *root,
 	key.objectid = objectid;
 	key.offset = 1;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
-printk("inserting root objectid %Lu\n", objectid);
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&root_item);
 	if (ret)
@@ -175,7 +174,6 @@ fail:
 		ret = err;
 fail_commit:
 	btrfs_btree_balance_dirty(root, nr);
-printk("all done ret %d\n", ret);
 	return ret;
 }
 

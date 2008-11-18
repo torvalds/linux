@@ -877,6 +877,12 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->defrag_running = 0;
 	root->defrag_level = 0;
 	root->root_key.objectid = objectid;
+	root->anon_super.s_root = NULL;
+	root->anon_super.s_dev = 0;
+	INIT_LIST_HEAD(&root->anon_super.s_list);
+	INIT_LIST_HEAD(&root->anon_super.s_instances);
+	init_rwsem(&root->anon_super.s_umount);
+
 	return 0;
 }
 
@@ -1083,6 +1089,9 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 	root = btrfs_read_fs_root_no_radix(fs_info->tree_root, location);
 	if (IS_ERR(root))
 		return root;
+
+	set_anon_super(&root->anon_super, NULL);
+
 	ret = radix_tree_insert(&fs_info->fs_roots_radix,
 				(unsigned long)root->root_key.objectid,
 				root);
@@ -1950,6 +1959,10 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 {
 	radix_tree_delete(&fs_info->fs_roots_radix,
 			  (unsigned long)root->root_key.objectid);
+	if (root->anon_super.s_dev) {
+		down_write(&root->anon_super.s_umount);
+		kill_anon_super(&root->anon_super);
+	}
 	if (root->in_sysfs)
 		btrfs_sysfs_del_root(root);
 	if (root->node)
