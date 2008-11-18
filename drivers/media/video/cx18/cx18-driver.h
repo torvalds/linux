@@ -446,6 +446,10 @@ struct cx18 {
 	/* when the current DMA is finished this queue is woken up */
 	wait_queue_head_t dma_waitq;
 
+	u32 sw1_irq_mask;
+	u32 sw2_irq_mask;
+	u32 hw2_irq_mask;
+
 	struct cx18_epu_work_order epu_work_order[CX18_MAX_EPU_WORK_ORDERS];
 	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
 

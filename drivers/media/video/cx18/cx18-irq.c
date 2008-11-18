@@ -44,16 +44,11 @@ static void epu_cmd(struct cx18 *cx, u32 sw1)
 irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 {
 	struct cx18 *cx = (struct cx18 *)dev_id;
-	u32 sw1, sw1_mask;
-	u32 sw2, sw2_mask;
-	u32 hw2, hw2_mask;
+	u32 sw1, sw2, hw2;
 
-	sw1_mask = cx18_read_reg(cx, SW1_INT_ENABLE_PCI);
-	sw1 = cx18_read_reg(cx, SW1_INT_STATUS) & sw1_mask;
-	sw2_mask = cx18_read_reg(cx, SW2_INT_ENABLE_PCI);
-	sw2 = cx18_read_reg(cx, SW2_INT_STATUS) & sw2_mask;
-	hw2_mask = cx18_read_reg(cx, HW2_INT_MASK5_PCI);
-	hw2 = cx18_read_reg(cx, HW2_INT_CLR_STATUS) & hw2_mask;
+	sw1 = cx18_read_reg(cx, SW1_INT_STATUS) & cx->sw1_irq_mask;
+	sw2 = cx18_read_reg(cx, SW2_INT_STATUS) & cx->sw2_irq_mask;
+	hw2 = cx18_read_reg(cx, HW2_INT_CLR_STATUS) & cx->hw2_irq_mask;
 
 	if (sw1)
 		cx18_write_reg_expect(cx, sw1, SW1_INT_STATUS, ~sw1, sw1);

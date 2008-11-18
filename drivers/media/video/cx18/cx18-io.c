@@ -71,32 +71,28 @@ void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count)
 
 void cx18_sw1_irq_enable(struct cx18 *cx, u32 val)
 {
-	u32 r;
 	cx18_write_reg_expect(cx, val, SW1_INT_STATUS, ~val, val);
-	r = cx18_read_reg(cx, SW1_INT_ENABLE_PCI);
-	cx18_write_reg(cx, r | val, SW1_INT_ENABLE_PCI);
+	cx->sw1_irq_mask = cx18_read_reg(cx, SW1_INT_ENABLE_PCI) | val;
+	cx18_write_reg(cx, cx->sw1_irq_mask, SW1_INT_ENABLE_PCI);
 }
 
 void cx18_sw1_irq_disable(struct cx18 *cx, u32 val)
 {
-	u32 r;
-	r = cx18_read_reg(cx, SW1_INT_ENABLE_PCI);
-	cx18_write_reg(cx, r & ~val, SW1_INT_ENABLE_PCI);
+	cx->sw1_irq_mask = cx18_read_reg(cx, SW1_INT_ENABLE_PCI) & ~val;
+	cx18_write_reg(cx, cx->sw1_irq_mask, SW1_INT_ENABLE_PCI);
 }
 
 void cx18_sw2_irq_enable(struct cx18 *cx, u32 val)
 {
-	u32 r;
 	cx18_write_reg_expect(cx, val, SW2_INT_STATUS, ~val, val);
-	r = cx18_read_reg(cx, SW2_INT_ENABLE_PCI);
-	cx18_write_reg(cx, r | val, SW2_INT_ENABLE_PCI);
+	cx->sw2_irq_mask = cx18_read_reg(cx, SW2_INT_ENABLE_PCI) | val;
+	cx18_write_reg(cx, cx->sw2_irq_mask, SW2_INT_ENABLE_PCI);
 }
 
 void cx18_sw2_irq_disable(struct cx18 *cx, u32 val)
 {
-	u32 r;
-	r = cx18_read_reg(cx, SW2_INT_ENABLE_PCI);
-	cx18_write_reg(cx, r & ~val, SW2_INT_ENABLE_PCI);
+	cx->sw2_irq_mask = cx18_read_reg(cx, SW2_INT_ENABLE_PCI) & ~val;
+	cx18_write_reg(cx, cx->sw2_irq_mask, SW2_INT_ENABLE_PCI);
 }
 
 void cx18_sw2_irq_disable_cpu(struct cx18 *cx, u32 val)

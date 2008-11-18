@@ -399,7 +399,12 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 	order->flags = 0;
 	order->rpu = rpu;
 	order_mb = &order->mb;
-	cx18_memcpy_fromio(cx, order_mb, mb, sizeof(struct cx18_mailbox));
+
+	/* mb->cmd and mb->args[0] through mb->args[2] */
+	cx18_memcpy_fromio(cx, &order_mb->cmd, &mb->cmd, 4 * sizeof(u32));
+	/* mb->request and mb->ack.  N.B. we want to read mb->ack last */
+	cx18_memcpy_fromio(cx, &order_mb->request, &mb->request,
+			   2 * sizeof(u32));
 
 	if (order_mb->request == order_mb->ack) {
 		CX18_WARN("Possibly falling behind: %s self-ack'ed our incoming"
