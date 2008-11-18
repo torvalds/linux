@@ -27,6 +27,11 @@ struct ath_softc;
 #define RATE_TABLE_SIZE  64
 #define MAX_TX_RATE_PHY  48
 
+/* VALID_ALL - valid for 20/40/Legacy,
+ * VALID - Legacy only,
+ * VALID_20 - HT 20 only,
+ * VALID_40 - HT 40 only */
+
 #define INVALID    0x0
 #define VALID      0x1
 #define VALID_20   0x2
