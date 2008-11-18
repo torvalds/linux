@@ -443,4 +443,45 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 #define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
 
+/*
+ * CEA Short Audio Descriptor data
+ */
+struct cea_sad {
+	int	channels;
+	int	format;		/* (format == 0) indicates invalid SAD */
+	int	rates;
+	int	sample_bits;	/* for LPCM */
+	int	max_bitrate;	/* for AC3...ATRAC */
+	int	profile;	/* for WMAPRO */
+};
+
+#define ELD_FIXED_BYTES	20
+#define ELD_MAX_MNL	16
+#define ELD_MAX_SAD	16
+
+/*
+ * ELD: EDID Like Data
+ */
+struct sink_eld {
+	int	eld_size;
+	int	baseline_len;
+	int	eld_ver;	/* (eld_ver == 0) indicates invalid ELD */
+	int	cea_edid_ver;
+	char	monitor_name[ELD_MAX_MNL + 1];
+	int	manufacture_id;
+	int	product_id;
+	u64	port_id;
+	int	support_hdcp;
+	int	support_ai;
+	int	conn_type;
+	int	aud_synch_delay;
+	int	spk_alloc;
+	int	sad_count;
+	struct cea_sad sad[ELD_MAX_SAD];
+};
+
+int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
+int snd_hdmi_get_eld(struct sink_eld *, struct hda_codec *, hda_nid_t);
+void snd_hdmi_show_eld(struct sink_eld *eld);
+
 #endif /* __SOUND_HDA_LOCAL_H */

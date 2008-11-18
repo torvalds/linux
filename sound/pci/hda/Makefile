@@ -4,6 +4,7 @@ snd-hda-intel-y := hda_intel.o
 # designed to be individual modules
 snd-hda-intel-y += hda_codec.o
 snd-hda-intel-$(CONFIG_PROC_FS) += hda_proc.o
+snd-hda-intel-$(CONFIG_SND_HDA_ELD) += hda_eld.o
 snd-hda-intel-$(CONFIG_SND_HDA_HWDEP) += hda_hwdep.o
 snd-hda-intel-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
 snd-hda-intel-$(CONFIG_SND_HDA_GENERIC) += hda_generic.o
