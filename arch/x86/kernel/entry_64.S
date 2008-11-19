@@ -242,6 +242,78 @@ ENTRY(native_usergs_sysret64)
 	CFI_REL_OFFSET	rsp,RSP
 	/*CFI_REL_OFFSET	ss,SS*/
 	.endm
+
+/*
+ * initial frame state for interrupts and exceptions
+ */
+	.macro _frame ref
+	CFI_STARTPROC simple
+	CFI_SIGNAL_FRAME
+	CFI_DEF_CFA rsp,SS+8-\ref
+	/*CFI_REL_OFFSET ss,SS-\ref*/
+	CFI_REL_OFFSET rsp,RSP-\ref
+	/*CFI_REL_OFFSET rflags,EFLAGS-\ref*/
+	/*CFI_REL_OFFSET cs,CS-\ref*/
+	CFI_REL_OFFSET rip,RIP-\ref
+	.endm
+
+/*
+ * initial frame state for interrupts (and exceptions without error code)
+ */
+#define INTR_FRAME _frame RIP
+/*
+ * initial frame state for exceptions with error code (and interrupts
+ * with vector already pushed)
+ */
+#define XCPT_FRAME _frame ORIG_RAX
+
+/* save partial stack frame */
+ENTRY(save_args)
+	XCPT_FRAME
+	cld
+	movq  %rdi, 8*8+16(%rsp)
+	CFI_REL_OFFSET rdi, 8*8+16
+	movq  %rsi, 7*8+16(%rsp)
+	CFI_REL_OFFSET rsi, 7*8+16
+	movq  %rdx, 6*8+16(%rsp)
+	CFI_REL_OFFSET rdx, 6*8+16
+	movq  %rcx, 5*8+16(%rsp)
+	CFI_REL_OFFSET rcx, 5*8+16
+	movq  %rax, 4*8+16(%rsp)
+	CFI_REL_OFFSET rax, 4*8+16
+	movq  %r8, 3*8+16(%rsp)
+	CFI_REL_OFFSET r8, 3*8+16
+	movq  %r9, 2*8+16(%rsp)
+	CFI_REL_OFFSET r9, 2*8+16
+	movq  %r10, 1*8+16(%rsp)
+	CFI_REL_OFFSET r10, 1*8+16
+	movq  %r11, 0*8+16(%rsp)
+	CFI_REL_OFFSET r11, 0*8+16
+	leaq -ARGOFFSET+16(%rsp),%rdi	/* arg1 for handler */
+	movq %rbp, 8(%rsp)		/* push %rbp */
+	leaq 8(%rsp), %rbp		/* mov %rsp, %ebp */
+	testl $3, CS(%rdi)
+	je 1f
+	SWAPGS
+	/*
+	 * irqcount is used to check if a CPU is already on an interrupt stack
+	 * or not. While this is essentially redundant with preempt_count it is
+	 * a little cheaper to use a separate counter in the PDA (short of
+	 * moving irq_enter into assembly, which would be too much work)
+	 */
+1:	incl %gs:pda_irqcount
+	jne 2f
+	pop %rax			/* move return address... */
+	mov %gs:pda_irqstackptr,%rsp
+	push %rax			/* ... to the new stack */
+	/*
+	 * We entered an interrupt context - irqs are off:
+	 */
+2:	TRACE_IRQS_OFF
+	ret
+	CFI_ENDPROC
+END(save_args)
+
 /*
  * A newly forked process directly context switches into this.
  */
@@ -608,26 +680,6 @@ ENTRY(stub_rt_sigreturn)
 END(stub_rt_sigreturn)
 
 /*
- * initial frame state for interrupts and exceptions
- */
-	.macro _frame ref
-	CFI_STARTPROC simple
-	CFI_SIGNAL_FRAME
-	CFI_DEF_CFA rsp,SS+8-\ref
-	/*CFI_REL_OFFSET ss,SS-\ref*/
-	CFI_REL_OFFSET rsp,RSP-\ref
-	/*CFI_REL_OFFSET rflags,EFLAGS-\ref*/
-	/*CFI_REL_OFFSET cs,CS-\ref*/
-	CFI_REL_OFFSET rip,RIP-\ref
-	.endm
-
-/* initial frame state for interrupts (and exceptions without error code) */
-#define INTR_FRAME _frame RIP
-/* initial frame state for exceptions with error code (and interrupts with
-   vector already pushed) */
-#define XCPT_FRAME _frame ORIG_RAX
-
-/*
  * Build the entry stubs and pointer table with some assembler magic.
  * We pack 7 stubs into a single 32-byte chunk, which will fit in a
  * single cache line on all modern x86 implementations.
@@ -667,46 +719,19 @@ END(irq_entries_start)
 END(interrupt)
 .previous
 
-/* 
+/*
  * Interrupt entry/exit.
  *
  * Interrupt entry points save only callee clobbered registers in fast path.
- *	
- * Entry runs with interrupts off.	
- */ 
+ *
+ * Entry runs with interrupts off.
+ */
 
 /* 0(%rsp): ~(interrupt number) */
 	.macro interrupt func
-	cld
-	SAVE_ARGS
-	leaq -ARGOFFSET(%rsp),%rdi	/* arg1 for handler */
-	pushq %rbp
-	/*
-	 * Save rbp twice: One is for marking the stack frame, as usual, and the
-	 * other, to fill pt_regs properly. This is because bx comes right
-	 * before the last saved register in that structure, and not bp. If the
-	 * base pointer were in the place bx is today, this would not be needed.
-	 */
-	movq %rbp, -8(%rsp)
-	CFI_ADJUST_CFA_OFFSET	8
-	CFI_REL_OFFSET		rbp, 0
-	movq %rsp,%rbp
-	CFI_DEF_CFA_REGISTER	rbp
-	testl $3,CS(%rdi)
-	je 1f
-	SWAPGS
-	/* irqcount is used to check if a CPU is already on an interrupt
-	   stack or not. While this is essentially redundant with preempt_count
-	   it is a little cheaper to use a separate counter in the PDA
-	   (short of moving irq_enter into assembly, which would be too
-	    much work) */
-1:	incl	%gs:pda_irqcount
-	cmoveq %gs:pda_irqstackptr,%rsp
-	push    %rbp			# backlink for old unwinder
-	/*
-	 * We entered an interrupt context - irqs are off:
-	 */
-	TRACE_IRQS_OFF
+	subq $10*8, %rsp
+	CFI_ADJUST_CFA_OFFSET 10*8
+	call save_args
 	call \func
 	.endm
 
@@ -852,6 +877,8 @@ END(common_interrupt)
 /*
  * APIC interrupts.
  */
+	.p2align 5
+
 	.macro apicinterrupt num,func
 	INTR_FRAME
 	pushq $~(\num)
@@ -922,24 +949,29 @@ END(spurious_interrupt)
 	.macro zeroentry sym
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	pushq $0	/* push error code/oldrax */
+	pushq $-1		/* ORIG_RAX: no syscall to restart */
 	CFI_ADJUST_CFA_OFFSET 8
-	pushq %rax	/* push real oldrax to the rdi slot */
-	CFI_ADJUST_CFA_OFFSET 8
-	CFI_REL_OFFSET rax,0
-	leaq  \sym(%rip),%rax
-	jmp error_entry
+	subq $15*8,%rsp
+	CFI_ADJUST_CFA_OFFSET 15*8
+	call error_entry
+	movq %rsp,%rdi		/* pt_regs pointer */
+	xorl %esi,%esi		/* no error code */
+	call \sym
+	jmp error_exit		/* %ebx: no swapgs flag */
 	CFI_ENDPROC
 	.endm
 
 	.macro errorentry sym
 	XCPT_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	pushq %rax
-	CFI_ADJUST_CFA_OFFSET 8
-	CFI_REL_OFFSET rax,0
-	leaq  \sym(%rip),%rax
-	jmp error_entry
+	subq $15*8,%rsp
+	CFI_ADJUST_CFA_OFFSET 15*8
+	call error_entry
+	movq %rsp,%rdi			/* pt_regs pointer */
+	movq ORIG_RAX(%rsp),%rsi	/* get error code */
+	movq $-1,ORIG_RAX(%rsp)		/* no syscall to restart */
+	call \sym
+	jmp error_exit			/* %ebx: no swapgs flag */
 	CFI_ENDPROC
 	.endm
 
@@ -1043,93 +1075,93 @@ paranoid_schedule\trace:
 	.endm
 
 /*
- * Exception entry point. This expects an error code/orig_rax on the stack
- * and the exception handler in %rax.
+ * Exception entry point. This expects an error code/orig_rax on the stack.
+ * returns in "no swapgs flag" in %ebx.
  */
 KPROBE_ENTRY(error_entry)
 	_frame RDI
-	CFI_REL_OFFSET rax,0
-	/* rdi slot contains rax, oldrax contains error code */
+	CFI_ADJUST_CFA_OFFSET 15*8
+	/* oldrax contains error code */
 	cld
-	subq  $14*8,%rsp
-	CFI_ADJUST_CFA_OFFSET	(14*8)
-	movq %rsi,13*8(%rsp)
-	CFI_REL_OFFSET	rsi,RSI
-	movq 14*8(%rsp),%rsi	/* load rax from rdi slot */
-	CFI_REGISTER	rax,rsi
-	movq %rdx,12*8(%rsp)
-	CFI_REL_OFFSET	rdx,RDX
-	movq %rcx,11*8(%rsp)
-	CFI_REL_OFFSET	rcx,RCX
-	movq %rsi,10*8(%rsp)	/* store rax */
-	CFI_REL_OFFSET	rax,RAX
-	movq %r8, 9*8(%rsp)
-	CFI_REL_OFFSET	r8,R8
-	movq %r9, 8*8(%rsp)
-	CFI_REL_OFFSET	r9,R9
-	movq %r10,7*8(%rsp)
-	CFI_REL_OFFSET	r10,R10
-	movq %r11,6*8(%rsp)
-	CFI_REL_OFFSET	r11,R11
-	movq %rbx,5*8(%rsp)
-	CFI_REL_OFFSET	rbx,RBX
-	movq %rbp,4*8(%rsp)
-	CFI_REL_OFFSET	rbp,RBP
-	movq %r12,3*8(%rsp)
-	CFI_REL_OFFSET	r12,R12
-	movq %r13,2*8(%rsp)
-	CFI_REL_OFFSET	r13,R13
-	movq %r14,1*8(%rsp)
-	CFI_REL_OFFSET	r14,R14
-	movq %r15,(%rsp)
-	CFI_REL_OFFSET	r15,R15
+	movq %rdi,14*8+8(%rsp)
+	CFI_REL_OFFSET rdi,RDI+8
+	movq %rsi,13*8+8(%rsp)
+	CFI_REL_OFFSET rsi,RSI+8
+	movq %rdx,12*8+8(%rsp)
+	CFI_REL_OFFSET rdx,RDX+8
+	movq %rcx,11*8+8(%rsp)
+	CFI_REL_OFFSET rcx,RCX+8
+	movq %rax,10*8+8(%rsp)
+	CFI_REL_OFFSET rax,RAX+8
+	movq %r8, 9*8+8(%rsp)
+	CFI_REL_OFFSET r8,R8+8
+	movq %r9, 8*8+8(%rsp)
+	CFI_REL_OFFSET r9,R9+8
+	movq %r10,7*8+8(%rsp)
+	CFI_REL_OFFSET r10,R10+8
+	movq %r11,6*8+8(%rsp)
+	CFI_REL_OFFSET r11,R11+8
+	movq %rbx,5*8+8(%rsp)
+	CFI_REL_OFFSET rbx,RBX+8
+	movq %rbp,4*8+8(%rsp)
+	CFI_REL_OFFSET rbp,RBP+8
+	movq %r12,3*8+8(%rsp)
+	CFI_REL_OFFSET r12,R12+8
+	movq %r13,2*8+8(%rsp)
+	CFI_REL_OFFSET r13,R13+8
+	movq %r14,1*8+8(%rsp)
+	CFI_REL_OFFSET r14,R14+8
+	movq %r15,0*8+8(%rsp)
+	CFI_REL_OFFSET r15,R15+8
 	xorl %ebx,%ebx
-	testl $3,CS(%rsp)
-	je  error_kernelspace
+	testl $3,CS+8(%rsp)
+	je error_kernelspace
 error_swapgs:
 	SWAPGS
 error_sti:
 	TRACE_IRQS_OFF
-	movq %rdi,RDI(%rsp)
-	CFI_REL_OFFSET	rdi,RDI
-	movq %rsp,%rdi
-	movq ORIG_RAX(%rsp),%rsi	/* get error code */
-	movq $-1,ORIG_RAX(%rsp)
-	call *%rax
-	/* ebx:	no swapgs flag (1: don't need swapgs, 0: need it) */
-error_exit:
+	ret
+	CFI_ENDPROC
+
+/*
+ * There are two places in the kernel that can potentially fault with
+ * usergs. Handle them here. The exception handlers after iret run with
+ * kernel gs again, so don't set the user space flag. B stepping K8s
+ * sometimes report an truncated RIP for IRET exceptions returning to
+ * compat mode. Check for these here too.
+ */
+error_kernelspace:
+	incl %ebx
+	leaq irq_return(%rip),%rcx
+	cmpq %rcx,RIP+8(%rsp)
+	je error_swapgs
+	movl %ecx,%ecx	/* zero extend */
+	cmpq %rcx,RIP+8(%rsp)
+	je error_swapgs
+	cmpq $gs_change,RIP+8(%rsp)
+        je error_swapgs
+	jmp error_sti
+KPROBE_END(error_entry)
+
+
+/* ebx:	no swapgs flag (1: don't need swapgs, 0: need it) */
+KPROBE_ENTRY(error_exit)
+	_frame R15
 	movl %ebx,%eax
 	RESTORE_REST
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	GET_THREAD_INFO(%rcx)
 	testl %eax,%eax
-	jne  retint_kernel
+	jne retint_kernel
 	LOCKDEP_SYS_EXIT_IRQ
-	movl  TI_flags(%rcx),%edx
-	movl  $_TIF_WORK_MASK,%edi
-	andl  %edi,%edx
-	jnz  retint_careful
+	movl TI_flags(%rcx),%edx
+	movl $_TIF_WORK_MASK,%edi
+	andl %edi,%edx
+	jnz retint_careful
 	jmp retint_swapgs
 	CFI_ENDPROC
-
-error_kernelspace:
-	incl %ebx
-       /* There are two places in the kernel that can potentially fault with
-          usergs. Handle them here. The exception handlers after
-	   iret run with kernel gs again, so don't set the user space flag.
-	   B stepping K8s sometimes report an truncated RIP for IRET
-	   exceptions returning to compat mode. Check for these here too. */
-	leaq irq_return(%rip),%rcx
-	cmpq %rcx,RIP(%rsp)
-	je   error_swapgs
-	movl %ecx,%ecx	/* zero extend */
-	cmpq %rcx,RIP(%rsp)
-	je   error_swapgs
-	cmpq $gs_change,RIP(%rsp)
-        je   error_swapgs
-	jmp  error_sti
-KPROBE_END(error_entry)
+KPROBE_END(error_exit)
 
        /* Reload gs selector with exception handling */
        /* edi:  new selector */
