@@ -267,8 +267,8 @@ static void hdmi_update_short_audio_desc(struct cea_sad *a,
 /*
  * Be careful, ELD buf could be totally rubbish!
  */
-static int hdmi_update_sink_eld(struct sink_eld *e,
-				const unsigned char *buf, int size)
+static int hdmi_update_eld(struct hdmi_eld *e,
+			   const unsigned char *buf, int size)
 {
 	int mnl;
 	int i;
@@ -351,7 +351,7 @@ int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid)
 						 AC_DIPSIZE_ELD_BUF);
 }
 
-int snd_hdmi_get_eld(struct sink_eld *eld,
+int snd_hdmi_get_eld(struct hdmi_eld *eld,
 		     struct hda_codec *codec, hda_nid_t nid)
 {
 	int i;
@@ -380,7 +380,7 @@ int snd_hdmi_get_eld(struct sink_eld *eld,
 	for (i = 0; i < size; i++)
 		buf[i] = hdmi_get_eld_byte(codec, nid, i);
 
-	ret = hdmi_update_sink_eld(eld, buf, size);
+	ret = hdmi_update_eld(eld, buf, size);
 
 	kfree(buf);
 	return ret;
@@ -421,7 +421,7 @@ void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
 	buf[j] = '\0';	/* necessary when j == 0 */
 }
 
-void snd_hdmi_show_eld(struct sink_eld *e)
+void snd_hdmi_show_eld(struct hdmi_eld *e)
 {
 	int i;
 	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
@@ -482,7 +482,7 @@ static void hdmi_print_sad_info(int i, struct cea_sad *a,
 static void hdmi_print_eld_info(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer)
 {
-	struct sink_eld *e = entry->private_data;
+	struct hdmi_eld *e = entry->private_data;
 	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
 	int i;
 
@@ -509,7 +509,7 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 		hdmi_print_sad_info(i, e->sad + i, buffer);
 }
 
-int snd_hda_eld_proc_new(struct hda_codec *codec, struct sink_eld *eld)
+int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld)
 {
 	char name[32];
 	struct snd_info_entry *entry;

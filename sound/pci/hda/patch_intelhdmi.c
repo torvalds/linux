@@ -42,7 +42,7 @@
 struct intel_hdmi_spec {
 	struct hda_multi_out multiout;
 	struct hda_pcm pcm_rec;
-	struct sink_eld sink;
+	struct hdmi_eld sink_eld;
 };
 
 static struct hda_verb pinout_enable_verb[] = {
@@ -308,7 +308,7 @@ static void hdmi_debug_channel_mapping(struct hda_codec *codec)
 static void hdmi_parse_eld(struct hda_codec *codec)
 {
 	struct intel_hdmi_spec *spec = codec->spec;
-	struct sink_eld *eld = &spec->sink;
+	struct hdmi_eld *eld = &spec->sink_eld;
 
 	if (!snd_hdmi_get_eld(eld, codec, PIN_NID))
 		snd_hdmi_show_eld(eld);
@@ -411,7 +411,7 @@ static int hdmi_setup_channel_allocation(struct hda_codec *codec,
 					 struct hdmi_audio_infoframe *ai)
 {
 	struct intel_hdmi_spec *spec = codec->spec;
-	struct sink_eld *eld = &spec->sink;
+	struct hdmi_eld *eld = &spec->sink_eld;
 	int i;
 	int spk_mask = 0;
 	int channels = 1 + (ai->CC02_CT47 & 0x7);
@@ -663,7 +663,7 @@ static int patch_intel_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	codec->patch_ops = intel_hdmi_patch_ops;
 
-	snd_hda_eld_proc_new(codec, &spec->sink);
+	snd_hda_eld_proc_new(codec, &spec->sink_eld);
 
 	init_channel_allocations();
 

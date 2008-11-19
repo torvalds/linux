@@ -462,7 +462,7 @@ struct cea_sad {
 /*
  * ELD: EDID Like Data
  */
-struct sink_eld {
+struct hdmi_eld {
 	int	eld_size;
 	int	baseline_len;
 	int	eld_ver;	/* (eld_ver == 0) indicates invalid ELD */
@@ -481,13 +481,13 @@ struct sink_eld {
 };
 
 int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
-int snd_hdmi_get_eld(struct sink_eld *, struct hda_codec *, hda_nid_t);
-void snd_hdmi_show_eld(struct sink_eld *eld);
+int snd_hdmi_get_eld(struct hdmi_eld *, struct hda_codec *, hda_nid_t);
+void snd_hdmi_show_eld(struct hdmi_eld *eld);
 
 #ifdef CONFIG_PROC_FS
-int snd_hda_eld_proc_new(struct hda_codec *codec, struct sink_eld *eld);
+int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld);
 #else
-inline int snd_hda_eld_proc_new(struct hda_codec *codec, struct sink_eld *eld)
+inline int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld)
 {
 	return 0;
 }
