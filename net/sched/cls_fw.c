@@ -148,7 +148,7 @@ fw_delete_filter(struct tcf_proto *tp, struct fw_filter *f)
 
 static void fw_destroy(struct tcf_proto *tp)
 {
-	struct fw_head *head = (struct fw_head*)xchg(&tp->root, NULL);
+	struct fw_head *head = tp->root;
 	struct fw_filter *f;
 	int h;
 

@@ -201,9 +201,7 @@ static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
 
 static void cls_cgroup_destroy(struct tcf_proto *tp)
 {
-	struct cls_cgroup_head *head;
-
-	head = (struct cls_cgroup_head *)xchg(&tp->root, NULL);
+	struct cls_cgroup_head *head = tp->root;
 
 	if (head) {
 		tcf_exts_destroy(tp, &head->exts);

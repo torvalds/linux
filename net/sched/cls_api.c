@@ -531,7 +531,8 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 	if (src->action) {
 		struct tc_action *act;
 		tcf_tree_lock(tp);
-		act = xchg(&dst->action, src->action);
+		act = dst->action;
+		dst->action = src->action;
 		tcf_tree_unlock(tp);
 		if (act)
 			tcf_action_destroy(act, TCA_ACT_UNBIND);
