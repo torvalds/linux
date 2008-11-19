@@ -2174,7 +2174,7 @@ static void proto_seq_printf(struct seq_file *seq, struct proto *proto)
 			"%2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c %2c\n",
 		   proto->name,
 		   proto->obj_size,
-		   proto->sockets_allocated != NULL ? atomic_read(proto->sockets_allocated) : -1,
+		   sock_prot_inuse_get(seq_file_net(seq), proto),
 		   proto->memory_allocated != NULL ? atomic_read(proto->memory_allocated) : -1,
 		   proto->memory_pressure != NULL ? *proto->memory_pressure ? "yes" : "no" : "NI",
 		   proto->max_header,
@@ -2228,7 +2228,8 @@ static const struct seq_operations proto_seq_ops = {
 
 static int proto_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &proto_seq_ops);
+	return seq_open_net(inode, file, &proto_seq_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations proto_seq_fops = {
@@ -2236,13 +2237,31 @@ static const struct file_operations proto_seq_fops = {
 	.open		= proto_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_net,
+};
+
+static __net_init int proto_init_net(struct net *net)
+{
+	if (!proc_net_fops_create(net, "protocols", S_IRUGO, &proto_seq_fops))
+		return -ENOMEM;
+
+	return 0;
+}
+
+static __net_exit void proto_exit_net(struct net *net)
+{
+	proc_net_remove(net, "protocols");
+}
+
+
+static __net_initdata struct pernet_operations proto_net_ops = {
+	.init = proto_init_net,
+	.exit = proto_exit_net,
 };
 
 static int __init proto_init(void)
 {
-	/* register /proc/net/protocols */
-	return proc_net_fops_create(&init_net, "protocols", S_IRUGO, &proto_seq_fops) == NULL ? -ENOBUFS : 0;
+	return register_pernet_subsys(&proto_net_ops);
 }
 
 subsys_initcall(proto_init);
