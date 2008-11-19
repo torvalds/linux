@@ -862,7 +862,7 @@ static int dev_open(struct inode *inode, struct file *file)
 	int ret;
 
 	PDEBUG(D_STREAM, "%s open", current->comm);
-	gspca_dev = video_drvdata(file);
+	gspca_dev = (struct gspca_dev *) video_devdata(file);
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 	if (!gspca_dev->present) {
@@ -890,10 +890,10 @@ static int dev_open(struct inode *inode, struct file *file)
 #ifdef GSPCA_DEBUG
 	/* activate the v4l2 debug */
 	if (gspca_debug & D_V4L2)
-		gspca_dev->vdev->debug |= V4L2_DEBUG_IOCTL
+		gspca_dev->vdev.debug |= V4L2_DEBUG_IOCTL
 					| V4L2_DEBUG_IOCTL_ARG;
 	else
-		gspca_dev->vdev->debug &= ~(V4L2_DEBUG_IOCTL
+		gspca_dev->vdev.debug &= ~(V4L2_DEBUG_IOCTL
 					| V4L2_DEBUG_IOCTL_ARG);
 #endif
 	ret = 0;
@@ -1876,13 +1876,11 @@ int gspca_dev_probe(struct usb_interface *intf,
 	gspca_dev->vdev->parent = &dev->dev;
 	gspca_dev->module = module;
 	gspca_dev->present = 1;
-	video_set_drvdata(gspca_dev->vdev, gspca_dev);
-	ret = video_register_device(gspca_dev->vdev,
+	ret = video_register_device(&gspca_dev->vdev,
 				  VFL_TYPE_GRABBER,
 				  video_nr);
 	if (ret < 0) {
 		err("video_register_device err %d", ret);
-		video_device_release(gspca_dev->vdev);
 		goto out;
 	}
 
@@ -1908,11 +1906,9 @@ void gspca_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 
-/* We don't want people trying to open up the device */
-	video_unregister_device(gspca_dev->vdev);
-
-	gspca_dev->present = 0;
-	gspca_dev->streaming = 0;
+	/* release the device */
+	/* (this will call gspca_release() immediatly or on last close) */
+	video_unregister_device(&gspca_dev->vdev);
 
 	kref_put(&gspca_dev->kref, gspca_delete);
 
