@@ -53,6 +53,7 @@ obj-$(CONFIG_MACH_E740)		+= e740.o
 obj-$(CONFIG_MACH_E750)		+= e750.o
 obj-$(CONFIG_MACH_E400)		+= e400.o
 obj-$(CONFIG_MACH_E800)		+= e800.o
+obj-$(CONFIG_MACH_PALMT5)	+= palmt5.o
 obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
 obj-$(CONFIG_MACH_PALMZ72)	+= palmz72.o
 obj-$(CONFIG_ARCH_VIPER)	+= viper.o
