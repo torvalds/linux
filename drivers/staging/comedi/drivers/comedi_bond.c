@@ -103,7 +103,7 @@ MODULE_LICENSE("GPL");
 #  define STR(x) STR1(x)
 #endif
 
-int debug;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "If true, print extra cryptic debugging output useful"
 		 "only to developers.");
@@ -408,7 +408,7 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 		int minor = it->options[i];
 		comedi_t *d;
 		int sdev = -1, nchans, tmp;
-		struct BondedDevice *bdev = 0;
+		struct BondedDevice *bdev = NULL;
 
 		if (minor < 0 || minor > COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
@@ -515,18 +515,18 @@ static void doDevUnconfig(comedi_device *dev)
 			kfree(bdev);
 		}
 		kfree(devpriv->devs);
-		devpriv->devs = 0;
+		devpriv->devs = NULL;
 		kfree(devpriv);
-		dev->private = 0;
+		dev->private = NULL;
 	}
 }
 
-int __init init(void)
+static int __init init(void)
 {
 	return comedi_driver_register(&driver_bonding);
 }
 
-void __exit cleanup(void)
+static void __exit cleanup(void)
 {
 	comedi_driver_unregister(&driver_bonding);
 }
