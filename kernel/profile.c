@@ -544,7 +544,7 @@ static const struct file_operations proc_profile_operations = {
 };
 
 #ifdef CONFIG_SMP
-static inline void profile_nop(void *unused)
+static void profile_nop(void *unused)
 {
 }
 
