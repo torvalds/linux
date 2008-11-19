@@ -28,3 +28,4 @@ obj-$(CONFIG_CPU_S3C6400_CLOCK)	+= s3c6400-clock.o
 
 obj-$(CONFIG_S3C64XX_SETUP_I2C0) += setup-i2c0.o
 obj-$(CONFIG_S3C64XX_SETUP_I2C1) += setup-i2c1.o
+obj-$(CONFIG_S3C64XX_SETUP_FB_24BPP) += setup-fb-24bpp.o
