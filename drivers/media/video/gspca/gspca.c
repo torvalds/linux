@@ -300,7 +300,6 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 		frame->v4l2_buf.bytesused = frame->data_end - frame->data;
 		frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 		frame->v4l2_buf.flags |= V4L2_BUF_FLAG_DONE;
-		atomic_inc(&gspca_dev->nevent);
 		wake_up_interruptible(&gspca_dev->wq);	/* event = new frame */
 		i = (gspca_dev->fr_i + 1) % gspca_dev->nframes;
 		gspca_dev->fr_i = i;
@@ -394,7 +393,6 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
 	gspca_dev->last_packet_type = DISCARD_PACKET;
 	gspca_dev->sequence = 0;
-	atomic_set(&gspca_dev->nevent, 0);
 	return 0;
 }
 
@@ -628,7 +626,6 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			goto out;
 		}
 		gspca_dev->streaming = 1;
-		atomic_set(&gspca_dev->nevent, 0);
 
 		/* some bulk transfers are started by the subdriver */
 		if (gspca_dev->alt == 0 && gspca_dev->cam.bulk_nurbs == 0)
@@ -669,7 +666,6 @@ static int gspca_set_alt0(struct gspca_dev *gspca_dev)
 static void gspca_stream_off(struct gspca_dev *gspca_dev)
 {
 	gspca_dev->streaming = 0;
-	atomic_set(&gspca_dev->nevent, 0);
 	if (gspca_dev->present
 	    && gspca_dev->sd_desc->stopN)
 		gspca_dev->sd_desc->stopN(gspca_dev);
@@ -1255,7 +1251,6 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
 	gspca_dev->last_packet_type = DISCARD_PACKET;
 	gspca_dev->sequence = 0;
-	atomic_set(&gspca_dev->nevent, 0);
 	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
@@ -1459,33 +1454,22 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 	i = gspca_dev->fr_o;
 	j = gspca_dev->fr_queue[i];
 	frame = &gspca_dev->frame[j];
-	if (frame->v4l2_buf.flags & V4L2_BUF_FLAG_DONE) {
-		atomic_dec(&gspca_dev->nevent);
-		goto ok;
-	}
-	if (nonblock_ing)			/* no frame yet */
-		return -EAGAIN;
 
-	/* wait till a frame is ready */
-	for (;;) {
+	if (!(frame->v4l2_buf.flags & V4L2_BUF_FLAG_DONE)) {
+		if (nonblock_ing)
+			return -EAGAIN;
+
+		/* wait till a frame is ready */
 		ret = wait_event_interruptible_timeout(gspca_dev->wq,
-					atomic_read(&gspca_dev->nevent) > 0,
-					msecs_to_jiffies(3000));
-		if (ret <= 0) {
-			if (ret < 0)
-				return ret;	/* interrupt */
-			return -EIO;		/* timeout */
-		}
-		atomic_dec(&gspca_dev->nevent);
-		if (!gspca_dev->streaming || !gspca_dev->present)
+			(frame->v4l2_buf.flags & V4L2_BUF_FLAG_DONE) ||
+			!gspca_dev->streaming || !gspca_dev->present,
+			msecs_to_jiffies(3000));
+		if (ret < 0)
+			return ret;
+		if (ret == 0 || !gspca_dev->streaming || !gspca_dev->present)
 			return -EIO;
-		i = gspca_dev->fr_o;
-		j = gspca_dev->fr_queue[i];
-		frame = &gspca_dev->frame[j];
-		if (frame->v4l2_buf.flags & V4L2_BUF_FLAG_DONE)
-			break;
 	}
-ok:
+
 	gspca_dev->fr_o = (i + 1) % gspca_dev->nframes;
 	PDEBUG(D_FRAM, "frame wait q:%d i:%d o:%d",
 		gspca_dev->fr_q,

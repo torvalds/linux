@@ -155,7 +155,6 @@ struct gspca_dev {
 	__u16 height;
 	__u32 sequence;			/* frame sequence number */
 
-	atomic_t nevent;		/* number of frames done */
 	wait_queue_head_t wq;		/* wait queue */
 	struct mutex usb_lock;		/* usb exchange protection */
 	struct mutex read_lock;		/* read protection */
