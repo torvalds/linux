@@ -407,8 +407,7 @@ static void hdmi_show_short_audio_desc(struct cea_sad *a)
 		printk(KERN_INFO "profile: %d\n", a->profile);
 }
 
-#define HDMI_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
-static void hdmi_print_channel_allocation(int spk_alloc, char *buf, int buflen)
+void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
 {
 	int i, j;
 
@@ -425,7 +424,7 @@ static void hdmi_print_channel_allocation(int spk_alloc, char *buf, int buflen)
 void snd_hdmi_show_eld(struct sink_eld *e)
 {
 	int i;
-	char buf[HDMI_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
+	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
 
 	printk(KERN_INFO "ELD buffer size  is %d\n", e->eld_size);
 	printk(KERN_INFO "ELD baseline len is %d*4\n", e->baseline_len);
@@ -446,7 +445,7 @@ void snd_hdmi_show_eld(struct sink_eld *e)
 				eld_connection_type_names[e->conn_type]);
 	printk(KERN_INFO "monitor name     is %s\n", e->monitor_name);
 
-	hdmi_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+	snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
 	printk(KERN_INFO "speaker allocations: (0x%x)%s\n", e->spk_alloc, buf);
 
 	for (i = 0; i < e->sad_count; i++)
@@ -484,7 +483,7 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer)
 {
 	struct sink_eld *e = entry->private_data;
-	char buf[HDMI_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
+	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
 	int i;
 
 	snd_iprintf(buffer, "monitor name\t\t%s\n", e->monitor_name);
@@ -501,7 +500,7 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "support_ai\t\t%d\n", e->support_ai);
 	snd_iprintf(buffer, "audio_sync_delay\t%d\n", e->aud_synch_delay);
 
-	hdmi_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+	snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
 	snd_iprintf(buffer, "speakers\t\t[0x%x] %s\n", e->spk_alloc, buf);
 
 	snd_iprintf(buffer, "sad_count\t\t%d\n", e->sad_count);

@@ -493,4 +493,7 @@ inline int snd_hda_eld_proc_new(struct hda_codec *codec, struct sink_eld *eld)
 }
 #endif
 
+#define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
+void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen);
+
 #endif /* __SOUND_HDA_LOCAL_H */
