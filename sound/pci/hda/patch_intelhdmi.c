@@ -246,24 +246,31 @@ static void hdmi_clear_dip_buffers(struct hda_codec *codec)
 #endif
 }
 
-static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
-					struct snd_pcm_substream *substream)
+static void hdmi_fill_audio_infoframe(struct hda_codec *codec,
+					struct hdmi_audio_infoframe *ai)
 {
-	struct hdmi_audio_infoframe audio_infoframe = {
-		.type		= 0x84,
-		.ver		= 0x01,
-		.len		= 0x0a,
-		.CC02_CT47	= substream->runtime->channels - 1,
-	};
-	u8 *params = (u8 *)&audio_infoframe;
+	u8 *params = (u8 *)ai;
 	int i;
 
 	hdmi_debug_dip_size(codec);
 	hdmi_clear_dip_buffers(codec); /* be paranoid */
 
 	hdmi_set_dip_index(codec, PIN_NID, 0x0, 0x0);
-	for (i = 0; i < sizeof(audio_infoframe); i++)
+	for (i = 0; i < sizeof(ai); i++)
 		hdmi_write_dip_byte(codec, PIN_NID, params[i]);
+}
+
+static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
+					struct snd_pcm_substream *substream)
+{
+	struct hdmi_audio_infoframe ai = {
+		.type		= 0x84,
+		.ver		= 0x01,
+		.len		= 0x0a,
+		.CC02_CT47	= substream->runtime->channels - 1,
+	};
+
+	hdmi_fill_audio_infoframe(codec, &ai);
 }
 
 
