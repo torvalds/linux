@@ -29,19 +29,6 @@
 #include <linux/pci.h>
 
 /*
- * Called to disable PCI device if PCI device has been enabled, but
- * PCI regions have not been reserved.
- *
- * It only disables the PCI device if the kernel supports reference
- * counting of PCI enables, otherwise it might stop the device working
- * in another driver instance.
- */
-static inline void comedi_pci_disable_no_regions(struct pci_dev *pdev)
-{
-	pci_disable_device(pdev);
-}
-
-/*
  * Enable the PCI device and request the regions.
  */
 static inline int comedi_pci_enable(struct pci_dev *pdev, const char *res_name)
