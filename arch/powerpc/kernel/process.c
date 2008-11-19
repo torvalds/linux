@@ -467,6 +467,8 @@ static struct regbit {
 	{MSR_VEC,	"VEC"},
 	{MSR_VSX,	"VSX"},
 	{MSR_ME,	"ME"},
+	{MSR_CE,	"CE"},
+	{MSR_DE,	"DE"},
 	{MSR_IR,	"IR"},
 	{MSR_DR,	"DR"},
 	{0,		NULL}
