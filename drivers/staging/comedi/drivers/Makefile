@@ -11,6 +11,7 @@ obj-$(CONFIG_COMEDI)			+= comedi_parport.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= mite.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= icp_multi.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= me4000.o
+obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= rtd520.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= s626.o
 
 # Comedi USB drivers
