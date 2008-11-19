@@ -129,9 +129,8 @@ MODULE_DESCRIPTION(MODULE_NAME "A driver for COMEDI to bond multiple COMEDI "
 struct BondingBoard {
 	const char *name;
 };
-typedef struct BondingBoard BondingBoard;
 
-static const BondingBoard bondingBoards[] = {
+static const struct BondingBoard bondingBoards[] = {
 	{
 		.name =	MODULE_NAME,
 	},
@@ -140,7 +139,7 @@ static const BondingBoard bondingBoards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const BondingBoard *)dev->board_ptr)
+#define thisboard ((const struct BondingBoard *)dev->board_ptr)
 
 struct BondedDevice {
 	comedi_t *dev;
@@ -152,7 +151,6 @@ struct BondedDevice {
 				   channel-id's of chanid 0 on this
 				   subdevice. */
 };
-typedef struct BondedDevice BondedDevice;
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -165,13 +163,12 @@ struct Private {
 	struct BondedDevice *chanIdDevMap[MAX_CHANS];
 	unsigned nchans;
 };
-typedef struct Private Private;
 
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
-#define devpriv ((Private *)dev->private)
+#define devpriv ((struct Private *)dev->private)
 
 /*
  * The comedi_driver structure tells the Comedi core module
@@ -212,8 +209,8 @@ static comedi_driver driver_bonding = {
 	 * devices are such boards.
 	 */
       .board_name =	&bondingBoards[0].name,
-      .offset =		sizeof(BondingBoard),
-      .num_names =	sizeof(bondingBoards) / sizeof(BondingBoard),
+      .offset =		sizeof(struct BondingBoard),
+      .num_names =	sizeof(bondingBoards) / sizeof(struct BondingBoard),
 };
 
 static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
@@ -237,7 +234,7 @@ static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
 	 * Allocate the private structure area.  alloc_private() is a
 	 * convenient macro defined in comedidev.h.
 	 */
-	if (alloc_private(dev, sizeof(Private)) < 0)
+	if (alloc_private(dev, sizeof(struct Private)) < 0)
 		return -ENOMEM;
 
 	/*
@@ -310,7 +307,7 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
 	for (i = 0; num_done < nchans && i < devpriv->ndevs; ++i) {
-		BondedDevice *bdev = devpriv->devs[i];
+		struct BondedDevice *bdev = devpriv->devs[i];
 		/* Grab the channel mask and data of only the bits corresponding
 		   to this subdevice.. need to shift them to zero position of
 		   course. */
@@ -348,7 +345,7 @@ static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
 {
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
 	unsigned int io;
-	BondedDevice *bdev;
+	struct BondedDevice *bdev;
 
 	if (chan < 0 || chan >= devpriv->nchans)
 		return -EINVAL;
@@ -411,7 +408,7 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 		int minor = it->options[i];
 		comedi_t *d;
 		int sdev = -1, nchans, tmp;
-		BondedDevice *bdev = 0;
+		struct BondedDevice *bdev = 0;
 
 		if (minor < 0 || minor > COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
@@ -506,7 +503,9 @@ static void doDevUnconfig(comedi_device *dev)
 
 	if (devpriv) {
 		while (devpriv->ndevs-- && devpriv->devs) {
-			BondedDevice *bdev = devpriv->devs[devpriv->ndevs];
+			struct BondedDevice *bdev;
+
+			bdev = devpriv->devs[devpriv->ndevs];
 			if (!bdev)
 				continue;
 			if (!(devs_closed & (0x1 << bdev->minor))) {
