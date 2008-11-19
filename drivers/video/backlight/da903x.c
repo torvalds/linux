@@ -119,6 +119,7 @@ static int da903x_backlight_probe(struct platform_device *pdev)
 	default:
 		dev_err(&pdev->dev, "invalid backlight device ID(%d)\n",
 				pdev->id);
+		kfree(data);
 		return -EINVAL;
 	}
 
