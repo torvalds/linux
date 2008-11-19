@@ -66,14 +66,10 @@ void __clear_page_mlock(struct page *page)
 		putback_lru_page(page);
 	} else {
 		/*
-		 * Page not on the LRU yet.  Flush all pagevecs and retry.
+		 * We lost the race. the page already moved to evictable list.
 		 */
-		lru_add_drain_all();
-		if (!isolate_lru_page(page))
-			putback_lru_page(page);
-		else if (PageUnevictable(page))
+		if (PageUnevictable(page))
 			count_vm_event(UNEVICTABLE_PGSTRANDED);
-
 	}
 }
 
@@ -166,7 +162,7 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 	unsigned long addr = start;
 	struct page *pages[16]; /* 16 gives a reasonable batch */
 	int nr_pages = (end - start) / PAGE_SIZE;
-	int ret;
+	int ret = 0;
 	int gup_flags = 0;
 
 	VM_BUG_ON(start & ~PAGE_MASK);
@@ -186,8 +182,6 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 
 	if (vma->vm_flags & VM_WRITE)
 		gup_flags |= GUP_FLAGS_WRITE;
-
-	lru_add_drain_all();	/* push cached pages to LRU */
 
 	while (nr_pages > 0) {
 		int i;
@@ -250,8 +244,6 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 		}
 		ret = 0;
 	}
-
-	lru_add_drain_all();	/* to update stats */
 
 	return ret;	/* count entire vma as locked_vm */
 }
@@ -546,6 +538,8 @@ asmlinkage long sys_mlock(unsigned long start, size_t len)
 	if (!can_do_mlock())
 		return -EPERM;
 
+	lru_add_drain_all();	/* flush pagevec */
+
 	down_write(&current->mm->mmap_sem);
 	len = PAGE_ALIGN(len + (start & ~PAGE_MASK));
 	start &= PAGE_MASK;
@@ -611,6 +605,8 @@ asmlinkage long sys_mlockall(int flags)
 	ret = -EPERM;
 	if (!can_do_mlock())
 		goto out;
+
+	lru_add_drain_all();	/* flush pagevec */
 
 	down_write(&current->mm->mmap_sem);
 

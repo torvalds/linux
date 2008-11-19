@@ -367,7 +367,7 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 		if (ldev)
 			seq_printf(seq, "%s:%s",
 				   ldev->bus ? ldev->bus->name : "no-bus",
-				   ldev->bus_id);
+				   dev_name(ldev));
 		seq_printf(seq, "\n");
 		put_device(ldev);
 
