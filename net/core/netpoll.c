@@ -343,7 +343,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	udph->check = csum_tcpudp_magic(htonl(np->local_ip),
 					htonl(np->remote_ip),
 					udp_len, IPPROTO_UDP,
-					csum_partial((unsigned char *)udph, udp_len, 0));
+					csum_partial(udph, udp_len, 0));
 	if (udph->check == 0)
 		udph->check = CSUM_MANGLED_0;
 

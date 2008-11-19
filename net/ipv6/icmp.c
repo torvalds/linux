@@ -233,7 +233,7 @@ static int icmpv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct 
 	icmp6h->icmp6_cksum = 0;
 
 	if (skb_queue_len(&sk->sk_write_queue) == 1) {
-		skb->csum = csum_partial((char *)icmp6h,
+		skb->csum = csum_partial(icmp6h,
 					sizeof(struct icmp6hdr), skb->csum);
 		icmp6h->icmp6_cksum = csum_ipv6_magic(&fl->fl6_src,
 						      &fl->fl6_dst,
@@ -246,7 +246,7 @@ static int icmpv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct 
 			tmp_csum = csum_add(tmp_csum, skb->csum);
 		}
 
-		tmp_csum = csum_partial((char *)icmp6h,
+		tmp_csum = csum_partial(icmp6h,
 					sizeof(struct icmp6hdr), tmp_csum);
 		icmp6h->icmp6_cksum = csum_ipv6_magic(&fl->fl6_src,
 						      &fl->fl6_dst,

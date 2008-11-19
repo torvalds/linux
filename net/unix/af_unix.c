@@ -216,7 +216,7 @@ static int unix_mkname(struct sockaddr_un *sunaddr, int len, unsigned *hashp)
 		return len;
 	}
 
-	*hashp = unix_hash_fold(csum_partial((char *)sunaddr, len, 0));
+	*hashp = unix_hash_fold(csum_partial(sunaddr, len, 0));
 	return len;
 }
 
@@ -686,7 +686,7 @@ static int unix_autobind(struct socket *sock)
 
 retry:
 	addr->len = sprintf(addr->name->sun_path+1, "%05x", ordernum) + 1 + sizeof(short);
-	addr->hash = unix_hash_fold(csum_partial((void *)addr->name, addr->len, 0));
+	addr->hash = unix_hash_fold(csum_partial(addr->name, addr->len, 0));
 
 	spin_lock(&unix_table_lock);
 	ordernum = (ordernum+1)&0xFFFFF;

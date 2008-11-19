@@ -492,7 +492,7 @@ void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
 		th->check = tcp_v4_check(len, inet->saddr, inet->daddr,
-					 csum_partial((char *)th,
+					 csum_partial(th,
 						      th->doff << 2,
 						      skb->csum));
 	}
@@ -726,7 +726,7 @@ static int __tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
 		th->check = tcp_v4_check(skb->len,
 					 ireq->loc_addr,
 					 ireq->rmt_addr,
-					 csum_partial((char *)th, skb->len,
+					 csum_partial(th, skb->len,
 						      skb->csum));
 
 		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,

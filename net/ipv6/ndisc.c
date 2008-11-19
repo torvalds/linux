@@ -491,7 +491,7 @@ struct sk_buff *ndisc_build_skb(struct net_device *dev,
 
 	hdr->icmp6_cksum = csum_ipv6_magic(saddr, daddr, len,
 					   IPPROTO_ICMPV6,
-					   csum_partial((__u8 *) hdr,
+					   csum_partial(hdr,
 							len, 0));
 
 	return skb;
@@ -1612,7 +1612,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 
 	icmph->icmp6_cksum = csum_ipv6_magic(&saddr_buf, &ipv6_hdr(skb)->saddr,
 					     len, IPPROTO_ICMPV6,
-					     csum_partial((u8 *) icmph, len, 0));
+					     csum_partial(icmph, len, 0));
 
 	buff->dst = dst;
 	idev = in6_dev_get(dst->dev);

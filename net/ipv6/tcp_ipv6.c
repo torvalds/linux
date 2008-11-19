@@ -501,7 +501,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req)
 
 		th->check = tcp_v6_check(th, skb->len,
 					 &treq->loc_addr, &treq->rmt_addr,
-					 csum_partial((char *)th, skb->len, skb->csum));
+					 csum_partial(th, skb->len, skb->csum));
 
 		ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
 		err = ip6_xmit(sk, skb, &fl, opt, 0);
@@ -915,7 +915,7 @@ static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
 		th->check = csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,
-					    csum_partial((char *)th, th->doff<<2,
+					    csum_partial(th, th->doff<<2,
 							 skb->csum));
 	}
 }
@@ -997,7 +997,7 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	}
 #endif
 
-	buff->csum = csum_partial((char *)t1, tot_len, 0);
+	buff->csum = csum_partial(t1, tot_len, 0);
 
 	memset(&fl, 0, sizeof(fl));
 	ipv6_addr_copy(&fl.fl6_dst, &ipv6_hdr(skb)->saddr);

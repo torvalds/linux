@@ -1817,7 +1817,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	hdr->icmp6_cksum = csum_ipv6_magic(saddr, snd_addr, len,
 					   IPPROTO_ICMPV6,
-					   csum_partial((__u8 *) hdr, len, 0));
+					   csum_partial(hdr, len, 0));
 
 	idev = in6_dev_get(skb->dev);
 
