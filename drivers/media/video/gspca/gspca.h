@@ -127,7 +127,6 @@ struct gspca_dev {
 	struct video_device vdev;	/* !! must be the first item */
 	struct module *module;		/* subdriver handling the device */
 	struct usb_device *dev;
-	struct kref kref;
 	struct file *capt_file;		/* file doing video capture */
 
 	struct cam cam;				/* device information */

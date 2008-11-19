@@ -30,7 +30,6 @@
 #include <linux/string.h>
 #include <linux/pagemap.h>
 #include <linux/io.h>
-#include <linux/kref.h>
 #include <asm/page.h>
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
@@ -871,11 +870,11 @@ out:
 	return ret;
 }
 
-static void gspca_delete(struct kref *kref)
+static void gspca_release(struct video_device *vfd)
 {
-	struct gspca_dev *gspca_dev = container_of(kref, struct gspca_dev, kref);
+	struct gspca_dev *gspca_dev = container_of(vfd, struct gspca_dev, vdev);
 
-	PDEBUG(D_STREAM, "device deleted");
+	PDEBUG(D_STREAM, "device released");
 
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
@@ -907,9 +906,6 @@ static int dev_open(struct inode *inode, struct file *file)
 	}
 
 	gspca_dev->users++;
-
-	/* one more user */
-	kref_get(&gspca_dev->kref);
 
 	file->private_data = gspca_dev;
 #ifdef GSPCA_DEBUG
@@ -956,8 +952,6 @@ static int dev_close(struct inode *inode, struct file *file)
 	mutex_unlock(&gspca_dev->queue_lock);
 
 	PDEBUG(D_STREAM, "close done");
-
-	kref_put(&gspca_dev->kref, gspca_delete);
 
 	return 0;
 }
@@ -1827,7 +1821,7 @@ static struct video_device gspca_template = {
 	.name = "gspca main driver",
 	.fops = &dev_fops,
 	.ioctl_ops = &dev_ioctl_ops,
-	.release = video_device_release,
+	.release = gspca_release,
 	.minor = -1,
 };
 
@@ -1865,7 +1859,6 @@ int gspca_dev_probe(struct usb_interface *intf,
 		err("couldn't kzalloc gspca struct");
 		return -ENOMEM;
 	}
-	kref_init(&gspca_dev->kref);
 	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
 	if (!gspca_dev->usb_buf) {
 		err("out of memory");
@@ -1935,8 +1928,6 @@ void gspca_disconnect(struct usb_interface *intf)
 	/* release the device */
 	/* (this will call gspca_release() immediatly or on last close) */
 	video_unregister_device(&gspca_dev->vdev);
-
-	kref_put(&gspca_dev->kref, gspca_delete);
 
 	PDEBUG(D_PROBE, "disconnect complete");
 }
