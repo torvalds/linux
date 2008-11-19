@@ -107,23 +107,33 @@ void snd_print_pcm_rates(int pcm, char *buf, int buflen)
 static void print_pcm_rates(struct snd_info_buffer *buffer, unsigned int pcm)
 {
 	char buf[SND_PRINT_RATES_ADVISED_BUFSIZE];
+
 	pcm &= AC_SUPPCM_RATES;
 	snd_iprintf(buffer, "    rates [0x%x]:", pcm);
 	snd_print_pcm_rates(pcm, buf, sizeof(buf));
 	snd_iprintf(buffer, "%s\n", buf);
 }
 
-static void print_pcm_bits(struct snd_info_buffer *buffer, unsigned int pcm)
+void snd_print_pcm_bits(int pcm, char *buf, int buflen)
 {
 	static unsigned int bits[] = { 8, 16, 20, 24, 32 };
-	int i;
+	int i, j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(bits); i++)
+		if (pcm & (1 << i))
+			j += snprintf(buf + j, buflen - j,  " %d", bits[i]);
+
+	buf[j] = '\0'; /* necessary when j == 0 */
+}
+
+static void print_pcm_bits(struct snd_info_buffer *buffer, unsigned int pcm)
+{
+	char buf[SND_PRINT_BITS_ADVISED_BUFSIZE];
 
 	pcm = (pcm >> 16) & 0xff;
 	snd_iprintf(buffer, "    bits [0x%x]:", pcm);
-	for (i = 0; i < ARRAY_SIZE(bits); i++)
-		if (pcm & (1 << i))
-			snd_iprintf(buffer, " %d", bits[i]);
-	snd_iprintf(buffer, "\n");
+	snd_print_pcm_bits(pcm, buf, sizeof(buf));
+	snd_iprintf(buffer, "%s\n", buf);
 }
 
 static void print_pcm_formats(struct snd_info_buffer *buffer,

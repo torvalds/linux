@@ -455,7 +455,7 @@ void snd_hdmi_show_eld(struct hdmi_eld *e)
 static void hdmi_print_sad_info(int i, struct cea_sad *a,
 				struct snd_info_buffer *buffer)
 {
-	char buf[80];
+	char buf[SND_PRINT_RATES_ADVISED_BUFSIZE];
 
 	snd_iprintf(buffer, "sad%d_coding_type\t[0x%x] %s\n",
 			i, a->format, cea_audio_coding_type_names[a->format]);
@@ -464,9 +464,11 @@ static void hdmi_print_sad_info(int i, struct cea_sad *a,
 	snd_print_pcm_rates(a->rates, buf, sizeof(buf));
 	snd_iprintf(buffer, "sad%d_rates\t\t[0x%x]%s\n", i, a->rates, buf);
 
-	if (a->format == AUDIO_CODING_TYPE_LPCM)
-		snd_iprintf(buffer, "sad%d_bits\t\t0x%x\n",
-							i, a->sample_bits);
+	if (a->format == AUDIO_CODING_TYPE_LPCM) {
+		snd_print_pcm_bits(a->sample_bits, buf, sizeof(buf));
+		snd_iprintf(buffer, "sad%d_bits\t\t[0x%x]%s\n",
+							i, a->sample_bits, buf);
+	}
 
 	if (a->max_bitrate)
 		snd_iprintf(buffer, "sad%d_max_bitrate\t%d\n",
