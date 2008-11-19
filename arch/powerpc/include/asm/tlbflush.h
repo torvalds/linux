@@ -6,6 +6,7 @@
  *
  *  - flush_tlb_mm(mm) flushes the specified mm context TLB's
  *  - flush_tlb_page(vma, vmaddr) flushes one page
+ *  - local_flush_tlb_page(vmaddr) flushes one page on the local processor
  *  - flush_tlb_page_nohash(vma, vmaddr) flushes one page if SW loaded TLB
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
@@ -42,6 +43,11 @@ extern void _tlbia(void);
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 	_tlbil_pid(mm->context.id);
+}
+
+static inline void local_flush_tlb_page(unsigned long vmaddr)
+{
+	_tlbil_va(vmaddr, 0);
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
@@ -81,6 +87,10 @@ extern void flush_tlb_page_nohash(struct vm_area_struct *vma, unsigned long addr
 extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+static inline void local_flush_tlb_page(unsigned long vmaddr)
+{
+	flush_tlb_page(NULL, vmaddr);
+}
 
 #else
 /*
@@ -135,6 +145,10 @@ extern void flush_hash_range(unsigned long number, int local);
 
 
 static inline void flush_tlb_mm(struct mm_struct *mm)
+{
+}
+
+static inline void local_flush_tlb_page(unsigned long vmaddr)
 {
 }
 
