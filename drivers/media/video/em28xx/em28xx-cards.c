@@ -58,7 +58,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input         = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		} },
 	},
 	[EM2800_BOARD_UNKNOWN] = {
@@ -70,11 +70,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input           = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_UNKNOWN] = {
@@ -90,7 +90,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input         = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		} },
 	},
 	[EM2820_BOARD_KWORLD_PVRTV2800RF] = {
@@ -103,11 +103,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input           = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_TERRATEC_CINERGY_250] = {
@@ -119,15 +119,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_PINNACLE_USB_2] = {
@@ -139,15 +139,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_HAUPPAUGE_WINTV_USB_2] = {
@@ -182,15 +182,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_HERCULES_SMART_TV_USB2] = {
@@ -203,15 +203,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_PINNACLE_USB_2_FM1216ME] = {
@@ -225,15 +225,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_GADMEI_UTV310] = {
@@ -246,15 +246,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE] = {
@@ -267,15 +267,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 2,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_PINNACLE_DVC_100] = {
@@ -286,11 +286,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_VIDEOLOGY_20K14XUSB] = {
@@ -300,7 +300,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input         = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		} },
 	},
 	[EM2821_BOARD_PROLINK_PLAYTV_USB2] = {
@@ -314,15 +314,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2821_BOARD_SUPERCOMP_USB_2] = {
@@ -338,15 +338,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2821_BOARD_USBGEAR_VD204] = {
@@ -357,11 +357,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type  = EM28XX_VMUX_COMPOSITE1,
 			.vmux  = SAA7115_COMPOSITE0,
-			.amux  = 1,
+			.amux  = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type  = EM28XX_VMUX_SVIDEO,
 			.vmux  = SAA7115_SVIDEO3,
-			.amux  = 1,
+			.amux  = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2860_BOARD_NETGMBH_CAM] = {
@@ -372,7 +372,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input         = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		} },
 	},
 	[EM2860_BOARD_TYPHOON_DVD_MAKER] = {
@@ -383,11 +383,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type  = EM28XX_VMUX_COMPOSITE1,
 			.vmux  = SAA7115_COMPOSITE0,
-			.amux  = 1,
+			.amux  = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type  = EM28XX_VMUX_SVIDEO,
 			.vmux  = SAA7115_SVIDEO3,
-			.amux  = 1,
+			.amux  = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2860_BOARD_GADMEI_UTV330] = {
@@ -400,15 +400,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2860_BOARD_TERRATEC_HYBRID_XS] = {
@@ -420,15 +420,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2861_BOARD_KWORLD_PVRTV_300U] = {
@@ -440,15 +440,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2861_BOARD_YAKUMO_MOVIE_MIXER] = {
@@ -459,15 +459,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input         = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2861_BOARD_PLEXTOR_PX_TV100U] = {
@@ -480,15 +480,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2870_BOARD_TERRATEC_XS] = {
@@ -530,15 +530,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
@@ -552,15 +552,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2] = {
@@ -573,7 +573,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
@@ -581,7 +581,7 @@ struct em28xx_board em28xx_boards[] = {
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
@@ -597,15 +597,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2880_BOARD_PINNACLE_PCTV_HD_PRO] = {
@@ -621,15 +621,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600] = {
@@ -645,15 +645,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
@@ -666,15 +666,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	/* maybe there's a reason behind it why Terratec sells the Hybrid XS
@@ -689,15 +689,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_MSI_VOX_USB_2] = {
@@ -713,15 +713,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input             = { {
 			.type      = EM28XX_VMUX_TELEVISION,
 			.vmux      = SAA7115_COMPOSITE4,
-			.amux      = 0,
+			.amux      = EM28XX_AMUX_VIDEO,
 		}, {
 			.type      = EM28XX_VMUX_COMPOSITE1,
 			.vmux      = SAA7115_COMPOSITE0,
-			.amux      = 1,
+			.amux      = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type      = EM28XX_VMUX_SVIDEO,
 			.vmux      = SAA7115_SVIDEO3,
-			.amux      = 1,
+			.amux      = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2800_BOARD_TERRATEC_CINERGY_200] = {
@@ -734,15 +734,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2800_BOARD_GRABBEEX_USB2800] = {
@@ -753,11 +753,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2800_BOARD_LEADTEK_WINFAST_USBII] = {
@@ -770,15 +770,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2800_BOARD_KWORLD_USB2800] = {
@@ -791,15 +791,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_PINNACLE_DVC_90] = {
@@ -810,11 +810,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2800_BOARD_VGEAR_POCKETTV] = {
@@ -827,15 +827,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_PROLINK_PLAYTV_USB2] = {
@@ -868,7 +868,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		} },
 	},
 	[EM2880_BOARD_MSI_DIGIVOX_AD] = {
@@ -880,15 +880,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2880_BOARD_MSI_DIGIVOX_AD_II] = {
@@ -900,15 +900,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2880_BOARD_KWORLD_DVB_305U] = {
@@ -920,15 +920,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2880_BOARD_KWORLD_DVB_310U] = {
@@ -961,15 +961,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2881_BOARD_PINNACLE_HYBRID_PRO] = {
@@ -981,15 +981,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2882_BOARD_PINNACLE_HYBRID_PRO] = {
@@ -1002,15 +1002,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2882_BOARD_KWORLD_VS_DVBT] = {
@@ -1022,15 +1022,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2882_BOARD_TERRATEC_HYBRID_XS] = {
@@ -1042,15 +1042,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2883_BOARD_KWORLD_HYBRID_A316] = {
@@ -1063,15 +1063,15 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU] = {
