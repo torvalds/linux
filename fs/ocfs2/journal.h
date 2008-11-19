@@ -27,12 +27,7 @@
 #define OCFS2_JOURNAL_H
 
 #include <linux/fs.h>
-#ifndef CONFIG_OCFS2_COMPAT_JBD
-# include <linux/jbd2.h>
-#else
-# include <linux/jbd.h>
-# include "ocfs2_jbd_compat.h"
-#endif
+#include <linux/jbd2.h>
 
 enum ocfs2_journal_state {
 	OCFS2_JOURNAL_FREE = 0,
@@ -273,10 +268,6 @@ int                  ocfs2_journal_access(handle_t *handle,
  */
 int                  ocfs2_journal_dirty(handle_t *handle,
 					 struct buffer_head *bh);
-#ifdef CONFIG_OCFS2_COMPAT_JBD
-int                  ocfs2_journal_dirty_data(handle_t *handle,
-					      struct buffer_head *bh);
-#endif
 
 /*
  *  Credit Macros:

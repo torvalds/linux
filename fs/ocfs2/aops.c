@@ -474,12 +474,6 @@ handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 
 	if (ocfs2_should_order_data(inode)) {
 		ret = ocfs2_jbd2_file_inode(handle, inode);
-#ifdef CONFIG_OCFS2_COMPAT_JBD
-		ret = walk_page_buffers(handle,
-					page_buffers(page),
-					from, to, NULL,
-					ocfs2_journal_dirty_data);
-#endif
 		if (ret < 0)
 			mlog_errno(ret);
 	}
@@ -1065,15 +1059,8 @@ static void ocfs2_write_failure(struct inode *inode,
 		tmppage = wc->w_pages[i];
 
 		if (page_has_buffers(tmppage)) {
-			if (ocfs2_should_order_data(inode)) {
+			if (ocfs2_should_order_data(inode))
 				ocfs2_jbd2_file_inode(wc->w_handle, inode);
-#ifdef CONFIG_OCFS2_COMPAT_JBD
-				walk_page_buffers(wc->w_handle,
-						  page_buffers(tmppage),
-						  from, to, NULL,
-						  ocfs2_journal_dirty_data);
-#endif
-			}
 
 			block_commit_write(tmppage, from, to);
 		}
@@ -1912,15 +1899,8 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 		}
 
 		if (page_has_buffers(tmppage)) {
-			if (ocfs2_should_order_data(inode)) {
+			if (ocfs2_should_order_data(inode))
 				ocfs2_jbd2_file_inode(wc->w_handle, inode);
-#ifdef CONFIG_OCFS2_COMPAT_JBD
-				walk_page_buffers(wc->w_handle,
-						  page_buffers(tmppage),
-						  from, to, NULL,
-						  ocfs2_journal_dirty_data);
-#endif
-			}
 			block_commit_write(tmppage, from, to);
 		}
 	}

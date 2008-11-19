@@ -258,16 +258,6 @@ config OCFS2_DEBUG_FS
 	  this option for debugging only as it is likely to decrease
 	  performance of the filesystem.
 
-config OCFS2_COMPAT_JBD
-	bool "Use JBD for compatibility"
-	depends on OCFS2_FS
-	default n
-	select JBD
-	help
-	  The ocfs2 filesystem now uses JBD2 for its journalling.  JBD2
-	  is backwards compatible with JBD.  It is safe to say N here.
-	  However, if you really want to use the original JBD, say Y here.
-
 config OCFS2_FS_POSIX_ACL
 	bool "OCFS2 POSIX Access Control Lists"
 	depends on OCFS2_FS
