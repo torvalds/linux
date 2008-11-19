@@ -483,6 +483,8 @@ static void print_gpio(struct snd_info_buffer *buffer,
 		    (gpio & AC_GPIO_UNSOLICITED) ? 1 : 0,
 		    (gpio & AC_GPIO_WAKE) ? 1 : 0);
 	max = gpio & AC_GPIO_IO_COUNT;
+	if (!max || max > 8)
+		return;
 	enable = snd_hda_codec_read(codec, nid, 0,
 				    AC_VERB_GET_GPIO_MASK, 0);
 	direction = snd_hda_codec_read(codec, nid, 0,

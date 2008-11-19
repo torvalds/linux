@@ -564,14 +564,15 @@ static const struct arb_line write_arb_addr[NUM_WR_Q-1] = {
 
 static void bnx2x_init_pxp(struct bnx2x *bp)
 {
+	u16 devctl;
 	int r_order, w_order;
 	u32 val, i;
 
 	pci_read_config_word(bp->pdev,
-			     bp->pcie_cap + PCI_EXP_DEVCTL, (u16 *)&val);
-	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", (u16)val);
-	w_order = ((val & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
-	r_order = ((val & PCI_EXP_DEVCTL_READRQ) >> 12);
+			     bp->pcie_cap + PCI_EXP_DEVCTL, &devctl);
+	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", devctl);
+	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
+	r_order = ((devctl & PCI_EXP_DEVCTL_READRQ) >> 12);
 
 	if (r_order > MAX_RD_ORD) {
 		DP(NETIF_MSG_HW, "read order of %d  order adjusted to %d\n",

@@ -622,7 +622,6 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 {
 	struct pcmcia_device *p_dev, *tmp_dev;
 	unsigned long flags;
-	int bus_id_len;
 
 	s = pcmcia_get_socket(s);
 	if (!s)
@@ -650,12 +649,12 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	/* by default don't allow DMA */
 	p_dev->dma_mask = DMA_MASK_NONE;
 	p_dev->dev.dma_mask = &p_dev->dma_mask;
-	bus_id_len = sprintf (p_dev->dev.bus_id, "%d.%d", p_dev->socket->sock, p_dev->device_no);
-
-	p_dev->devname = kmalloc(6 + bus_id_len + 1, GFP_KERNEL);
+	dev_set_name(&p_dev->dev, "%d.%d", p_dev->socket->sock, p_dev->device_no);
+	if (!dev_name(&p_dev->dev))
+		goto err_free;
+	p_dev->devname = kasprintf(GFP_KERNEL, "pcmcia%s", dev_name(&p_dev->dev));
 	if (!p_dev->devname)
 		goto err_free;
-	sprintf (p_dev->devname, "pcmcia%s", p_dev->dev.bus_id);
 	ds_dev_dbg(3, &p_dev->dev, "devname is %s\n", p_dev->devname);
 
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
@@ -668,6 +667,8 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
         list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
                 if (p_dev->func == tmp_dev->func) {
 			p_dev->function_config = tmp_dev->function_config;
+			p_dev->io = tmp_dev->io;
+			p_dev->irq = tmp_dev->irq;
 			kref_get(&p_dev->function_config->ref);
 		}
 

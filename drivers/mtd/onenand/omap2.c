@@ -38,7 +38,6 @@
 #include <asm/arch/gpmc.h>
 #include <asm/arch/onenand.h>
 #include <asm/arch/gpio.h>
-#include <asm/arch/gpmc.h>
 #include <asm/arch/pm.h>
 
 #include <linux/dma-mapping.h>

@@ -1094,8 +1094,8 @@ static void audit_inotify_unregister(struct list_head *in_list)
 	list_for_each_entry_safe(p, n, in_list, ilist) {
 		list_del(&p->ilist);
 		inotify_rm_watch(audit_ih, &p->wdata);
-		/* the put matching the get in audit_do_del_rule() */
-		put_inotify_watch(&p->wdata);
+		/* the unpin matching the pin in audit_do_del_rule() */
+		unpin_inotify_watch(&p->wdata);
 	}
 }
 
@@ -1389,9 +1389,13 @@ static inline int audit_del_rule(struct audit_entry *entry,
 				/* Put parent on the inotify un-registration
 				 * list.  Grab a reference before releasing
 				 * audit_filter_mutex, to be released in
-				 * audit_inotify_unregister(). */
-				list_add(&parent->ilist, &inotify_list);
-				get_inotify_watch(&parent->wdata);
+				 * audit_inotify_unregister().
+				 * If filesystem is going away, just leave
+				 * the sucker alone, eviction will take
+				 * care of it.
+				 */
+				if (pin_inotify_watch(&parent->wdata))
+					list_add(&parent->ilist, &inotify_list);
 			}
 		}
 	}

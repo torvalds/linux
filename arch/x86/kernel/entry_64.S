@@ -61,7 +61,7 @@
 
 	.code64
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(mcount)
 	retq
@@ -138,7 +138,7 @@ trace:
 	jmp ftrace_stub
 END(mcount)
 #endif /* CONFIG_DYNAMIC_FTRACE */
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 #ifndef CONFIG_PREEMPT
 #define retint_kernel retint_restore_args

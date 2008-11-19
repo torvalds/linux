@@ -12,7 +12,7 @@
 #include <asm/desc.h>
 #include <asm/ftrace.h>
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 /* mcount is defined in assembly */
 EXPORT_SYMBOL(mcount);
 #endif

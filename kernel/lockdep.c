@@ -2169,12 +2169,11 @@ void early_boot_irqs_on(void)
 /*
  * Hardirqs will be enabled:
  */
-void trace_hardirqs_on_caller(unsigned long a0)
+void trace_hardirqs_on_caller(unsigned long ip)
 {
 	struct task_struct *curr = current;
-	unsigned long ip;
 
-	time_hardirqs_on(CALLER_ADDR0, a0);
+	time_hardirqs_on(CALLER_ADDR0, ip);
 
 	if (unlikely(!debug_locks || current->lockdep_recursion))
 		return;
@@ -2188,7 +2187,6 @@ void trace_hardirqs_on_caller(unsigned long a0)
 	}
 	/* we'll do an OFF -> ON transition: */
 	curr->hardirqs_enabled = 1;
-	ip = (unsigned long) __builtin_return_address(0);
 
 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 		return;
@@ -2224,11 +2222,11 @@ EXPORT_SYMBOL(trace_hardirqs_on);
 /*
  * Hardirqs were disabled:
  */
-void trace_hardirqs_off_caller(unsigned long a0)
+void trace_hardirqs_off_caller(unsigned long ip)
 {
 	struct task_struct *curr = current;
 
-	time_hardirqs_off(CALLER_ADDR0, a0);
+	time_hardirqs_off(CALLER_ADDR0, ip);
 
 	if (unlikely(!debug_locks || current->lockdep_recursion))
 		return;
@@ -2241,7 +2239,7 @@ void trace_hardirqs_off_caller(unsigned long a0)
 		 * We have done an ON -> OFF transition:
 		 */
 		curr->hardirqs_enabled = 0;
-		curr->hardirq_disable_ip = _RET_IP_;
+		curr->hardirq_disable_ip = ip;
 		curr->hardirq_disable_event = ++curr->irq_events;
 		debug_atomic_inc(&hardirqs_off_events);
 	} else
@@ -3417,9 +3415,10 @@ retry:
 		}
 		printk(" ignoring it.\n");
 		unlock = 0;
+	} else {
+		if (count != 10)
+			printk(KERN_CONT " locked it.\n");
 	}
-	if (count != 10)
-		printk(" locked it.\n");
 
 	do_each_thread(g, p) {
 		/*

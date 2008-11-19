@@ -443,8 +443,8 @@ static void bpa10x_destruct(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	kfree(data->rx_skb[0]);
-	kfree(data->rx_skb[1]);
+	kfree_skb(data->rx_skb[0]);
+	kfree_skb(data->rx_skb[1]);
 	kfree(data);
 }
 

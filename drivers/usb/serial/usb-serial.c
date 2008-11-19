@@ -281,6 +281,7 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 			if (tty->driver_data)
 				tty->driver_data = NULL;
 			tty_port_tty_set(&port->port, NULL);
+			tty_kref_put(tty);
 		}
 	}
 

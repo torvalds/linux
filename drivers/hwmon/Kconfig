@@ -159,6 +159,16 @@ config SENSORS_ADM9240
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm9240.
 
+config SENSORS_ADT7462
+	tristate "Analog Devices ADT7462"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7462 temperature monitoring chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7462.
+
 config SENSORS_ADT7470
 	tristate "Analog Devices ADT7470"
 	depends on I2C && EXPERIMENTAL
@@ -824,6 +834,25 @@ config SENSORS_HDAPS
 
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of hdaps.
+
+config SENSORS_LIS3LV02D
+	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer"
+	depends on ACPI && INPUT
+	default n
+	help
+	  This driver provides support for the LIS3LV02Dx accelerometer. In
+	  particular, it can be found in a number of HP laptops, which have the
+	  "Mobile Data Protection System 3D" or "3D DriveGuard" feature. On such
+	  systems the driver should load automatically (via ACPI). The
+	  accelerometer might also be found in other systems, connected via SPI
+	  or I2C.  The accelerometer data is readable via
+	  /sys/devices/platform/lis3lv02d.
+
+	  This driver also provides an absolute input class device, allowing
+	  the laptop to act as a pinball machine-esque joystick.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lis3lv02d.
 
 config SENSORS_APPLESMC
 	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"

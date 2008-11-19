@@ -102,7 +102,7 @@ int profile_setup(char *str)
 __setup("profile=", profile_setup);
 
 
-int profile_init(void)
+int __ref profile_init(void)
 {
 	int buffer_bytes;
 	if (!prof_on)
@@ -544,7 +544,7 @@ static const struct file_operations proc_profile_operations = {
 };
 
 #ifdef CONFIG_SMP
-static void __init profile_nop(void *unused)
+static inline void profile_nop(void *unused)
 {
 }
 

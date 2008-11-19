@@ -38,7 +38,7 @@ static int hidraw_major;
 static struct cdev hidraw_cdev;
 static struct class *hidraw_class;
 static struct hidraw *hidraw_table[HIDRAW_MAX_DEVICES];
-static DEFINE_SPINLOCK(minors_lock);
+static DEFINE_MUTEX(minors_lock);
 
 static ssize_t hidraw_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
@@ -159,13 +159,13 @@ static int hidraw_open(struct inode *inode, struct file *file)
 	struct hidraw_list *list;
 	int err = 0;
 
-	lock_kernel();
 	if (!(list = kzalloc(sizeof(struct hidraw_list), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	spin_lock(&minors_lock);
+	lock_kernel();
+	mutex_lock(&minors_lock);
 	if (!hidraw_table[minor]) {
 		printk(KERN_EMERG "hidraw device with minor %d doesn't exist\n",
 				minor);
@@ -180,13 +180,16 @@ static int hidraw_open(struct inode *inode, struct file *file)
 	file->private_data = list;
 
 	dev = hidraw_table[minor];
-	if (!dev->open++)
-		dev->hid->ll_driver->open(dev->hid);
+	if (!dev->open++) {
+		err = dev->hid->ll_driver->open(dev->hid);
+		if (err < 0)
+			dev->open--;
+	}
 
 out_unlock:
-	spin_unlock(&minors_lock);
-out:
+	mutex_unlock(&minors_lock);
 	unlock_kernel();
+out:
 	return err;
 
 }
@@ -310,7 +313,7 @@ int hidraw_connect(struct hid_device *hid)
 
 	result = -EINVAL;
 
-	spin_lock(&minors_lock);
+	mutex_lock(&minors_lock);
 
 	for (minor = 0; minor < HIDRAW_MAX_DEVICES; minor++) {
 		if (hidraw_table[minor])
@@ -320,9 +323,8 @@ int hidraw_connect(struct hid_device *hid)
 		break;
 	}
 
-	spin_unlock(&minors_lock);
-
 	if (result) {
+		mutex_unlock(&minors_lock);
 		kfree(dev);
 		goto out;
 	}
@@ -331,14 +333,14 @@ int hidraw_connect(struct hid_device *hid)
 				 NULL, "%s%d", "hidraw", minor);
 
 	if (IS_ERR(dev->dev)) {
-		spin_lock(&minors_lock);
 		hidraw_table[minor] = NULL;
-		spin_unlock(&minors_lock);
+		mutex_unlock(&minors_lock);
 		result = PTR_ERR(dev->dev);
 		kfree(dev);
 		goto out;
 	}
 
+	mutex_unlock(&minors_lock);
 	init_waitqueue_head(&dev->wait);
 	INIT_LIST_HEAD(&dev->list);
 
@@ -360,9 +362,9 @@ void hidraw_disconnect(struct hid_device *hid)
 
 	hidraw->exist = 0;
 
-	spin_lock(&minors_lock);
+	mutex_lock(&minors_lock);
 	hidraw_table[hidraw->minor] = NULL;
-	spin_unlock(&minors_lock);
+	mutex_unlock(&minors_lock);
 
 	device_destroy(hidraw_class, MKDEV(hidraw_major, hidraw->minor));
 

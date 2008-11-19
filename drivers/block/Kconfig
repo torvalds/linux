@@ -21,7 +21,8 @@ config BLK_DEV_FD
 	---help---
 	  If you want to use the floppy disk drive(s) of your PC under Linux,
 	  say Y. Information about this driver, especially important for IBM
-	  Thinkpad users, is contained in <file:Documentation/floppy.txt>.
+	  Thinkpad users, is contained in
+	  <file:Documentation/blockdev/floppy.txt>.
 	  That file also contains the location of the Floppy driver FAQ as
 	  well as location of the fdutils package used to configure additional
 	  parameters of the driver at run time.
@@ -76,7 +77,7 @@ config PARIDE
 	  your computer's parallel port. Most of them are actually IDE devices
 	  using a parallel port IDE adapter. This option enables the PARIDE
 	  subsystem which contains drivers for many of these external drives.
-	  Read <file:Documentation/paride.txt> for more information.
+	  Read <file:Documentation/blockdev/paride.txt> for more information.
 
 	  If you have said Y to the "Parallel-port support" configuration
 	  option, you may share a single port between your printer and other
@@ -114,9 +115,9 @@ config BLK_CPQ_DA
 	help
 	  This is the driver for Compaq Smart Array controllers.  Everyone
 	  using these boards should say Y here.  See the file
-	  <file:Documentation/cpqarray.txt> for the current list of boards
-	  supported by this driver, and for further information on the use of
-	  this driver.
+	  <file:Documentation/blockdev/cpqarray.txt> for the current list of
+	  boards supported by this driver, and for further information on the
+	  use of this driver.
 
 config BLK_CPQ_CISS_DA
 	tristate "Compaq Smart Array 5xxx support"
@@ -124,7 +125,7 @@ config BLK_CPQ_CISS_DA
 	help
 	  This is the driver for Compaq Smart Array 5xxx controllers.
 	  Everyone using these boards should say Y here.
-	  See <file:Documentation/cciss.txt> for the current list of
+	  See <file:Documentation/blockdev/cciss.txt> for the current list of
 	  boards supported by this driver, and for further information
 	  on the use of this driver.
 
@@ -135,7 +136,7 @@ config CISS_SCSI_TAPE
 	help
 	  When enabled (Y), this option allows SCSI tape drives and SCSI medium
 	  changers (tape robots) to be accessed via a Compaq 5xxx array 
-	  controller.  (See <file:Documentation/cciss.txt> for more details.)
+	  controller.  (See <file:Documentation/blockdev/cciss.txt> for more details.)
 
 	  "SCSI support" and "SCSI tape support" must also be enabled for this 
 	  option to work.
@@ -149,8 +150,8 @@ config BLK_DEV_DAC960
 	help
 	  This driver adds support for the Mylex DAC960, AcceleRAID, and
 	  eXtremeRAID PCI RAID controllers.  See the file
-	  <file:Documentation/README.DAC960> for further information about
-	  this driver.
+	  <file:Documentation/blockdev/README.DAC960> for further information
+	  about this driver.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called DAC960.
@@ -278,9 +279,9 @@ config BLK_DEV_NBD
 	  userland (making server and client physically the same computer,
 	  communicating using the loopback network device).
 
-	  Read <file:Documentation/nbd.txt> for more information, especially
-	  about where to find the server code, which runs in user space and
-	  does not need special kernel support.
+	  Read <file:Documentation/blockdev/nbd.txt> for more information,
+	  especially about where to find the server code, which runs in user
+	  space and does not need special kernel support.
 
 	  Note that this has nothing to do with the network file systems NFS
 	  or Coda; you can say N here even if you intend to use NFS or Coda.
@@ -321,8 +322,8 @@ config BLK_DEV_RAM
 	  store a copy of a minimal root file system off of a floppy into RAM
 	  during the initial install of Linux.
 
-	  Note that the kernel command line option "ramdisk=XX" is now
-	  obsolete. For details, read <file:Documentation/ramdisk.txt>.
+	  Note that the kernel command line option "ramdisk=XX" is now obsolete.
+	  For details, read <file:Documentation/blockdev/ramdisk.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rd.

@@ -44,6 +44,7 @@ struct kvm_pit {
 	struct kvm_io_device speaker_dev;
 	struct kvm *kvm;
 	struct kvm_kpit_state pit_state;
+	int irq_source_id;
 };
 
 #define KVM_PIT_BASE_ADDRESS	    0x40

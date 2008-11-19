@@ -95,8 +95,8 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 	codec->ac97->dev.parent = NULL;
 	codec->ac97->dev.release = soc_ac97_device_release;
 
-	snprintf(codec->ac97->dev.bus_id, BUS_ID_SIZE, "%d-%d:%s",
-		 codec->card->number, 0, codec->name);
+	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
+		     codec->card->number, 0, codec->name);
 	err = device_register(&codec->ac97->dev);
 	if (err < 0) {
 		snd_printk(KERN_ERR "Can't register ac97 bus\n");
@@ -1462,7 +1462,7 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int max = mc->max;
-	unsigned int shift = mc->min;
+	unsigned int shift = mc->shift;
 	unsigned int rshift = mc->rshift;
 
 	if (max == 1)

@@ -664,14 +664,6 @@ static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
 
 		/* Timer is expired, act upon the callback mode */
 		switch(timer->cb_mode) {
-		case HRTIMER_CB_IRQSAFE_NO_RESTART:
-			debug_hrtimer_deactivate(timer);
-			/*
-			 * We can call the callback from here. No restart
-			 * happens, so no danger of recursion
-			 */
-			BUG_ON(timer->function(timer) != HRTIMER_NORESTART);
-			return 1;
 		case HRTIMER_CB_IRQSAFE_PERCPU:
 		case HRTIMER_CB_IRQSAFE_UNLOCKED:
 			/*
@@ -683,7 +675,6 @@ static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
 			 */
 			debug_hrtimer_deactivate(timer);
 			return 1;
-		case HRTIMER_CB_IRQSAFE:
 		case HRTIMER_CB_SOFTIRQ:
 			/*
 			 * Move everything else into the softirq pending list !
@@ -1209,6 +1200,7 @@ static void run_hrtimer_pending(struct hrtimer_cpu_base *cpu_base)
 		enum hrtimer_restart (*fn)(struct hrtimer *);
 		struct hrtimer *timer;
 		int restart;
+		int emulate_hardirq_ctx = 0;
 
 		timer = list_entry(cpu_base->cb_pending.next,
 				   struct hrtimer, cb_entry);
@@ -1217,10 +1209,24 @@ static void run_hrtimer_pending(struct hrtimer_cpu_base *cpu_base)
 		timer_stats_account_hrtimer(timer);
 
 		fn = timer->function;
+		/*
+		 * A timer might have been added to the cb_pending list
+		 * when it was migrated during a cpu-offline operation.
+		 * Emulate hardirq context for such timers.
+		 */
+		if (timer->cb_mode == HRTIMER_CB_IRQSAFE_PERCPU ||
+		    timer->cb_mode == HRTIMER_CB_IRQSAFE_UNLOCKED)
+			emulate_hardirq_ctx = 1;
+
 		__remove_hrtimer(timer, timer->base, HRTIMER_STATE_CALLBACK, 0);
 		spin_unlock_irq(&cpu_base->lock);
 
-		restart = fn(timer);
+		if (unlikely(emulate_hardirq_ctx)) {
+			local_irq_disable();
+			restart = fn(timer);
+			local_irq_enable();
+		} else
+			restart = fn(timer);
 
 		spin_lock_irq(&cpu_base->lock);
 

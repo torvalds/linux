@@ -2083,6 +2083,38 @@ config FB_METRONOME
 	  controller. The pre-release name for this device was 8track
 	  and could also have been called by some vendors as PVI-nnnn.
 
+config FB_MB862XX
+	tristate "Fujitsu MB862xx GDC support"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Frame buffer driver for Fujitsu Carmine/Coral-P(A)/Lime controllers.
+
+config FB_MB862XX_PCI_GDC
+	bool "Carmine/Coral-P(A) GDC"
+	depends on PCI && FB_MB862XX
+	---help---
+	  This enables framebuffer support for Fujitsu Carmine/Coral-P(A)
+	  PCI graphics controller devices.
+
+config FB_MB862XX_LIME
+	bool "Lime GDC"
+	depends on FB_MB862XX
+	depends on OF && !FB_MB862XX_PCI_GDC
+	select FB_FOREIGN_ENDIAN
+	select FB_LITTLE_ENDIAN
+	---help---
+	  Framebuffer support for Fujitsu Lime GDC on host CPU bus.
+
+config FB_PRE_INIT_FB
+	bool "Don't reinitialize, use bootloader's GDC/Display configuration"
+	depends on FB_MB862XX_LIME
+	---help---
+	  Select this option if display contents should be inherited as set by
+	  the bootloader.
+
 source "drivers/video/omap/Kconfig"
 
 source "drivers/video/backlight/Kconfig"

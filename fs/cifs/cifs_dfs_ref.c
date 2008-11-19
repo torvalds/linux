@@ -106,7 +106,8 @@ static char *cifs_get_share_name(const char *node_name)
 /**
  * compose_mount_options	-	creates mount options for refferral
  * @sb_mountdata:	parent/root DFS mount options (template)
- * @ref_unc:		refferral server UNC
+ * @dentry:		point where we are going to mount
+ * @ref:		server's referral
  * @devname:		pointer for saving device name
  *
  * creates mount options for submount based on template options sb_mountdata
@@ -116,7 +117,8 @@ static char *cifs_get_share_name(const char *node_name)
  * Caller is responcible for freeing retunrned value if it is not error.
  */
 static char *compose_mount_options(const char *sb_mountdata,
-				   const char *ref_unc,
+				   struct dentry *dentry,
+				   const struct dfs_info3_param *ref,
 				   char **devname)
 {
 	int rc;
@@ -126,11 +128,12 @@ static char *compose_mount_options(const char *sb_mountdata,
 	char *srvIP = NULL;
 	char sep = ',';
 	int off, noff;
+	char *fullpath;
 
 	if (sb_mountdata == NULL)
 		return ERR_PTR(-EINVAL);
 
-	*devname = cifs_get_share_name(ref_unc);
+	*devname = cifs_get_share_name(ref->node_name);
 	rc = dns_resolve_server_name_to_ip(*devname, &srvIP);
 	if (rc != 0) {
 		cERROR(1, ("%s: Failed to resolve server part of %s to IP",
@@ -138,7 +141,12 @@ static char *compose_mount_options(const char *sb_mountdata,
 		mountdata = ERR_PTR(rc);
 		goto compose_mount_options_out;
 	}
-	md_len = strlen(sb_mountdata) + strlen(srvIP) + strlen(ref_unc) + 3;
+	/* md_len = strlen(...) + 12 for 'sep+prefixpath='
+	 * assuming that we have 'unc=' and 'ip=' in
+	 * the original sb_mountdata
+	 */
+	md_len = strlen(sb_mountdata) + strlen(srvIP) +
+		strlen(ref->node_name) + 12;
 	mountdata = kzalloc(md_len+1, GFP_KERNEL);
 	if (mountdata == NULL) {
 		mountdata = ERR_PTR(-ENOMEM);
@@ -152,41 +160,56 @@ static char *compose_mount_options(const char *sb_mountdata,
 			strncpy(mountdata, sb_mountdata, 5);
 			off += 5;
 	}
-	while ((tkn_e = strchr(sb_mountdata+off, sep))) {
-		noff = (tkn_e - (sb_mountdata+off)) + 1;
-		if (strnicmp(sb_mountdata+off, "unc=", 4) == 0) {
+
+	do {
+		tkn_e = strchr(sb_mountdata + off, sep);
+		if (tkn_e == NULL)
+			noff = strlen(sb_mountdata + off);
+		else
+			noff = tkn_e - (sb_mountdata + off) + 1;
+
+		if (strnicmp(sb_mountdata + off, "unc=", 4) == 0) {
 			off += noff;
 			continue;
 		}
-		if (strnicmp(sb_mountdata+off, "ip=", 3) == 0) {
+		if (strnicmp(sb_mountdata + off, "ip=", 3) == 0) {
 			off += noff;
 			continue;
 		}
-		if (strnicmp(sb_mountdata+off, "prefixpath=", 3) == 0) {
+		if (strnicmp(sb_mountdata + off, "prefixpath=", 11) == 0) {
 			off += noff;
 			continue;
 		}
-		strncat(mountdata, sb_mountdata+off, noff);
+		strncat(mountdata, sb_mountdata + off, noff);
 		off += noff;
-	}
-	strcat(mountdata, sb_mountdata+off);
+	} while (tkn_e);
+	strcat(mountdata, sb_mountdata + off);
 	mountdata[md_len] = '\0';
 
 	/* copy new IP and ref share name */
-	strcat(mountdata, ",ip=");
+	if (mountdata[strlen(mountdata) - 1] != sep)
+		strncat(mountdata, &sep, 1);
+	strcat(mountdata, "ip=");
 	strcat(mountdata, srvIP);
-	strcat(mountdata, ",unc=");
+	strncat(mountdata, &sep, 1);
+	strcat(mountdata, "unc=");
 	strcat(mountdata, *devname);
 
 	/* find & copy prefixpath */
-	tkn_e = strchr(ref_unc+2, '\\');
-	if (tkn_e) {
-		tkn_e = strchr(tkn_e+1, '\\');
-		if (tkn_e) {
-			strcat(mountdata, ",prefixpath=");
-			strcat(mountdata, tkn_e+1);
-		}
+	tkn_e = strchr(ref->node_name + 2, '\\');
+	if (tkn_e == NULL) /* invalid unc, missing share name*/
+		goto compose_mount_options_out;
+
+	fullpath = build_path_from_dentry(dentry);
+	tkn_e = strchr(tkn_e + 1, '\\');
+	if (tkn_e || strlen(fullpath) - (ref->path_consumed)) {
+		strncat(mountdata, &sep, 1);
+		strcat(mountdata, "prefixpath=");
+		if (tkn_e)
+			strcat(mountdata, tkn_e + 1);
+		strcat(mountdata, fullpath + (ref->path_consumed));
 	}
+	kfree(fullpath);
 
 	/*cFYI(1,("%s: parent mountdata: %s", __func__,sb_mountdata));*/
 	/*cFYI(1, ("%s: submount mountdata: %s", __func__, mountdata ));*/
@@ -198,7 +221,7 @@ compose_mount_options_out:
 
 
 static struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
-		struct dentry *dentry, char *ref_unc)
+		struct dentry *dentry, const struct dfs_info3_param *ref)
 {
 	struct cifs_sb_info *cifs_sb;
 	struct vfsmount *mnt;
@@ -207,7 +230,7 @@ static struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
 
 	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
 	mountdata = compose_mount_options(cifs_sb->mountdata,
-						ref_unc, &devname);
+						dentry, ref, &devname);
 
 	if (IS_ERR(mountdata))
 		return (struct vfsmount *)mountdata;
@@ -310,7 +333,7 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 			}
 			mnt = cifs_dfs_do_refmount(nd->path.mnt,
 						nd->path.dentry,
-						referrals[i].node_name);
+						referrals + i);
 			cFYI(1, ("%s: cifs_dfs_do_refmount:%s , mnt:%p",
 					 __func__,
 					referrals[i].node_name, mnt));

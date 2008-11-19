@@ -1019,10 +1019,9 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 			state &= ~PCIE_LINK_STATE_L0S;
 			pci_write_config_word(us_dev, pos + PCI_EXP_LNKCTL,
 			                      state);
-			printk(KERN_INFO "Disabling ASPM L0s upstream switch "
-			       "port %x:%x.%x\n", us_dev->bus->number,
-			       PCI_SLOT(us_dev->devfn),
-			       PCI_FUNC(us_dev->devfn));
+			dev_info(&pdev->dev,
+				 "Disabling ASPM L0s upstream switch port %s\n",
+				 pci_name(us_dev));
 		}
 	default:
 		break;
@@ -1244,6 +1243,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wol = adapter->eeprom_wol;
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	/* reset the hardware with the new settings */
 	igb_reset(adapter);

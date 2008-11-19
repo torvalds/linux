@@ -227,10 +227,20 @@ config HP_WMI
          To compile this driver as a module, choose M here: the module will
          be called hp-wmi.
 
+config ICS932S401
+	tristate "Integrated Circuits ICS932S401"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Integrated Circuits
+	  ICS932S401 clock control chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ics932s401.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
-        depends on ACPI_EC
+        depends on ACPI
         depends on BACKLIGHT_CLASS_DEVICE
         ---help---
 	  This is a driver for laptops built by MSI (MICRO-STAR
@@ -260,7 +270,7 @@ config PANASONIC_LAPTOP
 config COMPAL_LAPTOP
 	tristate "Compal Laptop Extras"
 	depends on X86
-	depends on ACPI_EC
+	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This is a driver for laptops built by Compal:
@@ -487,5 +497,7 @@ config SGI_GRU_DEBUG
 	---help---
 	This option enables addition debugging code for the SGI GRU driver. If
 	you are unsure, say N.
+
+source "drivers/misc/c2port/Kconfig"
 
 endif # MISC_DEVICES

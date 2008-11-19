@@ -241,18 +241,16 @@ config PACK_STACK
 	  Say Y if you are unsure.
 
 config SMALL_STACK
-	bool "Use 4kb/8kb for kernel stack instead of 8kb/16kb"
-	depends on PACK_STACK && !LOCKDEP
+	bool "Use 8kb for kernel stack instead of 16kb"
+	depends on PACK_STACK && 64BIT && !LOCKDEP
 	help
 	  If you say Y here and the compiler supports the -mkernel-backchain
-	  option the kernel will use a smaller kernel stack size. For 31 bit
-	  the reduced size is 4kb instead of 8kb and for 64 bit it is 8kb
-	  instead of 16kb. This allows to run more thread on a system and
-	  reduces the pressure on the memory management for higher order
-	  page allocations.
+	  option the kernel will use a smaller kernel stack size. The reduced
+	  size is 8kb instead of 16kb. This allows to run more threads on a
+	  system and reduces the pressure on the memory management for higher
+	  order page allocations.
 
 	  Say N if you are unsure.
-
 
 config CHECK_STACK
 	bool "Detect kernel stack overflow"
@@ -384,7 +382,7 @@ config IPL
 choice
 	prompt "IPL method generated into head.S"
 	depends on IPL
-	default IPL_TAPE
+	default IPL_VM
 	help
 	  Select "tape" if you want to IPL the image from a Tape.
 

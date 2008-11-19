@@ -4,6 +4,7 @@
  *  Driver for USB radios for the Silicon Labs Si470x FM Radio Receivers:
  *   - Silicon Labs USB FM Radio Reference Design
  *   - ADS/Tech FM Radio Receiver (formerly Instant FM Music) (RDX-155-EF)
+ *   - KWorld USB FM Radio SnapMusic Mobile 700 (FM700)
  *
  *  Copyright (c) 2008 Tobias Lorenz <tobias.lorenz@gmx.net>
  *
@@ -20,19 +21,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- */
-
-
-/*
- * User Notes:
- * - USB Audio is provided by the alsa snd_usb_audio module.
- *   For listing you have to redirect the sound, for example using:
- *   arecord -D hw:1,0 -r96000 -c2 -f S16_LE | artsdsp aplay -B -
- * - regarding module parameters in /sys/module/radio_si470x/parameters:
- *   the contents of read-only files (0444) are not updated, even if
- *   space, band and de are changed using private video controls
- * - increase tune_timeout, if you often get -EIO errors
- * - hw_freq_seek returns -EAGAIN, when timed out or band limit is reached
  */
 
 
@@ -105,6 +93,9 @@
  *		- afc indication
  *		- more safety checks, let si470x_get_freq return errno
  *		- vidioc behavior corrected according to v4l2 spec
+ * 2008-10-20	Alexey Klimov <klimov.linux@gmail.com>
+ * 		- add support for KWorld USB FM Radio FM700
+ * 		- blacklisted KWorld radio in hid-core.c and hid-ids.h
  *
  * ToDo:
  * - add firmware download/update support
@@ -145,6 +136,8 @@ static struct usb_device_id si470x_usb_driver_id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a, USB_CLASS_HID, 0, 0) },
 	/* ADS/Tech FM Radio Receiver (formerly Instant FM Music) */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x06e1, 0xa155, USB_CLASS_HID, 0, 0) },
+	/* KWorld USB FM Radio SnapMusic Mobile 700 (FM700) */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1b80, 0xd700, USB_CLASS_HID, 0, 0) },
 	/* Terminating entry */
 	{ }
 };
