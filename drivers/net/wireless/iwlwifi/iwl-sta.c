@@ -463,6 +463,29 @@ out:
 }
 EXPORT_SYMBOL(iwl_remove_station);
 
+/**
+ * iwl_clear_stations_table - Clear the driver's station table
+ *
+ * NOTE:  This does not clear or otherwise alter the device's station table.
+ */
+void iwl_clear_stations_table(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+
+	if (iwl_is_alive(priv) &&
+	   !test_bit(STATUS_EXIT_PENDING, &priv->status) &&
+	   iwl_send_cmd_pdu_async(priv, REPLY_REMOVE_ALL_STA, 0, NULL, NULL))
+		IWL_ERROR("Couldn't clear the station table\n");
+
+	priv->num_stations = 0;
+	memset(priv->stations, 0, sizeof(priv->stations));
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+}
+EXPORT_SYMBOL(iwl_clear_stations_table);
+
 static int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
 	int i;
