@@ -449,11 +449,6 @@ static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
 			     txq->q.dma_addr >> 8);
 
-	/* Enable DMA channel, using same id as for TFD queue */
-	iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
-			FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
-			FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
-
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 

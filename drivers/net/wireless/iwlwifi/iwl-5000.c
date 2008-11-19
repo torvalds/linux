@@ -700,9 +700,9 @@ static int iwl5000_send_wimax_coex(struct iwl_priv *priv)
 static int iwl5000_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
-	int i = 0;
 	unsigned long flags;
 	int ret;
+	int i, chan;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -725,6 +725,13 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 
 	iwl_write_prph(priv, IWL50_SCD_DRAM_BASE_ADDR,
 		       priv->scd_bc_tbls.dma >> 10);
+
+	/* Enable DMA channel */
+	for (chan = 0; chan < FH50_TCSR_CHNL_NUM ; chan++)
+		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
+				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
+
 	iwl_write_prph(priv, IWL50_SCD_QUEUECHAIN_SEL,
 		IWL50_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
 	iwl_write_prph(priv, IWL50_SCD_AGGR_SEL, 0);
