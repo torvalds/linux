@@ -2034,6 +2034,8 @@ int btrfs_update_pinned_extents(struct btrfs_root *root,
 			spin_unlock(&cache->lock);
 			spin_unlock(&cache->space_info->lock);
 			fs_info->total_pinned -= len;
+			if (cache->cached)
+				btrfs_add_free_space(cache, bytenr, len);
 		}
 		bytenr += len;
 		num -= len;
@@ -2099,7 +2101,6 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 	u64 start;
 	u64 end;
 	int ret;
-	struct btrfs_block_group_cache *cache;
 
 	mutex_lock(&root->fs_info->pinned_mutex);
 	while(1) {
@@ -2109,9 +2110,6 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			break;
 		btrfs_update_pinned_extents(root, start, end + 1 - start, 0);
 		clear_extent_dirty(unpin, start, end, GFP_NOFS);
-		cache = btrfs_lookup_block_group(root->fs_info, start);
-		if (cache->cached)
-			btrfs_add_free_space(cache, start, end - start + 1);
 		if (need_resched()) {
 			mutex_unlock(&root->fs_info->pinned_mutex);
 			cond_resched();
