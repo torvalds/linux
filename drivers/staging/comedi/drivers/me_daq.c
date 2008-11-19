@@ -234,7 +234,7 @@ static const struct me_board me_boards[] = {
 		.ao_channel_nbr =	0,
 		.ao_resolution =	0,
 		.ao_resolution_mask =	0,
-		.ao_range_list =	0,
+		.ao_range_list =	NULL,
 		.ai_channel_nbr =	16,
 		/* Analog Input */
 		.ai_resolution =	12,
@@ -257,8 +257,8 @@ COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);
 /* Private data structure */
 struct me_private_data {
 	struct pci_dev *pci_device;
-	void *plx_regbase;	/* PLX configuration base address */
-	void *me_regbase;	/* Base address of the Meilhaus card */
+	void __iomem *plx_regbase;	/* PLX configuration base address */
+	void __iomem *me_regbase;	/* Base address of the Meilhaus card */
 	unsigned long plx_regbase_size;	/* Size of PLX configuration space */
 	unsigned long me_regbase_size;	/* Size of Meilhaus space */
 
