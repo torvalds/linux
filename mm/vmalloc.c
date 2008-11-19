@@ -362,7 +362,7 @@ retry:
 				goto found;
 		}
 
-		while (addr + size >= first->va_start && addr + size <= vend) {
+		while (addr + size > first->va_start && addr + size <= vend) {
 			addr = ALIGN(first->va_end + PAGE_SIZE, align);
 
 			n = rb_next(&first->rb_node);
