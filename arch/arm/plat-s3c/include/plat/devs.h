@@ -24,6 +24,7 @@ extern struct platform_device *s3c24xx_uart_src[];
 
 extern struct platform_device s3c_device_timer[];
 
+extern struct platform_device s3c_device_fb;
 extern struct platform_device s3c_device_usb;
 extern struct platform_device s3c_device_lcd;
 extern struct platform_device s3c_device_wdt;
