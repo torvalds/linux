@@ -124,7 +124,7 @@ config COMPUTONE
 	  which give you many serial ports. You would need something like this
 	  to connect more than two modems to your Linux box, for instance in
 	  order to become a dial-in server. If you have a card like that, say
-	  Y here and read <file:Documentation/computone.txt>.
+	  Y here and read <file:Documentation/serial/computone.txt>.
 
 	  To compile this driver as module, choose M here: the
 	  module will be called ip2.
@@ -136,7 +136,7 @@ config ROCKETPORT
 	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
           These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
           modems.  For information about the RocketPort/RocketModem  boards
-          and this driver read <file:Documentation/rocket.txt>.
+          and this driver read <file:Documentation/serial/rocket.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rocket.
@@ -154,7 +154,7 @@ config CYCLADES
 	  your Linux box, for instance in order to become a dial-in server.
 
 	  For information about the Cyclades-Z card, read
-	  <file:Documentation/README.cycladesZ>.
+	  <file:Documentation/serial/README.cycladesZ>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyclades.
@@ -183,7 +183,7 @@ config DIGIEPCA
 	  box, for instance in order to become a dial-in server. This driver
 	  supports the original PC (ISA) boards as well as PCI, and EISA. If
 	  you have a card like this, say Y here and read the file
-	  <file:Documentation/digiepca.txt>.
+	  <file:Documentation/serial/digiepca.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called epca.
@@ -289,7 +289,7 @@ config RISCOM8
 	  which gives you many serial ports. You would need something like
 	  this to connect more than two modems to your Linux box, for instance
 	  in order to become a dial-in server. If you have a card like that,
-	  say Y here and read the file <file:Documentation/riscom8.txt>.
+	  say Y here and read the file <file:Documentation/serial/riscom8.txt>.
 
 	  Also it's possible to say M here and compile this driver as kernel
 	  loadable module; the module will be called riscom8.
@@ -304,8 +304,8 @@ config SPECIALIX
 	  your Linux box, for instance in order to become a dial-in server.
 
 	  If you have a card like that, say Y here and read the file
-	  <file:Documentation/specialix.txt>. Also it's possible to say M here
-	  and compile this driver as kernel loadable module which will be
+	  <file:Documentation/serial/specialix.txt>. Also it's possible to say
+	  M here and compile this driver as kernel loadable module which will be
 	  called specialix.
 
 config SX
@@ -313,7 +313,7 @@ config SX
 	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
 	help
 	  This is a driver for the SX and SI multiport serial cards.
-	  Please read the file <file:Documentation/sx.txt> for details.
+	  Please read the file <file:Documentation/serial/sx.txt> for details.
 
 	  This driver can only be built as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
@@ -344,8 +344,8 @@ config STALDRV
 	  like this to connect more than two modems to your Linux box, for
 	  instance in order to become a dial-in server.  If you say Y here,
 	  you will be asked for your specific card model in the next
-	  questions.  Make sure to read <file:Documentation/stallion.txt> in
-	  this case.  If you have never heard about all this, it's safe to
+	  questions.  Make sure to read <file:Documentation/serial/stallion.txt>
+	  in this case.  If you have never heard about all this, it's safe to
 	  say N.
 
 config STALLION
@@ -354,7 +354,7 @@ config STALLION
 	help
 	  If you have an EasyIO or EasyConnection 8/32 multiport Stallion
 	  card, then this is for you; say Y.  Make sure to read
-	  <file:Documentation/stallion.txt>.
+	  <file:Documentation/serial/stallion.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stallion.
@@ -365,7 +365,7 @@ config ISTALLION
 	help
 	  If you have an EasyConnection 8/64, ONboard, Brumby or Stallion
 	  serial multiport card, say Y here. Make sure to read
-	  <file:Documentation/stallion.txt>.
+	  <file:Documentation/serial/stallion.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called istallion.

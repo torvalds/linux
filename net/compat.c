@@ -226,14 +226,14 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 		return 0; /* XXX: return error? check spec. */
 	}
 
-	if (level == SOL_SOCKET && type == SO_TIMESTAMP) {
+	if (level == SOL_SOCKET && type == SCM_TIMESTAMP) {
 		struct timeval *tv = (struct timeval *)data;
 		ctv.tv_sec = tv->tv_sec;
 		ctv.tv_usec = tv->tv_usec;
 		data = &ctv;
 		len = sizeof(ctv);
 	}
-	if (level == SOL_SOCKET && type == SO_TIMESTAMPNS) {
+	if (level == SOL_SOCKET && type == SCM_TIMESTAMPNS) {
 		struct timespec *ts = (struct timespec *)data;
 		cts.tv_sec = ts->tv_sec;
 		cts.tv_nsec = ts->tv_nsec;

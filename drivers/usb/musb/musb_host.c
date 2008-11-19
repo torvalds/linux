@@ -378,6 +378,19 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 
 		switch (qh->type) {
 
+		case USB_ENDPOINT_XFER_CONTROL:
+		case USB_ENDPOINT_XFER_BULK:
+			/* fifo policy for these lists, except that NAKing
+			 * should rotate a qh to the end (for fairness).
+			 */
+			if (qh->mux == 1) {
+				head = qh->ring.prev;
+				list_del(&qh->ring);
+				kfree(qh);
+				qh = first_qh(head);
+				break;
+			}
+
 		case USB_ENDPOINT_XFER_ISOC:
 		case USB_ENDPOINT_XFER_INT:
 			/* this is where periodic bandwidth should be
@@ -387,17 +400,6 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 			musb->periodic[ep->epnum] = NULL;
 			kfree(qh);
 			qh = NULL;
-			break;
-
-		case USB_ENDPOINT_XFER_CONTROL:
-		case USB_ENDPOINT_XFER_BULK:
-			/* fifo policy for these lists, except that NAKing
-			 * should rotate a qh to the end (for fairness).
-			 */
-			head = qh->ring.prev;
-			list_del(&qh->ring);
-			kfree(qh);
-			qh = first_qh(head);
 			break;
 		}
 	}
@@ -1507,10 +1509,29 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
 #ifdef CONFIG_USB_INVENTRA_DMA
+		if (usb_pipeisoc(pipe)) {
+			struct usb_iso_packet_descriptor *d;
+
+			d = urb->iso_frame_desc + qh->iso_idx;
+			d->actual_length = xfer_len;
+
+			/* even if there was an error, we did the dma
+			 * for iso_frame_desc->length
+			 */
+			if (d->status != EILSEQ && d->status != -EOVERFLOW)
+				d->status = 0;
+
+			if (++qh->iso_idx >= urb->number_of_packets)
+				done = true;
+			else
+				done = false;
+
+		} else  {
 		/* done if urb buffer is full or short packet is recd */
 		done = (urb->actual_length + xfer_len >=
 				urb->transfer_buffer_length
 			|| dma->actual_len < qh->maxpacket);
+		}
 
 		/* send IN token for next packet, without AUTOREQ */
 		if (!done) {
@@ -1547,7 +1568,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		if (dma) {
 			struct dma_controller	*c;
 			u16			rx_count;
-			int			ret;
+			int			ret, length;
+			dma_addr_t		buf;
 
 			rx_count = musb_readw(epio, MUSB_RXCOUNT);
 
@@ -1560,6 +1582,35 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 
 			c = musb->dma_controller;
 
+			if (usb_pipeisoc(pipe)) {
+				int status = 0;
+				struct usb_iso_packet_descriptor *d;
+
+				d = urb->iso_frame_desc + qh->iso_idx;
+
+				if (iso_err) {
+					status = -EILSEQ;
+					urb->error_count++;
+				}
+				if (rx_count > d->length) {
+					if (status == 0) {
+						status = -EOVERFLOW;
+						urb->error_count++;
+					}
+					DBG(2, "** OVERFLOW %d into %d\n",\
+					    rx_count, d->length);
+
+					length = d->length;
+				} else
+					length = rx_count;
+				d->status = status;
+				buf = urb->transfer_dma + d->offset;
+			} else {
+				length = rx_count;
+				buf = urb->transfer_dma +
+						urb->actual_length;
+			}
+
 			dma->desired_mode = 0;
 #ifdef USE_MODE1
 			/* because of the issue below, mode 1 will
@@ -1571,6 +1622,12 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 						urb->actual_length)
 					> qh->maxpacket)
 				dma->desired_mode = 1;
+			if (rx_count < hw_ep->max_packet_sz_rx) {
+				length = rx_count;
+				dma->bDesiredMode = 0;
+			} else {
+				length = urb->transfer_buffer_length;
+			}
 #endif
 
 /* Disadvantage of using mode 1:
@@ -1608,12 +1665,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			 */
 			ret = c->channel_program(
 				dma, qh->maxpacket,
-				dma->desired_mode,
-				urb->transfer_dma
-					+ urb->actual_length,
-				(dma->desired_mode == 0)
-					? rx_count
-					: urb->transfer_buffer_length);
+				dma->desired_mode, buf, length);
 
 			if (!ret) {
 				c->channel_release(dma);
@@ -1629,19 +1681,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 					epnum, iso_err);
 			DBG(6, "read %spacket\n", done ? "last " : "");
 		}
-	}
-
-	if (dma && usb_pipeisoc(pipe)) {
-		struct usb_iso_packet_descriptor	*d;
-		int					iso_stat = status;
-
-		d = urb->iso_frame_desc + qh->iso_idx;
-		d->actual_length += xfer_len;
-		if (iso_err) {
-			iso_stat = -EILSEQ;
-			urb->error_count++;
-		}
-		d->status = iso_stat;
 	}
 
 finish:
@@ -1671,22 +1710,9 @@ static int musb_schedule(
 	struct list_head	*head = NULL;
 
 	/* use fixed hardware for control and bulk */
-	switch (qh->type) {
-	case USB_ENDPOINT_XFER_CONTROL:
+	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
 		head = &musb->control;
 		hw_ep = musb->control_ep;
-		break;
-	case USB_ENDPOINT_XFER_BULK:
-		hw_ep = musb->bulk_ep;
-		if (is_in)
-			head = &musb->in_bulk;
-		else
-			head = &musb->out_bulk;
-		break;
-	}
-	if (head) {
-		idle = list_empty(head);
-		list_add_tail(&qh->ring, head);
 		goto success;
 	}
 
@@ -1725,19 +1751,34 @@ static int musb_schedule(
 		else
 			diff = hw_ep->max_packet_sz_tx - qh->maxpacket;
 
-		if (diff > 0 && best_diff > diff) {
+		if (diff >= 0 && best_diff > diff) {
 			best_diff = diff;
 			best_end = epnum;
 		}
 	}
-	if (best_end < 0)
+	/* use bulk reserved ep1 if no other ep is free */
+	if (best_end > 0 && qh->type == USB_ENDPOINT_XFER_BULK) {
+		hw_ep = musb->bulk_ep;
+		if (is_in)
+			head = &musb->in_bulk;
+		else
+			head = &musb->out_bulk;
+		goto success;
+	} else if (best_end < 0) {
 		return -ENOSPC;
+	}
 
 	idle = 1;
+	qh->mux = 0;
 	hw_ep = musb->endpoints + best_end;
 	musb->periodic[best_end] = qh;
 	DBG(4, "qh %p periodic slot %d\n", qh, best_end);
 success:
+	if (head) {
+		idle = list_empty(head);
+		list_add_tail(&qh->ring, head);
+		qh->mux = 1;
+	}
 	qh->hw_ep = hw_ep;
 	qh->hep->hcpriv = qh;
 	if (idle)
@@ -2015,11 +2056,13 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			sched = &musb->control;
 			break;
 		case USB_ENDPOINT_XFER_BULK:
-			if (usb_pipein(urb->pipe))
-				sched = &musb->in_bulk;
-			else
-				sched = &musb->out_bulk;
-			break;
+			if (qh->mux == 1) {
+				if (usb_pipein(urb->pipe))
+					sched = &musb->in_bulk;
+				else
+					sched = &musb->out_bulk;
+				break;
+			}
 		default:
 			/* REVISIT when we get a schedule tree, periodic
 			 * transfers won't always be at the head of a
@@ -2067,11 +2110,13 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 		sched = &musb->control;
 		break;
 	case USB_ENDPOINT_XFER_BULK:
-		if (is_in)
-			sched = &musb->in_bulk;
-		else
-			sched = &musb->out_bulk;
-		break;
+		if (qh->mux == 1) {
+			if (is_in)
+				sched = &musb->in_bulk;
+			else
+				sched = &musb->out_bulk;
+			break;
+		}
 	default:
 		/* REVISIT when we get a schedule tree, periodic transfers
 		 * won't always be at the head of a singleton queue...

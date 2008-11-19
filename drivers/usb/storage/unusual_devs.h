@@ -253,6 +253,14 @@ UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0591,
 	US_SC_DEVICE, US_PR_DEVICE, NULL,
 	US_FL_FIX_CAPACITY ),
 
+/* Submitted by Ricky Wong Yung Fei <evilbladewarrior@gmail.com> */
+/* Nokia 7610 Supernova - Too many sectors reported in usb storage mode */
+UNUSUAL_DEV(  0x0421, 0x00f5, 0x0000, 0x0470,
+	"Nokia",
+	"7610 Supernova",
+	US_SC_DEVICE, US_PR_DEVICE, NULL,
+	US_FL_FIX_CAPACITY ),
+
 /* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
 UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
 		"SMSC",
@@ -415,6 +423,13 @@ UNUSUAL_DEV(  0x04b0, 0x0415, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x04b0, 0x0417, 0x0100, 0x0100,
 		"NIKON",
 		"NIKON DSC D40X",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
+/* Reported by paul ready <lxtwin@homecall.co.uk> */
+UNUSUAL_DEV(  0x04b0, 0x0419, 0x0100, 0x0200,
+		"NIKON",
+		"NIKON DSC D300",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
@@ -1257,6 +1272,13 @@ UNUSUAL_DEV( 0x0839, 0x000a, 0x0001, 0x0001,
 		"Digimax 410",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY),
+
+/* Reported by Luciano Rocha <luciano@eurotux.com> */
+UNUSUAL_DEV( 0x0840, 0x0082, 0x0001, 0x0001,
+		"Argosy",
+		"Storage",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
 
 /* Entry and supporting patch by Theodore Kilgore <kilgota@auburn.edu>.
  * Flag will support Bulk devices which use a standards-violating 32-byte

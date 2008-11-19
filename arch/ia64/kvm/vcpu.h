@@ -384,6 +384,10 @@ static inline u64 __gpfn_is_io(u64 gpfn)
 #define MODE_IND(psr)	\
 	(((psr).it << 2) + ((psr).dt << 1) + (psr).rt)
 
+#ifndef CONFIG_SMP
+#define _vmm_raw_spin_lock(x)	 do {}while(0)
+#define _vmm_raw_spin_unlock(x) do {}while(0)
+#else
 #define _vmm_raw_spin_lock(x)						\
 	do {								\
 		__u32 *ia64_spinlock_ptr = (__u32 *) (x);		\
@@ -403,6 +407,7 @@ static inline u64 __gpfn_is_io(u64 gpfn)
 	do { barrier();				\
 		((spinlock_t *)x)->raw_lock.lock = 0; } \
 while (0)
+#endif
 
 void vmm_spin_lock(spinlock_t *lock);
 void vmm_spin_unlock(spinlock_t *lock);

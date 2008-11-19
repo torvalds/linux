@@ -375,7 +375,7 @@ static void start_io_acct(struct dm_io *io)
 	dm_disk(md)->part0.in_flight = atomic_inc_return(&md->pending);
 }
 
-static int end_io_acct(struct dm_io *io)
+static void end_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
 	struct bio *bio = io->bio;
@@ -391,7 +391,9 @@ static int end_io_acct(struct dm_io *io)
 	dm_disk(md)->part0.in_flight = pending =
 		atomic_dec_return(&md->pending);
 
-	return !pending;
+	/* nudge anyone waiting on suspend queue */
+	if (!pending)
+		wake_up(&md->wait);
 }
 
 /*
@@ -499,9 +501,7 @@ static void dec_pending(struct dm_io *io, int error)
 			spin_unlock_irqrestore(&io->md->pushback_lock, flags);
 		}
 
-		if (end_io_acct(io))
-			/* nudge anyone waiting on suspend queue */
-			wake_up(&io->md->wait);
+		end_io_acct(io);
 
 		if (io->error != DM_ENDIO_REQUEUE) {
 			blk_add_trace_bio(io->md->queue, io->bio,
@@ -937,16 +937,24 @@ static void dm_unplug_all(struct request_queue *q)
 
 static int dm_any_congested(void *congested_data, int bdi_bits)
 {
-	int r;
-	struct mapped_device *md = (struct mapped_device *) congested_data;
-	struct dm_table *map = dm_get_table(md);
+	int r = bdi_bits;
+	struct mapped_device *md = congested_data;
+	struct dm_table *map;
 
-	if (!map || test_bit(DMF_BLOCK_IO, &md->flags))
-		r = bdi_bits;
-	else
-		r = dm_table_any_congested(map, bdi_bits);
+	atomic_inc(&md->pending);
 
-	dm_table_put(map);
+	if (!test_bit(DMF_BLOCK_IO, &md->flags)) {
+		map = dm_get_table(md);
+		if (map) {
+			r = dm_table_any_congested(map, bdi_bits);
+			dm_table_put(map);
+		}
+	}
+
+	if (!atomic_dec_return(&md->pending))
+		/* nudge anyone waiting on suspend queue */
+		wake_up(&md->wait);
+
 	return r;
 }
 

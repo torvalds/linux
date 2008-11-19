@@ -293,6 +293,10 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
  */
 #define xlate_dev_kmem_ptr(p)	p
 
+#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
+int valid_phys_addr_range(unsigned long addr, size_t size);
+int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
+
 #endif /* __KERNEL__ */
 
 #endif /* __ASM_SH_IO_H */

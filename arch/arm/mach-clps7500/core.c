@@ -275,9 +275,9 @@ static struct map_desc cl7500_io_desc[] __initdata = {
 		.length		= ISA_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* Flash	*/
-		.virtual	= FLASH_BASE,
-		.pfn		= __phys_to_pfn(FLASH_START),
-		.length		= FLASH_SIZE,
+		.virtual	= CLPS7500_FLASH_BASE,
+		.pfn		= __phys_to_pfn(CLPS7500_FLASH_START),
+		.length		= CLPS7500_FLASH_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* LED		*/
 		.virtual	= LED_BASE,

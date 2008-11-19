@@ -518,7 +518,15 @@ int register_tracer(struct tracer *type)
 		return -1;
 	}
 
+	/*
+	 * When this gets called we hold the BKL which means that
+	 * preemption is disabled. Various trace selftests however
+	 * need to disable and enable preemption for successful tests.
+	 * So we drop the BKL here and grab it after the tests again.
+	 */
+	unlock_kernel();
 	mutex_lock(&trace_types_lock);
+
 	for (t = trace_types; t; t = t->next) {
 		if (strcmp(type->name, t->name) == 0) {
 			/* already found */
@@ -541,9 +549,9 @@ int register_tracer(struct tracer *type)
 		 * internal tracing to verify that everything is in order.
 		 * If we fail, we do not register this tracer.
 		 */
-		for_each_tracing_cpu(i) {
+		for_each_tracing_cpu(i)
 			tracing_reset(tr, i);
-		}
+
 		current_trace = type;
 		/* the test is responsible for initializing and enabling */
 		pr_info("Testing tracer %s: ", type->name);
@@ -555,9 +563,9 @@ int register_tracer(struct tracer *type)
 			goto out;
 		}
 		/* Only reset on passing, to avoid touching corrupted buffers */
-		for_each_tracing_cpu(i) {
+		for_each_tracing_cpu(i)
 			tracing_reset(tr, i);
-		}
+
 		printk(KERN_CONT "PASSED\n");
 	}
 #endif
@@ -570,6 +578,7 @@ int register_tracer(struct tracer *type)
 
  out:
 	mutex_unlock(&trace_types_lock);
+	lock_kernel();
 
 	return ret;
 }
@@ -2178,6 +2187,7 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 			ring_buffer_read_finish(iter->buffer_iter[cpu]);
 	}
 	mutex_unlock(&trace_types_lock);
+	kfree(iter);
 
 	return ERR_PTR(-ENOMEM);
 }

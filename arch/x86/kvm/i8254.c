@@ -548,8 +548,10 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm)
 	mutex_lock(&kvm->lock);
 	pit->irq_source_id = kvm_request_irq_source_id(kvm);
 	mutex_unlock(&kvm->lock);
-	if (pit->irq_source_id < 0)
+	if (pit->irq_source_id < 0) {
+		kfree(pit);
 		return NULL;
+	}
 
 	mutex_init(&pit->pit_state.lock);
 	mutex_lock(&pit->pit_state.lock);
