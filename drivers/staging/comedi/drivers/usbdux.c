@@ -235,7 +235,7 @@ static const comedi_lrange range_usbdux_ao_range = { 2, {
  * This is the structure which holds all the data of
  * this driver one sub device just now: A/D
  */
-typedef struct {
+struct usbduxsub {
 	/* attached? */
 	int attached;
 	/* is it associated with a subdevice? */
@@ -295,7 +295,7 @@ typedef struct {
 	/* commands */
 	int8_t *dux_commands;
 	struct semaphore sem;
-} usbduxsub_t;
+};
 
 /*
  * The pointer to the private usb-data of the driver is also the private data
@@ -304,7 +304,7 @@ typedef struct {
  * _before_ any comedi command is issued. The usb subsystem must be initialised
  * before comedi can access it.
  */
-static usbduxsub_t usbduxsub[NUMUSBDUX];
+static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DECLARE_MUTEX(start_stop_sem);
 
@@ -312,7 +312,7 @@ static DECLARE_MUTEX(start_stop_sem);
  * Stops the data acquision
  * It should be safe to call this function from any context
  */
-static int usbduxsub_unlink_InURBs(usbduxsub_t *usbduxsub_tmp)
+static int usbduxsub_unlink_InURBs(struct usbduxsub *usbduxsub_tmp)
 {
 	int i = 0;
 	int err = 0;
@@ -337,7 +337,7 @@ static int usbduxsub_unlink_InURBs(usbduxsub_t *usbduxsub_tmp)
  * Is called from within this driver from both the
  * interrupt context and from comedi
  */
-static int usbdux_ai_stop(usbduxsub_t *this_usbduxsub, int do_unlink)
+static int usbdux_ai_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 {
 	int ret = 0;
 
@@ -364,7 +364,7 @@ static int usbdux_ai_stop(usbduxsub_t *this_usbduxsub, int do_unlink)
  */
 static int usbdux_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	usbduxsub_t *this_usbduxsub;
+	struct usbduxsub *this_usbduxsub;
 	int res = 0;
 
 	/* force unlink of all urbs */
@@ -390,13 +390,13 @@ static int usbdux_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 static void usbduxsub_ai_IsocIrq(struct urb *urb)
 {
 	int i, err, n;
-	usbduxsub_t *this_usbduxsub;
+	struct usbduxsub *this_usbduxsub;
 	comedi_device *this_comedidev;
 	comedi_subdevice *s;
 
 	/* the context variable points to the subdevice */
 	this_comedidev = urb->context;
-	/* the private structure of the subdevice is usbduxsub_t */
+	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 	/* subdevice which is the AD converter */
 	s = this_comedidev->subdevices + SUBDEV_AD;
@@ -522,7 +522,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	comedi_event(this_usbduxsub->comedidev, s);
 }
 
-static int usbduxsub_unlink_OutURBs(usbduxsub_t *usbduxsub_tmp)
+static int usbduxsub_unlink_OutURBs(struct usbduxsub *usbduxsub_tmp)
 {
 	int i = 0;
 	int err = 0;
@@ -543,7 +543,7 @@ static int usbduxsub_unlink_OutURBs(usbduxsub_t *usbduxsub_tmp)
 /* This will cancel a running acquisition operation
  * in any context.
  */
-static int usbdux_ao_stop(usbduxsub_t *this_usbduxsub, int do_unlink)
+static int usbdux_ao_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 {
 	int ret = 0;
 
@@ -562,7 +562,7 @@ static int usbdux_ao_stop(usbduxsub_t *this_usbduxsub, int do_unlink)
 /* force unlink, is called by comedi */
 static int usbdux_ao_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	int res = 0;
 
 	if (!this_usbduxsub)
@@ -584,13 +584,13 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 {
 	int i, ret;
 	int8_t *datap;
-	usbduxsub_t *this_usbduxsub;
+	struct usbduxsub *this_usbduxsub;
 	comedi_device *this_comedidev;
 	comedi_subdevice *s;
 
 	/* the context variable points to the subdevice */
 	this_comedidev = urb->context;
-	/* the private structure of the subdevice is usbduxsub_t */
+	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 
 	s = this_comedidev->subdevices + SUBDEV_DA;
@@ -714,7 +714,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 	}
 }
 
-static int usbduxsub_start(usbduxsub_t *usbduxsub)
+static int usbduxsub_start(struct usbduxsub *usbduxsub)
 {
 	int errcode = 0;
 	uint8_t local_transfer_buffer[16];
@@ -748,7 +748,7 @@ static int usbduxsub_start(usbduxsub_t *usbduxsub)
 	return 0;
 }
 
-static int usbduxsub_stop(usbduxsub_t *usbduxsub)
+static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 {
 	int errcode = 0;
 
@@ -780,7 +780,7 @@ static int usbduxsub_stop(usbduxsub_t *usbduxsub)
 	return 0;
 }
 
-static int usbduxsub_upload(usbduxsub_t *usbduxsub,
+static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 			    uint8_t *local_transfer_buffer,
 			    unsigned int startAddr, unsigned int len)
 {
@@ -823,7 +823,7 @@ static int usbduxsub_upload(usbduxsub_t *usbduxsub,
 	return 0;
 }
 
-static int firmwareUpload(usbduxsub_t *usbduxsub, uint8_t *firmwareBinary,
+static int firmwareUpload(struct usbduxsub *usbduxsub, uint8_t *firmwareBinary,
 			  int sizeFirmware)
 {
 	int ret;
@@ -852,7 +852,7 @@ static int firmwareUpload(usbduxsub_t *usbduxsub, uint8_t *firmwareBinary,
 	return 0;
 }
 
-static int usbduxsub_submit_InURBs(usbduxsub_t *usbduxsub)
+static int usbduxsub_submit_InURBs(struct usbduxsub *usbduxsub)
 {
 	int i, errFlag;
 
@@ -884,7 +884,7 @@ static int usbduxsub_submit_InURBs(usbduxsub_t *usbduxsub)
 	return 0;
 }
 
-static int usbduxsub_submit_OutURBs(usbduxsub_t *usbduxsub)
+static int usbduxsub_submit_OutURBs(struct usbduxsub *usbduxsub)
 {
 	int i, errFlag;
 
@@ -915,7 +915,7 @@ static int usbdux_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
 {
 	int err = 0, tmp, i;
 	unsigned int tmpTimer;
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!(this_usbduxsub->probed))
 		return -ENODEV;
@@ -1075,7 +1075,7 @@ static int8_t create_adc_command(unsigned int chan, int range)
 #define SENDPWMON                 7
 #define SENDPWMOFF                8
 
-static int send_dux_commands(usbduxsub_t *this_usbduxsub, int cmd_type)
+static int send_dux_commands(struct usbduxsub *this_usbduxsub, int cmd_type)
 {
 	int result, nsent;
 
@@ -1099,7 +1099,7 @@ static int send_dux_commands(usbduxsub_t *this_usbduxsub, int cmd_type)
 	return result;
 }
 
-static int receive_dux_commands(usbduxsub_t *this_usbduxsub, int command)
+static int receive_dux_commands(struct usbduxsub *this_usbduxsub, int command)
 {
 	int result = (-EFAULT);
 	int nrec;
@@ -1132,7 +1132,7 @@ static int usbdux_ai_inttrig(comedi_device *dev, comedi_subdevice *s,
 			     unsigned int trignum)
 {
 	int ret;
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	if (!this_usbduxsub)
 		return -EFAULT;
 
@@ -1177,7 +1177,7 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, range;
 	int i, ret;
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	int result;
 
 	if (!this_usbduxsub)
@@ -1295,7 +1295,7 @@ static int usbdux_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 	lsampl_t one = 0;
 	int chan, range;
 	int err;
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub)
 		return 0;
@@ -1354,7 +1354,7 @@ static int usbdux_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -1376,7 +1376,7 @@ static int usbdux_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
 {
 	int i, err;
 	int chan = CR_CHAN(insn->chanspec);
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -1425,7 +1425,7 @@ static int usbdux_ao_inttrig(comedi_device *dev, comedi_subdevice *s,
 			     unsigned int trignum)
 {
 	int ret;
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -1466,7 +1466,7 @@ static int usbdux_ao_cmdtest(comedi_device *dev, comedi_subdevice *s,
 			     comedi_cmd *cmd)
 {
 	int err = 0, tmp;
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -1606,7 +1606,7 @@ static int usbdux_ao_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, gain;
 	int i, ret;
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -1744,7 +1744,7 @@ static int usbdux_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 				comedi_insn *insn, lsampl_t *data)
 {
 
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	int err;
 
 	if (!this_usbduxsub)
@@ -1790,7 +1790,7 @@ static int usbdux_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 static int usbdux_counter_read(comedi_device *dev, comedi_subdevice *s,
 			       comedi_insn *insn, lsampl_t *data)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	int chan = insn->chanspec;
 	int err;
 
@@ -1824,7 +1824,7 @@ static int usbdux_counter_read(comedi_device *dev, comedi_subdevice *s,
 static int usbdux_counter_write(comedi_device *dev, comedi_subdevice *s,
 				comedi_insn *insn, lsampl_t *data)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	int err;
 
 	if (!this_usbduxsub)
@@ -1861,7 +1861,7 @@ static int usbdux_counter_config(comedi_device *dev, comedi_subdevice *s,
 /***********************************/
 /* PWM */
 
-static int usbduxsub_unlink_PwmURBs(usbduxsub_t *usbduxsub_tmp)
+static int usbduxsub_unlink_PwmURBs(struct usbduxsub *usbduxsub_tmp)
 {
 	int err = 0;
 
@@ -1877,7 +1877,7 @@ static int usbduxsub_unlink_PwmURBs(usbduxsub_t *usbduxsub_tmp)
 /* This cancels a running acquisition operation
  * in any context.
  */
-static int usbdux_pwm_stop(usbduxsub_t *this_usbduxsub, int do_unlink)
+static int usbdux_pwm_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 {
 	int ret = 0;
 
@@ -1897,7 +1897,7 @@ static int usbdux_pwm_stop(usbduxsub_t *this_usbduxsub, int do_unlink)
 /* force unlink - is called by comedi */
 static int usbdux_pwm_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	int res = 0;
 
 	/* unlink only if it is really running */
@@ -1916,7 +1916,7 @@ static int usbdux_pwm_cancel(comedi_device *dev, comedi_subdevice *s)
 static void usbduxsub_pwm_irq(struct urb *urb)
 {
 	int ret;
-	usbduxsub_t *this_usbduxsub;
+	struct usbduxsub *this_usbduxsub;
 	comedi_device *this_comedidev;
 	comedi_subdevice *s;
 
@@ -1924,7 +1924,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 
 	/* the context variable points to the subdevice */
 	this_comedidev = urb->context;
-	/* the private structure of the subdevice is usbduxsub_t */
+	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 
 	s = this_comedidev->subdevices + SUBDEV_DA;
@@ -1982,7 +1982,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	}
 }
 
-static int usbduxsub_submit_PwmURBs(usbduxsub_t *usbduxsub)
+static int usbduxsub_submit_PwmURBs(struct usbduxsub *usbduxsub)
 {
 	int errFlag;
 
@@ -2011,7 +2011,7 @@ static int usbduxsub_submit_PwmURBs(usbduxsub_t *usbduxsub)
 static int usbdux_pwm_period(comedi_device *dev, comedi_subdevice *s,
 			     lsampl_t period)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	int fx2delay = 255;
 
 	if (period < MIN_PWM_PERIOD) {
@@ -2039,7 +2039,7 @@ static int usbdux_pwm_period(comedi_device *dev, comedi_subdevice *s,
 static int usbdux_pwm_start(comedi_device *dev, comedi_subdevice *s)
 {
 	int ret, i;
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	dev_dbg(&this_usbduxsub->interface->dev, "comedi%d: %s\n",
 		dev->minor, __func__);
@@ -2071,7 +2071,7 @@ static int usbdux_pwm_start(comedi_device *dev, comedi_subdevice *s)
 static int usbdux_pwm_pattern(comedi_device *dev, comedi_subdevice *s,
 			      int channel, lsampl_t value, lsampl_t sign)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	int i, szbuf;
 	char *pBuf;
 	char pwm_mask;
@@ -2112,7 +2112,7 @@ static int usbdux_pwm_pattern(comedi_device *dev, comedi_subdevice *s,
 static int usbdux_pwm_write(comedi_device *dev, comedi_subdevice *s,
 			    comedi_insn *insn, lsampl_t *data)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -2145,7 +2145,7 @@ static int usbdux_pwm_read(comedi_device *x1, comedi_subdevice *x2,
 static int usbdux_pwm_config(comedi_device *dev, comedi_subdevice *s,
 			     comedi_insn *insn, lsampl_t *data)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;
+	struct usbduxsub *this_usbduxsub = dev->private;
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
 		/* switch it on */
@@ -2196,7 +2196,7 @@ static int usbdux_pwm_config(comedi_device *dev, comedi_subdevice *s,
 /* end of PWM */
 /*****************************************************************/
 
-static void tidy_up(usbduxsub_t *usbduxsub_tmp)
+static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 {
 	int i;
 
@@ -2293,7 +2293,8 @@ static unsigned hex2unsigned(char *h)
 #define FIRMWARE_MAX_LEN 0x2000
 
 /* taken from David Brownell's fxload and adjusted for this driver */
-static int read_firmware(usbduxsub_t *usbduxsub, void *firmwarePtr, long size)
+static int read_firmware(struct usbduxsub *usbduxsub, void *firmwarePtr,
+			 long size)
 {
 	struct device *dev = &usbduxsub->interface->dev;
 	int i = 0;
@@ -2645,7 +2646,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 
 static void usbduxsub_disconnect(struct usb_interface *intf)
 {
-	usbduxsub_t *usbduxsub_tmp = usb_get_intfdata(intf);
+	struct usbduxsub *usbduxsub_tmp = usb_get_intfdata(intf);
 	struct usb_device *udev = interface_to_usbdev(intf);
 
 	if (!usbduxsub_tmp) {
@@ -2672,7 +2673,7 @@ static int usbdux_attach(comedi_device *dev, comedi_devconfig *it)
 	int ret;
 	int index;
 	int i;
-	usbduxsub_t *udev;
+	struct usbduxsub *udev;
 
 	comedi_subdevice *s = NULL;
 	dev->private = NULL;
@@ -2836,7 +2837,7 @@ static int usbdux_attach(comedi_device *dev, comedi_devconfig *it)
 
 static int usbdux_detach(comedi_device *dev)
 {
-	usbduxsub_t *usbduxsub_tmp;
+	struct usbduxsub *usbduxsub_tmp;
 
 	if (!dev) {
 		printk(KERN_ERR
