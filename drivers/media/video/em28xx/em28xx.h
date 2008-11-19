@@ -256,18 +256,28 @@ enum enum28xx_itype {
 	EM28XX_RADIO,
 };
 
-enum em28xx_audio_mode {
-	EM28XX_NO_AUDIO,
-	EM28XX_I2S_3_SAMPLE_RATES,
-	EM28XX_I2S_5_SAMPLE_RATES,
-	EM28XX_AC97,
+enum em28xx_ac97_mode {
+	EM28XX_NO_AC97 = 0,
+	EM28XX_AC97_EM202,
+	EM28XX_AC97_OTHER,
+};
+
+struct em28xx_audio_mode {
+	enum em28xx_ac97_mode ac97;
+
+	u16 ac97_feat;
+	u16 ac97_vendor_id1;
+	u16 ac97_vendor_id2;
+
+	unsigned int has_audio:1;
+
+	unsigned int i2s_3rates:1;
+	unsigned int i2s_5rates:1;
 };
 
 enum em28xx_amux {
 	EM28XX_AMUX_VIDEO,
 	EM28XX_AMUX_LINE_IN,
-	EM28XX_AMUX_AC97_VIDEO,
-	EM28XX_AMUX_AC97_LINE_IN,
 };
 
 struct em28xx_input {
@@ -410,7 +420,7 @@ struct em28xx {
 	u32 i2s_speed;		/* I2S speed for audio digital stream */
 
 	enum em28xx_decoder decoder;
-	enum em28xx_audio_mode audio_mode;
+	struct em28xx_audio_mode audio_mode;
 
 	int tuner_type;		/* type of the tuner */
 	int tuner_addr;		/* tuner address */
@@ -531,6 +541,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			  int len);
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
 int em28xx_audio_analog_set(struct em28xx *dev);
+int em28xx_audio_setup(struct em28xx *dev);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev);
 int em28xx_capture_start(struct em28xx *dev, int start);

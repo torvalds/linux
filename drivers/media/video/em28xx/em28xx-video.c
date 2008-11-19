@@ -1931,53 +1931,6 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	return vfd;
 }
 
-int em28xx_supports_audio_extension(struct em28xx *dev)
-{
-	int rc;
-
-	/* The chip dictates whether we support the Empia analog audio
-	   extension */
-	switch (dev->chip_id) {
-	case CHIP_ID_EM2874:
-		/* Digital only device - no analog support */
-		dev->audio_mode = EM28XX_NO_AUDIO;
-		return 0;
-	case CHIP_ID_EM2860:
-	case CHIP_ID_EM2883:
-	default:
-		/* See how this device is configured */
-		rc = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
-		if (rc & EM28XX_CHIPCFG_VENDOR_AUDIO) {
-			switch(rc & EM28XX_CHIPCFG_AUDIOMASK) {
-			case EM28XX_CHIPCFG_AC97:
-				em28xx_info("AC97 audio (5 sample rates)\n");
-				dev->audio_mode = EM28XX_AC97;
-				break;
-			case EM28XX_CHIPCFG_I2S_3_SAMPRATES:
-				em28xx_info("I2S Audio (3 sample rates)\n");
-				dev->audio_mode = EM28XX_I2S_3_SAMPLE_RATES;
-				break;
-			case EM28XX_CHIPCFG_I2S_5_SAMPRATES:
-				em28xx_info("I2S Audio (5 sample rates)\n");
-				dev->audio_mode = EM28XX_I2S_5_SAMPLE_RATES;
-				break;
-			default:
-				em28xx_info("No audio support detected\n");
-				dev->audio_mode = EM28XX_NO_AUDIO;
-				return 0;
-			}
-		} else {
-			em28xx_info("USB Audio class device\n");
-			return 0;
-		}
-		/* The em28xx audio extension needs to be loaded */
-		return 1;
-	}
-
-	/* We should never reach this point */
-	return 0;
-}
-
 static int register_analog_devices(struct em28xx *dev)
 {
 	int ret;
@@ -2080,11 +2033,10 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	em28xx_card_setup(dev);
 
 	/* Configure audio */
-	errCode = em28xx_audio_analog_set(dev);
+	errCode = em28xx_audio_setup(dev);
 	if (errCode < 0) {
-		em28xx_errdev("%s: em28xx_audio_analog_set - errCode [%d]!\n",
+		em28xx_errdev("%s: Error while setting audio - errCode [%d]!\n",
 			__func__, errCode);
-		return errCode;
 	}
 
 	/* configure the device */
@@ -2317,17 +2269,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	em28xx_info("Found %s\n", em28xx_boards[dev->model].name);
-
-	if (dev->has_audio_class == 0) {
-		/* We don't have a USB audio class, let's see if we support
-		   ALSA Audio */
-		dev->has_alsa_audio = em28xx_supports_audio_extension(dev);
-		if (dev->has_alsa_audio)
-			printk(KERN_INFO DRIVER_NAME " supports alsa audio\n");
-	} else {
-		printk(KERN_INFO DRIVER_NAME " has usb audio class\n");
-	}
-
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);

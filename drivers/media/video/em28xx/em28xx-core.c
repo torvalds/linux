@@ -224,15 +224,38 @@ static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 }
 
 /*
- * em28xx_write_ac97()
- * write a 16 bit value to the specified AC97 address (LSB first!)
+ * em28xx_is_ac97_ready()
+ * Checks if ac97 is ready
  */
-static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 *val)
+static int em28xx_is_ac97_ready(struct em28xx *dev)
 {
 	int ret, i;
-	u8 addr = reg & 0x7f;
 
-	ret = em28xx_write_regs(dev, EM28XX_R40_AC97LSB, val, 2);
+	/* Wait up to 50 ms for AC97 command to complete */
+	for (i = 0; i < 10; i++, msleep(5)) {
+		ret = em28xx_read_reg(dev, EM28XX_R43_AC97BUSY);
+		if (ret < 0)
+			return ret;
+
+		if (!(ret & 0x01))
+			return 0;
+	}
+
+	em28xx_warn("AC97 command still being executed: not handled properly!\n");
+	return -EBUSY;
+}
+
+/*
+ * em28xx_read_ac97()
+ * write a 16 bit value to the specified AC97 address (LSB first!)
+ */
+static int em28xx_read_ac97(struct em28xx *dev, u8 reg)
+{
+	int ret;
+	u8 addr = (reg & 0x7f) | 0x80;
+	u16 val;
+
+	ret = em28xx_is_ac97_ready(dev);
 	if (ret < 0)
 		return ret;
 
@@ -240,25 +263,68 @@ static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 *val)
 	if (ret < 0)
 		return ret;
 
-	/* Wait up to 50 ms for AC97 command to complete */
-	for (i = 0; i < 10; i++) {
-		ret = em28xx_read_reg(dev, EM28XX_R43_AC97BUSY);
-		if (ret < 0)
-			return ret;
+	ret = dev->em28xx_read_reg_req_len(dev, 0, EM28XX_R40_AC97LSB,
+					   (u8 *)&val, sizeof(val));
 
-		if (!(ret & 0x01))
-			return 0;
-		msleep(5);
-	}
-	em28xx_warn("AC97 command still being executed: not handled properly!\n");
+	if (ret < 0)
+		return ret;
+	return le16_to_cpu(val);
+}
+
+/*
+ * em28xx_write_ac97()
+ * write a 16 bit value to the specified AC97 address (LSB first!)
+ */
+static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
+{
+	int ret;
+	u8 addr = reg & 0x7f;
+	__le16 value;
+
+	value = cpu_to_le16(val);
+
+	ret = em28xx_is_ac97_ready(dev);
+	if (ret < 0)
+		return ret;
+
+	ret = em28xx_write_regs(dev, EM28XX_R40_AC97LSB, (u8 *) &value, 2);
+	if (ret < 0)
+		return ret;
+
+	ret = em28xx_write_regs(dev, EM28XX_R42_AC97ADDR, &addr, 1);
+	if (ret < 0)
+		return ret;
+
 	return 0;
+}
+
+static int set_ac97_em202_input(struct em28xx *dev)
+{
+	int ret;
+	u16 enable  = 0x0808;		/* 12 dB attenuation Left/Right */
+	u16 disable = 0x8808;		/* bit 15 - mute volumme */
+	u16 video, line;
+
+	if (dev->ctl_ainput == EM28XX_AMUX_VIDEO) {
+		video = enable;
+		line = disable;
+	} else {
+		video = disable;
+		line  = enable;
+	}
+
+	/* Sets em202 AC97 mixer registers */
+	ret = em28xx_write_ac97(dev, AC97_VIDEO_VOL, video);
+	if (ret < 0)
+		return ret;
+
+	ret = em28xx_write_ac97(dev, AC97_LINEIN_VOL, line);
+
+	return ret;
 }
 
 static int em28xx_set_audio_source(struct em28xx *dev)
 {
-	static char *enable  = "\x08\x08";
-	static char *disable = "\x08\x88";
-	char *video = enable, *line = disable;
 	int ret;
 	u8 input;
 
@@ -280,18 +346,8 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 		case EM28XX_AMUX_VIDEO:
 			input = EM28XX_AUDIO_SRC_TUNER;
 			break;
-		case EM28XX_AMUX_LINE_IN:
+		default:
 			input = EM28XX_AUDIO_SRC_LINE;
-			video = disable;
-			line  = enable;
-			break;
-		case EM28XX_AMUX_AC97_VIDEO:
-			input = EM28XX_AUDIO_SRC_LINE;
-			break;
-		case EM28XX_AMUX_AC97_LINE_IN:
-			input = EM28XX_AUDIO_SRC_LINE;
-			video = disable;
-			line  = enable;
 			break;
 		}
 	}
@@ -301,33 +357,36 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 		return ret;
 	msleep(5);
 
-	/* Sets AC97 mixer registers
-	   This is seems to be needed, even for non-ac97 configs
-	 */
-	ret = em28xx_write_ac97(dev, AC97_VIDEO_VOL, video);
-	if (ret < 0)
-		return ret;
+	switch (dev->audio_mode.ac97) {
+	case EM28XX_NO_AC97:
+		break;
+	case EM28XX_AC97_OTHER:
+		/* We don't know how to handle this chip.
+		   Let's hope it is close enough to em202 to work
+		 */
+	case EM28XX_AC97_EM202:
+		ret = set_ac97_em202_input(dev);
+		break;
+	}
 
-	ret = em28xx_write_ac97(dev, AC97_LINEIN_VOL, line);
-
-	return ret;
+	return 0;
 }
 
 int em28xx_audio_analog_set(struct em28xx *dev)
 {
 	int ret;
-	char s[2] = { 0x00, 0x00 };
 	u8 xclk = 0x07;
 
-	s[0] |= 0x1f - dev->volume;
-	s[1] |= 0x1f - dev->volume;
+	if (!dev->audio_mode.has_audio)
+		return 0;
 
-	/* Mute */
-	s[1] |= 0x80;
-	ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, s);
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+		/* Mute */
+		ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, 0x8000);
 
-	if (ret < 0)
-		return ret;
+		if (ret < 0)
+			return ret;
+	}
 
 	if (dev->has_12mhz_i2s)
 		xclk |= 0x20;
@@ -343,14 +402,112 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	/* Selects the proper audio input */
 	ret = em28xx_set_audio_source(dev);
 
-	/* Unmute device */
-	if (!dev->mute)
-		s[1] &= ~0x80;
-	ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, s);
+	/* Sets volume */
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+		int vol;
+
+		/* LSB: left channel - both channels with the same level */
+		vol = (0x1f - dev->volume) | ((0x1f - dev->volume) << 8);
+
+		/* Mute device, if needed */
+		if (dev->mute)
+			vol |= 0x8000;
+
+		/* Sets volume */
+		ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, vol);
+	}
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(em28xx_audio_analog_set);
+
+int em28xx_audio_setup(struct em28xx *dev)
+{
+	int vid1, vid2, feat, cfg;
+
+	if (dev->chip_id == CHIP_ID_EM2874) {
+		/* Digital only device - don't load any alsa module */
+		dev->audio_mode.has_audio = 0;
+		dev->has_audio_class = 0;
+		dev->has_alsa_audio = 0;
+		return 0;
+	}
+
+	/* If device doesn't support Usb Audio Class, use vendor class */
+	if (!dev->has_audio_class)
+		dev->has_alsa_audio = 1;
+
+	dev->audio_mode.has_audio = 1;
+
+	/* See how this device is configured */
+	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
+	if (cfg < 0)
+		cfg = EM28XX_CHIPCFG_AC97; /* Be conservative */
+	else
+		em28xx_info("Config register raw data: 0x%02x\n", cfg);
+
+	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		    EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
+		em28xx_info("I2S Audio (3 sample rates)\n");
+		dev->audio_mode.i2s_3rates = 1;
+	}
+	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		    EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
+		em28xx_info("I2S Audio (5 sample rates)\n");
+		dev->audio_mode.i2s_5rates = 1;
+	}
+
+	if (!(cfg & EM28XX_CHIPCFG_AC97)) {
+		dev->audio_mode.ac97 = EM28XX_NO_AC97;
+		goto init_audio;
+	}
+
+	dev->audio_mode.ac97 = EM28XX_AC97_OTHER;
+
+	vid1 = em28xx_read_ac97(dev, AC97_VENDOR_ID1);
+	if (vid1 < 0) {
+		/* Device likely doesn't support AC97 */
+		em28xx_warn("AC97 chip type couldn't be determined\n");
+		goto init_audio;
+	}
+
+	vid2 = em28xx_read_ac97(dev, AC97_VENDOR_ID2);
+	if (vid2 < 0)
+		goto init_audio;
+
+	dev->audio_mode.ac97_vendor_id1 = vid1;
+	dev->audio_mode.ac97_vendor_id2 = vid2;
+	em28xx_warn("AC97 vendor ID = %04x:%04x\n", vid1, vid2);
+
+	feat = em28xx_read_ac97(dev, AC97_RESET);
+	if (feat < 0)
+		goto init_audio;
+
+	dev->audio_mode.ac97_feat = feat;
+	em28xx_warn("AC97 features = 0x%04x\n", feat);
+
+	if ((vid1 == 0xffff) && (vid2 == 0xffff) && (feat == 0x6a90))
+		dev->audio_mode.ac97 = EM28XX_AC97_EM202;
+
+init_audio:
+	/* Reports detected AC97 processor */
+	switch (dev->audio_mode.ac97) {
+	case EM28XX_NO_AC97:
+		em28xx_info("No AC97 audio processor\n");
+		break;
+	case EM28XX_AC97_EM202:
+		em28xx_info("Empia 202 AC97 audio processor detected\n");
+		break;
+	case EM28XX_AC97_OTHER:
+		em28xx_warn("Unknown AC97 audio processor detected!\n");
+		break;
+	default:
+		break;
+	}
+
+	return em28xx_audio_analog_set(dev);
+}
+EXPORT_SYMBOL_GPL(em28xx_audio_setup);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev)
 {
