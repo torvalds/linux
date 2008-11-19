@@ -63,7 +63,7 @@ static inline int comedi_pci_enable(struct pci_dev *pdev, const char *res_name)
 
 	rc = pci_request_regions(pdev, res_name);
 	if (rc < 0)
-		comedi_pci_disable_no_regions(pdev);
+		pci_disable_device(pdev);
 
 	return rc;
 }
