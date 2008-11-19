@@ -396,6 +396,11 @@
 #define FH_SRVC_CHNL_SRAM_ADDR_REG(_chnl) \
 		(FH_SRVC_LOWER_BOUND + ((_chnl) - 9) * 0x4)
 
+#define FH_TX_CHICKEN_BITS_REG	(FH_MEM_LOWER_BOUND + 0xE98)
+/* Instruct FH to increment the retry count of a packet when
+ * it is brought from the memory to TX-FIFO
+ */
+#define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
 /**
  * struct iwl_rb_status - reseve buffer status

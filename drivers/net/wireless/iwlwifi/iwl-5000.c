@@ -703,6 +703,7 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 	unsigned long flags;
 	int ret;
 	int i, chan;
+	u32 reg_val;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -731,6 +732,11 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
 				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
 				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
+
+	/* Update FH chicken bits */
+	reg_val = iwl_read_direct32(priv, FH_TX_CHICKEN_BITS_REG);
+	iwl_write_direct32(priv, FH_TX_CHICKEN_BITS_REG,
+			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	iwl_write_prph(priv, IWL50_SCD_QUEUECHAIN_SEL,
 		IWL50_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
