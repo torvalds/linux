@@ -2270,6 +2270,7 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 								 value_size);
 			xv = (struct ocfs2_xattr_value_root *)
 			     (base + name_offset + name_len);
+			value_size = OCFS2_XATTR_ROOT_SIZE;
 		} else
 			xv = &def_xv.xv;
 
@@ -2283,7 +2284,8 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 							     &xv->xr_list,
 							     new_clusters -
 							     old_clusters);
-			goto out;
+			if (value_size >= OCFS2_XATTR_ROOT_SIZE)
+				goto out;
 		}
 	} else {
 		/*
