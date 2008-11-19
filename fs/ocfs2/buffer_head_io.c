@@ -42,11 +42,10 @@
 /*
  * Bits on bh->b_state used by ocfs2.
  *
- * These MUST be after the JBD2 bits.  Currently BH_Unshadow is the last
- * JBD2 bit.
+ * These MUST be after the JBD2 bits.  Hence, we use BH_JBDPrivateStart.
  */
 enum ocfs2_state_bits {
-	BH_NeedsValidate = BH_Unshadow + 1,
+	BH_NeedsValidate = BH_JBDPrivateStart,
 };
 
 /* Expand the magic b_state functions */
