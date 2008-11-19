@@ -1933,16 +1933,49 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 
 int em28xx_supports_audio_extension(struct em28xx *dev)
 {
+	int rc;
+
 	/* The chip dictates whether we support the Empia analog audio
 	   extension */
 	switch (dev->chip_id) {
 	case CHIP_ID_EM2874:
-		/* Either a digital-only device or provides AC97 audio */
+		/* Digital only device - no analog support */
+		dev->audio_mode = EM28XX_NO_AUDIO;
 		return 0;
+	case CHIP_ID_EM2860:
 	case CHIP_ID_EM2883:
 	default:
+		/* See how this device is configured */
+		rc = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
+		if (rc & EM28XX_CHIPCFG_VENDOR_AUDIO) {
+			switch(rc & EM28XX_CHIPCFG_AUDIOMASK) {
+			case EM28XX_CHIPCFG_AC97:
+				em28xx_info("AC97 audio (5 sample rates)\n");
+				dev->audio_mode = EM28XX_AC97;
+				break;
+			case EM28XX_CHIPCFG_I2S_3_SAMPRATES:
+				em28xx_info("I2S Audio (3 sample rates)\n");
+				dev->audio_mode = EM28XX_I2S_3_SAMPLE_RATES;
+				break;
+			case EM28XX_CHIPCFG_I2S_5_SAMPRATES:
+				em28xx_info("I2S Audio (5 sample rates)\n");
+				dev->audio_mode = EM28XX_I2S_5_SAMPLE_RATES;
+				break;
+			default:
+				em28xx_info("No audio support detected\n");
+				dev->audio_mode = EM28XX_NO_AUDIO;
+				return 0;
+			}
+		} else {
+			em28xx_info("USB Audio class device\n");
+			return 0;
+		}
+		/* The em28xx audio extension needs to be loaded */
 		return 1;
 	}
+
+	/* We should never reach this point */
+	return 0;
 }
 
 static int register_analog_devices(struct em28xx *dev)

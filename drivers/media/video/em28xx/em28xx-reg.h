@@ -17,6 +17,16 @@
 
 /* em28xx registers */
 
+#define EM28XX_R00_CHIPCFG	0x00
+
+/* em28xx Chip Configuration 0x00 */
+#define EM28XX_CHIPCFG_VENDOR_AUDIO		0x80
+#define EM28XX_CHIPCFG_I2S_VOLUME_CAPABLE	0x40
+#define EM28XX_CHIPCFG_I2S_3_SAMPRATES		0x30
+#define EM28XX_CHIPCFG_I2S_5_SAMPRATES		0x20
+#define EM28XX_CHIPCFG_AC97			0x10
+#define EM28XX_CHIPCFG_AUDIOMASK		0x30
+
 	/* GPIO/GPO registers */
 #define EM2880_R04_GPO	0x04    /* em2880-em2883 only */
 #define EM28XX_R08_GPIO	0x08	/* em2820 or upper */
