@@ -57,16 +57,16 @@ zero volts).
 #include "comedi_fc.h"
 
 /* Board descriptions */
-typedef struct waveform_board_struct {
+struct waveform_board {
 	const char *name;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
-} waveform_board;
+};
 
 #define N_CHANS 8
 
-static const waveform_board waveform_boards[] = {
+static const struct waveform_board waveform_boards[] = {
 	{
 		.name =		"comedi_test",
 		.ai_chans =	N_CHANS,
@@ -75,10 +75,10 @@ static const waveform_board waveform_boards[] = {
 	},
 };
 
-#define thisboard ((const waveform_board *)dev->board_ptr)
+#define thisboard ((const struct waveform_board *)dev->board_ptr)
 
 /* Data unique to this driver */
-typedef struct {
+struct waveform_private {
 	struct timer_list timer;
 	struct timeval last;	/* time at which last timer interrupt occured */
 	unsigned int uvolt_amplitude;	/* waveform amplitude in microvolts */
@@ -90,8 +90,8 @@ typedef struct {
 	unsigned int convert_period;	/* conversion period in usec */
 	unsigned timer_running:1;
 	lsampl_t ao_loopbacks[N_CHANS];
-} waveform_private;
-#define devpriv ((waveform_private *)dev->private)
+};
+#define devpriv ((struct waveform_private *)dev->private)
 
 static int waveform_attach(comedi_device *dev, comedi_devconfig *it);
 static int waveform_detach(comedi_device *dev);
@@ -101,8 +101,8 @@ static comedi_driver driver_waveform = {
       .attach =		waveform_attach,
       .detach =		waveform_detach,
       .board_name =	&waveform_boards[0].name,
-      .offset =		sizeof(waveform_board),
-      .num_names =	sizeof(waveform_boards) / sizeof(waveform_board),
+      .offset =		sizeof(struct waveform_board),
+      .num_names =	sizeof(waveform_boards) / sizeof(struct waveform_board),
 };
 
 COMEDI_INITCLEANUP(driver_waveform);
@@ -201,7 +201,7 @@ static int waveform_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(waveform_private)) < 0)
+	if (alloc_private(dev, sizeof(struct waveform_private)) < 0)
 		return -ENOMEM;
 
 	/* set default amplitude and period */
