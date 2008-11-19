@@ -26,12 +26,7 @@
 #ifndef _COMEDI_PCI_H_
 #define _COMEDI_PCI_H_
 
-#include <linux/version.h>
 #include <linux/pci.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
-#define PCI_ENABLE_IS_REFCOUNTED
-#endif
 
 /*
  * Enables PCI device without requesting regions.  Just a simple wrapper
@@ -52,9 +47,7 @@ static inline int comedi_pci_enable_no_regions(struct pci_dev *pdev)
  */
 static inline void comedi_pci_disable_no_regions(struct pci_dev *pdev)
 {
-#ifdef PCI_ENABLE_IS_REFCOUNTED
 	pci_disable_device(pdev);
-#endif
 }
 
 /*
@@ -65,13 +58,13 @@ static inline int comedi_pci_enable(struct pci_dev *pdev, const char *res_name)
 	int rc;
 
 	rc = pci_enable_device(pdev);
-	if (rc < 0) {
+	if (rc < 0)
 		return rc;
-	}
+
 	rc = pci_request_regions(pdev, res_name);
-	if (rc < 0) {
+	if (rc < 0)
 		comedi_pci_disable_no_regions(pdev);
-	}
+
 	return rc;
 }
 
