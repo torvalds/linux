@@ -28,8 +28,8 @@
 
 #include "comedi_fc.h"
 
-static void increment_scan_progress(comedi_subdevice * subd,
-	unsigned int num_bytes)
+static void increment_scan_progress(comedi_subdevice *subd,
+				    unsigned int num_bytes)
 {
 	comedi_async *async = subd->async;
 	unsigned int scan_length = cfc_bytes_per_scan(subd);
@@ -42,8 +42,8 @@ static void increment_scan_progress(comedi_subdevice * subd,
 }
 
 /* Writes an array of data points to comedi's buffer */
-unsigned int cfc_write_array_to_buffer(comedi_subdevice * subd, void *data,
-	unsigned int num_bytes)
+unsigned int cfc_write_array_to_buffer(comedi_subdevice *subd, void *data,
+				       unsigned int num_bytes)
 {
 	comedi_async *async = subd->async;
 	unsigned int retval;
@@ -65,9 +65,10 @@ unsigned int cfc_write_array_to_buffer(comedi_subdevice * subd, void *data,
 
 	return num_bytes;
 }
+EXPORT_SYMBOL(cfc_write_array_to_buffer);
 
-unsigned int cfc_read_array_from_buffer(comedi_subdevice * subd, void *data,
-	unsigned int num_bytes)
+unsigned int cfc_read_array_from_buffer(comedi_subdevice *subd, void *data,
+					unsigned int num_bytes)
 {
 	comedi_async *async = subd->async;
 
@@ -82,8 +83,9 @@ unsigned int cfc_read_array_from_buffer(comedi_subdevice * subd, void *data,
 
 	return num_bytes;
 }
+EXPORT_SYMBOL(cfc_read_array_from_buffer);
 
-unsigned int cfc_handle_events(comedi_device * dev, comedi_subdevice * subd)
+unsigned int cfc_handle_events(comedi_device *dev, comedi_subdevice *subd)
 {
 	unsigned int events = subd->async->events;
 
@@ -97,6 +99,7 @@ unsigned int cfc_handle_events(comedi_device * dev, comedi_subdevice * subd)
 
 	return events;
 }
+EXPORT_SYMBOL(cfc_handle_events);
 
 MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
 MODULE_DESCRIPTION("Shared functions for Comedi low-level drivers");
@@ -106,13 +109,10 @@ static int __init comedi_fc_init_module(void)
 {
 	return 0;
 }
+
 static void __exit comedi_fc_cleanup_module(void)
 {
 }
 
 module_init(comedi_fc_init_module);
 module_exit(comedi_fc_cleanup_module);
-
-EXPORT_SYMBOL(cfc_write_array_to_buffer);
-EXPORT_SYMBOL(cfc_read_array_from_buffer);
-EXPORT_SYMBOL(cfc_handle_events);
