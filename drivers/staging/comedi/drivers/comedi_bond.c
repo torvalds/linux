@@ -23,7 +23,8 @@
 */
 /*
 Driver: comedi_bond
-Description: A driver to 'bond' (merge) multiple subdevices from multiple devices together as one.
+Description: A driver to 'bond' (merge) multiple subdevices from multiple
+	     devices together as one.
 Devices:
 Author: ds
 Updated: Mon, 10 Oct 00:18:25 -0500
@@ -102,18 +103,23 @@ MODULE_LICENSE("GPL");
 #  define STR(x) STR1(x)
 #endif
 
-int debug = 0;
+int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug,
-	"If true, print extra cryptic debugging output useful only to developers probably.");
+MODULE_PARM_DESC(debug, "If true, print extra cryptic debugging output useful"
+		 "only to developers.");
 
 #define LOG_MSG(x...) printk(KERN_INFO MODULE_NAME": "x)
-#define DEBUG(x...)  do { if(debug) printk(KERN_DEBUG MODULE_NAME": DEBUG: "x); } while(0)
+#define DEBUG(x...)							\
+	do {								\
+		if (debug)						\
+			printk(KERN_DEBUG MODULE_NAME": DEBUG: "x);	\
+	} while (0)
 #define WARNING(x...)  printk(KERN_WARNING MODULE_NAME ": WARNING: "x)
 #define ERROR(x...)  printk(KERN_ERR MODULE_NAME ": INTERNAL ERROR: "x)
 MODULE_AUTHOR("Calin A. Culianu");
-MODULE_DESCRIPTION(MODULE_NAME
-	": A driver for COMEDI to bond multiple COMEDI devices together as one.  In the words of John Lennon: 'And the world will live as one...'");
+MODULE_DESCRIPTION(MODULE_NAME "A driver for COMEDI to bond multiple COMEDI "
+		   "devices together as one.  In the words of John Lennon: "
+		   "'And the world will live as one...'");
 
 /*
  * Board descriptions for two imaginary boards.  Describing the
@@ -127,8 +133,8 @@ typedef struct BondingBoard BondingBoard;
 
 static const BondingBoard bondingBoards[] = {
 	{
-	      name:	MODULE_NAME,
-		},
+		.name =	MODULE_NAME,
+	},
 };
 
 /*
@@ -142,8 +148,9 @@ struct BondedDevice {
 	unsigned subdev;
 	unsigned subdev_type;
 	unsigned nchans;
-	unsigned chanid_offset;	/* The offset into our unified linear channel-id's
-				   of chanid 0 on this subdevice. */
+	unsigned chanid_offset;	/* The offset into our unified linear
+				   channel-id's of chanid 0 on this
+				   subdevice. */
 };
 typedef struct BondedDevice BondedDevice;
 
@@ -172,19 +179,20 @@ typedef struct Private Private;
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int bonding_attach(comedi_device * dev, comedi_devconfig * it);
-static int bonding_detach(comedi_device * dev);
+static int bonding_attach(comedi_device *dev, comedi_devconfig *it);
+static int bonding_detach(comedi_device *dev);
 /** Build Private array of all devices.. */
-static int doDevConfig(comedi_device * dev, comedi_devconfig * it);
-static void doDevUnconfig(comedi_device * dev);
-/* Ugly implementation of realloc that always copies memory around -- I'm lazy, what can I say?  I like to do wasteful memcopies.. :) */
+static int doDevConfig(comedi_device *dev, comedi_devconfig *it);
+static void doDevUnconfig(comedi_device *dev);
+/* Ugly implementation of realloc that always copies memory around -- I'm lazy,
+ * what can I say?  I like to do wasteful memcopies.. :) */
 static void *Realloc(const void *ptr, size_t len, size_t old_len);
 
 static comedi_driver driver_bonding = {
-      driver_name:MODULE_NAME,
-      module:THIS_MODULE,
-      attach:bonding_attach,
-      detach:bonding_detach,
+      .driver_name =	MODULE_NAME,
+      .module =		THIS_MODULE,
+      .attach =		bonding_attach,
+      .detach =		bonding_detach,
 	/* It is not necessary to implement the following members if you are
 	 * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -203,15 +211,15 @@ static comedi_driver driver_bonding = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      board_name:&bondingBoards[0].name,
-      offset:sizeof(BondingBoard),
-      num_names:sizeof(bondingBoards) / sizeof(BondingBoard),
+      .board_name =	&bondingBoards[0].name,
+      .offset =		sizeof(BondingBoard),
+      .num_names =	sizeof(bondingBoards) / sizeof(BondingBoard),
 };
 
-static int bonding_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+				 comedi_insn *insn, lsampl_t *data);
+static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+				   comedi_insn *insn, lsampl_t *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -219,35 +227,35 @@ static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int bonding_attach(comedi_device * dev, comedi_devconfig * it)
+static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 
 	LOG_MSG("comedi%d\n", dev->minor);
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
+	/*
+	 * Allocate the private structure area.  alloc_private() is a
+	 * convenient macro defined in comedidev.h.
+	 */
 	if (alloc_private(dev, sizeof(Private)) < 0)
 		return -ENOMEM;
 
-/*
- * Setup our bonding from config params.. sets up our Private struct..
- */
+	/*
+	 * Setup our bonding from config params.. sets up our Private struct..
+	 */
 	if (!doDevConfig(dev, it))
 		return -EINVAL;
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
+	/*
+	 * Initialize dev->board_name.  Note that we can use the "thisboard"
+	 * macro now, since we just initialized it in the last line.
+	 */
 	dev->board_name = devpriv->name;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
+	/*
+	 * Allocate the subdevice structures.  alloc_subdevice() is a
+	 * convenient macro defined in comedidev.h.
+	 */
 	if (alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 
@@ -260,7 +268,10 @@ static int bonding_attach(comedi_device * dev, comedi_devconfig * it)
 	s->insn_bits = bonding_dio_insn_bits;
 	s->insn_config = bonding_dio_insn_config;
 
-	LOG_MSG("attached with %u DIO channels coming from %u different subdevices all bonded together.  John Lennon would be proud!\n", devpriv->nchans, devpriv->ndevs);
+	LOG_MSG("attached with %u DIO channels coming from %u different "
+		"subdevices all bonded together.  "
+		"John Lennon would be proud!\n",
+		devpriv->nchans, devpriv->ndevs);
 
 	return 1;
 }
@@ -273,7 +284,7 @@ static int bonding_attach(comedi_device * dev, comedi_devconfig * it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int bonding_detach(comedi_device * dev)
+static int bonding_detach(comedi_device *dev)
 {
 	LOG_MSG("comedi%d: remove\n", dev->minor);
 	doDevUnconfig(dev);
@@ -285,8 +296,8 @@ static int bonding_detach(comedi_device * dev)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int bonding_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+				 comedi_insn *insn, lsampl_t *data)
 {
 #define LSAMPL_BITS (sizeof(lsampl_t)*8)
 	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
@@ -303,8 +314,8 @@ static int bonding_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 		/* Grab the channel mask and data of only the bits corresponding
 		   to this subdevice.. need to shift them to zero position of
 		   course. */
-		lsampl_t subdevMask = ((1 << bdev->nchans) - 1);	/* Bits corresponding
-									   to this subdev. */
+		/* Bits corresponding to this subdev. */
+		lsampl_t subdevMask = ((1 << bdev->nchans) - 1);
 		lsampl_t writeMask, dataBits;
 
 		/* Argh, we have >= LSAMPL_BITS chans.. take all bits */
@@ -332,8 +343,8 @@ static int bonding_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
-static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+				   comedi_insn *insn, lsampl_t *data)
 {
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
 	unsigned int io;
@@ -365,7 +376,8 @@ static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 		return -EINVAL;
 		break;
 	}
-	chan -= bdev->chanid_offset;	/* 'real' channel id for this subdev.. */
+	/* 'real' channel id for this subdev.. */
+	chan -= bdev->chanid_offset;
 	ret = comedi_dio_config(bdev->dev, bdev->subdev, chan, io);
 	if (ret != 1)
 		return -EINVAL;
@@ -377,16 +389,15 @@ static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 
 static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 {
-#define MIN(a,b) (a < b ? a : b)
 	void *newmem = kmalloc(newlen, GFP_KERNEL);
+
 	if (newmem && oldmem)
-		memcpy(newmem, oldmem, MIN(oldlen, newlen));
-	if (oldmem)
-		kfree(oldmem);
+		memcpy(newmem, oldmem, min(oldlen, newlen));
+	kfree(oldmem);
 	return newmem;
 }
 
-static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
+static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 {
 	int i;
 	comedi_t *devs_opened[COMEDI_NUM_BOARD_MINORS];
@@ -428,8 +439,11 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 		/* Do DIO, as that's all we support now.. */
 		while ((sdev = comedi_find_subdevice_by_type(d, COMEDI_SUBD_DIO,
 					sdev + 1)) > -1) {
-			if ((nchans = comedi_get_n_channels(d, sdev)) <= 0) {
-				ERROR("comedi_get_n_channels() returned %d on minor %u subdev %d!\n", nchans, minor, sdev);
+			nchans = comedi_get_n_channels(d, sdev);
+			if (nchans <= 0) {
+				ERROR("comedi_get_n_channels() returned %d "
+				      "on minor %u subdev %d!\n",
+				      nchans, minor, sdev);
 				return 0;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
@@ -448,7 +462,8 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 			while (nchans--)
 				devpriv->chanIdDevMap[devpriv->nchans++] = bdev;
 
-			/* Now put bdev pointer at end of devpriv->devs array list.. */
+			/* Now put bdev pointer at end of devpriv->devs array
+			 * list.. */
 
 			/* ergh.. ugly.. we need to realloc :(  */
 			tmp = devpriv->ndevs * sizeof(bdev);
@@ -456,7 +471,8 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 				Realloc(devpriv->devs,
 				++devpriv->ndevs * sizeof(bdev), tmp);
 			if (!devpriv->devs) {
-				ERROR("Could not allocate memory. Out of memory?");
+				ERROR("Could not allocate memory. "
+				      "Out of memory?");
 				return 0;
 			}
 
@@ -484,7 +500,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 	return 1;
 }
 
-static void doDevUnconfig(comedi_device * dev)
+static void doDevUnconfig(comedi_device *dev)
 {
 	unsigned long devs_closed = 0;
 
@@ -499,10 +515,8 @@ static void doDevUnconfig(comedi_device * dev)
 			}
 			kfree(bdev);
 		}
-		if (devpriv->devs) {
-			kfree(devpriv->devs);
-			devpriv->devs = 0;
-		}
+		kfree(devpriv->devs);
+		devpriv->devs = 0;
 		kfree(devpriv);
 		dev->private = 0;
 	}
