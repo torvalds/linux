@@ -53,6 +53,7 @@ static int iwl4965_hw_get_temperature(const struct iwl_priv *priv);
  *   is not compatible with earlier drivers.
  * This number will also appear in << 8 position of 1st dword of uCode file */
 #define IWL4965_UCODE_API "-2"
+#define IWL4965_MODULE_FIRMWARE "iwlwifi-4965" IWL4965_UCODE_API ".ucode"
 
 
 /* module parameters */
@@ -2322,7 +2323,7 @@ static struct iwl_ops iwl4965_ops = {
 
 struct iwl_cfg iwl4965_agn_cfg = {
 	.name = "4965AGN",
-	.fw_name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode",
+	.fw_name = IWL4965_MODULE_FIRMWARE,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
@@ -2332,7 +2333,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 };
 
 /* Module firmware */
-MODULE_FIRMWARE("iwlwifi-4965" IWL4965_UCODE_API ".ucode");
+MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE);
 
 module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
