@@ -195,7 +195,7 @@ static DEFINE_PCI_DEVICE_TABLE(me_pci_table) = {
 MODULE_DEVICE_TABLE(pci, me_pci_table);
 
 /* Board specification structure */
-typedef struct {
+struct me_board {
 	const char *name;	/* driver name */
 	int device_id;
 	int ao_channel_nbr;	/* DA config */
@@ -207,9 +207,9 @@ typedef struct {
 	int ai_resolution_mask;
 	const comedi_lrange *ai_range_list;
 	int dio_channel_nbr;	/* DIO config */
-} me_board_struct;
+};
 
-static const me_board_struct me_boards[] = {
+static const struct me_board me_boards[] = {
 	{
 		/* -- ME-2600i -- */
 		.name = 		ME_DRIVER_NAME,
@@ -244,7 +244,7 @@ static const me_board_struct me_boards[] = {
 		}
 };
 
-#define me_board_nbr (sizeof(me_boards)/sizeof(me_board_struct))
+#define me_board_nbr (sizeof(me_boards)/sizeof(struct me_board))
 
 static comedi_driver me_driver = {
       .driver_name =	ME_DRIVER_NAME,
@@ -255,7 +255,7 @@ static comedi_driver me_driver = {
 COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);
 
 /* Private data structure */
-typedef struct {
+struct me_private_data {
 	struct pci_dev *pci_device;
 	void *plx_regbase;	/* PLX configuration base address */
 	void *me_regbase;	/* Base address of the Meilhaus card */
@@ -266,10 +266,9 @@ typedef struct {
 	unsigned short control_2;	/* Mirror of CONTROL_2 register */
 	unsigned short dac_control;	/* Mirror of the DAC_CONTROL register */
 	int ao_readback[4];	/* Mirror of analog output data */
+};
 
-} me_private_data_struct;
-
-#define dev_private ((me_private_data_struct *)dev->private)
+#define dev_private ((struct me_private_data *)dev->private)
 
 /*
  * ------------------------------------------------------------------
@@ -636,7 +635,7 @@ static int me_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
 	comedi_subdevice *subdevice;
-	me_board_struct *board;
+	struct me_board *board;
 	resource_size_t plx_regbase_tmp;
 	unsigned long plx_regbase_size_tmp;
 	resource_size_t me_regbase_tmp;
@@ -647,7 +646,7 @@ static int me_attach(comedi_device *dev, comedi_devconfig *it)
 	int result, error, i;
 
 	/* Allocate private memory */
-	if (alloc_private(dev, sizeof(me_private_data_struct)) < 0)
+	if (alloc_private(dev, sizeof(struct me_private_data)) < 0)
 		return -ENOMEM;
 
 	/* Probe the device to determine what device in the series it is. */
@@ -677,7 +676,7 @@ static int me_attach(comedi_device *dev, comedi_devconfig *it)
 					}
 
 					dev->board_ptr = me_boards + i;
-					board = (me_board_struct *) dev->
+					board = (struct me_board *) dev->
 						board_ptr;
 					dev_private->pci_device = pci_device;
 					goto found;
