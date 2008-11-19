@@ -324,14 +324,14 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 
 	BUG_ON(size & ~PAGE_MASK);
 
-	addr = ALIGN(vstart, align);
-
 	va = kmalloc_node(sizeof(struct vmap_area),
 			gfp_mask & GFP_RECLAIM_MASK, node);
 	if (unlikely(!va))
 		return ERR_PTR(-ENOMEM);
 
 retry:
+	addr = ALIGN(vstart, align);
+
 	spin_lock(&vmap_area_lock);
 	/* XXX: could have a last_hole cache */
 	n = vmap_area_root.rb_node;
