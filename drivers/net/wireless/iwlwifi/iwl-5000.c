@@ -475,6 +475,9 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 	case IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD:
 		index = IWL_CALIB_TX_IQ_PERD;
 		break;
+	case IWL_PHY_CALIBRATE_BASE_BAND_CMD:
+		index = IWL_CALIB_BASE_BAND;
+		break;
 	default:
 		IWL_ERROR("Unknown calibration notification %d\n",
 			  hdr->op_code);
@@ -841,8 +844,9 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 		priv->hw_params.calib_init_cfg =
 			BIT(IWL_CALIB_XTAL)		|
 			BIT(IWL_CALIB_LO)		|
-			BIT(IWL_CALIB_TX_IQ) 	|
-			BIT(IWL_CALIB_TX_IQ_PERD);
+			BIT(IWL_CALIB_TX_IQ) 		|
+			BIT(IWL_CALIB_TX_IQ_PERD)	|
+			BIT(IWL_CALIB_BASE_BAND);
 		break;
 	case CSR_HW_REV_TYPE_5150:
 		priv->hw_params.calib_init_cfg = 0;
