@@ -49,6 +49,7 @@ void cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 		buf->bytesused = 0;
 		buf->readpos = 0;
 		buf->b_flags = 0;
+		buf->skipped = 0;
 	}
 	mutex_lock(&s->qlock);
 	list_add_tail(&buf->list, &q->list);
@@ -67,6 +68,7 @@ struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 		list_del_init(q->list.next);
 		atomic_dec(&q->buffers);
 		q->bytesused -= buf->bytesused - buf->readpos;
+		buf->skipped = 0;
 	}
 	mutex_unlock(&s->qlock);
 	return buf;
@@ -76,34 +78,63 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 	u32 bytesused)
 {
 	struct cx18 *cx = s->cx;
-	struct list_head *p;
+	struct cx18_buffer *buf;
+	struct cx18_buffer *ret = NULL;
+	struct list_head *p, *t;
+	LIST_HEAD(r);
 
 	mutex_lock(&s->qlock);
-	list_for_each(p, &s->q_free.list) {
-		struct cx18_buffer *buf =
-			list_entry(p, struct cx18_buffer, list);
+	list_for_each_safe(p, t, &s->q_free.list) {
+		buf = list_entry(p, struct cx18_buffer, list);
 
 		if (buf->id != id) {
-			CX18_DEBUG_HI_DMA("Skipping buffer %d searching for %d "
-					  "in stream %s q_free\n", buf->id, id,
-					  s->name);
+			buf->skipped++;
+			if (buf->skipped >= atomic_read(&s->q_free.buffers)-1) {
+				/* buffer must have fallen out of rotation */
+				atomic_dec(&s->q_free.buffers);
+				list_move_tail(&buf->list, &r);
+				CX18_WARN("Skipped %s, buffer %d, %d "
+					  "times - it must have dropped out of "
+					  "rotation\n", s->name, buf->id,
+					  buf->skipped);
+			}
 			continue;
 		}
 
 		buf->bytesused = bytesused;
-		if (s->type != CX18_ENC_STREAM_TYPE_TS) {
-			atomic_dec(&s->q_free.buffers);
+		atomic_dec(&s->q_free.buffers);
+		if (s->type == CX18_ENC_STREAM_TYPE_TS) {
+			/*
+			 * TS doesn't use q_full, but for sweeping up lost
+			 * buffers, we want the TS to requeue the buffer just
+			 * before sending the MDL back to the firmware, so we
+			 * pull it off the list here.
+			 */
+			list_del_init(&buf->list);
+		} else {
 			atomic_inc(&s->q_full.buffers);
 			s->q_full.bytesused += buf->bytesused;
 			list_move_tail(&buf->list, &s->q_full.list);
 		}
 
-		mutex_unlock(&s->qlock);
-		return buf;
+		ret = buf;
+		break;
 	}
 	mutex_unlock(&s->qlock);
-	CX18_ERR("Cannot find buffer %d for stream %s\n", id, s->name);
-	return NULL;
+
+	/* Put lost buffers back into firmware transfer rotation */
+	while (!list_empty(&r)) {
+		buf = list_entry(r.next, struct cx18_buffer, list);
+		list_del_init(r.next);
+		cx18_enqueue(s, buf, &s->q_free);
+		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
+		       (void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+		       1, buf->id, s->buf_size);
+		CX18_INFO("Returning %s, buffer %d back to transfer rotation\n",
+			  s->name, buf->id);
+		/* and there was much rejoicing... */
+	}
+	return ret;
 }
 
 /* Move all buffers of a queue to q_free, while flushing the buffers */
@@ -118,7 +149,7 @@ static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 	while (!list_empty(&q->list)) {
 		buf = list_entry(q->list.next, struct cx18_buffer, list);
 		list_move_tail(q->list.next, &s->q_free.list);
-		buf->bytesused = buf->readpos = buf->b_flags = 0;
+		buf->bytesused = buf->readpos = buf->b_flags = buf->skipped = 0;
 		atomic_inc(&s->q_free.buffers);
 	}
 	cx18_queue_init(q);

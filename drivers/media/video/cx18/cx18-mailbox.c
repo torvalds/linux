@@ -120,7 +120,7 @@ static void dump_mb(struct cx18 *cx, struct cx18_mailbox *mb, char *name)
 
 static void epu_dma_done(struct cx18 *cx, struct cx18_epu_work_order *order)
 {
-	u32 handle, mdl_ack_count;
+	u32 handle, mdl_ack_count, id;
 	struct cx18_mailbox *mb;
 	struct cx18_mdl_ack *mdl_ack;
 	struct cx18_stream *s;
@@ -133,19 +133,50 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_epu_work_order *order)
 
 	if (s == NULL) {
 		CX18_WARN("Got DMA done notification for unknown/inactive"
-			  " handle %d\n", handle);
+			  " handle %d, %s mailbox seq no %d\n", handle,
+			  (order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) ?
+			  "stale" : "good", mb->request);
 		return;
 	}
 
 	mdl_ack_count = mb->args[2];
 	mdl_ack = order->mdl_ack;
 	for (i = 0; i < mdl_ack_count; i++, mdl_ack++) {
-		buf = cx18_queue_get_buf(s, mdl_ack->id, mdl_ack->data_used);
-		CX18_DEBUG_HI_DMA("DMA DONE for %s (buffer %d)\n", s->name,
-				  mdl_ack->id);
+		id = mdl_ack->id;
+		/*
+		 * Simple integrity check for processing a stale (and possibly
+		 * inconsistent mailbox): make sure the buffer id is in the
+		 * valid range for the stream.
+		 *
+		 * We go through the trouble of dealing with stale mailboxes
+		 * because most of the time, the mailbox data is still valid and
+		 * unchanged (and in practice the firmware ping-pongs the
+		 * two mdl_ack buffers so mdl_acks are not stale).
+		 *
+		 * There are occasions when we get a half changed mailbox,
+		 * which this check catches for a handle & id mismatch.  If the
+		 * handle and id do correspond, the worst case is that we
+		 * completely lost the old buffer, but pick up the new buffer
+		 * early (but the new mdl_ack is guaranteed to be good in this
+		 * case as the firmware wouldn't point us to a new mdl_ack until
+		 * it's filled in).
+		 *
+		 * cx18_queue_get buf() will detect the lost buffers
+		 * and put them back in rotation eventually.
+		 */
+		if ((order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) &&
+		    !(id >= s->mdl_offset &&
+		      id < (s->mdl_offset + s->buffers))) {
+			CX18_WARN("Fell behind! Ignoring stale mailbox with "
+				  " inconsistent data. Lost buffer for mailbox "
+				  "seq no %d\n", mb->request);
+			break;
+		}
+		buf = cx18_queue_get_buf(s, id, mdl_ack->data_used);
+		CX18_DEBUG_HI_DMA("DMA DONE for %s (buffer %d)\n", s->name, id);
 		if (buf == NULL) {
 			CX18_WARN("Could not find buf %d for stream %s\n",
-				  mdl_ack->id, s->name);
+				  id, s->name);
 			continue;
 		}
 
@@ -158,6 +189,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_epu_work_order *order)
 					 buf->bytesused);
 
 			cx18_buf_sync_for_device(s, buf);
+			cx18_enqueue(s, buf, &s->q_free);
 
 			if (s->handle != CX18_INVALID_TASK_HANDLE &&
 			    test_bit(CX18_F_S_STREAMING, &s->s_flags))
@@ -257,10 +289,10 @@ static void mb_ack_irq(struct cx18 *cx, struct cx18_epu_work_order *order)
 	/* Don't ack if the RPU has gotten impatient and timed us out */
 	if (req != cx18_readl(cx, &ack_mb->request) ||
 	    req == cx18_readl(cx, &ack_mb->ack)) {
-		CX18_WARN("Possibly falling behind: %s self-ack'ed our incoming"
-			  " %s to EPU mailbox (sequence no. %u) while "
-			  "processing\n",
-			  rpu_str[order->rpu], rpu_str[order->rpu], req);
+		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our "
+				"incoming %s to EPU mailbox (sequence no. %u) "
+				"while processing\n",
+				rpu_str[order->rpu], rpu_str[order->rpu], req);
 		order->flags |= CX18_F_EWO_MB_STALE_WHILE_PROC;
 		return;
 	}
@@ -407,9 +439,10 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 			   2 * sizeof(u32));
 
 	if (order_mb->request == order_mb->ack) {
-		CX18_WARN("Possibly falling behind: %s self-ack'ed our incoming"
-			  " %s to EPU mailbox (sequence no. %u)\n",
-			  rpu_str[rpu], rpu_str[rpu], order_mb->request);
+		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our "
+				"incoming %s to EPU mailbox (sequence no. %u)"
+				"\n",
+				rpu_str[rpu], rpu_str[rpu], order_mb->request);
 		dump_mb(cx, order_mb, "incoming");
 		order->flags = CX18_F_EWO_MB_STALE_UPON_RECEIPT;
 	}

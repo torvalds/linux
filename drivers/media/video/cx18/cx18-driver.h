@@ -212,6 +212,7 @@ struct cx18_buffer {
 	dma_addr_t dma_handle;
 	u32 id;
 	unsigned long b_flags;
+	unsigned skipped;
 	char *buf;
 
 	u32 bytesused;
