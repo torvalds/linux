@@ -34,7 +34,7 @@ static void tcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		tcp_get_info(sk, info);
 }
 
-static struct inet_diag_handler tcp_diag_handler = {
+static const struct inet_diag_handler tcp_diag_handler = {
 	.idiag_hashinfo	 = &tcp_hashinfo,
 	.idiag_get_info	 = tcp_diag_get_info,
 	.idiag_type	 = TCPDIAG_GETSOCK,

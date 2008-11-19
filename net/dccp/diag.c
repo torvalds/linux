@@ -45,7 +45,7 @@ static void dccp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		dccp_get_info(sk, _info);
 }
 
-static struct inet_diag_handler dccp_diag_handler = {
+static const struct inet_diag_handler dccp_diag_handler = {
 	.idiag_hashinfo	 = &dccp_hashinfo,
 	.idiag_get_info	 = dccp_diag_get_info,
 	.idiag_type	 = DCCPDIAG_GETSOCK,
