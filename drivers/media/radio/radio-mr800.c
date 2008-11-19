@@ -141,6 +141,7 @@ struct amradio_device {
 
 	unsigned char *buffer;
 	struct mutex lock;	/* buffer locking */
+	struct mutex disconnect_lock;
 	int curfreq;
 	int stereo;
 	int users;
@@ -207,6 +208,10 @@ static int amradio_stop(struct amradio_device *radio)
 	int retval;
 	int size;
 
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
+
 	mutex_lock(&radio->lock);
 
 	radio->buffer[0] = 0x00;
@@ -239,6 +244,10 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 	int retval;
 	int size;
 	unsigned short freq_send = 0x13 + (freq >> 3) / 25;
+
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
 
 	mutex_lock(&radio->lock);
 
@@ -293,18 +302,16 @@ static void usb_amradio_disconnect(struct usb_interface *intf)
 {
 	struct amradio_device *radio = usb_get_intfdata(intf);
 
+	mutex_lock(&radio->disconnect_lock);
+	radio->removed = 1;
 	usb_set_intfdata(intf, NULL);
 
-	if (radio) {
+	if (radio->users == 0) {
 		video_unregister_device(radio->videodev);
-		radio->videodev = NULL;
-		if (radio->users) {
-			kfree(radio->buffer);
-			kfree(radio);
-		} else {
-			radio->removed = 1;
-		}
+		kfree(radio->buffer);
+		kfree(radio);
 	}
+	mutex_unlock(&radio->disconnect_lock);
 }
 
 /* vidioc_querycap - query device capabilities */
@@ -324,6 +331,10 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -351,6 +362,12 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
+	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
+
 	if (v->index > 0)
 		return -EINVAL;
 	return 0;
@@ -361,6 +378,10 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
 
 	radio->curfreq = f->frequency;
 	if (amradio_setfreq(radio, radio->curfreq) < 0)
@@ -374,6 +395,10 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = radio->curfreq;
@@ -401,6 +426,10 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
 
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
+
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		ctrl->value = radio->muted;
@@ -414,6 +443,10 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -500,14 +533,26 @@ static int usb_amradio_open(struct inode *inode, struct file *file)
 static int usb_amradio_close(struct inode *inode, struct file *file)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	int retval;
 
 	if (!radio)
 		return -ENODEV;
+
+	mutex_lock(&radio->disconnect_lock);
 	radio->users = 0;
 	if (radio->removed) {
+		video_unregister_device(radio->videodev);
 		kfree(radio->buffer);
 		kfree(radio);
+
+	} else {
+		retval = amradio_stop(radio);
+		if (retval < 0)
+			amradio_dev_warn(&radio->videodev->dev,
+				"amradio_stop failed\n");
 	}
+
+	mutex_unlock(&radio->disconnect_lock);
 	return 0;
 }
 
@@ -607,6 +652,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = 95.16 * FREQ_MUL;
 
+	mutex_init(&radio->disconnect_lock);
 	mutex_init(&radio->lock);
 
 	video_set_drvdata(radio->videodev, radio);
