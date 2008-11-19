@@ -6321,10 +6321,7 @@ static void iwl3945_post_associate(struct iwl3945_priv *priv)
 
 	case NL80211_IFTYPE_ADHOC:
 
-		/* clear out the station table */
-		iwl3945_clear_stations_table(priv);
-
-		iwl3945_add_station(priv, iwl3945_broadcast_addr, 0, 0);
+		priv->assoc_id = 1;
 		iwl3945_add_station(priv, priv->bssid, 0, 0);
 		iwl3945_sync_sta(priv, IWL_STA_ID,
 				 (priv->band == IEEE80211_BAND_5GHZ) ?
