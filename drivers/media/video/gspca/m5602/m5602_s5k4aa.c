@@ -147,7 +147,7 @@ int s5k4aa_read_sensor(struct sd *sd, const u8 address,
 	if (err < 0)
 		goto out;
 
-	for (i = 0; (i < len) & !err; i++) {
+	for (i = 0; (i < len) && !err; i++) {
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
 		PDEBUG(D_CONF, "Reading sensor register "
