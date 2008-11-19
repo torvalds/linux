@@ -690,6 +690,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 	/* Shutdown the kernel journal system */
 	jbd2_journal_destroy(journal->j_journal);
+	journal->j_journal = NULL;
 
 	OCFS2_I(inode)->ip_open_count--;
 

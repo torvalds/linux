@@ -493,7 +493,7 @@ int cifs_close(struct inode *inode, struct file *file)
 		if (pTcon) {
 			/* no sense reconnecting to close a file that is
 			   already closed */
-			if (pTcon->tidStatus != CifsNeedReconnect) {
+			if (!pTcon->need_reconnect) {
 				timeout = 2;
 				while ((atomic_read(&pSMBFile->wrtPending) != 0)
 					&& (timeout <= 2048)) {
@@ -1404,7 +1404,10 @@ retry:
 			if ((wbc->nr_to_write -= n_iov) <= 0)
 				done = 1;
 			index = next;
-		}
+		} else
+			/* Need to re-find the pages we skipped */
+			index = pvec.pages[0]->index + 1;
+
 		pagevec_release(&pvec);
 	}
 	if (!scanned && !done) {

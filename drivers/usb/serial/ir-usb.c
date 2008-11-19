@@ -26,7 +26,7 @@
  *	Introduced common header to be used also in USB Gadget Framework.
  *	Still needs some other style fixes.
  *
- * 2007_Jun_21  Alan Cox <alan@redhat.com>
+ * 2007_Jun_21  Alan Cox <alan@lxorguk.ukuu.org.uk>
  *	Minimal cleanups for some of the driver problens and tty layer abuse.
  *	Still needs fixing to allow multiple dongles.
  *

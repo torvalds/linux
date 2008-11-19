@@ -860,6 +860,11 @@ static struct ehca_qp *internal_create_qp(
 	if (qp_type == IB_QPT_GSI) {
 		h_ret = ehca_define_sqp(shca, my_qp, init_attr);
 		if (h_ret != H_SUCCESS) {
+			kfree(my_qp->mod_qp_parm);
+			my_qp->mod_qp_parm = NULL;
+			/* the QP pointer is no longer valid */
+			shca->sport[init_attr->port_num - 1].ibqp_sqp[qp_type] =
+				NULL;
 			ret = ehca2ib_return_code(h_ret);
 			goto create_qp_exit6;
 		}

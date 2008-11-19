@@ -3564,7 +3564,8 @@ static int __init vmx_init(void)
 		bypass_guest_pf = 0;
 		kvm_mmu_set_base_ptes(VMX_EPT_READABLE_MASK |
 			VMX_EPT_WRITABLE_MASK |
-			VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT);
+			VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT |
+			VMX_EPT_IGMT_BIT);
 		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
 				VMX_EPT_EXECUTABLE_MASK);
 		kvm_enable_tdp();

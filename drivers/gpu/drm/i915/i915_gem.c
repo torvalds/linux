@@ -1455,11 +1455,9 @@ i915_gem_object_set_domain_range(struct drm_gem_object *obj,
 						  read_domains, write_domain);
 
 	/* Wait on any GPU rendering to the object to be flushed. */
-	if (obj->write_domain & ~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT)) {
-		ret = i915_gem_object_wait_rendering(obj);
-		if (ret)
-			return ret;
-	}
+	ret = i915_gem_object_wait_rendering(obj);
+	if (ret)
+		return ret;
 
 	if (obj_priv->page_cpu_valid == NULL) {
 		obj_priv->page_cpu_valid = drm_calloc(1, obj->size / PAGE_SIZE,

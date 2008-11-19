@@ -148,6 +148,7 @@ config IA64_GENERIC
 	select ACPI_NUMA
 	select SWIOTLB
 	select PCI_MSI
+	select DMAR
 	help
 	  This selects the system type of your hardware.  A "generic" kernel
 	  will run on any supported IA-64 system.  However, if you configure
@@ -585,7 +586,7 @@ source "fs/Kconfig.binfmt"
 
 endmenu
 
-menu "Power management and ACPI"
+menu "Power management and ACPI options"
 
 source "kernel/power/Kconfig"
 
@@ -641,6 +642,8 @@ source "net/Kconfig"
 
 source "drivers/Kconfig"
 
+source "arch/ia64/hp/sim/Kconfig"
+
 config MSPEC
 	tristate "Memory special operations driver"
 	depends on IA64
@@ -651,6 +654,12 @@ config MSPEC
 	  otherwise say N.
 
 source "fs/Kconfig"
+
+source "arch/ia64/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
 
 source "arch/ia64/kvm/Kconfig"
 
@@ -678,11 +687,3 @@ config IRQ_PER_CPU
 
 config IOMMU_HELPER
 	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC || SWIOTLB)
-
-source "arch/ia64/hp/sim/Kconfig"
-
-source "arch/ia64/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"

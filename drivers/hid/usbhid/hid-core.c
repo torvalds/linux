@@ -781,6 +781,8 @@ static int usbhid_start(struct hid_device *hid)
 	unsigned int n, insize = 0;
 	int ret;
 
+	clear_bit(HID_DISCONNECTED, &usbhid->iofl);
+
 	usbhid->bufsize = HID_MIN_BUFFER_SIZE;
 	hid_find_max_report(hid, HID_INPUT_REPORT, &usbhid->bufsize);
 	hid_find_max_report(hid, HID_OUTPUT_REPORT, &usbhid->bufsize);
@@ -847,12 +849,6 @@ static int usbhid_start(struct hid_device *hid)
 		}
 	}
 
-	if (!usbhid->urbin) {
-		err_hid("couldn't find an input interrupt endpoint");
-		ret = -ENODEV;
-		goto fail;
-	}
-
 	init_waitqueue_head(&usbhid->wait);
 	INIT_WORK(&usbhid->reset_work, hid_reset);
 	setup_timer(&usbhid->io_retry, hid_retry_timeout, (unsigned long) hid);
@@ -888,6 +884,9 @@ fail:
 	usb_free_urb(usbhid->urbin);
 	usb_free_urb(usbhid->urbout);
 	usb_free_urb(usbhid->urbctrl);
+	usbhid->urbin = NULL;
+	usbhid->urbout = NULL;
+	usbhid->urbctrl = NULL;
 	hid_free_buffers(dev, hid);
 	mutex_unlock(&usbhid->setup);
 	return ret;
@@ -924,6 +923,9 @@ static void usbhid_stop(struct hid_device *hid)
 	usb_free_urb(usbhid->urbin);
 	usb_free_urb(usbhid->urbctrl);
 	usb_free_urb(usbhid->urbout);
+	usbhid->urbin = NULL; /* don't mess up next start */
+	usbhid->urbctrl = NULL;
+	usbhid->urbout = NULL;
 
 	hid_free_buffers(hid_to_usb_dev(hid), hid);
 	mutex_unlock(&usbhid->setup);
@@ -940,14 +942,25 @@ static struct hid_ll_driver usb_hid_driver = {
 
 static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
+	struct usb_host_interface *interface = intf->cur_altsetting;
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usbhid_device *usbhid;
 	struct hid_device *hid;
+	unsigned int n, has_in = 0;
 	size_t len;
 	int ret;
 
 	dbg_hid("HID probe called for ifnum %d\n",
 			intf->altsetting->desc.bInterfaceNumber);
+
+	for (n = 0; n < interface->desc.bNumEndpoints; n++)
+		if (usb_endpoint_is_int_in(&interface->endpoint[n].desc))
+			has_in++;
+	if (!has_in) {
+		dev_err(&intf->dev, "couldn't find an input interrupt "
+				"endpoint\n");
+		return -ENODEV;
+	}
 
 	hid = hid_allocate_device();
 	if (IS_ERR(hid))

@@ -1,4 +1,4 @@
-/* rtc-sun4c.c: Hypervisor based RTC for SUN4V systems.
+/* rtc-sun4v.c: Hypervisor based RTC for SUN4V systems.
  *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
  */
@@ -7,20 +7,10 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/time.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 
 #include <asm/hypervisor.h>
-
-MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
-MODULE_DESCRIPTION("SUN4V RTC driver");
-MODULE_LICENSE("GPL");
-
-struct sun4v_rtc {
-	struct rtc_device	*rtc;
-	spinlock_t		lock;
-};
 
 static unsigned long hypervisor_get_time(void)
 {
@@ -45,15 +35,7 @@ retry:
 
 static int sun4v_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct sun4v_rtc *p = dev_get_drvdata(dev);
-	unsigned long flags, secs;
-
-	spin_lock_irqsave(&p->lock, flags);
-	secs = hypervisor_get_time();
-	spin_unlock_irqrestore(&p->lock, flags);
-
-	rtc_time_to_tm(secs, tm);
-
+	rtc_time_to_tm(hypervisor_get_time(), tm);
 	return 0;
 }
 
@@ -80,19 +62,14 @@ retry:
 
 static int sun4v_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct sun4v_rtc *p = dev_get_drvdata(dev);
-	unsigned long flags, secs;
+	unsigned long secs;
 	int err;
 
 	err = rtc_tm_to_time(tm, &secs);
 	if (err)
 		return err;
 
-	spin_lock_irqsave(&p->lock, flags);
-	err = hypervisor_set_time(secs);
-	spin_unlock_irqrestore(&p->lock, flags);
-
-	return err;
+	return hypervisor_set_time(secs);
 }
 
 static const struct rtc_class_ops sun4v_rtc_ops = {
@@ -100,33 +77,22 @@ static const struct rtc_class_ops sun4v_rtc_ops = {
 	.set_time	= sun4v_set_time,
 };
 
-static int __devinit sun4v_rtc_probe(struct platform_device *pdev)
+static int __init sun4v_rtc_probe(struct platform_device *pdev)
 {
-	struct sun4v_rtc *p = kzalloc(sizeof(*p), GFP_KERNEL);
-
-	if (!p)
-		return -ENOMEM;
-
-	spin_lock_init(&p->lock);
-
-	p->rtc = rtc_device_register("sun4v", &pdev->dev,
+	struct rtc_device *rtc = rtc_device_register("sun4v", &pdev->dev,
 				     &sun4v_rtc_ops, THIS_MODULE);
-	if (IS_ERR(p->rtc)) {
-		int err = PTR_ERR(p->rtc);
-		kfree(p);
-		return err;
-	}
-	platform_set_drvdata(pdev, p);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+
+	platform_set_drvdata(pdev, rtc);
 	return 0;
 }
 
-static int __devexit sun4v_rtc_remove(struct platform_device *pdev)
+static int __exit sun4v_rtc_remove(struct platform_device *pdev)
 {
-	struct sun4v_rtc *p = platform_get_drvdata(pdev);
+	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
-	rtc_device_unregister(p->rtc);
-	kfree(p);
-
+	rtc_device_unregister(rtc);
 	return 0;
 }
 
@@ -135,13 +101,12 @@ static struct platform_driver sun4v_rtc_driver = {
 		.name	= "rtc-sun4v",
 		.owner	= THIS_MODULE,
 	},
-	.probe		= sun4v_rtc_probe,
-	.remove		= __devexit_p(sun4v_rtc_remove),
+	.remove		= __exit_p(sun4v_rtc_remove),
 };
 
 static int __init sun4v_rtc_init(void)
 {
-	return platform_driver_register(&sun4v_rtc_driver);
+	return platform_driver_probe(&sun4v_rtc_driver, sun4v_rtc_probe);
 }
 
 static void __exit sun4v_rtc_exit(void)
@@ -151,3 +116,7 @@ static void __exit sun4v_rtc_exit(void)
 
 module_init(sun4v_rtc_init);
 module_exit(sun4v_rtc_exit);
+
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
+MODULE_DESCRIPTION("SUN4V RTC driver");
+MODULE_LICENSE("GPL");
