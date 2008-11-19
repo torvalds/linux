@@ -96,7 +96,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #include <linux/compiler.h>
 
 #include "../comedidev.h"
-#include "../usb.h"
 
 #define BOARDNAME "usbdux"
 
@@ -465,7 +464,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	urb->dev = this_usbduxsub->usbdev;
 
 	/* resubmit the urb */
-	err = USB_SUBMIT_URB(urb);
+	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (unlikely(err < 0)) {
 		dev_err(&urb->dev->dev,
 			"comedi_: urb resubmit failed in int-context! err=%d\n",
@@ -695,7 +694,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 		urb->iso_frame_desc[0].offset = 0;
 		urb->iso_frame_desc[0].length = SIZEOUTBUF;
 		urb->iso_frame_desc[0].status = 0;
-		ret = USB_SUBMIT_URB(urb);
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret < 0) {
 			dev_err(&urb->dev->dev,
 				"comedi_: ao urb resubm failed in int-cont. "
@@ -722,7 +721,7 @@ static int usbduxsub_start(struct usbduxsub *usbduxsub)
 	if (usbduxsub->probed) {
 		/* 7f92 to zero */
 		local_transfer_buffer[0] = 0;
-		errcode = USB_CONTROL_MSG(usbduxsub->usbdev,
+		errcode = usb_control_msg(usbduxsub->usbdev,
 			/* create a pipe for a control transfer */
 			usb_sndctrlpipe(usbduxsub->usbdev, 0),
 			/* bRequest, "Firmware" */
@@ -756,8 +755,7 @@ static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 	if (usbduxsub->probed) {
 		/* 7f92 to one */
 		local_transfer_buffer[0] = 1;
-		errcode = USB_CONTROL_MSG
-			(usbduxsub->usbdev,
+		errcode = usb_control_msg(usbduxsub->usbdev,
 			usb_sndctrlpipe(usbduxsub->usbdev, 0),
 			/* bRequest, "Firmware" */
 			USBDUXSUB_FIRMWARE,
@@ -792,8 +790,7 @@ static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 			" to addr %d, first byte=%d.\n",
 			usbduxsub->comedidev->minor, len,
 			startAddr, local_transfer_buffer[0]);
-		errcode = USB_CONTROL_MSG
-			(usbduxsub->usbdev,
+		errcode = usb_control_msg(usbduxsub->usbdev,
 			usb_sndctrlpipe(usbduxsub->usbdev, 0),
 			/* brequest, firmware */
 			USBDUXSUB_FIRMWARE,
@@ -873,10 +870,10 @@ static int usbduxsub_submit_InURBs(struct usbduxsub *usbduxsub)
 			(usbduxsub->urbIn[i]->context),
 			(usbduxsub->urbIn[i]->dev),
 			(usbduxsub->urbIn[i]->interval));
-		errFlag = USB_SUBMIT_URB(usbduxsub->urbIn[i]);
+		errFlag = usb_submit_urb(usbduxsub->urbIn[i], GFP_ATOMIC);
 		if (errFlag) {
 			dev_err(&usbduxsub->interface->dev,
-				"comedi_: ai: USB_SUBMIT_URB(%d) error %d\n",
+				"comedi_: ai: usb_submit_urb(%d) error %d\n",
 				i, errFlag);
 			return errFlag;
 		}
@@ -899,10 +896,10 @@ static int usbduxsub_submit_OutURBs(struct usbduxsub *usbduxsub)
 		usbduxsub->urbOut[i]->dev = usbduxsub->usbdev;
 		usbduxsub->urbOut[i]->status = 0;
 		usbduxsub->urbOut[i]->transfer_flags = URB_ISO_ASAP;
-		errFlag = USB_SUBMIT_URB(usbduxsub->urbOut[i]);
+		errFlag = usb_submit_urb(usbduxsub->urbOut[i], GFP_ATOMIC);
 		if (errFlag) {
 			dev_err(&usbduxsub->interface->dev,
-				"comedi_: ao: USB_SUBMIT_URB(%d) error %d\n",
+				"comedi_: ao: usb_submit_urb(%d) error %d\n",
 				i, errFlag);
 			return errFlag;
 		}
@@ -1087,10 +1084,11 @@ static int send_dux_commands(struct usbduxsub *this_usbduxsub, int cmd_type)
 		printk(" %02x", this_usbduxsub->dux_commands[result]);
 	printk("\n");
 #endif
-	result = USB_BULK_MSG(this_usbduxsub->usbdev,
-		usb_sndbulkpipe(this_usbduxsub->usbdev,
-			COMMAND_OUT_EP),
-		this_usbduxsub->dux_commands, SIZEOFDUXBUFFER, &nsent, 10 * HZ);
+	result = usb_bulk_msg(this_usbduxsub->usbdev,
+			      usb_sndbulkpipe(this_usbduxsub->usbdev,
+					      COMMAND_OUT_EP),
+			      this_usbduxsub->dux_commands, SIZEOFDUXBUFFER,
+			      &nsent, 10);
 	if (result < 0)
 		dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
 			"could not transmit dux_command to the usb-device, "
@@ -1106,10 +1104,11 @@ static int receive_dux_commands(struct usbduxsub *this_usbduxsub, int command)
 	int i;
 
 	for (i = 0; i < RETRIES; i++) {
-		result = USB_BULK_MSG(this_usbduxsub->usbdev,
-			usb_rcvbulkpipe(this_usbduxsub->usbdev,
-				COMMAND_IN_EP),
-			this_usbduxsub->insnBuffer, SIZEINSNBUF, &nrec, 1 * HZ);
+		result = usb_bulk_msg(this_usbduxsub->usbdev,
+				      usb_rcvbulkpipe(this_usbduxsub->usbdev,
+						      COMMAND_IN_EP),
+				      this_usbduxsub->insnBuffer, SIZEINSNBUF,
+				      &nrec, 1);
 		if (result < 0) {
 			dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
 				"insn: USB error %d while receiving DUX command"
@@ -1966,7 +1965,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	urb->dev = this_usbduxsub->usbdev;
 	urb->status = 0;
 	if (this_usbduxsub->pwm_cmd_running) {
-		ret = USB_SUBMIT_URB(urb);
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret < 0) {
 			dev_err(&this_usbduxsub->interface->dev,
 				"comedi_: pwm urb resubm failed in int-cont. "
@@ -1998,10 +1997,10 @@ static int usbduxsub_submit_PwmURBs(struct usbduxsub *usbduxsub)
 		usbduxsub->urbPwm->transfer_buffer,
 		usbduxsub->sizePwmBuf, usbduxsub_pwm_irq, usbduxsub->comedidev);
 
-	errFlag = USB_SUBMIT_URB(usbduxsub->urbPwm);
+	errFlag = usb_submit_urb(usbduxsub->urbPwm, GFP_ATOMIC);
 	if (errFlag) {
 		dev_err(&usbduxsub->interface->dev,
-			"comedi_: usbdux: pwm: USB_SUBMIT_URB error %d\n",
+			"comedi_: usbdux: pwm: usb_submit_urb error %d\n",
 			errFlag);
 		return errFlag;
 	}
@@ -2422,7 +2421,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	if (index == -1) {
 		dev_err(dev, "Too many usbdux-devices connected.\n");
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-EMFILE);
+		return -EMFILE;
 	}
 	dev_dbg(dev, "comedi_: usbdux: "
 		"usbduxsub[%d] is ready to connect to comedi.\n", index);
@@ -2452,7 +2451,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			"error alloc space for dac commands\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	/* create space for the commands going to the usb device */
 	usbduxsub[index].dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
@@ -2461,7 +2460,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			"error alloc space for dac commands\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	/* create space for the in buffer and set it to zero */
 	usbduxsub[index].inBuffer = kzalloc(SIZEINBUF, GFP_KERNEL);
@@ -2470,7 +2469,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			"could not alloc space for inBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	/* create space of the instruction buffer */
 	usbduxsub[index].insnBuffer = kzalloc(SIZEINSNBUF, GFP_KERNEL);
@@ -2479,7 +2478,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			"could not alloc space for insnBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	/* create space for the outbuffer */
 	usbduxsub[index].outBuffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
@@ -2488,7 +2487,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			"could not alloc space for outBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	/* setting to alternate setting 3: enabling iso ep and bulk ep. */
 	i = usb_set_interface(usbduxsub[index].usbdev,
@@ -2499,7 +2498,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			index);
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENODEV);
+		return -ENODEV;
 	}
 	if (usbduxsub[index].high_speed)
 		usbduxsub[index].numOfInBuffers = NUMOFINBUFFERSHIGH;
@@ -2513,17 +2512,17 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		dev_err(dev, "comedi_: usbdux: Could not alloc. urbIn array\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	for (i = 0; i < usbduxsub[index].numOfInBuffers; i++) {
 		/* one frame: 1ms */
-		usbduxsub[index].urbIn[i] = USB_ALLOC_URB(1);
+		usbduxsub[index].urbIn[i] = usb_alloc_urb(1, GFP_KERNEL);
 		if (usbduxsub[index].urbIn[i] == NULL) {
 			dev_err(dev, "comedi_: usbdux%d: "
 				"Could not alloc. urb(%d)\n", index, i);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbIn[i]->dev = usbduxsub[index].usbdev;
 		/* will be filled later with a pointer to the comedi-device */
@@ -2539,7 +2538,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 				"could not alloc. transb.\n", index);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbIn[i]->complete = usbduxsub_ai_IsocIrq;
 		usbduxsub[index].urbIn[i]->number_of_packets = 1;
@@ -2562,17 +2561,17 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			"Could not alloc. urbOut array\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	for (i = 0; i < usbduxsub[index].numOfOutBuffers; i++) {
 		/* one frame: 1ms */
-		usbduxsub[index].urbOut[i] = USB_ALLOC_URB(1);
+		usbduxsub[index].urbOut[i] = usb_alloc_urb(1, GFP_KERNEL);
 		if (usbduxsub[index].urbOut[i] == NULL) {
 			dev_err(dev, "comedi_: usbdux%d: "
 				"Could not alloc. urb(%d)\n", index, i);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbOut[i]->dev = usbduxsub[index].usbdev;
 		/* will be filled later with a pointer to the comedi-device */
@@ -2588,7 +2587,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 				"could not alloc. transb.\n", index);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbOut[i]->complete = usbduxsub_ao_IsocIrq;
 		usbduxsub[index].urbOut[i]->number_of_packets = 1;
@@ -2609,13 +2608,13 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	if (usbduxsub[index].high_speed) {
 		/* max bulk ep size in high speed */
 		usbduxsub[index].sizePwmBuf = 512;
-		usbduxsub[index].urbPwm = USB_ALLOC_URB(0);
+		usbduxsub[index].urbPwm = usb_alloc_urb(0, GFP_KERNEL);
 		if (usbduxsub[index].urbPwm == NULL) {
 			dev_err(dev, "comedi_: usbdux%d: "
 				"Could not alloc. pwm urb\n", index);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbPwm->transfer_buffer =
 			kzalloc(usbduxsub[index].sizePwmBuf, GFP_KERNEL);
@@ -2624,7 +2623,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 				"could not alloc. transb. for pwm\n", index);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 	} else {
 		usbduxsub[index].urbPwm = NULL;
