@@ -919,6 +919,11 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_ioapic_init(kvm);
 		if (r)
 			goto out;
+		r = kvm_setup_default_irq_routing(kvm);
+		if (r) {
+			kfree(kvm->arch.vioapic);
+			goto out;
+		}
 		break;
 	case KVM_IRQ_LINE: {
 		struct kvm_irq_level irq_event;

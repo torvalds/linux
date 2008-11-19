@@ -843,6 +843,7 @@ static struct kvm *kvm_create_vm(void)
 	if (IS_ERR(kvm))
 		goto out;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
+	INIT_LIST_HEAD(&kvm->irq_routing);
 	INIT_HLIST_HEAD(&kvm->mask_notifier_list);
 #endif
 
@@ -926,6 +927,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);
+	kvm_free_irq_routing(kvm);
 	kvm_io_bus_destroy(&kvm->pio_bus);
 	kvm_io_bus_destroy(&kvm->mmio_bus);
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
@@ -1946,6 +1948,36 @@ static long kvm_vm_ioctl(struct file *filp,
 		break;
 	}
 #endif
+#ifdef KVM_CAP_IRQ_ROUTING
+	case KVM_SET_GSI_ROUTING: {
+		struct kvm_irq_routing routing;
+		struct kvm_irq_routing __user *urouting;
+		struct kvm_irq_routing_entry *entries;
+
+		r = -EFAULT;
+		if (copy_from_user(&routing, argp, sizeof(routing)))
+			goto out;
+		r = -EINVAL;
+		if (routing.nr >= KVM_MAX_IRQ_ROUTES)
+			goto out;
+		if (routing.flags)
+			goto out;
+		r = -ENOMEM;
+		entries = vmalloc(routing.nr * sizeof(*entries));
+		if (!entries)
+			goto out;
+		r = -EFAULT;
+		urouting = argp;
+		if (copy_from_user(entries, urouting->entries,
+				   routing.nr * sizeof(*entries)))
+			goto out_free_irq_routing;
+		r = kvm_set_irq_routing(kvm, entries, routing.nr,
+					routing.flags);
+	out_free_irq_routing:
+		vfree(entries);
+		break;
+	}
+#endif
 	default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
 	}
@@ -2012,6 +2044,10 @@ static long kvm_dev_ioctl_check_extension_generic(long arg)
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
 		return 1;
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
+	case KVM_CAP_IRQ_ROUTING:
+		return 1;
+#endif
 	default:
 		break;
 	}

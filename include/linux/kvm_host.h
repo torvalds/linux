@@ -107,6 +107,19 @@ struct kvm_memory_slot {
 	int user_alloc;
 };
 
+struct kvm_kernel_irq_routing_entry {
+	u32 gsi;
+	void (*set)(struct kvm_kernel_irq_routing_entry *e,
+		    struct kvm *kvm, int level);
+	union {
+		struct {
+			unsigned irqchip;
+			unsigned pin;
+		} irqchip;
+	};
+	struct list_head link;
+};
+
 struct kvm {
 	struct mutex lock; /* protects the vcpus array and APIC accesses */
 	spinlock_t mmu_lock;
@@ -128,6 +141,7 @@ struct kvm {
 #endif
 
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
+	struct list_head irq_routing; /* of kvm_kernel_irq_routing_entry */
 	struct hlist_head mask_notifier_list;
 #endif
 
@@ -478,6 +492,23 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 		return 1;
 	return 0;
 }
+#endif
+
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
+
+#define KVM_MAX_IRQ_ROUTES 1024
+
+int kvm_setup_default_irq_routing(struct kvm *kvm);
+int kvm_set_irq_routing(struct kvm *kvm,
+			const struct kvm_irq_routing_entry *entries,
+			unsigned nr,
+			unsigned flags);
+void kvm_free_irq_routing(struct kvm *kvm);
+
+#else
+
+static inline void kvm_free_irq_routing(struct kvm *kvm) {}
+
 #endif
 
 #endif

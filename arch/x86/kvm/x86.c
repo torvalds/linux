@@ -1835,6 +1835,12 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			}
 		} else
 			goto out;
+		r = kvm_setup_default_irq_routing(kvm);
+		if (r) {
+			kfree(kvm->arch.vpic);
+			kfree(kvm->arch.vioapic);
+			goto out;
+		}
 		break;
 	case KVM_CREATE_PIT:
 		mutex_lock(&kvm->lock);

@@ -399,6 +399,38 @@ struct kvm_trace_rec {
 #if defined(CONFIG_X86)
 #define KVM_CAP_REINJECT_CONTROL 24
 #endif
+#if defined(CONFIG_X86)||defined(CONFIG_IA64)
+#define KVM_CAP_IRQ_ROUTING 25
+#endif
+
+#ifdef KVM_CAP_IRQ_ROUTING
+
+struct kvm_irq_routing_irqchip {
+	__u32 irqchip;
+	__u32 pin;
+};
+
+/* gsi routing entry types */
+#define KVM_IRQ_ROUTING_IRQCHIP 1
+
+struct kvm_irq_routing_entry {
+	__u32 gsi;
+	__u32 type;
+	__u32 flags;
+	__u32 pad;
+	union {
+		struct kvm_irq_routing_irqchip irqchip;
+		__u32 pad[8];
+	} u;
+};
+
+struct kvm_irq_routing {
+	__u32 nr;
+	__u32 flags;
+	struct kvm_irq_routing_entry entries[0];
+};
+
+#endif
 
 /*
  * ioctls for VM fds
@@ -430,6 +462,7 @@ struct kvm_trace_rec {
 			_IOW(KVMIO,  0x68, struct kvm_coalesced_mmio_zone)
 #define KVM_ASSIGN_PCI_DEVICE _IOR(KVMIO, 0x69, \
 				   struct kvm_assigned_pci_dev)
+#define KVM_SET_GSI_ROUTING       _IOW(KVMIO, 0x6a, struct kvm_irq_routing)
 #define KVM_ASSIGN_IRQ _IOR(KVMIO, 0x70, \
 			    struct kvm_assigned_irq)
 #define KVM_REINJECT_CONTROL      _IO(KVMIO, 0x71)

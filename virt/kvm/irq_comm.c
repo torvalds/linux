@@ -24,9 +24,24 @@
 
 #include "ioapic.h"
 
+static void kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
+			    struct kvm *kvm, int level)
+{
+#ifdef CONFIG_X86
+	kvm_pic_set_irq(pic_irqchip(kvm), e->irqchip.pin, level);
+#endif
+}
+
+static void kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
+			       struct kvm *kvm, int level)
+{
+	kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
+}
+
 /* This should be called with the kvm->lock mutex held */
 void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 {
+	struct kvm_kernel_irq_routing_entry *e;
 	unsigned long *irq_state = (unsigned long *)&kvm->arch.irq_states[irq];
 
 	/* Logical OR for level trig interrupt */
@@ -39,10 +54,9 @@ void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 	 * IOAPIC.  So set the bit in both. The guest will ignore
 	 * writes to the unused one.
 	 */
-	kvm_ioapic_set_irq(kvm->arch.vioapic, irq, !!(*irq_state));
-#ifdef CONFIG_X86
-	kvm_pic_set_irq(pic_irqchip(kvm), irq, !!(*irq_state));
-#endif
+	list_for_each_entry(e, &kvm->irq_routing, link)
+		if (e->gsi == irq)
+			e->set(e, kvm, !!(*irq_state));
 }
 
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi)
@@ -123,3 +137,149 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask)
 			kimn->func(kimn, mask);
 }
 
+static void __kvm_free_irq_routing(struct list_head *irq_routing)
+{
+	struct kvm_kernel_irq_routing_entry *e, *n;
+
+	list_for_each_entry_safe(e, n, irq_routing, link)
+		kfree(e);
+}
+
+void kvm_free_irq_routing(struct kvm *kvm)
+{
+	__kvm_free_irq_routing(&kvm->irq_routing);
+}
+
+int setup_routing_entry(struct kvm_kernel_irq_routing_entry *e,
+			const struct kvm_irq_routing_entry *ue)
+{
+	int r = -EINVAL;
+	int delta;
+
+	e->gsi = ue->gsi;
+	switch (ue->type) {
+	case KVM_IRQ_ROUTING_IRQCHIP:
+		delta = 0;
+		switch (ue->u.irqchip.irqchip) {
+		case KVM_IRQCHIP_PIC_MASTER:
+			e->set = kvm_set_pic_irq;
+			break;
+		case KVM_IRQCHIP_PIC_SLAVE:
+				e->set = kvm_set_pic_irq;
+			delta = 8;
+			break;
+		case KVM_IRQCHIP_IOAPIC:
+				e->set = kvm_set_ioapic_irq;
+			break;
+		default:
+			goto out;
+		}
+		e->irqchip.irqchip = ue->u.irqchip.irqchip;
+		e->irqchip.pin = ue->u.irqchip.pin + delta;
+		break;
+	default:
+		goto out;
+	}
+	r = 0;
+out:
+	return r;
+}
+
+
+int kvm_set_irq_routing(struct kvm *kvm,
+			const struct kvm_irq_routing_entry *ue,
+			unsigned nr,
+			unsigned flags)
+{
+	struct list_head irq_list = LIST_HEAD_INIT(irq_list);
+	struct list_head tmp = LIST_HEAD_INIT(tmp);
+	struct kvm_kernel_irq_routing_entry *e = NULL;
+	unsigned i;
+	int r;
+
+	for (i = 0; i < nr; ++i) {
+		r = -EINVAL;
+		if (ue->gsi >= KVM_MAX_IRQ_ROUTES)
+			goto out;
+		if (ue->flags)
+			goto out;
+		r = -ENOMEM;
+		e = kzalloc(sizeof(*e), GFP_KERNEL);
+		if (!e)
+			goto out;
+		r = setup_routing_entry(e, ue);
+		if (r)
+			goto out;
+		++ue;
+		list_add(&e->link, &irq_list);
+		e = NULL;
+	}
+
+	mutex_lock(&kvm->lock);
+	list_splice(&kvm->irq_routing, &tmp);
+	INIT_LIST_HEAD(&kvm->irq_routing);
+	list_splice(&irq_list, &kvm->irq_routing);
+	INIT_LIST_HEAD(&irq_list);
+	list_splice(&tmp, &irq_list);
+	mutex_unlock(&kvm->lock);
+
+	r = 0;
+
+out:
+	kfree(e);
+	__kvm_free_irq_routing(&irq_list);
+	return r;
+}
+
+#define IOAPIC_ROUTING_ENTRY(irq) \
+	{ .gsi = irq, .type = KVM_IRQ_ROUTING_IRQCHIP,	\
+	  .u.irqchip.irqchip = KVM_IRQCHIP_IOAPIC, .u.irqchip.pin = (irq) }
+#define ROUTING_ENTRY1(irq) IOAPIC_ROUTING_ENTRY(irq)
+
+#ifdef CONFIG_X86
+#define SELECT_PIC(irq) \
+	((irq) < 8 ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE)
+#  define PIC_ROUTING_ENTRY(irq) \
+	{ .gsi = irq, .type = KVM_IRQ_ROUTING_IRQCHIP,	\
+	  .u.irqchip.irqchip = SELECT_PIC(irq), .u.irqchip.pin = (irq) % 8 }
+#  define ROUTING_ENTRY2(irq) \
+	IOAPIC_ROUTING_ENTRY(irq), PIC_ROUTING_ENTRY(irq)
+#else
+#  define ROUTING_ENTRY2(irq) \
+	IOAPIC_ROUTING_ENTRY(irq)
+#endif
+
+static const struct kvm_irq_routing_entry default_routing[] = {
+	ROUTING_ENTRY2(0), ROUTING_ENTRY2(1),
+	ROUTING_ENTRY2(2), ROUTING_ENTRY2(3),
+	ROUTING_ENTRY2(4), ROUTING_ENTRY2(5),
+	ROUTING_ENTRY2(6), ROUTING_ENTRY2(7),
+	ROUTING_ENTRY2(8), ROUTING_ENTRY2(9),
+	ROUTING_ENTRY2(10), ROUTING_ENTRY2(11),
+	ROUTING_ENTRY2(12), ROUTING_ENTRY2(13),
+	ROUTING_ENTRY2(14), ROUTING_ENTRY2(15),
+	ROUTING_ENTRY1(16), ROUTING_ENTRY1(17),
+	ROUTING_ENTRY1(18), ROUTING_ENTRY1(19),
+	ROUTING_ENTRY1(20), ROUTING_ENTRY1(21),
+	ROUTING_ENTRY1(22), ROUTING_ENTRY1(23),
+#ifdef CONFIG_IA64
+	ROUTING_ENTRY1(24), ROUTING_ENTRY1(25),
+	ROUTING_ENTRY1(26), ROUTING_ENTRY1(27),
+	ROUTING_ENTRY1(28), ROUTING_ENTRY1(29),
+	ROUTING_ENTRY1(30), ROUTING_ENTRY1(31),
+	ROUTING_ENTRY1(32), ROUTING_ENTRY1(33),
+	ROUTING_ENTRY1(34), ROUTING_ENTRY1(35),
+	ROUTING_ENTRY1(36), ROUTING_ENTRY1(37),
+	ROUTING_ENTRY1(38), ROUTING_ENTRY1(39),
+	ROUTING_ENTRY1(40), ROUTING_ENTRY1(41),
+	ROUTING_ENTRY1(42), ROUTING_ENTRY1(43),
+	ROUTING_ENTRY1(44), ROUTING_ENTRY1(45),
+	ROUTING_ENTRY1(46), ROUTING_ENTRY1(47),
+#endif
+};
+
+int kvm_setup_default_irq_routing(struct kvm *kvm)
+{
+	return kvm_set_irq_routing(kvm, default_routing,
+				   ARRAY_SIZE(default_routing), 0);
+}
