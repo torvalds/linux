@@ -48,7 +48,7 @@ EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 
 extern char etext[], _stext[];
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC_STD_MMU_32)
 extern void hash_page_sync(void);
 #endif
 
@@ -127,7 +127,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 
 void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC_STD_MMU_32)
 	hash_page_sync();
 #endif
 	free_page((unsigned long)pte);
@@ -135,7 +135,7 @@ void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 
 void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 {
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC_STD_MMU_32)
 	hash_page_sync();
 #endif
 	pgtable_page_dtor(ptepage);
