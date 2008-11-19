@@ -92,6 +92,7 @@ _ENTRY(_start);
  * if needed
  */
 
+_ENTRY(__early_start)
 /* 1. Find the index of the entry we're executing in */
 	bl	invstr				/* Find our address */
 invstr:	mflr	r6				/* Make it accessible */
@@ -346,6 +347,15 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	/* clear any residual debug events */
 	li	r2,-1
 	mtspr	SPRN_DBSR,r2
+#endif
+
+#ifdef CONFIG_SMP
+	/* Check to see if we're the second processor, and jump
+	 * to the secondary_start code if so
+	 */
+	mfspr	r24,SPRN_PIR
+	cmpwi	r24,0
+	bne	__secondary_start
 #endif
 
 	/*
@@ -740,6 +750,9 @@ finish_tlb_load:
 #else
 	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
 #endif
+#ifdef CONFIG_SMP
+	ori	r12, r12, MAS2_M
+#endif
 	mtspr	SPRN_MAS2, r12
 
 	li	r10, (_PAGE_HWEXEC | _PAGE_PRESENT)
@@ -1041,6 +1054,63 @@ _GLOBAL(flush_dcache_L1)
 	isync
 
 	blr
+
+#ifdef CONFIG_SMP
+/* When we get here, r24 needs to hold the CPU # */
+	.globl __secondary_start
+__secondary_start:
+	lis	r3,__secondary_hold_acknowledge@h
+	ori	r3,r3,__secondary_hold_acknowledge@l
+	stw	r24,0(r3)
+
+	li	r3,0
+	mr	r4,r24		/* Why? */
+	bl	call_setup_cpu
+
+	lis	r3,tlbcam_index@ha
+	lwz	r3,tlbcam_index@l(r3)
+	mtctr	r3
+	li	r26,0		/* r26 safe? */
+
+	/* Load each CAM entry */
+1:	mr	r3,r26
+	bl	loadcam_entry
+	addi	r26,r26,1
+	bdnz	1b
+
+	/* get current_thread_info and current */
+	lis	r1,secondary_ti@ha
+	lwz	r1,secondary_ti@l(r1)
+	lwz	r2,TI_TASK(r1)
+
+	/* stack */
+	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
+	li	r0,0
+	stw	r0,0(r1)
+
+	/* ptr to current thread */
+	addi	r4,r2,THREAD	/* address of our thread_struct */
+	mtspr	SPRN_SPRG3,r4
+
+	/* Setup the defaults for TLB entries */
+	li	r4,(MAS4_TSIZED(BOOKE_PAGESZ_4K))@l
+	mtspr	SPRN_MAS4,r4
+
+	/* Jump to start_secondary */
+	lis	r4,MSR_KERNEL@h
+	ori	r4,r4,MSR_KERNEL@l
+	lis	r3,start_secondary@h
+	ori	r3,r3,start_secondary@l
+	mtspr	SPRN_SRR0,r3
+	mtspr	SPRN_SRR1,r4
+	sync
+	rfi
+	sync
+
+	.globl __secondary_hold_acknowledge
+__secondary_hold_acknowledge:
+	.long	-1
+#endif
 
 /*
  * We put a few things here that have to be page-aligned. This stuff
