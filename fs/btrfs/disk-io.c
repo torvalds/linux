@@ -538,15 +538,9 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	async->work.flags = 0;
 	async->bio_flags = bio_flags;
 
-	while(atomic_read(&fs_info->async_submit_draining) &&
-	      atomic_read(&fs_info->nr_async_submits)) {
-		wait_event(fs_info->async_submit_wait,
-			   (atomic_read(&fs_info->nr_async_submits) == 0));
-	}
-
 	atomic_inc(&fs_info->nr_async_submits);
 	btrfs_queue_worker(&fs_info->workers, &async->work);
-
+#if 0
 	if (atomic_read(&fs_info->nr_async_submits) > limit) {
 		wait_event_timeout(fs_info->async_submit_wait,
 			   (atomic_read(&fs_info->nr_async_submits) < limit),
@@ -556,7 +550,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			   (atomic_read(&fs_info->nr_async_bios) < limit),
 			   HZ/10);
 	}
-
+#endif
 	while(atomic_read(&fs_info->async_submit_draining) &&
 	      atomic_read(&fs_info->nr_async_submits)) {
 		wait_event(fs_info->async_submit_wait,
@@ -1765,11 +1759,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = btrfs_cleanup_reloc_trees(tree_root);
 	BUG_ON(ret);
 
+read_fs_root:
 	location.objectid = BTRFS_FS_TREE_OBJECTID;
 	location.type = BTRFS_ROOT_ITEM_KEY;
 	location.offset = (u64)-1;
 
-read_fs_root:
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (!fs_info->fs_root)
 		goto fail_cleaner;

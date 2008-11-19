@@ -883,13 +883,6 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 		async_cow->work.ordered_free = async_cow_free;
 		async_cow->work.flags = 0;
 
-		while(atomic_read(&root->fs_info->async_submit_draining) &&
-		      atomic_read(&root->fs_info->async_delalloc_pages)) {
-			wait_event(root->fs_info->async_submit_wait,
-			     (atomic_read(&root->fs_info->async_delalloc_pages)
-			      == 0));
-		}
-
 		nr_pages = (cur_end - start + PAGE_CACHE_SIZE) >>
 			PAGE_CACHE_SHIFT;
 		atomic_add(nr_pages, &root->fs_info->async_delalloc_pages);

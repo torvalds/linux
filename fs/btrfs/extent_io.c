@@ -2398,7 +2398,8 @@ update_nr_written:
 int extent_write_cache_pages(struct extent_io_tree *tree,
 			     struct address_space *mapping,
 			     struct writeback_control *wbc,
-			     writepage_t writepage, void *data)
+			     writepage_t writepage, void *data,
+			     void (*flush_fn)(void *))
 {
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	int ret = 0;
@@ -2460,8 +2461,10 @@ retry:
 				continue;
 			}
 
-			if (wbc->sync_mode != WB_SYNC_NONE)
+			if (wbc->sync_mode != WB_SYNC_NONE) {
+				flush_fn(data);
 				wait_on_page_writeback(page);
+			}
 
 			if (PageWriteback(page) ||
 			    !clear_page_dirty_for_io(page)) {
@@ -2498,6 +2501,15 @@ retry:
 }
 EXPORT_SYMBOL(extent_write_cache_pages);
 
+static noinline void flush_write_bio(void *data)
+{
+	struct extent_page_data *epd = data;
+	if (epd->bio) {
+		submit_one_bio(WRITE, epd->bio, 0, 0);
+		epd->bio = NULL;
+	}
+}
+
 int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 			  get_extent_t *get_extent,
 			  struct writeback_control *wbc)
@@ -2523,7 +2535,7 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 	ret = __extent_writepage(page, wbc, &epd);
 
 	extent_write_cache_pages(tree, mapping, &wbc_writepages,
-				 __extent_writepage, &epd);
+				 __extent_writepage, &epd, flush_write_bio);
 	if (epd.bio) {
 		submit_one_bio(WRITE, epd.bio, 0, 0);
 	}
@@ -2592,7 +2604,8 @@ int extent_writepages(struct extent_io_tree *tree,
 	};
 
 	ret = extent_write_cache_pages(tree, mapping, wbc,
-				       __extent_writepage, &epd);
+				       __extent_writepage, &epd,
+				       flush_write_bio);
 	if (epd.bio) {
 		submit_one_bio(WRITE, epd.bio, 0, 0);
 	}
@@ -3087,6 +3100,9 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 
 	for (i = 0; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
+		if (!set && !PageDirty(page))
+			continue;
+
 		lock_page(page);
 		if (i == 0)
 			set_page_extent_head(page, eb->len);
