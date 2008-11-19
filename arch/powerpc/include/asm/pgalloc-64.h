@@ -7,7 +7,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
@@ -108,31 +107,6 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
 	return page;
 }
 
-static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
-{
-	free_page((unsigned long)pte);
-}
-
-static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
-{
-	pgtable_page_dtor(ptepage);
-	__free_page(ptepage);
-}
-
-#define PGF_CACHENUM_MASK	0x7
-
-typedef struct pgtable_free {
-	unsigned long val;
-} pgtable_free_t;
-
-static inline pgtable_free_t pgtable_free_cache(void *p, int cachenum,
-						unsigned long mask)
-{
-	BUG_ON(cachenum > PGF_CACHENUM_MASK);
-
-	return (pgtable_free_t){.val = ((unsigned long) p & ~mask) | cachenum};
-}
-
 static inline void pgtable_free(pgtable_free_t pgf)
 {
 	void *p = (void *)(pgf.val & ~PGF_CACHENUM_MASK);
@@ -144,14 +118,6 @@ static inline void pgtable_free(pgtable_free_t pgf)
 		kmem_cache_free(pgtable_cache[cachenum], p);
 }
 
-extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
-
-#define __pte_free_tlb(tlb,ptepage)	\
-do { \
-	pgtable_page_dtor(ptepage); \
-	pgtable_free_tlb(tlb, pgtable_free_cache(page_address(ptepage), \
-		PTE_NONCACHE_NUM, PTE_TABLE_SIZE-1)); \
-} while (0)
 #define __pmd_free_tlb(tlb, pmd) 	\
 	pgtable_free_tlb(tlb, pgtable_free_cache(pmd, \
 		PMD_CACHE_NUM, PMD_TABLE_SIZE-1))
