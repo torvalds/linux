@@ -969,7 +969,10 @@ struct ubifs_mount_opts {
  * @mst_node: master node
  * @mst_offs: offset of valid master node
  * @mst_mutex: protects the master node area, @mst_node, and @mst_offs
+ *
  * @max_bu_buf_len: maximum bulk-read buffer length
+ * @bu_mutex: protects the pre-allocated bulk-read buffer and @c->bu
+ * @bu: pre-allocated bulk-read information
  *
  * @log_lebs: number of logical eraseblocks in the log
  * @log_bytes: log size in bytes
@@ -1217,7 +1220,10 @@ struct ubifs_info {
 	struct ubifs_mst_node *mst_node;
 	int mst_offs;
 	struct mutex mst_mutex;
+
 	int max_bu_buf_len;
+	struct mutex bu_mutex;
+	struct bu_info bu;
 
 	int log_lebs;
 	long long log_bytes;
