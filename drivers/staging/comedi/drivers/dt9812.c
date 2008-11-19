@@ -882,9 +882,6 @@ static void dt9812_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver dt9812_usb_driver = {
-#ifdef COMEDI_HAVE_USB_DRIVER_OWNER
-	.owner = THIS_MODULE,
-#endif
 	.name = "dt9812",
 	.probe = dt9812_probe,
 	.disconnect = dt9812_disconnect,
