@@ -73,11 +73,7 @@ ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
  */
 void blk_delete_timer(struct request *req)
 {
-	struct request_queue *q = req->q;
-
 	list_del_init(&req->timeout_list);
-	if (list_empty(&q->timeout_list))
-		del_timer(&q->timeout);
 }
 
 static void blk_rq_timed_out(struct request *req)
