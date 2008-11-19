@@ -290,7 +290,7 @@ static void hdmi_set_channel_count(struct hda_codec *codec, int chs)
 				chs, hdmi_get_channel_count(codec));
 }
 
-static void hdmi_debug_slot_mapping(struct hda_codec *codec)
+static void hdmi_debug_channel_mapping(struct hda_codec *codec)
 {
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	int i;
@@ -304,13 +304,6 @@ static void hdmi_debug_slot_mapping(struct hda_codec *codec)
 	}
 #endif
 }
-
-static void hdmi_setup_channel_mapping(struct hda_codec *codec)
-{
-	snd_hda_sequence_write(codec, def_chan_map);
-	hdmi_debug_slot_mapping(codec);
-}
-
 
 static void hdmi_parse_eld(struct hda_codec *codec)
 {
@@ -461,6 +454,22 @@ static int hdmi_setup_channel_allocation(struct hda_codec *codec,
 	return -1;
 }
 
+static void hdmi_setup_channel_mapping(struct hda_codec *codec,
+					struct hdmi_audio_infoframe *ai)
+{
+	if (!ai->CA)
+		return;
+
+	/*
+	 * TODO: adjust channel mapping if necessary
+	 * ALSA sequence is front/surr/clfe/side?
+	 */
+
+	snd_hda_sequence_write(codec, def_chan_map);
+	hdmi_debug_channel_mapping(codec);
+}
+
+
 static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 					struct snd_pcm_substream *substream)
 {
@@ -472,6 +481,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	};
 
 	hdmi_setup_channel_allocation(codec, &ai);
+	hdmi_setup_channel_mapping(codec, &ai);
 
 	hdmi_fill_audio_infoframe(codec, &ai);
 }
@@ -568,9 +578,6 @@ static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     format, substream);
 
 	hdmi_set_channel_count(codec, substream->runtime->channels);
-
-	/* wfg: channel mapping not supported by DEVCTG */
-	hdmi_setup_channel_mapping(codec);
 
 	hdmi_setup_audio_infoframe(codec, substream);
 
