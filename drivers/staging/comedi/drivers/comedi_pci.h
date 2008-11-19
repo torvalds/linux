@@ -29,15 +29,6 @@
 #include <linux/pci.h>
 
 /*
- * Enables PCI device without requesting regions.  Just a simple wrapper
- * for pci_enable_device().
- */
-static inline int comedi_pci_enable_no_regions(struct pci_dev *pdev)
-{
-	return pci_enable_device(pdev);
-}
-
-/*
  * Called to disable PCI device if PCI device has been enabled, but
  * PCI regions have not been reserved.
  *
