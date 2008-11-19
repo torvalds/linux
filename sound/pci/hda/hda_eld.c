@@ -132,7 +132,7 @@ static char *cea_audio_coding_type_names[] = {
 /*
  * The following two lists are shared between
  * 	- HDMI audio InfoFrame (source to sink)
- * 	- CEA E-EDID extension (sink to source)
+ * 	- CEA E-EDID Extension (sink to source)
  */
 
 /*

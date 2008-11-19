@@ -85,7 +85,7 @@ struct hdmi_audio_infoframe {
 	u8 CXT04;
 	u8 CA;
 	u8 LFEPBL01_LSV36_DM_INH7;
-	u8 reserved[5];	/* PB6  - PB10 */
+	u8 reserved[5];	/* PB6 - PB10 */
 };
 
 /*
@@ -160,7 +160,7 @@ static struct cea_channel_speaker_allocation channel_allocations[] = {
 { .ca_index = 0x00,  .speakers = {   0,    0,   0,   0,   0,    0,  FR,  FL } },
 				 /* 2.1 */
 { .ca_index = 0x01,  .speakers = {   0,    0,   0,   0,   0,  LFE,  FR,  FL } },
-				 /* dolby surround */
+				 /* Dolby Surround */
 { .ca_index = 0x02,  .speakers = {   0,    0,   0,   0,  FC,    0,  FR,  FL } },
 { .ca_index = 0x03,  .speakers = {   0,    0,   0,   0,  FC,  LFE,  FR,  FL } },
 { .ca_index = 0x04,  .speakers = {   0,    0,   0,  RC,   0,    0,  FR,  FL } },
@@ -287,7 +287,7 @@ static void hdmi_set_channel_count(struct hda_codec *codec, int chs)
 
 	if (chs != hdmi_get_channel_count(codec))
 		snd_printd(KERN_INFO "Channel count expect=%d, real=%d\n",
-				chs, hdmi_get_channel_count(codec));
+					chs, hdmi_get_channel_count(codec));
 }
 
 static void hdmi_debug_channel_mapping(struct hda_codec *codec)
@@ -300,7 +300,7 @@ static void hdmi_debug_channel_mapping(struct hda_codec *codec)
 		slot = snd_hda_codec_read(codec, CVT_NID, 0,
 						AC_VERB_GET_HDMI_CHAN_SLOT, i);
 		printk(KERN_DEBUG "ASP channel %d => slot %d\n",
-				slot >> 4, slot & 0x7);
+						slot >> 4, slot & 0x7);
 	}
 #endif
 }
@@ -316,7 +316,7 @@ static void hdmi_parse_eld(struct hda_codec *codec)
 
 
 /*
- * Audio Infoframe routines
+ * Audio InfoFrame routines
  */
 
 static void hdmi_debug_dip_size(struct hda_codec *codec)
@@ -547,8 +547,8 @@ static void intel_hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
  */
 
 static int intel_hdmi_playback_pcm_open(struct hda_pcm_stream *hinfo,
-				     struct hda_codec *codec,
-				     struct snd_pcm_substream *substream)
+					struct hda_codec *codec,
+					struct snd_pcm_substream *substream)
 {
 	struct intel_hdmi_spec *spec = codec->spec;
 
@@ -556,8 +556,8 @@ static int intel_hdmi_playback_pcm_open(struct hda_pcm_stream *hinfo,
 }
 
 static int intel_hdmi_playback_pcm_close(struct hda_pcm_stream *hinfo,
-				      struct hda_codec *codec,
-				      struct snd_pcm_substream *substream)
+					 struct hda_codec *codec,
+					 struct snd_pcm_substream *substream)
 {
 	struct intel_hdmi_spec *spec = codec->spec;
 
