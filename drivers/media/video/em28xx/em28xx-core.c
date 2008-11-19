@@ -76,17 +76,21 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 
 	em28xx_regdbg("req=%02x, reg=%02x ", req, reg);
 
+	mutex_lock(&dev->ctrl_urb_lock);
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	if (ret < 0) {
 		if (reg_debug)
 			printk(" failed!\n");
+		mutex_unlock(&dev->ctrl_urb_lock);
 		return ret;
 	}
 
 	if (len)
 		memcpy(buf, dev->urb_buf, len);
+
+	mutex_unlock(&dev->ctrl_urb_lock);
 
 	if (reg_debug) {
 		printk("%02x values: ", ret);
@@ -112,15 +116,17 @@ int em28xx_read_reg_req(struct em28xx *dev, u8 req, u16 reg)
 
 	em28xx_regdbg("req=%02x, reg=%02x:", req, reg);
 
+	mutex_lock(&dev->ctrl_urb_lock);
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, dev->urb_buf, 1, HZ);
+	val = dev->urb_buf[0];
+	mutex_unlock(&dev->ctrl_urb_lock);
+
 	if (ret < 0) {
 		printk(" failed!\n");
 		return ret;
 	}
-
-	val = dev->urb_buf[0];
 
 	if (reg_debug)
 		printk("%02x\n", (unsigned char) val);
@@ -156,10 +162,12 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 		printk("\n");
 	}
 
+	mutex_lock(&dev->ctrl_urb_lock);
 	memcpy(dev->urb_buf, buf, len);
 	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0), req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, dev->urb_buf, len, HZ);
+	mutex_unlock(&dev->ctrl_urb_lock);
 
 	if (dev->wait_after_write)
 		msleep(dev->wait_after_write);

@@ -433,6 +433,7 @@ struct em28xx {
 
 	/* locks */
 	struct mutex lock;
+	struct mutex ctrl_urb_lock;	/* protects urb_buf */
 	/* spinlock_t queue_lock; */
 	struct list_head inqueue, outqueue;
 	wait_queue_head_t open, wait_frame, wait_stream;
