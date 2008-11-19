@@ -95,6 +95,19 @@ config TOUCHSCREEN_ELO
 	  To compile this driver as a module, choose M here: the
 	  module will be called elo.
 
+config TOUCHSCREEN_WACOM_W8001
+	tristate "Wacom W8001 penabled serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have an Wacom W8001 penabled serial touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom_w8001.
+
+
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
 	select SERIO
