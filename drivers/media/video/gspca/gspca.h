@@ -120,7 +120,7 @@ struct gspca_frame {
 };
 
 struct gspca_dev {
-	struct video_device vdev;	/* !! must be the first item */
+	struct video_device *vdev;
 	struct module *module;		/* subdriver handling the device */
 	struct usb_device *dev;
 	struct kref kref;
