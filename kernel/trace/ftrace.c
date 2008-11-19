@@ -1189,7 +1189,7 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 
 	mutex_lock(&ftrace_sysctl_lock);
 	mutex_lock(&ftrace_start_lock);
-	if (iter->filtered && ftrace_start && ftrace_enabled)
+	if (ftrace_start && ftrace_enabled)
 		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
 	mutex_unlock(&ftrace_start_lock);
 	mutex_unlock(&ftrace_sysctl_lock);
