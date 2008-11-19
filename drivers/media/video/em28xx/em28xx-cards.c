@@ -945,11 +945,11 @@ struct em28xx_board em28xx_boards[] = {
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = EM28XX_AMUX_AC97_LINE_IN,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {	/* S-video has not been tested yet */
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = EM28XX_AMUX_AC97_LINE_IN,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2881_BOARD_DNT_DA2_HYBRID] = {
