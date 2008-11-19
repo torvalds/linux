@@ -4185,6 +4185,16 @@ static int stac92xx_resume(struct hda_codec *codec)
 			(STAC_HP_EVENT | spec->autocfg.hp_pins[0]) << 26);
 	return 0;
 }
+
+static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	if (spec->eapd_mask)
+		stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data &
+				~spec->eapd_mask);
+	return 0;
+}
 #endif
 
 static struct hda_codec_ops stac92xx_patch_ops = {
@@ -4194,6 +4204,7 @@ static struct hda_codec_ops stac92xx_patch_ops = {
 	.free = stac92xx_free,
 	.unsol_event = stac92xx_unsol_event,
 #ifdef SND_HDA_NEEDS_RESUME
+	.suspend = stac92xx_suspend,
 	.resume = stac92xx_resume,
 #endif
 };
@@ -4598,14 +4609,8 @@ static int stac92hd71xx_resume(struct hda_codec *codec)
 
 static int stac92hd71xx_suspend(struct hda_codec *codec, pm_message_t state)
 {
-	struct sigmatel_spec *spec = codec->spec;
-
 	stac92hd71xx_set_power_state(codec, AC_PWRST_D3);
-	if (spec->eapd_mask)
-		stac_gpio_set(codec, spec->gpio_mask,
-				spec->gpio_dir, spec->gpio_data &
-				~spec->eapd_mask);
-	return 0;
+	return stac92xx_suspend(codec, state);
 };
 
 #endif
@@ -4617,8 +4622,8 @@ static struct hda_codec_ops stac92hd71bxx_patch_ops = {
 	.free = stac92xx_free,
 	.unsol_event = stac92xx_unsol_event,
 #ifdef SND_HDA_NEEDS_RESUME
-	.resume = stac92hd71xx_resume,
 	.suspend = stac92hd71xx_suspend,
+	.resume = stac92hd71xx_resume,
 #endif
 };
 
