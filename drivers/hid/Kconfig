@@ -187,6 +187,13 @@ config HID_MONTEREY
 	---help---
 	Support for Monterey Genius KB29E.
 
+config HID_NTRIG
+	tristate "NTrig" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for N-Trig touch screen.
+
 config HID_PANTHERLORD
 	tristate "Pantherlord devices support" if EMBEDDED
 	depends on USB_HID
