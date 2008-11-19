@@ -241,9 +241,9 @@ static int waveform_attach(comedi_device *dev, comedi_devconfig *it)
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
 	s->insn_write = waveform_ao_insn_write;
-	s->do_cmd = 0;
-	s->do_cmdtest = 0;
-	s->cancel = 0;
+	s->do_cmd = NULL;
+	s->do_cmdtest = NULL;
+	s->cancel = NULL;
 
 	/* Our default loopback value is just a 0V flatline */
 	for (i = 0; i < s->n_chan; i++)
