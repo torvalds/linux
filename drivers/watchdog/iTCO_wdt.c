@@ -684,8 +684,9 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 			TCOBASE);
 
 	/* Clear out the (probably old) status */
-	outb(0, TCO1_STS);
-	outb(3, TCO2_STS);
+	outb(8, TCO1_STS);	/* Clear the Time Out Status bit */
+	outb(2, TCO2_STS);	/* Clear SECOND_TO_STS bit */
+	outb(4, TCO2_STS);	/* Clear BOOT_STS bit */
 
 	/* Make sure the watchdog is not running */
 	iTCO_wdt_stop();
