@@ -485,12 +485,13 @@ static void print_gpio(struct snd_info_buffer *buffer,
 	for (i = 0; i < max; ++i)
 		snd_iprintf(buffer,
 			    "  IO[%d]: enable=%d, dir=%d, wake=%d, "
-			    "sticky=%d, data=%d\n", i,
+			    "sticky=%d, data=%d, unsol=%d\n", i,
 			    (enable & (1<<i)) ? 1 : 0,
 			    (direction & (1<<i)) ? 1 : 0,
 			    (wake & (1<<i)) ? 1 : 0,
 			    (sticky & (1<<i)) ? 1 : 0,
-			    (data & (1<<i)) ? 1 : 0);
+			    (data & (1<<i)) ? 1 : 0,
+			    (unsol & (1<<i)) ? 1 : 0);
 	/* FIXME: add GPO and GPI pin information */
 }
 
