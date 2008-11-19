@@ -30,7 +30,7 @@
 #include <linux/if.h>
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>
-
+#include <linux/timer.h>
 /* print_ssid() is intended to be used in debug (and possibly error)
  * messages. It should never be used for passing ssid to user space. */
 const char *print_ssid(char *buf, const char *ssid, u8 ssid_len);
