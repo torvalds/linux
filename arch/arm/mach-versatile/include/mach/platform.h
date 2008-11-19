@@ -436,28 +436,12 @@
 #define SIC_INTMASK_PCI1                (1 << SIC_INT_PCI1)
 #define SIC_INTMASK_PCI2                (1 << SIC_INT_PCI2)
 #define SIC_INTMASK_PCI3                (1 << SIC_INT_PCI3)
-/* 
- *  Application Flash
- * 
- */
-#define FLASH_BASE                      VERSATILE_FLASH_BASE
-#define FLASH_SIZE                      VERSATILE_FLASH_SIZE
-#define FLASH_END                       (FLASH_BASE + FLASH_SIZE - 1)
-#define FLASH_BLOCK_SIZE                SZ_128K
-
-/* 
- *  Boot Flash
- * 
- */
-#define EPROM_BASE                      VERSATILE_BOOT_ROM_HI
-#define EPROM_SIZE                      VERSATILE_BOOT_ROM_SIZE
-#define EPROM_END                       (EPROM_BASE + EPROM_SIZE - 1)
 
 /* 
  *  Clean base - dummy
  * 
  */
-#define CLEAN_BASE                      EPROM_BASE
+#define CLEAN_BASE                      VERSATILE_BOOT_ROM_HI
 
 /*
  * System controller bit assignment

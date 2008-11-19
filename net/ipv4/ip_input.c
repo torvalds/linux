@@ -209,8 +209,16 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 
 		hash = protocol & (MAX_INET_PROTOS - 1);
 		ipprot = rcu_dereference(inet_protos[hash]);
-		if (ipprot != NULL && (net == &init_net || ipprot->netns_ok)) {
+		if (ipprot != NULL) {
 			int ret;
+
+			if (!net_eq(net, &init_net) && !ipprot->netns_ok) {
+				if (net_ratelimit())
+					printk("%s: proto %d isn't netns-ready\n",
+						__func__, protocol);
+				kfree_skb(skb);
+				goto out;
+			}
 
 			if (!ipprot->no_policy) {
 				if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {

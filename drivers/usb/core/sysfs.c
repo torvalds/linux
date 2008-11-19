@@ -840,7 +840,7 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int retval;
 
-	if (intf->sysfs_files_created)
+	if (intf->sysfs_files_created || intf->unregistering)
 		return 0;
 
 	/* The interface string may be present in some altsettings

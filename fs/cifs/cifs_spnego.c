@@ -73,8 +73,8 @@ struct key_type cifs_spnego_key_type = {
  * strlen(";sec=ntlmsspi") */
 #define MAX_MECH_STR_LEN	13
 
-/* max possible addr len eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/60 */
-#define MAX_IPV6_ADDR_LEN	42
+/* max possible addr len eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/128 */
+#define MAX_IPV6_ADDR_LEN	43
 
 /* strlen of "host=" */
 #define HOST_KEY_LEN		5

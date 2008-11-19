@@ -1637,8 +1637,8 @@ isdn_net_ciscohdlck_slarp_send_reply(isdn_net_local *lp)
 	/* slarp reply, send own ip/netmask; if values are nonsense remote
 	 * should think we are unable to provide it with an address via SLARP */
 	*(__be32 *)(p +  4) = cpu_to_be32(CISCO_SLARP_REPLY);
-	*(__be32 *)(p +  8) = cpu_to_be32(addr); // address
-	*(__be32 *)(p + 12) = cpu_to_be32(mask); // netmask
+	*(__be32 *)(p +  8) = addr; // address
+	*(__be32 *)(p + 12) = mask; // netmask
 	*(__be16 *)(p + 16) = cpu_to_be16(0); // unused
 	p += 18;
 

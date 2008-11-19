@@ -1444,6 +1444,10 @@ static const struct usb_device_id	products [] = {
 	// Apple USB Ethernet Adapter
 	USB_DEVICE(0x05ac, 0x1402),
 	.driver_info = (unsigned long) &ax88772_info,
+}, {
+	// Cables-to-Go USB Ethernet Adapter
+	USB_DEVICE(0x0b95, 0x772a),
+	.driver_info = (unsigned long) &ax88772_info,
 },
 	{ },		// END
 };

@@ -354,7 +354,7 @@ config RT_GROUP_SCHED
 	  setting below. If enabled, it will also make it impossible to
 	  schedule realtime tasks for non-root users until you allocate
 	  realtime bandwidth for them.
-	  See Documentation/sched-rt-group.txt for more information.
+	  See Documentation/scheduler/sched-rt-group.txt for more information.
 
 choice
 	depends on GROUP_SCHED
@@ -771,8 +771,7 @@ config SLAB
 	help
 	  The regular slab allocator that is established and known to work
 	  well in all environments. It organizes cache hot objects in
-	  per cpu and per node queues. SLAB is the default choice for
-	  a slab allocator.
+	  per cpu and per node queues.
 
 config SLUB
 	bool "SLUB (Unqueued Allocator)"
@@ -781,7 +780,8 @@ config SLUB
 	   instead of managing queues of cached objects (SLAB approach).
 	   Per cpu caching is realized using slabs of objects instead
 	   of queues of objects. SLUB can use memory efficiently
-	   and has enhanced diagnostics.
+	   and has enhanced diagnostics. SLUB is the default choice for
+	   a slab allocator.
 
 config SLOB
 	depends on EMBEDDED
