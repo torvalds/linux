@@ -54,114 +54,111 @@ from http://www.comedi.org
 
 #include "comedi_pci.h"
 
-//#include "me2600_fw.h"
+/*#include "me2600_fw.h" */
 
-#define ME_DRIVER_NAME                 "me_daq"
+#define ME_DRIVER_NAME		"me_daq"
 
-#define ME2000_DEVICE_ID               0x2000
-#define ME2600_DEVICE_ID               0x2600
+#define ME2000_DEVICE_ID	0x2000
+#define ME2600_DEVICE_ID	0x2600
 
-#define PLX_INTCSR                     0x4C	// PLX interrupt status register
-#define XILINX_DOWNLOAD_RESET          0x42	// Xilinx registers
+#define PLX_INTCSR		0x4C	/* PLX interrupt status register */
+#define XILINX_DOWNLOAD_RESET	0x42	/* Xilinx registers */
 
-#define ME_CONTROL_1                   0x0000	// - | W
-#define   INTERRUPT_ENABLE             (1<<15)
-#define   COUNTER_B_IRQ                (1<<12)
-#define   COUNTER_A_IRQ                (1<<11)
-#define   CHANLIST_READY_IRQ           (1<<10)
-#define   EXT_IRQ                      (1<<9)
-#define   ADFIFO_HALFFULL_IRQ          (1<<8)
-#define   SCAN_COUNT_ENABLE            (1<<5)
-#define   SIMULTANEOUS_ENABLE          (1<<4)
-#define   TRIGGER_FALLING_EDGE         (1<<3)
-#define   CONTINUOUS_MODE              (1<<2)
-#define   DISABLE_ADC                  (0<<0)
-#define   SOFTWARE_TRIGGERED_ADC       (1<<0)
-#define   SCAN_TRIGGERED_ADC           (2<<0)
-#define   EXT_TRIGGERED_ADC            (3<<0)
-#define ME_ADC_START                   0x0000	// R | -
-#define ME_CONTROL_2                   0x0002	// - | W
-#define   ENABLE_ADFIFO                (1<<10)
-#define   ENABLE_CHANLIST              (1<<9)
-#define   ENABLE_PORT_B                (1<<7)
-#define   ENABLE_PORT_A                (1<<6)
-#define   ENABLE_COUNTER_B             (1<<4)
-#define   ENABLE_COUNTER_A             (1<<3)
-#define   ENABLE_DAC                   (1<<1)
-#define   BUFFERED_DAC                 (1<<0)
-#define ME_DAC_UPDATE                  0x0002	// R | -
-#define ME_STATUS                      0x0004	// R | -
-#define   COUNTER_B_IRQ_PENDING        (1<<12)
-#define   COUNTER_A_IRQ_PENDING        (1<<11)
-#define   CHANLIST_READY_IRQ_PENDING   (1<<10)
-#define   EXT_IRQ_PENDING              (1<<9)
-#define   ADFIFO_HALFFULL_IRQ_PENDING  (1<<8)
-#define   ADFIFO_FULL                  (1<<4)
-#define   ADFIFO_HALFFULL              (1<<3)
-#define   ADFIFO_EMPTY                 (1<<2)
-#define   CHANLIST_FULL                (1<<1)
-#define   FST_ACTIVE                   (1<<0)
-#define ME_RESET_INTERRUPT             0x0004	// - | W
-#define ME_DIO_PORT_A                  0x0006	// R | W
-#define ME_DIO_PORT_B                  0x0008	// R | W
-#define ME_TIMER_DATA_0                0x000A	// - | W
-#define ME_TIMER_DATA_1                0x000C	// - | W
-#define ME_TIMER_DATA_2                0x000E	// - | W
-#define ME_CHANNEL_LIST                0x0010	// - | W
-#define   ADC_UNIPOLAR                 (1<<6)
-#define   ADC_GAIN_0                   (0<<4)
-#define   ADC_GAIN_1                   (1<<4)
-#define   ADC_GAIN_2                   (2<<4)
-#define   ADC_GAIN_3                   (3<<4)
-#define ME_READ_AD_FIFO                0x0010	// R | -
-#define ME_DAC_CONTROL                 0x0012	// - | W
-#define   DAC_UNIPOLAR_D               (0<<4)
-#define   DAC_BIPOLAR_D                (1<<4)
-#define   DAC_UNIPOLAR_C               (0<<5)
-#define   DAC_BIPOLAR_C                (1<<5)
-#define   DAC_UNIPOLAR_B               (0<<6)
-#define   DAC_BIPOLAR_B                (1<<6)
-#define   DAC_UNIPOLAR_A               (0<<7)
-#define   DAC_BIPOLAR_A                (1<<7)
-#define   DAC_GAIN_0_D                 (0<<8)
-#define   DAC_GAIN_1_D                 (1<<8)
-#define   DAC_GAIN_0_C                 (0<<9)
-#define   DAC_GAIN_1_C                 (1<<9)
-#define   DAC_GAIN_0_B                 (0<<10)
-#define   DAC_GAIN_1_B                 (1<<10)
-#define   DAC_GAIN_0_A                 (0<<11)
-#define   DAC_GAIN_1_A                 (1<<11)
-#define ME_DAC_CONTROL_UPDATE          0x0012	// R | -
-#define ME_DAC_DATA_A                  0x0014	// - | W
-#define ME_DAC_DATA_B                  0x0016	// - | W
-#define ME_DAC_DATA_C                  0x0018	// - | W
-#define ME_DAC_DATA_D                  0x001A	// - | W
-#define ME_COUNTER_ENDDATA_A           0x001C	// - | W
-#define ME_COUNTER_ENDDATA_B           0x001E	// - | W
-#define ME_COUNTER_STARTDATA_A         0x0020	// - | W
-#define ME_COUNTER_VALUE_A             0x0020	// R | -
-#define ME_COUNTER_STARTDATA_B         0x0022	// - | W
-#define ME_COUNTER_VALUE_B             0x0022	// R | -
+#define ME_CONTROL_1			0x0000	/* - | W */
+#define   INTERRUPT_ENABLE		(1<<15)
+#define   COUNTER_B_IRQ			(1<<12)
+#define   COUNTER_A_IRQ			(1<<11)
+#define   CHANLIST_READY_IRQ		(1<<10)
+#define   EXT_IRQ			(1<<9)
+#define   ADFIFO_HALFFULL_IRQ		(1<<8)
+#define   SCAN_COUNT_ENABLE		(1<<5)
+#define   SIMULTANEOUS_ENABLE		(1<<4)
+#define   TRIGGER_FALLING_EDGE		(1<<3)
+#define   CONTINUOUS_MODE		(1<<2)
+#define   DISABLE_ADC			(0<<0)
+#define   SOFTWARE_TRIGGERED_ADC	(1<<0)
+#define   SCAN_TRIGGERED_ADC		(2<<0)
+#define   EXT_TRIGGERED_ADC		(3<<0)
+#define ME_ADC_START			0x0000	/* R | - */
+#define ME_CONTROL_2			0x0002	/* - | W */
+#define   ENABLE_ADFIFO			(1<<10)
+#define   ENABLE_CHANLIST		(1<<9)
+#define   ENABLE_PORT_B			(1<<7)
+#define   ENABLE_PORT_A			(1<<6)
+#define   ENABLE_COUNTER_B		(1<<4)
+#define   ENABLE_COUNTER_A		(1<<3)
+#define   ENABLE_DAC			(1<<1)
+#define   BUFFERED_DAC			(1<<0)
+#define ME_DAC_UPDATE			0x0002	/* R | - */
+#define ME_STATUS			0x0004	/* R | - */
+#define   COUNTER_B_IRQ_PENDING		(1<<12)
+#define   COUNTER_A_IRQ_PENDING		(1<<11)
+#define   CHANLIST_READY_IRQ_PENDING	(1<<10)
+#define   EXT_IRQ_PENDING		(1<<9)
+#define   ADFIFO_HALFFULL_IRQ_PENDING	(1<<8)
+#define   ADFIFO_FULL			(1<<4)
+#define   ADFIFO_HALFFULL		(1<<3)
+#define   ADFIFO_EMPTY			(1<<2)
+#define   CHANLIST_FULL			(1<<1)
+#define   FST_ACTIVE			(1<<0)
+#define ME_RESET_INTERRUPT		0x0004	/* - | W */
+#define ME_DIO_PORT_A			0x0006	/* R | W */
+#define ME_DIO_PORT_B			0x0008	/* R | W */
+#define ME_TIMER_DATA_0			0x000A	/* - | W */
+#define ME_TIMER_DATA_1			0x000C	/* - | W */
+#define ME_TIMER_DATA_2			0x000E	/* - | W */
+#define ME_CHANNEL_LIST			0x0010	/* - | W */
+#define   ADC_UNIPOLAR			(1<<6)
+#define   ADC_GAIN_0			(0<<4)
+#define   ADC_GAIN_1			(1<<4)
+#define   ADC_GAIN_2			(2<<4)
+#define   ADC_GAIN_3			(3<<4)
+#define ME_READ_AD_FIFO			0x0010	/* R | - */
+#define ME_DAC_CONTROL			0x0012	/* - | W */
+#define   DAC_UNIPOLAR_D		(0<<4)
+#define   DAC_BIPOLAR_D			(1<<4)
+#define   DAC_UNIPOLAR_C		(0<<5)
+#define   DAC_BIPOLAR_C			(1<<5)
+#define   DAC_UNIPOLAR_B		(0<<6)
+#define   DAC_BIPOLAR_B			(1<<6)
+#define   DAC_UNIPOLAR_A		(0<<7)
+#define   DAC_BIPOLAR_A			(1<<7)
+#define   DAC_GAIN_0_D			(0<<8)
+#define   DAC_GAIN_1_D			(1<<8)
+#define   DAC_GAIN_0_C			(0<<9)
+#define   DAC_GAIN_1_C			(1<<9)
+#define   DAC_GAIN_0_B			(0<<10)
+#define   DAC_GAIN_1_B			(1<<10)
+#define   DAC_GAIN_0_A			(0<<11)
+#define   DAC_GAIN_1_A			(1<<11)
+#define ME_DAC_CONTROL_UPDATE		0x0012	/* R | - */
+#define ME_DAC_DATA_A			0x0014	/* - | W */
+#define ME_DAC_DATA_B			0x0016	/* - | W */
+#define ME_DAC_DATA_C			0x0018	/* - | W */
+#define ME_DAC_DATA_D			0x001A	/* - | W */
+#define ME_COUNTER_ENDDATA_A		0x001C	/* - | W */
+#define ME_COUNTER_ENDDATA_B		0x001E	/* - | W */
+#define ME_COUNTER_STARTDATA_A		0x0020	/* - | W */
+#define ME_COUNTER_VALUE_A		0x0020	/* R | - */
+#define ME_COUNTER_STARTDATA_B		0x0022	/* - | W */
+#define ME_COUNTER_VALUE_B		0x0022	/* R | - */
 
-//
-// Function prototypes
-//
-
-static int me_attach(comedi_device * dev, comedi_devconfig * it);
-static int me_detach(comedi_device * dev);
+/* Function prototypes */
+static int me_attach(comedi_device *dev, comedi_devconfig *it);
+static int me_detach(comedi_device *dev);
 
 static const comedi_lrange me2000_ai_range = {
 	8,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25)
-		}
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 static const comedi_lrange me2600_ai_range = {
@@ -197,106 +194,105 @@ static DEFINE_PCI_DEVICE_TABLE(me_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, me_pci_table);
 
-//
-// Board specification structure
-//
-
+/* Board specification structure */
 typedef struct {
-	const char *name;	// driver name
+	const char *name;	/* driver name */
 	int device_id;
-	int ao_channel_nbr;	// DA config
+	int ao_channel_nbr;	/* DA config */
 	int ao_resolution;
 	int ao_resolution_mask;
 	const comedi_lrange *ao_range_list;
-	int ai_channel_nbr;	// AD config
+	int ai_channel_nbr;	/* AD config */
 	int ai_resolution;
 	int ai_resolution_mask;
 	const comedi_lrange *ai_range_list;
-	int dio_channel_nbr;	// DIO config
+	int dio_channel_nbr;	/* DIO config */
 } me_board_struct;
 
 static const me_board_struct me_boards[] = {
-	{			// -- ME-2600i --
-	      name:	ME_DRIVER_NAME,
-	      device_id:ME2600_DEVICE_ID,
-	      ao_channel_nbr:4,// Analog Output
-	      ao_resolution:12,
-	      ao_resolution_mask:0x0fff,
-	      ao_range_list:&me2600_ao_range,
-	      ai_channel_nbr:16,
-			// Analog Input
-	      ai_resolution:12,
-	      ai_resolution_mask:0x0fff,
-	      ai_range_list:&me2600_ai_range,
-	      dio_channel_nbr:32,
+	{
+		/* -- ME-2600i -- */
+		.name = 		ME_DRIVER_NAME,
+		.device_id =		ME2600_DEVICE_ID,
+		/* Analog Output */
+		.ao_channel_nbr =	4,
+		.ao_resolution =	12,
+		.ao_resolution_mask =	0x0fff,
+		.ao_range_list =	&me2600_ao_range,
+		.ai_channel_nbr =	16,
+		/* Analog Input */
+		.ai_resolution =	12,
+		.ai_resolution_mask =	0x0fff,
+		.ai_range_list =	&me2600_ai_range,
+		.dio_channel_nbr =	32,
 		},
-	{			// -- ME-2000i --
-	      name:	ME_DRIVER_NAME,
-	      device_id:ME2000_DEVICE_ID,
-	      ao_channel_nbr:0,// Analog Output
-	      ao_resolution:0,
-	      ao_resolution_mask:0,
-	      ao_range_list:0,
-	      ai_channel_nbr:16,
-			// Analog Input
-	      ai_resolution:12,
-	      ai_resolution_mask:0x0fff,
-	      ai_range_list:&me2000_ai_range,
-	      dio_channel_nbr:32,
+	{
+		/* -- ME-2000i -- */
+		.name =			ME_DRIVER_NAME,
+		.device_id =		ME2000_DEVICE_ID,
+		/* Analog Output */
+		.ao_channel_nbr =	0,
+		.ao_resolution =	0,
+		.ao_resolution_mask =	0,
+		.ao_range_list =	0,
+		.ai_channel_nbr =	16,
+		/* Analog Input */
+		.ai_resolution =	12,
+		.ai_resolution_mask =	0x0fff,
+		.ai_range_list =	&me2000_ai_range,
+		.dio_channel_nbr =	32,
 		}
 };
 
 #define me_board_nbr (sizeof(me_boards)/sizeof(me_board_struct))
 
 static comedi_driver me_driver = {
-      driver_name:ME_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:me_attach,
-      detach:me_detach,
+      .driver_name =	ME_DRIVER_NAME,
+      .module =		THIS_MODULE,
+      .attach =		me_attach,
+      .detach =		me_detach,
 };
-
 COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);
 
-//
-// Private data structure
-//
-
+/* Private data structure */
 typedef struct {
 	struct pci_dev *pci_device;
-	void *plx_regbase;	// PLX configuration base address
-	void *me_regbase;	// Base address of the Meilhaus card
-	unsigned long plx_regbase_size;	// Size of PLX configuration space
-	unsigned long me_regbase_size;	// Size of Meilhaus space
+	void *plx_regbase;	/* PLX configuration base address */
+	void *me_regbase;	/* Base address of the Meilhaus card */
+	unsigned long plx_regbase_size;	/* Size of PLX configuration space */
+	unsigned long me_regbase_size;	/* Size of Meilhaus space */
 
-	unsigned short control_1;	// Mirror of CONTROL_1 register
-	unsigned short control_2;	// Mirror of CONTROL_2 register
-	unsigned short dac_control;	// Mirror of the DAC_CONTROL register
-	int ao_readback[4];	// Mirror of analog output data
+	unsigned short control_1;	/* Mirror of CONTROL_1 register */
+	unsigned short control_2;	/* Mirror of CONTROL_2 register */
+	unsigned short dac_control;	/* Mirror of the DAC_CONTROL register */
+	int ao_readback[4];	/* Mirror of analog output data */
 
 } me_private_data_struct;
 
 #define dev_private ((me_private_data_struct *)dev->private)
 
-// ------------------------------------------------------------------
-//
-// Helpful functions
-//
-// ------------------------------------------------------------------
-
-static __inline__ void sleep(unsigned sec)
+/*
+ * ------------------------------------------------------------------
+ *
+ * Helpful functions
+ *
+ * ------------------------------------------------------------------
+ */
+static inline void sleep(unsigned sec)
 {
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout(sec * HZ);
 }
 
-// ------------------------------------------------------------------
-//
-// DIGITAL INPUT/OUTPUT SECTION
-//
-// ------------------------------------------------------------------
-
-static int me_dio_insn_config(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+/*
+ * ------------------------------------------------------------------
+ *
+ * DIGITAL INPUT/OUTPUT SECTION
+ *
+ * ------------------------------------------------------------------
+ */
+static int me_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+			      comedi_insn *insn, lsampl_t *data)
 {
 	int bits;
 	int mask = 1 << CR_CHAN(insn->chanspec);
@@ -319,22 +315,20 @@ static int me_dio_insn_config(comedi_device * dev,
 			dev_private->me_regbase + ME_CONTROL_2);
 	}
 
-	if (data[0]) {		/* Config port as output */
+	if (data[0]) {
+		/* Config port as output */
 		s->io_bits |= bits;
-	} else {		/* Config port as input */
-
+	} else {
+		/* Config port as input */
 		s->io_bits &= ~bits;
 	}
 
 	return 1;
 }
 
-//
-// Digital instant input/outputs
-//
-
-static int me_dio_insn_bits(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+/* Digital instant input/outputs */
+static int me_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+			    comedi_insn *insn, lsampl_t *data)
 {
 	unsigned int mask = data[0];
 	s->state &= ~mask;
@@ -360,17 +354,17 @@ static int me_dio_insn_bits(comedi_device * dev,
 	return 2;
 }
 
-// ------------------------------------------------------------------
-//
-// ANALOG INPUT SECTION
-//
-// ------------------------------------------------------------------
+/*
+ * ------------------------------------------------------------------
+ *
+ * ANALOG INPUT SECTION
+ *
+ * ------------------------------------------------------------------
+ */
 
-//
-// Analog instant input
-//
-static int me_ai_insn_read(comedi_device * dev,
-	comedi_subdevice * subdevice, comedi_insn * insn, lsampl_t * data)
+/* Analog instant input */
+static int me_ai_insn_read(comedi_device *dev, comedi_subdevice *subdevice,
+			   comedi_insn *insn, lsampl_t *data)
 {
 	unsigned short value;
 	int chan = CR_CHAN((&insn->chanspec)[0]);
@@ -394,10 +388,14 @@ static int me_ai_insn_read(comedi_device * dev,
 	writew(dev_private->control_2, dev_private->me_regbase + ME_CONTROL_2);
 
 	/* write to channel list fifo */
-	value = chan & 0x0f;	// b3:b0 are the channel number
-	value |= (rang & 0x03) << 4;	// b5:b4 are the channel gain
-	value |= (rang & 0x04) << 4;	// b6 channel polarity
-	value |= ((aref & AREF_DIFF) ? 0x80 : 0);	// b7 single or differential
+	/* b3:b0 are the channel number */
+	value = chan & 0x0f;
+	/* b5:b4 are the channel gain */
+	value |= (rang & 0x03) << 4;
+	/* b6 channel polarity */
+	value |= (rang & 0x04) << 4;
+	/* b7 single or differential */
+	value |= ((aref & AREF_DIFF) ? 0x80 : 0);
 	writew(value & 0xff, dev_private->me_regbase + ME_CHANNEL_LIST);
 
 	/* set ADC mode to software trigger */
@@ -408,11 +406,9 @@ static int me_ai_insn_read(comedi_device * dev,
 	readw(dev_private->me_regbase + ME_ADC_START);
 
 	/* wait for ADC fifo not empty flag */
-	for (i = 100000; i > 0; i--) {
-		if (!(readw(dev_private->me_regbase + ME_STATUS) & 0x0004)) {
+	for (i = 100000; i > 0; i--)
+		if (!(readw(dev_private->me_regbase + ME_STATUS) & 0x0004))
 			break;
-		}
-	}
 
 	/* get value from ADC fifo */
 	if (i) {
@@ -420,7 +416,8 @@ static int me_ai_insn_read(comedi_device * dev,
 			(readw(dev_private->me_regbase +
 				ME_READ_AD_FIFO) ^ 0x800) & 0x0FFF;
 	} else {
-		printk("comedi%d: Cannot get single value\n", dev->minor);
+		printk(KERN_ERR "comedi%d: Cannot get single value\n",
+		       dev->minor);
 		return -EIO;
 	}
 
@@ -431,16 +428,16 @@ static int me_ai_insn_read(comedi_device * dev,
 	return 1;
 }
 
-// ------------------------------------------------------------------
-//
-// HARDWARE TRIGGERED ANALOG INPUT SECTION
-//
-// ------------------------------------------------------------------
+/*
+ * ------------------------------------------------------------------
+ *
+ * HARDWARE TRIGGERED ANALOG INPUT SECTION
+ *
+ * ------------------------------------------------------------------
+ */
 
-//
-// Cancel analog input autoscan
-//
-static int me_ai_cancel(comedi_device * dev, comedi_subdevice * s)
+/* Cancel analog input autoscan */
+static int me_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	/* disable interrupts */
 
@@ -451,34 +448,30 @@ static int me_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-//
-// Test analog input command
-//
-static int me_ai_do_cmd_test(comedi_device * dev,
-	comedi_subdevice * s, comedi_cmd * cmd)
+/* Test analog input command */
+static int me_ai_do_cmd_test(comedi_device *dev, comedi_subdevice *s,
+			     comedi_cmd *cmd)
 {
 	return 0;
 }
 
-//
-// Analog input command
-//
-static int me_ai_do_cmd(comedi_device * dev, comedi_subdevice * subdevice)
+/* Analog input command */
+static int me_ai_do_cmd(comedi_device *dev, comedi_subdevice *subdevice)
 {
 	return 0;
 }
 
-// ------------------------------------------------------------------
-//
-// ANALOG OUTPUT SECTION
-//
-// ------------------------------------------------------------------
+/*
+ * ------------------------------------------------------------------
+ *
+ * ANALOG OUTPUT SECTION
+ *
+ * ------------------------------------------------------------------
+ */
 
-//
-// Analog instant output
-//
-static int me_ao_insn_write(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+/* Analog instant output */
+static int me_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+			    comedi_insn *insn, lsampl_t *data)
 {
 	int chan;
 	int rang;
@@ -497,7 +490,8 @@ static int me_ao_insn_write(comedi_device * dev,
 		chan = CR_CHAN((&insn->chanspec)[i]);
 		rang = CR_RANGE((&insn->chanspec)[i]);
 
-		dev_private->dac_control &= ~(0x0880 >> chan);	/* clear bits for this channel */
+		/* clear bits for this channel */
+		dev_private->dac_control &= ~(0x0880 >> chan);
 		if (rang == 0)
 			dev_private->dac_control |=
 				((DAC_BIPOLAR_A | DAC_GAIN_1_A) >> chan);
@@ -525,11 +519,9 @@ static int me_ao_insn_write(comedi_device * dev,
 	return i;
 }
 
-//
-// Analog output readback
-//
-static int me_ao_insn_read(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+/* Analog output readback */
+static int me_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
+			   comedi_insn *insn, lsampl_t *data)
 {
 	int i;
 
@@ -541,18 +533,18 @@ static int me_ao_insn_read(comedi_device * dev,
 	return 1;
 }
 
-// ------------------------------------------------------------------
-//
-// INITIALISATION SECTION
-//
-// ------------------------------------------------------------------
+/*
+ * ------------------------------------------------------------------
+ *
+ * INITIALISATION SECTION
+ *
+ * ------------------------------------------------------------------
+ */
 
-//
-// Xilinx firmware download for card: ME-2600i
-//
-
-static int me2600_xilinx_download(comedi_device * dev, unsigned char
-	*me2600_firmware, unsigned int length)
+/* Xilinx firmware download for card: ME-2600i */
+static int me2600_xilinx_download(comedi_device *dev,
+				  unsigned char *me2600_firmware,
+				  unsigned int length)
 {
 	unsigned int value;
 	unsigned int file_length;
@@ -581,32 +573,30 @@ static int me2600_xilinx_download(comedi_device * dev, unsigned char
 	 */
 	if (length < 16)
 		return -EINVAL;
-	file_length =
-		(((unsigned int)me2600_firmware[0] & 0xff) << 24) +
-		(((unsigned int)me2600_firmware[1] & 0xff) << 16) +
-		(((unsigned int)me2600_firmware[2] & 0xff) << 8) +
-		((unsigned int)me2600_firmware[3] & 0xff);
+	file_length = (((unsigned int)me2600_firmware[0] & 0xff) << 24) +
+		      (((unsigned int)me2600_firmware[1] & 0xff) << 16) +
+		      (((unsigned int)me2600_firmware[2] & 0xff) << 8) +
+		      ((unsigned int)me2600_firmware[3] & 0xff);
 
 	/*
 	 * Loop for writing firmware byte by byte to xilinx
 	 * Firmware data start at offfset 16
 	 */
-	for (i = 0; i < file_length; i++) {
+	for (i = 0; i < file_length; i++)
 		writeb((me2600_firmware[16 + i] & 0xff),
 			dev_private->me_regbase + 0x0);
-	}
 
 	/* Write 5 dummy values to xilinx */
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < 5; i++)
 		writeb(0x00, dev_private->me_regbase + 0x0);
-	}
 
 	/* Test if there was an error during download -> INTB was thrown */
 	value = readl(dev_private->plx_regbase + PLX_INTCSR);
 	if (value & 0x20) {
 		/* Disable interrupt */
 		writel(0x00, dev_private->plx_regbase + PLX_INTCSR);
-		printk("comedi%d: Xilinx download failed\n", dev->minor);
+		printk(KERN_ERR "comedi%d: Xilinx download failed\n",
+		       dev->minor);
 		return -EIO;
 	}
 
@@ -619,11 +609,8 @@ static int me2600_xilinx_download(comedi_device * dev, unsigned char
 	return 0;
 }
 
-//
-// Reset device
-//
-
-static int me_reset(comedi_device * dev)
+/* Reset device */
+static int me_reset(comedi_device *dev)
 {
 	/* Reset board */
 	writew(0x00, dev_private->me_regbase + ME_CONTROL_1);
@@ -639,14 +626,13 @@ static int me_reset(comedi_device * dev)
 	return 0;
 }
 
-//
-// Attach
-//
-//  - Register PCI device
-//  - Declare device driver capability
-//
-
-static int me_attach(comedi_device * dev, comedi_devconfig * it)
+/*
+ * Attach
+ *
+ * - Register PCI device
+ * - Declare device driver capability
+ */
+static int me_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
 	comedi_subdevice *subdevice;
@@ -660,13 +646,11 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 	resource_size_t regbase_tmp;
 	int result, error, i;
 
-	// Allocate private memory
-	if (alloc_private(dev, sizeof(me_private_data_struct)) < 0) {
+	/* Allocate private memory */
+	if (alloc_private(dev, sizeof(me_private_data_struct)) < 0)
 		return -ENOMEM;
-	}
-//
-// Probe the device to determine what device in the series it is.
-//
+
+	/* Probe the device to determine what device in the series it is. */
 	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pci_device != NULL;
 		pci_device =
@@ -675,10 +659,14 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 			for (i = 0; i < me_board_nbr; i++) {
 				if (me_boards[i].device_id ==
 					pci_device->device) {
-					// was a particular bus/slot requested?
+					/*
+					 * was a particular bus/slot requested?
+					 */
 					if ((it->options[0] != 0)
 						|| (it->options[1] != 0)) {
-						// are we on the wrong bus/slot?
+						/*
+						 * are we on the wrong bus/slot?
+						 */
 						if (pci_device->bus->number !=
 							it->options[0]
 							|| PCI_SLOT(pci_device->
@@ -698,27 +686,27 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 	}
 
-	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-		dev->minor, it->options[0], it->options[1]);
+	printk(KERN_ERR
+	       "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+	       dev->minor, it->options[0], it->options[1]);
 	return -EIO;
 
-      found:
-
-	printk("comedi%d: found %s at PCI bus %d, slot %d\n",
+found:
+	printk(KERN_INFO "comedi%d: found %s at PCI bus %d, slot %d\n",
 		dev->minor, me_boards[i].name,
 		pci_device->bus->number, PCI_SLOT(pci_device->devfn));
 
-	// Enable PCI device and request PCI regions
+	/* Enable PCI device and request PCI regions */
 	if (comedi_pci_enable(pci_device, ME_DRIVER_NAME) < 0) {
-		printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
+		printk(KERN_ERR "comedi%d: Failed to enable PCI device and "
+		       "request regions\n", dev->minor);
 		return -EIO;
 	}
-	// Set data in device structure
 
+	/* Set data in device structure */
 	dev->board_name = board->name;
 
-	// Read PLX register base address [PCI_BASE_ADDRESS #0].
-
+	/* Read PLX register base address [PCI_BASE_ADDRESS #0]. */
 	plx_regbase_tmp = pci_resource_start(pci_device, 0);
 	plx_regbase_size_tmp = pci_resource_len(pci_device, 0);
 	dev_private->plx_regbase =
@@ -728,18 +716,18 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 		printk("comedi%d: Failed to remap I/O memory\n", dev->minor);
 		return -ENOMEM;
 	}
-	// Read Swap base address [PCI_BASE_ADDRESS #5].
+
+	/* Read Swap base address [PCI_BASE_ADDRESS #5]. */
 
 	swap_regbase_tmp = pci_resource_start(pci_device, 5);
 	swap_regbase_size_tmp = pci_resource_len(pci_device, 5);
 
-	if (!swap_regbase_tmp) {
-		printk("comedi%d: Swap not present\n", dev->minor);
-	}
+	if (!swap_regbase_tmp)
+		printk(KERN_ERR "comedi%d: Swap not present\n", dev->minor);
 
-  /*----------------------------------------------------- Workaround start ---*/
+	/*---------------------------------------------- Workaround start ---*/
 	if (plx_regbase_tmp & 0x0080) {
-		printk("comedi%d: PLX-Bug detected\n", dev->minor);
+		printk(KERN_ERR "comedi%d: PLX-Bug detected\n", dev->minor);
 
 		if (swap_regbase_tmp) {
 			regbase_tmp = plx_regbase_tmp;
@@ -763,19 +751,20 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 				return -EIO;
 		}
 	}
-  /*----------------------------------------------------- Workaround end -----*/
+	/*--------------------------------------------- Workaround end -----*/
 
-	// Read Meilhaus register base address [PCI_BASE_ADDRESS #2].
+	/* Read Meilhaus register base address [PCI_BASE_ADDRESS #2]. */
 
 	me_regbase_tmp = pci_resource_start(pci_device, 2);
 	me_regbase_size_tmp = pci_resource_len(pci_device, 2);
 	dev_private->me_regbase_size = me_regbase_size_tmp;
 	dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
 	if (!dev_private->me_regbase) {
-		printk("comedi%d: Failed to remap I/O memory\n", dev->minor);
+		printk(KERN_ERR "comedi%d: Failed to remap I/O memory\n",
+		       dev->minor);
 		return -ENOMEM;
 	}
-	// Download firmware and reset card
+	/* Download firmware and reset card */
 	if (board->device_id == ME2600_DEVICE_ID) {
 		unsigned char *aux_data;
 		int aux_len;
@@ -784,8 +773,9 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 		aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
 
 		if (!aux_data || aux_len < 1) {
-			comedi_error(dev,
-				"You must provide me2600 firmware using the --init-data option of comedi_config");
+			comedi_error(dev, "You must provide me2600 firmware "
+				     "using the --init-data option of "
+				     "comedi_config");
 			return -EINVAL;
 		}
 		me2600_xilinx_download(dev, aux_data, aux_len);
@@ -793,9 +783,9 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 
 	me_reset(dev);
 
-	// device driver capabilities
-
-	if ((error = alloc_subdevices(dev, 3)) < 0)
+	/* device driver capabilities */
+	error = alloc_subdevices(dev, 3);
+	if (error < 0)
 		return error;
 
 	subdevice = dev->subdevices + 0;
@@ -831,15 +821,12 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 	subdevice->insn_config = me_dio_insn_config;
 	subdevice->io_bits = 0;
 
-	printk("comedi%d: " ME_DRIVER_NAME " attached.\n", dev->minor);
+	printk(KERN_INFO "comedi%d: "ME_DRIVER_NAME" attached.\n", dev->minor);
 	return 0;
 }
 
-//
-// Detach
-//
-
-static int me_detach(comedi_device * dev)
+/* Detach */
+static int me_detach(comedi_device *dev)
 {
 	if (dev_private) {
 		if (dev_private->me_regbase) {
@@ -849,9 +836,9 @@ static int me_detach(comedi_device * dev)
 		if (dev_private->plx_regbase)
 			iounmap(dev_private->plx_regbase);
 		if (dev_private->pci_device) {
-			if (dev_private->plx_regbase_size) {
+			if (dev_private->plx_regbase_size)
 				comedi_pci_disable(dev_private->pci_device);
-			}
+
 			pci_dev_put(dev_private->pci_device);
 		}
 	}
