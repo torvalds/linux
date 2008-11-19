@@ -400,6 +400,7 @@ static void __cpuinit uv_heartbeat_enable(int cpu)
 		uv_heartbeat_enable(0);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static void __cpuinit uv_heartbeat_disable(int cpu)
 {
 	if (uv_cpu_hub_info(cpu)->scir.enabled) {
@@ -409,7 +410,6 @@ static void __cpuinit uv_heartbeat_disable(int cpu)
 	uv_set_cpu_scir_bits(cpu, 0xff);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 /*
  * cpu hotplug notifier
  */
