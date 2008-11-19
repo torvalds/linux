@@ -9,6 +9,7 @@ obj-$(CONFIG_COMEDI)			+= comedi_parport.o
 
 # Comedi PCI drivers
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= mite.o
+obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= icp_multi.o
 
 # Comedi USB drivers
 obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= usbdux.o
