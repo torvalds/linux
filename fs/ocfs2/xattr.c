@@ -2414,7 +2414,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 				    struct ocfs2_xattr_search *xbs,
 				    struct ocfs2_xattr_set_ctxt *ctxt)
 {
-	int ret = 0, credits;
+	int ret = 0, credits, old_found;
 
 	if (!xi->value) {
 		/* Remove existing extended attribute */
@@ -2433,6 +2433,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 			xi->value = NULL;
 			xi->value_len = 0;
 
+			old_found = xis->not_found;
 			xis->not_found = -ENODATA;
 			ret = ocfs2_calc_xattr_set_need(inode,
 							di,
@@ -2442,6 +2443,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 							NULL,
 							NULL,
 							&credits);
+			xis->not_found = old_found;
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
@@ -2462,6 +2464,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 				if (ret)
 					goto out;
 
+				old_found = xis->not_found;
 				xis->not_found = -ENODATA;
 				ret = ocfs2_calc_xattr_set_need(inode,
 								di,
@@ -2471,6 +2474,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 								NULL,
 								NULL,
 								&credits);
+				xis->not_found = old_found;
 				if (ret) {
 					mlog_errno(ret);
 					goto out;
