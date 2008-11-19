@@ -1,7 +1,7 @@
 /*
  *	intel TCO Watchdog Driver (Used in i82801 and i6300ESB chipsets)
  *
- *	(c) Copyright 2006-2007 Wim Van Sebroeck <wim@iguana.be>.
+ *	(c) Copyright 2006-2008 Wim Van Sebroeck <wim@iguana.be>.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -56,8 +56,7 @@
 
 /* Module and version information */
 #define DRV_NAME	"iTCO_wdt"
-#define DRV_VERSION	"1.03"
-#define DRV_RELDATE	"30-Apr-2008"
+#define DRV_VERSION	"1.04"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -311,6 +310,7 @@ static int iTCO_wdt_unset_NO_REBOOT_bit(void)
 static int iTCO_wdt_start(void)
 {
 	unsigned int val;
+	unsigned long val32;
 
 	spin_lock(&iTCO_wdt_private.io_lock);
 
@@ -322,6 +322,18 @@ static int iTCO_wdt_start(void)
 		printk(KERN_ERR PFX "failed to reset NO_REBOOT flag, reboot disabled by hardware\n");
 		return -EIO;
 	}
+
+	/* Bit 13: TCO_EN -> 0 = Disables TCO logic generating an SMI# */
+	val32 = inl(SMI_EN);
+	val32 &= 0xffffdfff;	/* Turn off SMI clearing watchdog */
+	outl(val32, SMI_EN);
+
+	/* Force the timer to its reload value by writing to the TCO_RLD
+	   register */
+	if (iTCO_wdt_private.iTCO_version == 2)
+		outw(0x01, TCO_RLD);
+	else if (iTCO_wdt_private.iTCO_version == 1)
+		outb(0x01, TCO_RLD);
 
 	/* Bit 11: TCO Timer Halt -> 0 = The TCO timer is enabled to count */
 	val = inw(TCO1_CNT);
@@ -338,6 +350,7 @@ static int iTCO_wdt_start(void)
 static int iTCO_wdt_stop(void)
 {
 	unsigned int val;
+	unsigned long val32;
 
 	spin_lock(&iTCO_wdt_private.io_lock);
 
@@ -348,6 +361,11 @@ static int iTCO_wdt_stop(void)
 	val |= 0x0800;
 	outw(val, TCO1_CNT);
 	val = inw(TCO1_CNT);
+
+	/* Bit 13: TCO_EN -> 1 = Enables the TCO logic to generate SMI# */
+	val32 = inl(SMI_EN);
+	val32 &= 0x00002000;
+	outl(val32, SMI_EN);
 
 	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
 	iTCO_wdt_set_NO_REBOOT_bit();
@@ -459,7 +477,6 @@ static int iTCO_wdt_open(struct inode *inode, struct file *file)
 	/*
 	 *      Reload and activate timer
 	 */
-	iTCO_wdt_keepalive();
 	iTCO_wdt_start();
 	return nonseekable_open(inode, file);
 }
@@ -604,7 +621,6 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 	int ret;
 	u32 base_address;
 	unsigned long RCBA;
-	unsigned long val32;
 
 	/*
 	 *      Find the ACPI/PM base I/O address which is the base
@@ -644,17 +660,13 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
 	iTCO_wdt_set_NO_REBOOT_bit();
 
-	/* Set the TCO_EN bit in SMI_EN register */
+	/* The TCO logic uses the TCO_EN bit in the SMI_EN register */
 	if (!request_region(SMI_EN, 4, "iTCO_wdt")) {
 		printk(KERN_ERR PFX
 			"I/O address 0x%04lx already in use\n", SMI_EN);
 		ret = -EIO;
 		goto out;
 	}
-	val32 = inl(SMI_EN);
-	val32 &= 0xffffdfff;	/* Turn off SMI clearing watchdog */
-	outl(val32, SMI_EN);
-	release_region(SMI_EN, 4);
 
 	/* The TCO I/O registers reside in a 32-byte range pointed to
 	   by the TCOBASE value */
@@ -662,7 +674,7 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 		printk(KERN_ERR PFX "I/O address 0x%04lx already in use\n",
 			TCOBASE);
 		ret = -EIO;
-		goto out;
+		goto unreg_smi_en;
 	}
 
 	printk(KERN_INFO PFX
@@ -701,6 +713,8 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 
 unreg_region:
 	release_region(TCOBASE, 0x20);
+unreg_smi_en:
+	release_region(SMI_EN, 4);
 out:
 	if (iTCO_wdt_private.iTCO_version == 2)
 		iounmap(iTCO_wdt_private.gcs);
@@ -718,6 +732,7 @@ static void __devexit iTCO_wdt_cleanup(void)
 	/* Deregister */
 	misc_deregister(&iTCO_wdt_miscdev);
 	release_region(TCOBASE, 0x20);
+	release_region(SMI_EN, 4);
 	if (iTCO_wdt_private.iTCO_version == 2)
 		iounmap(iTCO_wdt_private.gcs);
 	pci_dev_put(iTCO_wdt_private.pdev);
@@ -782,8 +797,8 @@ static int __init iTCO_wdt_init_module(void)
 {
 	int err;
 
-	printk(KERN_INFO PFX "Intel TCO WatchDog Timer Driver v%s (%s)\n",
-		DRV_VERSION, DRV_RELDATE);
+	printk(KERN_INFO PFX "Intel TCO WatchDog Timer Driver v%s\n",
+		DRV_VERSION);
 
 	err = platform_driver_register(&iTCO_wdt_driver);
 	if (err)
