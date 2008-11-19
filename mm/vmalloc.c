@@ -522,13 +522,24 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 }
 
 /*
+ * Kick off a purge of the outstanding lazy areas. Don't bother if somebody
+ * is already purging.
+ */
+static void try_purge_vmap_area_lazy(void)
+{
+	unsigned long start = ULONG_MAX, end = 0;
+
+	__purge_vmap_area_lazy(&start, &end, 0, 0);
+}
+
+/*
  * Kick off a purge of the outstanding lazy areas.
  */
 static void purge_vmap_area_lazy(void)
 {
 	unsigned long start = ULONG_MAX, end = 0;
 
-	__purge_vmap_area_lazy(&start, &end, 0, 0);
+	__purge_vmap_area_lazy(&start, &end, 1, 0);
 }
 
 /*
@@ -539,7 +550,7 @@ static void free_unmap_vmap_area(struct vmap_area *va)
 	va->flags |= VM_LAZY_FREE;
 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
-		purge_vmap_area_lazy();
+		try_purge_vmap_area_lazy();
 }
 
 static struct vmap_area *find_vmap_area(unsigned long addr)
