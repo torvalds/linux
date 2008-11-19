@@ -170,37 +170,54 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 iir, new_iir;
 	u32 pipea_stats, pipeb_stats;
+	u32 vblank_status;
+	u32 vblank_enable;
 	int vblank = 0;
 	unsigned long irqflags;
+	int irq_received;
+	int ret = IRQ_NONE;
 
 	atomic_inc(&dev_priv->irq_received);
 
 	iir = I915_READ(IIR);
 
-	if (iir == 0)
-		return IRQ_NONE;
+	if (IS_I965G(dev)) {
+		vblank_status = I915_START_VBLANK_INTERRUPT_STATUS;
+		vblank_enable = PIPE_START_VBLANK_INTERRUPT_ENABLE;
+	} else {
+		vblank_status = I915_VBLANK_INTERRUPT_STATUS;
+		vblank_enable = I915_VBLANK_INTERRUPT_ENABLE;
+	}
 
-	do {
-		pipea_stats = 0;
-		pipeb_stats = 0;
+	for (;;) {
+		irq_received = iir != 0;
+
+		/* Can't rely on pipestat interrupt bit in iir as it might
+		 * have been cleared after the pipestat interrupt was received.
+		 * It doesn't set the bit in iir again, but it still produces
+		 * interrupts (for non-MSI).
+		 */
+		spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+		pipea_stats = I915_READ(PIPEASTAT);
+		pipeb_stats = I915_READ(PIPEBSTAT);
 		/*
 		 * Clear the PIPE(A|B)STAT regs before the IIR
 		 */
-		if (iir & I915_DISPLAY_PIPE_A_EVENT_INTERRUPT) {
-			spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-			pipea_stats = I915_READ(PIPEASTAT);
+		if (pipea_stats & 0x8000ffff) {
 			I915_WRITE(PIPEASTAT, pipea_stats);
-			spin_unlock_irqrestore(&dev_priv->user_irq_lock,
-					       irqflags);
+			irq_received = 1;
 		}
 
-		if (iir & I915_DISPLAY_PIPE_B_EVENT_INTERRUPT) {
-			spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-			pipeb_stats = I915_READ(PIPEBSTAT);
+		if (pipeb_stats & 0x8000ffff) {
 			I915_WRITE(PIPEBSTAT, pipeb_stats);
-			spin_unlock_irqrestore(&dev_priv->user_irq_lock,
-					       irqflags);
+			irq_received = 1;
 		}
+		spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
+
+		if (!irq_received)
+			break;
+
+		ret = IRQ_HANDLED;
 
 		I915_WRITE(IIR, iir);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
@@ -214,12 +231,12 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			DRM_WAKEUP(&dev_priv->irq_queue);
 		}
 
-		if (pipea_stats & I915_VBLANK_INTERRUPT_STATUS) {
+		if (pipea_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 0);
 		}
 
-		if (pipeb_stats & I915_VBLANK_INTERRUPT_STATUS) {
+		if (pipeb_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 1);
 		}
@@ -244,9 +261,9 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		 * stray interrupts.
 		 */
 		iir = new_iir;
-	} while (iir != 0);
+	}
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static int i915_emit_irq(struct drm_device * dev)
