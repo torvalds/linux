@@ -58,7 +58,6 @@ Status: testing
 #include <linux/compiler.h>
 #include "comedi_fc.h"
 #include "../comedidev.h"
-#include "../usb.h"
 
 // (un)comment this if you want to have debug info.
 //#define CONFIG_COMEDI_DEBUG
@@ -203,11 +202,11 @@ static int send_dux_commands(usbduxfastsub_t * this_usbduxfastsub, int cmd_type)
 	}
 	printk("\n");
 #endif
-	result = USB_BULK_MSG(this_usbduxfastsub->usbdev,
-		usb_sndbulkpipe(this_usbduxfastsub->usbdev,
-			CHANNELLISTEP),
-		this_usbduxfastsub->dux_commands,
-		SIZEOFDUXBUFFER, &nsent, 10000);
+	result = usb_bulk_msg(this_usbduxfastsub->usbdev,
+			      usb_sndbulkpipe(this_usbduxfastsub->usbdev,
+					      CHANNELLISTEP),
+			      this_usbduxfastsub->dux_commands, SIZEOFDUXBUFFER,
+			      &nsent, 10000);
 	if (result < 0) {
 		printk("comedi%d: could not transmit dux_commands to the usb-device, err=%d\n", this_usbduxfastsub->comedidev->minor, result);
 	}
@@ -404,7 +403,8 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 	// resubmit urb for BULK transfer
 	urb->dev = this_usbduxfastsub->usbdev;
 	urb->status = 0;
-	if ((err = USB_SUBMIT_URB(urb)) < 0) {
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (err < 0) {
 		printk("comedi%d: usbduxfast: urb resubm failed: %d",
 			this_usbduxfastsub->comedidev->minor, err);
 		s->async->events |= COMEDI_CB_EOA;
@@ -422,7 +422,7 @@ static int usbduxfastsub_start(usbduxfastsub_t * usbduxfastsub)
 	if (usbduxfastsub->probed) {
 		// 7f92 to zero
 		local_transfer_buffer[0] = 0;
-		errcode = USB_CONTROL_MSG(usbduxfastsub->usbdev,
+		errcode = usb_control_msg(usbduxfastsub->usbdev,
 			// create a pipe for a control transfer
 			usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
 			// bRequest, "Firmware"
@@ -455,8 +455,7 @@ static int usbduxfastsub_stop(usbduxfastsub_t * usbduxfastsub)
 	if (usbduxfastsub->probed) {
 		// 7f92 to one
 		local_transfer_buffer[0] = 1;
-		errcode = USB_CONTROL_MSG
-			(usbduxfastsub->usbdev,
+		errcode = usb_control_msg(usbduxfastsub->usbdev,
 			usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
 			// bRequest, "Firmware"
 			USBDUXFASTSUB_FIRMWARE,
@@ -491,8 +490,7 @@ static int usbduxfastsub_upload(usbduxfastsub_t * usbduxfastsub,
 		printk(" to addr %d, first byte=%d.\n",
 			startAddr, local_transfer_buffer[0]);
 #endif
-		errcode = USB_CONTROL_MSG
-			(usbduxfastsub->usbdev,
+		errcode = usb_control_msg(usbduxfastsub->usbdev,
 			usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
 			// brequest, firmware
 			USBDUXFASTSUB_FIRMWARE,
@@ -568,11 +566,10 @@ int usbduxfastsub_submit_InURBs(usbduxfastsub_t * usbduxfastsub)
 		(int)(usbduxfastsub->urbIn->context),
 		(int)(usbduxfastsub->urbIn->dev));
 #endif
-	errFlag = USB_SUBMIT_URB(usbduxfastsub->urbIn);
+	errFlag = usb_submit_urb(usbduxfastsub->urbIn, GFP_ATOMIC);
 	if (errFlag) {
-		printk("comedi_: usbduxfast: ai: ");
-		printk("USB_SUBMIT_URB");
-		printk(" error %d\n", errFlag);
+		printk("comedi_: usbduxfast: ai: usb_submit_urb error %d\n",
+			errFlag);
 		return errFlag;
 	}
 	return 0;
@@ -1233,10 +1230,11 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		(int)(usbduxfastsub->urbIn->dev));
 #endif
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
-		err = USB_BULK_MSG(usbduxfastsub->usbdev,
-			usb_rcvbulkpipe(usbduxfastsub->usbdev, BULKINEP),
-			usbduxfastsub->transfer_buffer,
-			SIZEINBUF, &actual_length, 10000);
+		err = usb_bulk_msg(usbduxfastsub->usbdev,
+				   usb_rcvbulkpipe(usbduxfastsub->usbdev,
+						   BULKINEP),
+				   usbduxfastsub->transfer_buffer, SIZEINBUF,
+				   &actual_length, 10000);
 		if (err < 0) {
 			printk("comedi%d: insn timeout. No data.\n",
 				dev->minor);
@@ -1246,10 +1244,11 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	}
 	// data points
 	for (i = 0; i < insn->n;) {
-		err = USB_BULK_MSG(usbduxfastsub->usbdev,
-			usb_rcvbulkpipe(usbduxfastsub->usbdev, BULKINEP),
-			usbduxfastsub->transfer_buffer,
-			SIZEINBUF, &actual_length, 10000);
+		err = usb_bulk_msg(usbduxfastsub->usbdev,
+				   usb_rcvbulkpipe(usbduxfastsub->usbdev,
+						   BULKINEP),
+				   usbduxfastsub->transfer_buffer, SIZEINBUF,
+				   &actual_length, 10000);
 		if (err < 0) {
 			printk("comedi%d: insn data error: %d\n",
 				dev->minor, err);
@@ -1448,7 +1447,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 
 	if (udev->speed != USB_SPEED_HIGH) {
 		printk("comedi_: usbduxfast_: This driver needs USB 2.0 to operate. Aborting...\n");
-		return PROBE_ERR_RETURN(-ENODEV);
+		return -ENODEV;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi_: usbduxfast_: finding a free structure for the usb-device\n");
@@ -1467,7 +1466,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	if (index == -1) {
 		printk("Too many usbduxfast-devices connected.\n");
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-EMFILE);
+		return -EMFILE;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi_: usbduxfast: usbduxfastsub[%d] is ready to connect to comedi.\n", index);
@@ -1500,7 +1499,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbduxfast: error alloc space for dac commands\n");
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// create space of the instruction buffer
 	usbduxfastsub[index].insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
@@ -1508,7 +1507,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbduxfast: could not alloc space for insnBuffer\n");
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// setting to alternate setting 1: enabling bulk ep
 	i = usb_set_interface(usbduxfastsub[index].usbdev,
@@ -1517,14 +1516,14 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbduxfast%d: could not switch to alternate setting 1.\n", index);
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENODEV);
+		return -ENODEV;
 	}
-	usbduxfastsub[index].urbIn = USB_ALLOC_URB(0);
+	usbduxfastsub[index].urbIn = usb_alloc_urb(0, GFP_KERNEL);
 	if (usbduxfastsub[index].urbIn == NULL) {
 		printk("comedi_: usbduxfast%d: Could not alloc. urb\n", index);
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	usbduxfastsub[index].transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
 	if (!(usbduxfastsub[index].transfer_buffer)) {
@@ -1532,7 +1531,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 			index);
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// we've reached the bottom of the function
 	usbduxfastsub[index].probed = 1;
