@@ -33,6 +33,7 @@
 #include "sys.h"
 #include "util.h"
 #include "log.h"
+#include "quota.h"
 
 #define DO 0
 #define UNDO 1

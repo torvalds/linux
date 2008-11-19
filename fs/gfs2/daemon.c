@@ -59,25 +59,3 @@ int gfs2_glockd(void *data)
 	return 0;
 }
 
-/**
- * gfs2_recoverd - Recover dead machine's journals
- * @sdp: Pointer to GFS2 superblock
- *
- */
-
-int gfs2_recoverd(void *data)
-{
-	struct gfs2_sbd *sdp = data;
-	unsigned long t;
-
-	while (!kthread_should_stop()) {
-		gfs2_check_journals(sdp);
-		t = gfs2_tune_get(sdp,  gt_recoverd_secs) * HZ;
-		if (freezing(current))
-			refrigerator();
-		schedule_timeout_interruptible(t);
-	}
-
-	return 0;
-}
-
