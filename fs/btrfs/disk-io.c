@@ -518,7 +518,6 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			extent_submit_bio_hook_t *submit_bio_done)
 {
 	struct async_submit_bio *async;
-	int limit = btrfs_async_submit_limit(fs_info);
 
 	async = kmalloc(sizeof(*async), GFP_NOFS);
 	if (!async)
@@ -541,6 +540,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	atomic_inc(&fs_info->nr_async_submits);
 	btrfs_queue_worker(&fs_info->workers, &async->work);
 #if 0
+	int limit = btrfs_async_submit_limit(fs_info);
 	if (atomic_read(&fs_info->nr_async_submits) > limit) {
 		wait_event_timeout(fs_info->async_submit_wait,
 			   (atomic_read(&fs_info->nr_async_submits) < limit),
@@ -1732,13 +1732,15 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!fs_info->transaction_kthread)
 		goto fail_cleaner;
 
-	if (sb->s_flags & MS_RDONLY)
-		goto read_fs_root;
-
 	if (btrfs_super_log_root(disk_super) != 0) {
 		u32 blocksize;
 		u64 bytenr = btrfs_super_log_root(disk_super);
 
+		if (fs_devices->rw_devices == 0) {
+			printk("Btrfs log replay required on RO media\n");
+			err = -EIO;
+			goto fail_trans_kthread;
+		}
 		blocksize =
 		     btrfs_level_size(tree_root,
 				      btrfs_super_log_root_level(disk_super));
@@ -1756,21 +1758,32 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		BUG_ON(ret);
 	}
 
-	ret = btrfs_cleanup_reloc_trees(tree_root);
-	BUG_ON(ret);
+	if (!(sb->s_flags & MS_RDONLY)) {
+		ret = btrfs_cleanup_reloc_trees(tree_root);
+		BUG_ON(ret);
+	}
 
-read_fs_root:
 	location.objectid = BTRFS_FS_TREE_OBJECTID;
 	location.type = BTRFS_ROOT_ITEM_KEY;
 	location.offset = (u64)-1;
 
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (!fs_info->fs_root)
-		goto fail_cleaner;
+		goto fail_trans_kthread;
 	return tree_root;
 
+fail_trans_kthread:
+	kthread_stop(fs_info->transaction_kthread);
 fail_cleaner:
 	kthread_stop(fs_info->cleaner_kthread);
+
+	/*
+	 * make sure we're done with the btree inode before we stop our
+	 * kthreads
+	 */
+	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
+	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
+
 fail_extent_root:
 	free_extent_buffer(extent_root->node);
 fail_tree_root:
@@ -1778,6 +1791,7 @@ fail_tree_root:
 fail_chunk_root:
 	free_extent_buffer(chunk_root->node);
 fail_sys_array:
+	free_extent_buffer(dev_root->node);
 fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->fixup_workers);
 	btrfs_stop_workers(&fs_info->delalloc_workers);
@@ -1786,6 +1800,7 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 fail_iput:
+	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	iput(fs_info->btree_inode);
 fail:
 	btrfs_close_devices(fs_info->fs_devices);
