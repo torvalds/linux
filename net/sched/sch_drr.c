@@ -208,7 +208,8 @@ static int drr_graft_class(struct Qdisc *sch, unsigned long arg,
 
 	sch_tree_lock(sch);
 	drr_purge_queue(cl);
-	*old = xchg(&cl->qdisc, new);
+	*old = cl->qdisc;
+	cl->qdisc = new;
 	sch_tree_unlock(sch);
 	return 0;
 }

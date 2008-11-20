@@ -202,7 +202,8 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	q->limit = ctl->limit;
 	if (child) {
 		qdisc_tree_decrease_qlen(q->qdisc, q->qdisc->q.qlen);
-		qdisc_destroy(xchg(&q->qdisc, child));
+		qdisc_destroy(q->qdisc);
+		q->qdisc = child;
 	}
 
 	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
@@ -283,7 +284,8 @@ static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		new = &noop_qdisc;
 
 	sch_tree_lock(sch);
-	*old = xchg(&q->qdisc, new);
+	*old = q->qdisc;
+	q->qdisc = new;
 	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 	qdisc_reset(*old);
 	sch_tree_unlock(sch);

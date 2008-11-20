@@ -236,6 +236,7 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 	struct tc_tbf_qopt *qopt;
 	struct qdisc_rate_table *rtab = NULL;
 	struct qdisc_rate_table *ptab = NULL;
+	struct qdisc_rate_table *tmp;
 	struct Qdisc *child = NULL;
 	int max_size,n;
 
@@ -284,7 +285,8 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 	sch_tree_lock(sch);
 	if (child) {
 		qdisc_tree_decrease_qlen(q->qdisc, q->qdisc->q.qlen);
-		qdisc_destroy(xchg(&q->qdisc, child));
+		qdisc_destroy(q->qdisc);
+		q->qdisc = child;
 	}
 	q->limit = qopt->limit;
 	q->mtu = qopt->mtu;
@@ -292,8 +294,14 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 	q->buffer = qopt->buffer;
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
-	rtab = xchg(&q->R_tab, rtab);
-	ptab = xchg(&q->P_tab, ptab);
+
+	tmp = q->R_tab;
+	q->R_tab = rtab;
+	rtab = tmp;
+
+	tmp = q->P_tab;
+	q->P_tab = ptab;
+	ptab = tmp;
 	sch_tree_unlock(sch);
 	err = 0;
 done:
@@ -383,7 +391,8 @@ static int tbf_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		new = &noop_qdisc;
 
 	sch_tree_lock(sch);
-	*old = xchg(&q->qdisc, new);
+	*old = q->qdisc;
+	q->qdisc = new;
 	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 	qdisc_reset(*old);
 	sch_tree_unlock(sch);

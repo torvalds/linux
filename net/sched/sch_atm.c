@@ -102,7 +102,8 @@ static int atm_tc_graft(struct Qdisc *sch, unsigned long arg,
 		return -EINVAL;
 	if (!new)
 		new = &noop_qdisc;
-	*old = xchg(&flow->q, new);
+	*old = flow->q;
+	flow->q = new;
 	if (*old)
 		qdisc_reset(*old);
 	return 0;

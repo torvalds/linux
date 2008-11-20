@@ -68,7 +68,8 @@ static int dsmark_graft(struct Qdisc *sch, unsigned long arg,
 	}
 
 	sch_tree_lock(sch);
-	*old = xchg(&p->q, new);
+	*old = p->q;
+	p->q = new;
 	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 	qdisc_reset(*old);
 	sch_tree_unlock(sch);

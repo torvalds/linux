@@ -1202,7 +1202,8 @@ hfsc_graft_class(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	sch_tree_lock(sch);
 	hfsc_purge_queue(sch, cl);
-	*old = xchg(&cl->qdisc, new);
+	*old = cl->qdisc;
+	cl->qdisc = new;
 	sch_tree_unlock(sch);
 	return 0;
 }

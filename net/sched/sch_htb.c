@@ -1100,7 +1100,9 @@ static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		    == NULL)
 			return -ENOBUFS;
 		sch_tree_lock(sch);
-		if ((*old = xchg(&cl->un.leaf.q, new)) != NULL) {
+		*old = cl->un.leaf.q;
+		cl->un.leaf.q = new;
+		if (*old != NULL) {
 			qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 			qdisc_reset(*old);
 		}

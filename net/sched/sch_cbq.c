@@ -1635,7 +1635,8 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 #endif
 		}
 		sch_tree_lock(sch);
-		*old = xchg(&cl->q, new);
+		*old = cl->q;
+		cl->q = new;
 		qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 		qdisc_reset(*old);
 		sch_tree_unlock(sch);
@@ -1776,8 +1777,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 			cbq_deactivate_class(cl);
 
 		if (rtab) {
-			rtab = xchg(&cl->R_tab, rtab);
-			qdisc_put_rtab(rtab);
+			qdisc_put_rtab(cl->R_tab);
+			cl->R_tab = rtab;
 		}
 
 		if (tb[TCA_CBQ_LSSOPT])
