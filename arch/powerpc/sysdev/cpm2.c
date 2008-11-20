@@ -129,7 +129,8 @@ void __cpm2_setbrg(uint brg, uint rate, uint clk, int div16, int src)
 		brg -= 4;
 	}
 	bp += brg;
-	val = (((clk / rate) - 1) << 1) | CPM_BRG_EN | src;
+	/* Round the clock divider to the nearest integer. */
+	val = (((clk * 2 / rate) - 1) & ~1) | CPM_BRG_EN | src;
 	if (div16)
 		val |= CPM_BRG_DIV16;
 
