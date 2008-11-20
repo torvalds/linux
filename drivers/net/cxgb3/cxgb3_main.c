@@ -2828,6 +2828,21 @@ static void __devinit print_port_info(struct adapter *adap,
 	}
 }
 
+static const struct net_device_ops cxgb_netdev_ops = {
+	.ndo_open		= cxgb_open,
+	.ndo_stop		= cxgb_close,
+	.ndo_get_stats		= cxgb_get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= cxgb_set_rxmode,
+	.ndo_do_ioctl		= cxgb_ioctl,
+	.ndo_change_mtu		= cxgb_change_mtu,
+	.ndo_set_mac_address	= cxgb_set_mac_addr,
+	.ndo_vlan_rx_register	= vlan_rx_register,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= cxgb_netpoll,
+#endif
+};
+
 static int __devinit init_one(struct pci_dev *pdev,
 			      const struct pci_device_id *ent)
 {
@@ -2939,20 +2954,8 @@ static int __devinit init_one(struct pci_dev *pdev,
 			netdev->features |= NETIF_F_HIGHDMA;
 
 		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-		netdev->vlan_rx_register = vlan_rx_register;
-
-		netdev->open = cxgb_open;
-		netdev->stop = cxgb_close;
+		netdev->netdev_ops = &cxgb_netdev_ops;
 		netdev->hard_start_xmit = t3_eth_xmit;
-		netdev->get_stats = cxgb_get_stats;
-		netdev->set_multicast_list = cxgb_set_rxmode;
-		netdev->do_ioctl = cxgb_ioctl;
-		netdev->change_mtu = cxgb_change_mtu;
-		netdev->set_mac_address = cxgb_set_mac_addr;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		netdev->poll_controller = cxgb_netpoll;
-#endif
-
 		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
 	}
 
