@@ -119,6 +119,11 @@
 			interrupt-parent = <&mpic>;
 			dfsrr;
 
+			rtc@51 {
+				compatible = "epson,rx8581";
+				reg = <0x00000051>;
+			};
+
 			eti@6b {
 				compatible = "dallas,ds1682";
 				reg = <0x6b>;
