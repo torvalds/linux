@@ -1801,7 +1801,8 @@ void em28xx_card_setup(struct em28xx *dev)
 	em28xx_set_model(dev);
 
 	dev->tuner_type = em28xx_boards[dev->model].tuner_type;
-	dev->tuner_addr = em28xx_boards[dev->model].tuner_addr;
+	if (em28xx_boards[dev->model].tuner_addr)
+		dev->tuner_addr = em28xx_boards[dev->model].tuner_addr;
 
 	/* request some modules */
 	switch (dev->model) {
