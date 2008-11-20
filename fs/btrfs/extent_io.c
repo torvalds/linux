@@ -2462,7 +2462,8 @@ retry:
 			}
 
 			if (wbc->sync_mode != WB_SYNC_NONE) {
-				flush_fn(data);
+				if (PageWriteback(page))
+					flush_fn(data);
 				wait_on_page_writeback(page);
 			}
 
