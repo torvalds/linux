@@ -72,7 +72,7 @@ int mt9m111_init(struct sd *sd)
 	int i, err = 0;
 
 	/* Init the sensor */
-	for (i = 0; i < ARRAY_SIZE(init_mt9m111); i++) {
+	for (i = 0; i < ARRAY_SIZE(init_mt9m111) && !err; i++) {
 		u8 data[2];
 
 		if (init_mt9m111[i][0] == BRIDGE) {
@@ -109,7 +109,7 @@ int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	*val = data[0] & MT9M111_RMB_MIRROR_ROWS;
 	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -133,7 +133,7 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = mt9m111_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 				   data, 2);
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -147,7 +147,7 @@ int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	*val = data[0] & MT9M111_RMB_MIRROR_COLS;
 	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -171,7 +171,7 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = mt9m111_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 					data, 2);
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
@@ -190,7 +190,7 @@ int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 
 	PDEBUG(D_V4L2, "Read gain %d", *val);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
@@ -228,7 +228,7 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	err = mt9m111_write_sensor(sd, MT9M111_SC_GLOBAL_GAIN,
 				   data, 2);
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int mt9m111_read_sensor(struct sd *sd, const u8 address,
@@ -261,7 +261,7 @@ int mt9m111_read_sensor(struct sd *sd, const u8 address,
 		       "0x%x contains 0x%x ", address, *i2c_data);
 	}
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int mt9m111_write_sensor(struct sd *sd, const u8 address,
