@@ -285,6 +285,10 @@ config IOMMU_VMERGE
 config IOMMU_HELPER
 	def_bool PPC64
 
+config PPC_NEED_DMA_SYNC_OPS
+	def_bool y
+	depends on NOT_COHERENT_CACHE
+
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && HOTPLUG && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC)
