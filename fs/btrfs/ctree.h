@@ -580,6 +580,7 @@ struct btrfs_block_group_cache {
 	struct btrfs_block_group_item item;
 	spinlock_t lock;
 	struct mutex alloc_mutex;
+	struct mutex cache_mutex;
 	u64 pinned;
 	u64 reserved;
 	u64 flags;
