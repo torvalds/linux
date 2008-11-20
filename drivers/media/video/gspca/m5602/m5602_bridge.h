@@ -109,7 +109,6 @@ static const unsigned char sensor_urb_skeleton[] = {
 	0x13, M5602_XB_I2C_CTRL, 0x81, 0x11
 };
 
-/* m5602 device descriptor, currently it just wraps the m5602_camera struct */
 struct sd {
 	struct gspca_dev gspca_dev;
 
