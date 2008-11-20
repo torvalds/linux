@@ -1311,6 +1311,22 @@ static void atl2_poll_controller(struct net_device *netdev)
 }
 #endif
 
+
+static const struct net_device_ops atl2_netdev_ops = {
+	.ndo_open		= atl2_open,
+	.ndo_stop		= atl2_close,
+	.ndo_set_multicast_list	= atl2_set_multi,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= atl2_set_mac,
+	.ndo_change_mtu		= atl2_change_mtu,
+	.ndo_do_ioctl		= atl2_ioctl,
+	.ndo_tx_timeout		= atl2_tx_timeout,
+	.ndo_vlan_rx_register	= atl2_vlan_rx_register,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= atl2_poll_controller,
+#endif
+};
+
 /*
  * atl2_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -1384,25 +1400,10 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 
 	atl2_setup_pcicmd(pdev);
 
-	netdev->open = &atl2_open;
-	netdev->stop = &atl2_close;
 	netdev->hard_start_xmit = &atl2_xmit_frame;
-	netdev->set_multicast_list = &atl2_set_multi;
-	netdev->set_mac_address = &atl2_set_mac;
-	netdev->change_mtu = &atl2_change_mtu;
-	netdev->do_ioctl = &atl2_ioctl;
+	netdev->netdev_ops = &atl2_netdev_ops;
 	atl2_set_ethtool_ops(netdev);
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = atl2_poll_controller;
-#endif
-#ifdef HAVE_TX_TIMEOUT
-	netdev->tx_timeout = &atl2_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
-#endif
-#ifdef NETIF_F_HW_VLAN_TX
-	netdev->vlan_rx_register = atl2_vlan_rx_register;
-#endif
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
 	netdev->mem_start = mmio_start;
