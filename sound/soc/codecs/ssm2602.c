@@ -514,6 +514,9 @@ static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
 		SNDRV_PCM_RATE_96000)
 
+#define SSM2602_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
+		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
+
 struct snd_soc_dai ssm2602_dai = {
 	.name = "SSM2602",
 	.playback = {
@@ -521,13 +524,13 @@ struct snd_soc_dai ssm2602_dai = {
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SSM2602_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S32_LE,},
+		.formats = SSM2602_FORMATS,},
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SSM2602_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S32_LE,},
+		.formats = SSM2602_FORMATS,},
 	.ops = {
 		.startup = ssm2602_startup,
 		.prepare = ssm2602_pcm_prepare,
