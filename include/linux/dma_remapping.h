@@ -20,11 +20,4 @@ extern void free_dmar_iommu(struct intel_iommu *iommu);
 
 extern int dmar_disabled;
 
-#ifndef CONFIG_DMAR_GFX_WA
-static inline void iommu_prepare_gfx_mapping(void)
-{
-	return;
-}
-#endif /* !CONFIG_DMAR_GFX_WA */
-
 #endif

@@ -1686,6 +1686,11 @@ static void __init iommu_prepare_gfx_mapping(void)
 			printk(KERN_ERR "IOMMU: mapping reserved region failed\n");
 	}
 }
+#else /* !CONFIG_DMAR_GFX_WA */
+static inline void iommu_prepare_gfx_mapping(void)
+{
+	return;
+}
 #endif
 
 #ifdef CONFIG_DMAR_FLOPPY_WA
