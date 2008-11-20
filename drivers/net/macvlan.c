@@ -361,17 +361,22 @@ static const struct ethtool_ops macvlan_ethtool_ops = {
 	.get_flags		= macvlan_ethtool_get_flags,
 };
 
+static const struct net_device_ops macvlan_netdev_ops = {
+	.ndo_init		= macvlan_init,
+	.ndo_open		= macvlan_open,
+	.ndo_stop		= macvlan_stop,
+	.ndo_change_mtu		= macvlan_change_mtu,
+	.ndo_change_rx_flags	= macvlan_change_rx_flags,
+	.ndo_set_mac_address	= macvlan_set_mac_address,
+	.ndo_set_multicast_list	= macvlan_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static void macvlan_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
-	dev->init		= macvlan_init;
-	dev->open		= macvlan_open;
-	dev->stop		= macvlan_stop;
-	dev->change_mtu		= macvlan_change_mtu;
-	dev->change_rx_flags	= macvlan_change_rx_flags;
-	dev->set_mac_address	= macvlan_set_mac_address;
-	dev->set_multicast_list	= macvlan_set_multicast_list;
+	dev->netdev_ops		= &macvlan_netdev_ops;
 	dev->hard_start_xmit	= macvlan_hard_start_xmit;
 	dev->destructor		= free_netdev;
 	dev->header_ops		= &macvlan_hard_header_ops,
