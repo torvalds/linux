@@ -328,7 +328,7 @@ static int set_ac97_input(struct em28xx *dev)
 	   em28xx should point to LINE IN, while AC97 should use VIDEO
 	 */
 	if (amux == EM28XX_AMUX_VIDEO2)
-		amux = dev->ctl_ainput;
+		amux = EM28XX_AMUX_VIDEO;
 
 	/* Mute all entres but the one that were selected */
 	for (i = 0; i < ARRAY_SIZE(inputs); i++) {
