@@ -141,7 +141,6 @@ struct device_domain_info {
 	struct dmar_domain *domain; /* pointer to domain */
 };
 
-extern int init_dmars(void);
 extern void free_dmar_iommu(struct intel_iommu *iommu);
 
 extern int dmar_disabled;
