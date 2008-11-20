@@ -422,7 +422,7 @@ static int me_probe_pci(struct pci_dev *dev, const struct pci_device_id *id)
 	PDEBUG("module_name: %s\n", module_name);
 
 	if ((constructor =
-	     (me_pci_constructor_t) __symbol_get(constructor_name)) == NULL) {
+	     (me_pci_constructor_t) symbol_get(constructor_name)) == NULL) {
 		if (request_module(module_name)) {
 			PERROR("Error while request for module %s.\n",
 			       module_name);
@@ -430,7 +430,7 @@ static int me_probe_pci(struct pci_dev *dev, const struct pci_device_id *id)
 		}
 
 		if ((constructor =
-		     (me_pci_constructor_t) __symbol_get(constructor_name)) ==
+		     (me_pci_constructor_t) symbol_get(constructor_name)) ==
 		    NULL) {
 			PERROR("Can't get %s driver module constructor.\n",
 			       module_name);
@@ -441,7 +441,7 @@ static int me_probe_pci(struct pci_dev *dev, const struct pci_device_id *id)
 	if ((device & 0xF000) == 0x4000) {	// Bosch build has differnt constructor for me4600.
 		if ((n_device =
 		     (*constructor_bosch) (dev, me_bosch_fw)) == NULL) {
-			__symbol_put(constructor_name);
+			symbol_put(constructor_name);
 			PERROR
 			    ("Can't get device instance of %s driver module.\n",
 			     module_name);
@@ -450,7 +450,7 @@ static int me_probe_pci(struct pci_dev *dev, const struct pci_device_id *id)
 	} else {
 #endif
 		if ((n_device = (*constructor) (dev)) == NULL) {
-			__symbol_put(constructor_name);
+			symbol_put(constructor_name);
 			PERROR
 			    ("Can't get device instance of %s driver module.\n",
 			     module_name);
@@ -503,7 +503,7 @@ static void release_instance(me_device_t * device)
 	if (plugged != ME_PLUGGED_IN) {
 		PDEBUG("release: medummy_constructor\n");
 
-		__symbol_put("medummy_constructor");
+		symbol_put("medummy_constructor");
 	} else {
 		if ((dev_id & 0xF000) == 0x6000) {	// Exceptions: me61xx, me62xx, me63xx are handled by one driver.
 			dev_id &= 0xF0FF;
@@ -513,7 +513,7 @@ static void release_instance(me_device_t * device)
 		constructor_name[3] += (char)((dev_id >> 8) & 0x000F);
 		PDEBUG("release: %s\n", constructor_name);
 
-		__symbol_put(constructor_name);
+		symbol_put(constructor_name);
 	}
 }
 
