@@ -124,8 +124,8 @@ static void ipmr_del_tunnel(struct net_device *dev, struct vifctl *v)
 
 	dev = __dev_get_by_name(&init_net, "tunl0");
 	if (dev) {
+		const struct net_device_ops *ops = dev->netdev_ops;
 		struct ifreq ifr;
-		mm_segment_t	oldfs;
 		struct ip_tunnel_parm p;
 
 		memset(&p, 0, sizeof(p));
@@ -137,9 +137,13 @@ static void ipmr_del_tunnel(struct net_device *dev, struct vifctl *v)
 		sprintf(p.name, "dvmrp%d", v->vifc_vifi);
 		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
 
-		oldfs = get_fs(); set_fs(KERNEL_DS);
-		dev->do_ioctl(dev, &ifr, SIOCDELTUNNEL);
-		set_fs(oldfs);
+		if (ops->ndo_do_ioctl) {
+			mm_segment_t oldfs = get_fs();
+
+			set_fs(KERNEL_DS);
+			ops->ndo_do_ioctl(dev, &ifr, SIOCDELTUNNEL);
+			set_fs(oldfs);
+		}
 	}
 }
 
@@ -151,9 +155,9 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 	dev = __dev_get_by_name(&init_net, "tunl0");
 
 	if (dev) {
+		const struct net_device_ops *ops = dev->netdev_ops;
 		int err;
 		struct ifreq ifr;
-		mm_segment_t	oldfs;
 		struct ip_tunnel_parm p;
 		struct in_device  *in_dev;
 
@@ -166,9 +170,14 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 		sprintf(p.name, "dvmrp%d", v->vifc_vifi);
 		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
 
-		oldfs = get_fs(); set_fs(KERNEL_DS);
-		err = dev->do_ioctl(dev, &ifr, SIOCADDTUNNEL);
-		set_fs(oldfs);
+		if (ops->ndo_do_ioctl) {
+			mm_segment_t oldfs = get_fs();
+
+			set_fs(KERNEL_DS);
+			err = ops->ndo_do_ioctl(dev, &ifr, SIOCADDTUNNEL);
+			set_fs(oldfs);
+		} else
+			err = -EOPNOTSUPP;
 
 		dev = NULL;
 

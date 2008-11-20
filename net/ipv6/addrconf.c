@@ -2031,8 +2031,8 @@ int addrconf_set_dstaddr(struct net *net, void __user *arg)
 
 #if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 	if (dev->type == ARPHRD_SIT) {
+		const struct net_device_ops *ops = dev->netdev_ops;
 		struct ifreq ifr;
-		mm_segment_t	oldfs;
 		struct ip_tunnel_parm p;
 
 		err = -EADDRNOTAVAIL;
@@ -2048,9 +2048,14 @@ int addrconf_set_dstaddr(struct net *net, void __user *arg)
 		p.iph.ttl = 64;
 		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
 
-		oldfs = get_fs(); set_fs(KERNEL_DS);
-		err = dev->do_ioctl(dev, &ifr, SIOCADDTUNNEL);
-		set_fs(oldfs);
+		if (ops->ndo_do_ioctl) {
+			mm_segment_t oldfs = get_fs();
+
+			set_fs(KERNEL_DS);
+			err = ops->ndo_do_ioctl(dev, &ifr, SIOCADDTUNNEL);
+			set_fs(oldfs);
+		} else
+			err = -EOPNOTSUPP;
 
 		if (err == 0) {
 			err = -ENOBUFS;
