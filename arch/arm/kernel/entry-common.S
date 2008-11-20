@@ -101,7 +101,7 @@ ENDPROC(ret_from_fork)
 #undef CALL
 #define CALL(x) .long x
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(mcount)
 	stmdb sp!, {r0-r3, lr}
@@ -149,7 +149,7 @@ trace:
 ftrace_stub:
 	mov pc, lr
 
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 /*=============================================================================
  * SWI handler

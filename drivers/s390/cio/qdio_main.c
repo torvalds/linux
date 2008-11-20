@@ -1083,7 +1083,6 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		case -EIO:
 			sprintf(dbf_text, "ierr%4x", irq_ptr->schid.sch_no);
 			QDIO_DBF_TEXT2(1, setup, dbf_text);
-			qdio_int_error(cdev);
 			return;
 		case -ETIMEDOUT:
 			sprintf(dbf_text, "qtoh%4x", irq_ptr->schid.sch_no);

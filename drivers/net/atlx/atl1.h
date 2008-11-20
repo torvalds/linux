@@ -504,7 +504,7 @@ struct rx_free_desc {
 #define TPD_PKTNT_MASK		0x0001
 #define TPD_PKTINT_SHIFT	15
 #define TPD_VLANTAG_MASK	0xFFFF
-#define TPD_VLAN_SHIFT		16
+#define TPD_VLANTAG_SHIFT	16
 
 /* tpd word 3 bits 0:13 */
 #define TPD_EOP_MASK		0x0001

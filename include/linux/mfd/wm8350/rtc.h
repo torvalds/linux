@@ -261,6 +261,8 @@
 
 struct wm8350_rtc {
 	struct platform_device *pdev;
+	struct rtc_device *rtc;
+	int alarm_enabled;      /* used over suspend/resume */
 };
 
 #endif

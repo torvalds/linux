@@ -38,12 +38,15 @@
 
 #include <asm/uaccess.h>
 #endif
+
+#ifdef CONFIG_X86
 #include <asm/cpufeature.h>
+#endif
 
 #include <acpi/acpi_bus.h>
+#include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
 
-#define ACPI_PROCESSOR_COMPONENT	0x01000000
 #define ACPI_PROCESSOR_CLASS		"processor"
 #define ACPI_PROCESSOR_FILE_PERFORMANCE	"performance"
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
@@ -360,11 +363,13 @@ static int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	 * the BIOS is older than the CPU and does not know its frequencies
 	 */
  update_bios:
+#ifdef CONFIG_X86
 	if (ACPI_SUCCESS(acpi_get_handle(pr->handle, "_PPC", &handle))){
 		if(boot_cpu_has(X86_FEATURE_EST))
 			printk(KERN_WARNING FW_BUG "BIOS needs update for CPU "
 			       "frequency support\n");
 	}
+#endif
 	return result;
 }
 

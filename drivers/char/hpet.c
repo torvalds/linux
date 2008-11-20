@@ -427,9 +427,6 @@ static int hpet_release(struct inode *inode, struct file *file)
 	if (irq)
 		free_irq(irq, devp);
 
-	if (file->f_flags & FASYNC)
-		hpet_fasync(-1, file, 0);
-
 	file->private_data = NULL;
 	return 0;
 }

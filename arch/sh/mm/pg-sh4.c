@@ -7,6 +7,7 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 #include <linux/mm.h>
+#include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/highmem.h>
@@ -15,6 +16,20 @@
 #include <asm/cacheflush.h>
 
 #define CACHE_ALIAS (current_cpu_data.dcache.alias_mask)
+
+#define kmap_get_fixmap_pte(vaddr)                                     \
+	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr)), (vaddr))
+
+static pte_t *kmap_coherent_pte;
+
+void __init kmap_coherent_init(void)
+{
+	unsigned long vaddr;
+
+	/* cache the first coherent kmap pte */
+	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
+	kmap_coherent_pte = kmap_get_fixmap_pte(vaddr);
+}
 
 static inline void *kmap_coherent(struct page *page, unsigned long addr)
 {
@@ -33,6 +48,8 @@ static inline void *kmap_coherent(struct page *page, unsigned long addr)
 	local_irq_restore(flags);
 
 	update_mmu_cache(NULL, vaddr, pte);
+
+	set_pte(kmap_coherent_pte - (FIX_CMAP_END - idx), pte);
 
 	return (void *)vaddr;
 }

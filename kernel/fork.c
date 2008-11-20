@@ -40,6 +40,7 @@
 #include <linux/jiffies.h>
 #include <linux/tracehook.h>
 #include <linux/futex.h>
+#include <linux/compat.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/rcupdate.h>
 #include <linux/ptrace.h>
@@ -518,6 +519,16 @@ EXPORT_SYMBOL_GPL(get_task_mm);
 void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 {
 	struct completion *vfork_done = tsk->vfork_done;
+
+	/* Get rid of any futexes when releasing the mm */
+#ifdef CONFIG_FUTEX
+	if (unlikely(tsk->robust_list))
+		exit_robust_list(tsk);
+#ifdef CONFIG_COMPAT
+	if (unlikely(tsk->compat_robust_list))
+		compat_exit_robust_list(tsk);
+#endif
+#endif
 
 	/* Get rid of any cached register state */
 	deactivate_mm(tsk, mm);

@@ -138,6 +138,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	int peeked;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
+	int is_udp4;
 
 	if (addr_len)
 		*addr_len=sizeof(struct sockaddr_in6);
@@ -157,6 +158,8 @@ try_again:
 		copied = ulen;
 	else if (copied < ulen)
 		msg->msg_flags |= MSG_TRUNC;
+
+	is_udp4 = (skb->protocol == htons(ETH_P_IP));
 
 	/*
 	 * If checksum is needed at all, try to do it while copying the
@@ -180,9 +183,14 @@ try_again:
 	if (err)
 		goto out_free;
 
-	if (!peeked)
-		UDP6_INC_STATS_USER(sock_net(sk),
-				UDP_MIB_INDATAGRAMS, is_udplite);
+	if (!peeked) {
+		if (is_udp4)
+			UDP_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_INDATAGRAMS, is_udplite);
+		else
+			UDP6_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_INDATAGRAMS, is_udplite);
+	}
 
 	sock_recv_timestamp(msg, sk, skb);
 
@@ -196,7 +204,7 @@ try_again:
 		sin6->sin6_flowinfo = 0;
 		sin6->sin6_scope_id = 0;
 
-		if (skb->protocol == htons(ETH_P_IP))
+		if (is_udp4)
 			ipv6_addr_set(&sin6->sin6_addr, 0, 0,
 				      htonl(0xffff), ip_hdr(skb)->saddr);
 		else {
@@ -207,7 +215,7 @@ try_again:
 		}
 
 	}
-	if (skb->protocol == htons(ETH_P_IP)) {
+	if (is_udp4) {
 		if (inet->cmsg_flags)
 			ip_cmsg_recv(msg, skb);
 	} else {
@@ -228,8 +236,14 @@ out:
 
 csum_copy_err:
 	lock_sock(sk);
-	if (!skb_kill_datagram(sk, skb, flags))
-		UDP6_INC_STATS_USER(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
+	if (!skb_kill_datagram(sk, skb, flags)) {
+		if (is_udp4)
+			UDP_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_INERRORS, is_udplite);
+		else
+			UDP6_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_INERRORS, is_udplite);
+	}
 	release_sock(sk);
 
 	if (flags & MSG_DONTWAIT)
@@ -328,7 +342,7 @@ drop:
 	return -1;
 }
 
-static struct sock *udp_v6_mcast_next(struct sock *sk,
+static struct sock *udp_v6_mcast_next(struct net *net, struct sock *sk,
 				      __be16 loc_port, struct in6_addr *loc_addr,
 				      __be16 rmt_port, struct in6_addr *rmt_addr,
 				      int dif)
@@ -340,7 +354,7 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
 	sk_for_each_from(s, node) {
 		struct inet_sock *inet = inet_sk(s);
 
-		if (sock_net(s) != sock_net(sk))
+		if (!net_eq(sock_net(s), net))
 			continue;
 
 		if (s->sk_hash == num && s->sk_family == PF_INET6) {
@@ -383,14 +397,14 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 	read_lock(&udp_hash_lock);
 	sk = sk_head(&udptable[udp_hashfn(net, ntohs(uh->dest))]);
 	dif = inet6_iif(skb);
-	sk = udp_v6_mcast_next(sk, uh->dest, daddr, uh->source, saddr, dif);
+	sk = udp_v6_mcast_next(net, sk, uh->dest, daddr, uh->source, saddr, dif);
 	if (!sk) {
 		kfree_skb(skb);
 		goto out;
 	}
 
 	sk2 = sk;
-	while ((sk2 = udp_v6_mcast_next(sk_next(sk2), uh->dest, daddr,
+	while ((sk2 = udp_v6_mcast_next(net, sk_next(sk2), uh->dest, daddr,
 					uh->source, saddr, dif))) {
 		struct sk_buff *buff = skb_clone(skb, GFP_ATOMIC);
 		if (buff) {

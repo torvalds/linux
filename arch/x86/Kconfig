@@ -28,7 +28,7 @@ config X86
 	select HAVE_KRETPROBES
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
-	select HAVE_FTRACE
+	select HAVE_FUNCTION_TRACER
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
 	select HAVE_ARCH_KGDB if !X86_VOYAGER
 	select HAVE_ARCH_TRACEHOOK
@@ -167,8 +167,11 @@ config GENERIC_PENDING_IRQ
 config X86_SMP
 	bool
 	depends on SMP && ((X86_32 && !X86_VOYAGER) || X86_64)
-	select USE_GENERIC_SMP_HELPERS
 	default y
+
+config USE_GENERIC_SMP_HELPERS
+	def_bool y
+	depends on SMP
 
 config X86_32_SMP
 	def_bool y
@@ -230,6 +233,10 @@ config SMP
 	  <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config X86_HAS_BOOT_CPU_ID
+	def_bool y
+	depends on X86_VOYAGER
 
 config X86_FIND_SMP_CONFIG
 	def_bool y
@@ -1490,7 +1497,7 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool X86_64
 	depends on NUMA
 
-menu "Power management options"
+menu "Power management and ACPI options"
 	depends on !X86_VOYAGER
 
 config ARCH_HIBERNATION_HEADER
@@ -1889,6 +1896,10 @@ config SYSVIPC_COMPAT
 
 endmenu
 
+
+config HAVE_ATOMIC_IOMAP
+	def_bool y
+	depends on X86_32
 
 source "net/Kconfig"
 

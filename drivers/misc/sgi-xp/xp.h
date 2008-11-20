@@ -19,7 +19,11 @@
 #include <asm/system.h>
 #include <asm/sn/arch.h>	/* defines is_shub1() and is_shub2() */
 #define is_shub()	ia64_platform_is("sn2")
+#ifdef CONFIG_IA64_SGI_UV
 #define is_uv()		ia64_platform_is("uv")
+#else
+#define is_uv()		0
+#endif
 #endif
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>

@@ -131,6 +131,9 @@ tracepoint_entry_remove_probe(struct tracepoint_entry *entry, void *probe)
 
 	old = entry->funcs;
 
+	if (!old)
+		return NULL;
+
 	debug_print_probes(entry);
 	/* (N -> M), (N > 1, M >= 0) probes */
 	for (nr_probes = 0; old[nr_probes]; nr_probes++) {
@@ -388,6 +391,11 @@ int tracepoint_probe_unregister(const char *name, void *probe)
 	if (entry->rcu_pending)
 		rcu_barrier_sched();
 	old = tracepoint_entry_remove_probe(entry, probe);
+	if (!old) {
+		printk(KERN_WARNING "Warning: Trying to unregister a probe"
+				    "that doesn't exist\n");
+		goto end;
+	}
 	mutex_unlock(&tracepoints_mutex);
 	tracepoint_update_probes();		/* may update entry */
 	mutex_lock(&tracepoints_mutex);

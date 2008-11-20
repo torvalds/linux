@@ -1,7 +1,7 @@
 #ifndef _LINUX_STRING_H_
 #define _LINUX_STRING_H_
 
-/* We don't want strings.h stuff being user by user stuff by accident */
+/* We don't want strings.h stuff being used by user stuff by accident */
 
 #ifndef __KERNEL__
 #include <string.h>

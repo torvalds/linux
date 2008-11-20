@@ -180,20 +180,20 @@ void adjust_cr(unsigned long mask, unsigned long set)
 #endif
 
 #define PROT_PTE_DEVICE		L_PTE_PRESENT|L_PTE_YOUNG|L_PTE_DIRTY|L_PTE_WRITE
-#define PROT_SECT_DEVICE	PMD_TYPE_SECT|PMD_SECT_XN|PMD_SECT_AP_WRITE
+#define PROT_SECT_DEVICE	PMD_TYPE_SECT|PMD_SECT_AP_WRITE
 
 static struct mem_type mem_types[] = {
 	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
 				  L_PTE_SHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
-		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_UNCACHED,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_S,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_NONSHARED] = { /* ARMv6 non-shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_NONSHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
-		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_TEX(2),
+		.prot_sect	= PROT_SECT_DEVICE,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_CACHED] = {	  /* ioremap_cached */
@@ -205,7 +205,13 @@ static struct mem_type mem_types[] = {
 	[MT_DEVICE_WC] = {	/* ioremap_wc */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC,
 		.prot_l1	= PMD_TYPE_TABLE,
-		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_BUFFERABLE,
+		.prot_sect	= PROT_SECT_DEVICE,
+		.domain		= DOMAIN_IO,
+	},
+	[MT_UNCACHED] = {
+		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PMD_TYPE_SECT | PMD_SECT_XN,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_CACHECLEAN] = {
@@ -273,22 +279,23 @@ static void __init build_mem_type_table(void)
 #endif
 
 	/*
-	 * On non-Xscale3 ARMv5-and-older systems, use CB=01
-	 * (Uncached/Buffered) for ioremap_wc() mappings.  On XScale3
-	 * and ARMv6+, use TEXCB=00100 mappings (Inner/Outer Uncacheable
-	 * in xsc3 parlance, Uncached Normal in ARMv6 parlance).
+	 * Strip out features not present on earlier architectures.
+	 * Pre-ARMv5 CPUs don't have TEX bits.  Pre-ARMv6 CPUs or those
+	 * without extended page tables don't have the 'Shared' bit.
 	 */
-	if (cpu_is_xsc3() || cpu_arch >= CPU_ARCH_ARMv6) {
-		mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_TEX(1);
-		mem_types[MT_DEVICE_WC].prot_sect &= ~PMD_SECT_BUFFERABLE;
-	}
+	if (cpu_arch < CPU_ARCH_ARMv5)
+		for (i = 0; i < ARRAY_SIZE(mem_types); i++)
+			mem_types[i].prot_sect &= ~PMD_SECT_TEX(7);
+	if ((cpu_arch < CPU_ARCH_ARMv6 || !(cr & CR_XP)) && !cpu_is_xsc3())
+		for (i = 0; i < ARRAY_SIZE(mem_types); i++)
+			mem_types[i].prot_sect &= ~PMD_SECT_S;
 
 	/*
-	 * ARMv5 and lower, bit 4 must be set for page tables.
-	 * (was: cache "update-able on write" bit on ARM610)
-	 * However, Xscale cores require this bit to be cleared.
+	 * ARMv5 and lower, bit 4 must be set for page tables (was: cache
+	 * "update-able on write" bit on ARM610).  However, Xscale and
+	 * Xscale3 require this bit to be cleared.
 	 */
-	if (cpu_is_xscale()) {
+	if (cpu_is_xscale() || cpu_is_xsc3()) {
 		for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
 			mem_types[i].prot_sect &= ~PMD_BIT4;
 			mem_types[i].prot_l1 &= ~PMD_BIT4;
@@ -302,6 +309,64 @@ static void __init build_mem_type_table(void)
 		}
 	}
 
+	/*
+	 * Mark the device areas according to the CPU/architecture.
+	 */
+	if (cpu_is_xsc3() || (cpu_arch >= CPU_ARCH_ARMv6 && (cr & CR_XP))) {
+		if (!cpu_is_xsc3()) {
+			/*
+			 * Mark device regions on ARMv6+ as execute-never
+			 * to prevent speculative instruction fetches.
+			 */
+			mem_types[MT_DEVICE].prot_sect |= PMD_SECT_XN;
+			mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_XN;
+			mem_types[MT_DEVICE_CACHED].prot_sect |= PMD_SECT_XN;
+			mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_XN;
+		}
+		if (cpu_arch >= CPU_ARCH_ARMv7 && (cr & CR_TRE)) {
+			/*
+			 * For ARMv7 with TEX remapping,
+			 * - shared device is SXCB=1100
+			 * - nonshared device is SXCB=0100
+			 * - write combine device mem is SXCB=0001
+			 * (Uncached Normal memory)
+			 */
+			mem_types[MT_DEVICE].prot_sect |= PMD_SECT_TEX(1);
+			mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_TEX(1);
+			mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_BUFFERABLE;
+		} else if (cpu_is_xsc3()) {
+			/*
+			 * For Xscale3,
+			 * - shared device is TEXCB=00101
+			 * - nonshared device is TEXCB=01000
+			 * - write combine device mem is TEXCB=00100
+			 * (Inner/Outer Uncacheable in xsc3 parlance)
+			 */
+			mem_types[MT_DEVICE].prot_sect |= PMD_SECT_TEX(1) | PMD_SECT_BUFFERED;
+			mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_TEX(2);
+			mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_TEX(1);
+		} else {
+			/*
+			 * For ARMv6 and ARMv7 without TEX remapping,
+			 * - shared device is TEXCB=00001
+			 * - nonshared device is TEXCB=01000
+			 * - write combine device mem is TEXCB=00100
+			 * (Uncached Normal in ARMv6 parlance).
+			 */
+			mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
+			mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_TEX(2);
+			mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_TEX(1);
+		}
+	} else {
+		/*
+		 * On others, write combining is "Uncached/Buffered"
+		 */
+		mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_BUFFERABLE;
+	}
+
+	/*
+	 * Now deal with the memory-type mappings
+	 */
 	cp = &cache_policies[cachepolicy];
 	vecs_pgprot = kern_pgprot = user_pgprot = cp->pte;
 
@@ -317,12 +382,8 @@ static void __init build_mem_type_table(void)
 	 * Enable CPU-specific coherency if supported.
 	 * (Only available on XSC3 at the moment.)
 	 */
-	if (arch_is_coherent()) {
-		if (cpu_is_xsc3()) {
-			mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
-			mem_types[MT_MEMORY].prot_pte |= L_PTE_SHARED;
-		}
-	}
+	if (arch_is_coherent() && cpu_is_xsc3())
+		mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
 
 	/*
 	 * ARMv6 and above have extended page tables.
@@ -335,11 +396,6 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_ROM].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_MINICLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
-
-		/*
-		 * Mark the device area as "shared device"
-		 */
-		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
 
 #ifdef CONFIG_SMP
 		/*
@@ -359,9 +415,6 @@ static void __init build_mem_type_table(void)
 
 	mem_types[MT_LOW_VECTORS].prot_pte |= vecs_pgprot;
 	mem_types[MT_HIGH_VECTORS].prot_pte |= vecs_pgprot;
-
-	if (cpu_arch < CPU_ARCH_ARMv5)
-		mem_types[MT_MINICLEAN].prot_sect &= ~PMD_SECT_TEX(1);
 
 	pgprot_user   = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | user_pgprot);
 	pgprot_kernel = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
@@ -654,7 +707,7 @@ static inline void prepare_page_table(struct meminfo *mi)
 	/*
 	 * Clear out all the mappings below the kernel image.
 	 */
-	for (addr = 0; addr < MODULE_START; addr += PGDIR_SIZE)
+	for (addr = 0; addr < MODULES_VADDR; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
 
 #ifdef CONFIG_XIP_KERNEL
@@ -766,7 +819,7 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	 */
 #ifdef CONFIG_XIP_KERNEL
 	map.pfn = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & SECTION_MASK);
-	map.virtual = MODULE_START;
+	map.virtual = MODULES_VADDR;
 	map.length = ((unsigned long)&_etext - map.virtual + ~SECTION_MASK) & SECTION_MASK;
 	map.type = MT_ROM;
 	create_mapping(&map);

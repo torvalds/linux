@@ -1276,7 +1276,7 @@ config SERIAL_SGI_IOC3
 	  say Y or M.  Otherwise, say N.
 
 config SERIAL_NETX
-	bool "NetX serial port support"
+	tristate "NetX serial port support"
 	depends on ARM && ARCH_NETX
 	select SERIAL_CORE
 	help
@@ -1288,7 +1288,7 @@ config SERIAL_NETX
 
 config SERIAL_NETX_CONSOLE
 	bool "Console on NetX serial port"
-	depends on SERIAL_NETX
+	depends on SERIAL_NETX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have enabled the serial port on the Hilscher NetX SoC

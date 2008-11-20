@@ -107,6 +107,7 @@ extern key_ref_t search_process_keyrings(struct key_type *type,
 
 extern struct key *find_keyring_by_name(const char *name, bool skip_perm_check);
 
+extern int install_user_keyrings(struct task_struct *tsk);
 extern int install_thread_keyring(struct task_struct *tsk);
 extern int install_process_keyring(struct task_struct *tsk);
 

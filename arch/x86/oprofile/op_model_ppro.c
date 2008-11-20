@@ -27,8 +27,7 @@ static int num_counters = 2;
 static int counter_width = 32;
 
 #define CTR_IS_RESERVED(msrs, c) (msrs->counters[(c)].addr ? 1 : 0)
-#define CTR_READ(l, h, msrs, c) do {rdmsr(msrs->counters[(c)].addr, (l), (h)); } while (0)
-#define CTR_OVERFLOWED(n) (!((n) & (1U<<(counter_width-1))))
+#define CTR_OVERFLOWED(n) (!((n) & (1ULL<<(counter_width-1))))
 
 #define CTRL_IS_RESERVED(msrs, c) (msrs->controls[(c)].addr ? 1 : 0)
 #define CTRL_READ(l, h, msrs, c) do {rdmsr((msrs->controls[(c)].addr), (l), (h)); } while (0)
@@ -124,14 +123,14 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 static int ppro_check_ctrs(struct pt_regs * const regs,
 			   struct op_msrs const * const msrs)
 {
-	unsigned int low, high;
+	u64 val;
 	int i;
 
 	for (i = 0 ; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
-		CTR_READ(low, high, msrs, i);
-		if (CTR_OVERFLOWED(low)) {
+		rdmsrl(msrs->counters[i].addr, val);
+		if (CTR_OVERFLOWED(val)) {
 			oprofile_add_sample(regs, i);
 			wrmsrl(msrs->counters[i].addr, -reset_value[i]);
 		}

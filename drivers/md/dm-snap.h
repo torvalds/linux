@@ -160,6 +160,8 @@ struct dm_snapshot {
 
 	mempool_t *pending_pool;
 
+	atomic_t pending_exceptions_count;
+
 	struct exception_table pending;
 	struct exception_table complete;
 
