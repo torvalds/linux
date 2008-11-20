@@ -104,6 +104,7 @@ static void yukon_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_init(struct skge_hw *hw, int port);
 static void genesis_mac_init(struct skge_hw *hw, int port);
 static void genesis_link_up(struct skge_port *skge);
+static void skge_set_multicast(struct net_device *dev);
 
 /* Avoid conditionals by using array */
 static const int txqaddr[] = { Q_XA1, Q_XA2 };
@@ -2463,7 +2464,7 @@ static void skge_phy_reset(struct skge_port *skge)
 	}
 	spin_unlock_bh(&hw->phy_lock);
 
-	dev->set_multicast_list(dev);
+	skge_set_multicast(dev);
 }
 
 /* Basic MII support */
@@ -3029,6 +3030,18 @@ static inline int bad_phy_status(const struct skge_hw *hw, u32 status)
 	else
 		return (status & GMR_FS_ANY_ERR) ||
 			(status & GMR_FS_RX_OK) == 0;
+}
+
+static void skge_set_multicast(struct net_device *dev)
+{
+	struct skge_port *skge = netdev_priv(dev);
+	struct skge_hw *hw = skge->hw;
+
+	if (hw->chip_id == CHIP_ID_GENESIS)
+		genesis_set_multicast(dev);
+	else
+		yukon_set_multicast(dev);
+
 }
 
 
@@ -3715,7 +3728,7 @@ static int skge_device_event(struct notifier_block *unused,
 	struct skge_port *skge;
 	struct dentry *d;
 
-	if (dev->open != &skge_up || !skge_debug)
+	if (dev->netdev_ops->ndo_open != &skge_up || !skge_debug)
 		goto done;
 
 	skge = netdev_priv(dev);
@@ -3789,6 +3802,22 @@ static __exit void skge_debug_cleanup(void)
 #define skge_debug_cleanup()
 #endif
 
+static const struct net_device_ops skge_netdev_ops = {
+	.ndo_open		= skge_up,
+	.ndo_stop		= skge_down,
+	.ndo_do_ioctl		= skge_ioctl,
+	.ndo_get_stats		= skge_get_stats,
+	.ndo_tx_timeout		= skge_tx_timeout,
+	.ndo_change_mtu		= skge_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= skge_set_multicast,
+	.ndo_set_mac_address	= skge_set_mac_address,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= skge_netpoll,
+#endif
+};
+
+
 /* Initialize network device */
 static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 				       int highmem)
@@ -3802,24 +3831,10 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	}
 
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
-	dev->open = skge_up;
-	dev->stop = skge_down;
-	dev->do_ioctl = skge_ioctl;
 	dev->hard_start_xmit = skge_xmit_frame;
-	dev->get_stats = skge_get_stats;
-	if (hw->chip_id == CHIP_ID_GENESIS)
-		dev->set_multicast_list = genesis_set_multicast;
-	else
-		dev->set_multicast_list = yukon_set_multicast;
-
-	dev->set_mac_address = skge_set_mac_address;
-	dev->change_mtu = skge_change_mtu;
-	SET_ETHTOOL_OPS(dev, &skge_ethtool_ops);
-	dev->tx_timeout = skge_tx_timeout;
+	dev->netdev_ops = &skge_netdev_ops;
+	dev->ethtool_ops = &skge_ethtool_ops;
 	dev->watchdog_timeo = TX_WATCHDOG;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = skge_netpoll;
-#endif
 	dev->irq = hw->pdev->irq;
 
 	if (highmem)
