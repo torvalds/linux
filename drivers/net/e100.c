@@ -2612,6 +2612,20 @@ static int e100_close(struct net_device *netdev)
 	return 0;
 }
 
+static const struct net_device_ops e100_netdev_ops = {
+	.ndo_open		= e100_open,
+	.ndo_stop		= e100_close,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= e100_set_multicast_list,
+	.ndo_set_mac_address	= e100_set_mac_address,
+	.ndo_change_mtu		= e100_change_mtu,
+	.ndo_do_ioctl		= e100_do_ioctl,
+	.ndo_tx_timeout		= e100_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= e100_netpoll,
+#endif
+};
+
 static int __devinit e100_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
@@ -2625,19 +2639,10 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	netdev->open = e100_open;
-	netdev->stop = e100_close;
+	netdev->netdev_ops = &e100_netdev_ops;
 	netdev->hard_start_xmit = e100_xmit_frame;
-	netdev->set_multicast_list = e100_set_multicast_list;
-	netdev->set_mac_address = e100_set_mac_address;
-	netdev->change_mtu = e100_change_mtu;
-	netdev->do_ioctl = e100_do_ioctl;
 	SET_ETHTOOL_OPS(netdev, &e100_ethtool_ops);
-	netdev->tx_timeout = e100_tx_timeout;
 	netdev->watchdog_timeo = E100_WATCHDOG_PERIOD;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = e100_netpoll;
-#endif
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
 	nic = netdev_priv(netdev);
@@ -2845,7 +2850,7 @@ static pci_ers_result_t e100_io_error_detected(struct pci_dev *pdev, pci_channel
 	struct nic *nic = netdev_priv(netdev);
 
 	/* Similar to calling e100_down(), but avoids adapter I/O. */
-	netdev->stop(netdev);
+	e100_close(netdev);
 
 	/* Detach; put netif into a state similar to hotplug unplug. */
 	napi_enable(&nic->napi);
