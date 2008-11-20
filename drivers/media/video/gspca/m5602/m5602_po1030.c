@@ -73,19 +73,28 @@ int po1030_read_sensor(struct sd *sd, const u8 address,
 		err = m5602_read_bridge(sd, M5602_XB_I2C_STATUS, i2c_data);
 	} while ((*i2c_data & I2C_BUSY) && !err);
 
-	m5602_write_bridge(sd, M5602_XB_I2C_DEV_ADDR,
-			   sd->sensor->i2c_slave_id);
-	m5602_write_bridge(sd, M5602_XB_I2C_REG_ADDR, address);
-	m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x10 + len);
-	m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x08);
+	err = m5602_write_bridge(sd, M5602_XB_I2C_DEV_ADDR,
+				 sd->sensor->i2c_slave_id);
+	if (err < 0)
+		goto out;
+	err = m5602_write_bridge(sd, M5602_XB_I2C_REG_ADDR, address);
+	if (err < 0)
+		goto out;
+	err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x10 + len);
+	if (err < 0)
+		goto out;
+	err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x08);
+	if (err < 0)
+		goto out;
 
-	for (i = 0; i < len; i++) {
+	for (i = 0; (i < len) && !err; i++) {
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
 		PDEBUG(D_CONF, "Reading sensor register "
 				"0x%x containing 0x%x ", address, *i2c_data);
 	}
-	return (err < 0) ? err : 0;
+out:
+	return err;
 }
 
 int po1030_write_sensor(struct sd *sd, const u8 address,
@@ -135,7 +144,7 @@ int po1030_init(struct sd *sd)
 	int i, err = 0;
 
 	/* Init the sensor */
-	for (i = 0; i < ARRAY_SIZE(init_po1030); i++) {
+	for (i = 0; i < ARRAY_SIZE(init_po1030) && !err; i++) {
 		u8 data[2] = {0x00, 0x00};
 
 		switch (init_po1030[i][0]) {
@@ -166,7 +175,7 @@ int po1030_init(struct sd *sd)
 	if (dump_sensor)
 		po1030_dump_registers(sd);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
@@ -187,7 +196,7 @@ int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 
 	PDEBUG(D_V4L2, "Exposure read as %d", *val);
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
@@ -214,7 +223,7 @@ int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 				  &i2c_data, 1);
 
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
@@ -228,7 +237,7 @@ int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	*val = i2c_data;
 	PDEBUG(D_V4L2, "Read global gain %d", *val);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -244,7 +253,7 @@ int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 
 	PDEBUG(D_V4L2, "Read hflip %d", *val);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -260,7 +269,7 @@ int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = po1030_write_sensor(sd, PO1030_REG_CONTROL2,
 				  &i2c_data, 1);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -276,7 +285,7 @@ int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 
 	PDEBUG(D_V4L2, "Read vflip %d", *val);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -292,7 +301,7 @@ int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = po1030_write_sensor(sd, PO1030_REG_CONTROL2,
 				  &i2c_data, 1);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val)
@@ -305,7 +314,7 @@ int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set global gain to %d", i2c_data);
 	err = po1030_write_sensor(sd, PO1030_REG_GLOBALGAIN,
 				  &i2c_data, 1);
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
@@ -318,7 +327,7 @@ int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
 				 &i2c_data, 1);
 	*val = i2c_data;
 	PDEBUG(D_V4L2, "Read red gain %d", *val);
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
@@ -331,7 +340,7 @@ int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set red gain to %d", i2c_data);
 	err = po1030_write_sensor(sd, PO1030_REG_RED_GAIN,
 				  &i2c_data, 1);
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
@@ -345,7 +354,7 @@ int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	*val = i2c_data;
 	PDEBUG(D_V4L2, "Read blue gain %d", *val);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
@@ -358,7 +367,7 @@ int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	err = po1030_write_sensor(sd, PO1030_REG_BLUE_GAIN,
 				  &i2c_data, 1);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int po1030_power_down(struct sd *sd)
