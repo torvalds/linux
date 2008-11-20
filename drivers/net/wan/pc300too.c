@@ -319,6 +319,35 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 	}
 	pci_set_drvdata(pdev, card);
 
+	if (pci_resource_len(pdev, 0) != PC300_PLX_SIZE ||
+	    pci_resource_len(pdev, 2) != PC300_SCA_SIZE ||
+	    pci_resource_len(pdev, 3) < 16384) {
+		printk(KERN_ERR "pc300: invalid card EEPROM parameters\n");
+		pc300_pci_remove_one(pdev);
+		return -EFAULT;
+	}
+
+	plxphys = pci_resource_start(pdev, 0) & PCI_BASE_ADDRESS_MEM_MASK;
+	card->plxbase = ioremap(plxphys, PC300_PLX_SIZE);
+
+	scaphys = pci_resource_start(pdev, 2) & PCI_BASE_ADDRESS_MEM_MASK;
+	card->scabase = ioremap(scaphys, PC300_SCA_SIZE);
+
+	ramphys = pci_resource_start(pdev, 3) & PCI_BASE_ADDRESS_MEM_MASK;
+	card->rambase = pci_ioremap_bar(pdev, 3);
+
+	if (card->plxbase == NULL ||
+	    card->scabase == NULL ||
+	    card->rambase == NULL) {
+		printk(KERN_ERR "pc300: ioremap() failed\n");
+		pc300_pci_remove_one(pdev);
+	}
+
+	/* PLX PCI 9050 workaround for local configuration register read bug */
+	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, scaphys);
+	card->init_ctrl_value = readl(&((plx9050 __iomem *)card->scabase)->init_ctrl);
+	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, plxphys);
+
 	if (pdev->device == PCI_DEVICE_ID_PC300_TE_1 ||
 	    pdev->device == PCI_DEVICE_ID_PC300_TE_2)
 		card->type = PC300_TE; /* not fully supported */
@@ -339,35 +368,6 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 			pc300_pci_remove_one(pdev);
 			return -ENOMEM;
 		}
-
-	if (pci_resource_len(pdev, 0) != PC300_PLX_SIZE ||
-	    pci_resource_len(pdev, 2) != PC300_SCA_SIZE ||
-	    pci_resource_len(pdev, 3) < 16384) {
-		printk(KERN_ERR "pc300: invalid card EEPROM parameters\n");
-		pc300_pci_remove_one(pdev);
-		return -EFAULT;
-	}
-
-	plxphys = pci_resource_start(pdev,0) & PCI_BASE_ADDRESS_MEM_MASK;
-	card->plxbase = ioremap(plxphys, PC300_PLX_SIZE);
-
-	scaphys = pci_resource_start(pdev,2) & PCI_BASE_ADDRESS_MEM_MASK;
-	card->scabase = ioremap(scaphys, PC300_SCA_SIZE);
-
-	ramphys = pci_resource_start(pdev,3) & PCI_BASE_ADDRESS_MEM_MASK;
-	card->rambase = pci_ioremap_bar(pdev, 3);
-
-	if (card->plxbase == NULL ||
-	    card->scabase == NULL ||
-	    card->rambase == NULL) {
-		printk(KERN_ERR "pc300: ioremap() failed\n");
-		pc300_pci_remove_one(pdev);
-	}
-
-	/* PLX PCI 9050 workaround for local configuration register read bug */
-	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, scaphys);
-	card->init_ctrl_value = readl(&((plx9050 __iomem *)card->scabase)->init_ctrl);
-	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, plxphys);
 
 	/* Reset PLX */
 	p = &card->plxbase->init_ctrl;
