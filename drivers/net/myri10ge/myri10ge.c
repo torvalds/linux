@@ -1309,7 +1309,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, struct myri10ge_rx_buf *rx,
 
 	skb = netdev_alloc_skb(dev, MYRI10GE_HLEN + 16);
 	if (unlikely(skb == NULL)) {
-		mgp->stats.rx_dropped++;
+		ss->stats.rx_dropped++;
 		do {
 			i--;
 			put_page(rx_frags[i].page);
@@ -2926,6 +2926,7 @@ static int myri10ge_sw_tso(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sk_buff *segs, *curr;
 	struct myri10ge_priv *mgp = netdev_priv(dev);
+	struct myri10ge_slice_state *ss;
 	int status;
 
 	segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO6);
@@ -2952,8 +2953,9 @@ static int myri10ge_sw_tso(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 
 drop:
+	ss = &mgp->ss[skb_get_queue_mapping(skb)];
 	dev_kfree_skb_any(skb);
-	mgp->stats.tx_dropped += 1;
+	ss->stats.tx_dropped += 1;
 	return 0;
 }
 
