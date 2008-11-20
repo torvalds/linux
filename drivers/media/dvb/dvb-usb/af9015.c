@@ -745,8 +745,8 @@ static int af9015_read_config(struct usb_device *udev)
 				break;
 			}
 		} else {
-			switch (udev->descriptor.idVendor) {
-			case cpu_to_le16(USB_VID_LEADTEK):
+			switch (le16_to_cpu(udev->descriptor.idVendor)) {
+			case USB_VID_LEADTEK:
 				af9015_properties[i].rc_key_map =
 				  af9015_rc_keys_leadtek;
 				af9015_properties[i].rc_key_map_size =
@@ -756,7 +756,7 @@ static int af9015_read_config(struct usb_device *udev)
 				af9015_config.ir_table_size =
 				  ARRAY_SIZE(af9015_ir_table_leadtek);
 				break;
-			case cpu_to_le16(USB_VID_VISIONPLUS):
+			case USB_VID_VISIONPLUS:
 				if (udev->descriptor.idProduct ==
 				cpu_to_le16(USB_PID_AZUREWAVE_AD_TU700)) {
 					af9015_properties[i].rc_key_map =
@@ -769,7 +769,7 @@ static int af9015_read_config(struct usb_device *udev)
 					  ARRAY_SIZE(af9015_ir_table_twinhan);
 				}
 				break;
-			case cpu_to_le16(USB_VID_KWORLD_2):
+			case USB_VID_KWORLD_2:
 				/* TODO: use correct rc keys */
 				af9015_properties[i].rc_key_map =
 				  af9015_rc_keys_twinhan;
@@ -782,7 +782,7 @@ static int af9015_read_config(struct usb_device *udev)
 			/* Check USB manufacturer and product strings and try
 			   to determine correct remote in case of chip vendor
 			   reference IDs are used. */
-			case cpu_to_le16(USB_VID_AFATECH):
+			case USB_VID_AFATECH:
 				memset(manufacturer, 0, sizeof(manufacturer));
 				usb_string(udev, udev->descriptor.iManufacturer,
 					manufacturer, sizeof(manufacturer));
@@ -810,7 +810,7 @@ static int af9015_read_config(struct usb_device *udev)
 					  ARRAY_SIZE(af9015_ir_table_msi);
 				}
 				break;
-			case cpu_to_le16(USB_VID_AVERMEDIA):
+			case USB_VID_AVERMEDIA:
 				af9015_properties[i].rc_key_map =
 				  af9015_rc_keys_avermedia;
 				af9015_properties[i].rc_key_map_size =
