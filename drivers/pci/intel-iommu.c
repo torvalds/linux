@@ -128,6 +128,28 @@ struct context_entry {
 	do {(c).hi |= ((val) & ((1 << 16) - 1)) << 8;} while (0)
 #define context_clear_entry(c) do {(c).lo = 0; (c).hi = 0;} while (0)
 
+/*
+ * 0: readable
+ * 1: writable
+ * 2-6: reserved
+ * 7: super page
+ * 8-11: available
+ * 12-63: Host physcial address
+ */
+struct dma_pte {
+	u64 val;
+};
+#define dma_clear_pte(p)	do {(p).val = 0;} while (0)
+
+#define dma_set_pte_readable(p) do {(p).val |= DMA_PTE_READ;} while (0)
+#define dma_set_pte_writable(p) do {(p).val |= DMA_PTE_WRITE;} while (0)
+#define dma_set_pte_prot(p, prot) \
+		do {(p).val = ((p).val & ~3) | ((prot) & 3); } while (0)
+#define dma_pte_addr(p) ((p).val & VTD_PAGE_MASK)
+#define dma_set_pte_addr(p, addr) do {\
+		(p).val |= ((addr) & VTD_PAGE_MASK); } while (0)
+#define dma_pte_present(p) (((p).val & 3) != 0)
+
 static void flush_unmaps_timeout(unsigned long data);
 
 DEFINE_TIMER(unmap_timer,  flush_unmaps_timeout, 0, 0);

@@ -11,30 +11,8 @@
 
 struct root_entry;
 
-/*
- * 0: readable
- * 1: writable
- * 2-6: reserved
- * 7: super page
- * 8-11: available
- * 12-63: Host physcial address
- */
-struct dma_pte {
-	u64 val;
-};
-#define dma_clear_pte(p)	do {(p).val = 0;} while (0)
-
 #define DMA_PTE_READ (1)
 #define DMA_PTE_WRITE (2)
-
-#define dma_set_pte_readable(p) do {(p).val |= DMA_PTE_READ;} while (0)
-#define dma_set_pte_writable(p) do {(p).val |= DMA_PTE_WRITE;} while (0)
-#define dma_set_pte_prot(p, prot) \
-		do {(p).val = ((p).val & ~3) | ((prot) & 3); } while (0)
-#define dma_pte_addr(p) ((p).val & VTD_PAGE_MASK)
-#define dma_set_pte_addr(p, addr) do {\
-		(p).val |= ((addr) & VTD_PAGE_MASK); } while (0)
-#define dma_pte_present(p) (((p).val & 3) != 0)
 
 struct intel_iommu;
 
