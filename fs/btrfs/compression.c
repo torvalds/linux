@@ -419,7 +419,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		/* open coding of lru_cache_add, also not exported */
 		page_cache_get(page);
 		if (!pagevec_add(&pvec, page))
-			__pagevec_lru_add(&pvec);
+			__pagevec_lru_add_file(&pvec);
 
 		end = last_offset + PAGE_CACHE_SIZE - 1;
 		/*
@@ -475,7 +475,7 @@ next:
 		last_offset += PAGE_CACHE_SIZE;
 	}
 	if (pagevec_count(&pvec))
-		__pagevec_lru_add(&pvec);
+		__pagevec_lru_add_file(&pvec);
 	return 0;
 }
 

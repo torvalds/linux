@@ -8,24 +8,24 @@
  
 v="v0.16"
 
-which hg > /dev/null
-if [ -d .hg ] && [ $? == 0 ]; then
-	last=$(hg tags | grep -m1 -o '^v[0-9.]\+')
-	 
-	# now check if the repo has commits since then...
-	if [[ $(hg id -t) == $last || \
-	    $(hg di -r "$last:." | awk '/^diff/{print $NF}' | sort -u) == .hgtags ]]
-	then
-	    # check if it's dirty
-	    if [[ $(hg id | cut -d' ' -f1) == *+ ]]; then
-		v=$last+
-	    else
-		v=$last
+which git &> /dev/null
+if [ $? == 0 ]; then
+    git branch >& /dev/null
+    if [ $? == 0 ]; then
+	    if head=`git rev-parse --verify HEAD 2>/dev/null`; then
+		if tag=`git describe --tags 2>/dev/null`; then
+		    v="$tag"
+		fi
+
+		# Are there uncommitted changes?
+		git update-index --refresh --unmerged > /dev/null
+		if git diff-index --name-only HEAD | \
+		    grep -v "^scripts/package" \
+		    | read dummy; then
+		    v="$v"-dirty
+		fi
 	    fi
-	else
-	    # includes dirty flag
-	    v=$last+$(hg id -i)
-	fi
+    fi
 fi
  
 echo "#ifndef __BUILD_VERSION" > .build-version.h

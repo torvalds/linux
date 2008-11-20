@@ -28,6 +28,7 @@
 #include "volumes.h"
 #include "locking.h"
 #include "ref-cache.h"
+#include "compat.h"
 
 #define PENDING_EXTENT_INSERT 0
 #define PENDING_EXTENT_DELETE 1
@@ -899,6 +900,17 @@ static int noinline remove_extent_backref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+static void btrfs_issue_discard(struct block_device *bdev,
+				u64 start, u64 len)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+	blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL);
+#else
+	blkdev_issue_discard(bdev, start >> 9, len >> 9);
+#endif
+}
+
+
 static int noinline free_extents(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *extent_root,
 				 struct list_head *del_list)
@@ -1108,6 +1120,7 @@ search:
 			BUG_ON(ret);
 
 #ifdef BIO_RW_DISCARD
+			map_length = tmp->num_bytes;
 			ret = btrfs_map_block(&info->mapping_tree, READ,
 					      tmp->bytenr, &map_length, &multi,
 					      0);
@@ -1115,16 +1128,16 @@ search:
 				struct btrfs_bio_stripe *stripe;
 				int i;
 
-				stripe = multi->stripe;
+				stripe = multi->stripes;
 
 				if (map_length > tmp->num_bytes)
 					map_length = tmp->num_bytes;
 
 				for (i = 0; i < multi->num_stripes;
 				     i++, stripe++)
-					blkdev_issue_discard(stripe->dev->bdev,
-							stripe->physical >> 9,
-							map_length >> 9);
+					btrfs_issue_discard(stripe->dev->bdev,
+							    stripe->physical,
+							    map_length);
 				kfree(multi);
 			}
 #endif
@@ -2498,9 +2511,9 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 				map_length = num_bytes;
 
 			for (i = 0; i < multi->num_stripes; i++, stripe++) {
-				blkdev_issue_discard(stripe->dev->bdev,
-						     stripe->physical >> 9,
-						     map_length >> 9);
+				btrfs_issue_discard(stripe->dev->bdev,
+						    stripe->physical,
+						     map_length);
 			}
 			kfree(multi);
 		}

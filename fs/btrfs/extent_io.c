@@ -2639,14 +2639,14 @@ int extent_readpages(struct extent_io_tree *tree,
 			/* open coding of lru_cache_add, also not exported */
 			page_cache_get(page);
 			if (!pagevec_add(&pvec, page))
-				__pagevec_lru_add(&pvec);
+				__pagevec_lru_add_file(&pvec);
 			__extent_read_full_page(tree, page, get_extent,
 						&bio, 0, &bio_flags);
 		}
 		page_cache_release(page);
 	}
 	if (pagevec_count(&pvec))
-		__pagevec_lru_add(&pvec);
+		__pagevec_lru_add_file(&pvec);
 	BUG_ON(!list_empty(pages));
 	if (bio)
 		submit_one_bio(READ, bio, 0, bio_flags);
