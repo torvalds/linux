@@ -262,16 +262,20 @@ static void veth_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+static const struct net_device_ops veth_netdev_ops = {
+	.ndo_init	= veth_dev_init,
+	.ndo_open	= veth_open,
+	.ndo_get_stats	= veth_get_stats,
+};
+
 static void veth_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
+	dev->netdev_ops = &veth_netdev_ops;
 	dev->hard_start_xmit = veth_xmit;
-	dev->get_stats = veth_get_stats;
-	dev->open = veth_open;
 	dev->ethtool_ops = &veth_ethtool_ops;
 	dev->features |= NETIF_F_LLTX;
-	dev->init = veth_dev_init;
 	dev->destructor = veth_dev_free;
 }
 
@@ -297,7 +301,7 @@ static int veth_device_event(struct notifier_block *unused,
 {
 	struct net_device *dev = ptr;
 
-	if (dev->open != veth_open)
+	if (dev->netdev_ops->ndo_open != veth_open)
 		goto out;
 
 	switch (event) {
