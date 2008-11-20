@@ -32,6 +32,7 @@ cflags-$(CONFIG_CPU_SH4)		:= $(call cc-option,-m4,) \
 	$(call cc-option,-mno-implicit-fp,-m4-nofpu)
 cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a,) \
 					   $(call cc-option,-m4a-nofpu,)
+cflags-$(CONFIG_CPU_SH4AL_DSP)		+= $(call cc-option,-m4al,)
 cflags-$(CONFIG_CPU_SH5)		:= $(call cc-option,-m5-32media-nofpu,)
 
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
