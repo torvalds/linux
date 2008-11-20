@@ -15,8 +15,8 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
+#include <linux/atmel-mci.h>
 
-#include <asm/atmel-mci.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
