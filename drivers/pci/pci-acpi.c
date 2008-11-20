@@ -24,15 +24,14 @@ struct acpi_osc_data {
 	acpi_handle handle;
 	u32 support_set;
 	u32 control_set;
+	u32 control_query;
 	int is_queried;
-	u32 query_result;
 	struct list_head sibiling;
 };
 static LIST_HEAD(acpi_osc_data_list);
 
 struct acpi_osc_args {
 	u32 capbuf[3];
-	u32 query_result;
 };
 
 static DEFINE_MUTEX(pci_acpi_lock);
@@ -58,7 +57,7 @@ static u8 OSC_UUID[16] = {0x5B, 0x4D, 0xDB, 0x33, 0xF7, 0x1F, 0x1C, 0x40,
 			  0x96, 0x57, 0x74, 0x41, 0xC0, 0x3D, 0xD7, 0x66};
 
 static acpi_status acpi_run_osc(acpi_handle handle,
-				struct acpi_osc_args *osc_args)
+				struct acpi_osc_args *osc_args, u32 *retval)
 {
 	acpi_status status;
 	struct acpi_object_list input;
@@ -114,9 +113,7 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 		goto out_kfree;
 	}
 out_success:
-	if (flags & OSC_QUERY_ENABLE)
-		osc_args->query_result =
-			*((u32 *)(out_obj->buffer.pointer + 8));
+	*retval = *((u32 *)(out_obj->buffer.pointer + 8));
 	status = AE_OK;
 
 out_kfree:
@@ -127,7 +124,7 @@ out_kfree:
 static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data)
 {
 	acpi_status status;
-	u32 support_set;
+	u32 support_set, result;
 	struct acpi_osc_args osc_args;
 
 	/* do _OSC query for all possible controls */
@@ -136,10 +133,10 @@ static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data)
 	osc_args.capbuf[OSC_SUPPORT_TYPE] = support_set;
 	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
 
-	status = acpi_run_osc(osc_data->handle, &osc_args);
+	status = acpi_run_osc(osc_data->handle, &osc_args, &result);
 	if (ACPI_SUCCESS(status)) {
 		osc_data->support_set = support_set;
-		osc_data->query_result = osc_args.query_result;
+		osc_data->control_query = result;
 		osc_data->is_queried = 1;
 	}
 
@@ -187,7 +184,7 @@ out:
 acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {
 	acpi_status status;
-	u32 ctrlset, control_set;
+	u32 control_req, control_set, result;
 	acpi_handle tmp;
 	struct acpi_osc_data *osc_data;
 	struct acpi_osc_args osc_args;
@@ -204,14 +201,14 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 		goto out;
 	}
 
-	ctrlset = (flags & OSC_CONTROL_MASKS);
-	if (!ctrlset) {
+	control_req = (flags & OSC_CONTROL_MASKS);
+	if (!control_req) {
 		status = AE_TYPE;
 		goto out;
 	}
 
 	/* No need to evaluate _OSC if the control was already granted. */
-	if ((osc_data->control_set & ctrlset) == ctrlset)
+	if ((osc_data->control_set & control_req) == control_req)
 		goto out;
 
 	if (!osc_data->is_queried) {
@@ -220,18 +217,18 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 			goto out;
 	}
 
-	if ((osc_data->query_result & ctrlset) != ctrlset) {
+	if ((osc_data->control_query & control_req) != control_req) {
 		status = AE_SUPPORT;
 		goto out;
 	}
 
-	control_set = osc_data->control_set | ctrlset;
+	control_set = osc_data->control_set | control_req;
 	osc_args.capbuf[OSC_QUERY_TYPE] = 0;
 	osc_args.capbuf[OSC_SUPPORT_TYPE] = osc_data->support_set;
 	osc_args.capbuf[OSC_CONTROL_TYPE] = control_set;
-	status = acpi_run_osc(handle, &osc_args);
+	status = acpi_run_osc(handle, &osc_args, &result);
 	if (ACPI_SUCCESS(status))
-		osc_data->control_set = control_set;
+		osc_data->control_set = result;
 out:
 	mutex_unlock(&pci_acpi_lock);
 	return status;
