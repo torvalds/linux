@@ -23,8 +23,6 @@
 #define _INTEL_IOMMU_H_
 
 #include <linux/types.h>
-#include <linux/msi.h>
-#include <linux/sysdev.h>
 #include <linux/iova.h>
 #include <linux/io.h>
 #include <linux/dma_remapping.h>
@@ -289,7 +287,6 @@ struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64		cap;
 	u64		ecap;
-	int		seg;
 	u32		gcmd; /* Holds TE, EAFL. Don't need SRTP, SFL, WBF */
 	spinlock_t	register_lock; /* protect register handling */
 	int		seq_id;	/* sequence id of the iommu */
@@ -302,8 +299,6 @@ struct intel_iommu {
 
 	unsigned int irq;
 	unsigned char name[7];    /* Device Name */
-	struct msi_msg saved_msg;
-	struct sys_device sysdev;
 	struct iommu_flush flush;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */

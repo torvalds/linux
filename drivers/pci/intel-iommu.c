@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/sysdev.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/dmar.h>
