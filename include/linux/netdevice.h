@@ -865,8 +865,8 @@ struct net_device
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		void                    (*poll_controller)(struct net_device *dev);
 #endif
-#endif
 	};
+#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -1780,6 +1780,8 @@ extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(struct net *net, const char *name);
 extern void		dev_mcast_init(void);
+extern const struct net_device_stats *dev_get_stats(struct net_device *dev);
+
 extern int		netdev_max_backlog;
 extern int		weight_p;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);

@@ -2620,7 +2620,7 @@ void dev_seq_stop(struct seq_file *seq, void *v)
 
 static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
 {
-	struct net_device_stats *stats = dev->get_stats(dev);
+	const struct net_device_stats *stats = dev_get_stats(dev);
 
 	seq_printf(seq, "%6s:%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu "
 		   "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
@@ -4288,10 +4288,24 @@ void netdev_run_todo(void)
 	}
 }
 
-static struct net_device_stats *internal_stats(struct net_device *dev)
-{
-	return &dev->stats;
+/**
+ *	dev_get_stats	- get network device statistics
+ *	@dev: device to get statistics from
+ *
+ *	Get network statistics from device. The device driver may provide
+ *	its own method by setting dev->netdev_ops->get_stats; otherwise
+ *	the internal statistics structure is used.
+ */
+const struct net_device_stats *dev_get_stats(struct net_device *dev)
+ {
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (ops->ndo_get_stats)
+		return ops->ndo_get_stats(dev);
+	else
+		return &dev->stats;
 }
+EXPORT_SYMBOL(dev_get_stats);
 
 static void netdev_init_one_queue(struct net_device *dev,
 				  struct netdev_queue *queue,
@@ -4370,7 +4384,6 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	netdev_init_queues(dev);
 
-	dev->get_stats = internal_stats;
 	netpoll_netdev_init(dev);
 	setup(dev);
 	strcpy(dev->name, name);

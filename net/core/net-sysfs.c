@@ -270,7 +270,6 @@ static ssize_t netstat_show(const struct device *d,
 			    unsigned long offset)
 {
 	struct net_device *dev = to_net_dev(d);
-	struct net_device_stats *stats;
 	ssize_t ret = -EINVAL;
 
 	WARN_ON(offset > sizeof(struct net_device_stats) ||
@@ -278,7 +277,7 @@ static ssize_t netstat_show(const struct device *d,
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev)) {
-		stats = dev->get_stats(dev);
+		const struct net_device_stats *stats = dev_get_stats(dev);
 		ret = sprintf(buf, fmt_ulong,
 			      *(unsigned long *)(((u8 *) stats) + offset));
 	}

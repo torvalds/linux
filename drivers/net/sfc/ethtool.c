@@ -426,7 +426,7 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 	EFX_BUG_ON_PARANOID(stats->n_stats != EFX_ETHTOOL_NUM_STATS);
 
 	/* Update MAC and NIC statistics */
-	net_dev->get_stats(net_dev);
+	dev_get_stats(net_dev);
 
 	/* Fill detailed statistics buffer */
 	for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++) {
