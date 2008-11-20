@@ -53,6 +53,9 @@
 
 #define DOMAIN_MAX_ADDR(gaw) ((((u64)1) << gaw) - 1)
 
+#define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
+#define DMA_32BIT_PFN		IOVA_PFN(DMA_32BIT_MASK)
+#define DMA_64BIT_PFN		IOVA_PFN(DMA_64BIT_MASK)
 
 static void flush_unmaps_timeout(unsigned long data);
 
