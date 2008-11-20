@@ -2216,6 +2216,13 @@ M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 
+INTEL MENLOW THERMAL DRIVER
+P:	Sujith Thomas
+M:	sujith.thomas@intel.com
+L:	linux-acpi@vger.kernel.org
+W:	http://www.lesswatts.org/projects/acpi/
+S:	Supported
+
 INTEL IA32 MICROCODE UPDATE SUPPORT
 P:	Tigran Aivazian
 M:	tigran@aivazian.fsnet.co.uk
@@ -2694,6 +2701,11 @@ S:	Supported
 LLC (802.2)
 P:	Arnaldo Carvalho de Melo
 M:	acme@ghostprotocols.net
+S:	Maintained
+
+LIS3LV02D ACCELEROMETER DRIVER
+P:	Eric Piel
+M:	eric.piel@tremplin-utc.net
 S:	Maintained
 
 LM83 HARDWARE MONITOR DRIVER
@@ -3377,7 +3389,9 @@ S:	Maintained
 
 PNP SUPPORT
 P:	Adam Belay
-M:	ambx1@neo.rr.com
+M:	abelay@mit.edu
+P:	Bjorn Helgaas
+M:	bjorn.helgaas@hp.com
 S:	Maintained
 
 PNXxxxx I2C DRIVER

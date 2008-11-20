@@ -572,11 +572,6 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->dx = (unsigned long) &frame->info;
 	regs->cx = (unsigned long) &frame->uc;
 
-	/* Make -mregparm=3 work */
-	regs->ax = sig;
-	regs->dx = (unsigned long) &frame->info;
-	regs->cx = (unsigned long) &frame->uc;
-
 	loadsegment(ds, __USER32_DS);
 	loadsegment(es, __USER32_DS);
 

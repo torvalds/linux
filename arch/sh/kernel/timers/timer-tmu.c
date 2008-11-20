@@ -120,7 +120,7 @@ static void tmu_set_mode(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		ctrl_outl(ctrl_inl(TMU0_TCNT), TMU0_TCOR);
+		ctrl_outl(tmu_latest_interval[TMU0], TMU0_TCOR);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		ctrl_outl(0, TMU0_TCOR);

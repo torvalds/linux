@@ -322,13 +322,13 @@ static int __init kvm_devices_init(void)
 		return rc;
 	}
 
-	rc = vmem_add_mapping(PFN_PHYS(max_pfn), PAGE_SIZE);
+	rc = vmem_add_mapping(real_memory_size, PAGE_SIZE);
 	if (rc) {
 		s390_root_dev_unregister(kvm_root);
 		return rc;
 	}
 
-	kvm_devices = (void *) PFN_PHYS(max_pfn);
+	kvm_devices = (void *) real_memory_size;
 
 	ctl_set_bit(0, 9);
 	register_external_interrupt(0x2603, kvm_extint_handler);

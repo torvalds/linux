@@ -239,27 +239,10 @@
 #define REALVIEW_DECODE_OFFSET		0xC	/* Fitted logic modules */
 
 /* 
- *  Application Flash
- * 
- */
-#define FLASH_BASE                      REALVIEW_FLASH_BASE
-#define FLASH_SIZE                      REALVIEW_FLASH_SIZE
-#define FLASH_END                       (FLASH_BASE + FLASH_SIZE - 1)
-#define FLASH_BLOCK_SIZE                SZ_128K
-
-/* 
- *  Boot Flash
- * 
- */
-#define EPROM_BASE                      REALVIEW_BOOT_ROM_HI
-#define EPROM_SIZE                      REALVIEW_BOOT_ROM_SIZE
-#define EPROM_END                       (EPROM_BASE + EPROM_SIZE - 1)
-
-/* 
  *  Clean base - dummy
  * 
  */
-#define CLEAN_BASE                      EPROM_BASE
+#define CLEAN_BASE                      REALVIEW_BOOT_ROM_HI
 
 /*
  * System controller bit assignment

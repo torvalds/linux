@@ -61,19 +61,22 @@ _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.macro	TRACE_IRQS_ON
-	 brasl	%r14,trace_hardirqs_on
+	 basr	%r2,%r0
+	 brasl	%r14,trace_hardirqs_on_caller
 	.endm
 
 	.macro	TRACE_IRQS_OFF
-	 brasl	%r14,trace_hardirqs_off
+	 basr	%r2,%r0
+	 brasl	%r14,trace_hardirqs_off_caller
 	.endm
 
 	.macro TRACE_IRQS_CHECK
+	basr	%r2,%r0
 	tm	SP_PSW(%r15),0x03	# irqs enabled?
 	jz	0f
-	brasl	%r14,trace_hardirqs_on
+	brasl	%r14,trace_hardirqs_on_caller
 	j	1f
-0:	brasl	%r14,trace_hardirqs_off
+0:	brasl	%r14,trace_hardirqs_off_caller
 1:
 	.endm
 #else

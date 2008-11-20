@@ -51,8 +51,7 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 #ifndef readq
 static u64 readq(void __iomem *reg)
 {
-	return (((u64)readl(reg + 0x4UL) << 32) |
-		(u64)readl(reg));
+	return ((u64) readl(reg)) | (((u64) readl(reg + 4UL)) << 32);
 }
 
 static void writeq(u64 val, void __iomem *reg)

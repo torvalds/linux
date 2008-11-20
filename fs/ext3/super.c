@@ -2375,12 +2375,9 @@ int ext3_force_commit(struct super_block *sb)
 /*
  * Ext3 always journals updates to the superblock itself, so we don't
  * have to propagate any other updates to the superblock on disk at this
- * point.  Just start an async writeback to get the buffers on their way
- * to the disk.
- *
- * This implicitly triggers the writebehind on sync().
+ * point.  (We can probably nuke this function altogether, and remove
+ * any mention to sb->s_dirt in all of fs/ext3; eventual cleanup...)
  */
-
 static void ext3_write_super (struct super_block * sb)
 {
 	if (mutex_trylock(&sb->s_lock) != 0)
