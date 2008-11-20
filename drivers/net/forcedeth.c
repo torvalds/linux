@@ -5408,6 +5408,21 @@ static int nv_close(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops nv_netdev_ops = {
+	.ndo_open		= nv_open,
+	.ndo_stop		= nv_close,
+	.ndo_get_stats		= nv_get_stats,
+	.ndo_tx_timeout		= nv_tx_timeout,
+	.ndo_change_mtu		= nv_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= nv_set_mac_address,
+	.ndo_set_multicast_list	= nv_set_multicast,
+	.ndo_vlan_rx_register	= nv_vlan_rx_register,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= nv_poll_controller,
+#endif
+};
+
 static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 {
 	struct net_device *dev;
@@ -5527,7 +5542,6 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (id->driver_data & DEV_HAS_VLAN) {
 		np->vlanctl_bits = NVREG_VLANCONTROL_ENABLE;
 		dev->features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
-		dev->vlan_rx_register = nv_vlan_rx_register;
 	}
 
 	np->msi_flags = 0;
@@ -5577,25 +5591,16 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (!np->rx_skb || !np->tx_skb)
 		goto out_freering;
 
-	dev->open = nv_open;
-	dev->stop = nv_close;
-
 	if (!nv_optimized(np))
 		dev->hard_start_xmit = nv_start_xmit;
 	else
 		dev->hard_start_xmit = nv_start_xmit_optimized;
-	dev->get_stats = nv_get_stats;
-	dev->change_mtu = nv_change_mtu;
-	dev->set_mac_address = nv_set_mac_address;
-	dev->set_multicast_list = nv_set_multicast;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = nv_poll_controller;
-#endif
+
+	dev->netdev_ops = &nv_netdev_ops;
 #ifdef CONFIG_FORCEDETH_NAPI
 	netif_napi_add(dev, &np->napi, nv_napi_poll, RX_WORK_PER_LOOP);
 #endif
 	SET_ETHTOOL_OPS(dev, &ops);
-	dev->tx_timeout = nv_tx_timeout;
 	dev->watchdog_timeo = NV_WATCHDOG_TIMEO;
 
 	pci_set_drvdata(pci_dev, dev);
