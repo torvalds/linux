@@ -141,6 +141,15 @@ clkevt32k_next_event(unsigned long delta, struct clock_event_device *dev)
 	/* Use "raw" primitives so we behave correctly on RT kernels. */
 	raw_local_irq_save(flags);
 
+	/*
+	 * According to Thomas Gleixner irqs are already disabled here.  Simply
+	 * removing raw_local_irq_save above (and the matching
+	 * raw_local_irq_restore) was not accepted.  See
+	 * http://thread.gmane.org/gmane.linux.ports.arm.kernel/41174
+	 * So for now (2008-11-20) just warn once if irqs were not disabled ...
+	 */
+	WARN_ON_ONCE(!raw_irqs_disabled_flags(flags));
+
 	/* The alarm IRQ uses absolute time (now+delta), not the relative
 	 * time (delta) in our calling convention.  Like all clockevents
 	 * using such "match" hardware, we have a race to defend against.
