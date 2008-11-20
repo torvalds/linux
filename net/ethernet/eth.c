@@ -282,7 +282,7 @@ EXPORT_SYMBOL(eth_header_cache_update);
  * This doesn't change hardware matching, so needs to be overridden
  * for most real devices.
  */
-static int eth_mac_addr(struct net_device *dev, void *p)
+int eth_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
@@ -293,6 +293,7 @@ static int eth_mac_addr(struct net_device *dev, void *p)
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 	return 0;
 }
+EXPORT_SYMBOL(eth_mac_addr);
 
 /**
  * eth_change_mtu - set new MTU size
@@ -302,21 +303,23 @@ static int eth_mac_addr(struct net_device *dev, void *p)
  * Allow changing MTU size. Needs to be overridden for devices
  * supporting jumbo frames.
  */
-static int eth_change_mtu(struct net_device *dev, int new_mtu)
+int eth_change_mtu(struct net_device *dev, int new_mtu)
 {
 	if (new_mtu < 68 || new_mtu > ETH_DATA_LEN)
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
 }
+EXPORT_SYMBOL(eth_change_mtu);
 
-static int eth_validate_addr(struct net_device *dev)
+int eth_validate_addr(struct net_device *dev)
 {
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
 	return 0;
 }
+EXPORT_SYMBOL(eth_validate_addr);
 
 const struct header_ops eth_header_ops ____cacheline_aligned = {
 	.create		= eth_header,
@@ -334,11 +337,11 @@ const struct header_ops eth_header_ops ____cacheline_aligned = {
 void ether_setup(struct net_device *dev)
 {
 	dev->header_ops		= &eth_header_ops;
-
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
 	dev->change_mtu		= eth_change_mtu;
 	dev->set_mac_address 	= eth_mac_addr;
 	dev->validate_addr	= eth_validate_addr;
-
+#endif
 	dev->type		= ARPHRD_ETHER;
 	dev->hard_header_len 	= ETH_HLEN;
 	dev->mtu		= ETH_DATA_LEN;
