@@ -111,35 +111,6 @@ void __inet_inherit_port(struct sock *sk, struct sock *child)
 EXPORT_SYMBOL_GPL(__inet_inherit_port);
 
 /*
- * This lock without WQ_FLAG_EXCLUSIVE is good on UP and it can be very bad on SMP.
- * Look, when several writers sleep and reader wakes them up, all but one
- * immediately hit write lock and grab all the cpus. Exclusive sleep solves
- * this, _but_ remember, it adds useless work on UP machines (wake up each
- * exclusive lock release). It should be ifdefed really.
- */
-void inet_listen_wlock(struct inet_hashinfo *hashinfo)
-	__acquires(hashinfo->lhash_lock)
-{
-	write_lock(&hashinfo->lhash_lock);
-
-	if (atomic_read(&hashinfo->lhash_users)) {
-		DEFINE_WAIT(wait);
-
-		for (;;) {
-			prepare_to_wait_exclusive(&hashinfo->lhash_wait,
-						  &wait, TASK_UNINTERRUPTIBLE);
-			if (!atomic_read(&hashinfo->lhash_users))
-				break;
-			write_unlock_bh(&hashinfo->lhash_lock);
-			schedule();
-			write_lock_bh(&hashinfo->lhash_lock);
-		}
-
-		finish_wait(&hashinfo->lhash_wait, &wait);
-	}
-}
-
-/*
  * Don't inline this cruft. Here are some nice properties to exploit here. The
  * BSD API does not allow a listening sock to specify the remote port nor the
  * remote address for the connection. So always assume those are both
@@ -191,25 +162,25 @@ struct sock *__inet_lookup_listener(struct net *net,
 				    const int dif)
 {
 	struct sock *sk = NULL;
-	const struct hlist_head *head;
+	struct inet_listen_hashbucket *ilb;
 
-	read_lock(&hashinfo->lhash_lock);
-	head = &hashinfo->listening_hash[inet_lhashfn(net, hnum)];
-	if (!hlist_empty(head)) {
-		const struct inet_sock *inet = inet_sk((sk = __sk_head(head)));
+	ilb = &hashinfo->listening_hash[inet_lhashfn(net, hnum)];
+	spin_lock(&ilb->lock);
+	if (!hlist_empty(&ilb->head)) {
+		const struct inet_sock *inet = inet_sk((sk = __sk_head(&ilb->head)));
 
 		if (inet->num == hnum && !sk->sk_node.next &&
 		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
 		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
 		    !sk->sk_bound_dev_if && net_eq(sock_net(sk), net))
 			goto sherry_cache;
-		sk = inet_lookup_listener_slow(net, head, daddr, hnum, dif);
+		sk = inet_lookup_listener_slow(net, &ilb->head, daddr, hnum, dif);
 	}
 	if (sk) {
 sherry_cache:
 		sock_hold(sk);
 	}
-	read_unlock(&hashinfo->lhash_lock);
+	spin_unlock(&ilb->lock);
 	return sk;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
@@ -389,8 +360,7 @@ EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
 static void __inet_hash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	struct hlist_head *list;
-	rwlock_t *lock;
+	struct inet_listen_hashbucket *ilb;
 
 	if (sk->sk_state != TCP_LISTEN) {
 		__inet_hash_nolisten(sk);
@@ -398,14 +368,12 @@ static void __inet_hash(struct sock *sk)
 	}
 
 	WARN_ON(!sk_unhashed(sk));
-	list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
-	lock = &hashinfo->lhash_lock;
+	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 
-	inet_listen_wlock(hashinfo);
-	__sk_add_node(sk, list);
+	spin_lock(&ilb->lock);
+	__sk_add_node(sk, &ilb->head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	write_unlock(lock);
-	wake_up(&hashinfo->lhash_wait);
+	spin_unlock(&ilb->lock);
 }
 
 void inet_hash(struct sock *sk)
@@ -420,29 +388,27 @@ EXPORT_SYMBOL_GPL(inet_hash);
 
 void inet_unhash(struct sock *sk)
 {
-	rwlock_t *lock;
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 
 	if (sk_unhashed(sk))
-		goto out;
+		return;
 
 	if (sk->sk_state == TCP_LISTEN) {
-		local_bh_disable();
-		inet_listen_wlock(hashinfo);
-		lock = &hashinfo->lhash_lock;
+		struct inet_listen_hashbucket *ilb;
+
+		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		spin_lock_bh(&ilb->lock);
 		if (__sk_del_node_init(sk))
 			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+		spin_unlock_bh(&ilb->lock);
 	} else {
-		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
+		rwlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
+
 		write_lock_bh(lock);
 		if (__sk_nulls_del_node_init_rcu(sk))
 			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+		write_unlock_bh(lock);
 	}
-
-	write_unlock_bh(lock);
-out:
-	if (sk->sk_state == TCP_LISTEN)
-		wake_up(&hashinfo->lhash_wait);
 }
 EXPORT_SYMBOL_GPL(inet_unhash);
 
@@ -556,3 +522,13 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 }
 
 EXPORT_SYMBOL_GPL(inet_hash_connect);
+
+void inet_hashinfo_init(struct inet_hashinfo *h)
+{
+	int i;
+
+	for (i = 0; i < INET_LHTABLE_SIZE; i++)
+		spin_lock_init(&h->listening_hash[i].lock);
+}
+
+EXPORT_SYMBOL_GPL(inet_hashinfo_init);

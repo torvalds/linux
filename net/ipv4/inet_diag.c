@@ -718,13 +718,15 @@ static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!(r->idiag_states & (TCPF_LISTEN | TCPF_SYN_RECV)))
 			goto skip_listen_ht;
 
-		inet_listen_lock(hashinfo);
 		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
 			struct sock *sk;
 			struct hlist_node *node;
+			struct inet_listen_hashbucket *ilb;
 
 			num = 0;
-			sk_for_each(sk, node, &hashinfo->listening_hash[i]) {
+			ilb = &hashinfo->listening_hash[i];
+			spin_lock_bh(&ilb->lock);
+			sk_for_each(sk, node, &ilb->head) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (num < s_num) {
@@ -742,7 +744,7 @@ static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 					goto syn_recv;
 
 				if (inet_csk_diag_dump(sk, skb, cb) < 0) {
-					inet_listen_unlock(hashinfo);
+					spin_unlock_bh(&ilb->lock);
 					goto done;
 				}
 
@@ -751,7 +753,7 @@ syn_recv:
 					goto next_listen;
 
 				if (inet_diag_dump_reqs(skb, sk, cb) < 0) {
-					inet_listen_unlock(hashinfo);
+					spin_unlock_bh(&ilb->lock);
 					goto done;
 				}
 
@@ -760,12 +762,12 @@ next_listen:
 				cb->args[4] = 0;
 				++num;
 			}
+			spin_unlock_bh(&ilb->lock);
 
 			s_num = 0;
 			cb->args[3] = 0;
 			cb->args[4] = 0;
 		}
-		inet_listen_unlock(hashinfo);
 skip_listen_ht:
 		cb->args[0] = 1;
 		s_i = num = s_num = 0;

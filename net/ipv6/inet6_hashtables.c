@@ -25,30 +25,30 @@
 void __inet6_hash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	rwlock_t *lock;
 
 	WARN_ON(!sk_unhashed(sk));
 
 	if (sk->sk_state == TCP_LISTEN) {
-		struct hlist_head *list;
+		struct inet_listen_hashbucket *ilb;
 
-		list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
-		lock = &hashinfo->lhash_lock;
-		inet_listen_wlock(hashinfo);
-		__sk_add_node(sk, list);
+		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		spin_lock(&ilb->lock);
+		__sk_add_node(sk, &ilb->head);
+		spin_unlock(&ilb->lock);
 	} else {
 		unsigned int hash;
 		struct hlist_nulls_head *list;
+		rwlock_t *lock;
 
 		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
 		list = &inet_ehash_bucket(hashinfo, hash)->chain;
 		lock = inet_ehash_lockp(hashinfo, hash);
 		write_lock(lock);
 		__sk_nulls_add_node_rcu(sk, list);
+		write_unlock(lock);
 	}
 
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	write_unlock(lock);
 }
 EXPORT_SYMBOL(__inet6_hash);
 
@@ -126,10 +126,11 @@ struct sock *inet6_lookup_listener(struct net *net,
 	const struct hlist_node *node;
 	struct sock *result = NULL;
 	int score, hiscore = 0;
+	struct inet_listen_hashbucket *ilb;
 
-	read_lock(&hashinfo->lhash_lock);
-	sk_for_each(sk, node,
-			&hashinfo->listening_hash[inet_lhashfn(net, hnum)]) {
+	ilb = &hashinfo->listening_hash[inet_lhashfn(net, hnum)];
+	spin_lock(&ilb->lock);
+	sk_for_each(sk, node, &ilb->head) {
 		if (net_eq(sock_net(sk), net) && inet_sk(sk)->num == hnum &&
 				sk->sk_family == PF_INET6) {
 			const struct ipv6_pinfo *np = inet6_sk(sk);
@@ -157,7 +158,7 @@ struct sock *inet6_lookup_listener(struct net *net,
 	}
 	if (result)
 		sock_hold(result);
-	read_unlock(&hashinfo->lhash_lock);
+	spin_unlock(&ilb->lock);
 	return result;
 }
 

@@ -99,6 +99,11 @@ struct inet_bind_hashbucket {
 	struct hlist_head	chain;
 };
 
+struct inet_listen_hashbucket {
+	spinlock_t		lock;
+	struct hlist_head	head;
+};
+
 /* This is for listening sockets, thus all sockets which possess wildcards. */
 #define INET_LHTABLE_SIZE	32	/* Yes, really, this is all you need. */
 
@@ -123,22 +128,21 @@ struct inet_hashinfo {
 	unsigned int			bhash_size;
 	/* Note : 4 bytes padding on 64 bit arches */
 
-	/* All sockets in TCP_LISTEN state will be in here.  This is the only
-	 * table where wildcard'd TCP sockets can exist.  Hash function here
-	 * is just local port number.
-	 */
-	struct hlist_head		listening_hash[INET_LHTABLE_SIZE];
+	struct kmem_cache		*bind_bucket_cachep;
 
 	/* All the above members are written once at bootup and
 	 * never written again _or_ are predominantly read-access.
 	 *
 	 * Now align to a new cache line as all the following members
-	 * are often dirty.
+	 * might be often dirty.
 	 */
-	rwlock_t			lhash_lock ____cacheline_aligned;
-	atomic_t			lhash_users;
-	wait_queue_head_t		lhash_wait;
-	struct kmem_cache			*bind_bucket_cachep;
+	/* All sockets in TCP_LISTEN state will be in here.  This is the only
+	 * table where wildcard'd TCP sockets can exist.  Hash function here
+	 * is just local port number.
+	 */
+	struct inet_listen_hashbucket	listening_hash[INET_LHTABLE_SIZE]
+					____cacheline_aligned_in_smp;
+
 };
 
 static inline struct inet_ehash_bucket *inet_ehash_bucket(
@@ -236,26 +240,7 @@ extern void __inet_inherit_port(struct sock *sk, struct sock *child);
 
 extern void inet_put_port(struct sock *sk);
 
-extern void inet_listen_wlock(struct inet_hashinfo *hashinfo);
-
-/*
- * - We may sleep inside this lock.
- * - If sleeping is not required (or called from BH),
- *   use plain read_(un)lock(&inet_hashinfo.lhash_lock).
- */
-static inline void inet_listen_lock(struct inet_hashinfo *hashinfo)
-{
-	/* read_lock synchronizes to candidates to writers */
-	read_lock(&hashinfo->lhash_lock);
-	atomic_inc(&hashinfo->lhash_users);
-	read_unlock(&hashinfo->lhash_lock);
-}
-
-static inline void inet_listen_unlock(struct inet_hashinfo *hashinfo)
-{
-	if (atomic_dec_and_test(&hashinfo->lhash_users))
-		wake_up(&hashinfo->lhash_wait);
-}
+void inet_hashinfo_init(struct inet_hashinfo *h);
 
 extern void __inet_hash_nolisten(struct sock *sk);
 extern void inet_hash(struct sock *sk);
