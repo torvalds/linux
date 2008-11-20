@@ -1142,12 +1142,13 @@ handle_fault:
  * In case we must use restart_block to restart a futex_wait,
  * we encode in the 'flags' shared capability
  */
-#define FLAGS_SHARED  1
+#define FLAGS_SHARED		0x01
+#define FLAGS_CLOCKRT		0x02
 
 static long futex_wait_restart(struct restart_block *restart);
 
 static int futex_wait(u32 __user *uaddr, int fshared,
-		      u32 val, ktime_t *abs_time, u32 bitset)
+		      u32 val, ktime_t *abs_time, u32 bitset, int clockrt)
 {
 	struct task_struct *curr = current;
 	DECLARE_WAITQUEUE(wait, curr);
@@ -1233,8 +1234,10 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 			slack = current->timer_slack_ns;
 			if (rt_task(current))
 				slack = 0;
-			hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC,
-						HRTIMER_MODE_ABS);
+			hrtimer_init_on_stack(&t.timer,
+					      clockrt ? CLOCK_REALTIME :
+					      CLOCK_MONOTONIC,
+					      HRTIMER_MODE_ABS);
 			hrtimer_init_sleeper(&t, current);
 			hrtimer_set_expires_range_ns(&t.timer, *abs_time, slack);
 
@@ -1289,6 +1292,8 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 
 		if (fshared)
 			restart->futex.flags |= FLAGS_SHARED;
+		if (clockrt)
+			restart->futex.flags |= FLAGS_CLOCKRT;
 		return -ERESTART_RESTARTBLOCK;
 	}
 
@@ -1312,7 +1317,8 @@ static long futex_wait_restart(struct restart_block *restart)
 	if (restart->futex.flags & FLAGS_SHARED)
 		fshared = 1;
 	return (long)futex_wait(uaddr, fshared, restart->futex.val, &t,
-				restart->futex.bitset);
+				restart->futex.bitset,
+				restart->futex.flags & FLAGS_CLOCKRT);
 }
 
 
@@ -1905,18 +1911,22 @@ void exit_robust_list(struct task_struct *curr)
 long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 		u32 __user *uaddr2, u32 val2, u32 val3)
 {
-	int ret = -ENOSYS;
+	int clockrt, ret = -ENOSYS;
 	int cmd = op & FUTEX_CMD_MASK;
 	int fshared = 0;
 
 	if (!(op & FUTEX_PRIVATE_FLAG))
 		fshared = 1;
 
+	clockrt = op & FUTEX_CLOCK_REALTIME;
+	if (clockrt && cmd != FUTEX_WAIT_BITSET)
+		return -ENOSYS;
+
 	switch (cmd) {
 	case FUTEX_WAIT:
 		val3 = FUTEX_BITSET_MATCH_ANY;
 	case FUTEX_WAIT_BITSET:
-		ret = futex_wait(uaddr, fshared, val, timeout, val3);
+		ret = futex_wait(uaddr, fshared, val, timeout, val3, clockrt);
 		break;
 	case FUTEX_WAKE:
 		val3 = FUTEX_BITSET_MATCH_ANY;
