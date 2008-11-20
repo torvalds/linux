@@ -194,6 +194,17 @@ config NET_SCH_NETEM
 
 	  If unsure, say N.
 
+config NET_SCH_DRR
+	tristate "Deficit Round Robin scheduler (DRR)"
+	help
+	  Say Y here if you want to use the Deficit Round Robin (DRR) packet
+	  scheduling algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_drr.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
 	depends on NET_CLS_ACT
