@@ -305,6 +305,22 @@ tun_net_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops tun_netdev_ops = {
+	.ndo_open		= tun_net_open,
+	.ndo_stop		= tun_net_close,
+	.ndo_change_mtu		= tun_net_change_mtu,
+
+};
+
+static const struct net_device_ops tap_netdev_ops = {
+	.ndo_open		= tun_net_open,
+	.ndo_stop		= tun_net_close,
+	.ndo_change_mtu		= tun_net_change_mtu,
+	.ndo_set_multicast_list	= tun_net_mclist,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* Initialize net device. */
 static void tun_net_init(struct net_device *dev)
 {
@@ -312,11 +328,12 @@ static void tun_net_init(struct net_device *dev)
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case TUN_TUN_DEV:
+		dev->netdev_ops = &tun_netdev_ops;
+
 		/* Point-to-Point TUN Device */
 		dev->hard_header_len = 0;
 		dev->addr_len = 0;
 		dev->mtu = 1500;
-		dev->change_mtu = tun_net_change_mtu;
 
 		/* Zero header length */
 		dev->type = ARPHRD_NONE;
@@ -325,10 +342,9 @@ static void tun_net_init(struct net_device *dev)
 		break;
 
 	case TUN_TAP_DEV:
+		dev->netdev_ops = &tun_netdev_ops;
 		/* Ethernet TAP Device */
 		ether_setup(dev);
-		dev->change_mtu         = tun_net_change_mtu;
-		dev->set_multicast_list = tun_net_mclist;
 
 		random_ether_addr(dev->dev_addr);
 
@@ -675,9 +691,7 @@ static void tun_setup(struct net_device *dev)
 	tun->owner = -1;
 	tun->group = -1;
 
-	dev->open = tun_net_open;
 	dev->hard_start_xmit = tun_net_xmit;
-	dev->stop = tun_net_close;
 	dev->ethtool_ops = &tun_ethtool_ops;
 	dev->destructor = free_netdev;
 	dev->features |= NETIF_F_NETNS_LOCAL;
@@ -749,6 +763,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			return -ENOMEM;
 
 		dev_net_set(dev, net);
+
 		tun = netdev_priv(dev);
 		tun->dev = dev;
 		tun->flags = flags;
