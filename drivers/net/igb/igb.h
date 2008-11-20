@@ -294,6 +294,8 @@ struct igb_adapter {
 	unsigned int lro_flushed;
 	unsigned int lro_no_desc;
 #endif
+	unsigned int tx_ring_count;
+	unsigned int rx_ring_count;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
@@ -325,6 +327,8 @@ extern void igb_reset(struct igb_adapter *);
 extern int igb_set_spd_dplx(struct igb_adapter *, u16);
 extern int igb_setup_tx_resources(struct igb_adapter *, struct igb_ring *);
 extern int igb_setup_rx_resources(struct igb_adapter *, struct igb_ring *);
+extern void igb_free_tx_resources(struct igb_ring *);
+extern void igb_free_rx_resources(struct igb_ring *);
 extern void igb_update_stats(struct igb_adapter *);
 extern void igb_set_ethtool_ops(struct net_device *);
 

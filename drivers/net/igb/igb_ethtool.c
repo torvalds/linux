@@ -714,15 +714,13 @@ static void igb_get_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct igb_ring *tx_ring = adapter->tx_ring;
-	struct igb_ring *rx_ring = adapter->rx_ring;
 
 	ring->rx_max_pending = IGB_MAX_RXD;
 	ring->tx_max_pending = IGB_MAX_TXD;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_jumbo_max_pending = 0;
-	ring->rx_pending = rx_ring->count;
-	ring->tx_pending = tx_ring->count;
+	ring->rx_pending = adapter->rx_ring_count;
+	ring->tx_pending = adapter->tx_ring_count;
 	ring->rx_mini_pending = 0;
 	ring->rx_jumbo_pending = 0;
 }
@@ -731,12 +729,9 @@ static int igb_set_ringparam(struct net_device *netdev,
 			     struct ethtool_ringparam *ring)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct igb_buffer *old_buf;
-	struct igb_buffer *old_rx_buf;
-	void *old_desc;
+	struct igb_ring *temp_ring;
 	int i, err;
-	u32 new_rx_count, new_tx_count, old_size;
-	dma_addr_t old_dma;
+	u32 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
@@ -749,11 +744,18 @@ static int igb_set_ringparam(struct net_device *netdev,
 	new_tx_count = min(new_tx_count, (u32)IGB_MAX_TXD);
 	new_tx_count = ALIGN(new_tx_count, REQ_TX_DESCRIPTOR_MULTIPLE);
 
-	if ((new_tx_count == adapter->tx_ring->count) &&
-	    (new_rx_count == adapter->rx_ring->count)) {
+	if ((new_tx_count == adapter->tx_ring_count) &&
+	    (new_rx_count == adapter->rx_ring_count)) {
 		/* nothing to do */
 		return 0;
 	}
+
+	if (adapter->num_tx_queues > adapter->num_rx_queues)
+		temp_ring = vmalloc(adapter->num_tx_queues * sizeof(struct igb_ring));
+	else
+		temp_ring = vmalloc(adapter->num_rx_queues * sizeof(struct igb_ring));
+	if (!temp_ring)
+		return -ENOMEM;
 
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
 		msleep(1);
@@ -766,62 +768,55 @@ static int igb_set_ringparam(struct net_device *netdev,
 	 * because the ISRs in MSI-X mode get passed pointers
 	 * to the tx and rx ring structs.
 	 */
-	if (new_tx_count != adapter->tx_ring->count) {
+	if (new_tx_count != adapter->tx_ring_count) {
+		memcpy(temp_ring, adapter->tx_ring,
+		       adapter->num_tx_queues * sizeof(struct igb_ring));
+
 		for (i = 0; i < adapter->num_tx_queues; i++) {
-			/* Save existing descriptor ring */
-			old_buf = adapter->tx_ring[i].buffer_info;
-			old_desc = adapter->tx_ring[i].desc;
-			old_size = adapter->tx_ring[i].size;
-			old_dma = adapter->tx_ring[i].dma;
-			/* Try to allocate a new one */
-			adapter->tx_ring[i].buffer_info = NULL;
-			adapter->tx_ring[i].desc = NULL;
-			adapter->tx_ring[i].count = new_tx_count;
-			err = igb_setup_tx_resources(adapter,
-						&adapter->tx_ring[i]);
+			temp_ring[i].count = new_tx_count;
+			err = igb_setup_tx_resources(adapter, &temp_ring[i]);
 			if (err) {
-				/* Restore the old one so at least
-				   the adapter still works, even if
-				   we failed the request */
-				adapter->tx_ring[i].buffer_info = old_buf;
-				adapter->tx_ring[i].desc = old_desc;
-				adapter->tx_ring[i].size = old_size;
-				adapter->tx_ring[i].dma = old_dma;
+				while (i) {
+					i--;
+					igb_free_tx_resources(&temp_ring[i]);
+				}
 				goto err_setup;
 			}
-			/* Free the old buffer manually */
-			vfree(old_buf);
-			pci_free_consistent(adapter->pdev, old_size,
-					    old_desc, old_dma);
 		}
+
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			igb_free_tx_resources(&adapter->tx_ring[i]);
+
+		memcpy(adapter->tx_ring, temp_ring,
+		       adapter->num_tx_queues * sizeof(struct igb_ring));
+
+		adapter->tx_ring_count = new_tx_count;
 	}
 
 	if (new_rx_count != adapter->rx_ring->count) {
+		memcpy(temp_ring, adapter->rx_ring,
+		       adapter->num_rx_queues * sizeof(struct igb_ring));
+
 		for (i = 0; i < adapter->num_rx_queues; i++) {
-
-			old_rx_buf = adapter->rx_ring[i].buffer_info;
-			old_desc = adapter->rx_ring[i].desc;
-			old_size = adapter->rx_ring[i].size;
-			old_dma = adapter->rx_ring[i].dma;
-
-			adapter->rx_ring[i].buffer_info = NULL;
-			adapter->rx_ring[i].desc = NULL;
-			adapter->rx_ring[i].dma = 0;
-			adapter->rx_ring[i].count = new_rx_count;
-			err = igb_setup_rx_resources(adapter,
-						     &adapter->rx_ring[i]);
+			temp_ring[i].count = new_rx_count;
+			err = igb_setup_rx_resources(adapter, &temp_ring[i]);
 			if (err) {
-				adapter->rx_ring[i].buffer_info = old_rx_buf;
-				adapter->rx_ring[i].desc = old_desc;
-				adapter->rx_ring[i].size = old_size;
-				adapter->rx_ring[i].dma = old_dma;
+				while (i) {
+					i--;
+					igb_free_rx_resources(&temp_ring[i]);
+				}
 				goto err_setup;
 			}
 
-			vfree(old_rx_buf);
-			pci_free_consistent(adapter->pdev, old_size, old_desc,
-					    old_dma);
 		}
+
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			igb_free_rx_resources(&adapter->rx_ring[i]);
+
+		memcpy(adapter->rx_ring, temp_ring,
+		       adapter->num_rx_queues * sizeof(struct igb_ring));
+
+		adapter->rx_ring_count = new_rx_count;
 	}
 
 	err = 0;
@@ -830,6 +825,7 @@ err_setup:
 		igb_up(adapter);
 
 	clear_bit(__IGB_RESETTING, &adapter->state);
+	vfree(temp_ring);
 	return err;
 }
 
