@@ -2317,40 +2317,30 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	}
 
 	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto out_free;
 	card->private_data = chip;
 
 	/* create codec instances */
 	err = azx_codec_create(chip, model[dev], probe_mask[dev]);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto out_free;
 
 	/* create PCM streams */
 	err = snd_hda_build_pcms(chip->bus);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto out_free;
 
 	/* create mixer controls */
 	err = azx_mixer_create(chip);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto out_free;
 
 	snd_card_set_dev(card, &pci->dev);
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto out_free;
 
 	pci_set_drvdata(pci, card);
 	chip->running = 1;
@@ -2358,6 +2348,9 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	azx_notifier_register(chip);
 
 	dev++;
+	return err;
+out_free:
+	snd_card_free(card);
 	return err;
 }
 
