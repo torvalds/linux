@@ -524,6 +524,7 @@ out:
 static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	const struct net_device_ops *ops = real_dev->netdev_ops;
 	struct ifreq ifrr;
 	int err = -EOPNOTSUPP;
 
@@ -534,8 +535,8 @@ static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		if (real_dev->do_ioctl && netif_device_present(real_dev))
-			err = real_dev->do_ioctl(real_dev, &ifrr, cmd);
+		if (netif_device_present(real_dev) && ops->ndo_do_ioctl)
+			err = ops->ndo_do_ioctl(real_dev, &ifrr, cmd);
 		break;
 	}
 
@@ -697,6 +698,20 @@ static const struct ethtool_ops vlan_ethtool_ops = {
 	.get_flags		= vlan_ethtool_get_flags,
 };
 
+static const struct net_device_ops vlan_netdev_ops = {
+	.ndo_change_mtu		= vlan_dev_change_mtu,
+	.ndo_init		= vlan_dev_init,
+	.ndo_uninit		= vlan_dev_uninit,
+	.ndo_open		= vlan_dev_open,
+	.ndo_stop		= vlan_dev_stop,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= vlan_dev_set_mac_address,
+	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
+	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
+	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
+	.ndo_do_ioctl		= vlan_dev_ioctl,
+};
+
 void vlan_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -704,16 +719,7 @@ void vlan_setup(struct net_device *dev)
 	dev->priv_flags		|= IFF_802_1Q_VLAN;
 	dev->tx_queue_len	= 0;
 
-	dev->change_mtu		= vlan_dev_change_mtu;
-	dev->init		= vlan_dev_init;
-	dev->uninit		= vlan_dev_uninit;
-	dev->open		= vlan_dev_open;
-	dev->stop		= vlan_dev_stop;
-	dev->set_mac_address	= vlan_dev_set_mac_address;
-	dev->set_rx_mode	= vlan_dev_set_rx_mode;
-	dev->set_multicast_list	= vlan_dev_set_rx_mode;
-	dev->change_rx_flags	= vlan_dev_change_rx_flags;
-	dev->do_ioctl		= vlan_dev_ioctl;
+	dev->netdev_ops		= &vlan_netdev_ops;
 	dev->destructor		= free_netdev;
 	dev->ethtool_ops	= &vlan_ethtool_ops;
 
