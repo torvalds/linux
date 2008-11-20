@@ -201,19 +201,12 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
  * Returns: 1 if it's ok
  */
 
-static int inode_go_demote_ok(struct gfs2_glock *gl)
+static int inode_go_demote_ok(const struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	int demote = 0;
-
-	if (!gl->gl_object && !gl->gl_aspace->i_mapping->nrpages)
-		demote = 1;
-	else if (!sdp->sd_args.ar_localcaching &&
-		 time_after_eq(jiffies, gl->gl_stamp +
-			       gfs2_tune_get(sdp, gt_demote_secs) * HZ))
-		demote = 1;
-
-	return demote;
+	if (sdp->sd_jindex == gl->gl_object || sdp->sd_rindex == gl->gl_object)
+		return 0;
+	return 1;
 }
 
 /**
@@ -284,7 +277,7 @@ static int inode_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
  * Returns: 1 if it's ok
  */
 
-static int rgrp_go_demote_ok(struct gfs2_glock *gl)
+static int rgrp_go_demote_ok(const struct gfs2_glock *gl)
 {
 	return !gl->gl_aspace->i_mapping->nrpages;
 }
@@ -386,13 +379,25 @@ static int trans_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 }
 
 /**
+ * trans_go_demote_ok
+ * @gl: the glock
+ *
+ * Always returns 0
+ */
+
+static int trans_go_demote_ok(const struct gfs2_glock *gl)
+{
+	return 0;
+}
+
+/**
  * quota_go_demote_ok - Check to see if it's ok to unlock a quota glock
  * @gl: the glock
  *
  * Returns: 1 if it's ok
  */
 
-static int quota_go_demote_ok(struct gfs2_glock *gl)
+static int quota_go_demote_ok(const struct gfs2_glock *gl)
 {
 	return !atomic_read(&gl->gl_lvb_count);
 }
@@ -426,6 +431,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 const struct gfs2_glock_operations gfs2_trans_glops = {
 	.go_xmote_th = trans_go_sync,
 	.go_xmote_bh = trans_go_xmote_bh,
+	.go_demote_ok = trans_go_demote_ok,
 	.go_type = LM_TYPE_NONDISK,
 };
 

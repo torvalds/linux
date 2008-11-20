@@ -125,7 +125,7 @@ struct gfs2_glock_operations {
 	void (*go_xmote_th) (struct gfs2_glock *gl);
 	int (*go_xmote_bh) (struct gfs2_glock *gl, struct gfs2_holder *gh);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
-	int (*go_demote_ok) (struct gfs2_glock *gl);
+	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
 	int (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
@@ -155,7 +155,6 @@ struct gfs2_holder {
 
 enum {
 	GLF_LOCK			= 1,
-	GLF_STICKY			= 2,
 	GLF_DEMOTE			= 3,
 	GLF_PENDING_DEMOTE		= 4,
 	GLF_DEMOTE_IN_PROGRESS		= 5,
@@ -190,7 +189,7 @@ struct gfs2_glock {
 	unsigned long gl_tchange;
 	void *gl_object;
 
-	struct list_head gl_reclaim;
+	struct list_head gl_lru;
 
 	struct gfs2_sbd *gl_sbd;
 
@@ -397,7 +396,6 @@ struct gfs2_args {
 struct gfs2_tune {
 	spinlock_t gt_spin;
 
-	unsigned int gt_demote_secs; /* Cache retention for unheld glock */
 	unsigned int gt_incore_log_blocks;
 	unsigned int gt_log_flush_secs;
 
@@ -478,10 +476,6 @@ struct gfs2_sbd {
 	/* Lock Stuff */
 
 	struct lm_lockstruct sd_lockstruct;
-	struct list_head sd_reclaim_list;
-	spinlock_t sd_reclaim_lock;
-	wait_queue_head_t sd_reclaim_wq;
-	atomic_t sd_reclaim_count;
 	struct gfs2_holder sd_live_gh;
 	struct gfs2_glock *sd_rename_gl;
 	struct gfs2_glock *sd_trans_gl;
@@ -541,8 +535,6 @@ struct gfs2_sbd {
 	struct task_struct *sd_recoverd_process;
 	struct task_struct *sd_logd_process;
 	struct task_struct *sd_quotad_process;
-	struct task_struct *sd_glockd_process[GFS2_GLOCKD_MAX];
-	unsigned int sd_glockd_num;
 
 	/* Quota stuff */
 
@@ -614,10 +606,6 @@ struct gfs2_sbd {
 	struct gfs2_holder sd_freeze_gh;
 	struct mutex sd_freeze_lock;
 	unsigned int sd_freeze_count;
-
-	/* Counters */
-
-	atomic_t sd_reclaimed;
 
 	char sd_fsname[GFS2_FSNAME_LEN];
 	char sd_table_name[GFS2_FSNAME_LEN];

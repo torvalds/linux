@@ -142,8 +142,6 @@ static void gfs2_put_super(struct super_block *sb)
 	kthread_stop(sdp->sd_quotad_process);
 	kthread_stop(sdp->sd_logd_process);
 	kthread_stop(sdp->sd_recoverd_process);
-	while (sdp->sd_glockd_num--)
-		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		error = gfs2_make_fs_ro(sdp);
@@ -369,7 +367,6 @@ static void gfs2_clear_inode(struct inode *inode)
 	 */
 	if (test_bit(GIF_USER, &ip->i_flags)) {
 		ip->i_gl->gl_object = NULL;
-		gfs2_glock_schedule_for_reclaim(ip->i_gl);
 		gfs2_glock_put(ip->i_gl);
 		ip->i_gl = NULL;
 		if (ip->i_iopen_gh.gh_gl) {
@@ -422,8 +419,6 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",debug");
 	if (args->ar_upgrade)
 		seq_printf(s, ",upgrade");
-	if (args->ar_num_glockd != GFS2_GLOCKD_DEFAULT)
-		seq_printf(s, ",num_glockd=%u", args->ar_num_glockd);
 	if (args->ar_posix_acl)
 		seq_printf(s, ",acl");
 	if (args->ar_quota != GFS2_QUOTA_DEFAULT) {

@@ -386,7 +386,6 @@ int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	gfs2_free_di(rgd, ip);
 
 	gfs2_trans_end(sdp);
-	clear_bit(GLF_STICKY, &ip->i_gl->gl_flags);
 
 out_rg_gunlock:
 	gfs2_glock_dq_uninit(&al->al_rgd_gh);

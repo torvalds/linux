@@ -22,7 +22,6 @@
 #include "gfs2.h"
 #include "incore.h"
 #include "bmap.h"
-#include "daemon.h"
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
@@ -56,7 +55,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 {
 	spin_lock_init(&gt->gt_spin);
 
-	gt->gt_demote_secs = 300;
 	gt->gt_incore_log_blocks = 1024;
 	gt->gt_log_flush_secs = 60;
 	gt->gt_recoverd_secs = 60;
@@ -87,10 +85,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	sdp->sd_vfs = sb;
 
 	gfs2_tune_init(&sdp->sd_tune);
-
-	INIT_LIST_HEAD(&sdp->sd_reclaim_list);
-	spin_lock_init(&sdp->sd_reclaim_lock);
-	init_waitqueue_head(&sdp->sd_reclaim_wq);
 
 	mutex_init(&sdp->sd_inum_mutex);
 	spin_lock_init(&sdp->sd_statfs_spin);
@@ -443,23 +437,10 @@ out:
 static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 			int undo)
 {
-	struct task_struct *p;
 	int error = 0;
 
 	if (undo)
 		goto fail_trans;
-
-	for (sdp->sd_glockd_num = 0;
-	     sdp->sd_glockd_num < sdp->sd_args.ar_num_glockd;
-	     sdp->sd_glockd_num++) {
-		p = kthread_run(gfs2_glockd, sdp, "gfs2_glockd");
-		error = IS_ERR(p);
-		if (error) {
-			fs_err(sdp, "can't start glockd thread: %d\n", error);
-			goto fail;
-		}
-		sdp->sd_glockd_process[sdp->sd_glockd_num] = p;
-	}
 
 	error = gfs2_glock_nq_num(sdp,
 				  GFS2_MOUNT_LOCK, &gfs2_nondisk_glops,
@@ -493,7 +474,6 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 		fs_err(sdp, "can't create transaction glock: %d\n", error);
 		goto fail_rename;
 	}
-	set_bit(GLF_STICKY, &sdp->sd_trans_gl->gl_flags);
 
 	return 0;
 
@@ -506,9 +486,6 @@ fail_live:
 fail_mount:
 	gfs2_glock_dq_uninit(mount_gh);
 fail:
-	while (sdp->sd_glockd_num--)
-		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
-
 	return error;
 }
 
@@ -681,7 +658,6 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		return PTR_ERR(sdp->sd_jindex);
 	}
 	ip = GFS2_I(sdp->sd_jindex);
-	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
 
 	/* Load in the journal index special file */
 
@@ -832,7 +808,6 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		goto fail_statfs;
 	}
 	ip = GFS2_I(sdp->sd_rindex);
-	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
 	sdp->sd_rindex_uptodate = 0;
 
 	/* Read in the quota inode */

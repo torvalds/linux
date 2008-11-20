@@ -43,7 +43,7 @@ static void gfs2_init_glock_once(void *foo)
 	INIT_LIST_HEAD(&gl->gl_holders);
 	gl->gl_lvb = NULL;
 	atomic_set(&gl->gl_lvb_count, 0);
-	INIT_LIST_HEAD(&gl->gl_reclaim);
+	INIT_LIST_HEAD(&gl->gl_lru);
 	INIT_LIST_HEAD(&gl->gl_ail_list);
 	atomic_set(&gl->gl_ail_count, 0);
 }
