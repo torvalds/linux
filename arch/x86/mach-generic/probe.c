@@ -76,12 +76,15 @@ void __init generic_bigsmp_probe(void)
 	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
 	 */
 
-	if (!cmdline_apic && genapic == &apic_default)
+	if (!cmdline_apic && genapic == &apic_default) {
 		if (apic_bigsmp.probe()) {
 			genapic = &apic_bigsmp;
+			if (x86_quirks->update_genapic)
+				x86_quirks->update_genapic();
 			printk(KERN_INFO "Overriding APIC driver with %s\n",
 			       genapic->name);
 		}
+	}
 #endif
 }
 
@@ -98,6 +101,9 @@ void __init generic_apic_probe(void)
 		/* Not visible without early console */
 		if (!apic_probe[i])
 			panic("Didn't find an APIC driver");
+
+		if (x86_quirks->update_genapic)
+			x86_quirks->update_genapic();
 	}
 	printk(KERN_INFO "Using APIC driver %s\n", genapic->name);
 }
@@ -112,6 +118,8 @@ int __init mps_oem_check(struct mp_config_table *mpc, char *oem,
 		if (apic_probe[i]->mps_oem_check(mpc, oem, productid)) {
 			if (!cmdline_apic) {
 				genapic = apic_probe[i];
+				if (x86_quirks->update_genapic)
+					x86_quirks->update_genapic();
 				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
 				       genapic->name);
 			}
@@ -128,6 +136,8 @@ int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 		if (apic_probe[i]->acpi_madt_oem_check(oem_id, oem_table_id)) {
 			if (!cmdline_apic) {
 				genapic = apic_probe[i];
+				if (x86_quirks->update_genapic)
+					x86_quirks->update_genapic();
 				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
 				       genapic->name);
 			}
