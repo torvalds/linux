@@ -196,6 +196,12 @@ int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len)
 	return rc;
 }
 
+/* Write a single register */
+int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val)
+{
+	return em28xx_write_regs(dev, reg, &val, 1);
+}
+
 /*
  * em28xx_write_reg_bits()
  * sets only some bits (specified by bitmask) of a register, by first reading
