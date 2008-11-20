@@ -971,8 +971,13 @@ ppp_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return err;
 }
 
+static const struct net_device_ops ppp_netdev_ops = {
+	.ndo_do_ioctl = ppp_net_ioctl,
+};
+
 static void ppp_setup(struct net_device *dev)
 {
+	dev->netdev_ops = &ppp_netdev_ops;
 	dev->hard_header_len = PPP_HDRLEN;
 	dev->mtu = PPP_MTU;
 	dev->addr_len = 0;
@@ -2436,7 +2441,6 @@ ppp_create_interface(int unit, int *retp)
 	dev->priv = ppp;
 
 	dev->hard_start_xmit = ppp_start_xmit;
-	dev->do_ioctl = ppp_net_ioctl;
 
 	ret = -EEXIST;
 	mutex_lock(&all_ppp_mutex);
