@@ -950,6 +950,24 @@ static int igb_is_need_ioport(struct pci_dev *pdev)
 	}
 }
 
+static const struct net_device_ops igb_netdev_ops = {
+	.ndo_open 		= igb_open,
+	.ndo_stop		= igb_close,
+	.ndo_get_stats		= igb_get_stats,
+	.ndo_set_multicast_list	= igb_set_multi,
+	.ndo_set_mac_address	= igb_set_mac,
+	.ndo_change_mtu		= igb_change_mtu,
+	.ndo_do_ioctl		= igb_ioctl,
+	.ndo_tx_timeout		= igb_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_vlan_rx_register	= igb_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= igb_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= igb_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= igb_netpoll,
+#endif
+};
+
 /**
  * igb_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -1059,22 +1077,9 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (!adapter->hw.hw_addr)
 		goto err_ioremap;
 
-	netdev->open = &igb_open;
-	netdev->stop = &igb_close;
-	netdev->get_stats = &igb_get_stats;
-	netdev->set_multicast_list = &igb_set_multi;
-	netdev->set_mac_address = &igb_set_mac;
-	netdev->change_mtu = &igb_change_mtu;
-	netdev->do_ioctl = &igb_ioctl;
+	netdev->netdev_ops = &igb_netdev_ops;
 	igb_set_ethtool_ops(netdev);
-	netdev->tx_timeout = &igb_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
-	netdev->vlan_rx_register = igb_vlan_rx_register;
-	netdev->vlan_rx_add_vid = igb_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid = igb_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = igb_netpoll;
-#endif
 	netdev->hard_start_xmit = &igb_xmit_frame_adv;
 
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
