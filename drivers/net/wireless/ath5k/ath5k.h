@@ -821,13 +821,6 @@ struct ath5k_athchan_2ghz {
 		return (false);			\
 } while (0)
 
-enum ath5k_ant_setting {
-	AR5K_ANT_VARIABLE	= 0,	/* variable by programming */
-	AR5K_ANT_FIXED_A	= 1,	/* fixed to 11a frequencies */
-	AR5K_ANT_FIXED_B	= 2,	/* fixed to 11b frequencies */
-	AR5K_ANT_MAX		= 3,
-};
-
 /*
  * Hardware interrupt abstraction
  */
