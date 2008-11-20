@@ -651,21 +651,6 @@ static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 	return 0;
 }
 
-static int txq_alloc_desc_index(struct tx_queue *txq)
-{
-	int tx_desc_curr;
-
-	BUG_ON(txq->tx_desc_count >= txq->tx_ring_size);
-
-	tx_desc_curr = txq->tx_curr_desc++;
-	if (txq->tx_curr_desc == txq->tx_ring_size)
-		txq->tx_curr_desc = 0;
-
-	BUG_ON(txq->tx_curr_desc == txq->tx_used_desc);
-
-	return tx_desc_curr;
-}
-
 static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 {
 	int nr_frags = skb_shinfo(skb)->nr_frags;
@@ -677,7 +662,9 @@ static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 		struct tx_desc *desc;
 
 		this_frag = &skb_shinfo(skb)->frags[frag];
-		tx_index = txq_alloc_desc_index(txq);
+		tx_index = txq->tx_curr_desc++;
+		if (txq->tx_curr_desc == txq->tx_ring_size)
+			txq->tx_curr_desc = 0;
 		desc = &txq->tx_desc_area[tx_index];
 
 		/*
@@ -759,7 +746,9 @@ no_csum:
 		cmd_sts |= 5 << TX_IHL_SHIFT;
 	}
 
-	tx_index = txq_alloc_desc_index(txq);
+	tx_index = txq->tx_curr_desc++;
+	if (txq->tx_curr_desc == txq->tx_ring_size)
+		txq->tx_curr_desc = 0;
 	desc = &txq->tx_desc_area[tx_index];
 
 	if (nr_frags) {
