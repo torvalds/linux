@@ -1590,6 +1590,22 @@ static void enic_iounmap(struct enic *enic)
 		iounmap(enic->bar0.vaddr);
 }
 
+static const struct net_device_ops enic_netdev_ops = {
+	.ndo_open		= enic_open,
+	.ndo_stop		= enic_stop,
+	.ndo_get_stats		= enic_get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= enic_set_multicast_list,
+	.ndo_change_mtu		= enic_change_mtu,
+	.ndo_vlan_rx_register	= enic_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= enic_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= enic_vlan_rx_kill_vid,
+	.ndo_tx_timeout		= enic_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= enic_poll_controller,
+#endif
+};
+
 static int __devinit enic_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
@@ -1813,21 +1829,10 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		goto err_out_free_vnic_resources;
 	}
 
-	netdev->open = enic_open;
-	netdev->stop = enic_stop;
+	netdev->netdev_ops = &enic_netdev_ops;
 	netdev->hard_start_xmit = enic_hard_start_xmit;
-	netdev->get_stats = enic_get_stats;
-	netdev->set_multicast_list = enic_set_multicast_list;
-	netdev->change_mtu = enic_change_mtu;
-	netdev->vlan_rx_register = enic_vlan_rx_register;
-	netdev->vlan_rx_add_vid = enic_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid = enic_vlan_rx_kill_vid;
-	netdev->tx_timeout = enic_tx_timeout;
 	netdev->watchdog_timeo = 2 * HZ;
 	netdev->ethtool_ops = &enic_ethtool_ops;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = enic_poll_controller;
-#endif
 
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	default:
