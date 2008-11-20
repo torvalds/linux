@@ -32,6 +32,19 @@
 #define EM28XX_R08_GPIO	0x08	/* em2820 or upper */
 
 #define EM28XX_R06_I2C_CLK	0x06
+
+/* em28xx I2C Clock Register (0x06) */
+#define EM28XX_I2C_CLK_ACK_LAST_READ	0x80
+#define EM28XX_I2C_CLK_WAIT_ENABLE	0x40
+#define EM28XX_I2C_EEPROM_ON_BOARD	0x08
+#define EM28XX_I2C_EEPROM_KEY_VALID	0x04
+#define EM2874_I2C_SECONDARY_BUS_SELECT	0x04 /* em2874 has two i2c busses */
+#define EM28XX_I2C_FREQ_1_5_MHZ		0x03 /* bus frequency (bits [1-0]) */
+#define EM28XX_I2C_FREQ_25_KHZ		0x02
+#define EM28XX_I2C_FREQ_400_KHZ		0x01
+#define EM28XX_I2C_FREQ_100_KHZ		0x00
+
+
 #define EM28XX_R0A_CHIPID	0x0a
 #define EM28XX_R0C_USBSUSP	0x0c	/* */
 

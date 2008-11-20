@@ -1400,7 +1400,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2883_BOARD_KWORLD_HYBRID_A316:
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		msleep(50);
 
 		/* Sets GPO/GPIO sequences for this device */
@@ -1412,7 +1414,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2882_BOARD_TERRATEC_HYBRID_XS:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		msleep(50);
 
 		/* should be added ir_codes here */
@@ -1432,7 +1436,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2870_BOARD_KWORLD_350U:
 	case EM2881_BOARD_DNT_DA2_HYBRID:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		msleep(50);
 
 		/* NOTE: EM2881_DNT_DA2_HYBRID spend 140 msleep for digital
@@ -1449,7 +1455,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_MSI_DIGIVOX_AD:
 	case EM2880_BOARD_MSI_DIGIVOX_AD_II:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		msleep(50);
 
 		/* Sets GPO/GPIO sequences for this device */
@@ -1466,7 +1474,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2861_BOARD_PLEXTOR_PX_TV100U:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		/* FIXME guess */
 		/* Turn on analog audio output */
 		em28xx_write_regs_req(dev, 0x00, 0x08, "\xfd", 1);
@@ -1475,7 +1485,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2861_BOARD_KWORLD_PVRTV_300U:
 	case EM2880_BOARD_KWORLD_DVB_305U:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x4c", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		msleep(10);
 		em28xx_write_regs(dev, 0x08, "\x6d", 1);
 		msleep(10);
@@ -1485,7 +1497,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2870_BOARD_KWORLD_355U:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		msleep(50);
 
 		/* Sets GPO/GPIO sequences for this device */
@@ -1494,7 +1508,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2870_BOARD_COMPRO_VIDEOMATE:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		/* TODO: someone can do some cleanup here...
 			 not everything's needed */
 		em28xx_write_regs(dev, 0x04, "\x00", 1);
@@ -1513,7 +1529,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2870_BOARD_TERRATEC_XS_MT2060:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		/* this device needs some gpio writes to get the DVB-T
 		   demod work */
 		em28xx_write_regs(dev, 0x08, "\xfe", 1);
@@ -1525,7 +1543,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2870_BOARD_PINNACLE_PCTV_DVB:
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
+
 		/* this device needs some gpio writes to get the
 		   DVB-T demod work */
 		em28xx_write_regs(dev, 0x08, "\xfe", 1);
@@ -1541,7 +1562,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2820_BOARD_GADMEI_UTV310:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		/* Turn on analog audio output */
 		em28xx_write_regs_req(dev, 0x00, 0x08, "\xfd", 1);
 		break;
@@ -1549,20 +1572,27 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2860_BOARD_GADMEI_UTV330:
 		/* Turn on IR */
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x07", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		/* should be added ir_codes here */
 		break;
 
 	case EM2820_BOARD_MSI_VOX_USB_2:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ);
 		/* enables audio for that device */
 		em28xx_write_regs_req(dev, 0x00, 0x08, "\xfd", 1);
 		break;
 
 	case EM2874_BOARD_PINNACLE_PCTV_80E:
-		/* Set 400 KHz clock */
-		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x45", 1);
+		/* Set 400 KHz clock and select secondary i2c bus */
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
+				 EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM2874_I2C_SECONDARY_BUS_SELECT |
+				 EM28XX_I2C_FREQ_400_KHZ);
 
 		dev->digital_gpio = em2874_pinnacle_80e_digital;
 		break;
