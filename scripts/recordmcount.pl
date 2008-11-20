@@ -135,7 +135,7 @@ my $section_regex;	# Find the start of a section
 my $function_regex;	# Find the name of a function
 			#    (return offset and func name)
 my $mcount_regex;	# Find the call site to mcount (return offset)
-my $alignment;         # The .align value to use for $mcount_section
+my $alignment;		# The .align value to use for $mcount_section
 
 if ($arch eq "x86") {
     if ($bits == 64) {
@@ -176,6 +176,7 @@ if ($arch eq "x86_64") {
     $cc .= " -m32";
 
 } elsif ($arch eq "sh") {
+    $alignment = 2;
 
     # force flags for this arch
     $ld .= " -m shlelf_linux";
