@@ -298,29 +298,44 @@ static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
 	return 0;
 }
 
-static int set_ac97_em202_input(struct em28xx *dev)
+struct em28xx_input_table {
+	enum em28xx_amux amux;
+	u8		 reg;
+};
+
+static struct em28xx_input_table inputs[] = {
+	{ EM28XX_AMUX_VIDEO, 	AC97_VIDEO_VOL   },
+	{ EM28XX_AMUX_LINE_IN,	AC97_LINEIN_VOL  },
+	{ EM28XX_AMUX_PHONE,	AC97_PHONE_VOL   },
+	{ EM28XX_AMUX_MIC,	AC97_MIC_VOL     },
+	{ EM28XX_AMUX_CD,	AC97_CD_VOL      },
+	{ EM28XX_AMUX_AUX,	AC97_AUX_VOL     },
+	{ EM28XX_AMUX_PCM_OUT,	AC97_PCM_OUT_VOL },
+};
+
+static int set_ac97_input(struct em28xx *dev)
 {
-	int ret;
-	u16 enable  = 0x0808;		/* 12 dB attenuation Left/Right */
-	u16 disable = 0x8808;		/* bit 15 - mute volumme */
-	u16 video, line;
+	int ret, i;
+	enum em28xx_amux amux = dev->ctl_ainput;
 
-	if (dev->ctl_ainput == EM28XX_AMUX_VIDEO) {
-		video = enable;
-		line = disable;
-	} else {
-		video = disable;
-		line  = enable;
+	/* EM28XX_AMUX_VIDEO2 is a special case used to indicate that
+	   em28xx should point to LINE IN, while AC97 should use VIDEO
+	 */
+	if (amux == EM28XX_AMUX_VIDEO2)
+		amux = dev->ctl_ainput;
+
+	/* Mute all entres but the one that were selected */
+	for (i = 0; i < ARRAY_SIZE(inputs); i++) {
+		if (amux == inputs[i].amux)
+			ret = em28xx_write_ac97(dev, inputs[i].reg, 0x0808);
+		else
+			ret = em28xx_write_ac97(dev, inputs[i].reg, 0x8000);
+
+		if (ret < 0)
+			em28xx_warn("couldn't setup AC97 register %d\n",
+				     inputs[i].reg);
 	}
-
-	/* Sets em202 AC97 mixer registers */
-	ret = em28xx_write_ac97(dev, AC97_VIDEO_VOL, video);
-	if (ret < 0)
-		return ret;
-
-	ret = em28xx_write_ac97(dev, AC97_LINEIN_VOL, line);
-
-	return ret;
+	return 0;
 }
 
 static int em28xx_set_audio_source(struct em28xx *dev)
@@ -329,10 +344,10 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	u8 input;
 
 	if (dev->is_em2800) {
-		if (dev->ctl_ainput)
-			input = EM2800_AUDIO_SRC_LINE;
-		else
+		if (dev->ctl_ainput == EM28XX_AMUX_VIDEO)
 			input = EM2800_AUDIO_SRC_TUNER;
+		else
+			input = EM2800_AUDIO_SRC_LINE;
 
 		ret = em28xx_write_regs(dev, EM2800_R08_AUDIOSRC, &input, 1);
 		if (ret < 0)
@@ -360,16 +375,11 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	switch (dev->audio_mode.ac97) {
 	case EM28XX_NO_AC97:
 		break;
-	case EM28XX_AC97_OTHER:
-		/* We don't know how to handle this chip.
-		   Let's hope it is close enough to em202 to work
-		 */
-	case EM28XX_AC97_EM202:
-		ret = set_ac97_em202_input(dev);
-		break;
+	default:
+		ret = set_ac97_input(dev);
 	}
 
-	return 0;
+	return ret;
 }
 
 int em28xx_audio_analog_set(struct em28xx *dev)
@@ -380,6 +390,9 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	if (!dev->audio_mode.has_audio)
 		return 0;
 
+	/* It is assumed that all devices use master volume for output.
+	   It would be possible to use also line output.
+	 */
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
 		/* Mute */
 		ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, 0x8000);

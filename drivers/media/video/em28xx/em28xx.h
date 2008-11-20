@@ -274,9 +274,25 @@ struct em28xx_audio_mode {
 	unsigned int i2s_5rates:1;
 };
 
+/* em28xx has two audio inputs: tuner and line in.
+   However, on most devices, an auxiliary AC97 codec device is used.
+   The AC97 device may have several different inputs and outputs,
+   depending on their model. So, it is possible to use AC97 mixer to
+   address more than two different entries.
+ */
 enum em28xx_amux {
-	EM28XX_AMUX_VIDEO,
-	EM28XX_AMUX_LINE_IN,
+	/* This is the only entry for em28xx tuner input */
+	EM28XX_AMUX_VIDEO,	/* em28xx tuner, AC97 mixer Video */
+
+	EM28XX_AMUX_LINE_IN,	/* AC97 mixer Line In */
+
+	/* Some less-common mixer setups */
+	EM28XX_AMUX_VIDEO2,	/* em28xx Line in, AC97 mixer Video */
+	EM28XX_AMUX_PHONE,
+	EM28XX_AMUX_MIC,
+	EM28XX_AMUX_CD,
+	EM28XX_AMUX_AUX,
+	EM28XX_AMUX_PCM_OUT,
 };
 
 struct em28xx_input {
