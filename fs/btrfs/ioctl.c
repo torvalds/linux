@@ -41,6 +41,7 @@
 #include <linux/version.h>
 #include <linux/xattr.h>
 #include <linux/vmalloc.h>
+#include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"

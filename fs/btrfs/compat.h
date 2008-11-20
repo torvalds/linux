@@ -25,6 +25,7 @@ static inline struct dentry *d_obtain_alias(struct inode *inode)
 # define  __pagevec_lru_add_file __pagevec_lru_add
 # define open_bdev_exclusive open_bdev_excl
 # define close_bdev_exclusive(bdev, mode) close_bdev_excl(bdev)
+typedef unsigned __bitwise__ fmode_t;
 #endif
 
 

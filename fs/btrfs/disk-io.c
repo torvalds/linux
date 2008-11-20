@@ -26,7 +26,8 @@
 #include <linux/buffer_head.h> // for block_sync_page
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
-# include <linux/freezer.h>
+#include <linux/freezer.h>
+#include "compat.h"
 #include "crc32c.h"
 #include "ctree.h"
 #include "disk-io.h"

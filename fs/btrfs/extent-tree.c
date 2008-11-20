@@ -19,6 +19,8 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/version.h>
+#include "compat.h"
 #include "hash.h"
 #include "crc32c.h"
 #include "ctree.h"
@@ -900,6 +902,7 @@ static int noinline remove_extent_backref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+#ifdef BIO_RW_DISCARD
 static void btrfs_issue_discard(struct block_device *bdev,
 				u64 start, u64 len)
 {
@@ -909,7 +912,7 @@ static void btrfs_issue_discard(struct block_device *bdev,
 	blkdev_issue_discard(bdev, start >> 9, len >> 9);
 #endif
 }
-
+#endif
 
 static int noinline free_extents(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *extent_root,

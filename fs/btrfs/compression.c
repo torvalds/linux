@@ -34,13 +34,13 @@
 #include <linux/bit_spinlock.h>
 #include <linux/version.h>
 #include <linux/pagevec.h>
+#include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
 #include "volumes.h"
 #include "ordered-data.h"
-#include "compat.h"
 #include "compression.h"
 #include "extent_io.h"
 #include "extent_map.h"

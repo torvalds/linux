@@ -38,6 +38,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/falloc.h>
+#include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -47,7 +48,6 @@
 #include "volumes.h"
 #include "ordered-data.h"
 #include "xattr.h"
-#include "compat.h"
 #include "tree-log.h"
 #include "ref-cache.h"
 #include "compression.h"
