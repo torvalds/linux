@@ -127,11 +127,11 @@ static void ip_cmsg_recv_security(struct msghdr *msg, struct sk_buff *skb)
 	security_release_secctx(secdata, seclen);
 }
 
-void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
+static void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
 {
 	struct sockaddr_in sin;
 	struct iphdr *iph = ip_hdr(skb);
-	u16 *ports = (u16 *) skb_transport_header(skb);
+	__be16 *ports = (__be16 *)skb_transport_header(skb);
 
 	if (skb_transport_offset(skb) + 4 > skb->len)
 		return;
