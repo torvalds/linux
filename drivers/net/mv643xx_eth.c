@@ -593,6 +593,7 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 		struct sk_buff *skb;
 		int unaligned;
 		int rx;
+		struct rx_desc *rx_desc;
 
 		skb = __skb_dequeue(&mp->rx_recycle);
 		if (skb == NULL)
@@ -615,13 +616,14 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 		if (rxq->rx_used_desc == rxq->rx_ring_size)
 			rxq->rx_used_desc = 0;
 
-		rxq->rx_desc_area[rx].buf_ptr = dma_map_single(NULL, skb->data,
-						mp->skb_size, DMA_FROM_DEVICE);
-		rxq->rx_desc_area[rx].buf_size = mp->skb_size;
+		rx_desc = rxq->rx_desc_area + rx;
+
+		rx_desc->buf_ptr = dma_map_single(NULL, skb->data,
+					mp->skb_size, DMA_FROM_DEVICE);
+		rx_desc->buf_size = mp->skb_size;
 		rxq->rx_skb[rx] = skb;
 		wmb();
-		rxq->rx_desc_area[rx].cmd_sts = BUFFER_OWNED_BY_DMA |
-						RX_ENABLE_INTERRUPT;
+		rx_desc->cmd_sts = BUFFER_OWNED_BY_DMA | RX_ENABLE_INTERRUPT;
 		wmb();
 
 		/*
