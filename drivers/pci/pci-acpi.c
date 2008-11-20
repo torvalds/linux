@@ -210,6 +210,10 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 		goto out;
 	}
 
+	/* No need to evaluate _OSC if the control was already granted. */
+	if ((osc_data->control_set & ctrlset) == ctrlset)
+		goto out;
+
 	if (!osc_data->is_queried) {
 		status = __acpi_query_osc(osc_data->support_set, osc_data);
 		if (ACPI_FAILURE(status))
