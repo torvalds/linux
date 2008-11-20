@@ -16,16 +16,6 @@ struct intel_iommu;
 struct dmar_domain;
 struct root_entry;
 
-/* PCI domain-device relationship */
-struct device_domain_info {
-	struct list_head link;	/* link to domain siblings */
-	struct list_head global; /* link to global list */
-	u8 bus;			/* PCI bus numer */
-	u8 devfn;		/* PCI devfn number */
-	struct pci_dev *dev; /* it's NULL for PCIE-to-PCI bridge */
-	struct dmar_domain *domain; /* pointer to domain */
-};
-
 extern void free_dmar_iommu(struct intel_iommu *iommu);
 
 extern int dmar_disabled;
