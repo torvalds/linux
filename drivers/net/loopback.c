@@ -87,7 +87,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *get_stats(struct net_device *dev)
+static struct net_device_stats *loopback_get_stats(struct net_device *dev)
 {
 	const struct pcpu_lstats *pcpu_lstats;
 	struct net_device_stats *stats = &dev->stats;
@@ -143,13 +143,17 @@ static void loopback_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+static const struct net_device_ops loopback_ops = {
+	.ndo_init      = loopback_dev_init,
+	.ndo_get_stats = loopback_get_stats,
+};
+
 /*
  * The loopback device is special. There is only one instance
  * per network namespace.
  */
 static void loopback_setup(struct net_device *dev)
 {
-	dev->get_stats		= &get_stats;
 	dev->mtu		= (16 * 1024) + 20 + 20 + 12;
 	dev->hard_start_xmit	= loopback_xmit;
 	dev->hard_header_len	= ETH_HLEN;	/* 14	*/
@@ -165,8 +169,8 @@ static void loopback_setup(struct net_device *dev)
 		| NETIF_F_NETNS_LOCAL;
 	dev->ethtool_ops	= &loopback_ethtool_ops;
 	dev->header_ops		= &eth_header_ops;
-	dev->init = loopback_dev_init;
-	dev->destructor = loopback_dev_free;
+	dev->netdev_ops		= &loopback_ops;
+	dev->destructor		= loopback_dev_free;
 }
 
 /* Setup and register the loopback device. */
