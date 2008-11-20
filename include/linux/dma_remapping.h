@@ -9,30 +9,12 @@
 #define VTD_PAGE_MASK		(((u64)-1) << VTD_PAGE_SHIFT)
 #define VTD_PAGE_ALIGN(addr)	(((addr) + VTD_PAGE_SIZE - 1) & VTD_PAGE_MASK)
 
-struct root_entry;
-
 #define DMA_PTE_READ (1)
 #define DMA_PTE_WRITE (2)
 
 struct intel_iommu;
-
-struct dmar_domain {
-	int	id;			/* domain id */
-	struct intel_iommu *iommu;	/* back pointer to owning iommu */
-
-	struct list_head devices; 	/* all devices' list */
-	struct iova_domain iovad;	/* iova's that belong to this domain */
-
-	struct dma_pte	*pgd;		/* virtual address */
-	spinlock_t	mapping_lock;	/* page table lock */
-	int		gaw;		/* max guest address width */
-
-	/* adjusted guest address width, 0 is level 2 30-bit */
-	int		agaw;
-
-#define DOMAIN_FLAG_MULTIPLE_DEVICES 1
-	int		flags;
-};
+struct dmar_domain;
+struct root_entry;
 
 /* PCI domain-device relationship */
 struct device_domain_info {
