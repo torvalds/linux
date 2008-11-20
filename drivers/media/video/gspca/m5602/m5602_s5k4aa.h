@@ -41,11 +41,10 @@
 #define S5K4AA_WINDOW_HEIGHT_LO		0x09
 #define S5K4AA_WINDOW_WIDTH_HI		0x0a
 #define S5K4AA_WINDOW_WIDTH_LO		0x0b
-#define S5K4AA_GLOBAL_GAIN__		0x0f /* Only a guess ATM !!! */
-#define S5K4AA_H_BLANK_HI__		0x1d /* Only a guess ATM !!! sync lost
-						if too low, reduces frame rate
-						if too high */
-#define S5K4AA_H_BLANK_LO__		0x1e /* Only a guess ATM !!! */
+#define S5K4AA_GLOBAL_GAIN__		0x0f
+/* sync lost, if too low, reduces frame rate if too high */
+#define S5K4AA_H_BLANK_HI__		0x1d
+#define S5K4AA_H_BLANK_LO__		0x1e
 #define S5K4AA_EXPOSURE_HI		0x17
 #define S5K4AA_EXPOSURE_LO		0x18
 #define S5K4AA_GAIN_1			0x1f /* (digital?) gain : 5 bits */

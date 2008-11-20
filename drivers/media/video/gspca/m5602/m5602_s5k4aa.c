@@ -108,6 +108,7 @@ int s5k4aa_probe(struct sd *sd)
 		return -ENODEV;
 	else
 		info("Detected a s5k4aa sensor");
+
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = s5k4aa.modes;
 	sd->gspca_dev.cam.nmodes = s5k4aa.nmodes;
@@ -154,7 +155,7 @@ int s5k4aa_read_sensor(struct sd *sd, const u8 address,
 				  "0x%x containing 0x%x ", address, *i2c_data);
 	}
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_write_sensor(struct sd *sd, const u8 address,
@@ -283,7 +284,7 @@ int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	*val |= data;
 	PDEBUG(D_V4L2, "Read exposure %d", *val);
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
@@ -303,7 +304,7 @@ int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	data = val & 0xff;
 	err = s5k4aa_write_sensor(sd, S5K4AA_EXPOSURE_LO, &data, 1);
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -321,7 +322,7 @@ int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
 
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -359,7 +360,7 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 		err = s5k4aa_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	}
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -376,7 +377,7 @@ int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	*val = (data & S5K4AA_RM_H_FLIP) >> 6;
 	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -415,7 +416,7 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 		err = s5k4aa_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	}
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
@@ -433,7 +434,7 @@ int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	PDEBUG(D_V4L2, "Read gain %d", *val);
 
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
@@ -451,7 +452,7 @@ int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	err = s5k4aa_write_sensor(sd, S5K4AA_GAIN_2, &data, 1);
 
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 void s5k4aa_dump_registers(struct sd *sd)
