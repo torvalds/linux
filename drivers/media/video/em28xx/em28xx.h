@@ -259,6 +259,7 @@ enum enum28xx_itype {
 enum em28xx_ac97_mode {
 	EM28XX_NO_AC97 = 0,
 	EM28XX_AC97_EM202,
+	EM28XX_AC97_SIGMATEL,
 	EM28XX_AC97_OTHER,
 };
 

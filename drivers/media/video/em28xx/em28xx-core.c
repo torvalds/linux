@@ -520,6 +520,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 	/* Try to identify what audio processor we have */
 	if ((vid == 0xffffffff) && (feat == 0x6a90))
 		dev->audio_mode.ac97 = EM28XX_AC97_EM202;
+	else if ((vid >> 8) == 0x838476)
+		dev->audio_mode.ac97 = EM28XX_AC97_SIGMATEL;
 
 init_audio:
 	/* Reports detected AC97 processor */
@@ -529,6 +531,10 @@ init_audio:
 		break;
 	case EM28XX_AC97_EM202:
 		em28xx_info("Empia 202 AC97 audio processor detected\n");
+		break;
+	case EM28XX_AC97_SIGMATEL:
+		em28xx_info("Sigmatel audio processor detected(stac 97%02x)\n",
+			    dev->audio_mode.ac97_vendor_id & 0xff);
 		break;
 	case EM28XX_AC97_OTHER:
 		em28xx_warn("Unknown AC97 audio processor detected!\n");
