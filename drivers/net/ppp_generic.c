@@ -886,7 +886,7 @@ out_chrdev:
 static int
 ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct ppp *ppp = (struct ppp *) dev->priv;
+	struct ppp *ppp = netdev_priv(dev);
 	int npi, proto;
 	unsigned char *pp;
 
@@ -931,7 +931,7 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static int
 ppp_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct ppp *ppp = dev->priv;
+	struct ppp *ppp = netdev_priv(dev);
 	int err = -EFAULT;
 	void __user *addr = (void __user *) ifr->ifr_ifru.ifru_data;
 	struct ppp_stats stats;
@@ -2418,13 +2418,12 @@ ppp_create_interface(int unit, int *retp)
 	int ret = -ENOMEM;
 	int i;
 
-	ppp = kzalloc(sizeof(struct ppp), GFP_KERNEL);
-	if (!ppp)
-		goto out;
-	dev = alloc_netdev(0, "", ppp_setup);
+	dev = alloc_netdev(sizeof(struct ppp), "", ppp_setup);
 	if (!dev)
 		goto out1;
 
+	ppp = netdev_priv(dev);
+	ppp->dev = dev;
 	ppp->mru = PPP_MRU;
 	init_ppp_file(&ppp->file, INTERFACE);
 	ppp->file.hdrlen = PPP_HDRLEN - 2;	/* don't count proto bytes */
@@ -2437,8 +2436,6 @@ ppp_create_interface(int unit, int *retp)
 	ppp->minseq = -1;
 	skb_queue_head_init(&ppp->mrq);
 #endif /* CONFIG_PPP_MULTILINK */
-	ppp->dev = dev;
-	dev->priv = ppp;
 
 	dev->hard_start_xmit = ppp_start_xmit;
 
@@ -2476,8 +2473,6 @@ out2:
 	mutex_unlock(&all_ppp_mutex);
 	free_netdev(dev);
 out1:
-	kfree(ppp);
-out:
 	*retp = ret;
 	return NULL;
 }
