@@ -865,8 +865,8 @@ isdn_net_hangup(struct net_device *d)
 }
 
 typedef struct {
-	unsigned short source;
-	unsigned short dest;
+	__be16 source;
+	__be16 dest;
 } ip_ports;
 
 static void
@@ -1355,7 +1355,7 @@ isdn_net_get_stats(struct net_device *dev)
  *      This is normal practice and works for any 'now in use' protocol.
  */
 
-static unsigned short
+static __be16
 isdn_net_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
@@ -1817,7 +1817,7 @@ isdn_net_receive(struct net_device *ndev, struct sk_buff *skb)
 			/* IP with type field */
 			olp->huptimer = 0;
 			lp->huptimer = 0;
-			skb->protocol = *(unsigned short *) &(skb->data[0]);
+			skb->protocol = *(__be16 *)&(skb->data[0]);
 			skb_pull(skb, 2);
 			if (*(unsigned short *) skb->data == 0xFFFF)
 				skb->protocol = htons(ETH_P_802_3);
@@ -1899,12 +1899,12 @@ static int isdn_net_header(struct sk_buff *skb, struct net_device *dev,
 			break;
 		case ISDN_NET_ENCAP_IPTYP:
 			/* ethernet type field */
-			*((ushort *) skb_push(skb, 2)) = htons(type);
+			*((__be16 *)skb_push(skb, 2)) = htons(type);
 			len = 2;
 			break;
 		case ISDN_NET_ENCAP_UIHDLC:
 			/* HDLC with UI-Frames (for ispa with -h1 option) */
-			*((ushort *) skb_push(skb, 2)) = htons(0x0103);
+			*((__be16 *)skb_push(skb, 2)) = htons(0x0103);
 			len = 2;
 			break;
 		case ISDN_NET_ENCAP_CISCOHDLC:
@@ -1978,7 +1978,7 @@ static void isdn_header_cache_update(struct hh_cache *hh,
 {
 	isdn_net_local *lp = dev->priv;
 	if (lp->p_encap == ISDN_NET_ENCAP_ETHER)
-		return eth_header_cache_update(hh, dev, haddr);
+		eth_header_cache_update(hh, dev, haddr);
 }
 
 static const struct header_ops isdn_header_ops = {

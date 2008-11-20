@@ -1289,10 +1289,10 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	*skb_push(skb, 4) = 1; /* indicate outbound */
 
 	{
-		u_int16_t *p = (u_int16_t *) skb->data;
+		__be16 *p = (__be16 *)skb->data;
 
 		p++;
-		*p   = htons(proto);
+		*p = htons(proto);
 	}
 
 	if (ipt->pass_filter
@@ -1487,10 +1487,10 @@ int isdn_ppp_autodial_filter(struct sk_buff *skb, isdn_net_local *lp)
 	*skb_pull(skb, IPPP_MAX_HEADER - 4) = 1; /* indicate outbound */
 
 	{
-		u_int16_t *p = (u_int16_t *) skb->data;
+		__be16 *p = (__be16 *)skb->data;
 
 		p++;
-		*p   = htons(proto);
+		*p = htons(proto);
 	}
 	
 	drop |= is->pass_filter
@@ -1810,14 +1810,14 @@ static u32 isdn_ppp_mp_get_seq( int short_seq,
    
    	if( !short_seq )
 	{
-		seq = ntohl(*(u32*)skb->data) & MP_LONGSEQ_MASK;
+		seq = ntohl(*(__be32 *)skb->data) & MP_LONGSEQ_MASK;
 		skb_push(skb,1);
 	}
 	else
 	{
 		/* convert 12-bit short seq number to 24-bit long one 
 	 	*/
-		seq = ntohs(*(u16*)skb->data) & MP_SHORTSEQ_MASK;
+		seq = ntohs(*(__be16 *)skb->data) & MP_SHORTSEQ_MASK;
 	
 		/* check for seqence wrap */
 		if( !(seq &  MP_SHORTSEQ_MAXBIT) && 
