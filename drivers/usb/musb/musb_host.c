@@ -1757,7 +1757,7 @@ static int musb_schedule(
 		}
 	}
 	/* use bulk reserved ep1 if no other ep is free */
-	if (best_end > 0 && qh->type == USB_ENDPOINT_XFER_BULK) {
+	if (best_end < 0 && qh->type == USB_ENDPOINT_XFER_BULK) {
 		hw_ep = musb->bulk_ep;
 		if (is_in)
 			head = &musb->in_bulk;
