@@ -266,8 +266,7 @@ struct em28xx_audio_mode {
 	enum em28xx_ac97_mode ac97;
 
 	u16 ac97_feat;
-	u16 ac97_vendor_id1;
-	u16 ac97_vendor_id2;
+	u32 ac97_vendor_id;
 
 	unsigned int has_audio:1;
 

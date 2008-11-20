@@ -424,6 +424,7 @@ EXPORT_SYMBOL_GPL(em28xx_audio_analog_set);
 int em28xx_audio_setup(struct em28xx *dev)
 {
 	int vid1, vid2, feat, cfg;
+	u32 vid;
 
 	if (dev->chip_id == CHIP_ID_EM2874) {
 		/* Digital only device - don't load any alsa module */
@@ -475,9 +476,10 @@ int em28xx_audio_setup(struct em28xx *dev)
 	if (vid2 < 0)
 		goto init_audio;
 
-	dev->audio_mode.ac97_vendor_id1 = vid1;
-	dev->audio_mode.ac97_vendor_id2 = vid2;
-	em28xx_warn("AC97 vendor ID = %04x:%04x\n", vid1, vid2);
+	vid = vid1 << 16 | vid2;
+
+	dev->audio_mode.ac97_vendor_id = vid;
+	em28xx_warn("AC97 vendor ID = 0x%08x\n", vid);
 
 	feat = em28xx_read_ac97(dev, AC97_RESET);
 	if (feat < 0)
@@ -486,7 +488,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 	dev->audio_mode.ac97_feat = feat;
 	em28xx_warn("AC97 features = 0x%04x\n", feat);
 
-	if ((vid1 == 0xffff) && (vid2 == 0xffff) && (feat == 0x6a90))
+	/* Try to identify what audio processor we have */
+	if ((vid == 0xffffffff) && (feat == 0x6a90))
 		dev->audio_mode.ac97 = EM28XX_AC97_EM202;
 
 init_audio:
