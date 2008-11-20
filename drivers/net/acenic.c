@@ -450,6 +450,17 @@ static const struct ethtool_ops ace_ethtool_ops = {
 
 static void ace_watchdog(struct net_device *dev);
 
+static const struct net_device_ops ace_netdev_ops = {
+	.ndo_open		= ace_open,
+	.ndo_stop		= ace_close,
+	.ndo_tx_timeout		= ace_watchdog,
+	.ndo_get_stats		= ace_get_stats,
+	.ndo_set_multicast_list	= ace_set_multicast_list,
+	.ndo_set_mac_address	= ace_set_mac_addr,
+	.ndo_change_mtu		= ace_change_mtu,
+	.ndo_vlan_rx_register	= ace_vlan_rx_register,
+};
+
 static int __devinit acenic_probe_one(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
@@ -473,20 +484,13 @@ static int __devinit acenic_probe_one(struct pci_dev *pdev,
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 #if ACENIC_DO_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->vlan_rx_register = ace_vlan_rx_register;
 #endif
 
-	dev->tx_timeout = &ace_watchdog;
 	dev->watchdog_timeo = 5*HZ;
 
-	dev->open = &ace_open;
-	dev->stop = &ace_close;
+	dev->netdev_ops = &ace_netdev_ops;
 	dev->hard_start_xmit = &ace_start_xmit;
-	dev->get_stats = &ace_get_stats;
-	dev->set_multicast_list = &ace_set_multicast_list;
 	SET_ETHTOOL_OPS(dev, &ace_ethtool_ops);
-	dev->set_mac_address = &ace_set_mac_addr;
-	dev->change_mtu = &ace_change_mtu;
 
 	/* we only display this string ONCE */
 	if (!boards_found)
