@@ -145,10 +145,17 @@ if ($arch eq "x86") {
     }
 }
 
+#
+# We base the defaults off of i386, the other archs may
+# feel free to change them in the below if statements.
+#
+$nm_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\S+)";
+$section_regex = "Disassembly of section\\s+(\\S+):";
+$function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
+$mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
+$type = ".long";
+
 if ($arch eq "x86_64") {
-    $nm_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\S+)";
-    $section_regex = "Disassembly of section\\s+(\\S+):";
-    $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount([+-]0x[0-9a-zA-Z]+)?\$";
     $type = ".quad";
     $alignment = 8;
@@ -160,11 +167,6 @@ if ($arch eq "x86_64") {
     $cc .= " -m64";
 
 } elsif ($arch eq "i386") {
-    $nm_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\S+)";
-    $section_regex = "Disassembly of section\\s+(\\S+):";
-    $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
-    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
-    $type = ".long";
     $alignment = 4;
 
     # force flags for this arch
@@ -174,11 +176,6 @@ if ($arch eq "x86_64") {
     $cc .= " -m32";
 
 } elsif ($arch eq "sh") {
-    $nm_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\S+)";
-    $section_regex = "Disassembly of section\\s+(\\S+):";
-    $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
-    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
-    $type = ".long";
 
     # force flags for this arch
     $ld .= " -m shlelf_linux";
@@ -187,13 +184,11 @@ if ($arch eq "x86_64") {
 
 } elsif ($arch eq "powerpc") {
     $nm_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\.?\\S+)";
-    $section_regex = "Disassembly of section\\s+(\\S+):";
     $function_regex = "^([0-9a-fA-F]+)\\s+<(\\.?.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s\\.?_mcount\$";
+
     if ($bits == 64) {
 	$type = ".quad";
-    } else {
-	$type = ".long";
     }
 
 } else {
