@@ -756,10 +756,10 @@ void usb_stor_stop_transport(struct us_data *us)
 }
 
 /*
- * Control/Bulk/Interrupt transport
+ * Control/Bulk and Control/Bulk/Interrupt transport
  */
 
-int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
+int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	unsigned int transfer_length = scsi_bufflen(srb);
 	unsigned int pipe = 0;
@@ -801,6 +801,13 @@ int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/* STATUS STAGE */
+
+	/* NOTE: CB does not have a status stage.  Silly, I know.  So
+	 * we have to catch this at a higher level.
+	 */
+	if (us->protocol != US_PR_CBI)
+		return USB_STOR_TRANSPORT_GOOD;
+
 	result = usb_stor_intr_transfer(us, us->iobuf, 2);
 	US_DEBUGP("Got interrupt data (0x%x, 0x%x)\n", 
 			us->iobuf[0], us->iobuf[1]);
@@ -852,56 +859,6 @@ int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (pipe)
 		usb_stor_clear_halt(us, pipe);
 	return USB_STOR_TRANSPORT_FAILED;
-}
-
-/*
- * Control/Bulk transport
- */
-int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
-{
-	unsigned int transfer_length = scsi_bufflen(srb);
-	int result;
-
-	/* COMMAND STAGE */
-	/* let's send the command via the control pipe */
-	result = usb_stor_ctrl_transfer(us, us->send_ctrl_pipe,
-				      US_CBI_ADSC, 
-				      USB_TYPE_CLASS | USB_RECIP_INTERFACE, 0, 
-				      us->ifnum, srb->cmnd, srb->cmd_len);
-
-	/* check the return code for the command */
-	US_DEBUGP("Call to usb_stor_ctrl_transfer() returned %d\n", result);
-
-	/* if we stalled the command, it means command failed */
-	if (result == USB_STOR_XFER_STALLED) {
-		return USB_STOR_TRANSPORT_FAILED;
-	}
-
-	/* Uh oh... serious problem here */
-	if (result != USB_STOR_XFER_GOOD) {
-		return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	/* DATA STAGE */
-	/* transfer the data payload for this command, if one exists*/
-	if (transfer_length) {
-		unsigned int pipe = srb->sc_data_direction == DMA_FROM_DEVICE ? 
-				us->recv_bulk_pipe : us->send_bulk_pipe;
-		result = usb_stor_bulk_srb(us, pipe, srb);
-		US_DEBUGP("CB data stage result is 0x%x\n", result);
-
-		/* if we stalled the data transfer it means command failed */
-		if (result == USB_STOR_XFER_STALLED)
-			return USB_STOR_TRANSPORT_FAILED;
-		if (result > USB_STOR_XFER_STALLED)
-			return USB_STOR_TRANSPORT_ERROR;
-	}
-
-	/* STATUS STAGE */
-	/* NOTE: CB does not have a status stage.  Silly, I know.  So
-	 * we have to catch this at a higher level.
-	 */
-	return USB_STOR_TRANSPORT_GOOD;
 }
 
 /*

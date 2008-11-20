@@ -591,7 +591,7 @@ static int get_transport(struct us_data *us)
 
 	case US_PR_CBI:
 		us->transport_name = "Control/Bulk/Interrupt";
-		us->transport = usb_stor_CBI_transport;
+		us->transport = usb_stor_CB_transport;
 		us->transport_reset = usb_stor_CB_reset;
 		us->max_lun = 7;
 		break;
