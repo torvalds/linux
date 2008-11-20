@@ -8889,19 +8889,24 @@ static struct net_device * __devinit niu_alloc_and_init(
 	return dev;
 }
 
+static const struct net_device_ops niu_netdev_ops = {
+	.ndo_open		= niu_open,
+	.ndo_stop		= niu_close,
+	.ndo_get_stats		= niu_get_stats,
+	.ndo_set_multicast_list	= niu_set_rx_mode,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= niu_set_mac_addr,
+	.ndo_do_ioctl		= niu_ioctl,
+	.ndo_tx_timeout		= niu_tx_timeout,
+	.ndo_change_mtu		= niu_change_mtu,
+};
+
 static void __devinit niu_assign_netdev_ops(struct net_device *dev)
 {
-	dev->open = niu_open;
-	dev->stop = niu_close;
-	dev->get_stats = niu_get_stats;
-	dev->set_multicast_list = niu_set_rx_mode;
-	dev->set_mac_address = niu_set_mac_addr;
-	dev->do_ioctl = niu_ioctl;
-	dev->tx_timeout = niu_tx_timeout;
+	dev->netdev_ops = &niu_netdev_ops;
 	dev->hard_start_xmit = niu_start_xmit;
 	dev->ethtool_ops = &niu_ethtool_ops;
 	dev->watchdog_timeo = NIU_TX_TIMEOUT;
-	dev->change_mtu = niu_change_mtu;
 }
 
 static void __devinit niu_device_announce(struct niu *np)
