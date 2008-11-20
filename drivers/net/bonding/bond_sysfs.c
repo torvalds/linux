@@ -317,18 +317,12 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 		/* Set the slave's MTU to match the bond */
 		original_mtu = dev->mtu;
-		if (dev->mtu != bond->dev->mtu) {
-			if (dev->change_mtu) {
-				res = dev->change_mtu(dev,
-						      bond->dev->mtu);
-				if (res) {
-					ret = res;
-					goto out;
-				}
-			} else {
-				dev->mtu = bond->dev->mtu;
-			}
+		res = dev_set_mtu(dev, bond->dev->mtu);
+		if (res) {
+			ret = res;
+			goto out;
 		}
+
 		res = bond_enslave(bond->dev, dev);
 		bond_for_each_slave(bond, slave, i)
 			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0)
@@ -357,11 +351,7 @@ static ssize_t bonding_store_slaves(struct device *d,
 				goto out;
 			}
 			/* set the slave MTU to the default */
-			if (dev->change_mtu) {
-				dev->change_mtu(dev, original_mtu);
-			} else {
-				dev->mtu = original_mtu;
-			}
+			dev_set_mtu(dev, original_mtu);
 		}
 		else {
 			printk(KERN_ERR DRV_NAME ": unable to remove non-existent slave %s for bond %s.\n",

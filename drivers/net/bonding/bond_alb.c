@@ -1218,11 +1218,6 @@ static int alb_set_mac_address(struct bonding *bond, void *addr)
 	}
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev->set_mac_address == NULL) {
-			res = -EOPNOTSUPP;
-			goto unwind;
-		}
-
 		/* save net_device's current hw address */
 		memcpy(tmp_addr, slave->dev->dev_addr, ETH_ALEN);
 
@@ -1231,9 +1226,8 @@ static int alb_set_mac_address(struct bonding *bond, void *addr)
 		/* restore net_device's hw address */
 		memcpy(slave->dev->dev_addr, tmp_addr, ETH_ALEN);
 
-		if (res) {
+		if (res)
 			goto unwind;
-		}
 	}
 
 	return 0;

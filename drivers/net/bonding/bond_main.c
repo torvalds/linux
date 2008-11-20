@@ -462,10 +462,11 @@ static void bond_vlan_rx_register(struct net_device *bond_dev, struct vlan_group
 
 	bond_for_each_slave(bond, slave, i) {
 		struct net_device *slave_dev = slave->dev;
+		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
 		if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
-		    slave_dev->vlan_rx_register) {
-			slave_dev->vlan_rx_register(slave_dev, grp);
+		    slave_ops->ndo_vlan_rx_register) {
+			slave_ops->ndo_vlan_rx_register(slave_dev, grp);
 		}
 	}
 }
@@ -483,10 +484,11 @@ static void bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 
 	bond_for_each_slave(bond, slave, i) {
 		struct net_device *slave_dev = slave->dev;
+		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
 		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-		    slave_dev->vlan_rx_add_vid) {
-			slave_dev->vlan_rx_add_vid(slave_dev, vid);
+		    slave_ops->ndo_vlan_rx_add_vid) {
+			slave_ops->ndo_vlan_rx_add_vid(slave_dev, vid);
 		}
 	}
 
@@ -512,14 +514,15 @@ static void bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 
 	bond_for_each_slave(bond, slave, i) {
 		struct net_device *slave_dev = slave->dev;
+		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
 		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-		    slave_dev->vlan_rx_kill_vid) {
+		    slave_ops->ndo_vlan_rx_kill_vid) {
 			/* Save and then restore vlan_dev in the grp array,
 			 * since the slave's driver might clear it.
 			 */
 			vlan_dev = vlan_group_get_device(bond->vlgrp, vid);
-			slave_dev->vlan_rx_kill_vid(slave_dev, vid);
+			slave_ops->ndo_vlan_rx_kill_vid(slave_dev, vid);
 			vlan_group_set_device(bond->vlgrp, vid, vlan_dev);
 		}
 	}
@@ -535,26 +538,23 @@ static void bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *slave_dev)
 {
 	struct vlan_entry *vlan;
+	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
 	write_lock_bh(&bond->lock);
 
-	if (list_empty(&bond->vlan_list)) {
+	if (list_empty(&bond->vlan_list))
 		goto out;
-	}
 
 	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
-	    slave_dev->vlan_rx_register) {
-		slave_dev->vlan_rx_register(slave_dev, bond->vlgrp);
-	}
+	    slave_ops->ndo_vlan_rx_register)
+		slave_ops->ndo_vlan_rx_register(slave_dev, bond->vlgrp);
 
 	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
-	    !(slave_dev->vlan_rx_add_vid)) {
+	    !(slave_ops->ndo_vlan_rx_add_vid))
 		goto out;
-	}
 
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		slave_dev->vlan_rx_add_vid(slave_dev, vlan->vlan_id);
-	}
+	list_for_each_entry(vlan, &bond->vlan_list, vlan_list)
+		slave_ops->ndo_vlan_rx_add_vid(slave_dev, vlan->vlan_id);
 
 out:
 	write_unlock_bh(&bond->lock);
@@ -562,34 +562,32 @@ out:
 
 static void bond_del_vlans_from_slave(struct bonding *bond, struct net_device *slave_dev)
 {
+	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	struct vlan_entry *vlan;
 	struct net_device *vlan_dev;
 
 	write_lock_bh(&bond->lock);
 
-	if (list_empty(&bond->vlan_list)) {
+	if (list_empty(&bond->vlan_list))
 		goto out;
-	}
 
 	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
-	    !(slave_dev->vlan_rx_kill_vid)) {
+	    !(slave_ops->ndo_vlan_rx_kill_vid))
 		goto unreg;
-	}
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		/* Save and then restore vlan_dev in the grp array,
 		 * since the slave's driver might clear it.
 		 */
 		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
-		slave_dev->vlan_rx_kill_vid(slave_dev, vlan->vlan_id);
+		slave_ops->ndo_vlan_rx_kill_vid(slave_dev, vlan->vlan_id);
 		vlan_group_set_device(bond->vlgrp, vlan->vlan_id, vlan_dev);
 	}
 
 unreg:
 	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
-	    slave_dev->vlan_rx_register) {
-		slave_dev->vlan_rx_register(slave_dev, NULL);
-	}
+	    slave_ops->ndo_vlan_rx_register)
+		slave_ops->ndo_vlan_rx_register(slave_dev, NULL);
 
 out:
 	write_unlock_bh(&bond->lock);
@@ -698,15 +696,15 @@ static int bond_update_speed_duplex(struct slave *slave)
  */
 static int bond_check_dev_link(struct bonding *bond, struct net_device *slave_dev, int reporting)
 {
+	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	static int (* ioctl)(struct net_device *, struct ifreq *, int);
 	struct ifreq ifr;
 	struct mii_ioctl_data *mii;
 
-	if (bond->params.use_carrier) {
+	if (bond->params.use_carrier)
 		return netif_carrier_ok(slave_dev) ? BMSR_LSTATUS : 0;
-	}
 
-	ioctl = slave_dev->do_ioctl;
+	ioctl = slave_ops->ndo_do_ioctl;
 	if (ioctl) {
 		/* TODO: set pointer to correct ioctl on a per team member */
 		/*       bases to make this more efficient. that is, once  */
@@ -1401,6 +1399,7 @@ static void bond_setup_by_slave(struct net_device *bond_dev,
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	struct slave *new_slave = NULL;
 	struct dev_mc_list *dmi;
 	struct sockaddr addr;
@@ -1409,7 +1408,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	int res = 0;
 
 	if (!bond->params.use_carrier && slave_dev->ethtool_ops == NULL &&
-		slave_dev->do_ioctl == NULL) {
+		slave_ops->ndo_do_ioctl == NULL) {
 		printk(KERN_WARNING DRV_NAME
 		       ": %s: Warning: no link monitoring support for %s\n",
 		       bond_dev->name, slave_dev->name);
@@ -1491,7 +1490,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			goto err_undo_flags;
 	}
 
-	if (slave_dev->set_mac_address == NULL) {
+	if (slave_ops->ndo_set_mac_address == NULL) {
 		if (bond->slave_cnt == 0) {
 			printk(KERN_WARNING DRV_NAME
 			       ": %s: Warning: The first slave device "
@@ -4208,6 +4207,10 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 	int res = 0;
 	int i;
 
+	if (bond->params.mode == BOND_MODE_ALB)
+		return bond_alb_set_mac_address(bond_dev, addr);
+
+
 	dprintk("bond=%p, name=%s\n", bond, (bond_dev ? bond_dev->name : "None"));
 
 	/*
@@ -4237,9 +4240,10 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 	 */
 
 	bond_for_each_slave(bond, slave, i) {
+		const struct net_device_ops *slave_ops = slave->dev->netdev_ops;
 		dprintk("slave %p %s\n", slave, slave->dev->name);
 
-		if (slave->dev->set_mac_address == NULL) {
+		if (slave_ops->ndo_set_mac_address == NULL) {
 			res = -EOPNOTSUPP;
 			dprintk("EOPNOTSUPP %s\n", slave->dev->name);
 			goto unwind;
@@ -4517,7 +4521,6 @@ void bond_set_mode_ops(struct bonding *bond, int mode)
 		/* FALLTHRU */
 	case BOND_MODE_TLB:
 		bond_dev->hard_start_xmit = bond_alb_xmit;
-		bond_dev->set_mac_address = bond_alb_set_mac_address;
 		break;
 	default:
 		/* Should never happen, mode already checked */
@@ -4545,6 +4548,20 @@ static const struct ethtool_ops bond_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.get_ufo		= ethtool_op_get_ufo,
 	.get_flags		= ethtool_op_get_flags,
+};
+
+static const struct net_device_ops bond_netdev_ops = {
+	.ndo_open		= bond_open,
+	.ndo_stop		= bond_close,
+	.ndo_get_stats		= bond_get_stats,
+	.ndo_do_ioctl		= bond_do_ioctl,
+	.ndo_set_multicast_list	= bond_set_multicast_list,
+	.ndo_change_mtu		= bond_change_mtu,
+	.ndo_validate_addr	= NULL,
+	.ndo_set_mac_address 	= bond_set_mac_address,
+	.ndo_vlan_rx_register	= bond_vlan_rx_register,
+	.ndo_vlan_rx_add_vid 	= bond_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= bond_vlan_rx_kill_vid,
 };
 
 /*
@@ -4579,16 +4596,8 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 	INIT_LIST_HEAD(&bond->vlan_list);
 
 	/* Initialize the device entry points */
-	bond_dev->open = bond_open;
-	bond_dev->stop = bond_close;
-	bond_dev->get_stats = bond_get_stats;
-	bond_dev->do_ioctl = bond_do_ioctl;
+	bond_dev->netdev_ops = &bond_netdev_ops;
 	bond_dev->ethtool_ops = &bond_ethtool_ops;
-	bond_dev->set_multicast_list = bond_set_multicast_list;
-	bond_dev->change_mtu = bond_change_mtu;
-	bond_dev->set_mac_address = bond_set_mac_address;
-	bond_dev->validate_addr = NULL;
-
 	bond_set_mode_ops(bond, bond->params.mode);
 
 	bond_dev->destructor = bond_destructor;
@@ -4617,9 +4626,6 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 	 * when there are slaves that are not hw accel
 	 * capable
 	 */
-	bond_dev->vlan_rx_register = bond_vlan_rx_register;
-	bond_dev->vlan_rx_add_vid  = bond_vlan_rx_add_vid;
-	bond_dev->vlan_rx_kill_vid = bond_vlan_rx_kill_vid;
 	bond_dev->features |= (NETIF_F_HW_VLAN_TX |
 			       NETIF_F_HW_VLAN_RX |
 			       NETIF_F_HW_VLAN_FILTER);
