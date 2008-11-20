@@ -388,9 +388,17 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	return ret;
 }
 
+static int outputs[] = {
+	[EM28XX_AOUT_MASTER] = AC97_MASTER_VOL,
+	[EM28XX_AOUT_LINE]   = AC97_LINE_LEVEL_VOL,
+	[EM28XX_AOUT_MONO]   = AC97_MASTER_MONO_VOL,
+	[EM28XX_AOUT_LFE]    = AC97_LFE_MASTER_VOL,
+	[EM28XX_AOUT_SURR]   = AC97_SURR_MASTER_VOL,
+};
+
 int em28xx_audio_analog_set(struct em28xx *dev)
 {
-	int ret;
+	int ret, i;
 	u8 xclk = 0x07;
 
 	if (!dev->audio_mode.has_audio)
@@ -400,11 +408,13 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	   It would be possible to use also line output.
 	 */
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
-		/* Mute */
-		ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, 0x8000);
-
-		if (ret < 0)
-			return ret;
+		/* Mute all outputs */
+		for (i = 0; i < ARRAY_SIZE(outputs); i++) {
+			ret = em28xx_write_ac97(dev, outputs[i], 0x8000);
+			if (ret < 0)
+				em28xx_warn("couldn't setup AC97 register %d\n",
+				     outputs[i]);
+		}
 	}
 
 	if (dev->has_12mhz_i2s)
@@ -433,7 +443,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 			vol |= 0x8000;
 
 		/* Sets volume */
-		ret = em28xx_write_ac97(dev, AC97_MASTER_VOL, vol);
+		ret = em28xx_write_ac97(dev, outputs[dev->ctl_aoutput], vol);
 	}
 
 	return ret;

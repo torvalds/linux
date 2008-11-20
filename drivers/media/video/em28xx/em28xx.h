@@ -295,10 +295,19 @@ enum em28xx_amux {
 	EM28XX_AMUX_PCM_OUT,
 };
 
+enum em28xx_aout {
+	EM28XX_AOUT_MASTER = 0,	/* should be the default */
+	EM28XX_AOUT_LINE,
+	EM28XX_AOUT_MONO,
+	EM28XX_AOUT_LFE,
+	EM28XX_AOUT_SURR,
+};
+
 struct em28xx_input {
 	enum enum28xx_itype type;
 	unsigned int vmux;
 	enum em28xx_amux amux;
+	enum em28xx_aout aout;
 };
 
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
@@ -450,6 +459,7 @@ struct em28xx {
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_input;	/* selected input */
 	unsigned int ctl_ainput;/* selected audio input */
+	unsigned int ctl_aoutput;/* selected audio output */
 	int mute;
 	int volume;
 	/* frame properties */

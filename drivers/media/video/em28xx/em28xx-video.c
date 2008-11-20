@@ -566,6 +566,7 @@ static void video_mux(struct em28xx *dev, int index)
 	route.output = 0;
 	dev->ctl_input = index;
 	dev->ctl_ainput = INPUT(index)->amux;
+	dev->ctl_aoutput = INPUT(index)->aout;
 
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
@@ -928,20 +929,38 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	struct em28xx_fh   *fh    = priv;
 	struct em28xx      *dev   = fh->dev;
-	unsigned int        index = a->index;
 
-	if (a->index > 1)
-		return -EINVAL;
-
-	index = dev->ctl_ainput;
-
-	if (index == 0)
+	switch (a->index) {
+	case EM28XX_AMUX_VIDEO:
 		strcpy(a->name, "Television");
-	else
+		break;
+	case EM28XX_AMUX_LINE_IN:
 		strcpy(a->name, "Line In");
+		break;
+	case EM28XX_AMUX_VIDEO2:
+		strcpy(a->name, "Television alt");
+		break;
+	case EM28XX_AMUX_PHONE:
+		strcpy(a->name, "Phone");
+		break;
+	case EM28XX_AMUX_MIC:
+		strcpy(a->name, "Mic");
+		break;
+	case EM28XX_AMUX_CD:
+		strcpy(a->name, "CD");
+		break;
+	case EM28XX_AMUX_AUX:
+		strcpy(a->name, "Aux");
+		break;
+	case EM28XX_AMUX_PCM_OUT:
+		strcpy(a->name, "PCM");
+		break;
+	default:
+		return -EINVAL;
+	}
 
+	a->index = dev->ctl_ainput;
 	a->capability = V4L2_AUDCAP_STEREO;
-	a->index = index;
 
 	return 0;
 }
@@ -951,9 +970,8 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 
-	if (a->index != dev->ctl_ainput)
-		return -EINVAL;
-
+	dev->ctl_ainput = INPUT(a->index)->amux;
+	dev->ctl_aoutput = INPUT(a->index)->aout;
 	return 0;
 }
 
