@@ -7,6 +7,7 @@
  * This file provides all the same external entries as smp.c but uses
  * the voyager hal to provide the functionality
  */
+#include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
@@ -1790,6 +1791,17 @@ void __init smp_setup_processor_id(void)
 	x86_write_percpu(cpu_number, hard_smp_processor_id());
 }
 
+static void voyager_send_call_func(cpumask_t callmask)
+{
+	__u32 mask = cpus_addr(callmask)[0] & ~(1 << smp_processor_id());
+	send_CPI(mask, VIC_CALL_FUNCTION_CPI);
+}
+
+static void voyager_send_call_func_single(int cpu)
+{
+	send_CPI(1 << cpu, VIC_CALL_FUNCTION_SINGLE_CPI);
+}
+
 struct smp_ops smp_ops = {
 	.smp_prepare_boot_cpu = voyager_smp_prepare_boot_cpu,
 	.smp_prepare_cpus = voyager_smp_prepare_cpus,
@@ -1799,6 +1811,6 @@ struct smp_ops smp_ops = {
 	.smp_send_stop = voyager_smp_send_stop,
 	.smp_send_reschedule = voyager_smp_send_reschedule,
 
-	.send_call_func_ipi = native_send_call_func_ipi,
-	.send_call_func_single_ipi = native_send_call_func_single_ipi,
+	.send_call_func_ipi = voyager_send_call_func,
+	.send_call_func_single_ipi = voyager_send_call_func_single,
 };
