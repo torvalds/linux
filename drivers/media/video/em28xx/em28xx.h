@@ -297,11 +297,11 @@ enum em28xx_amux {
 };
 
 enum em28xx_aout {
-	EM28XX_AOUT_MASTER = 0,	/* should be the default */
-	EM28XX_AOUT_LINE,
-	EM28XX_AOUT_MONO,
-	EM28XX_AOUT_LFE,
-	EM28XX_AOUT_SURR,
+	EM28XX_AOUT_MASTER = 1 << 0,
+	EM28XX_AOUT_LINE   = 1 << 1,
+	EM28XX_AOUT_MONO   = 1 << 2,
+	EM28XX_AOUT_LFE    = 1 << 3,
+	EM28XX_AOUT_SURR   = 1 << 4,
 };
 
 struct em28xx_input {

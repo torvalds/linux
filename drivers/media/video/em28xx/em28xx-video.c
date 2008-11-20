@@ -568,6 +568,9 @@ static void video_mux(struct em28xx *dev, int index)
 	dev->ctl_ainput = INPUT(index)->amux;
 	dev->ctl_aoutput = INPUT(index)->aout;
 
+	if (!dev->ctl_aoutput)
+		dev->ctl_aoutput = EM28XX_AOUT_MASTER;
+
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 	if (dev->has_msp34xx) {
@@ -972,6 +975,9 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 
 	dev->ctl_ainput = INPUT(a->index)->amux;
 	dev->ctl_aoutput = INPUT(a->index)->aout;
+
+	if (!dev->ctl_aoutput)
+		dev->ctl_aoutput = EM28XX_AOUT_MASTER;
 	return 0;
 }
 

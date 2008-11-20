@@ -304,12 +304,12 @@ static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
 	return 0;
 }
 
-struct em28xx_input_table {
-	enum em28xx_amux amux;
+struct em28xx_vol_table {
+	enum em28xx_amux mux;
 	u8		 reg;
 };
 
-static struct em28xx_input_table inputs[] = {
+static struct em28xx_vol_table inputs[] = {
 	{ EM28XX_AMUX_VIDEO, 	AC97_VIDEO_VOL   },
 	{ EM28XX_AMUX_LINE_IN,	AC97_LINEIN_VOL  },
 	{ EM28XX_AMUX_PHONE,	AC97_PHONE_VOL   },
@@ -332,7 +332,7 @@ static int set_ac97_input(struct em28xx *dev)
 
 	/* Mute all entres but the one that were selected */
 	for (i = 0; i < ARRAY_SIZE(inputs); i++) {
-		if (amux == inputs[i].amux)
+		if (amux == inputs[i].mux)
 			ret = em28xx_write_ac97(dev, inputs[i].reg, 0x0808);
 		else
 			ret = em28xx_write_ac97(dev, inputs[i].reg, 0x8000);
@@ -388,12 +388,12 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	return ret;
 }
 
-static int outputs[] = {
-	[EM28XX_AOUT_MASTER] = AC97_MASTER_VOL,
-	[EM28XX_AOUT_LINE]   = AC97_LINE_LEVEL_VOL,
-	[EM28XX_AOUT_MONO]   = AC97_MASTER_MONO_VOL,
-	[EM28XX_AOUT_LFE]    = AC97_LFE_MASTER_VOL,
-	[EM28XX_AOUT_SURR]   = AC97_SURR_MASTER_VOL,
+struct em28xx_vol_table outputs[] = {
+	{ EM28XX_AOUT_MASTER, AC97_MASTER_VOL      },
+	{ EM28XX_AOUT_LINE,   AC97_LINE_LEVEL_VOL  },
+	{ EM28XX_AOUT_MONO,   AC97_MASTER_MONO_VOL },
+	{ EM28XX_AOUT_LFE,    AC97_LFE_MASTER_VOL  },
+	{ EM28XX_AOUT_SURR,   AC97_SURR_MASTER_VOL },
 };
 
 int em28xx_audio_analog_set(struct em28xx *dev)
@@ -410,10 +410,10 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
 		/* Mute all outputs */
 		for (i = 0; i < ARRAY_SIZE(outputs); i++) {
-			ret = em28xx_write_ac97(dev, outputs[i], 0x8000);
+			ret = em28xx_write_ac97(dev, outputs[i].reg, 0x8000);
 			if (ret < 0)
 				em28xx_warn("couldn't setup AC97 register %d\n",
-				     outputs[i]);
+				     outputs[i].reg);
 		}
 	}
 
@@ -443,7 +443,14 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 			vol |= 0x8000;
 
 		/* Sets volume */
-		ret = em28xx_write_ac97(dev, outputs[dev->ctl_aoutput], vol);
+		for (i = 0; i < ARRAY_SIZE(outputs); i++) {
+			if (dev->ctl_aoutput & outputs[i].mux)
+				ret = em28xx_write_ac97(dev, outputs[i].reg,
+							vol);
+			if (ret < 0)
+				em28xx_warn("couldn't setup AC97 register %d\n",
+				     outputs[i].reg);
+		}
 	}
 
 	return ret;
