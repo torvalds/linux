@@ -704,19 +704,19 @@ static int get_protocol(struct us_data *us)
 
 	case US_SC_8020:
 		us->protocol_name = "8020i";
-		us->proto_handler = usb_stor_ATAPI_command;
+		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
 	case US_SC_QIC:
 		us->protocol_name = "QIC-157";
-		us->proto_handler = usb_stor_qic157_command;
+		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
 	case US_SC_8070:
 		us->protocol_name = "8070i";
-		us->proto_handler = usb_stor_ATAPI_command;
+		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
