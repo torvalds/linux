@@ -69,7 +69,7 @@ sensor_found:
 }
 
 int s5k83a_read_sensor(struct sd *sd, const u8 address,
-			      u8 *i2c_data, const u8 len)
+		       u8 *i2c_data, const u8 len)
 {
 	int err, i;
 
@@ -106,11 +106,11 @@ int s5k83a_read_sensor(struct sd *sd, const u8 address,
 	}
 
 out:
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int s5k83a_write_sensor(struct sd *sd, const u8 address,
-			       u8 *i2c_data, const u8 len)
+			u8 *i2c_data, const u8 len)
 {
 	int err, i;
 	u8 *p;
