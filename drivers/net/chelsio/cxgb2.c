@@ -1010,6 +1010,23 @@ void t1_fatal_err(struct adapter *adapter)
 		 adapter->name);
 }
 
+static const struct net_device_ops cxgb_netdev_ops = {
+	.ndo_open		= cxgb_open,
+	.ndo_stop		= cxgb_close,
+	.ndo_get_stats		= t1_get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= t1_set_rxmode,
+	.ndo_do_ioctl		= t1_ioctl,
+	.ndo_change_mtu		= t1_change_mtu,
+	.ndo_set_mac_address	= t1_set_mac_addr,
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+	.ndo_vlan_rx_register	= vlan_rx_register,
+#endif
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= t1_netpoll,
+#endif
+};
+
 static int __devinit init_one(struct pci_dev *pdev,
 			      const struct pci_device_id *ent)
 {
@@ -1130,7 +1147,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 			adapter->flags |= VLAN_ACCEL_CAPABLE;
 			netdev->features |=
 				NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-			netdev->vlan_rx_register = vlan_rx_register;
 #endif
 
 			/* T204: disable TSO */
@@ -1140,19 +1156,11 @@ static int __devinit init_one(struct pci_dev *pdev,
 			}
 		}
 
-		netdev->open = cxgb_open;
-		netdev->stop = cxgb_close;
+		netdev->netdev_ops = &cxgb_netdev_ops;
 		netdev->hard_start_xmit = t1_start_xmit;
 		netdev->hard_header_len += (adapter->flags & TSO_CAPABLE) ?
 			sizeof(struct cpl_tx_pkt_lso) : sizeof(struct cpl_tx_pkt);
-		netdev->get_stats = t1_get_stats;
-		netdev->set_multicast_list = t1_set_rxmode;
-		netdev->do_ioctl = t1_ioctl;
-		netdev->change_mtu = t1_change_mtu;
-		netdev->set_mac_address = t1_set_mac_addr;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		netdev->poll_controller = t1_netpoll;
-#endif
+
 		netif_napi_add(netdev, &adapter->napi, t1_poll, 64);
 
 		SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
