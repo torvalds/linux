@@ -543,35 +543,38 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 		 * on, or the error summary bit is set, the packet needs
 		 * to be dropped.
 		 */
-		if (((cmd_sts & (RX_FIRST_DESC | RX_LAST_DESC)) !=
-					(RX_FIRST_DESC | RX_LAST_DESC))
-				|| (cmd_sts & ERROR_SUMMARY)) {
-			stats->rx_dropped++;
+		if ((cmd_sts & (RX_FIRST_DESC | RX_LAST_DESC | ERROR_SUMMARY))
+			!= (RX_FIRST_DESC | RX_LAST_DESC))
+			goto err;
 
-			if ((cmd_sts & (RX_FIRST_DESC | RX_LAST_DESC)) !=
-				(RX_FIRST_DESC | RX_LAST_DESC)) {
-				if (net_ratelimit())
-					dev_printk(KERN_ERR, &mp->dev->dev,
-						   "received packet spanning "
-						   "multiple descriptors\n");
-			}
+		/*
+		 * The -4 is for the CRC in the trailer of the
+		 * received packet
+		 */
+		skb_put(skb, byte_cnt - 2 - 4);
 
-			if (cmd_sts & ERROR_SUMMARY)
-				stats->rx_errors++;
+		if (cmd_sts & LAYER_4_CHECKSUM_OK)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		skb->protocol = eth_type_trans(skb, mp->dev);
+		netif_receive_skb(skb);
 
-			dev_kfree_skb(skb);
-		} else {
-			/*
-			 * The -4 is for the CRC in the trailer of the
-			 * received packet
-			 */
-			skb_put(skb, byte_cnt - 2 - 4);
+		continue;
 
-			if (cmd_sts & LAYER_4_CHECKSUM_OK)
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
-			skb->protocol = eth_type_trans(skb, mp->dev);
-			netif_receive_skb(skb);
+err:
+		stats->rx_dropped++;
+
+		if ((cmd_sts & (RX_FIRST_DESC | RX_LAST_DESC)) !=
+			(RX_FIRST_DESC | RX_LAST_DESC)) {
+			if (net_ratelimit())
+				dev_printk(KERN_ERR, &mp->dev->dev,
+					   "received packet spanning "
+					   "multiple descriptors\n");
 		}
+
+		if (cmd_sts & ERROR_SUMMARY)
+			stats->rx_errors++;
+
+		dev_kfree_skb(skb);
 	}
 
 	if (rx < budget)
