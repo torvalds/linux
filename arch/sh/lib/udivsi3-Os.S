@@ -40,7 +40,9 @@ Boston, MA 02110-1301, USA.  */
         of two more cycles.  */
 	.balign 4
 	.global	__udivsi3_i4i
+	.global	__udivsi3_i4
 	.global __udivsi3
+	.set	__udivsi3_i4, __udivsi3_i4i
 	.set	__udivsi3, __udivsi3_i4i
 	.type	__udivsi3_i4i, @function
 	.type	__sdivsi3_i4i, @function
@@ -105,7 +107,9 @@ sdiv_large_divisor:
 	rotcl r0
 
 	.global	__sdivsi3_i4i
+	.global __sdivsi3_i4
 	.global __sdivsi3
+	.set	__sdivsi3_i4, __sdivsi3_i4i
 	.set	__sdivsi3, __sdivsi3_i4i
 __sdivsi3_i4i:
 	mov.l r4,@-r15

@@ -56,7 +56,9 @@ Boston, MA 02110-1301, USA.  */
 
 	.balign 4
 	.global	__udivsi3_i4i
+	.global	__udivsi3_i4
 	.global	__udivsi3
+	.set	__udivsi3_i4, __udivsi3_i4i
 	.set	__udivsi3, __udivsi3_i4i
 	.type	__udivsi3_i4i, @function
 __udivsi3_i4i:
@@ -174,7 +176,9 @@ div_r8_2:
 	rotcl r0
 
 	.global	__sdivsi3_i4i
+	.global __sdivsi3_i4
 	.global	__sdivsi3
+	.set	__sdivsi3_i4, __sdivsi3_i4i
 	.set	__sdivsi3, __sdivsi3_i4i
 	.type	__sdivsi3_i4i, @function
 	/* This is link-compatible with a __sdivsi3 call,

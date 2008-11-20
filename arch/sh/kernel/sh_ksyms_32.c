@@ -53,6 +53,8 @@ EXPORT_SYMBOL(__const_udelay);
 #define DECLARE_EXPORT(name)		\
 	extern void name(void);EXPORT_SYMBOL(name)
 
+DECLARE_EXPORT(__udivsi3);
+DECLARE_EXPORT(__sdivsi3);
 DECLARE_EXPORT(__lshrsi3);
 DECLARE_EXPORT(__ashrsi3);
 DECLARE_EXPORT(__ashlsi3);
@@ -92,6 +94,8 @@ DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
 DECLARE_EXPORT(__movstrSI12_i4);
 DECLARE_EXPORT(__udiv_qrnnd_16);
+DECLARE_EXPORT(__sdivsi3_i4);
+DECLARE_EXPORT(__udivsi3_i4);
 DECLARE_EXPORT(__sdivsi3_i4i);
 DECLARE_EXPORT(__udivsi3_i4i);
 
