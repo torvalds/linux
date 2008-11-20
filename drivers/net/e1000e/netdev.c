@@ -4704,6 +4704,25 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 	}
 }
 
+static const struct net_device_ops e1000e_netdev_ops = {
+	.ndo_open		= e1000_open,
+	.ndo_stop		= e1000_close,
+	.ndo_get_stats		= e1000_get_stats,
+	.ndo_set_multicast_list	= e1000_set_multi,
+	.ndo_set_mac_address	= e1000_set_mac,
+	.ndo_change_mtu		= e1000_change_mtu,
+	.ndo_do_ioctl		= e1000_ioctl,
+	.ndo_tx_timeout		= e1000_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+
+	.ndo_vlan_rx_register	= e1000_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= e1000_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= e1000_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= e1000_netpoll,
+#endif
+};
+
 /**
  * e1000_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -4802,24 +4821,11 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	}
 
 	/* construct the net_device struct */
-	netdev->open			= &e1000_open;
-	netdev->stop			= &e1000_close;
+	netdev->netdev_ops		= &e1000e_netdev_ops;
 	netdev->hard_start_xmit		= &e1000_xmit_frame;
-	netdev->get_stats		= &e1000_get_stats;
-	netdev->set_multicast_list	= &e1000_set_multi;
-	netdev->set_mac_address		= &e1000_set_mac;
-	netdev->change_mtu		= &e1000_change_mtu;
-	netdev->do_ioctl		= &e1000_ioctl;
 	e1000e_set_ethtool_ops(netdev);
-	netdev->tx_timeout		= &e1000_tx_timeout;
 	netdev->watchdog_timeo		= 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, e1000_clean, 64);
-	netdev->vlan_rx_register	= e1000_vlan_rx_register;
-	netdev->vlan_rx_add_vid		= e1000_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid	= e1000_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller		= e1000_netpoll;
-#endif
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
 	netdev->mem_start = mmio_start;
