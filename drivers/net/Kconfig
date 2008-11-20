@@ -1982,10 +1982,10 @@ config IP1000
 	  will be called ipg.  This is recommended.
 
 config IGB
-       tristate "Intel(R) 82575 PCI-Express Gigabit Ethernet support"
+       tristate "Intel(R) 82575/82576 PCI-Express Gigabit Ethernet support"
        depends on PCI
        ---help---
-         This driver supports Intel(R) 82575 gigabit ethernet family of
+         This driver supports Intel(R) 82575/82576 gigabit ethernet family of
          adapters.  For more information on how to identify your adapter, go
          to the Adapter & Driver ID Guide at:
 
