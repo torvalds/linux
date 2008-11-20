@@ -172,12 +172,13 @@ static void service_arp_queue(struct netpoll_info *npi)
 void netpoll_poll(struct netpoll *np)
 {
 	struct net_device *dev = np->dev;
+	const struct net_device_ops *ops = dev->netdev_ops;
 
-	if (!dev || !netif_running(dev) || !dev->poll_controller)
+	if (!dev || !netif_running(dev) || !ops->ndo_poll_controller)
 		return;
 
 	/* Process pending work on NIC */
-	dev->poll_controller(dev);
+	ops->ndo_poll_controller(dev);
 
 	poll_napi(dev);
 
@@ -694,7 +695,7 @@ int netpoll_setup(struct netpoll *np)
 		atomic_inc(&npinfo->refcnt);
 	}
 
-	if (!ndev->poll_controller) {
+	if (!ndev->netdev_ops->ndo_poll_controller) {
 		printk(KERN_ERR "%s: %s doesn't support polling, aborting.\n",
 		       np->name, np->dev_name);
 		err = -ENOTSUPP;

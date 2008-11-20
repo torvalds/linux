@@ -1059,6 +1059,7 @@ void dev_load(struct net *net, const char *name)
  */
 int dev_open(struct net_device *dev)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
 	int ret = 0;
 
 	ASSERT_RTNL();
@@ -1081,11 +1082,11 @@ int dev_open(struct net_device *dev)
 	 */
 	set_bit(__LINK_STATE_START, &dev->state);
 
-	if (dev->validate_addr)
-		ret = dev->validate_addr(dev);
+	if (ops->ndo_validate_addr)
+		ret = ops->ndo_validate_addr(dev);
 
-	if (!ret && dev->open)
-		ret = dev->open(dev);
+	if (!ret && ops->ndo_open)
+		ret = ops->ndo_open(dev);
 
 	/*
 	 *	If it went open OK then:
@@ -1129,6 +1130,7 @@ int dev_open(struct net_device *dev)
  */
 int dev_close(struct net_device *dev)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
 	ASSERT_RTNL();
 
 	might_sleep();
@@ -1161,8 +1163,8 @@ int dev_close(struct net_device *dev)
 	 *	We allow it to be called even after a DETACH hot-plug
 	 *	event.
 	 */
-	if (dev->stop)
-		dev->stop(dev);
+	if (ops->ndo_stop)
+		ops->ndo_stop(dev);
 
 	/*
 	 *	Device is now down.
@@ -2930,8 +2932,10 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 
 static void dev_change_rx_flags(struct net_device *dev, int flags)
 {
-	if (dev->flags & IFF_UP && dev->change_rx_flags)
-		dev->change_rx_flags(dev, flags);
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if ((dev->flags & IFF_UP) && ops->ndo_change_rx_flags)
+		ops->ndo_change_rx_flags(dev, flags);
 }
 
 static int __dev_set_promiscuity(struct net_device *dev, int inc)
@@ -3051,6 +3055,8 @@ int dev_set_allmulti(struct net_device *dev, int inc)
  */
 void __dev_set_rx_mode(struct net_device *dev)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
+
 	/* dev_open will call this function so the list will stay sane. */
 	if (!(dev->flags&IFF_UP))
 		return;
@@ -3058,8 +3064,8 @@ void __dev_set_rx_mode(struct net_device *dev)
 	if (!netif_device_present(dev))
 		return;
 
-	if (dev->set_rx_mode)
-		dev->set_rx_mode(dev);
+	if (ops->ndo_set_rx_mode)
+		ops->ndo_set_rx_mode(dev);
 	else {
 		/* Unicast addresses changes may only happen under the rtnl,
 		 * therefore calling __dev_set_promiscuity here is safe.
@@ -3072,8 +3078,8 @@ void __dev_set_rx_mode(struct net_device *dev)
 			dev->uc_promisc = 0;
 		}
 
-		if (dev->set_multicast_list)
-			dev->set_multicast_list(dev);
+		if (ops->ndo_set_multicast_list)
+			ops->ndo_set_multicast_list(dev);
 	}
 }
 
@@ -3432,6 +3438,7 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
  */
 int dev_set_mtu(struct net_device *dev, int new_mtu)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
 
 	if (new_mtu == dev->mtu)
@@ -3445,10 +3452,11 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 		return -ENODEV;
 
 	err = 0;
-	if (dev->change_mtu)
-		err = dev->change_mtu(dev, new_mtu);
+	if (ops->ndo_change_mtu)
+		err = ops->ndo_change_mtu(dev, new_mtu);
 	else
 		dev->mtu = new_mtu;
+
 	if (!err && dev->flags & IFF_UP)
 		call_netdevice_notifiers(NETDEV_CHANGEMTU, dev);
 	return err;
@@ -3463,15 +3471,16 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
  */
 int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
 
-	if (!dev->set_mac_address)
+	if (!ops->ndo_set_mac_address)
 		return -EOPNOTSUPP;
 	if (sa->sa_family != dev->type)
 		return -EINVAL;
 	if (!netif_device_present(dev))
 		return -ENODEV;
-	err = dev->set_mac_address(dev, sa);
+	err = ops->ndo_set_mac_address(dev, sa);
 	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 	return err;
@@ -3551,6 +3560,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 {
 	int err;
 	struct net_device *dev = __dev_get_by_name(net, ifr->ifr_name);
+	const struct net_device_ops *ops = dev->netdev_ops;
 
 	if (!dev)
 		return -ENODEV;
@@ -3578,15 +3588,15 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 			return 0;
 
 		case SIOCSIFMAP:
-			if (dev->set_config) {
+			if (ops->ndo_set_config) {
 				if (!netif_device_present(dev))
 					return -ENODEV;
-				return dev->set_config(dev, &ifr->ifr_map);
+				return ops->ndo_set_config(dev, &ifr->ifr_map);
 			}
 			return -EOPNOTSUPP;
 
 		case SIOCADDMULTI:
-			if ((!dev->set_multicast_list && !dev->set_rx_mode) ||
+			if ((!ops->ndo_set_multicast_list && !ops->ndo_set_rx_mode) ||
 			    ifr->ifr_hwaddr.sa_family != AF_UNSPEC)
 				return -EINVAL;
 			if (!netif_device_present(dev))
@@ -3595,7 +3605,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 					  dev->addr_len, 1);
 
 		case SIOCDELMULTI:
-			if ((!dev->set_multicast_list && !dev->set_rx_mode) ||
+			if ((!ops->ndo_set_multicast_list && !ops->ndo_set_rx_mode) ||
 			    ifr->ifr_hwaddr.sa_family != AF_UNSPEC)
 				return -EINVAL;
 			if (!netif_device_present(dev))
@@ -3633,10 +3643,9 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 			    cmd == SIOCBRDELIF ||
 			    cmd == SIOCWANDEV) {
 				err = -EOPNOTSUPP;
-				if (dev->do_ioctl) {
+				if (ops->ndo_do_ioctl) {
 					if (netif_device_present(dev))
-						err = dev->do_ioctl(dev, ifr,
-								    cmd);
+						err = ops->ndo_do_ioctl(dev, ifr, cmd);
 					else
 						err = -ENODEV;
 				}
@@ -3897,8 +3906,8 @@ static void rollback_registered(struct net_device *dev)
 	 */
 	dev_addr_discard(dev);
 
-	if (dev->uninit)
-		dev->uninit(dev);
+	if (dev->netdev_ops->ndo_uninit)
+		dev->netdev_ops->ndo_uninit(dev);
 
 	/* Notifier chain MUST detach us from master device. */
 	WARN_ON(dev->master);
@@ -3988,7 +3997,7 @@ int register_netdevice(struct net_device *dev)
 	struct hlist_head *head;
 	struct hlist_node *p;
 	int ret;
-	struct net *net;
+	struct net *net = dev_net(dev);
 
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
@@ -3997,8 +4006,7 @@ int register_netdevice(struct net_device *dev)
 
 	/* When net_device's are persistent, this will be fatal. */
 	BUG_ON(dev->reg_state != NETREG_UNINITIALIZED);
-	BUG_ON(!dev_net(dev));
-	net = dev_net(dev);
+	BUG_ON(!net);
 
 	spin_lock_init(&dev->addr_list_lock);
 	netdev_set_addr_lockdep_class(dev);
@@ -4006,9 +4014,46 @@ int register_netdevice(struct net_device *dev)
 
 	dev->iflink = -1;
 
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
+	/* Netdevice_ops API compatiability support.
+	 * This is temporary until all network devices are converted.
+	 */
+	if (dev->netdev_ops) {
+		const struct net_device_ops *ops = dev->netdev_ops;
+
+		dev->init = ops->ndo_init;
+		dev->uninit = ops->ndo_uninit;
+		dev->open = ops->ndo_open;
+		dev->change_rx_flags = ops->ndo_change_rx_flags;
+		dev->set_rx_mode = ops->ndo_set_rx_mode;
+		dev->set_multicast_list = ops->ndo_set_multicast_list;
+		dev->set_mac_address = ops->ndo_set_mac_address;
+		dev->validate_addr = ops->ndo_validate_addr;
+		dev->do_ioctl = ops->ndo_do_ioctl;
+		dev->set_config = ops->ndo_set_config;
+		dev->change_mtu = ops->ndo_change_mtu;
+		dev->tx_timeout = ops->ndo_tx_timeout;
+		dev->get_stats = ops->ndo_get_stats;
+		dev->vlan_rx_register = ops->ndo_vlan_rx_register;
+		dev->vlan_rx_add_vid = ops->ndo_vlan_rx_add_vid;
+		dev->vlan_rx_kill_vid = ops->ndo_vlan_rx_kill_vid;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+		dev->poll_controller = ops->ndo_poll_controller;
+#endif
+	} else {
+		char drivername[64];
+		pr_info("%s (%s): not using net_device_ops yet\n",
+			dev->name, netdev_drivername(dev, drivername, 64));
+
+		/* This works only because net_device_ops and the
+		   compatiablity structure are the same. */
+		dev->netdev_ops = (void *) &(dev->init);
+	}
+#endif
+
 	/* Init, if this function is available */
-	if (dev->init) {
-		ret = dev->init(dev);
+	if (dev->netdev_ops->ndo_init) {
+		ret = dev->netdev_ops->ndo_init(dev);
 		if (ret) {
 			if (ret > 0)
 				ret = -EIO;
@@ -4086,8 +4131,8 @@ out:
 	return ret;
 
 err_uninit:
-	if (dev->uninit)
-		dev->uninit(dev);
+	if (dev->netdev_ops->ndo_uninit)
+		dev->netdev_ops->ndo_uninit(dev);
 	goto out;
 }
 

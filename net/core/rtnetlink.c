@@ -762,6 +762,7 @@ static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
 static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		      struct nlattr **tb, char *ifname, int modified)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
 	int send_addr_notify = 0;
 	int err;
 
@@ -783,7 +784,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		struct rtnl_link_ifmap *u_map;
 		struct ifmap k_map;
 
-		if (!dev->set_config) {
+		if (!ops->ndo_set_config) {
 			err = -EOPNOTSUPP;
 			goto errout;
 		}
@@ -801,7 +802,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		k_map.dma = (unsigned char) u_map->dma;
 		k_map.port = (unsigned char) u_map->port;
 
-		err = dev->set_config(dev, &k_map);
+		err = ops->ndo_set_config(dev, &k_map);
 		if (err < 0)
 			goto errout;
 
@@ -812,7 +813,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		struct sockaddr *sa;
 		int len;
 
-		if (!dev->set_mac_address) {
+		if (!ops->ndo_set_mac_address) {
 			err = -EOPNOTSUPP;
 			goto errout;
 		}
@@ -831,7 +832,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		sa->sa_family = dev->type;
 		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
 		       dev->addr_len);
-		err = dev->set_mac_address(dev, sa);
+		err = ops->ndo_set_mac_address(dev, sa);
 		kfree(sa);
 		if (err)
 			goto errout;
