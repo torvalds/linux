@@ -3727,6 +3727,23 @@ static int ixgbe_link_config(struct ixgbe_hw *hw)
 	return hw->mac.ops.setup_link_speed(hw, autoneg, true, true);
 }
 
+static const struct net_device_ops ixgbe_netdev_ops = {
+	.ndo_open 		= ixgbe_open,
+	.ndo_stop		= ixgbe_close,
+	.ndo_get_stats		= ixgbe_get_stats,
+	.ndo_set_multicast_list	= ixgbe_set_rx_mode,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= ixgbe_set_mac,
+	.ndo_change_mtu		= ixgbe_change_mtu,
+	.ndo_tx_timeout		= ixgbe_tx_timeout,
+	.ndo_vlan_rx_register	= ixgbe_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= ixgbe_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= ixgbe_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ixgbe_netpoll,
+#endif
+};
+
 /**
  * ixgbe_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -3808,23 +3825,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			continue;
 	}
 
-	netdev->open = &ixgbe_open;
-	netdev->stop = &ixgbe_close;
+	netdev->netdev_ops = &ixgbe_netdev_ops;
 	netdev->hard_start_xmit = &ixgbe_xmit_frame;
-	netdev->get_stats = &ixgbe_get_stats;
-	netdev->set_rx_mode = &ixgbe_set_rx_mode;
-	netdev->set_multicast_list = &ixgbe_set_rx_mode;
-	netdev->set_mac_address = &ixgbe_set_mac;
-	netdev->change_mtu = &ixgbe_change_mtu;
 	ixgbe_set_ethtool_ops(netdev);
-	netdev->tx_timeout = &ixgbe_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
-	netdev->vlan_rx_register = ixgbe_vlan_rx_register;
-	netdev->vlan_rx_add_vid = ixgbe_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid = ixgbe_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = ixgbe_netpoll;
-#endif
 	strcpy(netdev->name, pci_name(pdev));
 
 	adapter->bd_number = cards_found;

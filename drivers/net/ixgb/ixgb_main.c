@@ -321,6 +321,23 @@ ixgb_reset(struct ixgb_adapter *adapter)
 	}
 }
 
+static const struct net_device_ops ixgb_netdev_ops = {
+	.ndo_open 		= ixgb_open,
+	.ndo_stop		= ixgb_close,
+	.ndo_get_stats		= ixgb_get_stats,
+	.ndo_set_multicast_list	= ixgb_set_multi,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= ixgb_set_mac,
+	.ndo_change_mtu		= ixgb_change_mtu,
+	.ndo_tx_timeout		= ixgb_tx_timeout,
+	.ndo_vlan_rx_register	= ixgb_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= ixgb_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= ixgb_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ixgb_netpoll,
+#endif
+};
+
 /**
  * ixgb_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -396,23 +413,11 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	netdev->open = &ixgb_open;
-	netdev->stop = &ixgb_close;
+	netdev->netdev_ops = &ixgb_netdev_ops;
 	netdev->hard_start_xmit = &ixgb_xmit_frame;
-	netdev->get_stats = &ixgb_get_stats;
-	netdev->set_multicast_list = &ixgb_set_multi;
-	netdev->set_mac_address = &ixgb_set_mac;
-	netdev->change_mtu = &ixgb_change_mtu;
 	ixgb_set_ethtool_ops(netdev);
-	netdev->tx_timeout = &ixgb_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, ixgb_clean, 64);
-	netdev->vlan_rx_register = ixgb_vlan_rx_register;
-	netdev->vlan_rx_add_vid = ixgb_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid = ixgb_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = ixgb_netpoll;
-#endif
 
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
