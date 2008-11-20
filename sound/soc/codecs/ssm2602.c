@@ -292,8 +292,14 @@ static int ssm2602_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->codec;
 	struct ssm2602_priv *ssm2602 = codec->private_data;
+	struct i2c_client *i2c = codec->control_data;
 	u16 iface = ssm2602_read_reg_cache(codec, SSM2602_IFACE) & 0xfff3;
 	int i = get_coeff(ssm2602->sysclk, params_rate(params));
+
+	if (substream == ssm2602->slave_substream) {
+		dev_dbg(&i2c->dev, "Ignoring hw_params for slave substream\n");
+		return 0;
+	}
 
 	/*no match is found*/
 	if (i == ARRAY_SIZE(coeff_div))
@@ -330,13 +336,19 @@ static int ssm2602_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->codec;
 	struct ssm2602_priv *ssm2602 = codec->private_data;
+	struct i2c_client *i2c = codec->control_data;
 	struct snd_pcm_runtime *master_runtime;
 
 	/* The DAI has shared clocks so if we already have a playback or
 	 * capture going then constrain this substream to match it.
+	 * TODO: the ssm2602 allows pairs of non-matching PB/REC rates
 	 */
 	if (ssm2602->master_substream) {
 		master_runtime = ssm2602->master_substream->runtime;
+		dev_dbg(&i2c->dev, "Constraining to %d bits at %dHz\n",
+			master_runtime->sample_bits,
+			master_runtime->rate);
+
 		snd_pcm_hw_constraint_minmax(substream->runtime,
 					     SNDRV_PCM_HW_PARAM_RATE,
 					     master_runtime->rate,
@@ -370,9 +382,15 @@ static void ssm2602_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->codec;
+	struct ssm2602_priv *ssm2602 = codec->private_data;
 	/* deactivate */
 	if (!codec->active)
 		ssm2602_write(codec, SSM2602_ACTIVE, 0);
+
+	if (ssm2602->master_substream == substream)
+		ssm2602->master_substream = ssm2602->slave_substream;
+
+	ssm2602->slave_substream = NULL;
 }
 
 static int ssm2602_mute(struct snd_soc_dai *dai, int mute)
