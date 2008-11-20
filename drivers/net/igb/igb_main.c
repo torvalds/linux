@@ -3926,8 +3926,10 @@ send_up:
 		next_buffer = &rx_ring->buffer_info[i];
 
 		if (!(staterr & E1000_RXD_STAT_EOP)) {
-			buffer_info->skb = xchg(&next_buffer->skb, skb);
-			buffer_info->dma = xchg(&next_buffer->dma, 0);
+			buffer_info->skb = next_buffer->skb;
+			buffer_info->dma = next_buffer->dma;
+			next_buffer->skb = skb;
+			next_buffer->dma = 0;
 			goto next_desc;
 		}
 
