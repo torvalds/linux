@@ -3,7 +3,7 @@
  *  Support for the mpeg transport stream transfers
  *  PCI function #2 of the cx2388x.
  *
- *    (c) 2004 Jelle Foks <jelle@foks.8m.com>
+ *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Chris Pascoe <c.pascoe@itee.uq.edu.au>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
  *
@@ -34,7 +34,7 @@
 /* ------------------------------------------------------------------ */
 
 MODULE_DESCRIPTION("mpeg driver for cx2388x based TV cards");
-MODULE_AUTHOR("Jelle Foks <jelle@foks.8m.com>");
+MODULE_AUTHOR("Jelle Foks <jelle@foks.us>");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");

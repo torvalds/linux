@@ -3,7 +3,7 @@
  *  Support for a cx23416 mpeg encoder via cx2388x host port.
  *  "blackbird" reference design.
  *
- *    (c) 2004 Jelle Foks <jelle@foks.8m.com>
+ *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
  *
  *    (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
@@ -39,7 +39,7 @@
 #include "cx88.h"
 
 MODULE_DESCRIPTION("driver for cx2388x/cx23416 based mpeg encoder cards");
-MODULE_AUTHOR("Jelle Foks <jelle@foks.8m.com>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Jelle Foks <jelle@foks.us>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
 static unsigned int mpegbufs = 32;
