@@ -2,7 +2,7 @@
  *      	An implementation of a loadable kernel mode driver providing
  *		multiple kernel/user space bidirectional communications links.
  *
- * 		Author: 	Alan Cox <alan@redhat.com>
+ * 		Author: 	Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License

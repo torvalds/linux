@@ -307,6 +307,13 @@ struct alc_spec {
 	/* for PLL fix */
 	hda_nid_t pll_nid;
 	unsigned int pll_coef_idx, pll_coef_bit;
+
+#ifdef SND_HDA_NEEDS_RESUME
+#define ALC_MAX_PINS	16
+	unsigned int num_pins;
+	hda_nid_t pin_nids[ALC_MAX_PINS];
+	unsigned int pin_cfgs[ALC_MAX_PINS];
+#endif
 };
 
 /*
@@ -822,6 +829,7 @@ static void alc_sku_automute(struct hda_codec *codec)
 			    spec->jack_present ? 0 : PIN_OUT);
 }
 
+#if 0 /* it's broken in some acses -- temporarily disabled */
 static void alc_mic_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -842,6 +850,9 @@ static void alc_mic_automute(struct hda_codec *codec)
 	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, capsrc_idx_fmic,
 			 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
+#else
+#define alc_mic_automute(codec) /* NOP */
+#endif /* disabled */
 
 /* unsolicited event for HP jack sensing */
 static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -1051,12 +1062,14 @@ do_sku:
 			AC_VERB_SET_UNSOLICITED_ENABLE,
 			AC_USRSP_EN | ALC880_HP_EVENT);
 
+#if 0 /* it's broken in some acses -- temporarily disabled */
 	if (spec->autocfg.input_pins[AUTO_PIN_MIC] &&
 		spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC])
 		snd_hda_codec_write(codec,
 			spec->autocfg.input_pins[AUTO_PIN_MIC], 0,
 			AC_VERB_SET_UNSOLICITED_ENABLE,
 			AC_USRSP_EN | ALC880_MIC_EVENT);
+#endif /* disabled */
 
 	spec->unsol_event = alc_sku_unsol_event;
 }
@@ -2778,6 +2791,64 @@ static void alc_free(struct hda_codec *codec)
 	codec->spec = NULL; /* to be sure */
 }
 
+#ifdef SND_HDA_NEEDS_RESUME
+static void store_pin_configs(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t nid, end_nid;
+
+	end_nid = codec->start_nid + codec->num_nodes;
+	for (nid = codec->start_nid; nid < end_nid; nid++) {
+		unsigned int wid_caps = get_wcaps(codec, nid);
+		unsigned int wid_type =
+			(wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		if (wid_type != AC_WID_PIN)
+			continue;
+		if (spec->num_pins >= ARRAY_SIZE(spec->pin_nids))
+			break;
+		spec->pin_nids[spec->num_pins] = nid;
+		spec->pin_cfgs[spec->num_pins] =
+			snd_hda_codec_read(codec, nid, 0,
+					   AC_VERB_GET_CONFIG_DEFAULT, 0);
+		spec->num_pins++;
+	}
+}
+
+static void resume_pin_configs(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->num_pins; i++) {
+		hda_nid_t pin_nid = spec->pin_nids[i];
+		unsigned int pin_config = spec->pin_cfgs[i];
+		snd_hda_codec_write(codec, pin_nid, 0,
+				    AC_VERB_SET_CONFIG_DEFAULT_BYTES_0,
+				    pin_config & 0x000000ff);
+		snd_hda_codec_write(codec, pin_nid, 0,
+				    AC_VERB_SET_CONFIG_DEFAULT_BYTES_1,
+				    (pin_config & 0x0000ff00) >> 8);
+		snd_hda_codec_write(codec, pin_nid, 0,
+				    AC_VERB_SET_CONFIG_DEFAULT_BYTES_2,
+				    (pin_config & 0x00ff0000) >> 16);
+		snd_hda_codec_write(codec, pin_nid, 0,
+				    AC_VERB_SET_CONFIG_DEFAULT_BYTES_3,
+				    pin_config >> 24);
+	}
+}
+
+static int alc_resume(struct hda_codec *codec)
+{
+	resume_pin_configs(codec);
+	codec->patch_ops.init(codec);
+	snd_hda_codec_resume_amp(codec);
+	snd_hda_codec_resume_cache(codec);
+	return 0;
+}
+#else
+#define store_pin_configs(codec)
+#endif
+
 /*
  */
 static struct hda_codec_ops alc_patch_ops = {
@@ -2786,6 +2857,9 @@ static struct hda_codec_ops alc_patch_ops = {
 	.init = alc_init,
 	.free = alc_free,
 	.unsol_event = alc_unsol_event,
+#ifdef SND_HDA_NEEDS_RESUME
+	.resume = alc_resume,
+#endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	.check_power_status = alc_check_power_status,
 #endif
@@ -3832,6 +3906,7 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
+	store_pin_configs(codec);
 	return 1;
 }
 
@@ -5250,6 +5325,7 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	}
 	spec->num_mixers++;
 
+	store_pin_configs(codec);
 	return 1;
 }
 
@@ -8338,6 +8414,7 @@ static const char *alc883_models[ALC883_MODEL_LAST] = {
 static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x6668, "ECS", ALC883_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1025, 0x006c, "Acer Aspire 9810", ALC883_ACER_ASPIRE),
+	SND_PCI_QUIRK(0x1025, 0x0090, "Acer Aspire", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x0110, "Acer Aspire", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x0112, "Acer Aspire 9303", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x0121, "Acer Aspire 5920G", ALC883_ACER_ASPIRE),
@@ -8392,6 +8469,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3bfd, "Lenovo NB0763", ALC883_LENOVO_NB0763),
 	SND_PCI_QUIRK(0x17aa, 0x101d, "Lenovo Sky", ALC888_LENOVO_SKY),
 	SND_PCI_QUIRK(0x17c0, 0x4071, "MEDION MD2", ALC883_MEDION_MD2),
+	SND_PCI_QUIRK(0x17c0, 0x4085, "MEDION MD96630", ALC888_LENOVO_MS7195_DIG),
 	SND_PCI_QUIRK(0x17f2, 0x5000, "Albatron KI690-AM2", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1991, 0x5625, "Haier W66", ALC883_HAIER_W66),
 	SND_PCI_QUIRK(0x8086, 0x0001, "DG33BUC", ALC883_3ST_6ch_INTEL),
@@ -10313,6 +10391,7 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	store_pin_configs(codec);
 	return 1;
 }
 
@@ -11447,6 +11526,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	store_pin_configs(codec);
 	return 1;
 }
 
@@ -12166,8 +12246,26 @@ static int alc269_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-#define alc269_auto_create_analog_input_ctls \
-	alc880_auto_create_analog_input_ctls
+static int alc269_auto_create_analog_input_ctls(struct alc_spec *spec,
+						const struct auto_pin_cfg *cfg)
+{
+	int err;
+
+	err = alc880_auto_create_analog_input_ctls(spec, cfg);
+	if (err < 0)
+		return err;
+	/* digital-mic input pin is excluded in alc880_auto_create..()
+	 * because it's under 0x18
+	 */
+	if (cfg->input_pins[AUTO_PIN_MIC] == 0x12 ||
+	    cfg->input_pins[AUTO_PIN_FRONT_MIC] == 0x12) {
+		struct hda_input_mux *imux = &spec->private_imux;
+		imux->items[imux->num_items].label = "Int Mic";
+		imux->items[imux->num_items].index = 0x05;
+		imux->num_items++;
+	}
+	return 0;
+}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc269_loopbacks	alc880_loopbacks
@@ -12230,6 +12328,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	spec->mixers[spec->num_mixers] = alc269_capture_mixer;
 	spec->num_mixers++;
 
+	store_pin_configs(codec);
 	return 1;
 }
 
@@ -13316,6 +13415,7 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	spec->mixers[spec->num_mixers] = alc861_capture_mixer;
 	spec->num_mixers++;
 
+	store_pin_configs(codec);
 	return 1;
 }
 
@@ -14427,6 +14527,7 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	store_pin_configs(codec);
 	return 1;
 }
 
@@ -16258,6 +16359,8 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 
 	spec->mixers[spec->num_mixers] = alc662_capture_mixer;
 	spec->num_mixers++;
+
+	store_pin_configs(codec);
 	return 1;
 }
 

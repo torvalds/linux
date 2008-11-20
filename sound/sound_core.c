@@ -57,7 +57,7 @@ module_exit(cleanup_soundcore);
 /*
  *	OSS sound core handling. Breaks out sound functions to submodules
  *	
- *	Author:		Alan Cox <alan.cox@linux.org>
+ *	Author:		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	Fixes:
  *

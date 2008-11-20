@@ -4,7 +4,7 @@
  *			driven by AHCI in the usual configuration although
  *			this driver can handle other setups if we need it.
  *
- *	(c) 2006 Red Hat  <alan@redhat.com>
+ *	(c) 2006 Red Hat
  */
 
 #include <linux/kernel.h>

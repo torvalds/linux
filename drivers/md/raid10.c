@@ -1137,7 +1137,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	if (!enough(conf))
 		return -EINVAL;
 
-	if (rdev->raid_disk)
+	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
 
 	if (rdev->saved_raid_disk >= 0 &&

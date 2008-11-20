@@ -64,7 +64,7 @@ static void function_trace_ctrl_update(struct trace_array *tr)
 
 static struct tracer function_trace __read_mostly =
 {
-	.name	     = "ftrace",
+	.name	     = "function",
 	.init	     = function_trace_init,
 	.reset	     = function_trace_reset,
 	.ctrl_update = function_trace_ctrl_update,

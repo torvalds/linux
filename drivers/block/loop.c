@@ -40,8 +40,7 @@
  * Heinz Mauelshagen <mge@sistina.com>, Feb 2002
  *
  * Support for falling back on the write file operation when the address space
- * operations prepare_write and/or commit_write are not available on the
- * backing filesystem.
+ * operations write_begin is not available on the backing filesystem.
  * Anton Altaparmakov, 16 Feb 2005
  *
  * Still To Fix:
@@ -765,7 +764,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		 */
 		if (!file->f_op->splice_read)
 			goto out_putf;
-		if (aops->prepare_write || aops->write_begin)
+		if (aops->write_begin)
 			lo_flags |= LO_FLAGS_USE_AOPS;
 		if (!(lo_flags & LO_FLAGS_USE_AOPS) && !file->f_op->write)
 			lo_flags |= LO_FLAGS_READ_ONLY;

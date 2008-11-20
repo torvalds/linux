@@ -1,7 +1,7 @@
 /*
  * pata-cs5535.c 	- CS5535 PATA for new ATA layer
  *			  (C) 2005-2006 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
+ *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * based upon cs5535.c from AMD <Jens.Altmann@amd.com> as cleaned up and
  * made readable and Linux style by Wolfgang Zuleger <wolfgang.zuleger@gmx.de
@@ -72,7 +72,6 @@
 /**
  *	cs5535_cable_detect	-	detect cable type
  *	@ap: Port to detect on
- *	@deadline: deadline jiffies for the operation
  *
  *	Perform cable detection for ATA66 capable cable. Return a libata
  *	cable type.

@@ -16,7 +16,7 @@
  * 20030527: George G. Davis <gdavis@mvista.com>
  *	Initially based on linux-2.4.19-rmk7-pxa1/drivers/char/sa1100_wdt.c
  *	(c) Copyright 2000 Oleg Drokin <green@crimea.edu>
- *	Based on SoftDog driver by Alan Cox <alan@redhat.com>
+ *	Based on SoftDog driver by Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * Copyright (c) 2004 Texas Instruments.
  *	1. Modified to support OMAP1610 32-KHz watchdog timer

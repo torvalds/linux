@@ -2310,7 +2310,8 @@ static void atl1_tx_queue(struct atl1_adapter *adapter, u16 count,
 		if (tpd != ptpd)
 			memcpy(tpd, ptpd, sizeof(struct tx_packet_desc));
 		tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
-		tpd->word2 = (cpu_to_le16(buffer_info->length) &
+		tpd->word2 &= ~(TPD_BUFLEN_MASK << TPD_BUFLEN_SHIFT);
+		tpd->word2 |= (cpu_to_le16(buffer_info->length) &
 			TPD_BUFLEN_MASK) << TPD_BUFLEN_SHIFT;
 
 		/*
@@ -2409,8 +2410,8 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		vlan_tag = (vlan_tag << 4) | (vlan_tag >> 13) |
 			((vlan_tag >> 9) & 0x8);
 		ptpd->word3 |= 1 << TPD_INS_VL_TAG_SHIFT;
-		ptpd->word3 |= (vlan_tag & TPD_VL_TAGGED_MASK) <<
-			TPD_VL_TAGGED_SHIFT;
+		ptpd->word2 |= (vlan_tag & TPD_VLANTAG_MASK) <<
+			TPD_VLANTAG_SHIFT;
 	}
 
 	tso = atl1_tso(adapter, skb, ptpd);
@@ -3403,14 +3404,8 @@ static void atl1_get_wol(struct net_device *netdev,
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
-	wol->supported = WAKE_UCAST | WAKE_MCAST | WAKE_BCAST | WAKE_MAGIC;
+	wol->supported = WAKE_MAGIC;
 	wol->wolopts = 0;
-	if (adapter->wol & ATLX_WUFC_EX)
-		wol->wolopts |= WAKE_UCAST;
-	if (adapter->wol & ATLX_WUFC_MC)
-		wol->wolopts |= WAKE_MCAST;
-	if (adapter->wol & ATLX_WUFC_BC)
-		wol->wolopts |= WAKE_BCAST;
 	if (adapter->wol & ATLX_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
 	return;
@@ -3421,15 +3416,10 @@ static int atl1_set_wol(struct net_device *netdev,
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
-	if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE))
+	if (wol->wolopts & (WAKE_PHY | WAKE_UCAST | WAKE_MCAST | WAKE_BCAST |
+		WAKE_ARP | WAKE_MAGICSECURE))
 		return -EOPNOTSUPP;
 	adapter->wol = 0;
-	if (wol->wolopts & WAKE_UCAST)
-		adapter->wol |= ATLX_WUFC_EX;
-	if (wol->wolopts & WAKE_MCAST)
-		adapter->wol |= ATLX_WUFC_MC;
-	if (wol->wolopts & WAKE_BCAST)
-		adapter->wol |= ATLX_WUFC_BC;
 	if (wol->wolopts & WAKE_MAGIC)
 		adapter->wol |= ATLX_WUFC_MAG;
 	return 0;

@@ -70,7 +70,7 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	return ret;
 }
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
@@ -98,13 +98,6 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 
 	/* passed in by parameter to fool gcc from optimizing */
 	func();
-
-	/* update the records */
-	ret = ftrace_force_update();
-	if (ret) {
-		printk(KERN_CONT ".. ftraced failed .. ");
-		return ret;
-	}
 
 	/*
 	 * Some archs *cough*PowerPC*cough* add charachters to the
@@ -183,13 +176,6 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	/* make sure msleep has been recorded */
 	msleep(1);
 
-	/* force the recorded functions to be traced */
-	ret = ftrace_force_update();
-	if (ret) {
-		printk(KERN_CONT ".. ftraced failed .. ");
-		return ret;
-	}
-
 	/* start the tracing */
 	ftrace_enabled = 1;
 	tracer_enabled = 1;
@@ -226,7 +212,7 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 	return ret;
 }
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_IRQSOFF_TRACER
 int

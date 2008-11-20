@@ -188,7 +188,7 @@ static int mxc_gpio_get(struct gpio_chip *chip, unsigned offset)
 	struct mxc_gpio_port *port =
 		container_of(chip, struct mxc_gpio_port, chip);
 
-	return (__raw_readl(port->base + GPIO_DR) >> offset) & 1;
+	return (__raw_readl(port->base + GPIO_PSR) >> offset) & 1;
 }
 
 static int mxc_gpio_direction_input(struct gpio_chip *chip, unsigned offset)

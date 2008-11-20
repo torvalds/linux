@@ -656,10 +656,10 @@ static int mlx4_en_start_port(struct net_device *dev)
 	/* Configure port */
 	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
 				    priv->rx_skb_size + ETH_FCS_LEN,
-				    mdev->profile.tx_pause,
-				    mdev->profile.tx_ppp,
-				    mdev->profile.rx_pause,
-				    mdev->profile.rx_ppp);
+				    priv->prof->tx_pause,
+				    priv->prof->tx_ppp,
+				    priv->prof->rx_pause,
+				    priv->prof->rx_ppp);
 	if (err) {
 		mlx4_err(mdev, "Failed setting port general configurations"
 			       " for port %d, with error %d\n", priv->port, err);
@@ -706,7 +706,7 @@ tx_err:
 	mlx4_en_release_rss_steer(priv);
 rx_err:
 	for (i = 0; i < priv->rx_ring_num; i++)
-		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[rx_index]);
+		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[i]);
 cq_err:
 	while (rx_index--)
 		mlx4_en_deactivate_cq(priv, &priv->rx_cq[rx_index]);

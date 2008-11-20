@@ -115,7 +115,7 @@ ENTRY(cpu_v7_set_pte_ext)
 	orr	r3, r3, r2
 	orr	r3, r3, #PTE_EXT_AP0 | 2
 
-	tst	r2, #1 << 4
+	tst	r1, #1 << 4
 	orrne	r3, r3, #PTE_EXT_TEX(1)
 
 	tst	r1, #L_PTE_WRITE
@@ -192,11 +192,11 @@ __v7_setup:
 	mov	pc, lr				@ return to head.S:__ret
 ENDPROC(__v7_setup)
 
-	/*
-	 *         V X F   I D LR
-	 * .... ...E PUI. .T.T 4RVI ZFRS BLDP WCAM
-	 * rrrr rrrx xxx0 0101 xxxx xxxx x111 xxxx < forced
-	 *         0 110       0011 1.00 .111 1101 < we want
+	/*   AT
+	 *  TFR   EV X F   I D LR
+	 * .EEE ..EE PUI. .T.T 4RVI ZFRS BLDP WCAM
+	 * rxxx rrxx xxx0 0101 xxxx xxxx x111 xxxx < forced
+	 *    1    0 110       0011 1.00 .111 1101 < we want
 	 */
 	.type	v7_crval, #object
 v7_crval:

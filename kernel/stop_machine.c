@@ -112,7 +112,7 @@ static int chill(void *unused)
 int __stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
 {
 	struct work_struct *sm_work;
-	int i;
+	int i, ret;
 
 	/* Set up initial state. */
 	mutex_lock(&lock);
@@ -137,8 +137,9 @@ int __stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
 	/* This will release the thread on our CPU. */
 	put_cpu();
 	flush_workqueue(stop_machine_wq);
+	ret = active.fnret;
 	mutex_unlock(&lock);
-	return active.fnret;
+	return ret;
 }
 
 int stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)

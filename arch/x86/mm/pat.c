@@ -481,11 +481,15 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 	return 1;
 }
 #else
+/* This check is needed to avoid cache aliasing when PAT is enabled */
 static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
 	u64 from = ((u64)pfn) << PAGE_SHIFT;
 	u64 to = from + size;
 	u64 cursor = from;
+
+	if (!pat_enabled)
+		return 1;
 
 	while (cursor < to) {
 		if (!devmem_is_allowed(pfn)) {

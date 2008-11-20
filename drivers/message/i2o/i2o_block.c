@@ -567,8 +567,8 @@ static void i2o_block_biosparam(unsigned long capacity, unsigned short *cyls,
 
 /**
  *	i2o_block_open - Open the block device
- *	@inode: inode for block device being opened
- *	@file: file to open
+ *	@bdev: block device being opened
+ *	@mode: file open mode
  *
  *	Power up the device, mount and lock the media. This function is called,
  *	if the block device is opened for access.
@@ -596,8 +596,8 @@ static int i2o_block_open(struct block_device *bdev, fmode_t mode)
 
 /**
  *	i2o_block_release - Release the I2O block device
- *	@inode: inode for block device being released
- *	@file: file to close
+ *	@disk: gendisk device being released
+ *	@mode: file open mode
  *
  *	Unlock and unmount the media, and power down the device. Gets called if
  *	the block device is closed.
@@ -643,8 +643,8 @@ static int i2o_block_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 
 /**
  *	i2o_block_ioctl - Issue device specific ioctl calls.
- *	@inode: inode for block device ioctl
- *	@file: file for ioctl
+ *	@bdev: block device being opened
+ *	@mode: file open mode
  *	@cmd: ioctl command
  *	@arg: arg
  *

@@ -527,6 +527,9 @@
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
 
+/** GM965 GM45 render standby register */
+#define MCHBAR_RENDER_STANDBY	0x111B8
+
 /*
  * Overlay regs
  */

@@ -3611,6 +3611,8 @@ int __init probe_nr_irqs(void)
 	/* something wrong ? */
 	if (nr < nr_min)
 		nr = nr_min;
+	if (WARN_ON(nr > NR_IRQS))
+		nr = NR_IRQS;
 
 	return nr;
 }

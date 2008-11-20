@@ -263,24 +263,39 @@ void prep_compound_page(struct page *page, unsigned long order)
 {
 	int i;
 	int nr_pages = 1 << order;
-	struct page *p = page + 1;
 
 	set_compound_page_dtor(page, free_compound_page);
 	set_compound_order(page, order);
 	__SetPageHead(page);
-	for (i = 1; i < nr_pages; i++, p++) {
-		if (unlikely((i & (MAX_ORDER_NR_PAGES - 1)) == 0))
-			p = pfn_to_page(page_to_pfn(page) + i);
+	for (i = 1; i < nr_pages; i++) {
+		struct page *p = page + i;
+
 		__SetPageTail(p);
 		p->first_page = page;
 	}
 }
 
-static void destroy_compound_page(struct page *page, unsigned long order)
+#ifdef CONFIG_HUGETLBFS
+void prep_compound_gigantic_page(struct page *page, unsigned long order)
 {
 	int i;
 	int nr_pages = 1 << order;
 	struct page *p = page + 1;
+
+	set_compound_page_dtor(page, free_compound_page);
+	set_compound_order(page, order);
+	__SetPageHead(page);
+	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
+		__SetPageTail(p);
+		p->first_page = page;
+	}
+}
+#endif
+
+static void destroy_compound_page(struct page *page, unsigned long order)
+{
+	int i;
+	int nr_pages = 1 << order;
 
 	if (unlikely(compound_order(page) != order))
 		bad_page(page);
@@ -288,9 +303,8 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 	if (unlikely(!PageHead(page)))
 			bad_page(page);
 	__ClearPageHead(page);
-	for (i = 1; i < nr_pages; i++, p++) {
-		if (unlikely((i & (MAX_ORDER_NR_PAGES - 1)) == 0))
-			p = pfn_to_page(page_to_pfn(page) + i);
+	for (i = 1; i < nr_pages; i++) {
+		struct page *p = page + i;
 
 		if (unlikely(!PageTail(p) |
 				(p->first_page != page)))
@@ -1547,6 +1561,10 @@ nofail_alloc:
 
 	/* We now go into synchronous reclaim */
 	cpuset_memory_pressure_bump();
+	/*
+	 * The task's cpuset might have expanded its set of allowable nodes
+	 */
+	cpuset_update_task_memory_state();
 	p->flags |= PF_MEMALLOC;
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;

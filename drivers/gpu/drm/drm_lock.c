@@ -154,21 +154,12 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_lock *lock = data;
-	unsigned long irqflags;
-	void (*tasklet_func)(struct drm_device *);
 
 	if (lock->context == DRM_KERNEL_CONTEXT) {
 		DRM_ERROR("Process %d using kernel context %d\n",
 			  task_pid_nr(current), lock->context);
 		return -EINVAL;
 	}
-
-	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
-	tasklet_func = dev->locked_tasklet_func;
-	dev->locked_tasklet_func = NULL;
-	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
-	if (tasklet_func != NULL)
-		tasklet_func(dev);
 
 	atomic_inc(&dev->counts[_DRM_STAT_UNLOCKS]);
 
