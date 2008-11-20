@@ -1757,6 +1757,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 						      generation + 1);
 		ret = btrfs_recover_log_trees(log_tree_root);
 		BUG_ON(ret);
+
+		if (sb->s_flags & MS_RDONLY) {
+			ret =  btrfs_commit_super(tree_root);
+			BUG_ON(ret);
+		}
 	}
 
 	if (!(sb->s_flags & MS_RDONLY)) {
