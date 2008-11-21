@@ -843,11 +843,14 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 		break;
 /*jfm: from win trace */
 	case SENSOR_OV7660:
-		reg_w1(gspca_dev, 0x01, 0x61);
-		reg_w1(gspca_dev, 0x17, 0x20);
-		reg_w1(gspca_dev, 0x01, 0x60);
-		reg_w1(gspca_dev, 0x01, 0x40);
-		break;
+		if (sd->bridge == BRIDGE_SN9C120) {
+			reg_w1(gspca_dev, 0x01, 0x61);
+			reg_w1(gspca_dev, 0x17, 0x20);
+			reg_w1(gspca_dev, 0x01, 0x60);
+			reg_w1(gspca_dev, 0x01, 0x40);
+			break;
+		}
+		/* fall thru */
 	default:
 		reg_w1(gspca_dev, 0x01, 0x43);
 		reg_w1(gspca_dev, 0x17, 0x61);
@@ -1265,13 +1268,17 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 /*jfm: from win trace */
 	case SENSOR_OV7660:
-		reg17 = 0xa0;
-		break;
+		if (sd->bridge == BRIDGE_SN9C120) {
+			reg17 = 0xa0;
+			break;
+		}
+		/* fall thru */
 	default:
 		reg17 = 0x60;
 		break;
 	}
 	reg_w1(gspca_dev, 0x17, reg17);
+/* set reg1 was here */
 	reg_w1(gspca_dev, 0x05, sn9c1xx[5]);
 	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);
 	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);
@@ -1285,8 +1292,11 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w1(gspca_dev, 0x99, 0x60);
 		break;
 	case SENSOR_OV7660:
-		reg_w1(gspca_dev, 0x9a, 0x05);
-		break;
+		if (sd->bridge == BRIDGE_SN9C120) {
+			reg_w1(gspca_dev, 0x9a, 0x05);
+			break;
+		}
+		/* fall thru */
 	default:
 		reg_w1(gspca_dev, 0x9a, 0x08);
 		reg_w1(gspca_dev, 0x99, 0x59);
@@ -1295,10 +1305,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (mode)
-		reg1 = 0x46;	/* 320 clk 48Mhz */
+		reg1 = 0x46;	/* 320x240: clk 48Mhz, video trf enable */
 	else
-		reg1 = 0x06;	/* 640 clk 24Mz */
-	reg17 = 0x61;
+		reg1 = 0x06;	/* 640x480: clk 24Mhz, video trf enable */
+	reg17 = 0x61;		/* 0x:20: enable sensor clock */
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		hv7131R_InitSensor(gspca_dev);
@@ -1342,9 +1352,15 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /*			reg17 = 0x21;	 * 320 */
 /*			reg1 = 0x44; */
 /*			reg1 = 0x46;	(done) */
-		} else {
-			reg17 = 0xa2;	/* 640 */
-			reg1 = 0x44;
+		} else {			/* 640 */
+			if (sd->bridge == BRIDGE_SN9C120) {
+				reg17 = 0xa2;
+				reg1 = 0x44;	/* 48 Mhz, video trf eneble */
+			} else {
+				reg17 = 0x22;
+				reg1 = 0x06;	/* 24 Mhz, video trf eneble
+						 * inverse power down */
+			}
 		}
 		break;
 	}
@@ -1372,6 +1388,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x18, reg18);
 
 	reg_w1(gspca_dev, 0x17, reg17);
+	reg_w1(gspca_dev, 0x01, reg1);
 	switch (sd->sensor) {
 	case SENSOR_MI0360:
 		setinfrared(sd);
@@ -1390,7 +1407,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	setautogain(gspca_dev);
-	reg_w1(gspca_dev, 0x01, reg1);
 	return 0;
 }
 
