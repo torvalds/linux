@@ -44,6 +44,8 @@ struct dcbmsg {
  * @DCB_CMD_GPERM_HWADDR: get the permanent MAC address of the underlying
  *                        device.  Only useful when using bonding.
  * @DCB_CMD_GCAP: request the DCB capabilities of the device
+ * @DCB_CMD_GNUMTCS: get the number of traffic classes currently supported
+ * @DCB_CMD_SNUMTCS: set the number of traffic classes
  */
 enum dcbnl_commands {
 	DCB_CMD_UNDEFINED,
@@ -62,6 +64,8 @@ enum dcbnl_commands {
 	DCB_CMD_SET_ALL,
 	DCB_CMD_GPERM_HWADDR,
 	DCB_CMD_GCAP,
+	DCB_CMD_GNUMTCS,
+	DCB_CMD_SNUMTCS,
 
 	__DCB_CMD_ENUM_MAX,
 	DCB_CMD_MAX = __DCB_CMD_ENUM_MAX - 1,
@@ -81,6 +85,7 @@ enum dcbnl_commands {
  * @DCB_ATTR_SET_ALL: bool to commit changes to hardware or not (NLA_U8)
  * @DCB_ATTR_PERM_HWADDR: MAC address of the physical device (NLA_NESTED)
  * @DCB_ATTR_CAP: DCB capabilities of the device (NLA_NESTED)
+ * @DCB_ATTR_NUMTCS: number of traffic classes supported (NLA_NESTED)
  */
 enum dcbnl_attrs {
 	DCB_ATTR_UNDEFINED,
@@ -94,6 +99,7 @@ enum dcbnl_attrs {
 	DCB_ATTR_SET_ALL,
 	DCB_ATTR_PERM_HWADDR,
 	DCB_ATTR_CAP,
+	DCB_ATTR_NUMTCS,
 
 	__DCB_ATTR_ENUM_MAX,
 	DCB_ATTR_MAX = __DCB_ATTR_ENUM_MAX - 1,
@@ -253,6 +259,27 @@ enum dcbnl_cap_attrs {
 	__DCB_CAP_ATTR_ENUM_MAX,
 	DCB_CAP_ATTR_MAX = __DCB_CAP_ATTR_ENUM_MAX - 1,
 };
+
+/**
+ * enum dcbnl_numtcs_attrs - number of traffic classes
+ *
+ * @DCB_NUMTCS_ATTR_UNDEFINED: unspecified attribute to catch errors
+ * @DCB_NUMTCS_ATTR_ALL: (NLA_FLAG) all traffic class attributes
+ * @DCB_NUMTCS_ATTR_PG: (NLA_U8) number of traffic classes used for
+ *                               priority groups
+ * @DCB_NUMTCS_ATTR_PFC: (NLA_U8) number of traffic classes which can
+ *                                support priority flow control
+ */
+enum dcbnl_numtcs_attrs {
+	DCB_NUMTCS_ATTR_UNDEFINED,
+	DCB_NUMTCS_ATTR_ALL,
+	DCB_NUMTCS_ATTR_PG,
+	DCB_NUMTCS_ATTR_PFC,
+
+	__DCB_NUMTCS_ATTR_ENUM_MAX,
+	DCB_NUMTCS_ATTR_MAX = __DCB_NUMTCS_ATTR_ENUM_MAX - 1,
+};
+
 /**
  * enum dcb_general_attr_values - general DCB attribute values
  *

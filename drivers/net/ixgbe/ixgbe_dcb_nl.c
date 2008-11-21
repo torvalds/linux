@@ -376,6 +376,35 @@ static u8 ixgbe_dcbnl_getcap(struct net_device *netdev, int capid, u8 *cap)
 	return rval;
 }
 
+static u8 ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	u8 rval = 0;
+
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+		switch (tcid) {
+		case DCB_NUMTCS_ATTR_PG:
+			*num = MAX_TRAFFIC_CLASS;
+			break;
+		case DCB_NUMTCS_ATTR_PFC:
+			*num = MAX_TRAFFIC_CLASS;
+			break;
+		default:
+			rval = -EINVAL;
+			break;
+		}
+	} else {
+		rval = -EINVAL;
+	}
+
+	return rval;
+}
+
+static u8 ixgbe_dcbnl_setnumtcs(struct net_device *netdev, int tcid, u8 num)
+{
+	return -EINVAL;
+}
+
 struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
@@ -391,6 +420,8 @@ struct dcbnl_rtnl_ops dcbnl_ops = {
 	.setpfccfg	= ixgbe_dcbnl_set_pfc_cfg,
 	.getpfccfg	= ixgbe_dcbnl_get_pfc_cfg,
 	.setall		= ixgbe_dcbnl_set_all,
-	.getcap		= ixgbe_dcbnl_getcap
+	.getcap		= ixgbe_dcbnl_getcap,
+	.getnumtcs	= ixgbe_dcbnl_getnumtcs,
+	.setnumtcs	= ixgbe_dcbnl_setnumtcs
 };
 

@@ -120,6 +120,13 @@ static struct nla_policy dcbnl_cap_nest[DCB_CAP_ATTR_MAX + 1] = {
 	[DCB_CAP_ATTR_BCN]     = {.type = NLA_U8},
 };
 
+/* DCB capabilities nested attributes. */
+static struct nla_policy dcbnl_numtcs_nest[DCB_NUMTCS_ATTR_MAX + 1] = {
+	[DCB_NUMTCS_ATTR_ALL]     = {.type = NLA_FLAG},
+	[DCB_NUMTCS_ATTR_PG]      = {.type = NLA_U8},
+	[DCB_NUMTCS_ATTR_PFC]     = {.type = NLA_U8},
+};
+
 /* standard netlink reply call */
 static int dcbnl_reply(u8 value, u8 event, u8 cmd, u8 attr, u32 pid,
                        u32 seq, u16 flags)
@@ -345,6 +352,123 @@ err:
 	kfree(dcbnl_skb);
 err_out:
 	return -EINVAL;
+}
+
+static int dcbnl_getnumtcs(struct net_device *netdev, struct nlattr **tb,
+                           u32 pid, u32 seq, u16 flags)
+{
+	struct sk_buff *dcbnl_skb;
+	struct nlmsghdr *nlh;
+	struct dcbmsg *dcb;
+	struct nlattr *data[DCB_NUMTCS_ATTR_MAX + 1], *nest;
+	u8 value;
+	int ret = -EINVAL;
+	int i;
+	int getall = 0;
+
+	if (!tb[DCB_ATTR_NUMTCS] || !netdev->dcbnl_ops->getnumtcs)
+		return ret;
+
+	ret = nla_parse_nested(data, DCB_NUMTCS_ATTR_MAX, tb[DCB_ATTR_NUMTCS],
+	                       dcbnl_numtcs_nest);
+	if (ret) {
+		ret = -EINVAL;
+		goto err_out;
+	}
+
+	dcbnl_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!dcbnl_skb) {
+		ret = -EINVAL;
+		goto err_out;
+	}
+
+	nlh = NLMSG_NEW(dcbnl_skb, pid, seq, RTM_GETDCB, sizeof(*dcb), flags);
+
+	dcb = NLMSG_DATA(nlh);
+	dcb->dcb_family = AF_UNSPEC;
+	dcb->cmd = DCB_CMD_GNUMTCS;
+
+	nest = nla_nest_start(dcbnl_skb, DCB_ATTR_NUMTCS);
+	if (!nest) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (data[DCB_NUMTCS_ATTR_ALL])
+		getall = 1;
+
+	for (i = DCB_NUMTCS_ATTR_ALL+1; i <= DCB_NUMTCS_ATTR_MAX; i++) {
+		if (!getall && !data[i])
+			continue;
+
+		ret = netdev->dcbnl_ops->getnumtcs(netdev, i, &value);
+		if (!ret) {
+			ret = nla_put_u8(dcbnl_skb, i, value);
+
+			if (ret) {
+				nla_nest_cancel(dcbnl_skb, nest);
+				ret = -EINVAL;
+				goto err;
+			}
+		} else {
+			goto err;
+		}
+	}
+	nla_nest_end(dcbnl_skb, nest);
+
+	nlmsg_end(dcbnl_skb, nlh);
+
+	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
+	if (ret) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	return 0;
+nlmsg_failure:
+err:
+	kfree(dcbnl_skb);
+err_out:
+	return ret;
+}
+
+static int dcbnl_setnumtcs(struct net_device *netdev, struct nlattr **tb,
+                           u32 pid, u32 seq, u16 flags)
+{
+	struct nlattr *data[DCB_NUMTCS_ATTR_MAX + 1];
+	int ret = -EINVAL;
+	u8 value;
+	int i;
+
+	if (!tb[DCB_ATTR_NUMTCS] || !netdev->dcbnl_ops->setstate)
+		return ret;
+
+	ret = nla_parse_nested(data, DCB_NUMTCS_ATTR_MAX, tb[DCB_ATTR_NUMTCS],
+	                       dcbnl_numtcs_nest);
+
+	if (ret) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = DCB_NUMTCS_ATTR_ALL+1; i <= DCB_NUMTCS_ATTR_MAX; i++) {
+		if (data[i] == NULL)
+			continue;
+
+		value = nla_get_u8(data[i]);
+
+		ret = netdev->dcbnl_ops->setnumtcs(netdev, i, value);
+
+		if (ret)
+			goto operr;
+	}
+
+operr:
+	ret = dcbnl_reply(!!ret, RTM_SETDCB, DCB_CMD_SNUMTCS,
+	                  DCB_ATTR_NUMTCS, pid, seq, flags);
+
+err:
+	return ret;
 }
 
 static int __dcbnl_pg_getcfg(struct net_device *netdev, struct nlattr **tb,
@@ -756,6 +880,14 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	case DCB_CMD_GCAP:
 		ret = dcbnl_getcap(netdev, tb, pid, nlh->nlmsg_seq,
 		                   nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_GNUMTCS:
+		ret = dcbnl_getnumtcs(netdev, tb, pid, nlh->nlmsg_seq,
+		                      nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_SNUMTCS:
+		ret = dcbnl_setnumtcs(netdev, tb, pid, nlh->nlmsg_seq,
+		                      nlh->nlmsg_flags);
 		goto out;
 	default:
 		goto errout;
