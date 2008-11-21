@@ -145,7 +145,7 @@ asmlinkage int sys_sigaltstack(unsigned long bx)
 		regs->seg = tmp;			\
 }
 
-#define COPY_SEG_STRICT(seg)	{			\
+#define COPY_SEG_CPL3(seg)	{			\
 		unsigned short tmp;			\
 		err |= __get_user(tmp, &sc->seg);	\
 		regs->seg = tmp | 3;			\
@@ -193,13 +193,13 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 #endif /* CONFIG_X86_64 */
 
 #ifdef CONFIG_X86_32
-	COPY_SEG_STRICT(cs);
-	COPY_SEG_STRICT(ss);
+	COPY_SEG_CPL3(cs);
+	COPY_SEG_CPL3(ss);
 #else /* !CONFIG_X86_32 */
 	/* Kernel saves and restores only the CS segment register on signals,
 	 * which is the bare minimum needed to allow mixed 32/64-bit code.
 	 * App's signal handler can save/restore other segments if needed. */
-	COPY_SEG_STRICT(cs);
+	COPY_SEG_CPL3(cs);
 #endif /* CONFIG_X86_32 */
 
 	err |= __get_user(tmpflags, &sc->flags);
