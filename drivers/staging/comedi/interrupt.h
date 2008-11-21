@@ -53,15 +53,8 @@ typedef void irqreturn_t;
 #endif
 #endif
 
-/* if interrupt handler prototype has pt_regs* parameter */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-#define PT_REGS_ARG , struct pt_regs *regs
-#define PT_REGS_CALL , regs
-#define PT_REGS_NULL , NULL
-#else
 #define PT_REGS_ARG
 #define PT_REGS_CALL
 #define PT_REGS_NULL
-#endif
 
 #endif
