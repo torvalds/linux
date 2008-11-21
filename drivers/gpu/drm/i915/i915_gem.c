@@ -33,10 +33,10 @@
 
 #define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
 
-static int
-i915_gem_object_set_domain(struct drm_gem_object *obj,
-			    uint32_t read_domains,
-			    uint32_t write_domain);
+static void
+i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
+				  uint32_t read_domains,
+				  uint32_t write_domain);
 static void i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj);
@@ -1477,10 +1477,10 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
  *		MI_FLUSH
  *		drm_agp_chipset_flush
  */
-static int
-i915_gem_object_set_domain(struct drm_gem_object *obj,
-			    uint32_t read_domains,
-			    uint32_t write_domain)
+static void
+i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
+				  uint32_t read_domains,
+				  uint32_t write_domain)
 {
 	struct drm_device		*dev = obj->dev;
 	struct drm_i915_gem_object	*obj_priv = obj->driver_private;
@@ -1540,7 +1540,6 @@ i915_gem_object_set_domain(struct drm_gem_object *obj,
 		 obj->read_domains, obj->write_domain,
 		 dev->invalidate_domains, dev->flush_domains);
 #endif
-	return 0;
 }
 
 /**
@@ -2043,24 +2042,10 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
 
-		/* make sure all previous memory operations have passed */
-		ret = i915_gem_object_set_domain(obj,
-						 obj->pending_read_domains,
-						 obj->pending_write_domain);
-		if (ret) {
-			/* As we've partially updated domains on our buffers,
-			 * we have to emit the flush we've accumulated
-			 * before exiting, or we'll have broken the
-			 * active/flushing/inactive invariants.
-			 *
-			 * We'll potentially have some things marked as
-			 * being in write domains that they actually aren't,
-			 * but that should be merely a minor performance loss.
-			 */
-			flush_domains = i915_gem_dev_set_domain(dev);
-			(void)i915_add_request(dev, flush_domains);
-			goto err;
-		}
+		/* Compute new gpu domains and update invalidate/flushing */
+		i915_gem_object_set_to_gpu_domain(obj,
+						  obj->pending_read_domains,
+						  obj->pending_write_domain);
 	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
