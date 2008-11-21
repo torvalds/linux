@@ -405,6 +405,18 @@ static u8 ixgbe_dcbnl_setnumtcs(struct net_device *netdev, int tcid, u8 num)
 	return -EINVAL;
 }
 
+static u8 ixgbe_dcbnl_getpfcstate(struct net_device *netdev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	return !!(adapter->flags & IXGBE_FLAG_DCB_ENABLED);
+}
+
+static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
+{
+	return;
+}
+
 struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
@@ -422,6 +434,8 @@ struct dcbnl_rtnl_ops dcbnl_ops = {
 	.setall		= ixgbe_dcbnl_set_all,
 	.getcap		= ixgbe_dcbnl_getcap,
 	.getnumtcs	= ixgbe_dcbnl_getnumtcs,
-	.setnumtcs	= ixgbe_dcbnl_setnumtcs
+	.setnumtcs	= ixgbe_dcbnl_setnumtcs,
+	.getpfcstate	= ixgbe_dcbnl_getpfcstate,
+	.setpfcstate	= ixgbe_dcbnl_setpfcstate
 };
 

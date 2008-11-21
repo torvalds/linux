@@ -62,6 +62,7 @@ static struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 	[DCB_ATTR_SET_ALL]   = {.type = NLA_U8},
 	[DCB_ATTR_PERM_HWADDR] = {.type = NLA_FLAG},
 	[DCB_ATTR_CAP]       = {.type = NLA_NESTED},
+	[DCB_ATTR_PFC_STATE] = {.type = NLA_U8},
 };
 
 /* DCB priority flow control to User Priority nested attributes */
@@ -468,6 +469,40 @@ operr:
 	                  DCB_ATTR_NUMTCS, pid, seq, flags);
 
 err:
+	return ret;
+}
+
+static int dcbnl_getpfcstate(struct net_device *netdev, struct nlattr **tb,
+                             u32 pid, u32 seq, u16 flags)
+{
+	int ret = -EINVAL;
+
+	if (!netdev->dcbnl_ops->getpfcstate)
+		return ret;
+
+	ret = dcbnl_reply(netdev->dcbnl_ops->getpfcstate(netdev), RTM_GETDCB,
+	                  DCB_CMD_PFC_GSTATE, DCB_ATTR_PFC_STATE,
+	                  pid, seq, flags);
+
+	return ret;
+}
+
+static int dcbnl_setpfcstate(struct net_device *netdev, struct nlattr **tb,
+                             u32 pid, u32 seq, u16 flags)
+{
+	int ret = -EINVAL;
+	u8 value;
+
+	if (!tb[DCB_ATTR_PFC_STATE] || !netdev->dcbnl_ops->setpfcstate)
+		return ret;
+
+	value = nla_get_u8(tb[DCB_ATTR_PFC_STATE]);
+
+	netdev->dcbnl_ops->setpfcstate(netdev, value);
+
+	ret = dcbnl_reply(0, RTM_SETDCB, DCB_CMD_PFC_SSTATE, DCB_ATTR_PFC_STATE,
+	                  pid, seq, flags);
+
 	return ret;
 }
 
@@ -888,6 +923,14 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	case DCB_CMD_SNUMTCS:
 		ret = dcbnl_setnumtcs(netdev, tb, pid, nlh->nlmsg_seq,
 		                      nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_PFC_GSTATE:
+		ret = dcbnl_getpfcstate(netdev, tb, pid, nlh->nlmsg_seq,
+		                        nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_PFC_SSTATE:
+		ret = dcbnl_setpfcstate(netdev, tb, pid, nlh->nlmsg_seq,
+		                        nlh->nlmsg_flags);
 		goto out;
 	default:
 		goto errout;
