@@ -2123,6 +2123,8 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep)
  *
  * @name must be valid until the cache is destroyed. This implies that
  * the module calling this has to destroy the cache before getting unloaded.
+ * Note that kmem_cache_name() is not guaranteed to return the same pointer,
+ * therefore applications must manage it themselves.
  *
  * The flags are
  *
