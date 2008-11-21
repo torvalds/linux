@@ -120,7 +120,7 @@ void snd_print_pcm_bits(int pcm, char *buf, int buflen)
 	int i, j;
 
 	for (i = 0, j = 0; i < ARRAY_SIZE(bits); i++)
-		if (pcm & (1 << i))
+		if (pcm & (AC_SUPPCM_BITS_8 << i))
 			j += snprintf(buf + j, buflen - j,  " %d", bits[i]);
 
 	buf[j] = '\0'; /* necessary when j == 0 */
@@ -130,7 +130,6 @@ static void print_pcm_bits(struct snd_info_buffer *buffer, unsigned int pcm)
 {
 	char buf[SND_PRINT_BITS_ADVISED_BUFSIZE];
 
-	pcm = (pcm >> 16) & 0xff;
 	snd_iprintf(buffer, "    bits [0x%x]:", pcm);
 	snd_print_pcm_bits(pcm, buf, sizeof(buf));
 	snd_iprintf(buffer, "%s\n", buf);
