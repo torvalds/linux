@@ -23,6 +23,7 @@
 
 #include <linux/dmi.h>
 #include <asm/div64.h>
+#include <asm/vmware.h>
 
 #define CPUID_VMWARE_INFO_LEAF	0x40000000
 #define VMWARE_HYPERVISOR_MAGIC	0x564D5868
