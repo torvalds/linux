@@ -1647,38 +1647,6 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 }
 
 /**
- * Once all of the objects have been set in the proper domain,
- * perform the necessary flush and invalidate operations.
- *
- * Returns the write domains flushed, for use in flush tracking.
- */
-static uint32_t
-i915_gem_dev_set_domain(struct drm_device *dev)
-{
-	uint32_t flush_domains = dev->flush_domains;
-
-	/*
-	 * Now that all the buffers are synced to the proper domains,
-	 * flush and invalidate the collected domains
-	 */
-	if (dev->invalidate_domains | dev->flush_domains) {
-#if WATCH_EXEC
-		DRM_INFO("%s: invalidate_domains %08x flush_domains %08x\n",
-			  __func__,
-			 dev->invalidate_domains,
-			 dev->flush_domains);
-#endif
-		i915_gem_flush(dev,
-			       dev->invalidate_domains,
-			       dev->flush_domains);
-		dev->invalidate_domains = 0;
-		dev->flush_domains = 0;
-	}
-
-	return flush_domains;
-}
-
-/**
  * Pin an object to the GTT and evaluate the relocations landing in it.
  */
 static int
@@ -2002,13 +1970,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		return -EBUSY;
 	}
 
-	/* Zero the gloabl flush/invalidate flags. These
-	 * will be modified as each object is bound to the
-	 * gtt
-	 */
-	dev->invalidate_domains = 0;
-	dev->flush_domains = 0;
-
 	/* Look up object handles and perform the relocations */
 	for (i = 0; i < args->buffer_count; i++) {
 		object_list[i] = drm_gem_object_lookup(dev, file_priv,
@@ -2039,10 +2000,17 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
+	/* Zero the global flush/invalidate flags. These
+	 * will be modified as new domains are computed
+	 * for each object
+	 */
+	dev->invalidate_domains = 0;
+	dev->flush_domains = 0;
+
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
 
-		/* Compute new gpu domains and update invalidate/flushing */
+		/* Compute new gpu domains and update invalidate/flush */
 		i915_gem_object_set_to_gpu_domain(obj,
 						  obj->pending_read_domains,
 						  obj->pending_write_domain);
@@ -2050,8 +2018,19 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
-	/* Flush/invalidate caches and chipset buffer */
-	flush_domains = i915_gem_dev_set_domain(dev);
+	if (dev->invalidate_domains | dev->flush_domains) {
+#if WATCH_EXEC
+		DRM_INFO("%s: invalidate_domains %08x flush_domains %08x\n",
+			  __func__,
+			 dev->invalidate_domains,
+			 dev->flush_domains);
+#endif
+		i915_gem_flush(dev,
+			       dev->invalidate_domains,
+			       dev->flush_domains);
+		if (dev->flush_domains)
+			(void)i915_add_request(dev, dev->flush_domains);
+	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
@@ -2070,8 +2049,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			      __func__,
 			      ~0);
 #endif
-
-	(void)i915_add_request(dev, flush_domains);
 
 	/* Exec the batchbuffer */
 	ret = i915_dispatch_gem_execbuffer(dev, args, exec_offset);
