@@ -642,6 +642,36 @@ static struct snd_kcontrol_new ad1986a_laptop_eapd_mixers[] = {
 	HDA_BIND_SW("Master Playback Switch", &ad1986a_laptop_master_sw),
 	HDA_CODEC_VOLUME("PCM Playback Volume", 0x03, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x17, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x17, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x0f, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = ad198x_mux_enum_info,
+		.get = ad198x_mux_enum_get,
+		.put = ad198x_mux_enum_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "External Amplifier",
+		.info = ad198x_eapd_info,
+		.get = ad198x_eapd_get,
+		.put = ad198x_eapd_put,
+		.private_value = 0x1b | (1 << 8), /* port-D, inversed */
+	},
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new ad1986a_samsung_mixers[] = {
+	HDA_BIND_VOL("Master Playback Volume", &ad1986a_laptop_master_vol),
+	HDA_BIND_SW("Master Playback Switch", &ad1986a_laptop_master_sw),
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Boost", 0x0f, 0x0, HDA_OUTPUT),
@@ -930,6 +960,7 @@ enum {
 	AD1986A_LAPTOP_EAPD,
 	AD1986A_LAPTOP_AUTOMUTE,
 	AD1986A_ULTRA,
+	AD1986A_SAMSUNG,
 	AD1986A_MODELS
 };
 
@@ -940,6 +971,7 @@ static const char *ad1986a_models[AD1986A_MODELS] = {
 	[AD1986A_LAPTOP_EAPD]	= "laptop-eapd",
 	[AD1986A_LAPTOP_AUTOMUTE] = "laptop-automute",
 	[AD1986A_ULTRA]		= "ultra",
+	[AD1986A_SAMSUNG]	= "samsung",
 };
 
 static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
@@ -962,9 +994,9 @@ static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0xff40, "Toshiba", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x144d, 0xb03c, "Samsung R55", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x144d, 0xc01e, "FSC V2060", AD1986A_LAPTOP),
-	SND_PCI_QUIRK(0x144d, 0xc023, "Samsung X60", AD1986A_LAPTOP_EAPD),
-	SND_PCI_QUIRK(0x144d, 0xc024, "Samsung R65", AD1986A_LAPTOP_EAPD),
-	SND_PCI_QUIRK(0x144d, 0xc026, "Samsung X11", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x144d, 0xc023, "Samsung X60", AD1986A_SAMSUNG),
+	SND_PCI_QUIRK(0x144d, 0xc024, "Samsung R65", AD1986A_SAMSUNG),
+	SND_PCI_QUIRK(0x144d, 0xc026, "Samsung X11", AD1986A_SAMSUNG),
 	SND_PCI_QUIRK(0x144d, 0xc027, "Samsung Q1", AD1986A_ULTRA),
 	SND_PCI_QUIRK(0x144d, 0xc504, "Samsung Q35", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x17aa, 0x1011, "Lenovo M55", AD1986A_LAPTOP),
@@ -1046,6 +1078,17 @@ static int patch_ad1986a(struct hda_codec *codec)
 		break;
 	case AD1986A_LAPTOP_EAPD:
 		spec->mixers[0] = ad1986a_laptop_eapd_mixers;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = ad1986a_eapd_init_verbs;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = 1;
+		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
+		if (!is_jack_available(codec, 0x25))
+			spec->multiout.dig_out_nid = 0;
+		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
+		break;
+	case AD1986A_SAMSUNG:
+		spec->mixers[0] = ad1986a_samsung_mixers;
 		spec->num_init_verbs = 3;
 		spec->init_verbs[1] = ad1986a_eapd_init_verbs;
 		spec->init_verbs[2] = ad1986a_automic_verbs;
