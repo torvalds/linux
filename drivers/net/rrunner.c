@@ -63,6 +63,16 @@ MODULE_LICENSE("GPL");
 
 static char version[] __devinitdata = "rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
 
+
+static const struct net_device_ops rr_netdev_ops = {
+	.ndo_open 		= rr_open,
+	.ndo_stop		= rr_close,
+	.ndo_do_ioctl		= rr_ioctl,
+	.ndo_start_xmit		= rr_start_xmit,
+	.ndo_change_mtu		= hippi_change_mtu,
+	.ndo_set_mac_address	= hippi_mac_addr,
+};
+
 /*
  * Implementation notes:
  *
@@ -115,10 +125,7 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 	spin_lock_init(&rrpriv->lock);
 
 	dev->irq = pdev->irq;
-	dev->open = &rr_open;
-	dev->hard_start_xmit = &rr_start_xmit;
-	dev->stop = &rr_close;
-	dev->do_ioctl = &rr_ioctl;
+	dev->netdev_ops = &rr_netdev_ops;
 
 	dev->base_addr = pci_resource_start(pdev, 0);
 
