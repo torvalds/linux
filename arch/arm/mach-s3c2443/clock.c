@@ -1107,4 +1107,6 @@ void __init s3c2443_init_clocks(int xtal)
 
 		(clkp->enable)(clkp, 0);
 	}
+
+	s3c_pwmclk_init();
 }

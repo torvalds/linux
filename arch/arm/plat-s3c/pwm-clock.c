@@ -407,7 +407,16 @@ static __init int clk_pwm_tin_register(struct clk *pwm)
 	return clk_set_parent(pwm, parent);
 }
 
-static __init int s3c24xx_pwmclk_init(void)
+/**
+ * s3c_pwmclk_init() - initialise pwm clocks
+ *
+ * Initialise and register the clocks which provide the inputs for the
+ * pwm timer blocks.
+ *
+ * Note, this call is required by the time core, so must be called after
+ * the base clocks are added and before any of the initcalls are run.
+ */
+__init void s3c_pwmclk_init(void)
 {
 	struct clk *clk_timers;
 	unsigned int clk;
@@ -416,7 +425,7 @@ static __init int s3c24xx_pwmclk_init(void)
 	clk_timers = clk_get(NULL, "timers");
 	if (IS_ERR(clk_timers)) {
 		printk(KERN_ERR "%s: no parent clock\n", __func__);
-		return -EINVAL;
+		return;
 	}
 
 	for (clk = 0; clk < ARRAY_SIZE(clk_timer_scaler); clk++) {
@@ -424,7 +433,7 @@ static __init int s3c24xx_pwmclk_init(void)
 		ret = s3c24xx_register_clock(&clk_timer_scaler[clk]);
 		if (ret < 0) {
 			printk(KERN_ERR "error adding pwm scaler%d clock\n", clk);
-			goto err;
+			return;
 		}
 	}
 
@@ -432,7 +441,7 @@ static __init int s3c24xx_pwmclk_init(void)
 		ret = s3c24xx_register_clock(&clk_timer_tclk[clk]);
 		if (ret < 0) {
 			printk(KERN_ERR "error adding pww tclk%d\n", clk);
-			goto err;
+			return;
 		}
 	}
 
@@ -440,7 +449,7 @@ static __init int s3c24xx_pwmclk_init(void)
 		ret = clk_pwm_tdiv_register(clk);
 		if (ret < 0) {
 			printk(KERN_ERR "error adding pwm%d tdiv clock\n", clk);
-			goto err;
+			return;
 		}
 	}
 
@@ -448,14 +457,7 @@ static __init int s3c24xx_pwmclk_init(void)
 		ret = clk_pwm_tin_register(&clk_tin[clk]);
 		if (ret < 0) {
 			printk(KERN_ERR "error adding pwm%d tin clock\n", clk);
-			goto err;
+			return;
 		}
 	}
-
-	return 0;
-
- err:
-	return ret;
 }
-
-arch_initcall(s3c24xx_pwmclk_init);

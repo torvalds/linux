@@ -277,4 +277,6 @@ void s3c64xx_register_clocks(void)
 
 		(clkp->enable)(clkp, 0);
 	}
+
+	s3c_pwmclk_init();
 }

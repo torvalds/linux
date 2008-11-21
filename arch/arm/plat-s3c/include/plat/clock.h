@@ -81,3 +81,8 @@ extern void s3c2443_setup_clocks(void);
 /* S3C64XX specific functions and clocks */
 
 extern int s3c64xx_sclk_ctrl(struct clk *clk, int enable);
+
+/* Init for pwm clock code */
+
+extern void s3c_pwmclk_init(void);
+
