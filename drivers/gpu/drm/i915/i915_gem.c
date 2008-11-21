@@ -85,20 +85,14 @@ int
 i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_get_aperture *args = data;
-	struct drm_i915_gem_object *obj_priv;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
 	args->aper_size = dev->gtt_total;
-	args->aper_available_size = args->aper_size;
-
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
-		if (obj_priv->pin_count > 0)
-			args->aper_available_size -= obj_priv->obj->size;
-	}
+	args->aper_available_size = (args->aper_size -
+				     atomic_read(&dev->pin_memory));
 
 	return 0;
 }
