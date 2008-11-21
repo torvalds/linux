@@ -261,7 +261,7 @@ static struct seq_operations tracing_likely_seq_ops = {
 	.show		= t_show,
 };
 
-static int tracing_likely_open(struct inode *inode, struct file *file)
+static int tracing_branch_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
@@ -274,25 +274,18 @@ static int tracing_likely_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations tracing_likely_fops = {
-	.open		= tracing_likely_open,
+static const struct file_operations tracing_branch_fops = {
+	.open		= tracing_branch_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 };
 
-extern unsigned long __start_likely_profile[];
-extern unsigned long __stop_likely_profile[];
-extern unsigned long __start_unlikely_profile[];
-extern unsigned long __stop_unlikely_profile[];
+extern unsigned long __start_annotated_branch_profile[];
+extern unsigned long __stop_annotated_branch_profile[];
 
-static struct ftrace_pointer ftrace_likely_pos = {
-	.start			= __start_likely_profile,
-	.stop			= __stop_likely_profile,
-};
-
-static struct ftrace_pointer ftrace_unlikely_pos = {
-	.start			= __start_unlikely_profile,
-	.stop			= __stop_unlikely_profile,
+static const struct ftrace_pointer ftrace_annotated_branch_pos = {
+	.start			= __start_annotated_branch_profile,
+	.stop			= __stop_annotated_branch_profile,
 };
 
 static __init int ftrace_branch_init(void)
@@ -302,18 +295,12 @@ static __init int ftrace_branch_init(void)
 
 	d_tracer = tracing_init_dentry();
 
-	entry = debugfs_create_file("profile_likely", 0444, d_tracer,
-				    &ftrace_likely_pos,
-				    &tracing_likely_fops);
+	entry = debugfs_create_file("profile_annotated_branch", 0444, d_tracer,
+				    &ftrace_annotated_branch_pos,
+				    &tracing_branch_fops);
 	if (!entry)
-		pr_warning("Could not create debugfs 'profile_likely' entry\n");
-
-	entry = debugfs_create_file("profile_unlikely", 0444, d_tracer,
-				    &ftrace_unlikely_pos,
-				    &tracing_likely_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs"
-			   " 'profile_unlikely' entry\n");
+		pr_warning("Could not create debugfs "
+			   "'profile_annotatet_branch' entry\n");
 
 	return 0;
 }

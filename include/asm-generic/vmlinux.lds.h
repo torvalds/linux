@@ -46,12 +46,9 @@
 #endif
 
 #ifdef CONFIG_TRACE_BRANCH_PROFILING
-#define LIKELY_PROFILE()	VMLINUX_SYMBOL(__start_likely_profile) = .;   \
-				*(_ftrace_likely)			      \
-				VMLINUX_SYMBOL(__stop_likely_profile) = .;    \
-				VMLINUX_SYMBOL(__start_unlikely_profile) = .; \
-				*(_ftrace_unlikely)			      \
-				VMLINUX_SYMBOL(__stop_unlikely_profile) = .;
+#define LIKELY_PROFILE()	VMLINUX_SYMBOL(__start_annotated_branch_profile) = .; \
+				*(_ftrace_annotated_branch)			      \
+				VMLINUX_SYMBOL(__stop_annotated_branch_profile) = .;
 #else
 #define LIKELY_PROFILE()
 #endif
