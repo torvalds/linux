@@ -464,6 +464,7 @@ static int snd_hda_bus_free(struct hda_bus *bus)
 static int snd_hda_bus_dev_free(struct snd_device *device)
 {
 	struct hda_bus *bus = device->device_data;
+	bus->shutdown = 1;
 	return snd_hda_bus_free(bus);
 }
 

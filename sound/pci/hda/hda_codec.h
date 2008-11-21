@@ -617,6 +617,7 @@ struct hda_bus {
 
 	/* misc op flags */
 	unsigned int needs_damn_long_delay :1;
+	unsigned int shutdown :1;	/* being unloaded */
 };
 
 /*

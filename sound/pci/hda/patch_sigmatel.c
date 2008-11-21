@@ -3921,8 +3921,9 @@ static int stac92xx_init(struct hda_codec *codec)
 static void stac92xx_free_jacks(struct hda_codec *codec)
 {
 #ifdef CONFIG_SND_JACK
+	/* free jack instances manually when clearing/reconfiguring */
 	struct sigmatel_spec *spec = codec->spec;
-	if (spec->jacks.list) {
+	if (!codec->bus->shutdown && spec->jacks.list) {
 		struct sigmatel_jack *jacks = spec->jacks.list;
 		int i;
 		for (i = 0; i < spec->jacks.used; i++)
