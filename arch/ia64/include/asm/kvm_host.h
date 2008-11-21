@@ -39,6 +39,7 @@
 #define EXIT_REASON_EXTERNAL_INTERRUPT	6
 #define EXIT_REASON_IPI			7
 #define EXIT_REASON_PTC_G		8
+#define EXIT_REASON_DEBUG		20
 
 /*Define vmm address space and vm data space.*/
 #define KVM_VMM_SIZE (__IA64_UL_CONST(16)<<20)
@@ -125,6 +126,8 @@
 #define KVM_MAX_VCPUS	(KVM_VM_DATA_SIZE - KVM_P2M_SIZE - KVM_VM_STRUCT_SIZE -\
 			KVM_MEM_DIRTY_LOG_SIZE) / sizeof(struct kvm_vcpu_data)
 #define KVM_MAX_MEM_SIZE (KVM_P2M_SIZE >> 3 << PAGE_SHIFT)
+
+#define VMM_LOG_LEN 256
 
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -437,6 +440,7 @@ struct kvm_vcpu_arch {
 
 	unsigned long opcode;
 	unsigned long cause;
+	char log_buf[VMM_LOG_LEN];
 	union context host;
 	union context guest;
 };

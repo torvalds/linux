@@ -474,6 +474,13 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
+static int handle_vcpu_debug(struct kvm_vcpu *vcpu,
+				struct kvm_run *kvm_run)
+{
+	printk("VMM: %s", vcpu->arch.log_buf);
+	return 1;
+}
+
 static int (*kvm_vti_exit_handlers[])(struct kvm_vcpu *vcpu,
 		struct kvm_run *kvm_run) = {
 	[EXIT_REASON_VM_PANIC]              = handle_vm_error,
@@ -485,6 +492,7 @@ static int (*kvm_vti_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[EXIT_REASON_EXTERNAL_INTERRUPT]    = handle_external_interrupt,
 	[EXIT_REASON_IPI]		    = handle_ipi,
 	[EXIT_REASON_PTC_G]		    = handle_global_purge,
+	[EXIT_REASON_DEBUG]		    = handle_vcpu_debug,
 
 };
 
