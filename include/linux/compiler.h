@@ -87,7 +87,6 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 				.file = __FILE__,			\
 				.line = __LINE__,			\
 			};						\
-			______f.line = __LINE__;			\
 			______r = likely_notrace(x);			\
 			ftrace_likely_update(&______f, ______r, 1);	\
 			______r;					\
@@ -102,7 +101,6 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 				.file = __FILE__,			\
 				.line = __LINE__,			\
 			};						\
-			______f.line = __LINE__;			\
 			______r = unlikely_notrace(x);			\
 			ftrace_likely_update(&______f, ______r, 0);	\
 			______r;					\
