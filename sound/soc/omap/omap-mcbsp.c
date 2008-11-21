@@ -454,7 +454,7 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 
 #define OMAP_MCBSP_DAI_BUILDER(link_id)				\
 {								\
-	.name = "omap-mcbsp-dai-(link_id)",			\
+	.name = "omap-mcbsp-dai-"#link_id,			\
 	.id = (link_id),					\
 	.type = SND_SOC_DAI_I2S,				\
 	.playback = {						\
