@@ -20,16 +20,16 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 	struct inet_bind_hashbucket *bhead;
 	struct inet_bind_bucket *tb;
 	/* Unlink from established hashes. */
-	rwlock_t *lock = inet_ehash_lockp(hashinfo, tw->tw_hash);
+	spinlock_t *lock = inet_ehash_lockp(hashinfo, tw->tw_hash);
 
-	write_lock(lock);
+	spin_lock(lock);
 	if (hlist_nulls_unhashed(&tw->tw_node)) {
-		write_unlock(lock);
+		spin_unlock(lock);
 		return;
 	}
 	hlist_nulls_del_rcu(&tw->tw_node);
 	sk_nulls_node_init(&tw->tw_node);
-	write_unlock(lock);
+	spin_unlock(lock);
 
 	/* Disassociate with bind bucket. */
 	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), tw->tw_num,
@@ -76,7 +76,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	const struct inet_sock *inet = inet_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_ehash_bucket *ehead = inet_ehash_bucket(hashinfo, sk->sk_hash);
-	rwlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
+	spinlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 	struct inet_bind_hashbucket *bhead;
 	/* Step 1: Put TW into bind hash. Original socket stays there too.
 	   Note, that any socket with inet->num != 0 MUST be bound in
@@ -90,7 +90,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	inet_twsk_add_bind_node(tw, &tw->tw_tb->owners);
 	spin_unlock(&bhead->lock);
 
-	write_lock(lock);
+	spin_lock(lock);
 
 	/*
 	 * Step 2: Hash TW into TIMEWAIT chain.
@@ -104,7 +104,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	if (__sk_nulls_del_node_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 
-	write_unlock(lock);
+	spin_unlock(lock);
 }
 
 EXPORT_SYMBOL_GPL(__inet_twsk_hashdance);
@@ -427,9 +427,9 @@ void inet_twsk_purge(struct net *net, struct inet_hashinfo *hashinfo,
 	for (h = 0; h < (hashinfo->ehash_size); h++) {
 		struct inet_ehash_bucket *head =
 			inet_ehash_bucket(hashinfo, h);
-		rwlock_t *lock = inet_ehash_lockp(hashinfo, h);
+		spinlock_t *lock = inet_ehash_lockp(hashinfo, h);
 restart:
-		write_lock(lock);
+		spin_lock(lock);
 		sk_nulls_for_each(sk, node, &head->twchain) {
 
 			tw = inet_twsk(sk);
@@ -438,13 +438,13 @@ restart:
 				continue;
 
 			atomic_inc(&tw->tw_refcnt);
-			write_unlock(lock);
+			spin_unlock(lock);
 			inet_twsk_deschedule(tw, twdr);
 			inet_twsk_put(tw);
 
 			goto restart;
 		}
-		write_unlock(lock);
+		spin_unlock(lock);
 	}
 	local_bh_enable();
 }

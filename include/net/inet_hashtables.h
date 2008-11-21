@@ -116,7 +116,7 @@ struct inet_hashinfo {
 	 * TIME_WAIT sockets use a separate chain (twchain).
 	 */
 	struct inet_ehash_bucket	*ehash;
-	rwlock_t			*ehash_locks;
+	spinlock_t			*ehash_locks;
 	unsigned int			ehash_size;
 	unsigned int			ehash_locks_mask;
 
@@ -152,7 +152,7 @@ static inline struct inet_ehash_bucket *inet_ehash_bucket(
 	return &hashinfo->ehash[hash & (hashinfo->ehash_size - 1)];
 }
 
-static inline rwlock_t *inet_ehash_lockp(
+static inline spinlock_t *inet_ehash_lockp(
 	struct inet_hashinfo *hashinfo,
 	unsigned int hash)
 {
@@ -177,16 +177,16 @@ static inline int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 		size = 4096;
 	if (sizeof(rwlock_t) != 0) {
 #ifdef CONFIG_NUMA
-		if (size * sizeof(rwlock_t) > PAGE_SIZE)
-			hashinfo->ehash_locks = vmalloc(size * sizeof(rwlock_t));
+		if (size * sizeof(spinlock_t) > PAGE_SIZE)
+			hashinfo->ehash_locks = vmalloc(size * sizeof(spinlock_t));
 		else
 #endif
-		hashinfo->ehash_locks =	kmalloc(size * sizeof(rwlock_t),
+		hashinfo->ehash_locks =	kmalloc(size * sizeof(spinlock_t),
 						GFP_KERNEL);
 		if (!hashinfo->ehash_locks)
 			return ENOMEM;
 		for (i = 0; i < size; i++)
-			rwlock_init(&hashinfo->ehash_locks[i]);
+			spin_lock_init(&hashinfo->ehash_locks[i]);
 	}
 	hashinfo->ehash_locks_mask = size - 1;
 	return 0;
@@ -197,7 +197,7 @@ static inline void inet_ehash_locks_free(struct inet_hashinfo *hashinfo)
 	if (hashinfo->ehash_locks) {
 #ifdef CONFIG_NUMA
 		unsigned int size = (hashinfo->ehash_locks_mask + 1) *
-							sizeof(rwlock_t);
+							sizeof(spinlock_t);
 		if (size > PAGE_SIZE)
 			vfree(hashinfo->ehash_locks);
 		else

@@ -1970,13 +1970,13 @@ static void *established_get_first(struct seq_file *seq)
 		struct sock *sk;
 		struct hlist_nulls_node *node;
 		struct inet_timewait_sock *tw;
-		rwlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, st->bucket);
+		spinlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, st->bucket);
 
 		/* Lockless fast path for the common case of empty buckets */
 		if (empty_bucket(st))
 			continue;
 
-		read_lock_bh(lock);
+		spin_lock_bh(lock);
 		sk_nulls_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
 			if (sk->sk_family != st->family ||
 			    !net_eq(sock_net(sk), net)) {
@@ -1995,7 +1995,7 @@ static void *established_get_first(struct seq_file *seq)
 			rc = tw;
 			goto out;
 		}
-		read_unlock_bh(lock);
+		spin_unlock_bh(lock);
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 	}
 out:
@@ -2023,7 +2023,7 @@ get_tw:
 			cur = tw;
 			goto out;
 		}
-		read_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
+		spin_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 
 		/* Look for next non empty bucket */
@@ -2033,7 +2033,7 @@ get_tw:
 		if (st->bucket >= tcp_hashinfo.ehash_size)
 			return NULL;
 
-		read_lock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
+		spin_lock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
 		sk = sk_nulls_head(&tcp_hashinfo.ehash[st->bucket].chain);
 	} else
 		sk = sk_nulls_next(sk);
@@ -2134,7 +2134,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 	case TCP_SEQ_STATE_TIME_WAIT:
 	case TCP_SEQ_STATE_ESTABLISHED:
 		if (v)
-			read_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
+			spin_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
 		break;
 	}
 }

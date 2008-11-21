@@ -271,13 +271,12 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	struct net *net = sock_net(sk);
 	unsigned int hash = inet_ehashfn(net, daddr, lport, saddr, inet->dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
-	rwlock_t *lock = inet_ehash_lockp(hinfo, hash);
+	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
 	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw;
 
-	prefetch(head->chain.first);
-	write_lock(lock);
+	spin_lock(lock);
 
 	/* Check TIME-WAIT sockets first. */
 	sk_nulls_for_each(sk2, node, &head->twchain) {
@@ -308,8 +307,8 @@ unique:
 	sk->sk_hash = hash;
 	WARN_ON(!sk_unhashed(sk));
 	__sk_nulls_add_node_rcu(sk, &head->chain);
+	spin_unlock(lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	write_unlock(lock);
 
 	if (twp) {
 		*twp = tw;
@@ -325,7 +324,7 @@ unique:
 	return 0;
 
 not_unique:
-	write_unlock(lock);
+	spin_unlock(lock);
 	return -EADDRNOTAVAIL;
 }
 
@@ -340,7 +339,7 @@ void __inet_hash_nolisten(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct hlist_nulls_head *list;
-	rwlock_t *lock;
+	spinlock_t *lock;
 	struct inet_ehash_bucket *head;
 
 	WARN_ON(!sk_unhashed(sk));
@@ -350,10 +349,10 @@ void __inet_hash_nolisten(struct sock *sk)
 	list = &head->chain;
 	lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 
-	write_lock(lock);
+	spin_lock(lock);
 	__sk_nulls_add_node_rcu(sk, list);
+	spin_unlock(lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	write_unlock(lock);
 }
 EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
 
@@ -402,12 +401,12 @@ void inet_unhash(struct sock *sk)
 			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 		spin_unlock_bh(&ilb->lock);
 	} else {
-		rwlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
+		spinlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 
-		write_lock_bh(lock);
+		spin_lock_bh(lock);
 		if (__sk_nulls_del_node_init_rcu(sk))
 			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
-		write_unlock_bh(lock);
+		spin_unlock_bh(lock);
 	}
 }
 EXPORT_SYMBOL_GPL(inet_unhash);

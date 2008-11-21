@@ -38,14 +38,14 @@ void __inet6_hash(struct sock *sk)
 	} else {
 		unsigned int hash;
 		struct hlist_nulls_head *list;
-		rwlock_t *lock;
+		spinlock_t *lock;
 
 		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
 		list = &inet_ehash_bucket(hashinfo, hash)->chain;
 		lock = inet_ehash_lockp(hashinfo, hash);
-		write_lock(lock);
+		spin_lock(lock);
 		__sk_nulls_add_node_rcu(sk, list);
-		write_unlock(lock);
+		spin_unlock(lock);
 	}
 
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
@@ -195,13 +195,12 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	const unsigned int hash = inet6_ehashfn(net, daddr, lport, saddr,
 						inet->dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
-	rwlock_t *lock = inet_ehash_lockp(hinfo, hash);
+	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
 	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw;
 
-	prefetch(head->chain.first);
-	write_lock(lock);
+	spin_lock(lock);
 
 	/* Check TIME-WAIT sockets first. */
 	sk_nulls_for_each(sk2, node, &head->twchain) {
@@ -230,8 +229,8 @@ unique:
 	WARN_ON(!sk_unhashed(sk));
 	__sk_nulls_add_node_rcu(sk, &head->chain);
 	sk->sk_hash = hash;
+	spin_unlock(lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	write_unlock(lock);
 
 	if (twp != NULL) {
 		*twp = tw;
@@ -246,7 +245,7 @@ unique:
 	return 0;
 
 not_unique:
-	write_unlock(lock);
+	spin_unlock(lock);
 	return -EADDRNOTAVAIL;
 }
 
