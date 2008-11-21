@@ -63,17 +63,17 @@
 /*
  * Some macro's to hide the most frequently occuring CFI annotations.
  */
-	.macro CFI_PUSHQ reg
+	.macro pushq_cfi reg
 	pushq \reg
 	CFI_ADJUST_CFA_OFFSET 8
 	.endm
 
-	.macro CFI_POPQ reg
+	.macro popq_cfi reg
 	popq \reg
 	CFI_ADJUST_CFA_OFFSET -8
 	.endm
 
-	.macro CFI_MOVQ reg offset=0
+	.macro movq_cfi reg offset=0
 	movq %\reg, \offset(%rsp)
 	CFI_REL_OFFSET \reg, \offset
 	.endm
@@ -297,17 +297,18 @@ ENTRY(native_usergs_sysret64)
 ENTRY(save_args)
 	XCPT_FRAME
 	cld
-	CFI_MOVQ rdi, RDI+16-ARGOFFSET
-	CFI_MOVQ rsi, RSI+16-ARGOFFSET
-	CFI_MOVQ rdx, RDX+16-ARGOFFSET
-	CFI_MOVQ rcx, RCX+16-ARGOFFSET
-	CFI_MOVQ rax, RAX+16-ARGOFFSET
-	CFI_MOVQ r8, R8+16-ARGOFFSET
-	CFI_MOVQ r9, R9+16-ARGOFFSET
-	CFI_MOVQ r10, R10+16-ARGOFFSET
-	CFI_MOVQ r11, R11+16-ARGOFFSET
+	movq_cfi rdi, RDI+16-ARGOFFSET
+	movq_cfi rsi, RSI+16-ARGOFFSET
+	movq_cfi rdx, RDX+16-ARGOFFSET
+	movq_cfi rcx, RCX+16-ARGOFFSET
+	movq_cfi rax, RAX+16-ARGOFFSET
+	movq_cfi  r8,  R8+16-ARGOFFSET
+	movq_cfi  r9,  R9+16-ARGOFFSET
+	movq_cfi r10, R10+16-ARGOFFSET
+	movq_cfi r11, R11+16-ARGOFFSET
+
 	leaq -ARGOFFSET+16(%rsp),%rdi	/* arg1 for handler */
-	CFI_MOVQ rbp, 8		/* push %rbp */
+	movq_cfi rbp, 8		/* push %rbp */
 	leaq 8(%rsp), %rbp		/* mov %rsp, %ebp */
 	testl $3, CS(%rdi)
 	je 1f
@@ -320,10 +321,10 @@ ENTRY(save_args)
 	 */
 1:	incl %gs:pda_irqcount
 	jne 2f
-	CFI_POPQ %rax			/* move return address... */
+	popq_cfi %rax			/* move return address... */
 	mov %gs:pda_irqstackptr,%rsp
 	EMPTY_FRAME 0
-	CFI_PUSHQ %rax			/* ... to the new stack */
+	pushq_cfi %rax			/* ... to the new stack */
 	/*
 	 * We entered an interrupt context - irqs are off:
 	 */
@@ -968,7 +969,7 @@ END(spurious_interrupt)
 	.macro zeroentry sym
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	CFI_PUSHQ $-1		/* ORIG_RAX: no syscall to restart */
+	pushq_cfi $-1		/* ORIG_RAX: no syscall to restart */
 	subq $15*8,%rsp
 	CFI_ADJUST_CFA_OFFSET 15*8
 	call error_entry
@@ -1103,21 +1104,21 @@ KPROBE_ENTRY(error_entry)
 	CFI_ADJUST_CFA_OFFSET 15*8
 	/* oldrax contains error code */
 	cld
-	CFI_MOVQ rdi, RDI+8
-	CFI_MOVQ rsi, RSI+8
-	CFI_MOVQ rdx, RDX+8
-	CFI_MOVQ rcx, RCX+8
-	CFI_MOVQ rax, RAX+8
-	CFI_MOVQ r8, R8+8
-	CFI_MOVQ r9, R9+8
-	CFI_MOVQ r10, R10+8
-	CFI_MOVQ r11, R11+8
-	CFI_MOVQ rbx, RBX+8
-	CFI_MOVQ rbp, RBP+8
-	CFI_MOVQ r12, R12+8
-	CFI_MOVQ r13, R13+8
-	CFI_MOVQ r14, R14+8
-	CFI_MOVQ r15, R15+8
+	movq_cfi rdi, RDI+8
+	movq_cfi rsi, RSI+8
+	movq_cfi rdx, RDX+8
+	movq_cfi rcx, RCX+8
+	movq_cfi rax, RAX+8
+	movq_cfi  r8,  R8+8
+	movq_cfi  r9,  R9+8
+	movq_cfi r10, R10+8
+	movq_cfi r11, R11+8
+	movq_cfi rbx, RBX+8
+	movq_cfi rbp, RBP+8
+	movq_cfi r12, R12+8
+	movq_cfi r13, R13+8
+	movq_cfi r14, R14+8
+	movq_cfi r15, R15+8
 	xorl %ebx,%ebx
 	testl $3,CS+8(%rsp)
 	je error_kernelspace
@@ -1515,9 +1516,9 @@ ENTRY(xen_failsafe_callback)
 	CFI_RESTORE r11
 	addq $0x30,%rsp
 	CFI_ADJUST_CFA_OFFSET -0x30
-	CFI_PUSHQ $0	/* RIP */
-	CFI_PUSHQ %r11
-	CFI_PUSHQ %rcx
+	pushq_cfi $0	/* RIP */
+	pushq_cfi %r11
+	pushq_cfi %rcx
 	jmp general_protection
 	CFI_RESTORE_STATE
 1:	/* Segment mismatch => Category 1 (Bad segment). Retry the IRET. */
@@ -1527,7 +1528,7 @@ ENTRY(xen_failsafe_callback)
 	CFI_RESTORE r11
 	addq $0x30,%rsp
 	CFI_ADJUST_CFA_OFFSET -0x30
-	CFI_PUSHQ $0
+	pushq_cfi $0
 	SAVE_ALL
 	jmp error_exit
 	CFI_ENDPROC
