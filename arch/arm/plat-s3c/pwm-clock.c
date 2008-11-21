@@ -73,11 +73,13 @@
  * tclk -------------------------/
 */
 
+static struct clk clk_timer_scaler[];
+
 static unsigned long clk_pwm_scaler_get_rate(struct clk *clk)
 {
 	unsigned long tcfg0 = __raw_readl(S3C2410_TCFG0);
 
-	if (clk->id == 1) {
+	if (clk == &clk_timer_scaler[1]) {
 		tcfg0 &= S3C2410_TCFG_PRESCALER1_MASK;
 		tcfg0 >>= S3C2410_TCFG_PRESCALER1_SHIFT;
 	} else {
@@ -114,7 +116,7 @@ static int clk_pwm_scaler_set_rate(struct clk *clk, unsigned long rate)
 	local_irq_save(flags);
 	tcfg0 = __raw_readl(S3C2410_TCFG0);
 
-	if (clk->id == 1) {
+	if (clk == &clk_timer_scaler[1]) {
 		tcfg0 &= ~S3C2410_TCFG_PRESCALER1_MASK;
 		tcfg0 |= divisor << S3C2410_TCFG_PRESCALER1_SHIFT;
 	} else {
