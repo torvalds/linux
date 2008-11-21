@@ -122,6 +122,7 @@ void ring_buffer_normalize_time_stamp(int cpu, u64 *ts);
 
 void tracing_on(void);
 void tracing_off(void);
+void tracing_off_permanent(void);
 
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,
