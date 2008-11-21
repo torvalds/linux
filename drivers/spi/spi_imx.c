@@ -506,20 +506,6 @@ static int map_dma_buffers(struct driver_data *drv_data)
 	if (!IS_DMA_ALIGNED(drv_data->rx) || !IS_DMA_ALIGNED(drv_data->tx))
 		return -1;
 
-	/* NULL rx means write-only transfer and no map needed
-	   since rx DMA will not be used */
-	if (drv_data->rx) {
-		buf = drv_data->rx;
-		drv_data->rx_dma = dma_map_single(
-					dev,
-					buf,
-					drv_data->len,
-					DMA_FROM_DEVICE);
-		if (dma_mapping_error(dev, drv_data->rx_dma))
-			return -1;
-		drv_data->rx_dma_needs_unmap = 1;
-	}
-
 	if (drv_data->tx == NULL) {
 		/* Read only message --> use drv_data->dummy_dma_buf for dummy
 		   writes to achive reads */
@@ -533,17 +519,30 @@ static int map_dma_buffers(struct driver_data *drv_data)
 					buf,
 					drv_data->tx_map_len,
 					DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, drv_data->tx_dma)) {
-		if (drv_data->rx_dma) {
-			dma_unmap_single(dev,
-					drv_data->rx_dma,
-					drv_data->len,
-					DMA_FROM_DEVICE);
-			drv_data->rx_dma_needs_unmap = 0;
-		}
+	if (dma_mapping_error(dev, drv_data->tx_dma))
 		return -1;
-	}
 	drv_data->tx_dma_needs_unmap = 1;
+
+	/* NULL rx means write-only transfer and no map needed
+	 * since rx DMA will not be used */
+	if (drv_data->rx) {
+		buf = drv_data->rx;
+		drv_data->rx_dma = dma_map_single(dev,
+						buf,
+						drv_data->len,
+						DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, drv_data->rx_dma)) {
+			if (drv_data->tx_dma) {
+				dma_unmap_single(dev,
+						drv_data->tx_dma,
+						drv_data->tx_map_len,
+						DMA_TO_DEVICE);
+				drv_data->tx_dma_needs_unmap = 0;
+			}
+			return -1;
+		}
+		drv_data->rx_dma_needs_unmap = 1;
+	}
 
 	return 0;
 }

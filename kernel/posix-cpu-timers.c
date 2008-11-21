@@ -1308,9 +1308,10 @@ static inline int task_cputime_expired(const struct task_cputime *sample,
  */
 static inline int fastpath_timer_check(struct task_struct *tsk)
 {
-	struct signal_struct *sig = tsk->signal;
+	struct signal_struct *sig;
 
-	if (unlikely(!sig))
+	/* tsk == current, ensure it is safe to use ->signal/sighand */
+	if (unlikely(tsk->exit_state))
 		return 0;
 
 	if (!task_cputime_zero(&tsk->cputime_expires)) {
@@ -1323,6 +1324,8 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 		if (task_cputime_expired(&task_sample, &tsk->cputime_expires))
 			return 1;
 	}
+
+	sig = tsk->signal;
 	if (!task_cputime_zero(&sig->cputime_expires)) {
 		struct task_cputime group_sample;
 

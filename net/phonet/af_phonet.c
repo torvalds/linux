@@ -33,9 +33,30 @@
 #include <net/phonet/phonet.h>
 #include <net/phonet/pn_dev.h>
 
-static struct net_proto_family phonet_proto_family;
-static struct phonet_protocol *phonet_proto_get(int protocol);
-static inline void phonet_proto_put(struct phonet_protocol *pp);
+/* Transport protocol registration */
+static struct phonet_protocol *proto_tab[PHONET_NPROTO] __read_mostly;
+static DEFINE_SPINLOCK(proto_tab_lock);
+
+static struct phonet_protocol *phonet_proto_get(int protocol)
+{
+	struct phonet_protocol *pp;
+
+	if (protocol >= PHONET_NPROTO)
+		return NULL;
+
+	spin_lock(&proto_tab_lock);
+	pp = proto_tab[protocol];
+	if (pp && !try_module_get(pp->prot->owner))
+		pp = NULL;
+	spin_unlock(&proto_tab_lock);
+
+	return pp;
+}
+
+static inline void phonet_proto_put(struct phonet_protocol *pp)
+{
+	module_put(pp->prot->owner);
+}
 
 /* protocol family functions */
 
@@ -375,10 +396,6 @@ static struct packet_type phonet_packet_type = {
 	.func = phonet_rcv,
 };
 
-/* Transport protocol registration */
-static struct phonet_protocol *proto_tab[PHONET_NPROTO] __read_mostly;
-static DEFINE_SPINLOCK(proto_tab_lock);
-
 int __init_or_module phonet_proto_register(int protocol,
 						struct phonet_protocol *pp)
 {
@@ -411,27 +428,6 @@ void phonet_proto_unregister(int protocol, struct phonet_protocol *pp)
 	proto_unregister(pp->prot);
 }
 EXPORT_SYMBOL(phonet_proto_unregister);
-
-static struct phonet_protocol *phonet_proto_get(int protocol)
-{
-	struct phonet_protocol *pp;
-
-	if (protocol >= PHONET_NPROTO)
-		return NULL;
-
-	spin_lock(&proto_tab_lock);
-	pp = proto_tab[protocol];
-	if (pp && !try_module_get(pp->prot->owner))
-		pp = NULL;
-	spin_unlock(&proto_tab_lock);
-
-	return pp;
-}
-
-static inline void phonet_proto_put(struct phonet_protocol *pp)
-{
-	module_put(pp->prot->owner);
-}
 
 /* Module registration */
 static int __init phonet_init(void)

@@ -1229,8 +1229,11 @@ static int __devinit pcxhr_probe(struct pci_dev *pci, const struct pci_device_id
 		return -ENOMEM;
 	}
 
-	if (snd_BUG_ON(pci_id->driver_data >= PCI_ID_LAST))
+	if (snd_BUG_ON(pci_id->driver_data >= PCI_ID_LAST)) {
+		kfree(mgr);
+		pci_disable_device(pci);
 		return -ENODEV;
+	}
 	card_name = pcxhr_board_params[pci_id->driver_data].board_name;
 	mgr->playback_chips = pcxhr_board_params[pci_id->driver_data].playback_chips;
 	mgr->capture_chips  = pcxhr_board_params[pci_id->driver_data].capture_chips;

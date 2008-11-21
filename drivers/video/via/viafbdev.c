@@ -2036,30 +2036,30 @@ static int viafb_vt1636_proc_write(struct file *file,
 	return count;
 }
 
-static void viafb_init_proc(struct proc_dir_entry *viafb_entry)
+static void viafb_init_proc(struct proc_dir_entry **viafb_entry)
 {
 	struct proc_dir_entry *entry;
-	viafb_entry = proc_mkdir("viafb", NULL);
+	*viafb_entry = proc_mkdir("viafb", NULL);
 	if (viafb_entry) {
-		entry = create_proc_entry("dvp0", 0, viafb_entry);
+		entry = create_proc_entry("dvp0", 0, *viafb_entry);
 		if (entry) {
 			entry->owner = THIS_MODULE;
 			entry->read_proc = viafb_dvp0_proc_read;
 			entry->write_proc = viafb_dvp0_proc_write;
 		}
-		entry = create_proc_entry("dvp1", 0, viafb_entry);
+		entry = create_proc_entry("dvp1", 0, *viafb_entry);
 		if (entry) {
 			entry->owner = THIS_MODULE;
 			entry->read_proc = viafb_dvp1_proc_read;
 			entry->write_proc = viafb_dvp1_proc_write;
 		}
-		entry = create_proc_entry("dfph", 0, viafb_entry);
+		entry = create_proc_entry("dfph", 0, *viafb_entry);
 		if (entry) {
 			entry->owner = THIS_MODULE;
 			entry->read_proc = viafb_dfph_proc_read;
 			entry->write_proc = viafb_dfph_proc_write;
 		}
-		entry = create_proc_entry("dfpl", 0, viafb_entry);
+		entry = create_proc_entry("dfpl", 0, *viafb_entry);
 		if (entry) {
 			entry->owner = THIS_MODULE;
 			entry->read_proc = viafb_dfpl_proc_read;
@@ -2068,7 +2068,7 @@ static void viafb_init_proc(struct proc_dir_entry *viafb_entry)
 		if (VT1636_LVDS == viaparinfo->chip_info->lvds_chip_info.
 			lvds_chip_name || VT1636_LVDS ==
 		    viaparinfo->chip_info->lvds_chip_info2.lvds_chip_name) {
-			entry = create_proc_entry("vt1636", 0, viafb_entry);
+			entry = create_proc_entry("vt1636", 0, *viafb_entry);
 			if (entry) {
 				entry->owner = THIS_MODULE;
 				entry->read_proc = viafb_vt1636_proc_read;
@@ -2087,6 +2087,7 @@ static void viafb_remove_proc(struct proc_dir_entry *viafb_entry)
 	remove_proc_entry("dfpl", viafb_entry);
 	remove_proc_entry("vt1636", viafb_entry);
 	remove_proc_entry("vt1625", viafb_entry);
+	remove_proc_entry("viafb", NULL);
 }
 
 static int __devinit via_pci_probe(void)
@@ -2348,7 +2349,7 @@ static int __devinit via_pci_probe(void)
 		  viafbinfo->node, viafbinfo->fix.id, default_var.xres,
 		  default_var.yres, default_var.bits_per_pixel);
 
-	viafb_init_proc(viaparinfo->proc_entry);
+	viafb_init_proc(&viaparinfo->proc_entry);
 	viafb_init_dac(IGA2);
 	return 0;
 }
