@@ -173,6 +173,22 @@ config TRACE_BRANCH_PROFILING
 
 	  Say N if unsure.
 
+config PROFILE_ALL_BRANCHES
+	bool "Profile all if conditionals"
+	depends on TRACE_BRANCH_PROFILING
+	help
+	  This tracer profiles all branch conditions. Every if ()
+	  taken in the kernel is recorded whether it hit or miss.
+	  The results will be displayed in:
+
+	  /debugfs/tracing/profile_branch
+
+	  This configuration, when enabled, will impose a great overhead
+	  on the system. This should only be enabled when the system
+	  is to be analyzed
+
+	  Say N if unsure.
+
 config TRACING_BRANCHES
 	bool
 	help

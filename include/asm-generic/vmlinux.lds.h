@@ -53,6 +53,14 @@
 #define LIKELY_PROFILE()
 #endif
 
+#ifdef CONFIG_PROFILE_ALL_BRANCHES
+#define BRANCH_PROFILE()	VMLINUX_SYMBOL(__start_branch_profile) = .;   \
+				*(_ftrace_branch)			      \
+				VMLINUX_SYMBOL(__stop_branch_profile) = .;
+#else
+#define BRANCH_PROFILE()
+#endif
+
 /* .data section */
 #define DATA_DATA							\
 	*(.data)							\
@@ -72,7 +80,8 @@
 	VMLINUX_SYMBOL(__start___tracepoints) = .;			\
 	*(__tracepoints)						\
 	VMLINUX_SYMBOL(__stop___tracepoints) = .;			\
-	LIKELY_PROFILE()
+	LIKELY_PROFILE()		       				\
+	BRANCH_PROFILE()
 
 #define RO_DATA(align)							\
 	. = ALIGN((align));						\

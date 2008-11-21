@@ -185,6 +185,7 @@ EXPORT_SYMBOL(ftrace_likely_update);
 struct ftrace_pointer {
 	void		*start;
 	void		*stop;
+	int		hit;
 };
 
 static void *
@@ -223,13 +224,17 @@ static void t_stop(struct seq_file *m, void *p)
 
 static int t_show(struct seq_file *m, void *v)
 {
+	struct ftrace_pointer *fp = m->private;
 	struct ftrace_branch_data *p = v;
 	const char *f;
 	long percent;
 
 	if (v == (void *)1) {
-		seq_printf(m, " correct incorrect  %% "
-			      "       Function                "
+		if (fp->hit)
+			seq_printf(m, "   miss      hit    %% ");
+		else
+			seq_printf(m, " correct incorrect  %% ");
+		seq_printf(m, "       Function                "
 			      "  File              Line\n"
 			      " ------- ---------  - "
 			      "       --------                "
@@ -243,6 +248,9 @@ static int t_show(struct seq_file *m, void *v)
 		f--;
 	f++;
 
+	/*
+	 * The miss is overlayed on correct, and hit on incorrect.
+	 */
 	if (p->correct) {
 		percent = p->incorrect * 100;
 		percent /= p->correct + p->incorrect;
@@ -284,6 +292,18 @@ static const struct file_operations tracing_branch_fops = {
 	.llseek		= seq_lseek,
 };
 
+#ifdef CONFIG_PROFILE_ALL_BRANCHES
+extern unsigned long __start_branch_profile[];
+extern unsigned long __stop_branch_profile[];
+
+static struct ftrace_pointer ftrace_branch_pos = {
+	.start			= __start_branch_profile,
+	.stop			= __stop_branch_profile,
+	.hit			= 1,
+};
+
+#endif /* CONFIG_PROFILE_ALL_BRANCHES */
+
 extern unsigned long __start_annotated_branch_profile[];
 extern unsigned long __stop_annotated_branch_profile[];
 
@@ -305,6 +325,15 @@ static __init int ftrace_branch_init(void)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'profile_annotatet_branch' entry\n");
+
+#ifdef CONFIG_PROFILE_ALL_BRANCHES
+	entry = debugfs_create_file("profile_branch", 0444, d_tracer,
+				    &ftrace_branch_pos,
+				    &tracing_branch_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs"
+			   " 'profile_branch' entry\n");
+#endif
 
 	return 0;
 }
