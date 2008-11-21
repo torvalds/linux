@@ -156,7 +156,7 @@ static inline u16 omap_i2c_read_reg(struct omap_i2c_dev *i2c_dev, int reg)
 
 static int omap_i2c_get_clocks(struct omap_i2c_dev *dev)
 {
-	if (cpu_is_omap16xx() || cpu_is_omap24xx()) {
+	if (cpu_is_omap16xx() || cpu_class_is_omap2()) {
 		dev->iclk = clk_get(dev->dev, "i2c_ick");
 		if (IS_ERR(dev->iclk)) {
 			dev->iclk = NULL;
@@ -266,7 +266,7 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 			psc = fclk_rate / 12000000;
 	}
 
-	if (cpu_is_omap2430()) {
+	if (cpu_is_omap2430() || cpu_is_omap34xx()) {
 
 		/* HSI2C controller internal clk rate should be 19.2 Mhz */
 		internal_clk = 19200;
@@ -608,7 +608,8 @@ omap_i2c_isr(int this_irq, void *dev_id)
 					*dev->buf++ = w;
 					dev->buf_len--;
 					/* Data reg from 2430 is 8 bit wide */
-					if (!cpu_is_omap2430()) {
+					if (!cpu_is_omap2430() &&
+							!cpu_is_omap34xx()) {
 						if (dev->buf_len) {
 							*dev->buf++ = w >> 8;
 							dev->buf_len--;
@@ -646,7 +647,8 @@ omap_i2c_isr(int this_irq, void *dev_id)
 					w = *dev->buf++;
 					dev->buf_len--;
 					/* Data reg from  2430 is 8 bit wide */
-					if (!cpu_is_omap2430()) {
+					if (!cpu_is_omap2430() &&
+							!cpu_is_omap34xx()) {
 						if (dev->buf_len) {
 							w |= *dev->buf++ << 8;
 							dev->buf_len--;
@@ -694,7 +696,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	struct i2c_adapter	*adap;
 	struct resource		*mem, *irq, *ioarea;
 	int r;
-	u32 *speed = NULL;
+	u32 speed = 0;
 
 	/* NOTE: driver uses the static register mapping */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -722,11 +724,11 @@ omap_i2c_probe(struct platform_device *pdev)
 	}
 
 	if (pdev->dev.platform_data != NULL)
-		speed = (u32 *) pdev->dev.platform_data;
+		speed = *(u32 *)pdev->dev.platform_data;
 	else
-		*speed = 100; /* Defualt speed */
+		speed = 100;	/* Defualt speed */
 
-	dev->speed = *speed;
+	dev->speed = speed;
 	dev->dev = &pdev->dev;
 	dev->irq = irq->start;
 	dev->base = ioremap(mem->start, mem->end - mem->start + 1);
@@ -745,7 +747,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	if (cpu_is_omap15xx())
 		dev->rev1 = omap_i2c_read_reg(dev, OMAP_I2C_REV_REG) < 0x20;
 
-	if (cpu_is_omap2430()) {
+	if (cpu_is_omap2430() || cpu_is_omap34xx()) {
 		u16 s;
 
 		/* Set up the fifo size - Get total size */
