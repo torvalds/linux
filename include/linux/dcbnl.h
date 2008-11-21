@@ -43,6 +43,7 @@ struct dcbmsg {
  * @DCB_CMD_SET_ALL: apply all changes to the underlying device
  * @DCB_CMD_GPERM_HWADDR: get the permanent MAC address of the underlying
  *                        device.  Only useful when using bonding.
+ * @DCB_CMD_GCAP: request the DCB capabilities of the device
  */
 enum dcbnl_commands {
 	DCB_CMD_UNDEFINED,
@@ -60,6 +61,7 @@ enum dcbnl_commands {
 
 	DCB_CMD_SET_ALL,
 	DCB_CMD_GPERM_HWADDR,
+	DCB_CMD_GCAP,
 
 	__DCB_CMD_ENUM_MAX,
 	DCB_CMD_MAX = __DCB_CMD_ENUM_MAX - 1,
@@ -78,6 +80,7 @@ enum dcbnl_commands {
  * @DCB_ATTR_PG_CFG: priority group configuration (NLA_NESTED)
  * @DCB_ATTR_SET_ALL: bool to commit changes to hardware or not (NLA_U8)
  * @DCB_ATTR_PERM_HWADDR: MAC address of the physical device (NLA_NESTED)
+ * @DCB_ATTR_CAP: DCB capabilities of the device (NLA_NESTED)
  */
 enum dcbnl_attrs {
 	DCB_ATTR_UNDEFINED,
@@ -90,6 +93,7 @@ enum dcbnl_attrs {
 	DCB_ATTR_PG_CFG,
 	DCB_ATTR_SET_ALL,
 	DCB_ATTR_PERM_HWADDR,
+	DCB_ATTR_CAP,
 
 	__DCB_ATTR_ENUM_MAX,
 	DCB_ATTR_MAX = __DCB_ATTR_ENUM_MAX - 1,
@@ -216,6 +220,39 @@ enum dcbnl_tc_attrs {
 	DCB_TC_ATTR_PARAM_MAX = __DCB_TC_ATTR_PARAM_ENUM_MAX - 1,
 };
 
+/**
+ * enum dcbnl_cap_attrs - DCB Capability attributes
+ *
+ * @DCB_CAP_ATTR_UNDEFINED: unspecified attribute to catch errors
+ * @DCB_CAP_ATTR_ALL: (NLA_FLAG) all capability parameters
+ * @DCB_CAP_ATTR_PG: (NLA_U8) device supports Priority Groups
+ * @DCB_CAP_ATTR_PFC: (NLA_U8) device supports Priority Flow Control
+ * @DCB_CAP_ATTR_UP2TC: (NLA_U8) device supports user priority to
+ *                               traffic class mapping
+ * @DCB_CAP_ATTR_PG_TCS: (NLA_U8) bitmap where each bit represents a
+ *                                number of traffic classes the device
+ *                                can be configured to use for Priority Groups
+ * @DCB_CAP_ATTR_PFC_TCS: (NLA_U8) bitmap where each bit represents a
+ *                                 number of traffic classes the device can be
+ *                                 configured to use for Priority Flow Control
+ * @DCB_CAP_ATTR_GSP: (NLA_U8) device supports group strict priority
+ * @DCB_CAP_ATTR_BCN: (NLA_U8) device supports Backwards Congestion
+ *                             Notification
+ */
+enum dcbnl_cap_attrs {
+	DCB_CAP_ATTR_UNDEFINED,
+	DCB_CAP_ATTR_ALL,
+	DCB_CAP_ATTR_PG,
+	DCB_CAP_ATTR_PFC,
+	DCB_CAP_ATTR_UP2TC,
+	DCB_CAP_ATTR_PG_TCS,
+	DCB_CAP_ATTR_PFC_TCS,
+	DCB_CAP_ATTR_GSP,
+	DCB_CAP_ATTR_BCN,
+
+	__DCB_CAP_ATTR_ENUM_MAX,
+	DCB_CAP_ATTR_MAX = __DCB_CAP_ATTR_ENUM_MAX - 1,
+};
 /**
  * enum dcb_general_attr_values - general DCB attribute values
  *

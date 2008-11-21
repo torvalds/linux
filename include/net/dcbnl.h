@@ -39,6 +39,7 @@ struct dcbnl_rtnl_ops {
 	void (*setpfccfg)(struct net_device *, int, u8);
 	void (*getpfccfg)(struct net_device *, int, u8 *);
 	u8   (*setall)(struct net_device *);
+	u8   (*getcap)(struct net_device *, int, u8 *);
 };
 
 #endif /* __NET_DCBNL_H__ */

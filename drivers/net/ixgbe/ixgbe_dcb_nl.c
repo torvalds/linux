@@ -337,6 +337,45 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	return ret;
 }
 
+static u8 ixgbe_dcbnl_getcap(struct net_device *netdev, int capid, u8 *cap)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	u8 rval = 0;
+
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+		switch (capid) {
+		case DCB_CAP_ATTR_PG:
+			*cap = true;
+			break;
+		case DCB_CAP_ATTR_PFC:
+			*cap = true;
+			break;
+		case DCB_CAP_ATTR_UP2TC:
+			*cap = false;
+			break;
+		case DCB_CAP_ATTR_PG_TCS:
+			*cap = 0x80;
+			break;
+		case DCB_CAP_ATTR_PFC_TCS:
+			*cap = 0x80;
+			break;
+		case DCB_CAP_ATTR_GSP:
+			*cap = true;
+			break;
+		case DCB_CAP_ATTR_BCN:
+			*cap = false;
+			break;
+		default:
+			rval = -EINVAL;
+			break;
+		}
+	} else {
+		rval = -EINVAL;
+	}
+
+	return rval;
+}
+
 struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
@@ -351,6 +390,7 @@ struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getpgbwgcfgrx	= ixgbe_dcbnl_get_pg_bwg_cfg_rx,
 	.setpfccfg	= ixgbe_dcbnl_set_pfc_cfg,
 	.getpfccfg	= ixgbe_dcbnl_get_pfc_cfg,
-	.setall		= ixgbe_dcbnl_set_all
+	.setall		= ixgbe_dcbnl_set_all,
+	.getcap		= ixgbe_dcbnl_getcap
 };
 

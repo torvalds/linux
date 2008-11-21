@@ -61,6 +61,7 @@ static struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 	[DCB_ATTR_PG_CFG]    = {.type = NLA_NESTED},
 	[DCB_ATTR_SET_ALL]   = {.type = NLA_U8},
 	[DCB_ATTR_PERM_HWADDR] = {.type = NLA_FLAG},
+	[DCB_ATTR_CAP]       = {.type = NLA_NESTED},
 };
 
 /* DCB priority flow control to User Priority nested attributes */
@@ -107,6 +108,17 @@ static struct nla_policy dcbnl_tc_param_nest[DCB_TC_ATTR_PARAM_MAX + 1] = {
 	[DCB_TC_ATTR_PARAM_ALL]             = {.type = NLA_FLAG},
 };
 
+/* DCB capabilities nested attributes. */
+static struct nla_policy dcbnl_cap_nest[DCB_CAP_ATTR_MAX + 1] = {
+	[DCB_CAP_ATTR_ALL]     = {.type = NLA_FLAG},
+	[DCB_CAP_ATTR_PG]      = {.type = NLA_U8},
+	[DCB_CAP_ATTR_PFC]     = {.type = NLA_U8},
+	[DCB_CAP_ATTR_UP2TC]   = {.type = NLA_U8},
+	[DCB_CAP_ATTR_PG_TCS]  = {.type = NLA_U8},
+	[DCB_CAP_ATTR_PFC_TCS] = {.type = NLA_U8},
+	[DCB_CAP_ATTR_GSP]     = {.type = NLA_U8},
+	[DCB_CAP_ATTR_BCN]     = {.type = NLA_U8},
+};
 
 /* standard netlink reply call */
 static int dcbnl_reply(u8 value, u8 event, u8 cmd, u8 attr, u32 pid,
@@ -262,6 +274,72 @@ static int dcbnl_getperm_hwaddr(struct net_device *netdev, struct nlattr **tb,
 
 	return 0;
 
+nlmsg_failure:
+err:
+	kfree(dcbnl_skb);
+err_out:
+	return -EINVAL;
+}
+
+static int dcbnl_getcap(struct net_device *netdev, struct nlattr **tb,
+                        u32 pid, u32 seq, u16 flags)
+{
+	struct sk_buff *dcbnl_skb;
+	struct nlmsghdr *nlh;
+	struct dcbmsg *dcb;
+	struct nlattr *data[DCB_CAP_ATTR_MAX + 1], *nest;
+	u8 value;
+	int ret = -EINVAL;
+	int i;
+	int getall = 0;
+
+	if (!tb[DCB_ATTR_CAP] || !netdev->dcbnl_ops->getcap)
+		return ret;
+
+	ret = nla_parse_nested(data, DCB_CAP_ATTR_MAX, tb[DCB_ATTR_CAP],
+	                       dcbnl_cap_nest);
+	if (ret)
+		goto err_out;
+
+	dcbnl_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!dcbnl_skb)
+		goto err_out;
+
+	nlh = NLMSG_NEW(dcbnl_skb, pid, seq, RTM_GETDCB, sizeof(*dcb), flags);
+
+	dcb = NLMSG_DATA(nlh);
+	dcb->dcb_family = AF_UNSPEC;
+	dcb->cmd = DCB_CMD_GCAP;
+
+	nest = nla_nest_start(dcbnl_skb, DCB_ATTR_CAP);
+	if (!nest)
+		goto err;
+
+	if (data[DCB_CAP_ATTR_ALL])
+		getall = 1;
+
+	for (i = DCB_CAP_ATTR_ALL+1; i <= DCB_CAP_ATTR_MAX; i++) {
+		if (!getall && !data[i])
+			continue;
+
+		if (!netdev->dcbnl_ops->getcap(netdev, i, &value)) {
+			ret = nla_put_u8(dcbnl_skb, i, value);
+
+			if (ret) {
+				nla_nest_cancel(dcbnl_skb, nest);
+				goto err;
+			}
+		}
+	}
+	nla_nest_end(dcbnl_skb, nest);
+
+	nlmsg_end(dcbnl_skb, nlh);
+
+	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
+	if (ret)
+		goto err;
+
+	return 0;
 nlmsg_failure:
 err:
 	kfree(dcbnl_skb);
@@ -674,6 +752,10 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	case DCB_CMD_PGRX_SCFG:
 		ret = dcbnl_pgrx_setcfg(netdev, tb, pid, nlh->nlmsg_seq,
 		                        nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_GCAP:
+		ret = dcbnl_getcap(netdev, tb, pid, nlh->nlmsg_seq,
+		                   nlh->nlmsg_flags);
 		goto out;
 	default:
 		goto errout;
