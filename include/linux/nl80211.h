@@ -508,6 +508,7 @@ enum nl80211_band_attr {
  *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_RADAR: Radar detection is mandatory
  *	on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_MAX_TX_POWER: Maximum transmission power in dBm.
  */
 enum nl80211_frequency_attr {
 	__NL80211_FREQUENCY_ATTR_INVALID,
@@ -516,11 +517,14 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_PASSIVE_SCAN,
 	NL80211_FREQUENCY_ATTR_NO_IBSS,
 	NL80211_FREQUENCY_ATTR_RADAR,
+	NL80211_FREQUENCY_ATTR_MAX_TX_POWER,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
 	NL80211_FREQUENCY_ATTR_MAX = __NL80211_FREQUENCY_ATTR_AFTER_LAST - 1
 };
+
+#define NL80211_FREQUENCY_ATTR_MAX_TX_POWER NL80211_FREQUENCY_ATTR_MAX_TX_POWER
 
 /**
  * enum nl80211_bitrate_attr - bitrate attributes
