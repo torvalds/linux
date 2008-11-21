@@ -84,6 +84,7 @@ enum {
 	STAC_92HD71BXX_REF,
 	STAC_DELL_M4_1,
 	STAC_DELL_M4_2,
+	STAC_DELL_M4_3,
 	STAC_HP_M4,
 	STAC_92HD71BXX_MODELS
 };
@@ -137,6 +138,7 @@ struct sigmatel_spec {
 	unsigned int num_mixers;
 
 	int board_config;
+	unsigned int eapd_switch: 1;
 	unsigned int surr_switch: 1;
 	unsigned int line_switch: 1;
 	unsigned int mic_switch: 1;
@@ -1628,6 +1630,8 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 				"unknown Dell", STAC_DELL_M6),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0271,
 				"unknown Dell", STAC_DELL_M6),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x029f,
+				"Dell Studio 15", STAC_DELL_M6),
 	{} /* terminator */
 };
 
@@ -1670,10 +1674,17 @@ static unsigned int dell_m4_2_pin_configs[11] = {
 	0x40f000f0, 0x044413b0, 0x044413b0,
 };
 
+static unsigned int dell_m4_3_pin_configs[11] = {
+	0x0421101f, 0x04a11221, 0x90a70330, 0x90170110,
+	0x40f000f0, 0x40f000f0, 0x40f000f0, 0x90a000f0,
+	0x40f000f0, 0x044413b0, 0x044413b0,
+};
+
 static unsigned int *stac92hd71bxx_brd_tbl[STAC_92HD71BXX_MODELS] = {
 	[STAC_92HD71BXX_REF] = ref92hd71bxx_pin_configs,
 	[STAC_DELL_M4_1]	= dell_m4_1_pin_configs,
 	[STAC_DELL_M4_2]	= dell_m4_2_pin_configs,
+	[STAC_DELL_M4_3]	= dell_m4_3_pin_configs,
 	[STAC_HP_M4]		= NULL,
 };
 
@@ -1681,6 +1692,7 @@ static const char *stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
 	[STAC_92HD71BXX_REF] = "ref",
 	[STAC_DELL_M4_1] = "dell-m4-1",
 	[STAC_DELL_M4_2] = "dell-m4-2",
+	[STAC_DELL_M4_3] = "dell-m4-3",
 	[STAC_HP_M4] = "hp-m4",
 };
 
@@ -1716,6 +1728,8 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 				"unknown Dell", STAC_DELL_M4_2),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0264,
 				"unknown Dell", STAC_DELL_M4_2),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02aa,
+				"unknown Dell", STAC_DELL_M4_3),
 	{} /* terminator */
 };
 
@@ -3901,7 +3915,7 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 		for (i = 0; i < cfg->speaker_outs; i++)
 			stac92xx_reset_pinctl(codec, cfg->speaker_pins[i],
 						AC_PINCTL_OUT_EN);
-		if (spec->eapd_mask)
+		if (spec->eapd_mask && spec->eapd_switch)
 			stac_gpio_set(codec, spec->gpio_mask,
 				spec->gpio_dir, spec->gpio_data &
 				~spec->eapd_mask);
@@ -3916,7 +3930,7 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 		for (i = 0; i < cfg->speaker_outs; i++)
 			stac92xx_set_pinctl(codec, cfg->speaker_pins[i],
 						AC_PINCTL_OUT_EN);
-		if (spec->eapd_mask)
+		if (spec->eapd_mask && spec->eapd_switch)
 			stac_gpio_set(codec, spec->gpio_mask,
 				spec->gpio_dir, spec->gpio_data |
 				spec->eapd_mask);
@@ -4243,6 +4257,7 @@ again:
 		spec->num_smuxes = 0;
 		spec->mixer = &stac92hd73xx_6ch_mixer[DELL_M6_MIXER];
 		spec->amp_nids = &stac92hd73xx_amp_nids[DELL_M6_AMP];
+		spec->eapd_switch = 0;
 		spec->num_amps = 1;
 
 		if (!spec->init)
@@ -4274,6 +4289,7 @@ again:
 	default:
 		spec->num_dmics = STAC92HD73XX_NUM_DMICS;
 		spec->num_smuxes = ARRAY_SIZE(stac92hd73xx_smux_nids);
+		spec->eapd_switch = 1;
 	}
 	if (spec->board_config > STAC_92HD73XX_REF) {
 		/* GPIO0 High = Enable EAPD */
@@ -4419,7 +4435,13 @@ static int stac92hd71xx_resume(struct hda_codec *codec)
 
 static int stac92hd71xx_suspend(struct hda_codec *codec, pm_message_t state)
 {
+	struct sigmatel_spec *spec = codec->spec;
+
 	stac92hd71xx_set_power_state(codec, AC_PWRST_D3);
+	if (spec->eapd_mask)
+		stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data &
+				~spec->eapd_mask);
 	return 0;
 };
 
@@ -4562,14 +4584,21 @@ again:
 
 	switch (spec->board_config) {
 	case STAC_HP_M4:
-		spec->num_dmics = 0;
-		spec->num_smuxes = 0;
-		spec->num_dmuxes = 0;
-
 		/* enable internal microphone */
 		stac92xx_set_config_reg(codec, 0x0e, 0x01813040);
 		stac92xx_auto_set_pinctl(codec, 0x0e,
 			AC_PINCTL_IN_EN | AC_PINCTL_VREF_80);
+		/* fallthru */
+	case STAC_DELL_M4_2:
+		spec->num_dmics = 0;
+		spec->num_smuxes = 0;
+		spec->num_dmuxes = 0;
+		break;
+	case STAC_DELL_M4_1:
+	case STAC_DELL_M4_3:
+		spec->num_dmics = 1;
+		spec->num_smuxes = 0;
+		spec->num_dmuxes = 0;
 		break;
 	default:
 		spec->num_dmics = STAC92HD71BXX_NUM_DMICS;
@@ -4806,6 +4835,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->num_pwrs = 0;
 	spec->aloopback_mask = 0x40;
 	spec->aloopback_shift = 0;
+	spec->eapd_switch = 1;
 
 	err = stac92xx_parse_auto_config(codec, 0x1e, 0x20);
 	if (!err) {
@@ -4886,6 +4916,7 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	spec->aloopback_mask = 0x40;
 	spec->aloopback_shift = 0;
+	spec->eapd_switch = 1;
 	spec->multiout.dac_nids = spec->dac_nids;
 	
 	switch (spec->board_config){
