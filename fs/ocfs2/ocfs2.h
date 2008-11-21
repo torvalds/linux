@@ -408,6 +408,44 @@ static inline int ocfs2_supports_indexed_dirs(struct ocfs2_super *osb)
 	return 0;
 }
 
+static inline unsigned int ocfs2_link_max(struct ocfs2_super *osb)
+{
+	if (ocfs2_supports_indexed_dirs(osb))
+		return OCFS2_DX_LINK_MAX;
+	return OCFS2_LINK_MAX;
+}
+
+static inline unsigned int ocfs2_read_links_count(struct ocfs2_dinode *di)
+{
+	u32 nlink = le16_to_cpu(di->i_links_count);
+	u32 hi = le16_to_cpu(di->i_links_count_hi);
+
+	if (di->i_dyn_features & cpu_to_le16(OCFS2_INDEXED_DIR_FL))
+		nlink |= (hi << OCFS2_LINKS_HI_SHIFT);
+
+	return nlink;
+}
+
+static inline void ocfs2_set_links_count(struct ocfs2_dinode *di, u32 nlink)
+{
+	u16 lo, hi;
+
+	lo = nlink;
+	hi = nlink >> OCFS2_LINKS_HI_SHIFT;
+
+	di->i_links_count = cpu_to_le16(lo);
+	di->i_links_count_hi = cpu_to_le16(hi);
+}
+
+static inline void ocfs2_add_links_count(struct ocfs2_dinode *di, int n)
+{
+	u32 links = ocfs2_read_links_count(di);
+
+	links += n;
+
+	ocfs2_set_links_count(di, links);
+}
+
 /* set / clear functions because cluster events can make these happen
  * in parallel so we want the transitions to be atomic. this also
  * means that any future flags osb_flags must be protected by spinlock

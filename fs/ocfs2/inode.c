@@ -276,7 +276,7 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 		     (unsigned long long)le64_to_cpu(fe->i_blkno));
 
-	inode->i_nlink = le16_to_cpu(fe->i_links_count);
+	inode->i_nlink = ocfs2_read_links_count(fe);
 
 	if (fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL)) {
 		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SYSTEM_FILE;
@@ -1215,7 +1215,7 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 
 	fe->i_size = cpu_to_le64(i_size_read(inode));
-	fe->i_links_count = cpu_to_le16(inode->i_nlink);
+	ocfs2_set_links_count(fe, inode->i_nlink);
 	fe->i_uid = cpu_to_le32(inode->i_uid);
 	fe->i_gid = cpu_to_le32(inode->i_gid);
 	fe->i_mode = cpu_to_le16(inode->i_mode);
@@ -1252,7 +1252,7 @@ void ocfs2_refresh_inode(struct inode *inode,
 	OCFS2_I(inode)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
 	ocfs2_set_inode_flags(inode);
 	i_size_write(inode, le64_to_cpu(fe->i_size));
-	inode->i_nlink = le16_to_cpu(fe->i_links_count);
+	inode->i_nlink = ocfs2_read_links_count(fe);
 	inode->i_uid = le32_to_cpu(fe->i_uid);
 	inode->i_gid = le32_to_cpu(fe->i_gid);
 	inode->i_mode = le16_to_cpu(fe->i_mode);

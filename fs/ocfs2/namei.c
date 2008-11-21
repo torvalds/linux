@@ -255,13 +255,13 @@ static int ocfs2_mknod(struct inode *dir,
 		return status;
 	}
 
-	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
+	if (S_ISDIR(mode) && (dir->i_nlink >= ocfs2_link_max(osb))) {
 		status = -EMLINK;
 		goto leave;
 	}
 
 	dirfe = (struct ocfs2_dinode *) parent_fe_bh->b_data;
-	if (!dirfe->i_links_count) {
+	if (!ocfs2_read_links_count(dirfe)) {
 		/* can't make a file in a deleted directory. */
 		status = -ENOENT;
 		goto leave;
@@ -381,7 +381,7 @@ static int ocfs2_mknod(struct inode *dir,
 			mlog_errno(status);
 			goto leave;
 		}
-		le16_add_cpu(&dirfe->i_links_count, 1);
+		ocfs2_add_links_count(dirfe, 1);
 		status = ocfs2_journal_dirty(handle, parent_fe_bh);
 		if (status < 0) {
 			mlog_errno(status);
@@ -529,7 +529,8 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	fe->i_mode = cpu_to_le16(inode->i_mode);
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
 		fe->id1.dev1.i_rdev = cpu_to_le64(huge_encode_dev(dev));
-	fe->i_links_count = cpu_to_le16(inode->i_nlink);
+
+	ocfs2_set_links_count(fe, inode->i_nlink);
 
 	fe->i_last_eb_blk = 0;
 	strcpy(fe->i_signature, OCFS2_INODE_SIGNATURE);
@@ -668,7 +669,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 	}
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
-	if (le16_to_cpu(fe->i_links_count) >= OCFS2_LINK_MAX) {
+	if (ocfs2_read_links_count(fe) >= ocfs2_link_max(osb)) {
 		err = -EMLINK;
 		goto out_unlock_inode;
 	}
@@ -690,13 +691,13 @@ static int ocfs2_link(struct dentry *old_dentry,
 
 	inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME;
-	fe->i_links_count = cpu_to_le16(inode->i_nlink);
+	ocfs2_set_links_count(fe, inode->i_nlink);
 	fe->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
 	fe->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
 
 	err = ocfs2_journal_dirty(handle, fe_bh);
 	if (err < 0) {
-		le16_add_cpu(&fe->i_links_count, -1);
+		ocfs2_add_links_count(fe, -1);
 		drop_nlink(inode);
 		mlog_errno(err);
 		goto out_commit;
@@ -706,7 +707,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 			      OCFS2_I(inode)->ip_blkno,
 			      parent_fe_bh, &lookup);
 	if (err) {
-		le16_add_cpu(&fe->i_links_count, -1);
+		ocfs2_add_links_count(fe, -1);
 		drop_nlink(inode);
 		mlog_errno(err);
 		goto out_commit;
@@ -895,7 +896,7 @@ static int ocfs2_unlink(struct inode *dir,
 	if (S_ISDIR(inode->i_mode))
 		drop_nlink(inode);
 	drop_nlink(inode);
-	fe->i_links_count = cpu_to_le16(inode->i_nlink);
+	ocfs2_set_links_count(fe, inode->i_nlink);
 
 	status = ocfs2_journal_dirty(handle, fe_bh);
 	if (status < 0) {
@@ -1139,7 +1140,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 
 		if (!new_inode && new_dir != old_dir &&
-		    new_dir->i_nlink >= OCFS2_LINK_MAX) {
+		    new_dir->i_nlink >= ocfs2_link_max(osb)) {
 			status = -EMLINK;
 			goto bail;
 		}
@@ -1293,7 +1294,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 
 		if (S_ISDIR(new_inode->i_mode) ||
-		    (newfe->i_links_count == cpu_to_le16(1))){
+		    (ocfs2_read_links_count(newfe) == 1)) {
 			status = ocfs2_orphan_add(osb, handle, new_inode,
 						  newfe, orphan_name,
 						  &orphan_insert, orphan_dir);
@@ -1313,9 +1314,9 @@ static int ocfs2_rename(struct inode *old_dir,
 		new_dir->i_version++;
 
 		if (S_ISDIR(new_inode->i_mode))
-			newfe->i_links_count = 0;
+			ocfs2_set_links_count(newfe, 0);
 		else
-			le16_add_cpu(&newfe->i_links_count, -1);
+			ocfs2_add_links_count(newfe, -1);
 
 		status = ocfs2_journal_dirty(handle, newfe_bh);
 		if (status < 0) {
@@ -1409,14 +1410,13 @@ static int ocfs2_rename(struct inode *old_dir,
 		} else {
 			struct ocfs2_dinode *fe;
 			status = ocfs2_journal_access_di(handle, old_dir,
-							 old_dir_bh,
-							 OCFS2_JOURNAL_ACCESS_WRITE);
+						      old_dir_bh,
+						      OCFS2_JOURNAL_ACCESS_WRITE);
 			fe = (struct ocfs2_dinode *) old_dir_bh->b_data;
-			fe->i_links_count = cpu_to_le16(old_dir->i_nlink);
+			ocfs2_set_links_count(fe, old_dir->i_nlink);
 			status = ocfs2_journal_dirty(handle, old_dir_bh);
 		}
 	}
-
 	ocfs2_dentry_move(old_dentry, new_dentry, old_dir, new_dir);
 	status = 0;
 bail:
@@ -1614,7 +1614,7 @@ static int ocfs2_symlink(struct inode *dir,
 	}
 
 	dirfe = (struct ocfs2_dinode *) parent_fe_bh->b_data;
-	if (!dirfe->i_links_count) {
+	if (!ocfs2_read_links_count(dirfe)) {
 		/* can't make a file in a deleted directory. */
 		status = -ENOENT;
 		goto bail;
@@ -1932,8 +1932,8 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	 * underneath us... */
 	orphan_fe = (struct ocfs2_dinode *) orphan_dir_bh->b_data;
 	if (S_ISDIR(inode->i_mode))
-		le16_add_cpu(&orphan_fe->i_links_count, 1);
-	orphan_dir_inode->i_nlink = le16_to_cpu(orphan_fe->i_links_count);
+		ocfs2_add_links_count(orphan_fe, 1);
+	orphan_dir_inode->i_nlink = ocfs2_read_links_count(orphan_fe);
 
 	status = ocfs2_journal_dirty(handle, orphan_dir_bh);
 	if (status < 0) {
@@ -2016,8 +2016,8 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 	/* do the i_nlink dance! :) */
 	orphan_fe = (struct ocfs2_dinode *) orphan_dir_bh->b_data;
 	if (S_ISDIR(inode->i_mode))
-		le16_add_cpu(&orphan_fe->i_links_count, -1);
-	orphan_dir_inode->i_nlink = le16_to_cpu(orphan_fe->i_links_count);
+		ocfs2_add_links_count(orphan_fe, -1);
+	orphan_dir_inode->i_nlink = ocfs2_read_links_count(orphan_fe);
 
 	status = ocfs2_journal_dirty(handle, orphan_dir_bh);
 	if (status < 0) {

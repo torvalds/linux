@@ -419,6 +419,8 @@ static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 #define OCFS2_DIR_MIN_REC_LEN	OCFS2_DIR_REC_LEN(1)
 
 #define OCFS2_LINK_MAX		32000
+#define	OCFS2_DX_LINK_MAX	((1U << 31) - 1U)
+#define	OCFS2_LINKS_HI_SHIFT	16
 
 #define S_SHIFT			12
 static unsigned char ocfs2_type_by_mode[S_IFMT >> S_SHIFT] = {
@@ -686,7 +688,7 @@ struct ocfs2_dinode {
 					   belongs to */
 	__le16 i_suballoc_bit;		/* Bit offset in suballocator
 					   block group */
-/*10*/	__le16 i_reserved0;
+/*10*/	__le16 i_links_count_hi;	/* High 16 bits of links count */
 	__le16 i_xattr_inline_size;
 	__le32 i_clusters;		/* Cluster count */
 	__le32 i_uid;			/* Owner UID */
