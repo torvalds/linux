@@ -105,28 +105,53 @@ struct context_entry {
 	u64 lo;
 	u64 hi;
 };
-#define context_present(c) ((c).lo & 1)
-#define context_fault_disable(c) (((c).lo >> 1) & 1)
-#define context_translation_type(c) (((c).lo >> 2) & 3)
-#define context_address_root(c) ((c).lo & VTD_PAGE_MASK)
-#define context_address_width(c) ((c).hi &  7)
-#define context_domain_id(c) (((c).hi >> 8) & ((1 << 16) - 1))
 
-#define context_set_present(c) do {(c).lo |= 1;} while (0)
-#define context_set_fault_enable(c) \
-	do {(c).lo &= (((u64)-1) << 2) | 1;} while (0)
-#define context_set_translation_type(c, val) \
-	do { \
-		(c).lo &= (((u64)-1) << 4) | 3; \
-		(c).lo |= ((val) & 3) << 2; \
-	} while (0)
+static inline bool context_present(struct context_entry *context)
+{
+	return (context->lo & 1);
+}
+static inline void context_set_present(struct context_entry *context)
+{
+	context->lo |= 1;
+}
+
+static inline void context_set_fault_enable(struct context_entry *context)
+{
+	context->lo &= (((u64)-1) << 2) | 1;
+}
+
 #define CONTEXT_TT_MULTI_LEVEL 0
-#define context_set_address_root(c, val) \
-	do {(c).lo |= (val) & VTD_PAGE_MASK; } while (0)
-#define context_set_address_width(c, val) do {(c).hi |= (val) & 7;} while (0)
-#define context_set_domain_id(c, val) \
-	do {(c).hi |= ((val) & ((1 << 16) - 1)) << 8;} while (0)
-#define context_clear_entry(c) do {(c).lo = 0; (c).hi = 0;} while (0)
+
+static inline void context_set_translation_type(struct context_entry *context,
+						unsigned long value)
+{
+	context->lo &= (((u64)-1) << 4) | 3;
+	context->lo |= (value & 3) << 2;
+}
+
+static inline void context_set_address_root(struct context_entry *context,
+					    unsigned long value)
+{
+	context->lo |= value & VTD_PAGE_MASK;
+}
+
+static inline void context_set_address_width(struct context_entry *context,
+					     unsigned long value)
+{
+	context->hi |= value & 7;
+}
+
+static inline void context_set_domain_id(struct context_entry *context,
+					 unsigned long value)
+{
+	context->hi |= (value & ((1 << 16) - 1)) << 8;
+}
+
+static inline void context_clear_entry(struct context_entry *context)
+{
+	context->lo = 0;
+	context->hi = 0;
+}
 
 /*
  * 0: readable
@@ -349,7 +374,7 @@ static int device_context_mapped(struct intel_iommu *iommu, u8 bus, u8 devfn)
 		ret = 0;
 		goto out;
 	}
-	ret = context_present(context[devfn]);
+	ret = context_present(&context[devfn]);
 out:
 	spin_unlock_irqrestore(&iommu->lock, flags);
 	return ret;
@@ -365,7 +390,7 @@ static void clear_context_table(struct intel_iommu *iommu, u8 bus, u8 devfn)
 	root = &iommu->root_entry[bus];
 	context = get_context_addr_from_root(root);
 	if (context) {
-		context_clear_entry(context[devfn]);
+		context_clear_entry(&context[devfn]);
 		__iommu_flush_cache(iommu, &context[devfn], \
 			sizeof(*context));
 	}
@@ -1284,17 +1309,17 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	if (!context)
 		return -ENOMEM;
 	spin_lock_irqsave(&iommu->lock, flags);
-	if (context_present(*context)) {
+	if (context_present(context)) {
 		spin_unlock_irqrestore(&iommu->lock, flags);
 		return 0;
 	}
 
-	context_set_domain_id(*context, domain->id);
-	context_set_address_width(*context, domain->agaw);
-	context_set_address_root(*context, virt_to_phys(domain->pgd));
-	context_set_translation_type(*context, CONTEXT_TT_MULTI_LEVEL);
-	context_set_fault_enable(*context);
-	context_set_present(*context);
+	context_set_domain_id(context, domain->id);
+	context_set_address_width(context, domain->agaw);
+	context_set_address_root(context, virt_to_phys(domain->pgd));
+	context_set_translation_type(context, CONTEXT_TT_MULTI_LEVEL);
+	context_set_fault_enable(context);
+	context_set_present(context);
 	__iommu_flush_cache(iommu, context, sizeof(*context));
 
 	/* it's a non-present to present mapping */
