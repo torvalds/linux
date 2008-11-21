@@ -52,6 +52,8 @@
 #define OMAP_I2C_IE_REG			0x04
 #define OMAP_I2C_STAT_REG		0x08
 #define OMAP_I2C_IV_REG			0x0c
+/* For OMAP3 I2C_IV has changed to I2C_WE (wakeup enable) */
+#define OMAP_I2C_WE_REG			0x0c
 #define OMAP_I2C_SYSS_REG		0x10
 #define OMAP_I2C_BUF_REG		0x14
 #define OMAP_I2C_CNT_REG		0x18
@@ -88,6 +90,24 @@
 #define OMAP_I2C_STAT_ARDY	(1 << 2)	/* Register access ready */
 #define OMAP_I2C_STAT_NACK	(1 << 1)	/* No ack interrupt enable */
 #define OMAP_I2C_STAT_AL	(1 << 0)	/* Arbitration lost int ena */
+
+/* I2C WE wakeup enable register */
+#define OMAP_I2C_WE_XDR_WE	(1 << 14)	/* TX drain wakup */
+#define OMAP_I2C_WE_RDR_WE	(1 << 13)	/* RX drain wakeup */
+#define OMAP_I2C_WE_AAS_WE	(1 << 9)	/* Address as slave wakeup*/
+#define OMAP_I2C_WE_BF_WE	(1 << 8)	/* Bus free wakeup */
+#define OMAP_I2C_WE_STC_WE	(1 << 6)	/* Start condition wakeup */
+#define OMAP_I2C_WE_GC_WE	(1 << 5)	/* General call wakeup */
+#define OMAP_I2C_WE_DRDY_WE	(1 << 3)	/* TX/RX data ready wakeup */
+#define OMAP_I2C_WE_ARDY_WE	(1 << 2)	/* Reg access ready wakeup */
+#define OMAP_I2C_WE_NACK_WE	(1 << 1)	/* No acknowledgment wakeup */
+#define OMAP_I2C_WE_AL_WE	(1 << 0)	/* Arbitration lost wakeup */
+
+#define OMAP_I2C_WE_ALL		(OMAP_I2C_WE_XDR_WE | OMAP_I2C_WE_RDR_WE | \
+				OMAP_I2C_WE_AAS_WE | OMAP_I2C_WE_BF_WE | \
+				OMAP_I2C_WE_STC_WE | OMAP_I2C_WE_GC_WE | \
+				OMAP_I2C_WE_DRDY_WE | OMAP_I2C_WE_ARDY_WE | \
+				OMAP_I2C_WE_NACK_WE | OMAP_I2C_WE_AL_WE)
 
 /* I2C Buffer Configuration Register (OMAP_I2C_BUF): */
 #define OMAP_I2C_BUF_RDMA_EN	(1 << 15)	/* RX DMA channel enable */
@@ -279,6 +299,13 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 			      __ffs(SYSC_CLOCKACTIVITY_MASK));
 
 			omap_i2c_write_reg(dev, OMAP_I2C_SYSC_REG, v);
+			/*
+			 * Enabling all wakup sources to stop I2C freezing on
+			 * WFI instruction.
+			 * REVISIT: Some wkup sources might not be needed.
+			 */
+			omap_i2c_write_reg(dev, OMAP_I2C_WE_REG,
+							OMAP_I2C_WE_ALL);
 
 		}
 	}
