@@ -481,6 +481,9 @@ struct hdmi_eld {
 	int	spk_alloc;
 	int	sad_count;
 	struct cea_sad sad[ELD_MAX_SAD];
+#ifdef CONFIG_PROC_FS
+	struct snd_info_entry *proc_entry;
+#endif
 };
 
 int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
@@ -489,11 +492,16 @@ void snd_hdmi_show_eld(struct hdmi_eld *eld);
 
 #ifdef CONFIG_PROC_FS
 int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld);
+void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld);
 #else
 static inline int snd_hda_eld_proc_new(struct hda_codec *codec,
 				       struct hdmi_eld *eld)
 {
 	return 0;
+}
+static inline void snd_hda_eld_proc_free(struct hda_codec *codec,
+					 struct hdmi_eld *eld)
+{
 }
 #endif
 

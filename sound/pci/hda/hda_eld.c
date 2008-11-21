@@ -567,8 +567,17 @@ int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld)
 	snd_info_set_text_ops(entry, eld, hdmi_print_eld_info);
 	entry->c.text.write = hdmi_write_eld_item;
 	entry->mode |= S_IWUSR;
+	eld->proc_entry = entry;
 
 	return 0;
 }
 
-#endif
+void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld)
+{
+	if (!codec->bus->shutdown && eld->proc_entry) {
+		snd_device_free(codec->bus->card, eld->proc_entry);
+		eld->proc_entry = NULL;
+	}
+}
+
+#endif /* CONFIG_PROC_FS */

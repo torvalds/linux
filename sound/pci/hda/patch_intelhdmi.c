@@ -637,7 +637,10 @@ static int intel_hdmi_init(struct hda_codec *codec)
 
 static void intel_hdmi_free(struct hda_codec *codec)
 {
-	kfree(codec->spec);
+	struct intel_hdmi_spec *spec = codec->spec;
+
+	snd_hda_eld_proc_free(codec, &spec->sink_eld);
+	kfree(spec);
 }
 
 static struct hda_codec_ops intel_hdmi_patch_ops = {
