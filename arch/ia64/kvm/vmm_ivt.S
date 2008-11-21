@@ -70,13 +70,11 @@
 # define PSR_DEFAULT_BITS   0
 #endif
 
-
 #define KVM_FAULT(n)    \
     kvm_fault_##n:;          \
     mov r19=n;;          \
-    br.sptk.many kvm_fault_##n;         \
+    br.sptk.many kvm_vmm_panic;         \
     ;;                  \
-
 
 #define KVM_REFLECT(n)    \
     mov r31=pr;           \
@@ -85,17 +83,26 @@
     ;;      \
     tbit.z p6,p7=r29,IA64_PSR_VM_BIT;       \
 (p7)br.sptk.many kvm_dispatch_reflection;        \
-    br.sptk.many kvm_panic;      \
+    br.sptk.many kvm_vmm_panic;      \
 
-
-GLOBAL_ENTRY(kvm_panic)
-    br.sptk.many kvm_panic
+GLOBAL_ENTRY(kvm_vmm_panic)
+    KVM_SAVE_MIN_WITH_COVER_R19
+    alloc r14=ar.pfs,0,0,1,0
+    mov out0=r15
+    adds r3=8,r2                // set up second base pointer
     ;;
-END(kvm_panic)
-
-
-
-
+    ssm psr.ic
+    ;;
+    srlz.i                  // guarantee that interruption collection is on
+    ;;
+    //(p15) ssm psr.i               // restore psr.i
+    addl r14=@gprel(ia64_leave_hypervisor),gp
+    ;;
+    KVM_SAVE_REST
+    mov rp=r14
+    ;;
+    br.call.sptk.many b6=vmm_panic_handler;
+END(kvm_vmm_panic)
 
     .section .text.ivt,"ax"
 

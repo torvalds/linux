@@ -32,6 +32,8 @@ MODULE_LICENSE("GPL");
 extern char kvm_ia64_ivt;
 extern fpswa_interface_t *vmm_fpswa_interface;
 
+long vmm_sanity = 1;
+
 struct kvm_vmm_info vmm_info = {
 	.module	     = THIS_MODULE,
 	.vmm_entry   = vmm_entry,

@@ -942,8 +942,20 @@ static void vcpu_do_resume(struct kvm_vcpu *vcpu)
 	ia64_set_pta(vcpu->arch.vhpt.pta.val);
 }
 
+static void vmm_sanity_check(struct kvm_vcpu *vcpu)
+{
+	struct exit_ctl_data *p = &vcpu->arch.exit_data;
+
+	if (!vmm_sanity && p->exit_reason != EXIT_REASON_DEBUG) {
+		panic_vm(vcpu, "Failed to do vmm sanity check,"
+			"it maybe caused by crashed vmm!!\n\n");
+	}
+}
+
 static void kvm_do_resume_op(struct kvm_vcpu *vcpu)
 {
+	vmm_sanity_check(vcpu); /*Guarantee vcpu runing on healthy vmm!*/
+
 	if (test_and_clear_bit(KVM_REQ_RESUME, &vcpu->requests)) {
 		vcpu_do_resume(vcpu);
 		return;
@@ -968,4 +980,12 @@ void vmm_transition(struct kvm_vcpu *vcpu)
 	ia64_call_vsa(PAL_VPS_RESTORE, (unsigned long)vcpu->arch.vpd,
 						1, 0, 0, 0, 0, 0);
 	kvm_do_resume_op(vcpu);
+}
+
+void vmm_panic_handler(u64 vec)
+{
+	struct kvm_vcpu *vcpu = current_vcpu;
+	vmm_sanity = 0;
+	panic_vm(vcpu, "Unexpected interruption occurs in VMM, vector:0x%lx\n",
+			vec2off[vec]);
 }
