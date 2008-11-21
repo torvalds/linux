@@ -500,6 +500,59 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 		hdmi_print_sad_info(i, e->sad + i, buffer);
 }
 
+static void hdmi_write_eld_item(struct snd_info_entry *entry,
+				struct snd_info_buffer *buffer)
+{
+	struct hdmi_eld *e = entry->private_data;
+	char line[64];
+	char name[64];
+	char *sname;
+	long long val;
+	int n;
+
+	while (!snd_info_get_line(buffer, line, sizeof(line))) {
+		if (sscanf(line, "%s %llx", name, &val) != 2)
+			continue;
+		if (!strcmp(name, "connection_type"))
+			e->conn_type = val;
+		else if (!strcmp(name, "port_id"))
+			e->port_id = val;
+		else if (!strcmp(name, "support_hdcp"))
+			e->support_hdcp = val;
+		else if (!strcmp(name, "support_ai"))
+			e->support_ai = val;
+		else if (!strcmp(name, "audio_sync_delay"))
+			e->aud_synch_delay = val;
+		else if (!strcmp(name, "speakers"))
+			e->spk_alloc = val;
+		else if (!strcmp(name, "sad_count"))
+			e->sad_count = val;
+		else if (!strncmp(name, "sad", 3)) {
+			sname = name + 4;
+			n = name[3] - '0';
+			if (name[4] >= '0' && name[4] <= '9') {
+				sname++;
+				n = 10 * n + name[4] - '0';
+			}
+			if (n < 0 || n > 31) /* double the CEA limit */
+				continue;
+			if (!strcmp(sname, "_coding_type"))
+				e->sad[n].format = val;
+			else if (!strcmp(sname, "_channels"))
+				e->sad[n].channels = val;
+			else if (!strcmp(sname, "_rates"))
+				e->sad[n].rates = val;
+			else if (!strcmp(sname, "_bits"))
+				e->sad[n].sample_bits = val;
+			else if (!strcmp(sname, "_max_bitrate"))
+				e->sad[n].max_bitrate = val;
+			if (n >= e->sad_count)
+				e->sad_count = n + 1;
+		}
+	}
+}
+
+
 int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld)
 {
 	char name[32];
@@ -512,6 +565,9 @@ int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld)
 		return err;
 
 	snd_info_set_text_ops(entry, eld, hdmi_print_eld_info);
+	entry->c.text.write = hdmi_write_eld_item;
+	entry->mode |= S_IWUSR;
+
 	return 0;
 }
 
