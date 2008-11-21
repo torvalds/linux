@@ -225,7 +225,7 @@ static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_branch_data *p = v;
 	const char *f;
-	unsigned long percent;
+	long percent;
 
 	if (v == (void *)1) {
 		seq_printf(m, " correct incorrect  %% "
@@ -247,9 +247,13 @@ static int t_show(struct seq_file *m, void *v)
 		percent = p->incorrect * 100;
 		percent /= p->correct + p->incorrect;
 	} else
-		percent = p->incorrect ? 100 : 0;
+		percent = p->incorrect ? 100 : -1;
 
-	seq_printf(m, "%8lu %8lu %3lu ", p->correct, p->incorrect, percent);
+	seq_printf(m, "%8lu %8lu ",  p->correct, p->incorrect);
+	if (percent < 0)
+		seq_printf(m, "  X ");
+	else
+		seq_printf(m, "%3ld ", percent);
 	seq_printf(m, "%-30.30s %-20.20s %d\n", p->func, f, p->line);
 	return 0;
 }
