@@ -311,12 +311,15 @@ struct ixgbe_adapter {
 	unsigned long link_check_timeout;
 
 	struct work_struct watchdog_task;
+	struct work_struct sfp_task;
+	struct timer_list sfp_timer;
 };
 
 enum ixbge_state_t {
 	__IXGBE_TESTING,
 	__IXGBE_RESETTING,
-	__IXGBE_DOWN
+	__IXGBE_DOWN,
+	__IXGBE_SFP_MODULE_NOT_FOUND
 };
 
 enum ixgbe_boards {

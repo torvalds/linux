@@ -74,7 +74,13 @@ static struct pci_device_id ixgbe_pci_tbl[] = {
 	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_CX4_DUAL_PORT),
 	 board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_DA_DUAL_PORT),
+	 board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM),
+	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_XF_LR),
+	 board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_SFP_LOM),
 	 board_82598 },
 
 	/* required last entry */
@@ -2680,6 +2686,57 @@ err_alloc_queues:
 }
 
 /**
+ * ixgbe_sfp_timer - worker thread to find a missing module
+ * @data: pointer to our adapter struct
+ **/
+static void ixgbe_sfp_timer(unsigned long data)
+{
+	struct ixgbe_adapter *adapter = (struct ixgbe_adapter *)data;
+
+	/* Do the sfp_timer outside of interrupt context due to the
+	 * delays that sfp+ detection requires
+	 */
+	schedule_work(&adapter->sfp_task);
+}
+
+/**
+ * ixgbe_sfp_task - worker thread to find a missing module
+ * @work: pointer to work_struct containing our data
+ **/
+static void ixgbe_sfp_task(struct work_struct *work)
+{
+	struct ixgbe_adapter *adapter = container_of(work,
+	                                             struct ixgbe_adapter,
+	                                             sfp_task);
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	if ((hw->phy.type == ixgbe_phy_nl) &&
+	    (hw->phy.sfp_type == ixgbe_sfp_type_not_present)) {
+		s32 ret = hw->phy.ops.identify_sfp(hw);
+		if (ret)
+			goto reschedule;
+		ret = hw->phy.ops.reset(hw);
+		if (ret == IXGBE_ERR_SFP_NOT_SUPPORTED) {
+			DPRINTK(PROBE, ERR, "failed to initialize because an "
+			        "unsupported SFP+ module type was detected.\n"
+			        "Reload the driver after installing a "
+			        "supported module.\n");
+			unregister_netdev(adapter->netdev);
+		} else {
+			DPRINTK(PROBE, INFO, "detected SFP+: %d\n",
+			        hw->phy.sfp_type);
+		}
+		/* don't need this routine any more */
+		clear_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
+	}
+	return;
+reschedule:
+	if (test_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state))
+		mod_timer(&adapter->sfp_timer,
+		          round_jiffies(jiffies + (2 * HZ)));
+}
+
+/**
  * ixgbe_sw_init - Initialize general software structures (struct ixgbe_adapter)
  * @adapter: board private structure to initialize
  *
@@ -4006,11 +4063,31 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	/* PHY */
 	memcpy(&hw->phy.ops, ii->phy_ops, sizeof(hw->phy.ops));
-	/* phy->sfp_type = ixgbe_sfp_type_unknown; */
+	hw->phy.sfp_type = ixgbe_sfp_type_unknown;
+
+	/* set up this timer and work struct before calling get_invariants
+	 * which might start the timer
+	 */
+	init_timer(&adapter->sfp_timer);
+	adapter->sfp_timer.function = &ixgbe_sfp_timer;
+	adapter->sfp_timer.data = (unsigned long) adapter;
+
+	INIT_WORK(&adapter->sfp_task, ixgbe_sfp_task);
 
 	err = ii->get_invariants(hw);
-	if (err)
+	if (err == IXGBE_ERR_SFP_NOT_PRESENT) {
+		/* start a kernel thread to watch for a module to arrive */
+		set_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
+		mod_timer(&adapter->sfp_timer,
+		          round_jiffies(jiffies + (2 * HZ)));
+		err = 0;
+	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
+		DPRINTK(PROBE, ERR, "failed to load because an "
+		        "unsupported SFP+ module type was detected.\n");
 		goto err_hw_init;
+	} else if (err) {
+		goto err_hw_init;
+	}
 
 	/* setup the private structure */
 	err = ixgbe_sw_init(adapter);
@@ -4144,6 +4221,9 @@ err_hw_init:
 err_sw_init:
 	ixgbe_reset_interrupt_capability(adapter);
 err_eeprom:
+	clear_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
+	del_timer_sync(&adapter->sfp_timer);
+	cancel_work_sync(&adapter->sfp_task);
 	iounmap(hw->hw_addr);
 err_ioremap:
 	free_netdev(netdev);
@@ -4170,8 +4250,15 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
 	set_bit(__IXGBE_DOWN, &adapter->state);
+	/* clear the module not found bit to make sure the worker won't
+	 * reschedule
+	 */
+	clear_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
 	del_timer_sync(&adapter->watchdog_timer);
 
+	del_timer_sync(&adapter->sfp_timer);
+	cancel_work_sync(&adapter->watchdog_task);
+	cancel_work_sync(&adapter->sfp_task);
 	flush_scheduled_work();
 
 #ifdef CONFIG_IXGBE_DCA
@@ -4182,7 +4269,8 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	}
 
 #endif
-	unregister_netdev(netdev);
+	if (netdev->reg_state == NETREG_REGISTERED)
+		unregister_netdev(netdev);
 
 	ixgbe_reset_interrupt_capability(adapter);
 
