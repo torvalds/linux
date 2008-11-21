@@ -661,6 +661,21 @@ static int trace_stop_count;
 static DEFINE_SPINLOCK(tracing_start_lock);
 
 /**
+ * ftrace_off_permanent - disable all ftrace code permanently
+ *
+ * This should only be called when a serious anomally has
+ * been detected.  This will turn off the function tracing,
+ * ring buffers, and other tracing utilites. It takes no
+ * locks and can be called from any context.
+ */
+void ftrace_off_permanent(void)
+{
+	tracing_disabled = 1;
+	ftrace_stop();
+	tracing_off_permanent();
+}
+
+/**
  * tracing_start - quick start of the tracer
  *
  * If tracing is enabled but was stopped by tracing_stop,

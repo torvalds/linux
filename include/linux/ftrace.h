@@ -257,6 +257,7 @@ extern int ftrace_dump_on_oops;
 
 extern void tracing_start(void);
 extern void tracing_stop(void);
+extern void ftrace_off_permanent(void);
 
 extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
@@ -290,6 +291,7 @@ ftrace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 0)));
 
 static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
+static inline void ftrace_off_permanent(void) { }
 static inline int
 ftrace_printk(const char *fmt, ...)
 {
