@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/errno.h>
+#include <linux/log2.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -26,6 +27,7 @@
 #include <plat/cpu.h>
 
 #include <plat/regs-timer.h>
+#include <mach/pwm-clock.h>
 
 /* Each of the timers 0 through 5 go through the following
  * clock tree, with the inputs depending on the timers.
@@ -166,11 +168,6 @@ static inline struct pwm_tdiv_clk *to_tdiv(struct clk *clk)
 	return container_of(clk, struct pwm_tdiv_clk, clk);
 }
 
-static inline unsigned long tcfg_to_divisor(unsigned long tcfg1)
-{
-	return 1 << (1 + tcfg1);
-}
-
 static unsigned long clk_pwm_tdiv_get_rate(struct clk *clk)
 {
 	unsigned long tcfg1 = __raw_readl(S3C2410_TCFG1);
@@ -179,7 +176,7 @@ static unsigned long clk_pwm_tdiv_get_rate(struct clk *clk)
 	tcfg1 >>= S3C2410_TCFG1_SHIFT(clk->id);
 	tcfg1 &= S3C2410_TCFG1_MUX_MASK;
 
-	if (tcfg1 == S3C2410_TCFG1_MUX_TCLK)
+	if (pwm_cfg_src_is_tclk(tcfg1))
 		divisor = to_tdiv(clk)->divisor;
 	else
 		divisor = tcfg_to_divisor(tcfg1);
@@ -196,7 +193,9 @@ static unsigned long clk_pwm_tdiv_round_rate(struct clk *clk,
 	parent_rate = clk_get_rate(clk->parent);
 	divisor = parent_rate / rate;
 
-	if (divisor <= 2)
+	if (divisor <= 1 && pwm_tdiv_has_div1())
+		divisor = 1;
+	else if (divisor <= 2)
 		divisor = 2;
 	else if (divisor <= 4)
 		divisor = 4;
@@ -210,25 +209,7 @@ static unsigned long clk_pwm_tdiv_round_rate(struct clk *clk,
 
 static unsigned long clk_pwm_tdiv_bits(struct pwm_tdiv_clk *divclk)
 {
-	unsigned long bits;
-
-	switch (divclk->divisor) {
-	case 2:
-		bits = S3C2410_TCFG1_MUX_DIV2;
-		break;
-	case 4:
-		bits = S3C2410_TCFG1_MUX_DIV4;
-		break;
-	case 8:
-		bits = S3C2410_TCFG1_MUX_DIV8;
-		break;
-	case 16:
-	default:
-		bits = S3C2410_TCFG1_MUX_DIV16;
-		break;
-	}
-
-	return bits;
+	return pwm_tdiv_div_bits(divclk->divisor);
 }
 
 static void clk_pwm_tdiv_update(struct pwm_tdiv_clk *divclk)
@@ -269,7 +250,7 @@ static int clk_pwm_tdiv_set_rate(struct clk *clk, unsigned long rate)
 	/* Update the current MUX settings if we are currently
 	 * selected as the clock source for this clock. */
 
-	if (tcfg1 != S3C2410_TCFG1_MUX_TCLK)
+	if (!pwm_cfg_src_is_tclk(tcfg1))
 		clk_pwm_tdiv_update(divclk);
 
 	return 0;
@@ -356,7 +337,7 @@ static int clk_pwm_tin_set_parent(struct clk *clk, struct clk *parent)
 	unsigned long shift = S3C2410_TCFG1_SHIFT(id);
 
 	if (parent == s3c24xx_pwmclk_tclk(id))
-		bits = S3C2410_TCFG1_MUX_TCLK << shift;
+		bits = S3C_TCFG1_MUX_TCLK << shift;
 	else if (parent == s3c24xx_pwmclk_tdiv(id))
 		bits = clk_pwm_tdiv_bits(to_tdiv(parent)) << shift;
 	else
@@ -418,7 +399,7 @@ static __init int clk_pwm_tin_register(struct clk *pwm)
 	tcfg1 >>= S3C2410_TCFG1_SHIFT(id);
 	tcfg1 &= S3C2410_TCFG1_MUX_MASK;
 
-	if (tcfg1 == S3C2410_TCFG1_MUX_TCLK)
+	if (pwm_cfg_src_is_tclk(tcfg1))
 		parent = s3c24xx_pwmclk_tclk(id);
 	else
 		parent = s3c24xx_pwmclk_tdiv(id);

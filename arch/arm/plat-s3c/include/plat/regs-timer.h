@@ -73,6 +73,14 @@
 #define S3C2410_TCFG1_MUX_TCLK    (4<<0)
 #define S3C2410_TCFG1_MUX_MASK	  (15<<0)
 
+#define S3C64XX_TCFG1_MUX_DIV1	  (0<<0)
+#define S3C64XX_TCFG1_MUX_DIV2	  (1<<0)
+#define S3C64XX_TCFG1_MUX_DIV4	  (2<<0)
+#define S3C64XX_TCFG1_MUX_DIV8    (3<<0)
+#define S3C64XX_TCFG1_MUX_DIV16   (4<<0)
+#define S3C64XX_TCFG1_MUX_TCLK    (5<<0)  /* 3 sets of TCLK */
+#define S3C64XX_TCFG1_MUX_MASK	  (15<<0)
+
 #define S3C2410_TCFG1_SHIFT(x)	  ((x) * 4)
 
 /* for each timer, we have an count buffer, an compare buffer and
