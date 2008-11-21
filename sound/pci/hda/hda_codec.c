@@ -3425,3 +3425,33 @@ void snd_array_free(struct snd_array *array)
 	array->alloced = 0;
 	array->list = NULL;
 }
+
+/*
+ * used by hda_proc.c and hda_eld.c
+ */
+void snd_print_pcm_rates(int pcm, char *buf, int buflen)
+{
+	static unsigned int rates[] = {
+		8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
+		96000, 176400, 192000, 384000
+	};
+	int i, j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(rates); i++)
+		if (pcm & (1 << i))
+			j += snprintf(buf + j, buflen - j,  " %d", rates[i]);
+
+	buf[j] = '\0'; /* necessary when j == 0 */
+}
+
+void snd_print_pcm_bits(int pcm, char *buf, int buflen)
+{
+	static unsigned int bits[] = { 8, 16, 20, 24, 32 };
+	int i, j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(bits); i++)
+		if (pcm & (AC_SUPPCM_BITS_8 << i))
+			j += snprintf(buf + j, buflen - j,  " %d", bits[i]);
+
+	buf[j] = '\0'; /* necessary when j == 0 */
+}

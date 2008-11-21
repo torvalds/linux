@@ -89,21 +89,6 @@ static void print_amp_vals(struct snd_info_buffer *buffer,
 	snd_iprintf(buffer, "\n");
 }
 
-void snd_print_pcm_rates(int pcm, char *buf, int buflen)
-{
-	static unsigned int rates[] = {
-		8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
-		96000, 176400, 192000, 384000
-	};
-	int i, j;
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(rates); i++)
-		if (pcm & (1 << i))
-			j += snprintf(buf + j, buflen - j,  " %d", rates[i]);
-
-	buf[j] = '\0'; /* necessary when j == 0 */
-}
-
 static void print_pcm_rates(struct snd_info_buffer *buffer, unsigned int pcm)
 {
 	char buf[SND_PRINT_RATES_ADVISED_BUFSIZE];
@@ -112,18 +97,6 @@ static void print_pcm_rates(struct snd_info_buffer *buffer, unsigned int pcm)
 	snd_iprintf(buffer, "    rates [0x%x]:", pcm);
 	snd_print_pcm_rates(pcm, buf, sizeof(buf));
 	snd_iprintf(buffer, "%s\n", buf);
-}
-
-void snd_print_pcm_bits(int pcm, char *buf, int buflen)
-{
-	static unsigned int bits[] = { 8, 16, 20, 24, 32 };
-	int i, j;
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(bits); i++)
-		if (pcm & (AC_SUPPCM_BITS_8 << i))
-			j += snprintf(buf + j, buflen - j,  " %d", bits[i]);
-
-	buf[j] = '\0'; /* necessary when j == 0 */
 }
 
 static void print_pcm_bits(struct snd_info_buffer *buffer, unsigned int pcm)
