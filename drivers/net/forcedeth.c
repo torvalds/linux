@@ -5412,6 +5412,23 @@ static const struct net_device_ops nv_netdev_ops = {
 	.ndo_open		= nv_open,
 	.ndo_stop		= nv_close,
 	.ndo_get_stats		= nv_get_stats,
+	.ndo_start_xmit		= nv_start_xmit,
+	.ndo_tx_timeout		= nv_tx_timeout,
+	.ndo_change_mtu		= nv_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= nv_set_mac_address,
+	.ndo_set_multicast_list	= nv_set_multicast,
+	.ndo_vlan_rx_register	= nv_vlan_rx_register,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= nv_poll_controller,
+#endif
+};
+
+static const struct net_device_ops nv_netdev_ops_optimized = {
+	.ndo_open		= nv_open,
+	.ndo_stop		= nv_close,
+	.ndo_get_stats		= nv_get_stats,
+	.ndo_start_xmit		= nv_start_xmit_optimized,
 	.ndo_tx_timeout		= nv_tx_timeout,
 	.ndo_change_mtu		= nv_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -5592,11 +5609,10 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		goto out_freering;
 
 	if (!nv_optimized(np))
-		dev->hard_start_xmit = nv_start_xmit;
+		dev->netdev_ops = &nv_netdev_ops;
 	else
-		dev->hard_start_xmit = nv_start_xmit_optimized;
+		dev->netdev_ops = &nv_netdev_ops_optimized;
 
-	dev->netdev_ops = &nv_netdev_ops;
 #ifdef CONFIG_FORCEDETH_NAPI
 	netif_napi_add(dev, &np->napi, nv_napi_poll, RX_WORK_PER_LOOP);
 #endif

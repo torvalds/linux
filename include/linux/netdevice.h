@@ -454,8 +454,8 @@ struct netdev_queue {
 
 /*
  * This structure defines the management hooks for network devices.
- * The following hooks can bed defined and are optonal (can be null)
- * unless otherwise noted.
+ * The following hooks can be defined; unless noted otherwise, they are
+ * optional and can be filled with a null pointer.
  *
  * int (*ndo_init)(struct net_device *dev);
  *     This function is called once when network device is registered.
@@ -474,6 +474,15 @@ struct netdev_queue {
  * int (*ndo_stop)(struct net_device *dev);
  *     This function is called when network device transistions to the down
  *     state.
+ *
+ * int (*ndo_hard_start_xmit)(struct sk_buff *skb, struct net_device *dev);
+ *	Called when a packet needs to be transmitted.
+ *	Must return NETDEV_TX_OK , NETDEV_TX_BUSY, or NETDEV_TX_LOCKED,
+ *	Required can not be NULL.
+ *
+ * u16 (*ndo_select_queue)(struct net_device *dev, struct sk_buff *skb);
+ *	Called to decide which queue to when device supports multiple
+ *	transmit queues.
  *
  * void (*ndo_change_rx_flags)(struct net_device *dev, int flags);
  *	This function is called to allow device receiver to make
@@ -508,7 +517,7 @@ struct netdev_queue {
  *	of a device. If not defined, any request to change MTU will
  *	will return an error.
  *
- * void (*ndo_tx_timeout) (struct net_device *dev);
+ * void (*ndo_tx_timeout)(struct net_device *dev);
  *	Callback uses when the transmitter has not made any progress
  *	for dev->watchdog ticks.
  *
@@ -538,6 +547,10 @@ struct net_device_ops {
 	void			(*ndo_uninit)(struct net_device *dev);
 	int			(*ndo_open)(struct net_device *dev);
 	int			(*ndo_stop)(struct net_device *dev);
+	int			(*ndo_start_xmit) (struct sk_buff *skb,
+						   struct net_device *dev);
+	u16			(*ndo_select_queue)(struct net_device *dev,
+						    struct sk_buff *skb);
 #define HAVE_CHANGE_RX_FLAGS
 	void			(*ndo_change_rx_flags)(struct net_device *dev,
 						       int flags);
@@ -557,8 +570,10 @@ struct net_device_ops {
 	int			(*ndo_set_config)(struct net_device *dev,
 					          struct ifmap *map);
 #define HAVE_CHANGE_MTU
-	int			(*ndo_change_mtu)(struct net_device *dev, int new_mtu);
-
+	int			(*ndo_change_mtu)(struct net_device *dev,
+						  int new_mtu);
+	int			(*ndo_neigh_setup)(struct net_device *dev,
+						   struct neigh_parms *);
 #define HAVE_TX_TIMEOUT
 	void			(*ndo_tx_timeout) (struct net_device *dev);
 
@@ -761,18 +776,12 @@ struct net_device
 	/* Number of TX queues currently active in device  */
 	unsigned int		real_num_tx_queues;
 
-	/* Map buffer to appropriate transmit queue */
-	u16			(*select_queue)(struct net_device *dev,
-						struct sk_buff *skb);
-
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 	spinlock_t		tx_global_lock;
 /*
  * One part is mostly used on xmit path (device)
  */
 	void			*priv;	/* pointer to private data	*/
-	int			(*hard_start_xmit) (struct sk_buff *skb,
-						    struct net_device *dev);
 	/* These may be needed for future network-power-down code. */
 	unsigned long		trans_start;	/* Time (in jiffies) of last Tx	*/
 
@@ -799,8 +808,6 @@ struct net_device
 
 	/* Called from unregister, can be used to call free_netdev */
 	void (*destructor)(struct net_device *dev);
-
-	int (*neigh_setup)(struct net_device *dev, struct neigh_parms *);
 
 #ifdef CONFIG_NETPOLL
 	struct netpoll_info	*npinfo;
@@ -842,6 +849,10 @@ struct net_device
 		void			(*uninit)(struct net_device *dev);
 		int			(*open)(struct net_device *dev);
 		int			(*stop)(struct net_device *dev);
+		int			(*hard_start_xmit) (struct sk_buff *skb,
+							    struct net_device *dev);
+		u16			(*select_queue)(struct net_device *dev,
+							struct sk_buff *skb);
 		void			(*change_rx_flags)(struct net_device *dev,
 							   int flags);
 		void			(*set_rx_mode)(struct net_device *dev);
@@ -854,6 +865,8 @@ struct net_device
 		int			(*set_config)(struct net_device *dev,
 						      struct ifmap *map);
 		int			(*change_mtu)(struct net_device *dev, int new_mtu);
+		int			(*neigh_setup)(struct net_device *dev,
+						       struct neigh_parms *);
 		void			(*tx_timeout) (struct net_device *dev);
 		struct net_device_stats* (*get_stats)(struct net_device *dev);
 		void			(*vlan_rx_register)(struct net_device *dev,

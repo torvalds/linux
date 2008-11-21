@@ -8892,6 +8892,7 @@ static struct net_device * __devinit niu_alloc_and_init(
 static const struct net_device_ops niu_netdev_ops = {
 	.ndo_open		= niu_open,
 	.ndo_stop		= niu_close,
+	.ndo_start_xmit		= niu_start_xmit,
 	.ndo_get_stats		= niu_get_stats,
 	.ndo_set_multicast_list	= niu_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -8904,7 +8905,6 @@ static const struct net_device_ops niu_netdev_ops = {
 static void __devinit niu_assign_netdev_ops(struct net_device *dev)
 {
 	dev->netdev_ops = &niu_netdev_ops;
-	dev->hard_start_xmit = niu_start_xmit;
 	dev->ethtool_ops = &niu_ethtool_ops;
 	dev->watchdog_timeo = NIU_TX_TIMEOUT;
 }

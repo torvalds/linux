@@ -140,7 +140,7 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 	return NULL;
 }
 
-static int macvlan_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int macvlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	unsigned int len = skb->len;
@@ -365,6 +365,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_init		= macvlan_init,
 	.ndo_open		= macvlan_open,
 	.ndo_stop		= macvlan_stop,
+	.ndo_start_xmit		= macvlan_start_xmit,
 	.ndo_change_mtu		= macvlan_change_mtu,
 	.ndo_change_rx_flags	= macvlan_change_rx_flags,
 	.ndo_set_mac_address	= macvlan_set_mac_address,
@@ -377,7 +378,6 @@ static void macvlan_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->netdev_ops		= &macvlan_netdev_ops;
-	dev->hard_start_xmit	= macvlan_hard_start_xmit;
 	dev->destructor		= free_netdev;
 	dev->header_ops		= &macvlan_hard_header_ops,
 	dev->ethtool_ops	= &macvlan_ethtool_ops;

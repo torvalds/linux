@@ -915,7 +915,7 @@ static int t1_set_mac_addr(struct net_device *dev, void *p)
 }
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-static void vlan_rx_register(struct net_device *dev,
+static void t1_vlan_rx_register(struct net_device *dev,
 				   struct vlan_group *grp)
 {
 	struct adapter *adapter = dev->ml_priv;
@@ -1013,6 +1013,7 @@ void t1_fatal_err(struct adapter *adapter)
 static const struct net_device_ops cxgb_netdev_ops = {
 	.ndo_open		= cxgb_open,
 	.ndo_stop		= cxgb_close,
+	.ndo_start_xmit		= t1_start_xmit,
 	.ndo_get_stats		= t1_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= t1_set_rxmode,
@@ -1020,7 +1021,7 @@ static const struct net_device_ops cxgb_netdev_ops = {
 	.ndo_change_mtu		= t1_change_mtu,
 	.ndo_set_mac_address	= t1_set_mac_addr,
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	.ndo_vlan_rx_register	= vlan_rx_register,
+	.ndo_vlan_rx_register	= t1_vlan_rx_register,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= t1_netpoll,
@@ -1157,7 +1158,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		}
 
 		netdev->netdev_ops = &cxgb_netdev_ops;
-		netdev->hard_start_xmit = t1_start_xmit;
 		netdev->hard_header_len += (adapter->flags & TSO_CAPABLE) ?
 			sizeof(struct cpl_tx_pkt_lso) : sizeof(struct cpl_tx_pkt);
 

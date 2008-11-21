@@ -4047,6 +4047,7 @@ static const struct net_device_ops sky2_netdev_ops[2] = {
   {
 	.ndo_open		= sky2_up,
 	.ndo_stop		= sky2_down,
+	.ndo_start_xmit		= sky2_xmit_frame,
 	.ndo_do_ioctl		= sky2_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= sky2_set_mac_address,
@@ -4063,6 +4064,7 @@ static const struct net_device_ops sky2_netdev_ops[2] = {
   {
 	.ndo_open		= sky2_up,
 	.ndo_stop		= sky2_down,
+	.ndo_start_xmit		= sky2_xmit_frame,
 	.ndo_do_ioctl		= sky2_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= sky2_set_mac_address,
@@ -4090,7 +4092,6 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
 	dev->irq = hw->pdev->irq;
-	dev->hard_start_xmit = sky2_xmit_frame;
 	SET_ETHTOOL_OPS(dev, &sky2_ethtool_ops);
 	dev->watchdog_timeo = TX_WATCHDOG;
 	dev->netdev_ops = &sky2_netdev_ops[port];

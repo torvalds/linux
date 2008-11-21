@@ -1593,6 +1593,7 @@ static void enic_iounmap(struct enic *enic)
 static const struct net_device_ops enic_netdev_ops = {
 	.ndo_open		= enic_open,
 	.ndo_stop		= enic_stop,
+	.ndo_start_xmit		= enic_hard_start_xmit,
 	.ndo_get_stats		= enic_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= enic_set_multicast_list,
@@ -1830,7 +1831,6 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	}
 
 	netdev->netdev_ops = &enic_netdev_ops;
-	netdev->hard_start_xmit = enic_hard_start_xmit;
 	netdev->watchdog_timeo = 2 * HZ;
 	netdev->ethtool_ops = &enic_ethtool_ops;
 

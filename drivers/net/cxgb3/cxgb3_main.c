@@ -2955,7 +2955,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 		netdev->netdev_ops = &cxgb_netdev_ops;
-		netdev->hard_start_xmit = t3_eth_xmit;
 		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
 	}
 

@@ -1660,6 +1660,9 @@ static int dev_gso_segment(struct sk_buff *skb)
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	prefetch(&dev->netdev_ops->ndo_start_xmit);
 	if (likely(!skb->next)) {
 		if (!list_empty(&ptype_all))
 			dev_queue_xmit_nit(skb, dev);
@@ -1671,7 +1674,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 				goto gso;
 		}
 
-		return dev->hard_start_xmit(skb, dev);
+		return ops->ndo_start_xmit(skb, dev);
 	}
 
 gso:
@@ -1681,7 +1684,7 @@ gso:
 
 		skb->next = nskb->next;
 		nskb->next = NULL;
-		rc = dev->hard_start_xmit(nskb, dev);
+		rc = ops->ndo_start_xmit(nskb, dev);
 		if (unlikely(rc)) {
 			nskb->next = skb->next;
 			skb->next = nskb;
@@ -1755,10 +1758,11 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 					struct sk_buff *skb)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
 	u16 queue_index = 0;
 
-	if (dev->select_queue)
-		queue_index = dev->select_queue(dev, skb);
+	if (ops->ndo_select_queue)
+		queue_index = ops->ndo_select_queue(dev, skb);
 	else if (dev->real_num_tx_queues > 1)
 		queue_index = simple_tx_hash(dev, skb);
 

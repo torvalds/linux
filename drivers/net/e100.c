@@ -2615,6 +2615,7 @@ static int e100_close(struct net_device *netdev)
 static const struct net_device_ops e100_netdev_ops = {
 	.ndo_open		= e100_open,
 	.ndo_stop		= e100_close,
+	.ndo_start_xmit		= e100_xmit_frame,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= e100_set_multicast_list,
 	.ndo_set_mac_address	= e100_set_mac_address,
@@ -2640,7 +2641,6 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	}
 
 	netdev->netdev_ops = &e100_netdev_ops;
-	netdev->hard_start_xmit = e100_xmit_frame;
 	SET_ETHTOOL_OPS(netdev, &e100_ethtool_ops);
 	netdev->watchdog_timeo = E100_WATCHDOG_PERIOD;
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);

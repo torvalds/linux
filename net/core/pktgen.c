@@ -3352,13 +3352,13 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 
 static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 {
-	struct net_device *odev = NULL;
+	struct net_device *odev = pkt_dev->odev;
+	int (*xmit)(struct sk_buff *, struct net_device *)
+		= odev->netdev_ops->ndo_start_xmit;
 	struct netdev_queue *txq;
 	__u64 idle_start = 0;
 	u16 queue_map;
 	int ret;
-
-	odev = pkt_dev->odev;
 
 	if (pkt_dev->delay_us || pkt_dev->delay_ns) {
 		u64 now;
@@ -3440,7 +3440,7 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 
 		atomic_inc(&(pkt_dev->skb->users));
 	      retry_now:
-		ret = odev->hard_start_xmit(pkt_dev->skb, odev);
+		ret = (*xmit)(pkt_dev->skb, odev);
 		if (likely(ret == NETDEV_TX_OK)) {
 			pkt_dev->last_ok = 1;
 			pkt_dev->sofar++;

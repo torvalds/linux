@@ -58,6 +58,7 @@ static void queue_process(struct work_struct *work)
 
 	while ((skb = skb_dequeue(&npinfo->txq))) {
 		struct net_device *dev = skb->dev;
+		const struct net_device_ops *ops = dev->netdev_ops;
 		struct netdev_queue *txq;
 
 		if (!netif_device_present(dev) || !netif_running(dev)) {
@@ -71,7 +72,7 @@ static void queue_process(struct work_struct *work)
 		__netif_tx_lock(txq, smp_processor_id());
 		if (netif_tx_queue_stopped(txq) ||
 		    netif_tx_queue_frozen(txq) ||
-		    dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
+		    ops->ndo_start_xmit(skb, dev) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
 			__netif_tx_unlock(txq);
 			local_irq_restore(flags);
@@ -273,6 +274,7 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	int status = NETDEV_TX_BUSY;
 	unsigned long tries;
 	struct net_device *dev = np->dev;
+	const struct net_device_ops *ops = dev->netdev_ops;
 	struct netpoll_info *npinfo = np->dev->npinfo;
 
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
@@ -293,7 +295,7 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		     tries > 0; --tries) {
 			if (__netif_tx_trylock(txq)) {
 				if (!netif_tx_queue_stopped(txq))
-					status = dev->hard_start_xmit(skb, dev);
+					status = ops->ndo_start_xmit(skb, dev);
 				__netif_tx_unlock(txq);
 
 				if (status == NETDEV_TX_OK)

@@ -455,10 +455,13 @@ static const struct net_device_ops ace_netdev_ops = {
 	.ndo_stop		= ace_close,
 	.ndo_tx_timeout		= ace_watchdog,
 	.ndo_get_stats		= ace_get_stats,
+	.ndo_start_xmit		= ace_start_xmit,
 	.ndo_set_multicast_list	= ace_set_multicast_list,
 	.ndo_set_mac_address	= ace_set_mac_addr,
 	.ndo_change_mtu		= ace_change_mtu,
+#if ACENIC_DO_VLAN
 	.ndo_vlan_rx_register	= ace_vlan_rx_register,
+#endif
 };
 
 static int __devinit acenic_probe_one(struct pci_dev *pdev,
@@ -489,7 +492,6 @@ static int __devinit acenic_probe_one(struct pci_dev *pdev,
 	dev->watchdog_timeo = 5*HZ;
 
 	dev->netdev_ops = &ace_netdev_ops;
-	dev->hard_start_xmit = &ace_start_xmit;
 	SET_ETHTOOL_OPS(dev, &ace_ethtool_ops);
 
 	/* we only display this string ONCE */

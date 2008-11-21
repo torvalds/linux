@@ -852,6 +852,7 @@ static int velocity_soft_reset(struct velocity_info *vptr)
 static const struct net_device_ops velocity_netdev_ops = {
 	.ndo_open		= velocity_open,
 	.ndo_stop		= velocity_close,
+	.ndo_start_xmit		= velocity_xmit,
 	.ndo_get_stats		= velocity_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= velocity_set_multi,
@@ -971,7 +972,6 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	vptr->phy_id = MII_GET_PHY_ID(vptr->mac_regs);
 
 	dev->irq = pdev->irq;
-	dev->hard_start_xmit = velocity_xmit;
 	dev->netdev_ops = &velocity_netdev_ops;
 	dev->ethtool_ops = &velocity_ethtool_ops;
 

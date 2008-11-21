@@ -1327,9 +1327,9 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 				      struct neigh_table *tbl)
 {
 	struct neigh_parms *p, *ref;
-	struct net *net;
+	struct net *net = dev_net(dev);
+	const struct net_device_ops *ops = dev->netdev_ops;
 
-	net = dev_net(dev);
 	ref = lookup_neigh_params(tbl, net, 0);
 	if (!ref)
 		return NULL;
@@ -1341,7 +1341,7 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 		p->reachable_time =
 				neigh_rand_reach_time(p->base_reachable_time);
 
-		if (dev->neigh_setup && dev->neigh_setup(dev, p)) {
+		if (ops->ndo_neigh_setup && ops->ndo_neigh_setup(dev, p)) {
 			kfree(p);
 			return NULL;
 		}

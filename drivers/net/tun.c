@@ -308,13 +308,14 @@ tun_net_change_mtu(struct net_device *dev, int new_mtu)
 static const struct net_device_ops tun_netdev_ops = {
 	.ndo_open		= tun_net_open,
 	.ndo_stop		= tun_net_close,
+	.ndo_start_xmit		= tun_net_xmit,
 	.ndo_change_mtu		= tun_net_change_mtu,
-
 };
 
 static const struct net_device_ops tap_netdev_ops = {
 	.ndo_open		= tun_net_open,
 	.ndo_stop		= tun_net_close,
+	.ndo_start_xmit		= tun_net_xmit,
 	.ndo_change_mtu		= tun_net_change_mtu,
 	.ndo_set_multicast_list	= tun_net_mclist,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -691,7 +692,6 @@ static void tun_setup(struct net_device *dev)
 	tun->owner = -1;
 	tun->group = -1;
 
-	dev->hard_start_xmit = tun_net_xmit;
 	dev->ethtool_ops = &tun_ethtool_ops;
 	dev->destructor = free_netdev;
 	dev->features |= NETIF_F_NETNS_LOCAL;

@@ -3728,6 +3728,7 @@ static int ixgbe_link_config(struct ixgbe_hw *hw)
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open 		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
+	.ndo_start_xmit		= ixgbe_xmit_frame,
 	.ndo_get_stats		= ixgbe_get_stats,
 	.ndo_set_multicast_list	= ixgbe_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -3824,7 +3825,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 
 	netdev->netdev_ops = &ixgbe_netdev_ops;
-	netdev->hard_start_xmit = &ixgbe_xmit_frame;
 	ixgbe_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
 	strcpy(netdev->name, pci_name(pdev));

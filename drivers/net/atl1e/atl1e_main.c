@@ -2256,6 +2256,7 @@ static void atl1e_shutdown(struct pci_dev *pdev)
 static const struct net_device_ops atl1e_netdev_ops = {
 	.ndo_open		= atl1e_open,
 	.ndo_stop		= atl1e_close,
+	.ndo_start_xmit		= atl1e_xmit_frame,
 	.ndo_get_stats		= atl1e_get_stats,
 	.ndo_set_multicast_list	= atl1e_set_multi,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2277,7 +2278,7 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 
 	netdev->irq  = pdev->irq;
 	netdev->netdev_ops = &atl1e_netdev_ops;
-	netdev->hard_start_xmit = atl1e_xmit_frame,
+
 	netdev->watchdog_timeo = AT_TX_WATCHDOG;
 	atl1e_set_ethtool_ops(netdev);
 

@@ -972,7 +972,8 @@ ppp_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 }
 
 static const struct net_device_ops ppp_netdev_ops = {
-	.ndo_do_ioctl = ppp_net_ioctl,
+	.ndo_start_xmit = ppp_start_xmit,
+	.ndo_do_ioctl   = ppp_net_ioctl,
 };
 
 static void ppp_setup(struct net_device *dev)
@@ -2436,8 +2437,6 @@ ppp_create_interface(int unit, int *retp)
 	ppp->minseq = -1;
 	skb_queue_head_init(&ppp->mrq);
 #endif /* CONFIG_PPP_MULTILINK */
-
-	dev->hard_start_xmit = ppp_start_xmit;
 
 	ret = -EEXIST;
 	mutex_lock(&all_ppp_mutex);

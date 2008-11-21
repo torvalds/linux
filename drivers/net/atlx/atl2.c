@@ -1315,6 +1315,7 @@ static void atl2_poll_controller(struct net_device *netdev)
 static const struct net_device_ops atl2_netdev_ops = {
 	.ndo_open		= atl2_open,
 	.ndo_stop		= atl2_close,
+	.ndo_start_xmit		= atl2_xmit_frame,
 	.ndo_set_multicast_list	= atl2_set_multi,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= atl2_set_mac,
@@ -1400,7 +1401,6 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 
 	atl2_setup_pcicmd(pdev);
 
-	netdev->hard_start_xmit = &atl2_xmit_frame;
 	netdev->netdev_ops = &atl2_netdev_ops;
 	atl2_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;

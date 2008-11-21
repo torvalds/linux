@@ -4707,6 +4707,7 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 static const struct net_device_ops e1000e_netdev_ops = {
 	.ndo_open		= e1000_open,
 	.ndo_stop		= e1000_close,
+	.ndo_start_xmit		= e1000_xmit_frame,
 	.ndo_get_stats		= e1000_get_stats,
 	.ndo_set_multicast_list	= e1000_set_multi,
 	.ndo_set_mac_address	= e1000_set_mac,
@@ -4822,7 +4823,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* construct the net_device struct */
 	netdev->netdev_ops		= &e1000e_netdev_ops;
-	netdev->hard_start_xmit		= &e1000_xmit_frame;
 	e1000e_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo		= 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, e1000_clean, 64);

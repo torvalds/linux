@@ -1377,14 +1377,12 @@ done:
 	return 0;
 }
 
-
 static void bond_setup_by_slave(struct net_device *bond_dev,
 				struct net_device *slave_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
-	bond_dev->neigh_setup           = slave_dev->neigh_setup;
-	bond_dev->header_ops		= slave_dev->header_ops;
+	bond_dev->header_ops	    = slave_dev->header_ops;
 
 	bond_dev->type		    = slave_dev->type;
 	bond_dev->hard_header_len   = slave_dev->hard_header_len;
@@ -4124,6 +4122,20 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	read_unlock(&bond->lock);
 }
 
+static int bond_neigh_setup(struct net_device *dev, struct neigh_parms *parms)
+{
+	struct bonding *bond = netdev_priv(dev);
+	struct slave *slave = bond->first_slave;
+
+	if (slave) {
+		const struct net_device_ops *slave_ops
+			= slave->dev->netdev_ops;
+		if (slave_ops->ndo_neigh_setup)
+			return slave_ops->ndo_neigh_setup(dev, parms);
+	}
+	return 0;
+}
+
 /*
  * Change the MTU of all of a master's slaves to match the master
  */
@@ -4490,6 +4502,35 @@ static void bond_set_xmit_hash_policy(struct bonding *bond)
 	}
 }
 
+static int bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	const struct bonding *bond = netdev_priv(dev);
+
+	switch (bond->params.mode) {
+	case BOND_MODE_ROUNDROBIN:
+		return bond_xmit_roundrobin(skb, dev);
+	case BOND_MODE_ACTIVEBACKUP:
+		return bond_xmit_activebackup(skb, dev);
+	case BOND_MODE_XOR:
+		return bond_xmit_xor(skb, dev);
+	case BOND_MODE_BROADCAST:
+		return bond_xmit_broadcast(skb, dev);
+	case BOND_MODE_8023AD:
+		return bond_3ad_xmit_xor(skb, dev);
+	case BOND_MODE_ALB:
+	case BOND_MODE_TLB:
+		return bond_alb_xmit(skb, dev);
+	default:
+		/* Should never happen, mode already checked */
+		printk(KERN_ERR DRV_NAME ": %s: Error: Unknown bonding mode %d\n",
+		     dev->name, bond->params.mode);
+		WARN_ON_ONCE(1);
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+}
+
+
 /*
  * set bond mode specific net device operations
  */
@@ -4499,28 +4540,22 @@ void bond_set_mode_ops(struct bonding *bond, int mode)
 
 	switch (mode) {
 	case BOND_MODE_ROUNDROBIN:
-		bond_dev->hard_start_xmit = bond_xmit_roundrobin;
 		break;
 	case BOND_MODE_ACTIVEBACKUP:
-		bond_dev->hard_start_xmit = bond_xmit_activebackup;
 		break;
 	case BOND_MODE_XOR:
-		bond_dev->hard_start_xmit = bond_xmit_xor;
 		bond_set_xmit_hash_policy(bond);
 		break;
 	case BOND_MODE_BROADCAST:
-		bond_dev->hard_start_xmit = bond_xmit_broadcast;
 		break;
 	case BOND_MODE_8023AD:
 		bond_set_master_3ad_flags(bond);
-		bond_dev->hard_start_xmit = bond_3ad_xmit_xor;
 		bond_set_xmit_hash_policy(bond);
 		break;
 	case BOND_MODE_ALB:
 		bond_set_master_alb_flags(bond);
 		/* FALLTHRU */
 	case BOND_MODE_TLB:
-		bond_dev->hard_start_xmit = bond_alb_xmit;
 		break;
 	default:
 		/* Should never happen, mode already checked */
@@ -4553,12 +4588,13 @@ static const struct ethtool_ops bond_ethtool_ops = {
 static const struct net_device_ops bond_netdev_ops = {
 	.ndo_open		= bond_open,
 	.ndo_stop		= bond_close,
+	.ndo_start_xmit		= bond_start_xmit,
 	.ndo_get_stats		= bond_get_stats,
 	.ndo_do_ioctl		= bond_do_ioctl,
 	.ndo_set_multicast_list	= bond_set_multicast_list,
 	.ndo_change_mtu		= bond_change_mtu,
-	.ndo_validate_addr	= NULL,
 	.ndo_set_mac_address 	= bond_set_mac_address,
+	.ndo_neigh_setup	= bond_neigh_setup,
 	.ndo_vlan_rx_register	= bond_vlan_rx_register,
 	.ndo_vlan_rx_add_vid 	= bond_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= bond_vlan_rx_kill_vid,

@@ -953,6 +953,7 @@ static int igb_is_need_ioport(struct pci_dev *pdev)
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open 		= igb_open,
 	.ndo_stop		= igb_close,
+	.ndo_start_xmit		= igb_xmit_frame_adv,
 	.ndo_get_stats		= igb_get_stats,
 	.ndo_set_multicast_list	= igb_set_multi,
 	.ndo_set_mac_address	= igb_set_mac,
@@ -1080,7 +1081,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	netdev->netdev_ops = &igb_netdev_ops;
 	igb_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
-	netdev->hard_start_xmit = &igb_xmit_frame_adv;
 
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 

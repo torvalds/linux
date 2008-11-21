@@ -324,6 +324,7 @@ ixgb_reset(struct ixgb_adapter *adapter)
 static const struct net_device_ops ixgb_netdev_ops = {
 	.ndo_open 		= ixgb_open,
 	.ndo_stop		= ixgb_close,
+	.ndo_start_xmit		= ixgb_xmit_frame,
 	.ndo_get_stats		= ixgb_get_stats,
 	.ndo_set_multicast_list	= ixgb_set_multi,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -414,7 +415,6 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	netdev->netdev_ops = &ixgb_netdev_ops;
-	netdev->hard_start_xmit = &ixgb_xmit_frame;
 	ixgb_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, ixgb_clean, 64);

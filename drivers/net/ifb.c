@@ -138,15 +138,15 @@ resched:
 }
 
 static const struct net_device_ops ifb_netdev_ops = {
-	.ndo_validate_addr = eth_validate_addr,
 	.ndo_open	= ifb_open,
 	.ndo_stop	= ifb_close,
+	.ndo_start_xmit	= ifb_xmit,
+	.ndo_validate_addr = eth_validate_addr,
 };
 
 static void ifb_setup(struct net_device *dev)
 {
 	/* Initialize the device structure. */
-	dev->hard_start_xmit = ifb_xmit;
 	dev->destructor = free_netdev;
 	dev->netdev_ops = &ifb_netdev_ops;
 

@@ -163,10 +163,11 @@ static const struct ethtool_ops br_ethtool_ops = {
 static const struct net_device_ops br_netdev_ops = {
 	.ndo_open		 = br_dev_open,
 	.ndo_stop		 = br_dev_stop,
-	.ndo_set_mac_address = br_set_mac_address,
-	.ndo_set_multicast_list = br_dev_set_multicast_list,
-	.ndo_change_mtu	 = br_change_mtu,
-	.ndo_do_ioctl	= br_dev_ioctl,
+	.ndo_start_xmit		 = br_dev_xmit,
+	.ndo_set_mac_address	 = br_set_mac_address,
+	.ndo_set_multicast_list	 = br_dev_set_multicast_list,
+	.ndo_change_mtu		 = br_change_mtu,
+	.ndo_do_ioctl		 = br_dev_ioctl,
 };
 
 void br_dev_setup(struct net_device *dev)
@@ -175,7 +176,6 @@ void br_dev_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->netdev_ops = &br_netdev_ops;
-	dev->hard_start_xmit = br_dev_xmit;
 	dev->destructor = free_netdev;
 	SET_ETHTOOL_OPS(dev, &br_ethtool_ops);
 	dev->tx_queue_len = 0;

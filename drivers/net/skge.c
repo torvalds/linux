@@ -3805,6 +3805,7 @@ static __exit void skge_debug_cleanup(void)
 static const struct net_device_ops skge_netdev_ops = {
 	.ndo_open		= skge_up,
 	.ndo_stop		= skge_down,
+	.ndo_start_xmit		= skge_xmit_frame,
 	.ndo_do_ioctl		= skge_ioctl,
 	.ndo_get_stats		= skge_get_stats,
 	.ndo_tx_timeout		= skge_tx_timeout,
@@ -3831,7 +3832,6 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	}
 
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
-	dev->hard_start_xmit = skge_xmit_frame;
 	dev->netdev_ops = &skge_netdev_ops;
 	dev->ethtool_ops = &skge_ethtool_ops;
 	dev->watchdog_timeo = TX_WATCHDOG;
