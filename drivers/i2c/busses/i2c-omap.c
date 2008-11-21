@@ -191,6 +191,8 @@ static void omap_i2c_put_clocks(struct omap_i2c_dev *dev)
 
 static void omap_i2c_unidle(struct omap_i2c_dev *dev)
 {
+	WARN_ON(!dev->idle);
+
 	if (dev->iclk != NULL)
 		clk_enable(dev->iclk);
 	clk_enable(dev->fclk);
@@ -202,6 +204,8 @@ static void omap_i2c_unidle(struct omap_i2c_dev *dev)
 static void omap_i2c_idle(struct omap_i2c_dev *dev)
 {
 	u16 iv;
+
+	WARN_ON(dev->idle);
 
 	dev->iestate = omap_i2c_read_reg(dev, OMAP_I2C_IE_REG);
 	omap_i2c_write_reg(dev, OMAP_I2C_IE_REG, 0);
@@ -740,6 +744,7 @@ omap_i2c_probe(struct platform_device *pdev)
 		speed = 100;	/* Defualt speed */
 
 	dev->speed = speed;
+	dev->idle = 1;
 	dev->dev = &pdev->dev;
 	dev->irq = irq->start;
 	dev->base = ioremap(mem->start, mem->end - mem->start + 1);
@@ -788,6 +793,8 @@ omap_i2c_probe(struct platform_device *pdev)
 	dev_info(dev->dev, "bus %d rev%d.%d at %d kHz\n",
 		 pdev->id, r >> 4, r & 0xf, dev->speed);
 
+	omap_i2c_idle(dev);
+
 	adap = &dev->adapter;
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
@@ -803,8 +810,6 @@ omap_i2c_probe(struct platform_device *pdev)
 		dev_err(dev->dev, "failure adding adapter\n");
 		goto err_free_irq;
 	}
-
-	omap_i2c_idle(dev);
 
 	return 0;
 
