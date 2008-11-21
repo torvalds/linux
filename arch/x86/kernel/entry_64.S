@@ -247,12 +247,12 @@ ENTRY(native_usergs_sysret64)
  * initial frame state for interrupts (and exceptions without error code)
  */
 	.macro INTR_FRAME start=1 offset=0
-	EMPTY_FRAME \start, (SS+8-RIP)+\offset
-	/*CFI_REL_OFFSET ss, SS-RIP+\offset*/
-	CFI_REL_OFFSET rsp, RSP-RIP+\offset
-	/*CFI_REL_OFFSET rflags, EFLAGS-RIP+\offset*/
-	/*CFI_REL_OFFSET cs, CS-RIP+\offset*/
-	CFI_REL_OFFSET rip, RIP-RIP+\offset
+	EMPTY_FRAME \start, SS+8+\offset-RIP
+	/*CFI_REL_OFFSET ss, SS+\offset-RIP*/
+	CFI_REL_OFFSET rsp, RSP+\offset-RIP
+	/*CFI_REL_OFFSET rflags, EFLAGS+\offset-RIP*/
+	/*CFI_REL_OFFSET cs, CS+\offset-RIP*/
+	CFI_REL_OFFSET rip, RIP+\offset-RIP
 	.endm
 
 /*
@@ -260,7 +260,7 @@ ENTRY(native_usergs_sysret64)
  * with vector already pushed)
  */
 	.macro XCPT_FRAME start=1 offset=0
-	INTR_FRAME \start, (RIP-ORIG_RAX)+\offset
+	INTR_FRAME \start, RIP+\offset-ORIG_RAX
 	/*CFI_REL_OFFSET orig_rax, ORIG_RAX-ORIG_RAX*/
 	.endm
 
@@ -268,23 +268,23 @@ ENTRY(native_usergs_sysret64)
  * frame that enables calling into C.
  */
 	.macro PARTIAL_FRAME start=1 offset=0
-	XCPT_FRAME \start, (ORIG_RAX-ARGOFFSET)+\offset
-	CFI_REL_OFFSET rdi, (RDI-ARGOFFSET)+\offset
-	CFI_REL_OFFSET rsi, (RSI-ARGOFFSET)+\offset
-	CFI_REL_OFFSET rdx, (RDX-ARGOFFSET)+\offset
-	CFI_REL_OFFSET rcx, (RCX-ARGOFFSET)+\offset
-	CFI_REL_OFFSET rax, (RAX-ARGOFFSET)+\offset
-	CFI_REL_OFFSET r8, (R8-ARGOFFSET)+\offset
-	CFI_REL_OFFSET r9, (R9-ARGOFFSET)+\offset
-	CFI_REL_OFFSET r10, (R10-ARGOFFSET)+\offset
-	CFI_REL_OFFSET r11, (R11-ARGOFFSET)+\offset
+	XCPT_FRAME \start, ORIG_RAX+\offset-ARGOFFSET
+	CFI_REL_OFFSET rdi, RDI+\offset-ARGOFFSET
+	CFI_REL_OFFSET rsi, RSI+\offset-ARGOFFSET
+	CFI_REL_OFFSET rdx, RDX+\offset-ARGOFFSET
+	CFI_REL_OFFSET rcx, RCX+\offset-ARGOFFSET
+	CFI_REL_OFFSET rax, RAX+\offset-ARGOFFSET
+	CFI_REL_OFFSET r8, R8+\offset-ARGOFFSET
+	CFI_REL_OFFSET r9, R9+\offset-ARGOFFSET
+	CFI_REL_OFFSET r10, R10+\offset-ARGOFFSET
+	CFI_REL_OFFSET r11, R11+\offset-ARGOFFSET
 	.endm
 
 /*
  * frame that enables passing a complete pt_regs to a C function.
  */
 	.macro DEFAULT_FRAME start=1 offset=0
-	PARTIAL_FRAME \start, (R11-R15)+\offset
+	PARTIAL_FRAME \start, R11+\offset-R15
 	CFI_REL_OFFSET rbx, RBX+\offset
 	CFI_REL_OFFSET rbp, RBP+\offset
 	CFI_REL_OFFSET r12, R12+\offset
@@ -297,15 +297,15 @@ ENTRY(native_usergs_sysret64)
 ENTRY(save_args)
 	XCPT_FRAME
 	cld
-	CFI_MOVQ rdi, (RDI-ARGOFFSET)+16
-	CFI_MOVQ rsi, (RSI-ARGOFFSET)+16
-	CFI_MOVQ rdx, (RDX-ARGOFFSET)+16
-	CFI_MOVQ rcx, (RCX-ARGOFFSET)+16
-	CFI_MOVQ rax, (RAX-ARGOFFSET)+16
-	CFI_MOVQ r8, (R8-ARGOFFSET)+16
-	CFI_MOVQ r9, (R9-ARGOFFSET)+16
-	CFI_MOVQ r10, (R10-ARGOFFSET)+16
-	CFI_MOVQ r11, (R11-ARGOFFSET)+16
+	CFI_MOVQ rdi, RDI+16-ARGOFFSET
+	CFI_MOVQ rsi, RSI+16-ARGOFFSET
+	CFI_MOVQ rdx, RDX+16-ARGOFFSET
+	CFI_MOVQ rcx, RCX+16-ARGOFFSET
+	CFI_MOVQ rax, RAX+16-ARGOFFSET
+	CFI_MOVQ r8, R8+16-ARGOFFSET
+	CFI_MOVQ r9, R9+16-ARGOFFSET
+	CFI_MOVQ r10, R10+16-ARGOFFSET
+	CFI_MOVQ r11, R11+16-ARGOFFSET
 	leaq -ARGOFFSET+16(%rsp),%rdi	/* arg1 for handler */
 	CFI_MOVQ rbp, 8		/* push %rbp */
 	leaq 8(%rsp), %rbp		/* mov %rsp, %ebp */
