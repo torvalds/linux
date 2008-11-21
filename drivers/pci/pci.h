@@ -165,13 +165,13 @@ struct pci_slot_attribute {
 extern void pci_enable_ari(struct pci_dev *dev);
 /**
  * pci_ari_enabled - query ARI forwarding status
- * @dev: the PCI device
+ * @bus: the PCI bus
  *
  * Returns 1 if ARI forwarding is enabled, or 0 if not enabled;
  */
-static inline int pci_ari_enabled(struct pci_dev *dev)
+static inline int pci_ari_enabled(struct pci_bus *bus)
 {
-	return dev->ari_enabled;
+	return bus->self && bus->self->ari_enabled;
 }
 
 #endif /* DRIVERS_PCI_H */
