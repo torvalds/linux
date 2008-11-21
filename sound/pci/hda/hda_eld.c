@@ -477,7 +477,7 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
 	int i;
 
-	snd_iprintf(buffer, "monitor name\t\t%s\n", e->monitor_name);
+	snd_iprintf(buffer, "monitor_name\t\t%s\n", e->monitor_name);
 	snd_iprintf(buffer, "connection_type\t\t%s\n",
 				eld_connection_type_names[e->conn_type]);
 	snd_iprintf(buffer, "eld_version\t\t[0x%x] %s\n", e->eld_ver,
