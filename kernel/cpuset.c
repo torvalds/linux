@@ -36,6 +36,7 @@
 #include <linux/list.h>
 #include <linux/mempolicy.h>
 #include <linux/mm.h>
+#include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -2015,12 +2016,23 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
  * Call this routine anytime after node_states[N_HIGH_MEMORY] changes.
  * See also the previous routine cpuset_track_online_cpus().
  */
-void cpuset_track_online_nodes(void)
+static int cpuset_track_online_nodes(struct notifier_block *self,
+				unsigned long action, void *arg)
 {
 	cgroup_lock();
-	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
-	scan_for_empty_cpusets(&top_cpuset);
+	switch (action) {
+	case MEM_ONLINE:
+		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+		break;
+	case MEM_OFFLINE:
+		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+		scan_for_empty_cpusets(&top_cpuset);
+		break;
+	default:
+		break;
+	}
 	cgroup_unlock();
+	return NOTIFY_OK;
 }
 #endif
 
@@ -2036,6 +2048,7 @@ void __init cpuset_init_smp(void)
 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
 
 	hotcpu_notifier(cpuset_track_online_cpus, 0);
+	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
 }
 
 /**

@@ -58,7 +58,7 @@ __HCALL2(xen_set_rr, HYPERPRIVOP_SET_RR)
 __HCALL2(xen_set_kr, HYPERPRIVOP_SET_KR)
 
 #ifdef CONFIG_IA32_SUPPORT
-__HCALL1(xen_get_eflag, HYPERPRIVOP_GET_EFLAG)
+__HCALL0(xen_get_eflag, HYPERPRIVOP_GET_EFLAG)
 __HCALL1(xen_set_eflag, HYPERPRIVOP_SET_EFLAG)	// refer SDM vol1 3.1.8
 #endif /* CONFIG_IA32_SUPPORT */
 

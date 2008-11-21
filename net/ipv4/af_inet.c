@@ -1117,6 +1117,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 			},
 		},
 		.proto = sk->sk_protocol,
+		.flags = inet_sk_flowi_flags(sk),
 		.uli_u = {
 			.ports = {
 				.sport = inet->sport,

@@ -488,12 +488,13 @@ int cifs_close(struct inode *inode, struct file *file)
 	pTcon = cifs_sb->tcon;
 	if (pSMBFile) {
 		struct cifsLockInfo *li, *tmp;
-
+		write_lock(&GlobalSMBSeslock);
 		pSMBFile->closePend = true;
 		if (pTcon) {
 			/* no sense reconnecting to close a file that is
 			   already closed */
 			if (!pTcon->need_reconnect) {
+				write_unlock(&GlobalSMBSeslock);
 				timeout = 2;
 				while ((atomic_read(&pSMBFile->wrtPending) != 0)
 					&& (timeout <= 2048)) {
@@ -510,12 +511,15 @@ int cifs_close(struct inode *inode, struct file *file)
 					timeout *= 4;
 				}
 				if (atomic_read(&pSMBFile->wrtPending))
-					cERROR(1,
-						("close with pending writes"));
-				rc = CIFSSMBClose(xid, pTcon,
+					cERROR(1, ("close with pending write"));
+				if (!pTcon->need_reconnect &&
+				    !pSMBFile->invalidHandle)
+					rc = CIFSSMBClose(xid, pTcon,
 						  pSMBFile->netfid);
-			}
-		}
+			} else
+				write_unlock(&GlobalSMBSeslock);
+		} else
+			write_unlock(&GlobalSMBSeslock);
 
 		/* Delete any outstanding lock records.
 		   We'll lose them when the file is closed anyway. */
@@ -587,15 +591,18 @@ int cifs_closedir(struct inode *inode, struct file *file)
 		pTcon = cifs_sb->tcon;
 
 		cFYI(1, ("Freeing private data in close dir"));
+		write_lock(&GlobalSMBSeslock);
 		if (!pCFileStruct->srch_inf.endOfSearch &&
 		    !pCFileStruct->invalidHandle) {
 			pCFileStruct->invalidHandle = true;
+			write_unlock(&GlobalSMBSeslock);
 			rc = CIFSFindClose(xid, pTcon, pCFileStruct->netfid);
 			cFYI(1, ("Closing uncompleted readdir with rc %d",
 				 rc));
 			/* not much we can do if it fails anyway, ignore rc */
 			rc = 0;
-		}
+		} else
+			write_unlock(&GlobalSMBSeslock);
 		ptmp = pCFileStruct->srch_inf.ntwrk_buf_start;
 		if (ptmp) {
 			cFYI(1, ("closedir free smb buf in srch struct"));
