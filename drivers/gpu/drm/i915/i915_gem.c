@@ -1088,6 +1088,19 @@ i915_gem_evict_something(struct drm_device *dev)
 }
 
 static int
+i915_gem_evict_everything(struct drm_device *dev)
+{
+	int ret;
+
+	for (;;) {
+		ret = i915_gem_evict_something(dev);
+		if (ret != 0)
+			break;
+	}
+	return ret;
+}
+
+static int
 i915_gem_object_get_page_list(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
@@ -1173,7 +1186,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 
 		ret = i915_gem_evict_something(dev);
 		if (ret != 0) {
-			DRM_ERROR("Failed to evict a buffer %d\n", ret);
+			if (ret != -ERESTARTSYS)
+				DRM_ERROR("Failed to evict a buffer %d\n", ret);
 			return ret;
 		}
 		goto search_free;
@@ -1922,6 +1936,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	int ret, i, pinned = 0;
 	uint64_t exec_offset;
 	uint32_t seqno, flush_domains;
+	int pin_tries;
 
 #if WATCH_EXEC
 	DRM_INFO("buffers_ptr %d buffer_count %d len %08x\n",
@@ -1970,7 +1985,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		return -EBUSY;
 	}
 
-	/* Look up object handles and perform the relocations */
+	/* Look up object handles */
 	for (i = 0; i < args->buffer_count; i++) {
 		object_list[i] = drm_gem_object_lookup(dev, file_priv,
 						       exec_list[i].handle);
@@ -1980,17 +1995,39 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			ret = -EBADF;
 			goto err;
 		}
+	}
 
-		object_list[i]->pending_read_domains = 0;
-		object_list[i]->pending_write_domain = 0;
-		ret = i915_gem_object_pin_and_relocate(object_list[i],
-						       file_priv,
-						       &exec_list[i]);
-		if (ret) {
-			DRM_ERROR("object bind and relocate failed %d\n", ret);
+	/* Pin and relocate */
+	for (pin_tries = 0; ; pin_tries++) {
+		ret = 0;
+		for (i = 0; i < args->buffer_count; i++) {
+			object_list[i]->pending_read_domains = 0;
+			object_list[i]->pending_write_domain = 0;
+			ret = i915_gem_object_pin_and_relocate(object_list[i],
+							       file_priv,
+							       &exec_list[i]);
+			if (ret)
+				break;
+			pinned = i + 1;
+		}
+		/* success */
+		if (ret == 0)
+			break;
+
+		/* error other than GTT full, or we've already tried again */
+		if (ret != -ENOMEM || pin_tries >= 1) {
+			DRM_ERROR("Failed to pin buffers %d\n", ret);
 			goto err;
 		}
-		pinned = i + 1;
+
+		/* unpin all of our buffers */
+		for (i = 0; i < pinned; i++)
+			i915_gem_object_unpin(object_list[i]);
+
+		/* evict everyone we can from the aperture */
+		ret = i915_gem_evict_everything(dev);
+		if (ret)
+			goto err;
 	}
 
 	/* Set the pending read domains for the batch buffer to COMMAND */
