@@ -89,7 +89,8 @@ extern struct iwl_cfg iwl5100_abg_cfg;
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
 struct iwl_rx_mem_buffer {
-	dma_addr_t dma_addr;
+	dma_addr_t real_dma_addr;
+	dma_addr_t aligned_dma_addr;
 	struct sk_buff *skb;
 	struct list_head list;
 };

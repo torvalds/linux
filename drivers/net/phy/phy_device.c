@@ -564,20 +564,32 @@ EXPORT_SYMBOL(genphy_restart_aneg);
  */
 int genphy_config_aneg(struct phy_device *phydev)
 {
-	int result = 0;
+	int result;
 
-	if (AUTONEG_ENABLE == phydev->autoneg) {
-		int result = genphy_config_advert(phydev);
+	if (AUTONEG_ENABLE != phydev->autoneg)
+		return genphy_setup_forced(phydev);
 
-		if (result < 0) /* error */
-			return result;
+	result = genphy_config_advert(phydev);
 
-		/* Only restart aneg if we are advertising something different
-		 * than we were before.	 */
-		if (result > 0)
-			result = genphy_restart_aneg(phydev);
-	} else
-		result = genphy_setup_forced(phydev);
+	if (result < 0) /* error */
+		return result;
+
+	if (result == 0) {
+		/* Advertisment hasn't changed, but maybe aneg was never on to
+		 * begin with?  Or maybe phy was isolated? */
+		int ctl = phy_read(phydev, MII_BMCR);
+
+		if (ctl < 0)
+			return ctl;
+
+		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
+			result = 1; /* do restart aneg */
+	}
+
+	/* Only restart aneg if we are advertising something different
+	 * than we were before.	 */
+	if (result > 0)
+		result = genphy_restart_aneg(phydev);
 
 	return result;
 }
