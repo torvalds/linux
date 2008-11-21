@@ -690,7 +690,7 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 
 	ret = wm9712_reset(codec, 0);
 	if (ret < 0) {
-		printk(KERN_ERR "AC97 link error\n");
+		printk(KERN_ERR "Failed to reset WM9712: AC97 link error\n");
 		goto reset_err;
 	}
 

@@ -238,7 +238,7 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 
 	ret = ad1980_reset(codec, 0);
 	if (ret < 0) {
-		printk(KERN_ERR "AC97 link error\n");
+		printk(KERN_ERR "Failed to reset AD1980: AC97 link error\n");
 		goto reset_err;
 	}
 

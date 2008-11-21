@@ -1243,7 +1243,7 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	wm9713_reset(codec, 0);
 	ret = wm9713_reset(codec, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "AC97 link error\n");
+		printk(KERN_ERR "Failed to reset WM9713: AC97 link error\n");
 		goto reset_err;
 	}
 
