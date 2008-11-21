@@ -9,7 +9,7 @@ the audio subsystem with the kernel as a platform device and is represented by
 the following struct:-
 
 /* SoC machine */
-struct snd_soc_card {_
+struct snd_soc_card {
 	char *name;
 
 	int (*probe)(struct platform_device *pdev);
