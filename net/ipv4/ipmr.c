@@ -222,12 +222,16 @@ static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops reg_vif_netdev_ops = {
+	.ndo_start_xmit	= reg_vif_xmit,
+};
+
 static void reg_vif_setup(struct net_device *dev)
 {
 	dev->type		= ARPHRD_PIMREG;
 	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 8;
 	dev->flags		= IFF_NOARP;
-	dev->hard_start_xmit	= reg_vif_xmit;
+	dev->netdev_ops		= &reg_vif_netdev_ops,
 	dev->destructor		= free_netdev;
 }
 
