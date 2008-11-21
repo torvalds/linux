@@ -518,6 +518,15 @@ config SND_HDA_HWDEP
 	  This interface can be used for out-of-band communication
 	  with codecs for debugging purposes.
 
+config SND_HDA_RECONFIG
+	bool "Allow dynamic codec reconfiguration (EXPERIMENTAL)"
+	depends on SND_HDA_HWDEP && EXPERIMENTAL
+	help
+	  Say Y here to enable the HD-audio codec re-configuration feature.
+	  This adds the sysfs interfaces to allow user to clear the whole
+	  codec configuration, change the codec setup, add extra verbs,
+	  and re-configure the codec dynamically.
+
 config SND_HDA_INPUT_BEEP
 	bool "Support digital beep via input layer"
 	depends on SND_HDA_INTEL

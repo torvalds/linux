@@ -145,6 +145,8 @@ int __devinit snd_hda_create_hwdep(struct hda_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_SND_HDA_RECONFIG
+
 /*
  * sysfs interface
  */
@@ -347,3 +349,5 @@ int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
 					  hwdep->device, &codec_attrs[i]);
 	return 0;
 }
+
+#endif /* CONFIG_SND_HDA_RECONFIG */

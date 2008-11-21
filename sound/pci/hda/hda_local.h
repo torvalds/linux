@@ -409,9 +409,17 @@ void snd_hda_ctls_clear(struct hda_codec *codec);
  */
 #ifdef CONFIG_SND_HDA_HWDEP
 int snd_hda_create_hwdep(struct hda_codec *codec);
-int snd_hda_hwdep_add_sysfs(struct hda_codec *codec);
 #else
 static inline int snd_hda_create_hwdep(struct hda_codec *codec) { return 0; }
+#endif
+
+#ifdef CONFIG_SND_HDA_RECONFIG
+int snd_hda_hwdep_add_sysfs(struct hda_codec *codec);
+#else
+static inline int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
+{
+	return 0;
+}
 #endif
 
 /*
