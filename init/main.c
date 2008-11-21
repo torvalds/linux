@@ -723,7 +723,7 @@ int do_one_initcall(initcall_t fn)
 		disable_boot_trace();
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
-		ret.duration = (unsigned long long) delta.tv64 >> 10;
+		ret.duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 		trace_boot_ret(&ret, fn);
 		printk("initcall %pF returned %d after %Ld usecs\n", fn,
 			ret.result, ret.duration);
