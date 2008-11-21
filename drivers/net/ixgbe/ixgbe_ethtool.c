@@ -97,9 +97,18 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	((((struct ixgbe_adapter *)netdev_priv(netdev))->num_tx_queues + \
 	((struct ixgbe_adapter *)netdev_priv(netdev))->num_rx_queues) * \
 	(sizeof(struct ixgbe_queue_stats) / sizeof(u64)))
-#define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + IXGBE_QUEUE_STATS_LEN)
 #define IXGBE_GLOBAL_STATS_LEN ARRAY_SIZE(ixgbe_gstrings_stats)
-#define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + IXGBE_QUEUE_STATS_LEN)
+#define IXGBE_PB_STATS_LEN ( \
+                 (((struct ixgbe_adapter *)netdev->priv)->flags & \
+                 IXGBE_FLAG_DCB_ENABLED) ? \
+                 (sizeof(((struct ixgbe_adapter *)0)->stats.pxonrxc) + \
+                  sizeof(((struct ixgbe_adapter *)0)->stats.pxontxc) + \
+                  sizeof(((struct ixgbe_adapter *)0)->stats.pxoffrxc) + \
+                  sizeof(((struct ixgbe_adapter *)0)->stats.pxofftxc)) \
+                  / sizeof(u64) : 0)
+#define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + \
+                         IXGBE_PB_STATS_LEN + \
+                         IXGBE_QUEUE_STATS_LEN)
 
 static int ixgbe_get_settings(struct net_device *netdev,
                               struct ethtool_cmd *ecmd)
@@ -831,6 +840,16 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 			data[i + k] = queue_stat[k];
 		i += k;
 	}
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+		for (j = 0; j < MAX_TX_PACKET_BUFFERS; j++) {
+			data[i++] = adapter->stats.pxontxc[j];
+			data[i++] = adapter->stats.pxofftxc[j];
+		}
+		for (j = 0; j < MAX_RX_PACKET_BUFFERS; j++) {
+			data[i++] = adapter->stats.pxonrxc[j];
+			data[i++] = adapter->stats.pxoffrxc[j];
+		}
+	}
 }
 
 static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
@@ -858,6 +877,13 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
+		}
+		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			for (i = 0; i < MAX_TX_PACKET_BUFFERS; i++) {
+				sprintf(p, "tx_pb_%u_pxon", i);
+			}
+			for (i = 0; i < MAX_RX_PACKET_BUFFERS; i++) {
+			}
 		}
 		/* BUG_ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
 		break;

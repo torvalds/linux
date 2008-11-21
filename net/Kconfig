@@ -194,6 +194,7 @@ source "net/lapb/Kconfig"
 source "net/econet/Kconfig"
 source "net/wanrouter/Kconfig"
 source "net/sched/Kconfig"
+source "net/dcb/Kconfig"
 
 menu "Network testing"
 

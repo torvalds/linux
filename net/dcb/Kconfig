@@ -1,0 +1,12 @@
+config DCB
+        tristate "Data Center Bridging support"
+
+config DCBNL
+	bool "Data Center Bridging netlink interface support"
+	depends on DCB
+	default n
+	---help---
+	  This option turns on the netlink interface
+	  (dcbnl) for Data Center Bridging capable devices.
+
+	  If unsure, say N.
