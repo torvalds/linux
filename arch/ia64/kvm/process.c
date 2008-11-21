@@ -527,7 +527,8 @@ void reflect_interruption(u64 ifa, u64 isr, u64 iim,
 	vector = vec2off[vec];
 
 	if (!(vpsr & IA64_PSR_IC) && (vector != IA64_DATA_NESTED_TLB_VECTOR)) {
-		panic_vm(vcpu);
+		panic_vm(vcpu, "Interruption with vector :0x%lx occurs "
+						"with psr.ic = 0\n", vector);
 		return;
 	}
 
@@ -586,7 +587,7 @@ static void set_pal_call_result(struct kvm_vcpu *vcpu)
 		vcpu_set_gr(vcpu, 10, p->u.pal_data.ret.v1, 0);
 		vcpu_set_gr(vcpu, 11, p->u.pal_data.ret.v2, 0);
 	} else
-		panic_vm(vcpu);
+		panic_vm(vcpu, "Mis-set for exit reason!\n");
 }
 
 static void set_sal_call_data(struct kvm_vcpu *vcpu)
@@ -614,7 +615,7 @@ static void set_sal_call_result(struct kvm_vcpu *vcpu)
 		vcpu_set_gr(vcpu, 10, p->u.sal_data.ret.r10, 0);
 		vcpu_set_gr(vcpu, 11, p->u.sal_data.ret.r11, 0);
 	} else
-		panic_vm(vcpu);
+		panic_vm(vcpu, "Mis-set for exit reason!\n");
 }
 
 void  kvm_ia64_handle_break(unsigned long ifa, struct kvm_pt_regs *regs,
@@ -680,7 +681,7 @@ static void generate_exirq(struct kvm_vcpu *vcpu)
 	vpsr = VCPU(vcpu, vpsr);
 	isr = vpsr & IA64_PSR_RI;
 	if (!(vpsr & IA64_PSR_IC))
-		panic_vm(vcpu);
+		panic_vm(vcpu, "Trying to inject one IRQ with psr.ic=0\n");
 	reflect_interruption(0, isr, 0, 12, regs); /* EXT IRQ */
 }
 
