@@ -136,6 +136,7 @@ my $function_regex;	# Find the name of a function
 			#    (return offset and func name)
 my $mcount_regex;	# Find the call site to mcount (return offset)
 my $alignment;		# The .align value to use for $mcount_section
+my $section_type;	# Section header plus possible alignment command
 
 if ($arch eq "x86") {
     if ($bits == 64) {
@@ -153,6 +154,7 @@ $nm_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\S+)";
 $section_regex = "Disassembly of section\\s+(\\S+):";
 $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
 $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
+$section_type = '@progbits';
 $type = ".long";
 
 if ($arch eq "x86_64") {
@@ -191,6 +193,10 @@ if ($arch eq "x86_64") {
     if ($bits == 64) {
 	$type = ".quad";
     }
+
+} elsif ($arch eq "arm") {
+    $alignment = 2;
+    $section_type = '%progbits';
 
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
@@ -312,7 +318,7 @@ sub update_funcs
 	if (!$opened) {
 	    open(FILE, ">$mcount_s") || die "can't create $mcount_s\n";
 	    $opened = 1;
-	    print FILE "\t.section $mcount_section,\"a\",\@progbits\n";
+	    print FILE "\t.section $mcount_section,\"a\",$section_type\n";
 	    print FILE "\t.align $alignment\n" if (defined($alignment));
 	}
 	printf FILE "\t%s %s + %d\n", $type, $ref_func, $offsets[$i] - $offset;
