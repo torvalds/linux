@@ -168,6 +168,17 @@ static int num_boards;	/* total number of adapters configured */
 #define PRINTK(s, args...)
 #endif				// DRIVERDEBUG
 
+static const struct net_device_ops skfp_netdev_ops = {
+	.ndo_open		= skfp_open,
+	.ndo_stop		= skfp_close,
+	.ndo_start_xmit		= skfp_send_pkt,
+	.ndo_get_stats		= skfp_ctl_get_stats,
+	.ndo_change_mtu		= fddi_change_mtu,
+	.ndo_set_multicast_list = skfp_ctl_set_multicast_list,
+	.ndo_set_mac_address	= skfp_ctl_set_mac_address,
+	.ndo_do_ioctl		= skfp_ioctl,
+};
+
 /*
  * =================
  * = skfp_init_one =
@@ -253,13 +264,7 @@ static int skfp_init_one(struct pci_dev *pdev,
 	}
 
 	dev->irq = pdev->irq;
-	dev->get_stats = &skfp_ctl_get_stats;
-	dev->open = &skfp_open;
-	dev->stop = &skfp_close;
-	dev->hard_start_xmit = &skfp_send_pkt;
-	dev->set_multicast_list = &skfp_ctl_set_multicast_list;
-	dev->set_mac_address = &skfp_ctl_set_mac_address;
-	dev->do_ioctl = &skfp_ioctl;
+	dev->netdev_ops = &skfp_netdev_ops;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
