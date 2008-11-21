@@ -191,7 +191,7 @@ struct ftrace_pointer {
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct ftrace_pointer *f = m->private;
+	const struct ftrace_pointer *f = m->private;
 	struct ftrace_branch_data *p = v;
 
 	(*pos)++;
@@ -224,7 +224,7 @@ static void t_stop(struct seq_file *m, void *p)
 
 static int t_show(struct seq_file *m, void *v)
 {
-	struct ftrace_pointer *fp = m->private;
+	const struct ftrace_pointer *fp = m->private;
 	struct ftrace_branch_data *p = v;
 	const char *f;
 	long percent;
@@ -296,7 +296,7 @@ static const struct file_operations tracing_branch_fops = {
 extern unsigned long __start_branch_profile[];
 extern unsigned long __stop_branch_profile[];
 
-static struct ftrace_pointer ftrace_branch_pos = {
+static const struct ftrace_pointer ftrace_branch_pos = {
 	.start			= __start_branch_profile,
 	.stop			= __stop_branch_profile,
 	.hit			= 1,
@@ -320,7 +320,7 @@ static __init int ftrace_branch_init(void)
 	d_tracer = tracing_init_dentry();
 
 	entry = debugfs_create_file("profile_annotated_branch", 0444, d_tracer,
-				    &ftrace_annotated_branch_pos,
+				    (void *)&ftrace_annotated_branch_pos,
 				    &tracing_branch_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
@@ -328,7 +328,7 @@ static __init int ftrace_branch_init(void)
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
 	entry = debugfs_create_file("profile_branch", 0444, d_tracer,
-				    &ftrace_branch_pos,
+				    (void *)&ftrace_branch_pos,
 				    &tracing_branch_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs"
