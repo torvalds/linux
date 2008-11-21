@@ -23,6 +23,7 @@
 
 #include <asm/processor.h>
 #include <asm/vmware.h>
+#include <asm/hypervisor.h>
 
 static inline void __cpuinit
 detect_hypervisor_vendor(struct cpuinfo_x86 *c)
