@@ -108,7 +108,34 @@ enum dcb_rx_pba_cfg {
 	pba_80_48      /* PBA[0-3] each use 80KB, PBA[4-7] each use 48KB */
 };
 
+/*
+ * This structure contains many values encoded as fixed-point
+ * numbers, meaning that some of bits are dedicated to the
+ * magnitude and others to the fraction part. In the comments
+ * this is shown as f=n, where n is the number of fraction bits.
+ * These fraction bits are always the low-order bits. The size
+ * of the magnitude is not specified.
+ */
+struct bcn_config {
+	u32 rp_admin_mode[MAX_TRAFFIC_CLASS]; /* BCN enabled, per TC */
+	u32 bcna_option[2]; /* BCNA Port + MAC Addr */
+	u32 rp_w;        /* Derivative Weight, f=3 */
+	u32 rp_gi;       /* Increase Gain, f=12 */
+	u32 rp_gd;       /* Decrease Gain, f=12 */
+	u32 rp_ru;       /* Rate Unit */
+	u32 rp_alpha;    /* Max Decrease Factor, f=12 */
+	u32 rp_beta;     /* Max Increase Factor, f=12 */
+	u32 rp_ri;       /* Initial Rate */
+	u32 rp_td;       /* Drift Interval Timer */
+	u32 rp_rd;       /* Drift Increase */
+	u32 rp_tmax;     /* Severe Congestion Backoff Timer Range */
+	u32 rp_rmin;     /* Severe Congestion Restart Rate */
+	u32 rp_wrtt;     /* RTT Moving Average Weight */
+};
+
 struct ixgbe_dcb_config {
+	struct bcn_config bcn;
+
 	struct tc_configuration tc_config[MAX_TRAFFIC_CLASS];
 	u8     bw_percentage[2][MAX_BW_GROUP]; /* One each for Tx/Rx */
 

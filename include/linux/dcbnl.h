@@ -46,6 +46,8 @@ struct dcbmsg {
  * @DCB_CMD_GCAP: request the DCB capabilities of the device
  * @DCB_CMD_GNUMTCS: get the number of traffic classes currently supported
  * @DCB_CMD_SNUMTCS: set the number of traffic classes
+ * @DCB_CMD_GBCN: set backward congestion notification configuration
+ * @DCB_CMD_SBCN: get backward congestion notification configration.
  */
 enum dcbnl_commands {
 	DCB_CMD_UNDEFINED,
@@ -62,17 +64,23 @@ enum dcbnl_commands {
 	DCB_CMD_PFC_SCFG,
 
 	DCB_CMD_SET_ALL,
+
 	DCB_CMD_GPERM_HWADDR,
+
 	DCB_CMD_GCAP,
+
 	DCB_CMD_GNUMTCS,
 	DCB_CMD_SNUMTCS,
+
 	DCB_CMD_PFC_GSTATE,
 	DCB_CMD_PFC_SSTATE,
+
+	DCB_CMD_BCN_GCFG,
+	DCB_CMD_BCN_SCFG,
 
 	__DCB_CMD_ENUM_MAX,
 	DCB_CMD_MAX = __DCB_CMD_ENUM_MAX - 1,
 };
-
 
 /**
  * enum dcbnl_attrs - DCB top-level netlink attributes
@@ -88,6 +96,7 @@ enum dcbnl_commands {
  * @DCB_ATTR_PERM_HWADDR: MAC address of the physical device (NLA_NESTED)
  * @DCB_ATTR_CAP: DCB capabilities of the device (NLA_NESTED)
  * @DCB_ATTR_NUMTCS: number of traffic classes supported (NLA_NESTED)
+ * @DCB_ATTR_BCN: backward congestion notification configuration (NLA_NESTED)
  */
 enum dcbnl_attrs {
 	DCB_ATTR_UNDEFINED,
@@ -102,6 +111,7 @@ enum dcbnl_attrs {
 	DCB_ATTR_PERM_HWADDR,
 	DCB_ATTR_CAP,
 	DCB_ATTR_NUMTCS,
+	DCB_ATTR_BCN,
 
 	__DCB_ATTR_ENUM_MAX,
 	DCB_ATTR_MAX = __DCB_ATTR_ENUM_MAX - 1,
@@ -280,6 +290,38 @@ enum dcbnl_numtcs_attrs {
 
 	__DCB_NUMTCS_ATTR_ENUM_MAX,
 	DCB_NUMTCS_ATTR_MAX = __DCB_NUMTCS_ATTR_ENUM_MAX - 1,
+};
+
+enum dcbnl_bcn_attrs{
+	DCB_BCN_ATTR_UNDEFINED = 0,
+
+	DCB_BCN_ATTR_RP_0,
+	DCB_BCN_ATTR_RP_1,
+	DCB_BCN_ATTR_RP_2,
+	DCB_BCN_ATTR_RP_3,
+	DCB_BCN_ATTR_RP_4,
+	DCB_BCN_ATTR_RP_5,
+	DCB_BCN_ATTR_RP_6,
+	DCB_BCN_ATTR_RP_7,
+	DCB_BCN_ATTR_RP_ALL,
+
+	DCB_BCN_ATTR_ALPHA,
+	DCB_BCN_ATTR_BETA,
+	DCB_BCN_ATTR_GD,
+	DCB_BCN_ATTR_GI,
+	DCB_BCN_ATTR_TMAX,
+	DCB_BCN_ATTR_TD,
+	DCB_BCN_ATTR_RMIN,
+	DCB_BCN_ATTR_W,
+	DCB_BCN_ATTR_RD,
+	DCB_BCN_ATTR_RU,
+	DCB_BCN_ATTR_WRTT,
+	DCB_BCN_ATTR_RI,
+	DCB_BCN_ATTR_C,
+	DCB_BCN_ATTR_ALL,
+
+	__DCB_BCN_ATTR_ENUM_MAX,
+	DCB_BCN_ATTR_MAX = __DCB_BCN_ATTR_ENUM_MAX - 1,
 };
 
 /**
