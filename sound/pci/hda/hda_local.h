@@ -490,7 +490,8 @@ void snd_hdmi_show_eld(struct hdmi_eld *eld);
 #ifdef CONFIG_PROC_FS
 int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld);
 #else
-inline int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld)
+static inline int snd_hda_eld_proc_new(struct hda_codec *codec,
+				       struct hdmi_eld *eld)
 {
 	return 0;
 }
