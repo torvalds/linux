@@ -99,7 +99,7 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	(sizeof(struct ixgbe_queue_stats) / sizeof(u64)))
 #define IXGBE_GLOBAL_STATS_LEN ARRAY_SIZE(ixgbe_gstrings_stats)
 #define IXGBE_PB_STATS_LEN ( \
-                 (((struct ixgbe_adapter *)netdev->priv)->flags & \
+                 (((struct ixgbe_adapter *)netdev_priv(netdev))->flags & \
                  IXGBE_FLAG_DCB_ENABLED) ? \
                  (sizeof(((struct ixgbe_adapter *)0)->stats.pxonrxc) + \
                   sizeof(((struct ixgbe_adapter *)0)->stats.pxontxc) + \
