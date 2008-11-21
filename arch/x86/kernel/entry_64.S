@@ -529,10 +529,13 @@ sysret_signal:
 	jc sysret_audit
 #endif
 	/* edx:	work flags (arg3) */
-	leaq do_notify_resume(%rip),%rax
 	leaq -ARGOFFSET(%rsp),%rdi # &pt_regs -> arg1
 	xorl %esi,%esi # oldset -> arg2
-	call ptregscall_common
+	SAVE_REST
+	FIXUP_TOP_OF_STACK %r11
+	call do_notify_resume
+	RESTORE_TOP_OF_STACK %r11
+	RESTORE_REST
 	movl $_TIF_WORK_MASK,%edi
 	/* Use IRET because user could have changed frame. This
 	   works because ptregscall_common has called FIXUP_TOP_OF_STACK. */
