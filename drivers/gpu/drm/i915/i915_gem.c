@@ -1866,17 +1866,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
-
-		if (obj_priv->gtt_space == NULL) {
-			/* We evicted the buffer in the process of validating
-			 * our set of buffers in.  We could try to recover by
-			 * kicking them everything out and trying again from
-			 * the start.
-			 */
-			ret = -ENOMEM;
-			goto err;
-		}
 
 		/* make sure all previous memory operations have passed */
 		ret = i915_gem_object_set_domain(obj,
