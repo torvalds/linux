@@ -3715,6 +3715,22 @@ err_out:
 	return err;
 }
 
+
+static const struct net_device_ops qlge_netdev_ops = {
+	.ndo_open		= qlge_open,
+	.ndo_stop		= qlge_close,
+	.ndo_start_xmit		= qlge_send,
+	.ndo_change_mtu		= qlge_change_mtu,
+	.ndo_get_stats		= qlge_get_stats,
+	.ndo_set_multicast_list = qlge_set_multicast_list,
+	.ndo_set_mac_address	= qlge_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_tx_timeout		= qlge_tx_timeout,
+	.ndo_vlan_rx_register	= ql_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= ql_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= ql_vlan_rx_kill_vid,
+};
+
 static int __devinit qlge_probe(struct pci_dev *pdev,
 				const struct pci_device_id *pci_entry)
 {
@@ -3752,19 +3768,11 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 	 */
 	ndev->tx_queue_len = qdev->tx_ring_size;
 	ndev->irq = pdev->irq;
-	ndev->open = qlge_open;
-	ndev->stop = qlge_close;
-	ndev->hard_start_xmit = qlge_send;
+
+	ndev->netdev_ops = &qlge_netdev_ops;
 	SET_ETHTOOL_OPS(ndev, &qlge_ethtool_ops);
-	ndev->change_mtu = qlge_change_mtu;
-	ndev->get_stats = qlge_get_stats;
-	ndev->set_multicast_list = qlge_set_multicast_list;
-	ndev->set_mac_address = qlge_set_mac_address;
-	ndev->tx_timeout = qlge_tx_timeout;
 	ndev->watchdog_timeo = 10 * HZ;
-	ndev->vlan_rx_register = ql_vlan_rx_register;
-	ndev->vlan_rx_add_vid = ql_vlan_rx_add_vid;
-	ndev->vlan_rx_kill_vid = ql_vlan_rx_kill_vid;
+
 	err = register_netdev(ndev);
 	if (err) {
 		dev_err(&pdev->dev, "net device registration failed.\n");
