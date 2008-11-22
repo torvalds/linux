@@ -588,7 +588,6 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	char firmware_version[32];
-	u16 eeprom_data;
 
 	strncpy(drvinfo->driver,  e1000e_driver_name, 32);
 	strncpy(drvinfo->version, e1000e_driver_version, 32);
@@ -597,11 +596,10 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	 * EEPROM image version # is reported as firmware version # for
 	 * PCI-E controllers
 	 */
-	e1000_read_nvm(&adapter->hw, 5, 1, &eeprom_data);
 	sprintf(firmware_version, "%d.%d-%d",
-		(eeprom_data & 0xF000) >> 12,
-		(eeprom_data & 0x0FF0) >> 4,
-		eeprom_data & 0x000F);
+		(adapter->eeprom_vers & 0xF000) >> 12,
+		(adapter->eeprom_vers & 0x0FF0) >> 4,
+		(adapter->eeprom_vers & 0x000F));
 
 	strncpy(drvinfo->fw_version, firmware_version, 32);
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);

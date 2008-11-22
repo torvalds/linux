@@ -193,6 +193,7 @@ struct e1000_adapter {
 	u16 mng_vlan_id;
 	u16 link_speed;
 	u16 link_duplex;
+	u16 eeprom_vers;
 
 	spinlock_t tx_queue_lock; /* prevent concurrent tail updates */
 

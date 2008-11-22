@@ -5025,6 +5025,9 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	adapter->wol = adapter->eeprom_wol;
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
+	/* save off EEPROM version number */
+	e1000_read_nvm(&adapter->hw, 5, 1, &adapter->eeprom_vers);
+
 	/* reset the hardware with the new settings */
 	e1000e_reset(adapter);
 
