@@ -214,6 +214,21 @@ config HERMES
 	  configure your card and that /etc/pcmcia/wireless.opts works :
 	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>
 
+config HERMES_CACHE_FW_ON_INIT
+	bool "Cache Hermes firmware on driver initialisation"
+	depends on HERMES
+	default y
+	---help---
+	  Say Y to cache any firmware required by the Hermes drivers
+	  on startup.  The firmware will remain cached until the
+	  driver is unloaded.  The cache uses 64K of RAM.
+
+	  Otherwise load the firmware from userspace as required.  In
+	  this case the driver should be unloaded and restarted
+	  whenever the firmware is changed.
+
+	  If you are not sure, say Y.
+
 config APPLE_AIRPORT
 	tristate "Apple Airport support (built-in)"
 	depends on PPC_PMAC && HERMES

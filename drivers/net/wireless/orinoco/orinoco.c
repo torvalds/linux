@@ -84,6 +84,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/firmware.h>
+#include <linux/suspend.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
@@ -712,6 +713,7 @@ static int orinoco_download(struct orinoco_private *priv)
 	return err;
 }
 
+#if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
 static void orinoco_cache_fw(struct orinoco_private *priv, int ap)
 {
 	const struct firmware *fw_entry = NULL;
@@ -745,6 +747,10 @@ static void orinoco_uncache_fw(struct orinoco_private *priv)
 	priv->cached_pri_fw = NULL;
 	priv->cached_fw = NULL;
 }
+#else
+#define orinoco_cache_fw(priv, ap)
+#define orinoco_uncache_fw(priv)
+#endif
 
 /********************************************************************/
 /* Device methods                                                   */
@@ -3100,6 +3106,50 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 }
 
 /********************************************************************/
+/* Power management                                                 */
+/********************************************************************/
+#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_HERMES_CACHE_FW_ON_INIT)
+static int orinoco_pm_notifier(struct notifier_block *notifier,
+			       unsigned long pm_event,
+			       void *unused)
+{
+	struct orinoco_private *priv = container_of(notifier,
+						    struct orinoco_private,
+						    pm_notifier);
+
+	/* All we need to do is cache the firmware before suspend, and
+	 * release it when we come out.
+	 *
+	 * Only need to do this if we're downloading firmware. */
+	if (!priv->do_fw_download)
+		return NOTIFY_DONE;
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		orinoco_cache_fw(priv, 0);
+		break;
+
+	case PM_POST_RESTORE:
+		/* Restore from hibernation failed. We need to clean
+		 * up in exactly the same way, so fall through. */
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+		orinoco_uncache_fw(priv);
+		break;
+
+	case PM_RESTORE_PREPARE:
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+#else /* !PM_SLEEP || HERMES_CACHE_FW_ON_INIT */
+#define orinoco_pm_notifier NULL
+#endif
+
+/********************************************************************/
 /* Initialization                                                   */
 /********************************************************************/
 
@@ -3342,7 +3392,9 @@ static int orinoco_init(struct net_device *dev)
 	}
 
 	if (priv->do_fw_download) {
+#ifdef CONFIG_HERMES_CACHE_FW_ON_INIT
 		orinoco_cache_fw(priv, 0);
+#endif
 
 		err = orinoco_download(priv);
 		if (err)
@@ -3583,6 +3635,10 @@ struct net_device
 	priv->cached_pri_fw = NULL;
 	priv->cached_fw = NULL;
 
+	/* Register PM notifiers */
+	priv->pm_notifier.notifier_call = orinoco_pm_notifier;
+	register_pm_notifier(&priv->pm_notifier);
+
 	return dev;
 }
 
@@ -3595,6 +3651,7 @@ void free_orinocodev(struct net_device *dev)
 	 * emptying the list */
 	tasklet_kill(&priv->rx_tasklet);
 
+	unregister_pm_notifier(&priv->pm_notifier);
 	orinoco_uncache_fw(priv);
 
 	priv->wpa_ie_len = 0;
