@@ -739,6 +739,7 @@ struct e1000_phy_operations {
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
 	s32  (*write_phy_reg)(struct e1000_hw *, u32, u16);
+	s32  (*cfg_on_link_up)(struct e1000_hw *);
 };
 
 /* Function pointers for the NVM. */

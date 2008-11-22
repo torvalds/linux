@@ -1394,6 +1394,7 @@ static struct e1000_phy_operations e82_phy_ops_igp = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_phy_reg		= e1000e_write_phy_reg_igp,
+	.cfg_on_link_up      	= NULL,
 };
 
 static struct e1000_phy_operations e82_phy_ops_m88 = {
@@ -1410,6 +1411,7 @@ static struct e1000_phy_operations e82_phy_ops_m88 = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_phy_reg		= e1000e_write_phy_reg_m88,
+	.cfg_on_link_up      	= NULL,
 };
 
 static struct e1000_phy_operations e82_phy_ops_bm = {
@@ -1426,6 +1428,7 @@ static struct e1000_phy_operations e82_phy_ops_bm = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_phy_reg		= e1000e_write_phy_reg_bm2,
+	.cfg_on_link_up      	= NULL,
 };
 
 static struct e1000_nvm_operations e82571_nvm_ops = {

@@ -3493,6 +3493,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 					struct e1000_adapter, watchdog_task);
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_mac_info *mac = &adapter->hw.mac;
+	struct e1000_phy_info *phy = &adapter->hw.phy;
 	struct e1000_ring *tx_ring = adapter->tx_ring;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 link, tctl;
@@ -3598,6 +3599,13 @@ static void e1000_watchdog_task(struct work_struct *work)
 			tctl = er32(TCTL);
 			tctl |= E1000_TCTL_EN;
 			ew32(TCTL, tctl);
+
+                        /*
+			 * Perform any post-link-up configuration before
+			 * reporting link up.
+			 */
+			if (phy->ops.cfg_on_link_up)
+				phy->ops.cfg_on_link_up(hw);
 
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
