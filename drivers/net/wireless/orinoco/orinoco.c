@@ -431,9 +431,9 @@ struct fw_info {
 };
 
 const static struct fw_info orinoco_fw[] = {
-	{ "", "agere_sta_fw.bin", "agere_ap_fw.bin", 0x00390000, 1000 },
-	{ "", "prism_sta_fw.bin", "prism_ap_fw.bin", 0, 1024 },
-	{ "symbol_sp24t_prim_fw", "symbol_sp24t_sec_fw", "", 0x00003100, 512 }
+	{ NULL, "agere_sta_fw.bin", "agere_ap_fw.bin", 0x00390000, 1000 },
+	{ NULL, "prism_sta_fw.bin", "prism_ap_fw.bin", 0, 1024 },
+	{ "symbol_sp24t_prim_fw", "symbol_sp24t_sec_fw", NULL, 0x00003100, 512 }
 };
 
 /* Structure used to access fields in FW
@@ -487,18 +487,17 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	if (err)
 		goto free;
 
-	if (priv->cached_fw)
-		fw_entry = priv->cached_fw;
-	else {
+	if (!priv->cached_fw) {
 		err = request_firmware(&fw_entry, firmware, priv->dev);
+
 		if (err) {
 			printk(KERN_ERR "%s: Cannot find firmware %s\n",
 			       dev->name, firmware);
 			err = -ENOENT;
 			goto free;
 		}
-		priv->cached_fw = fw_entry;
-	}
+	} else
+		fw_entry = priv->cached_fw;
 
 	hdr = (const struct orinoco_fw_header *) fw_entry->data;
 
@@ -540,11 +539,9 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	       dev->name, hermes_present(hw));
 
 abort:
-	/* In case of error, assume firmware was bogus and release it */
-	if (err) {
-		priv->cached_fw = NULL;
+	/* If we requested the firmware, release it. */
+	if (!priv->cached_fw)
 		release_firmware(fw_entry);
-	}
 
 free:
 	kfree(pda);
@@ -706,6 +703,30 @@ static int orinoco_download(struct orinoco_private *priv)
 	 * the driver */
 
 	return err;
+}
+
+static void orinoco_cache_fw(struct orinoco_private *priv, int ap)
+{
+	const struct firmware *fw_entry = NULL;
+	const char *fw;
+
+	if (ap)
+		fw = orinoco_fw[priv->firmware_type].ap_fw;
+	else
+		fw = orinoco_fw[priv->firmware_type].sta_fw;
+
+	if (fw) {
+		if (request_firmware(&fw_entry, fw, priv->dev) == 0)
+			priv->cached_fw = fw_entry;
+	}
+}
+
+static void orinoco_uncache_fw(struct orinoco_private *priv)
+{
+	if (priv->cached_fw)
+		release_firmware(priv->cached_fw);
+
+	priv->cached_fw = NULL;
 }
 
 /********************************************************************/
@@ -3304,6 +3325,8 @@ static int orinoco_init(struct net_device *dev)
 	}
 
 	if (priv->do_fw_download) {
+		orinoco_cache_fw(priv, 0);
+
 		err = orinoco_download(priv);
 		if (err)
 			priv->do_fw_download = 0;
@@ -3553,9 +3576,9 @@ void free_orinocodev(struct net_device *dev)
 	 * when we call tasklet_kill it will run one final time,
 	 * emptying the list */
 	tasklet_kill(&priv->rx_tasklet);
-	if (priv->cached_fw)
-		release_firmware(priv->cached_fw);
-	priv->cached_fw = NULL;
+
+	orinoco_uncache_fw(priv);
+
 	priv->wpa_ie_len = 0;
 	kfree(priv->wpa_ie);
 	orinoco_mic_free(priv);
