@@ -149,6 +149,15 @@ config INPUT_APMPOWER
 	  To compile this driver as a module, choose M here: the
 	  module will be called apm-power.
 
+config INPUT_KEYRESET
+	tristate "Reset key"
+	depends on INPUT
+	---help---
+	  Say Y here if you want to reboot when some keys are pressed;
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keyreset.
+
 config XEN_KBDDEV_FRONTEND
 	tristate "Xen virtual keyboard and mouse support"
 	depends on XEN_FBDEV_FRONTEND
