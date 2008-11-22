@@ -61,17 +61,12 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-/* smartcard length */
-#define SMARTCARD_BYTES		64
 #define LCD_MINOR		156
 #define KEYPAD_MINOR		185
-#define SMARTCARD_MINOR		186
 
 #define PANEL_VERSION		"0.9.5"
 
 #define LCD_MAXBYTES		256	/* max burst write */
-
-#define SMARTCARD_LOGICAL_DETECTOR	"S6"	/* D6 wired to SELECT = card inserted */
 
 #define KEYPAD_BUFFER		64
 #define INPUT_POLL_TIME		(HZ/50)	/* poll the keyboard this every second */
@@ -119,15 +114,6 @@
 #define PIN_INITP		16
 #define PIN_SELECP		17
 #define PIN_NOT_SET		127
-
-/* some smartcard-specific signals */
-#define PNL_SC_IO		PNL_PD1	/* Warning! inverted output, 0=highZ */
-#define PNL_SC_RST		PNL_PD2
-#define PNL_SC_CLK		PNL_PD3
-#define PNL_SC_RW		PNL_PD4
-#define PNL_SC_ENA		PNL_PINITP
-#define PNL_SC_IOR		PNL_PACK
-#define PNL_SC_BITS		(PNL_SC_IO | PNL_SC_RST | PNL_SC_CLK | PNL_SC_RW)
 
 #define LCD_FLAG_S		0x0001
 #define LCD_FLAG_ID		0x0002
@@ -209,17 +195,12 @@ static pmask_t phys_curr;	/* stabilized phys_read (phys_read|phys_read_prev) */
 static pmask_t phys_prev;	/* previous phys_curr */
 static char inputs_stable;	/* 0 means that at least one logical signal needs be computed */
 
-/* these variables are specific to the smartcard */
-static __u8 smartcard_data[SMARTCARD_BYTES];
-static int smartcard_ptr;	/* pointer to half bytes in smartcard_data */
-
 /* these variables are specific to the keypad */
 static char keypad_buffer[KEYPAD_BUFFER];
 static int keypad_buflen;
 static int keypad_start;
 static char keypressed;
 static wait_queue_head_t keypad_read_wait;
-static wait_queue_head_t smartcard_read_wait;
 
 /* lcd-specific variables */
 static unsigned long int lcd_flags;	/* contains the LCD config state */
@@ -304,7 +285,6 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 #define DEFAULT_PARPORT         0
 #define DEFAULT_LCD             LCD_TYPE_OLD
 #define DEFAULT_KEYPAD          KEYPAD_TYPE_OLD
-#define DEFAULT_SMARTCARD       0
 #define DEFAULT_LCD_WIDTH       40
 #define DEFAULT_LCD_BWIDTH      40
 #define DEFAULT_LCD_HWIDTH      64
@@ -333,11 +313,6 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 #ifdef CONFIG_PANEL_KEYPAD
 #undef DEFAULT_KEYPAD
 #define DEFAULT_KEYPAD CONFIG_PANEL_KEYPAD
-#endif
-
-#ifdef CONFIG_PANEL_SMARTCARD
-#undef DEFAULT_SMARTCARD
-#define DEFAULT_SMARTCARD 1
 #endif
 
 #ifdef CONFIG_PANEL_LCD
@@ -408,14 +383,12 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 #endif /* DEFAULT_PROFILE == 0 */
 
 /* global variables */
-static int smartcard_open_cnt;	/* #times opened */
 static int keypad_open_cnt;	/* #times opened */
 static int lcd_open_cnt;	/* #times opened */
 static struct pardevice *pprt;
 
 static int lcd_initialized;
 static int keypad_initialized;
-static int smartcard_initialized;
 
 static int light_tempo;
 
@@ -430,7 +403,7 @@ static void (*lcd_clear_fast) (void);
 static DEFINE_SPINLOCK(pprt_lock);
 static struct timer_list scan_timer;
 
-MODULE_DESCRIPTION("Generic parallel port LCD/Keypad/Smartcard driver");
+MODULE_DESCRIPTION("Generic parallel port LCD/Keypad driver");
 
 static int parport = -1;
 module_param(parport, int, 0000);
@@ -478,11 +451,6 @@ module_param(keypad_type, int, 0000);
 MODULE_PARM_DESC(keypad_type,
 		 "Keypad type: 0=none, 1=old 6 keys, 2=new 6+1 keys, 3=nexcom 4 keys");
 
-static int smartcard_enabled = -1;
-module_param(smartcard_enabled, int, 0000);
-MODULE_PARM_DESC(smartcard_enabled,
-		 "Smartcard reader: 0=disabled (default), 1=enabled");
-
 static int profile = DEFAULT_PROFILE;
 module_param(profile, int, 0000);
 MODULE_PARM_DESC(profile,
@@ -494,7 +462,7 @@ MODULE_PARM_DESC(profile,
  * (negative) if the signal is negated. -MAXINT is used to indicate that the
  * pin has not been explicitly specified.
  *
- * WARNING! no check will be performed about collisions with keypad/smartcard !
+ * WARNING! no check will be performed about collisions with keypad !
  */
 
 static int lcd_e_pin  = PIN_NOT_SET;
@@ -1799,9 +1767,7 @@ static void panel_process_inputs(void)
 
 static void panel_scan_timer(void)
 {
-	if ((keypad_enabled && keypad_initialized)
-	    || (smartcard_enabled && smartcard_enabled)) {
-
+	if (keypad_enabled && keypad_initialized) {
 		if (spin_trylock(&pprt_lock)) {
 			phys_scan_contacts();
 			spin_unlock(&pprt_lock);	/* no need for the parport anymore */
@@ -1825,121 +1791,6 @@ static void panel_scan_timer(void)
 
 	mod_timer(&scan_timer, jiffies + INPUT_POLL_TIME);
 }
-
-/* send a high / low clock impulse of <duration> microseconds high and low */
-static void smartcard_send_clock(int duration)
-{
-	int old;
-
-	w_dtr(pprt, (old = r_dtr(pprt)) | PNL_SC_CLK);
-	udelay(duration);
-	w_dtr(pprt, (old & ~PNL_SC_CLK));
-	udelay(duration);
-}
-
-static void smartcard_insert(int dummy)
-{
-	int ofs;
-
-	spin_lock(&pprt_lock);
-	w_dtr(pprt, (r_dtr(pprt) & ~PNL_SC_BITS));
-	w_ctr(pprt, (r_ctr(pprt) | PNL_SC_ENA));
-
-	udelay(30);		/* ensure the rst is low at least 30 us */
-
-	smartcard_send_clock(100);	/* reset address counter */
-
-	w_dtr(pprt, r_dtr(pprt) | PNL_SC_RST);
-	udelay(30);		/* ensure the rst is high at least 30 us */
-
-	for (ofs = 0; ofs < SMARTCARD_BYTES; ofs++) {
-		int bit, byte;
-		byte = 0;
-		for (bit = 128; bit > 0; bit >>= 1) {
-			if (!(r_str(pprt) & PNL_SC_IOR))
-				byte |= bit;
-			smartcard_send_clock(15);	/* 15 us are enough for data */
-		}
-		smartcard_data[ofs] = byte;
-	}
-
-	w_dtr(pprt, (r_dtr(pprt) & ~PNL_SC_BITS));
-	w_ctr(pprt, (r_ctr(pprt) & ~PNL_SC_ENA));
-
-	spin_unlock(&pprt_lock);
-
-	printk(KERN_INFO "Panel: smart card inserted : %02x%02x%02x%02x%1x\n",
-	       smartcard_data[2], smartcard_data[3], smartcard_data[4],
-	       smartcard_data[5], smartcard_data[6] >> 4);
-	keypad_send_key("CardIn\n", 7);
-}
-
-static void smartcard_remove(int dummy)
-{
-	printk(KERN_INFO "Panel: smart card removed : %02x%02x%02x%02x%1x\n",
-	       smartcard_data[2], smartcard_data[3], smartcard_data[4],
-	       smartcard_data[5], smartcard_data[6] >> 4);
-	memset(smartcard_data, 0, sizeof(smartcard_data));
-	keypad_send_key("CardOut\n", 8);
-}
-
-/*
- * These are the file operation function for user access to /dev/smartcard
- */
-
-static ssize_t smartcard_read(struct file *file,
-			      char *buf, size_t count, loff_t *ppos)
-{
-
-	unsigned i = *ppos;
-	char *tmp = buf;
-
-	for (; count-- > 0 && (smartcard_ptr < 9); ++i, ++tmp, ++smartcard_ptr) {
-		if (smartcard_ptr & 1)
-			put_user('0' +
-				 (smartcard_data[2 + (smartcard_ptr >> 1)] &
-				  0xF), tmp);
-		else
-			put_user('0' +
-				 (smartcard_data[2 + (smartcard_ptr >> 1)] >>
-				  4), tmp);
-	}
-	*ppos = i;
-
-	return tmp - buf;
-}
-
-static int smartcard_open(struct inode *inode, struct file *file)
-{
-
-	if (smartcard_open_cnt)
-		return -EBUSY;	/* open only once at a time */
-
-	if (file->f_mode & FMODE_WRITE)	/* device is read-only */
-		return -EPERM;
-
-	smartcard_ptr = 0;	/* flush the buffer on opening */
-	smartcard_open_cnt++;
-	return 0;
-}
-
-static int smartcard_release(struct inode *inode, struct file *file)
-{
-	smartcard_open_cnt--;
-	return 0;
-}
-
-static struct file_operations smartcard_fops = {
-	.read    = smartcard_read,	/* read */
-	.open    = smartcard_open,	/* open */
-	.release = smartcard_release,	/* close */
-};
-
-static struct miscdevice smartcard_dev = {
-	SMARTCARD_MINOR,
-	"smartcard",
-	&smartcard_fops
-};
 
 static void init_scan_timer(void)
 {
@@ -2037,6 +1888,7 @@ static struct logical_input *panel_bind_key(char *name, char *press,
 	return key;
 }
 
+#if 0
 /* tries to bind a callback function to the signal name <name>. The function
  * <press_fct> will be called with the <press_data> arg when the signal is
  * activated, and so on for <release_fct>/<release_data>
@@ -2071,6 +1923,7 @@ static struct logical_input *panel_bind_callback(char *name,
 	list_add(&callback->list, &logical_inputs);
 	return callback;
 }
+#endif
 
 static void keypad_init(void)
 {
@@ -2089,16 +1942,6 @@ static void keypad_init(void)
 
 	init_scan_timer();
 	keypad_initialized = 1;
-}
-
-static void smartcard_init(void)
-{
-	init_waitqueue_head(&smartcard_read_wait);
-
-	panel_bind_callback(SMARTCARD_LOGICAL_DETECTOR, &smartcard_insert, 0,
-			    &smartcard_remove, 0);
-	init_scan_timer();
-	smartcard_enabled = 1;
 }
 
 /**************************************************/
@@ -2168,11 +2011,6 @@ static void panel_attach(struct parport *port)
 		keypad_init();
 		misc_register(&keypad_dev);
 	}
-
-	if (smartcard_enabled) {
-		smartcard_init();
-		misc_register(&smartcard_dev);
-	}
 }
 
 static void panel_detach(struct parport *port)
@@ -2186,9 +2024,6 @@ static void panel_detach(struct parport *port)
 		       port->number, parport);
 		return;
 	}
-
-	if (smartcard_enabled && smartcard_initialized)
-		misc_deregister(&smartcard_dev);
 
 	if (keypad_enabled && keypad_initialized)
 		misc_deregister(&keypad_dev);
@@ -2225,16 +2060,12 @@ int panel_init(void)
 	case PANEL_PROFILE_CUSTOM:	/* custom profile */
 		if (keypad_type < 0)
 			keypad_type = DEFAULT_KEYPAD;
-		if (smartcard_enabled < 0)
-			smartcard_enabled = DEFAULT_SMARTCARD;
 		if (lcd_type < 0)
 			lcd_type = DEFAULT_LCD;
 		break;
 	case PANEL_PROFILE_OLD:	/* 8 bits, 2*16, old keypad */
 		if (keypad_type < 0)
 			keypad_type = KEYPAD_TYPE_OLD;
-		if (smartcard_enabled < 0)
-			smartcard_enabled = 0;
 		if (lcd_type < 0)
 			lcd_type = LCD_TYPE_OLD;
 		if (lcd_width < 0)
@@ -2245,32 +2076,24 @@ int panel_init(void)
 	case PANEL_PROFILE_NEW:	/* serial, 2*16, new keypad */
 		if (keypad_type < 0)
 			keypad_type = KEYPAD_TYPE_NEW;
-		if (smartcard_enabled < 0)
-			smartcard_enabled = 1;
 		if (lcd_type < 0)
 			lcd_type = LCD_TYPE_KS0074;
 		break;
 	case PANEL_PROFILE_HANTRONIX:	/* 8 bits, 2*16 hantronix-like, no keypad */
 		if (keypad_type < 0)
 			keypad_type = KEYPAD_TYPE_NONE;
-		if (smartcard_enabled < 0)
-			smartcard_enabled = 0;
 		if (lcd_type < 0)
 			lcd_type = LCD_TYPE_HANTRONIX;
 		break;
 	case PANEL_PROFILE_NEXCOM:	/* generic 8 bits, 2*16, nexcom keypad, eg. Nexcom. */
 		if (keypad_type < 0)
 			keypad_type = KEYPAD_TYPE_NEXCOM;
-		if (smartcard_enabled < 0)
-			smartcard_enabled = 0;
 		if (lcd_type < 0)
 			lcd_type = LCD_TYPE_NEXCOM;
 		break;
 	case PANEL_PROFILE_LARGE:	/* 8 bits, 2*40, old keypad */
 		if (keypad_type < 0)
 			keypad_type = KEYPAD_TYPE_OLD;
-		if (smartcard_enabled < 0)
-			smartcard_enabled = 0;
 		if (lcd_type < 0)
 			lcd_type = LCD_TYPE_OLD;
 		break;
@@ -2303,7 +2126,8 @@ int panel_init(void)
 		return -EIO;
 	}
 
-	if (!lcd_enabled && !keypad_enabled && !smartcard_enabled) {	/* no device enabled, let's release the parport */
+	if (!lcd_enabled && !keypad_enabled) {
+		/* no device enabled, let's release the parport */
 		if (pprt) {
 			parport_release(pprt);
 			parport_unregister_device(pprt);
@@ -2342,9 +2166,6 @@ static void __exit panel_cleanup_module(void)
 
 	if (keypad_enabled)
 		misc_deregister(&keypad_dev);
-
-	if (smartcard_enabled)
-		misc_deregister(&smartcard_dev);
 
 	if (lcd_enabled) {
 		panel_lcd_print("\x0cLCD driver " PANEL_VERSION

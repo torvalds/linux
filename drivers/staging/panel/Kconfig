@@ -3,13 +3,12 @@ config PANEL
 	depends on PARPORT
 	---help---
 	  Say Y here if you have an HD44780 or KS-0074 LCD connected to your
-	  parallel port. This driver also features 4 and 6-key keypads, and a
-	  'smartcard' reader. The LCD is accessible through the /dev/lcd char
-	  device (10, 156), the keypad through /dev/keypad (10, 185), and the
-	  smartcard through /dev/smartcard (10, 186). Both require misc device
-	  to be enabled. This code can either be compiled as a module, or linked
-	  into the kernel and started at boot. If you don't understand what all
-	  this is about, say N.
+	  parallel port. This driver also features 4 and 6-key keypads. The LCD
+	  is accessible through the /dev/lcd char device (10, 156), and the
+	  keypad through /dev/keypad (10, 185). Both require misc device to be
+	  enabled. This code can either be compiled as a module, or linked into
+	  the kernel and started at boot. If you don't understand what all this
+	  is about, say N.
 
 config PANEL_PARPORT
 	int "Default parallel port number (0=LPT1)"
@@ -44,17 +43,6 @@ config PANEL_PROFILE
 	  Custom configurations allow you to define how your display is
 	  wired to the parallel port, and how it works. This is only intended
 	  for experts.
-
-config PANEL_SMARTCARD
-	depends on PANEL && PANEL_PROFILE="0"
-	bool "Enable smartcard reader (read help!)"
-	default "n"
-	---help---
-	  This enables the 'smartcard' reader as installed on the server at
-	  'www.ant-computing.com'. It was not really a smartcard reader, just
-	  a telephone-card reader. It is left here for demonstration and
-	  experimentation. If you enable this driver, it will be accessible
-	  through character device 10,186.
 
 config PANEL_KEYPAD
 	depends on PANEL && PANEL_PROFILE="0"
