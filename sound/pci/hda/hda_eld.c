@@ -32,28 +32,12 @@ enum eld_versions {
 	ELD_VER_PARTIAL		= 31,
 };
 
-static char *eld_versoin_names[32] = {
-	"reserved",
-	"reserved",
-	"CEA-861D or below",
-	[3 ... 30] = "reserved",
-	[31] = "partial"
-};
-
 enum cea_edid_versions {
 	CEA_EDID_VER_NONE	= 0,
 	CEA_EDID_VER_CEA861	= 1,
 	CEA_EDID_VER_CEA861A	= 2,
 	CEA_EDID_VER_CEA861BCD	= 3,
 	CEA_EDID_VER_RESERVED	= 4,
-};
-
-static char *cea_edid_version_names[8] = {
-	"no CEA EDID Timing Extension block present",
-	"CEA-861",
-	"CEA-861-A",
-	"CEA-861-B, C or D",
-	[4 ... 7] = "reserved"
 };
 
 static char *cea_speaker_allocation_names[] = {
@@ -478,6 +462,20 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 	struct hdmi_eld *e = entry->private_data;
 	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
 	int i;
+	static char *eld_versoin_names[32] = {
+		"reserved",
+		"reserved",
+		"CEA-861D or below",
+		[3 ... 30] = "reserved",
+		[31] = "partial"
+	};
+	static char *cea_edid_version_names[8] = {
+		"no CEA EDID Timing Extension block present",
+		"CEA-861",
+		"CEA-861-A",
+		"CEA-861-B, C or D",
+		[4 ... 7] = "reserved"
+	};
 
 	snd_iprintf(buffer, "monitor_name\t\t%s\n", e->monitor_name);
 	snd_iprintf(buffer, "connection_type\t\t%s\n",
