@@ -30,6 +30,7 @@
 #include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/kprobes.h>
+#include <linux/seq_file.h>
 #include <linux/writeback.h>
 
 #include <linux/stacktrace.h>
@@ -276,6 +277,7 @@ static const char *trace_options[] = {
 	"branch",
 	"annotate",
 	"userstacktrace",
+	"sym-userobj",
 	NULL
 };
 
@@ -420,6 +422,28 @@ trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 	hex[j++] = ' ';
 
 	return trace_seq_putmem(s, hex, j);
+}
+
+static int
+trace_seq_path(struct trace_seq *s, struct path *path)
+{
+	unsigned char *p;
+
+	if (s->len >= (PAGE_SIZE - 1))
+		return 0;
+	p = d_path(path, s->buffer + s->len, PAGE_SIZE - s->len);
+	if (!IS_ERR(p)) {
+		p = mangle_path(s->buffer + s->len, p, "\n");
+		if (p) {
+			s->len = p - s->buffer;
+			return 1;
+		}
+	} else {
+		s->buffer[s->len++] = '?';
+		return 1;
+	}
+
+	return 0;
 }
 
 static void
@@ -802,6 +826,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 
 	entry->preempt_count		= pc & 0xff;
 	entry->pid			= (tsk) ? tsk->pid : 0;
+	entry->tgid               	= (tsk) ? tsk->tgid : 0;
 	entry->flags =
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -1429,28 +1454,73 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 	return ret;
 }
 
+static inline int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
+				    unsigned long ip, unsigned long sym_flags)
+{
+	struct file *file = NULL;
+	unsigned long vmstart = 0;
+	int ret = 1;
+
+	if (mm) {
+		const struct vm_area_struct *vma = find_vma(mm, ip);
+		if (vma) {
+			file = vma->vm_file;
+			vmstart = vma->vm_start;
+		}
+	}
+	if (file) {
+		ret = trace_seq_path(s, &file->f_path);
+		if (ret)
+			ret = trace_seq_printf(s, "[+0x%lx]",
+					ip - vmstart);
+	}
+	if (ret && ((sym_flags & TRACE_ITER_SYM_ADDR) || !file))
+		ret = trace_seq_printf(s, " <" IP_FMT ">", ip);
+	return ret;
+}
+
 static int
 seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
-		unsigned long sym_flags)
+		      unsigned long sym_flags)
 {
+	struct mm_struct *mm = NULL;
 	int ret = 1;
 	unsigned i;
+
+	if (trace_flags & TRACE_ITER_SYM_USEROBJ) {
+		struct task_struct *task;
+		/*
+		 * we do the lookup on the thread group leader,
+		 * since individual threads might have already quit!
+		 */
+		rcu_read_lock();
+		task = find_task_by_vpid(entry->ent.tgid);
+		rcu_read_unlock();
+
+		if (task)
+			mm = get_task_mm(task);
+	}
 
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
 		unsigned long ip = entry->caller[i];
 
 		if (ip == ULONG_MAX || !ret)
 			break;
-		if (i)
+		if (i && ret)
 			ret = trace_seq_puts(s, " <- ");
 		if (!ip) {
-			ret = trace_seq_puts(s, "??");
+			if (ret)
+				ret = trace_seq_puts(s, "??");
 			continue;
 		}
-		if (ret /*&& (sym_flags & TRACE_ITER_SYM_ADDR)*/)
-			ret = trace_seq_printf(s, " <" IP_FMT ">", ip);
+		if (!ret)
+			break;
+		if (ret)
+			ret = seq_print_user_ip(s, mm, ip, sym_flags);
 	}
 
+	if (mm)
+		mmput(mm);
 	return ret;
 }
 
@@ -1775,8 +1845,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 		trace_assign_type(field, entry);
 
 		seq_print_userip_objs(field, s, sym_flags);
-		if (entry->flags & TRACE_FLAG_CONT)
-			trace_seq_print_cont(s, iter);
+		trace_seq_putc(s, '\n');
 		break;
 	}
 	default:
@@ -3580,6 +3649,9 @@ void ftrace_dump(void)
 	for_each_tracing_cpu(cpu) {
 		atomic_inc(&global_trace.data[cpu]->disabled);
 	}
+
+	/* don't look at user memory in panic mode */
+	trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
 
 	printk(KERN_TRACE "Dumping ftrace buffer:\n");
 
