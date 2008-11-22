@@ -332,8 +332,9 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 
 	case e1000_82573:
 		if (pdev->device == E1000_DEV_ID_82573L) {
-			e1000_read_nvm(&adapter->hw, NVM_INIT_3GIO_3, 1,
-				       &eeprom_data);
+			if (e1000_read_nvm(&adapter->hw, NVM_INIT_3GIO_3, 1,
+				       &eeprom_data) < 0)
+				break;
 			if (eeprom_data & NVM_WORD1A_ASPM_MASK)
 				adapter->flags &= ~FLAG_HAS_JUMBO_FRAMES;
 		}

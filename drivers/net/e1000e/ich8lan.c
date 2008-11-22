@@ -94,6 +94,8 @@
 
 #define E1000_ICH_NVM_SIG_WORD		0x13
 #define E1000_ICH_NVM_SIG_MASK		0xC000
+#define E1000_ICH_NVM_VALID_SIG_MASK    0xC0
+#define E1000_ICH_NVM_SIG_VALUE         0x80
 
 #define E1000_ICH8_LAN_INIT_TIMEOUT	1500
 
@@ -958,45 +960,62 @@ static s32 e1000_set_d3_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
  *  @bank:  pointer to the variable that returns the active bank
  *
  *  Reads signature byte from the NVM using the flash access registers.
+ *  Word 0x13 bits 15:14 = 10b indicate a valid signature for that bank.
  **/
 static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 {
+	u32 eecd;
 	struct e1000_nvm_info *nvm = &hw->nvm;
-	/* flash bank size is in words */
 	u32 bank1_offset = nvm->flash_bank_size * sizeof(u16);
 	u32 act_offset = E1000_ICH_NVM_SIG_WORD * 2 + 1;
-	u8 bank_high_byte = 0;
+	u8 sig_byte = 0;
+	s32 ret_val = 0;
 
-	if (hw->mac.type != e1000_ich10lan) {
-		if (er32(EECD) & E1000_EECD_SEC1VAL)
-			*bank = 1;
-		else
-			*bank = 0;
-	} else {
-		/*
-		 * Make sure the signature for bank 0 is valid,
-		 * if not check for bank1
-		 */
-		e1000_read_flash_byte_ich8lan(hw, act_offset, &bank_high_byte);
-		if ((bank_high_byte & 0xC0) == 0x80) {
-			*bank = 0;
-		} else {
-			/*
-			 * find if segment 1 is valid by verifying
-			 * bit 15:14 = 10b in word 0x13
-			 */
-			e1000_read_flash_byte_ich8lan(hw,
-						      act_offset + bank1_offset,
-						      &bank_high_byte);
-
-			/* bank1 has a valid signature equivalent to SEC1V */
-			if ((bank_high_byte & 0xC0) == 0x80) {
+	switch (hw->mac.type) {
+	case e1000_ich8lan:
+	case e1000_ich9lan:
+		eecd = er32(EECD);
+		if ((eecd & E1000_EECD_SEC1VAL_VALID_MASK) ==
+		    E1000_EECD_SEC1VAL_VALID_MASK) {
+			if (eecd & E1000_EECD_SEC1VAL)
 				*bank = 1;
-			} else {
-				hw_dbg(hw, "ERROR: EEPROM not present\n");
-				return -E1000_ERR_NVM;
-			}
+			else
+				*bank = 0;
+
+			return 0;
 		}
+		hw_dbg(hw, "Unable to determine valid NVM bank via EEC - "
+		       "reading flash signature\n");
+		/* fall-thru */
+	default:
+		/* set bank to 0 in case flash read fails */
+		*bank = 0;
+
+		/* Check bank 0 */
+		ret_val = e1000_read_flash_byte_ich8lan(hw, act_offset,
+		                                        &sig_byte);
+		if (ret_val)
+			return ret_val;
+		if ((sig_byte & E1000_ICH_NVM_VALID_SIG_MASK) ==
+		    E1000_ICH_NVM_SIG_VALUE) {
+			*bank = 0;
+			return 0;
+		}
+
+		/* Check bank 1 */
+		ret_val = e1000_read_flash_byte_ich8lan(hw, act_offset +
+		                                        bank1_offset,
+		                                        &sig_byte);
+		if (ret_val)
+			return ret_val;
+		if ((sig_byte & E1000_ICH_NVM_VALID_SIG_MASK) ==
+		    E1000_ICH_NVM_SIG_VALUE) {
+			*bank = 1;
+			return 0;
+		}
+
+		hw_dbg(hw, "ERROR: No valid NVM bank present\n");
+		return -E1000_ERR_NVM;
 	}
 
 	return 0;
@@ -1029,11 +1048,11 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 	ret_val = e1000_acquire_swflag_ich8lan(hw);
 	if (ret_val)
-		return ret_val;
+		goto out;
 
 	ret_val = e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
 	if (ret_val)
-		return ret_val;
+		goto release;
 
 	act_offset = (bank) ? nvm->flash_bank_size : 0;
 	act_offset += offset;
@@ -1052,7 +1071,12 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 		}
 	}
 
+release:
 	e1000_release_swflag_ich8lan(hw);
+
+out:
+	if (ret_val)
+		hw_dbg(hw, "NVM read error: %d\n", ret_val);
 
 	return ret_val;
 }
@@ -1342,14 +1366,14 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 
 	ret_val = e1000e_update_nvm_checksum_generic(hw);
 	if (ret_val)
-		return ret_val;
+		goto out;
 
 	if (nvm->type != e1000_nvm_flash_sw)
-		return ret_val;
+		goto out;
 
 	ret_val = e1000_acquire_swflag_ich8lan(hw);
 	if (ret_val)
-		return ret_val;
+		goto out;
 
 	/*
 	 * We're writing to the opposite bank so if we're on bank 1,
@@ -1357,17 +1381,27 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 * is going to be written
 	 */
 	ret_val =  e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
-	if (ret_val)
-		return ret_val;
+	if (ret_val) {
+		e1000_release_swflag_ich8lan(hw);
+		goto out;
+	}
 
 	if (bank == 0) {
 		new_bank_offset = nvm->flash_bank_size;
 		old_bank_offset = 0;
-		e1000_erase_flash_bank_ich8lan(hw, 1);
+		ret_val = e1000_erase_flash_bank_ich8lan(hw, 1);
+		if (ret_val) {
+			e1000_release_swflag_ich8lan(hw);
+			goto out;
+		}
 	} else {
 		old_bank_offset = nvm->flash_bank_size;
 		new_bank_offset = 0;
-		e1000_erase_flash_bank_ich8lan(hw, 0);
+		ret_val = e1000_erase_flash_bank_ich8lan(hw, 0);
+		if (ret_val) {
+			e1000_release_swflag_ich8lan(hw);
+			goto out;
+		}
 	}
 
 	for (i = 0; i < E1000_ICH8_SHADOW_RAM_WORDS; i++) {
@@ -1379,9 +1413,11 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 		if (dev_spec->shadow_ram[i].modified) {
 			data = dev_spec->shadow_ram[i].value;
 		} else {
-			e1000_read_flash_word_ich8lan(hw,
-						      i + old_bank_offset,
-						      &data);
+			ret_val = e1000_read_flash_word_ich8lan(hw, i +
+			                                        old_bank_offset,
+			                                        &data);
+			if (ret_val)
+				break;
 		}
 
 		/*
@@ -1422,7 +1458,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 		/* Possibly read-only, see e1000e_write_protect_nvm_ich8lan() */
 		hw_dbg(hw, "Flash commit failed.\n");
 		e1000_release_swflag_ich8lan(hw);
-		return ret_val;
+		goto out;
 	}
 
 	/*
@@ -1432,14 +1468,18 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 * and we need to change bit 14 to 0b
 	 */
 	act_offset = new_bank_offset + E1000_ICH_NVM_SIG_WORD;
-	e1000_read_flash_word_ich8lan(hw, act_offset, &data);
+	ret_val = e1000_read_flash_word_ich8lan(hw, act_offset, &data);
+	if (ret_val) {
+		e1000_release_swflag_ich8lan(hw);
+		goto out;
+	}
 	data &= 0xBFFF;
 	ret_val = e1000_retry_write_flash_byte_ich8lan(hw,
 						       act_offset * 2 + 1,
 						       (u8)(data >> 8));
 	if (ret_val) {
 		e1000_release_swflag_ich8lan(hw);
-		return ret_val;
+		goto out;
 	}
 
 	/*
@@ -1452,7 +1492,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	ret_val = e1000_retry_write_flash_byte_ich8lan(hw, act_offset, 0);
 	if (ret_val) {
 		e1000_release_swflag_ich8lan(hw);
-		return ret_val;
+		goto out;
 	}
 
 	/* Great!  Everything worked, we can now clear the cached entries. */
@@ -1469,6 +1509,10 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 */
 	e1000e_reload_nvm(hw);
 	msleep(10);
+
+out:
+	if (ret_val)
+		hw_dbg(hw, "NVM update error: %d\n", ret_val);
 
 	return ret_val;
 }

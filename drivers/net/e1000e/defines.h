@@ -572,6 +572,7 @@
 #define E1000_EECD_FLUPD     0x00080000 /* Update FLASH */
 #define E1000_EECD_AUPDEN    0x00100000 /* Enable Autonomous FLASH update */
 #define E1000_EECD_SEC1VAL   0x00400000 /* Sector One Valid */
+#define E1000_EECD_SEC1VAL_VALID_MASK (E1000_EECD_AUTO_RD | E1000_EECD_PRES)
 
 #define E1000_NVM_RW_REG_DATA   16   /* Offset to data in NVM read/write registers */
 #define E1000_NVM_RW_REG_DONE   2    /* Offset to READ/WRITE done bit */

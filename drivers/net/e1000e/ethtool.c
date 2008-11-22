@@ -492,18 +492,19 @@ static int e1000_get_eeprom(struct net_device *netdev,
 		for (i = 0; i < last_word - first_word + 1; i++) {
 			ret_val = e1000_read_nvm(hw, first_word + i, 1,
 						      &eeprom_buff[i]);
-			if (ret_val) {
-				/* a read error occurred, throw away the
-				 * result */
-				memset(eeprom_buff, 0xff, sizeof(eeprom_buff));
+			if (ret_val)
 				break;
-			}
 		}
 	}
 
-	/* Device's eeprom is always little-endian, word addressable */
-	for (i = 0; i < last_word - first_word + 1; i++)
-		le16_to_cpus(&eeprom_buff[i]);
+	if (ret_val) {
+		/* a read error occurred, throw away the result */
+		memset(eeprom_buff, 0xff, sizeof(eeprom_buff));
+	} else {
+		/* Device's eeprom is always little-endian, word addressable */
+		for (i = 0; i < last_word - first_word + 1; i++)
+			le16_to_cpus(&eeprom_buff[i]);
+	}
 
 	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 1), eeprom->len);
 	kfree(eeprom_buff);
@@ -555,6 +556,9 @@ static int e1000_set_eeprom(struct net_device *netdev,
 		ret_val = e1000_read_nvm(hw, last_word, 1,
 				  &eeprom_buff[last_word - first_word]);
 
+	if (ret_val)
+		goto out;
+
 	/* Device's eeprom is always little-endian, word addressable */
 	for (i = 0; i < last_word - first_word + 1; i++)
 		le16_to_cpus(&eeprom_buff[i]);
@@ -567,15 +571,18 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	ret_val = e1000_write_nvm(hw, first_word,
 				  last_word - first_word + 1, eeprom_buff);
 
+	if (ret_val)
+		goto out;
+
 	/*
 	 * Update the checksum over the first part of the EEPROM if needed
-	 * and flush shadow RAM for 82573 controllers
+	 * and flush shadow RAM for applicable controllers
 	 */
-	if ((ret_val == 0) && ((first_word <= NVM_CHECKSUM_REG) ||
-			       (hw->mac.type == e1000_82574) ||
-			       (hw->mac.type == e1000_82573)))
-		e1000e_update_nvm_checksum(hw);
+	if ((first_word <= NVM_CHECKSUM_REG) ||
+	    (hw->mac.type == e1000_82574) || (hw->mac.type == e1000_82573))
+		ret_val = e1000e_update_nvm_checksum(hw);
 
+out:
 	kfree(eeprom_buff);
 	return ret_val;
 }
@@ -860,7 +867,7 @@ static int e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 	for (i = 0; i < (NVM_CHECKSUM_REG + 1); i++) {
 		if ((e1000_read_nvm(&adapter->hw, i, 1, &temp)) < 0) {
 			*data = 1;
-			break;
+			return *data;
 		}
 		checksum += temp;
 	}
