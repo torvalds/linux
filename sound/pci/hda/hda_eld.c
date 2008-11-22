@@ -72,7 +72,7 @@ static char *cea_speaker_allocation_names[] = {
 
 static char *eld_connection_type_names[4] = {
 	"HDMI",
-	"Display Port",
+	"DisplayPort",
 	"2-reserved",
 	"3-reserved"
 };
