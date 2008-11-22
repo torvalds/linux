@@ -540,11 +540,14 @@ struct nes_cqp_request *nes_get_cqp_request(struct nes_device *nesdev)
 
 	if (!list_empty(&nesdev->cqp_avail_reqs)) {
 		spin_lock_irqsave(&nesdev->cqp.lock, flags);
-		cqp_request = list_entry(nesdev->cqp_avail_reqs.next,
+		if (!list_empty(&nesdev->cqp_avail_reqs)) {
+			cqp_request = list_entry(nesdev->cqp_avail_reqs.next,
 				struct nes_cqp_request, list);
-		list_del_init(&cqp_request->list);
+			list_del_init(&cqp_request->list);
+		}
 		spin_unlock_irqrestore(&nesdev->cqp.lock, flags);
-	} else {
+	}
+	if (cqp_request == NULL) {
 		cqp_request = kzalloc(sizeof(struct nes_cqp_request), GFP_KERNEL);
 		if (cqp_request) {
 			cqp_request->dynamic = 1;
