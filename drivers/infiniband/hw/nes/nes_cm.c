@@ -1360,6 +1360,7 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 {
 
 	int	reset = 0;	/* whether to send reset in case of err.. */
+	int	passive_state;
 	atomic_inc(&cm_resets_recvd);
 	nes_debug(NES_DBG_CM, "Received Reset, cm_node = %p, state = %u."
 			" refcnt=%d\n", cm_node, cm_node->state,
@@ -1373,7 +1374,14 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 			cm_node->listener, cm_node->state);
 		active_open_err(cm_node, skb, reset);
 		break;
-	/* For PASSIVE open states, remove the cm_node event */
+	case NES_CM_STATE_MPAREQ_RCVD:
+		passive_state = atomic_add_return(1, &cm_node->passive_state);
+		if (passive_state ==  NES_SEND_RESET_EVENT)
+			create_event(cm_node, NES_CM_EVENT_RESET);
+		cleanup_retrans_entry(cm_node);
+		cm_node->state = NES_CM_STATE_CLOSED;
+		dev_kfree_skb_any(skb);
+		break;
 	case NES_CM_STATE_ESTABLISHED:
 	case NES_CM_STATE_SYN_RCVD:
 	case NES_CM_STATE_LISTENING:
@@ -1381,7 +1389,14 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		passive_open_err(cm_node, skb, reset);
 		break;
 	case NES_CM_STATE_TSA:
+		active_open_err(cm_node, skb, reset);
+		break;
+	case NES_CM_STATE_CLOSED:
+		cleanup_retrans_entry(cm_node);
+		drop_packet(skb);
+		break;
 	default:
+		drop_packet(skb);
 		break;
 	}
 }
@@ -1410,6 +1425,9 @@ static void handle_rcv_mpa(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		dev_kfree_skb_any(skb);
 		if (type == NES_CM_EVENT_CONNECTED)
 			cm_node->state = NES_CM_STATE_TSA;
+		else
+			atomic_set(&cm_node->passive_state,
+					NES_PASSIVE_STATE_INDICATED);
 		create_event(cm_node, type);
 
 	}
@@ -1986,6 +2004,7 @@ static int mini_cm_reject(struct nes_cm_core *cm_core,
 	struct ietf_mpa_frame *mpa_frame, struct nes_cm_node *cm_node)
 {
 	int ret = 0;
+	int passive_state;
 
 	nes_debug(NES_DBG_CM, "%s cm_node=%p type=%d state=%d\n",
 		__func__, cm_node, cm_node->tcp_cntxt.client, cm_node->state);
@@ -1993,9 +2012,13 @@ static int mini_cm_reject(struct nes_cm_core *cm_core,
 	if (cm_node->tcp_cntxt.client)
 		return ret;
 	cleanup_retrans_entry(cm_node);
-	cm_node->state = NES_CM_STATE_CLOSED;
 
-	ret = send_reset(cm_node, NULL);
+	passive_state = atomic_add_return(1, &cm_node->passive_state);
+	cm_node->state = NES_CM_STATE_CLOSED;
+	if (passive_state == NES_SEND_RESET_EVENT)
+		rem_ref_cm_node(cm_core, cm_node);
+	else
+		ret = send_reset(cm_node, NULL);
 	return ret;
 }
 
@@ -2413,7 +2436,6 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			atomic_inc(&cm_disconnects);
 			cm_event.event = IW_CM_EVENT_DISCONNECT;
 			if (last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET) {
-				issued_disconnect_reset = 1;
 				cm_event.status = IW_CM_EVENT_STATUS_RESET;
 				nes_debug(NES_DBG_CM, "Generating a CM "
 					"Disconnect Event (status reset) for "
@@ -2563,6 +2585,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct nes_v4_quad nes_quad;
 	u32 crc_value;
 	int ret;
+	int passive_state;
 
 	ibqp = nes_get_qp(cm_id->device, conn_param->qpn);
 	if (!ibqp)
@@ -2730,8 +2753,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			conn_param->private_data_len +
 			sizeof(struct ietf_mpa_frame));
 
-	attr.qp_state = IB_QPS_RTS;
-	nes_modify_qp(&nesqp->ibqp, &attr, IB_QP_STATE, NULL);
 
 	/* notify OF layer that accept event was successfull */
 	cm_id->add_ref(cm_id);
@@ -2744,6 +2765,8 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	cm_event.private_data = NULL;
 	cm_event.private_data_len = 0;
 	ret = cm_id->event_handler(cm_id, &cm_event);
+	attr.qp_state = IB_QPS_RTS;
+	nes_modify_qp(&nesqp->ibqp, &attr, IB_QP_STATE, NULL);
 	if (cm_node->loopbackpartner) {
 		cm_node->loopbackpartner->mpa_frame_size =
 			nesqp->private_data_len;
@@ -2756,6 +2779,9 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		printk(KERN_ERR "%s[%u] OFA CM event_handler returned, "
 			"ret=%d\n", __func__, __LINE__, ret);
 
+	passive_state = atomic_add_return(1, &cm_node->passive_state);
+	if (passive_state == NES_SEND_RESET_EVENT)
+		create_event(cm_node, NES_CM_EVENT_RESET);
 	return 0;
 }
 
@@ -3238,6 +3264,18 @@ static void cm_event_reset(struct nes_cm_event *event)
 	cm_event.private_data_len = 0;
 
 	ret = cm_id->event_handler(cm_id, &cm_event);
+	cm_id->add_ref(cm_id);
+	atomic_inc(&cm_closes);
+	cm_event.event = IW_CM_EVENT_CLOSE;
+	cm_event.status = IW_CM_EVENT_STATUS_OK;
+	cm_event.provider_data = cm_id->provider_data;
+	cm_event.local_addr = cm_id->local_addr;
+	cm_event.remote_addr = cm_id->remote_addr;
+	cm_event.private_data = NULL;
+	cm_event.private_data_len = 0;
+	nes_debug(NES_DBG_CM, "NODE %p Generating CLOSE\n", event->cm_node);
+	ret = cm_id->event_handler(cm_id, &cm_event);
+
 	nes_debug(NES_DBG_CM, "OFA CM event_handler returned, ret=%d\n", ret);
 
 
