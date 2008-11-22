@@ -19,17 +19,22 @@
 #include <linux/unistd.h>
 #include <linux/stddef.h>
 #include <linux/personality.h>
-#include <linux/compiler.h>
 #include <linux/uaccess.h>
 
 #include <asm/processor.h>
 #include <asm/ucontext.h>
 #include <asm/i387.h>
+#include <asm/vdso.h>
+
+#ifdef CONFIG_X86_64
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
 #include <asm/mce.h>
+#endif /* CONFIG_X86_64 */
+
 #include <asm/syscall.h>
 #include <asm/syscalls.h>
+
 #include "sigframe.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))

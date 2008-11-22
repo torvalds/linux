@@ -4,29 +4,32 @@
  *  1997-11-28  Modified for POSIX.1b signals by Richard Henderson
  *  2000-06-20  Pentium III FXSR, SSE support by Gareth Hughes
  */
-#include <linux/list.h>
 
-#include <linux/personality.h>
-#include <linux/binfmts.h>
-#include <linux/suspend.h>
-#include <linux/kernel.h>
-#include <linux/ptrace.h>
-#include <linux/signal.h>
-#include <linux/stddef.h>
-#include <linux/unistd.h>
-#include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/wait.h>
-#include <linux/tracehook.h>
-#include <linux/elf.h>
-#include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/smp.h>
+#include <linux/kernel.h>
+#include <linux/signal.h>
+#include <linux/errno.h>
+#include <linux/wait.h>
+#include <linux/ptrace.h>
+#include <linux/tracehook.h>
+#include <linux/unistd.h>
+#include <linux/stddef.h>
+#include <linux/personality.h>
+#include <linux/uaccess.h>
 
 #include <asm/processor.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
 #include <asm/i387.h>
 #include <asm/vdso.h>
+
+#ifdef CONFIG_X86_64
+#include <asm/proto.h>
+#include <asm/ia32_unistd.h>
+#include <asm/mce.h>
+#endif /* CONFIG_X86_64 */
+
 #include <asm/syscall.h>
 #include <asm/syscalls.h>
 
