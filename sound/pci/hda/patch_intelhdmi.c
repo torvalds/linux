@@ -431,7 +431,7 @@ static int hdmi_setup_channel_allocation(struct hda_codec *codec,
 	 * expand ELD's speaker allocation mask
 	 *
 	 * ELD tells the speaker mask in a compact(paired) form,
-	 * expand ELD's notions to match the ones used by audio infoframe.
+	 * expand ELD's notions to match the ones used by Audio InfoFrame.
 	 */
 	for (i = 0; i < ARRAY_SIZE(eld_speaker_allocation_bits); i++) {
 		if (eld->spk_alloc & (1 << i))
@@ -592,8 +592,8 @@ static struct hda_pcm_stream intel_hdmi_pcm_playback = {
 	.channels_max = 8,
 	.nid = CVT_NID, /* NID to query formats and rates and setup streams */
 	.ops = {
-		.open = intel_hdmi_playback_pcm_open,
-		.close = intel_hdmi_playback_pcm_close,
+		.open    = intel_hdmi_playback_pcm_open,
+		.close   = intel_hdmi_playback_pcm_close,
 		.prepare = intel_hdmi_playback_pcm_prepare
 	},
 };
