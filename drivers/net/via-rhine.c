@@ -614,6 +614,20 @@ static void __devinit rhine_hw_init(struct net_device *dev, long pioaddr)
 	rhine_reload_eeprom(pioaddr, dev);
 }
 
+static const struct net_device_ops rhine_netdev_ops = {
+	.ndo_open		 = rhine_open,
+	.ndo_stop		 = rhine_close,
+	.ndo_start_xmit		 = rhine_start_tx,
+	.ndo_get_stats		 = rhine_get_stats,
+	.ndo_set_multicast_list	 = rhine_set_rx_mode,
+	.ndo_validate_addr	 = eth_validate_addr,
+	.ndo_do_ioctl		 = netdev_ioctl,
+	.ndo_tx_timeout 	 = rhine_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	 = rhine_poll,
+#endif
+};
+
 static int __devinit rhine_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
@@ -764,18 +778,10 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	rp->mii_if.reg_num_mask = 0x1f;
 
 	/* The chip-specific entries in the device structure. */
-	dev->open = rhine_open;
-	dev->hard_start_xmit = rhine_start_tx;
-	dev->stop = rhine_close;
-	dev->get_stats = rhine_get_stats;
-	dev->set_multicast_list = rhine_set_rx_mode;
-	dev->do_ioctl = netdev_ioctl;
-	dev->ethtool_ops = &netdev_ethtool_ops;
-	dev->tx_timeout = rhine_tx_timeout;
+	dev->netdev_ops = &rhine_netdev_ops;
+	dev->ethtool_ops = &netdev_ethtool_ops,
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = rhine_poll;
-#endif
+
 	netif_napi_add(dev, &rp->napi, rhine_napipoll, 64);
 
 	if (rp->quirks & rqRhineI)
