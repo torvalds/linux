@@ -2154,6 +2154,20 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			tp->dev->name, state);
 		return -EINVAL;
 	}
+
+	/* Restore the CLKREQ setting. */
+	if (tp->tg3_flags3 & TG3_FLG3_CLKREQ_BUG) {
+		u16 lnkctl;
+
+		pci_read_config_word(tp->pdev,
+				     tp->pcie_cap + PCI_EXP_LNKCTL,
+				     &lnkctl);
+		lnkctl |= PCI_EXP_LNKCTL_CLKREQ_EN;
+		pci_write_config_word(tp->pdev,
+				      tp->pcie_cap + PCI_EXP_LNKCTL,
+				      lnkctl);
+	}
+
 	misc_host_ctrl = tr32(TG3PCI_MISC_HOST_CTRL);
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     misc_host_ctrl | MISC_HOST_CTRL_MASK_PCI_INT);
@@ -2921,6 +2935,24 @@ relink:
 		tg3_write_mem(tp,
 			      NIC_SRAM_FIRMWARE_MBOX,
 			      NIC_SRAM_FIRMWARE_MBOX_MAGIC2);
+	}
+
+	/* Prevent send BD corruption. */
+	if (tp->tg3_flags3 & TG3_FLG3_CLKREQ_BUG) {
+		u16 oldlnkctl, newlnkctl;
+
+		pci_read_config_word(tp->pdev,
+				     tp->pcie_cap + PCI_EXP_LNKCTL,
+				     &oldlnkctl);
+		if (tp->link_config.active_speed == SPEED_100 ||
+		    tp->link_config.active_speed == SPEED_10)
+			newlnkctl = oldlnkctl & ~PCI_EXP_LNKCTL_CLKREQ_EN;
+		else
+			newlnkctl = oldlnkctl | PCI_EXP_LNKCTL_CLKREQ_EN;
+		if (newlnkctl != oldlnkctl)
+			pci_write_config_word(tp->pdev,
+					      tp->pcie_cap + PCI_EXP_LNKCTL,
+					      newlnkctl);
 	}
 
 	if (current_link_up != netif_carrier_ok(tp->dev)) {
@@ -6016,7 +6048,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	udelay(120);
 
-	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
+	if ((tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) && tp->pcie_cap) {
 		if (tp->pci_chip_rev_id == CHIPREV_ID_5750_A0) {
 			int i;
 			u32 cfg_val;
@@ -6029,9 +6061,23 @@ static int tg3_chip_reset(struct tg3 *tp)
 			pci_write_config_dword(tp->pdev, 0xc4,
 					       cfg_val | (1 << 15));
 		}
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5785)
-			/* Set PCIE max payload size and clear error status.  */
-			pci_write_config_dword(tp->pdev, 0xd8, 0xf5000);
+
+		/* Set PCIE max payload size to 128 bytes and
+		 * clear the "no snoop" and "relaxed ordering" bits.
+		 */
+		pci_write_config_word(tp->pdev,
+				      tp->pcie_cap + PCI_EXP_DEVCTL,
+				      0);
+
+		pcie_set_readrq(tp->pdev, 4096);
+
+		/* Clear error status */
+		pci_write_config_word(tp->pdev,
+				      tp->pcie_cap + PCI_EXP_DEVSTA,
+				      PCI_EXP_DEVSTA_CED |
+				      PCI_EXP_DEVSTA_NFED |
+				      PCI_EXP_DEVSTA_FED |
+				      PCI_EXP_DEVSTA_URD);
 	}
 
 	tg3_restore_pci_state(tp);
@@ -11967,7 +12013,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	u32 pci_state_reg, grc_misc_cfg;
 	u32 val;
 	u16 pci_cmd;
-	int err, pcie_cap;
+	int err;
 
 	/* Force memory write invalidate off.  If we leave it on,
 	 * then on 5700_BX chips we have to enable a workaround.
@@ -12193,20 +12239,23 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	pci_read_config_dword(tp->pdev, TG3PCI_PCISTATE,
 			      &pci_state_reg);
 
-	pcie_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_EXP);
-	if (pcie_cap != 0) {
+	tp->pcie_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_EXP);
+	if (tp->pcie_cap != 0) {
+		u16 lnkctl;
+
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
 
 		pcie_set_readrq(tp->pdev, 4096);
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-			u16 lnkctl;
-
-			pci_read_config_word(tp->pdev,
-					     pcie_cap + PCI_EXP_LNKCTL,
-					     &lnkctl);
-			if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN)
+		pci_read_config_word(tp->pdev,
+				     tp->pcie_cap + PCI_EXP_LNKCTL,
+				     &lnkctl);
+		if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN) {
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 				tp->tg3_flags2 &= ~TG3_FLG2_HW_TSO_2;
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
+			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+				tp->tg3_flags3 |= TG3_FLG3_CLKREQ_BUG;
 		}
 	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785) {
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;

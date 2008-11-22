@@ -2618,6 +2618,7 @@ struct tg3 {
 #define TG3_FLG3_RGMII_STD_IBND_DISABLE	0x00000100
 #define TG3_FLG3_RGMII_EXT_IBND_RX_EN	0x00000200
 #define TG3_FLG3_RGMII_EXT_IBND_TX_EN	0x00000400
+#define TG3_FLG3_CLKREQ_BUG		0x00000800
 
 	struct timer_list		timer;
 	u16				timer_counter;
@@ -2656,7 +2657,10 @@ struct tg3 {
 
 	int				pm_cap;
 	int				msi_cap;
+	union {
 	int				pcix_cap;
+	int				pcie_cap;
+	};
 
 	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];
