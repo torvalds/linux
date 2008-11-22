@@ -168,3 +168,18 @@ int sms_board_setup(struct smscore_device_t *coredev)
 	}
 	return 0;
 }
+
+int sms_board_power(struct smscore_device_t *coredev, int onoff)
+{
+	int board_id = smscore_get_board_id(coredev);
+	struct sms_board *board = sms_get_board(board_id);
+
+	switch (board_id) {
+	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
+		/* power LED */
+		sms_set_gpio(coredev,
+			     board->led_power, onoff ? 1 : 0);
+		break;
+	}
+	return 0;
+}

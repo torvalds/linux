@@ -273,6 +273,27 @@ static int smsdvb_get_frontend(struct dvb_frontend *fe,
 	/* todo: */
 	memcpy(fep, &client->fe_params,
 	       sizeof(struct dvb_frontend_parameters));
+
+	return 0;
+}
+
+static int smsdvb_init(struct dvb_frontend *fe)
+{
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
+
+	sms_board_power(client->coredev, 1);
+
+	return 0;
+}
+
+static int smsdvb_sleep(struct dvb_frontend *fe)
+{
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
+
+	sms_board_power(client->coredev, 0);
+
 	return 0;
 }
 
@@ -308,6 +329,9 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.read_ber = smsdvb_read_ber,
 	.read_signal_strength = smsdvb_read_signal_strength,
 	.read_snr = smsdvb_read_snr,
+
+	.init = smsdvb_init,
+	.sleep = smsdvb_sleep,
 };
 
 static int smsdvb_hotplug(struct smscore_device_t *coredev,

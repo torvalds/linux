@@ -46,6 +46,8 @@ struct sms_board *sms_get_board(int id);
 
 int sms_board_setup(struct smscore_device_t *coredev);
 
+int sms_board_power(struct smscore_device_t *coredev, int onoff);
+
 extern struct usb_device_id smsusb_id_table[];
 
 #endif /* __SMS_CARDS_H__ */
