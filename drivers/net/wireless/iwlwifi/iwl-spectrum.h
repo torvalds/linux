@@ -88,4 +88,5 @@ struct ieee80211_measurement_report {
 		struct ieee80211_basic_report basic[0];
 	} u;
 } __attribute__ ((packed));
+
 #endif

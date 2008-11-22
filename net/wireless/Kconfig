@@ -82,3 +82,12 @@ config LIB80211
 
 	  Drivers should select this themselves if needed.  Say Y if
 	  you want this built into your kernel.
+
+config LIB80211_CRYPT_WEP
+	tristate
+
+config LIB80211_CRYPT_CCMP
+	tristate
+
+config LIB80211_CRYPT_TKIP
+	tristate

@@ -152,7 +152,8 @@ static int ieee80211_copy_snap(u8 * data, __be16 h_proto)
 static int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
 					     struct sk_buff *frag, int hdr_len)
 {
-	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
+	struct lib80211_crypt_data *crypt =
+		ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	int res;
 
 	if (crypt == NULL)
@@ -270,7 +271,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		.qos_ctl = 0
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
-	struct ieee80211_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	int priority = skb->priority;
 	int snapped = 0;
 
@@ -294,7 +295,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	ether_type = ((struct ethhdr *)skb->data)->h_proto;
 
-	crypt = ieee->crypt[ieee->tx_keyidx];
+	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 
 	encrypt = !(ether_type == htons(ETH_P_PAE) && ieee->ieee802_1x) &&
 	    ieee->sec.encrypt;

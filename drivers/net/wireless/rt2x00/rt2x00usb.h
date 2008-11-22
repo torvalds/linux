@@ -286,10 +286,7 @@ void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 /*
  * Device initialization handlers.
  */
-void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
-			    struct queue_entry *entry);
-void rt2x00usb_init_txentry(struct rt2x00_dev *rt2x00dev,
-			    struct queue_entry *entry);
+void rt2x00usb_clear_entry(struct queue_entry *entry);
 int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev);
 void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev);
 

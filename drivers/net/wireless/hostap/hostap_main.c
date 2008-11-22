@@ -27,7 +27,7 @@
 #include <net/net_namespace.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
-#include <net/ieee80211_crypt.h>
+#include <net/lib80211.h>
 #include <asm/uaccess.h>
 
 #include "hostap_wlan.h"
@@ -343,10 +343,11 @@ int hostap_set_encryption(local_info_t *local)
 	char keybuf[WEP_KEY_LEN + 1];
 	enum { NONE, WEP, OTHER } encrypt_type;
 
-	idx = local->tx_keyidx;
-	if (local->crypt[idx] == NULL || local->crypt[idx]->ops == NULL)
+	idx = local->crypt_info.tx_keyidx;
+	if (local->crypt_info.crypt[idx] == NULL ||
+	    local->crypt_info.crypt[idx]->ops == NULL)
 		encrypt_type = NONE;
-	else if (strcmp(local->crypt[idx]->ops->name, "WEP") == 0)
+	else if (strcmp(local->crypt_info.crypt[idx]->ops->name, "WEP") == 0)
 		encrypt_type = WEP;
 	else
 		encrypt_type = OTHER;
@@ -394,17 +395,17 @@ int hostap_set_encryption(local_info_t *local)
 	/* 104-bit support seems to require that all the keys are set to the
 	 * same keylen */
 	keylen = 6; /* first 5 octets */
-	len = local->crypt[idx]->ops->get_key(keybuf, sizeof(keybuf),
-					      NULL, local->crypt[idx]->priv);
+	len = local->crypt_info.crypt[idx]->ops->get_key(keybuf, sizeof(keybuf), NULL,
+							   local->crypt_info.crypt[idx]->priv);
 	if (idx >= 0 && idx < WEP_KEYS && len > 5)
 		keylen = WEP_KEY_LEN + 1; /* first 13 octets */
 
 	for (i = 0; i < WEP_KEYS; i++) {
 		memset(keybuf, 0, sizeof(keybuf));
-		if (local->crypt[i]) {
-			(void) local->crypt[i]->ops->get_key(
+		if (local->crypt_info.crypt[i]) {
+			(void) local->crypt_info.crypt[i]->ops->get_key(
 				keybuf, sizeof(keybuf),
-				NULL, local->crypt[i]->priv);
+				NULL, local->crypt_info.crypt[i]->priv);
 		}
 		if (local->func->set_rid(local->dev,
 					 HFA384X_RID_CNFDEFAULTKEY0 + i,

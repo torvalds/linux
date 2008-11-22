@@ -69,14 +69,14 @@ static void rt2500pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	/*
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2500pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, BBPCSR_BUSY)) {
-		ERROR(rt2x00dev, "BBPCSR register busy. Write failed.\n");
-		return;
-	}
+	if (rt2x00_get_field32(reg, BBPCSR_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the data into the BBP.
@@ -88,6 +88,15 @@ static void rt2500pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, BBPCSR_WRITE_CONTROL, 1);
 
 	rt2x00pci_register_write(rt2x00dev, BBPCSR, reg);
+
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	ERROR(rt2x00dev, "BBPCSR register busy. Write failed.\n");
 }
 
 static void rt2500pci_bbp_read(struct rt2x00_dev *rt2x00dev,
@@ -95,14 +104,14 @@ static void rt2500pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	/*
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2500pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, BBPCSR_BUSY)) {
-		ERROR(rt2x00dev, "BBPCSR register busy. Read failed.\n");
-		return;
-	}
+	if (rt2x00_get_field32(reg, BBPCSR_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the request into the BBP.
@@ -118,13 +127,20 @@ static void rt2500pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2500pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, BBPCSR_BUSY)) {
-		ERROR(rt2x00dev, "BBPCSR register busy. Read failed.\n");
-		*value = 0xff;
-		return;
-	}
+	if (rt2x00_get_field32(reg, BBPCSR_BUSY))
+		goto exit_fail;
 
 	*value = rt2x00_get_field32(reg, BBPCSR_VALUE);
+
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	ERROR(rt2x00dev, "BBPCSR register busy. Read failed.\n");
+	*value = 0xff;
 }
 
 static void rt2500pci_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -136,6 +152,8 @@ static void rt2500pci_rf_write(struct rt2x00_dev *rt2x00dev,
 	if (!word)
 		return;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		rt2x00pci_register_read(rt2x00dev, RFCSR, &reg);
 		if (!rt2x00_get_field32(reg, RFCSR_BUSY))
@@ -143,6 +161,7 @@ static void rt2500pci_rf_write(struct rt2x00_dev *rt2x00dev,
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
+	mutex_unlock(&rt2x00dev->csr_mutex);
 	ERROR(rt2x00dev, "RFCSR register busy. Write failed.\n");
 	return;
 
@@ -155,6 +174,8 @@ rf_write:
 
 	rt2x00pci_register_write(rt2x00dev, RFCSR, reg);
 	rt2x00_rf_write(rt2x00dev, word, value);
+
+	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
 static void rt2500pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
@@ -327,7 +348,7 @@ static void rt2500pci_config_intf(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * Enable beacon config
 		 */
-		bcn_preload = PREAMBLE + get_duration(IEEE80211_HEADER, 20);
+		bcn_preload = PREAMBLE + GET_DURATION(IEEE80211_HEADER, 20);
 		rt2x00pci_register_read(rt2x00dev, BCNCSR1, &reg);
 		rt2x00_set_field32(&reg, BCNCSR1_PRELOAD, bcn_preload);
 		rt2x00_set_field32(&reg, BCNCSR1_BEACON_CWMIN, queue->cw_min);
@@ -373,25 +394,25 @@ static void rt2500pci_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_read(rt2x00dev, ARCSR2, &reg);
 	rt2x00_set_field32(&reg, ARCSR2_SIGNAL, 0x00);
 	rt2x00_set_field32(&reg, ARCSR2_SERVICE, 0x04);
-	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 10));
+	rt2x00_set_field32(&reg, ARCSR2_LENGTH, GET_DURATION(ACK_SIZE, 10));
 	rt2x00pci_register_write(rt2x00dev, ARCSR2, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR3, &reg);
 	rt2x00_set_field32(&reg, ARCSR3_SIGNAL, 0x01 | preamble_mask);
 	rt2x00_set_field32(&reg, ARCSR3_SERVICE, 0x04);
-	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 20));
+	rt2x00_set_field32(&reg, ARCSR2_LENGTH, GET_DURATION(ACK_SIZE, 20));
 	rt2x00pci_register_write(rt2x00dev, ARCSR3, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR4, &reg);
 	rt2x00_set_field32(&reg, ARCSR4_SIGNAL, 0x02 | preamble_mask);
 	rt2x00_set_field32(&reg, ARCSR4_SERVICE, 0x04);
-	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 55));
+	rt2x00_set_field32(&reg, ARCSR2_LENGTH, GET_DURATION(ACK_SIZE, 55));
 	rt2x00pci_register_write(rt2x00dev, ARCSR4, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR5, &reg);
 	rt2x00_set_field32(&reg, ARCSR5_SIGNAL, 0x03 | preamble_mask);
 	rt2x00_set_field32(&reg, ARCSR5_SERVICE, 0x84);
-	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 110));
+	rt2x00_set_field32(&reg, ARCSR2_LENGTH, GET_DURATION(ACK_SIZE, 110));
 	rt2x00pci_register_write(rt2x00dev, ARCSR5, reg);
 
 	rt2x00pci_register_write(rt2x00dev, ARCSR1, erp->basic_rates);
@@ -722,32 +743,43 @@ dynamic_cca_tune:
 /*
  * Initialization functions.
  */
-static void rt2500pci_init_rxentry(struct rt2x00_dev *rt2x00dev,
-				   struct queue_entry *entry)
+static bool rt2500pci_get_entry_state(struct queue_entry *entry)
+{
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
+	u32 word;
+
+	if (entry->queue->qid == QID_RX) {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+
+		return rt2x00_get_field32(word, RXD_W0_OWNER_NIC);
+	} else {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+
+		return (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
+		        rt2x00_get_field32(word, TXD_W0_VALID));
+	}
+}
+
+static void rt2500pci_clear_entry(struct queue_entry *entry)
 {
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	u32 word;
 
-	rt2x00_desc_read(entry_priv->desc, 1, &word);
-	rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
-	rt2x00_desc_write(entry_priv->desc, 1, word);
+	if (entry->queue->qid == QID_RX) {
+		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
+		rt2x00_desc_write(entry_priv->desc, 1, word);
 
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
-}
-
-static void rt2500pci_init_txentry(struct rt2x00_dev *rt2x00dev,
-				   struct queue_entry *entry)
-{
-	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
-	u32 word;
-
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, TXD_W0_VALID, 0);
-	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
+		rt2x00_desc_write(entry_priv->desc, 0, word);
+	} else {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		rt2x00_set_field32(&word, TXD_W0_VALID, 0);
+		rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
+		rt2x00_desc_write(entry_priv->desc, 0, word);
+	}
 }
 
 static int rt2500pci_init_queues(struct rt2x00_dev *rt2x00dev)
@@ -1871,8 +1903,8 @@ static const struct rt2x00lib_ops rt2500pci_rt2x00_ops = {
 	.probe_hw		= rt2500pci_probe_hw,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
-	.init_rxentry		= rt2500pci_init_rxentry,
-	.init_txentry		= rt2500pci_init_txentry,
+	.get_entry_state	= rt2500pci_get_entry_state,
+	.clear_entry		= rt2500pci_clear_entry,
 	.set_device_state	= rt2500pci_set_device_state,
 	.rfkill_poll		= rt2500pci_rfkill_poll,
 	.link_stats		= rt2500pci_link_stats,

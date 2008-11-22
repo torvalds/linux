@@ -1206,7 +1206,7 @@ static void prism2_check_tx_rates(struct sta_info *sta)
 
 static void ap_crypt_init(struct ap_data *ap)
 {
-	ap->crypt = ieee80211_get_crypto_ops("WEP");
+	ap->crypt = lib80211_get_crypto_ops("WEP");
 
 	if (ap->crypt) {
 		if (ap->crypt->init) {
@@ -1224,7 +1224,7 @@ static void ap_crypt_init(struct ap_data *ap)
 
 	if (ap->crypt == NULL) {
 		printk(KERN_WARNING "AP could not initialize WEP: load module "
-		       "ieee80211_crypt_wep.ko\n");
+		       "lib80211_crypt_wep.ko\n");
 	}
 }
 
@@ -1293,7 +1293,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 	__le16 *pos;
 	u16 resp = WLAN_STATUS_SUCCESS, fc;
 	struct sta_info *sta = NULL;
-	struct ieee80211_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	char *txt = "";
 
 	len = skb->len - IEEE80211_MGMT_HDR_LEN;
@@ -1319,7 +1319,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 		int idx = 0;
 		if (skb->len >= hdrlen + 3)
 			idx = skb->data[hdrlen + 3] >> 6;
-		crypt = local->crypt[idx];
+		crypt = local->crypt_info.crypt[idx];
 	}
 
 	pos = (__le16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
@@ -3065,7 +3065,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 /* Called only as a tasklet (software IRQ) */
 int hostap_handle_sta_crypto(local_info_t *local,
 			     struct ieee80211_hdr_4addr *hdr,
-			     struct ieee80211_crypt_data **crypt,
+			     struct lib80211_crypt_data **crypt,
 			     void **sta_ptr)
 {
 	struct sta_info *sta;
@@ -3213,7 +3213,7 @@ void hostap_update_rates(local_info_t *local)
 
 
 void * ap_crypt_get_ptrs(struct ap_data *ap, u8 *addr, int permanent,
-			 struct ieee80211_crypt_data ***crypt)
+			 struct lib80211_crypt_data ***crypt)
 {
 	struct sta_info *sta;
 

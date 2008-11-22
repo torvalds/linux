@@ -819,64 +819,6 @@ enum {
 #define IWL49_NUM_QUEUES	16
 #define IWL49_NUM_AMPDU_QUEUES	8
 
-#define IWL_TX_DMA_MASK        (DMA_BIT_MASK(36) & ~0x3)
-#define IWL_NUM_OF_TBS		20
-
-static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
-{
-	return (sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0) & 0xF;
-}
-/**
- * struct iwl_tfd_tb transmit buffer descriptor within transmit frame descriptor
- *
- * This structure contains dma address and length of transmission address
- *
- * @lo: low [31:0] portion of the dma address of TX buffer
- * 	every even is unaligned on 16 bit boundary
- * @hi_n_len 0-3 [35:32] portion of dma
- *	     4-16 length of the tx buffer
- */
-struct iwl_tfd_tb {
-	__le32 lo;
-	__le16 hi_n_len;
-} __attribute__((packed));
-
-/**
- * struct iwl_tfd
- *
- * Transmit Frame Descriptor (TFD)
- *
- * @ __reserved1[3] reserved
- * @ num_tbs 0-5 number of active tbs
- * 	     6-7 padding (not used)
- * @ tbs[20]	transmit frame buffer descriptors
- * @ __pad 	padding
- *
- * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
- * Both driver and device share these circular buffers, each of which must be
- * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes
- *
- * Driver must indicate the physical address of the base of each
- * circular buffer via the FH_MEM_CBBC_QUEUE registers.
- *
- * Each TFD contains pointer/size information for up to 20 data buffers
- * in host DRAM.  These buffers collectively contain the (one) frame described
- * by the TFD.  Each buffer must be a single contiguous block of memory within
- * itself, but buffers may be scattered in host DRAM.  Each buffer has max size
- * of (4K - 4).  The concatenates all of a TFD's buffers into a single
- * Tx frame, up to 8 KBytes in size.
- *
- * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
- *
- * Bit fields in the control dword (val0):
- */
-struct iwl_tfd {
-	u8 __reserved1[3];
-	u8 num_tbs;
-	struct iwl_tfd_tb tbs[IWL_NUM_OF_TBS];
-	__le32 __pad;
-} __attribute__ ((packed));
-
 
 /**
  * struct iwl4965_schedq_bc_tbl
@@ -896,64 +838,9 @@ struct iwl_tfd {
  * padding puts each byte count table on a 1024-byte boundary;
  * 4965 assumes tables are separated by 1024 bytes.
  */
-struct iwl4965_schedq_bc_tbl {
+struct iwl4965_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
 	u8 pad[1024 - (TFD_QUEUE_BC_SIZE) * sizeof(__le16)];
 } __attribute__ ((packed));
 
-
-/**
- * struct iwl4965_shared - handshake area for Tx and Rx
- *
- * For convenience in allocating memory, this structure combines 2 areas of
- * DRAM which must be shared between driver and 4965.  These do not need to
- * be combined, if better allocation would result from keeping them separate:
- *
- * 1)  The Tx byte count tables occupy 1024 bytes each (16 KBytes total for
- *     16 queues).  Driver uses SCD_DRAM_BASE_ADDR to tell 4965 where to find
- *     the first of these tables.  4965 assumes tables are 1024 bytes apart.
- *
- * 2)  The Rx status (val0 and val1) occupies only 8 bytes.  Driver uses
- *     FH_RSCSR_CHNL0_STTS_WPTR_REG to tell 4965 where to find this area.
- *     Driver reads val0 to determine the latest Receive Buffer Descriptor (RBD)
- *     that has been filled by the 4965.
- *
- * Bit fields val0:
- * 31-12:  Not used
- * 11- 0:  Index of last filled Rx buffer descriptor (4965 writes, driver reads)
- *
- * Bit fields val1:
- * 31- 0:  Not used
- */
-struct iwl4965_shared {
-	struct iwl4965_schedq_bc_tbl queues_bc_tbls[IWL49_NUM_QUEUES];
-	__le32 rb_closed;
-
-	/* __le32 rb_closed_stts_rb_num:12; */
-#define IWL_rb_closed_stts_rb_num_POS 0
-#define IWL_rb_closed_stts_rb_num_LEN 12
-#define IWL_rb_closed_stts_rb_num_SYM rb_closed
-	/* __le32 rsrv1:4; */
-	/* __le32 rb_closed_stts_rx_frame_num:12; */
-#define IWL_rb_closed_stts_rx_frame_num_POS 16
-#define IWL_rb_closed_stts_rx_frame_num_LEN 12
-#define IWL_rb_closed_stts_rx_frame_num_SYM rb_closed
-	/* __le32 rsrv2:4; */
-
-	__le32 frm_finished;
-	/* __le32 frame_finished_stts_rb_num:12; */
-#define IWL_frame_finished_stts_rb_num_POS 0
-#define IWL_frame_finished_stts_rb_num_LEN 12
-#define IWL_frame_finished_stts_rb_num_SYM frm_finished
-	/* __le32 rsrv3:4; */
-	/* __le32 frame_finished_stts_rx_frame_num:12; */
-#define IWL_frame_finished_stts_rx_frame_num_POS 16
-#define IWL_frame_finished_stts_rx_frame_num_LEN 12
-#define IWL_frame_finished_stts_rx_frame_num_SYM frm_finished
-	/* __le32 rsrv4:4; */
-
-	__le32 padding1;  /* so that allocation will be aligned to 16B */
-	__le32 padding2;
-} __attribute__ ((packed));
-
-#endif /* __iwl4965_4965_hw_h__ */
+#endif /* !__iwl_4965_hw_h__ */

@@ -75,14 +75,14 @@ static void rt61pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	/*
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt61pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR3 register busy. Write failed.\n");
-		return;
-	}
+	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the data into the BBP.
@@ -94,6 +94,14 @@ static void rt61pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, PHY_CSR3_READ_CONTROL, 0);
 
 	rt2x00pci_register_write(rt2x00dev, PHY_CSR3, reg);
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	ERROR(rt2x00dev, "PHY_CSR3 register busy. Write failed.\n");
 }
 
 static void rt61pci_bbp_read(struct rt2x00_dev *rt2x00dev,
@@ -101,14 +109,14 @@ static void rt61pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	/*
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt61pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR3 register busy. Read failed.\n");
-		return;
-	}
+	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the request into the BBP.
@@ -124,13 +132,19 @@ static void rt61pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt61pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR3 register busy. Read failed.\n");
-		*value = 0xff;
-		return;
-	}
+	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY))
+		goto exit_fail;
 
 	*value = rt2x00_get_field32(reg, PHY_CSR3_VALUE);
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	ERROR(rt2x00dev, "PHY_CSR3 register busy. Read failed.\n");
+	*value = 0xff;
 }
 
 static void rt61pci_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -142,6 +156,8 @@ static void rt61pci_rf_write(struct rt2x00_dev *rt2x00dev,
 	if (!word)
 		return;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		rt2x00pci_register_read(rt2x00dev, PHY_CSR4, &reg);
 		if (!rt2x00_get_field32(reg, PHY_CSR4_BUSY))
@@ -149,6 +165,7 @@ static void rt61pci_rf_write(struct rt2x00_dev *rt2x00dev,
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
+	mutex_unlock(&rt2x00dev->csr_mutex);
 	ERROR(rt2x00dev, "PHY_CSR4 register busy. Write failed.\n");
 	return;
 
@@ -161,6 +178,8 @@ rf_write:
 
 	rt2x00pci_register_write(rt2x00dev, PHY_CSR4, reg);
 	rt2x00_rf_write(rt2x00dev, word, value);
+
+	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
 #ifdef CONFIG_RT2X00_LIB_LEDS
@@ -175,14 +194,12 @@ static void rt61pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	rt2x00pci_register_read(rt2x00dev, H2M_MAILBOX_CSR, &reg);
 
-	if (rt2x00_get_field32(reg, H2M_MAILBOX_CSR_OWNER)) {
-		ERROR(rt2x00dev, "mcu request error. "
-		      "Request 0x%02x failed for token 0x%02x.\n",
-		      command, token);
-		return;
-	}
+	if (rt2x00_get_field32(reg, H2M_MAILBOX_CSR_OWNER))
+		goto exit_fail;
 
 	rt2x00_set_field32(&reg, H2M_MAILBOX_CSR_OWNER, 1);
 	rt2x00_set_field32(&reg, H2M_MAILBOX_CSR_CMD_TOKEN, token);
@@ -194,6 +211,17 @@ static void rt61pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, HOST_CMD_CSR_HOST_COMMAND, command);
 	rt2x00_set_field32(&reg, HOST_CMD_CSR_INTERRUPT_MCU, 1);
 	rt2x00pci_register_write(rt2x00dev, HOST_CMD_CSR, reg);
+
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	ERROR(rt2x00dev,
+	      "mcu request error. Request 0x%02x failed for token 0x%02x.\n",
+	      command, token);
 }
 #endif /* CONFIG_RT2X00_LIB_LEDS */
 
@@ -1261,33 +1289,44 @@ static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 /*
  * Initialization functions.
  */
-static void rt61pci_init_rxentry(struct rt2x00_dev *rt2x00dev,
-				 struct queue_entry *entry)
+static bool rt61pci_get_entry_state(struct queue_entry *entry)
+{
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
+	u32 word;
+
+	if (entry->queue->qid == QID_RX) {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+
+		return rt2x00_get_field32(word, RXD_W0_OWNER_NIC);
+	} else {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+
+		return (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
+		        rt2x00_get_field32(word, TXD_W0_VALID));
+	}
+}
+
+static void rt61pci_clear_entry(struct queue_entry *entry)
 {
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	u32 word;
 
-	rt2x00_desc_read(entry_priv->desc, 5, &word);
-	rt2x00_set_field32(&word, RXD_W5_BUFFER_PHYSICAL_ADDRESS,
-			   skbdesc->skb_dma);
-	rt2x00_desc_write(entry_priv->desc, 5, word);
+	if (entry->queue->qid == QID_RX) {
+		rt2x00_desc_read(entry_priv->desc, 5, &word);
+		rt2x00_set_field32(&word, RXD_W5_BUFFER_PHYSICAL_ADDRESS,
+				   skbdesc->skb_dma);
+		rt2x00_desc_write(entry_priv->desc, 5, word);
 
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
-}
-
-static void rt61pci_init_txentry(struct rt2x00_dev *rt2x00dev,
-				 struct queue_entry *entry)
-{
-	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
-	u32 word;
-
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, TXD_W0_VALID, 0);
-	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
+		rt2x00_desc_write(entry_priv->desc, 0, word);
+	} else {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		rt2x00_set_field32(&word, TXD_W0_VALID, 0);
+		rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
+		rt2x00_desc_write(entry_priv->desc, 0, word);
+	}
 }
 
 static int rt61pci_init_queues(struct rt2x00_dev *rt2x00dev)
@@ -2722,8 +2761,8 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.load_firmware		= rt61pci_load_firmware,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
-	.init_rxentry		= rt61pci_init_rxentry,
-	.init_txentry		= rt61pci_init_txentry,
+	.get_entry_state	= rt61pci_get_entry_state,
+	.clear_entry		= rt61pci_clear_entry,
 	.set_device_state	= rt61pci_set_device_state,
 	.rfkill_poll		= rt61pci_rfkill_poll,
 	.link_stats		= rt61pci_link_stats,

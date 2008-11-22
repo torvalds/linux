@@ -191,6 +191,7 @@ struct rtl818x_rf_ops {
 	void (*init)(struct ieee80211_hw *);
 	void (*stop)(struct ieee80211_hw *);
 	void (*set_chan)(struct ieee80211_hw *, struct ieee80211_conf *);
+	void (*conf_erp)(struct ieee80211_hw *, struct ieee80211_bss_conf *);
 };
 
 /* Tx/Rx flags are common between RTL818X chips */

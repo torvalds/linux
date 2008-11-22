@@ -296,9 +296,8 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		rfilt &= ~ATH9K_RX_FILTER_UCAST;
 	}
 
-	if (((sc->sc_ah->ah_opmode == ATH9K_M_STA) &&
-	     (sc->rx_filter & FIF_BCN_PRBRESP_PROMISC)) ||
-	    (sc->sc_ah->ah_opmode == ATH9K_M_IBSS))
+	if (sc->sc_ah->ah_opmode == ATH9K_M_STA ||
+			sc->sc_ah->ah_opmode == ATH9K_M_IBSS)
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	/* If in HOSTAP mode, want to enable reception of PSPOLL frames

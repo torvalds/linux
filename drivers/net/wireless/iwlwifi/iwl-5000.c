@@ -721,11 +721,9 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 		iwl_write_targ_mem(priv, a, 0);
 
 	iwl_write_prph(priv, IWL50_SCD_DRAM_BASE_ADDR,
-		(priv->shared_phys +
-		 offsetof(struct iwl5000_shared, queues_bc_tbls)) >> 10);
+		       priv->scd_bc_tbls.dma >> 10);
 	iwl_write_prph(priv, IWL50_SCD_QUEUECHAIN_SEL,
-		IWL50_SCD_QUEUECHAIN_SEL_ALL(
-			priv->hw_params.max_txq_num));
+		IWL50_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
 	iwl_write_prph(priv, IWL50_SCD_AGGR_SEL, 0);
 
 	/* initiate the queues */
@@ -788,6 +786,8 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.scd_bc_tbls_size =
+			IWL50_NUM_QUEUES * sizeof(struct iwl5000_scd_bc_tbl);
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
 	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
@@ -853,36 +853,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	return 0;
 }
 
-static int iwl5000_alloc_shared_mem(struct iwl_priv *priv)
-{
-	priv->shared_virt = pci_alloc_consistent(priv->pci_dev,
-					sizeof(struct iwl5000_shared),
-					&priv->shared_phys);
-	if (!priv->shared_virt)
-		return -ENOMEM;
-
-	memset(priv->shared_virt, 0, sizeof(struct iwl5000_shared));
-
-	priv->rb_closed_offset = offsetof(struct iwl5000_shared, rb_closed);
-
-	return 0;
-}
-
-static void iwl5000_free_shared_mem(struct iwl_priv *priv)
-{
-	if (priv->shared_virt)
-		pci_free_consistent(priv->pci_dev,
-				    sizeof(struct iwl5000_shared),
-				    priv->shared_virt,
-				    priv->shared_phys);
-}
-
-static int iwl5000_shared_mem_rx_idx(struct iwl_priv *priv)
-{
-	struct iwl5000_shared *s = priv->shared_virt;
-	return le32_to_cpu(s->rb_closed) & 0xFFF;
-}
-
 /**
  * iwl5000_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
@@ -890,7 +860,7 @@ static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 					    struct iwl_tx_queue *txq,
 					    u16 byte_cnt)
 {
-	struct iwl5000_shared *shared_data = priv->shared_virt;
+	struct iwl5000_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
 	int write_ptr = txq->q.write_ptr;
 	int txq_id = txq->q.id;
 	u8 sec_ctl = 0;
@@ -919,17 +889,17 @@ static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 
 	bc_ent = cpu_to_le16((len & 0xFFF) | (sta_id << 12));
 
-	shared_data->queues_bc_tbls[txq_id].tfd_offset[write_ptr] = bc_ent;
+	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
 
 	if (txq->q.write_ptr < TFD_QUEUE_SIZE_BC_DUP)
-		shared_data->queues_bc_tbls[txq_id].
+		scd_bc_tbl[txq_id].
 			tfd_offset[TFD_QUEUE_SIZE_MAX + write_ptr] = bc_ent;
 }
 
 static void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 					   struct iwl_tx_queue *txq)
 {
-	struct iwl5000_shared *shared_data = priv->shared_virt;
+	struct iwl5000_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
 	int txq_id = txq->q.id;
 	int read_ptr = txq->q.read_ptr;
 	u8 sta_id = 0;
@@ -941,11 +911,10 @@ static void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 		sta_id = txq->cmd[read_ptr]->cmd.tx.sta_id;
 
 	bc_ent =  cpu_to_le16(1 | (sta_id << 12));
-	shared_data->queues_bc_tbls[txq_id].
-			tfd_offset[read_ptr] = bc_ent;
+	scd_bc_tbl[txq_id].tfd_offset[read_ptr] = bc_ent;
 
 	if (txq->q.write_ptr < TFD_QUEUE_SIZE_BC_DUP)
-		shared_data->queues_bc_tbls[txq_id].
+		scd_bc_tbl[txq_id].
 			tfd_offset[TFD_QUEUE_SIZE_MAX + read_ptr] =  bc_ent;
 }
 
@@ -1458,9 +1427,6 @@ static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 
 static struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
-	.alloc_shared_mem = iwl5000_alloc_shared_mem,
-	.free_shared_mem = iwl5000_free_shared_mem,
-	.shared_mem_rx_idx = iwl5000_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwl5000_txq_set_sched,

@@ -2219,9 +2219,9 @@ ath5k_init(struct ath5k_softc *sc, bool is_resume)
 	 */
 	sc->curchan = sc->hw->conf.channel;
 	sc->curband = &sc->sbands[sc->curchan->band];
-	sc->imask = AR5K_INT_RXOK | AR5K_INT_TXOK | AR5K_INT_RXEOL |
-		AR5K_INT_RXORN | AR5K_INT_FATAL | AR5K_INT_GLOBAL |
-		AR5K_INT_MIB;
+	sc->imask = AR5K_INT_RXOK | AR5K_INT_RXERR | AR5K_INT_RXEOL |
+		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
+		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_MIB;
 	ret = ath5k_reset(sc, false, false);
 	if (ret)
 		goto done;
@@ -2953,9 +2953,9 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		test_bit(ATH_STAT_PROMISC, sc->status))
 		rfilt |= AR5K_RX_FILTER_PROM;
 	if (sc->opmode == NL80211_IFTYPE_STATION ||
-		sc->opmode == NL80211_IFTYPE_ADHOC) {
+		sc->opmode == NL80211_IFTYPE_ADHOC ||
+		sc->opmode == NL80211_IFTYPE_AP)
 		rfilt |= AR5K_RX_FILTER_BEACON;
-	}
 	if (sc->opmode == NL80211_IFTYPE_MESH_POINT)
 		rfilt |= AR5K_RX_FILTER_CONTROL | AR5K_RX_FILTER_BEACON |
 			AR5K_RX_FILTER_PROBEREQ | AR5K_RX_FILTER_PROM;

@@ -301,7 +301,6 @@ struct iwl_host_cmd {
 
 /**
  * struct iwl_rx_queue - Rx queue
- * @processed: Internal index to last handled Rx packet
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
@@ -316,13 +315,14 @@ struct iwl_rx_queue {
 	dma_addr_t dma_addr;
 	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
 	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
-	u32 processed;
 	u32 read;
 	u32 write;
 	u32 free_count;
 	struct list_head rx_free;
 	struct list_head rx_used;
 	int need_update;
+	struct iwl_rb_status *rb_stts;
+	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
 };
 
@@ -507,6 +507,7 @@ struct iwl_sensitivity_ranges {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
+ * @scd_bc_tbls_size: size of scheduler byte count tables
  * @tx/rx_chains_num: Number of TX/RX chains
  * @valid_tx/rx_ant: usable antennas
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
@@ -524,6 +525,7 @@ struct iwl_sensitivity_ranges {
  */
 struct iwl_hw_params {
 	u16 max_txq_num;
+	u16 scd_bc_tbls_size;
 	u8  tx_chains_num;
 	u8  rx_chains_num;
 	u8  valid_tx_ant;
@@ -605,13 +607,9 @@ static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 struct iwl_priv;
 
 
-/* Structures, enum, and defines specific to the 4965 */
-
-#define IWL_KW_SIZE 0x1000	/*4k */
-
-struct iwl_kw {
-	dma_addr_t dma_addr;
-	void *v_addr;
+struct iwl_dma_ptr {
+	dma_addr_t dma;
+	void *addr;
 	size_t size;
 };
 
@@ -907,7 +905,9 @@ struct iwl_priv {
 	struct iwl_rx_queue rxq;
 	struct iwl_tx_queue txq[IWL_MAX_NUM_QUEUES];
 	unsigned long txq_ctx_active_msk;
-	struct iwl_kw kw;	/* keep warm address */
+	struct iwl_dma_ptr  kw;	/* keep warm address */
+	struct iwl_dma_ptr  scd_bc_tbls;
+
 	u32 scd_base_addr;	/* scheduler sram base address */
 
 	unsigned long status;
@@ -967,11 +967,7 @@ struct iwl_priv {
 	struct ieee80211_vif *vif;
 
 	struct iwl_hw_params hw_params;
-	/* driver/uCode shared Tx Byte Counts and Rx status */
-	void *shared_virt;
-	int rb_closed_offset;
-	/* Physical Pointer to Tx Byte Counts and Rx status */
-	dma_addr_t shared_phys;
+
 
 	/* Current association information needed to configure the
 	 * hardware */
@@ -1092,23 +1088,6 @@ static inline int is_channel_ibss(const struct iwl_channel_info *ch)
 {
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
 }
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
-				      void *p, u32 len)
-{
-	if (!(priv->debug_level & level))
-		return;
-
-	print_hex_dump(KERN_DEBUG, "iwl data: ", DUMP_PREFIX_OFFSET, 16, 1,
-			p, len, 1);
-}
-#else
-static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
-				      void *p, u32 len)
-{
-}
-#endif
 
 extern const struct iwl_channel_info *iwl_get_channel_info(
 	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);

@@ -56,6 +56,26 @@ static const u16 default_tid_to_tx_fifo[] = {
 	IWL_TX_FIFO_AC3
 };
 
+static inline int iwl_alloc_dma_ptr(struct iwl_priv *priv,
+				    struct iwl_dma_ptr *ptr, size_t size)
+{
+	ptr->addr = pci_alloc_consistent(priv->pci_dev, size, &ptr->dma);
+	if (!ptr->addr)
+		return -ENOMEM;
+	ptr->size = size;
+	return 0;
+}
+
+static inline void iwl_free_dma_ptr(struct iwl_priv *priv,
+				    struct iwl_dma_ptr *ptr)
+{
+	if (unlikely(!ptr->addr))
+		return;
+
+	pci_free_consistent(priv->pci_dev, ptr->size, ptr->addr, ptr->dma);
+	memset(ptr, 0, sizeof(*ptr));
+}
+
 static inline dma_addr_t iwl_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
 {
 	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
@@ -517,8 +537,9 @@ void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
 		else
 			iwl_tx_queue_free(priv, txq_id);
 
-	/* Keep-warm buffer */
-	iwl_kw_free(priv);
+	iwl_free_dma_ptr(priv, &priv->kw);
+
+	iwl_free_dma_ptr(priv, &priv->scd_bc_tbls);
 }
 EXPORT_SYMBOL(iwl_hw_txq_ctx_free);
 
@@ -535,13 +556,17 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 	int txq_id, slots_num;
 	unsigned long flags;
 
-	iwl_kw_free(priv);
-
 	/* Free all tx/cmd queues and keep-warm buffer */
 	iwl_hw_txq_ctx_free(priv);
 
+	ret = iwl_alloc_dma_ptr(priv, &priv->scd_bc_tbls,
+				priv->hw_params.scd_bc_tbls_size);
+	if (ret) {
+		IWL_ERROR("Scheduler BC Table allocation failed\n");
+		goto error_bc_tbls;
+	}
 	/* Alloc keep-warm buffer */
-	ret = iwl_kw_alloc(priv);
+	ret = iwl_alloc_dma_ptr(priv, &priv->kw, IWL_KW_SIZE);
 	if (ret) {
 		IWL_ERROR("Keep Warm allocation failed\n");
 		goto error_kw;
@@ -556,16 +581,13 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 	/* Turn off all Tx DMA fifos */
 	priv->cfg->ops->lib->txq_set_sched(priv, 0);
 
+	/* Tell NIC where to find the "keep warm" buffer */
+	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, priv->kw.dma >> 4);
+
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 
-	/* Tell nic where to find the keep-warm buffer */
-	ret = iwl_kw_init(priv);
-	if (ret) {
-		IWL_ERROR("kw_init failed\n");
-		goto error_reset;
-	}
 
 	/* Alloc and init all Tx queues, including the command queue (#4) */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
@@ -584,8 +606,10 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
  error:
 	iwl_hw_txq_ctx_free(priv);
  error_reset:
-	iwl_kw_free(priv);
+	iwl_free_dma_ptr(priv, &priv->kw);
  error_kw:
+	iwl_free_dma_ptr(priv, &priv->scd_bc_tbls);
+ error_bc_tbls:
 	return ret;
 }
 
@@ -1236,8 +1260,13 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	 * command queue then there a command routing bug has been introduced
 	 * in the queue management code. */
 	if (WARN(txq_id != IWL_CMD_QUEUE_NUM,
-		 "wrong command queue %d, command id 0x%X\n", txq_id, pkt->hdr.cmd))
+		 "wrong command queue %d, sequence 0x%X readp=%d writep=%d\n",
+		  txq_id, sequence,
+		  priv->txq[IWL_CMD_QUEUE_NUM].q.read_ptr,
+		  priv->txq[IWL_CMD_QUEUE_NUM].q.write_ptr)) {
+		iwl_print_hex_dump(priv, IWL_DL_INFO , rxb, 32);
 		return;
+	}
 
 	cmd_index = get_cmd_index(&priv->txq[IWL_CMD_QUEUE_NUM].q, index, huge);
 	cmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_index];

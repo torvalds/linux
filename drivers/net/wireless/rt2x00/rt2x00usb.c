@@ -79,7 +79,7 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 {
 	int status;
 
-	BUG_ON(!mutex_is_locked(&rt2x00dev->usb_cache_mutex));
+	BUG_ON(!mutex_is_locked(&rt2x00dev->csr_mutex));
 
 	/*
 	 * Check for Cache availability.
@@ -110,13 +110,13 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 {
 	int status;
 
-	mutex_lock(&rt2x00dev->usb_cache_mutex);
+	mutex_lock(&rt2x00dev->csr_mutex);
 
 	status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
 						requesttype, offset, buffer,
 						buffer_length, timeout);
 
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 
 	return status;
 }
@@ -132,7 +132,7 @@ int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 	unsigned char *tb;
 	u16 off, len, bsize;
 
-	mutex_lock(&rt2x00dev->usb_cache_mutex);
+	mutex_lock(&rt2x00dev->csr_mutex);
 
 	tb  = (char *)buffer;
 	off = offset;
@@ -148,7 +148,7 @@ int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 		off += bsize;
 	}
 
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 
 	return status;
 }
@@ -351,28 +351,25 @@ EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 /*
  * Device initialization handlers.
  */
-void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
-			    struct queue_entry *entry)
+void rt2x00usb_clear_entry(struct queue_entry *entry)
 {
-	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
+	struct usb_device *usb_dev =
+	    to_usb_device_intf(entry->queue->rt2x00dev->dev);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 
-	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
-			  usb_rcvbulkpipe(usb_dev, 1),
-			  entry->skb->data, entry->skb->len,
-			  rt2x00usb_interrupt_rxdone, entry);
+	if (entry->queue->qid == QID_RX) {
+		usb_fill_bulk_urb(entry_priv->urb, usb_dev,
+				usb_rcvbulkpipe(usb_dev, 1),
+				entry->skb->data, entry->skb->len,
+				rt2x00usb_interrupt_rxdone, entry);
 
-	set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+		set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+	} else {
+		entry->flags = 0;
+	}
 }
-EXPORT_SYMBOL_GPL(rt2x00usb_init_rxentry);
-
-void rt2x00usb_init_txentry(struct rt2x00_dev *rt2x00dev,
-			    struct queue_entry *entry)
-{
-	entry->flags = 0;
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_init_txentry);
+EXPORT_SYMBOL_GPL(rt2x00usb_clear_entry);
 
 static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 			       struct data_queue *queue)
@@ -534,7 +531,6 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->dev = &usb_intf->dev;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
-	mutex_init(&rt2x00dev->usb_cache_mutex);
 
 	rt2x00dev->usb_maxpacket =
 	    usb_maxpacket(usb_dev, usb_sndbulkpipe(usb_dev, 1), 1);

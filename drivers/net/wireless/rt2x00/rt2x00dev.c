@@ -101,8 +101,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all data queues.
 	 */
-	rt2x00queue_init_rx(rt2x00dev);
-	rt2x00queue_init_tx(rt2x00dev);
+	rt2x00queue_init_queues(rt2x00dev);
 
 	/*
 	 * Enable radio.
@@ -176,12 +175,13 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 
 static void rt2x00lib_evaluate_antenna_sample(struct rt2x00_dev *rt2x00dev)
 {
-	enum antenna rx = rt2x00dev->link.ant.active.rx;
-	enum antenna tx = rt2x00dev->link.ant.active.tx;
+	struct antenna_setup ant;
 	int sample_a =
 	    rt2x00_get_link_ant_rssi_history(&rt2x00dev->link, ANTENNA_A);
 	int sample_b =
 	    rt2x00_get_link_ant_rssi_history(&rt2x00dev->link, ANTENNA_B);
+
+	memcpy(&ant, &rt2x00dev->link.ant.active, sizeof(ant));
 
 	/*
 	 * We are done sampling. Now we should evaluate the results.
@@ -200,20 +200,21 @@ static void rt2x00lib_evaluate_antenna_sample(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY)
-		rx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
+		ant.rx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
 
 	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)
-		tx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
+		ant.tx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
 
-	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
+	rt2x00lib_config_antenna(rt2x00dev, &ant);
 }
 
 static void rt2x00lib_evaluate_antenna_eval(struct rt2x00_dev *rt2x00dev)
 {
-	enum antenna rx = rt2x00dev->link.ant.active.rx;
-	enum antenna tx = rt2x00dev->link.ant.active.tx;
+	struct antenna_setup ant;
 	int rssi_curr = rt2x00_get_link_ant_rssi(&rt2x00dev->link);
 	int rssi_old = rt2x00_update_ant_rssi(&rt2x00dev->link, rssi_curr);
+
+	memcpy(&ant, &rt2x00dev->link.ant.active, sizeof(ant));
 
 	/*
 	 * Legacy driver indicates that we should swap antenna's
@@ -230,12 +231,12 @@ static void rt2x00lib_evaluate_antenna_eval(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->link.ant.flags |= ANTENNA_MODE_SAMPLE;
 
 	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY)
-		rx = (rx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
+		ant.rx = (ant.rx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
 
 	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)
-		tx = (tx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
+		ant.tx = (ant.tx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
 
-	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
+	rt2x00lib_config_antenna(rt2x00dev, &ant);
 }
 
 static void rt2x00lib_evaluate_antenna(struct rt2x00_dev *rt2x00dev)
@@ -574,7 +575,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	entry->skb = NULL;
 	entry->flags = 0;
 
-	rt2x00dev->ops->lib->init_txentry(rt2x00dev, entry);
+	rt2x00dev->ops->lib->clear_entry(entry);
 
 	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
@@ -706,7 +707,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	entry->skb = skb;
 	entry->flags = 0;
 
-	rt2x00dev->ops->lib->init_rxentry(rt2x00dev, entry);
+	rt2x00dev->ops->lib->clear_entry(entry);
 
 	rt2x00queue_index_inc(entry->queue, Q_INDEX);
 }
@@ -717,31 +718,31 @@ EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
  */
 const struct rt2x00_rate rt2x00_supported_rates[12] = {
 	{
-		.flags = DEV_RATE_CCK | DEV_RATE_BASIC,
+		.flags = DEV_RATE_CCK,
 		.bitrate = 10,
 		.ratemask = BIT(0),
 		.plcp = 0x00,
 	},
 	{
-		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE | DEV_RATE_BASIC,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 20,
 		.ratemask = BIT(1),
 		.plcp = 0x01,
 	},
 	{
-		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE | DEV_RATE_BASIC,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 55,
 		.ratemask = BIT(2),
 		.plcp = 0x02,
 	},
 	{
-		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE | DEV_RATE_BASIC,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 110,
 		.ratemask = BIT(3),
 		.plcp = 0x03,
 	},
 	{
-		.flags = DEV_RATE_OFDM | DEV_RATE_BASIC,
+		.flags = DEV_RATE_OFDM,
 		.bitrate = 60,
 		.ratemask = BIT(4),
 		.plcp = 0x0b,
@@ -753,7 +754,7 @@ const struct rt2x00_rate rt2x00_supported_rates[12] = {
 		.plcp = 0x0f,
 	},
 	{
-		.flags = DEV_RATE_OFDM | DEV_RATE_BASIC,
+		.flags = DEV_RATE_OFDM,
 		.bitrate = 120,
 		.ratemask = BIT(6),
 		.plcp = 0x0a,
@@ -765,7 +766,7 @@ const struct rt2x00_rate rt2x00_supported_rates[12] = {
 		.plcp = 0x0e,
 	},
 	{
-		.flags = DEV_RATE_OFDM | DEV_RATE_BASIC,
+		.flags = DEV_RATE_OFDM,
 		.bitrate = 240,
 		.ratemask = BIT(8),
 		.plcp = 0x09,
@@ -1049,6 +1050,8 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev)
 int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 {
 	int retval = -ENOMEM;
+
+	mutex_init(&rt2x00dev->csr_mutex);
 
 	/*
 	 * Make room for rt2x00_intf inside the per-interface

@@ -266,6 +266,8 @@
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL    (0x00000000)
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL  (0x00001000)
 
+#define FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME	(0x00008000)
+
 
 /**
  * Rx Shared Status Registers (RSSR)
@@ -403,5 +405,86 @@
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
 
+/**
+ * struct iwl_rb_status - reseve buffer status
+ * 	host memory mapped FH registers
+ * @closed_rb_num [0:11] - Indicates the index of the RB which was closed
+ * @closed_fr_num [0:11] - Indicates the index of the RX Frame which was closed
+ * @finished_rb_num [0:11] - Indicates the index of the current RB
+ * 	in which the last frame was written to
+ * @finished_fr_num [0:11] - Indicates the index of the RX Frame
+ * 	which was transfered
+ */
+struct iwl_rb_status {
+	__le16 closed_rb_num;
+	__le16 closed_fr_num;
+	__le16 finished_rb_num;
+	__le16 finished_fr_nam;
+} __attribute__ ((packed));
+
+
+
+#define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
+
+#define IWL_NUM_OF_TBS		20
+
+static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
+{
+	return (sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0) & 0xF;
+}
+/**
+ * struct iwl_tfd_tb transmit buffer descriptor within transmit frame descriptor
+ *
+ * This structure contains dma address and length of transmission address
+ *
+ * @lo: low [31:0] portion of the dma address of TX buffer
+ * 	every even is unaligned on 16 bit boundary
+ * @hi_n_len 0-3 [35:32] portion of dma
+ *	     4-16 length of the tx buffer
+ */
+struct iwl_tfd_tb {
+	__le32 lo;
+	__le16 hi_n_len;
+} __attribute__((packed));
+
+/**
+ * struct iwl_tfd
+ *
+ * Transmit Frame Descriptor (TFD)
+ *
+ * @ __reserved1[3] reserved
+ * @ num_tbs 0-5 number of active tbs
+ * 	     6-7 padding (not used)
+ * @ tbs[20]	transmit frame buffer descriptors
+ * @ __pad 	padding
+ *
+ * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
+ * Both driver and device share these circular buffers, each of which must be
+ * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes
+ *
+ * Driver must indicate the physical address of the base of each
+ * circular buffer via the FH_MEM_CBBC_QUEUE registers.
+ *
+ * Each TFD contains pointer/size information for up to 20 data buffers
+ * in host DRAM.  These buffers collectively contain the (one) frame described
+ * by the TFD.  Each buffer must be a single contiguous block of memory within
+ * itself, but buffers may be scattered in host DRAM.  Each buffer has max size
+ * of (4K - 4).  The concatenates all of a TFD's buffers into a single
+ * Tx frame, up to 8 KBytes in size.
+ *
+ * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
+ *
+ * Bit fields in the control dword (val0):
+ */
+struct iwl_tfd {
+	u8 __reserved1[3];
+	u8 num_tbs;
+	struct iwl_tfd_tb tbs[IWL_NUM_OF_TBS];
+	__le32 __pad;
+} __attribute__ ((packed));
+
+
+/* Keep Warm Size */
+#define IWL_KW_SIZE 0x1000	/*4k */
 
 #endif /* !__iwl_fh_h__ */

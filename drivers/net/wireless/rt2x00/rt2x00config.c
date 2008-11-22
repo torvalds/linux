@@ -92,8 +92,8 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	erp.difs = bss_conf->use_short_slot ? SHORT_DIFS : DIFS;
 	erp.eifs = bss_conf->use_short_slot ? SHORT_EIFS : EIFS;
 
-	erp.ack_timeout = PLCP + erp.difs + get_duration(ACK_SIZE, 10);
-	erp.ack_consume_time = SIFS + PLCP + get_duration(ACK_SIZE, 10);
+	erp.ack_timeout = PLCP + erp.difs + GET_DURATION(ACK_SIZE, 10);
+	erp.ack_consume_time = SIFS + PLCP + GET_DURATION(ACK_SIZE, 10);
 
 	if (bss_conf->use_short_preamble) {
 		erp.ack_timeout += SHORT_PREAMBLE;
@@ -109,15 +109,32 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 }
 
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
-			      enum antenna rx, enum antenna tx)
+			      struct antenna_setup *ant)
 {
-	struct antenna_setup ant;
+	/*
+	 * Failsafe: Make sure we are not sending the
+	 * ANTENNA_SW_DIVERSITY state to the driver.
+	 * If that happes fallback to hardware default,
+	 * or our own default.
+	 */
+	if (ant->rx == ANTENNA_SW_DIVERSITY) {
+		if (rt2x00dev->default_ant.rx == ANTENNA_SW_DIVERSITY)
+			ant->rx = ANTENNA_B;
+		else
+			ant->rx = rt2x00dev->default_ant.rx;
+	}
+	if (ant->tx == ANTENNA_SW_DIVERSITY) {
+		if (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY)
+			ant->tx = ANTENNA_B;
+		else
+			ant->tx = rt2x00dev->default_ant.tx;
+	}
 
-	ant.rx = rx;
-	ant.tx = tx;
-
-	if (rx == rt2x00dev->link.ant.active.rx &&
-	    tx == rt2x00dev->link.ant.active.tx)
+	/*
+	 * Only reconfigure when something has changed.
+	 */
+	if (ant->rx == rt2x00dev->link.ant.active.rx &&
+	    ant->tx == rt2x00dev->link.ant.active.tx)
 		return;
 
 	/*
@@ -132,12 +149,12 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * The latter is required since we need to recalibrate the
 	 * noise-sensitivity ratio for the new setup.
 	 */
-	rt2x00dev->ops->lib->config_ant(rt2x00dev, &ant);
+	rt2x00dev->ops->lib->config_ant(rt2x00dev, ant);
 
 	rt2x00lib_reset_link_tuner(rt2x00dev);
 	rt2x00_reset_link_ant_rssi(&rt2x00dev->link);
 
-	memcpy(&rt2x00dev->link.ant.active, &ant, sizeof(ant));
+	memcpy(&rt2x00dev->link.ant.active, ant, sizeof(*ant));
 
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);

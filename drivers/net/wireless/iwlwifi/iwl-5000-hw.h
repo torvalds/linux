@@ -90,45 +90,10 @@
  * @tfd_offset  0-12 - tx command byte count
  *	       12-16 - station index
  */
-struct iwl5000_schedq_bc_tbl {
+struct iwl5000_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
 } __attribute__ ((packed));
 
-/**
- * struct iwl5000_shared
- * @rb_closed
- * 	address is provided to FH_RSCSR_CHNL0_STTS_WPTR_REG
- */
-struct iwl5000_shared {
-	struct iwl5000_schedq_bc_tbl queues_bc_tbls[IWL50_NUM_QUEUES];
-	__le32 rb_closed;
-
-	/* __le32 rb_closed_stts_rb_num:12; */
-#define IWL_rb_closed_stts_rb_num_POS 0
-#define IWL_rb_closed_stts_rb_num_LEN 12
-#define IWL_rb_closed_stts_rb_num_SYM rb_closed
-	/* __le32 rsrv1:4; */
-	/* __le32 rb_closed_stts_rx_frame_num:12; */
-#define IWL_rb_closed_stts_rx_frame_num_POS 16
-#define IWL_rb_closed_stts_rx_frame_num_LEN 12
-#define IWL_rb_closed_stts_rx_frame_num_SYM rb_closed
-	/* __le32 rsrv2:4; */
-
-	__le32 frm_finished;
-	/* __le32 frame_finished_stts_rb_num:12; */
-#define IWL_frame_finished_stts_rb_num_POS 0
-#define IWL_frame_finished_stts_rb_num_LEN 12
-#define IWL_frame_finished_stts_rb_num_SYM frm_finished
-	/* __le32 rsrv3:4; */
-	/* __le32 frame_finished_stts_rx_frame_num:12; */
-#define IWL_frame_finished_stts_rx_frame_num_POS 16
-#define IWL_frame_finished_stts_rx_frame_num_LEN 12
-#define IWL_frame_finished_stts_rx_frame_num_SYM frm_finished
-	/* __le32 rsrv4:4; */
-
-	__le32 padding1;  /* so that allocation will be aligned to 16B */
-	__le32 padding2;
-} __attribute__ ((packed));
 
 #endif /* __iwl_5000_hw_h__ */
 

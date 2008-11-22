@@ -1272,8 +1272,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 				rate_ctrl->state[tx_rate].per = 100;
 		} else {
 			/* xretries == 2 */
-			count = sizeof(nretry_to_per_lookup) /
-				sizeof(nretry_to_per_lookup[0]);
+			count = ARRAY_SIZE(nretry_to_per_lookup);
 			if (retries >= count)
 				retries = count - 1;
 			/* new_PER = 7/8*old_PER + 1/8*(currentPER) */
@@ -1291,8 +1290,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	} else {	/* xretries == 0 */
 		/* Update the PER. */
 		/* Make sure it doesn't index out of array's bounds. */
-		count = sizeof(nretry_to_per_lookup) /
-			sizeof(nretry_to_per_lookup[0]);
+		count = ARRAY_SIZE(nretry_to_per_lookup);
 		if (retries >= count)
 			retries = count - 1;
 		if (info_priv->n_bad_frames) {

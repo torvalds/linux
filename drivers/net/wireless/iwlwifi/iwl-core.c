@@ -30,10 +30,9 @@
 #include <linux/module.h>
 #include <net/mac80211.h>
 
-struct iwl_priv; /* FIXME: remove */
-#include "iwl-debug.h"
 #include "iwl-eeprom.h"
 #include "iwl-dev.h" /* FIXME: remove */
+#include "iwl-debug.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-rfkill.h"
@@ -189,52 +188,6 @@ void iwl_hw_detect(struct iwl_priv *priv)
 	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &priv->rev_id);
 }
 EXPORT_SYMBOL(iwl_hw_detect);
-
-/* Tell nic where to find the "keep warm" buffer */
-int iwl_kw_init(struct iwl_priv *priv)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto out;
-
-	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG,
-			     priv->kw.dma_addr >> 4);
-	iwl_release_nic_access(priv);
-out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	return ret;
-}
-
-int iwl_kw_alloc(struct iwl_priv *priv)
-{
-	struct pci_dev *dev = priv->pci_dev;
-	struct iwl_kw *kw = &priv->kw;
-
-	kw->size = IWL_KW_SIZE;
-	kw->v_addr = pci_alloc_consistent(dev, kw->size, &kw->dma_addr);
-	if (!kw->v_addr)
-		return -ENOMEM;
-
-	return 0;
-}
-
-/**
- * iwl_kw_free - Free the "keep warm" buffer
- */
-void iwl_kw_free(struct iwl_priv *priv)
-{
-	struct pci_dev *dev = priv->pci_dev;
-	struct iwl_kw *kw = &priv->kw;
-
-	if (kw->v_addr) {
-		pci_free_consistent(dev, kw->size, kw->v_addr, kw->dma_addr);
-		memset(kw, 0, sizeof(*kw));
-	}
-}
 
 int iwl_hw_nic_init(struct iwl_priv *priv)
 {

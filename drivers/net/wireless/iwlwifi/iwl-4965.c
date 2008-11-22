@@ -715,8 +715,7 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 
 	/* Tel 4965 where to find Tx byte count tables */
 	iwl_write_prph(priv, IWL49_SCD_DRAM_BASE_ADDR,
-		(priv->shared_phys +
-		 offsetof(struct iwl4965_shared, queues_bc_tbls)) >> 10);
+			priv->scd_bc_tbls.dma >> 10);
 
 	/* Disable chain mode for all queues */
 	iwl_write_prph(priv, IWL49_SCD_QUEUECHAIN_SEL, 0);
@@ -804,6 +803,8 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.scd_bc_tbls_size =
+			IWL49_NUM_QUEUES * sizeof(struct iwl4965_scd_bc_tbl);
 	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL4965_BROADCAST_ID;
 	priv->hw_params.max_data_size = IWL49_RTC_DATA_SIZE;
@@ -1631,36 +1632,6 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 }
 #endif
 
-static int iwl4965_shared_mem_rx_idx(struct iwl_priv *priv)
-{
-	struct iwl4965_shared *s = priv->shared_virt;
-	return le32_to_cpu(s->rb_closed) & 0xFFF;
-}
-
-static int iwl4965_alloc_shared_mem(struct iwl_priv *priv)
-{
-	priv->shared_virt = pci_alloc_consistent(priv->pci_dev,
-					sizeof(struct iwl4965_shared),
-					&priv->shared_phys);
-	if (!priv->shared_virt)
-		return -ENOMEM;
-
-	memset(priv->shared_virt, 0, sizeof(struct iwl4965_shared));
-
-	priv->rb_closed_offset = offsetof(struct iwl4965_shared, rb_closed);
-
-	return 0;
-}
-
-static void iwl4965_free_shared_mem(struct iwl_priv *priv)
-{
-	if (priv->shared_virt)
-		pci_free_consistent(priv->pci_dev,
-				    sizeof(struct iwl4965_shared),
-				    priv->shared_virt,
-				    priv->shared_phys);
-}
-
 /**
  * iwl4965_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
@@ -1668,7 +1639,7 @@ static void iwl4965_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 					    struct iwl_tx_queue *txq,
 					    u16 byte_cnt)
 {
-	struct iwl4965_shared *shared_data = priv->shared_virt;
+	struct iwl4965_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
 	int txq_id = txq->q.id;
 	int write_ptr = txq->q.write_ptr;
 	int len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
@@ -1678,11 +1649,11 @@ static void iwl4965_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 
 	bc_ent = cpu_to_le16(len & 0xFFF);
 	/* Set up byte count within first 256 entries */
-	shared_data->queues_bc_tbls[txq_id].tfd_offset[write_ptr] = bc_ent;
+	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
 
 	/* If within first 64 entries, duplicate at end */
 	if (write_ptr < TFD_QUEUE_SIZE_BC_DUP)
-		shared_data->queues_bc_tbls[txq_id].
+		scd_bc_tbl[txq_id].
 			tfd_offset[TFD_QUEUE_SIZE_MAX + write_ptr] = bc_ent;
 }
 
@@ -2304,9 +2275,6 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 
 static struct iwl_lib_ops iwl4965_lib = {
 	.set_hw_params = iwl4965_hw_set_hw_params,
-	.alloc_shared_mem = iwl4965_alloc_shared_mem,
-	.free_shared_mem = iwl4965_free_shared_mem,
-	.shared_mem_rx_idx = iwl4965_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
 	.txq_set_sched = iwl4965_txq_set_sched,
 	.txq_agg_enable = iwl4965_txq_agg_enable,

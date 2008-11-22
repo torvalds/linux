@@ -92,6 +92,16 @@
 	DEBUG_PRINTK(__dev, KERN_DEBUG, "EEPROM recovery", __msg, ##__args)
 
 /*
+ * Duration calculations
+ * The rate variable passed is: 100kbs.
+ * To convert from bytes to bits we multiply size with 8,
+ * then the size is multiplied with 10 to make the
+ * real rate -> rate argument correction.
+ */
+#define GET_DURATION(__size, __rate)	(((__size) * 8 * 10) / (__rate))
+#define GET_DURATION_RES(__size, __rate)(((__size) * 8 * 10) % (__rate))
+
+/*
  * Standard timing and size defines.
  * These values should follow the ieee80211 specifications.
  */
@@ -109,9 +119,9 @@
 #define DIFS			( PIFS + SLOT_TIME )
 #define SHORT_DIFS		( SHORT_PIFS + SHORT_SLOT_TIME )
 #define EIFS			( SIFS + DIFS + \
-				  (8 * (IEEE80211_HEADER + ACK_SIZE)) )
+				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10) )
 #define SHORT_EIFS		( SIFS + SHORT_DIFS + \
-				  (8 * (IEEE80211_HEADER + ACK_SIZE)) )
+				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10) )
 
 /*
  * Chipset identification
@@ -523,10 +533,8 @@ struct rt2x00lib_ops {
 	/*
 	 * queue initialization handlers
 	 */
-	void (*init_rxentry) (struct rt2x00_dev *rt2x00dev,
-			      struct queue_entry *entry);
-	void (*init_txentry) (struct rt2x00_dev *rt2x00dev,
-			      struct queue_entry *entry);
+	bool (*get_entry_state) (struct queue_entry *entry);
+	void (*clear_entry) (struct queue_entry *entry);
 
 	/*
 	 * Radio control handlers.
@@ -723,8 +731,7 @@ struct rt2x00_dev {
 
 	/*
 	 * This is the default TX/RX antenna setup as indicated
-	 * by the device's EEPROM. When mac80211 sets its
-	 * antenna value to 0 we should be using these values.
+	 * by the device's EEPROM.
 	 */
 	struct antenna_setup default_ant;
 
@@ -739,16 +746,15 @@ struct rt2x00_dev {
 	} csr;
 
 	/*
-	 * Mutex to protect register accesses on USB devices.
-	 * There are 2 reasons this is needed, one is to ensure
-	 * use of the csr_cache (for USB devices) by one thread
-	 * isn't corrupted by another thread trying to access it.
-	 * The other is that access to BBP and RF registers
-	 * require multiple BUS transactions and if another thread
-	 * attempted to access one of those registers at the same
-	 * time one of the writes could silently fail.
+	 * Mutex to protect register accesses.
+	 * For PCI and USB devices it protects against concurrent indirect
+	 * register access (BBP, RF, MCU) since accessing those
+	 * registers require multiple calls to the CSR registers.
+	 * For USB devices it also protects the csr_cache since that
+	 * field is used for normal CSR access and it cannot support
+	 * multiple callers simultaneously.
 	 */
-	struct mutex usb_cache_mutex;
+	struct mutex csr_mutex;
 
 	/*
 	 * Current packet filter configuration for the device.
@@ -921,23 +927,6 @@ static inline u16 rt2x00_check_rev(const struct rt2x00_chip *chipset,
 {
 	return (((chipset->rev & 0xffff0) == rev) &&
 		!!(chipset->rev & 0x0000f));
-}
-
-/*
- * Duration calculations
- * The rate variable passed is: 100kbs.
- * To convert from bytes to bits we multiply size with 8,
- * then the size is multiplied with 10 to make the
- * real rate -> rate argument correction.
- */
-static inline u16 get_duration(const unsigned int size, const u8 rate)
-{
-	return ((size * 8 * 10) / rate);
-}
-
-static inline u16 get_duration_res(const unsigned int size, const u8 rate)
-{
-	return ((size * 8 * 10) % rate);
 }
 
 /**

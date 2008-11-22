@@ -307,7 +307,7 @@ struct ieee80211_tx_rate {
 	s8 idx;
 	u8 count;
 	u8 flags;
-};
+} __attribute__((packed));
 
 /**
  * struct ieee80211_tx_info - skb transmit information
@@ -341,6 +341,7 @@ struct ieee80211_tx_info {
 	u8 antenna_sel_tx;
 
 	/* 2 byte hole */
+	u8 pad[2];
 
 	union {
 		struct {
@@ -1268,8 +1269,6 @@ enum ieee80211_ampdu_mlme_action {
  * @tx_last_beacon: Determine whether the last IBSS beacon was sent by us.
  *	This is needed only for IBSS mode and the result of this function is
  *	used to determine whether to reply to Probe Requests.
- *
- * @conf_ht: Configures low level driver with 802.11n HT data. Must be atomic.
  *
  * @ampdu_action: Perform a certain A-MPDU action
  * 	The RA/TID combination determines the destination and TID we want

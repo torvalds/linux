@@ -180,7 +180,7 @@ static int lbs_ethtool_set_wol(struct net_device *dev,
 	if (wol->wolopts & WAKE_BCAST) criteria |= EHS_WAKE_ON_BROADCAST_DATA;
 	if (wol->wolopts & WAKE_PHY)   criteria |= EHS_WAKE_ON_MAC_EVENT;
 
-	return lbs_host_sleep_cfg(priv, criteria);
+	return lbs_host_sleep_cfg(priv, criteria, (struct wol_config *)NULL);
 }
 
 struct ethtool_ops lbs_ethtool_ops = {
