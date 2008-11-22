@@ -367,11 +367,6 @@ struct cx18_i2c_algo_callback_data {
 };
 
 #define CX18_MAX_MMIO_WR_RETRIES 10
-#define CX18_MAX_MB_ACK_DELAY 100
-
-struct cx18_mbox_stats {
-	atomic_t mb_ack_delay[CX18_MAX_MB_ACK_DELAY+1];
-};
 
 /* Struct to hold info about cx18 cards */
 struct cx18 {
@@ -466,9 +461,6 @@ struct cx18 {
 	u32 gpio_dir;
 	u32 gpio_val;
 	struct mutex gpio_lock;
-
-	/* Statistics */
-	struct cx18_mbox_stats mbox_stats;
 
 	/* v4l2 and User settings */
 

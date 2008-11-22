@@ -24,20 +24,6 @@
 #include "cx18-io.h"
 #include "cx18-irq.h"
 
-void cx18_log_statistics(struct cx18 *cx)
-{
-	int i;
-
-	if (!(cx18_debug & CX18_DBGFLG_INFO))
-		return;
-
-	for (i = 0; i <= CX18_MAX_MB_ACK_DELAY; i++)
-		if (atomic_read(&cx->mbox_stats.mb_ack_delay[i]))
-			CX18_DEBUG_INFO("mb_ack_delay[%d] = %d\n", i,
-				  atomic_read(&cx->mbox_stats.mb_ack_delay[i]));
-	return;
-}
-
 void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count)
 {
 	u8 __iomem *dst = addr;

@@ -34,10 +34,6 @@
  * *read* functions never retry the mmio (it never helps to do so)
  */
 
-/* Statistics gathering */
-
-void cx18_log_statistics(struct cx18 *cx);
-
 /* Non byteswapping memory mapped IO */
 static inline u32 cx18_raw_readl(struct cx18 *cx, const void __iomem *addr)
 {

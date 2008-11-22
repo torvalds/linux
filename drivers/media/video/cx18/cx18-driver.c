@@ -834,7 +834,6 @@ err:
 	if (retval == 0)
 		retval = -ENODEV;
 	CX18_ERR("Error %d on initialization\n", retval);
-	cx18_log_statistics(cx);
 
 	i = cx->num;
 	spin_lock(&cx18_cards_lock);
@@ -951,7 +950,6 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	pci_disable_device(cx->dev);
 
-	cx18_log_statistics(cx);
 	CX18_INFO("Removed %s, card #%d\n", cx->card_name, cx->num);
 }
 
