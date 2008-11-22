@@ -21,7 +21,7 @@ static unsigned long total_usage;
 #if !defined(CONFIG_SPARSEMEM)
 
 
-void __init pgdat_page_cgroup_init(struct pglist_data *pgdat)
+void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
 {
 	pgdat->node_page_cgroup = NULL;
 }
@@ -97,7 +97,8 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
 	return section->page_cgroup + pfn;
 }
 
-int __meminit init_section_page_cgroup(unsigned long pfn)
+/* __alloc_bootmem...() is protected by !slab_available() */
+int __init_refok init_section_page_cgroup(unsigned long pfn)
 {
 	struct mem_section *section;
 	struct page_cgroup *base, *pc;
@@ -158,7 +159,7 @@ void __free_page_cgroup(unsigned long pfn)
 	}
 }
 
-int online_page_cgroup(unsigned long start_pfn,
+int __meminit online_page_cgroup(unsigned long start_pfn,
 			unsigned long nr_pages,
 			int nid)
 {
@@ -183,7 +184,7 @@ int online_page_cgroup(unsigned long start_pfn,
 	return -ENOMEM;
 }
 
-int offline_page_cgroup(unsigned long start_pfn,
+int __meminit offline_page_cgroup(unsigned long start_pfn,
 		unsigned long nr_pages, int nid)
 {
 	unsigned long start, end, pfn;
@@ -197,7 +198,7 @@ int offline_page_cgroup(unsigned long start_pfn,
 
 }
 
-static int page_cgroup_callback(struct notifier_block *self,
+static int __meminit page_cgroup_callback(struct notifier_block *self,
 			       unsigned long action, void *arg)
 {
 	struct memory_notify *mn = arg;
@@ -248,7 +249,7 @@ void __init page_cgroup_init(void)
 	" want\n");
 }
 
-void __init pgdat_page_cgroup_init(struct pglist_data *pgdat)
+void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
 {
 	return;
 }
