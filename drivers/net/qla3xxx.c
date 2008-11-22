@@ -3900,6 +3900,17 @@ static void ql3xxx_timer(unsigned long ptr)
 	queue_delayed_work(qdev->workqueue, &qdev->link_state_work, 0);
 }
 
+static const struct net_device_ops ql3xxx_netdev_ops = {
+	.ndo_open		= ql3xxx_open,
+	.ndo_start_xmit		= ql3xxx_send,
+	.ndo_stop		= ql3xxx_close,
+	.ndo_set_multicast_list = NULL, /* not allowed on NIC side */
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= ql3xxx_set_mac_address,
+	.ndo_tx_timeout		= ql3xxx_tx_timeout,
+};
+
 static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *pci_entry)
 {
@@ -3978,17 +3989,8 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	spin_lock_init(&qdev->hw_lock);
 
 	/* Set driver entry points */
-	ndev->open = ql3xxx_open;
-	ndev->hard_start_xmit = ql3xxx_send;
-	ndev->stop = ql3xxx_close;
-	/* ndev->set_multicast_list
-	 * This device is one side of a two-function adapter
-	 * (NIC and iSCSI).  Promiscuous mode setting/clearing is
-	 * not allowed from the NIC side.
-	 */
+	ndev->netdev_ops = &ql3xxx_netdev_ops;
 	SET_ETHTOOL_OPS(ndev, &ql3xxx_ethtool_ops);
-	ndev->set_mac_address = ql3xxx_set_mac_address;
-	ndev->tx_timeout = ql3xxx_tx_timeout;
 	ndev->watchdog_timeo = 5 * HZ;
 
 	netif_napi_add(ndev, &qdev->napi, ql_poll, 64);
