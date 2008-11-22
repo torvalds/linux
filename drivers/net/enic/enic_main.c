@@ -273,6 +273,8 @@ static struct ethtool_ops enic_ethtool_ops = {
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = enic_set_tso,
+	.get_flags = ethtool_op_get_flags,
+	.set_flags = ethtool_op_set_flags,
 };
 
 static void enic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf)
@@ -895,6 +897,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 	int skipped, void *opaque)
 {
 	struct enic *enic = vnic_dev_priv(rq->vdev);
+	struct net_device *netdev = enic->netdev;
 	struct sk_buff *skb;
 
 	u8 type, color, eop, sop, ingress_port, vlan_stripped;
@@ -929,7 +932,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 			if (net_ratelimit())
 				printk(KERN_ERR PFX
 					"%s: packet error: bad FCS\n",
-					enic->netdev->name);
+					netdev->name);
 		}
 
 		dev_kfree_skb_any(skb);
@@ -943,18 +946,18 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		 */
 
 		skb_put(skb, bytes_written);
-		skb->protocol = eth_type_trans(skb, enic->netdev);
+		skb->protocol = eth_type_trans(skb, netdev);
 
 		if (enic->csum_rx_enabled && !csum_not_calc) {
 			skb->csum = htons(checksum);
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		}
 
-		skb->dev = enic->netdev;
+		skb->dev = netdev;
 
 		if (enic->vlan_group && vlan_stripped) {
 
-			if (ENIC_SETTING(enic, LRO) && ipv4)
+			if ((netdev->features & NETIF_F_LRO) && ipv4)
 				lro_vlan_hwaccel_receive_skb(&enic->lro_mgr,
 					skb, enic->vlan_group,
 					vlan, cq_desc);
@@ -964,7 +967,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 
 		} else {
 
-			if (ENIC_SETTING(enic, LRO) && ipv4)
+			if ((netdev->features & NETIF_F_LRO) && ipv4)
 				lro_receive_skb(&enic->lro_mgr, skb, cq_desc);
 			else
 				netif_receive_skb(skb);
@@ -1062,7 +1065,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		/* If no work done, flush all LROs and exit polling
 		 */
 
-		if (ENIC_SETTING(enic, LRO))
+		if (netdev->features & NETIF_F_LRO)
 			lro_flush_all(&enic->lro_mgr);
 
 		netif_rx_complete(netdev, napi);
@@ -1106,7 +1109,7 @@ static int enic_poll_msix(struct napi_struct *napi, int budget)
 		/* If no work done, flush all LROs and exit polling
 		 */
 
-		if (ENIC_SETTING(enic, LRO))
+		if (netdev->features & NETIF_F_LRO)
 			lro_flush_all(&enic->lro_mgr);
 
 		netif_rx_complete(netdev, napi);
@@ -1762,13 +1765,13 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	}
 
 	/* Get available resource counts
-	*/
+	 */
 
 	enic_get_res_counts(enic);
 
 	/* Set interrupt mode based on resource counts and system
 	 * capabilities
-	*/
+	 */
 
 	err = enic_set_intr_mode(enic);
 	if (err) {
@@ -1849,22 +1852,23 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	if (ENIC_SETTING(enic, TSO))
 		netdev->features |= NETIF_F_TSO |
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
+	if (ENIC_SETTING(enic, LRO))
+		netdev->features |= NETIF_F_LRO;
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
 
 	enic->csum_rx_enabled = ENIC_SETTING(enic, RXCSUM);
 
-	if (ENIC_SETTING(enic, LRO)) {
-		enic->lro_mgr.max_aggr = ENIC_LRO_MAX_AGGR;
-		enic->lro_mgr.max_desc = ENIC_LRO_MAX_DESC;
-		enic->lro_mgr.lro_arr = enic->lro_desc;
-		enic->lro_mgr.get_skb_header = enic_get_skb_header;
-		enic->lro_mgr.features	= LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
-		enic->lro_mgr.dev = netdev;
-		enic->lro_mgr.ip_summed = CHECKSUM_COMPLETE;
-		enic->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
-	}
+	enic->lro_mgr.max_aggr = ENIC_LRO_MAX_AGGR;
+	enic->lro_mgr.max_desc = ENIC_LRO_MAX_DESC;
+	enic->lro_mgr.lro_arr = enic->lro_desc;
+	enic->lro_mgr.get_skb_header = enic_get_skb_header;
+	enic->lro_mgr.features	= LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
+	enic->lro_mgr.dev = netdev;
+	enic->lro_mgr.ip_summed = CHECKSUM_COMPLETE;
+	enic->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
+
 
 	err = register_netdev(netdev);
 	if (err) {
