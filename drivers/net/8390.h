@@ -33,6 +33,11 @@ extern void ei_poll(struct net_device *dev);
 extern void eip_poll(struct net_device *dev);
 #endif
 
+extern void ei_tx_timeout(struct net_device *dev);
+extern int ei_start_xmit(struct sk_buff *skb, struct net_device *dev);
+extern void ei_set_multicast_list(struct net_device *dev);
+extern struct net_device_stats *ei_get_stats(struct net_device *dev);
+
 /* Without I/O delay - non ISA or later chips */
 extern void NS8390_init(struct net_device *dev, int startp);
 extern int ei_open(struct net_device *dev);

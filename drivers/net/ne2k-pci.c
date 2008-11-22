@@ -200,6 +200,19 @@ struct ne2k_pci_card {
   in the 'dev' and 'ei_status' structures.
 */
 
+static const struct net_device_ops ne2k_netdev_ops = {
+	.ndo_open		= ne2k_pci_open,
+	.ndo_stop		= ne2k_pci_close,
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = ei_poll,
+#endif
+};
 
 static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
@@ -265,6 +278,8 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 		dev_err(&pdev->dev, "cannot allocate ethernet device\n");
 		goto err_out_free_res;
 	}
+	dev->netdev_ops = &ne2k_netdev_ops;
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	/* Reset card. Who knows what dain-bramaged state it was left in. */
@@ -353,12 +368,8 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 	ei_status.block_output = &ne2k_pci_block_output;
 	ei_status.get_8390_hdr = &ne2k_pci_get_8390_hdr;
 	ei_status.priv = (unsigned long) pdev;
-	dev->open = &ne2k_pci_open;
-	dev->stop = &ne2k_pci_close;
+
 	dev->ethtool_ops = &ne2k_pci_ethtool_ops;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
 	NS8390_init(dev, 0);
 
 	i = register_netdev(dev);
