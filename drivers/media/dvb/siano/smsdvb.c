@@ -60,6 +60,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 
 			client->fe_snr = p->Stat.SNR;
 			client->fe_ber = p->Stat.BER;
+			client->fe_unc = p->Stat.BERErrorCount;
 
 			if (p->Stat.InBandPwr < -95)
 				client->fe_signal_strength = 0;
@@ -72,6 +73,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 			client->fe_status = 0;
 			client->fe_snr =
 			client->fe_ber =
+			client->fe_unc =
 			client->fe_signal_strength = 0;
 		}
 
@@ -217,6 +219,18 @@ static int smsdvb_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return rc;
 }
 
+static int smsdvb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+{
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
+	int rc = smsdvb_send_statistics_request(client);
+
+	if (!rc)
+		*ucblocks = client->fe_unc;
+
+	return rc;
+}
+
 static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 				    struct dvb_frontend_tune_settings *tune)
 {
@@ -329,6 +343,7 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.read_ber = smsdvb_read_ber,
 	.read_signal_strength = smsdvb_read_signal_strength,
 	.read_snr = smsdvb_read_snr,
+	.read_ucblocks = smsdvb_read_ucblocks,
 
 	.init = smsdvb_init,
 	.sleep = smsdvb_sleep,

@@ -381,7 +381,7 @@ struct smsdvb_client_t {
 	struct dvb_frontend	frontend;
 
 	fe_status_t		fe_status;
-	int			fe_ber, fe_snr, fe_signal_strength;
+	int			fe_ber, fe_snr, fe_unc, fe_signal_strength;
 
 	struct completion	tune_done, stat_done;
 
