@@ -207,6 +207,8 @@ config PC300
 	tristate "Cyclades-PC300 support (RS-232/V.35, X.21, T1/E1 boards)"
 	depends on HDLC && PCI && BROKEN
 	---help---
+	  This driver is broken because of struct tty_driver change.
+
 	  Driver for the Cyclades-PC300 synchronous communication boards.
 
 	  These boards provide synchronous serial interfaces to your
