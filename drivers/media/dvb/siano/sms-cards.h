@@ -33,13 +33,14 @@
 #define SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B 7
 #define SMS1XXX_BOARD_HAUPPAUGE_WINDHAM 8
 #define SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD 9
+#define SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2 10
 
 struct sms_board {
 	enum sms_device_type_st type;
 	char *name, *fw[DEVICE_MODE_MAX];
 
 	/* gpios */
-	int led_power, led_hi, led_lo;
+	int led_power, led_hi, led_lo, lna_ctrl;
 };
 
 struct sms_board *sms_get_board(int id);

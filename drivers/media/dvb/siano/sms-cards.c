@@ -41,7 +41,7 @@ struct usb_device_id smsusb_id_table[] = {
 	{ USB_DEVICE(0x2040, 0x2000),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
 	{ USB_DEVICE(0x2040, 0x2009),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2 },
 	{ USB_DEVICE(0x2040, 0x200a),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
 	{ USB_DEVICE(0x2040, 0x2010),
@@ -165,6 +165,11 @@ int sms_board_setup(struct smscore_device_t *coredev)
 		sms_set_gpio(coredev, board->led_hi, 0);
 		sms_set_gpio(coredev, board->led_lo, 0);
 		break;
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
+		/* turn off LNA */
+		sms_set_gpio(coredev, board->lna_ctrl, 0);
+		break;
 	}
 	return 0;
 }
@@ -179,6 +184,12 @@ int sms_board_power(struct smscore_device_t *coredev, int onoff)
 		/* power LED */
 		sms_set_gpio(coredev,
 			     board->led_power, onoff ? 1 : 0);
+		break;
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
+		/* LNA */
+		sms_set_gpio(coredev,
+			     board->lna_ctrl, onoff ? 1 : 0);
 		break;
 	}
 	return 0;
