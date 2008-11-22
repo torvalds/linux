@@ -10002,6 +10002,25 @@ static void poll_bnx2x(struct net_device *dev)
 }
 #endif
 
+static const struct net_device_ops bnx2x_netdev_ops = {
+	.ndo_open		= bnx2x_open,
+	.ndo_stop		= bnx2x_close,
+	.ndo_start_xmit		= bnx2x_start_xmit,
+	.ndo_set_multicast_list = bnx2x_set_rx_mode,
+	.ndo_set_mac_address	= bnx2x_change_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= bnx2x_ioctl,
+	.ndo_change_mtu		= bnx2x_change_mtu,
+	.ndo_tx_timeout		= bnx2x_tx_timeout,
+#ifdef BCM_VLAN
+	.ndo_vlan_rx_register	= bnx2x_vlan_rx_register,
+#endif
+#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+	.ndo_poll_controller	= poll_bnx2x,
+#endif
+};
+
+
 static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 				    struct net_device *dev)
 {
@@ -10112,23 +10131,10 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0 + BP_PORT(bp)*16, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0 + BP_PORT(bp)*16, 0);
 
-	dev->hard_start_xmit = bnx2x_start_xmit;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
+	dev->netdev_ops = &bnx2x_netdev_ops;
 	dev->ethtool_ops = &bnx2x_ethtool_ops;
-	dev->open = bnx2x_open;
-	dev->stop = bnx2x_close;
-	dev->set_multicast_list = bnx2x_set_rx_mode;
-	dev->set_mac_address = bnx2x_change_mac_addr;
-	dev->do_ioctl = bnx2x_ioctl;
-	dev->change_mtu = bnx2x_change_mtu;
-	dev->tx_timeout = bnx2x_tx_timeout;
-#ifdef BCM_VLAN
-	dev->vlan_rx_register = bnx2x_vlan_rx_register;
-#endif
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
-	dev->poll_controller = poll_bnx2x;
-#endif
 	dev->features |= NETIF_F_SG;
 	dev->features |= NETIF_F_HW_CSUM;
 	if (bp->flags & USING_DAC_FLAG)
