@@ -1885,6 +1885,21 @@ static void bdx_tx_push_desc_safe(struct bdx_priv *priv, void *data, int size)
 	RET();
 }
 
+static const struct net_device_ops bdx_netdev_ops = {
+	.ndo_open	 	= bdx_open,
+	.ndo_stop		= bdx_close,
+	.ndo_start_xmit		= bdx_tx_transmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= bdx_ioctl,
+	.ndo_set_multicast_list = bdx_setmulti,
+	.ndo_get_stats		= bdx_get_stats,
+	.ndo_change_mtu		= bdx_change_mtu,
+	.ndo_set_mac_address	= bdx_set_mac,
+	.ndo_vlan_rx_register	= bdx_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= bdx_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= bdx_vlan_rx_kill_vid,
+};
+
 /**
  * bdx_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -1994,18 +2009,8 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_out_iomap;
 		}
 
-		ndev->open = bdx_open;
-		ndev->stop = bdx_close;
-		ndev->hard_start_xmit = bdx_tx_transmit;
-		ndev->do_ioctl = bdx_ioctl;
-		ndev->set_multicast_list = bdx_setmulti;
-		ndev->get_stats = bdx_get_stats;
-		ndev->change_mtu = bdx_change_mtu;
-		ndev->set_mac_address = bdx_set_mac;
+		ndev->netdev_ops = &bdx_netdev_ops;
 		ndev->tx_queue_len = BDX_NDEV_TXQ_LEN;
-		ndev->vlan_rx_register = bdx_vlan_rx_register;
-		ndev->vlan_rx_add_vid = bdx_vlan_rx_add_vid;
-		ndev->vlan_rx_kill_vid = bdx_vlan_rx_kill_vid;
 
 		bdx_ethtool_ops(ndev);	/* ethtool interface */
 
