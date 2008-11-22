@@ -763,7 +763,6 @@ enddiscovery:
  *
  * @skb: 802.11 frame to be sent
  * @sdata: network subif the frame will be sent through
- * @fwd_frame: true if this frame was originally from a different host
  *
  * Returns: 0 if the next hop was found. Nonzero otherwise. If no next hop is
  * found, the function will start a path discovery and queue the frame so it is

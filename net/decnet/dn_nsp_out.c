@@ -230,7 +230,6 @@ static inline unsigned dn_nsp_clone_and_send(struct sk_buff *skb,
 /**
  * dn_nsp_output - Try and send something from socket queues
  * @sk: The socket whose queues are to be investigated
- * @gfp: The memory allocation flags
  *
  * Try and send the packet on the end of the data and other data queues.
  * Other data gets priority over data, and if we retransmit a packet we

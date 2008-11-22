@@ -1150,7 +1150,6 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
  * ip6_tnl_change - update the tunnel parameters
  *   @t: tunnel to be changed
  *   @p: tunnel configuration parameters
- *   @active: != 0 if tunnel is ready for use
  *
  * Description:
  *   ip6_tnl_change() updates the tunnel parameters
