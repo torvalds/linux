@@ -1030,14 +1030,14 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
-	/* Reset the phy to commit changes. */
-	phy_data |= MII_CR_RESET;
-
 	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
 	if (ret_val)
 		return ret_val;
 
-	udelay(1);
+	/* Reset the phy to commit changes. */
+	ret_val = e1000e_commit_phy(hw);
+	if (ret_val)
+		return ret_val;
 
 	if (phy->autoneg_wait_to_complete) {
 		hw_dbg(hw, "Waiting for forced speed/duplex link on M88 phy.\n");
