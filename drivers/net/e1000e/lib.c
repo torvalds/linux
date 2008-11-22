@@ -575,20 +575,42 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 		 */
 		/* SYNCH bit and IV bit are sticky. */
 		udelay(10);
-		if (E1000_RXCW_SYNCH & er32(RXCW)) {
+		rxcw = er32(RXCW);
+		if (rxcw & E1000_RXCW_SYNCH) {
 			if (!(rxcw & E1000_RXCW_IV)) {
-				mac->serdes_has_link = 1;
-				hw_dbg(hw, "SERDES: Link is up.\n");
+				mac->serdes_has_link = true;
+				hw_dbg(hw, "SERDES: Link up - forced.\n");
 			}
 		} else {
-			mac->serdes_has_link = 0;
-			hw_dbg(hw, "SERDES: Link is down.\n");
+			mac->serdes_has_link = false;
+			hw_dbg(hw, "SERDES: Link down - force failed.\n");
 		}
 	}
 
 	if (E1000_TXCW_ANE & er32(TXCW)) {
 		status = er32(STATUS);
-		mac->serdes_has_link = (status & E1000_STATUS_LU);
+		if (status & E1000_STATUS_LU) {
+			/* SYNCH bit and IV bit are sticky, so reread rxcw.  */
+			udelay(10);
+			rxcw = er32(RXCW);
+			if (rxcw & E1000_RXCW_SYNCH) {
+				if (!(rxcw & E1000_RXCW_IV)) {
+					mac->serdes_has_link = true;
+					hw_dbg(hw, "SERDES: Link up - autoneg "
+					   "completed sucessfully.\n");
+				} else {
+					mac->serdes_has_link = false;
+					hw_dbg(hw, "SERDES: Link down - invalid"
+					   "codewords detected in autoneg.\n");
+				}
+			} else {
+				mac->serdes_has_link = false;
+				hw_dbg(hw, "SERDES: Link down - no sync.\n");
+			}
+		} else {
+			mac->serdes_has_link = false;
+			hw_dbg(hw, "SERDES: Link down - autoneg failed\n");
+		}
 	}
 
 	return 0;
