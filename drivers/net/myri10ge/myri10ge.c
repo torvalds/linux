@@ -3731,6 +3731,17 @@ abort_with_fw:
 	myri10ge_load_firmware(mgp, 0);
 }
 
+static const struct net_device_ops myri10ge_netdev_ops = {
+	.ndo_open		= myri10ge_open,
+	.ndo_stop		= myri10ge_close,
+	.ndo_start_xmit		= myri10ge_xmit,
+	.ndo_get_stats		= myri10ge_get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= myri10ge_change_mtu,
+	.ndo_set_multicast_list = myri10ge_set_multicast_list,
+	.ndo_set_mac_address	= myri10ge_set_mac_address,
+};
+
 static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
@@ -3862,15 +3873,10 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		myri10ge_initial_mtu = MYRI10GE_MAX_ETHER_MTU - ETH_HLEN;
 	if ((myri10ge_initial_mtu + ETH_HLEN) < 68)
 		myri10ge_initial_mtu = 68;
+
+	netdev->netdev_ops = &myri10ge_netdev_ops;
 	netdev->mtu = myri10ge_initial_mtu;
-	netdev->open = myri10ge_open;
-	netdev->stop = myri10ge_close;
-	netdev->hard_start_xmit = myri10ge_xmit;
-	netdev->get_stats = myri10ge_get_stats;
 	netdev->base_addr = mgp->iomem_base;
-	netdev->change_mtu = myri10ge_change_mtu;
-	netdev->set_multicast_list = myri10ge_set_multicast_list;
-	netdev->set_mac_address = myri10ge_set_mac_address;
 	netdev->features = mgp->features;
 
 	if (dac_enabled)
