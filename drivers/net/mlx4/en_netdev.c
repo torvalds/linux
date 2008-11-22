@@ -953,6 +953,23 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops mlx4_netdev_ops = {
+	.ndo_open		= mlx4_en_open,
+	.ndo_stop		= mlx4_en_close,
+	.ndo_start_xmit		= mlx4_en_xmit,
+	.ndo_get_stats		= mlx4_en_get_stats,
+	.ndo_set_multicast_list	= mlx4_en_set_multicast,
+	.ndo_set_mac_address	= mlx4_en_set_mac,
+	.ndo_change_mtu		= mlx4_en_change_mtu,
+	.ndo_tx_timeout		= mlx4_en_tx_timeout,
+	.ndo_vlan_rx_register	= mlx4_en_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= mlx4_en_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= mlx4_en_netpoll,
+#endif
+};
+
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			struct mlx4_en_port_profile *prof)
 {
@@ -1029,22 +1046,9 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Initialize netdev entry points
 	 */
-
-	dev->open = &mlx4_en_open;
-	dev->stop = &mlx4_en_close;
-	dev->hard_start_xmit = &mlx4_en_xmit;
-	dev->get_stats = &mlx4_en_get_stats;
-	dev->set_multicast_list = &mlx4_en_set_multicast;
-	dev->set_mac_address = &mlx4_en_set_mac;
-	dev->change_mtu = &mlx4_en_change_mtu;
-	dev->tx_timeout = &mlx4_en_tx_timeout;
+	dev->netdev_ops = &mlx4_netdev_ops;
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
-	dev->vlan_rx_register = mlx4_en_vlan_rx_register;
-	dev->vlan_rx_add_vid = mlx4_en_vlan_rx_add_vid;
-	dev->vlan_rx_kill_vid = mlx4_en_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = mlx4_en_netpoll;
-#endif
+
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
 
 	/* Set defualt MAC */
