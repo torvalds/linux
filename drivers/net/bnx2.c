@@ -7707,6 +7707,25 @@ bnx2_init_napi(struct bnx2 *bp)
 	}
 }
 
+static const struct net_device_ops bnx2_netdev_ops = {
+	.ndo_open		= bnx2_open,
+	.ndo_start_xmit		= bnx2_start_xmit,
+	.ndo_stop		= bnx2_close,
+	.ndo_get_stats		= bnx2_get_stats,
+	.ndo_set_rx_mode	= bnx2_set_rx_mode,
+	.ndo_do_ioctl		= bnx2_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= bnx2_change_mac_addr,
+	.ndo_change_mtu		= bnx2_change_mtu,
+	.ndo_tx_timeout		= bnx2_tx_timeout,
+#ifdef BCM_VLAN
+	.ndo_vlan_rx_register	= bnx2_vlan_rx_register,
+#endif
+#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+	.ndo_poll_controller	= poll_bnx2,
+#endif
+};
+
 static int __devinit
 bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -7731,27 +7750,12 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	}
 
-	dev->open = bnx2_open;
-	dev->hard_start_xmit = bnx2_start_xmit;
-	dev->stop = bnx2_close;
-	dev->get_stats = bnx2_get_stats;
-	dev->set_rx_mode = bnx2_set_rx_mode;
-	dev->do_ioctl = bnx2_ioctl;
-	dev->set_mac_address = bnx2_change_mac_addr;
-	dev->change_mtu = bnx2_change_mtu;
-	dev->tx_timeout = bnx2_tx_timeout;
+	dev->netdev_ops = &bnx2_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef BCM_VLAN
-	dev->vlan_rx_register = bnx2_vlan_rx_register;
-#endif
 	dev->ethtool_ops = &bnx2_ethtool_ops;
 
 	bp = netdev_priv(dev);
 	bnx2_init_napi(bp);
-
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
-	dev->poll_controller = poll_bnx2;
-#endif
 
 	pci_set_drvdata(pdev, dev);
 
