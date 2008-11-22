@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <asm/stacktrace.h>
 
 static void save_stack_warning(void *data, char *msg)
@@ -83,3 +84,59 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
+
+/* Userspace stacktrace - based on kernel/trace/trace_sysprof.c */
+
+struct stack_frame {
+	const void __user	*next_fp;
+	unsigned long		return_address;
+};
+
+static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
+{
+	int ret;
+
+	if (!access_ok(VERIFY_READ, fp, sizeof(*frame)))
+		return 0;
+
+	ret = 1;
+	pagefault_disable();
+	if (__copy_from_user_inatomic(frame, fp, sizeof(*frame)))
+		ret = 0;
+	pagefault_enable();
+
+	return ret;
+}
+
+void save_stack_trace_user(struct stack_trace *trace)
+{
+	/*
+	 * Trace user stack if we are not a kernel thread
+	 */
+	if (current->mm) {
+		const struct pt_regs *regs = task_pt_regs(current);
+		const void __user *fp = (const void __user *)regs->bp;
+
+		if (trace->nr_entries < trace->max_entries)
+			trace->entries[trace->nr_entries++] = regs->ip;
+
+		while (trace->nr_entries < trace->max_entries) {
+			struct stack_frame frame;
+			frame.next_fp = NULL;
+			frame.return_address = 0;
+			if (!copy_stack_frame(fp, &frame))
+				break;
+			if ((unsigned long)fp < regs->sp)
+				break;
+			if (frame.return_address)
+				trace->entries[trace->nr_entries++] =
+					frame.return_address;
+			if (fp == frame.next_fp)
+				break;
+			fp = frame.next_fp;
+		}
+	}
+	if (trace->nr_entries < trace->max_entries)
+		trace->entries[trace->nr_entries++] = ULONG_MAX;
+}
+

@@ -324,7 +324,7 @@ output. To see what is available, simply cat the file:
 
   cat /debug/tracing/trace_options
   print-parent nosym-offset nosym-addr noverbose noraw nohex nobin \
- noblock nostacktrace nosched-tree
+ noblock nostacktrace nosched-tree nouserstacktrace
 
 To disable one of the options, echo in the option prepended with "no".
 
@@ -377,6 +377,9 @@ Here are the available options:
   stacktrace - This is one of the options that changes the trace itself.
 		When a trace is recorded, so is the stack of functions.
 		This allows for back traces of trace sites.
+
+  userstacktrace - This option changes the trace.
+		   It records a stacktrace of the current userspace thread.
 
   sched-tree - TBD (any users??)
 

@@ -275,6 +275,7 @@ static const char *trace_options[] = {
 	"ftrace_preempt",
 	"branch",
 	"annotate",
+	"userstacktrace",
 	NULL
 };
 
@@ -918,6 +919,44 @@ void __trace_stack(struct trace_array *tr,
 	ftrace_trace_stack(tr, data, flags, skip, preempt_count());
 }
 
+static void ftrace_trace_userstack(struct trace_array *tr,
+		   struct trace_array_cpu *data,
+		   unsigned long flags, int pc)
+{
+	struct userstack_entry *entry;
+	struct stack_trace trace;
+	struct ring_buffer_event *event;
+	unsigned long irq_flags;
+
+	if (!(trace_flags & TRACE_ITER_USERSTACKTRACE))
+		return;
+
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
+					 &irq_flags);
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	tracing_generic_entry_update(&entry->ent, flags, pc);
+	entry->ent.type		= TRACE_USER_STACK;
+
+	memset(&entry->caller, 0, sizeof(entry->caller));
+
+	trace.nr_entries	= 0;
+	trace.max_entries	= FTRACE_STACK_ENTRIES;
+	trace.skip		= 0;
+	trace.entries		= entry->caller;
+
+	save_stack_trace_user(&trace);
+	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+}
+
+void __trace_userstack(struct trace_array *tr,
+		   struct trace_array_cpu *data,
+		   unsigned long flags)
+{
+	ftrace_trace_userstack(tr, data, flags, preempt_count());
+}
+
 static void
 ftrace_trace_special(void *__tr, void *__data,
 		     unsigned long arg1, unsigned long arg2, unsigned long arg3,
@@ -941,6 +980,7 @@ ftrace_trace_special(void *__tr, void *__data,
 	entry->arg3			= arg3;
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 	ftrace_trace_stack(tr, data, irq_flags, 4, pc);
+	ftrace_trace_userstack(tr, data, irq_flags, pc);
 
 	trace_wake_up();
 }
@@ -979,6 +1019,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->next_cpu	= task_cpu(next);
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 	ftrace_trace_stack(tr, data, flags, 5, pc);
+	ftrace_trace_userstack(tr, data, flags, pc);
 }
 
 void
@@ -1008,6 +1049,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_cpu			= task_cpu(wakee);
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 	ftrace_trace_stack(tr, data, flags, 6, pc);
+	ftrace_trace_userstack(tr, data, flags, pc);
 
 	trace_wake_up();
 }
@@ -1387,6 +1429,31 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 	return ret;
 }
 
+static int
+seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
+		unsigned long sym_flags)
+{
+	int ret = 1;
+	unsigned i;
+
+	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
+		unsigned long ip = entry->caller[i];
+
+		if (ip == ULONG_MAX || !ret)
+			break;
+		if (i)
+			ret = trace_seq_puts(s, " <- ");
+		if (!ip) {
+			ret = trace_seq_puts(s, "??");
+			continue;
+		}
+		if (ret /*&& (sym_flags & TRACE_ITER_SYM_ADDR)*/)
+			ret = trace_seq_printf(s, " <" IP_FMT ">", ip);
+	}
+
+	return ret;
+}
+
 static void print_lat_help_header(struct seq_file *m)
 {
 	seq_puts(m, "#                  _------=> CPU#            \n");
@@ -1702,6 +1769,16 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 				 field->line);
 		break;
 	}
+	case TRACE_USER_STACK: {
+		struct userstack_entry *field;
+
+		trace_assign_type(field, entry);
+
+		seq_print_userip_objs(field, s, sym_flags);
+		if (entry->flags & TRACE_FLAG_CONT)
+			trace_seq_print_cont(s, iter);
+		break;
+	}
 	default:
 		trace_seq_printf(s, "Unknown type %d\n", entry->type);
 	}
@@ -1853,6 +1930,19 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 				 field->line);
 		break;
 	}
+	case TRACE_USER_STACK: {
+		struct userstack_entry *field;
+
+		trace_assign_type(field, entry);
+
+		ret = seq_print_userip_objs(field, s, sym_flags);
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+		ret = trace_seq_putc(s, '\n');
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+		break;
+	}
 	}
 	return TRACE_TYPE_HANDLED;
 }
@@ -1912,6 +2002,7 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 		break;
 	}
 	case TRACE_SPECIAL:
+	case TRACE_USER_STACK:
 	case TRACE_STACK: {
 		struct special_entry *field;
 
@@ -2000,6 +2091,7 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 		break;
 	}
 	case TRACE_SPECIAL:
+	case TRACE_USER_STACK:
 	case TRACE_STACK: {
 		struct special_entry *field;
 
@@ -2054,6 +2146,7 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 		break;
 	}
 	case TRACE_SPECIAL:
+	case TRACE_USER_STACK:
 	case TRACE_STACK: {
 		struct special_entry *field;
 

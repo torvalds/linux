@@ -26,6 +26,7 @@ enum trace_type {
 	TRACE_BOOT_CALL,
 	TRACE_BOOT_RET,
 	TRACE_FN_RET,
+	TRACE_USER_STACK,
 
 	__TRACE_LAST_TYPE
 };
@@ -42,6 +43,7 @@ struct trace_entry {
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
+	int			tgid;
 };
 
 /*
@@ -95,6 +97,11 @@ struct special_entry {
 #define FTRACE_STACK_ENTRIES	8
 
 struct stack_entry {
+	struct trace_entry	ent;
+	unsigned long		caller[FTRACE_STACK_ENTRIES];
+};
+
+struct userstack_entry {
 	struct trace_entry	ent;
 	unsigned long		caller[FTRACE_STACK_ENTRIES];
 };
@@ -240,6 +247,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct ctx_switch_entry, 0);	\
 		IF_ASSIGN(var, ent, struct trace_field_cont, TRACE_CONT); \
 		IF_ASSIGN(var, ent, struct stack_entry, TRACE_STACK);	\
+		IF_ASSIGN(var, ent, struct userstack_entry, TRACE_USER_STACK);\
 		IF_ASSIGN(var, ent, struct print_entry, TRACE_PRINT);	\
 		IF_ASSIGN(var, ent, struct special_entry, 0);		\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
@@ -500,6 +508,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_PREEMPTONLY		= 0x800,
 	TRACE_ITER_BRANCH		= 0x1000,
 	TRACE_ITER_ANNOTATE		= 0x2000,
+	TRACE_ITER_USERSTACKTRACE       = 0x4000
 };
 
 /*
