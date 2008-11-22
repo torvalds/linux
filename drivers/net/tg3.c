@@ -13514,7 +13514,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
 	static int tg3_version_printed = 0;
-	resource_size_t tg3reg_len;
 	struct net_device *dev;
 	struct tg3 *tp;
 	int err, pm_cap;
@@ -13529,13 +13528,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		printk(KERN_ERR PFX "Cannot enable PCI device, "
 		       "aborting.\n");
 		return err;
-	}
-
-	if (!(pci_resource_flags(pdev, BAR_0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX "Cannot find proper PCI device "
-		       "base address, aborting.\n");
-		err = -ENODEV;
-		goto err_out_disable_pdev;
 	}
 
 	err = pci_request_regions(pdev, DRV_MODULE_NAME);
@@ -13606,11 +13598,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	spin_lock_init(&tp->indirect_lock);
 	INIT_WORK(&tp->reset_task, tg3_reset_task);
 
-	dev->mem_start = pci_resource_start(pdev, BAR_0);
-	tg3reg_len = pci_resource_len(pdev, BAR_0);
-	dev->mem_end = dev->mem_start + tg3reg_len;
-
-	tp->regs = ioremap_nocache(dev->mem_start, tg3reg_len);
+	tp->regs = pci_ioremap_bar(pdev, BAR_0);
 	if (!tp->regs) {
 		printk(KERN_ERR PFX "Cannot map device registers, "
 		       "aborting.\n");
@@ -13733,13 +13721,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	}
 
 	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE) {
-		if (!(pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM)) {
-			printk(KERN_ERR PFX "Cannot find proper PCI device "
-			       "base address for APE, aborting.\n");
-			err = -ENODEV;
-			goto err_out_iounmap;
-		}
-
 		tp->aperegs = pci_ioremap_bar(pdev, BAR_2);
 		if (!tp->aperegs) {
 			printk(KERN_ERR PFX "Cannot map APE registers, "
