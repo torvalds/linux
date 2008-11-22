@@ -91,11 +91,19 @@ struct smscore_device_t {
 	struct completion init_device_done, reload_start_done, resume_done;
 
 	int board_id;
+	int led_state;
 };
 
 void smscore_set_board_id(struct smscore_device_t *core, int id)
 {
 	core->board_id = id;
+}
+
+int smscore_led_state(struct smscore_device_t *core, int led)
+{
+	if (led >= 0)
+		core->led_state = led;
+	return core->led_state;
 }
 
 int smscore_get_board_id(struct smscore_device_t *core)

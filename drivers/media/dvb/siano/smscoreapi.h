@@ -431,6 +431,8 @@ int smscore_set_gpio(struct smscore_device_t *coredev, u32 pin, int level);
 void smscore_set_board_id(struct smscore_device_t *core, int id);
 int smscore_get_board_id(struct smscore_device_t *core);
 
+int smscore_led_state(struct smscore_device_t *core, int led);
+
 /* smsdvb.c */
 int smsdvb_register(void);
 void smsdvb_unregister(void);

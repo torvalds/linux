@@ -167,8 +167,18 @@ static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 	struct SmsMsgHdr_ST Msg = { MSG_SMS_GET_STATISTICS_REQ,
 			     DVBT_BDA_CONTROL_MSG_ID,
 			     HIF_TASK, sizeof(struct SmsMsgHdr_ST), 0 };
-	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
-					   &client->stat_done);
+	int ret = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+					      &client->stat_done);
+	if (ret < 0)
+		return ret;
+
+	if (client->fe_status & FE_HAS_LOCK)
+		sms_board_led_feedback(client->coredev,
+				       (client->fe_unc == 0) ?
+				       SMS_LED_HI : SMS_LED_LO);
+	else
+		sms_board_led_feedback(client->coredev, SMS_LED_OFF);
+	return ret;
 }
 
 static int smsdvb_read_status(struct dvb_frontend *fe, fe_status_t *stat)
@@ -306,6 +316,7 @@ static int smsdvb_sleep(struct dvb_frontend *fe)
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
 
+	sms_board_led_feedback(client->coredev, SMS_LED_OFF);
 	sms_board_power(client->coredev, 0);
 
 	return 0;

@@ -183,3 +183,25 @@ int sms_board_power(struct smscore_device_t *coredev, int onoff)
 	}
 	return 0;
 }
+
+int sms_board_led_feedback(struct smscore_device_t *coredev, int led)
+{
+	int board_id = smscore_get_board_id(coredev);
+	struct sms_board *board = sms_get_board(board_id);
+
+	/* dont touch GPIO if LEDs are already set */
+	if (smscore_led_state(coredev, -1) == led)
+		return 0;
+
+	switch (board_id) {
+	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
+		sms_set_gpio(coredev,
+			     board->led_lo, (led & SMS_LED_LO) ? 1 : 0);
+		sms_set_gpio(coredev,
+			     board->led_hi, (led & SMS_LED_HI) ? 1 : 0);
+
+		smscore_led_state(coredev, led);
+		break;
+	}
+	return 0;
+}

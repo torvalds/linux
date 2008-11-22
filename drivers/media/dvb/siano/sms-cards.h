@@ -46,6 +46,10 @@ struct sms_board *sms_get_board(int id);
 
 int sms_board_setup(struct smscore_device_t *coredev);
 
+#define SMS_LED_OFF 0
+#define SMS_LED_LO  1
+#define SMS_LED_HI  2
+int sms_board_led_feedback(struct smscore_device_t *coredev, int led);
 int sms_board_power(struct smscore_device_t *coredev, int onoff);
 
 extern struct usb_device_id smsusb_id_table[];
