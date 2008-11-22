@@ -131,7 +131,7 @@ struct irq_chip {
 
 /**
  * struct irq_desc - interrupt descriptor
- *
+ * @irq:		interrupt number for this descriptor
  * @handle_irq:		highlevel irq-events handler [if NULL, __do_IRQ()]
  * @chip:		low level interrupt hardware access
  * @msi_desc:		MSI descriptor
@@ -150,7 +150,6 @@ struct irq_chip {
  * @cpu:		cpu index useful for balancing
  * @pending_mask:	pending rebalanced interrupts
  * @dir:		/proc/irq/ procfs entry
- * @affinity_entry:	/proc/irq/smp_affinity procfs entry on SMP
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
