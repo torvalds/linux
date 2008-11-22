@@ -292,6 +292,8 @@ struct nes_cm_node {
 	int                       apbvt_set;
 	int                       accept_pend;
 	int			freed;
+	struct list_head	timer_entry;
+	struct list_head	reset_entry;
 	struct nes_qp		*nesqp;
 };
 

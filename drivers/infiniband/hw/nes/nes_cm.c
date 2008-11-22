@@ -459,13 +459,23 @@ static void nes_cm_timer_tick(unsigned long pass)
 	int ret = NETDEV_TX_OK;
 	enum nes_cm_node_state last_state;
 
+	struct list_head timer_list;
+	INIT_LIST_HEAD(&timer_list);
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
 
 	list_for_each_safe(list_node, list_core_temp,
-		&cm_core->connected_nodes) {
+				&cm_core->connected_nodes) {
 		cm_node = container_of(list_node, struct nes_cm_node, list);
-		add_ref_cm_node(cm_node);
-		spin_unlock_irqrestore(&cm_core->ht_lock, flags);
+		if (!list_empty(&cm_node->recv_list) || (cm_node->send_entry)) {
+			add_ref_cm_node(cm_node);
+			list_add(&cm_node->timer_entry, &timer_list);
+		}
+	}
+	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
+
+	list_for_each_safe(list_node, list_core_temp, &timer_list) {
+		cm_node = container_of(list_node, struct nes_cm_node,
+					timer_entry);
 		spin_lock_irqsave(&cm_node->recv_list_lock, flags);
 		list_for_each_safe(list_core, list_node_temp,
 			&cm_node->recv_list) {
@@ -615,14 +625,12 @@ static void nes_cm_timer_tick(unsigned long pass)
 
 		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
 		rem_ref_cm_node(cm_node->cm_core, cm_node);
-		spin_lock_irqsave(&cm_core->ht_lock, flags);
 		if (ret != NETDEV_TX_OK) {
 			nes_debug(NES_DBG_CM, "rexmit failed for cm_node=%p\n",
 				cm_node);
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
 	if (settimer) {
 		if (!timer_pending(&cm_core->tcp_timer)) {
@@ -925,28 +933,36 @@ static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 	struct list_head *list_pos = NULL;
 	struct list_head *list_temp = NULL;
 	struct nes_cm_node *cm_node = NULL;
+	struct list_head reset_list;
 
 	nes_debug(NES_DBG_CM, "attempting listener= %p free_nodes= %d, "
 		"refcnt=%d\n", listener, free_hanging_nodes,
 		atomic_read(&listener->ref_count));
 	/* free non-accelerated child nodes for this listener */
+	INIT_LIST_HEAD(&reset_list);
 	if (free_hanging_nodes) {
 		spin_lock_irqsave(&cm_core->ht_lock, flags);
 		list_for_each_safe(list_pos, list_temp,
-			&g_cm_core->connected_nodes) {
+				   &g_cm_core->connected_nodes) {
 			cm_node = container_of(list_pos, struct nes_cm_node,
 				list);
 			if ((cm_node->listener == listener) &&
-				(!cm_node->accelerated)) {
-				cleanup_retrans_entry(cm_node);
-				spin_unlock_irqrestore(&cm_core->ht_lock,
-					flags);
-				send_reset(cm_node, NULL);
-				spin_lock_irqsave(&cm_core->ht_lock, flags);
+			    (!cm_node->accelerated)) {
+				add_ref_cm_node(cm_node);
+				list_add(&cm_node->reset_entry, &reset_list);
 			}
 		}
 		spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 	}
+
+	list_for_each_safe(list_pos, list_temp, &reset_list) {
+		cm_node = container_of(list_pos, struct nes_cm_node,
+					reset_entry);
+		cleanup_retrans_entry(cm_node);
+		send_reset(cm_node, NULL);
+		rem_ref_cm_node(cm_node->cm_core, cm_node);
+	}
+
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
 	if (!atomic_dec_return(&listener->ref_count)) {
 		list_del(&listener->list);
