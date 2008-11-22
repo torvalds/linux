@@ -450,10 +450,29 @@ spectrum_cs_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
+	unsigned long flags;
+	int err;
+
+	err = orinoco_reinit_firmware(dev);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d re-initializing firmware\n",
+		       dev->name, err);
+		return -EIO;
+	}
+
+	spin_lock_irqsave(&priv->lock, flags);
 
 	netif_device_attach(dev);
 	priv->hw_unavailable--;
-	schedule_work(&priv->reset_work);
+
+	if (priv->open && !priv->hw_unavailable) {
+		err = __orinoco_up(dev);
+		if (err)
+			printk(KERN_ERR "%s: Error %d restarting card\n",
+			       dev->name, err);
+	}
+
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
