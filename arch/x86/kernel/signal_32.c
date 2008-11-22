@@ -125,6 +125,7 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	return ret;
 }
 
+#ifdef CONFIG_X86_32
 asmlinkage int sys_sigaltstack(unsigned long bx)
 {
 	/*
@@ -137,6 +138,14 @@ asmlinkage int sys_sigaltstack(unsigned long bx)
 
 	return do_sigaltstack(uss, uoss, regs->sp);
 }
+#else /* !CONFIG_X86_32 */
+asmlinkage long
+sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
+		struct pt_regs *regs)
+{
+	return do_sigaltstack(uss, uoss, regs->sp);
+}
+#endif /* CONFIG_X86_32 */
 
 #define COPY(x)			{		\
 	err |= __get_user(regs->x, &sc->x);	\
