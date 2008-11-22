@@ -27,6 +27,7 @@
 *******************************************************************************/
 
 /*
+ * 82562G 10/100 Network Connection
  * 82562G-2 10/100 Network Connection
  * 82562GT 10/100 Network Connection
  * 82562GT-2 10/100 Network Connection
@@ -40,6 +41,7 @@
  * 82566MM Gigabit Network Connection
  * 82567LM Gigabit Network Connection
  * 82567LF Gigabit Network Connection
+ * 82567V Gigabit Network Connection
  * 82567LM-2 Gigabit Network Connection
  * 82567LF-2 Gigabit Network Connection
  * 82567V-2 Gigabit Network Connection

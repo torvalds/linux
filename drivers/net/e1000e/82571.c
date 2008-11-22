@@ -28,6 +28,7 @@
 
 /*
  * 82571EB Gigabit Ethernet Controller
+ * 82571EB Gigabit Ethernet Controller (Copper)
  * 82571EB Gigabit Ethernet Controller (Fiber)
  * 82571EB Dual Port Gigabit Mezzanine Adapter
  * 82571EB Quad Port Gigabit Mezzanine Adapter
