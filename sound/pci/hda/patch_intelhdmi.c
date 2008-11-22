@@ -444,14 +444,16 @@ static int hdmi_setup_channel_allocation(struct hda_codec *codec,
 		    (spk_mask & channel_allocations[i].spk_mask) ==
 				channel_allocations[i].spk_mask) {
 			ai->CA = channel_allocations[i].ca_index;
-			return 0;
+			break;
 		}
 	}
 
 	snd_print_channel_allocation(eld->spk_alloc, buf, sizeof(buf));
-	snd_printd(KERN_INFO "failed to setup channel allocation: %d of %s\n",
-			channels, buf);
-	return -1;
+	snd_printdd(KERN_INFO
+			"HDMI: select CA 0x%x for %d-channel allocation: %s\n",
+			ai->CA, channels, buf);
+
+	return ai->CA;
 }
 
 static void hdmi_setup_channel_mapping(struct hda_codec *codec,
