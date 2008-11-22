@@ -1508,7 +1508,7 @@ static void handle_syn_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	int optionsize;
 
 	optionsize = (tcph->doff << 2) - sizeof(struct tcphdr);
-	skb_pull(skb, tcph->doff << 2);
+	skb_trim(skb, 0);
 	inc_sequence = ntohl(tcph->seq);
 
 	switch (cm_node->state) {
@@ -1541,6 +1541,10 @@ static void handle_syn_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		cm_node->state = NES_CM_STATE_SYN_RCVD;
 		send_syn(cm_node, 1, skb);
 		break;
+	case NES_CM_STATE_CLOSED:
+		cleanup_retrans_entry(cm_node);
+		send_reset(cm_node, skb);
+		break;
 	case NES_CM_STATE_TSA:
 	case NES_CM_STATE_ESTABLISHED:
 	case NES_CM_STATE_FIN_WAIT1:
@@ -1549,7 +1553,6 @@ static void handle_syn_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	case NES_CM_STATE_LAST_ACK:
 	case NES_CM_STATE_CLOSING:
 	case NES_CM_STATE_UNKNOWN:
-	case NES_CM_STATE_CLOSED:
 	default:
 		drop_packet(skb);
 		break;
@@ -1565,7 +1568,7 @@ static void handle_synack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	int optionsize;
 
 	optionsize = (tcph->doff << 2) - sizeof(struct tcphdr);
-	skb_pull(skb, tcph->doff << 2);
+	skb_trim(skb, 0);
 	inc_sequence = ntohl(tcph->seq);
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_SENT:
@@ -1589,6 +1592,12 @@ static void handle_synack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		/* passive open, so should not be here */
 		passive_open_err(cm_node, skb, 1);
 		break;
+	case NES_CM_STATE_LISTENING:
+	case NES_CM_STATE_CLOSED:
+		cm_node->tcp_cntxt.loc_seq_num = ntohl(tcph->ack_seq);
+		cleanup_retrans_entry(cm_node);
+		send_reset(cm_node, skb);
+		break;
 	case NES_CM_STATE_ESTABLISHED:
 	case NES_CM_STATE_FIN_WAIT1:
 	case NES_CM_STATE_FIN_WAIT2:
@@ -1596,7 +1605,6 @@ static void handle_synack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	case NES_CM_STATE_TSA:
 	case NES_CM_STATE_CLOSING:
 	case NES_CM_STATE_UNKNOWN:
-	case NES_CM_STATE_CLOSED:
 	case NES_CM_STATE_MPAREQ_SENT:
 	default:
 		drop_packet(skb);
@@ -1611,6 +1619,13 @@ static void handle_ack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	u32 inc_sequence;
 	u32 rem_seq_ack;
 	u32 rem_seq;
+	int ret;
+	int optionsize;
+	u32 temp_seq = cm_node->tcp_cntxt.loc_seq_num;
+
+	optionsize = (tcph->doff << 2) - sizeof(struct tcphdr);
+	cm_node->tcp_cntxt.loc_seq_num = ntohl(tcph->ack_seq);
+
 	if (check_seq(cm_node, tcph, skb))
 		return;
 
@@ -1623,7 +1638,18 @@ static void handle_ack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_RCVD:
 		/* Passive OPEN */
+		ret = handle_tcp_options(cm_node, tcph, skb, optionsize, 1);
+		if (ret)
+			break;
 		cm_node->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
+		cm_node->tcp_cntxt.loc_seq_num = temp_seq;
+		if (cm_node->tcp_cntxt.rem_ack_num !=
+		    cm_node->tcp_cntxt.loc_seq_num) {
+			nes_debug(NES_DBG_CM, "rem_ack_num != loc_seq_num\n");
+			cleanup_retrans_entry(cm_node);
+			send_reset(cm_node, skb);
+			return;
+		}
 		cm_node->state = NES_CM_STATE_ESTABLISHED;
 		if (datasize) {
 			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
@@ -1655,11 +1681,15 @@ static void handle_ack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 			dev_kfree_skb_any(skb);
 		}
 		break;
+	case NES_CM_STATE_LISTENING:
+	case NES_CM_STATE_CLOSED:
+		cleanup_retrans_entry(cm_node);
+		send_reset(cm_node, skb);
+		break;
 	case NES_CM_STATE_FIN_WAIT1:
 	case NES_CM_STATE_SYN_SENT:
 	case NES_CM_STATE_FIN_WAIT2:
 	case NES_CM_STATE_TSA:
-	case NES_CM_STATE_CLOSED:
 	case NES_CM_STATE_MPAREQ_RCVD:
 	case NES_CM_STATE_LAST_ACK:
 	case NES_CM_STATE_CLOSING:
@@ -1682,9 +1712,9 @@ static int handle_tcp_options(struct nes_cm_node *cm_node, struct tcphdr *tcph,
 			nes_debug(NES_DBG_CM, "%s: Node %p, Sending RESET\n",
 				__func__, cm_node);
 			if (passive)
-				passive_open_err(cm_node, skb, 0);
+				passive_open_err(cm_node, skb, 1);
 			else
-				active_open_err(cm_node, skb, 0);
+				active_open_err(cm_node, skb, 1);
 			return 1;
 		}
 	}
