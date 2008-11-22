@@ -402,6 +402,11 @@ static const struct {
 	},
 	/* iPod mini */ {
 		.firmware_revision	= 0x0a2700,
+		.model_id		= 0x000022,
+		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
+	},
+	/* iPod mini */ {
+		.firmware_revision	= 0x0a2700,
 		.model_id		= 0x000023,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	},
