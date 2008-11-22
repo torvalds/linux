@@ -931,8 +931,7 @@ void igb_reset(struct igb_adapter *adapter)
 	wr32(E1000_VET, ETHERNET_IEEE_VLAN_TYPE);
 
 	igb_reset_adaptive(&adapter->hw);
-	if (adapter->hw.phy.ops.get_phy_info)
-		adapter->hw.phy.ops.get_phy_info(&adapter->hw);
+	igb_get_phy_info(&adapter->hw);
 }
 
 /**
@@ -1305,7 +1304,7 @@ err_register:
 	igb_release_hw_control(adapter);
 err_eeprom:
 	if (!igb_check_reset_block(hw))
-		hw->phy.ops.reset_phy(hw);
+		igb_reset_phy(hw);
 
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
@@ -1365,9 +1364,8 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
-	if (adapter->hw.phy.ops.reset_phy &&
-	    !igb_check_reset_block(&adapter->hw))
-		adapter->hw.phy.ops.reset_phy(&adapter->hw);
+	if (!igb_check_reset_block(&adapter->hw))
+		igb_reset_phy(&adapter->hw);
 
 	igb_remove_device(&adapter->hw);
 	igb_reset_interrupt_capability(adapter);
@@ -2283,8 +2281,7 @@ static void igb_set_multi(struct net_device *netdev)
 static void igb_update_phy_info(unsigned long data)
 {
 	struct igb_adapter *adapter = (struct igb_adapter *) data;
-	if (adapter->hw.phy.ops.get_phy_info)
-		adapter->hw.phy.ops.get_phy_info(&adapter->hw);
+	igb_get_phy_info(&adapter->hw);
 }
 
 /**
@@ -3258,7 +3255,7 @@ void igb_update_stats(struct igb_adapter *adapter)
 	/* Phy Stats */
 	if (hw->phy.media_type == e1000_media_type_copper) {
 		if ((adapter->link_speed == SPEED_1000) &&
-		   (!hw->phy.ops.read_phy_reg(hw, PHY_1000T_STATUS,
+		   (!igb_read_phy_reg(hw, PHY_1000T_STATUS,
 					      &phy_tmp))) {
 			phy_tmp &= PHY_IDLE_ERROR_COUNT_MASK;
 			adapter->phy_stats.idle_errors += phy_tmp;
@@ -4111,9 +4108,8 @@ static int igb_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		if (adapter->hw.phy.ops.read_phy_reg(&adapter->hw,
-						     data->reg_num
-						     & 0x1F, &data->val_out))
+		if (igb_read_phy_reg(&adapter->hw, data->reg_num & 0x1F,
+		                     &data->val_out))
 			return -EIO;
 		break;
 	case SIOCSMIIREG:

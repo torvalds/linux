@@ -332,4 +332,36 @@ extern void igb_free_rx_resources(struct igb_ring *);
 extern void igb_update_stats(struct igb_adapter *);
 extern void igb_set_ethtool_ops(struct net_device *);
 
+static inline s32 igb_reset_phy(struct e1000_hw *hw)
+{
+	if (hw->phy.ops.reset_phy)
+		return hw->phy.ops.reset_phy(hw);
+
+	return 0;
+}
+
+static inline s32 igb_read_phy_reg(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	if (hw->phy.ops.read_phy_reg)
+		return hw->phy.ops.read_phy_reg(hw, offset, data);
+
+	return 0;
+}
+
+static inline s32 igb_write_phy_reg(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	if (hw->phy.ops.write_phy_reg)
+		return hw->phy.ops.write_phy_reg(hw, offset, data);
+
+	return 0;
+}
+
+static inline s32 igb_get_phy_info(struct e1000_hw *hw)
+{
+	if (hw->phy.ops.get_phy_info)
+		return hw->phy.ops.get_phy_info(hw);
+
+	return 0;
+}
+
 #endif /* _IGB_H_ */

@@ -1376,10 +1376,10 @@ static void igb_phy_disable_receiver(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	/* Write out to PHY registers 29 and 30 to disable the Receiver. */
-	hw->phy.ops.write_phy_reg(hw, 29, 0x001F);
-	hw->phy.ops.write_phy_reg(hw, 30, 0x8FFC);
-	hw->phy.ops.write_phy_reg(hw, 29, 0x001A);
-	hw->phy.ops.write_phy_reg(hw, 30, 0x8FF0);
+	igb_write_phy_reg(hw, 29, 0x001F);
+	igb_write_phy_reg(hw, 30, 0x8FFC);
+	igb_write_phy_reg(hw, 29, 0x001A);
+	igb_write_phy_reg(hw, 30, 0x8FF0);
 }
 
 static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
@@ -1392,17 +1392,17 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 
 	if (hw->phy.type == e1000_phy_m88) {
 		/* Auto-MDI/MDIX Off */
-		hw->phy.ops.write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
+		igb_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
 		/* reset to update Auto-MDI/MDIX */
-		hw->phy.ops.write_phy_reg(hw, PHY_CONTROL, 0x9140);
+		igb_write_phy_reg(hw, PHY_CONTROL, 0x9140);
 		/* autoneg off */
-		hw->phy.ops.write_phy_reg(hw, PHY_CONTROL, 0x8140);
+		igb_write_phy_reg(hw, PHY_CONTROL, 0x8140);
 	}
 
 	ctrl_reg = rd32(E1000_CTRL);
 
 	/* force 1000, set loopback */
-	hw->phy.ops.write_phy_reg(hw, PHY_CONTROL, 0x4140);
+	igb_write_phy_reg(hw, PHY_CONTROL, 0x4140);
 
 	/* Now set up the MAC to the same speed/duplex as the PHY. */
 	ctrl_reg = rd32(E1000_CTRL);
@@ -1496,10 +1496,10 @@ static void igb_loopback_cleanup(struct igb_adapter *adapter)
 	wr32(E1000_RCTL, rctl);
 
 	hw->mac.autoneg = true;
-	hw->phy.ops.read_phy_reg(hw, PHY_CONTROL, &phy_reg);
+	igb_read_phy_reg(hw, PHY_CONTROL, &phy_reg);
 	if (phy_reg & MII_CR_LOOPBACK) {
 		phy_reg &= ~MII_CR_LOOPBACK;
-		hw->phy.ops.write_phy_reg(hw, PHY_CONTROL, phy_reg);
+		igb_write_phy_reg(hw, PHY_CONTROL, phy_reg);
 		igb_phy_sw_reset(hw);
 	}
 }
