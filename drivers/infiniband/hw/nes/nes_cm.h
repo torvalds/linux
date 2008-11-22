@@ -397,7 +397,7 @@ struct nes_cm_ops {
 			struct nes_cm_node *);
 	int (*reject)(struct nes_cm_core *, struct ietf_mpa_frame *,
 			struct nes_cm_node *);
-	void (*recv_pkt)(struct nes_cm_core *, struct nes_vnic *,
+	int (*recv_pkt)(struct nes_cm_core *, struct nes_vnic *,
 			struct sk_buff *);
 	int (*destroy_cm_core)(struct nes_cm_core *);
 	int (*get)(struct nes_cm_core *);

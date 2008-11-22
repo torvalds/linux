@@ -86,7 +86,7 @@ static int mini_cm_accept(struct nes_cm_core *, struct ietf_mpa_frame *,
 	struct nes_cm_node *);
 static int mini_cm_reject(struct nes_cm_core *, struct ietf_mpa_frame *,
 	struct nes_cm_node *);
-static void mini_cm_recv_pkt(struct nes_cm_core *, struct nes_vnic *,
+static int mini_cm_recv_pkt(struct nes_cm_core *, struct nes_vnic *,
 	struct sk_buff *);
 static int mini_cm_dealloc_core(struct nes_cm_core *);
 static int mini_cm_get(struct nes_cm_core *);
@@ -2076,7 +2076,7 @@ static int mini_cm_close(struct nes_cm_core *cm_core, struct nes_cm_node *cm_nod
  * recv_pkt - recv an ETHERNET packet, and process it through CM
  * node state machine
  */
-static void mini_cm_recv_pkt(struct nes_cm_core *cm_core,
+static int mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 	struct nes_vnic *nesvnic, struct sk_buff *skb)
 {
 	struct nes_cm_node *cm_node = NULL;
@@ -2084,23 +2084,16 @@ static void mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 	struct iphdr *iph;
 	struct tcphdr *tcph;
 	struct nes_cm_info nfo;
+	int skb_handled = 1;
 
 	if (!skb)
-		return;
+		return 0;
 	if (skb->len < sizeof(struct iphdr) + sizeof(struct tcphdr)) {
-		dev_kfree_skb_any(skb);
-		return;
+		return 0;
 	}
 
 	iph = (struct iphdr *)skb->data;
 	tcph = (struct tcphdr *)(skb->data + sizeof(struct iphdr));
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, sizeof(*tcph));
-	if (!tcph) {
-		dev_kfree_skb_any(skb);
-		return;
-	}
-	skb->len = ntohs(iph->tot_len);
 
 	nfo.loc_addr = ntohl(iph->daddr);
 	nfo.loc_port = ntohs(tcph->dest);
@@ -2121,23 +2114,21 @@ static void mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 			/* Only type of packet accepted are for */
 			/* the PASSIVE open (syn only) */
 			if ((!tcph->syn) || (tcph->ack)) {
-				cm_packets_dropped++;
+				skb_handled = 0;
 				break;
 			}
 			listener = find_listener(cm_core, nfo.loc_addr,
 				nfo.loc_port,
 				NES_CM_LISTENER_ACTIVE_STATE);
-			if (listener) {
-				nfo.cm_id = listener->cm_id;
-				nfo.conn_type = listener->conn_type;
-			} else {
-				nes_debug(NES_DBG_CM, "Unable to find listener "
-					"for the pkt\n");
-				cm_packets_dropped++;
-				dev_kfree_skb_any(skb);
+			if (!listener) {
+				nfo.cm_id = NULL;
+				nfo.conn_type = 0;
+				nes_debug(NES_DBG_CM, "Unable to find listener for the pkt\n");
+				skb_handled = 0;
 				break;
 			}
-
+			nfo.cm_id = listener->cm_id;
+			nfo.conn_type = listener->conn_type;
 			cm_node = make_cm_node(cm_core, nesvnic, &nfo,
 				listener);
 			if (!cm_node) {
@@ -2163,9 +2154,13 @@ static void mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 			dev_kfree_skb_any(skb);
 			break;
 		}
+		skb_reset_network_header(skb);
+		skb_set_transport_header(skb, sizeof(*tcph));
+		skb->len = ntohs(iph->tot_len);
 		process_packet(cm_node, skb, cm_core);
 		rem_ref_cm_node(cm_core, cm_node);
 	} while (0);
+	return skb_handled;
 }
 
 
@@ -2985,15 +2980,16 @@ int nes_destroy_listen(struct iw_cm_id *cm_id)
  */
 int nes_cm_recv(struct sk_buff *skb, struct net_device *netdevice)
 {
+	int rc = 0;
 	cm_packets_received++;
 	if ((g_cm_core) && (g_cm_core->api)) {
-		g_cm_core->api->recv_pkt(g_cm_core, netdev_priv(netdevice), skb);
+		rc = g_cm_core->api->recv_pkt(g_cm_core, netdev_priv(netdevice), skb);
 	} else {
 		nes_debug(NES_DBG_CM, "Unable to process packet for CM,"
 				" cm is not setup properly.\n");
 	}
 
-	return 0;
+	return rc;
 }
 
 
