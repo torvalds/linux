@@ -1142,7 +1142,10 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 
 	cm_node->loopbackpartner = NULL;
 	/* get the mac addr for the remote node */
-	arpindex = nes_arp_table(nesdev, cm_node->rem_addr, NULL, NES_ARP_RESOLVE);
+	if (ipv4_is_loopback(htonl(cm_node->rem_addr)))
+		arpindex = nes_arp_table(nesdev, ntohl(nesvnic->local_ipaddr), NULL, NES_ARP_RESOLVE);
+	else
+		arpindex = nes_arp_table(nesdev, cm_node->rem_addr, NULL, NES_ARP_RESOLVE);
 	if (arpindex < 0) {
 		arpindex = nes_addr_resolve_neigh(nesvnic, cm_info->rem_addr);
 		if (arpindex < 0) {
