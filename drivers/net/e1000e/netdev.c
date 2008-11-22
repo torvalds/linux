@@ -2785,7 +2785,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	else
 		fc->pause_time = E1000_FC_PAUSE_TIME;
 	fc->send_xon = 1;
-	fc->type = fc->original_type;
+	fc->current_mode = fc->requested_mode;
 
 	/* Allow time for pending master requests to run */
 	mac->ops.reset_hw(hw);
@@ -4983,8 +4983,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
 	adapter->fc_autoneg = 1;
-	adapter->hw.fc.original_type = e1000_fc_default;
-	adapter->hw.fc.type = e1000_fc_default;
+	adapter->hw.fc.requested_mode = e1000_fc_default;
+	adapter->hw.fc.current_mode = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;
 
 	/* ring size defaults */

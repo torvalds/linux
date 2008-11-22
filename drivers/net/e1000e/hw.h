@@ -437,7 +437,7 @@ enum e1000_rev_polarity{
 	e1000_rev_polarity_undefined = 0xFF
 };
 
-enum e1000_fc_type {
+enum e1000_fc_mode {
 	e1000_fc_none = 0,
 	e1000_fc_rx_pause,
 	e1000_fc_tx_pause,
@@ -850,8 +850,8 @@ struct e1000_fc_info {
 	u16 pause_time;          /* Flow control pause timer */
 	bool send_xon;           /* Flow control send XON */
 	bool strict_ieee;        /* Strict IEEE mode */
-	enum e1000_fc_type type; /* Type of flow control */
-	enum e1000_fc_type original_type;
+	enum e1000_fc_mode current_mode; /* FC mode in effect */
+	enum e1000_fc_mode requested_mode; /* FC mode requested by caller */
 };
 
 struct e1000_dev_spec_82571 {

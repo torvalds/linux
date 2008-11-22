@@ -249,7 +249,7 @@ static int e1000_set_settings(struct net_device *netdev,
 						     ADVERTISED_Autoneg;
 		ecmd->advertising = hw->phy.autoneg_advertised;
 		if (adapter->fc_autoneg)
-			hw->fc.original_type = e1000_fc_default;
+			hw->fc.requested_mode = e1000_fc_default;
 	} else {
 		if (e1000_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
 			clear_bit(__E1000_RESETTING, &adapter->state);
@@ -279,11 +279,11 @@ static void e1000_get_pauseparam(struct net_device *netdev,
 	pause->autoneg =
 		(adapter->fc_autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE);
 
-	if (hw->fc.type == e1000_fc_rx_pause) {
+	if (hw->fc.current_mode == e1000_fc_rx_pause) {
 		pause->rx_pause = 1;
-	} else if (hw->fc.type == e1000_fc_tx_pause) {
+	} else if (hw->fc.current_mode == e1000_fc_tx_pause) {
 		pause->tx_pause = 1;
-	} else if (hw->fc.type == e1000_fc_full) {
+	} else if (hw->fc.current_mode == e1000_fc_full) {
 		pause->rx_pause = 1;
 		pause->tx_pause = 1;
 	}
@@ -301,19 +301,8 @@ static int e1000_set_pauseparam(struct net_device *netdev,
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
 		msleep(1);
 
-	if (pause->rx_pause && pause->tx_pause)
-		hw->fc.type = e1000_fc_full;
-	else if (pause->rx_pause && !pause->tx_pause)
-		hw->fc.type = e1000_fc_rx_pause;
-	else if (!pause->rx_pause && pause->tx_pause)
-		hw->fc.type = e1000_fc_tx_pause;
-	else if (!pause->rx_pause && !pause->tx_pause)
-		hw->fc.type = e1000_fc_none;
-
-	hw->fc.original_type = hw->fc.type;
-
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
-		hw->fc.type = e1000_fc_default;
+		hw->fc.requested_mode = e1000_fc_default;
 		if (netif_running(adapter->netdev)) {
 			e1000e_down(adapter);
 			e1000e_up(adapter);
@@ -321,6 +310,17 @@ static int e1000_set_pauseparam(struct net_device *netdev,
 			e1000e_reset(adapter);
 		}
 	} else {
+		if (pause->rx_pause && pause->tx_pause)
+			hw->fc.requested_mode = e1000_fc_full;
+		else if (pause->rx_pause && !pause->tx_pause)
+			hw->fc.requested_mode = e1000_fc_rx_pause;
+		else if (!pause->rx_pause && pause->tx_pause)
+			hw->fc.requested_mode = e1000_fc_tx_pause;
+		else if (!pause->rx_pause && !pause->tx_pause)
+			hw->fc.requested_mode = e1000_fc_none;
+
+		hw->fc.current_mode = hw->fc.requested_mode;
+
 		retval = ((hw->phy.media_type == e1000_media_type_fiber) ?
 			  hw->mac.ops.setup_link(hw) : e1000e_force_mac_fc(hw));
 	}

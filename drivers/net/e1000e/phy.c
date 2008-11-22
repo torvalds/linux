@@ -744,7 +744,7 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	 *  other:  No software override.  The flow control configuration
 	 *	  in the EEPROM is used.
 	 */
-	switch (hw->fc.type) {
+	switch (hw->fc.current_mode) {
 	case e1000_fc_none:
 		/*
 		 * Flow control (Rx & Tx) is completely disabled by a
@@ -1114,7 +1114,7 @@ void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
 	u32 ctrl;
 
 	/* Turn off flow control when forcing speed/duplex */
-	hw->fc.type = e1000_fc_none;
+	hw->fc.current_mode = e1000_fc_none;
 
 	/* Force speed/duplex on the mac */
 	ctrl = er32(CTRL);

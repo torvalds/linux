@@ -2071,12 +2071,17 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
-	if (hw->fc.type == e1000_fc_default)
-		hw->fc.type = e1000_fc_full;
+	if (hw->fc.requested_mode == e1000_fc_default)
+		hw->fc.requested_mode = e1000_fc_full;
 
-	hw->fc.original_type = hw->fc.type;
+	/*
+	 * Save off the requested flow control mode for use later.  Depending
+	 * on the link partner's capabilities, we may or may not use this mode.
+	 */
+	hw->fc.current_mode = hw->fc.requested_mode;
 
-	hw_dbg(hw, "After fix-ups FlowControl is now = %x\n", hw->fc.type);
+	hw_dbg(hw, "After fix-ups FlowControl is now = %x\n",
+		hw->fc.current_mode);
 
 	/* Continue to configure the copper link. */
 	ret_val = e1000_setup_copper_link_ich8lan(hw);
