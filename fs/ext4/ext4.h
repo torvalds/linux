@@ -727,11 +727,11 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
  */
 
 #define EXT4_HAS_COMPAT_FEATURE(sb,mask)			\
-	(EXT4_SB(sb)->s_es->s_feature_compat & cpu_to_le32(mask))
+	((EXT4_SB(sb)->s_es->s_feature_compat & cpu_to_le32(mask)) != 0)
 #define EXT4_HAS_RO_COMPAT_FEATURE(sb,mask)			\
-	(EXT4_SB(sb)->s_es->s_feature_ro_compat & cpu_to_le32(mask))
+	((EXT4_SB(sb)->s_es->s_feature_ro_compat & cpu_to_le32(mask)) != 0)
 #define EXT4_HAS_INCOMPAT_FEATURE(sb,mask)			\
-	(EXT4_SB(sb)->s_es->s_feature_incompat & cpu_to_le32(mask))
+	((EXT4_SB(sb)->s_es->s_feature_incompat & cpu_to_le32(mask)) != 0)
 #define EXT4_SET_COMPAT_FEATURE(sb,mask)			\
 	EXT4_SB(sb)->s_es->s_feature_compat |= cpu_to_le32(mask)
 #define EXT4_SET_RO_COMPAT_FEATURE(sb,mask)			\
@@ -1286,6 +1286,9 @@ extern int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode,
 			sector_t block, unsigned int max_blocks,
 			struct buffer_head *bh, int create,
 			int extend_disksize, int flag);
+extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+			__u64 start, __u64 len);
+
 #endif	/* __KERNEL__ */
 
 #endif	/* _EXT4_H */

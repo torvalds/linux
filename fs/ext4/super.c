@@ -1924,7 +1924,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	int db_count;
 	int i;
 	int needs_recovery, has_huge_files;
-	__le32 features;
+	int features;
 	__u64 blocks_count;
 	int err;
 
@@ -2056,15 +2056,17 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	features = EXT4_HAS_INCOMPAT_FEATURE(sb, ~EXT4_FEATURE_INCOMPAT_SUPP);
 	if (features) {
 		printk(KERN_ERR "EXT4-fs: %s: couldn't mount because of "
-		       "unsupported optional features (%x).\n",
-		       sb->s_id, le32_to_cpu(features));
+		       "unsupported optional features (%x).\n", sb->s_id,
+			(le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_incompat) &
+			~EXT4_FEATURE_INCOMPAT_SUPP));
 		goto failed_mount;
 	}
 	features = EXT4_HAS_RO_COMPAT_FEATURE(sb, ~EXT4_FEATURE_RO_COMPAT_SUPP);
 	if (!(sb->s_flags & MS_RDONLY) && features) {
 		printk(KERN_ERR "EXT4-fs: %s: couldn't mount RDWR because of "
-		       "unsupported optional features (%x).\n",
-		       sb->s_id, le32_to_cpu(features));
+		       "unsupported optional features (%x).\n", sb->s_id,
+			(le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_ro_compat) &
+			~EXT4_FEATURE_RO_COMPAT_SUPP));
 		goto failed_mount;
 	}
 	has_huge_files = EXT4_HAS_RO_COMPAT_FEATURE(sb,
@@ -3131,13 +3133,14 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				lock_super(sb);
 			}
 		} else {
-			__le32 ret;
+			int ret;
 			if ((ret = EXT4_HAS_RO_COMPAT_FEATURE(sb,
 					~EXT4_FEATURE_RO_COMPAT_SUPP))) {
 				printk(KERN_WARNING "EXT4-fs: %s: couldn't "
 				       "remount RDWR because of unsupported "
-				       "optional features (%x).\n",
-				       sb->s_id, le32_to_cpu(ret));
+				       "optional features (%x).\n", sb->s_id,
+				(le32_to_cpu(sbi->s_es->s_feature_ro_compat) &
+					~EXT4_FEATURE_RO_COMPAT_SUPP));
 				err = -EROFS;
 				goto restore_opts;
 			}
