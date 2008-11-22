@@ -519,7 +519,7 @@ static void nes_cm_timer_tick(unsigned long pass)
 		do {
 			send_entry = cm_node->send_entry;
 			if (!send_entry)
-				continue;
+				break;
 			if (time_after(send_entry->timetosend, jiffies)) {
 				if (cm_node->state != NES_CM_STATE_TSA) {
 					if ((nexttimeout >
@@ -528,18 +528,18 @@ static void nes_cm_timer_tick(unsigned long pass)
 						nexttimeout =
 							send_entry->timetosend;
 						settimer = 1;
-						continue;
+						break;
 					}
 				} else {
 					free_retrans_entry(cm_node);
-					continue;
+					break;
 				}
 			}
 
 			if ((cm_node->state == NES_CM_STATE_TSA) ||
 				(cm_node->state == NES_CM_STATE_CLOSED)) {
 				free_retrans_entry(cm_node);
-				continue;
+				break;
 			}
 
 			if (!send_entry->retranscount ||
@@ -557,7 +557,7 @@ static void nes_cm_timer_tick(unsigned long pass)
 						NES_CM_EVENT_ABORTED);
 				spin_lock_irqsave(&cm_node->retrans_list_lock,
 					flags);
-				continue;
+				break;
 			}
 			atomic_inc(&send_entry->skb->users);
 			cm_packets_retrans++;
@@ -583,7 +583,7 @@ static void nes_cm_timer_tick(unsigned long pass)
 				send_entry->retrycount--;
 				nexttimeout = jiffies + NES_SHORT_TIME;
 				settimer = 1;
-				continue;
+				break;
 			} else {
 				cm_packets_sent++;
 			}
