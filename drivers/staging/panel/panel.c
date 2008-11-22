@@ -228,26 +228,6 @@ static unsigned long int lcd_addr_y;	/* contains the LCD Y offset */
 static char lcd_escape[LCD_ESCAPE_LEN + 1];	/* current escape sequence, 0 terminated */
 static int lcd_escape_len = -1;	/* not in escape state. >=0 = escape cmd len */
 
-static int lcd_height = -1;
-static int lcd_width = -1;
-static int lcd_hwidth = -1;	/* hardware buffer width (usually 64) */
-static int lcd_bwidth = -1;	/* internal buffer width (usually 40) */
-
-/*
- * These are the parallel port pins the LCD control signals are connected to.
- * Set this to 0 if the signal is not used. Set it to its opposite value
- * (negative) if the signal is negated. -MAXINT is used to indicate that the
- * pin has not been explicitly specified.
- *
- * WARNING! no check will be performed about collisions with keypad/smartcard !
- */
-static int lcd_e_pin  = PIN_NOT_SET;
-static int lcd_rs_pin = PIN_NOT_SET;
-static int lcd_rw_pin = PIN_NOT_SET;
-static int lcd_bl_pin = PIN_NOT_SET;
-static int lcd_cl_pin = PIN_NOT_SET;
-static int lcd_da_pin = PIN_NOT_SET;
-
 /*
  * Bit masks to convert LCD signals to parallel port outputs.
  * _d_ are values for data port, _c_ are for control port.
@@ -431,19 +411,11 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 static int smartcard_open_cnt;	/* #times opened */
 static int keypad_open_cnt;	/* #times opened */
 static int lcd_open_cnt;	/* #times opened */
-
-static int profile = DEFAULT_PROFILE;
 static struct pardevice *pprt;
-static int parport = -1;
-static int lcd_enabled = -1;
-static int lcd_type = -1;
-static int lcd_proto = -1;
-static int lcd_charset = -1;
-static int keypad_enabled = -1;
-static int keypad_type = -1;
-static int smartcard_enabled = -1;
 
-static int lcd_initialized, keypad_initialized, smartcard_initialized;
+static int lcd_initialized;
+static int keypad_initialized;
+static int smartcard_initialized;
 
 static int light_tempo;
 
@@ -458,60 +430,102 @@ static void (*lcd_clear_fast) (void);
 static DEFINE_SPINLOCK(pprt_lock);
 static struct timer_list scan_timer;
 
-#ifdef MODULE
-
 MODULE_DESCRIPTION("Generic parallel port LCD/Keypad/Smartcard driver");
+
+static int parport = -1;
 module_param(parport, int, 0000);
 MODULE_PARM_DESC(parport, "Parallel port index (0=lpt1, 1=lpt2, ...)");
+
+static int lcd_height = -1;
 module_param(lcd_height, int, 0000);
 MODULE_PARM_DESC(lcd_height, "Number of lines on the LCD");
+
+static int lcd_width = -1;
 module_param(lcd_width, int, 0000);
 MODULE_PARM_DESC(lcd_width, "Number of columns on the LCD");
+
+static int lcd_bwidth = -1;	/* internal buffer width (usually 40) */
 module_param(lcd_bwidth, int, 0000);
 MODULE_PARM_DESC(lcd_bwidth, "Internal LCD line width (40)");
+
+static int lcd_hwidth = -1;	/* hardware buffer width (usually 64) */
 module_param(lcd_hwidth, int, 0000);
 MODULE_PARM_DESC(lcd_hwidth, "LCD line hardware address (64)");
+
+static int lcd_enabled = -1;
 module_param(lcd_enabled, int, 0000);
 MODULE_PARM_DESC(lcd_enabled, "Deprecated option, use lcd_type instead");
+
+static int keypad_enabled = -1;
 module_param(keypad_enabled, int, 0000);
 MODULE_PARM_DESC(keypad_enabled, "Deprecated option, use keypad_type instead");
+
+static int lcd_type = -1;
 module_param(lcd_type, int, 0000);
 MODULE_PARM_DESC(lcd_type,
 		 "LCD type: 0=none, 1=old //, 2=serial ks0074, 3=hantronix //, 4=nexcom //, 5=compiled-in");
+
+static int lcd_proto = -1;
 module_param(lcd_proto, int, 0000);
 MODULE_PARM_DESC(lcd_proto, "LCD communication: 0=parallel (//), 1=serial");
+
+static int lcd_charset = -1;
 module_param(lcd_charset, int, 0000);
 MODULE_PARM_DESC(lcd_charset, "LCD character set: 0=standard, 1=KS0074");
+
+static int keypad_type = -1;
 module_param(keypad_type, int, 0000);
 MODULE_PARM_DESC(keypad_type,
 		 "Keypad type: 0=none, 1=old 6 keys, 2=new 6+1 keys, 3=nexcom 4 keys");
+
+static int smartcard_enabled = -1;
 module_param(smartcard_enabled, int, 0000);
 MODULE_PARM_DESC(smartcard_enabled,
 		 "Smartcard reader: 0=disabled (default), 1=enabled");
+
+static int profile = DEFAULT_PROFILE;
 module_param(profile, int, 0000);
 MODULE_PARM_DESC(profile,
 		 "1=16x2 old kp; 2=serial 16x2, new kp; 3=16x2 hantronix; 4=16x2 nexcom; default=40x2, old kp");
 
+/*
+ * These are the parallel port pins the LCD control signals are connected to.
+ * Set this to 0 if the signal is not used. Set it to its opposite value
+ * (negative) if the signal is negated. -MAXINT is used to indicate that the
+ * pin has not been explicitly specified.
+ *
+ * WARNING! no check will be performed about collisions with keypad/smartcard !
+ */
+
+static int lcd_e_pin  = PIN_NOT_SET;
 module_param(lcd_e_pin, int, 0000);
 MODULE_PARM_DESC(lcd_e_pin,
 		 "# of the // port pin connected to LCD 'E' signal, with polarity (-17..17)");
+
+static int lcd_rs_pin = PIN_NOT_SET;
 module_param(lcd_rs_pin, int, 0000);
 MODULE_PARM_DESC(lcd_rs_pin,
 		 "# of the // port pin connected to LCD 'RS' signal, with polarity (-17..17)");
+
+static int lcd_rw_pin = PIN_NOT_SET;
 module_param(lcd_rw_pin, int, 0000);
 MODULE_PARM_DESC(lcd_rw_pin,
 		 "# of the // port pin connected to LCD 'RW' signal, with polarity (-17..17)");
+
+static int lcd_bl_pin = PIN_NOT_SET;
 module_param(lcd_bl_pin, int, 0000);
 MODULE_PARM_DESC(lcd_bl_pin,
 		 "# of the // port pin connected to LCD backlight, with polarity (-17..17)");
+
+static int lcd_da_pin = PIN_NOT_SET;
 module_param(lcd_da_pin, int, 0000);
 MODULE_PARM_DESC(lcd_da_pin,
 		 "# of the // port pin connected to serial LCD 'SDA' signal, with polarity (-17..17)");
+
+static int lcd_cl_pin = PIN_NOT_SET;
 module_param(lcd_cl_pin, int, 0000);
 MODULE_PARM_DESC(lcd_cl_pin,
 		 "# of the // port pin connected to serial LCD 'SCL' signal, with polarity (-17..17)");
-
-#endif
 
 static unsigned char *lcd_char_conv;
 
@@ -2091,101 +2105,6 @@ static void smartcard_init(void)
 /* device initialization                          */
 /**************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-#define	INIT_FUNC	static int __init panel_init_module
-#define	CLEANUP_FUNC	static void __exit panel_cleanup_module
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-#define	INIT_FUNC	static int __init panel_init_module
-#define	CLEANUP_FUNC	static void panel_cleanup_module
-#else
-#define	INIT_FUNC	int init_module
-#define	CLEANUP_FUNC	int cleanup_module
-#endif
-
-#ifndef MODULE
-/* called when compiled into the kernel */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-static int __init panel_setup(char *str)
-#else
-__initfunc(void panel_setup(char *str, int *ints))
-#endif
-{
-	int dummy;
-	int *where;
-	int helpdisplayed = 0;
-
-	if (!str)
-		return 0;
-
-	while (*str) {
-		where = NULL;
-
-		/* let's parse each of the command line parameters of the following form :
-		   panel=[parport:x],[lcd_height:x],[lcd_width:x],[lcd_bwidth:x],[lcd_hwidth:x]
-		 */
-		if (!strncmp(str, "parport:", 8)) {
-			str += 8;
-			where = &parport;
-		} else if (!strncmp(str, "disabled", 8)) {
-			return 0;
-		} else if (!strncmp(str, "lcd_height:", 11)) {
-			str += 11;
-			where = &lcd_height;
-		} else if (!strncmp(str, "lcd_width:", 10)) {
-			str += 10;
-			where = &lcd_width;
-		} else if (!strncmp(str, "lcd_bwidth:", 11)) {
-			str += 11;
-			where = &lcd_bwidth;
-		} else if (!strncmp(str, "lcd_hwidth:", 11)) {
-			str += 11;
-			where = &lcd_hwidth;
-		} else if (!strncmp(str, "lcd_enabled:", 12)) {
-			str += 12;
-			where = &lcd_enabled;
-		} else if (!strncmp(str, "keypad_enabled:", 15)) {
-			str += 15;
-			where = &keypad_enabled;
-		} else if (!strncmp(str, "smartcard_enabled:", 18)) {
-			str += 18;
-			where = &smartcard_enabled;
-		} else if (!strncmp(str, "profile:", 8)) {
-			str += 8;
-			where = &profile;
-		} else if (!helpdisplayed) {
-			helpdisplayed = 1;
-			printk(KERN_ERR "Panel version " PANEL_VERSION
-			       ": invalid argument. Known arguments are :\n"
-			       "   parport:, lcd_{height,width,bwidth,enabled}:, keypad_enabled:\n");
-		}
-
-		/* see if we need to read a number */
-		if (where != NULL) {
-			dummy = 0;
-			while (isdigit(*str)) {
-				dummy = (dummy * 10) + (*str - '0');
-				str++;
-			}
-			*where = dummy;
-		}
-
-		/* look for next arg */
-		while (*str && (*str != ','))
-			str++;
-		while (*str == ',')
-			str++;
-	}
-	return 1;
-}
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-__setup("panel=", panel_setup);
-#else
-__setup("panel", panel_setup);
-#endif
-
-#endif /* !MODULE */
-
 static int panel_notify_sys(struct notifier_block *this, unsigned long code,
 			    void *unused)
 {
@@ -2409,13 +2328,12 @@ int panel_init(void)
 	return 0;
 }
 
-#if defined(MODULE) || (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0))
-INIT_FUNC(void)
+static int __init panel_init_module(void)
 {
 	return panel_init();
 }
 
-CLEANUP_FUNC(void)
+static void __exit panel_cleanup_module(void)
 {
 	unregister_reboot_notifier(&panel_notifier);
 
@@ -2440,14 +2358,11 @@ CLEANUP_FUNC(void)
 	parport_unregister_device(pprt);
 	parport_unregister_driver(&panel_driver);
 }
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 module_init(panel_init_module);
 module_exit(panel_cleanup_module);
 MODULE_AUTHOR("Willy Tarreau");
 MODULE_LICENSE("GPL");
-#endif
 
 /*
  * Local variables:
