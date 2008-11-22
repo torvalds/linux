@@ -78,7 +78,7 @@ static inline void vnic_intr_return_credits(struct vnic_intr *intr,
 
 static inline u32 vnic_intr_legacy_pba(u32 __iomem *legacy_pba)
 {
-	/* get and ack interrupt in one read (clear-and-ack-on-read) */
+	/* read PBA without clearing */
 	return ioread32(legacy_pba);
 }
 
