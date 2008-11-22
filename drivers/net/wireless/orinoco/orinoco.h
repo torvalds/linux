@@ -167,7 +167,8 @@ struct orinoco_private {
 	unsigned int tkip_cm_active:1;
 	unsigned int key_mgmt:3;
 
-	/* Cached in memory firmware to use in ->resume */
+	/* Cached in memory firmware to use during ->resume. */
+	const struct firmware *cached_pri_fw;
 	const struct firmware *cached_fw;
 };
 
