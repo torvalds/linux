@@ -2196,12 +2196,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
-	em28xx_err(DRIVER_NAME " new video device (%04x:%04x): interface %i, class %i\n",
-			udev->descriptor.idVendor,
-			udev->descriptor.idProduct,
-			ifnum,
-			interface->altsetting[0].desc.bInterfaceClass);
-
 	endpoint = &interface->cur_altsetting->endpoint[0].desc;
 
 	/* check if the device has the iso in endpoint at the correct place */
@@ -2212,20 +2206,38 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		/* It's a newer em2874/em2875 device */
 		isoc_pipe = 0;
 	} else {
+		int check_interface = 1;
 		isoc_pipe = 1;
 		endpoint = &interface->cur_altsetting->endpoint[1].desc;
 		if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
-		    USB_ENDPOINT_XFER_ISOC) {
-			em28xx_err(DRIVER_NAME " probing error: endpoint is non-ISO endpoint!\n");
+		    USB_ENDPOINT_XFER_ISOC)
+			check_interface = 0;
+
+		if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT)
+			check_interface = 0;
+
+		if (!check_interface) {
+			em28xx_err(DRIVER_NAME " video device (%04x:%04x): "
+				"interface %i, class %i found.\n",
+				udev->descriptor.idVendor,
+				udev->descriptor.idProduct,
+				ifnum,
+				interface->altsetting[0].desc.bInterfaceClass);
+
+			em28xx_err(DRIVER_NAME " This is an anciliary "
+				"interface not used by the driver\n");
+
 			em28xx_devused &= ~(1<<nr);
 			return -ENODEV;
 		}
-		if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) {
-			em28xx_err(DRIVER_NAME " probing error: endpoint is ISO OUT endpoint!\n");
-			em28xx_devused &= ~(1<<nr);
-			return -ENODEV;
-		}
+
 	}
+
+	em28xx_err(DRIVER_NAME " new video device (%04x:%04x): interface %i, class %i\n",
+			udev->descriptor.idVendor,
+			udev->descriptor.idProduct,
+			ifnum,
+			interface->altsetting[0].desc.bInterfaceClass);
 
 	if (nr >= EM28XX_MAXBOARDS) {
 		printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
