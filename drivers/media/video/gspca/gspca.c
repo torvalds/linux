@@ -1857,10 +1857,10 @@ int gspca_dev_probe(struct usb_interface *intf,
 	gspca_dev->empty_packet = -1;	/* don't check the empty packets */
 
 	/* configure the subdriver and initialize the USB device */
-	ret = gspca_dev->sd_desc->config(gspca_dev, id);
+	ret = sd_desc->config(gspca_dev, id);
 	if (ret < 0)
 		goto out;
-	ret = gspca_dev->sd_desc->init(gspca_dev);
+	ret = sd_desc->init(gspca_dev);
 	if (ret < 0)
 		goto out;
 	ret = gspca_set_alt0(gspca_dev);
@@ -1874,9 +1874,8 @@ int gspca_dev_probe(struct usb_interface *intf,
 	init_waitqueue_head(&gspca_dev->wq);
 
 	/* init video stuff */
-	gspca_dev->vdev = video_device_alloc();
-	memcpy(gspca_dev->vdev, &gspca_template, sizeof gspca_template);
-	gspca_dev->vdev->parent = &dev->dev;
+	memcpy(&gspca_dev->vdev, &gspca_template, sizeof gspca_template);
+	gspca_dev->vdev.parent = &dev->dev;
 	gspca_dev->module = module;
 	gspca_dev->present = 1;
 	ret = video_register_device(&gspca_dev->vdev,
