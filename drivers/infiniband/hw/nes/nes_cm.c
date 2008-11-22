@@ -92,7 +92,7 @@ static int mini_cm_dealloc_core(struct nes_cm_core *);
 static int mini_cm_get(struct nes_cm_core *);
 static int mini_cm_set(struct nes_cm_core *, u32, u32);
 
-static struct sk_buff *form_cm_frame(struct sk_buff *, struct nes_cm_node *,
+static void form_cm_frame(struct sk_buff *, struct nes_cm_node *,
 	void *, u32, void *, u32, u8);
 static struct sk_buff *get_free_pkt(struct nes_cm_node *cm_node);
 static int add_ref_cm_node(struct nes_cm_node *);
@@ -251,7 +251,7 @@ static int parse_mpa(struct nes_cm_node *cm_node, u8 *buffer, u32 len)
  * form_cm_frame - get a free packet and build empty frame Use
  * node info to build.
  */
-static struct sk_buff *form_cm_frame(struct sk_buff *skb,
+static void form_cm_frame(struct sk_buff *skb,
 	struct nes_cm_node *cm_node, void *options, u32 optionsize,
 	void *data, u32 datasize, u8 flags)
 {
@@ -339,7 +339,6 @@ static struct sk_buff *form_cm_frame(struct sk_buff *skb,
 	skb_shinfo(skb)->nr_frags = 0;
 	cm_packets_created++;
 
-	return skb;
 }
 
 
@@ -381,8 +380,6 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	int ret = 0;
 	u32 was_timer_set;
 
-	if (!cm_node)
-		return -EINVAL;
 	new_send = kzalloc(sizeof(*new_send), GFP_ATOMIC);
 	if (!new_send)
 		return -1;
@@ -1325,7 +1322,6 @@ static void drop_packet(struct sk_buff *skb)
 static void handle_fin_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	struct tcphdr *tcph)
 {
-	atomic_inc(&cm_resets_recvd);
 	nes_debug(NES_DBG_CM, "Received FIN, cm_node = %p, state = %u. "
 		"refcnt=%d\n", cm_node, cm_node->state,
 		atomic_read(&cm_node->ref_count));
