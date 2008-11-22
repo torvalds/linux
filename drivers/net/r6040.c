@@ -1029,11 +1029,26 @@ static u32 netdev_get_link(struct net_device *dev)
 	return mii_link_ok(&rp->mii_if);
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.set_settings		= netdev_set_settings,
 	.get_link		= netdev_get_link,
+};
+
+static const struct net_device_ops r6040_netdev_ops = {
+	.ndo_open		= r6040_open,
+	.ndo_stop		= r6040_close,
+	.ndo_start_xmit		= r6040_start_xmit,
+	.ndo_get_stats		= r6040_get_stats,
+	.ndo_set_multicast_list = r6040_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= r6040_ioctl,
+	.ndo_tx_timeout		= r6040_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= r6040_poll_controller,
+#endif
 };
 
 static int __devinit r6040_init_one(struct pci_dev *pdev,
@@ -1127,18 +1142,10 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->switch_sig = 0;
 
 	/* The RDC-specific entries in the device structure. */
-	dev->open = &r6040_open;
-	dev->hard_start_xmit = &r6040_start_xmit;
-	dev->stop = &r6040_close;
-	dev->get_stats = r6040_get_stats;
-	dev->set_multicast_list = &r6040_multicast_list;
-	dev->do_ioctl = &r6040_ioctl;
+	dev->netdev_ops = &r6040_netdev_ops;
 	dev->ethtool_ops = &netdev_ethtool_ops;
-	dev->tx_timeout = &r6040_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = r6040_poll_controller;
-#endif
+
 	netif_napi_add(dev, &lp->napi, r6040_poll, 64);
 	lp->mii_if.dev = dev;
 	lp->mii_if.mdio_read = r6040_mdio_read;
