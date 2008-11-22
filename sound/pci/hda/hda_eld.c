@@ -502,7 +502,7 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 		hdmi_print_sad_info(i, e->sad + i, buffer);
 }
 
-static void hdmi_write_eld_item(struct snd_info_entry *entry,
+static void hdmi_write_eld_info(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer)
 {
 	struct hdmi_eld *e = entry->private_data;
@@ -515,6 +515,11 @@ static void hdmi_write_eld_item(struct snd_info_entry *entry,
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%s %llx", name, &val) != 2)
 			continue;
+		/*
+		 * We don't allow modification to these fields:
+		 * 	monitor_name manufacture_id product_id
+		 * 	eld_version edid_version
+		 */
 		if (!strcmp(name, "connection_type"))
 			e->conn_type = val;
 		else if (!strcmp(name, "port_id"))
@@ -548,6 +553,8 @@ static void hdmi_write_eld_item(struct snd_info_entry *entry,
 				e->sad[n].sample_bits = val;
 			else if (!strcmp(sname, "_max_bitrate"))
 				e->sad[n].max_bitrate = val;
+			else if (!strcmp(sname, "_profile"))
+				e->sad[n].profile = val;
 			if (n >= e->sad_count)
 				e->sad_count = n + 1;
 		}
@@ -567,7 +574,7 @@ int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld)
 		return err;
 
 	snd_info_set_text_ops(entry, eld, hdmi_print_eld_info);
-	entry->c.text.write = hdmi_write_eld_item;
+	entry->c.text.write = hdmi_write_eld_info;
 	entry->mode |= S_IWUSR;
 	eld->proc_entry = entry;
 
