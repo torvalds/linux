@@ -1948,7 +1948,19 @@ static void ns83820_probe_phy(struct net_device *ndev)
 }
 #endif
 
-static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_device_id *id)
+static const struct net_device_ops netdev_ops = {
+	.ndo_open		= ns83820_open,
+	.ndo_stop		= ns83820_stop,
+	.ndo_start_xmit		= ns83820_hard_start_xmit,
+	.ndo_get_stats		= ns83820_get_stats,
+	.ndo_change_mtu		= ns83820_change_mtu,
+	.ndo_set_multicast_list = ns83820_set_multicast,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_tx_timeout		= ns83820_tx_timeout,
+};
+
+static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
+				      const struct pci_device_id *id)
 {
 	struct net_device *ndev;
 	struct ns83820 *dev;
@@ -2040,14 +2052,8 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 		ndev->name, le32_to_cpu(readl(dev->base + 0x22c)),
 		pci_dev->subsystem_vendor, pci_dev->subsystem_device);
 
-	ndev->open = ns83820_open;
-	ndev->stop = ns83820_stop;
-	ndev->hard_start_xmit = ns83820_hard_start_xmit;
-	ndev->get_stats = ns83820_get_stats;
-	ndev->change_mtu = ns83820_change_mtu;
-	ndev->set_multicast_list = ns83820_set_multicast;
+	ndev->netdev_ops = &netdev_ops;
 	SET_ETHTOOL_OPS(ndev, &ops);
-	ndev->tx_timeout = ns83820_tx_timeout;
 	ndev->watchdog_timeo = 5 * HZ;
 	pci_set_drvdata(pci_dev, ndev);
 
