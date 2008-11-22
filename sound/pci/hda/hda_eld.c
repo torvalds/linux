@@ -168,11 +168,11 @@ static unsigned char hdmi_get_eld_byte(struct hda_codec *codec, hda_nid_t nid,
 					AC_VERB_GET_HDMI_ELDD, byte_index);
 
 #ifdef BE_PARANOID
-	printk(KERN_INFO "ELD data byte %d: 0x%x\n", byte_index, val);
+	printk(KERN_INFO "HDMI: ELD data byte %d: 0x%x\n", byte_index, val);
 #endif
 
 	if ((val & AC_ELDD_ELD_VALID) == 0) {
-		snd_printd(KERN_INFO "Invalid ELD data byte %d\n",
+		snd_printd(KERN_INFO "HDMI: invalid ELD data byte %d\n",
 								byte_index);
 		val = 0;
 	}
@@ -208,7 +208,7 @@ static void hdmi_update_short_audio_desc(struct cea_sad *a,
 	switch (a->format) {
 	case AUDIO_CODING_TYPE_REF_STREAM_HEADER:
 		snd_printd(KERN_INFO
-				"audio coding type 0 not expected in ELD\n");
+				"HDMI: audio coding type 0 not expected\n");
 		break;
 
 	case AUDIO_CODING_TYPE_LPCM:
@@ -254,7 +254,7 @@ static void hdmi_update_short_audio_desc(struct cea_sad *a,
 		if (a->format == AUDIO_CODING_XTYPE_HE_REF_CT ||
 		    a->format >= AUDIO_CODING_XTYPE_FIRST_RESERVED) {
 			snd_printd(KERN_INFO
-				"audio coding xtype %d not expected in ELD\n",
+				"HDMI: audio coding xtype %d not expected\n",
 				a->format);
 			a->format = 0;
 		} else
@@ -276,7 +276,8 @@ static int hdmi_update_eld(struct hdmi_eld *e,
 	e->eld_ver = GRAB_BITS(buf, 0, 3, 5);
 	if (e->eld_ver != ELD_VER_CEA_861D &&
 	    e->eld_ver != ELD_VER_PARTIAL) {
-		snd_printd(KERN_INFO "Unknown ELD version %d\n", e->eld_ver);
+		snd_printd(KERN_INFO "HDMI: Unknown ELD version %d\n",
+								e->eld_ver);
 		goto out_fail;
 	}
 
@@ -300,17 +301,17 @@ static int hdmi_update_eld(struct hdmi_eld *e,
 	e->product_id	  = get_unaligned_le16(buf + 18);
 
 	if (mnl > ELD_MAX_MNL) {
-		snd_printd(KERN_INFO "MNL is reserved value %d\n", mnl);
+		snd_printd(KERN_INFO "HDMI: MNL is reserved value %d\n", mnl);
 		goto out_fail;
 	} else if (ELD_FIXED_BYTES + mnl > size) {
-		snd_printd(KERN_INFO "out of range MNL %d\n", mnl);
+		snd_printd(KERN_INFO "HDMI: out of range MNL %d\n", mnl);
 		goto out_fail;
 	} else
 		strlcpy(e->monitor_name, buf + ELD_FIXED_BYTES, mnl);
 
 	for (i = 0; i < e->sad_count; i++) {
 		if (ELD_FIXED_BYTES + mnl + 3 * (i + 1) > size) {
-			snd_printd(KERN_INFO "out of range SAD %d\n", i);
+			snd_printd(KERN_INFO "HDMI: out of range SAD %d\n", i);
 			goto out_fail;
 		}
 		hdmi_update_short_audio_desc(e->sad + i,
@@ -339,7 +340,8 @@ static int hdmi_eld_valid(struct hda_codec *codec, hda_nid_t nid)
 	present = (present & AC_PINSENSE_PRESENCE);
 
 #ifdef CONFIG_SND_DEBUG_VERBOSE
-	printk(KERN_INFO "pinp = %d, eldv = %d\n", !!present, !!eldv);
+	printk(KERN_INFO "HDMI: sink_present = %d, eld_valid = %d\n",
+			!!present, !!eldv);
 #endif
 
 	return eldv && present;
@@ -365,11 +367,11 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	size = snd_hdmi_get_eld_size(codec, nid);
 	if (size == 0) {
 		/* wfg: workaround for ASUS P5E-VM HDMI board */
-		snd_printd(KERN_INFO "ELD buf size is 0, force 128\n");
+		snd_printd(KERN_INFO "HDMI: ELD buf size is 0, force 128\n");
 		size = 128;
 	}
 	if (size < ELD_FIXED_BYTES || size > PAGE_SIZE) {
-		snd_printd(KERN_INFO "Invalid ELD buf size %d\n", size);
+		snd_printd(KERN_INFO "HDMI: invalid ELD buf size %d\n", size);
 		return -ERANGE;
 	}
 
@@ -404,7 +406,7 @@ static void hdmi_show_short_audio_desc(struct cea_sad *a)
 	else
 		buf2[0] = '\0';
 
-	printk(KERN_INFO "supports coding type %s:"
+	printk(KERN_INFO "HDMI: supports coding type %s:"
 			" channels = %d, rates =%s%s\n",
 			cea_audio_coding_type_names[a->format],
 			a->channels,
@@ -428,14 +430,14 @@ void snd_hdmi_show_eld(struct hdmi_eld *e)
 {
 	int i;
 
-	printk(KERN_INFO "detected monitor %s at connection type %s\n",
+	printk(KERN_INFO "HDMI: detected monitor %s at connection type %s\n",
 			e->monitor_name,
 			eld_connection_type_names[e->conn_type]);
 
 	if (e->spk_alloc) {
 		char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
 		snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
-		printk(KERN_INFO "available speakers:%s\n", buf);
+		printk(KERN_INFO "HDMI: available speakers:%s\n", buf);
 	}
 
 	for (i = 0; i < e->sad_count; i++)
