@@ -1923,6 +1923,9 @@ void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 
+	gspca_dev->present = 0;
+	gspca_dev->streaming = 0;
+
 	usb_set_intfdata(intf, NULL);
 
 	/* release the device */
