@@ -80,7 +80,7 @@ struct net_device *alloc_hdlcdev(void *priv);
 
 static inline struct hdlc_device* dev_to_hdlc(struct net_device *dev)
 {
-	return dev->priv;
+	return netdev_priv(dev);
 }
 
 static __inline__ void debug_frame(const struct sk_buff *skb)
