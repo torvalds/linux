@@ -4802,7 +4802,10 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		goto err_pci_reg;
 
 	pci_set_master(pdev);
-	pci_save_state(pdev);
+	/* PCI config space info */
+	err = pci_save_state(pdev);
+	if (err)
+		goto err_alloc_etherdev;
 
 	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct e1000_adapter));
