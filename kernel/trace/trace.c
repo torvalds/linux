@@ -1470,12 +1470,12 @@ static inline int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
 			file = vma->vm_file;
 			vmstart = vma->vm_start;
 		}
+		if (file) {
+			ret = trace_seq_path(s, &file->f_path);
+			if (ret)
+				ret = trace_seq_printf(s, "[+0x%lx]", ip - vmstart);
+		}
 		up_read(&mm->mmap_sem);
-	}
-	if (file) {
-		ret = trace_seq_path(s, &file->f_path);
-		if (ret)
-			ret = trace_seq_printf(s, "[+0x%lx]", ip - vmstart);
 	}
 	if (ret && ((sym_flags & TRACE_ITER_SYM_ADDR) || !file))
 		ret = trace_seq_printf(s, " <" IP_FMT ">", ip);
