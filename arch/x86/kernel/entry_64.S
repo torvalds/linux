@@ -922,76 +922,70 @@ END(common_interrupt)
 /*
  * APIC interrupts.
  */
-	.p2align 5
-
-	.macro apicinterrupt num,func
+.macro apicinterrupt num sym do_sym
+ENTRY(\sym)
 	INTR_FRAME
 	pushq $~(\num)
 	CFI_ADJUST_CFA_OFFSET 8
-	interrupt \func
+	interrupt \do_sym
 	jmp ret_from_intr
 	CFI_ENDPROC
-	.endm
-
-ENTRY(thermal_interrupt)
-	apicinterrupt THERMAL_APIC_VECTOR,smp_thermal_interrupt
-END(thermal_interrupt)
-
-ENTRY(threshold_interrupt)
-	apicinterrupt THRESHOLD_APIC_VECTOR,mce_threshold_interrupt
-END(threshold_interrupt)
+END(\sym)
+.endm
 
 #ifdef CONFIG_SMP
-ENTRY(reschedule_interrupt)
-	apicinterrupt RESCHEDULE_VECTOR,smp_reschedule_interrupt
-END(reschedule_interrupt)
-
-	.macro INVALIDATE_ENTRY num
-ENTRY(invalidate_interrupt\num)
-	apicinterrupt INVALIDATE_TLB_VECTOR_START+\num,smp_invalidate_interrupt
-END(invalidate_interrupt\num)
-	.endm
-
-	INVALIDATE_ENTRY 0
-	INVALIDATE_ENTRY 1
-	INVALIDATE_ENTRY 2
-	INVALIDATE_ENTRY 3
-	INVALIDATE_ENTRY 4
-	INVALIDATE_ENTRY 5
-	INVALIDATE_ENTRY 6
-	INVALIDATE_ENTRY 7
-
-ENTRY(call_function_interrupt)
-	apicinterrupt CALL_FUNCTION_VECTOR,smp_call_function_interrupt
-END(call_function_interrupt)
-ENTRY(call_function_single_interrupt)
-	apicinterrupt CALL_FUNCTION_SINGLE_VECTOR,smp_call_function_single_interrupt
-END(call_function_single_interrupt)
-ENTRY(irq_move_cleanup_interrupt)
-	apicinterrupt IRQ_MOVE_CLEANUP_VECTOR,smp_irq_move_cleanup_interrupt
-END(irq_move_cleanup_interrupt)
+apicinterrupt IRQ_MOVE_CLEANUP_VECTOR \
+	irq_move_cleanup_interrupt smp_irq_move_cleanup_interrupt
 #endif
 
-ENTRY(apic_timer_interrupt)
-	apicinterrupt LOCAL_TIMER_VECTOR,smp_apic_timer_interrupt
-END(apic_timer_interrupt)
+apicinterrupt 220 \
+	uv_bau_message_intr1 uv_bau_message_interrupt
+apicinterrupt LOCAL_TIMER_VECTOR \
+	apic_timer_interrupt smp_apic_timer_interrupt
 
-ENTRY(uv_bau_message_intr1)
-	apicinterrupt 220,uv_bau_message_interrupt
-END(uv_bau_message_intr1)
+#ifdef CONFIG_SMP
+apicinterrupt INVALIDATE_TLB_VECTOR_START+0 \
+	invalidate_interrupt0 smp_invalidate_interrupt
+apicinterrupt INVALIDATE_TLB_VECTOR_START+1 \
+	invalidate_interrupt1 smp_invalidate_interrupt
+apicinterrupt INVALIDATE_TLB_VECTOR_START+2 \
+	invalidate_interrupt2 smp_invalidate_interrupt
+apicinterrupt INVALIDATE_TLB_VECTOR_START+3 \
+	invalidate_interrupt3 smp_invalidate_interrupt
+apicinterrupt INVALIDATE_TLB_VECTOR_START+4 \
+	invalidate_interrupt4 smp_invalidate_interrupt
+apicinterrupt INVALIDATE_TLB_VECTOR_START+5 \
+	invalidate_interrupt5 smp_invalidate_interrupt
+apicinterrupt INVALIDATE_TLB_VECTOR_START+6 \
+	invalidate_interrupt6 smp_invalidate_interrupt
+apicinterrupt INVALIDATE_TLB_VECTOR_START+7 \
+	invalidate_interrupt7 smp_invalidate_interrupt
+#endif
 
-ENTRY(error_interrupt)
-	apicinterrupt ERROR_APIC_VECTOR,smp_error_interrupt
-END(error_interrupt)
+apicinterrupt THRESHOLD_APIC_VECTOR \
+	threshold_interrupt mce_threshold_interrupt
+apicinterrupt THERMAL_APIC_VECTOR \
+	thermal_interrupt smp_thermal_interrupt
 
-ENTRY(spurious_interrupt)
-	apicinterrupt SPURIOUS_APIC_VECTOR,smp_spurious_interrupt
-END(spurious_interrupt)
+#ifdef CONFIG_SMP
+apicinterrupt CALL_FUNCTION_SINGLE_VECTOR \
+	call_function_single_interrupt smp_call_function_single_interrupt
+apicinterrupt CALL_FUNCTION_VECTOR \
+	call_function_interrupt smp_call_function_interrupt
+apicinterrupt RESCHEDULE_VECTOR \
+	reschedule_interrupt smp_reschedule_interrupt
+#endif
+
+apicinterrupt ERROR_APIC_VECTOR \
+	error_interrupt smp_error_interrupt
+apicinterrupt SPURIOUS_APIC_VECTOR \
+	spurious_interrupt smp_spurious_interrupt
 
 /*
  * Exception entry points.
  */
-	.macro zeroentry sym
+.macro zeroentry sym do_sym
+ENTRY(\sym)
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq_cfi $-1		/* ORIG_RAX: no syscall to restart */
@@ -1001,12 +995,14 @@ END(spurious_interrupt)
 	DEFAULT_FRAME 0
 	movq %rsp,%rdi		/* pt_regs pointer */
 	xorl %esi,%esi		/* no error code */
-	call \sym
+	call \do_sym
 	jmp error_exit		/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-	.endm
+END(\sym)
+.endm
 
-	.macro paranoidzeroentry sym
+.macro paranoidzeroentry sym do_sym
+KPROBE_ENTRY(\sym)
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $-1		/* ORIG_RAX: no syscall to restart */
@@ -1016,12 +1012,14 @@ END(spurious_interrupt)
 	TRACE_IRQS_OFF
 	movq %rsp,%rdi		/* pt_regs pointer */
 	xorl %esi,%esi		/* no error code */
-	call \sym
+	call \do_sym
 	jmp paranoid_exit	/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-	.endm
+KPROBE_END(\sym)
+.endm
 
-	.macro paranoidzeroentry_ist sym ist
+.macro paranoidzeroentry_ist sym do_sym ist
+KPROBE_ENTRY(\sym)
  	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $-1		/* ORIG_RAX: no syscall to restart */
@@ -1033,13 +1031,19 @@ END(spurious_interrupt)
 	xorl %esi,%esi		/* no error code */
 	movq %gs:pda_data_offset, %rbp
 	subq $EXCEPTION_STKSZ, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
-	call \sym
+	call \do_sym
 	addq $EXCEPTION_STKSZ, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
 	jmp paranoid_exit	/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-	.endm
+KPROBE_END(\sym)
+.endm
 
-	.macro errorentry sym
+.macro errorentry sym do_sym entry=0
+.if \entry
+KPROBE_ENTRY(\sym)
+.else
+ENTRY(\sym)
+.endif
 	XCPT_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	subq $15*8,%rsp
@@ -1049,13 +1053,23 @@ END(spurious_interrupt)
 	movq %rsp,%rdi			/* pt_regs pointer */
 	movq ORIG_RAX(%rsp),%rsi	/* get error code */
 	movq $-1,ORIG_RAX(%rsp)		/* no syscall to restart */
-	call \sym
+	call \do_sym
 	jmp error_exit			/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-	.endm
+.if \entry
+KPROBE_END(\sym)
+.else
+END(\sym)
+.endif
+.endm
 
 	/* error code is on the stack already */
-	.macro paranoiderrorentry sym
+.macro paranoiderrorentry sym do_sym entry=1
+.if \entry
+KPROBE_ENTRY(\sym)
+.else
+ENTRY(\sym)
+.endif
 	XCPT_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	subq $15*8,%rsp
@@ -1066,10 +1080,37 @@ END(spurious_interrupt)
 	movq %rsp,%rdi			/* pt_regs pointer */
 	movq ORIG_RAX(%rsp),%rsi	/* get error code */
 	movq $-1,ORIG_RAX(%rsp)		/* no syscall to restart */
-	call \sym
+	call \do_sym
 	jmp paranoid_exit		/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-	.endm
+.if \entry
+KPROBE_END(\sym)
+.else
+END(\sym)
+.endif
+.endm
+
+zeroentry divide_error do_divide_error
+paranoidzeroentry_ist debug do_debug DEBUG_STACK
+paranoidzeroentry_ist int3 do_int3 DEBUG_STACK
+zeroentry overflow do_overflow
+zeroentry bounds do_bounds
+zeroentry invalid_op do_invalid_op
+zeroentry device_not_available do_device_not_available
+paranoiderrorentry double_fault do_double_fault 0
+zeroentry coprocessor_segment_overrun do_coprocessor_segment_overrun
+errorentry invalid_TSS do_invalid_TSS
+errorentry segment_not_present do_segment_not_present
+paranoiderrorentry stack_segment do_stack_segment
+errorentry general_protection do_general_protection 1
+errorentry page_fault do_page_fault 1
+zeroentry spurious_interrupt_bug do_spurious_interrupt_bug
+zeroentry coprocessor_error do_coprocessor_error
+errorentry alignment_check do_alignment_check
+#ifdef CONFIG_X86_MCE
+paranoidzeroentry machine_check do_machine_check
+#endif
+zeroentry simd_coprocessor_error do_simd_coprocessor_error
 
 	/*
  	 * "Paranoid" exit path from exception stack.
@@ -1321,26 +1362,7 @@ ENTRY(kernel_execve)
 	CFI_ENDPROC
 ENDPROC(kernel_execve)
 
-KPROBE_ENTRY(page_fault)
-	errorentry do_page_fault
-KPROBE_END(page_fault)
 
-ENTRY(coprocessor_error)
-	zeroentry do_coprocessor_error
-END(coprocessor_error)
-
-ENTRY(simd_coprocessor_error)
-	zeroentry do_simd_coprocessor_error
-END(simd_coprocessor_error)
-
-ENTRY(device_not_available)
-	zeroentry do_device_not_available
-END(device_not_available)
-
-	/* runs on exception stack */
-KPROBE_ENTRY(debug)
-	paranoidzeroentry_ist do_debug, DEBUG_STACK
-KPROBE_END(debug)
 
 	/* runs on exception stack */
 KPROBE_ENTRY(nmi)
@@ -1397,67 +1419,6 @@ nmi_schedule:
 #endif
 KPROBE_END(nmi)
 
-KPROBE_ENTRY(int3)
-	paranoidzeroentry_ist do_int3, DEBUG_STACK
-KPROBE_END(int3)
-
-ENTRY(overflow)
-	zeroentry do_overflow
-END(overflow)
-
-ENTRY(bounds)
-	zeroentry do_bounds
-END(bounds)
-
-ENTRY(invalid_op)
-	zeroentry do_invalid_op
-END(invalid_op)
-
-ENTRY(coprocessor_segment_overrun)
-	zeroentry do_coprocessor_segment_overrun
-END(coprocessor_segment_overrun)
-
-	/* runs on exception stack */
-ENTRY(double_fault)
-	paranoiderrorentry do_double_fault
-END(double_fault)
-
-ENTRY(invalid_TSS)
-	errorentry do_invalid_TSS
-END(invalid_TSS)
-
-ENTRY(segment_not_present)
-	errorentry do_segment_not_present
-END(segment_not_present)
-
-	/* runs on exception stack */
-ENTRY(stack_segment)
-	paranoiderrorentry do_stack_segment
-END(stack_segment)
-
-KPROBE_ENTRY(general_protection)
-	errorentry do_general_protection
-KPROBE_END(general_protection)
-
-ENTRY(alignment_check)
-	errorentry do_alignment_check
-END(alignment_check)
-
-ENTRY(divide_error)
-	zeroentry do_divide_error
-END(divide_error)
-
-ENTRY(spurious_interrupt_bug)
-	zeroentry do_spurious_interrupt_bug
-END(spurious_interrupt_bug)
-
-#ifdef CONFIG_X86_MCE
-	/* runs on exception stack */
-ENTRY(machine_check)
-	paranoidzeroentry do_machine_check
-END(machine_check)
-#endif
-
 /* Call softirq on interrupt stack. Interrupts are off. */
 ENTRY(call_softirq)
 	CFI_STARTPROC
@@ -1486,9 +1447,7 @@ KPROBE_ENTRY(ignore_sysret)
 ENDPROC(ignore_sysret)
 
 #ifdef CONFIG_XEN
-ENTRY(xen_hypervisor_callback)
-	zeroentry xen_do_hypervisor_callback
-END(xen_hypervisor_callback)
+zeroentry xen_hypervisor_callback xen_do_hypervisor_callback
 
 /*
 # A note on the "critical region" in our callback handler.
