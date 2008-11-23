@@ -60,29 +60,6 @@
 #define __AUDIT_ARCH_LE	   0x40000000
 
 	.code64
-/*
- * Some macro's to hide the most frequently occuring CFI annotations.
- */
-	.macro pushq_cfi reg
-	pushq \reg
-	CFI_ADJUST_CFA_OFFSET 8
-	.endm
-
-	.macro popq_cfi reg
-	popq \reg
-	CFI_ADJUST_CFA_OFFSET -8
-	.endm
-
-	.macro movq_cfi reg offset=0
-	movq %\reg, \offset(%rsp)
-	CFI_REL_OFFSET \reg, \offset
-	.endm
-
-	.macro movq_cfi_restore offset reg
-	movq \offset(%rsp), %\reg
-	CFI_RESTORE \reg
-	.endm
-
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(mcount)
