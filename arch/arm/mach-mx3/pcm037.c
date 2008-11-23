@@ -21,6 +21,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mtd/plat-ram.h>
 #include <linux/memory.h>
 #include <linux/gpio.h>
 #include <linux/smc911x.h>
@@ -90,9 +91,30 @@ static struct platform_device pcm037_eth = {
 	},
 };
 
+static struct platdata_mtd_ram pcm038_sram_data = {
+	.bankwidth = 2,
+};
+
+static struct resource pcm038_sram_resource = {
+	.start = CS4_BASE_ADDR,
+	.end   = CS4_BASE_ADDR + 512 * 1024 - 1,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device pcm037_sram_device = {
+	.name = "mtd-ram",
+	.id = 0,
+	.dev = {
+		.platform_data = &pcm038_sram_data,
+	},
+	.num_resources = 1,
+	.resource = &pcm038_sram_resource,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_eth,
+	&pcm037_sram_device,
 };
 
 /*
