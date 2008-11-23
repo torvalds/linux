@@ -118,6 +118,14 @@ config DVB_TUNER_ITD1000
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_TUNER_CX24113
+	tristate "Conexant CX24113/CX24128 tuner for DVB-S/DSS"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+
 config DVB_TDA826X
 	tristate "Philips TDA826X silicon tuner"
 	depends on DVB_CORE && I2C
