@@ -29,7 +29,6 @@ struct dyn_arch_ftrace {
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_FUNCTION_RET_TRACER
-#define FTRACE_RET_STACK_SIZE 20
 
 #ifndef __ASSEMBLY__
 

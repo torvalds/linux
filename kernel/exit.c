@@ -47,6 +47,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/tracehook.h>
 #include <trace/sched.h>
+#include <linux/ftrace.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -1127,7 +1128,9 @@ NORET_TYPE void do_exit(long code)
 	preempt_disable();
 	/* causes final put_task_struct in finish_task_switch(). */
 	tsk->state = TASK_DEAD;
-
+#ifdef CONFIG_FUNCTION_RET_TRACER
+	ftrace_retfunc_exit_task(tsk);
+#endif
 	schedule();
 	BUG();
 	/* Avoid "noreturn function does return".  */

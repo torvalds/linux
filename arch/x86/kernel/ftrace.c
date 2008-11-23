@@ -350,19 +350,21 @@ static int push_return_trace(unsigned long ret, unsigned long long time,
 				unsigned long func)
 {
 	int index;
-	struct thread_info *ti = current_thread_info();
+
+	if (!current->ret_stack)
+		return -EBUSY;
 
 	/* The return trace stack is full */
-	if (ti->curr_ret_stack == FTRACE_RET_STACK_SIZE - 1) {
-		atomic_inc(&ti->trace_overrun);
+	if (current->curr_ret_stack == FTRACE_RETFUNC_DEPTH - 1) {
+		atomic_inc(&current->trace_overrun);
 		return -EBUSY;
 	}
 
-	index = ++ti->curr_ret_stack;
+	index = ++current->curr_ret_stack;
 	barrier();
-	ti->ret_stack[index].ret = ret;
-	ti->ret_stack[index].func = func;
-	ti->ret_stack[index].calltime = time;
+	current->ret_stack[index].ret = ret;
+	current->ret_stack[index].func = func;
+	current->ret_stack[index].calltime = time;
 
 	return 0;
 }
@@ -373,13 +375,12 @@ static void pop_return_trace(unsigned long *ret, unsigned long long *time,
 {
 	int index;
 
-	struct thread_info *ti = current_thread_info();
-	index = ti->curr_ret_stack;
-	*ret = ti->ret_stack[index].ret;
-	*func = ti->ret_stack[index].func;
-	*time = ti->ret_stack[index].calltime;
-	*overrun = atomic_read(&ti->trace_overrun);
-	ti->curr_ret_stack--;
+	index = current->curr_ret_stack;
+	*ret = current->ret_stack[index].ret;
+	*func = current->ret_stack[index].func;
+	*time = current->ret_stack[index].calltime;
+	*overrun = atomic_read(&current->trace_overrun);
+	current->curr_ret_stack--;
 }
 
 /*

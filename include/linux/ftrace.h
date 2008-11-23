@@ -323,6 +323,8 @@ struct ftrace_retfunc {
 };
 
 #ifdef CONFIG_FUNCTION_RET_TRACER
+#define FTRACE_RETFUNC_DEPTH 50
+#define FTRACE_RETSTACK_ALLOC_SIZE 32
 /* Type of a callback handler of tracing return function */
 typedef void (*trace_function_return_t)(struct ftrace_retfunc *);
 
@@ -330,6 +332,9 @@ extern int register_ftrace_return(trace_function_return_t func);
 /* The current handler in use */
 extern trace_function_return_t ftrace_function_return;
 extern void unregister_ftrace_return(void);
+
+extern void ftrace_retfunc_init_task(struct task_struct *t);
+extern void ftrace_retfunc_exit_task(struct task_struct *t);
 #endif
 
 #endif /* _LINUX_FTRACE_H */
