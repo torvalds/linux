@@ -1167,7 +1167,7 @@ paranoid_schedule:
 	TRACE_IRQS_OFF
 	jmp paranoid_userspace
 	CFI_ENDPROC
-END(paranoid_exit)
+KPROBE_END(paranoid_exit)
 
 /*
  * Exception entry point. This expects an error code/orig_rax on the stack.
@@ -1259,7 +1259,7 @@ gs_change:
 	CFI_ADJUST_CFA_OFFSET -8
         ret
 	CFI_ENDPROC
-ENDPROC(native_load_gs_index)
+END(native_load_gs_index)
 
         .section __ex_table,"a"
         .align 8
@@ -1313,7 +1313,7 @@ ENTRY(kernel_thread)
 	UNFAKE_STACK_FRAME
 	ret
 	CFI_ENDPROC
-ENDPROC(kernel_thread)
+END(kernel_thread)
 
 child_rip:
 	pushq $0		# fake return address
@@ -1329,7 +1329,7 @@ child_rip:
 	mov %eax, %edi
 	call do_exit
 	CFI_ENDPROC
-ENDPROC(child_rip)
+END(child_rip)
 
 /*
  * execve(). This function needs to use IRET, not SYSRET, to set up all state properly.
@@ -1360,9 +1360,7 @@ ENTRY(kernel_execve)
 	UNFAKE_STACK_FRAME
 	ret
 	CFI_ENDPROC
-ENDPROC(kernel_execve)
-
-
+END(kernel_execve)
 
 	/* runs on exception stack */
 KPROBE_ENTRY(nmi)
@@ -1437,14 +1435,14 @@ ENTRY(call_softirq)
 	decl %gs:pda_irqcount
 	ret
 	CFI_ENDPROC
-ENDPROC(call_softirq)
+END(call_softirq)
 
 KPROBE_ENTRY(ignore_sysret)
 	CFI_STARTPROC
 	mov $-ENOSYS,%eax
 	sysret
 	CFI_ENDPROC
-ENDPROC(ignore_sysret)
+KPROBE_END(ignore_sysret)
 
 #ifdef CONFIG_XEN
 zeroentry xen_hypervisor_callback xen_do_hypervisor_callback
