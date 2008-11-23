@@ -494,6 +494,8 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	cx18_vapi(cx, CX18_CPU_SET_CHANNEL_TYPE, 2, s->handle, captype);
 
 	if (atomic_read(&cx->ana_capturing) == 0 && !ts) {
+		struct cx18_api_func_private priv;
+
 		/* Stuff from Windows, we don't know what it is */
 		cx18_vapi(cx, CX18_CPU_SET_VER_CROP_LINE, 2, s->handle, 0);
 		cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 3, s->handle, 3, 1);
@@ -513,7 +515,9 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		cx18_vapi_result(cx, data, CX18_CPU_SET_INDEXTABLE, 1, 0);
 
 		/* Setup API for Stream */
-		cx2341x_update(cx, cx18_api_func, NULL, &cx->params);
+		priv.cx = cx;
+		priv.s = s;
+		cx2341x_update(&priv, cx18_api_func, NULL, &cx->params);
 	}
 
 	if (atomic_read(&cx->tot_capturing) == 0) {
