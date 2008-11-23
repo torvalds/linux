@@ -29,11 +29,12 @@
 static inline void stack_overflow_check(struct pt_regs *regs)
 {
 	u64 curbase = (u64)task_stack_page(current);
-	static unsigned long warned = -60*HZ;
+	static unsigned long warned = INITIAL_JIFFIES - 60*HZ;
 
 	if (regs->sp >= curbase && regs->sp <= curbase + THREAD_SIZE &&
-	    regs->sp <  curbase + sizeof(struct thread_info) + 128 &&
-	    time_after(jiffies, warned + 60*HZ)) {
+			regs->sp < curbase + sizeof(struct thread_info) +
+			sizeof(struct pt_regs) + 128 &&
+			time_after(jiffies, warned + 60*HZ)) {
 		printk("do_IRQ: %s near stack overflow (cur:%Lx,sp:%lx)\n",
 		       current->comm, curbase, regs->sp);
 		show_stack(NULL,NULL);
