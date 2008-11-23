@@ -16,7 +16,7 @@ extern void save_stack_trace_tsk(struct task_struct *tsk,
 
 extern void print_stack_trace(struct stack_trace *trace, int spaces);
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_USER_STACKTRACE_SUPPORT
 extern void save_stack_trace_user(struct stack_trace *trace);
 #else
 # define save_stack_trace_user(trace)              do { } while (0)
