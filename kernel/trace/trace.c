@@ -1462,11 +1462,15 @@ static inline int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
 	int ret = 1;
 
 	if (mm) {
-		const struct vm_area_struct *vma = find_vma(mm, ip);
+		const struct vm_area_struct *vma;
+
+		down_read(&mm->mmap_sem);
+		vma = find_vma(mm, ip);
 		if (vma) {
 			file = vma->vm_file;
 			vmstart = vma->vm_start;
 		}
+		up_read(&mm->mmap_sem);
 	}
 	if (file) {
 		ret = trace_seq_path(s, &file->f_path);
@@ -1494,10 +1498,9 @@ seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
 		 */
 		rcu_read_lock();
 		task = find_task_by_vpid(entry->ent.tgid);
-		rcu_read_unlock();
-
 		if (task)
 			mm = get_task_mm(task);
+		rcu_read_unlock();
 	}
 
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
