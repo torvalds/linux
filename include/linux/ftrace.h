@@ -335,6 +335,9 @@ extern void unregister_ftrace_return(void);
 
 extern void ftrace_retfunc_init_task(struct task_struct *t);
 extern void ftrace_retfunc_exit_task(struct task_struct *t);
+#else
+static inline void ftrace_retfunc_init_task(struct task_struct *t) { }
+static inline void ftrace_retfunc_exit_task(struct task_struct *t) { }
 #endif
 
 #endif /* _LINUX_FTRACE_H */

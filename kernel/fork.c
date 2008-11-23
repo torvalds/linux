@@ -1270,9 +1270,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	total_forks++;
 	spin_unlock(&current->sighand->siglock);
 	write_unlock_irq(&tasklist_lock);
-#ifdef CONFIG_FUNCTION_RET_TRACER
 	ftrace_retfunc_init_task(p);
-#endif
 	proc_fork_connector(p);
 	cgroup_post_fork(p);
 	return p;

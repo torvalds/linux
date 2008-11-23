@@ -5901,9 +5901,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	 * The idle tasks have their own, simple scheduling class:
 	 */
 	idle->sched_class = &idle_sched_class;
-#ifdef CONFIG_FUNCTION_RET_TRACER
 	ftrace_retfunc_init_task(idle);
-#endif
 }
 
 /*

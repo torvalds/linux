@@ -1128,9 +1128,7 @@ NORET_TYPE void do_exit(long code)
 	preempt_disable();
 	/* causes final put_task_struct in finish_task_switch(). */
 	tsk->state = TASK_DEAD;
-#ifdef CONFIG_FUNCTION_RET_TRACER
 	ftrace_retfunc_exit_task(tsk);
-#endif
 	schedule();
 	BUG();
 	/* Avoid "noreturn function does return".  */
