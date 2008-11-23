@@ -1024,7 +1024,7 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 			ss->dca_tag = NULL;
 		}
 	}
-#endif				/* CONFIG_DCA */
+#endif				/* CONFIG_MYRI10GE_DCA */
 
 	/* reset mcp/driver shared state back to 0 */
 
@@ -1121,7 +1121,7 @@ static int myri10ge_notify_dca_device(struct device *dev, void *data)
 		myri10ge_teardown_dca(mgp);
 	return 0;
 }
-#endif				/* CONFIG_DCA */
+#endif				/* CONFIG_MYRI10GE_DCA */
 
 static inline void
 myri10ge_submit_8rx(struct mcp_kreq_ether_recv __iomem * dst,
@@ -4027,7 +4027,7 @@ static struct notifier_block myri10ge_dca_notifier = {
 	.next = NULL,
 	.priority = 0,
 };
-#endif				/* CONFIG_DCA */
+#endif				/* CONFIG_MYRI10GE_DCA */
 
 static __init int myri10ge_init_module(void)
 {
