@@ -1175,7 +1175,6 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * ax_interrupt - handle the interrupts from an 8390
  * @irq: interrupt number
  * @dev_id: a pointer to the net_device
- * @regs: unused
  *
  * Handle the ether interface interrupts. We pull packets from
  * the 8390 via the card specific functions and fire them at the networking
