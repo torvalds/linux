@@ -105,7 +105,7 @@ static struct clk uart_clk = {
 
 static struct clk mmci_clk = {
 	.name	= "MCLK",
-	.rate	= 33000000,
+	.rate	= 24000000,
 };
 
 int clk_register(struct clk *clk)

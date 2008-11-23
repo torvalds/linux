@@ -537,7 +537,7 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 	address >>= PAGE_SHIFT;
 	iommu_area_free(dom->bitmap, address, pages);
 
-	if (address + pages >= dom->next_bit)
+	if (address >= dom->next_bit)
 		dom->need_flush = true;
 }
 

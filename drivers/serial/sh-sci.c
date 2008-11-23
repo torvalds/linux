@@ -144,9 +144,9 @@ static void put_char(struct uart_port *port, char c)
 		status = sci_in(port, SCxSR);
 	} while (!(status & SCxSR_TDxE(port)));
 
-	sci_out(port, SCxTDR, c);
 	sci_in(port, SCxSR);            /* Dummy read */
 	sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
+	sci_out(port, SCxTDR, c);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -478,10 +478,10 @@ static void sci_transmit_chars(struct uart_port *port)
 		return;
 	}
 
-	if (port->type == PORT_SCIF)
-		count = scif_txroom(port);
-	else
+	if (port->type == PORT_SCI)
 		count = sci_txroom(port);
+	else
+		count = scif_txroom(port);
 
 	do {
 		unsigned char c;
@@ -510,7 +510,7 @@ static void sci_transmit_chars(struct uart_port *port)
 	} else {
 		ctrl = sci_in(port, SCSCR);
 
-		if (port->type == PORT_SCIF) {
+		if (port->type != PORT_SCI) {
 			sci_in(port, SCxSR); /* Dummy read */
 			sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
 		}
@@ -536,10 +536,10 @@ static inline void sci_receive_chars(struct uart_port *port)
 		return;
 
 	while (1) {
-		if (port->type == PORT_SCIF)
-			count = scif_rxroom(port);
-		else
+		if (port->type == PORT_SCI)
 			count = sci_rxroom(port);
+		else
+			count = scif_rxroom(port);
 
 		/* Don't copy more bytes than there is room for in the buffer */
 		count = tty_buffer_request_room(tty, count);
@@ -714,7 +714,7 @@ static inline int sci_handle_breaks(struct uart_port *port)
 
 #if defined(SCIF_ORER)
 	/* XXX: Handle SCIF overrun error */
-	if (port->type == PORT_SCIF && (sci_in(port, SCLSR) & SCIF_ORER) != 0) {
+	if (port->type != PORT_SCI && (sci_in(port, SCLSR) & SCIF_ORER) != 0) {
 		sci_out(port, SCLSR, 0);
 		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN)) {
 			copied++;
@@ -1042,7 +1042,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_out(port, SCSCR, 0x00);	/* TE=0, RE=0, CKE1=0 */
 
-	if (port->type == PORT_SCIF)
+	if (port->type != PORT_SCI)
 		sci_out(port, SCFCR, SCFCR_RFRST | SCFCR_TFRST);
 
 	smr_val = sci_in(port, SCSMR) & 3;
@@ -1085,6 +1085,7 @@ static const char *sci_type(struct uart_port *port)
 		case PORT_SCI:	return "sci";
 		case PORT_SCIF:	return "scif";
 		case PORT_IRDA: return "irda";
+		case PORT_SCIFA:	return "scifa";
 	}
 
 	return NULL;
@@ -1112,6 +1113,7 @@ static void sci_config_port(struct uart_port *port, int flags)
 		s->init_pins = sci_init_pins_sci;
 		break;
 	case PORT_SCIF:
+	case PORT_SCIFA:
 		s->init_pins = sci_init_pins_scif;
 		break;
 	case PORT_IRDA:

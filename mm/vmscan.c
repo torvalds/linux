@@ -623,6 +623,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * Try to allocate it some swap space here.
 		 */
 		if (PageAnon(page) && !PageSwapCache(page)) {
+			if (!(sc->gfp_mask & __GFP_IO))
+				goto keep_locked;
 			switch (try_to_munlock(page)) {
 			case SWAP_FAIL:		/* shouldn't happen */
 			case SWAP_AGAIN:
@@ -634,6 +636,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			}
 			if (!add_to_swap(page, GFP_ATOMIC))
 				goto activate_locked;
+			may_enter_fs = 1;
 		}
 #endif /* CONFIG_SWAP */
 
@@ -1386,9 +1389,9 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	file_prio = 200 - sc->swappiness;
 
 	/*
-	 *                  anon       recent_rotated[0]
-	 * %anon = 100 * ----------- / ----------------- * IO cost
-	 *               anon + file      rotate_sum
+	 * The amount of pressure on anon vs file pages is inversely
+	 * proportional to the fraction of recently scanned pages on
+	 * each list that were recently referenced and in active use.
 	 */
 	ap = (anon_prio + 1) * (zone->recent_scanned[0] + 1);
 	ap /= zone->recent_rotated[0] + 1;
@@ -2368,39 +2371,6 @@ int page_evictable(struct page *page, struct vm_area_struct *vma)
 	return 1;
 }
 
-static void show_page_path(struct page *page)
-{
-	char buf[256];
-	if (page_is_file_cache(page)) {
-		struct address_space *mapping = page->mapping;
-		struct dentry *dentry;
-		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-
-		spin_lock(&mapping->i_mmap_lock);
-		dentry = d_find_alias(mapping->host);
-		printk(KERN_INFO "rescued: %s %lu\n",
-		       dentry_path(dentry, buf, 256), pgoff);
-		spin_unlock(&mapping->i_mmap_lock);
-	} else {
-#if defined(CONFIG_MM_OWNER) && defined(CONFIG_MMU)
-		struct anon_vma *anon_vma;
-		struct vm_area_struct *vma;
-
-		anon_vma = page_lock_anon_vma(page);
-		if (!anon_vma)
-			return;
-
-		list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
-			printk(KERN_INFO "rescued: anon %s\n",
-			       vma->vm_mm->owner->comm);
-			break;
-		}
-		page_unlock_anon_vma(anon_vma);
-#endif
-	}
-}
-
-
 /**
  * check_move_unevictable_page - check page for evictability and move to appropriate zone lru list
  * @page: page to check evictability and move to appropriate lru list
@@ -2420,8 +2390,6 @@ retry:
 	ClearPageUnevictable(page);
 	if (page_evictable(page, NULL)) {
 		enum lru_list l = LRU_INACTIVE_ANON + page_is_file_cache(page);
-
-		show_page_path(page);
 
 		__dec_zone_state(zone, NR_UNEVICTABLE);
 		list_move(&page->lru, &zone->lru[l].list);

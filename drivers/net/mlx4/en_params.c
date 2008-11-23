@@ -90,6 +90,7 @@ MLX4_EN_PARM_INT(rx_ring_size2, MLX4_EN_AUTO_CONF, "Rx ring size for port 2");
 int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_profile *params = &mdev->profile;
+	int i;
 
 	params->rx_moder_cnt = min_t(int, rx_moder_cnt, MLX4_EN_AUTO_CONF);
 	params->rx_moder_time = min_t(int, rx_moder_time, MLX4_EN_AUTO_CONF);
@@ -97,11 +98,13 @@ int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	params->rss_xor = (rss_xor != 0);
 	params->rss_mask = rss_mask & 0x1f;
 	params->num_lro = min_t(int, num_lro , MLX4_EN_MAX_LRO_DESCRIPTORS);
-	params->rx_pause = pprx;
-	params->rx_ppp = pfcrx;
-	params->tx_pause = pptx;
-	params->tx_ppp = pfctx;
-	if (params->rx_ppp || params->tx_ppp) {
+	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
+		params->prof[i].rx_pause = pprx;
+		params->prof[i].rx_ppp = pfcrx;
+		params->prof[i].tx_pause = pptx;
+		params->prof[i].tx_ppp = pfctx;
+	}
+	if (pfcrx || pfctx) {
 		params->prof[1].tx_ring_num = MLX4_EN_TX_RING_NUM;
 		params->prof[2].tx_ring_num = MLX4_EN_TX_RING_NUM;
 	} else {
@@ -407,14 +410,14 @@ static int mlx4_en_set_pauseparam(struct net_device *dev,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
 
-	mdev->profile.tx_pause = pause->tx_pause != 0;
-	mdev->profile.rx_pause = pause->rx_pause != 0;
+	priv->prof->tx_pause = pause->tx_pause != 0;
+	priv->prof->rx_pause = pause->rx_pause != 0;
 	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
 				    priv->rx_skb_size + ETH_FCS_LEN,
-				    mdev->profile.tx_pause,
-				    mdev->profile.tx_ppp,
-				    mdev->profile.rx_pause,
-				    mdev->profile.rx_ppp);
+				    priv->prof->tx_pause,
+				    priv->prof->tx_ppp,
+				    priv->prof->rx_pause,
+				    priv->prof->rx_ppp);
 	if (err)
 		mlx4_err(mdev, "Failed setting pause params to\n");
 
@@ -425,10 +428,9 @@ static void mlx4_en_get_pauseparam(struct net_device *dev,
 				 struct ethtool_pauseparam *pause)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
 
-	pause->tx_pause = mdev->profile.tx_pause;
-	pause->rx_pause = mdev->profile.rx_pause;
+	pause->tx_pause = priv->prof->tx_pause;
+	pause->rx_pause = priv->prof->rx_pause;
 }
 
 static void mlx4_en_get_ringparam(struct net_device *dev,

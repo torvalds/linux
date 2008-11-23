@@ -320,8 +320,10 @@ int __init dm_stripe_init(void)
 	int r;
 
 	r = dm_register_target(&stripe_target);
-	if (r < 0)
+	if (r < 0) {
 		DMWARN("target registration failed");
+		return r;
+	}
 
 	kstriped = create_singlethread_workqueue("kstriped");
 	if (!kstriped) {

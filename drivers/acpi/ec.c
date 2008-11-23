@@ -70,7 +70,7 @@ enum ec_command {
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
 #define ACPI_EC_UDELAY		100	/* Wait 100us before polling EC again */
 
-#define ACPI_EC_STORM_THRESHOLD 20	/* number of false interrupts
+#define ACPI_EC_STORM_THRESHOLD 8	/* number of false interrupts
 					   per one transaction */
 
 enum {
@@ -100,8 +100,11 @@ struct transaction {
 	u8 *rdata;
 	unsigned short irq_count;
 	u8 command;
+	u8 wi;
+	u8 ri;
 	u8 wlen;
 	u8 rlen;
+	bool done;
 };
 
 static struct acpi_ec {
@@ -178,10 +181,17 @@ static int ec_transaction_done(struct acpi_ec *ec)
 	unsigned long flags;
 	int ret = 0;
 	spin_lock_irqsave(&ec->curr_lock, flags);
-	if (!ec->curr || (!ec->curr->wlen && !ec->curr->rlen))
+	if (!ec->curr || ec->curr->done)
 		ret = 1;
 	spin_unlock_irqrestore(&ec->curr_lock, flags);
 	return ret;
+}
+
+static void start_transaction(struct acpi_ec *ec)
+{
+	ec->curr->irq_count = ec->curr->wi = ec->curr->ri = 0;
+	ec->curr->done = false;
+	acpi_ec_write_cmd(ec, ec->curr->command);
 }
 
 static void gpe_transaction(struct acpi_ec *ec, u8 status)
@@ -190,22 +200,26 @@ static void gpe_transaction(struct acpi_ec *ec, u8 status)
 	spin_lock_irqsave(&ec->curr_lock, flags);
 	if (!ec->curr)
 		goto unlock;
-	if (ec->curr->wlen > 0) {
-		if ((status & ACPI_EC_FLAG_IBF) == 0) {
-			acpi_ec_write_data(ec, *(ec->curr->wdata++));
-			--ec->curr->wlen;
-		} else
-			/* false interrupt, state didn't change */
-			++ec->curr->irq_count;
-
-	} else if (ec->curr->rlen > 0) {
+	if (ec->curr->wlen > ec->curr->wi) {
+		if ((status & ACPI_EC_FLAG_IBF) == 0)
+			acpi_ec_write_data(ec,
+				ec->curr->wdata[ec->curr->wi++]);
+		else
+			goto err;
+	} else if (ec->curr->rlen > ec->curr->ri) {
 		if ((status & ACPI_EC_FLAG_OBF) == 1) {
-			*(ec->curr->rdata++) = acpi_ec_read_data(ec);
-			--ec->curr->rlen;
+			ec->curr->rdata[ec->curr->ri++] = acpi_ec_read_data(ec);
+			if (ec->curr->rlen == ec->curr->ri)
+				ec->curr->done = true;
 		} else
-			/* false interrupt, state didn't change */
-			++ec->curr->irq_count;
-	}
+			goto err;
+	} else if (ec->curr->wlen == ec->curr->wi &&
+		   (status & ACPI_EC_FLAG_IBF) == 0)
+		ec->curr->done = true;
+	goto unlock;
+err:
+	/* false interrupt, state didn't change */
+	++ec->curr->irq_count;
 unlock:
 	spin_unlock_irqrestore(&ec->curr_lock, flags);
 }
@@ -215,6 +229,15 @@ static int acpi_ec_wait(struct acpi_ec *ec)
 	if (wait_event_timeout(ec->wait, ec_transaction_done(ec),
 			       msecs_to_jiffies(ACPI_EC_DELAY)))
 		return 0;
+	/* try restart command if we get any false interrupts */
+	if (ec->curr->irq_count &&
+	    (acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF) == 0) {
+		pr_debug(PREFIX "controller reset, restart transaction\n");
+		start_transaction(ec);
+		if (wait_event_timeout(ec->wait, ec_transaction_done(ec),
+					msecs_to_jiffies(ACPI_EC_DELAY)))
+			return 0;
+	}
 	/* missing GPEs, switch back to poll mode */
 	if (printk_ratelimit())
 		pr_info(PREFIX "missing confirmations, "
@@ -239,10 +262,10 @@ static int ec_check_sci(struct acpi_ec *ec, u8 state)
 static int ec_poll(struct acpi_ec *ec)
 {
 	unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
-	msleep(1);
+	udelay(ACPI_EC_UDELAY);
 	while (time_before(jiffies, delay)) {
 		gpe_transaction(ec, acpi_ec_read_status(ec));
-		msleep(1);
+		udelay(ACPI_EC_UDELAY);
 		if (ec_transaction_done(ec))
 			return 0;
 	}
@@ -259,14 +282,13 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 	/* disable GPE during transaction if storm is detected */
 	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
 		clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
-		acpi_disable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
+		acpi_disable_gpe(NULL, ec->gpe);
 	}
 	/* start transaction */
 	spin_lock_irqsave(&ec->curr_lock, tmp);
 	/* following two actions should be kept atomic */
-	t->irq_count = 0;
 	ec->curr = t;
-	acpi_ec_write_cmd(ec, ec->curr->command);
+	start_transaction(ec);
 	if (ec->curr->command == ACPI_EC_COMMAND_QUERY)
 		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
 	spin_unlock_irqrestore(&ec->curr_lock, tmp);
@@ -283,10 +305,11 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 		/* check if we received SCI during transaction */
 		ec_check_sci(ec, acpi_ec_read_status(ec));
 		/* it is safe to enable GPE outside of transaction */
-		acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
+		acpi_enable_gpe(NULL, ec->gpe);
 	} else if (test_bit(EC_FLAGS_GPE_MODE, &ec->flags) &&
 		   t->irq_count > ACPI_EC_STORM_THRESHOLD) {
-		pr_debug(PREFIX "GPE storm detected\n");
+		pr_info(PREFIX "GPE storm detected, "
+			"transactions will use polling mode\n");
 		set_bit(EC_FLAGS_GPE_STORM, &ec->flags);
 	}
 	return ret;
@@ -558,17 +581,26 @@ static u32 acpi_ec_gpe_handler(void *data)
 	pr_debug(PREFIX "~~~> interrupt\n");
 	status = acpi_ec_read_status(ec);
 
-	gpe_transaction(ec, status);
-	if (ec_transaction_done(ec) && (status & ACPI_EC_FLAG_IBF) == 0)
-		wake_up(&ec->wait);
+	if (test_bit(EC_FLAGS_GPE_MODE, &ec->flags)) {
+		gpe_transaction(ec, status);
+		if (ec_transaction_done(ec) &&
+		    (status & ACPI_EC_FLAG_IBF) == 0)
+			wake_up(&ec->wait);
+	}
 
 	ec_check_sci(ec, status);
 	if (!test_bit(EC_FLAGS_GPE_MODE, &ec->flags) &&
 	    !test_bit(EC_FLAGS_NO_GPE, &ec->flags)) {
 		/* this is non-query, must be confirmation */
-		if (printk_ratelimit())
-			pr_info(PREFIX "non-query interrupt received,"
+		if (!test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
+			if (printk_ratelimit())
+				pr_info(PREFIX "non-query interrupt received,"
+					" switching to interrupt mode\n");
+		} else {
+			/* hush, STORM switches the mode every transaction */
+			pr_debug(PREFIX "non-query interrupt received,"
 				" switching to interrupt mode\n");
+		}
 		set_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 	}
 	return ACPI_INTERRUPT_HANDLED;
@@ -736,7 +768,7 @@ static acpi_status
 ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 {
 	acpi_status status;
-	unsigned long long tmp;
+	unsigned long long tmp = 0;
 
 	struct acpi_ec *ec = context;
 	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
@@ -751,6 +783,7 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 		return status;
 	ec->gpe = tmp;
 	/* Use the global lock for all EC transactions? */
+	tmp = 0;
 	acpi_evaluate_integer(handle, "_GLK", NULL, &tmp);
 	ec->global_lock = tmp;
 	ec->handle = handle;
@@ -868,7 +901,7 @@ static int ec_install_handlers(struct acpi_ec *ec)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 	acpi_set_gpe_type(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
-	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
+	acpi_enable_gpe(NULL, ec->gpe);
 	status = acpi_install_address_space_handler(ec->handle,
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_ec_space_handler,
@@ -1007,7 +1040,7 @@ static int acpi_ec_suspend(struct acpi_device *device, pm_message_t state)
 	/* Stop using GPE */
 	set_bit(EC_FLAGS_NO_GPE, &ec->flags);
 	clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
-	acpi_disable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
+	acpi_disable_gpe(NULL, ec->gpe);
 	return 0;
 }
 
@@ -1016,7 +1049,7 @@ static int acpi_ec_resume(struct acpi_device *device)
 	struct acpi_ec *ec = acpi_driver_data(device);
 	/* Enable use of GPE back */
 	clear_bit(EC_FLAGS_NO_GPE, &ec->flags);
-	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
+	acpi_enable_gpe(NULL, ec->gpe);
 	return 0;
 }
 

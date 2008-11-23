@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 
 #include <asm/page.h>
-#include <asm/iommu.h>
 
 dma_addr_t bad_dma_address __read_mostly;
 EXPORT_SYMBOL(bad_dma_address);

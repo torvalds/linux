@@ -620,7 +620,7 @@ static long vstusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				__func__);
 			retval = -EFAULT;
 		} else {
-			dev_dbg(&dev->dev, "%s: recv %d bytes from pipe %d\n",
+			dev_dbg(&dev->dev, "%s: recv %zd bytes from pipe %d\n",
 				__func__, usb_data.count, usb_data.pipe);
 		}
 

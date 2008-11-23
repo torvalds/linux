@@ -1,6 +1,6 @@
 config VIDEO_IVTV
 	tristate "Conexant cx23416/cx23415 MPEG encoder/decoder support"
-	depends on VIDEO_V4L1 && VIDEO_V4L2 && PCI && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && PCI && I2C
 	depends on INPUT   # due to VIDEO_IR
 	select I2C_ALGOBIT
 	select VIDEO_IR
@@ -12,7 +12,6 @@ config VIDEO_IVTV
 	select VIDEO_SAA711X
 	select VIDEO_SAA717X
 	select VIDEO_SAA7127
-	select VIDEO_TVAUDIO
 	select VIDEO_CS53L32A
 	select VIDEO_M52790
 	select VIDEO_WM8775
@@ -32,7 +31,7 @@ config VIDEO_IVTV
 
 config VIDEO_FB_IVTV
 	tristate "Conexant cx23415 framebuffer support"
-	depends on VIDEO_IVTV && FB && EXPERIMENTAL
+	depends on VIDEO_IVTV && FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

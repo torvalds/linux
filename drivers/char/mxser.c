@@ -14,7 +14,8 @@
  *      (at your option) any later version.
  *
  *	Fed through a cleanup, indent and remove of non 2.6 code by Alan Cox
- *	<alan@redhat.com>. The original 1.8 code is available on www.moxa.com.
+ *	<alan@lxorguk.ukuu.org.uk>. The original 1.8 code is available on
+ *	www.moxa.com.
  *	- Fixed x86_64 cleanness
  */
 

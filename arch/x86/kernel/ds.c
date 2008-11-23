@@ -236,15 +236,31 @@ static inline struct ds_context *ds_alloc_context(struct task_struct *task)
 	struct ds_context *context = *p_context;
 
 	if (!context) {
+		spin_unlock(&ds_lock);
+
 		context = kzalloc(sizeof(*context), GFP_KERNEL);
 
-		if (!context)
+		if (!context) {
+			spin_lock(&ds_lock);
 			return NULL;
+		}
 
 		context->ds = kzalloc(ds_cfg.sizeof_ds, GFP_KERNEL);
 		if (!context->ds) {
 			kfree(context);
+			spin_lock(&ds_lock);
 			return NULL;
+		}
+
+		spin_lock(&ds_lock);
+		/*
+		 * Check for race - another CPU could have allocated
+		 * it meanwhile:
+		 */
+		if (*p_context) {
+			kfree(context->ds);
+			kfree(context);
+			return *p_context;
 		}
 
 		*p_context = context;
@@ -384,12 +400,13 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
 
 	spin_lock(&ds_lock);
 
-	if (!check_tracer(task))
-		return -EPERM;
-
 	error = -ENOMEM;
 	context = ds_alloc_context(task);
 	if (!context)
+		goto out_unlock;
+
+	error = -EPERM;
+	if (!check_tracer(task))
 		goto out_unlock;
 
 	error = -EALREADY;

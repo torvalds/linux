@@ -198,59 +198,42 @@ and is between 256 and 4096 characters. It is defined in the file
 			that require a timer override, but don't have
 			HPET
 
-	acpi.debug_layer=	[HW,ACPI]
+	acpi_backlight=	[HW,ACPI]
+			acpi_backlight=vendor
+			acpi_backlight=video
+			If set to vendor, prefer vendor specific driver
+			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
+			of the ACPI video.ko driver.
+
+	acpi_display_output=	[HW,ACPI]
+			acpi_display_output=vendor
+			acpi_display_output=video
+			See above.
+
+	acpi.debug_layer=	[HW,ACPI,ACPI_DEBUG]
+	acpi.debug_level=	[HW,ACPI,ACPI_DEBUG]
 			Format: <int>
-			Each bit of the <int> indicates an ACPI debug layer,
-			1: enable, 0: disable. It is useful for boot time
-			debugging. After system has booted up, it can be set
-			via /sys/module/acpi/parameters/debug_layer.
-			CONFIG_ACPI_DEBUG must be enabled for this to produce any output.
-			Available bits (add the numbers together) to enable debug output
-			for specific parts of the ACPI subsystem:
-			0x01 utilities 0x02 hardware 0x04 events 0x08 tables
-			0x10 namespace 0x20 parser 0x40 dispatcher
-			0x80 executer 0x100 resources 0x200 acpica debugger
-			0x400 os services 0x800 acpica disassembler.
-			The number can be in decimal or prefixed with 0x in hex.
-			Warning: Many of these options can produce a lot of
-			output and make your system unusable. Be very careful.
+			CONFIG_ACPI_DEBUG must be enabled to produce any ACPI
+			debug output.  Bits in debug_layer correspond to a
+			_COMPONENT in an ACPI source file, e.g.,
+			    #define _COMPONENT ACPI_PCI_COMPONENT
+			Bits in debug_level correspond to a level in
+			ACPI_DEBUG_PRINT statements, e.g.,
+			    ACPI_DEBUG_PRINT((ACPI_DB_INFO, ...
+			See Documentation/acpi/debug.txt for more information
+			about debug layers and levels.
 
-	acpi.debug_level=	[HW,ACPI]
-			Format: <int>
-			Each bit of the <int> indicates an ACPI debug level,
-			which corresponds to the level in an ACPI_DEBUG_PRINT
-			statement.  After system has booted up, this mask
-			can be set via /sys/module/acpi/parameters/debug_level.
+			Enable AML "Debug" output, i.e., stores to the Debug
+			object while interpreting AML:
+			    acpi.debug_layer=0xffffffff acpi.debug_level=0x2
+			Enable PCI/PCI interrupt routing info messages:
+			    acpi.debug_layer=0x400000 acpi.debug_level=0x4
+			Enable all messages related to ACPI hardware:
+			    acpi.debug_layer=0x2 acpi.debug_level=0xffffffff
 
-			CONFIG_ACPI_DEBUG must be enabled for this to produce
-			any output.  The number can be in decimal or prefixed
-			with 0x in hex.  Some of these options produce so much
-			output that the system is unusable.
-
-			The following global components are defined by the
-			ACPI CA:
-			       0x01 error
-			       0x02 warn
-			       0x04 init
-			       0x08 debug object
-			       0x10 info
-			       0x20 init names
-			       0x40 parse
-			       0x80 load
-			      0x100 dispatch
-			      0x200 execute
-			      0x400 names
-			      0x800 operation region
-			     0x1000 bfield
-			     0x2000 tables
-			     0x4000 values
-			     0x8000 objects
-			    0x10000 resources
-			    0x20000 user requests
-			    0x40000 package
- 			The number can be in decimal or prefixed with 0x in hex.
- 			Warning: Many of these options can produce a lot of
- 			output and make your system unusable. Be very careful.
+			Some values produce so much output that the system is
+			unusable.  The "log_buf_len" parameter may be useful
+			if you need to capture more output.
 
  	acpi.power_nocheck=	[HW,ACPI]
  			Format: 1/0 enable/disable the check of power state.
@@ -311,7 +294,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			Possible values are:
 			isolate - enable device isolation (each device, as far
 			          as possible, will get its own protection
-			          domain)
+			          domain) [default]
+			share - put every device behind one IOMMU into the
+				same protection domain
 			fullflush - enable flushing of IO/TLB entries when
 				    they are unmapped. Otherwise they are
 				    flushed before they will be reused, which
@@ -646,7 +631,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
-			Documentation/digiepca.txt.
+			Documentation/serial/digiepca.txt.
 
 	disable_mtrr_cleanup [X86]
 	enable_mtrr_cleanup [X86]
@@ -757,7 +742,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See header of drivers/scsi/fdomain.c.
 
 	floppy=		[HW]
-			See Documentation/floppy.txt.
+			See Documentation/blockdev/floppy.txt.
 
 	force_pal_cache_flush
 			[IA-64] Avoid check_sal_cache_flush which may hang on
@@ -1118,7 +1103,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			the same attribute, the last one is used.
 
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	lockd.nlm_grace_period=P  [NFS] Assign grace period.
 			Format: <integer>
@@ -1210,8 +1195,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			it is equivalent to "nosmp", which also disables
 			the IO APIC.
 
-	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
-			equal to this physical address is ignored.
+	max_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory greater than
+			or equal to this physical address is ignored.
 
 	max_luns=	[SCSI] Maximum number of LUNs to probe.
 			Should be between 1 and 2^32-1.
@@ -1310,6 +1295,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			problem by letting the user disable the workaround.
 
 	mga=		[HW,DRM]
+
+	min_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory below this
+			physical address is ignored.
 
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
@@ -1613,7 +1601,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	pcd.		[PARIDE]
 			See header of drivers/block/paride/pcd.c.
-			See also Documentation/paride.txt.
+			See also Documentation/blockdev/paride.txt.
 
 	pci=option[,option...]	[PCI] various PCI subsystem options:
 		off		[X86] don't probe for the PCI bus
@@ -1714,7 +1702,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pdcchassis=	[PARISC,HW] Disable/Enable PDC Chassis Status codes at
 			boot time.
@@ -1722,10 +1710,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			See arch/parisc/kernel/pdc_chassis.c
 
 	pf.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pg.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pirq=		[SMP,APIC] Manual mp-table setup
 			See Documentation/x86/i386/IO-APIC.txt.
@@ -1795,7 +1783,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
 			before loading.
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	psmouse.proto=	[HW,MOUSE] Highest PS2 mouse protocol extension to
 			probe for; one of (bare|imps|exps|lifebook|any).
@@ -1815,7 +1803,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			<io>,<mss_io>,<mss_irq>,<mss_dma>,<mpu_io>,<mpu_irq>
 
 	pt.		[PARIDE]
-			See Documentation/paride.txt.
+			See Documentation/blockdev/paride.txt.
 
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in
@@ -1829,10 +1817,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/md.txt.
 
 	ramdisk_blocksize=	[RAM]
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
-			See Documentation/ramdisk.txt.
+			See Documentation/blockdev/ramdisk.txt.
 
 	rcupdate.blimit=	[KNL,BOOT]
 			Set maximum number of finished RCU callbacks to process
@@ -2164,7 +2152,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/sonypi.txt
 
 	specialix=	[HW,SERIAL] Specialix multi-serial port adapter
-			See Documentation/specialix.txt.
+			See Documentation/serial/specialix.txt.
 
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=
