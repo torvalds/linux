@@ -919,6 +919,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  mitac		Mitac 8252D
 	  clevo-m720	Clevo M720 laptop series
 	  fujitsu-pi2515 Fujitsu AMILO Pi2515
+	  fujitsu-xa3530 Fujitsu AMILO XA3530
 	  3stack-6ch-intel Intel DG33* boards
 	  auto		auto-config reading BIOS (default)
 
