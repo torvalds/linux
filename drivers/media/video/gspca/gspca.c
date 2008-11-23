@@ -639,8 +639,11 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 					"usb_submit_urb [%d] err %d", n, ret);
 				gspca_dev->streaming = 0;
 				destroy_urbs(gspca_dev);
-				if (ret == -ENOSPC)
+				if (ret == -ENOSPC) {
+					mdelay(20);	/* wait for kill
+							 * complete */
 					break;	/* try the previous alt */
+				}
 				goto out;
 			}
 		}
