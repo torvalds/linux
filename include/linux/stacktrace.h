@@ -25,7 +25,7 @@ extern void save_stack_trace_user(struct stack_trace *trace);
 #else
 # define save_stack_trace(trace)			do { } while (0)
 # define save_stack_trace_tsk(tsk, trace)		do { } while (0)
-# define save_stack_trace_user(trace)              do { } while (0)
+# define save_stack_trace_user(trace)			do { } while (0)
 # define print_stack_trace(trace, spaces)		do { } while (0)
 #endif
 

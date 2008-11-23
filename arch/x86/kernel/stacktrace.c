@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
 struct stack_frame {
 	const void __user	*next_fp;
-	unsigned long		return_address;
+	unsigned long		ret_addr;
 };
 
 static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
@@ -108,33 +108,40 @@ static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
 	return ret;
 }
 
+static inline void __save_stack_trace_user(struct stack_trace *trace)
+{
+	const struct pt_regs *regs = task_pt_regs(current);
+	const void __user *fp = (const void __user *)regs->bp;
+
+	if (trace->nr_entries < trace->max_entries)
+		trace->entries[trace->nr_entries++] = regs->ip;
+
+	while (trace->nr_entries < trace->max_entries) {
+		struct stack_frame frame;
+
+		frame.next_fp = NULL;
+		frame.ret_addr = 0;
+		if (!copy_stack_frame(fp, &frame))
+			break;
+		if ((unsigned long)fp < regs->sp)
+			break;
+		if (frame.ret_addr) {
+			trace->entries[trace->nr_entries++] =
+				frame.ret_addr;
+		}
+		if (fp == frame.next_fp)
+			break;
+		fp = frame.next_fp;
+	}
+}
+
 void save_stack_trace_user(struct stack_trace *trace)
 {
 	/*
 	 * Trace user stack if we are not a kernel thread
 	 */
 	if (current->mm) {
-		const struct pt_regs *regs = task_pt_regs(current);
-		const void __user *fp = (const void __user *)regs->bp;
-
-		if (trace->nr_entries < trace->max_entries)
-			trace->entries[trace->nr_entries++] = regs->ip;
-
-		while (trace->nr_entries < trace->max_entries) {
-			struct stack_frame frame;
-			frame.next_fp = NULL;
-			frame.return_address = 0;
-			if (!copy_stack_frame(fp, &frame))
-				break;
-			if ((unsigned long)fp < regs->sp)
-				break;
-			if (frame.return_address)
-				trace->entries[trace->nr_entries++] =
-					frame.return_address;
-			if (fp == frame.next_fp)
-				break;
-			fp = frame.next_fp;
-		}
+		__save_stack_trace_user(trace);
 	}
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;

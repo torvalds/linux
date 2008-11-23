@@ -948,9 +948,9 @@ static void ftrace_trace_userstack(struct trace_array *tr,
 		   struct trace_array_cpu *data,
 		   unsigned long flags, int pc)
 {
+	struct ring_buffer_event *event;
 	struct userstack_entry *entry;
 	struct stack_trace trace;
-	struct ring_buffer_event *event;
 	unsigned long irq_flags;
 
 	if (!(trace_flags & TRACE_ITER_USERSTACKTRACE))
@@ -1471,8 +1471,7 @@ static inline int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
 	if (file) {
 		ret = trace_seq_path(s, &file->f_path);
 		if (ret)
-			ret = trace_seq_printf(s, "[+0x%lx]",
-					ip - vmstart);
+			ret = trace_seq_printf(s, "[+0x%lx]", ip - vmstart);
 	}
 	if (ret && ((sym_flags & TRACE_ITER_SYM_ADDR) || !file))
 		ret = trace_seq_printf(s, " <" IP_FMT ">", ip);
@@ -1485,7 +1484,7 @@ seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
 {
 	struct mm_struct *mm = NULL;
 	int ret = 1;
-	unsigned i;
+	unsigned int i;
 
 	if (trace_flags & TRACE_ITER_SYM_USEROBJ) {
 		struct task_struct *task;
