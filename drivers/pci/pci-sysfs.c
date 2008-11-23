@@ -575,7 +575,7 @@ static int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct 
 
 	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	start = vma->vm_pgoff;
-	size = pci_resource_len(pdev, resno) >> PAGE_SHIFT;
+	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
 	if (start < size && size - start >= nr)
 		return 1;
 	WARN(1, "process \"%s\" tried to map 0x%08lx-0x%08lx on %s BAR %d (size 0x%08lx)\n",

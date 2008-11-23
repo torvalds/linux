@@ -349,7 +349,7 @@ ENTRY(cpu_xsc3_switch_mm)
 cpu_xsc3_mt_table:
 	.long	0x00						@ L_PTE_MT_UNCACHED
 	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_BUFFERABLE
-	.long	PTE_CACHEABLE					@ L_PTE_MT_WRITETHROUGH
+	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE			@ L_PTE_MT_WRITETHROUGH
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
 	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_SHARED
 	.long	0x00						@ unused

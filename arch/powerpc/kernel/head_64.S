@@ -97,12 +97,6 @@ __secondary_hold_spinloop:
 __secondary_hold_acknowledge:
 	.llong	0x0
 
-	/* This flag is set by purgatory if we should be a kdump kernel. */
-	/* Do not move this variable as purgatory knows about it. */
-	.globl	__kdump_flag
-__kdump_flag:
-	.llong	0x0
-
 #ifdef CONFIG_PPC_ISERIES
 	/*
 	 * At offset 0x20, there is a pointer to iSeries LPAR data.
@@ -111,6 +105,20 @@ __kdump_flag:
 	. = 0x20
 	.llong hvReleaseData-KERNELBASE
 #endif /* CONFIG_PPC_ISERIES */
+
+#ifdef CONFIG_CRASH_DUMP
+	/* This flag is set to 1 by a loader if the kernel should run
+	 * at the loaded address instead of the linked address.  This
+	 * is used by kexec-tools to keep the the kdump kernel in the
+	 * crash_kernel region.  The loader is responsible for
+	 * observing the alignment requirement.
+	 */
+	/* Do not move this variable as kexec-tools knows about it. */
+	. = 0x5c
+	.globl	__run_at_load
+__run_at_load:
+	.long	0x72756e30	/* "run0" -- relocate to 0 by default */
+#endif
 
 	. = 0x60
 /*
@@ -1391,8 +1399,8 @@ _STATIC(__after_prom_start)
 	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
 	sldi	r25,r25,32
 #ifdef CONFIG_CRASH_DUMP
-	ld	r7,__kdump_flag-_stext(r26)
-	cmpldi	cr0,r7,1	/* kdump kernel ? - stay where we are */
+	lwz	r7,__run_at_load-_stext(r26)
+	cmplwi	cr0,r7,1	/* kdump kernel ? - stay where we are */
 	bne	1f
 	add	r25,r25,r26
 #endif
@@ -1416,11 +1424,11 @@ _STATIC(__after_prom_start)
 #ifdef CONFIG_CRASH_DUMP
 /*
  * Check if the kernel has to be running as relocatable kernel based on the
- * variable __kdump_flag, if it is set the kernel is treated as relocatable
+ * variable __run_at_load, if it is set the kernel is treated as relocatable
  * kernel, otherwise it will be moved to PHYSICAL_START
  */
-	ld	r7,__kdump_flag-_stext(r26)
-	cmpldi	cr0,r7,1
+	lwz	r7,__run_at_load-_stext(r26)
+	cmplwi	cr0,r7,1
 	bne	3f
 
 	li	r5,__end_interrupts - _stext	/* just copy interrupts */

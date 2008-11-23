@@ -441,13 +441,13 @@ static void process_queued_ios(struct work_struct *work)
 		__choose_pgpath(m);
 
 	pgpath = m->current_pgpath;
-	m->pgpath_to_activate = m->current_pgpath;
 
 	if ((pgpath && !m->queue_io) ||
 	    (!pgpath && !m->queue_if_no_path))
 		must_queue = 0;
 
-	if (m->pg_init_required && !m->pg_init_in_progress) {
+	if (m->pg_init_required && !m->pg_init_in_progress && pgpath) {
+		m->pgpath_to_activate = pgpath;
 		m->pg_init_count++;
 		m->pg_init_required = 0;
 		m->pg_init_in_progress = 1;
@@ -708,6 +708,10 @@ static int parse_hw_handler(struct arg_set *as, struct multipath *m)
 		m->hw_handler_name = NULL;
 		return -EINVAL;
 	}
+
+	if (hw_argc > 1)
+		DMWARN("Ignoring user-specified arguments for "
+		       "hardware handler \"%s\"", m->hw_handler_name);
 	consume(as, hw_argc - 1);
 
 	return 0;

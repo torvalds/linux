@@ -366,11 +366,16 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		}
 
 		/* routing header option needs extra check */
+		retv = -EINVAL;
 		if (optname == IPV6_RTHDR && opt && opt->srcrt) {
 			struct ipv6_rt_hdr *rthdr = opt->srcrt;
 			switch (rthdr->type) {
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 			case IPV6_SRCRT_TYPE_2:
+				if (rthdr->hdrlen != 2 ||
+				    rthdr->segments_left != 1)
+					goto sticky_done;
+
 				break;
 #endif
 			default:

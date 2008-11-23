@@ -46,7 +46,7 @@ int __copy_from_user(void *dst, const void __user *src, unsigned size)
 		return ret;
 	case 10:
 		__get_user_asm(*(u64 *)dst, (u64 __user *)src,
-			       ret, "q", "", "=r", 16);
+			       ret, "q", "", "=r", 10);
 		if (unlikely(ret))
 			return ret;
 		__get_user_asm(*(u16 *)(8 + (char *)dst),

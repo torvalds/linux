@@ -128,7 +128,7 @@ static int kvm_register_clock(char *txt)
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
-static void kvm_setup_secondary_clock(void)
+static void __devinit kvm_setup_secondary_clock(void)
 {
 	/*
 	 * Now that the first cpu already had this clocksource initialized,

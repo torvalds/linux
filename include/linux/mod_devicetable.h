@@ -135,6 +135,7 @@ struct usb_device_id {
 
 struct hid_device_id {
 	__u16 bus;
+	__u16 pad1;
 	__u32 vendor;
 	__u32 product;
 	kernel_ulong_t driver_data

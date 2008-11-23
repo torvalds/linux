@@ -1414,7 +1414,7 @@ xfs_itruncate_start(
 	mp = ip->i_mount;
 
 	/* wait for the completion of any pending DIOs */
-	if (new_size < ip->i_size)
+	if (new_size == 0 || new_size < ip->i_size)
 		vn_iowait(ip);
 
 	/*

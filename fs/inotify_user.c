@@ -537,9 +537,6 @@ static int inotify_release(struct inode *ignored, struct file *file)
 		inotify_dev_event_dequeue(dev);
 	mutex_unlock(&dev->ev_mutex);
 
-	if (file->f_flags & FASYNC)
-		inotify_fasync(-1, file, 0);
-
 	/* free this device: the put matching the get in inotify_init() */
 	put_inotify_dev(dev);
 

@@ -1187,7 +1187,7 @@ static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	if (tmp)
 		*status |= FE_HAS_SYNC | FE_HAS_LOCK;
 
-	if (!*status & FE_HAS_SIGNAL) {
+	if (!(*status & FE_HAS_SIGNAL)) {
 		/* AGC lock */
 		ret = af9013_read_reg_bits(state, 0xd1a0, 6, 1, &tmp);
 		if (ret)
@@ -1196,7 +1196,7 @@ static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
 			*status |= FE_HAS_SIGNAL;
 	}
 
-	if (!*status & FE_HAS_CARRIER) {
+	if (!(*status & FE_HAS_CARRIER)) {
 		/* CFO lock */
 		ret = af9013_read_reg_bits(state, 0xd333, 7, 1, &tmp);
 		if (ret)
@@ -1205,7 +1205,7 @@ static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
 			*status |= FE_HAS_CARRIER;
 	}
 
-	if (!*status & FE_HAS_CARRIER) {
+	if (!(*status & FE_HAS_CARRIER)) {
 		/* SFOE lock */
 		ret = af9013_read_reg_bits(state, 0xd334, 6, 1, &tmp);
 		if (ret)

@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
- *  Portions (C) Copyright 2002  Red Hat Inc <alan@redhat.com>
+ *  Portions (C) Copyright 2002  Red Hat Inc
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

@@ -338,12 +338,18 @@ wait:
 static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 {
 	struct request_queue *rq;
+	elevator_t *old_e;
 
 	rq = blk_init_queue(do_blkif_request, &blkif_io_lock);
 	if (rq == NULL)
 		return -1;
 
-	elevator_init(rq, "noop");
+	old_e = rq->elevator;
+	if (IS_ERR_VALUE(elevator_init(rq, "noop")))
+		printk(KERN_WARNING
+			"blkfront: Switch elevator failed, use default\n");
+	else
+		elevator_exit(old_e);
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
 	blk_queue_hardsect_size(rq, sector_size);

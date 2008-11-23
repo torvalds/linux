@@ -5,7 +5,7 @@
  * Originally based on softdog.c
  * Copyright 2006-2007 Analog Devices Inc.
  * Copyright 2006-2007 Michele d'Amico
- * Copyright 1996 Alan Cox <alan@redhat.com>
+ * Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *

@@ -26,6 +26,7 @@ struct corgits_machinfo {
  * SharpSL Backlight
  */
 extern void corgibl_limit_intensity(int limit);
+extern void corgi_lcd_limit_intensity(int limit);
 
 
 /*

@@ -2560,25 +2560,3 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 		ieee80211_restart_sta_timer(sdata);
 	rcu_read_unlock();
 }
-
-/* driver notification call */
-void ieee80211_notify_mac(struct ieee80211_hw *hw,
-			  enum ieee80211_notification_types  notif_type)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata;
-
-	switch (notif_type) {
-	case IEEE80211_NOTIFY_RE_ASSOC:
-		rcu_read_lock();
-		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-			if (sdata->vif.type != NL80211_IFTYPE_STATION)
-				continue;
-
-			ieee80211_sta_req_auth(sdata, &sdata->u.sta);
-		}
-		rcu_read_unlock();
-		break;
-	}
-}
-EXPORT_SYMBOL(ieee80211_notify_mac);

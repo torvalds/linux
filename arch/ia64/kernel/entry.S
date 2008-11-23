@@ -499,6 +499,7 @@ GLOBAL_ENTRY(prefetch_stack)
 END(prefetch_stack)
 
 GLOBAL_ENTRY(kernel_execve)
+	rum psr.ac
 	mov r15=__NR_execve			// put syscall number in place
 	break __BREAK_SYSCALL
 	br.ret.sptk.many rp

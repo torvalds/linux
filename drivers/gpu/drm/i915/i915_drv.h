@@ -31,6 +31,7 @@
 #define _I915_DRV_H_
 
 #include "i915_reg.h"
+#include <linux/io-mapping.h>
 
 /* General customization:
  */
@@ -87,13 +88,6 @@ struct mem_block {
 	struct drm_file *file_priv; /* NULL: free, -1: heap, other: real files */
 };
 
-typedef struct _drm_i915_vbl_swap {
-	struct list_head head;
-	drm_drawable_t drw_id;
-	unsigned int pipe;
-	unsigned int sequence;
-} drm_i915_vbl_swap_t;
-
 struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
@@ -145,10 +139,6 @@ typedef struct drm_i915_private {
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
 
-	spinlock_t swaps_lock;
-	drm_i915_vbl_swap_t vbl_swaps;
-	unsigned int swaps_pending;
-
 	struct intel_opregion opregion;
 
 	/* Register state */
@@ -156,6 +146,7 @@ typedef struct drm_i915_private {
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
+	u32 saveRENDERSTANDBY;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;
 	u32 savePIPEASRC;
@@ -240,11 +231,10 @@ typedef struct drm_i915_private {
 	u8 saveDACDATA[256*3]; /* 256 3-byte colors */
 	u8 saveCR[37];
 
-	/** Work task for vblank-related ring access */
-	struct work_struct vblank_work;
-
 	struct {
 		struct drm_mm gtt_space;
+
+		struct io_mapping *gtt_mapping;
 
 		/**
 		 * List of objects currently involved in rendering from the
@@ -441,7 +431,6 @@ extern int i915_irq_wait(struct drm_device *dev, void *data,
 void i915_user_irq_get(struct drm_device *dev);
 void i915_user_irq_put(struct drm_device *dev);
 
-extern void i915_vblank_work_handler(struct work_struct *work);
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(struct drm_device * dev);
 extern int i915_driver_irq_postinstall(struct drm_device *dev);
@@ -502,6 +491,8 @@ int i915_gem_set_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_get_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_proc_init(struct drm_minor *minor);
 void i915_gem_proc_cleanup(struct drm_minor *minor);
@@ -539,11 +530,18 @@ extern int i915_restore_state(struct drm_device *dev);
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
+#ifdef CONFIG_ACPI
 /* i915_opregion.c */
 extern int intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_free(struct drm_device *dev);
 extern void opregion_asle_intr(struct drm_device *dev);
 extern void opregion_enable_asle(struct drm_device *dev);
+#else
+static inline int intel_opregion_init(struct drm_device *dev) { return 0; }
+static inline void intel_opregion_free(struct drm_device *dev) { return; }
+static inline void opregion_asle_intr(struct drm_device *dev) { return; }
+static inline void opregion_enable_asle(struct drm_device *dev) { return; }
+#endif
 
 /**
  * Lock test for when it's just for synchronization of ring access.
@@ -610,8 +608,9 @@ extern void opregion_enable_asle(struct drm_device *dev);
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
 #define READ_HWSP(dev_priv, reg)  (((volatile u32*)(dev_priv->hw_status_page))[reg])
-#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, 5)
+#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
+#define I915_BREADCRUMB_INDEX		0x21
 
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 

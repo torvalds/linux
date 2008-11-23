@@ -120,18 +120,20 @@ struct trace_boot {
 /*
  * trace_flag_type is an enumeration that holds different
  * states when a trace occurs. These are:
- *  IRQS_OFF	- interrupts were disabled
- *  NEED_RESCED - reschedule is requested
- *  HARDIRQ	- inside an interrupt handler
- *  SOFTIRQ	- inside a softirq handler
- *  CONT	- multiple entries hold the trace item
+ *  IRQS_OFF		- interrupts were disabled
+ *  IRQS_NOSUPPORT 	- arch does not support irqs_disabled_flags
+ *  NEED_RESCED		- reschedule is requested
+ *  HARDIRQ		- inside an interrupt handler
+ *  SOFTIRQ		- inside a softirq handler
+ *  CONT		- multiple entries hold the trace item
  */
 enum trace_flag_type {
 	TRACE_FLAG_IRQS_OFF		= 0x01,
-	TRACE_FLAG_NEED_RESCHED		= 0x02,
-	TRACE_FLAG_HARDIRQ		= 0x04,
-	TRACE_FLAG_SOFTIRQ		= 0x08,
-	TRACE_FLAG_CONT			= 0x10,
+	TRACE_FLAG_IRQS_NOSUPPORT	= 0x02,
+	TRACE_FLAG_NEED_RESCHED		= 0x04,
+	TRACE_FLAG_HARDIRQ		= 0x08,
+	TRACE_FLAG_SOFTIRQ		= 0x10,
+	TRACE_FLAG_CONT			= 0x20,
 };
 
 #define TRACE_BUF_SIZE		1024

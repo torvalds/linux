@@ -189,7 +189,7 @@ static const struct rtc_class_ops ds3234_rtc_ops = {
 	.set_time	= ds3234_set_time,
 };
 
-static int ds3234_probe(struct spi_device *spi)
+static int __devinit ds3234_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
 	unsigned char tmp;
@@ -249,7 +249,7 @@ static int ds3234_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __exit ds3234_remove(struct spi_device *spi)
+static int __devexit ds3234_remove(struct spi_device *spi)
 {
 	struct ds3234 *chip = platform_get_drvdata(spi);
 	struct rtc_device *rtc = chip->rtc;

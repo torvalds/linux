@@ -1251,6 +1251,7 @@ struct kmem_cache *ecryptfs_header_cache_2;
 /**
  * ecryptfs_write_headers_virt
  * @page_virt: The virtual address to write the headers to
+ * @max: The size of memory allocated at page_virt
  * @size: Set to the number of bytes written by this function
  * @crypt_stat: The cryptographic context
  * @ecryptfs_dentry: The eCryptfs dentry
@@ -1278,7 +1279,8 @@ struct kmem_cache *ecryptfs_header_cache_2;
  *
  * Returns zero on success
  */
-static int ecryptfs_write_headers_virt(char *page_virt, size_t *size,
+static int ecryptfs_write_headers_virt(char *page_virt, size_t max,
+				       size_t *size,
 				       struct ecryptfs_crypt_stat *crypt_stat,
 				       struct dentry *ecryptfs_dentry)
 {
@@ -1296,7 +1298,7 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t *size,
 	offset += written;
 	rc = ecryptfs_generate_key_packet_set((page_virt + offset), crypt_stat,
 					      ecryptfs_dentry, &written,
-					      PAGE_CACHE_SIZE - offset);
+					      max - offset);
 	if (rc)
 		ecryptfs_printk(KERN_WARNING, "Error generating key packet "
 				"set; rc = [%d]\n", rc);
@@ -1368,14 +1370,14 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 		goto out;
 	}
 	/* Released in this function */
-	virt = kzalloc(crypt_stat->num_header_bytes_at_front, GFP_KERNEL);
+	virt = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!virt) {
 		printk(KERN_ERR "%s: Out of memory\n", __func__);
 		rc = -ENOMEM;
 		goto out;
 	}
-	rc = ecryptfs_write_headers_virt(virt, &size, crypt_stat,
-					 ecryptfs_dentry);
+	rc = ecryptfs_write_headers_virt(virt, PAGE_CACHE_SIZE, &size,
+					 crypt_stat, ecryptfs_dentry);
 	if (unlikely(rc)) {
 		printk(KERN_ERR "%s: Error whilst writing headers; rc = [%d]\n",
 		       __func__, rc);
@@ -1393,8 +1395,7 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 		goto out_free;
 	}
 out_free:
-	memset(virt, 0, crypt_stat->num_header_bytes_at_front);
-	kfree(virt);
+	free_page((unsigned long)virt);
 out:
 	return rc;
 }
