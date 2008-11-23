@@ -1172,6 +1172,7 @@ child_rip:
 	# exit
 	mov %eax, %edi
 	call do_exit
+	ud2			# padding for call trace
 	CFI_ENDPROC
 ENDPROC(child_rip)
 
