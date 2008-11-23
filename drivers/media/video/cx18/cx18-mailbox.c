@@ -557,9 +557,9 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	if (ret == 0) {
 		/* Timed out */
 		mutex_unlock(mb_lock);
-		CX18_WARN("sending %s timed out waiting %d msecs for RPU "
-			  "acknowledgement\n",
-			  info->name, jiffies_to_msecs(timeout));
+		CX18_DEBUG_WARN("sending %s timed out waiting %d msecs for RPU "
+				"acknowledgement\n",
+				info->name, jiffies_to_msecs(timeout));
 		return -EINVAL;
 	}
 
