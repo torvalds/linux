@@ -19,6 +19,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mtd/plat-ram.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <mach/common.h>
@@ -29,6 +30,31 @@
 #include <mach/board-pcm038.h>
 
 #include "devices.h"
+
+/*
+ * Phytec's PCM038 comes with 2MiB battery buffered SRAM,
+ * 16 bit width
+ */
+
+static struct platdata_mtd_ram pcm038_sram_data = {
+	.bankwidth = 2,
+};
+
+static struct resource pcm038_sram_resource = {
+	.start = CS1_BASE_ADDR,
+	.end   = CS1_BASE_ADDR + 512 * 1024 - 1,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device pcm038_sram_mtd_device = {
+	.name = "mtd-ram",
+	.id = 0,
+	.dev = {
+		.platform_data = &pcm038_sram_data,
+	},
+	.num_resources = 1,
+	.resource = &pcm038_sram_resource,
+};
 
 /*
  * Phytec's phyCORE-i.MX27 comes with 32MiB flash,
@@ -164,11 +190,22 @@ static void gpio_fec_inactive(void)
 static struct platform_device *platform_devices[] __initdata = {
 	&pcm038_nor_mtd_device,
 	&mxc_w1_master_device,
+	&pcm038_sram_mtd_device,
 };
+
+/* On pcm038 there's a sram attached to CS1, we enable the chipselect here and
+ * setup other stuffs to access the sram. */
+static void __init pcm038_init_sram(void)
+{
+	__raw_writel(0x0000d843, CSCR_U(1));
+	__raw_writel(0x22252521, CSCR_L(1));
+	__raw_writel(0x22220a00, CSCR_A(1));
+}
 
 static void __init pcm038_init(void)
 {
 	gpio_fec_active();
+	pcm038_init_sram();
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
 	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
