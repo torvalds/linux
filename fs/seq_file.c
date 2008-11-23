@@ -358,10 +358,10 @@ int seq_printf(struct seq_file *m, const char *f, ...)
 EXPORT_SYMBOL(seq_printf);
 
 /**
- * 	mangle_path - mangle and copy path to buffer beginning
- * 	@s - buffer start
- * 	@p - beginning of path in above buffer
- *      @esc - set of characters that need escaping
+ *	mangle_path -	mangle and copy path to buffer beginning
+ *	@s: buffer start
+ *	@p: beginning of path in above buffer
+ *	@esc: set of characters that need escaping
  *
  *      Copy the path from @p to @s, replacing each occurrence of character from
  *      @esc with usual octal escape.
