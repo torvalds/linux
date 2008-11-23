@@ -34,9 +34,13 @@ static inline void get_memcfg_numa(void)
 
 extern int early_pfn_to_nid(unsigned long pfn);
 
+extern void resume_map_numa_kva(pgd_t *pgd);
+
 #else /* !CONFIG_NUMA */
 
 #define get_memcfg_numa get_memcfg_numa_flat
+
+static inline void resume_map_numa_kva(pgd_t *pgd) {}
 
 #endif /* CONFIG_NUMA */
 

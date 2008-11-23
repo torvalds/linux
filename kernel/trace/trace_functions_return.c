@@ -14,6 +14,19 @@
 #include "trace.h"
 
 
+#define TRACE_RETURN_PRINT_OVERRUN	0x1
+static struct tracer_opt trace_opts[] = {
+	/* Display overruns or not */
+	{ TRACER_OPT(overrun, TRACE_RETURN_PRINT_OVERRUN) },
+	{ } /* Empty entry */
+};
+
+static struct tracer_flags tracer_flags = {
+	.val = 0, /* Don't display overruns by default */
+	.opts = trace_opts
+};
+
+
 static int return_trace_init(struct trace_array *tr)
 {
 	int cpu;
@@ -42,26 +55,39 @@ print_return_function(struct trace_iterator *iter)
 		ret = trace_seq_printf(s, "%pF -> ", (void *)field->parent_ip);
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
+
 		ret = seq_print_ip_sym(s, field->ip,
 					trace_flags & TRACE_ITER_SYM_MASK);
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
-		ret = trace_seq_printf(s, " (%llu ns)\n",
+
+		ret = trace_seq_printf(s, " (%llu ns)",
 					field->rettime - field->calltime);
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
-		else
-			return TRACE_TYPE_HANDLED;
+
+		if (tracer_flags.val & TRACE_RETURN_PRINT_OVERRUN) {
+			ret = trace_seq_printf(s, " (Overruns: %lu)",
+						field->overrun);
+			if (!ret)
+				return TRACE_TYPE_PARTIAL_LINE;
+		}
+
+		ret = trace_seq_printf(s, "\n");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+
+		return TRACE_TYPE_HANDLED;
 	}
 	return TRACE_TYPE_UNHANDLED;
 }
 
-static struct tracer return_trace __read_mostly =
-{
+static struct tracer return_trace __read_mostly = {
 	.name	     = "return",
 	.init	     = return_trace_init,
 	.reset	     = return_trace_reset,
-	.print_line = print_return_function
+	.print_line = print_return_function,
+	.flags		= &tracer_flags,
 };
 
 static __init int init_return_trace(void)

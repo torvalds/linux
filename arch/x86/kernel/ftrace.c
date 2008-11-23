@@ -353,8 +353,10 @@ static int push_return_trace(unsigned long ret, unsigned long long time,
 	struct thread_info *ti = current_thread_info();
 
 	/* The return trace stack is full */
-	if (ti->curr_ret_stack == FTRACE_RET_STACK_SIZE - 1)
+	if (ti->curr_ret_stack == FTRACE_RET_STACK_SIZE - 1) {
+		atomic_inc(&ti->trace_overrun);
 		return -EBUSY;
+	}
 
 	index = ++ti->curr_ret_stack;
 	barrier();
@@ -367,7 +369,7 @@ static int push_return_trace(unsigned long ret, unsigned long long time,
 
 /* Retrieve a function return address to the trace stack on thread info.*/
 static void pop_return_trace(unsigned long *ret, unsigned long long *time,
-				unsigned long *func)
+				unsigned long *func, unsigned long *overrun)
 {
 	int index;
 
@@ -376,6 +378,7 @@ static void pop_return_trace(unsigned long *ret, unsigned long long *time,
 	*ret = ti->ret_stack[index].ret;
 	*func = ti->ret_stack[index].func;
 	*time = ti->ret_stack[index].calltime;
+	*overrun = atomic_read(&ti->trace_overrun);
 	ti->curr_ret_stack--;
 }
 
@@ -386,7 +389,8 @@ static void pop_return_trace(unsigned long *ret, unsigned long long *time,
 unsigned long ftrace_return_to_handler(void)
 {
 	struct ftrace_retfunc trace;
-	pop_return_trace(&trace.ret, &trace.calltime, &trace.func);
+	pop_return_trace(&trace.ret, &trace.calltime, &trace.func,
+			&trace.overrun);
 	trace.rettime = cpu_clock(raw_smp_processor_id());
 	ftrace_function_return(&trace);
 

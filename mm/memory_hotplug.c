@@ -22,7 +22,6 @@
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
 #include <linux/ioport.h>
-#include <linux/cpuset.h>
 #include <linux/delay.h>
 #include <linux/migrate.h>
 #include <linux/page-isolation.h>
@@ -497,8 +496,6 @@ int add_memory(int nid, u64 start, u64 size)
 
 	/* we online node here. we can't roll back from here. */
 	node_set_online(nid);
-
-	cpuset_track_online_nodes();
 
 	if (new_pgdat) {
 		ret = register_one_node(nid);

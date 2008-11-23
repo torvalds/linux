@@ -43,6 +43,20 @@
 unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
 unsigned long __read_mostly	tracing_thresh;
 
+/* For tracers that don't implement custom flags */
+static struct tracer_opt dummy_tracer_opt[] = {
+	{ }
+};
+
+static struct tracer_flags dummy_tracer_flags = {
+	.val = 0,
+	.opts = dummy_tracer_opt
+};
+
+static int dummy_set_flag(u32 old_flags, u32 bit, int set)
+{
+	return 0;
+}
 
 /*
  * Kill all tracing for good (never come back).
@@ -537,6 +551,14 @@ int register_tracer(struct tracer *type)
 		}
 	}
 
+	if (!type->set_flag)
+		type->set_flag = &dummy_set_flag;
+	if (!type->flags)
+		type->flags = &dummy_tracer_flags;
+	else
+		if (!type->flags->opts)
+			type->flags->opts = dummy_tracer_opt;
+
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 	if (type->selftest) {
 		struct tracer *saved_tracer = current_trace;
@@ -840,6 +862,7 @@ static void __trace_function_return(struct trace_array *tr,
 	entry->parent_ip	= trace->ret;
 	entry->rettime		= trace->rettime;
 	entry->calltime		= trace->calltime;
+	entry->overrun		= trace->overrun;
 	ring_buffer_unlock_commit(global_trace.buffer, event, irq_flags);
 }
 #endif
@@ -2436,14 +2459,26 @@ static ssize_t
 tracing_trace_options_read(struct file *filp, char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
+	int i;
 	char *buf;
 	int r = 0;
 	int len = 0;
-	int i;
+	u32 tracer_flags = current_trace->flags->val;
+	struct tracer_opt *trace_opts = current_trace->flags->opts;
+
 
 	/* calulate max size */
 	for (i = 0; trace_options[i]; i++) {
 		len += strlen(trace_options[i]);
+		len += 3; /* "no" and space */
+	}
+
+	/*
+	 * Increase the size with names of options specific
+	 * of the current tracer.
+	 */
+	for (i = 0; trace_opts[i].name; i++) {
+		len += strlen(trace_opts[i].name);
 		len += 3; /* "no" and space */
 	}
 
@@ -2459,6 +2494,15 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 			r += sprintf(buf + r, "no%s ", trace_options[i]);
 	}
 
+	for (i = 0; trace_opts[i].name; i++) {
+		if (tracer_flags & trace_opts[i].bit)
+			r += sprintf(buf + r, "%s ",
+				trace_opts[i].name);
+		else
+			r += sprintf(buf + r, "no%s ",
+				trace_opts[i].name);
+	}
+
 	r += sprintf(buf + r, "\n");
 	WARN_ON(r >= len + 2);
 
@@ -2469,6 +2513,40 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 	return r;
 }
 
+/* Try to assign a tracer specific option */
+static int set_tracer_option(struct tracer *trace, char *cmp, int neg)
+{
+	struct tracer_flags *trace_flags = trace->flags;
+	struct tracer_opt *opts = NULL;
+	int ret = 0, i = 0;
+	int len;
+
+	for (i = 0; trace_flags->opts[i].name; i++) {
+		opts = &trace_flags->opts[i];
+		len = strlen(opts->name);
+
+		if (strncmp(cmp, opts->name, len) == 0) {
+			ret = trace->set_flag(trace_flags->val,
+				opts->bit, !neg);
+			break;
+		}
+	}
+	/* Not found */
+	if (!trace_flags->opts[i].name)
+		return -EINVAL;
+
+	/* Refused to handle */
+	if (ret)
+		return ret;
+
+	if (neg)
+		trace_flags->val &= ~opts->bit;
+	else
+		trace_flags->val |= opts->bit;
+
+	return 0;
+}
+
 static ssize_t
 tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 			size_t cnt, loff_t *ppos)
@@ -2476,6 +2554,7 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 	char buf[64];
 	char *cmp = buf;
 	int neg = 0;
+	int ret;
 	int i;
 
 	if (cnt >= sizeof(buf))
@@ -2502,11 +2581,13 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 			break;
 		}
 	}
-	/*
-	 * If no option could be set, return an error:
-	 */
-	if (!trace_options[i])
-		return -EINVAL;
+
+	/* If no option could be set, test the specific tracer options */
+	if (!trace_options[i]) {
+		ret = set_tracer_option(current_trace, cmp, neg);
+		if (ret)
+			return ret;
+	}
 
 	filp->f_pos += cnt;
 

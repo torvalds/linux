@@ -60,6 +60,7 @@ struct ftrace_ret_entry {
 	unsigned long		parent_ip;
 	unsigned long long	calltime;
 	unsigned long long	rettime;
+	unsigned long		overrun;
 };
 extern struct tracer boot_tracer;
 
@@ -259,6 +260,29 @@ enum print_line_t {
 	TRACE_TYPE_UNHANDLED	= 2	/* Relay to other output functions */
 };
 
+
+/*
+ * An option specific to a tracer. This is a boolean value.
+ * The bit is the bit index that sets its value on the
+ * flags value in struct tracer_flags.
+ */
+struct tracer_opt {
+	const char 	*name; /* Will appear on the trace_options file */
+	u32 		bit; /* Mask assigned in val field in tracer_flags */
+};
+
+/*
+ * The set of specific options for a tracer. Your tracer
+ * have to set the initial value of the flags val.
+ */
+struct tracer_flags {
+	u32			val;
+	struct tracer_opt 	*opts;
+};
+
+/* Makes more easy to define a tracer opt */
+#define TRACER_OPT(s, b)	.name = #s, .bit = b
+
 /*
  * A specific tracer, represented by methods that operate on a trace array:
  */
@@ -280,8 +304,11 @@ struct tracer {
 					    struct trace_array *tr);
 #endif
 	enum print_line_t	(*print_line)(struct trace_iterator *iter);
+	/* If you handled the flag setting, return 0 */
+	int			(*set_flag)(u32 old_flags, u32 bit, int set);
 	struct tracer		*next;
 	int			print_max;
+	struct tracer_flags 	*flags;
 };
 
 struct trace_seq {

@@ -1102,11 +1102,13 @@ static int ax88178_link_reset(struct usbnet *dev)
 	mode = AX88178_MEDIUM_DEFAULT;
 
 	if (ecmd.speed == SPEED_1000)
-		mode |= AX_MEDIUM_GM | AX_MEDIUM_ENCK;
+		mode |= AX_MEDIUM_GM;
 	else if (ecmd.speed == SPEED_100)
 		mode |= AX_MEDIUM_PS;
 	else
 		mode &= ~(AX_MEDIUM_PS | AX_MEDIUM_GM);
+
+	mode |= AX_MEDIUM_ENCK;
 
 	if (ecmd.duplex == DUPLEX_FULL)
 		mode |= AX_MEDIUM_FD;

@@ -2016,6 +2016,7 @@ static inline void setup_thread_stack(struct task_struct *p, struct task_struct 
 	 * used.
 	 */
 	task_thread_info(p)->curr_ret_stack = -1;
+	atomic_set(&task_thread_info(p)->trace_overrun, 0);
 #endif
 }
 
