@@ -1035,10 +1035,6 @@ MODULE_PARM_DESC(copybreak, "Receive copy threshold");
  *	@pdev: the PCI device that received the packet
  *	@fl: the SGE free list holding the packet
  *	@len: the actual packet length, excluding any SGE padding
- *	@dma_pad: padding at beginning of buffer left by SGE DMA
- *	@skb_pad: padding to be used if the packet is copied
- *	@copy_thres: length threshold under which a packet should be copied
- *	@drop_thres: # of remaining buffers before we start dropping packets
  *
  *	Get the next packet from a free list and complete setup of the
  *	sk_buff.  If the packet is small we make a copy and recycle the
