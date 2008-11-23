@@ -36,6 +36,7 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-pcm037.h>
+#include <mach/mxc_nand.h>
 
 #include "devices.h"
 
@@ -111,6 +112,11 @@ static struct platform_device pcm037_sram_device = {
 	.resource = &pcm038_sram_resource,
 };
 
+static struct mxc_nand_platform_data pcm037_nand_board_info = {
+	.width = 1,
+	.hw_ecc = 1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_eth,
@@ -143,6 +149,8 @@ static void __init mxc_board_init(void)
 	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_GPIO3_1, IOMUX_CONFIG_GPIO));
 	if (!gpio_request(MX31_PIN_GPIO3_1, "pcm037-eth"))
 		gpio_direction_input(MX31_PIN_GPIO3_1);
+
+	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
 }
 
 /*
