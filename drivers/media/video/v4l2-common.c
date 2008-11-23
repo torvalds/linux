@@ -58,6 +58,7 @@
 #include <asm/div64.h>
 #define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 
 #include <linux/videodev2.h>
@@ -801,4 +802,116 @@ int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver 
 	return err != -ENOMEM ? 0 : err;
 }
 EXPORT_SYMBOL(v4l2_i2c_attach);
+
+void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
+		const struct v4l2_subdev_ops *ops)
+{
+	v4l2_subdev_init(sd, ops);
+	/* the owner is the same as the i2c_client's driver owner */
+	sd->owner = client->driver->driver.owner;
+	/* i2c_client and v4l2_subdev point to one another */
+	v4l2_set_subdevdata(sd, client);
+	i2c_set_clientdata(client, sd);
+	/* initialize name */
+	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
+		client->driver->driver.name, i2c_adapter_id(client->adapter),
+		client->addr);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
+
+
+
+/* Load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
+   returns the v4l2_device and that i2c_get_clientdata(client)
+   returns the v4l2_subdev. */
+struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type, u8 addr)
+{
+	struct v4l2_device *dev = i2c_get_adapdata(adapter);
+	struct v4l2_subdev *sd = NULL;
+	struct i2c_client *client;
+	struct i2c_board_info info;
+
+	BUG_ON(!dev);
+#ifdef MODULE
+	if (module_name)
+		request_module(module_name);
+#endif
+	/* Setup the i2c board info with the device type and
+	   the device address. */
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, client_type, sizeof(info.type));
+	info.addr = addr;
+
+	/* Create the i2c client */
+	client = i2c_new_device(adapter, &info);
+	/* Note: it is possible in the future that
+	   c->driver is NULL if the driver is still being loaded.
+	   We need better support from the kernel so that we
+	   can easily wait for the load to finish. */
+	if (client == NULL || client->driver == NULL)
+		return NULL;
+
+	/* Lock the module so we can safely get the v4l2_subdev pointer */
+	if (!try_module_get(client->driver->driver.owner))
+		return NULL;
+	sd = i2c_get_clientdata(client);
+
+	/* Register with the v4l2_device which increases the module's
+	   use count as well. */
+	if (v4l2_device_register_subdev(dev, sd))
+		sd = NULL;
+	/* Decrease the module use count to match the first try_module_get. */
+	module_put(client->driver->driver.owner);
+	return sd;
+
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev);
+
+/* Probe and load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
+   returns the v4l2_device and that i2c_get_clientdata(client)
+   returns the v4l2_subdev. */
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
+	const char *module_name, const char *client_type,
+	const unsigned short *addrs)
+{
+	struct v4l2_device *dev = i2c_get_adapdata(adapter);
+	struct v4l2_subdev *sd = NULL;
+	struct i2c_client *client = NULL;
+	struct i2c_board_info info;
+
+	BUG_ON(!dev);
+#ifdef MODULE
+	if (module_name)
+		request_module(module_name);
+#endif
+	/* Setup the i2c board info with the device type and
+	   the device address. */
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, client_type, sizeof(info.type));
+
+	/* Probe and create the i2c client */
+	client = i2c_new_probed_device(adapter, &info, addrs);
+	/* Note: it is possible in the future that
+	   c->driver is NULL if the driver is still being loaded.
+	   We need better support from the kernel so that we
+	   can easily wait for the load to finish. */
+	if (client == NULL || client->driver == NULL)
+		return NULL;
+
+	/* Lock the module so we can safely get the v4l2_subdev pointer */
+	if (!try_module_get(client->driver->driver.owner))
+		return NULL;
+	sd = i2c_get_clientdata(client);
+
+	/* Register with the v4l2_device which increases the module's
+	   use count as well. */
+	if (v4l2_device_register_subdev(dev, sd))
+		sd = NULL;
+	/* Decrease the module use count to match the first try_module_get. */
+	module_put(client->driver->driver.owner);
+	return sd;
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev);
+
 #endif
