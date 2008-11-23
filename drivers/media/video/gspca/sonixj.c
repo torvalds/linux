@@ -1123,25 +1123,6 @@ static unsigned int setexposure(struct gspca_dev *gspca_dev,
 	return expo;
 }
 
-/* this function is used for sensors o76xx only */
-static void setbrightcont(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int val;
-	__u8 reg84_full[0x15];
-
-	memcpy(reg84_full, reg84, sizeof reg84_full);
-	val = sd->contrast * 0x30 / CONTRAST_MAX + 0x10;	/* 10..40 */
-	reg84_full[0] = (val + 1) / 2;		/* red */
-	reg84_full[2] = val;			/* green */
-	reg84_full[4] = (val + 1) / 5;		/* blue */
-	val = (sd->brightness - BRIGHTNESS_DEF) * 0x10
-			/ BRIGHTNESS_MAX;
-	reg84_full[0x12] = val & 0x1f;		/* 5:0 signed value */
-	reg_w(gspca_dev, 0x84, reg84_full, sizeof reg84_full);
-}
-
-/* sensor != ov76xx */
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1166,24 +1147,23 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	case SENSOR_OM6802:
 		expo = sd->brightness >> 6;
 		sd->exposure = setexposure(gspca_dev, expo);
-		k2 = sd->brightness >> 11;
+		k2 >>= 1;
 		break;
 	}
 
-	reg_w1(gspca_dev, 0x96, k2);
+	reg_w1(gspca_dev, 0x96, k2);		/* color matrix Y offset */
 }
 
-/* sensor != ov76xx */
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 k2;
 	__u8 contrast[] = { 0x00, 0x00, 0x28, 0x00, 0x07, 0x00 };
 
-	k2 = sd->contrast;
-	contrast[2] = k2;
-	contrast[0] = (k2 + 1) >> 1;
-	contrast[4] = (k2 + 1) / 5;
+	k2 = sd->contrast * 0x30 / (CONTRAST_MAX + 1) + 0x10;	/* 10..40 */
+	contrast[0] = (k2 + 1) / 2;		/* red */
+	contrast[2] = k2;			/* green */
+	contrast[4] = (k2 + 1) / 5;		/* blue */
 	reg_w(gspca_dev, 0x84, contrast, 6);
 }
 
@@ -1392,20 +1372,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_MI0360:
 		setinfrared(sd);
-		/* fall thru */
-	case SENSOR_HV7131R:
-	case SENSOR_MO4000:
-	case SENSOR_OM6802:
-		setbrightness(gspca_dev);
-		setcontrast(gspca_dev);
 		break;
 	case SENSOR_OV7630:
 		setvflip(sd);
-		/* fall thru */
-	default:			/* OV76xx */
-		setbrightcont(gspca_dev);
 		break;
 	}
+	setbrightness(gspca_dev);
+	setcontrast(gspca_dev);
 	setautogain(gspca_dev);
 	return 0;
 }
@@ -1543,19 +1516,8 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->brightness = val;
-	if (gspca_dev->streaming) {
-		switch (sd->sensor) {
-		case SENSOR_HV7131R:
-		case SENSOR_MI0360:
-		case SENSOR_MO4000:
-		case SENSOR_OM6802:
-			setbrightness(gspca_dev);
-			break;
-		default:			/* OV76xx */
-			setbrightcont(gspca_dev);
-			break;
-		}
-	}
+	if (gspca_dev->streaming)
+		setbrightness(gspca_dev);
 	return 0;
 }
 
@@ -1572,19 +1534,8 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->contrast = val;
-	if (gspca_dev->streaming) {
-		switch (sd->sensor) {
-		case SENSOR_HV7131R:
-		case SENSOR_MI0360:
-		case SENSOR_MO4000:
-		case SENSOR_OM6802:
-			setcontrast(gspca_dev);
-			break;
-		default:			/* OV76xx */
-			setbrightcont(gspca_dev);
-			break;
-		}
-	}
+	if (gspca_dev->streaming)
+		setcontrast(gspca_dev);
 	return 0;
 }
 
