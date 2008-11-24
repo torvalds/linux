@@ -5499,19 +5499,24 @@ asmlinkage long sys_sched_getaffinity(pid_t pid, unsigned int len,
 				      unsigned long __user *user_mask_ptr)
 {
 	int ret;
-	cpumask_t mask;
+	cpumask_var_t mask;
 
-	if (len < sizeof(cpumask_t))
+	if (len < cpumask_size())
 		return -EINVAL;
 
-	ret = sched_getaffinity(pid, &mask);
-	if (ret < 0)
-		return ret;
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+		return -ENOMEM;
 
-	if (copy_to_user(user_mask_ptr, &mask, sizeof(cpumask_t)))
-		return -EFAULT;
+	ret = sched_getaffinity(pid, mask);
+	if (ret == 0) {
+		if (copy_to_user(user_mask_ptr, mask, cpumask_size()))
+			ret = -EFAULT;
+		else
+			ret = cpumask_size();
+	}
+	free_cpumask_var(mask);
 
-	return sizeof(cpumask_t);
+	return ret;
 }
 
 /**
