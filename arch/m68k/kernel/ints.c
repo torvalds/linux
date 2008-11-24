@@ -133,7 +133,7 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 {
 	int i;
 
-	BUG_ON(IRQ_USER + cnt >= NR_IRQS);
+	BUG_ON(IRQ_USER + cnt > NR_IRQS);
 	m68k_first_user_vec = vec;
 	for (i = 0; i < cnt; i++)
 		irq_controller[IRQ_USER + i] = &user_irq_controller;
@@ -429,8 +429,9 @@ int show_interrupts(struct seq_file *p, void *v)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 void init_irq_proc(void)
 {
 	/* Insert /proc/irq driver here */
 }
-
+#endif

@@ -5,11 +5,11 @@
  *
  * O_DIRECT
  *
- * 04Jul2002	akpm@zip.com.au
+ * 04Jul2002	Andrew Morton
  *		Initial version
  * 11Sep2002	janetinc@us.ibm.com
  * 		added readv/writev support.
- * 29Oct2002	akpm@zip.com.au
+ * 29Oct2002	Andrew Morton
  *		rewrote bio_add_page() support.
  * 30Oct2002	pbadari@us.ibm.com
  *		added support for non-aligned IO.

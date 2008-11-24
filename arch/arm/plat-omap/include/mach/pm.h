@@ -39,11 +39,11 @@
  * Register and offset definitions to be used in PM assembler code
  * ----------------------------------------------------------------------------
  */
-#define CLKGEN_REG_ASM_BASE		io_p2v(0xfffece00)
+#define CLKGEN_REG_ASM_BASE		IO_ADDRESS(0xfffece00)
 #define ARM_IDLECT1_ASM_OFFSET		0x04
 #define ARM_IDLECT2_ASM_OFFSET		0x08
 
-#define TCMIF_ASM_BASE			io_p2v(0xfffecc00)
+#define TCMIF_ASM_BASE			IO_ADDRESS(0xfffecc00)
 #define EMIFS_CONFIG_ASM_OFFSET		0x0c
 #define EMIFF_SDRAM_CONFIG_ASM_OFFSET	0x20
 
@@ -135,7 +135,8 @@ extern void omap_pm_suspend(void);
 extern void omap730_cpu_suspend(unsigned short, unsigned short);
 extern void omap1510_cpu_suspend(unsigned short, unsigned short);
 extern void omap1610_cpu_suspend(unsigned short, unsigned short);
-extern void omap24xx_cpu_suspend(u32 dll_ctrl, u32 cpu_revision);
+extern void omap24xx_cpu_suspend(u32 dll_ctrl, void __iomem *sdrc_dlla_ctrl,
+					void __iomem *sdrc_power);
 extern void omap730_idle_loop_suspend(void);
 extern void omap1510_idle_loop_suspend(void);
 extern void omap1610_idle_loop_suspend(void);

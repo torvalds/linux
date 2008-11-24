@@ -13,9 +13,7 @@
 #include <linux/nls.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#ifdef CONFIG_KMOD
 #include <linux/kmod.h>
-#endif
 #include <linux/spinlock.h>
 
 static struct nls_table default_table;
@@ -215,24 +213,7 @@ static struct nls_table *find_nls(char *charset)
 
 struct nls_table *load_nls(char *charset)
 {
-	struct nls_table *nls;
-#ifdef CONFIG_KMOD
-	int ret;
-#endif
-
-	nls = find_nls(charset);
-	if (nls)
-		return nls;
-
-#ifdef CONFIG_KMOD
-	ret = request_module("nls_%s", charset);
-	if (ret != 0) {
-		printk("Unable to load NLS charset %s\n", charset);
-		return NULL;
-	}
-	nls = find_nls(charset);
-#endif
-	return nls;
+	return try_then_request_module(find_nls(charset), "nls_%s", charset);
 }
 
 void unload_nls(struct nls_table *nls)

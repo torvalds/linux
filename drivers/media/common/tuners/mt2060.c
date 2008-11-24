@@ -170,6 +170,9 @@ static int mt2060_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	b[0] = REG_LO1B1;
 	b[1] = 0xFF;
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
+
 	mt2060_writeregs(priv,b,2);
 
 	freq = params->frequency / 1000; // Hz -> kHz
@@ -232,6 +235,9 @@ static int mt2060_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 		msleep(4);
 		i++;
 	} while (i<10);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
 	return ret;
 }
@@ -296,13 +302,35 @@ static int mt2060_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 static int mt2060_init(struct dvb_frontend *fe)
 {
 	struct mt2060_priv *priv = fe->tuner_priv;
-	return mt2060_writereg(priv, REG_VGAG, (priv->cfg->clock_out << 6) | 0x33);
+	int ret;
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
+
+	ret = mt2060_writereg(priv, REG_VGAG,
+			      (priv->cfg->clock_out << 6) | 0x33);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
+
+	return ret;
 }
 
 static int mt2060_sleep(struct dvb_frontend *fe)
 {
 	struct mt2060_priv *priv = fe->tuner_priv;
-	return mt2060_writereg(priv, REG_VGAG, (priv->cfg->clock_out << 6) | 0x30);
+	int ret;
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
+
+	ret = mt2060_writereg(priv, REG_VGAG,
+			      (priv->cfg->clock_out << 6) | 0x30);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
+
+	return ret;
 }
 
 static int mt2060_release(struct dvb_frontend *fe)
@@ -344,6 +372,9 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	priv->i2c      = i2c;
 	priv->if1_freq = if1;
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
+
 	if (mt2060_readreg(priv,REG_PART_REV,&id) != 0) {
 		kfree(priv);
 		return NULL;
@@ -359,6 +390,9 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	fe->tuner_priv = priv;
 
 	mt2060_calibrate(priv);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
 	return fe;
 }

@@ -64,6 +64,7 @@
 #include "sysfile.h"
 #include "uptodate.h"
 #include "ver.h"
+#include "xattr.h"
 
 #include "buffer_head_io.h"
 
@@ -154,10 +155,13 @@ enum {
 	Opt_localalloc,
 	Opt_localflocks,
 	Opt_stack,
+	Opt_user_xattr,
+	Opt_nouser_xattr,
+	Opt_inode64,
 	Opt_err,
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_barrier, "barrier=%u"},
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
@@ -173,6 +177,9 @@ static match_table_t tokens = {
 	{Opt_localalloc, "localalloc=%d"},
 	{Opt_localflocks, "localflocks"},
 	{Opt_stack, "cluster_stack=%s"},
+	{Opt_user_xattr, "user_xattr"},
+	{Opt_nouser_xattr, "nouser_xattr"},
+	{Opt_inode64, "inode64"},
 	{Opt_err, NULL}
 };
 
@@ -205,10 +212,11 @@ static int ocfs2_sync_fs(struct super_block *sb, int wait)
 		ocfs2_schedule_truncate_log_flush(osb, 0);
 	}
 
-	if (journal_start_commit(OCFS2_SB(sb)->journal->j_journal, &target)) {
+	if (jbd2_journal_start_commit(OCFS2_SB(sb)->journal->j_journal,
+				      &target)) {
 		if (wait)
-			log_wait_commit(OCFS2_SB(sb)->journal->j_journal,
-					target);
+			jbd2_log_wait_commit(OCFS2_SB(sb)->journal->j_journal,
+					     target);
 	}
 	return 0;
 }
@@ -325,6 +333,7 @@ static struct inode *ocfs2_alloc_inode(struct super_block *sb)
 	if (!oi)
 		return NULL;
 
+	jbd2_journal_init_jbd_inode(&oi->ip_jinode, &oi->vfs_inode);
 	return &oi->vfs_inode;
 }
 
@@ -403,6 +412,15 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 	    (parsed_options.mount_opt & OCFS2_MOUNT_DATA_WRITEBACK)) {
 		ret = -EINVAL;
 		mlog(ML_ERROR, "Cannot change data mode on remount\n");
+		goto out;
+	}
+
+	/* Probably don't want this on remount; it might
+	 * mess with other nodes */
+	if (!(osb->s_mount_opt & OCFS2_MOUNT_INODE64) &&
+	    (parsed_options.mount_opt & OCFS2_MOUNT_INODE64)) {
+		ret = -EINVAL;
+		mlog(ML_ERROR, "Cannot enable inode64 on remount\n");
 		goto out;
 	}
 
@@ -637,7 +655,8 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	osb->s_atime_quantum = parsed_options.atime_quantum;
 	osb->preferred_slot = parsed_options.slot;
 	osb->osb_commit_interval = parsed_options.commit_interval;
-	osb->local_alloc_size = parsed_options.localalloc_opt;
+	osb->local_alloc_default_bits = ocfs2_megabytes_to_clusters(sb, parsed_options.localalloc_opt);
+	osb->local_alloc_bits = osb->local_alloc_default_bits;
 
 	status = ocfs2_verify_userspace_stack(osb, &parsed_options);
 	if (status)
@@ -743,8 +762,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	return status;
 
 read_super_error:
-	if (bh != NULL)
-		brelse(bh);
+	brelse(bh);
 
 	if (inode)
 		iput(inode);
@@ -847,6 +865,12 @@ static int ocfs2_parse_options(struct super_block *sb,
 		case Opt_data_writeback:
 			mopt->mount_opt |= OCFS2_MOUNT_DATA_WRITEBACK;
 			break;
+		case Opt_user_xattr:
+			mopt->mount_opt &= ~OCFS2_MOUNT_NOUSERXATTR;
+			break;
+		case Opt_nouser_xattr:
+			mopt->mount_opt |= OCFS2_MOUNT_NOUSERXATTR;
+			break;
 		case Opt_atime_quantum:
 			if (match_int(&args[0], &option)) {
 				status = 0;
@@ -873,7 +897,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 			if (option < 0)
 				return 0;
 			if (option == 0)
-				option = JBD_DEFAULT_MAX_COMMIT_AGE;
+				option = JBD2_DEFAULT_MAX_COMMIT_AGE;
 			mopt->commit_interval = HZ * option;
 			break;
 		case Opt_localalloc:
@@ -918,6 +942,9 @@ static int ocfs2_parse_options(struct super_block *sb,
 			       OCFS2_STACK_LABEL_LEN);
 			mopt->cluster_stack[OCFS2_STACK_LABEL_LEN] = '\0';
 			break;
+		case Opt_inode64:
+			mopt->mount_opt |= OCFS2_MOUNT_INODE64;
+			break;
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -938,6 +965,7 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
 	struct ocfs2_super *osb = OCFS2_SB(mnt->mnt_sb);
 	unsigned long opts = osb->s_mount_opt;
+	unsigned int local_alloc_megs;
 
 	if (opts & OCFS2_MOUNT_HB_LOCAL)
 		seq_printf(s, ",_netdev,heartbeat=local");
@@ -970,8 +998,9 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",commit=%u",
 			   (unsigned) (osb->osb_commit_interval / HZ));
 
-	if (osb->local_alloc_size != OCFS2_DEFAULT_LOCAL_ALLOC_SIZE)
-		seq_printf(s, ",localalloc=%d", osb->local_alloc_size);
+	local_alloc_megs = osb->local_alloc_bits >> (20 - osb->s_clustersize_bits);
+	if (local_alloc_megs != OCFS2_DEFAULT_LOCAL_ALLOC_SIZE)
+		seq_printf(s, ",localalloc=%d", local_alloc_megs);
 
 	if (opts & OCFS2_MOUNT_LOCALFLOCKS)
 		seq_printf(s, ",localflocks,");
@@ -979,6 +1008,14 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	if (osb->osb_cluster_stack[0])
 		seq_printf(s, ",cluster_stack=%.*s", OCFS2_STACK_LABEL_LEN,
 			   osb->osb_cluster_stack);
+
+	if (opts & OCFS2_MOUNT_NOUSERXATTR)
+		seq_printf(s, ",nouser_xattr");
+	else
+		seq_printf(s, ",user_xattr");
+
+	if (opts & OCFS2_MOUNT_INODE64)
+		seq_printf(s, ",inode64");
 
 	return 0;
 }
@@ -1132,6 +1169,7 @@ static void ocfs2_inode_init_once(void *data)
 	oi->ip_dir_start_lookup = 0;
 
 	init_rwsem(&oi->ip_alloc_sem);
+	init_rwsem(&oi->ip_xattr_sem);
 	mutex_init(&oi->ip_io_mutex);
 
 	oi->ip_blkno = 0ULL;
@@ -1375,6 +1413,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	sb->s_fs_info = osb;
 	sb->s_op = &ocfs2_sops;
 	sb->s_export_op = &ocfs2_export_ops;
+	sb->s_xattr = ocfs2_xattr_handlers;
 	sb->s_time_gran = 1;
 	sb->s_flags |= MS_NOATIME;
 	/* this is needed to support O_LARGEFILE */
@@ -1421,8 +1460,12 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	osb->slot_num = OCFS2_INVALID_SLOT;
 
+	osb->s_xattr_inline_size = le16_to_cpu(
+					di->id2.i_super.s_xattr_inline_size);
+
 	osb->local_alloc_state = OCFS2_LA_UNUSED;
 	osb->local_alloc_bh = NULL;
+	INIT_DELAYED_WORK(&osb->la_enable_wq, ocfs2_la_enable_worker);
 
 	init_waitqueue_head(&osb->osb_mount_event);
 
@@ -1568,6 +1611,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->first_cluster_group_blkno =
 		le64_to_cpu(di->id2.i_super.s_first_cluster_group);
 	osb->fs_generation = le32_to_cpu(di->i_fs_generation);
+	osb->uuid_hash = le32_to_cpu(di->id2.i_super.s_uuid_hash);
 	mlog(0, "vol_label: %s\n", osb->vol_label);
 	mlog(0, "uuid: %s\n", osb->uuid_str);
 	mlog(0, "root_blkno=%llu, system_dir_blkno=%llu\n",

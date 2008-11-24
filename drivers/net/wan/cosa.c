@@ -388,8 +388,8 @@ static int __init cosa_init(void)
 		goto out_chrdev;
 	}
 	for (i = 0; i < nr_cards; i++)
-		device_create_drvdata(cosa_class, NULL, MKDEV(cosa_major, i),
-				      NULL, "cosa%d", i);
+		device_create(cosa_class, NULL, MKDEV(cosa_major, i), NULL,
+			      "cosa%d", i);
 	err = 0;
 	goto out;
 

@@ -53,6 +53,12 @@ struct ovcamchip {
 	int initialized;           /* OVCAMCHIP_CMD_INITIALIZE was successful */
 };
 
+extern struct ovcamchip_ops ov6x20_ops;
+extern struct ovcamchip_ops ov6x30_ops;
+extern struct ovcamchip_ops ov7x10_ops;
+extern struct ovcamchip_ops ov7x20_ops;
+extern struct ovcamchip_ops ov76be_ops;
+
 /* --------------------------------- */
 /*              I2C I/O              */
 /* --------------------------------- */

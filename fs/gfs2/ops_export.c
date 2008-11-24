@@ -130,28 +130,17 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 static struct dentry *gfs2_get_parent(struct dentry *child)
 {
 	struct qstr dotdot;
-	struct inode *inode;
 	struct dentry *dentry;
 
-	gfs2_str2qstr(&dotdot, "..");
-	inode = gfs2_lookupi(child->d_inode, &dotdot, 1);
-
-	if (!inode)
-		return ERR_PTR(-ENOENT);
 	/*
-	 * In case of an error, @inode carries the error value, and we
-	 * have to return that as a(n invalid) pointer to dentry.
+	 * XXX(hch): it would be a good idea to keep this around as a
+	 *	     static variable.
 	 */
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	gfs2_str2qstr(&dotdot, "..");
 
-	dentry = d_alloc_anon(inode);
-	if (!dentry) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	dentry->d_op = &gfs2_dops;
+	dentry = d_obtain_alias(gfs2_lookupi(child->d_inode, &dotdot, 1));
+	if (!IS_ERR(dentry))
+		dentry->d_op = &gfs2_dops;
 	return dentry;
 }
 
@@ -233,13 +222,9 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 	gfs2_glock_dq_uninit(&i_gh);
 
 out_inode:
-	dentry = d_alloc_anon(inode);
-	if (!dentry) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	dentry->d_op = &gfs2_dops;
+	dentry = d_obtain_alias(inode);
+	if (!IS_ERR(dentry))
+		dentry->d_op = &gfs2_dops;
 	return dentry;
 
 fail_rgd:

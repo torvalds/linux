@@ -38,35 +38,32 @@ static const char mod_name[] = "drx397xD";
 #define F_SET_0D0h	1
 #define F_SET_0D4h	2
 
-typedef enum fw_ix {
+enum fw_ix {
 #define _FW_ENTRY(a, b)		b
 #include "drx397xD_fw.h"
-} fw_ix_t;
+};
 
 /* chip specifics */
 struct drx397xD_state {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend frontend;
 	struct drx397xD_config config;
-	fw_ix_t chip_rev;
+	enum fw_ix chip_rev;
 	int flags;
 	u32 bandwidth_parm;	/* internal bandwidth conversions */
 	u32 f_osc;		/* w90: actual osc frequency [Hz] */
 };
 
-/*******************************************************************************
- * Firmware
- ******************************************************************************/
-
+/* Firmware */
 static const char *blob_name[] = {
 #define _BLOB_ENTRY(a, b)		a
 #include "drx397xD_fw.h"
 };
 
-typedef enum blob_ix {
+enum blob_ix {
 #define _BLOB_ENTRY(a, b)		b
 #include "drx397xD_fw.h"
-} blob_ix_t;
+};
 
 static struct {
 	const char *name;
@@ -85,7 +82,7 @@ static struct {
 };
 
 /* use only with writer lock aquired */
-static void _drx_release_fw(struct drx397xD_state *s, fw_ix_t ix)
+static void _drx_release_fw(struct drx397xD_state *s, enum fw_ix ix)
 {
 	memset(&fw[ix].data[0], 0, sizeof(fw[0].data));
 	if (fw[ix].file)
@@ -94,9 +91,9 @@ static void _drx_release_fw(struct drx397xD_state *s, fw_ix_t ix)
 
 static void drx_release_fw(struct drx397xD_state *s)
 {
-	fw_ix_t ix = s->chip_rev;
+	enum fw_ix ix = s->chip_rev;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	write_lock(&fw[ix].lock);
 	if (fw[ix].refcnt) {
@@ -107,13 +104,13 @@ static void drx_release_fw(struct drx397xD_state *s)
 	write_unlock(&fw[ix].lock);
 }
 
-static int drx_load_fw(struct drx397xD_state *s, fw_ix_t ix)
+static int drx_load_fw(struct drx397xD_state *s, enum fw_ix ix)
 {
 	const u8 *data;
 	size_t size, len;
 	int i = 0, j, rc = -EINVAL;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	if (ix < 0 || ix >= ARRAY_SIZE(fw))
 		return -EINVAL;
@@ -175,32 +172,34 @@ static int drx_load_fw(struct drx397xD_state *s, fw_ix_t ix)
 			goto exit_corrupt;
 		}
 	} while (i < size);
-      exit_corrupt:
+
+exit_corrupt:
 	printk(KERN_ERR "%s: Firmware is corrupt\n", mod_name);
-      exit_err:
+exit_err:
 	_drx_release_fw(s, ix);
 	fw[ix].refcnt--;
-      exit_ok:
+exit_ok:
 	fw[ix].refcnt++;
 	write_unlock(&fw[ix].lock);
+
 	return rc;
 }
 
-/*******************************************************************************
- * i2c bus IO
- ******************************************************************************/
-
-static int write_fw(struct drx397xD_state *s, blob_ix_t ix)
+/* i2c bus IO */
+static int write_fw(struct drx397xD_state *s, enum blob_ix ix)
 {
-	struct i2c_msg msg = {.addr = s->config.demod_address,.flags = 0 };
 	const u8 *data;
 	int len, rc = 0, i = 0;
+	struct i2c_msg msg = {
+		.addr = s->config.demod_address,
+		.flags = 0
+	};
 
 	if (ix < 0 || ix >= ARRAY_SIZE(blob_name)) {
-		pr_debug("%s drx_fw_ix_t out of range\n", __FUNCTION__);
+		pr_debug("%s drx_fw_ix_t out of range\n", __func__);
 		return -EINVAL;
 	}
-	pr_debug("%s %s\n", __FUNCTION__, blob_name[ix]);
+	pr_debug("%s %s\n", __func__, blob_name[ix]);
 
 	read_lock(&fw[s->chip_rev].lock);
 	data = fw[s->chip_rev].data[ix];
@@ -229,33 +228,33 @@ static int write_fw(struct drx397xD_state *s, blob_ix_t ix)
 			goto exit_rc;
 		}
 	}
-      exit_rc:
+exit_rc:
 	read_unlock(&fw[s->chip_rev].lock);
+
 	return 0;
 }
 
 /* Function is not endian safe, use the RD16 wrapper below */
-static int _read16(struct drx397xD_state *s, u32 i2c_adr)
+static int _read16(struct drx397xD_state *s, __le32 i2c_adr)
 {
 	int rc;
 	u8 a[4];
-	u16 v;
+	__le16 v;
 	struct i2c_msg msg[2] = {
 		{
-		 .addr = s->config.demod_address,
-		 .flags = 0,
-		 .buf = a,
-		 .len = sizeof(a)
-		 }
-		, {
-		   .addr = s->config.demod_address,
-		   .flags = I2C_M_RD,
-		   .buf = (u8 *) & v,
-		   .len = sizeof(v)
-		   }
+			.addr = s->config.demod_address,
+			.flags = 0,
+			.buf = a,
+			.len = sizeof(a)
+		}, {
+			.addr = s->config.demod_address,
+			.flags = I2C_M_RD,
+			.buf = (u8 *)&v,
+			.len = sizeof(v)
+		}
 	};
 
-	*(u32 *) a = i2c_adr;
+	*(__le32 *) a = i2c_adr;
 
 	rc = i2c_transfer(s->i2c, msg, 2);
 	if (rc != 2)
@@ -265,7 +264,7 @@ static int _read16(struct drx397xD_state *s, u32 i2c_adr)
 }
 
 /* Function is not endian safe, use the WR16.. wrappers below */
-static int _write16(struct drx397xD_state *s, u32 i2c_adr, u16 val)
+static int _write16(struct drx397xD_state *s, __le32 i2c_adr, __le16 val)
 {
 	u8 a[6];
 	int rc;
@@ -276,28 +275,28 @@ static int _write16(struct drx397xD_state *s, u32 i2c_adr, u16 val)
 		.len = sizeof(a)
 	};
 
-	*(u32 *) a = i2c_adr;
-	*(u16 *) & a[4] = val;
+	*(__le32 *)a = i2c_adr;
+	*(__le16 *)&a[4] = val;
 
 	rc = i2c_transfer(s->i2c, &msg, 1);
 	if (rc != 1)
 		return -EIO;
+
 	return 0;
 }
 
-#define WR16(ss,adr, val) \
+#define WR16(ss, adr, val) \
 		_write16(ss, I2C_ADR_C0(adr), cpu_to_le16(val))
-#define WR16_E0(ss,adr, val) \
+#define WR16_E0(ss, adr, val) \
 		_write16(ss, I2C_ADR_E0(adr), cpu_to_le16(val))
-#define RD16(ss,adr) \
+#define RD16(ss, adr) \
 		_read16(ss, I2C_ADR_C0(adr))
 
-#define EXIT_RC( cmd )	if ( (rc = (cmd)) < 0) goto exit_rc
+#define EXIT_RC(cmd)	\
+	if ((rc = (cmd)) < 0)	\
+		goto exit_rc
 
-/*******************************************************************************
- * Tuner callback
- ******************************************************************************/
-
+/* Tuner callback */
 static int PLL_Set(struct drx397xD_state *s,
 		   struct dvb_frontend_parameters *fep, int *df_tuner)
 {
@@ -305,7 +304,7 @@ static int PLL_Set(struct drx397xD_state *s,
 	u32 f_tuner, f = fep->frequency;
 	int rc;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	if ((f > s->frontend.ops.tuner_ops.info.frequency_max) ||
 	    (f < s->frontend.ops.tuner_ops.info.frequency_min))
@@ -325,28 +324,26 @@ static int PLL_Set(struct drx397xD_state *s,
 		return rc;
 
 	*df_tuner = f_tuner - f;
-	pr_debug("%s requested %d [Hz] tuner %d [Hz]\n", __FUNCTION__, f,
+	pr_debug("%s requested %d [Hz] tuner %d [Hz]\n", __func__, f,
 		 f_tuner);
 
 	return 0;
 }
 
-/*******************************************************************************
- * Demodulator helper functions
- ******************************************************************************/
-
+/* Demodulator helper functions */
 static int SC_WaitForReady(struct drx397xD_state *s)
 {
 	int cnt = 1000;
 	int rc;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	while (cnt--) {
 		rc = RD16(s, 0x820043);
 		if (rc == 0)
 			return 0;
 	}
+
 	return -1;
 }
 
@@ -354,13 +351,14 @@ static int SC_SendCommand(struct drx397xD_state *s, int cmd)
 {
 	int rc;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	WR16(s, 0x820043, cmd);
 	SC_WaitForReady(s);
 	rc = RD16(s, 0x820042);
 	if ((rc & 0xffff) == 0xffff)
 		return -1;
+
 	return 0;
 }
 
@@ -368,7 +366,7 @@ static int HI_Command(struct drx397xD_state *s, u16 cmd)
 {
 	int rc, cnt = 1000;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	rc = WR16(s, 0x420032, cmd);
 	if (rc < 0)
@@ -383,22 +381,24 @@ static int HI_Command(struct drx397xD_state *s, u16 cmd)
 		if (rc < 0)
 			return rc;
 	} while (--cnt);
+
 	return rc;
 }
 
 static int HI_CfgCommand(struct drx397xD_state *s)
 {
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	WR16(s, 0x420033, 0x3973);
-	WR16(s, 0x420034, s->config.w50);	// code 4, log 4
-	WR16(s, 0x420035, s->config.w52);	// code 15,  log 9
+	WR16(s, 0x420034, s->config.w50);	/* code 4, log 4 */
+	WR16(s, 0x420035, s->config.w52);	/* code 15,  log 9 */
 	WR16(s, 0x420036, s->config.demod_address << 1);
-	WR16(s, 0x420037, s->config.w56);	// code (set_i2c ??  initX 1 ), log 1
-//      WR16(s, 0x420033, 0x3973);
+	WR16(s, 0x420037, s->config.w56);	/* code (set_i2c ??  initX 1 ), log 1 */
+	/* WR16(s, 0x420033, 0x3973); */
 	if ((s->config.w56 & 8) == 0)
 		return HI_Command(s, 3);
+
 	return WR16(s, 0x420032, 0x3);
 }
 
@@ -419,7 +419,7 @@ static int SetCfgIfAgc(struct drx397xD_state *s, struct drx397xD_CfgIfAgc *agc)
 	u16 w0C = agc->w0C;
 	int quot, rem, i, rc = -EINVAL;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	if (agc->w04 > 0x3ff)
 		goto exit_rc;
@@ -468,7 +468,7 @@ static int SetCfgIfAgc(struct drx397xD_state *s, struct drx397xD_CfgIfAgc *agc)
 	i = slowIncrDecLUT_15272[rem / 28];
 	EXIT_RC(WR16(s, 0x0c2002b, i));
 	rc = WR16(s, 0x0c2002c, i);
-      exit_rc:
+exit_rc:
 	return rc;
 }
 
@@ -478,7 +478,7 @@ static int SetCfgRfAgc(struct drx397xD_state *s, struct drx397xD_CfgRfAgc *agc)
 	u16 w06 = agc->w06;
 	int rc = -1;
 
-	pr_debug("%s %d 0x%x 0x%x\n", __FUNCTION__, agc->d00, w04, w06);
+	pr_debug("%s %d 0x%x 0x%x\n", __func__, agc->d00, w04, w06);
 
 	if (w04 > 0x3ff)
 		goto exit_rc;
@@ -498,7 +498,7 @@ static int SetCfgRfAgc(struct drx397xD_state *s, struct drx397xD_CfgRfAgc *agc)
 		rc &= ~2;
 		break;
 	case 0:
-		// loc_8000659
+		/* loc_8000659 */
 		s->config.w9C &= ~2;
 		EXIT_RC(WR16(s, 0x0c20015, s->config.w9C));
 		EXIT_RC(RD16(s, 0x0c20010));
@@ -522,7 +522,8 @@ static int SetCfgRfAgc(struct drx397xD_state *s, struct drx397xD_CfgRfAgc *agc)
 		rc |= 2;
 	}
 	rc = WR16(s, 0x0c20013, rc);
-      exit_rc:
+
+exit_rc:
 	return rc;
 }
 
@@ -554,7 +555,7 @@ static int CorrectSysClockDeviation(struct drx397xD_state *s)
 	int lockstat;
 	u32 clk, clk_limit;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	if (s->config.d5C == 0) {
 		EXIT_RC(WR16(s, 0x08200e8, 0x010));
@@ -598,11 +599,12 @@ static int CorrectSysClockDeviation(struct drx397xD_state *s)
 
 	if (clk - s->config.f_osc * 1000 + clk_limit <= 2 * clk_limit) {
 		s->f_osc = clk;
-		pr_debug("%s: osc %d %d [Hz]\n", __FUNCTION__,
+		pr_debug("%s: osc %d %d [Hz]\n", __func__,
 			 s->config.f_osc * 1000, clk - s->config.f_osc * 1000);
 	}
 	rc = WR16(s, 0x08200e8, 0);
-      exit_rc:
+
+exit_rc:
 	return rc;
 }
 
@@ -610,7 +612,7 @@ static int ConfigureMPEGOutput(struct drx397xD_state *s, int type)
 {
 	int rc, si, bp;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	si = s->config.wA0;
 	if (s->config.w98 == 0) {
@@ -620,17 +622,17 @@ static int ConfigureMPEGOutput(struct drx397xD_state *s, int type)
 		si &= ~1;
 		bp = 0x200;
 	}
-	if (s->config.w9A == 0) {
+	if (s->config.w9A == 0)
 		si |= 0x80;
-	} else {
+	else
 		si &= ~0x80;
-	}
 
 	EXIT_RC(WR16(s, 0x2150045, 0));
 	EXIT_RC(WR16(s, 0x2150010, si));
 	EXIT_RC(WR16(s, 0x2150011, bp));
 	rc = WR16(s, 0x2150012, (type == 0 ? 0xfff : 0));
-      exit_rc:
+
+exit_rc:
 	return rc;
 }
 
@@ -646,7 +648,7 @@ static int drx_tune(struct drx397xD_state *s,
 
 	int rc, df_tuner;
 	int a, b, c, d;
-	pr_debug("%s %d\n", __FUNCTION__, s->config.d60);
+	pr_debug("%s %d\n", __func__, s->config.d60);
 
 	if (s->config.d60 != 2)
 		goto set_tuner;
@@ -658,7 +660,7 @@ static int drx_tune(struct drx397xD_state *s,
 	rc = ConfigureMPEGOutput(s, 0);
 	if (rc < 0)
 		goto set_tuner;
-      set_tuner:
+set_tuner:
 
 	rc = PLL_Set(s, fep, &df_tuner);
 	if (rc < 0) {
@@ -835,16 +837,16 @@ static int drx_tune(struct drx397xD_state *s,
 		rc = WR16(s, 0x2010012, 0);
 		if (rc < 0)
 			goto exit_rc;
-		//              QPSK    QAM16   QAM64
-		ebx = 0x19f;	//                 62
-		ebp = 0x1fb;	//                 15
-		v20 = 0x16a;	//  62
-		v1E = 0x195;	//         62
-		v16 = 0x1bb;	//  15
-		v14 = 0x1ef;	//         15
-		v12 = 5;	//  16
-		v10 = 5;	//         16
-		v0E = 5;	//                 16
+				/* QPSK    QAM16  QAM64	*/
+		ebx = 0x19f;	/*                 62	*/
+		ebp = 0x1fb;	/*                 15	*/
+		v20 = 0x16a;	/*  62			*/
+		v1E = 0x195;	/*         62		*/
+		v16 = 0x1bb;	/*  15			*/
+		v14 = 0x1ef;	/*         15		*/
+		v12 = 5;	/*  16			*/
+		v10 = 5;	/*         16		*/
+		v0E = 5;	/*                 16	*/
 	}
 
 	switch (fep->u.ofdm.constellation) {
@@ -997,17 +999,17 @@ static int drx_tune(struct drx397xD_state *s,
 	case BANDWIDTH_8_MHZ:	/* 0 */
 	case BANDWIDTH_AUTO:
 		rc = WR16(s, 0x0c2003f, 0x32);
-		s->bandwidth_parm = ebx = 0x8b8249;	// 9142857
+		s->bandwidth_parm = ebx = 0x8b8249;
 		edx = 0;
 		break;
 	case BANDWIDTH_7_MHZ:
 		rc = WR16(s, 0x0c2003f, 0x3b);
-		s->bandwidth_parm = ebx = 0x7a1200;	// 8000000
+		s->bandwidth_parm = ebx = 0x7a1200;
 		edx = 0x4807;
 		break;
 	case BANDWIDTH_6_MHZ:
 		rc = WR16(s, 0x0c2003f, 0x47);
-		s->bandwidth_parm = ebx = 0x68a1b6;	// 6857142
+		s->bandwidth_parm = ebx = 0x68a1b6;
 		edx = 0x0f07;
 		break;
 	};
@@ -1060,8 +1062,6 @@ static int drx_tune(struct drx397xD_state *s,
 	WR16(s, 0x0820040, 1);
 	SC_SendCommand(s, 1);
 
-//      rc = WR16(s, 0x2150000, 1);
-//      if (rc < 0) goto exit_rc;
 
 	rc = WR16(s, 0x2150000, 2);
 	rc = WR16(s, 0x2150016, a);
@@ -1069,7 +1069,8 @@ static int drx_tune(struct drx397xD_state *s,
 	rc = WR16(s, 0x2150036, 0);
 	rc = WR16(s, 0x2150000, 1);
 	s->config.d60 = 2;
-      exit_rc:
+
+exit_rc:
 	return rc;
 }
 
@@ -1082,7 +1083,7 @@ static int drx397x_init(struct dvb_frontend *fe)
 	struct drx397xD_state *s = fe->demodulator_priv;
 	int rc;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	s->config.rfagc.d00 = 2;	/* 0x7c */
 	s->config.rfagc.w04 = 0;
@@ -1102,18 +1103,18 @@ static int drx397x_init(struct dvb_frontend *fe)
 
 	/* HI_CfgCommand */
 	s->config.w50 = 4;
-	s->config.w52 = 9;	// 0xf;
+	s->config.w52 = 9;
 
-	s->config.f_if = 42800000;	/* d14: intermediate frequency [Hz]     */
-	s->config.f_osc = 48000;	/* s66 : oscillator frequency [kHz]     */
-	s->config.w92 = 12000;	// 20000;
+	s->config.f_if = 42800000;	/* d14: intermediate frequency [Hz] */
+	s->config.f_osc = 48000;	/* s66 : oscillator frequency [kHz] */
+	s->config.w92 = 12000;
 
 	s->config.w9C = 0x000e;
 	s->config.w9E = 0x0000;
 
 	/* ConfigureMPEGOutput params */
 	s->config.wA0 = 4;
-	s->config.w98 = 1;	// 0;
+	s->config.w98 = 1;
 	s->config.w9A = 1;
 
 	/* get chip revision */
@@ -1248,7 +1249,7 @@ static int drx397x_init(struct dvb_frontend *fe)
 		rc = WR16(s, 0x0c20012, 1);
 	}
 
-      write_DRXD_InitFE_1:
+write_DRXD_InitFE_1:
 
 	rc = write_fw(s, DRXD_InitFE_1);
 	if (rc < 0)
@@ -1311,7 +1312,8 @@ static int drx397x_init(struct dvb_frontend *fe)
 	s->config.d5C = 0;
 	s->config.d60 = 1;
 	s->config.d48 = 1;
-      error:
+
+error:
 	return rc;
 }
 
@@ -1326,7 +1328,8 @@ static int drx397x_set_frontend(struct dvb_frontend *fe,
 {
 	struct drx397xD_state *s = fe->demodulator_priv;
 
-	s->config.s20d24 = 1;	// 0;
+	s->config.s20d24 = 1;
+
 	return drx_tune(s, params);
 }
 
@@ -1337,18 +1340,16 @@ static int drx397x_get_tune_settings(struct dvb_frontend *fe,
 	fe_tune_settings->min_delay_ms = 10000;
 	fe_tune_settings->step_size = 0;
 	fe_tune_settings->max_drift = 0;
+
 	return 0;
 }
 
-static int drx397x_read_status(struct dvb_frontend *fe, fe_status_t * status)
+static int drx397x_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct drx397xD_state *s = fe->demodulator_priv;
 	int lockstat;
 
 	GetLockStatus(s, &lockstat);
-	/* TODO */
-//      if (lockstat & 1)
-//      CorrectSysClockDeviation(s);
 
 	*status = 0;
 	if (lockstat & 2) {
@@ -1356,9 +1357,8 @@ static int drx397x_read_status(struct dvb_frontend *fe, fe_status_t * status)
 		ConfigureMPEGOutput(s, 1);
 		*status = FE_HAS_LOCK | FE_HAS_SYNC | FE_HAS_VITERBI;
 	}
-	if (lockstat & 4) {
+	if (lockstat & 4)
 		*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
-	}
 
 	return 0;
 }
@@ -1366,16 +1366,18 @@ static int drx397x_read_status(struct dvb_frontend *fe, fe_status_t * status)
 static int drx397x_read_ber(struct dvb_frontend *fe, unsigned int *ber)
 {
 	*ber = 0;
+
 	return 0;
 }
 
-static int drx397x_read_snr(struct dvb_frontend *fe, u16 * snr)
+static int drx397x_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	*snr = 0;
+
 	return 0;
 }
 
-static int drx397x_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
+static int drx397x_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct drx397xD_state *s = fe->demodulator_priv;
 	int rc;
@@ -1401,6 +1403,7 @@ static int drx397x_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 	 * The following does the same but with less rounding errors:
 	 */
 	*strength = ~(7720 + (rc * 30744 >> 10));
+
 	return 0;
 }
 
@@ -1408,6 +1411,7 @@ static int drx397x_read_ucblocks(struct dvb_frontend *fe,
 				 unsigned int *ucblocks)
 {
 	*ucblocks = 0;
+
 	return 0;
 }
 
@@ -1436,22 +1440,22 @@ static struct dvb_frontend_ops drx397x_ops = {
 		 .frequency_max		= 855250000,
 		 .frequency_stepsize	= 166667,
 		 .frequency_tolerance	= 0,
-		 .caps =					/* 0x0C01B2EAE */
-			 FE_CAN_FEC_1_2			|	// = 0x2,
-			 FE_CAN_FEC_2_3			|	// = 0x4,
-			 FE_CAN_FEC_3_4			|	// = 0x8,
-			 FE_CAN_FEC_5_6			|	// = 0x20,
-			 FE_CAN_FEC_7_8			|	// = 0x80,
-			 FE_CAN_FEC_AUTO		|	// = 0x200,
-			 FE_CAN_QPSK			|	// = 0x400,
-			 FE_CAN_QAM_16			|	// = 0x800,
-			 FE_CAN_QAM_64			|	// = 0x2000,
-			 FE_CAN_QAM_AUTO		|	// = 0x10000,
-			 FE_CAN_TRANSMISSION_MODE_AUTO	|	// = 0x20000,
-			 FE_CAN_GUARD_INTERVAL_AUTO	|	// = 0x80000,
-			 FE_CAN_HIERARCHY_AUTO		|	// = 0x100000,
-			 FE_CAN_RECOVER			|	// = 0x40000000,
-			 FE_CAN_MUTE_TS				// = 0x80000000
+		 .caps =				  /* 0x0C01B2EAE */
+			 FE_CAN_FEC_1_2			| /* = 0x2, */
+			 FE_CAN_FEC_2_3			| /* = 0x4, */
+			 FE_CAN_FEC_3_4			| /* = 0x8, */
+			 FE_CAN_FEC_5_6			| /* = 0x20, */
+			 FE_CAN_FEC_7_8			| /* = 0x80, */
+			 FE_CAN_FEC_AUTO		| /* = 0x200, */
+			 FE_CAN_QPSK			| /* = 0x400, */
+			 FE_CAN_QAM_16			| /* = 0x800, */
+			 FE_CAN_QAM_64			| /* = 0x2000, */
+			 FE_CAN_QAM_AUTO		| /* = 0x10000, */
+			 FE_CAN_TRANSMISSION_MODE_AUTO	| /* = 0x20000, */
+			 FE_CAN_GUARD_INTERVAL_AUTO	| /* = 0x80000, */
+			 FE_CAN_HIERARCHY_AUTO		| /* = 0x100000, */
+			 FE_CAN_RECOVER			| /* = 0x40000000, */
+			 FE_CAN_MUTE_TS			  /* = 0x80000000 */
 	 },
 
 	.release = drx397x_release,
@@ -1472,33 +1476,35 @@ static struct dvb_frontend_ops drx397x_ops = {
 struct dvb_frontend *drx397xD_attach(const struct drx397xD_config *config,
 				     struct i2c_adapter *i2c)
 {
-	struct drx397xD_state *s = NULL;
+	struct drx397xD_state *state;
 
 	/* allocate memory for the internal state */
-	s = kzalloc(sizeof(struct drx397xD_state), GFP_KERNEL);
-	if (s == NULL)
+	state = kzalloc(sizeof(struct drx397xD_state), GFP_KERNEL);
+	if (!state)
 		goto error;
 
 	/* setup the state */
-	s->i2c = i2c;
-	memcpy(&s->config, config, sizeof(struct drx397xD_config));
+	state->i2c = i2c;
+	memcpy(&state->config, config, sizeof(struct drx397xD_config));
 
 	/* check if the demod is there */
-	if (RD16(s, 0x2410019) < 0)
+	if (RD16(state, 0x2410019) < 0)
 		goto error;
 
 	/* create dvb_frontend */
-	memcpy(&s->frontend.ops, &drx397x_ops, sizeof(struct dvb_frontend_ops));
-	s->frontend.demodulator_priv = s;
+	memcpy(&state->frontend.ops, &drx397x_ops,
+			sizeof(struct dvb_frontend_ops));
+	state->frontend.demodulator_priv = state;
 
-	return &s->frontend;
-      error:
-	kfree(s);
+	return &state->frontend;
+error:
+	kfree(state);
+
 	return NULL;
 }
+EXPORT_SYMBOL(drx397xD_attach);
 
 MODULE_DESCRIPTION("Micronas DRX397xD DVB-T Frontend");
 MODULE_AUTHOR("Henk Vergonet");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(drx397xD_attach);

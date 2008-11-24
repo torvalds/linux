@@ -1057,12 +1057,15 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	struct cx8802_driver *drv = NULL;
 	int err;
 
+	lock_kernel();
 	dev = cx8802_get_device(inode);
 
 	dprintk( 1, "%s\n", __func__);
 
-	if (dev == NULL)
+	if (dev == NULL) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	/* Make sure we can acquire the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
@@ -1070,13 +1073,15 @@ static int mpeg_open(struct inode *inode, struct file *file)
 		err = drv->request_acquire(drv);
 		if(err != 0) {
 			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
+			unlock_kernel();
 			return err;
 		}
 	}
 
-	if (blackbird_initialize_codec(dev) < 0) {
+	if (!atomic_read(&dev->core->mpeg_users) && blackbird_initialize_codec(dev) < 0) {
 		if (drv)
 			drv->request_release(drv);
+		unlock_kernel();
 		return -EINVAL;
 	}
 	dprintk(1,"open minor=%d\n",minor);
@@ -1086,6 +1091,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	if (NULL == fh) {
 		if (drv)
 			drv->request_release(drv);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 	file->private_data = fh;
@@ -1101,6 +1107,9 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	/* FIXME: locking against other video device */
 	cx88_set_scale(dev->core, dev->width, dev->height,
 			fh->mpegq.field);
+	unlock_kernel();
+
+	atomic_inc(&dev->core->mpeg_users);
 
 	return 0;
 }
@@ -1111,7 +1120,7 @@ static int mpeg_release(struct inode *inode, struct file *file)
 	struct cx8802_dev *dev = fh->dev;
 	struct cx8802_driver *drv = NULL;
 
-	if (dev->mpeg_active)
+	if (dev->mpeg_active && atomic_read(&dev->core->mpeg_users) == 1)
 		blackbird_stop_codec(dev);
 
 	cx8802_cancel_buffers(fh->dev);
@@ -1130,6 +1139,8 @@ static int mpeg_release(struct inode *inode, struct file *file)
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
 	if (drv)
 		drv->request_release(drv);
+
+	atomic_dec(&dev->core->mpeg_users);
 
 	return 0;
 }
@@ -1151,6 +1162,10 @@ static unsigned int
 mpeg_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct cx8802_fh *fh = file->private_data;
+	struct cx8802_dev *dev = fh->dev;
+
+	if (!dev->mpeg_active)
+		blackbird_start_codec(file, fh);
 
 	return videobuf_poll_stream(file, &fh->mpegq, wait);
 }
@@ -1278,7 +1293,7 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 		return err;
 	}
 	printk(KERN_INFO "%s/2: registered device video%d [mpeg]\n",
-	       dev->core->name,dev->mpeg_dev->minor & 0x1f);
+	       dev->core->name, dev->mpeg_dev->num);
 	return 0;
 }
 

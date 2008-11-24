@@ -979,7 +979,6 @@ struct dvb_frontend *mxl5007t_attach(struct dvb_frontend *fe,
 	switch (instance) {
 	case 0:
 		goto fail;
-		break;
 	case 1:
 		/* new tuner instance */
 		state->config = cfg;

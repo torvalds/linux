@@ -12,10 +12,6 @@
 #include <asm/oplib.h>
 #include <asm/idprom.h>
 #include <asm/machines.h>  /* Fun with Sun released architectures. */
-#ifdef CONFIG_SUN4
-#include <asm/sun4paddr.h>
-extern void sun4setup(void);
-#endif
 
 struct idprom *idprom;
 static struct idprom idprom_buffer;
@@ -101,7 +97,4 @@ void __init idprom_init(void)
 		    idprom->id_ethaddr[0], idprom->id_ethaddr[1],
 		    idprom->id_ethaddr[2], idprom->id_ethaddr[3],
 		    idprom->id_ethaddr[4], idprom->id_ethaddr[5]);
-#ifdef CONFIG_SUN4
-	sun4setup();
-#endif
 }

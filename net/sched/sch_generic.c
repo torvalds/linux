@@ -44,23 +44,30 @@ static inline int qdisc_qlen(struct Qdisc *q)
 
 static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
-	if (unlikely(skb->next))
-		q->gso_skb = skb;
-	else
-		q->ops->requeue(skb, q);
-
+	q->gso_skb = skb;
+	q->qstats.requeues++;
 	__netif_schedule(q);
+
 	return 0;
 }
 
 static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = q->gso_skb;
 
-	if ((skb = q->gso_skb))
-		q->gso_skb = NULL;
-	else
+	if (unlikely(skb)) {
+		struct net_device *dev = qdisc_dev(q);
+		struct netdev_queue *txq;
+
+		/* check the reason of requeuing without tx lock first */
+		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+		if (!netif_tx_queue_stopped(txq) && !netif_tx_queue_frozen(txq))
+			q->gso_skb = NULL;
+		else
+			skb = NULL;
+	} else {
 		skb = q->dequeue(q);
+	}
 
 	return skb;
 }
@@ -263,6 +270,8 @@ static void dev_watchdog_down(struct net_device *dev)
 void netif_carrier_on(struct net_device *dev)
 {
 	if (test_and_clear_bit(__LINK_STATE_NOCARRIER, &dev->state)) {
+		if (dev->reg_state == NETREG_UNINITIALIZED)
+			return;
 		linkwatch_fire_event(dev);
 		if (netif_running(dev))
 			__netdev_watchdog_up(dev);
@@ -278,8 +287,11 @@ EXPORT_SYMBOL(netif_carrier_on);
  */
 void netif_carrier_off(struct net_device *dev)
 {
-	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state))
+	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state)) {
+		if (dev->reg_state == NETREG_UNINITIALIZED)
+			return;
 		linkwatch_fire_event(dev);
+	}
 }
 EXPORT_SYMBOL(netif_carrier_off);
 
@@ -319,6 +331,7 @@ struct Qdisc_ops noop_qdisc_ops __read_mostly = {
 
 static struct netdev_queue noop_netdev_queue = {
 	.qdisc		=	&noop_qdisc,
+	.qdisc_sleeping	=	&noop_qdisc,
 };
 
 struct Qdisc noop_qdisc = {
@@ -327,6 +340,7 @@ struct Qdisc noop_qdisc = {
 	.flags		=	TCQ_F_BUILTIN,
 	.ops		=	&noop_qdisc_ops,
 	.list		=	LIST_HEAD_INIT(noop_qdisc.list),
+	.requeue.lock	=	__SPIN_LOCK_UNLOCKED(noop_qdisc.q.lock),
 	.q.lock		=	__SPIN_LOCK_UNLOCKED(noop_qdisc.q.lock),
 	.dev_queue	=	&noop_netdev_queue,
 };
@@ -344,6 +358,7 @@ static struct Qdisc_ops noqueue_qdisc_ops __read_mostly = {
 static struct Qdisc noqueue_qdisc;
 static struct netdev_queue noqueue_netdev_queue = {
 	.qdisc		=	&noqueue_qdisc,
+	.qdisc_sleeping	=	&noqueue_qdisc,
 };
 
 static struct Qdisc noqueue_qdisc = {
@@ -352,6 +367,7 @@ static struct Qdisc noqueue_qdisc = {
 	.flags		=	TCQ_F_BUILTIN,
 	.ops		=	&noqueue_qdisc_ops,
 	.list		=	LIST_HEAD_INIT(noqueue_qdisc.list),
+	.requeue.lock	=	__SPIN_LOCK_UNLOCKED(noqueue_qdisc.q.lock),
 	.q.lock		=	__SPIN_LOCK_UNLOCKED(noqueue_qdisc.q.lock),
 	.dev_queue	=	&noqueue_netdev_queue,
 };
@@ -472,6 +488,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	sch->padded = (char *) sch - (char *) p;
 
 	INIT_LIST_HEAD(&sch->list);
+	skb_queue_head_init(&sch->requeue);
 	skb_queue_head_init(&sch->q);
 	sch->ops = ops;
 	sch->enqueue = ops->enqueue;
@@ -540,6 +557,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	dev_put(qdisc_dev(qdisc));
 
 	kfree_skb(qdisc->gso_skb);
+	__skb_queue_purge(&qdisc->requeue);
 
 	kfree((char *) qdisc - qdisc->padded);
 }

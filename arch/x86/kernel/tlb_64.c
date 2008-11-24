@@ -183,6 +183,11 @@ void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
 	cpus_or(f->flush_cpumask, cpumask, f->flush_cpumask);
 
 	/*
+	 * Make the above memory operations globally visible before
+	 * sending the IPI.
+	 */
+	smp_mb();
+	/*
 	 * We have to send the IPI only to
 	 * CPUs affected.
 	 */

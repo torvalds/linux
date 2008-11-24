@@ -69,7 +69,7 @@ Driver Notes and Issues
 History
 -------------------------------------------------------------------------------
 Log: nmclan_cs.c,v
- * 2.5.75-ac1 2003/07/11 Alan Cox <alan@redhat.com>
+ * 2.5.75-ac1 2003/07/11 Alan Cox <alan@lxorguk.ukuu.org.uk>
  * Fixed hang on card eject as we probe it
  * Cleaned up to use new style locking.
  *
@@ -925,7 +925,7 @@ static void mace_tx_timeout(struct net_device *dev)
   printk(KERN_NOTICE "%s: transmit timed out -- ", dev->name);
 #if RESET_ON_TIMEOUT
   printk("resetting card\n");
-  pcmcia_reset_card(link, NULL);
+  pcmcia_reset_card(link->socket);
 #else /* #if RESET_ON_TIMEOUT */
   printk("NOT resetting card\n");
 #endif /* #if RESET_ON_TIMEOUT */

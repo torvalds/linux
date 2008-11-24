@@ -25,6 +25,7 @@
 
 #include <sound/asound.h>
 #include <sound/memalloc.h>
+#include <sound/minors.h>
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/bitops.h>
@@ -84,7 +85,11 @@ struct snd_pcm_ops {
  *
  */
 
-#define SNDRV_PCM_DEVICES		8
+#if defined(CONFIG_SND_DYNAMIC_MINORS)
+#define SNDRV_PCM_DEVICES	(SNDRV_OS_MINORS-2)
+#else
+#define SNDRV_PCM_DEVICES	8
+#endif
 
 #define SNDRV_PCM_IOCTL1_FALSE		((void *)0)
 #define SNDRV_PCM_IOCTL1_TRUE		((void *)1)
@@ -416,7 +421,7 @@ struct snd_pcm_str {
 struct snd_pcm {
 	struct snd_card *card;
 	struct list_head list;
-	unsigned int device;	/* device number */
+	int device; /* device number */
 	unsigned int info_flags;
 	unsigned short dev_class;
 	unsigned short dev_subclass;
@@ -969,10 +974,30 @@ int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size);
 int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream);
 
-#define snd_pcm_substream_sgbuf(substream) ((substream)->runtime->dma_buffer_p->private_data)
-#define snd_pcm_sgbuf_pages(size) snd_sgbuf_aligned_pages(size)
-#define snd_pcm_sgbuf_get_addr(sgbuf,ofs) snd_sgbuf_get_addr(sgbuf,ofs)
-struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigned long offset);
+/*
+ * SG-buffer handling
+ */
+#define snd_pcm_substream_sgbuf(substream) \
+	((substream)->runtime->dma_buffer_p->private_data)
+
+static inline dma_addr_t
+snd_pcm_sgbuf_get_addr(struct snd_pcm_substream *substream, unsigned int ofs)
+{
+	struct snd_sg_buf *sg = snd_pcm_substream_sgbuf(substream);
+	return snd_sgbuf_get_addr(sg, ofs);
+}
+
+static inline void *
+snd_pcm_sgbuf_get_ptr(struct snd_pcm_substream *substream, unsigned int ofs)
+{
+	struct snd_sg_buf *sg = snd_pcm_substream_sgbuf(substream);
+	return snd_sgbuf_get_ptr(sg, ofs);
+}
+
+struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream,
+				    unsigned long offset);
+unsigned int snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
+					  unsigned int ofs, unsigned int size);
 
 /* handle mmap counter - PCM mmap callback should handle this counter properly */
 static inline void snd_pcm_mmap_data_open(struct vm_area_struct *area)
@@ -1009,5 +1034,7 @@ static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 					 (IEC958_AES1_CON_ORIGINAL<<8)|\
 					 (IEC958_AES1_CON_PCM_CODER<<8)|\
 					 (IEC958_AES3_CON_FS_48000<<24))
+
+#define PCM_RUNTIME_CHECK(sub) snd_BUG_ON(!(sub) || !(sub)->runtime)
 
 #endif /* __SOUND_PCM_H */

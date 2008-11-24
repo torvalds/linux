@@ -26,9 +26,8 @@ enum sparc_cpu {
 
 #define sparc_cpu_model sun4u
 
-/* This cannot ever be a sun4c nor sun4 :) That's just history. */
-#define ARCH_SUN4C_SUN4 0
-#define ARCH_SUN4 0
+/* This cannot ever be a sun4c :) That's just history. */
+#define ARCH_SUN4C 0
 
 extern char reboot_command[];
 
@@ -118,6 +117,7 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 
 extern void sun_do_break(void);
 extern int stop_a_enabled;
+extern int scons_pwroff;
 
 extern void fault_in_user_windows(void);
 extern void synchronize_user_stack(void);

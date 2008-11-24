@@ -134,5 +134,5 @@ config USB_OTG_BLACKLIST_HUB
 	  If you say Y here, then Linux will refuse to enumerate
 	  external hubs.  OTG hosts are allowed to reduce hardware
 	  and software costs by not supporting external hubs.  So
-	  are "Emedded Hosts" that don't offer OTG support.
+	  are "Embedded Hosts" that don't offer OTG support.
 

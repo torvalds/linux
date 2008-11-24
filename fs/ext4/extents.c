@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <linux/falloc.h>
 #include <asm/uaccess.h>
+#include <linux/fiemap.h>
 #include "ext4_jbd2.h"
 #include "ext4_extents.h"
 
@@ -383,8 +384,8 @@ static void ext4_ext_show_leaf(struct inode *inode, struct ext4_ext_path *path)
 	ext_debug("\n");
 }
 #else
-#define ext4_ext_show_path(inode,path)
-#define ext4_ext_show_leaf(inode,path)
+#define ext4_ext_show_path(inode, path)
+#define ext4_ext_show_leaf(inode, path)
 #endif
 
 void ext4_ext_drop_refs(struct ext4_ext_path *path)
@@ -440,9 +441,10 @@ ext4_ext_binsearch_idx(struct inode *inode,
 		for (k = 0; k < le16_to_cpu(eh->eh_entries); k++, ix++) {
 		  if (k != 0 &&
 		      le32_to_cpu(ix->ei_block) <= le32_to_cpu(ix[-1].ei_block)) {
-				printk("k=%d, ix=0x%p, first=0x%p\n", k,
-					ix, EXT_FIRST_INDEX(eh));
-				printk("%u <= %u\n",
+				printk(KERN_DEBUG "k=%d, ix=0x%p, "
+				       "first=0x%p\n", k,
+				       ix, EXT_FIRST_INDEX(eh));
+				printk(KERN_DEBUG "%u <= %u\n",
 				       le32_to_cpu(ix->ei_block),
 				       le32_to_cpu(ix[-1].ei_block));
 			}
@@ -1475,7 +1477,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 				struct ext4_ext_path *path,
 				struct ext4_extent *newext)
 {
-	struct ext4_extent_header * eh;
+	struct ext4_extent_header *eh;
 	struct ext4_extent *ex, *fex;
 	struct ext4_extent *nearex; /* nearest extent */
 	struct ext4_ext_path *npath = NULL;
@@ -1622,6 +1624,113 @@ cleanup:
 	}
 	ext4_ext_tree_changed(inode);
 	ext4_ext_invalidate_cache(inode);
+	return err;
+}
+
+int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
+			ext4_lblk_t num, ext_prepare_callback func,
+			void *cbdata)
+{
+	struct ext4_ext_path *path = NULL;
+	struct ext4_ext_cache cbex;
+	struct ext4_extent *ex;
+	ext4_lblk_t next, start = 0, end = 0;
+	ext4_lblk_t last = block + num;
+	int depth, exists, err = 0;
+
+	BUG_ON(func == NULL);
+	BUG_ON(inode == NULL);
+
+	while (block < last && block != EXT_MAX_BLOCK) {
+		num = last - block;
+		/* find extent for this block */
+		path = ext4_ext_find_extent(inode, block, path);
+		if (IS_ERR(path)) {
+			err = PTR_ERR(path);
+			path = NULL;
+			break;
+		}
+
+		depth = ext_depth(inode);
+		BUG_ON(path[depth].p_hdr == NULL);
+		ex = path[depth].p_ext;
+		next = ext4_ext_next_allocated_block(path);
+
+		exists = 0;
+		if (!ex) {
+			/* there is no extent yet, so try to allocate
+			 * all requested space */
+			start = block;
+			end = block + num;
+		} else if (le32_to_cpu(ex->ee_block) > block) {
+			/* need to allocate space before found extent */
+			start = block;
+			end = le32_to_cpu(ex->ee_block);
+			if (block + num < end)
+				end = block + num;
+		} else if (block >= le32_to_cpu(ex->ee_block)
+					+ ext4_ext_get_actual_len(ex)) {
+			/* need to allocate space after found extent */
+			start = block;
+			end = block + num;
+			if (end >= next)
+				end = next;
+		} else if (block >= le32_to_cpu(ex->ee_block)) {
+			/*
+			 * some part of requested space is covered
+			 * by found extent
+			 */
+			start = block;
+			end = le32_to_cpu(ex->ee_block)
+				+ ext4_ext_get_actual_len(ex);
+			if (block + num < end)
+				end = block + num;
+			exists = 1;
+		} else {
+			BUG();
+		}
+		BUG_ON(end <= start);
+
+		if (!exists) {
+			cbex.ec_block = start;
+			cbex.ec_len = end - start;
+			cbex.ec_start = 0;
+			cbex.ec_type = EXT4_EXT_CACHE_GAP;
+		} else {
+			cbex.ec_block = le32_to_cpu(ex->ee_block);
+			cbex.ec_len = ext4_ext_get_actual_len(ex);
+			cbex.ec_start = ext_pblock(ex);
+			cbex.ec_type = EXT4_EXT_CACHE_EXTENT;
+		}
+
+		BUG_ON(cbex.ec_len == 0);
+		err = func(inode, path, &cbex, ex, cbdata);
+		ext4_ext_drop_refs(path);
+
+		if (err < 0)
+			break;
+
+		if (err == EXT_REPEAT)
+			continue;
+		else if (err == EXT_BREAK) {
+			err = 0;
+			break;
+		}
+
+		if (ext_depth(inode) != depth) {
+			/* depth was changed. we have to realloc path */
+			kfree(path);
+			path = NULL;
+		}
+
+		block = cbex.ec_block + cbex.ec_len;
+	}
+
+	if (path) {
+		ext4_ext_drop_refs(path);
+		kfree(path);
+	}
+
 	return err;
 }
 
@@ -2142,7 +2251,7 @@ void ext4_ext_init(struct super_block *sb)
 	 */
 
 	if (test_opt(sb, EXTENTS)) {
-		printk("EXT4-fs: file extents enabled");
+		printk(KERN_INFO "EXT4-fs: file extents enabled");
 #ifdef AGGRESSIVE_TEST
 		printk(", aggressive tests");
 #endif
@@ -2696,11 +2805,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		goto out2;
 	}
 	/*
-	 * Okay, we need to do block allocation.  Lazily initialize the block
-	 * allocation info here if necessary.
+	 * Okay, we need to do block allocation.
 	 */
-	if (S_ISREG(inode->i_mode) && (!EXT4_I(inode)->i_block_alloc_info))
-		ext4_init_block_alloc_info(inode);
 
 	/* find neighbour allocated blocks */
 	ar.lleft = iblock;
@@ -2760,7 +2866,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		/* free data blocks we just allocated */
 		/* not a good idea to call discard here directly,
 		 * but otherwise we'd need to call it every free() */
-		ext4_mb_discard_inode_preallocations(inode);
+		ext4_discard_preallocations(inode);
 		ext4_free_blocks(handle, inode, ext_pblock(&newex),
 					ext4_ext_get_actual_len(&newex), 0);
 		goto out2;
@@ -2824,7 +2930,7 @@ void ext4_ext_truncate(struct inode *inode)
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_ext_invalidate_cache(inode);
 
-	ext4_discard_reservation(inode);
+	ext4_discard_preallocations(inode);
 
 	/*
 	 * TODO: optimization is possible here.
@@ -2877,10 +2983,11 @@ static void ext4_falloc_update_inode(struct inode *inode,
 	 * Update only when preallocation was requested beyond
 	 * the file size.
 	 */
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-				new_size > i_size_read(inode)) {
-		i_size_write(inode, new_size);
-		EXT4_I(inode)->i_disksize = new_size;
+	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
+		if (new_size > i_size_read(inode))
+			i_size_write(inode, new_size);
+		if (new_size > EXT4_I(inode)->i_disksize)
+			ext4_update_i_disksize(inode, new_size);
 	}
 
 }
@@ -2972,3 +3079,143 @@ retry:
 	mutex_unlock(&inode->i_mutex);
 	return ret > 0 ? ret2 : ret;
 }
+
+/*
+ * Callback function called for each extent to gather FIEMAP information.
+ */
+int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
+		       struct ext4_ext_cache *newex, struct ext4_extent *ex,
+		       void *data)
+{
+	struct fiemap_extent_info *fieinfo = data;
+	unsigned long blksize_bits = inode->i_sb->s_blocksize_bits;
+	__u64	logical;
+	__u64	physical;
+	__u64	length;
+	__u32	flags = 0;
+	int	error;
+
+	logical =  (__u64)newex->ec_block << blksize_bits;
+
+	if (newex->ec_type == EXT4_EXT_CACHE_GAP) {
+		pgoff_t offset;
+		struct page *page;
+		struct buffer_head *bh = NULL;
+
+		offset = logical >> PAGE_SHIFT;
+		page = find_get_page(inode->i_mapping, offset);
+		if (!page || !page_has_buffers(page))
+			return EXT_CONTINUE;
+
+		bh = page_buffers(page);
+
+		if (!bh)
+			return EXT_CONTINUE;
+
+		if (buffer_delay(bh)) {
+			flags |= FIEMAP_EXTENT_DELALLOC;
+			page_cache_release(page);
+		} else {
+			page_cache_release(page);
+			return EXT_CONTINUE;
+		}
+	}
+
+	physical = (__u64)newex->ec_start << blksize_bits;
+	length =   (__u64)newex->ec_len << blksize_bits;
+
+	if (ex && ext4_ext_is_uninitialized(ex))
+		flags |= FIEMAP_EXTENT_UNWRITTEN;
+
+	/*
+	 * If this extent reaches EXT_MAX_BLOCK, it must be last.
+	 *
+	 * Or if ext4_ext_next_allocated_block is EXT_MAX_BLOCK,
+	 * this also indicates no more allocated blocks.
+	 *
+	 * XXX this might miss a single-block extent at EXT_MAX_BLOCK
+	 */
+	if (logical + length - 1 == EXT_MAX_BLOCK ||
+	    ext4_ext_next_allocated_block(path) == EXT_MAX_BLOCK)
+		flags |= FIEMAP_EXTENT_LAST;
+
+	error = fiemap_fill_next_extent(fieinfo, logical, physical,
+					length, flags);
+	if (error < 0)
+		return error;
+	if (error == 1)
+		return EXT_BREAK;
+
+	return EXT_CONTINUE;
+}
+
+/* fiemap flags we can handle specified here */
+#define EXT4_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC|FIEMAP_FLAG_XATTR)
+
+int ext4_xattr_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo)
+{
+	__u64 physical = 0;
+	__u64 length;
+	__u32 flags = FIEMAP_EXTENT_LAST;
+	int blockbits = inode->i_sb->s_blocksize_bits;
+	int error = 0;
+
+	/* in-inode? */
+	if (EXT4_I(inode)->i_state & EXT4_STATE_XATTR) {
+		struct ext4_iloc iloc;
+		int offset;	/* offset of xattr in inode */
+
+		error = ext4_get_inode_loc(inode, &iloc);
+		if (error)
+			return error;
+		physical = iloc.bh->b_blocknr << blockbits;
+		offset = EXT4_GOOD_OLD_INODE_SIZE +
+				EXT4_I(inode)->i_extra_isize;
+		physical += offset;
+		length = EXT4_SB(inode->i_sb)->s_inode_size - offset;
+		flags |= FIEMAP_EXTENT_DATA_INLINE;
+	} else { /* external block */
+		physical = EXT4_I(inode)->i_file_acl << blockbits;
+		length = inode->i_sb->s_blocksize;
+	}
+
+	if (physical)
+		error = fiemap_fill_next_extent(fieinfo, 0, physical,
+						length, flags);
+	return (error < 0 ? error : 0);
+}
+
+int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		__u64 start, __u64 len)
+{
+	ext4_lblk_t start_blk;
+	ext4_lblk_t len_blks;
+	int error = 0;
+
+	/* fallback to generic here if not in extents fmt */
+	if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+		return generic_block_fiemap(inode, fieinfo, start, len,
+			ext4_get_block);
+
+	if (fiemap_check_flags(fieinfo, EXT4_FIEMAP_FLAGS))
+		return -EBADR;
+
+	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR) {
+		error = ext4_xattr_fiemap(inode, fieinfo);
+	} else {
+		start_blk = start >> inode->i_sb->s_blocksize_bits;
+		len_blks = len >> inode->i_sb->s_blocksize_bits;
+
+		/*
+		 * Walk the extent tree gathering extent information.
+		 * ext4_ext_fiemap_cb will push extents back to user.
+		 */
+		down_write(&EXT4_I(inode)->i_data_sem);
+		error = ext4_ext_walk_space(inode, start_blk, len_blks,
+					  ext4_ext_fiemap_cb, fieinfo);
+		up_write(&EXT4_I(inode)->i_data_sem);
+	}
+
+	return error;
+}
+

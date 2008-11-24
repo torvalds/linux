@@ -21,12 +21,9 @@ MODULE_ALIAS("ipt_state");
 MODULE_ALIAS("ip6t_state");
 
 static bool
-state_mt(const struct sk_buff *skb, const struct net_device *in,
-         const struct net_device *out, const struct xt_match *match,
-         const void *matchinfo, int offset, unsigned int protoff,
-         bool *hotdrop)
+state_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_state_info *sinfo = matchinfo;
+	const struct xt_state_info *sinfo = par->matchinfo;
 	enum ip_conntrack_info ctinfo;
 	unsigned int statebit;
 
@@ -40,28 +37,25 @@ state_mt(const struct sk_buff *skb, const struct net_device *in,
 	return (sinfo->statemask & statebit);
 }
 
-static bool
-state_mt_check(const char *tablename, const void *inf,
-               const struct xt_match *match, void *matchinfo,
-               unsigned int hook_mask)
+static bool state_mt_check(const struct xt_mtchk_param *par)
 {
-	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->match->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", match->family);
+				    "proto=%u\n", par->match->family);
 		return false;
 	}
 	return true;
 }
 
-static void state_mt_destroy(const struct xt_match *match, void *matchinfo)
+static void state_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(match->family);
+	nf_ct_l3proto_module_put(par->match->family);
 }
 
 static struct xt_match state_mt_reg[] __read_mostly = {
 	{
 		.name		= "state",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= state_mt_check,
 		.match		= state_mt,
 		.destroy	= state_mt_destroy,
@@ -70,7 +64,7 @@ static struct xt_match state_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "state",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= state_mt_check,
 		.match		= state_mt,
 		.destroy	= state_mt_destroy,

@@ -25,20 +25,20 @@
 #include <linux/irq.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/map.h>
-#include <asm/plat-s3c/regs-timer.h>
+#include <plat/regs-timer.h>
 #include <mach/regs-irq.h>
 #include <asm/mach/time.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
 static unsigned long timer_startval;
 static unsigned long timer_usec_ticks;

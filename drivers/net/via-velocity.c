@@ -12,7 +12,7 @@
  *	Scatter gather
  *	More testing
  *
- * The changes are (c) Copyright 2004, Red Hat Inc. <alan@redhat.com>
+ * The changes are (c) Copyright 2004, Red Hat Inc. <alan@lxorguk.ukuu.org.uk>
  * Additional fixes and clean up: Francois Romieu
  *
  * This source has not been verified for use in safety critical systems.
@@ -521,7 +521,7 @@ static void __devexit velocity_remove1(struct pci_dev *pdev)
  *	we don't duplicate code for each option.
  */
 
-static void __devinit velocity_set_int_opt(int *opt, int val, int min, int max, int def, char *name, char *devname)
+static void __devinit velocity_set_int_opt(int *opt, int val, int min, int max, int def, char *name, const char *devname)
 {
 	if (val == -1)
 		*opt = def;
@@ -550,7 +550,7 @@ static void __devinit velocity_set_int_opt(int *opt, int val, int min, int max, 
  *	we don't duplicate code for each option.
  */
 
-static void __devinit velocity_set_bool_opt(u32 * opt, int val, int def, u32 flag, char *name, char *devname)
+static void __devinit velocity_set_bool_opt(u32 * opt, int val, int def, u32 flag, char *name, const char *devname)
 {
 	(*opt) &= (~flag);
 	if (val == -1)
@@ -576,7 +576,7 @@ static void __devinit velocity_set_bool_opt(u32 * opt, int val, int def, u32 fla
  *	for the current device
  */
 
-static void __devinit velocity_get_options(struct velocity_opt *opts, int index, char *devname)
+static void __devinit velocity_get_options(struct velocity_opt *opts, int index, const char *devname)
 {
 
 	velocity_set_int_opt(&opts->rx_thresh, rx_thresh[index], RX_THRESH_MIN, RX_THRESH_MAX, RX_THRESH_DEF, "rx_thresh", devname);
@@ -863,6 +863,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	static int first = 1;
 	struct net_device *dev;
 	int i;
+	const char *drv_string;
 	const struct velocity_info_tbl *info = &chip_info_table[ent->driver_data];
 	struct velocity_info *vptr;
 	struct mac_regs __iomem * regs;
@@ -935,7 +936,9 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 		dev->dev_addr[i] = readb(&regs->PAR[i]);
 
 
-	velocity_get_options(&vptr->options, velocity_nics, dev->name);
+	drv_string = dev_driver_string(&pdev->dev);
+
+	velocity_get_options(&vptr->options, velocity_nics, drv_string);
 
 	/*
 	 *	Mask out the options cannot be set to the chip
@@ -1272,7 +1275,7 @@ static void velocity_free_rd_ring(struct velocity_info *vptr)
 			continue;
 		pci_unmap_single(vptr->pdev, rd_info->skb_dma, vptr->rx.buf_sz,
 				 PCI_DMA_FROMDEVICE);
-		rd_info->skb_dma = (dma_addr_t) NULL;
+		rd_info->skb_dma = 0;
 
 		dev_kfree_skb(rd_info->skb);
 		rd_info->skb = NULL;
@@ -1333,7 +1336,7 @@ static void velocity_free_td_ring_entry(struct velocity_info *vptr,
 			if (td_info->skb_dma[i]) {
 				pci_unmap_single(vptr->pdev, td_info->skb_dma[i],
 					td_info->skb->len, PCI_DMA_TODEVICE);
-				td_info->skb_dma[i] = (dma_addr_t) NULL;
+				td_info->skb_dma[i] = 0;
 			}
 		}
 		dev_kfree_skb(td_info->skb);
@@ -2293,7 +2296,7 @@ static void velocity_set_multi(struct net_device *dev)
 		}
 
 		mac_set_cam_mask(regs, vptr->mCAMmask);
-		rx_mode = (RCR_AM | RCR_AB);
+		rx_mode = RCR_AM | RCR_AB | RCR_AP;
 	}
 	if (dev->mtu > 1500)
 		rx_mode |= RCR_AL;

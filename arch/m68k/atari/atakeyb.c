@@ -635,15 +635,3 @@ int atari_keyb_init(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(atari_keyb_init);
-
-int atari_kbd_translate(unsigned char keycode, unsigned char *keycodep, char raw_mode)
-{
-#ifdef CONFIG_MAGIC_SYSRQ
-	/* ALT+HELP pressed? */
-	if ((keycode == 98) && ((shift_state & 0xff) == 8))
-		*keycodep = 0xff;
-	else
-#endif
-		*keycodep = keycode;
-	return 1;
-}

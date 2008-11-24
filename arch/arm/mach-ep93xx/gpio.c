@@ -16,9 +16,9 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/io.h>
 
 #include <mach/ep93xx-regs.h>
-#include <asm/io.h>
 #include <asm/gpio.h>
 
 struct ep93xx_gpio_chip {
@@ -141,10 +141,10 @@ static void ep93xx_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 static struct ep93xx_gpio_chip ep93xx_gpio_banks[] = {
 	EP93XX_GPIO_BANK("A", 0x00, 0x10, 0),
 	EP93XX_GPIO_BANK("B", 0x04, 0x14, 8),
-	EP93XX_GPIO_BANK("C", 0x30, 0x34, 40),
+	EP93XX_GPIO_BANK("C", 0x08, 0x18, 40),
 	EP93XX_GPIO_BANK("D", 0x0c, 0x1c, 24),
 	EP93XX_GPIO_BANK("E", 0x20, 0x24, 32),
-	EP93XX_GPIO_BANK("F", 0x08, 0x18, 16),
+	EP93XX_GPIO_BANK("F", 0x30, 0x34, 16),
 	EP93XX_GPIO_BANK("G", 0x38, 0x3c, 48),
 	EP93XX_GPIO_BANK("H", 0x40, 0x44, 56),
 };

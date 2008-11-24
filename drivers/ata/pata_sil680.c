@@ -1,7 +1,6 @@
 /*
  * pata_sil680.c 	- SIL680 PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  * based upon
  *
@@ -230,7 +229,7 @@ static u8 sil680_init_chip(struct pci_dev *pdev, int *try_mmio)
 		tmpbyte & 1, tmpbyte & 0x30);
 
 	*try_mmio = 0;
-#ifdef CONFIG_PPC_MERGE
+#ifdef CONFIG_PPC
 	if (machine_is(cell))
 		*try_mmio = (tmpbyte & 1) || pci_resource_start(pdev, 5);
 #endif

@@ -40,39 +40,39 @@
 
 /* register offsets for sh7722 / sh7723 */
 
-#define CAPSR  0x00
-#define CAPCR  0x04
-#define CAMCR  0x08
-#define CMCYR  0x0c
-#define CAMOR  0x10
-#define CAPWR  0x14
-#define CAIFR  0x18
-#define CSTCR  0x20 /* not on sh7723 */
-#define CSECR  0x24 /* not on sh7723 */
-#define CRCNTR 0x28
-#define CRCMPR 0x2c
-#define CFLCR  0x30
-#define CFSZR  0x34
-#define CDWDR  0x38
-#define CDAYR  0x3c
-#define CDACR  0x40
-#define CDBYR  0x44
-#define CDBCR  0x48
-#define CBDSR  0x4c
-#define CFWCR  0x5c
-#define CLFCR  0x60
-#define CDOCR  0x64
-#define CDDCR  0x68
-#define CDDAR  0x6c
-#define CEIER  0x70
-#define CETCR  0x74
-#define CSTSR  0x7c
-#define CSRTR  0x80
-#define CDSSR  0x84
-#define CDAYR2 0x90
-#define CDACR2 0x94
-#define CDBYR2 0x98
-#define CDBCR2 0x9c
+#define CAPSR  0x00 /* Capture start register */
+#define CAPCR  0x04 /* Capture control register */
+#define CAMCR  0x08 /* Capture interface control register */
+#define CMCYR  0x0c /* Capture interface cycle  register */
+#define CAMOR  0x10 /* Capture interface offset register */
+#define CAPWR  0x14 /* Capture interface width register */
+#define CAIFR  0x18 /* Capture interface input format register */
+#define CSTCR  0x20 /* Camera strobe control register (<= sh7722) */
+#define CSECR  0x24 /* Camera strobe emission count register (<= sh7722) */
+#define CRCNTR 0x28 /* CEU register control register */
+#define CRCMPR 0x2c /* CEU register forcible control register */
+#define CFLCR  0x30 /* Capture filter control register */
+#define CFSZR  0x34 /* Capture filter size clip register */
+#define CDWDR  0x38 /* Capture destination width register */
+#define CDAYR  0x3c /* Capture data address Y register */
+#define CDACR  0x40 /* Capture data address C register */
+#define CDBYR  0x44 /* Capture data bottom-field address Y register */
+#define CDBCR  0x48 /* Capture data bottom-field address C register */
+#define CBDSR  0x4c /* Capture bundle destination size register */
+#define CFWCR  0x5c /* Firewall operation control register */
+#define CLFCR  0x60 /* Capture low-pass filter control register */
+#define CDOCR  0x64 /* Capture data output control register */
+#define CDDCR  0x68 /* Capture data complexity level register */
+#define CDDAR  0x6c /* Capture data complexity level address register */
+#define CEIER  0x70 /* Capture event interrupt enable register */
+#define CETCR  0x74 /* Capture event flag clear register */
+#define CSTSR  0x7c /* Capture status register */
+#define CSRTR  0x80 /* Capture software reset register */
+#define CDSSR  0x84 /* Capture data size register */
+#define CDAYR2 0x90 /* Capture data address Y register 2 */
+#define CDACR2 0x94 /* Capture data address C register 2 */
+#define CDBYR2 0x98 /* Capture data bottom-field address Y register 2 */
+#define CDBCR2 0x9c /* Capture data bottom-field address C register 2 */
 
 static DEFINE_MUTEX(camera_lock);
 
@@ -165,6 +165,7 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	ceu_write(pcdev, CETCR, 0x0317f313 ^ 0x10);
 
 	if (pcdev->active) {
+		pcdev->active->state = VIDEOBUF_ACTIVE;
 		ceu_write(pcdev, CDAYR, videobuf_to_dma_contig(pcdev->active));
 		ceu_write(pcdev, CAPSR, 0x1); /* start capture */
 	}
@@ -236,7 +237,7 @@ static void sh_mobile_ceu_videobuf_queue(struct videobuf_queue *vq,
 	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
-	vb->state = VIDEOBUF_ACTIVE;
+	vb->state = VIDEOBUF_QUEUED;
 	spin_lock_irqsave(&pcdev->lock, flags);
 	list_add_tail(&vb->queue, &pcdev->capture);
 
@@ -304,9 +305,6 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 		 "SuperH Mobile CEU driver attached to camera %d\n",
 		 icd->devnum);
 
-	if (pcdev->pdata->enable_camera)
-		pcdev->pdata->enable_camera();
-
 	ret = icd->ops->init(icd);
 	if (ret)
 		goto err;
@@ -326,15 +324,25 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+	unsigned long flags;
 
 	BUG_ON(icd != pcdev->icd);
 
 	/* disable capture, disable interrupts */
 	ceu_write(pcdev, CEIER, 0);
 	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
+
+	/* make sure active buffer is canceled */
+	spin_lock_irqsave(&pcdev->lock, flags);
+	if (pcdev->active) {
+		list_del(&pcdev->active->queue);
+		pcdev->active->state = VIDEOBUF_ERROR;
+		wake_up_all(&pcdev->active->done);
+		pcdev->active = NULL;
+	}
+	spin_unlock_irqrestore(&pcdev->lock, flags);
+
 	icd->ops->release(icd);
-	if (pcdev->pdata->disable_camera)
-		pcdev->pdata->disable_camera();
 
 	dev_info(&icd->dev,
 		 "SuperH Mobile CEU driver detached from camera %d\n",
@@ -396,7 +404,20 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CFLCR, 0); /* data fetch mode - no scaling */
 	ceu_write(pcdev, CFSZR, (icd->height << 16) | cfszr_width);
 	ceu_write(pcdev, CLFCR, 0); /* data fetch mode - no lowpass filter */
-	ceu_write(pcdev, CDOCR, 0x00000016);
+
+	/* A few words about byte order (observed in Big Endian mode)
+	 *
+	 * In data fetch mode bytes are received in chunks of 8 bytes.
+	 * D0, D1, D2, D3, D4, D5, D6, D7 (D0 received first)
+	 *
+	 * The data is however by default written to memory in reverse order:
+	 * D7, D6, D5, D4, D3, D2, D1, D0 (D7 written to lowest byte)
+	 *
+	 * The lowest three bits of CDOCR allows us to do swapping,
+	 * using 7 we swap the data bytes to match the incoming order:
+	 * D0, D1, D2, D3, D4, D5, D6, D7
+	 */
+	ceu_write(pcdev, CDOCR, 0x00000017);
 
 	ceu_write(pcdev, CDWDR, cdwdr_width);
 	ceu_write(pcdev, CFWCR, 0); /* keep "datafetch firewall" disabled */

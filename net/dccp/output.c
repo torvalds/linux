@@ -347,7 +347,7 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	/* Build and checksum header */
 	dh = dccp_zeroed_hdr(skb, dccp_header_size);
 
-	dh->dccph_sport	= inet_sk(sk)->sport;
+	dh->dccph_sport	= inet_rsk(req)->loc_port;
 	dh->dccph_dport	= inet_rsk(req)->rmt_port;
 	dh->dccph_doff	= (dccp_header_size +
 			   DCCP_SKB_CB(skb)->dccpd_opt_len) / 4;

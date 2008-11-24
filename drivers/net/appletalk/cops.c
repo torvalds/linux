@@ -4,7 +4,7 @@
  *      - Jay Schulist <jschlst@samba.org>
  *
  *	With more than a little help from;
- *	- Alan Cox <Alan.Cox@linux.org> 
+ *	- Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *      Derived from:
  *      - skeleton.c: A network driver outline for linux.

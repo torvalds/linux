@@ -41,7 +41,7 @@
 		and	\irqstat, \irqstat, \irqnr
 		clz	\irqnr, \irqstat
 		rsb	\irqnr, \irqnr, #31
-		add	\irqnr, \irqnr, #32
+		add	\irqnr, \irqnr, #(32 + PXA_IRQ(0))
 		b	1001f
 1003:
 		mrc	p6, 0, \irqstat, c0, c0, 0	@ ICIP
@@ -52,6 +52,6 @@
 		rsb	\irqstat, \irqnr, #0
 		and	\irqstat, \irqstat, \irqnr
 		clz	\irqnr, \irqstat
-		rsb	\irqnr, \irqnr, #31
+		rsb	\irqnr, \irqnr, #(31 + PXA_IRQ(0))
 1001:
 		.endm

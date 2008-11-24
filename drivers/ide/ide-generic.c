@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/ide.h>
+#include <linux/pci_ids.h>
 
 /* FIXME: convert m32r to use ide_platform host driver */
 #ifdef CONFIG_M32R
@@ -27,7 +28,7 @@
 
 #define DRV_NAME	"ide_generic"
 
-static int probe_mask = 0x03;
+static int probe_mask;
 module_param(probe_mask, int, 0);
 MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
 
@@ -100,26 +101,63 @@ static const u16 legacy_bases[] = { 0x1f0, 0x170, 0x1e8, 0x168, 0x1e0, 0x160 };
 static const int legacy_irqs[]  = { 14, 15, 11, 10, 8, 12 };
 #endif
 
+static void ide_generic_check_pci_legacy_iobases(int *primary, int *secondary)
+{
+	struct pci_dev *p = NULL;
+	u16 val;
+
+	for_each_pci_dev(p) {
+
+		if (pci_resource_start(p, 0) == 0x1f0)
+			*primary = 1;
+		if (pci_resource_start(p, 2) == 0x170)
+			*secondary = 1;
+
+		/* Cyrix CS55{1,2}0 pre SFF MWDMA ATA on the bridge */
+		if (p->vendor == PCI_VENDOR_ID_CYRIX &&
+		    (p->device == PCI_DEVICE_ID_CYRIX_5510 ||
+		     p->device == PCI_DEVICE_ID_CYRIX_5520))
+			*primary = *secondary = 1;
+
+		/* Intel MPIIX - PIO ATA on non PCI side of bridge */
+		if (p->vendor == PCI_VENDOR_ID_INTEL &&
+		    p->device == PCI_DEVICE_ID_INTEL_82371MX) {
+
+			pci_read_config_word(p, 0x6C, &val);
+			if (val & 0x8000) {
+				/* ATA port enabled */
+				if (val & 0x4000)
+					*secondary = 1;
+				else
+					*primary = 1;
+			}
+		}
+	}
+}
+
 static int __init ide_generic_init(void)
 {
-	hw_regs_t hw[MAX_HWIFS], *hws[MAX_HWIFS];
-	struct ide_host *host;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	unsigned long io_addr;
-	int i, rc;
+	int i, rc = 0, primary = 0, secondary = 0;
 
-#ifdef CONFIG_MIPS
-	if (!ide_probe_legacy())
-		return -ENODEV;
-#endif
-	printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" module "
-			 "parameter for probing all legacy ISA IDE ports\n");
+	ide_generic_check_pci_legacy_iobases(&primary, &secondary);
 
-	memset(hws, 0, sizeof(hw_regs_t *) * MAX_HWIFS);
+	if (!probe_mask) {
+		printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" "
+		     "module parameter for probing all legacy ISA IDE ports\n");
+
+		if (primary == 0)
+			probe_mask |= 0x1;
+
+		if (secondary == 0)
+			probe_mask |= 0x2;
+	} else
+		printk(KERN_INFO DRV_NAME ": enforcing probing of I/O ports "
+			"upon user request\n");
 
 	for (i = 0; i < ARRAY_SIZE(legacy_bases); i++) {
 		io_addr = legacy_bases[i];
-
-		hws[i] = NULL;
 
 		if ((probe_mask & (1 << i)) && io_addr) {
 			if (!request_region(io_addr, 8, DRV_NAME)) {
@@ -137,45 +175,27 @@ static int __init ide_generic_init(void)
 				continue;
 			}
 
-			memset(&hw[i], 0, sizeof(hw[i]));
-			ide_std_init_ports(&hw[i], io_addr, io_addr + 0x206);
+			memset(&hw, 0, sizeof(hw));
+			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
 #ifdef CONFIG_IA64
-			hw[i].irq = isa_irq_to_vector(legacy_irqs[i]);
+			hw.irq = isa_irq_to_vector(legacy_irqs[i]);
 #else
-			hw[i].irq = legacy_irqs[i];
+			hw.irq = legacy_irqs[i];
 #endif
-			hw[i].chipset = ide_generic;
+			hw.chipset = ide_generic;
 
-			hws[i] = &hw[i];
+			rc = ide_host_add(NULL, hws, NULL);
+			if (rc) {
+				release_region(io_addr + 0x206, 1);
+				release_region(io_addr, 8);
+			}
 		}
 	}
-
-	host = ide_host_alloc_all(NULL, hws);
-	if (host == NULL) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-	rc = ide_host_register(host, NULL, hws);
-	if (rc)
-		goto err_free;
 
 	if (ide_generic_sysfs_init())
 		printk(KERN_ERR DRV_NAME ": failed to create ide_generic "
 					 "class\n");
 
-	return 0;
-err_free:
-	ide_host_free(host);
-err:
-	for (i = 0; i < MAX_HWIFS; i++) {
-		if (hws[i] == NULL)
-			continue;
-
-		io_addr = hws[i]->io_ports.data_addr;
-		release_region(io_addr + 0x206, 1);
-		release_region(io_addr, 8);
-	}
 	return rc;
 }
 

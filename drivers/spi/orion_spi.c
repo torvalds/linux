@@ -364,6 +364,11 @@ static int orion_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	/* Fix ac timing if required.   */
+	if (orion_spi->spi_info->enable_clock_fix)
+		orion_spi_setbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
+				  (1 << 14));
+
 	if (spi->bits_per_word == 0)
 		spi->bits_per_word = 8;
 
@@ -427,7 +432,7 @@ static int orion_spi_transfer(struct spi_device *spi, struct spi_message *m)
 			goto msg_rejected;
 		}
 
-		if (t->speed_hz < orion_spi->min_speed) {
+		if (t->speed_hz && t->speed_hz < orion_spi->min_speed) {
 			dev_err(&spi->dev,
 				"message rejected : "
 				"device min speed (%d Hz) exceeds "

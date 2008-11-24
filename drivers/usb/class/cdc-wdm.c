@@ -42,6 +42,8 @@ static struct usb_device_id wdm_ids[] = {
 	{ }
 };
 
+MODULE_DEVICE_TABLE (usb, wdm_ids);
+
 #define WDM_MINOR_BASE	176
 
 
@@ -132,10 +134,12 @@ static void wdm_in_callback(struct urb *urb)
 				"nonzero urb status received: -ESHUTDOWN");
 			break;
 		case -EPIPE:
-			err("nonzero urb status received: -EPIPE");
+			dev_err(&desc->intf->dev,
+				"nonzero urb status received: -EPIPE\n");
 			break;
 		default:
-			err("Unexpected error %d", status);
+			dev_err(&desc->intf->dev,
+				"Unexpected error %d\n", status);
 			break;
 		}
 	}
@@ -170,16 +174,18 @@ static void wdm_int_callback(struct urb *urb)
 			return; /* unplug */
 		case -EPIPE:
 			set_bit(WDM_INT_STALL, &desc->flags);
-			err("Stall on int endpoint");
+			dev_err(&desc->intf->dev, "Stall on int endpoint\n");
 			goto sw; /* halt is cleared in work */
 		default:
-			err("nonzero urb status received: %d", status);
+			dev_err(&desc->intf->dev,
+				"nonzero urb status received: %d\n", status);
 			break;
 		}
 	}
 
 	if (urb->actual_length < sizeof(struct usb_cdc_notification)) {
-		err("wdm_int_callback - %d bytes", urb->actual_length);
+		dev_err(&desc->intf->dev, "wdm_int_callback - %d bytes\n",
+			urb->actual_length);
 		goto exit;
 	}
 
@@ -198,7 +204,8 @@ static void wdm_int_callback(struct urb *urb)
 		goto exit;
 	default:
 		clear_bit(WDM_POLL_RUNNING, &desc->flags);
-		err("unknown notification %d received: index %d len %d",
+		dev_err(&desc->intf->dev,
+			"unknown notification %d received: index %d len %d\n",
 			dr->bNotificationType, dr->wIndex, dr->wLength);
 		goto exit;
 	}
@@ -236,14 +243,16 @@ static void wdm_int_callback(struct urb *urb)
 sw:
 			rv = schedule_work(&desc->rxwork);
 			if (rv)
-				err("Cannot schedule work");
+				dev_err(&desc->intf->dev,
+					"Cannot schedule work\n");
 		}
 	}
 exit:
 	rv = usb_submit_urb(urb, GFP_ATOMIC);
 	if (rv)
-		err("%s - usb_submit_urb failed with result %d",
-		     __func__, rv);
+		dev_err(&desc->intf->dev,
+			"%s - usb_submit_urb failed with result %d\n",
+			__func__, rv);
 
 }
 
@@ -353,7 +362,7 @@ static ssize_t wdm_write
 	if (rv < 0) {
 		kfree(buf);
 		clear_bit(WDM_IN_USE, &desc->flags);
-		err("Tx URB error: %d", rv);
+		dev_err(&desc->intf->dev, "Tx URB error: %d\n", rv);
 	} else {
 		dev_dbg(&desc->intf->dev, "Tx URB has been submitted index=%d",
 			req->wIndex);
@@ -401,7 +410,8 @@ retry:
 			int t = desc->rerr;
 			desc->rerr = 0;
 			spin_unlock_irq(&desc->iuspin);
-			err("reading had resulted in %d", t);
+			dev_err(&desc->intf->dev,
+				"reading had resulted in %d\n", t);
 			rv = -EIO;
 			goto err;
 		}
@@ -440,7 +450,7 @@ retry:
 err:
 	mutex_unlock(&desc->rlock);
 	if (rv < 0)
-		err("wdm_read: exit error");
+		dev_err(&desc->intf->dev, "wdm_read: exit error\n");
 	return rv;
 }
 
@@ -450,7 +460,8 @@ static int wdm_flush(struct file *file, fl_owner_t id)
 
 	wait_event(desc->wait, !test_bit(WDM_IN_USE, &desc->flags));
 	if (desc->werr < 0)
-		err("Error in flush path: %d", desc->werr);
+		dev_err(&desc->intf->dev, "Error in flush path: %d\n",
+			desc->werr);
 
 	return desc->werr;
 }
@@ -502,7 +513,7 @@ static int wdm_open(struct inode *inode, struct file *file)
 
 	rv = usb_autopm_get_interface(desc->intf);
 	if (rv < 0) {
-		err("Error autopm - %d", rv);
+		dev_err(&desc->intf->dev, "Error autopm - %d\n", rv);
 		goto out;
 	}
 	intf->needs_remote_wakeup = 1;
@@ -512,7 +523,8 @@ static int wdm_open(struct inode *inode, struct file *file)
 		rv = usb_submit_urb(desc->validity, GFP_KERNEL);
 		if (rv < 0) {
 			desc->count--;
-			err("Error submitting int urb - %d", rv);
+			dev_err(&desc->intf->dev,
+				"Error submitting int urb - %d\n", rv);
 		}
 	} else {
 		rv = 0;
@@ -600,7 +612,7 @@ static int wdm_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	while (buflen > 0) {
 		if (buffer [1] != USB_DT_CS_INTERFACE) {
-			err("skipping garbage");
+			dev_err(&intf->dev, "skipping garbage\n");
 			goto next_desc;
 		}
 
@@ -614,7 +626,8 @@ static int wdm_probe(struct usb_interface *intf, const struct usb_device_id *id)
 				"Finding maximum buffer length: %d", maxcom);
 			break;
 		default:
-			err("Ignoring extra header, type %d, length %d",
+			dev_err(&intf->dev,
+				"Ignoring extra header, type %d, length %d\n",
 				buffer[2], buffer[0]);
 			break;
 		}
@@ -772,7 +785,8 @@ static int recover_from_urb_loss(struct wdm_device *desc)
 	if (desc->count) {
 		rv = usb_submit_urb(desc->validity, GFP_NOIO);
 		if (rv < 0)
-			err("Error resume submitting int urb - %d", rv);
+			dev_err(&desc->intf->dev,
+				"Error resume submitting int urb - %d\n", rv);
 	}
 	return rv;
 }

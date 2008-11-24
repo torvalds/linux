@@ -672,10 +672,8 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 	priv->i2c_props.addr     = i2c_addr;
 	priv->i2c_props.adap     = i2c_adap;
 	priv->i2c_props.name     = "tda829x";
-	if (cfg) {
+	if (cfg)
 		priv->cfg.config         = cfg->lna_cfg;
-		priv->cfg.tuner_callback = cfg->tuner_callback;
-	}
 
 	if (tda8290_probe(&priv->i2c_props) == 0) {
 		priv->ver = TDA8290;

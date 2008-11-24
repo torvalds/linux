@@ -243,12 +243,14 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 #endif
 
 static struct irq_chip bfin_core_irqchip = {
+	.name = "CORE",
 	.ack = bfin_ack_noop,
 	.mask = bfin_core_mask_irq,
 	.unmask = bfin_core_unmask_irq,
 };
 
 static struct irq_chip bfin_internal_irqchip = {
+	.name = "INTN",
 	.ack = bfin_ack_noop,
 	.mask = bfin_internal_mask_irq,
 	.unmask = bfin_internal_unmask_irq,
@@ -278,6 +280,7 @@ static void bfin_generic_error_unmask_irq(unsigned int irq)
 }
 
 static struct irq_chip bfin_generic_error_irqchip = {
+	.name = "ERROR",
 	.ack = bfin_ack_noop,
 	.mask_ack = bfin_generic_error_mask_irq,
 	.mask = bfin_generic_error_mask_irq,
@@ -360,6 +363,14 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 
 }
 #endif				/* BF537_GENERIC_ERROR_INT_DEMUX */
+
+static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
+{
+	struct irq_desc *desc = irq_desc + irq;
+	/* May not call generic set_irq_handler() due to spinlock
+	   recursion. */
+	desc->handle_irq = handle;
+}
 
 #if !defined(CONFIG_BF54x)
 
@@ -473,9 +484,9 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 	SSYNC();
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		set_irq_handler(irq, handle_edge_irq);
+		bfin_set_irq_handler(irq, handle_edge_irq);
 	else
-		set_irq_handler(irq, handle_level_irq);
+		bfin_set_irq_handler(irq, handle_level_irq);
 
 	return 0;
 }
@@ -495,6 +506,7 @@ int bfin_gpio_set_wake(unsigned int irq, unsigned int state)
 #endif
 
 static struct irq_chip bfin_gpio_irqchip = {
+	.name = "GPIO",
 	.ack = bfin_gpio_ack_irq,
 	.mask = bfin_gpio_mask_irq,
 	.mask_ack = bfin_gpio_mask_ack_irq,
@@ -804,10 +816,10 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
 		pint[bank]->edge_set = pintbit;
-		set_irq_handler(irq, handle_edge_irq);
+		bfin_set_irq_handler(irq, handle_edge_irq);
 	} else {
 		pint[bank]->edge_clear = pintbit;
-		set_irq_handler(irq, handle_level_irq);
+		bfin_set_irq_handler(irq, handle_level_irq);
 	}
 
 	SSYNC();
@@ -884,6 +896,7 @@ void bfin_pm_restore(void)
 #endif
 
 static struct irq_chip bfin_gpio_irqchip = {
+	.name = "GPIO",
 	.ack = bfin_gpio_ack_irq,
 	.mask = bfin_gpio_mask_irq,
 	.mask_ack = bfin_gpio_mask_ack_irq,
@@ -1136,8 +1149,4 @@ void do_irq(int vec, struct pt_regs *fp)
 		vec = ivg->irqno;
 	}
 	asm_do_IRQ(vec, fp);
-
-#ifdef CONFIG_KGDB
-	kgdb_process_breakpoint();
-#endif
 }

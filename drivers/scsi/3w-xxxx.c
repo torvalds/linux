@@ -1466,12 +1466,7 @@ static int tw_scsiop_inquiry(TW_Device_Extension *tw_dev, int request_id)
 static void tw_transfer_internal(TW_Device_Extension *tw_dev, int request_id,
 				 void *data, unsigned int len)
 {
-	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-	unsigned long flags;
-
-	local_irq_save(flags);
-	scsi_sg_copy_from_buffer(cmd, data, len);
-	local_irq_restore(flags);
+	scsi_sg_copy_from_buffer(tw_dev->srb[request_id], data, len);
 }
 
 /* This function is called by the isr to complete an inquiry command */

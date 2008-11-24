@@ -93,6 +93,10 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	priv->mcast_mtu  = priv->admin_mtu = priv->dev->mtu;
 	set_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags);
 
+	result = ipoib_set_dev_features(priv, ppriv->ca);
+	if (result)
+		goto device_init_failed;
+
 	priv->pkey = pkey;
 
 	memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr, INFINIBAND_ALEN);

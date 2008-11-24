@@ -52,9 +52,26 @@
 		reg = <0x00000000 0x10000000>;
 	};
 
-	bcsr@f8000000 {
-		device_type = "board-control";
-		reg = <0xf8000000 0x8000>;
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8360-localbus", "fsl,pq2pro-localbus",
+			     "simple-bus";
+		reg = <0xe0005000 0xd8>;
+		ranges = <0 0 0xfe000000 0x02000000
+		          1 0 0xf8000000 0x00008000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x2000000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		bcsr@1,0 {
+ 			compatible = "fsl,mpc8360mds-bcsr";
+			reg = <1 0 0x8000>;
+		};
 	};
 
 	soc8360@e0000000 {
@@ -131,24 +148,28 @@
 			dma-channel@0 {
 				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
 				reg = <0 0x80>;
+				cell-index = <0>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@80 {
 				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x80 0x80>;
+				cell-index = <1>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@100 {
 				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x100 0x80>;
+				cell-index = <2>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@180 {
 				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x180 0x28>;
+				cell-index = <3>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
@@ -405,7 +426,8 @@
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
-		reg = <0xe0008500 0x100>;
+		reg = <0xe0008500 0x100		/* internal registers */
+		       0xe0008300 0x8>;		/* config space access registers */
 		compatible = "fsl,mpc8349-pci";
 		device_type = "pci";
 	};

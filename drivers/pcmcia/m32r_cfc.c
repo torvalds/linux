@@ -38,7 +38,7 @@
 
 #include "m32r_cfc.h"
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 static int m32r_cfc_debug;
 module_param(m32r_cfc_debug, int, 0644);
 #define debug(lvl, fmt, arg...) do {				\
@@ -505,7 +505,7 @@ static int _pcc_set_socket(u_short sock, socket_state_t *state)
 		pcc_set(sock,(unsigned int)PLD_CFBUFCR,1);
 	}
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 	if(state->flags & SS_IOCARD){
 		debug(3, ":IOCARD");
 	}

@@ -30,7 +30,14 @@ static inline void save_fpu(struct task_struct *tsk, struct pt_regs *regs)
 }
 #endif
 
+struct user_regset;
+
 extern int do_fpu_inst(unsigned short, struct pt_regs *);
+
+extern int fpregs_get(struct task_struct *target,
+		      const struct user_regset *regset,
+		      unsigned int pos, unsigned int count,
+		      void *kbuf, void __user *ubuf);
 
 static inline void unlazy_fpu(struct task_struct *tsk, struct pt_regs *regs)
 {
@@ -48,6 +55,18 @@ static inline void clear_fpu(struct task_struct *tsk, struct pt_regs *regs)
 		release_fpu(regs);
 	}
 	preempt_enable();
+}
+
+static inline int init_fpu(struct task_struct *tsk)
+{
+	if (tsk_used_math(tsk)) {
+		if ((boot_cpu_data.flags & CPU_HAS_FPU) && tsk == current)
+			unlazy_fpu(tsk, task_pt_regs(tsk));
+		return 0;
+	}
+
+	set_stopped_child_used_math(tsk);
+	return 0;
 }
 
 #endif /* __ASSEMBLY__ */

@@ -14,6 +14,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/nfs_fs.h>
+#include "internal.h"
 
 #ifdef RPC_DEBUG
 # define NFSDBG_FACILITY	NFSDBG_MOUNT
@@ -98,7 +99,7 @@ out_call_err:
 
 out_mnt_err:
 	dprintk("NFS: MNT server returned result %d\n", result.status);
-	status = -EACCES;
+	status = nfs_stat_to_errno(result.status);
 	goto out;
 }
 

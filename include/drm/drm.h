@@ -36,7 +36,6 @@
 #ifndef _DRM_H_
 #define _DRM_H_
 
-#if defined(__linux__)
 #if defined(__KERNEL__)
 #endif
 #include <asm/ioctl.h>		/* For _IO* macros */
@@ -46,22 +45,6 @@
 #define DRM_IOC_WRITE		_IOC_WRITE
 #define DRM_IOC_READWRITE	_IOC_READ|_IOC_WRITE
 #define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
-#if defined(__FreeBSD__) && defined(IN_MODULE)
-/* Prevent name collision when including sys/ioccom.h */
-#undef ioctl
-#include <sys/ioccom.h>
-#define ioctl(a,b,c)		xf86ioctl(a,b,c)
-#else
-#include <sys/ioccom.h>
-#endif				/* __FreeBSD__ && xf86ioctl */
-#define DRM_IOCTL_NR(n)		((n) & 0xff)
-#define DRM_IOC_VOID		IOC_VOID
-#define DRM_IOC_READ		IOC_OUT
-#define DRM_IOC_WRITE		IOC_IN
-#define DRM_IOC_READWRITE	IOC_INOUT
-#define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
-#endif
 
 #define DRM_MAJOR       226
 #define DRM_MAX_MINOR   15
@@ -471,6 +454,7 @@ struct drm_irq_busid {
 enum drm_vblank_seq_type {
 	_DRM_VBLANK_ABSOLUTE = 0x0,	/**< Wait for specific vblank sequence number */
 	_DRM_VBLANK_RELATIVE = 0x1,	/**< Wait for given number of vblanks */
+	_DRM_VBLANK_FLIP = 0x8000000,   /**< Scheduled buffer swap should flip */
 	_DRM_VBLANK_NEXTONMISS = 0x10000000,	/**< If missed, wait for next vblank */
 	_DRM_VBLANK_SECONDARY = 0x20000000,	/**< Secondary display controller */
 	_DRM_VBLANK_SIGNAL = 0x40000000	/**< Send signal instead of blocking */
@@ -501,6 +485,19 @@ struct drm_wait_vblank_reply {
 union drm_wait_vblank {
 	struct drm_wait_vblank_request request;
 	struct drm_wait_vblank_reply reply;
+};
+
+#define _DRM_PRE_MODESET 1
+#define _DRM_POST_MODESET 2
+
+/**
+ * DRM_IOCTL_MODESET_CTL ioctl argument type
+ *
+ * \sa drmModesetCtl().
+ */
+struct drm_modeset_ctl {
+	uint32_t crtc;
+	uint32_t cmd;
 };
 
 /**
@@ -573,6 +570,34 @@ struct drm_set_version {
 	int drm_dd_minor;
 };
 
+/** DRM_IOCTL_GEM_CLOSE ioctl argument type */
+struct drm_gem_close {
+	/** Handle of the object to be closed. */
+	uint32_t handle;
+	uint32_t pad;
+};
+
+/** DRM_IOCTL_GEM_FLINK ioctl argument type */
+struct drm_gem_flink {
+	/** Handle for the object being named */
+	uint32_t handle;
+
+	/** Returned global name */
+	uint32_t name;
+};
+
+/** DRM_IOCTL_GEM_OPEN ioctl argument type */
+struct drm_gem_open {
+	/** Name of object being opened */
+	uint32_t name;
+
+	/** Returned handle for the object */
+	uint32_t handle;
+
+	/** Returned size of the object */
+	uint64_t size;
+};
+
 #define DRM_IOCTL_BASE			'd'
 #define DRM_IO(nr)			_IO(DRM_IOCTL_BASE,nr)
 #define DRM_IOR(nr,type)		_IOR(DRM_IOCTL_BASE,nr,type)
@@ -587,6 +612,10 @@ struct drm_set_version {
 #define DRM_IOCTL_GET_CLIENT            DRM_IOWR(0x05, struct drm_client)
 #define DRM_IOCTL_GET_STATS             DRM_IOR( 0x06, struct drm_stats)
 #define DRM_IOCTL_SET_VERSION		DRM_IOWR(0x07, struct drm_set_version)
+#define DRM_IOCTL_MODESET_CTL           DRM_IOW(0x08, struct drm_modeset_ctl)
+#define DRM_IOCTL_GEM_CLOSE		DRM_IOW (0x09, struct drm_gem_close)
+#define DRM_IOCTL_GEM_FLINK		DRM_IOWR(0x0a, struct drm_gem_flink)
+#define DRM_IOCTL_GEM_OPEN		DRM_IOWR(0x0b, struct drm_gem_open)
 
 #define DRM_IOCTL_SET_UNIQUE		DRM_IOW( 0x10, struct drm_unique)
 #define DRM_IOCTL_AUTH_MAGIC		DRM_IOW( 0x11, struct drm_auth)

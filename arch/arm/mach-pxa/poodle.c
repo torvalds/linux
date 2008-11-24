@@ -20,6 +20,9 @@
 #include <linux/fb.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -33,7 +36,7 @@
 
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/mfp-pxa25x.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/i2c.h>
@@ -42,6 +45,7 @@
 #include <mach/pxafb.h>
 #include <mach/sharpsl.h>
 #include <mach/ssp.h>
+#include <mach/pxa2xx_spi.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/hardware/locomo.h>
@@ -50,6 +54,88 @@
 #include "generic.h"
 #include "devices.h"
 #include "sharpsl.h"
+
+static unsigned long poodle_pin_config[] __initdata = {
+	/* I/O */
+	GPIO79_nCS_3,
+	GPIO80_nCS_4,
+	GPIO18_RDY,
+
+	/* Clock */
+	GPIO12_32KHz,
+
+	/* SSP1 */
+	GPIO23_SSP1_SCLK,
+	GPIO25_SSP1_TXD,
+	GPIO26_SSP1_RXD,
+	GPIO24_GPIO,	/* POODLE_GPIO_TP_CS - SFRM as chip select */
+
+	/* I2S */
+	GPIO28_I2S_BITCLK_OUT,
+	GPIO29_I2S_SDATA_IN,
+	GPIO30_I2S_SDATA_OUT,
+	GPIO31_I2S_SYNC,
+	GPIO32_I2S_SYSCLK,
+
+	/* Infra-Red */
+	GPIO47_FICP_TXD,
+	GPIO46_FICP_RXD,
+
+	/* FFUART */
+	GPIO40_FFUART_DTR,
+	GPIO41_FFUART_RTS,
+	GPIO39_FFUART_TXD,
+	GPIO37_FFUART_DSR,
+	GPIO34_FFUART_RXD,
+	GPIO35_FFUART_CTS,
+
+	/* LCD */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
+
+	/* PC Card */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO52_nPCE_1,
+	GPIO53_nPCE_2,
+	GPIO54_nPSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* MMC */
+	GPIO6_MMC_CLK,
+	GPIO8_MMC_CS0,
+
+	/* GPIO */
+	GPIO9_GPIO,	/* POODLE_GPIO_nSD_DETECT */
+	GPIO7_GPIO,	/* POODLE_GPIO_nSD_WP */
+	GPIO3_GPIO,	/* POODLE_GPIO_SD_PWR */
+	GPIO33_GPIO,	/* POODLE_GPIO_SD_PWR1 */
+
+	GPIO20_GPIO,	/* POODLE_GPIO_USB_PULLUP */
+	GPIO22_GPIO,	/* POODLE_GPIO_IR_ON */
+};
 
 static struct resource poodle_scoop_resources[] = {
 	[0] = {
@@ -62,6 +148,7 @@ static struct resource poodle_scoop_resources[] = {
 static struct scoop_config poodle_scoop_setup = {
 	.io_dir		= POODLE_SCOOP_IO_DIR,
 	.io_out		= POODLE_SCOOP_IO_OUT,
+	.gpio_base	= POODLE_SCOOP_GPIO_BASE,
 };
 
 struct platform_device poodle_scoop_device = {
@@ -73,27 +160,6 @@ struct platform_device poodle_scoop_device = {
 	.num_resources	= ARRAY_SIZE(poodle_scoop_resources),
 	.resource	= poodle_scoop_resources,
 };
-
-static void poodle_pcmcia_init(void)
-{
-	/* Setup default state of GPIO outputs
-	   before we enable them as outputs. */
-	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) | GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO52_nPCE_1) |
-		GPIO_bit(GPIO53_nPCE_2);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-	pxa_gpio_mode(GPIO52_nPCE_1_MD);
-	pxa_gpio_mode(GPIO53_nPCE_2_MD);
-	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
-}
 
 static struct scoop_pcmcia_dev poodle_pcmcia_scoop[] = {
 {
@@ -107,7 +173,6 @@ static struct scoop_pcmcia_dev poodle_pcmcia_scoop[] = {
 static struct scoop_pcmcia_config poodle_pcmcia_config = {
 	.devs         = &poodle_pcmcia_scoop[0],
 	.num_devs     = 1,
-	.pcmcia_init  = poodle_pcmcia_init,
 };
 
 EXPORT_SYMBOL(poodle_scoop_device);
@@ -136,62 +201,55 @@ struct platform_device poodle_locomo_device = {
 
 EXPORT_SYMBOL(poodle_locomo_device);
 
-/*
- * Poodle SSP Device
- */
-
-struct platform_device poodle_ssp_device = {
-	.name		= "corgi-ssp",
-	.id		= -1,
+#if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
+static struct pxa2xx_spi_master poodle_spi_info = {
+	.num_chipselect	= 1,
 };
 
-struct corgissp_machinfo poodle_ssp_machinfo = {
-	.port		= 1,
-	.cs_lcdcon	= -1,
-	.cs_ads7846	= -1,
-	.cs_max1111	= -1,
-	.clk_lcdcon	= 2,
-	.clk_ads7846	= 36,
-	.clk_max1111	= 2,
+static struct ads7846_platform_data poodle_ads7846_info = {
+	.model			= 7846,
+	.vref_delay_usecs	= 100,
+	.x_plate_ohms		= 419,
+	.y_plate_ohms		= 486,
+	.gpio_pendown		= POODLE_GPIO_TP_INT,
 };
 
+static void ads7846_cs(u32 command)
+{
+	gpio_set_value(POODLE_GPIO_TP_CS, !(command == PXA2XX_CS_ASSERT));
+}
 
-/*
- * Poodle Touch Screen Device
- */
-static struct resource poodlets_resources[] = {
-	[0] = {
-		.start		= POODLE_IRQ_GPIO_TP_INT,
-		.end		= POODLE_IRQ_GPIO_TP_INT,
-		.flags		= IORESOURCE_IRQ,
+static struct pxa2xx_spi_chip poodle_ads7846_chip = {
+	.cs_control		= ads7846_cs,
+};
+
+static struct spi_board_info poodle_spi_devices[] = {
+	{
+		.modalias	= "ads7846",
+		.max_speed_hz	= 10000,
+		.bus_num	= 1,
+		.platform_data	= &poodle_ads7846_info,
+		.controller_data= &poodle_ads7846_chip,
+		.irq		= gpio_to_irq(POODLE_GPIO_TP_INT),
 	},
 };
 
-static unsigned long poodle_get_hsync_invperiod(void)
+static void __init poodle_init_spi(void)
 {
-	return 0;
+	int err;
+
+	err = gpio_request(POODLE_GPIO_TP_CS, "ADS7846_CS");
+	if (err)
+		return;
+
+	gpio_direction_output(POODLE_GPIO_TP_CS, 1);
+
+	pxa2xx_set_spi_info(1, &poodle_spi_info);
+	spi_register_board_info(ARRAY_AND_SIZE(poodle_spi_devices));
 }
-
-static void poodle_null_hsync(void)
-{
-}
-
-static struct corgits_machinfo  poodle_ts_machinfo = {
-	.get_hsync_invperiod	= poodle_get_hsync_invperiod,
-	.put_hsync       	= poodle_null_hsync,
-	.wait_hsync      	= poodle_null_hsync,
-};
-
-static struct platform_device poodle_ts_device = {
-	.name		= "corgi-ts",
-	.dev		= {
-		.platform_data	= &poodle_ts_machinfo,
-	},
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(poodlets_resources),
-	.resource	= poodlets_resources,
-};
-
+#else
+static inline void poodle_init_spi(void) {}
+#endif
 
 /*
  * MMC/SD Device
@@ -205,22 +263,50 @@ static int poodle_mci_init(struct device *dev, irq_handler_t poodle_detect_int, 
 {
 	int err;
 
-	/* setup GPIO for PXA25x MMC controller	*/
-	pxa_gpio_mode(GPIO6_MMCCLK_MD);
-	pxa_gpio_mode(GPIO8_MMCCS0_MD);
-	pxa_gpio_mode(POODLE_GPIO_nSD_DETECT | GPIO_IN);
-	pxa_gpio_mode(POODLE_GPIO_nSD_WP | GPIO_IN);
-	pxa_gpio_mode(POODLE_GPIO_SD_PWR | GPIO_OUT);
-	pxa_gpio_mode(POODLE_GPIO_SD_PWR1 | GPIO_OUT);
+	err = gpio_request(POODLE_GPIO_nSD_DETECT, "nSD_DETECT");
+	if (err)
+		goto err_out;
+
+	err = gpio_request(POODLE_GPIO_nSD_WP, "nSD_WP");
+	if (err)
+		goto err_free_1;
+
+	err = gpio_request(POODLE_GPIO_SD_PWR, "SD_PWR");
+	if (err)
+		goto err_free_2;
+
+	err = gpio_request(POODLE_GPIO_SD_PWR1, "SD_PWR1");
+	if (err)
+		goto err_free_3;
+
+	gpio_direction_input(POODLE_GPIO_nSD_DETECT);
+	gpio_direction_input(POODLE_GPIO_nSD_WP);
+
+	gpio_direction_output(POODLE_GPIO_SD_PWR, 0);
+	gpio_direction_output(POODLE_GPIO_SD_PWR1, 0);
 
 	poodle_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
 	err = request_irq(POODLE_IRQ_GPIO_nSD_DETECT, poodle_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err)
-		printk(KERN_ERR "poodle_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+	if (err) {
+		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
+				__func__);
+		goto err_free_4;
+	}
 
+	return 0;
+
+err_free_4:
+	gpio_free(POODLE_GPIO_SD_PWR1);
+err_free_3:
+	gpio_free(POODLE_GPIO_SD_PWR);
+err_free_2:
+	gpio_free(POODLE_GPIO_nSD_WP);
+err_free_1:
+	gpio_free(POODLE_GPIO_nSD_DETECT);
+err_out:
 	return err;
 }
 
@@ -228,18 +314,19 @@ static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
-	if (( 1 << vdd) & p_d->ocr_mask) {
-		GPSR(POODLE_GPIO_SD_PWR) = GPIO_bit(POODLE_GPIO_SD_PWR);
+	if ((1 << vdd) & p_d->ocr_mask) {
+		gpio_set_value(POODLE_GPIO_SD_PWR, 1);
 		mdelay(2);
-		GPSR(POODLE_GPIO_SD_PWR1) = GPIO_bit(POODLE_GPIO_SD_PWR1);
+		gpio_set_value(POODLE_GPIO_SD_PWR1, 1);
 	} else {
-		GPCR(POODLE_GPIO_SD_PWR1) = GPIO_bit(POODLE_GPIO_SD_PWR1);
-		GPCR(POODLE_GPIO_SD_PWR) = GPIO_bit(POODLE_GPIO_SD_PWR);
+		gpio_set_value(POODLE_GPIO_SD_PWR1, 0);
+		gpio_set_value(POODLE_GPIO_SD_PWR, 0);
 	}
 }
 
 static int poodle_mci_get_ro(struct device *dev)
 {
+	return !!gpio_get_value(POODLE_GPIO_nSD_WP);
 	return GPLR(POODLE_GPIO_nSD_WP) & GPIO_bit(POODLE_GPIO_nSD_WP);
 }
 
@@ -247,6 +334,10 @@ static int poodle_mci_get_ro(struct device *dev)
 static void poodle_mci_exit(struct device *dev, void *data)
 {
 	free_irq(POODLE_IRQ_GPIO_nSD_DETECT, data);
+	gpio_free(POODLE_GPIO_SD_PWR1);
+	gpio_free(POODLE_GPIO_SD_PWR);
+	gpio_free(POODLE_GPIO_nSD_WP);
+	gpio_free(POODLE_GPIO_nSD_DETECT);
 }
 
 static struct pxamci_platform_data poodle_mci_platform_data = {
@@ -263,38 +354,41 @@ static struct pxamci_platform_data poodle_mci_platform_data = {
  */
 static void poodle_irda_transceiver_mode(struct device *dev, int mode)
 {
-	if (mode & IR_OFF) {
-		GPSR(POODLE_GPIO_IR_ON) = GPIO_bit(POODLE_GPIO_IR_ON);
-	} else {
-		GPCR(POODLE_GPIO_IR_ON) = GPIO_bit(POODLE_GPIO_IR_ON);
-	}
+	gpio_set_value(POODLE_GPIO_IR_ON, mode & IR_OFF);
 	pxa2xx_transceiver_mode(dev, mode);
 }
 
+static int poodle_irda_startup(struct device *dev)
+{
+	int err;
+
+	err = gpio_request(POODLE_GPIO_IR_ON, "IR_ON");
+	if (err)
+		return err;
+
+	gpio_direction_output(POODLE_GPIO_IR_ON, 1);
+	return 0;
+}
+
+static void poodle_irda_shutdown(struct device *dev)
+{
+	gpio_free(POODLE_GPIO_IR_ON);
+}
+
 static struct pxaficp_platform_data poodle_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_OFF,
-	.transceiver_mode = poodle_irda_transceiver_mode,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
+	.transceiver_mode	= poodle_irda_transceiver_mode,
+	.startup		= poodle_irda_startup,
+	.shutdown		= poodle_irda_shutdown,
 };
 
 
 /*
  * USB Device Controller
  */
-static void poodle_udc_command(int cmd)
-{
-	switch(cmd)	{
-	case PXA2XX_UDC_CMD_CONNECT:
-		GPSR(POODLE_GPIO_USB_PULLUP) = GPIO_bit(POODLE_GPIO_USB_PULLUP);
-		break;
-	case PXA2XX_UDC_CMD_DISCONNECT:
-		GPCR(POODLE_GPIO_USB_PULLUP) = GPIO_bit(POODLE_GPIO_USB_PULLUP);
-		break;
-	}
-}
-
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	/* no connect GPIO; poodle can't tell connection status */
-	.udc_command		= poodle_udc_command,
+	.gpio_pullup	= POODLE_GPIO_USB_PULLUP,
 };
 
 
@@ -316,15 +410,12 @@ static struct pxafb_mode_info poodle_fb_mode = {
 static struct pxafb_mach_info poodle_fb_info = {
 	.modes		= &poodle_fb_mode,
 	.num_modes	= 1,
-	.lccr0		= LCCR0_Act | LCCR0_Sngl | LCCR0_Color,
-	.lccr3		= 0,
+	.lcd_conn	= LCD_COLOR_TFT_16BPP,
 };
 
 static struct platform_device *devices[] __initdata = {
 	&poodle_locomo_device,
 	&poodle_scoop_device,
-	&poodle_ssp_device,
-	&poodle_ts_device,
 };
 
 static void poodle_poweroff(void)
@@ -344,59 +435,23 @@ static void __init poodle_init(void)
 	pm_power_off = poodle_poweroff;
 	arm_pm_restart = poodle_restart;
 
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x00008000;
-	PGSR1 = 0x003F0202;
-	PGSR2 = 0x0001C000;
 	PCFR |= PCFR_OPDE;
 
-	/* cpu initialize */
-	/* Pgsr Register */
-  	PGSR0 = 0x0146dd80;
-  	PGSR1 = 0x03bf0890;
-  	PGSR2 = 0x0001c000;
-
-	/* Alternate Register */
-  	GAFR0_L = 0x01001000;
-  	GAFR0_U = 0x591a8010;
-  	GAFR1_L = 0x900a8451;
-  	GAFR1_U = 0xaaa5aaaa;
-  	GAFR2_L = 0x8aaaaaaa;
-  	GAFR2_U = 0x00000002;
-
-	/* Direction Register */
-  	GPDR0 = 0xd3f0904c;
-  	GPDR1 = 0xfcffb7d3;
-  	GPDR2 = 0x0001ffff;
-
-	/* Output Register */
-  	GPCR0 = 0x00000000;
-  	GPCR1 = 0x00000000;
-  	GPCR2 = 0x00000000;
-
-  	GPSR0 = 0x00400000;
-  	GPSR1 = 0x00000000;
-        GPSR2 = 0x00000000;
-
-	set_pxa_fb_parent(&poodle_locomo_device.dev);
-	set_pxa_fb_info(&poodle_fb_info);
-	pxa_gpio_mode(POODLE_GPIO_USB_PULLUP | GPIO_OUT);
-	pxa_gpio_mode(POODLE_GPIO_IR_ON | GPIO_OUT);
-	pxa_set_udc_info(&udc_info);
-	pxa_set_mci_info(&poodle_mci_platform_data);
-	pxa_set_ficp_info(&poodle_ficp_platform_data);
-	pxa_set_i2c_info(NULL);
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(poodle_pin_config));
 
 	platform_scoop_config = &poodle_pcmcia_config;
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
-	if (ret) {
-		printk(KERN_WARNING "poodle: Unable to register LoCoMo device\n");
-	}
-	corgi_ssp_set_machinfo(&poodle_ssp_machinfo);
+	if (ret)
+		pr_warning("poodle: Unable to register LoCoMo device\n");
+
+	set_pxa_fb_parent(&poodle_locomo_device.dev);
+	set_pxa_fb_info(&poodle_fb_info);
+	pxa_set_udc_info(&udc_info);
+	pxa_set_mci_info(&poodle_mci_platform_data);
+	pxa_set_ficp_info(&poodle_ficp_platform_data);
+	pxa_set_i2c_info(NULL);
+	poodle_init_spi();
 }
 
 static void __init fixup_poodle(struct machine_desc *desc,

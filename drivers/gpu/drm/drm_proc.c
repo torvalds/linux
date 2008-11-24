@@ -49,6 +49,10 @@ static int drm_queues_info(char *buf, char **start, off_t offset,
 			   int request, int *eof, void *data);
 static int drm_bufs_info(char *buf, char **start, off_t offset,
 			 int request, int *eof, void *data);
+static int drm_gem_name_info(char *buf, char **start, off_t offset,
+			     int request, int *eof, void *data);
+static int drm_gem_object_info(char *buf, char **start, off_t offset,
+			       int request, int *eof, void *data);
 #if DRM_DEBUG_CODE
 static int drm_vma_info(char *buf, char **start, off_t offset,
 			int request, int *eof, void *data);
@@ -60,13 +64,16 @@ static int drm_vma_info(char *buf, char **start, off_t offset,
 static struct drm_proc_list {
 	const char *name;	/**< file name */
 	int (*f) (char *, char **, off_t, int, int *, void *);		/**< proc callback*/
+	u32 driver_features; /**< Required driver features for this entry */
 } drm_proc_list[] = {
-	{"name", drm_name_info},
-	{"mem", drm_mem_info},
-	{"vm", drm_vm_info},
-	{"clients", drm_clients_info},
-	{"queues", drm_queues_info},
-	{"bufs", drm_bufs_info},
+	{"name", drm_name_info, 0},
+	{"mem", drm_mem_info, 0},
+	{"vm", drm_vm_info, 0},
+	{"clients", drm_clients_info, 0},
+	{"queues", drm_queues_info, 0},
+	{"bufs", drm_bufs_info, 0},
+	{"gem_names", drm_gem_name_info, DRIVER_GEM},
+	{"gem_objects", drm_gem_object_info, DRIVER_GEM},
 #if DRM_DEBUG_CODE
 	{"vma", drm_vma_info},
 #endif
@@ -90,8 +97,9 @@ static struct drm_proc_list {
 int drm_proc_init(struct drm_minor *minor, int minor_id,
 		  struct proc_dir_entry *root)
 {
+	struct drm_device *dev = minor->dev;
 	struct proc_dir_entry *ent;
-	int i, j;
+	int i, j, ret;
 	char name[64];
 
 	sprintf(name, "%d", minor_id);
@@ -102,23 +110,42 @@ int drm_proc_init(struct drm_minor *minor, int minor_id,
 	}
 
 	for (i = 0; i < DRM_PROC_ENTRIES; i++) {
+		u32 features = drm_proc_list[i].driver_features;
+
+		if (features != 0 &&
+		    (dev->driver->driver_features & features) != features)
+			continue;
+
 		ent = create_proc_entry(drm_proc_list[i].name,
 					S_IFREG | S_IRUGO, minor->dev_root);
 		if (!ent) {
 			DRM_ERROR("Cannot create /proc/dri/%s/%s\n",
 				  name, drm_proc_list[i].name);
-			for (j = 0; j < i; j++)
-				remove_proc_entry(drm_proc_list[i].name,
-						  minor->dev_root);
-			remove_proc_entry(name, root);
-			minor->dev_root = NULL;
-			return -1;
+			ret = -1;
+			goto fail;
 		}
 		ent->read_proc = drm_proc_list[i].f;
 		ent->data = minor;
 	}
 
+	if (dev->driver->proc_init) {
+		ret = dev->driver->proc_init(minor);
+		if (ret) {
+			DRM_ERROR("DRM: Driver failed to initialize "
+				  "/proc/dri.\n");
+			goto fail;
+		}
+	}
+
 	return 0;
+ fail:
+
+	for (j = 0; j < i; j++)
+		remove_proc_entry(drm_proc_list[i].name,
+				  minor->dev_root);
+	remove_proc_entry(name, root);
+	minor->dev_root = NULL;
+	return ret;
 }
 
 /**
@@ -133,11 +160,15 @@ int drm_proc_init(struct drm_minor *minor, int minor_id,
  */
 int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root)
 {
+	struct drm_device *dev = minor->dev;
 	int i;
 	char name[64];
 
 	if (!root || !minor->dev_root)
 		return 0;
+
+	if (dev->driver->proc_cleanup)
+		dev->driver->proc_cleanup(minor);
 
 	for (i = 0; i < DRM_PROC_ENTRIES; i++)
 		remove_proc_entry(drm_proc_list[i].name, minor->dev_root);
@@ -478,6 +509,84 @@ static int drm_clients_info(char *buf, char **start, off_t offset,
 	ret = drm__clients_info(buf, start, offset, request, eof, data);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
+}
+
+struct drm_gem_name_info_data {
+       int                     len;
+       char                    *buf;
+       int                     eof;
+};
+
+static int drm_gem_one_name_info(int id, void *ptr, void *data)
+{
+	struct drm_gem_object *obj = ptr;
+	struct drm_gem_name_info_data   *nid = data;
+
+	DRM_INFO("name %d size %zd\n", obj->name, obj->size);
+	if (nid->eof)
+		return 0;
+
+	nid->len += sprintf(&nid->buf[nid->len],
+			    "%6d %8zd %7d %8d\n",
+			    obj->name, obj->size,
+			    atomic_read(&obj->handlecount.refcount),
+			    atomic_read(&obj->refcount.refcount));
+	if (nid->len > DRM_PROC_LIMIT) {
+		nid->eof = 1;
+		return 0;
+	}
+	return 0;
+}
+
+static int drm_gem_name_info(char *buf, char **start, off_t offset,
+			     int request, int *eof, void *data)
+{
+	struct drm_minor *minor = (struct drm_minor *) data;
+	struct drm_device *dev = minor->dev;
+	struct drm_gem_name_info_data nid;
+
+	if (offset > DRM_PROC_LIMIT) {
+		*eof = 1;
+		return 0;
+	}
+
+	nid.len = sprintf(buf, "  name     size handles refcount\n");
+	nid.buf = buf;
+	nid.eof = 0;
+	idr_for_each(&dev->object_name_idr, drm_gem_one_name_info, &nid);
+
+	*start = &buf[offset];
+	*eof = 0;
+	if (nid.len > request + offset)
+		return request;
+	*eof = 1;
+	return nid.len - offset;
+}
+
+static int drm_gem_object_info(char *buf, char **start, off_t offset,
+			       int request, int *eof, void *data)
+{
+	struct drm_minor *minor = (struct drm_minor *) data;
+	struct drm_device *dev = minor->dev;
+	int len = 0;
+
+	if (offset > DRM_PROC_LIMIT) {
+		*eof = 1;
+		return 0;
+	}
+
+	*start = &buf[offset];
+	*eof = 0;
+	DRM_PROC_PRINT("%d objects\n", atomic_read(&dev->object_count));
+	DRM_PROC_PRINT("%d object bytes\n", atomic_read(&dev->object_memory));
+	DRM_PROC_PRINT("%d pinned\n", atomic_read(&dev->pin_count));
+	DRM_PROC_PRINT("%d pin bytes\n", atomic_read(&dev->pin_memory));
+	DRM_PROC_PRINT("%d gtt bytes\n", atomic_read(&dev->gtt_memory));
+	DRM_PROC_PRINT("%d gtt total\n", dev->gtt_total);
+	if (len > request + offset)
+		return request;
+	*eof = 1;
+	return len - offset;
 }
 
 #if DRM_DEBUG_CODE

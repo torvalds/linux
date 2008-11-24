@@ -123,7 +123,6 @@ typedef volatile struct {
 
 struct neofb_par {
 	struct vgastate state;
-	struct mutex open_lock;
 	unsigned int ref_count;
 
 	unsigned char MiscOutReg;	/* Misc */

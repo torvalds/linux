@@ -244,8 +244,8 @@ static int vtbl_check(const struct ubi_device *ubi,
 		}
 
 		if (reserved_pebs > ubi->good_peb_count) {
-			dbg_err("too large reserved_pebs, good PEBs %d",
-				ubi->good_peb_count);
+			dbg_err("too large reserved_pebs %d, good PEBs %d",
+				reserved_pebs, ubi->good_peb_count);
 			err = 9;
 			goto bad;
 		}

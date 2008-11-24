@@ -151,23 +151,24 @@ static const struct file_operations proc_viocd_operations = {
 	.release	= single_release,
 };
 
-static int viocd_blk_open(struct inode *inode, struct file *file)
+static int viocd_blk_open(struct block_device *bdev, fmode_t mode)
 {
-	struct disk_info *di = inode->i_bdev->bd_disk->private_data;
-	return cdrom_open(&di->viocd_info, inode, file);
+	struct disk_info *di = bdev->bd_disk->private_data;
+	return cdrom_open(&di->viocd_info, bdev, mode);
 }
 
-static int viocd_blk_release(struct inode *inode, struct file *file)
+static int viocd_blk_release(struct gendisk *disk, fmode_t mode)
 {
-	struct disk_info *di = inode->i_bdev->bd_disk->private_data;
-	return cdrom_release(&di->viocd_info, file);
+	struct disk_info *di = disk->private_data;
+	cdrom_release(&di->viocd_info, mode);
+	return 0;
 }
 
-static int viocd_blk_ioctl(struct inode *inode, struct file *file,
+static int viocd_blk_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned cmd, unsigned long arg)
 {
-	struct disk_info *di = inode->i_bdev->bd_disk->private_data;
-	return cdrom_ioctl(file, &di->viocd_info, inode, cmd, arg);
+	struct disk_info *di = bdev->bd_disk->private_data;
+	return cdrom_ioctl(&di->viocd_info, bdev, mode, cmd, arg);
 }
 
 static int viocd_blk_media_changed(struct gendisk *disk)
@@ -180,7 +181,7 @@ struct block_device_operations viocd_fops = {
 	.owner =		THIS_MODULE,
 	.open =			viocd_blk_open,
 	.release =		viocd_blk_release,
-	.ioctl =		viocd_blk_ioctl,
+	.locked_ioctl =		viocd_blk_ioctl,
 	.media_changed =	viocd_blk_media_changed,
 };
 

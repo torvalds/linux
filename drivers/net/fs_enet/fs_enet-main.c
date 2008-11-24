@@ -664,23 +664,6 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int fs_request_irq(struct net_device *dev, int irq, const char *name,
-		irq_handler_t irqf)
-{
-	struct fs_enet_private *fep = netdev_priv(dev);
-
-	(*fep->ops->pre_request_irq)(dev, irq);
-	return request_irq(irq, irqf, IRQF_SHARED, name, dev);
-}
-
-static void fs_free_irq(struct net_device *dev, int irq)
-{
-	struct fs_enet_private *fep = netdev_priv(dev);
-
-	free_irq(irq, dev);
-	(*fep->ops->post_free_irq)(dev, irq);
-}
-
 static void fs_timeout(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
@@ -800,7 +783,8 @@ static int fs_enet_open(struct net_device *dev)
 		napi_enable(&fep->napi);
 
 	/* Install our interrupt handler. */
-	r = fs_request_irq(dev, fep->interrupt, "fs_enet-mac", fs_enet_interrupt);
+	r = request_irq(fep->interrupt, fs_enet_interrupt, IRQF_SHARED,
+			"fs_enet-mac", dev);
 	if (r != 0) {
 		printk(KERN_ERR DRV_MODULE_NAME
 		       ": %s Could not allocate FS_ENET IRQ!", dev->name);
@@ -842,7 +826,7 @@ static int fs_enet_close(struct net_device *dev)
 	/* release any irqs */
 	phy_disconnect(fep->phydev);
 	fep->phydev = NULL;
-	fs_free_irq(dev, fep->interrupt);
+	free_irq(fep->interrupt, dev);
 
 	return 0;
 }
@@ -1115,7 +1099,9 @@ static int __devinit fs_enet_probe(struct of_device *ofdev,
 	ndev->stop = fs_enet_close;
 	ndev->get_stats = fs_enet_get_stats;
 	ndev->set_multicast_list = fs_set_multicast_list;
-
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	ndev->poll_controller = fs_enet_netpoll;
+#endif
 	if (fpi->use_napi)
 		netif_napi_add(ndev, &fep->napi, fs_enet_rx_napi,
 		               fpi->napi_weight);
@@ -1225,7 +1211,7 @@ static void __exit fs_cleanup(void)
 static void fs_enet_netpoll(struct net_device *dev)
 {
        disable_irq(dev->irq);
-       fs_enet_interrupt(dev->irq, dev, NULL);
+       fs_enet_interrupt(dev->irq, dev);
        enable_irq(dev->irq);
 }
 #endif

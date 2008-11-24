@@ -69,14 +69,13 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	struct net_device *dev = mcast->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_neigh *neigh, *tmp;
-	unsigned long flags;
 	int tx_dropped = 0;
 
 	ipoib_dbg_mcast(netdev_priv(dev),
 			"deleting multicast group " IPOIB_GID_FMT "\n",
 			IPOIB_GID_ARG(mcast->mcmember.mgid));
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irq(&priv->lock);
 
 	list_for_each_entry_safe(neigh, tmp, &mcast->neigh_list, list) {
 		/*
@@ -90,7 +89,7 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 		ipoib_neigh_free(dev, neigh);
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irq(&priv->lock);
 
 	if (mcast->ah)
 		ipoib_put_ah(mcast->ah);
@@ -100,9 +99,9 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 		dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 	}
 
-	spin_lock_irqsave(&priv->tx_lock, flags);
+	netif_tx_lock_bh(dev);
 	dev->stats.tx_dropped += tx_dropped;
-	spin_unlock_irqrestore(&priv->tx_lock, flags);
+	netif_tx_unlock_bh(dev);
 
 	kfree(mcast);
 }
@@ -259,10 +258,10 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	}
 
 	/* actually send any queued packets */
-	spin_lock_irq(&priv->tx_lock);
+	netif_tx_lock_bh(dev);
 	while (!skb_queue_empty(&mcast->pkt_queue)) {
 		struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
-		spin_unlock_irq(&priv->tx_lock);
+		netif_tx_unlock_bh(dev);
 
 		skb->dev = dev;
 
@@ -273,9 +272,9 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 
 		if (dev_queue_xmit(skb))
 			ipoib_warn(priv, "dev_queue_xmit failed to requeue packet\n");
-		spin_lock_irq(&priv->tx_lock);
+		netif_tx_lock_bh(dev);
 	}
-	spin_unlock_irq(&priv->tx_lock);
+	netif_tx_unlock_bh(dev);
 
 	return 0;
 }
@@ -286,7 +285,6 @@ ipoib_mcast_sendonly_join_complete(int status,
 {
 	struct ipoib_mcast *mcast = multicast->context;
 	struct net_device *dev = mcast->dev;
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	/* We trap for port events ourselves. */
 	if (status == -ENETRESET)
@@ -302,12 +300,12 @@ ipoib_mcast_sendonly_join_complete(int status,
 					IPOIB_GID_ARG(mcast->mcmember.mgid), status);
 
 		/* Flush out any queued packets */
-		spin_lock_irq(&priv->tx_lock);
+		netif_tx_lock_bh(dev);
 		while (!skb_queue_empty(&mcast->pkt_queue)) {
 			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 		}
-		spin_unlock_irq(&priv->tx_lock);
+		netif_tx_unlock_bh(dev);
 
 		/* Clear the busy flag so we try again */
 		status = test_and_clear_bit(IPOIB_MCAST_FLAG_BUSY,
@@ -662,12 +660,9 @@ void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_mcast *mcast;
+	unsigned long flags;
 
-	/*
-	 * We can only be called from ipoib_start_xmit, so we're
-	 * inside tx_lock -- no need to save/restore flags.
-	 */
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)		||
 	    !priv->broadcast					||
@@ -738,7 +733,7 @@ out:
 	}
 
 unlock:
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 void ipoib_mcast_dev_flush(struct net_device *dev)

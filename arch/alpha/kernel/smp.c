@@ -27,6 +27,7 @@
 #include <linux/cache.h>
 #include <linux/profile.h>
 #include <linux/bitops.h>
+#include <linux/cpu.h>
 
 #include <asm/hwrpb.h>
 #include <asm/ptrace.h>
@@ -148,6 +149,9 @@ smp_callin(void)
 	/* All kernel threads share the same mm context.  */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
+
+	/* inform the notifiers about the new cpu */
+	notify_cpu_starting(cpuid);
 
 	/* Must have completely accurate bogos.  */
 	local_irq_enable();

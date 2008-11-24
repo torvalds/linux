@@ -34,6 +34,7 @@ config VIDEOBUF_DVB
 	select VIDEOBUF_GEN
 
 config VIDEO_BTCX
+	depends on PCI
 	tristate
 
 config VIDEO_IR
@@ -70,6 +71,15 @@ config VIDEO_ADV_DEBUG
 	  Say Y here to enable advanced debugging functionality on some
 	  V4L devices.
 	  In doubt, say N.
+
+config VIDEO_FIXED_MINOR_RANGES
+	bool "Enable old-style fixed minor ranges for video devices"
+	default n
+	---help---
+	  Say Y here to enable the old-style fixed-range minor assignments.
+	  Only useful if you rely on the old behavior and use mknod instead of udev.
+
+	  When in doubt, say N.
 
 config VIDEO_HELPER_CHIPS_AUTO
 	bool "Autoselect pertinent encoders/decoders and other helper chips"
@@ -578,13 +588,6 @@ config VIDEO_SAA5249
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa5249.
 
-config TUNER_3036
-	tristate "SAB3036 tuner"
-	depends on I2C && VIDEO_V4L1
-	help
-	  Say Y here to include support for Philips SAB3036 compatible tuners.
-	  If in doubt, say N.
-
 config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
 	depends on I2C && SGI_IP22 && EXPERIMENTAL && VIDEO_V4L2
@@ -602,79 +605,7 @@ config VIDEO_STRADIS
 	  driver for PCI.  There is a product page at
 	  <http://www.stradis.com/>.
 
-config VIDEO_ZORAN
-	tristate "Zoran ZR36057/36067 Video For Linux"
-	depends on PCI && I2C_ALGOBIT && VIDEO_V4L1 && VIRT_TO_BUS
-	help
-	  Say Y for support for MJPEG capture cards based on the Zoran
-	  36057/36067 PCI controller chipset. This includes the Iomega
-	  Buz, Pinnacle DC10+ and the Linux Media Labs LML33. There is
-	  a driver homepage at <http://mjpeg.sf.net/driver-zoran/>. For
-	  more information, check <file:Documentation/video4linux/Zoran>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called zr36067.
-
-config VIDEO_ZORAN_DC30
-	tristate "Pinnacle/Miro DC30(+) support"
-	depends on VIDEO_ZORAN
-	select VIDEO_ADV7175 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_VPX3220 if VIDEO_HELPER_CHIPS_AUTO
-	help
-	  Support for the Pinnacle/Miro DC30(+) MJPEG capture/playback
-	  card. This also supports really old DC10 cards based on the
-	  zr36050 MJPEG codec and zr36016 VFE.
-
-config VIDEO_ZORAN_ZR36060
-	tristate "Zoran ZR36060"
-	depends on VIDEO_ZORAN
-	help
-	  Say Y to support Zoran boards based on 36060 chips.
-	  This includes Iomega Buz, Pinnacle DC10, Linux media Labs 33
-	  and 33 R10 and AverMedia 6 boards.
-
-config VIDEO_ZORAN_BUZ
-	tristate "Iomega Buz support"
-	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_SAA7185 if VIDEO_HELPER_CHIPS_AUTO
-	help
-	  Support for the Iomega Buz MJPEG capture/playback card.
-
-config VIDEO_ZORAN_DC10
-	tristate "Pinnacle/Miro DC10(+) support"
-	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_SAA7110 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ADV7175 if VIDEO_HELPER_CHIPS_AUTO
-	help
-	  Support for the Pinnacle/Miro DC10(+) MJPEG capture/playback
-	  card.
-
-config VIDEO_ZORAN_LML33
-	tristate "Linux Media Labs LML33 support"
-	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_BT819 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_BT856 if VIDEO_HELPER_CHIPS_AUTO
-	help
-	  Support for the Linux Media Labs LML33 MJPEG capture/playback
-	  card.
-
-config VIDEO_ZORAN_LML33R10
-	tristate "Linux Media Labs LML33R10 support"
-	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_SAA7114 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ADV7170 if VIDEO_HELPER_CHIPS_AUTO
-	help
-	  support for the Linux Media Labs LML33R10 MJPEG capture/playback
-	  card.
-
-config VIDEO_ZORAN_AVS6EYES
-	tristate "AverMedia 6 Eyes support (EXPERIMENTAL)"
-	depends on VIDEO_ZORAN_ZR36060 && EXPERIMENTAL && VIDEO_V4L1
-	select VIDEO_BT856 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_KS0127 if VIDEO_HELPER_CHIPS_AUTO
-	help
-	  Support for the AverMedia 6 Eyes video surveillance card.
+source "drivers/media/video/zoran/Kconfig"
 
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
@@ -697,7 +628,7 @@ config VIDEO_MXB
 	depends on PCI && VIDEO_V4L1 && I2C
 	select VIDEO_SAA7146_VV
 	select VIDEO_TUNER
-	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_SAA7115 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TDA9840 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TEA6415C if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TEA6420 if VIDEO_HELPER_CHIPS_AUTO
@@ -707,21 +638,6 @@ config VIDEO_MXB
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxb.
-
-config VIDEO_DPC
-	tristate "Philips-Semiconductors 'dpc7146 demonstration board'"
-	depends on PCI && VIDEO_V4L1 && I2C
-	select VIDEO_SAA7146_VV
-	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
-	---help---
-	  This is a video4linux driver for the 'dpc7146 demonstration
-	  board' by Philips-Semiconductors. It's the reference design
-	  for SAA7146 bases boards, so if you have some unsupported
-	  saa7146 based, analog video card, chances are good that it
-	  will work with this skeleton driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dpc7146.
 
 config VIDEO_HEXIUM_ORION
 	tristate "Hexium HV-PCI6 and Orion frame grabber"
@@ -784,6 +700,70 @@ config VIDEO_CAFE_CCIC
 	  CMOS camera controller.  This is the controller found on first-
 	  generation OLPC systems.
 
+config SOC_CAMERA
+	tristate "SoC camera support"
+	depends on VIDEO_V4L2 && HAS_DMA
+	select VIDEOBUF_GEN
+	help
+	  SoC Camera is a common API to several cameras, not connecting
+	  over a bus like PCI or USB. For example some i2c camera connected
+	  directly to the data bus of an SoC.
+
+config SOC_CAMERA_MT9M001
+	tristate "mt9m001 support"
+	depends on SOC_CAMERA && I2C
+	select GPIO_PCA953X if MT9M001_PCA9536_SWITCH
+	help
+	  This driver supports MT9M001 cameras from Micron, monochrome
+	  and colour models.
+
+config MT9M001_PCA9536_SWITCH
+	bool "pca9536 datawidth switch for mt9m001"
+	depends on SOC_CAMERA_MT9M001 && GENERIC_GPIO
+	help
+	  Select this if your MT9M001 camera uses a PCA9536 I2C GPIO
+	  extender to switch between 8 and 10 bit datawidth modes
+
+config SOC_CAMERA_MT9M111
+	tristate "mt9m111 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9M111 cameras from Micron
+
+config SOC_CAMERA_MT9V022
+	tristate "mt9v022 support"
+	depends on SOC_CAMERA && I2C
+	select GPIO_PCA953X if MT9V022_PCA9536_SWITCH
+	help
+	  This driver supports MT9V022 cameras from Micron
+
+config MT9V022_PCA9536_SWITCH
+	bool "pca9536 datawidth switch for mt9v022"
+	depends on SOC_CAMERA_MT9V022 && GENERIC_GPIO
+	help
+	  Select this if your MT9V022 camera uses a PCA9536 I2C GPIO
+	  extender to switch between 8 and 10 bit datawidth modes
+
+config SOC_CAMERA_PLATFORM
+	tristate "platform camera support"
+	depends on SOC_CAMERA
+	help
+	  This is a generic SoC camera platform driver, useful for testing
+
+config VIDEO_PXA27x
+	tristate "PXA27x Quick Capture Interface driver"
+	depends on VIDEO_DEV && PXA27x && SOC_CAMERA
+	select VIDEOBUF_DMA_SG
+	---help---
+	  This is a v4l2 driver for the PXA27x Quick Capture Interface
+
+config VIDEO_SH_MOBILE_CEU
+	tristate "SuperH Mobile CEU Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the SuperH Mobile CEU Interface
+
 #
 # USB Multimedia device configuration
 #
@@ -822,8 +802,7 @@ config VIDEO_OVCAMCHIP
 
 config USB_W9968CF
 	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
-	depends on VIDEO_V4L1 && I2C
-	select VIDEO_OVCAMCHIP
+	depends on VIDEO_V4L1 && I2C && VIDEO_OVCAMCHIP
 	---help---
 	  Say Y here if you want support for cameras based on OV681 or
 	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
@@ -913,65 +892,5 @@ config USB_S2255
 	  This driver can be compiled as a module, called s2255drv.
 
 endif # V4L_USB_DRIVERS
-
-config SOC_CAMERA
-	tristate "SoC camera support"
-	depends on VIDEO_V4L2 && HAS_DMA
-	select VIDEOBUF_GEN
-	help
-	  SoC Camera is a common API to several cameras, not connecting
-	  over a bus like PCI or USB. For example some i2c camera connected
-	  directly to the data bus of an SoC.
-
-config SOC_CAMERA_MT9M001
-	tristate "mt9m001 support"
-	depends on SOC_CAMERA && I2C
-	select GPIO_PCA953X if MT9M001_PCA9536_SWITCH
-	help
-	  This driver supports MT9M001 cameras from Micron, monochrome
-	  and colour models.
-
-config MT9M001_PCA9536_SWITCH
-	bool "pca9536 datawidth switch for mt9m001"
-	depends on SOC_CAMERA_MT9M001 && GENERIC_GPIO
-	help
-	  Select this if your MT9M001 camera uses a PCA9536 I2C GPIO
-	  extender to switch between 8 and 10 bit datawidth modes
-
-config SOC_CAMERA_MT9V022
-	tristate "mt9v022 support"
-	depends on SOC_CAMERA && I2C
-	select GPIO_PCA953X if MT9V022_PCA9536_SWITCH
-	help
-	  This driver supports MT9V022 cameras from Micron
-
-config MT9V022_PCA9536_SWITCH
-	bool "pca9536 datawidth switch for mt9v022"
-	depends on SOC_CAMERA_MT9V022 && GENERIC_GPIO
-	help
-	  Select this if your MT9V022 camera uses a PCA9536 I2C GPIO
-	  extender to switch between 8 and 10 bit datawidth modes
-
-config SOC_CAMERA_PLATFORM
-	tristate "platform camera support"
-	depends on SOC_CAMERA
-	help
-	  This is a generic SoC camera platform driver, useful for testing
-
-config VIDEO_PXA27x
-	tristate "PXA27x Quick Capture Interface driver"
-	depends on VIDEO_DEV && PXA27x
-	select SOC_CAMERA
-	select VIDEOBUF_DMA_SG
-	---help---
-	  This is a v4l2 driver for the PXA27x Quick Capture Interface
-
-config VIDEO_SH_MOBILE_CEU
-	tristate "SuperH Mobile CEU Interface driver"
-	depends on VIDEO_DEV && HAS_DMA
-	select SOC_CAMERA
-	select VIDEOBUF_DMA_CONTIG
-	---help---
-	  This is a v4l2 driver for the SuperH Mobile CEU Interface
 
 endif # VIDEO_CAPTURE_DRIVERS

@@ -423,7 +423,6 @@ static const struct i2c_adapter cpm_ops = {
 	.owner		= THIS_MODULE,
 	.name		= "i2c-cpm",
 	.algo		= &cpm_i2c_algo,
-	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 };
 
 static int __devinit cpm_i2c_setup(struct cpm_i2c *cpm)

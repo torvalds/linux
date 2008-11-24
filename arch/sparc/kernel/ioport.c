@@ -42,10 +42,13 @@
 #include <asm/vaddrs.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/sbus.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
+#include <asm/iommu.h>
+#include <asm/io-unit.h>
+
+#include "dma.h"
 
 #define mmu_inval_dma_area(p, l)	/* Anton pulled it out for 2.4.0-xx */
 
@@ -139,15 +142,6 @@ void iounmap(volatile void __iomem *virtual)
 	}
 }
 
-/*
- */
-void __iomem *sbus_ioremap(struct resource *phyres, unsigned long offset,
-    unsigned long size, char *name)
-{
-	return _sparc_alloc_io(phyres->flags & 0xF,
-	    phyres->start + offset, size, name);
-}
-
 void __iomem *of_ioremap(struct resource *res, unsigned long offset,
 			 unsigned long size, char *name)
 {
@@ -162,13 +156,6 @@ void of_iounmap(struct resource *res, void __iomem *base, unsigned long size)
 	iounmap(base);
 }
 EXPORT_SYMBOL(of_iounmap);
-
-/*
- */
-void sbus_iounmap(volatile void __iomem *addr, unsigned long size)
-{
-	iounmap(addr);
-}
 
 /*
  * Meat of mapping
@@ -246,63 +233,19 @@ static void _sparc_free_io(struct resource *res)
 
 #ifdef CONFIG_SBUS
 
-void sbus_set_sbus64(struct sbus_dev *sdev, int x)
+void sbus_set_sbus64(struct device *dev, int x)
 {
 	printk("sbus_set_sbus64: unsupported\n");
-}
-
-extern unsigned int sun4d_build_irq(struct sbus_dev *sdev, int irq);
-void __init sbus_fill_device_irq(struct sbus_dev *sdev)
-{
-	struct linux_prom_irqs irqs[PROMINTR_MAX];
-	int len;
-
-	len = prom_getproperty(sdev->prom_node, "intr",
-			       (char *)irqs, sizeof(irqs));
-	if (len != -1) {
-		sdev->num_irqs = len / 8;
-		if (sdev->num_irqs == 0) {
-			sdev->irqs[0] = 0;
-		} else if (sparc_cpu_model == sun4d) {
-			for (len = 0; len < sdev->num_irqs; len++)
-				sdev->irqs[len] =
-					sun4d_build_irq(sdev, irqs[len].pri);
-		} else {
-			for (len = 0; len < sdev->num_irqs; len++)
-				sdev->irqs[len] = irqs[len].pri;
-		}
-	} else {
-		int interrupts[PROMINTR_MAX];
-
-		/* No "intr" node found-- check for "interrupts" node.
-		 * This node contains SBus interrupt levels, not IPLs
-		 * as in "intr", and no vector values.  We convert
-		 * SBus interrupt levels to PILs (platform specific).
-		 */
-		len = prom_getproperty(sdev->prom_node, "interrupts",
-				       (char *)interrupts, sizeof(interrupts));
-		if (len == -1) {
-			sdev->irqs[0] = 0;
-			sdev->num_irqs = 0;
-		} else {
-			sdev->num_irqs = len / sizeof(int);
-			for (len = 0; len < sdev->num_irqs; len++) {
-				sdev->irqs[len] =
-					sbint_to_irq(sdev, interrupts[len]);
-			}
-		}
-	} 
 }
 
 /*
  * Allocate a chunk of memory suitable for DMA.
  * Typically devices use them for control blocks.
  * CPU may access them without any explicit flushing.
- *
- * XXX Some clever people know that sdev is not used and supply NULL. Watch.
  */
-void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
+void *sbus_alloc_consistent(struct device *dev, long len, u32 *dma_addrp)
 {
+	struct of_device *op = to_of_device(dev);
 	unsigned long len_total = (len + PAGE_SIZE-1) & PAGE_MASK;
 	unsigned long va;
 	struct resource *res;
@@ -336,13 +279,10 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 	 * XXX That's where sdev would be used. Currently we load
 	 * all iommu tables with the same translations.
 	 */
-	if (mmu_map_dma_area(dma_addrp, va, res->start, len_total) != 0)
+	if (mmu_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
-	/* Set the resource name, if known. */
-	if (sdev) {
-		res->name = sdev->prom_name;
-	}
+	res->name = op->node->name;
 
 	return (void *)(unsigned long)res->start;
 
@@ -356,7 +296,7 @@ err_nopages:
 	return NULL;
 }
 
-void sbus_free_consistent(struct sbus_dev *sdev, long n, void *p, u32 ba)
+void sbus_free_consistent(struct device *dev, long n, void *p, u32 ba)
 {
 	struct resource *res;
 	struct page *pgv;
@@ -383,8 +323,8 @@ void sbus_free_consistent(struct sbus_dev *sdev, long n, void *p, u32 ba)
 	kfree(res);
 
 	/* mmu_inval_dma_area(va, n); */ /* it's consistent, isn't it */
-	pgv = mmu_translate_dvma(ba);
-	mmu_unmap_dma_area(ba, n);
+	pgv = virt_to_page(p);
+	mmu_unmap_dma_area(dev, ba, n);
 
 	__free_pages(pgv, get_order(n));
 }
@@ -394,7 +334,7 @@ void sbus_free_consistent(struct sbus_dev *sdev, long n, void *p, u32 ba)
  * CPU view of this memory may be inconsistent with
  * a device view and explicit flushing is necessary.
  */
-dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *va, size_t len, int direction)
+dma_addr_t sbus_map_single(struct device *dev, void *va, size_t len, int direction)
 {
 	/* XXX why are some lengths signed, others unsigned? */
 	if (len <= 0) {
@@ -404,17 +344,17 @@ dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *va, size_t len, int dire
 	if (len > 256*1024) {			/* __get_free_pages() limit */
 		return 0;
 	}
-	return mmu_get_scsi_one(va, len, sdev->bus);
+	return mmu_get_scsi_one(dev, va, len);
 }
 
-void sbus_unmap_single(struct sbus_dev *sdev, dma_addr_t ba, size_t n, int direction)
+void sbus_unmap_single(struct device *dev, dma_addr_t ba, size_t n, int direction)
 {
-	mmu_release_scsi_one(ba, n, sdev->bus);
+	mmu_release_scsi_one(dev, ba, n);
 }
 
-int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
+int sbus_map_sg(struct device *dev, struct scatterlist *sg, int n, int direction)
 {
-	mmu_get_scsi_sgl(sg, n, sdev->bus);
+	mmu_get_scsi_sgl(dev, sg, n);
 
 	/*
 	 * XXX sparc64 can return a partial length here. sun4c should do this
@@ -423,145 +363,28 @@ int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direct
 	return n;
 }
 
-void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
+void sbus_unmap_sg(struct device *dev, struct scatterlist *sg, int n, int direction)
 {
-	mmu_release_scsi_sgl(sg, n, sdev->bus);
+	mmu_release_scsi_sgl(dev, sg, n);
 }
 
-/*
- */
-void sbus_dma_sync_single_for_cpu(struct sbus_dev *sdev, dma_addr_t ba, size_t size, int direction)
+void sbus_dma_sync_single_for_cpu(struct device *dev, dma_addr_t ba, size_t size, int direction)
 {
-#if 0
-	unsigned long va;
-	struct resource *res;
-
-	/* We do not need the resource, just print a message if invalid. */
-	res = _sparc_find_resource(&_sparc_dvma, ba);
-	if (res == NULL)
-		panic("sbus_dma_sync_single: 0x%x\n", ba);
-
-	va = page_address(mmu_translate_dvma(ba)); /* XXX higmem */
-	/*
-	 * XXX This bogosity will be fixed with the iommu rewrite coming soon
-	 * to a kernel near you. - Anton
-	 */
-	/* mmu_inval_dma_area(va, (size + PAGE_SIZE-1) & PAGE_MASK); */
-#endif
 }
 
-void sbus_dma_sync_single_for_device(struct sbus_dev *sdev, dma_addr_t ba, size_t size, int direction)
+void sbus_dma_sync_single_for_device(struct device *dev, dma_addr_t ba, size_t size, int direction)
 {
-#if 0
-	unsigned long va;
-	struct resource *res;
-
-	/* We do not need the resource, just print a message if invalid. */
-	res = _sparc_find_resource(&_sparc_dvma, ba);
-	if (res == NULL)
-		panic("sbus_dma_sync_single: 0x%x\n", ba);
-
-	va = page_address(mmu_translate_dvma(ba)); /* XXX higmem */
-	/*
-	 * XXX This bogosity will be fixed with the iommu rewrite coming soon
-	 * to a kernel near you. - Anton
-	 */
-	/* mmu_inval_dma_area(va, (size + PAGE_SIZE-1) & PAGE_MASK); */
-#endif
 }
 
-void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
-{
-	printk("sbus_dma_sync_sg_for_cpu: not implemented yet\n");
-}
-
-void sbus_dma_sync_sg_for_device(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
-{
-	printk("sbus_dma_sync_sg_for_device: not implemented yet\n");
-}
-
-/* Support code for sbus_init().  */
-/*
- * XXX This functions appears to be a distorted version of
- * prom_sbus_ranges_init(), with all sun4d stuff cut away.
- * Ask DaveM what is going on here, how is sun4d supposed to work... XXX
- */
-/* added back sun4d patch from Thomas Bogendoerfer - should be OK (crn) */
-void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *sbus)
-{
-	int parent_node = pn->node;
-
-	if (sparc_cpu_model == sun4d) {
-		struct linux_prom_ranges iounit_ranges[PROMREG_MAX];
-		int num_iounit_ranges, len;
-
-		len = prom_getproperty(parent_node, "ranges",
-				       (char *) iounit_ranges,
-				       sizeof (iounit_ranges));
-		if (len != -1) {
-			num_iounit_ranges =
-				(len / sizeof(struct linux_prom_ranges));
-			prom_adjust_ranges(sbus->sbus_ranges,
-					   sbus->num_sbus_ranges,
-					   iounit_ranges, num_iounit_ranges);
-		}
-	}
-}
-
-void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
-{
-#ifndef CONFIG_SUN4
-	struct device_node *parent = dp->parent;
-
-	if (sparc_cpu_model != sun4d &&
-	    parent != NULL &&
-	    !strcmp(parent->name, "iommu")) {
-		extern void iommu_init(int iommu_node, struct sbus_bus *sbus);
-
-		iommu_init(parent->node, sbus);
-	}
-
-	if (sparc_cpu_model == sun4d) {
-		extern void iounit_init(int sbi_node, int iounit_node,
-					struct sbus_bus *sbus);
-
-		iounit_init(dp->node, parent->node, sbus);
-	}
-#endif
-}
-
-void __init sbus_setup_arch_props(struct sbus_bus *sbus, struct device_node *dp)
-{
-	if (sparc_cpu_model == sun4d) {
-		struct device_node *parent = dp->parent;
-
-		sbus->devid = of_getintprop_default(parent, "device-id", 0);
-		sbus->board = of_getintprop_default(parent, "board#", 0);
-	}
-}
-
-int __init sbus_arch_preinit(void)
+static int __init sparc_register_ioport(void)
 {
 	register_proc_sparc_ioport();
 
-#ifdef CONFIG_SUN4
-	{
-		extern void sun4_dvma_init(void);
-		sun4_dvma_init();
-	}
-	return 1;
-#else
 	return 0;
-#endif
 }
 
-void __init sbus_arch_postinit(void)
-{
-	if (sparc_cpu_model == sun4d) {
-		extern void sun4d_init_sbi_irq(void);
-		sun4d_init_sbi_irq();
-	}
-}
+arch_initcall(sparc_register_ioport);
+
 #endif /* CONFIG_SBUS */
 
 #ifdef CONFIG_PCI

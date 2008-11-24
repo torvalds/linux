@@ -525,11 +525,13 @@ xfs_dir2_grow_inode(
 	xfs_mount_t	*mp;
 	int		nmap;		/* number of bmap entries */
 	xfs_trans_t	*tp;
+	xfs_drfsbno_t	nblks;
 
 	xfs_dir2_trace_args_s("grow_inode", args, space);
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
+	nblks = dp->i_d.di_nblocks;
 	/*
 	 * Set lowest possible block in the space requested.
 	 */
@@ -622,7 +624,11 @@ xfs_dir2_grow_inode(
 	 */
 	if (mapp != &map)
 		kmem_free(mapp);
+
+	/* account for newly allocated blocks in reserved blocks total */
+	args->total -= dp->i_d.di_nblocks - nblks;
 	*dbp = xfs_dir2_da_to_db(mp, (xfs_dablk_t)bno);
+
 	/*
 	 * Update file's size if this is the data space and it grew.
 	 */

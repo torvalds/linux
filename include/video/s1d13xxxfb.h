@@ -14,7 +14,8 @@
 #define	S1D13XXXFB_H
 
 #define S1D_PALETTE_SIZE		256
-#define S1D_CHIP_REV			7	/* expected chip revision number for s1d13806 */
+#define S1D13506_CHIP_REV		4	/* expected chip revision number for s1d13506 */
+#define S1D13806_CHIP_REV		7	/* expected chip revision number for s1d13806 */
 #define S1D_FBID			"S1D13806"
 #define S1D_DEVICENAME			"s1d13806fb"
 

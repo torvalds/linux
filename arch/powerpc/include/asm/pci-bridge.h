@@ -74,6 +74,13 @@ struct pci_controller {
 	unsigned long pci_io_size;
 #endif
 
+	/* Some machines have a special region to forward the ISA
+	 * "memory" cycles such as VGA memory regions. Left to 0
+	 * if unsupported
+	 */
+	resource_size_t	isa_mem_phys;
+	resource_size_t	isa_mem_size;
+
 	struct pci_ops *ops;
 	unsigned int __iomem *cfg_addr;
 	void __iomem *cfg_data;

@@ -237,7 +237,7 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	case SCSI_IOCTL_SEND_COMMAND:
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 			return -EACCES;
-		return sg_scsi_ioctl(NULL, sdev->request_queue, NULL, arg);
+		return sg_scsi_ioctl(sdev->request_queue, NULL, 0, arg);
 	case SCSI_IOCTL_DOORLOCK:
 		return scsi_set_medium_removal(sdev, SCSI_REMOVAL_PREVENT);
 	case SCSI_IOCTL_DOORUNLOCK:
@@ -277,14 +277,14 @@ EXPORT_SYMBOL(scsi_ioctl);
  * @filp: either NULL or a &struct file which must have the O_NONBLOCK flag.
  */
 int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
-			    void __user *arg, struct file *filp)
+			    void __user *arg, int ndelay)
 {
 	int val, result;
 
 	/* The first set of iocts may be executed even if we're doing
 	 * error processing, as long as the device was opened
 	 * non-blocking */
-	if (filp && (filp->f_flags & O_NONBLOCK)) {
+	if (ndelay) {
 		if (scsi_host_in_recovery(sdev->host))
 			return -ENODEV;
 	} else if (!scsi_block_when_processing_errors(sdev))

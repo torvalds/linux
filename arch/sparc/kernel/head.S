@@ -63,15 +63,9 @@ cputypvar_sun4m:
 
 	.align 4
 
-#ifndef CONFIG_SUN4
 sun4_notsup:
-	.asciz	"Sparc-Linux sun4 needs a specially compiled kernel, turn CONFIG_SUN4 on.\n\n"
+	.asciz	"Sparc-Linux sun4 support does no longer exist.\n\n"
 	.align 4
-#else
-sun4cdm_notsup:
-	.asciz	"Kernel compiled with CONFIG_SUN4 cannot run on SUN4C/SUN4M/SUN4D\nTurn CONFIG_SUN4 off.\n\n"
-	.align 4
-#endif
 
 sun4e_notsup:
         .asciz  "Sparc-Linux sun4e support does not exist\n\n"
@@ -780,15 +774,6 @@ execute_in_high_mem:
 		 nop
 
 found_version:
-#ifdef CONFIG_SUN4
-/* For people who try sun4 kernels, even if Configure.help advises them. */
-		ld	[%g7 + 0x68], %o1
-		set	sun4cdm_notsup, %o0
-		call	%o1
-		 nop
-		b	halt_me
-		 nop
-#endif
 /* Get the machine type via the mysterious romvec node operations. */
 
 		add	%g7, 0x1c, %l1		
@@ -1150,15 +1135,6 @@ sun4c_continue_boot:
 		 nop
 
 sun4_init:
-#ifdef CONFIG_SUN4
-/* There, happy now Adrian? */
-		set	cputypval, %o2		! Let everyone know we
-		set	' ', %o0			! are a "sun4 " architecture
-		stb	%o0, [%o2 + 0x4]		
-
-		b got_prop 
-		 nop
-#else
 		sethi   %hi(SUN4_PROM_VECTOR+0x84), %o1
 		ld      [%o1 + %lo(SUN4_PROM_VECTOR+0x84)], %o1
 		set     sun4_notsup, %o0
@@ -1170,7 +1146,7 @@ sun4_init:
 		 nop
 1:		ba      1b                      ! Cannot exit into KMON
 		 nop
-#endif
+
 no_sun4e_here:
 		ld	[%g7 + 0x68], %o1
 		set	sun4e_notsup, %o0

@@ -15,7 +15,7 @@
 #include <asm/hd64461.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hp6xx.h>
+#include <mach/hp6xx.h>
 #include <cpu/dac.h>
 
 #define	SCPCR	0xa4000116

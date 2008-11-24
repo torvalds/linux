@@ -436,6 +436,42 @@ Other:
     was updated to remove all vports for the fc_host as well.
 
 
+Transport supplied functions
+----------------------------
+
+The following functions are supplied by the FC-transport for use by LLDs.
+
+   fc_vport_create - create a vport
+   fc_vport_terminate - detach and remove a vport
+
+Details:
+
+/**
+ * fc_vport_create - Admin App or LLDD requests creation of a vport
+ * @shost:     scsi host the virtual port is connected to.
+ * @ids:       The world wide names, FC4 port roles, etc for
+ *              the virtual port.
+ *
+ * Notes:
+ *     This routine assumes no locks are held on entry.
+ */
+struct fc_vport *
+fc_vport_create(struct Scsi_Host *shost, struct fc_vport_identifiers *ids)
+
+/**
+ * fc_vport_terminate - Admin App or LLDD requests termination of a vport
+ * @vport:      fc_vport to be terminated
+ *
+ * Calls the LLDD vport_delete() function, then deallocates and removes
+ * the vport from the shost and object tree.
+ *
+ * Notes:
+ *      This routine assumes no locks are held on entry.
+ */
+int
+fc_vport_terminate(struct fc_vport *vport)
+
+
 Credits
 =======
 The following people have contributed to this document:

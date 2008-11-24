@@ -8,4 +8,3 @@
 
 #define CLOCK_TICK_RATE		(100 * HZ)
 
-#define KIRKWOOD_TCLK		166666667

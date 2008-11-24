@@ -165,6 +165,36 @@ static int sdio_enable_wide(struct mmc_card *card)
 }
 
 /*
+ * Test if the card supports high-speed mode and, if so, switch to it.
+ */
+static int sdio_enable_hs(struct mmc_card *card)
+{
+	int ret;
+	u8 speed;
+
+	if (!(card->host->caps & MMC_CAP_SD_HIGHSPEED))
+		return 0;
+
+	if (!card->cccr.high_speed)
+		return 0;
+
+	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_SPEED, 0, &speed);
+	if (ret)
+		return ret;
+
+	speed |= SDIO_SPEED_EHS;
+
+	ret = mmc_io_rw_direct(card, 1, 0, SDIO_CCCR_SPEED, speed, NULL);
+	if (ret)
+		return ret;
+
+	mmc_card_set_highspeed(card);
+	mmc_set_timing(card->host, MMC_TIMING_SD_HS);
+
+	return 0;
+}
+
+/*
  * Host is being removed. Free up the current card.
  */
 static void mmc_sdio_remove(struct mmc_host *host)
@@ -333,10 +363,26 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 		goto remove;
 
 	/*
-	 * No support for high-speed yet, so just set
-	 * the card's maximum speed.
+	 * Switch to high-speed (if supported).
 	 */
-	mmc_set_clock(host, card->cis.max_dtr);
+	err = sdio_enable_hs(card);
+	if (err)
+		goto remove;
+
+	/*
+	 * Change to the card's maximum speed.
+	 */
+	if (mmc_card_highspeed(card)) {
+		/*
+		 * The SDIO specification doesn't mention how
+		 * the CIS transfer speed register relates to
+		 * high-speed, but it seems that 50 MHz is
+		 * mandatory.
+		 */
+		mmc_set_clock(host, 50000000);
+	} else {
+		mmc_set_clock(host, card->cis.max_dtr);
+	}
 
 	/*
 	 * Switch to wider bus (if supported).

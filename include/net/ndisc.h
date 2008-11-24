@@ -129,9 +129,8 @@ extern int 			ndisc_ifinfo_sysctl_change(struct ctl_table *ctl,
 							   void __user *buffer,
 							   size_t *lenp,
 							   loff_t *ppos);
-int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl, int __user *name,
-				 int nlen, void __user *oldval,
-				 size_t __user *oldlenp,
+int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl,
+				 void __user *oldval, size_t __user *oldlenp,
 				 void __user *newval, size_t newlen);
 #endif
 

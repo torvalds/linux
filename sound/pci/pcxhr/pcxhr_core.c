@@ -319,16 +319,20 @@ static int pcxhr_download_dsp(struct pcxhr_mgr *mgr, const struct firmware *dsp)
 	const unsigned char *data;
 	unsigned char dummy;
 	/* check the length of boot image */
-	snd_assert(dsp->size > 0, return -EINVAL);
-	snd_assert(dsp->size % 3 == 0, return -EINVAL);
-	snd_assert(dsp->data, return -EINVAL);
+	if (dsp->size <= 0)
+		return -EINVAL;
+	if (dsp->size % 3)
+		return -EINVAL;
+	if (snd_BUG_ON(!dsp->data))
+		return -EINVAL;
 	/* transfert data buffer from PC to DSP */
 	for (i = 0; i < dsp->size; i += 3) {
 		data = dsp->data + i;
 		if (i == 0) {
 			/* test data header consistency */
 			len = (unsigned int)((data[0]<<16) + (data[1]<<8) + data[2]);
-			snd_assert((len==0) || (dsp->size == (len+2)*3), return -EINVAL);
+			if (len && dsp->size != (len + 2) * 3)
+				return -EINVAL;
 		}
 		/* wait DSP ready for new transfer */
 		err = pcxhr_check_reg_bit(mgr, PCXHR_DSP_ISR, PCXHR_ISR_HI08_TRDY,
@@ -389,7 +393,8 @@ int pcxhr_load_boot_binary(struct pcxhr_mgr *mgr, const struct firmware *boot)
 	unsigned char dummy;
 
 	/* send the hostport address to the DSP (only the upper 24 bit !) */
-	snd_assert((physaddr & 0xff) == 0, return -EINVAL);
+	if (snd_BUG_ON(physaddr & 0xff))
+		return -EINVAL;
 	PCXHR_OUTPL(mgr, PCXHR_PLX_MBOX1, (physaddr >> 8));
 
 	err = pcxhr_send_it_dsp(mgr, PCXHR_IT_DOWNLOAD_BOOT, 0);
@@ -570,7 +575,8 @@ static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 	u32 data;
 	unsigned char reg;
 
-	snd_assert(rmh->cmd_len<PCXHR_SIZE_MAX_CMD, return -EINVAL);
+	if (snd_BUG_ON(rmh->cmd_len >= PCXHR_SIZE_MAX_CMD))
+		return -EINVAL;
 	err = pcxhr_send_it_dsp(mgr, PCXHR_IT_MESSAGE, 1);
 	if (err) {
 		snd_printk(KERN_ERR "pcxhr_send_message : ED_DSP_CRASHED\n");
@@ -677,7 +683,8 @@ static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
  */
 void pcxhr_init_rmh(struct pcxhr_rmh *rmh, int cmd)
 {
-	snd_assert(cmd < CMD_LAST_INDEX, return);
+	if (snd_BUG_ON(cmd >= CMD_LAST_INDEX))
+		return;
 	rmh->cmd[0] = pcxhr_dsp_cmds[cmd].opcode;
 	rmh->cmd_len = 1;
 	rmh->stat_len = pcxhr_dsp_cmds[cmd].st_length;
@@ -690,17 +697,17 @@ void pcxhr_set_pipe_cmd_params(struct pcxhr_rmh *rmh, int capture,
 			       unsigned int param1, unsigned int param2,
 			       unsigned int param3)
 {
-	snd_assert(param1 <= MASK_FIRST_FIELD);
+	snd_BUG_ON(param1 > MASK_FIRST_FIELD);
 	if (capture)
 		rmh->cmd[0] |= 0x800;		/* COMMAND_RECORD_MASK */
 	if (param1)
 		rmh->cmd[0] |= (param1 << FIELD_SIZE);
 	if (param2) {
-		snd_assert(param2 <= MASK_FIRST_FIELD);
+		snd_BUG_ON(param2 > MASK_FIRST_FIELD);
 		rmh->cmd[0] |= param2;
 	}
 	if(param3) {
-		snd_assert(param3 <= MASK_DSP_WORD);
+		snd_BUG_ON(param3 > MASK_DSP_WORD);
 		rmh->cmd[1] = param3;
 		rmh->cmd_len = 2;
 	}

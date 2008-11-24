@@ -24,8 +24,5 @@ extern struct of_device *of_device_alloc(struct device_node *np,
 extern int of_device_uevent(struct device *dev,
 			    struct kobj_uevent_env *env);
 
-/* This is just here during the transition */
-#include <linux/of_device.h>
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_OF_DEVICE_H */

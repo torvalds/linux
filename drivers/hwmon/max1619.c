@@ -69,11 +69,18 @@ I2C_CLIENT_INSMOD_1(max1619);
 #define MAX1619_REG_W_TCRIT_HYST	0x13
 
 /*
- * Conversions and various macros
+ * Conversions
  */
 
-#define TEMP_FROM_REG(val)	((val & 0x80 ? val-0x100 : val) * 1000)
-#define TEMP_TO_REG(val)	((val < 0 ? val+0x100*1000 : val) / 1000)
+static int temp_from_reg(int val)
+{
+	return (val & 0x80 ? val-0x100 : val) * 1000;
+}
+
+static int temp_to_reg(int val)
+{
+	return (val < 0 ? val+0x100*1000 : val) / 1000;
+}
 
 /*
  * Functions declaration
@@ -135,7 +142,7 @@ struct max1619_data {
 static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct max1619_data *data = max1619_update_device(dev); \
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->value)); \
+	return sprintf(buf, "%d\n", temp_from_reg(data->value)); \
 }
 show_temp(temp_input1);
 show_temp(temp_input2);
@@ -153,7 +160,7 @@ static ssize_t set_##value(struct device *dev, struct device_attribute *attr, co
 	long val = simple_strtol(buf, NULL, 10); \
  \
 	mutex_lock(&data->update_lock); \
-	data->value = TEMP_TO_REG(val); \
+	data->value = temp_to_reg(val); \
 	i2c_smbus_write_byte_data(client, reg, data->value); \
 	mutex_unlock(&data->update_lock); \
 	return count; \

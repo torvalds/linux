@@ -51,7 +51,6 @@ static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static struct task_struct	*nlmsvc_task;
 static struct svc_rqst		*nlmsvc_rqst;
-int				nlmsvc_grace_period;
 unsigned long			nlmsvc_timeout;
 
 /*
@@ -85,27 +84,23 @@ static unsigned long get_lockd_grace_period(void)
 		return nlm_timeout * 5 * HZ;
 }
 
-unsigned long get_nfs_grace_period(void)
+static struct lock_manager lockd_manager = {
+};
+
+static void grace_ender(struct work_struct *not_used)
 {
-	unsigned long lockdgrace = get_lockd_grace_period();
-	unsigned long nfsdgrace = 0;
-
-	if (nlmsvc_ops)
-		nfsdgrace = nlmsvc_ops->get_grace_period();
-
-	return max(lockdgrace, nfsdgrace);
-}
-EXPORT_SYMBOL(get_nfs_grace_period);
-
-static unsigned long set_grace_period(void)
-{
-	nlmsvc_grace_period = 1;
-	return get_nfs_grace_period() + jiffies;
+	locks_end_grace(&lockd_manager);
 }
 
-static inline void clear_grace_period(void)
+static DECLARE_DELAYED_WORK(grace_period_end, grace_ender);
+
+static void set_grace_period(void)
 {
-	nlmsvc_grace_period = 0;
+	unsigned long grace_period = get_lockd_grace_period();
+
+	locks_start_grace(&lockd_manager);
+	cancel_delayed_work_sync(&grace_period_end);
+	schedule_delayed_work(&grace_period_end, grace_period);
 }
 
 /*
@@ -116,7 +111,6 @@ lockd(void *vrqstp)
 {
 	int		err = 0, preverr = 0;
 	struct svc_rqst *rqstp = vrqstp;
-	unsigned long grace_period_expire;
 
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
@@ -139,7 +133,7 @@ lockd(void *vrqstp)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
 	nlmsvc_timeout = nlm_timeout * HZ;
 
-	grace_period_expire = set_grace_period();
+	set_grace_period();
 
 	/*
 	 * The main request loop. We don't terminate until the last
@@ -153,21 +147,12 @@ lockd(void *vrqstp)
 			flush_signals(current);
 			if (nlmsvc_ops) {
 				nlmsvc_invalidate_all();
-				grace_period_expire = set_grace_period();
+				set_grace_period();
 			}
 			continue;
 		}
 
-		/*
-		 * Retry any blocked locks that have been notified by
-		 * the VFS. Don't do this during grace period.
-		 * (Theoretically, there shouldn't even be blocked locks
-		 * during grace period).
-		 */
-		if (!nlmsvc_grace_period) {
-			timeout = nlmsvc_retry_blocked();
-		} else if (time_before(grace_period_expire, jiffies))
-			clear_grace_period();
+		timeout = nlmsvc_retry_blocked();
 
 		/*
 		 * Find a socket with data available and call its
@@ -195,6 +180,7 @@ lockd(void *vrqstp)
 		svc_process(rqstp);
 	}
 	flush_signals(current);
+	cancel_delayed_work_sync(&grace_period_end);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
@@ -203,25 +189,28 @@ lockd(void *vrqstp)
 }
 
 /*
- * Make any sockets that are needed but not present.
- * If nlm_udpport or nlm_tcpport were set as module
- * options, make those sockets unconditionally
+ * Ensure there are active UDP and TCP listeners for lockd.
+ *
+ * Even if we have only TCP NFS mounts and/or TCP NFSDs, some
+ * local services (such as rpc.statd) still require UDP, and
+ * some NFS servers do not yet support NLM over TCP.
+ *
+ * Returns zero if all listeners are available; otherwise a
+ * negative errno value is returned.
  */
-static int make_socks(struct svc_serv *serv, int proto)
+static int make_socks(struct svc_serv *serv)
 {
 	static int warned;
 	struct svc_xprt *xprt;
 	int err = 0;
 
-	if (proto == IPPROTO_UDP || nlm_udpport) {
-		xprt = svc_find_xprt(serv, "udp", 0, 0);
-		if (!xprt)
-			err = svc_create_xprt(serv, "udp", nlm_udpport,
-					      SVC_SOCK_DEFAULTS);
-		else
-			svc_xprt_put(xprt);
-	}
-	if (err >= 0 && (proto == IPPROTO_TCP || nlm_tcpport)) {
+	xprt = svc_find_xprt(serv, "udp", 0, 0);
+	if (!xprt)
+		err = svc_create_xprt(serv, "udp", nlm_udpport,
+				      SVC_SOCK_DEFAULTS);
+	else
+		svc_xprt_put(xprt);
+	if (err >= 0) {
 		xprt = svc_find_xprt(serv, "tcp", 0, 0);
 		if (!xprt)
 			err = svc_create_xprt(serv, "tcp", nlm_tcpport,
@@ -241,8 +230,7 @@ static int make_socks(struct svc_serv *serv, int proto)
 /*
  * Bring up the lockd process if it's not already up.
  */
-int
-lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
+int lockd_up(void)
 {
 	struct svc_serv *serv;
 	int		error = 0;
@@ -251,11 +239,8 @@ lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 	/*
 	 * Check whether we're already up and running.
 	 */
-	if (nlmsvc_rqst) {
-		if (proto)
-			error = make_socks(nlmsvc_rqst->rq_server, proto);
+	if (nlmsvc_rqst)
 		goto out;
-	}
 
 	/*
 	 * Sanity check: if there's no pid,
@@ -266,13 +251,14 @@ lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
 	error = -ENOMEM;
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, NULL);
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, AF_INET, NULL);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		goto out;
 	}
 
-	if ((error = make_socks(serv, proto)) < 0)
+	error = make_socks(serv);
+	if (error < 0)
 		goto destroy_and_out;
 
 	/*

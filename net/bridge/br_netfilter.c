@@ -657,7 +657,7 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 {
 	struct nf_bridge_info *nf_bridge;
 	struct net_device *parent;
-	int pf;
+	u_int8_t pf;
 
 	if (!skb->nf_bridge)
 		return NF_ACCEPT;
@@ -719,7 +719,7 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 	*d = (struct net_device *)in;
-	NF_HOOK(NF_ARP, NF_ARP_FORWARD, skb, (struct net_device *)in,
+	NF_HOOK(NFPROTO_ARP, NF_ARP_FORWARD, skb, (struct net_device *)in,
 		(struct net_device *)out, br_nf_forward_finish);
 
 	return NF_STOLEN;
@@ -791,7 +791,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 {
 	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
 	struct net_device *realoutdev = bridge_parent(skb->dev);
-	int pf;
+	u_int8_t pf;
 
 #ifdef CONFIG_NETFILTER_DEBUG
 	/* Be very paranoid. This probably won't happen anymore, but let's

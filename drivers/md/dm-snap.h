@@ -9,7 +9,7 @@
 #ifndef DM_SNAPSHOT_H
 #define DM_SNAPSHOT_H
 
-#include "dm.h"
+#include <linux/device-mapper.h>
 #include "dm-bio-list.h"
 #include <linux/blkdev.h>
 #include <linux/workqueue.h>
@@ -158,10 +158,9 @@ struct dm_snapshot {
 	/* Used for display of table */
 	char type;
 
-	/* The last percentage we notified */
-	int last_percent;
-
 	mempool_t *pending_pool;
+
+	atomic_t pending_exceptions_count;
 
 	struct exception_table pending;
 	struct exception_table complete;

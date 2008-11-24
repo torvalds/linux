@@ -133,6 +133,16 @@ struct atmel_uart_data {
 extern void __init at91_add_device_serial(void);
 
 /*
+ * PWM
+ */
+#define AT91_PWM0	0
+#define AT91_PWM1	1
+#define AT91_PWM2	2
+#define AT91_PWM3	3
+
+extern void __init at91_add_device_pwm(u32 mask);
+
+/*
  * SSC -- accessed through ssc_request(id).  Drivers don't bind to SSC
  * platform devices.  Their SSC ID is part of their configuration data,
  * along with information about which SSC signals they should use.
@@ -162,9 +172,13 @@ extern void __init at91_add_device_ac97(struct atmel_ac97_data *data);
  /* ISI */
 extern void __init at91_add_device_isi(void);
 
+ /* Touchscreen Controller */
+extern void __init at91_add_device_tsadcc(void);
+
  /* LEDs */
 extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);
+extern void __init at91_pwm_leds(struct gpio_led *leds, int nr);
 
 /* FIXME: this needs a better location, but gets stuff building again */
 extern int at91_suspend_entering_slow_clock(void);

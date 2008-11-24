@@ -702,7 +702,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	}
 
 	if (card->fe == NULL)
-		printk("dvb-bt8xx: A frontend driver was not found for device %04x/%04x subsystem %04x/%04x\n",
+		printk("dvb-bt8xx: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       card->bt->dev->vendor,
 		       card->bt->dev->device,
 		       card->bt->dev->subsystem_vendor,

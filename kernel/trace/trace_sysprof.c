@@ -202,7 +202,7 @@ static void start_stack_timer(int cpu)
 
 	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer->function = stack_trace_timer_fn;
-	hrtimer->cb_mode = HRTIMER_CB_IRQSAFE_NO_SOFTIRQ;
+	hrtimer->cb_mode = HRTIMER_CB_IRQSAFE_PERCPU;
 
 	hrtimer_start(hrtimer, ns_to_ktime(sample_period), HRTIMER_MODE_REL);
 }
@@ -241,7 +241,7 @@ static void stack_reset(struct trace_array *tr)
 	tr->time_start = ftrace_now(tr->cpu);
 
 	for_each_online_cpu(cpu)
-		tracing_reset(tr->data[cpu]);
+		tracing_reset(tr, cpu);
 }
 
 static void start_stack_trace(struct trace_array *tr)

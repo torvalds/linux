@@ -628,6 +628,9 @@ void saa7134_set_tvnorm_hw(struct saa7134_dev *dev)
 
 	if (card_in(dev, dev->ctl_input).tv)
 		saa7134_i2c_call_clients(dev, VIDIOC_S_STD, &dev->tvnorm->id);
+	/* Set the correct norm for the saa6752hs. This function
+	   does nothing if there is no saa6752hs. */
+	saa7134_i2c_call_saa6752(dev, VIDIOC_S_STD, &dev->tvnorm->id);
 }
 
 static void set_h_prescale(struct saa7134_dev *dev, int task, int prescale)
@@ -1330,6 +1333,8 @@ static int video_open(struct inode *inode, struct file *file)
 	struct saa7134_fh *fh;
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int radio = 0;
+
+	lock_kernel();
 	list_for_each_entry(dev, &saa7134_devlist, devlist) {
 		if (dev->video_dev && (dev->video_dev->minor == minor))
 			goto found;
@@ -1342,6 +1347,7 @@ static int video_open(struct inode *inode, struct file *file)
 			goto found;
 		}
 	}
+	unlock_kernel();
 	return -ENODEV;
  found:
 
@@ -1350,8 +1356,10 @@ static int video_open(struct inode *inode, struct file *file)
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
-	if (NULL == fh)
+	if (NULL == fh) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -1384,6 +1392,7 @@ static int video_open(struct inode *inode, struct file *file)
 		/* switch to video/vbi mode */
 		video_mux(dev,dev->ctl_input);
 	}
+	unlock_kernel();
 	return 0;
 }
 
@@ -1790,18 +1799,25 @@ static int saa7134_querycap(struct file *file, void  *priv,
 		return 0;
 }
 
-static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id *id)
+int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_std_id *id)
 {
-	struct saa7134_fh *fh = priv;
-	struct saa7134_dev *dev = fh->dev;
 	unsigned long flags;
 	unsigned int i;
 	v4l2_std_id fixup;
 	int err;
 
-	err = v4l2_prio_check(&dev->prio, &fh->prio);
-	if (0 != err)
-		return err;
+	/* When called from the empress code fh == NULL.
+	   That needs to be fixed somehow, but for now this is
+	   good enough. */
+	if (fh) {
+		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		if (0 != err)
+			return err;
+	} else if (res_locked(dev, RESOURCE_OVERLAY)) {
+		/* Don't change the std from the mpeg device
+		   if overlay is active. */
+		return -EBUSY;
+	}
 
 	for (i = 0; i < TVNORMS; i++)
 		if (*id == tvnorms[i].id)
@@ -1834,7 +1850,7 @@ static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id *id)
 	*id = tvnorms[i].id;
 
 	mutex_lock(&dev->lock);
-	if (res_check(fh, RESOURCE_OVERLAY)) {
+	if (fh && res_check(fh, RESOURCE_OVERLAY)) {
 		spin_lock_irqsave(&dev->slock, flags);
 		stop_preview(dev, fh);
 		spin_unlock_irqrestore(&dev->slock, flags);
@@ -1849,6 +1865,23 @@ static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id *id)
 
 	saa7134_tvaudio_do_scan(dev);
 	mutex_unlock(&dev->lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(saa7134_s_std_internal);
+
+static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7134_fh *fh = priv;
+
+	return saa7134_s_std_internal(fh->dev, fh, id);
+}
+
+static int saa7134_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	*id = dev->tvnorm->id;
 	return 0;
 }
 
@@ -2073,18 +2106,6 @@ static int saa7134_enum_fmt_vid_overlay(struct file *file, void  *priv,
 		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;
-
-	return 0;
-}
-
-static int saa7134_enum_fmt_vbi_cap(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	if (0 != f->index)
-		return -EINVAL;
-
-	f->pixelformat = V4L2_PIX_FMT_GREY;
-	strcpy(f->description, "vbi data");
 
 	return 0;
 }
@@ -2379,7 +2400,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vid_overlay	= saa7134_g_fmt_vid_overlay,
 	.vidioc_try_fmt_vid_overlay	= saa7134_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay	= saa7134_s_fmt_vid_overlay,
-	.vidioc_enum_fmt_vbi_cap	= saa7134_enum_fmt_vbi_cap,
 	.vidioc_g_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
@@ -2391,6 +2411,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_qbuf			= saa7134_qbuf,
 	.vidioc_dqbuf			= saa7134_dqbuf,
 	.vidioc_s_std			= saa7134_s_std,
+	.vidioc_g_std			= saa7134_g_std,
 	.vidioc_enum_input		= saa7134_enum_input,
 	.vidioc_g_input			= saa7134_g_input,
 	.vidioc_s_input			= saa7134_s_input,

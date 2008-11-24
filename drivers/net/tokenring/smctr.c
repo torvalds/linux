@@ -25,7 +25,7 @@
  *  To do:
  *    1. Multicast support.
  *
- *  Initial 2.5 cleanup Alan Cox <alan@redhat.com>  2002/10/28
+ *  Initial 2.5 cleanup Alan Cox <alan@lxorguk.ukuu.org.uk>  2002/10/28
  */
 
 #include <linux/module.h>

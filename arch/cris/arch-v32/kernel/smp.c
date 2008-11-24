@@ -178,6 +178,7 @@ void __init smp_callin(void)
 	unmask_irq(IPI_INTR_VECT);
 	unmask_irq(TIMER0_INTR_VECT);
 	preempt_disable();
+	notify_cpu_starting(cpu);
 	local_irq_enable();
 
 	cpu_set(cpu, cpu_online_map);

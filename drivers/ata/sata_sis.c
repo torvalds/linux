@@ -64,8 +64,8 @@ enum {
 };
 
 static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-static int sis_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
-static int sis_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int sis_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
+static int sis_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 
 static const struct pci_device_id sis_pci_tbl[] = {
 	{ PCI_VDEVICE(SI, 0x0180), sis_180 },	/* SiS 964/180 */
@@ -134,10 +134,11 @@ static unsigned int get_scr_cfg_addr(struct ata_port *ap, unsigned int sc_reg)
 	return addr;
 }
 
-static u32 sis_scr_cfg_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
+static u32 sis_scr_cfg_read(struct ata_link *link,
+			    unsigned int sc_reg, u32 *val)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned int cfg_addr = get_scr_cfg_addr(ap, sc_reg);
+	struct pci_dev *pdev = to_pci_dev(link->ap->host->dev);
+	unsigned int cfg_addr = get_scr_cfg_addr(link->ap, sc_reg);
 	u32 val2 = 0;
 	u8 pmr;
 
@@ -158,10 +159,11 @@ static u32 sis_scr_cfg_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 	return 0;
 }
 
-static int sis_scr_cfg_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int sis_scr_cfg_write(struct ata_link *link,
+			     unsigned int sc_reg, u32 val)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned int cfg_addr = get_scr_cfg_addr(ap, sc_reg);
+	struct pci_dev *pdev = to_pci_dev(link->ap->host->dev);
+	unsigned int cfg_addr = get_scr_cfg_addr(link->ap, sc_reg);
 	u8 pmr;
 
 	if (sc_reg == SCR_ERROR) /* doesn't exist in PCI cfg space */
@@ -178,8 +180,9 @@ static int sis_scr_cfg_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 	return 0;
 }
 
-static int sis_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
+static int sis_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 pmr;
 
@@ -187,7 +190,7 @@ static int sis_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 		return -EINVAL;
 
 	if (ap->flags & SIS_FLAG_CFGSCR)
-		return sis_scr_cfg_read(ap, sc_reg, val);
+		return sis_scr_cfg_read(link, sc_reg, val);
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 
@@ -202,8 +205,9 @@ static int sis_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 	return 0;
 }
 
-static int sis_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int sis_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 pmr;
 
@@ -213,7 +217,7 @@ static int sis_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 
 	if (ap->flags & SIS_FLAG_CFGSCR)
-		return sis_scr_cfg_write(ap, sc_reg, val);
+		return sis_scr_cfg_write(link, sc_reg, val);
 	else {
 		iowrite32(val, ap->ioaddr.scr_addr + (sc_reg * 4));
 		if ((pdev->device == 0x0182) || (pdev->device == 0x0183) ||

@@ -20,18 +20,15 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
 static bool
-eui64_mt6(const struct sk_buff *skb, const struct net_device *in,
-          const struct net_device *out, const struct xt_match *match,
-          const void *matchinfo, int offset, unsigned int protoff,
-          bool *hotdrop)
+eui64_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	unsigned char eui64[8];
 	int i = 0;
 
 	if (!(skb_mac_header(skb) >= skb->head &&
 	      skb_mac_header(skb) + ETH_HLEN <= skb->data) &&
-	    offset != 0) {
-		*hotdrop = true;
+	    par->fragoff != 0) {
+		*par->hotdrop = true;
 		return false;
 	}
 
@@ -60,7 +57,7 @@ eui64_mt6(const struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_match eui64_mt6_reg __read_mostly = {
 	.name		= "eui64",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= eui64_mt6,
 	.matchsize	= sizeof(int),
 	.hooks		= (1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_IN) |

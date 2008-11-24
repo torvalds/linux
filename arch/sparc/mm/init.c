@@ -23,6 +23,7 @@
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/pagemap.h>
+#include <linux/poison.h>
 
 #include <asm/system.h>
 #include <asm/vac-ops.h>
@@ -480,6 +481,7 @@ void free_initmem (void)
 	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
 		struct page *p;
 
+		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
 		p = virt_to_page(addr);
 
 		ClearPageReserved(p);
@@ -488,20 +490,26 @@ void free_initmem (void)
 		totalram_pages++;
 		num_physpages++;
 	}
-	printk (KERN_INFO "Freeing unused kernel memory: %dk freed\n", (&__init_end - &__init_begin) >> 10);
+	printk(KERN_INFO "Freeing unused kernel memory: %dk freed\n",
+		(&__init_end - &__init_begin) >> 10);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
 	if (start < end)
-		printk (KERN_INFO "Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
+		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
+			(end - start) >> 10);
 	for (; start < end; start += PAGE_SIZE) {
-		struct page *p = virt_to_page(start);
+		struct page *p;
+
+		memset((void *)start, POISON_FREE_INITMEM, PAGE_SIZE);
+		p = virt_to_page(start);
 
 		ClearPageReserved(p);
 		init_page_count(p);
 		__free_page(p);
+		totalram_pages++;
 		num_physpages++;
 	}
 }

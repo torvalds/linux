@@ -1,7 +1,7 @@
 /*
  * /proc/sys support
  */
-
+#include <linux/init.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/security.h>
@@ -31,6 +31,7 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode->i_flags |= S_PRIVATE; /* tell selinux to ignore this inode */
 	inode->i_mode = table->mode;
+	inode->i_uid = inode->i_gid = 0;
 	if (!table->child) {
 		inode->i_mode |= S_IFREG;
 		inode->i_op = &proc_sys_inode_operations;
@@ -66,7 +67,7 @@ static struct ctl_table *find_in_table(struct ctl_table *p, struct qstr *name)
 	return NULL;
 }
 
-struct ctl_table_header *grab_header(struct inode *inode)
+static struct ctl_table_header *grab_header(struct inode *inode)
 {
 	if (PROC_I(inode)->sysctl)
 		return sysctl_head_grab(PROC_I(inode)->sysctl);
@@ -298,13 +299,19 @@ static int proc_sys_permission(struct inode *inode, int mask)
 	 * sysctl entries that are not writeable,
 	 * are _NOT_ writeable, capabilities or not.
 	 */
-	struct ctl_table_header *head = grab_header(inode);
-	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_table_header *head;
+	struct ctl_table *table;
 	int error;
 
+	/* Executable files are not allowed under /proc/sys/ */
+	if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))
+		return -EACCES;
+
+	head = grab_header(inode);
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
+	table = PROC_I(inode)->sysctl_entry;
 	if (!table) /* global root - r-xr-xr-x */
 		error = mask & MAY_WRITE ? -EACCES : 0;
 	else /* Use the permissions on the sysctl table entry */
@@ -353,6 +360,7 @@ static const struct file_operations proc_sys_file_operations = {
 
 static const struct file_operations proc_sys_dir_file_operations = {
 	.readdir	= proc_sys_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 static const struct inode_operations proc_sys_inode_operations = {
@@ -395,10 +403,10 @@ static struct dentry_operations proc_sys_dentry_operations = {
 	.d_compare	= proc_sys_compare,
 };
 
-static struct proc_dir_entry *proc_sys_root;
-
-int proc_sys_init(void)
+int __init proc_sys_init(void)
 {
+	struct proc_dir_entry *proc_sys_root;
+
 	proc_sys_root = proc_mkdir("sys", NULL);
 	proc_sys_root->proc_iops = &proc_sys_dir_operations;
 	proc_sys_root->proc_fops = &proc_sys_dir_file_operations;

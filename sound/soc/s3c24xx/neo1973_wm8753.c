@@ -24,6 +24,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 
+#include <asm/mach-types.h>
 #include <asm/hardware/scoop.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
@@ -510,20 +511,19 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 	DBG("Entered %s\n", __func__);
 
 	/* set up NC codec pins */
-	snd_soc_dapm_disable_pin(codec, "LOUT2");
-	snd_soc_dapm_disable_pin(codec, "ROUT2");
-	snd_soc_dapm_disable_pin(codec, "OUT3");
-	snd_soc_dapm_disable_pin(codec, "OUT4");
-	snd_soc_dapm_disable_pin(codec, "LINE1");
-	snd_soc_dapm_disable_pin(codec, "LINE2");
-
-
-	/* set endpoints to default mode */
-	set_scenario_endpoints(codec, NEO_AUDIO_OFF);
+	snd_soc_dapm_nc_pin(codec, "LOUT2");
+	snd_soc_dapm_nc_pin(codec, "ROUT2");
+	snd_soc_dapm_nc_pin(codec, "OUT3");
+	snd_soc_dapm_nc_pin(codec, "OUT4");
+	snd_soc_dapm_nc_pin(codec, "LINE1");
+	snd_soc_dapm_nc_pin(codec, "LINE2");
 
 	/* Add neo1973 specific widgets */
 	snd_soc_dapm_new_controls(codec, wm8753_dapm_widgets,
 				  ARRAY_SIZE(wm8753_dapm_widgets));
+
+	/* set endpoints to default mode */
+	set_scenario_endpoints(codec, NEO_AUDIO_OFF);
 
 	/* add neo1973 specific controls */
 	for (i = 0; i < ARRAY_SIZE(wm8753_neo1973_controls); i++) {
@@ -586,6 +586,7 @@ static struct snd_soc_machine neo1973 = {
 };
 
 static struct wm8753_setup_data neo1973_wm8753_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1a,
 };
 
@@ -596,54 +597,24 @@ static struct snd_soc_device neo1973_snd_devdata = {
 	.codec_data = &neo1973_wm8753_setup,
 };
 
-static struct i2c_client client_template;
-
-static const unsigned short normal_i2c[] = { 0x7C, I2C_CLIENT_END };
-
-/* Magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
-
-static int lm4857_amp_probe(struct i2c_adapter *adap, int addr, int kind)
+static int lm4857_i2c_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
 {
-	int ret;
-
 	DBG("Entered %s\n", __func__);
 
-	client_template.adapter = adap;
-	client_template.addr = addr;
-
-	i2c = kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (i2c == NULL)
-		return -ENOMEM;
-
-	ret = i2c_attach_client(i2c);
-	if (ret < 0) {
-		printk(KERN_ERR "LM4857 failed to attach at addr %x\n", addr);
-		goto exit_err;
-	}
+	i2c = client;
 
 	lm4857_write_regs();
-	return ret;
-
-exit_err:
-	kfree(i2c);
-	return ret;
-}
-
-static int lm4857_i2c_detach(struct i2c_client *client)
-{
-	DBG("Entered %s\n", __func__);
-
-	i2c_detach_client(client);
-	kfree(client);
 	return 0;
 }
 
-static int lm4857_i2c_attach(struct i2c_adapter *adap)
+static int lm4857_i2c_remove(struct i2c_client *client)
 {
 	DBG("Entered %s\n", __func__);
 
-	return i2c_probe(adap, &addr_data, lm4857_amp_probe);
+	i2c = NULL;
+
+	return 0;
 }
 
 static u8 lm4857_state;
@@ -681,24 +652,22 @@ static void lm4857_shutdown(struct i2c_client *dev)
 	lm4857_write_regs();
 }
 
-/* corgi i2c codec control layer */
+static const struct i2c_device_id lm4857_i2c_id[] = {
+	{ "neo1973_lm4857", 0 },
+	{ }
+};
+
 static struct i2c_driver lm4857_i2c_driver = {
 	.driver = {
 		.name = "LM4857 I2C Amp",
 		.owner = THIS_MODULE,
 	},
-	.id =             I2C_DRIVERID_LM4857,
 	.suspend =        lm4857_suspend,
 	.resume	=         lm4857_resume,
 	.shutdown =       lm4857_shutdown,
-	.attach_adapter = lm4857_i2c_attach,
-	.detach_client =  lm4857_i2c_detach,
-	.command =        NULL,
-};
-
-static struct i2c_client client_template = {
-	.name =   "LM4857",
-	.driver = &lm4857_i2c_driver,
+	.probe =          lm4857_i2c_probe,
+	.remove =         lm4857_i2c_remove,
+	.id_table =       lm4857_i2c_id,
 };
 
 static struct platform_device *neo1973_snd_device;
@@ -709,6 +678,12 @@ static int __init neo1973_init(void)
 
 	DBG("Entered %s\n", __func__);
 
+	if (!machine_is_neo1973_gta01()) {
+		printk(KERN_INFO
+			"Only GTA01 hardware supported by ASoC driver\n");
+		return -ENODEV;
+	}
+
 	neo1973_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!neo1973_snd_device)
 		return -ENOMEM;
@@ -717,12 +692,15 @@ static int __init neo1973_init(void)
 	neo1973_snd_devdata.dev = &neo1973_snd_device->dev;
 	ret = platform_device_add(neo1973_snd_device);
 
-	if (ret)
+	if (ret) {
 		platform_device_put(neo1973_snd_device);
+		return ret;
+	}
 
 	ret = i2c_add_driver(&lm4857_i2c_driver);
+
 	if (ret != 0)
-		printk(KERN_ERR "can't add i2c driver");
+		platform_device_unregister(neo1973_snd_device);
 
 	return ret;
 }

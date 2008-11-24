@@ -96,7 +96,7 @@ Each slave device attached to the PXA must provide slave specific configuration
 information via the structure "pxa2xx_spi_chip" found in
 "arch/arm/mach-pxa/include/mach/pxa2xx_spi.h".  The pxa2xx_spi master controller driver
 will uses the configuration whenever the driver communicates with the slave
-device.
+device. All fields are optional.
 
 struct pxa2xx_spi_chip {
 	u8 tx_threshold;
@@ -112,14 +112,17 @@ used to configure the SSP hardware fifo.  These fields are critical to the
 performance of pxa2xx_spi driver and misconfiguration will result in rx
 fifo overruns (especially in PIO mode transfers). Good default values are
 
-	.tx_threshold = 12,
-	.rx_threshold = 4,
+	.tx_threshold = 8,
+	.rx_threshold = 8,
+
+The range is 1 to 16 where zero indicates "use default".
 
 The "pxa2xx_spi_chip.dma_burst_size" field is used to configure PXA2xx DMA
 engine and is related the "spi_device.bits_per_word" field.  Read and understand
 the PXA2xx "Developer Manual" sections on the DMA controller and SSP Controllers
 to determine the correct value. An SSP configured for byte-wide transfers would
-use a value of 8.
+use a value of 8. The driver will determine a reasonable default if
+dma_burst_size == 0.
 
 The "pxa2xx_spi_chip.timeout" fields is used to efficiently handle
 trailing bytes in the SSP receiver fifo.  The correct value for this field is
@@ -137,7 +140,13 @@ function for asserting/deasserting a slave device chip select.  If the field is
 NULL, the pxa2xx_spi master controller driver assumes that the SSP port is
 configured to use SSPFRM instead.
 
-NSSP SALVE SAMPLE
+NOTE: the SPI driver cannot control the chip select if SSPFRM is used, so the
+chipselect is dropped after each spi_transfer.  Most devices need chip select
+asserted around the complete message.  Use SSPFRM as a GPIO (through cs_control)
+to accomodate these chips.
+
+
+NSSP SLAVE SAMPLE
 -----------------
 The pxa2xx_spi_chip structure is passed to the pxa2xx_spi driver in the
 "spi_board_info.controller_data" field. Below is a sample configuration using
@@ -206,17 +215,20 @@ static void __init streetracer_init(void)
 
 DMA and PIO I/O Support
 -----------------------
-The pxa2xx_spi driver support both DMA and interrupt driven PIO message
-transfers.  The driver defaults to PIO mode and DMA transfers must enabled by
-setting the "enable_dma" flag in the "pxa2xx_spi_master" structure and
-ensuring that the "pxa2xx_spi_chip.dma_burst_size" field is non-zero.  The DMA
-mode support both coherent and stream based DMA mappings.
+The pxa2xx_spi driver supports both DMA and interrupt driven PIO message
+transfers.  The driver defaults to PIO mode and DMA transfers must be enabled
+by setting the "enable_dma" flag in the "pxa2xx_spi_master" structure.  The DMA
+mode supports both coherent and stream based DMA mappings.
 
 The following logic is used to determine the type of I/O to be used on
 a per "spi_transfer" basis:
 
-if !enable_dma or dma_burst_size == 0 then
+if !enable_dma then
 	always use PIO transfers
+
+if spi_message.len > 8191 then
+	print "rate limited" warning
+	use PIO transfers
 
 if spi_message.is_dma_mapped and rx_dma_buf != 0 and tx_dma_buf != 0 then
 	use coherent DMA mode

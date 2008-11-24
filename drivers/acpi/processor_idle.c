@@ -59,7 +59,6 @@
 #include <acpi/processor.h>
 #include <asm/processor.h>
 
-#define ACPI_PROCESSOR_COMPONENT        0x01000000
 #define ACPI_PROCESSOR_CLASS            "processor"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_idle");
@@ -1587,6 +1586,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 
 	if (acpi_idle_bm_check()) {
 		if (dev->safe_state) {
+			dev->last_state = dev->safe_state;
 			return dev->safe_state->enter(dev, dev->safe_state);
 		} else {
 			local_irq_disable();

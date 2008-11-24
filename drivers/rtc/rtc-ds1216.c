@@ -86,19 +86,19 @@ static int ds1216_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	ds1216_switch_ds_to_clock(priv->ioaddr);
 	ds1216_read(priv->ioaddr, (u8 *)&regs);
 
-	tm->tm_sec = BCD2BIN(regs.sec);
-	tm->tm_min = BCD2BIN(regs.min);
+	tm->tm_sec = bcd2bin(regs.sec);
+	tm->tm_min = bcd2bin(regs.min);
 	if (regs.hour & DS1216_HOUR_1224) {
 		/* AM/PM mode */
-		tm->tm_hour = BCD2BIN(regs.hour & 0x1f);
+		tm->tm_hour = bcd2bin(regs.hour & 0x1f);
 		if (regs.hour & DS1216_HOUR_AMPM)
 			tm->tm_hour += 12;
 	} else
-		tm->tm_hour = BCD2BIN(regs.hour & 0x3f);
+		tm->tm_hour = bcd2bin(regs.hour & 0x3f);
 	tm->tm_wday = (regs.wday & 7) - 1;
-	tm->tm_mday = BCD2BIN(regs.mday & 0x3f);
-	tm->tm_mon = BCD2BIN(regs.month & 0x1f);
-	tm->tm_year = BCD2BIN(regs.year);
+	tm->tm_mday = bcd2bin(regs.mday & 0x3f);
+	tm->tm_mon = bcd2bin(regs.month & 0x1f);
+	tm->tm_year = bcd2bin(regs.year);
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;
 	return 0;
@@ -114,19 +114,19 @@ static int ds1216_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	ds1216_read(priv->ioaddr, (u8 *)&regs);
 
 	regs.tsec = 0; /* clear 0.1 and 0.01 seconds */
-	regs.sec = BIN2BCD(tm->tm_sec);
-	regs.min = BIN2BCD(tm->tm_min);
+	regs.sec = bin2bcd(tm->tm_sec);
+	regs.min = bin2bcd(tm->tm_min);
 	regs.hour &= DS1216_HOUR_1224;
 	if (regs.hour && tm->tm_hour > 12) {
 		regs.hour |= DS1216_HOUR_AMPM;
 		tm->tm_hour -= 12;
 	}
-	regs.hour |= BIN2BCD(tm->tm_hour);
+	regs.hour |= bin2bcd(tm->tm_hour);
 	regs.wday &= ~7;
 	regs.wday |= tm->tm_wday;
-	regs.mday = BIN2BCD(tm->tm_mday);
-	regs.month = BIN2BCD(tm->tm_mon);
-	regs.year = BIN2BCD(tm->tm_year % 100);
+	regs.mday = bin2bcd(tm->tm_mday);
+	regs.month = bin2bcd(tm->tm_mon);
+	regs.year = bin2bcd(tm->tm_year % 100);
 
 	ds1216_switch_ds_to_clock(priv->ioaddr);
 	ds1216_write(priv->ioaddr, (u8 *)&regs);

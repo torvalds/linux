@@ -67,5 +67,17 @@ config SND_USB_CAIAQ_INPUT
 	   * Native Instruments Kore Controller 2
 	   * Native Instruments Audio Kontrol 1
 
+config SND_USB_US122L
+	tristate "Tascam US-122L USB driver"
+	depends on X86 && EXPERIMENTAL
+	select SND_HWDEP
+	select SND_RAWMIDI
+	help
+	  Say Y here to include support for Tascam US-122L USB Audio/MIDI
+	  interfaces.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-usb-us122l.
+
 endif	# SND_USB
 

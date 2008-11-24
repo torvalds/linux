@@ -86,9 +86,27 @@ static int pxa_pm_valid(suspend_state_t state)
 	return -EINVAL;
 }
 
+static int pxa_pm_prepare(void)
+{
+	int ret = 0;
+
+	if (pxa_cpu_pm_fns && pxa_cpu_pm_fns->prepare)
+		ret = pxa_cpu_pm_fns->prepare();
+
+	return ret;
+}
+
+static void pxa_pm_finish(void)
+{
+	if (pxa_cpu_pm_fns && pxa_cpu_pm_fns->finish)
+		pxa_cpu_pm_fns->finish();
+}
+
 static struct platform_suspend_ops pxa_pm_ops = {
 	.valid		= pxa_pm_valid,
 	.enter		= pxa_pm_enter,
+	.prepare	= pxa_pm_prepare,
+	.finish		= pxa_pm_finish,
 };
 
 static int __init pxa_pm_init(void)

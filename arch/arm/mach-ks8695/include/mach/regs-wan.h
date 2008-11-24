@@ -29,8 +29,8 @@
 #define KS8695_WRDLB		(0x14)		/* Receive Descriptor List Base Address */
 #define KS8695_WMAL		(0x18)		/* MAC Station Address Low */
 #define KS8695_WMAH		(0x1c)		/* MAC Station Address High */
-#define KS8695_WMAAL_(n)	(0x80 + ((n)*8))	/* MAC Additional Station Address (0..15) Low */
-#define KS8695_WMAAH_(n)	(0x84 + ((n)*8))	/* MAC Additional Station Address (0..15) High */
+#define KS8695_WMAAL(n)		(0x80 + ((n)*8))	/* MAC Additional Station Address (0..15) Low */
+#define KS8695_WMAAH(n)		(0x84 + ((n)*8))	/* MAC Additional Station Address (0..15) High */
 
 
 /* DMA Transmit Control Register */

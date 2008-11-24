@@ -669,5 +669,5 @@ const struct inode_operations hpfs_dir_iops =
 	.rmdir		= hpfs_rmdir,
 	.mknod		= hpfs_mknod,
 	.rename		= hpfs_rename,
-	.setattr	= hpfs_notify_change,
+	.setattr	= hpfs_setattr,
 };

@@ -53,8 +53,9 @@ static void wrap_extra_led_set(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev wrap_power_led = {
-	.name		= "wrap::power",
-	.brightness_set	= wrap_power_led_set,
+	.name			= "wrap::power",
+	.brightness_set		= wrap_power_led_set,
+	.default_trigger	= "default-on",
 };
 
 static struct led_classdev wrap_error_led = {

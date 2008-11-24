@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
+#include <linux/io.h>
 
 enum {
 	UNUSED = 0,
@@ -178,10 +179,14 @@ static int __init sh7760_devices_setup(void)
 }
 __initcall(sh7760_devices_setup);
 
+#define INTC_ICR	0xffd00000UL
+#define INTC_ICR_IRLM	(1 << 7)
+
 void __init plat_irq_setup_pins(int mode)
 {
 	switch (mode) {
 	case IRQ_MODE_IRQ:
+		ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
 		register_intc_controller(&intc_desc_irq);
 		break;
 	default:

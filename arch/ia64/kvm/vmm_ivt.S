@@ -1261,11 +1261,6 @@ kvm_rse_clear_invalid:
     adds r19=VMM_VPD_VPSR_OFFSET,r18
     ;;
     ld8 r19=[r19]        //vpsr
-    adds r20=VMM_VCPU_VSA_BASE_OFFSET,r21
-    ;;
-    ld8 r20=[r20]
-    ;;
-//vsa_sync_write_start
     mov r25=r18
     adds r16= VMM_VCPU_GP_OFFSET,r21
     ;;
@@ -1274,10 +1269,7 @@ kvm_rse_clear_invalid:
     ;;
     add  r24=r24,r16
     ;;
-    add r16=PAL_VPS_SYNC_WRITE,r20
-    ;;
-    mov b0=r16
-    br.cond.sptk b0         // call the service
+    br.sptk.many  kvm_vps_sync_write       // call the service
     ;;
 END(ia64_leave_hypervisor)
 // fall through
@@ -1288,28 +1280,15 @@ GLOBAL_ENTRY(ia64_vmm_entry)
  *  r17:cr.isr
  *  r18:vpd
  *  r19:vpsr
- *  r20:__vsa_base
  *  r22:b0
  *  r23:predicate
  */
     mov r24=r22
     mov r25=r18
     tbit.nz p1,p2 = r19,IA64_PSR_IC_BIT        // p1=vpsr.ic
+    (p1) br.cond.sptk.few kvm_vps_resume_normal
+    (p2) br.cond.sptk.many kvm_vps_resume_handler
     ;;
-    (p1) add r29=PAL_VPS_RESUME_NORMAL,r20
-    (p1) br.sptk.many ia64_vmm_entry_out
-    ;;
-    tbit.nz p1,p2 = r17,IA64_ISR_IR_BIT		//p1=cr.isr.ir
-    ;;
-    (p1) add r29=PAL_VPS_RESUME_NORMAL,r20
-    (p2) add r29=PAL_VPS_RESUME_HANDLER,r20
-    (p2) ld8 r26=[r25]
-    ;;
-ia64_vmm_entry_out:
-    mov pr=r23,-2
-    mov b0=r29
-    ;;
-    br.cond.sptk b0             // call pal service
 END(ia64_vmm_entry)
 
 
@@ -1376,6 +1355,9 @@ GLOBAL_ENTRY(vmm_reset_entry)
     //set up ipsr, iip, vpd.vpsr, dcr
     // For IPSR: it/dt/rt=1, i/ic=1, si=1, vm/bn=1
     // For DCR: all bits 0
+    bsw.0
+    ;;
+    mov r21 =r13
     adds r14=-VMM_PT_REGS_SIZE, r12
     ;;
     movl r6=0x501008826000      // IPSR dt/rt/it:1;i/ic:1, si:1, vm/bn:1
@@ -1386,12 +1368,6 @@ GLOBAL_ENTRY(vmm_reset_entry)
     rsm psr.ic | psr.i
     ;;
     srlz.i
-    ;;
-    bsw.0
-    ;;
-    mov r21 =r13
-    ;;
-    bsw.1
     ;;
     mov ar.rsc = 0
     ;;
@@ -1406,12 +1382,9 @@ GLOBAL_ENTRY(vmm_reset_entry)
     ld8 r1 = [r20]
     ;;
     mov cr.iip=r4
-    ;;
     adds r16=VMM_VPD_BASE_OFFSET,r13
-    adds r20=VMM_VCPU_VSA_BASE_OFFSET,r13
     ;;
     ld8 r18=[r16]
-    ld8 r20=[r20]
     ;;
     adds r19=VMM_VPD_VPSR_OFFSET,r18
     ;;

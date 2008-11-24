@@ -1480,7 +1480,7 @@ static int __devexit zs_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id zs_match[] = {
+static const struct of_device_id zs_match[] = {
 	{
 		.name = "zs",
 	},

@@ -1,0 +1,174 @@
+/*
+ * Device Tree for the MGCOGE plattform from keymile
+ *
+ * Copyright 2008 DENX Software Engineering GmbH
+ * Heiko Schocher <hs@denx.de>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+/ {
+	model = "MGCOGE";
+	compatible = "keymile,mgcoge";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet0 = &eth0;
+		serial0 = &smc2;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,8247@0 {
+			device_type = "cpu";
+			reg = <0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <16384>;
+			i-cache-size = <16384>;
+			timebase-frequency = <0>; /* Filled in by U-Boot */
+			clock-frequency = <0>; /* Filled in by U-Boot */
+			bus-frequency = <0>; /* Filled in by U-Boot */
+		};
+	};
+
+	localbus@f0010100 {
+		compatible = "fsl,mpc8247-localbus",
+		             "fsl,pq2-localbus",
+		             "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xf0010100 0x40>;
+
+		ranges = <0 0 0xfe000000 0x00400000
+			  5 0 0x50000000 0x20000000
+			>; /* Filled in by U-Boot */
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0x0 0x400000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			bank-width = <1>;
+			device-width = <1>;
+			partition@0 {
+				label = "u-boot";
+				reg = <0 0x40000>;
+			};
+			partition@40000 {
+				label = "env";
+				reg = <0x40000 0x20000>;
+			};
+			partition@60000 {
+				label = "kernel";
+				reg = <0x60000 0x220000>;
+			};
+			partition@280000 {
+				label = "dtb";
+				reg = <0x280000 0x20000>;
+			};
+		};
+
+		flash@5,0 {
+			compatible = "cfi-flash";
+			reg = <5 0x0 0x2000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			bank-width = <2>;
+			device-width = <2>;
+			partition@0 {
+				label = "ramdisk";
+				reg = <0 0x7a0000>;
+			};
+			partition@7a0000 {
+				label = "user";
+				reg = <0x7a0000 0x1860000>;
+			};
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0>; /* Filled in by U-Boot */
+	};
+
+	soc@f0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8247-immr", "fsl,pq2-soc", "simple-bus";
+		ranges = <0x00000000 0xf0000000 0x00053000>;
+
+		// Temporary until code stops depending on it.
+		device_type = "soc";
+
+		cpm@119c0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#interrupt-cells = <2>;
+			compatible = "fsl,mpc8247-cpm", "fsl,cpm2",
+					"simple-bus";
+			reg = <0x119c0 0x30>;
+			ranges;
+
+			muram {
+				compatible = "fsl,cpm-muram";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x10000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0x80 0x1f80 0x9800 0x800>;
+				};
+			};
+
+			brg@119f0 {
+				compatible = "fsl,mpc8247-brg",
+				             "fsl,cpm2-brg",
+				             "fsl,cpm-brg";
+				reg = <0x119f0 0x10 0x115f0 0x10>;
+			};
+
+			/* Monitor port/SMC2 */
+			smc2: serial@11a90 {
+				device_type = "serial";
+				compatible = "fsl,mpc8247-smc-uart",
+				             "fsl,cpm2-smc-uart";
+				reg = <0x11a90 0x20 0x88fc 0x02>;
+				interrupts = <5 8>;
+				interrupt-parent = <&PIC>;
+				fsl,cpm-brg = <2>;
+				fsl,cpm-command = <0x21200000>;
+				current-speed = <0>; /* Filled in by U-Boot */
+			};
+
+			eth0: ethernet@11a60 {
+				device_type = "network";
+				compatible = "fsl,mpc8247-scc-enet",
+				             "fsl,cpm2-scc-enet";
+				reg = <0x11a60 0x20 0x8300 0x100 0x11390 1>;
+				local-mac-address = [ 00 00 00 00 00 00 ]; /* Filled in by U-Boot */
+				interrupts = <43 8>;
+				interrupt-parent = <&PIC>;
+				linux,network-index = <0>;
+				fsl,cpm-command = <0xce00000>;
+				fixed-link = <0 0 10 0 0>;
+			};
+
+		};
+
+		PIC: interrupt-controller@10c00 {
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			reg = <0x10c00 0x80>;
+			compatible = "fsl,mpc8247-pic", "fsl,pq2-pic";
+		};
+	};
+};

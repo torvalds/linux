@@ -281,6 +281,9 @@ extern char empty_zero_page[PAGE_SIZE];
 #define RCP_GR_BIT	50
 #define RCP_GC_BIT	49
 
+/* User dirty bit for KVM's migration feature */
+#define KVM_UD_BIT	47
+
 #ifndef __s390x__
 
 /* Bits in the segment table address-space-control-element */
@@ -575,12 +578,16 @@ static inline void ptep_rcp_copy(pte_t *ptep)
 	unsigned long *pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
 
 	skey = page_get_storage_key(page_to_phys(page));
-	if (skey & _PAGE_CHANGED)
+	if (skey & _PAGE_CHANGED) {
 		set_bit_simple(RCP_GC_BIT, pgste);
+		set_bit_simple(KVM_UD_BIT, pgste);
+	}
 	if (skey & _PAGE_REFERENCED)
 		set_bit_simple(RCP_GR_BIT, pgste);
-	if (test_and_clear_bit_simple(RCP_HC_BIT, pgste))
+	if (test_and_clear_bit_simple(RCP_HC_BIT, pgste)) {
 		SetPageDirty(page);
+		set_bit_simple(KVM_UD_BIT, pgste);
+	}
 	if (test_and_clear_bit_simple(RCP_HR_BIT, pgste))
 		SetPageReferenced(page);
 #endif
@@ -672,7 +679,7 @@ static inline void pmd_clear(pmd_t *pmd)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	if (mm->context.pgstes)
+	if (mm->context.has_pgste)
 		ptep_rcp_copy(ptep);
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
 	if (mm->context.noexec)
@@ -744,6 +751,40 @@ static inline pte_t pte_mkspecial(pte_t pte)
 	return pte;
 }
 
+#ifdef CONFIG_PGSTE
+/*
+ * Get (and clear) the user dirty bit for a PTE.
+ */
+static inline int kvm_s390_test_and_clear_page_dirty(struct mm_struct *mm,
+						     pte_t *ptep)
+{
+	int dirty;
+	unsigned long *pgste;
+	struct page *page;
+	unsigned int skey;
+
+	if (!mm->context.has_pgste)
+		return -EINVAL;
+	rcp_lock(ptep);
+	pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
+	page = virt_to_page(pte_val(*ptep));
+	skey = page_get_storage_key(page_to_phys(page));
+	if (skey & _PAGE_CHANGED) {
+		set_bit_simple(RCP_GC_BIT, pgste);
+		set_bit_simple(KVM_UD_BIT, pgste);
+	}
+	if (test_and_clear_bit_simple(RCP_HC_BIT, pgste)) {
+		SetPageDirty(page);
+		set_bit_simple(KVM_UD_BIT, pgste);
+	}
+	dirty = test_and_clear_bit_simple(KVM_UD_BIT, pgste);
+	if (skey & _PAGE_CHANGED)
+		page_clear_dirty(page);
+	rcp_unlock(ptep);
+	return dirty;
+}
+#endif
+
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long addr, pte_t *ptep)
@@ -753,7 +794,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 	int young;
 	unsigned long *pgste;
 
-	if (!vma->vm_mm->context.pgstes)
+	if (!vma->vm_mm->context.has_pgste)
 		return 0;
 	physpage = pte_val(*ptep) & PAGE_MASK;
 	pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
@@ -803,7 +844,7 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
 static inline void ptep_invalidate(struct mm_struct *mm,
 				   unsigned long address, pte_t *ptep)
 {
-	if (mm->context.pgstes) {
+	if (mm->context.has_pgste) {
 		rcp_lock(ptep);
 		__ptep_ipte(address, ptep);
 		ptep_rcp_copy(ptep);

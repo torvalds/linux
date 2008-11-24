@@ -482,18 +482,16 @@ struct pci_dev;
 extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
-/* Similarly for SBUS. */
-#define sbus_ioremap(__res, __offset, __size, __name) \
-({	unsigned long __ret; \
-	__ret  = (__res)->start + (((__res)->flags & 0x1ffUL) << 32UL); \
-	__ret += (unsigned long) (__offset); \
-	if (! request_region((__ret), (__size), (__name))) \
-		__ret = 0UL; \
-	(void __iomem *) __ret; \
-})
-
-#define sbus_iounmap(__addr, __size)	\
-	release_region((unsigned long)(__addr), (__size))
+static inline int sbus_can_dma_64bit(void)
+{
+	return 1;
+}
+static inline int sbus_can_burst64(void)
+{
+	return 1;
+}
+struct device;
+extern void sbus_set_sbus64(struct device *, int);
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem

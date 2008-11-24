@@ -205,7 +205,7 @@ config WANXL_BUILD_FIRMWARE
 
 config PC300
 	tristate "Cyclades-PC300 support (RS-232/V.35, X.21, T1/E1 boards)"
-	depends on HDLC && PCI
+	depends on HDLC && PCI && BROKEN
 	---help---
 	  Driver for the Cyclades-PC300 synchronous communication boards.
 

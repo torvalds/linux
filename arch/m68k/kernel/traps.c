@@ -883,8 +883,7 @@ void show_trace(unsigned long *stack)
 			if (i % 5 == 0)
 				printk("\n       ");
 #endif
-			printk(" [<%08lx>]", addr);
-			print_symbol(" %s\n", addr);
+			printk(" [<%08lx>] %pS\n", addr, (void *)addr);
 			i++;
 		}
 	}
@@ -900,10 +899,8 @@ void show_registers(struct pt_regs *regs)
 	int i;
 
 	print_modules();
-	printk("PC: [<%08lx>]",regs->pc);
-	print_symbol(" %s", regs->pc);
-	printk("\nSR: %04x  SP: %p  a2: %08lx\n",
-	       regs->sr, regs, regs->a2);
+	printk("PC: [<%08lx>] %pS\n", regs->pc, (void *)regs->pc);
+	printk("SR: %04x  SP: %p  a2: %08lx\n", regs->sr, regs, regs->a2);
 	printk("d0: %08lx    d1: %08lx    d2: %08lx    d3: %08lx\n",
 	       regs->d0, regs->d1, regs->d2, regs->d3);
 	printk("d4: %08lx    d5: %08lx    a0: %08lx    a1: %08lx\n",

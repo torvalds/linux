@@ -89,15 +89,33 @@ struct regulation_constraints {
 	unsigned apply_uV:1;	/* apply uV constraint iff min == max */
 };
 
-int regulator_set_supply(const char *regulator, const char *regulator_supply);
+/**
+ * struct regulator_consumer_supply - supply -> device mapping
+ *
+ * This maps a supply name to a device.
+ */
+struct regulator_consumer_supply {
+	struct device *dev;	/* consumer */
+	const char *supply;	/* consumer supply - e.g. "vcc" */
+};
 
-const char *regulator_get_supply(const char *regulator);
+/**
+ * struct regulator_init_data - regulator platform initialisation data.
+ *
+ * Initialisation constraints, our supply and consumers supplies.
+ */
+struct regulator_init_data {
+	struct device *supply_regulator_dev; /* or NULL for LINE */
 
-int regulator_set_machine_constraints(const char *regulator,
-	struct regulation_constraints *constraints);
+	struct regulation_constraints constraints;
 
-int regulator_set_device_supply(const char *regulator, struct device *dev,
-				const char *supply);
+	int num_consumer_supplies;
+	struct regulator_consumer_supply *consumer_supplies;
+
+	/* optional regulator machine specific init */
+	int (*regulator_init)(void *driver_data);
+	void *driver_data;	/* core does not touch this */
+};
 
 int regulator_suspend_prepare(suspend_state_t state);
 

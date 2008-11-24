@@ -40,9 +40,15 @@
 */
 
 #ifdef DEBUG
-#define UDSL_ASSERT(x)	BUG_ON(!(x))
+#define UDSL_ASSERT(instance, x)	BUG_ON(!(x))
 #else
-#define UDSL_ASSERT(x)	do { if (!(x)) warn("failed assertion '%s' at line %d", __stringify(x), __LINE__); } while(0)
+#define UDSL_ASSERT(instance, x)					\
+	do {	\
+		if (!(x))						\
+			dev_warn(&(instance)->usb_intf->dev,		\
+				 "failed assertion '%s' at line %d",	\
+				 __stringify(x), __LINE__);		\
+	} while(0)
 #endif
 
 #define usb_err(instance, format, arg...)	\

@@ -64,6 +64,10 @@ extern void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn,
 extern void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
                                   gva_t eend, u32 asid);
 extern void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode);
+extern void kvmppc_mmu_switch_pid(struct kvm_vcpu *vcpu, u32 pid);
+
+/* XXX Book E specific */
+extern void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i);
 
 extern void kvmppc_check_and_deliver_interrupts(struct kvm_vcpu *vcpu);
 
@@ -90,6 +94,14 @@ static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 
 	if (vcpu->arch.msr & MSR_WE)
 		kvm_vcpu_block(vcpu);
+}
+
+static inline void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 new_pid)
+{
+	if (vcpu->arch.pid != new_pid) {
+		vcpu->arch.pid = new_pid;
+		vcpu->arch.swap_pid = 1;
+	}
 }
 
 #endif /* __POWERPC_KVM_PPC_H__ */

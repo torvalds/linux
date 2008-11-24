@@ -61,7 +61,7 @@
  *
  */
 
-#define _iwl_write32(priv, ofs, val) writel((val), (priv)->hw_base + (ofs))
+#define _iwl_write32(priv, ofs, val) iowrite32((val), (priv)->hw_base + (ofs))
 #ifdef CONFIG_IWLWIFI_DEBUG
 static inline void __iwl_write32(const char *f, u32 l, struct iwl_priv *priv,
 				 u32 ofs, u32 val)
@@ -75,7 +75,7 @@ static inline void __iwl_write32(const char *f, u32 l, struct iwl_priv *priv,
 #define iwl_write32(priv, ofs, val) _iwl_write32(priv, ofs, val)
 #endif
 
-#define _iwl_read32(priv, ofs) readl((priv)->hw_base + (ofs))
+#define _iwl_read32(priv, ofs) ioread32((priv)->hw_base + (ofs))
 #ifdef CONFIG_IWLWIFI_DEBUG
 static inline u32 __iwl_read32(char *f, u32 l, struct iwl_priv *priv, u32 ofs)
 {
@@ -155,28 +155,10 @@ static inline void __iwl_clear_bit(const char *f, u32 l,
 static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 {
 	int ret;
-	u32 gp_ctl;
-
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (atomic_read(&priv->restrict_refcnt))
 		return 0;
 #endif
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status) ||
-	    test_bit(STATUS_RF_KILL_SW, &priv->status)) {
-		IWL_WARNING("WARNING: Requesting MAC access during RFKILL "
-			"wakes up NIC\n");
-
-		/* 10 msec allows time for NIC to complete its data save */
-		gp_ctl = _iwl_read32(priv, CSR_GP_CNTRL);
-		if (gp_ctl & CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY) {
-			IWL_DEBUG_RF_KILL("Wait for complete power-down, "
-				"gpctl = 0x%08x\n", gp_ctl);
-			mdelay(10);
-		} else
-			IWL_DEBUG_RF_KILL("power-down complete, "
-					  "gpctl = 0x%08x\n", gp_ctl);
-	}
-
 	/* this bit wakes up the NIC */
 	_iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	ret = _iwl_poll_bit(priv, CSR_GP_CNTRL,

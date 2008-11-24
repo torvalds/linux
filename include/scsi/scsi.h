@@ -381,6 +381,11 @@ static inline int scsi_is_wlun(unsigned int lun)
 #define DID_IMM_RETRY   0x0c	/* Retry without decrementing retry count  */
 #define DID_REQUEUE	0x0d	/* Requeue command (no immediate retry) also
 				 * without decrementing the retry count	   */
+#define DID_TRANSPORT_DISRUPTED 0x0e /* Transport error disrupted execution
+				      * and the driver blocked the port to
+				      * recover the link. Transport class will
+				      * retry or fail IO */
+#define DID_TRANSPORT_FAILFAST	0x0f /* Transport class fastfailed the io */
 #define DRIVER_OK       0x00	/* Driver status                           */
 
 /*
@@ -426,6 +431,7 @@ static inline int scsi_is_wlun(unsigned int lun)
 #define SCSI_MLQUEUE_HOST_BUSY   0x1055
 #define SCSI_MLQUEUE_DEVICE_BUSY 0x1056
 #define SCSI_MLQUEUE_EH_RETRY    0x1057
+#define SCSI_MLQUEUE_TARGET_BUSY 0x1058
 
 /*
  *  Use these to separate status msg and our bytes

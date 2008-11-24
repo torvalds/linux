@@ -63,41 +63,6 @@
 #define merge_64(r1, r2) ((((r2) & 0xffffffffUL) << 32) + ((r1) & 0xffffffffUL))
 #endif
 
-/*
- * Revalidate the inode. This is required for proper NFS attribute caching.
- */
-
-int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
-{
-	struct compat_stat tmp;
-
-	if (!new_valid_dev(stat->dev) || !new_valid_dev(stat->rdev))
-		return -EOVERFLOW;
-
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.st_dev = new_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
-		return -EOVERFLOW;
-	tmp.st_mode = stat->mode;
-	tmp.st_nlink = stat->nlink;
-	SET_UID(tmp.st_uid, stat->uid);
-	SET_GID(tmp.st_gid, stat->gid);
-	tmp.st_rdev = new_encode_dev(stat->rdev);
-	tmp.st_size = stat->size;
-	tmp.st_atime = stat->atime.tv_sec;
-	tmp.st_mtime = stat->mtime.tv_sec;
-	tmp.st_ctime = stat->ctime.tv_sec;
-#ifdef STAT_HAVE_NSEC
-	tmp.st_atime_nsec = stat->atime.tv_nsec;
-	tmp.st_mtime_nsec = stat->mtime.tv_nsec;
-	tmp.st_ctime_nsec = stat->ctime.tv_nsec;
-#endif
-	tmp.st_blocks = stat->blocks;
-	tmp.st_blksize = stat->blksize;
-	return copy_to_user(statbuf, &tmp, sizeof(tmp)) ? -EFAULT : 0;
-}
-
 asmlinkage unsigned long
 sys32_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
          unsigned long flags, unsigned long fd, unsigned long pgoff)
@@ -166,72 +131,6 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long __dummy,
 	int a2, int a3)
 {
 	return sys_ftruncate(fd, merge_64(a2, a3));
-}
-
-static inline long
-get_tv32(struct timeval *o, struct compat_timeval __user *i)
-{
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->tv_sec, &i->tv_sec) |
-		 __get_user(o->tv_usec, &i->tv_usec)));
-}
-
-static inline long
-put_tv32(struct compat_timeval __user *o, struct timeval *i)
-{
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->tv_sec, &o->tv_sec) |
-		 __put_user(i->tv_usec, &o->tv_usec)));
-}
-
-extern struct timezone sys_tz;
-
-asmlinkage int
-sys32_gettimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	if (tv) {
-		struct timeval ktv;
-		do_gettimeofday(&ktv);
-		if (put_tv32(tv, &ktv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_to_user(tz, &sys_tz, sizeof(sys_tz)))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-static inline long get_ts32(struct timespec *o, struct compat_timeval __user *i)
-{
-	long usec;
-
-	if (!access_ok(VERIFY_READ, i, sizeof(*i)))
-		return -EFAULT;
-	if (__get_user(o->tv_sec, &i->tv_sec))
-		return -EFAULT;
-	if (__get_user(usec, &i->tv_usec))
-		return -EFAULT;
-	o->tv_nsec = usec * 1000;
-		return 0;
-}
-
-asmlinkage int
-sys32_settimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	struct timespec kts;
-	struct timezone ktz;
-
- 	if (tv) {
-		if (get_ts32(&kts, tv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_from_user(&ktz, tz, sizeof(ktz)))
-			return -EFAULT;
-	}
-
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
 asmlinkage int sys32_llseek(unsigned int fd, unsigned int offset_high,

@@ -65,11 +65,10 @@ The LM87 has four pins which can serve one of two possible functions,
 depending on the hardware configuration.
 
 Some functions share pins, so not all functions are available at the same
-time. Which are depends on the hardware setup. This driver assumes that
-the BIOS configured the chip correctly. In that respect, it differs from
-the original driver (from lm_sensors for Linux 2.4), which would force the
-LM87 to an arbitrary, compile-time chosen mode, regardless of the actual
-chipset wiring.
+time. Which are depends on the hardware setup. This driver normally
+assumes that firmware configured the chip correctly. Where this is not
+the case, platform code must set the I2C client's platform_data to point
+to a u8 value to be written to the channel register.
 
 For reference, here is the list of exclusive functions:
  - in0+in5 (default) or temp3

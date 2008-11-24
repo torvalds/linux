@@ -60,6 +60,7 @@ int main(void)
 	DEFINE(KERNEL_STACK_SIZE, THREAD_SIZE);
 
 	/* offsets into the pt_regs */
+	DEFINE(PT_ORIG_R0, offsetof(struct pt_regs, orig_r0));
 	DEFINE(PT_ORIG_P0, offsetof(struct pt_regs, orig_p0));
 	DEFINE(PT_ORIG_PC, offsetof(struct pt_regs, orig_pc));
 	DEFINE(PT_R0, offsetof(struct pt_regs, r0));

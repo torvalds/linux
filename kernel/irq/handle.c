@@ -25,11 +25,10 @@
  *
  * Handles spurious and unhandled IRQ's. It also prints a debugmessage.
  */
-void
-handle_bad_irq(unsigned int irq, struct irq_desc *desc)
+void handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 {
 	print_irq_desc(irq, desc);
-	kstat_this_cpu.irqs[irq]++;
+	kstat_incr_irqs_this_cpu(irq, desc);
 	ack_bad_irq(irq);
 }
 
@@ -47,6 +46,9 @@ handle_bad_irq(unsigned int irq, struct irq_desc *desc)
  *
  * Controller mappings for all interrupt sources:
  */
+int nr_irqs = NR_IRQS;
+EXPORT_SYMBOL_GPL(nr_irqs);
+
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,
@@ -66,7 +68,9 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
  */
 static void ack_bad(unsigned int irq)
 {
-	print_irq_desc(irq, irq_desc + irq);
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	print_irq_desc(irq, desc);
 	ack_bad_irq(irq);
 }
 
@@ -131,8 +135,6 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
 
-	handle_dynamic_tick(action);
-
 	if (!(action->flags & IRQF_DISABLED))
 		local_irq_enable_in_hardirq();
 
@@ -165,11 +167,12 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
  */
 unsigned int __do_IRQ(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action;
 	unsigned int status;
 
-	kstat_this_cpu.irqs[irq]++;
+	kstat_incr_irqs_this_cpu(irq, desc);
+
 	if (CHECK_IRQ_PER_CPU(desc->status)) {
 		irqreturn_t action_ret;
 
@@ -256,8 +259,8 @@ out:
 }
 #endif
 
-#ifdef CONFIG_TRACE_IRQFLAGS
 
+#ifdef CONFIG_TRACE_IRQFLAGS
 /*
  * lockdep: we want to handle all irq_desc locks as a single lock-class:
  */
@@ -265,10 +268,10 @@ static struct lock_class_key irq_desc_lock_class;
 
 void early_init_irq_lock_class(void)
 {
+	struct irq_desc *desc;
 	int i;
 
-	for (i = 0; i < NR_IRQS; i++)
-		lockdep_set_class(&irq_desc[i].lock, &irq_desc_lock_class);
+	for_each_irq_desc(i, desc)
+		lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 }
-
 #endif

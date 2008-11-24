@@ -82,9 +82,98 @@ int dib0700_set_gpio(struct dvb_usb_device *d, enum dib07x0_gpios gpio, u8 gpio_
 }
 
 /*
- * I2C master xfer function
+ * I2C master xfer function (supported in 1.20 firmware)
  */
-static int dib0700_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg *msg,int num)
+static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
+				int num)
+{
+	/* The new i2c firmware messages are more reliable and in particular
+	   properly support i2c read calls not preceded by a write */
+
+	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	uint8_t bus_mode = 1;  /* 0=eeprom bus, 1=frontend bus */
+	uint8_t gen_mode = 0; /* 0=master i2c, 1=gpio i2c */
+	uint8_t en_start = 0;
+	uint8_t en_stop = 0;
+	uint8_t buf[255]; /* TBV: malloc ? */
+	int result, i;
+
+	/* Ensure nobody else hits the i2c bus while we're sending our
+	   sequence of messages, (such as the remote control thread) */
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
+		return -EAGAIN;
+
+	for (i = 0; i < num; i++) {
+		if (i == 0) {
+			/* First message in the transaction */
+			en_start = 1;
+		} else if (!(msg[i].flags & I2C_M_NOSTART)) {
+			/* Device supports repeated-start */
+			en_start = 1;
+		} else {
+			/* Not the first packet and device doesn't support
+			   repeated start */
+			en_start = 0;
+		}
+		if (i == (num - 1)) {
+			/* Last message in the transaction */
+			en_stop = 1;
+		}
+
+		if (msg[i].flags & I2C_M_RD) {
+			/* Read request */
+			u16 index, value;
+			uint8_t i2c_dest;
+
+			i2c_dest = (msg[i].addr << 1);
+			value = ((en_start << 7) | (en_stop << 6) |
+				 (msg[i].len & 0x3F)) << 8 | i2c_dest;
+			/* I2C ctrl + FE bus; */
+			index = ((gen_mode<<6)&0xC0) | ((bus_mode<<4)&0x30);
+
+			result = usb_control_msg(d->udev,
+						 usb_rcvctrlpipe(d->udev, 0),
+						 REQUEST_NEW_I2C_READ,
+						 USB_TYPE_VENDOR | USB_DIR_IN,
+						 value, index, msg[i].buf,
+						 msg[i].len,
+						 USB_CTRL_GET_TIMEOUT);
+			if (result < 0) {
+				err("i2c read error (status = %d)\n", result);
+				break;
+			}
+		} else {
+			/* Write request */
+			buf[0] = REQUEST_NEW_I2C_WRITE;
+			buf[1] = (msg[i].addr << 1);
+			buf[2] = (en_start << 7) | (en_stop << 6) |
+				(msg[i].len & 0x3F);
+			/* I2C ctrl + FE bus; */
+			buf[3] = ((gen_mode<<6)&0xC0) | ((bus_mode<<4)&0x30);
+			/* The Actual i2c payload */
+			memcpy(&buf[4], msg[i].buf, msg[i].len);
+
+			result = usb_control_msg(d->udev,
+						 usb_sndctrlpipe(d->udev, 0),
+						 REQUEST_NEW_I2C_WRITE,
+						 USB_TYPE_VENDOR | USB_DIR_OUT,
+						 0, 0, buf, msg[i].len + 4,
+						 USB_CTRL_GET_TIMEOUT);
+			if (result < 0) {
+				err("i2c write error (status = %d)\n", result);
+				break;
+			}
+		}
+	}
+	mutex_unlock(&d->i2c_mutex);
+	return i;
+}
+
+/*
+ * I2C master xfer function (pre-1.20 firmware)
+ */
+static int dib0700_i2c_xfer_legacy(struct i2c_adapter *adap,
+				   struct i2c_msg *msg, int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i,len;
@@ -122,6 +211,21 @@ static int dib0700_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg *msg,int num
 
 	mutex_unlock(&d->i2c_mutex);
 	return i;
+}
+
+static int dib0700_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
+			    int num)
+{
+	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	struct dib0700_state *st = d->priv;
+
+	if (st->fw_use_new_i2c_api == 1) {
+		/* User running at least fw 1.20 */
+		return dib0700_i2c_xfer_new(adap, msg, num);
+	} else {
+		/* Use legacy calls */
+		return dib0700_i2c_xfer_legacy(adap, msg, num);
+	}
 }
 
 static u32 dib0700_i2c_func(struct i2c_adapter *adapter)
@@ -246,7 +350,12 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	b[0] = REQUEST_ENABLE_VIDEO;
 	b[1] = (onoff << 4) | 0x00; /* this bit gives a kind of command, rather than enabling something or not */
-	b[2] = (0x01 << 4); /* Master mode */
+
+	if (st->disable_streaming_master_mode == 1)
+		b[2] = 0x00;
+	else
+		b[2] = (0x01 << 4); /* Master mode */
+
 	b[3] = 0x00;
 
 	deb_info("modifying (%d) streaming state for %d\n", onoff, adap->id);

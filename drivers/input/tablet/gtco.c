@@ -2,7 +2,7 @@
 
 GTCO digitizer USB driver
 
-Use the err(), dbg() and info() macros from usb.h for system logging
+Use the err() and dbg() macros from usb.h for system logging
 
 TO CHECK:  Is pressure done right on report 5?
 
@@ -1010,7 +1010,7 @@ static void gtco_disconnect(struct usb_interface *interface)
 		kfree(gtco);
 	}
 
-	info("gtco driver disconnected");
+	dev_info(&interface->dev, "gtco driver disconnected\n");
 }
 
 /*   STANDARD MODULE LOAD ROUTINES  */

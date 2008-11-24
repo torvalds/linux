@@ -24,10 +24,10 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <mach/regs-gpio.h>
 

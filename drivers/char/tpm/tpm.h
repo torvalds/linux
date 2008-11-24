@@ -90,7 +90,7 @@ struct tpm_chip {
 	struct device *dev;	/* Device stuff */
 
 	int dev_num;		/* /dev/tpm# */
-	int num_opens;		/* only one allowed */
+	unsigned long is_open;	/* only one allowed */
 	int time_expired;
 
 	/* Data passed to and from the tpm via the read/write calls */
@@ -132,6 +132,7 @@ extern struct tpm_chip* tpm_register_hardware(struct device *,
 				 const struct tpm_vendor_specific *);
 extern int tpm_open(struct inode *, struct file *);
 extern int tpm_release(struct inode *, struct file *);
+extern void tpm_dev_vendor_release(struct tpm_chip *);
 extern ssize_t tpm_write(struct file *, const char __user *, size_t,
 			 loff_t *);
 extern ssize_t tpm_read(struct file *, char __user *, size_t, loff_t *);

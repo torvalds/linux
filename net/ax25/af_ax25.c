@@ -317,6 +317,9 @@ void ax25_destroy_socket(ax25_cb *ax25)
 				/* Queue the unaccepted socket for death */
 				sock_orphan(skb->sk);
 
+				/* 9A4GL: hack to release unaccepted sockets */
+				skb->sk->sk_state = TCP_LISTEN;
+
 				ax25_start_heartbeat(sax25);
 				sax25->state = AX25_STATE_0;
 			}

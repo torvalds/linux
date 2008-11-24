@@ -190,7 +190,9 @@ static const struct agp_bridge_driver via_agp3_driver = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -214,7 +216,9 @@ static const struct agp_bridge_driver via_driver = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -591,4 +595,4 @@ module_init(agp_via_init);
 module_exit(agp_via_cleanup);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Dave Jones <davej@codemonkey.org.uk>");
+MODULE_AUTHOR("Dave Jones <davej@redhat.com>");

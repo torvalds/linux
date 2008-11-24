@@ -51,6 +51,9 @@
 #include <linux/sunrpc/rpc_rdma.h> 	/* RPC/RDMA protocol */
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
 
+#define RDMA_RESOLVE_TIMEOUT	(5000)	/* 5 seconds */
+#define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
+
 /*
  * Interface Adapter -- one per transport instance
  */
@@ -58,6 +61,8 @@ struct rpcrdma_ia {
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
 	struct ib_mr		*ri_bind_mem;
+	u32			ri_dma_lkey;
+	int			ri_have_dma_lkey;
 	struct completion	ri_done;
 	int			ri_async_rc;
 	enum rpcrdma_memreg	ri_memreg_strategy;
@@ -156,6 +161,10 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 			union {
 				struct ib_mw	*mw;
 				struct ib_fmr	*fmr;
+				struct {
+					struct ib_fast_reg_page_list *fr_pgl;
+					struct ib_mr *fr_mr;
+				} frmr;
 			} r;
 			struct list_head mw_list;
 		} *rl_mw;
@@ -175,6 +184,7 @@ struct rpcrdma_req {
 	size_t 		rl_size;	/* actual length of buffer */
 	unsigned int	rl_niovs;	/* 0, 2 or 4 */
 	unsigned int	rl_nchunks;	/* non-zero if chunks */
+	unsigned int	rl_connect_cookie;	/* retry detection */
 	struct rpcrdma_buffer *rl_buffer; /* home base for this structure */
 	struct rpcrdma_rep	*rl_reply;/* holder for reply buffer */
 	struct rpcrdma_mr_seg rl_segments[RPCRDMA_MAX_SEGS];/* chunk segments */
@@ -198,7 +208,7 @@ struct rpcrdma_buffer {
 	atomic_t	rb_credits;	/* most recent server credits */
 	unsigned long	rb_cwndscale;	/* cached framework rpc_cwndscale */
 	int		rb_max_requests;/* client max requests */
-	struct list_head rb_mws;	/* optional memory windows/fmrs */
+	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
 	int		rb_send_index;
 	struct rpcrdma_req	**rb_send_bufs;
 	int		rb_recv_index;
@@ -272,6 +282,11 @@ struct rpcrdma_xprt {
 
 #define rpcx_to_rdmax(x) container_of(x, struct rpcrdma_xprt, xprt)
 #define rpcx_to_rdmad(x) (rpcx_to_rdmax(x)->rx_data)
+
+/* Setting this to 0 ensures interoperability with early servers.
+ * Setting this to 1 enhances certain unaligned read/write performance.
+ * Default is 0, see sysctl entry and rpc_rdma.c rpcrdma_convert_iovs() */
+extern int xprt_rdma_pad_optimize;
 
 /*
  * Interface Adapter calls - xprtrdma/verbs.c

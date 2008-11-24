@@ -27,14 +27,29 @@ static int fb_notifier_callback(struct notifier_block *self,
 	struct fb_event *evdata = data;
 
 	/* If we aren't interested in this event, skip it immediately ... */
-	if (event != FB_EVENT_BLANK)
+	switch (event) {
+	case FB_EVENT_BLANK:
+	case FB_EVENT_MODE_CHANGE:
+	case FB_EVENT_MODE_CHANGE_ALL:
+		break;
+	default:
 		return 0;
+	}
 
 	ld = container_of(self, struct lcd_device, fb_notif);
+	if (!ld->ops)
+		return 0;
+
 	mutex_lock(&ld->ops_lock);
-	if (ld->ops)
-		if (!ld->ops->check_fb || ld->ops->check_fb(ld, evdata->info))
-			ld->ops->set_power(ld, *(int *)evdata->data);
+	if (!ld->ops->check_fb || ld->ops->check_fb(ld, evdata->info)) {
+		if (event == FB_EVENT_BLANK) {
+			if (ld->ops->set_power)
+				ld->ops->set_power(ld, *(int *)evdata->data);
+		} else {
+			if (ld->ops->set_mode)
+				ld->ops->set_mode(ld, evdata->data);
+		}
+	}
 	mutex_unlock(&ld->ops_lock);
 	return 0;
 }

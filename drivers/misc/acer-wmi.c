@@ -33,6 +33,8 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/i8042.h>
+#include <linux/rfkill.h>
+#include <linux/workqueue.h>
 #include <linux/debugfs.h>
 
 #include <acpi/acpi_drivers.h>
@@ -123,21 +125,15 @@ enum interface_flags {
 
 static int max_brightness = 0xF;
 
-static int wireless = -1;
-static int bluetooth = -1;
 static int mailled = -1;
 static int brightness = -1;
 static int threeg = -1;
 static int force_series;
 
 module_param(mailled, int, 0444);
-module_param(wireless, int, 0444);
-module_param(bluetooth, int, 0444);
 module_param(brightness, int, 0444);
 module_param(threeg, int, 0444);
 module_param(force_series, int, 0444);
-MODULE_PARM_DESC(wireless, "Set initial state of Wireless hardware");
-MODULE_PARM_DESC(bluetooth, "Set initial state of Bluetooth hardware");
 MODULE_PARM_DESC(mailled, "Set initial state of Mail LED");
 MODULE_PARM_DESC(brightness, "Set initial LCD backlight brightness");
 MODULE_PARM_DESC(threeg, "Set initial state of 3G hardware");
@@ -145,8 +141,6 @@ MODULE_PARM_DESC(force_series, "Force a different laptop series");
 
 struct acer_data {
 	int mailled;
-	int wireless;
-	int bluetooth;
 	int threeg;
 	int brightness;
 };
@@ -156,6 +150,9 @@ struct acer_debug {
 	struct dentry *devices;
 	u32 wmid_devices;
 };
+
+static struct rfkill *wireless_rfkill;
+static struct rfkill *bluetooth_rfkill;
 
 /* Each low-level interface must define at least some of the following */
 struct wmi_interface {
@@ -476,7 +473,7 @@ struct wmi_interface *iface)
 		}
 		break;
 	default:
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 	}
 	return AE_OK;
 }
@@ -514,7 +511,7 @@ static acpi_status AMW0_set_u32(u32 value, u32 cap, struct wmi_interface *iface)
 			break;
 		}
 	default:
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 	}
 
 	/* Actually do the set */
@@ -689,7 +686,7 @@ struct wmi_interface *iface)
 			return 0;
 		}
 	default:
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 	}
 	status = WMI_execute_u32(method_id, 0, &result);
 
@@ -735,7 +732,7 @@ static acpi_status WMID_set_u32(u32 value, u32 cap, struct wmi_interface *iface)
 		}
 		break;
 	default:
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 	}
 	return WMI_execute_u32(method_id, (u32)value, NULL);
 }
@@ -785,7 +782,7 @@ static struct wmi_interface wmid_interface = {
 
 static acpi_status get_u32(u32 *value, u32 cap)
 {
-	acpi_status status = AE_BAD_ADDRESS;
+	acpi_status status = AE_ERROR;
 
 	switch (interface->type) {
 	case ACER_AMW0:
@@ -846,8 +843,6 @@ static void __init acer_commandline_init(void)
 	 * capability isn't available on the given interface
 	 */
 	set_u32(mailled, ACER_CAP_MAILLED);
-	set_u32(wireless, ACER_CAP_WIRELESS);
-	set_u32(bluetooth, ACER_CAP_BLUETOOTH);
 	set_u32(threeg, ACER_CAP_THREEG);
 	set_u32(brightness, ACER_CAP_BRIGHTNESS);
 }
@@ -933,40 +928,135 @@ static void acer_backlight_exit(void)
 }
 
 /*
- * Read/ write bool sysfs macro
+ * Rfkill devices
  */
-#define show_set_bool(value, cap) \
-static ssize_t \
-show_bool_##value(struct device *dev, struct device_attribute *attr, \
-	char *buf) \
-{ \
-	u32 result; \
-	acpi_status status = get_u32(&result, cap); \
-	if (ACPI_SUCCESS(status)) \
-		return sprintf(buf, "%u\n", result); \
-	return sprintf(buf, "Read error\n"); \
-} \
-\
-static ssize_t \
-set_bool_##value(struct device *dev, struct device_attribute *attr, \
-	const char *buf, size_t count) \
-{ \
-	u32 tmp = simple_strtoul(buf, NULL, 10); \
-	acpi_status status = set_u32(tmp, cap); \
-		if (ACPI_FAILURE(status)) \
-			return -EINVAL; \
-	return count; \
-} \
-static DEVICE_ATTR(value, S_IWUGO | S_IRUGO | S_IWUSR, \
-	show_bool_##value, set_bool_##value);
+static void acer_rfkill_update(struct work_struct *ignored);
+static DECLARE_DELAYED_WORK(acer_rfkill_work, acer_rfkill_update);
+static void acer_rfkill_update(struct work_struct *ignored)
+{
+	u32 state;
+	acpi_status status;
 
-show_set_bool(wireless, ACER_CAP_WIRELESS);
-show_set_bool(bluetooth, ACER_CAP_BLUETOOTH);
-show_set_bool(threeg, ACER_CAP_THREEG);
+	status = get_u32(&state, ACER_CAP_WIRELESS);
+	if (ACPI_SUCCESS(status))
+		rfkill_force_state(wireless_rfkill, state ?
+			RFKILL_STATE_UNBLOCKED : RFKILL_STATE_SOFT_BLOCKED);
+
+	if (has_cap(ACER_CAP_BLUETOOTH)) {
+		status = get_u32(&state, ACER_CAP_BLUETOOTH);
+		if (ACPI_SUCCESS(status))
+			rfkill_force_state(bluetooth_rfkill, state ?
+				RFKILL_STATE_UNBLOCKED :
+				RFKILL_STATE_SOFT_BLOCKED);
+	}
+
+	schedule_delayed_work(&acer_rfkill_work, round_jiffies_relative(HZ));
+}
+
+static int acer_rfkill_set(void *data, enum rfkill_state state)
+{
+	acpi_status status;
+	u32 *cap = data;
+	status = set_u32((u32) (state == RFKILL_STATE_UNBLOCKED), *cap);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+	return 0;
+}
+
+static struct rfkill * acer_rfkill_register(struct device *dev,
+enum rfkill_type type, char *name, u32 cap)
+{
+	int err;
+	u32 state;
+	u32 *data;
+	struct rfkill *rfkill_dev;
+
+	rfkill_dev = rfkill_allocate(dev, type);
+	if (!rfkill_dev)
+		return ERR_PTR(-ENOMEM);
+	rfkill_dev->name = name;
+	get_u32(&state, cap);
+	rfkill_dev->state = state ? RFKILL_STATE_UNBLOCKED :
+		RFKILL_STATE_SOFT_BLOCKED;
+	data = kzalloc(sizeof(u32), GFP_KERNEL);
+	if (!data) {
+		rfkill_free(rfkill_dev);
+		return ERR_PTR(-ENOMEM);
+	}
+	*data = cap;
+	rfkill_dev->data = data;
+	rfkill_dev->toggle_radio = acer_rfkill_set;
+	rfkill_dev->user_claim_unsupported = 1;
+
+	err = rfkill_register(rfkill_dev);
+	if (err) {
+		kfree(rfkill_dev->data);
+		rfkill_free(rfkill_dev);
+		return ERR_PTR(err);
+	}
+	return rfkill_dev;
+}
+
+static int acer_rfkill_init(struct device *dev)
+{
+	wireless_rfkill = acer_rfkill_register(dev, RFKILL_TYPE_WLAN,
+		"acer-wireless", ACER_CAP_WIRELESS);
+	if (IS_ERR(wireless_rfkill))
+		return PTR_ERR(wireless_rfkill);
+
+	if (has_cap(ACER_CAP_BLUETOOTH)) {
+		bluetooth_rfkill = acer_rfkill_register(dev,
+			RFKILL_TYPE_BLUETOOTH, "acer-bluetooth",
+			ACER_CAP_BLUETOOTH);
+		if (IS_ERR(bluetooth_rfkill)) {
+			kfree(wireless_rfkill->data);
+			rfkill_unregister(wireless_rfkill);
+			return PTR_ERR(bluetooth_rfkill);
+		}
+	}
+
+	schedule_delayed_work(&acer_rfkill_work, round_jiffies_relative(HZ));
+
+	return 0;
+}
+
+static void acer_rfkill_exit(void)
+{
+	cancel_delayed_work_sync(&acer_rfkill_work);
+	kfree(wireless_rfkill->data);
+	rfkill_unregister(wireless_rfkill);
+	if (has_cap(ACER_CAP_BLUETOOTH)) {
+		kfree(wireless_rfkill->data);
+		rfkill_unregister(bluetooth_rfkill);
+	}
+	return;
+}
 
 /*
- * Read interface sysfs macro
+ * sysfs interface
  */
+static ssize_t show_bool_threeg(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	u32 result; \
+	acpi_status status = get_u32(&result, ACER_CAP_THREEG);
+	if (ACPI_SUCCESS(status))
+		return sprintf(buf, "%u\n", result);
+	return sprintf(buf, "Read error\n");
+}
+
+static ssize_t set_bool_threeg(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 tmp = simple_strtoul(buf, NULL, 10);
+	acpi_status status = set_u32(tmp, ACER_CAP_THREEG);
+		if (ACPI_FAILURE(status))
+			return -EINVAL;
+	return count;
+}
+static DEVICE_ATTR(threeg, S_IWUGO | S_IRUGO | S_IWUSR, show_bool_threeg,
+	set_bool_threeg);
+
 static ssize_t show_interface(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
@@ -1026,7 +1116,9 @@ static int __devinit acer_platform_probe(struct platform_device *device)
 			goto error_brightness;
 	}
 
-	return 0;
+	err = acer_rfkill_init(&device->dev);
+
+	return err;
 
 error_brightness:
 	acer_led_exit();
@@ -1040,6 +1132,8 @@ static int acer_platform_remove(struct platform_device *device)
 		acer_led_exit();
 	if (has_cap(ACER_CAP_BRIGHTNESS))
 		acer_backlight_exit();
+
+	acer_rfkill_exit();
 	return 0;
 }
 
@@ -1051,16 +1145,6 @@ pm_message_t state)
 
 	if (!data)
 		return -ENOMEM;
-
-	if (has_cap(ACER_CAP_WIRELESS)) {
-		get_u32(&value, ACER_CAP_WIRELESS);
-		data->wireless = value;
-	}
-
-	if (has_cap(ACER_CAP_BLUETOOTH)) {
-		get_u32(&value, ACER_CAP_BLUETOOTH);
-		data->bluetooth = value;
-	}
 
 	if (has_cap(ACER_CAP_MAILLED)) {
 		get_u32(&value, ACER_CAP_MAILLED);
@@ -1081,15 +1165,6 @@ static int acer_platform_resume(struct platform_device *device)
 
 	if (!data)
 		return -ENOMEM;
-
-	if (has_cap(ACER_CAP_WIRELESS))
-		set_u32(data->wireless, ACER_CAP_WIRELESS);
-
-	if (has_cap(ACER_CAP_BLUETOOTH))
-		set_u32(data->bluetooth, ACER_CAP_BLUETOOTH);
-
-	if (has_cap(ACER_CAP_THREEG))
-		set_u32(data->threeg, ACER_CAP_THREEG);
 
 	if (has_cap(ACER_CAP_MAILLED))
 		set_u32(data->mailled, ACER_CAP_MAILLED);
@@ -1115,12 +1190,6 @@ static struct platform_device *acer_platform_device;
 
 static int remove_sysfs(struct platform_device *device)
 {
-	if (has_cap(ACER_CAP_WIRELESS))
-		device_remove_file(&device->dev, &dev_attr_wireless);
-
-	if (has_cap(ACER_CAP_BLUETOOTH))
-		device_remove_file(&device->dev, &dev_attr_bluetooth);
-
 	if (has_cap(ACER_CAP_THREEG))
 		device_remove_file(&device->dev, &dev_attr_threeg);
 
@@ -1132,20 +1201,6 @@ static int remove_sysfs(struct platform_device *device)
 static int create_sysfs(void)
 {
 	int retval = -ENOMEM;
-
-	if (has_cap(ACER_CAP_WIRELESS)) {
-		retval = device_create_file(&acer_platform_device->dev,
-			&dev_attr_wireless);
-		if (retval)
-			goto error_sysfs;
-	}
-
-	if (has_cap(ACER_CAP_BLUETOOTH)) {
-		retval = device_create_file(&acer_platform_device->dev,
-			&dev_attr_bluetooth);
-		if (retval)
-			goto error_sysfs;
-	}
 
 	if (has_cap(ACER_CAP_THREEG)) {
 		retval = device_create_file(&acer_platform_device->dev,
@@ -1241,6 +1296,12 @@ static int __init acer_wmi_init(void)
 	}
 
 	set_quirks();
+
+	if (!acpi_video_backlight_support() && has_cap(ACER_CAP_BRIGHTNESS)) {
+		interface->capability &= ~ACER_CAP_BRIGHTNESS;
+		printk(ACER_INFO "Brightness must be controlled by "
+		       "generic video driver\n");
+	}
 
 	if (platform_driver_register(&acer_platform_driver)) {
 		printk(ACER_ERR "Unable to register platform driver.\n");

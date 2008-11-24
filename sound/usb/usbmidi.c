@@ -669,6 +669,42 @@ static struct usb_protocol_ops snd_usbmidi_raw_ops = {
 	.output = snd_usbmidi_raw_output,
 };
 
+static void snd_usbmidi_us122l_input(struct snd_usb_midi_in_endpoint *ep,
+				     uint8_t *buffer, int buffer_length)
+{
+	if (buffer_length != 9)
+		return;
+	buffer_length = 8;
+	while (buffer_length && buffer[buffer_length - 1] == 0xFD)
+		buffer_length--;
+	if (buffer_length)
+		snd_usbmidi_input_data(ep, 0, buffer, buffer_length);
+}
+
+static void snd_usbmidi_us122l_output(struct snd_usb_midi_out_endpoint *ep)
+{
+	int count;
+
+	if (!ep->ports[0].active)
+		return;
+	count = ep->urb->dev->speed == USB_SPEED_HIGH ? 1 : 2;
+	count = snd_rawmidi_transmit(ep->ports[0].substream,
+				     ep->urb->transfer_buffer,
+				     count);
+	if (count < 1) {
+		ep->ports[0].active = 0;
+		return;
+	}
+
+	memset(ep->urb->transfer_buffer + count, 0xFD, 9 - count);
+	ep->urb->transfer_buffer_length = count;
+}
+
+static struct usb_protocol_ops snd_usbmidi_122l_ops = {
+	.input = snd_usbmidi_us122l_input,
+	.output = snd_usbmidi_us122l_output,
+};
+
 /*
  * Emagic USB MIDI protocol: raw MIDI with "F5 xx" port switching.
  */
@@ -1076,6 +1112,15 @@ void snd_usbmidi_disconnect(struct list_head* p)
 		}
 		if (ep->in)
 			usb_kill_urb(ep->in->urb);
+		/* free endpoints here; later call can result in Oops */
+		if (ep->out) {
+			snd_usbmidi_out_endpoint_delete(ep->out);
+			ep->out = NULL;
+		}
+		if (ep->in) {
+			snd_usbmidi_in_endpoint_delete(ep->in);
+			ep->in = NULL;
+		}
 	}
 	del_timer_sync(&umidi->error_timer);
 }
@@ -1714,6 +1759,9 @@ int snd_usb_create_midi_interface(struct snd_usb_audio* chip,
 			umidi->usb_protocol_ops =
 				&snd_usbmidi_maudio_broken_running_status_ops;
 		break;
+	case QUIRK_MIDI_US122L:
+		umidi->usb_protocol_ops = &snd_usbmidi_122l_ops;
+		/* fall through */
 	case QUIRK_MIDI_FIXED_ENDPOINT:
 		memcpy(&endpoints[0], quirk->data,
 		       sizeof(struct snd_usb_midi_endpoint_info));

@@ -972,7 +972,7 @@ extern int sysctl_perm(struct ctl_table_root *root,
 
 typedef struct ctl_table ctl_table;
 
-typedef int ctl_handler (struct ctl_table *table, int __user *name, int nlen,
+typedef int ctl_handler (struct ctl_table *table,
 			 void __user *oldval, size_t __user *oldlenp,
 			 void __user *newval, size_t newlen);
 

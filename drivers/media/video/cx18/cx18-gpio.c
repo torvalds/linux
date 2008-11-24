@@ -22,6 +22,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-cards.h"
 #include "cx18-gpio.h"
 #include "tuner-xc2028.h"
@@ -49,11 +50,11 @@ static void gpio_write(struct cx18 *cx)
 	u32 dir = cx->gpio_dir;
 	u32 val = cx->gpio_val;
 
-	write_reg((dir & 0xffff) << 16, CX18_REG_GPIO_DIR1);
-	write_reg(((dir & 0xffff) << 16) | (val & 0xffff),
+	cx18_write_reg(cx, (dir & 0xffff) << 16, CX18_REG_GPIO_DIR1);
+	cx18_write_reg(cx, ((dir & 0xffff) << 16) | (val & 0xffff),
 			CX18_REG_GPIO_OUT1);
-	write_reg(dir & 0xffff0000, CX18_REG_GPIO_DIR2);
-	write_reg_sync((dir & 0xffff0000) | ((val & 0xffff0000) >> 16),
+	cx18_write_reg(cx, dir & 0xffff0000, CX18_REG_GPIO_DIR2);
+	cx18_write_reg_sync(cx, (dir & 0xffff0000) | ((val & 0xffff0000) >> 16),
 			CX18_REG_GPIO_OUT2);
 }
 
@@ -141,15 +142,17 @@ void cx18_gpio_init(struct cx18 *cx)
 	}
 
 	CX18_DEBUG_INFO("GPIO initial dir: %08x/%08x out: %08x/%08x\n",
-		   read_reg(CX18_REG_GPIO_DIR1), read_reg(CX18_REG_GPIO_DIR2),
-		   read_reg(CX18_REG_GPIO_OUT1), read_reg(CX18_REG_GPIO_OUT2));
+			cx18_read_reg(cx, CX18_REG_GPIO_DIR1),
+			cx18_read_reg(cx, CX18_REG_GPIO_DIR2),
+			cx18_read_reg(cx, CX18_REG_GPIO_OUT1),
+			cx18_read_reg(cx, CX18_REG_GPIO_OUT2));
 
 	gpio_write(cx);
 	mutex_unlock(&cx->gpio_lock);
 }
 
 /* Xceive tuner reset function */
-int cx18_reset_tuner_gpio(void *dev, int cmd, int value)
+int cx18_reset_tuner_gpio(void *dev, int component, int cmd, int value)
 {
 	struct i2c_algo_bit_data *algo = dev;
 	struct cx18_i2c_algo_callback_data *cb_data = algo->data;

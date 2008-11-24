@@ -50,8 +50,6 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 	struct snd_dma_buffer *dmab = &substream->dma_buffer;
 	int err;
 
-	snd_assert(size > 0, return -EINVAL);
-
 	/* already reserved? */
 	if (snd_dma_get_reserved_buf(dmab, substream->dma_buf_id) > 0) {
 		if (dmab->bytes >= size)
@@ -326,6 +324,32 @@ struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigne
 
 EXPORT_SYMBOL(snd_pcm_sgbuf_ops_page);
 
+/*
+ * compute the max chunk size with continuous pages on sg-buffer
+ */
+unsigned int snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
+					  unsigned int ofs, unsigned int size)
+{
+	struct snd_sg_buf *sg = snd_pcm_substream_sgbuf(substream);
+	unsigned int start, end, pg;
+
+	start = ofs >> PAGE_SHIFT;
+	end = (ofs + size - 1) >> PAGE_SHIFT;
+	/* check page continuity */
+	pg = sg->table[start].addr >> PAGE_SHIFT;
+	for (;;) {
+		start++;
+		if (start > end)
+			break;
+		pg++;
+		if ((sg->table[start].addr >> PAGE_SHIFT) != pg)
+			return (start << PAGE_SHIFT) - ofs;
+	}
+	/* ok, all on continuous pages */
+	return size;
+}
+EXPORT_SYMBOL(snd_pcm_sgbuf_get_chunk_size);
+
 /**
  * snd_pcm_lib_malloc_pages - allocate the DMA buffer
  * @substream: the substream to allocate the DMA buffer to
@@ -342,10 +366,12 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 	struct snd_pcm_runtime *runtime;
 	struct snd_dma_buffer *dmab = NULL;
 
-	snd_assert(substream->dma_buffer.dev.type != SNDRV_DMA_TYPE_UNKNOWN, return -EINVAL);
-	snd_assert(substream != NULL, return -EINVAL);
+	if (PCM_RUNTIME_CHECK(substream))
+		return -EINVAL;
+	if (snd_BUG_ON(substream->dma_buffer.dev.type ==
+		       SNDRV_DMA_TYPE_UNKNOWN))
+		return -EINVAL;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return -EINVAL);
 
 	if (runtime->dma_buffer_p) {
 		/* perphaps, we might free the large DMA memory region
@@ -391,9 +417,9 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime;
 
-	snd_assert(substream != NULL, return -EINVAL);
+	if (PCM_RUNTIME_CHECK(substream))
+		return -EINVAL;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return -EINVAL);
 	if (runtime->dma_area == NULL)
 		return 0;
 	if (runtime->dma_buffer_p != &substream->dma_buffer) {

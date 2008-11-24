@@ -274,10 +274,8 @@ static int wm8739_probe(struct i2c_client *client,
 			client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct wm8739_state), GFP_KERNEL);
-	if (state == NULL) {
-		kfree(client);
+	if (state == NULL)
 		return -ENOMEM;
-	}
 	state->vol_l = 0x17; /* 0dB */
 	state->vol_r = 0x17; /* 0dB */
 	state->muted = 0;

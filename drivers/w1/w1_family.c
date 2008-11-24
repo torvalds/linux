@@ -48,12 +48,12 @@ int w1_register_family(struct w1_family *newf)
 
 	if (!ret) {
 		atomic_set(&newf->refcnt, 0);
-		newf->need_exit = 0;
 		list_add_tail(&newf->family_entry, &w1_families);
 	}
 	spin_unlock(&w1_flock);
 
-	w1_reconnect_slaves(newf);
+	/* check default devices against the new set of drivers */
+	w1_reconnect_slaves(newf, 1);
 
 	return ret;
 }
@@ -72,10 +72,10 @@ void w1_unregister_family(struct w1_family *fent)
 			break;
 		}
 	}
-
-	fent->need_exit = 1;
-
 	spin_unlock(&w1_flock);
+
+	/* deatch devices using this family code */
+	w1_reconnect_slaves(fent, 0);
 
 	while (atomic_read(&fent->refcnt)) {
 		printk(KERN_INFO "Waiting for family %u to become free: refcnt=%d.\n",
@@ -109,8 +109,7 @@ struct w1_family * w1_family_registered(u8 fid)
 
 static void __w1_family_put(struct w1_family *f)
 {
-	if (atomic_dec_and_test(&f->refcnt))
-		f->need_exit = 1;
+	atomic_dec(&f->refcnt);
 }
 
 void w1_family_put(struct w1_family *f)

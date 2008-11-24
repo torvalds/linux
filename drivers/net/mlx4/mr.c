@@ -461,7 +461,7 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 	int err;
 
 	err = mlx4_bitmap_init(&mr_table->mpt_bitmap, dev->caps.num_mpts,
-			       ~0, dev->caps.reserved_mrws);
+			       ~0, dev->caps.reserved_mrws, 0);
 	if (err)
 		return err;
 

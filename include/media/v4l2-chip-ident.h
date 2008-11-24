@@ -72,6 +72,10 @@ enum {
 	/* module cs5345: just ident 5345 */
 	V4L2_IDENT_CS5345 = 5345,
 
+	/* module saa6752hs: reserved range 6750-6759 */
+	V4L2_IDENT_SAA6752HS = 6752,
+	V4L2_IDENT_SAA6752HS_AC3 = 6753,
+
 	/* module wm8739: just ident 8739 */
 	V4L2_IDENT_WM8739 = 8739,
 
@@ -161,6 +165,7 @@ enum {
 	/* Micron CMOS sensor chips: 45000-45099 */
 	V4L2_IDENT_MT9M001C12ST		= 45000,
 	V4L2_IDENT_MT9M001C12STM	= 45005,
+	V4L2_IDENT_MT9M111		= 45007,
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
 };

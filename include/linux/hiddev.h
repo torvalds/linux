@@ -182,26 +182,28 @@ struct hiddev_usage_ref_multi {
 /* To traverse the input report descriptor info for a HID device, perform the 
  * following:
  *
- *  rinfo.report_type = HID_REPORT_TYPE_INPUT;
- *  rinfo.report_id = HID_REPORT_ID_FIRST;
- *  ret = ioctl(fd, HIDIOCGREPORTINFO, &rinfo);
+ * rinfo.report_type = HID_REPORT_TYPE_INPUT;
+ * rinfo.report_id = HID_REPORT_ID_FIRST;
+ * ret = ioctl(fd, HIDIOCGREPORTINFO, &rinfo);
  *
- *  while (ret >= 0) {
- *      for (i = 0; i < rinfo.num_fields; i++) { 
- *	    finfo.report_type = rinfo.report_type;
- *          finfo.report_id = rinfo.report_id;
- *          finfo.field_index = i;
- *          ioctl(fd, HIDIOCGFIELDINFO, &finfo);
- *          for (j = 0; j < finfo.maxusage; j++) {
- *              uref.field_index = i;
- *		uref.usage_index = j;
- *		ioctl(fd, HIDIOCGUCODE, &uref);
- *		ioctl(fd, HIDIOCGUSAGE, &uref);
- *          }
- *	}
- *	rinfo.report_id |= HID_REPORT_ID_NEXT;
- *	ret = ioctl(fd, HIDIOCGREPORTINFO, &rinfo);
- *  }
+ * while (ret >= 0) {
+ * 	for (i = 0; i < rinfo.num_fields; i++) {
+ * 		finfo.report_type = rinfo.report_type;
+ * 		finfo.report_id = rinfo.report_id;
+ * 		finfo.field_index = i;
+ * 		ioctl(fd, HIDIOCGFIELDINFO, &finfo);
+ * 		for (j = 0; j < finfo.maxusage; j++) {
+ * 			uref.report_type = rinfo.report_type;
+ * 			uref.report_id = rinfo.report_id;
+ * 			uref.field_index = i;
+ * 			uref.usage_index = j;
+ * 			ioctl(fd, HIDIOCGUCODE, &uref);
+ * 			ioctl(fd, HIDIOCGUSAGE, &uref);
+ * 		}
+ * 	}
+ * 	rinfo.report_id |= HID_REPORT_ID_NEXT;
+ * 	ret = ioctl(fd, HIDIOCGREPORTINFO, &rinfo);
+ * }
  */
 
 
@@ -217,7 +219,7 @@ struct hid_field;
 struct hid_report;
 
 #ifdef CONFIG_USB_HIDDEV
-int hiddev_connect(struct hid_device *);
+int hiddev_connect(struct hid_device *hid, unsigned int force);
 void hiddev_disconnect(struct hid_device *);
 void hiddev_hid_event(struct hid_device *hid, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value);
@@ -225,7 +227,9 @@ void hiddev_report_event(struct hid_device *hid, struct hid_report *report);
 int __init hiddev_init(void);
 void hiddev_exit(void);
 #else
-static inline int hiddev_connect(struct hid_device *hid) { return -1; }
+static inline int hiddev_connect(struct hid_device *hid,
+		unsigned int force)
+{ return -1; }
 static inline void hiddev_disconnect(struct hid_device *hid) { }
 static inline void hiddev_hid_event(struct hid_device *hid, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value) { }

@@ -78,6 +78,7 @@ ACPI_MODULE_NAME("nseval")
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 {
 	acpi_status status;
+	struct acpi_namespace_node *node;
 
 	ACPI_FUNCTION_TRACE(ns_evaluate);
 
@@ -117,6 +118,8 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 			  info->resolved_node,
 			  acpi_ns_get_attached_object(info->resolved_node)));
 
+	node = info->resolved_node;
+
 	/*
 	 * Two major cases here:
 	 *
@@ -148,21 +151,22 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 				info->param_count++;
 		}
 
-		/* Error if too few arguments were passed in */
+		/*
+		 * Warning if too few or too many arguments have been passed by the
+		 * caller. We don't want to abort here with an error because an
+		 * incorrect number of arguments may not cause the method to fail.
+		 * However, the method will fail if there are too few arguments passed
+		 * and the method attempts to use one of the missing ones.
+		 */
 
 		if (info->param_count < info->obj_desc->method.param_count) {
-			ACPI_ERROR((AE_INFO,
+			ACPI_WARNING((AE_INFO,
 				    "Insufficient arguments - "
 				    "method [%4.4s] needs %d, found %d",
 				    acpi_ut_get_node_name(info->resolved_node),
 				    info->obj_desc->method.param_count,
 				    info->param_count));
-			return_ACPI_STATUS(AE_MISSING_ARGUMENTS);
-		}
-
-		/* Just a warning if too many arguments */
-
-		else if (info->param_count >
+		} else if (info->param_count >
 				info->obj_desc->method.param_count) {
 			ACPI_WARNING((AE_INFO,
 				      "Excess arguments - "
@@ -195,7 +199,28 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 	} else {
 		/*
 		 * 2) Object is not a method, return its current value
+		 *
+		 * Disallow certain object types. For these, "evaluation" is undefined.
 		 */
+		switch (info->resolved_node->type) {
+		case ACPI_TYPE_DEVICE:
+		case ACPI_TYPE_EVENT:
+		case ACPI_TYPE_MUTEX:
+		case ACPI_TYPE_REGION:
+		case ACPI_TYPE_THERMAL:
+		case ACPI_TYPE_LOCAL_SCOPE:
+
+			ACPI_ERROR((AE_INFO,
+				    "[%4.4s] Evaluation of object type [%s] is not supported",
+				    info->resolved_node->name.ascii,
+				    acpi_ut_get_type_name(info->resolved_node->
+							  type)));
+
+			return_ACPI_STATUS(AE_TYPE);
+
+		default:
+			break;
+		}
 
 		/*
 		 * Objects require additional resolution steps (e.g., the Node may be
@@ -239,9 +264,35 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 		}
 	}
 
-	/*
-	 * Check if there is a return value that must be dealt with
-	 */
+	/* Validation of return values for ACPI-predefined methods and objects */
+
+	if ((status == AE_OK) || (status == AE_CTRL_RETURN_VALUE)) {
+		/*
+		 * If this is the first evaluation, check the return value. This
+		 * ensures that any warnings will only be emitted during the very
+		 * first evaluation of the object.
+		 */
+		if (!(node->flags & ANOBJ_EVALUATED)) {
+			/*
+			 * Check for a predefined ACPI name. If found, validate the
+			 * returned object.
+			 *
+			 * Note: Ignore return status for now, emit warnings if there are
+			 * problems with the returned object. May change later to abort
+			 * the method on invalid return object.
+			 */
+			(void)acpi_ns_check_predefined_names(node,
+							     info->
+							     return_object);
+		}
+
+		/* Mark the node as having been evaluated */
+
+		node->flags |= ANOBJ_EVALUATED;
+	}
+
+	/* Check if there is a return value that must be dealt with */
+
 	if (status == AE_CTRL_RETURN_VALUE) {
 
 		/* If caller does not want the return value, delete it */

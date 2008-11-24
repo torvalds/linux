@@ -60,7 +60,7 @@ static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 /* The generic string strategy routine: */
-static int sysctl_uts_string(ctl_table *table, int __user *name, int nlen,
+static int sysctl_uts_string(ctl_table *table,
 		  void __user *oldval, size_t __user *oldlenp,
 		  void __user *newval, size_t newlen)
 {
@@ -69,8 +69,7 @@ static int sysctl_uts_string(ctl_table *table, int __user *name, int nlen,
 	write = newval && newlen;
 	memcpy(&uts_table, table, sizeof(uts_table));
 	uts_table.data = get_uts(table, write);
-	r = sysctl_string(&uts_table, name, nlen,
-		oldval, oldlenp, newval, newlen);
+	r = sysctl_string(&uts_table, oldval, oldlenp, newval, newlen);
 	put_uts(table, write, uts_table.data);
 	return r;
 }

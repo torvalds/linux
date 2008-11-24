@@ -96,6 +96,14 @@ basename_flags = -D"KBUILD_BASENAME=KBUILD_STR($(call name-fix,$(basetarget)))"
 modname_flags  = $(if $(filter 1,$(words $(modname))),\
                  -D"KBUILD_MODNAME=KBUILD_STR($(call name-fix,$(modname)))")
 
+#hash values
+ifdef CONFIG_DYNAMIC_PRINTK_DEBUG
+debug_flags = -D"DEBUG_HASH=$(shell ./scripts/basic/hash djb2 $(@D)$(modname))"\
+              -D"DEBUG_HASH2=$(shell ./scripts/basic/hash r5 $(@D)$(modname))"
+else
+debug_flags =
+endif
+
 orig_c_flags   = $(KBUILD_CFLAGS) $(ccflags-y) $(CFLAGS_$(basetarget).o)
 _c_flags       = $(filter-out $(CFLAGS_REMOVE_$(basetarget).o), $(orig_c_flags))
 _a_flags       = $(KBUILD_AFLAGS) $(asflags-y) $(AFLAGS_$(basetarget).o)
@@ -121,7 +129,8 @@ endif
 
 c_flags        = -Wp,-MD,$(depfile) $(NOSTDINC_FLAGS) $(KBUILD_CPPFLAGS) \
 		 $(__c_flags) $(modkern_cflags) \
-		 -D"KBUILD_STR(s)=\#s" $(basename_flags) $(modname_flags)
+		 -D"KBUILD_STR(s)=\#s" $(basename_flags) $(modname_flags) \
+		  $(debug_flags)
 
 a_flags        = -Wp,-MD,$(depfile) $(NOSTDINC_FLAGS) $(KBUILD_CPPFLAGS) \
 		 $(__a_flags) $(modkern_aflags)

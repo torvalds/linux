@@ -192,7 +192,7 @@ static void dabusb_iso_complete (struct urb *purb)
 					err("dabusb_iso_complete: invalid len %d", len);
 			}
 			else
-				warn("dabusb_iso_complete: corrupted packet status: %d", purb->iso_frame_desc[i].status);
+				dev_warn(&purb->dev->dev, "dabusb_iso_complete: corrupted packet status: %d\n", purb->iso_frame_desc[i].status);
 		if (dst != purb->actual_length)
 			err("dst!=purb->actual_length:%d!=%d", dst, purb->actual_length);
 	}
@@ -289,7 +289,7 @@ static int dabusb_bulk (pdabusb_t s, pbulk_transfer_t pb)
 	}
 
 	if( ret == -EPIPE ) {
-		warn("CLEAR_FEATURE request to remove STALL condition.");
+		dev_warn(&s->usbdev->dev, "CLEAR_FEATURE request to remove STALL condition.\n");
 		if(usb_clear_halt(s->usbdev, usb_pipeendpoint(pipe)))
 			err("request failed");
 	}
@@ -866,7 +866,8 @@ static int __init dabusb_init (void)
 
 	dbg("dabusb_init: driver registered");
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 out:
 	return retval;

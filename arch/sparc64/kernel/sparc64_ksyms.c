@@ -36,7 +36,6 @@
 #include <asm/elf.h>
 #include <asm/head.h>
 #include <asm/smp.h>
-#include <asm/mostek.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
@@ -44,11 +43,7 @@
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
 #ifdef CONFIG_SBUS
-#include <asm/sbus.h>
 #include <asm/dma.h>
-#endif
-#ifdef CONFIG_PCI
-#include <asm/ebus.h>
 #endif
 #include <asm/ns87303.h>
 #include <asm/timer.h>
@@ -68,7 +63,6 @@ extern void *__memscan_zero(void *, size_t);
 extern void *__memscan_generic(void *, int, size_t);
 extern int __memcmp(const void *, const void *, __kernel_size_t);
 extern __kernel_size_t strlen(const char *);
-extern void syscall_trace(struct pt_regs *, int);
 extern void sys_sigsuspend(void);
 extern int compat_sys_ioctl(unsigned int fd, unsigned int cmd, u32 arg);
 extern int (*handle_mathemu)(struct pt_regs *, struct fpustate *);
@@ -154,26 +148,12 @@ EXPORT_SYMBOL(flush_dcache_page);
 EXPORT_SYMBOL(__flush_dcache_range);
 #endif
 
-EXPORT_SYMBOL(mostek_lock);
-EXPORT_SYMBOL(mstk48t02_regs);
 #ifdef CONFIG_SUN_AUXIO
 EXPORT_SYMBOL(auxio_set_led);
 EXPORT_SYMBOL(auxio_set_lte);
 #endif
 #ifdef CONFIG_SBUS
-EXPORT_SYMBOL(sbus_root);
-EXPORT_SYMBOL(dma_chain);
 EXPORT_SYMBOL(sbus_set_sbus64);
-EXPORT_SYMBOL(sbus_alloc_consistent);
-EXPORT_SYMBOL(sbus_free_consistent);
-EXPORT_SYMBOL(sbus_map_single);
-EXPORT_SYMBOL(sbus_unmap_single);
-EXPORT_SYMBOL(sbus_map_sg);
-EXPORT_SYMBOL(sbus_unmap_sg);
-EXPORT_SYMBOL(sbus_dma_sync_single_for_cpu);
-EXPORT_SYMBOL(sbus_dma_sync_single_for_device);
-EXPORT_SYMBOL(sbus_dma_sync_sg_for_cpu);
-EXPORT_SYMBOL(sbus_dma_sync_sg_for_device);
 #endif
 EXPORT_SYMBOL(outsb);
 EXPORT_SYMBOL(outsw);
@@ -182,7 +162,6 @@ EXPORT_SYMBOL(insb);
 EXPORT_SYMBOL(insw);
 EXPORT_SYMBOL(insl);
 #ifdef CONFIG_PCI
-EXPORT_SYMBOL(ebus_chain);
 EXPORT_SYMBOL(pci_alloc_consistent);
 EXPORT_SYMBOL(pci_free_consistent);
 EXPORT_SYMBOL(pci_map_single);
@@ -300,3 +279,5 @@ EXPORT_SYMBOL(xor_niagara_2);
 EXPORT_SYMBOL(xor_niagara_3);
 EXPORT_SYMBOL(xor_niagara_4);
 EXPORT_SYMBOL(xor_niagara_5);
+
+EXPORT_SYMBOL_GPL(real_hard_smp_processor_id);

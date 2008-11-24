@@ -20,7 +20,7 @@
 static struct vesa_general_info vginfo;
 static struct vesa_mode_info vminfo;
 
-__videocard video_vesa;
+static __videocard video_vesa;
 
 #ifndef _WAKEUP
 static void vesa_store_mode_params_graphics(void);
@@ -88,14 +88,11 @@ static int vesa_probe(void)
 			   (vminfo.memory_layout == 4 ||
 			    vminfo.memory_layout == 6) &&
 			   vminfo.memory_planes == 1) {
-#ifdef CONFIG_FB
+#ifdef CONFIG_FB_BOOT_VESA_SUPPORT
 			/* Graphics mode, color, linear frame buffer
 			   supported.  Only register the mode if
 			   if framebuffer is configured, however,
-			   otherwise the user will be left without a screen.
-			   We don't require CONFIG_FB_VESA, however, since
-			   some of the other framebuffer drivers can use
-			   this mode-setting, too. */
+			   otherwise the user will be left without a screen. */
 			mi = GET_HEAP(struct mode_info, 1);
 			mi->mode = mode + VIDEO_FIRST_VESA;
 			mi->depth = vminfo.bpp;
@@ -133,10 +130,12 @@ static int vesa_set_mode(struct mode_info *mode)
 	if ((vminfo.mode_attr & 0x15) == 0x05) {
 		/* It's a supported text mode */
 		is_graphic = 0;
+#ifdef CONFIG_FB_BOOT_VESA_SUPPORT
 	} else if ((vminfo.mode_attr & 0x99) == 0x99) {
 		/* It's a graphics mode with linear frame buffer */
 		is_graphic = 1;
 		vesa_mode |= 0x4000; /* Request linear frame buffer */
+#endif
 	} else {
 		return -1;	/* Invalid mode */
 	}
@@ -224,7 +223,7 @@ static void vesa_store_pm_info(void)
 static void vesa_store_mode_params_graphics(void)
 {
 	/* Tell the kernel we're in VESA graphics mode */
-	boot_params.screen_info.orig_video_isVGA = 0x23;
+	boot_params.screen_info.orig_video_isVGA = VIDEO_TYPE_VLFB;
 
 	/* Mode parameters */
 	boot_params.screen_info.vesa_attributes = vminfo.mode_attr;
@@ -294,7 +293,7 @@ void vesa_store_edid(void)
 
 #endif /* not _WAKEUP */
 
-__videocard video_vesa =
+static __videocard video_vesa =
 {
 	.card_name	= "VESA",
 	.probe		= vesa_probe,

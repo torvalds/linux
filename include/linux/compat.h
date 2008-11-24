@@ -78,7 +78,6 @@ typedef struct {
 	compat_sigset_word	sig[_COMPAT_NSIG_WORDS];
 } compat_sigset_t;
 
-extern int cp_compat_stat(struct kstat *, struct compat_stat __user *);
 extern int get_compat_timespec(struct timespec *, const struct compat_timespec __user *);
 extern int put_compat_timespec(const struct timespec *, struct compat_timespec __user *);
 
@@ -234,6 +233,11 @@ extern int get_compat_itimerspec(struct itimerspec *dst,
 				 const struct compat_itimerspec __user *src);
 extern int put_compat_itimerspec(struct compat_itimerspec __user *dst,
 				 const struct itimerspec *src);
+
+asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv,
+		struct timezone __user *tz);
+asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
+		struct timezone __user *tz);
 
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 

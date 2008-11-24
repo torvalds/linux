@@ -686,7 +686,6 @@ struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
 	case 0:
 		mutex_unlock(&tda9887_list_mutex);
 		return NULL;
-		break;
 	case 1:
 		fe->analog_demod_priv = priv;
 		priv->mode = T_STANDBY;

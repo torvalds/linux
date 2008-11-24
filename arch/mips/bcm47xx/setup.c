@@ -27,6 +27,7 @@
 
 #include <linux/types.h>
 #include <linux/ssb/ssb.h>
+#include <linux/ssb/ssb_embedded.h>
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
@@ -41,7 +42,7 @@ static void bcm47xx_machine_restart(char *command)
 	printk(KERN_ALERT "Please stand by while rebooting the system...\n");
 	local_irq_disable();
 	/* Set the watchdog timer to reset immediately */
-	ssb_chipco_watchdog_timer_set(&ssb_bcm47xx.chipco, 1);
+	ssb_watchdog_timer_set(&ssb_bcm47xx, 1);
 	while (1)
 		cpu_relax();
 }
@@ -50,7 +51,7 @@ static void bcm47xx_machine_halt(void)
 {
 	/* Disable interrupts and watchdog and spin forever */
 	local_irq_disable();
-	ssb_chipco_watchdog_timer_set(&ssb_bcm47xx.chipco, 0);
+	ssb_watchdog_timer_set(&ssb_bcm47xx, 0);
 	while (1)
 		cpu_relax();
 }

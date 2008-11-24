@@ -48,6 +48,9 @@ struct strbuf {
 	unsigned long		strbuf_control;
 	unsigned long		strbuf_pflush;
 	unsigned long		strbuf_fsync;
+	unsigned long		strbuf_err_stat;
+	unsigned long		strbuf_tag_diag;
+	unsigned long		strbuf_line_diag;
 	unsigned long		strbuf_ctxflush;
 	unsigned long		strbuf_ctxmatch_base;
 	unsigned long		strbuf_flushflag_pa;

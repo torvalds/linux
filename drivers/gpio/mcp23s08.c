@@ -419,7 +419,10 @@ static int __init mcp23s08_init(void)
 {
 	return spi_register_driver(&mcp23s08_driver);
 }
-module_init(mcp23s08_init);
+/* register after spi postcore initcall and before
+ * subsys initcalls that may rely on these GPIOs
+ */
+subsys_initcall(mcp23s08_init);
 
 static void __exit mcp23s08_exit(void)
 {

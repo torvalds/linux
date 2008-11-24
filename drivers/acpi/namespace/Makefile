@@ -5,7 +5,7 @@
 obj-y := nsaccess.o  nsload.o    nssearch.o  nsxfeval.o \
 	 nsalloc.o   nseval.o    nsnames.o   nsutils.o   nsxfname.o \
 	 nsdump.o    nsinit.o    nsobject.o  nswalk.o    nsxfobj.o  \
-	 nsparse.o
+	 nsparse.o   nspredef.o
 
 obj-$(ACPI_FUTURE_USAGE) += nsdumpdv.o
 

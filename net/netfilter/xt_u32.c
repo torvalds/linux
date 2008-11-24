@@ -87,43 +87,32 @@ static bool u32_match_it(const struct xt_u32 *data,
 	return true;
 }
 
-static bool
-u32_mt(const struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, const struct xt_match *match,
-       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool u32_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_u32 *data = matchinfo;
+	const struct xt_u32 *data = par->matchinfo;
 	bool ret;
 
 	ret = u32_match_it(data, skb);
 	return ret ^ data->invert;
 }
 
-static struct xt_match u32_mt_reg[] __read_mostly = {
-	{
-		.name       = "u32",
-		.family     = AF_INET,
-		.match      = u32_mt,
-		.matchsize  = sizeof(struct xt_u32),
-		.me         = THIS_MODULE,
-	},
-	{
-		.name       = "u32",
-		.family     = AF_INET6,
-		.match      = u32_mt,
-		.matchsize  = sizeof(struct xt_u32),
-		.me         = THIS_MODULE,
-	},
+static struct xt_match xt_u32_mt_reg __read_mostly = {
+	.name       = "u32",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.match      = u32_mt,
+	.matchsize  = sizeof(struct xt_u32),
+	.me         = THIS_MODULE,
 };
 
 static int __init u32_mt_init(void)
 {
-	return xt_register_matches(u32_mt_reg, ARRAY_SIZE(u32_mt_reg));
+	return xt_register_match(&xt_u32_mt_reg);
 }
 
 static void __exit u32_mt_exit(void)
 {
-	xt_unregister_matches(u32_mt_reg, ARRAY_SIZE(u32_mt_reg));
+	xt_unregister_match(&xt_u32_mt_reg);
 }
 
 module_init(u32_mt_init);

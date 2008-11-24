@@ -59,6 +59,27 @@ config MTD_DATAFLASH
 	  Sometimes DataFlash chips are packaged inside MMC-format
 	  cards; at this writing, the MMC stack won't handle those.
 
+config MTD_DATAFLASH_WRITE_VERIFY
+	bool "Verify DataFlash page writes"
+	depends on MTD_DATAFLASH
+	help
+	  This adds an extra check when data is written to the flash.
+	  It may help if you are verifying chip setup (timings etc) on
+	  your board.  There is a rare possibility that even though the
+	  device thinks the write was successful, a bit could have been
+	  flipped accidentally due to device wear or something else.
+
+config MTD_DATAFLASH_OTP
+	bool "DataFlash OTP support (Security Register)"
+	depends on MTD_DATAFLASH
+	select HAVE_MTD_OTP
+	help
+	  Newer DataFlash chips (revisions C and D) support 128 bytes of
+	  one-time-programmable (OTP) data.  The first half may be written
+	  (once) with up to 64 bytes of data, such as a serial number or
+	  other key product data.  The second half is programmed with a
+	  unique-to-each-chip bit pattern at the factory.
+
 config MTD_M25P80
 	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
 	depends on SPI_MASTER && EXPERIMENTAL

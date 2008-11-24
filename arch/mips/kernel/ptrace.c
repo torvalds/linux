@@ -46,7 +46,8 @@
  */
 void ptrace_disable(struct task_struct *child)
 {
-	/* Nothing to do.. */
+	/* Don't load the watchpoint registers for the ex-child. */
+	clear_tsk_thread_flag(child, TIF_LOAD_WATCH);
 }
 
 /*
@@ -167,6 +168,93 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 	return 0;
 }
 
+int ptrace_get_watch_regs(struct task_struct *child,
+			  struct pt_watch_regs __user *addr)
+{
+	enum pt_watch_style style;
+	int i;
+
+	if (!cpu_has_watch || current_cpu_data.watch_reg_use_cnt == 0)
+		return -EIO;
+	if (!access_ok(VERIFY_WRITE, addr, sizeof(struct pt_watch_regs)))
+		return -EIO;
+
+#ifdef CONFIG_32BIT
+	style = pt_watch_style_mips32;
+#define WATCH_STYLE mips32
+#else
+	style = pt_watch_style_mips64;
+#define WATCH_STYLE mips64
+#endif
+
+	__put_user(style, &addr->style);
+	__put_user(current_cpu_data.watch_reg_use_cnt,
+		   &addr->WATCH_STYLE.num_valid);
+	for (i = 0; i < current_cpu_data.watch_reg_use_cnt; i++) {
+		__put_user(child->thread.watch.mips3264.watchlo[i],
+			   &addr->WATCH_STYLE.watchlo[i]);
+		__put_user(child->thread.watch.mips3264.watchhi[i] & 0xfff,
+			   &addr->WATCH_STYLE.watchhi[i]);
+		__put_user(current_cpu_data.watch_reg_masks[i],
+			   &addr->WATCH_STYLE.watch_masks[i]);
+	}
+	for (; i < 8; i++) {
+		__put_user(0, &addr->WATCH_STYLE.watchlo[i]);
+		__put_user(0, &addr->WATCH_STYLE.watchhi[i]);
+		__put_user(0, &addr->WATCH_STYLE.watch_masks[i]);
+	}
+
+	return 0;
+}
+
+int ptrace_set_watch_regs(struct task_struct *child,
+			  struct pt_watch_regs __user *addr)
+{
+	int i;
+	int watch_active = 0;
+	unsigned long lt[NUM_WATCH_REGS];
+	u16 ht[NUM_WATCH_REGS];
+
+	if (!cpu_has_watch || current_cpu_data.watch_reg_use_cnt == 0)
+		return -EIO;
+	if (!access_ok(VERIFY_READ, addr, sizeof(struct pt_watch_regs)))
+		return -EIO;
+	/* Check the values. */
+	for (i = 0; i < current_cpu_data.watch_reg_use_cnt; i++) {
+		__get_user(lt[i], &addr->WATCH_STYLE.watchlo[i]);
+#ifdef CONFIG_32BIT
+		if (lt[i] & __UA_LIMIT)
+			return -EINVAL;
+#else
+		if (test_tsk_thread_flag(child, TIF_32BIT_ADDR)) {
+			if (lt[i] & 0xffffffff80000000UL)
+				return -EINVAL;
+		} else {
+			if (lt[i] & __UA_LIMIT)
+				return -EINVAL;
+		}
+#endif
+		__get_user(ht[i], &addr->WATCH_STYLE.watchhi[i]);
+		if (ht[i] & ~0xff8)
+			return -EINVAL;
+	}
+	/* Install them. */
+	for (i = 0; i < current_cpu_data.watch_reg_use_cnt; i++) {
+		if (lt[i] & 7)
+			watch_active = 1;
+		child->thread.watch.mips3264.watchlo[i] = lt[i];
+		/* Set the G bit. */
+		child->thread.watch.mips3264.watchhi[i] = ht[i];
+	}
+
+	if (watch_active)
+		set_tsk_thread_flag(child, TIF_LOAD_WATCH);
+	else
+		clear_tsk_thread_flag(child, TIF_LOAD_WATCH);
+
+	return 0;
+}
+
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
@@ -238,7 +326,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		case FPC_EIR: {	/* implementation / version register */
 			unsigned int flags;
 #ifdef CONFIG_MIPS_MT_SMTC
-			unsigned int irqflags;
+			unsigned long irqflags;
 			unsigned int mtflags;
 #endif /* CONFIG_MIPS_MT_SMTC */
 
@@ -438,6 +526,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_GET_THREAD_AREA:
 		ret = put_user(task_thread_info(child)->tp_value,
 				(unsigned long __user *) data);
+		break;
+
+	case PTRACE_GET_WATCH_REGS:
+		ret = ptrace_get_watch_regs(child,
+					(struct pt_watch_regs __user *) addr);
+		break;
+
+	case PTRACE_SET_WATCH_REGS:
+		ret = ptrace_set_watch_regs(child,
+					(struct pt_watch_regs __user *) addr);
 		break;
 
 	default:

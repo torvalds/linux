@@ -30,10 +30,8 @@
 #include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
-#include <netinet/in.h>
-#include <endian.h>
-#include <byteswap.h>
 
+#include <libfdt_env.h>
 #include <fdt.h>
 
 #define DEFAULT_FDT_VERSION	17
@@ -75,25 +73,8 @@ static inline void *xrealloc(void *p, size_t len)
 	return new;
 }
 
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-typedef u32 cell_t;
+typedef uint32_t cell_t;
 
-#define cpu_to_be16(x)	htons(x)
-#define be16_to_cpu(x)	ntohs(x)
-
-#define cpu_to_be32(x)	htonl(x)
-#define be32_to_cpu(x)	ntohl(x)
-
-#if __BYTE_ORDER == __BIG_ENDIAN
-#define cpu_to_be64(x)	(x)
-#define be64_to_cpu(x)	(x)
-#else
-#define cpu_to_be64(x)	bswap_64(x)
-#define be64_to_cpu(x)	bswap_64(x)
-#endif
 
 #define streq(a, b)	(strcmp((a), (b)) == 0)
 #define strneq(a, b, n)	(strncmp((a), (b), (n)) == 0)
@@ -118,7 +99,6 @@ struct  marker {
 struct data {
 	int len;
 	char *val;
-	int asize;
 	struct marker *markers;
 };
 
@@ -145,7 +125,7 @@ struct data data_insert_at_marker(struct data d, struct marker *m,
 struct data data_merge(struct data d1, struct data d2);
 struct data data_append_cell(struct data d, cell_t word);
 struct data data_append_re(struct data d, const struct fdt_reserve_entry *re);
-struct data data_append_addr(struct data d, u64 addr);
+struct data data_append_addr(struct data d, uint64_t addr);
 struct data data_append_byte(struct data d, uint8_t byte);
 struct data data_append_zeroes(struct data d, int len);
 struct data data_append_align(struct data d, int align);
@@ -223,7 +203,7 @@ struct reserve_info {
 	char *label;
 };
 
-struct reserve_info *build_reserve_entry(u64 start, u64 len, char *label);
+struct reserve_info *build_reserve_entry(uint64_t start, uint64_t len, char *label);
 struct reserve_info *chain_reserve_entry(struct reserve_info *first,
 					 struct reserve_info *list);
 struct reserve_info *add_reserve_entry(struct reserve_info *list,
@@ -233,24 +213,22 @@ struct reserve_info *add_reserve_entry(struct reserve_info *list,
 struct boot_info {
 	struct reserve_info *reservelist;
 	struct node *dt;		/* the device tree */
+	uint32_t boot_cpuid_phys;
 };
 
 struct boot_info *build_boot_info(struct reserve_info *reservelist,
-				  struct node *tree);
+				  struct node *tree, uint32_t boot_cpuid_phys);
 
 /* Checks */
 
-void process_checks(int force, struct boot_info *bi,
-		    int checkflag, int outversion, int boot_cpuid_phys);
+void process_checks(int force, struct boot_info *bi);
 
 /* Flattened trees */
 
-void dt_to_blob(FILE *f, struct boot_info *bi, int version,
-		int boot_cpuid_phys);
-void dt_to_asm(FILE *f, struct boot_info *bi, int version,
-	       int boot_cpuid_phys);
+void dt_to_blob(FILE *f, struct boot_info *bi, int version);
+void dt_to_asm(FILE *f, struct boot_info *bi, int version);
 
-struct boot_info *dt_from_blob(FILE *f);
+struct boot_info *dt_from_blob(const char *fname);
 
 /* Tree source */
 
@@ -264,6 +242,5 @@ struct boot_info *dt_from_fs(const char *dirname);
 /* misc */
 
 char *join_path(const char *path, const char *name);
-void fill_fullpaths(struct node *tree, const char *prefix);
 
 #endif /* _DTC_H */

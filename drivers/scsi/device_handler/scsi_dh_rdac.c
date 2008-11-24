@@ -225,10 +225,9 @@ static struct request *get_rdac_req(struct scsi_device *sdev,
 		return NULL;
 	}
 
-	memset(rq->cmd, 0, BLK_MAX_CDB);
-
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->cmd_flags |= REQ_FAILFAST | REQ_NOMERGE;
+	rq->cmd_flags |= REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
+			 REQ_FAILFAST_DRIVER;
 	rq->retries = RDAC_RETRIES;
 	rq->timeout = RDAC_TIMEOUT;
 
@@ -401,6 +400,9 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 			h->lun_state = RDAC_LUN_OWNED;
 		}
 	}
+
+	if (h->lun_state == RDAC_LUN_UNOWNED)
+		h->state = RDAC_STATE_PASSIVE;
 
 	return err;
 }
@@ -590,6 +592,8 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"STK", "OPENstorage D280"},
 	{"SUN", "CSM200_R"},
 	{"SUN", "LCSM100_F"},
+	{"DELL", "MD3000"},
+	{"DELL", "MD3000i"},
 	{NULL, NULL},
 };
 

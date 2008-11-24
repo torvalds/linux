@@ -1139,7 +1139,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	for(slot = ctrl->slot; slot; slot = slot->next) {
 		if (slot->device == (hp_slot + ctrl->slot_device_offset)) 
 			continue;
-		if (!slot->hotplug_slot && !slot->hotplug_slot->info) 
+		if (!slot->hotplug_slot || !slot->hotplug_slot->info)
 			continue;
 		if (slot->hotplug_slot->info->adapter_status == 0) 
 			continue;

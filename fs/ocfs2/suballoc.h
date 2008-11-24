@@ -28,10 +28,11 @@
 
 typedef int (group_search_t)(struct inode *,
 			     struct buffer_head *,
-			     u32,
-			     u32,
-			     u16 *,
-			     u16 *);
+			     u32,			/* bits_wanted */
+			     u32,			/* min_bits */
+			     u64,			/* max_block */
+			     u16 *,			/* *bit_off */
+			     u16 *);			/* *bits_found */
 
 struct ocfs2_alloc_context {
 	struct inode *ac_inode;    /* which bitmap are we allocating from? */
@@ -51,6 +52,8 @@ struct ocfs2_alloc_context {
 	group_search_t *ac_group_search;
 
 	u64    ac_last_group;
+	u64    ac_max_block;  /* Highest block number to allocate. 0 is
+				 is the same as ~0 - unlimited */
 };
 
 void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac);
@@ -59,9 +62,17 @@ static inline int ocfs2_alloc_context_bits_left(struct ocfs2_alloc_context *ac)
 	return ac->ac_bits_wanted - ac->ac_bits_given;
 }
 
+/*
+ * Please note that the caller must make sure that root_el is the root
+ * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
+ * the result may be wrong.
+ */
 int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
-			       struct ocfs2_dinode *fe,
+			       struct ocfs2_extent_list *root_el,
 			       struct ocfs2_alloc_context **ac);
+int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
+				      int blocks,
+				      struct ocfs2_alloc_context **ac);
 int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 			    struct ocfs2_alloc_context **ac);
 int ocfs2_reserve_clusters(struct ocfs2_super *osb,
@@ -147,6 +158,7 @@ static inline int ocfs2_is_cluster_bitmap(struct inode *inode)
  * apis above. */
 int ocfs2_reserve_cluster_bitmap_bits(struct ocfs2_super *osb,
 				      struct ocfs2_alloc_context *ac);
+void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac);
 
 /* given a cluster offset, calculate which block group it belongs to
  * and return that block offset. */
@@ -156,4 +168,8 @@ u64 ocfs2_which_cluster_group(struct inode *inode, u32 cluster);
 int ocfs2_check_group_descriptor(struct super_block *sb,
 				 struct ocfs2_dinode *di,
 				 struct ocfs2_group_desc *gd);
+int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_extent_tree *et,
+			  u32 clusters_to_add, u32 extents_to_split,
+			  struct ocfs2_alloc_context **data_ac,
+			  struct ocfs2_alloc_context **meta_ac);
 #endif /* _CHAINALLOC_H_ */

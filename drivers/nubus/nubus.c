@@ -126,7 +126,7 @@ static void nubus_advance(unsigned char **ptr, int len, int map)
 	{
 		while(not_useful(p,map))
 			p++;
-			p++;
+		p++;
 		len--;
 	}
 	*ptr = p;

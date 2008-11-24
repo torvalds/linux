@@ -30,6 +30,7 @@
 #define __LINUX_ATA_H__
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
 
 /* defines only for the constants which don't work well as enums */
 #define ATA_DMA_BOUNDARY	0xffffUL
@@ -88,6 +89,7 @@ enum {
 	ATA_ID_DLF		= 128,
 	ATA_ID_CSFO		= 129,
 	ATA_ID_CFA_POWER	= 160,
+	ATA_ID_ROT_SPEED	= 217,
 	ATA_ID_PIO4		= (1 << 1),
 
 	ATA_ID_SERNO_LEN	= 20,
@@ -557,11 +559,33 @@ static inline int ata_id_has_flush(const u16 *id)
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 12);
 }
 
+static inline int ata_id_flush_enabled(const u16 *id)
+{
+	if (ata_id_has_flush(id) == 0)
+		return 0;
+	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
+		return 0;
+	return id[ATA_ID_CFS_ENABLE_2] & (1 << 12);
+}
+
 static inline int ata_id_has_flush_ext(const u16 *id)
 {
 	if ((id[ATA_ID_COMMAND_SET_2] & 0xC000) != 0x4000)
 		return 0;
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 13);
+}
+
+static inline int ata_id_flush_ext_enabled(const u16 *id)
+{
+	if (ata_id_has_flush_ext(id) == 0)
+		return 0;
+	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
+		return 0;
+	/*
+	 * some Maxtor disks have bit 13 defined incorrectly
+	 * so check bit 10 too
+	 */
+	return (id[ATA_ID_CFS_ENABLE_2] & 0x2400) == 0x2400;
 }
 
 static inline int ata_id_has_lba48(const u16 *id)
@@ -571,6 +595,15 @@ static inline int ata_id_has_lba48(const u16 *id)
 	if (!ata_id_u64(id, ATA_ID_LBA_CAPACITY_2))
 		return 0;
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 10);
+}
+
+static inline int ata_id_lba48_enabled(const u16 *id)
+{
+	if (ata_id_has_lba48(id) == 0)
+		return 0;
+	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
+		return 0;
+	return id[ATA_ID_CFS_ENABLE_2] & (1 << 10);
 }
 
 static inline int ata_id_hpa_enabled(const u16 *id)
@@ -644,7 +677,15 @@ static inline unsigned int ata_id_major_version(const u16 *id)
 
 static inline int ata_id_is_sata(const u16 *id)
 {
-	return ata_id_major_version(id) >= 5 && id[ATA_ID_HW_CONFIG] == 0;
+	/*
+	 * See if word 93 is 0 AND drive is at least ATA-5 compatible
+	 * verifying that word 80 by casting it to a signed type --
+	 * this trick allows us to filter out the reserved values of
+	 * 0x0000 and 0xffff along with the earlier ATA revisions...
+	 */
+	if (id[ATA_ID_HW_CONFIG] == 0 && (short)id[ATA_ID_MAJOR_VER] >= 0x0020)
+		return 1;
+	return 0;
 }
 
 static inline int ata_id_has_tpm(const u16 *id)
@@ -663,6 +704,15 @@ static inline int ata_id_has_dword_io(const u16 *id)
 	if (ata_id_major_version(id) > 7)
 		return 0;
 	if (id[ATA_ID_DWORD_IO] & (1 << 0))
+		return 1;
+	return 0;
+}
+
+static inline int ata_id_has_unload(const u16 *id)
+{
+	if (ata_id_major_version(id) >= 7 &&
+	    (id[ATA_ID_CFSSE] & 0xC000) == 0x4000 &&
+	    id[ATA_ID_CFSSE] & (1 << 13))
 		return 1;
 	return 0;
 }
@@ -689,6 +739,11 @@ static inline int ata_id_is_cfa(const u16 *id)
 	   (id[ATA_ID_COMMAND_SET_1] & (1 << 2)))
 		return 1;
 	return 0;
+}
+
+static inline int ata_id_is_ssd(const u16 *id)
+{
+	return id[ATA_ID_ROT_SPEED] == 0x01;
 }
 
 static inline int ata_drive_40wire(const u16 *dev_id)
@@ -725,6 +780,76 @@ static inline int atapi_command_packet_set(const u16 *dev_id)
 static inline int atapi_id_dmadir(const u16 *dev_id)
 {
 	return ata_id_major_version(dev_id) >= 7 && (dev_id[62] & 0x8000);
+}
+
+/*
+ * ata_id_is_lba_capacity_ok() performs a sanity check on
+ * the claimed LBA capacity value for the device.
+ *
+ * Returns 1 if LBA capacity looks sensible, 0 otherwise.
+ *
+ * It is called only once for each device.
+ */
+static inline int ata_id_is_lba_capacity_ok(u16 *id)
+{
+	unsigned long lba_sects, chs_sects, head, tail;
+
+	/* No non-LBA info .. so valid! */
+	if (id[ATA_ID_CYLS] == 0)
+		return 1;
+
+	lba_sects = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
+
+	/*
+	 * The ATA spec tells large drives to return
+	 * C/H/S = 16383/16/63 independent of their size.
+	 * Some drives can be jumpered to use 15 heads instead of 16.
+	 * Some drives can be jumpered to use 4092 cyls instead of 16383.
+	 */
+	if ((id[ATA_ID_CYLS] == 16383 ||
+	     (id[ATA_ID_CYLS] == 4092 && id[ATA_ID_CUR_CYLS] == 16383)) &&
+	    id[ATA_ID_SECTORS] == 63 &&
+	    (id[ATA_ID_HEADS] == 15 || id[ATA_ID_HEADS] == 16) &&
+	    (lba_sects >= 16383 * 63 * id[ATA_ID_HEADS]))
+		return 1;
+
+	chs_sects = id[ATA_ID_CYLS] * id[ATA_ID_HEADS] * id[ATA_ID_SECTORS];
+
+	/* perform a rough sanity check on lba_sects: within 10% is OK */
+	if (lba_sects - chs_sects < chs_sects/10)
+		return 1;
+
+	/* some drives have the word order reversed */
+	head = (lba_sects >> 16) & 0xffff;
+	tail = lba_sects & 0xffff;
+	lba_sects = head | (tail << 16);
+
+	if (lba_sects - chs_sects < chs_sects/10) {
+		*(__le32 *)&id[ATA_ID_LBA_CAPACITY] = __cpu_to_le32(lba_sects);
+		return 1;	/* LBA capacity is (now) good */
+	}
+
+	return 0;	/* LBA capacity value may be bad */
+}
+
+static inline void ata_id_to_hd_driveid(u16 *id)
+{
+#ifdef __BIG_ENDIAN
+	/* accessed in struct hd_driveid as 8-bit values */
+	id[ATA_ID_MAX_MULTSECT]	 = __cpu_to_le16(id[ATA_ID_MAX_MULTSECT]);
+	id[ATA_ID_CAPABILITY]	 = __cpu_to_le16(id[ATA_ID_CAPABILITY]);
+	id[ATA_ID_OLD_PIO_MODES] = __cpu_to_le16(id[ATA_ID_OLD_PIO_MODES]);
+	id[ATA_ID_OLD_DMA_MODES] = __cpu_to_le16(id[ATA_ID_OLD_DMA_MODES]);
+	id[ATA_ID_MULTSECT]	 = __cpu_to_le16(id[ATA_ID_MULTSECT]);
+
+	/* as 32-bit values */
+	*(u32 *)&id[ATA_ID_LBA_CAPACITY] = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
+	*(u32 *)&id[ATA_ID_SPG]		 = ata_id_u32(id, ATA_ID_SPG);
+
+	/* as 64-bit value */
+	*(u64 *)&id[ATA_ID_LBA_CAPACITY_2] =
+		ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
+#endif
 }
 
 static inline int is_multi_taskfile(struct ata_taskfile *tf)

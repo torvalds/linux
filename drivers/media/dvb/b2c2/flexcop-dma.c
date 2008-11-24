@@ -10,7 +10,7 @@
 int flexcop_dma_allocate(struct pci_dev *pdev, struct flexcop_dma *dma, u32 size)
 {
 	u8 *tcpu;
-	dma_addr_t tdma;
+	dma_addr_t tdma = 0;
 
 	if (size % 2) {
 		err("dma buffersize has to be even.");

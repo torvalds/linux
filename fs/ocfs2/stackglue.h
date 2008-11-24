@@ -28,6 +28,10 @@
 #include "dlm/dlmapi.h"
 #include <linux/dlm.h>
 
+/* Needed for plock-related prototypes */
+struct file;
+struct file_lock;
+
 /*
  * dlmconstants.h does not have a LOCAL flag.  We hope to remove it
  * some day, but right now we need it.  Let's fake it.  This value is larger
@@ -187,6 +191,17 @@ struct ocfs2_stack_operations {
 	void *(*lock_lvb)(union ocfs2_dlm_lksb *lksb);
 
 	/*
+	 * Cluster-aware posix locks
+	 *
+	 * This is NULL for stacks which do not support posix locks.
+	 */
+	int (*plock)(struct ocfs2_cluster_connection *conn,
+		     u64 ino,
+		     struct file *file,
+		     int cmd,
+		     struct file_lock *fl);
+
+	/*
 	 * This is an optoinal debugging hook.  If provided, the
 	 * stack can dump debugging information about this lock.
 	 */
@@ -239,6 +254,10 @@ int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb);
 void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb);
 void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb);
+
+int ocfs2_stack_supports_plocks(void);
+int ocfs2_plock(struct ocfs2_cluster_connection *conn, u64 ino,
+		struct file *file, int cmd, struct file_lock *fl);
 
 void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto);
 

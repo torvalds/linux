@@ -39,7 +39,7 @@
  * Ethernet
  ****************************************************************************/
 static struct mv643xx_eth_platform_data mv2120_eth_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 static struct mv_sata_platform_data mv2120_sata_data = {

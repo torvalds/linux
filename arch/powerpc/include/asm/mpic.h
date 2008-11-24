@@ -5,6 +5,7 @@
 #include <linux/irq.h>
 #include <linux/sysdev.h>
 #include <asm/dcr.h>
+#include <asm/msi_bitmap.h>
 
 /*
  * Global registers
@@ -301,8 +302,7 @@ struct mpic
 #endif
 
 #ifdef CONFIG_PCI_MSI
-	spinlock_t		bitmap_lock;
-	unsigned long		*hwirq_bitmap;
+	struct msi_bitmap	msi_bitmap;
 #endif
 
 #ifdef CONFIG_MPIC_BROKEN_REGREAD
@@ -355,6 +355,8 @@ struct mpic
 #define MPIC_NO_BIAS			0x00000400
 /* Ignore NIRQS as reported by FRR */
 #define MPIC_BROKEN_FRR_NIRQS		0x00000800
+/* Destination only supports a single CPU at a time */
+#define MPIC_SINGLE_DEST_CPU		0x00001000
 
 /* MPIC HW modification ID */
 #define MPIC_REGSET_MASK		0xf0000000

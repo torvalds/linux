@@ -247,7 +247,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
  */
 void
 fw_send_request(struct fw_card *card, struct fw_transaction *t,
-		int tcode, int node_id, int generation, int speed,
+		int tcode, int destination_id, int generation, int speed,
 		unsigned long long offset,
 		void *payload, size_t length,
 		fw_transaction_callback_t callback, void *callback_data)
@@ -279,13 +279,14 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 	card->current_tlabel = (card->current_tlabel + 1) & 0x1f;
 	card->tlabel_mask |= (1 << tlabel);
 
-	t->node_id = node_id;
+	t->node_id = destination_id;
 	t->tlabel = tlabel;
 	t->callback = callback;
 	t->callback_data = callback_data;
 
-	fw_fill_request(&t->packet, tcode, t->tlabel, node_id, card->node_id,
-			generation, speed, offset, payload, length);
+	fw_fill_request(&t->packet, tcode, t->tlabel,
+			destination_id, card->node_id, generation,
+			speed, offset, payload, length);
 	t->packet.callback = transmit_complete_callback;
 
 	list_add_tail(&t->link, &card->transaction_list);
@@ -295,6 +296,45 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 	card->driver->send_request(card, &t->packet);
 }
 EXPORT_SYMBOL(fw_send_request);
+
+struct transaction_callback_data {
+	struct completion done;
+	void *payload;
+	int rcode;
+};
+
+static void transaction_callback(struct fw_card *card, int rcode,
+				 void *payload, size_t length, void *data)
+{
+	struct transaction_callback_data *d = data;
+
+	if (rcode == RCODE_COMPLETE)
+		memcpy(d->payload, payload, length);
+	d->rcode = rcode;
+	complete(&d->done);
+}
+
+/**
+ * fw_run_transaction - send request and sleep until transaction is completed
+ *
+ * Returns the RCODE.
+ */
+int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
+		int generation, int speed, unsigned long long offset,
+		void *data, size_t length)
+{
+	struct transaction_callback_data d;
+	struct fw_transaction t;
+
+	init_completion(&d.done);
+	d.payload = data;
+	fw_send_request(card, &t, tcode, destination_id, generation, speed,
+			offset, data, length, transaction_callback, &d);
+	wait_for_completion(&d.done);
+
+	return d.rcode;
+}
+EXPORT_SYMBOL(fw_run_transaction);
 
 static DEFINE_MUTEX(phy_config_mutex);
 static DECLARE_COMPLETION(phy_config_done);

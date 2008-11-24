@@ -362,9 +362,13 @@ ia64_tlb_init (void)
 		per_cpu(ia64_tr_num, cpu) =
 				vm_info_1.pal_vm_info_1_s.max_dtr_entry+1;
 	if (per_cpu(ia64_tr_num, cpu) > IA64_TR_ALLOC_MAX) {
+		static int justonce = 1;
 		per_cpu(ia64_tr_num, cpu) = IA64_TR_ALLOC_MAX;
-		printk(KERN_DEBUG "TR register number exceeds IA64_TR_ALLOC_MAX!"
-			"IA64_TR_ALLOC_MAX should be extended\n");
+		if (justonce) {
+			justonce = 0;
+			printk(KERN_DEBUG "TR register number exceeds "
+			       "IA64_TR_ALLOC_MAX!\n");
+		}
 	}
 }
 

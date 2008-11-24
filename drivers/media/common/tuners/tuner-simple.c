@@ -142,6 +142,7 @@ static inline int tuner_stereo(const int type, const int status)
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FM1256_IH3:
 	case TUNER_LG_NTSC_TAPE:
+	case TUNER_TCL_MF02GIP_5N:
 		return ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
 	default:
 		return status & TUNER_STEREO;
@@ -492,8 +493,10 @@ static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_PHILIPS_FMD1216MEX_MK3:
 	case TUNER_LG_NTSC_TAPE:
 	case TUNER_PHILIPS_FM1256_IH3:
+	case TUNER_TCL_MF02GIP_5N:
 		buffer[3] = 0x19;
 		break;
 	case TUNER_TNF_5335MF:
@@ -765,6 +768,7 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 
 	switch (priv->type) {
 	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_PHILIPS_FMD1216MEX_MK3:
 		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ &&
 		    params->frequency >= 158870000)
 			buf[3] |= 0x08;
@@ -1038,7 +1042,6 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 	case 0:
 		mutex_unlock(&tuner_simple_list_mutex);
 		return NULL;
-		break;
 	case 1:
 		fe->tuner_priv = priv;
 

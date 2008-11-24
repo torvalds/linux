@@ -508,8 +508,8 @@ static int __init dsp56k_init_driver(void)
 		err = PTR_ERR(dsp56k_class);
 		goto out_chrdev;
 	}
-	device_create_drvdata(dsp56k_class, NULL, MKDEV(DSP56K_MAJOR, 0),
-			      NULL, "dsp56k");
+	device_create(dsp56k_class, NULL, MKDEV(DSP56K_MAJOR, 0), NULL,
+		      "dsp56k");
 
 	printk(banner);
 	goto out;

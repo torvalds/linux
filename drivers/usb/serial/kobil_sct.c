@@ -383,7 +383,7 @@ static void kobil_read_int_callback(struct urb *urb)
 		return;
 	}
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (urb->actual_length) {
 
 		/* BEGIN DEBUG */
@@ -405,6 +405,7 @@ static void kobil_read_int_callback(struct urb *urb)
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
+	tty_kref_put(tty);
 	/* someone sets the dev to 0 if the close method has been called */
 	port->interrupt_in_urb->dev = port->serial->dev;
 
@@ -743,8 +744,8 @@ static int __init kobil_init(void)
 	if (retval)
 		goto failed_usb_register;
 
-	info(DRIVER_VERSION " " DRIVER_AUTHOR);
-	info(DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	return 0;
 failed_usb_register:

@@ -66,7 +66,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 	/* remove from dirty list before I/O. */
 	clear_buffer_dirty(bh);
 
-	get_bh(bh); /* for end_buffer_write_sync() */                   
+	get_bh(bh); /* for end_buffer_write_sync() */
 	bh->b_end_io = end_buffer_write_sync;
 	submit_bh(WRITE, bh);
 
@@ -88,22 +88,103 @@ out:
 	return ret;
 }
 
-int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
-		      struct buffer_head *bhs[], int flags,
-		      struct inode *inode)
+int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
+			   unsigned int nr, struct buffer_head *bhs[])
 {
 	int status = 0;
-	struct super_block *sb;
+	unsigned int i;
+	struct buffer_head *bh;
+
+	if (!nr) {
+		mlog(ML_BH_IO, "No buffers will be read!\n");
+		goto bail;
+	}
+
+	for (i = 0 ; i < nr ; i++) {
+		if (bhs[i] == NULL) {
+			bhs[i] = sb_getblk(osb->sb, block++);
+			if (bhs[i] == NULL) {
+				status = -EIO;
+				mlog_errno(status);
+				goto bail;
+			}
+		}
+		bh = bhs[i];
+
+		if (buffer_jbd(bh)) {
+			mlog(ML_ERROR,
+			     "trying to sync read a jbd "
+			     "managed bh (blocknr = %llu), skipping\n",
+			     (unsigned long long)bh->b_blocknr);
+			continue;
+		}
+
+		if (buffer_dirty(bh)) {
+			/* This should probably be a BUG, or
+			 * at least return an error. */
+			mlog(ML_ERROR,
+			     "trying to sync read a dirty "
+			     "buffer! (blocknr = %llu), skipping\n",
+			     (unsigned long long)bh->b_blocknr);
+			continue;
+		}
+
+		lock_buffer(bh);
+		if (buffer_jbd(bh)) {
+			mlog(ML_ERROR,
+			     "block %llu had the JBD bit set "
+			     "while I was in lock_buffer!",
+			     (unsigned long long)bh->b_blocknr);
+			BUG();
+		}
+
+		clear_buffer_uptodate(bh);
+		get_bh(bh); /* for end_buffer_read_sync() */
+		bh->b_end_io = end_buffer_read_sync;
+		submit_bh(READ, bh);
+	}
+
+	for (i = nr; i > 0; i--) {
+		bh = bhs[i - 1];
+
+		if (buffer_jbd(bh)) {
+			mlog(ML_ERROR,
+			     "the journal got the buffer while it was "
+			     "locked for io! (blocknr = %llu)\n",
+			     (unsigned long long)bh->b_blocknr);
+			BUG();
+		}
+
+		wait_on_buffer(bh);
+		if (!buffer_uptodate(bh)) {
+			/* Status won't be cleared from here on out,
+			 * so we can safely record this and loop back
+			 * to cleanup the other buffers. */
+			status = -EIO;
+			put_bh(bh);
+			bhs[i - 1] = NULL;
+		}
+	}
+
+bail:
+	return status;
+}
+
+int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
+		      struct buffer_head *bhs[], int flags)
+{
+	int status = 0;
 	int i, ignore_cache = 0;
 	struct buffer_head *bh;
 
-	mlog_entry("(block=(%llu), nr=(%d), flags=%d, inode=%p)\n",
-		   (unsigned long long)block, nr, flags, inode);
+	mlog_entry("(inode=%p, block=(%llu), nr=(%d), flags=%d)\n",
+		   inode, (unsigned long long)block, nr, flags);
 
+	BUG_ON(!inode);
 	BUG_ON((flags & OCFS2_BH_READAHEAD) &&
-	       (!inode || !(flags & OCFS2_BH_CACHED)));
+	       (flags & OCFS2_BH_IGNORE_CACHE));
 
-	if (osb == NULL || osb->sb == NULL || bhs == NULL) {
+	if (bhs == NULL) {
 		status = -EINVAL;
 		mlog_errno(status);
 		goto bail;
@@ -122,26 +203,19 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 		goto bail;
 	}
 
-	sb = osb->sb;
-
-	if (flags & OCFS2_BH_CACHED && !inode)
-		flags &= ~OCFS2_BH_CACHED;
-
-	if (inode)
-		mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
+	mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
 	for (i = 0 ; i < nr ; i++) {
 		if (bhs[i] == NULL) {
-			bhs[i] = sb_getblk(sb, block++);
+			bhs[i] = sb_getblk(inode->i_sb, block++);
 			if (bhs[i] == NULL) {
-				if (inode)
-					mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+				mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 				status = -EIO;
 				mlog_errno(status);
 				goto bail;
 			}
 		}
 		bh = bhs[i];
-		ignore_cache = 0;
+		ignore_cache = (flags & OCFS2_BH_IGNORE_CACHE);
 
 		/* There are three read-ahead cases here which we need to
 		 * be concerned with. All three assume a buffer has
@@ -167,26 +241,27 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 		 *    before our is-it-in-flight check.
 		 */
 
-		if (flags & OCFS2_BH_CACHED &&
-		    !ocfs2_buffer_uptodate(inode, bh)) {
+		if (!ignore_cache && !ocfs2_buffer_uptodate(inode, bh)) {
 			mlog(ML_UPTODATE,
 			     "bh (%llu), inode %llu not uptodate\n",
 			     (unsigned long long)bh->b_blocknr,
 			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+			/* We're using ignore_cache here to say
+			 * "go to disk" */
 			ignore_cache = 1;
 		}
 
 		/* XXX: Can we ever get this and *not* have the cached
 		 * flag set? */
 		if (buffer_jbd(bh)) {
-			if (!(flags & OCFS2_BH_CACHED) || ignore_cache)
+			if (ignore_cache)
 				mlog(ML_BH_IO, "trying to sync read a jbd "
 					       "managed bh (blocknr = %llu)\n",
 				     (unsigned long long)bh->b_blocknr);
 			continue;
 		}
 
-		if (!(flags & OCFS2_BH_CACHED) || ignore_cache) {
+		if (ignore_cache) {
 			if (buffer_dirty(bh)) {
 				/* This should probably be a BUG, or
 				 * at least return an error. */
@@ -221,7 +296,7 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 			 * previously read-ahead buffer may have
 			 * completed I/O while we were waiting for the
 			 * buffer lock. */
-			if ((flags & OCFS2_BH_CACHED)
+			if (!(flags & OCFS2_BH_IGNORE_CACHE)
 			    && !(flags & OCFS2_BH_READAHEAD)
 			    && ocfs2_buffer_uptodate(inode, bh)) {
 				unlock_buffer(bh);
@@ -265,15 +340,14 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 		/* Always set the buffer in the cache, even if it was
 		 * a forced read, or read-ahead which hasn't yet
 		 * completed. */
-		if (inode)
-			ocfs2_set_buffer_uptodate(inode, bh);
+		ocfs2_set_buffer_uptodate(inode, bh);
 	}
-	if (inode)
-		mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 
 	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s, flags=0x%x\n", 
 	     (unsigned long long)block, nr,
-	     (!(flags & OCFS2_BH_CACHED) || ignore_cache) ? "no" : "yes", flags);
+	     ((flags & OCFS2_BH_IGNORE_CACHE) || ignore_cache) ? "no" : "yes",
+	     flags);
 
 bail:
 

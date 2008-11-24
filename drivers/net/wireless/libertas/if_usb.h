@@ -30,6 +30,7 @@ struct bootcmd
 
 #define BOOT_CMD_RESP_OK		0x0001
 #define BOOT_CMD_RESP_FAIL		0x0000
+#define BOOT_CMD_RESP_NOT_SUPPORTED	0x0002
 
 struct bootcmdresp
 {
@@ -50,6 +51,10 @@ struct if_usb_card {
 	uint8_t ep_in;
 	uint8_t ep_out;
 
+	/* bootcmdresp == 0 means command is pending
+	 * bootcmdresp < 0 means error
+	 * bootcmdresp > 0 is a BOOT_CMD_RESP_* from firmware
+	 */
 	int8_t bootcmdresp;
 
 	int ep_in_size;

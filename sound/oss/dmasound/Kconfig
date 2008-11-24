@@ -42,3 +42,4 @@ config DMASOUND_Q40
 
 config DMASOUND
 	tristate
+	select SOUND_OSS_CORE

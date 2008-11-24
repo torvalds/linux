@@ -235,8 +235,10 @@ static int snd_wavefront_midi_input_open(struct snd_rawmidi_substream *substream
 	snd_wavefront_midi_t *midi;
 	snd_wavefront_mpu_id mpu;
 
-	snd_assert(substream != NULL && substream->rmidi != NULL, return -EIO);
-	snd_assert(substream->rmidi->private_data != NULL, return -EIO);
+	if (snd_BUG_ON(!substream || !substream->rmidi))
+		return -ENXIO;
+	if (snd_BUG_ON(!substream->rmidi->private_data))
+		return -ENXIO;
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
@@ -257,8 +259,10 @@ static int snd_wavefront_midi_output_open(struct snd_rawmidi_substream *substrea
 	snd_wavefront_midi_t *midi;
 	snd_wavefront_mpu_id mpu;
 
-	snd_assert(substream != NULL && substream->rmidi != NULL, return -EIO);
-	snd_assert(substream->rmidi->private_data != NULL, return -EIO);
+	if (snd_BUG_ON(!substream || !substream->rmidi))
+		return -ENXIO;
+	if (snd_BUG_ON(!substream->rmidi->private_data))
+		return -ENXIO;
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
@@ -279,8 +283,10 @@ static int snd_wavefront_midi_input_close(struct snd_rawmidi_substream *substrea
 	snd_wavefront_midi_t *midi;
 	snd_wavefront_mpu_id mpu;
 
-	snd_assert(substream != NULL && substream->rmidi != NULL, return -EIO);
-	snd_assert(substream->rmidi->private_data != NULL, return -EIO);
+	if (snd_BUG_ON(!substream || !substream->rmidi))
+		return -ENXIO;
+	if (snd_BUG_ON(!substream->rmidi->private_data))
+		return -ENXIO;
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
@@ -300,8 +306,10 @@ static int snd_wavefront_midi_output_close(struct snd_rawmidi_substream *substre
 	snd_wavefront_midi_t *midi;
 	snd_wavefront_mpu_id mpu;
 
-	snd_assert(substream != NULL && substream->rmidi != NULL, return -EIO);
-	snd_assert(substream->rmidi->private_data != NULL, return -EIO);
+	if (snd_BUG_ON(!substream || !substream->rmidi))
+		return -ENXIO;
+	if (snd_BUG_ON(!substream->rmidi->private_data))
+		return -ENXIO;
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 

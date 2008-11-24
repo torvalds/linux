@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/param.h>
 #include <linux/io.h>
+#include <linux/mtd/physmap.h>
 #include <asm/mipsregs.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
@@ -31,11 +32,6 @@ void __init tx3927_setup(void)
 {
 	int i;
 	unsigned int conf;
-
-	/* don't enable - see errata */
-	txx9_ccfg_toeon = 0;
-	if (strstr(prom_getcmdline(), "toeon") != NULL)
-		txx9_ccfg_toeon = 1;
 
 	txx9_reg_res_init(TX3927_REV_PCODE(), TX3927_REG_BASE,
 			  TX3927_REG_SIZE);
@@ -99,16 +95,14 @@ void __init tx3927_setup(void)
 	txx9_gpio_init(TX3927_PIO_REG, 0, 16);
 
 	conf = read_c0_conf();
-	if (!(conf & TX39_CONF_ICE))
-		printk(KERN_INFO "TX3927 I-Cache disabled.\n");
-	if (!(conf & TX39_CONF_DCE))
-		printk(KERN_INFO "TX3927 D-Cache disabled.\n");
-	else if (!(conf & TX39_CONF_WBON))
-		printk(KERN_INFO "TX3927 D-Cache WriteThrough.\n");
-	else if (!(conf & TX39_CONF_CWFON))
-		printk(KERN_INFO "TX3927 D-Cache WriteBack.\n");
-	else
-		printk(KERN_INFO "TX3927 D-Cache WriteBack (CWF) .\n");
+	if (conf & TX39_CONF_DCE) {
+		if (!(conf & TX39_CONF_WBON))
+			pr_info("TX3927 D-Cache WriteThrough.\n");
+		else if (!(conf & TX39_CONF_CWFON))
+			pr_info("TX3927 D-Cache WriteBack.\n");
+		else
+			pr_info("TX3927 D-Cache WriteBack (CWF) .\n");
+	}
 }
 
 void __init tx3927_time_init(unsigned int evt_tmrnr, unsigned int src_tmrnr)
@@ -127,4 +121,17 @@ void __init tx3927_sio_init(unsigned int sclk, unsigned int cts_mask)
 		txx9_sio_init(TX3927_SIO_REG(i),
 			      TXX9_IRQ_BASE + TX3927_IR_SIO(i),
 			      i, sclk, (1 << i) & cts_mask);
+}
+
+void __init tx3927_mtd_init(int ch)
+{
+	struct physmap_flash_data pdata = {
+		.width = TX3927_ROMC_WIDTH(ch) / 8,
+	};
+	unsigned long start = txx9_ce_res[ch].start;
+	unsigned long size = txx9_ce_res[ch].end - start + 1;
+
+	if (!(tx3927_romcptr->cr[ch] & 0x8))
+		return;	/* disabled */
+	txx9_physmap_flash_init(ch, start, size, &pdata);
 }

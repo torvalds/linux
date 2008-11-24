@@ -2,8 +2,9 @@
 #include <linux/errno.h>
 #include <asm/uaccess.h>
 
-#include "soft-fp.h"
-#include "double.h"
+#include <asm/sfp-machine.h>
+#include <math-emu/soft-fp.h>
+#include <math-emu/double.h>
 
 int
 fnmsub(void *frD, void *frA, void *frB, void *frC)
@@ -13,15 +14,16 @@ fnmsub(void *frD, void *frA, void *frB, void *frC)
 	FP_DECL_D(B);
 	FP_DECL_D(C);
 	FP_DECL_D(T);
+	FP_DECL_EX;
 	int ret = 0;
 
 #ifdef DEBUG
 	printk("%s: %p %p %p %p\n", __func__, frD, frA, frB, frC);
 #endif
 
-	__FP_UNPACK_D(A, frA);
-	__FP_UNPACK_D(B, frB);
-	__FP_UNPACK_D(C, frC);
+	FP_UNPACK_DP(A, frA);
+	FP_UNPACK_DP(B, frB);
+	FP_UNPACK_DP(C, frC);
 
 #ifdef DEBUG
 	printk("A: %ld %lu %lu %ld (%ld)\n", A_s, A_f1, A_f0, A_e, A_c);
@@ -50,5 +52,7 @@ fnmsub(void *frD, void *frA, void *frB, void *frC)
 	printk("D: %ld %lu %lu %ld (%ld)\n", R_s, R_f1, R_f0, R_e, R_c);
 #endif
 
-	return (ret | __FP_PACK_D(frD, R));
+	__FP_PACK_D(frD, R);
+
+	return FP_CUR_EXCEPTIONS;
 }

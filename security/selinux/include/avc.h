@@ -12,6 +12,7 @@
 #include <linux/kdev_t.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
+#include <linux/audit.h>
 #include <linux/in6.h>
 #include <linux/path.h>
 #include <asm/system.h>
@@ -125,6 +126,9 @@ int avc_add_callback(int (*callback)(u32 event, u32 ssid, u32 tsid,
 				     u32 *out_retained),
 		     u32 events, u32 ssid, u32 tsid,
 		     u16 tclass, u32 perms);
+
+/* Shows permission in human readable form */
+void avc_dump_av(struct audit_buffer *ab, u16 tclass, u32 av);
 
 /* Exported to selinuxfs */
 int avc_get_hash_stats(char *page);

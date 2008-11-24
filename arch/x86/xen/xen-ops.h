@@ -2,6 +2,7 @@
 #define XEN_OPS_H
 
 #include <linux/init.h>
+#include <linux/clocksource.h>
 #include <linux/irqreturn.h>
 #include <xen/xen-ops.h>
 
@@ -31,7 +32,10 @@ void xen_vcpu_restore(void);
 
 void __init xen_build_dynamic_phys_to_machine(void);
 
+void xen_init_irq_ops(void);
 void xen_setup_timer(int cpu);
+void xen_teardown_timer(int cpu);
+cycle_t xen_clocksource_read(void);
 void xen_setup_cpu_clockevents(void);
 unsigned long xen_tsc_khz(void);
 void __init xen_time_init(void);
@@ -49,6 +53,10 @@ void __init xen_setup_vcpu_info_placement(void);
 
 #ifdef CONFIG_SMP
 void xen_smp_init(void);
+
+void __init xen_init_spinlocks(void);
+__cpuinit void xen_init_lock_cpu(int cpu);
+void xen_uninit_lock_cpu(int cpu);
 
 extern cpumask_t xen_cpu_initialized_map;
 #else

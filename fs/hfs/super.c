@@ -173,7 +173,7 @@ enum {
 	opt_err
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{ opt_uid, "uid=%u" },
 	{ opt_gid, "gid=%u" },
 	{ opt_umask, "umask=%o" },

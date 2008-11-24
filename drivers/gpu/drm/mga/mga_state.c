@@ -1022,7 +1022,7 @@ static int mga_getparam(struct drm_device *dev, void *data, struct drm_file *fil
 
 	switch (param->param) {
 	case MGA_PARAM_IRQ_NR:
-		value = dev->irq;
+		value = drm_dev_to_irq(dev);
 		break;
 	case MGA_PARAM_CARD_TYPE:
 		value = dev_priv->chipset;

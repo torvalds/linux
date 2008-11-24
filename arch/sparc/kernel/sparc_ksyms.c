@@ -38,16 +38,11 @@
 #include <asm/idprom.h>
 #include <asm/head.h>
 #include <asm/smp.h>
-#include <asm/mostek.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
 #ifdef CONFIG_SBUS
-#include <asm/sbus.h>
 #include <asm/dma.h>
-#endif
-#ifdef CONFIG_PCI
-#include <asm/ebus.h>
 #endif
 #include <asm/io-unit.h>
 #include <asm/bug.h>
@@ -127,16 +122,11 @@ EXPORT_SYMBOL(phys_cpu_present_map);
 EXPORT_SYMBOL(__udelay);
 EXPORT_SYMBOL(__ndelay);
 EXPORT_SYMBOL(rtc_lock);
-EXPORT_SYMBOL(mostek_lock);
-EXPORT_SYMBOL(mstk48t02_regs);
 #ifdef CONFIG_SUN_AUXIO
 EXPORT_SYMBOL(set_auxio);
 EXPORT_SYMBOL(get_auxio);
 #endif
 EXPORT_SYMBOL(io_remap_pfn_range);
-  /* P3: iounit_xxx may be needed, sun4d users */
-/* EXPORT_SYMBOL(iounit_map_dma_init); */
-/* EXPORT_SYMBOL(iounit_map_dma_page); */
 
 #ifndef CONFIG_SMP
 EXPORT_SYMBOL(BTFIXUP_CALL(___xchg32));
@@ -153,24 +143,9 @@ EXPORT_SYMBOL(BTFIXUP_CALL(mmu_release_scsi_one));
 EXPORT_SYMBOL(BTFIXUP_CALL(pgprot_noncached));
 
 #ifdef CONFIG_SBUS
-EXPORT_SYMBOL(sbus_root);
-EXPORT_SYMBOL(dma_chain);
 EXPORT_SYMBOL(sbus_set_sbus64);
-EXPORT_SYMBOL(sbus_alloc_consistent);
-EXPORT_SYMBOL(sbus_free_consistent);
-EXPORT_SYMBOL(sbus_map_single);
-EXPORT_SYMBOL(sbus_unmap_single);
-EXPORT_SYMBOL(sbus_map_sg);
-EXPORT_SYMBOL(sbus_unmap_sg);
-EXPORT_SYMBOL(sbus_dma_sync_single_for_cpu);
-EXPORT_SYMBOL(sbus_dma_sync_single_for_device);
-EXPORT_SYMBOL(sbus_dma_sync_sg_for_cpu);
-EXPORT_SYMBOL(sbus_dma_sync_sg_for_device);
-EXPORT_SYMBOL(sbus_iounmap);
-EXPORT_SYMBOL(sbus_ioremap);
 #endif
 #ifdef CONFIG_PCI
-EXPORT_SYMBOL(ebus_chain);
 EXPORT_SYMBOL(insb);
 EXPORT_SYMBOL(outsb);
 EXPORT_SYMBOL(insw);

@@ -40,6 +40,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -497,6 +498,8 @@ static void __init smp_callin(void)
 static void __init smp_online(void)
 {
 	int cpu_id = smp_processor_id();
+
+	notify_cpu_starting(cpu_id);
 
 	local_irq_enable();
 

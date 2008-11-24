@@ -9,7 +9,7 @@
  *
  *     Authors:        Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *                     (from old tcp.c code)
- *                     Alan Cox <alan@redhat.com> (Borrowed comments 8-))
+ *                     Alan Cox <alan@lxorguk.ukuu.org.uk> (Borrowed comments 8-))
  */
 
 #include <linux/module.h>

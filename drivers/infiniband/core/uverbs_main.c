@@ -358,8 +358,6 @@ static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 	}
 	spin_unlock_irq(&file->lock);
 
-	ib_uverbs_event_fasync(-1, filp, 0);
-
 	if (file->is_async) {
 		ib_unregister_event_handler(&file->uverbs_file->event_handler);
 		kref_put(&file->uverbs_file->ref, ib_uverbs_release_file);
@@ -764,12 +762,9 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (cdev_add(uverbs_dev->cdev, IB_UVERBS_BASE_DEV + uverbs_dev->devnum, 1))
 		goto err_cdev;
 
-	uverbs_dev->dev = device_create_drvdata(uverbs_class,
-						device->dma_device,
-						uverbs_dev->cdev->dev,
-						uverbs_dev,
-						"uverbs%d",
-						uverbs_dev->devnum);
+	uverbs_dev->dev = device_create(uverbs_class, device->dma_device,
+					uverbs_dev->cdev->dev, uverbs_dev,
+					"uverbs%d", uverbs_dev->devnum);
 	if (IS_ERR(uverbs_dev->dev))
 		goto err_cdev;
 

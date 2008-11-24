@@ -130,15 +130,15 @@ struct viodasd_device {
 /*
  * External open entry point.
  */
-static int viodasd_open(struct inode *ino, struct file *fil)
+static int viodasd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct viodasd_device *d = ino->i_bdev->bd_disk->private_data;
+	struct viodasd_device *d = bdev->bd_disk->private_data;
 	HvLpEvent_Rc hvrc;
 	struct viodasd_waitevent we;
 	u16 flags = 0;
 
 	if (d->read_only) {
-		if ((fil != NULL) && (fil->f_mode & FMODE_WRITE))
+		if (mode & FMODE_WRITE)
 			return -EROFS;
 		flags = vioblockflags_ro;
 	}
@@ -179,9 +179,9 @@ static int viodasd_open(struct inode *ino, struct file *fil)
 /*
  * External release entry point.
  */
-static int viodasd_release(struct inode *ino, struct file *fil)
+static int viodasd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct viodasd_device *d = ino->i_bdev->bd_disk->private_data;
+	struct viodasd_device *d = disk->private_data;
 	HvLpEvent_Rc hvrc;
 
 	/* Send the event to OS/400.  We DON'T expect a response */
@@ -249,7 +249,6 @@ static int send_request(struct request *req)
 	struct HvLpEvent *hev;
 	struct scatterlist sg[VIOMAXBLOCKDMA];
 	int sgindex;
-	int statindex;
 	struct viodasd_device *d;
 	unsigned long flags;
 
@@ -258,11 +257,9 @@ static int send_request(struct request *req)
 	if (rq_data_dir(req) == READ) {
 		direction = DMA_FROM_DEVICE;
 		viocmd = viomajorsubtype_blockio | vioblockread;
-		statindex = 0;
 	} else {
 		direction = DMA_TO_DEVICE;
 		viocmd = viomajorsubtype_blockio | vioblockwrite;
-		statindex = 1;
 	}
 
         d = req->rq_disk->private_data;

@@ -490,7 +490,6 @@ static int init_engine(struct snd_pcm_substream *substream,
 {
 	struct echoaudio *chip;
 	int err, per, rest, page, edge, offs;
-	struct snd_sg_buf *sgbuf;
 	struct audiopipe *pipe;
 
 	chip = snd_pcm_substream_chip(substream);
@@ -503,7 +502,7 @@ static int init_engine(struct snd_pcm_substream *substream,
 	if (pipe->index >= 0) {
 		DE_HWP(("hwp_ie free(%d)\n", pipe->index));
 		err = free_pipes(chip, pipe);
-		snd_assert(!err);
+		snd_BUG_ON(err);
 		chip->substream[pipe->index] = NULL;
 	}
 
@@ -531,10 +530,6 @@ static int init_engine(struct snd_pcm_substream *substream,
 		return err;
 	}
 
-	sgbuf = snd_pcm_substream_sgbuf(substream);
-
-	DE_HWP(("pcm_hw_params table size=%d pages=%d\n",
-		sgbuf->size, sgbuf->pages));
 	sglist_init(chip, pipe);
 	edge = PAGE_SIZE;
 	for (offs = page = per = 0; offs < params_buffer_bytes(hw_params);
@@ -543,16 +538,15 @@ static int init_engine(struct snd_pcm_substream *substream,
 		if (offs + rest > params_buffer_bytes(hw_params))
 			rest = params_buffer_bytes(hw_params) - offs;
 		while (rest) {
+			dma_addr_t addr;
+			addr = snd_pcm_sgbuf_get_addr(substream, offs);
 			if (rest <= edge - offs) {
-				sglist_add_mapping(chip, pipe,
-						   snd_sgbuf_get_addr(sgbuf, offs),
-						   rest);
+				sglist_add_mapping(chip, pipe, addr, rest);
 				sglist_add_irq(chip, pipe);
 				offs += rest;
 				rest = 0;
 			} else {
-				sglist_add_mapping(chip, pipe,
-						   snd_sgbuf_get_addr(sgbuf, offs),
+				sglist_add_mapping(chip, pipe, addr,
 						   edge - offs);
 				rest -= edge - offs;
 				offs = edge;
@@ -690,8 +684,10 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 		return -EINVAL;
 	}
 
-	snd_assert(pipe_index < px_num(chip), return -EINVAL);
-	snd_assert(is_pipe_allocated(chip, pipe_index), return -EINVAL);
+	if (snd_BUG_ON(pipe_index >= px_num(chip)))
+		return -EINVAL;
+	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index)))
+		return -EINVAL;
 	set_audio_format(chip, pipe_index, &format);
 	return 0;
 }

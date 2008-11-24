@@ -26,8 +26,8 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <mach/serial.h>

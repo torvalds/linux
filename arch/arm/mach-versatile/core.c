@@ -29,10 +29,10 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/cnt32_to_63.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/hardware/arm_timer.h>
@@ -95,8 +95,7 @@ sic_handle_irq(unsigned int irq, struct irq_desc *desc)
 
 		irq += IRQ_SIC_START;
 
-		desc = irq_desc + irq;
-		desc_handle_irq(irq, desc);
+		generic_handle_irq(irq);
 	} while (status);
 }
 

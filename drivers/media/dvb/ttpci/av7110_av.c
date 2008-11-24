@@ -788,6 +788,9 @@ int av7110_write_to_decoder(struct dvb_demux_feed *feed, const u8 *buf, size_t l
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
+	if (av7110->full_ts && demux->dmx.frontend->source != DMX_MEMORY_FE)
+		return 0;
+
 	switch (feed->pes_type) {
 	case 0:
 		if (av7110->audiostate.stream_source == AUDIO_SOURCE_MEMORY)

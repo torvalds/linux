@@ -22,7 +22,6 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/user.h>
-#include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/compat.h>
 #include <linux/tick.h>
@@ -31,7 +30,6 @@
 #include <linux/elfcore.h>
 #include <linux/sysrq.h>
 
-#include <asm/oplib.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/page.h>
@@ -46,8 +44,6 @@
 #include <asm/mmu_context.h>
 #include <asm/unistd.h>
 #include <asm/hypervisor.h>
-#include <asm/sstate.h>
-#include <asm/reboot.h>
 #include <asm/syscalls.h>
 #include <asm/irq_regs.h>
 #include <asm/smp.h>
@@ -113,35 +109,6 @@ void cpu_idle(void)
 		schedule();
 		preempt_disable();
 	}
-}
-
-void machine_halt(void)
-{
-	sstate_halt();
-	prom_halt();
-	panic("Halt failed!");
-}
-
-void machine_alt_power_off(void)
-{
-	sstate_poweroff();
-	prom_halt_power_off();
-	panic("Power-off failed!");
-}
-
-void machine_restart(char * cmd)
-{
-	char *p;
-	
-	sstate_reboot();
-	p = strchr (reboot_command, '\n');
-	if (p) *p = 0;
-	if (cmd)
-		prom_reboot(cmd);
-	if (*reboot_command)
-		prom_reboot(reboot_command);
-	prom_reboot("");
-	panic("Reboot failed!");
 }
 
 #ifdef CONFIG_COMPAT
@@ -248,7 +215,6 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 	global_reg_snapshot[this_cpu].o7 = regs->u_regs[UREG_I7];
 
 	if (regs->tstate & TSTATE_PRIV) {
-		struct thread_info *tp = current_thread_info();
 		struct reg_window *rw;
 
 		rw = (struct reg_window *)
@@ -304,7 +270,6 @@ void __trigger_all_cpu_backtrace(void)
 
 	for_each_online_cpu(cpu) {
 		struct global_reg_snapshot *gp = &global_reg_snapshot[cpu];
-		struct thread_info *tp;
 
 		__global_reg_poll(gp);
 

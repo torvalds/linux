@@ -102,6 +102,7 @@ static struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0a5c, 0x2101), .driver_info = BTUSB_RESET | BTUSB_WRONG_SCO_MTU },
 
 	/* Broadcom BCM2046 */
+	{ USB_DEVICE(0x0a5c, 0x2146), .driver_info = BTUSB_RESET },
 	{ USB_DEVICE(0x0a5c, 0x2151), .driver_info = BTUSB_RESET },
 
 	/* Apple MacBook Pro with Broadcom chip */
@@ -113,6 +114,7 @@ static struct usb_device_id blacklist_table[] = {
 
 	/* Targus ACB10US */
 	{ USB_DEVICE(0x0a5c, 0x2100), .driver_info = BTUSB_RESET },
+	{ USB_DEVICE(0x0a5c, 0x2154), .driver_info = BTUSB_RESET },
 
 	/* ANYCOM Bluetooth USB-200 and USB-250 */
 	{ USB_DEVICE(0x0a5c, 0x2111), .driver_info = BTUSB_RESET },
@@ -149,6 +151,9 @@ static struct usb_device_id blacklist_table[] = {
 	/* Belkin F8T012 and F8T013 devices */
 	{ USB_DEVICE(0x050d, 0x0012), .driver_info = BTUSB_RESET | BTUSB_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x050d, 0x0013), .driver_info = BTUSB_RESET | BTUSB_WRONG_SCO_MTU },
+
+	/* Belkin F8T016 device */
+	{ USB_DEVICE(0x050d, 0x016a), .driver_info = BTUSB_RESET },
 
 	/* Digianswer devices */
 	{ USB_DEVICE(0x08fd, 0x0001), .driver_info = BTUSB_DIGIANSWER },
@@ -271,7 +276,6 @@ static int btusb_submit_intr_urb(struct hci_dev *hdev)
 		BT_ERR("%s urb %p submission failed (%d)",
 						hdev->name, urb, -err);
 		usb_unanchor_urb(urb);
-		kfree(buf);
 	}
 
 	usb_free_urb(urb);
@@ -354,7 +358,6 @@ static int btusb_submit_bulk_urb(struct hci_dev *hdev)
 		BT_ERR("%s urb %p submission failed (%d)",
 						hdev->name, urb, -err);
 		usb_unanchor_urb(urb);
-		kfree(buf);
 	}
 
 	usb_free_urb(urb);
@@ -475,7 +478,6 @@ static int btusb_submit_isoc_urb(struct hci_dev *hdev)
 		BT_ERR("%s urb %p submission failed (%d)",
 						hdev->name, urb, -err);
 		usb_unanchor_urb(urb);
-		kfree(buf);
 	}
 
 	usb_free_urb(urb);

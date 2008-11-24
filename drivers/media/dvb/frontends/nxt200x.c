@@ -80,7 +80,7 @@ static int i2c_writebytes (struct nxt200x_state* state, u8 addr, u8 *buf, u8 len
 	return 0;
 }
 
-static u8 i2c_readbytes (struct nxt200x_state* state, u8 addr, u8* buf, u8 len)
+static int i2c_readbytes(struct nxt200x_state *state, u8 addr, u8 *buf, u8 len)
 {
 	int err;
 	struct i2c_msg msg = { .addr = addr, .flags = I2C_M_RD, .buf = buf, .len = len };
@@ -111,7 +111,7 @@ static int nxt200x_writebytes (struct nxt200x_state* state, u8 reg,
 	return 0;
 }
 
-static u8 nxt200x_readbytes (struct nxt200x_state* state, u8 reg, u8* buf, u8 len)
+static int nxt200x_readbytes(struct nxt200x_state *state, u8 reg, u8 *buf, u8 len)
 {
 	u8 reg2 [] = { reg };
 

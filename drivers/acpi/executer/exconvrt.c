@@ -57,7 +57,7 @@ acpi_ex_convert_to_ascii(acpi_integer integer,
  *
  * FUNCTION:    acpi_ex_convert_to_integer
  *
- * PARAMETERS:  obj_desc        - Object to be converted.  Must be an
+ * PARAMETERS:  obj_desc        - Object to be converted. Must be an
  *                                Integer, Buffer, or String
  *              result_desc     - Where the new Integer object is returned
  *              Flags           - Used for string conversion
@@ -103,7 +103,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 	}
 
 	/*
-	 * Convert the buffer/string to an integer.  Note that both buffers and
+	 * Convert the buffer/string to an integer. Note that both buffers and
 	 * strings are treated as raw data - we don't convert ascii to hex for
 	 * strings.
 	 *
@@ -120,7 +120,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 
 		/*
 		 * Convert string to an integer - for most cases, the string must be
-		 * hexadecimal as per the ACPI specification.  The only exception (as
+		 * hexadecimal as per the ACPI specification. The only exception (as
 		 * of ACPI 3.0) is that the to_integer() operator allows both decimal
 		 * and hexadecimal strings (hex prefixed with "0x").
 		 */
@@ -159,6 +159,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 		break;
 
 	default:
+
 		/* No other types can get here */
 		break;
 	}
@@ -185,7 +186,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_convert_to_buffer
  *
- * PARAMETERS:  obj_desc        - Object to be converted.  Must be an
+ * PARAMETERS:  obj_desc        - Object to be converted. Must be an
  *                                Integer, Buffer, or String
  *              result_desc     - Where the new buffer object is returned
  *
@@ -365,7 +366,7 @@ acpi_ex_convert_to_ascii(acpi_integer integer,
 	}
 
 	/*
-	 * Since leading zeros are supressed, we must check for the case where
+	 * Since leading zeros are suppressed, we must check for the case where
 	 * the integer equals 0
 	 *
 	 * Finally, null terminate the string and return the length
@@ -383,7 +384,7 @@ acpi_ex_convert_to_ascii(acpi_integer integer,
  *
  * FUNCTION:    acpi_ex_convert_to_string
  *
- * PARAMETERS:  obj_desc        - Object to be converted.  Must be an
+ * PARAMETERS:  obj_desc        - Object to be converted. Must be an
  *                                Integer, Buffer, or String
  *              result_desc     - Where the string object is returned
  *              Type            - String flags (base and conversion type)
@@ -472,7 +473,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			base = 10;
 
 			/*
-			 * Calculate the final string length.  Individual string values
+			 * Calculate the final string length. Individual string values
 			 * are variable length (include separator for each)
 			 */
 			for (i = 0; i < obj_desc->buffer.length; i++) {
@@ -511,9 +512,14 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		/*
 		 * Create a new string object and string buffer
 		 * (-1 because of extra separator included in string_length from above)
+		 * Allow creation of zero-length strings from zero-length buffers.
 		 */
+		if (string_length) {
+			string_length--;
+		}
+
 		return_desc = acpi_ut_create_string_object((acpi_size)
-							   (string_length - 1));
+							   string_length);
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -536,7 +542,9 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		 * Null terminate the string
 		 * (overwrites final comma/space from above)
 		 */
-		new_buf--;
+		if (obj_desc->buffer.length) {
+			new_buf--;
+		}
 		*new_buf = 0;
 		break;
 
@@ -617,7 +625,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 		case ACPI_TYPE_LOCAL_BANK_FIELD:
 		case ACPI_TYPE_LOCAL_INDEX_FIELD:
 			/*
-			 * These types require an Integer operand.  We can convert
+			 * These types require an Integer operand. We can convert
 			 * a Buffer or a String to an Integer if necessary.
 			 */
 			status =
@@ -627,7 +635,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 
 		case ACPI_TYPE_STRING:
 			/*
-			 * The operand must be a String.  We can convert an
+			 * The operand must be a String. We can convert an
 			 * Integer or Buffer if necessary
 			 */
 			status =
@@ -637,7 +645,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 
 		case ACPI_TYPE_BUFFER:
 			/*
-			 * The operand must be a Buffer.  We can convert an
+			 * The operand must be a Buffer. We can convert an
 			 * Integer or String if necessary
 			 */
 			status =

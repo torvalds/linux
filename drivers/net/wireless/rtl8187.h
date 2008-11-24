@@ -58,12 +58,6 @@ struct rtl8187b_rx_hdr {
 
 /* {rtl8187,rtl8187b}_tx_info is in skb */
 
-/* Tx flags are common between rtl8187 and rtl8187b */
-#define RTL8187_TX_FLAG_NO_ENCRYPT	(1 << 15)
-#define RTL8187_TX_FLAG_MORE_FRAG	(1 << 17)
-#define RTL8187_TX_FLAG_CTS		(1 << 18)
-#define RTL8187_TX_FLAG_RTS		(1 << 23)
-
 struct rtl8187_tx_hdr {
 	__le32 flags;
 	__le16 rts_duration;
