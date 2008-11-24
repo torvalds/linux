@@ -6792,6 +6792,8 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 
 static void free_rootdomain(struct root_domain *rd)
 {
+	cpupri_cleanup(&rd->cpupri);
+
 	free_cpumask_var(rd->rto_mask);
 	free_cpumask_var(rd->online);
 	free_cpumask_var(rd->span);
@@ -6834,7 +6836,7 @@ static int init_rootdomain(struct root_domain *rd, bool bootmem)
 		alloc_bootmem_cpumask_var(&def_root_domain.span);
 		alloc_bootmem_cpumask_var(&def_root_domain.online);
 		alloc_bootmem_cpumask_var(&def_root_domain.rto_mask);
-		cpupri_init(&rd->cpupri);
+		cpupri_init(&rd->cpupri, true);
 		return 0;
 	}
 
@@ -6845,9 +6847,12 @@ static int init_rootdomain(struct root_domain *rd, bool bootmem)
 	if (!alloc_cpumask_var(&rd->rto_mask, GFP_KERNEL))
 		goto free_online;
 
-	cpupri_init(&rd->cpupri);
+	if (cpupri_init(&rd->cpupri, false) != 0)
+		goto free_rto_mask;
 	return 0;
 
+free_rto_mask:
+	free_cpumask_var(rd->rto_mask);
 free_online:
 	free_cpumask_var(rd->online);
 free_span:
