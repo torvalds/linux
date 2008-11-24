@@ -14,6 +14,19 @@ config USB_OTG_UTILS
 	  Select this to make sure the build includes objects from
 	  the OTG infrastructure directory.
 
+#
+# USB Transceiver Drivers
+#
+config USB_GPIO_VBUS
+	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
+	depends on GENERIC_GPIO
+	select USB_OTG_UTILS
+	help
+	  Provides simple GPIO VBUS sensing for controllers with an
+	  internal transceiver via the otg_transceiver interface, and
+	  optionally control of a D+ pullup GPIO as well as a VBUS
+	  current limit regulator.
+
 config ISP1301_OMAP
 	tristate "Philips ISP1301 with OMAP OTG"
 	depends on I2C && ARCH_OMAP_OTG
