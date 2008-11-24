@@ -85,6 +85,13 @@ UNUSUAL_DEV(  0x03f0, 0x0307, 0x0001, 0x0001,
 		US_SC_8070, US_PR_USBAT, init_usbat_cd, 0),
 #endif
 
+/* Reported by Ben Efros <ben@pc-doctor.com> */
+UNUSUAL_DEV(  0x03f0, 0x070c, 0x0000, 0x0000,
+		"HP",
+		"Personal Media Drive",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SANE_SENSE ),
+
 /* Reported by Grant Grundler <grundler@parisc-linux.org>
  * HP r707 camera in "Disk" mode with 2.00.23 or 2.00.24 firmware.
  */
@@ -1004,6 +1011,13 @@ UNUSUAL_DEV(  0x05e3, 0x0702, 0x0000, 0xffff,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 ),
 
+/* Reported by Ben Efros <ben@pc-doctor.com> */
+UNUSUAL_DEV(  0x05e3, 0x0723, 0x9451, 0x9451,
+		"Genesys Logic",
+		"USB to SATA",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SANE_SENSE ),
+
 /* Reported by Hanno Boeck <hanno@gmx.de>
  * Taken from the Lycoris Kernel */
 UNUSUAL_DEV(  0x0636, 0x0003, 0x0000, 0x9999,
@@ -1452,6 +1466,13 @@ UNUSUAL_DEV( 0x0af0, 0x7401, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		0 ),
 
+/* Reported by Ben Efros <ben@pc-doctor.com> */
+UNUSUAL_DEV( 0x0bc2, 0x3010, 0x0000, 0x0000,
+		"Seagate",
+		"FreeAgent Pro",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SANE_SENSE ),
+
 #ifdef CONFIG_USB_STORAGE_ISD200
 UNUSUAL_DEV(  0x0bf6, 0xa001, 0x0100, 0x0110,
 		"ATI",
@@ -1474,6 +1495,12 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
 		US_SC_SCSI, US_PR_SDDR55, NULL,
 		US_FL_SINGLE_LUN ),
 #endif
+
+UNUSUAL_DEV(  0x0d49, 0x7310, 0x0000, 0x9999,
+		"Maxtor",
+		"USB to SATA",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SANE_SENSE),
 
 /*
  * Pete Zaitcev <zaitcev@yahoo.com>, bz#164688.
@@ -1673,6 +1700,12 @@ UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x0110,
 		"UCR-61S2B",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
 		0 ),
+
+UNUSUAL_DEV(  0x1058, 0x0704, 0x0000, 0x9999,
+		"Western Digital",
+		"External HDD",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SANE_SENSE),
 
 /* Reported by Fabio Venturi <f.venturi@tdnet.it>
  * The device reports a vendor-specific bDeviceClass.
@@ -2063,10 +2096,10 @@ UNUSUAL_DEV(  0x14cd, 0x6600, 0x0201, 0x0201,
  * JMicron responds to USN and several other SCSI ioctls with a
  * residue that causes subsequent I/O requests to fail.  */
 UNUSUAL_DEV(  0x152d, 0x2329, 0x0100, 0x0100,
-	        "JMicron",
-	        "USB to ATA/ATAPI Bridge",
-	        US_SC_DEVICE, US_PR_DEVICE, NULL,
-	        US_FL_IGNORE_RESIDUE ),
+		"JMicron",
+		"USB to ATA/ATAPI Bridge",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_SANE_SENSE ),
 
 /* Reported by Robert Schedel <r.schedel@yahoo.de>
  * Note: this is a 'super top' device like the above 14cd/6600 device */
