@@ -384,20 +384,20 @@ static void native_machine_emergency_restart(void)
 			load_idt(&no_idt);
 			__asm__ __volatile__("int3");
 
-			reboot_type = BOOT_CF9_COND;
+			reboot_type = BOOT_KBD;
 			break;
 
 #ifdef CONFIG_X86_32
 		case BOOT_BIOS:
 			machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
 
-			reboot_type = BOOT_CF9_COND;
+			reboot_type = BOOT_KBD;
 			break;
 #endif
 
 		case BOOT_ACPI:
 			acpi_reboot();
-			reboot_type = BOOT_CF9_COND;
+			reboot_type = BOOT_KBD;
 			break;
 
 		case BOOT_EFI:
@@ -406,7 +406,7 @@ static void native_machine_emergency_restart(void)
 						 EFI_RESET_WARM :
 						 EFI_RESET_COLD,
 						 EFI_SUCCESS, 0, NULL);
-			reboot_type = BOOT_CF9_COND;
+			reboot_type = BOOT_KBD;
 			break;
 
 		case BOOT_CF9:
