@@ -376,18 +376,7 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 	}
 }
 
-#ifndef CONFIG_OPROFILE_IBS
-
-/* no IBS support */
-
-static int op_amd_init(struct oprofile_operations *ops)
-{
-	return 0;
-}
-
-static void op_amd_exit(void) {}
-
-#else
+#ifdef CONFIG_OPROFILE_IBS
 
 static u8 ibs_eilvt_off;
 
@@ -531,7 +520,18 @@ static void op_amd_exit(void)
 	clear_ibs_nmi();
 }
 
-#endif
+#else
+
+/* no IBS support */
+
+static int op_amd_init(struct oprofile_operations *ops)
+{
+	return 0;
+}
+
+static void op_amd_exit(void) {}
+
+#endif /* CONFIG_OPROFILE_IBS */
 
 struct op_x86_model_spec const op_amd_spec = {
 	.init			= op_amd_init,
