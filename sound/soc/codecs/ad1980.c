@@ -145,6 +145,7 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 
 struct snd_soc_dai ad1980_dai = {
 	.name = "AC97",
+	.ac97_control = 1,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
