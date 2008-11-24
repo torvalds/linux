@@ -537,13 +537,13 @@ static void update_curr_rt(struct rq *rq)
 	for_each_sched_rt_entity(rt_se) {
 		rt_rq = rt_rq_of_se(rt_se);
 
-		spin_lock(&rt_rq->rt_runtime_lock);
 		if (sched_rt_runtime(rt_rq) != RUNTIME_INF) {
+			spin_lock(&rt_rq->rt_runtime_lock);
 			rt_rq->rt_time += delta_exec;
 			if (sched_rt_runtime_exceeded(rt_rq))
 				resched_task(curr);
+			spin_unlock(&rt_rq->rt_runtime_lock);
 		}
-		spin_unlock(&rt_rq->rt_runtime_lock);
 	}
 }
 
@@ -910,7 +910,8 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 #define RT_MAX_TRIES 3
 
 static int double_lock_balance(struct rq *this_rq, struct rq *busiest);
-static void double_unlock_balance(struct rq *this_rq, struct rq *busiest);
+static inline void double_unlock_balance(struct rq *this_rq,
+						struct rq *busiest);
 
 static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep);
 
