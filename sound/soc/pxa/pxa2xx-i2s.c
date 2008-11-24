@@ -340,7 +340,6 @@ static int pxa2xx_i2s_resume(struct platform_device *pdev,
 struct snd_soc_dai pxa_i2s_dai = {
 	.name = "pxa2xx-i2s",
 	.id = 0,
-	.type = SND_SOC_DAI_I2S,
 	.suspend = pxa2xx_i2s_suspend,
 	.resume = pxa2xx_i2s_resume,
 	.playback = {

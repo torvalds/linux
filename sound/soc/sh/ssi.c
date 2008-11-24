@@ -340,7 +340,6 @@ struct snd_soc_dai sh4_ssi_dai[] = {
 {
 	.name			= "SSI0",
 	.id			= 0,
-	.type			= SND_SOC_DAI_I2S,
 	.playback = {
 		.rates		= SSI_RATES,
 		.formats	= SSI_FMTS,
@@ -367,7 +366,6 @@ struct snd_soc_dai sh4_ssi_dai[] = {
 {
 	.name			= "SSI1",
 	.id			= 1,
-	.type			= SND_SOC_DAI_I2S,
 	.playback = {
 		.rates		= SSI_RATES,
 		.formats	= SSI_FMTS,

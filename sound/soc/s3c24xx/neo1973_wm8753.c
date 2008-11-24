@@ -548,7 +548,6 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai bt_dai = {
 	.name = "Bluetooth",
 	.id = 0,
-	.type = SND_SOC_DAI_PCM,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 1,

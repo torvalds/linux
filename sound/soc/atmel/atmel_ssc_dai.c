@@ -702,7 +702,6 @@ static int atmel_ssc_resume(struct platform_device *pdev,
 struct snd_soc_dai atmel_ssc_dai[NUM_SSC_DEVICES] = {
 	{	.name = "atmel-ssc0",
 		.id = 0,
-		.type = SND_SOC_DAI_PCM,
 		.suspend = atmel_ssc_suspend,
 		.resume = atmel_ssc_resume,
 		.playback = {
@@ -727,7 +726,6 @@ struct snd_soc_dai atmel_ssc_dai[NUM_SSC_DEVICES] = {
 #if NUM_SSC_DEVICES == 3
 	{	.name = "atmel-ssc1",
 		.id = 1,
-		.type = SND_SOC_DAI_PCM,
 		.suspend = atmel_ssc_suspend,
 		.resume = atmel_ssc_resume,
 		.playback = {
@@ -751,7 +749,6 @@ struct snd_soc_dai atmel_ssc_dai[NUM_SSC_DEVICES] = {
 	},
 	{	.name = "atmel-ssc2",
 		.id = 2,
-		.type = SND_SOC_DAI_PCM,
 		.suspend = atmel_ssc_suspend,
 		.resume = atmel_ssc_resume,
 		.playback = {

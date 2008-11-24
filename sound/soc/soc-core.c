@@ -100,20 +100,6 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 }
 #endif
 
-static inline const char *get_dai_name(int type)
-{
-	switch (type) {
-	case SND_SOC_DAI_AC97_BUS:
-	case SND_SOC_DAI_AC97:
-		return "AC97";
-	case SND_SOC_DAI_I2S:
-		return "I2S";
-	case SND_SOC_DAI_PCM:
-		return "PCM";
-	}
-	return NULL;
-}
-
 /*
  * Called by ALSA when a PCM substream is opened, the runtime->hw record is
  * then initialized and any private data can be allocated. This also calls
@@ -652,7 +638,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai  *cpu_dai = card->dai_link[i].cpu_dai;
-		if (cpu_dai->suspend && cpu_dai->type != SND_SOC_DAI_AC97)
+		if (cpu_dai->suspend && !cpu_dai->ac97_control)
 			cpu_dai->suspend(pdev, cpu_dai);
 		if (platform->suspend)
 			platform->suspend(pdev, cpu_dai);
@@ -678,7 +664,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
-		if (cpu_dai->suspend && cpu_dai->type == SND_SOC_DAI_AC97)
+		if (cpu_dai->suspend && cpu_dai->ac97_control)
 			cpu_dai->suspend(pdev, cpu_dai);
 	}
 
@@ -714,7 +700,7 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
-		if (cpu_dai->resume && cpu_dai->type == SND_SOC_DAI_AC97)
+		if (cpu_dai->resume && cpu_dai->ac97_control)
 			cpu_dai->resume(pdev, cpu_dai);
 	}
 
@@ -741,7 +727,7 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
-		if (cpu_dai->resume && cpu_dai->type != SND_SOC_DAI_AC97)
+		if (cpu_dai->resume && !cpu_dai->ac97_control)
 			cpu_dai->resume(pdev, cpu_dai);
 		if (platform->resume)
 			platform->resume(pdev, cpu_dai);
@@ -898,8 +884,8 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 	codec_dai->codec = socdev->codec;
 
 	/* check client and interface hw capabilities */
-	sprintf(new_name, "%s %s-%s-%d", dai_link->stream_name, codec_dai->name,
-		get_dai_name(cpu_dai->type), num);
+	sprintf(new_name, "%s %s-%d", dai_link->stream_name, codec_dai->name,
+		num);
 
 	if (codec_dai->playback.channels_min)
 		playback = 1;
@@ -1270,8 +1256,7 @@ int snd_soc_register_card(struct snd_soc_device *socdev)
 				continue;
 			}
 		}
-		if (card->dai_link[i].codec_dai->type ==
-			SND_SOC_DAI_AC97_BUS)
+		if (card->dai_link[i].codec_dai->ac97_control)
 			ac97 = 1;
 	}
 	snprintf(codec->card->shortname, sizeof(codec->card->shortname),
@@ -1335,7 +1320,7 @@ void snd_soc_free_pcms(struct snd_soc_device *socdev)
 #ifdef CONFIG_SND_SOC_AC97_BUS
 	for (i = 0; i < codec->num_dai; i++) {
 		codec_dai = &codec->dai[i];
-		if (codec_dai->type == SND_SOC_DAI_AC97_BUS && codec->ac97) {
+		if (codec_dai->ac97_control && codec->ac97) {
 			soc_ac97_dev_unregister(codec);
 			goto free_card;
 		}

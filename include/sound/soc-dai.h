@@ -184,7 +184,7 @@ struct snd_soc_dai {
 	/* DAI description */
 	char *name;
 	unsigned int id;
-	unsigned char type;
+	int ac97_control;
 
 	/* DAI callbacks */
 	int (*probe)(struct platform_device *pdev,

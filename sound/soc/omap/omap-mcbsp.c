@@ -456,7 +456,6 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 {								\
 	.name = "omap-mcbsp-dai-"#link_id,			\
 	.id = (link_id),					\
-	.type = SND_SOC_DAI_I2S,				\
 	.playback = {						\
 		.channels_min = 2,				\
 		.channels_max = 2,				\

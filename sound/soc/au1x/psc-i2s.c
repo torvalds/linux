@@ -371,7 +371,6 @@ static int au1xpsc_i2s_resume(struct platform_device *pdev,
 
 struct snd_soc_dai au1xpsc_i2s_dai = {
 	.name			= "au1xpsc_i2s",
-	.type			= SND_SOC_DAI_I2S,
 	.probe			= au1xpsc_i2s_probe,
 	.remove			= au1xpsc_i2s_remove,
 	.suspend		= au1xpsc_i2s_suspend,

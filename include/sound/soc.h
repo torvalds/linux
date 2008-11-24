@@ -143,14 +143,6 @@ enum snd_soc_bias_level {
 	SND_SOC_BIAS_OFF,
 };
 
-/*
- * Digital Audio Interface (DAI) types
- */
-#define SND_SOC_DAI_AC97	0x1
-#define SND_SOC_DAI_I2S		0x2
-#define SND_SOC_DAI_PCM		0x4
-#define SND_SOC_DAI_AC97_BUS	0x8	/* for custom i.e. non ac97_codec.c */
-
 struct snd_soc_device;
 struct snd_soc_pcm_stream;
 struct snd_soc_ops;

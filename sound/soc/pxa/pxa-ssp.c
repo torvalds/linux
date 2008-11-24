@@ -788,7 +788,6 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 	{
 		.name = "pxa2xx-ssp1",
 		.id = 0,
-		.type = SND_SOC_DAI_PCM,
 		.probe = pxa_ssp_probe,
 		.remove = pxa_ssp_remove,
 		.suspend = pxa_ssp_suspend,
@@ -820,7 +819,6 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 	},
 	{	.name = "pxa2xx-ssp2",
 		.id = 1,
-		.type = SND_SOC_DAI_PCM,
 		.probe = pxa_ssp_probe,
 		.remove = pxa_ssp_remove,
 		.suspend = pxa_ssp_suspend,
@@ -853,7 +851,6 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 	{
 		.name = "pxa2xx-ssp3",
 		.id = 2,
-		.type = SND_SOC_DAI_PCM,
 		.probe = pxa_ssp_probe,
 		.remove = pxa_ssp_remove,
 		.suspend = pxa_ssp_suspend,
@@ -886,7 +883,6 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 	{
 		.name = "pxa2xx-ssp4",
 		.id = 3,
-		.type = SND_SOC_DAI_PCM,
 		.probe = pxa_ssp_probe,
 		.remove = pxa_ssp_remove,
 		.suspend = pxa_ssp_suspend,

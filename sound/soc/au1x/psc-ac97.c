@@ -346,7 +346,7 @@ static int au1xpsc_ac97_resume(struct platform_device *pdev,
 
 struct snd_soc_dai au1xpsc_ac97_dai = {
 	.name			= "au1xpsc_ac97",
-	.type			= SND_SOC_DAI_AC97,
+	.ac97_control		= 1,
 	.probe			= au1xpsc_ac97_probe,
 	.remove			= au1xpsc_ac97_remove,
 	.suspend		= au1xpsc_ac97_suspend,

@@ -535,7 +535,7 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream,
 struct snd_soc_dai wm9712_dai[] = {
 {
 	.name = "AC97 HiFi",
-	.type = SND_SOC_DAI_AC97_BUS,
+	.ac97_control = 1,
 	.playback = {
 		.stream_name = "HiFi Playback",
 		.channels_min = 1,

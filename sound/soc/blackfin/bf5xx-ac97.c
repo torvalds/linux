@@ -409,7 +409,7 @@ static void bf5xx_ac97_remove(struct platform_device *pdev,
 struct snd_soc_dai bfin_ac97_dai = {
 	.name = "bf5xx-ac97",
 	.id = 0,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.probe = bf5xx_ac97_probe,
 	.remove = bf5xx_ac97_remove,
 	.suspend = bf5xx_ac97_suspend,

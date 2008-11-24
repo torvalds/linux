@@ -469,7 +469,6 @@ static int psc_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
  * psc_i2s_dai_template: template CPU Digital Audio Interface
  */
 static struct snd_soc_dai psc_i2s_dai_template = {
-	.type = SND_SOC_DAI_I2S,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,

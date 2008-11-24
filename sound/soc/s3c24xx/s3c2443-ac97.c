@@ -358,7 +358,7 @@ struct snd_soc_dai s3c2443_ac97_dai[] = {
 {
 	.name = "s3c2443-ac97",
 	.id = 0,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.probe = s3c2443_ac97_probe,
 	.remove = s3c2443_ac97_remove,
 	.playback = {
@@ -380,7 +380,7 @@ struct snd_soc_dai s3c2443_ac97_dai[] = {
 {
 	.name = "pxa2xx-ac97-mic",
 	.id = 1,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.capture = {
 		.stream_name = "AC97 Mic Capture",
 		.channels_min = 1,

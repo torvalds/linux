@@ -173,7 +173,7 @@ struct snd_soc_dai pxa_ac97_dai[] = {
 {
 	.name = "pxa2xx-ac97",
 	.id = 0,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.probe = pxa2xx_ac97_probe,
 	.remove = pxa2xx_ac97_remove,
 	.suspend = pxa2xx_ac97_suspend,
@@ -196,7 +196,7 @@ struct snd_soc_dai pxa_ac97_dai[] = {
 {
 	.name = "pxa2xx-ac97-aux",
 	.id = 1,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.playback = {
 		.stream_name = "AC97 Aux Playback",
 		.channels_min = 1,
@@ -215,7 +215,7 @@ struct snd_soc_dai pxa_ac97_dai[] = {
 {
 	.name = "pxa2xx-ac97-mic",
 	.id = 2,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.capture = {
 		.stream_name = "AC97 Mic Capture",
 		.channels_min = 1,

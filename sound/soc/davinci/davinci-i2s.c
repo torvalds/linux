@@ -460,7 +460,6 @@ static void davinci_i2s_remove(struct platform_device *pdev,
 struct snd_soc_dai davinci_i2s_dai = {
 	.name = "davinci-i2s",
 	.id = 0,
-	.type = SND_SOC_DAI_I2S,
 	.probe = davinci_i2s_probe,
 	.remove = davinci_i2s_remove,
 	.playback = {

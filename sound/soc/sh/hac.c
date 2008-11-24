@@ -271,7 +271,7 @@ struct snd_soc_dai sh4_hac_dai[] = {
 {
 	.name			= "HAC0",
 	.id			= 0,
-	.type			= SND_SOC_DAI_AC97,
+	.ac97_control		= 1,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -291,8 +291,8 @@ struct snd_soc_dai sh4_hac_dai[] = {
 #ifdef CONFIG_CPU_SUBTYPE_SH7760
 {
 	.name			= "HAC1",
+	.ac97_control		= 1,
 	.id			= 1,
-	.type			= SND_SOC_DAI_AC97,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,

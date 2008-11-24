@@ -33,7 +33,6 @@
 
 struct snd_soc_dai pcm3008_dai = {
 	.name = "PCM3008 HiFi",
-	.type = SND_SOC_DAI_I2S,
 	.playback = {
 		.stream_name = "PCM3008 Playback",
 		.channels_min = 1,

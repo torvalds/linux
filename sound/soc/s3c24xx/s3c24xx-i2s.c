@@ -461,7 +461,6 @@ static int s3c24xx_i2s_resume(struct platform_device *pdev,
 struct snd_soc_dai s3c24xx_i2s_dai = {
 	.name = "s3c24xx-i2s",
 	.id = 0,
-	.type = SND_SOC_DAI_I2S,
 	.probe = s3c24xx_i2s_probe,
 	.suspend = s3c24xx_i2s_suspend,
 	.resume = s3c24xx_i2s_resume,

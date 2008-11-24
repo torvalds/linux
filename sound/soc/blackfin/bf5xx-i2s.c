@@ -292,7 +292,6 @@ static int bf5xx_i2s_resume(struct platform_device *pdev,
 struct snd_soc_dai bf5xx_i2s_dai = {
 	.name = "bf5xx-i2s",
 	.id = 0,
-	.type = SND_SOC_DAI_I2S,
 	.probe = bf5xx_i2s_probe,
 	.remove = bf5xx_i2s_remove,
 	.suspend = bf5xx_i2s_suspend,
