@@ -706,7 +706,7 @@ setup_trap_table:
 	andn	%l0, PSTATE_IE, %o1
 	wrpr	%o1, 0x0, %pstate
 	rdpr	%pil, %l1
-	wrpr	%g0, 15, %pil
+	wrpr	%g0, PIL_NORMAL_MAX, %pil
 
 	/* Make the firmware call to jump over to the Linux trap table.  */
 	sethi	%hi(is_sun4v), %o0

@@ -1146,8 +1146,8 @@ void smp_release(void)
 	}
 }
 
-/* Imprisoned penguins run with %pil == 15, but PSTATE_IE set, so they
- * can service tlb flush xcalls...
+/* Imprisoned penguins run with %pil == PIL_NORMAL_MAX, but PSTATE_IE
+ * set, so they can service tlb flush xcalls...
  */
 extern void prom_world(int);
 

@@ -466,7 +466,7 @@ xcall_sync_tick:
 	.previous
 
 	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
+	wrpr		%g0, PIL_NORMAL_MAX, %pil
 	sethi		%hi(109f), %g7
 	b,pt		%xcc, etrap_irq
 109:	 or		%g7, %lo(109b), %g7
@@ -688,7 +688,7 @@ xcall_kgdb_capture:
 	.previous
 
 	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
+	wrpr		%g0, PIL_NORMAL_MAX, %pil
 	sethi		%hi(109f), %g7
 	ba,pt		%xcc, etrap_irq
 109:	 or		%g7, %lo(109b), %g7

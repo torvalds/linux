@@ -80,7 +80,7 @@ __spitfire_cee_trap_continue:
 	cmp		%g2, 1
 	rdpr		%pil, %g2
 	bleu,pt		%xcc, 1f
-	 wrpr		%g0, 15, %pil
+	 wrpr		%g0, PIL_NORMAL_MAX, %pil
 
 	ba,pt		%xcc, etraptl1
 	 rd		%pc, %g7

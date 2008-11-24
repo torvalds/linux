@@ -102,7 +102,7 @@ cheetah_plus_dcpe_trap_vector:
 	.type		do_cheetah_plus_data_parity,#function
 do_cheetah_plus_data_parity:
 	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
+	wrpr		%g0, PIL_NORMAL_MAX, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -144,7 +144,7 @@ cheetah_plus_icpe_trap_vector:
 	.type		do_cheetah_plus_insn_parity,#function
 do_cheetah_plus_insn_parity:
 	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
+	wrpr		%g0, PIL_NORMAL_MAX, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -492,7 +492,7 @@ cheetah_fast_ecc:
 	.type		c_fast_ecc,#function
 c_fast_ecc:
 	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
+	wrpr		%g0, PIL_NORMAL_MAX, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -528,7 +528,7 @@ cheetah_cee:
 	.type		c_cee,#function
 c_cee:
 	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
+	wrpr		%g0, PIL_NORMAL_MAX, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -564,7 +564,7 @@ cheetah_deferred_trap:
 	.type		c_deferred,#function
 c_deferred:
 	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
+	wrpr		%g0, PIL_NORMAL_MAX, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS

@@ -186,7 +186,7 @@ sun4v_res_mondo:
 	 * when it's done.
 	 */
 	rdpr	%pil, %g2
-	wrpr	%g0, 15, %pil
+	wrpr	%g0, PIL_NORMAL_MAX, %pil
 	mov	%g1, %g4
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
@@ -216,7 +216,7 @@ sun4v_res_mondo_queue_full:
 	membar	#Sync
 
 	rdpr	%pil, %g2
-	wrpr	%g0, 15, %pil
+	wrpr	%g0, PIL_NORMAL_MAX, %pil
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -297,7 +297,7 @@ sun4v_nonres_mondo:
 	 * when it's done.
 	 */
 	rdpr	%pil, %g2
-	wrpr	%g0, 15, %pil
+	wrpr	%g0, PIL_NORMAL_MAX, %pil
 	mov	%g1, %g4
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
@@ -327,7 +327,7 @@ sun4v_nonres_mondo_queue_full:
 	membar	#Sync
 
 	rdpr	%pil, %g2
-	wrpr	%g0, 15, %pil
+	wrpr	%g0, PIL_NORMAL_MAX, %pil
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
