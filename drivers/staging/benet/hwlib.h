@@ -38,37 +38,29 @@
  * Macros for reading/writing a protection domain or CSR registers
  * in BladeEngine.
  */
-#define PD_READ(_fo_, _field_)     				\
-	ioread32((_fo_)->db_va + 				\
-		AMAP_BYTE_OFFSET(PROTECTION_DOMAIN_DBMAP, _field_))
+#define PD_READ(fo, field)	ioread32((fo)->db_va + \
+					offsetof(struct BE_PROTECTION_DOMAIN_DBMAP_AMAP, field)/8)
 
-#define PD_WRITE(_fo_, _field_, _value_)			\
-	iowrite32((_value_), (_fo_)->db_va + 			\
-		AMAP_BYTE_OFFSET(PROTECTION_DOMAIN_DBMAP, _field_))
+#define PD_WRITE(fo, field, val) iowrite32(val, (fo)->db_va + \
+					offsetof(struct BE_PROTECTION_DOMAIN_DBMAP_AMAP, field)/8)
 
-#define CSR_READ(_fo_, _field_)				\
-	ioread32((_fo_)->csr_va +			\
-		AMAP_BYTE_OFFSET(BLADE_ENGINE_CSRMAP, _field_))
+#define CSR_READ(fo, field)		ioread32((fo)->csr_va + \
+					offsetof(struct BE_BLADE_ENGINE_CSRMAP_AMAP, field)/8)
 
-#define CSR_WRITE(_fo_, _field_, _value_)			\
-	iowrite32((_value_), (_fo_)->csr_va +			\
-		AMAP_BYTE_OFFSET(BLADE_ENGINE_CSRMAP, _field_))
+#define CSR_WRITE(fo, field, val)	iowrite32(val, (fo)->csr_va +	\
+					offsetof(struct BE_BLADE_ENGINE_CSRMAP_AMAP, field)/8)
 
-#define PCICFG0_READ(_fo_, _field_)				\
-	ioread32((_fo_)->pci_va +				\
-		AMAP_BYTE_OFFSET(PCICFG0_CSRMAP, _field_))
+#define PCICFG0_READ(fo, field)	ioread32((fo)->pci_va + \
+					offsetof(struct BE_PCICFG0_CSRMAP_AMAP, field)/8)
 
-#define PCICFG0_WRITE(_fo_, _field_, _value_)			\
-	iowrite32((_value_), (_fo_)->pci_va +			\
-		AMAP_BYTE_OFFSET(PCICFG0_CSRMAP, _field_))
+#define PCICFG0_WRITE(fo, field, val)	iowrite32(val, (fo)->pci_va +	\
+					offsetof(struct BE_PCICFG0_CSRMAP_AMAP, field)/8)
 
-#define PCICFG1_READ(_fo_, _field_)				\
-	ioread32((_fo_)->pci_va +				\
-		AMAP_BYTE_OFFSET(PCICFG1_CSRMAP, _field_))
+#define PCICFG1_READ(fo, field)		ioread32((fo)->pci_va + \
+					offsetof(struct BE_PCICFG1_CSRMAP_AMAP, field)/8)
 
-#define PCICFG1_WRITE(_fo_, _field_, _value_)			\
-	iowrite32((_value_), (_fo_)->pci_va +			\
-		AMAP_BYTE_OFFSET(PCICFG1_CSRMAP, _field_))
+#define PCICFG1_WRITE(fo, field, val)	iowrite32(val, (fo)->pci_va +	\
+					offsetof(struct BE_PCICFG1_CSRMAP_AMAP, field)/8)
 
 #ifdef BE_DEBUG
 #define ASSERT(c)       BUG_ON(!(c));
@@ -185,8 +177,8 @@ static inline u32 amap_mask(u32 bit_size)
     return (bit_size == 32 ? 0xFFFFFFFF : (1 << bit_size) - 1);
 }
 
-#define AMAP_BIT_MASK(_struct_, _register_)       \
-	amap_mask(AMAP_BIT_SIZE(_struct_, _register_))
+#define AMAP_BIT_MASK(_struct_, field)       \
+	amap_mask(AMAP_BIT_SIZE(_struct_, field))
 
 /*
  * non-optimized set bits function. First clears the bits and then assigns them.
@@ -201,10 +193,9 @@ amap_set(void *ptr, u32 dw_offset, u32 mask, u32 offset, u32 value)
 	*(dw + dw_offset) |= (mask & value) << offset;
 }
 
-#define AMAP_SET_BITS_PTR(_struct_, _register_, _structPtr_, _value_)	\
-	amap_set(_structPtr_, AMAP_WORD_OFFSET(_struct_, _register_),	\
-		AMAP_BIT_MASK(_struct_, _register_),			\
-		AMAP_BIT_OFFSET(_struct_, _register_), _value_)
+#define AMAP_SET_BITS_PTR(_struct_, field, _structPtr_, val)	\
+	amap_set(_structPtr_, AMAP_WORD_OFFSET(_struct_, field),	\
+		AMAP_BIT_MASK(_struct_, field),	AMAP_BIT_OFFSET(_struct_, field), val)
 
 /*
  * Non-optimized routine that gets the bits without knowing the correct DWORD.
@@ -216,39 +207,21 @@ amap_get(void *ptr, u32 dw_offset, u32 mask, u32 offset)
 	u32 *dw = (u32 *)ptr;
 	return mask & (*(dw + dw_offset) >> offset);
 }
-#define AMAP_GET_BITS_PTR(_struct_, _register_, _structPtr_)		\
-	amap_get(_structPtr_, AMAP_WORD_OFFSET(_struct_, _register_),	\
-		AMAP_BIT_MASK(_struct_, _register_),			\
-			AMAP_BIT_OFFSET(_struct_, _register_))
+#define AMAP_GET_BITS_PTR(_struct_, field, _structPtr_)		\
+	amap_get(_structPtr_, AMAP_WORD_OFFSET(_struct_, field),	\
+		AMAP_BIT_MASK(_struct_, field),	AMAP_BIT_OFFSET(_struct_, field))
 
 /* Returns 0-31 representing bit offset within a DWORD of a bitfield. */
-#define AMAP_BIT_OFFSET(_struct_, _register_)                  \
-    (((size_t)&(((struct BE_ ## _struct_ ## _AMAP*)0)->_register_))%32)
-
-/* Returns 0-n representing byte offset of bitfield with the structure. */
-#define AMAP_BYTE_OFFSET(_struct_, _register_)                  \
-	(((size_t)&(((struct BE_ ## _struct_ ## _AMAP *)0)->_register_))/8)
+#define AMAP_BIT_OFFSET(_struct_, field)                  \
+    (offsetof(struct BE_ ## _struct_ ## _AMAP, field) % 32)
 
 /* Returns 0-n representing DWORD offset of bitfield within the structure. */
-#define AMAP_WORD_OFFSET(_struct_, _register_)  \
-		  (AMAP_BYTE_OFFSET(_struct_, _register_)/4)
-
-/*
- * Gets a pointer to a field within a structure
- * The field must be byte aligned.
- */
-#define AMAP_GET_PTR(_struct_, _register_, _structPtr_)                     \
-    (void *) ((u8 *)(_structPtr_) + AMAP_BYTE_OFFSET(_struct_, _register_))
+#define AMAP_WORD_OFFSET(_struct_, field)  \
+		  (offsetof(struct BE_ ## _struct_ ## _AMAP, field)/32)
 
 /* Returns size of bitfield in bits. */
-#define AMAP_BIT_SIZE(_struct_, _register_) \
-		sizeof(((struct BE_ ## _struct_ ## _AMAP*)0)->_register_)
-
-/* Returns size of bitfield in bytes. */
-#define AMAP_BYTE_SIZE(_struct_) (sizeof(struct BE_ ## _struct_ ## _AMAP)/8)
-
-/* Returns size of bitfield in DWORDS. */
-#define AMAP_WORD_SIZE(_struct_) (AMAP_BYTE_SIZE(_struct_)/4)
+#define AMAP_BIT_SIZE(_struct_, field) \
+		sizeof(((struct BE_ ## _struct_ ## _AMAP*)0)->field)
 
 struct be_mcc_wrb_response_copy {
 	u16 length;		/* bytes in response */
@@ -475,7 +448,7 @@ struct be_queue_driver_context {
  * Common MCC WRB header that all commands require.
  */
 struct be_mcc_wrb_header {
-	u8 rsvd[AMAP_BYTE_OFFSET(MCC_WRB, payload)];
+	u8 rsvd[offsetof(struct BE_MCC_WRB_AMAP, payload)/8];
 } ;
 
 /*

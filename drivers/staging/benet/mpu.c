@@ -241,11 +241,11 @@ be_mcc_process_cqe(struct be_function_object *pfob,
 	 * A command completed.  Commands complete out-of-order.
 	 * Determine which command completed from the TAG.
 	 */
-	offset = AMAP_BYTE_OFFSET(MCC_CQ_ENTRY, mcc_tag);
+	offset = offsetof(struct BE_MCC_CQ_ENTRY_AMAP, mcc_tag)/8;
 	p = (u8 *) cqe + offset;
 	wrb_context = (struct be_mcc_wrb_context *)(void *)(size_t)(*(u64 *)p);
-
 	ASSERT(wrb_context);
+
 	/*
 	 * Perform a response copy if requested.
 	 * Only copy data if the FWCMD is successful.
@@ -254,7 +254,8 @@ be_mcc_process_cqe(struct be_function_object *pfob,
 	if (status == MGMT_STATUS_SUCCESS && wrb_context->copy.length > 0) {
 		ASSERT(wrb_context->wrb);
 		ASSERT(wrb_context->copy.va);
-		p = (u8 *)wrb_context->wrb + AMAP_BYTE_OFFSET(MCC_WRB, payload);
+		p = (u8 *)wrb_context->wrb +
+				offsetof(struct BE_MCC_WRB_AMAP, payload)/8;
 		memcpy(wrb_context->copy.va,
 			  (u8 *)p + wrb_context->copy.fwcmd_offset,
 			  wrb_context->copy.length);
@@ -411,7 +412,7 @@ u32 be_mcc_wrb_consumed_in_order(struct be_mcc_object *mcc,
 	 * A command completed.  Commands complete out-of-order.
 	 * Determine which command completed from the TAG.
 	 */
-	offset = AMAP_BYTE_OFFSET(MCC_CQ_ENTRY, mcc_tag);
+	offset = offsetof(struct BE_MCC_CQ_ENTRY_AMAP, mcc_tag)/8;
 	p = (u8 *) cqe + offset;
 	wrb_context = (struct be_mcc_wrb_context *)(void *)(size_t)(*(u64 *)p);
 
@@ -941,7 +942,7 @@ be_mpu_init_mailbox(struct be_function_object *pfob, struct ring_desc *mailbox)
 	 */
 	{
 		u64 *endian_check = (u64 *) (pfob->mailbox.va +
-					AMAP_BYTE_OFFSET(MCC_MAILBOX, wrb));
+					offsetof(struct BE_MCC_MAILBOX_AMAP, wrb)/8);
 		*endian_check = 0xFF1234FFFF5678FFULL;
 	}
 
@@ -983,7 +984,7 @@ _be_mpu_post_wrb_mailbox(struct be_function_object *pfob,
 	mailbox = pfob->mailbox.va;
 	ASSERT(mailbox);
 
-	offset = AMAP_BYTE_OFFSET(MCC_MAILBOX, wrb);
+	offset = offsetof(struct BE_MCC_MAILBOX_AMAP, wrb)/8;
 	mb_wrb = (struct MCC_WRB_AMAP *) (u8 *)mailbox + offset;
 	if (mb_wrb != wrb) {
 		memset(mailbox, 0, sizeof(*mailbox));
@@ -995,7 +996,7 @@ _be_mpu_post_wrb_mailbox(struct be_function_object *pfob,
 	be_mcc_mailbox_notify_and_wait(pfob);
 
 	/* A command completed.  Use tag to determine which command. */
-	offset = AMAP_BYTE_OFFSET(MCC_MAILBOX, cq);
+	offset = offsetof(struct BE_MCC_MAILBOX_AMAP, cq)/8;
 	mb_cq = (struct MCC_CQ_ENTRY_AMAP *) ((u8 *)mailbox + offset);
 	be_mcc_process_cqe(pfob, mb_cq);
 

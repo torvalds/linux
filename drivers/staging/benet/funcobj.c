@@ -208,7 +208,7 @@ be_function_prepare_embedded_fwcmd(struct be_function_object *pfob,
 
 	ASSERT(wrb);
 
-	n = AMAP_BYTE_OFFSET(MCC_WRB, payload);
+	n = offsetof(struct BE_MCC_WRB_AMAP, payload)/8;
 	AMAP_SET_BITS_PTR(MCC_WRB, embedded, wrb, 1);
 	AMAP_SET_BITS_PTR(MCC_WRB, payload_length, wrb, min(payld_len, n));
 	header = (struct FWCMD_REQUEST_HEADER *)((u8 *)wrb + n);
@@ -250,7 +250,7 @@ be_function_prepare_nonembedded_fwcmd(struct be_function_object *pfob,
 	 */
 	AMAP_SET_BITS_PTR(MCC_WRB, sge_count, wrb, 1);
 
-	n = AMAP_BYTE_OFFSET(MCC_WRB, payload);
+	n = offsetof(struct BE_MCC_WRB_AMAP, payload)/8;
 	plp = (struct MCC_WRB_PAYLOAD_AMAP *)((u8 *)wrb + n);
 	AMAP_SET_BITS_PTR(MCC_WRB_PAYLOAD, sgl[0].length, plp, payld_len);
 	AMAP_SET_BITS_PTR(MCC_WRB_PAYLOAD, sgl[0].pa_lo, plp, (u32)fwcmd_pa);
@@ -275,7 +275,7 @@ be_function_peek_mcc_wrb(struct be_function_object *pfob)
 	if (pfob->mcc)
 		wrb = _be_mpu_peek_ring_wrb(pfob->mcc, false);
 	else {
-		offset = AMAP_BYTE_OFFSET(MCC_MAILBOX, wrb);
+		offset = offsetof(struct BE_MCC_MAILBOX_AMAP, wrb)/8;
 		wrb = (struct MCC_WRB_AMAP *) ((u8 *) pfob->mailbox.va +
 				offset);
 	}
@@ -299,7 +299,7 @@ void be_function_debug_print_wrb(struct be_function_object *pfob,
 	embedded = AMAP_GET_BITS_PTR(MCC_WRB, embedded, wrb);
 
 	if (embedded) {
-		n = AMAP_BYTE_OFFSET(MCC_WRB, payload);
+		n = offsetof(struct BE_MCC_WRB_AMAP, payload)/8;
 		header = (struct FWCMD_REQUEST_HEADER *)((u8 *)wrb + n);
 	} else {
 		header = (struct FWCMD_REQUEST_HEADER *) optional_fwcmd_va;
@@ -381,7 +381,7 @@ be_function_post_mcc_wrb(struct be_function_object *pfob,
 	 * Copy the context pointer into the WRB opaque tag field.
 	 * Verify assumption of 64-bit tag with a compile time assert.
 	 */
-	p = (u64 *) ((u8 *)wrb + AMAP_BYTE_OFFSET(MCC_WRB, tag));
+	p = (u64 *) ((u8 *)wrb + offsetof(struct BE_MCC_WRB_AMAP, tag)/8);
 	*p = (u64)(size_t)wrb_context;
 
 	/* Print info about this FWCMD for debug builds. */
