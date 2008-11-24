@@ -2832,7 +2832,7 @@ P:	Roman Zippel
 M:	zippel@linux-m68k.org
 L:	linux-m68k@lists.linux-m68k.org
 W:	http://www.linux-m68k.org/
-W:	http://linux-m68k-cvs.ubb.ca/
+T:	git git.kernel.org/pub/scm/linux/kernel/git/geert/linux-m68k.git
 S:	Maintained
 
 M68K ON APPLE MACINTOSH
