@@ -428,10 +428,8 @@ static int help(struct sk_buff *skb,
 		   connection tracking, not packet filtering.
 		   However, it is necessary for accurate tracking in
 		   this case. */
-		if (net_ratelimit())
-			printk("conntrack_ftp: partial %s %u+%u\n",
-			       search[dir][i].pattern,
-			       ntohl(th->seq), datalen);
+		pr_debug("conntrack_ftp: partial %s %u+%u\n",
+			 search[dir][i].pattern,  ntohl(th->seq), datalen);
 		ret = NF_DROP;
 		goto out;
 	} else if (found == 0) { /* No match */
