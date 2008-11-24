@@ -260,15 +260,6 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
 
-	DPRINTF(sc, ATH_DBG_CONFIG,
-		"%s: %u (%u MHz) -> %u (%u MHz), cflags:%x\n",
-		__func__,
-		ath9k_hw_mhz2ieee(ah, sc->sc_ah->ah_curchan->channel,
-				  sc->sc_ah->ah_curchan->channelFlags),
-		sc->sc_ah->ah_curchan->channel,
-		ath9k_hw_mhz2ieee(ah, hchan->channel, hchan->channelFlags),
-		hchan->channel, hchan->channelFlags);
-
 	if (hchan->channel != sc->sc_ah->ah_curchan->channel ||
 	    hchan->channelFlags != sc->sc_ah->ah_curchan->channelFlags ||
 	    (sc->sc_flags & SC_OP_CHAINMASK_UPDATE) ||
@@ -294,8 +285,14 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 		if (!stopped || (sc->sc_flags & SC_OP_FULL_RESET))
 			fastcc = false;
 
+		DPRINTF(sc, ATH_DBG_CONFIG,
+			"%s: (%u MHz) -> (%u MHz), cflags:%x, chanwidth: %d\n",
+			__func__,
+			sc->sc_ah->ah_curchan->channel,
+			hchan->channel, hchan->channelFlags, sc->tx_chan_width);
+
 		spin_lock_bh(&sc->sc_resetlock);
-		if (!ath9k_hw_reset(ah, hchan, sc->sc_ht_info.tx_chan_width,
+		if (!ath9k_hw_reset(ah, hchan, sc->tx_chan_width,
 				    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
 				    sc->sc_ht_extprotspacing, fastcc, &status)) {
 			DPRINTF(sc, ATH_DBG_FATAL,
@@ -626,11 +623,13 @@ static int ath_get_channel(struct ath_softc *sc,
 }
 
 static u32 ath_get_extchanmode(struct ath_softc *sc,
-				     struct ieee80211_channel *chan)
+			       struct ieee80211_channel *chan,
+			       struct ieee80211_bss_conf *bss_conf)
 {
 	u32 chanmode = 0;
-	u8 ext_chan_offset = sc->sc_ht_info.ext_chan_offset;
-	enum ath9k_ht_macmode tx_chan_width = sc->sc_ht_info.tx_chan_width;
+	u8 ext_chan_offset = bss_conf->ht.secondary_channel_offset;
+	enum ath9k_ht_macmode tx_chan_width = (bss_conf->ht.width_40_ok) ?
+		ATH9K_HT_MACMODE_2040 : ATH9K_HT_MACMODE_20;
 
 	switch (chan->band) {
 	case IEEE80211_BAND_2GHZ:
@@ -828,17 +827,17 @@ static void setup_ht_cap(struct ieee80211_sta_ht_cap *ht_info)
 static void ath9k_ht_conf(struct ath_softc *sc,
 			  struct ieee80211_bss_conf *bss_conf)
 {
-	struct ath_ht_info *ht_info = &sc->sc_ht_info;
-
 	if (sc->hw->conf.ht.enabled) {
-		ht_info->ext_chan_offset = bss_conf->ht.secondary_channel_offset;
-
 		if (bss_conf->ht.width_40_ok)
-			ht_info->tx_chan_width = ATH9K_HT_MACMODE_2040;
+			sc->tx_chan_width = ATH9K_HT_MACMODE_2040;
 		else
-			ht_info->tx_chan_width = ATH9K_HT_MACMODE_20;
+			sc->tx_chan_width = ATH9K_HT_MACMODE_20;
 
-		ath9k_hw_set11nmac2040(sc->sc_ah, ht_info->tx_chan_width);
+		ath9k_hw_set11nmac2040(sc->sc_ah, sc->tx_chan_width);
+
+		DPRINTF(sc, ATH_DBG_CONFIG,
+			"%s: BSS Changed HT, chanwidth: %d\n",
+			__func__, sc->tx_chan_width);
 	}
 }
 
@@ -892,26 +891,30 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 			return;
 		}
 
-		if (hw->conf.ht.enabled)
+		if (hw->conf.ht.enabled) {
 			sc->sc_ah->ah_channels[pos].chanmode =
-				ath_get_extchanmode(sc, curchan);
-		else
+				ath_get_extchanmode(sc, curchan, bss_conf);
+
+			if (bss_conf->ht.width_40_ok)
+				sc->tx_chan_width = ATH9K_HT_MACMODE_2040;
+			else
+				sc->tx_chan_width = ATH9K_HT_MACMODE_20;
+		} else {
 			sc->sc_ah->ah_channels[pos].chanmode =
 				(curchan->band == IEEE80211_BAND_2GHZ) ?
 				CHANNEL_G : CHANNEL_A;
+		}
 
 		/* set h/w channel */
 		if (ath_set_channel(sc, &sc->sc_ah->ah_channels[pos]) < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
-				"%s: Unable to set channel\n",
-				__func__);
+				"%s: Unable to set channel\n", __func__);
 		/* Start ANI */
 		mod_timer(&sc->sc_ani.timer,
 			jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
 
 	} else {
-		DPRINTF(sc, ATH_DBG_CONFIG,
-		"%s: Bss Info DISSOC\n", __func__);
+		DPRINTF(sc, ATH_DBG_CONFIG, "%s: Bss Info DISSOC\n", __func__);
 		sc->sc_curaid = 0;
 	}
 }
@@ -1044,7 +1047,7 @@ static void ath_radio_enable(struct ath_softc *sc)
 
 	spin_lock_bh(&sc->sc_resetlock);
 	if (!ath9k_hw_reset(ah, ah->ah_curchan,
-			    sc->sc_ht_info.tx_chan_width,
+			    sc->tx_chan_width,
 			    sc->sc_tx_chainmask,
 			    sc->sc_rx_chainmask,
 			    sc->sc_ht_extprotspacing,
@@ -1102,7 +1105,7 @@ static void ath_radio_disable(struct ath_softc *sc)
 
 	spin_lock_bh(&sc->sc_resetlock);
 	if (!ath9k_hw_reset(ah, ah->ah_curchan,
-			    sc->sc_ht_info.tx_chan_width,
+			    sc->tx_chan_width,
 			    sc->sc_tx_chainmask,
 			    sc->sc_rx_chainmask,
 			    sc->sc_ht_extprotspacing,
@@ -1636,7 +1639,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	spin_lock_bh(&sc->sc_resetlock);
 	if (!ath9k_hw_reset(ah, sc->sc_ah->ah_curchan,
-			    sc->sc_ht_info.tx_chan_width,
+			    sc->tx_chan_width,
 			    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
 			    sc->sc_ht_extprotspacing, false, &status)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
@@ -1864,8 +1867,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Starting driver with "
 		"initial channel: %d MHz\n", __func__, curchan->center_freq);
 
-	memset(&sc->sc_ht_info, 0, sizeof(struct ath_ht_info));
-
 	/* setup initial channel */
 
 	pos = ath_get_channel(sc, curchan);
@@ -1875,6 +1876,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		goto error;
 	}
 
+	sc->tx_chan_width = ATH9K_HT_MACMODE_20;
 	sc->sc_ah->ah_channels[pos].chanmode =
 		(curchan->band == IEEE80211_BAND_2GHZ) ? CHANNEL_G : CHANNEL_A;
 	init_channel = &sc->sc_ah->ah_channels[pos];
@@ -1891,7 +1893,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 */
 	spin_lock_bh(&sc->sc_resetlock);
 	if (!ath9k_hw_reset(sc->sc_ah, init_channel,
-			    sc->sc_ht_info.tx_chan_width,
+			    sc->tx_chan_width,
 			    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
 			    sc->sc_ht_extprotspacing, false, &status)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
@@ -2149,38 +2151,36 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
-	struct ieee80211_channel *curchan = hw->conf.channel;
 	struct ieee80211_conf *conf = &hw->conf;
-	int pos;
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Set channel: %d MHz\n",
-		__func__,
-		curchan->center_freq);
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		struct ieee80211_channel *curchan = hw->conf.channel;
+		int pos;
 
-	/* Update chainmask */
-	ath_update_chainmask(sc, conf->ht.enabled);
+		DPRINTF(sc, ATH_DBG_CONFIG, "%s: Set channel: %d MHz\n",
+			__func__, curchan->center_freq);
 
-	pos = ath_get_channel(sc, curchan);
-	if (pos == -1) {
-		DPRINTF(sc, ATH_DBG_FATAL, "%s: Invalid channel\n", __func__);
-		return -EINVAL;
+		pos = ath_get_channel(sc, curchan);
+		if (pos == -1) {
+			DPRINTF(sc, ATH_DBG_FATAL, "%s: Invalid channel\n", __func__);
+			return -EINVAL;
+		}
+
+		sc->tx_chan_width = ATH9K_HT_MACMODE_20;
+		sc->sc_ah->ah_channels[pos].chanmode =
+			(curchan->band == IEEE80211_BAND_2GHZ) ?
+			CHANNEL_G : CHANNEL_A;
+
+		if (ath_set_channel(sc, &sc->sc_ah->ah_channels[pos]) < 0)
+			DPRINTF(sc, ATH_DBG_FATAL,
+				"%s: Unable to set channel\n", __func__);
 	}
 
-	sc->sc_ah->ah_channels[pos].chanmode =
-		(curchan->band == IEEE80211_BAND_2GHZ) ?
-		CHANNEL_G : CHANNEL_A;
-
-	if (sc->sc_curaid && hw->conf.ht.enabled)
-		sc->sc_ah->ah_channels[pos].chanmode =
-			ath_get_extchanmode(sc, curchan);
+	if (changed & IEEE80211_CONF_CHANGE_HT)
+		ath_update_chainmask(sc, conf->ht.enabled);
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		sc->sc_config.txpowlimit = 2 * conf->power_level;
-
-	/* set h/w channel */
-	if (ath_set_channel(sc, &sc->sc_ah->ah_channels[pos]) < 0)
-		DPRINTF(sc, ATH_DBG_FATAL, "%s: Unable to set channel\n",
-			__func__);
 
 	return 0;
 }
@@ -2421,11 +2421,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
 	}
 
-	if (changed & BSS_CHANGED_HT) {
-		DPRINTF(sc, ATH_DBG_CONFIG, "%s: BSS Changed HT\n",
-			__func__);
+	if (changed & BSS_CHANGED_HT)
 		ath9k_ht_conf(sc, bss_conf);
-	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		DPRINTF(sc, ATH_DBG_CONFIG, "%s: BSS Changed ASSOC %d\n",

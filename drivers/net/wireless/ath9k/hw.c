@@ -2232,8 +2232,7 @@ bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 	    ((chan->channelFlags & CHANNEL_ALL) ==
 	     (ah->ah_curchan->channelFlags & CHANNEL_ALL)) &&
 	    (!AR_SREV_9280(ah) || (!IS_CHAN_A_5MHZ_SPACED(chan) &&
-				   !IS_CHAN_A_5MHZ_SPACED(ah->
-							  ah_curchan)))) {
+				   !IS_CHAN_A_5MHZ_SPACED(ah->ah_curchan)))) {
 
 		if (ath9k_hw_channel_change(ah, chan, macmode)) {
 			ath9k_hw_loadnf(ah, ah->ah_curchan);

@@ -1148,7 +1148,7 @@ static void ath_drain_txdataq(struct ath_softc *sc, bool retry_tx)
 		spin_lock_bh(&sc->sc_resetlock);
 		if (!ath9k_hw_reset(ah,
 				    sc->sc_ah->ah_curchan,
-				    sc->sc_ht_info.tx_chan_width,
+				    sc->tx_chan_width,
 				    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
 				    sc->sc_ht_extprotspacing, true, &status)) {
 

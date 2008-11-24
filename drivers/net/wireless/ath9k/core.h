@@ -633,11 +633,6 @@ enum PROT_MODE {
 	PROT_M_CTSONLY
 };
 
-struct ath_ht_info {
-	enum ath9k_ht_macmode tx_chan_width;
-	u8 ext_chan_offset;
-};
-
 #define SC_OP_INVALID		BIT(0)
 #define SC_OP_BEACONS		BIT(1)
 #define SC_OP_RXAGGR		BIT(2)
@@ -691,8 +686,8 @@ struct ath_softc {
 	u8 sc_rxotherant;		/* rx's on non-default antenna */
 
 	struct ath9k_node_stats sc_halstats; /* station-mode rssi stats */
-	struct ath_ht_info sc_ht_info;
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
+	enum ath9k_ht_macmode tx_chan_width;
 
 #ifdef CONFIG_SLOW_ANT_DIV
 	struct ath_antdiv sc_antdiv;
