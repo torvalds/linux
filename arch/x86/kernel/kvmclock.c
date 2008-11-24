@@ -194,5 +194,7 @@ void __init kvmclock_init(void)
 #endif
 		kvm_get_preset_lpj();
 		clocksource_register(&kvm_clock);
+		pv_info.paravirt_enabled = 1;
+		pv_info.name = "KVM";
 	}
 }
