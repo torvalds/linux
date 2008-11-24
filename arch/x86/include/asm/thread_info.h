@@ -40,36 +40,8 @@ struct thread_info {
 						*/
 	__u8			supervisor_stack[0];
 #endif
-
-#ifdef CONFIG_FUNCTION_RET_TRACER
-	/* Index of current stored adress in ret_stack */
-	int		curr_ret_stack;
-	/* Stack of return addresses for return function tracing */
-	struct ftrace_ret_stack	ret_stack[FTRACE_RET_STACK_SIZE];
-	/*
-	 * Number of functions that haven't been traced
-	 * because of depth overrun.
-	 */
-	atomic_t	trace_overrun;
-#endif
 };
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
-#define INIT_THREAD_INFO(tsk)			\
-{						\
-	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
-	.flags		= 0,			\
-	.cpu		= 0,			\
-	.preempt_count	= 1,			\
-	.addr_limit	= KERNEL_DS,		\
-	.restart_block = {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
-	.curr_ret_stack = -1,\
-	.trace_overrun	= ATOMIC_INIT(0)	\
-}
-#else
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
@@ -82,7 +54,6 @@ struct thread_info {
 		.fn = do_no_restart_syscall,	\
 	},					\
 }
-#endif
 
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)

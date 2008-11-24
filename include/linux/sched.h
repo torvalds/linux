@@ -1352,6 +1352,17 @@ struct task_struct {
 	unsigned long default_timer_slack_ns;
 
 	struct list_head	*scm_work_list;
+#ifdef CONFIG_FUNCTION_RET_TRACER
+	/* Index of current stored adress in ret_stack */
+	int curr_ret_stack;
+	/* Stack of return addresses for return function tracing */
+	struct ftrace_ret_stack	*ret_stack;
+	/*
+	 * Number of functions that haven't been traced
+	 * because of depth overrun.
+	 */
+	atomic_t trace_overrun;
+#endif
 };
 
 /*
@@ -2006,18 +2017,6 @@ static inline void setup_thread_stack(struct task_struct *p, struct task_struct 
 {
 	*task_thread_info(p) = *task_thread_info(org);
 	task_thread_info(p)->task = p;
-
-#ifdef CONFIG_FUNCTION_RET_TRACER
-	/*
-	 * When fork() creates a child process, this function is called.
-	 * But the child task may not inherit the return adresses traced
-	 * by the return function tracer because it will directly execute
-	 * in userspace and will not return to kernel functions its parent
-	 * used.
-	 */
-	task_thread_info(p)->curr_ret_stack = -1;
-	atomic_set(&task_thread_info(p)->trace_overrun, 0);
-#endif
 }
 
 static inline unsigned long *end_of_stack(struct task_struct *p)

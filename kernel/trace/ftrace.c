@@ -1498,9 +1498,76 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 #ifdef CONFIG_FUNCTION_RET_TRACER
 
+static atomic_t ftrace_retfunc_active;
+
 /* The callback that hooks the return of a function */
 trace_function_return_t ftrace_function_return =
 			(trace_function_return_t)ftrace_stub;
+
+
+/* Try to assign a return stack array on FTRACE_RETSTACK_ALLOC_SIZE tasks. */
+static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
+{
+	int i;
+	int ret = 0;
+	unsigned long flags;
+	int start = 0, end = FTRACE_RETSTACK_ALLOC_SIZE;
+	struct task_struct *g, *t;
+
+	for (i = 0; i < FTRACE_RETSTACK_ALLOC_SIZE; i++) {
+		ret_stack_list[i] = kmalloc(FTRACE_RETFUNC_DEPTH
+					* sizeof(struct ftrace_ret_stack),
+					GFP_KERNEL);
+		if (!ret_stack_list[i]) {
+			start = 0;
+			end = i;
+			ret = -ENOMEM;
+			goto free;
+		}
+	}
+
+	read_lock_irqsave(&tasklist_lock, flags);
+	do_each_thread(g, t) {
+		if (start == end) {
+			ret = -EAGAIN;
+			goto unlock;
+		}
+
+		if (t->ret_stack == NULL) {
+			t->ret_stack = ret_stack_list[start++];
+			t->curr_ret_stack = -1;
+			atomic_set(&t->trace_overrun, 0);
+		}
+	} while_each_thread(g, t);
+
+unlock:
+	read_unlock_irqrestore(&tasklist_lock, flags);
+free:
+	for (i = start; i < end; i++)
+		kfree(ret_stack_list[i]);
+	return ret;
+}
+
+/* Allocate a return stack for each task */
+static int start_return_tracing(void)
+{
+	struct ftrace_ret_stack **ret_stack_list;
+	int ret;
+
+	ret_stack_list = kmalloc(FTRACE_RETSTACK_ALLOC_SIZE *
+				sizeof(struct ftrace_ret_stack *),
+				GFP_KERNEL);
+
+	if (!ret_stack_list)
+		return -ENOMEM;
+
+	do {
+		ret = alloc_retstack_tasklist(ret_stack_list);
+	} while (ret == -EAGAIN);
+
+	kfree(ret_stack_list);
+	return ret;
+}
 
 int register_ftrace_return(trace_function_return_t func)
 {
@@ -1516,7 +1583,12 @@ int register_ftrace_return(trace_function_return_t func)
 		ret = -EBUSY;
 		goto out;
 	}
-
+	atomic_inc(&ftrace_retfunc_active);
+	ret = start_return_tracing();
+	if (ret) {
+		atomic_dec(&ftrace_retfunc_active);
+		goto out;
+	}
 	ftrace_tracing_type = FTRACE_TYPE_RETURN;
 	ftrace_function_return = func;
 	ftrace_startup();
@@ -1530,12 +1602,39 @@ void unregister_ftrace_return(void)
 {
 	mutex_lock(&ftrace_sysctl_lock);
 
+	atomic_dec(&ftrace_retfunc_active);
 	ftrace_function_return = (trace_function_return_t)ftrace_stub;
 	ftrace_shutdown();
 	/* Restore normal tracing type */
 	ftrace_tracing_type = FTRACE_TYPE_ENTER;
 
 	mutex_unlock(&ftrace_sysctl_lock);
+}
+
+/* Allocate a return stack for newly created task */
+void ftrace_retfunc_init_task(struct task_struct *t)
+{
+	if (atomic_read(&ftrace_retfunc_active)) {
+		t->ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
+				* sizeof(struct ftrace_ret_stack),
+				GFP_KERNEL);
+		if (!t->ret_stack)
+			return;
+		t->curr_ret_stack = -1;
+		atomic_set(&t->trace_overrun, 0);
+	} else
+		t->ret_stack = NULL;
+}
+
+void ftrace_retfunc_exit_task(struct task_struct *t)
+{
+	struct ftrace_ret_stack	*ret_stack = t->ret_stack;
+
+	t->ret_stack = NULL;
+	/* NULL must become visible to IRQs before we free it: */
+	barrier();
+
+	kfree(ret_stack);
 }
 #endif
 

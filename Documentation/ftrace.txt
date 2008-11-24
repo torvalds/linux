@@ -324,7 +324,7 @@ output. To see what is available, simply cat the file:
 
   cat /debug/tracing/trace_options
   print-parent nosym-offset nosym-addr noverbose noraw nohex nobin \
- noblock nostacktrace nosched-tree
+ noblock nostacktrace nosched-tree nouserstacktrace nosym-userobj
 
 To disable one of the options, echo in the option prepended with "no".
 
@@ -377,6 +377,20 @@ Here are the available options:
   stacktrace - This is one of the options that changes the trace itself.
 		When a trace is recorded, so is the stack of functions.
 		This allows for back traces of trace sites.
+
+  userstacktrace - This option changes the trace.
+		   It records a stacktrace of the current userspace thread.
+
+  sym-userobj - when user stacktrace are enabled, look up which object the
+		address belongs to, and print a relative address
+		This is especially useful when ASLR is on, otherwise you don't
+		get a chance to resolve the address to object/file/line after the app is no
+		longer running
+
+		The lookup is performed when you read trace,trace_pipe,latency_trace. Example:
+
+		a.out-1623  [000] 40874.465068: /root/a.out[+0x480] <-/root/a.out[+0
+x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 
   sched-tree - TBD (any users??)
 

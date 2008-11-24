@@ -3,6 +3,9 @@
 #  select HAVE_FUNCTION_TRACER:
 #
 
+config USER_STACKTRACE_SUPPORT
+	bool
+
 config NOP_TRACER
 	bool
 

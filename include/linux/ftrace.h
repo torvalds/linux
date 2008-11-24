@@ -257,6 +257,7 @@ extern int ftrace_dump_on_oops;
 
 extern void tracing_start(void);
 extern void tracing_stop(void);
+extern void ftrace_off_permanent(void);
 
 extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
@@ -290,6 +291,7 @@ ftrace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 0)));
 
 static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
+static inline void ftrace_off_permanent(void) { }
 static inline int
 ftrace_printk(const char *fmt, ...)
 {
@@ -323,6 +325,8 @@ struct ftrace_retfunc {
 };
 
 #ifdef CONFIG_FUNCTION_RET_TRACER
+#define FTRACE_RETFUNC_DEPTH 50
+#define FTRACE_RETSTACK_ALLOC_SIZE 32
 /* Type of a callback handler of tracing return function */
 typedef void (*trace_function_return_t)(struct ftrace_retfunc *);
 
@@ -330,6 +334,12 @@ extern int register_ftrace_return(trace_function_return_t func);
 /* The current handler in use */
 extern trace_function_return_t ftrace_function_return;
 extern void unregister_ftrace_return(void);
+
+extern void ftrace_retfunc_init_task(struct task_struct *t);
+extern void ftrace_retfunc_exit_task(struct task_struct *t);
+#else
+static inline void ftrace_retfunc_init_task(struct task_struct *t) { }
+static inline void ftrace_retfunc_exit_task(struct task_struct *t) { }
 #endif
 
 #endif /* _LINUX_FTRACE_H */
