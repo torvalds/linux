@@ -403,15 +403,6 @@ struct hid_output_fifo {
 #define HID_STAT_ADDED		1
 #define HID_STAT_PARSED		2
 
-#define HID_CTRL_RUNNING	1
-#define HID_OUT_RUNNING		2
-#define HID_IN_RUNNING		3
-#define HID_RESET_PENDING	4
-#define HID_SUSPENDED		5
-#define HID_CLEAR_HALT		6
-#define HID_DISCONNECTED	7
-#define HID_STARTED		8
-
 struct hid_input {
 	struct list_head list;
 	struct hid_report *report;
