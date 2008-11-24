@@ -32,16 +32,15 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/mach/flash.h>
 #include <mach/gpmc.h>
 #include <mach/onenand.h>
 #include <mach/gpio.h>
 #include <mach/pm.h>
 
-#include <linux/dma-mapping.h>
-#include <asm/dma-mapping.h>
 #include <mach/dma.h>
 
 #include <mach/board.h>
