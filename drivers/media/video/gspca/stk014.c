@@ -424,10 +424,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* beginning of the frame */
 #define STKHDRSZ 12
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-				data + STKHDRSZ, len - STKHDRSZ);
-#undef STKHDRSZ
-		return;
+		data += STKHDRSZ;
+		len -= STKHDRSZ;
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
