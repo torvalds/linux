@@ -3758,10 +3758,9 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 #ifdef CONFIG_NO_HZ
 static struct {
 	atomic_t load_balancer;
-	cpumask_t cpu_mask;
+	cpumask_var_t cpu_mask;
 } nohz ____cacheline_aligned = {
 	.load_balancer = ATOMIC_INIT(-1),
-	.cpu_mask = CPU_MASK_NONE,
 };
 
 /*
@@ -3789,7 +3788,7 @@ int select_nohz_load_balancer(int stop_tick)
 	int cpu = smp_processor_id();
 
 	if (stop_tick) {
-		cpu_set(cpu, nohz.cpu_mask);
+		cpumask_set_cpu(cpu, nohz.cpu_mask);
 		cpu_rq(cpu)->in_nohz_recently = 1;
 
 		/*
@@ -3803,7 +3802,7 @@ int select_nohz_load_balancer(int stop_tick)
 		}
 
 		/* time for ilb owner also to sleep */
-		if (cpus_weight(nohz.cpu_mask) == num_online_cpus()) {
+		if (cpumask_weight(nohz.cpu_mask) == num_online_cpus()) {
 			if (atomic_read(&nohz.load_balancer) == cpu)
 				atomic_set(&nohz.load_balancer, -1);
 			return 0;
@@ -3816,10 +3815,10 @@ int select_nohz_load_balancer(int stop_tick)
 		} else if (atomic_read(&nohz.load_balancer) == cpu)
 			return 1;
 	} else {
-		if (!cpu_isset(cpu, nohz.cpu_mask))
+		if (!cpumask_test_cpu(cpu, nohz.cpu_mask))
 			return 0;
 
-		cpu_clear(cpu, nohz.cpu_mask);
+		cpumask_clear_cpu(cpu, nohz.cpu_mask);
 
 		if (atomic_read(&nohz.load_balancer) == cpu)
 			if (atomic_cmpxchg(&nohz.load_balancer, cpu, -1) != cpu)
@@ -3930,12 +3929,13 @@ static void run_rebalance_domains(struct softirq_action *h)
 	 */
 	if (this_rq->idle_at_tick &&
 	    atomic_read(&nohz.load_balancer) == this_cpu) {
-		cpumask_t cpus = nohz.cpu_mask;
 		struct rq *rq;
 		int balance_cpu;
 
-		cpu_clear(this_cpu, cpus);
-		for_each_cpu(balance_cpu, &cpus) {
+		for_each_cpu(balance_cpu, nohz.cpu_mask) {
+			if (balance_cpu == this_cpu)
+				continue;
+
 			/*
 			 * If this cpu gets work to do, stop the load balancing
 			 * work being done for other cpus. Next load
@@ -3973,7 +3973,7 @@ static inline void trigger_load_balance(struct rq *rq, int cpu)
 		rq->in_nohz_recently = 0;
 
 		if (atomic_read(&nohz.load_balancer) == cpu) {
-			cpu_clear(cpu, nohz.cpu_mask);
+			cpumask_clear_cpu(cpu, nohz.cpu_mask);
 			atomic_set(&nohz.load_balancer, -1);
 		}
 
@@ -3986,7 +3986,7 @@ static inline void trigger_load_balance(struct rq *rq, int cpu)
 			 * TBD: Traverse the sched domains and nominate
 			 * the nearest cpu in the nohz.cpu_mask.
 			 */
-			int ilb = first_cpu(nohz.cpu_mask);
+			int ilb = cpumask_first(nohz.cpu_mask);
 
 			if (ilb < nr_cpu_ids)
 				resched_cpu(ilb);
@@ -3998,7 +3998,7 @@ static inline void trigger_load_balance(struct rq *rq, int cpu)
 	 * cpus with ticks stopped, is it time for that to stop?
 	 */
 	if (rq->idle_at_tick && atomic_read(&nohz.load_balancer) == cpu &&
-	    cpus_weight(nohz.cpu_mask) == num_online_cpus()) {
+	    cpumask_weight(nohz.cpu_mask) == num_online_cpus()) {
 		resched_cpu(cpu);
 		return;
 	}
@@ -4008,7 +4008,7 @@ static inline void trigger_load_balance(struct rq *rq, int cpu)
 	 * someone else, then no need raise the SCHED_SOFTIRQ
 	 */
 	if (rq->idle_at_tick && atomic_read(&nohz.load_balancer) != cpu &&
-	    cpu_isset(cpu, nohz.cpu_mask))
+	    cpumask_test_cpu(cpu, nohz.cpu_mask))
 		return;
 #endif
 	if (time_after_eq(jiffies, rq->next_balance))
@@ -8309,6 +8309,9 @@ void __init sched_init(void)
 
 	/* Allocate the nohz_cpu_mask if CONFIG_CPUMASK_OFFSTACK */
 	alloc_bootmem_cpumask_var(&nohz_cpu_mask);
+#ifdef CONFIG_NO_HZ
+	alloc_bootmem_cpumask_var(&nohz.cpu_mask);
+#endif
 
 	scheduler_running = 1;
 }
