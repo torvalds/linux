@@ -2073,6 +2073,8 @@ static struct snd_pci_quirk probe_mask_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x17aa, 0x20ac, "Thinkpad X/T/R61", 0x01),
 	/* broken BIOS */
 	SND_PCI_QUIRK(0x1028, 0x20ac, "Dell Studio Desktop", 0x01),
+	/* including bogus ALC268 in slot#2 that conflicts with ALC888 */
+	SND_PCI_QUIRK(0x17c0, 0x4085, "Medion MD96630", 0x01),
 	{}
 };
 
