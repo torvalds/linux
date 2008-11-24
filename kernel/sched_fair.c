@@ -1024,7 +1024,6 @@ static void yield_task_fair(struct rq *rq)
 #if defined(ARCH_HAS_SCHED_WAKE_IDLE)
 static int wake_idle(int cpu, struct task_struct *p)
 {
-	cpumask_t tmp;
 	struct sched_domain *sd;
 	int i;
 
@@ -1044,10 +1043,9 @@ static int wake_idle(int cpu, struct task_struct *p)
 		if ((sd->flags & SD_WAKE_IDLE)
 		    || ((sd->flags & SD_WAKE_IDLE_FAR)
 			&& !task_hot(p, task_rq(p)->clock, sd))) {
-			cpus_and(tmp, sd->span, p->cpus_allowed);
-			cpus_and(tmp, tmp, cpu_active_map);
-			for_each_cpu_mask_nr(i, tmp) {
-				if (idle_cpu(i)) {
+			for_each_cpu_and(i, sched_domain_span(sd),
+					 &p->cpus_allowed) {
+				if (cpu_active(i) && idle_cpu(i)) {
 					if (i != task_cpu(p)) {
 						schedstat_inc(p,
 						       se.nr_wakeups_idle);
@@ -1240,7 +1238,7 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	 * this_cpu and prev_cpu are present in:
 	 */
 	for_each_domain(this_cpu, sd) {
-		if (cpu_isset(prev_cpu, sd->span)) {
+		if (cpumask_test_cpu(prev_cpu, sched_domain_span(sd))) {
 			this_sd = sd;
 			break;
 		}

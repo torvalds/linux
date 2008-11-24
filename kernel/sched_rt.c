@@ -1017,7 +1017,8 @@ static int find_lowest_rq(struct task_struct *task)
 			cpumask_t domain_mask;
 			int       best_cpu;
 
-			cpus_and(domain_mask, sd->span, *lowest_mask);
+			cpumask_and(&domain_mask, sched_domain_span(sd),
+				    lowest_mask);
 
 			best_cpu = pick_optimal_cpu(this_cpu,
 						    &domain_mask);

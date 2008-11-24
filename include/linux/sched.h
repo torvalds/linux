@@ -786,6 +786,11 @@ struct sched_group {
 	u32 reciprocal_cpu_power;
 };
 
+static inline struct cpumask *sched_group_cpus(struct sched_group *sg)
+{
+	return &sg->cpumask;
+}
+
 enum sched_domain_level {
 	SD_LV_NONE = 0,
 	SD_LV_SIBLING,
@@ -865,6 +870,11 @@ struct sched_domain {
 	char *name;
 #endif
 };
+
+static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
+{
+	return &sd->span;
+}
 
 extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
 				    struct sched_domain_attr *dattr_new);

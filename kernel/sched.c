@@ -1501,7 +1501,7 @@ static int tg_shares_up(struct task_group *tg, void *data)
 	struct sched_domain *sd = data;
 	int i;
 
-	for_each_cpu_mask(i, sd->span) {
+	for_each_cpu(i, sched_domain_span(sd)) {
 		/*
 		 * If there are currently no tasks on the cpu pretend there
 		 * is one of average load so that when a new task gets to
@@ -1522,7 +1522,7 @@ static int tg_shares_up(struct task_group *tg, void *data)
 	if (!sd->parent || !(sd->parent->flags & SD_LOAD_BALANCE))
 		shares = tg->shares;
 
-	for_each_cpu_mask(i, sd->span)
+	for_each_cpu(i, sched_domain_span(sd))
 		update_group_shares_cpu(tg, i, shares, rq_weight);
 
 	return 0;
@@ -2053,15 +2053,17 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 		int i;
 
 		/* Skip over this group if it has no CPUs allowed */
-		if (!cpus_intersects(group->cpumask, p->cpus_allowed))
+		if (!cpumask_intersects(sched_group_cpus(group),
+					&p->cpus_allowed))
 			continue;
 
-		local_group = cpu_isset(this_cpu, group->cpumask);
+		local_group = cpumask_test_cpu(this_cpu,
+					       sched_group_cpus(group));
 
 		/* Tally up the load of all CPUs in the group */
 		avg_load = 0;
 
-		for_each_cpu(i, &group->cpumask) {
+		for_each_cpu(i, sched_group_cpus(group)) {
 			/* Bias balancing toward cpus of our domain */
 			if (local_group)
 				load = source_load(i, load_idx);
@@ -2093,17 +2095,14 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
  * find_idlest_cpu - find the idlest cpu among the cpus in group.
  */
 static int
-find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu,
-		cpumask_t *tmp)
+find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 {
 	unsigned long load, min_load = ULONG_MAX;
 	int idlest = -1;
 	int i;
 
 	/* Traverse only the allowed CPUs */
-	cpus_and(*tmp, group->cpumask, p->cpus_allowed);
-
-	for_each_cpu(i, tmp) {
+	for_each_cpu_and(i, sched_group_cpus(group), &p->cpus_allowed) {
 		load = weighted_cpuload(i);
 
 		if (load < min_load || (load == min_load && i == this_cpu)) {
@@ -2145,7 +2144,6 @@ static int sched_balance_self(int cpu, int flag)
 		update_shares(sd);
 
 	while (sd) {
-		cpumask_t span, tmpmask;
 		struct sched_group *group;
 		int new_cpu, weight;
 
@@ -2154,14 +2152,13 @@ static int sched_balance_self(int cpu, int flag)
 			continue;
 		}
 
-		span = sd->span;
 		group = find_idlest_group(sd, t, cpu);
 		if (!group) {
 			sd = sd->child;
 			continue;
 		}
 
-		new_cpu = find_idlest_cpu(group, t, cpu, &tmpmask);
+		new_cpu = find_idlest_cpu(group, t, cpu);
 		if (new_cpu == -1 || new_cpu == cpu) {
 			/* Now try balancing at a lower domain level of cpu */
 			sd = sd->child;
@@ -2170,10 +2167,10 @@ static int sched_balance_self(int cpu, int flag)
 
 		/* Now try balancing at a lower domain level of new_cpu */
 		cpu = new_cpu;
+		weight = cpumask_weight(sched_domain_span(sd));
 		sd = NULL;
-		weight = cpus_weight(span);
 		for_each_domain(cpu, tmp) {
-			if (weight <= cpus_weight(tmp->span))
+			if (weight <= cpumask_weight(sched_domain_span(tmp)))
 				break;
 			if (tmp->flags & flag)
 				sd = tmp;
@@ -2218,7 +2215,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 		cpu = task_cpu(p);
 
 		for_each_domain(this_cpu, sd) {
-			if (cpu_isset(cpu, sd->span)) {
+			if (cpumask_test_cpu(cpu, sched_domain_span(sd))) {
 				update_shares(sd);
 				break;
 			}
@@ -2266,7 +2263,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	else {
 		struct sched_domain *sd;
 		for_each_domain(this_cpu, sd) {
-			if (cpu_isset(cpu, sd->span)) {
+			if (cpumask_test_cpu(cpu, sched_domain_span(sd))) {
 				schedstat_inc(sd, ttwu_wake_remote);
 				break;
 			}
@@ -3109,10 +3106,11 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		unsigned long sum_avg_load_per_task;
 		unsigned long avg_load_per_task;
 
-		local_group = cpu_isset(this_cpu, group->cpumask);
+		local_group = cpumask_test_cpu(this_cpu,
+					       sched_group_cpus(group));
 
 		if (local_group)
-			balance_cpu = first_cpu(group->cpumask);
+			balance_cpu = cpumask_first(sched_group_cpus(group));
 
 		/* Tally up the load of all CPUs in the group */
 		sum_weighted_load = sum_nr_running = avg_load = 0;
@@ -3121,13 +3119,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		max_cpu_load = 0;
 		min_cpu_load = ~0UL;
 
-		for_each_cpu(i, &group->cpumask) {
-			struct rq *rq;
-
-			if (!cpu_isset(i, *cpus))
-				continue;
-
-			rq = cpu_rq(i);
+		for_each_cpu_and(i, sched_group_cpus(group), cpus) {
+			struct rq *rq = cpu_rq(i);
 
 			if (*sd_idle && rq->nr_running)
 				*sd_idle = 0;
@@ -3238,8 +3231,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		 */
 		if ((sum_nr_running < min_nr_running) ||
 		    (sum_nr_running == min_nr_running &&
-		     first_cpu(group->cpumask) <
-		     first_cpu(group_min->cpumask))) {
+		     cpumask_first(sched_group_cpus(group)) <
+		     cpumask_first(sched_group_cpus(group_min)))) {
 			group_min = group;
 			min_nr_running = sum_nr_running;
 			min_load_per_task = sum_weighted_load /
@@ -3254,8 +3247,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		if (sum_nr_running <= group_capacity - 1) {
 			if (sum_nr_running > leader_nr_running ||
 			    (sum_nr_running == leader_nr_running &&
-			     first_cpu(group->cpumask) >
-			      first_cpu(group_leader->cpumask))) {
+			     cpumask_first(sched_group_cpus(group)) >
+			     cpumask_first(sched_group_cpus(group_leader)))) {
 				group_leader = group;
 				leader_nr_running = sum_nr_running;
 			}
@@ -3400,7 +3393,7 @@ find_busiest_queue(struct sched_group *group, enum cpu_idle_type idle,
 	unsigned long max_load = 0;
 	int i;
 
-	for_each_cpu(i, &group->cpumask) {
+	for_each_cpu(i, sched_group_cpus(group)) {
 		unsigned long wl;
 
 		if (!cpu_isset(i, *cpus))
@@ -3746,7 +3739,7 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 	/* Search for an sd spanning us and the target CPU. */
 	for_each_domain(target_cpu, sd) {
 		if ((sd->flags & SD_LOAD_BALANCE) &&
-		    cpu_isset(busiest_cpu, sd->span))
+		    cpumask_test_cpu(busiest_cpu, sched_domain_span(sd)))
 				break;
 	}
 
@@ -6618,7 +6611,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 	struct sched_group *group = sd->groups;
 	char str[256];
 
-	cpulist_scnprintf(str, sizeof(str), sd->span);
+	cpulist_scnprintf(str, sizeof(str), *sched_domain_span(sd));
 	cpus_clear(*groupmask);
 
 	printk(KERN_DEBUG "%*s domain %d: ", level, "", level);
@@ -6633,11 +6626,11 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 
 	printk(KERN_CONT "span %s level %s\n", str, sd->name);
 
-	if (!cpu_isset(cpu, sd->span)) {
+	if (!cpumask_test_cpu(cpu, sched_domain_span(sd))) {
 		printk(KERN_ERR "ERROR: domain->span does not contain "
 				"CPU%d\n", cpu);
 	}
-	if (!cpu_isset(cpu, group->cpumask)) {
+	if (!cpumask_test_cpu(cpu, sched_group_cpus(group))) {
 		printk(KERN_ERR "ERROR: domain->groups does not contain"
 				" CPU%d\n", cpu);
 	}
@@ -6657,31 +6650,32 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 			break;
 		}
 
-		if (!cpus_weight(group->cpumask)) {
+		if (!cpumask_weight(sched_group_cpus(group))) {
 			printk(KERN_CONT "\n");
 			printk(KERN_ERR "ERROR: empty group\n");
 			break;
 		}
 
-		if (cpus_intersects(*groupmask, group->cpumask)) {
+		if (cpumask_intersects(groupmask, sched_group_cpus(group))) {
 			printk(KERN_CONT "\n");
 			printk(KERN_ERR "ERROR: repeated CPUs\n");
 			break;
 		}
 
-		cpus_or(*groupmask, *groupmask, group->cpumask);
+		cpumask_or(groupmask, groupmask, sched_group_cpus(group));
 
-		cpulist_scnprintf(str, sizeof(str), group->cpumask);
+		cpulist_scnprintf(str, sizeof(str), *sched_group_cpus(group));
 		printk(KERN_CONT " %s", str);
 
 		group = group->next;
 	} while (group != sd->groups);
 	printk(KERN_CONT "\n");
 
-	if (!cpus_equal(sd->span, *groupmask))
+	if (!cpumask_equal(sched_domain_span(sd), groupmask))
 		printk(KERN_ERR "ERROR: groups don't span domain->span\n");
 
-	if (sd->parent && !cpus_subset(*groupmask, sd->parent->span))
+	if (sd->parent &&
+	    !cpumask_subset(groupmask, sched_domain_span(sd->parent)))
 		printk(KERN_ERR "ERROR: parent span is not a superset "
 			"of domain->span\n");
 	return 0;
@@ -6721,7 +6715,7 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 
 static int sd_degenerate(struct sched_domain *sd)
 {
-	if (cpus_weight(sd->span) == 1)
+	if (cpumask_weight(sched_domain_span(sd)) == 1)
 		return 1;
 
 	/* Following flags need at least 2 groups */
@@ -6752,7 +6746,7 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 	if (sd_degenerate(parent))
 		return 1;
 
-	if (!cpus_equal(sd->span, parent->span))
+	if (!cpumask_equal(sched_domain_span(sd), sched_domain_span(parent)))
 		return 0;
 
 	/* Does parent contain flags not in child? */
@@ -6913,10 +6907,10 @@ init_sched_build_groups(const cpumask_t *span, const cpumask_t *cpu_map,
 		int group = group_fn(i, cpu_map, &sg, tmpmask);
 		int j;
 
-		if (cpu_isset(i, *covered))
+		if (cpumask_test_cpu(i, covered))
 			continue;
 
-		cpus_clear(sg->cpumask);
+		cpumask_clear(sched_group_cpus(sg));
 		sg->__cpu_power = 0;
 
 		for_each_cpu(j, span) {
@@ -6924,7 +6918,7 @@ init_sched_build_groups(const cpumask_t *span, const cpumask_t *cpu_map,
 				continue;
 
 			cpu_set(j, *covered);
-			cpu_set(j, sg->cpumask);
+			cpumask_set_cpu(j, sched_group_cpus(sg));
 		}
 		if (!first)
 			first = sg;
@@ -7119,11 +7113,11 @@ static void init_numa_sched_groups_power(struct sched_group *group_head)
 	if (!sg)
 		return;
 	do {
-		for_each_cpu(j, &sg->cpumask) {
+		for_each_cpu(j, sched_group_cpus(sg)) {
 			struct sched_domain *sd;
 
 			sd = &per_cpu(phys_domains, j);
-			if (j != first_cpu(sd->groups->cpumask)) {
+			if (j != cpumask_first(sched_group_cpus(sd->groups))) {
 				/*
 				 * Only add "power" once for each
 				 * physical package.
@@ -7200,7 +7194,7 @@ static void init_sched_groups_power(int cpu, struct sched_domain *sd)
 
 	WARN_ON(!sd || !sd->groups);
 
-	if (cpu != first_cpu(sd->groups->cpumask))
+	if (cpu != cpumask_first(sched_group_cpus(sd->groups)))
 		return;
 
 	child = sd->child;
@@ -7372,7 +7366,7 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 			sd = &per_cpu(allnodes_domains, i);
 			SD_INIT(sd, ALLNODES);
 			set_domain_attribute(sd, attr);
-			sd->span = *cpu_map;
+			cpumask_copy(sched_domain_span(sd), cpu_map);
 			cpu_to_allnodes_group(i, cpu_map, &sd->groups, tmpmask);
 			p = sd;
 			sd_allnodes = 1;
@@ -7382,18 +7376,19 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		sd = &per_cpu(node_domains, i);
 		SD_INIT(sd, NODE);
 		set_domain_attribute(sd, attr);
-		sched_domain_node_span(cpu_to_node(i), &sd->span);
+		sched_domain_node_span(cpu_to_node(i), sched_domain_span(sd));
 		sd->parent = p;
 		if (p)
 			p->child = sd;
-		cpus_and(sd->span, sd->span, *cpu_map);
+		cpumask_and(sched_domain_span(sd),
+			    sched_domain_span(sd), cpu_map);
 #endif
 
 		p = sd;
 		sd = &per_cpu(phys_domains, i);
 		SD_INIT(sd, CPU);
 		set_domain_attribute(sd, attr);
-		sd->span = *nodemask;
+		cpumask_copy(sched_domain_span(sd), nodemask);
 		sd->parent = p;
 		if (p)
 			p->child = sd;
@@ -7404,8 +7399,9 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		sd = &per_cpu(core_domains, i);
 		SD_INIT(sd, MC);
 		set_domain_attribute(sd, attr);
-		sd->span = cpu_coregroup_map(i);
-		cpus_and(sd->span, sd->span, *cpu_map);
+		*sched_domain_span(sd) = cpu_coregroup_map(i);
+		cpumask_and(sched_domain_span(sd),
+			    sched_domain_span(sd), cpu_map);
 		sd->parent = p;
 		p->child = sd;
 		cpu_to_core_group(i, cpu_map, &sd->groups, tmpmask);
@@ -7416,8 +7412,8 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		sd = &per_cpu(cpu_domains, i);
 		SD_INIT(sd, SIBLING);
 		set_domain_attribute(sd, attr);
-		sd->span = per_cpu(cpu_sibling_map, i);
-		cpus_and(sd->span, sd->span, *cpu_map);
+		cpumask_and(sched_domain_span(sd),
+			    &per_cpu(cpu_sibling_map, i), cpu_map);
 		sd->parent = p;
 		p->child = sd;
 		cpu_to_cpu_group(i, cpu_map, &sd->groups, tmpmask);
@@ -7503,7 +7499,7 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 			sd->groups = sg;
 		}
 		sg->__cpu_power = 0;
-		sg->cpumask = *nodemask;
+		cpumask_copy(sched_group_cpus(sg), nodemask);
 		sg->next = sg;
 		cpus_or(*covered, *covered, *nodemask);
 		prev = sg;
@@ -7530,7 +7526,7 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 				goto error;
 			}
 			sg->__cpu_power = 0;
-			sg->cpumask = *tmpmask;
+			cpumask_copy(sched_group_cpus(sg), tmpmask);
 			sg->next = prev->next;
 			cpus_or(*covered, *covered, *tmpmask);
 			prev->next = sg;
