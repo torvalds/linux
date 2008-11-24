@@ -33,6 +33,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include "twl4030.h"
 
@@ -189,10 +190,16 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 
 }
 
+/*
+ * FGAIN volume control:
+ * from -62 to 0 dB in 1 dB steps (mute instead of -63 dB)
+ */
+static DECLARE_TLV_DB_SCALE(master_tlv, -6300, 100, 1);
+
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
-	SOC_DOUBLE_R("Master Playback Volume",
+	SOC_DOUBLE_R_TLV("Master Playback Volume",
 		 TWL4030_REG_ARXL2PGA, TWL4030_REG_ARXR2PGA,
-		0, 0x3f, 0),
+		0, 0x3f, 0, master_tlv),
 	SOC_DOUBLE_R("Capture Volume",
 		 TWL4030_REG_ATXL1PGA, TWL4030_REG_ATXR1PGA,
 		0, 0x1f, 0),
