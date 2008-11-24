@@ -106,11 +106,6 @@ struct ibs_op_sample {
 	unsigned int ibs_dc_phys_high;
 };
 
-/*
- * unitialize the APIC for the IBS interrupts if needed on AMD Family10h+
- */
-static void clear_ibs_nmi(void);
-
 static int ibs_allowed;	/* AMD Family10h and later */
 
 struct op_ibs_config {
@@ -390,7 +385,7 @@ static inline void apic_clear_ibs_nmi_per_cpu(void *arg)
 	setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_FIX, 1);
 }
 
-static int pfm_amd64_setup_eilvt(void)
+static int init_ibs_nmi(void)
 {
 #define IBSCTL_LVTOFFSETVAL		(1 << 8)
 #define IBSCTL				0x1cc
@@ -438,15 +433,22 @@ static int pfm_amd64_setup_eilvt(void)
 	return 0;
 }
 
+/* uninitialize the APIC for the IBS interrupts if needed */
+static void clear_ibs_nmi(void)
+{
+	if (ibs_allowed)
+		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
+}
+
 /* initialize the APIC for the IBS interrupts if available */
-static void setup_ibs(void)
+static void ibs_init(void)
 {
 	ibs_allowed = boot_cpu_has(X86_FEATURE_IBS);
 
 	if (!ibs_allowed)
 		return;
 
-	if (pfm_amd64_setup_eilvt()) {
+	if (init_ibs_nmi()) {
 		ibs_allowed = 0;
 		return;
 	}
@@ -454,12 +456,12 @@ static void setup_ibs(void)
 	printk(KERN_INFO "oprofile: AMD IBS detected\n");
 }
 
-
-/* uninitialize the APIC for the IBS interrupts if needed */
-static void clear_ibs_nmi(void)
+static void ibs_exit(void)
 {
-	if (ibs_allowed)
-		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
+	if (!ibs_allowed)
+		return;
+
+	clear_ibs_nmi();
 }
 
 static int (*create_arch_files)(struct super_block *sb, struct dentry *root);
@@ -509,7 +511,7 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 
 static int op_amd_init(struct oprofile_operations *ops)
 {
-	setup_ibs();
+	ibs_init();
 	create_arch_files = ops->create_files;
 	ops->create_files = setup_ibs_files;
 	return 0;
@@ -517,7 +519,7 @@ static int op_amd_init(struct oprofile_operations *ops)
 
 static void op_amd_exit(void)
 {
-	clear_ibs_nmi();
+	ibs_exit();
 }
 
 #else
