@@ -2158,7 +2158,7 @@ static int hifn_setup_crypto_req(struct ablkcipher_request *req, u8 op,
 
 static int hifn_process_queue(struct hifn_device *dev)
 {
-	struct crypto_async_request *async_req;
+	struct crypto_async_request *async_req, *backlog;
 	struct hifn_context *ctx;
 	struct ablkcipher_request *req;
 	unsigned long flags;
@@ -2166,11 +2166,15 @@ static int hifn_process_queue(struct hifn_device *dev)
 
 	while (dev->started < HIFN_QUEUE_LENGTH) {
 		spin_lock_irqsave(&dev->lock, flags);
+		backlog = crypto_get_backlog(&dev->queue);
 		async_req = crypto_dequeue_request(&dev->queue);
 		spin_unlock_irqrestore(&dev->lock, flags);
 
 		if (!async_req)
 			break;
+
+		if (backlog)
+			backlog->complete(backlog, -EINPROGRESS);
 
 		ctx = crypto_tfm_ctx(async_req->tfm);
 		req = container_of(async_req, struct ablkcipher_request, base);
@@ -2575,6 +2579,9 @@ static void hifn_tasklet_callback(unsigned long data)
 	 * context or update is atomic (like setting dev->sa[i] to NULL).
 	 */
 	hifn_check_for_completion(dev, 0);
+
+	if (dev->started < HIFN_QUEUE_LENGTH &&	dev->queue.qlen)
+		hifn_process_queue(dev);
 }
 
 static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
