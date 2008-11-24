@@ -373,11 +373,13 @@ static struct sk_buff *drr_dequeue(struct Qdisc *sch)
 	struct sk_buff *skb;
 	unsigned int len;
 
-	while (!list_empty(&q->active)) {
+	if (list_empty(&q->active))
+		goto out;
+	while (1) {
 		cl = list_first_entry(&q->active, struct drr_class, alist);
 		skb = cl->qdisc->ops->peek(cl->qdisc);
 		if (skb == NULL)
-			goto skip;
+			goto out;
 
 		len = qdisc_pkt_len(skb);
 		if (len <= cl->deficit) {
@@ -390,9 +392,9 @@ static struct sk_buff *drr_dequeue(struct Qdisc *sch)
 		}
 
 		cl->deficit += cl->quantum;
-skip:
 		list_move_tail(&cl->alist, &q->active);
 	}
+out:
 	return NULL;
 }
 
