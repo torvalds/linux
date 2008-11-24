@@ -8018,6 +8018,7 @@ void __init sched_init_smp(void)
 	free_cpumask_var(non_isolated_cpus);
 
 	alloc_cpumask_var(&fallback_doms, GFP_KERNEL);
+	init_sched_rt_class();
 }
 #else
 void __init sched_init_smp(void)
