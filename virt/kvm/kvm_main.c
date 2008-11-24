@@ -192,15 +192,30 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 		return -EINVAL;
 	}
 
-	if (match->irq_requested) {
+	if (!match->irq_requested) {
+		INIT_WORK(&match->interrupt_work,
+				kvm_assigned_dev_interrupt_work_handler);
+		if (irqchip_in_kernel(kvm)) {
+			/* Register ack nofitier */
+			match->ack_notifier.gsi = -1;
+			match->ack_notifier.irq_acked =
+					kvm_assigned_dev_ack_irq;
+			kvm_register_irq_ack_notifier(kvm,
+					&match->ack_notifier);
+
+			/* Request IRQ source ID */
+			r = kvm_request_irq_source_id(kvm);
+			if (r < 0)
+				goto out_release;
+			else
+				match->irq_source_id = r;
+		}
+	} else {
 		match->guest_irq = assigned_irq->guest_irq;
 		match->ack_notifier.gsi = assigned_irq->guest_irq;
 		mutex_unlock(&kvm->lock);
 		return 0;
 	}
-
-	INIT_WORK(&match->interrupt_work,
-		  kvm_assigned_dev_interrupt_work_handler);
 
 	if (irqchip_in_kernel(kvm)) {
 		if (!capable(CAP_SYS_RAWIO)) {
@@ -214,13 +229,6 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 			match->host_irq = match->dev->irq;
 		match->guest_irq = assigned_irq->guest_irq;
 		match->ack_notifier.gsi = assigned_irq->guest_irq;
-		match->ack_notifier.irq_acked = kvm_assigned_dev_ack_irq;
-		kvm_register_irq_ack_notifier(kvm, &match->ack_notifier);
-		r = kvm_request_irq_source_id(kvm);
-		if (r < 0)
-			goto out_release;
-		else
-			match->irq_source_id = r;
 
 		/* Even though this is PCI, we don't want to use shared
 		 * interrupts. Sharing host devices with guest-assigned devices
