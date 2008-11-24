@@ -1868,7 +1868,7 @@ static inline struct inet_timewait_sock *tw_next(struct inet_timewait_sock *tw)
 static void *listening_get_next(struct seq_file *seq, void *cur)
 {
 	struct inet_connection_sock *icsk;
-	struct hlist_node *node;
+	struct hlist_nulls_node *node;
 	struct sock *sk = cur;
 	struct inet_listen_hashbucket *ilb;
 	struct tcp_iter_state *st = seq->private;
@@ -1878,7 +1878,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 		st->bucket = 0;
 		ilb = &tcp_hashinfo.listening_hash[0];
 		spin_lock_bh(&ilb->lock);
-		sk = sk_head(&ilb->head);
+		sk = sk_nulls_head(&ilb->head);
 		goto get_sk;
 	}
 	ilb = &tcp_hashinfo.listening_hash[st->bucket];
@@ -1914,7 +1914,7 @@ get_req:
 		sk = sk_next(sk);
 	}
 get_sk:
-	sk_for_each_from(sk, node) {
+	sk_nulls_for_each_from(sk, node) {
 		if (sk->sk_family == st->family && net_eq(sock_net(sk), net)) {
 			cur = sk;
 			goto out;
@@ -1935,7 +1935,7 @@ start_req:
 	if (++st->bucket < INET_LHTABLE_SIZE) {
 		ilb = &tcp_hashinfo.listening_hash[st->bucket];
 		spin_lock_bh(&ilb->lock);
-		sk = sk_head(&ilb->head);
+		sk = sk_nulls_head(&ilb->head);
 		goto get_sk;
 	}
 	cur = NULL;

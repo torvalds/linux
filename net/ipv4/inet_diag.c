@@ -720,13 +720,13 @@ static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
 			struct sock *sk;
-			struct hlist_node *node;
+			struct hlist_nulls_node *node;
 			struct inet_listen_hashbucket *ilb;
 
 			num = 0;
 			ilb = &hashinfo->listening_hash[i];
 			spin_lock_bh(&ilb->lock);
-			sk_for_each(sk, node, &ilb->head) {
+			sk_nulls_for_each(sk, node, &ilb->head) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (num < s_num) {

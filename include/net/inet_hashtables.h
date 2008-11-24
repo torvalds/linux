@@ -99,9 +99,16 @@ struct inet_bind_hashbucket {
 	struct hlist_head	chain;
 };
 
+/*
+ * Sockets can be hashed in established or listening table
+ * We must use different 'nulls' end-of-chain value for listening
+ * hash table, or we might find a socket that was closed and
+ * reallocated/inserted into established hash table
+ */
+#define LISTENING_NULLS_BASE (1U << 29)
 struct inet_listen_hashbucket {
 	spinlock_t		lock;
-	struct hlist_head	head;
+	struct hlist_nulls_head	head;
 };
 
 /* This is for listening sockets, thus all sockets which possess wildcards. */

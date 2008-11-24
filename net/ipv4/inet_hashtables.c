@@ -110,78 +110,79 @@ void __inet_inherit_port(struct sock *sk, struct sock *child)
 
 EXPORT_SYMBOL_GPL(__inet_inherit_port);
 
+static inline int compute_score(struct sock *sk, struct net *net,
+				const unsigned short hnum, const __be32 daddr,
+				const int dif)
+{
+	int score = -1;
+	struct inet_sock *inet = inet_sk(sk);
+
+	if (net_eq(sock_net(sk), net) && inet->num == hnum &&
+			!ipv6_only_sock(sk)) {
+		__be32 rcv_saddr = inet->rcv_saddr;
+		score = sk->sk_family == PF_INET ? 1 : 0;
+		if (rcv_saddr) {
+			if (rcv_saddr != daddr)
+				return -1;
+			score += 2;
+		}
+		if (sk->sk_bound_dev_if) {
+			if (sk->sk_bound_dev_if != dif)
+				return -1;
+			score += 2;
+		}
+	}
+	return score;
+}
+
 /*
  * Don't inline this cruft. Here are some nice properties to exploit here. The
  * BSD API does not allow a listening sock to specify the remote port nor the
  * remote address for the connection. So always assume those are both
  * wildcarded during the search since they can never be otherwise.
  */
-static struct sock *inet_lookup_listener_slow(struct net *net,
-					      const struct hlist_head *head,
-					      const __be32 daddr,
-					      const unsigned short hnum,
-					      const int dif)
-{
-	struct sock *result = NULL, *sk;
-	const struct hlist_node *node;
-	int hiscore = -1;
 
-	sk_for_each(sk, node, head) {
-		const struct inet_sock *inet = inet_sk(sk);
 
-		if (net_eq(sock_net(sk), net) && inet->num == hnum &&
-				!ipv6_only_sock(sk)) {
-			const __be32 rcv_saddr = inet->rcv_saddr;
-			int score = sk->sk_family == PF_INET ? 1 : 0;
-
-			if (rcv_saddr) {
-				if (rcv_saddr != daddr)
-					continue;
-				score += 2;
-			}
-			if (sk->sk_bound_dev_if) {
-				if (sk->sk_bound_dev_if != dif)
-					continue;
-				score += 2;
-			}
-			if (score == 5)
-				return sk;
-			if (score > hiscore) {
-				hiscore	= score;
-				result	= sk;
-			}
-		}
-	}
-	return result;
-}
-
-/* Optimize the common listener case. */
 struct sock *__inet_lookup_listener(struct net *net,
 				    struct inet_hashinfo *hashinfo,
 				    const __be32 daddr, const unsigned short hnum,
 				    const int dif)
 {
-	struct sock *sk = NULL;
-	struct inet_listen_hashbucket *ilb;
+	struct sock *sk, *result;
+	struct hlist_nulls_node *node;
+	unsigned int hash = inet_lhashfn(net, hnum);
+	struct inet_listen_hashbucket *ilb = &hashinfo->listening_hash[hash];
+	int score, hiscore;
 
-	ilb = &hashinfo->listening_hash[inet_lhashfn(net, hnum)];
-	spin_lock(&ilb->lock);
-	if (!hlist_empty(&ilb->head)) {
-		const struct inet_sock *inet = inet_sk((sk = __sk_head(&ilb->head)));
-
-		if (inet->num == hnum && !sk->sk_node.next &&
-		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
-		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
-		    !sk->sk_bound_dev_if && net_eq(sock_net(sk), net))
-			goto sherry_cache;
-		sk = inet_lookup_listener_slow(net, &ilb->head, daddr, hnum, dif);
+	rcu_read_lock();
+begin:
+	result = NULL;
+	hiscore = -1;
+	sk_nulls_for_each_rcu(sk, node, &ilb->head) {
+		score = compute_score(sk, net, hnum, daddr, dif);
+		if (score > hiscore) {
+			result = sk;
+			hiscore = score;
+		}
 	}
-	if (sk) {
-sherry_cache:
-		sock_hold(sk);
+	/*
+	 * if the nulls value we got at the end of this lookup is
+	 * not the expected one, we must restart lookup.
+	 * We probably met an item that was moved to another chain.
+	 */
+	if (get_nulls_value(node) != hash + LISTENING_NULLS_BASE)
+		goto begin;
+	if (result) {
+		if (unlikely(!atomic_inc_not_zero(&result->sk_refcnt)))
+			result = NULL;
+		else if (unlikely(compute_score(result, net, hnum, daddr,
+				  dif) < hiscore)) {
+			sock_put(result);
+			goto begin;
+		}
 	}
-	spin_unlock(&ilb->lock);
-	return sk;
+	rcu_read_unlock();
+	return result;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
 
@@ -370,7 +371,7 @@ static void __inet_hash(struct sock *sk)
 	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 
 	spin_lock(&ilb->lock);
-	__sk_add_node(sk, &ilb->head);
+	__sk_nulls_add_node_rcu(sk, &ilb->head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	spin_unlock(&ilb->lock);
 }
@@ -388,26 +389,22 @@ EXPORT_SYMBOL_GPL(inet_hash);
 void inet_unhash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
+	spinlock_t *lock;
+	int done;
 
 	if (sk_unhashed(sk))
 		return;
 
-	if (sk->sk_state == TCP_LISTEN) {
-		struct inet_listen_hashbucket *ilb;
+	if (sk->sk_state == TCP_LISTEN)
+		lock = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)].lock;
+	else
+		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 
-		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
-		spin_lock_bh(&ilb->lock);
-		if (__sk_del_node_init(sk))
-			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
-		spin_unlock_bh(&ilb->lock);
-	} else {
-		spinlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
-
-		spin_lock_bh(lock);
-		if (__sk_nulls_del_node_init_rcu(sk))
-			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
-		spin_unlock_bh(lock);
-	}
+	spin_lock_bh(lock);
+	done =__sk_nulls_del_node_init_rcu(sk);
+	spin_unlock_bh(lock);
+	if (done)
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 }
 EXPORT_SYMBOL_GPL(inet_unhash);
 
@@ -526,8 +523,11 @@ void inet_hashinfo_init(struct inet_hashinfo *h)
 {
 	int i;
 
-	for (i = 0; i < INET_LHTABLE_SIZE; i++)
+	for (i = 0; i < INET_LHTABLE_SIZE; i++) {
 		spin_lock_init(&h->listening_hash[i].lock);
+		INIT_HLIST_NULLS_HEAD(&h->listening_hash[i].head,
+				      i + LISTENING_NULLS_BASE);
+		}
 }
 
 EXPORT_SYMBOL_GPL(inet_hashinfo_init);
