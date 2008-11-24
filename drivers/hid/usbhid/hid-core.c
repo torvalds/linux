@@ -805,7 +805,7 @@ static int usbhid_start(struct hid_device *hid)
 		int interval;
 
 		endpoint = &interface->endpoint[n].desc;
-		if ((endpoint->bmAttributes & 3) != 3)		/* Not an interrupt endpoint */
+		if (!usb_endpoint_xfer_int(endpoint))
 			continue;
 
 		interval = endpoint->bInterval;
