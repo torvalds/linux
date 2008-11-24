@@ -3614,7 +3614,11 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 
 	SCTP_DBG_OBJCNT_INC(sock);
 	atomic_inc(&sctp_sockets_allocated);
+
+	local_bh_disable();
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	local_bh_enable();
+
 	return 0;
 }
 

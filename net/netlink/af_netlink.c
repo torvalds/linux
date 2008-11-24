@@ -452,7 +452,10 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol)
 	if (err < 0)
 		goto out_module;
 
+	local_bh_disable();
 	sock_prot_inuse_add(net, &netlink_proto, 1);
+	local_bh_enable();
+
 	nlk = nlk_sk(sock->sk);
 	nlk->module = module;
 out:
