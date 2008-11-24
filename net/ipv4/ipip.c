@@ -793,9 +793,9 @@ static int ipip_init_net(struct net *net)
 		err = -ENOMEM;
 		goto err_alloc_dev;
 	}
+	dev_net_set(ipn->fb_tunnel_dev, net);
 
 	ipip_fb_tunnel_init(ipn->fb_tunnel_dev);
-	dev_net_set(ipn->fb_tunnel_dev, net);
 
 	if ((err = register_netdev(ipn->fb_tunnel_dev)))
 		goto err_reg_dev;

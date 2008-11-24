@@ -1025,9 +1025,9 @@ static int sit_init_net(struct net *net)
 		err = -ENOMEM;
 		goto err_alloc_dev;
 	}
+	dev_net_set(sitn->fb_tunnel_dev, net);
 
 	ipip6_fb_tunnel_init(sitn->fb_tunnel_dev);
-	dev_net_set(sitn->fb_tunnel_dev, net);
 
 	if ((err = register_netdev(sitn->fb_tunnel_dev)))
 		goto err_reg_dev;

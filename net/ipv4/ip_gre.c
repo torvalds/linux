@@ -1268,9 +1268,9 @@ static int ipgre_init_net(struct net *net)
 		err = -ENOMEM;
 		goto err_alloc_dev;
 	}
+	dev_net_set(ign->fb_tunnel_dev, net);
 
 	ipgre_fb_tunnel_init(ign->fb_tunnel_dev);
-	dev_net_set(ign->fb_tunnel_dev, net);
 	ign->fb_tunnel_dev->rtnl_link_ops = &ipgre_link_ops;
 
 	if ((err = register_netdev(ign->fb_tunnel_dev)))
