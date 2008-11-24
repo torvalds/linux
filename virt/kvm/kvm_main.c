@@ -176,6 +176,41 @@ void kvm_free_all_assigned_devices(struct kvm *kvm)
 	}
 }
 
+static int assigned_device_update_intx(struct kvm *kvm,
+			struct kvm_assigned_dev_kernel *adev,
+			struct kvm_assigned_irq *airq)
+{
+	if (adev->irq_requested) {
+		adev->guest_irq = airq->guest_irq;
+		adev->ack_notifier.gsi = airq->guest_irq;
+		return 0;
+	}
+
+	if (irqchip_in_kernel(kvm)) {
+		if (!capable(CAP_SYS_RAWIO))
+			return -EPERM;
+
+		if (airq->host_irq)
+			adev->host_irq = airq->host_irq;
+		else
+			adev->host_irq = adev->dev->irq;
+		adev->guest_irq = airq->guest_irq;
+		adev->ack_notifier.gsi = airq->guest_irq;
+
+		/* Even though this is PCI, we don't want to use shared
+		 * interrupts. Sharing host devices with guest-assigned devices
+		 * on the same interrupt line is not a happy situation: there
+		 * are going to be long delays in accepting, acking, etc.
+		 */
+		if (request_irq(adev->host_irq, kvm_assigned_dev_intr,
+				0, "kvm_assigned_intx_device", (void *)adev))
+			return -EIO;
+	}
+
+	adev->irq_requested = true;
+	return 0;
+}
+
 static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 				   struct kvm_assigned_irq
 				   *assigned_irq)
@@ -210,39 +245,12 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 			else
 				match->irq_source_id = r;
 		}
-	} else {
-		match->guest_irq = assigned_irq->guest_irq;
-		match->ack_notifier.gsi = assigned_irq->guest_irq;
-		mutex_unlock(&kvm->lock);
-		return 0;
 	}
 
-	if (irqchip_in_kernel(kvm)) {
-		if (!capable(CAP_SYS_RAWIO)) {
-			r = -EPERM;
-			goto out_release;
-		}
+	r = assigned_device_update_intx(kvm, match, assigned_irq);
+	if (r)
+		goto out_release;
 
-		if (assigned_irq->host_irq)
-			match->host_irq = assigned_irq->host_irq;
-		else
-			match->host_irq = match->dev->irq;
-		match->guest_irq = assigned_irq->guest_irq;
-		match->ack_notifier.gsi = assigned_irq->guest_irq;
-
-		/* Even though this is PCI, we don't want to use shared
-		 * interrupts. Sharing host devices with guest-assigned devices
-		 * on the same interrupt line is not a happy situation: there
-		 * are going to be long delays in accepting, acking, etc.
-		 */
-		if (request_irq(match->host_irq, kvm_assigned_dev_intr, 0,
-				"kvm_assigned_device", (void *)match)) {
-			r = -EIO;
-			goto out_release;
-		}
-	}
-
-	match->irq_requested = true;
 	mutex_unlock(&kvm->lock);
 	return r;
 out_release:
