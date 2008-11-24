@@ -1017,7 +1017,7 @@ static void yield_task_fair(struct rq *rq)
  * search starts with cpus closest then further out as needed,
  * so we always favor a closer, idle cpu.
  * Domains may include CPUs that are not usable for migration,
- * hence we need to mask them out (cpu_active_map)
+ * hence we need to mask them out (cpu_active_mask)
  *
  * Returns the CPU we should wake onto.
  */
@@ -1244,7 +1244,7 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 		}
 	}
 
-	if (unlikely(!cpu_isset(this_cpu, p->cpus_allowed)))
+	if (unlikely(!cpumask_test_cpu(this_cpu, &p->cpus_allowed)))
 		goto out;
 
 	/*
