@@ -2486,7 +2486,9 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 	vmx_update_window_states(vcpu);
 
 	if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
-		if (vcpu->arch.nmi_window_open) {
+		if (vcpu->arch.interrupt.pending) {
+			enable_nmi_window(vcpu);
+		} else if (vcpu->arch.nmi_window_open) {
 			vcpu->arch.nmi_pending = false;
 			vcpu->arch.nmi_injected = true;
 		} else {
