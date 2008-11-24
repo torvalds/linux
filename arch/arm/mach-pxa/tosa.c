@@ -25,6 +25,7 @@
 #include <linux/mfd/tmio.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/pm.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -831,6 +832,36 @@ static struct spi_board_info spi_board_info[] __initdata = {
 	},
 };
 
+static struct mtd_partition sharpsl_rom_parts[] = {
+	{
+		.name	="Boot PROM Filesystem",
+		.offset	= 0x00160000,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data sharpsl_rom_data = {
+	.width		= 2,
+	.nr_parts	= ARRAY_SIZE(sharpsl_rom_parts),
+	.parts		= sharpsl_rom_parts,
+};
+
+static struct resource sharpsl_rom_resources[] = {
+	{
+		.start	= 0x00000000,
+		.end	= 0x007fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device sharpsl_rom_device = {
+	.name	= "physmap-flash",
+	.id	= -1,
+	.resource = sharpsl_rom_resources,
+	.num_resources = ARRAY_SIZE(sharpsl_rom_resources),
+	.dev.platform_data = &sharpsl_rom_data,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
@@ -840,6 +871,7 @@ static struct platform_device *devices[] __initdata = {
 	&tosa_gpio_keys_device,
 	&tosaled_device,
 	&tosa_bt_device,
+	&sharpsl_rom_device,
 };
 
 static void tosa_poweroff(void)
