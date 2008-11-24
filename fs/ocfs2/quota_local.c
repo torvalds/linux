@@ -988,7 +988,7 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 		goto out_trans;
 	}
 	lock_buffer(bh);
-	dchunk->dqc_free = ol_quota_entries_per_block(sb);
+	dchunk->dqc_free = cpu_to_le32(ol_quota_entries_per_block(sb));
 	memset(dchunk->dqc_bitmap, 0,
 	       sb->s_blocksize - sizeof(struct ocfs2_local_disk_chunk) -
 	       OCFS2_QBLK_RESERVED_SPACE);
@@ -1110,7 +1110,7 @@ out:
 	return ERR_PTR(status);
 }
 
-void olq_alloc_dquot(struct buffer_head *bh, void *private)
+static void olq_alloc_dquot(struct buffer_head *bh, void *private)
 {
 	int *offset = private;
 	struct ocfs2_local_disk_chunk *dchunk;
