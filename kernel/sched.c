@@ -6706,7 +6706,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 
 static void sched_domain_debug(struct sched_domain *sd, int cpu)
 {
-	cpumask_t *groupmask;
+	cpumask_var_t groupmask;
 	int level = 0;
 
 	if (!sd) {
@@ -6716,8 +6716,7 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 
 	printk(KERN_DEBUG "CPU%d attaching sched-domain:\n", cpu);
 
-	groupmask = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
-	if (!groupmask) {
+	if (!alloc_cpumask_var(&groupmask, GFP_KERNEL)) {
 		printk(KERN_DEBUG "Cannot load-balance (out of memory)\n");
 		return;
 	}
@@ -6730,7 +6729,7 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 		if (!sd)
 			break;
 	}
-	kfree(groupmask);
+	free_cpumask_var(groupmask);
 }
 #else /* !CONFIG_SCHED_DEBUG */
 # define sched_domain_debug(sd, cpu) do { } while (0)
