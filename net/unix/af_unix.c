@@ -615,9 +615,11 @@ static struct sock *unix_create1(struct net *net, struct socket *sock)
 out:
 	if (sk == NULL)
 		atomic_dec(&unix_nr_socks);
-	else
+	else {
+		local_bh_disable();
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-
+		local_bh_enable();
+	}
 	return sk;
 }
 
