@@ -153,8 +153,8 @@ static void ioapic_inj_nmi(struct kvm_vcpu *vcpu)
 	kvm_vcpu_kick(vcpu);
 }
 
-static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
-				       u8 dest_mode)
+u32 kvm_ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
+				    u8 dest_mode)
 {
 	u32 mask = 0;
 	int i;
@@ -208,7 +208,8 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 		     "vector=%x trig_mode=%x\n",
 		     dest, dest_mode, delivery_mode, vector, trig_mode);
 
-	deliver_bitmask = ioapic_get_delivery_bitmask(ioapic, dest, dest_mode);
+	deliver_bitmask = kvm_ioapic_get_delivery_bitmask(ioapic, dest,
+							  dest_mode);
 	if (!deliver_bitmask) {
 		ioapic_debug("no target on destination\n");
 		return 0;
