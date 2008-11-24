@@ -389,6 +389,13 @@ UNUSUAL_DEV(  0x04b0, 0x0401, 0x0200, 0x0200,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Reported by Tobias Kunze Briseno <t-linux@fictive.com> */
+UNUSUAL_DEV(  0x04b0, 0x0403, 0x0200, 0x0200,
+		"NIKON",
+		"NIKON DSC D2H",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* Reported by Milinevsky Dmitry <niam.niam@gmail.com> */
 UNUSUAL_DEV(  0x04b0, 0x0409, 0x0100, 0x0100,
 		"NIKON",
