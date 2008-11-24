@@ -96,6 +96,12 @@ struct otg_transceiver *otg_get_transceiver(void)
 }
 EXPORT_SYMBOL(otg_get_transceiver);
 
+void otg_put_transceiver(struct otg_transceiver *x)
+{
+	put_device(x->dev);
+}
+EXPORT_SYMBOL(otg_put_transceiver);
+
 int otg_set_transceiver(struct otg_transceiver *x)
 {
 	if (xceiv && x)
