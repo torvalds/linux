@@ -161,7 +161,7 @@ static int _get_more_prng_bytes(struct prng_context *ctx)
 	/*
 	 * Now update our DT value
 	 */
-	for (i = 0; i < DEFAULT_BLK_SZ; i++) {
+	for (i = DEFAULT_BLK_SZ - 1; i >= 0; i--) {
 		ctx->DT[i] += 1;
 		if (ctx->DT[i] != 0)
 			break;
