@@ -771,7 +771,6 @@ enum cpu_idle_type {
 
 struct sched_group {
 	struct sched_group *next;	/* Must be a circular list */
-	cpumask_t cpumask;
 
 	/*
 	 * CPU power of this group, SCHED_LOAD_SCALE being max power for a
@@ -784,11 +783,13 @@ struct sched_group {
 	 * (see include/linux/reciprocal_div.h)
 	 */
 	u32 reciprocal_cpu_power;
+
+	unsigned long cpumask[];
 };
 
 static inline struct cpumask *sched_group_cpus(struct sched_group *sg)
 {
-	return &sg->cpumask;
+	return to_cpumask(sg->cpumask);
 }
 
 enum sched_domain_level {
@@ -814,7 +815,6 @@ struct sched_domain {
 	struct sched_domain *parent;	/* top domain must be null terminated */
 	struct sched_domain *child;	/* bottom domain must be null terminated */
 	struct sched_group *groups;	/* the balancing groups of the domain */
-	cpumask_t span;			/* span of all CPUs in this domain */
 	unsigned long min_interval;	/* Minimum balance interval ms */
 	unsigned long max_interval;	/* Maximum balance interval ms */
 	unsigned int busy_factor;	/* less balancing by factor if busy */
@@ -869,11 +869,14 @@ struct sched_domain {
 #ifdef CONFIG_SCHED_DEBUG
 	char *name;
 #endif
+
+	/* span of all CPUs in this domain */
+	unsigned long span[];
 };
 
 static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
 {
-	return &sd->span;
+	return to_cpumask(sd->span);
 }
 
 extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
