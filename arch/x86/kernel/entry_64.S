@@ -1002,7 +1002,7 @@ END(\sym)
 .endm
 
 .macro paranoidzeroentry sym do_sym
-KPROBE_ENTRY(\sym)
+ENTRY(\sym)
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $-1		/* ORIG_RAX: no syscall to restart */
@@ -1015,11 +1015,11 @@ KPROBE_ENTRY(\sym)
 	call \do_sym
 	jmp paranoid_exit	/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-KPROBE_END(\sym)
+END(\sym)
 .endm
 
 .macro paranoidzeroentry_ist sym do_sym ist
-KPROBE_ENTRY(\sym)
+ENTRY(\sym)
  	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $-1		/* ORIG_RAX: no syscall to restart */
@@ -1035,15 +1035,11 @@ KPROBE_ENTRY(\sym)
 	addq $EXCEPTION_STKSZ, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
 	jmp paranoid_exit	/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-KPROBE_END(\sym)
+END(\sym)
 .endm
 
-.macro errorentry sym do_sym entry=0
-.if \entry
-KPROBE_ENTRY(\sym)
-.else
+.macro errorentry sym do_sym
 ENTRY(\sym)
-.endif
 	XCPT_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	subq $15*8,%rsp
@@ -1056,20 +1052,12 @@ ENTRY(\sym)
 	call \do_sym
 	jmp error_exit			/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-.if \entry
-KPROBE_END(\sym)
-.else
 END(\sym)
-.endif
 .endm
 
 	/* error code is on the stack already */
-.macro paranoiderrorentry sym do_sym entry=1
-.if \entry
-KPROBE_ENTRY(\sym)
-.else
+.macro paranoiderrorentry sym do_sym
 ENTRY(\sym)
-.endif
 	XCPT_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	subq $15*8,%rsp
@@ -1083,165 +1071,22 @@ ENTRY(\sym)
 	call \do_sym
 	jmp paranoid_exit		/* %ebx: no swapgs flag */
 	CFI_ENDPROC
-.if \entry
-KPROBE_END(\sym)
-.else
 END(\sym)
-.endif
 .endm
 
 zeroentry divide_error do_divide_error
-paranoidzeroentry_ist debug do_debug DEBUG_STACK
-paranoidzeroentry_ist int3 do_int3 DEBUG_STACK
 zeroentry overflow do_overflow
 zeroentry bounds do_bounds
 zeroentry invalid_op do_invalid_op
 zeroentry device_not_available do_device_not_available
-paranoiderrorentry double_fault do_double_fault 0
+paranoiderrorentry double_fault do_double_fault
 zeroentry coprocessor_segment_overrun do_coprocessor_segment_overrun
 errorentry invalid_TSS do_invalid_TSS
 errorentry segment_not_present do_segment_not_present
-paranoiderrorentry stack_segment do_stack_segment
-errorentry general_protection do_general_protection 1
-errorentry page_fault do_page_fault 1
 zeroentry spurious_interrupt_bug do_spurious_interrupt_bug
 zeroentry coprocessor_error do_coprocessor_error
 errorentry alignment_check do_alignment_check
-#ifdef CONFIG_X86_MCE
-paranoidzeroentry machine_check do_machine_check
-#endif
 zeroentry simd_coprocessor_error do_simd_coprocessor_error
-
-	/*
- 	 * "Paranoid" exit path from exception stack.
-  	 * Paranoid because this is used by NMIs and cannot take
-	 * any kernel state for granted.
-	 * We don't do kernel preemption checks here, because only
-	 * NMI should be common and it does not enable IRQs and
-	 * cannot get reschedule ticks.
-	 *
-	 * "trace" is 0 for the NMI handler only, because irq-tracing
-	 * is fundamentally NMI-unsafe. (we cannot change the soft and
-	 * hard flags at once, atomically)
-	 */
-
-	/* ebx:	no swapgs flag */
-KPROBE_ENTRY(paranoid_exit)
-	INTR_FRAME
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	testl %ebx,%ebx				/* swapgs needed? */
-	jnz paranoid_restore
-	testl $3,CS(%rsp)
-	jnz   paranoid_userspace
-paranoid_swapgs:
-	TRACE_IRQS_IRETQ 0
-	SWAPGS_UNSAFE_STACK
-paranoid_restore:
-	RESTORE_ALL 8
-	jmp irq_return
-paranoid_userspace:
-	GET_THREAD_INFO(%rcx)
-	movl TI_flags(%rcx),%ebx
-	andl $_TIF_WORK_MASK,%ebx
-	jz paranoid_swapgs
-	movq %rsp,%rdi			/* &pt_regs */
-	call sync_regs
-	movq %rax,%rsp			/* switch stack for scheduling */
-	testl $_TIF_NEED_RESCHED,%ebx
-	jnz paranoid_schedule
-	movl %ebx,%edx			/* arg3: thread flags */
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	xorl %esi,%esi 			/* arg2: oldset */
-	movq %rsp,%rdi 			/* arg1: &pt_regs */
-	call do_notify_resume
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	jmp paranoid_userspace
-paranoid_schedule:
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)
-	call schedule
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	TRACE_IRQS_OFF
-	jmp paranoid_userspace
-	CFI_ENDPROC
-KPROBE_END(paranoid_exit)
-
-/*
- * Exception entry point. This expects an error code/orig_rax on the stack.
- * returns in "no swapgs flag" in %ebx.
- */
-KPROBE_ENTRY(error_entry)
-	XCPT_FRAME
-	CFI_ADJUST_CFA_OFFSET 15*8
-	/* oldrax contains error code */
-	cld
-	movq_cfi rdi, RDI+8
-	movq_cfi rsi, RSI+8
-	movq_cfi rdx, RDX+8
-	movq_cfi rcx, RCX+8
-	movq_cfi rax, RAX+8
-	movq_cfi  r8,  R8+8
-	movq_cfi  r9,  R9+8
-	movq_cfi r10, R10+8
-	movq_cfi r11, R11+8
-	movq_cfi rbx, RBX+8
-	movq_cfi rbp, RBP+8
-	movq_cfi r12, R12+8
-	movq_cfi r13, R13+8
-	movq_cfi r14, R14+8
-	movq_cfi r15, R15+8
-	xorl %ebx,%ebx
-	testl $3,CS+8(%rsp)
-	je error_kernelspace
-error_swapgs:
-	SWAPGS
-error_sti:
-	TRACE_IRQS_OFF
-	ret
-	CFI_ENDPROC
-
-/*
- * There are two places in the kernel that can potentially fault with
- * usergs. Handle them here. The exception handlers after iret run with
- * kernel gs again, so don't set the user space flag. B stepping K8s
- * sometimes report an truncated RIP for IRET exceptions returning to
- * compat mode. Check for these here too.
- */
-error_kernelspace:
-	incl %ebx
-	leaq irq_return(%rip),%rcx
-	cmpq %rcx,RIP+8(%rsp)
-	je error_swapgs
-	movl %ecx,%ecx	/* zero extend */
-	cmpq %rcx,RIP+8(%rsp)
-	je error_swapgs
-	cmpq $gs_change,RIP+8(%rsp)
-        je error_swapgs
-	jmp error_sti
-KPROBE_END(error_entry)
-
-
-/* ebx:	no swapgs flag (1: don't need swapgs, 0: need it) */
-KPROBE_ENTRY(error_exit)
-	DEFAULT_FRAME
-	movl %ebx,%eax
-	RESTORE_REST
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	GET_THREAD_INFO(%rcx)
-	testl %eax,%eax
-	jne retint_kernel
-	LOCKDEP_SYS_EXIT_IRQ
-	movl TI_flags(%rcx),%edx
-	movl $_TIF_WORK_MASK,%edi
-	andl %edi,%edx
-	jnz retint_careful
-	jmp retint_swapgs
-	CFI_ENDPROC
-KPROBE_END(error_exit)
 
        /* Reload gs selector with exception handling */
        /* edi:  new selector */
@@ -1362,61 +1207,6 @@ ENTRY(kernel_execve)
 	CFI_ENDPROC
 END(kernel_execve)
 
-	/* runs on exception stack */
-KPROBE_ENTRY(nmi)
-	INTR_FRAME
-	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	pushq_cfi $-1
-	subq $15*8, %rsp
-	CFI_ADJUST_CFA_OFFSET 15*8
-	call save_paranoid
-	DEFAULT_FRAME 0
-	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */
-	movq %rsp,%rdi
-	movq $-1,%rsi
-	call do_nmi
-#ifdef CONFIG_TRACE_IRQFLAGS
-	/* paranoidexit; without TRACE_IRQS_OFF */
-	/* ebx:	no swapgs flag */
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	testl %ebx,%ebx				/* swapgs needed? */
-	jnz nmi_restore
-	testl $3,CS(%rsp)
-	jnz nmi_userspace
-nmi_swapgs:
-	SWAPGS_UNSAFE_STACK
-nmi_restore:
-	RESTORE_ALL 8
-	jmp irq_return
-nmi_userspace:
-	GET_THREAD_INFO(%rcx)
-	movl TI_flags(%rcx),%ebx
-	andl $_TIF_WORK_MASK,%ebx
-	jz nmi_swapgs
-	movq %rsp,%rdi			/* &pt_regs */
-	call sync_regs
-	movq %rax,%rsp			/* switch stack for scheduling */
-	testl $_TIF_NEED_RESCHED,%ebx
-	jnz nmi_schedule
-	movl %ebx,%edx			/* arg3: thread flags */
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	xorl %esi,%esi 			/* arg2: oldset */
-	movq %rsp,%rdi 			/* arg1: &pt_regs */
-	call do_notify_resume
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	jmp nmi_userspace
-nmi_schedule:
-	ENABLE_INTERRUPTS(CLBR_ANY)
-	call schedule
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	jmp nmi_userspace
-	CFI_ENDPROC
-#else
-	jmp paranoid_exit
- 	CFI_ENDPROC
-#endif
-KPROBE_END(nmi)
-
 /* Call softirq on interrupt stack. Interrupts are off. */
 ENTRY(call_softirq)
 	CFI_STARTPROC
@@ -1436,13 +1226,6 @@ ENTRY(call_softirq)
 	ret
 	CFI_ENDPROC
 END(call_softirq)
-
-KPROBE_ENTRY(ignore_sysret)
-	CFI_STARTPROC
-	mov $-ENOSYS,%eax
-	sysret
-	CFI_ENDPROC
-KPROBE_END(ignore_sysret)
 
 #ifdef CONFIG_XEN
 zeroentry xen_hypervisor_callback xen_do_hypervisor_callback
@@ -1540,3 +1323,216 @@ ENTRY(xen_failsafe_callback)
 END(xen_failsafe_callback)
 
 #endif /* CONFIG_XEN */
+
+/*
+ * Some functions should be protected against kprobes
+ */
+	.pushsection .kprobes.text, "ax"
+
+paranoidzeroentry_ist debug do_debug DEBUG_STACK
+paranoidzeroentry_ist int3 do_int3 DEBUG_STACK
+paranoiderrorentry stack_segment do_stack_segment
+errorentry general_protection do_general_protection
+errorentry page_fault do_page_fault
+#ifdef CONFIG_X86_MCE
+paranoidzeroentry machine_check do_machine_check
+#endif
+
+	/*
+ 	 * "Paranoid" exit path from exception stack.
+  	 * Paranoid because this is used by NMIs and cannot take
+	 * any kernel state for granted.
+	 * We don't do kernel preemption checks here, because only
+	 * NMI should be common and it does not enable IRQs and
+	 * cannot get reschedule ticks.
+	 *
+	 * "trace" is 0 for the NMI handler only, because irq-tracing
+	 * is fundamentally NMI-unsafe. (we cannot change the soft and
+	 * hard flags at once, atomically)
+	 */
+
+	/* ebx:	no swapgs flag */
+ENTRY(paranoid_exit)
+	INTR_FRAME
+	DISABLE_INTERRUPTS(CLBR_NONE)
+	TRACE_IRQS_OFF
+	testl %ebx,%ebx				/* swapgs needed? */
+	jnz paranoid_restore
+	testl $3,CS(%rsp)
+	jnz   paranoid_userspace
+paranoid_swapgs:
+	TRACE_IRQS_IRETQ 0
+	SWAPGS_UNSAFE_STACK
+paranoid_restore:
+	RESTORE_ALL 8
+	jmp irq_return
+paranoid_userspace:
+	GET_THREAD_INFO(%rcx)
+	movl TI_flags(%rcx),%ebx
+	andl $_TIF_WORK_MASK,%ebx
+	jz paranoid_swapgs
+	movq %rsp,%rdi			/* &pt_regs */
+	call sync_regs
+	movq %rax,%rsp			/* switch stack for scheduling */
+	testl $_TIF_NEED_RESCHED,%ebx
+	jnz paranoid_schedule
+	movl %ebx,%edx			/* arg3: thread flags */
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
+	xorl %esi,%esi 			/* arg2: oldset */
+	movq %rsp,%rdi 			/* arg1: &pt_regs */
+	call do_notify_resume
+	DISABLE_INTERRUPTS(CLBR_NONE)
+	TRACE_IRQS_OFF
+	jmp paranoid_userspace
+paranoid_schedule:
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_ANY)
+	call schedule
+	DISABLE_INTERRUPTS(CLBR_ANY)
+	TRACE_IRQS_OFF
+	jmp paranoid_userspace
+	CFI_ENDPROC
+END(paranoid_exit)
+
+/*
+ * Exception entry point. This expects an error code/orig_rax on the stack.
+ * returns in "no swapgs flag" in %ebx.
+ */
+ENTRY(error_entry)
+	XCPT_FRAME
+	CFI_ADJUST_CFA_OFFSET 15*8
+	/* oldrax contains error code */
+	cld
+	movq_cfi rdi, RDI+8
+	movq_cfi rsi, RSI+8
+	movq_cfi rdx, RDX+8
+	movq_cfi rcx, RCX+8
+	movq_cfi rax, RAX+8
+	movq_cfi  r8,  R8+8
+	movq_cfi  r9,  R9+8
+	movq_cfi r10, R10+8
+	movq_cfi r11, R11+8
+	movq_cfi rbx, RBX+8
+	movq_cfi rbp, RBP+8
+	movq_cfi r12, R12+8
+	movq_cfi r13, R13+8
+	movq_cfi r14, R14+8
+	movq_cfi r15, R15+8
+	xorl %ebx,%ebx
+	testl $3,CS+8(%rsp)
+	je error_kernelspace
+error_swapgs:
+	SWAPGS
+error_sti:
+	TRACE_IRQS_OFF
+	ret
+	CFI_ENDPROC
+
+/*
+ * There are two places in the kernel that can potentially fault with
+ * usergs. Handle them here. The exception handlers after iret run with
+ * kernel gs again, so don't set the user space flag. B stepping K8s
+ * sometimes report an truncated RIP for IRET exceptions returning to
+ * compat mode. Check for these here too.
+ */
+error_kernelspace:
+	incl %ebx
+	leaq irq_return(%rip),%rcx
+	cmpq %rcx,RIP+8(%rsp)
+	je error_swapgs
+	movl %ecx,%ecx	/* zero extend */
+	cmpq %rcx,RIP+8(%rsp)
+	je error_swapgs
+	cmpq $gs_change,RIP+8(%rsp)
+        je error_swapgs
+	jmp error_sti
+END(error_entry)
+
+
+/* ebx:	no swapgs flag (1: don't need swapgs, 0: need it) */
+ENTRY(error_exit)
+	DEFAULT_FRAME
+	movl %ebx,%eax
+	RESTORE_REST
+	DISABLE_INTERRUPTS(CLBR_NONE)
+	TRACE_IRQS_OFF
+	GET_THREAD_INFO(%rcx)
+	testl %eax,%eax
+	jne retint_kernel
+	LOCKDEP_SYS_EXIT_IRQ
+	movl TI_flags(%rcx),%edx
+	movl $_TIF_WORK_MASK,%edi
+	andl %edi,%edx
+	jnz retint_careful
+	jmp retint_swapgs
+	CFI_ENDPROC
+END(error_exit)
+
+
+	/* runs on exception stack */
+ENTRY(nmi)
+	INTR_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
+	pushq_cfi $-1
+	subq $15*8, %rsp
+	CFI_ADJUST_CFA_OFFSET 15*8
+	call save_paranoid
+	DEFAULT_FRAME 0
+	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */
+	movq %rsp,%rdi
+	movq $-1,%rsi
+	call do_nmi
+#ifdef CONFIG_TRACE_IRQFLAGS
+	/* paranoidexit; without TRACE_IRQS_OFF */
+	/* ebx:	no swapgs flag */
+	DISABLE_INTERRUPTS(CLBR_NONE)
+	testl %ebx,%ebx				/* swapgs needed? */
+	jnz nmi_restore
+	testl $3,CS(%rsp)
+	jnz nmi_userspace
+nmi_swapgs:
+	SWAPGS_UNSAFE_STACK
+nmi_restore:
+	RESTORE_ALL 8
+	jmp irq_return
+nmi_userspace:
+	GET_THREAD_INFO(%rcx)
+	movl TI_flags(%rcx),%ebx
+	andl $_TIF_WORK_MASK,%ebx
+	jz nmi_swapgs
+	movq %rsp,%rdi			/* &pt_regs */
+	call sync_regs
+	movq %rax,%rsp			/* switch stack for scheduling */
+	testl $_TIF_NEED_RESCHED,%ebx
+	jnz nmi_schedule
+	movl %ebx,%edx			/* arg3: thread flags */
+	ENABLE_INTERRUPTS(CLBR_NONE)
+	xorl %esi,%esi 			/* arg2: oldset */
+	movq %rsp,%rdi 			/* arg1: &pt_regs */
+	call do_notify_resume
+	DISABLE_INTERRUPTS(CLBR_NONE)
+	jmp nmi_userspace
+nmi_schedule:
+	ENABLE_INTERRUPTS(CLBR_ANY)
+	call schedule
+	DISABLE_INTERRUPTS(CLBR_ANY)
+	jmp nmi_userspace
+	CFI_ENDPROC
+#else
+	jmp paranoid_exit
+ 	CFI_ENDPROC
+#endif
+END(nmi)
+
+ENTRY(ignore_sysret)
+	CFI_STARTPROC
+	mov $-ENOSYS,%eax
+	sysret
+	CFI_ENDPROC
+END(ignore_sysret)
+
+/*
+ * End of kprobes section
+ */
+	.popsection
