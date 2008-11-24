@@ -38,9 +38,6 @@
 
 #include <asm/kmap_types.h>
 
-#undef dprintk
-
-#define HIFN_TEST
 //#define HIFN_DEBUG
 
 #ifdef HIFN_DEBUG
@@ -406,8 +403,6 @@ struct hifn_dma {
 	u8			command_bufs[HIFN_D_CMD_RSIZE][HIFN_MAX_COMMAND];
 	u8			result_bufs[HIFN_D_CMD_RSIZE][HIFN_MAX_RESULT];
 
-	u64			test_src, test_dst;
-
 	/*
 	 *  Our current positions for insertion and removal from the descriptor
 	 *  rings.
@@ -434,9 +429,6 @@ struct hifn_device
 	struct pci_dev		*pdev;
 	void __iomem		*bar[3];
 
-	unsigned long		result_mem;
-	dma_addr_t		dst;
-
 	void			*desc_virt;
 	dma_addr_t		desc_dma;
 
@@ -445,8 +437,6 @@ struct hifn_device
 	void 			*sa[HIFN_D_RES_RSIZE];
 
 	spinlock_t		lock;
-
-	void 			*priv;
 
 	u32			flags;
 	int			active, started;
@@ -2638,22 +2628,11 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_out_unmap_bars;
 	}
 
-	dev->result_mem = __get_free_pages(GFP_KERNEL, HIFN_MAX_RESULT_ORDER);
-	if (!dev->result_mem) {
-		dprintk("Failed to allocate %d pages for result_mem.\n",
-				HIFN_MAX_RESULT_ORDER);
-		goto err_out_unmap_bars;
-	}
-	memset((void *)dev->result_mem, 0, PAGE_SIZE*(1<<HIFN_MAX_RESULT_ORDER));
-
-	dev->dst = pci_map_single(pdev, (void *)dev->result_mem,
-			PAGE_SIZE << HIFN_MAX_RESULT_ORDER, PCI_DMA_FROMDEVICE);
-
 	dev->desc_virt = pci_alloc_consistent(pdev, sizeof(struct hifn_dma),
 			&dev->desc_dma);
 	if (!dev->desc_virt) {
 		dprintk("Failed to allocate descriptor rings.\n");
-		goto err_out_free_result_pages;
+		goto err_out_unmap_bars;
 	}
 	memset(dev->desc_virt, 0, sizeof(struct hifn_dma));
 
@@ -2713,11 +2692,6 @@ err_out_free_desc:
 	pci_free_consistent(pdev, sizeof(struct hifn_dma),
 			dev->desc_virt, dev->desc_dma);
 
-err_out_free_result_pages:
-	pci_unmap_single(pdev, dev->dst, PAGE_SIZE << HIFN_MAX_RESULT_ORDER,
-			PCI_DMA_FROMDEVICE);
-	free_pages(dev->result_mem, HIFN_MAX_RESULT_ORDER);
-
 err_out_unmap_bars:
 	for (i=0; i<3; ++i)
 		if (dev->bar[i])
@@ -2755,10 +2729,6 @@ static void hifn_remove(struct pci_dev *pdev)
 
 		pci_free_consistent(pdev, sizeof(struct hifn_dma),
 				dev->desc_virt, dev->desc_dma);
-		pci_unmap_single(pdev, dev->dst,
-				PAGE_SIZE << HIFN_MAX_RESULT_ORDER,
-				PCI_DMA_FROMDEVICE);
-		free_pages(dev->result_mem, HIFN_MAX_RESULT_ORDER);
 		for (i=0; i<3; ++i)
 			if (dev->bar[i])
 				iounmap(dev->bar[i]);
