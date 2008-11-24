@@ -217,6 +217,17 @@ config BRANCH_TRACER
 
 	  Say N if unsure.
 
+config POWER_TRACER
+	bool "Trace power consumption behavior"
+	depends on DEBUG_KERNEL
+	depends on X86
+	select TRACING
+	help
+	  This tracer helps developers to analyze and optimize the kernels
+	  power management decisions, specifically the C-state and P-state
+	  behavior.
+
+
 config STACK_TRACER
 	bool "Trace max stack"
 	depends on HAVE_FUNCTION_TRACER

@@ -28,6 +28,7 @@ enum trace_type {
 	TRACE_FN_RET,
 	TRACE_USER_STACK,
 	TRACE_BTS,
+	TRACE_POWER,
 
 	__TRACE_LAST_TYPE
 };
@@ -160,6 +161,11 @@ struct bts_entry {
 	unsigned long		to;
 };
 
+struct trace_power {
+	struct trace_entry	ent;
+	struct power_trace	state_data;
+};
+
 /*
  * trace_flag_type is an enumeration that holds different
  * states when a trace occurs. These are:
@@ -266,6 +272,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
 		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET);\
 		IF_ASSIGN(var, ent, struct bts_entry, TRACE_BTS);\
+ 		IF_ASSIGN(var, ent, struct trace_power, TRACE_POWER); \
 		__ftrace_bad_type();					\
 	} while (0)
 
