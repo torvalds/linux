@@ -585,8 +585,6 @@ struct wm8350_irq {
 };
 
 struct wm8350 {
-	int rev;		/* chip revision */
-
 	struct device *dev;
 
 	/* device IO */

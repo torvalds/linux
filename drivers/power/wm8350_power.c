@@ -44,7 +44,7 @@ static int wm8350_read_usb_uvolts(struct wm8350 *wm8350)
 
 static inline int wm8350_charge_time_min(struct wm8350 *wm8350, int min)
 {
-	if (wm8350->rev < WM8350_REV_G)
+	if (!wm8350->power.rev_g_coeff)
 		return (((min - 30) / 15) & 0xf) << 8;
 	else
 		return (((min - 30) / 30) & 0xf) << 8;

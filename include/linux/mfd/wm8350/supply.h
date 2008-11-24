@@ -127,6 +127,8 @@ struct wm8350_power {
 	struct power_supply usb;
 	struct power_supply ac;
 	struct wm8350_charger_policy *policy;
+
+	int rev_g_coeff;
 };
 
 #endif
