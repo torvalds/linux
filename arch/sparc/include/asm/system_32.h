@@ -15,6 +15,11 @@
 
 #include <linux/irqflags.h>
 
+static inline unsigned int probe_irq_mask(unsigned long val)
+{
+	return 0;
+}
+
 /*
  * Sparc (general) CPU types
  */
