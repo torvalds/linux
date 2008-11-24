@@ -180,11 +180,11 @@ static int assigned_device_update_intx(struct kvm *kvm,
 			struct kvm_assigned_dev_kernel *adev,
 			struct kvm_assigned_irq *airq)
 {
-	if (adev->irq_requested_type & KVM_ASSIGNED_DEV_GUEST_INTX) {
-		adev->guest_irq = airq->guest_irq;
-		adev->ack_notifier.gsi = airq->guest_irq;
+	adev->guest_irq = airq->guest_irq;
+	adev->ack_notifier.gsi = airq->guest_irq;
+
+	if (adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_INTX)
 		return 0;
-	}
 
 	if (irqchip_in_kernel(kvm)) {
 		if (!capable(CAP_SYS_RAWIO))
@@ -194,8 +194,6 @@ static int assigned_device_update_intx(struct kvm *kvm,
 			adev->host_irq = airq->host_irq;
 		else
 			adev->host_irq = adev->dev->irq;
-		adev->guest_irq = airq->guest_irq;
-		adev->ack_notifier.gsi = airq->guest_irq;
 
 		/* Even though this is PCI, we don't want to use shared
 		 * interrupts. Sharing host devices with guest-assigned devices
