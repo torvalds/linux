@@ -640,7 +640,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 				gspca_dev->streaming = 0;
 				destroy_urbs(gspca_dev);
 				if (ret == -ENOSPC) {
-					mdelay(20);	/* wait for kill
+					msleep(20);	/* wait for kill
 							 * complete */
 					break;	/* try the previous alt */
 				}
