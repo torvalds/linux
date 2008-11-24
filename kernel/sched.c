@@ -6126,8 +6126,6 @@ static int __migrate_task_irq(struct task_struct *p, int src_cpu, int dest_cpu)
  */
 static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 {
-	unsigned long flags;
-	struct rq *rq;
 	int dest_cpu;
 	/* FIXME: Use cpumask_of_node here. */
 	cpumask_t _nodemask = node_to_cpumask(cpu_to_node(dead_cpu));
@@ -6146,10 +6144,8 @@ again:
 
 	/* No more Mr. Nice Guy. */
 	if (dest_cpu >= nr_cpu_ids) {
-		rq = task_rq_lock(p, &flags);
 		cpuset_cpus_allowed_locked(p, &p->cpus_allowed);
 		dest_cpu = cpumask_any_and(cpu_online_mask, &p->cpus_allowed);
-		task_rq_unlock(rq, &flags);
 
 		/*
 		 * Don't tell them about moving exiting tasks or
