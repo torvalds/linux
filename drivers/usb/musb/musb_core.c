@@ -1212,7 +1212,7 @@ static int __init ep_config_from_table(struct musb *musb)
 		if (epn >= musb->config->num_eps) {
 			pr_debug("%s: invalid ep %d\n",
 					musb_driver_name, epn);
-			continue;
+			return -EINVAL;
 		}
 		offset = fifo_setup(musb, hw_ep + epn, cfg++, offset);
 		if (offset < 0) {
@@ -1813,7 +1813,6 @@ allocate_instance(struct device *dev,
 	for (epnum = 0, ep = musb->endpoints;
 			epnum < musb->config->num_eps;
 			epnum++, ep++) {
-
 		ep->musb = musb;
 		ep->epnum = epnum;
 	}

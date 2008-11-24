@@ -112,18 +112,21 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 {
 	void __iomem	*epio = ep->regs;
 	u16		csr;
+	u16		lastcsr = 0;
 	int		retries = 1000;
 
 	csr = musb_readw(epio, MUSB_TXCSR);
 	while (csr & MUSB_TXCSR_FIFONOTEMPTY) {
-		DBG(5, "Host TX FIFONOTEMPTY csr: %02x\n", csr);
+		if (csr != lastcsr)
+			DBG(3, "Host TX FIFONOTEMPTY csr: %02x\n", csr);
+		lastcsr = csr;
 		csr |= MUSB_TXCSR_FLUSHFIFO;
 		musb_writew(epio, MUSB_TXCSR, csr);
 		csr = musb_readw(epio, MUSB_TXCSR);
-		if (retries-- < 1) {
-			ERR("Could not flush host TX fifo: csr: %04x\n", csr);
+		if (WARN(retries-- < 1,
+				"Could not flush host TX%d fifo: csr: %04x\n",
+				ep->epnum, csr))
 			return;
-		}
 		mdelay(1);
 	}
 }
@@ -268,7 +271,7 @@ __musb_giveback(struct musb *musb, struct urb *urb, int status)
 __releases(musb->lock)
 __acquires(musb->lock)
 {
-	DBG(({ int level; switch (urb->status) {
+	DBG(({ int level; switch (status) {
 				case 0:
 					level = 4;
 					break;
@@ -283,8 +286,8 @@ __acquires(musb->lock)
 					level = 2;
 					break;
 				}; level; }),
-			"complete %p (%d), dev%d ep%d%s, %d/%d\n",
-			urb, urb->status,
+			"complete %p %pF (%d), dev%d ep%d%s, %d/%d\n",
+			urb, urb->complete, status,
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe),
 			usb_pipein(urb->pipe) ? "in" : "out",
@@ -988,8 +991,10 @@ static bool musb_h_ep0_continue(struct musb *musb, u16 len, struct urb *urb)
 		if (fifo_count) {
 			fifo_dest = (u8 *) (urb->transfer_buffer
 					+ urb->actual_length);
-			DBG(3, "Sending %d bytes to %p\n",
-					fifo_count, fifo_dest);
+			DBG(3, "Sending %d byte%s to ep0 fifo %p\n",
+					fifo_count,
+					(fifo_count == 1) ? "" : "s",
+					fifo_dest);
 			musb_write_fifo(hw_ep, fifo_count, fifo_dest);
 
 			urb->actual_length += fifo_count;
