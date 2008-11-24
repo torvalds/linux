@@ -3676,7 +3676,10 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 	struct sched_domain *sd;
 	int pulled_task = -1;
 	unsigned long next_balance = jiffies + HZ;
-	cpumask_t tmpmask;
+	cpumask_var_t tmpmask;
+
+	if (!alloc_cpumask_var(&tmpmask, GFP_ATOMIC))
+		return;
 
 	for_each_domain(this_cpu, sd) {
 		unsigned long interval;
@@ -3687,7 +3690,7 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 		if (sd->flags & SD_BALANCE_NEWIDLE)
 			/* If we've pulled tasks over stop searching: */
 			pulled_task = load_balance_newidle(this_cpu, this_rq,
-							   sd, &tmpmask);
+							   sd, tmpmask);
 
 		interval = msecs_to_jiffies(sd->balance_interval);
 		if (time_after(next_balance, sd->last_balance + interval))
@@ -3702,6 +3705,7 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 		 */
 		this_rq->next_balance = next_balance;
 	}
+	free_cpumask_var(tmpmask);
 }
 
 /*
