@@ -159,9 +159,15 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 	 * finer-grained lock, update this
 	 */
 	mutex_lock(&assigned_dev->kvm->lock);
-	kvm_set_irq(assigned_dev->kvm,
-		    assigned_dev->irq_source_id,
-		    assigned_dev->guest_irq, 1);
+	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_GUEST_INTX)
+		kvm_set_irq(assigned_dev->kvm,
+			    assigned_dev->irq_source_id,
+			    assigned_dev->guest_irq, 1);
+	else if (assigned_dev->irq_requested_type &
+				KVM_ASSIGNED_DEV_GUEST_MSI) {
+		assigned_device_msi_dispatch(assigned_dev);
+		enable_irq(assigned_dev->host_irq);
+	}
 	mutex_unlock(&assigned_dev->kvm->lock);
 	kvm_put_kvm(assigned_dev->kvm);
 }
@@ -197,6 +203,8 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 {
 	if (irqchip_in_kernel(kvm) && assigned_dev->irq_requested_type)
 		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
+	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI)
+		pci_disable_msi(assigned_dev->dev);
 
 	kvm_unregister_irq_ack_notifier(&assigned_dev->ack_notifier);
 	kvm_free_irq_source_id(kvm, assigned_dev->irq_source_id);
@@ -242,6 +250,11 @@ static int assigned_device_update_intx(struct kvm *kvm,
 		return 0;
 
 	if (irqchip_in_kernel(kvm)) {
+		if (adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI) {
+			free_irq(adev->host_irq, (void *)kvm);
+			pci_disable_msi(adev->dev);
+		}
+
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
 
@@ -264,6 +277,41 @@ static int assigned_device_update_intx(struct kvm *kvm,
 				   KVM_ASSIGNED_DEV_HOST_INTX;
 	return 0;
 }
+
+#ifdef CONFIG_X86
+static int assigned_device_update_msi(struct kvm *kvm,
+			struct kvm_assigned_dev_kernel *adev,
+			struct kvm_assigned_irq *airq)
+{
+	int r;
+
+	/* x86 don't care upper address of guest msi message addr */
+	adev->guest_msi.address_lo = airq->guest_msi.addr_lo;
+	adev->guest_msi.data = airq->guest_msi.data;
+	adev->ack_notifier.gsi = -1;
+
+	if (adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI)
+		return 0;
+
+	if (irqchip_in_kernel(kvm)) {
+		if (adev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_INTX)
+			free_irq(adev->host_irq, (void *)adev);
+
+		r = pci_enable_msi(adev->dev);
+		if (r)
+			return r;
+
+		adev->host_irq = adev->dev->irq;
+		if (request_irq(adev->host_irq, kvm_assigned_dev_intr, 0,
+				"kvm_assigned_msi_device", (void *)adev))
+			return -EIO;
+	}
+
+	adev->irq_requested_type = KVM_ASSIGNED_DEV_GUEST_MSI |
+				   KVM_ASSIGNED_DEV_HOST_MSI;
+	return 0;
+}
+#endif
 
 static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 				   struct kvm_assigned_irq
@@ -301,9 +349,30 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 		}
 	}
 
-	r = assigned_device_update_intx(kvm, match, assigned_irq);
-	if (r)
-		goto out_release;
+	if (assigned_irq->flags & KVM_DEV_IRQ_ASSIGN_ENABLE_MSI) {
+#ifdef CONFIG_X86
+		r = assigned_device_update_msi(kvm, match, assigned_irq);
+		if (r) {
+			printk(KERN_WARNING "kvm: failed to enable "
+					"MSI device!\n");
+			goto out_release;
+		}
+#else
+		r = -ENOTTY;
+#endif
+	} else if (assigned_irq->host_irq == 0 && match->dev->irq == 0) {
+		/* Host device IRQ 0 means don't support INTx */
+		printk(KERN_WARNING "kvm: wait device to enable MSI!\n");
+		r = 0;
+	} else {
+		/* Non-sharing INTx mode */
+		r = assigned_device_update_intx(kvm, match, assigned_irq);
+		if (r) {
+			printk(KERN_WARNING "kvm: failed to enable "
+					"INTx device!\n");
+			goto out_release;
+		}
+	}
 
 	mutex_unlock(&kvm->lock);
 	return r;

@@ -392,6 +392,9 @@ struct kvm_trace_rec {
 #endif
 #define KVM_CAP_IOMMU 18
 #define KVM_CAP_NMI 19
+#if defined(CONFIG_X86)
+#define KVM_CAP_DEVICE_MSI 20
+#endif
 
 /*
  * ioctls for VM fds
