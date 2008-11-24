@@ -2105,8 +2105,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	return 0;
 
-fail_unreg:
-	em28xx_release_resources(dev);
 fail_reg_devices:
 	mutex_unlock(&dev->lock);
 	return retval;
