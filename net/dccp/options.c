@@ -467,6 +467,21 @@ static int dccp_insert_option_timestamp_echo(struct dccp_sock *dp,
 	return 0;
 }
 
+/**
+ * dccp_insert_option_mandatory  -  Mandatory option (5.8.2)
+ * Note that since we are using skb_push, this function needs to be called
+ * _after_ inserting the option it is supposed to influence (stack order).
+ */
+int dccp_insert_option_mandatory(struct sk_buff *skb)
+{
+	if (DCCP_SKB_CB(skb)->dccpd_opt_len >= DCCP_MAX_OPT_LEN)
+		return -1;
+
+	DCCP_SKB_CB(skb)->dccpd_opt_len++;
+	*skb_push(skb, 1) = DCCPO_MANDATORY;
+	return 0;
+}
+
 static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
 				u8 *val, u8 len)
 {
