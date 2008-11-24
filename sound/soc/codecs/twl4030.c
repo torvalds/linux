@@ -196,10 +196,20 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
  */
 static DECLARE_TLV_DB_SCALE(master_tlv, -6300, 100, 1);
 
+/*
+ * CGAIN volume control:
+ * 0 dB to 12 dB in 6 dB steps
+ * value 2 and 3 means 12 dB
+ */
+static DECLARE_TLV_DB_SCALE(master_coarse_tlv, 0, 600, 0);
+
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("Master Playback Volume",
 		 TWL4030_REG_ARXL2PGA, TWL4030_REG_ARXR2PGA,
 		0, 0x3f, 0, master_tlv),
+	SOC_DOUBLE_R_TLV("Master PCM Playback Volume",
+		 TWL4030_REG_ARXL2PGA, TWL4030_REG_ARXR2PGA,
+		6, 0x2, 0, master_coarse_tlv),
 	SOC_DOUBLE_R("Capture Volume",
 		 TWL4030_REG_ATXL1PGA, TWL4030_REG_ATXR1PGA,
 		0, 0x1f, 0),
