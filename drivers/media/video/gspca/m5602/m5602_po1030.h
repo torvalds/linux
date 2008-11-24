@@ -128,8 +128,6 @@ int po1030_probe(struct sd *sd);
 int po1030_init(struct sd *sd);
 int po1030_power_down(struct sd *sd);
 
-void po1030_dump_registers(struct sd *sd);
-
 int po1030_read_sensor(struct sd *sd, const u8 address,
 			      u8 *i2c_data, const u8 len);
 int po1030_write_sensor(struct sd *sd, const u8 address,

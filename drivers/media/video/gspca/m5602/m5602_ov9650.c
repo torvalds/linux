@@ -54,6 +54,8 @@ static
 	{ }
 };
 
+static void ov9650_dump_registers(struct sd *sd);
+
 int ov9650_read_sensor(struct sd *sd, const u8 address,
 		      u8 *i2c_data, const u8 len)
 {
@@ -561,7 +563,7 @@ out:
 	return err;
 }
 
-void ov9650_dump_registers(struct sd *sd)
+static void ov9650_dump_registers(struct sd *sd)
 {
 	int address;
 	info("Dumping the ov9650 register state");

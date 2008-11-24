@@ -67,8 +67,6 @@ int s5k4aa_probe(struct sd *sd);
 int s5k4aa_init(struct sd *sd);
 int s5k4aa_power_down(struct sd *sd);
 
-void s5k4aa_dump_registers(struct sd *sd);
-
 int s5k4aa_read_sensor(struct sd *sd, const u8 address,
 		       u8 *i2c_data, const u8 len);
 int s5k4aa_write_sensor(struct sd *sd, const u8 address,

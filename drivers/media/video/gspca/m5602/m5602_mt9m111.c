@@ -18,6 +18,8 @@
 
 #include "m5602_mt9m111.h"
 
+static void mt9m111_dump_registers(struct sd *sd);
+
 int mt9m111_probe(struct sd *sd)
 {
 	u8 data[2] = {0x00, 0x00};
@@ -308,7 +310,7 @@ int mt9m111_write_sensor(struct sd *sd, const u8 address,
 	return (err < 0) ? err : 0;
 }
 
-void mt9m111_dump_registers(struct sd *sd)
+static void mt9m111_dump_registers(struct sd *sd)
 {
 	u8 address, value[2] = {0x00, 0x00};
 

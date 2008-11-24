@@ -18,6 +18,8 @@
 
 #include "m5602_po1030.h"
 
+static void po1030_dump_registers(struct sd *sd);
+
 int po1030_probe(struct sd *sd)
 {
 	u8 prod_id = 0, ver_id = 0, i;
@@ -375,7 +377,7 @@ int po1030_power_down(struct sd *sd)
 	return 0;
 }
 
-void po1030_dump_registers(struct sd *sd)
+static void po1030_dump_registers(struct sd *sd)
 {
 	int address;
 	u8 value = 0;

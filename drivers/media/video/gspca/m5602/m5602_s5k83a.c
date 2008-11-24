@@ -18,6 +18,8 @@
 
 #include "m5602_s5k83a.h"
 
+static void s5k83a_dump_registers(struct sd *sd);
+
 int s5k83a_probe(struct sd *sd)
 {
 	u8 prod_id = 0, ver_id = 0;

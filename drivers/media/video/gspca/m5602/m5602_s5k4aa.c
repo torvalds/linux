@@ -50,6 +50,7 @@ static
 	{ }
 };
 
+static void s5k4aa_dump_registers(struct sd *sd);
 
 int s5k4aa_probe(struct sd *sd)
 {
@@ -455,7 +456,7 @@ out:
 	return err;
 }
 
-void s5k4aa_dump_registers(struct sd *sd)
+static void s5k4aa_dump_registers(struct sd *sd)
 {
 	int address;
 	u8 page, old_page;
