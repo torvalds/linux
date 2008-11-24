@@ -1401,7 +1401,6 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	struct ath_tx_info_priv *tx_info_priv = NULL;
-	struct ath_node *an;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr;
 	int final_ts_idx, tx_status = 0, is_underrun = 0;
@@ -1410,20 +1409,14 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
 	tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
-	an = (struct ath_node *)sta->drv_priv;
 	final_ts_idx = tx_info_priv->tx.ts_rateindex;
 
-	if (!an || !priv_sta || !ieee80211_is_data(fc) ||
+	if (!priv_sta || !ieee80211_is_data(fc) ||
 	    !tx_info_priv->update_rc)
 		goto exit;
 
 	if (tx_info_priv->tx.ts_status & ATH9K_TXERR_FILT)
 		goto exit;
-
-	if (tx_info_priv->tx.ts_rssi > 0) {
-		ATH_RSSI_LPF(an->an_chainmask_sel.tx_avgrssi,
-			     tx_info_priv->tx.ts_rssi);
-	}
 
 	/*
 	 * If underrun error is seen assume it as an excessive retry only

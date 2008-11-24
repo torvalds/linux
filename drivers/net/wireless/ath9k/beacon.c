@@ -14,13 +14,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
- /* Implementation of beacon processing. */
-
 #include "core.h"
 
 /*
- *  Configure parameters for the beacon queue
- *
  *  This function will modify certain transmit queue properties depending on
  *  the operating mode of the station (AP or AdHoc).  Parameters are AIFS
  *  settings and channel width min/max
@@ -54,9 +50,15 @@ static int ath_beaconq_config(struct ath_softc *sc)
 	}
 }
 
+static void ath_bstuck_process(struct ath_softc *sc)
+{
+	DPRINTF(sc, ATH_DBG_BEACON,
+		"%s: stuck beacon; resetting (bmiss count %u)\n",
+		__func__, sc->sc_bmisscount);
+	ath_reset(sc, false);
+}
+
 /*
- *  Setup the beacon frame for transmit.
- *
  *  Associates the beacon frame buffer with a transmit descriptor.  Will set
  *  up all required antenna switch parameters, rate codes, and channel flags.
  *  Beacons are always sent out at the lowest rate, and are not retried.
@@ -138,14 +140,7 @@ static void ath_beacon_setup(struct ath_softc *sc,
 		ctsrate, ctsduration, series, 4, 0);
 }
 
-/*
- *  Generate beacon frame and queue cab data for a vap.
- *
- *  Updates the contents of the beacon frame.  It is assumed that the buffer for
- *  the beacon frame has been allocated in the ATH object, and simply needs to
- *  be filled for this cycle.  Also, any CAB (crap after beacon?) traffic will
- *  be added to the beacon frame at this point.
-*/
+/* Generate beacon frame and queue cab data for a vap */
 static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 {
 	struct ath_buf *bf;
@@ -275,14 +270,6 @@ static void ath_beacon_start_adhoc(struct ath_softc *sc, int if_id)
 		sc->sc_bhalq, ito64(bf->bf_daddr), bf->bf_desc);
 }
 
-/*
- *  Setup a h/w transmit queue for beacons.
- *
- *  This function allocates an information structure (struct ath9k_txq_info)
- *  on the stack, sets some specific parameters (zero out channel width
- *  min/max, and enable aifs). The info structure does not need to be
- *  persistant.
-*/
 int ath_beaconq_setup(struct ath_hal *ah)
 {
 	struct ath9k_tx_queue_info qi;
@@ -295,14 +282,6 @@ int ath_beaconq_setup(struct ath_hal *ah)
 	return ath9k_hw_setuptxqueue(ah, ATH9K_TX_QUEUE_BEACON, &qi);
 }
 
-
-/*
- *  Allocate and setup an initial beacon frame.
- *
- *  Allocate a beacon state variable for a specific VAP instance created on
- *  the ATH interface.  This routine also calculates the beacon "slot" for
- *  staggared beacons in the mBSSID case.
-*/
 int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 {
 	struct ieee80211_vif *vif;
@@ -321,7 +300,6 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 	if (!avp->av_bcbuf) {
 		/* Allocate beacon state for hostap/ibss.  We know
 		 * a buffer is available. */
-
 		avp->av_bcbuf = list_first_entry(&sc->sc_bbuf,
 						 struct ath_buf, list);
 		list_del(&avp->av_bcbuf->list);
@@ -427,12 +405,6 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 	return 0;
 }
 
-/*
- *  Reclaim beacon resources and return buffer to the pool.
- *
- *  Checks the VAP to put the beacon frame buffer back to the ATH object
- *  queue, and de-allocates any skbs that were sent as CAB traffic.
-*/
 void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp)
 {
 	if (avp->av_bcbuf != NULL) {
@@ -458,13 +430,6 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp)
 	}
 }
 
-/*
- * Tasklet for Sending Beacons
- *
- * Transmit one or more beacon frames at SWBA.  Dynamic updates to the frame
- * contents are done as needed and the slot time is also adjusted based on
- * current state.
-*/
 void ath9k_beacon_tasklet(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
@@ -481,9 +446,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 
 	if (sc->sc_flags & SC_OP_NO_RESET) {
 		show_cycles = ath9k_hw_GetMibCycleCountsPct(ah,
-							    &rx_clear,
-							    &rx_frame,
-							    &tx_frame);
+					    &rx_clear, &rx_frame, &tx_frame);
 	}
 
 	/*
@@ -605,9 +568,10 @@ void ath9k_beacon_tasklet(unsigned long data)
 	if (sc->sc_updateslot == UPDATE) {
 		sc->sc_updateslot = COMMIT; /* commit next beacon */
 		sc->sc_slotupdate = slot;
-	} else if (sc->sc_updateslot == COMMIT && sc->sc_slotupdate == slot)
-		ath_setslottime(sc);        /* commit change to hardware */
-
+	} else if (sc->sc_updateslot == COMMIT && sc->sc_slotupdate == slot) {
+		ath9k_hw_setslottime(sc->sc_ah, sc->sc_slottime);
+		sc->sc_updateslot = OK;
+	}
 	if (bfaddr != 0) {
 		/*
 		 * Stop any current dma and put the new frame(s) on the queue.
@@ -627,20 +591,6 @@ void ath9k_beacon_tasklet(unsigned long data)
 
 		sc->ast_be_xmit += bc;     /* XXX per-vap? */
 	}
-}
-
-/*
- *  Tasklet for Beacon Stuck processing
- *
- *  Processing for Beacon Stuck.
- *  Basically resets the chip.
-*/
-void ath_bstuck_process(struct ath_softc *sc)
-{
-	DPRINTF(sc, ATH_DBG_BEACON,
-		"%s: stuck beacon; resetting (bmiss count %u)\n",
-		__func__, sc->sc_bmisscount);
-	ath_reset(sc, false);
 }
 
 /*
@@ -885,8 +835,6 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 			ath_beacon_start_adhoc(sc, 0);
 	}
 }
-
-/* Function to collect beacon rssi data and resync beacon if necessary */
 
 void ath_beacon_sync(struct ath_softc *sc, int if_id)
 {

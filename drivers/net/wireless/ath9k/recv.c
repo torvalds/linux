@@ -55,6 +55,28 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 	ath9k_hw_rxena(ah);
 }
 
+static void ath_setdefantenna(struct ath_softc *sc, u32 antenna)
+{
+	/* XXX block beacon interrupts */
+	ath9k_hw_setantenna(sc->sc_ah, antenna);
+	sc->sc_defant = antenna;
+	sc->sc_rxotherant = 0;
+}
+
+/*
+ *  Extend 15-bit time stamp from rx descriptor to
+ *  a full 64-bit TSF using the current h/w TSF.
+*/
+static u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp)
+{
+	u64 tsf;
+
+	tsf = ath9k_hw_gettsf64(sc->sc_ah);
+	if ((tsf & 0x7fff) < rstamp)
+		tsf -= 0x8000;
+	return (tsf & ~0x7fff) | rstamp;
+}
+
 static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 {
 	struct sk_buff *skb;

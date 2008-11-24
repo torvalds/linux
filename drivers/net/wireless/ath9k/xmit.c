@@ -147,6 +147,19 @@ static int ath_aggr_query(struct ath_softc *sc, struct ath_node *an, u8 tidno)
 		return 0;
 }
 
+static void ath_get_beaconconfig(struct ath_softc *sc, int if_id,
+				 struct ath_beacon_config *conf)
+{
+	struct ieee80211_hw *hw = sc->hw;
+
+	/* fill in beacon config data */
+
+	conf->beacon_interval = hw->conf.beacon_int;
+	conf->listen_interval = 100;
+	conf->dtim_count = 1;
+	conf->bmiss_timeout = ATH_DEFAULT_BMISS_LIMIT * conf->listen_interval;
+}
+
 /* Calculate Atheros packet type from IEEE80211 packet header */
 
 static enum ath9k_pkt_type get_hw_packet_type(struct sk_buff *skb)
@@ -522,7 +535,6 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_desc *ds = bf->bf_desc;
 	struct ath_desc *lastds = bf->bf_lastbf->bf_desc;
 	struct ath9k_11n_rate_series series[4];
-	struct ath_node *an = NULL;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
@@ -539,9 +551,6 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	fc = hdr->frame_control;
 	tx_info = IEEE80211_SKB_CB(skb);
 	rates = tx_info->control.rates;
-
-	if (tx_info->control.sta)
-		an = (struct ath_node *)tx_info->control.sta->drv_priv;
 
 	if (ieee80211_has_morefrags(fc) ||
 	    (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)) {
@@ -632,10 +641,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 			 (rates[i].flags & IEEE80211_TX_RC_SHORT_GI),
 			 bf_isshpreamble(bf));
 
-		if (bf_isht(bf) && an)
-			series[i].ChSel = ath_chainmask_sel_logic(sc, an);
-		else
-			series[i].ChSel = sc->sc_tx_chainmask;
+		series[i].ChSel = sc->sc_tx_chainmask;
 
 		if (rtsctsena)
 			series[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;

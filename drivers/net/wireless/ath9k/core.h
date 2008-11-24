@@ -47,10 +47,6 @@
 
 struct ath_node;
 
-/******************/
-/* Utility macros */
-/******************/
-
 /* Macro to expand scalars to 64-bit objects */
 
 #define	ito64(x) (sizeof(x) == 8) ?			\
@@ -85,11 +81,6 @@ struct ath_node;
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
 #define	ATH_TXQ_SETUP(sc, i)        ((sc)->sc_txqsetup & (1<<i))
-
-static inline unsigned long get_timestamp(void)
-{
-	return ((jiffies / HZ) * 1000) + (jiffies % HZ) * (1000 / HZ);
-}
 
 static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -140,34 +131,6 @@ struct ath_config {
 	u8 cabqReadytime; /* Cabq Readytime % */
 	u8 swBeaconProcess; /* Process received beacons in SW (vs HW) */
 };
-
-/***********************/
-/* Chainmask Selection */
-/***********************/
-
-#define ATH_CHAINMASK_SEL_TIMEOUT	   6000
-/* Default - Number of last RSSI values that is used for
- * chainmask selection */
-#define ATH_CHAINMASK_SEL_RSSI_CNT	   10
-/* Means use 3x3 chainmask instead of configured chainmask */
-#define ATH_CHAINMASK_SEL_3X3		   7
-/* Default - Rssi threshold below which we have to switch to 3x3 */
-#define ATH_CHAINMASK_SEL_UP_RSSI_THRES	   20
-/* Default - Rssi threshold above which we have to switch to
- * user configured values */
-#define ATH_CHAINMASK_SEL_DOWN_RSSI_THRES  35
-/* Struct to store the chainmask select related info */
-struct ath_chainmask_sel {
-	struct timer_list timer;
-	int cur_tx_mask; 	/* user configured or 3x3 */
-	int cur_rx_mask; 	/* user configured or 3x3 */
-	int tx_avgrssi;
-	u8 switch_allowed:1, 	/* timer will set this */
-	   cm_sel_enabled : 1;
-};
-
-int ath_chainmask_sel_logic(struct ath_softc *sc, struct ath_node *an);
-void ath_update_chainmask(struct ath_softc *sc, int is_ht);
 
 /*************************/
 /* Descriptor Management */
@@ -240,7 +203,6 @@ struct ath_buf {
 					   an aggregate) */
 	struct ath_buf *bf_lastfrm;	/* last buf of this frame */
 	struct ath_buf *bf_next;	/* next subframe in the aggregate */
-	struct ath_buf *bf_rifslast;	/* last buf for RIFS burst */
 	void *bf_mpdu;			/* enclosing frame structure */
 	struct ath_desc *bf_desc;	/* virtual addr of desc */
 	dma_addr_t bf_daddr;		/* physical addr of desc */
@@ -278,16 +240,10 @@ struct ath_descdma {
 	dma_addr_t dd_dmacontext;
 };
 
-int ath_descdma_setup(struct ath_softc *sc,
-		      struct ath_descdma *dd,
-		      struct list_head *head,
-		      const char *name,
-		      int nbuf,
-		      int ndesc);
-int ath_desc_alloc(struct ath_softc *sc);
-void ath_desc_free(struct ath_softc *sc);
-void ath_descdma_cleanup(struct ath_softc *sc,
-			 struct ath_descdma *dd,
+int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
+		      struct list_head *head, const char *name,
+		      int nbuf, int ndesc);
+void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 			 struct list_head *head);
 
 /***********/
@@ -452,7 +408,6 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 void ath_tx_tasklet(struct ath_softc *sc);
 u32 ath_txq_depth(struct ath_softc *sc, int qnum);
 u32 ath_txq_aggr_depth(struct ath_softc *sc, int qnum);
-void ath_notify_txq_status(struct ath_softc *sc, u16 queue_depth);
 void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 
 /**********************/
@@ -517,25 +472,18 @@ struct ath_node_aggr {
 /* driver-specific node state */
 struct ath_node {
 	struct ath_softc *an_sc;
-	struct ath_chainmask_sel an_chainmask_sel;
 	struct ath_node_aggr an_aggr;
 	u16 maxampdu;
 	u8 mpdudensity;
 };
 
-void ath_tx_resume_tid(struct ath_softc *sc,
-	struct ath_atx_tid *tid);
+void ath_tx_resume_tid(struct ath_softc *sc, struct ath_atx_tid *tid);
 bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
-void ath_tx_aggr_teardown(struct ath_softc *sc,
-	struct ath_node *an, u8 tidno);
+void ath_tx_aggr_teardown(struct ath_softc *sc,	struct ath_node *an, u8 tidno);
 int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn);
 int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
-void ath_newassoc(struct ath_softc *sc,
-	struct ath_node *node, int isnew, int isuapsd);
-void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta);
-void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta);
 
 /********/
 /* VAPs */
@@ -593,49 +541,8 @@ void ath9k_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, int if_id);
 int ath_beaconq_setup(struct ath_hal *ah);
 int ath_beacon_alloc(struct ath_softc *sc, int if_id);
-void ath_bstuck_process(struct ath_softc *sc);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp);
 void ath_beacon_sync(struct ath_softc *sc, int if_id);
-void ath_get_beaconconfig(struct ath_softc *sc,
-			  int if_id,
-			  struct ath_beacon_config *conf);
-/*********************/
-/* Antenna diversity */
-/*********************/
-
-#define ATH_ANT_DIV_MAX_CFG      2
-#define ATH_ANT_DIV_MIN_IDLE_US  1000000  /* us */
-#define ATH_ANT_DIV_MIN_SCAN_US  50000	  /* us */
-
-enum ATH_ANT_DIV_STATE{
-	ATH_ANT_DIV_IDLE,
-	ATH_ANT_DIV_SCAN,	/* evaluating antenna */
-};
-
-struct ath_antdiv {
-	struct ath_softc *antdiv_sc;
-	u8 antdiv_start;
-	enum ATH_ANT_DIV_STATE antdiv_state;
-	u8 antdiv_num_antcfg;
-	u8 antdiv_curcfg;
-	u8 antdiv_bestcfg;
-	int32_t antdivf_rssitrig;
-	int32_t antdiv_lastbrssi[ATH_ANT_DIV_MAX_CFG];
-	u64 antdiv_lastbtsf[ATH_ANT_DIV_MAX_CFG];
-	u64 antdiv_laststatetsf;
-	u8 antdiv_bssid[ETH_ALEN];
-};
-
-void ath_slow_ant_div_init(struct ath_antdiv *antdiv,
-	struct ath_softc *sc, int32_t rssitrig);
-void ath_slow_ant_div_start(struct ath_antdiv *antdiv,
-			    u8 num_antcfg,
-			    const u8 *bssid);
-void ath_slow_ant_div_stop(struct ath_antdiv *antdiv);
-void ath_slow_ant_div(struct ath_antdiv *antdiv,
-		      struct ieee80211_hdr *wh,
-		      struct ath_rx_status *rx_stats);
-void ath_setdefantenna(void *sc, u32 antenna);
 
 /*******/
 /* ANI */
@@ -717,41 +624,13 @@ struct ath_rfkill {
 
 #define ATH_IF_ID_ANY   	0xff
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
-
-#define RSSI_LPF_THRESHOLD         -20
-#define ATH_RSSI_EP_MULTIPLIER     (1<<7)  /* pow2 to optimize out * and / */
-#define ATH_RATE_DUMMY_MARKER      0
-#define ATH_RSSI_LPF_LEN           10
-#define ATH_RSSI_DUMMY_MARKER      0x127
-
-#define ATH_EP_MUL(x, mul)         ((x) * (mul))
-#define ATH_EP_RND(x, mul)						\
-	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
-#define ATH_RSSI_OUT(x)							\
-	(((x) != ATH_RSSI_DUMMY_MARKER) ?				\
-	 (ATH_EP_RND((x), ATH_RSSI_EP_MULTIPLIER)) : ATH_RSSI_DUMMY_MARKER)
-#define ATH_RSSI_IN(x)					\
-	(ATH_EP_MUL((x), ATH_RSSI_EP_MULTIPLIER))
-#define ATH_LPF_RSSI(x, y, len)						\
-	((x != ATH_RSSI_DUMMY_MARKER) ? \
-		(((x) * ((len) - 1) + (y)) / (len)) : (y))
-#define ATH_RSSI_LPF(x, y) do {						\
-		if ((y) >= RSSI_LPF_THRESHOLD)				\
-			x = ATH_LPF_RSSI((x), \
-				ATH_RSSI_IN((y)), ATH_RSSI_LPF_LEN); \
-	} while (0)
-
+#define ATH_RSSI_DUMMY_MARKER   0x127
+#define ATH_RATE_DUMMY_MARKER   0
 
 enum PROT_MODE {
 	PROT_M_NONE = 0,
 	PROT_M_RTSCTS,
 	PROT_M_CTSONLY
-};
-
-enum RATE_TYPE {
-	NORMAL_RATE = 0,
-	HALF_RATE,
-	QUARTER_RATE
 };
 
 struct ath_ht_info {
@@ -881,27 +760,9 @@ struct ath_softc {
 	struct ath_ani sc_ani;
 };
 
-int ath_init(u16 devid, struct ath_softc *sc);
-int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan);
-void ath_stop(struct ath_softc *sc);
-irqreturn_t ath_isr(int irq, void *dev);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
-int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan);
-
-/*********************/
-/* Utility Functions */
-/*********************/
-
-void ath_key_reset(struct ath_softc *sc, u16 keyix, int freeslot);
-int ath_keyset(struct ath_softc *sc,
-	       u16 keyix,
-	       struct ath9k_keyval *hk,
-	       const u8 mac[ETH_ALEN]);
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
-void ath_setslottime(struct ath_softc *sc);
-void ath_update_txpow(struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
-u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp);
 
 #endif /* CORE_H */
