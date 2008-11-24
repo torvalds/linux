@@ -359,6 +359,7 @@ struct musb {
 	struct otg_transceiver	xceiv;
 
 	int nIrq;
+	unsigned		irq_wake:1;
 
 	struct musb_hw_ep	 endpoints[MUSB_C_NUM_EPS];
 #define control_ep		endpoints

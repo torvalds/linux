@@ -1840,7 +1840,7 @@ static void musb_free(struct musb *musb)
 	musb_gadget_cleanup(musb);
 #endif
 
-	if (musb->nIrq >= 0) {
+	if (musb->nIrq >= 0 && musb->irq_wake) {
 		disable_irq_wake(musb->nIrq);
 		free_irq(musb->nIrq, musb);
 	}
@@ -1993,8 +1993,12 @@ bad_config:
 	}
 	musb->nIrq = nIrq;
 /* FIXME this handles wakeup irqs wrong */
-	if (enable_irq_wake(nIrq) == 0)
+	if (enable_irq_wake(nIrq) == 0) {
+		musb->irq_wake = 1;
 		device_init_wakeup(dev, 1);
+	} else {
+		musb->irq_wake = 0;
+	}
 
 	pr_info("%s: USB %s mode controller at %p using %s, IRQ %d\n",
 			musb_driver_name,
