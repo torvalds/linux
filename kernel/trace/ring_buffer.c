@@ -381,7 +381,7 @@ extern int ring_buffer_page_too_big(void);
 
 /**
  * ring_buffer_alloc - allocate a new ring_buffer
- * @size: the size in bytes that is needed.
+ * @size: the size in bytes per cpu that is needed.
  * @flags: attributes to set for the ring buffer.
  *
  * Currently the only flag that is available is the RB_FL_OVERWRITE
