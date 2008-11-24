@@ -1780,7 +1780,7 @@ int ext4_mb_get_buddy_cache_lock(struct super_block *sb, ext4_group_t group)
 		 * no block allocation going on in any
 		 * of that groups
 		 */
-		down_write(&grp->alloc_sem);
+		down_write_nested(&grp->alloc_sem, i);
 	}
 	return i;
 }
