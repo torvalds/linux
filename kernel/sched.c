@@ -7697,10 +7697,10 @@ static struct sched_domain_attr *dattr_cur;
 
 /*
  * Special case: If a kmalloc of a doms_cur partition (array of
- * cpumask_t) fails, then fallback to a single sched domain,
- * as determined by the single cpumask_t fallback_doms.
+ * cpumask) fails, then fallback to a single sched domain,
+ * as determined by the single cpumask fallback_doms.
  */
-static cpumask_t fallback_doms;
+static cpumask_var_t fallback_doms;
 
 void __attribute__((weak)) arch_update_cpu_topology(void)
 {
@@ -7719,7 +7719,7 @@ static int arch_init_sched_domains(const cpumask_t *cpu_map)
 	ndoms_cur = 1;
 	doms_cur = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
 	if (!doms_cur)
-		doms_cur = &fallback_doms;
+		doms_cur = fallback_doms;
 	cpumask_andnot(doms_cur, cpu_map, cpu_isolated_map);
 	dattr_cur = NULL;
 	err = build_sched_domains(doms_cur);
@@ -7818,7 +7818,7 @@ match1:
 
 	if (doms_new == NULL) {
 		ndoms_cur = 0;
-		doms_new = &fallback_doms;
+		doms_new = fallback_doms;
 		cpumask_andnot(&doms_new[0], cpu_online_mask, cpu_isolated_map);
 		WARN_ON_ONCE(dattr_new);
 	}
@@ -7838,7 +7838,7 @@ match2:
 	}
 
 	/* Remember the new sched domains */
-	if (doms_cur != &fallback_doms)
+	if (doms_cur != fallback_doms)
 		kfree(doms_cur);
 	kfree(dattr_cur);	/* kfree(NULL) is safe */
 	doms_cur = doms_new;
@@ -8011,6 +8011,8 @@ void __init sched_init_smp(void)
 		BUG();
 	sched_init_granularity();
 	free_cpumask_var(non_isolated_cpus);
+
+	alloc_cpumask_var(&fallback_doms, GFP_KERNEL);
 }
 #else
 void __init sched_init_smp(void)
