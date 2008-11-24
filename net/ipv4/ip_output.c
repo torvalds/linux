@@ -778,7 +778,7 @@ int ip_append_data(struct sock *sk,
 		   int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
 		   void *from, int length, int transhdrlen,
-		   struct ipcm_cookie *ipc, struct rtable *rt,
+		   struct ipcm_cookie *ipc, struct rtable **rtp,
 		   unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -793,6 +793,7 @@ int ip_append_data(struct sock *sk,
 	int offset = 0;
 	unsigned int maxfraglen, fragheaderlen;
 	int csummode = CHECKSUM_NONE;
+	struct rtable *rt;
 
 	if (flags&MSG_PROBE)
 		return 0;
@@ -812,7 +813,11 @@ int ip_append_data(struct sock *sk,
 			inet->cork.flags |= IPCORK_OPT;
 			inet->cork.addr = ipc->addr;
 		}
-		dst_hold(&rt->u.dst);
+		rt = *rtp;
+		/*
+		 * We steal reference to this route, caller should not release it
+		 */
+		*rtp = NULL;
 		inet->cork.fragsize = mtu = inet->pmtudisc == IP_PMTUDISC_PROBE ?
 					    rt->u.dst.dev->mtu :
 					    dst_mtu(rt->u.dst.path);
@@ -1391,7 +1396,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	sk->sk_protocol = ip_hdr(skb)->protocol;
 	sk->sk_bound_dev_if = arg->bound_dev_if;
 	ip_append_data(sk, ip_reply_glue_bits, arg->iov->iov_base, len, 0,
-		       &ipc, rt, MSG_DONTWAIT);
+		       &ipc, &rt, MSG_DONTWAIT);
 	if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {
 		if (arg->csumoffset >= 0)
 			*((__sum16 *)skb_transport_header(skb) +

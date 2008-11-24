@@ -110,7 +110,7 @@ extern int		ip_append_data(struct sock *sk,
 						   int odd, struct sk_buff *skb),
 				void *from, int len, int protolen,
 				struct ipcm_cookie *ipc,
-				struct rtable *rt,
+				struct rtable **rt,
 				unsigned int flags);
 extern int		ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk_buff *skb);
 extern ssize_t		ip_append_page(struct sock *sk, struct page *page,

@@ -572,7 +572,7 @@ back_from_confirm:
 			ipc.addr = rt->rt_dst;
 		lock_sock(sk);
 		err = ip_append_data(sk, ip_generic_getfrag, msg->msg_iov, len, 0,
-					&ipc, rt, msg->msg_flags);
+					&ipc, &rt, msg->msg_flags);
 		if (err)
 			ip_flush_pending_frames(sk);
 		else if (!(msg->msg_flags & MSG_MORE))
