@@ -8349,10 +8349,12 @@ void __init sched_init(void)
 
 	/* Allocate the nohz_cpu_mask if CONFIG_CPUMASK_OFFSTACK */
 	alloc_bootmem_cpumask_var(&nohz_cpu_mask);
+#ifdef CONFIG_SMP
 #ifdef CONFIG_NO_HZ
 	alloc_bootmem_cpumask_var(&nohz.cpu_mask);
 #endif
 	alloc_bootmem_cpumask_var(&cpu_isolated_map);
+#endif /* SMP */
 
 	scheduler_running = 1;
 }
