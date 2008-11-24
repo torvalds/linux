@@ -6112,52 +6112,46 @@ static int __migrate_task_irq(struct task_struct *p, int src_cpu, int dest_cpu)
 static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 {
 	unsigned long flags;
-	cpumask_t mask;
 	struct rq *rq;
 	int dest_cpu;
+	/* FIXME: Use cpumask_of_node here. */
+	cpumask_t _nodemask = node_to_cpumask(cpu_to_node(dead_cpu));
+	const struct cpumask *nodemask = &_nodemask;
 
-	do {
-		/* On same node? */
-		node_to_cpumask_ptr(pnodemask, cpu_to_node(dead_cpu));
+again:
+	/* Look for allowed, online CPU in same node. */
+	for_each_cpu_and(dest_cpu, nodemask, cpu_online_mask)
+		if (cpumask_test_cpu(dest_cpu, &p->cpus_allowed))
+			goto move;
 
-		cpus_and(mask, *pnodemask, p->cpus_allowed);
-		dest_cpu = cpumask_any_and(cpu_online_mask, &mask);
+	/* Any allowed, online CPU? */
+	dest_cpu = cpumask_any_and(&p->cpus_allowed, cpu_online_mask);
+	if (dest_cpu < nr_cpu_ids)
+		goto move;
 
-		/* On any allowed CPU? */
-		if (dest_cpu >= nr_cpu_ids)
-			dest_cpu = cpumask_any_and(cpu_online_mask,
-						   &p->cpus_allowed);
+	/* No more Mr. Nice Guy. */
+	if (dest_cpu >= nr_cpu_ids) {
+		rq = task_rq_lock(p, &flags);
+		cpuset_cpus_allowed_locked(p, &p->cpus_allowed);
+		dest_cpu = cpumask_any_and(cpu_online_mask, &p->cpus_allowed);
+		task_rq_unlock(rq, &flags);
 
-		/* No more Mr. Nice Guy. */
-		if (dest_cpu >= nr_cpu_ids) {
-			cpumask_t cpus_allowed;
-
-			cpuset_cpus_allowed_locked(p, &cpus_allowed);
-			/*
-			 * Try to stay on the same cpuset, where the
-			 * current cpuset may be a subset of all cpus.
-			 * The cpuset_cpus_allowed_locked() variant of
-			 * cpuset_cpus_allowed() will not block. It must be
-			 * called within calls to cpuset_lock/cpuset_unlock.
-			 */
-			rq = task_rq_lock(p, &flags);
-			p->cpus_allowed = cpus_allowed;
-			dest_cpu = cpumask_any_and(cpu_online_mask,
-						    &p->cpus_allowed);
-			task_rq_unlock(rq, &flags);
-
-			/*
-			 * Don't tell them about moving exiting tasks or
-			 * kernel threads (both mm NULL), since they never
-			 * leave kernel.
-			 */
-			if (p->mm && printk_ratelimit()) {
-				printk(KERN_INFO "process %d (%s) no "
-				       "longer affine to cpu%d\n",
-					task_pid_nr(p), p->comm, dead_cpu);
-			}
+		/*
+		 * Don't tell them about moving exiting tasks or
+		 * kernel threads (both mm NULL), since they never
+		 * leave kernel.
+		 */
+		if (p->mm && printk_ratelimit()) {
+			printk(KERN_INFO "process %d (%s) no "
+			       "longer affine to cpu%d\n",
+			       task_pid_nr(p), p->comm, dead_cpu);
 		}
-	} while (!__migrate_task_irq(p, dead_cpu, dest_cpu));
+	}
+
+move:
+	/* It can have affinity changed while we were choosing. */
+	if (unlikely(!__migrate_task_irq(p, dead_cpu, dest_cpu)))
+		goto again;
 }
 
 /*
