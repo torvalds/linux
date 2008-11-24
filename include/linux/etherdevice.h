@@ -27,6 +27,7 @@
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
 #include <linux/random.h>
+#include <asm/unaligned.h>
 
 #ifdef __KERNEL__
 extern __be16		eth_type_trans(struct sk_buff *skb, struct net_device *dev);
@@ -139,6 +140,47 @@ static inline unsigned compare_ether_addr(const u8 *addr1, const u8 *addr2)
 
 	BUILD_BUG_ON(ETH_ALEN != 6);
 	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) != 0;
+}
+
+static inline unsigned long zap_last_2bytes(unsigned long value)
+{
+#ifdef __BIG_ENDIAN
+	return value >> 16;
+#else
+	return value << 16;
+#endif
+}
+
+/**
+ * compare_ether_addr_64bits - Compare two Ethernet addresses
+ * @addr1: Pointer to an array of 8 bytes
+ * @addr2: Pointer to an other array of 8 bytes
+ *
+ * Compare two ethernet addresses, returns 0 if equal.
+ * Same result than "memcmp(addr1, addr2, ETH_ALEN)" but without conditional
+ * branches, and possibly long word memory accesses on CPU allowing cheap
+ * unaligned memory reads.
+ * arrays = { byte1, byte2, byte3, byte4, byte6, byte7, pad1, pad2}
+ *
+ * Please note that alignment of addr1 & addr2 is only guaranted to be 16 bits.
+ */
+
+static inline unsigned compare_ether_addr_64bits(const u8 addr1[6+2],
+						 const u8 addr2[6+2])
+{
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	unsigned long fold = ((*(unsigned long *)addr1) ^
+			      (*(unsigned long *)addr2));
+
+	if (sizeof(fold) == 8)
+		return zap_last_2bytes(fold) != 0;
+
+	fold |= zap_last_2bytes((*(unsigned long *)(addr1 + 4)) ^
+				(*(unsigned long *)(addr2 + 4)));
+	return fold != 0;
+#else
+	return compare_ether_addr(addr1, addr2);
+#endif
 }
 #endif	/* __KERNEL__ */
 
