@@ -1381,6 +1381,14 @@ static void switched_from_rt(struct rq *rq, struct task_struct *p,
 	if (!rq->rt.rt_nr_running)
 		pull_rt_task(rq);
 }
+
+static inline void init_sched_rt_class(void)
+{
+	unsigned int i;
+
+	for_each_possible_cpu(i)
+		alloc_cpumask_var(&per_cpu(local_cpu_mask, i), GFP_KERNEL);
+}
 #endif /* CONFIG_SMP */
 
 /*
@@ -1552,11 +1560,3 @@ static void print_rt_stats(struct seq_file *m, int cpu)
 }
 #endif /* CONFIG_SCHED_DEBUG */
 
-/* Note that this is never called for !SMP, but that's OK. */
-static inline void init_sched_rt_class(void)
-{
-	unsigned int i;
-
-	for_each_possible_cpu(i)
-		alloc_cpumask_var(&per_cpu(local_cpu_mask, i), GFP_KERNEL);
-}
