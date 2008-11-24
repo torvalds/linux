@@ -1728,10 +1728,9 @@ static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	if ((params) && !(queue > 4)) {
 		P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
 			params->cw_min, params->cw_max, params->txop);
+		ret = p54_set_edcf(dev);
 	} else
 		ret = -EINVAL;
-	if (!ret)
-		ret = p54_set_edcf(dev);
 	mutex_unlock(&priv->conf_mutex);
 	return ret;
 }
