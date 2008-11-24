@@ -114,7 +114,7 @@ int ov9650_write_sensor(struct sd *sd, const u8 address,
 	/* Special case larger sensor writes */
 	p = buf + 16;
 
-	/* Copy a four byte write sequence for each byte to write over the I2C bus */
+	/* Copy a four byte sequence for each byte to write over the I2C bus */
 	for (i = 0; i < len; i++) {
 		memcpy(p, sensor_urb_skeleton + 16, 4);
 		p[3] = i2c_data[i];
@@ -219,7 +219,8 @@ int ov9650_power_down(struct sd *sd)
 			err = ov9650_write_sensor(sd,
 					    power_down_ov9650[i][1], &data, 1);
 		else
-			err = m5602_write_bridge(sd, power_down_ov9650[i][1], data);
+			err = m5602_write_bridge(sd, power_down_ov9650[i][1],
+						 data);
 	}
 
 	return err;
