@@ -507,10 +507,17 @@ struct kvm_assigned_irq {
 	__u32 guest_irq;
 	__u32 flags;
 	union {
+		struct {
+			__u32 addr_lo;
+			__u32 addr_hi;
+			__u32 data;
+		} guest_msi;
 		__u32 reserved[12];
 	};
 };
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
+
+#define KVM_DEV_IRQ_ASSIGN_ENABLE_MSI	(1 << 0)
 
 #endif

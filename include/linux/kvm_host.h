@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 #include <linux/preempt.h>
 #include <linux/marker.h>
+#include <linux/msi.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -307,8 +308,11 @@ struct kvm_assigned_dev_kernel {
 	int host_devfn;
 	int host_irq;
 	int guest_irq;
+	struct msi_msg guest_msi;
 #define KVM_ASSIGNED_DEV_GUEST_INTX	(1 << 0)
+#define KVM_ASSIGNED_DEV_GUEST_MSI	(1 << 1)
 #define KVM_ASSIGNED_DEV_HOST_INTX	(1 << 8)
+#define KVM_ASSIGNED_DEV_HOST_MSI	(1 << 9)
 	unsigned long irq_requested_type;
 	int irq_source_id;
 	struct pci_dev *dev;
