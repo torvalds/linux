@@ -531,6 +531,8 @@ struct hid_usage_id {
  * @name: driver name (e.g. "Footech_bar-wheel")
  * @id_table: which devices is this driver for (must be non-NULL for probe
  * 	      to be called)
+ * @dyn_list: list of dynamically added device ids
+ * @dyn_lock: lock protecting @dyn_list
  * @probe: new device inserted
  * @remove: device removed (NULL if not a hot-plug capable driver)
  * @report_table: on which reports to call raw_event (NULL means all)
@@ -557,6 +559,9 @@ struct hid_usage_id {
 struct hid_driver {
 	char *name;
 	const struct hid_device_id *id_table;
+
+	struct list_head dyn_list;
+	spinlock_t dyn_lock;
 
 	int (*probe)(struct hid_device *dev, const struct hid_device_id *id);
 	void (*remove)(struct hid_device *dev);

@@ -1304,12 +1304,92 @@ static const struct hid_device_id hid_blacklist[] = {
 	{ }
 };
 
+struct hid_dynid {
+	struct list_head list;
+	struct hid_device_id id;
+};
+
+/**
+ * store_new_id - add a new HID device ID to this driver and re-probe devices
+ * @driver: target device driver
+ * @buf: buffer for scanning device ID data
+ * @count: input size
+ *
+ * Adds a new dynamic hid device ID to this driver,
+ * and causes the driver to probe for all devices again.
+ */
+static ssize_t store_new_id(struct device_driver *drv, const char *buf,
+		size_t count)
+{
+	struct hid_driver *hdrv = container_of(drv, struct hid_driver, driver);
+	struct hid_dynid *dynid;
+	__u32 bus, vendor, product;
+	unsigned long driver_data = 0;
+	int ret;
+
+	ret = sscanf(buf, "%x %x %x %lx",
+			&bus, &vendor, &product, &driver_data);
+	if (ret < 3)
+		return -EINVAL;
+
+	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
+	if (!dynid)
+		return -ENOMEM;
+
+	dynid->id.bus = bus;
+	dynid->id.vendor = vendor;
+	dynid->id.product = product;
+	dynid->id.driver_data = driver_data;
+
+	spin_lock(&hdrv->dyn_lock);
+	list_add_tail(&dynid->list, &hdrv->dyn_list);
+	spin_unlock(&hdrv->dyn_lock);
+
+	ret = 0;
+	if (get_driver(&hdrv->driver)) {
+		ret = driver_attach(&hdrv->driver);
+		put_driver(&hdrv->driver);
+	}
+
+	return ret ? : count;
+}
+static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
+
+static void hid_free_dynids(struct hid_driver *hdrv)
+{
+	struct hid_dynid *dynid, *n;
+
+	spin_lock(&hdrv->dyn_lock);
+	list_for_each_entry_safe(dynid, n, &hdrv->dyn_list, list) {
+		list_del(&dynid->list);
+		kfree(dynid);
+	}
+	spin_unlock(&hdrv->dyn_lock);
+}
+
+static const struct hid_device_id *hid_match_device(struct hid_device *hdev,
+		struct hid_driver *hdrv)
+{
+	struct hid_dynid *dynid;
+
+	spin_lock(&hdrv->dyn_lock);
+	list_for_each_entry(dynid, &hdrv->dyn_list, list) {
+		if (hid_match_one_id(hdev, &dynid->id)) {
+			spin_unlock(&hdrv->dyn_lock);
+			return &dynid->id;
+		}
+	}
+	spin_unlock(&hdrv->dyn_lock);
+
+	return hid_match_id(hdev, hdrv->id_table);
+}
+
 static int hid_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct hid_driver *hdrv = container_of(drv, struct hid_driver, driver);
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 
-	if (!hid_match_id(hdev, hdrv->id_table))
+	if (!hid_match_device(hdev, hdrv))
 		return 0;
 
 	/* generic wants all non-blacklisted */
@@ -1328,7 +1408,7 @@ static int hid_device_probe(struct device *dev)
 	int ret = 0;
 
 	if (!hdev->driver) {
-		id = hid_match_id(hdev, hdrv->id_table);
+		id = hid_match_device(hdev, hdrv);
 		if (id == NULL)
 			return -ENODEV;
 
@@ -1695,18 +1775,33 @@ EXPORT_SYMBOL_GPL(hid_destroy_device);
 int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 		const char *mod_name)
 {
+	int ret;
+
 	hdrv->driver.name = hdrv->name;
 	hdrv->driver.bus = &hid_bus_type;
 	hdrv->driver.owner = owner;
 	hdrv->driver.mod_name = mod_name;
 
-	return driver_register(&hdrv->driver);
+	INIT_LIST_HEAD(&hdrv->dyn_list);
+	spin_lock_init(&hdrv->dyn_lock);
+
+	ret = driver_register(&hdrv->driver);
+	if (ret)
+		return ret;
+
+	ret = driver_create_file(&hdrv->driver, &driver_attr_new_id);
+	if (ret)
+		driver_unregister(&hdrv->driver);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__hid_register_driver);
 
 void hid_unregister_driver(struct hid_driver *hdrv)
 {
+	driver_remove_file(&hdrv->driver, &driver_attr_new_id);
 	driver_unregister(&hdrv->driver);
+	hid_free_dynids(hdrv);
 }
 EXPORT_SYMBOL_GPL(hid_unregister_driver);
 
