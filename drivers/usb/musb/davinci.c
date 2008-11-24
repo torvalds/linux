@@ -364,6 +364,12 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 	return IRQ_HANDLED;
 }
 
+int musb_platform_set_mode(struct musb *musb, u8 mode)
+{
+	/* EVM can't do this (right?) */
+	return -EIO;
+}
+
 int __init musb_platform_init(struct musb *musb)
 {
 	void __iomem	*tibase = musb->ctrl_base;
