@@ -225,12 +225,12 @@ int security_bprm_check(struct linux_binprm *bprm)
 
 void security_bprm_committing_creds(struct linux_binprm *bprm)
 {
-	return security_ops->bprm_committing_creds(bprm);
+	security_ops->bprm_committing_creds(bprm);
 }
 
 void security_bprm_committed_creds(struct linux_binprm *bprm)
 {
-	return security_ops->bprm_committed_creds(bprm);
+	security_ops->bprm_committed_creds(bprm);
 }
 
 int security_bprm_secureexec(struct linux_binprm *bprm)
@@ -613,7 +613,7 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
 
 void security_commit_creds(struct cred *new, const struct cred *old)
 {
-	return security_ops->cred_commit(new, old);
+	security_ops->cred_commit(new, old);
 }
 
 int security_kernel_act_as(struct cred *new, u32 secid)
