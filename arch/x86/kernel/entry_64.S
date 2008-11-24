@@ -68,6 +68,8 @@ ENTRY(mcount)
 END(mcount)
 
 ENTRY(ftrace_caller)
+	cmpl $0, function_trace_stop
+	jne  ftrace_stub
 
 	/* taken from glibc */
 	subq $0x38, %rsp
@@ -103,6 +105,9 @@ END(ftrace_caller)
 
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 ENTRY(mcount)
+	cmpl $0, function_trace_stop
+	jne  ftrace_stub
+
 	cmpq $ftrace_stub, ftrace_trace_function
 	jnz trace
 .globl ftrace_stub

@@ -164,6 +164,8 @@ union futex_key {
 	} both;
 };
 
+#define FUTEX_KEY_INIT (union futex_key) { .both = { .ptr = NULL } }
+
 #ifdef CONFIG_FUTEX
 extern void exit_robust_list(struct task_struct *curr);
 extern void exit_pi_state_list(struct task_struct *curr);

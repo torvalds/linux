@@ -82,7 +82,7 @@ of ftrace. Here is a list of some of the key files:
 		tracer is not adding more data, they will display
 		the same information every time they are read.
 
-  iter_ctrl: This file lets the user control the amount of data
+  trace_options: This file lets the user control the amount of data
 		that is displayed in one of the above output
 		files.
 
@@ -94,10 +94,10 @@ of ftrace. Here is a list of some of the key files:
 		only be recorded if the latency is greater than
 		the value in this file. (in microseconds)
 
-  trace_entries: This sets or displays the number of bytes each CPU
+  buffer_size_kb: This sets or displays the number of kilobytes each CPU
 		buffer can hold. The tracer buffers are the same size
 		for each CPU. The displayed number is the size of the
-		 CPU buffer and not total size of all buffers. The
+		CPU buffer and not total size of all buffers. The
 		trace buffers are allocated in pages (blocks of memory
 		that the kernel uses for allocation, usually 4 KB in size).
 		If the last page allocated has room for more bytes
@@ -316,23 +316,23 @@ The above is mostly meaningful for kernel developers.
   The rest is the same as the 'trace' file.
 
 
-iter_ctrl
----------
+trace_options
+-------------
 
-The iter_ctrl file is used to control what gets printed in the trace
+The trace_options file is used to control what gets printed in the trace
 output. To see what is available, simply cat the file:
 
-  cat /debug/tracing/iter_ctrl
+  cat /debug/tracing/trace_options
   print-parent nosym-offset nosym-addr noverbose noraw nohex nobin \
- noblock nostacktrace nosched-tree
+ noblock nostacktrace nosched-tree nouserstacktrace nosym-userobj
 
 To disable one of the options, echo in the option prepended with "no".
 
-  echo noprint-parent > /debug/tracing/iter_ctrl
+  echo noprint-parent > /debug/tracing/trace_options
 
 To enable an option, leave off the "no".
 
-  echo sym-offset > /debug/tracing/iter_ctrl
+  echo sym-offset > /debug/tracing/trace_options
 
 Here are the available options:
 
@@ -377,6 +377,20 @@ Here are the available options:
   stacktrace - This is one of the options that changes the trace itself.
 		When a trace is recorded, so is the stack of functions.
 		This allows for back traces of trace sites.
+
+  userstacktrace - This option changes the trace.
+		   It records a stacktrace of the current userspace thread.
+
+  sym-userobj - when user stacktrace are enabled, look up which object the
+		address belongs to, and print a relative address
+		This is especially useful when ASLR is on, otherwise you don't
+		get a chance to resolve the address to object/file/line after the app is no
+		longer running
+
+		The lookup is performed when you read trace,trace_pipe,latency_trace. Example:
+
+		a.out-1623  [000] 40874.465068: /root/a.out[+0x480] <-/root/a.out[+0
+x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 
   sched-tree - TBD (any users??)
 
@@ -1299,41 +1313,29 @@ trace entries
 -------------
 
 Having too much or not enough data can be troublesome in diagnosing
-an issue in the kernel. The file trace_entries is used to modify
+an issue in the kernel. The file buffer_size_kb is used to modify
 the size of the internal trace buffers. The number listed
 is the number of entries that can be recorded per CPU. To know
 the full size, multiply the number of possible CPUS with the
 number of entries.
 
- # cat /debug/tracing/trace_entries
-65620
+ # cat /debug/tracing/buffer_size_kb
+1408 (units kilobytes)
 
 Note, to modify this, you must have tracing completely disabled. To do that,
 echo "nop" into the current_tracer. If the current_tracer is not set
 to "nop", an EINVAL error will be returned.
 
  # echo nop > /debug/tracing/current_tracer
- # echo 100000 > /debug/tracing/trace_entries
- # cat /debug/tracing/trace_entries
-100045
-
-
-Notice that we echoed in 100,000 but the size is 100,045. The entries
-are held in individual pages. It allocates the number of pages it takes
-to fulfill the request. If more entries may fit on the last page
-then they will be added.
-
- # echo 1 > /debug/tracing/trace_entries
- # cat /debug/tracing/trace_entries
-85
-
-This shows us that 85 entries can fit in a single page.
+ # echo 10000 > /debug/tracing/buffer_size_kb
+ # cat /debug/tracing/buffer_size_kb
+10000 (units kilobytes)
 
 The number of pages which will be allocated is limited to a percentage
 of available memory. Allocating too much will produce an error.
 
- # echo 1000000000000 > /debug/tracing/trace_entries
+ # echo 1000000000000 > /debug/tracing/buffer_size_kb
 -bash: echo: write error: Cannot allocate memory
- # cat /debug/tracing/trace_entries
+ # cat /debug/tracing/buffer_size_kb
 85
 

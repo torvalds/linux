@@ -1157,6 +1157,9 @@ ENTRY(mcount)
 END(mcount)
 
 ENTRY(ftrace_caller)
+	cmpl $0, function_trace_stop
+	jne  ftrace_stub
+
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -1180,8 +1183,15 @@ END(ftrace_caller)
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
 ENTRY(mcount)
+	cmpl $0, function_trace_stop
+	jne  ftrace_stub
+
 	cmpl $ftrace_stub, ftrace_trace_function
 	jnz trace
+#ifdef CONFIG_FUNCTION_RET_TRACER
+	cmpl $ftrace_stub, ftrace_function_return
+	jnz ftrace_return_caller
+#endif
 .globl ftrace_stub
 ftrace_stub:
 	ret
@@ -1200,11 +1210,41 @@ trace:
 	popl %edx
 	popl %ecx
 	popl %eax
-
 	jmp ftrace_stub
 END(mcount)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_TRACER */
+
+#ifdef CONFIG_FUNCTION_RET_TRACER
+ENTRY(ftrace_return_caller)
+	cmpl $0, function_trace_stop
+	jne ftrace_stub
+
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %edx
+	lea 0x4(%ebp), %eax
+	call prepare_ftrace_return
+	popl %edx
+	popl %ecx
+	popl %eax
+	ret
+END(ftrace_return_caller)
+
+.globl return_to_handler
+return_to_handler:
+	pushl $0
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	call ftrace_return_to_handler
+	movl %eax, 0xc(%esp)
+	popl %edx
+	popl %ecx
+	popl %eax
+	ret
+#endif
 
 .section .rodata,"a"
 #include "syscall_table_32.S"

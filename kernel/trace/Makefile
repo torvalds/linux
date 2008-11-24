@@ -10,6 +10,11 @@ CFLAGS_trace_selftest_dynamic.o = -pg
 obj-y += trace_selftest_dynamic.o
 endif
 
+# If unlikely tracing is enabled, do not trace these files
+ifdef CONFIG_TRACING_BRANCHES
+KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
+endif
+
 obj-$(CONFIG_FUNCTION_TRACER) += libftrace.o
 obj-$(CONFIG_RING_BUFFER) += ring_buffer.o
 
@@ -24,5 +29,7 @@ obj-$(CONFIG_NOP_TRACER) += trace_nop.o
 obj-$(CONFIG_STACK_TRACER) += trace_stack.o
 obj-$(CONFIG_MMIOTRACE) += trace_mmiotrace.o
 obj-$(CONFIG_BOOT_TRACER) += trace_boot.o
+obj-$(CONFIG_FUNCTION_RET_TRACER) += trace_functions_return.o
+obj-$(CONFIG_TRACE_BRANCH_PROFILING) += trace_branch.o
 
 libftrace-y := ftrace.o

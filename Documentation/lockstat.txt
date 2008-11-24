@@ -71,35 +71,50 @@ Look at the current lock statistics:
 
 # less /proc/lock_stat
 
-01 lock_stat version 0.2
+01 lock_stat version 0.3
 02 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 03                               class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-min   holdtime-max holdtime-total
 04 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 05
-06               &inode->i_data.tree_lock-W:            15          21657           0.18     1093295.30 11547131054.85             58          10415           0.16          87.51        6387.60
-07               &inode->i_data.tree_lock-R:             0              0           0.00           0.00           0.00          23302         231198           0.25           8.45       98023.38
-08               --------------------------
-09                 &inode->i_data.tree_lock              0          [<ffffffff8027c08f>] add_to_page_cache+0x5f/0x190
-10
-11 ...............................................................................................................................................................................................
-12
-13                              dcache_lock:          1037           1161           0.38          45.32         774.51           6611         243371           0.15         306.48       77387.24
-14                              -----------
-15                              dcache_lock            180          [<ffffffff802c0d7e>] sys_getcwd+0x11e/0x230
-16                              dcache_lock            165          [<ffffffff802c002a>] d_alloc+0x15a/0x210
-17                              dcache_lock             33          [<ffffffff8035818d>] _atomic_dec_and_lock+0x4d/0x70
-18                              dcache_lock              1          [<ffffffff802beef8>] shrink_dcache_parent+0x18/0x130
+06                          &mm->mmap_sem-W:           233            538 18446744073708       22924.27      607243.51           1342          45806           1.71        8595.89     1180582.34
+07                          &mm->mmap_sem-R:           205            587 18446744073708       28403.36      731975.00           1940         412426           0.58      187825.45     6307502.88
+08                          ---------------
+09                            &mm->mmap_sem            487          [<ffffffff8053491f>] do_page_fault+0x466/0x928
+10                            &mm->mmap_sem            179          [<ffffffff802a6200>] sys_mprotect+0xcd/0x21d
+11                            &mm->mmap_sem            279          [<ffffffff80210a57>] sys_mmap+0x75/0xce
+12                            &mm->mmap_sem             76          [<ffffffff802a490b>] sys_munmap+0x32/0x59
+13                          ---------------
+14                            &mm->mmap_sem            270          [<ffffffff80210a57>] sys_mmap+0x75/0xce
+15                            &mm->mmap_sem            431          [<ffffffff8053491f>] do_page_fault+0x466/0x928
+16                            &mm->mmap_sem            138          [<ffffffff802a490b>] sys_munmap+0x32/0x59
+17                            &mm->mmap_sem            145          [<ffffffff802a6200>] sys_mprotect+0xcd/0x21d
+18
+19 ...............................................................................................................................................................................................
+20
+21                              dcache_lock:           621            623           0.52         118.26        1053.02           6745          91930           0.29         316.29      118423.41
+22                              -----------
+23                              dcache_lock            179          [<ffffffff80378274>] _atomic_dec_and_lock+0x34/0x54
+24                              dcache_lock            113          [<ffffffff802cc17b>] d_alloc+0x19a/0x1eb
+25                              dcache_lock             99          [<ffffffff802ca0dc>] d_rehash+0x1b/0x44
+26                              dcache_lock            104          [<ffffffff802cbca0>] d_instantiate+0x36/0x8a
+27                              -----------
+28                              dcache_lock            192          [<ffffffff80378274>] _atomic_dec_and_lock+0x34/0x54
+29                              dcache_lock             98          [<ffffffff802ca0dc>] d_rehash+0x1b/0x44
+30                              dcache_lock             72          [<ffffffff802cc17b>] d_alloc+0x19a/0x1eb
+31                              dcache_lock            112          [<ffffffff802cbca0>] d_instantiate+0x36/0x8a
 
 This excerpt shows the first two lock class statistics. Line 01 shows the
 output version - each time the format changes this will be updated. Line 02-04
-show the header with column descriptions. Lines 05-10 and 13-18 show the actual
+show the header with column descriptions. Lines 05-18 and 20-31 show the actual
 statistics. These statistics come in two parts; the actual stats separated by a
-short separator (line 08, 14) from the contention points.
+short separator (line 08, 13) from the contention points.
 
-The first lock (05-10) is a read/write lock, and shows two lines above the
+The first lock (05-18) is a read/write lock, and shows two lines above the
 short separator. The contention points don't match the column descriptors,
-they have two: contentions and [<IP>] symbol.
+they have two: contentions and [<IP>] symbol. The second set of contention
+points are the points we're contending with.
 
+The integer part of the time values is in us.
 
 View the top contending locks:
 

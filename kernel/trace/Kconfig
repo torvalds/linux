@@ -3,11 +3,24 @@
 #  select HAVE_FUNCTION_TRACER:
 #
 
+config USER_STACKTRACE_SUPPORT
+	bool
+
 config NOP_TRACER
 	bool
 
 config HAVE_FUNCTION_TRACER
 	bool
+
+config HAVE_FUNCTION_RET_TRACER
+	bool
+
+config HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	bool
+	help
+	 This gets selected when the arch tests the function_trace_stop
+	 variable at the mcount call site. Otherwise, this variable
+	 is tested by the called function.
 
 config HAVE_DYNAMIC_FTRACE
 	bool
@@ -46,6 +59,16 @@ config FUNCTION_TRACER
 	  tracing is enabled by the administrator. If it's runtime disabled
 	  (the bootup default), then the overhead of the instructions is very
 	  small and not measurable even in micro-benchmarks.
+
+config FUNCTION_RET_TRACER
+	bool "Kernel Function return Tracer"
+	depends on HAVE_FUNCTION_RET_TRACER
+	depends on FUNCTION_TRACER
+	help
+	  Enable the kernel to trace a function at its return.
+	  It's first purpose is to trace the duration of functions.
+	  This is done by setting the current return address on the thread
+	  info structure of the current task.
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
@@ -137,6 +160,59 @@ config BOOT_TRACER
 	  ( Note that tracing self tests can't be enabled if this tracer is
 	    selected, because the self-tests are an initcall as well and that
 	    would invalidate the boot trace. )
+
+config TRACE_BRANCH_PROFILING
+	bool "Trace likely/unlikely profiler"
+	depends on DEBUG_KERNEL
+	select TRACING
+	help
+	  This tracer profiles all the the likely and unlikely macros
+	  in the kernel. It will display the results in:
+
+	  /debugfs/tracing/profile_annotated_branch
+
+	  Note: this will add a significant overhead, only turn this
+	  on if you need to profile the system's use of these macros.
+
+	  Say N if unsure.
+
+config PROFILE_ALL_BRANCHES
+	bool "Profile all if conditionals"
+	depends on TRACE_BRANCH_PROFILING
+	help
+	  This tracer profiles all branch conditions. Every if ()
+	  taken in the kernel is recorded whether it hit or miss.
+	  The results will be displayed in:
+
+	  /debugfs/tracing/profile_branch
+
+	  This configuration, when enabled, will impose a great overhead
+	  on the system. This should only be enabled when the system
+	  is to be analyzed
+
+	  Say N if unsure.
+
+config TRACING_BRANCHES
+	bool
+	help
+	  Selected by tracers that will trace the likely and unlikely
+	  conditions. This prevents the tracers themselves from being
+	  profiled. Profiling the tracing infrastructure can only happen
+	  when the likelys and unlikelys are not being traced.
+
+config BRANCH_TRACER
+	bool "Trace likely/unlikely instances"
+	depends on TRACE_BRANCH_PROFILING
+	select TRACING_BRANCHES
+	help
+	  This traces the events of likely and unlikely condition
+	  calls in the kernel.  The difference between this and the
+	  "Trace likely/unlikely profiler" is that this is not a
+	  histogram of the callers, but actually places the calling
+	  events into a running trace buffer to see when and where the
+	  events happened, as well as their results.
+
+	  Say N if unsure.
 
 config STACK_TRACER
 	bool "Trace max stack"

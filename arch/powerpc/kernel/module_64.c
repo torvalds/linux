@@ -20,6 +20,7 @@
 #include <linux/moduleloader.h>
 #include <linux/err.h>
 #include <linux/vmalloc.h>
+#include <linux/ftrace.h>
 #include <linux/bug.h>
 #include <asm/module.h>
 #include <asm/firmware.h>
@@ -162,6 +163,11 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 					       / sizeof(Elf64_Rela));
 		}
 	}
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+	/* make the trampoline to the ftrace_caller */
+	relocs++;
+#endif
 
 	DEBUGP("Looks like a total of %lu stubs, max\n", relocs);
 	return relocs * sizeof(struct ppc64_stub_entry);
@@ -440,6 +446,13 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			return -ENOEXEC;
 		}
 	}
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+	me->arch.toc = my_r2(sechdrs, me);
+	me->arch.tramp = stub_for_addr(sechdrs,
+				       (unsigned long)ftrace_caller,
+				       me);
+#endif
 
 	return 0;
 }
