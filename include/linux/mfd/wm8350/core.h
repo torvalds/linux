@@ -29,6 +29,7 @@
  */
 #define WM8350_RESET_ID                         0x00
 #define WM8350_ID                               0x01
+#define WM8350_REVISION				0x02
 #define WM8350_SYSTEM_CONTROL_1                 0x03
 #define WM8350_SYSTEM_CONTROL_2                 0x04
 #define WM8350_SYSTEM_HIBERNATE                 0x05
@@ -78,6 +79,11 @@
 #define WM8350_CHIP_REV_MASK                    0x7000
 #define WM8350_CONF_STS_MASK                    0x0C00
 #define WM8350_CUST_ID_MASK                     0x00FF
+
+/*
+ * R2 (0x02) - Revision
+ */
+#define WM8350_MASK_REV_MASK			0x00FF
 
 /*
  * R3 (0x03) - System Control 1
