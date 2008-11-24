@@ -140,7 +140,7 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 				     struct kvm_assigned_dev_kernel
 				     *assigned_dev)
 {
-	if (irqchip_in_kernel(kvm) && assigned_dev->irq_requested)
+	if (irqchip_in_kernel(kvm) && assigned_dev->irq_requested_type)
 		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
 
 	kvm_unregister_irq_ack_notifier(&assigned_dev->ack_notifier);
@@ -180,7 +180,7 @@ static int assigned_device_update_intx(struct kvm *kvm,
 			struct kvm_assigned_dev_kernel *adev,
 			struct kvm_assigned_irq *airq)
 {
-	if (adev->irq_requested) {
+	if (adev->irq_requested_type & KVM_ASSIGNED_DEV_GUEST_INTX) {
 		adev->guest_irq = airq->guest_irq;
 		adev->ack_notifier.gsi = airq->guest_irq;
 		return 0;
@@ -207,7 +207,8 @@ static int assigned_device_update_intx(struct kvm *kvm,
 			return -EIO;
 	}
 
-	adev->irq_requested = true;
+	adev->irq_requested_type = KVM_ASSIGNED_DEV_GUEST_INTX |
+				   KVM_ASSIGNED_DEV_HOST_INTX;
 	return 0;
 }
 
@@ -227,7 +228,7 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 		return -EINVAL;
 	}
 
-	if (!match->irq_requested) {
+	if (!match->irq_requested_type) {
 		INIT_WORK(&match->interrupt_work,
 				kvm_assigned_dev_interrupt_work_handler);
 		if (irqchip_in_kernel(kvm)) {

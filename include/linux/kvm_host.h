@@ -307,7 +307,9 @@ struct kvm_assigned_dev_kernel {
 	int host_devfn;
 	int host_irq;
 	int guest_irq;
-	int irq_requested;
+#define KVM_ASSIGNED_DEV_GUEST_INTX	(1 << 0)
+#define KVM_ASSIGNED_DEV_HOST_INTX	(1 << 8)
+	unsigned long irq_requested_type;
 	int irq_source_id;
 	struct pci_dev *dev;
 	struct kvm *kvm;
