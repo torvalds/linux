@@ -5964,7 +5964,7 @@ int set_cpus_allowed_ptr(struct task_struct *p, const cpumask_t *new_mask)
 	if (cpu_isset(task_cpu(p), *new_mask))
 		goto out;
 
-	if (migrate_task(p, any_online_cpu(*new_mask), &req)) {
+	if (migrate_task(p, cpumask_any_and(cpu_online_mask, new_mask), &req)) {
 		/* Need help from migration thread: drop lock and wait. */
 		task_rq_unlock(rq, &flags);
 		wake_up_process(rq->migration_thread);
@@ -6113,11 +6113,12 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 		node_to_cpumask_ptr(pnodemask, cpu_to_node(dead_cpu));
 
 		cpus_and(mask, *pnodemask, p->cpus_allowed);
-		dest_cpu = any_online_cpu(mask);
+		dest_cpu = cpumask_any_and(cpu_online_mask, &mask);
 
 		/* On any allowed CPU? */
 		if (dest_cpu >= nr_cpu_ids)
-			dest_cpu = any_online_cpu(p->cpus_allowed);
+			dest_cpu = cpumask_any_and(cpu_online_mask,
+						   &p->cpus_allowed);
 
 		/* No more Mr. Nice Guy. */
 		if (dest_cpu >= nr_cpu_ids) {
@@ -6133,7 +6134,8 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 			 */
 			rq = task_rq_lock(p, &flags);
 			p->cpus_allowed = cpus_allowed;
-			dest_cpu = any_online_cpu(p->cpus_allowed);
+			dest_cpu = cpumask_any_and(cpu_online_mask,
+						    &p->cpus_allowed);
 			task_rq_unlock(rq, &flags);
 
 			/*
@@ -6159,7 +6161,7 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
  */
 static void migrate_nr_uninterruptible(struct rq *rq_src)
 {
-	struct rq *rq_dest = cpu_rq(any_online_cpu(*CPU_MASK_ALL_PTR));
+	struct rq *rq_dest = cpu_rq(cpumask_any(cpu_online_mask));
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -6524,7 +6526,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			break;
 		/* Unbind it from offline cpu so it can run. Fall thru. */
 		kthread_bind(cpu_rq(cpu)->migration_thread,
-			     any_online_cpu(cpu_online_map));
+			     cpumask_any(cpu_online_mask));
 		kthread_stop(cpu_rq(cpu)->migration_thread);
 		cpu_rq(cpu)->migration_thread = NULL;
 		break;
