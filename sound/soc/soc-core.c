@@ -693,7 +693,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	 * so userspace apps are blocked from touching us
 	 */
 
-	dev_info(socdev->dev, "starting resume work\n");
+	dev_dbg(socdev->dev, "starting resume work\n");
 
 	if (card->resume_pre)
 		card->resume_pre(pdev);
@@ -736,7 +736,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	if (card->resume_post)
 		card->resume_post(pdev);
 
-	dev_info(socdev->dev, "resume work completed\n");
+	dev_dbg(socdev->dev, "resume work completed\n");
 
 	/* userspace can access us now we are back as we were before */
 	snd_power_change_state(codec->card, SNDRV_CTL_POWER_D0);
@@ -747,10 +747,10 @@ static int soc_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 
-	dev_info(socdev->dev, "scheduling resume work\n");
+	dev_dbg(socdev->dev, "scheduling resume work\n");
 
 	if (!schedule_work(&socdev->deferred_resume_work))
-		dev_err(socdev->dev, "work item may be lost\n");
+		dev_err(socdev->dev, "resume work item may be lost\n");
 
 	return 0;
 }
