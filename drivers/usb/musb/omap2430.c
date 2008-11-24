@@ -58,9 +58,9 @@ static void musb_do_idle(unsigned long _musb)
 #endif
 	u8	devctl;
 
-	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
-
 	spin_lock_irqsave(&musb->lock, flags);
+
+	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
 	switch (musb->xceiv.state) {
 	case OTG_STATE_A_WAIT_BCON:
