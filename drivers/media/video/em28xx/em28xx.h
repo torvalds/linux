@@ -316,8 +316,7 @@ struct em28xx_input {
 enum em28xx_decoder {
 	EM28XX_NODECODER,
 	EM28XX_TVP5150,
-	EM28XX_SAA7113,
-	EM28XX_SAA7114
+	EM28XX_SAA711X,
 };
 
 struct em28xx_reg_seq {
