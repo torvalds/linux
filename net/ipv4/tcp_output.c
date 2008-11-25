@@ -1766,46 +1766,22 @@ u32 __tcp_select_window(struct sock *sk)
 	return window;
 }
 
-/* Attempt to collapse two adjacent SKB's during retransmission. */
-static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb,
-				     int mss_now)
+/* Collapses two adjacent SKB's during retransmission. */
+static void tcp_collapse_retrans(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *next_skb = tcp_write_queue_next(sk, skb);
 	int skb_size, next_skb_size;
 	u16 flags;
 
-	/* The first test we must make is that neither of these two
-	 * SKB's are still referenced by someone else.
-	 */
-	if (skb_cloned(skb) || skb_cloned(next_skb))
-		return;
-
 	skb_size = skb->len;
 	next_skb_size = next_skb->len;
 	flags = TCP_SKB_CB(skb)->flags;
-
-	/* Also punt if next skb has been SACK'd. */
-	if (TCP_SKB_CB(next_skb)->sacked & TCPCB_SACKED_ACKED)
-		return;
-
-	/* Next skb is out of window. */
-	if (after(TCP_SKB_CB(next_skb)->end_seq, tcp_wnd_end(tp)))
-		return;
-
-	/* Punt if not enough space exists in the first SKB for
-	 * the data in the second, or the total combined payload
-	 * would exceed the MSS.
-	 */
-	if ((next_skb_size > skb_tailroom(skb)) ||
-	    ((skb_size + next_skb_size) > mss_now))
-		return;
 
 	BUG_ON(tcp_skb_pcount(skb) != 1 || tcp_skb_pcount(next_skb) != 1);
 
 	tcp_highest_sack_combine(sk, next_skb, skb);
 
-	/* Ok.	We will be able to collapse the packet. */
 	tcp_unlink_write_queue(next_skb, sk);
 
 	skb_copy_from_linear_data(next_skb, skb_put(skb, next_skb_size),
@@ -1845,6 +1821,62 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb,
 		tp->retransmit_skb_hint = skb;
 
 	sk_wmem_free_skb(sk, next_skb);
+}
+
+static int tcp_can_collapse(struct sock *sk, struct sk_buff *skb)
+{
+	if (tcp_skb_pcount(skb) > 1)
+		return 0;
+	/* TODO: SACK collapsing could be used to remove this condition */
+	if (skb_shinfo(skb)->nr_frags != 0)
+		return 0;
+	if (skb_cloned(skb))
+		return 0;
+	if (skb == tcp_send_head(sk))
+		return 0;
+	/* Some heurestics for collapsing over SACK'd could be invented */
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)
+		return 0;
+
+	return 1;
+}
+
+static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *to,
+				     int space)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *skb = to, *tmp;
+	int first = 1;
+
+	if (!sysctl_tcp_retrans_collapse)
+		return;
+	if (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_SYN)
+		return;
+
+	tcp_for_write_queue_from_safe(skb, tmp, sk) {
+		if (!tcp_can_collapse(sk, skb))
+			break;
+
+		space -= skb->len;
+
+		if (first) {
+			first = 0;
+			continue;
+		}
+
+		if (space < 0)
+			break;
+		/* Punt if not enough space exists in the first SKB for
+		 * the data in the second
+		 */
+		if (skb->len > skb_tailroom(to))
+			break;
+
+		if (after(TCP_SKB_CB(skb)->end_seq, tcp_wnd_end(tp)))
+			break;
+
+		tcp_collapse_retrans(sk, to);
+	}
 }
 
 /* Do a simple retransmit without using the backoff mechanisms in
@@ -1946,17 +1978,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 			return -ENOMEM; /* We'll try again later. */
 	}
 
-	/* Collapse two adjacent packets if worthwhile and we can. */
-	if (!(TCP_SKB_CB(skb)->flags & TCPCB_FLAG_SYN) &&
-	    (skb->len < (cur_mss >> 1)) &&
-	    (!tcp_skb_is_last(sk, skb)) &&
-	    (tcp_write_queue_next(sk, skb) != tcp_send_head(sk)) &&
-	    (skb_shinfo(skb)->nr_frags == 0 &&
-	     skb_shinfo(tcp_write_queue_next(sk, skb))->nr_frags == 0) &&
-	    (tcp_skb_pcount(skb) == 1 &&
-	     tcp_skb_pcount(tcp_write_queue_next(sk, skb)) == 1) &&
-	    (sysctl_tcp_retrans_collapse != 0))
-		tcp_retrans_try_collapse(sk, skb, cur_mss);
+	tcp_retrans_try_collapse(sk, skb, cur_mss);
 
 	/* Some Solaris stacks overoptimize and ignore the FIN on a
 	 * retransmit when old data is attached.  So strip it off
