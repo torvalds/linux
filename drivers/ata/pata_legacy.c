@@ -638,7 +638,6 @@ static void qdi6500_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	qdi6580dp_set_piomode		-	PIO setup for dual channel
  *	@ap: Port
  *	@adev: Device
- *	@irq: interrupt line
  *
  *	In dual channel mode the 6580 has one clock per channel and we have
  *	to software clockswitch in qc_issue.
