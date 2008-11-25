@@ -1243,6 +1243,62 @@ static int nested_svm_do(struct vcpu_svm *svm,
 	return retval;
 }
 
+static int nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
+{
+	to_vmcb->save.fs = from_vmcb->save.fs;
+	to_vmcb->save.gs = from_vmcb->save.gs;
+	to_vmcb->save.tr = from_vmcb->save.tr;
+	to_vmcb->save.ldtr = from_vmcb->save.ldtr;
+	to_vmcb->save.kernel_gs_base = from_vmcb->save.kernel_gs_base;
+	to_vmcb->save.star = from_vmcb->save.star;
+	to_vmcb->save.lstar = from_vmcb->save.lstar;
+	to_vmcb->save.cstar = from_vmcb->save.cstar;
+	to_vmcb->save.sfmask = from_vmcb->save.sfmask;
+	to_vmcb->save.sysenter_cs = from_vmcb->save.sysenter_cs;
+	to_vmcb->save.sysenter_esp = from_vmcb->save.sysenter_esp;
+	to_vmcb->save.sysenter_eip = from_vmcb->save.sysenter_eip;
+
+	return 1;
+}
+
+static int nested_svm_vmload(struct vcpu_svm *svm, void *nested_vmcb,
+			     void *arg2, void *opaque)
+{
+	return nested_svm_vmloadsave((struct vmcb *)nested_vmcb, svm->vmcb);
+}
+
+static int nested_svm_vmsave(struct vcpu_svm *svm, void *nested_vmcb,
+			     void *arg2, void *opaque)
+{
+	return nested_svm_vmloadsave(svm->vmcb, (struct vmcb *)nested_vmcb);
+}
+
+static int vmload_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	if (nested_svm_check_permissions(svm))
+		return 1;
+
+	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
+	skip_emulated_instruction(&svm->vcpu);
+
+	nested_svm_do(svm, svm->vmcb->save.rax, 0, NULL, nested_svm_vmload);
+
+	return 1;
+}
+
+static int vmsave_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	if (nested_svm_check_permissions(svm))
+		return 1;
+
+	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
+	skip_emulated_instruction(&svm->vcpu);
+
+	nested_svm_do(svm, svm->vmcb->save.rax, 0, NULL, nested_svm_vmsave);
+
+	return 1;
+}
+
 static int stgi_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	if (nested_svm_check_permissions(svm))
@@ -1578,8 +1634,8 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_SHUTDOWN]			= shutdown_interception,
 	[SVM_EXIT_VMRUN]			= invalid_op_interception,
 	[SVM_EXIT_VMMCALL]			= vmmcall_interception,
-	[SVM_EXIT_VMLOAD]			= invalid_op_interception,
-	[SVM_EXIT_VMSAVE]			= invalid_op_interception,
+	[SVM_EXIT_VMLOAD]			= vmload_interception,
+	[SVM_EXIT_VMSAVE]			= vmsave_interception,
 	[SVM_EXIT_STGI]				= stgi_interception,
 	[SVM_EXIT_CLGI]				= clgi_interception,
 	[SVM_EXIT_SKINIT]			= invalid_op_interception,
