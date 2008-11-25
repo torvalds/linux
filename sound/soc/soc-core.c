@@ -1883,7 +1883,6 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
 /**
  * snd_soc_dai_set_fmt - configure DAI hardware audio format.
  * @dai: DAI
- * @clk_id: DAI specific clock ID
  * @fmt: SND_SOC_DAIFMT_ format value.
  *
  * Configures the DAI hardware format and clocking.
