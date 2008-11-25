@@ -338,11 +338,12 @@ struct em28xx_board {
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;
 	unsigned int mts_firmware:1;
-	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
 	unsigned int valid:1;
+
+	unsigned char xclk, i2c_speed;
 
 	enum em28xx_decoder decoder;
 
@@ -422,11 +423,12 @@ struct em28xx {
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
-	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
 	unsigned int valid:1;		/* report for validated boards */
+
+	unsigned char xclk, i2c_speed;
 
 	struct em28xx_IR *ir;
 

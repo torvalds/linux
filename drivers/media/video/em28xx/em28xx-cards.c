@@ -55,6 +55,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2750_BOARD_UNKNOWN] = {
 		.name          = "Unknown EM2750/EM2751 webcam grabber",
 		.vchannels     = 1,
+		.xclk          = EM28XX_XCLK_FREQUENCY_48MHZ,
 		.input         = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -78,15 +79,15 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2820_BOARD_UNKNOWN] = {
-		.name         = "Unknown EM2750/28xx video grabber",
-		.is_em2800    = 0,
-		.tuner_type   = TUNER_ABSENT,
+		.name          = "Unknown EM2750/28xx video grabber",
+		.tuner_type    = TUNER_ABSENT,
 	},
 	[EM2750_BOARD_DLCW_130] = {
 		/* Beijing Huaqi Information Digital Technology Co., Ltd */
 		.name          = "Huaqi DLCW-130",
 		.valid         = EM28XX_BOARD_NOT_VALIDATED,
 		.vchannels     = 1,
+		.xclk          = EM28XX_XCLK_FREQUENCY_48MHZ,
 		.input         = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -514,6 +515,10 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Pinnacle PCTV DVB-T",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_ABSENT, /* MT2060 */
+
+		/* djh - I have serious doubts this is right... */
+		.xclk         = EM28XX_XCLK_IR_RC5_MODE |
+				EM28XX_XCLK_FREQUENCY_10MHZ,
 	},
 	[EM2870_BOARD_COMPRO_VIDEOMATE] = {
 		.name         = "Compro, VideoMate U3",
@@ -547,7 +552,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
 		.mts_firmware = 1,
-		.has_dvb        = 1,
+		.has_dvb      = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -589,7 +594,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels      = 3,
 		.tuner_type     = TUNER_XC2028,
 		.mts_firmware   = 1,
-		.has_12mhz_i2s  = 1,
 		.has_dvb        = 1,
 		.ir_codes       = ir_codes_hauppauge_new,
 		.decoder        = EM28XX_TVP5150,
@@ -612,7 +616,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels      = 3,
 		.tuner_type     = TUNER_XC2028,
 		.mts_firmware   = 1,
-		.has_12mhz_i2s  = 1,
 		.has_dvb        = 1,
 		.ir_codes       = ir_codes_pinnacle_pctv_hd,
 		.decoder        = EM28XX_TVP5150,
@@ -635,7 +638,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels      = 3,
 		.tuner_type     = TUNER_XC2028,
 		.mts_firmware   = 1,
-		.has_12mhz_i2s  = 1,
 		.has_dvb        = 1,
 		.ir_codes       = ir_codes_ati_tv_wonder_hd_600,
 		.decoder        = EM28XX_TVP5150,
@@ -1091,9 +1093,12 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Pinnacle PCTV HD Mini",
 		.vchannels    = 0,
 		.tuner_type   = TUNER_ABSENT,
-		.has_dvb        = 1,
-		.ir_codes       = ir_codes_pinnacle_pctv_hd,
+		.has_dvb      = 1,
+		.ir_codes     = ir_codes_pinnacle_pctv_hd,
 		.decoder      = EM28XX_NODECODER,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_FREQ_400_KHZ,
 #ifdef DJH_DEBUG
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1326,7 +1331,8 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
 	dev->decoder = em28xx_boards[dev->model].decoder;
 	dev->video_inputs = em28xx_boards[dev->model].vchannels;
-	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
+	dev->xclk = em28xx_boards[dev->model].xclk;
+	dev->i2c_speed = em28xx_boards[dev->model].i2c_speed;
 	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
 	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
 	dev->has_snapshot_button = em28xx_boards[dev->model].has_snapshot_button;
@@ -1385,6 +1391,21 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	em28xx_set_model(dev);
 
+	/* Those are the default values for the majority of boards
+	   Use those values if not specified otherwise at boards entry
+	 */
+	if (!dev->xclk)
+		dev->xclk = EM28XX_XCLK_IR_RC5_MODE |
+			    EM28XX_XCLK_FREQUENCY_12MHZ;
+
+	if (!dev->i2c_speed)
+		dev->i2c_speed = EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_100_KHZ;
+
+	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->xclk & 0x7f);
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->i2c_speed);
+	msleep(50);
+
 	/* request some modules */
 	switch (dev->model) {
 	case EM2880_BOARD_TERRATEC_PRODIGY_XS:
@@ -1396,14 +1417,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2882_BOARD_PINNACLE_HYBRID_PRO:
 	case EM2883_BOARD_KWORLD_HYBRID_A316:
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		msleep(50);
-
 		/* Sets GPO/GPIO sequences for this device */
 		dev->analog_gpio      = hauppauge_wintv_hvr_900_analog;
 		dev->digital_gpio     = hauppauge_wintv_hvr_900_digital;
@@ -1412,16 +1425,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2882_BOARD_TERRATEC_HYBRID_XS:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		msleep(50);
-
-		/* should be added ir_codes here */
-
 		/* Sets GPO/GPIO sequences for this device */
 		dev->analog_gpio      = hauppauge_wintv_hvr_900_analog;
 		dev->digital_gpio     = hauppauge_wintv_hvr_900_digital;
@@ -1436,14 +1439,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_KWORLD_DVB_310U:
 	case EM2870_BOARD_KWORLD_350U:
 	case EM2881_BOARD_DNT_DA2_HYBRID:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		msleep(50);
-
 		/* NOTE: EM2881_DNT_DA2_HYBRID spend 140 msleep for digital
 			 and analog commands. If this commands doesn't work,
 			 add this timer. */
@@ -1457,14 +1452,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2880_BOARD_MSI_DIGIVOX_AD:
 	case EM2880_BOARD_MSI_DIGIVOX_AD_II:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		msleep(50);
-
 		/* Sets GPO/GPIO sequences for this device */
 		dev->analog_gpio      = em2880_msi_digivox_ad_analog;
 		dev->digital_gpio     = em2880_msi_digivox_ad_digital;
@@ -1472,19 +1459,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		dev->tun_digital_gpio = default_callback;
 		break;
 
-	case EM2750_BOARD_UNKNOWN:
-	case EM2750_BOARD_DLCW_130:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_FREQUENCY_48MHZ);
-		break;
-
 	case EM2861_BOARD_PLEXTOR_PX_TV100U:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
 		/* FIXME guess */
 		/* Turn on analog audio output */
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
@@ -1492,13 +1467,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2861_BOARD_KWORLD_PVRTV_300U:
 	case EM2880_BOARD_KWORLD_DVB_305U:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		msleep(10);
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0x6d);
 		msleep(10);
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0x7d);
@@ -1506,25 +1474,11 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2870_BOARD_KWORLD_355U:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		msleep(50);
-
 		/* Sets GPO/GPIO sequences for this device */
 		dev->digital_gpio     = em2870_kworld_355u_digital;
 		break;
 
 	case EM2870_BOARD_COMPRO_VIDEOMATE:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
 		/* TODO: someone can do some cleanup here...
 			 not everything's needed */
 		em28xx_write_reg(dev, EM2880_R04_GPO, 0x00);
@@ -1542,12 +1496,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2870_BOARD_TERRATEC_XS_MT2060:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
 		/* this device needs some gpio writes to get the DVB-T
 		   demod work */
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
@@ -1559,10 +1507,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2870_BOARD_PINNACLE_PCTV_DVB:
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-
 		/* this device needs some gpio writes to get the
 		   DVB-T demod work */
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
@@ -1571,53 +1515,15 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		mdelay(70);
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
 		mdelay(70);
-		/* switch em2880 rc protocol */
-		/* djh - I have serious doubts this is right... */
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_10MHZ);
-		/* should be added ir_codes here */
 		break;
 
 	case EM2820_BOARD_GADMEI_UTV310:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		/* Turn on analog audio output */
-		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
-		break;
-
-	case EM2860_BOARD_GADMEI_UTV330:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		/* should be added ir_codes here */
-		break;
-
 	case EM2820_BOARD_MSI_VOX_USB_2:
-		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
-				 EM28XX_XCLK_IR_RC5_MODE |
-				 EM28XX_XCLK_FREQUENCY_12MHZ);
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ);
-		/* enables audio for that device */
+		/* enables audio for that devices */
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
 		break;
 
 	case EM2874_BOARD_PINNACLE_PCTV_80E:
-		/* Set 400 KHz clock and select secondary i2c bus */
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
-				 EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM2874_I2C_SECONDARY_BUS_SELECT |
-				 EM28XX_I2C_FREQ_400_KHZ);
-
 		dev->digital_gpio = em2874_pinnacle_80e_digital;
 		break;
 	}

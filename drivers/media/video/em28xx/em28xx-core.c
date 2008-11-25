@@ -399,7 +399,7 @@ struct em28xx_vol_table outputs[] = {
 int em28xx_audio_analog_set(struct em28xx *dev)
 {
 	int ret, i;
-	u8 xclk = 0x07;
+	u8 xclk;
 
 	if (!dev->audio_mode.has_audio)
 		return 0;
@@ -417,13 +417,11 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 		}
 	}
 
-	if (dev->has_12mhz_i2s)
-		xclk |= 0x20;
-
+	xclk = dev->xclk & 0x7f;
 	if (!dev->mute)
 		xclk |= 0x80;
 
-	ret = em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, xclk, 0xa7);
+	ret = em28xx_write_reg(dev, EM28XX_R0F_XCLK, xclk);
 	if (ret < 0)
 		return ret;
 	msleep(10);
