@@ -815,6 +815,8 @@ struct ocfs2_dx_entry_list {
 							 * length de_num_used */
 };
 
+#define OCFS2_DX_FLAG_INLINE	0x01
+
 /*
  * A directory indexing block. Each indexed directory has one of these,
  * pointed to by ocfs2_dinode.
@@ -835,13 +837,21 @@ struct ocfs2_dx_root_block {
 						 * extent block */
 	__le32		dr_clusters;		/* Clusters allocated
 						 * to the indexed tree. */
-	__le32		dr_reserved1;
+	__u8		dr_flags;		/* OCFS2_DX_FLAG_* flags */
+	__u8		dr_reserved0;
+	__le16		dr_reserved1;
 	__le64		dr_dir_blkno;		/* Pointer to parent inode */
 	__le64		dr_reserved2;
 	__le64		dr_reserved3[16];
-	struct ocfs2_extent_list	dr_list; /* Keep this aligned to 128
-						  * bits for maximum space
-						  * efficiency. */
+	union {
+		struct ocfs2_extent_list dr_list; /* Keep this aligned to 128
+						   * bits for maximum space
+						   * efficiency. */
+		struct ocfs2_dx_entry_list dr_entries; /* In-root-block list of
+							* entries. We grow out
+							* to extents if this
+							* gets too big. */
+	};
 };
 
 /*
@@ -1224,6 +1234,16 @@ static inline int ocfs2_dx_entries_per_leaf(struct super_block *sb)
 
 	size = sb->s_blocksize -
 		offsetof(struct ocfs2_dx_leaf, dl_list.de_entries);
+
+	return size / sizeof(struct ocfs2_dx_entry);
+}
+
+static inline int ocfs2_dx_entries_per_root(struct super_block *sb)
+{
+	int size;
+
+	size = sb->s_blocksize -
+		offsetof(struct ocfs2_dx_root_block, dr_entries.de_entries);
 
 	return size / sizeof(struct ocfs2_dx_entry);
 }

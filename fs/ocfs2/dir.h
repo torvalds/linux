@@ -37,6 +37,8 @@ struct ocfs2_dir_lookup_result {
 	struct ocfs2_dir_entry		*dl_entry;	/* Target dirent in
 							 * unindexed leaf */
 
+	struct buffer_head		*dl_dx_root_bh;	/* Root of indexed
+							 * tree */
 	struct buffer_head		*dl_dx_leaf_bh;	/* Indexed leaf block */
 	struct ocfs2_dx_entry		*dl_dx_entry;	/* Target dx_entry in
 							 * indexed leaf */

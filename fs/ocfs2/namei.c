@@ -321,10 +321,8 @@ static int ocfs2_mknod(struct inode *dir,
 		want_clusters += 1;
 
 		/* Dir indexing requires extra space as well */
-		if (ocfs2_supports_indexed_dirs(osb)) {
-			want_clusters++;
+		if (ocfs2_supports_indexed_dirs(osb))
 			want_meta++;
-		}
 	}
 
 	status = ocfs2_reserve_new_metadata_blocks(osb, want_meta, &meta_ac);

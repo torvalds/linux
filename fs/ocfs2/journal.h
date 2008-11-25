@@ -458,6 +458,16 @@ static inline int ocfs2_rename_credits(struct super_block *sb)
 #define OCFS2_DX_ROOT_REMOVE_CREDITS (OCFS2_INODE_UPDATE_CREDITS +	\
 				      OCFS2_SUBALLOC_FREE)
 
+static inline int ocfs2_calc_dxi_expand_credits(struct super_block *sb)
+{
+	int credits = 1 + OCFS2_SUBALLOC_ALLOC;
+
+	credits += ocfs2_clusters_to_blocks(sb, 1);
+	credits += ocfs2_quota_trans_credits(sb);
+
+	return credits;
+}
+
 /*
  * Please note that the caller must make sure that root_el is the root
  * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
