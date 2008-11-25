@@ -1160,15 +1160,13 @@ ext4_ext_search_right(struct inode *inode, struct ext4_ext_path *path,
 	while (--depth >= 0) {
 		ix = path[depth].p_idx;
 		if (ix != EXT_LAST_INDEX(path[depth].p_hdr))
-			break;
+			goto got_index;
 	}
 
-	if (depth < 0) {
-		/* we've gone up to the root and
-		 * found no index to the right */
-		return 0;
-	}
+	/* we've gone up to the root and found no index to the right */
+	return 0;
 
+got_index:
 	/* we've found index to the right, let's
 	 * follow it and find the closest allocated
 	 * block to the right */
@@ -1201,7 +1199,6 @@ ext4_ext_search_right(struct inode *inode, struct ext4_ext_path *path,
 	*phys = ext_pblock(ex);
 	put_bh(bh);
 	return 0;
-
 }
 
 /*
