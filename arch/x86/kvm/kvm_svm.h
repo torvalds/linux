@@ -41,6 +41,8 @@ struct vcpu_svm {
 	unsigned long host_dr7;
 
 	u32 *msrpm;
+	struct vmcb *hsave;
+	u64 hsave_msr;
 };
 
 #endif

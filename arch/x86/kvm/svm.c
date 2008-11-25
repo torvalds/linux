@@ -626,6 +626,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	struct vcpu_svm *svm;
 	struct page *page;
 	struct page *msrpm_pages;
+	struct page *hsave_page;
 	int err;
 
 	svm = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
@@ -650,6 +651,11 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto uninit;
 	svm->msrpm = page_address(msrpm_pages);
 	svm_vcpu_init_msrpm(svm->msrpm);
+
+	hsave_page = alloc_page(GFP_KERNEL);
+	if (!hsave_page)
+		goto uninit;
+	svm->hsave = page_address(hsave_page);
 
 	svm->vmcb = page_address(page);
 	clear_page(svm->vmcb);
@@ -680,6 +686,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 
 	__free_page(pfn_to_page(svm->vmcb_pa >> PAGE_SHIFT));
 	__free_pages(virt_to_page(svm->msrpm), MSRPM_ALLOC_ORDER);
+	__free_page(virt_to_page(svm->hsave));
 	kvm_vcpu_uninit(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, svm);
 }
@@ -1377,6 +1384,9 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 	case MSR_IA32_LASTINTTOIP:
 		*data = svm->vmcb->save.last_excp_to;
 		break;
+	case MSR_VM_HSAVE_PA:
+		*data = svm->hsave_msr;
+		break;
 	default:
 		return kvm_get_msr_common(vcpu, ecx, data);
 	}
@@ -1470,6 +1480,9 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 		 */
 		pr_unimpl(vcpu, "unimplemented perfctr wrmsr: 0x%x data 0x%llx\n", ecx, data);
 
+		break;
+	case MSR_VM_HSAVE_PA:
+		svm->hsave_msr = data;
 		break;
 	default:
 		return kvm_set_msr_common(vcpu, ecx, data);
