@@ -1396,7 +1396,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2882_BOARD_PINNACLE_HYBRID_PRO:
 	case EM2883_BOARD_KWORLD_HYBRID_A316:
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1410,7 +1412,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2882_BOARD_TERRATEC_HYBRID_XS:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1432,7 +1436,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_KWORLD_DVB_310U:
 	case EM2870_BOARD_KWORLD_350U:
 	case EM2881_BOARD_DNT_DA2_HYBRID:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1451,7 +1457,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2880_BOARD_MSI_DIGIVOX_AD:
 	case EM2880_BOARD_MSI_DIGIVOX_AD_II:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1466,11 +1474,14 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2750_BOARD_UNKNOWN:
 	case EM2750_BOARD_DLCW_130:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x0a", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_FREQUENCY_48MHZ);
 		break;
 
 	case EM2861_BOARD_PLEXTOR_PX_TV100U:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1481,7 +1492,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	case EM2861_BOARD_KWORLD_PVRTV_300U:
 	case EM2880_BOARD_KWORLD_DVB_305U:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1493,7 +1506,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2870_BOARD_KWORLD_355U:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1504,7 +1519,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2870_BOARD_COMPRO_VIDEOMATE:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1525,7 +1542,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2870_BOARD_TERRATEC_XS_MT2060:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1553,12 +1572,17 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		em28xx_write_regs(dev, 0x08, "\xfe", 1);
 		mdelay(70);
 		/* switch em2880 rc protocol */
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x22", 1);
+		/* djh - I have serious doubts this is right... */
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_10MHZ);
 		/* should be added ir_codes here */
 		break;
 
 	case EM2820_BOARD_GADMEI_UTV310:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1567,8 +1591,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2860_BOARD_GADMEI_UTV330:
-		/* Turn on IR */
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x07", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
@@ -1576,7 +1601,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 
 	case EM2820_BOARD_MSI_VOX_USB_2:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+				 EM28XX_XCLK_IR_RC5_MODE |
+				 EM28XX_XCLK_FREQUENCY_12MHZ);
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK,
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
