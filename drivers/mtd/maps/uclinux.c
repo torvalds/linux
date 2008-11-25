@@ -51,7 +51,7 @@ int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
 
 /****************************************************************************/
 
-int __init uclinux_mtd_init(void)
+static int __init uclinux_mtd_init(void)
 {
 	struct mtd_info *mtd;
 	struct map_info *mapp;
@@ -94,7 +94,7 @@ int __init uclinux_mtd_init(void)
 
 /****************************************************************************/
 
-void __exit uclinux_mtd_cleanup(void)
+static void __exit uclinux_mtd_cleanup(void)
 {
 	if (uclinux_ram_mtdinfo) {
 		del_mtd_partitions(uclinux_ram_mtdinfo);
