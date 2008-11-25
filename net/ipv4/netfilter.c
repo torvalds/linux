@@ -125,6 +125,7 @@ struct ip_rt_info {
 	__be32 daddr;
 	__be32 saddr;
 	u_int8_t tos;
+	u_int32_t mark;
 };
 
 static void nf_ip_saveroute(const struct sk_buff *skb,
@@ -138,6 +139,7 @@ static void nf_ip_saveroute(const struct sk_buff *skb,
 		rt_info->tos = iph->tos;
 		rt_info->daddr = iph->daddr;
 		rt_info->saddr = iph->saddr;
+		rt_info->mark = skb->mark;
 	}
 }
 
@@ -150,6 +152,7 @@ static int nf_ip_reroute(struct sk_buff *skb,
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (!(iph->tos == rt_info->tos
+		      && skb->mark == rt_info->mark
 		      && iph->daddr == rt_info->daddr
 		      && iph->saddr == rt_info->saddr))
 			return ip_route_me_harder(skb, RTN_UNSPEC);
