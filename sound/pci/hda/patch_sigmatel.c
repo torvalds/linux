@@ -70,7 +70,9 @@ enum {
 
 enum {
 	STAC_92HD73XX_REF,
-	STAC_DELL_M6,
+	STAC_DELL_M6_AMIC,
+	STAC_DELL_M6_DMIC,
+	STAC_DELL_M6_BOTH,
 	STAC_DELL_EQ,
 	STAC_92HD73XX_MODELS
 };
@@ -1602,13 +1604,17 @@ static unsigned int dell_m6_pin_configs[13] = {
 
 static unsigned int *stac92hd73xx_brd_tbl[STAC_92HD73XX_MODELS] = {
 	[STAC_92HD73XX_REF]	= ref92hd73xx_pin_configs,
-	[STAC_DELL_M6]	= dell_m6_pin_configs,
+	[STAC_DELL_M6_AMIC]	= dell_m6_pin_configs,
+	[STAC_DELL_M6_DMIC]	= dell_m6_pin_configs,
+	[STAC_DELL_M6_BOTH]	= dell_m6_pin_configs,
 	[STAC_DELL_EQ]	= dell_m6_pin_configs,
 };
 
 static const char *stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
 	[STAC_92HD73XX_REF] = "ref",
-	[STAC_DELL_M6] = "dell-m6",
+	[STAC_DELL_M6_AMIC] = "dell-m6-amic",
+	[STAC_DELL_M6_DMIC] = "dell-m6-dmic",
+	[STAC_DELL_M6_BOTH] = "dell-m6",
 	[STAC_DELL_EQ] = "dell-eq",
 };
 
@@ -1617,21 +1623,23 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 				"DFI LanParty", STAC_92HD73XX_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0254,
-				"Dell Studio 1535", STAC_DELL_M6),
+				"Dell Studio 1535", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0255,
-				"unknown Dell", STAC_DELL_M6),
+				"unknown Dell", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0256,
-				"unknown Dell", STAC_DELL_M6),
+				"unknown Dell", STAC_DELL_M6_BOTH),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0257,
-				"unknown Dell", STAC_DELL_M6),
+				"unknown Dell", STAC_DELL_M6_BOTH),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x025e,
-				"unknown Dell", STAC_DELL_M6),
+				"unknown Dell", STAC_DELL_M6_AMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x025f,
-				"unknown Dell", STAC_DELL_M6),
+				"unknown Dell", STAC_DELL_M6_AMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0271,
-				"unknown Dell", STAC_DELL_M6),
+				"unknown Dell", STAC_DELL_M6_DMIC),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0272,
+				"unknown Dell", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x029f,
-				"Dell Studio 15", STAC_DELL_M6),
+				"Dell Studio 1537", STAC_DELL_M6_DMIC),
 	{} /* terminator */
 };
 
@@ -4281,7 +4289,9 @@ again:
 	case STAC_DELL_EQ:
 		spec->init = dell_eq_core_init;
 		/* fallthru */
-	case STAC_DELL_M6:
+	case STAC_DELL_M6_AMIC:
+	case STAC_DELL_M6_DMIC:
+	case STAC_DELL_M6_BOTH:
 		spec->num_smuxes = 0;
 		spec->mixer = &stac92hd73xx_6ch_mixer[DELL_M6_MIXER];
 		spec->amp_nids = &stac92hd73xx_amp_nids[DELL_M6_AMP];
@@ -4290,23 +4300,18 @@ again:
 
 		if (!spec->init)
 			spec->init = dell_m6_core_init;
-		switch (codec->subsystem_id) {
-		case 0x1028025e: /* Analog Mics */
-		case 0x1028025f:
+		switch (spec->board_config) {
+		case STAC_DELL_M6_AMIC: /* Analog Mics */
 			stac92xx_set_config_reg(codec, 0x0b, 0x90A70170);
 			spec->num_dmics = 0;
 			spec->private_dimux.num_items = 1;
 			break;
-		case 0x10280271: /* Digital Mics */
-		case 0x10280272:
-		case 0x10280254:
-		case 0x10280255:
+		case STAC_DELL_M6_DMIC: /* Digital Mics */
 			stac92xx_set_config_reg(codec, 0x13, 0x90A60160);
 			spec->num_dmics = 1;
 			spec->private_dimux.num_items = 2;
 			break;
-		case 0x10280256: /* Both */
-		case 0x10280057:
+		case STAC_DELL_M6_BOTH: /* Both */
 			stac92xx_set_config_reg(codec, 0x0b, 0x90A70170);
 			stac92xx_set_config_reg(codec, 0x13, 0x90A60160);
 			spec->num_dmics = 1;
