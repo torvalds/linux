@@ -103,7 +103,7 @@ static void print_pcm_bits(struct snd_info_buffer *buffer, unsigned int pcm)
 {
 	char buf[SND_PRINT_BITS_ADVISED_BUFSIZE];
 
-	snd_iprintf(buffer, "    bits [0x%x]:", pcm);
+	snd_iprintf(buffer, "    bits [0x%x]:", (pcm & AC_SUPPCM_RATES) >> 16);
 	snd_print_pcm_bits(pcm, buf, sizeof(buf));
 	snd_iprintf(buffer, "%s\n", buf);
 }
