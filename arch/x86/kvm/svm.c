@@ -198,7 +198,7 @@ static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	if (!npt_enabled && !(efer & EFER_LMA))
 		efer &= ~EFER_LME;
 
-	to_svm(vcpu)->vmcb->save.efer = efer | MSR_EFER_SVME_MASK;
+	to_svm(vcpu)->vmcb->save.efer = efer | EFER_SVME;
 	vcpu->arch.shadow_efer = efer;
 }
 
@@ -292,7 +292,7 @@ static void svm_hardware_enable(void *garbage)
 	svm_data->tss_desc = (struct kvm_ldttss_desc *)(gdt + GDT_ENTRY_TSS);
 
 	rdmsrl(MSR_EFER, efer);
-	wrmsrl(MSR_EFER, efer | MSR_EFER_SVME_MASK);
+	wrmsrl(MSR_EFER, efer | EFER_SVME);
 
 	wrmsrl(MSR_VM_HSAVE_PA,
 	       page_to_pfn(svm_data->save_area) << PAGE_SHIFT);
@@ -559,7 +559,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	init_sys_seg(&save->ldtr, SEG_TYPE_LDT);
 	init_sys_seg(&save->tr, SEG_TYPE_BUSY_TSS16);
 
-	save->efer = MSR_EFER_SVME_MASK;
+	save->efer = EFER_SVME;
 	save->dr6 = 0xffff0ff0;
 	save->dr7 = 0x400;
 	save->rflags = 2;
