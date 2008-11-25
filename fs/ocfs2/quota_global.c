@@ -174,7 +174,7 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	struct inode *gqinode = oinfo->dqi_gqinode;
 	int offset = off & (sb->s_blocksize - 1);
 	sector_t blk = off >> sb->s_blocksize_bits;
-	int err = 0, new = 0;
+	int err = 0, new = 0, ja_type;
 	struct buffer_head *bh = NULL;
 	handle_t *handle = journal_current_handle();
 
@@ -207,32 +207,28 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	if ((offset || len < sb->s_blocksize - OCFS2_QBLK_RESERVED_SPACE) &&
 	    !new) {
 		err = ocfs2_read_quota_block(gqinode, blk, &bh);
-		if (err) {
-			mlog_errno(err);
-			return err;
-		}
-		err = ocfs2_journal_access(handle, gqinode, bh,
-					   OCFS2_JOURNAL_ACCESS_WRITE);
+		ja_type = OCFS2_JOURNAL_ACCESS_WRITE;
 	} else {
 		bh = ocfs2_get_quota_block(gqinode, blk, &err);
-		if (!bh) {
-			mlog_errno(err);
-			return err;
-		}
-		err = ocfs2_journal_access(handle, gqinode, bh,
-					   OCFS2_JOURNAL_ACCESS_CREATE);
+		ja_type = OCFS2_JOURNAL_ACCESS_CREATE;
 	}
-	if (err < 0) {
-		brelse(bh);
-		goto out;
+	if (err) {
+		mlog_errno(err);
+		return err;
 	}
 	lock_buffer(bh);
 	if (new)
 		memset(bh->b_data, 0, sb->s_blocksize);
 	memcpy(bh->b_data + offset, data, len);
 	flush_dcache_page(bh->b_page);
+	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 	ocfs2_set_buffer_uptodate(gqinode, bh);
+	err = ocfs2_journal_access(handle, gqinode, bh, ja_type);
+	if (err < 0) {
+		brelse(bh);
+		goto out;
+	}
 	err = ocfs2_journal_dirty(handle, bh);
 	brelse(bh);
 	if (err < 0)
