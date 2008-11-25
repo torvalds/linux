@@ -179,11 +179,26 @@ void asl_stop(struct whc *whc)
 		      1000, "stop ASL");
 }
 
+/**
+ * asl_update - request an ASL update and wait for the hardware to be synced
+ * @whc: the WHCI HC
+ * @wusbcmd: WUSBCMD value to start the update.
+ *
+ * If the WUSB HC is inactive (i.e., the ASL is stopped) then the
+ * update must be skipped as the hardware may not respond to update
+ * requests.
+ */
 void asl_update(struct whc *whc, uint32_t wusbcmd)
 {
-	whc_write_wusbcmd(whc, wusbcmd, wusbcmd);
-	wait_event(whc->async_list_wq,
-		   (le_readl(whc->base + WUSBCMD) & WUSBCMD_ASYNC_UPDATED) == 0);
+	struct wusbhc *wusbhc = &whc->wusbhc;
+
+	mutex_lock(&wusbhc->mutex);
+	if (wusbhc->active) {
+		whc_write_wusbcmd(whc, wusbcmd, wusbcmd);
+		wait_event(whc->async_list_wq,
+			   (le_readl(whc->base + WUSBCMD) & WUSBCMD_ASYNC_UPDATED) == 0);
+	}
+	mutex_unlock(&wusbhc->mutex);
 }
 
 /**

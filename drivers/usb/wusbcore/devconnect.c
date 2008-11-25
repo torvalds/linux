@@ -484,21 +484,15 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
  */
 static void wusbhc_keep_alive_run(struct work_struct *ws)
 {
-	struct delayed_work *dw =
-		container_of(ws, struct delayed_work, work);
-	struct wusbhc *wusbhc =
-		container_of(dw, struct wusbhc, keep_alive_timer);
+	struct delayed_work *dw = container_of(ws, struct delayed_work, work);
+	struct wusbhc *wusbhc =	container_of(dw, struct wusbhc, keep_alive_timer);
 
-	d_fnstart(5, wusbhc->dev, "(wusbhc %p)\n", wusbhc);
-	if (wusbhc->active) {
-		mutex_lock(&wusbhc->mutex);
-		__wusbhc_keep_alive(wusbhc);
-		mutex_unlock(&wusbhc->mutex);
-		queue_delayed_work(wusbd, &wusbhc->keep_alive_timer,
-				   (wusbhc->trust_timeout * CONFIG_HZ)/1000/2);
-	}
-	d_fnend(5, wusbhc->dev, "(wusbhc %p) = void\n", wusbhc);
-	return;
+	mutex_lock(&wusbhc->mutex);
+	__wusbhc_keep_alive(wusbhc);
+	mutex_unlock(&wusbhc->mutex);
+
+	queue_delayed_work(wusbd, &wusbhc->keep_alive_timer,
+			   msecs_to_jiffies(wusbhc->trust_timeout / 2));
 }
 
 /*

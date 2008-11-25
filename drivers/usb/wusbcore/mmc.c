@@ -159,6 +159,27 @@ found:
 }
 EXPORT_SYMBOL_GPL(wusbhc_mmcie_rm);
 
+static int wusbhc_mmc_start(struct wusbhc *wusbhc)
+{
+	int ret;
+
+	mutex_lock(&wusbhc->mutex);
+	ret = wusbhc->start(wusbhc);
+	if (ret >= 0)
+		wusbhc->active = 1;
+	mutex_unlock(&wusbhc->mutex);
+
+	return ret;
+}
+
+static void wusbhc_mmc_stop(struct wusbhc *wusbhc)
+{
+	mutex_lock(&wusbhc->mutex);
+	wusbhc->active = 0;
+	wusbhc->stop(wusbhc, WUSB_CHANNEL_STOP_DELAY_MS);
+	mutex_unlock(&wusbhc->mutex);
+}
+
 /*
  * wusbhc_start - start transmitting MMCs and accepting connections
  * @wusbhc: the HC to start
@@ -198,12 +219,12 @@ int wusbhc_start(struct wusbhc *wusbhc)
 		dev_err(dev, "Cannot set DNTS parameters: %d\n", result);
 		goto error_set_num_dnts;
 	}
-	result = wusbhc->start(wusbhc);
+	result = wusbhc_mmc_start(wusbhc);
 	if (result < 0) {
 		dev_err(dev, "error starting wusbch: %d\n", result);
 		goto error_wusbhc_start;
 	}
-	wusbhc->active = 1;
+
 	return 0;
 
 error_wusbhc_start:
@@ -225,15 +246,11 @@ error_rsv_establish:
  */
 void wusbhc_stop(struct wusbhc *wusbhc)
 {
-	if (wusbhc->active) {
-		wusbhc->active = 0;
-		wusbhc->stop(wusbhc, WUSB_CHANNEL_STOP_DELAY_MS);
-		wusbhc_sec_stop(wusbhc);
-		wusbhc_devconnect_stop(wusbhc);
-		wusbhc_rsv_terminate(wusbhc);
-	}
+	wusbhc_mmc_stop(wusbhc);
+	wusbhc_sec_stop(wusbhc);
+	wusbhc_devconnect_stop(wusbhc);
+	wusbhc_rsv_terminate(wusbhc);
 }
-EXPORT_SYMBOL_GPL(wusbhc_stop);
 
 /*
  * Set/reset/update a new CHID
