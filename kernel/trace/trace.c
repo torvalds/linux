@@ -2298,7 +2298,9 @@ static int s_show(struct seq_file *m, void *v)
 			seq_printf(m, "# tracer: %s\n", iter->trace->name);
 			seq_puts(m, "#\n");
 		}
-		if (iter->iter_flags & TRACE_FILE_LAT_FMT) {
+		if (iter->trace && iter->trace->print_header)
+			iter->trace->print_header(m);
+		else if (iter->iter_flags & TRACE_FILE_LAT_FMT) {
 			/* print nothing if the buffers are empty */
 			if (trace_empty(iter))
 				return 0;
@@ -2350,6 +2352,10 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	iter->trace = current_trace;
 	iter->pos = -1;
 
+	/* Notify the tracer early; before we stop tracing. */
+	if (iter->trace && iter->trace->open)
+			iter->trace->open(iter);
+
 	/* Annotate start of buffers if we had overruns */
 	if (ring_buffer_overruns(iter->tr->buffer))
 		iter->iter_flags |= TRACE_FILE_ANNOTATE;
@@ -2374,9 +2380,6 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 
 	/* stop the trace while dumping */
 	tracing_stop();
-
-	if (iter->trace && iter->trace->open)
-			iter->trace->open(iter);
 
 	mutex_unlock(&trace_types_lock);
 
