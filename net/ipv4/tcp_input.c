@@ -1940,7 +1940,7 @@ out:
 /* Limits sacked_out so that sum with lost_out isn't ever larger than
  * packets_out. Returns zero if sacked_out adjustement wasn't necessary.
  */
-int tcp_limit_reno_sacked(struct tcp_sock *tp)
+static int tcp_limit_reno_sacked(struct tcp_sock *tp)
 {
 	u32 holes;
 
