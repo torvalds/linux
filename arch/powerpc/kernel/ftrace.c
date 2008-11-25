@@ -114,29 +114,14 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
  */
 static int test_24bit_addr(unsigned long ip, unsigned long addr)
 {
-	long diff;
 
-	/*
-	 * Can we get to addr from ip in 24 bits?
-	 *  (26 really, since we mulitply by 4 for 4 byte alignment)
-	 */
-	diff = addr - ip;
-
-	/*
-	 * Return true if diff is less than 1 << 25
-	 *  and greater than -1 << 26.
-	 */
-	return (diff < (1 << 25)) && (diff > (-1 << 26));
+	/* use the create_branch to verify that this offset can be branched */
+	return create_branch((unsigned int *)ip, addr, 0);
 }
 
 static int is_bl_op(unsigned int op)
 {
 	return (op & 0xfc000003) == 0x48000001;
-}
-
-static int test_offset(unsigned long offset)
-{
-	return (offset + 0x2000000 > 0x3ffffff) || ((offset & 3) != 0);
 }
 
 static unsigned long find_bl_target(unsigned long ip, unsigned int op)
@@ -149,12 +134,6 @@ static unsigned long find_bl_target(unsigned long ip, unsigned int op)
 		offset |= 0xfe000000;
 
 	return ip + (long)offset;
-}
-
-static unsigned int branch_offset(unsigned long offset)
-{
-	/* return "bl ip+offset" */
-	return 0x48000001 | (offset & 0x03fffffc);
 }
 
 #ifdef CONFIG_PPC64
@@ -402,7 +381,6 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int op[2];
 	unsigned long ip = rec->ip;
-	unsigned long offset;
 
 	/* read where this goes */
 	if (probe_kernel_read(op, (void *)ip, MCOUNT_INSN_SIZE * 2))
@@ -424,17 +402,14 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EINVAL;
 	}
 
-	/* now calculate a jump to the ftrace caller trampoline */
-	offset = rec->arch.mod->arch.tramp - ip;
-
-	if (test_offset(offset)) {
-		printk(KERN_ERR "REL24 %li out of range!\n",
-		       (long int)offset);
+	/* create the branch to the trampoline */
+	op[0] = create_branch((unsigned int *)ip,
+			      rec->arch.mod->arch.tramp, BRANCH_SET_LINK);
+	if (!op[0]) {
+		printk(KERN_ERR "REL24 out of range!\n");
 		return -EINVAL;
 	}
 
-	/* Set to "bl addr" */
-	op[0] = branch_offset(offset);
 	/* ld r2,40(r1) */
 	op[1] = 0xe8410028;
 
@@ -453,7 +428,6 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int op;
 	unsigned long ip = rec->ip;
-	unsigned long offset;
 
 	/* read where this goes */
 	if (probe_kernel_read(&op, (void *)ip, MCOUNT_INSN_SIZE))
@@ -471,17 +445,13 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EINVAL;
 	}
 
-	/* now calculate a jump to the ftrace caller trampoline */
-	offset = rec->arch.mod->arch.tramp - ip;
-
-	if (test_offset(offset)) {
-		printk(KERN_ERR "REL24 %li out of range!\n",
-		       (long int)offset);
+	/* create the branch to the trampoline */
+	op = create_branch((unsigned int *)ip,
+			   rec->arch.mod->arch.tramp, BRANCH_SET_LINK);
+	if (!op) {
+		printk(KERN_ERR "REL24 out of range!\n");
 		return -EINVAL;
 	}
-
-	/* Set to "bl addr" */
-	op = branch_offset(offset);
 
 	DEBUGP("write to %lx\n", rec->ip);
 
