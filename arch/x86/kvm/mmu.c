@@ -1593,6 +1593,15 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 
 		spte |= PT_WRITABLE_MASK;
 
+		/*
+		 * Optimization: for pte sync, if spte was writable the hash
+		 * lookup is unnecessary (and expensive). Write protection
+		 * is responsibility of mmu_get_page / kvm_sync_page.
+		 * Same reasoning can be applied to dirty page accounting.
+		 */
+		if (!can_unsync && is_writeble_pte(*shadow_pte))
+			goto set_pte;
+
 		if (mmu_need_write_protect(vcpu, gfn, can_unsync)) {
 			pgprintk("%s: found shadow page for %lx, marking ro\n",
 				 __func__, gfn);
