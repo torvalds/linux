@@ -104,26 +104,25 @@ int ocfs2_read_quota_block(struct inode *inode, u64 v_block,
 	return rc;
 }
 
-static struct buffer_head *ocfs2_get_quota_block(struct inode *inode,
-						 int block, int *err)
+static int ocfs2_get_quota_block(struct inode *inode, int block,
+				 struct buffer_head **bh)
 {
 	u64 pblock, pcount;
-	struct buffer_head *bh;
+	int err;
 
 	down_read(&OCFS2_I(inode)->ip_alloc_sem);
-	*err = ocfs2_extent_map_get_blocks(inode, block, &pblock, &pcount,
-					   NULL);
+	err = ocfs2_extent_map_get_blocks(inode, block, &pblock, &pcount, NULL);
 	up_read(&OCFS2_I(inode)->ip_alloc_sem);
-	if (*err) {
-		mlog_errno(*err);
-		return NULL;
+	if (err) {
+		mlog_errno(err);
+		return err;
 	}
-	bh = sb_getblk(inode->i_sb, pblock);
-	if (!bh) {
-		*err = -EIO;
-		mlog_errno(*err);
+	*bh = sb_getblk(inode->i_sb, pblock);
+	if (!*bh) {
+		err = -EIO;
+		mlog_errno(err);
 	}
-	return bh;
+	return err;;
 }
 
 /* Read data from global quotafile - avoid pagecache and such because we cannot
@@ -209,7 +208,7 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 		err = ocfs2_read_quota_block(gqinode, blk, &bh);
 		ja_type = OCFS2_JOURNAL_ACCESS_WRITE;
 	} else {
-		bh = ocfs2_get_quota_block(gqinode, blk, &err);
+		err = ocfs2_get_quota_block(gqinode, blk, &bh);
 		ja_type = OCFS2_JOURNAL_ACCESS_CREATE;
 	}
 	if (err) {
