@@ -67,11 +67,11 @@ int whci_wait_for(struct device *dev, u32 __iomem *reg, u32 mask, u32 result,
 		val = le_readl(reg);
 		if ((val & mask) == result)
 			break;
-		msleep(10);
 		if (t >= max_ms) {
-			dev_err(dev, "timed out waiting for %s ", tag);
+			dev_err(dev, "%s timed out\n", tag);
 			return -ETIMEDOUT;
 		}
+		msleep(10);
 		t += 10;
 	}
 	return 0;

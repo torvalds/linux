@@ -332,47 +332,23 @@ void whcrc_release_rc_umc(struct whcrc *whcrc)
 static int whcrc_start_rc(struct uwb_rc *rc)
 {
 	struct whcrc *whcrc = rc->priv;
-	int result = 0;
 	struct device *dev = &whcrc->umc_dev->dev;
-	unsigned long start, duration;
 
 	/* Reset the thing */
 	le_writel(URCCMD_RESET, whcrc->rc_base + URCCMD);
-	if (d_test(3))
-		start = jiffies;
 	if (whci_wait_for(dev, whcrc->rc_base + URCCMD, URCCMD_RESET, 0,
-			  5000, "device to reset at init") < 0) {
-		result = -EBUSY;
-		goto error;
-	} else if (d_test(3)) {
-		duration = jiffies - start;
-		if (duration > msecs_to_jiffies(40))
-			dev_err(dev, "Device took %ums to "
-				     "reset. MAX expected: 40ms\n",
-				     jiffies_to_msecs(duration));
-	}
+			  5000, "hardware reset") < 0)
+		return -EBUSY;
 
 	/* Set the event buffer, start the controller (enable IRQs later) */
 	le_writel(0, whcrc->rc_base + URCINTR);
 	le_writel(URCCMD_RS, whcrc->rc_base + URCCMD);
-	result = -ETIMEDOUT;
-	if (d_test(3))
-		start = jiffies;
 	if (whci_wait_for(dev, whcrc->rc_base + URCSTS, URCSTS_HALTED, 0,
-			  5000, "device to start") < 0)
-		goto error;
-	if (d_test(3)) {
-		duration = jiffies - start;
-		if (duration > msecs_to_jiffies(40))
-			dev_err(dev, "Device took %ums to start. "
-				     "MAX expected: 40ms\n",
-				     jiffies_to_msecs(duration));
-	}
+			  5000, "radio controller start") < 0)
+		return -ETIMEDOUT;
 	whcrc_enable_events(whcrc);
-	result = 0;
 	le_writel(URCINTR_EN_ALL, whcrc->rc_base + URCINTR);
-error:
-	return result;
+	return 0;
 }
 
 
@@ -394,7 +370,7 @@ void whcrc_stop_rc(struct uwb_rc *rc)
 
 	le_writel(0, whcrc->rc_base + URCCMD);
 	whci_wait_for(&umc_dev->dev, whcrc->rc_base + URCSTS,
-		      URCSTS_HALTED, URCSTS_HALTED, 100, "URCSTS.HALTED");
+		      URCSTS_HALTED, URCSTS_HALTED, 100, "radio controller stop");
 }
 
 static void whcrc_init(struct whcrc *whcrc)
