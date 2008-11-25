@@ -1111,7 +1111,7 @@ static int autosuspend_check(struct usb_device *udev, int reschedule)
 	if (reschedule) {
 		if (!timer_pending(&udev->autosuspend.timer)) {
 			queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
-				round_jiffies_relative(suspend_time - j));
+				round_jiffies_up_relative(suspend_time - j));
 		}
 		return -EAGAIN;
 	}
@@ -1553,7 +1553,7 @@ void usb_autopm_put_interface_async(struct usb_interface *intf)
 		else if (intf->pm_usage_cnt <= 0 &&
 				!timer_pending(&udev->autosuspend.timer)) {
 			queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
-					round_jiffies_relative(
+					round_jiffies_up_relative(
 						udev->autosuspend_delay));
 		}
 	}
