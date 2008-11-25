@@ -669,6 +669,9 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr, int field
 		return symbol_string(buf, end, ptr, field_width, precision, flags);
 	case 'R':
 		return resource_string(buf, end, ptr, field_width, precision, flags);
+	case 'm':
+		flags |= SPECIAL;
+		/* Fallthrough */
 	case 'M':
 		return mac_address_string(buf, end, ptr, field_width, precision, flags);
 	case 'i':
