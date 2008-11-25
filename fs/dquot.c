@@ -413,10 +413,11 @@ out_dqlock:
 	return ret;
 }
 
-static void dquot_destroy(struct dquot *dquot)
+void dquot_destroy(struct dquot *dquot)
 {
 	kmem_cache_free(dquot_cachep, dquot);
 }
+EXPORT_SYMBOL(dquot_destroy);
 
 static inline void do_destroy_dquot(struct dquot *dquot)
 {
@@ -668,10 +669,11 @@ we_slept:
 	spin_unlock(&dq_list_lock);
 }
 
-static struct dquot *dquot_alloc(struct super_block *sb, int type)
+struct dquot *dquot_alloc(struct super_block *sb, int type)
 {
 	return kmem_cache_zalloc(dquot_cachep, GFP_NOFS);
 }
+EXPORT_SYMBOL(dquot_alloc);
 
 static struct dquot *get_empty_dquot(struct super_block *sb, int type)
 {
