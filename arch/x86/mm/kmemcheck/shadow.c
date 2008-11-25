@@ -116,6 +116,14 @@ void kmemcheck_mark_uninitialized_pages(struct page *p, unsigned int n)
 		kmemcheck_mark_uninitialized(page_address(&p[i]), PAGE_SIZE);
 }
 
+void kmemcheck_mark_initialized_pages(struct page *p, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 0; i < n; ++i)
+		kmemcheck_mark_initialized(page_address(&p[i]), PAGE_SIZE);
+}
+
 enum kmemcheck_shadow kmemcheck_shadow_test(void *shadow, unsigned int size)
 {
 	uint8_t *x;

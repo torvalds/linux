@@ -1066,6 +1066,8 @@ static inline struct page *alloc_slab_page(gfp_t flags, int node,
 {
 	int order = oo_order(oo);
 
+	flags |= __GFP_NOTRACK;
+
 	if (node == -1)
 		return alloc_pages(flags, order);
 	else
@@ -1097,7 +1099,18 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	if (kmemcheck_enabled
 		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS)))
 	{
-		kmemcheck_alloc_shadow(s, flags, node, page, compound_order(page));
+		int pages = 1 << oo_order(oo);
+
+		kmemcheck_alloc_shadow(page, oo_order(oo), flags, node);
+
+		/*
+		 * Objects from caches that have a constructor don't get
+		 * cleared when they're allocated, so we need to do it here.
+		 */
+		if (s->ctor)
+			kmemcheck_mark_uninitialized_pages(page, pages);
+		else
+			kmemcheck_mark_unallocated_pages(page, pages);
 	}
 
 	page->objects = oo_objects(oo);
@@ -1173,8 +1186,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 		__ClearPageSlubDebug(page);
 	}
 
-	if (kmemcheck_page_is_tracked(page))
-		kmemcheck_free_shadow(s, page, compound_order(page));
+	kmemcheck_free_shadow(page, compound_order(page));
 
 	mod_zone_page_state(page_zone(page),
 		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
@@ -2734,9 +2746,10 @@ EXPORT_SYMBOL(__kmalloc);
 
 static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
 {
-	struct page *page = alloc_pages_node(node, flags | __GFP_COMP,
-						get_order(size));
+	struct page *page;
 
+	flags |= __GFP_COMP | __GFP_NOTRACK;
+	page = alloc_pages_node(node, flags, get_order(size));
 	if (page)
 		return page_address(page);
 	else
