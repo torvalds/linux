@@ -848,7 +848,8 @@ static void olq_set_dquot(struct buffer_head *bh, void *private)
 					  od->dq_originodes);
 	spin_unlock(&dq_data_lock);
 	mlog(0, "Writing local dquot %u space %lld inodes %lld\n",
-	     od->dq_dquot.dq_id, dqblk->dqb_spacemod, dqblk->dqb_inodemod);
+	     od->dq_dquot.dq_id, (long long)le64_to_cpu(dqblk->dqb_spacemod),
+	     (long long)le64_to_cpu(dqblk->dqb_inodemod));
 }
 
 /* Write dquot to local quota file */

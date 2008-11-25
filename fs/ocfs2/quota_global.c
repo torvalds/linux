@@ -457,9 +457,9 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 	olditime = dquot->dq_dqb.dqb_itime;
 	oldbtime = dquot->dq_dqb.dqb_btime;
 	ocfs2_global_disk2memdqb(dquot, &dqblk);
-	mlog(0, "Syncing global dquot %d space %lld+%lld, inodes %lld+%lld\n",
-	     dquot->dq_id, dquot->dq_dqb.dqb_curspace, spacechange,
-	     dquot->dq_dqb.dqb_curinodes, inodechange);
+	mlog(0, "Syncing global dquot %u space %lld+%lld, inodes %lld+%lld\n",
+	     dquot->dq_id, dquot->dq_dqb.dqb_curspace, (long long)spacechange,
+	     dquot->dq_dqb.dqb_curinodes, (long long)inodechange);
 	if (!test_bit(DQ_LASTSET_B + QIF_SPACE_B, &dquot->dq_flags))
 		dquot->dq_dqb.dqb_curspace += spacechange;
 	if (!test_bit(DQ_LASTSET_B + QIF_INODES_B, &dquot->dq_flags))
