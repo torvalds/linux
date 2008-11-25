@@ -43,7 +43,7 @@
 
 #include <net/net_namespace.h>
 #include <net/dsa.h>
-#ifdef CONFIG_DCBNL
+#ifdef CONFIG_DCB
 #include <net/dcbnl.h>
 #endif
 
@@ -847,7 +847,7 @@ struct net_device
 #define GSO_MAX_SIZE		65536
 	unsigned int		gso_max_size;
 
-#ifdef CONFIG_DCBNL
+#ifdef CONFIG_DCB
 	/* Data Center Bridging netlink ops */
 	struct dcbnl_rtnl_ops *dcbnl_ops;
 #endif

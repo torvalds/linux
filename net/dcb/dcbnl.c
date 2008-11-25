@@ -48,7 +48,7 @@
  */
 
 MODULE_AUTHOR("Lucy Liu, <lucy.liu@intel.com>");
-MODULE_DESCRIPTION("Data Center Bridging generic netlink interface");
+MODULE_DESCRIPTION("Data Center Bridging netlink interface");
 MODULE_LICENSE("GPL");
 
 /**************** DCB attribute policies *************************************/

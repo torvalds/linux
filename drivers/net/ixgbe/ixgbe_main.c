@@ -1914,7 +1914,7 @@ static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 	}
 }
 
-#ifdef CONFIG_IXGBE_DCBNL
+#ifdef CONFIG_IXGBE_DCB
 /*
  * ixgbe_configure_dcb - Configure DCB hardware
  * @adapter: ixgbe adapter struct
@@ -1960,7 +1960,7 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 	ixgbe_set_rx_mode(netdev);
 
 	ixgbe_restore_vlan(adapter);
-#ifdef CONFIG_IXGBE_DCBNL
+#ifdef CONFIG_IXGBE_DCB
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 		netif_set_gso_max_size(netdev, 32768);
 		ixgbe_configure_dcb(adapter);
@@ -2749,7 +2749,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned int rss;
-#ifdef CONFIG_IXGBE_DCBNL
+#ifdef CONFIG_IXGBE_DCB
 	int j;
 	struct tc_configuration *tc;
 #endif
@@ -2768,7 +2768,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 	adapter->ring_feature[RING_F_DCB].indices = IXGBE_MAX_DCB_INDICES;
 
-#ifdef CONFIG_IXGBE_DCBNL
+#ifdef CONFIG_IXGBE_DCB
 	/* Configure DCB traffic classes */
 	for (j = 0; j < MAX_TRAFFIC_CLASS; j++) {
 		tc = &adapter->dcb_cfg.tc_config[j];
@@ -4120,7 +4120,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
 		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 
-#ifdef CONFIG_IXGBE_DCBNL
+#ifdef CONFIG_IXGBE_DCB
 	netdev->dcbnl_ops = &dcbnl_ops;
 #endif
 

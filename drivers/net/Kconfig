@@ -2451,10 +2451,10 @@ config IXGBE_DCA
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
 
-config IXGBE_DCBNL
+config IXGBE_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default n
-	depends on IXGBE && DCBNL
+	depends on IXGBE && DCB
 	---help---
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
