@@ -855,16 +855,26 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	if (self_disconnected || reason == WLAN_REASON_DISASSOC_STA_HAS_LEFT)
 		ifsta->state = IEEE80211_STA_MLME_DISABLED;
 
-	sta_info_unlink(&sta);
-
 	rcu_read_unlock();
-
-	sta_info_destroy(sta);
 
 	local->hw.conf.ht.enabled = false;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_HT);
 
 	ieee80211_bss_info_change_notify(sdata, changed);
+
+	rcu_read_lock();
+
+	sta = sta_info_get(local, ifsta->bssid);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
+	}
+
+	sta_info_unlink(&sta);
+
+	rcu_read_unlock();
+
+	sta_info_destroy(sta);
 }
 
 static int ieee80211_sta_wep_configured(struct ieee80211_sub_if_data *sdata)
