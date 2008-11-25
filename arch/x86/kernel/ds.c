@@ -21,8 +21,6 @@
  */
 
 
-#ifdef CONFIG_X86_DS
-
 #include <asm/ds.h>
 
 #include <linux/errno.h>
@@ -878,4 +876,3 @@ void ds_free(struct ds_context *context)
 	while (leftovers--)
 		ds_put_context(context);
 }
-#endif /* CONFIG_X86_DS */
