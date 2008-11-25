@@ -31,7 +31,6 @@
 #include <mach/mfp-pxa300.h>
 
 #include <mach/hardware.h>
-#include <mach/gpio.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
