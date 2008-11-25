@@ -2018,13 +2018,10 @@ void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len)
 		skb_split_no_header(skb, skb1, len, pos);
 }
 
-/* Shifting from/to a cloned skb is a no-go.
- *
- * TODO: handle cloned skbs by using pskb_expand_head()
- */
+/* Shifting from/to a cloned skb is a no-go. */
 static int skb_prepare_for_shift(struct sk_buff *skb)
 {
-	return skb_cloned(skb);
+	return skb_cloned(skb) && pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 }
 
 /**
