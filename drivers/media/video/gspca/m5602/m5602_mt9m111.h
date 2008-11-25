@@ -109,9 +109,6 @@ static struct m5602_sensor mt9m111 = {
 	.init = mt9m111_init,
 	.power_down = mt9m111_power_down,
 
-	.read_sensor = mt9m111_read_sensor,
-	.write_sensor = mt9m111_write_sensor,
-
 	.nctrls = 3,
 	.ctrls = {
 	{

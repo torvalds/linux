@@ -156,8 +156,6 @@ static struct m5602_sensor ov9650 = {
 	.probe = ov9650_probe,
 	.init = ov9650_init,
 	.power_down = ov9650_power_down,
-	.read_sensor = ov9650_read_sensor,
-	.write_sensor = ov9650_write_sensor,
 
 	.nctrls = 8,
 	.ctrls = {
@@ -341,7 +339,7 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_ACOM38, 0x81},
 	/* Turn off color matrix coefficient double option */
 	{SENSOR, OV9650_COM16, 0x00},
-		/* Enable color matrix for RGB/YUV, Delay Y channel,
+	/* Enable color matrix for RGB/YUV, Delay Y channel,
 	set output Y/UV delay to 1 */
 	{SENSOR, OV9650_COM13, 0x19},
 	/* Enable digital BLC, Set output mode to U Y V Y */

@@ -58,14 +58,6 @@ struct m5602_sensor {
 	/* Performs a power down sequence */
 	int (*power_down)(struct sd *sd);
 
-	/* Reads a sensor register */
-	int (*read_sensor)(struct sd *sd, const u8 address,
-	      u8 *i2c_data, const u8 len);
-
-	/* Writes to a sensor register */
-	int (*write_sensor)(struct sd *sd, const u8 address,
-	      u8 *i2c_data, const u8 len);
-
 	int nctrls;
 	struct ctrl ctrls[M5602_MAX_CTRLS];
 
