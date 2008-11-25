@@ -129,12 +129,12 @@ static int __devinit gpio_ir_recv_probe(struct platform_device *pdev)
 err_request_irq:
 	platform_set_drvdata(pdev, NULL);
 	rc_unregister_device(rcdev);
+	rcdev = NULL;
 err_register_rc_device:
 err_gpio_direction_input:
 	gpio_free(pdata->gpio_nr);
 err_gpio_request:
 	rc_free_device(rcdev);
-	rcdev = NULL;
 err_allocate_device:
 	kfree(gpio_dev);
 	return rc;
