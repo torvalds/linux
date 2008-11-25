@@ -1289,7 +1289,8 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 }
 
 static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
-			   int *reord, int dup_sack, int fack_count)
+			   int *reord, int dup_sack, int fack_count,
+			   u8 *sackedto, int pcount)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u8 sacked = TCP_SKB_CB(skb)->sacked;
@@ -1314,10 +1315,9 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 			 * that retransmission is still in flight.
 			 */
 			if (sacked & TCPCB_LOST) {
-				TCP_SKB_CB(skb)->sacked &=
-					~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
-				tp->lost_out -= tcp_skb_pcount(skb);
-				tp->retrans_out -= tcp_skb_pcount(skb);
+				*sackedto &= ~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
+				tp->lost_out -= pcount;
+				tp->retrans_out -= pcount;
 			}
 		} else {
 			if (!(sacked & TCPCB_RETRANS)) {
@@ -1334,22 +1334,22 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 			}
 
 			if (sacked & TCPCB_LOST) {
-				TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
-				tp->lost_out -= tcp_skb_pcount(skb);
+				*sackedto &= ~TCPCB_LOST;
+				tp->lost_out -= pcount;
 			}
 		}
 
-		TCP_SKB_CB(skb)->sacked |= TCPCB_SACKED_ACKED;
+		*sackedto |= TCPCB_SACKED_ACKED;
 		flag |= FLAG_DATA_SACKED;
-		tp->sacked_out += tcp_skb_pcount(skb);
+		tp->sacked_out += pcount;
 
-		fack_count += tcp_skb_pcount(skb);
+		fack_count += pcount;
 
 		/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
 		if (!tcp_is_fack(tp) && (tp->lost_skb_hint != NULL) &&
 		    before(TCP_SKB_CB(skb)->seq,
 			   TCP_SKB_CB(tp->lost_skb_hint)->seq))
-			tp->lost_cnt_hint += tcp_skb_pcount(skb);
+			tp->lost_cnt_hint += pcount;
 
 		if (fack_count > tp->fackets_out)
 			tp->fackets_out = fack_count;
@@ -1362,9 +1362,9 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 	 * frames and clear it. undo_retrans is decreased above, L|R frames
 	 * are accounted above as well.
 	 */
-	if (dup_sack && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)) {
-		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
-		tp->retrans_out -= tcp_skb_pcount(skb);
+	if (dup_sack && (*sackedto & TCPCB_SACKED_RETRANS)) {
+		*sackedto &= ~TCPCB_SACKED_RETRANS;
+		tp->retrans_out -= pcount;
 	}
 
 	return flag;
@@ -1404,7 +1404,9 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 
 		if (in_sack)
 			*flag |= tcp_sacktag_one(skb, sk, reord, dup_sack,
-						 *fack_count);
+						 *fack_count,
+						 &(TCP_SKB_CB(skb)->sacked),
+						 tcp_skb_pcount(skb));
 
 		*fack_count += tcp_skb_pcount(skb);
 	}
