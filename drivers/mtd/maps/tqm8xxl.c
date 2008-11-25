@@ -109,7 +109,7 @@ static struct mtd_partition tqm8xxl_fs_partitions[] = {
 };
 #endif
 
-int __init init_tqm_mtd(void)
+static int __init init_tqm_mtd(void)
 {
 	int idx = 0, ret = 0;
 	unsigned long flash_addr, flash_size, mtd_size = 0;
