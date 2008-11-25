@@ -148,7 +148,6 @@ static int __devexit gpio_ir_recv_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	rc_unregister_device(gpio_dev->rcdev);
 	gpio_free(gpio_dev->gpio_nr);
-	rc_free_device(gpio_dev->rcdev);
 	kfree(gpio_dev);
 	return 0;
 }
