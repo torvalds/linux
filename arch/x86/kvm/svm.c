@@ -1869,6 +1869,9 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 	case MSR_VM_HSAVE_PA:
 		*data = svm->hsave_msr;
 		break;
+	case MSR_VM_CR:
+		*data = 0;
+		break;
 	default:
 		return kvm_get_msr_common(vcpu, ecx, data);
 	}
