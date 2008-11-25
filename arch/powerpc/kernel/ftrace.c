@@ -271,6 +271,9 @@ __ftrace_make_nop(struct module *mod,
 	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
 		return -EPERM;
 
+
+	flush_icache_range(ip, ip + 8);
+
 	return 0;
 }
 
@@ -341,6 +344,8 @@ __ftrace_make_nop(struct module *mod,
 
 	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
 		return -EPERM;
+
+	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
@@ -438,6 +443,8 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (probe_kernel_write((void *)ip, op, MCOUNT_INSN_SIZE * 2))
 		return -EPERM;
 
+	flush_icache_range(ip, ip + 8);
+
 	return 0;
 }
 #else
@@ -480,6 +487,8 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
 		return -EPERM;
+
+	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
