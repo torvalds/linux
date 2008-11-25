@@ -858,6 +858,9 @@ static int get_device_resources(struct device *dev,
 		print_devid(_bdf, 1);
 	}
 
+	if (domain_for_device(_bdf) == NULL)
+		set_device_domain(*iommu, *domain, _bdf);
+
 	return 1;
 }
 
