@@ -159,7 +159,7 @@ static int da903x_is_enabled(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	return reg_val & (1 << info->enable_bit);
+	return !!(reg_val & (1 << info->enable_bit));
 }
 
 /* DA9030 specific operations */
