@@ -7,13 +7,12 @@
  *
  * It manages:
  * - per-thread and per-cpu allocation of BTS and PEBS
- * - buffer memory allocation (optional)
- * - buffer overflow handling
+ * - buffer overflow handling (to be done)
  * - buffer access
  *
  * It assumes:
- * - get_task_struct on all parameter tasks
- * - current is allowed to trace parameter tasks
+ * - get_task_struct on all traced tasks
+ * - current is allowed to trace tasks
  *
  *
  * Copyright (C) 2007-2008 Intel Corporation.
@@ -57,8 +56,6 @@ struct ds_tracer {
 	/* the buffer provided on ds_request() and its size in bytes */
 	void *buffer;
 	size_t size;
-	/* the number of allocated pages for on-request allocated buffers */
-	unsigned int pages;
 };
 
 struct bts_tracer {
@@ -141,8 +138,7 @@ static inline void ds_set(unsigned char *base, enum ds_qualifier qual,
 
 
 /*
- * Locking is done only for allocating BTS or PEBS resources and for
- * guarding context and buffer memory allocation.
+ * Locking is done only for allocating BTS or PEBS resources.
  */
 static spinlock_t ds_lock = __SPIN_LOCK_UNLOCKED(ds_lock);
 
@@ -292,50 +288,6 @@ static void ds_overflow(struct ds_context *context, enum ds_qualifier qual)
 }
 
 
-/*
- * Allocate a non-pageable buffer of the parameter size.
- * Checks the memory and the locked memory rlimit.
- *
- * Returns the buffer, if successful;
- *         NULL, if out of memory or rlimit exceeded.
- *
- * size: the requested buffer size in bytes
- * pages (out): if not NULL, contains the number of pages reserved
- */
-static inline void *ds_allocate_buffer(size_t size, unsigned int *pages)
-{
-	unsigned long rlim, vm, pgsz;
-	void *buffer = NULL;
-
-	pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
-
-	down_write(&current->mm->mmap_sem);
-
-	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-	vm   = current->mm->total_vm  + pgsz;
-	if (rlim < vm)
-		goto out;
-
-	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-	vm   = current->mm->locked_vm  + pgsz;
-	if (rlim < vm)
-		goto out;
-
-	buffer = kzalloc(size, GFP_KERNEL);
-	if (!buffer)
-		goto out;
-
-	current->mm->total_vm  += pgsz;
-	current->mm->locked_vm += pgsz;
-
-	if (pages)
-		*pages = pgsz;
-
- out:
-	up_write(&current->mm->mmap_sem);
-	return buffer;
-}
-
 static void ds_install_ds_config(struct ds_context *context,
 				 enum ds_qualifier qual,
 				 void *base, size_t size, size_t ith)
@@ -382,6 +334,10 @@ static int ds_request(struct ds_tracer *tracer, enum ds_qualifier qual,
 	if (!ds_cfg.sizeof_ds)
 		goto out;
 
+	error = -EINVAL;
+	if (!base)
+		goto out;
+
 	/* we require some space to do alignment adjustments below */
 	error = -EINVAL;
 	if (size < (DS_ALIGNMENT + ds_cfg.sizeof_rec[qual]))
@@ -392,13 +348,6 @@ static int ds_request(struct ds_tracer *tracer, enum ds_qualifier qual,
 
 		error = -EINVAL;
 		if (size <= th)
-			goto out;
-	}
-
-	error = -ENOMEM;
-	if (!base) {
-		base = ds_allocate_buffer(size, &tracer->pages);
-		if (!base)
 			goto out;
 	}
 
@@ -466,7 +415,7 @@ struct bts_tracer *ds_request_bts(struct task_struct *task,
 	return tracer;
 
  out_tracer:
-	(void)ds_release_bts(tracer);
+	kfree(tracer);
  out:
 	return ERR_PTR(error);
 }
@@ -496,31 +445,18 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 	return tracer;
 
  out_tracer:
-	(void)ds_release_pebs(tracer);
+	kfree(tracer);
  out:
 	return ERR_PTR(error);
 }
 
 static void ds_release(struct ds_tracer *tracer, enum ds_qualifier qual)
 {
-	if (tracer->context) {
-		BUG_ON(tracer->context->owner[qual] != tracer);
-		tracer->context->owner[qual] = NULL;
+	BUG_ON(tracer->context->owner[qual] != tracer);
+	tracer->context->owner[qual] = NULL;
 
-		put_tracer(tracer->context->task);
-		ds_put_context(tracer->context);
-	}
-
-	if (tracer->pages) {
-		kfree(tracer->buffer);
-
-		down_write(&current->mm->mmap_sem);
-
-		current->mm->total_vm  -= tracer->pages;
-		current->mm->locked_vm -= tracer->pages;
-
-		up_write(&current->mm->mmap_sem);
-	}
+	put_tracer(tracer->context->task);
+	ds_put_context(tracer->context);
 }
 
 int ds_release_bts(struct bts_tracer *tracer)

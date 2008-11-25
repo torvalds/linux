@@ -7,13 +7,12 @@
  *
  * It manages:
  * - per-thread and per-cpu allocation of BTS and PEBS
- * - buffer memory allocation (optional)
- * - buffer overflow handling
+ * - buffer overflow handling (to be done)
  * - buffer access
  *
  * It assumes:
- * - get_task_struct on all parameter tasks
- * - current is allowed to trace parameter tasks
+ * - get_task_struct on all traced tasks
+ * - current is allowed to trace tasks
  *
  *
  * Copyright (C) 2007-2008 Intel Corporation.
@@ -54,8 +53,7 @@ typedef void (*pebs_ovfl_callback_t)(struct pebs_tracer *);
  * task: the task to request recording for;
  *       NULL for per-cpu recording on the current cpu
  * base: the base pointer for the (non-pageable) buffer;
- *       NULL if buffer allocation requested
- * size: the size of the requested or provided buffer in bytes
+ * size: the size of the provided buffer in bytes
  * ovfl: pointer to a function to be called on buffer overflow;
  *       NULL if cyclic buffer requested
  * th: the interrupt threshold in records from the end of the buffer;
@@ -71,8 +69,6 @@ extern struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 
 /*
  * Release BTS or PEBS resources
- *
- * Frees buffers allocated on ds_request.
  *
  * Returns 0 on success; -Eerrno otherwise
  *

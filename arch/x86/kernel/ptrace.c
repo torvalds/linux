@@ -758,6 +758,10 @@ static int ptrace_bts_config(struct task_struct *child,
 		bts_ovfl_callback_t ovfl = NULL;
 		unsigned int sig = 0;
 
+		error = -EINVAL;
+		if (cfg.size < (10 * bts_cfg.sizeof_bts))
+			goto errout;
+
 		if (cfg.flags & PTRACE_BTS_O_SIGNAL) {
 			if (!cfg.signal)
 				goto errout;
@@ -768,14 +772,26 @@ static int ptrace_bts_config(struct task_struct *child,
 			sig  = cfg.signal;
 		}
 
-		if (child->bts)
+		if (child->bts) {
 			(void)ds_release_bts(child->bts);
+			kfree(child->bts_buffer);
 
-		child->bts = ds_request_bts(child, /* base = */ NULL, cfg.size,
+			child->bts = NULL;
+			child->bts_buffer = NULL;
+		}
+
+		error = -ENOMEM;
+		child->bts_buffer = kzalloc(cfg.size, GFP_KERNEL);
+		if (!child->bts_buffer)
+			goto errout;
+
+		child->bts = ds_request_bts(child, child->bts_buffer, cfg.size,
 					    ovfl, /* th = */ (size_t)-1);
 		if (IS_ERR(child->bts)) {
 			error = PTR_ERR(child->bts);
+			kfree(child->bts_buffer);
 			child->bts = NULL;
+			child->bts_buffer = NULL;
 			goto errout;
 		}
 
@@ -972,6 +988,8 @@ void ptrace_disable(struct task_struct *child)
 #ifdef CONFIG_X86_PTRACE_BTS
 	if (child->bts) {
 		(void)ds_release_bts(child->bts);
+		kfree(child->bts_buffer);
+		child->bts_buffer = NULL;
 
 		child->thread.debugctlmsr &= ~bts_cfg.debugctl_mask;
 		if (!child->thread.debugctlmsr)

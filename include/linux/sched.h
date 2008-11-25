@@ -1168,6 +1168,10 @@ struct task_struct {
 	 * This field actually belongs to the ptracer task.
 	 */
 	struct bts_tracer *bts;
+	/*
+	 * The buffer to hold the BTS data.
+	 */
+	void *bts_buffer;
 #endif /* CONFIG_X86_PTRACE_BTS */
 
 	/* PID/PID hash table linkage. */
