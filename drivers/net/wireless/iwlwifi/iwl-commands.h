@@ -2896,11 +2896,6 @@ enum {
 };
 
 
-struct iwl_cal_xtal_freq {
-	u8 cap_pin1;
-	u8 cap_pin2;
-} __attribute__ ((packed));
-
 #define IWL_CALIB_INIT_CFG_ALL	__constant_cpu_to_le32(0xffffffff)
 
 struct iwl_calib_cfg_elmnt_s {
@@ -2935,31 +2930,34 @@ struct iwl_calib_cmd {
 	u8 data[0];
 } __attribute__ ((packed));
 
-/* "Differential Gain" opcode used in REPLY_PHY_CALIBRATION_CMD. */
-
+/* IWL_PHY_CALIBRATE_DIFF_GAIN_CMD (7) */
 struct iwl_calib_diff_gain_cmd {
-	u8 opCode;		/* IWL_PHY_CALIBRATE_DIFF_GAIN_CMD (7) */
-	u8 flags;		/* not used */
-	__le16 reserved;
+	struct iwl_calib_hdr hdr;
 	s8 diff_gain_a;		/* see above */
 	s8 diff_gain_b;
 	s8 diff_gain_c;
 	u8 reserved1;
 } __attribute__ ((packed));
 
-struct iwl_calib_chain_noise_reset_cmd {
-	u8 op_code;	/* IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
-	u8 flags;	/* not used */
-	__le16 reserved;
+struct iwl_calib_xtal_freq_cmd {
+	struct iwl_calib_hdr hdr;
+	u8 cap_pin1;
+	u8 cap_pin2;
+	u8 pad[2];
 } __attribute__ ((packed));
 
+/* IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
+struct iwl_calib_chain_noise_reset_cmd {
+	struct iwl_calib_hdr hdr;
+	u8 data[0];
+};
+
+/* IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD */
 struct iwl_calib_chain_noise_gain_cmd {
-	u8 op_code;	/* IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD */
-	u8 flags;	/* not used */
-	__le16 reserved;
+	struct iwl_calib_hdr hdr;
 	u8 delta_gain_1;
 	u8 delta_gain_2;
-	__le16 reserved1;
+	u8 pad[2];
 } __attribute__ ((packed));
 
 /******************************************************************************

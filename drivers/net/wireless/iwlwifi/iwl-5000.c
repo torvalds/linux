@@ -338,9 +338,13 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 
 	if (!data->radio_write) {
 		struct iwl_calib_chain_noise_gain_cmd cmd;
+
 		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
+		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
+		cmd.hdr.first_group = 0;
+		cmd.hdr.groups_num = 1;
+		cmd.hdr.data_valid = 1;
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
 		iwl_send_cmd_pdu_async(priv, REPLY_PHY_CALIBRATION_CMD,
@@ -362,14 +366,19 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+	int ret;
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
 		struct iwl_calib_chain_noise_reset_cmd cmd;
-
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
-		if (iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
-			sizeof(cmd), &cmd))
+
+		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
+		cmd.hdr.first_group = 0;
+		cmd.hdr.groups_num = 1;
+		cmd.hdr.data_valid = 1;
+		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+					sizeof(cmd), &cmd);
+		if (ret)
 			IWL_ERROR("Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
 		IWL_DEBUG_CALIB("Run chain_noise_calibrate\n");
@@ -420,17 +429,17 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
  */
 static int iwl5000_set_Xtal_calib(struct iwl_priv *priv)
 {
-	u8 data[sizeof(struct iwl_calib_hdr) +
-		sizeof(struct iwl_cal_xtal_freq)];
-	struct iwl_calib_cmd *cmd = (struct iwl_calib_cmd *)data;
-	struct iwl_cal_xtal_freq *xtal = (struct iwl_cal_xtal_freq *)cmd->data;
+	struct iwl_calib_xtal_freq_cmd cmd;
 	u16 *xtal_calib = (u16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_XTAL);
 
-	cmd->hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
-	xtal->cap_pin1 = (u8)xtal_calib[0];
-	xtal->cap_pin2 = (u8)xtal_calib[1];
+	cmd.hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
+	cmd.hdr.first_group = 0;
+	cmd.hdr.groups_num = 1;
+	cmd.hdr.data_valid = 1;
+	cmd.cap_pin1 = (u8)xtal_calib[0];
+	cmd.cap_pin2 = (u8)xtal_calib[1];
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_XTAL],
-			     data, sizeof(data));
+			     (u8 *)&cmd, sizeof(cmd));
 }
 
 static int iwl5000_send_calib_cfg(struct iwl_priv *priv)

@@ -523,7 +523,7 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 		struct iwl_calib_diff_gain_cmd cmd;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.opCode = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
+		cmd.hdr.op_code = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
 		cmd.diff_gain_a = 0;
 		cmd.diff_gain_b = 0;
 		cmd.diff_gain_c = 0;
@@ -574,7 +574,7 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 		data->radio_write = 1;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.opCode = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
+		cmd.hdr.op_code = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
 		cmd.diff_gain_a = data->delta_gain_code[0];
 		cmd.diff_gain_b = data->delta_gain_code[1];
 		cmd.diff_gain_c = data->delta_gain_code[2];
