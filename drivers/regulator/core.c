@@ -1858,11 +1858,6 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 			goto clean;
 	}
 
-	/* set regulator constraints */
-	ret = set_machine_constraints(rdev, &init_data->constraints);
-	if (ret < 0)
-		goto clean;
-
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
 	rdev->dev.parent = dev;
@@ -1873,6 +1868,11 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 		goto clean;
 
 	dev_set_drvdata(&rdev->dev, rdev);
+
+	/* set regulator constraints */
+	ret = set_machine_constraints(rdev, &init_data->constraints);
+	if (ret < 0)
+		goto scrub;
 
 	/* add attributes supported by this regulator */
 	ret = add_regulator_attributes(rdev);
