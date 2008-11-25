@@ -43,6 +43,14 @@ struct vcpu_svm {
 	u32 *msrpm;
 	struct vmcb *hsave;
 	u64 hsave_msr;
+
+	u64 nested_vmcb;
+
+	/* These are the merged vectors */
+	u32 *nested_msrpm;
+
+	/* gpa pointers to the real vectors */
+	u64 nested_vmcb_msrpm;
 };
 
 #endif

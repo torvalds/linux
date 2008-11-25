@@ -740,6 +740,8 @@ enum {
 };
 
 #define HF_GIF_MASK		(1 << 0)
+#define HF_HIF_MASK		(1 << 1)
+#define HF_VINTR_MASK		(1 << 2)
 
 /*
  * Hardware virtualization extension instructions may fault if a
