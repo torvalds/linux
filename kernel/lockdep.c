@@ -580,7 +580,8 @@ static void print_lock_class_header(struct lock_class *class, int depth)
 /*
  * printk all lock dependencies starting at <entry>:
  */
-static void print_lock_dependencies(struct lock_class *class, int depth)
+static void __used
+print_lock_dependencies(struct lock_class *class, int depth)
 {
 	struct lock_list *entry;
 
