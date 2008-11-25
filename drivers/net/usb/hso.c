@@ -2762,18 +2762,21 @@ static int hso_resume(struct usb_interface *iface)
 		if (network_table[i] &&
 		    (network_table[i]->interface == iface)) {
 			hso_net = dev2net(network_table[i]);
-			/* First transmit any lingering data, then restart the
-			 * device. */
-			if (hso_net->skb_tx_buf) {
-				dev_dbg(&iface->dev,
-					"Transmitting lingering data\n");
-				hso_net_start_xmit(hso_net->skb_tx_buf,
-						   hso_net->net);
-				hso_net->skb_tx_buf = NULL;
+			if (hso_net->flags & IFF_UP) {
+				/* First transmit any lingering data,
+				   then restart the device. */
+				if (hso_net->skb_tx_buf) {
+					dev_dbg(&iface->dev,
+						"Transmitting"
+						" lingering data\n");
+					hso_net_start_xmit(hso_net->skb_tx_buf,
+							   hso_net->net);
+					hso_net->skb_tx_buf = NULL;
+				}
+				result = hso_start_net_device(network_table[i]);
+				if (result)
+					goto out;
 			}
-			result = hso_start_net_device(network_table[i]);
-			if (result)
-				goto out;
 		}
 	}
 
