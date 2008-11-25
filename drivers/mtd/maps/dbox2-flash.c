@@ -69,7 +69,7 @@ struct map_info dbox2_flash_map = {
 	.phys		= WINDOW_ADDR,
 };
 
-int __init init_dbox2_flash(void)
+static int __init init_dbox2_flash(void)
 {
        	printk(KERN_NOTICE "D-Box 2 flash driver (size->0x%X mem->0x%X)\n", WINDOW_SIZE, WINDOW_ADDR);
 	dbox2_flash_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
