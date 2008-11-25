@@ -313,26 +313,39 @@ ftrace_init_module(struct module *mod,
 
 
 /*
+ * Structure that defines an entry function trace.
+ */
+struct ftrace_graph_ent {
+	unsigned long func; /* Current function */
+	int depth;
+};
+
+/*
  * Structure that defines a return function trace.
  */
 struct ftrace_graph_ret {
-	unsigned long ret; /* Return address */
 	unsigned long func; /* Current function */
 	unsigned long long calltime;
 	unsigned long long rettime;
 	/* Number of functions that overran the depth limit for current task */
 	unsigned long overrun;
+	int depth;
 };
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define FTRACE_RETFUNC_DEPTH 50
 #define FTRACE_RETSTACK_ALLOC_SIZE 32
-/* Type of a callback handler of tracing return function */
-typedef void (*trace_function_graph_t)(struct ftrace_graph_ret *);
+/* Type of the callback handlers for tracing function graph*/
+typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *); /* return */
+typedef void (*trace_func_graph_ent_t)(struct ftrace_graph_ent *); /* entry */
 
-extern int register_ftrace_graph(trace_function_graph_t func);
-/* The current handler in use */
-extern trace_function_graph_t ftrace_graph_function;
+extern int register_ftrace_graph(trace_func_graph_ret_t retfunc,
+				trace_func_graph_ent_t entryfunc);
+
+/* The current handlers in use */
+extern trace_func_graph_ret_t ftrace_graph_return;
+extern trace_func_graph_ent_t ftrace_graph_entry;
+
 extern void unregister_ftrace_graph(void);
 
 extern void ftrace_graph_init_task(struct task_struct *t);

@@ -25,7 +25,8 @@ enum trace_type {
 	TRACE_BRANCH,
 	TRACE_BOOT_CALL,
 	TRACE_BOOT_RET,
-	TRACE_FN_RET,
+	TRACE_GRAPH_RET,
+	TRACE_GRAPH_ENT,
 	TRACE_USER_STACK,
 	TRACE_BTS,
 
@@ -56,14 +57,16 @@ struct ftrace_entry {
 	unsigned long		parent_ip;
 };
 
+/* Function call entry */
+struct ftrace_graph_ent_entry {
+	struct trace_entry			ent;
+	struct ftrace_graph_ent		graph_ent;
+};
+
 /* Function return entry */
-struct ftrace_graph_entry {
-	struct trace_entry	ent;
-	unsigned long		ip;
-	unsigned long		parent_ip;
-	unsigned long long	calltime;
-	unsigned long long	rettime;
-	unsigned long		overrun;
+struct ftrace_graph_ret_entry {
+	struct trace_entry			ent;
+	struct ftrace_graph_ret		ret;
 };
 extern struct tracer boot_tracer;
 
@@ -264,7 +267,10 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct trace_boot_call, TRACE_BOOT_CALL);\
 		IF_ASSIGN(var, ent, struct trace_boot_ret, TRACE_BOOT_RET);\
 		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
-		IF_ASSIGN(var, ent, struct ftrace_graph_entry, TRACE_FN_RET);\
+		IF_ASSIGN(var, ent, struct ftrace_graph_ent_entry,	\
+			  TRACE_GRAPH_ENT);		\
+		IF_ASSIGN(var, ent, struct ftrace_graph_ret_entry,	\
+			  TRACE_GRAPH_RET);		\
 		IF_ASSIGN(var, ent, struct bts_entry, TRACE_BTS);\
 		__ftrace_bad_type();					\
 	} while (0)
@@ -397,9 +403,9 @@ void trace_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
 		    unsigned long flags, int pc);
-void
-trace_function_graph(struct ftrace_graph_ret *trace);
 
+void trace_graph_return(struct ftrace_graph_ret *trace);
+void trace_graph_entry(struct ftrace_graph_ent *trace);
 void trace_bts(struct trace_array *tr,
 	       unsigned long from,
 	       unsigned long to);

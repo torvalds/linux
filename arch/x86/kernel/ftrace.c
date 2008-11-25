@@ -347,7 +347,7 @@ void ftrace_nmi_exit(void)
 
 /* Add a function return address to the trace stack on thread info.*/
 static int push_return_trace(unsigned long ret, unsigned long long time,
-				unsigned long func)
+				unsigned long func, int *depth)
 {
 	int index;
 
@@ -365,21 +365,22 @@ static int push_return_trace(unsigned long ret, unsigned long long time,
 	current->ret_stack[index].ret = ret;
 	current->ret_stack[index].func = func;
 	current->ret_stack[index].calltime = time;
+	*depth = index;
 
 	return 0;
 }
 
 /* Retrieve a function return address to the trace stack on thread info.*/
-static void pop_return_trace(unsigned long *ret, unsigned long long *time,
-				unsigned long *func, unsigned long *overrun)
+static void pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 {
 	int index;
 
 	index = current->curr_ret_stack;
 	*ret = current->ret_stack[index].ret;
-	*func = current->ret_stack[index].func;
-	*time = current->ret_stack[index].calltime;
-	*overrun = atomic_read(&current->trace_overrun);
+	trace->func = current->ret_stack[index].func;
+	trace->calltime = current->ret_stack[index].calltime;
+	trace->overrun = atomic_read(&current->trace_overrun);
+	trace->depth = index;
 	current->curr_ret_stack--;
 }
 
@@ -390,12 +391,13 @@ static void pop_return_trace(unsigned long *ret, unsigned long long *time,
 unsigned long ftrace_return_to_handler(void)
 {
 	struct ftrace_graph_ret trace;
-	pop_return_trace(&trace.ret, &trace.calltime, &trace.func,
-			&trace.overrun);
-	trace.rettime = cpu_clock(raw_smp_processor_id());
-	ftrace_graph_function(&trace);
+	unsigned long ret;
 
-	return trace.ret;
+	pop_return_trace(&trace, &ret);
+	trace.rettime = cpu_clock(raw_smp_processor_id());
+	ftrace_graph_return(&trace);
+
+	return ret;
 }
 
 /*
@@ -407,6 +409,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	unsigned long old;
 	unsigned long long calltime;
 	int faulted;
+	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)
 				&return_to_handler;
 
@@ -452,8 +455,15 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 
 	calltime = cpu_clock(raw_smp_processor_id());
 
-	if (push_return_trace(old, calltime, self_addr) == -EBUSY)
+	if (push_return_trace(old, calltime,
+				self_addr, &trace.depth) == -EBUSY) {
 		*parent = old;
+		return;
+	}
+
+	trace.func = self_addr;
+	ftrace_graph_entry(&trace);
+
 }
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

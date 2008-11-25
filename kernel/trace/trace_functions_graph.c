@@ -13,6 +13,7 @@
 
 #include "trace.h"
 
+#define TRACE_GRAPH_INDENT	2
 
 #define TRACE_GRAPH_PRINT_OVERRUN	0x1
 static struct tracer_opt trace_opts[] = {
@@ -26,6 +27,8 @@ static struct tracer_flags tracer_flags = {
 	.opts = trace_opts
 };
 
+/* pid on the last trace processed */
+static pid_t last_pid = -1;
 
 static int graph_trace_init(struct trace_array *tr)
 {
@@ -33,7 +36,8 @@ static int graph_trace_init(struct trace_array *tr)
 	for_each_online_cpu(cpu)
 		tracing_reset(tr, cpu);
 
-	return register_ftrace_graph(&trace_function_graph);
+	return register_ftrace_graph(&trace_graph_return,
+					&trace_graph_entry);
 }
 
 static void graph_trace_reset(struct trace_array *tr)
@@ -41,45 +45,97 @@ static void graph_trace_reset(struct trace_array *tr)
 		unregister_ftrace_graph();
 }
 
+/* If the pid changed since the last trace, output this event */
+static int verif_pid(struct trace_seq *s, pid_t pid)
+{
+	if (last_pid != -1 && last_pid == pid)
+		return 1;
+
+	last_pid = pid;
+	return trace_seq_printf(s, "\n------------8<---------- thread %d"
+				    " ------------8<----------\n\n",
+				  pid);
+}
+
+static enum print_line_t
+print_graph_entry(struct ftrace_graph_ent *call, struct trace_seq *s,
+		struct trace_entry *ent)
+{
+	int i;
+	int ret;
+
+	if (!verif_pid(s, ent->pid))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	for (i = 0; i < call->depth * TRACE_GRAPH_INDENT; i++) {
+		ret = trace_seq_printf(s, " ");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	ret = seq_print_ip_sym(s, call->func, 0);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	ret = trace_seq_printf(s, "() {\n");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t
+print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
+		   struct trace_entry *ent)
+{
+	int i;
+	int ret;
+
+	if (!verif_pid(s, ent->pid))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	for (i = 0; i < trace->depth * TRACE_GRAPH_INDENT; i++) {
+		ret = trace_seq_printf(s, " ");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	ret = trace_seq_printf(s, "} ");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	ret = trace_seq_printf(s, "%llu\n", trace->rettime - trace->calltime);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERRUN) {
+		ret = trace_seq_printf(s, " (Overruns: %lu)\n",
+					trace->overrun);
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+	return TRACE_TYPE_HANDLED;
+}
 
 enum print_line_t
 print_graph_function(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry = iter->ent;
-	struct ftrace_graph_entry *field;
-	int ret;
 
-	if (entry->type == TRACE_FN_RET) {
+	switch (entry->type) {
+	case TRACE_GRAPH_ENT: {
+		struct ftrace_graph_ent_entry *field;
 		trace_assign_type(field, entry);
-		ret = trace_seq_printf(s, "%pF -> ", (void *)field->parent_ip);
-		if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;
-
-		ret = seq_print_ip_sym(s, field->ip,
-					trace_flags & TRACE_ITER_SYM_MASK);
-		if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;
-
-		ret = trace_seq_printf(s, " (%llu ns)",
-					field->rettime - field->calltime);
-		if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;
-
-		if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERRUN) {
-			ret = trace_seq_printf(s, " (Overruns: %lu)",
-						field->overrun);
-			if (!ret)
-				return TRACE_TYPE_PARTIAL_LINE;
-		}
-
-		ret = trace_seq_printf(s, "\n");
-		if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;
-
-		return TRACE_TYPE_HANDLED;
+		return print_graph_entry(&field->graph_ent, s, entry);
 	}
-	return TRACE_TYPE_UNHANDLED;
+	case TRACE_GRAPH_RET: {
+		struct ftrace_graph_ret_entry *field;
+		trace_assign_type(field, entry);
+		return print_graph_return(&field->ret, s, entry);
+	}
+	default:
+		return TRACE_TYPE_UNHANDLED;
+	}
 }
 
 static struct tracer graph_trace __read_mostly = {

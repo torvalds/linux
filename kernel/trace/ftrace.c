@@ -1498,12 +1498,13 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-static atomic_t ftrace_retfunc_active;
+static atomic_t ftrace_graph_active;
 
-/* The callback that hooks the return of a function */
-trace_function_graph_t ftrace_graph_function =
-			(trace_function_graph_t)ftrace_stub;
-
+/* The callbacks that hook a function */
+trace_func_graph_ret_t ftrace_graph_return =
+			(trace_func_graph_ret_t)ftrace_stub;
+trace_func_graph_ent_t ftrace_graph_entry =
+			(trace_func_graph_ent_t)ftrace_stub;
 
 /* Try to assign a return stack array on FTRACE_RETSTACK_ALLOC_SIZE tasks. */
 static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
@@ -1569,7 +1570,8 @@ static int start_graph_tracing(void)
 	return ret;
 }
 
-int register_ftrace_graph(trace_function_graph_t func)
+int register_ftrace_graph(trace_func_graph_ret_t retfunc,
+			trace_func_graph_ent_t entryfunc)
 {
 	int ret = 0;
 
@@ -1583,14 +1585,15 @@ int register_ftrace_graph(trace_function_graph_t func)
 		ret = -EBUSY;
 		goto out;
 	}
-	atomic_inc(&ftrace_retfunc_active);
+	atomic_inc(&ftrace_graph_active);
 	ret = start_graph_tracing();
 	if (ret) {
-		atomic_dec(&ftrace_retfunc_active);
+		atomic_dec(&ftrace_graph_active);
 		goto out;
 	}
 	ftrace_tracing_type = FTRACE_TYPE_RETURN;
-	ftrace_graph_function = func;
+	ftrace_graph_return = retfunc;
+	ftrace_graph_entry = entryfunc;
 	ftrace_startup();
 
 out:
@@ -1602,8 +1605,9 @@ void unregister_ftrace_graph(void)
 {
 	mutex_lock(&ftrace_sysctl_lock);
 
-	atomic_dec(&ftrace_retfunc_active);
-	ftrace_graph_function = (trace_function_graph_t)ftrace_stub;
+	atomic_dec(&ftrace_graph_active);
+	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
+	ftrace_graph_entry = (trace_func_graph_ent_t)ftrace_stub;
 	ftrace_shutdown();
 	/* Restore normal tracing type */
 	ftrace_tracing_type = FTRACE_TYPE_ENTER;
@@ -1614,7 +1618,7 @@ void unregister_ftrace_graph(void)
 /* Allocate a return stack for newly created task */
 void ftrace_graph_init_task(struct task_struct *t)
 {
-	if (atomic_read(&ftrace_retfunc_active)) {
+	if (atomic_read(&ftrace_graph_active)) {
 		t->ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
 				* sizeof(struct ftrace_ret_stack),
 				GFP_KERNEL);
@@ -1637,6 +1641,4 @@ void ftrace_graph_exit_task(struct task_struct *t)
 	kfree(ret_stack);
 }
 #endif
-
-
 
