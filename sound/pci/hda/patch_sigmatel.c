@@ -36,10 +36,12 @@
 #include "hda_patch.h"
 #include "hda_beep.h"
 
-#define STAC_VREF_EVENT		0x00
-#define STAC_INSERT_EVENT	0x10
-#define STAC_PWR_EVENT		0x20
-#define STAC_HP_EVENT		0x30
+enum {
+	STAC_VREF_EVENT	= 1,
+	STAC_INSERT_EVENT,
+	STAC_PWR_EVENT,
+	STAC_HP_EVENT,
+};
 
 enum {
 	STAC_REF,
@@ -134,6 +136,8 @@ enum {
 
 struct sigmatel_event {
 	hda_nid_t nid;
+	unsigned char type;
+	unsigned char tag;
 	int data;
 };
 
@@ -2549,6 +2553,9 @@ static int stac92xx_hp_switch_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid,
+				   unsigned char type);
+
 static int stac92xx_hp_switch_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
@@ -2561,7 +2568,7 @@ static int stac92xx_hp_switch_put(struct snd_kcontrol *kcontrol,
 	/* check to be sure that the ports are upto date with
 	 * switch changes
 	 */
-	codec->patch_ops.unsol_event(codec, (STAC_HP_EVENT | nid) << 26);
+	stac_issue_unsol_event(codec, nid, STAC_HP_EVENT);
 
 	return 1;
 }
@@ -2601,8 +2608,7 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	 * appropriately according to the pin direction
 	 */
 	if (spec->hp_detect)
-		codec->patch_ops.unsol_event(codec,
-			(STAC_HP_EVENT | nid) << 26);
+		stac_issue_unsol_event(codec, nid, STAC_HP_EVENT);
 
         return 1;
 }
@@ -3768,8 +3774,8 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 #endif
 }
 
-static int stac92xx_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
-			     int data)
+static int stac_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
+			  unsigned char type, int data)
 {
 	struct sigmatel_event *event;
 
@@ -3778,32 +3784,59 @@ static int stac92xx_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
 	if (!event)
 		return -ENOMEM;
 	event->nid = nid;
+	event->type = type;
+	event->tag = spec->events.used;
 	event->data = data;
 
-	return 0;
+	return event->tag;
 }
 
-static int stac92xx_event_data(struct hda_codec *codec, hda_nid_t nid)
+static struct sigmatel_event *stac_get_event(struct hda_codec *codec,
+					     hda_nid_t nid, unsigned char type)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_event *events = spec->events.list;
-	if (events) {
-		int i;
-		for (i = 0; i < spec->events.used; i++)
-			if (events[i].nid == nid)
-				return events[i].data;
+	struct sigmatel_event *event = spec->events.list;
+	int i;
+
+	for (i = 0; i < spec->events.used; i++, event++) {
+		if (event->nid == nid && event->type == type)
+			return event;
 	}
-	return 0;
+	return NULL;
+}
+
+static struct sigmatel_event *stac_get_event_from_tag(struct hda_codec *codec,
+						      unsigned char tag)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	struct sigmatel_event *event = spec->events.list;
+	int i;
+
+	for (i = 0; i < spec->events.used; i++, event++) {
+		if (event->tag == tag)
+			return event;
+	}
+	return NULL;
 }
 
 static void enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
-			      unsigned int event)
+			      unsigned int type)
 {
-	if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) {
-		snd_hda_codec_write_cache(codec, nid, 0,
-					  AC_VERB_SET_UNSOLICITED_ENABLE,
-					  (AC_USRSP_EN | event | nid));
-	}
+	struct sigmatel_event *event;
+	int tag;
+
+	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP))
+		return;
+	event = stac_get_event(codec, nid, type);
+	if (event)
+		tag = event->tag;
+	else
+		tag = stac_add_event(codec->spec, nid, type, 0);
+	if (tag < 0)
+		return;
+	snd_hda_codec_write_cache(codec, nid, 0,
+				  AC_VERB_SET_UNSOLICITED_ENABLE,
+				  AC_USRSP_EN | tag);
 }
 
 static int is_nid_hp_pin(struct auto_pin_cfg *cfg, hda_nid_t nid)
@@ -3862,7 +3895,7 @@ static int stac92xx_init(struct hda_codec *codec)
 		/* Enable unsolicited responses on the HP widget */
 		for (i = 0; i < cfg->hp_outs; i++) {
 			hda_nid_t nid = cfg->hp_pins[i];
-			enable_pin_detect(codec, nid, STAC_HP_EVENT | nid);
+			enable_pin_detect(codec, nid, STAC_HP_EVENT);
 		}
 		/* force to enable the first line-out; the others are set up
 		 * in unsol_event
@@ -3870,8 +3903,8 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_set_pinctl(codec, spec->autocfg.line_out_pins[0],
 				AC_PINCTL_OUT_EN);
 		/* fake event to set up pins */
-		codec->patch_ops.unsol_event(codec,
-			(STAC_HP_EVENT | spec->autocfg.hp_pins[0]) << 26);
+		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0],
+				       STAC_HP_EVENT);
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
@@ -3892,7 +3925,7 @@ static int stac92xx_init(struct hda_codec *codec)
 			}
 			pinctl |= AC_PINCTL_IN_EN;
 			stac92xx_auto_set_pinctl(codec, nid, pinctl);
-			enable_pin_detect(codec, nid, STAC_INSERT_EVENT | nid);
+			enable_pin_detect(codec, nid, STAC_INSERT_EVENT);
 		}
 	}
 	for (i = 0; i < spec->num_dmics; i++)
@@ -3907,7 +3940,6 @@ static int stac92xx_init(struct hda_codec *codec)
 	for (i = 0; i < spec->num_pwrs; i++)  {
 		hda_nid_t nid = spec->pwr_nids[i];
 		int pinctl, def_conf;
-		int event = STAC_PWR_EVENT;
 
 		if (is_nid_hp_pin(cfg, nid) && spec->hp_detect)
 			continue; /* already has an unsol event */
@@ -3930,8 +3962,8 @@ static int stac92xx_init(struct hda_codec *codec)
 				stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
-		enable_pin_detect(codec, spec->pwr_nids[i], event | i);
-		codec->patch_ops.unsol_event(codec, (event | i) << 26);
+		enable_pin_detect(codec, nid, STAC_PWR_EVENT);
+		stac_issue_unsol_event(codec, nid, STAC_PWR_EVENT);
 	}
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
@@ -4059,7 +4091,7 @@ static int no_hp_sensing(struct sigmatel_spec *spec, int i)
 	return 0;
 }
 
-static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
+static void stac92xx_hp_detect(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
@@ -4182,33 +4214,43 @@ static void stac92xx_report_jack(struct hda_codec *codec, hda_nid_t nid)
 	}
 }
 
+static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid,
+				   unsigned char type)
+{
+	struct sigmatel_event *event = stac_get_event(codec, nid, type);
+	if (!event)
+		return;
+	codec->patch_ops.unsol_event(codec, (unsigned)event->tag << 26);
+}
+
 static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	int event = (res >> 26) & 0x70;
-	int nid = res >> 26 & 0x0f;
+	struct sigmatel_event *event;
+	int tag, data;
 
-	switch (event) {
+	tag = (res >> 26) & 0x7f;
+	event = stac_get_event_from_tag(codec, tag);
+	if (!event)
+		return;
+
+	switch (event->type) {
 	case STAC_HP_EVENT:
-		stac92xx_hp_detect(codec, res);
+		stac92xx_hp_detect(codec);
 		/* fallthru */
 	case STAC_INSERT_EVENT:
 	case STAC_PWR_EVENT:
-		if (nid) {
-			if (spec->num_pwrs > 0)
-				stac92xx_pin_sense(codec, nid);
-			stac92xx_report_jack(codec, nid);
-		}
+		if (spec->num_pwrs > 0)
+			stac92xx_pin_sense(codec, event->nid);
+		stac92xx_report_jack(codec, event->nid);
 		break;
-	case STAC_VREF_EVENT: {
-		int data = snd_hda_codec_read(codec, codec->afg, 0,
-			AC_VERB_GET_GPIO_DATA, 0);
-		int idx = stac92xx_event_data(codec, nid);
+	case STAC_VREF_EVENT:
+		data = snd_hda_codec_read(codec, codec->afg, 0,
+					  AC_VERB_GET_GPIO_DATA, 0);
 		/* toggle VREF state based on GPIOx status */
 		snd_hda_codec_write(codec, codec->afg, 0, 0x7e0,
-			!!(data & (1 << idx)));
+				    !!(data & (1 << event->data)));
 		break;
-		}
 	}
 }
 
@@ -4223,8 +4265,8 @@ static int stac92xx_resume(struct hda_codec *codec)
 	snd_hda_codec_resume_cache(codec);
 	/* fake event to set up pins again to override cached values */
 	if (spec->hp_detect)
-		codec->patch_ops.unsol_event(codec,
-			(STAC_HP_EVENT | spec->autocfg.hp_pins[0]) << 26);
+		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0],
+				       STAC_HP_EVENT);
 	return 0;
 }
 
@@ -4732,14 +4774,15 @@ again:
 		switch (spec->board_config) {
 		case STAC_HP_M4:
 			/* Enable VREF power saving on GPIO1 detect */
+			err = stac_add_event(spec, codec->afg,
+					     STAC_VREF_EVENT, 0x02);
+			if (err < 0)
+				return err;
 			snd_hda_codec_write_cache(codec, codec->afg, 0,
 				AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
 			snd_hda_codec_write_cache(codec, codec->afg, 0,
 				AC_VERB_SET_UNSOLICITED_ENABLE,
-				(AC_USRSP_EN | STAC_VREF_EVENT | codec->afg));
-			err = stac92xx_add_event(spec, codec->afg, 0x02);
-			if (err < 0)
-				return err;
+				AC_USRSP_EN | err);
 			spec->gpio_mask |= 0x02;
 			break;
 		}
@@ -5131,14 +5174,14 @@ static int patch_stac9205(struct hda_codec *codec)
 		stac_change_pin_config(codec, 0x20, 0x1c410030);
 
 		/* Enable unsol response for GPIO4/Dock HP connection */
+		err = stac_add_event(spec, codec->afg, STAC_VREF_EVENT, 0x01);
+		if (err < 0)
+			return err;
 		snd_hda_codec_write_cache(codec, codec->afg, 0,
 			AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x10);
 		snd_hda_codec_write_cache(codec, codec->afg, 0,
-			AC_VERB_SET_UNSOLICITED_ENABLE,
-			(AC_USRSP_EN | STAC_VREF_EVENT | codec->afg));
-		err = stac92xx_add_event(spec, codec->afg, 0x01);
-		if (err < 0)
-			return err;
+					  AC_VERB_SET_UNSOLICITED_ENABLE,
+					  AC_USRSP_EN | err);
 
 		spec->gpio_dir = 0x0b;
 		spec->eapd_mask = 0x01;
