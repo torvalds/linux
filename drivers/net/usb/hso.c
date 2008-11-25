@@ -3277,6 +3277,7 @@ static struct usb_driver hso_driver = {
 	.id_table = hso_ids,
 	.suspend = hso_suspend,
 	.resume = hso_resume,
+	.reset_resume = hso_resume,
 	.supports_autosuspend = 1,
 };
 
