@@ -545,6 +545,7 @@ struct netdev_queue {
  *
  * void (*ndo_poll_controller)(struct net_device *dev);
  */
+#define HAVE_NET_DEVICE_OPS
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
 	void			(*ndo_uninit)(struct net_device *dev);
