@@ -304,17 +304,24 @@ int sprint_symbol(char *buffer, unsigned long address)
 	char *modname;
 	const char *name;
 	unsigned long offset, size;
-	char namebuf[KSYM_NAME_LEN];
+	int len;
 
-	name = kallsyms_lookup(address, &size, &offset, &modname, namebuf);
+	name = kallsyms_lookup(address, &size, &offset, &modname, buffer);
 	if (!name)
 		return sprintf(buffer, "0x%lx", address);
 
+	if (name != buffer)
+		strcpy(buffer, name);
+	len = strlen(buffer);
+	buffer += len;
+
 	if (modname)
-		return sprintf(buffer, "%s+%#lx/%#lx [%s]", name, offset,
-				size, modname);
+		len += sprintf(buffer, "+%#lx/%#lx [%s]",
+						offset, size, modname);
 	else
-		return sprintf(buffer, "%s+%#lx/%#lx", name, offset, size);
+		len += sprintf(buffer, "+%#lx/%#lx", offset, size);
+
+	return len;
 }
 
 /* Look up a kernel symbol and print it to the kernel messages. */

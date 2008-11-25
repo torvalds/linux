@@ -31,7 +31,7 @@ cond_syscall(sys_socketpair);
 cond_syscall(sys_bind);
 cond_syscall(sys_listen);
 cond_syscall(sys_accept);
-cond_syscall(sys_paccept);
+cond_syscall(sys_accept4);
 cond_syscall(sys_connect);
 cond_syscall(sys_getsockname);
 cond_syscall(sys_getpeername);
