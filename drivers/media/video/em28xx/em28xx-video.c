@@ -2272,7 +2272,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	uif = udev->actconfig->interface[0];
 
 	dev->num_alt = uif->num_altsetting;
-	em28xx_info("Alternate settings: %i\n", dev->num_alt);
+	em28xx_videodbg("Alternate settings: %i\n", dev->num_alt);
 /*	dev->alt_max_pkt_size = kmalloc(sizeof(*dev->alt_max_pkt_size)* */
 	dev->alt_max_pkt_size = kmalloc(32 * dev->num_alt, GFP_KERNEL);
 
@@ -2288,7 +2288,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 							wMaxPacketSize);
 		dev->alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		em28xx_info("Alternate setting %i, max size= %i\n", i,
+		em28xx_videodbg("Alternate setting %i, max size= %i\n", i,
 						dev->alt_max_pkt_size[i]);
 	}
 
@@ -2303,8 +2303,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 		return retval;
 	}
-
-	em28xx_info("Found %s\n", em28xx_boards[dev->model].name);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);

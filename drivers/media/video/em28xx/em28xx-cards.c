@@ -1274,6 +1274,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	int rc;
 
+	em28xx_set_model(dev);
+
+	em28xx_info("Found %s\n", dev->board.name);
+
 	/* Set the default GPO/GPIO for legacy devices */
 	dev->reg_gpo_num = EM2880_R04_GPO;
 	dev->reg_gpio_num = EM28XX_R08_GPIO;
@@ -1284,7 +1288,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	rc = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
 	if (rc > 0) {
 		dev->chip_id = rc;
-		switch (rc) {
+
+		switch (dev->chip_id) {
 		case CHIP_ID_EM2750:
 			em28xx_info("chip ID is em2750\n");
 			break;
@@ -1307,7 +1312,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 			dev->wait_after_write = 0;
 			break;
 		default:
-			em28xx_info("em28xx chip ID = %d\n", rc);
+			em28xx_info("em28xx chip ID = %d\n", dev->chip_id);
 		}
 	}
 
@@ -1315,8 +1320,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	rc = em28xx_read_reg(dev, dev->reg_gpo_num);
 	if (rc >= 0)
 		dev->reg_gpo = rc;
-
-	em28xx_set_model(dev);
 
 	/* Those are the default values for the majority of boards
 	   Use those values if not specified otherwise at boards entry

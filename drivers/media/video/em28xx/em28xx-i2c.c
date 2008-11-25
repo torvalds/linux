@@ -388,47 +388,49 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 	if (em_eeprom->id == 0x9567eb1a)
 		dev->hash = em28xx_hash_mem(eedata, len, 32);
 
-	printk(KERN_INFO "EEPROM ID= 0x%08x, hash = 0x%08lx\n",
-	       em_eeprom->id, dev->hash);
-	printk(KERN_INFO "Vendor/Product ID= %04x:%04x\n", em_eeprom->vendor_ID,
-	       em_eeprom->product_ID);
+	printk(KERN_INFO "%s: EEPROM ID= 0x%08x, EEPROM hash = 0x%08lx\n",
+	       dev->name, em_eeprom->id, dev->hash);
+
+	printk(KERN_INFO "%s: EEPROM info:\n", dev->name);
 
 	switch (em_eeprom->chip_conf >> 4 & 0x3) {
 	case 0:
-		printk(KERN_INFO "No audio on board.\n");
+		printk(KERN_INFO "%s:\tNo audio on board.\n", dev->name);
 		break;
 	case 1:
-		printk(KERN_INFO "AC97 audio (5 sample rates)\n");
+		printk(KERN_INFO "%s:\tAC97 audio (5 sample rates)\n",
+				 dev->name);
 		break;
 	case 2:
-		printk(KERN_INFO "I2S audio, sample rate=32k\n");
+		printk(KERN_INFO "%s:\tI2S audio, sample rate=32k\n", dev->name);
 		break;
 	case 3:
-		printk(KERN_INFO "I2S audio, 3 sample rates\n");
+		printk(KERN_INFO "%s:\tI2S audio, 3 sample rates\n", dev->name);
 		break;
 	}
 
 	if (em_eeprom->chip_conf & 1 << 3)
-		printk(KERN_INFO "USB Remote wakeup capable\n");
+		printk(KERN_INFO "%s:\tUSB Remote wakeup capable\n", dev->name);
 
 	if (em_eeprom->chip_conf & 1 << 2)
-		printk(KERN_INFO "USB Self power capable\n");
+		printk(KERN_INFO "%s:\tUSB Self power capable\n", dev->name);
 
 	switch (em_eeprom->chip_conf & 0x3) {
 	case 0:
-		printk(KERN_INFO "500mA max power\n");
+		printk(KERN_INFO "%s:\t500mA max power\n", dev->name);
 		break;
 	case 1:
-		printk(KERN_INFO "400mA max power\n");
+		printk(KERN_INFO "%s:\t400mA max power\n", dev->name);
 		break;
 	case 2:
-		printk(KERN_INFO "300mA max power\n");
+		printk(KERN_INFO "%s:\t300mA max power\n", dev->name);
 		break;
 	case 3:
-		printk(KERN_INFO "200mA max power\n");
+		printk(KERN_INFO "%s:\t200mA max power\n", dev->name);
 		break;
 	}
-	printk(KERN_INFO "Table at 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
+	printk(KERN_INFO "%s:\tTable at 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
+				dev->name,
 				em_eeprom->string_idx_table,
 				em_eeprom->string1,
 				em_eeprom->string2,
