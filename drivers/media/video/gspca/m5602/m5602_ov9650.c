@@ -45,6 +45,13 @@ static
 		}
 	},
 	{
+		.ident = "ASUS A6Ja",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6J")
+		}
+	},
+	{
 		.ident = "ASUS A6Kt",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
