@@ -293,9 +293,7 @@ static void ah_destroy(struct xfrm_state *x)
 		return;
 
 	kfree(ahp->work_icv);
-	ahp->work_icv = NULL;
 	crypto_free_hash(ahp->tfm);
-	ahp->tfm = NULL;
 	kfree(ahp);
 }
 
