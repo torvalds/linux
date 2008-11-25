@@ -1415,6 +1415,7 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 
 	if (skb->len > 0) {
 		BUG_ON(!tcp_skb_pcount(skb));
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SACKSHIFTED);
 		return 0;
 	}
 
@@ -1435,6 +1436,8 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 
 	tcp_unlink_write_queue(skb, sk);
 	sk_wmem_free_skb(sk, skb);
+
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SACKMERGED);
 
 	return 1;
 }
@@ -1594,6 +1597,7 @@ noop:
 	return skb;
 
 fallback:
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SACKSHIFTFALLBACK);
 	return NULL;
 }
 
