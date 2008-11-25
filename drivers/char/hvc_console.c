@@ -695,6 +695,7 @@ void hvc_resize(struct hvc_struct *hp, struct winsize ws)
 	hp->ws = ws;
 	schedule_work(&hp->tty_resize);
 }
+EXPORT_SYMBOL_GPL(hvc_resize);
 
 /*
  * This kthread is either polling or interrupt driven.  This is determined by
