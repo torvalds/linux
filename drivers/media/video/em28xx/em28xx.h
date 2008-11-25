@@ -432,7 +432,7 @@ struct em28xx {
 	struct em28xx_reg_seq *analog_gpio, *digital_gpio;
 
 	/* GPIO sequences for tuner callbacks */
-	struct em28xx_reg_seq *tun_analog_gpio, *tun_digital_gpio;
+	struct em28xx_reg_seq *tuner_gpio;
 
 	struct list_head	devlist;
 

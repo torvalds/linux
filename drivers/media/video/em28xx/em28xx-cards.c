@@ -1206,15 +1206,6 @@ static struct em28xx_reg_seq default_callback[] = {
 	{  -1,			-1,		-1,		-1},
 };
 
-/* Callback for EM2882 TERRATEC HYBRID XS */
-static struct em28xx_reg_seq em2882_terratec_hybrid_xs_digital[] = {
-	{EM28XX_R08_GPIO,       0x2e,   0xff,		   6},
-	{EM28XX_R08_GPIO,       0x3e,   ~EM_GPIO_4,	   6},
-	{EM2880_R04_GPO,        0x04,   0xff,		  10},
-	{EM2880_R04_GPO,        0x0c,   0xff,		  10},
-	{  -1,			-1,	-1,		  -1},
-};
-
 /* Pinnacle PCTV HD Mini (80e) GPIOs
    0-5: not used
    6:   demod reset, active low
@@ -1253,10 +1244,7 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 	if (command != XC2028_TUNER_RESET)
 		return 0;
 
-	if (dev->mode == EM28XX_ANALOG_MODE)
-		rc = em28xx_gpio_set(dev, dev->tun_analog_gpio);
-	else
-		rc = em28xx_gpio_set(dev, dev->tun_digital_gpio);
+	rc = em28xx_gpio_set(dev, dev->tuner_gpio);
 
 	return rc;
 }
@@ -1350,16 +1338,12 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		/* Sets GPO/GPIO sequences for this device */
 		dev->analog_gpio      = hauppauge_wintv_hvr_900_analog;
 		dev->digital_gpio     = hauppauge_wintv_hvr_900_digital;
-		dev->tun_analog_gpio  = default_callback;
-		dev->tun_digital_gpio = default_callback;
 		break;
 
 	case EM2882_BOARD_TERRATEC_HYBRID_XS:
 		/* Sets GPO/GPIO sequences for this device */
 		dev->analog_gpio      = hauppauge_wintv_hvr_900_analog;
 		dev->digital_gpio     = hauppauge_wintv_hvr_900_digital;
-		dev->tun_analog_gpio  = default_callback;
-		dev->tun_digital_gpio = em2882_terratec_hybrid_xs_digital;
 		break;
 
 	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
@@ -1376,8 +1360,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		/* Sets GPO/GPIO sequences for this device */
 		dev->analog_gpio      = default_analog;
 		dev->digital_gpio     = default_digital;
-		dev->tun_analog_gpio  = default_callback;
-		dev->tun_digital_gpio = default_callback;
 		break;
 
 	case EM2880_BOARD_MSI_DIGIVOX_AD:
@@ -1385,8 +1367,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		/* Sets GPO/GPIO sequences for this device */
 		dev->analog_gpio      = em2880_msi_digivox_ad_analog;
 		dev->digital_gpio     = em2880_msi_digivox_ad_digital;
-		dev->tun_analog_gpio  = default_callback;
-		dev->tun_digital_gpio = default_callback;
 		break;
 
 	case EM2861_BOARD_PLEXTOR_PX_TV100U:
@@ -1458,7 +1438,11 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 	}
 
-	em28xx_gpio_set(dev, dev->tun_analog_gpio);
+	/* Sets the default callback. Used only for certain tuners */
+	if (!dev->tuner_gpio)
+		dev->tuner_gpio       = default_callback;
+
+	em28xx_gpio_set(dev, dev->tuner_gpio);
 	em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 
 	/* Unlock device */
@@ -1752,3 +1736,4 @@ void em28xx_card_setup(struct em28xx *dev)
 
 	em28xx_ir_init(dev);
 }
+
