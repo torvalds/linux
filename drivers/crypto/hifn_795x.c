@@ -1393,10 +1393,12 @@ static int hifn_setup_dma(struct hifn_device *dev,
 	n = nbytes;
 	while (n) {
 		if (t->length && rctx->walk.flags & ASYNC_FLAGS_MISALIGNED) {
+			BUG_ON(!sg_page(t));
 			dpage = sg_page(t);
 			doff = 0;
 			len = t->length;
 		} else {
+			BUG_ON(!sg_page(dst));
 			dpage = sg_page(dst);
 			doff = dst->offset;
 			len = dst->length;
@@ -1791,17 +1793,17 @@ static void hifn_process_ready(struct ablkcipher_request *req, int error)
 				continue;
 			}
 
-			saddr = kmap_atomic(sg_page(t), KM_IRQ1);
+			saddr = kmap_atomic(sg_page(t), KM_SOFTIRQ0);
 
 			err = ablkcipher_get(saddr, &t->length, t->offset,
 					dst, nbytes, &nbytes);
 			if (err < 0) {
-				kunmap_atomic(saddr, KM_IRQ1);
+				kunmap_atomic(saddr, KM_SOFTIRQ0);
 				break;
 			}
 
 			idx += err;
-			kunmap_atomic(saddr, KM_IRQ1);
+			kunmap_atomic(saddr, KM_SOFTIRQ0);
 		}
 
 		ablkcipher_walk_exit(&rctx->walk);
