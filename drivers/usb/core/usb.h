@@ -1,3 +1,5 @@
+#include <linux/pm.h>
+
 /* Functions local to drivers/usb/core/ */
 
 extern int usb_create_sysfs_dev_files(struct usb_device *dev);
@@ -42,15 +44,16 @@ extern void usb_host_cleanup(void);
 #ifdef	CONFIG_PM
 
 extern int usb_suspend(struct device *dev, pm_message_t msg);
-extern int usb_resume(struct device *dev);
+extern int usb_resume(struct device *dev, pm_message_t msg);
 
 extern void usb_autosuspend_work(struct work_struct *work);
 extern void usb_autoresume_work(struct work_struct *work);
-extern int usb_port_suspend(struct usb_device *dev);
-extern int usb_port_resume(struct usb_device *dev);
+extern int usb_port_suspend(struct usb_device *dev, pm_message_t msg);
+extern int usb_port_resume(struct usb_device *dev, pm_message_t msg);
 extern int usb_external_suspend_device(struct usb_device *udev,
 		pm_message_t msg);
-extern int usb_external_resume_device(struct usb_device *udev);
+extern int usb_external_resume_device(struct usb_device *udev,
+		pm_message_t msg);
 
 static inline void usb_pm_lock(struct usb_device *udev)
 {
@@ -64,12 +67,12 @@ static inline void usb_pm_unlock(struct usb_device *udev)
 
 #else
 
-static inline int usb_port_suspend(struct usb_device *udev)
+static inline int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 {
 	return 0;
 }
 
-static inline int usb_port_resume(struct usb_device *udev)
+static inline int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 {
 	return 0;
 }

@@ -253,7 +253,7 @@ static int usb_dev_prepare(struct device *dev)
 static void usb_dev_complete(struct device *dev)
 {
 	/* Currently used only for rebinding interfaces */
-	usb_resume(dev);	/* Implement eventually? */
+	usb_resume(dev, PMSG_RESUME);	/* Message event is meaningless */
 }
 
 static int usb_dev_suspend(struct device *dev)
@@ -263,7 +263,7 @@ static int usb_dev_suspend(struct device *dev)
 
 static int usb_dev_resume(struct device *dev)
 {
-	return usb_resume(dev);
+	return usb_resume(dev, PMSG_RESUME);
 }
 
 static int usb_dev_freeze(struct device *dev)
@@ -273,7 +273,7 @@ static int usb_dev_freeze(struct device *dev)
 
 static int usb_dev_thaw(struct device *dev)
 {
-	return usb_resume(dev);
+	return usb_resume(dev, PMSG_THAW);
 }
 
 static int usb_dev_poweroff(struct device *dev)
@@ -283,7 +283,7 @@ static int usb_dev_poweroff(struct device *dev)
 
 static int usb_dev_restore(struct device *dev)
 {
-	return usb_resume(dev);
+	return usb_resume(dev, PMSG_RESTORE);
 }
 
 static struct dev_pm_ops usb_device_pm_ops = {

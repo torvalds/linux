@@ -359,19 +359,19 @@ set_level(struct device *dev, struct device_attribute *attr,
 			strncmp(buf, on_string, len) == 0) {
 		udev->autosuspend_disabled = 1;
 		udev->autoresume_disabled = 0;
-		rc = usb_external_resume_device(udev);
+		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
 
 	} else if (len == sizeof auto_string - 1 &&
 			strncmp(buf, auto_string, len) == 0) {
 		udev->autosuspend_disabled = 0;
 		udev->autoresume_disabled = 0;
-		rc = usb_external_resume_device(udev);
+		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
 
 	} else if (len == sizeof suspend_string - 1 &&
 			strncmp(buf, suspend_string, len) == 0) {
 		udev->autosuspend_disabled = 0;
 		udev->autoresume_disabled = 1;
-		rc = usb_external_suspend_device(udev, PMSG_SUSPEND);
+		rc = usb_external_suspend_device(udev, PMSG_USER_SUSPEND);
 
 	} else
 		rc = -EINVAL;
