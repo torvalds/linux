@@ -35,11 +35,21 @@ cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a,) \
 cflags-$(CONFIG_CPU_SH4AL_DSP)		+= $(call cc-option,-m4al,)
 cflags-$(CONFIG_CPU_SH5)		:= $(call cc-option,-m5-32media-nofpu,)
 
-cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
-cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
-
-cflags-y	+= $(call cc-option,-mno-fdpic)
-
+ifeq ($(cflags-y),)
+#
+# In the case where we are stuck with a compiler that has been uselessly
+# restricted to a particular ISA, a favourite default of newer GCCs when
+# extensive multilib targets are not provided, ensure we get the best fit
+# regarding FP generation. This is intentionally stupid (albeit many
+# orders of magnitude less than GCC's default behaviour), as anything
+# with a large number of multilib targets better have been built
+# correctly for the target in mind.
+#
+cflags-y	+= $(shell $(CC) $(KBUILD_CFLAGS) -print-multi-lib | \
+		     grep nofpu | sed q | sed -e 's/^/-/;s/;.*$$//')
+# At this point, anything goes.
+isaflags-y	:= $(call as-option,-Wa$(comma)-isa=any,)
+else
 #
 # -Wa,-isa= tuning implies -Wa,-dsp for the versions of binutils that
 # support it, while -Wa,-dsp by itself limits the range of usable opcodes
@@ -52,7 +62,12 @@ isaflags-y	:= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
 
 isaflags-$(CONFIG_SH_DSP)		:= \
 	$(call as-option,-Wa$(comma)-isa=$(isa-y),-Wa$(comma)-dsp)
+endif
 
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
+
+cflags-y	+= $(call cc-option,-mno-fdpic)
 cflags-y	+= $(isaflags-y) -ffreestanding
 
 cflags-$(CONFIG_MORE_COMPILE_OPTIONS)	+= \
