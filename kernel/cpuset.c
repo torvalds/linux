@@ -585,7 +585,7 @@ static int generate_sched_domains(cpumask_t **domains,
 	int i, j, k;		/* indices for partition finding loops */
 	cpumask_t *doms;	/* resulting partition; i.e. sched domains */
 	struct sched_domain_attr *dattr;  /* attributes for custom domains */
-	int ndoms;		/* number of sched domains in result */
+	int ndoms = 0;		/* number of sched domains in result */
 	int nslot;		/* next empty doms[] cpumask_t slot */
 
 	doms = NULL;
