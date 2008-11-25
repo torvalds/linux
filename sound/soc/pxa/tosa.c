@@ -230,10 +230,32 @@ static struct snd_soc_dai_link tosa_dai[] = {
 },
 };
 
+static int tosa_probe(struct platform_device *dev)
+{
+	int ret;
+
+	ret = gpio_request(TOSA_GPIO_L_MUTE, "Headphone Jack");
+	if (ret)
+		return ret;
+	ret = gpio_direction_output(TOSA_GPIO_L_MUTE, 0);
+	if (ret)
+		gpio_free(TOSA_GPIO_L_MUTE);
+
+	return ret;
+}
+
+static int tosa_remove(struct platform_device *dev)
+{
+	gpio_free(TOSA_GPIO_L_MUTE);
+	return 0;
+}
+
 static struct snd_soc_card tosa = {
 	.name = "Tosa",
 	.dai_link = tosa_dai,
 	.num_links = ARRAY_SIZE(tosa_dai),
+	.probe = tosa_probe,
+	.remove = tosa_remove,
 };
 
 static struct snd_soc_device tosa_snd_devdata = {
@@ -251,11 +273,6 @@ static int __init tosa_init(void)
 	if (!machine_is_tosa())
 		return -ENODEV;
 
-	ret = gpio_request(TOSA_GPIO_L_MUTE, "Headphone Jack");
-	if (ret)
-		return ret;
-	gpio_direction_output(TOSA_GPIO_L_MUTE, 0);
-
 	tosa_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!tosa_snd_device) {
 		ret = -ENOMEM;
@@ -272,15 +289,12 @@ static int __init tosa_init(void)
 	platform_device_put(tosa_snd_device);
 
 err_alloc:
-	gpio_free(TOSA_GPIO_L_MUTE);
-
 	return ret;
 }
 
 static void __exit tosa_exit(void)
 {
 	platform_device_unregister(tosa_snd_device);
-	gpio_free(TOSA_GPIO_L_MUTE);
 }
 
 module_init(tosa_init);
