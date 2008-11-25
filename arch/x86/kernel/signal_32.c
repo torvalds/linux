@@ -48,28 +48,6 @@
 # define FIX_EFLAGS	__FIX_EFLAGS
 #endif
 
-static const struct {
-	u16 poplmovl;
-	u32 val;
-	u16 int80;
-} __attribute__((packed)) retcode = {
-	0xb858,		/* popl %eax; movl $..., %eax */
-	__NR_sigreturn,
-	0x80cd,		/* int $0x80 */
-};
-
-static const struct {
-	u8  movl;
-	u32 val;
-	u16 int80;
-	u8  pad;
-} __attribute__((packed)) rt_retcode = {
-	0xb8,		/* movl $..., %eax */
-	__NR_rt_sigreturn,
-	0x80cd,		/* int $0x80 */
-	0
-};
-
 #define COPY(x)			{		\
 	err |= __get_user(regs->x, &sc->x);	\
 }
@@ -207,176 +185,30 @@ setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 }
 
 /*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int
-sys_sigsuspend(int history0, int history1, old_sigset_t mask)
-{
-	mask &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	current->saved_sigmask = current->blocked;
-	siginitset(&current->blocked, mask);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_restore_sigmask();
-
-	return -ERESTARTNOHAND;
-}
-
-asmlinkage int
-sys_sigaction(int sig, const struct old_sigaction __user *act,
-	      struct old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	if (act) {
-		old_sigset_t mask;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
-			return -EFAULT;
-
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
-			return -EFAULT;
-
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
-	}
-
-	return ret;
-}
-
-#ifdef CONFIG_X86_32
-asmlinkage int sys_sigaltstack(unsigned long bx)
-{
-	/*
-	 * This is needed to make gcc realize it doesn't own the
-	 * "struct pt_regs"
-	 */
-	struct pt_regs *regs = (struct pt_regs *)&bx;
-	const stack_t __user *uss = (const stack_t __user *)bx;
-	stack_t __user *uoss = (stack_t __user *)regs->cx;
-
-	return do_sigaltstack(uss, uoss, regs->sp);
-}
-#else /* !CONFIG_X86_32 */
-asmlinkage long
-sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-		struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->sp);
-}
-#endif /* CONFIG_X86_32 */
-
-/*
- * Do a signal return; undo the signal stack.
- */
-asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
-{
-	struct sigframe __user *frame;
-	struct pt_regs *regs;
-	unsigned long ax;
-	sigset_t set;
-
-	regs = (struct pt_regs *) &__unused;
-	frame = (struct sigframe __user *)(regs->sp - 8);
-
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
-	if (__get_user(set.sig[0], &frame->sc.oldmask) || (_NSIG_WORDS > 1
-		&& __copy_from_user(&set.sig[1], &frame->extramask,
-				    sizeof(frame->extramask))))
-		goto badframe;
-
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (restore_sigcontext(regs, &frame->sc, &ax))
-		goto badframe;
-	return ax;
-
-badframe:
-	if (show_unhandled_signals && printk_ratelimit()) {
-		printk("%s%s[%d] bad frame in sigreturn frame:"
-			"%p ip:%lx sp:%lx oeax:%lx",
-		    task_pid_nr(current) > 1 ? KERN_INFO : KERN_EMERG,
-		    current->comm, task_pid_nr(current), frame, regs->ip,
-		    regs->sp, regs->orig_ax);
-		print_vma_addr(" in ", regs->ip);
-		printk(KERN_CONT "\n");
-	}
-
-	force_sig(SIGSEGV, current);
-
-	return 0;
-}
-
-static long do_rt_sigreturn(struct pt_regs *regs)
-{
-	struct rt_sigframe __user *frame;
-	unsigned long ax;
-	sigset_t set;
-
-	frame = (struct rt_sigframe __user *)(regs->sp - sizeof(long));
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
-	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
-		goto badframe;
-
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
-		goto badframe;
-
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->sp) == -EFAULT)
-		goto badframe;
-
-	return ax;
-
-badframe:
-	signal_fault(regs, frame, "rt_sigreturn");
-	return 0;
-}
-
-#ifdef CONFIG_X86_32
-asmlinkage int sys_rt_sigreturn(unsigned long __unused)
-{
-	struct pt_regs *regs = (struct pt_regs *)&__unused;
-
-	return do_rt_sigreturn(regs);
-}
-#else /* !CONFIG_X86_32 */
-asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
-{
-	return do_rt_sigreturn(regs);
-}
-#endif /* CONFIG_X86_32 */
-
-/*
  * Set up a signal frame.
  */
+#ifdef CONFIG_X86_32
+static const struct {
+	u16 poplmovl;
+	u32 val;
+	u16 int80;
+} __attribute__((packed)) retcode = {
+	0xb858,		/* popl %eax; movl $..., %eax */
+	__NR_sigreturn,
+	0x80cd,		/* int $0x80 */
+};
+
+static const struct {
+	u8  movl;
+	u32 val;
+	u16 int80;
+	u8  pad;
+} __attribute__((packed)) rt_retcode = {
+	0xb8,		/* movl $..., %eax */
+	__NR_rt_sigreturn,
+	0x80cd,		/* int $0x80 */
+	0
+};
 
 /*
  * Determine which stack to use..
@@ -557,6 +389,265 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	return 0;
 }
+#else /* !CONFIG_X86_32 */
+/*
+ * Determine which stack to use..
+ */
+static void __user *
+get_stack(struct k_sigaction *ka, unsigned long sp, unsigned long size)
+{
+	/* Default to using normal stack - redzone*/
+	sp -= 128;
+
+	/* This is the X/Open sanctioned signal stack switching.  */
+	if (ka->sa.sa_flags & SA_ONSTACK) {
+		if (sas_ss_flags(sp) == 0)
+			sp = current->sas_ss_sp + current->sas_ss_size;
+	}
+
+	return (void __user *)round_down(sp - size, 64);
+}
+
+static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+			    sigset_t *set, struct pt_regs *regs)
+{
+	struct rt_sigframe __user *frame;
+	void __user *fp = NULL;
+	int err = 0;
+	struct task_struct *me = current;
+
+	if (used_math()) {
+		fp = get_stack(ka, regs->sp, sig_xstate_size);
+		frame = (void __user *)round_down(
+			(unsigned long)fp - sizeof(struct rt_sigframe), 16) - 8;
+
+		if (save_i387_xstate(fp) < 0)
+			return -EFAULT;
+	} else
+		frame = get_stack(ka, regs->sp, sizeof(struct rt_sigframe)) - 8;
+
+	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+		return -EFAULT;
+
+	if (ka->sa.sa_flags & SA_SIGINFO) {
+		if (copy_siginfo_to_user(&frame->info, info))
+			return -EFAULT;
+	}
+
+	/* Create the ucontext.  */
+	if (cpu_has_xsave)
+		err |= __put_user(UC_FP_XSTATE, &frame->uc.uc_flags);
+	else
+		err |= __put_user(0, &frame->uc.uc_flags);
+	err |= __put_user(0, &frame->uc.uc_link);
+	err |= __put_user(me->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
+	err |= __put_user(sas_ss_flags(regs->sp),
+			  &frame->uc.uc_stack.ss_flags);
+	err |= __put_user(me->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= setup_sigcontext(&frame->uc.uc_mcontext, fp, regs, set->sig[0]);
+	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+
+	/* Set up to return from userspace.  If provided, use a stub
+	   already in userspace.  */
+	/* x86-64 should always use SA_RESTORER. */
+	if (ka->sa.sa_flags & SA_RESTORER) {
+		err |= __put_user(ka->sa.sa_restorer, &frame->pretcode);
+	} else {
+		/* could use a vstub here */
+		return -EFAULT;
+	}
+
+	if (err)
+		return -EFAULT;
+
+	/* Set up registers for signal handler */
+	regs->di = sig;
+	/* In case the signal handler was declared without prototypes */
+	regs->ax = 0;
+
+	/* This also works for non SA_SIGINFO handlers because they expect the
+	   next argument after the signal number on the stack. */
+	regs->si = (unsigned long)&frame->info;
+	regs->dx = (unsigned long)&frame->uc;
+	regs->ip = (unsigned long) ka->sa.sa_handler;
+
+	regs->sp = (unsigned long)frame;
+
+	/* Set up the CS register to run signal handlers in 64-bit mode,
+	   even if the handler happens to be interrupting 32-bit code. */
+	regs->cs = __USER_CS;
+
+	return 0;
+}
+#endif /* CONFIG_X86_32 */
+
+/*
+ * Atomically swap in the new signal mask, and wait for a signal.
+ */
+asmlinkage int
+sys_sigsuspend(int history0, int history1, old_sigset_t mask)
+{
+	mask &= _BLOCKABLE;
+	spin_lock_irq(&current->sighand->siglock);
+	current->saved_sigmask = current->blocked;
+	siginitset(&current->blocked, mask);
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_restore_sigmask();
+
+	return -ERESTARTNOHAND;
+}
+
+asmlinkage int
+sys_sigaction(int sig, const struct old_sigaction __user *act,
+	      struct old_sigaction __user *oact)
+{
+	struct k_sigaction new_ka, old_ka;
+	int ret;
+
+	if (act) {
+		old_sigset_t mask;
+
+		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
+		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+			return -EFAULT;
+
+		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
+		__get_user(mask, &act->sa_mask);
+		siginitset(&new_ka.sa.sa_mask, mask);
+	}
+
+	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
+
+	if (!ret && oact) {
+		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
+		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+			return -EFAULT;
+
+		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
+		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_X86_32
+asmlinkage int sys_sigaltstack(unsigned long bx)
+{
+	/*
+	 * This is needed to make gcc realize it doesn't own the
+	 * "struct pt_regs"
+	 */
+	struct pt_regs *regs = (struct pt_regs *)&bx;
+	const stack_t __user *uss = (const stack_t __user *)bx;
+	stack_t __user *uoss = (stack_t __user *)regs->cx;
+
+	return do_sigaltstack(uss, uoss, regs->sp);
+}
+#else /* !CONFIG_X86_32 */
+asmlinkage long
+sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
+		struct pt_regs *regs)
+{
+	return do_sigaltstack(uss, uoss, regs->sp);
+}
+#endif /* CONFIG_X86_32 */
+
+/*
+ * Do a signal return; undo the signal stack.
+ */
+asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
+{
+	struct sigframe __user *frame;
+	struct pt_regs *regs;
+	unsigned long ax;
+	sigset_t set;
+
+	regs = (struct pt_regs *) &__unused;
+	frame = (struct sigframe __user *)(regs->sp - 8);
+
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+		goto badframe;
+	if (__get_user(set.sig[0], &frame->sc.oldmask) || (_NSIG_WORDS > 1
+		&& __copy_from_user(&set.sig[1], &frame->extramask,
+				    sizeof(frame->extramask))))
+		goto badframe;
+
+	sigdelsetmask(&set, ~_BLOCKABLE);
+	spin_lock_irq(&current->sighand->siglock);
+	current->blocked = set;
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+
+	if (restore_sigcontext(regs, &frame->sc, &ax))
+		goto badframe;
+	return ax;
+
+badframe:
+	if (show_unhandled_signals && printk_ratelimit()) {
+		printk("%s%s[%d] bad frame in sigreturn frame:"
+			"%p ip:%lx sp:%lx oeax:%lx",
+		    task_pid_nr(current) > 1 ? KERN_INFO : KERN_EMERG,
+		    current->comm, task_pid_nr(current), frame, regs->ip,
+		    regs->sp, regs->orig_ax);
+		print_vma_addr(" in ", regs->ip);
+		printk(KERN_CONT "\n");
+	}
+
+	force_sig(SIGSEGV, current);
+
+	return 0;
+}
+
+static long do_rt_sigreturn(struct pt_regs *regs)
+{
+	struct rt_sigframe __user *frame;
+	unsigned long ax;
+	sigset_t set;
+
+	frame = (struct rt_sigframe __user *)(regs->sp - sizeof(long));
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+		goto badframe;
+	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
+		goto badframe;
+
+	sigdelsetmask(&set, ~_BLOCKABLE);
+	spin_lock_irq(&current->sighand->siglock);
+	current->blocked = set;
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+
+	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
+		goto badframe;
+
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->sp) == -EFAULT)
+		goto badframe;
+
+	return ax;
+
+badframe:
+	signal_fault(regs, frame, "rt_sigreturn");
+	return 0;
+}
+
+#ifdef CONFIG_X86_32
+asmlinkage int sys_rt_sigreturn(unsigned long __unused)
+{
+	struct pt_regs *regs = (struct pt_regs *)&__unused;
+
+	return do_rt_sigreturn(regs);
+}
+#else /* !CONFIG_X86_32 */
+asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
+{
+	return do_rt_sigreturn(regs);
+}
+#endif /* CONFIG_X86_32 */
 
 /*
  * OK, we're invoking a handler:
