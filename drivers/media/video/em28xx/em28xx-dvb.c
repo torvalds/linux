@@ -393,7 +393,7 @@ static int dvb_init(struct em28xx *dev)
 	int result = 0;
 	struct em28xx_dvb *dvb;
 
-	if (!dev->has_dvb) {
+	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
 		return 0;
 	}
@@ -479,7 +479,7 @@ out_free:
 
 static int dvb_fini(struct em28xx *dev)
 {
-	if (!dev->has_dvb) {
+	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
 		return 0;
 	}

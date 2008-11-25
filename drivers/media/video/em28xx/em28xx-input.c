@@ -327,7 +327,7 @@ int em28xx_ir_init(struct em28xx *dev)
 	u8 ir_config;
 	int err = -ENOMEM;
 
-	if (dev->ir_codes == NULL) {
+	if (dev->board.ir_codes == NULL) {
 		/* No remote control support */
 		return 0;
 	}
@@ -366,7 +366,7 @@ int em28xx_ir_init(struct em28xx *dev)
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER, dev->ir_codes);
+	ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER, dev->board.ir_codes);
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
 	input_dev->id.bustype = BUS_USB;

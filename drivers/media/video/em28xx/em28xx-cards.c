@@ -1262,19 +1262,9 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 }
 EXPORT_SYMBOL_GPL(em28xx_tuner_callback);
 
-static void em28xx_set_model(struct em28xx *dev)
+static void inline em28xx_set_model(struct em28xx *dev)
 {
-	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
-	dev->has_msp34xx = em28xx_boards[dev->model].has_msp34xx;
-	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
-	dev->decoder = em28xx_boards[dev->model].decoder;
-	dev->xclk = em28xx_boards[dev->model].xclk;
-	dev->i2c_speed = em28xx_boards[dev->model].i2c_speed;
-	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
-	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
-	dev->has_snapshot_button = em28xx_boards[dev->model].has_snapshot_button;
-	dev->ir_codes = em28xx_boards[dev->model].ir_codes;
-	dev->valid = em28xx_boards[dev->model].valid;
+	memcpy(&dev->board, &em28xx_boards[dev->model], sizeof(dev->board));
 }
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
@@ -1331,16 +1321,16 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	/* Those are the default values for the majority of boards
 	   Use those values if not specified otherwise at boards entry
 	 */
-	if (!dev->xclk)
-		dev->xclk = EM28XX_XCLK_IR_RC5_MODE |
-			    EM28XX_XCLK_FREQUENCY_12MHZ;
+	if (!dev->board.xclk)
+		dev->board.xclk = EM28XX_XCLK_IR_RC5_MODE |
+				  EM28XX_XCLK_FREQUENCY_12MHZ;
 
-	if (!dev->i2c_speed)
-		dev->i2c_speed = EM28XX_I2C_CLK_WAIT_ENABLE |
-				 EM28XX_I2C_FREQ_100_KHZ;
+	if (!dev->board.i2c_speed)
+		dev->board.i2c_speed = EM28XX_I2C_CLK_WAIT_ENABLE |
+				       EM28XX_I2C_FREQ_100_KHZ;
 
-	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->xclk & 0x7f);
-	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->i2c_speed);
+	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk & 0x7f);
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 	msleep(50);
 
 	/* request some modules */
@@ -1694,7 +1684,7 @@ void em28xx_card_setup(struct em28xx *dev)
 
 		if (tv.audio_processor == V4L2_IDENT_MSPX4XX) {
 			dev->i2s_speed = 2048000;
-			dev->has_msp34xx = 1;
+			dev->board.has_msp34xx = 1;
 		}
 #ifdef CONFIG_MODULES
 		if (tv.has_ir)
@@ -1727,10 +1717,10 @@ void em28xx_card_setup(struct em28xx *dev)
 		break;
 	}
 
-	if (dev->has_snapshot_button)
+	if (dev->board.has_snapshot_button)
 		em28xx_register_snapshot_button(dev);
 
-	if (dev->valid == EM28XX_BOARD_NOT_VALIDATED) {
+	if (dev->board.valid == EM28XX_BOARD_NOT_VALIDATED) {
 		em28xx_errdev("\n\n");
 		em28xx_errdev("The support for this board weren't "
 			      "valid yet.\n");
@@ -1745,13 +1735,13 @@ void em28xx_card_setup(struct em28xx *dev)
 
 #ifdef CONFIG_MODULES
 	/* request some modules */
-	if (dev->has_msp34xx)
+	if (dev->board.has_msp34xx)
 		request_module("msp3400");
-	if (dev->decoder == EM28XX_SAA7113 || dev->decoder == EM28XX_SAA7114)
+	if (dev->board.decoder == EM28XX_SAA7113 || dev->board.decoder == EM28XX_SAA7114)
 		request_module("saa7115");
-	if (dev->decoder == EM28XX_TVP5150)
+	if (dev->board.decoder == EM28XX_TVP5150)
 		request_module("tvp5150");
-	if (dev->tuner_type != TUNER_ABSENT)
+	if (dev->board.tuner_type != TUNER_ABSENT)
 		request_module("tuner");
 #endif
 

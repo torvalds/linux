@@ -349,7 +349,7 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	int ret;
 	u8 input;
 
-	if (dev->is_em2800) {
+	if (dev->board.is_em2800) {
 		if (dev->ctl_ainput == EM28XX_AMUX_VIDEO)
 			input = EM2800_AUDIO_SRC_TUNER;
 		else
@@ -360,7 +360,7 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 			return ret;
 	}
 
-	if (dev->has_msp34xx)
+	if (dev->board.has_msp34xx)
 		input = EM28XX_AUDIO_SRC_TUNER;
 	else {
 		switch (dev->ctl_ainput) {
@@ -417,7 +417,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 		}
 	}
 
-	xclk = dev->xclk & 0x7f;
+	xclk = dev->board.xclk & 0x7f;
 	if (!dev->mute)
 		xclk |= 0x80;
 
@@ -658,7 +658,7 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 {
 	u8 mode;
 	/* the em2800 scaler only supports scaling down to 50% */
-	if (dev->is_em2800)
+	if (dev->board.is_em2800)
 		mode = (v ? 0x20 : 0x00) | (h ? 0x10 : 0x00);
 	else {
 		u8 buf[2];

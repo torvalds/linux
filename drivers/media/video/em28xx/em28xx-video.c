@@ -517,7 +517,7 @@ static int em28xx_config(struct em28xx *dev)
 	int retval;
 
 	/* Sets I2C speed to 100 KHz */
-	if (!dev->is_em2800) {
+	if (!dev->board.is_em2800) {
 		retval = em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
 		if (retval < 0) {
 			em28xx_errdev("%s: em28xx_write_regs_req failed! retval [%d]\n",
@@ -573,7 +573,7 @@ static void video_mux(struct em28xx *dev, int index)
 
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
-	if (dev->has_msp34xx) {
+	if (dev->board.has_msp34xx) {
 		if (dev->i2s_speed) {
 			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ,
 				&dev->i2s_speed);
@@ -747,7 +747,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 
-	if (dev->is_em2800) {
+	if (dev->board.is_em2800) {
 		/* the em2800 can only scale down to 50% */
 		if (height % (maxh / 2))
 			height = maxh;
@@ -998,7 +998,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 	qc->id = id;
 
-	if (!dev->has_msp34xx) {
+	if (!dev->board.has_msp34xx) {
 		for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
 			if (qc->id && qc->id == em28xx_qctrl[i].id) {
 				memcpy(qc, &(em28xx_qctrl[i]), sizeof(*qc));
@@ -1028,7 +1028,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 		return rc;
 	mutex_lock(&dev->lock);
 
-	if (!dev->has_msp34xx)
+	if (!dev->board.has_msp34xx)
 		rc = em28xx_get_ctrl(dev, ctrl);
 	else
 		rc = -EINVAL;
@@ -1056,7 +1056,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 
-	if (dev->has_msp34xx)
+	if (dev->board.has_msp34xx)
 		em28xx_i2c_call_clients(dev, VIDIOC_S_CTRL, ctrl);
 	else {
 		rc = 1;
@@ -2035,7 +2035,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_read_reg_req_len = em28xx_read_reg_req_len;
 	dev->em28xx_write_regs_req = em28xx_write_regs_req;
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
-	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
+	dev->board.is_em2800 = em28xx_boards[dev->model].is_em2800;
 
 	em28xx_pre_card_setup(dev);
 
@@ -2092,7 +2092,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	INIT_LIST_HEAD(&dev->vidq.queued);
 
 
-	if (dev->has_msp34xx) {
+	if (dev->board.has_msp34xx) {
 		/* Send a reset to other chips via gpio */
 		errCode = em28xx_write_regs_req(dev, 0x00, 0x08, "\xf7", 1);
 		if (errCode < 0) {
@@ -2150,7 +2150,7 @@ static void request_module_async(struct work_struct *work)
 	else if (dev->has_alsa_audio)
 		request_module("em28xx-alsa");
 
-	if (dev->has_dvb)
+	if (dev->board.has_dvb)
 		request_module("em28xx-dvb");
 }
 

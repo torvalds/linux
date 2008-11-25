@@ -250,7 +250,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
 		if (!msgs[i].len) { /* no len: check only for device presence */
-			if (dev->is_em2800)
+			if (dev->board.is_em2800)
 				rc = em2800_i2c_check_for_device(dev, addr);
 			else
 				rc = em28xx_i2c_check_for_device(dev, addr);
@@ -261,7 +261,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 		} else if (msgs[i].flags & I2C_M_RD) {
 			/* read bytes */
-			if (dev->is_em2800)
+			if (dev->board.is_em2800)
 				rc = em2800_i2c_recv_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len);
@@ -279,7 +279,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
 			}
-			if (dev->is_em2800)
+			if (dev->board.is_em2800)
 				rc = em2800_i2c_send_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len);

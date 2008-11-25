@@ -328,6 +328,7 @@ struct em28xx_reg_seq {
 
 struct em28xx_board {
 	char *name;
+	int vchannels;
 	int tuner_type;
 	int tuner_addr;
 
@@ -416,18 +417,12 @@ struct em28xx {
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
 	enum em28xx_chip_id chip_id;
-	unsigned int is_em2800:1;
-	unsigned int has_msp34xx:1;
-	unsigned int has_tda9887:1;
+
+	struct em28xx_board board;
+
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
-	unsigned int max_range_640_480:1;
-	unsigned int has_dvb:1;
-	unsigned int has_snapshot_button:1;
-	unsigned int valid:1;		/* report for validated boards */
-
-	unsigned char xclk, i2c_speed;
 
 	struct em28xx_IR *ir;
 
@@ -444,7 +439,6 @@ struct em28xx {
 
 	u32 i2s_speed;		/* I2S speed for audio digital stream */
 
-	enum em28xx_decoder decoder;
 	struct em28xx_audio_mode audio_mode;
 
 	int tuner_type;		/* type of the tuner */
@@ -526,9 +520,6 @@ struct em28xx {
 
 	/* Caches GPO and GPIO registers */
 	unsigned char	reg_gpo, reg_gpio;
-
-	/* Infrared remote control support */
-	IR_KEYTAB_TYPE *ir_codes;
 
 	/* Snapshot button */
 	char snapshot_button_path[30];	/* path of the input dev */
@@ -699,7 +690,7 @@ static inline int em28xx_gamma_set(struct em28xx *dev, s32 val)
 /*FIXME: maxw should be dependent of alt mode */
 static inline unsigned int norm_maxw(struct em28xx *dev)
 {
-	if (dev->max_range_640_480)
+	if (dev->board.max_range_640_480)
 		return 640;
 	else
 		return 720;
@@ -707,7 +698,7 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 
 static inline unsigned int norm_maxh(struct em28xx *dev)
 {
-	if (dev->max_range_640_480)
+	if (dev->board.max_range_640_480)
 		return 480;
 	else
 		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
