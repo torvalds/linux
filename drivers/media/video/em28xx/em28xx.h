@@ -328,7 +328,6 @@ struct em28xx_reg_seq {
 
 struct em28xx_board {
 	char *name;
-	int vchannels;
 	int tuner_type;
 	int tuner_addr;
 
@@ -441,7 +440,6 @@ struct em28xx {
 	/* GPIO sequences for tuner callbacks */
 	struct em28xx_reg_seq *tun_analog_gpio, *tun_digital_gpio;
 
-	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;
 
 	u32 i2s_speed;		/* I2S speed for audio digital stream */
