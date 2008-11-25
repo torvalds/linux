@@ -89,7 +89,7 @@ static struct ctrl sd_ctrls[] = {
 #define BRIGHTNESS_MAX 0xffff
 		.maximum = BRIGHTNESS_MAX,
 		.step    = 1,
-#define BRIGHTNESS_DEF 0x7fff
+#define BRIGHTNESS_DEF 0x8000
 		.default_value = BRIGHTNESS_DEF,
 	    },
 	    .set = sd_setbrightness,
@@ -1129,7 +1129,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	unsigned int expo;
 	__u8 k2;
 
-	k2 = sd->brightness >> 10;
+	k2 = ((int) sd->brightness - 0x8000) >> 10;
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		expo = sd->brightness << 4;
@@ -1147,7 +1147,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	case SENSOR_OM6802:
 		expo = sd->brightness >> 6;
 		sd->exposure = setexposure(gspca_dev, expo);
-		k2 >>= 1;
+		k2 = sd->brightness >> 11;
 		break;
 	}
 
