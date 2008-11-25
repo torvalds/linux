@@ -251,7 +251,7 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	kvm_rip_write(vcpu, svm->next_rip);
 	svm->vmcb->control.int_state &= ~SVM_INTERRUPT_SHADOW_MASK;
 
-	vcpu->arch.interrupt_window_open = 1;
+	vcpu->arch.interrupt_window_open = (svm->vcpu.arch.hflags & HF_GIF_MASK);
 }
 
 static int has_svm(void)
@@ -600,6 +600,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 		save->cr4 = 0;
 	}
 	force_new_asid(&svm->vcpu);
+
+	svm->vcpu.arch.hflags = HF_GIF_MASK;
 }
 
 static int svm_vcpu_reset(struct kvm_vcpu *vcpu)
@@ -1234,6 +1236,36 @@ static int nested_svm_do(struct vcpu_svm *svm,
 	return retval;
 }
 
+static int stgi_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	if (nested_svm_check_permissions(svm))
+		return 1;
+
+	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
+	skip_emulated_instruction(&svm->vcpu);
+
+	svm->vcpu.arch.hflags |= HF_GIF_MASK;
+
+	return 1;
+}
+
+static int clgi_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	if (nested_svm_check_permissions(svm))
+		return 1;
+
+	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
+	skip_emulated_instruction(&svm->vcpu);
+
+	svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
+
+	/* After a CLGI no interrupts should come */
+	svm_clear_vintr(svm);
+	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
+
+	return 1;
+}
+
 static int invalid_op_interception(struct vcpu_svm *svm,
 				   struct kvm_run *kvm_run)
 {
@@ -1535,8 +1567,8 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_VMMCALL]			= vmmcall_interception,
 	[SVM_EXIT_VMLOAD]			= invalid_op_interception,
 	[SVM_EXIT_VMSAVE]			= invalid_op_interception,
-	[SVM_EXIT_STGI]				= invalid_op_interception,
-	[SVM_EXIT_CLGI]				= invalid_op_interception,
+	[SVM_EXIT_STGI]				= stgi_interception,
+	[SVM_EXIT_CLGI]				= clgi_interception,
 	[SVM_EXIT_SKINIT]			= invalid_op_interception,
 	[SVM_EXIT_WBINVD]                       = emulate_on_interception,
 	[SVM_EXIT_MONITOR]			= invalid_op_interception,
@@ -1684,6 +1716,9 @@ static void svm_intr_assist(struct kvm_vcpu *vcpu)
 	if (!kvm_cpu_has_interrupt(vcpu))
 		goto out;
 
+	if (!(svm->vcpu.arch.hflags & HF_GIF_MASK))
+		goto out;
+
 	if (!(vmcb->save.rflags & X86_EFLAGS_IF) ||
 	    (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) ||
 	    (vmcb->control.event_inj & SVM_EVTINJ_VALID)) {
@@ -1710,7 +1745,8 @@ static void kvm_reput_irq(struct vcpu_svm *svm)
 	}
 
 	svm->vcpu.arch.interrupt_window_open =
-		!(control->int_state & SVM_INTERRUPT_SHADOW_MASK);
+		!(control->int_state & SVM_INTERRUPT_SHADOW_MASK) &&
+		 (svm->vcpu.arch.hflags & HF_GIF_MASK);
 }
 
 static void svm_do_inject_vector(struct vcpu_svm *svm)
@@ -1734,7 +1770,8 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 
 	svm->vcpu.arch.interrupt_window_open =
 		(!(control->int_state & SVM_INTERRUPT_SHADOW_MASK) &&
-		 (svm->vmcb->save.rflags & X86_EFLAGS_IF));
+		 (svm->vmcb->save.rflags & X86_EFLAGS_IF) &&
+		 (svm->vcpu.arch.hflags & HF_GIF_MASK));
 
 	if (svm->vcpu.arch.interrupt_window_open && svm->vcpu.arch.irq_summary)
 		/*

@@ -259,6 +259,7 @@ struct kvm_vcpu_arch {
 	unsigned long cr3;
 	unsigned long cr4;
 	unsigned long cr8;
+	u32 hflags;
 	u64 pdptrs[4]; /* pae */
 	u64 shadow_efer;
 	u64 apic_base;
@@ -737,6 +738,8 @@ enum {
 	TASK_SWITCH_JMP = 2,
 	TASK_SWITCH_GATE = 3,
 };
+
+#define HF_GIF_MASK		(1 << 0)
 
 /*
  * Hardware virtualization extension instructions may fault if a
