@@ -153,6 +153,9 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 			nbytes = bio->bi_size;
 		}
 
+		if (unlikely(rq->cmd_flags & REQ_QUIET))
+			set_bit(BIO_QUIET, &bio->bi_flags);
+
 		bio->bi_size -= nbytes;
 		bio->bi_sector += (nbytes >> 9);
 
