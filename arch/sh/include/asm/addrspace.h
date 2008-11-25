@@ -49,5 +49,16 @@
 /* Check if an address can be reached in 29 bits */
 #define IS_29BIT(a)	(((unsigned long)(a)) < 0x20000000)
 
+#ifdef CONFIG_SH_STORE_QUEUES
+/*
+ * This is a special case for the SH-4 store queues, as pages for this
+ * space still need to be faulted in before it's possible to flush the
+ * store queue cache for writeout to the remapped region.
+ */
+#define P3_ADDR_MAX		(P4SEG_STORE_QUE + 0x04000000)
+#else
+#define P3_ADDR_MAX		P4SEG
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_ADDRSPACE_H */
