@@ -1235,11 +1235,6 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	}
 
 	mutex_lock(&serial->parent->mutex);
-	/* check for port already opened, if not set the termios */
-	/* The serial->open count needs to be here as hso_serial_close
-	 *  will be called even if hso_serial_open returns -ENODEV.
-	 */
-	serial->open_count++;
 	result = usb_autopm_get_interface(serial->parent->interface);
 	if (result < 0)
 		goto err_out;
@@ -1251,6 +1246,8 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = serial;
 	serial->tty = tty;
 
+	/* check for port already opened, if not set the termios */
+	serial->open_count++;
 	if (serial->open_count == 1) {
 		tty->low_latency = 1;
 		serial->rx_state = RX_IDLE;
@@ -1288,10 +1285,6 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 	u8 usb_gone;
 
 	D1("Closing serial port");
-	if (serial == NULL || serial->magic != HSO_SERIAL_MAGIC) {
-		D1("invalid serial structure bailing out.\n");
-		return;
-	}
 
 	mutex_lock(&serial->parent->mutex);
 	usb_gone = serial->parent->usb_gone;
