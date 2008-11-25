@@ -1,8 +1,10 @@
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
+ *  Copyright (C) 2000, 2001, 2002 Andi Kleen SuSE Labs
  *
  *  1997-11-28  Modified for POSIX.1b signals by Richard Henderson
  *  2000-06-20  Pentium III FXSR, SSE support by Gareth Hughes
+ *  2000-2002   x86-64 support by Andi Kleen
  */
 
 #include <linux/sched.h>
@@ -481,6 +483,7 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 }
 #endif /* CONFIG_X86_32 */
 
+#ifdef CONFIG_X86_32
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
@@ -535,6 +538,7 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 
 	return ret;
 }
+#endif /* CONFIG_X86_32 */
 
 #ifdef CONFIG_X86_32
 asmlinkage int sys_sigaltstack(unsigned long bx)
@@ -561,6 +565,7 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 /*
  * Do a signal return; undo the signal stack.
  */
+#ifdef CONFIG_X86_32
 asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
 {
 	struct sigframe __user *frame;
@@ -603,6 +608,7 @@ badframe:
 
 	return 0;
 }
+#endif /* CONFIG_X86_32 */
 
 static long do_rt_sigreturn(struct pt_regs *regs)
 {
