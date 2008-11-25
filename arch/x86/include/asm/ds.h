@@ -26,11 +26,18 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/err.h>
 
 
 #ifdef CONFIG_X86_DS
 
 struct task_struct;
+struct ds_tracer;
+struct bts_tracer;
+struct pebs_tracer;
+
+typedef void (*bts_ovfl_callback_t)(struct bts_tracer *);
+typedef void (*pebs_ovfl_callback_t)(struct pebs_tracer *);
 
 /*
  * Request BTS or PEBS
@@ -38,21 +45,29 @@ struct task_struct;
  * Due to alignement constraints, the actual buffer may be slightly
  * smaller than the requested or provided buffer.
  *
- * Returns 0 on success; -Eerrno otherwise
+ * Returns a pointer to a tracer structure on success, or
+ * ERR_PTR(errcode) on failure.
+ *
+ * The interrupt threshold is independent from the overflow callback
+ * to allow users to use their own overflow interrupt handling mechanism.
  *
  * task: the task to request recording for;
  *       NULL for per-cpu recording on the current cpu
  * base: the base pointer for the (non-pageable) buffer;
  *       NULL if buffer allocation requested
- * size: the size of the requested or provided buffer
+ * size: the size of the requested or provided buffer in bytes
  * ovfl: pointer to a function to be called on buffer overflow;
  *       NULL if cyclic buffer requested
+ * th: the interrupt threshold in records from the end of the buffer;
+ *     -1 if no interrupt threshold is requested.
  */
-typedef void (*ds_ovfl_callback_t)(struct task_struct *);
-extern int ds_request_bts(struct task_struct *task, void *base, size_t size,
-			  ds_ovfl_callback_t ovfl);
-extern int ds_request_pebs(struct task_struct *task, void *base, size_t size,
-			   ds_ovfl_callback_t ovfl);
+extern struct bts_tracer *ds_request_bts(struct task_struct *task,
+					 void *base, size_t size,
+					 bts_ovfl_callback_t ovfl, size_t th);
+extern struct pebs_tracer *ds_request_pebs(struct task_struct *task,
+					   void *base, size_t size,
+					   pebs_ovfl_callback_t ovfl,
+					   size_t th);
 
 /*
  * Release BTS or PEBS resources
@@ -61,37 +76,34 @@ extern int ds_request_pebs(struct task_struct *task, void *base, size_t size,
  *
  * Returns 0 on success; -Eerrno otherwise
  *
- * task: the task to release resources for;
- *       NULL to release resources for the current cpu
+ * tracer: the tracer handle returned from ds_request_~()
  */
-extern int ds_release_bts(struct task_struct *task);
-extern int ds_release_pebs(struct task_struct *task);
+extern int ds_release_bts(struct bts_tracer *tracer);
+extern int ds_release_pebs(struct pebs_tracer *tracer);
 
 /*
- * Return the (array) index of the write pointer.
+ * Get the (array) index of the write pointer.
  * (assuming an array of BTS/PEBS records)
  *
- * Returns -Eerrno on error
+ * Returns 0 on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
- * pos (out): if not NULL, will hold the result
+ * tracer: the tracer handle returned from ds_request_~()
+ * pos (out): will hold the result
  */
-extern int ds_get_bts_index(struct task_struct *task, size_t *pos);
-extern int ds_get_pebs_index(struct task_struct *task, size_t *pos);
+extern int ds_get_bts_index(struct bts_tracer *tracer, size_t *pos);
+extern int ds_get_pebs_index(struct pebs_tracer *tracer, size_t *pos);
 
 /*
- * Return the (array) index one record beyond the end of the array.
+ * Get the (array) index one record beyond the end of the array.
  * (assuming an array of BTS/PEBS records)
  *
- * Returns -Eerrno on error
+ * Returns 0 on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
- * pos (out): if not NULL, will hold the result
+ * tracer: the tracer handle returned from ds_request_~()
+ * pos (out): will hold the result
  */
-extern int ds_get_bts_end(struct task_struct *task, size_t *pos);
-extern int ds_get_pebs_end(struct task_struct *task, size_t *pos);
+extern int ds_get_bts_end(struct bts_tracer *tracer, size_t *pos);
+extern int ds_get_pebs_end(struct pebs_tracer *tracer, size_t *pos);
 
 /*
  * Provide a pointer to the BTS/PEBS record at parameter index.
@@ -102,14 +114,13 @@ extern int ds_get_pebs_end(struct task_struct *task, size_t *pos);
  *
  * Returns the size of a single record on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
+ * tracer: the tracer handle returned from ds_request_~()
  * index: the index of the requested record
  * record (out): pointer to the requested record
  */
-extern int ds_access_bts(struct task_struct *task,
+extern int ds_access_bts(struct bts_tracer *tracer,
 			 size_t index, const void **record);
-extern int ds_access_pebs(struct task_struct *task,
+extern int ds_access_pebs(struct pebs_tracer *tracer,
 			  size_t index, const void **record);
 
 /*
@@ -129,38 +140,24 @@ extern int ds_access_pebs(struct task_struct *task,
  *
  * Returns the number of bytes written or -Eerrno.
  *
- * task: the task to access;
- *       NULL to access the current cpu
+ * tracer: the tracer handle returned from ds_request_~()
  * buffer: the buffer to write
  * size: the size of the buffer
  */
-extern int ds_write_bts(struct task_struct *task,
+extern int ds_write_bts(struct bts_tracer *tracer,
 			const void *buffer, size_t size);
-extern int ds_write_pebs(struct task_struct *task,
+extern int ds_write_pebs(struct pebs_tracer *tracer,
 			 const void *buffer, size_t size);
-
-/*
- * Same as ds_write_bts/pebs, but omit ownership checks.
- *
- * This is needed to have some other task than the owner of the
- * BTS/PEBS buffer or the parameter task itself write into the
- * respective buffer.
- */
-extern int ds_unchecked_write_bts(struct task_struct *task,
-				  const void *buffer, size_t size);
-extern int ds_unchecked_write_pebs(struct task_struct *task,
-				   const void *buffer, size_t size);
 
 /*
  * Reset the write pointer of the BTS/PEBS buffer.
  *
  * Returns 0 on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
+ * tracer: the tracer handle returned from ds_request_~()
  */
-extern int ds_reset_bts(struct task_struct *task);
-extern int ds_reset_pebs(struct task_struct *task);
+extern int ds_reset_bts(struct bts_tracer *tracer);
+extern int ds_reset_pebs(struct pebs_tracer *tracer);
 
 /*
  * Clear the BTS/PEBS buffer and reset the write pointer.
@@ -168,33 +165,30 @@ extern int ds_reset_pebs(struct task_struct *task);
  *
  * Returns 0 on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
+ * tracer: the tracer handle returned from ds_request_~()
  */
-extern int ds_clear_bts(struct task_struct *task);
-extern int ds_clear_pebs(struct task_struct *task);
+extern int ds_clear_bts(struct bts_tracer *tracer);
+extern int ds_clear_pebs(struct pebs_tracer *tracer);
 
 /*
  * Provide the PEBS counter reset value.
  *
  * Returns 0 on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
+ * tracer: the tracer handle returned from ds_request_pebs()
  * value (out): the counter reset value
  */
-extern int ds_get_pebs_reset(struct task_struct *task, u64 *value);
+extern int ds_get_pebs_reset(struct pebs_tracer *tracer, u64 *value);
 
 /*
  * Set the PEBS counter reset value.
  *
  * Returns 0 on success; -Eerrno on error
  *
- * task: the task to access;
- *       NULL to access the current cpu
+ * tracer: the tracer handle returned from ds_request_pebs()
  * value: the new counter reset value
  */
-extern int ds_set_pebs_reset(struct task_struct *task, u64 value);
+extern int ds_set_pebs_reset(struct pebs_tracer *tracer, u64 value);
 
 /*
  * Initialization
@@ -207,17 +201,13 @@ extern void __cpuinit ds_init_intel(struct cpuinfo_x86 *);
 /*
  * The DS context - part of struct thread_struct.
  */
+#define MAX_SIZEOF_DS (12 * 8)
+
 struct ds_context {
 	/* pointer to the DS configuration; goes into MSR_IA32_DS_AREA */
-	unsigned char *ds;
+	unsigned char ds[MAX_SIZEOF_DS];
 	/* the owner of the BTS and PEBS configuration, respectively */
-	struct task_struct *owner[2];
-	/* buffer overflow notification function for BTS and PEBS */
-	ds_ovfl_callback_t callback[2];
-	/* the original buffer address */
-	void *buffer[2];
-	/* the number of allocated pages for on-request allocated buffers */
-	unsigned int pages[2];
+	struct ds_tracer  *owner[2];
 	/* use count */
 	unsigned long count;
 	/* a pointer to the context location inside the thread_struct

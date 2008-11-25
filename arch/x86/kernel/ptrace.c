@@ -668,14 +668,14 @@ static int ptrace_bts_read_record(struct task_struct *child, size_t index,
 	size_t bts_index, bts_end;
 	int error;
 
-	error = ds_get_bts_end(child, &bts_end);
+	error = ds_get_bts_end(child->bts, &bts_end);
 	if (error < 0)
 		return error;
 
 	if (bts_end <= index)
 		return -EINVAL;
 
-	error = ds_get_bts_index(child, &bts_index);
+	error = ds_get_bts_index(child->bts, &bts_index);
 	if (error < 0)
 		return error;
 
@@ -684,7 +684,7 @@ static int ptrace_bts_read_record(struct task_struct *child, size_t index,
 	if (bts_end <= bts_index)
 		bts_index -= bts_end;
 
-	error = ds_access_bts(child, bts_index, &bts_record);
+	error = ds_access_bts(child->bts, bts_index, &bts_record);
 	if (error < 0)
 		return error;
 
@@ -705,14 +705,14 @@ static int ptrace_bts_drain(struct task_struct *child,
 	size_t end, i;
 	int error;
 
-	error = ds_get_bts_index(child, &end);
+	error = ds_get_bts_index(child->bts, &end);
 	if (error < 0)
 		return error;
 
 	if (size < (end * sizeof(struct bts_struct)))
 		return -EIO;
 
-	error = ds_access_bts(child, 0, (const void **)&raw);
+	error = ds_access_bts(child->bts, 0, (const void **)&raw);
 	if (error < 0)
 		return error;
 
@@ -723,16 +723,11 @@ static int ptrace_bts_drain(struct task_struct *child,
 			return -EFAULT;
 	}
 
-	error = ds_clear_bts(child);
+	error = ds_clear_bts(child->bts);
 	if (error < 0)
 		return error;
 
 	return end;
-}
-
-static void ptrace_bts_ovfl(struct task_struct *child)
-{
-	send_sig(child->thread.bts_ovfl_signal, child, 0);
 }
 
 static int ptrace_bts_config(struct task_struct *child,
@@ -760,23 +755,29 @@ static int ptrace_bts_config(struct task_struct *child,
 		goto errout;
 
 	if (cfg.flags & PTRACE_BTS_O_ALLOC) {
-		ds_ovfl_callback_t ovfl = NULL;
+		bts_ovfl_callback_t ovfl = NULL;
 		unsigned int sig = 0;
-
-		/* we ignore the error in case we were not tracing child */
-		(void)ds_release_bts(child);
 
 		if (cfg.flags & PTRACE_BTS_O_SIGNAL) {
 			if (!cfg.signal)
 				goto errout;
 
+			error = -EOPNOTSUPP;
+			goto errout;
+
 			sig  = cfg.signal;
-			ovfl = ptrace_bts_ovfl;
 		}
 
-		error = ds_request_bts(child, /* base = */ NULL, cfg.size, ovfl);
-		if (error < 0)
+		if (child->bts)
+			(void)ds_release_bts(child->bts);
+
+		child->bts = ds_request_bts(child, /* base = */ NULL, cfg.size,
+					    ovfl, /* th = */ (size_t)-1);
+		if (IS_ERR(child->bts)) {
+			error = PTR_ERR(child->bts);
+			child->bts = NULL;
 			goto errout;
+		}
 
 		child->thread.bts_ovfl_signal = sig;
 	}
@@ -823,15 +824,15 @@ static int ptrace_bts_status(struct task_struct *child,
 	if (cfg_size < sizeof(cfg))
 		return -EIO;
 
-	error = ds_get_bts_end(child, &end);
+	error = ds_get_bts_end(child->bts, &end);
 	if (error < 0)
 		return error;
 
-	error = ds_access_bts(child, /* index = */ 0, &base);
+	error = ds_access_bts(child->bts, /* index = */ 0, &base);
 	if (error < 0)
 		return error;
 
-	error = ds_access_bts(child, /* index = */ end, &max);
+	error = ds_access_bts(child->bts, /* index = */ end, &max);
 	if (error < 0)
 		return error;
 
@@ -884,10 +885,7 @@ static int ptrace_bts_write_record(struct task_struct *child,
 		return -EINVAL;
 	}
 
-	/* The writing task will be the switched-to task on a context
-	 * switch. It needs to write into the switched-from task's BTS
-	 * buffer. */
-	return ds_unchecked_write_bts(child, bts_record, bts_cfg.sizeof_bts);
+	return ds_write_bts(child->bts, bts_record, bts_cfg.sizeof_bts);
 }
 
 void ptrace_bts_take_timestamp(struct task_struct *tsk,
@@ -972,13 +970,15 @@ void ptrace_disable(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
 #ifdef CONFIG_X86_PTRACE_BTS
-	(void)ds_release_bts(child);
+	if (child->bts) {
+		(void)ds_release_bts(child->bts);
 
-	child->thread.debugctlmsr &= ~bts_cfg.debugctl_mask;
-	if (!child->thread.debugctlmsr)
-		clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+		child->thread.debugctlmsr &= ~bts_cfg.debugctl_mask;
+		if (!child->thread.debugctlmsr)
+			clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
 
-	clear_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
+		clear_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
+	}
 #endif /* CONFIG_X86_PTRACE_BTS */
 }
 
@@ -1110,9 +1110,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			(child, data, (struct ptrace_bts_config __user *)addr);
 		break;
 
-	case PTRACE_BTS_SIZE:
-		ret = ds_get_bts_index(child, /* pos = */ NULL);
+	case PTRACE_BTS_SIZE: {
+		size_t size;
+
+		ret = ds_get_bts_index(child->bts, &size);
+		if (ret == 0) {
+			BUG_ON(size != (int) size);
+			ret = (int) size;
+		}
 		break;
+	}
 
 	case PTRACE_BTS_GET:
 		ret = ptrace_bts_read_record
@@ -1120,7 +1127,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_BTS_CLEAR:
-		ret = ds_clear_bts(child);
+		ret = ds_clear_bts(child->bts);
 		break;
 
 	case PTRACE_BTS_DRAIN:

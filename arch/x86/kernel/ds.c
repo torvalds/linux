@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/kernel.h>
 
 
 /*
@@ -44,6 +45,35 @@ struct ds_configuration {
 };
 static struct ds_configuration ds_cfg;
 
+/*
+ * A BTS or PEBS tracer.
+ *
+ * This holds the configuration of the tracer and serves as a handle
+ * to identify tracers.
+ */
+struct ds_tracer {
+	/* the DS context (partially) owned by this tracer */
+	struct ds_context *context;
+	/* the buffer provided on ds_request() and its size in bytes */
+	void *buffer;
+	size_t size;
+	/* the number of allocated pages for on-request allocated buffers */
+	unsigned int pages;
+};
+
+struct bts_tracer {
+	/* the common DS part */
+	struct ds_tracer ds;
+	/* buffer overflow notification function */
+	bts_ovfl_callback_t ovfl;
+};
+
+struct pebs_tracer {
+	/* the common DS part */
+	struct ds_tracer ds;
+	/* buffer overflow notification function */
+	pebs_ovfl_callback_t ovfl;
+};
 
 /*
  * Debug Store (DS) save area configuration (see Intel64 and IA32
@@ -107,34 +137,14 @@ static inline void ds_set(unsigned char *base, enum ds_qualifier qual,
 	(*(unsigned long *)base) = value;
 }
 
+#define DS_ALIGNMENT (1 << 3)	/* BTS and PEBS buffer alignment */
+
 
 /*
  * Locking is done only for allocating BTS or PEBS resources and for
  * guarding context and buffer memory allocation.
- *
- * Most functions require the current task to own the ds context part
- * they are going to access. All the locking is done when validating
- * access to the context.
  */
 static spinlock_t ds_lock = __SPIN_LOCK_UNLOCKED(ds_lock);
-
-/*
- * Validate that the current task is allowed to access the BTS/PEBS
- * buffer of the parameter task.
- *
- * Returns 0, if access is granted; -Eerrno, otherwise.
- */
-static inline int ds_validate_access(struct ds_context *context,
-				     enum ds_qualifier qual)
-{
-	if (!context)
-		return -EPERM;
-
-	if (context->owner[qual] == current)
-		return 0;
-
-	return -EPERM;
-}
 
 
 /*
@@ -183,50 +193,12 @@ static inline int check_tracer(struct task_struct *task)
  *
  * Contexts are use-counted. They are allocated on first access and
  * deallocated when the last user puts the context.
- *
- * We distinguish between an allocating and a non-allocating get of a
- * context:
- * - the allocating get is used for requesting BTS/PEBS resources. It
- *   requires the caller to hold the global ds_lock.
- * - the non-allocating get is used for all other cases. A
- *   non-existing context indicates an error. It acquires and releases
- *   the ds_lock itself for obtaining the context.
- *
- * A context and its DS configuration are allocated and deallocated
- * together. A context always has a DS configuration of the
- * appropriate size.
  */
 static DEFINE_PER_CPU(struct ds_context *, system_context);
 
 #define this_system_context per_cpu(system_context, smp_processor_id())
 
-/*
- * Returns the pointer to the parameter task's context or to the
- * system-wide context, if task is NULL.
- *
- * Increases the use count of the returned context, if not NULL.
- */
 static inline struct ds_context *ds_get_context(struct task_struct *task)
-{
-	struct ds_context *context;
-	unsigned long irq;
-
-	spin_lock_irqsave(&ds_lock, irq);
-
-	context = (task ? task->thread.ds_ctx : this_system_context);
-	if (context)
-		context->count++;
-
-	spin_unlock_irqrestore(&ds_lock, irq);
-
-	return context;
-}
-
-/*
- * Same as ds_get_context, but allocates the context and it's DS
- * structure, if necessary; returns NULL; if out of memory.
- */
-static inline struct ds_context *ds_alloc_context(struct task_struct *task)
 {
 	struct ds_context **p_context =
 		(task ? &task->thread.ds_ctx : &this_system_context);
@@ -238,16 +210,9 @@ static inline struct ds_context *ds_alloc_context(struct task_struct *task)
 		if (!context)
 			return NULL;
 
-		context->ds = kzalloc(ds_cfg.sizeof_ds, GFP_KERNEL);
-		if (!context->ds) {
-			kfree(context);
-			return NULL;
-		}
-
 		spin_lock_irqsave(&ds_lock, irq);
 
 		if (*p_context) {
-			kfree(context->ds);
 			kfree(context);
 
 			context = *p_context;
@@ -272,10 +237,6 @@ static inline struct ds_context *ds_alloc_context(struct task_struct *task)
 	return context;
 }
 
-/*
- * Decreases the use count of the parameter context, if not NULL.
- * Deallocates the context, if the use count reaches zero.
- */
 static inline void ds_put_context(struct ds_context *context)
 {
 	unsigned long irq;
@@ -296,13 +257,6 @@ static inline void ds_put_context(struct ds_context *context)
 	if (!context->task || (context->task == current))
 		wrmsrl(MSR_IA32_DS_AREA, 0);
 
-	put_tracer(context->task);
-
-	/* free any leftover buffers from tracers that did not
-	 * deallocate them properly. */
-	kfree(context->buffer[ds_bts]);
-	kfree(context->buffer[ds_pebs]);
-	kfree(context->ds);
 	kfree(context);
  out:
 	spin_unlock_irqrestore(&ds_lock, irq);
@@ -312,21 +266,29 @@ static inline void ds_put_context(struct ds_context *context)
 /*
  * Handle a buffer overflow
  *
- * task: the task whose buffers are overflowing;
- *       NULL for a buffer overflow on the current cpu
  * context: the ds context
  * qual: the buffer type
  */
-static void ds_overflow(struct task_struct *task, struct ds_context *context,
-			enum ds_qualifier qual)
+static void ds_overflow(struct ds_context *context, enum ds_qualifier qual)
 {
-	if (!context)
-		return;
-
-	if (context->callback[qual])
-		(*context->callback[qual])(task);
-
-	/* todo: do some more overflow handling */
+	switch (qual) {
+	case ds_bts: {
+		struct bts_tracer *tracer =
+			container_of(context->owner[qual],
+				     struct bts_tracer, ds);
+		if (tracer->ovfl)
+			tracer->ovfl(tracer);
+	}
+		break;
+	case ds_pebs: {
+		struct pebs_tracer *tracer =
+			container_of(context->owner[qual],
+				     struct pebs_tracer, ds);
+		if (tracer->ovfl)
+			tracer->ovfl(tracer);
+	}
+		break;
+	}
 }
 
 
@@ -343,23 +305,25 @@ static void ds_overflow(struct task_struct *task, struct ds_context *context,
 static inline void *ds_allocate_buffer(size_t size, unsigned int *pages)
 {
 	unsigned long rlim, vm, pgsz;
-	void *buffer;
+	void *buffer = NULL;
 
 	pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
+
+	down_write(&current->mm->mmap_sem);
 
 	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
 	vm   = current->mm->total_vm  + pgsz;
 	if (rlim < vm)
-		return NULL;
+		goto out;
 
 	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
 	vm   = current->mm->locked_vm  + pgsz;
 	if (rlim < vm)
-		return NULL;
+		goto out;
 
 	buffer = kzalloc(size, GFP_KERNEL);
 	if (!buffer)
-		return NULL;
+		goto out;
 
 	current->mm->total_vm  += pgsz;
 	current->mm->locked_vm += pgsz;
@@ -367,64 +331,16 @@ static inline void *ds_allocate_buffer(size_t size, unsigned int *pages)
 	if (pages)
 		*pages = pgsz;
 
+ out:
+	up_write(&current->mm->mmap_sem);
 	return buffer;
 }
 
-static int ds_request(struct task_struct *task, void *base, size_t size,
-		      ds_ovfl_callback_t ovfl, enum ds_qualifier qual)
+static void ds_install_ds_config(struct ds_context *context,
+				 enum ds_qualifier qual,
+				 void *base, size_t size, size_t ith)
 {
-	struct ds_context *context;
 	unsigned long buffer, adj;
-	const unsigned long alignment = (1 << 3);
-	unsigned long irq;
-	int error = 0;
-
-	if (!ds_cfg.sizeof_ds)
-		return -EOPNOTSUPP;
-
-	/* we require some space to do alignment adjustments below */
-	if (size < (alignment + ds_cfg.sizeof_rec[qual]))
-		return -EINVAL;
-
-	/* buffer overflow notification is not yet implemented */
-	if (ovfl)
-		return -EOPNOTSUPP;
-
-
-	context = ds_alloc_context(task);
-	if (!context)
-		return -ENOMEM;
-
-	spin_lock_irqsave(&ds_lock, irq);
-
-	error = -EPERM;
-	if (!check_tracer(task))
-		goto out_unlock;
-
-	get_tracer(task);
-
-	error = -EALREADY;
-	if (context->owner[qual] == current)
-		goto out_put_tracer;
-	error = -EPERM;
-	if (context->owner[qual] != NULL)
-		goto out_put_tracer;
-	context->owner[qual] = current;
-
-	spin_unlock_irqrestore(&ds_lock, irq);
-
-
-	error = -ENOMEM;
-	if (!base) {
-		base = ds_allocate_buffer(size, &context->pages[qual]);
-		if (!base)
-			goto out_release;
-
-		context->buffer[qual]   = base;
-	}
-	error = 0;
-
-	context->callback[qual] = ovfl;
 
 	/* adjust the buffer address and size to meet alignment
 	 * constraints:
@@ -436,7 +352,7 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
 	 */
 	buffer = (unsigned long)base;
 
-	adj = ALIGN(buffer, alignment) - buffer;
+	adj = ALIGN(buffer, DS_ALIGNMENT) - buffer;
 	buffer += adj;
 	size   -= adj;
 
@@ -447,210 +363,305 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
 	ds_set(context->ds, qual, ds_index, buffer);
 	ds_set(context->ds, qual, ds_absolute_maximum, buffer + size);
 
-	if (ovfl) {
-		/* todo: select a suitable interrupt threshold */
-	} else
-		ds_set(context->ds, qual,
-		       ds_interrupt_threshold, buffer + size + 1);
+	/* The value for 'no threshold' is -1, which will set the
+	 * threshold outside of the buffer, just like we want it.
+	 */
+	ds_set(context->ds, qual,
+	       ds_interrupt_threshold, buffer + size - ith);
+}
 
-	/* we keep the context until ds_release */
-	return error;
+static int ds_request(struct ds_tracer *tracer, enum ds_qualifier qual,
+		      struct task_struct *task,
+		      void *base, size_t size, size_t th)
+{
+	struct ds_context *context;
+	unsigned long irq;
+	int error;
 
- out_release:
-	context->owner[qual] = NULL;
-	ds_put_context(context);
-	put_tracer(task);
-	return error;
+	error = -EOPNOTSUPP;
+	if (!ds_cfg.sizeof_ds)
+		goto out;
+
+	/* we require some space to do alignment adjustments below */
+	error = -EINVAL;
+	if (size < (DS_ALIGNMENT + ds_cfg.sizeof_rec[qual]))
+		goto out;
+
+	if (th != (size_t)-1) {
+		th *= ds_cfg.sizeof_rec[qual];
+
+		error = -EINVAL;
+		if (size <= th)
+			goto out;
+	}
+
+	error = -ENOMEM;
+	if (!base) {
+		base = ds_allocate_buffer(size, &tracer->pages);
+		if (!base)
+			goto out;
+	}
+
+	tracer->buffer = base;
+	tracer->size = size;
+
+	error = -ENOMEM;
+	context = ds_get_context(task);
+	if (!context)
+		goto out;
+	tracer->context = context;
+
+
+	spin_lock_irqsave(&ds_lock, irq);
+
+	error = -EPERM;
+	if (!check_tracer(task))
+		goto out_unlock;
+	get_tracer(task);
+
+	error = -EPERM;
+	if (context->owner[qual])
+		goto out_put_tracer;
+	context->owner[qual] = tracer;
+
+	spin_unlock_irqrestore(&ds_lock, irq);
+
+
+	ds_install_ds_config(context, qual, base, size, th);
+
+	return 0;
 
  out_put_tracer:
-	spin_unlock_irqrestore(&ds_lock, irq);
-	ds_put_context(context);
 	put_tracer(task);
-	return error;
-
  out_unlock:
 	spin_unlock_irqrestore(&ds_lock, irq);
 	ds_put_context(context);
-	return error;
-}
-
-int ds_request_bts(struct task_struct *task, void *base, size_t size,
-		   ds_ovfl_callback_t ovfl)
-{
-	return ds_request(task, base, size, ovfl, ds_bts);
-}
-
-int ds_request_pebs(struct task_struct *task, void *base, size_t size,
-		    ds_ovfl_callback_t ovfl)
-{
-	return ds_request(task, base, size, ovfl, ds_pebs);
-}
-
-static int ds_release(struct task_struct *task, enum ds_qualifier qual)
-{
-	struct ds_context *context;
-	int error;
-
-	context = ds_get_context(task);
-	error = ds_validate_access(context, qual);
-	if (error < 0)
-		goto out;
-
-	kfree(context->buffer[qual]);
-	context->buffer[qual] = NULL;
-
-	current->mm->total_vm  -= context->pages[qual];
-	current->mm->locked_vm -= context->pages[qual];
-	context->pages[qual] = 0;
-	context->owner[qual] = NULL;
-
-	/*
-	 * we put the context twice:
-	 *   once for the ds_get_context
-	 *   once for the corresponding ds_request
-	 */
-	ds_put_context(context);
+	tracer->context = NULL;
  out:
-	ds_put_context(context);
 	return error;
 }
 
-int ds_release_bts(struct task_struct *task)
+struct bts_tracer *ds_request_bts(struct task_struct *task,
+				  void *base, size_t size,
+				  bts_ovfl_callback_t ovfl, size_t th)
 {
-	return ds_release(task, ds_bts);
-}
-
-int ds_release_pebs(struct task_struct *task)
-{
-	return ds_release(task, ds_pebs);
-}
-
-static int ds_get_index(struct task_struct *task, size_t *pos,
-			enum ds_qualifier qual)
-{
-	struct ds_context *context;
-	unsigned long base, index;
+	struct bts_tracer *tracer;
 	int error;
 
-	context = ds_get_context(task);
-	error = ds_validate_access(context, qual);
-	if (error < 0)
+	/* buffer overflow notification is not yet implemented */
+	error = -EOPNOTSUPP;
+	if (ovfl)
 		goto out;
+
+	error = -ENOMEM;
+	tracer = kzalloc(sizeof(*tracer), GFP_KERNEL);
+	if (!tracer)
+		goto out;
+	tracer->ovfl = ovfl;
+
+	error = ds_request(&tracer->ds, ds_bts, task, base, size, th);
+	if (error < 0)
+		goto out_tracer;
+
+	return tracer;
+
+ out_tracer:
+	(void)ds_release_bts(tracer);
+ out:
+	return ERR_PTR(error);
+}
+
+struct pebs_tracer *ds_request_pebs(struct task_struct *task,
+				    void *base, size_t size,
+				    pebs_ovfl_callback_t ovfl, size_t th)
+{
+	struct pebs_tracer *tracer;
+	int error;
+
+	/* buffer overflow notification is not yet implemented */
+	error = -EOPNOTSUPP;
+	if (ovfl)
+		goto out;
+
+	error = -ENOMEM;
+	tracer = kzalloc(sizeof(*tracer), GFP_KERNEL);
+	if (!tracer)
+		goto out;
+	tracer->ovfl = ovfl;
+
+	error = ds_request(&tracer->ds, ds_pebs, task, base, size, th);
+	if (error < 0)
+		goto out_tracer;
+
+	return tracer;
+
+ out_tracer:
+	(void)ds_release_pebs(tracer);
+ out:
+	return ERR_PTR(error);
+}
+
+static void ds_release(struct ds_tracer *tracer, enum ds_qualifier qual)
+{
+	if (tracer->context) {
+		BUG_ON(tracer->context->owner[qual] != tracer);
+		tracer->context->owner[qual] = NULL;
+
+		put_tracer(tracer->context->task);
+		ds_put_context(tracer->context);
+	}
+
+	if (tracer->pages) {
+		kfree(tracer->buffer);
+
+		down_write(&current->mm->mmap_sem);
+
+		current->mm->total_vm  -= tracer->pages;
+		current->mm->locked_vm -= tracer->pages;
+
+		up_write(&current->mm->mmap_sem);
+	}
+}
+
+int ds_release_bts(struct bts_tracer *tracer)
+{
+	if (!tracer)
+		return -EINVAL;
+
+	ds_release(&tracer->ds, ds_bts);
+	kfree(tracer);
+
+	return 0;
+}
+
+int ds_release_pebs(struct pebs_tracer *tracer)
+{
+	if (!tracer)
+		return -EINVAL;
+
+	ds_release(&tracer->ds, ds_pebs);
+	kfree(tracer);
+
+	return 0;
+}
+
+static size_t ds_get_index(struct ds_context *context, enum ds_qualifier qual)
+{
+	unsigned long base, index;
 
 	base  = ds_get(context->ds, qual, ds_buffer_base);
 	index = ds_get(context->ds, qual, ds_index);
 
-	error = ((index - base) / ds_cfg.sizeof_rec[qual]);
-	if (pos)
-		*pos = error;
- out:
-	ds_put_context(context);
-	return error;
+	return (index - base) / ds_cfg.sizeof_rec[qual];
 }
 
-int ds_get_bts_index(struct task_struct *task, size_t *pos)
+int ds_get_bts_index(struct bts_tracer *tracer, size_t *pos)
 {
-	return ds_get_index(task, pos, ds_bts);
+	if (!tracer)
+		return -EINVAL;
+
+	if (!pos)
+		return -EINVAL;
+
+	*pos = ds_get_index(tracer->ds.context, ds_bts);
+
+	return 0;
 }
 
-int ds_get_pebs_index(struct task_struct *task, size_t *pos)
+int ds_get_pebs_index(struct pebs_tracer *tracer, size_t *pos)
 {
-	return ds_get_index(task, pos, ds_pebs);
+	if (!tracer)
+		return -EINVAL;
+
+	if (!pos)
+		return -EINVAL;
+
+	*pos = ds_get_index(tracer->ds.context, ds_pebs);
+
+	return 0;
 }
 
-static int ds_get_end(struct task_struct *task, size_t *pos,
-		      enum ds_qualifier qual)
+static size_t ds_get_end(struct ds_context *context, enum ds_qualifier qual)
 {
-	struct ds_context *context;
-	unsigned long base, end;
-	int error;
-
-	context = ds_get_context(task);
-	error = ds_validate_access(context, qual);
-	if (error < 0)
-		goto out;
+	unsigned long base, max;
 
 	base = ds_get(context->ds, qual, ds_buffer_base);
-	end  = ds_get(context->ds, qual, ds_absolute_maximum);
+	max  = ds_get(context->ds, qual, ds_absolute_maximum);
 
-	error = ((end - base) / ds_cfg.sizeof_rec[qual]);
-	if (pos)
-		*pos = error;
- out:
-	ds_put_context(context);
-	return error;
+	return (max - base) / ds_cfg.sizeof_rec[qual];
 }
 
-int ds_get_bts_end(struct task_struct *task, size_t *pos)
+int ds_get_bts_end(struct bts_tracer *tracer, size_t *pos)
 {
-	return ds_get_end(task, pos, ds_bts);
+	if (!tracer)
+		return -EINVAL;
+
+	if (!pos)
+		return -EINVAL;
+
+	*pos = ds_get_end(tracer->ds.context, ds_bts);
+
+	return 0;
 }
 
-int ds_get_pebs_end(struct task_struct *task, size_t *pos)
+int ds_get_pebs_end(struct pebs_tracer *tracer, size_t *pos)
 {
-	return ds_get_end(task, pos, ds_pebs);
+	if (!tracer)
+		return -EINVAL;
+
+	if (!pos)
+		return -EINVAL;
+
+	*pos = ds_get_end(tracer->ds.context, ds_pebs);
+
+	return 0;
 }
 
-static int ds_access(struct task_struct *task, size_t index,
-		     const void **record, enum ds_qualifier qual)
+static int ds_access(struct ds_context *context, enum ds_qualifier qual,
+		     size_t index, const void **record)
 {
-	struct ds_context *context;
 	unsigned long base, idx;
-	int error;
 
 	if (!record)
 		return -EINVAL;
-
-	context = ds_get_context(task);
-	error = ds_validate_access(context, qual);
-	if (error < 0)
-		goto out;
 
 	base = ds_get(context->ds, qual, ds_buffer_base);
 	idx = base + (index * ds_cfg.sizeof_rec[qual]);
 
-	error = -EINVAL;
 	if (idx > ds_get(context->ds, qual, ds_absolute_maximum))
-		goto out;
+		return -EINVAL;
 
 	*record = (const void *)idx;
-	error = ds_cfg.sizeof_rec[qual];
- out:
-	ds_put_context(context);
-	return error;
+
+	return ds_cfg.sizeof_rec[qual];
 }
 
-int ds_access_bts(struct task_struct *task, size_t index, const void **record)
+int ds_access_bts(struct bts_tracer *tracer, size_t index,
+		  const void **record)
 {
-	return ds_access(task, index, record, ds_bts);
+	if (!tracer)
+		return -EINVAL;
+
+	return ds_access(tracer->ds.context, ds_bts, index, record);
 }
 
-int ds_access_pebs(struct task_struct *task, size_t index, const void **record)
+int ds_access_pebs(struct pebs_tracer *tracer, size_t index,
+		   const void **record)
 {
-	return ds_access(task, index, record, ds_pebs);
+	if (!tracer)
+		return -EINVAL;
+
+	return ds_access(tracer->ds.context, ds_pebs, index, record);
 }
 
-static int ds_write(struct task_struct *task, const void *record, size_t size,
-		    enum ds_qualifier qual, int force)
+static int ds_write(struct ds_context *context, enum ds_qualifier qual,
+		    const void *record, size_t size)
 {
-	struct ds_context *context;
-	int error;
+	int bytes_written = 0;
 
 	if (!record)
 		return -EINVAL;
 
-	error = -EPERM;
-	context = ds_get_context(task);
-	if (!context)
-		goto out;
-
-	if (!force) {
-		error = ds_validate_access(context, qual);
-		if (error < 0)
-			goto out;
-	}
-
-	error = 0;
 	while (size) {
 		unsigned long base, index, end, write_end, int_th;
 		unsigned long write_size, adj_write_size;
@@ -678,14 +689,14 @@ static int ds_write(struct task_struct *task, const void *record, size_t size,
 			write_end = end;
 
 		if (write_end <= index)
-			goto out;
+			break;
 
 		write_size = min((unsigned long) size, write_end - index);
 		memcpy((void *)index, record, write_size);
 
 		record = (const char *)record + write_size;
-		size  -= write_size;
-		error += write_size;
+		size -= write_size;
+		bytes_written += write_size;
 
 		adj_write_size = write_size / ds_cfg.sizeof_rec[qual];
 		adj_write_size *= ds_cfg.sizeof_rec[qual];
@@ -700,47 +711,32 @@ static int ds_write(struct task_struct *task, const void *record, size_t size,
 		ds_set(context->ds, qual, ds_index, index);
 
 		if (index >= int_th)
-			ds_overflow(task, context, qual);
+			ds_overflow(context, qual);
 	}
 
- out:
-	ds_put_context(context);
-	return error;
+	return bytes_written;
 }
 
-int ds_write_bts(struct task_struct *task, const void *record, size_t size)
+int ds_write_bts(struct bts_tracer *tracer, const void *record, size_t size)
 {
-	return ds_write(task, record, size, ds_bts, /* force = */ 0);
+	if (!tracer)
+		return -EINVAL;
+
+	return ds_write(tracer->ds.context, ds_bts, record, size);
 }
 
-int ds_write_pebs(struct task_struct *task, const void *record, size_t size)
+int ds_write_pebs(struct pebs_tracer *tracer, const void *record, size_t size)
 {
-	return ds_write(task, record, size, ds_pebs, /* force = */ 0);
+	if (!tracer)
+		return -EINVAL;
+
+	return ds_write(tracer->ds.context, ds_pebs, record, size);
 }
 
-int ds_unchecked_write_bts(struct task_struct *task,
-			   const void *record, size_t size)
+static void ds_reset_or_clear(struct ds_context *context,
+			      enum ds_qualifier qual, int clear)
 {
-	return ds_write(task, record, size, ds_bts, /* force = */ 1);
-}
-
-int ds_unchecked_write_pebs(struct task_struct *task,
-			    const void *record, size_t size)
-{
-	return ds_write(task, record, size, ds_pebs, /* force = */ 1);
-}
-
-static int ds_reset_or_clear(struct task_struct *task,
-			     enum ds_qualifier qual, int clear)
-{
-	struct ds_context *context;
 	unsigned long base, end;
-	int error;
-
-	context = ds_get_context(task);
-	error = ds_validate_access(context, qual);
-	if (error < 0)
-		goto out;
 
 	base = ds_get(context->ds, qual, ds_buffer_base);
 	end  = ds_get(context->ds, qual, ds_absolute_maximum);
@@ -749,70 +745,69 @@ static int ds_reset_or_clear(struct task_struct *task,
 		memset((void *)base, 0, end - base);
 
 	ds_set(context->ds, qual, ds_index, base);
-
-	error = 0;
- out:
-	ds_put_context(context);
-	return error;
 }
 
-int ds_reset_bts(struct task_struct *task)
+int ds_reset_bts(struct bts_tracer *tracer)
 {
-	return ds_reset_or_clear(task, ds_bts, /* clear = */ 0);
+	if (!tracer)
+		return -EINVAL;
+
+	ds_reset_or_clear(tracer->ds.context, ds_bts, /* clear = */ 0);
+
+	return 0;
 }
 
-int ds_reset_pebs(struct task_struct *task)
+int ds_reset_pebs(struct pebs_tracer *tracer)
 {
-	return ds_reset_or_clear(task, ds_pebs, /* clear = */ 0);
+	if (!tracer)
+		return -EINVAL;
+
+	ds_reset_or_clear(tracer->ds.context, ds_pebs, /* clear = */ 0);
+
+	return 0;
 }
 
-int ds_clear_bts(struct task_struct *task)
+int ds_clear_bts(struct bts_tracer *tracer)
 {
-	return ds_reset_or_clear(task, ds_bts, /* clear = */ 1);
+	if (!tracer)
+		return -EINVAL;
+
+	ds_reset_or_clear(tracer->ds.context, ds_bts, /* clear = */ 1);
+
+	return 0;
 }
 
-int ds_clear_pebs(struct task_struct *task)
+int ds_clear_pebs(struct pebs_tracer *tracer)
 {
-	return ds_reset_or_clear(task, ds_pebs, /* clear = */ 1);
+	if (!tracer)
+		return -EINVAL;
+
+	ds_reset_or_clear(tracer->ds.context, ds_pebs, /* clear = */ 1);
+
+	return 0;
 }
 
-int ds_get_pebs_reset(struct task_struct *task, u64 *value)
+int ds_get_pebs_reset(struct pebs_tracer *tracer, u64 *value)
 {
-	struct ds_context *context;
-	int error;
+	if (!tracer)
+		return -EINVAL;
 
 	if (!value)
 		return -EINVAL;
 
-	context = ds_get_context(task);
-	error = ds_validate_access(context, ds_pebs);
-	if (error < 0)
-		goto out;
+	*value = *(u64 *)(tracer->ds.context->ds + (ds_cfg.sizeof_field * 8));
 
-	*value = *(u64 *)(context->ds + (ds_cfg.sizeof_field * 8));
-
-	error = 0;
- out:
-	ds_put_context(context);
-	return error;
+	return 0;
 }
 
-int ds_set_pebs_reset(struct task_struct *task, u64 value)
+int ds_set_pebs_reset(struct pebs_tracer *tracer, u64 value)
 {
-	struct ds_context *context;
-	int error;
+	if (!tracer)
+		return -EINVAL;
 
-	context = ds_get_context(task);
-	error = ds_validate_access(context, ds_pebs);
-	if (error < 0)
-		goto out;
+	*(u64 *)(tracer->ds.context->ds + (ds_cfg.sizeof_field * 8)) = value;
 
-	*(u64 *)(context->ds + (ds_cfg.sizeof_field * 8)) = value;
-
-	error = 0;
- out:
-	ds_put_context(context);
-	return error;
+	return 0;
 }
 
 static const struct ds_configuration ds_cfg_var = {
@@ -840,6 +835,10 @@ static inline void
 ds_configure(const struct ds_configuration *cfg)
 {
 	ds_cfg = *cfg;
+
+	printk(KERN_INFO "DS available\n");
+
+	BUG_ON(MAX_SIZEOF_DS < ds_cfg.sizeof_ds);
 }
 
 void __cpuinit ds_init_intel(struct cpuinfo_x86 *c)
@@ -883,6 +882,8 @@ void ds_free(struct ds_context *context)
 	 * is dying. There should not be any user of that context left
 	 * to disturb us, anymore. */
 	unsigned long leftovers = context->count;
-	while (leftovers--)
+	while (leftovers--) {
+		put_tracer(context->task);
 		ds_put_context(context);
+	}
 }
