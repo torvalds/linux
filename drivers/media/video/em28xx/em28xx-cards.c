@@ -51,6 +51,78 @@ struct em28xx_hash_table {
 	unsigned int  tuner;
 };
 
+/*
+ *  Reset sequences for analog/digital modes
+ */
+
+/* Reset for the most [analog] boards */
+static struct em28xx_reg_seq default_analog[] = {
+	{EM28XX_R08_GPIO,	0x6d,   ~EM_GPIO_4,	10},
+	{	-1,		-1,	-1,		-1},
+};
+
+/* Reset for the most [digital] boards */
+static struct em28xx_reg_seq default_digital[] = {
+	{EM28XX_R08_GPIO,	0x6e,	~EM_GPIO_4,	10},
+	{	-1,		-1,	-1,		-1},
+};
+
+/* Board Hauppauge WinTV HVR 900 analog */
+static struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
+	{EM28XX_R08_GPIO,	0x2d,	~EM_GPIO_4,	10},
+	{0x05,			0xff,	0x10,		10},
+	{  -1,			-1,	-1,		-1},
+};
+
+/* Board Hauppauge WinTV HVR 900 digital */
+static struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
+	{EM28XX_R08_GPIO,	0x2e,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x04,	0x0f,		10},
+	{EM2880_R04_GPO,	0x0c,	0x0f,		10},
+	{ -1,			-1,	-1,		-1},
+};
+
+/* Boards - EM2880 MSI DIGIVOX AD and EM2880_BOARD_MSI_DIGIVOX_AD_II */
+static struct em28xx_reg_seq em2880_msi_digivox_ad_analog[] = {
+	{EM28XX_R08_GPIO,       0x69,   ~EM_GPIO_4,	 10},
+	{	-1,		-1,	-1,		 -1},
+};
+
+/* Boards - EM2880 MSI DIGIVOX AD and EM2880_BOARD_MSI_DIGIVOX_AD_II */
+static struct em28xx_reg_seq em2880_msi_digivox_ad_digital[] = {
+	{EM28XX_R08_GPIO,	0x6a,	~EM_GPIO_4,	10},
+	{	-1,		-1,	-1,		-1},
+};
+
+/* Board  - EM2870 Kworld 355u
+   Analog - No input analog */
+static struct em28xx_reg_seq em2870_kworld_355u_digital[] = {
+	{EM2880_R04_GPO,	0x01,	0xff,		10},
+	{  -1,			-1,	-1,		-1},
+};
+
+/* Callback for the most boards */
+static struct em28xx_reg_seq default_callback[] = {
+	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
+	{EM28XX_R08_GPIO,	0,		EM_GPIO_4,	10},
+	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
+	{  -1,			-1,		-1,		-1},
+};
+
+/* Pinnacle PCTV HD Mini (80e) GPIOs
+   0-5: not used
+   6:   demod reset, active low
+   7:   LED on, active high */
+static struct em28xx_reg_seq em2874_pinnacle_80e_digital[] = {
+	{EM28XX_R06_I2C_CLK,    0x45,   0xff,		  10}, /*400 KHz*/
+	{EM2874_R80_GPIO,       0x80,   0xff,		  100},/*Demod reset*/
+	{EM2874_R80_GPIO,       0xc0,   0xff,		  10},
+	{  -1,			-1,	-1,		  -1},
+};
+
+/*
+ *  Board definitions
+ */
 struct em28xx_board em28xx_boards[] = {
 	[EM2750_BOARD_UNKNOWN] = {
 		.name          = "Unknown EM2750/EM2751 webcam grabber",
@@ -1147,75 +1219,6 @@ struct usb_device_id em28xx_id_table [] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
-
-/*
- *  Reset sequences for analog/digital modes
- */
-
-/* Reset for the most [analog] boards */
-static struct em28xx_reg_seq default_analog[] = {
-	{EM28XX_R08_GPIO,	0x6d,   ~EM_GPIO_4,	10},
-	{	-1,		-1,	-1,		-1},
-};
-
-/* Reset for the most [digital] boards */
-static struct em28xx_reg_seq default_digital[] = {
-	{EM28XX_R08_GPIO,	0x6e,	~EM_GPIO_4,	10},
-	{	-1,		-1,	-1,		-1},
-};
-
-/* Board Hauppauge WinTV HVR 900 analog */
-static struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
-	{EM28XX_R08_GPIO,	0x2d,	~EM_GPIO_4,	10},
-	{0x05,			0xff,	0x10,		10},
-	{  -1,			-1,	-1,		-1},
-};
-
-/* Board Hauppauge WinTV HVR 900 digital */
-static struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
-	{EM28XX_R08_GPIO,	0x2e,	~EM_GPIO_4,	10},
-	{EM2880_R04_GPO,	0x04,	0x0f,		10},
-	{EM2880_R04_GPO,	0x0c,	0x0f,		10},
-	{ -1,			-1,	-1,		-1},
-};
-
-/* Boards - EM2880 MSI DIGIVOX AD and EM2880_BOARD_MSI_DIGIVOX_AD_II */
-static struct em28xx_reg_seq em2880_msi_digivox_ad_analog[] = {
-	{EM28XX_R08_GPIO,       0x69,   ~EM_GPIO_4,	 10},
-	{	-1,		-1,	-1,		 -1},
-};
-
-/* Boards - EM2880 MSI DIGIVOX AD and EM2880_BOARD_MSI_DIGIVOX_AD_II */
-static struct em28xx_reg_seq em2880_msi_digivox_ad_digital[] = {
-	{EM28XX_R08_GPIO,	0x6a,	~EM_GPIO_4,	10},
-	{	-1,		-1,	-1,		-1},
-};
-
-/* Board  - EM2870 Kworld 355u
-   Analog - No input analog */
-static struct em28xx_reg_seq em2870_kworld_355u_digital[] = {
-	{EM2880_R04_GPO,	0x01,	0xff,		10},
-	{  -1,			-1,	-1,		-1},
-};
-
-/* Callback for the most boards */
-static struct em28xx_reg_seq default_callback[] = {
-	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
-	{EM28XX_R08_GPIO,	0,		EM_GPIO_4,	10},
-	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
-	{  -1,			-1,		-1,		-1},
-};
-
-/* Pinnacle PCTV HD Mini (80e) GPIOs
-   0-5: not used
-   6:   demod reset, active low
-   7:   LED on, active high */
-static struct em28xx_reg_seq em2874_pinnacle_80e_digital[] = {
-	{EM28XX_R06_I2C_CLK,    0x45,   0xff,		  10}, /*400 KHz*/
-	{EM2874_R80_GPIO,       0x80,   0xff,		  100},/*Demod reset*/
-	{EM2874_R80_GPIO,       0xc0,   0xff,		  10},
-	{  -1,			-1,	-1,		  -1},
-};
 
 /*
  * EEPROM hash table for devices with generic USB IDs
