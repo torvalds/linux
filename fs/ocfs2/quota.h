@@ -107,8 +107,8 @@ static inline int ocfs2_global_release_dquot(struct dquot *dquot)
 
 int ocfs2_lock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex);
 void ocfs2_unlock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex);
-struct buffer_head *ocfs2_read_quota_block(struct inode *inode,
-					   int block, int *err);
+int ocfs2_read_quota_block(struct inode *inode, u64 v_block,
+			   struct buffer_head **bh);
 
 extern struct dquot_operations ocfs2_quota_operations;
 extern struct quota_format_type ocfs2_quota_format;

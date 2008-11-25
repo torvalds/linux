@@ -3519,7 +3519,7 @@ static int ocfs2_refresh_qinfo(struct ocfs2_mem_dqinfo *oinfo)
 					    oinfo->dqi_gi.dqi_type);
 	struct ocfs2_lock_res *lockres = &oinfo->dqi_gqlock;
 	struct ocfs2_qinfo_lvb *lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
-	struct buffer_head *bh;
+	struct buffer_head *bh = NULL;
 	struct ocfs2_global_disk_dqinfo *gdinfo;
 	int status = 0;
 
@@ -3532,8 +3532,8 @@ static int ocfs2_refresh_qinfo(struct ocfs2_mem_dqinfo *oinfo)
 		oinfo->dqi_gi.dqi_free_entry =
 					be32_to_cpu(lvb->lvb_free_entry);
 	} else {
-		bh = ocfs2_read_quota_block(oinfo->dqi_gqinode, 0, &status);
-		if (!bh) {
+		status = ocfs2_read_quota_block(oinfo->dqi_gqinode, 0, &bh);
+		if (status) {
 			mlog_errno(status);
 			goto bail;
 		}

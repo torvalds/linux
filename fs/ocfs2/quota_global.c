@@ -87,16 +87,21 @@ struct qtree_fmt_operations ocfs2_global_ops = {
 	.is_id = ocfs2_global_is_id,
 };
 
-struct buffer_head *ocfs2_read_quota_block(struct inode *inode,
-					   int block, int *err)
+int ocfs2_read_quota_block(struct inode *inode, u64 v_block,
+			   struct buffer_head **bh)
 {
-	struct buffer_head *tmp = NULL;
+	int rc = 0;
+	struct buffer_head *tmp = *bh;
 
-	*err = ocfs2_read_virt_blocks(inode, block, 1, &tmp, 0, NULL);
-	if (*err)
-		mlog_errno(*err);
+	rc = ocfs2_read_virt_blocks(inode, v_block, 1, &tmp, 0, NULL);
+	if (rc)
+		mlog_errno(rc);
 
-	return tmp;
+	/* If ocfs2_read_virt_blocks() got us a new bh, pass it up. */
+	if (!rc && !*bh)
+		*bh = tmp;
+
+	return rc;
 }
 
 static struct buffer_head *ocfs2_get_quota_block(struct inode *inode,
@@ -143,8 +148,9 @@ ssize_t ocfs2_quota_read(struct super_block *sb, int type, char *data,
 	toread = len;
 	while (toread > 0) {
 		tocopy = min((size_t)(sb->s_blocksize - offset), toread);
-		bh = ocfs2_read_quota_block(gqinode, blk, &err);
-		if (!bh) {
+		bh = NULL;
+		err = ocfs2_read_quota_block(gqinode, blk, &bh);
+		if (err) {
 			mlog_errno(err);
 			return err;
 		}
@@ -169,7 +175,7 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	int offset = off & (sb->s_blocksize - 1);
 	sector_t blk = off >> sb->s_blocksize_bits;
 	int err = 0, new = 0;
-	struct buffer_head *bh;
+	struct buffer_head *bh = NULL;
 	handle_t *handle = journal_current_handle();
 
 	if (!handle) {
@@ -200,13 +206,13 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	/* Not rewriting whole block? */
 	if ((offset || len < sb->s_blocksize - OCFS2_QBLK_RESERVED_SPACE) &&
 	    !new) {
-		bh = ocfs2_read_quota_block(gqinode, blk, &err);
-		if (!bh) {
+		err = ocfs2_read_quota_block(gqinode, blk, &bh);
+		if (err) {
 			mlog_errno(err);
 			return err;
 		}
 		err = ocfs2_journal_access(handle, gqinode, bh,
-						OCFS2_JOURNAL_ACCESS_WRITE);
+					   OCFS2_JOURNAL_ACCESS_WRITE);
 	} else {
 		bh = ocfs2_get_quota_block(gqinode, blk, &err);
 		if (!bh) {
@@ -214,7 +220,7 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 			return err;
 		}
 		err = ocfs2_journal_access(handle, gqinode, bh,
-						OCFS2_JOURNAL_ACCESS_CREATE);
+					   OCFS2_JOURNAL_ACCESS_CREATE);
 	}
 	if (err < 0) {
 		brelse(bh);

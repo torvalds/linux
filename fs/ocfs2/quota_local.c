@@ -139,15 +139,15 @@ static int ocfs2_local_check_quota_file(struct super_block *sb, int type)
 	unsigned int gversions[MAXQUOTAS] = OCFS2_GLOBAL_QVERSIONS;
 	unsigned int ino[MAXQUOTAS] = { USER_QUOTA_SYSTEM_INODE,
 					GROUP_QUOTA_SYSTEM_INODE };
-	struct buffer_head *bh;
+	struct buffer_head *bh = NULL;
 	struct inode *linode = sb_dqopt(sb)->files[type];
 	struct inode *ginode = NULL;
 	struct ocfs2_disk_dqheader *dqhead;
 	int status, ret = 0;
 
 	/* First check whether we understand local quota file */
-	bh = ocfs2_read_quota_block(linode, 0, &status);
-	if (!bh) {
+	status = ocfs2_read_quota_block(linode, 0, &bh);
+	if (status) {
 		mlog_errno(status);
 		mlog(ML_ERROR, "failed to read quota file header (type=%d)\n",
 			type);
@@ -178,8 +178,8 @@ static int ocfs2_local_check_quota_file(struct super_block *sb, int type)
 		goto out_err;
 	}
 	/* Since the header is read only, we don't care about locking */
-	bh = ocfs2_read_quota_block(ginode, 0, &status);
-	if (!bh) {
+	status = ocfs2_read_quota_block(ginode, 0, &bh);
+	if (status) {
 		mlog_errno(status);
 		mlog(ML_ERROR, "failed to read global quota file header "
 				"(type=%d)\n", type);
@@ -235,10 +235,11 @@ static int ocfs2_load_local_quota_bitmaps(struct inode *inode,
 			return -ENOMEM;
 		}
 		newchunk->qc_num = i;
-		newchunk->qc_headerbh = ocfs2_read_quota_block(inode,
+		newchunk->qc_headerbh = NULL;
+		status = ocfs2_read_quota_block(inode,
 				ol_quota_chunk_block(inode->i_sb, i),
-				&status);
-		if (!newchunk->qc_headerbh) {
+				&newchunk->qc_headerbh);
+		if (status) {
 			mlog_errno(status);
 			kmem_cache_free(ocfs2_qf_chunk_cachep, newchunk);
 			ocfs2_release_local_quota_bitmaps(head);
@@ -320,10 +321,11 @@ static int ocfs2_recovery_load_quota(struct inode *lqinode,
 	int status = 0;
 
 	for (i = 0; i < chunks; i++) {
-		hbh = ocfs2_read_quota_block(lqinode,
-					     ol_quota_chunk_block(sb, i),
-					     &status);
-		if (!hbh) {
+		hbh = NULL;
+		status = ocfs2_read_quota_block(lqinode,
+						ol_quota_chunk_block(sb, i),
+						&hbh);
+		if (status) {
 			mlog_errno(status);
 			break;
 		}
@@ -392,8 +394,9 @@ struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
 			goto out_put;
 		}
 		/* Now read local header */
-		bh = ocfs2_read_quota_block(lqinode, 0, &status);
-		if (!bh) {
+		bh = NULL;
+		status = ocfs2_read_quota_block(lqinode, 0, &bh);
+		if (status) {
 			mlog_errno(status);
 			mlog(ML_ERROR, "failed to read quota file info header "
 				"(slot=%d type=%d)\n", slot_num, type);
@@ -447,19 +450,21 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 
 	list_for_each_entry_safe(rchunk, next, &(rec->r_list[type]), rc_list) {
 		chunk = rchunk->rc_chunk;
-		hbh = ocfs2_read_quota_block(lqinode,
-					     ol_quota_chunk_block(sb, chunk),
-					     &status);
-		if (!hbh) {
+		hbh = NULL;
+		status = ocfs2_read_quota_block(lqinode,
+						ol_quota_chunk_block(sb, chunk),
+						&hbh);
+		if (status) {
 			mlog_errno(status);
 			break;
 		}
 		dchunk = (struct ocfs2_local_disk_chunk *)hbh->b_data;
 		for_each_bit(bit, rchunk->rc_bitmap, ol_chunk_entries(sb)) {
-			qbh = ocfs2_read_quota_block(lqinode,
+			qbh = NULL;
+			status = ocfs2_read_quota_block(lqinode,
 						ol_dqblk_block(sb, chunk, bit),
-						&status);
-			if (!qbh) {
+						&qbh);
+			if (status) {
 				mlog_errno(status);
 				break;
 			}
@@ -581,8 +586,9 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 			goto out_put;
 		}
 		/* Now read local header */
-		bh = ocfs2_read_quota_block(lqinode, 0, &status);
-		if (!bh) {
+		bh = NULL;
+		status = ocfs2_read_quota_block(lqinode, 0, &bh);
+		if (status) {
 			mlog_errno(status);
 			mlog(ML_ERROR, "failed to read quota file info header "
 				"(slot=%d type=%d)\n", slot_num, type);
@@ -676,8 +682,8 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	locked = 1;
 
 	/* Now read local header */
-	bh = ocfs2_read_quota_block(lqinode, 0, &status);
-	if (!bh) {
+	status = ocfs2_read_quota_block(lqinode, 0, &bh);
+	if (status) {
 		mlog_errno(status);
 		mlog(ML_ERROR, "failed to read quota file info header "
 			"(type=%d)\n", type);
@@ -850,13 +856,13 @@ static int ocfs2_local_write_dquot(struct dquot *dquot)
 {
 	struct super_block *sb = dquot->dq_sb;
 	struct ocfs2_dquot *od = OCFS2_DQUOT(dquot);
-	struct buffer_head *bh;
+	struct buffer_head *bh = NULL;
 	int status;
 
-	bh = ocfs2_read_quota_block(sb_dqopt(sb)->files[dquot->dq_type],
+	status = ocfs2_read_quota_block(sb_dqopt(sb)->files[dquot->dq_type],
 				    ol_dqblk_file_block(sb, od->dq_local_off),
-				    &status);
-	if (!bh) {
+				    &bh);
+	if (status) {
 		mlog_errno(status);
 		goto out;
 	}
