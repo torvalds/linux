@@ -1379,6 +1379,11 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 
 	BUG_ON(!pcount);
 
+	/* Tweak before seqno plays */
+	if (!tcp_is_fack(tp) && tcp_is_sack(tp) && tp->lost_skb_hint &&
+	    !before(TCP_SKB_CB(tp->lost_skb_hint)->seq, TCP_SKB_CB(skb)->seq))
+		tp->lost_cnt_hint += pcount;
+
 	TCP_SKB_CB(prev)->end_seq += shifted;
 	TCP_SKB_CB(skb)->seq += shifted;
 
@@ -1408,14 +1413,21 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 	/* Difference in this won't matter, both ACKed by the same cumul. ACK */
 	TCP_SKB_CB(prev)->sacked |= (TCP_SKB_CB(skb)->sacked & TCPCB_EVER_RETRANS);
 
-	tcp_clear_all_retrans_hints(tp);
-
 	if (skb->len > 0) {
 		BUG_ON(!tcp_skb_pcount(skb));
 		return 0;
 	}
 
 	/* Whole SKB was eaten :-) */
+
+	if (skb == tp->retransmit_skb_hint)
+		tp->retransmit_skb_hint = prev;
+	if (skb == tp->scoreboard_skb_hint)
+		tp->scoreboard_skb_hint = prev;
+	if (skb == tp->lost_skb_hint) {
+		tp->lost_skb_hint = prev;
+		tp->lost_cnt_hint -= tcp_skb_pcount(prev);
+	}
 
 	TCP_SKB_CB(skb)->flags |= TCP_SKB_CB(prev)->flags;
 	if (skb == tcp_highest_sack(sk))
