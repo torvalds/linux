@@ -1242,6 +1242,8 @@ static int tcp_check_dsack(struct sock *sk, struct sk_buff *ack_skb,
  * aligned portion of it that matches. Therefore we might need to fragment
  * which may fail and creates some hassle (caller must handle error case
  * returns).
+ *
+ * FIXME: this could be merged to shift decision code
  */
 static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 				 u32 start_seq, u32 end_seq)
@@ -1353,9 +1355,6 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 
 		if (fack_count > tp->fackets_out)
 			tp->fackets_out = fack_count;
-
-		if (!before(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
-			tcp_advance_highest_sack(sk, skb);
 	}
 
 	/* D-SACK. We can detect redundant retransmission in S|R and plain R
@@ -1370,12 +1369,231 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 	return flag;
 }
 
+static int tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
+			   struct sk_buff *skb, unsigned int pcount,
+			   int shifted, int fack_count, int *reord,
+			   int *flag, int mss)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	u8 dummy_sacked = TCP_SKB_CB(skb)->sacked;	/* We discard results */
+
+	BUG_ON(!pcount);
+
+	TCP_SKB_CB(prev)->end_seq += shifted;
+	TCP_SKB_CB(skb)->seq += shifted;
+
+	skb_shinfo(prev)->gso_segs += pcount;
+	BUG_ON(skb_shinfo(skb)->gso_segs < pcount);
+	skb_shinfo(skb)->gso_segs -= pcount;
+
+	/* When we're adding to gso_segs == 1, gso_size will be zero,
+	 * in theory this shouldn't be necessary but as long as DSACK
+	 * code can come after this skb later on it's better to keep
+	 * setting gso_size to something.
+	 */
+	if (!skb_shinfo(prev)->gso_size) {
+		skb_shinfo(prev)->gso_size = mss;
+		skb_shinfo(prev)->gso_type = sk->sk_gso_type;
+	}
+
+	/* CHECKME: To clear or not to clear? Mimics normal skb currently */
+	if (skb_shinfo(skb)->gso_segs <= 1) {
+		skb_shinfo(skb)->gso_size = 0;
+		skb_shinfo(skb)->gso_type = 0;
+	}
+
+	*flag |= tcp_sacktag_one(skb, sk, reord, 0, fack_count, &dummy_sacked,
+				 pcount);
+
+	/* Difference in this won't matter, both ACKed by the same cumul. ACK */
+	TCP_SKB_CB(prev)->sacked |= (TCP_SKB_CB(skb)->sacked & TCPCB_EVER_RETRANS);
+
+	tcp_clear_all_retrans_hints(tp);
+
+	if (skb->len > 0) {
+		BUG_ON(!tcp_skb_pcount(skb));
+		return 0;
+	}
+
+	/* Whole SKB was eaten :-) */
+
+	TCP_SKB_CB(skb)->flags |= TCP_SKB_CB(prev)->flags;
+	if (skb == tcp_highest_sack(sk))
+		tcp_advance_highest_sack(sk, skb);
+
+	tcp_unlink_write_queue(skb, sk);
+	sk_wmem_free_skb(sk, skb);
+
+	return 1;
+}
+
+/* I wish gso_size would have a bit more sane initialization than
+ * something-or-zero which complicates things
+ */
+static int tcp_shift_mss(struct sk_buff *skb)
+{
+	int mss = tcp_skb_mss(skb);
+
+	if (!mss)
+		mss = skb->len;
+
+	return mss;
+}
+
+/* Shifting pages past head area doesn't work */
+static int skb_can_shift(struct sk_buff *skb)
+{
+	return !skb_headlen(skb) && skb_is_nonlinear(skb);
+}
+
+/* Try collapsing SACK blocks spanning across multiple skbs to a single
+ * skb.
+ */
+static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
+					  u32 start_seq, u32 end_seq,
+					  int dup_sack, int *fack_count,
+					  int *reord, int *flag)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *prev;
+	int mss;
+	int pcount = 0;
+	int len;
+	int in_sack;
+
+	if (!sk_can_gso(sk))
+		goto fallback;
+
+	/* Normally R but no L won't result in plain S */
+	if (!dup_sack &&
+	    (TCP_SKB_CB(skb)->sacked & TCPCB_TAGBITS) == TCPCB_SACKED_RETRANS)
+		goto fallback;
+	if (!skb_can_shift(skb))
+		goto fallback;
+	/* This frame is about to be dropped (was ACKed). */
+	if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
+		goto fallback;
+
+	/* Can only happen with delayed DSACK + discard craziness */
+	if (unlikely(skb == tcp_write_queue_head(sk)))
+		goto fallback;
+	prev = tcp_write_queue_prev(sk, skb);
+
+	if ((TCP_SKB_CB(prev)->sacked & TCPCB_TAGBITS) != TCPCB_SACKED_ACKED)
+		goto fallback;
+
+	in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq) &&
+		  !before(end_seq, TCP_SKB_CB(skb)->end_seq);
+
+	if (in_sack) {
+		len = skb->len;
+		pcount = tcp_skb_pcount(skb);
+		mss = tcp_shift_mss(skb);
+
+		/* TODO: Fix DSACKs to not fragment already SACKed and we can
+		 * drop this restriction as unnecessary
+		 */
+		if (mss != tcp_shift_mss(prev))
+			goto fallback;
+	} else {
+		if (!after(TCP_SKB_CB(skb)->end_seq, start_seq))
+			goto noop;
+		/* CHECKME: This is non-MSS split case only?, this will
+		 * cause skipped skbs due to advancing loop btw, original
+		 * has that feature too
+		 */
+		if (tcp_skb_pcount(skb) <= 1)
+			goto noop;
+
+		in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq);
+		if (!in_sack) {
+			/* TODO: head merge to next could be attempted here
+			 * if (!after(TCP_SKB_CB(skb)->end_seq, end_seq)),
+			 * though it might not be worth of the additional hassle
+			 *
+			 * ...we can probably just fallback to what was done
+			 * previously. We could try merging non-SACKed ones
+			 * as well but it probably isn't going to buy off
+			 * because later SACKs might again split them, and
+			 * it would make skb timestamp tracking considerably
+			 * harder problem.
+			 */
+			goto fallback;
+		}
+
+		len = end_seq - TCP_SKB_CB(skb)->seq;
+		BUG_ON(len < 0);
+		BUG_ON(len > skb->len);
+
+		/* MSS boundaries should be honoured or else pcount will
+		 * severely break even though it makes things bit trickier.
+		 * Optimize common case to avoid most of the divides
+		 */
+		mss = tcp_skb_mss(skb);
+
+		/* TODO: Fix DSACKs to not fragment already SACKed and we can
+		 * drop this restriction as unnecessary
+		 */
+		if (mss != tcp_shift_mss(prev))
+			goto fallback;
+
+		if (len == mss) {
+			pcount = 1;
+		} else if (len < mss) {
+			goto noop;
+		} else {
+			pcount = len / mss;
+			len = pcount * mss;
+		}
+	}
+
+	if (!skb_shift(prev, skb, len))
+		goto fallback;
+	if (!tcp_shifted_skb(sk, prev, skb, pcount, len, *fack_count, reord,
+			     flag, mss))
+		goto out;
+
+	/* Hole filled allows collapsing with the next as well, this is very
+	 * useful when hole on every nth skb pattern happens
+	 */
+	if (prev == tcp_write_queue_tail(sk))
+		goto out;
+	skb = tcp_write_queue_next(sk, prev);
+
+	if (!skb_can_shift(skb))
+		goto out;
+	if (skb == tcp_send_head(sk))
+		goto out;
+	if ((TCP_SKB_CB(skb)->sacked & TCPCB_TAGBITS) != TCPCB_SACKED_ACKED)
+		goto out;
+
+	len = skb->len;
+	if (skb_shift(prev, skb, len)) {
+		pcount += tcp_skb_pcount(skb);
+		tcp_shifted_skb(sk, prev, skb, tcp_skb_pcount(skb), len,
+				*fack_count, reord, flag, mss);
+	}
+
+out:
+	*fack_count += pcount;
+	return prev;
+
+noop:
+	return skb;
+
+fallback:
+	return NULL;
+}
+
 static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 					struct tcp_sack_block *next_dup,
 					u32 start_seq, u32 end_seq,
 					int dup_sack_in, int *fack_count,
 					int *reord, int *flag)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *tmp;
+
 	tcp_for_write_queue_from(skb, sk) {
 		int in_sack = 0;
 		int dup_sack = dup_sack_in;
@@ -1396,17 +1614,41 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 				dup_sack = 1;
 		}
 
-		if (in_sack <= 0)
-			in_sack = tcp_match_skb_to_sack(sk, skb, start_seq,
-							end_seq);
+		/* skb reference here is a bit tricky to get right, since
+		 * shifting can eat and free both this skb and the next,
+		 * so not even _safe variant of the loop is enough.
+		 */
+		if (in_sack <= 0) {
+			tmp = tcp_shift_skb_data(sk, skb, start_seq,
+						 end_seq, dup_sack,
+						 fack_count, reord, flag);
+			if (tmp != NULL) {
+				if (tmp != skb) {
+					skb = tmp;
+					continue;
+				}
+
+				in_sack = 0;
+			} else {
+				in_sack = tcp_match_skb_to_sack(sk, skb,
+								start_seq,
+								end_seq);
+			}
+		}
+
 		if (unlikely(in_sack < 0))
 			break;
 
-		if (in_sack)
+		if (in_sack) {
 			*flag |= tcp_sacktag_one(skb, sk, reord, dup_sack,
 						 *fack_count,
 						 &(TCP_SKB_CB(skb)->sacked),
 						 tcp_skb_pcount(skb));
+
+			if (!before(TCP_SKB_CB(skb)->seq,
+				    tcp_highest_sack_seq(tp)))
+				tcp_advance_highest_sack(sk, skb);
+		}
 
 		*fack_count += tcp_skb_pcount(skb);
 	}

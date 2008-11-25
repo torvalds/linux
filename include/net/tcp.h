@@ -1192,6 +1192,11 @@ static inline struct sk_buff *tcp_write_queue_next(struct sock *sk, struct sk_bu
 	return skb_queue_next(&sk->sk_write_queue, skb);
 }
 
+static inline struct sk_buff *tcp_write_queue_prev(struct sock *sk, struct sk_buff *skb)
+{
+	return skb_queue_prev(&sk->sk_write_queue, skb);
+}
+
 #define tcp_for_write_queue(skb, sk)					\
 	skb_queue_walk(&(sk)->sk_write_queue, skb)
 
