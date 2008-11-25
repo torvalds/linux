@@ -1487,7 +1487,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 				 EM28XX_I2C_FREQ_100_KHZ);
 		/* FIXME guess */
 		/* Turn on analog audio output */
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\xfd", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
 		break;
 
 	case EM2861_BOARD_KWORLD_PVRTV_300U:
@@ -1499,9 +1499,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
 		msleep(10);
-		em28xx_write_regs(dev, 0x08, "\x6d", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0x6d);
 		msleep(10);
-		em28xx_write_regs(dev, 0x08, "\x7d", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0x7d);
 		msleep(10);
 		break;
 
@@ -1527,17 +1527,17 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 				 EM28XX_I2C_FREQ_100_KHZ);
 		/* TODO: someone can do some cleanup here...
 			 not everything's needed */
-		em28xx_write_regs(dev, 0x04, "\x00", 1);
+		em28xx_write_reg(dev, EM2880_R04_GPO, 0x00);
 		msleep(10);
-		em28xx_write_regs(dev, 0x04, "\x01", 1);
+		em28xx_write_reg(dev, EM2880_R04_GPO, 0x01);
 		msleep(10);
-		em28xx_write_regs(dev, 0x08, "\xfd", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
 		mdelay(70);
-		em28xx_write_regs(dev, 0x08, "\xfc", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfc);
 		mdelay(70);
-		em28xx_write_regs(dev, 0x08, "\xdc", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xdc);
 		mdelay(70);
-		em28xx_write_regs(dev, 0x08, "\xfc", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfc);
 		mdelay(70);
 		break;
 
@@ -1550,11 +1550,11 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 				 EM28XX_I2C_FREQ_100_KHZ);
 		/* this device needs some gpio writes to get the DVB-T
 		   demod work */
-		em28xx_write_regs(dev, 0x08, "\xfe", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
 		mdelay(70);
-		em28xx_write_regs(dev, 0x08, "\xde", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xde);
 		mdelay(70);
-		dev->em28xx_write_regs(dev, 0x08, "\xfe", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
 		mdelay(70);
 		break;
 
@@ -1565,11 +1565,11 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 		/* this device needs some gpio writes to get the
 		   DVB-T demod work */
-		em28xx_write_regs(dev, 0x08, "\xfe", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
 		mdelay(70);
-		em28xx_write_regs(dev, 0x08, "\xde", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xde);
 		mdelay(70);
-		em28xx_write_regs(dev, 0x08, "\xfe", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
 		mdelay(70);
 		/* switch em2880 rc protocol */
 		/* djh - I have serious doubts this is right... */
@@ -1587,7 +1587,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
 		/* Turn on analog audio output */
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\xfd", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
 		break;
 
 	case EM2860_BOARD_GADMEI_UTV330:
@@ -1608,7 +1608,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 				 EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ);
 		/* enables audio for that device */
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\xfd", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
 		break;
 
 	case EM2874_BOARD_PINNACLE_PCTV_80E:
@@ -1861,7 +1861,7 @@ void em28xx_card_setup(struct em28xx *dev)
 	}
 	case EM2820_BOARD_KWORLD_PVRTV2800RF:
 		/* GPIO enables sound on KWORLD PVR TV 2800RF */
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\xf9", 1);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf9);
 		break;
 	case EM2820_BOARD_UNKNOWN:
 	case EM2800_BOARD_UNKNOWN:
