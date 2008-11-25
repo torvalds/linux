@@ -14,6 +14,7 @@
  * 209 N. Fair Oaks Ave
  * Sunnyvale, CA 94085
  */
+#include <linux/delay.h>
 #include "hwlib.h"
 #include "bestatus.h"
 
