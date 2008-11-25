@@ -69,6 +69,9 @@ static int npt = 1;
 
 module_param(npt, int, S_IRUGO);
 
+static int nested = 0;
+module_param(nested, int, S_IRUGO);
+
 static void kvm_reput_irq(struct vcpu_svm *svm);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
 
@@ -442,6 +445,11 @@ static __init int svm_hardware_setup(void)
 
 	if (boot_cpu_has(X86_FEATURE_NX))
 		kvm_enable_efer_bits(EFER_NX);
+
+	if (nested) {
+		printk(KERN_INFO "kvm: Nested Virtualization enabled\n");
+		kvm_enable_efer_bits(EFER_SVME);
+	}
 
 	for_each_online_cpu(cpu) {
 		r = svm_cpu_init(cpu);
