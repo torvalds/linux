@@ -230,11 +230,6 @@ struct hso_serial {
 	struct work_struct    retry_unthrottle_workqueue;
 };
 
-struct hso_mutex_t {
-	struct mutex mutex;
-	u8 allocated;
-};
-
 struct hso_device {
 	union {
 		struct hso_serial *dev_serial;
@@ -253,7 +248,7 @@ struct hso_device {
 
 	struct device *dev;
 	struct kref ref;
-	struct hso_mutex_t *mutex;
+	struct mutex mutex;
 };
 
 /* Type of interface */
@@ -369,13 +364,6 @@ static struct hso_device *network_table[HSO_MAX_NET_DEVICES];
 static spinlock_t serial_table_lock;
 static struct ktermios *hso_serial_termios[HSO_SERIAL_TTY_MINORS];
 static struct ktermios *hso_serial_termios_locked[HSO_SERIAL_TTY_MINORS];
-/* hso_mutex_table has to be declared statically as hso_device
- * is freed in hso_serial_open & hso_serial_close while
- * the mutex is still in use.
- */
-#define HSO_NUM_MUTEXES (HSO_SERIAL_TTY_MINORS+HSO_MAX_NET_DEVICES)
-static struct hso_mutex_t hso_mutex_table[HSO_NUM_MUTEXES];
-static spinlock_t hso_mutex_lock;
 
 static const s32 default_port_spec[] = {
 	HSO_INTF_MUX | HSO_PORT_NETWORK,
@@ -614,34 +602,6 @@ static void set_serial_by_index(unsigned index, struct hso_serial *serial)
 	else
 		serial_table[index] = NULL;
 	spin_unlock_irqrestore(&serial_table_lock, flags);
-}
-
-
-static struct hso_mutex_t *hso_get_free_mutex(void)
-{
-	int index;
-	struct hso_mutex_t *curr_hso_mutex;
-
-	spin_lock(&hso_mutex_lock);
-	for (index = 0; index < HSO_NUM_MUTEXES; index++) {
-		curr_hso_mutex = &hso_mutex_table[index];
-			if (!curr_hso_mutex->allocated) {
-				curr_hso_mutex->allocated = 1;
-				spin_unlock(&hso_mutex_lock);
-				return curr_hso_mutex;
-			}
-	}
-	printk(KERN_ERR "BUG %s: no free hso_mutexs devices in table\n"
-	       , __func__);
-	spin_unlock(&hso_mutex_lock);
-	return NULL;
-}
-
-static void hso_free_mutex(struct hso_mutex_t *mutex)
-{
-	spin_lock(&hso_mutex_lock);
-	mutex->allocated = 0;
-	spin_unlock(&hso_mutex_lock);
 }
 
 /* log a meaningful explanation of an USB status */
@@ -1265,9 +1225,7 @@ void hso_unthrottle_workfunc(struct work_struct *work)
 static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 {
 	struct hso_serial *serial = get_serial_by_index(tty->index);
-	int result1 = 0, result2 = 0;
-	struct mutex *hso_mutex = NULL;
-	int   refcnt = 1;
+	int result;
 
 	/* sanity check */
 	if (serial == NULL || serial->magic != HSO_SERIAL_MAGIC) {
@@ -1276,15 +1234,14 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 		return -ENODEV;
 	}
 
-	hso_mutex = &serial->parent->mutex->mutex;
-	mutex_lock(hso_mutex);
+	mutex_lock(&serial->parent->mutex);
 	/* check for port already opened, if not set the termios */
 	/* The serial->open count needs to be here as hso_serial_close
 	 *  will be called even if hso_serial_open returns -ENODEV.
 	 */
 	serial->open_count++;
-	result1 = usb_autopm_get_interface(serial->parent->interface);
-	if (result1 < 0)
+	result = usb_autopm_get_interface(serial->parent->interface);
+	if (result < 0)
 		goto err_out;
 
 	D1("Opening %d", serial->minor);
@@ -1304,10 +1261,11 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 			     (unsigned long)serial);
 		INIT_WORK(&serial->retry_unthrottle_workqueue,
 			  hso_unthrottle_workfunc);
-		result2 = hso_start_serial_device(serial->parent, GFP_KERNEL);
-		if (result2) {
+		result = hso_start_serial_device(serial->parent, GFP_KERNEL);
+		if (result) {
 			hso_stop_serial_device(serial->parent);
 			serial->open_count--;
+			kref_put(&serial->parent->ref, hso_serial_ref_free);
 		}
 	} else {
 		D1("Port was already open");
@@ -1316,16 +1274,11 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	usb_autopm_put_interface(serial->parent->interface);
 
 	/* done */
-	if (result1)
+	if (result)
 		hso_serial_tiocmset(tty, NULL, TIOCM_RTS | TIOCM_DTR, 0);
 err_out:
-	if (result2)
-		refcnt = kref_put(&serial->parent->ref, hso_serial_ref_free);
-	mutex_unlock(hso_mutex);
-	if (refcnt == 0)
-		hso_free_mutex(container_of(hso_mutex,
-					    struct hso_mutex_t, mutex));
-	return result1 == 0 ? result2 : result1;
+	mutex_unlock(&serial->parent->mutex);
+	return result;
 }
 
 /* close the requested serial port */
@@ -1333,8 +1286,6 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 {
 	struct hso_serial *serial = tty->driver_data;
 	u8 usb_gone;
-	struct mutex *hso_mutex;
-	int refcnt;
 
 	D1("Closing serial port");
 	if (serial == NULL || serial->magic != HSO_SERIAL_MAGIC) {
@@ -1342,9 +1293,8 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 		return;
 	}
 
+	mutex_lock(&serial->parent->mutex);
 	usb_gone = serial->parent->usb_gone;
-	hso_mutex = &serial->parent->mutex->mutex;
-	mutex_lock(hso_mutex);
 
 	if (!usb_gone)
 		usb_autopm_get_interface(serial->parent->interface);
@@ -1352,6 +1302,7 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 	/* reset the rts and dtr */
 	/* do the actual close */
 	serial->open_count--;
+	kref_put(&serial->parent->ref, hso_serial_ref_free);
 	if (serial->open_count <= 0) {
 		serial->open_count = 0;
 		if (serial->tty) {
@@ -1366,11 +1317,8 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 
 	if (!usb_gone)
 		usb_autopm_put_interface(serial->parent->interface);
-	refcnt = kref_put(&serial->parent->ref, hso_serial_ref_free);
-	mutex_unlock(hso_mutex);
-	if (refcnt == 0)
-		hso_free_mutex(container_of(hso_mutex,
-					    struct hso_mutex_t, mutex));
+
+	mutex_unlock(&serial->parent->mutex);
 }
 
 /* close the requested serial port */
@@ -2136,12 +2084,8 @@ static struct hso_device *hso_create_device(struct usb_interface *intf,
 	hso_dev->usb = interface_to_usbdev(intf);
 	hso_dev->interface = intf;
 	kref_init(&hso_dev->ref);
-	hso_dev->mutex = hso_get_free_mutex();
-	if (!hso_dev->mutex) {
-		kfree(hso_dev);
-		return NULL;
-	}
-	mutex_init(&hso_dev->mutex->mutex);
+	mutex_init(&hso_dev->mutex);
+
 	INIT_WORK(&hso_dev->async_get_intf, async_get_intf);
 	INIT_WORK(&hso_dev->async_put_intf, async_put_intf);
 
@@ -2187,7 +2131,7 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 		unregister_netdev(hso_net->net);
 		free_netdev(hso_net->net);
 	}
-	hso_free_mutex(hso_dev->mutex);
+
 	hso_free_device(hso_dev);
 }
 
@@ -2236,14 +2180,14 @@ static int hso_radio_toggle(void *data, enum rfkill_state state)
 	int enabled = (state == RFKILL_STATE_ON);
 	int rv;
 
-	mutex_lock(&hso_dev->mutex->mutex);
+	mutex_lock(&hso_dev->mutex);
 	if (hso_dev->usb_gone)
 		rv = 0;
 	else
 		rv = usb_control_msg(hso_dev->usb, usb_rcvctrlpipe(hso_dev->usb, 0),
 				       enabled ? 0x82 : 0x81, 0x40, 0, 0, NULL, 0,
 				       USB_CTRL_SET_TIMEOUT);
-	mutex_unlock(&hso_dev->mutex->mutex);
+	mutex_unlock(&hso_dev->mutex);
 	return rv;
 }
 
@@ -2851,8 +2795,6 @@ static void hso_free_interface(struct usb_interface *interface)
 {
 	struct hso_serial *hso_dev;
 	int i;
-	struct mutex *hso_mutex = NULL;
-	int    refcnt = 1;
 
 	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++) {
 		if (serial_table[i]
@@ -2860,12 +2802,10 @@ static void hso_free_interface(struct usb_interface *interface)
 			hso_dev = dev2ser(serial_table[i]);
 			if (hso_dev->tty)
 				tty_hangup(hso_dev->tty);
-			hso_mutex = &hso_dev->parent->mutex->mutex;
-			mutex_lock(hso_mutex);
+			mutex_lock(&hso_dev->parent->mutex);
 			hso_dev->parent->usb_gone = 1;
-			refcnt = kref_put(&serial_table[i]->ref,
-					hso_serial_ref_free);
-			mutex_unlock(hso_mutex);
+			mutex_unlock(&hso_dev->parent->mutex);
+			kref_put(&serial_table[i]->ref, hso_serial_ref_free);
 		}
 	}
 
@@ -2884,9 +2824,6 @@ static void hso_free_interface(struct usb_interface *interface)
 			hso_free_net_device(network_table[i]);
 		}
 	}
-	if (refcnt == 0)
-		hso_free_mutex(container_of(hso_mutex,
-					    struct hso_mutex_t, mutex));
 }
 
 /* Helper functions */
@@ -2986,7 +2923,6 @@ static int __init hso_init(void)
 
 	/* Initialise the serial table semaphore and table */
 	spin_lock_init(&serial_table_lock);
-	spin_lock_init(&hso_mutex_lock);
 	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++)
 		serial_table[i] = NULL;
 
