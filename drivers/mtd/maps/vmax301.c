@@ -146,7 +146,7 @@ static void __exit cleanup_vmax301(void)
 	iounmap((void *)vmax_map[0].map_priv_1 - WINDOW_START);
 }
 
-int __init init_vmax301(void)
+static int __init init_vmax301(void)
 {
 	int i;
 	unsigned long iomapadr;
