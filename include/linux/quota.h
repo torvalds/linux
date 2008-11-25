@@ -70,6 +70,10 @@
 #define Q_GETQUOTA 0x800007	/* get user quota structure */
 #define Q_SETQUOTA 0x800008	/* set user quota structure */
 
+/* Quota format type IDs */
+#define	QFMT_VFS_OLD 1
+#define	QFMT_VFS_V0 2
+
 /* Size of block in which space limits are passed through the quota
  * interface */
 #define QIF_DQBLKSIZE_BITS 10

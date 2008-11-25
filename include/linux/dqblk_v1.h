@@ -5,9 +5,6 @@
 #ifndef _LINUX_DQBLK_V1_H
 #define _LINUX_DQBLK_V1_H
 
-/* Id of quota format */
-#define QFMT_VFS_OLD 1
-
 /* Root squash turned on */
 #define V1_DQF_RSQUASH 1
 
