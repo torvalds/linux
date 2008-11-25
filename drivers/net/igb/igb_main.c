@@ -1791,37 +1791,29 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	*/
 	rctl |= E1000_RCTL_SECRC;
 
-	rctl &= ~E1000_RCTL_SBP;
+	/*
+	 * disable store bad packets, long packet enable, and clear size bits.
+	 */
+	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_LPE | E1000_RCTL_SZ_256);
 
-	if (adapter->netdev->mtu <= ETH_DATA_LEN)
-		rctl &= ~E1000_RCTL_LPE;
-	else
-		rctl |= E1000_RCTL_LPE;
-	if (adapter->rx_buffer_len <= IGB_RXBUFFER_2048) {
+	if (adapter->netdev->mtu <= ETH_DATA_LEN) {
 		/* Setup buffer sizes */
-		rctl &= ~E1000_RCTL_SZ_4096;
-		rctl |= E1000_RCTL_BSEX;
 		switch (adapter->rx_buffer_len) {
 		case IGB_RXBUFFER_256:
 			rctl |= E1000_RCTL_SZ_256;
-			rctl &= ~E1000_RCTL_BSEX;
 			break;
 		case IGB_RXBUFFER_512:
 			rctl |= E1000_RCTL_SZ_512;
-			rctl &= ~E1000_RCTL_BSEX;
 			break;
 		case IGB_RXBUFFER_1024:
 			rctl |= E1000_RCTL_SZ_1024;
-			rctl &= ~E1000_RCTL_BSEX;
 			break;
-		case IGB_RXBUFFER_2048:
 		default:
 			rctl |= E1000_RCTL_SZ_2048;
-			rctl &= ~E1000_RCTL_BSEX;
 			break;
 		}
 	} else {
-		rctl &= ~E1000_RCTL_BSEX;
+		rctl |= E1000_RCTL_LPE;
 		srrctl = adapter->rx_buffer_len >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 	}
 
