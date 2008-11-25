@@ -1284,7 +1284,12 @@ int ip_push_pending_frames(struct sock *sk)
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-	skb->dst = dst_clone(&rt->u.dst);
+	/*
+	 * Steal rt from cork.dst to avoid a pair of atomic_inc/atomic_dec
+	 * on dst refcount
+	 */
+	inet->cork.dst = NULL;
+	skb->dst = &rt->u.dst;
 
 	if (iph->protocol == IPPROTO_ICMP)
 		icmp_out_count(net, ((struct icmphdr *)
