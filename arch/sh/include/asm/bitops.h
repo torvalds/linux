@@ -13,6 +13,9 @@
 
 #ifdef CONFIG_GUSA_RB
 #include <asm/bitops-grb.h>
+#elif defined(CONFIG_CPU_SH2A)
+#include <asm-generic/bitops/atomic.h>
+#include <asm/bitops-op32.h>
 #elif defined(CONFIG_CPU_SH4A)
 #include <asm/bitops-llsc.h>
 #else
