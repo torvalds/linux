@@ -27,6 +27,7 @@ enum trace_type {
 	TRACE_BOOT_RET,
 	TRACE_FN_RET,
 	TRACE_USER_STACK,
+	TRACE_BTS,
 
 	__TRACE_LAST_TYPE
 };
@@ -153,6 +154,12 @@ struct trace_branch {
 	char			correct;
 };
 
+struct bts_entry {
+	struct trace_entry	ent;
+	unsigned long		from;
+	unsigned long		to;
+};
+
 /*
  * trace_flag_type is an enumeration that holds different
  * states when a trace occurs. These are:
@@ -258,6 +265,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct trace_boot_ret, TRACE_BOOT_RET);\
 		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
 		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET);\
+		IF_ASSIGN(var, ent, struct bts_entry, TRACE_BTS);\
 		__ftrace_bad_type();					\
 	} while (0)
 
@@ -391,6 +399,10 @@ void trace_function(struct trace_array *tr,
 		    unsigned long flags, int pc);
 void
 trace_function_return(struct ftrace_retfunc *trace);
+
+void trace_bts(struct trace_array *tr,
+	       unsigned long from,
+	       unsigned long to);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);

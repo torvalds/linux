@@ -31,5 +31,6 @@ obj-$(CONFIG_MMIOTRACE) += trace_mmiotrace.o
 obj-$(CONFIG_BOOT_TRACER) += trace_boot.o
 obj-$(CONFIG_FUNCTION_RET_TRACER) += trace_functions_return.o
 obj-$(CONFIG_TRACE_BRANCH_PROFILING) += trace_branch.o
+obj-$(CONFIG_BTS_TRACER) += trace_bts.o
 
 libftrace-y := ftrace.o

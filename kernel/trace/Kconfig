@@ -28,6 +28,9 @@ config HAVE_DYNAMIC_FTRACE
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 
+config HAVE_HW_BRANCH_TRACER
+	bool
+
 config TRACER_MAX_TRACE
 	bool
 
@@ -232,6 +235,14 @@ config STACK_TRACER
 	  developers only.
 
 	  Say N if unsure.
+
+config BTS_TRACER
+	depends on HAVE_HW_BRANCH_TRACER
+	bool "Trace branches"
+	select TRACING
+	help
+	  This tracer records all branches on the system in a circular
+	  buffer giving access to the last N branches for each cpu.
 
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
