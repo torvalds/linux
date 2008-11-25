@@ -1339,8 +1339,9 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	wr32(E1000_RDLEN(0), rx_ring->size);
 	wr32(E1000_RDH(0), 0);
 	wr32(E1000_RDT(0), 0);
+	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
 	rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_SZ_2048 |
-		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
+		E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 	wr32(E1000_RCTL, rctl);
 	wr32(E1000_SRRCTL(0), 0);
