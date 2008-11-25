@@ -323,7 +323,7 @@ int __init ftrace_dyn_arch_init(void *data)
 }
 #endif
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
 #ifndef CONFIG_DYNAMIC_FTRACE
 
@@ -389,11 +389,11 @@ static void pop_return_trace(unsigned long *ret, unsigned long long *time,
  */
 unsigned long ftrace_return_to_handler(void)
 {
-	struct ftrace_retfunc trace;
+	struct ftrace_graph_ret trace;
 	pop_return_trace(&trace.ret, &trace.calltime, &trace.func,
 			&trace.overrun);
 	trace.rettime = cpu_clock(raw_smp_processor_id());
-	ftrace_function_return(&trace);
+	ftrace_graph_function(&trace);
 
 	return trace.ret;
 }
@@ -440,12 +440,12 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	);
 
 	if (WARN_ON(faulted)) {
-		unregister_ftrace_return();
+		unregister_ftrace_graph();
 		return;
 	}
 
 	if (WARN_ON(!__kernel_text_address(old))) {
-		unregister_ftrace_return();
+		unregister_ftrace_graph();
 		*parent = old;
 		return;
 	}
@@ -456,4 +456,4 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		*parent = old;
 }
 
-#endif /* CONFIG_FUNCTION_RET_TRACER */
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */

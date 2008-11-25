@@ -57,7 +57,7 @@ struct ftrace_entry {
 };
 
 /* Function return entry */
-struct ftrace_ret_entry {
+struct ftrace_graph_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
 	unsigned long		parent_ip;
@@ -264,7 +264,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct trace_boot_call, TRACE_BOOT_CALL);\
 		IF_ASSIGN(var, ent, struct trace_boot_ret, TRACE_BOOT_RET);\
 		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
-		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET);\
+		IF_ASSIGN(var, ent, struct ftrace_graph_entry, TRACE_FN_RET);\
 		IF_ASSIGN(var, ent, struct bts_entry, TRACE_BTS);\
 		__ftrace_bad_type();					\
 	} while (0)
@@ -398,7 +398,7 @@ void trace_function(struct trace_array *tr,
 		    unsigned long parent_ip,
 		    unsigned long flags, int pc);
 void
-trace_function_return(struct ftrace_retfunc *trace);
+trace_function_graph(struct ftrace_graph_ret *trace);
 
 void trace_bts(struct trace_array *tr,
 	       unsigned long from,
@@ -489,11 +489,11 @@ extern int trace_vprintk(unsigned long ip, const char *fmt, va_list args);
 extern unsigned long trace_flags;
 
 /* Standard output formatting function used for function return traces */
-#ifdef CONFIG_FUNCTION_RET_TRACER
-extern enum print_line_t print_return_function(struct trace_iterator *iter);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+extern enum print_line_t print_graph_function(struct trace_iterator *iter);
 #else
 static inline enum print_line_t
-print_return_function(struct trace_iterator *iter)
+print_graph_function(struct trace_iterator *iter)
 {
 	return TRACE_TYPE_UNHANDLED;
 }

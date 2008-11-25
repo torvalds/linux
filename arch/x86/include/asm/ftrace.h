@@ -28,7 +28,7 @@ struct dyn_arch_ftrace {
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_FUNCTION_TRACER */
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
 #ifndef __ASSEMBLY__
 
@@ -51,6 +51,6 @@ struct ftrace_ret_stack {
 extern void return_to_handler(void);
 
 #endif /* __ASSEMBLY__ */
-#endif /* CONFIG_FUNCTION_RET_TRACER */
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #endif /* _ASM_X86_FTRACE_H */

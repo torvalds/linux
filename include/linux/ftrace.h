@@ -115,8 +115,8 @@ extern int ftrace_update_ftrace_func(ftrace_func_t func);
 extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
-#ifdef CONFIG_FUNCTION_RET_TRACER
-extern void ftrace_return_caller(void);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+extern void ftrace_graph_caller(void);
 #endif
 
 /**
@@ -315,7 +315,7 @@ ftrace_init_module(struct module *mod,
 /*
  * Structure that defines a return function trace.
  */
-struct ftrace_retfunc {
+struct ftrace_graph_ret {
 	unsigned long ret; /* Return address */
 	unsigned long func; /* Current function */
 	unsigned long long calltime;
@@ -324,22 +324,22 @@ struct ftrace_retfunc {
 	unsigned long overrun;
 };
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define FTRACE_RETFUNC_DEPTH 50
 #define FTRACE_RETSTACK_ALLOC_SIZE 32
 /* Type of a callback handler of tracing return function */
-typedef void (*trace_function_return_t)(struct ftrace_retfunc *);
+typedef void (*trace_function_graph_t)(struct ftrace_graph_ret *);
 
-extern int register_ftrace_return(trace_function_return_t func);
+extern int register_ftrace_graph(trace_function_graph_t func);
 /* The current handler in use */
-extern trace_function_return_t ftrace_function_return;
-extern void unregister_ftrace_return(void);
+extern trace_function_graph_t ftrace_graph_function;
+extern void unregister_ftrace_graph(void);
 
-extern void ftrace_retfunc_init_task(struct task_struct *t);
-extern void ftrace_retfunc_exit_task(struct task_struct *t);
+extern void ftrace_graph_init_task(struct task_struct *t);
+extern void ftrace_graph_exit_task(struct task_struct *t);
 #else
-static inline void ftrace_retfunc_init_task(struct task_struct *t) { }
-static inline void ftrace_retfunc_exit_task(struct task_struct *t) { }
+static inline void ftrace_graph_init_task(struct task_struct *t) { }
+static inline void ftrace_graph_exit_task(struct task_struct *t) { }
 #endif
 
 #endif /* _LINUX_FTRACE_H */

@@ -878,15 +878,15 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 }
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
-static void __trace_function_return(struct trace_array *tr,
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static void __trace_function_graph(struct trace_array *tr,
 				struct trace_array_cpu *data,
-				struct ftrace_retfunc *trace,
+				struct ftrace_graph_ret *trace,
 				unsigned long flags,
 				int pc)
 {
 	struct ring_buffer_event *event;
-	struct ftrace_ret_entry *entry;
+	struct ftrace_graph_entry *entry;
 	unsigned long irq_flags;
 
 	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
@@ -1177,8 +1177,8 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	local_irq_restore(flags);
 }
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
-void trace_function_return(struct ftrace_retfunc *trace)
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+void trace_function_graph(struct ftrace_graph_ret *trace)
 {
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
@@ -1193,12 +1193,12 @@ void trace_function_return(struct ftrace_retfunc *trace)
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
-		__trace_function_return(tr, data, trace, flags, pc);
+		__trace_function_graph(tr, data, trace, flags, pc);
 	}
 	atomic_dec(&data->disabled);
 	raw_local_irq_restore(flags);
 }
-#endif /* CONFIG_FUNCTION_RET_TRACER */
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 static struct ftrace_ops trace_ops __read_mostly =
 {
@@ -2001,7 +2001,7 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 		break;
 	}
 	case TRACE_FN_RET: {
-		return print_return_function(iter);
+		return print_graph_function(iter);
 		break;
 	}
 	case TRACE_BRANCH: {

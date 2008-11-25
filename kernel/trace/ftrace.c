@@ -395,11 +395,11 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 	unsigned long ip, fl;
 	unsigned long ftrace_addr;
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (ftrace_tracing_type == FTRACE_TYPE_ENTER)
 		ftrace_addr = (unsigned long)ftrace_caller;
 	else
-		ftrace_addr = (unsigned long)ftrace_return_caller;
+		ftrace_addr = (unsigned long)ftrace_graph_caller;
 #else
 	ftrace_addr = (unsigned long)ftrace_caller;
 #endif
@@ -1496,13 +1496,13 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	return ret;
 }
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
 static atomic_t ftrace_retfunc_active;
 
 /* The callback that hooks the return of a function */
-trace_function_return_t ftrace_function_return =
-			(trace_function_return_t)ftrace_stub;
+trace_function_graph_t ftrace_graph_function =
+			(trace_function_graph_t)ftrace_stub;
 
 
 /* Try to assign a return stack array on FTRACE_RETSTACK_ALLOC_SIZE tasks. */
@@ -1549,7 +1549,7 @@ free:
 }
 
 /* Allocate a return stack for each task */
-static int start_return_tracing(void)
+static int start_graph_tracing(void)
 {
 	struct ftrace_ret_stack **ret_stack_list;
 	int ret;
@@ -1569,7 +1569,7 @@ static int start_return_tracing(void)
 	return ret;
 }
 
-int register_ftrace_return(trace_function_return_t func)
+int register_ftrace_graph(trace_function_graph_t func)
 {
 	int ret = 0;
 
@@ -1584,13 +1584,13 @@ int register_ftrace_return(trace_function_return_t func)
 		goto out;
 	}
 	atomic_inc(&ftrace_retfunc_active);
-	ret = start_return_tracing();
+	ret = start_graph_tracing();
 	if (ret) {
 		atomic_dec(&ftrace_retfunc_active);
 		goto out;
 	}
 	ftrace_tracing_type = FTRACE_TYPE_RETURN;
-	ftrace_function_return = func;
+	ftrace_graph_function = func;
 	ftrace_startup();
 
 out:
@@ -1598,12 +1598,12 @@ out:
 	return ret;
 }
 
-void unregister_ftrace_return(void)
+void unregister_ftrace_graph(void)
 {
 	mutex_lock(&ftrace_sysctl_lock);
 
 	atomic_dec(&ftrace_retfunc_active);
-	ftrace_function_return = (trace_function_return_t)ftrace_stub;
+	ftrace_graph_function = (trace_function_graph_t)ftrace_stub;
 	ftrace_shutdown();
 	/* Restore normal tracing type */
 	ftrace_tracing_type = FTRACE_TYPE_ENTER;
@@ -1612,7 +1612,7 @@ void unregister_ftrace_return(void)
 }
 
 /* Allocate a return stack for newly created task */
-void ftrace_retfunc_init_task(struct task_struct *t)
+void ftrace_graph_init_task(struct task_struct *t)
 {
 	if (atomic_read(&ftrace_retfunc_active)) {
 		t->ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
@@ -1626,7 +1626,7 @@ void ftrace_retfunc_init_task(struct task_struct *t)
 		t->ret_stack = NULL;
 }
 
-void ftrace_retfunc_exit_task(struct task_struct *t)
+void ftrace_graph_exit_task(struct task_struct *t)
 {
 	struct ftrace_ret_stack	*ret_stack = t->ret_stack;
 
