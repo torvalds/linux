@@ -3358,7 +3358,6 @@ int snd_hda_suspend(struct hda_bus *bus, pm_message_t state)
 /**
  * snd_hda_resume - resume the codecs
  * @bus: the HDA bus
- * @state: resume state
  *
  * Returns 0 if successful.
  *
