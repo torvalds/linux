@@ -1402,7 +1402,7 @@ static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
 		if (skb == tcp_send_head(sk))
 			break;
 
-		if (!before(TCP_SKB_CB(skb)->end_seq, skip_to_seq))
+		if (after(TCP_SKB_CB(skb)->end_seq, skip_to_seq))
 			break;
 
 		*fack_count += tcp_skb_pcount(skb);
