@@ -816,13 +816,21 @@ static const struct ds_configuration ds_cfg_var = {
 	.sizeof_ds    = sizeof(long) * 12,
 	.sizeof_field = sizeof(long),
 	.sizeof_rec[ds_bts]   = sizeof(long) * 3,
+#ifdef __i386__
 	.sizeof_rec[ds_pebs]  = sizeof(long) * 10
+#else
+	.sizeof_rec[ds_pebs]  = sizeof(long) * 18
+#endif
 };
 static const struct ds_configuration ds_cfg_64 = {
 	.sizeof_ds    = 8 * 12,
 	.sizeof_field = 8,
 	.sizeof_rec[ds_bts]   = 8 * 3,
+#ifdef __i386__
 	.sizeof_rec[ds_pebs]  = 8 * 10
+#else
+	.sizeof_rec[ds_pebs]  = 8 * 18
+#endif
 };
 
 static inline void
