@@ -718,6 +718,16 @@ static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 	to_svm(vcpu)->vmcb->save.rflags = rflags;
 }
 
+static void svm_set_vintr(struct vcpu_svm *svm)
+{
+	svm->vmcb->control.intercept |= 1ULL << INTERCEPT_VINTR;
+}
+
+static void svm_clear_vintr(struct vcpu_svm *svm)
+{
+	svm->vmcb->control.intercept &= ~(1ULL << INTERCEPT_VINTR);
+}
+
 static struct vmcb_seg *svm_seg(struct kvm_vcpu *vcpu, int seg)
 {
 	struct vmcb_save_area *save = &to_svm(vcpu)->vmcb->save;
@@ -1380,7 +1390,7 @@ static int interrupt_window_interception(struct vcpu_svm *svm,
 {
 	KVMTRACE_0D(PEND_INTR, &svm->vcpu, handler);
 
-	svm->vmcb->control.intercept &= ~(1ULL << INTERCEPT_VINTR);
+	svm_clear_vintr(svm);
 	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
 	/*
 	 * If the user space waits to inject interrupts, exit as soon as
@@ -1593,7 +1603,7 @@ static void svm_intr_assist(struct kvm_vcpu *vcpu)
 	    (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) ||
 	    (vmcb->control.event_inj & SVM_EVTINJ_VALID)) {
 		/* unable to deliver irq, set pending irq */
-		vmcb->control.intercept |= (1ULL << INTERCEPT_VINTR);
+		svm_set_vintr(svm);
 		svm_inject_irq(svm, 0x0);
 		goto out;
 	}
@@ -1652,9 +1662,9 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 	 */
 	if (!svm->vcpu.arch.interrupt_window_open &&
 	    (svm->vcpu.arch.irq_summary || kvm_run->request_interrupt_window))
-		control->intercept |= 1ULL << INTERCEPT_VINTR;
-	 else
-		control->intercept &= ~(1ULL << INTERCEPT_VINTR);
+		svm_set_vintr(svm);
+	else
+		svm_clear_vintr(svm);
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
