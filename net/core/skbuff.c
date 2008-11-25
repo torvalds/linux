@@ -2018,7 +2018,10 @@ void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len)
 		skb_split_no_header(skb, skb1, len, pos);
 }
 
-/* Shifting from/to a cloned skb is a no-go. */
+/* Shifting from/to a cloned skb is a no-go.
+ *
+ * Caller cannot keep skb_shinfo related pointers past calling here!
+ */
 static int skb_prepare_for_shift(struct sk_buff *skb)
 {
 	return skb_cloned(skb) && pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
@@ -2070,6 +2073,8 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 			    skb_prepare_for_shift(tgt))
 				return 0;
 
+			/* All previous frag pointers might be stale! */
+			fragfrom = &skb_shinfo(skb)->frags[from];
 			fragto = &skb_shinfo(tgt)->frags[merge];
 
 			fragto->size += shiftlen;
