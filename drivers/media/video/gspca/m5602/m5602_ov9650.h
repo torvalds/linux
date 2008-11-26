@@ -128,8 +128,6 @@ int ov9650_power_down(struct sd *sd);
 
 int ov9650_read_sensor(struct sd *sd, const u8 address,
 		       u8 *i2c_data, const u8 len);
-int ov9650_write_sensor(struct sd *sd, const u8 address,
-			u8 *i2c_data, const u8 len);
 
 int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);

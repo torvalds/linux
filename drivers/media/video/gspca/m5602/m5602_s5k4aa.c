@@ -159,50 +159,6 @@ out:
 	return err;
 }
 
-int s5k4aa_write_sensor(struct sd *sd, const u8 address,
-			u8 *i2c_data, const u8 len)
-{
-	int err, i;
-	u8 *p;
-	struct usb_device *udev = sd->gspca_dev.dev;
-	__u8 *buf = sd->gspca_dev.usb_buf;
-
-	/* No sensor with a data width larger than 16 bits has yet been seen */
-	if (len > 2 || !len)
-		return -EINVAL;
-
-	memcpy(buf, sensor_urb_skeleton,
-	       sizeof(sensor_urb_skeleton));
-
-	buf[11] = sd->sensor->i2c_slave_id;
-	buf[15] = address;
-
-	/* Special case larger sensor writes */
-	p = buf + 16;
-
-	/* Copy a four byte write sequence for each byte to be written to */
-	for (i = 0; i < len; i++) {
-		memcpy(p, sensor_urb_skeleton + 16, 4);
-		p[3] = i2c_data[i];
-		p += 4;
-		PDEBUG(D_CONF, "Writing sensor register 0x%x with 0x%x",
-		       address, i2c_data[i]);
-	}
-
-	/* Copy the tailer */
-	memcpy(p, sensor_urb_skeleton + 20, 4);
-
-	/* Set the total length */
-	p[3] = 0x10 + len;
-
-	err = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-			      0x04, 0x40, 0x19,
-			      0x0000, buf,
-			      20 + len * 4, M5602_URB_MSG_TIMEOUT);
-
-	return (err < 0) ? err : 0;
-}
-
 int s5k4aa_init(struct sd *sd)
 {
 	int i, err = 0;

@@ -90,9 +90,6 @@ int mt9m111_power_down(struct sd *sd);
 int mt9m111_read_sensor(struct sd *sd, const u8 address,
 			u8 *i2c_data, const u8 len);
 
-int mt9m111_write_sensor(struct sd *sd, const u8 address,
-			 u8 *i2c_data, const u8 len);
-
 int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
 int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);

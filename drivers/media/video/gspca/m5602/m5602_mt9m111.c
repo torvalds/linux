@@ -266,50 +266,6 @@ out:
 	return err;
 }
 
-int mt9m111_write_sensor(struct sd *sd, const u8 address,
-				u8 *i2c_data, const u8 len)
-{
-	int err, i;
-	u8 *p;
-	struct usb_device *udev = sd->gspca_dev.dev;
-	__u8 *buf = sd->gspca_dev.usb_buf;
-
-	/* No sensor with a data width larger
-	   than 16 bits has yet been seen, nor with 0 :p*/
-	if (len > 2 || !len)
-		return -EINVAL;
-
-	memcpy(buf, sensor_urb_skeleton,
-	       sizeof(sensor_urb_skeleton));
-
-	buf[11] = sd->sensor->i2c_slave_id;
-	buf[15] = address;
-
-	p = buf + 16;
-
-	/* Copy a four byte write sequence for each byte to be written to */
-	for (i = 0; i < len; i++) {
-		memcpy(p, sensor_urb_skeleton + 16, 4);
-		p[3] = i2c_data[i];
-		p += 4;
-		PDEBUG(D_CONF, "Writing sensor register 0x%x with 0x%x",
-		       address, i2c_data[i]);
-	}
-
-	/* Copy the tailer */
-	memcpy(p, sensor_urb_skeleton + 20, 4);
-
-	/* Set the total length */
-	p[3] = 0x10 + len;
-
-	err = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-			      0x04, 0x40, 0x19,
-			      0x0000, buf,
-			      20 + len * 4, M5602_URB_MSG_TIMEOUT);
-
-	return (err < 0) ? err : 0;
-}
-
 static void mt9m111_dump_registers(struct sd *sd)
 {
 	u8 address, value[2] = {0x00, 0x00};
