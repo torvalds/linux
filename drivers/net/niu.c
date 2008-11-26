@@ -738,7 +738,7 @@ static int esr_write_glue0(struct niu *np, unsigned long chan, u32 val)
 
 static int esr_reset(struct niu *np)
 {
-	u32 reset;
+	u32 uninitialized_var(reset);
 	int err;
 
 	err = mdio_write(np, np->port, NIU_ESR_DEV_ADDR,
