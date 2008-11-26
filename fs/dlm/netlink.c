@@ -127,8 +127,8 @@ static void fill_data(struct dlm_lock_data *data, struct dlm_lkb *lkb)
 
 void dlm_timeout_warn(struct dlm_lkb *lkb)
 {
+	struct sk_buff *uninitialized_var(send_skb);
 	struct dlm_lock_data *data;
-	struct sk_buff *send_skb;
 	size_t size;
 	int rv;
 
