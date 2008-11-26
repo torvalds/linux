@@ -1207,6 +1207,7 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	irqreturn_t (*handler)(int, void *);
 	int i, vector, q_vectors, err;
+	int ri=0, ti=0;
 
 	/* Decrement for Other and TCP Timer vectors */
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
@@ -1221,10 +1222,19 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
                          &ixgbe_msix_clean_many)
 	for (vector = 0; vector < q_vectors; vector++) {
 		handler = SET_HANDLER(&adapter->q_vector[vector]);
-		sprintf(adapter->name[vector], "%s:v%d-%s",
-		        netdev->name, vector,
-		        (handler == &ixgbe_msix_clean_rx) ? "Rx" :
-		         ((handler == &ixgbe_msix_clean_tx) ? "Tx" : "TxRx"));
+
+		if(handler == &ixgbe_msix_clean_rx) {
+			sprintf(adapter->name[vector], "%s-%s-%d",
+				netdev->name, "rx", ri++);
+		}
+		else if(handler == &ixgbe_msix_clean_tx) {
+			sprintf(adapter->name[vector], "%s-%s-%d",
+				netdev->name, "tx", ti++);
+		}
+		else
+			sprintf(adapter->name[vector], "%s-%s-%d",
+				netdev->name, "TxRx", vector);
+
 		err = request_irq(adapter->msix_entries[vector].vector,
 		                  handler, 0, adapter->name[vector],
 		                  &(adapter->q_vector[vector]));
