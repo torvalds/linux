@@ -3521,18 +3521,15 @@ static int ext4_ui_proc_open(struct inode *inode, struct file *file)
 static ssize_t ext4_ui_proc_write(struct file *file, const char __user *buf,
 			       size_t cnt, loff_t *ppos)
 {
-	unsigned int *p = PDE(file->f_path.dentry->d_inode)->data;
+	unsigned long *p = PDE(file->f_path.dentry->d_inode)->data;
 	char str[32];
-	unsigned long value;
 
 	if (cnt >= sizeof(str))
 		return -EINVAL;
 	if (copy_from_user(str, buf, cnt))
 		return -EFAULT;
-	value = simple_strtol(str, NULL, 0);
-	if (value < 0)
-		return -ERANGE;
-	*p = value;
+
+	*p = simple_strtoul(str, NULL, 0);
 	return cnt;
 }
 
