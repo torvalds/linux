@@ -48,7 +48,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		subdevice=PCI_ANY_ID, class=0, class_mask=0;
 	unsigned long driver_data=0;
 	int fields=0;
-	int retval;
+	int retval=0;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x %lx",
 			&vendor, &device, &subvendor, &subdevice,
@@ -58,16 +58,18 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 
 	/* Only accept driver_data values that match an existing id_table
 	   entry */
-	retval = -EINVAL;
-	while (ids->vendor || ids->subvendor || ids->class_mask) {
-		if (driver_data == ids->driver_data) {
-			retval = 0;
-			break;
+	if (ids) {
+		retval = -EINVAL;
+		while (ids->vendor || ids->subvendor || ids->class_mask) {
+			if (driver_data == ids->driver_data) {
+				retval = 0;
+				break;
+			}
+			ids++;
 		}
-		ids++;
+		if (retval)	/* No match */
+			return retval;
 	}
-	if (retval)	/* No match */
-		return retval;
 
 	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
 	if (!dynid)
