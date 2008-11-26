@@ -2077,8 +2077,7 @@ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
  * when allocating for the kmalloc_node_cache. This is used for bootstrapping
  * memory on a fresh node that has no slab structures yet.
  */
-static struct kmem_cache_node *early_kmem_cache_node_alloc(gfp_t gfpflags,
-							   int node)
+static void early_kmem_cache_node_alloc(gfp_t gfpflags, int node)
 {
 	struct page *page;
 	struct kmem_cache_node *n;
@@ -2116,7 +2115,6 @@ static struct kmem_cache_node *early_kmem_cache_node_alloc(gfp_t gfpflags,
 	local_irq_save(flags);
 	add_partial(n, page, 0);
 	local_irq_restore(flags);
-	return n;
 }
 
 static void free_kmem_cache_nodes(struct kmem_cache *s)
@@ -2148,8 +2146,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
 			n = &s->local_node;
 		else {
 			if (slab_state == DOWN) {
-				n = early_kmem_cache_node_alloc(gfpflags,
-								node);
+				early_kmem_cache_node_alloc(gfpflags, node);
 				continue;
 			}
 			n = kmem_cache_alloc_node(kmalloc_caches,
