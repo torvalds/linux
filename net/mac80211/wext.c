@@ -135,48 +135,6 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 
-static int ieee80211_ioctl_giwname(struct net_device *dev,
-				   struct iw_request_info *info,
-				   char *name, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_supported_band *sband;
-	u8 is_ht = 0, is_a = 0, is_b = 0, is_g = 0;
-
-
-	sband = local->hw.wiphy->bands[IEEE80211_BAND_5GHZ];
-	if (sband) {
-		is_a = 1;
-		is_ht |= sband->ht_cap.ht_supported;
-	}
-
-	sband = local->hw.wiphy->bands[IEEE80211_BAND_2GHZ];
-	if (sband) {
-		int i;
-		/* Check for mandatory rates */
-		for (i = 0; i < sband->n_bitrates; i++) {
-			if (sband->bitrates[i].bitrate == 10)
-				is_b = 1;
-			if (sband->bitrates[i].bitrate == 60)
-				is_g = 1;
-		}
-		is_ht |= sband->ht_cap.ht_supported;
-	}
-
-	strcpy(name, "IEEE 802.11");
-	if (is_a)
-		strcat(name, "a");
-	if (is_b)
-		strcat(name, "b");
-	if (is_g)
-		strcat(name, "g");
-	if (is_ht)
-		strcat(name, "n");
-
-	return 0;
-}
-
-
 static int ieee80211_ioctl_giwrange(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_point *data, char *extra)
@@ -1146,7 +1104,7 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 static const iw_handler ieee80211_handler[] =
 {
 	(iw_handler) NULL,				/* SIOCSIWCOMMIT */
-	(iw_handler) ieee80211_ioctl_giwname,		/* SIOCGIWNAME */
+	(iw_handler) cfg80211_wext_giwname,		/* SIOCGIWNAME */
 	(iw_handler) NULL,				/* SIOCSIWNWID */
 	(iw_handler) NULL,				/* SIOCGIWNWID */
 	(iw_handler) ieee80211_ioctl_siwfreq,		/* SIOCSIWFREQ */

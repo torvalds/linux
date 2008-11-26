@@ -5,6 +5,8 @@
 #include <linux/skbuff.h>
 #include <linux/nl80211.h>
 #include <net/genetlink.h>
+/* remove once we remove the wext stuff */
+#include <net/iw_handler.h>
 
 /*
  * 802.11 configuration in-kernel interface
@@ -523,5 +525,10 @@ struct cfg80211_ops {
 			       struct ieee80211_channel *chan,
 			       enum nl80211_sec_chan_offset);
 };
+
+/* temporary wext handlers */
+int cfg80211_wext_giwname(struct net_device *dev,
+			  struct iw_request_info *info,
+			  char *name, char *extra);
 
 #endif /* __NET_CFG80211_H */
