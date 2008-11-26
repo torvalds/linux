@@ -130,6 +130,9 @@ struct xfrm_state_walk {
 /* Full description of state of transformer. */
 struct xfrm_state
 {
+#ifdef CONFIG_NET_NS
+	struct net		*xs_net;
+#endif
 	union {
 		struct hlist_node	gclist;
 		struct hlist_node	bydst;
@@ -222,6 +225,11 @@ struct xfrm_state
 	 * interpreted by xfrm_type methods. */
 	void			*data;
 };
+
+static inline struct net *xs_net(struct xfrm_state *x)
+{
+	return read_pnet(&x->xs_net);
+}
 
 /* xflags - make enum if more show up */
 #define XFRM_TIME_DEFER	1
@@ -1296,7 +1304,7 @@ extern void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto);
 extern int xfrm_state_walk(struct xfrm_state_walk *walk,
 			   int (*func)(struct xfrm_state *, int, void*), void *);
 extern void xfrm_state_walk_done(struct xfrm_state_walk *walk);
-extern struct xfrm_state *xfrm_state_alloc(void);
+extern struct xfrm_state *xfrm_state_alloc(struct net *net);
 extern struct xfrm_state *xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
 					  struct flowi *fl, struct xfrm_tmpl *tmpl,
 					  struct xfrm_policy *pol, int *err,

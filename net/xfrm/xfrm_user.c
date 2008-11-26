@@ -320,7 +320,7 @@ static struct xfrm_state *xfrm_state_construct(struct xfrm_usersa_info *p,
 					       struct nlattr **attrs,
 					       int *errp)
 {
-	struct xfrm_state *x = xfrm_state_alloc();
+	struct xfrm_state *x = xfrm_state_alloc(&init_net);
 	int err = -ENOMEM;
 
 	if (!x)
@@ -1663,7 +1663,7 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct nlattr *rt = attrs[XFRMA_TMPL];
 
 	struct xfrm_user_acquire *ua = nlmsg_data(nlh);
-	struct xfrm_state *x = xfrm_state_alloc();
+	struct xfrm_state *x = xfrm_state_alloc(&init_net);
 	int err = -ENOMEM;
 
 	if (!x)

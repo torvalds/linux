@@ -504,13 +504,14 @@ out:
 
 static void xfrm_replay_timer_handler(unsigned long data);
 
-struct xfrm_state *xfrm_state_alloc(void)
+struct xfrm_state *xfrm_state_alloc(struct net *net)
 {
 	struct xfrm_state *x;
 
 	x = kzalloc(sizeof(struct xfrm_state), GFP_ATOMIC);
 
 	if (x) {
+		write_pnet(&x->xs_net, net);
 		atomic_set(&x->refcnt, 1);
 		atomic_set(&x->tunnel_users, 0);
 		INIT_LIST_HEAD(&x->km.all);
@@ -835,7 +836,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			error = -EEXIST;
 			goto out;
 		}
-		x = xfrm_state_alloc();
+		x = xfrm_state_alloc(&init_net);
 		if (x == NULL) {
 			error = -ENOMEM;
 			goto out;
@@ -1017,7 +1018,7 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 	if (!create)
 		return NULL;
 
-	x = xfrm_state_alloc();
+	x = xfrm_state_alloc(&init_net);
 	if (likely(x)) {
 		switch (family) {
 		case AF_INET:
@@ -1125,7 +1126,7 @@ EXPORT_SYMBOL(xfrm_state_add);
 static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 {
 	int err = -ENOMEM;
-	struct xfrm_state *x = xfrm_state_alloc();
+	struct xfrm_state *x = xfrm_state_alloc(&init_net);
 	if (!x)
 		goto error;
 

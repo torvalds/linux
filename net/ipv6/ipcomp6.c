@@ -76,7 +76,7 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 {
 	struct xfrm_state *t = NULL;
 
-	t = xfrm_state_alloc();
+	t = xfrm_state_alloc(&init_net);
 	if (!t)
 		goto out;
 

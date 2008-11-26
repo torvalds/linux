@@ -1122,7 +1122,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 	     (key->sadb_key_bits+7) / 8 > key->sadb_key_len * sizeof(uint64_t)))
 		return ERR_PTR(-EINVAL);
 
-	x = xfrm_state_alloc();
+	x = xfrm_state_alloc(&init_net);
 	if (x == NULL)
 		return ERR_PTR(-ENOBUFS);
 
