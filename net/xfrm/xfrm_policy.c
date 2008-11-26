@@ -2441,8 +2441,22 @@ out_byidx:
 
 static void xfrm_policy_fini(struct net *net)
 {
+	struct xfrm_audit audit_info;
 	unsigned int sz;
 	int dir;
+
+	flush_work(&net->xfrm.policy_hash_work);
+#ifdef CONFIG_XFRM_SUB_POLICY
+	audit_info.loginuid = -1;
+	audit_info.sessionid = -1;
+	audit_info.secid = 0;
+	xfrm_policy_flush(net, XFRM_POLICY_TYPE_SUB, &audit_info);
+#endif
+	audit_info.loginuid = -1;
+	audit_info.sessionid = -1;
+	audit_info.secid = 0;
+	xfrm_policy_flush(net, XFRM_POLICY_TYPE_MAIN, &audit_info);
+	flush_work(&xfrm_policy_gc_work);
 
 	WARN_ON(!list_empty(&net->xfrm.policy_all));
 
