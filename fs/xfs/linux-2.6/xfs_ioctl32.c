@@ -563,6 +563,46 @@ xfs_compat_attrmulti_by_handle(
 	return -error;
 }
 
+STATIC int
+xfs_compat_fssetdm_by_handle(
+	xfs_mount_t		*mp,
+	void			__user *arg,
+	struct inode		*parinode)
+{
+	int			error;
+	struct fsdmidata	fsd;
+	compat_xfs_fsop_setdm_handlereq_t dmhreq;
+	struct inode		*inode;
+
+	if (!capable(CAP_MKNOD))
+		return -XFS_ERROR(EPERM);
+	if (copy_from_user(&dmhreq, arg,
+			   sizeof(compat_xfs_fsop_setdm_handlereq_t)))
+		return -XFS_ERROR(EFAULT);
+
+	error = xfs_vget_fsop_handlereq_compat(mp, parinode, &dmhreq.hreq,
+					       &inode);
+	if (error)
+		return -error;
+
+	if (IS_IMMUTABLE(inode) || IS_APPEND(inode)) {
+		error = -XFS_ERROR(EPERM);
+		goto out;
+	}
+
+	if (copy_from_user(&fsd, compat_ptr(dmhreq.data), sizeof(fsd))) {
+		error = -XFS_ERROR(EFAULT);
+		goto out;
+	}
+
+	error = -xfs_set_dmattrs(XFS_I(inode), fsd.fsd_dmevmask,
+				 fsd.fsd_dmstate);
+
+out:
+	iput(inode);
+	return error;
+}
+
 STATIC long
 xfs_compat_ioctl(
 	xfs_inode_t	*ip,
@@ -586,7 +626,6 @@ xfs_compat_ioctl(
 	case XFS_IOC_GETBMAP:
 	case XFS_IOC_GETBMAPA:
 	case XFS_IOC_GETBMAPX:
-/*	case XFS_IOC_FSSETDM_BY_HANDLE: not handled */
 	case XFS_IOC_FSCOUNTS:
 	case XFS_IOC_SET_RESBLKS:
 	case XFS_IOC_GET_RESBLKS:
@@ -696,6 +735,8 @@ xfs_compat_ioctl(
 		return xfs_compat_attrlist_by_handle(mp, arg, inode);
 	case XFS_IOC_ATTRMULTI_BY_HANDLE_32:
 		return xfs_compat_attrmulti_by_handle(mp, arg, inode);
+	case XFS_IOC_FSSETDM_BY_HANDLE_32:
+		return xfs_compat_fssetdm_by_handle(mp, arg, inode);
 	default:
 		return -XFS_ERROR(ENOIOCTLCMD);
 	}

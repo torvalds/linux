@@ -155,6 +155,15 @@ typedef struct compat_xfs_fsop_attrmulti_handlereq {
 #define XFS_IOC_ATTRMULTI_BY_HANDLE_32 \
 	_IOW('X', 123, struct compat_xfs_fsop_attrmulti_handlereq)
 
+typedef struct compat_xfs_fsop_setdm_handlereq {
+	struct compat_xfs_fsop_handlereq hreq;	/* handle information   */
+	/* ptr to struct fsdmidata */
+	compat_uptr_t			data;	/* DMAPI data   */
+} compat_xfs_fsop_setdm_handlereq_t;
+
+#define XFS_IOC_FSSETDM_BY_HANDLE_32 \
+	_IOW('X', 121, struct compat_xfs_fsop_setdm_handlereq)
+
 #ifdef BROKEN_X86_ALIGNMENT
 /* on ia32 l_start is on a 32-bit boundary */
 typedef struct compat_xfs_flock64 {
