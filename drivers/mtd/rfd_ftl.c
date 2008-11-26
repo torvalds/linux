@@ -21,8 +21,6 @@
 
 #include <asm/types.h>
 
-#define const_cpu_to_le16	__constant_cpu_to_le16
-
 static int block_size = 0;
 module_param(block_size, int, 0);
 MODULE_PARM_DESC(block_size, "Block size to use by RFD, defaults to erase unit size");
@@ -298,7 +296,7 @@ static void erase_callback(struct erase_info *erase)
 		return;
 	}
 
-	magic = const_cpu_to_le16(RFD_MAGIC);
+	magic = cpu_to_le16(RFD_MAGIC);
 
 	part->blocks[i].state = BLOCK_ERASED;
 	part->blocks[i].free_sectors = part->data_sectors_per_block;
@@ -588,7 +586,7 @@ static int mark_sector_deleted(struct partition *part, u_long old_addr)
 	int block, offset, rc;
 	u_long addr;
 	size_t retlen;
-	u16 del = const_cpu_to_le16(SECTOR_DELETED);
+	u16 del = cpu_to_le16(SECTOR_DELETED);
 
 	block = old_addr / part->block_size;
 	offset = (old_addr % part->block_size) / SECTOR_SIZE -
