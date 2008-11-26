@@ -38,14 +38,13 @@
 	MODULE_ALIAS("xfrm-type-" __stringify(family) "-" __stringify(proto))
 
 #ifdef CONFIG_XFRM_STATISTICS
-DECLARE_SNMP_STAT(struct linux_xfrm_mib, xfrm_statistics);
-#define XFRM_INC_STATS(field)		SNMP_INC_STATS(xfrm_statistics, field)
-#define XFRM_INC_STATS_BH(field)	SNMP_INC_STATS_BH(xfrm_statistics, field)
-#define XFRM_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(xfrm_statistics, field)
+#define XFRM_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.xfrm_statistics, field)
+#define XFRM_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.xfrm_statistics, field)
+#define XFRM_INC_STATS_USER(net, field)	SNMP_INC_STATS_USER((net)-mib.xfrm_statistics, field)
 #else
-#define XFRM_INC_STATS(field)
-#define XFRM_INC_STATS_BH(field)
-#define XFRM_INC_STATS_USER(field)
+#define XFRM_INC_STATS(net, field)	((void)(net))
+#define XFRM_INC_STATS_BH(net, field)	((void)(net))
+#define XFRM_INC_STATS_USER(net, field)	((void)(net))
 #endif
 
 extern u32 sysctl_xfrm_aevent_etime;
