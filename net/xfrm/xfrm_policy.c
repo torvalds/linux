@@ -396,12 +396,12 @@ static unsigned long xfrm_new_hash_mask(unsigned int old_hmask)
 	return ((old_hmask + 1) << 1) - 1;
 }
 
-static void xfrm_bydst_resize(int dir)
+static void xfrm_bydst_resize(struct net *net, int dir)
 {
-	unsigned int hmask = init_net.xfrm.policy_bydst[dir].hmask;
+	unsigned int hmask = net->xfrm.policy_bydst[dir].hmask;
 	unsigned int nhashmask = xfrm_new_hash_mask(hmask);
 	unsigned int nsize = (nhashmask + 1) * sizeof(struct hlist_head);
-	struct hlist_head *odst = init_net.xfrm.policy_bydst[dir].table;
+	struct hlist_head *odst = net->xfrm.policy_bydst[dir].table;
 	struct hlist_head *ndst = xfrm_hash_alloc(nsize);
 	int i;
 
@@ -413,20 +413,20 @@ static void xfrm_bydst_resize(int dir)
 	for (i = hmask; i >= 0; i--)
 		xfrm_dst_hash_transfer(odst + i, ndst, nhashmask);
 
-	init_net.xfrm.policy_bydst[dir].table = ndst;
-	init_net.xfrm.policy_bydst[dir].hmask = nhashmask;
+	net->xfrm.policy_bydst[dir].table = ndst;
+	net->xfrm.policy_bydst[dir].hmask = nhashmask;
 
 	write_unlock_bh(&xfrm_policy_lock);
 
 	xfrm_hash_free(odst, (hmask + 1) * sizeof(struct hlist_head));
 }
 
-static void xfrm_byidx_resize(int total)
+static void xfrm_byidx_resize(struct net *net, int total)
 {
-	unsigned int hmask = init_net.xfrm.policy_idx_hmask;
+	unsigned int hmask = net->xfrm.policy_idx_hmask;
 	unsigned int nhashmask = xfrm_new_hash_mask(hmask);
 	unsigned int nsize = (nhashmask + 1) * sizeof(struct hlist_head);
-	struct hlist_head *oidx = init_net.xfrm.policy_byidx;
+	struct hlist_head *oidx = net->xfrm.policy_byidx;
 	struct hlist_head *nidx = xfrm_hash_alloc(nsize);
 	int i;
 
@@ -438,18 +438,18 @@ static void xfrm_byidx_resize(int total)
 	for (i = hmask; i >= 0; i--)
 		xfrm_idx_hash_transfer(oidx + i, nidx, nhashmask);
 
-	init_net.xfrm.policy_byidx = nidx;
-	init_net.xfrm.policy_idx_hmask = nhashmask;
+	net->xfrm.policy_byidx = nidx;
+	net->xfrm.policy_idx_hmask = nhashmask;
 
 	write_unlock_bh(&xfrm_policy_lock);
 
 	xfrm_hash_free(oidx, (hmask + 1) * sizeof(struct hlist_head));
 }
 
-static inline int xfrm_bydst_should_resize(int dir, int *total)
+static inline int xfrm_bydst_should_resize(struct net *net, int dir, int *total)
 {
-	unsigned int cnt = init_net.xfrm.policy_count[dir];
-	unsigned int hmask = init_net.xfrm.policy_bydst[dir].hmask;
+	unsigned int cnt = net->xfrm.policy_count[dir];
+	unsigned int hmask = net->xfrm.policy_bydst[dir].hmask;
 
 	if (total)
 		*total += cnt;
@@ -461,9 +461,9 @@ static inline int xfrm_bydst_should_resize(int dir, int *total)
 	return 0;
 }
 
-static inline int xfrm_byidx_should_resize(int total)
+static inline int xfrm_byidx_should_resize(struct net *net, int total)
 {
-	unsigned int hmask = init_net.xfrm.policy_idx_hmask;
+	unsigned int hmask = net->xfrm.policy_idx_hmask;
 
 	if ((hmask + 1) < xfrm_policy_hashmax &&
 	    total > hmask)
@@ -488,24 +488,23 @@ void xfrm_spd_getinfo(struct xfrmk_spdinfo *si)
 EXPORT_SYMBOL(xfrm_spd_getinfo);
 
 static DEFINE_MUTEX(hash_resize_mutex);
-static void xfrm_hash_resize(struct work_struct *__unused)
+static void xfrm_hash_resize(struct work_struct *work)
 {
+	struct net *net = container_of(work, struct net, xfrm.policy_hash_work);
 	int dir, total;
 
 	mutex_lock(&hash_resize_mutex);
 
 	total = 0;
 	for (dir = 0; dir < XFRM_POLICY_MAX * 2; dir++) {
-		if (xfrm_bydst_should_resize(dir, &total))
-			xfrm_bydst_resize(dir);
+		if (xfrm_bydst_should_resize(net, dir, &total))
+			xfrm_bydst_resize(net, dir);
 	}
-	if (xfrm_byidx_should_resize(total))
-		xfrm_byidx_resize(total);
+	if (xfrm_byidx_should_resize(net, total))
+		xfrm_byidx_resize(net, total);
 
 	mutex_unlock(&hash_resize_mutex);
 }
-
-static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize);
 
 /* Generate new index... KAME seems to generate them ordered by cost
  * of an absolute inpredictability of ordering of rules. This will not pass. */
@@ -607,8 +606,8 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 
 	if (delpol)
 		xfrm_policy_kill(delpol);
-	else if (xfrm_bydst_should_resize(dir, NULL))
-		schedule_work(&xfrm_hash_work);
+	else if (xfrm_bydst_should_resize(&init_net, dir, NULL))
+		schedule_work(&init_net.xfrm.policy_hash_work);
 
 	read_lock_bh(&xfrm_policy_lock);
 	gc_list = NULL;
@@ -1079,8 +1078,8 @@ static void __xfrm_policy_link(struct xfrm_policy *pol, int dir)
 	init_net.xfrm.policy_count[dir]++;
 	xfrm_pol_hold(pol);
 
-	if (xfrm_bydst_should_resize(dir, NULL))
-		schedule_work(&xfrm_hash_work);
+	if (xfrm_bydst_should_resize(&init_net, dir, NULL))
+		schedule_work(&init_net.xfrm.policy_hash_work);
 }
 
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
@@ -2415,6 +2414,7 @@ static int __net_init xfrm_policy_init(struct net *net)
 	}
 
 	INIT_LIST_HEAD(&net->xfrm.policy_all);
+	INIT_WORK(&net->xfrm.policy_hash_work, xfrm_hash_resize);
 	if (net_eq(net, &init_net))
 		register_netdevice_notifier(&xfrm_dev_notifier);
 	return 0;
