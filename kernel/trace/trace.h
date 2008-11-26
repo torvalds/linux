@@ -450,6 +450,7 @@ struct tracer_switch_ops {
 	struct tracer_switch_ops	*next;
 };
 
+char *trace_find_cmdline(int pid);
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE

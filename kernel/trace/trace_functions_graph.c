@@ -32,29 +32,40 @@ static pid_t last_pid = -1;
 
 static int graph_trace_init(struct trace_array *tr)
 {
-	int cpu;
+	int cpu, ret;
+
 	for_each_online_cpu(cpu)
 		tracing_reset(tr, cpu);
 
-	return register_ftrace_graph(&trace_graph_return,
+	ret = register_ftrace_graph(&trace_graph_return,
 					&trace_graph_entry);
+	if (ret)
+		return ret;
+	tracing_start_cmdline_record();
+
+	return 0;
 }
 
 static void graph_trace_reset(struct trace_array *tr)
 {
-		unregister_ftrace_graph();
+	tracing_stop_cmdline_record();
+	unregister_ftrace_graph();
 }
 
 /* If the pid changed since the last trace, output this event */
 static int verif_pid(struct trace_seq *s, pid_t pid)
 {
+	char *comm;
+
 	if (last_pid != -1 && last_pid == pid)
 		return 1;
 
 	last_pid = pid;
-	return trace_seq_printf(s, "\n------------8<---------- thread %d"
+	comm = trace_find_cmdline(pid);
+
+	return trace_seq_printf(s, "\n------------8<---------- thread %s-%d"
 				    " ------------8<----------\n\n",
-				  pid);
+				    comm, pid);
 }
 
 static enum print_line_t

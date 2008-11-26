@@ -804,7 +804,7 @@ static void trace_save_cmdline(struct task_struct *tsk)
 	spin_unlock(&trace_cmdline_lock);
 }
 
-static char *trace_find_cmdline(int pid)
+char *trace_find_cmdline(int pid)
 {
 	char *cmdline = "<...>";
 	unsigned map;
