@@ -53,9 +53,6 @@ static int ftrace_pid_trace = -1;
 /* Quick disabling of function tracer. */
 int function_trace_stop;
 
-/* By default, current tracing type is normal tracing. */
-enum ftrace_tracing_type_t ftrace_tracing_type = FTRACE_TYPE_ENTER;
-
 /*
  * ftrace_disabled is set when an anomaly is discovered.
  * ftrace_disabled is much stronger than ftrace_enabled.
@@ -1576,15 +1573,9 @@ int register_ftrace_function(struct ftrace_ops *ops)
 
 	mutex_lock(&ftrace_sysctl_lock);
 
-	if (ftrace_tracing_type == FTRACE_TYPE_RETURN) {
-		ret = -EBUSY;
-		goto out;
-	}
-
 	ret = __register_ftrace_function(ops);
 	ftrace_startup(0);
 
-out:
 	mutex_unlock(&ftrace_sysctl_lock);
 	return ret;
 }
@@ -1731,23 +1722,16 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 
 	mutex_lock(&ftrace_sysctl_lock);
 
-	/*
-	 * Don't launch return tracing if normal function
-	 * tracing is already running.
-	 */
-	if (ftrace_trace_function != ftrace_stub) {
-		ret = -EBUSY;
-		goto out;
-	}
 	atomic_inc(&ftrace_graph_active);
 	ret = start_graph_tracing();
 	if (ret) {
 		atomic_dec(&ftrace_graph_active);
 		goto out;
 	}
-	ftrace_tracing_type = FTRACE_TYPE_RETURN;
+
 	ftrace_graph_return = retfunc;
 	ftrace_graph_entry = entryfunc;
+
 	ftrace_startup(FTRACE_START_FUNC_RET);
 
 out:
@@ -1763,8 +1747,6 @@ void unregister_ftrace_graph(void)
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = (trace_func_graph_ent_t)ftrace_stub;
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
-	/* Restore normal tracing type */
-	ftrace_tracing_type = FTRACE_TYPE_ENTER;
 
 	mutex_unlock(&ftrace_sysctl_lock);
 }
