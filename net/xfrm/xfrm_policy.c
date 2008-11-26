@@ -55,7 +55,6 @@ static struct xfrm_policy_afinfo *xfrm_policy_afinfo[NPROTO];
 
 static struct kmem_cache *xfrm_dst_cache __read_mostly;
 
-static struct work_struct xfrm_policy_gc_work;
 static HLIST_HEAD(xfrm_policy_gc_list);
 static DEFINE_SPINLOCK(xfrm_policy_gc_lock);
 
@@ -296,6 +295,7 @@ static void xfrm_policy_gc_task(struct work_struct *work)
 	hlist_for_each_entry_safe(policy, entry, tmp, &gc_list, bydst)
 		xfrm_policy_gc_kill(policy);
 }
+static DECLARE_WORK(xfrm_policy_gc_work, xfrm_policy_gc_task);
 
 /* Rule must be locked. Release descentant resources, announce
  * entry dead. The rule must be unlinked from lists to the moment.
@@ -2425,7 +2425,6 @@ static void __init xfrm_policy_init(void)
 	}
 
 	INIT_LIST_HEAD(&xfrm_policy_all);
-	INIT_WORK(&xfrm_policy_gc_work, xfrm_policy_gc_task);
 	register_netdevice_notifier(&xfrm_dev_notifier);
 }
 
