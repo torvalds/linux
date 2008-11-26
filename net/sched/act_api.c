@@ -214,12 +214,14 @@ struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a, int bind,
 }
 EXPORT_SYMBOL(tcf_hash_check);
 
-struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est, struct tc_action *a, int size, int bind, u32 *idx_gen, struct tcf_hashinfo *hinfo)
+struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est,
+				   struct tc_action *a, int size, int bind,
+				   u32 *idx_gen, struct tcf_hashinfo *hinfo)
 {
 	struct tcf_common *p = kzalloc(size, GFP_KERNEL);
 
 	if (unlikely(!p))
-		return p;
+		return ERR_PTR(-ENOMEM);
 	p->tcfc_refcnt = 1;
 	if (bind)
 		p->tcfc_bindcnt = 1;
@@ -228,9 +230,15 @@ struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est, struct tc_acti
 	p->tcfc_index = index ? index : tcf_hash_new_index(idx_gen, hinfo);
 	p->tcfc_tm.install = jiffies;
 	p->tcfc_tm.lastuse = jiffies;
-	if (est)
-		gen_new_estimator(&p->tcfc_bstats, &p->tcfc_rate_est,
-				  &p->tcfc_lock, est);
+	if (est) {
+		int err = gen_new_estimator(&p->tcfc_bstats, &p->tcfc_rate_est,
+					    &p->tcfc_lock, est);
+		if (err) {
+			kfree(p);
+			return ERR_PTR(err);
+		}
+	}
+
 	a->priv = (void *) p;
 	return p;
 }
