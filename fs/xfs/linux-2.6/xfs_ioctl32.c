@@ -192,35 +192,43 @@ xfs_bstime_store_compat(
 	return 0;
 }
 
+/* Return 0 on success or positive error (to xfs_bulkstat()) */
 STATIC int
 xfs_bulkstat_one_fmt_compat(
 	void			__user *ubuffer,
+	int			ubsize,
+	int			*ubused,
 	const xfs_bstat_t	*buffer)
 {
 	compat_xfs_bstat_t	__user *p32 = ubuffer;
 
-	if (put_user(buffer->bs_ino, &p32->bs_ino) ||
-	    put_user(buffer->bs_mode, &p32->bs_mode) ||
-	    put_user(buffer->bs_nlink, &p32->bs_nlink) ||
-	    put_user(buffer->bs_uid, &p32->bs_uid) ||
-	    put_user(buffer->bs_gid, &p32->bs_gid) ||
-	    put_user(buffer->bs_rdev, &p32->bs_rdev) ||
-	    put_user(buffer->bs_blksize, &p32->bs_blksize) ||
-	    put_user(buffer->bs_size, &p32->bs_size) ||
+	if (ubsize < sizeof(*p32))
+		return XFS_ERROR(ENOMEM);
+
+	if (put_user(buffer->bs_ino,	  &p32->bs_ino)		||
+	    put_user(buffer->bs_mode,	  &p32->bs_mode)	||
+	    put_user(buffer->bs_nlink,	  &p32->bs_nlink)	||
+	    put_user(buffer->bs_uid,	  &p32->bs_uid)		||
+	    put_user(buffer->bs_gid,	  &p32->bs_gid)		||
+	    put_user(buffer->bs_rdev,	  &p32->bs_rdev)	||
+	    put_user(buffer->bs_blksize,  &p32->bs_blksize)	||
+	    put_user(buffer->bs_size,	  &p32->bs_size)	||
 	    xfs_bstime_store_compat(&p32->bs_atime, &buffer->bs_atime) ||
 	    xfs_bstime_store_compat(&p32->bs_mtime, &buffer->bs_mtime) ||
 	    xfs_bstime_store_compat(&p32->bs_ctime, &buffer->bs_ctime) ||
-	    put_user(buffer->bs_blocks, &p32->bs_blocks) ||
-	    put_user(buffer->bs_xflags, &p32->bs_xflags) ||
-	    put_user(buffer->bs_extsize, &p32->bs_extsize) ||
-	    put_user(buffer->bs_extents, &p32->bs_extents) ||
-	    put_user(buffer->bs_gen, &p32->bs_gen) ||
-	    put_user(buffer->bs_projid, &p32->bs_projid) ||
-	    put_user(buffer->bs_dmevmask, &p32->bs_dmevmask) ||
-	    put_user(buffer->bs_dmstate, &p32->bs_dmstate) ||
+	    put_user(buffer->bs_blocks,	  &p32->bs_blocks)	||
+	    put_user(buffer->bs_xflags,	  &p32->bs_xflags)	||
+	    put_user(buffer->bs_extsize,  &p32->bs_extsize)	||
+	    put_user(buffer->bs_extents,  &p32->bs_extents)	||
+	    put_user(buffer->bs_gen,	  &p32->bs_gen)		||
+	    put_user(buffer->bs_projid,	  &p32->bs_projid)	||
+	    put_user(buffer->bs_dmevmask, &p32->bs_dmevmask)	||
+	    put_user(buffer->bs_dmstate,  &p32->bs_dmstate)	||
 	    put_user(buffer->bs_aextents, &p32->bs_aextents))
-		return -XFS_ERROR(EFAULT);
-	return sizeof(*p32);
+		return XFS_ERROR(EFAULT);
+	if (ubused)
+		*ubused = sizeof(*p32);
+	return 0;
 }
 
 STATIC int

@@ -188,14 +188,21 @@ xfs_bulkstat_one_dinode(
 	}
 }
 
+/* Return 0 on success or positive error */
 STATIC int
 xfs_bulkstat_one_fmt(
 	void			__user *ubuffer,
+	int			ubsize,
+	int			*ubused,
 	const xfs_bstat_t	*buffer)
 {
+	if (ubsize < sizeof(*buffer))
+		return XFS_ERROR(ENOMEM);
 	if (copy_to_user(ubuffer, buffer, sizeof(*buffer)))
-		return -EFAULT;
-	return sizeof(*buffer);
+		return XFS_ERROR(EFAULT);
+	if (ubused)
+		*ubused = sizeof(*buffer);
+	return 0;
 }
 
 /*
@@ -223,8 +230,6 @@ xfs_bulkstat_one_int(
 
 	if (!buffer || xfs_internal_inum(mp, ino))
 		return XFS_ERROR(EINVAL);
-	if (ubsize < sizeof(*buf))
-		return XFS_ERROR(ENOMEM);
 
 	buf = kmem_alloc(sizeof(*buf), KM_SLEEP);
 
@@ -239,15 +244,11 @@ xfs_bulkstat_one_int(
 		xfs_bulkstat_one_dinode(mp, ino, dip, buf);
 	}
 
-	error = formatter(buffer, buf);
-	if (error < 0)  {
-		error = EFAULT;
+	error = formatter(buffer, ubsize, ubused, buf);
+	if (error)
 		goto out_free;
-	}
 
 	*stat = BULKSTAT_RV_DIDONE;
-	if (ubused)
-		*ubused = error;
 
  out_free:
 	kmem_free(buf);
