@@ -62,6 +62,8 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 			ff->kh = ++fc->khctr;
 			spin_unlock(&fc->lock);
 		}
+		RB_CLEAR_NODE(&ff->polled_node);
+		init_waitqueue_head(&ff->poll_wait);
 	}
 	return ff;
 }
@@ -170,7 +172,11 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 
 		spin_lock(&fc->lock);
 		list_del(&ff->write_entry);
+		if (!RB_EMPTY_NODE(&ff->polled_node))
+			rb_erase(&ff->polled_node, &fc->polled_files);
 		spin_unlock(&fc->lock);
+
+		wake_up_interruptible_sync(&ff->poll_wait);
 		/*
 		 * Normally this will send the RELEASE request,
 		 * however if some asynchronous READ or WRITE requests
@@ -1749,6 +1755,130 @@ static long fuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 	return fuse_file_do_ioctl(file, cmd, arg, FUSE_IOCTL_COMPAT);
 }
 
+/*
+ * All files which have been polled are linked to RB tree
+ * fuse_conn->polled_files which is indexed by kh.  Walk the tree and
+ * find the matching one.
+ */
+static struct rb_node **fuse_find_polled_node(struct fuse_conn *fc, u64 kh,
+					      struct rb_node **parent_out)
+{
+	struct rb_node **link = &fc->polled_files.rb_node;
+	struct rb_node *last = NULL;
+
+	while (*link) {
+		struct fuse_file *ff;
+
+		last = *link;
+		ff = rb_entry(last, struct fuse_file, polled_node);
+
+		if (kh < ff->kh)
+			link = &last->rb_left;
+		else if (kh > ff->kh)
+			link = &last->rb_right;
+		else
+			return link;
+	}
+
+	if (parent_out)
+		*parent_out = last;
+	return link;
+}
+
+/*
+ * The file is about to be polled.  Make sure it's on the polled_files
+ * RB tree.  Note that files once added to the polled_files tree are
+ * not removed before the file is released.  This is because a file
+ * polled once is likely to be polled again.
+ */
+static void fuse_register_polled_file(struct fuse_conn *fc,
+				      struct fuse_file *ff)
+{
+	spin_lock(&fc->lock);
+	if (RB_EMPTY_NODE(&ff->polled_node)) {
+		struct rb_node **link, *parent;
+
+		link = fuse_find_polled_node(fc, ff->kh, &parent);
+		BUG_ON(*link);
+		rb_link_node(&ff->polled_node, parent, link);
+		rb_insert_color(&ff->polled_node, &fc->polled_files);
+	}
+	spin_unlock(&fc->lock);
+}
+
+static unsigned fuse_file_poll(struct file *file, poll_table *wait)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_file *ff = file->private_data;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_poll_in inarg = { .fh = ff->fh, .kh = ff->kh };
+	struct fuse_poll_out outarg;
+	struct fuse_req *req;
+	int err;
+
+	if (fc->no_poll)
+		return DEFAULT_POLLMASK;
+
+	poll_wait(file, &ff->poll_wait, wait);
+
+	/*
+	 * Ask for notification iff there's someone waiting for it.
+	 * The client may ignore the flag and always notify.
+	 */
+	if (waitqueue_active(&ff->poll_wait)) {
+		inarg.flags |= FUSE_POLL_SCHEDULE_NOTIFY;
+		fuse_register_polled_file(fc, ff);
+	}
+
+	req = fuse_get_req(fc);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	req->in.h.opcode = FUSE_POLL;
+	req->in.h.nodeid = get_node_id(inode);
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	req->out.numargs = 1;
+	req->out.args[0].size = sizeof(outarg);
+	req->out.args[0].value = &outarg;
+	request_send(fc, req);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+
+	if (!err)
+		return outarg.revents;
+	if (err == -ENOSYS) {
+		fc->no_poll = 1;
+		return DEFAULT_POLLMASK;
+	}
+	return POLLERR;
+}
+
+/*
+ * This is called from fuse_handle_notify() on FUSE_NOTIFY_POLL and
+ * wakes up the poll waiters.
+ */
+int fuse_notify_poll_wakeup(struct fuse_conn *fc,
+			    struct fuse_notify_poll_wakeup_out *outarg)
+{
+	u64 kh = outarg->kh;
+	struct rb_node **link;
+
+	spin_lock(&fc->lock);
+
+	link = fuse_find_polled_node(fc, kh, NULL);
+	if (*link) {
+		struct fuse_file *ff;
+
+		ff = rb_entry(*link, struct fuse_file, polled_node);
+		wake_up_interruptible_sync(&ff->poll_wait);
+	}
+
+	spin_unlock(&fc->lock);
+	return 0;
+}
+
 static const struct file_operations fuse_file_operations = {
 	.llseek		= fuse_file_llseek,
 	.read		= do_sync_read,
@@ -1765,6 +1895,7 @@ static const struct file_operations fuse_file_operations = {
 	.splice_read	= generic_file_splice_read,
 	.unlocked_ioctl	= fuse_file_ioctl,
 	.compat_ioctl	= fuse_file_compat_ioctl,
+	.poll		= fuse_file_poll,
 };
 
 static const struct file_operations fuse_direct_io_file_operations = {
@@ -1779,6 +1910,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.flock		= fuse_file_flock,
 	.unlocked_ioctl	= fuse_file_ioctl,
 	.compat_ioctl	= fuse_file_compat_ioctl,
+	.poll		= fuse_file_poll,
 	/* no mmap and splice_read */
 };
 

@@ -163,6 +163,13 @@ struct fuse_file_lock {
 
 #define FUSE_IOCTL_MAX_IOV	256
 
+/**
+ * Poll flags
+ *
+ * FUSE_POLL_SCHEDULE_NOTIFY: request poll notify
+ */
+#define FUSE_POLL_SCHEDULE_NOTIFY (1 << 0)
+
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
 	FUSE_FORGET	   = 2,  /* no reply */
@@ -201,9 +208,11 @@ enum fuse_opcode {
 	FUSE_BMAP          = 37,
 	FUSE_DESTROY       = 38,
 	FUSE_IOCTL         = 39,
+	FUSE_POLL          = 40,
 };
 
 enum fuse_notify_code {
+	FUSE_NOTIFY_POLL   = 1,
 	FUSE_NOTIFY_CODE_MAX,
 };
 
@@ -419,6 +428,22 @@ struct fuse_ioctl_out {
 	__u32	flags;
 	__u32	in_iovs;
 	__u32	out_iovs;
+};
+
+struct fuse_poll_in {
+	__u64	fh;
+	__u64	kh;
+	__u32	flags;
+	__u32   padding;
+};
+
+struct fuse_poll_out {
+	__u32	revents;
+	__u32	padding;
+};
+
+struct fuse_notify_poll_wakeup_out {
+	__u64	kh;
 };
 
 struct fuse_in_header {

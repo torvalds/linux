@@ -486,6 +486,7 @@ static struct fuse_conn *new_conn(struct super_block *sb)
 		/* fuse does it's own writeback accounting */
 		fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
 		fc->khctr = 0;
+		fc->polled_files = RB_ROOT;
 		fc->dev = sb->s_dev;
 		err = bdi_init(&fc->bdi);
 		if (err)

@@ -19,6 +19,8 @@
 #include <linux/backing-dev.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
+#include <linux/rbtree.h>
+#include <linux/poll.h>
 
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
@@ -111,6 +113,12 @@ struct fuse_file {
 
 	/** Entry on inode's write_files list */
 	struct list_head write_entry;
+
+	/** RB node to be linked on fuse_conn->polled_files */
+	struct rb_node polled_node;
+
+	/** Wait queue head for poll */
+	wait_queue_head_t poll_wait;
 };
 
 /** One input argument of a request */
@@ -328,6 +336,9 @@ struct fuse_conn {
 	/** The next unique kernel file handle */
 	u64 khctr;
 
+	/** rbtree of fuse_files waiting for poll events indexed by ph */
+	struct rb_root polled_files;
+
 	/** Number of requests currently in the background */
 	unsigned num_background;
 
@@ -415,6 +426,9 @@ struct fuse_conn {
 
 	/** Is bmap not implemented by fs? */
 	unsigned no_bmap:1;
+
+	/** Is poll not implemented by fs? */
+	unsigned no_poll:1;
 
 	/** Do multi-page cached writes */
 	unsigned big_writes:1;
@@ -523,6 +537,12 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir);
  */
 int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
 		      int isdir);
+
+/**
+ * Notify poll wakeup
+ */
+int fuse_notify_poll_wakeup(struct fuse_conn *fc,
+			    struct fuse_notify_poll_wakeup_out *outarg);
 
 /**
  * Initialize file operations on a regular file

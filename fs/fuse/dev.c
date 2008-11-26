@@ -816,10 +816,29 @@ static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
 	return err;
 }
 
+static int fuse_notify_poll(struct fuse_conn *fc, unsigned int size,
+			    struct fuse_copy_state *cs)
+{
+	struct fuse_notify_poll_wakeup_out outarg;
+	int err;
+
+	if (size != sizeof(outarg))
+		return -EINVAL;
+
+	err = fuse_copy_one(cs, &outarg, sizeof(outarg));
+	if (err)
+		return err;
+
+	return fuse_notify_poll_wakeup(fc, &outarg);
+}
+
 static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 		       unsigned int size, struct fuse_copy_state *cs)
 {
 	switch (code) {
+	case FUSE_NOTIFY_POLL:
+		return fuse_notify_poll(fc, size, cs);
+
 	default:
 		return -EINVAL;
 	}
