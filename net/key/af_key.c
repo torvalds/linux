@@ -1411,7 +1411,7 @@ static int pfkey_acquire(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 	spin_lock_bh(&x->lock);
 	if (x->km.state == XFRM_STATE_ACQ) {
 		x->km.state = XFRM_STATE_ERROR;
-		wake_up(&km_waitq);
+		wake_up(&init_net.xfrm.km_waitq);
 	}
 	spin_unlock_bh(&x->lock);
 	xfrm_state_put(x);

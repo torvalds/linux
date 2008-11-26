@@ -1459,7 +1459,6 @@ extern int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 			struct xfrm_kmaddress *k);
 #endif
 
-extern wait_queue_head_t km_waitq;
 extern int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);
 extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid);
 extern int km_report(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr);

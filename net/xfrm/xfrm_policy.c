@@ -1691,11 +1691,11 @@ restart:
 			if (err == -EAGAIN && (flags & XFRM_LOOKUP_WAIT)) {
 				DECLARE_WAITQUEUE(wait, current);
 
-				add_wait_queue(&km_waitq, &wait);
+				add_wait_queue(&init_net.xfrm.km_waitq, &wait);
 				set_current_state(TASK_INTERRUPTIBLE);
 				schedule();
 				set_current_state(TASK_RUNNING);
-				remove_wait_queue(&km_waitq, &wait);
+				remove_wait_queue(&init_net.xfrm.km_waitq, &wait);
 
 				nx = xfrm_tmpl_resolve(pols, npols, fl, xfrm, family);
 

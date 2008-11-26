@@ -170,9 +170,6 @@ out_unlock:
 	mutex_unlock(&hash_resize_mutex);
 }
 
-DECLARE_WAIT_QUEUE_HEAD(km_waitq);
-EXPORT_SYMBOL(km_waitq);
-
 static DEFINE_RWLOCK(xfrm_state_afinfo_lock);
 static struct xfrm_state_afinfo *xfrm_state_afinfo[NPROTO];
 
@@ -399,7 +396,7 @@ static void xfrm_state_gc_task(struct work_struct *work)
 	hlist_for_each_entry_safe(x, entry, tmp, &gc_list, gclist)
 		xfrm_state_gc_destroy(x);
 
-	wake_up(&km_waitq);
+	wake_up(&net->xfrm.km_waitq);
 }
 
 static inline unsigned long make_jiffies(long secs)
@@ -470,7 +467,7 @@ resched:
 expired:
 	if (x->km.state == XFRM_STATE_ACQ && x->id.spi == 0) {
 		x->km.state = XFRM_STATE_EXPIRED;
-		wake_up(&km_waitq);
+		wake_up(&init_net.xfrm.km_waitq);
 		next = 2;
 		goto resched;
 	}
@@ -638,7 +635,7 @@ restart:
 
 out:
 	spin_unlock_bh(&xfrm_state_lock);
-	wake_up(&km_waitq);
+	wake_up(&init_net.xfrm.km_waitq);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_flush);
@@ -929,7 +926,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	if (x->replay_maxage)
 		mod_timer(&x->rtimer, jiffies + x->replay_maxage);
 
-	wake_up(&km_waitq);
+	wake_up(&init_net.xfrm.km_waitq);
 
 	init_net.xfrm.state_num++;
 
@@ -1743,7 +1740,7 @@ void km_state_expired(struct xfrm_state *x, int hard, u32 pid)
 	km_state_notify(x, &c);
 
 	if (hard)
-		wake_up(&km_waitq);
+		wake_up(&init_net.xfrm.km_waitq);
 }
 
 EXPORT_SYMBOL(km_state_expired);
@@ -1794,7 +1791,7 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid)
 	km_policy_notify(pol, dir, &c);
 
 	if (hard)
-		wake_up(&km_waitq);
+		wake_up(&init_net.xfrm.km_waitq);
 }
 EXPORT_SYMBOL(km_policy_expired);
 
@@ -2089,6 +2086,7 @@ int __net_init xfrm_state_init(struct net *net)
 	INIT_WORK(&net->xfrm.state_hash_work, xfrm_hash_resize);
 	INIT_HLIST_HEAD(&net->xfrm.state_gc_list);
 	INIT_WORK(&net->xfrm.state_gc_work, xfrm_state_gc_task);
+	init_waitqueue_head(&net->xfrm.km_waitq);
 	return 0;
 
 out_byspi:

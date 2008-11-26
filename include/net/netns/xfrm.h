@@ -2,6 +2,7 @@
 #define __NETNS_XFRM_H
 
 #include <linux/list.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 
 struct netns_xfrm {
@@ -22,6 +23,8 @@ struct netns_xfrm {
 	struct work_struct	state_hash_work;
 	struct hlist_head	state_gc_list;
 	struct work_struct	state_gc_work;
+
+	wait_queue_head_t	km_waitq;
 };
 
 #endif
