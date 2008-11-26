@@ -490,7 +490,7 @@ xfs_attrlist_by_handle(
 	return -error;
 }
 
-STATIC int
+int
 xfs_attrmulti_attr_get(
 	struct inode		*inode,
 	char			*name,
@@ -519,7 +519,7 @@ xfs_attrmulti_attr_get(
 	return error;
 }
 
-STATIC int
+int
 xfs_attrmulti_attr_set(
 	struct inode		*inode,
 	char			*name,
@@ -549,7 +549,7 @@ xfs_attrmulti_attr_set(
 	return error;
 }
 
-STATIC int
+int
 xfs_attrmulti_attr_remove(
 	struct inode		*inode,
 	char			*name,

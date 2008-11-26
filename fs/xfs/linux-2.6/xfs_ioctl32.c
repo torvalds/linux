@@ -476,6 +476,93 @@ xfs_compat_attrlist_by_handle(
 	return -error;
 }
 
+STATIC int
+xfs_compat_attrmulti_by_handle(
+	xfs_mount_t				*mp,
+	void					__user *arg,
+	struct inode				*parinode)
+{
+	int					error;
+	compat_xfs_attr_multiop_t		*ops;
+	compat_xfs_fsop_attrmulti_handlereq_t	am_hreq;
+	struct inode				*inode;
+	unsigned int				i, size;
+	char					*attr_name;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -XFS_ERROR(EPERM);
+	if (copy_from_user(&am_hreq, arg,
+			   sizeof(compat_xfs_fsop_attrmulti_handlereq_t)))
+		return -XFS_ERROR(EFAULT);
+
+	error = xfs_vget_fsop_handlereq_compat(mp, parinode, &am_hreq.hreq,
+					       &inode);
+	if (error)
+		goto out;
+
+	error = E2BIG;
+	size = am_hreq.opcount * sizeof(compat_xfs_attr_multiop_t);
+	if (!size || size > 16 * PAGE_SIZE)
+		goto out_vn_rele;
+
+	error = ENOMEM;
+	ops = kmalloc(size, GFP_KERNEL);
+	if (!ops)
+		goto out_vn_rele;
+
+	error = EFAULT;
+	if (copy_from_user(ops, compat_ptr(am_hreq.ops), size))
+		goto out_kfree_ops;
+
+	attr_name = kmalloc(MAXNAMELEN, GFP_KERNEL);
+	if (!attr_name)
+		goto out_kfree_ops;
+
+
+	error = 0;
+	for (i = 0; i < am_hreq.opcount; i++) {
+		ops[i].am_error = strncpy_from_user(attr_name,
+				compat_ptr(ops[i].am_attrname),
+				MAXNAMELEN);
+		if (ops[i].am_error == 0 || ops[i].am_error == MAXNAMELEN)
+			error = -ERANGE;
+		if (ops[i].am_error < 0)
+			break;
+
+		switch (ops[i].am_opcode) {
+		case ATTR_OP_GET:
+			ops[i].am_error = xfs_attrmulti_attr_get(inode,
+					attr_name,
+					compat_ptr(ops[i].am_attrvalue),
+					&ops[i].am_length, ops[i].am_flags);
+			break;
+		case ATTR_OP_SET:
+			ops[i].am_error = xfs_attrmulti_attr_set(inode,
+					attr_name,
+					compat_ptr(ops[i].am_attrvalue),
+					ops[i].am_length, ops[i].am_flags);
+			break;
+		case ATTR_OP_REMOVE:
+			ops[i].am_error = xfs_attrmulti_attr_remove(inode,
+					attr_name, ops[i].am_flags);
+			break;
+		default:
+			ops[i].am_error = EINVAL;
+		}
+	}
+
+	if (copy_to_user(compat_ptr(am_hreq.ops), ops, size))
+		error = XFS_ERROR(EFAULT);
+
+	kfree(attr_name);
+ out_kfree_ops:
+	kfree(ops);
+ out_vn_rele:
+	iput(inode);
+ out:
+	return -error;
+}
+
 STATIC long
 xfs_compat_ioctl(
 	xfs_inode_t	*ip,
@@ -499,10 +586,7 @@ xfs_compat_ioctl(
 	case XFS_IOC_GETBMAP:
 	case XFS_IOC_GETBMAPA:
 	case XFS_IOC_GETBMAPX:
-/* not handled
-	case XFS_IOC_FSSETDM_BY_HANDLE:
-	case XFS_IOC_ATTRMULTI_BY_HANDLE:
-*/
+/*	case XFS_IOC_FSSETDM_BY_HANDLE: not handled */
 	case XFS_IOC_FSCOUNTS:
 	case XFS_IOC_SET_RESBLKS:
 	case XFS_IOC_GET_RESBLKS:
@@ -610,6 +694,8 @@ xfs_compat_ioctl(
 	}
 	case XFS_IOC_ATTRLIST_BY_HANDLE_32:
 		return xfs_compat_attrlist_by_handle(mp, arg, inode);
+	case XFS_IOC_ATTRMULTI_BY_HANDLE_32:
+		return xfs_compat_attrmulti_by_handle(mp, arg, inode);
 	default:
 		return -XFS_ERROR(ENOIOCTLCMD);
 	}

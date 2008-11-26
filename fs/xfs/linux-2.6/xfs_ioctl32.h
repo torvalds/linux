@@ -135,6 +135,26 @@ typedef struct compat_xfs_fsop_attrlist_handlereq {
 #define XFS_IOC_ATTRLIST_BY_HANDLE_32 \
 	_IOW('X', 122, struct compat_xfs_fsop_attrlist_handlereq)
 
+/* am_opcodes defined in xfs_fs.h */
+typedef struct compat_xfs_attr_multiop {
+	__u32		am_opcode;
+	__s32		am_error;
+	compat_uptr_t	am_attrname;
+	compat_uptr_t	am_attrvalue;
+	__u32		am_length;
+	__u32		am_flags;
+} compat_xfs_attr_multiop_t;
+
+typedef struct compat_xfs_fsop_attrmulti_handlereq {
+	struct compat_xfs_fsop_handlereq hreq; /* handle interface structure */
+	__u32				opcount;/* count of following multiop */
+	/* ptr to compat_xfs_attr_multiop */
+	compat_uptr_t			ops; /* attr_multi data */
+} compat_xfs_fsop_attrmulti_handlereq_t;
+
+#define XFS_IOC_ATTRMULTI_BY_HANDLE_32 \
+	_IOW('X', 123, struct compat_xfs_fsop_attrmulti_handlereq)
+
 #ifdef BROKEN_X86_ALIGNMENT
 /* on ia32 l_start is on a 32-bit boundary */
 typedef struct compat_xfs_flock64 {

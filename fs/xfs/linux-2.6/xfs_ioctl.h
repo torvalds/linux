@@ -44,4 +44,27 @@ xfs_readlink_by_handle(
 	xfs_mount_t		*mp,
 	xfs_fsop_handlereq_t	*hreq,
 	struct inode		*parinode);
+
+extern int
+xfs_attrmulti_attr_get(
+	struct inode		*inode,
+	char			*name,
+	char			__user *ubuf,
+	__uint32_t		*len,
+	__uint32_t		flags);
+
+extern int
+	xfs_attrmulti_attr_set(
+	struct inode		*inode,
+	char			*name,
+	const char		__user *ubuf,
+	__uint32_t		len,
+	__uint32_t		flags);
+
+extern int
+xfs_attrmulti_attr_remove(
+	struct inode		*inode,
+	char			*name,
+	__uint32_t		flags);
+
 #endif
