@@ -418,10 +418,6 @@ typedef struct xfs_handle {
 #define XFS_IOC_GETXFLAGS	FS_IOC_GETFLAGS
 #define XFS_IOC_SETXFLAGS	FS_IOC_SETFLAGS
 #define XFS_IOC_GETVERSION	FS_IOC_GETVERSION
-/* 32-bit compat counterparts */
-#define XFS_IOC32_GETXFLAGS	FS_IOC32_GETFLAGS
-#define XFS_IOC32_SETXFLAGS	FS_IOC32_SETFLAGS
-#define XFS_IOC32_GETVERSION	FS_IOC32_GETVERSION
 
 /*
  * ioctl commands that replace IRIX fcntl()'s
