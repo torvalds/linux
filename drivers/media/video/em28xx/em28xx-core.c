@@ -66,7 +66,8 @@ MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 				   char *buf, int len)
 {
-	int ret, byte;
+	int ret;
+	int pipe = usb_rcvctrlpipe(dev->udev, 0);
 
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
@@ -74,10 +75,18 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	if (len > URB_MAX_CTRL_SIZE)
 		return -EINVAL;
 
-	em28xx_regdbg("req=%02x, reg=%02x ", req, reg);
+	if (reg_debug) {
+		printk( KERN_DEBUG "(pipe 0x%08x): "
+			"IN:  %02x %02x %02x %02x %02x %02x %02x %02x ",
+			pipe,
+			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			req, 0, 0,
+			reg & 0xff, reg >> 8,
+			len & 0xff, len >> 8);
+	}
 
 	mutex_lock(&dev->ctrl_urb_lock);
-	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
+	ret = usb_control_msg(dev->udev, pipe, req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	if (ret < 0) {
@@ -93,7 +102,9 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	mutex_unlock(&dev->ctrl_urb_lock);
 
 	if (reg_debug) {
-		printk("%02x values: ", ret);
+		int byte;
+
+		printk("<<<");
 		for (byte = 0; byte < len; byte++)
 			printk(" %02x", (unsigned char)buf[byte]);
 		printk("\n");
@@ -108,28 +119,12 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
  */
 int em28xx_read_reg_req(struct em28xx *dev, u8 req, u16 reg)
 {
-	u8 val;
 	int ret;
+	u8 val;
 
-	if (dev->state & DEV_DISCONNECTED)
-		return(-ENODEV);
-
-	em28xx_regdbg("req=%02x, reg=%02x:", req, reg);
-
-	mutex_lock(&dev->ctrl_urb_lock);
-	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
-			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      0x0000, reg, dev->urb_buf, 1, HZ);
-	val = dev->urb_buf[0];
-	mutex_unlock(&dev->ctrl_urb_lock);
-
-	if (ret < 0) {
-		printk(" failed!\n");
+	ret = em28xx_read_reg_req_len(dev, req, reg, &val, 1);
+	if (ret < 0)
 		return ret;
-	}
-
-	if (reg_debug)
-		printk("%02x\n", (unsigned char) val);
 
 	return val;
 }
@@ -147,6 +142,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 				 int len)
 {
 	int ret;
+	int pipe = usb_sndctrlpipe(dev->udev, 0);
 
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
@@ -154,17 +150,25 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	if ((len < 1) || (len > URB_MAX_CTRL_SIZE))
 		return -EINVAL;
 
-	em28xx_regdbg("req=%02x reg=%02x:", req, reg);
 	if (reg_debug) {
-		int i;
-		for (i = 0; i < len; ++i)
-			printk(" %02x", (unsigned char)buf[i]);
+		int byte;
+
+		printk( KERN_DEBUG "(pipe 0x%08x): "
+			"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
+			pipe,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			req, 0, 0,
+			reg & 0xff, reg >> 8,
+			len & 0xff, len >> 8);
+
+		for (byte = 0; byte < len; byte++)
+			printk(" %02x", (unsigned char)buf[byte]);
 		printk("\n");
 	}
 
 	mutex_lock(&dev->ctrl_urb_lock);
 	memcpy(dev->urb_buf, buf, len);
-	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0), req,
+	ret = usb_control_msg(dev->udev, pipe, req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	mutex_unlock(&dev->ctrl_urb_lock);
