@@ -181,7 +181,7 @@ static void ether1394_remove_host(struct hpsb_host *host);
 static void ether1394_host_reset(struct hpsb_host *host);
 
 /* Function for incoming 1394 packets */
-static struct hpsb_address_ops addr_ops = {
+const static struct hpsb_address_ops addr_ops = {
 	.write =	ether1394_write,
 };
 
