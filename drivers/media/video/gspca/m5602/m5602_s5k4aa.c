@@ -83,7 +83,7 @@ int s5k4aa_probe(struct sd *sd)
 
 		case SENSOR:
 			data[0] = preinit_s5k4aa[i][2];
-			err = s5k4aa_write_sensor(sd,
+			err = m5602_write_sensor(sd,
 						  preinit_s5k4aa[i][1],
 						  data, 1);
 			break;
@@ -91,7 +91,7 @@ int s5k4aa_probe(struct sd *sd)
 		case SENSOR_LONG:
 			data[0] = preinit_s5k4aa[i][2];
 			data[1] = preinit_s5k4aa[i][3];
-			err = s5k4aa_write_sensor(sd,
+			err = m5602_write_sensor(sd,
 						  preinit_s5k4aa[i][1],
 						  data, 2);
 			break;
@@ -219,14 +219,14 @@ int s5k4aa_init(struct sd *sd)
 
 		case SENSOR:
 			data[0] = init_s5k4aa[i][2];
-			err = s5k4aa_write_sensor(sd,
+			err = m5602_write_sensor(sd,
 				init_s5k4aa[i][1], data, 1);
 			break;
 
 		case SENSOR_LONG:
 			data[0] = init_s5k4aa[i][2];
 			data[1] = init_s5k4aa[i][3];
-			err = s5k4aa_write_sensor(sd,
+			err = m5602_write_sensor(sd,
 				init_s5k4aa[i][1], data, 2);
 			break;
 		default:
@@ -241,21 +241,21 @@ int s5k4aa_init(struct sd *sd)
 	if (!err && dmi_check_system(s5k4aa_vflip_dmi_table)) {
 		u8 data = 0x02;
 		info("vertical flip quirk active");
-		s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+		m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 		s5k4aa_read_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 		data |= S5K4AA_RM_V_FLIP;
 		data &= ~S5K4AA_RM_H_FLIP;
-		s5k4aa_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
+		m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 
 		/* Decrement COLSTART to preserve color order (BGGR) */
 		s5k4aa_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 		data--;
-		s5k4aa_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
+		m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 
 		/* Increment ROWSTART to preserve color order (BGGR) */
 		s5k4aa_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 		data++;
-		s5k4aa_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
+		m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	}
 
 	return (err < 0) ? err : 0;
@@ -272,7 +272,7 @@ int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
 
@@ -295,15 +295,15 @@ int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	PDEBUG(D_V4L2, "Set exposure to %d", val);
-	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
 	data = (val >> 8) & 0xff;
-	err = s5k4aa_write_sensor(sd, S5K4AA_EXPOSURE_HI, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_EXPOSURE_HI, &data, 1);
 	if (err < 0)
 		goto out;
 	data = val & 0xff;
-	err = s5k4aa_write_sensor(sd, S5K4AA_EXPOSURE_LO, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_EXPOSURE_LO, &data, 1);
 out:
 	return err;
 }
@@ -314,7 +314,7 @@ int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
 
@@ -333,15 +333,15 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
-	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
-	err = s5k4aa_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		goto out;
 	data = ((data & ~S5K4AA_RM_V_FLIP)
 			| ((val & 0x01) << 7));
-	err = s5k4aa_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		goto out;
 
@@ -351,14 +351,14 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 			goto out;
 
 		data++;
-		err = s5k4aa_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
+		err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	} else {
 		err = s5k4aa_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 		if (err < 0)
 			goto out;
 
 		data--;
-		err = s5k4aa_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
+		err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	}
 out:
 	return err;
@@ -370,7 +370,7 @@ int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
 
@@ -389,15 +389,15 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 
 	PDEBUG(D_V4L2, "Set horizontal flip to %d",
 	       val);
-	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
-	err = s5k4aa_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		goto out;
 
 	data = ((data & ~S5K4AA_RM_H_FLIP) | ((val & 0x01) << 6));
-	err = s5k4aa_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		goto out;
 
@@ -406,7 +406,7 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 		if (err < 0)
 			goto out;
 		data++;
-		err = s5k4aa_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
+		err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 		if (err < 0)
 			goto out;
 	} else {
@@ -414,7 +414,7 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 		if (err < 0)
 			goto out;
 		data--;
-		err = s5k4aa_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
+		err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	}
 out:
 	return err;
@@ -426,7 +426,7 @@ int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
 
@@ -445,12 +445,12 @@ int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	PDEBUG(D_V4L2, "Set gain to %d", val);
-	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
 
 	data = val & 0xff;
-	err = s5k4aa_write_sensor(sd, S5K4AA_GAIN_2, &data, 1);
+	err = m5602_write_sensor(sd, S5K4AA_GAIN_2, &data, 1);
 
 out:
 	return err;
@@ -462,7 +462,7 @@ static void s5k4aa_dump_registers(struct sd *sd)
 	u8 page, old_page;
 	s5k4aa_read_sensor(sd, S5K4AA_PAGE_MAP, &old_page, 1);
 	for (page = 0; page < 16; page++) {
-		s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &page, 1);
+		m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &page, 1);
 		info("Dumping the s5k4aa register state for page 0x%x", page);
 		for (address = 0; address <= 0xff; address++) {
 			u8 value = 0;
@@ -474,14 +474,14 @@ static void s5k4aa_dump_registers(struct sd *sd)
 	info("s5k4aa register state dump complete");
 
 	for (page = 0; page < 16; page++) {
-		s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &page, 1);
+		m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &page, 1);
 		info("Probing for which registers that are "
 		     "read/write for page 0x%x", page);
 		for (address = 0; address <= 0xff; address++) {
 			u8 old_value, ctrl_value, test_value = 0xff;
 
 			s5k4aa_read_sensor(sd, address, &old_value, 1);
-			s5k4aa_write_sensor(sd, address, &test_value, 1);
+			m5602_write_sensor(sd, address, &test_value, 1);
 			s5k4aa_read_sensor(sd, address, &ctrl_value, 1);
 
 			if (ctrl_value == test_value)
@@ -490,9 +490,9 @@ static void s5k4aa_dump_registers(struct sd *sd)
 				info("register 0x%x is read only", address);
 
 			/* Restore original value */
-			s5k4aa_write_sensor(sd, address, &old_value, 1);
+			m5602_write_sensor(sd, address, &old_value, 1);
 		}
 	}
 	info("Read/write register probing complete");
-	s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &old_page, 1);
+	m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &old_page, 1);
 }

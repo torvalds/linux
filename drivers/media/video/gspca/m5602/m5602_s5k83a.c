@@ -41,7 +41,7 @@ int s5k83a_probe(struct sd *sd)
 	for (i = 0; i < ARRAY_SIZE(preinit_s5k83a) && !err; i++) {
 		u8 data[2] = {preinit_s5k83a[i][2], preinit_s5k83a[i][3]};
 		if (preinit_s5k83a[i][0] == SENSOR)
-			err = s5k83a_write_sensor(sd, preinit_s5k83a[i][1],
+			err = m5602_write_sensor(sd, preinit_s5k83a[i][1],
 				data, 2);
 		else
 			err = m5602_write_bridge(sd, preinit_s5k83a[i][1],
@@ -167,14 +167,14 @@ int s5k83a_init(struct sd *sd)
 
 		case SENSOR:
 			data[0] = init_s5k83a[i][2];
-			err = s5k83a_write_sensor(sd,
+			err = m5602_write_sensor(sd,
 				init_s5k83a[i][1], data, 1);
 			break;
 
 		case SENSOR_LONG:
 			data[0] = init_s5k83a[i][2];
 			data[1] = init_s5k83a[i][3];
-			err = s5k83a_write_sensor(sd,
+			err = m5602_write_sensor(sd,
 				init_s5k83a[i][1], data, 2);
 			break;
 		default:
@@ -201,7 +201,7 @@ void s5k83a_dump_registers(struct sd *sd)
 	s5k83a_read_sensor(sd, S5K83A_PAGE_MAP, &old_page, 1);
 
 	for (page = 0; page < 16; page++) {
-		s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, &page, 1);
+		m5602_write_sensor(sd, S5K83A_PAGE_MAP, &page, 1);
 		info("Dumping the s5k83a register state for page 0x%x", page);
 		for (address = 0; address <= 0xff; address++) {
 			u8 val = 0;
@@ -213,14 +213,14 @@ void s5k83a_dump_registers(struct sd *sd)
 	info("s5k83a register state dump complete");
 
 	for (page = 0; page < 16; page++) {
-		s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, &page, 1);
+		m5602_write_sensor(sd, S5K83A_PAGE_MAP, &page, 1);
 		info("Probing for which registers that are read/write "
 		      "for page 0x%x", page);
 		for (address = 0; address <= 0xff; address++) {
 			u8 old_val, ctrl_val, test_val = 0xff;
 
 			s5k83a_read_sensor(sd, address, &old_val, 1);
-			s5k83a_write_sensor(sd, address, &test_val, 1);
+			m5602_write_sensor(sd, address, &test_val, 1);
 			s5k83a_read_sensor(sd, address, &ctrl_val, 1);
 
 			if (ctrl_val == test_val)
@@ -229,11 +229,11 @@ void s5k83a_dump_registers(struct sd *sd)
 				info("register 0x%x is read only", address);
 
 			/* Restore original val */
-			s5k83a_write_sensor(sd, address, &old_val, 1);
+			m5602_write_sensor(sd, address, &old_val, 1);
 		}
 	}
 	info("Read/write register probing complete");
-	s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, &old_page, 1);
+	m5602_write_sensor(sd, S5K83A_PAGE_MAP, &old_page, 1);
 }
 
 int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
@@ -261,13 +261,13 @@ int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 
 	data[0] = 0x00;
 	data[1] = 0x20;
-	err = s5k83a_write_sensor(sd, 0x14, data, 2);
+	err = m5602_write_sensor(sd, 0x14, data, 2);
 	if (err < 0)
 		goto out;
 
 	data[0] = 0x01;
 	data[1] = 0x00;
-	err = s5k83a_write_sensor(sd, 0x0d, data, 2);
+	err = m5602_write_sensor(sd, 0x0d, data, 2);
 	if (err < 0)
 		goto out;
 
@@ -275,7 +275,7 @@ int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 		  of these registers */
 	data[0] = val >> 3; /* brightness, high 5 bits */
 	data[1] = val >> 1; /* brightness, high 7 bits */
-	err = s5k83a_write_sensor(sd, S5K83A_BRIGHTNESS, data, 2);
+	err = m5602_write_sensor(sd, S5K83A_BRIGHTNESS, data, 2);
 
 out:
 	return err;
@@ -304,7 +304,7 @@ int s5k83a_set_whiteness(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	data[0] = val;
-	err = s5k83a_write_sensor(sd, S5K83A_WHITENESS, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_WHITENESS, data, 1);
 
 	return err;
 }
@@ -337,7 +337,7 @@ int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 
 	data[0] = 0;
 	data[1] = val;
-	err = s5k83a_write_sensor(sd, S5K83A_GAIN, data, 2);
+	err = m5602_write_sensor(sd, S5K83A_GAIN, data, 2);
 	return err;
 }
 
@@ -348,7 +348,7 @@ int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	data[0] = 0x05;
-	err = s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
 	if (err < 0)
 		goto out;
 
@@ -366,7 +366,7 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	data[0] = 0x05;
-	err = s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
 	if (err < 0)
 		goto out;
 
@@ -377,12 +377,12 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	/* set or zero six bit, seven is hflip */
 	data[0] = (val) ? (data[0] & 0x80) | 0x40 | S5K83A_FLIP_MASK
 			: (data[0] & 0x80) | S5K83A_FLIP_MASK;
-	err = s5k83a_write_sensor(sd, S5K83A_FLIP, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_FLIP, data, 1);
 	if (err < 0)
 		goto out;
 
 	data[0] = (val) ? 0x0b : 0x0a;
-	err = s5k83a_write_sensor(sd, S5K83A_VFLIP_TUNE, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_VFLIP_TUNE, data, 1);
 
 out:
 	return err;
@@ -395,7 +395,7 @@ int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	data[0] = 0x05;
-	err = s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
 	if (err < 0)
 		goto out;
 
@@ -413,7 +413,7 @@ int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	data[0] = 0x05;
-	err = s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
 	if (err < 0)
 		goto out;
 
@@ -424,12 +424,12 @@ int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	/* set or zero seven bit, six is vflip */
 	data[0] = (val) ? (data[0] & 0x40) | 0x80 | S5K83A_FLIP_MASK
 			: (data[0] & 0x40) | S5K83A_FLIP_MASK;
-	err = s5k83a_write_sensor(sd, S5K83A_FLIP, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_FLIP, data, 1);
 	if (err < 0)
 		goto out;
 
 	data[0] = (val) ? 0x0a : 0x0b;
-	err = s5k83a_write_sensor(sd, S5K83A_HFLIP_TUNE, data, 1);
+	err = m5602_write_sensor(sd, S5K83A_HFLIP_TUNE, data, 1);
 out:
 	return err;
 }

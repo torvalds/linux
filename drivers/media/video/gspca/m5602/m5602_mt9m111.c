@@ -46,7 +46,7 @@ int mt9m111_probe(struct sd *sd)
 		} else {
 			data[0] = preinit_mt9m111[i][2];
 			data[1] = preinit_mt9m111[i][3];
-			mt9m111_write_sensor(sd,
+			m5602_write_sensor(sd,
 				preinit_mt9m111[i][1], data, 2);
 		}
 	}
@@ -84,7 +84,7 @@ int mt9m111_init(struct sd *sd)
 		} else {
 			data[0] = init_mt9m111[i][2];
 			data[1] = init_mt9m111[i][3];
-			err = mt9m111_write_sensor(sd,
+			err = m5602_write_sensor(sd,
 				init_mt9m111[i][1], data, 2);
 		}
 	}
@@ -123,7 +123,7 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
 
 	/* Set the correct page map */
-	err = mt9m111_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
+	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
 		goto out;
 
@@ -132,7 +132,7 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 		goto out;
 
 	data[0] = (data[0] & 0xfe) | val;
-	err = mt9m111_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
+	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 				   data, 2);
 out:
 	return err;
@@ -161,7 +161,7 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 
 	/* Set the correct page map */
-	err = mt9m111_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
+	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
 		goto out;
 
@@ -170,7 +170,7 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 		goto out;
 
 	data[0] = (data[0] & 0xfd) | ((val << 1) & 0x02);
-	err = mt9m111_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
+	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 					data, 2);
 out:
 	return err;
@@ -202,7 +202,7 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* Set the correct page map */
-	err = mt9m111_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
+	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
 		goto out;
 
@@ -227,7 +227,7 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "tmp=%d, data[1]=%d, data[0]=%d", tmp,
 	       data[1], data[0]);
 
-	err = mt9m111_write_sensor(sd, MT9M111_SC_GLOBAL_GAIN,
+	err = m5602_write_sensor(sd, MT9M111_SC_GLOBAL_GAIN,
 				   data, 2);
 out:
 	return err;
@@ -318,7 +318,7 @@ static void mt9m111_dump_registers(struct sd *sd)
 
 	info("Dumping the mt9m111 sensor core registers");
 	value[1] = MT9M111_SENSOR_CORE;
-	mt9m111_write_sensor(sd, MT9M111_PAGE_MAP, value, 2);
+	m5602_write_sensor(sd, MT9M111_PAGE_MAP, value, 2);
 	for (address = 0; address < 0xff; address++) {
 		mt9m111_read_sensor(sd, address, value, 2);
 		info("register 0x%x contains 0x%x%x",
@@ -327,7 +327,7 @@ static void mt9m111_dump_registers(struct sd *sd)
 
 	info("Dumping the mt9m111 color pipeline registers");
 	value[1] = MT9M111_COLORPIPE;
-	mt9m111_write_sensor(sd, MT9M111_PAGE_MAP, value, 2);
+	m5602_write_sensor(sd, MT9M111_PAGE_MAP, value, 2);
 	for (address = 0; address < 0xff; address++) {
 		mt9m111_read_sensor(sd, address, value, 2);
 		info("register 0x%x contains 0x%x%x",
@@ -336,7 +336,7 @@ static void mt9m111_dump_registers(struct sd *sd)
 
 	info("Dumping the mt9m111 camera control registers");
 	value[1] = MT9M111_CAMERA_CONTROL;
-	mt9m111_write_sensor(sd, MT9M111_PAGE_MAP, value, 2);
+	m5602_write_sensor(sd, MT9M111_PAGE_MAP, value, 2);
 	for (address = 0; address < 0xff; address++) {
 		mt9m111_read_sensor(sd, address, value, 2);
 		info("register 0x%x contains 0x%x%x",
