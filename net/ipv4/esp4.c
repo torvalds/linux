@@ -413,6 +413,7 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 
 static void esp4_err(struct sk_buff *skb, u32 info)
 {
+	struct net *net = dev_net(skb->dev);
 	struct iphdr *iph = (struct iphdr *)skb->data;
 	struct ip_esp_hdr *esph = (struct ip_esp_hdr *)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
@@ -421,7 +422,7 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 		return;
 
-	x = xfrm_state_lookup(&init_net, (xfrm_address_t *)&iph->daddr, esph->spi, IPPROTO_ESP, AF_INET);
+	x = xfrm_state_lookup(net, (xfrm_address_t *)&iph->daddr, esph->spi, IPPROTO_ESP, AF_INET);
 	if (!x)
 		return;
 	NETDEBUG(KERN_DEBUG "pmtu discovery on SA ESP/%08x/%08x\n",
@@ -618,6 +619,7 @@ static struct net_protocol esp4_protocol = {
 	.handler	=	xfrm4_rcv,
 	.err_handler	=	esp4_err,
 	.no_policy	=	1,
+	.netns_ok	=	1,
 };
 
 static int __init esp4_init(void)
