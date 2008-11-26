@@ -69,6 +69,7 @@ static struct m5602_sensor s5k83a = {
 	.init = s5k83a_init,
 	.power_down = s5k83a_power_down,
 	.i2c_slave_id = 0x5a,
+	.i2c_regW = 2,
 	.nctrls = 5,
 	.ctrls = {
 	{

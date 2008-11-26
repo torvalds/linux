@@ -49,6 +49,9 @@ struct m5602_sensor {
 	/* What i2c address the sensor is connected to */
 	u8 i2c_slave_id;
 
+	/* Width of each i2c register (in bytes) */
+	u8 i2c_regW;
+
 	/* Probes if the sensor is connected */
 	int (*probe)(struct sd *sd);
 

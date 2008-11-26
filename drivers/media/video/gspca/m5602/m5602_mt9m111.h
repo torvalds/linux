@@ -104,6 +104,7 @@ static struct m5602_sensor mt9m111 = {
 	.name = "MT9M111",
 
 	.i2c_slave_id = 0xba,
+	.i2c_regW = 2,
 
 	.probe = mt9m111_probe,
 	.init = mt9m111_init,

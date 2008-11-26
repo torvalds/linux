@@ -150,6 +150,7 @@ static struct m5602_sensor po1030 = {
 	.name = "PO1030",
 
 	.i2c_slave_id = 0xdc,
+	.i2c_regW = 1,
 
 	.probe = po1030_probe,
 	.init = po1030_init,

@@ -153,6 +153,7 @@ int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
 static struct m5602_sensor ov9650 = {
 	.name = "OV9650",
 	.i2c_slave_id = 0x60,
+	.i2c_regW = 1,
 	.probe = ov9650_probe,
 	.init = ov9650_init,
 	.power_down = ov9650_power_down,
