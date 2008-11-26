@@ -2044,6 +2044,7 @@ EXPORT_SYMBOL(__xfrm_policy_check);
 
 int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 {
+	struct net *net = dev_net(skb->dev);
 	struct flowi fl;
 
 	if (xfrm_decode_session(skb, &fl, family) < 0) {
@@ -2052,7 +2053,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 		return 0;
 	}
 
-	return xfrm_lookup(&init_net, &skb->dst, &fl, NULL, 0) == 0;
+	return xfrm_lookup(net, &skb->dst, &fl, NULL, 0) == 0;
 }
 EXPORT_SYMBOL(__xfrm_route_forward);
 
