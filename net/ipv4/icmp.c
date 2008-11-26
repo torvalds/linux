@@ -562,7 +562,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		/* No need to clone since we're just using its address. */
 		rt2 = rt;
 
-		err = xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0);
+		err = xfrm_lookup(net, (struct dst_entry **)&rt, &fl, NULL, 0);
 		switch (err) {
 		case 0:
 			if (rt != rt2)
@@ -601,7 +601,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		if (err)
 			goto relookup_failed;
 
-		err = xfrm_lookup((struct dst_entry **)&rt2, &fl, NULL,
+		err = xfrm_lookup(net, (struct dst_entry **)&rt2, &fl, NULL,
 				  XFRM_LOOKUP_ICMP);
 		switch (err) {
 		case 0:

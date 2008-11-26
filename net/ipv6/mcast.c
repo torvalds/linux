@@ -1466,7 +1466,7 @@ static void mld_sendpack(struct sk_buff *skb)
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	err = xfrm_lookup(&skb->dst, &fl, NULL, 0);
+	err = xfrm_lookup(net, &skb->dst, &fl, NULL, 0);
 	if (err)
 		goto err_out;
 
@@ -1831,7 +1831,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	err = xfrm_lookup(&skb->dst, &fl, NULL, 0);
+	err = xfrm_lookup(net, &skb->dst, &fl, NULL, 0);
 	if (err)
 		goto err_out;
 

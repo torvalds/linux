@@ -29,7 +29,7 @@ int ip6_route_me_harder(struct sk_buff *skb)
 #ifdef CONFIG_XFRM
 	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
 	    xfrm_decode_session(skb, &fl, AF_INET6) == 0)
-		if (xfrm_lookup(&skb->dst, &fl, skb->sk, 0))
+		if (xfrm_lookup(net, &skb->dst, &fl, skb->sk, 0))
 			return -1;
 #endif
 

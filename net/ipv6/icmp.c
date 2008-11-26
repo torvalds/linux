@@ -427,7 +427,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	/* No need to clone since we're just using its address. */
 	dst2 = dst;
 
-	err = xfrm_lookup(&dst, &fl, sk, 0);
+	err = xfrm_lookup(net, &dst, &fl, sk, 0);
 	switch (err) {
 	case 0:
 		if (dst != dst2)
@@ -446,7 +446,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	if (ip6_dst_lookup(sk, &dst2, &fl))
 		goto relookup_failed;
 
-	err = xfrm_lookup(&dst2, &fl, sk, XFRM_LOOKUP_ICMP);
+	err = xfrm_lookup(net, &dst2, &fl, sk, XFRM_LOOKUP_ICMP);
 	switch (err) {
 	case 0:
 		dst_release(dst);
@@ -552,7 +552,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)
 		goto out;
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+	if ((err = xfrm_lookup(net, &dst, &fl, sk, 0)) < 0)
 		goto out;
 
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))

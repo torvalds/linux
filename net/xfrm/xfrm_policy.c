@@ -940,7 +940,8 @@ static int xfrm_policy_match(struct xfrm_policy *pol, struct flowi *fl,
 	return ret;
 }
 
-static struct xfrm_policy *xfrm_policy_lookup_bytype(u8 type, struct flowi *fl,
+static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
+						     struct flowi *fl,
 						     u16 family, u8 dir)
 {
 	int err;
@@ -956,7 +957,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(u8 type, struct flowi *fl,
 		return NULL;
 
 	read_lock_bh(&xfrm_policy_lock);
-	chain = policy_hash_direct(&init_net, daddr, saddr, family, dir);
+	chain = policy_hash_direct(net, daddr, saddr, family, dir);
 	ret = NULL;
 	hlist_for_each_entry(pol, entry, chain, bydst) {
 		err = xfrm_policy_match(pol, fl, type, family, dir);
@@ -973,7 +974,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(u8 type, struct flowi *fl,
 			break;
 		}
 	}
-	chain = &init_net.xfrm.policy_inexact[dir];
+	chain = &net->xfrm.policy_inexact[dir];
 	hlist_for_each_entry(pol, entry, chain, bydst) {
 		err = xfrm_policy_match(pol, fl, type, family, dir);
 		if (err) {
@@ -996,14 +997,14 @@ fail:
 	return ret;
 }
 
-static int xfrm_policy_lookup(struct flowi *fl, u16 family, u8 dir,
-			       void **objp, atomic_t **obj_refp)
+static int xfrm_policy_lookup(struct net *net, struct flowi *fl, u16 family,
+			      u8 dir, void **objp, atomic_t **obj_refp)
 {
 	struct xfrm_policy *pol;
 	int err = 0;
 
 #ifdef CONFIG_XFRM_SUB_POLICY
-	pol = xfrm_policy_lookup_bytype(XFRM_POLICY_TYPE_SUB, fl, family, dir);
+	pol = xfrm_policy_lookup_bytype(net, XFRM_POLICY_TYPE_SUB, fl, family, dir);
 	if (IS_ERR(pol)) {
 		err = PTR_ERR(pol);
 		pol = NULL;
@@ -1011,7 +1012,7 @@ static int xfrm_policy_lookup(struct flowi *fl, u16 family, u8 dir,
 	if (pol || err)
 		goto end;
 #endif
-	pol = xfrm_policy_lookup_bytype(XFRM_POLICY_TYPE_MAIN, fl, family, dir);
+	pol = xfrm_policy_lookup_bytype(net, XFRM_POLICY_TYPE_MAIN, fl, family, dir);
 	if (IS_ERR(pol)) {
 		err = PTR_ERR(pol);
 		pol = NULL;
@@ -1537,7 +1538,7 @@ static int stale_bundle(struct dst_entry *dst);
  * At the moment we eat a raw IP route. Mostly to speed up lookups
  * on interfaces with disabled IPsec.
  */
-int __xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
+int __xfrm_lookup(struct net *net, struct dst_entry **dst_p, struct flowi *fl,
 		  struct sock *sk, int flags)
 {
 	struct xfrm_policy *policy;
@@ -1575,10 +1576,10 @@ restart:
 	if (!policy) {
 		/* To accelerate a bit...  */
 		if ((dst_orig->flags & DST_NOXFRM) ||
-		    !init_net.xfrm.policy_count[XFRM_POLICY_OUT])
+		    !net->xfrm.policy_count[XFRM_POLICY_OUT])
 			goto nopol;
 
-		policy = flow_cache_lookup(fl, dst_orig->ops->family,
+		policy = flow_cache_lookup(net, fl, dst_orig->ops->family,
 					   dir, xfrm_policy_lookup);
 		err = PTR_ERR(policy);
 		if (IS_ERR(policy)) {
@@ -1635,7 +1636,8 @@ restart:
 
 #ifdef CONFIG_XFRM_SUB_POLICY
 		if (pols[0]->type != XFRM_POLICY_TYPE_MAIN) {
-			pols[1] = xfrm_policy_lookup_bytype(XFRM_POLICY_TYPE_MAIN,
+			pols[1] = xfrm_policy_lookup_bytype(net,
+							    XFRM_POLICY_TYPE_MAIN,
 							    fl, family,
 							    XFRM_POLICY_OUT);
 			if (pols[1]) {
@@ -1683,11 +1685,11 @@ restart:
 			if (err == -EAGAIN && (flags & XFRM_LOOKUP_WAIT)) {
 				DECLARE_WAITQUEUE(wait, current);
 
-				add_wait_queue(&init_net.xfrm.km_waitq, &wait);
+				add_wait_queue(&net->xfrm.km_waitq, &wait);
 				set_current_state(TASK_INTERRUPTIBLE);
 				schedule();
 				set_current_state(TASK_RUNNING);
-				remove_wait_queue(&init_net.xfrm.km_waitq, &wait);
+				remove_wait_queue(&net->xfrm.km_waitq, &wait);
 
 				nx = xfrm_tmpl_resolve(pols, npols, fl, xfrm, family);
 
@@ -1781,10 +1783,10 @@ nopol:
 }
 EXPORT_SYMBOL(__xfrm_lookup);
 
-int xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
+int xfrm_lookup(struct net *net, struct dst_entry **dst_p, struct flowi *fl,
 		struct sock *sk, int flags)
 {
-	int err = __xfrm_lookup(dst_p, fl, sk, flags);
+	int err = __xfrm_lookup(net, dst_p, fl, sk, flags);
 
 	if (err == -EREMOTE) {
 		dst_release(*dst_p);
@@ -1936,7 +1938,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	}
 
 	if (!pol)
-		pol = flow_cache_lookup(&fl, family, fl_dir,
+		pol = flow_cache_lookup(&init_net, &fl, family, fl_dir,
 					xfrm_policy_lookup);
 
 	if (IS_ERR(pol)) {
@@ -1959,7 +1961,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	npols ++;
 #ifdef CONFIG_XFRM_SUB_POLICY
 	if (pols[0]->type != XFRM_POLICY_TYPE_MAIN) {
-		pols[1] = xfrm_policy_lookup_bytype(XFRM_POLICY_TYPE_MAIN,
+		pols[1] = xfrm_policy_lookup_bytype(&init_net, XFRM_POLICY_TYPE_MAIN,
 						    &fl, family,
 						    XFRM_POLICY_IN);
 		if (pols[1]) {
@@ -2049,7 +2051,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 		return 0;
 	}
 
-	return xfrm_lookup(&skb->dst, &fl, NULL, 0) == 0;
+	return xfrm_lookup(&init_net, &skb->dst, &fl, NULL, 0) == 0;
 }
 EXPORT_SYMBOL(__xfrm_route_forward);
 

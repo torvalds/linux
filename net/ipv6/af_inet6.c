@@ -637,7 +637,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		if (final_p)
 			ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-		if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
+		if ((err = xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0) {
 			sk->sk_err_soft = -err;
 			return err;
 		}

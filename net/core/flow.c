@@ -165,7 +165,7 @@ static int flow_key_compare(struct flowi *key1, struct flowi *key2)
 	return 0;
 }
 
-void *flow_cache_lookup(struct flowi *key, u16 family, u8 dir,
+void *flow_cache_lookup(struct net *net, struct flowi *key, u16 family, u8 dir,
 			flow_resolve_t resolver)
 {
 	struct flow_cache_entry *fle, **head;
@@ -225,7 +225,7 @@ nocache:
 		void *obj;
 		atomic_t *obj_ref;
 
-		err = resolver(key, family, dir, &obj, &obj_ref);
+		err = resolver(net, key, family, dir, &obj, &obj_ref);
 
 		if (fle && !err) {
 			fle->genid = atomic_read(&flow_cache_genid);

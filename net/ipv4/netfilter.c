@@ -66,7 +66,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 #ifdef CONFIG_XFRM
 	if (!(IPCB(skb)->flags & IPSKB_XFRM_TRANSFORMED) &&
 	    xfrm_decode_session(skb, &fl, AF_INET) == 0)
-		if (xfrm_lookup(&skb->dst, &fl, skb->sk, 0))
+		if (xfrm_lookup(net, &skb->dst, &fl, skb->sk, 0))
 			return -1;
 #endif
 
@@ -97,7 +97,7 @@ int ip_xfrm_me_harder(struct sk_buff *skb)
 		dst = ((struct xfrm_dst *)dst)->route;
 	dst_hold(dst);
 
-	if (xfrm_lookup(&dst, &fl, skb->sk, 0) < 0)
+	if (xfrm_lookup(dev_net(dst->dev), &dst, &fl, skb->sk, 0) < 0)
 		return -1;
 
 	dst_release(skb->dst);

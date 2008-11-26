@@ -846,6 +846,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 			 int encap_limit,
 			 __u32 *pmtu)
 {
+	struct net *net = dev_net(dev);
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net_device_stats *stats = &t->dev->stats;
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
@@ -861,9 +862,9 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	if ((dst = ip6_tnl_dst_check(t)) != NULL)
 		dst_hold(dst);
 	else {
-		dst = ip6_route_output(dev_net(dev), NULL, fl);
+		dst = ip6_route_output(net, NULL, fl);
 
-		if (dst->error || xfrm_lookup(&dst, fl, NULL, 0) < 0)
+		if (dst->error || xfrm_lookup(net, &dst, fl, NULL, 0) < 0)
 			goto tx_err_link_failure;
 	}
 
