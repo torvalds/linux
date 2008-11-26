@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/xfrm.h>
 
 struct netns_xfrm {
 	struct list_head	state_all;
@@ -29,6 +30,7 @@ struct netns_xfrm {
 	struct list_head	policy_all;
 	struct hlist_head	*policy_byidx;
 	unsigned int		policy_idx_hmask;
+	struct hlist_head	policy_inexact[XFRM_POLICY_MAX * 2];
 };
 
 #endif

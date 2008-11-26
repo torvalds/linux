@@ -327,7 +327,6 @@ struct xfrm_policy_hash {
 	unsigned int		hmask;
 };
 
-static struct hlist_head xfrm_policy_inexact[XFRM_POLICY_MAX*2];
 static struct xfrm_policy_hash xfrm_policy_bydst[XFRM_POLICY_MAX*2] __read_mostly;
 static unsigned int xfrm_policy_hashmax __read_mostly = 1 * 1024 * 1024;
 
@@ -342,7 +341,7 @@ static struct hlist_head *policy_hash_bysel(struct xfrm_selector *sel, unsigned 
 	unsigned int hash = __sel_hash(sel, family, hmask);
 
 	return (hash == hmask + 1 ?
-		&xfrm_policy_inexact[dir] :
+		&init_net.xfrm.policy_inexact[dir] :
 		xfrm_policy_bydst[dir].table + hash);
 }
 
@@ -752,7 +751,7 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 		int i;
 
 		hlist_for_each_entry(pol, entry,
-				     &xfrm_policy_inexact[dir], bydst) {
+				     &init_net.xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
 			err = security_xfrm_policy_delete(pol->security);
@@ -810,7 +809,7 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 		killed = 0;
 	again1:
 		hlist_for_each_entry(pol, entry,
-				     &xfrm_policy_inexact[dir], bydst) {
+				     &init_net.xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
 			hlist_del(&pol->bydst);
@@ -983,7 +982,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(u8 type, struct flowi *fl,
 			break;
 		}
 	}
-	chain = &xfrm_policy_inexact[dir];
+	chain = &init_net.xfrm.policy_inexact[dir];
 	hlist_for_each_entry(pol, entry, chain, bydst) {
 		err = xfrm_policy_match(pol, fl, type, family, dir);
 		if (err) {
@@ -2152,7 +2151,7 @@ static void xfrm_prune_bundles(int (*func)(struct dst_entry *))
 		int i;
 
 		hlist_for_each_entry(pol, entry,
-				     &xfrm_policy_inexact[dir], bydst)
+				     &init_net.xfrm.policy_inexact[dir], bydst)
 			prune_one_bundle(pol, func, &gc_list);
 
 		table = xfrm_policy_bydst[dir].table;
@@ -2414,7 +2413,7 @@ static int __net_init xfrm_policy_init(struct net *net)
 	for (dir = 0; dir < XFRM_POLICY_MAX * 2; dir++) {
 		struct xfrm_policy_hash *htab;
 
-		INIT_HLIST_HEAD(&xfrm_policy_inexact[dir]);
+		INIT_HLIST_HEAD(&net->xfrm.policy_inexact[dir]);
 
 		htab = &xfrm_policy_bydst[dir];
 		htab->table = xfrm_hash_alloc(sz);
@@ -2435,8 +2434,13 @@ out_byidx:
 static void xfrm_policy_fini(struct net *net)
 {
 	unsigned int sz;
+	int dir;
 
 	WARN_ON(!list_empty(&net->xfrm.policy_all));
+
+	for (dir = 0; dir < XFRM_POLICY_MAX * 2; dir++) {
+		WARN_ON(!hlist_empty(&net->xfrm.policy_inexact[dir]));
+	}
 
 	sz = (net->xfrm.policy_idx_hmask + 1) * sizeof(struct hlist_head);
 	WARN_ON(!hlist_empty(net->xfrm.policy_byidx));
@@ -2590,7 +2594,7 @@ static struct xfrm_policy * xfrm_migrate_policy_find(struct xfrm_selector *sel,
 			break;
 		}
 	}
-	chain = &xfrm_policy_inexact[dir];
+	chain = &init_net.xfrm.policy_inexact[dir];
 	hlist_for_each_entry(pol, entry, chain, bydst) {
 		if (xfrm_migrate_selector_match(sel, &pol->selector) &&
 		    pol->type == type &&
