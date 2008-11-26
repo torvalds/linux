@@ -252,6 +252,14 @@ config DEBUG_OBJECTS_TIMERS
 	  timer routines to track the life time of timer objects and
 	  validate the timer operations.
 
+config DEBUG_OBJECTS_ENABLE_DEFAULT
+	int "debug_objects bootup default value (0-1)"
+        range 0 1
+        default "1"
+        depends on DEBUG_OBJECTS
+        help
+          Debug objects boot parameter default value
+
 config DEBUG_SLAB
 	bool "Debug slab memory allocations"
 	depends on DEBUG_KERNEL && SLAB
