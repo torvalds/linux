@@ -194,7 +194,7 @@ ENTRY(native_usergs_sysret64)
 	pushq %rax /* rsp */
 	CFI_ADJUST_CFA_OFFSET	8
 	CFI_REL_OFFSET	rsp,0
-	pushq $(1<<9) /* eflags - interrupts on */
+	pushq $X86_EFLAGS_IF /* eflags - interrupts on */
 	CFI_ADJUST_CFA_OFFSET	8
 	/*CFI_REL_OFFSET	rflags,0*/
 	pushq $__KERNEL_CS /* cs */
