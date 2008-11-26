@@ -174,9 +174,6 @@ bad_clone_list[] __initdata = {
 static int ne_probe1(struct net_device *dev, unsigned long ioaddr);
 static int ne_probe_isapnp(struct net_device *dev);
 
-static int ne_open(struct net_device *dev);
-static int ne_close(struct net_device *dev);
-
 static void ne_reset_8390(struct net_device *dev);
 static void ne_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 			  int ring_page);
@@ -536,11 +533,8 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 	ei_status.block_output = &ne_block_output;
 	ei_status.get_8390_hdr = &ne_get_8390_hdr;
 	ei_status.priv = 0;
-	dev->open = &ne_open;
-	dev->stop = &ne_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = eip_poll;
-#endif
+
+	dev->netdev_ops = &eip_netdev_ops;
 	NS8390p_init(dev, 0);
 
 	ret = register_netdev(dev);
@@ -555,20 +549,6 @@ out_irq:
 err_out:
 	release_region(ioaddr, NE_IO_EXTENT);
 	return ret;
-}
-
-static int ne_open(struct net_device *dev)
-{
-	eip_open(dev);
-	return 0;
-}
-
-static int ne_close(struct net_device *dev)
-{
-	if (ei_debug > 1)
-		printk(KERN_DEBUG "%s: Shutting down ethercard.\n", dev->name);
-	eip_close(dev);
-	return 0;
 }
 
 /* Hard reset the card.  This used to pause for the same period that a
