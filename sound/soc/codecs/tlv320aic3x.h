@@ -48,7 +48,9 @@
 #define MIC3LR_2_RADC_CTRL		18
 /* Line1 Input control registers */
 #define LINE1L_2_LADC_CTRL		19
+#define LINE1R_2_LADC_CTRL		21
 #define LINE1R_2_RADC_CTRL		22
+#define LINE1L_2_RADC_CTRL		24
 /* Line2 Input control registers */
 #define LINE2L_2_LADC_CTRL		20
 #define LINE2R_2_RADC_CTRL		23
@@ -79,6 +81,8 @@
 #define LINE2L_2_HPLOUT_VOL		45
 #define LINE2R_2_HPROUT_VOL		62
 #define PGAL_2_HPLOUT_VOL		46
+#define PGAL_2_HPROUT_VOL		60
+#define PGAR_2_HPLOUT_VOL		49
 #define PGAR_2_HPROUT_VOL		63
 #define DACL1_2_HPLOUT_VOL		47
 #define DACR1_2_HPROUT_VOL		64
@@ -88,6 +92,8 @@
 #define LINE2L_2_HPLCOM_VOL		52
 #define LINE2R_2_HPRCOM_VOL		69
 #define PGAL_2_HPLCOM_VOL		53
+#define PGAR_2_HPLCOM_VOL		56
+#define PGAL_2_HPRCOM_VOL		67
 #define PGAR_2_HPRCOM_VOL		70
 #define DACL1_2_HPLCOM_VOL		54
 #define DACR1_2_HPRCOM_VOL		71
@@ -103,11 +109,17 @@
 #define MONOLOPM_CTRL			79
 /* Line Output Plus/Minus control registers */
 #define LINE2L_2_LLOPM_VOL		80
+#define LINE2L_2_RLOPM_VOL		87
+#define LINE2R_2_LLOPM_VOL		83
 #define LINE2R_2_RLOPM_VOL		90
 #define PGAL_2_LLOPM_VOL		81
+#define PGAL_2_RLOPM_VOL		88
+#define PGAR_2_LLOPM_VOL		84
 #define PGAR_2_RLOPM_VOL		91
 #define DACL1_2_LLOPM_VOL		82
+#define DACL1_2_RLOPM_VOL		89
 #define DACR1_2_RLOPM_VOL		92
+#define DACR1_2_LLOPM_VOL		85
 #define LLOPM_CTRL			86
 #define RLOPM_CTRL			93
 /* GPIO/IRQ registers */
