@@ -68,7 +68,7 @@
  * XFS_IOC_PATH_TO_HANDLE
  *    returns full handle for a path
  */
-STATIC int
+int
 xfs_find_handle(
 	unsigned int		cmd,
 	xfs_fsop_handlereq_t	*hreq)
@@ -245,7 +245,7 @@ xfs_vget_fsop_handlereq(
 	return 0;
 }
 
-STATIC int
+int
 xfs_open_by_handle(
 	xfs_mount_t		*mp,
 	xfs_fsop_handlereq_t	*hreq,
@@ -355,7 +355,7 @@ do_readlink(
 }
 
 
-STATIC int
+int
 xfs_readlink_by_handle(
 	xfs_mount_t		*mp,
 	xfs_fsop_handlereq_t	*hreq,
@@ -651,7 +651,7 @@ xfs_attrmulti_by_handle(
 	return -error;
 }
 
-STATIC int
+int
 xfs_ioc_space(
 	struct xfs_inode	*ip,
 	struct inode		*inode,

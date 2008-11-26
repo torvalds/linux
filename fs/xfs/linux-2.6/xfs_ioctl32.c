@@ -43,55 +43,62 @@
 #include "xfs_error.h"
 #include "xfs_dfrag.h"
 #include "xfs_vnodeops.h"
+#include "xfs_fsops.h"
+#include "xfs_ioctl.h"
 #include "xfs_ioctl32.h"
 
 #define  _NATIVE_IOC(cmd, type) \
 	  _IOC(_IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd), sizeof(type))
 
 #ifdef BROKEN_X86_ALIGNMENT
-STATIC unsigned long
-xfs_ioctl32_flock(
-	unsigned long		arg)
+STATIC int
+xfs_compat_flock64_copyin(
+	xfs_flock64_t		*bf,
+	compat_xfs_flock64_t	__user *arg32)
 {
-	compat_xfs_flock64_t	__user *p32 = (void __user *)arg;
-	xfs_flock64_t		__user *p = compat_alloc_user_space(sizeof(*p));
-
-	if (copy_in_user(&p->l_type,	&p32->l_type,	sizeof(s16)) ||
-	    copy_in_user(&p->l_whence,	&p32->l_whence, sizeof(s16)) ||
-	    copy_in_user(&p->l_start,	&p32->l_start,	sizeof(s64)) ||
-	    copy_in_user(&p->l_len,	&p32->l_len,	sizeof(s64)) ||
-	    copy_in_user(&p->l_sysid,	&p32->l_sysid,	sizeof(s32)) ||
-	    copy_in_user(&p->l_pid,	&p32->l_pid,	sizeof(u32)) ||
-	    copy_in_user(&p->l_pad,	&p32->l_pad,	4*sizeof(u32)))
-		return -EFAULT;
-
-	return (unsigned long)p;
+	if (get_user(bf->l_type,	&arg32->l_type) ||
+	    get_user(bf->l_whence,	&arg32->l_whence) ||
+	    get_user(bf->l_start,	&arg32->l_start) ||
+	    get_user(bf->l_len,		&arg32->l_len) ||
+	    get_user(bf->l_sysid,	&arg32->l_sysid) ||
+	    get_user(bf->l_pid,		&arg32->l_pid) ||
+	    copy_from_user(bf->l_pad,	&arg32->l_pad,	4*sizeof(u32)))
+		return -XFS_ERROR(EFAULT);
+	return 0;
 }
 
-STATIC unsigned long xfs_ioctl32_geom_v1(unsigned long arg)
+STATIC int
+xfs_compat_ioc_fsgeometry_v1(
+	struct xfs_mount	  *mp,
+	compat_xfs_fsop_geom_v1_t __user *arg32)
 {
-	compat_xfs_fsop_geom_v1_t __user *p32 = (void __user *)arg;
-	xfs_fsop_geom_v1_t __user *p = compat_alloc_user_space(sizeof(*p));
+	xfs_fsop_geom_t		  fsgeo;
+	int			  error;
 
-	if (copy_in_user(p, p32, sizeof(*p32)))
-		return -EFAULT;
-	return (unsigned long)p;
+	error = xfs_fs_geometry(mp, &fsgeo, 3);
+	if (error)
+		return -error;
+	/* The 32-bit variant simply has some padding at the end */
+	if (copy_to_user(arg32, &fsgeo, sizeof(struct compat_xfs_fsop_geom_v1)))
+		return -XFS_ERROR(EFAULT);
+	return 0;
 }
 
-STATIC int xfs_inumbers_fmt_compat(
-	void __user *ubuffer,
-	const xfs_inogrp_t *buffer,
-	long count,
-	long *written)
+STATIC int
+xfs_inumbers_fmt_compat(
+	void			__user *ubuffer,
+	const xfs_inogrp_t	*buffer,
+	long			count,
+	long			*written)
 {
-	compat_xfs_inogrp_t __user *p32 = ubuffer;
-	long i;
+	compat_xfs_inogrp_t	__user *p32 = ubuffer;
+	long			i;
 
 	for (i = 0; i < count; i++) {
 		if (put_user(buffer[i].xi_startino,   &p32[i].xi_startino) ||
 		    put_user(buffer[i].xi_alloccount, &p32[i].xi_alloccount) ||
 		    put_user(buffer[i].xi_allocmask,  &p32[i].xi_allocmask))
-			return -EFAULT;
+			return -XFS_ERROR(EFAULT);
 	}
 	*written = count * sizeof(*p32);
 	return 0;
@@ -103,24 +110,26 @@ STATIC int xfs_inumbers_fmt_compat(
 
 /* XFS_IOC_FSBULKSTAT and friends */
 
-STATIC int xfs_bstime_store_compat(
-	compat_xfs_bstime_t __user *p32,
-	const xfs_bstime_t *p)
+STATIC int
+xfs_bstime_store_compat(
+	compat_xfs_bstime_t	__user *p32,
+	const xfs_bstime_t	*p)
 {
-	__s32 sec32;
+	__s32			sec32;
 
 	sec32 = p->tv_sec;
 	if (put_user(sec32, &p32->tv_sec) ||
 	    put_user(p->tv_nsec, &p32->tv_nsec))
-		return -EFAULT;
+		return -XFS_ERROR(EFAULT);
 	return 0;
 }
 
-STATIC int xfs_bulkstat_one_fmt_compat(
+STATIC int
+xfs_bulkstat_one_fmt_compat(
 	void			__user *ubuffer,
 	const xfs_bstat_t	*buffer)
 {
-	compat_xfs_bstat_t __user *p32 = ubuffer;
+	compat_xfs_bstat_t	__user *p32 = ubuffer;
 
 	if (put_user(buffer->bs_ino, &p32->bs_ino) ||
 	    put_user(buffer->bs_mode, &p32->bs_mode) ||
@@ -142,7 +151,7 @@ STATIC int xfs_bulkstat_one_fmt_compat(
 	    put_user(buffer->bs_dmevmask, &p32->bs_dmevmask) ||
 	    put_user(buffer->bs_dmstate, &p32->bs_dmstate) ||
 	    put_user(buffer->bs_aextents, &p32->bs_aextents))
-		return -EFAULT;
+		return -XFS_ERROR(EFAULT);
 	return sizeof(*p32);
 }
 
@@ -165,20 +174,20 @@ xfs_ioc_bulkstat_compat(
 	/* should be called again (unused here, but used in dmapi) */
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
+		return -XFS_ERROR(EPERM);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -XFS_ERROR(EIO);
 
 	if (get_user(addr, &p32->lastip))
-		return -EFAULT;
+		return -XFS_ERROR(EFAULT);
 	bulkreq.lastip = compat_ptr(addr);
 	if (get_user(bulkreq.icount, &p32->icount) ||
 	    get_user(addr, &p32->ubuffer))
-		return -EFAULT;
+		return -XFS_ERROR(EFAULT);
 	bulkreq.ubuffer = compat_ptr(addr);
 	if (get_user(addr, &p32->ocount))
-		return -EFAULT;
+		return -XFS_ERROR(EFAULT);
 	bulkreq.ocount = compat_ptr(addr);
 
 	if (copy_from_user(&inlast, bulkreq.lastip, sizeof(__s64)))
@@ -216,38 +225,40 @@ xfs_ioc_bulkstat_compat(
 	return 0;
 }
 
-STATIC unsigned long xfs_ioctl32_fshandle(unsigned long arg)
+STATIC int
+xfs_compat_handlereq_copyin(
+	xfs_fsop_handlereq_t		*hreq,
+	compat_xfs_fsop_handlereq_t	__user *arg32)
 {
-	compat_xfs_fsop_handlereq_t __user *p32 = (void __user *)arg;
-	xfs_fsop_handlereq_t __user *p = compat_alloc_user_space(sizeof(*p));
-	u32 addr;
+	compat_xfs_fsop_handlereq_t	hreq32;
 
-	if (copy_in_user(&p->fd, &p32->fd, sizeof(__u32)) ||
-	    get_user(addr, &p32->path) ||
-	    put_user(compat_ptr(addr), &p->path) ||
-	    copy_in_user(&p->oflags, &p32->oflags, sizeof(__u32)) ||
-	    get_user(addr, &p32->ihandle) ||
-	    put_user(compat_ptr(addr), &p->ihandle) ||
-	    copy_in_user(&p->ihandlen, &p32->ihandlen, sizeof(__u32)) ||
-	    get_user(addr, &p32->ohandle) ||
-	    put_user(compat_ptr(addr), &p->ohandle) ||
-	    get_user(addr, &p32->ohandlen) ||
-	    put_user(compat_ptr(addr), &p->ohandlen))
-		return -EFAULT;
+	if (copy_from_user(&hreq32, arg32, sizeof(compat_xfs_fsop_handlereq_t)))
+		return -XFS_ERROR(EFAULT);
 
-	return (unsigned long)p;
+	hreq->fd = hreq32.fd;
+	hreq->path = compat_ptr(hreq32.path);
+	hreq->oflags = hreq32.oflags;
+	hreq->ihandle = compat_ptr(hreq32.ihandle);
+	hreq->ihandlen = hreq32.ihandlen;
+	hreq->ohandle = compat_ptr(hreq32.ohandle);
+	hreq->ohandlen = compat_ptr(hreq32.ohandlen);
+
+	return 0;
 }
 
 STATIC long
 xfs_compat_ioctl(
-	int		mode,
-	struct file	*file,
+	xfs_inode_t	*ip,
+	struct file	*filp,
+	int		ioflags,
 	unsigned	cmd,
-	unsigned long	arg)
+	void		__user *arg)
 {
-	struct inode	*inode = file->f_path.dentry->d_inode;
+	struct inode	*inode = filp->f_path.dentry->d_inode;
+	xfs_mount_t	*mp = ip->i_mount;
 	int		error;
 
+	xfs_itrace_entry(XFS_I(inode));
 	switch (cmd) {
 	case XFS_IOC_DIOINFO:
 	case XFS_IOC_FSGEOMETRY:
@@ -290,14 +301,16 @@ xfs_compat_ioctl(
 	case XFS_IOC_RESVSP_32:
 	case XFS_IOC_UNRESVSP_32:
 	case XFS_IOC_RESVSP64_32:
-	case XFS_IOC_UNRESVSP64_32:
-		arg = xfs_ioctl32_flock(arg);
+	case XFS_IOC_UNRESVSP64_32: {
+		struct xfs_flock64	bf;
+
+		if (xfs_compat_flock64_copyin(&bf, arg))
+			return -XFS_ERROR(EFAULT);
 		cmd = _NATIVE_IOC(cmd, struct xfs_flock64);
-		break;
+		return xfs_ioc_space(ip, inode, filp, ioflags, cmd, &bf);
+	}
 	case XFS_IOC_FSGEOMETRY_V1_32:
-		arg = xfs_ioctl32_geom_v1(arg);
-		cmd = _NATIVE_IOC(cmd, struct xfs_fsop_geom_v1);
-		break;
+		return xfs_compat_ioc_fsgeometry_v1(mp, arg);
 #else /* These are handled fine if no alignment issues */
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
@@ -323,35 +336,55 @@ xfs_compat_ioctl(
 				cmd, (void __user*)arg);
 	case XFS_IOC_FD_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_HANDLE_32:
-	case XFS_IOC_PATH_TO_FSHANDLE_32:
-	case XFS_IOC_OPEN_BY_HANDLE_32:
-	case XFS_IOC_READLINK_BY_HANDLE_32:
-		arg = xfs_ioctl32_fshandle(arg);
+	case XFS_IOC_PATH_TO_FSHANDLE_32: {
+		struct xfs_fsop_handlereq	hreq;
+
+		if (xfs_compat_handlereq_copyin(&hreq, arg))
+			return -XFS_ERROR(EFAULT);
 		cmd = _NATIVE_IOC(cmd, struct xfs_fsop_handlereq);
-		break;
+		return xfs_find_handle(cmd, &hreq);
+	}
+	case XFS_IOC_OPEN_BY_HANDLE_32: {
+		struct xfs_fsop_handlereq	hreq;
+
+		if (xfs_compat_handlereq_copyin(&hreq, arg))
+			return -XFS_ERROR(EFAULT);
+		return xfs_open_by_handle(mp, &hreq, filp, inode);
+	}
+	case XFS_IOC_READLINK_BY_HANDLE_32: {
+		struct xfs_fsop_handlereq	hreq;
+
+		if (xfs_compat_handlereq_copyin(&hreq, arg))
+			return -XFS_ERROR(EFAULT);
+		return xfs_readlink_by_handle(mp, &hreq, inode);
+	}
 	default:
-		return -ENOIOCTLCMD;
+		return -XFS_ERROR(ENOIOCTLCMD);
 	}
 
-	error = xfs_ioctl(XFS_I(inode), file, mode, cmd, (void __user *)arg);
-	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
+	error = xfs_ioctl(ip, filp, ioflags, cmd, arg);
 	return error;
 }
 
 long
 xfs_file_compat_ioctl(
-	struct file		*file,
-	unsigned		cmd,
-	unsigned long		arg)
+	struct file		*filp,
+	unsigned int		cmd,
+	unsigned long		p)
 {
-	return xfs_compat_ioctl(0, file, cmd, arg);
+	struct inode	*inode = filp->f_path.dentry->d_inode;
+
+	return xfs_compat_ioctl(XFS_I(inode), filp, 0, cmd, (void __user *)p);
 }
 
 long
 xfs_file_compat_invis_ioctl(
-	struct file		*file,
-	unsigned		cmd,
-	unsigned long		arg)
+	struct file		*filp,
+	unsigned int		cmd,
+	unsigned long		p)
 {
-	return xfs_compat_ioctl(IO_INVIS, file, cmd, arg);
+	struct inode	*inode = filp->f_path.dentry->d_inode;
+
+	return xfs_compat_ioctl(XFS_I(inode), filp, IO_INVIS, cmd,
+				(void __user *)p);
 }
