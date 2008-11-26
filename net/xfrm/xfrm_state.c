@@ -1833,7 +1833,7 @@ int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 EXPORT_SYMBOL(km_migrate);
 #endif
 
-int km_report(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr)
+int km_report(struct net *net, u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr)
 {
 	int err = -EINVAL;
 	int ret;
@@ -1842,7 +1842,7 @@ int km_report(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr)
 	read_lock(&xfrm_km_lock);
 	list_for_each_entry(km, &xfrm_km_list, list) {
 		if (km->report) {
-			ret = km->report(proto, sel, addr);
+			ret = km->report(net, proto, sel, addr);
 			if (!ret)
 				err = ret;
 		}

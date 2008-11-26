@@ -2520,10 +2520,9 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int xfrm_send_report(u8 proto, struct xfrm_selector *sel,
-			    xfrm_address_t *addr)
+static int xfrm_send_report(struct net *net, u8 proto,
+			    struct xfrm_selector *sel, xfrm_address_t *addr)
 {
-	struct net *net = &init_net;
 	struct sk_buff *skb;
 
 	skb = nlmsg_new(xfrm_report_msgsize(), GFP_ATOMIC);
