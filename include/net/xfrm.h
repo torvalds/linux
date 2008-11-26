@@ -1306,7 +1306,8 @@ static inline void xfrm6_fini(void)
 #endif
 
 #ifdef CONFIG_XFRM_STATISTICS
-extern int xfrm_proc_init(void);
+extern int xfrm_proc_init(struct net *net);
+extern void xfrm_proc_fini(struct net *net);
 #endif
 
 extern void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto);

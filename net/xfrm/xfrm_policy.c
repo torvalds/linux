@@ -2377,14 +2377,20 @@ static struct notifier_block xfrm_dev_notifier = {
 #ifdef CONFIG_XFRM_STATISTICS
 static int __net_init xfrm_statistics_init(struct net *net)
 {
+	int rv;
+
 	if (snmp_mib_init((void **)net->mib.xfrm_statistics,
 			  sizeof(struct linux_xfrm_mib)) < 0)
 		return -ENOMEM;
-	return 0;
+	rv = xfrm_proc_init(net);
+	if (rv < 0)
+		snmp_mib_free((void **)net->mib.xfrm_statistics);
+	return rv;
 }
 
 static void xfrm_statistics_fini(struct net *net)
 {
+	xfrm_proc_fini(net);
 	snmp_mib_free((void **)net->mib.xfrm_statistics);
 }
 #else
@@ -2524,9 +2530,6 @@ void __init xfrm_init(void)
 {
 	register_pernet_subsys(&xfrm_net_ops);
 	xfrm_input_init();
-#ifdef CONFIG_XFRM_STATISTICS
-	xfrm_proc_init();
-#endif
 }
 
 #ifdef CONFIG_AUDITSYSCALL
