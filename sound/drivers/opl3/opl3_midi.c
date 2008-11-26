@@ -617,7 +617,8 @@ static void snd_opl3_kill_voice(struct snd_opl3 *opl3, int voice)
 
 	struct snd_opl3_voice *vp, *vp2;
 
-	snd_assert(voice < MAX_OPL3_VOICES, return);
+	if (snd_BUG_ON(voice >= MAX_OPL3_VOICES))
+		return;
 
 	vp = &opl3->voices[voice];
 	if (voice < MAX_OPL2_VOICES) {
@@ -737,7 +738,8 @@ static void snd_opl3_update_pitch(struct snd_opl3 *opl3, int voice)
 
 	struct snd_opl3_voice *vp;
 
-	snd_assert(voice < MAX_OPL3_VOICES, return);
+	if (snd_BUG_ON(voice >= MAX_OPL3_VOICES))
+		return;
 
 	vp = &opl3->voices[voice];
 	if (vp->chan == NULL)

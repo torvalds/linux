@@ -1,9 +1,12 @@
 /*
- * arch/ia64/vmx/optvfault.S
+ * arch/ia64/kvm/optvfault.S
  * optimize virtualization fault handler
  *
  * Copyright (C) 2006 Intel Co
  *	Xuefei Xu (Anthony Xu) <anthony.xu@intel.com>
+ * Copyright (C) 2008 Intel Co
+ *      Add the support for Tukwila processors.
+ *	Xiantao Zhang <xiantao.zhang@intel.com>
  */
 
 #include <asm/asmmacro.h>
@@ -19,6 +22,98 @@
 #define ACCE_SSM
 #define ACCE_MOV_TO_PSR
 #define ACCE_THASH
+
+#define VMX_VPS_SYNC_READ			\
+	add r16=VMM_VPD_BASE_OFFSET,r21;	\
+	mov r17 = b0;				\
+	mov r18 = r24;				\
+	mov r19 = r25;				\
+	mov r20 = r31;				\
+	;;					\
+{.mii;						\
+	ld8 r16 = [r16];			\
+	nop 0x0;				\
+	mov r24 = ip;				\
+	;;					\
+};						\
+{.mmb;						\
+	add r24=0x20, r24;			\
+	mov r25 =r16;				\
+	br.sptk.many kvm_vps_sync_read;		\
+};						\
+	mov b0 = r17;				\
+	mov r24 = r18;				\
+	mov r25 = r19;				\
+	mov r31 = r20
+
+ENTRY(kvm_vps_entry)
+	adds r29 = VMM_VCPU_VSA_BASE_OFFSET,r21
+	;;
+	ld8 r29 = [r29]
+	;;
+	add r29 = r29, r30
+	;;
+	mov b0 = r29
+	br.sptk.many b0
+END(kvm_vps_entry)
+
+/*
+ *	Inputs:
+ *	r24 : return address
+ *  	r25 : vpd
+ *	r29 : scratch
+ *
+ */
+GLOBAL_ENTRY(kvm_vps_sync_read)
+	movl r30 = PAL_VPS_SYNC_READ
+	;;
+	br.sptk.many kvm_vps_entry
+END(kvm_vps_sync_read)
+
+/*
+ *	Inputs:
+ *	r24 : return address
+ *  	r25 : vpd
+ *	r29 : scratch
+ *
+ */
+GLOBAL_ENTRY(kvm_vps_sync_write)
+	movl r30 = PAL_VPS_SYNC_WRITE
+	;;
+	br.sptk.many kvm_vps_entry
+END(kvm_vps_sync_write)
+
+/*
+ *	Inputs:
+ *	r23 : pr
+ *	r24 : guest b0
+ *  	r25 : vpd
+ *
+ */
+GLOBAL_ENTRY(kvm_vps_resume_normal)
+	movl r30 = PAL_VPS_RESUME_NORMAL
+	;;
+	mov pr=r23,-2
+	br.sptk.many kvm_vps_entry
+END(kvm_vps_resume_normal)
+
+/*
+ *	Inputs:
+ *	r23 : pr
+ *	r24 : guest b0
+ *  	r25 : vpd
+ *	r17 : isr
+ */
+GLOBAL_ENTRY(kvm_vps_resume_handler)
+	movl r30 = PAL_VPS_RESUME_HANDLER
+	;;
+	ld8 r27=[r25]
+	shr r17=r17,IA64_ISR_IR_BIT
+	;;
+	dep r27=r17,r27,63,1   // bit 63 of r27 indicate whether enable CFLE
+	mov pr=r23,-2
+	br.sptk.many kvm_vps_entry
+END(kvm_vps_resume_handler)
 
 //mov r1=ar3
 GLOBAL_ENTRY(kvm_asm_mov_from_ar)
@@ -157,11 +252,11 @@ GLOBAL_ENTRY(kvm_asm_rsm)
 #ifndef ACCE_RSM
 	br.many kvm_virtualization_fault_back
 #endif
-	add r16=VMM_VPD_BASE_OFFSET,r21
+	VMX_VPS_SYNC_READ
+	;;
 	extr.u r26=r25,6,21
 	extr.u r27=r25,31,2
 	;;
-	ld8 r16=[r16]
 	extr.u r28=r25,36,1
 	dep r26=r27,r26,21,2
 	;;
@@ -196,7 +291,7 @@ GLOBAL_ENTRY(kvm_asm_rsm)
 	tbit.nz p6,p0=r23,0
 	;;
 	tbit.z.or p6,p0=r26,IA64_PSR_DT_BIT
-	(p6) br.dptk kvm_resume_to_guest
+	(p6) br.dptk kvm_resume_to_guest_with_sync
 	;;
 	add r26=VMM_VCPU_META_RR0_OFFSET,r21
 	add r27=VMM_VCPU_META_RR0_OFFSET+8,r21
@@ -212,7 +307,7 @@ GLOBAL_ENTRY(kvm_asm_rsm)
 	mov rr[r28]=r27
 	;;
 	srlz.d
-	br.many kvm_resume_to_guest
+	br.many kvm_resume_to_guest_with_sync
 END(kvm_asm_rsm)
 
 
@@ -221,11 +316,11 @@ GLOBAL_ENTRY(kvm_asm_ssm)
 #ifndef ACCE_SSM
 	br.many kvm_virtualization_fault_back
 #endif
-	add r16=VMM_VPD_BASE_OFFSET,r21
+	VMX_VPS_SYNC_READ
+	;;
 	extr.u r26=r25,6,21
 	extr.u r27=r25,31,2
 	;;
-	ld8 r16=[r16]
 	extr.u r28=r25,36,1
 	dep r26=r27,r26,21,2
 	;;  //r26 is imm24
@@ -271,7 +366,7 @@ kvm_asm_ssm_1:
 	tbit.nz p6,p0=r29,IA64_PSR_I_BIT
 	;;
 	tbit.z.or p6,p0=r19,IA64_PSR_I_BIT
-	(p6) br.dptk kvm_resume_to_guest
+	(p6) br.dptk kvm_resume_to_guest_with_sync
 	;;
 	add r29=VPD_VTPR_START_OFFSET,r16
 	add r30=VPD_VHPI_START_OFFSET,r16
@@ -286,7 +381,7 @@ kvm_asm_ssm_1:
 	;;
 	cmp.gt p6,p0=r30,r17
 	(p6) br.dpnt.few kvm_asm_dispatch_vexirq
-	br.many kvm_resume_to_guest
+	br.many kvm_resume_to_guest_with_sync
 END(kvm_asm_ssm)
 
 
@@ -295,10 +390,9 @@ GLOBAL_ENTRY(kvm_asm_mov_to_psr)
 #ifndef ACCE_MOV_TO_PSR
 	br.many kvm_virtualization_fault_back
 #endif
-	add r16=VMM_VPD_BASE_OFFSET,r21
-	extr.u r26=r25,13,7 //r2
+	VMX_VPS_SYNC_READ
 	;;
-	ld8 r16=[r16]
+	extr.u r26=r25,13,7 //r2
 	addl r20=@gprel(asm_mov_from_reg),gp
 	;;
 	adds r30=kvm_asm_mov_to_psr_back-asm_mov_from_reg,r20
@@ -374,7 +468,7 @@ kvm_asm_mov_to_psr_1:
 	;;
 	tbit.nz.or p6,p0=r17,IA64_PSR_I_BIT
 	tbit.z.or p6,p0=r30,IA64_PSR_I_BIT
-	(p6) br.dpnt.few kvm_resume_to_guest
+	(p6) br.dpnt.few kvm_resume_to_guest_with_sync
 	;;
 	add r29=VPD_VTPR_START_OFFSET,r16
 	add r30=VPD_VHPI_START_OFFSET,r16
@@ -389,13 +483,29 @@ kvm_asm_mov_to_psr_1:
 	;;
 	cmp.gt p6,p0=r30,r17
 	(p6) br.dpnt.few kvm_asm_dispatch_vexirq
-	br.many kvm_resume_to_guest
+	br.many kvm_resume_to_guest_with_sync
 END(kvm_asm_mov_to_psr)
 
 
 ENTRY(kvm_asm_dispatch_vexirq)
 //increment iip
+	mov r17 = b0
+	mov r18 = r31
+{.mii
+	add r25=VMM_VPD_BASE_OFFSET,r21
+	nop 0x0
+	mov r24 = ip
+	;;
+}
+{.mmb
+	add r24 = 0x20, r24
+	ld8 r25 = [r25]
+	br.sptk.many kvm_vps_sync_write
+}
+	mov b0 =r17
 	mov r16=cr.ipsr
+	mov r31 = r18
+	mov r19 = 37
 	;;
 	extr.u r17=r16,IA64_PSR_RI_BIT,2
 	tbit.nz p6,p7=r16,IA64_PSR_RI_BIT+1
@@ -435,25 +545,31 @@ GLOBAL_ENTRY(kvm_asm_thash)
 	;;
 kvm_asm_thash_back1:
 	shr.u r23=r19,61		// get RR number
-	adds r25=VMM_VCPU_VRR0_OFFSET,r21	// get vcpu->arch.vrr[0]'s addr
+	adds r28=VMM_VCPU_VRR0_OFFSET,r21	// get vcpu->arch.vrr[0]'s addr
 	adds r16=VMM_VPD_VPTA_OFFSET,r16	// get vpta
 	;;
-	shladd r27=r23,3,r25	// get vcpu->arch.vrr[r23]'s addr
+	shladd r27=r23,3,r28	// get vcpu->arch.vrr[r23]'s addr
 	ld8 r17=[r16]		// get PTA
 	mov r26=1
 	;;
-	extr.u r29=r17,2,6		// get pta.size
-	ld8 r25=[r27]		// get vcpu->arch.vrr[r23]'s value
+	extr.u r29=r17,2,6	// get pta.size
+	ld8 r28=[r27]		// get vcpu->arch.vrr[r23]'s value
 	;;
-	extr.u r25=r25,2,6		// get rr.ps
+	mov b0=r24
+	//Fallback to C if pta.vf is set
+	tbit.nz p6,p0=r17, 8
+	;;
+	(p6) mov r24=EVENT_THASH
+	(p6) br.cond.dpnt.many kvm_virtualization_fault_back
+	extr.u r28=r28,2,6	// get rr.ps
 	shl r22=r26,r29		// 1UL << pta.size
 	;;
-	shr.u r23=r19,r25		// vaddr >> rr.ps
+	shr.u r23=r19,r28	// vaddr >> rr.ps
 	adds r26=3,r29		// pta.size + 3
 	shl r27=r17,3		// pta << 3
 	;;
 	shl r23=r23,3		// (vaddr >> rr.ps) << 3
-	shr.u r27=r27,r26		// (pta << 3) >> (pta.size+3)
+	shr.u r27=r27,r26	// (pta << 3) >> (pta.size+3)
 	movl r16=7<<61
 	;;
 	adds r22=-1,r22		// (1UL << pta.size) - 1
@@ -724,6 +840,29 @@ END(asm_mov_from_reg)
  * r31: pr
  * r24: b0
  */
+ENTRY(kvm_resume_to_guest_with_sync)
+	adds r19=VMM_VPD_BASE_OFFSET,r21
+	mov r16 = r31
+	mov r17 = r24
+	;;
+{.mii
+	ld8 r25 =[r19]
+	nop 0x0
+	mov r24 = ip
+	;;
+}
+{.mmb
+	add r24 =0x20, r24
+	nop 0x0
+	br.sptk.many kvm_vps_sync_write
+}
+
+	mov r31 = r16
+	mov r24 =r17
+	;;
+	br.sptk.many kvm_resume_to_guest
+END(kvm_resume_to_guest_with_sync)
+
 ENTRY(kvm_resume_to_guest)
 	adds r16 = VMM_VCPU_SAVED_GP_OFFSET,r21
 	;;

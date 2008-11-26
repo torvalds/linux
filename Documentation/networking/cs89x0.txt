@@ -3,7 +3,7 @@ NOTE
 ----
 
 This document was contributed by Cirrus Logic for kernel 2.2.5.  This version
-has been updated for 2.3.48 by Andrew Morton <andrewm@uow.edu.au>
+has been updated for 2.3.48 by Andrew Morton.
 
 Cirrus make a copy of this driver available at their website, as
 described below.  In general, you should use the driver version which
@@ -690,7 +690,7 @@ latest drivers and technical publications.
 6.4 Current maintainer
 
 In February 2000 the maintenance of this driver was assumed by Andrew
-Morton <akpm@zip.com.au>
+Morton.
 
 6.5 Kernel module parameters
 

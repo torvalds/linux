@@ -169,7 +169,8 @@ static int usb_endpoint_major_init(void)
 	error = alloc_chrdev_region(&dev, 0, MAX_ENDPOINT_MINORS,
 				    "usb_endpoint");
 	if (error) {
-		err("unable to get a dynamic major for usb endpoints");
+		printk(KERN_ERR "Unable to get a dynamic major for "
+		       "usb endpoints.\n");
 		return error;
 	}
 	usb_endpoint_major = MAJOR(dev);

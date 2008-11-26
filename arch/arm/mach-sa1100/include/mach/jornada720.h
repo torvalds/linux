@@ -1,10 +1,10 @@
 /*
  * arch/arm/mach-sa1100/include/mach/jornada720.h
  *
- * This file contains SSP/MCU communication definitions for HP Jornada 710/720/728
+ * SSP/MCU communication definitions for HP Jornada 710/720/728
  *
- * Copyright (C) 2007 Kristoffer Ericson <Kristoffer.Ericson@gmail.com>
- *  Copyright (C) 2000 John Ankcorn <jca@lcs.mit.edu>
+ * Copyright 2007,2008 Kristoffer Ericson <Kristoffer.Ericson@gmail.com>
+ *  Copyright 2000 John Ankcorn <jca@lcs.mit.edu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,3 +25,8 @@
 #define PWMOFF			0xDF
 #define TXDUMMY			0x11
 #define ERRORCODE		0x00
+
+extern void jornada_ssp_start(void);
+extern void jornada_ssp_end(void);
+extern int jornada_ssp_inout(u8 byte);
+extern int jornada_ssp_byte(u8 byte);

@@ -29,42 +29,28 @@
 */
 
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/kernel.h>
-#include <linux/major.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/signal.h>
-#include <asm/io.h>
-#include <asm/pgtable.h>
-#include <asm/page.h>
-#include <linux/sched.h>
 #include <linux/types.h>
-#include <linux/i2c.h>
-
-#include <linux/videodev.h>
+#include <linux/ioctl.h>
 #include <asm/uaccess.h>
-
+#include <linux/i2c.h>
+#include <linux/i2c-id.h>
+#include <linux/videodev.h>
 #include <linux/video_encoder.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
+MODULE_DESCRIPTION("Brooktree-866 video encoder driver");
+MODULE_AUTHOR("Mike Bernson & Dave Perks");
 MODULE_LICENSE("GPL");
 
-#define	BT866_DEVNAME	"bt866"
-#define I2C_BT866	0x88
-
-MODULE_LICENSE("GPL");
-
-#define DEBUG(x)		/* Debug driver */
+static int debug;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /* ----------------------------------------------------------------------- */
 
 struct bt866 {
-	struct i2c_client *i2c;
-	int addr;
-	unsigned char reg[256];
+	u8 reg[256];
 
 	int norm;
 	int enable;
@@ -74,20 +60,45 @@ struct bt866 {
 	int sat;
 };
 
-static int bt866_write(struct bt866 *dev,
-			unsigned char subaddr, unsigned char data);
-
-static int bt866_do_command(struct bt866 *encoder,
-			unsigned int cmd, void *arg)
+static int bt866_write(struct i2c_client *client, u8 subaddr, u8 data)
 {
+	struct bt866 *encoder = i2c_get_clientdata(client);
+	u8 buffer[2];
+	int err;
+
+	buffer[0] = subaddr;
+	buffer[1] = data;
+
+	encoder->reg[subaddr] = data;
+
+	v4l_dbg(1, debug, client, "write 0x%02x = 0x%02x\n", subaddr, data);
+
+	for (err = 0; err < 3;) {
+		if (i2c_master_send(client, buffer, 2) == 2)
+			break;
+		err++;
+		v4l_warn(client, "error #%d writing to 0x%02x\n",
+				err, subaddr);
+		schedule_timeout_interruptible(msecs_to_jiffies(100));
+	}
+	if (err == 3) {
+		v4l_warn(client, "giving up\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int bt866_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	struct bt866 *encoder = i2c_get_clientdata(client);
+
 	switch (cmd) {
 	case ENCODER_GET_CAPABILITIES:
 	{
 		struct video_encoder_capability *cap = arg;
 
-		DEBUG(printk
-		      (KERN_INFO "%s: get capabilities\n",
-		       encoder->i2c->name));
+		v4l_dbg(1, debug, client, "get capabilities\n");
 
 		cap->flags
 			= VIDEO_ENCODER_PAL
@@ -95,18 +106,16 @@ static int bt866_do_command(struct bt866 *encoder,
 			| VIDEO_ENCODER_CCIR;
 		cap->inputs = 2;
 		cap->outputs = 1;
+		break;
 	}
-	break;
 
 	case ENCODER_SET_NORM:
 	{
 		int *iarg = arg;
 
-		DEBUG(printk(KERN_INFO "%s: set norm %d\n",
-			     encoder->i2c->name, *iarg));
+		v4l_dbg(1, debug, client, "set norm %d\n", *iarg);
 
 		switch (*iarg) {
-
 		case VIDEO_MODE_NTSC:
 			break;
 
@@ -115,11 +124,10 @@ static int bt866_do_command(struct bt866 *encoder,
 
 		default:
 			return -EINVAL;
-
 		}
 		encoder->norm = *iarg;
+		break;
 	}
-	break;
 
 	case ENCODER_SET_INPUT:
 	{
@@ -155,7 +163,7 @@ static int bt866_do_command(struct bt866 *encoder,
 		u8 val;
 
 		for (i = 0; i < ARRAY_SIZE(init) / 2; i += 2)
-			bt866_write(encoder, init[i], init[i+1]);
+			bt866_write(client, init[i], init[i+1]);
 
 		val = encoder->reg[0xdc];
 
@@ -164,17 +172,16 @@ static int bt866_do_command(struct bt866 *encoder,
 		else
 			val &= ~0x40; /* !CBSWAP */
 
-		bt866_write(encoder, 0xdc, val);
+		bt866_write(client, 0xdc, val);
 
 		val = encoder->reg[0xcc];
 		if (*iarg == 2)
 			val |= 0x01; /* OSDBAR */
 		else
 			val &= ~0x01; /* !OSDBAR */
-		bt866_write(encoder, 0xcc, val);
+		bt866_write(client, 0xcc, val);
 
-		DEBUG(printk(KERN_INFO "%s: set input %d\n",
-			     encoder->i2c->name, *iarg));
+		v4l_dbg(1, debug, client, "set input %d\n", *iarg);
 
 		switch (*iarg) {
 		case 0:
@@ -183,48 +190,44 @@ static int bt866_do_command(struct bt866 *encoder,
 			break;
 		default:
 			return -EINVAL;
-
 		}
+		break;
 	}
-	break;
 
 	case ENCODER_SET_OUTPUT:
 	{
 		int *iarg = arg;
 
-		DEBUG(printk(KERN_INFO "%s: set output %d\n",
-			     encoder->i2c->name, *iarg));
+		v4l_dbg(1, debug, client, "set output %d\n", *iarg);
 
 		/* not much choice of outputs */
 		if (*iarg != 0)
 			return -EINVAL;
+		break;
 	}
-	break;
 
 	case ENCODER_ENABLE_OUTPUT:
 	{
 		int *iarg = arg;
 		encoder->enable = !!*iarg;
 
-		DEBUG(printk
-		      (KERN_INFO "%s: enable output %d\n",
-		       encoder->i2c->name, encoder->enable));
+		v4l_dbg(1, debug, client, "enable output %d\n", encoder->enable);
+		break;
 	}
-	break;
 
 	case 4711:
 	{
 		int *iarg = arg;
 		__u8 val;
 
-		printk("bt866: square = %d\n", *iarg);
+		v4l_dbg(1, debug, client, "square %d\n", *iarg);
 
 		val = encoder->reg[0xdc];
 		if (*iarg)
 			val |= 1; /* SQUARE */
 		else
 			val &= ~1; /* !SQUARE */
-		bt866_write(encoder, 0xdc, val);
+		bt866_write(client, 0xdc, val);
 		break;
 	}
 
@@ -235,141 +238,49 @@ static int bt866_do_command(struct bt866 *encoder,
 	return 0;
 }
 
-static int bt866_write(struct bt866 *encoder,
-			unsigned char subaddr, unsigned char data)
-{
-	unsigned char buffer[2];
-	int err;
+static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
 
-	buffer[0] = subaddr;
-	buffer[1] = data;
+I2C_CLIENT_INSMOD;
 
-	encoder->reg[subaddr] = data;
-
-	DEBUG(printk
-	      ("%s: write 0x%02X = 0x%02X\n",
-	       encoder->i2c->name, subaddr, data));
-
-	for (err = 0; err < 3;) {
-		if (i2c_master_send(encoder->i2c, buffer, 2) == 2)
-			break;
-		err++;
-		printk(KERN_WARNING "%s: I/O error #%d "
-		       "(write 0x%02x/0x%02x)\n",
-		       encoder->i2c->name, err, encoder->addr, subaddr);
-		schedule_timeout_interruptible(msecs_to_jiffies(100));
-	}
-	if (err == 3) {
-		printk(KERN_WARNING "%s: giving up\n",
-		       encoder->i2c->name);
-		return -1;
-	}
-
-	return 0;
-}
-
-static int bt866_attach(struct i2c_adapter *adapter);
-static int bt866_detach(struct i2c_client *client);
-static int bt866_command(struct i2c_client *client,
-			 unsigned int cmd, void *arg);
-
-
-/* Addresses to scan */
-static unsigned short normal_i2c[]	= {I2C_BT866>>1, I2C_CLIENT_END};
-static unsigned short probe[2]		= {I2C_CLIENT_END, I2C_CLIENT_END};
-static unsigned short ignore[2]		= {I2C_CLIENT_END, I2C_CLIENT_END};
-
-static struct i2c_client_address_data addr_data = {
-	normal_i2c,
-	probe,
-	ignore,
-};
-
-static struct i2c_driver i2c_driver_bt866 = {
-	.driver.name = BT866_DEVNAME,
-	.id = I2C_DRIVERID_BT866,
-	.attach_adapter = bt866_attach,
-	.detach_client = bt866_detach,
-	.command = bt866_command
-};
-
-
-static struct i2c_client bt866_client_tmpl =
-{
-	.name = "(nil)",
-	.addr = 0,
-	.adapter = NULL,
-	.driver = &i2c_driver_bt866,
-};
-
-static int bt866_found_proc(struct i2c_adapter *adapter,
-			    int addr, int kind)
+static int bt866_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct bt866 *encoder;
-	struct i2c_client *client;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (client == NULL)
-		return -ENOMEM;
-	memcpy(client, &bt866_client_tmpl, sizeof(*client));
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	encoder = kzalloc(sizeof(*encoder), GFP_KERNEL);
-	if (encoder == NULL) {
-		kfree(client);
+	if (encoder == NULL)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, encoder);
-	client->adapter = adapter;
-	client->addr = addr;
-	sprintf(client->name, "%s-%02x", BT866_DEVNAME, adapter->id);
-
-	encoder->i2c = client;
-	encoder->addr = addr;
-	//encoder->encoder_type = ENCODER_TYPE_UNKNOWN;
-
-	/* initialize */
-
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int bt866_attach(struct i2c_adapter *adapter)
+static int bt866_remove(struct i2c_client *client)
 {
-	if (adapter->id == I2C_HW_B_ZR36067)
-		return i2c_probe(adapter, &addr_data, bt866_found_proc);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
-static int bt866_detach(struct i2c_client *client)
+static int bt866_legacy_probe(struct i2c_adapter *adapter)
 {
-	struct bt866 *encoder = i2c_get_clientdata(client);
-
-	i2c_detach_client(client);
-	kfree(encoder);
-	kfree(client);
-
-	return 0;
+	return adapter->id == I2C_HW_B_ZR36067;
 }
 
-static int bt866_command(struct i2c_client *client,
-			 unsigned int cmd, void *arg)
-{
-	struct bt866 *encoder = i2c_get_clientdata(client);
-	return bt866_do_command(encoder, cmd, arg);
-}
+static const struct i2c_device_id bt866_id[] = {
+	{ "bt866", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, bt866_id);
 
-static int __devinit bt866_init(void)
-{
-	i2c_add_driver(&i2c_driver_bt866);
-	return 0;
-}
-
-static void __devexit bt866_exit(void)
-{
-	i2c_del_driver(&i2c_driver_bt866);
-}
-
-module_init(bt866_init);
-module_exit(bt866_exit);
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "bt866",
+	.driverid = I2C_DRIVERID_BT866,
+	.command = bt866_command,
+	.probe = bt866_probe,
+	.remove = bt866_remove,
+	.legacy_probe = bt866_legacy_probe,
+	.id_table = bt866_id,
+};

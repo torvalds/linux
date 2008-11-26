@@ -56,9 +56,16 @@ extern int smp_hw_index[];
 
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 #define hard_smp_processor_id() 	(smp_hw_index[smp_processor_id()])
-#define get_hard_smp_processor_id(cpu)	(smp_hw_index[(cpu)])
-#define set_hard_smp_processor_id(cpu, phys)\
-					(smp_hw_index[(cpu)] = (phys))
+
+static inline int get_hard_smp_processor_id(int cpu)
+{
+	return smp_hw_index[cpu];
+}
+
+static inline void set_hard_smp_processor_id(int cpu, int phys)
+{
+	smp_hw_index[cpu] = phys;
+}
 #endif
 
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
@@ -86,15 +93,21 @@ extern void __cpu_die(unsigned int cpu);
 
 #else
 /* for UP */
-#define hard_smp_processor_id()		0
+#define hard_smp_processor_id()		get_hard_smp_processor_id(0)
 #define smp_setup_cpu_maps()
 
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PPC64
-#define get_hard_smp_processor_id(CPU) (paca[(CPU)].hw_cpu_id)
-#define set_hard_smp_processor_id(CPU, VAL) \
-	do { (paca[(CPU)].hw_cpu_id = (VAL)); } while (0)
+static inline int get_hard_smp_processor_id(int cpu)
+{
+	return paca[cpu].hw_cpu_id;
+}
+
+static inline void set_hard_smp_processor_id(int cpu, int phys)
+{
+	paca[cpu].hw_cpu_id = phys;
+}
 
 extern void smp_release_cpus(void);
 
@@ -102,10 +115,17 @@ extern void smp_release_cpus(void);
 /* 32-bit */
 #ifndef CONFIG_SMP
 extern int boot_cpuid_phys;
-#define get_hard_smp_processor_id(cpu) 	boot_cpuid_phys
-#define set_hard_smp_processor_id(cpu, phys)
-#endif
-#endif
+static inline int get_hard_smp_processor_id(int cpu)
+{
+	return boot_cpuid_phys;
+}
+
+static inline void set_hard_smp_processor_id(int cpu, int phys)
+{
+	boot_cpuid_phys = phys;
+}
+#endif /* !CONFIG_SMP */
+#endif /* !CONFIG_PPC64 */
 
 extern int smt_enabled_at_boot;
 

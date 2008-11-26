@@ -154,6 +154,12 @@ void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
 	flush_mm = mm;
 	flush_va = va;
 	cpus_or(flush_cpumask, cpumask, flush_cpumask);
+
+	/*
+	 * Make the above memory operations globally visible before
+	 * sending the IPI.
+	 */
+	smp_mb();
 	/*
 	 * We have to send the IPI only to
 	 * CPUs affected.
@@ -239,5 +245,13 @@ static void do_flush_tlb_all(void *info)
 void flush_tlb_all(void)
 {
 	on_each_cpu(do_flush_tlb_all, NULL, 1);
+}
+
+void reset_lazy_tlbstate(void)
+{
+	int cpu = raw_smp_processor_id();
+
+	per_cpu(cpu_tlbstate, cpu).state = 0;
+	per_cpu(cpu_tlbstate, cpu).active_mm = &init_mm;
 }
 

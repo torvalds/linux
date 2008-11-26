@@ -76,6 +76,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #endif
 
 #define PTE_PHYS_MASK		(PHYS_ADDR_MASK & PAGE_MASK)
+#define PTE_FLAGS_MASK		(~(PTE_PHYS_MASK) << PAGE_SHIFT)
 
 #ifdef CONFIG_SUPERH32
 #define VMALLOC_START	(P3SEG)
@@ -146,6 +147,12 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 extern void page_table_range_init(unsigned long start, unsigned long end,
 				  pgd_t *pgd);
+
+#if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_CPU_SH4) && defined(CONFIG_MMU)
+extern void kmap_coherent_init(void);
+#else
+#define kmap_coherent_init()	do { } while (0)
+#endif
 
 #include <asm-generic/pgtable.h>
 

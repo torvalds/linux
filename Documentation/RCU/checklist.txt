@@ -210,7 +210,7 @@ over a rather long period of time, but improvements are always welcome!
 		number of updates per grace period.
 
 9.	All RCU list-traversal primitives, which include
-	rcu_dereference(), list_for_each_rcu(), list_for_each_entry_rcu(),
+	rcu_dereference(), list_for_each_entry_rcu(),
 	list_for_each_continue_rcu(), and list_for_each_safe_rcu(),
 	must be either within an RCU read-side critical section or
 	must be protected by appropriate update-side locks.  RCU

@@ -1794,7 +1794,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 		return -EINVAL;
 	}
 
-	instr->fail_addr = 0xffffffff;
+	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_ERASING);

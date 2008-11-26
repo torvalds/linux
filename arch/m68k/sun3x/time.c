@@ -47,23 +47,23 @@ int sun3x_hwclk(int set, struct rtc_time *t)
 
 	if(set) {
 		h->csr |= C_WRITE;
-		h->sec = BIN2BCD(t->tm_sec);
-		h->min = BIN2BCD(t->tm_min);
-		h->hour = BIN2BCD(t->tm_hour);
-		h->wday = BIN2BCD(t->tm_wday);
-		h->mday = BIN2BCD(t->tm_mday);
-		h->month = BIN2BCD(t->tm_mon);
-		h->year = BIN2BCD(t->tm_year);
+		h->sec = bin2bcd(t->tm_sec);
+		h->min = bin2bcd(t->tm_min);
+		h->hour = bin2bcd(t->tm_hour);
+		h->wday = bin2bcd(t->tm_wday);
+		h->mday = bin2bcd(t->tm_mday);
+		h->month = bin2bcd(t->tm_mon);
+		h->year = bin2bcd(t->tm_year);
 		h->csr &= ~C_WRITE;
 	} else {
 		h->csr |= C_READ;
-		t->tm_sec = BCD2BIN(h->sec);
-		t->tm_min = BCD2BIN(h->min);
-		t->tm_hour = BCD2BIN(h->hour);
-		t->tm_wday = BCD2BIN(h->wday);
-		t->tm_mday = BCD2BIN(h->mday);
-		t->tm_mon = BCD2BIN(h->month);
-		t->tm_year = BCD2BIN(h->year);
+		t->tm_sec = bcd2bin(h->sec);
+		t->tm_min = bcd2bin(h->min);
+		t->tm_hour = bcd2bin(h->hour);
+		t->tm_wday = bcd2bin(h->wday);
+		t->tm_mday = bcd2bin(h->mday);
+		t->tm_mon = bcd2bin(h->month);
+		t->tm_year = bcd2bin(h->year);
 		h->csr &= ~C_READ;
 	}
 

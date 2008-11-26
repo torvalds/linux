@@ -1,6 +1,9 @@
 /*
  * arch/arm/mach-at91/include/mach/at91_pit.h
  *
+ * Copyright (C) 2007 Andrew Victor
+ * Copyright (C) 2007 Atmel Corporation.
+ *
  * Periodic Interval Timer (PIT) - System peripherals regsters.
  * Based on AT91SAM9261 datasheet revision D.
  *

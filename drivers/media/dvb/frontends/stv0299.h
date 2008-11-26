@@ -89,15 +89,18 @@ struct stv0299_config
 	int min_delay_ms;
 
 	/* Set the symbol rate */
-	int (*set_symbol_rate)(struct dvb_frontend* fe, u32 srate, u32 ratio);
+	int (*set_symbol_rate)(struct dvb_frontend *fe, u32 srate, u32 ratio);
+
+	/* Set device param to start dma */
+	int (*set_ts_params)(struct dvb_frontend *fe, int is_punctured);
 };
 
 #if defined(CONFIG_DVB_STV0299) || (defined(CONFIG_DVB_STV0299_MODULE) && defined(MODULE))
-extern struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
-					   struct i2c_adapter* i2c);
+extern struct dvb_frontend *stv0299_attach(const struct stv0299_config *config,
+					   struct i2c_adapter *i2c);
 #else
-static inline struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
-					   struct i2c_adapter* i2c)
+static inline struct dvb_frontend *stv0299_attach(const struct stv0299_config *config,
+					   struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

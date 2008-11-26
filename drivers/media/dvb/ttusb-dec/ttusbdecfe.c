@@ -38,7 +38,17 @@ struct ttusbdecfe_state {
 };
 
 
-static int ttusbdecfe_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int ttusbdecfe_dvbs_read_status(struct dvb_frontend *fe,
+	fe_status_t *status)
+{
+	*status = FE_HAS_SIGNAL | FE_HAS_VITERBI |
+		FE_HAS_SYNC | FE_HAS_CARRIER | FE_HAS_LOCK;
+	return 0;
+}
+
+
+static int ttusbdecfe_dvbt_read_status(struct dvb_frontend *fe,
+	fe_status_t *status)
 {
 	struct ttusbdecfe_state* state = fe->demodulator_priv;
 	u8 b[] = { 0x00, 0x00, 0x00, 0x00,
@@ -251,7 +261,7 @@ static struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
 
 	.get_tune_settings = ttusbdecfe_dvbt_get_tune_settings,
 
-	.read_status = ttusbdecfe_read_status,
+	.read_status = ttusbdecfe_dvbt_read_status,
 };
 
 static struct dvb_frontend_ops ttusbdecfe_dvbs_ops = {
@@ -273,7 +283,7 @@ static struct dvb_frontend_ops ttusbdecfe_dvbs_ops = {
 
 	.set_frontend = ttusbdecfe_dvbs_set_frontend,
 
-	.read_status = ttusbdecfe_read_status,
+	.read_status = ttusbdecfe_dvbs_read_status,
 
 	.diseqc_send_master_cmd = ttusbdecfe_dvbs_diseqc_send_master_cmd,
 	.set_voltage = ttusbdecfe_dvbs_set_voltage,

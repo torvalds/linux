@@ -72,6 +72,7 @@ static void irq_dispatch(unsigned int irq)
 	cascade = irq_cascade + irq;
 	if (cascade->get_irq != NULL) {
 		unsigned int source_irq = irq;
+		int ret;
 		desc = irq_desc + source_irq;
 		if (desc->chip->mask_ack)
 			desc->chip->mask_ack(source_irq);
@@ -79,8 +80,9 @@ static void irq_dispatch(unsigned int irq)
 			desc->chip->mask(source_irq);
 			desc->chip->ack(source_irq);
 		}
-		irq = cascade->get_irq(irq);
-		if (irq < 0)
+		ret = cascade->get_irq(irq);
+		irq = ret;
+		if (ret < 0)
 			atomic_inc(&irq_err_count);
 		else
 			irq_dispatch(irq);

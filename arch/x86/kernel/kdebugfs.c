@@ -139,6 +139,7 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 		if (PageHighMem(pg)) {
 			data = ioremap_cache(pa_data, sizeof(*data));
 			if (!data) {
+				kfree(node);
 				error = -ENXIO;
 				goto err_dir;
 			}

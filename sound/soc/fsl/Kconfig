@@ -1,3 +1,6 @@
+config SND_SOC_OF_SIMPLE
+	tristate
+
 config SND_SOC_MPC8610
 	bool "ALSA SoC support for the MPC8610 SOC"
 	depends on MPC8610_HPCD
@@ -14,3 +17,10 @@ config SND_SOC_MPC8610_HPCD
 	default y if MPC8610_HPCD
 	help
 	  Say Y if you want to enable audio on the Freescale MPC8610 HPCD.
+
+config SND_SOC_MPC5200_I2S
+	tristate "Freescale MPC5200 PSC in I2S mode driver"
+	select SND_SOC_OF_SIMPLE
+	depends on SND_SOC && PPC_MPC52xx
+	help
+	  Say Y here to support the MPC5200 PSCs in I2S mode.

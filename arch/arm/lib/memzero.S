@@ -122,3 +122,4 @@ ENTRY(__memzero)
 	tst	r1, #1			@ 1 a byte left over
 	strneb	r2, [r0], #1		@ 1
 	mov	pc, lr			@ 1
+ENDPROC(__memzero)

@@ -1330,7 +1330,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 			     (walk_state->results->results.obj_desc[0]) ==
 			     ACPI_TYPE_LOCAL_REFERENCE)
 			    && ((walk_state->results->results.obj_desc[0])->
-				reference.opcode != AML_INDEX_OP)) {
+				reference.class != ACPI_REFCLASS_INDEX)) {
 				status =
 				    acpi_ex_resolve_to_value(&walk_state->
 							     results->results.

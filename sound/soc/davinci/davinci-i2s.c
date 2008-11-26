@@ -1,7 +1,7 @@
 /*
  * ALSA SoC I2S (McBSP) Audio Layer for TI DAVINCI processor
  *
- * Author:      Vladimir Barinov, <vbarinov@ru.mvista.com>
+ * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -256,7 +256,7 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		mcbsp_word_length = DAVINCI_MCBSP_WORD_32;
 		break;
 	default:
-		printk(KERN_WARNING "davinci-i2s: unsupported PCM format");
+		printk(KERN_WARNING "davinci-i2s: unsupported PCM format\n");
 		return -EINVAL;
 	}
 

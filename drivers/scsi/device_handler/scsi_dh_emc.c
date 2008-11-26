@@ -84,7 +84,7 @@ struct clariion_dh_data {
 	/*
 	 * I/O buffer for both MODE_SELECT and INQUIRY commands.
 	 */
-	char buffer[CLARIION_BUFFER_SIZE];
+	unsigned char buffer[CLARIION_BUFFER_SIZE];
 	/*
 	 * SCSI sense buffer for commands -- assumes serial issuance
 	 * and completion sequence of all commands for same multipath.
@@ -176,7 +176,7 @@ static int parse_sp_info_reply(struct scsi_device *sdev,
 		err = SCSI_DH_DEV_TEMP_BUSY;
 		goto out;
 	}
-	if (csdev->buffer[4] < 0 || csdev->buffer[4] > 2) {
+	if (csdev->buffer[4] > 2) {
 		/* Invalid buffer format */
 		sdev_printk(KERN_NOTICE, sdev,
 			    "%s: invalid VPD page 0xC0 format\n",
@@ -278,7 +278,6 @@ static struct request *get_req(struct scsi_device *sdev, int cmd,
 		return NULL;
 	}
 
-	memset(rq->cmd, 0, BLK_MAX_CDB);
 	rq->cmd_len = COMMAND_SIZE(cmd);
 	rq->cmd[0] = cmd;
 
@@ -304,7 +303,8 @@ static struct request *get_req(struct scsi_device *sdev, int cmd,
 
 	rq->cmd[4] = len;
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->cmd_flags |= REQ_FAILFAST;
+	rq->cmd_flags |= REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
+			 REQ_FAILFAST_DRIVER;
 	rq->timeout = CLARIION_TIMEOUT;
 	rq->retries = CLARIION_RETRIES;
 
@@ -439,7 +439,7 @@ static int clariion_check_sense(struct scsi_device *sdev,
 			 * Unit Attention Code. This is the first IO
 			 * to the new path, so just retry.
 			 */
-			return NEEDS_RETRY;
+			return ADD_TO_MLQUEUE;
 		break;
 	}
 
@@ -514,7 +514,7 @@ retry:
 			return SCSI_DH_IO;
 
 		err = clariion_check_sense(sdev, &sshdr);
-		if (retry > 0 && err == NEEDS_RETRY) {
+		if (retry > 0 && err == ADD_TO_MLQUEUE) {
 			retry--;
 			goto retry;
 		}

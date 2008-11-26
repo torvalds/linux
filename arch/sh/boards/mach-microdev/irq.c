@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/microdev.h>
+#include <mach/microdev.h>
 
 #define NUM_EXTERNAL_IRQS 16	/* IRL0 .. IRL15 */
 

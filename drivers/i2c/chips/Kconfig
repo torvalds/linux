@@ -1,6 +1,8 @@
 #
 # Miscellaneous I2C chip drivers configuration
 #
+# *** DEPRECATED! Do not add new entries! See Makefile ***
+#
 
 menu "Miscellaneous I2C Chip support"
 
@@ -171,5 +173,16 @@ config MENELAUS
 	  regulators, Dual slot memory card tranceivers, real-time clock
 	  and other features that are often used in portable devices like
 	  cell phones and PDAs.
+
+config MCU_MPC8349EMITX
+	tristate "MPC8349E-mITX MCU driver"
+	depends on I2C && PPC_83xx
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Say Y here to enable soft power-off functionality on the Freescale
+	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will
+	  also register MCU GPIOs with the generic GPIO API, so you'll able
+	  to use MCU pins as GPIOs.
 
 endmenu

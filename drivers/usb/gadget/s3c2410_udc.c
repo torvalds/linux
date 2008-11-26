@@ -1651,7 +1651,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		return -EBUSY;
 
 	if (!driver->bind || !driver->setup
-			|| driver->speed != USB_SPEED_FULL) {
+			|| driver->speed < USB_SPEED_FULL) {
 		printk(KERN_ERR "Invalid driver: bind %p setup %p speed %d\n",
 			driver->bind, driver->setup, driver->speed);
 		return -EINVAL;
@@ -1894,11 +1894,8 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		udc->regs_info = debugfs_create_file("registers", S_IRUGO,
 				s3c2410_udc_debugfs_root,
 				udc, &s3c2410_udc_debugfs_fops);
-		if (IS_ERR(udc->regs_info)) {
-			dev_warn(dev, "debugfs file creation failed %ld\n",
-				 PTR_ERR(udc->regs_info));
-			udc->regs_info = NULL;
-		}
+		if (!udc->regs_info)
+			dev_warn(dev, "debugfs file creation failed\n");
 	}
 
 	dev_dbg(dev, "probe ok\n");

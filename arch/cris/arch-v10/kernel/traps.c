@@ -10,7 +10,7 @@
 
 #include <linux/ptrace.h>
 #include <asm/uaccess.h>
-#include <asm/arch/sv_addr_ag.h>
+#include <arch/sv_addr_ag.h>
 
 void
 show_registers(struct pt_regs *regs)

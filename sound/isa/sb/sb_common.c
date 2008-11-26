@@ -219,7 +219,8 @@ int snd_sbdsp_create(struct snd_card *card,
 		.dev_free =	snd_sbdsp_dev_free,
 	};
 
-	snd_assert(r_chip != NULL, return -EINVAL);
+	if (snd_BUG_ON(!r_chip))
+		return -EINVAL;
 	*r_chip = NULL;
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)

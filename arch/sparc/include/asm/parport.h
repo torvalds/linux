@@ -8,7 +8,7 @@
 
 #include <linux/of_device.h>
 
-#include <asm/ebus.h>
+#include <asm/ebus_dma.h>
 #include <asm/ns87303.h>
 #include <asm/prom.h>
 
@@ -215,7 +215,7 @@ static int __devexit ecpp_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id ecpp_match[] = {
+static const struct of_device_id ecpp_match[] = {
 	{
 		.name = "ecpp",
 	},

@@ -26,13 +26,14 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/i2c/at24.h>
 #include <linux/fb.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 
 #include <video/atmel_lcdc.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -41,6 +42,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91sam9_smc.h>
@@ -172,11 +174,11 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
 		.name	= "Partition 1",
 		.offset	= 0,
-		.size	= 64 * 1024 * 1024,
+		.size	= SZ_64M,
 	},
 	{
 		.name	= "Partition 2",
-		.offset	= 64 * 1024 * 1024,
+		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };
@@ -203,12 +205,30 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 
 
 /*
+ * I2C devices
+ */
+static struct at24_platform_data at24c512 = {
+	.byte_len	= SZ_512K / 8,
+	.page_size	= 128,
+	.flags		= AT24_FLAG_ADDR16,
+};
+
+
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("24c512", 0x50),
+		.platform_data = &at24c512,
+	},
+	/* more devices can be added using expansion connectors */
+};
+
+/*
  * LCD Controller
  */
 #if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
 static struct fb_videomode at91_tft_vga_modes[] = {
 	{
-	        .name           = "TX09D50VM1CCA @ 60",
+		.name		= "TX09D50VM1CCA @ 60",
 		.refresh	= 60,
 		.xres		= 240,		.yres		= 320,
 		.pixclock	= KHZ2PICOS(4965),
@@ -224,7 +244,7 @@ static struct fb_videomode at91_tft_vga_modes[] = {
 
 static struct fb_monspecs at91fb_default_monspecs = {
 	.manufacturer	= "HIT",
-	.monitor        = "TX09D70VM1CCA",
+	.monitor	= "TX09D70VM1CCA",
 
 	.modedb		= at91_tft_vga_modes,
 	.modedb_len	= ARRAY_SIZE(at91_tft_vga_modes),
@@ -235,7 +255,7 @@ static struct fb_monspecs at91fb_default_monspecs = {
 };
 
 #define AT91SAM9263_DEFAULT_LCDCON2 	(ATMEL_LCDC_MEMOR_LITTLE \
-					| ATMEL_LCDC_DISTYPE_TFT    \
+					| ATMEL_LCDC_DISTYPE_TFT \
 					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
 
 static void at91_lcdc_power_control(int on)
@@ -277,7 +297,7 @@ static struct gpio_keys_button ek_buttons[] = {
 		.active_low	= 1,
 		.desc		= "right_click",
 		.wakeup		= 1,
-	},
+	}
 };
 
 static struct gpio_keys_platform_data ek_button_data = {
@@ -296,9 +316,9 @@ static struct platform_device ek_button_device = {
 
 static void __init ek_add_device_buttons(void)
 {
-	at91_set_GPIO_periph(AT91_PIN_PC5, 0);	/* left button */
+	at91_set_GPIO_periph(AT91_PIN_PC5, 1);	/* left button */
 	at91_set_deglitch(AT91_PIN_PC5, 1);
-	at91_set_GPIO_periph(AT91_PIN_PC4, 0);	/* right button */
+	at91_set_GPIO_periph(AT91_PIN_PC4, 1);	/* right button */
 	at91_set_deglitch(AT91_PIN_PC4, 1);
 
 	platform_device_register(&ek_button_device);
@@ -320,22 +340,29 @@ static struct atmel_ac97_data ek_ac97_data = {
  * LEDs ... these could all be PWM-driven, for variable brightness
  */
 static struct gpio_led ek_leds[] = {
-	{	/* "left" led, green, userled1, pwm1 */
-		.name			= "ds1",
-		.gpio			= AT91_PIN_PB8,
-		.active_low		= 1,
-		.default_trigger	= "mmc0",
-	},
-	{	/* "right" led, green, userled2, pwm2 */
+	{	/* "right" led, green, userled2 (could be driven by pwm2) */
 		.name			= "ds2",
 		.gpio			= AT91_PIN_PC29,
 		.active_low		= 1,
 		.default_trigger	= "nand-disk",
 	},
-	{	/* "power" led, yellow, pwm0 */
+	{	/* "power" led, yellow (could be driven by pwm0) */
 		.name			= "ds3",
 		.gpio			= AT91_PIN_PB7,
 		.default_trigger	= "heartbeat",
+	}
+};
+
+/*
+ * PWM Leds
+ */
+static struct gpio_led ek_pwm_led[] = {
+	/* For now only DS1 is PWM-driven (by pwm1) */
+	{
+		.name			= "ds1",
+		.gpio			= 1,	/* is PWM channel number */
+		.active_low		= 1,
+		.default_trigger	= "none",
 	}
 };
 
@@ -360,7 +387,7 @@ static void __init ek_board_init(void)
 	/* NAND */
 	at91_add_device_nand(&ek_nand_data);
 	/* I2C */
-	at91_add_device_i2c(NULL, 0);
+	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* Push Buttons */
@@ -369,6 +396,7 @@ static void __init ek_board_init(void)
 	at91_add_device_ac97(&ek_ac97_data);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+	at91_pwm_leds(ek_pwm_led, ARRAY_SIZE(ek_pwm_led));
 }
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")

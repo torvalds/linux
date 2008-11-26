@@ -172,8 +172,9 @@ static void keyspan_pda_wakeup_write(struct work_struct *work)
 	struct keyspan_pda_private *priv =
 		container_of(work, struct keyspan_pda_private, wakeup_work);
 	struct usb_serial_port *port = priv->port;
-
-	tty_wakeup(port->port.tty);
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
+	tty_wakeup(tty);
+	tty_kref_put(tty);
 }
 
 static void keyspan_pda_request_unthrottle(struct work_struct *work)
@@ -205,7 +206,7 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 static void keyspan_pda_rx_interrupt(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty = port->port.tty;
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	unsigned char *data = urb->transfer_buffer;
 	int retval;
 	int status = urb->status;
@@ -222,7 +223,7 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
 		    __func__, status);
-		return;
+		goto out;
 	default:
 		dbg("%s - nonzero urb status received: %d",
 		    __func__, status);
@@ -261,8 +262,11 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err("%s - usb_submit_urb failed with result %d",
-		     __func__, retval);
+		dev_err(&port->dev,
+			"%s - usb_submit_urb failed with result %d",
+			__func__, retval);
+out:
+	tty_kref_put(tty);		     
 }
 
 
@@ -738,11 +742,13 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 		fw_name = "keyspan_pda/xircom_pgs.fw";
 #endif
 	else {
-		err("%s: unknown vendor, aborting.", __func__);
+		dev_err(&serial->dev->dev, "%s: unknown vendor, aborting.\n",
+			__func__);
 		return -ENODEV;
 	}
 	if (request_ihex_firmware(&fw, fw_name, &serial->dev->dev)) {
-		err("failed to load firmware \"%s\"\n", fw_name);
+		dev_err(&serial->dev->dev, "failed to load firmware \"%s\"\n",
+			fw_name);
 		return -ENOENT;
 	}
 	record = (const struct ihex_binrec *)fw->data;
@@ -752,10 +758,10 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 					     (unsigned char *)record->data,
 					     be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
-			err("ezusb_writememory failed for Keyspan PDA "
-			    "firmware (%d %04X %p %d)",
-			    response, be32_to_cpu(record->addr),
-			    record->data, be16_to_cpu(record->len));
+			dev_err(&serial->dev->dev, "ezusb_writememory failed "
+				"for Keyspan PDA firmware (%d %04X %p %d)\n",
+				response, be32_to_cpu(record->addr),
+				record->data, be16_to_cpu(record->len));
 			break;
 		}
 		record = ihex_next_binrec(record);
@@ -870,7 +876,8 @@ static int __init keyspan_pda_init(void)
 	retval = usb_register(&keyspan_pda_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 #ifdef XIRCOM

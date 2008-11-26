@@ -1,0 +1,168 @@
+/*
+* Device Tree Source for Netstal Maschinen HCU4
+* based on the IBM Walnut
+*
+* Copyright 2008
+* Niklaus Giger <niklaus.giger@member.fsf.org>
+*
+* Copyright 2007 IBM Corp.
+* Josh Boyer <jwboyer@linux.vnet.ibm.com>
+*
+* This file is licensed under the terms of the GNU General Public
+* License version 2.  This program is licensed "as is" without
+* any warranty of any kind, whether express or implied.
+*/
+
+/dts-v1/;
+
+/ {
+	#address-cells = <0x1>;
+	#size-cells = <0x1>;
+	model = "netstal,hcu4";
+	compatible = "netstal,hcu4";
+	dcr-parent = <0x1>;
+
+	aliases {
+		ethernet0 = "/plb/opb/ethernet@ef600800";
+		serial0 = "/plb/opb/serial@ef600300";
+	};
+
+	cpus {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "PowerPC,405GPr";
+			reg = <0x0>;
+			clock-frequency = <0>;		/* Filled in by U-Boot */
+			timebase-frequency = <0x0>;	/* Filled in by U-Boot */
+			i-cache-line-size = <0x20>;
+			d-cache-line-size = <0x20>;
+			i-cache-size = <0x4000>;
+			d-cache-size = <0x4000>;
+			dcr-controller;
+			dcr-access-method = "native";
+			linux,phandle = <0x1>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;	/* Filled in by U-Boot */
+	};
+
+	UIC0: interrupt-controller {
+		compatible = "ibm,uic";
+		interrupt-controller;
+		cell-index = <0x0>;
+		dcr-reg = <0xc0 0x9>;
+		#address-cells = <0x0>;
+		#size-cells = <0x0>;
+		#interrupt-cells = <0x2>;
+		linux,phandle = <0x2>;
+	};
+
+	plb {
+		compatible = "ibm,plb3";
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges;
+		clock-frequency = <0x0>;	/* Filled in by U-Boot */
+
+		SDRAM0: memory-controller {
+			compatible = "ibm,sdram-405gp";
+			dcr-reg = <0x10 0x2>;
+		};
+
+		MAL: mcmal {
+			compatible = "ibm,mcmal-405gp", "ibm,mcmal";
+			dcr-reg = <0x180 0x62>;
+			num-tx-chans = <0x1>;
+			num-rx-chans = <0x1>;
+			interrupt-parent = <0x2>;
+			interrupts = <0xb 0x4 0xc 0x4 0xa 0x4 0xd 0x4 0xe 0x4>;
+			linux,phandle = <0x3>;
+		};
+
+		POB0: opb {
+			compatible = "ibm,opb-405gp", "ibm,opb";
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+			ranges = <0xef600000 0xef600000 0xa00000>;
+			dcr-reg = <0xa0 0x5>;
+			clock-frequency = <0x0>;	/* Filled in by U-Boot */
+
+			UART0: serial@ef600300 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0xef600300 0x8>;
+				virtual-reg = <0xef600300>;
+				clock-frequency = <0x0>;/* Filled in by U-Boot */
+				current-speed = <0>;	/* Filled in by U-Boot */
+				interrupt-parent = <0x2>;
+				interrupts = <0x0 0x4>;
+			};
+
+			IIC: i2c@ef600500 {
+				compatible = "ibm,iic-405gp", "ibm,iic";
+				reg = <0xef600500 0x11>;
+				interrupt-parent = <0x2>;
+				interrupts = <0x2 0x4>;
+			};
+
+			GPIO: gpio@ef600700 {
+				compatible = "ibm,gpio-405gp";
+				reg = <0xef600700 0x20>;
+			};
+
+			EMAC: ethernet@ef600800 {
+				device_type = "network";
+				compatible = "ibm,emac-405gp", "ibm,emac";
+				interrupt-parent = <0x2>;
+				interrupts = <0xf 0x4 0x9 0x4>;
+				local-mac-address = [00 00 00 00 00 00];
+				reg = <0xef600800 0x70>;
+				mal-device = <0x3>;
+				mal-tx-channel = <0x0>;
+				mal-rx-channel = <0x0>;
+				cell-index = <0x0>;
+				max-frame-size = <0x5dc>;
+				rx-fifo-size = <0x1000>;
+				tx-fifo-size = <0x800>;
+				phy-mode = "rmii";
+				phy-map = <0x1>;
+			};
+		};
+
+		EBC0: ebc {
+			compatible = "ibm,ebc-405gp", "ibm,ebc";
+			dcr-reg = <0x12 0x2>;
+			#address-cells = <0x2>;
+			#size-cells = <0x1>;
+			clock-frequency = <0x0>;	/* Filled in by U-Boot */
+
+			sram@0,0 {
+				reg = <0x0 0x0 0x80000>;
+			};
+
+			flash@0,80000 {
+				compatible = "jedec-flash";
+				bank-width = <0x1>;
+				reg = <0x0 0x80000 0x80000>;
+				#address-cells = <0x1>;
+				#size-cells = <0x1>;
+
+				partition@0 {
+					label = "OpenBIOS";
+					reg = <0x0 0x80000>;
+					read-only;
+				};
+			};
+		};
+	};
+
+	chosen {
+		linux,stdout-path = "/plb/opb/serial@ef600300";
+	};
+};

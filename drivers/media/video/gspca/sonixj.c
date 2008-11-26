@@ -39,6 +39,7 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char autogain;
+	__u8 vflip;			/* ov7630 only */
 
 	signed char ag_cnt;
 #define AG_CNT_START 13
@@ -70,6 +71,8 @@ static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 	{
@@ -130,6 +133,22 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
+	},
+/* ov7630 only */
+#define VFLIP_IDX 4
+	{
+	    {
+		.id      = V4L2_CID_VFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Vflip",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define VFLIP_DEF 1
+		.default_value = VFLIP_DEF,
+	    },
+	    .set = sd_setvflip,
+	    .get = sd_getvflip,
 	},
 };
 
@@ -248,10 +267,12 @@ static const __u8 gamma_def[] = {
 	0xa6, 0xb2, 0xbf, 0xca, 0xd5, 0xe0, 0xeb, 0xf5, 0xff
 };
 
+/* color matrix and offsets */
 static const __u8 reg84[] = {
-	0x14, 0x00, 0x27, 0x00, 0x07, 0x00, 0xe5, 0x0f,
-	0xe4, 0x0f, 0x38, 0x00, 0x3e, 0x00, 0xc3, 0x0f,
-	0xf7, 0x0f, 0x00, 0x00, 0x00
+	0x14, 0x00, 0x27, 0x00, 0x07, 0x00,	/* YR YG YB gains */
+	0xe8, 0x0f, 0xda, 0x0f, 0x40, 0x00,	/* UR UG UB */
+	0x3e, 0x00, 0xcd, 0x0f, 0xf7, 0x0f,	/* VR VG VB */
+	0x00, 0x00, 0x00			/* YUV offsets */
 };
 static const __u8 hv7131r_sensor_init[][8] = {
 	{0xC1, 0x11, 0x01, 0x08, 0x01, 0x00, 0x00, 0x10},
@@ -434,7 +455,8 @@ static const __u8 ov7630_sensor_init[][8] = {
 	{0xa1, 0x21, 0x12, 0x48, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x12, 0x48, 0x00, 0x00, 0x00, 0x10},
 /*fixme: + 0x12, 0x04*/
-	{0xa1, 0x21, 0x75, 0x82, 0x00, 0x00, 0x00, 0x10},
+/*	{0xa1, 0x21, 0x75, 0x82, 0x00, 0x00, 0x00, 0x10},  * COMN
+							 * set by setvflip */
 	{0xa1, 0x21, 0x10, 0x32, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xb1, 0x21, 0x01, 0x80, 0x80, 0x00, 0x00, 0x10},
@@ -707,6 +729,7 @@ static void i2c_w8(struct gspca_dev *gspca_dev,
 			0x08, 0,		/* value, index */
 			gspca_dev->usb_buf, 8,
 			500);
+	msleep(2);
 }
 
 /* read 5 bytes in gspca_dev->usb_buf */
@@ -948,6 +971,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		gspca_dev->ctrl_dis = (1 << AUTOGAIN_IDX);
 		break;
 	}
+	if (sd->sensor != SENSOR_OV7630)
+		gspca_dev->ctrl_dis |= (1 << VFLIP_IDX);
 
 	return 0;
 }
@@ -976,13 +1001,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
 			return -ENODEV;
-		reg_w(gspca_dev, 0x02, regGpio, 2);
+		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	case BRIDGE_SN9C120:
 		if (regF1 != 0x12)
 			return -ENODEV;
 		regGpio[1] = 0x70;
-		reg_w(gspca_dev, 0x02, regGpio, 2);
+		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	default:
 /*	case BRIDGE_SN9C110: */
@@ -1079,20 +1104,17 @@ static unsigned int setexposure(struct gspca_dev *gspca_dev,
 static void setbrightcont(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned val;
+	int val;
 	__u8 reg84_full[0x15];
 
-	memset(reg84_full, 0, sizeof reg84_full);
-	val = sd->contrast * 0x20 / CONTRAST_MAX + 0x10;	/* 10..30 */
-	reg84_full[2] = val;
-	reg84_full[0] = (val + 1) / 2;
-	reg84_full[4] = (val + 1) / 5;
-	if (val > BRIGHTNESS_DEF)
-		val = (sd->brightness - BRIGHTNESS_DEF) * 0x20
+	memcpy(reg84_full, reg84, sizeof reg84_full);
+	val = sd->contrast * 0x30 / CONTRAST_MAX + 0x10;	/* 10..40 */
+	reg84_full[0] = (val + 1) / 2;		/* red */
+	reg84_full[2] = val;			/* green */
+	reg84_full[4] = (val + 1) / 5;		/* blue */
+	val = (sd->brightness - BRIGHTNESS_DEF) * 0x10
 			/ BRIGHTNESS_MAX;
-	else
-		val = 0;
-	reg84_full[0x12] = val;			/* 00..1f */
+	reg84_full[0x12] = val & 0x1f;		/* 5:0 signed value */
 	reg_w(gspca_dev, 0x84, reg84_full, sizeof reg84_full);
 }
 
@@ -1171,8 +1193,16 @@ static void setautogain(struct gspca_dev *gspca_dev)
 		sd->ag_cnt = -1;
 }
 
+static void setvflip(struct sd *sd)
+{
+	if (sd->sensor != SENSOR_OV7630)
+		return;
+	i2c_w1(&sd->gspca_dev, 0x75,			/* COMN */
+		sd->vflip ? 0x82 : 0x02);
+}
+
 /* -- start the camera -- */
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
@@ -1183,7 +1213,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	static const __u8 CA[] = { 0x28, 0xd8, 0x14, 0xec };
 	static const __u8 CE[] = { 0x32, 0xdd, 0x2d, 0xdd };	/* MI0360 */
 	static const __u8 CE_ov76xx[] =
-			{ 0x32, 0xdd, 0x32, 0xdd };	/* OV7630/48 */
+				{ 0x32, 0xdd, 0x32, 0xdd };
 
 	sn9c1xx = sn_tb[(int) sd->sensor];
 	configure_gpio(gspca_dev, sn9c1xx);
@@ -1223,8 +1253,15 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x20, gamma_def, sizeof gamma_def);
 	for (i = 0; i < 8; i++)
 		reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
+	switch (sd->sensor) {
+	case SENSOR_OV7660:
+		reg_w1(gspca_dev, 0x9a, 0x05);
+		break;
+	default:
 		reg_w1(gspca_dev, 0x9a, 0x08);
 		reg_w1(gspca_dev, 0x99, 0x59);
+		break;
+	}
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (mode)
@@ -1255,6 +1292,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case SENSOR_OV7630:
 		ov7630_InitSensor(gspca_dev);
+		setvflip(sd);
 		reg17 = 0xe2;
 		reg1 = 0x44;
 		break;
@@ -1275,8 +1313,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 /*			reg1 = 0x44; */
 /*			reg1 = 0x46;	(done) */
 		} else {
-			reg17 = 0x22;	/* 640 MCKSIZE */
-			reg1 = 0x06;
+			reg17 = 0xa2;	/* 640 */
+			reg1 = 0x44;
 		}
 		break;
 	}
@@ -1285,6 +1323,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_OV7630:
 	case SENSOR_OV7648:
+	case SENSOR_OV7660:
 		reg_w(gspca_dev, 0xce, CE_ov76xx, 4);
 		break;
 	default:
@@ -1311,12 +1350,16 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		setbrightness(gspca_dev);
 		setcontrast(gspca_dev);
 		break;
+	case SENSOR_OV7630:
+		setvflip(sd);
+		/* fall thru */
 	default:			/* OV76xx */
 		setbrightcont(gspca_dev);
 		break;
 	}
 	setautogain(gspca_dev);
 	reg_w1(gspca_dev, 0x01, reg1);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -1537,6 +1580,24 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->vflip = val;
+	if (gspca_dev->streaming)
+		setvflip(sd);
+	return 0;
+}
+
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->vflip;
+	return 0;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -1558,6 +1619,7 @@ static const struct sd_desc sd_desc = {
 static const __devinitdata struct usb_device_id device_table[] = {
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0458, 0x7025), BSI(SN9C120, MI0360, 0x5d)},
+	{USB_DEVICE(0x0458, 0x702e), BSI(SN9C120, OV7660, 0x21)},
 	{USB_DEVICE(0x045e, 0x00f5), BSI(SN9C105, OV7660, 0x21)},
 	{USB_DEVICE(0x045e, 0x00f7), BSI(SN9C105, OV7660, 0x21)},
 	{USB_DEVICE(0x0471, 0x0327), BSI(SN9C105, MI0360, 0x5d)},
@@ -1579,7 +1641,9 @@ static const __devinitdata struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x60fa), BSI(SN9C105, OV7648, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x60fb), BSI(SN9C105, OV7660, 0x21)},
 	{USB_DEVICE(0x0c45, 0x60fc), BSI(SN9C105, HV7131R, 0x11)},
-/*	{USB_DEVICE(0x0c45, 0x60fe), BSI(SN9C105, OV7630, 0x??)}, */
+#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
+	{USB_DEVICE(0x0c45, 0x60fe), BSI(SN9C105, OV7630, 0x21)},
+#endif
 /*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6801, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x6122), BSI(SN9C110, ICM105C, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x6123), BSI(SN9C110, SanyoCCD, 0x??)}, */

@@ -263,8 +263,7 @@ static struct gameport_driver cobra_drv = {
 
 static int __init cobra_init(void)
 {
-	gameport_register_driver(&cobra_drv);
-	return 0;
+	return gameport_register_driver(&cobra_drv);
 }
 
 static void __exit cobra_exit(void)

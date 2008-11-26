@@ -27,6 +27,8 @@
 #define ELF_CORE_EFLAGS	0
 #endif
 
+static struct proc_dir_entry *proc_root_kcore;
+
 static int open_kcore(struct inode * inode, struct file * filp)
 {
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
@@ -34,7 +36,7 @@ static int open_kcore(struct inode * inode, struct file * filp)
 
 static ssize_t read_kcore(struct file *, char __user *, size_t, loff_t *);
 
-const struct file_operations proc_kcore_operations = {
+static const struct file_operations proc_kcore_operations = {
 	.read		= read_kcore,
 	.open		= open_kcore,
 };
@@ -399,3 +401,13 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 
 	return acc;
 }
+
+static int __init proc_kcore_init(void)
+{
+	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL, &proc_kcore_operations);
+	if (proc_root_kcore)
+		proc_root_kcore->size =
+				(size_t)high_memory - PAGE_OFFSET + PAGE_SIZE;
+	return 0;
+}
+module_init(proc_kcore_init);

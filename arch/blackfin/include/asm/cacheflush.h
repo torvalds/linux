@@ -30,13 +30,11 @@
 #ifndef _BLACKFIN_CACHEFLUSH_H
 #define _BLACKFIN_CACHEFLUSH_H
 
-#include <asm/cplb.h>
-
-extern void blackfin_icache_dcache_flush_range(unsigned int, unsigned int);
-extern void blackfin_icache_flush_range(unsigned int, unsigned int);
-extern void blackfin_dcache_flush_range(unsigned int, unsigned int);
-extern void blackfin_dcache_invalidate_range(unsigned int, unsigned int);
-extern void blackfin_dflush_page(void *);
+extern void blackfin_icache_dcache_flush_range(unsigned long start_address, unsigned long end_address);
+extern void blackfin_icache_flush_range(unsigned long start_address, unsigned long end_address);
+extern void blackfin_dcache_flush_range(unsigned long start_address, unsigned long end_address);
+extern void blackfin_dcache_invalidate_range(unsigned long start_address, unsigned long end_address);
+extern void blackfin_dflush_page(void *page);
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
@@ -86,5 +84,22 @@ do { memcpy(dst, src, len); \
 # define flush_dcache_range(start,end)		do { } while (0)
 # define flush_dcache_page(page)			do { } while (0)
 #endif
+
+extern unsigned long reserved_mem_dcache_on;
+extern unsigned long reserved_mem_icache_on;
+
+static inline int bfin_addr_dcachable(unsigned long addr)
+{
+#ifdef CONFIG_BFIN_DCACHE
+	if (addr < (_ramend - DMA_UNCACHED_REGION))
+		return 1;
+#endif
+
+	if (reserved_mem_dcache_on &&
+		addr >= _ramend && addr < physical_mem_end)
+		return 1;
+
+	return 0;
+}
 
 #endif				/* _BLACKFIN_ICACHEFLUSH_H */

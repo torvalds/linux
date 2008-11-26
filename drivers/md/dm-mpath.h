@@ -13,8 +13,6 @@ struct dm_dev;
 
 struct dm_path {
 	struct dm_dev *dev;	/* Read-only */
-	unsigned is_active;	/* Read-only */
-
 	void *pscontext;	/* For path-selector use */
 };
 

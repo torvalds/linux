@@ -7,7 +7,8 @@
  *  based on
  *  SoftDog 0.05:	A Software Watchdog Device
  *
- *  (c) Copyright 1996 Alan Cox <alan@redhat.com>, All Rights Reserved.
+ *  (c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
+ *					All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -182,8 +183,8 @@ static ssize_t rc32434_wdt_write(struct file *file, const char *data,
 	return 0;
 }
 
-static int rc32434_wdt_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static long rc32434_wdt_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int new_timeout;
@@ -242,7 +243,7 @@ static struct file_operations rc32434_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= rc32434_wdt_write,
-	.ioctl		= rc32434_wdt_ioctl,
+	.unlocked_ioctl	= rc32434_wdt_ioctl,
 	.open		= rc32434_wdt_open,
 	.release	= rc32434_wdt_release,
 };

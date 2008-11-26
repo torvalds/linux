@@ -27,9 +27,9 @@
 #include <linux/list.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/mach/irq.h>
 #include <asm/hardware/gic.h>
 

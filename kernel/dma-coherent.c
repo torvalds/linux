@@ -124,6 +124,7 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 	}
 	return (mem != NULL);
 }
+EXPORT_SYMBOL(dma_alloc_from_coherent);
 
 /**
  * dma_release_from_coherent() - try to free the memory allocated from per-device coherent memory pool
@@ -151,3 +152,4 @@ int dma_release_from_coherent(struct device *dev, int order, void *vaddr)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(dma_release_from_coherent);

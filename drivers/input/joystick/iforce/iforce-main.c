@@ -218,7 +218,9 @@ static void iforce_release(struct input_dev *dev)
 		/* Check: no effects should be present in memory */
 		for (i = 0; i < dev->ff->max_effects; i++) {
 			if (test_bit(FF_CORE_IS_USED, iforce->core_effects[i].flags)) {
-				warn("iforce_release: Device still owns effects");
+				dev_warn(&dev->dev,
+					"%s: Device still owns effects\n",
+					__func__);
 				break;
 			}
 		}
@@ -335,26 +337,26 @@ int iforce_init_device(struct iforce *iforce)
 	if (!iforce_get_id_packet(iforce, "M"))
 		input_dev->id.vendor = (iforce->edata[2] << 8) | iforce->edata[1];
 	else
-		warn("Device does not respond to id packet M");
+		dev_warn(&iforce->dev->dev, "Device does not respond to id packet M\n");
 
 	if (!iforce_get_id_packet(iforce, "P"))
 		input_dev->id.product = (iforce->edata[2] << 8) | iforce->edata[1];
 	else
-		warn("Device does not respond to id packet P");
+		dev_warn(&iforce->dev->dev, "Device does not respond to id packet P\n");
 
 	if (!iforce_get_id_packet(iforce, "B"))
 		iforce->device_memory.end = (iforce->edata[2] << 8) | iforce->edata[1];
 	else
-		warn("Device does not respond to id packet B");
+		dev_warn(&iforce->dev->dev, "Device does not respond to id packet B\n");
 
 	if (!iforce_get_id_packet(iforce, "N"))
 		ff_effects = iforce->edata[1];
 	else
-		warn("Device does not respond to id packet N");
+		dev_warn(&iforce->dev->dev, "Device does not respond to id packet N\n");
 
 	/* Check if the device can store more effects than the driver can really handle */
 	if (ff_effects > IFORCE_EFFECTS_MAX) {
-		warn("Limiting number of effects to %d (device reports %d)",
+		dev_warn(&iforce->dev->dev, "Limiting number of effects to %d (device reports %d)\n",
 		       IFORCE_EFFECTS_MAX, ff_effects);
 		ff_effects = IFORCE_EFFECTS_MAX;
 	}

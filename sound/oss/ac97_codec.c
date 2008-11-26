@@ -30,7 +30,7 @@
  **************************************************************************
  *
  * History
- * May 02, 2003 Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * May 02, 2003 Liam Girdwood <lrg@slimlogic.co.uk>
  *	Removed non existant WM9700
  *	Added support for WM9705, WM9708, WM9709, WM9710, WM9711
  *	WM9712 and WM9717

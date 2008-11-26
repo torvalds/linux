@@ -155,7 +155,7 @@ static struct dentry *get_xa_file_dentry(const struct inode *inode,
 	xadir = open_xa_dir(inode, flags);
 	if (IS_ERR(xadir)) {
 		return ERR_CAST(xadir);
-	} else if (xadir && !xadir->d_inode) {
+	} else if (!xadir->d_inode) {
 		dput(xadir);
 		return ERR_PTR(-ENODATA);
 	}

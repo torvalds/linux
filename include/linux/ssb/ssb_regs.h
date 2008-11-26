@@ -245,8 +245,6 @@
 
 /* SPROM Revision 3 (inherits most data from rev 2) */
 #define SSB_SPROM3_IL0MAC		0x104A	/* 6 bytes MAC address for 802.11b/g */
-#define SSB_SPROM3_ET0MAC		0x1050	/* 6 bytes MAC address for Ethernet ?? */
-#define SSB_SPROM3_ET1MAC		0x1050	/* 6 bytes MAC address for 802.11a ?? */
 #define SSB_SPROM3_OFDMAPO		0x102C	/* A-PHY OFDM Mid Power Offset (4 bytes, BigEndian) */
 #define SSB_SPROM3_OFDMALPO		0x1030	/* A-PHY OFDM Low Power Offset (4 bytes, BigEndian) */
 #define SSB_SPROM3_OFDMAHPO		0x1034	/* A-PHY OFDM High Power Offset (4 bytes, BigEndian) */
@@ -267,8 +265,6 @@
 
 /* SPROM Revision 4 */
 #define SSB_SPROM4_IL0MAC		0x104C	/* 6 byte MAC address for a/b/g/n */
-#define SSB_SPROM4_ET0MAC		0x1018	/* 6 bytes MAC address for Ethernet ?? */
-#define SSB_SPROM4_ET1MAC		0x1018	/* 6 bytes MAC address for 802.11a ?? */
 #define SSB_SPROM4_ETHPHY		0x105A	/* Ethernet PHY settings ?? */
 #define  SSB_SPROM4_ETHPHY_ET0A		0x001F	/* MII Address for enet0 */
 #define  SSB_SPROM4_ETHPHY_ET1A		0x03E0	/* MII Address for enet1 */
@@ -315,6 +311,21 @@
 #define SSB_SPROM4_PA1B0		0x108E
 #define SSB_SPROM4_PA1B1		0x1090
 #define SSB_SPROM4_PA1B2		0x1092
+
+/* SPROM Revision 5 (inherits most data from rev 4) */
+#define SSB_SPROM5_BFLLO		0x104A	/* Boardflags (low 16 bits) */
+#define SSB_SPROM5_BFLHI		0x104C  /* Board Flags Hi */
+#define SSB_SPROM5_IL0MAC		0x1052	/* 6 byte MAC address for a/b/g/n */
+#define SSB_SPROM5_CCODE		0x1044	/* Country Code (2 bytes) */
+#define SSB_SPROM5_GPIOA		0x1076	/* Gen. Purpose IO # 0 and 1 */
+#define  SSB_SPROM5_GPIOA_P0		0x00FF	/* Pin 0 */
+#define  SSB_SPROM5_GPIOA_P1		0xFF00	/* Pin 1 */
+#define  SSB_SPROM5_GPIOA_P1_SHIFT	8
+#define SSB_SPROM5_GPIOB		0x1078	/* Gen. Purpose IO # 2 and 3 */
+#define  SSB_SPROM5_GPIOB_P2		0x00FF	/* Pin 2 */
+#define  SSB_SPROM5_GPIOB_P3		0xFF00	/* Pin 3 */
+#define  SSB_SPROM5_GPIOB_P3_SHIFT	8
+
 
 /* Values for SSB_SPROM1_BINF_CCODE */
 enum {

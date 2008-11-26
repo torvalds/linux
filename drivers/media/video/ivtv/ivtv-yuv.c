@@ -1147,6 +1147,7 @@ void ivtv_yuv_close(struct ivtv *itv)
 	IVTV_DEBUG_YUV("ivtv_yuv_close\n");
 	ivtv_waitq(&itv->vsync_waitq);
 
+	yi->running = 0;
 	atomic_set(&yi->next_dma_frame, -1);
 	atomic_set(&yi->next_fill_frame, 0);
 

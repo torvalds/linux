@@ -69,7 +69,7 @@ static inline int ad7414_write(struct i2c_client *client, u8 reg, u8 value)
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
-struct ad7414_data *ad7414_update_device(struct device *dev)
+static struct ad7414_data *ad7414_update_device(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ad7414_data *data = i2c_get_clientdata(client);

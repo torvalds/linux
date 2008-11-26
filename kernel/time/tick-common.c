@@ -33,7 +33,7 @@ DEFINE_PER_CPU(struct tick_device, tick_cpu_device);
  */
 ktime_t tick_next_period;
 ktime_t tick_period;
-int tick_do_timer_cpu __read_mostly = -1;
+int tick_do_timer_cpu __read_mostly = TICK_DO_TIMER_BOOT;
 DEFINE_SPINLOCK(tick_device_lock);
 
 /*
@@ -109,7 +109,8 @@ void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
 	if (!tick_device_is_functional(dev))
 		return;
 
-	if (dev->features & CLOCK_EVT_FEAT_PERIODIC) {
+	if ((dev->features & CLOCK_EVT_FEAT_PERIODIC) &&
+	    !tick_broadcast_oneshot_active()) {
 		clockevents_set_mode(dev, CLOCK_EVT_MODE_PERIODIC);
 	} else {
 		unsigned long seq;
@@ -148,7 +149,7 @@ static void tick_setup_device(struct tick_device *td,
 		 * If no cpu took the do_timer update, assign it to
 		 * this cpu:
 		 */
-		if (tick_do_timer_cpu == -1) {
+		if (tick_do_timer_cpu == TICK_DO_TIMER_BOOT) {
 			tick_do_timer_cpu = cpu;
 			tick_next_period = ktime_get();
 			tick_period = ktime_set(0, NSEC_PER_SEC / HZ);
@@ -249,7 +250,7 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 	 * not give it back to the clockevents layer !
 	 */
 	if (tick_is_broadcast_device(curdev)) {
-		clockevents_set_mode(curdev, CLOCK_EVT_MODE_SHUTDOWN);
+		clockevents_shutdown(curdev);
 		curdev = NULL;
 	}
 	clockevents_exchange_device(curdev, newdev);
@@ -300,7 +301,8 @@ static void tick_shutdown(unsigned int *cpup)
 	if (*cpup == tick_do_timer_cpu) {
 		int cpu = first_cpu(cpu_online_map);
 
-		tick_do_timer_cpu = (cpu != NR_CPUS) ? cpu : -1;
+		tick_do_timer_cpu = (cpu != NR_CPUS) ? cpu :
+			TICK_DO_TIMER_NONE;
 	}
 	spin_unlock_irqrestore(&tick_device_lock, flags);
 }
@@ -311,7 +313,7 @@ static void tick_suspend(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tick_device_lock, flags);
-	clockevents_set_mode(td->evtdev, CLOCK_EVT_MODE_SHUTDOWN);
+	clockevents_shutdown(td->evtdev);
 	spin_unlock_irqrestore(&tick_device_lock, flags);
 }
 

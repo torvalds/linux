@@ -687,7 +687,10 @@ static ssize_t mon_bin_read(struct file *file, char __user *buf,
 	}
 
 	if (rp->b_read >= sizeof(struct mon_bin_hdr)) {
-		step_len = min(nbytes, (size_t)ep->len_cap);
+		step_len = ep->len_cap;
+		step_len -= rp->b_read - sizeof(struct mon_bin_hdr);
+		if (step_len > nbytes)
+			step_len = nbytes;
 		offset = rp->b_out + PKT_SIZE;
 		offset += rp->b_read - sizeof(struct mon_bin_hdr);
 		if (offset >= rp->b_size)
@@ -1162,9 +1165,9 @@ int mon_bin_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 	if (minor >= MON_BIN_MAX_MINOR)
 		return 0;
 
-	dev = device_create_drvdata(mon_bin_class, ubus? ubus->controller: NULL,
-				    MKDEV(MAJOR(mon_bin_dev0), minor), NULL,
-				    "usbmon%d", minor);
+	dev = device_create(mon_bin_class, ubus ? ubus->controller : NULL,
+			    MKDEV(MAJOR(mon_bin_dev0), minor), NULL,
+			    "usbmon%d", minor);
 	if (IS_ERR(dev))
 		return 0;
 

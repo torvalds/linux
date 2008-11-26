@@ -46,7 +46,6 @@
 
 #include "../core/hcd.h"
 
-#define DRIVER_VERSION "2006 August 04"
 #define DRIVER_AUTHOR "Roman Weissgaerber, David Brownell"
 #define DRIVER_DESC "USB 1.1 'Open' Host Controller (OHCI) Driver"
 
@@ -984,10 +983,8 @@ static int ohci_restart (struct ohci_hcd *ohci)
 
 /*-------------------------------------------------------------------------*/
 
-#define DRIVER_INFO DRIVER_VERSION " " DRIVER_DESC
-
 MODULE_AUTHOR (DRIVER_AUTHOR);
-MODULE_DESCRIPTION (DRIVER_INFO);
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_PCI
@@ -1078,12 +1075,18 @@ MODULE_LICENSE ("GPL");
 #define SM501_OHCI_DRIVER	ohci_hcd_sm501_driver
 #endif
 
+#ifdef CONFIG_MFD_TC6393XB
+#include "ohci-tmio.c"
+#define TMIO_OHCI_DRIVER	ohci_hcd_tmio_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OF_PLATFORM_DRIVER) &&	\
 	!defined(SA1111_DRIVER) &&	\
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
 	!defined(SM501_OHCI_DRIVER) && \
+	!defined(TMIO_OHCI_DRIVER) && \
 	!defined(SSB_OHCI_DRIVER)
 #error "missing bus glue for ohci-hcd"
 #endif
@@ -1095,9 +1098,10 @@ static int __init ohci_hcd_mod_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	printk (KERN_DEBUG "%s: " DRIVER_INFO "\n", hcd_name);
+	printk(KERN_INFO "%s: " DRIVER_DESC "\n", hcd_name);
 	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
+	set_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 
 #ifdef DEBUG
 	ohci_debug_root = debugfs_create_dir("ohci", NULL);
@@ -1149,13 +1153,25 @@ static int __init ohci_hcd_mod_init(void)
 		goto error_sm501;
 #endif
 
+#ifdef TMIO_OHCI_DRIVER
+	retval = platform_driver_register(&TMIO_OHCI_DRIVER);
+	if (retval < 0)
+		goto error_tmio;
+#endif
+
 	return retval;
 
 	/* Error path */
+#ifdef TMIO_OHCI_DRIVER
+	platform_driver_unregister(&TMIO_OHCI_DRIVER);
+ error_tmio:
+#endif
 #ifdef SM501_OHCI_DRIVER
+	platform_driver_unregister(&SM501_OHCI_DRIVER);
  error_sm501:
 #endif
 #ifdef SSB_OHCI_DRIVER
+	ssb_driver_unregister(&SSB_OHCI_DRIVER);
  error_ssb:
 #endif
 #ifdef PCI_DRIVER
@@ -1184,12 +1200,16 @@ static int __init ohci_hcd_mod_init(void)
  error_debug:
 #endif
 
+	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
 module_init(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {
+#ifdef TMIO_OHCI_DRIVER
+	platform_driver_unregister(&TMIO_OHCI_DRIVER);
+#endif
 #ifdef SM501_OHCI_DRIVER
 	platform_driver_unregister(&SM501_OHCI_DRIVER);
 #endif
@@ -1214,6 +1234,7 @@ static void __exit ohci_hcd_mod_exit(void)
 #ifdef DEBUG
 	debugfs_remove(ohci_debug_root);
 #endif
+	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(ohci_hcd_mod_exit);
 

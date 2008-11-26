@@ -144,7 +144,7 @@ static void *per_cpu_node_setup(void *cpu_data, int node)
 
 	for_each_possible_early_cpu(cpu) {
 		if (cpu == 0) {
-			void *cpu0_data = __phys_per_cpu_start - PERCPU_PAGE_SIZE;
+			void *cpu0_data = __cpu0_per_cpu;
 			__per_cpu_offset[cpu] = (char*)cpu0_data -
 				__per_cpu_start;
 		} else if (node == node_cpuid[cpu].nid) {
@@ -635,7 +635,6 @@ static __init int count_node_pages(unsigned long start, unsigned long len, int n
 			(min(end, __pa(MAX_DMA_ADDRESS)) - start) >>PAGE_SHIFT;
 #endif
 	start = GRANULEROUNDDOWN(start);
-	start = ORDERROUNDDOWN(start);
 	end = GRANULEROUNDUP(end);
 	mem_data[node].max_pfn = max(mem_data[node].max_pfn,
 				     end >> PAGE_SHIFT);

@@ -57,8 +57,6 @@ module_param_named(bufsize, dma_buffer_size, int, 0444);
 MODULE_PARM_DESC(debug, "Turn on/off budget debugging (default:off).");
 MODULE_PARM_DESC(bufsize, "DMA buffer size in KB, default: 188, min: 188, max: 1410 (Activy: 564)");
 
-DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-
 /****************************************************************************
  * TT budget / WinTV Nova
  ****************************************************************************/
@@ -411,7 +409,7 @@ static void budget_unregister(struct budget *budget)
 
 int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 		      struct saa7146_pci_extension_data *info,
-		      struct module *owner)
+		      struct module *owner, short *adapter_nums)
 {
 	int ret = 0;
 	struct budget_info *bi = info->ext_priv;
@@ -474,7 +472,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	printk("%s: dma buffer size %u\n", budget->dev->name, budget->buffer_size);
 
 	ret = dvb_register_adapter(&budget->dvb_adapter, budget->card->name,
-				   owner, &budget->dev->pci->dev, adapter_nr);
+				   owner, &budget->dev->pci->dev, adapter_nums);
 	if (ret < 0)
 		return ret;
 

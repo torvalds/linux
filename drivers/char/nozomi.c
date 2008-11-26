@@ -1599,7 +1599,10 @@ static int ntty_open(struct tty_struct *tty, struct file *file)
 	return 0;
 }
 
-/* Called when the userspace process close the tty, /dev/noz*. */
+/* Called when the userspace process close the tty, /dev/noz*. Also
+   called immediately if ntty_open fails in which case tty->driver_data
+   will be NULL an we exit by the first return */
+
 static void ntty_close(struct tty_struct *tty, struct file *file)
 {
 	struct nozomi *dc = get_dc_by_tty(tty);

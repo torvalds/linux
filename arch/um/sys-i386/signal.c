@@ -179,7 +179,8 @@ static int copy_sc_from_user(struct pt_regs *regs,
 	if (have_fpx_regs) {
 		struct user_fxsr_struct fpx;
 
-		err = copy_from_user(&fpx, &sc.fpstate->_fxsr_env[0],
+		err = copy_from_user(&fpx,
+			&((struct _fpstate __user *)sc.fpstate)->_fxsr_env[0],
 				     sizeof(struct user_fxsr_struct));
 		if (err)
 			return 1;

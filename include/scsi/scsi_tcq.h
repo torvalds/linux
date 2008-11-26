@@ -140,8 +140,18 @@ static inline struct scsi_cmnd *scsi_find_tag(struct scsi_device *sdev, int tag)
  */
 static inline int scsi_init_shared_tag_map(struct Scsi_Host *shost, int depth)
 {
-	shost->bqt = blk_init_tags(depth);
-	return shost->bqt ? 0 : -ENOMEM;
+	/*
+	 * If the shared tag map isn't already initialized, do it now.
+	 * This saves callers from having to check ->bqt when setting up
+	 * devices on the shared host (for libata)
+	 */
+	if (!shost->bqt) {
+		shost->bqt = blk_init_tags(depth);
+		if (!shost->bqt)
+			return -ENOMEM;
+	}
+
+	return 0;
 }
 
 /**

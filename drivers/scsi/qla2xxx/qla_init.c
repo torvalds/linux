@@ -83,6 +83,13 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 
 	ha->isp_ops->reset_chip(ha);
 
+	rval = qla2xxx_get_flash_info(ha);
+	if (rval) {
+		DEBUG2(printk("scsi(%ld): Unable to validate FLASH data.\n",
+		    ha->host_no));
+		return (rval);
+	}
+
 	ha->isp_ops->get_flash_version(ha, ha->request_ring);
 
 	qla_printk(KERN_INFO, ha, "Configure NVRAM parameters...\n");
@@ -109,7 +116,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 		rval = qla2x00_setup_chip(ha);
 		if (rval)
 			return (rval);
-		qla2xxx_get_flash_info(ha);
 	}
 	if (IS_QLA84XX(ha)) {
 		ha->cs84xx = qla84xx_get_chip(ha);
@@ -134,7 +140,6 @@ int
 qla2100_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t w;
-	uint32_t d;
 	unsigned long flags;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
@@ -145,10 +150,7 @@ qla2100_pci_config(scsi_qla_host_t *ha)
 	w |= (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
 	pci_write_config_word(ha->pdev, PCI_COMMAND, w);
 
-	/* Reset expansion ROM address decode enable */
-	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
-	d &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
+	pci_disable_rom(ha->pdev);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -168,7 +170,6 @@ int
 qla2300_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t	w;
-	uint32_t	d;
 	unsigned long   flags = 0;
 	uint32_t	cnt;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
@@ -230,10 +231,7 @@ qla2300_pci_config(scsi_qla_host_t *ha)
 
 	pci_write_config_byte(ha->pdev, PCI_LATENCY_TIMER, 0x80);
 
-	/* Reset expansion ROM address decode enable */
-	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
-	d &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
+	pci_disable_rom(ha->pdev);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -253,7 +251,6 @@ int
 qla24xx_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t w;
-	uint32_t d;
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
@@ -275,10 +272,7 @@ qla24xx_pci_config(scsi_qla_host_t *ha)
 	if (pci_find_capability(ha->pdev, PCI_CAP_ID_EXP))
 		pcie_set_readrq(ha->pdev, 2048);
 
-	/* Reset expansion ROM address decode enable */
-	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
-	d &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
+	pci_disable_rom(ha->pdev);
 
 	ha->chip_revision = ha->pdev->revision;
 
@@ -300,7 +294,6 @@ int
 qla25xx_pci_config(scsi_qla_host_t *ha)
 {
 	uint16_t w;
-	uint32_t d;
 
 	pci_set_master(ha->pdev);
 	pci_try_set_mwi(ha->pdev);
@@ -314,10 +307,7 @@ qla25xx_pci_config(scsi_qla_host_t *ha)
 	if (pci_find_capability(ha->pdev, PCI_CAP_ID_EXP))
 		pcie_set_readrq(ha->pdev, 2048);
 
-	/* Reset expansion ROM address decode enable */
-	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
-	d &= ~PCI_ROM_ADDRESS_ENABLE;
-	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
+	pci_disable_rom(ha->pdev);
 
 	ha->chip_revision = ha->pdev->revision;
 
@@ -974,7 +964,6 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 				    &ha->fw_minor_version,
 				    &ha->fw_subminor_version,
 				    &ha->fw_attributes, &ha->fw_memory_size);
-				qla2x00_resize_request_q(ha);
 				ha->flags.npiv_supported = 0;
 				if ((IS_QLA24XX(ha) || IS_QLA25XX(ha) ||
 				     IS_QLA84XX(ha)) &&
@@ -986,6 +975,7 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 						ha->max_npiv_vports =
 						    MIN_MULTI_ID_FABRIC - 1;
 				}
+				qla2x00_resize_request_q(ha);
 
 				if (ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(ha);
@@ -2016,7 +2006,7 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 		DEBUG3(printk("%s: exiting normally\n", __func__));
 	}
 
-	/* Restore state if a resync event occured during processing */
+	/* Restore state if a resync event occurred during processing */
 	if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags)) {
 		if (test_bit(LOCAL_LOOP_UPDATE, &save_flags))
 			set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
@@ -2561,7 +2551,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 	rval = QLA_SUCCESS;
 
 	/* Try GID_PT to get device list, else GAN. */
-	swl = kcalloc(MAX_FIBRE_DEVICES, sizeof(sw_info_t), GFP_ATOMIC);
+	swl = kcalloc(MAX_FIBRE_DEVICES, sizeof(sw_info_t), GFP_KERNEL);
 	if (!swl) {
 		/*EMPTY*/
 		DEBUG2(printk("scsi(%ld): GID_PT allocations failed, fallback "
@@ -3751,7 +3741,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	rval = QLA_SUCCESS;
 
 	segments = FA_RISC_CODE_SEGMENTS;
-	faddr = FA_RISC_CODE_ADDR;
+	faddr = ha->flt_region_fw;
 	dcode = (uint32_t *)ha->request_ring;
 	*srisc_addr = 0;
 

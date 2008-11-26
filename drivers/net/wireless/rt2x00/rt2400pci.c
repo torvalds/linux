@@ -231,7 +231,7 @@ static const struct rt2x00debug rt2400pci_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
-#ifdef CONFIG_RT2400PCI_RFKILL
+#ifdef CONFIG_RT2X00_LIB_RFKILL
 static int rt2400pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -241,9 +241,9 @@ static int rt2400pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 }
 #else
 #define rt2400pci_rfkill_poll	NULL
-#endif /* CONFIG_RT2400PCI_RFKILL */
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
-#ifdef CONFIG_RT2400PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt2400pci_brightness_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)
 {
@@ -288,7 +288,7 @@ static void rt2400pci_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt2400pci_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT2400PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -1241,7 +1241,7 @@ static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 	if (!reg)
 		return IRQ_NONE;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
 
 	/*
@@ -1374,22 +1374,22 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led mode, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT2400PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
 
 	rt2400pci_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
 	if (value == LED_MODE_TXRX_ACTIVITY)
 		rt2400pci_init_led(rt2x00dev, &rt2x00dev->led_qual,
 				   LED_TYPE_ACTIVITY);
-#endif /* CONFIG_RT2400PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
-#ifdef CONFIG_RT2400PCI_RFKILL
+#ifdef CONFIG_RT2X00_LIB_RFKILL
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
-#endif /* CONFIG_RT2400PCI_RFKILL */
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 	/*
 	 * Check if the BBP tuning should be enabled.
@@ -1404,7 +1404,7 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
  * RF value list for RF2420 & RF2421
  * Supports: 2.4 GHz
  */
-static const struct rf_channel rf_vals_bg[] = {
+static const struct rf_channel rf_vals_b[] = {
 	{ 1,  0x00022058, 0x000c1fda, 0x00000101, 0 },
 	{ 2,  0x00022058, 0x000c1fee, 0x00000101, 0 },
 	{ 3,  0x00022058, 0x000c2002, 0x00000101, 0 },
@@ -1421,10 +1421,11 @@ static const struct rf_channel rf_vals_bg[] = {
 	{ 14, 0x00022058, 0x000c20fa, 0x00000101, 0 },
 };
 
-static void rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
+static int rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
-	u8 *txpower;
+	struct channel_info *info;
+	char *tx_power;
 	unsigned int i;
 
 	/*
@@ -1440,23 +1441,28 @@ static void rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 						   EEPROM_MAC_ADDR_0));
 
 	/*
-	 * Convert tx_power array in eeprom.
-	 */
-	txpower = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
-	for (i = 0; i < 14; i++)
-		txpower[i] = TXPOWER_FROM_DEV(txpower[i]);
-
-	/*
 	 * Initialize hw_mode information.
 	 */
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK;
-	spec->tx_power_a = NULL;
-	spec->tx_power_bg = txpower;
-	spec->tx_power_default = DEFAULT_TXPOWER;
 
-	spec->num_channels = ARRAY_SIZE(rf_vals_bg);
-	spec->channels = rf_vals_bg;
+	spec->num_channels = ARRAY_SIZE(rf_vals_b);
+	spec->channels = rf_vals_b;
+
+	/*
+	 * Create channel information array
+	 */
+	info = kzalloc(spec->num_channels * sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	spec->channels_info = info;
+
+	tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
+	for (i = 0; i < 14; i++)
+		info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+
+	return 0;
 }
 
 static int rt2400pci_probe_hw(struct rt2x00_dev *rt2x00dev)
@@ -1477,7 +1483,9 @@ static int rt2400pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize hw specifications.
 	 */
-	rt2400pci_probe_hw_mode(rt2x00dev);
+	retval = rt2400pci_probe_hw_mode(rt2x00dev);
+	if (retval)
+		return retval;
 
 	/*
 	 * This device requires the atim queue and DMA-mapped skbs.

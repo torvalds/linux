@@ -55,6 +55,7 @@
 #include <linux/lguest_launcher.h>
 #include <linux/virtio_console.h>
 #include <linux/pm.h>
+#include <asm/apic.h>
 #include <asm/lguest.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
@@ -366,10 +367,9 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
  * lazily after a task switch, and Linux uses that gratefully, but wouldn't a
  * name like "FPUTRAP bit" be a little less cryptic?
  *
- * We store cr0 (and cr3) locally, because the Host never changes it.  The
- * Guest sometimes wants to read it and we'd prefer not to bother the Host
- * unnecessarily. */
-static unsigned long current_cr0, current_cr3;
+ * We store cr0 locally because the Host never changes it.  The Guest sometimes
+ * wants to read it and we'd prefer not to bother the Host unnecessarily. */
+static unsigned long current_cr0;
 static void lguest_write_cr0(unsigned long val)
 {
 	lazy_hcall(LHCALL_TS, val & X86_CR0_TS, 0, 0);
@@ -398,17 +398,23 @@ static unsigned long lguest_read_cr2(void)
 	return lguest_data.cr2;
 }
 
+/* See lguest_set_pte() below. */
+static bool cr3_changed = false;
+
 /* cr3 is the current toplevel pagetable page: the principle is the same as
- * cr0.  Keep a local copy, and tell the Host when it changes. */
+ * cr0.  Keep a local copy, and tell the Host when it changes.  The only
+ * difference is that our local copy is in lguest_data because the Host needs
+ * to set it upon our initial hypercall. */
 static void lguest_write_cr3(unsigned long cr3)
 {
+	lguest_data.pgdir = cr3;
 	lazy_hcall(LHCALL_NEW_PGTABLE, cr3, 0, 0);
-	current_cr3 = cr3;
+	cr3_changed = true;
 }
 
 static unsigned long lguest_read_cr3(void)
 {
-	return current_cr3;
+	return lguest_data.pgdir;
 }
 
 /* cr4 is used to enable and disable PGE, but we don't care. */
@@ -497,13 +503,13 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
  * to forget all of them.  Fortunately, this is very rare.
  *
  * ... except in early boot when the kernel sets up the initial pagetables,
- * which makes booting astonishingly slow.  So we don't even tell the Host
- * anything changed until we've done the first page table switch. */
+ * which makes booting astonishingly slow: 1.83 seconds!  So we don't even tell
+ * the Host anything changed until we've done the first page table switch,
+ * which brings boot back to 0.25 seconds. */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
-	/* Don't bother with hypercall before initial setup. */
-	if (current_cr3)
+	if (cr3_changed)
 		lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
 }
 
@@ -520,7 +526,7 @@ static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 static void lguest_flush_tlb_single(unsigned long addr)
 {
 	/* Simply set it to zero: if it was not, it will fault back in. */
-	lazy_hcall(LHCALL_SET_PTE, current_cr3, addr, 0);
+	lazy_hcall(LHCALL_SET_PTE, lguest_data.pgdir, addr, 0);
 }
 
 /* This is what happens after the Guest has removed a large number of entries.
@@ -580,8 +586,11 @@ static void __init lguest_init_IRQ(void)
 
 	for (i = 0; i < LGUEST_IRQS; i++) {
 		int vector = FIRST_EXTERNAL_VECTOR + i;
+		/* Some systems map "vectors" to interrupts weirdly.  Lguest has
+		 * a straightforward 1 to 1 mapping, so force that here. */
+		__get_cpu_var(vector_irq)[vector] = i;
 		if (vector != SYSCALL_VECTOR) {
-			set_intr_gate(vector, interrupt[i]);
+			set_intr_gate(vector, interrupt[vector]);
 			set_irq_chip_and_handler_name(i, &lguest_irq_controller,
 						      handle_level_irq,
 						      "level");
@@ -783,14 +792,44 @@ static void lguest_wbinvd(void)
  * code qualifies for Advanced.  It will also never interrupt anything.  It
  * does, however, allow us to get through the Linux boot code. */
 #ifdef CONFIG_X86_LOCAL_APIC
-static void lguest_apic_write(unsigned long reg, u32 v)
+static void lguest_apic_write(u32 reg, u32 v)
 {
 }
 
-static u32 lguest_apic_read(unsigned long reg)
+static u32 lguest_apic_read(u32 reg)
 {
 	return 0;
 }
+
+static u64 lguest_apic_icr_read(void)
+{
+	return 0;
+}
+
+static void lguest_apic_icr_write(u32 low, u32 id)
+{
+	/* Warn to see if there's any stray references */
+	WARN_ON(1);
+}
+
+static void lguest_apic_wait_icr_idle(void)
+{
+	return;
+}
+
+static u32 lguest_apic_safe_wait_icr_idle(void)
+{
+	return 0;
+}
+
+static struct apic_ops lguest_basic_apic_ops = {
+	.read = lguest_apic_read,
+	.write = lguest_apic_write,
+	.icr_read = lguest_apic_icr_read,
+	.icr_write = lguest_apic_icr_write,
+	.wait_icr_idle = lguest_apic_wait_icr_idle,
+	.safe_wait_icr_idle = lguest_apic_safe_wait_icr_idle,
+};
 #endif
 
 /* STOP!  Until an interrupt comes in. */
@@ -990,8 +1029,7 @@ __init void lguest_init(void)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
-	pv_apic_ops.apic_write = lguest_apic_write;
-	pv_apic_ops.apic_read = lguest_apic_read;
+	apic_ops = &lguest_basic_apic_ops;
 #endif
 
 	/* time operations */

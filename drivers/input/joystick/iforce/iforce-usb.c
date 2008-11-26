@@ -64,7 +64,7 @@ void iforce_usb_xmit(struct iforce *iforce)
 
 	if ( (n=usb_submit_urb(iforce->out, GFP_ATOMIC)) ) {
 		clear_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags);
-		warn("usb_submit_urb failed %d\n", n);
+		dev_warn(&iforce->dev->dev, "usb_submit_urb failed %d\n", n);
 	}
 
 	/* The IFORCE_XMIT_RUNNING bit is not cleared here. That's intended.

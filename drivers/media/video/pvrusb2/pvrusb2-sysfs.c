@@ -65,6 +65,7 @@ struct pvr2_sysfs_ctl_item {
 	struct device_attribute attr_type;
 	struct device_attribute attr_min;
 	struct device_attribute attr_max;
+	struct device_attribute attr_def;
 	struct device_attribute attr_enum;
 	struct device_attribute attr_bits;
 	struct device_attribute attr_val;
@@ -143,6 +144,23 @@ static ssize_t show_max(struct device *class_dev,
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_max(cid=%d) is %ld",
 			 cip->chptr, cip->ctl_id, val);
 	return scnprintf(buf, PAGE_SIZE, "%ld\n", val);
+}
+
+static ssize_t show_def(struct device *class_dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	struct pvr2_sysfs_ctl_item *cip;
+	int val;
+	int ret;
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_def);
+	ret = pvr2_ctrl_get_def(cip->cptr, &val);
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_def(cid=%d) is %d, stat=%d",
+			 cip->chptr, cip->ctl_id, val, ret);
+	if (ret < 0) {
+		return ret;
+	}
+	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 static ssize_t show_val_norm(struct device *class_dev,
@@ -320,6 +338,10 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cip->attr_max.attr.mode = S_IRUGO;
 	cip->attr_max.show = show_max;
 
+	cip->attr_def.attr.name = "def_val";
+	cip->attr_def.attr.mode = S_IRUGO;
+	cip->attr_def.show = show_def;
+
 	cip->attr_val.attr.name = "cur_val";
 	cip->attr_val.attr.mode = S_IRUGO;
 
@@ -343,6 +365,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cip->attr_gen[acnt++] = &cip->attr_name.attr;
 	cip->attr_gen[acnt++] = &cip->attr_type.attr;
 	cip->attr_gen[acnt++] = &cip->attr_val.attr;
+	cip->attr_gen[acnt++] = &cip->attr_def.attr;
 	cip->attr_val.show = show_val_norm;
 	cip->attr_val.store = store_val_norm;
 	if (pvr2_ctrl_has_custom_symbols(cptr)) {

@@ -159,15 +159,44 @@ void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt,
 }
 EXPORT_SYMBOL_GPL(svc_xprt_init);
 
-int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
-		    int flags)
+static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
+					 struct svc_serv *serv,
+					 unsigned short port, int flags)
 {
-	struct svc_xprt_class *xcl;
 	struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
 		.sin_addr.s_addr	= htonl(INADDR_ANY),
 		.sin_port		= htons(port),
 	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family		= AF_INET6,
+		.sin6_addr		= IN6ADDR_ANY_INIT,
+		.sin6_port		= htons(port),
+	};
+	struct sockaddr *sap;
+	size_t len;
+
+	switch (serv->sv_family) {
+	case AF_INET:
+		sap = (struct sockaddr *)&sin;
+		len = sizeof(sin);
+		break;
+	case AF_INET6:
+		sap = (struct sockaddr *)&sin6;
+		len = sizeof(sin6);
+		break;
+	default:
+		return ERR_PTR(-EAFNOSUPPORT);
+	}
+
+	return xcl->xcl_ops->xpo_create(serv, sap, len, flags);
+}
+
+int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
+		    int flags)
+{
+	struct svc_xprt_class *xcl;
+
 	dprintk("svc: creating transport %s[%d]\n", xprt_name, port);
 	spin_lock(&svc_xprt_class_lock);
 	list_for_each_entry(xcl, &svc_xprt_class_list, xcl_list) {
@@ -180,9 +209,7 @@ int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
 			goto err;
 
 		spin_unlock(&svc_xprt_class_lock);
-		newxprt = xcl->xcl_ops->
-			xpo_create(serv, (struct sockaddr *)&sin, sizeof(sin),
-				   flags);
+		newxprt = __svc_xpo_create(xcl, serv, port, flags);
 		if (IS_ERR(newxprt)) {
 			module_put(xcl->xcl_owner);
 			return PTR_ERR(newxprt);

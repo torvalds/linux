@@ -59,7 +59,8 @@ static void snd_ice1712_akm4xxx_write(struct snd_akm4xxx *ak, int chip,
 	struct snd_ak4xxx_private *priv = (void *)ak->private_value[0];
 	struct snd_ice1712 *ice = ak->private_data[0];
 
-	snd_assert(chip >= 0 && chip < 4, return);
+	if (snd_BUG_ON(chip < 0 || chip >= 4))
+		return;
 
 	tmp = snd_ice1712_gpio_read(ice);
 	tmp |= priv->add_flags;

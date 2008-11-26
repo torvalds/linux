@@ -598,8 +598,8 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 
 		switch (elem->id) {
 		case MFIE_TYPE_SSID:
-			bss->ssid_len = elem->len;
-			memcpy(bss->ssid, elem->data, elem->len);
+			bss->ssid_len = min_t(int, 32, elem->len);
+			memcpy(bss->ssid, elem->data, bss->ssid_len);
 			lbs_deb_scan("got SSID IE: '%s', len %u\n",
 			             escape_essid(bss->ssid, bss->ssid_len),
 			             bss->ssid_len);
@@ -943,6 +943,11 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
+
+	if (!priv->radio_on) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	if (!netif_running(dev)) {
 		ret = -ENETDOWN;

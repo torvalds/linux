@@ -466,11 +466,11 @@ static int do_update_property(char *buf, size_t bufsize)
 		else
 			action = PSERIES_DRCONF_MEM_REMOVE;
 
-		blocking_notifier_call_chain(&pSeries_reconfig_chain,
-					     action, value);
+		rc = blocking_notifier_call_chain(&pSeries_reconfig_chain,
+						  action, value);
 	}
 
-	return 0;
+	return rc;
 }
 
 /**

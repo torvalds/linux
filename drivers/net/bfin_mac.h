@@ -66,7 +66,7 @@ struct bfin_mac_local {
 	int old_duplex;
 
 	struct phy_device *phydev;
-	struct mii_bus mii_bus;
+	struct mii_bus *mii_bus;
 };
 
 extern void bfin_get_ether_addr(char *addr);

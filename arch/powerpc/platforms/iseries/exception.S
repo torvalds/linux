@@ -38,12 +38,13 @@
 
 	.globl system_reset_iSeries
 system_reset_iSeries:
+	bl	.relative_toc
 	mfspr	r13,SPRN_SPRG3		/* Get alpaca address */
-	LOAD_REG_IMMEDIATE(r23, alpaca)
+	LOAD_REG_ADDR(r23, alpaca)
 	li	r0,ALPACA_SIZE
 	sub	r23,r13,r23
 	divdu	r23,r23,r0		/* r23 has cpu number */
-	LOAD_REG_IMMEDIATE(r13, paca)
+	LOAD_REG_ADDR(r13, paca)
 	mulli	r0,r23,PACA_SIZE
 	add	r13,r13,r0
 	mtspr	SPRN_SPRG3,r13		/* Save it away for the future */
@@ -60,14 +61,14 @@ system_reset_iSeries:
 	mtspr	SPRN_CTRLT,r4
 
 /* Spin on __secondary_hold_spinloop until it is updated by the boot cpu. */
-/* In the UP case we'll yeild() later, and we will not access the paca anyway */
+/* In the UP case we'll yield() later, and we will not access the paca anyway */
 #ifdef CONFIG_SMP
 1:
 	HMT_LOW
-	LOAD_REG_IMMEDIATE(r23, __secondary_hold_spinloop)
+	LOAD_REG_ADDR(r23, __secondary_hold_spinloop)
 	ld	r23,0(r23)
 	sync
-	LOAD_REG_IMMEDIATE(r3,current_set)
+	LOAD_REG_ADDR(r3,current_set)
 	sldi	r28,r24,3		/* get current_set[cpu#] */
 	ldx	r3,r3,r28
 	addi	r1,r3,THREAD_SIZE
@@ -90,7 +91,7 @@ system_reset_iSeries:
 	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor
 					 * should start */
 	sync
-	LOAD_REG_IMMEDIATE(r3,current_set)
+	LOAD_REG_ADDR(r3,current_set)
 	sldi	r28,r24,3		/* get current_set[cpu#] */
 	ldx	r3,r3,r28
 	addi	r1,r3,THREAD_SIZE
@@ -255,8 +256,8 @@ hardware_interrupt_iSeries_masked:
 
 _INIT_STATIC(__start_initialization_iSeries)
 	/* Clear out the BSS */
-	LOAD_REG_IMMEDIATE(r11,__bss_stop)
-	LOAD_REG_IMMEDIATE(r8,__bss_start)
+	LOAD_REG_ADDR(r11,__bss_stop)
+	LOAD_REG_ADDR(r8,__bss_start)
 	sub	r11,r11,r8		/* bss size			*/
 	addi	r11,r11,7		/* round up to an even double word */
 	rldicl. r11,r11,61,3		/* shift right by 3		*/
@@ -267,14 +268,10 @@ _INIT_STATIC(__start_initialization_iSeries)
 3:	stdu	r0,8(r8)
 	bdnz	3b
 4:
-	LOAD_REG_IMMEDIATE(r1,init_thread_union)
+	LOAD_REG_ADDR(r1,init_thread_union)
 	addi	r1,r1,THREAD_SIZE
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
-
-	LOAD_REG_IMMEDIATE(r2,__toc_start)
-	addi	r2,r2,0x4000
-	addi	r2,r2,0x4000
 
 	bl	.iSeries_early_setup
 	bl	.early_setup

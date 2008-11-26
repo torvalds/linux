@@ -1,0 +1,79 @@
+config EXT4_FS
+	tristate "The Extended 4 (ext4) filesystem"
+	select JBD2
+	select CRC16
+	help
+	  This is the next generation of the ext3 filesystem.
+
+	  Unlike the change from ext2 filesystem to ext3 filesystem,
+	  the on-disk format of ext4 is not forwards compatible with
+	  ext3; it is based on extent maps and it supports 48-bit
+	  physical block numbers.  The ext4 filesystem also supports delayed
+	  allocation, persistent preallocation, high resolution time stamps,
+	  and a number of other features to improve performance and speed
+	  up fsck time.  For more information, please see the web pages at
+	  http://ext4.wiki.kernel.org.
+
+	  The ext4 filesystem will support mounting an ext3
+	  filesystem; while there will be some performance gains from
+	  the delayed allocation and inode table readahead, the best
+	  performance gains will require enabling ext4 features in the
+	  filesystem, or formating a new filesystem as an ext4
+	  filesystem initially.
+
+	  To compile this file system support as a module, choose M here. The
+	  module will be called ext4.
+
+	  If unsure, say N.
+
+config EXT4DEV_COMPAT
+	bool "Enable ext4dev compatibility"
+	depends on EXT4_FS
+	help
+	  Starting with 2.6.28, the name of the ext4 filesystem was
+	  renamed from ext4dev to ext4.  Unfortunately there are some
+	  legacy userspace programs (such as klibc's fstype) have
+	  "ext4dev" hardcoded.
+
+	  To enable backwards compatibility so that systems that are
+	  still expecting to mount ext4 filesystems using ext4dev,
+	  chose Y here.   This feature will go away by 2.6.31, so
+	  please arrange to get your userspace programs fixed!
+
+config EXT4_FS_XATTR
+	bool "Ext4 extended attributes"
+	depends on EXT4_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+	  You need this for POSIX ACL support on ext4.
+
+config EXT4_FS_POSIX_ACL
+	bool "Ext4 POSIX Access Control Lists"
+	depends on EXT4_FS_XATTR
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N
+
+config EXT4_FS_SECURITY
+	bool "Ext4 Security Labels"
+	depends on EXT4_FS_XATTR
+	help
+	  Security labels support alternative access control models
+	  implemented by security modules like SELinux.  This option
+	  enables an extended attribute handler for file security
+	  labels in the ext4 filesystem.
+
+	  If you are not using a security module that requires using
+	  extended attributes for file security labels, say N.

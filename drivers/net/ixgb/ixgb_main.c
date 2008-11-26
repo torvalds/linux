@@ -977,15 +977,17 @@ ixgb_clean_rx_ring(struct ixgb_adapter *adapter)
 
 	for (i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
-		if (buffer_info->skb) {
-
+		if (buffer_info->dma) {
 			pci_unmap_single(pdev,
 					 buffer_info->dma,
 					 buffer_info->length,
 					 PCI_DMA_FROMDEVICE);
+			buffer_info->dma = 0;
+			buffer_info->length = 0;
+		}
 
+		if (buffer_info->skb) {
 			dev_kfree_skb(buffer_info->skb);
-
 			buffer_info->skb = NULL;
 		}
 	}

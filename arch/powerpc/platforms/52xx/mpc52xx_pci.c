@@ -265,8 +265,11 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	/* Memory windows */
 	res = &hose->mem_resources[0];
 	if (res->flags) {
-		pr_debug("mem_resource[0] = {.start=%x, .end=%x, .flags=%lx}\n",
-		         res->start, res->end, res->flags);
+		pr_debug("mem_resource[0] = "
+		         "{.start=%llx, .end=%llx, .flags=%llx}\n",
+		         (unsigned long long)res->start,
+			 (unsigned long long)res->end,
+			 (unsigned long long)res->flags);
 		out_be32(&pci_regs->iw0btar,
 		         MPC52xx_PCI_IWBTAR_TRANSLATION(res->start, res->start,
 		                  res->end - res->start + 1));
@@ -297,9 +300,11 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 		printk(KERN_ERR "%s: Didn't find IO resources\n", __FILE__);
 		return;
 	}
-	pr_debug(".io_resource={.start=%x,.end=%x,.flags=%lx} "
+	pr_debug(".io_resource={.start=%llx,.end=%llx,.flags=%llx} "
 	         ".io_base_phys=0x%p\n",
-	         res->start, res->end, res->flags, (void*)hose->io_base_phys);
+	         (unsigned long long)res->start,
+		 (unsigned long long)res->end,
+		 (unsigned long long)res->flags, (void*)hose->io_base_phys);
 	out_be32(&pci_regs->iw2btar,
 	         MPC52xx_PCI_IWBTAR_TRANSLATION(hose->io_base_phys,
 	                                        res->start,

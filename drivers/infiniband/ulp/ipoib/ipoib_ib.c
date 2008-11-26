@@ -468,21 +468,22 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 static void drain_tx_cq(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->tx_lock, flags);
+	netif_tx_lock(dev);
 	while (poll_tx(priv))
 		; /* nothing */
 
 	if (netif_queue_stopped(dev))
 		mod_timer(&priv->poll_timer, jiffies + 1);
 
-	spin_unlock_irqrestore(&priv->tx_lock, flags);
+	netif_tx_unlock(dev);
 }
 
 void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr)
 {
-	drain_tx_cq((struct net_device *)dev_ptr);
+	struct ipoib_dev_priv *priv = netdev_priv(dev_ptr);
+
+	mod_timer(&priv->poll_timer, jiffies);
 }
 
 static inline int post_send(struct ipoib_dev_priv *priv,
@@ -614,17 +615,20 @@ static void __ipoib_reap_ah(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_ah *ah, *tah;
 	LIST_HEAD(remove_list);
+	unsigned long flags;
 
-	spin_lock_irq(&priv->tx_lock);
-	spin_lock(&priv->lock);
+	netif_tx_lock_bh(dev);
+	spin_lock_irqsave(&priv->lock, flags);
+
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
 		if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 			list_del(&ah->list);
 			ib_destroy_ah(ah->ah);
 			kfree(ah);
 		}
-	spin_unlock(&priv->lock);
-	spin_unlock_irq(&priv->tx_lock);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+	netif_tx_unlock_bh(dev);
 }
 
 void ipoib_reap_ah(struct work_struct *work)
@@ -680,10 +684,6 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
 	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
 			   round_jiffies_relative(HZ));
-
-	init_timer(&priv->poll_timer);
-	priv->poll_timer.function = ipoib_ib_tx_timer_func;
-	priv->poll_timer.data = (unsigned long)dev;
 
 	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
@@ -761,6 +761,14 @@ void ipoib_drain_cq(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int i, n;
+
+	/*
+	 * We call completion handling routines that expect to be
+	 * called from the BH-disabled NAPI poll context, so disable
+	 * BHs here too.
+	 */
+	local_bh_disable();
+
 	do {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 		for (i = 0; i < n; ++i) {
@@ -784,6 +792,8 @@ void ipoib_drain_cq(struct net_device *dev)
 
 	while (poll_tx(priv))
 		; /* nothing */
+
+	local_bh_enable();
 }
 
 int ipoib_ib_dev_stop(struct net_device *dev, int flush)
@@ -891,6 +901,9 @@ int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		printk(KERN_WARNING "%s: ipoib_transport_dev_init failed\n", ca->name);
 		return -ENODEV;
 	}
+
+	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
+		    (unsigned long) dev);
 
 	if (dev->flags & IFF_UP) {
 		if (ipoib_ib_dev_open(dev)) {

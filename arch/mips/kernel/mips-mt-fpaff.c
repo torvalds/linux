@@ -159,7 +159,7 @@ __setup("fpaff=", fpaff_thresh);
 /*
  * FPU Use Factor empirically derived from experiments on 34K
  */
-#define FPUSEFACTOR 333
+#define FPUSEFACTOR 2000
 
 static __init int mt_fp_affinity_init(void)
 {

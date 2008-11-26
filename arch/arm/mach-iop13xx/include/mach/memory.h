@@ -7,9 +7,6 @@
  * Physical DRAM offset.
  */
 #define PHYS_OFFSET	UL(0x00000000)
-#define TASK_SIZE  	UL(0x3f000000)
-#define PAGE_OFFSET	UL(0x40000000)
-#define TASK_UNMAPPED_BASE ((TASK_SIZE + 0x01000000) / 3)
 
 #ifndef __ASSEMBLY__
 
@@ -29,32 +26,52 @@
 
 /* RAM has 1:1 mapping on the PCIe/x Busses */
 #define __virt_to_bus(x)	(__virt_to_phys(x))
-#define __bus_to_virt(x)    (__phys_to_virt(x))
+#define __bus_to_virt(x)	(__phys_to_virt(x))
 
-#define virt_to_lbus(x) 					   \
-(( ((void*)(x) >= (void*)IOP13XX_PMMR_V_START) &&		   \
-((void*)(x) < (void*)IOP13XX_PMMR_V_END) ) ? 			   \
-((x) - IOP13XX_PMMR_VIRT_MEM_BASE + IOP13XX_PMMR_PHYS_MEM_BASE) : \
-((x) - PAGE_OFFSET + PHYS_OFFSET))
+static inline dma_addr_t __virt_to_lbus(unsigned long x)
+{
+	return x + IOP13XX_PMMR_PHYS_MEM_BASE - IOP13XX_PMMR_VIRT_MEM_BASE;
+}
 
-#define lbus_to_virt(x)                                            \
-(( ((x) >= IOP13XX_PMMR_P_START) && ((x) < IOP13XX_PMMR_P_END) ) ? \
-((x) - IOP13XX_PMMR_PHYS_MEM_BASE + IOP13XX_PMMR_VIRT_MEM_BASE ) : \
-((x) - PHYS_OFFSET + PAGE_OFFSET))
+static inline unsigned long __lbus_to_virt(dma_addr_t x)
+{
+	return x + IOP13XX_PMMR_VIRT_MEM_BASE - IOP13XX_PMMR_PHYS_MEM_BASE;
+}
+
+#define __is_lbus_dma(a)				\
+	((a) >= IOP13XX_PMMR_P_START && (a) < IOP13XX_PMMR_P_END)
+
+#define __is_lbus_virt(a)				\
+	((a) >= IOP13XX_PMMR_V_START && (a) < IOP13XX_PMMR_V_END)
 
 /* Device is an lbus device if it is on the platform bus of the IOP13XX */
-#define is_lbus_device(dev) (dev &&\
-			     (strncmp(dev->bus->name, "platform", 8) == 0))
+#define is_lbus_device(dev) 				\
+	(dev && strncmp(dev->bus->name, "platform", 8) == 0)
+
+#define __arch_dma_to_virt(dev, addr)					\
+	({								\
+		unsigned long __virt;					\
+		dma_addr_t __dma = addr;				\
+		if (is_lbus_device(dev) && __is_lbus_dma(__dma))	\
+			__virt = __lbus_to_virt(__dma);			\
+		else							\
+			__virt = __bus_to_virt(__dma);			\
+		(void *)__virt;						\
+	})
+
+#define __arch_virt_to_dma(dev, addr)					\
+	({								\
+		unsigned long __virt = (unsigned long)addr;		\
+		dma_addr_t __dma;					\
+		if (is_lbus_device(dev) && __is_lbus_virt(__virt))	\
+			__dma = __virt_to_lbus(__virt);			\
+		else							\
+			__dma = __virt_to_bus(__virt);			\
+		__dma;							\
+	})
 
 #define __arch_page_to_dma(dev, page)					\
-({is_lbus_device(dev) ? (dma_addr_t)virt_to_lbus(page_address(page)) : \
-(dma_addr_t)__virt_to_bus(page_address(page));})
-
-#define __arch_dma_to_virt(dev, addr) \
-({is_lbus_device(dev) ? lbus_to_virt(addr) : __bus_to_virt(addr);})
-
-#define __arch_virt_to_dma(dev, addr) \
-({is_lbus_device(dev) ? virt_to_lbus(addr) : __virt_to_bus(addr);})
+	__arch_virt_to_dma(dev, page_address(page))
 
 #endif /* CONFIG_ARCH_IOP13XX */
 #endif /* !ASSEMBLY */

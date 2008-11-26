@@ -6,7 +6,7 @@
  *		The IP fragmentation functionality.
  *
  * Authors:	Fred N. van Kempen <waltje@uWalt.NL.Mugnet.ORG>
- *		Alan Cox <Alan.Cox@linux.org>
+ *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * Fixes:
  *		Alan Cox	:	Split from ip.c , see ip_input.c for history.

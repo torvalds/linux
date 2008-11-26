@@ -400,15 +400,13 @@ static int uvc_has_privileges(struct uvc_fh *handle)
 
 static int uvc_v4l2_open(struct inode *inode, struct file *file)
 {
-	struct video_device *vdev;
 	struct uvc_video_device *video;
 	struct uvc_fh *handle;
 	int ret = 0;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_open\n");
 	mutex_lock(&uvc_driver.open_mutex);
-	vdev = video_devdata(file);
-	video = video_get_drvdata(vdev);
+	video = video_drvdata(file);
 
 	if (video->dev->state & UVC_DEV_DISCONNECTED) {
 		ret = -ENODEV;
@@ -440,8 +438,7 @@ done:
 
 static int uvc_v4l2_release(struct inode *inode, struct file *file)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct uvc_video_device *video = video_get_drvdata(vdev);
+	struct uvc_video_device *video = video_drvdata(file);
 	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_release\n");
@@ -467,7 +464,7 @@ static int uvc_v4l2_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int uvc_v4l2_do_ioctl(struct inode *inode, struct file *file,
+static int __uvc_v4l2_do_ioctl(struct file *file,
 		     unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -845,10 +842,6 @@ static int uvc_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		if (ret < 0)
 			return ret;
 
-		if (!(video->streaming->cur_format->flags &
-		    UVC_FMT_FLAG_COMPRESSED))
-			video->queue.flags |= UVC_QUEUE_DROP_INCOMPLETE;
-
 		rb->count = ret;
 		ret = 0;
 		break;
@@ -985,14 +978,20 @@ static int uvc_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		return uvc_xu_ctrl_query(video, arg, 1);
 
 	default:
-		if ((ret = v4l_compat_translate_ioctl(inode, file, cmd, arg,
-			uvc_v4l2_do_ioctl)) == -ENOIOCTLCMD)
+		if ((ret = v4l_compat_translate_ioctl(file, cmd, arg,
+			__uvc_v4l2_do_ioctl)) == -ENOIOCTLCMD)
 			uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n",
 				  cmd);
 		return ret;
 	}
 
 	return ret;
+}
+
+static int uvc_v4l2_do_ioctl(struct inode *inode, struct file *file,
+			      unsigned int cmd, void *arg)
+{
+	return __uvc_v4l2_do_ioctl(file, cmd, arg);
 }
 
 static int uvc_v4l2_ioctl(struct inode *inode, struct file *file,
@@ -1031,8 +1030,7 @@ static struct vm_operations_struct uvc_vm_ops = {
 
 static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct uvc_video_device *video = video_get_drvdata(vdev);
+	struct uvc_video_device *video = video_drvdata(file);
 	struct uvc_buffer *uninitialized_var(buffer);
 	struct page *page;
 	unsigned long addr, start, size;
@@ -1085,8 +1083,7 @@ done:
 
 static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct uvc_video_device *video = video_get_drvdata(vdev);
+	struct uvc_video_device *video = video_drvdata(file);
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_poll\n");
 

@@ -38,6 +38,13 @@
 #include "rt61pci.h"
 
 /*
+ * Allow hardware encryption to be disabled.
+ */
+static int modparam_nohwcrypt = 0;
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+
+/*
  * Register access.
  * BBP and RF register require indirect register access,
  * and use the CSR registers PHY_CSR3 and PHY_CSR4 to achieve this.
@@ -156,7 +163,7 @@ rf_write:
 	rt2x00_rf_write(rt2x00dev, word, value);
 }
 
-#ifdef CONFIG_RT61PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 /*
  * This function is only called from rt61pci_led_brightness()
  * make gcc happy by placing this function inside the
@@ -188,7 +195,7 @@ static void rt61pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, HOST_CMD_CSR_INTERRUPT_MCU, 1);
 	rt2x00pci_register_write(rt2x00dev, HOST_CMD_CSR, reg);
 }
-#endif /* CONFIG_RT61PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 static void rt61pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
 {
@@ -264,7 +271,7 @@ static const struct rt2x00debug rt61pci_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
-#ifdef CONFIG_RT61PCI_RFKILL
+#ifdef CONFIG_RT2X00_LIB_RFKILL
 static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -274,9 +281,9 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 }
 #else
 #define rt61pci_rfkill_poll	NULL
-#endif /* CONFIG_RT61PCI_RFKILL */
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
-#ifdef CONFIG_RT61PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt61pci_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
@@ -341,11 +348,209 @@ static void rt61pci_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt61pci_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT61PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
  */
+static int rt61pci_config_shared_key(struct rt2x00_dev *rt2x00dev,
+				     struct rt2x00lib_crypto *crypto,
+				     struct ieee80211_key_conf *key)
+{
+	struct hw_key_entry key_entry;
+	struct rt2x00_field32 field;
+	u32 mask;
+	u32 reg;
+
+	if (crypto->cmd == SET_KEY) {
+		/*
+		 * rt2x00lib can't determine the correct free
+		 * key_idx for shared keys. We have 1 register
+		 * with key valid bits. The goal is simple, read
+		 * the register, if that is full we have no slots
+		 * left.
+		 * Note that each BSS is allowed to have up to 4
+		 * shared keys, so put a mask over the allowed
+		 * entries.
+		 */
+		mask = (0xf << crypto->bssidx);
+
+		rt2x00pci_register_read(rt2x00dev, SEC_CSR0, &reg);
+		reg &= mask;
+
+		if (reg && reg == mask)
+			return -ENOSPC;
+
+		key->hw_key_idx += reg ? ffz(reg) : 0;
+
+		/*
+		 * Upload key to hardware
+		 */
+		memcpy(key_entry.key, crypto->key,
+		       sizeof(key_entry.key));
+		memcpy(key_entry.tx_mic, crypto->tx_mic,
+		       sizeof(key_entry.tx_mic));
+		memcpy(key_entry.rx_mic, crypto->rx_mic,
+		       sizeof(key_entry.rx_mic));
+
+		reg = SHARED_KEY_ENTRY(key->hw_key_idx);
+		rt2x00pci_register_multiwrite(rt2x00dev, reg,
+					      &key_entry, sizeof(key_entry));
+
+		/*
+		 * The cipher types are stored over 2 registers.
+		 * bssidx 0 and 1 keys are stored in SEC_CSR1 and
+		 * bssidx 1 and 2 keys are stored in SEC_CSR5.
+		 * Using the correct defines correctly will cause overhead,
+		 * so just calculate the correct offset.
+		 */
+		if (key->hw_key_idx < 8) {
+			field.bit_offset = (3 * key->hw_key_idx);
+			field.bit_mask = 0x7 << field.bit_offset;
+
+			rt2x00pci_register_read(rt2x00dev, SEC_CSR1, &reg);
+			rt2x00_set_field32(&reg, field, crypto->cipher);
+			rt2x00pci_register_write(rt2x00dev, SEC_CSR1, reg);
+		} else {
+			field.bit_offset = (3 * (key->hw_key_idx - 8));
+			field.bit_mask = 0x7 << field.bit_offset;
+
+			rt2x00pci_register_read(rt2x00dev, SEC_CSR5, &reg);
+			rt2x00_set_field32(&reg, field, crypto->cipher);
+			rt2x00pci_register_write(rt2x00dev, SEC_CSR5, reg);
+		}
+
+		/*
+		 * The driver does not support the IV/EIV generation
+		 * in hardware. However it doesn't support the IV/EIV
+		 * inside the ieee80211 frame either, but requires it
+		 * to be provided seperately for the descriptor.
+		 * rt2x00lib will cut the IV/EIV data out of all frames
+		 * given to us by mac80211, but we must tell mac80211
+		 * to generate the IV/EIV data.
+		 */
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+	}
+
+	/*
+	 * SEC_CSR0 contains only single-bit fields to indicate
+	 * a particular key is valid. Because using the FIELD32()
+	 * defines directly will cause a lot of overhead we use
+	 * a calculation to determine the correct bit directly.
+	 */
+	mask = 1 << key->hw_key_idx;
+
+	rt2x00pci_register_read(rt2x00dev, SEC_CSR0, &reg);
+	if (crypto->cmd == SET_KEY)
+		reg |= mask;
+	else if (crypto->cmd == DISABLE_KEY)
+		reg &= ~mask;
+	rt2x00pci_register_write(rt2x00dev, SEC_CSR0, reg);
+
+	return 0;
+}
+
+static int rt61pci_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
+				       struct rt2x00lib_crypto *crypto,
+				       struct ieee80211_key_conf *key)
+{
+	struct hw_pairwise_ta_entry addr_entry;
+	struct hw_key_entry key_entry;
+	u32 mask;
+	u32 reg;
+
+	if (crypto->cmd == SET_KEY) {
+		/*
+		 * rt2x00lib can't determine the correct free
+		 * key_idx for pairwise keys. We have 2 registers
+		 * with key valid bits. The goal is simple, read
+		 * the first register, if that is full move to
+		 * the next register.
+		 * When both registers are full, we drop the key,
+		 * otherwise we use the first invalid entry.
+		 */
+		rt2x00pci_register_read(rt2x00dev, SEC_CSR2, &reg);
+		if (reg && reg == ~0) {
+			key->hw_key_idx = 32;
+			rt2x00pci_register_read(rt2x00dev, SEC_CSR3, &reg);
+			if (reg && reg == ~0)
+				return -ENOSPC;
+		}
+
+		key->hw_key_idx += reg ? ffz(reg) : 0;
+
+		/*
+		 * Upload key to hardware
+		 */
+		memcpy(key_entry.key, crypto->key,
+		       sizeof(key_entry.key));
+		memcpy(key_entry.tx_mic, crypto->tx_mic,
+		       sizeof(key_entry.tx_mic));
+		memcpy(key_entry.rx_mic, crypto->rx_mic,
+		       sizeof(key_entry.rx_mic));
+
+		memset(&addr_entry, 0, sizeof(addr_entry));
+		memcpy(&addr_entry, crypto->address, ETH_ALEN);
+		addr_entry.cipher = crypto->cipher;
+
+		reg = PAIRWISE_KEY_ENTRY(key->hw_key_idx);
+		rt2x00pci_register_multiwrite(rt2x00dev, reg,
+					      &key_entry, sizeof(key_entry));
+
+		reg = PAIRWISE_TA_ENTRY(key->hw_key_idx);
+		rt2x00pci_register_multiwrite(rt2x00dev, reg,
+					      &addr_entry, sizeof(addr_entry));
+
+		/*
+		 * Enable pairwise lookup table for given BSS idx,
+		 * without this received frames will not be decrypted
+		 * by the hardware.
+		 */
+		rt2x00pci_register_read(rt2x00dev, SEC_CSR4, &reg);
+		reg |= (1 << crypto->bssidx);
+		rt2x00pci_register_write(rt2x00dev, SEC_CSR4, reg);
+
+		/*
+		 * The driver does not support the IV/EIV generation
+		 * in hardware. However it doesn't support the IV/EIV
+		 * inside the ieee80211 frame either, but requires it
+		 * to be provided seperately for the descriptor.
+		 * rt2x00lib will cut the IV/EIV data out of all frames
+		 * given to us by mac80211, but we must tell mac80211
+		 * to generate the IV/EIV data.
+		 */
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+	}
+
+	/*
+	 * SEC_CSR2 and SEC_CSR3 contain only single-bit fields to indicate
+	 * a particular key is valid. Because using the FIELD32()
+	 * defines directly will cause a lot of overhead we use
+	 * a calculation to determine the correct bit directly.
+	 */
+	if (key->hw_key_idx < 32) {
+		mask = 1 << key->hw_key_idx;
+
+		rt2x00pci_register_read(rt2x00dev, SEC_CSR2, &reg);
+		if (crypto->cmd == SET_KEY)
+			reg |= mask;
+		else if (crypto->cmd == DISABLE_KEY)
+			reg &= ~mask;
+		rt2x00pci_register_write(rt2x00dev, SEC_CSR2, reg);
+	} else {
+		mask = 1 << (key->hw_key_idx - 32);
+
+		rt2x00pci_register_read(rt2x00dev, SEC_CSR3, &reg);
+		if (crypto->cmd == SET_KEY)
+			reg |= mask;
+		else if (crypto->cmd == DISABLE_KEY)
+			reg &= ~mask;
+		rt2x00pci_register_write(rt2x00dev, SEC_CSR3, reg);
+	}
+
+	return 0;
+}
+
 static void rt61pci_config_filter(struct rt2x00_dev *rt2x00dev,
 				  const unsigned int filter_flags)
 {
@@ -438,6 +643,30 @@ static void rt61pci_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
 			   !!erp->short_preamble);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
+}
+
+
+static void rt61pci_config_lna_gain(struct rt2x00_dev *rt2x00dev,
+				    struct rt2x00lib_conf *libconf)
+{
+	u16 eeprom;
+	short lna_gain = 0;
+
+	if (libconf->band == IEEE80211_BAND_2GHZ) {
+		if (test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags))
+			lna_gain += 14;
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &eeprom);
+		lna_gain -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_BG_1);
+	} else {
+		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags))
+			lna_gain += 14;
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A, &eeprom);
+		lna_gain -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_A_1);
+	}
+
+	rt2x00dev->lna_gain = lna_gain;
 }
 
 static void rt61pci_config_phymode(struct rt2x00_dev *rt2x00dev,
@@ -758,6 +987,9 @@ static void rt61pci_config(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00lib_conf *libconf,
 			   const unsigned int flags)
 {
+	/* Always recalculate LNA gain before changing configuration */
+	rt61pci_config_lna_gain(rt2x00dev, libconf);
+
 	if (flags & CONFIG_UPDATE_PHYMODE)
 		rt61pci_config_phymode(rt2x00dev, libconf->basic_rates);
 	if (flags & CONFIG_UPDATE_CHANNEL)
@@ -1246,16 +1478,6 @@ static int rt61pci_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00pci_register_write(rt2x00dev, M2H_CMD_DONE_CSR, 0xffffffff);
 
-	rt2x00pci_register_read(rt2x00dev, AC_TXOP_CSR0, &reg);
-	rt2x00_set_field32(&reg, AC_TXOP_CSR0_AC0_TX_OP, 0);
-	rt2x00_set_field32(&reg, AC_TXOP_CSR0_AC1_TX_OP, 0);
-	rt2x00pci_register_write(rt2x00dev, AC_TXOP_CSR0, reg);
-
-	rt2x00pci_register_read(rt2x00dev, AC_TXOP_CSR1, &reg);
-	rt2x00_set_field32(&reg, AC_TXOP_CSR1_AC2_TX_OP, 192);
-	rt2x00_set_field32(&reg, AC_TXOP_CSR1_AC3_TX_OP, 48);
-	rt2x00pci_register_write(rt2x00dev, AC_TXOP_CSR1, reg);
-
 	/*
 	 * Clear all beacons
 	 * For the Beacon base registers we only need to clear
@@ -1533,8 +1755,8 @@ static int rt61pci_set_device_state(struct rt2x00_dev *rt2x00dev,
  * TX descriptor initialization
  */
 static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct sk_buff *skb,
-				    struct txentry_desc *txdesc)
+				  struct sk_buff *skb,
+				  struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	__le32 *txd = skbdesc->desc;
@@ -1548,7 +1770,7 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W1_AIFSN, txdesc->aifs);
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
 	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);
-	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, IEEE80211_HEADER);
+	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, txdesc->iv_offset);
 	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE,
 			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W1_BUFFER_COUNT, 1);
@@ -1560,6 +1782,11 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW, txdesc->length_low);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH, txdesc->length_high);
 	rt2x00_desc_write(txd, 2, word);
+
+	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags)) {
+		_rt2x00_desc_write(txd, 3, skbdesc->iv);
+		_rt2x00_desc_write(txd, 4, skbdesc->eiv);
+	}
 
 	rt2x00_desc_read(txd, 5, &word);
 	rt2x00_set_field32(&word, TXD_W5_PID_TYPE, skbdesc->entry->queue->qid);
@@ -1595,11 +1822,15 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC, 0);
+	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC,
+			   test_bit(ENTRY_TXD_ENCRYPT_MMIC, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_KEY_TABLE,
+			   test_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_KEY_INDEX, txdesc->key_idx);
 	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skb->len);
 	rt2x00_set_field32(&word, TXD_W0_BURST,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, CIPHER_NONE);
+	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, txdesc->cipher);
 	rt2x00_desc_write(txd, 0, word);
 }
 
@@ -1676,40 +1907,27 @@ static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
  */
 static int rt61pci_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 {
-	u16 eeprom;
-	u8 offset;
+	u8 offset = rt2x00dev->lna_gain;
 	u8 lna;
 
 	lna = rt2x00_get_field32(rxd_w1, RXD_W1_RSSI_LNA);
 	switch (lna) {
 	case 3:
-		offset = 90;
+		offset += 90;
 		break;
 	case 2:
-		offset = 74;
+		offset += 74;
 		break;
 	case 1:
-		offset = 64;
+		offset += 64;
 		break;
 	default:
 		return 0;
 	}
 
 	if (rt2x00dev->rx_status.band == IEEE80211_BAND_5GHZ) {
-		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags))
-			offset += 14;
-
 		if (lna == 3 || lna == 2)
 			offset += 10;
-
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A, &eeprom);
-		offset -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_A_1);
-	} else {
-		if (test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags))
-			offset += 14;
-
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &eeprom);
-		offset -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_BG_1);
 	}
 
 	return rt2x00_get_field32(rxd_w1, RXD_W1_RSSI_AGC) * 2 - offset;
@@ -1718,6 +1936,7 @@ static int rt61pci_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 static void rt61pci_fill_rxdone(struct queue_entry *entry,
 			        struct rxdone_entry_desc *rxdesc)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	u32 word0;
 	u32 word1;
@@ -1728,6 +1947,38 @@ static void rt61pci_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
+	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
+		rxdesc->cipher =
+		    rt2x00_get_field32(word0, RXD_W0_CIPHER_ALG);
+		rxdesc->cipher_status =
+		    rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR);
+	}
+
+	if (rxdesc->cipher != CIPHER_NONE) {
+		_rt2x00_desc_read(entry_priv->desc, 2, &rxdesc->iv);
+		_rt2x00_desc_read(entry_priv->desc, 3, &rxdesc->eiv);
+		_rt2x00_desc_read(entry_priv->desc, 4, &rxdesc->icv);
+
+		/*
+		 * Hardware has stripped IV/EIV data from 802.11 frame during
+		 * decryption. It has provided the data seperately but rt2x00lib
+		 * should decide if it should be reinserted.
+		 */
+		rxdesc->flags |= RX_FLAG_IV_STRIPPED;
+
+		/*
+		 * FIXME: Legacy driver indicates that the frame does
+		 * contain the Michael Mic. Unfortunately, in rt2x00
+		 * the MIC seems to be missing completely...
+		 */
+		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
+
+		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS)
+			rxdesc->flags |= RX_FLAG_DECRYPTED;
+		else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC)
+			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
+	}
+
 	/*
 	 * Obtain the status about this packet.
 	 * When frame was received with an OFDM bitrate,
@@ -1735,11 +1986,13 @@ static void rt61pci_fill_rxdone(struct queue_entry *entry,
 	 * a CCK bitrate the signal is the rate in 100kbit/s.
 	 */
 	rxdesc->signal = rt2x00_get_field32(word1, RXD_W1_SIGNAL);
-	rxdesc->rssi = rt61pci_agc_to_rssi(entry->queue->rt2x00dev, word1);
+	rxdesc->rssi = rt61pci_agc_to_rssi(rt2x00dev, word1);
 	rxdesc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
 
 	if (rt2x00_get_field32(word0, RXD_W0_OFDM))
 		rxdesc->dev_flags |= RXDONE_SIGNAL_PLCP;
+	else
+		rxdesc->dev_flags |= RXDONE_SIGNAL_BITRATE;
 	if (rt2x00_get_field32(word0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 }
@@ -1860,7 +2113,7 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	if (!reg && !reg_mcu)
 		return IRQ_NONE;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
 
 	/*
@@ -2060,10 +2313,10 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
-#ifdef CONFIG_RT61PCI_RFKILL
+#ifdef CONFIG_RT2X00_LIB_RFKILL
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
-#endif /* CONFIG_RT61PCI_RFKILL */
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 	/*
 	 * Read frequency offset and RF programming sequence.
@@ -2121,7 +2374,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * If the eeprom value is invalid,
 	 * switch to default led mode.
 	 */
-#ifdef CONFIG_RT61PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 	value = rt2x00_get_field16(eeprom, EEPROM_LED_LED_MODE);
 
@@ -2155,7 +2408,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_READY_A,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_RDY_A));
-#endif /* CONFIG_RT61PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	return 0;
 }
@@ -2274,10 +2527,11 @@ static const struct rf_channel rf_vals_seq[] = {
 	{ 46, 0x00002ccc, 0x000049a6, 0x0009be55, 0x000c0a23 },
 };
 
-static void rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
+static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
-	u8 *txpower;
+	struct channel_info *info;
+	char *tx_power;
 	unsigned int i;
 
 	/*
@@ -2294,20 +2548,10 @@ static void rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 						   EEPROM_MAC_ADDR_0));
 
 	/*
-	 * Convert tx_power array in eeprom.
-	 */
-	txpower = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_G_START);
-	for (i = 0; i < 14; i++)
-		txpower[i] = TXPOWER_FROM_DEV(txpower[i]);
-
-	/*
 	 * Initialize hw_mode information.
 	 */
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
-	spec->tx_power_a = NULL;
-	spec->tx_power_bg = txpower;
-	spec->tx_power_default = DEFAULT_TXPOWER;
 
 	if (!test_bit(CONFIG_RF_SEQUENCE, &rt2x00dev->flags)) {
 		spec->num_channels = 14;
@@ -2321,13 +2565,28 @@ static void rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    rt2x00_rf(&rt2x00dev->chip, RF5325)) {
 		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals_seq);
-
-		txpower = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A_START);
-		for (i = 0; i < 14; i++)
-			txpower[i] = TXPOWER_FROM_DEV(txpower[i]);
-
-		spec->tx_power_a = txpower;
 	}
+
+	/*
+	 * Create channel information array
+	 */
+	info = kzalloc(spec->num_channels * sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	spec->channels_info = info;
+
+	tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_G_START);
+	for (i = 0; i < 14; i++)
+		info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+
+	if (spec->num_channels > 14) {
+		tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A_START);
+		for (i = 14; i < spec->num_channels; i++)
+			info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	}
+
+	return 0;
 }
 
 static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
@@ -2348,13 +2607,17 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize hw specifications.
 	 */
-	rt61pci_probe_hw_mode(rt2x00dev);
+	retval = rt61pci_probe_hw_mode(rt2x00dev);
+	if (retval)
+		return retval;
 
 	/*
 	 * This device requires firmware and DMA mapped skbs.
 	 */
 	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
+	if (!modparam_nohwcrypt)
+		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -2377,6 +2640,63 @@ static int rt61pci_set_retry_limit(struct ieee80211_hw *hw,
 	rt2x00_set_field32(&reg, TXRX_CSR4_LONG_RETRY_LIMIT, long_retry);
 	rt2x00_set_field32(&reg, TXRX_CSR4_SHORT_RETRY_LIMIT, short_retry);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
+
+	return 0;
+}
+
+static int rt61pci_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
+			   const struct ieee80211_tx_queue_params *params)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct data_queue *queue;
+	struct rt2x00_field32 field;
+	int retval;
+	u32 reg;
+
+	/*
+	 * First pass the configuration through rt2x00lib, that will
+	 * update the queue settings and validate the input. After that
+	 * we are free to update the registers based on the value
+	 * in the queue parameter.
+	 */
+	retval = rt2x00mac_conf_tx(hw, queue_idx, params);
+	if (retval)
+		return retval;
+
+	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+
+	/* Update WMM TXOP register */
+	if (queue_idx < 2) {
+		field.bit_offset = queue_idx * 16;
+		field.bit_mask = 0xffff << field.bit_offset;
+
+		rt2x00pci_register_read(rt2x00dev, AC_TXOP_CSR0, &reg);
+		rt2x00_set_field32(&reg, field, queue->txop);
+		rt2x00pci_register_write(rt2x00dev, AC_TXOP_CSR0, reg);
+	} else if (queue_idx < 4) {
+		field.bit_offset = (queue_idx - 2) * 16;
+		field.bit_mask = 0xffff << field.bit_offset;
+
+		rt2x00pci_register_read(rt2x00dev, AC_TXOP_CSR1, &reg);
+		rt2x00_set_field32(&reg, field, queue->txop);
+		rt2x00pci_register_write(rt2x00dev, AC_TXOP_CSR1, reg);
+	}
+
+	/* Update WMM registers */
+	field.bit_offset = queue_idx * 4;
+	field.bit_mask = 0xf << field.bit_offset;
+
+	rt2x00pci_register_read(rt2x00dev, AIFSN_CSR, &reg);
+	rt2x00_set_field32(&reg, field, queue->aifs);
+	rt2x00pci_register_write(rt2x00dev, AIFSN_CSR, reg);
+
+	rt2x00pci_register_read(rt2x00dev, CWMIN_CSR, &reg);
+	rt2x00_set_field32(&reg, field, queue->cw_min);
+	rt2x00pci_register_write(rt2x00dev, CWMIN_CSR, reg);
+
+	rt2x00pci_register_read(rt2x00dev, CWMAX_CSR, &reg);
+	rt2x00_set_field32(&reg, field, queue->cw_max);
+	rt2x00pci_register_write(rt2x00dev, CWMAX_CSR, reg);
 
 	return 0;
 }
@@ -2404,10 +2724,11 @@ static const struct ieee80211_ops rt61pci_mac80211_ops = {
 	.config			= rt2x00mac_config,
 	.config_interface	= rt2x00mac_config_interface,
 	.configure_filter	= rt2x00mac_configure_filter,
+	.set_key		= rt2x00mac_set_key,
 	.get_stats		= rt2x00mac_get_stats,
 	.set_retry_limit	= rt61pci_set_retry_limit,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
-	.conf_tx		= rt2x00mac_conf_tx,
+	.conf_tx		= rt61pci_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt61pci_get_tsf,
 };
@@ -2432,6 +2753,8 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.write_beacon		= rt61pci_write_beacon,
 	.kick_tx_queue		= rt61pci_kick_tx_queue,
 	.fill_rxdone		= rt61pci_fill_rxdone,
+	.config_shared_key	= rt61pci_config_shared_key,
+	.config_pairwise_key	= rt61pci_config_pairwise_key,
 	.config_filter		= rt61pci_config_filter,
 	.config_intf		= rt61pci_config_intf,
 	.config_erp		= rt61pci_config_erp,

@@ -753,7 +753,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	 */
 	unsigned int frame = read_reg(0x28c0) & 1;
 	struct yuv_playback_info *yi = &itv->yuv_info;
-	int last_dma_frame = atomic_read(&itv->yuv_info.next_dma_frame);
+	int last_dma_frame = atomic_read(&yi->next_dma_frame);
 	struct yuv_frame_info *f = &yi->new_frame_info[last_dma_frame];
 
 	if (0) IVTV_DEBUG_IRQ("DEC VSYNC\n");
@@ -772,6 +772,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 				next_dma_frame = (next_dma_frame + 1) % IVTV_YUV_BUFFERS;
 				atomic_set(&yi->next_dma_frame, next_dma_frame);
 				yi->fields_lapsed = -1;
+				yi->running = 1;
 			}
 		}
 	}
@@ -804,9 +805,11 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		}
 
 		/* Check if we need to update the yuv registers */
-		if ((yi->yuv_forced_update || f->update) && last_dma_frame != -1) {
+		if (yi->running && (yi->yuv_forced_update || f->update)) {
 			if (!f->update) {
-				last_dma_frame = (u8)(last_dma_frame - 1) % IVTV_YUV_BUFFERS;
+				last_dma_frame =
+					(u8)(atomic_read(&yi->next_dma_frame) -
+						 1) % IVTV_YUV_BUFFERS;
 				f = &yi->new_frame_info[last_dma_frame];
 			}
 

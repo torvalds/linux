@@ -199,6 +199,9 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 		goto done;
 	}
 
+	if (inode->i_ino == HFSPLUS_EXT_CNID)
+		return -EIO;
+
 	mutex_lock(&HFSPLUS_I(inode).extents_lock);
 	res = hfsplus_ext_read_extent(inode, ablock);
 	if (!res) {

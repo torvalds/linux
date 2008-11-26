@@ -87,7 +87,8 @@ MODULE_LICENSE("Dual MPL/GPL");
 
    Callable from any context.
 */
-static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0)
+static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0,
+			    u16 param1, u16 param2)
 {
 	int k = CMD_BUSY_TIMEOUT;
 	u16 reg;
@@ -103,8 +104,8 @@ static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0)
 		return -EBUSY;
 	}
 
-	hermes_write_regn(hw, PARAM2, 0);
-	hermes_write_regn(hw, PARAM1, 0);
+	hermes_write_regn(hw, PARAM2, param2);
+	hermes_write_regn(hw, PARAM1, param1);
 	hermes_write_regn(hw, PARAM0, param0);
 	hermes_write_regn(hw, CMD, cmd);
 	
@@ -115,16 +116,72 @@ static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0)
  * Function definitions
  */
 
+/* For doing cmds that wipe the magic constant in SWSUPPORT0 */
+int hermes_doicmd_wait(hermes_t *hw, u16 cmd,
+		       u16 parm0, u16 parm1, u16 parm2,
+		       struct hermes_response *resp)
+{
+	int err = 0;
+	int k;
+	u16 status, reg;
+
+	err = hermes_issue_cmd(hw, cmd, parm0, parm1, parm2);
+	if (err)
+		return err;
+
+	reg = hermes_read_regn(hw, EVSTAT);
+	k = CMD_INIT_TIMEOUT;
+	while ((!(reg & HERMES_EV_CMD)) && k) {
+		k--;
+		udelay(10);
+		reg = hermes_read_regn(hw, EVSTAT);
+	}
+
+	hermes_write_regn(hw, SWSUPPORT0, HERMES_MAGIC);
+
+	if (!hermes_present(hw)) {
+		DEBUG(0, "hermes @ 0x%x: Card removed during reset.\n",
+		       hw->iobase);
+		err = -ENODEV;
+		goto out;
+	}
+
+	if (!(reg & HERMES_EV_CMD)) {
+		printk(KERN_ERR "hermes @ %p: "
+		       "Timeout waiting for card to reset (reg=0x%04x)!\n",
+		       hw->iobase, reg);
+		err = -ETIMEDOUT;
+		goto out;
+	}
+
+	status = hermes_read_regn(hw, STATUS);
+	if (resp) {
+		resp->status = status;
+		resp->resp0 = hermes_read_regn(hw, RESP0);
+		resp->resp1 = hermes_read_regn(hw, RESP1);
+		resp->resp2 = hermes_read_regn(hw, RESP2);
+	}
+
+	hermes_write_regn(hw, EVACK, HERMES_EV_CMD);
+
+	if (status & HERMES_STATUS_RESULT)
+		err = -EIO;
+out:
+	return err;
+}
+EXPORT_SYMBOL(hermes_doicmd_wait);
+
 void hermes_struct_init(hermes_t *hw, void __iomem *address, int reg_spacing)
 {
 	hw->iobase = address;
 	hw->reg_spacing = reg_spacing;
 	hw->inten = 0x0;
 }
+EXPORT_SYMBOL(hermes_struct_init);
 
 int hermes_init(hermes_t *hw)
 {
-	u16 status, reg;
+	u16 reg;
 	int err = 0;
 	int k;
 
@@ -162,45 +219,11 @@ int hermes_init(hermes_t *hw)
 
 	/* We don't use hermes_docmd_wait here, because the reset wipes
 	   the magic constant in SWSUPPORT0 away, and it gets confused */
-	err = hermes_issue_cmd(hw, HERMES_CMD_INIT, 0);
-	if (err)
-		return err;
+	err = hermes_doicmd_wait(hw, HERMES_CMD_INIT, 0, 0, 0, NULL);
 
-	reg = hermes_read_regn(hw, EVSTAT);
-	k = CMD_INIT_TIMEOUT;
-	while ( (! (reg & HERMES_EV_CMD)) && k) {
-		k--;
-		udelay(10);
-		reg = hermes_read_regn(hw, EVSTAT);
-	}
-
-	hermes_write_regn(hw, SWSUPPORT0, HERMES_MAGIC);
-
-	if (! hermes_present(hw)) {
-		DEBUG(0, "hermes @ 0x%x: Card removed during reset.\n",
-		       hw->iobase);
-		err = -ENODEV;
-		goto out;
-	}
-		
-	if (! (reg & HERMES_EV_CMD)) {
-		printk(KERN_ERR "hermes @ %p: " 
-		       "Timeout waiting for card to reset (reg=0x%04x)!\n",
-		       hw->iobase, reg);
-		err = -ETIMEDOUT;
-		goto out;
-	}
-
-	status = hermes_read_regn(hw, STATUS);
-
-	hermes_write_regn(hw, EVACK, HERMES_EV_CMD);
-
-	if (status & HERMES_STATUS_RESULT)
-		err = -EIO;
-
- out:
 	return err;
 }
+EXPORT_SYMBOL(hermes_init);
 
 /* Issue a command to the chip, and (busy!) wait for it to
  * complete.
@@ -216,7 +239,7 @@ int hermes_docmd_wait(hermes_t *hw, u16 cmd, u16 parm0,
 	u16 reg;
 	u16 status;
 
-	err = hermes_issue_cmd(hw, cmd, parm0);
+	err = hermes_issue_cmd(hw, cmd, parm0, 0, 0);
 	if (err) {
 		if (! hermes_present(hw)) {
 			if (net_ratelimit())
@@ -271,6 +294,7 @@ int hermes_docmd_wait(hermes_t *hw, u16 cmd, u16 parm0,
  out:
 	return err;
 }
+EXPORT_SYMBOL(hermes_docmd_wait);
 
 int hermes_allocate(hermes_t *hw, u16 size, u16 *fid)
 {
@@ -313,7 +337,7 @@ int hermes_allocate(hermes_t *hw, u16 size, u16 *fid)
 	
 	return 0;
 }
-
+EXPORT_SYMBOL(hermes_allocate);
 
 /* Set up a BAP to read a particular chunk of data from card's internal buffer.
  *
@@ -397,6 +421,7 @@ int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
  out:
 	return err;
 }
+EXPORT_SYMBOL(hermes_bap_pread);
 
 /* Write a block of data to the chip's buffer, via the
  * BAP. Synchronization/serialization is the caller's problem.
@@ -422,6 +447,7 @@ int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
  out:	
 	return err;
 }
+EXPORT_SYMBOL(hermes_bap_pwrite);
 
 /* Read a Length-Type-Value record from the card.
  *
@@ -463,7 +489,7 @@ int hermes_read_ltv(hermes_t *hw, int bap, u16 rid, unsigned bufsize,
 	if (rtype != rid)
 		printk(KERN_WARNING "hermes @ %p: %s(): "
 		       "rid (0x%04x) does not match type (0x%04x)\n",
-		       hw->iobase, __FUNCTION__, rid, rtype);
+		       hw->iobase, __func__, rid, rtype);
 	if (HERMES_RECLEN_TO_BYTES(rlength) > bufsize)
 		printk(KERN_WARNING "hermes @ %p: "
 		       "Truncating LTV record from %d to %d bytes. "
@@ -475,6 +501,7 @@ int hermes_read_ltv(hermes_t *hw, int bap, u16 rid, unsigned bufsize,
 
 	return 0;
 }
+EXPORT_SYMBOL(hermes_read_ltv);
 
 int hermes_write_ltv(hermes_t *hw, int bap, u16 rid, 
 		     u16 length, const void *value)
@@ -497,20 +524,11 @@ int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
 
 	hermes_write_bytes(hw, dreg, value, count << 1);
 
-	err = hermes_docmd_wait(hw, HERMES_CMD_ACCESS | HERMES_CMD_WRITE, 
+	err = hermes_docmd_wait(hw, HERMES_CMD_ACCESS | HERMES_CMD_WRITE,
 				rid, NULL);
 
 	return err;
 }
-
-EXPORT_SYMBOL(hermes_struct_init);
-EXPORT_SYMBOL(hermes_init);
-EXPORT_SYMBOL(hermes_docmd_wait);
-EXPORT_SYMBOL(hermes_allocate);
-
-EXPORT_SYMBOL(hermes_bap_pread);
-EXPORT_SYMBOL(hermes_bap_pwrite);
-EXPORT_SYMBOL(hermes_read_ltv);
 EXPORT_SYMBOL(hermes_write_ltv);
 
 static int __init init_hermes(void)

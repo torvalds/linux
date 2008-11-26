@@ -16,6 +16,7 @@
 #include <linux/cpu.h>
 #include <linux/cpuidle.h>
 #include <linux/ktime.h>
+#include <linux/hrtimer.h>
 
 #include "cpuidle.h"
 
@@ -56,10 +57,22 @@ static void cpuidle_idle_call(void)
 		if (pm_idle_old)
 			pm_idle_old();
 		else
+#if defined(CONFIG_ARCH_HAS_DEFAULT_IDLE)
+			default_idle();
+#else
 			local_irq_enable();
+#endif
 		return;
 	}
 
+#if 0
+	/* shows regressions, re-enable for 2.6.29 */
+	/*
+	 * run any timers that can be run now, at this point
+	 * before calculating the idle duration etc.
+	 */
+	hrtimer_peek_ahead_timers();
+#endif
 	/* ask the governor for the next state */
 	next_state = cpuidle_curr_governor->select(dev);
 	if (need_resched())
@@ -67,8 +80,11 @@ static void cpuidle_idle_call(void)
 	target_state = &dev->states[next_state];
 
 	/* enter the state and update stats */
-	dev->last_residency = target_state->enter(dev, target_state);
 	dev->last_state = target_state;
+	dev->last_residency = target_state->enter(dev, target_state);
+	if (dev->last_state)
+		target_state = dev->last_state;
+
 	target_state->time += (unsigned long long)dev->last_residency;
 	target_state->usage++;
 

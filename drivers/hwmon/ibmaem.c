@@ -88,9 +88,11 @@
 static DEFINE_IDR(aem_idr);
 static DEFINE_SPINLOCK(aem_idr_lock);
 
-static struct device_driver aem_driver = {
-	.name = DRVNAME,
-	.bus = &platform_bus_type,
+static struct platform_driver aem_driver = {
+	.driver = {
+		.name = DRVNAME,
+		.bus = &platform_bus_type,
+	}
 };
 
 struct aem_ipmi_data {
@@ -583,7 +585,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 	data->pdev = platform_device_alloc(DRVNAME, data->id);
 	if (!data->pdev)
 		goto dev_err;
-	data->pdev->dev.driver = &aem_driver;
+	data->pdev->dev.driver = &aem_driver.driver;
 
 	res = platform_device_add(data->pdev);
 	if (res)
@@ -716,7 +718,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 	data->pdev = platform_device_alloc(DRVNAME, data->id);
 	if (!data->pdev)
 		goto dev_err;
-	data->pdev->dev.driver = &aem_driver;
+	data->pdev->dev.driver = &aem_driver.driver;
 
 	res = platform_device_add(data->pdev);
 	if (res)
@@ -1085,7 +1087,7 @@ static int __init aem_init(void)
 {
 	int res;
 
-	res = driver_register(&aem_driver);
+	res = driver_register(&aem_driver.driver);
 	if (res) {
 		printk(KERN_ERR "Can't register aem driver\n");
 		return res;
@@ -1097,7 +1099,7 @@ static int __init aem_init(void)
 	return 0;
 
 ipmi_reg_err:
-	driver_unregister(&aem_driver);
+	driver_unregister(&aem_driver.driver);
 	return res;
 
 }
@@ -1107,7 +1109,7 @@ static void __exit aem_exit(void)
 	struct aem_data *p1, *next1;
 
 	ipmi_smi_watcher_unregister(&driver_data.bmc_events);
-	driver_unregister(&aem_driver);
+	driver_unregister(&aem_driver.driver);
 	list_for_each_entry_safe(p1, next1, &driver_data.aem_devices, list)
 		aem_delete(p1);
 }
@@ -1118,3 +1120,10 @@ MODULE_LICENSE("GPL");
 
 module_init(aem_init);
 module_exit(aem_exit);
+
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3350-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3550-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3650-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3655-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3755-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBM3850M2/x3950M2-*");

@@ -224,10 +224,6 @@ struct oti6858_private {
 	struct usb_serial_port *port;   /* USB port with which associated */
 };
 
-#undef dbg
-/* #define dbg(format, arg...) printk(KERN_INFO "%s: " format "\n", __FILE__, ## arg) */
-#define dbg(format, arg...) printk(KERN_INFO "" format "\n", ## arg)
-
 static void setup_line(struct work_struct *work)
 {
 	struct oti6858_private *priv = container_of(work,
@@ -1002,11 +998,12 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (tty != NULL && urb->actual_length > 0) {
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
+	tty_kref_put(tty);
 
 	/* schedule the interrupt urb if we are still open */
 	if (port->port.count != 0) {

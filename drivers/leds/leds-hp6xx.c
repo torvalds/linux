@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <asm/hd64461.h>
-#include <asm/hp6xx.h>
+#include <mach/hp6xx.h>
 
 static void hp6xxled_green_set(struct led_classdev *led_cdev,
 			       enum led_brightness value)

@@ -126,7 +126,7 @@ char *get_options(const char *str, int nints, int *ints)
  *	megabyte, or one gigabyte, respectively.
  */
 
-unsigned long long memparse(char *ptr, char **retptr)
+unsigned long long memparse(const char *ptr, char **retptr)
 {
 	char *endptr;	/* local pointer to end of parsed string */
 

@@ -375,8 +375,7 @@ static struct gameport_driver gf2k_drv = {
 
 static int __init gf2k_init(void)
 {
-	gameport_register_driver(&gf2k_drv);
-	return 0;
+	return gameport_register_driver(&gf2k_drv);
 }
 
 static void __exit gf2k_exit(void)

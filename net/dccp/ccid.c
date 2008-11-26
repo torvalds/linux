@@ -154,7 +154,7 @@ struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx, gfp_t gfp)
 	struct ccid *ccid = NULL;
 
 	ccids_read_lock();
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	if (ccids[id] == NULL) {
 		/* We only try to load if in process context */
 		ccids_read_unlock();

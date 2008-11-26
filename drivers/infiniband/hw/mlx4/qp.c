@@ -451,6 +451,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata, int sqpn, struct mlx4_ib_qp *qp)
 {
+	int qpn;
 	int err;
 
 	mutex_init(&qp->mutex);
@@ -545,9 +546,17 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		}
 	}
 
-	err = mlx4_qp_alloc(dev->dev, sqpn, &qp->mqp);
+	if (sqpn) {
+		qpn = sqpn;
+	} else {
+		err = mlx4_qp_reserve_range(dev->dev, 1, 1, &qpn);
+		if (err)
+			goto err_wrid;
+	}
+
+	err = mlx4_qp_alloc(dev->dev, qpn, &qp->mqp);
 	if (err)
-		goto err_wrid;
+		goto err_qpn;
 
 	/*
 	 * Hardware wants QPN written in big-endian order (after
@@ -559,6 +568,10 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	qp->mqp.event = mlx4_ib_qp_event;
 
 	return 0;
+
+err_qpn:
+	if (!sqpn)
+		mlx4_qp_release_range(dev->dev, qpn, 1);
 
 err_wrid:
 	if (pd->uobject) {
@@ -655,6 +668,10 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	mlx4_ib_unlock_cqs(send_cq, recv_cq);
 
 	mlx4_qp_free(dev->dev, &qp->mqp);
+
+	if (!is_sqp(dev, qp))
+		mlx4_qp_release_range(dev->dev, qp->mqp.qpn, 1);
+
 	mlx4_mtt_cleanup(dev->dev, &qp->mtt);
 
 	if (is_user) {
@@ -1058,6 +1075,9 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	else
 		sqd_event = 0;
 
+	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
+		context->rlkey |= (1 << 4);
+
 	/*
 	 * Before passing a kernel QP to the HW, make sure that the
 	 * ownership bits of the send queue are set and the SQ
@@ -1342,6 +1362,12 @@ static __be32 convert_access(int acc)
 static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
 {
 	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(wr->wr.fast_reg.page_list);
+	int i;
+
+	for (i = 0; i < wr->wr.fast_reg.page_list_len; ++i)
+		wr->wr.fast_reg.page_list->page_list[i] =
+			cpu_to_be64(wr->wr.fast_reg.page_list->page_list[i] |
+				    MLX4_MTT_FLAG_PRESENT);
 
 	fseg->flags		= convert_access(wr->wr.fast_reg.access_flags);
 	fseg->mem_key		= cpu_to_be32(wr->wr.fast_reg.rkey);

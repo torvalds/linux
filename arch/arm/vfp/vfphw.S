@@ -68,8 +68,7 @@
 @  r11 = CPU number
 @  lr  = failure return
 
-	.globl	vfp_support_entry
-vfp_support_entry:
+ENTRY(vfp_support_entry)
 	DBGSTR3	"instr %08x pc %08x state %p", r0, r2, r10
 
 	VFPFMRX	r1, FPEXC		@ Is the VFP enabled?
@@ -165,11 +164,10 @@ process_exception:
 					@ code will raise an exception if
 					@ required. If not, the user code will
 					@ retry the faulted instruction
+ENDPROC(vfp_support_entry)
 
 #ifdef CONFIG_SMP
-	.globl	vfp_save_state
-	.type	vfp_save_state, %function
-vfp_save_state:
+ENTRY(vfp_save_state)
 	@ Save the current VFP state
 	@ r0 - save location
 	@ r1 - FPEXC
@@ -182,13 +180,13 @@ vfp_save_state:
 	VFPFMRX	r12, FPINST2, NE	@ FPINST2 if needed (and present)
 	stmia	r0, {r1, r2, r3, r12}	@ save FPEXC, FPSCR, FPINST, FPINST2
 	mov	pc, lr
+ENDPROC(vfp_save_state)
 #endif
 
 last_VFP_context_address:
 	.word	last_VFP_context
 
-	.globl	vfp_get_float
-vfp_get_float:
+ENTRY(vfp_get_float)
 	add	pc, pc, r0, lsl #3
 	mov	r0, r0
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
@@ -197,9 +195,9 @@ vfp_get_float:
 	mrc	p10, 0, r0, c\dr, c0, 4	@ fmrs	r0, s1
 	mov	pc, lr
 	.endr
+ENDPROC(vfp_get_float)
 
-	.globl	vfp_put_float
-vfp_put_float:
+ENTRY(vfp_put_float)
 	add	pc, pc, r1, lsl #3
 	mov	r0, r0
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
@@ -208,9 +206,9 @@ vfp_put_float:
 	mcr	p10, 0, r0, c\dr, c0, 4	@ fmsr	r0, s1
 	mov	pc, lr
 	.endr
+ENDPROC(vfp_put_float)
 
-	.globl	vfp_get_double
-vfp_get_double:
+ENTRY(vfp_get_double)
 	add	pc, pc, r0, lsl #3
 	mov	r0, r0
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
@@ -229,9 +227,9 @@ vfp_get_double:
 	mov	r0, #0
 	mov	r1, #0
 	mov	pc, lr
+ENDPROC(vfp_get_double)
 
-	.globl	vfp_put_double
-vfp_put_double:
+ENTRY(vfp_put_double)
 	add	pc, pc, r2, lsl #3
 	mov	r0, r0
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
@@ -245,3 +243,4 @@ vfp_put_double:
 	mov	pc, lr
 	.endr
 #endif
+ENDPROC(vfp_put_double)

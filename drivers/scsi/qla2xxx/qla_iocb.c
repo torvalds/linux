@@ -21,17 +21,22 @@ static void qla2x00_isp_cmd(scsi_qla_host_t *ha);
  * Returns the proper CF_* direction based on CDB.
  */
 static inline uint16_t
-qla2x00_get_cmd_direction(struct scsi_cmnd *cmd)
+qla2x00_get_cmd_direction(srb_t *sp)
 {
 	uint16_t cflags;
 
 	cflags = 0;
 
 	/* Set transfer direction */
-	if (cmd->sc_data_direction == DMA_TO_DEVICE)
+	if (sp->cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cflags = CF_WRITE;
-	else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
+		sp->fcport->ha->qla_stats.output_bytes +=
+		    scsi_bufflen(sp->cmd);
+	} else if (sp->cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cflags = CF_READ;
+		sp->fcport->ha->qla_stats.input_bytes +=
+		    scsi_bufflen(sp->cmd);
+	}
 	return (cflags);
 }
 
@@ -169,7 +174,7 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 
 	ha = sp->ha;
 
-	cmd_pkt->control_flags |= cpu_to_le16(qla2x00_get_cmd_direction(cmd));
+	cmd_pkt->control_flags |= cpu_to_le16(qla2x00_get_cmd_direction(sp));
 
 	/* Three DSDs are available in the Command Type 2 IOCB */
 	avail_dsds = 3;
@@ -228,7 +233,7 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 
 	ha = sp->ha;
 
-	cmd_pkt->control_flags |= cpu_to_le16(qla2x00_get_cmd_direction(cmd));
+	cmd_pkt->control_flags |= cpu_to_le16(qla2x00_get_cmd_direction(sp));
 
 	/* Two DSDs are available in the Command Type 3 IOCB */
 	avail_dsds = 2;
@@ -262,7 +267,7 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
  * qla2x00_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occured, else zero.
+ * Returns non-zero if a failure occurred, else zero.
  */
 int
 qla2x00_start_scsi(srb_t *sp)
@@ -407,7 +412,7 @@ queuing_error:
  *
  * Can be called from both normal and interrupt context.
  *
- * Returns non-zero if a failure occured, else zero.
+ * Returns non-zero if a failure occurred, else zero.
  */
 int
 __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
@@ -625,12 +630,17 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	ha = sp->ha;
 
 	/* Set transfer direction */
-	if (cmd->sc_data_direction == DMA_TO_DEVICE)
+	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cmd_pkt->task_mgmt_flags =
 		    __constant_cpu_to_le16(TMF_WRITE_DATA);
-	else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
+		sp->fcport->ha->qla_stats.output_bytes +=
+		    scsi_bufflen(sp->cmd);
+	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->task_mgmt_flags =
 		    __constant_cpu_to_le16(TMF_READ_DATA);
+		sp->fcport->ha->qla_stats.input_bytes +=
+		    scsi_bufflen(sp->cmd);
+	}
 
 	/* One DSD is available in the Command Type 3 IOCB */
 	avail_dsds = 1;
@@ -666,7 +676,7 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
  * qla24xx_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occured, else zero.
+ * Returns non-zero if a failure occurred, else zero.
  */
 int
 qla24xx_start_scsi(srb_t *sp)

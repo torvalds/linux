@@ -302,11 +302,13 @@ static void nv_ck804_host_stop(struct ata_host *host);
 static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance);
 static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance);
 static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance);
-static int nv_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
-static int nv_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int nv_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
+static int nv_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 
 static void nv_nf2_freeze(struct ata_port *ap);
 static void nv_nf2_thaw(struct ata_port *ap);
+static int nv_nf2_hardreset(struct ata_link *link, unsigned int *class,
+			    unsigned long deadline);
 static void nv_ck804_freeze(struct ata_port *ap);
 static void nv_ck804_thaw(struct ata_port *ap);
 static int nv_adma_slave_config(struct scsi_device *sdev);
@@ -403,28 +405,46 @@ static struct scsi_host_template nv_swncq_sht = {
 	.slave_configure	= nv_swncq_slave_config,
 };
 
-static struct ata_port_operations nv_generic_ops = {
+static struct ata_port_operations nv_common_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.hardreset		= ATA_OP_NULL,
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
 };
 
-static struct ata_port_operations nv_nf2_ops = {
-	.inherits		= &nv_generic_ops,
-	.freeze			= nv_nf2_freeze,
-	.thaw			= nv_nf2_thaw,
+/* OSDL bz11195 reports that link doesn't come online after hardreset
+ * on generic nv's and there have been several other similar reports
+ * on linux-ide.  Disable hardreset for generic nv's.
+ */
+static struct ata_port_operations nv_generic_ops = {
+	.inherits		= &nv_common_ops,
+	.hardreset		= ATA_OP_NULL,
 };
 
+/* OSDL bz3352 reports that nf2/3 controllers can't determine device
+ * signature reliably.  Also, the following thread reports detection
+ * failure on cold boot with the standard debouncing timing.
+ *
+ * http://thread.gmane.org/gmane.linux.ide/34098
+ *
+ * Debounce with hotplug timing and request follow-up SRST.
+ */
+static struct ata_port_operations nv_nf2_ops = {
+	.inherits		= &nv_common_ops,
+	.freeze			= nv_nf2_freeze,
+	.thaw			= nv_nf2_thaw,
+	.hardreset		= nv_nf2_hardreset,
+};
+
+/* CK804 finally gets hardreset right */
 static struct ata_port_operations nv_ck804_ops = {
-	.inherits		= &nv_generic_ops,
+	.inherits		= &nv_common_ops,
 	.freeze			= nv_ck804_freeze,
 	.thaw			= nv_ck804_thaw,
 	.host_stop		= nv_ck804_host_stop,
 };
 
 static struct ata_port_operations nv_adma_ops = {
-	.inherits		= &nv_generic_ops,
+	.inherits		= &nv_ck804_ops,
 
 	.check_atapi_dma	= nv_adma_check_atapi_dma,
 	.sff_tf_read		= nv_adma_tf_read,
@@ -1492,21 +1512,21 @@ static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance)
 	return ret;
 }
 
-static int nv_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
+static int nv_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val)
 {
 	if (sc_reg > SCR_CONTROL)
 		return -EINVAL;
 
-	*val = ioread32(ap->ioaddr.scr_addr + (sc_reg * 4));
+	*val = ioread32(link->ap->ioaddr.scr_addr + (sc_reg * 4));
 	return 0;
 }
 
-static int nv_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int nv_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)
 		return -EINVAL;
 
-	iowrite32(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+	iowrite32(val, link->ap->ioaddr.scr_addr + (sc_reg * 4));
 	return 0;
 }
 
@@ -1532,6 +1552,17 @@ static void nv_nf2_thaw(struct ata_port *ap)
 	mask = ioread8(scr_addr + NV_INT_ENABLE);
 	mask |= (NV_INT_MASK << shift);
 	iowrite8(mask, scr_addr + NV_INT_ENABLE);
+}
+
+static int nv_nf2_hardreset(struct ata_link *link, unsigned int *class,
+			    unsigned long deadline)
+{
+	bool online;
+	int rc;
+
+	rc = sata_link_hardreset(link, sata_deb_timing_hotplug, deadline,
+				 &online, NULL);
+	return online ? -EAGAIN : rc;
 }
 
 static void nv_ck804_freeze(struct ata_port *ap)
@@ -2184,9 +2215,9 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 	if (!pp->qc_active)
 		return;
 
-	if (ap->ops->scr_read(ap, SCR_ERROR, &serror))
+	if (ap->ops->scr_read(&ap->link, SCR_ERROR, &serror))
 		return;
-	ap->ops->scr_write(ap, SCR_ERROR, serror);
+	ap->ops->scr_write(&ap->link, SCR_ERROR, serror);
 
 	if (ata_stat & ATA_ERR) {
 		ata_ehi_clear_desc(ehi);

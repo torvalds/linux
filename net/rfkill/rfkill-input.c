@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/init.h>
 #include <linux/rfkill.h>
+#include <linux/sched.h>
 
 #include "rfkill-input.h"
 
@@ -255,6 +256,11 @@ static struct input_handler rfkill_handler = {
 
 static int __init rfkill_handler_init(void)
 {
+	unsigned long last_run = jiffies - msecs_to_jiffies(500);
+	rfkill_wlan.last = last_run;
+	rfkill_bt.last = last_run;
+	rfkill_uwb.last = last_run;
+	rfkill_wimax.last = last_run;
 	return input_register_handler(&rfkill_handler);
 }
 

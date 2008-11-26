@@ -20,11 +20,11 @@ static unsigned int test_buf_size = 16384;
 module_param(test_buf_size, uint, S_IRUGO);
 MODULE_PARM_DESC(test_buf_size, "Size of the memcpy test buffer");
 
-static char test_channel[BUS_ID_SIZE];
+static char test_channel[20];
 module_param_string(channel, test_channel, sizeof(test_channel), S_IRUGO);
 MODULE_PARM_DESC(channel, "Bus ID of the channel to test (default: any)");
 
-static char test_device[BUS_ID_SIZE];
+static char test_device[20];
 module_param_string(device, test_device, sizeof(test_device), S_IRUGO);
 MODULE_PARM_DESC(device, "Bus ID of the DMA Engine to test (default: any)");
 
@@ -80,14 +80,14 @@ static bool dmatest_match_channel(struct dma_chan *chan)
 {
 	if (test_channel[0] == '\0')
 		return true;
-	return strcmp(chan->dev.bus_id, test_channel) == 0;
+	return strcmp(dev_name(&chan->dev), test_channel) == 0;
 }
 
 static bool dmatest_match_device(struct dma_device *device)
 {
 	if (test_device[0] == '\0')
 		return true;
-	return strcmp(device->dev->bus_id, test_device) == 0;
+	return strcmp(dev_name(device->dev), test_device) == 0;
 }
 
 static unsigned long dmatest_random(void)
@@ -325,9 +325,14 @@ static enum dma_state_client dmatest_add_channel(struct dma_chan *chan)
 	struct dmatest_thread	*thread;
 	unsigned int		i;
 
-	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_ATOMIC);
+	/* Have we already been told about this channel? */
+	list_for_each_entry(dtc, &dmatest_channels, node)
+		if (dtc->chan == chan)
+			return DMA_DUP;
+
+	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_KERNEL);
 	if (!dtc) {
-		pr_warning("dmatest: No memory for %s\n", chan->dev.bus_id);
+		pr_warning("dmatest: No memory for %s\n", dev_name(&chan->dev));
 		return DMA_NAK;
 	}
 
@@ -338,16 +343,16 @@ static enum dma_state_client dmatest_add_channel(struct dma_chan *chan)
 		thread = kzalloc(sizeof(struct dmatest_thread), GFP_KERNEL);
 		if (!thread) {
 			pr_warning("dmatest: No memory for %s-test%u\n",
-					chan->dev.bus_id, i);
+				   dev_name(&chan->dev), i);
 			break;
 		}
 		thread->chan = dtc->chan;
 		smp_wmb();
 		thread->task = kthread_run(dmatest_func, thread, "%s-test%u",
-				chan->dev.bus_id, i);
+				dev_name(&chan->dev), i);
 		if (IS_ERR(thread->task)) {
 			pr_warning("dmatest: Failed to run thread %s-test%u\n",
-					chan->dev.bus_id, i);
+					dev_name(&chan->dev), i);
 			kfree(thread);
 			break;
 		}
@@ -357,7 +362,7 @@ static enum dma_state_client dmatest_add_channel(struct dma_chan *chan)
 		list_add_tail(&thread->node, &dtc->threads);
 	}
 
-	pr_info("dmatest: Started %u threads using %s\n", i, chan->dev.bus_id);
+	pr_info("dmatest: Started %u threads using %s\n", i, dev_name(&chan->dev));
 
 	list_add_tail(&dtc->node, &dmatest_channels);
 	nr_channels++;
@@ -374,7 +379,7 @@ static enum dma_state_client dmatest_remove_channel(struct dma_chan *chan)
 			list_del(&dtc->node);
 			dmatest_cleanup_channel(dtc);
 			pr_debug("dmatest: lost channel %s\n",
-					chan->dev.bus_id);
+					dev_name(&chan->dev));
 			return DMA_ACK;
 		}
 	}
@@ -413,7 +418,7 @@ dmatest_event(struct dma_client *client, struct dma_chan *chan,
 
 	default:
 		pr_info("dmatest: Unhandled event %u (%s)\n",
-				state, chan->dev.bus_id);
+				state, dev_name(&chan->dev));
 		break;
 	}
 

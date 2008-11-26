@@ -28,6 +28,10 @@
 PROPNODECHAR	[a-zA-Z0-9,._+*#?@-]
 PATHCHAR	({PROPNODECHAR}|[/])
 LABEL		[a-zA-Z_][a-zA-Z0-9_]*
+STRING		\"([^\\"]|\\.)*\"
+WS		[[:space:]]
+COMMENT		"/*"([^*]|\*+[^*/])*\*+"/"
+LINECOMMENT	"//".*\n
 
 %{
 #include "dtc.h"
@@ -52,20 +56,17 @@ static int dts_version; /* = 0 */
 				DPRINT("<V1>\n"); \
 				BEGIN(V1); \
 			}
+
+static void push_input_file(const char *filename);
+static int pop_input_file(void);
 %}
 
 %%
-<*>"/include/"		BEGIN(INCLUDE);
-
-<INCLUDE>\"[^"\n]*\"	{
-			yytext[strlen(yytext) - 1] = 0;
-			if (!push_input_file(yytext + 1)) {
-				/* Some unrecoverable error.*/
-				exit(1);
-			}
-			BEGIN_DEFAULT();
+<*>"/include/"{WS}*{STRING} {
+			char *name = strchr(yytext, '\"') + 1;
+			yytext[yyleng-1] = '\0';
+			push_input_file(name);
 		}
-
 
 <*><<EOF>>		{
 			if (!pop_input_file()) {
@@ -73,8 +74,8 @@ static int dts_version; /* = 0 */
 			}
 		}
 
-<*>\"([^\\"]|\\.)*\"	{
-			yylloc.filenum = srcpos_filenum;
+<*>{STRING}	{
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("String: %s\n", yytext);
 			yylval.data = data_copy_escape_string(yytext+1,
@@ -84,7 +85,7 @@ static int dts_version; /* = 0 */
 		}
 
 <*>"/dts-v1/"	{
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("Keyword: /dts-v1/\n");
 			dts_version = 1;
@@ -93,7 +94,7 @@ static int dts_version; /* = 0 */
 		}
 
 <*>"/memreserve/"	{
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("Keyword: /memreserve/\n");
 			BEGIN_DEFAULT();
@@ -101,7 +102,7 @@ static int dts_version; /* = 0 */
 		}
 
 <*>{LABEL}:	{
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("Label: %s\n", yytext);
 			yylval.labelref = strdup(yytext);
@@ -110,7 +111,7 @@ static int dts_version; /* = 0 */
 		}
 
 <INITIAL>[bodh]# {
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			if (*yytext == 'b')
 				yylval.cbase = 2;
@@ -125,7 +126,7 @@ static int dts_version; /* = 0 */
 		}
 
 <INITIAL>[0-9a-fA-F]+	{
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			yylval.literal = strdup(yytext);
 			DPRINT("Literal: '%s'\n", yylval.literal);
@@ -133,7 +134,7 @@ static int dts_version; /* = 0 */
 		}
 
 <V1>[0-9]+|0[xX][0-9a-fA-F]+      {
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			yylval.literal = strdup(yytext);
 			DPRINT("Literal: '%s'\n", yylval.literal);
@@ -141,7 +142,7 @@ static int dts_version; /* = 0 */
 		}
 
 \&{LABEL}	{	/* label reference */
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("Ref: %s\n", yytext+1);
 			yylval.labelref = strdup(yytext+1);
@@ -149,7 +150,7 @@ static int dts_version; /* = 0 */
 		}
 
 "&{/"{PATHCHAR}+\}	{	/* new-style path reference */
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			yytext[yyleng-1] = '\0';
 			DPRINT("Ref: %s\n", yytext+2);
@@ -158,7 +159,7 @@ static int dts_version; /* = 0 */
 		}
 
 <INITIAL>"&/"{PATHCHAR}+ {	/* old-style path reference */
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("Ref: %s\n", yytext+1);
 			yylval.labelref = strdup(yytext+1);
@@ -166,7 +167,7 @@ static int dts_version; /* = 0 */
 		}
 
 <BYTESTRING>[0-9a-fA-F]{2} {
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			yylval.byte = strtol(yytext, NULL, 16);
 			DPRINT("Byte: %02x\n", (int)yylval.byte);
@@ -174,7 +175,7 @@ static int dts_version; /* = 0 */
 		}
 
 <BYTESTRING>"]"	{
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("/BYTESTRING\n");
 			BEGIN_DEFAULT();
@@ -182,7 +183,7 @@ static int dts_version; /* = 0 */
 		}
 
 <PROPNODENAME>{PROPNODECHAR}+ {
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("PropNodeName: %s\n", yytext);
 			yylval.propnodename = strdup(yytext);
@@ -190,20 +191,19 @@ static int dts_version; /* = 0 */
 			return DT_PROPNODENAME;
 		}
 
-
-<*>[[:space:]]+	/* eat whitespace */
-
-<*>"/*"([^*]|\*+[^*/])*\*+"/"	{
-			yylloc.filenum = srcpos_filenum;
+"/incbin/"	{
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
-			DPRINT("Comment: %s\n", yytext);
-			/* eat comments */
+			DPRINT("Binary Include\n");
+			return DT_INCBIN;
 		}
 
-<*>"//".*\n	/* eat line comments */
+<*>{WS}+	/* eat whitespace */
+<*>{COMMENT}+	/* eat C-style comments */
+<*>{LINECOMMENT}+ /* eat C++-style comments */
 
 <*>.		{
-			yylloc.filenum = srcpos_filenum;
+			yylloc.file = srcpos_file;
 			yylloc.first_line = yylineno;
 			DPRINT("Char: %c (\\x%02x)\n", yytext[0],
 				(unsigned)yytext[0]);
@@ -227,14 +227,13 @@ static int dts_version; /* = 0 */
  */
 
 struct incl_file {
-	int filenum;
-	FILE *file;
+	struct dtc_file *file;
 	YY_BUFFER_STATE yy_prev_buf;
 	int yy_prev_lineno;
 	struct incl_file *prev;
 };
 
-struct incl_file *incl_file_stack;
+static struct incl_file *incl_file_stack;
 
 
 /*
@@ -245,36 +244,34 @@ struct incl_file *incl_file_stack;
 static int incl_depth = 0;
 
 
-int push_input_file(const char *filename)
+static void push_input_file(const char *filename)
 {
-	FILE *f;
 	struct incl_file *incl_file;
+	struct dtc_file *newfile;
+	struct search_path search, *searchptr = NULL;
 
-	if (!filename) {
-		yyerror("No include file name given.");
-		return 0;
+	assert(filename);
+
+	if (incl_depth++ >= MAX_INCLUDE_DEPTH)
+		die("Includes nested too deeply");
+
+	if (srcpos_file) {
+		search.dir = srcpos_file->dir;
+		search.next = NULL;
+		search.prev = NULL;
+		searchptr = &search;
 	}
 
-	if (incl_depth++ >= MAX_INCLUDE_DEPTH) {
-		yyerror("Includes nested too deeply");
-		return 0;
-	}
+	newfile = dtc_open_file(filename, searchptr);
 
-	f = dtc_open_file(filename);
-
-	incl_file = malloc(sizeof(struct incl_file));
-	if (!incl_file) {
-		yyerror("Can not allocate include file space.");
-		return 0;
-	}
+	incl_file = xmalloc(sizeof(struct incl_file));
 
 	/*
 	 * Save current context.
 	 */
 	incl_file->yy_prev_buf = YY_CURRENT_BUFFER;
 	incl_file->yy_prev_lineno = yylineno;
-	incl_file->filenum = srcpos_filenum;
-	incl_file->file = yyin;
+	incl_file->file = srcpos_file;
 	incl_file->prev = incl_file_stack;
 
 	incl_file_stack = incl_file;
@@ -282,23 +279,21 @@ int push_input_file(const char *filename)
 	/*
 	 * Establish new context.
 	 */
-	srcpos_filenum = lookup_file_name(filename, 0);
+	srcpos_file = newfile;
 	yylineno = 1;
-	yyin = f;
+	yyin = newfile->file;
 	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
-
-	return 1;
 }
 
 
-int pop_input_file(void)
+static int pop_input_file(void)
 {
 	struct incl_file *incl_file;
 
 	if (incl_file_stack == 0)
 		return 0;
 
-	fclose(yyin);
+	dtc_close_file(srcpos_file);
 
 	/*
 	 * Pop.
@@ -313,16 +308,13 @@ int pop_input_file(void)
 	yy_delete_buffer(YY_CURRENT_BUFFER);
 	yy_switch_to_buffer(incl_file->yy_prev_buf);
 	yylineno = incl_file->yy_prev_lineno;
-	srcpos_filenum = incl_file->filenum;
-	yyin = incl_file->file;
+	srcpos_file = incl_file->file;
+	yyin = incl_file->file ? incl_file->file->file : NULL;
 
 	/*
 	 * Free old state.
 	 */
 	free(incl_file);
-
-	if (YY_CURRENT_BUFFER == 0)
-		return 0;
 
 	return 1;
 }

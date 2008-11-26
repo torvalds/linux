@@ -329,8 +329,8 @@ struct bigmac {
 	unsigned int		timer_ticks;
 
 	struct net_device_stats	enet_stats;
-	struct sbus_dev		*qec_sdev;
-	struct sbus_dev		*bigmac_sdev;
+	struct of_device	*qec_op;
+	struct of_device	*bigmac_op;
 	struct net_device	*dev;
 };
 

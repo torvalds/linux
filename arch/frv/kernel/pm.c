@@ -211,7 +211,7 @@ static int cmode_procctl(ctl_table *ctl, int write, struct file *filp,
 	return try_set_cmode(new_cmode)?:*lenp;
 }
 
-static int cmode_sysctl(ctl_table *table, int __user *name, int nlen,
+static int cmode_sysctl(ctl_table *table,
 			void __user *oldval, size_t __user *oldlenp,
 			void __user *newval, size_t newlen)
 {
@@ -314,7 +314,7 @@ static int p0_procctl(ctl_table *ctl, int write, struct file *filp,
 	return try_set_p0(new_p0)?:*lenp;
 }
 
-static int p0_sysctl(ctl_table *table, int __user *name, int nlen,
+static int p0_sysctl(ctl_table *table,
 		     void __user *oldval, size_t __user *oldlenp,
 		     void __user *newval, size_t newlen)
 {
@@ -358,7 +358,7 @@ static int cm_procctl(ctl_table *ctl, int write, struct file *filp,
 	return try_set_cm(new_cm)?:*lenp;
 }
 
-static int cm_sysctl(ctl_table *table, int __user *name, int nlen,
+static int cm_sysctl(ctl_table *table,
 		     void __user *oldval, size_t __user *oldlenp,
 		     void __user *newval, size_t newlen)
 {

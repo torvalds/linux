@@ -1,0 +1,12 @@
+This document describes the ALi m5602 bridge connected
+to the following supported sensors:
+OmniVision OV9650,
+Samsung s5k83a,
+Samsung s5k4aa,
+Micron mt9m111,
+Pixel plus PO1030
+
+This driver mimics the windows drivers, which have a braindead implementation sending bayer-encoded frames at VGA resolution.
+In a perfect world we should be able to reprogram the m5602 and the connected sensor in hardware instead, supporting a range of resolutions and pixelformats
+
+Anyway, have fun and please report any bugs to m560x-driver-devel@lists.sourceforge.net

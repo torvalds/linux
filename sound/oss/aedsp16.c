@@ -29,14 +29,6 @@
 #include "sound_config.h"
 
 /*
- * Sanity checks
- */
-
-#if defined(CONFIG_SOUND_AEDSP16_SBPRO) && defined(CONFIG_SOUND_AEDSP16_MSS)
-#error You have to enable only one of the MSS and SBPRO emulations.
-#endif
-
-/*
 
    READ THIS
 

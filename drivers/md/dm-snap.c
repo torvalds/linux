@@ -229,19 +229,21 @@ static void __insert_origin(struct origin *o)
  */
 static int register_snapshot(struct dm_snapshot *snap)
 {
-	struct origin *o;
+	struct origin *o, *new_o;
 	struct block_device *bdev = snap->origin->bdev;
+
+	new_o = kmalloc(sizeof(*new_o), GFP_KERNEL);
+	if (!new_o)
+		return -ENOMEM;
 
 	down_write(&_origins_lock);
 	o = __lookup_origin(bdev);
 
-	if (!o) {
+	if (o)
+		kfree(new_o);
+	else {
 		/* New origin */
-		o = kmalloc(sizeof(*o), GFP_KERNEL);
-		if (!o) {
-			up_write(&_origins_lock);
-			return -ENOMEM;
-		}
+		o = new_o;
 
 		/* Initialise the struct */
 		INIT_LIST_HEAD(&o->snapshots);
@@ -368,6 +370,7 @@ static struct dm_snap_pending_exception *alloc_pending_exception(struct dm_snaps
 	struct dm_snap_pending_exception *pe = mempool_alloc(s->pending_pool,
 							     GFP_NOIO);
 
+	atomic_inc(&s->pending_exceptions_count);
 	pe->snap = s;
 
 	return pe;
@@ -375,7 +378,11 @@ static struct dm_snap_pending_exception *alloc_pending_exception(struct dm_snaps
 
 static void free_pending_exception(struct dm_snap_pending_exception *pe)
 {
-	mempool_free(pe, pe->snap->pending_pool);
+	struct dm_snapshot *s = pe->snap;
+
+	mempool_free(pe, s->pending_pool);
+	smp_mb__before_atomic_dec();
+	atomic_dec(&s->pending_exceptions_count);
 }
 
 static void insert_completed_exception(struct dm_snapshot *s,
@@ -600,7 +607,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	s->valid = 1;
 	s->active = 0;
-	s->last_percent = 0;
+	atomic_set(&s->pending_exceptions_count, 0);
 	init_rwsem(&s->lock);
 	spin_lock_init(&s->pe_lock);
 	s->ti = ti;
@@ -727,6 +734,14 @@ static void snapshot_dtr(struct dm_target *ti)
 	/* After this returns there can be no new kcopyd jobs. */
 	unregister_snapshot(s);
 
+	while (atomic_read(&s->pending_exceptions_count))
+		yield();
+	/*
+	 * Ensure instructions in mempool_destroy aren't reordered
+	 * before atomic_read.
+	 */
+	smp_mb();
+
 #ifdef CONFIG_DM_DEBUG
 	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
 		BUG_ON(!hlist_empty(&s->tracked_chunk_hash[i]));
@@ -824,8 +839,10 @@ static struct bio *put_pending_exception(struct dm_snap_pending_exception *pe)
 	 * the bios for the original write to the origin.
 	 */
 	if (primary_pe &&
-	    atomic_dec_and_test(&primary_pe->ref_count))
+	    atomic_dec_and_test(&primary_pe->ref_count)) {
 		origin_bios = bio_list_get(&primary_pe->origin_bios);
+		free_pending_exception(primary_pe);
+	}
 
 	/*
 	 * Free the pe if it's not linked to an origin write or if
@@ -833,12 +850,6 @@ static struct bio *put_pending_exception(struct dm_snap_pending_exception *pe)
 	 */
 	if (!primary_pe || primary_pe != pe)
 		free_pending_exception(pe);
-
-	/*
-	 * Free the primary pe if nothing references it.
-	 */
-	if (primary_pe && !atomic_read(&primary_pe->ref_count))
-		free_pending_exception(primary_pe);
 
 	return origin_bios;
 }

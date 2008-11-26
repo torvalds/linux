@@ -160,6 +160,14 @@ BUILDIO_IOPORT(l, u32)
 #define readw_relaxed			readw
 #define readl_relaxed			readl
 
+#define readb_be			__raw_readb
+#define readw_be			__raw_readw
+#define readl_be			__raw_readl
+
+#define writeb_be			__raw_writeb
+#define writew_be			__raw_writew
+#define writel_be			__raw_writel
+
 #define __BUILD_MEMORY_STRING(bwl, type)				\
 static inline void writes##bwl(volatile void __iomem *addr,		\
 			       const void *data, unsigned int count)	\

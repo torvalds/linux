@@ -89,10 +89,12 @@
 ENTRY(printhex8)
 		mov	r1, #8
 		b	printhex
+ENDPROC(printhex8)
 
 ENTRY(printhex4)
 		mov	r1, #4
 		b	printhex
+ENDPROC(printhex4)
 
 ENTRY(printhex2)
 		mov	r1, #2
@@ -110,6 +112,7 @@ printhex:	adr	r2, hexbuf
 		bne	1b
 		mov	r0, r2
 		b	printascii
+ENDPROC(printhex2)
 
 		.ltorg
 
@@ -127,11 +130,13 @@ ENTRY(printascii)
 		teqne	r1, #0
 		bne	1b
 		mov	pc, lr
+ENDPROC(printascii)
 
 ENTRY(printch)
 		addruart r3
 		mov	r1, r0
 		mov	r0, #0
 		b	1b
+ENDPROC(printch)
 
 hexbuf:		.space 16

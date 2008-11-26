@@ -156,32 +156,32 @@ int m41t81_set_time(unsigned long t)
 	 */
 
 	spin_lock_irqsave(&rtc_lock, flags);
-	tm.tm_sec = BIN2BCD(tm.tm_sec);
+	tm.tm_sec = bin2bcd(tm.tm_sec);
 	m41t81_write(M41T81REG_SC, tm.tm_sec);
 
-	tm.tm_min = BIN2BCD(tm.tm_min);
+	tm.tm_min = bin2bcd(tm.tm_min);
 	m41t81_write(M41T81REG_MN, tm.tm_min);
 
-	tm.tm_hour = BIN2BCD(tm.tm_hour);
+	tm.tm_hour = bin2bcd(tm.tm_hour);
 	tm.tm_hour = (tm.tm_hour & 0x3f) | (m41t81_read(M41T81REG_HR) & 0xc0);
 	m41t81_write(M41T81REG_HR, tm.tm_hour);
 
 	/* tm_wday starts from 0 to 6 */
 	if (tm.tm_wday == 0) tm.tm_wday = 7;
-	tm.tm_wday = BIN2BCD(tm.tm_wday);
+	tm.tm_wday = bin2bcd(tm.tm_wday);
 	m41t81_write(M41T81REG_DY, tm.tm_wday);
 
-	tm.tm_mday = BIN2BCD(tm.tm_mday);
+	tm.tm_mday = bin2bcd(tm.tm_mday);
 	m41t81_write(M41T81REG_DT, tm.tm_mday);
 
 	/* tm_mon starts from 0, *ick* */
 	tm.tm_mon ++;
-	tm.tm_mon = BIN2BCD(tm.tm_mon);
+	tm.tm_mon = bin2bcd(tm.tm_mon);
 	m41t81_write(M41T81REG_MO, tm.tm_mon);
 
 	/* we don't do century, everything is beyond 2000 */
 	tm.tm_year %= 100;
-	tm.tm_year = BIN2BCD(tm.tm_year);
+	tm.tm_year = bin2bcd(tm.tm_year);
 	m41t81_write(M41T81REG_YR, tm.tm_year);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
@@ -209,12 +209,12 @@ unsigned long m41t81_get_time(void)
 	year = m41t81_read(M41T81REG_YR);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	sec = BCD2BIN(sec);
-	min = BCD2BIN(min);
-	hour = BCD2BIN(hour);
-	day = BCD2BIN(day);
-	mon = BCD2BIN(mon);
-	year = BCD2BIN(year);
+	sec = bcd2bin(sec);
+	min = bcd2bin(min);
+	hour = bcd2bin(hour);
+	day = bcd2bin(day);
+	mon = bcd2bin(mon);
+	year = bcd2bin(year);
 
 	year += 2000;
 

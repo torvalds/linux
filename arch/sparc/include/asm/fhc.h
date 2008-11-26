@@ -1,19 +1,10 @@
-/*
- * fhc.h: Structures for central/fhc pseudo driver on Sunfire/Starfire/Wildfire.
+/* fhc.h: FHC and Clock board register definitions.
  *
  * Copyright (C) 1997, 1999 David S. Miller (davem@redhat.com)
  */
 
 #ifndef _SPARC64_FHC_H
 #define _SPARC64_FHC_H
-
-#include <linux/timer.h>
-
-#include <asm/oplib.h>
-#include <asm/prom.h>
-#include <asm/upa.h>
-
-struct linux_fhc;
 
 /* Clock board register offsets. */
 #define CLOCK_CTRL	0x00UL	/* Main control */
@@ -29,21 +20,7 @@ struct linux_fhc;
 #define CLOCK_CTRL_MLED		0x02	/* Mid LED, 1 == on */
 #define CLOCK_CTRL_RLED		0x01	/* RIght LED, 1 == on */
 
-struct linux_central {
-	struct linux_fhc		*child;
-	unsigned long			cfreg;
-	unsigned long			clkregs;
-	unsigned long			clkver;
-	int				slots;
-	struct device_node		*prom_node;
-
-	struct linux_prom_ranges	central_ranges[PROMREG_MAX];
-	int				num_central_ranges;
-};
-
 /* Firehose controller register offsets */
-struct fhc_regs {
-	unsigned long			pregs;	/* FHC internal regs */
 #define FHC_PREGS_ID	0x00UL	/* FHC ID */
 #define  FHC_ID_VERS		0xf0000000 /* Version of this FHC		*/
 #define  FHC_ID_PARTID		0x0ffff000 /* Part ID code (0x0f9f == FHC)	*/
@@ -90,32 +67,14 @@ struct fhc_regs {
 #define  FHC_JTAG_CTRL_MENAB	0x80000000 /* Indicates this is JTAG Master	 */
 #define  FHC_JTAG_CTRL_MNONE	0x40000000 /* Indicates no JTAG Master present	 */
 #define FHC_PREGS_JCMD	0x100UL	/* FHC JTAG Command Register */
-	unsigned long			ireg;	/* FHC IGN reg */
 #define FHC_IREG_IGN	0x00UL	/* This FHC's IGN */
-	unsigned long			ffregs;	/* FHC fanfail regs */
 #define FHC_FFREGS_IMAP	0x00UL	/* FHC Fanfail IMAP */
 #define FHC_FFREGS_ICLR	0x10UL	/* FHC Fanfail ICLR */
-	unsigned long			sregs;	/* FHC system regs */
 #define FHC_SREGS_IMAP	0x00UL	/* FHC System IMAP */
 #define FHC_SREGS_ICLR	0x10UL	/* FHC System ICLR */
-	unsigned long			uregs;	/* FHC uart regs */
 #define FHC_UREGS_IMAP	0x00UL	/* FHC Uart IMAP */
 #define FHC_UREGS_ICLR	0x10UL	/* FHC Uart ICLR */
-	unsigned long			tregs;	/* FHC TOD regs */
 #define FHC_TREGS_IMAP	0x00UL	/* FHC TOD IMAP */
 #define FHC_TREGS_ICLR	0x10UL	/* FHC TOD ICLR */
-};
-
-struct linux_fhc {
-	struct linux_fhc		*next;
-	struct linux_central		*parent;	/* NULL if not central FHC */
-	struct fhc_regs			fhc_regs;
-	int				board;
-	int				jtag_master;
-	struct device_node		*prom_node;
-
-	struct linux_prom_ranges	fhc_ranges[PROMREG_MAX];
-	int				num_fhc_ranges;
-};
 
 #endif /* !(_SPARC64_FHC_H) */

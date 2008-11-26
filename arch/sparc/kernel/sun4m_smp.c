@@ -17,6 +17,7 @@
 #include <linux/swap.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -70,6 +71,8 @@ void __cpuinit smp4m_callin(void)
 
 	local_flush_cache_all();
 	local_flush_tlb_all();
+
+	notify_cpu_starting(cpuid);
 
 	/* Get our local ticker going. */
 	smp_setup_percpu_timer();
@@ -313,6 +316,8 @@ void smp4m_cross_call_irq(void)
 	ccall_info.processors_out[i] = 1;
 }
 
+extern void sun4m_clear_profile_irq(int cpu);
+
 void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
@@ -320,7 +325,7 @@ void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 
 	old_regs = set_irq_regs(regs);
 
-	clear_profile_irq(cpu);
+	sun4m_clear_profile_irq(cpu);
 
 	profile_tick(CPU_PROFILING);
 

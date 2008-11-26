@@ -329,6 +329,10 @@ power[1-*]_average		Average power use
 				Unit: microWatt
 				RO
 
+power[1-*]_average_interval	Power use averaging interval
+				Unit: milliseconds
+				RW
+
 power[1-*]_average_highest	Historical average maximum power use
 				Unit: microWatt
 				RO
@@ -352,6 +356,14 @@ power[1-*]_input_lowest		Historical minimum power use
 power[1-*]_reset_history	Reset input_highest, input_lowest,
 				average_highest and average_lowest.
 				WO
+
+**********
+* Energy *
+**********
+
+energy[1-*]_input		Cumulative energy use
+				Unit: microJoule
+				RO
 
 **********
 * Alarms *

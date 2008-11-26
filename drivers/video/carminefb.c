@@ -535,7 +535,7 @@ static struct fb_ops carminefb_ops = {
 	.fb_setcolreg	= carmine_setcolreg,
 };
 
-static int alloc_carmine_fb(void __iomem *regs, void __iomem *smem_base,
+static int __devinit alloc_carmine_fb(void __iomem *regs, void __iomem *smem_base,
 		int smem_offset, struct device *device, struct fb_info **rinfo)
 {
 	int ret;

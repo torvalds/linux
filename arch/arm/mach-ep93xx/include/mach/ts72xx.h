@@ -70,7 +70,7 @@
 
 
 #ifndef __ASSEMBLY__
-#include <asm/io.h>
+#include <linux/io.h>
 
 static inline int board_is_ts7200(void)
 {

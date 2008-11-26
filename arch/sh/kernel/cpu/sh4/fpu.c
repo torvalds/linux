@@ -36,7 +36,7 @@ extern unsigned long int float32_add(unsigned long int a, unsigned long int b);
 extern unsigned long long float64_sub(unsigned long long a,
 				      unsigned long long b);
 extern unsigned long int float32_sub(unsigned long int a, unsigned long int b);
-
+extern unsigned long int float64_to_float32(unsigned long long a);
 static unsigned int fpu_exception_flags;
 
 /*
@@ -412,6 +412,29 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 			/* FPU error because of denormal (floats) */
 			hx = float32_div(hx, hy);
 			tsk->thread.fpu.hard.fp_regs[n] = hx;
+		} else
+			return 0;
+
+		regs->pc = nextpc;
+		return 1;
+	} else if ((finsn & 0xf0bd) == 0xf0bd) {
+		/* fcnvds - double to single precision convert */
+		struct task_struct *tsk = current;
+		int m;
+		unsigned int hx;
+
+		m = (finsn >> 9) & 0x7;
+		hx = tsk->thread.fpu.hard.fp_regs[m];
+
+		if ((tsk->thread.fpu.hard.fpscr & FPSCR_CAUSE_ERROR)
+			&& ((hx & 0x7fffffff) < 0x00100000)) {
+			/* subnormal double to float conversion */
+			long long llx;
+
+			llx = ((long long)tsk->thread.fpu.hard.fp_regs[m] << 32)
+			    | tsk->thread.fpu.hard.fp_regs[m + 1];
+
+			tsk->thread.fpu.hard.fpul = float64_to_float32(llx);
 		} else
 			return 0;
 

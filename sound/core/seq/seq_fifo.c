@@ -65,9 +65,11 @@ void snd_seq_fifo_delete(struct snd_seq_fifo **fifo)
 {
 	struct snd_seq_fifo *f;
 
-	snd_assert(fifo != NULL, return);
+	if (snd_BUG_ON(!fifo))
+		return;
 	f = *fifo;
-	snd_assert(f != NULL, return);
+	if (snd_BUG_ON(!f))
+		return;
 	*fifo = NULL;
 
 	snd_seq_fifo_clear(f);
@@ -116,7 +118,8 @@ int snd_seq_fifo_event_in(struct snd_seq_fifo *f,
 	unsigned long flags;
 	int err;
 
-	snd_assert(f != NULL, return -EINVAL);
+	if (snd_BUG_ON(!f))
+		return -EINVAL;
 
 	snd_use_lock_use(&f->use_lock);
 	err = snd_seq_event_dup(f->pool, event, &cell, 1, NULL); /* always non-blocking */
@@ -174,7 +177,8 @@ int snd_seq_fifo_cell_out(struct snd_seq_fifo *f,
 	unsigned long flags;
 	wait_queue_t wait;
 
-	snd_assert(f != NULL, return -EINVAL);
+	if (snd_BUG_ON(!f))
+		return -EINVAL;
 
 	*cellp = NULL;
 	init_waitqueue_entry(&wait, current);
@@ -233,7 +237,8 @@ int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 	struct snd_seq_pool *newpool, *oldpool;
 	struct snd_seq_event_cell *cell, *next, *oldhead;
 
-	snd_assert(f != NULL && f->pool != NULL, return -EINVAL);
+	if (snd_BUG_ON(!f || !f->pool))
+		return -EINVAL;
 
 	/* allocate new pool */
 	newpool = snd_seq_pool_new(poolsize);

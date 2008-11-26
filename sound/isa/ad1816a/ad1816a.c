@@ -83,8 +83,10 @@ static struct pnp_card_device_id snd_ad1816a_pnpids[] = {
 	{ .id = "MDK1605", .devs = { { .id = "ADS7180" }, { .id = "ADS7181" } } },
 	/* Shark Predator ISA - added by Ken Arromdee */
 	{ .id = "SMM7180", .devs = { { .id = "ADS7180" }, { .id = "ADS7181" } } },
-	/* Analog Devices AD1816A - Terratec AudioSystem EWS64S */
+	/* Analog Devices AD1816A - Terratec AudioSystem EWS64 S */
 	{ .id = "TER1112", .devs = { { .id = "ADS7180" }, { .id = "ADS7181" } } },
+	/* Analog Devices AD1816A - Terratec AudioSystem EWS64 S */
+	{ .id = "TER1112", .devs = { { .id = "TER1100" }, { .id = "TER1101" } } },
 	/* Analog Devices AD1816A - Terratec Base 64 */
 	{ .id = "TER1411", .devs = { { .id = "ADS7180" }, { .id = "ADS7181" } } },
 	/* end */

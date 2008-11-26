@@ -41,7 +41,7 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 		page = pte_page(pte);
 		if (!page_cache_get_speculative(page))
 			return 0;
-		if (unlikely(pte != *ptep)) {
+		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
 			put_page(page);
 			return 0;
 		}
@@ -92,7 +92,7 @@ static noinline int gup_huge_pte(pte_t *ptep, struct hstate *hstate,
 		*nr -= refs;
 		return 0;
 	}
-	if (unlikely(pte != *ptep)) {
+	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
 		/* Could be optimized better */
 		while (*nr) {
 			put_page(page);
@@ -237,7 +237,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			pgd_t pgd = *pgdp;
 
 			VM_BUG_ON(shift != mmu_psize_defs[get_slice_psize(mm, addr)].shift);
-			pr_debug("  %016lx: normal pgd %p\n", addr, (void *)pgd);
+			pr_debug("  %016lx: normal pgd %p\n", addr,
+				 (void *)pgd_val(pgd));
 			next = pgd_addr_end(addr, end);
 			if (pgd_none(pgd))
 				goto slow;

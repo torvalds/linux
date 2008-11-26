@@ -49,9 +49,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 	/* use default values if we can't get them from firmware */
 	if (get_hp_params_from_firmware(dev, &hpp) ||
 	    !hpp.t0 || (hpp.t0->revision > 1)) {
-		printk(KERN_WARNING
-		       "%s: Could not get hotplug parameters. Use defaults\n",
-		       __func__);
+		warn("Could not get hotplug parameters. Use defaults\n");
 		hpp.t0 = &hpp.type0_data;
 		hpp.t0->revision = 0;
 		hpp.t0->cache_line_size = 8;
@@ -101,18 +99,20 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 	struct pci_dev *dev;
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 	int num, fn;
+	struct controller *ctrl = p_slot->ctrl;
 
 	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (dev) {
-		err("Device %s already exists at %x:%x, cannot hot-add\n",
-				pci_name(dev), p_slot->bus, p_slot->device);
+		ctrl_err(ctrl, "Device %s already exists "
+			 "at %04x:%02x:%02x, cannot hot-add\n", pci_name(dev),
+			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
 		pci_dev_put(dev);
 		return -EINVAL;
 	}
 
 	num = pci_scan_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (num == 0) {
-		err("No new device found\n");
+		ctrl_err(ctrl, "No new device found\n");
 		return -ENODEV;
 	}
 
@@ -121,8 +121,8 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 		if (!dev)
 			continue;
 		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
-			err("Cannot hot-add display device %s\n",
-					pci_name(dev));
+			ctrl_err(ctrl, "Cannot hot-add display device %s\n",
+				 pci_name(dev));
 			pci_dev_put(dev);
 			continue;
 		}
@@ -138,14 +138,15 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 					break;
 			}
 			if (busnr >= end) {
-				err("No free bus for hot-added bridge\n");
+				ctrl_err(ctrl,
+					 "No free bus for hot-added bridge\n");
 				pci_dev_put(dev);
 				continue;
 			}
 			child = pci_add_new_bus(parent, dev, busnr);
 			if (!child) {
-				err("Cannot add new bus for %s\n",
-						pci_name(dev));
+				ctrl_err(ctrl, "Cannot add new bus for %s\n",
+					 pci_name(dev));
 				pci_dev_put(dev);
 				continue;
 			}
@@ -168,8 +169,10 @@ int shpchp_unconfigure_device(struct slot *p_slot)
 	int j;
 	u8 bctl = 0;
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
+	struct controller *ctrl = p_slot->ctrl;
 
-	dbg("%s: bus/dev = %x/%x\n", __func__, p_slot->bus, p_slot->device);
+	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:%02x\n",
+		 __func__, pci_domain_nr(parent), p_slot->bus, p_slot->device);
 
 	for (j=0; j<8 ; j++) {
 		struct pci_dev* temp = pci_get_slot(parent,
@@ -177,16 +180,17 @@ int shpchp_unconfigure_device(struct slot *p_slot)
 		if (!temp)
 			continue;
 		if ((temp->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
-			err("Cannot remove display device %s\n",
-					pci_name(temp));
+			ctrl_err(ctrl, "Cannot remove display device %s\n",
+				 pci_name(temp));
 			pci_dev_put(temp);
 			continue;
 		}
 		if (temp->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
 			pci_read_config_byte(temp, PCI_BRIDGE_CONTROL, &bctl);
 			if (bctl & PCI_BRIDGE_CTL_VGA) {
-				err("Cannot remove display device %s\n",
-						pci_name(temp));
+				ctrl_err(ctrl,
+					 "Cannot remove display device %s\n",
+					 pci_name(temp));
 				pci_dev_put(temp);
 				continue;
 			}

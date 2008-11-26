@@ -40,15 +40,9 @@ static inline void *phys_to_virt(unsigned long address)
 
 /*
  * IO bus memory addresses are 1:1 with the physical address,
- * except on the PCI bus of the Hades.
  */
-#ifdef CONFIG_HADES
-#define virt_to_bus(a) (virt_to_phys(a) + (MACH_IS_HADES ? 0x80000000 : 0))
-#define bus_to_virt(a) (phys_to_virt((a) - (MACH_IS_HADES ? 0x80000000 : 0)))
-#else
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
-#endif
 
 #endif
 #endif

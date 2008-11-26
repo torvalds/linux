@@ -1333,7 +1333,8 @@ struct dvb_frontend * dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 	/* Ensure the output mode remains at the previous default if it's
 	 * not specifically set by the caller.
 	 */
-	if (st->cfg.output_mode != OUTMODE_MPEG2_SERIAL)
+	if ((st->cfg.output_mode != OUTMODE_MPEG2_SERIAL) &&
+	    (st->cfg.output_mode != OUTMODE_MPEG2_PAR_GATED_CLK))
 		st->cfg.output_mode = OUTMODE_MPEG2_FIFO;
 
 	demod                   = &st->demod;

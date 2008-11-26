@@ -2058,10 +2058,10 @@ static int reiserfs_quota_on_mount(struct super_block *sb, int type)
  * Standard function to be called on quota_on
  */
 static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
-			     char *path, int remount)
+			     char *name, int remount)
 {
 	int err;
-	struct nameidata nd;
+	struct path path;
 	struct inode *inode;
 	struct reiserfs_transaction_handle th;
 
@@ -2069,16 +2069,16 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		return -EINVAL;
 	/* No more checks needed? Path and format_id are bogus anyway... */
 	if (remount)
-		return vfs_quota_on(sb, type, format_id, path, 1);
-	err = path_lookup(path, LOOKUP_FOLLOW, &nd);
+		return vfs_quota_on(sb, type, format_id, name, 1);
+	err = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (err)
 		return err;
 	/* Quotafile not on the same filesystem? */
-	if (nd.path.mnt->mnt_sb != sb) {
+	if (path.mnt->mnt_sb != sb) {
 		err = -EXDEV;
 		goto out;
 	}
-	inode = nd.path.dentry->d_inode;
+	inode = path.dentry->d_inode;
 	/* We must not pack tails for quota files on reiserfs for quota IO to work */
 	if (!(REISERFS_I(inode)->i_flags & i_nopack_mask)) {
 		err = reiserfs_unpack(inode, NULL);
@@ -2094,7 +2094,7 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 	/* Journaling quota? */
 	if (REISERFS_SB(sb)->s_qf_names[type]) {
 		/* Quotafile not of fs root? */
-		if (nd.path.dentry->d_parent->d_inode != sb->s_root->d_inode)
+		if (path.dentry->d_parent != sb->s_root)
 			reiserfs_warning(sb,
 				 "reiserfs: Quota file not on filesystem root. "
 				 "Journalled quota will not work.");
@@ -2113,9 +2113,9 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		if (err)
 			goto out;
 	}
-	err = vfs_quota_on_path(sb, type, format_id, &nd.path);
+	err = vfs_quota_on_path(sb, type, format_id, &path);
 out:
-	path_put(&nd.path);
+	path_put(&path);
 	return err;
 }
 

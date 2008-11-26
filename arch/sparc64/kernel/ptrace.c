@@ -443,7 +443,7 @@ static const struct user_regset sparc64_regsets[] = {
 	 */
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
-		.n = 36 * sizeof(u64),
+		.n = 36,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = genregs64_get, .set = genregs64_set
 	},
@@ -455,7 +455,7 @@ static const struct user_regset sparc64_regsets[] = {
 	 */
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG,
-		.n = 35 * sizeof(u64),
+		.n = 35,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.get = fpregs64_get, .set = fpregs64_set
 	},
@@ -801,7 +801,7 @@ static const struct user_regset sparc32_regsets[] = {
 	 */
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
-		.n = 38 * sizeof(u32),
+		.n = 38,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.get = genregs32_get, .set = genregs32_set
 	},
@@ -817,7 +817,7 @@ static const struct user_regset sparc32_regsets[] = {
 	 */
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG,
-		.n = 99 * sizeof(u32),
+		.n = 99,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.get = fpregs32_get, .set = fpregs32_set
 	},
@@ -1050,31 +1050,17 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p)
+asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
 	int ret = 0;
 
 	/* do the secure computing check first */
 	secure_computing(regs->u_regs[UREG_G1]);
 
-	if (unlikely(current->audit_context) && syscall_exit_p) {
-		unsigned long tstate = regs->tstate;
-		int result = AUDITSC_SUCCESS;
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		ret = tracehook_report_syscall_entry(regs);
 
-		if (unlikely(tstate & (TSTATE_XCARRY | TSTATE_ICARRY)))
-			result = AUDITSC_FAILURE;
-
-		audit_syscall_exit(result, regs->u_regs[UREG_I0]);
-	}
-
-	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
-		if (syscall_exit_p)
-			tracehook_report_syscall_exit(regs, 0);
-		else
-			ret = tracehook_report_syscall_entry(regs);
-	}
-
-	if (unlikely(current->audit_context) && !syscall_exit_p && !ret)
+	if (unlikely(current->audit_context) && !ret)
 		audit_syscall_entry((test_thread_flag(TIF_32BIT) ?
 				     AUDIT_ARCH_SPARC :
 				     AUDIT_ARCH_SPARC64),
@@ -1085,4 +1071,20 @@ asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 				    regs->u_regs[UREG_I3]);
 
 	return ret;
+}
+
+asmlinkage void syscall_trace_leave(struct pt_regs *regs)
+{
+	if (unlikely(current->audit_context)) {
+		unsigned long tstate = regs->tstate;
+		int result = AUDITSC_SUCCESS;
+
+		if (unlikely(tstate & (TSTATE_XCARRY | TSTATE_ICARRY)))
+			result = AUDITSC_FAILURE;
+
+		audit_syscall_exit(result, regs->u_regs[UREG_I0]);
+	}
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, 0);
 }

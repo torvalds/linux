@@ -36,6 +36,7 @@
 #include <linux/list.h>
 #include <linux/mempolicy.h>
 #include <linux/mm.h>
+#include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -587,7 +588,6 @@ static int generate_sched_domains(cpumask_t **domains,
 	int ndoms;		/* number of sched domains in result */
 	int nslot;		/* next empty doms[] cpumask_t slot */
 
-	ndoms = 0;
 	doms = NULL;
 	dattr = NULL;
 	csa = NULL;
@@ -674,10 +674,8 @@ restart:
 	 * Convert <csn, csa> to <ndoms, doms> and populate cpu masks.
 	 */
 	doms = kmalloc(ndoms * sizeof(cpumask_t), GFP_KERNEL);
-	if (!doms) {
-		ndoms = 0;
+	if (!doms)
 		goto done;
-	}
 
 	/*
 	 * The rest of the code, including the scheduler, can deal with
@@ -731,6 +729,13 @@ restart:
 
 done:
 	kfree(csa);
+
+	/*
+	 * Fallback to the default domain if kmalloc() failed.
+	 * See comments in partition_sched_domains().
+	 */
+	if (doms == NULL)
+		ndoms = 1;
 
 	*domains    = doms;
 	*attributes = dattr;
@@ -843,37 +848,25 @@ static void cpuset_change_cpumask(struct task_struct *tsk,
 /**
  * update_tasks_cpumask - Update the cpumasks of tasks in the cpuset.
  * @cs: the cpuset in which each task's cpus_allowed mask needs to be changed
+ * @heap: if NULL, defer allocating heap memory to cgroup_scan_tasks()
  *
  * Called with cgroup_mutex held
  *
  * The cgroup_scan_tasks() function will scan all the tasks in a cgroup,
  * calling callback functions for each.
  *
- * Return 0 if successful, -errno if not.
+ * No return value. It's guaranteed that cgroup_scan_tasks() always returns 0
+ * if @heap != NULL.
  */
-static int update_tasks_cpumask(struct cpuset *cs)
+static void update_tasks_cpumask(struct cpuset *cs, struct ptr_heap *heap)
 {
 	struct cgroup_scanner scan;
-	struct ptr_heap heap;
-	int retval;
-
-	/*
-	 * cgroup_scan_tasks() will initialize heap->gt for us.
-	 * heap_init() is still needed here for we should not change
-	 * cs->cpus_allowed when heap_init() fails.
-	 */
-	retval = heap_init(&heap, PAGE_SIZE, GFP_KERNEL, NULL);
-	if (retval)
-		return retval;
 
 	scan.cg = cs->css.cgroup;
 	scan.test_task = cpuset_test_cpumask;
 	scan.process_task = cpuset_change_cpumask;
-	scan.heap = &heap;
-	retval = cgroup_scan_tasks(&scan);
-
-	heap_free(&heap);
-	return retval;
+	scan.heap = heap;
+	cgroup_scan_tasks(&scan);
 }
 
 /**
@@ -883,6 +876,7 @@ static int update_tasks_cpumask(struct cpuset *cs)
  */
 static int update_cpumask(struct cpuset *cs, const char *buf)
 {
+	struct ptr_heap heap;
 	struct cpuset trialcs;
 	int retval;
 	int is_load_balanced;
@@ -917,6 +911,10 @@ static int update_cpumask(struct cpuset *cs, const char *buf)
 	if (cpus_equal(cs->cpus_allowed, trialcs.cpus_allowed))
 		return 0;
 
+	retval = heap_init(&heap, PAGE_SIZE, GFP_KERNEL, NULL);
+	if (retval)
+		return retval;
+
 	is_load_balanced = is_sched_load_balance(&trialcs);
 
 	mutex_lock(&callback_mutex);
@@ -927,9 +925,9 @@ static int update_cpumask(struct cpuset *cs, const char *buf)
 	 * Scan tasks in the cpuset, and update the cpumasks of any
 	 * that need an update.
 	 */
-	retval = update_tasks_cpumask(cs);
-	if (retval < 0)
-		return retval;
+	update_tasks_cpumask(cs, &heap);
+
+	heap_free(&heap);
 
 	if (is_load_balanced)
 		async_rebuild_sched_domains();
@@ -1179,7 +1177,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 {
 	struct cpuset trialcs;
 	int err;
-	int cpus_nonempty, balance_flag_changed;
+	int balance_flag_changed;
 
 	trialcs = *cs;
 	if (turning_on)
@@ -1191,7 +1189,6 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 	if (err < 0)
 		return err;
 
-	cpus_nonempty = !cpus_empty(trialcs.cpus_allowed);
 	balance_flag_changed = (is_sched_load_balance(cs) !=
 		 			is_sched_load_balance(&trialcs));
 
@@ -1199,7 +1196,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 	cs->flags = trialcs.flags;
 	mutex_unlock(&callback_mutex);
 
-	if (cpus_nonempty && balance_flag_changed)
+	if (!cpus_empty(trialcs.cpus_allowed) && balance_flag_changed)
 		async_rebuild_sched_domains();
 
 	return 0;
@@ -1928,7 +1925,7 @@ static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
  * that has tasks along with an empty 'mems'.  But if we did see such
  * a cpuset, we'd handle it just like we do if its 'cpus' was empty.
  */
-static void scan_for_empty_cpusets(const struct cpuset *root)
+static void scan_for_empty_cpusets(struct cpuset *root)
 {
 	LIST_HEAD(queue);
 	struct cpuset *cp;	/* scans cpusets being updated */
@@ -1965,7 +1962,7 @@ static void scan_for_empty_cpusets(const struct cpuset *root)
 		     nodes_empty(cp->mems_allowed))
 			remove_tasks_in_empty_cpuset(cp);
 		else {
-			update_tasks_cpumask(cp);
+			update_tasks_cpumask(cp, NULL);
 			update_tasks_nodemask(cp, &oldmems);
 		}
 	}
@@ -2019,12 +2016,23 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
  * Call this routine anytime after node_states[N_HIGH_MEMORY] changes.
  * See also the previous routine cpuset_track_online_cpus().
  */
-void cpuset_track_online_nodes(void)
+static int cpuset_track_online_nodes(struct notifier_block *self,
+				unsigned long action, void *arg)
 {
 	cgroup_lock();
-	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
-	scan_for_empty_cpusets(&top_cpuset);
+	switch (action) {
+	case MEM_ONLINE:
+		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+		break;
+	case MEM_OFFLINE:
+		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+		scan_for_empty_cpusets(&top_cpuset);
+		break;
+	default:
+		break;
+	}
 	cgroup_unlock();
+	return NOTIFY_OK;
 }
 #endif
 
@@ -2040,6 +2048,7 @@ void __init cpuset_init_smp(void)
 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
 
 	hotcpu_notifier(cpuset_track_online_cpus, 0);
+	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
 }
 
 /**
@@ -2444,19 +2453,15 @@ const struct file_operations proc_cpuset_operations = {
 void cpuset_task_status_allowed(struct seq_file *m, struct task_struct *task)
 {
 	seq_printf(m, "Cpus_allowed:\t");
-	m->count += cpumask_scnprintf(m->buf + m->count, m->size - m->count,
-					task->cpus_allowed);
+	seq_cpumask(m, &task->cpus_allowed);
 	seq_printf(m, "\n");
 	seq_printf(m, "Cpus_allowed_list:\t");
-	m->count += cpulist_scnprintf(m->buf + m->count, m->size - m->count,
-					task->cpus_allowed);
+	seq_cpumask_list(m, &task->cpus_allowed);
 	seq_printf(m, "\n");
 	seq_printf(m, "Mems_allowed:\t");
-	m->count += nodemask_scnprintf(m->buf + m->count, m->size - m->count,
-					task->mems_allowed);
+	seq_nodemask(m, &task->mems_allowed);
 	seq_printf(m, "\n");
 	seq_printf(m, "Mems_allowed_list:\t");
-	m->count += nodelist_scnprintf(m->buf + m->count, m->size - m->count,
-					task->mems_allowed);
+	seq_nodemask_list(m, &task->mems_allowed);
 	seq_printf(m, "\n");
 }

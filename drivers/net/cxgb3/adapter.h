@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2007 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2003-2008 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -54,7 +54,6 @@ struct port_info {
 	struct adapter *adapter;
 	struct vlan_group *vlan_grp;
 	struct sge_qset *qs;
-	const struct port_type_info *port_type;
 	u8 port_id;
 	u8 rx_csum_offload;
 	u8 nqsets;
@@ -124,8 +123,7 @@ struct sge_rspq {		/* state for an SGE response queue */
 	dma_addr_t phys_addr;	/* physical address of the ring */
 	unsigned int cntxt_id;	/* SGE context id for the response q */
 	spinlock_t lock;	/* guards response processing */
-	struct sk_buff *rx_head;	/* offload packet receive queue head */
-	struct sk_buff *rx_tail;	/* offload packet receive queue tail */
+	struct sk_buff_head rx_queue; /* offload packet receive queue */
 	struct sk_buff *pg_skb; /* used to build frag list in napi handler */
 
 	unsigned long offload_pkts;
@@ -241,6 +239,7 @@ struct adapter {
 	unsigned int check_task_cnt;
 	struct delayed_work adap_check_task;
 	struct work_struct ext_intr_handler_task;
+	struct work_struct fatal_error_handler_task;
 
 	struct dentry *debugfs_root;
 
@@ -282,9 +281,11 @@ int t3_offload_tx(struct t3cdev *tdev, struct sk_buff *skb);
 void t3_os_ext_intr_handler(struct adapter *adapter);
 void t3_os_link_changed(struct adapter *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc);
+void t3_os_phymod_changed(struct adapter *adap, int port_id);
 
 void t3_sge_start(struct adapter *adap);
 void t3_sge_stop(struct adapter *adap);
+void t3_stop_sge_timers(struct adapter *adap);
 void t3_free_sge_resources(struct adapter *adap);
 void t3_sge_err_intr_handler(struct adapter *adapter);
 irq_handler_t t3_intr_handler(struct adapter *adap, int polling);

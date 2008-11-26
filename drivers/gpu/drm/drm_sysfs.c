@@ -184,7 +184,7 @@ int drm_sysfs_device_add(struct drm_minor *minor)
 err_out_files:
 	if (i > 0)
 		for (j = 0; j < i; j++)
-			device_remove_file(&minor->kdev, &device_attrs[i]);
+			device_remove_file(&minor->kdev, &device_attrs[j]);
 	device_unregister(&minor->kdev);
 err_out:
 

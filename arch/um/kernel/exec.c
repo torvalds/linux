@@ -15,6 +15,7 @@
 #include "mem_user.h"
 #include "skas.h"
 #include "os.h"
+#include "internal.h"
 
 void flush_thread(void)
 {
@@ -42,23 +43,11 @@ void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 	PT_REGS_SP(regs) = esp;
 }
 
-#ifdef CONFIG_TTY_LOG
-extern void log_exec(char **argv, void *tty);
-#endif
-
 static long execve1(char *file, char __user * __user *argv,
 		    char __user *__user *env)
 {
 	long error;
-#ifdef CONFIG_TTY_LOG
-	struct tty_struct *tty;
 
-	mutex_lock(&tty_mutex);
-	tty = get_current_tty();
-	if (tty)
-		log_exec(argv, tty);
-	mutex_unlock(&tty_mutex);
-#endif
 	error = do_execve(file, argv, env, &current->thread.regs);
 	if (error == 0) {
 		task_lock(current);

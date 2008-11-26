@@ -74,7 +74,8 @@ static const char fmt64[] = KERN_INFO \
  */
 
 static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
-		 int signr, sigset_t *set, unsigned long handler)
+		 int signr, sigset_t *set, unsigned long handler,
+		 int ctx_has_vsx_region)
 {
 	/* When CONFIG_ALTIVEC is set, we _always_ setup v_regs even if the
 	 * process never used altivec yet (MSR_VEC is zero in pt_regs of
@@ -121,7 +122,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	 * then out to userspace.  Update v_regs to point after the
 	 * VMX data.
 	 */
-	if (current->thread.used_vsr) {
+	if (current->thread.used_vsr && ctx_has_vsx_region) {
 		__giveup_vsx(current);
 		v_regs += ELF_NVRREG;
 		err |= copy_vsx_to_user(v_regs, current);
@@ -235,8 +236,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	else
 		for (i = 0; i < 32 ; i++)
 			current->thread.fpr[i][TS_VSRLOWOFFSET] = 0;
-
-#else
 #endif
 	return err;
 }
@@ -284,9 +283,10 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 	unsigned char tmp;
 	sigset_t set;
 	unsigned long new_msr = 0;
+	int ctx_has_vsx_region = 0;
 
 	if (new_ctx &&
-	    __get_user(new_msr, &new_ctx->uc_mcontext.gp_regs[PT_MSR]))
+	    get_user(new_msr, &new_ctx->uc_mcontext.gp_regs[PT_MSR]))
 		return -EFAULT;
 	/*
 	 * Check that the context is not smaller than the original
@@ -301,28 +301,23 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 	if ((ctx_size < sizeof(struct ucontext)) &&
 	    (new_msr & MSR_VSX))
 		return -EINVAL;
-#ifdef CONFIG_VSX
-	/*
-	 * If userspace doesn't provide enough room for VSX data,
-	 * but current thread has used VSX, we don't have anywhere
-	 * to store the full context back into.
-	 */
-	if ((ctx_size < sizeof(struct ucontext)) &&
-	    (current->thread.used_vsr && old_ctx))
-		return -EINVAL;
-#endif
+	/* Does the context have enough room to store VSX data? */
+	if (ctx_size >= sizeof(struct ucontext))
+		ctx_has_vsx_region = 1;
+
 	if (old_ctx != NULL) {
-		if (!access_ok(VERIFY_WRITE, old_ctx, sizeof(*old_ctx))
-		    || setup_sigcontext(&old_ctx->uc_mcontext, regs, 0, NULL, 0)
+		if (!access_ok(VERIFY_WRITE, old_ctx, ctx_size)
+		    || setup_sigcontext(&old_ctx->uc_mcontext, regs, 0, NULL, 0,
+					ctx_has_vsx_region)
 		    || __copy_to_user(&old_ctx->uc_sigmask,
 				      &current->blocked, sizeof(sigset_t)))
 			return -EFAULT;
 	}
 	if (new_ctx == NULL)
 		return 0;
-	if (!access_ok(VERIFY_READ, new_ctx, sizeof(*new_ctx))
+	if (!access_ok(VERIFY_READ, new_ctx, ctx_size)
 	    || __get_user(tmp, (u8 __user *) new_ctx)
-	    || __get_user(tmp, (u8 __user *) (new_ctx + 1) - 1))
+	    || __get_user(tmp, (u8 __user *) new_ctx + ctx_size - 1))
 		return -EFAULT;
 
 	/*
@@ -425,7 +420,7 @@ int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 			  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, signr, NULL,
-				(unsigned long)ka->sa.sa_handler);
+				(unsigned long)ka->sa.sa_handler, 1);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
 		goto badframe;

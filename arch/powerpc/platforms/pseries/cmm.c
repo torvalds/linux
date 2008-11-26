@@ -121,7 +121,7 @@ static long cmm_alloc_pages(long nr)
 			npa = (struct cmm_page_array *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
 								       __GFP_NORETRY | __GFP_NOMEMALLOC);
 			if (!npa) {
-				pr_info("%s: Can not allocate new page list\n", __FUNCTION__);
+				pr_info("%s: Can not allocate new page list\n", __func__);
 				free_page(addr);
 				break;
 			}
@@ -138,7 +138,7 @@ static long cmm_alloc_pages(long nr)
 		}
 
 		if ((rc = plpar_page_set_loaned(__pa(addr)))) {
-			pr_err("%s: Can not set page to loaned. rc=%ld\n", __FUNCTION__, rc);
+			pr_err("%s: Can not set page to loaned. rc=%ld\n", __func__, rc);
 			spin_unlock(&cmm_lock);
 			free_page(addr);
 			break;

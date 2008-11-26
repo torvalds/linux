@@ -2197,7 +2197,6 @@ struct ring_info {
 
 struct tx_ring_info {
 	struct sk_buff			*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
 	u32				prev_vlan_tag;
 };
 
@@ -2557,7 +2556,7 @@ struct tg3 {
 	int				msi_cap;
 	int				pcix_cap;
 
-	struct mii_bus			mdio_bus;
+	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];
 
 	/* PHY info */

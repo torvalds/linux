@@ -736,7 +736,7 @@ static int __devexit n2rng_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id n2rng_match[] = {
+static const struct of_device_id n2rng_match[] = {
 	{
 		.name		= "random-number-generator",
 		.compatible	= "SUNW,n2-rng",

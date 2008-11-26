@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
 #include <video/s1d13xxxfb.h>
-#include <asm/microdev.h>
+#include <mach/microdev.h>
 #include <asm/io.h>
 #include <asm/machvec.h>
 

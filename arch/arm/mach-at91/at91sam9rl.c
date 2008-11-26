@@ -131,8 +131,8 @@ static struct clk tc2_clk = {
 	.pmc_mask	= 1 << AT91SAM9RL_ID_TC2,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
-static struct clk pwmc_clk = {
-	.name		= "pwmc_clk",
+static struct clk pwm_clk = {
+	.name		= "pwm_clk",
 	.pmc_mask	= 1 << AT91SAM9RL_ID_PWMC,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
@@ -180,7 +180,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&tc0_clk,
 	&tc1_clk,
 	&tc2_clk,
-	&pwmc_clk,
+	&pwm_clk,
 	&tsc_clk,
 	&dma_clk,
 	&udphs_clk,

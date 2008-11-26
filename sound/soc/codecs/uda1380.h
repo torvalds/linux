@@ -73,6 +73,7 @@
 #define R23_AGC_EN	0x0001
 
 struct uda1380_setup_data {
+	int            i2c_bus;
 	unsigned short i2c_address;
 	int            dac_clk;
 #define UDA1380_DAC_CLK_SYSCLK 0

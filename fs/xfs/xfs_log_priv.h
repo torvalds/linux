@@ -448,7 +448,6 @@ typedef struct log {
 	int			l_grant_write_bytes;
 
 #ifdef XFS_LOG_TRACE
-	struct ktrace		*l_trace;
 	struct ktrace		*l_grant_trace;
 #endif
 

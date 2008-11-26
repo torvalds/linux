@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mbus.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "common.h"
 
 /*

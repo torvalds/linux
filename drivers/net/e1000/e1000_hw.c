@@ -144,6 +144,8 @@ static s32 e1000_host_if_read_cookie(struct e1000_hw *hw, u8 *buffer);
 static u8 e1000_calculate_mng_checksum(char *buffer, u32 length);
 static s32 e1000_configure_kmrn_for_10_100(struct e1000_hw *hw, u16 duplex);
 static s32 e1000_configure_kmrn_for_1000(struct e1000_hw *hw);
+static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
+static s32 e1000_do_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
 
 /* IGP cable length table */
 static const
@@ -167,6 +169,8 @@ u16 e1000_igp_2_cable_length_table[IGP02E1000_AGC_LENGTH_TABLE_SIZE] =
       60, 66, 72, 77, 82, 87, 92, 96, 100, 104, 108, 111, 114, 117, 119, 121,
       83, 89, 95, 100, 105, 109, 113, 116, 119, 122, 124,
       104, 109, 114, 118, 121, 124};
+
+static DEFINE_SPINLOCK(e1000_eeprom_lock);
 
 /******************************************************************************
  * Set the phy type member in the hw struct.
@@ -4904,6 +4908,15 @@ static s32 e1000_spi_eeprom_ready(struct e1000_hw *hw)
  *****************************************************************************/
 s32 e1000_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
+    s32 ret;
+    spin_lock(&e1000_eeprom_lock);
+    ret = e1000_do_read_eeprom(hw, offset, words, data);
+    spin_unlock(&e1000_eeprom_lock);
+    return ret;
+}
+
+static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
+{
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u32 i = 0;
 
@@ -5235,6 +5248,16 @@ s32 e1000_update_eeprom_checksum(struct e1000_hw *hw)
  * EEPROM will most likely contain an invalid checksum.
  *****************************************************************************/
 s32 e1000_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
+{
+    s32 ret;
+    spin_lock(&e1000_eeprom_lock);
+    ret = e1000_do_write_eeprom(hw, offset, words, data);
+    spin_unlock(&e1000_eeprom_lock);
+    return ret;
+}
+
+
+static s32 e1000_do_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     s32 status = 0;

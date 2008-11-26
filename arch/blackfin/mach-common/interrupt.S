@@ -143,7 +143,7 @@ ENTRY(_evt_ivhw)
 	fp = 0;
 #endif
 
-#if ANOMALY_05000283
+#if ANOMALY_05000283 || ANOMALY_05000315
 	cc = r7 == r7;
 	p5.h = HI(CHIPID);
 	p5.l = LO(CHIPID);
@@ -179,7 +179,16 @@ ENTRY(_evt_ivhw)
 	call _trap_c;
 	SP += 12;
 
+#ifdef EBIU_ERRMST
+	/* make sure EBIU_ERRMST is clear */
+	p0.l = LO(EBIU_ERRMST);
+	p0.h = HI(EBIU_ERRMST);
+	r0.l = (CORE_ERROR | CORE_MERROR);
+	w[p0] = r0.l;
+#endif
+
 	call _ret_from_exception;
+
 .Lcommon_restore_all_sys:
 	RESTORE_ALL_SYS
 	rti;

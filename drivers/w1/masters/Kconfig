@@ -52,5 +52,12 @@ config W1_MASTER_GPIO
 	  This support is also available as a module.  If so, the module
 	  will be called w1-gpio.ko.
 
+config HDQ_MASTER_OMAP
+	tristate "OMAP HDQ driver"
+	depends on ARCH_OMAP2430 || ARCH_OMAP34XX
+	help
+	  Say Y here if you want support for the 1-wire or HDQ Interface
+	  on an OMAP processor.
+
 endmenu
 

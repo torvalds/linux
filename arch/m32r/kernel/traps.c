@@ -61,7 +61,7 @@ extern unsigned long	eit_vector[];
 	((unsigned long)func - (unsigned long)eit_vector - entry*4)/4 \
 	+ 0xff000000UL
 
-void	set_eit_vector_entries(void)
+static void set_eit_vector_entries(void)
 {
 	extern void default_eit_handler(void);
 	extern void system_call(void);
@@ -121,9 +121,9 @@ void __init trap_init(void)
 	cpu_init();
 }
 
-int kstack_depth_to_print = 24;
+static int kstack_depth_to_print = 24;
 
-void show_trace(struct task_struct *task, unsigned long *stack)
+static void show_trace(struct task_struct *task, unsigned long *stack)
 {
 	unsigned long addr;
 
@@ -224,7 +224,7 @@ bad:
 	printk("\n");
 }
 
-DEFINE_SPINLOCK(die_lock);
+static DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {

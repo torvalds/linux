@@ -193,7 +193,7 @@ static int __init xusbatm_init(void)
 	    num_vendor != num_product ||
 	    num_vendor != num_rx_endpoint ||
 	    num_vendor != num_tx_endpoint) {
-		warn("malformed module parameters");
+		printk(KERN_WARNING "xusbatm: malformed module parameters\n");
 		return -EINVAL;
 	}
 

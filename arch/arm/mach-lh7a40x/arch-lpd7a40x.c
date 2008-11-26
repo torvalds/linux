@@ -214,11 +214,11 @@ static void lpd7a40x_cpld_handler (unsigned int irq, struct irq_desc *desc)
 	desc->chip->ack (irq);
 
 	if ((mask & (1<<0)) == 0)	/* WLAN */
-		IRQ_DISPATCH (IRQ_LPD7A40X_ETH_INT);
+		generic_handle_irq(IRQ_LPD7A40X_ETH_INT);
 
 #if defined (IRQ_TOUCH)
 	if ((mask & (1<<1)) == 0)	/* Touch */
-		IRQ_DISPATCH (IRQ_TOUCH);
+		generic_handle_irq(IRQ_TOUCH);
 #endif
 
 	desc->chip->unmask (irq); /* Level-triggered need this */

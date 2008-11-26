@@ -50,7 +50,7 @@ static int emi26_writememory (struct usb_device *dev, int address,
 	unsigned char *buffer =  kmemdup(data, length, GFP_KERNEL);
 
 	if (!buffer) {
-		err("emi26: kmalloc(%d) failed.", length);
+		dev_err(&dev->dev, "kmalloc(%d) failed.\n", length);
 		return -ENOMEM;
 	}
 	/* Note: usb_control_msg returns negative value on error or length of the
@@ -64,11 +64,11 @@ static int emi26_writememory (struct usb_device *dev, int address,
 static int emi26_set_reset (struct usb_device *dev, unsigned char reset_bit)
 {
 	int response;
-	info("%s - %d", __func__, reset_bit);
+	dev_info(&dev->dev, "%s - %d\n", __func__, reset_bit);
 	/* printk(KERN_DEBUG "%s - %d", __func__, reset_bit); */
 	response = emi26_writememory (dev, CPUCS_REG, &reset_bit, 1, 0xa0);
 	if (response < 0) {
-		err("emi26: set_reset (%d) failed", reset_bit);
+		dev_err(&dev->dev, "set_reset (%d) failed\n", reset_bit);
 	}
 	return response;
 }
@@ -88,7 +88,8 @@ static int emi26_load_firmware (struct usb_device *dev)
 
 	buf = kmalloc(FW_LOAD_SIZE, GFP_KERNEL);
 	if (!buf) {
-		err( "%s - error loading firmware: error = %d", __func__, -ENOMEM);
+		dev_err(&dev->dev, "%s - error loading firmware: error = %d\n",
+			__func__, -ENOMEM);
 		err = -ENOMEM;
 		goto wraperr;
 	}
@@ -106,14 +107,16 @@ static int emi26_load_firmware (struct usb_device *dev)
 				    &dev->dev);
 	if (err) {
 	nofw:
-		err( "%s - request_firmware() failed", __func__);
+		dev_err(&dev->dev, "%s - request_firmware() failed\n",
+			__func__);
 		goto wraperr;
 	}
 
 	/* Assert reset (stop the CPU in the EMI) */
 	err = emi26_set_reset(dev,1);
 	if (err < 0) {
-		err( "%s - error loading firmware: error = %d", __func__, err);
+		dev_err(&dev->dev,"%s - error loading firmware: error = %d\n",
+			__func__, err);
 		goto wraperr;
 	}
 
@@ -254,7 +257,7 @@ static int emi26_probe(struct usb_interface *intf, const struct usb_device_id *i
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 
-	info("%s start", __func__);
+	dev_info(&intf->dev, "%s start\n", __func__);
 
 	emi26_load_firmware(dev);
 

@@ -247,6 +247,9 @@ static void s3c24xx_spi_initialsetup(struct s3c24xx_spi *hw)
 	writeb(0xff, hw->regs + S3C2410_SPPRE);
 	writeb(SPPIN_DEFAULT, hw->regs + S3C2410_SPPIN);
 	writeb(SPCON_DEFAULT, hw->regs + S3C2410_SPCON);
+
+	if (hw->pdata && hw->pdata->gpio_setup)
+		hw->pdata->gpio_setup(hw->pdata, 1);
 }
 
 static int __init s3c24xx_spi_probe(struct platform_device *pdev)
@@ -412,6 +415,9 @@ static int s3c24xx_spi_suspend(struct platform_device *pdev, pm_message_t msg)
 {
 	struct s3c24xx_spi *hw = platform_get_drvdata(pdev);
 
+	if (hw->pdata && hw->pdata->gpio_setup)
+		hw->pdata->gpio_setup(hw->pdata, 0);
+
 	clk_disable(hw->clk);
 	return 0;
 }
@@ -430,7 +436,7 @@ static int s3c24xx_spi_resume(struct platform_device *pdev)
 #endif
 
 MODULE_ALIAS("platform:s3c2410-spi");
-static struct platform_driver s3c24xx_spidrv = {
+static struct platform_driver s3c24xx_spi_driver = {
 	.remove		= __exit_p(s3c24xx_spi_remove),
 	.suspend	= s3c24xx_spi_suspend,
 	.resume		= s3c24xx_spi_resume,
@@ -442,12 +448,12 @@ static struct platform_driver s3c24xx_spidrv = {
 
 static int __init s3c24xx_spi_init(void)
 {
-        return platform_driver_probe(&s3c24xx_spidrv, s3c24xx_spi_probe);
+        return platform_driver_probe(&s3c24xx_spi_driver, s3c24xx_spi_probe);
 }
 
 static void __exit s3c24xx_spi_exit(void)
 {
-        platform_driver_unregister(&s3c24xx_spidrv);
+        platform_driver_unregister(&s3c24xx_spi_driver);
 }
 
 module_init(s3c24xx_spi_init);

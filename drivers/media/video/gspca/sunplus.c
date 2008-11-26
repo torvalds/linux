@@ -961,7 +961,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
@@ -1042,6 +1042,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	sp5xx_initContBrigHueRegisters(gspca_dev);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

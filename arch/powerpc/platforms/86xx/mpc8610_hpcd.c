@@ -238,7 +238,6 @@ static void __init mpc86xx_hpcd_setup_arch(void)
         }
 #endif
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-	preallocate_diu_videomemory();
 	diu_ops.get_pixel_format	= mpc8610hpcd_get_pixel_format;
 	diu_ops.set_gamma_table		= mpc8610hpcd_set_gamma_table;
 	diu_ops.set_monitor_port	= mpc8610hpcd_set_monitor_port;

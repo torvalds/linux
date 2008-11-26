@@ -54,7 +54,7 @@ struct driver_private {
  */
 struct class_private {
 	struct kset class_subsys;
-	struct list_head class_devices;
+	struct klist class_devices;
 	struct list_head class_interfaces;
 	struct kset class_dirs;
 	struct mutex class_mutex;

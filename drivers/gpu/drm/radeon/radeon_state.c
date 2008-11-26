@@ -2997,7 +2997,7 @@ static int radeon_cp_getparam(struct drm_device *dev, void *data, struct drm_fil
 		value = GET_SCRATCH(2);
 		break;
 	case RADEON_PARAM_IRQ_NR:
-		value = dev->irq;
+		value = drm_dev_to_irq(dev);
 		break;
 	case RADEON_PARAM_GART_BASE:
 		value = dev_priv->gart_vm_start;

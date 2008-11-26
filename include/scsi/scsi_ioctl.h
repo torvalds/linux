@@ -42,7 +42,7 @@ typedef struct scsi_fctargaddress {
 
 extern int scsi_ioctl(struct scsi_device *, int, void __user *);
 extern int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
-				   void __user *arg, struct file *filp);
+				   void __user *arg, int ndelay);
 
 #endif /* __KERNEL__ */
 #endif /* _SCSI_IOCTL_H */

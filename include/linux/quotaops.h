@@ -3,9 +3,6 @@
  * macros expand to the right source-code.
  *
  * Author:  Marco van Wieringen <mvw@planets.elm.net>
- *
- * Version: $Id: quotaops.h,v 1.2 1998/01/15 16:22:26 ecd Exp $
- *
  */
 #ifndef _LINUX_QUOTAOPS_
 #define _LINUX_QUOTAOPS_

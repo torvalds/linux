@@ -508,7 +508,7 @@ static int __devinit gnttab_init(void)
 	unsigned int max_nr_glist_frames, nr_glist_frames;
 	unsigned int nr_init_grefs;
 
-	if (!is_running_on_xen())
+	if (!xen_domain())
 		return -ENODEV;
 
 	nr_grant_frames = 1;

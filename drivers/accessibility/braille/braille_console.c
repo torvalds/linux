@@ -376,6 +376,8 @@ int braille_register_console(struct console *console, int index,
 	console->flags |= CON_ENABLED;
 	console->index = index;
 	braille_co = console;
+	register_keyboard_notifier(&keyboard_notifier_block);
+	register_vt_notifier(&vt_notifier_block);
 	return 0;
 }
 
@@ -383,15 +385,8 @@ int braille_unregister_console(struct console *console)
 {
 	if (braille_co != console)
 		return -EINVAL;
+	unregister_keyboard_notifier(&keyboard_notifier_block);
+	unregister_vt_notifier(&vt_notifier_block);
 	braille_co = NULL;
 	return 0;
 }
-
-static int __init braille_init(void)
-{
-	register_keyboard_notifier(&keyboard_notifier_block);
-	register_vt_notifier(&vt_notifier_block);
-	return 0;
-}
-
-console_initcall(braille_init);

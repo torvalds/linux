@@ -614,11 +614,16 @@ char *ia64_pci_get_legacy_mem(struct pci_bus *bus)
  * vector to get the base address.
  */
 int
-pci_mmap_legacy_page_range(struct pci_bus *bus, struct vm_area_struct *vma)
+pci_mmap_legacy_page_range(struct pci_bus *bus, struct vm_area_struct *vma,
+			   enum pci_mmap_state mmap_state)
 {
 	unsigned long size = vma->vm_end - vma->vm_start;
 	pgprot_t prot;
 	char *addr;
+
+	/* We only support mmap'ing of legacy memory space */
+	if (mmap_state != pci_mmap_mem)
+		return -ENOSYS;
 
 	/*
 	 * Avoid attribute aliasing.  See Documentation/ia64/aliasing.txt

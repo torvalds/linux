@@ -417,6 +417,8 @@ static int qdisc_dump_stab(struct sk_buff *skb, struct qdisc_size_table *stab)
 	struct nlattr *nest;
 
 	nest = nla_nest_start(skb, TCA_STAB);
+	if (nest == NULL)
+		goto nla_put_failure;
 	NLA_PUT(skb, TCA_STAB_BASE, sizeof(stab->szopts), &stab->szopts);
 	nla_nest_end(skb, nest);
 
@@ -764,7 +766,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	struct qdisc_size_table *stab;
 
 	ops = qdisc_lookup_ops(kind);
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	if (ops == NULL && kind != NULL) {
 		char name[IFNAMSIZ];
 		if (nla_strlcpy(name, kind, IFNAMSIZ) < IFNAMSIZ) {

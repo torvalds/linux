@@ -122,6 +122,7 @@ int gru_get_cb_exception_detail(void *cb,
 	struct gru_control_block_extended *cbe;
 
 	cbe = get_cbe(GRUBASE(cb), get_cb_number(cb));
+	prefetchw(cbe);         /* Harmless on hardware, required for emulator */
 	excdet->opc = cbe->opccpy;
 	excdet->exopc = cbe->exopccpy;
 	excdet->ecause = cbe->ecause;
@@ -466,7 +467,7 @@ int gru_send_message_gpa(unsigned long mq, void *mesg, unsigned int bytes)
 	STAT(mesq_send);
 	BUG_ON(bytes < sizeof(int) || bytes > 2 * GRU_CACHE_LINE_BYTES);
 
-	clines = (bytes + GRU_CACHE_LINE_BYTES - 1) / GRU_CACHE_LINE_BYTES;
+	clines = DIV_ROUND_UP(bytes, GRU_CACHE_LINE_BYTES);
 	if (gru_get_cpu_resources(bytes, &cb, &dsr))
 		return MQE_BUG_NO_RESOURCES;
 	memcpy(dsr, mesg, bytes);

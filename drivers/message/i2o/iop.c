@@ -1004,7 +1004,7 @@ static int i2o_hrt_get(struct i2o_controller *c)
 
 		size = hrt->num_entries * hrt->entry_len << 2;
 		if (size > c->hrt.len) {
-			if (i2o_dma_realloc(dev, &c->hrt, size, GFP_KERNEL))
+			if (i2o_dma_realloc(dev, &c->hrt, size))
 				return -ENOMEM;
 			else
 				hrt = c->hrt.virt;

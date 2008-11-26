@@ -225,7 +225,7 @@ do {									\
 
 #define __get_user_asm_byte(x,addr,err)				\
 	__asm__ __volatile__(					\
-	"1:	ldrbt	%1,[%2],#0\n"				\
+	"1:	ldrbt	%1,[%2]\n"				\
 	"2:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
@@ -261,7 +261,7 @@ do {									\
 
 #define __get_user_asm_word(x,addr,err)				\
 	__asm__ __volatile__(					\
-	"1:	ldrt	%1,[%2],#0\n"				\
+	"1:	ldrt	%1,[%2]\n"				\
 	"2:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
@@ -306,7 +306,7 @@ do {									\
 
 #define __put_user_asm_byte(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strbt	%1,[%2],#0\n"				\
+	"1:	strbt	%1,[%2]\n"				\
 	"2:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
@@ -339,7 +339,7 @@ do {									\
 
 #define __put_user_asm_word(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strt	%1,[%2],#0\n"				\
+	"1:	strt	%1,[%2]\n"				\
 	"2:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
@@ -365,7 +365,7 @@ do {									\
 #define __put_user_asm_dword(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
 	"1:	strt	" __reg_oper1 ", [%1], #4\n"		\
-	"2:	strt	" __reg_oper0 ", [%1], #0\n"		\
+	"2:	strt	" __reg_oper0 ", [%1]\n"		\
 	"3:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\

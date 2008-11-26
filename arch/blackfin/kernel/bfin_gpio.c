@@ -218,7 +218,7 @@ inline int check_gpio(unsigned gpio)
 	if (gpio == GPIO_PB15 || gpio == GPIO_PC14 || gpio == GPIO_PC15
 	    || gpio == GPIO_PH14 || gpio == GPIO_PH15
 	    || gpio == GPIO_PJ14 || gpio == GPIO_PJ15
-	    || gpio > MAX_BLACKFIN_GPIOS)
+	    || gpio >= MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
 	return 0;
 }
@@ -231,14 +231,14 @@ inline int check_gpio(unsigned gpio)
 }
 #endif
 
-void gpio_error(unsigned gpio)
+static void gpio_error(unsigned gpio)
 {
 	printk(KERN_ERR "bfin-gpio: GPIO %d wasn't requested!\n", gpio);
 }
 
 static void set_label(unsigned short ident, const char *label)
 {
-	if (label && str_ident) {
+	if (label) {
 		strncpy(str_ident[ident].name, label,
 			 RESOURCE_LABEL_SIZE);
 		str_ident[ident].name[RESOURCE_LABEL_SIZE - 1] = 0;
@@ -247,9 +247,6 @@ static void set_label(unsigned short ident, const char *label)
 
 static char *get_label(unsigned short ident)
 {
-	if (!str_ident)
-		return "UNKNOWN";
-
 	return (*str_ident[ident].name ? str_ident[ident].name : "UNKNOWN");
 }
 
@@ -260,7 +257,7 @@ static int cmp_label(unsigned short ident, const char *label)
 		printk(KERN_ERR "Please provide none-null label\n");
 	}
 
-	if (label && str_ident)
+	if (label)
 		return strncmp(str_ident[ident].name,
 				 label, strlen(label));
 	else

@@ -87,6 +87,8 @@ ENTRY(__copy_from_user)
 
 #include "copy_template.S"
 
+ENDPROC(__copy_from_user)
+
 	.section .fixup,"ax"
 	.align 0
 	copy_abort_preamble

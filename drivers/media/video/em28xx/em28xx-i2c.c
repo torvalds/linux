@@ -143,10 +143,11 @@ static int em2800_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
 	}
 	for (write_timeout = EM2800_I2C_WRITE_TIMEOUT; write_timeout > 0;
 	     write_timeout -= 5) {
-		unsigned msg = dev->em28xx_read_reg(dev, 0x5);
-		if (msg == 0x94)
+		unsigned reg = dev->em28xx_read_reg(dev, 0x5);
+
+		if (reg == 0x94)
 			return -ENODEV;
-		else if (msg == 0x84)
+		else if (reg == 0x84)
 			return 0;
 		msleep(5);
 	}
@@ -335,8 +336,11 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 
 	/* Check if board has eeprom */
 	err = i2c_master_recv(&dev->i2c_client, &buf, 0);
-	if (err < 0)
-		return -1;
+	if (err < 0) {
+		em28xx_errdev("%s: i2c_master_recv failed! err [%d]\n",
+			__func__, err);
+		return err;
+	}
 
 	buf = 0;
 
@@ -344,7 +348,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 	if (err != 1) {
 		printk(KERN_INFO "%s: Huh, no eeprom present (err=%d)?\n",
 		       dev->name, err);
-		return -1;
+		return err;
 	}
 	while (size > 0) {
 		if (size > 16)
@@ -357,7 +361,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 			printk(KERN_WARNING
 			       "%s: i2c eeprom read error (err=%d)\n",
 			       dev->name, err);
-			return -1;
+			return err;
 		}
 		size -= block;
 		p += block;
@@ -585,18 +589,31 @@ void em28xx_i2c_call_clients(struct em28xx *dev, unsigned int cmd, void *arg)
  */
 int em28xx_i2c_register(struct em28xx *dev)
 {
+	int retval;
+
 	BUG_ON(!dev->em28xx_write_regs || !dev->em28xx_read_reg);
 	BUG_ON(!dev->em28xx_write_regs_req || !dev->em28xx_read_reg_req);
 	dev->i2c_adap = em28xx_adap_template;
 	dev->i2c_adap.dev.parent = &dev->udev->dev;
 	strcpy(dev->i2c_adap.name, dev->name);
 	dev->i2c_adap.algo_data = dev;
-	i2c_add_adapter(&dev->i2c_adap);
+
+	retval = i2c_add_adapter(&dev->i2c_adap);
+	if (retval < 0) {
+		em28xx_errdev("%s: i2c_add_adapter failed! retval [%d]\n",
+			__func__, retval);
+		return retval;
+	}
 
 	dev->i2c_client = em28xx_client_template;
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
-	em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
+	retval = em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
+	if (retval < 0) {
+		em28xx_errdev("%s: em28xx_i2_eeprom failed! retval [%d]\n",
+			__func__, retval);
+		return retval;
+	}
 
 	if (i2c_scan)
 		em28xx_do_i2c_scan(dev);

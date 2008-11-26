@@ -69,9 +69,12 @@ static u32 htcp_cwnd_undo(struct sock *sk)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
 
-	ca->last_cong = ca->undo_last_cong;
-	ca->maxRTT = ca->undo_maxRTT;
-	ca->old_maxB = ca->undo_old_maxB;
+	if (ca->undo_last_cong) {
+		ca->last_cong = ca->undo_last_cong;
+		ca->maxRTT = ca->undo_maxRTT;
+		ca->old_maxB = ca->undo_old_maxB;
+		ca->undo_last_cong = 0;
+	}
 
 	return max(tp->snd_cwnd, (tp->snd_ssthresh << 7) / ca->beta);
 }
@@ -268,7 +271,10 @@ static void htcp_state(struct sock *sk, u8 new_state)
 	case TCP_CA_Open:
 		{
 			struct htcp *ca = inet_csk_ca(sk);
-			ca->last_cong = jiffies;
+			if (ca->undo_last_cong) {
+				ca->last_cong = jiffies;
+				ca->undo_last_cong = 0;
+			}
 		}
 		break;
 	case TCP_CA_CWR:

@@ -236,8 +236,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
 		if (remcom_in_buffer[0] == 's')
-			if (kgdb_contthread)
-				atomic_set(&kgdb_cpu_doing_single_step, cpu);
+			atomic_set(&kgdb_cpu_doing_single_step, cpu);
 
 		return 0;
 	}

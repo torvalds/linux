@@ -3,6 +3,8 @@ config PPC_MPC512x
 	select FSL_SOC
 	select IPIC
 	select PPC_CLOCK
+	select PPC_PCI_CHOICE
+	select FSL_PCI if PCI
 
 config PPC_MPC5121
 	bool

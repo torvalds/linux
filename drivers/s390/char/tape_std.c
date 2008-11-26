@@ -47,7 +47,7 @@ tape_std_assign_timeout(unsigned long data)
 	rc = tape_cancel_io(device, request);
 	if(rc)
 		PRINT_ERR("(%s): Assign timeout: Cancel failed with rc = %i\n",
-			device->cdev->dev.bus_id, rc);
+			dev_name(&device->cdev->dev), rc);
 
 }
 
@@ -83,7 +83,7 @@ tape_std_assign(struct tape_device *device)
 
 	if (rc != 0) {
 		PRINT_WARN("%s: assign failed - device might be busy\n",
-			device->cdev->dev.bus_id);
+			dev_name(&device->cdev->dev));
 		DBF_EVENT(3, "%08x: assign failed - device might be busy\n",
 			device->cdev_id);
 	} else {
@@ -106,7 +106,7 @@ tape_std_unassign (struct tape_device *device)
 		DBF_EVENT(3, "(%08x): Can't unassign device\n",
 			device->cdev_id);
 		PRINT_WARN("(%s): Can't unassign device - device gone\n",
-			device->cdev->dev.bus_id);
+			dev_name(&device->cdev->dev));
 		return -EIO;
 	}
 
@@ -120,7 +120,8 @@ tape_std_unassign (struct tape_device *device)
 
 	if ((rc = tape_do_io(device, request)) != 0) {
 		DBF_EVENT(3, "%08x: Unassign failed\n", device->cdev_id);
-		PRINT_WARN("%s: Unassign failed\n", device->cdev->dev.bus_id);
+		PRINT_WARN("%s: Unassign failed\n",
+			   dev_name(&device->cdev->dev));
 	} else {
 		DBF_EVENT(3, "%08x: Tape unassigned\n", device->cdev_id);
 	}
@@ -634,10 +635,10 @@ tape_std_mtcompression(struct tape_device *device, int mt_count)
 		DBF_EXCEPTION(6, "xcom parm\n");
 		if (*device->modeset_byte & 0x08)
 			PRINT_INFO("(%s) Compression is currently on\n",
-				   device->cdev->dev.bus_id);
+				   dev_name(&device->cdev->dev));
 		else
 			PRINT_INFO("(%s) Compression is currently off\n",
-				   device->cdev->dev.bus_id);
+				   dev_name(&device->cdev->dev));
 		PRINT_INFO("Use 1 to switch compression on, 0 to "
 			   "switch it off\n");
 		return -EINVAL;

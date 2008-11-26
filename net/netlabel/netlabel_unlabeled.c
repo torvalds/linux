@@ -10,7 +10,7 @@
  */
 
 /*
- * (c) Copyright Hewlett-Packard Development Company, L.P., 2006 - 2007
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006 - 2008
  *
  * This program is free software;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@
 #include <asm/atomic.h>
 
 #include "netlabel_user.h"
+#include "netlabel_addrlist.h"
 #include "netlabel_domainhash.h"
 #include "netlabel_unlabeled.h"
 #include "netlabel_mgmt.h"
@@ -76,22 +77,20 @@ struct netlbl_unlhsh_tbl {
 	struct list_head *tbl;
 	u32 size;
 };
+#define netlbl_unlhsh_addr4_entry(iter) \
+	container_of(iter, struct netlbl_unlhsh_addr4, list)
 struct netlbl_unlhsh_addr4 {
-	__be32 addr;
-	__be32 mask;
 	u32 secid;
 
-	u32 valid;
-	struct list_head list;
+	struct netlbl_af4list list;
 	struct rcu_head rcu;
 };
+#define netlbl_unlhsh_addr6_entry(iter) \
+	container_of(iter, struct netlbl_unlhsh_addr6, list)
 struct netlbl_unlhsh_addr6 {
-	struct in6_addr addr;
-	struct in6_addr mask;
 	u32 secid;
 
-	u32 valid;
-	struct list_head list;
+	struct netlbl_af6list list;
 	struct rcu_head rcu;
 };
 struct netlbl_unlhsh_iface {
@@ -145,76 +144,6 @@ static const struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1
 				   .len = IFNAMSIZ - 1 },
 	[NLBL_UNLABEL_A_SECCTX] = { .type = NLA_BINARY }
 };
-
-/*
- * Audit Helper Functions
- */
-
-/**
- * netlbl_unlabel_audit_addr4 - Audit an IPv4 address
- * @audit_buf: audit buffer
- * @dev: network interface
- * @addr: IP address
- * @mask: IP address mask
- *
- * Description:
- * Write the IPv4 address and address mask, if necessary, to @audit_buf.
- *
- */
-static void netlbl_unlabel_audit_addr4(struct audit_buffer *audit_buf,
-				     const char *dev,
-				     __be32 addr, __be32 mask)
-{
-	u32 mask_val = ntohl(mask);
-
-	if (dev != NULL)
-		audit_log_format(audit_buf, " netif=%s", dev);
-	audit_log_format(audit_buf, " src=" NIPQUAD_FMT, NIPQUAD(addr));
-	if (mask_val != 0xffffffff) {
-		u32 mask_len = 0;
-		while (mask_val > 0) {
-			mask_val <<= 1;
-			mask_len++;
-		}
-		audit_log_format(audit_buf, " src_prefixlen=%d", mask_len);
-	}
-}
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-/**
- * netlbl_unlabel_audit_addr6 - Audit an IPv6 address
- * @audit_buf: audit buffer
- * @dev: network interface
- * @addr: IP address
- * @mask: IP address mask
- *
- * Description:
- * Write the IPv6 address and address mask, if necessary, to @audit_buf.
- *
- */
-static void netlbl_unlabel_audit_addr6(struct audit_buffer *audit_buf,
-				     const char *dev,
-				     const struct in6_addr *addr,
-				     const struct in6_addr *mask)
-{
-	if (dev != NULL)
-		audit_log_format(audit_buf, " netif=%s", dev);
-	audit_log_format(audit_buf, " src=" NIP6_FMT, NIP6(*addr));
-	if (ntohl(mask->s6_addr32[3]) != 0xffffffff) {
-		u32 mask_len = 0;
-		u32 mask_val;
-		int iter = -1;
-		while (ntohl(mask->s6_addr32[++iter]) == 0xffffffff)
-			mask_len += 32;
-		mask_val = ntohl(mask->s6_addr32[iter]);
-		while (mask_val > 0) {
-			mask_val <<= 1;
-			mask_len++;
-		}
-		audit_log_format(audit_buf, " src_prefixlen=%d", mask_len);
-	}
-}
-#endif /* IPv6 */
 
 /*
  * Unlabeled Connection Hash Table Functions
@@ -274,26 +203,28 @@ static void netlbl_unlhsh_free_addr6(struct rcu_head *entry)
 static void netlbl_unlhsh_free_iface(struct rcu_head *entry)
 {
 	struct netlbl_unlhsh_iface *iface;
-	struct netlbl_unlhsh_addr4 *iter4;
-	struct netlbl_unlhsh_addr4 *tmp4;
-	struct netlbl_unlhsh_addr6 *iter6;
-	struct netlbl_unlhsh_addr6 *tmp6;
+	struct netlbl_af4list *iter4;
+	struct netlbl_af4list *tmp4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct netlbl_af6list *iter6;
+	struct netlbl_af6list *tmp6;
+#endif /* IPv6 */
 
 	iface = container_of(entry, struct netlbl_unlhsh_iface, rcu);
 
 	/* no need for locks here since we are the only one with access to this
 	 * structure */
 
-	list_for_each_entry_safe(iter4, tmp4, &iface->addr4_list, list)
-		if (iter4->valid) {
-			list_del_rcu(&iter4->list);
-			kfree(iter4);
-		}
-	list_for_each_entry_safe(iter6, tmp6, &iface->addr6_list, list)
-		if (iter6->valid) {
-			list_del_rcu(&iter6->list);
-			kfree(iter6);
-		}
+	netlbl_af4list_foreach_safe(iter4, tmp4, &iface->addr4_list) {
+		netlbl_af4list_remove_entry(iter4);
+		kfree(netlbl_unlhsh_addr4_entry(iter4));
+	}
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	netlbl_af6list_foreach_safe(iter6, tmp6, &iface->addr6_list) {
+		netlbl_af6list_remove_entry(iter6);
+		kfree(netlbl_unlhsh_addr6_entry(iter6));
+	}
+#endif /* IPv6 */
 	kfree(iface);
 }
 
@@ -316,59 +247,6 @@ static u32 netlbl_unlhsh_hash(int ifindex)
 }
 
 /**
- * netlbl_unlhsh_search_addr4 - Search for a matching IPv4 address entry
- * @addr: IPv4 address
- * @iface: the network interface entry
- *
- * Description:
- * Searches the IPv4 address list of the network interface specified by @iface.
- * If a matching address entry is found it is returned, otherwise NULL is
- * returned.  The caller is responsible for calling the rcu_read_[un]lock()
- * functions.
- *
- */
-static struct netlbl_unlhsh_addr4 *netlbl_unlhsh_search_addr4(
-	                               __be32 addr,
-	                               const struct netlbl_unlhsh_iface *iface)
-{
-	struct netlbl_unlhsh_addr4 *iter;
-
-	list_for_each_entry_rcu(iter, &iface->addr4_list, list)
-		if (iter->valid && (addr & iter->mask) == iter->addr)
-			return iter;
-
-	return NULL;
-}
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-/**
- * netlbl_unlhsh_search_addr6 - Search for a matching IPv6 address entry
- * @addr: IPv6 address
- * @iface: the network interface entry
- *
- * Description:
- * Searches the IPv6 address list of the network interface specified by @iface.
- * If a matching address entry is found it is returned, otherwise NULL is
- * returned.  The caller is responsible for calling the rcu_read_[un]lock()
- * functions.
- *
- */
-static struct netlbl_unlhsh_addr6 *netlbl_unlhsh_search_addr6(
-	                               const struct in6_addr *addr,
-	                               const struct netlbl_unlhsh_iface *iface)
-{
-	struct netlbl_unlhsh_addr6 *iter;
-
-	list_for_each_entry_rcu(iter, &iface->addr6_list, list)
-		if (iter->valid &&
-		    ipv6_masked_addr_cmp(&iter->addr, &iter->mask, addr) == 0)
-		return iter;
-
-	return NULL;
-}
-#endif /* IPv6 */
-
-/**
  * netlbl_unlhsh_search_iface - Search for a matching interface entry
  * @ifindex: the network interface
  *
@@ -381,12 +259,12 @@ static struct netlbl_unlhsh_addr6 *netlbl_unlhsh_search_addr6(
 static struct netlbl_unlhsh_iface *netlbl_unlhsh_search_iface(int ifindex)
 {
 	u32 bkt;
+	struct list_head *bkt_list;
 	struct netlbl_unlhsh_iface *iter;
 
 	bkt = netlbl_unlhsh_hash(ifindex);
-	list_for_each_entry_rcu(iter,
-				&rcu_dereference(netlbl_unlhsh)->tbl[bkt],
-				list)
+	bkt_list = &rcu_dereference(netlbl_unlhsh)->tbl[bkt];
+	list_for_each_entry_rcu(iter, bkt_list, list)
 		if (iter->valid && iter->ifindex == ifindex)
 			return iter;
 
@@ -439,43 +317,26 @@ static int netlbl_unlhsh_add_addr4(struct netlbl_unlhsh_iface *iface,
 				   const struct in_addr *mask,
 				   u32 secid)
 {
+	int ret_val;
 	struct netlbl_unlhsh_addr4 *entry;
-	struct netlbl_unlhsh_addr4 *iter;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
 		return -ENOMEM;
 
-	entry->addr = addr->s_addr & mask->s_addr;
-	entry->mask = mask->s_addr;
-	entry->secid = secid;
-	entry->valid = 1;
+	entry->list.addr = addr->s_addr & mask->s_addr;
+	entry->list.mask = mask->s_addr;
+	entry->list.valid = 1;
 	INIT_RCU_HEAD(&entry->rcu);
+	entry->secid = secid;
 
 	spin_lock(&netlbl_unlhsh_lock);
-	iter = netlbl_unlhsh_search_addr4(entry->addr, iface);
-	if (iter != NULL &&
-	    iter->addr == addr->s_addr && iter->mask == mask->s_addr) {
-		spin_unlock(&netlbl_unlhsh_lock);
-		kfree(entry);
-		return -EEXIST;
-	}
-	/* in order to speed up address searches through the list (the common
-	 * case) we need to keep the list in order based on the size of the
-	 * address mask such that the entry with the widest mask (smallest
-	 * numerical value) appears first in the list */
-	list_for_each_entry_rcu(iter, &iface->addr4_list, list)
-		if (iter->valid &&
-		    ntohl(entry->mask) > ntohl(iter->mask)) {
-			__list_add_rcu(&entry->list,
-				       iter->list.prev,
-				       &iter->list);
-			spin_unlock(&netlbl_unlhsh_lock);
-			return 0;
-		}
-	list_add_tail_rcu(&entry->list, &iface->addr4_list);
+	ret_val = netlbl_af4list_add(&entry->list, &iface->addr4_list);
 	spin_unlock(&netlbl_unlhsh_lock);
-	return 0;
+
+	if (ret_val != 0)
+		kfree(entry);
+	return ret_val;
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
@@ -498,47 +359,29 @@ static int netlbl_unlhsh_add_addr6(struct netlbl_unlhsh_iface *iface,
 				   const struct in6_addr *mask,
 				   u32 secid)
 {
+	int ret_val;
 	struct netlbl_unlhsh_addr6 *entry;
-	struct netlbl_unlhsh_addr6 *iter;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
 		return -ENOMEM;
 
-	ipv6_addr_copy(&entry->addr, addr);
-	entry->addr.s6_addr32[0] &= mask->s6_addr32[0];
-	entry->addr.s6_addr32[1] &= mask->s6_addr32[1];
-	entry->addr.s6_addr32[2] &= mask->s6_addr32[2];
-	entry->addr.s6_addr32[3] &= mask->s6_addr32[3];
-	ipv6_addr_copy(&entry->mask, mask);
-	entry->secid = secid;
-	entry->valid = 1;
+	ipv6_addr_copy(&entry->list.addr, addr);
+	entry->list.addr.s6_addr32[0] &= mask->s6_addr32[0];
+	entry->list.addr.s6_addr32[1] &= mask->s6_addr32[1];
+	entry->list.addr.s6_addr32[2] &= mask->s6_addr32[2];
+	entry->list.addr.s6_addr32[3] &= mask->s6_addr32[3];
+	ipv6_addr_copy(&entry->list.mask, mask);
+	entry->list.valid = 1;
 	INIT_RCU_HEAD(&entry->rcu);
+	entry->secid = secid;
 
 	spin_lock(&netlbl_unlhsh_lock);
-	iter = netlbl_unlhsh_search_addr6(&entry->addr, iface);
-	if (iter != NULL &&
-	    (ipv6_addr_equal(&iter->addr, addr) &&
-	     ipv6_addr_equal(&iter->mask, mask))) {
-		spin_unlock(&netlbl_unlhsh_lock);
-		kfree(entry);
-		return -EEXIST;
-	}
-	/* in order to speed up address searches through the list (the common
-	 * case) we need to keep the list in order based on the size of the
-	 * address mask such that the entry with the widest mask (smallest
-	 * numerical value) appears first in the list */
-	list_for_each_entry_rcu(iter, &iface->addr6_list, list)
-		if (iter->valid &&
-		    ipv6_addr_cmp(&entry->mask, &iter->mask) > 0) {
-			__list_add_rcu(&entry->list,
-				       iter->list.prev,
-				       &iter->list);
-			spin_unlock(&netlbl_unlhsh_lock);
-			return 0;
-		}
-	list_add_tail_rcu(&entry->list, &iface->addr6_list);
+	ret_val = netlbl_af6list_add(&entry->list, &iface->addr6_list);
 	spin_unlock(&netlbl_unlhsh_lock);
+
+	if (ret_val != 0)
+		kfree(entry);
 	return 0;
 }
 #endif /* IPv6 */
@@ -658,10 +501,10 @@ static int netlbl_unlhsh_add(struct net *net,
 		mask4 = (struct in_addr *)mask;
 		ret_val = netlbl_unlhsh_add_addr4(iface, addr4, mask4, secid);
 		if (audit_buf != NULL)
-			netlbl_unlabel_audit_addr4(audit_buf,
-						   dev_name,
-						   addr4->s_addr,
-						   mask4->s_addr);
+			netlbl_af4list_audit_addr(audit_buf, 1,
+						  dev_name,
+						  addr4->s_addr,
+						  mask4->s_addr);
 		break;
 	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
@@ -672,9 +515,9 @@ static int netlbl_unlhsh_add(struct net *net,
 		mask6 = (struct in6_addr *)mask;
 		ret_val = netlbl_unlhsh_add_addr6(iface, addr6, mask6, secid);
 		if (audit_buf != NULL)
-			netlbl_unlabel_audit_addr6(audit_buf,
-						   dev_name,
-						   addr6, mask6);
+			netlbl_af6list_audit_addr(audit_buf, 1,
+						  dev_name,
+						  addr6, mask6);
 		break;
 	}
 #endif /* IPv6 */
@@ -719,35 +562,34 @@ static int netlbl_unlhsh_remove_addr4(struct net *net,
 				      const struct in_addr *mask,
 				      struct netlbl_audit *audit_info)
 {
-	int ret_val = -ENOENT;
+	int ret_val = 0;
+	struct netlbl_af4list *list_entry;
 	struct netlbl_unlhsh_addr4 *entry;
-	struct audit_buffer *audit_buf = NULL;
+	struct audit_buffer *audit_buf;
 	struct net_device *dev;
-	char *secctx = NULL;
+	char *secctx;
 	u32 secctx_len;
 
 	spin_lock(&netlbl_unlhsh_lock);
-	entry = netlbl_unlhsh_search_addr4(addr->s_addr, iface);
-	if (entry != NULL &&
-	    entry->addr == addr->s_addr && entry->mask == mask->s_addr) {
-		entry->valid = 0;
-		list_del_rcu(&entry->list);
-		ret_val = 0;
-	}
+	list_entry = netlbl_af4list_remove(addr->s_addr, mask->s_addr,
+					   &iface->addr4_list);
 	spin_unlock(&netlbl_unlhsh_lock);
+	if (list_entry == NULL)
+		ret_val = -ENOENT;
+	entry = netlbl_unlhsh_addr4_entry(list_entry);
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_STCDEL,
 					      audit_info);
 	if (audit_buf != NULL) {
 		dev = dev_get_by_index(net, iface->ifindex);
-		netlbl_unlabel_audit_addr4(audit_buf,
-					   (dev != NULL ? dev->name : NULL),
-					   entry->addr, entry->mask);
+		netlbl_af4list_audit_addr(audit_buf, 1,
+					  (dev != NULL ? dev->name : NULL),
+					  addr->s_addr, mask->s_addr);
 		if (dev != NULL)
 			dev_put(dev);
-		if (security_secid_to_secctx(entry->secid,
-					     &secctx,
-					     &secctx_len) == 0) {
+		if (entry && security_secid_to_secctx(entry->secid,
+						      &secctx,
+						      &secctx_len) == 0) {
 			audit_log_format(audit_buf, " sec_obj=%s", secctx);
 			security_release_secctx(secctx, secctx_len);
 		}
@@ -781,36 +623,33 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
 				      const struct in6_addr *mask,
 				      struct netlbl_audit *audit_info)
 {
-	int ret_val = -ENOENT;
+	int ret_val = 0;
+	struct netlbl_af6list *list_entry;
 	struct netlbl_unlhsh_addr6 *entry;
-	struct audit_buffer *audit_buf = NULL;
+	struct audit_buffer *audit_buf;
 	struct net_device *dev;
-	char *secctx = NULL;
+	char *secctx;
 	u32 secctx_len;
 
 	spin_lock(&netlbl_unlhsh_lock);
-	entry = netlbl_unlhsh_search_addr6(addr, iface);
-	if (entry != NULL &&
-	    (ipv6_addr_equal(&entry->addr, addr) &&
-	     ipv6_addr_equal(&entry->mask, mask))) {
-		entry->valid = 0;
-		list_del_rcu(&entry->list);
-		ret_val = 0;
-	}
+	list_entry = netlbl_af6list_remove(addr, mask, &iface->addr6_list);
 	spin_unlock(&netlbl_unlhsh_lock);
+	if (list_entry == NULL)
+		ret_val = -ENOENT;
+	entry = netlbl_unlhsh_addr6_entry(list_entry);
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_STCDEL,
 					      audit_info);
 	if (audit_buf != NULL) {
 		dev = dev_get_by_index(net, iface->ifindex);
-		netlbl_unlabel_audit_addr6(audit_buf,
-					   (dev != NULL ? dev->name : NULL),
-					   addr, mask);
+		netlbl_af6list_audit_addr(audit_buf, 1,
+					  (dev != NULL ? dev->name : NULL),
+					  addr, mask);
 		if (dev != NULL)
 			dev_put(dev);
-		if (security_secid_to_secctx(entry->secid,
-					     &secctx,
-					     &secctx_len) == 0) {
+		if (entry && security_secid_to_secctx(entry->secid,
+						      &secctx,
+						      &secctx_len) == 0) {
 			audit_log_format(audit_buf, " sec_obj=%s", secctx);
 			security_release_secctx(secctx, secctx_len);
 		}
@@ -836,16 +675,18 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
  */
 static void netlbl_unlhsh_condremove_iface(struct netlbl_unlhsh_iface *iface)
 {
-	struct netlbl_unlhsh_addr4 *iter4;
-	struct netlbl_unlhsh_addr6 *iter6;
+	struct netlbl_af4list *iter4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct netlbl_af6list *iter6;
+#endif /* IPv6 */
 
 	spin_lock(&netlbl_unlhsh_lock);
-	list_for_each_entry_rcu(iter4, &iface->addr4_list, list)
-		if (iter4->valid)
-			goto unlhsh_condremove_failure;
-	list_for_each_entry_rcu(iter6, &iface->addr6_list, list)
-		if (iter6->valid)
-			goto unlhsh_condremove_failure;
+	netlbl_af4list_foreach_rcu(iter4, &iface->addr4_list)
+		goto unlhsh_condremove_failure;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	netlbl_af6list_foreach_rcu(iter6, &iface->addr6_list)
+		goto unlhsh_condremove_failure;
+#endif /* IPv6 */
 	iface->valid = 0;
 	if (iface->ifindex > 0)
 		list_del_rcu(&iface->list);
@@ -1349,7 +1190,7 @@ static int netlbl_unlabel_staticlist_gen(u32 cmd,
 	if (addr4) {
 		struct in_addr addr_struct;
 
-		addr_struct.s_addr = addr4->addr;
+		addr_struct.s_addr = addr4->list.addr;
 		ret_val = nla_put(cb_arg->skb,
 				  NLBL_UNLABEL_A_IPV4ADDR,
 				  sizeof(struct in_addr),
@@ -1357,7 +1198,7 @@ static int netlbl_unlabel_staticlist_gen(u32 cmd,
 		if (ret_val != 0)
 			goto list_cb_failure;
 
-		addr_struct.s_addr = addr4->mask;
+		addr_struct.s_addr = addr4->list.mask;
 		ret_val = nla_put(cb_arg->skb,
 				  NLBL_UNLABEL_A_IPV4MASK,
 				  sizeof(struct in_addr),
@@ -1370,14 +1211,14 @@ static int netlbl_unlabel_staticlist_gen(u32 cmd,
 		ret_val = nla_put(cb_arg->skb,
 				  NLBL_UNLABEL_A_IPV6ADDR,
 				  sizeof(struct in6_addr),
-				  &addr6->addr);
+				  &addr6->list.addr);
 		if (ret_val != 0)
 			goto list_cb_failure;
 
 		ret_val = nla_put(cb_arg->skb,
 				  NLBL_UNLABEL_A_IPV6MASK,
 				  sizeof(struct in6_addr),
-				  &addr6->mask);
+				  &addr6->list.mask);
 		if (ret_val != 0)
 			goto list_cb_failure;
 
@@ -1425,8 +1266,11 @@ static int netlbl_unlabel_staticlist(struct sk_buff *skb,
 	u32 iter_bkt;
 	u32 iter_chain = 0, iter_addr4 = 0, iter_addr6 = 0;
 	struct netlbl_unlhsh_iface *iface;
-	struct netlbl_unlhsh_addr4 *addr4;
-	struct netlbl_unlhsh_addr6 *addr6;
+	struct list_head *iter_list;
+	struct netlbl_af4list *addr4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct netlbl_af6list *addr6;
+#endif
 
 	cb_arg.nl_cb = cb;
 	cb_arg.skb = skb;
@@ -1436,44 +1280,43 @@ static int netlbl_unlabel_staticlist(struct sk_buff *skb,
 	for (iter_bkt = skip_bkt;
 	     iter_bkt < rcu_dereference(netlbl_unlhsh)->size;
 	     iter_bkt++, iter_chain = 0, iter_addr4 = 0, iter_addr6 = 0) {
-		list_for_each_entry_rcu(iface,
-			        &rcu_dereference(netlbl_unlhsh)->tbl[iter_bkt],
-				list) {
+		iter_list = &rcu_dereference(netlbl_unlhsh)->tbl[iter_bkt];
+		list_for_each_entry_rcu(iface, iter_list, list) {
 			if (!iface->valid ||
 			    iter_chain++ < skip_chain)
 				continue;
-			list_for_each_entry_rcu(addr4,
-						&iface->addr4_list,
-						list) {
-				if (!addr4->valid || iter_addr4++ < skip_addr4)
+			netlbl_af4list_foreach_rcu(addr4,
+						   &iface->addr4_list) {
+				if (iter_addr4++ < skip_addr4)
 					continue;
 				if (netlbl_unlabel_staticlist_gen(
-					             NLBL_UNLABEL_C_STATICLIST,
-						     iface,
-						     addr4,
-						     NULL,
-						     &cb_arg) < 0) {
+					      NLBL_UNLABEL_C_STATICLIST,
+					      iface,
+					      netlbl_unlhsh_addr4_entry(addr4),
+					      NULL,
+					      &cb_arg) < 0) {
 					iter_addr4--;
 					iter_chain--;
 					goto unlabel_staticlist_return;
 				}
 			}
-			list_for_each_entry_rcu(addr6,
-						&iface->addr6_list,
-						list) {
-				if (!addr6->valid || iter_addr6++ < skip_addr6)
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+			netlbl_af6list_foreach_rcu(addr6,
+						   &iface->addr6_list) {
+				if (iter_addr6++ < skip_addr6)
 					continue;
 				if (netlbl_unlabel_staticlist_gen(
-						     NLBL_UNLABEL_C_STATICLIST,
-						     iface,
-						     NULL,
-						     addr6,
-						     &cb_arg) < 0) {
+					      NLBL_UNLABEL_C_STATICLIST,
+					      iface,
+					      NULL,
+					      netlbl_unlhsh_addr6_entry(addr6),
+					      &cb_arg) < 0) {
 					iter_addr6--;
 					iter_chain--;
 					goto unlabel_staticlist_return;
 				}
 			}
+#endif /* IPv6 */
 		}
 	}
 
@@ -1504,9 +1347,12 @@ static int netlbl_unlabel_staticlistdef(struct sk_buff *skb,
 	struct netlbl_unlhsh_iface *iface;
 	u32 skip_addr4 = cb->args[0];
 	u32 skip_addr6 = cb->args[1];
-	u32 iter_addr4 = 0, iter_addr6 = 0;
-	struct netlbl_unlhsh_addr4 *addr4;
-	struct netlbl_unlhsh_addr6 *addr6;
+	u32 iter_addr4 = 0;
+	struct netlbl_af4list *addr4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	u32 iter_addr6 = 0;
+	struct netlbl_af6list *addr6;
+#endif
 
 	cb_arg.nl_cb = cb;
 	cb_arg.skb = skb;
@@ -1517,30 +1363,32 @@ static int netlbl_unlabel_staticlistdef(struct sk_buff *skb,
 	if (iface == NULL || !iface->valid)
 		goto unlabel_staticlistdef_return;
 
-	list_for_each_entry_rcu(addr4, &iface->addr4_list, list) {
-		if (!addr4->valid || iter_addr4++ < skip_addr4)
+	netlbl_af4list_foreach_rcu(addr4, &iface->addr4_list) {
+		if (iter_addr4++ < skip_addr4)
 			continue;
 		if (netlbl_unlabel_staticlist_gen(NLBL_UNLABEL_C_STATICLISTDEF,
-					   iface,
-					   addr4,
-					   NULL,
-					   &cb_arg) < 0) {
+					      iface,
+					      netlbl_unlhsh_addr4_entry(addr4),
+					      NULL,
+					      &cb_arg) < 0) {
 			iter_addr4--;
 			goto unlabel_staticlistdef_return;
 		}
 	}
-	list_for_each_entry_rcu(addr6, &iface->addr6_list, list) {
-		if (!addr6->valid || iter_addr6++ < skip_addr6)
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	netlbl_af6list_foreach_rcu(addr6, &iface->addr6_list) {
+		if (iter_addr6++ < skip_addr6)
 			continue;
 		if (netlbl_unlabel_staticlist_gen(NLBL_UNLABEL_C_STATICLISTDEF,
-					   iface,
-					   NULL,
-					   addr6,
-					   &cb_arg) < 0) {
+					      iface,
+					      NULL,
+					      netlbl_unlhsh_addr6_entry(addr6),
+					      &cb_arg) < 0) {
 			iter_addr6--;
 			goto unlabel_staticlistdef_return;
 		}
 	}
+#endif /* IPv6 */
 
 unlabel_staticlistdef_return:
 	rcu_read_unlock();
@@ -1718,25 +1566,27 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 	switch (family) {
 	case PF_INET: {
 		struct iphdr *hdr4;
-		struct netlbl_unlhsh_addr4 *addr4;
+		struct netlbl_af4list *addr4;
 
 		hdr4 = ip_hdr(skb);
-		addr4 = netlbl_unlhsh_search_addr4(hdr4->saddr, iface);
+		addr4 = netlbl_af4list_search(hdr4->saddr,
+					      &iface->addr4_list);
 		if (addr4 == NULL)
 			goto unlabel_getattr_nolabel;
-		secattr->attr.secid = addr4->secid;
+		secattr->attr.secid = netlbl_unlhsh_addr4_entry(addr4)->secid;
 		break;
 	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case PF_INET6: {
 		struct ipv6hdr *hdr6;
-		struct netlbl_unlhsh_addr6 *addr6;
+		struct netlbl_af6list *addr6;
 
 		hdr6 = ipv6_hdr(skb);
-		addr6 = netlbl_unlhsh_search_addr6(&hdr6->saddr, iface);
+		addr6 = netlbl_af6list_search(&hdr6->saddr,
+					      &iface->addr6_list);
 		if (addr6 == NULL)
 			goto unlabel_getattr_nolabel;
-		secattr->attr.secid = addr6->secid;
+		secattr->attr.secid = netlbl_unlhsh_addr6_entry(addr6)->secid;
 		break;
 	}
 #endif /* IPv6 */

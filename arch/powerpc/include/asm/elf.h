@@ -232,7 +232,7 @@ typedef elf_vrregset_t elf_fpxregset_t;
 #endif /* __powerpc64__ */
 
 #ifdef __powerpc64__
-# define SET_PERSONALITY(ex, ibcs2)				\
+# define SET_PERSONALITY(ex)					\
 do {								\
 	unsigned long new_flags = 0;				\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)		\
@@ -256,7 +256,7 @@ do {								\
 # define elf_read_implies_exec(ex, exec_stk) (test_thread_flag(TIF_32BIT) ? \
 		(exec_stk != EXSTACK_DISABLE_X) : 0)
 #else 
-# define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
+# define SET_PERSONALITY(ex) set_personality(PER_LINUX)
 #endif /* __powerpc64__ */
 
 extern int dcache_bsize;
@@ -408,6 +408,13 @@ do {									\
 
 /* Keep this the last entry.  */
 #define R_PPC64_NUM		107
+
+/* There's actually a third entry here, but it's unused */
+struct ppc64_opd_entry
+{
+	unsigned long funcaddr;
+	unsigned long r2;
+};
 
 #ifdef  __KERNEL__
 

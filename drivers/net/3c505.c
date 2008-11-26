@@ -130,12 +130,12 @@ static const char filename[] = __FILE__;
 
 static const char timeout_msg[] = "*** timeout at %s:%s (line %d) ***\n";
 #define TIMEOUT_MSG(lineno) \
-	printk(timeout_msg, filename,__FUNCTION__,(lineno))
+	printk(timeout_msg, filename,__func__,(lineno))
 
 static const char invalid_pcb_msg[] =
 "*** invalid pcb length %d at %s:%s (line %d) ***\n";
 #define INVALID_PCB_MSG(len) \
-	printk(invalid_pcb_msg, (len),filename,__FUNCTION__,__LINE__)
+	printk(invalid_pcb_msg, (len),filename,__func__,__LINE__)
 
 static char search_msg[] __initdata = KERN_INFO "%s: Looking for 3c505 adapter at address %#x...";
 

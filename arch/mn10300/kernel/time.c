@@ -1,6 +1,6 @@
 /* MN10300 Low level time management
  *
- * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2007-2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  * - Derived from arch/i386/kernel/time.c
  *
@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/profile.h>
+#include <linux/cnt32_to_63.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
 #include <asm/processor.h>
@@ -40,27 +41,54 @@ static struct irqaction timer_irq = {
 	.name		= "timer",
 };
 
+static unsigned long sched_clock_multiplier;
+
 /*
  * scheduler clock - returns current time in nanosec units.
  */
 unsigned long long sched_clock(void)
 {
 	union {
-		unsigned long long l;
-		u32 w[2];
-	} quot;
+		unsigned long long ll;
+		unsigned l[2];
+	} tsc64, result;
+	unsigned long tsc, tmp;
+	unsigned product[3]; /* 96-bit intermediate value */
 
-	quot.w[0] = mn10300_last_tsc - get_cycles();
-	quot.w[1] = 1000000000;
+	/* read the TSC value
+	 */
+	tsc = 0 - get_cycles(); /* get_cycles() counts down */
 
-	asm("mulu %2,%3,%0,%1"
-	    : "=r"(quot.w[1]), "=r"(quot.w[0])
-	    : "0"(quot.w[1]), "1"(quot.w[0])
+	/* expand to 64-bits.
+	 * - sched_clock() must be called once a minute or better or the
+	 *   following will go horribly wrong - see cnt32_to_63()
+	 */
+	tsc64.ll = cnt32_to_63(tsc) & 0x7fffffffffffffffULL;
+
+	/* scale the 64-bit TSC value to a nanosecond value via a 96-bit
+	 * intermediate
+	 */
+	asm("mulu	%2,%0,%3,%0	\n"	/* LSW * mult ->  0:%3:%0 */
+	    "mulu	%2,%1,%2,%1	\n"	/* MSW * mult -> %2:%1:0 */
+	    "add	%3,%1		\n"
+	    "addc	0,%2		\n"	/* result in %2:%1:%0 */
+	    : "=r"(product[0]), "=r"(product[1]), "=r"(product[2]), "=r"(tmp)
+	    :  "0"(tsc64.l[0]),  "1"(tsc64.l[1]),  "2"(sched_clock_multiplier)
 	    : "cc");
 
-	do_div(quot.l, MN10300_TSCCLK);
+	result.l[0] = product[1] << 16 | product[0] >> 16;
+	result.l[1] = product[2] << 16 | product[1] >> 16;
 
-	return quot.l;
+	return result.ll;
+}
+
+/*
+ * initialise the scheduler clock
+ */
+static void __init mn10300_sched_clock_init(void)
+{
+	sched_clock_multiplier =
+		__muldiv64u(NSEC_PER_SEC, 1 << 16, MN10300_TSCCLK);
 }
 
 /*
@@ -128,4 +156,6 @@ void __init time_init(void)
 	/* start the watchdog timer */
 	watchdog_go();
 #endif
+
+	mn10300_sched_clock_init();
 }

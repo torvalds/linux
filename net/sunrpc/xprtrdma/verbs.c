@@ -284,6 +284,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
+		ia->ri_async_rc = 0;
 		complete(&ia->ri_done);
 		break;
 	case RDMA_CM_EVENT_ADDR_ERROR:
@@ -338,12 +339,31 @@ connected:
 		wake_up_all(&ep->rep_connect_wait);
 		break;
 	default:
-		ia->ri_async_rc = -EINVAL;
-		dprintk("RPC:       %s: unexpected CM event %X\n",
+		dprintk("RPC:       %s: unexpected CM event %d\n",
 			__func__, event->event);
-		complete(&ia->ri_done);
 		break;
 	}
+
+#ifdef RPC_DEBUG
+	if (connstate == 1) {
+		int ird = attr.max_dest_rd_atomic;
+		int tird = ep->rep_remote_cma.responder_resources;
+		printk(KERN_INFO "rpcrdma: connection to %u.%u.%u.%u:%u "
+			"on %s, memreg %d slots %d ird %d%s\n",
+			NIPQUAD(addr->sin_addr.s_addr),
+			ntohs(addr->sin_port),
+			ia->ri_id->device->name,
+			ia->ri_memreg_strategy,
+			xprt->rx_buf.rb_max_requests,
+			ird, ird < 4 && ird < tird / 2 ? " (low!)" : "");
+	} else if (connstate < 0) {
+		printk(KERN_INFO "rpcrdma: connection to %u.%u.%u.%u:%u "
+			"closed (%d)\n",
+			NIPQUAD(addr->sin_addr.s_addr),
+			ntohs(addr->sin_port),
+			connstate);
+	}
+#endif
 
 	return 0;
 }
@@ -355,6 +375,8 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 	struct rdma_cm_id *id;
 	int rc;
 
+	init_completion(&ia->ri_done);
+
 	id = rdma_create_id(rpcrdma_conn_upcall, xprt, RDMA_PS_TCP);
 	if (IS_ERR(id)) {
 		rc = PTR_ERR(id);
@@ -363,26 +385,28 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 		return id;
 	}
 
-	ia->ri_async_rc = 0;
+	ia->ri_async_rc = -ETIMEDOUT;
 	rc = rdma_resolve_addr(id, NULL, addr, RDMA_RESOLVE_TIMEOUT);
 	if (rc) {
 		dprintk("RPC:       %s: rdma_resolve_addr() failed %i\n",
 			__func__, rc);
 		goto out;
 	}
-	wait_for_completion(&ia->ri_done);
+	wait_for_completion_interruptible_timeout(&ia->ri_done,
+				msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT) + 1);
 	rc = ia->ri_async_rc;
 	if (rc)
 		goto out;
 
-	ia->ri_async_rc = 0;
+	ia->ri_async_rc = -ETIMEDOUT;
 	rc = rdma_resolve_route(id, RDMA_RESOLVE_TIMEOUT);
 	if (rc) {
 		dprintk("RPC:       %s: rdma_resolve_route() failed %i\n",
 			__func__, rc);
 		goto out;
 	}
-	wait_for_completion(&ia->ri_done);
+	wait_for_completion_interruptible_timeout(&ia->ri_done,
+				msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT) + 1);
 	rc = ia->ri_async_rc;
 	if (rc)
 		goto out;
@@ -423,10 +447,9 @@ rpcrdma_clean_cq(struct ib_cq *cq)
 int
 rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 {
-	int rc;
+	int rc, mem_priv;
+	struct ib_device_attr devattr;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
-
-	init_completion(&ia->ri_done);
 
 	ia->ri_id = rpcrdma_create_id(xprt, ia, addr);
 	if (IS_ERR(ia->ri_id)) {
@@ -443,6 +466,73 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	}
 
 	/*
+	 * Query the device to determine if the requested memory
+	 * registration strategy is supported. If it isn't, set the
+	 * strategy to a globally supported model.
+	 */
+	rc = ib_query_device(ia->ri_id->device, &devattr);
+	if (rc) {
+		dprintk("RPC:       %s: ib_query_device failed %d\n",
+			__func__, rc);
+		goto out2;
+	}
+
+	if (devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY) {
+		ia->ri_have_dma_lkey = 1;
+		ia->ri_dma_lkey = ia->ri_id->device->local_dma_lkey;
+	}
+
+	switch (memreg) {
+	case RPCRDMA_MEMWINDOWS:
+	case RPCRDMA_MEMWINDOWS_ASYNC:
+		if (!(devattr.device_cap_flags & IB_DEVICE_MEM_WINDOW)) {
+			dprintk("RPC:       %s: MEMWINDOWS registration "
+				"specified but not supported by adapter, "
+				"using slower RPCRDMA_REGISTER\n",
+				__func__);
+			memreg = RPCRDMA_REGISTER;
+		}
+		break;
+	case RPCRDMA_MTHCAFMR:
+		if (!ia->ri_id->device->alloc_fmr) {
+#if RPCRDMA_PERSISTENT_REGISTRATION
+			dprintk("RPC:       %s: MTHCAFMR registration "
+				"specified but not supported by adapter, "
+				"using riskier RPCRDMA_ALLPHYSICAL\n",
+				__func__);
+			memreg = RPCRDMA_ALLPHYSICAL;
+#else
+			dprintk("RPC:       %s: MTHCAFMR registration "
+				"specified but not supported by adapter, "
+				"using slower RPCRDMA_REGISTER\n",
+				__func__);
+			memreg = RPCRDMA_REGISTER;
+#endif
+		}
+		break;
+	case RPCRDMA_FRMR:
+		/* Requires both frmr reg and local dma lkey */
+		if ((devattr.device_cap_flags &
+		     (IB_DEVICE_MEM_MGT_EXTENSIONS|IB_DEVICE_LOCAL_DMA_LKEY)) !=
+		    (IB_DEVICE_MEM_MGT_EXTENSIONS|IB_DEVICE_LOCAL_DMA_LKEY)) {
+#if RPCRDMA_PERSISTENT_REGISTRATION
+			dprintk("RPC:       %s: FRMR registration "
+				"specified but not supported by adapter, "
+				"using riskier RPCRDMA_ALLPHYSICAL\n",
+				__func__);
+			memreg = RPCRDMA_ALLPHYSICAL;
+#else
+			dprintk("RPC:       %s: FRMR registration "
+				"specified but not supported by adapter, "
+				"using slower RPCRDMA_REGISTER\n",
+				__func__);
+			memreg = RPCRDMA_REGISTER;
+#endif
+		}
+		break;
+	}
+
+	/*
 	 * Optionally obtain an underlying physical identity mapping in
 	 * order to do a memory window-based bind. This base registration
 	 * is protected from remote access - that is enabled only by binding
@@ -450,22 +540,28 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	 * revoked after the corresponding completion similar to a storage
 	 * adapter.
 	 */
-	if (memreg > RPCRDMA_REGISTER) {
-		int mem_priv = IB_ACCESS_LOCAL_WRITE;
-		switch (memreg) {
+	switch (memreg) {
+	case RPCRDMA_BOUNCEBUFFERS:
+	case RPCRDMA_REGISTER:
+	case RPCRDMA_FRMR:
+		break;
 #if RPCRDMA_PERSISTENT_REGISTRATION
-		case RPCRDMA_ALLPHYSICAL:
-			mem_priv |= IB_ACCESS_REMOTE_WRITE;
-			mem_priv |= IB_ACCESS_REMOTE_READ;
-			break;
+	case RPCRDMA_ALLPHYSICAL:
+		mem_priv = IB_ACCESS_LOCAL_WRITE |
+				IB_ACCESS_REMOTE_WRITE |
+				IB_ACCESS_REMOTE_READ;
+		goto register_setup;
 #endif
-		case RPCRDMA_MEMWINDOWS_ASYNC:
-		case RPCRDMA_MEMWINDOWS:
-			mem_priv |= IB_ACCESS_MW_BIND;
+	case RPCRDMA_MEMWINDOWS_ASYNC:
+	case RPCRDMA_MEMWINDOWS:
+		mem_priv = IB_ACCESS_LOCAL_WRITE |
+				IB_ACCESS_MW_BIND;
+		goto register_setup;
+	case RPCRDMA_MTHCAFMR:
+		if (ia->ri_have_dma_lkey)
 			break;
-		default:
-			break;
-		}
+		mem_priv = IB_ACCESS_LOCAL_WRITE;
+	register_setup:
 		ia->ri_bind_mem = ib_get_dma_mr(ia->ri_pd, mem_priv);
 		if (IS_ERR(ia->ri_bind_mem)) {
 			printk(KERN_ALERT "%s: ib_get_dma_mr for "
@@ -475,7 +571,15 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 			memreg = RPCRDMA_REGISTER;
 			ia->ri_bind_mem = NULL;
 		}
+		break;
+	default:
+		printk(KERN_ERR "%s: invalid memory registration mode %d\n",
+				__func__, memreg);
+		rc = -EINVAL;
+		goto out2;
 	}
+	dprintk("RPC:       %s: memory registration strategy is %d\n",
+		__func__, memreg);
 
 	/* Else will do memory reg/dereg for each chunk */
 	ia->ri_memreg_strategy = memreg;
@@ -483,6 +587,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	return 0;
 out2:
 	rdma_destroy_id(ia->ri_id);
+	ia->ri_id = NULL;
 out1:
 	return rc;
 }
@@ -503,15 +608,17 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
 		dprintk("RPC:       %s: ib_dereg_mr returned %i\n",
 			__func__, rc);
 	}
-	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id) && ia->ri_id->qp)
-		rdma_destroy_qp(ia->ri_id);
+	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id)) {
+		if (ia->ri_id->qp)
+			rdma_destroy_qp(ia->ri_id);
+		rdma_destroy_id(ia->ri_id);
+		ia->ri_id = NULL;
+	}
 	if (ia->ri_pd != NULL && !IS_ERR(ia->ri_pd)) {
 		rc = ib_dealloc_pd(ia->ri_pd);
 		dprintk("RPC:       %s: ib_dealloc_pd returned %i\n",
 			__func__, rc);
 	}
-	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id))
-		rdma_destroy_id(ia->ri_id);
 }
 
 /*
@@ -541,6 +648,12 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	ep->rep_attr.srq = NULL;
 	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
 	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
+		/* Add room for frmr register and invalidate WRs */
+		ep->rep_attr.cap.max_send_wr *= 3;
+		if (ep->rep_attr.cap.max_send_wr > devattr.max_qp_wr)
+			return -EINVAL;
+		break;
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
 		/* Add room for mw_binds+unbinds - overkill! */
@@ -617,29 +730,13 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	ep->rep_remote_cma.private_data_len = 0;
 
 	/* Client offers RDMA Read but does not initiate */
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_BOUNCEBUFFERS:
-		ep->rep_remote_cma.responder_resources = 0;
-		break;
-	case RPCRDMA_MTHCAFMR:
-	case RPCRDMA_REGISTER:
-		ep->rep_remote_cma.responder_resources = cdata->max_requests *
-				(RPCRDMA_MAX_DATA_SEGS / 8);
-		break;
-	case RPCRDMA_MEMWINDOWS:
-	case RPCRDMA_MEMWINDOWS_ASYNC:
-#if RPCRDMA_PERSISTENT_REGISTRATION
-	case RPCRDMA_ALLPHYSICAL:
-#endif
-		ep->rep_remote_cma.responder_resources = cdata->max_requests *
-				(RPCRDMA_MAX_DATA_SEGS / 2);
-		break;
-	default:
-		break;
-	}
-	if (ep->rep_remote_cma.responder_resources > devattr.max_qp_rd_atom)
-		ep->rep_remote_cma.responder_resources = devattr.max_qp_rd_atom;
 	ep->rep_remote_cma.initiator_depth = 0;
+	if (ia->ri_memreg_strategy == RPCRDMA_BOUNCEBUFFERS)
+		ep->rep_remote_cma.responder_resources = 0;
+	else if (devattr.max_qp_rd_atom > 32)	/* arbitrary but <= 255 */
+		ep->rep_remote_cma.responder_resources = 32;
+	else
+		ep->rep_remote_cma.responder_resources = devattr.max_qp_rd_atom;
 
 	ep->rep_remote_cma.retry_count = 7;
 	ep->rep_remote_cma.flow_control = 0;
@@ -679,19 +776,14 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 		if (rc)
 			dprintk("RPC:       %s: rpcrdma_ep_disconnect"
 				" returned %i\n", __func__, rc);
+		rdma_destroy_qp(ia->ri_id);
+		ia->ri_id->qp = NULL;
 	}
-
-	ep->rep_func = NULL;
 
 	/* padding - could be done in rpcrdma_buffer_destroy... */
 	if (ep->rep_pad_mr) {
 		rpcrdma_deregister_internal(ia, ep->rep_pad_mr, &ep->rep_pad);
 		ep->rep_pad_mr = NULL;
-	}
-
-	if (ia->ri_id->qp) {
-		rdma_destroy_qp(ia->ri_id);
-		ia->ri_id->qp = NULL;
 	}
 
 	rpcrdma_clean_cq(ep->rep_cq);
@@ -712,9 +804,8 @@ rpcrdma_ep_connect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	struct rdma_cm_id *id;
 	int rc = 0;
 	int retry_count = 0;
-	int reconnect = (ep->rep_connected != 0);
 
-	if (reconnect) {
+	if (ep->rep_connected != 0) {
 		struct rpcrdma_xprt *xprt;
 retry:
 		rc = rpcrdma_ep_disconnect(ep, ia);
@@ -745,6 +836,7 @@ retry:
 			goto out;
 		}
 		/* END TEMP */
+		rdma_destroy_qp(ia->ri_id);
 		rdma_destroy_id(ia->ri_id);
 		ia->ri_id = id;
 	}
@@ -769,14 +861,6 @@ if (strnicmp(ia->ri_id->device->dma_device->bus->name, "pci", 3) == 0) {
 	}
 }
 
-	/* Theoretically a client initiator_depth > 0 is not needed,
-	 * but many peers fail to complete the connection unless they
-	 * == responder_resources! */
-	if (ep->rep_remote_cma.initiator_depth !=
-				ep->rep_remote_cma.responder_resources)
-		ep->rep_remote_cma.initiator_depth =
-			ep->rep_remote_cma.responder_resources;
-
 	ep->rep_connected = 0;
 
 	rc = rdma_connect(ia->ri_id, &ep->rep_remote_cma);
@@ -785,9 +869,6 @@ if (strnicmp(ia->ri_id->device->dma_device->bus->name, "pci", 3) == 0) {
 				__func__, rc);
 		goto out;
 	}
-
-	if (reconnect)
-		return 0;
 
 	wait_event_interruptible(ep->rep_connect_wait, ep->rep_connected != 0);
 
@@ -805,14 +886,16 @@ if (strnicmp(ia->ri_id->device->dma_device->bus->name, "pci", 3) == 0) {
 	if (ep->rep_connected <= 0) {
 		/* Sometimes, the only way to reliably connect to remote
 		 * CMs is to use same nonzero values for ORD and IRD. */
-		ep->rep_remote_cma.initiator_depth =
-					ep->rep_remote_cma.responder_resources;
-		if (ep->rep_remote_cma.initiator_depth == 0)
-			++ep->rep_remote_cma.initiator_depth;
-		if (ep->rep_remote_cma.responder_resources == 0)
-			++ep->rep_remote_cma.responder_resources;
-		if (retry_count++ == 0)
+		if (retry_count++ <= RDMA_CONNECT_RETRY_MAX + 1 &&
+		    (ep->rep_remote_cma.responder_resources == 0 ||
+		     ep->rep_remote_cma.initiator_depth !=
+				ep->rep_remote_cma.responder_resources)) {
+			if (ep->rep_remote_cma.responder_resources == 0)
+				ep->rep_remote_cma.responder_resources = 1;
+			ep->rep_remote_cma.initiator_depth =
+				ep->rep_remote_cma.responder_resources;
 			goto retry;
+		}
 		rc = ep->rep_connected;
 	} else {
 		dprintk("RPC:       %s: connected\n", __func__);
@@ -863,6 +946,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	char *p;
 	size_t len;
 	int i, rc;
+	struct rpcrdma_mw *r;
 
 	buf->rb_max_requests = cdata->max_requests;
 	spin_lock_init(&buf->rb_lock);
@@ -873,7 +957,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	 *   2.  arrays of struct rpcrdma_req to fill in pointers
 	 *   3.  array of struct rpcrdma_rep for replies
 	 *   4.  padding, if any
-	 *   5.  mw's, if any
+	 *   5.  mw's, fmr's or frmr's, if any
 	 * Send/recv buffers in req/rep need to be registered
 	 */
 
@@ -881,6 +965,10 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 		(sizeof(struct rpcrdma_req *) + sizeof(struct rpcrdma_rep *));
 	len += cdata->padding;
 	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
+		len += buf->rb_max_requests * RPCRDMA_MAX_SEGS *
+				sizeof(struct rpcrdma_mw);
+		break;
 	case RPCRDMA_MTHCAFMR:
 		/* TBD we are perhaps overallocating here */
 		len += (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS *
@@ -927,15 +1015,37 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	 * and also reduce unbind-to-bind collision.
 	 */
 	INIT_LIST_HEAD(&buf->rb_mws);
+	r = (struct rpcrdma_mw *)p;
 	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
+		for (i = buf->rb_max_requests * RPCRDMA_MAX_SEGS; i; i--) {
+			r->r.frmr.fr_mr = ib_alloc_fast_reg_mr(ia->ri_pd,
+							 RPCRDMA_MAX_SEGS);
+			if (IS_ERR(r->r.frmr.fr_mr)) {
+				rc = PTR_ERR(r->r.frmr.fr_mr);
+				dprintk("RPC:       %s: ib_alloc_fast_reg_mr"
+					" failed %i\n", __func__, rc);
+				goto out;
+			}
+			r->r.frmr.fr_pgl =
+				ib_alloc_fast_reg_page_list(ia->ri_id->device,
+							    RPCRDMA_MAX_SEGS);
+			if (IS_ERR(r->r.frmr.fr_pgl)) {
+				rc = PTR_ERR(r->r.frmr.fr_pgl);
+				dprintk("RPC:       %s: "
+					"ib_alloc_fast_reg_page_list "
+					"failed %i\n", __func__, rc);
+				goto out;
+			}
+			list_add(&r->mw_list, &buf->rb_mws);
+			++r;
+		}
+		break;
 	case RPCRDMA_MTHCAFMR:
-		{
-		struct rpcrdma_mw *r = (struct rpcrdma_mw *)p;
-		struct ib_fmr_attr fa = {
-			RPCRDMA_MAX_DATA_SEGS, 1, PAGE_SHIFT
-		};
 		/* TBD we are perhaps overallocating here */
 		for (i = (buf->rb_max_requests+1) * RPCRDMA_MAX_SEGS; i; i--) {
+			static struct ib_fmr_attr fa =
+				{ RPCRDMA_MAX_DATA_SEGS, 1, PAGE_SHIFT };
 			r->r.fmr = ib_alloc_fmr(ia->ri_pd,
 				IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ,
 				&fa);
@@ -948,12 +1058,9 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 			list_add(&r->mw_list, &buf->rb_mws);
 			++r;
 		}
-		}
 		break;
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
-		{
-		struct rpcrdma_mw *r = (struct rpcrdma_mw *)p;
 		/* Allocate one extra request's worth, for full cycling */
 		for (i = (buf->rb_max_requests+1) * RPCRDMA_MAX_SEGS; i; i--) {
 			r->r.mw = ib_alloc_mw(ia->ri_pd);
@@ -965,7 +1072,6 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 			}
 			list_add(&r->mw_list, &buf->rb_mws);
 			++r;
-		}
 		}
 		break;
 	default:
@@ -1046,6 +1152,7 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
 	int rc, i;
 	struct rpcrdma_ia *ia = rdmab_to_ia(buf);
+	struct rpcrdma_mw *r;
 
 	/* clean up in reverse order from create
 	 *   1.  recv mr memory (mr free, then kfree)
@@ -1065,11 +1172,19 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 		}
 		if (buf->rb_send_bufs && buf->rb_send_bufs[i]) {
 			while (!list_empty(&buf->rb_mws)) {
-				struct rpcrdma_mw *r;
 				r = list_entry(buf->rb_mws.next,
 					struct rpcrdma_mw, mw_list);
 				list_del(&r->mw_list);
 				switch (ia->ri_memreg_strategy) {
+				case RPCRDMA_FRMR:
+					rc = ib_dereg_mr(r->r.frmr.fr_mr);
+					if (rc)
+						dprintk("RPC:       %s:"
+							" ib_dereg_mr"
+							" failed %i\n",
+							__func__, rc);
+					ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
+					break;
 				case RPCRDMA_MTHCAFMR:
 					rc = ib_dealloc_fmr(r->r.fmr);
 					if (rc)
@@ -1115,6 +1230,8 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 {
 	struct rpcrdma_req *req;
 	unsigned long flags;
+	int i;
+	struct rpcrdma_mw *r;
 
 	spin_lock_irqsave(&buffers->rb_lock, flags);
 	if (buffers->rb_send_index == buffers->rb_max_requests) {
@@ -1135,9 +1252,8 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 	}
 	buffers->rb_send_bufs[buffers->rb_send_index++] = NULL;
 	if (!list_empty(&buffers->rb_mws)) {
-		int i = RPCRDMA_MAX_SEGS - 1;
+		i = RPCRDMA_MAX_SEGS - 1;
 		do {
-			struct rpcrdma_mw *r;
 			r = list_entry(buffers->rb_mws.next,
 					struct rpcrdma_mw, mw_list);
 			list_del(&r->mw_list);
@@ -1171,6 +1287,7 @@ rpcrdma_buffer_put(struct rpcrdma_req *req)
 		req->rl_reply = NULL;
 	}
 	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
 	case RPCRDMA_MTHCAFMR:
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
@@ -1252,7 +1369,11 @@ rpcrdma_register_internal(struct rpcrdma_ia *ia, void *va, int len,
 			va, len, DMA_BIDIRECTIONAL);
 	iov->length = len;
 
-	if (ia->ri_bind_mem != NULL) {
+	if (ia->ri_have_dma_lkey) {
+		*mrp = NULL;
+		iov->lkey = ia->ri_dma_lkey;
+		return 0;
+	} else if (ia->ri_bind_mem != NULL) {
 		*mrp = NULL;
 		iov->lkey = ia->ri_bind_mem->lkey;
 		return 0;
@@ -1329,15 +1450,292 @@ rpcrdma_unmap_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg)
 				seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
 }
 
+static int
+rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
+			int *nsegs, int writing, struct rpcrdma_ia *ia,
+			struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	struct ib_send_wr frmr_wr, *bad_wr;
+	u8 key;
+	int len, pageoff;
+	int i, rc;
+
+	pageoff = offset_in_page(seg1->mr_offset);
+	seg1->mr_offset -= pageoff;	/* start of page */
+	seg1->mr_len += pageoff;
+	len = -pageoff;
+	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
+		*nsegs = RPCRDMA_MAX_DATA_SEGS;
+	for (i = 0; i < *nsegs;) {
+		rpcrdma_map_one(ia, seg, writing);
+		seg1->mr_chunk.rl_mw->r.frmr.fr_pgl->page_list[i] = seg->mr_dma;
+		len += seg->mr_len;
+		++seg;
+		++i;
+		/* Check for holes */
+		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
+		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
+			break;
+	}
+	dprintk("RPC:       %s: Using frmr %p to map %d segments\n",
+		__func__, seg1->mr_chunk.rl_mw, i);
+
+	/* Bump the key */
+	key = (u8)(seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey & 0x000000FF);
+	ib_update_fast_reg_key(seg1->mr_chunk.rl_mw->r.frmr.fr_mr, ++key);
+
+	/* Prepare FRMR WR */
+	memset(&frmr_wr, 0, sizeof frmr_wr);
+	frmr_wr.opcode = IB_WR_FAST_REG_MR;
+	frmr_wr.send_flags = 0;			/* unsignaled */
+	frmr_wr.wr.fast_reg.iova_start = (unsigned long)seg1->mr_dma;
+	frmr_wr.wr.fast_reg.page_list = seg1->mr_chunk.rl_mw->r.frmr.fr_pgl;
+	frmr_wr.wr.fast_reg.page_list_len = i;
+	frmr_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
+	frmr_wr.wr.fast_reg.length = i << PAGE_SHIFT;
+	frmr_wr.wr.fast_reg.access_flags = (writing ?
+				IB_ACCESS_REMOTE_WRITE : IB_ACCESS_REMOTE_READ);
+	frmr_wr.wr.fast_reg.rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+	DECR_CQCOUNT(&r_xprt->rx_ep);
+
+	rc = ib_post_send(ia->ri_id->qp, &frmr_wr, &bad_wr);
+
+	if (rc) {
+		dprintk("RPC:       %s: failed ib_post_send for register,"
+			" status %i\n", __func__, rc);
+		while (i--)
+			rpcrdma_unmap_one(ia, --seg);
+	} else {
+		seg1->mr_rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+		seg1->mr_base = seg1->mr_dma + pageoff;
+		seg1->mr_nsegs = i;
+		seg1->mr_len = len;
+	}
+	*nsegs = i;
+	return rc;
+}
+
+static int
+rpcrdma_deregister_frmr_external(struct rpcrdma_mr_seg *seg,
+			struct rpcrdma_ia *ia, struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	struct ib_send_wr invalidate_wr, *bad_wr;
+	int rc;
+
+	while (seg1->mr_nsegs--)
+		rpcrdma_unmap_one(ia, seg++);
+
+	memset(&invalidate_wr, 0, sizeof invalidate_wr);
+	invalidate_wr.opcode = IB_WR_LOCAL_INV;
+	invalidate_wr.send_flags = 0;			/* unsignaled */
+	invalidate_wr.ex.invalidate_rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+	DECR_CQCOUNT(&r_xprt->rx_ep);
+
+	rc = ib_post_send(ia->ri_id->qp, &invalidate_wr, &bad_wr);
+	if (rc)
+		dprintk("RPC:       %s: failed ib_post_send for invalidate,"
+			" status %i\n", __func__, rc);
+	return rc;
+}
+
+static int
+rpcrdma_register_fmr_external(struct rpcrdma_mr_seg *seg,
+			int *nsegs, int writing, struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
+	int len, pageoff, i, rc;
+
+	pageoff = offset_in_page(seg1->mr_offset);
+	seg1->mr_offset -= pageoff;	/* start of page */
+	seg1->mr_len += pageoff;
+	len = -pageoff;
+	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
+		*nsegs = RPCRDMA_MAX_DATA_SEGS;
+	for (i = 0; i < *nsegs;) {
+		rpcrdma_map_one(ia, seg, writing);
+		physaddrs[i] = seg->mr_dma;
+		len += seg->mr_len;
+		++seg;
+		++i;
+		/* Check for holes */
+		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
+		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
+			break;
+	}
+	rc = ib_map_phys_fmr(seg1->mr_chunk.rl_mw->r.fmr,
+				physaddrs, i, seg1->mr_dma);
+	if (rc) {
+		dprintk("RPC:       %s: failed ib_map_phys_fmr "
+			"%u@0x%llx+%i (%d)... status %i\n", __func__,
+			len, (unsigned long long)seg1->mr_dma,
+			pageoff, i, rc);
+		while (i--)
+			rpcrdma_unmap_one(ia, --seg);
+	} else {
+		seg1->mr_rkey = seg1->mr_chunk.rl_mw->r.fmr->rkey;
+		seg1->mr_base = seg1->mr_dma + pageoff;
+		seg1->mr_nsegs = i;
+		seg1->mr_len = len;
+	}
+	*nsegs = i;
+	return rc;
+}
+
+static int
+rpcrdma_deregister_fmr_external(struct rpcrdma_mr_seg *seg,
+			struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	LIST_HEAD(l);
+	int rc;
+
+	list_add(&seg1->mr_chunk.rl_mw->r.fmr->list, &l);
+	rc = ib_unmap_fmr(&l);
+	while (seg1->mr_nsegs--)
+		rpcrdma_unmap_one(ia, seg++);
+	if (rc)
+		dprintk("RPC:       %s: failed ib_unmap_fmr,"
+			" status %i\n", __func__, rc);
+	return rc;
+}
+
+static int
+rpcrdma_register_memwin_external(struct rpcrdma_mr_seg *seg,
+			int *nsegs, int writing, struct rpcrdma_ia *ia,
+			struct rpcrdma_xprt *r_xprt)
+{
+	int mem_priv = (writing ? IB_ACCESS_REMOTE_WRITE :
+				  IB_ACCESS_REMOTE_READ);
+	struct ib_mw_bind param;
+	int rc;
+
+	*nsegs = 1;
+	rpcrdma_map_one(ia, seg, writing);
+	param.mr = ia->ri_bind_mem;
+	param.wr_id = 0ULL;	/* no send cookie */
+	param.addr = seg->mr_dma;
+	param.length = seg->mr_len;
+	param.send_flags = 0;
+	param.mw_access_flags = mem_priv;
+
+	DECR_CQCOUNT(&r_xprt->rx_ep);
+	rc = ib_bind_mw(ia->ri_id->qp, seg->mr_chunk.rl_mw->r.mw, &param);
+	if (rc) {
+		dprintk("RPC:       %s: failed ib_bind_mw "
+			"%u@0x%llx status %i\n",
+			__func__, seg->mr_len,
+			(unsigned long long)seg->mr_dma, rc);
+		rpcrdma_unmap_one(ia, seg);
+	} else {
+		seg->mr_rkey = seg->mr_chunk.rl_mw->r.mw->rkey;
+		seg->mr_base = param.addr;
+		seg->mr_nsegs = 1;
+	}
+	return rc;
+}
+
+static int
+rpcrdma_deregister_memwin_external(struct rpcrdma_mr_seg *seg,
+			struct rpcrdma_ia *ia,
+			struct rpcrdma_xprt *r_xprt, void **r)
+{
+	struct ib_mw_bind param;
+	LIST_HEAD(l);
+	int rc;
+
+	BUG_ON(seg->mr_nsegs != 1);
+	param.mr = ia->ri_bind_mem;
+	param.addr = 0ULL;	/* unbind */
+	param.length = 0;
+	param.mw_access_flags = 0;
+	if (*r) {
+		param.wr_id = (u64) (unsigned long) *r;
+		param.send_flags = IB_SEND_SIGNALED;
+		INIT_CQCOUNT(&r_xprt->rx_ep);
+	} else {
+		param.wr_id = 0ULL;
+		param.send_flags = 0;
+		DECR_CQCOUNT(&r_xprt->rx_ep);
+	}
+	rc = ib_bind_mw(ia->ri_id->qp, seg->mr_chunk.rl_mw->r.mw, &param);
+	rpcrdma_unmap_one(ia, seg);
+	if (rc)
+		dprintk("RPC:       %s: failed ib_(un)bind_mw,"
+			" status %i\n", __func__, rc);
+	else
+		*r = NULL;	/* will upcall on completion */
+	return rc;
+}
+
+static int
+rpcrdma_register_default_external(struct rpcrdma_mr_seg *seg,
+			int *nsegs, int writing, struct rpcrdma_ia *ia)
+{
+	int mem_priv = (writing ? IB_ACCESS_REMOTE_WRITE :
+				  IB_ACCESS_REMOTE_READ);
+	struct rpcrdma_mr_seg *seg1 = seg;
+	struct ib_phys_buf ipb[RPCRDMA_MAX_DATA_SEGS];
+	int len, i, rc = 0;
+
+	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
+		*nsegs = RPCRDMA_MAX_DATA_SEGS;
+	for (len = 0, i = 0; i < *nsegs;) {
+		rpcrdma_map_one(ia, seg, writing);
+		ipb[i].addr = seg->mr_dma;
+		ipb[i].size = seg->mr_len;
+		len += seg->mr_len;
+		++seg;
+		++i;
+		/* Check for holes */
+		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
+		    offset_in_page((seg-1)->mr_offset+(seg-1)->mr_len))
+			break;
+	}
+	seg1->mr_base = seg1->mr_dma;
+	seg1->mr_chunk.rl_mr = ib_reg_phys_mr(ia->ri_pd,
+				ipb, i, mem_priv, &seg1->mr_base);
+	if (IS_ERR(seg1->mr_chunk.rl_mr)) {
+		rc = PTR_ERR(seg1->mr_chunk.rl_mr);
+		dprintk("RPC:       %s: failed ib_reg_phys_mr "
+			"%u@0x%llx (%d)... status %i\n",
+			__func__, len,
+			(unsigned long long)seg1->mr_dma, i, rc);
+		while (i--)
+			rpcrdma_unmap_one(ia, --seg);
+	} else {
+		seg1->mr_rkey = seg1->mr_chunk.rl_mr->rkey;
+		seg1->mr_nsegs = i;
+		seg1->mr_len = len;
+	}
+	*nsegs = i;
+	return rc;
+}
+
+static int
+rpcrdma_deregister_default_external(struct rpcrdma_mr_seg *seg,
+			struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	int rc;
+
+	rc = ib_dereg_mr(seg1->mr_chunk.rl_mr);
+	seg1->mr_chunk.rl_mr = NULL;
+	while (seg1->mr_nsegs--)
+		rpcrdma_unmap_one(ia, seg++);
+	if (rc)
+		dprintk("RPC:       %s: failed ib_dereg_mr,"
+			" status %i\n", __func__, rc);
+	return rc;
+}
+
 int
 rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 			int nsegs, int writing, struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	int mem_priv = (writing ? IB_ACCESS_REMOTE_WRITE :
-				  IB_ACCESS_REMOTE_READ);
-	struct rpcrdma_mr_seg *seg1 = seg;
-	int i;
 	int rc = 0;
 
 	switch (ia->ri_memreg_strategy) {
@@ -1352,114 +1750,25 @@ rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 		break;
 #endif
 
-	/* Registration using fast memory registration */
+	/* Registration using frmr registration */
+	case RPCRDMA_FRMR:
+		rc = rpcrdma_register_frmr_external(seg, &nsegs, writing, ia, r_xprt);
+		break;
+
+	/* Registration using fmr memory registration */
 	case RPCRDMA_MTHCAFMR:
-		{
-		u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
-		int len, pageoff = offset_in_page(seg->mr_offset);
-		seg1->mr_offset -= pageoff;	/* start of page */
-		seg1->mr_len += pageoff;
-		len = -pageoff;
-		if (nsegs > RPCRDMA_MAX_DATA_SEGS)
-			nsegs = RPCRDMA_MAX_DATA_SEGS;
-		for (i = 0; i < nsegs;) {
-			rpcrdma_map_one(ia, seg, writing);
-			physaddrs[i] = seg->mr_dma;
-			len += seg->mr_len;
-			++seg;
-			++i;
-			/* Check for holes */
-			if ((i < nsegs && offset_in_page(seg->mr_offset)) ||
-			    offset_in_page((seg-1)->mr_offset+(seg-1)->mr_len))
-				break;
-		}
-		nsegs = i;
-		rc = ib_map_phys_fmr(seg1->mr_chunk.rl_mw->r.fmr,
-					physaddrs, nsegs, seg1->mr_dma);
-		if (rc) {
-			dprintk("RPC:       %s: failed ib_map_phys_fmr "
-				"%u@0x%llx+%i (%d)... status %i\n", __func__,
-				len, (unsigned long long)seg1->mr_dma,
-				pageoff, nsegs, rc);
-			while (nsegs--)
-				rpcrdma_unmap_one(ia, --seg);
-		} else {
-			seg1->mr_rkey = seg1->mr_chunk.rl_mw->r.fmr->rkey;
-			seg1->mr_base = seg1->mr_dma + pageoff;
-			seg1->mr_nsegs = nsegs;
-			seg1->mr_len = len;
-		}
-		}
+		rc = rpcrdma_register_fmr_external(seg, &nsegs, writing, ia);
 		break;
 
 	/* Registration using memory windows */
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
-		{
-		struct ib_mw_bind param;
-		rpcrdma_map_one(ia, seg, writing);
-		param.mr = ia->ri_bind_mem;
-		param.wr_id = 0ULL;	/* no send cookie */
-		param.addr = seg->mr_dma;
-		param.length = seg->mr_len;
-		param.send_flags = 0;
-		param.mw_access_flags = mem_priv;
-
-		DECR_CQCOUNT(&r_xprt->rx_ep);
-		rc = ib_bind_mw(ia->ri_id->qp,
-					seg->mr_chunk.rl_mw->r.mw, &param);
-		if (rc) {
-			dprintk("RPC:       %s: failed ib_bind_mw "
-				"%u@0x%llx status %i\n",
-				__func__, seg->mr_len,
-				(unsigned long long)seg->mr_dma, rc);
-			rpcrdma_unmap_one(ia, seg);
-		} else {
-			seg->mr_rkey = seg->mr_chunk.rl_mw->r.mw->rkey;
-			seg->mr_base = param.addr;
-			seg->mr_nsegs = 1;
-			nsegs = 1;
-		}
-		}
+		rc = rpcrdma_register_memwin_external(seg, &nsegs, writing, ia, r_xprt);
 		break;
 
 	/* Default registration each time */
 	default:
-		{
-		struct ib_phys_buf ipb[RPCRDMA_MAX_DATA_SEGS];
-		int len = 0;
-		if (nsegs > RPCRDMA_MAX_DATA_SEGS)
-			nsegs = RPCRDMA_MAX_DATA_SEGS;
-		for (i = 0; i < nsegs;) {
-			rpcrdma_map_one(ia, seg, writing);
-			ipb[i].addr = seg->mr_dma;
-			ipb[i].size = seg->mr_len;
-			len += seg->mr_len;
-			++seg;
-			++i;
-			/* Check for holes */
-			if ((i < nsegs && offset_in_page(seg->mr_offset)) ||
-			    offset_in_page((seg-1)->mr_offset+(seg-1)->mr_len))
-				break;
-		}
-		nsegs = i;
-		seg1->mr_base = seg1->mr_dma;
-		seg1->mr_chunk.rl_mr = ib_reg_phys_mr(ia->ri_pd,
-					ipb, nsegs, mem_priv, &seg1->mr_base);
-		if (IS_ERR(seg1->mr_chunk.rl_mr)) {
-			rc = PTR_ERR(seg1->mr_chunk.rl_mr);
-			dprintk("RPC:       %s: failed ib_reg_phys_mr "
-				"%u@0x%llx (%d)... status %i\n",
-				__func__, len,
-				(unsigned long long)seg1->mr_dma, nsegs, rc);
-			while (nsegs--)
-				rpcrdma_unmap_one(ia, --seg);
-		} else {
-			seg1->mr_rkey = seg1->mr_chunk.rl_mr->rkey;
-			seg1->mr_nsegs = nsegs;
-			seg1->mr_len = len;
-		}
-		}
+		rc = rpcrdma_register_default_external(seg, &nsegs, writing, ia);
 		break;
 	}
 	if (rc)
@@ -1473,7 +1782,6 @@ rpcrdma_deregister_external(struct rpcrdma_mr_seg *seg,
 		struct rpcrdma_xprt *r_xprt, void *r)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_mr_seg *seg1 = seg;
 	int nsegs = seg->mr_nsegs, rc;
 
 	switch (ia->ri_memreg_strategy) {
@@ -1486,56 +1794,21 @@ rpcrdma_deregister_external(struct rpcrdma_mr_seg *seg,
 		break;
 #endif
 
+	case RPCRDMA_FRMR:
+		rc = rpcrdma_deregister_frmr_external(seg, ia, r_xprt);
+		break;
+
 	case RPCRDMA_MTHCAFMR:
-		{
-		LIST_HEAD(l);
-		list_add(&seg->mr_chunk.rl_mw->r.fmr->list, &l);
-		rc = ib_unmap_fmr(&l);
-		while (seg1->mr_nsegs--)
-			rpcrdma_unmap_one(ia, seg++);
-		}
-		if (rc)
-			dprintk("RPC:       %s: failed ib_unmap_fmr,"
-				" status %i\n", __func__, rc);
+		rc = rpcrdma_deregister_fmr_external(seg, ia);
 		break;
 
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
-		{
-		struct ib_mw_bind param;
-		BUG_ON(nsegs != 1);
-		param.mr = ia->ri_bind_mem;
-		param.addr = 0ULL;	/* unbind */
-		param.length = 0;
-		param.mw_access_flags = 0;
-		if (r) {
-			param.wr_id = (u64) (unsigned long) r;
-			param.send_flags = IB_SEND_SIGNALED;
-			INIT_CQCOUNT(&r_xprt->rx_ep);
-		} else {
-			param.wr_id = 0ULL;
-			param.send_flags = 0;
-			DECR_CQCOUNT(&r_xprt->rx_ep);
-		}
-		rc = ib_bind_mw(ia->ri_id->qp,
-				seg->mr_chunk.rl_mw->r.mw, &param);
-		rpcrdma_unmap_one(ia, seg);
-		}
-		if (rc)
-			dprintk("RPC:       %s: failed ib_(un)bind_mw,"
-				" status %i\n", __func__, rc);
-		else
-			r = NULL;	/* will upcall on completion */
+		rc = rpcrdma_deregister_memwin_external(seg, ia, r_xprt, &r);
 		break;
 
 	default:
-		rc = ib_dereg_mr(seg1->mr_chunk.rl_mr);
-		seg1->mr_chunk.rl_mr = NULL;
-		while (seg1->mr_nsegs--)
-			rpcrdma_unmap_one(ia, seg++);
-		if (rc)
-			dprintk("RPC:       %s: failed ib_dereg_mr,"
-				" status %i\n", __func__, rc);
+		rc = rpcrdma_deregister_default_external(seg, ia);
 		break;
 	}
 	if (r) {

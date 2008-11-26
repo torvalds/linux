@@ -927,7 +927,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_txdesc *txdesc;
 	u32 entry;
-	int flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&mdp->lock, flags);
 	if ((mdp->cur_tx - mdp->dirty_tx) >= (TX_RING_SIZE - 4)) {
@@ -1140,8 +1140,8 @@ static int sh_mdio_init(struct net_device *ndev, int id)
 
 	/* Hook up MII support for ethtool */
 	mdp->mii_bus->name = "sh_mii";
-	mdp->mii_bus->dev = &ndev->dev;
-	mdp->mii_bus->id[0] = id;
+	mdp->mii_bus->parent = &ndev->dev;
+	snprintf(mdp->mii_bus->id, MII_BUS_ID_SIZE, "%x", id);
 
 	/* PHY IRQ */
 	mdp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
@@ -1166,7 +1166,7 @@ out_free_irq:
 	kfree(mdp->mii_bus->irq);
 
 out_free_bus:
-	kfree(mdp->mii_bus);
+	free_mdio_bitbang(mdp->mii_bus);
 
 out_free_bitbang:
 	kfree(bitbang);
@@ -1205,11 +1205,12 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		devno = 0;
 
 	ndev->dma = -1;
-	ndev->irq = platform_get_irq(pdev, 0);
-	if (ndev->irq < 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
 		ret = -ENODEV;
 		goto out_release;
 	}
+	ndev->irq = ret;
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 

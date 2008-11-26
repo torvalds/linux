@@ -2031,8 +2031,6 @@ static void ibmvfc_terminate_rport_io(struct fc_rport *rport)
 		spin_unlock_irqrestore(shost->host_lock, flags);
 	} else
 		ibmvfc_issue_fc_host_lip(shost);
-
-	scsi_target_unblock(&rport->dev);
 	LEAVE;
 }
 

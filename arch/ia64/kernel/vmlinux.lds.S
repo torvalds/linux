@@ -215,9 +215,6 @@ SECTIONS
   /* Per-cpu data: */
   percpu : { } :percpu
   . = ALIGN(PERCPU_PAGE_SIZE);
-#ifdef	CONFIG_SMP
-  . = . + PERCPU_PAGE_SIZE;	/* cpu0 per-cpu space */
-#endif
   __phys_per_cpu_start = .;
   .data.percpu PERCPU_ADDR : AT(__phys_per_cpu_start - LOAD_OFFSET)
 	{
@@ -233,6 +230,11 @@ SECTIONS
   data : { } :data
   .data : AT(ADDR(.data) - LOAD_OFFSET)
 	{
+#ifdef	CONFIG_SMP
+  . = ALIGN(PERCPU_PAGE_SIZE);
+		__cpu0_per_cpu = .;
+  . = . + PERCPU_PAGE_SIZE;	/* cpu0 per-cpu space */
+#endif
 		DATA_DATA
 		*(.data1)
 		*(.gnu.linkonce.d*)

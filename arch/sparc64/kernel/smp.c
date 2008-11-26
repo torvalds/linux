@@ -21,6 +21,7 @@
 #include <linux/jiffies.h>
 #include <linux/profile.h>
 #include <linux/lmb.h>
+#include <linux/cpu.h>
 
 #include <asm/head.h>
 #include <asm/ptrace.h>
@@ -114,6 +115,9 @@ void __cpuinit smp_callin(void)
 	/* Attach to the address space of init_task. */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
+
+	/* inform the notifiers about the new cpu */
+	notify_cpu_starting(cpuid);
 
 	while (!cpu_isset(cpuid, smp_commenced_mask))
 		rmb();

@@ -1175,7 +1175,8 @@ snd_m3_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 	struct m3_dma *s = subs->runtime->private_data;
 	int err = -EINVAL;
 
-	snd_assert(s != NULL, return -ENXIO);
+	if (snd_BUG_ON(!s))
+		return -ENXIO;
 
 	spin_lock(&chip->reg_lock);
 	switch (cmd) {
@@ -1487,7 +1488,8 @@ snd_m3_pcm_prepare(struct snd_pcm_substream *subs)
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	struct m3_dma *s = runtime->private_data;
 
-	snd_assert(s != NULL, return -ENXIO);
+	if (snd_BUG_ON(!s))
+		return -ENXIO;
 
 	if (runtime->format != SNDRV_PCM_FORMAT_U8 &&
 	    runtime->format != SNDRV_PCM_FORMAT_S16_LE)
@@ -1546,7 +1548,9 @@ snd_m3_pcm_pointer(struct snd_pcm_substream *subs)
 	struct snd_m3 *chip = snd_pcm_substream_chip(subs);
 	unsigned int ptr;
 	struct m3_dma *s = subs->runtime->private_data;
-	snd_assert(s != NULL, return 0);
+
+	if (snd_BUG_ON(!s))
+		return 0;
 
 	spin_lock(&chip->reg_lock);
 	ptr = snd_m3_get_pointer(chip, s, subs);

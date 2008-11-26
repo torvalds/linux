@@ -691,7 +691,7 @@ static int alauda_probe(struct usb_interface *interface,
 	al[0].port = ALAUDA_PORT_XD;
 	al[1].port = ALAUDA_PORT_SM;
 
-	info("alauda probed");
+	dev_info(&interface->dev, "alauda probed\n");
 	alauda_check_media(al);
 	alauda_check_media(al+1);
 
@@ -716,7 +716,7 @@ static void alauda_disconnect(struct usb_interface *interface)
 	if (al)
 		kref_put(&al->kref, alauda_delete);
 
-	info("alauda gone");
+	dev_info(&interface->dev, "alauda gone");
 }
 
 static struct usb_driver alauda_driver = {

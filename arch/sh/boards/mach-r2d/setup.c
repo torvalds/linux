@@ -18,7 +18,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <asm/machvec.h>
-#include <asm/rts7751r2d.h>
+#include <mach/r2d.h>
 #include <asm/io.h>
 #include <asm/io_trapped.h>
 #include <asm/spi.h>

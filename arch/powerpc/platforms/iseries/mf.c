@@ -722,13 +722,13 @@ static int mf_set_rtc(struct rtc_time *tm)
 	day = tm->tm_mday;
 	mon = tm->tm_mon + 1;
 
-	BIN_TO_BCD(sec);
-	BIN_TO_BCD(min);
-	BIN_TO_BCD(hour);
-	BIN_TO_BCD(mon);
-	BIN_TO_BCD(day);
-	BIN_TO_BCD(y1);
-	BIN_TO_BCD(y2);
+	sec = bin2bcd(sec);
+	min = bin2bcd(min);
+	hour = bin2bcd(hour);
+	mon = bin2bcd(mon);
+	day = bin2bcd(day);
+	y1 = bin2bcd(y1);
+	y2 = bin2bcd(y2);
 
 	memset(ce_time, 0, sizeof(ce_time));
 	ce_time[3] = 0x41;
@@ -777,12 +777,12 @@ static int rtc_set_tm(int rc, u8 *ce_msg, struct rtc_time *tm)
 		u8 day = ce_msg[10];
 		u8 mon = ce_msg[11];
 
-		BCD_TO_BIN(sec);
-		BCD_TO_BIN(min);
-		BCD_TO_BIN(hour);
-		BCD_TO_BIN(day);
-		BCD_TO_BIN(mon);
-		BCD_TO_BIN(year);
+		sec = bcd2bin(sec);
+		min = bcd2bin(min);
+		hour = bcd2bin(hour);
+		day = bcd2bin(day);
+		mon = bcd2bin(mon);
+		year = bcd2bin(year);
 
 		if (year <= 69)
 			year += 100;

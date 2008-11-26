@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <asm/r7780rp.h>
+#include <mach/highlander.h>
 #include <asm/push-switch.h>
 
 static irqreturn_t psw_irq_handler(int irq, void *arg)

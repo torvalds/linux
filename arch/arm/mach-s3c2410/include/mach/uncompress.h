@@ -21,7 +21,7 @@
 #undef S3C2410_GPIOREG
 #define S3C2410_GPIOREG(x) ((S3C24XX_PA_GPIO + (x)))
 
-#include <asm/plat-s3c/uncompress.h>
+#include <plat/uncompress.h>
 
 static inline int is_arm926(void)
 {

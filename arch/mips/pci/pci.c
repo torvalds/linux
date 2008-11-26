@@ -34,6 +34,8 @@ static struct pci_controller *hose_head, **hose_tail = &hose_head;
 unsigned long PCIBIOS_MIN_IO	= 0x0000;
 unsigned long PCIBIOS_MIN_MEM	= 0;
 
+static int pci_initialized;
+
 /*
  * We need to avoid collisions with `mirrored' VGA ports
  * and other strange ISA hardware, so we always want the
@@ -74,6 +76,42 @@ pcibios_align_resource(void *data, struct resource *res,
 	res->start = start;
 }
 
+static void __devinit pcibios_scanbus(struct pci_controller *hose)
+{
+	static int next_busno;
+	static int need_domain_info;
+	struct pci_bus *bus;
+
+	if (!hose->iommu)
+		PCI_DMA_BUS_IS_PHYS = 1;
+
+	if (hose->get_busno && pci_probe_only)
+		next_busno = (*hose->get_busno)();
+
+	bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
+	hose->bus = bus;
+
+	need_domain_info = need_domain_info || hose->index;
+	hose->need_domain_info = need_domain_info;
+	if (bus) {
+		next_busno = bus->subordinate + 1;
+		/* Don't allow 8-bit bus number overflow inside the hose -
+		   reserve some space for bridges. */
+		if (next_busno > 224) {
+			next_busno = 0;
+			need_domain_info = 1;
+		}
+
+		if (!pci_probe_only) {
+			pci_bus_size_bridges(bus);
+			pci_bus_assign_resources(bus);
+			pci_enable_bridges(bus);
+		}
+	}
+}
+
+static DEFINE_MUTEX(pci_scan_mutex);
+
 void __devinit register_pci_controller(struct pci_controller *hose)
 {
 	if (request_resource(&iomem_resource, hose->mem_resource) < 0)
@@ -93,6 +131,17 @@ void __devinit register_pci_controller(struct pci_controller *hose)
 		printk(KERN_WARNING
 		       "registering PCI controller with io_map_base unset\n");
 	}
+
+	/*
+	 * Scan the bus if it is register after the PCI subsystem
+	 * initialization.
+	 */
+	if (pci_initialized) {
+		mutex_lock(&pci_scan_mutex);
+		pcibios_scanbus(hose);
+		mutex_unlock(&pci_scan_mutex);
+	}
+
 	return;
 
 out:
@@ -125,37 +174,14 @@ static u8 __init common_swizzle(struct pci_dev *dev, u8 *pinp)
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose;
-	struct pci_bus *bus;
-	int next_busno;
-	int need_domain_info = 0;
 
 	/* Scan all of the recorded PCI controllers.  */
-	for (next_busno = 0, hose = hose_head; hose; hose = hose->next) {
+	for (hose = hose_head; hose; hose = hose->next)
+		pcibios_scanbus(hose);
 
-		if (!hose->iommu)
-			PCI_DMA_BUS_IS_PHYS = 1;
-
-		if (hose->get_busno && pci_probe_only)
-			next_busno = (*hose->get_busno)();
-
-		bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
-		hose->bus = bus;
-		need_domain_info = need_domain_info || hose->index;
-		hose->need_domain_info = need_domain_info;
-		if (bus) {
-			next_busno = bus->subordinate + 1;
-			/* Don't allow 8-bit bus number overflow inside the hose -
-			   reserve some space for bridges. */
-			if (next_busno > 224) {
-				next_busno = 0;
-				need_domain_info = 1;
-			}
-		}
-	}
-
-	if (!pci_probe_only)
-		pci_assign_unassigned_resources();
 	pci_fixup_irqs(common_swizzle, pcibios_map_irq);
+
+	pci_initialized = 1;
 
 	return 0;
 }

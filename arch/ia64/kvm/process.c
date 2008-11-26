@@ -713,7 +713,7 @@ void leave_hypervisor_tail(void)
 				if (!(VCPU(v, itv) & (1 << 16))) {
 					vcpu_pend_interrupt(v, VCPU(v, itv)
 							& 0xff);
-				VMX(v, itc_check) = 0;
+					VMX(v, itc_check) = 0;
 				} else {
 					v->arch.timer_pending = 1;
 				}
@@ -962,9 +962,9 @@ static void kvm_do_resume_op(struct kvm_vcpu *vcpu)
 void vmm_transition(struct kvm_vcpu *vcpu)
 {
 	ia64_call_vsa(PAL_VPS_SAVE, (unsigned long)vcpu->arch.vpd,
-			0, 0, 0, 0, 0, 0);
+			1, 0, 0, 0, 0, 0);
 	vmm_trampoline(&vcpu->arch.guest, &vcpu->arch.host);
 	ia64_call_vsa(PAL_VPS_RESTORE, (unsigned long)vcpu->arch.vpd,
-						0, 0, 0, 0, 0, 0);
+						1, 0, 0, 0, 0, 0);
 	kvm_do_resume_op(vcpu);
 }

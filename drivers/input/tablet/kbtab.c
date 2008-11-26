@@ -215,7 +215,8 @@ static int __init kbtab_init(void)
 	retval = usb_register(&kbtab_driver);
 	if (retval)
 		goto out;
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 out:
 	return retval;
 }

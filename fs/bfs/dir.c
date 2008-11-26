@@ -80,6 +80,7 @@ const struct file_operations bfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= bfs_readdir,
 	.fsync		= file_fsync,
+	.llseek		= generic_file_llseek,
 };
 
 extern void dump_imap(const char *, struct super_block *);
@@ -125,8 +126,8 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, int mode,
 							inode->i_ino);
 	if (err) {
 		inode_dec_link_count(inode);
-		iput(inode);
 		mutex_unlock(&info->bfs_lock);
+		iput(inode);
 		return err;
 	}
 	mutex_unlock(&info->bfs_lock);

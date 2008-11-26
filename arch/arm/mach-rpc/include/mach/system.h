@@ -7,9 +7,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/hardware/iomd.h>
-#include <asm/io.h>
 
 static inline void arch_idle(void)
 {

@@ -246,7 +246,7 @@ will require extra work due to the application tag.
       retrieve the tag buffer using bio_integrity_get_tag().
 
 
-6.3 PASSING EXISTING INTEGRITY METADATA
+5.3 PASSING EXISTING INTEGRITY METADATA
 
     Filesystems that either generate their own integrity metadata or
     are capable of transferring IMD from user space can use the
@@ -283,7 +283,7 @@ will require extra work due to the application tag.
       integrity upon completion.
 
 
-6.4 REGISTERING A BLOCK DEVICE AS CAPABLE OF EXCHANGING INTEGRITY
+5.4 REGISTERING A BLOCK DEVICE AS CAPABLE OF EXCHANGING INTEGRITY
     METADATA
 
     To enable integrity exchange on a block device the gendisk must be

@@ -58,7 +58,8 @@ do {									\
 	last = __last;							\
 } while (0)
 
-#define __uses_jump_to_uncached __attribute__ ((__section__ (".uncached.text")))
+#define __uses_jump_to_uncached \
+	noinline __attribute__ ((__section__ (".uncached.text")))
 
 /*
  * Jump to uncached area.
@@ -96,7 +97,48 @@ do {							\
 		: "=&r" (__dummy));			\
 } while (0)
 
+#ifdef CONFIG_CPU_HAS_SR_RB
+#define lookup_exception_vector()	\
+({					\
+	unsigned long _vec;		\
+					\
+	__asm__ __volatile__ (		\
+		"stc r2_bank, %0\n\t"	\
+		: "=r" (_vec)		\
+	);				\
+					\
+	_vec;				\
+})
+#else
+#define lookup_exception_vector()	\
+({					\
+	unsigned long _vec;		\
+	__asm__ __volatile__ (		\
+		"mov r4, %0\n\t"	\
+		: "=r" (_vec)		\
+	);				\
+					\
+	_vec;				\
+})
+#endif
+
 int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs,
 			    struct mem_access *ma);
+
+asmlinkage void do_address_error(struct pt_regs *regs,
+				 unsigned long writeaccess,
+				 unsigned long address);
+asmlinkage void do_divide_error(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs __regs);
+asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs __regs);
+asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs __regs);
+asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
+				   unsigned long r6, unsigned long r7,
+				   struct pt_regs __regs);
 
 #endif /* __ASM_SH_SYSTEM_32_H */

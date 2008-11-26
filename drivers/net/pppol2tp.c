@@ -353,7 +353,7 @@ static void pppol2tp_recv_queue_skb(struct pppol2tp_session *session, struct sk_
 	spin_lock_bh(&session->reorder_q.lock);
 	skb_queue_walk_safe(&session->reorder_q, skbp, tmp) {
 		if (PPPOL2TP_SKB_CB(skbp)->ns > ns) {
-			__skb_insert(skb, skbp->prev, skbp, &session->reorder_q);
+			__skb_queue_before(&session->reorder_q, skbp, skb);
 			PRINTK(session->debug, PPPOL2TP_MSG_SEQ, KERN_DEBUG,
 			       "%s: pkt %hu, inserted before %hu, reorder_q len=%d\n",
 			       session->name, ns, PPPOL2TP_SKB_CB(skbp)->ns,

@@ -21,6 +21,8 @@
  *
  */
 
+#define SNDRV_OS_MINORS			256
+
 #define SNDRV_MINOR_DEVICES		32
 #define SNDRV_MINOR_CARD(minor)		((minor) >> 5)
 #define SNDRV_MINOR_DEVICE(minor)	((minor) & 0x001f)

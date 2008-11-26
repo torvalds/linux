@@ -30,8 +30,7 @@ again:
 	return index;
 }
 
-static inline void set_bit_area(unsigned long *map, unsigned long i,
-				int len)
+void iommu_area_reserve(unsigned long *map, unsigned long i, int len)
 {
 	unsigned long end = i + len;
 	while (i < end) {
@@ -64,7 +63,7 @@ again:
 			start = index + 1;
 			goto again;
 		}
-		set_bit_area(map, index, nr);
+		iommu_area_reserve(map, index, nr);
 	}
 	return index;
 }
@@ -80,3 +79,12 @@ void iommu_area_free(unsigned long *map, unsigned long start, unsigned int nr)
 	}
 }
 EXPORT_SYMBOL(iommu_area_free);
+
+unsigned long iommu_num_pages(unsigned long addr, unsigned long len,
+			      unsigned long io_page_size)
+{
+	unsigned long size = (addr & (io_page_size - 1)) + len;
+
+	return DIV_ROUND_UP(size, io_page_size);
+}
+EXPORT_SYMBOL(iommu_num_pages);

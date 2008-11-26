@@ -9,6 +9,7 @@
  */
 #undef DEBUG
 
+#include <linux/edac.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -142,7 +143,7 @@ static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 		csrow->nr_pages = (r.end - r.start + 1) >> PAGE_SHIFT;
 		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
 		csrow->mtype = MEM_XDR;
-		csrow->edac_mode = EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+		csrow->edac_mode = EDAC_SECDED;
 		dev_dbg(mci->dev,
 			"Initialized on node %d, chanmask=0x%x,"
 			" first_page=0x%lx, nr_pages=0x%x\n",
@@ -163,6 +164,8 @@ static int __devinit cell_edac_probe(struct platform_device *pdev)
 	regs = cbe_get_cpu_mic_tm_regs(cbe_node_to_cpu(pdev->id));
 	if (regs == NULL)
 		return -ENODEV;
+
+	edac_op_state = EDAC_OPSTATE_POLL;
 
 	/* Get channel population */
 	reg = in_be64(&regs->mic_mnt_cfg);

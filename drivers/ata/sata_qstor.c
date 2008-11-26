@@ -111,8 +111,8 @@ struct qs_port_priv {
 	qs_state_t		state;
 };
 
-static int qs_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
-static int qs_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int qs_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
+static int qs_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int qs_ata_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int qs_port_start(struct ata_port *ap);
 static void qs_host_stop(struct ata_host *host);
@@ -242,11 +242,11 @@ static int qs_prereset(struct ata_link *link, unsigned long deadline)
 	return ata_sff_prereset(link, deadline);
 }
 
-static int qs_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
+static int qs_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val)
 {
 	if (sc_reg > SCR_CONTROL)
 		return -EINVAL;
-	*val = readl(ap->ioaddr.scr_addr + (sc_reg * 8));
+	*val = readl(link->ap->ioaddr.scr_addr + (sc_reg * 8));
 	return 0;
 }
 
@@ -256,11 +256,11 @@ static void qs_error_handler(struct ata_port *ap)
 	ata_std_error_handler(ap);
 }
 
-static int qs_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int qs_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)
 		return -EINVAL;
-	writel(val, ap->ioaddr.scr_addr + (sc_reg * 8));
+	writel(val, link->ap->ioaddr.scr_addr + (sc_reg * 8));
 	return 0;
 }
 

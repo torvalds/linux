@@ -341,7 +341,7 @@ static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size)
 
 static ssize_t failover_unlock_fs(struct file *file, char *buf, size_t size)
 {
-	struct nameidata nd;
+	struct path path;
 	char *fo_path;
 	int error;
 
@@ -356,13 +356,13 @@ static ssize_t failover_unlock_fs(struct file *file, char *buf, size_t size)
 	if (qword_get(&buf, fo_path, size) < 0)
 		return -EINVAL;
 
-	error = path_lookup(fo_path, 0, &nd);
+	error = kern_path(fo_path, 0, &path);
 	if (error)
 		return error;
 
-	error = nlmsvc_unlock_all_by_sb(nd.path.mnt->mnt_sb);
+	error = nlmsvc_unlock_all_by_sb(path.mnt->mnt_sb);
 
-	path_put(&nd.path);
+	path_put(&path);
 	return error;
 }
 
@@ -614,10 +614,9 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 			return -EINVAL;
 		err = nfsd_create_serv();
 		if (!err) {
-			int proto = 0;
-			err = svc_addsock(nfsd_serv, fd, buf, &proto);
+			err = svc_addsock(nfsd_serv, fd, buf);
 			if (err >= 0) {
-				err = lockd_up(proto);
+				err = lockd_up();
 				if (err < 0)
 					svc_sock_names(buf+strlen(buf)+1, nfsd_serv, buf);
 			}

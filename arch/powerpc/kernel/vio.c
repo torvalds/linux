@@ -516,10 +516,10 @@ static void vio_dma_iommu_free_coherent(struct device *dev, size_t size,
 	vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE));
 }
 
-static dma_addr_t vio_dma_iommu_map_single(struct device *dev, void *vaddr,
-                                           size_t size,
-                                           enum dma_data_direction direction,
-                                           struct dma_attrs *attrs)
+static dma_addr_t vio_dma_iommu_map_page(struct device *dev, struct page *page,
+                                         unsigned long offset, size_t size,
+                                         enum dma_data_direction direction,
+                                         struct dma_attrs *attrs)
 {
 	struct vio_dev *viodev = to_vio_dev(dev);
 	dma_addr_t ret = DMA_ERROR_CODE;
@@ -529,7 +529,7 @@ static dma_addr_t vio_dma_iommu_map_single(struct device *dev, void *vaddr,
 		return ret;
 	}
 
-	ret = dma_iommu_ops.map_single(dev, vaddr, size, direction, attrs);
+	ret = dma_iommu_ops.map_page(dev, page, offset, size, direction, attrs);
 	if (unlikely(dma_mapping_error(dev, ret))) {
 		vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE));
 		atomic_inc(&viodev->cmo.allocs_failed);
@@ -538,14 +538,14 @@ static dma_addr_t vio_dma_iommu_map_single(struct device *dev, void *vaddr,
 	return ret;
 }
 
-static void vio_dma_iommu_unmap_single(struct device *dev,
-		dma_addr_t dma_handle, size_t size,
-		enum dma_data_direction direction,
-		struct dma_attrs *attrs)
+static void vio_dma_iommu_unmap_page(struct device *dev, dma_addr_t dma_handle,
+				     size_t size,
+				     enum dma_data_direction direction,
+				     struct dma_attrs *attrs)
 {
 	struct vio_dev *viodev = to_vio_dev(dev);
 
-	dma_iommu_ops.unmap_single(dev, dma_handle, size, direction, attrs);
+	dma_iommu_ops.unmap_page(dev, dma_handle, size, direction, attrs);
 
 	vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE));
 }
@@ -603,10 +603,11 @@ static void vio_dma_iommu_unmap_sg(struct device *dev,
 struct dma_mapping_ops vio_dma_mapping_ops = {
 	.alloc_coherent = vio_dma_iommu_alloc_coherent,
 	.free_coherent  = vio_dma_iommu_free_coherent,
-	.map_single     = vio_dma_iommu_map_single,
-	.unmap_single   = vio_dma_iommu_unmap_single,
 	.map_sg         = vio_dma_iommu_map_sg,
 	.unmap_sg       = vio_dma_iommu_unmap_sg,
+	.map_page       = vio_dma_iommu_map_page,
+	.unmap_page     = vio_dma_iommu_unmap_page,
+
 };
 
 /**
@@ -1232,7 +1233,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	else
 		viodev->dev.archdata.dma_ops = &dma_iommu_ops;
 	viodev->dev.archdata.dma_data = vio_build_iommu_table(viodev);
-	viodev->dev.archdata.numa_node = of_node_to_nid(of_node);
+	set_dev_node(&viodev->dev, of_node_to_nid(of_node));
 
 	/* init generic 'struct device' fields: */
 	viodev->dev.parent = &vio_bus_device.dev;

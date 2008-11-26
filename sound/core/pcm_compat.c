@@ -397,7 +397,8 @@ static int snd_pcm_ioctl_sync_ptr_compat(struct snd_pcm_substream *substream,
 	snd_pcm_uframes_t boundary;
 	int err;
 
-	snd_assert(runtime, return -EINVAL);
+	if (snd_BUG_ON(!runtime))
+		return -EINVAL;
 
 	if (get_user(sflags, &src->flags) ||
 	    get_user(scontrol.appl_ptr, &src->c.control.appl_ptr) ||

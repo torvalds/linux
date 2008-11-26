@@ -55,29 +55,29 @@
 
 #include "libfdt_internal.h"
 
-struct errtabent {
+struct fdt_errtabent {
 	const char *str;
 };
 
-#define ERRTABENT(val) \
+#define FDT_ERRTABENT(val) \
 	[(val)] = { .str = #val, }
 
-static struct errtabent errtable[] = {
-	ERRTABENT(FDT_ERR_NOTFOUND),
-	ERRTABENT(FDT_ERR_EXISTS),
-	ERRTABENT(FDT_ERR_NOSPACE),
+static struct fdt_errtabent fdt_errtable[] = {
+	FDT_ERRTABENT(FDT_ERR_NOTFOUND),
+	FDT_ERRTABENT(FDT_ERR_EXISTS),
+	FDT_ERRTABENT(FDT_ERR_NOSPACE),
 
-	ERRTABENT(FDT_ERR_BADOFFSET),
-	ERRTABENT(FDT_ERR_BADPATH),
-	ERRTABENT(FDT_ERR_BADSTATE),
+	FDT_ERRTABENT(FDT_ERR_BADOFFSET),
+	FDT_ERRTABENT(FDT_ERR_BADPATH),
+	FDT_ERRTABENT(FDT_ERR_BADSTATE),
 
-	ERRTABENT(FDT_ERR_TRUNCATED),
-	ERRTABENT(FDT_ERR_BADMAGIC),
-	ERRTABENT(FDT_ERR_BADVERSION),
-	ERRTABENT(FDT_ERR_BADSTRUCTURE),
-	ERRTABENT(FDT_ERR_BADLAYOUT),
+	FDT_ERRTABENT(FDT_ERR_TRUNCATED),
+	FDT_ERRTABENT(FDT_ERR_BADMAGIC),
+	FDT_ERRTABENT(FDT_ERR_BADVERSION),
+	FDT_ERRTABENT(FDT_ERR_BADSTRUCTURE),
+	FDT_ERRTABENT(FDT_ERR_BADLAYOUT),
 };
-#define ERRTABSIZE	(sizeof(errtable) / sizeof(errtable[0]))
+#define FDT_ERRTABSIZE	(sizeof(fdt_errtable) / sizeof(fdt_errtable[0]))
 
 const char *fdt_strerror(int errval)
 {
@@ -85,8 +85,8 @@ const char *fdt_strerror(int errval)
 		return "<valid offset/length>";
 	else if (errval == 0)
 		return "<no error>";
-	else if (errval > -ERRTABSIZE) {
-		const char *s = errtable[-errval].str;
+	else if (errval > -FDT_ERRTABSIZE) {
+		const char *s = fdt_errtable[-errval].str;
 
 		if (s)
 			return s;

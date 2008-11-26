@@ -482,6 +482,11 @@ static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 	skb->next = NULL;
 }
 
+static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
+{
+	return sk->sk_backlog_rcv(sk, skb);
+}
+
 #define sk_wait_event(__sk, __timeo, __condition)			\
 	({	int __rc;						\
 		release_sock(__sk);					\
@@ -532,6 +537,7 @@ struct proto {
 	int			(*getsockopt)(struct sock *sk, int level, 
 					int optname, char __user *optval, 
 					int __user *option);  	 
+#ifdef CONFIG_COMPAT
 	int			(*compat_setsockopt)(struct sock *sk,
 					int level,
 					int optname, char __user *optval,
@@ -540,6 +546,7 @@ struct proto {
 					int level,
 					int optname, char __user *optval,
 					int __user *option);
+#endif
 	int			(*sendmsg)(struct kiocb *iocb, struct sock *sk,
 					   struct msghdr *msg, size_t len);
 	int			(*recvmsg)(struct kiocb *iocb, struct sock *sk,
@@ -808,7 +815,7 @@ static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
  */
 #define sock_lock_init_class_and_name(sk, sname, skey, name, key) 	\
 do {									\
-	sk->sk_lock.owned = 0;					\
+	sk->sk_lock.owned = 0;						\
 	init_waitqueue_head(&sk->sk_lock.wq);				\
 	spin_lock_init(&(sk)->sk_lock.slock);				\
 	debug_check_no_locks_freed((void *)&(sk)->sk_lock,		\
@@ -929,7 +936,6 @@ extern void sock_init_data(struct socket *sock, struct sock *sk);
 
 /**
  *	sk_filter_release: Release a socket filter
- *	@sk: socket
  *	@fp: filter to remove
  *
  *	Remove a filter from a socket and release its resources.
@@ -1320,6 +1326,18 @@ static inline void sk_change_net(struct sock *sk, struct net *net)
 {
 	put_net(sock_net(sk));
 	sock_net_set(sk, hold_net(net));
+}
+
+static inline struct sock *skb_steal_sock(struct sk_buff *skb)
+{
+	if (unlikely(skb->sk)) {
+		struct sock *sk = skb->sk;
+
+		skb->destructor = NULL;
+		skb->sk = NULL;
+		return sk;
+	}
+	return NULL;
 }
 
 extern void sock_enable_timestamp(struct sock *sk);

@@ -30,6 +30,8 @@ module_param(major, int, 0644);
 #define MSPRO_BLOCK_SIGNATURE        0xa5c3
 #define MSPRO_BLOCK_MAX_ATTRIBUTES   41
 
+#define MSPRO_BLOCK_PART_SHIFT 3
+
 enum {
 	MSPRO_BLOCK_ID_SYSINFO         = 0x10,
 	MSPRO_BLOCK_ID_MODELNAME       = 0x15,
@@ -170,9 +172,9 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error);
 
 /*** Block device ***/
 
-static int mspro_block_bd_open(struct inode *inode, struct file *filp)
+static int mspro_block_bd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
+	struct gendisk *disk = bdev->bd_disk;
 	struct mspro_block_data *msb = disk->private_data;
 	int rc = -ENXIO;
 
@@ -180,7 +182,7 @@ static int mspro_block_bd_open(struct inode *inode, struct file *filp)
 
 	if (msb && msb->card) {
 		msb->usage_count++;
-		if ((filp->f_mode & FMODE_WRITE) && msb->read_only)
+		if ((mode & FMODE_WRITE) && msb->read_only)
 			rc = -EROFS;
 		else
 			rc = 0;
@@ -195,7 +197,7 @@ static int mspro_block_bd_open(struct inode *inode, struct file *filp)
 static int mspro_block_disk_release(struct gendisk *disk)
 {
 	struct mspro_block_data *msb = disk->private_data;
-	int disk_id = disk->first_minor >> MEMSTICK_PART_SHIFT;
+	int disk_id = MINOR(disk_devt(disk)) >> MSPRO_BLOCK_PART_SHIFT;
 
 	mutex_lock(&mspro_block_disk_lock);
 
@@ -216,9 +218,8 @@ static int mspro_block_disk_release(struct gendisk *disk)
 	return 0;
 }
 
-static int mspro_block_bd_release(struct inode *inode, struct file *filp)
+static int mspro_block_bd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
 	return mspro_block_disk_release(disk);
 }
 
@@ -826,7 +827,7 @@ static void mspro_block_submit_req(struct request_queue *q)
 
 	if (msb->eject) {
 		while ((req = elv_next_request(q)) != NULL)
-			end_queued_request(req, -ENODEV);
+			__blk_end_request(req, -ENODEV, blk_rq_bytes(req));
 
 		return;
 	}
@@ -877,6 +878,7 @@ static int mspro_block_switch_interface(struct memstick_dev *card)
 	struct mspro_block_data *msb = memstick_get_drvdata(card);
 	int rc = 0;
 
+try_again:
 	if (msb->caps & MEMSTICK_CAP_PAR4)
 		rc = mspro_block_set_interface(card, MEMSTICK_SYS_PAR4);
 	else
@@ -930,6 +932,18 @@ static int mspro_block_switch_interface(struct memstick_dev *card)
 		rc = memstick_set_rw_addr(card);
 		if (!rc)
 			rc = mspro_block_set_interface(card, msb->system);
+
+		if (!rc) {
+			msleep(150);
+			rc = mspro_block_wait_for_ced(card);
+			if (rc)
+				return rc;
+
+			if (msb->caps & MEMSTICK_CAP_PAR8) {
+				msb->caps &= ~MEMSTICK_CAP_PAR8;
+				goto try_again;
+			}
+		}
 	}
 	return rc;
 }
@@ -1029,7 +1043,6 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 
 		s_attr->dev_attr.attr.name = s_attr->name;
 		s_attr->dev_attr.attr.mode = S_IRUGO;
-		s_attr->dev_attr.attr.owner = THIS_MODULE;
 		s_attr->dev_attr.show = mspro_block_attr_show(s_attr->id);
 
 		if (!rc)
@@ -1117,14 +1130,16 @@ static int mspro_block_init_card(struct memstick_dev *card)
 		return -EIO;
 
 	msb->caps = host->caps;
+
+	msleep(150);
+	rc = mspro_block_wait_for_ced(card);
+	if (rc)
+		return rc;
+
 	rc = mspro_block_switch_interface(card);
 	if (rc)
 		return rc;
 
-	msleep(200);
-	rc = mspro_block_wait_for_ced(card);
-	if (rc)
-		return rc;
 	dev_dbg(&card->dev, "card activated\n");
 	if (msb->system != MEMSTICK_SYS_SERIAL)
 		msb->caps |= MEMSTICK_CAP_AUTO_GET_INT;
@@ -1192,12 +1207,12 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	if (rc)
 		return rc;
 
-	if ((disk_id << MEMSTICK_PART_SHIFT) > 255) {
+	if ((disk_id << MSPRO_BLOCK_PART_SHIFT) > 255) {
 		rc = -ENOSPC;
 		goto out_release_id;
 	}
 
-	msb->disk = alloc_disk(1 << MEMSTICK_PART_SHIFT);
+	msb->disk = alloc_disk(1 << MSPRO_BLOCK_PART_SHIFT);
 	if (!msb->disk) {
 		rc = -ENOMEM;
 		goto out_release_id;
@@ -1220,7 +1235,7 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 				   MSPRO_BLOCK_MAX_PAGES * msb->page_size);
 
 	msb->disk->major = major;
-	msb->disk->first_minor = disk_id << MEMSTICK_PART_SHIFT;
+	msb->disk->first_minor = disk_id << MSPRO_BLOCK_PART_SHIFT;
 	msb->disk->fops = &ms_block_bdops;
 	msb->usage_count = 1;
 	msb->disk->private_data = msb;
@@ -1416,7 +1431,7 @@ out_unlock:
 
 static struct memstick_device_id mspro_block_id_tbl[] = {
 	{MEMSTICK_MATCH_ALL, MEMSTICK_TYPE_PRO, MEMSTICK_CATEGORY_STORAGE_DUO,
-	 MEMSTICK_CLASS_GENERIC_DUO},
+	 MEMSTICK_CLASS_DUO},
 	{}
 };
 

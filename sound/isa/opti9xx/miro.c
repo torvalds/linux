@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/opl4.h>
 #include <sound/control.h>
@@ -675,7 +675,8 @@ static int __devinit snd_miro_mixer(struct snd_miro *miro)
 	unsigned int idx;
 	int err;
 
-	snd_assert(miro != NULL && miro->card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!miro || !miro->card))
+		return -EINVAL;
 
 	card = miro->card;
 
@@ -1221,7 +1222,7 @@ static int __devinit snd_miro_probe(struct device *devptr, unsigned int n)
 
 	int error;
 	struct snd_miro *miro;
-	struct snd_cs4231 *codec;
+	struct snd_wss *codec;
 	struct snd_timer *timer;
 	struct snd_card *card;
 	struct snd_pcm *pcm;
@@ -1310,29 +1311,32 @@ static int __devinit snd_miro_probe(struct device *devptr, unsigned int n)
 		}
 	}
 
-	if ((error = snd_miro_configure(miro))) {
+	error = snd_miro_configure(miro);
+	if (error) {
 		snd_card_free(card);
 		return error;
 	}
 
-	if ((error = snd_cs4231_create(card, miro->wss_base + 4, -1,
-				       miro->irq, miro->dma1, miro->dma2,
-				       CS4231_HW_AD1845,
-				       0,
-				       &codec)) < 0) {
+	error = snd_wss_create(card, miro->wss_base + 4, -1,
+				miro->irq, miro->dma1, miro->dma2,
+				WSS_HW_AD1845, 0, &codec);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
 
-	if ((error = snd_cs4231_pcm(codec, 0, &pcm)) < 0) {
+	error = snd_wss_pcm(codec, 0, &pcm);
+	if (error < 0)  {
 		snd_card_free(card);
 		return error;
 	}
-	if ((error = snd_cs4231_mixer(codec)) < 0) {
+	error = snd_wss_mixer(codec);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
-	if ((error = snd_cs4231_timer(codec, 0, &timer)) < 0) {
+	error = snd_wss_timer(codec, 0, &timer);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}

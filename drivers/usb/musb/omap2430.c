@@ -35,8 +35,8 @@
 #include <linux/io.h>
 
 #include <asm/mach-types.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/mux.h>
+#include <mach/hardware.h>
+#include <mach/mux.h>
 
 #include "musb_core.h"
 #include "omap2430.h"
@@ -53,7 +53,9 @@ static void musb_do_idle(unsigned long _musb)
 {
 	struct musb	*musb = (void *)_musb;
 	unsigned long	flags;
+#ifdef CONFIG_USB_MUSB_HDRC_HCD
 	u8	power;
+#endif
 	u8	devctl;
 
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);

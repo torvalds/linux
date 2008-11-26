@@ -2,8 +2,8 @@
 # USB Storage driver configuration
 #
 
-comment "NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'"
-comment "may also be needed; see USB_STORAGE Help for more information"
+comment "NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may also be needed;"
+comment "see USB_STORAGE Help for more information"
 	depends on USB
 
 config USB_STORAGE
@@ -145,18 +145,6 @@ config USB_STORAGE_KARMA
 	  it to be mounted as an ordinary filesystem. Performing an eject
 	  on the resulting scsi device node returns the Karma to normal
 	  operation.
-
-config USB_STORAGE_SIERRA
-	bool "Sierra Wireless TRU-Install Feature Support"
-	depends on USB_STORAGE
-	help
-	  Say Y here to include additional code to support Sierra Wireless
-	  products with the TRU-Install feature (e.g., AC597E, AC881U).
-
-	  This code switches the Sierra Wireless device from being in
-	  Mass Storage mode to Modem mode. It also has the ability to
-	  support host software upgrades should full Linux support be added
-	  to TRU-Install.
 
 config USB_STORAGE_CYPRESS_ATACB
 	bool "SAT emulation on Cypress USB/ATA Bridge with ATACB"

@@ -131,7 +131,7 @@ static int proc_ipcauto_dointvec_minmax(ctl_table *table, int write,
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 /* The generic sysctl ipc data routine. */
-static int sysctl_ipc_data(ctl_table *table, int __user *name, int nlen,
+static int sysctl_ipc_data(ctl_table *table,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
@@ -169,14 +169,13 @@ static int sysctl_ipc_data(ctl_table *table, int __user *name, int nlen,
 	return 1;
 }
 
-static int sysctl_ipc_registered_data(ctl_table *table, int __user *name,
-		int nlen, void __user *oldval, size_t __user *oldlenp,
+static int sysctl_ipc_registered_data(ctl_table *table,
+		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
 	int rc;
 
-	rc = sysctl_ipc_data(table, name, nlen, oldval, oldlenp, newval,
-		newlen);
+	rc = sysctl_ipc_data(table, oldval, oldlenp, newval, newlen);
 
 	if (newval && newlen && rc > 0)
 		/*

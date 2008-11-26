@@ -22,9 +22,8 @@
 #define IO_OFFSET	0xfd000000 /* Virtual IO = 0xfec00000 */
 #define IO_SIZE		0x00400000
 #define IO_VIRT		(IO_PHYS + IO_OFFSET)
-#define io_p2v(pa)	((pa) + IO_OFFSET)
 #define io_v2p(va)	((va) - IO_OFFSET)
-#define IO_ADDRESS(x)	io_p2v(x)
+#define __IO_ADDRESS(x)	((x) + IO_OFFSET)
 
 /*
  * We don't actually have real ISA nor PCI buses, but there is so many
@@ -35,7 +34,12 @@
 #define __mem_pci(a)		(a)
 #define __mem_isa(a)		(a)
 
-#ifndef __ASSEMBLER__
+#define IO_ADDRESS(pa)          IOMEM(__IO_ADDRESS(pa))
+
+#ifdef __ASSEMBLER__
+#define IOMEM(x)                x
+#else
+#define IOMEM(x)                ((void __force __iomem *)(x))
 
 /*
  * Functions to access the DaVinci IO region
@@ -46,34 +50,13 @@
  *	 - DO NOT use hardcoded virtual addresses to allow changing the
  *	   IO address space again if needed
  */
-#define davinci_readb(a)	(*(volatile unsigned char  *)IO_ADDRESS(a))
-#define davinci_readw(a)	(*(volatile unsigned short *)IO_ADDRESS(a))
-#define davinci_readl(a)	(*(volatile unsigned int   *)IO_ADDRESS(a))
+#define davinci_readb(a)	__raw_readb(IO_ADDRESS(a))
+#define davinci_readw(a)	__raw_readw(IO_ADDRESS(a))
+#define davinci_readl(a)	__raw_readl(IO_ADDRESS(a))
 
-#define davinci_writeb(v,a)	(*(volatile unsigned char  *)IO_ADDRESS(a) = (v))
-#define davinci_writew(v,a)	(*(volatile unsigned short *)IO_ADDRESS(a) = (v))
-#define davinci_writel(v,a)	(*(volatile unsigned int   *)IO_ADDRESS(a) = (v))
-
-/* 16 bit uses LDRH/STRH, base +/- offset_8 */
-typedef struct { volatile u16 offset[256]; } __regbase16;
-#define __REGV16(vaddr)		((__regbase16 *)((vaddr)&~0xff)) \
-					->offset[((vaddr)&0xff)>>1]
-#define __REG16(paddr)          __REGV16(io_p2v(paddr))
-
-/* 8/32 bit uses LDR/STR, base +/- offset_12 */
-typedef struct { volatile u8 offset[4096]; } __regbase8;
-#define __REGV8(vaddr)		((__regbase8  *)((vaddr)&~4095)) \
-					->offset[((vaddr)&4095)>>0]
-#define __REG8(paddr)		__REGV8(io_p2v(paddr))
-
-typedef struct { volatile u32 offset[4096]; } __regbase32;
-#define __REGV32(vaddr)		((__regbase32 *)((vaddr)&~4095)) \
-					->offset[((vaddr)&4095)>>2]
-
-#define __REG(paddr)		__REGV32(io_p2v(paddr))
-#else
-
-#define __REG(x)	(*((volatile unsigned long *)io_p2v(x)))
+#define davinci_writeb(v, a)	__raw_writeb(v, IO_ADDRESS(a))
+#define davinci_writew(v, a)	__raw_writew(v, IO_ADDRESS(a))
+#define davinci_writel(v, a)	__raw_writel(v, IO_ADDRESS(a))
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ASM_ARCH_IO_H */

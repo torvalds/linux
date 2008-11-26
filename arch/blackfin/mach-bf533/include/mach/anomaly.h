@@ -7,7 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision C, 02/08/2008; ADSP-BF531/BF532/BF533 Blackfin Processor Anomaly List
+ *  - Revision D, 06/18/2008; ADSP-BF531/BF532/BF533 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -97,11 +97,11 @@
 /* UART STB Bit Incorrectly Affects Receiver Setting */
 #define ANOMALY_05000231 (__SILICON_REVISION__ < 5)
 /* PPI_FS3 Is Not Driven in 2 or 3 Internal Frame Sync Transmit Modes */
-#define ANOMALY_05000233 (__SILICON_REVISION__ < 4)
+#define ANOMALY_05000233 (__SILICON_REVISION__ < 6)
 /* Incorrect Revision Number in DSPID Register */
 #define ANOMALY_05000234 (__SILICON_REVISION__ == 4)
 /* DF Bit in PLL_CTL Register Does Not Respond to Hardware Reset */
-#define ANOMALY_05000242 (__SILICON_REVISION__ < 4)
+#define ANOMALY_05000242 (__SILICON_REVISION__ < 5)
 /* If I-Cache Is On, CSYNC/SSYNC/IDLE Around Change of Control Causes Failures */
 #define ANOMALY_05000244 (__SILICON_REVISION__ < 5)
 /* Spurious Hardware Error from an Access in the Shadow of a Conditional Branch */
@@ -131,7 +131,7 @@
 /* CSYNC/SSYNC/IDLE Causes Infinite Stall in Penultimate Instruction in Hardware Loop */
 #define ANOMALY_05000264 (__SILICON_REVISION__ < 5)
 /* Sensitivity To Noise with Slow Input Edge Rates on External SPORT TX and RX Clocks */
-#define ANOMALY_05000265 (__SILICON_REVISION__ < 5)
+#define ANOMALY_05000265 (1)
 /* High I/O Activity Causes Output Voltage of Internal Voltage Regulator (Vddint) to Increase */
 #define ANOMALY_05000269 (__SILICON_REVISION__ < 5)
 /* High I/O Activity Causes Output Voltage of Internal Voltage Regulator (Vddint) to Decrease */
@@ -141,56 +141,59 @@
 /* Certain Data Cache Writethrough Modes Fail for Vddint <= 0.9V */
 #define ANOMALY_05000272 (1)
 /* Writes to Synchronous SDRAM Memory May Be Lost */
-#define ANOMALY_05000273 (1)
+#define ANOMALY_05000273 (__SILICON_REVISION__ < 6)
 /* Timing Requirements Change for External Frame Sync PPI Modes with Non-Zero PPI_DELAY */
 #define ANOMALY_05000276 (1)
 /* Writes to an I/O Data Register One SCLK Cycle after an Edge Is Detected May Clear Interrupt */
-#define ANOMALY_05000277 (1)
+#define ANOMALY_05000277 (__SILICON_REVISION__ < 6)
 /* Disabling Peripherals with DMA Running May Cause DMA System Instability */
-#define ANOMALY_05000278 (1)
+#define ANOMALY_05000278 (__SILICON_REVISION__ < 6)
 /* False Hardware Error Exception When ISR Context Is Not Restored */
-#define ANOMALY_05000281 (1)
+#define ANOMALY_05000281 (__SILICON_REVISION__ < 6)
 /* Memory DMA Corruption with 32-Bit Data and Traffic Control */
-#define ANOMALY_05000282 (1)
+#define ANOMALY_05000282 (__SILICON_REVISION__ < 6)
 /* System MMR Write Is Stalled Indefinitely When Killed in a Particular Stage */
-#define ANOMALY_05000283 (1)
+#define ANOMALY_05000283 (__SILICON_REVISION__ < 6)
 /* SPORTs May Receive Bad Data If FIFOs Fill Up */
-#define ANOMALY_05000288 (1)
+#define ANOMALY_05000288 (__SILICON_REVISION__ < 6)
 /* Memory-To-Memory DMA Source/Destination Descriptors Must Be in Same Memory Space */
-#define ANOMALY_05000301 (1)
+#define ANOMALY_05000301 (__SILICON_REVISION__ < 6)
 /* SSYNCs After Writes To DMA MMR Registers May Not Be Handled Correctly */
 #define ANOMALY_05000302 (__SILICON_REVISION__ < 5)
 /* New Feature: Additional Hysteresis on SPORT Input Pins (Not Available On Older Silicon) */
 #define ANOMALY_05000305 (__SILICON_REVISION__ < 5)
 /* New Feature: Additional PPI Frame Sync Sampling Options (Not Available On Older Silicon) */
 #define ANOMALY_05000306 (__SILICON_REVISION__ < 5)
+/* SCKELOW Bit Does Not Maintain State Through Hibernate */
+#define ANOMALY_05000307 (1)
 /* False Hardware Errors Caused by Fetches at the Boundary of Reserved Memory */
 #define ANOMALY_05000310 (1)
 /* Erroneous Flag (GPIO) Pin Operations under Specific Sequences */
-#define ANOMALY_05000311 (1)
+#define ANOMALY_05000311 (__SILICON_REVISION__ < 6)
 /* Errors When SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
-#define ANOMALY_05000312 (1)
+#define ANOMALY_05000312 (__SILICON_REVISION__ < 6)
 /* PPI Is Level-Sensitive on First Transfer */
-#define ANOMALY_05000313 (1)
+#define ANOMALY_05000313 (__SILICON_REVISION__ < 6)
 /* Killed System MMR Write Completes Erroneously On Next System MMR Access */
-#define ANOMALY_05000315 (1)
+#define ANOMALY_05000315 (__SILICON_REVISION__ < 6)
 /* Internal Voltage Regulator Values of 1.05V, 1.10V and 1.15V Not Allowed for LQFP Packages */
-#define ANOMALY_05000319 (ANOMALY_BF531 || ANOMALY_BF532)
+#define ANOMALY_05000319 ((ANOMALY_BF531 || ANOMALY_BF532) && __SILICON_REVISION__ < 6)
 /* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
-#define ANOMALY_05000357 (1)
+#define ANOMALY_05000357 (__SILICON_REVISION__ < 6)
 /* UART Break Signal Issues */
 #define ANOMALY_05000363 (__SILICON_REVISION__ < 5)
 /* PPI Underflow Error Goes Undetected in ITU-R 656 Mode */
 #define ANOMALY_05000366 (1)
 /* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
-#define ANOMALY_05000371 (1)
+#define ANOMALY_05000371 (__SILICON_REVISION__ < 6)
 /* PPI Does Not Start Properly In Specific Mode */
-#define ANOMALY_05000400 (__SILICON_REVISION__ >= 5)
+#define ANOMALY_05000400 (__SILICON_REVISION__ == 5)
 /* SSYNC Stalls Processor when Executed from Non-Cacheable Memory */
-#define ANOMALY_05000402 (__SILICON_REVISION__ >= 5)
+#define ANOMALY_05000402 (__SILICON_REVISION__ == 5)
 /* Level-Sensitive External GPIO Wakeups May Cause Indefinite Stall */
 #define ANOMALY_05000403 (1)
-
+/* Speculative Fetches Can Cause Undesired External FIFO Operations */
+#define ANOMALY_05000416 (1)
 
 /* These anomalies have been "phased" out of analog.com anomaly sheets and are
  * here to show running on older silicon just isn't feasible.
@@ -268,5 +271,7 @@
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000266 (0)
 #define ANOMALY_05000323 (0)
+#define ANOMALY_05000353 (1)
+#define ANOMALY_05000386 (1)
 
 #endif

@@ -79,14 +79,14 @@ unsigned long read_persistent_clock(void)
 	/* Stop the update to the time */
 	m48t37_base->control = 0x40;
 
-	year = BCD2BIN(m48t37_base->year);
-	year += BCD2BIN(m48t37_base->century) * 100;
+	year = bcd2bin(m48t37_base->year);
+	year += bcd2bin(m48t37_base->century) * 100;
 
-	month = BCD2BIN(m48t37_base->month);
-	day = BCD2BIN(m48t37_base->date);
-	hour = BCD2BIN(m48t37_base->hour);
-	min = BCD2BIN(m48t37_base->min);
-	sec = BCD2BIN(m48t37_base->sec);
+	month = bcd2bin(m48t37_base->month);
+	day = bcd2bin(m48t37_base->date);
+	hour = bcd2bin(m48t37_base->hour);
+	min = bcd2bin(m48t37_base->min);
+	sec = bcd2bin(m48t37_base->sec);
 
 	/* Start the update to the time again */
 	m48t37_base->control = 0x00;
@@ -113,22 +113,22 @@ int rtc_mips_set_time(unsigned long tim)
 	m48t37_base->control = 0x80;
 
 	/* year */
-	m48t37_base->year = BIN2BCD(tm.tm_year % 100);
-	m48t37_base->century = BIN2BCD(tm.tm_year / 100);
+	m48t37_base->year = bin2bcd(tm.tm_year % 100);
+	m48t37_base->century = bin2bcd(tm.tm_year / 100);
 
 	/* month */
-	m48t37_base->month = BIN2BCD(tm.tm_mon);
+	m48t37_base->month = bin2bcd(tm.tm_mon);
 
 	/* day */
-	m48t37_base->date = BIN2BCD(tm.tm_mday);
+	m48t37_base->date = bin2bcd(tm.tm_mday);
 
 	/* hour/min/sec */
-	m48t37_base->hour = BIN2BCD(tm.tm_hour);
-	m48t37_base->min = BIN2BCD(tm.tm_min);
-	m48t37_base->sec = BIN2BCD(tm.tm_sec);
+	m48t37_base->hour = bin2bcd(tm.tm_hour);
+	m48t37_base->min = bin2bcd(tm.tm_min);
+	m48t37_base->sec = bin2bcd(tm.tm_sec);
 
 	/* day of week -- not really used, but let's keep it up-to-date */
-	m48t37_base->day = BIN2BCD(tm.tm_wday + 1);
+	m48t37_base->day = bin2bcd(tm.tm_wday + 1);
 
 	/* disable writing */
 	m48t37_base->control = 0x00;

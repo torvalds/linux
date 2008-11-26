@@ -23,6 +23,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/videodev2.h>
 
 /* ivtv knows several distinct output modes: MPEG streaming,
    YUV streaming, YUV updates through user DMA and the passthrough

@@ -198,7 +198,8 @@ static int snd_sb_csp_ioctl(struct snd_hwdep * hw, struct file *file, unsigned i
 	struct snd_sb_csp_start start_info;
 	int err;
 
-	snd_assert(p != NULL, return -EINVAL);
+	if (snd_BUG_ON(!p))
+		return -EINVAL;
 
 	if (snd_sb_csp_check_version(p))
 		return -ENODEV;
@@ -1046,7 +1047,8 @@ static int snd_sb_qsound_build(struct snd_sb_csp * p)
 	struct snd_card *card;
 	int err;
 
-	snd_assert(p != NULL, return -EINVAL);
+	if (snd_BUG_ON(!p))
+		return -EINVAL;
 
 	card = p->chip->card;
 	p->qpos_left = p->qpos_right = SNDRV_SB_CSP_QSOUND_MAX_RIGHT / 2;
@@ -1071,7 +1073,8 @@ static void snd_sb_qsound_destroy(struct snd_sb_csp * p)
 	struct snd_card *card;
 	unsigned long flags;
 
-	snd_assert(p != NULL, return);
+	if (snd_BUG_ON(!p))
+		return;
 
 	card = p->chip->card;	
 	

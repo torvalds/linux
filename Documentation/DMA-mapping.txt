@@ -740,7 +740,7 @@ failure can be determined by:
 	dma_addr_t dma_handle;
 
 	dma_handle = pci_map_single(pdev, addr, size, direction);
-	if (pci_dma_mapping_error(dma_handle)) {
+	if (pci_dma_mapping_error(pdev, dma_handle)) {
 		/*
 		 * reduce current DMA mapping usage,
 		 * delay and try again later or

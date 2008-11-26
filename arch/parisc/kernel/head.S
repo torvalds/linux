@@ -121,7 +121,7 @@ $pgt_fill_loop:
 	copy		%r0,%r2
 
 	/* And the RFI Target address too */
-	load32		start_kernel,%r11
+	load32		start_parisc,%r11
 
 	/* And the initial task pointer */
 	load32		init_thread_union,%r6

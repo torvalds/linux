@@ -92,7 +92,8 @@ static long snd_seq_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	struct snd_seq_client *client = file->private_data;
 	void __user *argp = compat_ptr(arg);
 
-	snd_assert(client != NULL, return -ENXIO);
+	if (snd_BUG_ON(!client))
+		return -ENXIO;
 
 	switch (cmd) {
 	case SNDRV_SEQ_IOCTL_PVERSION:

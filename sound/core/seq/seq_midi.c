@@ -116,7 +116,8 @@ static int dump_midi(struct snd_rawmidi_substream *substream, const char *buf, i
 	struct snd_rawmidi_runtime *runtime;
 	int tmp;
 
-	snd_assert(substream != NULL || buf != NULL, return -EINVAL);
+	if (snd_BUG_ON(!substream || !buf))
+		return -EINVAL;
 	runtime = substream->runtime;
 	if ((tmp = runtime->avail) < count) {
 		snd_printd("warning, output event was lost (count = %i, available = %i)\n", count, tmp);
@@ -135,7 +136,8 @@ static int event_process_midi(struct snd_seq_event *ev, int direct,
 	struct snd_rawmidi_substream *substream;
 	int len;
 
-	snd_assert(msynth != NULL, return -EINVAL);
+	if (snd_BUG_ON(!msynth))
+		return -EINVAL;
 	substream = msynth->output_rfile.output;
 	if (substream == NULL)
 		return -ENODEV;
@@ -210,7 +212,8 @@ static int midisynth_unsubscribe(void *private_data, struct snd_seq_port_subscri
 	int err;
 	struct seq_midisynth *msynth = private_data;
 
-	snd_assert(msynth->input_rfile.input != NULL, return -EINVAL);
+	if (snd_BUG_ON(!msynth->input_rfile.input))
+		return -EINVAL;
 	err = snd_rawmidi_kernel_release(&msynth->input_rfile);
 	return err;
 }
@@ -247,7 +250,8 @@ static int midisynth_unuse(void *private_data, struct snd_seq_port_subscribe *in
 	struct seq_midisynth *msynth = private_data;
 	unsigned char buf = 0xff; /* MIDI reset */
 
-	snd_assert(msynth->output_rfile.output != NULL, return -EINVAL);
+	if (snd_BUG_ON(!msynth->output_rfile.output))
+		return -EINVAL;
 	/* sending single MIDI reset message to shut the device up */
 	snd_rawmidi_kernel_write(msynth->output_rfile.output, &buf, 1);
 	snd_rawmidi_drain_output(msynth->output_rfile.output);
@@ -285,7 +289,8 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 	int device = dev->device;
 	unsigned int input_count = 0, output_count = 0;
 
-	snd_assert(card != NULL && device >= 0 && device < SNDRV_RAWMIDI_DEVICES, return -EINVAL);
+	if (snd_BUG_ON(!card || device < 0 || device >= SNDRV_RAWMIDI_DEVICES))
+		return -EINVAL;
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
 		return -ENOMEM;

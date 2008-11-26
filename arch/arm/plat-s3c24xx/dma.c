@@ -26,17 +26,17 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/dma.h>
 
 #include <asm/mach/dma.h>
 #include <mach/map.h>
 
-#include <asm/plat-s3c24xx/dma.h>
+#include <plat/dma.h>
 
 /* io map for dma */
 static void __iomem *dma_base;

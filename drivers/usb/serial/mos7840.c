@@ -709,12 +709,13 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	dbg("%s", "Entering ........... \n");
 
 	if (urb->actual_length) {
-		tty = mos7840_port->port->port.tty;
+		tty = tty_port_tty_get(&mos7840_port->port->port);
 		if (tty) {
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			dbg(" %s \n", data);
 			tty_flip_buffer_push(tty);
+			tty_kref_put(tty);
 		}
 		mos7840_port->icount.rx += urb->actual_length;
 		smp_wmb();
@@ -773,10 +774,10 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 
 	dbg("%s \n", "Entering .........");
 
-	tty = mos7840_port->port->port.tty;
-
+	tty = tty_port_tty_get(&mos7840_port->port->port);
 	if (tty && mos7840_port->open)
 		tty_wakeup(tty);
+	tty_kref_put(tty);
 
 }
 
@@ -843,7 +844,7 @@ static int mos7840_open(struct tty_struct *tty,
 		mos7840_port->write_urb_pool[j] = urb;
 
 		if (urb == NULL) {
-			err("No more urbs???");
+			dev_err(&port->dev, "No more urbs???\n");
 			continue;
 		}
 
@@ -852,7 +853,9 @@ static int mos7840_open(struct tty_struct *tty,
 		if (!urb->transfer_buffer) {
 			usb_free_urb(urb);
 			mos7840_port->write_urb_pool[j] = NULL;
-			err("%s-out of memory for urb buffers.", __func__);
+			dev_err(&port->dev,
+				"%s-out of memory for urb buffers.\n",
+				__func__);
 			continue;
 		}
 	}
@@ -1020,8 +1023,8 @@ static int mos7840_open(struct tty_struct *tty,
 			    usb_submit_urb(serial->port[0]->interrupt_in_urb,
 					   GFP_KERNEL);
 			if (response) {
-				err("%s - Error %d submitting interrupt urb",
-				    __func__, response);
+				dev_err(&port->dev, "%s - Error %d submitting "
+					"interrupt urb\n", __func__, response);
 			}
 
 		}
@@ -1054,8 +1057,8 @@ static int mos7840_open(struct tty_struct *tty,
 	    port->bulk_in_endpointAddress);
 	response = usb_submit_urb(mos7840_port->read_urb, GFP_KERNEL);
 	if (response) {
-		err("%s - Error %d submitting control urb", __func__,
-		    response);
+		dev_err(&port->dev, "%s - Error %d submitting control urb\n",
+			__func__, response);
 	}
 
 	/* initialize our wait queues */
@@ -1491,7 +1494,8 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 		    kmalloc(URB_TRANSFER_BUFFER_SIZE, GFP_KERNEL);
 
 		if (urb->transfer_buffer == NULL) {
-			err("%s no more kernel memory...", __func__);
+			dev_err(&port->dev, "%s no more kernel memory...\n",
+				__func__);
 			goto exit;
 		}
 	}
@@ -1516,8 +1520,8 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	if (status) {
 		mos7840_port->busy[i] = 0;
-		err("%s - usb_submit_urb(write bulk) failed with status = %d",
-		    __func__, status);
+		dev_err(&port->dev, "%s - usb_submit_urb(write bulk) failed "
+			"with status = %d\n", __func__, status);
 		bytes_sent = status;
 		goto exit;
 	}
@@ -1855,8 +1859,7 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 		/* Calculate the Divisor */
 
 		if (status) {
-			err("%s - bad baud rate", __func__);
-			dbg("%s\n", "bad baud rate");
+			dev_err(&port->dev, "%s - bad baud rate\n", __func__);
 			return status;
 		}
 		/* Enable access to divisor latch */
@@ -2445,7 +2448,7 @@ static int mos7840_startup(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		mos7840_port = kzalloc(sizeof(struct moschip_port), GFP_KERNEL);
 		if (mos7840_port == NULL) {
-			err("%s - Out of memory", __func__);
+			dev_err(&dev->dev, "%s - Out of memory\n", __func__);
 			status = -ENOMEM;
 			i--; /* don't follow NULL pointer cleaning up */
 			goto error;
@@ -2742,7 +2745,8 @@ static int __init moschip7840_init(void)
 		goto failed_port_device_register;
 
 	dbg("%s\n", "Entring...");
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	/* Register with the usb */
 	retval = usb_register(&io_driver);

@@ -195,24 +195,11 @@ static int get_port_device_capability(struct pci_dev *dev)
 	/* PME Capable - root port capability */
 	if (((reg16 >> 4) & PORT_TYPE_MASK) == PCIE_RC_PORT)
 		services |= PCIE_PORT_SERVICE_PME;
-	
-	pos = PCI_CFG_SPACE_SIZE;
-	while (pos) {
-		pci_read_config_dword(dev, pos, &reg32);
-		switch (reg32 & 0xffff) {
-		case PCI_EXT_CAP_ID_ERR:
-			services |= PCIE_PORT_SERVICE_AER;
-			pos = reg32 >> 20;
-			break;
-		case PCI_EXT_CAP_ID_VC:
-			services |= PCIE_PORT_SERVICE_VC;
-			pos = reg32 >> 20;
-			break;
-		default:
-			pos = 0;
-			break;
-		}
-	}
+
+	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR))
+		services |= PCIE_PORT_SERVICE_AER;
+	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_VC))
+		services |= PCIE_PORT_SERVICE_VC;
 
 	return services;
 }

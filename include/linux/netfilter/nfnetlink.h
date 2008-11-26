@@ -78,6 +78,9 @@ extern int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group,
 			  int echo);
 extern int nfnetlink_unicast(struct sk_buff *skb, u_int32_t pid, int flags);
 
+extern void nfnl_lock(void);
+extern void nfnl_unlock(void);
+
 #define MODULE_ALIAS_NFNL_SUBSYS(subsys) \
 	MODULE_ALIAS("nfnetlink-subsys-" __stringify(subsys))
 

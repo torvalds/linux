@@ -128,8 +128,8 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
 	if (net != &init_net)
 		return -EAFNOSUPPORT;
 
-#ifdef CONFIG_KMOD
-	/* try to load protocol module, when CONFIG_KMOD is defined */
+#ifdef CONFIG_MODULES
+	/* try to load protocol module kernel is modular */
 	if (!proto_tab[protocol]) {
 		err = request_module("can-proto-%d", protocol);
 
