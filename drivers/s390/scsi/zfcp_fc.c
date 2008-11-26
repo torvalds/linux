@@ -50,7 +50,8 @@ static int zfcp_wka_port_get(struct zfcp_wka_port *wka_port)
 	if (mutex_lock_interruptible(&wka_port->mutex))
 		return -ERESTARTSYS;
 
-	if (wka_port->status != ZFCP_WKA_PORT_ONLINE) {
+	if (wka_port->status == ZFCP_WKA_PORT_OFFLINE ||
+	    wka_port->status == ZFCP_WKA_PORT_CLOSING) {
 		wka_port->status = ZFCP_WKA_PORT_OPENING;
 		if (zfcp_fsf_open_wka_port(wka_port))
 			wka_port->status = ZFCP_WKA_PORT_OFFLINE;
