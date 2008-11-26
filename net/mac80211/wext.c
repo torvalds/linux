@@ -224,78 +224,6 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 }
 
 
-static int ieee80211_ioctl_siwmode(struct net_device *dev,
-				   struct iw_request_info *info,
-				   __u32 *mode, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = sdata->local;
-	int type;
-
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-		return -EOPNOTSUPP;
-
-	switch (*mode) {
-	case IW_MODE_INFRA:
-		type = NL80211_IFTYPE_STATION;
-		break;
-	case IW_MODE_ADHOC:
-		/* Setting ad-hoc mode on non ibss channel is not
-		 * supported.
-		 */
-		if (local->oper_channel &&
-		    (local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS))
-			return -EOPNOTSUPP;
-
-		type = NL80211_IFTYPE_ADHOC;
-		break;
-	case IW_MODE_REPEAT:
-		type = NL80211_IFTYPE_WDS;
-		break;
-	case IW_MODE_MONITOR:
-		type = NL80211_IFTYPE_MONITOR;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return ieee80211_if_change_type(sdata, type);
-}
-
-
-static int ieee80211_ioctl_giwmode(struct net_device *dev,
-				   struct iw_request_info *info,
-				   __u32 *mode, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP:
-		*mode = IW_MODE_MASTER;
-		break;
-	case NL80211_IFTYPE_STATION:
-		*mode = IW_MODE_INFRA;
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		*mode = IW_MODE_ADHOC;
-		break;
-	case NL80211_IFTYPE_MONITOR:
-		*mode = IW_MODE_MONITOR;
-		break;
-	case NL80211_IFTYPE_WDS:
-		*mode = IW_MODE_REPEAT;
-		break;
-	case NL80211_IFTYPE_AP_VLAN:
-		*mode = IW_MODE_SECOND;		/* FIXME */
-		break;
-	default:
-		*mode = IW_MODE_AUTO;
-		break;
-	}
-	return 0;
-}
-
 static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 				   struct iw_request_info *info,
 				   struct iw_freq *freq, char *extra)
@@ -1109,8 +1037,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* SIOCGIWNWID */
 	(iw_handler) ieee80211_ioctl_siwfreq,		/* SIOCSIWFREQ */
 	(iw_handler) ieee80211_ioctl_giwfreq,		/* SIOCGIWFREQ */
-	(iw_handler) ieee80211_ioctl_siwmode,		/* SIOCSIWMODE */
-	(iw_handler) ieee80211_ioctl_giwmode,		/* SIOCGIWMODE */
+	(iw_handler) cfg80211_wext_siwmode,		/* SIOCSIWMODE */
+	(iw_handler) cfg80211_wext_giwmode,		/* SIOCGIWMODE */
 	(iw_handler) NULL,				/* SIOCSIWSENS */
 	(iw_handler) NULL,				/* SIOCGIWSENS */
 	(iw_handler) NULL /* not used */,		/* SIOCSIWRANGE */

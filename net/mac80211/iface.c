@@ -698,6 +698,10 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	if (type == sdata->vif.type)
 		return 0;
 
+	/* Setting ad-hoc mode on non-IBSS channel is not supported. */
+	if (sdata->local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS)
+		return -EOPNOTSUPP;
+
 	/*
 	 * We could, here, on changes between IBSS/STA/MESH modes,
 	 * invoke an MLME function instead that disassociates etc.

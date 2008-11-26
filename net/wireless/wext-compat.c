@@ -58,3 +58,82 @@ int cfg80211_wext_giwname(struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(cfg80211_wext_giwname);
+
+int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
+			  u32 *mode, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev;
+	struct vif_params vifparams;
+	enum nl80211_iftype type;
+
+	if (!wdev)
+		return -EOPNOTSUPP;
+
+	rdev = wiphy_to_dev(wdev->wiphy);
+
+	if (!rdev->ops->change_virtual_intf)
+		return -EOPNOTSUPP;
+
+	/* don't support changing VLANs, you just re-create them */
+	if (wdev->iftype == NL80211_IFTYPE_AP_VLAN)
+		return -EOPNOTSUPP;
+
+	switch (*mode) {
+	case IW_MODE_INFRA:
+		type = NL80211_IFTYPE_STATION;
+		break;
+	case IW_MODE_ADHOC:
+		type = NL80211_IFTYPE_ADHOC;
+		break;
+	case IW_MODE_REPEAT:
+		type = NL80211_IFTYPE_WDS;
+		break;
+	case IW_MODE_MONITOR:
+		type = NL80211_IFTYPE_MONITOR;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	memset(&vifparams, 0, sizeof(vifparams));
+
+	return rdev->ops->change_virtual_intf(wdev->wiphy, dev->ifindex, type,
+					      NULL, &vifparams);
+}
+EXPORT_SYMBOL(cfg80211_wext_siwmode);
+
+int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
+			  u32 *mode, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (!wdev)
+		return -EOPNOTSUPP;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_AP:
+		*mode = IW_MODE_MASTER;
+		break;
+	case NL80211_IFTYPE_STATION:
+		*mode = IW_MODE_INFRA;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		*mode = IW_MODE_ADHOC;
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		*mode = IW_MODE_MONITOR;
+		break;
+	case NL80211_IFTYPE_WDS:
+		*mode = IW_MODE_REPEAT;
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+		*mode = IW_MODE_SECOND;		/* FIXME */
+		break;
+	default:
+		*mode = IW_MODE_AUTO;
+		break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(cfg80211_wext_giwmode);
