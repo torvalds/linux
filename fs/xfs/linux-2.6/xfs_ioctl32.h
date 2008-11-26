@@ -177,6 +177,20 @@ typedef struct compat_xfs_inogrp {
 	__u64		xi_allocmask;	/* mask of allocated inodes	*/
 } __attribute__((packed)) compat_xfs_inogrp_t;
 
+/* These growfs input structures have padding on the end, so must translate */
+typedef struct compat_xfs_growfs_data {
+	__u64		newblocks;	/* new data subvol size, fsblocks */
+	__u32		imaxpct;	/* new inode space percentage limit */
+} __attribute__((packed)) compat_xfs_growfs_data_t;
+
+typedef struct compat_xfs_growfs_rt {
+	__u64		newblocks;	/* new realtime size, fsblocks */
+	__u32		extsize;	/* new realtime extent size, fsblocks */
+} __attribute__((packed)) compat_xfs_growfs_rt_t;
+
+#define XFS_IOC_FSGROWFSDATA_32 _IOW('X', 110, struct compat_xfs_growfs_data)
+#define XFS_IOC_FSGROWFSRT_32   _IOW('X', 112, struct compat_xfs_growfs_rt)
+
 #endif /* BROKEN_X86_ALIGNMENT */
 
 #endif /* __XFS_IOCTL32_H__ */

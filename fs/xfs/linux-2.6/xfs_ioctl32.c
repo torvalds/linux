@@ -44,6 +44,8 @@
 #include "xfs_dfrag.h"
 #include "xfs_vnodeops.h"
 #include "xfs_fsops.h"
+#include "xfs_alloc.h"
+#include "xfs_rtalloc.h"
 #include "xfs_ioctl.h"
 #include "xfs_ioctl32.h"
 
@@ -80,6 +82,28 @@ xfs_compat_ioc_fsgeometry_v1(
 		return -error;
 	/* The 32-bit variant simply has some padding at the end */
 	if (copy_to_user(arg32, &fsgeo, sizeof(struct compat_xfs_fsop_geom_v1)))
+		return -XFS_ERROR(EFAULT);
+	return 0;
+}
+
+STATIC int
+xfs_compat_growfs_data_copyin(
+	struct xfs_growfs_data	 *in,
+	compat_xfs_growfs_data_t __user *arg32)
+{
+	if (get_user(in->newblocks, &arg32->newblocks) ||
+	    get_user(in->imaxpct,   &arg32->imaxpct))
+		return -XFS_ERROR(EFAULT);
+	return 0;
+}
+
+STATIC int
+xfs_compat_growfs_rt_copyin(
+	struct xfs_growfs_rt	 *in,
+	compat_xfs_growfs_rt_t	__user *arg32)
+{
+	if (get_user(in->newblocks, &arg32->newblocks) ||
+	    get_user(in->extsize,   &arg32->extsize))
 		return -XFS_ERROR(EFAULT);
 	return 0;
 }
@@ -367,6 +391,22 @@ xfs_compat_ioctl(
 	}
 	case XFS_IOC_FSGEOMETRY_V1_32:
 		return xfs_compat_ioc_fsgeometry_v1(mp, arg);
+	case XFS_IOC_FSGROWFSDATA_32: {
+		struct xfs_growfs_data	in;
+
+		if (xfs_compat_growfs_data_copyin(&in, arg))
+			return -XFS_ERROR(EFAULT);
+		error = xfs_growfs_data(mp, &in);
+		return -error;
+	}
+	case XFS_IOC_FSGROWFSRT_32: {
+		struct xfs_growfs_rt	in;
+
+		if (xfs_compat_growfs_rt_copyin(&in, arg))
+			return -XFS_ERROR(EFAULT);
+		error = xfs_growfs_rt(mp, &in);
+		return -error;
+	}
 #else /* These are handled fine if no alignment issues */
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
