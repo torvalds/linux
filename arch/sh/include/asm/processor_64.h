@@ -228,7 +228,5 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define user_stack_pointer(regs)	((regs)->sp)
 
-#define cpu_relax()	barrier()
-
 #endif	/* __ASSEMBLY__ */
 #endif /* __ASM_SH_PROCESSOR_64_H */

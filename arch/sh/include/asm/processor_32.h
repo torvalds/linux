@@ -183,9 +183,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define user_stack_pointer(regs)	((regs)->regs[15])
 
-#define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
-#define cpu_relax()	barrier()
-
 #if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH3) || \
     defined(CONFIG_CPU_SH4)
 #define PREFETCH_STRIDE		L1_CACHE_BYTES

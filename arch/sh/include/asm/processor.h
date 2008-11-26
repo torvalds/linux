@@ -82,6 +82,9 @@ extern struct sh_cpuinfo cpu_data[];
 #define current_cpu_data cpu_data[smp_processor_id()]
 #define raw_current_cpu_data cpu_data[raw_smp_processor_id()]
 
+#define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
+#define cpu_relax()	barrier()
+
 /* Forward decl */
 struct seq_operations;
 
