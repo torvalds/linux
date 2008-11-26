@@ -533,7 +533,7 @@ void fuse_conn_put(struct fuse_conn *fc)
 			fuse_request_free(fc->destroy_req);
 		mutex_destroy(&fc->inst_mutex);
 		bdi_destroy(&fc->bdi);
-		kfree(fc);
+		fc->release(fc);
 	}
 }
 
@@ -789,6 +789,11 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 	fuse_request_send_background(fc, req);
 }
 
+static void fuse_free_conn(struct fuse_conn *fc)
+{
+	kfree(fc);
+}
+
 static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct fuse_conn *fc;
@@ -837,6 +842,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		return err;
 	}
 
+	fc->release = fuse_free_conn;
 	fc->flags = d.flags;
 	fc->user_id = d.user_id;
 	fc->group_id = d.group_id;

@@ -465,6 +465,9 @@ struct fuse_conn {
 
 	/** Version counter for attribute changes */
 	u64 attr_version;
+
+	/** Called on final put */
+	void (*release)(struct fuse_conn *);
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
