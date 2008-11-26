@@ -1739,6 +1739,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
 	c.event = XFRM_MSG_FLUSHSA;
+	c.net = &init_net;
 	km_state_notify(NULL, &c);
 
 	return 0;
@@ -2693,6 +2694,7 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	c.event = XFRM_MSG_FLUSHPOLICY;
 	c.pid = hdr->sadb_msg_pid;
 	c.seq = hdr->sadb_msg_seq;
+	c.net = &init_net;
 	km_policy_notify(NULL, 0, &c);
 
 	return 0;

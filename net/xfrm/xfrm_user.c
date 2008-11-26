@@ -1418,6 +1418,7 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	c.event = nlh->nlmsg_type;
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
+	c.net = net;
 	km_state_notify(NULL, &c);
 
 	return 0;
@@ -1569,6 +1570,7 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	c.event = nlh->nlmsg_type;
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
+	c.net = net;
 	km_policy_notify(NULL, 0, &c);
 	return 0;
 }
@@ -2084,7 +2086,7 @@ static int xfrm_aevent_state_notify(struct xfrm_state *x, struct km_event *c)
 
 static int xfrm_notify_sa_flush(struct km_event *c)
 {
-	struct net *net = &init_net;
+	struct net *net = c->net;
 	struct xfrm_usersa_flush *p;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
@@ -2446,7 +2448,7 @@ nlmsg_failure:
 
 static int xfrm_notify_policy_flush(struct km_event *c)
 {
-	struct net *net = &init_net;
+	struct net *net = c->net;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 

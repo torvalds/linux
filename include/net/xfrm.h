@@ -256,6 +256,7 @@ struct km_event
 	u32	seq;
 	u32	pid;
 	u32	event;
+	struct net *net;
 };
 
 struct net_device;
