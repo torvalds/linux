@@ -3905,7 +3905,7 @@ static int ocfs2_cp_xattr_bucket(struct inode *inode,
 		mlog_errno(ret);
 		goto out;
 	}
-  
+
 	ret = ocfs2_read_xattr_bucket(s_bucket, s_blkno);
 	if (ret)
 		goto out;
@@ -4232,37 +4232,45 @@ leave:
 }
 
 /*
- * Extend a new xattr bucket and move xattrs to the end one by one until
- * We meet with start_bh. Only move half of the xattrs to the bucket after it.
+ * We are given an extent.  'first' is the bucket at the very front of
+ * the extent.  The extent has space for an additional bucket past
+ * bucket_xh(first)->xh_num_buckets.  'target_blkno' is the block number
+ * of the target bucket.  We wish to shift every bucket past the target
+ * down one, filling in that additional space.  When we get back to the
+ * target, we split the target between itself and the now-empty bucket
+ * at target+1 (aka, target_blkno + blks_per_bucket).
  */
 static int ocfs2_extend_xattr_bucket(struct inode *inode,
 				     handle_t *handle,
-				     struct buffer_head *first_bh,
-				     struct buffer_head *start_bh,
+				     struct ocfs2_xattr_bucket *first,
+				     u64 target_blk,
 				     u32 num_clusters)
 {
 	int ret, credits;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
-	u64 start_blk = start_bh->b_blocknr, end_blk;
-	u32 num_buckets = num_clusters * ocfs2_xattr_buckets_per_cluster(osb);
-	struct ocfs2_xattr_header *first_xh =
-				(struct ocfs2_xattr_header *)first_bh->b_data;
-	u16 bucket = le16_to_cpu(first_xh->xh_num_buckets);
+	u64 end_blk;
+	u16 new_bucket = le16_to_cpu(bucket_xh(first)->xh_num_buckets);
 
 	mlog(0, "extend xattr bucket in %llu, xattr extend rec starting "
-	     "from %llu, len = %u\n", (unsigned long long)start_blk,
-	     (unsigned long long)first_bh->b_blocknr, num_clusters);
+	     "from %llu, len = %u\n", (unsigned long long)target_blk,
+	     (unsigned long long)bucket_blkno(first), num_clusters);
 
-	BUG_ON(bucket >= num_buckets);
+	/* The extent must have room for an additional bucket */
+	BUG_ON(new_bucket >=
+	       (num_clusters * ocfs2_xattr_buckets_per_cluster(osb)));
 
-	end_blk = first_bh->b_blocknr + (bucket - 1) * blk_per_bucket;
+	/* end_blk points to the last existing bucket */
+	end_blk = bucket_blkno(first) + ((new_bucket - 1) * blk_per_bucket);
 
 	/*
-	 * We will touch all the buckets after the start_bh(include it).
-	 * Then we add one more bucket.
+	 * end_blk is the start of the last existing bucket.
+	 * Thus, (end_blk - target_blk) covers the target bucket and
+	 * every bucket after it up to, but not including, the last
+	 * existing bucket.  Then we add the last existing bucket, the
+	 * new bucket, and the first bucket (3 * blk_per_bucket).
 	 */
-	credits = end_blk - start_blk + 3 * blk_per_bucket + 1 +
+	credits = (end_blk - target_blk) + (3 * blk_per_bucket) +
 		  handle->h_buffer_credits;
 	ret = ocfs2_extend_trans(handle, credits);
 	if (ret) {
@@ -4270,14 +4278,14 @@ static int ocfs2_extend_xattr_bucket(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access(handle, inode, first_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_xattr_bucket_journal_access(handle, first,
+						OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	while (end_blk != start_blk) {
+	while (end_blk != target_blk) {
 		ret = ocfs2_cp_xattr_bucket(inode, handle, end_blk,
 					    end_blk + blk_per_bucket, 0);
 		if (ret)
@@ -4285,12 +4293,12 @@ static int ocfs2_extend_xattr_bucket(struct inode *inode,
 		end_blk -= blk_per_bucket;
 	}
 
-	/* Move half of the xattr in start_blk to the next bucket. */
-	ret = ocfs2_divide_xattr_bucket(inode, handle, start_blk,
-					start_blk + blk_per_bucket, NULL, 0);
+	/* Move half of the xattr in target_blkno to the next bucket. */
+	ret = ocfs2_divide_xattr_bucket(inode, handle, target_blk,
+					target_blk + blk_per_bucket, NULL, 0);
 
-	le16_add_cpu(&first_xh->xh_num_buckets, 1);
-	ocfs2_journal_dirty(handle, first_bh);
+	le16_add_cpu(&bucket_xh(first)->xh_num_buckets, 1);
+	ocfs2_xattr_bucket_journal_dirty(handle, first);
 
 out:
 	return ret;
@@ -4324,9 +4332,18 @@ static int ocfs2_add_new_xattr_bucket(struct inode *inode,
 	int ret, num_buckets, extend = 1;
 	u64 p_blkno;
 	u32 e_cpos, num_clusters;
+	/* The bucket at the front of the extent */
+	struct ocfs2_xattr_bucket *first;
 
 	mlog(0, "Add new xattr bucket starting form %llu\n",
 	     (unsigned long long)header_bh->b_blocknr);
+
+	first = ocfs2_xattr_bucket_new(inode);
+	if (!first) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
 
 	/*
 	 * Add refrence for header_bh here because it may be
@@ -4367,17 +4384,25 @@ static int ocfs2_add_new_xattr_bucket(struct inode *inode,
 		}
 	}
 
-	if (extend)
+	if (extend) {
+		/* These bucket reads should be cached */
+		ret = ocfs2_read_xattr_bucket(first, first_bh->b_blocknr);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 		ret = ocfs2_extend_xattr_bucket(inode,
 						ctxt->handle,
-						first_bh,
-						header_bh,
+						first, header_bh->b_blocknr,
 						num_clusters);
-	if (ret)
-		mlog_errno(ret);
+		if (ret)
+			mlog_errno(ret);
+	}
+
 out:
 	brelse(first_bh);
 	brelse(header_bh);
+	ocfs2_xattr_bucket_free(first);
 	return ret;
 }
 
