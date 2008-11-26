@@ -108,6 +108,50 @@ xfs_inumbers_fmt_compat(
 #define xfs_inumbers_fmt_compat xfs_inumbers_fmt
 #endif
 
+STATIC int
+xfs_ioctl32_bstime_copyin(
+	xfs_bstime_t		*bstime,
+	compat_xfs_bstime_t	__user *bstime32)
+{
+	compat_time_t		sec32;	/* tv_sec differs on 64 vs. 32 */
+
+	if (get_user(sec32,		&bstime32->tv_sec)	||
+	    get_user(bstime->tv_nsec,	&bstime32->tv_nsec))
+		return -XFS_ERROR(EFAULT);
+	bstime->tv_sec = sec32;
+	return 0;
+}
+
+/* xfs_bstat_t has differing alignment on intel, & bstime_t sizes everywhere */
+STATIC int
+xfs_ioctl32_bstat_copyin(
+	xfs_bstat_t		*bstat,
+	compat_xfs_bstat_t	__user *bstat32)
+{
+	if (get_user(bstat->bs_ino,	&bstat32->bs_ino)	||
+	    get_user(bstat->bs_mode,	&bstat32->bs_mode)	||
+	    get_user(bstat->bs_nlink,	&bstat32->bs_nlink)	||
+	    get_user(bstat->bs_uid,	&bstat32->bs_uid)	||
+	    get_user(bstat->bs_gid,	&bstat32->bs_gid)	||
+	    get_user(bstat->bs_rdev,	&bstat32->bs_rdev)	||
+	    get_user(bstat->bs_blksize,	&bstat32->bs_blksize)	||
+	    get_user(bstat->bs_size,	&bstat32->bs_size)	||
+	    xfs_ioctl32_bstime_copyin(&bstat->bs_atime, &bstat32->bs_atime) ||
+	    xfs_ioctl32_bstime_copyin(&bstat->bs_mtime, &bstat32->bs_mtime) ||
+	    xfs_ioctl32_bstime_copyin(&bstat->bs_ctime, &bstat32->bs_ctime) ||
+	    get_user(bstat->bs_blocks,	&bstat32->bs_size)	||
+	    get_user(bstat->bs_xflags,	&bstat32->bs_size)	||
+	    get_user(bstat->bs_extsize,	&bstat32->bs_extsize)	||
+	    get_user(bstat->bs_extents,	&bstat32->bs_extents)	||
+	    get_user(bstat->bs_gen,	&bstat32->bs_gen)	||
+	    get_user(bstat->bs_projid,	&bstat32->bs_projid)	||
+	    get_user(bstat->bs_dmevmask, &bstat32->bs_dmevmask)	||
+	    get_user(bstat->bs_dmstate,	&bstat32->bs_dmstate)	||
+	    get_user(bstat->bs_aextents, &bstat32->bs_aextents))
+		return -XFS_ERROR(EFAULT);
+	return 0;
+}
+
 /* XFS_IOC_FSBULKSTAT and friends */
 
 STATIC int
@@ -292,6 +336,18 @@ xfs_compat_ioctl(
 	case XFS_IOC_GETVERSION_32:
 		cmd = _NATIVE_IOC(cmd, long);
 		break;
+	case XFS_IOC_SWAPEXT: {
+		struct xfs_swapext	  sxp;
+		struct compat_xfs_swapext __user *sxu = arg;
+
+		/* Bulk copy in up to the sx_stat field, then grab bstat */
+		if (copy_from_user(&sxp, sxu,
+				   offsetof(xfs_swapext_t, sx_stat)) ||
+		    xfs_ioctl32_bstat_copyin(&sxp.sx_stat, &sxu->sx_stat))
+			return -XFS_ERROR(EFAULT);
+		error = xfs_swapext(&sxp);
+		return -error;
+	}
 #ifdef BROKEN_X86_ALIGNMENT
 	/* xfs_flock_t has wrong u32 vs u64 alignment */
 	case XFS_IOC_ALLOCSP_32:
@@ -322,11 +378,6 @@ xfs_compat_ioctl(
 	case XFS_IOC_UNRESVSP64:
 	case XFS_IOC_FSGEOMETRY_V1:
 		break;
-
-	/* xfs_bstat_t still has wrong u32 vs u64 alignment */
-	case XFS_IOC_SWAPEXT:
-		break;
-
 #endif
 	case XFS_IOC_FSBULKSTAT_32:
 	case XFS_IOC_FSBULKSTAT_SINGLE_32:

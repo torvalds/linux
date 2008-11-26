@@ -110,6 +110,19 @@ typedef struct compat_xfs_fsop_handlereq {
 #define XFS_IOC_READLINK_BY_HANDLE_32 \
 	_IOWR('X', 108, struct compat_xfs_fsop_handlereq)
 
+/* The bstat field in the swapext struct needs translation */
+typedef struct compat_xfs_swapext {
+	__int64_t		sx_version;	/* version */
+	__int64_t		sx_fdtarget;	/* fd of target file */
+	__int64_t		sx_fdtmp;	/* fd of tmp file */
+	xfs_off_t		sx_offset;	/* offset into file */
+	xfs_off_t		sx_length;	/* leng from offset */
+	char			sx_pad[16];	/* pad space, unused */
+	compat_xfs_bstat_t	sx_stat;	/* stat of target b4 copy */
+} __compat_packed compat_xfs_swapext_t;
+
+#define XFS_IOC_SWAPEXT_32	_IOWR('X', 109, struct compat_xfs_swapext)
+
 #ifdef BROKEN_X86_ALIGNMENT
 /* on ia32 l_start is on a 32-bit boundary */
 typedef struct compat_xfs_flock64 {
