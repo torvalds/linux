@@ -454,7 +454,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 	 */
 	submit = epu_cmd_irq(cx, order);
 	if (submit > 0) {
-		queue_work(cx18_work_queue, &order->work);
+		queue_work(cx->work_queue, &order->work);
 	}
 }
 

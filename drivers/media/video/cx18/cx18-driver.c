@@ -56,9 +56,6 @@ struct cx18 *cx18_cards[CX18_MAX_CARDS];
 /* Protects cx18_cards_active */
 DEFINE_SPINLOCK(cx18_cards_lock);
 
-/* Queue for deferrable IRQ handling work for all cx18 cards in system */
-struct workqueue_struct *cx18_work_queue;
-
 /* add your revision and whatnot here */
 static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
 	{PCI_VENDOR_ID_CX, PCI_DEVICE_ID_CX23418,
@@ -446,6 +443,12 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 
 	spin_lock_init(&cx->lock);
 
+	cx->work_queue = create_singlethread_workqueue(cx->name);
+	if (cx->work_queue == NULL) {
+		CX18_ERR("Unable to create work hander thread\n");
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++) {
 		cx->epu_work_order[i].cx = cx;
 		cx->epu_work_order[i].str = cx->epu_debug_str;
@@ -655,12 +658,9 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 
 	/* PCI Device Setup */
 	retval = cx18_setup_pci(cx, dev, pci_id);
-	if (retval != 0) {
-		if (retval == -EIO)
-			goto free_workqueue;
-		else if (retval == -ENXIO)
-			goto free_mem;
-	}
+	if (retval != 0)
+		goto free_workqueue;
+
 	/* save cx in the pci struct for later use */
 	pci_set_drvdata(dev, cx);
 
@@ -830,6 +830,7 @@ free_map:
 free_mem:
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 free_workqueue:
+	destroy_workqueue(cx->work_queue);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -938,6 +939,8 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	cx18_cancel_epu_work_orders(cx);
 
+	destroy_workqueue(cx->work_queue);
+
 	cx18_streams_cleanup(cx, 1);
 
 	exit_cx18_i2c(cx);
@@ -979,17 +982,8 @@ static int module_start(void)
 		printk(KERN_INFO "cx18:   Debug value must be >= 0 and <= 511!\n");
 	}
 
-	cx18_work_queue = create_singlethread_workqueue("cx18");
-	if (cx18_work_queue == NULL) {
-		printk(KERN_ERR
-		       "cx18:   Unable to create work hander thread\n");
-		return -ENOMEM;
-	}
-
 	if (pci_register_driver(&cx18_pci_driver)) {
 		printk(KERN_ERR "cx18:   Error detecting PCI card\n");
-		destroy_workqueue(cx18_work_queue);
-		cx18_work_queue = NULL;
 		return -ENODEV;
 	}
 	printk(KERN_INFO "cx18:  End initialization\n");
@@ -1001,9 +995,6 @@ static void module_cleanup(void)
 	int i;
 
 	pci_unregister_driver(&cx18_pci_driver);
-
-	destroy_workqueue(cx18_work_queue);
-	cx18_work_queue = NULL;
 
 	for (i = 0; i < cx18_cards_active; i++) {
 		if (cx18_cards[i] == NULL)

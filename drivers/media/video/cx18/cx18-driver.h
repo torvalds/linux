@@ -447,6 +447,7 @@ struct cx18 {
 	u32 sw2_irq_mask;
 	u32 hw2_irq_mask;
 
+	struct workqueue_struct *work_queue;
 	struct cx18_epu_work_order epu_work_order[CX18_MAX_EPU_WORK_ORDERS];
 	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
 
@@ -478,7 +479,6 @@ extern struct cx18 *cx18_cards[];
 extern int cx18_cards_active;
 extern int cx18_first_minor;
 extern spinlock_t cx18_cards_lock;
-extern struct workqueue_struct *cx18_work_queue;
 
 /*==============Prototypes==================*/
 
