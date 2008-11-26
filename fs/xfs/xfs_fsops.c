@@ -435,6 +435,9 @@ xfs_growfs_data(
 	xfs_growfs_data_t	*in)
 {
 	int error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return XFS_ERROR(EPERM);
 	if (!mutex_trylock(&mp->m_growlock))
 		return XFS_ERROR(EWOULDBLOCK);
 	error = xfs_growfs_data_private(mp, in);
@@ -448,6 +451,9 @@ xfs_growfs_log(
 	xfs_growfs_log_t	*in)
 {
 	int error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return XFS_ERROR(EPERM);
 	if (!mutex_trylock(&mp->m_growlock))
 		return XFS_ERROR(EWOULDBLOCK);
 	error = xfs_growfs_log_private(mp, in);

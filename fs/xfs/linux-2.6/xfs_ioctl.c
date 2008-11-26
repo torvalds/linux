@@ -71,15 +71,11 @@
 STATIC int
 xfs_find_handle(
 	unsigned int		cmd,
-	void			__user *arg)
+	xfs_fsop_handlereq_t	*hreq)
 {
 	int			hsize;
 	xfs_handle_t		handle;
-	xfs_fsop_handlereq_t	hreq;
 	struct inode		*inode;
-
-	if (copy_from_user(&hreq, arg, sizeof(hreq)))
-		return -XFS_ERROR(EFAULT);
 
 	memset((char *)&handle, 0, sizeof(handle));
 
@@ -87,7 +83,7 @@ xfs_find_handle(
 	case XFS_IOC_PATH_TO_FSHANDLE:
 	case XFS_IOC_PATH_TO_HANDLE: {
 		struct path path;
-		int error = user_lpath((const char __user *)hreq.path, &path);
+		int error = user_lpath((const char __user *)hreq->path, &path);
 		if (error)
 			return error;
 
@@ -101,7 +97,7 @@ xfs_find_handle(
 	case XFS_IOC_FD_TO_HANDLE: {
 		struct file	*file;
 
-		file = fget(hreq.fd);
+		file = fget(hreq->fd);
 		if (!file)
 		    return -EBADF;
 
@@ -158,8 +154,8 @@ xfs_find_handle(
 	}
 
 	/* now copy our handle into the user buffer & write out the size */
-	if (copy_to_user(hreq.ohandle, &handle, hsize) ||
-	    copy_to_user(hreq.ohandlen, &hsize, sizeof(__s32))) {
+	if (copy_to_user(hreq->ohandle, &handle, hsize) ||
+	    copy_to_user(hreq->ohandlen, &hsize, sizeof(__s32))) {
 		iput(inode);
 		return -XFS_ERROR(EFAULT);
 	}
@@ -252,7 +248,7 @@ xfs_vget_fsop_handlereq(
 STATIC int
 xfs_open_by_handle(
 	xfs_mount_t		*mp,
-	void			__user *arg,
+	xfs_fsop_handlereq_t	*hreq,
 	struct file		*parfilp,
 	struct inode		*parinode)
 {
@@ -262,14 +258,11 @@ xfs_open_by_handle(
 	struct file		*filp;
 	struct inode		*inode;
 	struct dentry		*dentry;
-	xfs_fsop_handlereq_t	hreq;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -XFS_ERROR(EPERM);
-	if (copy_from_user(&hreq, arg, sizeof(xfs_fsop_handlereq_t)))
-		return -XFS_ERROR(EFAULT);
 
-	error = xfs_vget_fsop_handlereq(mp, parinode, &hreq, &inode);
+	error = xfs_vget_fsop_handlereq(mp, parinode, hreq, &inode);
 	if (error)
 		return -error;
 
@@ -280,10 +273,10 @@ xfs_open_by_handle(
 	}
 
 #if BITS_PER_LONG != 32
-	hreq.oflags |= O_LARGEFILE;
+	hreq->oflags |= O_LARGEFILE;
 #endif
 	/* Put open permission in namei format. */
-	permflag = hreq.oflags;
+	permflag = hreq->oflags;
 	if ((permflag+1) & O_ACCMODE)
 		permflag++;
 	if (permflag & O_TRUNC)
@@ -321,7 +314,7 @@ xfs_open_by_handle(
 	mntget(parfilp->f_path.mnt);
 
 	/* Create file pointer. */
-	filp = dentry_open(dentry, parfilp->f_path.mnt, hreq.oflags);
+	filp = dentry_open(dentry, parfilp->f_path.mnt, hreq->oflags);
 	if (IS_ERR(filp)) {
 		put_unused_fd(new_fd);
 		return -XFS_ERROR(-PTR_ERR(filp));
@@ -365,21 +358,18 @@ do_readlink(
 STATIC int
 xfs_readlink_by_handle(
 	xfs_mount_t		*mp,
-	void			__user *arg,
+	xfs_fsop_handlereq_t	*hreq,
 	struct inode		*parinode)
 {
 	struct inode		*inode;
-	xfs_fsop_handlereq_t	hreq;
 	__u32			olen;
 	void			*link;
 	int			error;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -XFS_ERROR(EPERM);
-	if (copy_from_user(&hreq, arg, sizeof(xfs_fsop_handlereq_t)))
-		return -XFS_ERROR(EFAULT);
 
-	error = xfs_vget_fsop_handlereq(mp, parinode, &hreq, &inode);
+	error = xfs_vget_fsop_handlereq(mp, parinode, hreq, &inode);
 	if (error)
 		return -error;
 
@@ -389,7 +379,7 @@ xfs_readlink_by_handle(
 		goto out_iput;
 	}
 
-	if (copy_from_user(&olen, hreq.ohandlen, sizeof(__u32))) {
+	if (copy_from_user(&olen, hreq->ohandlen, sizeof(__u32))) {
 		error = -XFS_ERROR(EFAULT);
 		goto out_iput;
 	}
@@ -401,7 +391,7 @@ xfs_readlink_by_handle(
 	error = -xfs_readlink(XFS_I(inode), link);
 	if (error)
 		goto out_kfree;
-	error = do_readlink(hreq.ohandle, olen, link);
+	error = do_readlink(hreq->ohandle, olen, link);
 	if (error)
 		goto out_kfree;
 
@@ -668,11 +658,18 @@ xfs_ioc_space(
 	struct file		*filp,
 	int			ioflags,
 	unsigned int		cmd,
-	void			__user *arg)
+	xfs_flock64_t		*bf)
 {
-	xfs_flock64_t		bf;
 	int			attr_flags = 0;
 	int			error;
+
+	/*
+	 * Only allow the sys admin to reserve space unless
+	 * unwritten extents are enabled.
+	 */
+	if (!xfs_sb_version_hasextflgbit(&ip->i_mount->m_sb) &&
+	    !capable(CAP_SYS_ADMIN))
+		return -XFS_ERROR(EPERM);
 
 	if (inode->i_flags & (S_IMMUTABLE|S_APPEND))
 		return -XFS_ERROR(EPERM);
@@ -683,15 +680,12 @@ xfs_ioc_space(
 	if (!S_ISREG(inode->i_mode))
 		return -XFS_ERROR(EINVAL);
 
-	if (copy_from_user(&bf, arg, sizeof(bf)))
-		return -XFS_ERROR(EFAULT);
-
 	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 		attr_flags |= XFS_ATTR_NONBLOCK;
 	if (ioflags & IO_INVIS)
 		attr_flags |= XFS_ATTR_DMI;
 
-	error = xfs_change_file_space(ip, cmd, &bf, filp->f_pos, attr_flags);
+	error = xfs_change_file_space(ip, cmd, bf, filp->f_pos, attr_flags);
 	return -error;
 }
 
@@ -1356,17 +1350,13 @@ xfs_ioctl(
 	case XFS_IOC_ALLOCSP64:
 	case XFS_IOC_FREESP64:
 	case XFS_IOC_RESVSP64:
-	case XFS_IOC_UNRESVSP64:
-		/*
-		 * Only allow the sys admin to reserve space unless
-		 * unwritten extents are enabled.
-		 */
-		if (!xfs_sb_version_hasextflgbit(&mp->m_sb) &&
-		    !capable(CAP_SYS_ADMIN))
-			return -EPERM;
+	case XFS_IOC_UNRESVSP64: {
+		xfs_flock64_t		bf;
 
-		return xfs_ioc_space(ip, inode, filp, ioflags, cmd, arg);
-
+		if (copy_from_user(&bf, arg, sizeof(bf)))
+			return -XFS_ERROR(EFAULT);
+		return xfs_ioc_space(ip, inode, filp, ioflags, cmd, &bf);
+	}
 	case XFS_IOC_DIOINFO: {
 		struct dioattr	da;
 		xfs_buftarg_t	*target =
@@ -1426,18 +1416,30 @@ xfs_ioctl(
 
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:
-	case XFS_IOC_PATH_TO_FSHANDLE:
-		return xfs_find_handle(cmd, arg);
+	case XFS_IOC_PATH_TO_FSHANDLE: {
+		xfs_fsop_handlereq_t	hreq;
 
-	case XFS_IOC_OPEN_BY_HANDLE:
-		return xfs_open_by_handle(mp, arg, filp, inode);
+		if (copy_from_user(&hreq, arg, sizeof(hreq)))
+			return -XFS_ERROR(EFAULT);
+		return xfs_find_handle(cmd, &hreq);
+	}
+	case XFS_IOC_OPEN_BY_HANDLE: {
+		xfs_fsop_handlereq_t	hreq;
 
+		if (copy_from_user(&hreq, arg, sizeof(xfs_fsop_handlereq_t)))
+			return -XFS_ERROR(EFAULT);
+		return xfs_open_by_handle(mp, &hreq, filp, inode);
+	}
 	case XFS_IOC_FSSETDM_BY_HANDLE:
 		return xfs_fssetdm_by_handle(mp, arg, inode);
 
-	case XFS_IOC_READLINK_BY_HANDLE:
-		return xfs_readlink_by_handle(mp, arg, inode);
+	case XFS_IOC_READLINK_BY_HANDLE: {
+		xfs_fsop_handlereq_t	hreq;
 
+		if (copy_from_user(&hreq, arg, sizeof(xfs_fsop_handlereq_t)))
+			return -XFS_ERROR(EFAULT);
+		return xfs_readlink_by_handle(mp, &hreq, inode);
+	}
 	case XFS_IOC_ATTRLIST_BY_HANDLE:
 		return xfs_attrlist_by_handle(mp, arg, inode);
 
@@ -1445,7 +1447,11 @@ xfs_ioctl(
 		return xfs_attrmulti_by_handle(mp, arg, filp, inode);
 
 	case XFS_IOC_SWAPEXT: {
-		error = xfs_swapext((struct xfs_swapext __user *)arg);
+		struct xfs_swapext	sxp;
+
+		if (copy_from_user(&sxp, arg, sizeof(xfs_swapext_t)))
+			return -XFS_ERROR(EFAULT);
+		error = xfs_swapext(&sxp);
 		return -error;
 	}
 
@@ -1501,9 +1507,6 @@ xfs_ioctl(
 	case XFS_IOC_FSGROWFSDATA: {
 		xfs_growfs_data_t in;
 
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
 		if (copy_from_user(&in, arg, sizeof(in)))
 			return -XFS_ERROR(EFAULT);
 
@@ -1514,9 +1517,6 @@ xfs_ioctl(
 	case XFS_IOC_FSGROWFSLOG: {
 		xfs_growfs_log_t in;
 
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
 		if (copy_from_user(&in, arg, sizeof(in)))
 			return -XFS_ERROR(EFAULT);
 
@@ -1526,9 +1526,6 @@ xfs_ioctl(
 
 	case XFS_IOC_FSGROWFSRT: {
 		xfs_growfs_rt_t in;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
 
 		if (copy_from_user(&in, arg, sizeof(in)))
 			return -XFS_ERROR(EFAULT);

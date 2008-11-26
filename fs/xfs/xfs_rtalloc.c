@@ -1876,6 +1876,8 @@ xfs_growfs_rt(
 	/*
 	 * Initial error checking.
 	 */
+	if (!capable(CAP_SYS_ADMIN))
+		return XFS_ERROR(EPERM);
 	if (mp->m_rtdev_targp == NULL || mp->m_rbmip == NULL ||
 	    (nrblocks = in->newblocks) <= sbp->sb_rblocks ||
 	    (sbp->sb_rblocks && (in->extsize != sbp->sb_rextsize)))
