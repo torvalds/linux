@@ -205,12 +205,6 @@ static int __ei_open(struct net_device *dev)
 	unsigned long flags;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
 
-	/* The card I/O part of the driver (e.g. 3c503) can hook a Tx timeout
-	    wrapper that does e.g. media check & then calls ei_tx_timeout. */
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	if (dev->tx_timeout == NULL)
-		 dev->tx_timeout = ei_tx_timeout;
-#endif
 	if (dev->watchdog_timeo <= 0)
 		 dev->watchdog_timeo = TX_TIMEOUT;
 
@@ -259,7 +253,7 @@ static int __ei_close(struct net_device *dev)
  * completed (or failed) - i.e. never posted a Tx related interrupt.
  */
 
-void ei_tx_timeout(struct net_device *dev)
+static void __ei_tx_timeout(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
@@ -296,7 +290,6 @@ void ei_tx_timeout(struct net_device *dev)
 	enable_irq_lockdep(dev->irq);
 	netif_wake_queue(dev);
 }
-EXPORT_SYMBOL_GPL(ei_tx_timeout);
 
 /**
  * ei_start_xmit - begin packet transmission
@@ -306,7 +299,7 @@ EXPORT_SYMBOL_GPL(ei_tx_timeout);
  * Sends a packet to an 8390 network device.
  */
 
-int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int __ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
@@ -423,7 +416,6 @@ int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ei_start_xmit);
 
 /**
  * ei_interrupt - handle the interrupts from an 8390
@@ -885,7 +877,7 @@ static void ei_rx_overrun(struct net_device *dev)
  *	Collect the stats. This is called unlocked and from several contexts.
  */
 
-struct net_device_stats *ei_get_stats(struct net_device *dev)
+static struct net_device_stats *__ei_get_stats(struct net_device *dev)
 {
 	unsigned long ioaddr = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
@@ -904,7 +896,6 @@ struct net_device_stats *ei_get_stats(struct net_device *dev)
 
 	return &dev->stats;
 }
-EXPORT_SYMBOL_GPL(ei_get_stats);
 
 /*
  * Form the 64 bit 8390 multicast table from the linked list of addresses
@@ -995,7 +986,7 @@ static void do_set_multicast_list(struct net_device *dev)
  *	not called too often. Must protect against both bh and irq users
  */
 
-void ei_set_multicast_list(struct net_device *dev)
+static void __ei_set_multicast_list(struct net_device *dev)
 {
 	unsigned long flags;
 	struct ei_device *ei_local = (struct ei_device*)netdev_priv(dev);
@@ -1004,7 +995,6 @@ void ei_set_multicast_list(struct net_device *dev)
 	do_set_multicast_list(dev);
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 }
-EXPORT_SYMBOL_GPL(ei_set_multicast_list);
 
 /**
  * ethdev_setup - init rest of 8390 device struct
@@ -1024,6 +1014,7 @@ static void ethdev_setup(struct net_device *dev)
 	dev->hard_start_xmit = ei_start_xmit;
 	dev->get_stats	= ei_get_stats;
 	dev->set_multicast_list = ei_set_multicast_list;
+	dev->tx_timeout = __ei_tx_timeout;
 #endif
 	ether_setup(dev);
 
