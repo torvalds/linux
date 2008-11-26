@@ -42,6 +42,8 @@
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
 
+DEFINE_TRACE(block_rq_abort);
+
 /*
  * Merge hash stuff.
  */
@@ -52,6 +54,9 @@ static const int elv_hash_shift = 6;
 #define ELV_HASH_ENTRIES	(1 << elv_hash_shift)
 #define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
 #define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
+
+DEFINE_TRACE(block_rq_insert);
+DEFINE_TRACE(block_rq_issue);
 
 /*
  * Query io scheduler to see if the current process issuing bio may be

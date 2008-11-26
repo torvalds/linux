@@ -29,6 +29,8 @@
 #include <trace/block.h>
 #include <scsi/sg.h>		/* for struct sg_iovec */
 
+DEFINE_TRACE(block_split);
+
 static struct kmem_cache *bio_slab __read_mostly;
 
 static mempool_t *bio_split_pool __read_mostly;

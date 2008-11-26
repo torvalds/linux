@@ -22,6 +22,8 @@
 
 static mempool_t *page_pool, *isa_page_pool;
 
+DEFINE_TRACE(block_bio_bounce);
+
 #ifdef CONFIG_HIGHMEM
 static __init int init_emergency_pool(void)
 {

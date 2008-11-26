@@ -52,6 +52,8 @@ struct dm_target_io {
 	union map_info info;
 };
 
+DEFINE_TRACE(block_bio_complete);
+
 union map_info *dm_get_mapinfo(struct bio *bio)
 {
 	if (bio && bio->bi_private)
