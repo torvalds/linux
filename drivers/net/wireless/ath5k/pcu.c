@@ -267,24 +267,23 @@ void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac)
  * @mac: The card's mac address
  *
  * Set station id on hw using the provided mac address
- *
- * NOTE: This is only called during attach, don't call it
- * on reset because it overwrites all AR5K_STA_ID1 settings.
- * We have set_opmode (above) for reset.
  */
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 {
 	u32 low_id, high_id;
+	u32 pcu_reg;
 
 	ATH5K_TRACE(ah->ah_sc);
 	/* Set new station ID */
 	memcpy(ah->ah_sta_id, mac, ETH_ALEN);
 
+	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
+
 	low_id = AR5K_LOW_ID(mac);
 	high_id = AR5K_HIGH_ID(mac);
 
 	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
-	ath5k_hw_reg_write(ah, high_id, AR5K_STA_ID1);
+	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
 
 	return 0;
 }
