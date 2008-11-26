@@ -41,6 +41,8 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char autogain;
+	__u8 blue;
+	__u8 red;
 	__u8 vflip;			/* ov7630 only */
 	__u8 infrared;			/* mi0360 only */
 
@@ -72,6 +74,10 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
@@ -116,7 +122,7 @@ static struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Color",
 		.minimum = 0,
-		.maximum = 64,
+		.maximum = 40,
 		.step    = 1,
 #define COLOR_DEF 32
 		.default_value = COLOR_DEF,
@@ -124,7 +130,35 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
 	},
-#define AUTOGAIN_IDX 3
+	{
+	    {
+		.id      = V4L2_CID_BLUE_BALANCE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Blue Balance",
+		.minimum = 24,
+		.maximum = 40,
+		.step    = 1,
+#define BLUE_BALANCE_DEF 32
+		.default_value = BLUE_BALANCE_DEF,
+	    },
+	    .set = sd_setblue_balance,
+	    .get = sd_getblue_balance,
+	},
+	{
+	    {
+		.id      = V4L2_CID_RED_BALANCE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Red Balance",
+		.minimum = 24,
+		.maximum = 40,
+		.step    = 1,
+#define RED_BALANCE_DEF 32
+		.default_value = RED_BALANCE_DEF,
+	    },
+	    .set = sd_setred_balance,
+	    .get = sd_getred_balance,
+	},
+#define AUTOGAIN_IDX 5
 	{
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
@@ -140,7 +174,7 @@ static struct ctrl sd_ctrls[] = {
 	    .get = sd_getautogain,
 	},
 /* ov7630 only */
-#define VFLIP_IDX 4
+#define VFLIP_IDX 6
 	{
 	    {
 		.id      = V4L2_CID_VFLIP,
@@ -156,7 +190,7 @@ static struct ctrl sd_ctrls[] = {
 	    .get = sd_getvflip,
 	},
 /* mi0360 only */
-#define INFRARED_IDX 5
+#define INFRARED_IDX 7
 	{
 	    {
 		.id      = V4L2_CID_INFRARED,
@@ -981,6 +1015,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
+	sd->blue = BLUE_BALANCE_DEF;
+	sd->red = RED_BALANCE_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->ag_cnt = -1;
 	sd->vflip = VFLIP_DEF;
@@ -1170,18 +1206,27 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 blue, red;
-
-	if (sd->colors >= 32) {
-		red = 32 + (sd->colors - 32) / 2;
-		blue = 64 - sd->colors;
-	} else {
-		red = sd->colors;
-		blue = 32 + (32 - sd->colors) / 2;
+	int i, v;
+	__u8 rega0[12];			/* U & V gains */
+	static __s16 uv[6] = {		/* same as reg84 in signed decimal */
+		-24, -38, 64,		/* UR UG UB */
+		 62, -51, -9		/* VR VG VB */
+	};
+	for (i = 0; i < 6; i++) {
+		v = uv[i] * sd->colors / COLOR_DEF;
+		rega0[i * 2] = v;
+		rega0[i * 2 + 1] = (v >> 8) & 0x0f;
 	}
-	reg_w1(gspca_dev, 0x05, red);
+	reg_w(gspca_dev, 0x84, rega0, sizeof rega0);
+}
+
+static void setredblue(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	reg_w1(gspca_dev, 0x05, sd->red);
 /*	reg_w1(gspca_dev, 0x07, 32); */
-	reg_w1(gspca_dev, 0x06, blue);
+	reg_w1(gspca_dev, 0x06, sd->blue);
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
@@ -1259,9 +1304,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	reg_w1(gspca_dev, 0x17, reg17);
 /* set reg1 was here */
-	reg_w1(gspca_dev, 0x05, sn9c1xx[5]);
-	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);
-	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);
+	reg_w1(gspca_dev, 0x05, sn9c1xx[5]);	/* red */
+	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);	/* green */
+	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);	/* blue */
 	reg_w1(gspca_dev, 0x14, sn9c1xx[0x14]);
 	reg_w(gspca_dev, 0x20, gamma_def, sizeof gamma_def);
 	for (i = 0; i < 8; i++)
@@ -1462,7 +1507,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 				expotimes = 0;
 			sd->exposure = setexposure(gspca_dev,
 						   (unsigned int) expotimes);
-			setcolors(gspca_dev);
+			setredblue(gspca_dev);
 			break;
 		}
 	}
@@ -1562,6 +1607,42 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->colors;
+	return 0;
+}
+
+static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->blue = val;
+	if (gspca_dev->streaming)
+		setredblue(gspca_dev);
+	return 0;
+}
+
+static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->blue;
+	return 0;
+}
+
+static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->red = val;
+	if (gspca_dev->streaming)
+		setredblue(gspca_dev);
+	return 0;
+}
+
+static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->red;
 	return 0;
 }
 
