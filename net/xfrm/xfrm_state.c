@@ -176,7 +176,6 @@ EXPORT_SYMBOL(km_waitq);
 static DEFINE_RWLOCK(xfrm_state_afinfo_lock);
 static struct xfrm_state_afinfo *xfrm_state_afinfo[NPROTO];
 
-static struct work_struct xfrm_state_gc_work;
 static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 
 int __xfrm_state_delete(struct xfrm_state *x);
@@ -386,14 +385,15 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	kfree(x);
 }
 
-static void xfrm_state_gc_task(struct work_struct *data)
+static void xfrm_state_gc_task(struct work_struct *work)
 {
+	struct net *net = container_of(work, struct net, xfrm.state_gc_work);
 	struct xfrm_state *x;
 	struct hlist_node *entry, *tmp;
 	struct hlist_head gc_list;
 
 	spin_lock_bh(&xfrm_state_gc_lock);
-	hlist_move_list(&init_net.xfrm.state_gc_list, &gc_list);
+	hlist_move_list(&net->xfrm.state_gc_list, &gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
 
 	hlist_for_each_entry_safe(x, entry, tmp, &gc_list, gclist)
@@ -528,7 +528,7 @@ void __xfrm_state_destroy(struct xfrm_state *x)
 	spin_lock_bh(&xfrm_state_gc_lock);
 	hlist_add_head(&x->gclist, &init_net.xfrm.state_gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
-	schedule_work(&xfrm_state_gc_work);
+	schedule_work(&init_net.xfrm.state_gc_work);
 }
 EXPORT_SYMBOL(__xfrm_state_destroy);
 
@@ -2088,7 +2088,7 @@ int __net_init xfrm_state_init(struct net *net)
 	net->xfrm.state_num = 0;
 	INIT_WORK(&net->xfrm.state_hash_work, xfrm_hash_resize);
 	INIT_HLIST_HEAD(&net->xfrm.state_gc_list);
-	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task);
+	INIT_WORK(&net->xfrm.state_gc_work, xfrm_state_gc_task);
 	return 0;
 
 out_byspi:
