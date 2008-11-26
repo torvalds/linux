@@ -6,6 +6,11 @@
 #include <linux/workqueue.h>
 #include <linux/xfrm.h>
 
+struct xfrm_policy_hash {
+	struct hlist_head	*table;
+	unsigned int		hmask;
+};
+
 struct netns_xfrm {
 	struct list_head	state_all;
 	/*
@@ -31,6 +36,7 @@ struct netns_xfrm {
 	struct hlist_head	*policy_byidx;
 	unsigned int		policy_idx_hmask;
 	struct hlist_head	policy_inexact[XFRM_POLICY_MAX * 2];
+	struct xfrm_policy_hash	policy_bydst[XFRM_POLICY_MAX * 2];
 };
 
 #endif
