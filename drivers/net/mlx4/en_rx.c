@@ -443,7 +443,8 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		/* Fill Rx buffers */
 		ring->full = 0;
 	}
-	if (mlx4_en_fill_rx_buffers(priv))
+	err = mlx4_en_fill_rx_buffers(priv);
+	if (err)
 		goto err_buffers;
 
 	for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++) {
