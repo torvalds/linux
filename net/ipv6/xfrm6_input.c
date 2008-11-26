@@ -100,7 +100,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			break;
 		}
 
-		x = xfrm_state_lookup_byaddr(dst, src, proto, AF_INET6);
+		x = xfrm_state_lookup_byaddr(&init_net, dst, src, proto, AF_INET6);
 		if (!x)
 			continue;
 

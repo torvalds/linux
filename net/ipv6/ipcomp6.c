@@ -63,7 +63,7 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return;
 
 	spi = htonl(ntohs(ipcomph->cpi));
-	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
+	x = xfrm_state_lookup(&init_net, (xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
 	if (!x)
 		return;
 
@@ -114,7 +114,7 @@ static int ipcomp6_tunnel_attach(struct xfrm_state *x)
 
 	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&x->props.saddr);
 	if (spi)
-		t = xfrm_state_lookup((xfrm_address_t *)&x->id.daddr,
+		t = xfrm_state_lookup(&init_net, (xfrm_address_t *)&x->id.daddr,
 					      spi, IPPROTO_IPV6, AF_INET6);
 	if (!t) {
 		t = ipcomp6_tunnel_create(x);

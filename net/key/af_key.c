@@ -683,7 +683,7 @@ static struct  xfrm_state *pfkey_xfrm_state_lookup(struct sadb_msg *hdr, void **
 	if (!xaddr)
 		return NULL;
 
-	return xfrm_state_lookup(xaddr, sa->sadb_sa_spi, proto, family);
+	return xfrm_state_lookup(&init_net, xaddr, sa->sadb_sa_spi, proto, family);
 }
 
 #define PFKEY_ALIGN8(a) (1 + (((a) - 1) | (8 - 1)))

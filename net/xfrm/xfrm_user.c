@@ -440,7 +440,7 @@ static struct xfrm_state *xfrm_user_state_lookup(struct xfrm_usersa_id *p,
 
 	if (xfrm_id_proto_match(p->proto, IPSEC_PROTO_ANY)) {
 		err = -ESRCH;
-		x = xfrm_state_lookup(&p->daddr, p->spi, p->proto, p->family);
+		x = xfrm_state_lookup(&init_net, &p->daddr, p->spi, p->proto, p->family);
 	} else {
 		xfrm_address_t *saddr = NULL;
 
@@ -451,8 +451,8 @@ static struct xfrm_state *xfrm_user_state_lookup(struct xfrm_usersa_id *p,
 		}
 
 		err = -ESRCH;
-		x = xfrm_state_lookup_byaddr(&p->daddr, saddr, p->proto,
-					     p->family);
+		x = xfrm_state_lookup_byaddr(&init_net, &p->daddr, saddr,
+					     p->proto, p->family);
 	}
 
  out:
@@ -1468,7 +1468,7 @@ static int xfrm_get_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (r_skb == NULL)
 		return -ENOMEM;
 
-	x = xfrm_state_lookup(&id->daddr, id->spi, id->proto, id->family);
+	x = xfrm_state_lookup(&init_net, &id->daddr, id->spi, id->proto, id->family);
 	if (x == NULL) {
 		kfree_skb(r_skb);
 		return -ESRCH;
@@ -1509,7 +1509,7 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!(nlh->nlmsg_flags&NLM_F_REPLACE))
 		return err;
 
-	x = xfrm_state_lookup(&p->sa_id.daddr, p->sa_id.spi, p->sa_id.proto, p->sa_id.family);
+	x = xfrm_state_lookup(&init_net, &p->sa_id.daddr, p->sa_id.spi, p->sa_id.proto, p->sa_id.family);
 	if (x == NULL)
 		return -ESRCH;
 
@@ -1628,7 +1628,7 @@ static int xfrm_add_sa_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_user_expire *ue = nlmsg_data(nlh);
 	struct xfrm_usersa_info *p = &ue->state;
 
-	x = xfrm_state_lookup(&p->id.daddr, p->id.spi, p->id.proto, p->family);
+	x = xfrm_state_lookup(&init_net, &p->id.daddr, p->id.spi, p->id.proto, p->family);
 
 	err = -ENOENT;
 	if (x == NULL)

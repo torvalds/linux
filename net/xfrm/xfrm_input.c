@@ -151,7 +151,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 			goto drop;
 		}
 
-		x = xfrm_state_lookup(daddr, spi, nexthdr, family);
+		x = xfrm_state_lookup(&init_net, daddr, spi, nexthdr, family);
 		if (x == NULL) {
 			XFRM_INC_STATS(LINUX_MIB_XFRMINNOSTATES);
 			xfrm_audit_state_notfound(skb, family, spi, seq);

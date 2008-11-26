@@ -670,13 +670,13 @@ xfrm_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	return 0;
 }
 
-static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family)
+static struct xfrm_state *__xfrm_state_lookup(struct net *net, xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family)
 {
-	unsigned int h = xfrm_spi_hash(&init_net, daddr, spi, proto, family);
+	unsigned int h = xfrm_spi_hash(net, daddr, spi, proto, family);
 	struct xfrm_state *x;
 	struct hlist_node *entry;
 
-	hlist_for_each_entry(x, entry, init_net.xfrm.state_byspi+h, byspi) {
+	hlist_for_each_entry(x, entry, net->xfrm.state_byspi+h, byspi) {
 		if (x->props.family != family ||
 		    x->id.spi       != spi ||
 		    x->id.proto     != proto)
@@ -702,13 +702,13 @@ static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi,
 	return NULL;
 }
 
-static struct xfrm_state *__xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr, u8 proto, unsigned short family)
+static struct xfrm_state *__xfrm_state_lookup_byaddr(struct net *net, xfrm_address_t *daddr, xfrm_address_t *saddr, u8 proto, unsigned short family)
 {
-	unsigned int h = xfrm_src_hash(&init_net, daddr, saddr, family);
+	unsigned int h = xfrm_src_hash(net, daddr, saddr, family);
 	struct xfrm_state *x;
 	struct hlist_node *entry;
 
-	hlist_for_each_entry(x, entry, init_net.xfrm.state_bysrc+h, bysrc) {
+	hlist_for_each_entry(x, entry, net->xfrm.state_bysrc+h, bysrc) {
 		if (x->props.family != family ||
 		    x->id.proto     != proto)
 			continue;
@@ -740,11 +740,13 @@ static struct xfrm_state *__xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm
 static inline struct xfrm_state *
 __xfrm_state_locate(struct xfrm_state *x, int use_spi, int family)
 {
+	struct net *net = xs_net(x);
+
 	if (use_spi)
-		return __xfrm_state_lookup(&x->id.daddr, x->id.spi,
+		return __xfrm_state_lookup(net, &x->id.daddr, x->id.spi,
 					   x->id.proto, family);
 	else
-		return __xfrm_state_lookup_byaddr(&x->id.daddr,
+		return __xfrm_state_lookup_byaddr(net, &x->id.daddr,
 						  &x->props.saddr,
 						  x->id.proto, family);
 }
@@ -818,7 +820,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 	x = best;
 	if (!x && !error && !acquire_in_progress) {
 		if (tmpl->id.spi &&
-		    (x0 = __xfrm_state_lookup(daddr, tmpl->id.spi,
+		    (x0 = __xfrm_state_lookup(&init_net, daddr, tmpl->id.spi,
 					      tmpl->id.proto, family)) != NULL) {
 			to_put = x0;
 			error = -EEXIST;
@@ -1361,26 +1363,27 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 EXPORT_SYMBOL(xfrm_state_check_expire);
 
 struct xfrm_state *
-xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi, u8 proto,
+xfrm_state_lookup(struct net *net, xfrm_address_t *daddr, __be32 spi, u8 proto,
 		  unsigned short family)
 {
 	struct xfrm_state *x;
 
 	spin_lock_bh(&xfrm_state_lock);
-	x = __xfrm_state_lookup(daddr, spi, proto, family);
+	x = __xfrm_state_lookup(net, daddr, spi, proto, family);
 	spin_unlock_bh(&xfrm_state_lock);
 	return x;
 }
 EXPORT_SYMBOL(xfrm_state_lookup);
 
 struct xfrm_state *
-xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr,
+xfrm_state_lookup_byaddr(struct net *net,
+			 xfrm_address_t *daddr, xfrm_address_t *saddr,
 			 u8 proto, unsigned short family)
 {
 	struct xfrm_state *x;
 
 	spin_lock_bh(&xfrm_state_lock);
-	x = __xfrm_state_lookup_byaddr(daddr, saddr, proto, family);
+	x = __xfrm_state_lookup_byaddr(net, daddr, saddr, proto, family);
 	spin_unlock_bh(&xfrm_state_lock);
 	return x;
 }
@@ -1486,6 +1489,7 @@ EXPORT_SYMBOL(xfrm_get_acqseq);
 
 int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 {
+	struct net *net = xs_net(x);
 	unsigned int h;
 	struct xfrm_state *x0;
 	int err = -ENOENT;
@@ -1503,7 +1507,7 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 	err = -ENOENT;
 
 	if (minspi == maxspi) {
-		x0 = xfrm_state_lookup(&x->id.daddr, minspi, x->id.proto, x->props.family);
+		x0 = xfrm_state_lookup(net, &x->id.daddr, minspi, x->id.proto, x->props.family);
 		if (x0) {
 			xfrm_state_put(x0);
 			goto unlock;
@@ -1513,7 +1517,7 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 		u32 spi = 0;
 		for (h=0; h<high-low+1; h++) {
 			spi = low + net_random()%(high-low+1);
-			x0 = xfrm_state_lookup(&x->id.daddr, htonl(spi), x->id.proto, x->props.family);
+			x0 = xfrm_state_lookup(net, &x->id.daddr, htonl(spi), x->id.proto, x->props.family);
 			if (x0 == NULL) {
 				x->id.spi = htonl(spi);
 				break;
