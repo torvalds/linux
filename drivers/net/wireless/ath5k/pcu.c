@@ -1013,6 +1013,23 @@ int ath5k_hw_is_key_valid(struct ath5k_hw *ah, u16 entry)
 		AR5K_KEYTABLE_VALID;
 }
 
+static
+int ath5k_keycache_type(const struct ieee80211_key_conf *key)
+{
+	switch (key->alg) {
+	case ALG_TKIP:
+		return AR5K_KEYTABLE_TYPE_TKIP;
+	case ALG_CCMP:
+		return AR5K_KEYTABLE_TYPE_CCM;
+	case ALG_WEP:
+		if (key->keylen == LEN_WEP40)
+			return AR5K_KEYTABLE_TYPE_40;
+		else if (key->keylen == LEN_WEP104)
+			return AR5K_KEYTABLE_TYPE_104;
+	}
+	return -EINVAL;
+}
+
 /*
  * Set a key entry on the table
  */
@@ -1027,6 +1044,7 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 	u32 keytype;
 	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
 	bool is_tkip;
+	const u8 *key_ptr;
 
 	ATH5K_TRACE(ah->ah_sc);
 
@@ -1042,33 +1060,25 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 		(is_tkip && micentry > AR5K_KEYTABLE_SIZE))
 		return -EOPNOTSUPP;
 
-	switch (keylen) {
-	/* WEP 40-bit   = 40-bit  entered key + 24 bit IV = 64-bit */
-	case 40 / 8:
-		memcpy(&key_v[0], key->key, 5);
-		keytype = AR5K_KEYTABLE_TYPE_40;
-		break;
+	if (unlikely(keylen > 16))
+		return -EOPNOTSUPP;
 
-	/* WEP 104-bit  = 104-bit entered key + 24-bit IV = 128-bit */
-	case 104 / 8:
-		memcpy(&key_v[0], &key->key[0], 6);
-		memcpy(&key_v[2], &key->key[6], 6);
-		memcpy(&key_v[4], &key->key[12], 1);
-		keytype = AR5K_KEYTABLE_TYPE_104;
-		break;
-	/* WEP/TKIP 128-bit  = 128-bit entered key + 24 bit IV = 152-bit */
-	case 128 / 8:
-		memcpy(&key_v[0], &key->key[0], 6);
-		memcpy(&key_v[2], &key->key[6], 6);
-		memcpy(&key_v[4], &key->key[12], 4);
-		keytype = is_tkip ?
-			AR5K_KEYTABLE_TYPE_TKIP :
-			AR5K_KEYTABLE_TYPE_128;
-		break;
+	keytype = ath5k_keycache_type(key);
+	if (keytype < 0)
+		return keytype;
 
-	default:
-		return -EINVAL; /* shouldn't happen */
+	/*
+	 * each key block is 6 bytes wide, written as pairs of
+	 * alternating 32 and 16 bit le values.
+	 */
+	key_ptr = key->key;
+	for (i = 0; keylen >= 6; keylen -= 6) {
+		memcpy(&key_v[i], key_ptr, 6);
+		i += 2;
+		key_ptr += 6;
 	}
+	if (keylen)
+		memcpy(&key_v[i], key_ptr, keylen);
 
 	/* intentionally corrupt key until mic is installed */
 	if (is_tkip) {
