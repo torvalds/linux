@@ -27,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 #include <net/xfrm.h>
 
 #include <net/sock.h>
@@ -34,14 +35,15 @@
 #define _X2KEY(x) ((x) == XFRM_INF ? 0 : (x))
 #define _KEY2X(x) ((x) == 0 ? XFRM_INF : (x))
 
-
-/* List of all pfkey sockets. */
-static HLIST_HEAD(pfkey_table);
+static int pfkey_net_id;
+struct netns_pfkey {
+	/* List of all pfkey sockets. */
+	struct hlist_head table;
+	atomic_t socks_nr;
+};
 static DECLARE_WAIT_QUEUE_HEAD(pfkey_table_wait);
 static DEFINE_RWLOCK(pfkey_table_lock);
 static atomic_t pfkey_table_users = ATOMIC_INIT(0);
-
-static atomic_t pfkey_socks_nr = ATOMIC_INIT(0);
 
 struct pfkey_sock {
 	/* struct sock must be the first member of struct pfkey_sock */
@@ -89,6 +91,9 @@ static void pfkey_terminate_dump(struct pfkey_sock *pfk)
 
 static void pfkey_sock_destruct(struct sock *sk)
 {
+	struct net *net = sock_net(sk);
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
+
 	pfkey_terminate_dump(pfkey_sk(sk));
 	skb_queue_purge(&sk->sk_receive_queue);
 
@@ -100,7 +105,7 @@ static void pfkey_sock_destruct(struct sock *sk)
 	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
 	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
 
-	atomic_dec(&pfkey_socks_nr);
+	atomic_dec(&net_pfkey->socks_nr);
 }
 
 static void pfkey_table_grab(void)
@@ -151,8 +156,11 @@ static const struct proto_ops pfkey_ops;
 
 static void pfkey_insert(struct sock *sk)
 {
+	struct net *net = sock_net(sk);
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
+
 	pfkey_table_grab();
-	sk_add_node(sk, &pfkey_table);
+	sk_add_node(sk, &net_pfkey->table);
 	pfkey_table_ungrab();
 }
 
@@ -171,11 +179,9 @@ static struct proto key_proto = {
 
 static int pfkey_create(struct net *net, struct socket *sock, int protocol)
 {
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 	struct sock *sk;
 	int err;
-
-	if (net != &init_net)
-		return -EAFNOSUPPORT;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -195,7 +201,7 @@ static int pfkey_create(struct net *net, struct socket *sock, int protocol)
 	sk->sk_family = PF_KEY;
 	sk->sk_destruct = pfkey_sock_destruct;
 
-	atomic_inc(&pfkey_socks_nr);
+	atomic_inc(&net_pfkey->socks_nr);
 
 	pfkey_insert(sk);
 
@@ -257,6 +263,8 @@ static int pfkey_broadcast_one(struct sk_buff *skb, struct sk_buff **skb2,
 static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 			   int broadcast_flags, struct sock *one_sk)
 {
+	struct net *net = &init_net;
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 	struct sock *sk;
 	struct hlist_node *node;
 	struct sk_buff *skb2 = NULL;
@@ -269,7 +277,7 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 		return -ENOMEM;
 
 	pfkey_lock_table();
-	sk_for_each(sk, node, &pfkey_table) {
+	sk_for_each(sk, node, &net_pfkey->table) {
 		struct pfkey_sock *pfk = pfkey_sk(sk);
 		int err2;
 
@@ -2943,7 +2951,10 @@ static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
 
 static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 {
-	if (atomic_read(&pfkey_socks_nr) == 0)
+	struct net *net = &init_net;
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
+
+	if (atomic_read(&net_pfkey->socks_nr) == 0)
 		return 0;
 
 	switch (c->event) {
@@ -3647,6 +3658,8 @@ static int pfkey_seq_show(struct seq_file *f, void *v)
 
 static void *pfkey_seq_start(struct seq_file *f, loff_t *ppos)
 {
+	struct net *net = &init_net;
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 	struct sock *s;
 	struct hlist_node *node;
 	loff_t pos = *ppos;
@@ -3655,7 +3668,7 @@ static void *pfkey_seq_start(struct seq_file *f, loff_t *ppos)
 	if (pos == 0)
 		return SEQ_START_TOKEN;
 
-	sk_for_each(s, node, &pfkey_table)
+	sk_for_each(s, node, &net_pfkey->table)
 		if (pos-- == 1)
 			return s;
 
@@ -3664,9 +3677,12 @@ static void *pfkey_seq_start(struct seq_file *f, loff_t *ppos)
 
 static void *pfkey_seq_next(struct seq_file *f, void *v, loff_t *ppos)
 {
+	struct net *net = &init_net;
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
+
 	++*ppos;
 	return (v == SEQ_START_TOKEN) ?
-		sk_head(&pfkey_table) :
+		sk_head(&net_pfkey->table) :
 			sk_next((struct sock *)v);
 }
 
@@ -3731,8 +3747,45 @@ static struct xfrm_mgr pfkeyv2_mgr =
 	.migrate	= pfkey_send_migrate,
 };
 
+static int __net_init pfkey_net_init(struct net *net)
+{
+	struct netns_pfkey *net_pfkey;
+	int rv;
+
+	net_pfkey = kmalloc(sizeof(struct netns_pfkey), GFP_KERNEL);
+	if (!net_pfkey) {
+		rv = -ENOMEM;
+		goto out_kmalloc;
+	}
+	INIT_HLIST_HEAD(&net_pfkey->table);
+	atomic_set(&net_pfkey->socks_nr, 0);
+	rv = net_assign_generic(net, pfkey_net_id, net_pfkey);
+	if (rv < 0)
+		goto out_assign;
+	return 0;
+
+out_assign:
+	kfree(net_pfkey);
+out_kmalloc:
+	return rv;
+}
+
+static void __net_exit pfkey_net_exit(struct net *net)
+{
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
+
+	BUG_ON(!hlist_empty(&net_pfkey->table));
+	kfree(net_pfkey);
+}
+
+static struct pernet_operations pfkey_net_ops = {
+	.init = pfkey_net_init,
+	.exit = pfkey_net_exit,
+};
+
 static void __exit ipsec_pfkey_exit(void)
 {
+	unregister_pernet_gen_subsys(pfkey_net_id, &pfkey_net_ops);
 	xfrm_unregister_km(&pfkeyv2_mgr);
 	pfkey_exit_proc();
 	sock_unregister(PF_KEY);
@@ -3755,8 +3808,13 @@ static int __init ipsec_pfkey_init(void)
 	err = xfrm_register_km(&pfkeyv2_mgr);
 	if (err != 0)
 		goto out_remove_proc_entry;
+	err = register_pernet_gen_subsys(&pfkey_net_id, &pfkey_net_ops);
+	if (err != 0)
+		goto out_xfrm_unregister_km;
 out:
 	return err;
+out_xfrm_unregister_km:
+	xfrm_unregister_km(&pfkeyv2_mgr);
 out_remove_proc_entry:
 	pfkey_exit_proc();
 out_sock_unregister:
