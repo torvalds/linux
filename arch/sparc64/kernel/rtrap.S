@@ -132,6 +132,18 @@ __handle_signal:
 		ba,pt			%xcc, __handle_signal_continue
 		 andn			%l1, %l4, %l1
 
+		/* When returning from a NMI (%pil==15) interrupt we want to
+		 * avoid running softirqs, doing IRQ tracing, preempting, etc.
+		 */
+		.globl			rtrap_nmi
+rtrap_nmi:	ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
+		sethi			%hi(0xf << 20), %l4
+		and			%l1, %l4, %l4
+		andn			%l1, %l4, %l1
+		srl			%l4, 20, %l4
+		ba,pt			%xcc, rtrap_no_irq_enable
+		 wrpr			%l4, %pil
+
 		.align			64
 		.globl			rtrap_irq, rtrap, irqsz_patchme, rtrap_xcall
 rtrap_irq:
@@ -161,8 +173,8 @@ rtrap_xcall:
 		call			trace_hardirqs_on
 		 nop
 		wrpr			%l4, %pil
-rtrap_no_irq_enable:
 #endif
+rtrap_no_irq_enable:
 		andcc			%l1, TSTATE_PRIV, %l3
 		bne,pn			%icc, to_kernel
 		 nop

@@ -162,7 +162,7 @@
 	mov	level, %o0;				\
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o1;			\
-	ba,a,pt	%xcc, rtrap_irq;
+	ba,a,pt	%xcc, rtrap_nmi;
 
 #define TRAP_IVEC TRAP_NOSAVE(do_ivec)
 
