@@ -853,8 +853,8 @@ static int bind_qsets(struct adapter *adap)
 	return err;
 }
 
-#define FW_FNAME "t3fw-%d.%d.%d.bin"
-#define TPSRAM_NAME "t3%c_protocol_sram-%d.%d.%d.bin"
+#define FW_FNAME "cxgb3/t3fw-%d.%d.%d.bin"
+#define TPSRAM_NAME "cxgb3/t3%c_psram-%d.%d.%d.bin"
 
 static int upgrade_fw(struct adapter *adap)
 {
