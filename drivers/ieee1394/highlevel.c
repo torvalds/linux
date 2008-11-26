@@ -420,7 +420,7 @@ int hpsb_register_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 		return 0;
 	}
 
-	as = kmalloc(sizeof(*as), GFP_ATOMIC);
+	as = kmalloc(sizeof(*as), GFP_KERNEL);
 	if (!as)
 		return 0;
 
