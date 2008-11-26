@@ -5847,9 +5847,34 @@ static void niu_stop_hw(struct niu *np)
 	niu_reset_rx_channels(np);
 }
 
+static void niu_set_irq_name(struct niu *np)
+{
+	int port = np->port;
+	int i, j = 1;
+
+	sprintf(np->irq_name[0], "%s:MAC", np->dev->name);
+
+	if (port == 0) {
+		sprintf(np->irq_name[1], "%s:MIF", np->dev->name);
+		sprintf(np->irq_name[2], "%s:SYSERR", np->dev->name);
+		j = 3;
+	}
+
+	for (i = 0; i < np->num_ldg - j; i++) {
+		if (i < np->num_rx_rings)
+			sprintf(np->irq_name[i+j], "%s-rx-%d",
+				np->dev->name, i);
+		else if (i < np->num_tx_rings + np->num_rx_rings)
+			sprintf(np->irq_name[i+j], "%s-tx-%d", np->dev->name,
+				i - np->num_rx_rings);
+	}
+}
+
 static int niu_request_irq(struct niu *np)
 {
 	int i, j, err;
+
+	niu_set_irq_name(np);
 
 	err = 0;
 	for (i = 0; i < np->num_ldg; i++) {
@@ -5857,7 +5882,7 @@ static int niu_request_irq(struct niu *np)
 
 		err = request_irq(lp->irq, niu_interrupt,
 				  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-				  np->dev->name, lp);
+				  np->irq_name[i], lp);
 		if (err)
 			goto out_free_irqs;
 
