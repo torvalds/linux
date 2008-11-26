@@ -2137,7 +2137,7 @@ static void prune_one_bundle(struct xfrm_policy *pol, int (*func)(struct dst_ent
 	write_unlock(&pol->lock);
 }
 
-static void xfrm_prune_bundles(int (*func)(struct dst_entry *))
+static void xfrm_prune_bundles(struct net *net, int (*func)(struct dst_entry *))
 {
 	struct dst_entry *gc_list = NULL;
 	int dir;
@@ -2150,11 +2150,11 @@ static void xfrm_prune_bundles(int (*func)(struct dst_entry *))
 		int i;
 
 		hlist_for_each_entry(pol, entry,
-				     &init_net.xfrm.policy_inexact[dir], bydst)
+				     &net->xfrm.policy_inexact[dir], bydst)
 			prune_one_bundle(pol, func, &gc_list);
 
-		table = init_net.xfrm.policy_bydst[dir].table;
-		for (i = init_net.xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
+		table = net->xfrm.policy_bydst[dir].table;
+		for (i = net->xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
 			hlist_for_each_entry(pol, entry, table + i, bydst)
 				prune_one_bundle(pol, func, &gc_list);
 		}
@@ -2175,12 +2175,12 @@ static int unused_bundle(struct dst_entry *dst)
 
 static void __xfrm_garbage_collect(void)
 {
-	xfrm_prune_bundles(unused_bundle);
+	xfrm_prune_bundles(&init_net, unused_bundle);
 }
 
-static int xfrm_flush_bundles(void)
+static int xfrm_flush_bundles(struct net *net)
 {
-	xfrm_prune_bundles(stale_bundle);
+	xfrm_prune_bundles(net, stale_bundle);
 	return 0;
 }
 
@@ -2366,12 +2366,9 @@ static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void
 {
 	struct net_device *dev = ptr;
 
-	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
-
 	switch (event) {
 	case NETDEV_DOWN:
-		xfrm_flush_bundles();
+		xfrm_flush_bundles(dev_net(dev));
 	}
 	return NOTIFY_DONE;
 }
