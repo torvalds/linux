@@ -2012,7 +2012,7 @@ static int ieee80211_sta_match_ssid(struct ieee80211_if_sta *ifsta,
 		}
 	}
 
-	if (hidden_ssid && ifsta->ssid_len == ssid_len)
+	if (hidden_ssid && (ifsta->ssid_len == ssid_len || ssid_len == 0))
 		return 1;
 
 	if (ssid_len == 1 && ssid[0] == ' ')
