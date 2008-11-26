@@ -2,6 +2,7 @@
 #define __NETNS_XFRM_H
 
 #include <linux/list.h>
+#include <linux/workqueue.h>
 
 struct netns_xfrm {
 	struct list_head	state_all;
@@ -18,6 +19,7 @@ struct netns_xfrm {
 	struct hlist_head	*state_byspi;
 	unsigned int		state_hmask;
 	unsigned int		state_num;
+	struct work_struct	state_hash_work;
 };
 
 #endif
