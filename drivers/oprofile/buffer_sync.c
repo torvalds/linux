@@ -272,7 +272,7 @@ static void increment_tail(struct oprofile_cpu_buffer *b)
 {
 	unsigned long new_tail = b->tail_pos + 1;
 
-	rmb();	/* be sure fifo pointers are synchromized */
+	rmb();	/* be sure fifo pointers are synchronized */
 
 	if (new_tail < b->buffer_size)
 		b->tail_pos = new_tail;
