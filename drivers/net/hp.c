@@ -59,8 +59,6 @@ static unsigned int hppclan_portlist[] __initdata =
 
 static int hp_probe1(struct net_device *dev, int ioaddr);
 
-static int hp_open(struct net_device *dev);
-static int hp_close(struct net_device *dev);
 static void hp_reset_8390(struct net_device *dev);
 static void hp_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 					int ring_page);
@@ -198,11 +196,7 @@ static int __init hp_probe1(struct net_device *dev, int ioaddr)
 
 	/* Set the base address to point to the NIC, not the "real" base! */
 	dev->base_addr = ioaddr + NIC_OFFSET;
-	dev->open = &hp_open;
-	dev->stop = &hp_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = eip_poll;
-#endif
+	dev->netdev_ops = &eip_netdev_ops;
 
 	ei_status.name = name;
 	ei_status.word16 = wordmode;
@@ -225,20 +219,6 @@ out1:
 out:
 	release_region(ioaddr, HP_IO_EXTENT);
 	return retval;
-}
-
-static int
-hp_open(struct net_device *dev)
-{
-	eip_open(dev);
-	return 0;
-}
-
-static int
-hp_close(struct net_device *dev)
-{
-	eip_close(dev);
-	return 0;
 }
 
 static void
