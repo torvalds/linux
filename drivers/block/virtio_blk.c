@@ -304,7 +304,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	if (!err)
 		blk_queue_max_segment_size(vblk->disk->queue, v);
 	else
-		blk_queue_max_segment_size(vblk->disk->queue, -1UL);
+		blk_queue_max_segment_size(vblk->disk->queue, -1U);
 
 	/* Host can optionally specify the block size of the device */
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_BLK_SIZE,
