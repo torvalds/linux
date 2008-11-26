@@ -2174,7 +2174,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (!pol->sadb_x_policy_dir || pol->sadb_x_policy_dir >= IPSEC_DIR_MAX)
 		return -EINVAL;
 
-	xp = xfrm_policy_alloc(GFP_KERNEL);
+	xp = xfrm_policy_alloc(&init_net, GFP_KERNEL);
 	if (xp == NULL)
 		return -ENOBUFS;
 
@@ -3141,7 +3141,7 @@ static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
 	    (!pol->sadb_x_policy_dir || pol->sadb_x_policy_dir > IPSEC_DIR_OUTBOUND))
 		return NULL;
 
-	xp = xfrm_policy_alloc(GFP_ATOMIC);
+	xp = xfrm_policy_alloc(&init_net, GFP_ATOMIC);
 	if (xp == NULL) {
 		*dir = -ENOBUFS;
 		return NULL;

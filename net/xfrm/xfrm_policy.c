@@ -228,13 +228,14 @@ expired:
  * SPD calls.
  */
 
-struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp)
+struct xfrm_policy *xfrm_policy_alloc(struct net *net, gfp_t gfp)
 {
 	struct xfrm_policy *policy;
 
 	policy = kzalloc(sizeof(struct xfrm_policy), gfp);
 
 	if (policy) {
+		write_pnet(&policy->xp_net, net);
 		INIT_LIST_HEAD(&policy->walk.all);
 		INIT_HLIST_NODE(&policy->bydst);
 		INIT_HLIST_NODE(&policy->byidx);
@@ -1153,7 +1154,7 @@ int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
 
 static struct xfrm_policy *clone_policy(struct xfrm_policy *old, int dir)
 {
-	struct xfrm_policy *newp = xfrm_policy_alloc(GFP_ATOMIC);
+	struct xfrm_policy *newp = xfrm_policy_alloc(xp_net(old), GFP_ATOMIC);
 
 	if (newp) {
 		newp->selector = old->selector;

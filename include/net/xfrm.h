@@ -475,6 +475,9 @@ struct xfrm_policy_walk {
 
 struct xfrm_policy
 {
+#ifdef CONFIG_NET_NS
+	struct net		*xp_net;
+#endif
 	struct hlist_node	bydst;
 	struct hlist_node	byidx;
 
@@ -498,6 +501,11 @@ struct xfrm_policy
 	struct xfrm_sec_ctx	*security;
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
+
+static inline struct net *xp_net(struct xfrm_policy *xp)
+{
+	return read_pnet(&xp->xp_net);
+}
 
 struct xfrm_kmaddress {
 	xfrm_address_t          local;
@@ -1425,7 +1433,7 @@ static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 }
 #endif
 
-struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
+struct xfrm_policy *xfrm_policy_alloc(struct net *net, gfp_t gfp);
 
 extern void xfrm_policy_walk_init(struct xfrm_policy_walk *walk, u8 type);
 extern int xfrm_policy_walk(struct xfrm_policy_walk *walk,
