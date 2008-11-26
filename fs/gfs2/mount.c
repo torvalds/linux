@@ -85,14 +85,6 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 	int error = 0;
 
 	if (!remount) {
-		/*  If someone preloaded options, use those instead  */
-		spin_lock(&gfs2_sys_margs_lock);
-		if (gfs2_sys_margs) {
-			data = gfs2_sys_margs;
-			gfs2_sys_margs = NULL;
-		}
-		spin_unlock(&gfs2_sys_margs_lock);
-
 		/*  Set some defaults  */
 		args->ar_quota = GFS2_QUOTA_DEFAULT;
 		args->ar_data = GFS2_DATA_DEFAULT;

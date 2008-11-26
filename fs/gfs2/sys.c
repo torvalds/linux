@@ -26,9 +26,6 @@
 #include "quota.h"
 #include "util.h"
 
-char *gfs2_sys_margs;
-spinlock_t gfs2_sys_margs_lock;
-
 static ssize_t id_show(struct gfs2_sbd *sdp, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%u:%u\n",
@@ -477,8 +474,6 @@ static struct kset_uevent_ops gfs2_uevent_ops = {
 
 int gfs2_sys_init(void)
 {
-	gfs2_sys_margs = NULL;
-	spin_lock_init(&gfs2_sys_margs_lock);
 	gfs2_kset = kset_create_and_add("gfs2", &gfs2_uevent_ops, fs_kobj);
 	if (!gfs2_kset)
 		return -ENOMEM;
@@ -487,7 +482,6 @@ int gfs2_sys_init(void)
 
 void gfs2_sys_uninit(void)
 {
-	kfree(gfs2_sys_margs);
 	kset_unregister(gfs2_kset);
 }
 
