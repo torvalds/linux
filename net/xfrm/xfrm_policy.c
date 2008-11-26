@@ -1894,6 +1894,7 @@ static inline int secpath_has_nontransport(struct sec_path *sp, int k, int *idxp
 int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 			unsigned short family)
 {
+	struct net *net = dev_net(skb->dev);
 	struct xfrm_policy *pol;
 	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
 	int npols = 0;
@@ -1938,7 +1939,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	}
 
 	if (!pol)
-		pol = flow_cache_lookup(&init_net, &fl, family, fl_dir,
+		pol = flow_cache_lookup(net, &fl, family, fl_dir,
 					xfrm_policy_lookup);
 
 	if (IS_ERR(pol)) {
@@ -1961,7 +1962,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	npols ++;
 #ifdef CONFIG_XFRM_SUB_POLICY
 	if (pols[0]->type != XFRM_POLICY_TYPE_MAIN) {
-		pols[1] = xfrm_policy_lookup_bytype(&init_net, XFRM_POLICY_TYPE_MAIN,
+		pols[1] = xfrm_policy_lookup_bytype(net, XFRM_POLICY_TYPE_MAIN,
 						    &fl, family,
 						    XFRM_POLICY_IN);
 		if (pols[1]) {
