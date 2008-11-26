@@ -291,15 +291,22 @@ xfs_compat_ioc_bulkstat(
 	if (bulkreq.ubuffer == NULL)
 		return -XFS_ERROR(EINVAL);
 
-	if (cmd == XFS_IOC_FSINUMBERS_32)
+	if (cmd == XFS_IOC_FSINUMBERS_32) {
 		error = xfs_inumbers(mp, &inlast, &count,
 				bulkreq.ubuffer, xfs_inumbers_fmt_compat);
-	else {
+	} else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE_32) {
+		int res;
+
+		error = xfs_bulkstat_one_compat(mp, inlast, bulkreq.ubuffer,
+				sizeof(compat_xfs_bstat_t),
+				NULL, 0, NULL, NULL, &res);
+	} else if (cmd == XFS_IOC_FSBULKSTAT_32) {
 		error = xfs_bulkstat(mp, &inlast, &count,
 			xfs_bulkstat_one_compat, NULL,
 			sizeof(compat_xfs_bstat_t), bulkreq.ubuffer,
 			BULKSTAT_FG_QUICK, &done);
-	}
+	} else
+		error = XFS_ERROR(EINVAL);
 	if (error)
 		return -error;
 
