@@ -1527,8 +1527,8 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 	}
 	if (x->id.spi) {
 		spin_lock_bh(&xfrm_state_lock);
-		h = xfrm_spi_hash(&init_net, &x->id.daddr, x->id.spi, x->id.proto, x->props.family);
-		hlist_add_head(&x->byspi, init_net.xfrm.state_byspi+h);
+		h = xfrm_spi_hash(net, &x->id.daddr, x->id.spi, x->id.proto, x->props.family);
+		hlist_add_head(&x->byspi, net->xfrm.state_byspi+h);
 		spin_unlock_bh(&xfrm_state_lock);
 
 		err = 0;
