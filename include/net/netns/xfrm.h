@@ -16,6 +16,7 @@ struct netns_xfrm {
 	struct hlist_head	*state_bydst;
 	struct hlist_head	*state_bysrc;
 	struct hlist_head	*state_byspi;
+	unsigned int		state_hmask;
 };
 
 #endif
