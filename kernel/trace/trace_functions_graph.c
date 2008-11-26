@@ -28,7 +28,7 @@ static struct tracer_flags tracer_flags = {
 };
 
 /* pid on the last trace processed */
-static pid_t last_pid = -1;
+static pid_t last_pid[NR_CPUS] = { [0 ... NR_CPUS-1] = -1 };
 
 static int graph_trace_init(struct trace_array *tr)
 {
@@ -53,29 +53,34 @@ static void graph_trace_reset(struct trace_array *tr)
 }
 
 /* If the pid changed since the last trace, output this event */
-static int verif_pid(struct trace_seq *s, pid_t pid)
+static int verif_pid(struct trace_seq *s, pid_t pid, int cpu)
 {
 	char *comm;
 
-	if (last_pid != -1 && last_pid == pid)
+	if (last_pid[cpu] != -1 && last_pid[cpu] == pid)
 		return 1;
 
-	last_pid = pid;
+	last_pid[cpu] = pid;
 	comm = trace_find_cmdline(pid);
 
-	return trace_seq_printf(s, "\n------------8<---------- thread %s-%d"
+	return trace_seq_printf(s, "\nCPU[%03d]"
+				    " ------------8<---------- thread %s-%d"
 				    " ------------8<----------\n\n",
-				    comm, pid);
+				    cpu, comm, pid);
 }
 
 static enum print_line_t
 print_graph_entry(struct ftrace_graph_ent *call, struct trace_seq *s,
-		struct trace_entry *ent)
+		  struct trace_entry *ent, int cpu)
 {
 	int i;
 	int ret;
 
-	if (!verif_pid(s, ent->pid))
+	if (!verif_pid(s, ent->pid, cpu))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	ret = trace_seq_printf(s, "CPU[%03d] ", cpu);
+	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	for (i = 0; i < call->depth * TRACE_GRAPH_INDENT; i++) {
@@ -96,12 +101,16 @@ print_graph_entry(struct ftrace_graph_ent *call, struct trace_seq *s,
 
 static enum print_line_t
 print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
-		   struct trace_entry *ent)
+		   struct trace_entry *ent, int cpu)
 {
 	int i;
 	int ret;
 
-	if (!verif_pid(s, ent->pid))
+	if (!verif_pid(s, ent->pid, cpu))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	ret = trace_seq_printf(s, "CPU[%03d] ", cpu);
+	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	for (i = 0; i < trace->depth * TRACE_GRAPH_INDENT; i++) {
@@ -137,12 +146,13 @@ print_graph_function(struct trace_iterator *iter)
 	case TRACE_GRAPH_ENT: {
 		struct ftrace_graph_ent_entry *field;
 		trace_assign_type(field, entry);
-		return print_graph_entry(&field->graph_ent, s, entry);
+		return print_graph_entry(&field->graph_ent, s, entry,
+					 iter->cpu);
 	}
 	case TRACE_GRAPH_RET: {
 		struct ftrace_graph_ret_entry *field;
 		trace_assign_type(field, entry);
-		return print_graph_return(&field->ret, s, entry);
+		return print_graph_return(&field->ret, s, entry, iter->cpu);
 	}
 	default:
 		return TRACE_TYPE_UNHANDLED;
