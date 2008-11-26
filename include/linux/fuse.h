@@ -203,6 +203,10 @@ enum fuse_opcode {
 	FUSE_IOCTL         = 39,
 };
 
+enum fuse_notify_code {
+	FUSE_NOTIFY_CODE_MAX,
+};
+
 /* The read buffer is required to be at least 8k, but may be much larger */
 #define FUSE_MIN_READ_BUFFER 8192
 

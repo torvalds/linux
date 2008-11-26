@@ -816,6 +816,15 @@ static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
 	return err;
 }
 
+static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
+		       unsigned int size, struct fuse_copy_state *cs)
+{
+	switch (code) {
+	default:
+		return -EINVAL;
+	}
+}
+
 /* Look up request on processing list by unique ID */
 static struct fuse_req *request_find(struct fuse_conn *fc, u64 unique)
 {
@@ -879,9 +888,23 @@ static ssize_t fuse_dev_write(struct kiocb *iocb, const struct iovec *iov,
 	err = fuse_copy_one(&cs, &oh, sizeof(oh));
 	if (err)
 		goto err_finish;
+
 	err = -EINVAL;
-	if (!oh.unique || oh.error <= -1000 || oh.error > 0 ||
-	    oh.len != nbytes)
+	if (oh.len != nbytes)
+		goto err_finish;
+
+	/*
+	 * Zero oh.unique indicates unsolicited notification message
+	 * and error contains notification code.
+	 */
+	if (!oh.unique) {
+		err = fuse_notify(fc, oh.error, nbytes - sizeof(oh), &cs);
+		fuse_copy_finish(&cs);
+		return err ? err : nbytes;
+	}
+
+	err = -EINVAL;
+	if (oh.error <= -1000 || oh.error > 0)
 		goto err_finish;
 
 	spin_lock(&fc->lock);
