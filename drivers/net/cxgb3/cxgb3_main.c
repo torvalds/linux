@@ -2831,6 +2831,7 @@ static void __devinit print_port_info(struct adapter *adap,
 static const struct net_device_ops cxgb_netdev_ops = {
 	.ndo_open		= cxgb_open,
 	.ndo_stop		= cxgb_close,
+	.ndo_start_xmit		= t3_eth_xmit,
 	.ndo_get_stats		= cxgb_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= cxgb_set_rxmode,
