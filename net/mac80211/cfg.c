@@ -1095,6 +1095,18 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	return 0;
 }
 
+static int ieee80211_set_channel(struct wiphy *wiphy,
+				 struct ieee80211_channel *chan,
+				 enum nl80211_sec_chan_offset sec_chan_offset)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	local->oper_channel = chan;
+	local->oper_sec_chan_offset = sec_chan_offset;
+
+	return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1122,4 +1134,5 @@ struct cfg80211_ops mac80211_config_ops = {
 #endif
 	.change_bss = ieee80211_change_bss,
 	.set_txq_params = ieee80211_set_txq_params,
+	.set_channel = ieee80211_set_channel,
 };

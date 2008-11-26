@@ -507,6 +507,9 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
 
 struct ieee80211_ht_conf {
 	bool enabled;
+	int sec_chan_offset; /* 0 = HT40 disabled; -1 = HT40 enabled, secondary
+			      * channel below primary; 1 = HT40 enabled,
+			      * secondary channel above primary */
 };
 
 /**
