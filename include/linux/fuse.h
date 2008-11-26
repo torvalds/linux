@@ -40,9 +40,6 @@
 /** The major number of the fuse character device */
 #define FUSE_MAJOR MISC_MAJOR
 
-/** The minor number of the fuse character device */
-#define FUSE_MINOR 229
-
 /* Make sure all structures are padded to 64bit boundary, so 32bit
    userspace works under 64bit kernels */
 
