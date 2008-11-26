@@ -242,6 +242,7 @@ int gen_new_estimator(struct gnet_stats_basic *bstats,
 
 	return 0;
 }
+EXPORT_SYMBOL(gen_new_estimator);
 
 static void __gen_kill_estimator(struct rcu_head *head)
 {
@@ -275,6 +276,7 @@ void gen_kill_estimator(struct gnet_stats_basic *bstats,
 		call_rcu(&e->e_rcu, __gen_kill_estimator);
 	}
 }
+EXPORT_SYMBOL(gen_kill_estimator);
 
 /**
  * gen_replace_estimator - replace rate estimator configuration
@@ -295,8 +297,30 @@ int gen_replace_estimator(struct gnet_stats_basic *bstats,
 	gen_kill_estimator(bstats, rate_est);
 	return gen_new_estimator(bstats, rate_est, stats_lock, opt);
 }
-
-
-EXPORT_SYMBOL(gen_kill_estimator);
-EXPORT_SYMBOL(gen_new_estimator);
 EXPORT_SYMBOL(gen_replace_estimator);
+
+/**
+ * gen_estimator_active - test if estimator is currently in use
+ * @rate_est: rate estimator statistics
+ *
+ * Returns 1 if estimator is active, and 0 if not.
+ */
+int gen_estimator_active(const struct gnet_stats_rate_est *rate_est)
+{
+	int idx;
+	struct gen_estimator *e;
+
+	ASSERT_RTNL();
+
+	for (idx=0; idx <= EST_MAX_INTERVAL; idx++) {
+		if (!elist[idx].timer.function)
+			continue;
+
+		list_for_each_entry(e, &elist[idx].list, list) {
+			if (e->rate_est == rate_est)
+				return 1;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(gen_estimator_active);

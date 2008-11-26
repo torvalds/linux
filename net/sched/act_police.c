@@ -182,6 +182,12 @@ override:
 		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE]);
 		if (R_tab == NULL)
 			goto failure;
+
+		if (!est && !gen_estimator_active(&police->tcf_rate_est)) {
+			err = -EINVAL;
+			goto failure;
+		}
+
 		if (parm->peakrate.rate) {
 			P_tab = qdisc_get_rtab(&parm->peakrate,
 					       tb[TCA_POLICE_PEAKRATE]);
