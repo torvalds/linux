@@ -359,6 +359,12 @@ static u16 group2_table[] = {
 	"andl %"_msk",%"_LO32 _tmp"; "		\
 	"orl  %"_LO32 _tmp",%"_sav"; "
 
+#ifdef CONFIG_X86_64
+#define ON64(x) x
+#else
+#define ON64(x)
+#endif
+
 /* Raw emulation: instruction has two explicit operands. */
 #define __emulate_2op_nobyte(_op,_src,_dst,_eflags,_wx,_wy,_lx,_ly,_qx,_qy) \
 	do { 								    \
@@ -425,42 +431,27 @@ static u16 group2_table[] = {
 	__emulate_2op_nobyte(_op, _src, _dst, _eflags,			\
 			     "w", "r", _LO32, "r", "", "r")
 
-/* Instruction has only one explicit operand (no source operand). */
-#define emulate_1op(_op, _dst, _eflags)                                    \
+#define __emulate_1op(_op, _dst, _eflags, _suffix)			\
 	do {								\
 		unsigned long _tmp;					\
 									\
+		__asm__ __volatile__ (					\
+			_PRE_EFLAGS("0", "3", "2")			\
+			_op _suffix " %1; "				\
+			_POST_EFLAGS("0", "3", "2")			\
+			: "=m" (_eflags), "+m" ((_dst).val),		\
+			  "=&r" (_tmp)					\
+			: "i" (EFLAGS_MASK));				\
+	} while (0)
+
+/* Instruction has only one explicit operand (no source operand). */
+#define emulate_1op(_op, _dst, _eflags)                                    \
+	do {								\
 		switch ((_dst).bytes) {				        \
-		case 1:							\
-			__asm__ __volatile__ (				\
-				_PRE_EFLAGS("0", "3", "2")		\
-				_op"b %1; "				\
-				_POST_EFLAGS("0", "3", "2")		\
-				: "=m" (_eflags), "=m" ((_dst).val),	\
-				  "=&r" (_tmp)				\
-				: "i" (EFLAGS_MASK));			\
-			break;						\
-		case 2:							\
-			__asm__ __volatile__ (				\
-				_PRE_EFLAGS("0", "3", "2")		\
-				_op"w %1; "				\
-				_POST_EFLAGS("0", "3", "2")		\
-				: "=m" (_eflags), "=m" ((_dst).val),	\
-				  "=&r" (_tmp)				\
-				: "i" (EFLAGS_MASK));			\
-			break;						\
-		case 4:							\
-			__asm__ __volatile__ (				\
-				_PRE_EFLAGS("0", "3", "2")		\
-				_op"l %1; "				\
-				_POST_EFLAGS("0", "3", "2")		\
-				: "=m" (_eflags), "=m" ((_dst).val),	\
-				  "=&r" (_tmp)				\
-				: "i" (EFLAGS_MASK));			\
-			break;						\
-		case 8:							\
-			__emulate_1op_8byte(_op, _dst, _eflags);	\
-			break;						\
+		case 1:	__emulate_1op(_op, _dst, _eflags, "b"); break;	\
+		case 2:	__emulate_1op(_op, _dst, _eflags, "w"); break;	\
+		case 4:	__emulate_1op(_op, _dst, _eflags, "l"); break;	\
+		case 8:	ON64(__emulate_1op(_op, _dst, _eflags, "q")); break; \
 		}							\
 	} while (0)
 
@@ -476,19 +467,8 @@ static u16 group2_table[] = {
 			: _qy ((_src).val), "i" (EFLAGS_MASK));		\
 	} while (0)
 
-#define __emulate_1op_8byte(_op, _dst, _eflags)                           \
-	do {								  \
-		__asm__ __volatile__ (					  \
-			_PRE_EFLAGS("0", "3", "2")			  \
-			_op"q %1; "					  \
-			_POST_EFLAGS("0", "3", "2")			  \
-			: "=m" (_eflags), "=m" ((_dst).val), "=&r" (_tmp) \
-			: "i" (EFLAGS_MASK));				  \
-	} while (0)
-
 #elif defined(__i386__)
 #define __emulate_2op_8byte(_op, _src, _dst, _eflags, _qx, _qy)
-#define __emulate_1op_8byte(_op, _dst, _eflags)
 #endif				/* __i386__ */
 
 /* Fetch next part of the instruction being emulated. */
