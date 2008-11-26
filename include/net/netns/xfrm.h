@@ -20,6 +20,7 @@ struct netns_xfrm {
 	unsigned int		state_hmask;
 	unsigned int		state_num;
 	struct work_struct	state_hash_work;
+	struct hlist_head	state_gc_list;
 };
 
 #endif
