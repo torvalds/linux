@@ -3747,6 +3747,11 @@ static int ocfs2_divide_xattr_bucket(struct inode *inode,
 		goto out;
 	}
 
+	/*
+	 * Hey, if we're overwriting t_bucket, what difference does
+	 * ACCESS_CREATE vs ACCESS_WRITE make?  See the comment in the
+	 * same part of ocfs2_cp_xattr_bucket().
+	 */
 	ret = ocfs2_xattr_bucket_journal_access(handle, t_bucket,
 						new_bucket_head ?
 						OCFS2_JOURNAL_ACCESS_CREATE :
@@ -3918,6 +3923,18 @@ static int ocfs2_cp_xattr_bucket(struct inode *inode,
 	if (ret)
 		goto out;
 
+	/*
+	 * Hey, if we're overwriting t_bucket, what difference does
+	 * ACCESS_CREATE vs ACCESS_WRITE make?  Well, if we allocated a new
+	 * cluster to fill, we came here from ocfs2_cp_xattr_cluster(), and
+	 * it is really new - ACCESS_CREATE is required.  But we also
+	 * might have moved data out of t_bucket before extending back
+	 * into it.  ocfs2_add_new_xattr_bucket() can do this - its call
+	 * to ocfs2_add_new_xattr_cluster() may have created a new extent
+	 * and copied out the end of the old extent.  Then it re-extends
+	 * the old extent back to create space for new xattrs.  That's
+	 * how we get here, and the bucket isn't really new.
+	 */
 	ret = ocfs2_xattr_bucket_journal_access(handle, t_bucket,
 						t_is_new ?
 						OCFS2_JOURNAL_ACCESS_CREATE :
