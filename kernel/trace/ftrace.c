@@ -281,6 +281,8 @@ enum {
 	FTRACE_UPDATE_TRACE_FUNC	= (1 << 2),
 	FTRACE_ENABLE_MCOUNT		= (1 << 3),
 	FTRACE_DISABLE_MCOUNT		= (1 << 4),
+	FTRACE_START_FUNC_RET		= (1 << 5),
+	FTRACE_STOP_FUNC_RET		= (1 << 6),
 };
 
 static int ftrace_filtered;
@@ -465,14 +467,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 	unsigned long ip, fl;
 	unsigned long ftrace_addr;
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (ftrace_tracing_type == FTRACE_TYPE_ENTER)
-		ftrace_addr = (unsigned long)ftrace_caller;
-	else
-		ftrace_addr = (unsigned long)ftrace_graph_caller;
-#else
 	ftrace_addr = (unsigned long)ftrace_caller;
-#endif
 
 	ip = rec->ip;
 
@@ -605,6 +600,11 @@ static int __ftrace_modify_code(void *data)
 	if (*command & FTRACE_UPDATE_TRACE_FUNC)
 		ftrace_update_ftrace_func(ftrace_trace_function);
 
+	if (*command & FTRACE_START_FUNC_RET)
+		ftrace_enable_ftrace_graph_caller();
+	else if (*command & FTRACE_STOP_FUNC_RET)
+		ftrace_disable_ftrace_graph_caller();
+
 	return 0;
 }
 
@@ -629,10 +629,8 @@ static void ftrace_startup_enable(int command)
 	ftrace_run_update_code(command);
 }
 
-static void ftrace_startup(void)
+static void ftrace_startup(int command)
 {
-	int command = 0;
-
 	if (unlikely(ftrace_disabled))
 		return;
 
@@ -645,10 +643,8 @@ static void ftrace_startup(void)
 	mutex_unlock(&ftrace_start_lock);
 }
 
-static void ftrace_shutdown(void)
+static void ftrace_shutdown(int command)
 {
-	int command = 0;
-
 	if (unlikely(ftrace_disabled))
 		return;
 
@@ -1453,8 +1449,9 @@ device_initcall(ftrace_nodyn_init);
 
 static inline int ftrace_init_dyn_debugfs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_enable(int command) { }
-# define ftrace_startup()		do { } while (0)
-# define ftrace_shutdown()		do { } while (0)
+/* Keep as macros so we do not need to define the commands */
+# define ftrace_startup(command)	do { } while (0)
+# define ftrace_shutdown(command)	do { } while (0)
 # define ftrace_startup_sysctl()	do { } while (0)
 # define ftrace_shutdown_sysctl()	do { } while (0)
 #endif /* CONFIG_DYNAMIC_FTRACE */
@@ -1585,7 +1582,7 @@ int register_ftrace_function(struct ftrace_ops *ops)
 	}
 
 	ret = __register_ftrace_function(ops);
-	ftrace_startup();
+	ftrace_startup(0);
 
 out:
 	mutex_unlock(&ftrace_sysctl_lock);
@@ -1604,7 +1601,7 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 
 	mutex_lock(&ftrace_sysctl_lock);
 	ret = __unregister_ftrace_function(ops);
-	ftrace_shutdown();
+	ftrace_shutdown(0);
 	mutex_unlock(&ftrace_sysctl_lock);
 
 	return ret;
@@ -1751,7 +1748,7 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	ftrace_tracing_type = FTRACE_TYPE_RETURN;
 	ftrace_graph_return = retfunc;
 	ftrace_graph_entry = entryfunc;
-	ftrace_startup();
+	ftrace_startup(FTRACE_START_FUNC_RET);
 
 out:
 	mutex_unlock(&ftrace_sysctl_lock);
@@ -1765,7 +1762,7 @@ void unregister_ftrace_graph(void)
 	atomic_dec(&ftrace_graph_active);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = (trace_func_graph_ent_t)ftrace_stub;
-	ftrace_shutdown();
+	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
 	/* Restore normal tracing type */
 	ftrace_tracing_type = FTRACE_TYPE_ENTER;
 

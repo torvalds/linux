@@ -1174,6 +1174,11 @@ ftrace_call:
 	popl %edx
 	popl %ecx
 	popl %eax
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+.globl ftrace_graph_call
+ftrace_graph_call:
+	jmp ftrace_stub
+#endif
 
 .globl ftrace_stub
 ftrace_stub:

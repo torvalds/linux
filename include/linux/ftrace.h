@@ -117,6 +117,11 @@ extern void ftrace_call(void);
 extern void mcount_call(void);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 extern void ftrace_graph_caller(void);
+extern int ftrace_enable_ftrace_graph_caller(void);
+extern int ftrace_disable_ftrace_graph_caller(void);
+#else
+static inline int ftrace_enable_ftrace_graph_caller(void) { return 0; }
+static inline int ftrace_disable_ftrace_graph_caller(void) { return 0; }
 #endif
 
 /**

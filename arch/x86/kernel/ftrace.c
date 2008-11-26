@@ -111,7 +111,6 @@ static void ftrace_mod_code(void)
 	 */
 	mod_code_status = probe_kernel_write(mod_code_ip, mod_code_newcode,
 					     MCOUNT_INSN_SIZE);
-
 }
 
 void ftrace_nmi_enter(void)
@@ -325,7 +324,51 @@ int __init ftrace_dyn_arch_init(void *data)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-#ifndef CONFIG_DYNAMIC_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void ftrace_graph_call(void);
+
+static int ftrace_mod_jmp(unsigned long ip,
+			  int old_offset, int new_offset)
+{
+	unsigned char code[MCOUNT_INSN_SIZE];
+
+	if (probe_kernel_read(code, (void *)ip, MCOUNT_INSN_SIZE))
+		return -EFAULT;
+
+	if (code[0] != 0xe9 || old_offset != *(int *)(&code[1]))
+		return -EINVAL;
+
+	*(int *)(&code[1]) = new_offset;
+
+	if (do_ftrace_mod_code(ip, &code))
+		return -EPERM;
+
+	return 0;
+}
+
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	int old_offset, new_offset;
+
+	old_offset = (unsigned long)(&ftrace_stub) - (ip + MCOUNT_INSN_SIZE);
+	new_offset = (unsigned long)(&ftrace_graph_caller) - (ip + MCOUNT_INSN_SIZE);
+
+	return ftrace_mod_jmp(ip, old_offset, new_offset);
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	int old_offset, new_offset;
+
+	old_offset = (unsigned long)(&ftrace_graph_caller) - (ip + MCOUNT_INSN_SIZE);
+	new_offset = (unsigned long)(&ftrace_stub) - (ip + MCOUNT_INSN_SIZE);
+
+	return ftrace_mod_jmp(ip, old_offset, new_offset);
+}
+
+#else /* CONFIG_DYNAMIC_FTRACE */
 
 /*
  * These functions are picked from those used on
@@ -343,6 +386,7 @@ void ftrace_nmi_exit(void)
 {
 	atomic_dec(&in_nmi);
 }
+
 #endif /* !CONFIG_DYNAMIC_FTRACE */
 
 /* Add a function return address to the trace stack on thread info.*/
