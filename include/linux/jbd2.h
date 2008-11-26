@@ -638,6 +638,11 @@ struct transaction_s
 	unsigned long		t_expires;
 
 	/*
+	 * When this transaction started, in nanoseconds [no locking]
+	 */
+	ktime_t			t_start_time;
+
+	/*
 	 * How many handles used this transaction? [t_handle_lock]
 	 */
 	int t_handle_count;
@@ -939,7 +944,17 @@ struct journal_s
 	struct buffer_head	**j_wbuf;
 	int			j_wbufsize;
 
+	/*
+	 * this is the pid of hte last person to run a synchronous operation
+	 * through the journal
+	 */
 	pid_t			j_last_sync_writer;
+
+	/*
+	 * the average amount of time in nanoseconds it takes to commit a
+	 * transaction to disk. [j_state_lock]
+	 */
+	u64			j_average_commit_time;
 
 	/* This function is called when a transaction is closed */
 	void			(*j_commit_callback)(journal_t *,
