@@ -127,6 +127,8 @@ of ftrace. Here is a list of some of the key files:
 		be traced. If a function exists in both set_ftrace_filter
 		and set_ftrace_notrace,	the function will _not_ be traced.
 
+  set_ftrace_pid: Have the function tracer only trace a single thread.
+
   available_filter_functions: This lists the functions that ftrace
 		has processed and can trace. These are the function
 		names that you can pass to "set_ftrace_filter" or
@@ -1072,6 +1074,83 @@ guaranteed to be at /debug (and is more commonly at /sys/kernel/debug).
 For simple one time traces, the above is sufficent. For anything else,
 a search through /proc/mounts may be needed to find where the debugfs
 file-system is mounted.
+
+
+Single thread tracing
+---------------------
+
+By writing into /debug/tracing/set_ftrace_pid you can trace a
+single thread. For example:
+
+# cat /debug/tracing/set_ftrace_pid
+no pid
+# echo 3111 > /debug/tracing/set_ftrace_pid
+# cat /debug/tracing/set_ftrace_pid
+3111
+# echo function > /debug/tracing/current_tracer
+# cat /debug/tracing/trace | head
+ # tracer: function
+ #
+ #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+ #              | |       |          |         |
+     yum-updatesd-3111  [003]  1637.254676: finish_task_switch <-thread_return
+     yum-updatesd-3111  [003]  1637.254681: hrtimer_cancel <-schedule_hrtimeout_range
+     yum-updatesd-3111  [003]  1637.254682: hrtimer_try_to_cancel <-hrtimer_cancel
+     yum-updatesd-3111  [003]  1637.254683: lock_hrtimer_base <-hrtimer_try_to_cancel
+     yum-updatesd-3111  [003]  1637.254685: fget_light <-do_sys_poll
+     yum-updatesd-3111  [003]  1637.254686: pipe_poll <-do_sys_poll
+# echo -1 > /debug/tracing/set_ftrace_pid
+# cat /debug/tracing/trace |head
+ # tracer: function
+ #
+ #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+ #              | |       |          |         |
+ ##### CPU 3 buffer started ####
+     yum-updatesd-3111  [003]  1701.957688: free_poll_entry <-poll_freewait
+     yum-updatesd-3111  [003]  1701.957689: remove_wait_queue <-free_poll_entry
+     yum-updatesd-3111  [003]  1701.957691: fput <-free_poll_entry
+     yum-updatesd-3111  [003]  1701.957692: audit_syscall_exit <-sysret_audit
+     yum-updatesd-3111  [003]  1701.957693: path_put <-audit_syscall_exit
+
+If you want to trace a function when executing, you could use
+something like this simple program:
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main (int argc, char **argv)
+{
+        if (argc < 1)
+                exit(-1);
+
+        if (fork() > 0) {
+                int fd, ffd;
+                char line[64];
+                int s;
+
+                ffd = open("/debug/tracing/current_tracer", O_WRONLY);
+                if (ffd < 0)
+                        exit(-1);
+                write(ffd, "nop", 3);
+
+                fd = open("/debug/tracing/set_ftrace_pid", O_WRONLY);
+                s = sprintf(line, "%d\n", getpid());
+                write(fd, line, s);
+
+                write(ffd, "function", 8);
+
+                close(fd);
+                close(ffd);
+
+                execvp(argv[1], argv+1);
+        }
+
+        return 0;
+}
 
 dynamic ftrace
 --------------
