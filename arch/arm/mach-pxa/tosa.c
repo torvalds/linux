@@ -733,6 +733,7 @@ static void tosa_tc6393xb_teardown(struct platform_device *dev)
 	gpio_free(TOSA_GPIO_CARD_VCC_ON);
 }
 
+#ifdef CONFIG_MFD_TC6393XB
 static struct fb_videomode tosa_tc6393xb_lcd_mode[] = {
 	{
 		.xres = 480,
@@ -769,6 +770,7 @@ static struct tmio_fb_data tosa_tc6393xb_fb_config = {
 	.height		= 82,
 	.width		= 60,
 };
+#endif
 
 static struct tc6393xb_platform_data tosa_tc6393xb_data = {
 	.scr_pll2cr	= 0x0cc1,
@@ -785,7 +787,9 @@ static struct tc6393xb_platform_data tosa_tc6393xb_data = {
 	.resume		= tosa_tc6393xb_resume,
 
 	.nand_data	= &tosa_tc6393xb_nand_config,
+#ifdef CONFIG_MFD_TC6393XB
 	.fb_data	= &tosa_tc6393xb_fb_config,
+#endif
 
 	.resume_restore = 1,
 };
