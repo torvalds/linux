@@ -554,20 +554,20 @@ EXPORT_SYMBOL_GPL(em28xx_audio_setup);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev)
 {
-	em28xx_write_regs(dev, EM28XX_R20_YGAIN, "\x10", 1);	/* contrast */
-	em28xx_write_regs(dev, EM28XX_R21_YOFFSET, "\x00", 1);	/* brightness */
-	em28xx_write_regs(dev, EM28XX_R22_UVGAIN, "\x10", 1);	/* saturation */
-	em28xx_write_regs(dev, EM28XX_R23_UOFFSET, "\x00", 1);
-	em28xx_write_regs(dev, EM28XX_R24_VOFFSET, "\x00", 1);
-	em28xx_write_regs(dev, EM28XX_R25_SHARPNESS, "\x00", 1);
+	em28xx_write_reg(dev, EM28XX_R20_YGAIN, 0x10);	/* contrast */
+	em28xx_write_reg(dev, EM28XX_R21_YOFFSET, 0x00);	/* brightness */
+	em28xx_write_reg(dev, EM28XX_R22_UVGAIN, 0x10);	/* saturation */
+	em28xx_write_reg(dev, EM28XX_R23_UOFFSET, 0x00);
+	em28xx_write_reg(dev, EM28XX_R24_VOFFSET, 0x00);
+	em28xx_write_reg(dev, EM28XX_R25_SHARPNESS, 0x00);
 
-	em28xx_write_regs(dev, EM28XX_R14_GAMMA, "\x20", 1);
-	em28xx_write_regs(dev, EM28XX_R15_RGAIN, "\x20", 1);
-	em28xx_write_regs(dev, EM28XX_R16_GGAIN, "\x20", 1);
-	em28xx_write_regs(dev, EM28XX_R17_BGAIN, "\x20", 1);
-	em28xx_write_regs(dev, EM28XX_R18_ROFFSET, "\x00", 1);
-	em28xx_write_regs(dev, EM28XX_R19_GOFFSET, "\x00", 1);
-	return em28xx_write_regs(dev, EM28XX_R1A_BOFFSET, "\x00", 1);
+	em28xx_write_reg(dev, EM28XX_R14_GAMMA, 0x20);
+	em28xx_write_reg(dev, EM28XX_R15_RGAIN, 0x20);
+	em28xx_write_reg(dev, EM28XX_R16_GGAIN, 0x20);
+	em28xx_write_reg(dev, EM28XX_R17_BGAIN, 0x20);
+	em28xx_write_reg(dev, EM28XX_R18_ROFFSET, 0x00);
+	em28xx_write_reg(dev, EM28XX_R19_GOFFSET, 0x00);
+	return em28xx_write_reg(dev, EM28XX_R1A_BOFFSET, 0x00);
 }
 
 int em28xx_capture_start(struct em28xx *dev, int start)
@@ -600,17 +600,17 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 
 	if (!start) {
 		/* disable video capture */
-		rc = em28xx_write_regs(dev, EM28XX_R12_VINENABLE, "\x27", 1);
+		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
 		return rc;
 	}
 
 	/* enable video capture */
-	rc = em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+	rc = em28xx_write_reg(dev, 0x48, 0x00);
 
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		rc = em28xx_write_regs(dev, EM28XX_R12_VINENABLE, "\x67", 1);
+		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x67);
 	else
-		rc = em28xx_write_regs(dev, EM28XX_R12_VINENABLE, "\x37", 1);
+		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x37);
 
 	msleep(6);
 
@@ -619,9 +619,9 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 
 int em28xx_outfmt_set_yuv422(struct em28xx *dev)
 {
-	em28xx_write_regs(dev, EM28XX_R27_OUTFMT, "\x34", 1);
-	em28xx_write_regs(dev, EM28XX_R10_VINMODE, "\x10", 1);
-	return em28xx_write_regs(dev, EM28XX_R11_VINCTRL, "\x11", 1);
+	em28xx_write_reg(dev, EM28XX_R27_OUTFMT, 0x34);
+	em28xx_write_reg(dev, EM28XX_R10_VINMODE, 0x10);
+	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x11);
 }
 
 static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
@@ -737,11 +737,11 @@ int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio)
 	if (!gpio)
 		return rc;
 
-	dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+	em28xx_write_reg(dev, 0x48, 0x00);
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
+		em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x67);
 	else
-		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x37", 1);
+		em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x37);
 	msleep(6);
 
 	/* Send GPIO reset sequences specified at board entry */

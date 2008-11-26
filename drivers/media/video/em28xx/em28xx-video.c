@@ -518,7 +518,7 @@ static int em28xx_config(struct em28xx *dev)
 
 	/* Sets I2C speed to 100 KHz */
 	if (!dev->board.is_em2800) {
-		retval = em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
+		retval = em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x40);
 		if (retval < 0) {
 			em28xx_errdev("%s: em28xx_write_regs_req failed! retval [%d]\n",
 				__func__, retval);
@@ -528,9 +528,9 @@ static int em28xx_config(struct em28xx *dev)
 
 	/* enable vbi capturing */
 
-/*	em28xx_write_regs_req(dev, 0x00, 0x0e, "\xC0", 1); audio register */
-/*	em28xx_write_regs_req(dev, 0x00, 0x0f, "\x80", 1); clk register */
-	em28xx_write_regs_req(dev, 0x00, 0x11, "\x51", 1);
+/*	em28xx_write_reg(dev, EM28XX_R0E_AUDIOSRC, 0xc0); audio register */
+/*	em28xx_write_reg(dev, EM28XX_R0F_XCLK, 0x80); clk register */
+	em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x51);
 
 	dev->mute = 1;		/* maybe not the right place... */
 	dev->volume = 0x1f;
@@ -2094,7 +2094,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	if (dev->board.has_msp34xx) {
 		/* Send a reset to other chips via gpio */
-		errCode = em28xx_write_regs_req(dev, 0x00, 0x08, "\xf7", 1);
+		errCode = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf7);
 		if (errCode < 0) {
 			em28xx_errdev("%s: em28xx_write_regs_req - msp34xx(1) failed! errCode [%d]\n",
 				__func__, errCode);
@@ -2102,7 +2102,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		}
 		msleep(3);
 
-		errCode = em28xx_write_regs_req(dev, 0x00, 0x08, "\xff", 1);
+		errCode = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xff);
 		if (errCode < 0) {
 			em28xx_errdev("%s: em28xx_write_regs_req - msp34xx(2) failed! errCode [%d]\n",
 				__func__, errCode);

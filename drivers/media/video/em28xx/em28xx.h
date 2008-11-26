@@ -617,7 +617,7 @@ int em28xx_ir_fini(struct em28xx *dev);
 static inline int em28xx_compression_disable(struct em28xx *dev)
 {
 	/* side effect of disabling scaler and mixer */
-	return em28xx_write_regs(dev, EM28XX_R26_COMPR, "\x00", 1);
+	return em28xx_write_reg(dev, EM28XX_R26_COMPR, 0x00);
 }
 
 static inline int em28xx_contrast_get(struct em28xx *dev)
