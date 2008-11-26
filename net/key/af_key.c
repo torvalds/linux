@@ -1776,7 +1776,7 @@ static int dump_sa(struct xfrm_state *x, int count, void *ptr)
 
 static int pfkey_dump_sa(struct pfkey_sock *pfk)
 {
-	return xfrm_state_walk(&pfk->dump.u.state, dump_sa, (void *) pfk);
+	return xfrm_state_walk(&init_net, &pfk->dump.u.state, dump_sa, (void *) pfk);
 }
 
 static void pfkey_dump_sa_done(struct pfkey_sock *pfk)

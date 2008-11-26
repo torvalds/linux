@@ -631,7 +631,7 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 		xfrm_state_walk_init(walk, 0);
 	}
 
-	(void) xfrm_state_walk(walk, dump_one_state, &info);
+	(void) xfrm_state_walk(&init_net, walk, dump_one_state, &info);
 
 	return skb->len;
 }
