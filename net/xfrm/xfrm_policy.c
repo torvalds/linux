@@ -46,7 +46,6 @@ EXPORT_SYMBOL(xfrm_cfg_mutex);
 
 static DEFINE_RWLOCK(xfrm_policy_lock);
 
-static struct list_head xfrm_policy_all;
 unsigned int xfrm_policy_count[XFRM_POLICY_MAX*2];
 EXPORT_SYMBOL(xfrm_policy_count);
 
@@ -615,7 +614,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	policy->curlft.use_time = 0;
 	if (!mod_timer(&policy->timer, jiffies + HZ))
 		xfrm_pol_hold(policy);
-	list_add(&policy->walk.all, &xfrm_policy_all);
+	list_add(&policy->walk.all, &init_net.xfrm.policy_all);
 	write_unlock_bh(&xfrm_policy_lock);
 
 	if (delpol)
@@ -881,10 +880,10 @@ int xfrm_policy_walk(struct xfrm_policy_walk *walk,
 
 	write_lock_bh(&xfrm_policy_lock);
 	if (list_empty(&walk->walk.all))
-		x = list_first_entry(&xfrm_policy_all, struct xfrm_policy_walk_entry, all);
+		x = list_first_entry(&init_net.xfrm.policy_all, struct xfrm_policy_walk_entry, all);
 	else
 		x = list_entry(&walk->walk.all, struct xfrm_policy_walk_entry, all);
-	list_for_each_entry_from(x, &xfrm_policy_all, all) {
+	list_for_each_entry_from(x, &init_net.xfrm.policy_all, all) {
 		if (x->dead)
 			continue;
 		pol = container_of(x, struct xfrm_policy, walk);
@@ -1086,7 +1085,7 @@ static void __xfrm_policy_link(struct xfrm_policy *pol, int dir)
 	struct hlist_head *chain = policy_hash_bysel(&pol->selector,
 						     pol->family, dir);
 
-	list_add(&pol->walk.all, &xfrm_policy_all);
+	list_add(&pol->walk.all, &init_net.xfrm.policy_all);
 	hlist_add_head(&pol->bydst, chain);
 	hlist_add_head(&pol->byidx, xfrm_policy_byidx+idx_hash(pol->index));
 	xfrm_policy_count[dir]++;
@@ -2426,7 +2425,7 @@ static int __net_init xfrm_policy_init(struct net *net)
 			panic("XFRM: failed to allocate bydst hash\n");
 	}
 
-	INIT_LIST_HEAD(&xfrm_policy_all);
+	INIT_LIST_HEAD(&net->xfrm.policy_all);
 	if (net_eq(net, &init_net))
 		register_netdevice_notifier(&xfrm_dev_notifier);
 	return 0;
@@ -2434,6 +2433,7 @@ static int __net_init xfrm_policy_init(struct net *net)
 
 static void xfrm_policy_fini(struct net *net)
 {
+	WARN_ON(!list_empty(&net->xfrm.policy_all));
 }
 
 static int __net_init xfrm_net_init(struct net *net)

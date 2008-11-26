@@ -25,6 +25,8 @@ struct netns_xfrm {
 	struct work_struct	state_gc_work;
 
 	wait_queue_head_t	km_waitq;
+
+	struct list_head	policy_all;
 };
 
 #endif
