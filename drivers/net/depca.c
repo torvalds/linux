@@ -1556,6 +1556,7 @@ static int __init depca_isa_probe (struct platform_device *device)
 #ifdef CONFIG_EISA
 static int __init depca_eisa_probe (struct device *device)
 {
+	enum depca_type adapter = unknown;
 	struct eisa_device *edev;
 	struct net_device *dev;
 	struct depca_private *lp;
@@ -1574,7 +1575,11 @@ static int __init depca_eisa_probe (struct device *device)
 	 * the EISA configuration structures (yet... :-), just rely on
 	 * the ISA probing to sort it out... */
 
-	depca_shmem_probe (&mem_start);
+	adapter = depca_shmem_probe (&mem_start);
+	if (adapter == unknown) {
+		status = -ENODEV;
+		goto out_free;
+	}
 
 	dev->base_addr = ioaddr;
 	dev->irq = irq;
