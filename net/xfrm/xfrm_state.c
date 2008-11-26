@@ -24,14 +24,6 @@
 
 #include "xfrm_hash.h"
 
-u32 sysctl_xfrm_aevent_etime __read_mostly = XFRM_AE_ETIME;
-EXPORT_SYMBOL(sysctl_xfrm_aevent_etime);
-
-u32 sysctl_xfrm_aevent_rseqth __read_mostly = XFRM_AE_SEQT_SIZE;
-EXPORT_SYMBOL(sysctl_xfrm_aevent_rseqth);
-
-u32 sysctl_xfrm_acq_expires __read_mostly = 30;
-
 /* Each xfrm_state may be linked to two tables:
 
    1. Hash table by (spi,daddr,ah/esp) to find SA by SPI. (input,ctl)
@@ -851,8 +843,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 				h = xfrm_spi_hash(net, &x->id.daddr, x->id.spi, x->id.proto, family);
 				hlist_add_head(&x->byspi, net->xfrm.state_byspi+h);
 			}
-			x->lft.hard_add_expires_seconds = sysctl_xfrm_acq_expires;
-			x->timer.expires = jiffies + sysctl_xfrm_acq_expires*HZ;
+			x->lft.hard_add_expires_seconds = net->xfrm.sysctl_acq_expires;
+			x->timer.expires = jiffies + net->xfrm.sysctl_acq_expires*HZ;
 			add_timer(&x->timer);
 			net->xfrm.state_num++;
 			xfrm_hash_grow_check(net, x->bydst.next != NULL);
@@ -1040,9 +1032,9 @@ static struct xfrm_state *__find_acq_core(struct net *net, unsigned short family
 		x->props.family = family;
 		x->props.mode = mode;
 		x->props.reqid = reqid;
-		x->lft.hard_add_expires_seconds = sysctl_xfrm_acq_expires;
+		x->lft.hard_add_expires_seconds = net->xfrm.sysctl_acq_expires;
 		xfrm_state_hold(x);
-		x->timer.expires = jiffies + sysctl_xfrm_acq_expires*HZ;
+		x->timer.expires = jiffies + net->xfrm.sysctl_acq_expires*HZ;
 		add_timer(&x->timer);
 		list_add(&x->km.all, &net->xfrm.state_all);
 		hlist_add_head(&x->bydst, net->xfrm.state_bydst+h);

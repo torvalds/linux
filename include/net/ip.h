@@ -187,6 +187,7 @@ extern void inet_get_local_port_range(int *low, int *high);
 extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;
 
+extern struct ctl_path net_core_path[];
 extern struct ctl_path net_ipv4_ctl_path[];
 
 /* From inetpeer.c */

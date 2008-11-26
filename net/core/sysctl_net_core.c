@@ -12,7 +12,6 @@
 #include <linux/netdevice.h>
 #include <linux/init.h>
 #include <net/sock.h>
-#include <net/xfrm.h>
 
 static struct ctl_table net_core_table[] = {
 #ifdef CONFIG_NET
@@ -89,40 +88,6 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
-#ifdef CONFIG_XFRM
-	{
-		.ctl_name	= NET_CORE_AEVENT_ETIME,
-		.procname	= "xfrm_aevent_etime",
-		.data		= &sysctl_xfrm_aevent_etime,
-		.maxlen		= sizeof(u32),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
-		.ctl_name	= NET_CORE_AEVENT_RSEQTH,
-		.procname	= "xfrm_aevent_rseqth",
-		.data		= &sysctl_xfrm_aevent_rseqth,
-		.maxlen		= sizeof(u32),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
-		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "xfrm_larval_drop",
-		.data		= &sysctl_xfrm_larval_drop,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
-		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "xfrm_acq_expires",
-		.data		= &sysctl_xfrm_acq_expires,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-#endif /* CONFIG_XFRM */
 #endif /* CONFIG_NET */
 	{
 		.ctl_name	= NET_CORE_BUDGET,
@@ -155,7 +120,7 @@ static struct ctl_table netns_core_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static __net_initdata struct ctl_path net_core_path[] = {
+__net_initdata struct ctl_path net_core_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "core", .ctl_name = NET_CORE, },
 	{ },
@@ -207,8 +172,11 @@ static __net_initdata struct pernet_operations sysctl_core_ops = {
 
 static __init int sysctl_core_init(void)
 {
+	static struct ctl_table empty[1];
+
+	register_sysctl_paths(net_core_path, empty);
 	register_net_sysctl_rotable(net_core_path, net_core_table);
 	return register_pernet_subsys(&sysctl_core_ops);
 }
 
-__initcall(sysctl_core_init);
+fs_initcall(sysctl_core_init);

@@ -47,11 +47,6 @@
 #define XFRM_INC_STATS_USER(net, field)	((void)(net))
 #endif
 
-extern u32 sysctl_xfrm_aevent_etime;
-extern u32 sysctl_xfrm_aevent_rseqth;
-extern int sysctl_xfrm_larval_drop;
-extern u32 sysctl_xfrm_acq_expires;
-
 extern struct mutex xfrm_cfg_mutex;
 
 /* Organization of SPD aka "XFRM rules"
@@ -1308,6 +1303,15 @@ static inline void xfrm6_fini(void)
 #ifdef CONFIG_XFRM_STATISTICS
 extern int xfrm_proc_init(struct net *net);
 extern void xfrm_proc_fini(struct net *net);
+#endif
+
+extern int xfrm_sysctl_init(struct net *net);
+#ifdef CONFIG_SYSCTL
+extern void xfrm_sysctl_fini(struct net *net);
+#else
+static inline void xfrm_sysctl_fini(struct net *net)
+{
+}
 #endif
 
 extern void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto);

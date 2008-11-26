@@ -34,8 +34,6 @@
 
 #include "xfrm_hash.h"
 
-int sysctl_xfrm_larval_drop __read_mostly = 1;
-
 DEFINE_MUTEX(xfrm_cfg_mutex);
 EXPORT_SYMBOL(xfrm_cfg_mutex);
 
@@ -1671,7 +1669,7 @@ restart:
 
 		if (unlikely(nx<0)) {
 			err = nx;
-			if (err == -EAGAIN && sysctl_xfrm_larval_drop) {
+			if (err == -EAGAIN && net->xfrm.sysctl_larval_drop) {
 				/* EREMOTE tells the caller to generate
 				 * a one-shot blackhole route.
 				 */
@@ -2504,8 +2502,13 @@ static int __net_init xfrm_net_init(struct net *net)
 	rv = xfrm_policy_init(net);
 	if (rv < 0)
 		goto out_policy;
+	rv = xfrm_sysctl_init(net);
+	if (rv < 0)
+		goto out_sysctl;
 	return 0;
 
+out_sysctl:
+	xfrm_policy_fini(net);
 out_policy:
 	xfrm_state_fini(net);
 out_state:
@@ -2516,6 +2519,7 @@ out_statistics:
 
 static void __net_exit xfrm_net_exit(struct net *net)
 {
+	xfrm_sysctl_fini(net);
 	xfrm_policy_fini(net);
 	xfrm_state_fini(net);
 	xfrm_statistics_fini(net);

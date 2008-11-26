@@ -368,9 +368,9 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 		goto error;
 
 	x->km.seq = p->seq;
-	x->replay_maxdiff = sysctl_xfrm_aevent_rseqth;
+	x->replay_maxdiff = net->xfrm.sysctl_aevent_rseqth;
 	/* sysctl_xfrm_aevent_etime is in 100ms units */
-	x->replay_maxage = (sysctl_xfrm_aevent_etime*HZ)/XFRM_AE_ETH_M;
+	x->replay_maxage = (net->xfrm.sysctl_aevent_etime*HZ)/XFRM_AE_ETH_M;
 	x->preplay.bitmap = 0;
 	x->preplay.seq = x->replay.seq+x->replay_maxdiff;
 	x->preplay.oseq = x->replay.oseq +x->replay_maxdiff;

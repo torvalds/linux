@@ -6,6 +6,8 @@
 #include <linux/workqueue.h>
 #include <linux/xfrm.h>
 
+struct ctl_table_header;
+
 struct xfrm_policy_hash {
 	struct hlist_head	*table;
 	unsigned int		hmask;
@@ -41,6 +43,14 @@ struct netns_xfrm {
 	struct work_struct	policy_hash_work;
 
 	struct sock		*nlsk;
+
+	u32			sysctl_aevent_etime;
+	u32			sysctl_aevent_rseqth;
+	int			sysctl_larval_drop;
+	u32			sysctl_acq_expires;
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_header	*sysctl_hdr;
+#endif
 };
 
 #endif
