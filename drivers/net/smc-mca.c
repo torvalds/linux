@@ -182,6 +182,22 @@ static char *smc_mca_adapter_names[] __initdata = {
 
 static int ultra_found = 0;
 
+
+static const struct net_device_ops ultra_netdev_ops = {
+	.ndo_open		= ultramca_open,
+	.ndo_stop		= ultramca_close_card,
+
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= ei_poll,
+#endif
+};
+
 static int __init ultramca_probe(struct device *gen_dev)
 {
 	unsigned short ioaddr;
@@ -384,11 +400,7 @@ static int __init ultramca_probe(struct device *gen_dev)
 
 	ei_status.priv = slot;
 
-	dev->open = &ultramca_open;
-	dev->stop = &ultramca_close_card;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+	dev->netdev_ops = &ultramca_netdev_ops;
 
 	NS8390_init(dev, 0);
 

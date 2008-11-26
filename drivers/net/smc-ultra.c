@@ -187,6 +187,21 @@ out:
 }
 #endif
 
+static const struct net_device_ops ultra_netdev_ops = {
+	.ndo_open		= ultra_open,
+	.ndo_stop		= ultra_close_card,
+
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= ei_poll,
+#endif
+};
+
 static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, retval;
@@ -300,11 +315,8 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 		ei_status.get_8390_hdr = &ultra_get_8390_hdr;
 	}
 	ei_status.reset_8390 = &ultra_reset_8390;
-	dev->open = &ultra_open;
-	dev->stop = &ultra_close_card;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+
+	dev->netdev_ops = &ultra_netdev_ops;
 	NS8390_init(dev, 0);
 
 	retval = register_netdev(dev);
