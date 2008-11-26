@@ -123,6 +123,18 @@ typedef struct compat_xfs_swapext {
 
 #define XFS_IOC_SWAPEXT_32	_IOWR('X', 109, struct compat_xfs_swapext)
 
+typedef struct compat_xfs_fsop_attrlist_handlereq {
+	struct compat_xfs_fsop_handlereq hreq; /* handle interface structure */
+	struct xfs_attrlist_cursor	pos; /* opaque cookie, list offset */
+	__u32				flags;	/* which namespace to use */
+	__u32				buflen;	/* length of buffer supplied */
+	compat_uptr_t			buffer;	/* returned names */
+} __compat_packed compat_xfs_fsop_attrlist_handlereq_t;
+
+/* Note: actually this is read/write */
+#define XFS_IOC_ATTRLIST_BY_HANDLE_32 \
+	_IOW('X', 122, struct compat_xfs_fsop_attrlist_handlereq)
+
 #ifdef BROKEN_X86_ALIGNMENT
 /* on ia32 l_start is on a 32-bit boundary */
 typedef struct compat_xfs_flock64 {

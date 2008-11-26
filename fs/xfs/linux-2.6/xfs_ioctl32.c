@@ -46,6 +46,7 @@
 #include "xfs_fsops.h"
 #include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
+#include "xfs_attr.h"
 #include "xfs_ioctl.h"
 #include "xfs_ioctl32.h"
 
@@ -343,6 +344,138 @@ xfs_compat_handlereq_copyin(
 	return 0;
 }
 
+/*
+ * Convert userspace handle data into inode.
+ *
+ * We use the fact that all the fsop_handlereq ioctl calls have a data
+ * structure argument whose first component is always a xfs_fsop_handlereq_t,
+ * so we can pass that sub structure into this handy, shared routine.
+ *
+ * If no error, caller must always iput the returned inode.
+ */
+STATIC int
+xfs_vget_fsop_handlereq_compat(
+	xfs_mount_t		*mp,
+	struct inode		*parinode,	/* parent inode pointer    */
+	compat_xfs_fsop_handlereq_t	*hreq,
+	struct inode		**inode)
+{
+	void			__user *hanp;
+	size_t			hlen;
+	xfs_fid_t		*xfid;
+	xfs_handle_t		*handlep;
+	xfs_handle_t		handle;
+	xfs_inode_t		*ip;
+	xfs_ino_t		ino;
+	__u32			igen;
+	int			error;
+
+	/*
+	 * Only allow handle opens under a directory.
+	 */
+	if (!S_ISDIR(parinode->i_mode))
+		return XFS_ERROR(ENOTDIR);
+
+	hanp = compat_ptr(hreq->ihandle);
+	hlen = hreq->ihandlen;
+	handlep = &handle;
+
+	if (hlen < sizeof(handlep->ha_fsid) || hlen > sizeof(*handlep))
+		return XFS_ERROR(EINVAL);
+	if (copy_from_user(handlep, hanp, hlen))
+		return XFS_ERROR(EFAULT);
+	if (hlen < sizeof(*handlep))
+		memset(((char *)handlep) + hlen, 0, sizeof(*handlep) - hlen);
+	if (hlen > sizeof(handlep->ha_fsid)) {
+		if (handlep->ha_fid.fid_len !=
+		    (hlen - sizeof(handlep->ha_fsid) -
+			    sizeof(handlep->ha_fid.fid_len)) ||
+		    handlep->ha_fid.fid_pad)
+			return XFS_ERROR(EINVAL);
+	}
+
+	/*
+	 * Crack the handle, obtain the inode # & generation #
+	 */
+	xfid = (struct xfs_fid *)&handlep->ha_fid;
+	if (xfid->fid_len == sizeof(*xfid) - sizeof(xfid->fid_len)) {
+		ino  = xfid->fid_ino;
+		igen = xfid->fid_gen;
+	} else {
+		return XFS_ERROR(EINVAL);
+	}
+
+	/*
+	 * Get the XFS inode, building a Linux inode to go with it.
+	 */
+	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_SHARED, &ip, 0);
+	if (error)
+		return error;
+	if (ip == NULL)
+		return XFS_ERROR(EIO);
+	if (ip->i_d.di_gen != igen) {
+		xfs_iput_new(ip, XFS_ILOCK_SHARED);
+		return XFS_ERROR(ENOENT);
+	}
+
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+
+	*inode = VFS_I(ip);
+	return 0;
+}
+
+STATIC int
+xfs_compat_attrlist_by_handle(
+	xfs_mount_t		*mp,
+	void			__user *arg,
+	struct inode		*parinode)
+{
+	int			error;
+	attrlist_cursor_kern_t	*cursor;
+	compat_xfs_fsop_attrlist_handlereq_t al_hreq;
+	struct inode		*inode;
+	char			*kbuf;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -XFS_ERROR(EPERM);
+	if (copy_from_user(&al_hreq, arg,
+			   sizeof(compat_xfs_fsop_attrlist_handlereq_t)))
+		return -XFS_ERROR(EFAULT);
+	if (al_hreq.buflen > XATTR_LIST_MAX)
+		return -XFS_ERROR(EINVAL);
+
+	/*
+	 * Reject flags, only allow namespaces.
+	 */
+	if (al_hreq.flags & ~(ATTR_ROOT | ATTR_SECURE))
+		return -XFS_ERROR(EINVAL);
+
+	error = xfs_vget_fsop_handlereq_compat(mp, parinode, &al_hreq.hreq,
+					       &inode);
+	if (error)
+		goto out;
+
+	kbuf = kmalloc(al_hreq.buflen, GFP_KERNEL);
+	if (!kbuf)
+		goto out_vn_rele;
+
+	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
+	error = xfs_attr_list(XFS_I(inode), kbuf, al_hreq.buflen,
+					al_hreq.flags, cursor);
+	if (error)
+		goto out_kfree;
+
+	if (copy_to_user(compat_ptr(al_hreq.buffer), kbuf, al_hreq.buflen))
+		error = -EFAULT;
+
+ out_kfree:
+	kfree(kbuf);
+ out_vn_rele:
+	iput(inode);
+ out:
+	return -error;
+}
+
 STATIC long
 xfs_compat_ioctl(
 	xfs_inode_t	*ip,
@@ -368,7 +501,6 @@ xfs_compat_ioctl(
 	case XFS_IOC_GETBMAPX:
 /* not handled
 	case XFS_IOC_FSSETDM_BY_HANDLE:
-	case XFS_IOC_ATTRLIST_BY_HANDLE:
 	case XFS_IOC_ATTRMULTI_BY_HANDLE:
 */
 	case XFS_IOC_FSCOUNTS:
@@ -476,6 +608,8 @@ xfs_compat_ioctl(
 			return -XFS_ERROR(EFAULT);
 		return xfs_readlink_by_handle(mp, &hreq, inode);
 	}
+	case XFS_IOC_ATTRLIST_BY_HANDLE_32:
+		return xfs_compat_attrlist_by_handle(mp, arg, inode);
 	default:
 		return -XFS_ERROR(ENOIOCTLCMD);
 	}
