@@ -148,6 +148,7 @@ void show_regs(struct pt_regs * regs)
 	       regs->mach, regs->macl, regs->gbr, regs->pr);
 
 	show_trace(NULL, (unsigned long *)regs->regs[15], regs);
+	show_code(regs);
 }
 
 /*
