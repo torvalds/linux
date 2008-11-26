@@ -1189,7 +1189,7 @@ ENTRY(mcount)
 	cmpl $ftrace_stub, ftrace_trace_function
 	jnz trace
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	cmpl $ftrace_stub, ftrace_graph_function
+	cmpl $ftrace_stub, ftrace_graph_return
 	jnz ftrace_graph_caller
 #endif
 .globl ftrace_stub
