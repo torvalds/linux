@@ -34,76 +34,6 @@
 #include "util.h"
 
 /**
- * gfs2_jindex_hold - Grab a lock on the jindex
- * @sdp: The GFS2 superblock
- * @ji_gh: the holder for the jindex glock
- *
- * This is very similar to the gfs2_rindex_hold() function, except that
- * in general we hold the jindex lock for longer periods of time and
- * we grab it far less frequently (in general) then the rgrp lock.
- *
- * Returns: errno
- */
-
-int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
-{
-	struct gfs2_inode *dip = GFS2_I(sdp->sd_jindex);
-	struct qstr name;
-	char buf[20];
-	struct gfs2_jdesc *jd;
-	int error;
-
-	name.name = buf;
-
-	mutex_lock(&sdp->sd_jindex_mutex);
-
-	for (;;) {
-		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, ji_gh);
-		if (error)
-			break;
-
-		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
-		name.hash = gfs2_disk_hash(name.name, name.len);
-
-		error = gfs2_dir_check(sdp->sd_jindex, &name, NULL);
-		if (error == -ENOENT) {
-			error = 0;
-			break;
-		}
-
-		gfs2_glock_dq_uninit(ji_gh);
-
-		if (error)
-			break;
-
-		error = -ENOMEM;
-		jd = kzalloc(sizeof(struct gfs2_jdesc), GFP_KERNEL);
-		if (!jd)
-			break;
-
-		INIT_LIST_HEAD(&jd->extent_list);
-		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1);
-		if (!jd->jd_inode || IS_ERR(jd->jd_inode)) {
-			if (!jd->jd_inode)
-				error = -ENOENT;
-			else
-				error = PTR_ERR(jd->jd_inode);
-			kfree(jd);
-			break;
-		}
-
-		spin_lock(&sdp->sd_jindex_spin);
-		jd->jd_jid = sdp->sd_journals++;
-		list_add_tail(&jd->jd_list, &sdp->sd_jindex_list);
-		spin_unlock(&sdp->sd_jindex_spin);
-	}
-
-	mutex_unlock(&sdp->sd_jindex_mutex);
-
-	return error;
-}
-
-/**
  * gfs2_jindex_free - Clear all the journal index information
  * @sdp: The GFS2 superblock
  *
@@ -579,10 +509,6 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	LIST_HEAD(list);
 	struct gfs2_log_header_host lh;
 	int error;
-
-	error = gfs2_jindex_hold(sdp, &ji_gh);
-	if (error)
-		return error;
 
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		lfcc = kmalloc(sizeof(struct lfcc), GFP_KERNEL);

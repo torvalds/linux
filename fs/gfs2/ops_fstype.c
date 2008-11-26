@@ -33,6 +33,7 @@
 #include "util.h"
 #include "log.h"
 #include "quota.h"
+#include "dir.h"
 
 #define DO 0
 #define UNDO 1
@@ -636,6 +637,72 @@ static void gfs2_lm_others_may_mount(struct gfs2_sbd *sdp)
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		sdp->sd_lockstruct.ls_ops->lm_others_may_mount(
 					sdp->sd_lockstruct.ls_lockspace);
+}
+
+/**
+ * gfs2_jindex_hold - Grab a lock on the jindex
+ * @sdp: The GFS2 superblock
+ * @ji_gh: the holder for the jindex glock
+ *
+ * Returns: errno
+ */
+
+static int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
+{
+	struct gfs2_inode *dip = GFS2_I(sdp->sd_jindex);
+	struct qstr name;
+	char buf[20];
+	struct gfs2_jdesc *jd;
+	int error;
+
+	name.name = buf;
+
+	mutex_lock(&sdp->sd_jindex_mutex);
+
+	for (;;) {
+		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, ji_gh);
+		if (error)
+			break;
+
+		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
+		name.hash = gfs2_disk_hash(name.name, name.len);
+
+		error = gfs2_dir_check(sdp->sd_jindex, &name, NULL);
+		if (error == -ENOENT) {
+			error = 0;
+			break;
+		}
+
+		gfs2_glock_dq_uninit(ji_gh);
+
+		if (error)
+			break;
+
+		error = -ENOMEM;
+		jd = kzalloc(sizeof(struct gfs2_jdesc), GFP_KERNEL);
+		if (!jd)
+			break;
+
+		INIT_LIST_HEAD(&jd->extent_list);
+		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1);
+		if (!jd->jd_inode || IS_ERR(jd->jd_inode)) {
+			if (!jd->jd_inode)
+				error = -ENOENT;
+			else
+				error = PTR_ERR(jd->jd_inode);
+			kfree(jd);
+			break;
+		}
+
+		spin_lock(&sdp->sd_jindex_spin);
+		jd->jd_jid = sdp->sd_journals++;
+		list_add_tail(&jd->jd_list, &sdp->sd_jindex_list);
+		spin_unlock(&sdp->sd_jindex_spin);
+	}
+
+	mutex_unlock(&sdp->sd_jindex_mutex);
+
+	return error;
 }
 
 static int init_journal(struct gfs2_sbd *sdp, int undo)
