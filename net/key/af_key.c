@@ -1348,7 +1348,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	}
 
 	if (hdr->sadb_msg_seq) {
-		x = xfrm_find_acq_byseq(hdr->sadb_msg_seq);
+		x = xfrm_find_acq_byseq(&init_net, hdr->sadb_msg_seq);
 		if (x && xfrm_addr_cmp(&x->id.daddr, xdaddr, family)) {
 			xfrm_state_put(x);
 			x = NULL;
@@ -1356,7 +1356,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	}
 
 	if (!x)
-		x = xfrm_find_acq(mode, reqid, proto, xdaddr, xsaddr, 1, family);
+		x = xfrm_find_acq(&init_net, mode, reqid, proto, xdaddr, xsaddr, 1, family);
 
 	if (x == NULL)
 		return -ENOENT;
@@ -1404,7 +1404,7 @@ static int pfkey_acquire(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 	if (hdr->sadb_msg_seq == 0 || hdr->sadb_msg_errno == 0)
 		return 0;
 
-	x = xfrm_find_acq_byseq(hdr->sadb_msg_seq);
+	x = xfrm_find_acq_byseq(&init_net, hdr->sadb_msg_seq);
 	if (x == NULL)
 		return 0;
 

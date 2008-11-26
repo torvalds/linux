@@ -2165,7 +2165,8 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 	struct xfrm_state *x = pkt_dev->flows[flow].x;
 	if (!x) {
 		/*slow path: we dont already have xfrm_state*/
-		x = xfrm_stateonly_find((xfrm_address_t *)&pkt_dev->cur_daddr,
+		x = xfrm_stateonly_find(&init_net,
+					(xfrm_address_t *)&pkt_dev->cur_daddr,
 					(xfrm_address_t *)&pkt_dev->cur_saddr,
 					AF_INET,
 					pkt_dev->ipsmode,
