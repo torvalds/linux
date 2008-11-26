@@ -19,6 +19,7 @@
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netns/conntrack.h>
 #endif
+#include <net/netns/xfrm.h>
 
 struct proc_dir_entry;
 struct net_device;
@@ -73,6 +74,9 @@ struct net {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	struct netns_ct		ct;
 #endif
+#endif
+#ifdef CONFIG_XFRM
+	struct netns_xfrm	xfrm;
 #endif
 	struct net_generic	*gen;
 };

@@ -2080,7 +2080,7 @@ error:
 
 EXPORT_SYMBOL(xfrm_init_state);
 
-void __init xfrm_state_init(void)
+int __net_init xfrm_state_init(struct net *net)
 {
 	unsigned int sz;
 
@@ -2094,6 +2094,11 @@ void __init xfrm_state_init(void)
 	xfrm_state_hmask = ((sz / sizeof(struct hlist_head)) - 1);
 
 	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task);
+	return 0;
+}
+
+void xfrm_state_fini(struct net *net)
+{
 }
 
 #ifdef CONFIG_AUDITSYSCALL

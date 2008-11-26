@@ -2394,12 +2394,13 @@ static int __init xfrm_statistics_init(void)
 }
 #endif
 
-static void __init xfrm_policy_init(void)
+static int __net_init xfrm_policy_init(struct net *net)
 {
 	unsigned int hmask, sz;
 	int dir;
 
-	xfrm_dst_cache = kmem_cache_create("xfrm_dst_cache",
+	if (net_eq(net, &init_net))
+		xfrm_dst_cache = kmem_cache_create("xfrm_dst_cache",
 					   sizeof(struct xfrm_dst),
 					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 					   NULL);
@@ -2425,16 +2426,50 @@ static void __init xfrm_policy_init(void)
 	}
 
 	INIT_LIST_HEAD(&xfrm_policy_all);
-	register_netdevice_notifier(&xfrm_dev_notifier);
+	if (net_eq(net, &init_net))
+		register_netdevice_notifier(&xfrm_dev_notifier);
+	return 0;
 }
+
+static void xfrm_policy_fini(struct net *net)
+{
+}
+
+static int __net_init xfrm_net_init(struct net *net)
+{
+	int rv;
+
+	rv = xfrm_state_init(net);
+	if (rv < 0)
+		goto out_state;
+	rv = xfrm_policy_init(net);
+	if (rv < 0)
+		goto out_policy;
+	return 0;
+
+out_policy:
+	xfrm_state_fini(net);
+out_state:
+	return rv;
+}
+
+static void __net_exit xfrm_net_exit(struct net *net)
+{
+	xfrm_policy_fini(net);
+	xfrm_state_fini(net);
+}
+
+static struct pernet_operations __net_initdata xfrm_net_ops = {
+	.init = xfrm_net_init,
+	.exit = xfrm_net_exit,
+};
 
 void __init xfrm_init(void)
 {
+	register_pernet_subsys(&xfrm_net_ops);
 #ifdef CONFIG_XFRM_STATISTICS
 	xfrm_statistics_init();
 #endif
-	xfrm_state_init();
-	xfrm_policy_init();
 	xfrm_input_init();
 #ifdef CONFIG_XFRM_STATISTICS
 	xfrm_proc_init();
