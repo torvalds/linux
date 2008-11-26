@@ -1231,7 +1231,7 @@ static int __devexit eth_remove_one(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver drv = {
+static struct platform_driver ixp4xx_eth_driver = {
 	.driver.name	= DRV_NAME,
 	.probe		= eth_init_one,
 	.remove		= eth_remove_one,
@@ -1247,12 +1247,12 @@ static int __init eth_init_module(void)
 	mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
 	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
 
-	return platform_driver_register(&drv);
+	return platform_driver_register(&ixp4xx_eth_driver);
 }
 
 static void __exit eth_cleanup_module(void)
 {
-	platform_driver_unregister(&drv);
+	platform_driver_unregister(&ixp4xx_eth_driver);
 }
 
 MODULE_AUTHOR("Krzysztof Halasa");
