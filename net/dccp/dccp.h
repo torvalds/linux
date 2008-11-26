@@ -49,7 +49,7 @@ extern int dccp_debug;
 
 extern struct inet_hashinfo dccp_hashinfo;
 
-extern atomic_t dccp_orphan_count;
+extern struct percpu_counter dccp_orphan_count;
 
 extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 

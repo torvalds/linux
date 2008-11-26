@@ -40,8 +40,7 @@ DEFINE_SNMP_STAT(struct dccp_mib, dccp_statistics) __read_mostly;
 
 EXPORT_SYMBOL_GPL(dccp_statistics);
 
-atomic_t dccp_orphan_count = ATOMIC_INIT(0);
-
+struct percpu_counter dccp_orphan_count;
 EXPORT_SYMBOL_GPL(dccp_orphan_count);
 
 struct inet_hashinfo dccp_hashinfo;
@@ -1000,7 +999,7 @@ adjudge_to_death:
 	state = sk->sk_state;
 	sock_hold(sk);
 	sock_orphan(sk);
-	atomic_inc(sk->sk_prot->orphan_count);
+	percpu_counter_inc(sk->sk_prot->orphan_count);
 
 	/*
 	 * It is the last release_sock in its life. It will remove backlog.
@@ -1064,18 +1063,21 @@ static int __init dccp_init(void)
 {
 	unsigned long goal;
 	int ehash_order, bhash_order, i;
-	int rc = -ENOBUFS;
+	int rc;
 
 	BUILD_BUG_ON(sizeof(struct dccp_skb_cb) >
 		     FIELD_SIZEOF(struct sk_buff, cb));
-
+	rc = percpu_counter_init(&dccp_orphan_count, 0);
+	if (rc)
+		goto out;
+	rc = -ENOBUFS;
 	inet_hashinfo_init(&dccp_hashinfo);
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!dccp_hashinfo.bind_bucket_cachep)
-		goto out;
+		goto out_free_percpu;
 
 	/*
 	 * Size and allocate the main established and bind bucket
@@ -1168,6 +1170,8 @@ out_free_dccp_ehash:
 out_free_bind_bucket_cachep:
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
 	dccp_hashinfo.bind_bucket_cachep = NULL;
+out_free_percpu:
+	percpu_counter_destroy(&dccp_orphan_count);
 	goto out;
 }
 

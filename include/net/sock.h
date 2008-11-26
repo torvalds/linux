@@ -666,7 +666,7 @@ struct proto {
 	unsigned int		obj_size;
 	int			slab_flags;
 
-	atomic_t		*orphan_count;
+	struct percpu_counter	*orphan_count;
 
 	struct request_sock_ops	*rsk_prot;
 	struct timewait_sock_ops *twsk_prot;

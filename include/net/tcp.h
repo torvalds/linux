@@ -46,7 +46,7 @@
 
 extern struct inet_hashinfo tcp_hashinfo;
 
-extern atomic_t tcp_orphan_count;
+extern struct percpu_counter tcp_orphan_count;
 extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 
 #define MAX_TCP_HEADER	(128 + MAX_HEADER)

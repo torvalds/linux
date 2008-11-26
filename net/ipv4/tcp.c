@@ -277,8 +277,7 @@
 
 int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
 
-atomic_t tcp_orphan_count = ATOMIC_INIT(0);
-
+struct percpu_counter tcp_orphan_count;
 EXPORT_SYMBOL_GPL(tcp_orphan_count);
 
 int sysctl_tcp_mem[3] __read_mostly;
@@ -1837,7 +1836,7 @@ adjudge_to_death:
 	state = sk->sk_state;
 	sock_hold(sk);
 	sock_orphan(sk);
-	atomic_inc(sk->sk_prot->orphan_count);
+	percpu_counter_inc(sk->sk_prot->orphan_count);
 
 	/* It is the last release_sock in its life. It will remove backlog. */
 	release_sock(sk);
@@ -1888,9 +1887,11 @@ adjudge_to_death:
 		}
 	}
 	if (sk->sk_state != TCP_CLOSE) {
+		int orphan_count = percpu_counter_read_positive(
+						sk->sk_prot->orphan_count);
+
 		sk_mem_reclaim(sk);
-		if (tcp_too_many_orphans(sk,
-				atomic_read(sk->sk_prot->orphan_count))) {
+		if (tcp_too_many_orphans(sk, orphan_count)) {
 			if (net_ratelimit())
 				printk(KERN_INFO "TCP: too many of orphaned "
 				       "sockets\n");
@@ -2689,6 +2690,7 @@ void __init tcp_init(void)
 	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) > sizeof(skb->cb));
 
 	percpu_counter_init(&tcp_sockets_allocated, 0);
+	percpu_counter_init(&tcp_orphan_count, 0);
 	tcp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("tcp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
