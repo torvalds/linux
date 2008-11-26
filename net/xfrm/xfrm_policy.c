@@ -2173,9 +2173,9 @@ static int unused_bundle(struct dst_entry *dst)
 	return !atomic_read(&dst->__refcnt);
 }
 
-static void __xfrm_garbage_collect(void)
+static void __xfrm_garbage_collect(struct net *net)
 {
-	xfrm_prune_bundles(&init_net, unused_bundle);
+	xfrm_prune_bundles(net, unused_bundle);
 }
 
 static int xfrm_flush_bundles(struct net *net)
