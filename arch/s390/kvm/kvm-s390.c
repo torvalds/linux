@@ -198,6 +198,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 3, "%s", "free cpu");
 	free_page((unsigned long)(vcpu->arch.sie_block));
+	kvm_vcpu_uninit(vcpu);
 	kfree(vcpu);
 }
 
@@ -230,8 +231,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	/* kvm common code refers to this, but does'nt call it */
-	BUG();
+	/* Nothing todo */
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
