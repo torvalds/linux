@@ -461,11 +461,25 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	kobject_put(&sdp->sd_kobj);
 }
 
+static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
+		       struct kobj_uevent_env *env)
+{
+	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
+	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
+	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);
+	return 0;
+}
+
+static struct kset_uevent_ops gfs2_uevent_ops = {
+	.uevent = gfs2_uevent,
+};
+
+
 int gfs2_sys_init(void)
 {
 	gfs2_sys_margs = NULL;
 	spin_lock_init(&gfs2_sys_margs_lock);
-	gfs2_kset = kset_create_and_add("gfs2", NULL, fs_kobj);
+	gfs2_kset = kset_create_and_add("gfs2", &gfs2_uevent_ops, fs_kobj);
 	if (!gfs2_kset)
 		return -ENOMEM;
 	return 0;
