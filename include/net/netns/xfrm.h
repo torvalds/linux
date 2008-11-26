@@ -28,6 +28,7 @@ struct netns_xfrm {
 
 	struct list_head	policy_all;
 	struct hlist_head	*policy_byidx;
+	unsigned int		policy_idx_hmask;
 };
 
 #endif
