@@ -435,6 +435,13 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 #endif
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
 		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
+
+		/* Silently promote "you're not bound, there was nothing to do"
+		 * to success, since the client was just asking us to
+		 * make sure everything was done.
+		 */
+		if (ret == -EINVAL)
+			ret = 0;
 	} else {
 		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
 	}
@@ -1303,6 +1310,10 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int ret;
+
+	/* Not valid to be called on unbound objects. */
+	if (obj_priv->gtt_space == NULL)
+		return -EINVAL;
 
 	i915_gem_object_flush_gpu_write_domain(obj);
 	/* Wait on any GPU rendering and flushing to occur. */
