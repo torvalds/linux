@@ -24,9 +24,6 @@
 
 #include "xfrm_hash.h"
 
-struct sock *xfrm_nl;
-EXPORT_SYMBOL(xfrm_nl);
-
 u32 sysctl_xfrm_aevent_etime __read_mostly = XFRM_AE_ETIME;
 EXPORT_SYMBOL(sysctl_xfrm_aevent_etime);
 
@@ -1659,7 +1656,7 @@ static void xfrm_replay_timer_handler(unsigned long data)
 	spin_lock(&x->lock);
 
 	if (x->km.state == XFRM_STATE_VALID) {
-		if (xfrm_aevent_is_on())
+		if (xfrm_aevent_is_on(xs_net(x)))
 			xfrm_replay_notify(x, XFRM_REPLAY_TIMEOUT);
 		else
 			x->xflags |= XFRM_TIME_DEFER;
@@ -1715,7 +1712,7 @@ void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 		x->replay.bitmap |= (1U << diff);
 	}
 
-	if (xfrm_aevent_is_on())
+	if (xfrm_aevent_is_on(xs_net(x)))
 		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 }
 

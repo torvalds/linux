@@ -41,6 +41,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 {
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
+	struct net *net = xs_net(x);
 
 	if (err <= 0)
 		goto resume;
@@ -74,7 +75,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 				err = -EOVERFLOW;
 				goto error;
 			}
-			if (xfrm_aevent_is_on())
+			if (xfrm_aevent_is_on(net))
 				xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 		}
 

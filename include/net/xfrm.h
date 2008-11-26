@@ -48,7 +48,6 @@ DECLARE_SNMP_STAT(struct linux_xfrm_mib, xfrm_statistics);
 #define XFRM_INC_STATS_USER(field)
 #endif
 
-extern struct sock *xfrm_nl;
 extern u32 sysctl_xfrm_aevent_etime;
 extern u32 sysctl_xfrm_aevent_rseqth;
 extern int sysctl_xfrm_larval_drop;
@@ -1516,18 +1515,20 @@ static inline int xfrm_policy_id2dir(u32 index)
 	return index & 7;
 }
 
-static inline int xfrm_aevent_is_on(void)
+#ifdef CONFIG_XFRM
+static inline int xfrm_aevent_is_on(struct net *net)
 {
 	struct sock *nlsk;
 	int ret = 0;
 
 	rcu_read_lock();
-	nlsk = rcu_dereference(xfrm_nl);
+	nlsk = rcu_dereference(net->xfrm.nlsk);
 	if (nlsk)
 		ret = netlink_has_listeners(nlsk, XFRMNLGRP_AEVENTS);
 	rcu_read_unlock();
 	return ret;
 }
+#endif
 
 static inline int xfrm_alg_len(struct xfrm_algo *alg)
 {
