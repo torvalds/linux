@@ -642,7 +642,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 }
 EXPORT_SYMBOL(xfrm_policy_insert);
 
-struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
+struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u8 type, int dir,
 					  struct xfrm_selector *sel,
 					  struct xfrm_sec_ctx *ctx, int delete,
 					  int *err)
@@ -653,7 +653,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 
 	*err = 0;
 	write_lock_bh(&xfrm_policy_lock);
-	chain = policy_hash_bysel(&init_net, sel, sel->family, dir);
+	chain = policy_hash_bysel(net, sel, sel->family, dir);
 	ret = NULL;
 	hlist_for_each_entry(pol, entry, chain, bydst) {
 		if (pol->type == type &&
@@ -670,7 +670,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 				hlist_del(&pol->bydst);
 				hlist_del(&pol->byidx);
 				list_del(&pol->walk.all);
-				init_net.xfrm.policy_count[dir]--;
+				net->xfrm.policy_count[dir]--;
 			}
 			ret = pol;
 			break;
@@ -686,8 +686,8 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 }
 EXPORT_SYMBOL(xfrm_policy_bysel_ctx);
 
-struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
-				     int *err)
+struct xfrm_policy *xfrm_policy_byid(struct net *net, u8 type, int dir, u32 id,
+				     int delete, int *err)
 {
 	struct xfrm_policy *pol, *ret;
 	struct hlist_head *chain;
@@ -699,7 +699,7 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
 
 	*err = 0;
 	write_lock_bh(&xfrm_policy_lock);
-	chain = init_net.xfrm.policy_byidx + idx_hash(&init_net, id);
+	chain = net->xfrm.policy_byidx + idx_hash(net, id);
 	ret = NULL;
 	hlist_for_each_entry(pol, entry, chain, byidx) {
 		if (pol->type == type && pol->index == id) {
@@ -714,7 +714,7 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
 				hlist_del(&pol->bydst);
 				hlist_del(&pol->byidx);
 				list_del(&pol->walk.all);
-				init_net.xfrm.policy_count[dir]--;
+				net->xfrm.policy_count[dir]--;
 			}
 			ret = pol;
 			break;
