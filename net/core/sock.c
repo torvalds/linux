@@ -1071,7 +1071,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		newsk->sk_sleep	 = NULL;
 
 		if (newsk->sk_prot->sockets_allocated)
-			atomic_inc(newsk->sk_prot->sockets_allocated);
+			percpu_counter_inc(newsk->sk_prot->sockets_allocated);
 	}
 out:
 	return newsk;
@@ -1463,8 +1463,12 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind)
 	}
 
 	if (prot->memory_pressure) {
-		if (!*prot->memory_pressure ||
-		    prot->sysctl_mem[2] > atomic_read(prot->sockets_allocated) *
+		int alloc;
+
+		if (!*prot->memory_pressure)
+			return 1;
+		alloc = percpu_counter_read_positive(prot->sockets_allocated);
+		if (prot->sysctl_mem[2] > alloc *
 		    sk_mem_pages(sk->sk_wmem_queued +
 				 atomic_read(&sk->sk_rmem_alloc) +
 				 sk->sk_forward_alloc))

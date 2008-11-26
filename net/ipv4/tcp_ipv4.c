@@ -1797,7 +1797,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	sk->sk_sndbuf = sysctl_tcp_wmem[1];
 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
 
-	atomic_inc(&tcp_sockets_allocated);
+	percpu_counter_inc(&tcp_sockets_allocated);
 
 	return 0;
 }
@@ -1845,7 +1845,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
 		sk->sk_sndmsg_page = NULL;
 	}
 
-	atomic_dec(&tcp_sockets_allocated);
+	percpu_counter_dec(&tcp_sockets_allocated);
 }
 
 EXPORT_SYMBOL(tcp_v4_destroy_sock);

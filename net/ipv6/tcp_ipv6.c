@@ -1830,7 +1830,7 @@ static int tcp_v6_init_sock(struct sock *sk)
 	sk->sk_sndbuf = sysctl_tcp_wmem[1];
 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
 
-	atomic_inc(&tcp_sockets_allocated);
+	percpu_counter_inc(&tcp_sockets_allocated);
 
 	return 0;
 }

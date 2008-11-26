@@ -102,6 +102,8 @@ struct sock *sctp_get_ctl_sock(void)
 /* Set up the proc fs entry for the SCTP protocol. */
 static __init int sctp_proc_init(void)
 {
+	if (percpu_counter_init(&sctp_sockets_allocated, 0))
+		goto out_nomem;
 #ifdef CONFIG_PROC_FS
 	if (!proc_net_sctp) {
 		struct proc_dir_entry *ent;
@@ -110,7 +112,7 @@ static __init int sctp_proc_init(void)
 			ent->owner = THIS_MODULE;
 			proc_net_sctp = ent;
 		} else
-			goto out_nomem;
+			goto out_free_percpu;
 	}
 
 	if (sctp_snmp_proc_init())
@@ -135,6 +137,8 @@ out_snmp_proc_init:
 		proc_net_sctp = NULL;
 		remove_proc_entry("sctp", init_net.proc_net);
 	}
+out_free_percpu:
+	percpu_counter_destroy(&sctp_sockets_allocated);
 out_nomem:
 	return -ENOMEM;
 #else

@@ -238,7 +238,7 @@ extern int sysctl_tcp_slow_start_after_idle;
 extern int sysctl_tcp_max_ssthresh;
 
 extern atomic_t tcp_memory_allocated;
-extern atomic_t tcp_sockets_allocated;
+extern struct percpu_counter tcp_sockets_allocated;
 extern int tcp_memory_pressure;
 
 /*
