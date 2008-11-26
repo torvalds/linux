@@ -92,7 +92,7 @@ int xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
 	return 0;
 }
 
-static inline struct dst_entry *__xfrm_dst_lookup(int tos,
+static inline struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos,
 						  xfrm_address_t *saddr,
 						  xfrm_address_t *daddr,
 						  int family)
@@ -104,7 +104,7 @@ static inline struct dst_entry *__xfrm_dst_lookup(int tos,
 	if (unlikely(afinfo == NULL))
 		return ERR_PTR(-EAFNOSUPPORT);
 
-	dst = afinfo->dst_lookup(tos, saddr, daddr);
+	dst = afinfo->dst_lookup(net, tos, saddr, daddr);
 
 	xfrm_policy_put_afinfo(afinfo);
 
@@ -116,6 +116,7 @@ static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos,
 						xfrm_address_t *prev_daddr,
 						int family)
 {
+	struct net *net = xs_net(x);
 	xfrm_address_t *saddr = &x->props.saddr;
 	xfrm_address_t *daddr = &x->id.daddr;
 	struct dst_entry *dst;
@@ -129,7 +130,7 @@ static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos,
 		daddr = x->coaddr;
 	}
 
-	dst = __xfrm_dst_lookup(tos, saddr, daddr, family);
+	dst = __xfrm_dst_lookup(net, tos, saddr, daddr, family);
 
 	if (!IS_ERR(dst)) {
 		if (prev_saddr != saddr)

@@ -18,7 +18,8 @@
 static struct dst_ops xfrm4_dst_ops;
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
 
-static struct dst_entry *xfrm4_dst_lookup(int tos, xfrm_address_t *saddr,
+static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
+					  xfrm_address_t *saddr,
 					  xfrm_address_t *daddr)
 {
 	struct flowi fl = {
@@ -36,7 +37,7 @@ static struct dst_entry *xfrm4_dst_lookup(int tos, xfrm_address_t *saddr,
 	if (saddr)
 		fl.fl4_src = saddr->a4;
 
-	err = __ip_route_output_key(&init_net, &rt, &fl);
+	err = __ip_route_output_key(net, &rt, &fl);
 	dst = &rt->u.dst;
 	if (err)
 		dst = ERR_PTR(err);
@@ -48,7 +49,7 @@ static int xfrm4_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
 	struct dst_entry *dst;
 	struct rtable *rt;
 
-	dst = xfrm4_dst_lookup(0, NULL, daddr);
+	dst = xfrm4_dst_lookup(&init_net, 0, NULL, daddr);
 	if (IS_ERR(dst))
 		return -EHOSTUNREACH;
 

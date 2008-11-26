@@ -27,7 +27,8 @@
 static struct dst_ops xfrm6_dst_ops;
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo;
 
-static struct dst_entry *xfrm6_dst_lookup(int tos, xfrm_address_t *saddr,
+static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos,
+					  xfrm_address_t *saddr,
 					  xfrm_address_t *daddr)
 {
 	struct flowi fl = {};
@@ -38,7 +39,7 @@ static struct dst_entry *xfrm6_dst_lookup(int tos, xfrm_address_t *saddr,
 	if (saddr)
 		memcpy(&fl.fl6_src, saddr, sizeof(fl.fl6_src));
 
-	dst = ip6_route_output(&init_net, NULL, &fl);
+	dst = ip6_route_output(net, NULL, &fl);
 
 	err = dst->error;
 	if (dst->error) {
@@ -54,7 +55,7 @@ static int xfrm6_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
 	struct dst_entry *dst;
 	struct net_device *dev;
 
-	dst = xfrm6_dst_lookup(0, NULL, daddr);
+	dst = xfrm6_dst_lookup(&init_net, 0, NULL, daddr);
 	if (IS_ERR(dst))
 		return -EHOSTUNREACH;
 
