@@ -650,6 +650,11 @@ void fuse_invalidate_entry_cache(struct dentry *entry);
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
 
 /**
+ * Initialize fuse_conn
+ */
+int fuse_conn_init(struct fuse_conn *fc, struct super_block *sb);
+
+/**
  * Release reference to fuse_conn
  */
 void fuse_conn_put(struct fuse_conn *fc);

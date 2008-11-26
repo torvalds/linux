@@ -462,70 +462,69 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
-static struct fuse_conn *new_conn(struct super_block *sb)
+int fuse_conn_init(struct fuse_conn *fc, struct super_block *sb)
 {
-	struct fuse_conn *fc;
 	int err;
 
-	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
-	if (fc) {
-		spin_lock_init(&fc->lock);
-		mutex_init(&fc->inst_mutex);
-		atomic_set(&fc->count, 1);
-		init_waitqueue_head(&fc->waitq);
-		init_waitqueue_head(&fc->blocked_waitq);
-		init_waitqueue_head(&fc->reserved_req_waitq);
-		INIT_LIST_HEAD(&fc->pending);
-		INIT_LIST_HEAD(&fc->processing);
-		INIT_LIST_HEAD(&fc->io);
-		INIT_LIST_HEAD(&fc->interrupts);
-		INIT_LIST_HEAD(&fc->bg_queue);
-		atomic_set(&fc->num_waiting, 0);
-		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-		fc->bdi.unplug_io_fn = default_unplug_io_fn;
-		/* fuse does it's own writeback accounting */
-		fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
-		fc->khctr = 0;
-		fc->polled_files = RB_ROOT;
-		fc->dev = sb->s_dev;
-		err = bdi_init(&fc->bdi);
-		if (err)
-			goto error_kfree;
-		if (sb->s_bdev) {
-			err = bdi_register(&fc->bdi, NULL, "%u:%u-fuseblk",
-					   MAJOR(fc->dev), MINOR(fc->dev));
-		} else {
-			err = bdi_register_dev(&fc->bdi, fc->dev);
-		}
-		if (err)
-			goto error_bdi_destroy;
-		/*
-		 * For a single fuse filesystem use max 1% of dirty +
-		 * writeback threshold.
-		 *
-		 * This gives about 1M of write buffer for memory maps on a
-		 * machine with 1G and 10% dirty_ratio, which should be more
-		 * than enough.
-		 *
-		 * Privileged users can raise it by writing to
-		 *
-		 *    /sys/class/bdi/<bdi>/max_ratio
-		 */
-		bdi_set_max_ratio(&fc->bdi, 1);
-		fc->reqctr = 0;
-		fc->blocked = 1;
-		fc->attr_version = 1;
-		get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
+	memset(fc, 0, sizeof(*fc));
+	spin_lock_init(&fc->lock);
+	mutex_init(&fc->inst_mutex);
+	atomic_set(&fc->count, 1);
+	init_waitqueue_head(&fc->waitq);
+	init_waitqueue_head(&fc->blocked_waitq);
+	init_waitqueue_head(&fc->reserved_req_waitq);
+	INIT_LIST_HEAD(&fc->pending);
+	INIT_LIST_HEAD(&fc->processing);
+	INIT_LIST_HEAD(&fc->io);
+	INIT_LIST_HEAD(&fc->interrupts);
+	INIT_LIST_HEAD(&fc->bg_queue);
+	INIT_LIST_HEAD(&fc->entry);
+	atomic_set(&fc->num_waiting, 0);
+	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+	fc->bdi.unplug_io_fn = default_unplug_io_fn;
+	/* fuse does it's own writeback accounting */
+	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
+	fc->khctr = 0;
+	fc->polled_files = RB_ROOT;
+	fc->dev = sb->s_dev;
+	err = bdi_init(&fc->bdi);
+	if (err)
+		goto error_mutex_destroy;
+	if (sb->s_bdev) {
+		err = bdi_register(&fc->bdi, NULL, "%u:%u-fuseblk",
+				   MAJOR(fc->dev), MINOR(fc->dev));
+	} else {
+		err = bdi_register_dev(&fc->bdi, fc->dev);
 	}
-	return fc;
+	if (err)
+		goto error_bdi_destroy;
+	/*
+	 * For a single fuse filesystem use max 1% of dirty +
+	 * writeback threshold.
+	 *
+	 * This gives about 1M of write buffer for memory maps on a
+	 * machine with 1G and 10% dirty_ratio, which should be more
+	 * than enough.
+	 *
+	 * Privileged users can raise it by writing to
+	 *
+	 *    /sys/class/bdi/<bdi>/max_ratio
+	 */
+	bdi_set_max_ratio(&fc->bdi, 1);
+	fc->reqctr = 0;
+	fc->blocked = 1;
+	fc->attr_version = 1;
+	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 
-error_bdi_destroy:
+	return 0;
+
+ error_bdi_destroy:
 	bdi_destroy(&fc->bdi);
-error_kfree:
+ error_mutex_destroy:
 	mutex_destroy(&fc->inst_mutex);
-	kfree(fc);
-	return NULL;
+	return err;
 }
+EXPORT_SYMBOL_GPL(fuse_conn_init);
 
 void fuse_conn_put(struct fuse_conn *fc)
 {
@@ -828,9 +827,15 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (file->f_op != &fuse_dev_operations)
 		return -EINVAL;
 
-	fc = new_conn(sb);
+	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
 	if (!fc)
 		return -ENOMEM;
+
+	err = fuse_conn_init(fc, sb);
+	if (err) {
+		kfree(fc);
+		return err;
+	}
 
 	fc->flags = d.flags;
 	fc->user_id = d.user_id;
