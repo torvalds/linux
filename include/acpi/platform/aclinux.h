@@ -141,6 +141,10 @@ static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
 /*
  * We need to show where it is safe to preempt execution of ACPICA
  */
-#define ACPI_PREEMPTION_POINT()	cond_resched()
+#define ACPI_PREEMPTION_POINT()		\
+	do {				\
+		if (!irqs_disabled())	\
+			cond_resched();	\
+	} while (0)
 
 #endif				/* __ACLINUX_H__ */
