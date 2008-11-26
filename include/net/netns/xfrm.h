@@ -14,6 +14,7 @@ struct netns_xfrm {
 	 * offending SA.
 	 */
 	struct hlist_head	*state_bydst;
+	struct hlist_head	*state_bysrc;
 };
 
 #endif
