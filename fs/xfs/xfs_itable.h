@@ -74,6 +74,18 @@ typedef int (*bulkstat_one_fmt_pf)(  /* used size in bytes or negative error */
 	const xfs_bstat_t	*buffer);        /* buffer to read from */
 
 int
+xfs_bulkstat_one_int(
+	xfs_mount_t		*mp,
+	xfs_ino_t		ino,
+	void			__user *buffer,
+	int			ubsize,
+	bulkstat_one_fmt_pf	formatter,
+	xfs_daddr_t		bno,
+	int			*ubused,
+	void			*dibuff,
+	int			*stat);
+
+int
 xfs_bulkstat_one(
 	xfs_mount_t		*mp,
 	xfs_ino_t		ino,

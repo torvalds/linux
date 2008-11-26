@@ -223,14 +223,30 @@ xfs_bulkstat_one_fmt_compat(
 	return sizeof(*p32);
 }
 
+STATIC int
+xfs_bulkstat_one_compat(
+	xfs_mount_t	*mp,		/* mount point for filesystem */
+	xfs_ino_t	ino,		/* inode number to get data for */
+	void		__user *buffer,	/* buffer to place output in */
+	int		ubsize,		/* size of buffer */
+	void		*private_data,	/* my private data */
+	xfs_daddr_t	bno,		/* starting bno of inode cluster */
+	int		*ubused,	/* bytes used by me */
+	void		*dibuff,	/* on-disk inode buffer */
+	int		*stat)		/* BULKSTAT_RV_... */
+{
+	return xfs_bulkstat_one_int(mp, ino, buffer, ubsize,
+				    xfs_bulkstat_one_fmt_compat, bno,
+				    ubused, dibuff, stat);
+}
+
 /* copied from xfs_ioctl.c */
 STATIC int
-xfs_ioc_bulkstat_compat(
-	xfs_mount_t		*mp,
-	unsigned int		cmd,
-	void			__user *arg)
+xfs_compat_ioc_bulkstat(
+	xfs_mount_t		  *mp,
+	unsigned int		  cmd,
+	compat_xfs_fsop_bulkreq_t __user *p32)
 {
-	compat_xfs_fsop_bulkreq_t __user *p32 = (void __user *)arg;
 	u32			addr;
 	xfs_fsop_bulkreq_t	bulkreq;
 	int			count;	/* # of records returned */
@@ -267,14 +283,12 @@ xfs_ioc_bulkstat_compat(
 	if (bulkreq.ubuffer == NULL)
 		return -XFS_ERROR(EINVAL);
 
-	if (cmd == XFS_IOC_FSINUMBERS)
+	if (cmd == XFS_IOC_FSINUMBERS_32)
 		error = xfs_inumbers(mp, &inlast, &count,
 				bulkreq.ubuffer, xfs_inumbers_fmt_compat);
 	else {
-		/* declare a var to get a warning in case the type changes */
-		bulkstat_one_fmt_pf formatter = xfs_bulkstat_one_fmt_compat;
 		error = xfs_bulkstat(mp, &inlast, &count,
-			xfs_bulkstat_one, formatter,
+			xfs_bulkstat_one_compat, NULL,
 			sizeof(compat_xfs_bstat_t), bulkreq.ubuffer,
 			BULKSTAT_FG_QUICK, &done);
 	}
@@ -422,9 +436,7 @@ xfs_compat_ioctl(
 	case XFS_IOC_FSBULKSTAT_32:
 	case XFS_IOC_FSBULKSTAT_SINGLE_32:
 	case XFS_IOC_FSINUMBERS_32:
-		cmd = _NATIVE_IOC(cmd, struct xfs_fsop_bulkreq);
-		return xfs_ioc_bulkstat_compat(XFS_I(inode)->i_mount,
-				cmd, (void __user*)arg);
+		return xfs_compat_ioc_bulkstat(mp, cmd, arg);
 	case XFS_IOC_FD_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_FSHANDLE_32: {
