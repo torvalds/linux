@@ -33,56 +33,6 @@
 
 struct task_struct *last_task_used_math = NULL;
 
-static int hlt_counter = 1;
-
-#define HARD_IDLE_TIMEOUT (HZ / 3)
-
-static int __init nohlt_setup(char *__unused)
-{
-	hlt_counter = 1;
-	return 1;
-}
-
-static int __init hlt_setup(char *__unused)
-{
-	hlt_counter = 0;
-	return 1;
-}
-
-__setup("nohlt", nohlt_setup);
-__setup("hlt", hlt_setup);
-
-static inline void hlt(void)
-{
-	__asm__ __volatile__ ("sleep" : : : "memory");
-}
-
-/*
- * The idle loop on a uniprocessor SH..
- */
-void cpu_idle(void)
-{
-	/* endless idle loop with no priority at all */
-	while (1) {
-		if (hlt_counter) {
-			while (!need_resched())
-				cpu_relax();
-		} else {
-			local_irq_disable();
-			while (!need_resched()) {
-				local_irq_enable();
-				hlt();
-				local_irq_disable();
-			}
-			local_irq_enable();
-		}
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-	}
-
-}
-
 void machine_restart(char * __unused)
 {
 	extern void phys_stext(void);
@@ -97,13 +47,6 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-#if 0
-	/* Disable watchdog timer */
-	ctrl_outl(0xa5000000, WTCSR);
-	/* Configure deep standby on sleep */
-	ctrl_outl(0x03, STBCR);
-#endif
-
 	__asm__ __volatile__ (
 		"sleep\n\t"
 		"synci\n\t"
@@ -112,9 +55,6 @@ void machine_power_off(void)
 
 	panic("Unexpected wakeup!\n");
 }
-
-void (*pm_power_off)(void) = machine_power_off;
-EXPORT_SYMBOL(pm_power_off);
 
 void show_regs(struct pt_regs * regs)
 {
