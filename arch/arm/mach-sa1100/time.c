@@ -2,8 +2,8 @@
  * linux/arch/arm/mach-sa1100/time.c
  *
  * Copyright (C) 1998 Deborah Wallach.
- * Twiddles  (C) 1999 	Hugo Fiennes <hugo@empeg.com>
- * 
+ * Twiddles  (C) 1999 Hugo Fiennes <hugo@empeg.com>
+ *
  * 2000/03/29 (C) Nicolas Pitre <nico@cam.org>
  *	Rewritten: big cleanup, much simpler, better HZ accuracy.
  *

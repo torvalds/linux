@@ -32,14 +32,14 @@ typedef int __bitwise pm_request_t;
 #define machine_is_h3xxx() (machine_is_h3100() || machine_is_h3600() || machine_is_h3800())
 
 /* Physical memory regions corresponding to chip selects */
-#define H3600_EGPIO_PHYS     (SA1100_CS5_PHYS + 0x01000000)
-#define H3600_BANK_2_PHYS    SA1100_CS2_PHYS
-#define H3600_BANK_4_PHYS    SA1100_CS4_PHYS
+#define H3600_EGPIO_PHYS	(SA1100_CS5_PHYS + 0x01000000)
+#define H3600_BANK_2_PHYS	SA1100_CS2_PHYS
+#define H3600_BANK_4_PHYS	SA1100_CS4_PHYS
 
 /* Virtual memory regions corresponding to chip selects 2 & 4 (used on sleeves) */
-#define H3600_EGPIO_VIRT     0xf0000000
-#define H3600_BANK_2_VIRT    0xf1000000
-#define H3600_BANK_4_VIRT    0xf3800000
+#define H3600_EGPIO_VIRT	0xf0000000
+#define H3600_BANK_2_VIRT	0xf1000000
+#define H3600_BANK_4_VIRT	0xf3800000
 
 /*
    Machine-independent GPIO definitions
