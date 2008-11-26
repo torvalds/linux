@@ -394,6 +394,8 @@ struct uwb_rc {
  * @channel: channel being used by the PAL; 0 if the PAL isn't using
  *           the radio; -1 if the PAL wishes to use the radio but
  *           cannot.
+ * @debugfs_dir: a debugfs directory which the PAL can use for its own
+ *           debugfs files.
  *
  * A Protocol Adaptation Layer (PAL) is a user of the WiMedia UWB
  * radio platform (e.g., WUSB, WLP or Bluetooth UWB AMP).
@@ -418,6 +420,7 @@ struct uwb_pal {
 	void (*new_rsv)(struct uwb_pal *pal, struct uwb_rsv *rsv);
 
 	int channel;
+	struct dentry *debugfs_dir;
 };
 
 void uwb_pal_init(struct uwb_pal *pal);

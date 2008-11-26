@@ -273,6 +273,8 @@ static int whc_probe(struct umc_dev *umc)
 		goto error_wusbhc_b_create;
 	}
 
+	whc_dbg_init(whc);
+
 	return 0;
 
 error_wusbhc_b_create:
@@ -296,6 +298,7 @@ static void whc_remove(struct umc_dev *umc)
 	struct whc *whc = wusbhc_to_whc(wusbhc);
 
 	if (usb_hcd) {
+		whc_dbg_clean_up(whc);
 		wusbhc_b_destroy(wusbhc);
 		usb_remove_hcd(usb_hcd);
 		wusbhc_destroy(wusbhc);

@@ -19,31 +19,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/uwb/umc.h>
 #include <linux/usb.h>
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
 #include "../../wusbcore/wusbhc.h"
 
 #include "whcd.h"
-
-#if D_LOCAL >= 4
-static void dump_asl(struct whc *whc, const char *tag)
-{
-	struct device *dev = &whc->umc->dev;
-	struct whc_qset *qset;
-
-	d_printf(4, dev, "ASL %s\n", tag);
-
-	list_for_each_entry(qset, &whc->async_list, list_node) {
-		dump_qset(qset, dev);
-	}
-}
-#else
-static inline void dump_asl(struct whc *whc, const char *tag)
-{
-}
-#endif
-
 
 static void qset_get_next_prev(struct whc *whc, struct whc_qset *qset,
 			       struct whc_qset **next, struct whc_qset **prev)
@@ -217,8 +196,6 @@ void scan_async_work(struct work_struct *work)
 
 	spin_lock_irq(&whc->lock);
 
-	dump_asl(whc, "before processing");
-
 	/*
 	 * Transerve the software list backwards so new qsets can be
 	 * safely inserted into the ASL without making it non-circular.
@@ -231,8 +208,6 @@ void scan_async_work(struct work_struct *work)
 
 		update |= process_qset(whc, qset);
 	}
-
-	dump_asl(whc, "after processing");
 
 	spin_unlock_irq(&whc->lock);
 

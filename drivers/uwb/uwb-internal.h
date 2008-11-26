@@ -284,8 +284,7 @@ void uwb_dbg_init(void);
 void uwb_dbg_exit(void);
 void uwb_dbg_add_rc(struct uwb_rc *rc);
 void uwb_dbg_del_rc(struct uwb_rc *rc);
-
-/* Workarounds for version specific stuff */
+struct dentry *uwb_dbg_create_pal_dir(struct uwb_pal *pal);
 
 static inline void uwb_dev_lock(struct uwb_dev *uwb_dev)
 {

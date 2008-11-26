@@ -18,42 +18,15 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/uwb/umc.h>
-#define D_LOCAL 1
-#include <linux/uwb/debug.h>
 
 #include "../../wusbcore/wusbhc.h"
 
 #include "whcd.h"
 
-#if D_LOCAL >= 1
-static void dump_di(struct whc *whc, int idx)
-{
-	struct di_buf_entry *di = &whc->di_buf[idx];
-	struct device *dev = &whc->umc->dev;
-	char buf[128];
-
-	bitmap_scnprintf(buf, sizeof(buf), (unsigned long *)di->availability_info, UWB_NUM_MAS);
-
-	d_printf(1, dev, "DI[%d]\n", idx);
-	d_printf(1, dev, "  availability: %s\n", buf);
-	d_printf(1, dev, "  %c%c key idx: %d dev addr: %d\n",
-		 (di->addr_sec_info & WHC_DI_SECURE) ? 'S' : ' ',
-		 (di->addr_sec_info & WHC_DI_DISABLE) ? 'D' : ' ',
-		 (di->addr_sec_info & WHC_DI_KEY_IDX_MASK) >> 8,
-		 (di->addr_sec_info & WHC_DI_DEV_ADDR_MASK));
-}
-#else
-static inline void dump_di(struct whc *whc, int idx)
-{
-}
-#endif
-
 static int whc_update_di(struct whc *whc, int idx)
 {
 	int offset = idx / 32;
 	u32 bit = 1 << (idx % 32);
-
-	dump_di(whc, idx);
 
 	le_writel(bit, whc->base + WUSBDIBUPDATED + offset);
 

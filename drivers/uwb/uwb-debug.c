@@ -407,3 +407,16 @@ void uwb_dbg_exit(void)
 {
 	debugfs_remove(root_dir);
 }
+
+/**
+ * uwb_dbg_create_pal_dir - create a debugfs directory for a PAL
+ * @pal: The PAL.
+ */
+struct dentry *uwb_dbg_create_pal_dir(struct uwb_pal *pal)
+{
+	struct uwb_rc *rc = pal->rc;
+
+	if (root_dir && rc->dbg && rc->dbg->root_d && pal->name)
+		return debugfs_create_dir(pal->name, rc->dbg->root_d);
+	return NULL;
+}

@@ -19,34 +19,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/uwb/umc.h>
 #include <linux/usb.h>
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
 #include "../../wusbcore/wusbhc.h"
 
 #include "whcd.h"
-
-#if D_LOCAL >= 4
-static void dump_pzl(struct whc *whc, const char *tag)
-{
-	struct device *dev = &whc->umc->dev;
-	struct whc_qset *qset;
-	int period = 0;
-
-	d_printf(4, dev, "PZL %s\n", tag);
-
-	for (period = 0; period < 5; period++) {
-		d_printf(4, dev, "Period %d\n", period);
-		list_for_each_entry(qset, &whc->periodic_list[period], list_node) {
-			dump_qset(qset, dev);
-		}
-	}
-}
-#else
-static inline void dump_pzl(struct whc *whc, const char *tag)
-{
-}
-#endif
 
 static void update_pzl_pointers(struct whc *whc, int period, u64 addr)
 {
@@ -250,8 +226,6 @@ void scan_periodic_work(struct work_struct *work)
 
 	spin_lock_irq(&whc->lock);
 
-	dump_pzl(whc, "before processing");
-
 	for (period = 4; period >= 0; period--) {
 		list_for_each_entry_safe(qset, t, &whc->periodic_list[period], list_node) {
 			if (!qset->in_hw_list)
@@ -262,8 +236,6 @@ void scan_periodic_work(struct work_struct *work)
 
 	if (update & (WHC_UPDATE_ADDED | WHC_UPDATE_REMOVED))
 		update_pzl_hw_view(whc);
-
-	dump_pzl(whc, "after processing");
 
 	spin_unlock_irq(&whc->lock);
 

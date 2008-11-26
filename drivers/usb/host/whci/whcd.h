@@ -21,6 +21,7 @@
 #define __WHCD_H
 
 #include <linux/uwb/whci.h>
+#include <linux/uwb/umc.h>
 #include <linux/workqueue.h>
 
 #include "whci-hc.h"
@@ -28,6 +29,7 @@
 /* Generic command timeout. */
 #define WHC_GENCMD_TIMEOUT_MS 100
 
+struct whc_dbg;
 
 struct whc {
 	struct wusbhc wusbhc;
@@ -69,6 +71,8 @@ struct whc {
 	struct list_head periodic_removed_list;
 	wait_queue_head_t periodic_list_wq;
 	struct work_struct periodic_work;
+
+	struct whc_dbg *dbg;
 };
 
 #define wusbhc_to_whc(w) (container_of((w), struct whc, wusbhc))
@@ -190,8 +194,11 @@ void process_inactive_qtd(struct whc *whc, struct whc_qset *qset,
 				 struct whc_qtd *qtd);
 enum whc_update qset_add_qtds(struct whc *whc, struct whc_qset *qset);
 void qset_remove_complete(struct whc *whc, struct whc_qset *qset);
-void dump_qset(struct whc_qset *qset, struct device *dev);
 void pzl_update(struct whc *whc, uint32_t wusbcmd);
 void asl_update(struct whc *whc, uint32_t wusbcmd);
+
+/* debug.c */
+void whc_dbg_init(struct whc *whc);
+void whc_dbg_clean_up(struct whc *whc);
 
 #endif /* #ifndef __WHCD_H */
