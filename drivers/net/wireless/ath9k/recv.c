@@ -14,10 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Implementation of receive path.
- */
-
 #include "core.h"
 
 /*
@@ -27,10 +23,7 @@
  * MAC acknowledges BA status as long as it copies frames to host
  * buffer (or rx fifo). This can incorrectly acknowledge packets
  * to a sender if last desc is self-linked.
- *
- * NOTE: Caller should hold the rxbuf lock.
  */
-
 static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
@@ -40,19 +33,17 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 	ATH_RXBUF_RESET(bf);
 
 	ds = bf->bf_desc;
-	ds->ds_link = 0;    /* link to null */
+	ds->ds_link = 0; /* link to null */
 	ds->ds_data = bf->bf_buf_addr;
 
-	/* XXX For RADAR?
-	 * virtual addr of the beginning of the buffer. */
+	/* virtual addr of the beginning of the buffer. */
 	skb = bf->bf_mpdu;
 	ASSERT(skb != NULL);
 	ds->ds_vdata = skb->data;
 
 	/* setup rx descriptors */
-	ath9k_hw_setuprxdesc(ah,
-			     ds,
-			     skb_tailroom(skb),   /* buffer size */
+	ath9k_hw_setuprxdesc(ah, ds,
+			     skb_tailroom(skb), /* buffer size */
 			     0);
 
 	if (sc->sc_rxlink == NULL)
@@ -64,8 +55,29 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 	ath9k_hw_rxena(ah);
 }
 
-static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc,
-	u32 len)
+static void ath_setdefantenna(struct ath_softc *sc, u32 antenna)
+{
+	/* XXX block beacon interrupts */
+	ath9k_hw_setantenna(sc->sc_ah, antenna);
+	sc->sc_defant = antenna;
+	sc->sc_rxotherant = 0;
+}
+
+/*
+ *  Extend 15-bit time stamp from rx descriptor to
+ *  a full 64-bit TSF using the current h/w TSF.
+*/
+static u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp)
+{
+	u64 tsf;
+
+	tsf = ath9k_hw_gettsf64(sc->sc_ah);
+	if ((tsf & 0x7fff) < rstamp)
+		tsf -= 0x8000;
+	return (tsf & ~0x7fff) | rstamp;
+}
+
+static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 {
 	struct sk_buff *skb;
 	u32 off;
@@ -91,59 +103,133 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc,
 	return skb;
 }
 
-static void ath_rx_requeue(struct ath_softc *sc, struct sk_buff *skb)
+static int ath_rate2idx(struct ath_softc *sc, int rate)
 {
-	struct ath_buf *bf = ATH_RX_CONTEXT(skb)->ctx_rxbuf;
+	int i = 0, cur_band, n_rates;
+	struct ieee80211_hw *hw = sc->hw;
 
-	ASSERT(bf != NULL);
+	cur_band = hw->conf.channel->band;
+	n_rates = sc->sbands[cur_band].n_bitrates;
 
-	spin_lock_bh(&sc->sc_rxbuflock);
-	if (bf->bf_status & ATH_BUFSTATUS_STALE) {
-		/*
-		 * This buffer is still held for hw acess.
-		 * Mark it as free to be re-queued it later.
-		 */
-		bf->bf_status |= ATH_BUFSTATUS_FREE;
-	} else {
-		/* XXX: we probably never enter here, remove after
-		 * verification */
-		list_add_tail(&bf->list, &sc->sc_rxbuf);
-		ath_rx_buf_link(sc, bf);
+	for (i = 0; i < n_rates; i++) {
+		if (sc->sbands[cur_band].bitrates[i].bitrate == rate)
+			break;
 	}
-	spin_unlock_bh(&sc->sc_rxbuflock);
+
+	/*
+	 * NB:mac80211 validates rx rate index against the supported legacy rate
+	 * index only (should be done against ht rates also), return the highest
+	 * legacy rate index for rx rate which does not match any one of the
+	 * supported basic and extended rates to make mac80211 happy.
+	 * The following hack will be cleaned up once the issue with
+	 * the rx rate index validation in mac80211 is fixed.
+	 */
+	if (i == n_rates)
+		return n_rates - 1;
+
+	return i;
 }
 
 /*
- * The skb indicated to upper stack won't be returned to us.
- * So we have to allocate a new one and queue it by ourselves.
+ * For Decrypt or Demic errors, we only mark packet status here and always push
+ * up the frame up to let mac80211 handle the actual error case, be it no
+ * decryption key or real decryption error. This let us keep statistics there.
  */
-static int ath_rx_indicate(struct ath_softc *sc,
-			   struct sk_buff *skb,
-			   struct ath_recv_status *status,
-			   u16 keyix)
+static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
+			  struct ieee80211_rx_status *rx_status, bool *decrypt_error,
+			  struct ath_softc *sc)
 {
-	struct ath_buf *bf = ATH_RX_CONTEXT(skb)->ctx_rxbuf;
-	struct sk_buff *nskb;
-	int type;
+	struct ath_rate_table *rate_table = sc->hw_rate_table[sc->sc_curmode];
+	struct ieee80211_hdr *hdr;
+	int ratekbps, rix;
+	u8 ratecode;
+	__le16 fc;
 
-	/* indicate frame to the stack, which will free the old skb. */
-	type = _ath_rx_indicate(sc, skb, status, keyix);
+	hdr = (struct ieee80211_hdr *)skb->data;
+	fc = hdr->frame_control;
+	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
-	/* allocate a new skb and queue it to for H/W processing */
-	nskb = ath_rxbuf_alloc(sc, sc->sc_rxbufsize);
-	if (nskb != NULL) {
-		bf->bf_mpdu = nskb;
-		bf->bf_buf_addr = pci_map_single(sc->pdev, nskb->data,
-					 skb_end_pointer(nskb) - nskb->head,
-					 PCI_DMA_FROMDEVICE);
-		bf->bf_dmacontext = bf->bf_buf_addr;
-		ATH_RX_CONTEXT(nskb)->ctx_rxbuf = bf;
+	if (ds->ds_rxstat.rs_more) {
+		/*
+		 * Frame spans multiple descriptors; this cannot happen yet
+		 * as we don't support jumbograms. If not in monitor mode,
+		 * discard the frame. Enable this if you want to see
+		 * error frames in Monitor mode.
+		 */
+		if (sc->sc_ah->ah_opmode != ATH9K_M_MONITOR)
+			goto rx_next;
+	} else if (ds->ds_rxstat.rs_status != 0) {
+		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
+			rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
+		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_PHY)
+			goto rx_next;
 
-		/* queue the new wbuf to H/W */
-		ath_rx_requeue(sc, nskb);
+		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_DECRYPT) {
+			*decrypt_error = true;
+		} else if (ds->ds_rxstat.rs_status & ATH9K_RXERR_MIC) {
+			if (ieee80211_is_ctl(fc))
+				/*
+				 * Sometimes, we get invalid
+				 * MIC failures on valid control frames.
+				 * Remove these mic errors.
+				 */
+				ds->ds_rxstat.rs_status &= ~ATH9K_RXERR_MIC;
+			else
+				rx_status->flag |= RX_FLAG_MMIC_ERROR;
+		}
+		/*
+		 * Reject error frames with the exception of
+		 * decryption and MIC failures. For monitor mode,
+		 * we also ignore the CRC error.
+		 */
+		if (sc->sc_ah->ah_opmode == ATH9K_M_MONITOR) {
+			if (ds->ds_rxstat.rs_status &
+			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
+			      ATH9K_RXERR_CRC))
+				goto rx_next;
+		} else {
+			if (ds->ds_rxstat.rs_status &
+			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
+				goto rx_next;
+			}
+		}
 	}
 
-	return type;
+	ratecode = ds->ds_rxstat.rs_rate;
+	rix = rate_table->rateCodeToIndex[ratecode];
+	ratekbps = rate_table->info[rix].ratekbps;
+
+	/* HT rate */
+	if (ratecode & 0x80) {
+		if (ds->ds_rxstat.rs_flags & ATH9K_RX_2040)
+			ratekbps = (ratekbps * 27) / 13;
+		if (ds->ds_rxstat.rs_flags & ATH9K_RX_GI)
+			ratekbps = (ratekbps * 10) / 9;
+	}
+
+	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
+	rx_status->band = sc->hw->conf.channel->band;
+	rx_status->freq =  sc->hw->conf.channel->center_freq;
+	rx_status->noise = sc->sc_ani.sc_noise_floor;
+	rx_status->signal = rx_status->noise + ds->ds_rxstat.rs_rssi;
+	rx_status->rate_idx = ath_rate2idx(sc, (ratekbps / 100));
+	rx_status->antenna = ds->ds_rxstat.rs_antenna;
+
+	/* at 45 you will be able to use MCS 15 reliably. A more elaborate
+	 * scheme can be used here but it requires tables of SNR/throughput for
+	 * each possible mode used. */
+	rx_status->qual =  ds->ds_rxstat.rs_rssi * 100 / 45;
+
+	/* rssi can be more than 45 though, anything above that
+	 * should be considered at 100% */
+	if (rx_status->qual > 100)
+		rx_status->qual = 100;
+
+	rx_status->flag |= RX_FLAG_TSFT;
+
+	return 1;
+rx_next:
+	return 0;
 }
 
 static void ath_opmode_init(struct ath_softc *sc)
@@ -185,12 +271,6 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		sc->sc_flags &= ~SC_OP_RXFLUSH;
 		spin_lock_init(&sc->sc_rxbuflock);
 
-		/*
-		 * Cisco's VPN software requires that drivers be able to
-		 * receive encapsulated frames that are larger than the MTU.
-		 * Since we can't be sure how large a frame we'll get, setup
-		 * to handle the larges on possible.
-		 */
 		sc->sc_rxbufsize = roundup(IEEE80211_MAX_MPDU_LEN,
 					   min(sc->sc_cachelsz,
 					       (u16)64));
@@ -209,8 +289,6 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 			break;
 		}
 
-		/* Pre-allocate a wbuf for each rx buffer */
-
 		list_for_each_entry(bf, &sc->sc_rxbuf, list) {
 			skb = ath_rxbuf_alloc(sc, sc->sc_rxbufsize);
 			if (skb == NULL) {
@@ -223,7 +301,6 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 					 skb_end_pointer(skb) - skb->head,
 					 PCI_DMA_FROMDEVICE);
 			bf->bf_dmacontext = bf->bf_buf_addr;
-			ATH_RX_CONTEXT(skb)->ctx_rxbuf = bf;
 		}
 		sc->sc_rxlink = NULL;
 
@@ -235,8 +312,6 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	return error;
 }
 
-/* Reclaim all rx queue resources */
-
 void ath_rx_cleanup(struct ath_softc *sc)
 {
 	struct sk_buff *skb;
@@ -247,8 +322,6 @@ void ath_rx_cleanup(struct ath_softc *sc)
 		if (skb)
 			dev_kfree_skb(skb);
 	}
-
-	/* cleanup rx descriptors */
 
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
@@ -297,19 +370,18 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	}
 
 	if (sc->sc_ah->ah_opmode == ATH9K_M_STA ||
-			sc->sc_ah->ah_opmode == ATH9K_M_IBSS)
+	    sc->sc_ah->ah_opmode == ATH9K_M_IBSS)
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	/* If in HOSTAP mode, want to enable reception of PSPOLL frames
 	   & beacon frames */
 	if (sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP)
 		rfilt |= (ATH9K_RX_FILTER_BEACON | ATH9K_RX_FILTER_PSPOLL);
+
 	return rfilt;
 
 #undef RX_FILTER_PRESERVE
 }
-
-/* Enable the receive h/w following a reset. */
 
 int ath_startrecv(struct ath_softc *sc)
 {
@@ -322,21 +394,6 @@ int ath_startrecv(struct ath_softc *sc)
 
 	sc->sc_rxlink = NULL;
 	list_for_each_entry_safe(bf, tbf, &sc->sc_rxbuf, list) {
-		if (bf->bf_status & ATH_BUFSTATUS_STALE) {
-			/* restarting h/w, no need for holding descriptors */
-			bf->bf_status &= ~ATH_BUFSTATUS_STALE;
-			/*
-			 * Upper layer may not be done with the frame yet so
-			 * we can't just re-queue it to hardware. Remove it
-			 * from h/w queue. It'll be re-queued when upper layer
-			 * returns the frame and ath_rx_requeue_mpdu is called.
-			 */
-			if (!(bf->bf_status & ATH_BUFSTATUS_FREE)) {
-				list_del(&bf->list);
-				continue;
-			}
-		}
-		/* chain descriptors */
 		ath_rx_buf_link(sc, bf);
 	}
 
@@ -346,54 +403,38 @@ int ath_startrecv(struct ath_softc *sc)
 
 	bf = list_first_entry(&sc->sc_rxbuf, struct ath_buf, list);
 	ath9k_hw_putrxbuf(ah, bf->bf_daddr);
-	ath9k_hw_rxena(ah);      /* enable recv descriptors */
+	ath9k_hw_rxena(ah);
 
 start_recv:
 	spin_unlock_bh(&sc->sc_rxbuflock);
-	ath_opmode_init(sc);        /* set filters, etc. */
-	ath9k_hw_startpcureceive(ah);	/* re-enable PCU/DMA engine */
+	ath_opmode_init(sc);
+	ath9k_hw_startpcureceive(ah);
+
 	return 0;
 }
-
-/* Disable the receive h/w in preparation for a reset. */
 
 bool ath_stoprecv(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	u64 tsf;
 	bool stopped;
 
-	ath9k_hw_stoppcurecv(ah);	/* disable PCU */
-	ath9k_hw_setrxfilter(ah, 0);	/* clear recv filter */
-	stopped = ath9k_hw_stopdmarecv(ah);	/* disable DMA engine */
-	mdelay(3);			/* 3ms is long enough for 1 frame */
-	tsf = ath9k_hw_gettsf64(ah);
-	sc->sc_rxlink = NULL;		/* just in case */
+	ath9k_hw_stoppcurecv(ah);
+	ath9k_hw_setrxfilter(ah, 0);
+	stopped = ath9k_hw_stopdmarecv(ah);
+	mdelay(3); /* 3ms is long enough for 1 frame */
+	sc->sc_rxlink = NULL;
+
 	return stopped;
 }
 
-/* Flush receive queue */
-
 void ath_flushrecv(struct ath_softc *sc)
 {
-	/*
-	 * ath_rx_tasklet may be used to handle rx interrupt and flush receive
-	 * queue at the same time. Use a lock to serialize the access of rx
-	 * queue.
-	 * ath_rx_tasklet cannot hold the spinlock while indicating packets.
-	 * Instead, do not claim the spinlock but check for a flush in
-	 * progress (see references to sc_rxflush)
-	 */
 	spin_lock_bh(&sc->sc_rxflushlock);
 	sc->sc_flags |= SC_OP_RXFLUSH;
-
 	ath_rx_tasklet(sc, 1);
-
 	sc->sc_flags &= ~SC_OP_RXFLUSH;
 	spin_unlock_bh(&sc->sc_rxflushlock);
 }
-
-/* Process receive queue, as well as LED, etc. */
 
 int ath_rx_tasklet(struct ath_softc *sc, int flush)
 {
@@ -401,65 +442,30 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc +		\
 			     ((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
 
-	struct ath_buf *bf, *bf_held = NULL;
+	struct ath_buf *bf;
 	struct ath_desc *ds;
-	struct ieee80211_hdr *hdr;
-	struct sk_buff *skb = NULL;
-	struct ath_recv_status rx_status;
+	struct sk_buff *skb = NULL, *requeue_skb;
+	struct ieee80211_rx_status rx_status;
 	struct ath_hal *ah = sc->sc_ah;
-	int type, rx_processed = 0;
-	u32 phyerr;
-	u8 chainreset = 0;
-	int retval;
-	__le16 fc;
+	struct ieee80211_hdr *hdr;
+	int hdrlen, padsize, retval;
+	bool decrypt_error = false;
+	u8 keyix;
+
+	spin_lock_bh(&sc->sc_rxbuflock);
 
 	do {
 		/* If handling rx interrupt and flush is in progress => exit */
 		if ((sc->sc_flags & SC_OP_RXFLUSH) && (flush == 0))
 			break;
 
-		spin_lock_bh(&sc->sc_rxbuflock);
 		if (list_empty(&sc->sc_rxbuf)) {
 			sc->sc_rxlink = NULL;
-			spin_unlock_bh(&sc->sc_rxbuflock);
 			break;
 		}
 
 		bf = list_first_entry(&sc->sc_rxbuf, struct ath_buf, list);
-
-		/*
-		 * There is a race condition that BH gets scheduled after sw
-		 * writes RxE and before hw re-load the last descriptor to get
-		 * the newly chained one. Software must keep the last DONE
-		 * descriptor as a holding descriptor - software does so by
-		 * marking it with the STALE flag.
-		 */
-		if (bf->bf_status & ATH_BUFSTATUS_STALE) {
-			bf_held = bf;
-			if (list_is_last(&bf_held->list, &sc->sc_rxbuf)) {
-				/*
-				 * The holding descriptor is the last
-				 * descriptor in queue. It's safe to
-				 * remove the last holding descriptor
-				 * in BH context.
-				 */
-				list_del(&bf_held->list);
-				bf_held->bf_status &= ~ATH_BUFSTATUS_STALE;
-				sc->sc_rxlink = NULL;
-
-				if (bf_held->bf_status & ATH_BUFSTATUS_FREE) {
-					list_add_tail(&bf_held->list,
-						&sc->sc_rxbuf);
-					ath_rx_buf_link(sc, bf_held);
-				}
-				spin_unlock_bh(&sc->sc_rxbuflock);
-				break;
-			}
-			bf = list_entry(bf->list.next, struct ath_buf, list);
-		}
-
 		ds = bf->bf_desc;
-		++rx_processed;
 
 		/*
 		 * Must provide the virtual address of the current
@@ -472,8 +478,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * on.  All this is necessary because of our use of
 		 * a self-linked list to avoid rx overruns.
 		 */
-		retval = ath9k_hw_rxprocdesc(ah,
-					     ds,
+		retval = ath9k_hw_rxprocdesc(ah, ds,
 					     bf->bf_daddr,
 					     PA2DESC(sc, ds->ds_link),
 					     0);
@@ -482,7 +487,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			struct ath_desc *tds;
 
 			if (list_is_last(&bf->list, &sc->sc_rxbuf)) {
-				spin_unlock_bh(&sc->sc_rxbuflock);
+				sc->sc_rxlink = NULL;
 				break;
 			}
 
@@ -500,215 +505,87 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			 */
 
 			tds = tbf->bf_desc;
-			retval = ath9k_hw_rxprocdesc(ah,
-				tds, tbf->bf_daddr,
-				PA2DESC(sc, tds->ds_link), 0);
+			retval = ath9k_hw_rxprocdesc(ah, tds, tbf->bf_daddr,
+					     PA2DESC(sc, tds->ds_link), 0);
 			if (retval == -EINPROGRESS) {
-				spin_unlock_bh(&sc->sc_rxbuflock);
 				break;
 			}
 		}
 
-		/* XXX: we do not support frames spanning
-		 * multiple descriptors */
-		bf->bf_status |= ATH_BUFSTATUS_DONE;
-
 		skb = bf->bf_mpdu;
-		if (skb == NULL) {		/* XXX ??? can this happen */
-			spin_unlock_bh(&sc->sc_rxbuflock);
+		if (!skb)
 			continue;
-		}
+
 		/*
-		 * Now we know it's a completed frame, we can indicate the
-		 * frame. Remove the previous holding descriptor and leave
-		 * this one in the queue as the new holding descriptor.
+		 * If we're asked to flush receive queue, directly
+		 * chain it back at the queue without processing it.
 		 */
-		if (bf_held) {
-			list_del(&bf_held->list);
-			bf_held->bf_status &= ~ATH_BUFSTATUS_STALE;
-			if (bf_held->bf_status & ATH_BUFSTATUS_FREE) {
-				list_add_tail(&bf_held->list, &sc->sc_rxbuf);
-				/* try to requeue this descriptor */
-				ath_rx_buf_link(sc, bf_held);
-			}
-		}
+		if (flush)
+			goto requeue;
 
-		bf->bf_status |= ATH_BUFSTATUS_STALE;
-		bf_held = bf;
-		/*
-		 * Release the lock here in case ieee80211_input() return
-		 * the frame immediately by calling ath_rx_mpdu_requeue().
-		 */
-		spin_unlock_bh(&sc->sc_rxbuflock);
+		if (!ds->ds_rxstat.rs_datalen)
+			goto requeue;
 
-		if (flush) {
-			/*
-			 * If we're asked to flush receive queue, directly
-			 * chain it back at the queue without processing it.
-			 */
-			goto rx_next;
-		}
-
-		hdr = (struct ieee80211_hdr *)skb->data;
-		fc = hdr->frame_control;
-		memset(&rx_status, 0, sizeof(struct ath_recv_status));
-
-		if (ds->ds_rxstat.rs_more) {
-			/*
-			 * Frame spans multiple descriptors; this
-			 * cannot happen yet as we don't support
-			 * jumbograms.  If not in monitor mode,
-			 * discard the frame.
-			 */
-#ifndef ERROR_FRAMES
-			/*
-			 * Enable this if you want to see
-			 * error frames in Monitor mode.
-			 */
-			if (sc->sc_ah->ah_opmode != ATH9K_M_MONITOR)
-				goto rx_next;
-#endif
-			/* fall thru for monitor mode handling... */
-		} else if (ds->ds_rxstat.rs_status != 0) {
-			if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
-				rx_status.flags |= ATH_RX_FCS_ERROR;
-			if (ds->ds_rxstat.rs_status & ATH9K_RXERR_PHY) {
-				phyerr = ds->ds_rxstat.rs_phyerr & 0x1f;
-				goto rx_next;
-			}
-
-			if (ds->ds_rxstat.rs_status & ATH9K_RXERR_DECRYPT) {
-				/*
-				 * Decrypt error. We only mark packet status
-				 * here and always push up the frame up to let
-				 * mac80211 handle the actual error case, be
-				 * it no decryption key or real decryption
-				 * error. This let us keep statistics there.
-				 */
-				rx_status.flags |= ATH_RX_DECRYPT_ERROR;
-			} else if (ds->ds_rxstat.rs_status & ATH9K_RXERR_MIC) {
-				/*
-				 * Demic error. We only mark frame status here
-				 * and always push up the frame up to let
-				 * mac80211 handle the actual error case. This
-				 * let us keep statistics there. Hardware may
-				 * post a false-positive MIC error.
-				 */
-				if (ieee80211_is_ctl(fc))
-					/*
-					 * Sometimes, we get invalid
-					 * MIC failures on valid control frames.
-					 * Remove these mic errors.
-					 */
-					ds->ds_rxstat.rs_status &=
-						~ATH9K_RXERR_MIC;
-				else
-					rx_status.flags |= ATH_RX_MIC_ERROR;
-			}
-			/*
-			 * Reject error frames with the exception of
-			 * decryption and MIC failures. For monitor mode,
-			 * we also ignore the CRC error.
-			 */
-			if (sc->sc_ah->ah_opmode == ATH9K_M_MONITOR) {
-				if (ds->ds_rxstat.rs_status &
-				    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
-					ATH9K_RXERR_CRC))
-					goto rx_next;
-			} else {
-				if (ds->ds_rxstat.rs_status &
-				    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
-					goto rx_next;
-				}
-			}
-		}
-		/*
-		 * The status portion of the descriptor could get corrupted.
-		 */
+		/* The status portion of the descriptor could get corrupted. */
 		if (sc->sc_rxbufsize < ds->ds_rxstat.rs_datalen)
-			goto rx_next;
-		/*
-		 * Sync and unmap the frame.  At this point we're
-		 * committed to passing the sk_buff somewhere so
-		 * clear buf_skb; this means a new sk_buff must be
-		 * allocated when the rx descriptor is setup again
-		 * to receive another frame.
-		 */
-		skb_put(skb, ds->ds_rxstat.rs_datalen);
-		skb->protocol = cpu_to_be16(ETH_P_CONTROL);
-		rx_status.tsf = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
-		rx_status.rateieee =
-			sc->sc_hwmap[ds->ds_rxstat.rs_rate].ieeerate;
-		rx_status.rateKbps =
-			sc->sc_hwmap[ds->ds_rxstat.rs_rate].rateKbps;
-		rx_status.ratecode = ds->ds_rxstat.rs_rate;
+			goto requeue;
 
-		/* HT rate */
-		if (rx_status.ratecode & 0x80) {
-			/* TODO - add table to avoid division */
-			if (ds->ds_rxstat.rs_flags & ATH9K_RX_2040) {
-				rx_status.flags |= ATH_RX_40MHZ;
-				rx_status.rateKbps =
-					(rx_status.rateKbps * 27) / 13;
-			}
-			if (ds->ds_rxstat.rs_flags & ATH9K_RX_GI)
-				rx_status.rateKbps =
-					(rx_status.rateKbps * 10) / 9;
-			else
-				rx_status.flags |= ATH_RX_SHORT_GI;
-		}
+		if (!ath_rx_prepare(skb, ds, &rx_status, &decrypt_error, sc))
+			goto requeue;
 
-		/* sc_noise_floor is only available when the station
-		   attaches to an AP, so we use a default value
-		   if we are not yet attached. */
-		rx_status.abs_rssi =
-			ds->ds_rxstat.rs_rssi + sc->sc_ani.sc_noise_floor;
+		/* Ensure we always have an skb to requeue once we are done
+		 * processing the current buffer's skb */
+		requeue_skb = ath_rxbuf_alloc(sc, sc->sc_rxbufsize);
 
-		pci_dma_sync_single_for_cpu(sc->pdev,
-					    bf->bf_buf_addr,
+		/* If there is no memory we ignore the current RX'd frame,
+		 * tell hardware it can give us a new frame using the old
+		 * skb and put it at the tail of the sc->sc_rxbuf list for
+		 * processing. */
+		if (!requeue_skb)
+			goto requeue;
+
+		/* Sync and unmap the frame */
+		pci_dma_sync_single_for_cpu(sc->pdev, bf->bf_buf_addr,
 					    skb_tailroom(skb),
 					    PCI_DMA_FROMDEVICE);
-		pci_unmap_single(sc->pdev,
-				 bf->bf_buf_addr,
+		pci_unmap_single(sc->pdev, bf->bf_buf_addr,
 				 sc->sc_rxbufsize,
 				 PCI_DMA_FROMDEVICE);
 
-		/* XXX: Ah! make me more readable, use a helper */
-		if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {
-			if (ds->ds_rxstat.rs_moreaggr == 0) {
-				rx_status.rssictl[0] =
-					ds->ds_rxstat.rs_rssi_ctl0;
-				rx_status.rssictl[1] =
-					ds->ds_rxstat.rs_rssi_ctl1;
-				rx_status.rssictl[2] =
-					ds->ds_rxstat.rs_rssi_ctl2;
-				rx_status.rssi = ds->ds_rxstat.rs_rssi;
-				if (ds->ds_rxstat.rs_flags & ATH9K_RX_2040) {
-					rx_status.rssiextn[0] =
-						ds->ds_rxstat.rs_rssi_ext0;
-					rx_status.rssiextn[1] =
-						ds->ds_rxstat.rs_rssi_ext1;
-					rx_status.rssiextn[2] =
-						ds->ds_rxstat.rs_rssi_ext2;
-					rx_status.flags |=
-						ATH_RX_RSSI_EXTN_VALID;
-				}
-				rx_status.flags |= ATH_RX_RSSI_VALID |
-					ATH_RX_CHAIN_RSSI_VALID;
-			}
-		} else {
-			/*
-			 * Need to insert the "combined" rssi into the
-			 * status structure for upper layer processing
-			 */
-			rx_status.rssi = ds->ds_rxstat.rs_rssi;
-			rx_status.flags |= ATH_RX_RSSI_VALID;
+		skb_put(skb, ds->ds_rxstat.rs_datalen);
+		skb->protocol = cpu_to_be16(ETH_P_CONTROL);
+
+		/* see if any padding is done by the hw and remove it */
+		hdr = (struct ieee80211_hdr *)skb->data;
+		hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+
+		if (hdrlen & 3) {
+			padsize = hdrlen % 4;
+			memmove(skb->data + padsize, skb->data, hdrlen);
+			skb_pull(skb, padsize);
 		}
 
-		/* Pass frames up to the stack. */
+		keyix = ds->ds_rxstat.rs_keyix;
 
-		type = ath_rx_indicate(sc, skb,
-			&rx_status, ds->ds_rxstat.rs_keyix);
+		if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error) {
+			rx_status.flag |= RX_FLAG_DECRYPTED;
+		} else if ((le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_PROTECTED)
+			   && !decrypt_error && skb->len >= hdrlen + 4) {
+			keyix = skb->data[hdrlen + 3] >> 6;
+
+			if (test_bit(keyix, sc->sc_keymap))
+				rx_status.flag |= RX_FLAG_DECRYPTED;
+		}
+
+		/* Send the frame to mac80211 */
+		__ieee80211_rx(sc->hw, skb, &rx_status);
+
+		/* We will now give hardware our shiny new allocated skb */
+		bf->bf_mpdu = requeue_skb;
+		bf->bf_buf_addr = pci_map_single(sc->pdev, requeue_skb->data,
+					 sc->sc_rxbufsize,
+					 PCI_DMA_FROMDEVICE);
+		bf->bf_dmacontext = bf->bf_buf_addr;
 
 		/*
 		 * change the default rx antenna if rx diversity chooses the
@@ -716,37 +593,16 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 */
 		if (sc->sc_defant != ds->ds_rxstat.rs_antenna) {
 			if (++sc->sc_rxotherant >= 3)
-				ath_setdefantenna(sc,
-						ds->ds_rxstat.rs_antenna);
+				ath_setdefantenna(sc, ds->ds_rxstat.rs_antenna);
 		} else {
 			sc->sc_rxotherant = 0;
 		}
+requeue:
+		list_move_tail(&bf->list, &sc->sc_rxbuf);
+		ath_rx_buf_link(sc, bf);
+	} while (1);
 
-#ifdef CONFIG_SLOW_ANT_DIV
-		if ((rx_status.flags & ATH_RX_RSSI_VALID) &&
-		    ieee80211_is_beacon(fc)) {
-			ath_slow_ant_div(&sc->sc_antdiv, hdr, &ds->ds_rxstat);
-		}
-#endif
-		/*
-		 * For frames successfully indicated, the buffer will be
-		 * returned to us by upper layers by calling
-		 * ath_rx_mpdu_requeue, either synchronusly or asynchronously.
-		 * So we don't want to do it here in this loop.
-		 */
-		continue;
-
-rx_next:
-		bf->bf_status |= ATH_BUFSTATUS_FREE;
-	} while (TRUE);
-
-	if (chainreset) {
-		DPRINTF(sc, ATH_DBG_CONFIG,
-			"%s: Reset rx chain mask. "
-			"Do internal reset\n", __func__);
-		ASSERT(flush == 0);
-		ath_reset(sc, false);
-	}
+	spin_unlock_bh(&sc->sc_rxbuflock);
 
 	return 0;
 #undef PA2DESC

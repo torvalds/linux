@@ -84,6 +84,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/firmware.h>
+#include <linux/suspend.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
@@ -431,9 +432,9 @@ struct fw_info {
 };
 
 const static struct fw_info orinoco_fw[] = {
-	{ "", "agere_sta_fw.bin", "agere_ap_fw.bin", 0x00390000, 1000 },
-	{ "", "prism_sta_fw.bin", "prism_ap_fw.bin", 0, 1024 },
-	{ "symbol_sp24t_prim_fw", "symbol_sp24t_sec_fw", "", 0x00003100, 512 }
+	{ NULL, "agere_sta_fw.bin", "agere_ap_fw.bin", 0x00390000, 1000 },
+	{ NULL, "prism_sta_fw.bin", "prism_ap_fw.bin", 0, 1024 },
+	{ "symbol_sp24t_prim_fw", "symbol_sp24t_sec_fw", NULL, 0x00003100, 512 }
 };
 
 /* Structure used to access fields in FW
@@ -487,18 +488,17 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	if (err)
 		goto free;
 
-	if (priv->cached_fw)
-		fw_entry = priv->cached_fw;
-	else {
+	if (!priv->cached_fw) {
 		err = request_firmware(&fw_entry, firmware, priv->dev);
+
 		if (err) {
 			printk(KERN_ERR "%s: Cannot find firmware %s\n",
 			       dev->name, firmware);
 			err = -ENOENT;
 			goto free;
 		}
-		priv->cached_fw = fw_entry;
-	}
+	} else
+		fw_entry = priv->cached_fw;
 
 	hdr = (const struct orinoco_fw_header *) fw_entry->data;
 
@@ -540,11 +540,9 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	       dev->name, hermes_present(hw));
 
 abort:
-	/* In case of error, assume firmware was bogus and release it */
-	if (err) {
-		priv->cached_fw = NULL;
+	/* If we requested the firmware, release it. */
+	if (!priv->cached_fw)
 		release_firmware(fw_entry);
-	}
 
 free:
 	kfree(pda);
@@ -648,34 +646,41 @@ symbol_dl_firmware(struct orinoco_private *priv,
 	int ret;
 	const struct firmware *fw_entry;
 
-	if (request_firmware(&fw_entry, fw->pri_fw,
-			     priv->dev) != 0) {
-		printk(KERN_ERR "%s: Cannot find firmware: %s\n",
-		       dev->name, fw->pri_fw);
-		return -ENOENT;
-	}
+	if (!priv->cached_pri_fw) {
+		if (request_firmware(&fw_entry, fw->pri_fw, priv->dev) != 0) {
+			printk(KERN_ERR "%s: Cannot find firmware: %s\n",
+			       dev->name, fw->pri_fw);
+			return -ENOENT;
+		}
+	} else
+		fw_entry = priv->cached_pri_fw;
 
 	/* Load primary firmware */
 	ret = symbol_dl_image(priv, fw, fw_entry->data,
 			      fw_entry->data + fw_entry->size, 0);
-	release_firmware(fw_entry);
+
+	if (!priv->cached_pri_fw)
+		release_firmware(fw_entry);
 	if (ret) {
 		printk(KERN_ERR "%s: Primary firmware download failed\n",
 		       dev->name);
 		return ret;
 	}
 
-	if (request_firmware(&fw_entry, fw->sta_fw,
-			     priv->dev) != 0) {
-		printk(KERN_ERR "%s: Cannot find firmware: %s\n",
-		       dev->name, fw->sta_fw);
-		return -ENOENT;
-	}
+	if (!priv->cached_fw) {
+		if (request_firmware(&fw_entry, fw->sta_fw, priv->dev) != 0) {
+			printk(KERN_ERR "%s: Cannot find firmware: %s\n",
+			       dev->name, fw->sta_fw);
+			return -ENOENT;
+		}
+	} else
+		fw_entry = priv->cached_fw;
 
 	/* Load secondary firmware */
 	ret = symbol_dl_image(priv, fw, fw_entry->data,
 			      fw_entry->data + fw_entry->size, 1);
-	release_firmware(fw_entry);
+	if (!priv->cached_fw)
+		release_firmware(fw_entry);
 	if (ret) {
 		printk(KERN_ERR "%s: Secondary firmware download failed\n",
 		       dev->name);
@@ -707,6 +712,45 @@ static int orinoco_download(struct orinoco_private *priv)
 
 	return err;
 }
+
+#if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
+static void orinoco_cache_fw(struct orinoco_private *priv, int ap)
+{
+	const struct firmware *fw_entry = NULL;
+	const char *pri_fw;
+	const char *fw;
+
+	pri_fw = orinoco_fw[priv->firmware_type].pri_fw;
+	if (ap)
+		fw = orinoco_fw[priv->firmware_type].ap_fw;
+	else
+		fw = orinoco_fw[priv->firmware_type].sta_fw;
+
+	if (pri_fw) {
+		if (request_firmware(&fw_entry, pri_fw, priv->dev) == 0)
+			priv->cached_pri_fw = fw_entry;
+	}
+
+	if (fw) {
+		if (request_firmware(&fw_entry, fw, priv->dev) == 0)
+			priv->cached_fw = fw_entry;
+	}
+}
+
+static void orinoco_uncache_fw(struct orinoco_private *priv)
+{
+	if (priv->cached_pri_fw)
+		release_firmware(priv->cached_pri_fw);
+	if (priv->cached_fw)
+		release_firmware(priv->cached_fw);
+
+	priv->cached_pri_fw = NULL;
+	priv->cached_fw = NULL;
+}
+#else
+#define orinoco_cache_fw(priv, ap)
+#define orinoco_uncache_fw(priv)
+#endif
 
 /********************************************************************/
 /* Device methods                                                   */
@@ -809,7 +853,7 @@ static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 			wstats->qual.qual = (int)le16_to_cpu(cq.qual);
 			wstats->qual.level = (int)le16_to_cpu(cq.signal) - 0x95;
 			wstats->qual.noise = (int)le16_to_cpu(cq.noise) - 0x95;
-			wstats->qual.updated = 7;
+			wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		}
 	}
 
@@ -1168,7 +1212,7 @@ static inline void orinoco_spy_gather(struct net_device *dev, u_char *mac,
 	wstats.level = level - 0x95;
 	wstats.noise = noise - 0x95;
 	wstats.qual = (level > noise) ? (level - noise) : 0;
-	wstats.updated = 7;
+	wstats.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	/* Update spy records */
 	wireless_spy_update(dev, mac, &wstats);
 }
@@ -3062,6 +3106,50 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 }
 
 /********************************************************************/
+/* Power management                                                 */
+/********************************************************************/
+#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_HERMES_CACHE_FW_ON_INIT)
+static int orinoco_pm_notifier(struct notifier_block *notifier,
+			       unsigned long pm_event,
+			       void *unused)
+{
+	struct orinoco_private *priv = container_of(notifier,
+						    struct orinoco_private,
+						    pm_notifier);
+
+	/* All we need to do is cache the firmware before suspend, and
+	 * release it when we come out.
+	 *
+	 * Only need to do this if we're downloading firmware. */
+	if (!priv->do_fw_download)
+		return NOTIFY_DONE;
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		orinoco_cache_fw(priv, 0);
+		break;
+
+	case PM_POST_RESTORE:
+		/* Restore from hibernation failed. We need to clean
+		 * up in exactly the same way, so fall through. */
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+		orinoco_uncache_fw(priv);
+		break;
+
+	case PM_RESTORE_PREPARE:
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+#else /* !PM_SLEEP || HERMES_CACHE_FW_ON_INIT */
+#define orinoco_pm_notifier NULL
+#endif
+
+/********************************************************************/
 /* Initialization                                                   */
 /********************************************************************/
 
@@ -3304,6 +3392,10 @@ static int orinoco_init(struct net_device *dev)
 	}
 
 	if (priv->do_fw_download) {
+#ifdef CONFIG_HERMES_CACHE_FW_ON_INIT
+		orinoco_cache_fw(priv, 0);
+#endif
+
 		err = orinoco_download(priv);
 		if (err)
 			priv->do_fw_download = 0;
@@ -3540,7 +3632,12 @@ struct net_device
 	netif_carrier_off(dev);
 	priv->last_linkstatus = 0xffff;
 
+	priv->cached_pri_fw = NULL;
 	priv->cached_fw = NULL;
+
+	/* Register PM notifiers */
+	priv->pm_notifier.notifier_call = orinoco_pm_notifier;
+	register_pm_notifier(&priv->pm_notifier);
 
 	return dev;
 }
@@ -3553,9 +3650,10 @@ void free_orinocodev(struct net_device *dev)
 	 * when we call tasklet_kill it will run one final time,
 	 * emptying the list */
 	tasklet_kill(&priv->rx_tasklet);
-	if (priv->cached_fw)
-		release_firmware(priv->cached_fw);
-	priv->cached_fw = NULL;
+
+	unregister_pm_notifier(&priv->pm_notifier);
+	orinoco_uncache_fw(priv);
+
 	priv->wpa_ie_len = 0;
 	kfree(priv->wpa_ie);
 	orinoco_mic_free(priv);

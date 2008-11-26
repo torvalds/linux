@@ -530,6 +530,8 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	rx_status.noise = priv->noise;
 	/* XX correct? */
 	rx_status.qual = (100 * hdr->rssi) / 127;
+	if (hdr->rate & 0x10)
+		rx_status.flag |= RX_FLAG_SHORTPRE;
 	rx_status.rate_idx = (dev->conf.channel->band == IEEE80211_BAND_2GHZ ?
 			hdr->rate : (hdr->rate - 4)) & 0xf;
 	rx_status.freq = freq;
@@ -576,7 +578,7 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 	unsigned long flags;
 	u32 freed = 0, last_addr = priv->rx_start;
 
-	if (!skb || !dev)
+	if (unlikely(!skb || !dev || !skb_queue_len(&priv->tx_queue)))
 		return;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
@@ -1058,6 +1060,7 @@ static int p54_tx_fill(struct ieee80211_hw *dev, struct sk_buff *skb,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
 		if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 			*aid = 0;
 			*queue = 3;
@@ -1198,7 +1201,10 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	txhdr->key_type = 0;
 	txhdr->key_len = 0;
 	txhdr->hw_queue = queue;
-	txhdr->backlog = 32;
+	if (current_queue)
+		txhdr->backlog = current_queue->len;
+	else
+		txhdr->backlog = 0;
 	memset(txhdr->durations, 0, sizeof(txhdr->durations));
 	txhdr->tx_antenna = (info->antenna_sel_tx == 0) ?
 		2 : info->antenna_sel_tx - 1;
@@ -1243,20 +1249,20 @@ static int p54_setup_mac(struct ieee80211_hw *dev, u16 mode, const u8 *bssid)
 	setup->rx_antenna = priv->rx_antenna;
 	setup->rx_align = 0;
 	if (priv->fw_var < 0x500) {
-		setup->v1.basic_rate_mask = cpu_to_le32(0x15f);
+		setup->v1.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		memset(setup->v1.rts_rates, 0, 8);
 		setup->v1.rx_addr = cpu_to_le32(priv->rx_end);
 		setup->v1.max_rx = cpu_to_le16(priv->rx_mtu);
 		setup->v1.rxhw = cpu_to_le16(priv->rxhw);
-		setup->v1.wakeup_timer = cpu_to_le16(500);
+		setup->v1.wakeup_timer = cpu_to_le16(priv->wakeup_timer);
 		setup->v1.unalloc0 = cpu_to_le16(0);
 	} else {
 		setup->v2.rx_addr = cpu_to_le32(priv->rx_end);
 		setup->v2.max_rx = cpu_to_le16(priv->rx_mtu);
 		setup->v2.rxhw = cpu_to_le16(priv->rxhw);
-		setup->v2.timer = cpu_to_le16(1000);
+		setup->v2.timer = cpu_to_le16(priv->wakeup_timer);
 		setup->v2.truncate = cpu_to_le16(48896);
-		setup->v2.basic_rate_mask = cpu_to_le32(0x15f);
+		setup->v2.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		setup->v2.sbss_offset = 0;
 		setup->v2.mcast_window = 0;
 		setup->v2.rx_rssi_threshold = 0;
@@ -1342,7 +1348,7 @@ static int p54_set_freq(struct ieee80211_hw *dev, u16 frequency)
 	} else {
 		chan->v2.rssical_mul = cpu_to_le16(130);
 		chan->v2.rssical_add = cpu_to_le16(0xfe70);
-		chan->v2.basic_rate_mask = cpu_to_le32(0x15f);
+		chan->v2.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		memset(chan->v2.rts_rates, 0, 8);
 	}
 	priv->tx(dev, skb, 1);
@@ -1518,16 +1524,24 @@ static int p54_start(struct ieee80211_hw *dev)
 
 	mutex_lock(&priv->conf_mutex);
 	err = priv->open(dev);
-	if (!err)
-		priv->mode = NL80211_IFTYPE_MONITOR;
+	if (err)
+		goto out;
 	P54_SET_QUEUE(priv->qos_params[0], 0x0002, 0x0003, 0x0007, 47);
 	P54_SET_QUEUE(priv->qos_params[1], 0x0002, 0x0007, 0x000f, 94);
 	P54_SET_QUEUE(priv->qos_params[2], 0x0003, 0x000f, 0x03ff, 0);
 	P54_SET_QUEUE(priv->qos_params[3], 0x0007, 0x000f, 0x03ff, 0);
 	err = p54_set_edcf(dev);
-	if (!err)
-		err = p54_init_stats(dev);
+	if (err)
+		goto out;
+	err = p54_init_stats(dev);
+	if (err)
+		goto out;
+	err = p54_setup_mac(dev, P54_FILTER_TYPE_NONE, NULL);
+	if (err)
+		goto out;
+	priv->mode = NL80211_IFTYPE_MONITOR;
 
+out:
 	mutex_unlock(&priv->conf_mutex);
 	return err;
 }
@@ -1547,7 +1561,6 @@ static void p54_stop(struct ieee80211_hw *dev)
 	while ((skb = skb_dequeue(&priv->tx_queue)))
 		kfree_skb(skb);
 
-	kfree(priv->cached_beacon);
 	priv->cached_beacon = NULL;
 	priv->stop(dev);
 	priv->tsf_high32 = priv->tsf_low32 = 0;
@@ -1570,6 +1583,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
 		priv->mode = conf->type;
 		break;
 	default:
@@ -1589,6 +1603,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 		p54_setup_mac(dev, P54_FILTER_TYPE_AP, priv->mac_addr);
 		break;
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
 		p54_setup_mac(dev, P54_FILTER_TYPE_IBSS, NULL);
 		break;
 	default:
@@ -1653,6 +1668,7 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
 		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 		ret = p54_set_freq(dev, dev->conf.channel->center_freq);
 		if (ret)
@@ -1712,10 +1728,9 @@ static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	if ((params) && !(queue > 4)) {
 		P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
 			params->cw_min, params->cw_max, params->txop);
+		ret = p54_set_edcf(dev);
 	} else
 		ret = -EINVAL;
-	if (!ret)
-		ret = p54_set_edcf(dev);
 	mutex_unlock(&priv->conf_mutex);
 	return ret;
 }
@@ -1792,6 +1807,24 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 		priv->use_short_slot = info->use_short_slot;
 		p54_set_edcf(dev);
 	}
+	if (changed & BSS_CHANGED_BASIC_RATES) {
+		if (dev->conf.channel->band == IEEE80211_BAND_5GHZ)
+			priv->basic_rate_mask = (info->basic_rates << 4);
+		else
+			priv->basic_rate_mask = info->basic_rates;
+		p54_setup_mac(dev, priv->mac_mode, priv->bssid);
+		if (priv->fw_var >= 0x500)
+			p54_set_freq(dev, dev->conf.channel->center_freq);
+	}
+	if (changed & BSS_CHANGED_ASSOC) {
+		if (info->assoc) {
+			priv->aid = info->aid;
+			priv->wakeup_timer = info->beacon_int *
+					     info->dtim_period * 5;
+			p54_setup_mac(dev, priv->mac_mode, priv->bssid);
+		}
+	}
+
 }
 
 static const struct ieee80211_ops p54_ops = {
@@ -1821,14 +1854,16 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 
 	priv = dev->priv;
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
+	priv->basic_rate_mask = 0x15f;
 	skb_queue_head_init(&priv->tx_queue);
 	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_NOISE_DBM;
 
-	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION |
-					  NL80211_IFTYPE_ADHOC |
-					  NL80211_IFTYPE_AP);
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				      BIT(NL80211_IFTYPE_ADHOC) |
+				      BIT(NL80211_IFTYPE_AP) |
+				      BIT(NL80211_IFTYPE_MESH_POINT);
 
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
 	priv->tx_stats[0].limit = 1;		/* Beacon queue */

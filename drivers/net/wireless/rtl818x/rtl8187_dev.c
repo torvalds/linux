@@ -176,8 +176,27 @@ static void rtl8187_tx_cb(struct urb *urb)
 	skb_pull(skb, priv->is_rtl8187b ? sizeof(struct rtl8187b_tx_hdr) :
 					  sizeof(struct rtl8187_tx_hdr));
 	ieee80211_tx_info_clear_status(info);
-	info->flags |= IEEE80211_TX_STAT_ACK;
-	ieee80211_tx_status_irqsafe(hw, skb);
+
+	if (!urb->status &&
+	    !(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	    priv->is_rtl8187b) {
+		skb_queue_tail(&priv->b_tx_status.queue, skb);
+
+		/* queue is "full", discard last items */
+		while (skb_queue_len(&priv->b_tx_status.queue) > 5) {
+			struct sk_buff *old_skb;
+
+			dev_dbg(&priv->udev->dev,
+				"transmit status queue full\n");
+
+			old_skb = skb_dequeue(&priv->b_tx_status.queue);
+			ieee80211_tx_status_irqsafe(hw, old_skb);
+		}
+	} else {
+		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) && !urb->status)
+			info->flags |= IEEE80211_TX_STAT_ACK;
+		ieee80211_tx_status_irqsafe(hw, skb);
+	}
 }
 
 static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
@@ -219,7 +238,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		hdr->flags = cpu_to_le32(flags);
 		hdr->len = 0;
 		hdr->rts_duration = rts_dur;
-		hdr->retry = cpu_to_le32((info->control.rates[0].count - 1) << 8);
+		hdr->retry = cpu_to_le32(info->control.rates[0].count << 8);
 		buf = hdr;
 
 		ep = 2;
@@ -237,7 +256,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		memset(hdr, 0, sizeof(*hdr));
 		hdr->flags = cpu_to_le32(flags);
 		hdr->rts_duration = rts_dur;
-		hdr->retry = cpu_to_le32((info->control.rates[0].count - 1) << 8);
+		hdr->retry = cpu_to_le32(info->control.rates[0].count << 8);
 		hdr->tx_duration =
 			ieee80211_generic_frame_duration(dev, priv->vif,
 							 skb->len, txrate);
@@ -399,6 +418,109 @@ static int rtl8187_init_urbs(struct ieee80211_hw *dev)
 		skb_queue_tail(&priv->rx_queue, skb);
 		usb_submit_urb(entry, GFP_KERNEL);
 	}
+
+	return 0;
+}
+
+static void rtl8187b_status_cb(struct urb *urb)
+{
+	struct ieee80211_hw *hw = (struct ieee80211_hw *)urb->context;
+	struct rtl8187_priv *priv = hw->priv;
+	u64 val;
+	unsigned int cmd_type;
+
+	if (unlikely(urb->status)) {
+		usb_free_urb(urb);
+		return;
+	}
+
+	/*
+	 * Read from status buffer:
+	 *
+	 * bits [30:31] = cmd type:
+	 * - 0 indicates tx beacon interrupt
+	 * - 1 indicates tx close descriptor
+	 *
+	 * In the case of tx beacon interrupt:
+	 * [0:9] = Last Beacon CW
+	 * [10:29] = reserved
+	 * [30:31] = 00b
+	 * [32:63] = Last Beacon TSF
+	 *
+	 * If it's tx close descriptor:
+	 * [0:7] = Packet Retry Count
+	 * [8:14] = RTS Retry Count
+	 * [15] = TOK
+	 * [16:27] = Sequence No
+	 * [28] = LS
+	 * [29] = FS
+	 * [30:31] = 01b
+	 * [32:47] = unused (reserved?)
+	 * [48:63] = MAC Used Time
+	 */
+	val = le64_to_cpu(priv->b_tx_status.buf);
+
+	cmd_type = (val >> 30) & 0x3;
+	if (cmd_type == 1) {
+		unsigned int pkt_rc, seq_no;
+		bool tok;
+		struct sk_buff *skb;
+		struct ieee80211_hdr *ieee80211hdr;
+		unsigned long flags;
+
+		pkt_rc = val & 0xFF;
+		tok = val & (1 << 15);
+		seq_no = (val >> 16) & 0xFFF;
+
+		spin_lock_irqsave(&priv->b_tx_status.queue.lock, flags);
+		skb_queue_reverse_walk(&priv->b_tx_status.queue, skb) {
+			ieee80211hdr = (struct ieee80211_hdr *)skb->data;
+
+			/*
+			 * While testing, it was discovered that the seq_no
+			 * doesn't actually contains the sequence number.
+			 * Instead of returning just the 12 bits of sequence
+			 * number, hardware is returning entire sequence control
+			 * (fragment number plus sequence number) in a 12 bit
+			 * only field overflowing after some time. As a
+			 * workaround, just consider the lower bits, and expect
+			 * it's unlikely we wrongly ack some sent data
+			 */
+			if ((le16_to_cpu(ieee80211hdr->seq_ctrl)
+			    & 0xFFF) == seq_no)
+				break;
+		}
+		if (skb != (struct sk_buff *) &priv->b_tx_status.queue) {
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+			__skb_unlink(skb, &priv->b_tx_status.queue);
+			if (tok)
+				info->flags |= IEEE80211_TX_STAT_ACK;
+			info->status.rates[0].count = pkt_rc + 1;
+
+			ieee80211_tx_status_irqsafe(hw, skb);
+		}
+		spin_unlock_irqrestore(&priv->b_tx_status.queue.lock, flags);
+	}
+
+	usb_submit_urb(urb, GFP_ATOMIC);
+}
+
+static int rtl8187b_init_status_urb(struct ieee80211_hw *dev)
+{
+	struct rtl8187_priv *priv = dev->priv;
+	struct urb *entry;
+
+	entry = usb_alloc_urb(0, GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+	priv->b_tx_status.urb = entry;
+
+	usb_fill_bulk_urb(entry, priv->udev, usb_rcvbulkpipe(priv->udev, 9),
+			  &priv->b_tx_status.buf, sizeof(priv->b_tx_status.buf),
+			  rtl8187b_status_cb, dev);
+
+	usb_submit_urb(entry, GFP_KERNEL);
 
 	return 0;
 }
@@ -712,6 +834,13 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite16_idx(priv, (__le16 *)0xFFEC, 0x0800, 1);
 
+	priv->slot_time = 0x9;
+	priv->aifsn[0] = 2; /* AIFSN[AC_VO] */
+	priv->aifsn[1] = 2; /* AIFSN[AC_VI] */
+	priv->aifsn[2] = 7; /* AIFSN[AC_BK] */
+	priv->aifsn[3] = 3; /* AIFSN[AC_BE] */
+	rtl818x_iowrite8(priv, &priv->map->ACM_CONTROL, 0);
+
 	return 0;
 }
 
@@ -748,6 +877,7 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 				  (7 << 0  /* long retry limit */) |
 				  (7 << 21 /* MAX TX DMA */));
 		rtl8187_init_urbs(dev);
+		rtl8187b_init_status_urb(dev);
 		mutex_unlock(&priv->conf_mutex);
 		return 0;
 	}
@@ -824,6 +954,9 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 		usb_kill_urb(info->urb);
 		kfree_skb(skb);
 	}
+	while ((skb = skb_dequeue(&priv->b_tx_status.queue)))
+		dev_kfree_skb_any(skb);
+	usb_kill_urb(priv->b_tx_status.urb);
 	mutex_unlock(&priv->conf_mutex);
 }
 
@@ -919,24 +1052,38 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev,
 	return 0;
 }
 
+/*
+ * With 8187B, AC_*_PARAM clashes with FEMR definition in struct rtl818x_csr for
+ * example. Thus we have to use raw values for AC_*_PARAM register addresses.
+ */
+static __le32 *rtl8187b_ac_addr[4] = {
+	(__le32 *) 0xFFF0, /* AC_VO */
+	(__le32 *) 0xFFF4, /* AC_VI */
+	(__le32 *) 0xFFFC, /* AC_BK */
+	(__le32 *) 0xFFF8, /* AC_BE */
+};
+
+#define SIFS_TIME 0xa
+
 static void rtl8187_conf_erp(struct rtl8187_priv *priv, bool use_short_slot,
 			     bool use_short_preamble)
 {
 	if (priv->is_rtl8187b) {
-		u8 difs, eifs, slot_time;
+		u8 difs, eifs;
 		u16 ack_timeout;
+		int queue;
 
 		if (use_short_slot) {
-			slot_time = 0x9;
+			priv->slot_time = 0x9;
 			difs = 0x1c;
 			eifs = 0x53;
 		} else {
-			slot_time = 0x14;
+			priv->slot_time = 0x14;
 			difs = 0x32;
 			eifs = 0x5b;
 		}
-		rtl818x_iowrite8(priv, &priv->map->SIFS, 0xa);
-		rtl818x_iowrite8(priv, &priv->map->SLOT, slot_time);
+		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
+		rtl818x_iowrite8(priv, &priv->map->SLOT, priv->slot_time);
 		rtl818x_iowrite8(priv, &priv->map->DIFS, difs);
 
 		/*
@@ -957,18 +1104,21 @@ static void rtl8187_conf_erp(struct rtl8187_priv *priv, bool use_short_slot,
 			ack_timeout += 144;
 		rtl818x_iowrite8(priv, &priv->map->CARRIER_SENSE_COUNTER,
 				 DIV_ROUND_UP(ack_timeout, 4));
+
+		for (queue = 0; queue < 4; queue++)
+			rtl818x_iowrite8(priv, (u8 *) rtl8187b_ac_addr[queue],
+					 priv->aifsn[queue] * priv->slot_time +
+					 SIFS_TIME);
 	} else {
 		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
 		if (use_short_slot) {
 			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x9);
 			rtl818x_iowrite8(priv, &priv->map->DIFS, 0x14);
 			rtl818x_iowrite8(priv, &priv->map->EIFS, 91 - 0x14);
-			rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0x73);
 		} else {
 			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x14);
 			rtl818x_iowrite8(priv, &priv->map->DIFS, 0x24);
 			rtl818x_iowrite8(priv, &priv->map->EIFS, 91 - 0x24);
-			rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0xa5);
 		}
 	}
 }
@@ -1017,6 +1167,42 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 	rtl818x_iowrite32_async(priv, &priv->map->RX_CONF, priv->rx_conf);
 }
 
+static int rtl8187_conf_tx(struct ieee80211_hw *dev, u16 queue,
+			   const struct ieee80211_tx_queue_params *params)
+{
+	struct rtl8187_priv *priv = dev->priv;
+	u8 cw_min, cw_max;
+
+	if (queue > 3)
+		return -EINVAL;
+
+	cw_min = fls(params->cw_min);
+	cw_max = fls(params->cw_max);
+
+	if (priv->is_rtl8187b) {
+		priv->aifsn[queue] = params->aifs;
+
+		/*
+		 * This is the structure of AC_*_PARAM registers in 8187B:
+		 * - TXOP limit field, bit offset = 16
+		 * - ECWmax, bit offset = 12
+		 * - ECWmin, bit offset = 8
+		 * - AIFS, bit offset = 0
+		 */
+		rtl818x_iowrite32(priv, rtl8187b_ac_addr[queue],
+				  (params->txop << 16) | (cw_max << 12) |
+				  (cw_min << 8) | (params->aifs *
+				  priv->slot_time + SIFS_TIME));
+	} else {
+		if (queue != 0)
+			return -EINVAL;
+
+		rtl818x_iowrite8(priv, &priv->map->CW_VAL,
+				 cw_min | (cw_max << 4));
+	}
+	return 0;
+}
+
 static const struct ieee80211_ops rtl8187_ops = {
 	.tx			= rtl8187_tx,
 	.start			= rtl8187_start,
@@ -1027,6 +1213,7 @@ static const struct ieee80211_ops rtl8187_ops = {
 	.config_interface	= rtl8187_config_interface,
 	.bss_info_changed	= rtl8187_bss_info_changed,
 	.configure_filter	= rtl8187_configure_filter,
+	.conf_tx		= rtl8187_conf_tx
 };
 
 static void rtl8187_eeprom_register_read(struct eeprom_93cx6 *eeprom)
@@ -1222,9 +1409,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	}
 
 	if (priv->is_rtl8187b) {
-		printk(KERN_WARNING "rtl8187: 8187B chip detected. Support "
-			"is EXPERIMENTAL, and could damage your\n"
-			"         hardware, use at your own risk\n");
+		printk(KERN_WARNING "rtl8187: 8187B chip detected.\n");
 		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
 	} else {
 		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
@@ -1256,6 +1441,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		goto err_free_dev;
 	}
 	mutex_init(&priv->conf_mutex);
+	skb_queue_head_init(&priv->b_tx_status.queue);
 
 	printk(KERN_INFO "%s: hwaddr %pM, %s V%d + %s\n",
 	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,

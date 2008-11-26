@@ -132,7 +132,7 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 	return 1;
 }
 
-int iwl_send_add_sta(struct iwl_priv *priv,
+static int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
 {
 	struct iwl_rx_packet *res = NULL;
@@ -180,7 +180,6 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 
 	return ret;
 }
-EXPORT_SYMBOL(iwl_send_add_sta);
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 				   struct ieee80211_sta_ht_cap *sta_ht_inf)
@@ -464,6 +463,29 @@ out:
 }
 EXPORT_SYMBOL(iwl_remove_station);
 
+/**
+ * iwl_clear_stations_table - Clear the driver's station table
+ *
+ * NOTE:  This does not clear or otherwise alter the device's station table.
+ */
+void iwl_clear_stations_table(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+
+	if (iwl_is_alive(priv) &&
+	   !test_bit(STATUS_EXIT_PENDING, &priv->status) &&
+	   iwl_send_cmd_pdu_async(priv, REPLY_REMOVE_ALL_STA, 0, NULL, NULL))
+		IWL_ERROR("Couldn't clear the station table\n");
+
+	priv->num_stations = 0;
+	memset(priv->stations, 0, sizeof(priv->stations));
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+}
+EXPORT_SYMBOL(iwl_clear_stations_table);
+
 static int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
 	int i;
@@ -702,6 +724,55 @@ static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 
 	return ret;
 }
+
+void iwl_update_tkip_key(struct iwl_priv *priv,
+			struct ieee80211_key_conf *keyconf,
+			const u8 *addr, u32 iv32, u16 *phase1key)
+{
+	u8 sta_id = IWL_INVALID_STATION;
+	unsigned long flags;
+	__le16 key_flags = 0;
+	int i;
+	DECLARE_MAC_BUF(mac);
+
+	sta_id = iwl_find_station(priv, addr);
+	if (sta_id == IWL_INVALID_STATION) {
+		IWL_DEBUG_MAC80211("leave - %pM not in station map.\n",
+				   addr);
+		return;
+	}
+
+	if (iwl_scan_cancel(priv)) {
+		/* cancel scan failed, just live w/ bad key and rely
+		   briefly on SW decryption */
+		return;
+	}
+
+	key_flags |= (STA_KEY_FLG_TKIP | STA_KEY_FLG_MAP_KEY_MSK);
+	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
+	key_flags &= ~STA_KEY_FLG_INVALID;
+
+	if (sta_id == priv->hw_params.bcast_sta_id)
+		key_flags |= STA_KEY_MULTICAST_MSK;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+
+	priv->stations[sta_id].sta.key.key_flags = key_flags;
+	priv->stations[sta_id].sta.key.tkip_rx_tsc_byte2 = (u8) iv32;
+
+	for (i = 0; i < 5; i++)
+		priv->stations[sta_id].sta.key.tkip_rx_ttak[i] =
+			cpu_to_le16(phase1key[i]);
+
+	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
+	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
+
+	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+}
+EXPORT_SYMBOL(iwl_update_tkip_key);
 
 int iwl_remove_dynamic_key(struct iwl_priv *priv,
 				struct ieee80211_key_conf *keyconf,
@@ -989,9 +1060,9 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 EXPORT_SYMBOL(iwl_get_sta_id);
 
 /**
- * iwl_sta_modify_enable_tid_tx - Enable Tx for this TID in station table
+ * iwl_sta_tx_modify_enable_tid - Enable Tx for this TID in station table
  */
-void iwl_sta_modify_enable_tid_tx(struct iwl_priv *priv, int sta_id, int tid)
+void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid)
 {
 	unsigned long flags;
 
@@ -1004,5 +1075,81 @@ void iwl_sta_modify_enable_tid_tx(struct iwl_priv *priv, int sta_id, int tid)
 
 	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 }
-EXPORT_SYMBOL(iwl_sta_modify_enable_tid_tx);
+EXPORT_SYMBOL(iwl_sta_tx_modify_enable_tid);
+
+int iwl_sta_rx_agg_start(struct iwl_priv *priv,
+			 const u8 *addr, int tid, u16 ssn)
+{
+	unsigned long flags;
+	int sta_id;
+
+	sta_id = iwl_find_station(priv, addr);
+	if (sta_id == IWL_INVALID_STATION)
+		return -ENXIO;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	priv->stations[sta_id].sta.station_flags_msk = 0;
+	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_ADDBA_TID_MSK;
+	priv->stations[sta_id].sta.add_immediate_ba_tid = (u8)tid;
+	priv->stations[sta_id].sta.add_immediate_ba_ssn = cpu_to_le16(ssn);
+	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	return iwl_send_add_sta(priv, &priv->stations[sta_id].sta,
+					CMD_ASYNC);
+}
+EXPORT_SYMBOL(iwl_sta_rx_agg_start);
+
+int iwl_sta_rx_agg_stop(struct iwl_priv *priv, const u8 *addr, int tid)
+{
+	unsigned long flags;
+	int sta_id;
+
+	sta_id = iwl_find_station(priv, addr);
+	if (sta_id == IWL_INVALID_STATION)
+		return -ENXIO;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	priv->stations[sta_id].sta.station_flags_msk = 0;
+	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_DELBA_TID_MSK;
+	priv->stations[sta_id].sta.remove_immediate_ba_tid = (u8)tid;
+	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	return iwl_send_add_sta(priv, &priv->stations[sta_id].sta,
+					CMD_ASYNC);
+}
+EXPORT_SYMBOL(iwl_sta_rx_agg_stop);
+
+static void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	priv->stations[sta_id].sta.station_flags &= ~STA_FLG_PWR_SAVE_MSK;
+	priv->stations[sta_id].sta.station_flags_msk = STA_FLG_PWR_SAVE_MSK;
+	priv->stations[sta_id].sta.sta.modify_mask = 0;
+	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
+}
+
+void iwl_update_ps_mode(struct iwl_priv *priv, u16 ps_bit, u8 *addr)
+{
+	/* FIXME: need locking over ps_status ??? */
+	u8 sta_id = iwl_find_station(priv, addr);
+
+	if (sta_id != IWL_INVALID_STATION) {
+		u8 sta_awake = priv->stations[sta_id].
+				ps_status == STA_PS_STATUS_WAKE;
+
+		if (sta_awake && ps_bit)
+			priv->stations[sta_id].ps_status = STA_PS_STATUS_SLEEP;
+		else if (!sta_awake && !ps_bit) {
+			iwl_sta_modify_ps_wake(priv, sta_id);
+			priv->stations[sta_id].ps_status = STA_PS_STATUS_WAKE;
+		}
+	}
+}
 

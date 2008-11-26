@@ -53,6 +53,7 @@ static int iwl4965_hw_get_temperature(const struct iwl_priv *priv);
  *   is not compatible with earlier drivers.
  * This number will also appear in << 8 position of 1st dword of uCode file */
 #define IWL4965_UCODE_API "-2"
+#define IWL4965_MODULE_FIRMWARE "iwlwifi-4965" IWL4965_UCODE_API ".ucode"
 
 
 /* module parameters */
@@ -661,7 +662,7 @@ static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
 	int txq_id = txq->q.id;
 
 	/* Find out whether to activate Tx queue */
-	int active = test_bit(txq_id, &priv->txq_ctx_active_msk)?1:0;
+	int active = test_bit(txq_id, &priv->txq_ctx_active_msk) ? 1 : 0;
 
 	/* Set up and activate */
 	iwl_write_prph(priv, IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
@@ -691,9 +692,10 @@ static const u16 default_queue_to_tx_fifo[] = {
 static int iwl4965_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
-	int i = 0;
 	unsigned long flags;
 	int ret;
+	int i, chan;
+	u32 reg_val;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -716,6 +718,17 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 	/* Tel 4965 where to find Tx byte count tables */
 	iwl_write_prph(priv, IWL49_SCD_DRAM_BASE_ADDR,
 			priv->scd_bc_tbls.dma >> 10);
+
+	/* Enable DMA channel */
+	for (chan = 0; chan < FH49_TCSR_CHNL_NUM ; chan++)
+		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
+				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
+
+	/* Update FH chicken bits */
+	reg_val = iwl_read_direct32(priv, FH_TX_CHICKEN_BITS_REG);
+	iwl_write_direct32(priv, FH_TX_CHICKEN_BITS_REG,
+			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	/* Disable chain mode for all queues */
 	iwl_write_prph(priv, IWL49_SCD_QUEUECHAIN_SEL, 0);
@@ -747,7 +760,7 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 				 (1 << priv->hw_params.max_txq_num) - 1);
 
 	/* Activate all Tx DMA/FIFO channels */
-	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 7));
+	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 6));
 
 	iwl4965_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
 
@@ -1909,7 +1922,7 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
 	/* Modify device's station table to Tx this TID */
-	iwl_sta_modify_enable_tid_tx(priv, sta_id, tid);
+	iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	ret = iwl_grab_nic_access(priv);
@@ -2025,7 +2038,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-		info->flags |= iwl_is_tx_success(status)?
+		info->flags |= iwl_is_tx_success(status) ?
 			IEEE80211_TX_STAT_ACK : 0;
 		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
 		/* FIXME: code repetition end */
@@ -2322,7 +2335,7 @@ static struct iwl_ops iwl4965_ops = {
 
 struct iwl_cfg iwl4965_agn_cfg = {
 	.name = "4965AGN",
-	.fw_name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode",
+	.fw_name = IWL4965_MODULE_FIRMWARE,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
@@ -2332,7 +2345,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 };
 
 /* Module firmware */
-MODULE_FIRMWARE("iwlwifi-4965" IWL4965_UCODE_API ".ucode");
+MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE);
 
 module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");

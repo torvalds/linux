@@ -293,8 +293,10 @@ int ath9k_hw_txprocdesc(struct ath_hal *ah, struct ath_desc *ds)
 		ds->ds_txstat.ts_status |= ATH9K_TXERR_XRETRY;
 	if (ads->ds_txstatus1 & AR_Filtered)
 		ds->ds_txstat.ts_status |= ATH9K_TXERR_FILT;
-	if (ads->ds_txstatus1 & AR_FIFOUnderrun)
+	if (ads->ds_txstatus1 & AR_FIFOUnderrun) {
 		ds->ds_txstat.ts_status |= ATH9K_TXERR_FIFO;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
 	if (ads->ds_txstatus9 & AR_TxOpExceeded)
 		ds->ds_txstat.ts_status |= ATH9K_TXERR_XTXOP;
 	if (ads->ds_txstatus1 & AR_TxTimerExpired)

@@ -72,7 +72,7 @@
  * Addresses are offsets from device's PCI hardware base address.
  */
 #define FH_MEM_LOWER_BOUND                   (0x1000)
-#define FH_MEM_UPPER_BOUND                   (0x1EF0)
+#define FH_MEM_UPPER_BOUND                   (0x2000)
 
 /**
  * Keep-Warm (KW) buffer base address.
@@ -268,6 +268,8 @@
 
 #define FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME	(0x00008000)
 
+#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
+
 
 /**
  * Rx Shared Status Registers (RSSR)
@@ -293,6 +295,13 @@
 #define FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE	(0x01000000)
 
 #define FH_MEM_TFDIB_REG1_ADDR_BITSHIFT	28
+
+/* TFDB  Area - TFDs buffer table */
+#define FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK      (0xFFFFFFFF)
+#define FH_TFDIB_LOWER_BOUND       (FH_MEM_LOWER_BOUND + 0x900)
+#define FH_TFDIB_UPPER_BOUND       (FH_MEM_LOWER_BOUND + 0x958)
+#define FH_TFDIB_CTRL0_REG(_chnl)  (FH_TFDIB_LOWER_BOUND + 0x8 * (_chnl))
+#define FH_TFDIB_CTRL1_REG(_chnl)  (FH_TFDIB_LOWER_BOUND + 0x8 * (_chnl) + 0x4)
 
 /**
  * Transmit DMA Channel Control/Status Registers (TCSR)
@@ -323,6 +332,7 @@
 #define FH49_TCSR_CHNL_NUM                            (7)
 #define FH50_TCSR_CHNL_NUM                            (8)
 
+/* TCSR: tx_config register values */
 #define FH_TCSR_CHNL_TX_CONFIG_REG(_chnl)	\
 		(FH_TCSR_LOWER_BOUND + 0x20 * (_chnl))
 #define FH_TCSR_CHNL_TX_CREDIT_REG(_chnl)	\
@@ -379,31 +389,18 @@
 	(FH_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_chnl) | \
 	FH_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_chnl))
 
-
-
-#define FH_REGS_LOWER_BOUND		     (0x1000)
-#define FH_REGS_UPPER_BOUND		     (0x2000)
-
 /* Tx service channels */
-#define FH_SRVC_CHNL                                (9)
-#define FH_SRVC_LOWER_BOUND          (FH_REGS_LOWER_BOUND + 0x9C8)
-#define FH_SRVC_UPPER_BOUND          (FH_REGS_LOWER_BOUND + 0x9D0)
+#define FH_SRVC_CHNL		(9)
+#define FH_SRVC_LOWER_BOUND	(FH_MEM_LOWER_BOUND + 0x9C8)
+#define FH_SRVC_UPPER_BOUND	(FH_MEM_LOWER_BOUND + 0x9D0)
 #define FH_SRVC_CHNL_SRAM_ADDR_REG(_chnl) \
 		(FH_SRVC_LOWER_BOUND + ((_chnl) - 9) * 0x4)
 
-/* TFDB  Area - TFDs buffer table */
-#define FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK      (0xFFFFFFFF)
-#define FH_TFDIB_LOWER_BOUND       (FH_REGS_LOWER_BOUND + 0x900)
-#define FH_TFDIB_UPPER_BOUND       (FH_REGS_LOWER_BOUND + 0x958)
-#define FH_TFDIB_CTRL0_REG(_chnl)  (FH_TFDIB_LOWER_BOUND + 0x8 * (_chnl))
-#define FH_TFDIB_CTRL1_REG(_chnl)  (FH_TFDIB_LOWER_BOUND + 0x8 * (_chnl) + 0x4)
-
-/* TCSR: tx_config register values */
-#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
-
-#define TFD_QUEUE_SIZE_MAX      (256)
-#define TFD_QUEUE_SIZE_BC_DUP	(64)
-#define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
+#define FH_TX_CHICKEN_BITS_REG	(FH_MEM_LOWER_BOUND + 0xE98)
+/* Instruct FH to increment the retry count of a packet when
+ * it is brought from the memory to TX-FIFO
+ */
+#define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
 /**
  * struct iwl_rb_status - reseve buffer status
@@ -423,9 +420,10 @@ struct iwl_rb_status {
 } __attribute__ ((packed));
 
 
-
+#define TFD_QUEUE_SIZE_MAX      (256)
+#define TFD_QUEUE_SIZE_BC_DUP	(64)
+#define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
-
 #define IWL_NUM_OF_TBS		20
 
 static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
@@ -440,7 +438,7 @@ static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
  * @lo: low [31:0] portion of the dma address of TX buffer
  * 	every even is unaligned on 16 bit boundary
  * @hi_n_len 0-3 [35:32] portion of dma
- *	     4-16 length of the tx buffer
+ *	     4-15 length of the tx buffer
  */
 struct iwl_tfd_tb {
 	__le32 lo;
@@ -453,7 +451,8 @@ struct iwl_tfd_tb {
  * Transmit Frame Descriptor (TFD)
  *
  * @ __reserved1[3] reserved
- * @ num_tbs 0-5 number of active tbs
+ * @ num_tbs 0-4 number of active tbs
+ *	     5   reserved
  * 	     6-7 padding (not used)
  * @ tbs[20]	transmit frame buffer descriptors
  * @ __pad 	padding
@@ -473,8 +472,6 @@ struct iwl_tfd_tb {
  * Tx frame, up to 8 KBytes in size.
  *
  * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
- *
- * Bit fields in the control dword (val0):
  */
 struct iwl_tfd {
 	u8 __reserved1[3];
@@ -485,6 +482,6 @@ struct iwl_tfd {
 
 
 /* Keep Warm Size */
-#define IWL_KW_SIZE 0x1000	/*4k */
+#define IWL_KW_SIZE 0x1000	/* 4k */
 
 #endif /* !__iwl_fh_h__ */

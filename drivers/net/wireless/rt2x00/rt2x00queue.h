@@ -380,6 +380,8 @@ enum queue_index {
  * @cw_max: The cw max value for outgoing frames (field ignored in RX queue).
  * @data_size: Maximum data size for the frames in this queue.
  * @desc_size: Hardware descriptor size for the data in this queue.
+ * @usb_endpoint: Device endpoint used for communication (USB only)
+ * @usb_maxpacket: Max packet size for given endpoint (USB only)
  */
 struct data_queue {
 	struct rt2x00_dev *rt2x00dev;
@@ -401,6 +403,9 @@ struct data_queue {
 
 	unsigned short data_size;
 	unsigned short desc_size;
+
+	unsigned short usb_endpoint;
+	unsigned short usb_maxpacket;
 };
 
 /**
@@ -444,6 +449,19 @@ struct data_queue_desc {
 	&(__dev)->tx[(__dev)->ops->tx_queues]
 
 /**
+ * queue_next - Return pointer to next queue in list (HELPER MACRO).
+ * @__queue: Current queue for which we need the next queue
+ *
+ * Using the current queue address we take the address directly
+ * after the queue to take the next queue. Note that this macro
+ * should be used carefully since it does not protect against
+ * moving past the end of the list. (See macros &queue_end and
+ * &tx_queue_end for determining the end of the queue).
+ */
+#define queue_next(__queue) \
+	&(__queue)[1]
+
+/**
  * queue_loop - Loop through the queues within a specific range (HELPER MACRO).
  * @__entry: Pointer where the current queue entry will be stored in.
  * @__start: Start queue pointer.
@@ -453,8 +471,8 @@ struct data_queue_desc {
  */
 #define queue_loop(__entry, __start, __end)			\
 	for ((__entry) = (__start);				\
-	     prefetch(&(__entry)[1]), (__entry) != (__end);	\
-	     (__entry) = &(__entry)[1])
+	     prefetch(queue_next(__entry)), (__entry) != (__end);\
+	     (__entry) = queue_next(__entry))
 
 /**
  * queue_for_each - Loop through all queues

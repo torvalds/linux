@@ -452,9 +452,9 @@ static int mac80211_hwsim_config_interface(struct ieee80211_hw *hw,
 	hwsim_check_magic(vif);
 	if (conf->changed & IEEE80211_IFCC_BSSID) {
 		DECLARE_MAC_BUF(mac);
-		printk(KERN_DEBUG "%s:%s: BSSID changed: %s\n",
+		printk(KERN_DEBUG "%s:%s: BSSID changed: %pM\n",
 		       wiphy_name(hw->wiphy), __func__,
-		       print_mac(mac, conf->bssid));
+		       conf->bssid);
 		memcpy(vp->bssid, conf->bssid, ETH_ALEN);
 	}
 	return 0;
@@ -612,9 +612,8 @@ static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
 	if (!vp->assoc)
 		return;
 
-	printk(KERN_DEBUG "%s:%s: send PS-Poll to %s for aid %d\n",
-	       wiphy_name(data->hw->wiphy), __func__,
-	       print_mac(buf, vp->bssid), vp->aid);
+	printk(KERN_DEBUG "%s:%s: send PS-Poll to %pM for aid %d\n",
+	       wiphy_name(data->hw->wiphy), __func__, vp->bssid, vp->aid);
 
 	skb = dev_alloc_skb(sizeof(*pspoll));
 	if (!skb)
@@ -644,9 +643,8 @@ static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
 	if (!vp->assoc)
 		return;
 
-	printk(KERN_DEBUG "%s:%s: send data::nullfunc to %s ps=%d\n",
-	       wiphy_name(data->hw->wiphy), __func__,
-	       print_mac(buf, vp->bssid), ps);
+	printk(KERN_DEBUG "%s:%s: send data::nullfunc to %pM ps=%d\n",
+	       wiphy_name(data->hw->wiphy), __func__, vp->bssid, ps);
 
 	skb = dev_alloc_skb(sizeof(*hdr));
 	if (!skb)

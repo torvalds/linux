@@ -565,9 +565,14 @@ static void rfkill_release(struct device *dev)
 #ifdef CONFIG_PM
 static int rfkill_suspend(struct device *dev, pm_message_t state)
 {
+	struct rfkill *rfkill = to_rfkill(dev);
+
 	/* mark class device as suspended */
 	if (dev->power.power_state.event != state.event)
 		dev->power.power_state = state;
+
+	/* store state for the resume handler */
+	rfkill->state_for_resume = rfkill->state;
 
 	return 0;
 }
@@ -575,11 +580,21 @@ static int rfkill_suspend(struct device *dev, pm_message_t state)
 static int rfkill_resume(struct device *dev)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
+	enum rfkill_state newstate;
 
 	if (dev->power.power_state.event != PM_EVENT_ON) {
 		mutex_lock(&rfkill->mutex);
 
 		dev->power.power_state.event = PM_EVENT_ON;
+
+		/*
+		 * rfkill->state could have been modified before we got
+		 * called, and won't be updated by rfkill_toggle_radio()
+		 * in force mode.  Sync it FIRST.
+		 */
+		if (rfkill->get_state &&
+		    !rfkill->get_state(rfkill->data, &newstate))
+			rfkill->state = newstate;
 
 		/*
 		 * If we are under EPO, kick transmitter offline,
@@ -590,7 +605,7 @@ static int rfkill_resume(struct device *dev)
 		rfkill_toggle_radio(rfkill,
 				rfkill_epo_lock_active ?
 					RFKILL_STATE_SOFT_BLOCKED :
-					rfkill->state,
+					rfkill->state_for_resume,
 				1);
 
 		mutex_unlock(&rfkill->mutex);

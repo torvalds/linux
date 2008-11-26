@@ -1244,7 +1244,7 @@ bool ath9k_hw_eeprom_set_board_values(struct ath_hal *ah,
 
 	txRxAttenLocal = IS_CHAN_2GHZ(chan) ? 23 : 44;
 
-	ath9k_hw_get_eeprom_antenna_cfg(ah, chan, 1, &ant_config);
+	ath9k_hw_get_eeprom_antenna_cfg(ah, chan, 0, &ant_config);
 	REG_WRITE(ah, AR_PHY_SWITCH_COM, ant_config);
 
 	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
@@ -1551,9 +1551,9 @@ u32 ath9k_hw_get_eeprom(struct ath_hal *ah,
 
 	switch (param) {
 	case EEP_NFTHRESH_5:
-		return -pModal[0].noiseFloorThreshCh[0];
+		return pModal[0].noiseFloorThreshCh[0];
 	case EEP_NFTHRESH_2:
-		return -pModal[1].noiseFloorThreshCh[0];
+		return pModal[1].noiseFloorThreshCh[0];
 	case AR_EEPROM_MAC(0):
 		return pBase->macAddr[0] << 8 | pBase->macAddr[1];
 	case AR_EEPROM_MAC(1):
@@ -1584,6 +1584,11 @@ u32 ath9k_hw_get_eeprom(struct ath_hal *ah,
 		return pBase->txMask;
 	case EEP_RX_MASK:
 		return pBase->rxMask;
+	case EEP_RXGAIN_TYPE:
+		return pBase->rxGainType;
+	case EEP_TXGAIN_TYPE:
+		return pBase->txGainType;
+
 	default:
 		return 0;
 	}

@@ -57,7 +57,7 @@ static inline void rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 	__le16 reg;
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      &reg, sizeof(u16), REGISTER_TIMEOUT);
+				      &reg, sizeof(reg), REGISTER_TIMEOUT);
 	*value = le16_to_cpu(reg);
 }
 
@@ -68,7 +68,7 @@ static inline void rt2500usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
 	__le16 reg;
 	rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_READ,
 				       USB_VENDOR_REQUEST_IN, offset,
-				       &reg, sizeof(u16), REGISTER_TIMEOUT);
+				       &reg, sizeof(reg), REGISTER_TIMEOUT);
 	*value = le16_to_cpu(reg);
 }
 
@@ -89,7 +89,7 @@ static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 	__le16 reg = cpu_to_le16(value);
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      &reg, sizeof(u16), REGISTER_TIMEOUT);
+				      &reg, sizeof(reg), REGISTER_TIMEOUT);
 }
 
 static inline void rt2500usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
@@ -99,7 +99,7 @@ static inline void rt2500usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
 	__le16 reg = cpu_to_le16(value);
 	rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_WRITE,
 				       USB_VENDOR_REQUEST_OUT, offset,
-				       &reg, sizeof(u16), REGISTER_TIMEOUT);
+				       &reg, sizeof(reg), REGISTER_TIMEOUT);
 }
 
 static inline void rt2500usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
@@ -112,20 +112,31 @@ static inline void rt2500usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 				      REGISTER_TIMEOUT16(length));
 }
 
-static u16 rt2500usb_bbp_check(struct rt2x00_dev *rt2x00dev)
+static int rt2500usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
+				  const unsigned int offset,
+				  struct rt2x00_field16 field,
+				  u16 *reg)
 {
-	u16 reg;
 	unsigned int i;
 
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2500usb_register_read_lock(rt2x00dev, PHY_CSR8, &reg);
-		if (!rt2x00_get_field16(reg, PHY_CSR8_BUSY))
-			break;
+		rt2500usb_register_read_lock(rt2x00dev, offset, reg);
+		if (!rt2x00_get_field16(*reg, field))
+			return 1;
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	return reg;
+	ERROR(rt2x00dev, "Indirect register access failed: "
+	      "offset=0x%.08x, value=0x%.08x\n", offset, *reg);
+	*reg = ~0;
+
+	return 0;
 }
+
+#define WAIT_FOR_BBP(__dev, __reg) \
+	rt2500usb_regbusy_read((__dev), PHY_CSR8, PHY_CSR8_BUSY, (__reg))
+#define WAIT_FOR_RF(__dev, __reg) \
+	rt2500usb_regbusy_read((__dev), PHY_CSR10, PHY_CSR10_RF_BUSY, (__reg))
 
 static void rt2500usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 				const unsigned int word, const u8 value)
@@ -135,30 +146,19 @@ static void rt2500usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 	mutex_lock(&rt2x00dev->csr_mutex);
 
 	/*
-	 * Wait until the BBP becomes ready.
+	 * Wait until the BBP becomes available, afterwards we
+	 * can safely write the new data into the register.
 	 */
-	reg = rt2500usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY))
-		goto exit_fail;
+	if (WAIT_FOR_BBP(rt2x00dev, &reg)) {
+		reg = 0;
+		rt2x00_set_field16(&reg, PHY_CSR7_DATA, value);
+		rt2x00_set_field16(&reg, PHY_CSR7_REG_ID, word);
+		rt2x00_set_field16(&reg, PHY_CSR7_READ_CONTROL, 0);
 
-	/*
-	 * Write the data into the BBP.
-	 */
-	reg = 0;
-	rt2x00_set_field16(&reg, PHY_CSR7_DATA, value);
-	rt2x00_set_field16(&reg, PHY_CSR7_REG_ID, word);
-	rt2x00_set_field16(&reg, PHY_CSR7_READ_CONTROL, 0);
-
-	rt2500usb_register_write_lock(rt2x00dev, PHY_CSR7, reg);
+		rt2500usb_register_write_lock(rt2x00dev, PHY_CSR7, reg);
+	}
 
 	mutex_unlock(&rt2x00dev->csr_mutex);
-
-	return;
-
-exit_fail:
-	mutex_unlock(&rt2x00dev->csr_mutex);
-
-	ERROR(rt2x00dev, "PHY_CSR8 register busy. Write failed.\n");
 }
 
 static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
@@ -169,77 +169,57 @@ static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 	mutex_lock(&rt2x00dev->csr_mutex);
 
 	/*
-	 * Wait until the BBP becomes ready.
+	 * Wait until the BBP becomes available, afterwards we
+	 * can safely write the read request into the register.
+	 * After the data has been written, we wait until hardware
+	 * returns the correct value, if at any time the register
+	 * doesn't become available in time, reg will be 0xffffffff
+	 * which means we return 0xff to the caller.
 	 */
-	reg = rt2500usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY))
-		goto exit_fail;
+	if (WAIT_FOR_BBP(rt2x00dev, &reg)) {
+		reg = 0;
+		rt2x00_set_field16(&reg, PHY_CSR7_REG_ID, word);
+		rt2x00_set_field16(&reg, PHY_CSR7_READ_CONTROL, 1);
 
-	/*
-	 * Write the request into the BBP.
-	 */
-	reg = 0;
-	rt2x00_set_field16(&reg, PHY_CSR7_REG_ID, word);
-	rt2x00_set_field16(&reg, PHY_CSR7_READ_CONTROL, 1);
+		rt2500usb_register_write_lock(rt2x00dev, PHY_CSR7, reg);
 
-	rt2500usb_register_write_lock(rt2x00dev, PHY_CSR7, reg);
+		if (WAIT_FOR_BBP(rt2x00dev, &reg))
+			rt2500usb_register_read_lock(rt2x00dev, PHY_CSR7, &reg);
+	}
 
-	/*
-	 * Wait until the BBP becomes ready.
-	 */
-	reg = rt2500usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY))
-		goto exit_fail;
-
-	rt2500usb_register_read_lock(rt2x00dev, PHY_CSR7, &reg);
 	*value = rt2x00_get_field16(reg, PHY_CSR7_DATA);
 
 	mutex_unlock(&rt2x00dev->csr_mutex);
-
-	return;
-
-exit_fail:
-	mutex_unlock(&rt2x00dev->csr_mutex);
-
-	ERROR(rt2x00dev, "PHY_CSR8 register busy. Read failed.\n");
-	*value = 0xff;
 }
 
 static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, const u32 value)
 {
 	u16 reg;
-	unsigned int i;
 
 	if (!word)
 		return;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2500usb_register_read_lock(rt2x00dev, PHY_CSR10, &reg);
-		if (!rt2x00_get_field16(reg, PHY_CSR10_RF_BUSY))
-			goto rf_write;
-		udelay(REGISTER_BUSY_DELAY);
+	/*
+	 * Wait until the RF becomes available, afterwards we
+	 * can safely write the new data into the register.
+	 */
+	if (WAIT_FOR_RF(rt2x00dev, &reg)) {
+		reg = 0;
+		rt2x00_set_field16(&reg, PHY_CSR9_RF_VALUE, value);
+		rt2500usb_register_write_lock(rt2x00dev, PHY_CSR9, reg);
+
+		reg = 0;
+		rt2x00_set_field16(&reg, PHY_CSR10_RF_VALUE, value >> 16);
+		rt2x00_set_field16(&reg, PHY_CSR10_RF_NUMBER_OF_BITS, 20);
+		rt2x00_set_field16(&reg, PHY_CSR10_RF_IF_SELECT, 0);
+		rt2x00_set_field16(&reg, PHY_CSR10_RF_BUSY, 1);
+
+		rt2500usb_register_write_lock(rt2x00dev, PHY_CSR10, reg);
+		rt2x00_rf_write(rt2x00dev, word, value);
 	}
-
-	mutex_unlock(&rt2x00dev->csr_mutex);
-	ERROR(rt2x00dev, "PHY_CSR10 register busy. Write failed.\n");
-	return;
-
-rf_write:
-	reg = 0;
-	rt2x00_set_field16(&reg, PHY_CSR9_RF_VALUE, value);
-	rt2500usb_register_write_lock(rt2x00dev, PHY_CSR9, reg);
-
-	reg = 0;
-	rt2x00_set_field16(&reg, PHY_CSR10_RF_VALUE, value >> 16);
-	rt2x00_set_field16(&reg, PHY_CSR10_RF_NUMBER_OF_BITS, 20);
-	rt2x00_set_field16(&reg, PHY_CSR10_RF_IF_SELECT, 0);
-	rt2x00_set_field16(&reg, PHY_CSR10_RF_BUSY, 1);
-
-	rt2500usb_register_write_lock(rt2x00dev, PHY_CSR10, reg);
-	rt2x00_rf_write(rt2x00dev, word, value);
 
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
@@ -1128,7 +1108,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
-	int pipe = usb_sndbulkpipe(usb_dev, 1);
+	int pipe = usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint);
 	int length;
 	u16 reg;
 
@@ -1154,7 +1134,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	 * length of the data to usb_fill_bulk_urb. Pass the skb
 	 * to the driver to determine what the length should be.
 	 */
-	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev, entry->skb);
+	length = rt2x00dev->ops->lib->get_tx_data_len(entry);
 
 	usb_fill_bulk_urb(bcn_priv->urb, usb_dev, pipe,
 			  entry->skb->data, length, rt2500usb_beacondone,
@@ -1176,8 +1156,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	usb_submit_urb(bcn_priv->guardian_urb, GFP_ATOMIC);
 }
 
-static int rt2500usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
-				     struct sk_buff *skb)
+static int rt2500usb_get_tx_data_len(struct queue_entry *entry)
 {
 	int length;
 
@@ -1185,8 +1164,8 @@ static int rt2500usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 	 * The length _must_ be a multiple of 2,
 	 * but it must _not_ be a multiple of the USB packet size.
 	 */
-	length = roundup(skb->len, 2);
-	length += (2 * !(length % rt2x00dev->usb_maxpacket));
+	length = roundup(entry->skb->len, 2);
+	length += (2 * !(length % entry->queue->usb_maxpacket));
 
 	return length;
 }

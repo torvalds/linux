@@ -475,6 +475,9 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 	case IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD:
 		index = IWL_CALIB_TX_IQ_PERD;
 		break;
+	case IWL_PHY_CALIBRATE_BASE_BAND_CMD:
+		index = IWL_CALIB_BASE_BAND;
+		break;
 	default:
 		IWL_ERROR("Unknown calibration notification %d\n",
 			  hdr->op_code);
@@ -697,9 +700,10 @@ static int iwl5000_send_wimax_coex(struct iwl_priv *priv)
 static int iwl5000_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
-	int i = 0;
 	unsigned long flags;
 	int ret;
+	int i, chan;
+	u32 reg_val;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -722,6 +726,18 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 
 	iwl_write_prph(priv, IWL50_SCD_DRAM_BASE_ADDR,
 		       priv->scd_bc_tbls.dma >> 10);
+
+	/* Enable DMA channel */
+	for (chan = 0; chan < FH50_TCSR_CHNL_NUM ; chan++)
+		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
+				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
+
+	/* Update FH chicken bits */
+	reg_val = iwl_read_direct32(priv, FH_TX_CHICKEN_BITS_REG);
+	iwl_write_direct32(priv, FH_TX_CHICKEN_BITS_REG,
+			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
+
 	iwl_write_prph(priv, IWL50_SCD_QUEUECHAIN_SEL,
 		IWL50_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
 	iwl_write_prph(priv, IWL50_SCD_AGGR_SEL, 0);
@@ -841,8 +857,9 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 		priv->hw_params.calib_init_cfg =
 			BIT(IWL_CALIB_XTAL)		|
 			BIT(IWL_CALIB_LO)		|
-			BIT(IWL_CALIB_TX_IQ) 	|
-			BIT(IWL_CALIB_TX_IQ_PERD);
+			BIT(IWL_CALIB_TX_IQ) 		|
+			BIT(IWL_CALIB_TX_IQ_PERD)	|
+			BIT(IWL_CALIB_BASE_BAND);
 		break;
 	case CSR_HW_REV_TYPE_5150:
 		priv->hw_params.calib_init_cfg = 0;
@@ -969,7 +986,7 @@ static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
 	/* Modify device's station table to Tx this TID */
-	iwl_sta_modify_enable_tid_tx(priv, sta_id, tid);
+	iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	ret = iwl_grab_nic_access(priv);
@@ -1111,7 +1128,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-		info->flags |= iwl_is_tx_success(status)?
+		info->flags |= iwl_is_tx_success(status) ?
 					IEEE80211_TX_STAT_ACK : 0;
 		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
 

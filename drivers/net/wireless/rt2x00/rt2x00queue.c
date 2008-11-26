@@ -386,7 +386,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	u8 rate_idx, rate_flags;
 
 	if (unlikely(rt2x00queue_full(queue)))
-		return -EINVAL;
+		return -ENOBUFS;
 
 	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags)) {
 		ERROR(queue->rt2x00dev,
@@ -415,7 +415,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	tx_info = IEEE80211_SKB_CB(skb);
 	rate_idx = tx_info->control.rates[0].idx;
 	rate_flags = tx_info->control.rates[0].flags;
-	skbdesc = get_skb_frame_desc(entry->skb);
+	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->entry = entry;
 	skbdesc->tx_rate_idx = rate_idx;
@@ -427,20 +427,18 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	 * the frame so we can provide it to the driver seperately.
 	 */
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
-	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {
+	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags))
 		rt2x00crypto_tx_remove_iv(skb, iv_len);
-	}
 
 	/*
 	 * It could be possible that the queue was corrupted and this
-	 * call failed. Just drop the frame, we cannot rollback and pass
-	 * the frame to mac80211 because the skb->cb has now been tainted.
+	 * call failed. Since we always return NETDEV_TX_OK to mac80211,
+	 * this frame will simply be dropped.
 	 */
 	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
 		clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		dev_kfree_skb_any(entry->skb);
 		entry->skb = NULL;
-		return 0;
+		return -EIO;
 	}
 
 	if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))

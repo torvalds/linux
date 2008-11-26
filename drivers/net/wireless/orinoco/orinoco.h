@@ -10,6 +10,7 @@
 #define DRIVER_VERSION "0.15"
 
 #include <linux/interrupt.h>
+#include <linux/suspend.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
@@ -167,8 +168,11 @@ struct orinoco_private {
 	unsigned int tkip_cm_active:1;
 	unsigned int key_mgmt:3;
 
-	/* Cached in memory firmware to use in ->resume */
+	/* Cached in memory firmware to use during ->resume. */
+	const struct firmware *cached_pri_fw;
 	const struct firmware *cached_fw;
+
+	struct notifier_block pm_notifier;
 };
 
 #ifdef ORINOCO_DEBUG

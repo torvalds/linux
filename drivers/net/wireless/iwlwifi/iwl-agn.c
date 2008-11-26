@@ -466,9 +466,9 @@ static u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv)
 
 	/* Set rate mask*/
 	if (priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK)
-		rate_mask = priv->active_rate_basic & 0xF;
+		rate_mask = priv->active_rate_basic & IWL_CCK_RATES_MASK;
 	else
-		rate_mask = priv->active_rate_basic & 0xFF0;
+		rate_mask = priv->active_rate_basic & IWL_OFDM_RATES_MASK;
 
 	/* Find lowest valid rate */
 	for (i = IWL_RATE_1M_INDEX; i != IWL_RATE_INVALID;
@@ -1492,7 +1492,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 			hw_rf_kill = 1;
 
 		IWL_DEBUG(IWL_DL_RF_KILL, "RF_KILL bit toggled to %s.\n",
-				hw_rf_kill ? "disable radio":"enable radio");
+				hw_rf_kill ? "disable radio" : "enable radio");
 
 		/* driver only loads ucode once setting the interface up.
 		 * the driver as well won't allow loading if RFKILL is set
@@ -2224,27 +2224,6 @@ static void iwl_bg_rf_kill(struct work_struct *work)
 	iwl_rfkill_set_hw_state(priv);
 }
 
-static void iwl_bg_set_monitor(struct work_struct *work)
-{
-	struct iwl_priv *priv = container_of(work,
-				struct iwl_priv, set_monitor);
-	int ret;
-
-	IWL_DEBUG(IWL_DL_STATE, "setting monitor mode\n");
-
-	mutex_lock(&priv->mutex);
-
-	ret = iwl_set_mode(priv, NL80211_IFTYPE_MONITOR);
-	if (ret) {
-		if (ret == -EAGAIN)
-			IWL_DEBUG(IWL_DL_STATE, "leave - not ready\n");
-		else
-			IWL_ERROR("iwl_set_mode() failed ret = %d\n", ret);
-	}
-
-	mutex_unlock(&priv->mutex);
-}
-
 static void iwl_bg_run_time_calib_work(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
@@ -2890,16 +2869,43 @@ static void iwl_configure_filter(struct ieee80211_hw *hw,
 				 int mc_count, struct dev_addr_list *mc_list)
 {
 	struct iwl_priv *priv = hw->priv;
+	__le32 *filter_flags = &priv->staging_rxon.filter_flags;
 
-	if (changed_flags & (*total_flags) & FIF_OTHER_BSS) {
-		IWL_DEBUG_MAC80211("Enter: type %d (0x%x, 0x%x)\n",
-				   NL80211_IFTYPE_MONITOR,
-				   changed_flags, *total_flags);
-		/* queue work 'cuz mac80211 is holding a lock which
-		 * prevents us from issuing (synchronous) f/w cmds */
-		queue_work(priv->workqueue, &priv->set_monitor);
+	IWL_DEBUG_MAC80211("Enter: changed: 0x%x, total: 0x%x\n",
+			changed_flags, *total_flags);
+
+	if (changed_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS)) {
+		if (*total_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS))
+			*filter_flags |= RXON_FILTER_PROMISC_MSK;
+		else
+			*filter_flags &= ~RXON_FILTER_PROMISC_MSK;
 	}
-	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI |
+	if (changed_flags & FIF_ALLMULTI) {
+		if (*total_flags & FIF_ALLMULTI)
+			*filter_flags |= RXON_FILTER_ACCEPT_GRP_MSK;
+		else
+			*filter_flags &= ~RXON_FILTER_ACCEPT_GRP_MSK;
+	}
+	if (changed_flags & FIF_CONTROL) {
+		if (*total_flags & FIF_CONTROL)
+			*filter_flags |= RXON_FILTER_CTL2HOST_MSK;
+		else
+			*filter_flags &= ~RXON_FILTER_CTL2HOST_MSK;
+	}
+	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
+		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
+			*filter_flags |= RXON_FILTER_BCON_AWARE_MSK;
+		else
+			*filter_flags &= ~RXON_FILTER_BCON_AWARE_MSK;
+	}
+
+	/* We avoid iwl_commit_rxon here to commit the new filter flags
+	 * since mac80211 will call ieee80211_hw_config immediately.
+	 * (mc_list is not supported at this time). Otherwise, we need to
+	 * queue a background iwl_commit_rxon work.
+	 */
+
+	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI | FIF_PROMISC_IN_BSS |
 			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
 }
 
@@ -3058,49 +3064,11 @@ static void iwl_mac_update_tkip_key(struct ieee80211_hw *hw,
 			struct ieee80211_key_conf *keyconf, const u8 *addr,
 			u32 iv32, u16 *phase1key)
 {
-	struct iwl_priv *priv = hw->priv;
-	u8 sta_id = IWL_INVALID_STATION;
-	unsigned long flags;
-	__le16 key_flags = 0;
-	int i;
 
+	struct iwl_priv *priv = hw->priv;
 	IWL_DEBUG_MAC80211("enter\n");
 
-	sta_id = iwl_find_station(priv, addr);
-	if (sta_id == IWL_INVALID_STATION) {
-		IWL_DEBUG_MAC80211("leave - %pM not in station map.\n",
-				   addr);
-		return;
-	}
-
-	if (iwl_scan_cancel(priv)) {
-		/* cancel scan failed, just live w/ bad key and rely
-		   briefly on SW decryption */
-		return;
-	}
-
-	key_flags |= (STA_KEY_FLG_TKIP | STA_KEY_FLG_MAP_KEY_MSK);
-	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
-	key_flags &= ~STA_KEY_FLG_INVALID;
-
-	if (sta_id == priv->hw_params.bcast_sta_id)
-		key_flags |= STA_KEY_MULTICAST_MSK;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-
-	priv->stations[sta_id].sta.key.key_flags = key_flags;
-	priv->stations[sta_id].sta.key.tkip_rx_tsc_byte2 = (u8) iv32;
-
-	for (i = 0; i < 5; i++)
-		priv->stations[sta_id].sta.key.tkip_rx_ttak[i] =
-			cpu_to_le16(phase1key[i]);
-
-	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
-	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-
-	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
-
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	iwl_update_tkip_key(priv, keyconf, addr, iv32, phase1key);
 
 	IWL_DEBUG_MAC80211("leave\n");
 }
@@ -3239,10 +3207,10 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		IWL_DEBUG_HT("start Rx\n");
-		return iwl_rx_agg_start(priv, sta->addr, tid, *ssn);
+		return iwl_sta_rx_agg_start(priv, sta->addr, tid, *ssn);
 	case IEEE80211_AMPDU_RX_STOP:
 		IWL_DEBUG_HT("stop Rx\n");
-		return iwl_rx_agg_stop(priv, sta->addr, tid);
+		return iwl_sta_rx_agg_stop(priv, sta->addr, tid);
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT("start Tx\n");
 		return iwl_tx_agg_start(priv, sta->addr, tid, ssn);
@@ -3256,6 +3224,7 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 	}
 	return 0;
 }
+
 static int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
 				struct ieee80211_tx_queue_stats *stats)
 {
@@ -3694,7 +3663,8 @@ static ssize_t show_power_level(struct device *d,
 		break;
 	}
 
-	p += sprintf(p, "\tMODE:%s", (mode < IWL_POWER_AUTO)?"fixed":"auto");
+	p += sprintf(p, "\tMODE:%s", (mode < IWL_POWER_AUTO) ?
+			"fixed" : "auto");
 	p += sprintf(p, "\tINDEX:%d", level);
 	p += sprintf(p, "\n");
 	return p - buf + 1;
@@ -3832,7 +3802,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
 	INIT_WORK(&priv->rf_kill, iwl_bg_rf_kill);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
-	INIT_WORK(&priv->set_monitor, iwl_bg_set_monitor);
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);

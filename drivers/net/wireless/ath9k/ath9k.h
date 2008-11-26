@@ -401,22 +401,6 @@ enum ath9k_int {
 	ATH9K_INT_NOCARD = 0xffffffff
 };
 
-struct ath9k_rate_table {
-	int rateCount;
-	u8 rateCodeToIndex[256];
-	struct {
-		u8 valid;
-		u8 phy;
-		u32 rateKbps;
-		u8 rateCode;
-		u8 shortPreamble;
-		u8 dot11Rate;
-		u8 controlRate;
-		u16 lpAckDuration;
-		u16 spAckDuration;
-	} info[32];
-};
-
 #define ATH9K_RATESERIES_RTS_CTS  0x0001
 #define ATH9K_RATESERIES_2040     0x0002
 #define ATH9K_RATESERIES_HALFGI   0x0004
@@ -492,12 +476,10 @@ struct ath9k_channel {
        (((_c)->channelFlags & CHANNEL_A_HT20) == CHANNEL_A_HT20) || \
        (((_c)->channelFlags & CHANNEL_A_HT40PLUS) == CHANNEL_A_HT40PLUS) || \
        (((_c)->channelFlags & CHANNEL_A_HT40MINUS) == CHANNEL_A_HT40MINUS))
-#define IS_CHAN_B(_c) (((_c)->channelFlags & CHANNEL_B) == CHANNEL_B)
 #define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
        (((_c)->channelFlags & CHANNEL_G_HT20) == CHANNEL_G_HT20) || \
        (((_c)->channelFlags & CHANNEL_G_HT40PLUS) == CHANNEL_G_HT40PLUS) || \
        (((_c)->channelFlags & CHANNEL_G_HT40MINUS) == CHANNEL_G_HT40MINUS))
-#define IS_CHAN_CCK(_c) (((_c)->channelFlags & CHANNEL_CCK) != 0)
 #define IS_CHAN_OFDM(_c) (((_c)->channelFlags & CHANNEL_OFDM) != 0)
 #define IS_CHAN_5GHZ(_c) (((_c)->channelFlags & CHANNEL_5GHZ) != 0)
 #define IS_CHAN_2GHZ(_c) (((_c)->channelFlags & CHANNEL_2GHZ) != 0)
@@ -506,6 +488,7 @@ struct ath9k_channel {
 #define IS_CHAN_QUARTER_RATE(_c) (((_c)->channelFlags & CHANNEL_QUARTER) != 0)
 
 /* These macros check chanmode and not channelFlags */
+#define IS_CHAN_B(_c) ((_c)->chanmode == CHANNEL_B)
 #define IS_CHAN_HT20(_c) (((_c)->chanmode == CHANNEL_A_HT20) ||	\
 			  ((_c)->chanmode == CHANNEL_G_HT20))
 #define IS_CHAN_HT40(_c) (((_c)->chanmode == CHANNEL_A_HT40PLUS) ||	\
@@ -702,13 +685,19 @@ enum ath9k_ani_cmd {
 	ATH9K_ANI_ALL = 0xff
 };
 
-enum phytype {
-	PHY_DS,
-	PHY_FH,
-	PHY_OFDM,
-	PHY_HT,
+enum {
+	WLAN_RC_PHY_OFDM,
+	WLAN_RC_PHY_CCK,
+	WLAN_RC_PHY_HT_20_SS,
+	WLAN_RC_PHY_HT_20_DS,
+	WLAN_RC_PHY_HT_40_SS,
+	WLAN_RC_PHY_HT_40_DS,
+	WLAN_RC_PHY_HT_20_SS_HGI,
+	WLAN_RC_PHY_HT_20_DS_HGI,
+	WLAN_RC_PHY_HT_40_SS_HGI,
+	WLAN_RC_PHY_HT_40_DS_HGI,
+	WLAN_RC_PHY_MAX
 };
-#define PHY_CCK PHY_DS
 
 enum ath9k_tp_scale {
 	ATH9K_TP_SCALE_MAX = 0,
@@ -828,6 +817,8 @@ struct chan_centers {
 	u16 ext_center;
 };
 
+struct ath_rate_table;
+
 /* Helpers */
 
 enum wireless_mode ath9k_hw_chan2wmode(struct ath_hal *ah,
@@ -838,7 +829,7 @@ bool ath9k_get_channel_edges(struct ath_hal *ah,
 			     u16 flags, u16 *low,
 			     u16 *high);
 u16 ath9k_hw_computetxtime(struct ath_hal *ah,
-			   const struct ath9k_rate_table *rates,
+			   struct ath_rate_table *rates,
 			   u32 frameLen, u16 rateix,
 			   bool shortPreamble);
 u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags);
@@ -883,12 +874,6 @@ void ath9k_hw_configpcipowersave(struct ath_hal *ah, int restore);
 void ath9k_hw_beaconinit(struct ath_hal *ah, u32 next_beacon, u32 beacon_period);
 void ath9k_hw_set_sta_beacon_timers(struct ath_hal *ah,
 				    const struct ath9k_beacon_state *bs);
-
-/* Rate table */
-
-const struct ath9k_rate_table *ath9k_hw_getratetable(struct ath_hal *ah,
-						     u32 mode);
-
 /* HW Capabilities */
 
 bool ath9k_hw_fill_cap_info(struct ath_hal *ah);
@@ -904,7 +889,7 @@ u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio);
 void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
 			 u32 ah_signal_type);
 void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 val);
-#ifdef CONFIG_RFKILL
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 void ath9k_enable_rfkill(struct ath_hal *ah);
 #endif
 int ath9k_hw_select_antconfig(struct ath_hal *ah, u32 cfg);

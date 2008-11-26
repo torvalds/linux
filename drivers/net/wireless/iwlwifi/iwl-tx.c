@@ -449,11 +449,6 @@ static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
 			     txq->q.dma_addr >> 8);
 
-	/* Enable DMA channel, using same id as for TFD queue */
-	iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
-			FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
-			FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
-
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -587,8 +582,6 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-
-
 	/* Alloc and init all Tx queues, including the command queue (#4) */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
 		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
@@ -618,10 +611,8 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
  */
 void iwl_txq_ctx_stop(struct iwl_priv *priv)
 {
-
 	int txq_id;
 	unsigned long flags;
-
 
 	/* Turn off all Tx DMA fifos */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1498,7 +1489,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 		ack = bitmap & (1ULL << i);
 		successes += !!ack;
 		IWL_DEBUG_TX_REPLY("%s ON i=%d idx=%d raw=%d\n",
-			ack? "ACK":"NACK", i, (agg->start_idx + i) & 0xff,
+			ack ? "ACK" : "NACK", i, (agg->start_idx + i) & 0xff,
 			agg->start_idx + i);
 	}
 

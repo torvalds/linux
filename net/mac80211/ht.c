@@ -36,7 +36,7 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 
 	ht_cap->ht_supported = true;
 
-	ht_cap->cap = ht_cap->cap & sband->ht_cap.cap;
+	ht_cap->cap = le16_to_cpu(ht_cap_ie->cap_info) & sband->ht_cap.cap;
 	ht_cap->cap &= ~IEEE80211_HT_CAP_SM_PS;
 	ht_cap->cap |= sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS;
 

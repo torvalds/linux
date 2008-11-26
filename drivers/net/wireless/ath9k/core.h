@@ -47,10 +47,6 @@
 
 struct ath_node;
 
-/******************/
-/* Utility macros */
-/******************/
-
 /* Macro to expand scalars to 64-bit objects */
 
 #define	ito64(x) (sizeof(x) == 8) ?			\
@@ -85,11 +81,6 @@ struct ath_node;
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
 #define	ATH_TXQ_SETUP(sc, i)        ((sc)->sc_txqsetup & (1<<i))
-
-static inline unsigned long get_timestamp(void)
-{
-	return ((jiffies / HZ) * 1000) + (jiffies % HZ) * (1000 / HZ);
-}
 
 static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -141,34 +132,6 @@ struct ath_config {
 	u8 swBeaconProcess; /* Process received beacons in SW (vs HW) */
 };
 
-/***********************/
-/* Chainmask Selection */
-/***********************/
-
-#define ATH_CHAINMASK_SEL_TIMEOUT	   6000
-/* Default - Number of last RSSI values that is used for
- * chainmask selection */
-#define ATH_CHAINMASK_SEL_RSSI_CNT	   10
-/* Means use 3x3 chainmask instead of configured chainmask */
-#define ATH_CHAINMASK_SEL_3X3		   7
-/* Default - Rssi threshold below which we have to switch to 3x3 */
-#define ATH_CHAINMASK_SEL_UP_RSSI_THRES	   20
-/* Default - Rssi threshold above which we have to switch to
- * user configured values */
-#define ATH_CHAINMASK_SEL_DOWN_RSSI_THRES  35
-/* Struct to store the chainmask select related info */
-struct ath_chainmask_sel {
-	struct timer_list timer;
-	int cur_tx_mask; 	/* user configured or 3x3 */
-	int cur_rx_mask; 	/* user configured or 3x3 */
-	int tx_avgrssi;
-	u8 switch_allowed:1, 	/* timer will set this */
-	   cm_sel_enabled : 1;
-};
-
-int ath_chainmask_sel_logic(struct ath_softc *sc, struct ath_node *an);
-void ath_update_chainmask(struct ath_softc *sc, int is_ht);
-
 /*************************/
 /* Descriptor Management */
 /*************************/
@@ -203,7 +166,6 @@ struct ath_buf_state {
 	int bfs_seqno;				/* sequence number */
 	int bfs_tidno;				/* tid of this frame */
 	int bfs_retries;			/* current retries */
-	struct ath_rc_series bfs_rcs[4];	/* rate series */
 	u32 bf_type;				/* BUF_* (enum buffer_type) */
 	/* key type use to encrypt this frame */
 	u32 bfs_keyix;
@@ -241,7 +203,6 @@ struct ath_buf {
 					   an aggregate) */
 	struct ath_buf *bf_lastfrm;	/* last buf of this frame */
 	struct ath_buf *bf_next;	/* next subframe in the aggregate */
-	struct ath_buf *bf_rifslast;	/* last buf for RIFS burst */
 	void *bf_mpdu;			/* enclosing frame structure */
 	struct ath_desc *bf_desc;	/* virtual addr of desc */
 	dma_addr_t bf_daddr;		/* physical addr of desc */
@@ -279,80 +240,27 @@ struct ath_descdma {
 	dma_addr_t dd_dmacontext;
 };
 
-/* Abstraction of a received RX MPDU/MMPDU, or a RX fragment */
-
-struct ath_rx_context {
-	struct ath_buf *ctx_rxbuf;	/* associated ath_buf for rx */
-};
-#define ATH_RX_CONTEXT(skb) ((struct ath_rx_context *)skb->cb)
-
-int ath_descdma_setup(struct ath_softc *sc,
-		      struct ath_descdma *dd,
-		      struct list_head *head,
-		      const char *name,
-		      int nbuf,
-		      int ndesc);
-int ath_desc_alloc(struct ath_softc *sc);
-void ath_desc_free(struct ath_softc *sc);
-void ath_descdma_cleanup(struct ath_softc *sc,
-			 struct ath_descdma *dd,
+int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
+		      struct list_head *head, const char *name,
+		      int nbuf, int ndesc);
+void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 			 struct list_head *head);
 
-/******/
-/* RX */
-/******/
+/***********/
+/* RX / TX */
+/***********/
 
 #define ATH_MAX_ANTENNA          3
 #define ATH_RXBUF                512
 #define WME_NUM_TID              16
 
-/* per frame rx status block */
-struct ath_recv_status {
-	u64 tsf;		/* mac tsf */
-	int8_t rssi;		/* RSSI (noise floor ajusted) */
-	int8_t rssictl[ATH_MAX_ANTENNA];	/* RSSI (noise floor ajusted) */
-	int8_t rssiextn[ATH_MAX_ANTENNA];	/* RSSI (noise floor ajusted) */
-	int8_t abs_rssi;	/* absolute RSSI */
-	u8 rateieee;		/* data rate received (IEEE rate code) */
-	u8 ratecode;		/* phy rate code */
-	int rateKbps;		/* data rate received (Kbps) */
-	int antenna;		/* rx antenna */
-	int flags;		/* status of associated skb */
-#define ATH_RX_FCS_ERROR        0x01
-#define ATH_RX_MIC_ERROR        0x02
-#define ATH_RX_DECRYPT_ERROR    0x04
-#define ATH_RX_RSSI_VALID       0x08
-/* if any of ctl,extn chainrssis are valid */
-#define ATH_RX_CHAIN_RSSI_VALID 0x10
-/* if extn chain rssis are valid */
-#define ATH_RX_RSSI_EXTN_VALID  0x20
-/* set if 40Mhz, clear if 20Mhz */
-#define ATH_RX_40MHZ            0x40
-/* set if short GI, clear if full GI */
-#define ATH_RX_SHORT_GI         0x80
-};
-
-struct ath_rxbuf {
-	struct sk_buff *rx_wbuf;
-	unsigned long rx_time;			/* system time when received */
-	struct ath_recv_status rx_status;	/* cached rx status */
-};
-
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
-void ath_handle_rx_intr(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush);
-int _ath_rx_indicate(struct ath_softc *sc,
-		     struct sk_buff *skb,
-		     struct ath_recv_status *status,
-		     u16 keyix);
-/******/
-/* TX */
-/******/
 
 #define ATH_TXBUF               512
 /* max number of transmit attempts (tries) */
@@ -500,9 +408,6 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 void ath_tx_tasklet(struct ath_softc *sc);
 u32 ath_txq_depth(struct ath_softc *sc, int qnum);
 u32 ath_txq_aggr_depth(struct ath_softc *sc, int qnum);
-void ath_notify_txq_status(struct ath_softc *sc, u16 queue_depth);
-void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-		     struct ath_xmit_status *tx_status);
 void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 
 /**********************/
@@ -567,25 +472,41 @@ struct ath_node_aggr {
 /* driver-specific node state */
 struct ath_node {
 	struct ath_softc *an_sc;
-	struct ath_chainmask_sel an_chainmask_sel;
 	struct ath_node_aggr an_aggr;
 	u16 maxampdu;
 	u8 mpdudensity;
 };
 
-void ath_tx_resume_tid(struct ath_softc *sc,
-	struct ath_atx_tid *tid);
+void ath_tx_resume_tid(struct ath_softc *sc, struct ath_atx_tid *tid);
 bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
-void ath_tx_aggr_teardown(struct ath_softc *sc,
-	struct ath_node *an, u8 tidno);
+void ath_tx_aggr_teardown(struct ath_softc *sc,	struct ath_node *an, u8 tidno);
 int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn);
 int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
-void ath_newassoc(struct ath_softc *sc,
-	struct ath_node *node, int isnew, int isuapsd);
-void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta);
-void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta);
+
+/********/
+/* VAPs */
+/********/
+
+/*
+ * Define the scheme that we select MAC address for multiple
+ * BSS on the same radio. The very first VAP will just use the MAC
+ * address from the EEPROM. For the next 3 VAPs, we set the
+ * U/L bit (bit 1) in MAC address, and use the next two bits as the
+ * index of the VAP.
+ */
+
+#define ATH_SET_VAP_BSSID_MASK(bssid_mask) \
+	((bssid_mask)[0] &= ~(((ATH_BCBUF-1)<<2)|0x02))
+
+/* driver-specific vap state */
+struct ath_vap {
+	int av_bslot;			/* beacon slot index */
+	enum ath9k_opmode av_opmode;	/* VAP operational mode */
+	struct ath_buf *av_bcbuf;	/* beacon buffer */
+	struct ath_tx_control av_btxctl;  /* txctl information for beacon */
+};
 
 /*******************/
 /* Beacon Handling */
@@ -620,80 +541,8 @@ void ath9k_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, int if_id);
 int ath_beaconq_setup(struct ath_hal *ah);
 int ath_beacon_alloc(struct ath_softc *sc, int if_id);
-void ath_bstuck_process(struct ath_softc *sc);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp);
 void ath_beacon_sync(struct ath_softc *sc, int if_id);
-void ath_get_beaconconfig(struct ath_softc *sc,
-			  int if_id,
-			  struct ath_beacon_config *conf);
-/********/
-/* VAPs */
-/********/
-
-/*
- * Define the scheme that we select MAC address for multiple
- * BSS on the same radio. The very first VAP will just use the MAC
- * address from the EEPROM. For the next 3 VAPs, we set the
- * U/L bit (bit 1) in MAC address, and use the next two bits as the
- * index of the VAP.
- */
-
-#define ATH_SET_VAP_BSSID_MASK(bssid_mask) \
-	((bssid_mask)[0] &= ~(((ATH_BCBUF-1)<<2)|0x02))
-
-/* VAP configuration (from protocol layer) */
-struct ath_vap_config {
-	u32 av_fixed_rateset;
-	u32 av_fixed_retryset;
-};
-
-/* driver-specific vap state */
-struct ath_vap {
-	int av_bslot;			/* beacon slot index */
-	enum ath9k_opmode av_opmode;	/* VAP operational mode */
-	struct ath_buf *av_bcbuf;	/* beacon buffer */
-	struct ath_tx_control av_btxctl;  /* txctl information for beacon */
-	struct ath_vap_config av_config;/* vap configuration parameters*/
-	struct ath_rate_node *rc_node;
-};
-
-/*********************/
-/* Antenna diversity */
-/*********************/
-
-#define ATH_ANT_DIV_MAX_CFG      2
-#define ATH_ANT_DIV_MIN_IDLE_US  1000000  /* us */
-#define ATH_ANT_DIV_MIN_SCAN_US  50000	  /* us */
-
-enum ATH_ANT_DIV_STATE{
-	ATH_ANT_DIV_IDLE,
-	ATH_ANT_DIV_SCAN,	/* evaluating antenna */
-};
-
-struct ath_antdiv {
-	struct ath_softc *antdiv_sc;
-	u8 antdiv_start;
-	enum ATH_ANT_DIV_STATE antdiv_state;
-	u8 antdiv_num_antcfg;
-	u8 antdiv_curcfg;
-	u8 antdiv_bestcfg;
-	int32_t antdivf_rssitrig;
-	int32_t antdiv_lastbrssi[ATH_ANT_DIV_MAX_CFG];
-	u64 antdiv_lastbtsf[ATH_ANT_DIV_MAX_CFG];
-	u64 antdiv_laststatetsf;
-	u8 antdiv_bssid[ETH_ALEN];
-};
-
-void ath_slow_ant_div_init(struct ath_antdiv *antdiv,
-	struct ath_softc *sc, int32_t rssitrig);
-void ath_slow_ant_div_start(struct ath_antdiv *antdiv,
-			    u8 num_antcfg,
-			    const u8 *bssid);
-void ath_slow_ant_div_stop(struct ath_antdiv *antdiv);
-void ath_slow_ant_div(struct ath_antdiv *antdiv,
-		      struct ieee80211_hdr *wh,
-		      struct ath_rx_status *rx_stats);
-void ath_setdefantenna(void *sc, u32 antenna);
 
 /*******/
 /* ANI */
@@ -775,46 +624,13 @@ struct ath_rfkill {
 
 #define ATH_IF_ID_ANY   	0xff
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
-
-#define RSSI_LPF_THRESHOLD         -20
-#define ATH_RSSI_EP_MULTIPLIER     (1<<7)  /* pow2 to optimize out * and / */
-#define ATH_RATE_DUMMY_MARKER      0
-#define ATH_RSSI_LPF_LEN           10
-#define ATH_RSSI_DUMMY_MARKER      0x127
-
-#define ATH_EP_MUL(x, mul)         ((x) * (mul))
-#define ATH_EP_RND(x, mul)						\
-	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
-#define ATH_RSSI_OUT(x)							\
-	(((x) != ATH_RSSI_DUMMY_MARKER) ?				\
-	 (ATH_EP_RND((x), ATH_RSSI_EP_MULTIPLIER)) : ATH_RSSI_DUMMY_MARKER)
-#define ATH_RSSI_IN(x)					\
-	(ATH_EP_MUL((x), ATH_RSSI_EP_MULTIPLIER))
-#define ATH_LPF_RSSI(x, y, len)						\
-	((x != ATH_RSSI_DUMMY_MARKER) ? \
-		(((x) * ((len) - 1) + (y)) / (len)) : (y))
-#define ATH_RSSI_LPF(x, y) do {						\
-		if ((y) >= RSSI_LPF_THRESHOLD)				\
-			x = ATH_LPF_RSSI((x), \
-				ATH_RSSI_IN((y)), ATH_RSSI_LPF_LEN); \
-	} while (0)
-
+#define ATH_RSSI_DUMMY_MARKER   0x127
+#define ATH_RATE_DUMMY_MARKER   0
 
 enum PROT_MODE {
 	PROT_M_NONE = 0,
 	PROT_M_RTSCTS,
 	PROT_M_CTSONLY
-};
-
-enum RATE_TYPE {
-	NORMAL_RATE = 0,
-	HALF_RATE,
-	QUARTER_RATE
-};
-
-struct ath_ht_info {
-	enum ath9k_ht_macmode tx_chan_width;
-	u8 ext_chan_offset;
 };
 
 #define SC_OP_INVALID		BIT(0)
@@ -839,7 +655,6 @@ struct ath_softc {
 	struct tasklet_struct bcon_tasklet;
 	struct ath_config sc_config;
 	struct ath_hal *sc_ah;
-	struct ath_rate_softc *sc_rc;
 	void __iomem *mem;
 
 	u8 sc_curbssid[ETH_ALEN];
@@ -871,8 +686,8 @@ struct ath_softc {
 	u8 sc_rxotherant;		/* rx's on non-default antenna */
 
 	struct ath9k_node_stats sc_halstats; /* station-mode rssi stats */
-	struct ath_ht_info sc_ht_info;
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
+	enum ath9k_ht_macmode tx_chan_width;
 
 #ifdef CONFIG_SLOW_ANT_DIV
 	struct ath_antdiv sc_antdiv;
@@ -914,13 +729,8 @@ struct ath_softc {
 
 	/* Rate */
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
-	const struct ath9k_rate_table *sc_currates;
-	u8 sc_rixmap[256];	/* IEEE to h/w rate table ix */
+	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	u8 sc_protrix;		/* protection rate index */
-	struct {
-		u32 rateKbps;	/* transfer rate in kbs */
-		u8 ieeerate;	/* IEEE rate */
-	} sc_hwmap[256];	/* h/w rate ix mappings */
 
 	/* Channel, Band */
 	struct ieee80211_channel channels[IEEE80211_NUM_BANDS][ATH_CHAN_MAX];
@@ -945,27 +755,9 @@ struct ath_softc {
 	struct ath_ani sc_ani;
 };
 
-int ath_init(u16 devid, struct ath_softc *sc);
-int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan);
-void ath_stop(struct ath_softc *sc);
-irqreturn_t ath_isr(int irq, void *dev);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
-int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan);
-
-/*********************/
-/* Utility Functions */
-/*********************/
-
-void ath_key_reset(struct ath_softc *sc, u16 keyix, int freeslot);
-int ath_keyset(struct ath_softc *sc,
-	       u16 keyix,
-	       struct ath9k_keyval *hk,
-	       const u8 mac[ETH_ALEN]);
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
-void ath_setslottime(struct ath_softc *sc);
-void ath_update_txpow(struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
-u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp);
 
 #endif /* CORE_H */

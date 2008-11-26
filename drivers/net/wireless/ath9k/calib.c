@@ -176,14 +176,14 @@ static bool getNoiseFloorThresh(struct ath_hal *ah,
 	case CHANNEL_A_HT20:
 	case CHANNEL_A_HT40PLUS:
 	case CHANNEL_A_HT40MINUS:
-		*nft = (int16_t)ath9k_hw_get_eeprom(ah, EEP_NFTHRESH_5);
+		*nft = (int8_t)ath9k_hw_get_eeprom(ah, EEP_NFTHRESH_5);
 		break;
 	case CHANNEL_B:
 	case CHANNEL_G:
 	case CHANNEL_G_HT20:
 	case CHANNEL_G_HT40PLUS:
 	case CHANNEL_G_HT40MINUS:
-		*nft = (int16_t)ath9k_hw_get_eeprom(ah, EEP_NFTHRESH_2);
+		*nft = (int8_t)ath9k_hw_get_eeprom(ah, EEP_NFTHRESH_2);
 		break;
 	default:
 		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,

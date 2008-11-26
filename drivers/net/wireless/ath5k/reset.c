@@ -674,7 +674,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			(ee->ee_switch_settling[ee_mode] << 7) & 0x3f80,
 			0xffffc07f);
 		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_GAIN,
-			(ee->ee_ant_tx_rx[ee_mode] << 12) & 0x3f000,
+			(ee->ee_atn_tx_rx[ee_mode] << 12) & 0x3f000,
 			0xfffc0fff);
 		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_DESIRED_SIZE,
 			(ee->ee_adc_desired_size[ee_mode] & 0x00ff) |
