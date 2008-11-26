@@ -125,8 +125,7 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	list_for_each_entry(port, &fsf_req->adapter->port_list_head, list) {
-		/* FIXME: ZFCP_STATUS_PORT_DID_DID check is racy */
-		if (!(atomic_read(&port->status) & ZFCP_STATUS_PORT_DID_DID))
+		if (!(atomic_read(&port->status) & ZFCP_STATUS_PORT_PHYS_OPEN))
 			/* Try to connect to unused ports anyway. */
 			zfcp_erp_port_reopen(port,
 					     ZFCP_STATUS_COMMON_ERP_FAILED,
