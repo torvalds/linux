@@ -1160,6 +1160,8 @@ static inline void __init phyp_dump_reserve_mem(void) {}
 
 void __init early_init_devtree(void *params)
 {
+	unsigned long limit;
+
 	DBG(" -> early_init_devtree(%p)\n", params);
 
 	/* Setup flat device-tree pointer */
@@ -1200,7 +1202,19 @@ void __init early_init_devtree(void *params)
 	early_reserve_mem();
 	phyp_dump_reserve_mem();
 
-	lmb_enforce_memory_limit(memory_limit);
+	limit = memory_limit;
+	if (! limit) {
+		unsigned long memsize;
+
+		/* Ensure that total memory size is page-aligned, because
+		 * otherwise mark_bootmem() gets upset. */
+		lmb_analyze();
+		memsize = lmb_phys_mem_size();
+		if ((memsize & PAGE_MASK) != memsize)
+			limit = memsize & PAGE_MASK;
+	}
+	lmb_enforce_memory_limit(limit);
+
 	lmb_analyze();
 
 	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
