@@ -317,6 +317,12 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		goto err_free;
 	}
 
+	if (srev >= AR5K_SREV_AR2414) {
+		ah->ah_combined_mic = true;
+		AR5K_REG_ENABLE_BITS(ah, AR5K_MISC_MODE,
+			AR5K_MISC_MODE_COMBINED_MIC);
+	}
+
 	/* MAC address is cleared until add_interface */
 	ath5k_hw_set_lladdr(ah, mac);
 

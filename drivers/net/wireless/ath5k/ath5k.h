@@ -1052,6 +1052,7 @@ struct ath5k_hw {
 	bool			ah_calibration;
 	bool			ah_running;
 	bool			ah_single_chip;
+	bool			ah_combined_mic;
 	enum ath5k_rfgain	ah_rf_gain;
 
 	u32			ah_mac_srev;

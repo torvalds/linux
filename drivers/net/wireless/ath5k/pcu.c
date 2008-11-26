@@ -1096,20 +1096,20 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 		/* Install rx/tx MIC */
 		rxmic = (__le32 *) &key->key[16];
 		txmic = (__le32 *) &key->key[24];
-#if 0
-		/* MISC_MODE register & 0x04 - for mac srev >= griffin */
-		key_v[0] = rxmic[0];
-		key_v[1] = (txmic[0] >> 16) & 0xffff;
-		key_v[2] = rxmic[1];
-		key_v[3] = txmic[0] & 0xffff;
-		key_v[4] = txmic[1];
-#else
-		key_v[0] = rxmic[0];
-		key_v[1] = 0;
-		key_v[2] = rxmic[1];
-		key_v[3] = 0;
-		key_v[4] = 0;
-#endif
+
+		if (ah->ah_combined_mic) {
+			key_v[0] = rxmic[0];
+			key_v[1] = (txmic[0] >> 16) & 0xffff;
+			key_v[2] = rxmic[1];
+			key_v[3] = txmic[0] & 0xffff;
+			key_v[4] = txmic[1];
+		} else {
+			key_v[0] = rxmic[0];
+			key_v[1] = 0;
+			key_v[2] = rxmic[1];
+			key_v[3] = 0;
+			key_v[4] = 0;
+		}
 		for (i = 0; i < ARRAY_SIZE(key_v); i++)
 			ath5k_hw_reg_write(ah, le32_to_cpu(key_v[i]),
 				AR5K_KEYTABLE_OFF(micentry, i));
