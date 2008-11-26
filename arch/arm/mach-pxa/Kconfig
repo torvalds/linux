@@ -19,6 +19,9 @@ config CPU_PXA320
 config CPU_PXA930
 	bool "PXA930 (codename Tavor-P)"
 
+config CPU_PXA935
+	bool "PXA935 (codename Tavor-P65)"
+
 endmenu
 
 endif
