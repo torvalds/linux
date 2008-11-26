@@ -94,7 +94,7 @@ void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(struct fuse_forget_in);
 	req->in.args[0].value = inarg;
-	request_send_noreply(fc, req);
+	fuse_request_send_noreply(fc, req);
 }
 
 static void fuse_clear_inode(struct inode *inode)
@@ -269,7 +269,7 @@ static void fuse_send_destroy(struct fuse_conn *fc)
 		fc->destroy_req = NULL;
 		req->in.h.opcode = FUSE_DESTROY;
 		req->force = 1;
-		request_send(fc, req);
+		fuse_request_send(fc, req);
 		fuse_put_request(fc, req);
 	}
 }
@@ -334,7 +334,7 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	req->out.args[0].size =
 		fc->minor < 4 ? FUSE_COMPAT_STATFS_SIZE : sizeof(outarg);
 	req->out.args[0].value = &outarg;
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	if (!err)
 		convert_fuse_statfs(buf, &outarg.st);
@@ -544,7 +544,7 @@ struct fuse_conn *fuse_conn_get(struct fuse_conn *fc)
 	return fc;
 }
 
-static struct inode *get_root_inode(struct super_block *sb, unsigned mode)
+static struct inode *fuse_get_root_inode(struct super_block *sb, unsigned mode)
 {
 	struct fuse_attr attr;
 	memset(&attr, 0, sizeof(attr));
@@ -787,7 +787,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 	req->out.args[0].size = sizeof(struct fuse_init_out);
 	req->out.args[0].value = &req->misc.init_out;
 	req->end = process_init_reply;
-	request_send_background(fc, req);
+	fuse_request_send_background(fc, req);
 }
 
 static int fuse_fill_super(struct super_block *sb, void *data, int silent)
@@ -841,7 +841,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_fs_info = fc;
 
 	err = -ENOMEM;
-	root = get_root_inode(sb, d.rootmode);
+	root = fuse_get_root_inode(sb, d.rootmode);
 	if (!root)
 		goto err;
 

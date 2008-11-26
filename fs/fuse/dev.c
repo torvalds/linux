@@ -379,7 +379,7 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 	}
 }
 
-void request_send(struct fuse_conn *fc, struct fuse_req *req)
+void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 1;
 	spin_lock(&fc->lock);
@@ -398,8 +398,8 @@ void request_send(struct fuse_conn *fc, struct fuse_req *req)
 	spin_unlock(&fc->lock);
 }
 
-static void request_send_nowait_locked(struct fuse_conn *fc,
-				       struct fuse_req *req)
+static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
+					    struct fuse_req *req)
 {
 	req->background = 1;
 	fc->num_background++;
@@ -413,11 +413,11 @@ static void request_send_nowait_locked(struct fuse_conn *fc,
 	flush_bg_queue(fc);
 }
 
-static void request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)
+static void fuse_request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)
 {
 	spin_lock(&fc->lock);
 	if (fc->connected) {
-		request_send_nowait_locked(fc, req);
+		fuse_request_send_nowait_locked(fc, req);
 		spin_unlock(&fc->lock);
 	} else {
 		req->out.h.error = -ENOTCONN;
@@ -425,16 +425,16 @@ static void request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)
 	}
 }
 
-void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req)
+void fuse_request_send_noreply(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 0;
-	request_send_nowait(fc, req);
+	fuse_request_send_nowait(fc, req);
 }
 
-void request_send_background(struct fuse_conn *fc, struct fuse_req *req)
+void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 1;
-	request_send_nowait(fc, req);
+	fuse_request_send_nowait(fc, req);
 }
 
 /*
@@ -442,10 +442,11 @@ void request_send_background(struct fuse_conn *fc, struct fuse_req *req)
  *
  * fc->connected must have been checked previously
  */
-void request_send_background_locked(struct fuse_conn *fc, struct fuse_req *req)
+void fuse_request_send_background_locked(struct fuse_conn *fc,
+					 struct fuse_req *req)
 {
 	req->isreply = 1;
-	request_send_nowait_locked(fc, req);
+	fuse_request_send_nowait_locked(fc, req);
 }
 
 /*

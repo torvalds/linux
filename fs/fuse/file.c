@@ -39,7 +39,7 @@ static int fuse_send_open(struct inode *inode, struct file *file, int isdir,
 	req->out.numargs = 1;
 	req->out.args[0].size = sizeof(*outargp);
 	req->out.args[0].value = outargp;
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 
@@ -93,7 +93,7 @@ static void fuse_file_put(struct fuse_file *ff)
 		struct inode *inode = req->misc.release.dentry->d_inode;
 		struct fuse_conn *fc = get_fuse_conn(inode);
 		req->end = fuse_release_end;
-		request_send_background(fc, req);
+		fuse_request_send_background(fc, req);
 		kfree(ff);
 	}
 }
@@ -289,7 +289,7 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
 	req->force = 1;
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (err == -ENOSYS) {
@@ -353,7 +353,7 @@ int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (err == -ENOSYS) {
@@ -405,7 +405,7 @@ static size_t fuse_send_read(struct fuse_req *req, struct file *file,
 		inarg->read_flags |= FUSE_READ_LOCKOWNER;
 		inarg->lock_owner = fuse_lock_owner_id(fc, owner);
 	}
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	return req->out.args[0].size;
 }
 
@@ -517,9 +517,9 @@ static void fuse_send_readpages(struct fuse_req *req, struct file *file,
 		struct fuse_file *ff = file->private_data;
 		req->ff = fuse_file_get(ff);
 		req->end = fuse_readpages_end;
-		request_send_background(fc, req);
+		fuse_request_send_background(fc, req);
 	} else {
-		request_send(fc, req);
+		fuse_request_send(fc, req);
 		fuse_readpages_end(fc, req);
 		fuse_put_request(fc, req);
 	}
@@ -645,7 +645,7 @@ static size_t fuse_send_write(struct fuse_req *req, struct file *file,
 		inarg->write_flags |= FUSE_WRITE_LOCKOWNER;
 		inarg->lock_owner = fuse_lock_owner_id(fc, owner);
 	}
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	return req->misc.write.out.size;
 }
 
@@ -1087,7 +1087,7 @@ static void fuse_send_writepage(struct fuse_conn *fc, struct fuse_req *req)
 
 	req->in.args[1].size = inarg->size;
 	fi->writectr++;
-	request_send_background_locked(fc, req);
+	fuse_request_send_background_locked(fc, req);
 	return;
 
  out_free:
@@ -1334,7 +1334,7 @@ static int fuse_getlk(struct file *file, struct file_lock *fl)
 	req->out.numargs = 1;
 	req->out.args[0].size = sizeof(outarg);
 	req->out.args[0].value = &outarg;
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err)
@@ -1366,7 +1366,7 @@ static int fuse_setlk(struct file *file, struct file_lock *fl, int flock)
 		return PTR_ERR(req);
 
 	fuse_lk_fill(req, file, fl, opcode, pid, flock);
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	/* locking is restartable */
 	if (err == -EINTR)
@@ -1442,7 +1442,7 @@ static sector_t fuse_bmap(struct address_space *mapping, sector_t block)
 	req->out.numargs = 1;
 	req->out.args[0].size = sizeof(outarg);
 	req->out.args[0].value = &outarg;
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (err == -ENOSYS)
@@ -1681,7 +1681,7 @@ static long fuse_file_do_ioctl(struct file *file, unsigned int cmd,
 	req->out.argpages = 1;
 	req->out.argvar = 1;
 
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	transferred = req->out.args[1].size;
 	fuse_put_request(fc, req);
@@ -1842,7 +1842,7 @@ static unsigned fuse_file_poll(struct file *file, poll_table *wait)
 	req->out.numargs = 1;
 	req->out.args[0].size = sizeof(outarg);
 	req->out.args[0].value = &outarg;
-	request_send(fc, req);
+	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 

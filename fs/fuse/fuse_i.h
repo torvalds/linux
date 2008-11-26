@@ -619,19 +619,20 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
 /**
  * Send a request (synchronous)
  */
-void request_send(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
  * Send a request with no reply
  */
-void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
  * Send a request in the background
  */
-void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req);
 
-void request_send_background_locked(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_request_send_background_locked(struct fuse_conn *fc,
+					 struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);
