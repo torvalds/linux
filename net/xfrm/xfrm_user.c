@@ -1398,7 +1398,7 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	audit_info.loginuid = NETLINK_CB(skb).loginuid;
 	audit_info.sessionid = NETLINK_CB(skb).sessionid;
 	audit_info.secid = NETLINK_CB(skb).sid;
-	err = xfrm_state_flush(p->proto, &audit_info);
+	err = xfrm_state_flush(&init_net, p->proto, &audit_info);
 	if (err)
 		return err;
 	c.data.proto = p->proto;

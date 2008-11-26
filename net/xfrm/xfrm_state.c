@@ -576,15 +576,15 @@ EXPORT_SYMBOL(xfrm_state_delete);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static inline int
-xfrm_state_flush_secctx_check(u8 proto, struct xfrm_audit *audit_info)
+xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audit_info)
 {
 	int i, err = 0;
 
-	for (i = 0; i <= init_net.xfrm.state_hmask; i++) {
+	for (i = 0; i <= net->xfrm.state_hmask; i++) {
 		struct hlist_node *entry;
 		struct xfrm_state *x;
 
-		hlist_for_each_entry(x, entry, init_net.xfrm.state_bydst+i, bydst) {
+		hlist_for_each_entry(x, entry, net->xfrm.state_bydst+i, bydst) {
 			if (xfrm_id_proto_match(x->id.proto, proto) &&
 			   (err = security_xfrm_state_delete(x)) != 0) {
 				xfrm_audit_state_delete(x, 0,
@@ -600,26 +600,26 @@ xfrm_state_flush_secctx_check(u8 proto, struct xfrm_audit *audit_info)
 }
 #else
 static inline int
-xfrm_state_flush_secctx_check(u8 proto, struct xfrm_audit *audit_info)
+xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audit_info)
 {
 	return 0;
 }
 #endif
 
-int xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info)
+int xfrm_state_flush(struct net *net, u8 proto, struct xfrm_audit *audit_info)
 {
 	int i, err = 0;
 
 	spin_lock_bh(&xfrm_state_lock);
-	err = xfrm_state_flush_secctx_check(proto, audit_info);
+	err = xfrm_state_flush_secctx_check(net, proto, audit_info);
 	if (err)
 		goto out;
 
-	for (i = 0; i <= init_net.xfrm.state_hmask; i++) {
+	for (i = 0; i <= net->xfrm.state_hmask; i++) {
 		struct hlist_node *entry;
 		struct xfrm_state *x;
 restart:
-		hlist_for_each_entry(x, entry, init_net.xfrm.state_bydst+i, bydst) {
+		hlist_for_each_entry(x, entry, net->xfrm.state_bydst+i, bydst) {
 			if (!xfrm_state_kern(x) &&
 			    xfrm_id_proto_match(x->id.proto, proto)) {
 				xfrm_state_hold(x);
@@ -641,7 +641,7 @@ restart:
 
 out:
 	spin_unlock_bh(&xfrm_state_lock);
-	wake_up(&init_net.xfrm.km_waitq);
+	wake_up(&net->xfrm.km_waitq);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_flush);
