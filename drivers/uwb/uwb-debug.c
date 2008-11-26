@@ -122,7 +122,7 @@ static int cmd_rsv_establish(struct uwb_rc *rc,
 	if (target == NULL)
 		return -ENODEV;
 
-	rsv = uwb_rsv_create(rc, uwb_dbg_rsv_cb, NULL);
+	rsv = uwb_rsv_create(rc, uwb_dbg_rsv_cb, rc->dbg);
 	if (rsv == NULL) {
 		uwb_dev_put(target);
 		return -ENOMEM;
