@@ -45,9 +45,6 @@
 
 #define DRV_NAME "ne3210"
 
-static int ne3210_open(struct net_device *dev);
-static int ne3210_close(struct net_device *dev);
-
 static void ne3210_reset_8390(struct net_device *dev);
 
 static void ne3210_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_page);
@@ -199,11 +196,8 @@ static int __init ne3210_eisa_probe (struct device *device)
 	ei_status.block_output = &ne3210_block_output;
 	ei_status.get_8390_hdr = &ne3210_get_8390_hdr;
 
-	dev->open = &ne3210_open;
-	dev->stop = &ne3210_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+	dev->netdev_ops = &ei_netdev_ops;
+
 	dev->if_port = ifmap_val[port_index];
 
 	if ((retval = register_netdev (dev)))
@@ -318,22 +312,6 @@ static void ne3210_block_output(struct net_device *dev, int count,
 
 	count = (count + 3) & ~3;     /* Round up to doubleword */
 	memcpy_toio(shmem, buf, count);
-}
-
-static int ne3210_open(struct net_device *dev)
-{
-	ei_open(dev);
-	return 0;
-}
-
-static int ne3210_close(struct net_device *dev)
-{
-
-	if (ei_debug > 1)
-		printk("%s: Shutting down ethercard.\n", dev->name);
-
-	ei_close(dev);
-	return 0;
 }
 
 static struct eisa_device_id ne3210_ids[] = {
