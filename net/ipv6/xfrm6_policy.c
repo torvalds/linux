@@ -50,12 +50,13 @@ static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos,
 	return dst;
 }
 
-static int xfrm6_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
+static int xfrm6_get_saddr(struct net *net,
+			   xfrm_address_t *saddr, xfrm_address_t *daddr)
 {
 	struct dst_entry *dst;
 	struct net_device *dev;
 
-	dst = xfrm6_dst_lookup(&init_net, 0, NULL, daddr);
+	dst = xfrm6_dst_lookup(net, 0, NULL, daddr);
 	if (IS_ERR(dst))
 		return -EHOSTUNREACH;
 

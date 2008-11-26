@@ -1187,7 +1187,7 @@ int __xfrm_sk_clone_policy(struct sock *sk)
 }
 
 static int
-xfrm_get_saddr(xfrm_address_t *local, xfrm_address_t *remote,
+xfrm_get_saddr(struct net *net, xfrm_address_t *local, xfrm_address_t *remote,
 	       unsigned short family)
 {
 	int err;
@@ -1195,7 +1195,7 @@ xfrm_get_saddr(xfrm_address_t *local, xfrm_address_t *remote,
 
 	if (unlikely(afinfo == NULL))
 		return -EINVAL;
-	err = afinfo->get_saddr(local, remote);
+	err = afinfo->get_saddr(net, local, remote);
 	xfrm_policy_put_afinfo(afinfo);
 	return err;
 }
@@ -1207,6 +1207,7 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
 		      struct xfrm_state **xfrm,
 		      unsigned short family)
 {
+	struct net *net = xp_net(policy);
 	int nx;
 	int i, error;
 	xfrm_address_t *daddr = xfrm_flowi_daddr(fl, family);
@@ -1225,7 +1226,7 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
 			local = &tmpl->saddr;
 			family = tmpl->encap_family;
 			if (xfrm_addr_any(local, family)) {
-				error = xfrm_get_saddr(&tmp, remote, family);
+				error = xfrm_get_saddr(net, &tmp, remote, family);
 				if (error)
 					goto fail;
 				local = &tmp;
