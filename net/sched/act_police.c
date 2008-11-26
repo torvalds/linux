@@ -183,7 +183,9 @@ override:
 		if (R_tab == NULL)
 			goto failure;
 
-		if (!est && !gen_estimator_active(&police->tcf_rate_est)) {
+		if (!est && (ret == ACT_P_CREATED ||
+			     !gen_estimator_active(&police->tcf_bstats,
+						   &police->tcf_rate_est))) {
 			err = -EINVAL;
 			goto failure;
 		}

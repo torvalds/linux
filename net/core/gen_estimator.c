@@ -163,8 +163,9 @@ static void gen_add_node(struct gen_estimator *est)
 	rb_insert_color(&est->node, &est_root);
 }
 
-static struct gen_estimator *gen_find_node(struct gnet_stats_basic *bstats,
-					   struct gnet_stats_rate_est *rate_est)
+static
+struct gen_estimator *gen_find_node(const struct gnet_stats_basic *bstats,
+				    const struct gnet_stats_rate_est *rate_est)
 {
 	struct rb_node *p = est_root.rb_node;
 
@@ -301,26 +302,16 @@ EXPORT_SYMBOL(gen_replace_estimator);
 
 /**
  * gen_estimator_active - test if estimator is currently in use
+ * @bstats: basic statistics
  * @rate_est: rate estimator statistics
  *
- * Returns 1 if estimator is active, and 0 if not.
+ * Returns true if estimator is active, and false if not.
  */
-int gen_estimator_active(const struct gnet_stats_rate_est *rate_est)
+bool gen_estimator_active(const struct gnet_stats_basic *bstats,
+			  const struct gnet_stats_rate_est *rate_est)
 {
-	int idx;
-	struct gen_estimator *e;
-
 	ASSERT_RTNL();
 
-	for (idx=0; idx <= EST_MAX_INTERVAL; idx++) {
-		if (!elist[idx].timer.function)
-			continue;
-
-		list_for_each_entry(e, &elist[idx].list, list) {
-			if (e->rate_est == rate_est)
-				return 1;
-		}
-	}
-	return 0;
+	return gen_find_node(bstats, rate_est) != NULL;
 }
 EXPORT_SYMBOL(gen_estimator_active);
