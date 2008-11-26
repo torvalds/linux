@@ -1279,7 +1279,7 @@ static int xfrm_dump_policy(struct sk_buff *skb, struct netlink_callback *cb)
 		xfrm_policy_walk_init(walk, XFRM_POLICY_TYPE_ANY);
 	}
 
-	(void) xfrm_policy_walk(walk, dump_one_policy, &info);
+	(void) xfrm_policy_walk(&init_net, walk, dump_one_policy, &info);
 
 	return skb->len;
 }

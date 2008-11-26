@@ -1435,7 +1435,7 @@ static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 struct xfrm_policy *xfrm_policy_alloc(struct net *net, gfp_t gfp);
 
 extern void xfrm_policy_walk_init(struct xfrm_policy_walk *walk, u8 type);
-extern int xfrm_policy_walk(struct xfrm_policy_walk *walk,
+extern int xfrm_policy_walk(struct net *net, struct xfrm_policy_walk *walk,
 	int (*func)(struct xfrm_policy *, int, int, void*), void *);
 extern void xfrm_policy_walk_done(struct xfrm_policy_walk *walk);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);

@@ -1846,7 +1846,7 @@ static u32 gen_reqid(void)
 		if (reqid == 0)
 			reqid = IPSEC_MANUAL_REQID_MAX+1;
 		xfrm_policy_walk_init(&walk, XFRM_POLICY_TYPE_MAIN);
-		rc = xfrm_policy_walk(&walk, check_reqid, (void*)&reqid);
+		rc = xfrm_policy_walk(&init_net, &walk, check_reqid, (void*)&reqid);
 		xfrm_policy_walk_done(&walk);
 		if (rc != -EEXIST)
 			return reqid;
@@ -2633,7 +2633,7 @@ static int dump_sp(struct xfrm_policy *xp, int dir, int count, void *ptr)
 
 static int pfkey_dump_sp(struct pfkey_sock *pfk)
 {
-	return xfrm_policy_walk(&pfk->dump.u.policy, dump_sp, (void *) pfk);
+	return xfrm_policy_walk(&init_net, &pfk->dump.u.policy, dump_sp, (void *) pfk);
 }
 
 static void pfkey_dump_sp_done(struct pfkey_sock *pfk)
