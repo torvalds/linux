@@ -44,6 +44,5 @@ config SND_OMAP_SOC_SDP3430
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_TWL4030
 	help
-	  Say Y if you want to add support for SoC audio on Texas Instruments SDP3430.
-
-
+	  Say Y if you want to add support for SoC audio on Texas Instruments
+	  SDP3430.
