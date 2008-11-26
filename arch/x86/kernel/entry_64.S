@@ -1160,7 +1160,7 @@ ENTRY(kernel_thread)
 	CFI_ENDPROC
 END(kernel_thread)
 
-child_rip:
+ENTRY(child_rip)
 	pushq $0		# fake return address
 	CFI_STARTPROC
 	/*
