@@ -46,7 +46,7 @@ static int fuse_send_open(struct inode *inode, struct file *file, int isdir,
 	return err;
 }
 
-struct fuse_file *fuse_file_alloc(void)
+struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 {
 	struct fuse_file *ff;
 	ff = kmalloc(sizeof(struct fuse_file), GFP_KERNEL);
@@ -58,6 +58,9 @@ struct fuse_file *fuse_file_alloc(void)
 		} else {
 			INIT_LIST_HEAD(&ff->write_entry);
 			atomic_set(&ff->count, 0);
+			spin_lock(&fc->lock);
+			ff->kh = ++fc->khctr;
+			spin_unlock(&fc->lock);
 		}
 	}
 	return ff;
@@ -108,6 +111,7 @@ void fuse_finish_open(struct inode *inode, struct file *file,
 
 int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 {
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_open_out outarg;
 	struct fuse_file *ff;
 	int err;
@@ -120,7 +124,7 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 	if (err)
 		return err;
 
-	ff = fuse_file_alloc();
+	ff = fuse_file_alloc(fc);
 	if (!ff)
 		return -ENOMEM;
 

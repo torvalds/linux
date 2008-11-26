@@ -485,6 +485,7 @@ static struct fuse_conn *new_conn(struct super_block *sb)
 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
 		/* fuse does it's own writeback accounting */
 		fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
+		fc->khctr = 0;
 		fc->dev = sb->s_dev;
 		err = bdi_init(&fc->bdi);
 		if (err)

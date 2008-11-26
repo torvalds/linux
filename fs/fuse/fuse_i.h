@@ -100,6 +100,9 @@ struct fuse_file {
 	/** Request reserved for flush and release */
 	struct fuse_req *reserved_req;
 
+	/** Kernel file handle guaranteed to be unique */
+	u64 kh;
+
 	/** File handle used by userspace */
 	u64 fh;
 
@@ -322,6 +325,9 @@ struct fuse_conn {
 	/** The list of requests under I/O */
 	struct list_head io;
 
+	/** The next unique kernel file handle */
+	u64 khctr;
+
 	/** Number of requests currently in the background */
 	unsigned num_background;
 
@@ -499,7 +505,7 @@ void fuse_read_fill(struct fuse_req *req, struct file *file,
  */
 int fuse_open_common(struct inode *inode, struct file *file, int isdir);
 
-struct fuse_file *fuse_file_alloc(void);
+struct fuse_file *fuse_file_alloc(struct fuse_conn *fc);
 void fuse_file_free(struct fuse_file *ff);
 void fuse_finish_open(struct inode *inode, struct file *file,
 		      struct fuse_file *ff, struct fuse_open_out *outarg);

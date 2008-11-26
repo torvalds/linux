@@ -408,7 +408,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 		goto out_put_forget_req;
 
 	err = -ENOMEM;
-	ff = fuse_file_alloc();
+	ff = fuse_file_alloc(fc);
 	if (!ff)
 		goto out_put_request;
 
