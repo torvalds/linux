@@ -16,11 +16,7 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/compat.h>
-#include <linux/init.h>
 #include <linux/ioctl.h>
-#include <linux/syscalls.h>
-#include <linux/types.h>
-#include <linux/fs.h>
 #include <asm/uaccess.h>
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -131,7 +127,7 @@ xfs_inumbers_fmt_compat(
 
 #else
 #define xfs_inumbers_fmt_compat xfs_inumbers_fmt
-#endif
+#endif	/* BROKEN_X86_ALIGNMENT */
 
 STATIC int
 xfs_ioctl32_bstime_copyin(
@@ -617,6 +613,7 @@ xfs_compat_ioctl(
 
 	xfs_itrace_entry(XFS_I(inode));
 	switch (cmd) {
+	/* No size or alignment issues on any arch */
 	case XFS_IOC_DIOINFO:
 	case XFS_IOC_FSGEOMETRY:
 	case XFS_IOC_FSGETXATTR:
@@ -629,35 +626,28 @@ xfs_compat_ioctl(
 	case XFS_IOC_FSCOUNTS:
 	case XFS_IOC_SET_RESBLKS:
 	case XFS_IOC_GET_RESBLKS:
-	case XFS_IOC_FSGROWFSDATA:
 	case XFS_IOC_FSGROWFSLOG:
-	case XFS_IOC_FSGROWFSRT:
 	case XFS_IOC_FREEZE:
 	case XFS_IOC_THAW:
 	case XFS_IOC_GOINGDOWN:
 	case XFS_IOC_ERROR_INJECTION:
 	case XFS_IOC_ERROR_CLEARALL:
-		break;
-
-	case XFS_IOC_GETXFLAGS_32:
-	case XFS_IOC_SETXFLAGS_32:
-	case XFS_IOC_GETVERSION_32:
-		cmd = _NATIVE_IOC(cmd, long);
-		break;
-	case XFS_IOC_SWAPEXT: {
-		struct xfs_swapext	  sxp;
-		struct compat_xfs_swapext __user *sxu = arg;
-
-		/* Bulk copy in up to the sx_stat field, then grab bstat */
-		if (copy_from_user(&sxp, sxu,
-				   offsetof(xfs_swapext_t, sx_stat)) ||
-		    xfs_ioctl32_bstat_copyin(&sxp.sx_stat, &sxu->sx_stat))
-			return -XFS_ERROR(EFAULT);
-		error = xfs_swapext(&sxp);
-		return -error;
-	}
-#ifdef BROKEN_X86_ALIGNMENT
-	/* xfs_flock_t has wrong u32 vs u64 alignment */
+		return xfs_ioctl(ip, filp, ioflags, cmd, arg);
+#ifndef BROKEN_X86_ALIGNMENT
+	/* These are handled fine if no alignment issues */
+	case XFS_IOC_ALLOCSP:
+	case XFS_IOC_FREESP:
+	case XFS_IOC_RESVSP:
+	case XFS_IOC_UNRESVSP:
+	case XFS_IOC_ALLOCSP64:
+	case XFS_IOC_FREESP64:
+	case XFS_IOC_RESVSP64:
+	case XFS_IOC_UNRESVSP64:
+	case XFS_IOC_FSGEOMETRY_V1:
+	case XFS_IOC_FSGROWFSDATA:
+	case XFS_IOC_FSGROWFSRT:
+		return xfs_ioctl(ip, filp, ioflags, cmd, arg);
+#else
 	case XFS_IOC_ALLOCSP_32:
 	case XFS_IOC_FREESP_32:
 	case XFS_IOC_ALLOCSP64_32:
@@ -691,18 +681,25 @@ xfs_compat_ioctl(
 		error = xfs_growfs_rt(mp, &in);
 		return -error;
 	}
-#else /* These are handled fine if no alignment issues */
-	case XFS_IOC_ALLOCSP:
-	case XFS_IOC_FREESP:
-	case XFS_IOC_RESVSP:
-	case XFS_IOC_UNRESVSP:
-	case XFS_IOC_ALLOCSP64:
-	case XFS_IOC_FREESP64:
-	case XFS_IOC_RESVSP64:
-	case XFS_IOC_UNRESVSP64:
-	case XFS_IOC_FSGEOMETRY_V1:
-		break;
 #endif
+	/* long changes size, but xfs only copiese out 32 bits */
+	case XFS_IOC_GETXFLAGS_32:
+	case XFS_IOC_SETXFLAGS_32:
+	case XFS_IOC_GETVERSION_32:
+		cmd = _NATIVE_IOC(cmd, long);
+		return xfs_ioctl(ip, filp, ioflags, cmd, arg);
+	case XFS_IOC_SWAPEXT: {
+		struct xfs_swapext	  sxp;
+		struct compat_xfs_swapext __user *sxu = arg;
+
+		/* Bulk copy in up to the sx_stat field, then copy bstat */
+		if (copy_from_user(&sxp, sxu,
+				   offsetof(struct xfs_swapext, sx_stat)) ||
+		    xfs_ioctl32_bstat_copyin(&sxp.sx_stat, &sxu->sx_stat))
+			return -XFS_ERROR(EFAULT);
+		error = xfs_swapext(&sxp);
+		return -error;
+	}
 	case XFS_IOC_FSBULKSTAT_32:
 	case XFS_IOC_FSBULKSTAT_SINGLE_32:
 	case XFS_IOC_FSINUMBERS_32:
@@ -740,9 +737,6 @@ xfs_compat_ioctl(
 	default:
 		return -XFS_ERROR(ENOIOCTLCMD);
 	}
-
-	error = xfs_ioctl(ip, filp, ioflags, cmd, arg);
-	return error;
 }
 
 long
