@@ -1069,29 +1069,32 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir, struc
 
 static void __xfrm_policy_link(struct xfrm_policy *pol, int dir)
 {
+	struct net *net = xp_net(pol);
 	struct hlist_head *chain = policy_hash_bysel(&pol->selector,
 						     pol->family, dir);
 
-	list_add(&pol->walk.all, &init_net.xfrm.policy_all);
+	list_add(&pol->walk.all, &net->xfrm.policy_all);
 	hlist_add_head(&pol->bydst, chain);
-	hlist_add_head(&pol->byidx, init_net.xfrm.policy_byidx+idx_hash(pol->index));
-	init_net.xfrm.policy_count[dir]++;
+	hlist_add_head(&pol->byidx, net->xfrm.policy_byidx+idx_hash(pol->index));
+	net->xfrm.policy_count[dir]++;
 	xfrm_pol_hold(pol);
 
-	if (xfrm_bydst_should_resize(&init_net, dir, NULL))
-		schedule_work(&init_net.xfrm.policy_hash_work);
+	if (xfrm_bydst_should_resize(net, dir, NULL))
+		schedule_work(&net->xfrm.policy_hash_work);
 }
 
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir)
 {
+	struct net *net = xp_net(pol);
+
 	if (hlist_unhashed(&pol->bydst))
 		return NULL;
 
 	hlist_del(&pol->bydst);
 	hlist_del(&pol->byidx);
 	list_del(&pol->walk.all);
-	init_net.xfrm.policy_count[dir]--;
+	net->xfrm.policy_count[dir]--;
 
 	return pol;
 }
