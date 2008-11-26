@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -37,10 +37,10 @@ struct fuse_mount_data {
 	unsigned rootmode;
 	unsigned user_id;
 	unsigned group_id;
-	unsigned fd_present : 1;
-	unsigned rootmode_present : 1;
-	unsigned user_id_present : 1;
-	unsigned group_id_present : 1;
+	unsigned fd_present:1;
+	unsigned rootmode_present:1;
+	unsigned user_id_present:1;
+	unsigned group_id_present:1;
 	unsigned flags;
 	unsigned max_read;
 	unsigned blksize;
@@ -250,7 +250,7 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 
 	fi = get_fuse_inode(inode);
 	spin_lock(&fc->lock);
-	fi->nlookup ++;
+	fi->nlookup++;
 	spin_unlock(&fc->lock);
 	fuse_change_attributes(inode, attr, attr_valid, attr_version);
 
@@ -553,8 +553,7 @@ static struct inode *get_root_inode(struct super_block *sb, unsigned mode)
 	return fuse_iget(sb, 1, 0, &attr, 0, 0);
 }
 
-struct fuse_inode_handle
-{
+struct fuse_inode_handle {
 	u64 nodeid;
 	u32 generation;
 };
@@ -952,7 +951,7 @@ static inline void unregister_fuseblk(void)
 
 static void fuse_inode_init_once(void *foo)
 {
-	struct inode * inode = foo;
+	struct inode *inode = foo;
 
 	inode_init_once(inode);
 }
@@ -1031,7 +1030,7 @@ static int __init fuse_init(void)
 {
 	int res;
 
-	printk("fuse init (API version %i.%i)\n",
+	printk(KERN_INFO "fuse init (API version %i.%i)\n",
 	       FUSE_KERNEL_VERSION, FUSE_KERNEL_MINOR_VERSION);
 
 	INIT_LIST_HEAD(&fuse_conn_list);

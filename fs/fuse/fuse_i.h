@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -355,19 +355,19 @@ struct fuse_conn {
 	/** Connection failed (version mismatch).  Cannot race with
 	    setting other bitfields since it is only set once in INIT
 	    reply, before any other request, and never cleared */
-	unsigned conn_error : 1;
+	unsigned conn_error:1;
 
 	/** Connection successful.  Only set in INIT */
-	unsigned conn_init : 1;
+	unsigned conn_init:1;
 
 	/** Do readpages asynchronously?  Only set in INIT */
-	unsigned async_read : 1;
+	unsigned async_read:1;
 
 	/** Do not send separate SETATTR request before open(O_TRUNC)  */
-	unsigned atomic_o_trunc : 1;
+	unsigned atomic_o_trunc:1;
 
 	/** Filesystem supports NFS exporting.  Only set in INIT */
-	unsigned export_support : 1;
+	unsigned export_support:1;
 
 	/*
 	 * The following bitfields are only for optimization purposes
@@ -375,43 +375,43 @@ struct fuse_conn {
 	 */
 
 	/** Is fsync not implemented by fs? */
-	unsigned no_fsync : 1;
+	unsigned no_fsync:1;
 
 	/** Is fsyncdir not implemented by fs? */
-	unsigned no_fsyncdir : 1;
+	unsigned no_fsyncdir:1;
 
 	/** Is flush not implemented by fs? */
-	unsigned no_flush : 1;
+	unsigned no_flush:1;
 
 	/** Is setxattr not implemented by fs? */
-	unsigned no_setxattr : 1;
+	unsigned no_setxattr:1;
 
 	/** Is getxattr not implemented by fs? */
-	unsigned no_getxattr : 1;
+	unsigned no_getxattr:1;
 
 	/** Is listxattr not implemented by fs? */
-	unsigned no_listxattr : 1;
+	unsigned no_listxattr:1;
 
 	/** Is removexattr not implemented by fs? */
-	unsigned no_removexattr : 1;
+	unsigned no_removexattr:1;
 
 	/** Are file locking primitives not implemented by fs? */
-	unsigned no_lock : 1;
+	unsigned no_lock:1;
 
 	/** Is access not implemented by fs? */
-	unsigned no_access : 1;
+	unsigned no_access:1;
 
 	/** Is create not implemented by fs? */
-	unsigned no_create : 1;
+	unsigned no_create:1;
 
 	/** Is interrupt not implemented by fs? */
-	unsigned no_interrupt : 1;
+	unsigned no_interrupt:1;
 
 	/** Is bmap not implemented by fs? */
-	unsigned no_bmap : 1;
+	unsigned no_bmap:1;
 
 	/** Do multi-page cached writes */
-	unsigned big_writes : 1;
+	unsigned big_writes:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;

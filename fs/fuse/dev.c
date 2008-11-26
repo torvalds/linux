@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -539,8 +539,8 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 		BUG_ON(!cs->nr_segs);
 		cs->seglen = cs->iov[0].iov_len;
 		cs->addr = (unsigned long) cs->iov[0].iov_base;
-		cs->iov ++;
-		cs->nr_segs --;
+		cs->iov++;
+		cs->nr_segs--;
 	}
 	down_read(&current->mm->mmap_sem);
 	err = get_user_pages(current, current->mm, cs->addr, 1, cs->write, 0,
@@ -589,9 +589,11 @@ static int fuse_copy_page(struct fuse_copy_state *cs, struct page *page,
 		kunmap_atomic(mapaddr, KM_USER1);
 	}
 	while (count) {
-		int err;
-		if (!cs->len && (err = fuse_copy_fill(cs)))
-			return err;
+		if (!cs->len) {
+			int err = fuse_copy_fill(cs);
+			if (err)
+				return err;
+		}
 		if (page) {
 			void *mapaddr = kmap_atomic(page, KM_USER1);
 			void *buf = mapaddr + offset;
@@ -631,9 +633,11 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 static int fuse_copy_one(struct fuse_copy_state *cs, void *val, unsigned size)
 {
 	while (size) {
-		int err;
-		if (!cs->len && (err = fuse_copy_fill(cs)))
-			return err;
+		if (!cs->len) {
+			int err = fuse_copy_fill(cs);
+			if (err)
+				return err;
+		}
 		fuse_copy_do(cs, &val, &size);
 	}
 	return 0;

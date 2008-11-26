@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -543,7 +543,7 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 		}
 	}
 	req->pages[req->num_pages] = page;
-	req->num_pages ++;
+	req->num_pages++;
 	return 0;
 }
 
