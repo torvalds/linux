@@ -873,10 +873,7 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 	if (regs && user_mode(regs))
 		return;
 
-	printk("\nCall trace: ");
-#ifdef CONFIG_KALLSYMS
-	printk("\n");
-#endif
+	printk("\nCall trace:\n");
 
 	while (!kstack_end(sp)) {
 		addr = *sp++;

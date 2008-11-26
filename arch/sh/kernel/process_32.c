@@ -115,8 +115,8 @@ void machine_power_off(void)
 void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
-	printk("Pid : %d, Comm: %20s\n", task_pid_nr(current), current->comm);
-	printk("CPU : %d    %s  (%s %.*s)\n",
+	printk("Pid : %d, Comm: \t\t%s\n", task_pid_nr(current), current->comm);
+	printk("CPU : %d        \t\t%s  (%s %.*s)\n\n",
 	       smp_processor_id(), print_tainted(), init_utsname()->release,
 	       (int)strcspn(init_utsname()->version, " "),
 	       init_utsname()->version);
