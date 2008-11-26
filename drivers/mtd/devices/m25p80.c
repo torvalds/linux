@@ -575,7 +575,7 @@ static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
 			tmp < ARRAY_SIZE(m25p_data);
 			tmp++, info++) {
 		if (info->jedec_id == jedec) {
-			if (ext_jedec != 0 && info->ext_id != ext_jedec)
+			if (info->ext_id != 0 && info->ext_id != ext_jedec)
 				continue;
 			return info;
 		}
