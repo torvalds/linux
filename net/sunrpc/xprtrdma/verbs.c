@@ -276,7 +276,9 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	struct rpcrdma_xprt *xprt = id->context;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct rpcrdma_ep *ep = &xprt->rx_ep;
+#ifdef RPC_DEBUG
 	struct sockaddr_in *addr = (struct sockaddr_in *) &ep->rep_remote_addr;
+#endif
 	struct ib_qp_attr attr;
 	struct ib_qp_init_attr iattr;
 	int connstate = 0;
