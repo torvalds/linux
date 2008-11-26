@@ -664,6 +664,30 @@ static void __init prcm_setup_regs(void)
 	omap3_d2d_idle();
 }
 
+int omap3_pm_get_suspend_state(struct powerdomain *pwrdm)
+{
+	struct power_state *pwrst;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (pwrst->pwrdm == pwrdm)
+			return pwrst->next_state;
+	}
+	return -EINVAL;
+}
+
+int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state)
+{
+	struct power_state *pwrst;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (pwrst->pwrdm == pwrdm) {
+			pwrst->next_state = state;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 {
 	struct power_state *pwrst;

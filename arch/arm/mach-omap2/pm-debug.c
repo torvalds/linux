@@ -24,6 +24,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include <mach/clock.h>
 #include <mach/board.h>
@@ -484,10 +485,28 @@ int pm_dbg_regset_init(int reg_set)
 	return 0;
 }
 
-static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
+static int pwrdm_suspend_get(void *data, u64 *val)
+{
+	*val = omap3_pm_get_suspend_state((struct powerdomain *)data);
+
+	if (*val >= 0)
+		return 0;
+	return *val;
+}
+
+static int pwrdm_suspend_set(void *data, u64 val)
+{
+	return omap3_pm_set_suspend_state((struct powerdomain *)data, (int)val);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(pwrdm_suspend_fops, pwrdm_suspend_get,
+			pwrdm_suspend_set, "%llu\n");
+
+static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 {
 	int i;
 	s64 t;
+	struct dentry *d;
 
 	t = sched_clock();
 
@@ -495,6 +514,14 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 		pwrdm->state_timer[i] = 0;
 
 	pwrdm->timer = t;
+
+	if (strncmp(pwrdm->name, "dpll", 4) == 0)
+		return 0;
+
+	d = debugfs_create_dir(pwrdm->name, (struct dentry *)dir);
+
+	(void) debugfs_create_file("suspend", S_IRUGO|S_IWUSR, d,
+			(void *)pwrdm, &pwrdm_suspend_fops);
 
 	return 0;
 }
@@ -524,7 +551,7 @@ static int __init pm_dbg_init(void)
 	(void) debugfs_create_file("time", S_IRUGO,
 		d, (void *)DEBUG_FILE_TIMERS, &debug_fops);
 
-	pwrdm_for_each(pwrdms_setup, NULL);
+	pwrdm_for_each(pwrdms_setup, (void *)d);
 
 	pm_dbg_dir = debugfs_create_dir("registers", d);
 	if (IS_ERR(pm_dbg_dir))
