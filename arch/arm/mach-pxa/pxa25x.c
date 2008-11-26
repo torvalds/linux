@@ -298,6 +298,14 @@ void __init pxa25x_init_irq(void)
 	pxa_init_gpio(85, pxa25x_set_wake);
 }
 
+#ifdef CONFIG_CPU_PXA26x
+void __init pxa26x_init_irq(void)
+{
+	pxa_init_irq(32, pxa25x_set_wake);
+	pxa_init_gpio(90, pxa25x_set_wake);
+}
+#endif
+
 static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_udc,
 	&pxa_device_ffuart,

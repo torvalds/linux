@@ -38,6 +38,7 @@ struct gpio_desc {
 	unsigned	valid		: 1;
 	unsigned	can_wakeup	: 1;
 	unsigned	keypad_gpio	: 1;
+	unsigned	dir_inverted	: 1;
 	unsigned int	mask; /* bit mask in PWER or PKWR */
 	unsigned int	mux_mask; /* bit mask of muxed gpio bits, 0 if no mux */
 	unsigned long	config;
@@ -54,7 +55,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	int uorl = !!(gpio & 0x10); /* GAFRx_U or GAFRx_L ? */
 	int shft = (gpio & 0xf) << 1;
 	int fn = MFP_AF(c);
-	int dir = c & MFP_DIR_OUT;
+	int is_out = (c & MFP_DIR_OUT) ? 1 : 0;
 
 	if (fn > 3)
 		return -EINVAL;
@@ -68,7 +69,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	else
 		GAFR_U(bank) = gafr;
 
-	if (dir == MFP_DIR_OUT)
+	if (is_out ^ gpio_desc[gpio].dir_inverted)
 		GPDR(gpio) |= mask;
 	else
 		GPDR(gpio) &= ~mask;
@@ -77,11 +78,11 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	switch (c & MFP_LPM_STATE_MASK) {
 	case MFP_LPM_DRIVE_HIGH:
 		PGSR(bank) |= mask;
-		dir = MFP_DIR_OUT;
+		is_out = 1;
 		break;
 	case MFP_LPM_DRIVE_LOW:
 		PGSR(bank) &= ~mask;
-		dir = MFP_DIR_OUT;
+		is_out = 1;
 		break;
 	case MFP_LPM_DEFAULT:
 		break;
@@ -92,7 +93,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		break;
 	}
 
-	if (dir == MFP_DIR_OUT)
+	if (is_out ^ gpio_desc[gpio].dir_inverted)
 		gpdr_lpm[bank] |= mask;
 	else
 		gpdr_lpm[bank] &= ~mask;
@@ -106,7 +107,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		return -EINVAL;
 	}
 
-	if ((c & MFP_LPM_CAN_WAKEUP) && (dir == MFP_DIR_OUT)) {
+	if ((c & MFP_LPM_CAN_WAKEUP) && is_out) {
 		pr_warning("%s: output GPIO%d unable to wakeup\n",
 				__func__, gpio);
 		return -EINVAL;
@@ -221,6 +222,12 @@ static void __init pxa25x_mfp_init(void)
 		gpio_desc[i].can_wakeup = 1;
 		gpio_desc[i].mask = GPIO_bit(i);
 	}
+
+	/* PXA26x has additional 4 GPIOs (86/87/88/89) which has the
+	 * direction bit inverted in GPDR2. See PXA26x DM 4.1.1.
+	 */
+	for (i = 86; i <= pxa_last_gpio; i++)
+		gpio_desc[i].dir_inverted = 1;
 }
 #else
 static inline void pxa25x_mfp_init(void) {}

@@ -394,6 +394,12 @@ config PXA27x
 	help
 	  Select code specific to PXA27x variants
 
+config CPU_PXA26x
+	bool
+	select PXA25x
+	help
+	  Select code specific to PXA26x (codename Dalhart)
+
 config PXA3xx
 	bool
 	help
