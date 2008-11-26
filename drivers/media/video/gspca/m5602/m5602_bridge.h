@@ -136,4 +136,7 @@ int m5602_write_bridge(
 int m5602_write_sensor(struct sd *sd, const u8 address,
 		       u8 *i2c_data, const u8 len);
 
+int m5602_read_sensor(struct sd *sd, const u8 address,
+		      u8 *i2c_data, const u8 len);
+
 #endif
