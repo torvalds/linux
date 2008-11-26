@@ -1018,6 +1018,14 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		}
 		cur_time = psched_get_time();
 
+		if (tca[TCA_RATE]) {
+			err = gen_replace_estimator(&cl->bstats, &cl->rate_est,
+					      qdisc_root_sleeping_lock(sch),
+					      tca[TCA_RATE]);
+			if (err)
+				return err;
+		}
+
 		sch_tree_lock(sch);
 		if (rsc != NULL)
 			hfsc_change_rsc(cl, rsc, cur_time);
@@ -1034,10 +1042,6 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		}
 		sch_tree_unlock(sch);
 
-		if (tca[TCA_RATE])
-			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      qdisc_root_sleeping_lock(sch),
-					      tca[TCA_RATE]);
 		return 0;
 	}
 
@@ -1062,6 +1066,16 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl = kzalloc(sizeof(struct hfsc_class), GFP_KERNEL);
 	if (cl == NULL)
 		return -ENOBUFS;
+
+	if (tca[TCA_RATE]) {
+		err = gen_new_estimator(&cl->bstats, &cl->rate_est,
+					qdisc_root_sleeping_lock(sch),
+					tca[TCA_RATE]);
+		if (err) {
+			kfree(cl);
+			return err;
+		}
+	}
 
 	if (rsc != NULL)
 		hfsc_change_rsc(cl, rsc, 0);
@@ -1093,9 +1107,6 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 	qdisc_class_hash_grow(sch, &q->clhash);
 
-	if (tca[TCA_RATE])
-		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  qdisc_root_sleeping_lock(sch), tca[TCA_RATE]);
 	*arg = (unsigned long)cl;
 	return 0;
 }

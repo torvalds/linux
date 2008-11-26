@@ -82,15 +82,19 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		quantum = psched_mtu(qdisc_dev(sch));
 
 	if (cl != NULL) {
+		if (tca[TCA_RATE]) {
+			err = gen_replace_estimator(&cl->bstats, &cl->rate_est,
+						    qdisc_root_sleeping_lock(sch),
+						    tca[TCA_RATE]);
+			if (err)
+				return err;
+		}
+
 		sch_tree_lock(sch);
 		if (tb[TCA_DRR_QUANTUM])
 			cl->quantum = quantum;
 		sch_tree_unlock(sch);
 
-		if (tca[TCA_RATE])
-			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      qdisc_root_sleeping_lock(sch),
-					      tca[TCA_RATE]);
 		return 0;
 	}
 
@@ -106,10 +110,16 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl->qdisc == NULL)
 		cl->qdisc = &noop_qdisc;
 
-	if (tca[TCA_RATE])
-		gen_replace_estimator(&cl->bstats, &cl->rate_est,
-				      qdisc_root_sleeping_lock(sch),
-				      tca[TCA_RATE]);
+	if (tca[TCA_RATE]) {
+		err = gen_replace_estimator(&cl->bstats, &cl->rate_est,
+					    qdisc_root_sleeping_lock(sch),
+					    tca[TCA_RATE]);
+		if (err) {
+			qdisc_destroy(cl->qdisc);
+			kfree(cl);
+			return err;
+		}
+	}
 
 	sch_tree_lock(sch);
 	qdisc_class_hash_insert(&q->clhash, &cl->common);

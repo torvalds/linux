@@ -880,9 +880,12 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 	sch->stab = stab;
 
 	if (tca[TCA_RATE])
+		/* NB: ignores errors from replace_estimator
+		   because change can't be undone. */
 		gen_replace_estimator(&sch->bstats, &sch->rate_est,
-				      qdisc_root_sleeping_lock(sch),
-				      tca[TCA_RATE]);
+					    qdisc_root_sleeping_lock(sch),
+					    tca[TCA_RATE]);
+
 	return 0;
 }
 

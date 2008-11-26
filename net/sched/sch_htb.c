@@ -1332,9 +1332,14 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		if ((cl = kzalloc(sizeof(*cl), GFP_KERNEL)) == NULL)
 			goto failure;
 
-		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  qdisc_root_sleeping_lock(sch),
-				  tca[TCA_RATE] ? : &est.nla);
+		err = gen_new_estimator(&cl->bstats, &cl->rate_est,
+					qdisc_root_sleeping_lock(sch),
+					tca[TCA_RATE] ? : &est.nla);
+		if (err) {
+			kfree(cl);
+			goto failure;
+		}
+
 		cl->refcnt = 1;
 		cl->children = 0;
 		INIT_LIST_HEAD(&cl->un.leaf.drop_list);
@@ -1386,10 +1391,13 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		if (parent)
 			parent->children++;
 	} else {
-		if (tca[TCA_RATE])
-			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      qdisc_root_sleeping_lock(sch),
-					      tca[TCA_RATE]);
+		if (tca[TCA_RATE]) {
+			err = gen_replace_estimator(&cl->bstats, &cl->rate_est,
+						    qdisc_root_sleeping_lock(sch),
+						    tca[TCA_RATE]);
+			if (err)
+				return err;
+		}
 		sch_tree_lock(sch);
 	}
 
