@@ -64,9 +64,6 @@ static const char version[] =
 
 static int es_probe1(struct net_device *dev, int ioaddr);
 
-static int es_open(struct net_device *dev);
-static int es_close(struct net_device *dev);
-
 static void es_reset_8390(struct net_device *dev);
 
 static void es_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_page);
@@ -289,11 +286,7 @@ static int __init es_probe1(struct net_device *dev, int ioaddr)
 	ei_status.block_output = &es_block_output;
 	ei_status.get_8390_hdr = &es_get_8390_hdr;
 
-	dev->open = &es_open;
-	dev->stop = &es_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+	dev->netdev_ops = &ei_netdev_ops;
 	NS8390_init(dev, 0);
 
 	retval = register_netdev(dev);
@@ -383,22 +376,6 @@ static void es_block_output(struct net_device *dev, int count,
 
 	count = (count + 3) & ~3;     /* Round up to doubleword */
 	memcpy_toio(shmem, buf, count);
-}
-
-static int es_open(struct net_device *dev)
-{
-	ei_open(dev);
-	return 0;
-}
-
-static int es_close(struct net_device *dev)
-{
-
-	if (ei_debug > 1)
-		printk("%s: Shutting down ethercard.\n", dev->name);
-
-	ei_close(dev);
-	return 0;
 }
 
 #ifdef MODULE
