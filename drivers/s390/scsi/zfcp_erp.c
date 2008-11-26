@@ -720,7 +720,6 @@ static int zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *act,
 		goto failed_openfcp;
 
 	atomic_set_mask(ZFCP_STATUS_COMMON_OPEN, &act->adapter->status);
-	schedule_work(&act->adapter->scan_work);
 
 	return ZFCP_ERP_SUCCEEDED;
 
@@ -1284,6 +1283,8 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		if (result != ZFCP_ERP_SUCCEEDED)
 			zfcp_erp_rports_del(adapter);
+		else
+			schedule_work(&adapter->scan_work);
 		zfcp_adapter_put(adapter);
 		break;
 	}
