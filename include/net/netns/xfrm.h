@@ -37,6 +37,7 @@ struct netns_xfrm {
 	unsigned int		policy_idx_hmask;
 	struct hlist_head	policy_inexact[XFRM_POLICY_MAX * 2];
 	struct xfrm_policy_hash	policy_bydst[XFRM_POLICY_MAX * 2];
+	unsigned int		policy_count[XFRM_POLICY_MAX * 2];
 };
 
 #endif
