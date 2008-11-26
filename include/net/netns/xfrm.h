@@ -27,6 +27,7 @@ struct netns_xfrm {
 	wait_queue_head_t	km_waitq;
 
 	struct list_head	policy_all;
+	struct hlist_head	*policy_byidx;
 };
 
 #endif

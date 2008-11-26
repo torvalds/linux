@@ -329,7 +329,6 @@ struct xfrm_policy_hash {
 
 static struct hlist_head xfrm_policy_inexact[XFRM_POLICY_MAX*2];
 static struct xfrm_policy_hash xfrm_policy_bydst[XFRM_POLICY_MAX*2] __read_mostly;
-static struct hlist_head *xfrm_policy_byidx __read_mostly;
 static unsigned int xfrm_idx_hmask __read_mostly;
 static unsigned int xfrm_policy_hashmax __read_mostly = 1 * 1024 * 1024;
 
@@ -438,7 +437,7 @@ static void xfrm_byidx_resize(int total)
 	unsigned int hmask = xfrm_idx_hmask;
 	unsigned int nhashmask = xfrm_new_hash_mask(hmask);
 	unsigned int nsize = (nhashmask + 1) * sizeof(struct hlist_head);
-	struct hlist_head *oidx = xfrm_policy_byidx;
+	struct hlist_head *oidx = init_net.xfrm.policy_byidx;
 	struct hlist_head *nidx = xfrm_hash_alloc(nsize);
 	int i;
 
@@ -450,7 +449,7 @@ static void xfrm_byidx_resize(int total)
 	for (i = hmask; i >= 0; i--)
 		xfrm_idx_hash_transfer(oidx + i, nidx, nhashmask);
 
-	xfrm_policy_byidx = nidx;
+	init_net.xfrm.policy_byidx = nidx;
 	xfrm_idx_hmask = nhashmask;
 
 	write_unlock_bh(&xfrm_policy_lock);
@@ -536,7 +535,7 @@ static u32 xfrm_gen_index(int dir)
 		idx_generator += 8;
 		if (idx == 0)
 			idx = 8;
-		list = xfrm_policy_byidx + idx_hash(idx);
+		list = init_net.xfrm.policy_byidx + idx_hash(idx);
 		found = 0;
 		hlist_for_each_entry(p, entry, list, byidx) {
 			if (p->index == idx) {
@@ -609,7 +608,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 		xfrm_policy_count[dir]--;
 	}
 	policy->index = delpol ? delpol->index : xfrm_gen_index(dir);
-	hlist_add_head(&policy->byidx, xfrm_policy_byidx+idx_hash(policy->index));
+	hlist_add_head(&policy->byidx, init_net.xfrm.policy_byidx+idx_hash(policy->index));
 	policy->curlft.add_time = get_seconds();
 	policy->curlft.use_time = 0;
 	if (!mod_timer(&policy->timer, jiffies + HZ))
@@ -711,7 +710,7 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
 
 	*err = 0;
 	write_lock_bh(&xfrm_policy_lock);
-	chain = xfrm_policy_byidx + idx_hash(id);
+	chain = init_net.xfrm.policy_byidx + idx_hash(id);
 	ret = NULL;
 	hlist_for_each_entry(pol, entry, chain, byidx) {
 		if (pol->type == type && pol->index == id) {
@@ -1087,7 +1086,7 @@ static void __xfrm_policy_link(struct xfrm_policy *pol, int dir)
 
 	list_add(&pol->walk.all, &init_net.xfrm.policy_all);
 	hlist_add_head(&pol->bydst, chain);
-	hlist_add_head(&pol->byidx, xfrm_policy_byidx+idx_hash(pol->index));
+	hlist_add_head(&pol->byidx, init_net.xfrm.policy_byidx+idx_hash(pol->index));
 	xfrm_policy_count[dir]++;
 	xfrm_pol_hold(pol);
 
@@ -2408,10 +2407,10 @@ static int __net_init xfrm_policy_init(struct net *net)
 	hmask = 8 - 1;
 	sz = (hmask+1) * sizeof(struct hlist_head);
 
-	xfrm_policy_byidx = xfrm_hash_alloc(sz);
+	net->xfrm.policy_byidx = xfrm_hash_alloc(sz);
+	if (!net->xfrm.policy_byidx)
+		goto out_byidx;
 	xfrm_idx_hmask = hmask;
-	if (!xfrm_policy_byidx)
-		panic("XFRM: failed to allocate byidx hash\n");
 
 	for (dir = 0; dir < XFRM_POLICY_MAX * 2; dir++) {
 		struct xfrm_policy_hash *htab;
@@ -2429,11 +2428,20 @@ static int __net_init xfrm_policy_init(struct net *net)
 	if (net_eq(net, &init_net))
 		register_netdevice_notifier(&xfrm_dev_notifier);
 	return 0;
+
+out_byidx:
+	return -ENOMEM;
 }
 
 static void xfrm_policy_fini(struct net *net)
 {
+	unsigned int sz;
+
 	WARN_ON(!list_empty(&net->xfrm.policy_all));
+
+	sz = (xfrm_idx_hmask + 1) * sizeof(struct hlist_head);
+	WARN_ON(!hlist_empty(net->xfrm.policy_byidx));
+	xfrm_hash_free(net->xfrm.policy_byidx, sz);
 }
 
 static int __net_init xfrm_net_init(struct net *net)
