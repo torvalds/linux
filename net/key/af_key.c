@@ -2686,7 +2686,7 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
-	err = xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN, &audit_info);
+	err = xfrm_policy_flush(&init_net, XFRM_POLICY_TYPE_MAIN, &audit_info);
 	if (err)
 		return err;
 	c.data.type = XFRM_POLICY_TYPE_MAIN;

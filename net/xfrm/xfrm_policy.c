@@ -732,7 +732,7 @@ EXPORT_SYMBOL(xfrm_policy_byid);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static inline int
-xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
+xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audit_info)
 {
 	int dir, err = 0;
 
@@ -742,7 +742,7 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 		int i;
 
 		hlist_for_each_entry(pol, entry,
-				     &init_net.xfrm.policy_inexact[dir], bydst) {
+				     &net->xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
 			err = security_xfrm_policy_delete(pol->security);
@@ -754,9 +754,9 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 				return err;
 			}
 		}
-		for (i = init_net.xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
+		for (i = net->xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
 			hlist_for_each_entry(pol, entry,
-					     init_net.xfrm.policy_bydst[dir].table + i,
+					     net->xfrm.policy_bydst[dir].table + i,
 					     bydst) {
 				if (pol->type != type)
 					continue;
@@ -776,19 +776,19 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 }
 #else
 static inline int
-xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
+xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audit_info)
 {
 	return 0;
 }
 #endif
 
-int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
+int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 {
 	int dir, err = 0;
 
 	write_lock_bh(&xfrm_policy_lock);
 
-	err = xfrm_policy_flush_secctx_check(type, audit_info);
+	err = xfrm_policy_flush_secctx_check(net, type, audit_info);
 	if (err)
 		goto out;
 
@@ -800,7 +800,7 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 		killed = 0;
 	again1:
 		hlist_for_each_entry(pol, entry,
-				     &init_net.xfrm.policy_inexact[dir], bydst) {
+				     &net->xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
 			hlist_del(&pol->bydst);
@@ -818,10 +818,10 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 			goto again1;
 		}
 
-		for (i = init_net.xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
+		for (i = net->xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
 	again2:
 			hlist_for_each_entry(pol, entry,
-					     init_net.xfrm.policy_bydst[dir].table + i,
+					     net->xfrm.policy_bydst[dir].table + i,
 					     bydst) {
 				if (pol->type != type)
 					continue;
@@ -842,7 +842,7 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 			}
 		}
 
-		init_net.xfrm.policy_count[dir] -= killed;
+		net->xfrm.policy_count[dir] -= killed;
 	}
 	atomic_inc(&flow_cache_genid);
 out:

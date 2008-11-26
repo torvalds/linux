@@ -1444,7 +1444,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 					  struct xfrm_sec_ctx *ctx, int delete,
 					  int *err);
 struct xfrm_policy *xfrm_policy_byid(u8, int dir, u32 id, int delete, int *err);
-int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info);
+int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info);
 u32 xfrm_get_acqseq(void);
 extern int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);
 struct xfrm_state * xfrm_find_acq(struct net *net, u8 mode, u32 reqid, u8 proto,
