@@ -53,9 +53,6 @@ static const char *version =
 
 static int lne390_probe1(struct net_device *dev, int ioaddr);
 
-static int lne390_open(struct net_device *dev);
-static int lne390_close(struct net_device *dev);
-
 static void lne390_reset_8390(struct net_device *dev);
 
 static void lne390_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_page);
@@ -278,11 +275,7 @@ static int __init lne390_probe1(struct net_device *dev, int ioaddr)
 	ei_status.block_output = &lne390_block_output;
 	ei_status.get_8390_hdr = &lne390_get_8390_hdr;
 
-	dev->open = &lne390_open;
-	dev->stop = &lne390_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+	dev->netdev_ops = &ei_netdev_ops;
 	NS8390_init(dev, 0);
 
 	ret = register_netdev(dev);
@@ -374,21 +367,6 @@ static void lne390_block_output(struct net_device *dev, int count,
 	memcpy_toio(shmem, buf, count);
 }
 
-static int lne390_open(struct net_device *dev)
-{
-	ei_open(dev);
-	return 0;
-}
-
-static int lne390_close(struct net_device *dev)
-{
-
-	if (ei_debug > 1)
-		printk("%s: Shutting down ethercard.\n", dev->name);
-
-	ei_close(dev);
-	return 0;
-}
 
 #ifdef MODULE
 #define MAX_LNE_CARDS	4	/* Max number of LNE390 cards per module */
