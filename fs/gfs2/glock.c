@@ -1317,6 +1317,20 @@ static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
 		gfs2_glock_put(gl);
 }
 
+static void gfs2_jdesc_make_dirty(struct gfs2_sbd *sdp, unsigned int jid)
+{
+	struct gfs2_jdesc *jd;
+
+	spin_lock(&sdp->sd_jindex_spin);
+	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
+		if (jd->jd_jid != jid)
+			continue;
+		jd->jd_dirty = 1;
+		break;
+	}
+	spin_unlock(&sdp->sd_jindex_spin);
+}
+
 /**
  * gfs2_glock_cb - Callback used by locking module
  * @sdp: Pointer to the superblock
