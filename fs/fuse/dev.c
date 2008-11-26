@@ -293,8 +293,7 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 	wake_up(&req->waitq);
 	if (end)
 		end(fc, req);
-	else
-		fuse_put_request(fc, req);
+	fuse_put_request(fc, req);
 }
 
 static void wait_answer_interruptible(struct fuse_conn *fc,
@@ -1006,11 +1005,11 @@ static void end_io_requests(struct fuse_conn *fc)
 		wake_up(&req->waitq);
 		if (end) {
 			req->end = NULL;
-			/* The end function will consume this reference */
 			__fuse_get_request(req);
 			spin_unlock(&fc->lock);
 			wait_event(req->waitq, !req->locked);
 			end(fc, req);
+			fuse_put_request(fc, req);
 			spin_lock(&fc->lock);
 		}
 	}

@@ -79,7 +79,6 @@ static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
 {
 	dput(req->misc.release.dentry);
 	mntput(req->misc.release.vfsmount);
-	fuse_put_request(fc, req);
 }
 
 static void fuse_file_put(struct fuse_file *ff)
@@ -493,7 +492,6 @@ static void fuse_readpages_end(struct fuse_conn *fc, struct fuse_req *req)
 	}
 	if (req->ff)
 		fuse_file_put(req->ff);
-	fuse_put_request(fc, req);
 }
 
 static void fuse_send_readpages(struct fuse_req *req, struct file *file,
@@ -513,6 +511,7 @@ static void fuse_send_readpages(struct fuse_req *req, struct file *file,
 	} else {
 		request_send(fc, req);
 		fuse_readpages_end(fc, req);
+		fuse_put_request(fc, req);
 	}
 }
 
@@ -1042,7 +1041,6 @@ static void fuse_writepage_free(struct fuse_conn *fc, struct fuse_req *req)
 {
 	__free_page(req->pages[0]);
 	fuse_file_put(req->ff);
-	fuse_put_request(fc, req);
 }
 
 static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
@@ -1086,6 +1084,7 @@ static void fuse_send_writepage(struct fuse_conn *fc, struct fuse_req *req)
 	fuse_writepage_finish(fc, req);
 	spin_unlock(&fc->lock);
 	fuse_writepage_free(fc, req);
+	fuse_put_request(fc, req);
 	spin_lock(&fc->lock);
 }
 

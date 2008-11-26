@@ -760,7 +760,6 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
-	fuse_put_request(fc, req);
 	fc->blocked = 0;
 	wake_up_all(&fc->blocked_waitq);
 }
