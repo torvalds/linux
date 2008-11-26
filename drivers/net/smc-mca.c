@@ -183,7 +183,7 @@ static char *smc_mca_adapter_names[] __initdata = {
 static int ultra_found = 0;
 
 
-static const struct net_device_ops ultra_netdev_ops = {
+static const struct net_device_ops ultramca_netdev_ops = {
 	.ndo_open		= ultramca_open,
 	.ndo_stop		= ultramca_close_card,
 
