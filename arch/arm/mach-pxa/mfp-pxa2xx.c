@@ -44,7 +44,6 @@ struct gpio_desc {
 };
 
 static struct gpio_desc gpio_desc[MFP_PIN_GPIO127 + 1];
-static int gpio_nr;
 
 static unsigned long gpdr_lpm[4];
 
@@ -215,15 +214,13 @@ static void __init pxa25x_mfp_init(void)
 {
 	int i;
 
-	for (i = 0; i <= 84; i++)
+	for (i = 0; i <= pxa_last_gpio; i++)
 		gpio_desc[i].valid = 1;
 
 	for (i = 0; i <= 15; i++) {
 		gpio_desc[i].can_wakeup = 1;
 		gpio_desc[i].mask = GPIO_bit(i);
 	}
-
-	gpio_nr = 85;
 }
 #else
 static inline void pxa25x_mfp_init(void) {}
@@ -276,7 +273,7 @@ static void __init pxa27x_mfp_init(void)
 {
 	int i, gpio;
 
-	for (i = 0; i <= 120; i++) {
+	for (i = 0; i <= pxa_last_gpio; i++) {
 		/* skip GPIO2, 5, 6, 7, 8, they are not
 		 * valid pins allow configuration
 		 */
@@ -313,7 +310,6 @@ static void __init pxa27x_mfp_init(void)
 	INIT_GPIO_DESC_MUXED(WEMUX2, 53);
 	INIT_GPIO_DESC_MUXED(WEMUX2, 40);
 	INIT_GPIO_DESC_MUXED(WEMUX2, 36);
-	gpio_nr = 121;
 }
 #else
 static inline void pxa27x_mfp_init(void) {}
@@ -327,7 +323,7 @@ static int pxa2xx_mfp_suspend(struct sys_device *d, pm_message_t state)
 {
 	int i;
 
-	for (i = 0; i <= gpio_to_bank(gpio_nr); i++) {
+	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
 
 		saved_gafr[0][i] = GAFR_L(i);
 		saved_gafr[1][i] = GAFR_U(i);
@@ -342,7 +338,7 @@ static int pxa2xx_mfp_resume(struct sys_device *d)
 {
 	int i;
 
-	for (i = 0; i <= gpio_to_bank(gpio_nr); i++) {
+	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
 		GAFR_L(i) = saved_gafr[0][i];
 		GAFR_U(i) = saved_gafr[1][i];
 		GPDR(i * 32) = saved_gpdr[i];
@@ -375,7 +371,7 @@ static int __init pxa2xx_mfp_init(void)
 		pxa27x_mfp_init();
 
 	/* initialize gafr_run[], pgsr_lpm[] from existing values */
-	for (i = 0; i <= gpio_to_bank(gpio_nr); i++)
+	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++)
 		gpdr_lpm[i] = GPDR(i * 32);
 
 	return sysdev_class_register(&pxa2xx_mfp_sysclass);
