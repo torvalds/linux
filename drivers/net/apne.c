@@ -78,9 +78,6 @@
 struct net_device * __init apne_probe(int unit);
 static int apne_probe1(struct net_device *dev, int ioaddr);
 
-static int apne_open(struct net_device *dev);
-static int apne_close(struct net_device *dev);
-
 static void apne_reset_8390(struct net_device *dev);
 static void apne_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 			  int ring_page);
@@ -314,6 +311,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 
     dev->base_addr = ioaddr;
     dev->irq = IRQ_AMIGA_PORTS;
+    dev->netdev_ops = &ei_netdev_ops;
 
     /* Install the Interrupt handler */
     i = request_irq(dev->irq, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
@@ -337,11 +335,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     ei_status.block_input = &apne_block_input;
     ei_status.block_output = &apne_block_output;
     ei_status.get_8390_hdr = &apne_get_8390_hdr;
-    dev->open = &apne_open;
-    dev->stop = &apne_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = ei_poll;
-#endif
+
     NS8390_init(dev, 0);
 
     pcmcia_ack_int(pcmcia_get_intreq());		/* ack PCMCIA int req */
@@ -349,22 +343,6 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 
     apne_owned = 1;
 
-    return 0;
-}
-
-static int
-apne_open(struct net_device *dev)
-{
-    ei_open(dev);
-    return 0;
-}
-
-static int
-apne_close(struct net_device *dev)
-{
-    if (ei_debug > 1)
-	printk("%s: Shutting down ethercard.\n", dev->name);
-    ei_close(dev);
     return 0;
 }
 
