@@ -231,6 +231,7 @@ void ibmebus_free_irq(u32 ist, void *dev_id)
 	unsigned int irq = irq_find_mapping(NULL, ist);
 
 	free_irq(irq, dev_id);
+	irq_dispose_mapping(irq);
 }
 EXPORT_SYMBOL(ibmebus_free_irq);
 
