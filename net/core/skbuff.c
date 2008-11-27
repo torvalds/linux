@@ -149,7 +149,7 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 
 void skb_truesize_bug(struct sk_buff *skb)
 {
-	printk(KERN_ERR "SKB BUG: Invalid truesize (%u) "
+	WARN(net_ratelimit(), KERN_ERR "SKB BUG: Invalid truesize (%u) "
 	       "len=%u, sizeof(sk_buff)=%Zd\n",
 	       skb->truesize, skb->len, sizeof(struct sk_buff));
 }

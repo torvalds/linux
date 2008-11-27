@@ -161,14 +161,14 @@ out:
 static const struct net_device_ops hpp_netdev_ops = {
 	.ndo_open		= hpp_open,
 	.ndo_stop		= hpp_close,
-	.ndo_start_xmit		= ei_start_xmit,
-	.ndo_tx_timeout		= ei_tx_timeout,
-	.ndo_get_stats		= ei_get_stats,
-	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_start_xmit		= eip_start_xmit,
+	.ndo_tx_timeout		= eip_tx_timeout,
+	.ndo_get_stats		= eip_get_stats,
+	.ndo_set_multicast_list = eip_set_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= ei_poll,
+	.ndo_poll_controller	= eip_poll,
 #endif
 };
 

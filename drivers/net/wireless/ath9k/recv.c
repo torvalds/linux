@@ -41,9 +41,12 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 	ASSERT(skb != NULL);
 	ds->ds_vdata = skb->data;
 
-	/* setup rx descriptors */
-	ath9k_hw_setuprxdesc(ah, ds,
-			     skb_tailroom(skb), /* buffer size */
+	/* setup rx descriptors. The sc_rxbufsize here tells the harware
+	 * how much data it can DMA to us and that we are prepared
+	 * to process */
+	ath9k_hw_setuprxdesc(ah,
+			     ds,
+			     sc->sc_rxbufsize,
 			     0);
 
 	if (sc->sc_rxlink == NULL)
@@ -88,6 +91,13 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 	 * in rx'd frames.
 	 */
 
+	/* Note: the kernel can allocate a value greater than
+	 * what we ask it to give us. We really only need 4 KB as that
+	 * is this hardware supports and in fact we need at least 3849
+	 * as that is the MAX AMSDU size this hardware supports.
+	 * Unfortunately this means we may get 8 KB here from the
+	 * kernel... and that is actually what is observed on some
+	 * systems :( */
 	skb = dev_alloc_skb(len + sc->sc_cachelsz - 1);
 	if (skb != NULL) {
 		off = ((unsigned long) skb->data) % sc->sc_cachelsz;
@@ -298,7 +308,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 
 			bf->bf_mpdu = skb;
 			bf->bf_buf_addr = pci_map_single(sc->pdev, skb->data,
-					 skb_end_pointer(skb) - skb->head,
+					 sc->sc_rxbufsize,
 					 PCI_DMA_FROMDEVICE);
 			bf->bf_dmacontext = bf->bf_buf_addr;
 		}
@@ -544,9 +554,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		if (!requeue_skb)
 			goto requeue;
 
-		/* Sync and unmap the frame */
-		pci_dma_sync_single_for_cpu(sc->pdev, bf->bf_buf_addr,
-					    skb_tailroom(skb),
+		pci_dma_sync_single_for_cpu(sc->pdev,
+					    bf->bf_buf_addr,
+					    sc->sc_rxbufsize,
 					    PCI_DMA_FROMDEVICE);
 		pci_unmap_single(sc->pdev, bf->bf_buf_addr,
 				 sc->sc_rxbufsize,

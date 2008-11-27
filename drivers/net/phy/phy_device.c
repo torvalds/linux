@@ -227,8 +227,17 @@ struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 	if (r)
 		return ERR_PTR(r);
 
-	/* If the phy_id is all Fs or all 0s, there is no device there */
-	if ((0xffff == phy_id) || (0x00 == phy_id))
+	/* If the phy_id is mostly Fs, there is no device there */
+	if ((phy_id & 0x1fffffff) == 0x1fffffff)
+		return NULL;
+
+	/*
+	 * Broken hardware is sometimes missing the pull down resistor on the
+	 * MDIO line, which results in reads to non-existent devices returning
+	 * 0 rather than 0xffff. Catch this here and treat 0 as a non-existent
+	 * device as well.
+	 */
+	if (phy_id == 0)
 		return NULL;
 
 	dev = phy_device_create(bus, addr, phy_id);

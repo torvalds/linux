@@ -167,7 +167,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	skb = (struct sk_buff *)bf->bf_mpdu;
 	if (skb) {
 		pci_unmap_single(sc->pdev, bf->bf_dmacontext,
-				 skb_end_pointer(skb) - skb->head,
+				 skb->len,
 				 PCI_DMA_TODEVICE);
 	}
 
@@ -190,7 +190,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 
 	bf->bf_buf_addr = bf->bf_dmacontext =
 		pci_map_single(sc->pdev, skb->data,
-			       skb_end_pointer(skb) - skb->head,
+			       skb->len,
 			       PCI_DMA_TODEVICE);
 
 	skb = ieee80211_get_buffered_bc(sc->hw, vif);
@@ -338,7 +338,7 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 	if (bf->bf_mpdu != NULL) {
 		skb = (struct sk_buff *)bf->bf_mpdu;
 		pci_unmap_single(sc->pdev, bf->bf_dmacontext,
-				 skb_end_pointer(skb) - skb->head,
+				 skb->len,
 				 PCI_DMA_TODEVICE);
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
@@ -398,7 +398,7 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 
 	bf->bf_buf_addr = bf->bf_dmacontext =
 		pci_map_single(sc->pdev, skb->data,
-			       skb_end_pointer(skb) - skb->head,
+			       skb->len,
 			       PCI_DMA_TODEVICE);
 	bf->bf_mpdu = skb;
 
@@ -419,7 +419,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp)
 		if (bf->bf_mpdu != NULL) {
 			struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
 			pci_unmap_single(sc->pdev, bf->bf_dmacontext,
-					 skb_end_pointer(skb) - skb->head,
+					 skb->len,
 					 PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;

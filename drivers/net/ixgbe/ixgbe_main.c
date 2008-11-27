@@ -1352,7 +1352,6 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter)
  * ixgbe_intr - legacy mode Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  **/
 static irqreturn_t ixgbe_intr(int irq, void *data)
 {
