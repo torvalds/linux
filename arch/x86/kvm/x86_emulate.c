@@ -1650,7 +1650,9 @@ special_insn:
 		emulate_grp2(ctxt);
 		break;
 	case 0xc3: /* ret */
+		c->dst.type = OP_REG;
 		c->dst.ptr = &c->eip;
+		c->dst.bytes = c->op_bytes;
 		goto pop_instruction;
 	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
 	mov:
