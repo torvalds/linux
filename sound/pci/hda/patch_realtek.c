@@ -4269,7 +4269,7 @@ static void set_capture_mixer(struct alc_spec *spec)
 		alc_capture_mixer2,
 		alc_capture_mixer3,
 	};
-	if (spec->num_adc_nids > 0 && spec->num_adc_nids < 3)
+	if (spec->num_adc_nids > 0 && spec->num_adc_nids <= 3)
 		spec->cap_mixer = caps[spec->num_adc_nids - 1];
 }
 
