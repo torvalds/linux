@@ -168,7 +168,7 @@ static inline void
 add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	   unsigned long pc, unsigned long event)
 {
-	struct op_sample *entry = &cpu_buf->buffer[cpu_buf->head_pos];
+	struct op_sample *entry = cpu_buffer_write_entry(cpu_buf);
 	entry->eip = pc;
 	entry->event = event;
 	increment_head(cpu_buf);

@@ -331,10 +331,8 @@ static void add_trace_begin(void)
 
 #define IBS_FETCH_CODE_SIZE	2
 #define IBS_OP_CODE_SIZE	5
-#define IBS_EIP(offset)				\
-	(((struct op_sample *)&cpu_buf->buffer[(offset)])->eip)
-#define IBS_EVENT(offset)				\
-	(((struct op_sample *)&cpu_buf->buffer[(offset)])->event)
+#define IBS_EIP(cpu_buf)	((cpu_buffer_read_entry(cpu_buf))->eip)
+#define IBS_EVENT(cpu_buf)	((cpu_buffer_read_entry(cpu_buf))->event)
 
 /*
  * Add IBS fetch and op entries to event buffer
@@ -349,10 +347,10 @@ static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
 
 	increment_tail(cpu_buf);	/* move to RIP entry */
 
-	rip = IBS_EIP(cpu_buf->tail_pos);
+	rip = IBS_EIP(cpu_buf);
 
 #ifdef __LP64__
-	rip += IBS_EVENT(cpu_buf->tail_pos) << 32;
+	rip += IBS_EVENT(cpu_buf) << 32;
 #endif
 
 	if (mm) {
@@ -376,8 +374,8 @@ static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
 	add_event_entry(offset);	/* Offset from Dcookie */
 
 	/* we send the Dcookie offset, but send the raw Linear Add also*/
-	add_event_entry(IBS_EIP(cpu_buf->tail_pos));
-	add_event_entry(IBS_EVENT(cpu_buf->tail_pos));
+	add_event_entry(IBS_EIP(cpu_buf));
+	add_event_entry(IBS_EVENT(cpu_buf));
 
 	if (code == IBS_FETCH_CODE)
 		count = IBS_FETCH_CODE_SIZE;	/*IBS FETCH is 2 int64s*/
@@ -386,8 +384,8 @@ static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
 
 	for (i = 0; i < count; i++) {
 		increment_tail(cpu_buf);
-		add_event_entry(IBS_EIP(cpu_buf->tail_pos));
-		add_event_entry(IBS_EVENT(cpu_buf->tail_pos));
+		add_event_entry(IBS_EIP(cpu_buf));
+		add_event_entry(IBS_EVENT(cpu_buf));
 	}
 }
 
@@ -584,7 +582,7 @@ void sync_buffer(int cpu)
 #else
 	while (get_slots(cpu_buf)) {
 #endif
-		struct op_sample *s = &cpu_buf->buffer[cpu_buf->tail_pos];
+		struct op_sample *s = cpu_buffer_read_entry(cpu_buf);
 
 		if (is_code(s->eip)) {
 			switch (s->event) {

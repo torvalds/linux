@@ -52,6 +52,18 @@ DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
 void cpu_buffer_reset(struct oprofile_cpu_buffer *cpu_buf);
 
+static inline
+struct op_sample *cpu_buffer_write_entry(struct oprofile_cpu_buffer *cpu_buf)
+{
+	return &cpu_buf->buffer[cpu_buf->head_pos];
+}
+
+static inline
+struct op_sample *cpu_buffer_read_entry(struct oprofile_cpu_buffer *cpu_buf)
+{
+	return &cpu_buf->buffer[cpu_buf->tail_pos];
+}
+
 /* transient events for the CPU buffer -> event buffer */
 #define CPU_IS_KERNEL 1
 #define CPU_TRACE_BEGIN 2
