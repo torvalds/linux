@@ -1020,7 +1020,7 @@ END(\sym)
 
 .macro paranoidzeroentry_ist sym do_sym ist
 ENTRY(\sym)
- 	INTR_FRAME
+	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $-1		/* ORIG_RAX: no syscall to restart */
 	CFI_ADJUST_CFA_OFFSET 8
@@ -1088,36 +1088,36 @@ zeroentry coprocessor_error do_coprocessor_error
 errorentry alignment_check do_alignment_check
 zeroentry simd_coprocessor_error do_simd_coprocessor_error
 
-       /* Reload gs selector with exception handling */
-       /* edi:  new selector */
+	/* Reload gs selector with exception handling */
+	/* edi:  new selector */
 ENTRY(native_load_gs_index)
 	CFI_STARTPROC
 	pushf
 	CFI_ADJUST_CFA_OFFSET 8
 	DISABLE_INTERRUPTS(CLBR_ANY | ~(CLBR_RDI))
-        SWAPGS
+	SWAPGS
 gs_change:
-        movl %edi,%gs
+	movl %edi,%gs
 2:	mfence		/* workaround */
 	SWAPGS
-        popf
+	popf
 	CFI_ADJUST_CFA_OFFSET -8
-        ret
+	ret
 	CFI_ENDPROC
 END(native_load_gs_index)
 
-        .section __ex_table,"a"
-        .align 8
-        .quad gs_change,bad_gs
-        .previous
-        .section .fixup,"ax"
+	.section __ex_table,"a"
+	.align 8
+	.quad gs_change,bad_gs
+	.previous
+	.section .fixup,"ax"
 	/* running with kernelgs */
 bad_gs:
 	SWAPGS			/* switch back to user gs */
 	xorl %eax,%eax
-        movl %eax,%gs
-        jmp  2b
-        .previous
+	movl %eax,%gs
+	jmp  2b
+	.previous
 
 /*
  * Create a kernel thread.
@@ -1152,7 +1152,7 @@ ENTRY(kernel_thread)
 	 * so internally to the x86_64 port you can rely on kernel_thread()
 	 * not to reschedule the child before returning, this avoids the need
 	 * of hacks for example to fork off the per-CPU idle tasks.
-         * [Hopefully no generic code relies on the reschedule -AK]
+	 * [Hopefully no generic code relies on the reschedule -AK]
 	 */
 	RESTORE_ALL
 	UNFAKE_STACK_FRAME
@@ -1231,22 +1231,24 @@ END(call_softirq)
 zeroentry xen_hypervisor_callback xen_do_hypervisor_callback
 
 /*
-# A note on the "critical region" in our callback handler.
-# We want to avoid stacking callback handlers due to events occurring
-# during handling of the last event. To do this, we keep events disabled
-# until we've done all processing. HOWEVER, we must enable events before
-# popping the stack frame (can't be done atomically) and so it would still
-# be possible to get enough handler activations to overflow the stack.
-# Although unlikely, bugs of that kind are hard to track down, so we'd
-# like to avoid the possibility.
-# So, on entry to the handler we detect whether we interrupted an
-# existing activation in its critical region -- if so, we pop the current
-# activation and restart the handler using the previous one.
-*/
+ * A note on the "critical region" in our callback handler.
+ * We want to avoid stacking callback handlers due to events occurring
+ * during handling of the last event. To do this, we keep events disabled
+ * until we've done all processing. HOWEVER, we must enable events before
+ * popping the stack frame (can't be done atomically) and so it would still
+ * be possible to get enough handler activations to overflow the stack.
+ * Although unlikely, bugs of that kind are hard to track down, so we'd
+ * like to avoid the possibility.
+ * So, on entry to the handler we detect whether we interrupted an
+ * existing activation in its critical region -- if so, we pop the current
+ * activation and restart the handler using the previous one.
+ */
 ENTRY(xen_do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 	CFI_STARTPROC
-/* Since we don't modify %rdi, evtchn_do_upall(struct *pt_regs) will
-   see the correct pointer to the pt_regs */
+/*
+ * Since we don't modify %rdi, evtchn_do_upall(struct *pt_regs) will
+ * see the correct pointer to the pt_regs
+ */
 	movq %rdi, %rsp            # we don't return, adjust the stack frame
 	CFI_ENDPROC
 	DEFAULT_FRAME
@@ -1264,18 +1266,18 @@ ENTRY(xen_do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 END(do_hypervisor_callback)
 
 /*
-# Hypervisor uses this for application faults while it executes.
-# We get here for two reasons:
-#  1. Fault while reloading DS, ES, FS or GS
-#  2. Fault while executing IRET
-# Category 1 we do not need to fix up as Xen has already reloaded all segment
-# registers that could be reloaded and zeroed the others.
-# Category 2 we fix up by killing the current process. We cannot use the
-# normal Linux return path in this case because if we use the IRET hypercall
-# to pop the stack frame we end up in an infinite loop of failsafe callbacks.
-# We distinguish between categories by comparing each saved segment register
-# with its current contents: any discrepancy means we in category 1.
-*/
+ * Hypervisor uses this for application faults while it executes.
+ * We get here for two reasons:
+ *  1. Fault while reloading DS, ES, FS or GS
+ *  2. Fault while executing IRET
+ * Category 1 we do not need to fix up as Xen has already reloaded all segment
+ * registers that could be reloaded and zeroed the others.
+ * Category 2 we fix up by killing the current process. We cannot use the
+ * normal Linux return path in this case because if we use the IRET hypercall
+ * to pop the stack frame we end up in an infinite loop of failsafe callbacks.
+ * We distinguish between categories by comparing each saved segment register
+ * with its current contents: any discrepancy means we in category 1.
+ */
 ENTRY(xen_failsafe_callback)
 	INTR_FRAME 1 (6*8)
 	/*CFI_REL_OFFSET gs,GS*/
@@ -1339,8 +1341,8 @@ paranoidzeroentry machine_check do_machine_check
 #endif
 
 	/*
- 	 * "Paranoid" exit path from exception stack.
-  	 * Paranoid because this is used by NMIs and cannot take
+	 * "Paranoid" exit path from exception stack.
+	 * Paranoid because this is used by NMIs and cannot take
 	 * any kernel state for granted.
 	 * We don't do kernel preemption checks here, because only
 	 * NMI should be common and it does not enable IRQs and
@@ -1445,7 +1447,7 @@ error_kernelspace:
 	cmpq %rcx,RIP+8(%rsp)
 	je error_swapgs
 	cmpq $gs_change,RIP+8(%rsp)
-        je error_swapgs
+	je error_swapgs
 	jmp error_sti
 END(error_entry)
 
@@ -1521,7 +1523,7 @@ nmi_schedule:
 	CFI_ENDPROC
 #else
 	jmp paranoid_exit
- 	CFI_ENDPROC
+	CFI_ENDPROC
 #endif
 END(nmi)
 
