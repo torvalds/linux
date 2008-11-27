@@ -167,36 +167,51 @@ static const struct clkops clk_pxa25x_gpio11_ops = {
  * 95.842MHz -> MMC 19.169MHz, I2C 31.949MHz, FICP 47.923MHz, USB 47.923MHz
  * 147.456MHz -> UART 14.7456MHz, AC97 12.288MHz, I2S 5.672MHz (allegedly)
  */
-static struct clk pxa25x_hwuart_clk =
-	INIT_CKEN("UARTCLK", HWUART, 14745600, 1, &pxa_device_hwuart.dev)
-;
+static DEFINE_CKEN(pxa25x_hwuart, HWUART, 14745600, 1);
+
+static struct clk_lookup pxa25x_hwuart_clkreg =
+	INIT_CLKREG(&clk_pxa25x_hwuart, "pxa2xx-uart.3", NULL);
 
 /*
  * PXA 2xx clock declarations.
  */
-static struct clk pxa25x_clks[] = {
-	INIT_CK("LCDCLK", LCD, &clk_pxa25x_lcd_ops, &pxa_device_fb.dev),
-	INIT_CKEN("UARTCLK", FFUART, 14745600, 1, &pxa_device_ffuart.dev),
-	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
-	INIT_CKEN("UARTCLK", STUART, 14745600, 1, NULL),
-	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa25x_device_udc.dev),
-	INIT_CLK("GPIO11_CLK", &clk_pxa25x_gpio11_ops, 3686400, 0, NULL),
-	INIT_CLK("GPIO12_CLK", &clk_pxa25x_gpio12_ops, 32768, 0, NULL),
-	INIT_CKEN("MMCCLK", MMC, 19169000, 0, &pxa_device_mci.dev),
-	INIT_CKEN("I2CCLK", I2C, 31949000, 0, &pxa_device_i2c.dev),
+static DEFINE_CK(pxa25x_lcd, LCD, &clk_pxa25x_lcd_ops);
+static DEFINE_CKEN(pxa25x_ffuart, FFUART, 14745600, 1);
+static DEFINE_CKEN(pxa25x_btuart, BTUART, 14745600, 1);
+static DEFINE_CKEN(pxa25x_stuart, STUART, 14745600, 1);
+static DEFINE_CKEN(pxa25x_usb, USB, 47923000, 5);
+static DEFINE_CLK(pxa25x_gpio11, &clk_pxa25x_gpio11_ops, 3686400, 0);
+static DEFINE_CLK(pxa25x_gpio12, &clk_pxa25x_gpio12_ops, 32768, 0);
+static DEFINE_CKEN(pxa25x_mmc, MMC, 19169000, 0);
+static DEFINE_CKEN(pxa25x_i2c, I2C, 31949000, 0);
+static DEFINE_CKEN(pxa25x_ssp, SSP, 3686400, 0);
+static DEFINE_CKEN(pxa25x_nssp, NSSP, 3686400, 0);
+static DEFINE_CKEN(pxa25x_assp, ASSP, 3686400, 0);
+static DEFINE_CKEN(pxa25x_pwm0, PWM0, 3686400, 0);
+static DEFINE_CKEN(pxa25x_pwm1, PWM1, 3686400, 0);
+static DEFINE_CKEN(pxa25x_ac97, AC97, 24576000, 0);
+static DEFINE_CKEN(pxa25x_i2s, I2S, 14745600, 0);
+static DEFINE_CKEN(pxa25x_ficp, FICP, 47923000, 0);
 
-	INIT_CKEN("SSPCLK",  SSP, 3686400, 0, &pxa25x_device_ssp.dev),
-	INIT_CKEN("SSPCLK", NSSP, 3686400, 0, &pxa25x_device_nssp.dev),
-	INIT_CKEN("SSPCLK", ASSP, 3686400, 0, &pxa25x_device_assp.dev),
-	INIT_CKEN("PWMCLK", PWM0, 3686400, 0, &pxa25x_device_pwm0.dev),
-	INIT_CKEN("PWMCLK", PWM1, 3686400, 0, &pxa25x_device_pwm1.dev),
-
-	INIT_CKEN("AC97CLK",     AC97,     24576000, 0, NULL),
-
-	/*
-	INIT_CKEN("I2SCLK",  I2S,  14745600, 0, NULL),
-	*/
-	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
+static struct clk_lookup pxa25x_clkregs[] = {
+	INIT_CLKREG(&clk_pxa25x_lcd, "pxa2xx-fb", NULL),
+	INIT_CLKREG(&clk_pxa25x_ffuart, "pxa2xx-uart.0", NULL),
+	INIT_CLKREG(&clk_pxa25x_btuart, "pxa2xx-uart.1", NULL),
+	INIT_CLKREG(&clk_pxa25x_stuart, "pxa2xx-uart.2", NULL),
+	INIT_CLKREG(&clk_pxa25x_usb, "pxa25x-udc", NULL),
+	INIT_CLKREG(&clk_pxa25x_mmc, "pxa2xx-mci.0", NULL),
+	INIT_CLKREG(&clk_pxa25x_i2c, "pxa2xx-i2c.0", NULL),
+	INIT_CLKREG(&clk_pxa25x_ssp, "pxa25x-ssp.0", NULL),
+	INIT_CLKREG(&clk_pxa25x_nssp, "pxa25x-nssp.1", NULL),
+	INIT_CLKREG(&clk_pxa25x_assp, "pxa25x-nssp.2", NULL),
+	INIT_CLKREG(&clk_pxa25x_pwm0, "pxa25x-pwm.0", NULL),
+	INIT_CLKREG(&clk_pxa25x_pwm1, "pxa25x-pwm.1", NULL),
+	INIT_CLKREG(&clk_pxa25x_i2s, "pxa2xx-i2s", NULL),
+	INIT_CLKREG(&clk_pxa25x_stuart, "pxa2xx-ir", "UARTCLK"),
+	INIT_CLKREG(&clk_pxa25x_ficp, "pxa2xx-ir", "FICPCLK"),
+	INIT_CLKREG(&clk_pxa25x_ac97, NULL, "AC97CLK"),
+	INIT_CLKREG(&clk_pxa25x_gpio11, NULL, "GPIO11_CLK"),
+	INIT_CLKREG(&clk_pxa25x_gpio12, NULL, "GPIO12_CLK"),
 };
 
 #ifdef CONFIG_PM
@@ -336,7 +351,7 @@ static int __init pxa25x_init(void)
 
 		reset_status = RCSR;
 
-		clks_register(pxa25x_clks, ARRAY_SIZE(pxa25x_clks));
+		clks_register(pxa25x_clkregs, ARRAY_SIZE(pxa25x_clkregs));
 
 		if ((ret = pxa_init_dma(16)))
 			return ret;
@@ -357,7 +372,7 @@ static int __init pxa25x_init(void)
 
 	/* Only add HWUART for PXA255/26x; PXA210/250 do not have it. */
 	if (cpu_is_pxa255() || cpu_is_pxa26x()) {
-		clks_register(&pxa25x_hwuart_clk, 1);
+		clks_register(&pxa25x_hwuart_clkreg, 1);
 		ret = platform_device_register(&pxa_device_hwuart);
 	}
 

@@ -29,6 +29,7 @@
 #include <linux/clockchips.h>
 #include <linux/io.h>
 
+#include <asm/clkdev.h>
 #include <asm/system.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -188,11 +189,58 @@ static void realview_oscvco_set(struct clk *clk, struct icst307_vco vco)
 	writel(0, sys_lock);
 }
 
-struct clk realview_clcd_clk = {
-	.name	= "CLCDCLK",
+static struct clk oscvco_clk = {
 	.params	= &realview_oscvco_params,
 	.setvco = realview_oscvco_set,
 };
+
+/*
+ * These are fixed clocks.
+ */
+static struct clk ref24_clk = {
+	.rate	= 24000000,
+};
+
+static struct clk_lookup lookups[] = {
+	{	/* UART0 */
+		.dev_id		= "dev:f1",
+		.clk		= &ref24_clk,
+	}, {	/* UART1 */
+		.dev_id		= "dev:f2",
+		.clk		= &ref24_clk,
+	}, {	/* UART2 */
+		.dev_id		= "dev:f3",
+		.clk		= &ref24_clk,
+	}, {	/* UART3 */
+		.dev_id		= "fpga:09",
+		.clk		= &ref24_clk,
+	}, {	/* KMI0 */
+		.dev_id		= "fpga:06",
+		.clk		= &ref24_clk,
+	}, {	/* KMI1 */
+		.dev_id		= "fpga:07",
+		.clk		= &ref24_clk,
+	}, {	/* MMC0 */
+		.dev_id		= "fpga:05",
+		.clk		= &ref24_clk,
+	}, {	/* EB:CLCD */
+		.dev_id		= "dev:20",
+		.clk		= &oscvco_clk,
+	}, {	/* PB:CLCD */
+		.dev_id		= "issp:20",
+		.clk		= &oscvco_clk,
+	}
+};
+
+static int __init clk_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lookups); i++)
+		clkdev_add(&lookups[i]);
+	return 0;
+}
+arch_initcall(clk_init);
 
 /*
  * CLCD support.

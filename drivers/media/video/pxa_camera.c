@@ -1071,7 +1071,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	pcdev->clk = clk_get(&pdev->dev, "CAMCLK");
+	pcdev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pcdev->clk)) {
 		err = PTR_ERR(pcdev->clk);
 		goto exit_kfree;

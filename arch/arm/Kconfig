@@ -211,6 +211,7 @@ config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST525
 	help
 	  Support for ARM's Integrator platform.
@@ -219,6 +220,7 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -230,6 +232,7 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -477,6 +480,7 @@ config ARCH_PXA
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS

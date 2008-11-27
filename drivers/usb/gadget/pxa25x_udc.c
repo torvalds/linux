@@ -2145,7 +2145,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENODEV;
 
-	dev->clk = clk_get(&pdev->dev, "UDCCLK");
+	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		retval = PTR_ERR(dev->clk);
 		goto err_clk;
