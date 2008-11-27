@@ -119,6 +119,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2750_BOARD_UNKNOWN] = {
 		.name          = "Unknown EM2750/EM2751 webcam grabber",
 		.xclk          = EM28XX_XCLK_FREQUENCY_48MHZ,
+		.tuner_type    = TUNER_ABSENT,	/* This is a webcam */
 		.input         = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -130,6 +131,7 @@ struct em28xx_board em28xx_boards[] = {
 		.is_em2800    = 1,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
+		.tuner_type   = TUNER_ABSENT,
 		.input        = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
@@ -149,6 +151,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name          = "Huaqi DLCW-130",
 		.valid         = EM28XX_BOARD_NOT_VALIDATED,
 		.xclk          = EM28XX_XCLK_FREQUENCY_48MHZ,
+		.tuner_type    = TUNER_ABSENT,	/* This is a webcam */
 		.input         = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -329,8 +332,8 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_PINNACLE_DVC_100] = {
 		.name         = "Pinnacle Dazzle DVC 100",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.decoder      = EM28XX_SAA711X,
+		.tuner_type   = TUNER_ABSENT,	/* Capture only device */
 		.input        = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
@@ -344,6 +347,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2820_BOARD_VIDEOLOGY_20K14XUSB] = {
 		.name         = "Videology 20K14XUSB USB2.0",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.tuner_type   = TUNER_ABSENT,	/* This is a webcam */
 		.input        = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -395,6 +399,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2821_BOARD_USBGEAR_VD204] = {
 		.name         = "Usbgear VD204v9",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.tuner_type   = TUNER_ABSENT,	/* Capture only device */
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
 			.type  = EM28XX_VMUX_COMPOSITE1,
@@ -410,6 +415,7 @@ struct em28xx_board em28xx_boards[] = {
 		/* Beijing Huaqi Information Digital Technology Co., Ltd */
 		.name         = "NetGMBH Cam",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.tuner_type   = TUNER_ABSENT,	/* This is a webcam */
 		.input        = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -418,8 +424,8 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2860_BOARD_TYPHOON_DVD_MAKER] = {
 		.name         = "Typhoon DVD Maker",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.decoder      = EM28XX_SAA711X,
+		.tuner_type   = TUNER_ABSENT,	/* Capture only device */
 		.input        = { {
 			.type  = EM28XX_VMUX_COMPOSITE1,
 			.vmux  = SAA7115_COMPOSITE0,
@@ -493,7 +499,7 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2861_BOARD_YAKUMO_MOVIE_MIXER] = {
 		.name          = "Yakumo MovieMixer",
-		.valid         = EM28XX_BOARD_NOT_VALIDATED,
+		.tuner_type   = TUNER_ABSENT,	/* Capture only device */
 		.decoder       = EM28XX_TVP5150,
 		.input         = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -529,6 +535,9 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+
+	/* Those boards with em2870 are DVB Only*/
+
 	[EM2870_BOARD_TERRATEC_XS] = {
 		.name         = "Terratec Cinergy T XS",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
@@ -561,6 +570,7 @@ struct em28xx_board em28xx_boards[] = {
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_ABSENT, /* MT2060 */
 	},
+
 	[EM2880_BOARD_TERRATEC_HYBRID_XS_FR] = {
 		.name         = "Terratec Hybrid XS Secam",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
@@ -800,6 +810,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "eMPIA Technology, Inc. GrabBeeX+ Video Encoder",
 		.is_em2800    = 1,
 		.decoder      = EM28XX_SAA711X,
+		.tuner_type   = TUNER_ABSENT, /* capture only board */
 		.input        = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
@@ -852,7 +863,7 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_PINNACLE_DVC_90] = {
 		.name         = "Pinnacle Dazzle DVC 90/DVC 100",
-		.tuner_type   = TUNER_ABSENT,
+		.tuner_type   = TUNER_ABSENT, /* capture only board */
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
@@ -1149,6 +1160,9 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+
+	/* em2874 tuners are DVB only */
+
 	[EM2874_BOARD_PINNACLE_PCTV_80E] = {
 		.name         = "Pinnacle PCTV HD Mini",
 		.tuner_type   = TUNER_ABSENT,
