@@ -642,6 +642,16 @@ struct hda_codec_preset {
 	int (*patch)(struct hda_codec *codec);
 };
 	
+struct hda_codec_preset_list {
+	const struct hda_codec_preset *preset;
+	struct module *owner;
+	struct list_head list;
+};
+
+/* initial hook */
+int snd_hda_add_codec_preset(struct hda_codec_preset_list *preset);
+int snd_hda_delete_codec_preset(struct hda_codec_preset_list *preset);
+
 /* ops set by the preset patch */
 struct hda_codec_ops {
 	int (*build_controls)(struct hda_codec *codec);
@@ -735,6 +745,7 @@ struct hda_codec {
 
 	/* detected preset */
 	const struct hda_codec_preset *preset;
+	struct module *owner;
 	const char *name;	/* codec name */
 	const char *modelname;	/* model name for preset */
 

@@ -47,7 +47,6 @@
 #include <sound/asoundef.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-#include "hda_patch.h"
 
 /* amp values */
 #define AMP_VAL_IDX_SHIFT	19
@@ -3249,7 +3248,7 @@ static int patch_vt1702(struct hda_codec *codec)
 /*
  * patch entries
  */
-struct hda_codec_preset snd_hda_preset_via[] = {
+static struct hda_codec_preset snd_hda_preset_via[] = {
 	{ .id = 0x11061708, .name = "VIA VT1708", .patch = patch_vt1708},
 	{ .id = 0x11061709, .name = "VIA VT1708", .patch = patch_vt1708},
 	{ .id = 0x1106170A, .name = "VIA VT1708", .patch = patch_vt1708},
@@ -3320,3 +3319,26 @@ struct hda_codec_preset snd_hda_preset_via[] = {
 	  .patch = patch_vt1702},
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:1106*");
+
+static struct hda_codec_preset_list via_list = {
+	.preset = snd_hda_preset_via,
+	.owner = THIS_MODULE,
+};
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("VIA HD-audio codec");
+
+static int __init patch_via_init(void)
+{
+	return snd_hda_add_codec_preset(&via_list);
+}
+
+static void __exit patch_via_exit(void)
+{
+	snd_hda_delete_codec_preset(&via_list);
+}
+
+module_init(patch_via_init)
+module_exit(patch_via_exit)

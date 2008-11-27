@@ -27,7 +27,6 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-#include "hda_patch.h"
 
 #define CXT_PIN_DIR_IN              0x00
 #define CXT_PIN_DIR_OUT             0x01
@@ -1771,7 +1770,7 @@ static int patch_cxt5051(struct hda_codec *codec)
 /*
  */
 
-struct hda_codec_preset snd_hda_preset_conexant[] = {
+static struct hda_codec_preset snd_hda_preset_conexant[] = {
 	{ .id = 0x14f15045, .name = "CX20549 (Venice)",
 	  .patch = patch_cxt5045 },
 	{ .id = 0x14f15047, .name = "CX20551 (Waikiki)",
@@ -1780,3 +1779,28 @@ struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_cxt5051 },
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:14f15045");
+MODULE_ALIAS("snd-hda-codec-id:14f15047");
+MODULE_ALIAS("snd-hda-codec-id:14f15051");
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Conexant HD-audio codec");
+
+static struct hda_codec_preset_list conexant_list = {
+	.preset = snd_hda_preset_conexant,
+	.owner = THIS_MODULE,
+};
+
+static int __init patch_conexant_init(void)
+{
+	return snd_hda_add_codec_preset(&conexant_list);
+}
+
+static void __exit patch_conexant_exit(void)
+{
+	snd_hda_delete_codec_preset(&conexant_list);
+}
+
+module_init(patch_conexant_init)
+module_exit(patch_conexant_exit)
