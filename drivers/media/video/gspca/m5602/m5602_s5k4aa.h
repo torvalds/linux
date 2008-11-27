@@ -67,9 +67,6 @@ int s5k4aa_probe(struct sd *sd);
 int s5k4aa_init(struct sd *sd);
 int s5k4aa_power_down(struct sd *sd);
 
-int s5k4aa_read_sensor(struct sd *sd, const u8 address,
-		       u8 *i2c_data, const u8 len);
-
 int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
