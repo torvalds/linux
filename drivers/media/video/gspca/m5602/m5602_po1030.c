@@ -87,12 +87,6 @@ int po1030_init(struct sd *sd)
 				init_po1030[i][1], data, 1);
 			break;
 
-		case SENSOR_LONG:
-			data[0] = init_po1030[i][2];
-			data[1] = init_po1030[i][3];
-			err = m5602_write_sensor(sd,
-				init_po1030[i][1], data, 2);
-			break;
 		default:
 			info("Invalid stream command, exiting init");
 			return -EINVAL;
