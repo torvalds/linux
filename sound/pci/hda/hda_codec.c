@@ -33,14 +33,6 @@
 #include <sound/hda_hwdep.h>
 #include "hda_patch.h"	/* codec presets */
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-/* define this option here to hide as static */
-static int power_save = CONFIG_SND_HDA_POWER_SAVE_DEFAULT;
-module_param(power_save, int, 0644);
-MODULE_PARM_DESC(power_save, "Automatic power-saving timeout "
-		 "(in second, 0 = disable).");
-#endif
-
 /*
  * vendor / preset table
  */
@@ -519,6 +511,7 @@ int __devinit snd_hda_bus_new(struct snd_card *card,
 	bus->private_data = temp->private_data;
 	bus->pci = temp->pci;
 	bus->modelname = temp->modelname;
+	bus->power_save = temp->power_save;
 	bus->ops = temp->ops;
 
 	mutex_init(&bus->cmd_mutex);
@@ -2694,15 +2687,18 @@ void snd_hda_power_up(struct hda_codec *codec)
 	codec->power_transition = 0;
 }
 
+#define power_save(codec)	\
+	((codec)->bus->power_save ? *(codec)->bus->power_save : 0)
+
 void snd_hda_power_down(struct hda_codec *codec)
 {
 	--codec->power_count;
 	if (!codec->power_on || codec->power_count || codec->power_transition)
 		return;
-	if (power_save) {
+	if (power_save(codec)) {
 		codec->power_transition = 1; /* avoid reentrance */
 		schedule_delayed_work(&codec->power_work,
-				      msecs_to_jiffies(power_save * 1000));
+				msecs_to_jiffies(power_save(codec) * 1000));
 	}
 }
 
