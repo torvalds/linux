@@ -1580,11 +1580,13 @@ static void e100_watchdog(unsigned long data)
 	mii_ethtool_gset(&nic->mii, &cmd);
 
 	if(mii_link_ok(&nic->mii) && !netif_carrier_ok(nic->netdev)) {
-		DPRINTK(LINK, INFO, "link up, %sMbps, %s-duplex\n",
-			cmd.speed == SPEED_100 ? "100" : "10",
-			cmd.duplex == DUPLEX_FULL ? "full" : "half");
+		printk(KERN_INFO "e100: %s NIC Link is Up %s Mbps %s Duplex\n",
+		       nic->netdev->name,
+		       cmd.speed == SPEED_100 ? "100" : "10",
+		       cmd.duplex == DUPLEX_FULL ? "Full" : "Half");
 	} else if(!mii_link_ok(&nic->mii) && netif_carrier_ok(nic->netdev)) {
-		DPRINTK(LINK, INFO, "link down\n");
+		printk(KERN_INFO "e100: %s NIC Link is Down\n",
+		       nic->netdev->name);
 	}
 
 	mii_check_link(&nic->mii);
