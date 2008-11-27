@@ -2324,9 +2324,10 @@ static void igb_watchdog_task(struct work_struct *work)
 						   &adapter->link_duplex);
 
 			ctrl = rd32(E1000_CTRL);
-			dev_info(&adapter->pdev->dev,
-				 "NIC Link is Up %d Mbps %s, "
+			/* Links status message must follow this format */
+			printk(KERN_INFO "igb: %s NIC Link is Up %d Mbps %s, "
 				 "Flow Control: %s\n",
+			         netdev->name,
 				 adapter->link_speed,
 				 adapter->link_duplex == FULL_DUPLEX ?
 				 "Full Duplex" : "Half Duplex",
@@ -2361,7 +2362,9 @@ static void igb_watchdog_task(struct work_struct *work)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			dev_info(&adapter->pdev->dev, "NIC Link is Down\n");
+			/* Links status message must follow this format */
+			printk(KERN_INFO "igb: %s NIC Link is Down\n",
+			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_tx_stop_all_queues(netdev);
 			if (!test_bit(__IGB_DOWN, &adapter->state))
