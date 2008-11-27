@@ -954,7 +954,8 @@ static void acpi_thermal_check(void *data)
 /* sys I/F for generic thermal sysfs support */
 #define KELVIN_TO_MILLICELSIUS(t) (t * 100 - 273200)
 
-static int thermal_get_temp(struct thermal_zone_device *thermal, char *buf)
+static int thermal_get_temp(struct thermal_zone_device *thermal,
+			    unsigned long *temp)
 {
 	struct acpi_thermal *tz = thermal->devdata;
 	int result;
@@ -966,25 +967,28 @@ static int thermal_get_temp(struct thermal_zone_device *thermal, char *buf)
 	if (result)
 		return result;
 
-	return sprintf(buf, "%ld\n", KELVIN_TO_MILLICELSIUS(tz->temperature));
+	*temp = KELVIN_TO_MILLICELSIUS(tz->temperature);
+	return 0;
 }
 
 static const char enabled[] = "kernel";
 static const char disabled[] = "user";
 static int thermal_get_mode(struct thermal_zone_device *thermal,
-				char *buf)
+				enum thermal_device_mode *mode)
 {
 	struct acpi_thermal *tz = thermal->devdata;
 
 	if (!tz)
 		return -EINVAL;
 
-	return sprintf(buf, "%s\n", tz->tz_enabled ?
-			enabled : disabled);
+	*mode = tz->tz_enabled ? THERMAL_DEVICE_ENABLED :
+		THERMAL_DEVICE_DISABLED;
+
+	return 0;
 }
 
 static int thermal_set_mode(struct thermal_zone_device *thermal,
-				const char *buf)
+				enum thermal_device_mode mode)
 {
 	struct acpi_thermal *tz = thermal->devdata;
 	int enable;
@@ -995,9 +999,9 @@ static int thermal_set_mode(struct thermal_zone_device *thermal,
 	/*
 	 * enable/disable thermal management from ACPI thermal driver
 	 */
-	if (!strncmp(buf, enabled, sizeof enabled - 1))
+	if (mode == THERMAL_DEVICE_ENABLED)
 		enable = 1;
-	else if (!strncmp(buf, disabled, sizeof disabled - 1))
+	else if (mode == THERMAL_DEVICE_DISABLED)
 		enable = 0;
 	else
 		return -EINVAL;
@@ -1013,7 +1017,7 @@ static int thermal_set_mode(struct thermal_zone_device *thermal,
 }
 
 static int thermal_get_trip_type(struct thermal_zone_device *thermal,
-				 int trip, char *buf)
+				 int trip, enum thermal_trip_type *type)
 {
 	struct acpi_thermal *tz = thermal->devdata;
 	int i;
@@ -1022,27 +1026,35 @@ static int thermal_get_trip_type(struct thermal_zone_device *thermal,
 		return -EINVAL;
 
 	if (tz->trips.critical.flags.valid) {
-		if (!trip)
-			return sprintf(buf, "critical\n");
+		if (!trip) {
+			*type = THERMAL_TRIP_CRITICAL;
+			return 0;
+		}
 		trip--;
 	}
 
 	if (tz->trips.hot.flags.valid) {
-		if (!trip)
-			return sprintf(buf, "hot\n");
+		if (!trip) {
+			*type = THERMAL_TRIP_HOT;
+			return 0;
+		}
 		trip--;
 	}
 
 	if (tz->trips.passive.flags.valid) {
-		if (!trip)
-			return sprintf(buf, "passive\n");
+		if (!trip) {
+			*type = THERMAL_TRIP_PASSIVE;
+			return 0;
+		}
 		trip--;
 	}
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE &&
 		tz->trips.active[i].flags.valid; i++) {
-		if (!trip)
-			return sprintf(buf, "active%d\n", i);
+		if (!trip) {
+			*type = THERMAL_TRIP_ACTIVE;
+			return 0;
+		}
 		trip--;
 	}
 
@@ -1050,7 +1062,7 @@ static int thermal_get_trip_type(struct thermal_zone_device *thermal,
 }
 
 static int thermal_get_trip_temp(struct thermal_zone_device *thermal,
-				 int trip, char *buf)
+				 int trip, unsigned long *temp)
 {
 	struct acpi_thermal *tz = thermal->devdata;
 	int i;
@@ -1059,31 +1071,39 @@ static int thermal_get_trip_temp(struct thermal_zone_device *thermal,
 		return -EINVAL;
 
 	if (tz->trips.critical.flags.valid) {
-		if (!trip)
-			return sprintf(buf, "%ld\n", KELVIN_TO_MILLICELSIUS(
-				tz->trips.critical.temperature));
+		if (!trip) {
+			*temp = KELVIN_TO_MILLICELSIUS(
+				tz->trips.critical.temperature);
+			return 0;
+		}
 		trip--;
 	}
 
 	if (tz->trips.hot.flags.valid) {
-		if (!trip)
-			return sprintf(buf, "%ld\n", KELVIN_TO_MILLICELSIUS(
-					tz->trips.hot.temperature));
+		if (!trip) {
+			*temp = KELVIN_TO_MILLICELSIUS(
+				tz->trips.hot.temperature);
+			return 0;
+		}
 		trip--;
 	}
 
 	if (tz->trips.passive.flags.valid) {
-		if (!trip)
-			return sprintf(buf, "%ld\n", KELVIN_TO_MILLICELSIUS(
-					tz->trips.passive.temperature));
+		if (!trip) {
+			*temp = KELVIN_TO_MILLICELSIUS(
+				tz->trips.passive.temperature);
+			return 0;
+		}
 		trip--;
 	}
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE &&
 		tz->trips.active[i].flags.valid; i++) {
-		if (!trip)
-			return sprintf(buf, "%ld\n", KELVIN_TO_MILLICELSIUS(
-					tz->trips.active[i].temperature));
+		if (!trip) {
+			*temp = KELVIN_TO_MILLICELSIUS(
+				tz->trips.active[i].temperature);
+			return 0;
+		}
 		trip--;
 	}
 
