@@ -160,7 +160,7 @@
 #define EM2800_I2C_WRITE_TIMEOUT 20
 
 enum em28xx_mode {
-	EM28XX_MODE_UNDEFINED,
+	EM28XX_SUSPEND,
 	EM28XX_ANALOG_MODE,
 	EM28XX_DIGITAL_MODE,
 };
@@ -336,6 +336,7 @@ struct em28xx_board {
 	unsigned int tda9887_conf;
 
 	struct em28xx_reg_seq *dvb_gpio;
+	struct em28xx_reg_seq *suspend_gpio;
 
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;

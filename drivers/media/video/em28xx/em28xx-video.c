@@ -1697,7 +1697,7 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 
 		/* do this before setting alternate! */
 		em28xx_uninit_isoc(dev);
-		em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+		em28xx_set_mode(dev, EM28XX_SUSPEND);
 
 		/* set alternate 0 */
 		dev->alt = 0;

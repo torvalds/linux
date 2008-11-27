@@ -737,12 +737,14 @@ int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio)
 	if (!gpio)
 		return rc;
 
-	em28xx_write_reg(dev, 0x48, 0x00);
-	if (dev->mode == EM28XX_ANALOG_MODE)
-		em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x67);
-	else
-		em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x37);
-	msleep(6);
+	if (dev->mode != EM28XX_SUSPEND) {
+		em28xx_write_reg(dev, 0x48, 0x00);
+		if (dev->mode == EM28XX_ANALOG_MODE)
+			em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x67);
+		else
+			em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x37);
+		msleep(6);
+	}
 
 	/* Send GPIO reset sequences specified at board entry */
 	while (gpio->sleep >= 0) {
@@ -767,9 +769,12 @@ int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode)
 	if (dev->mode == set_mode)
 		return 0;
 
-	if (set_mode == EM28XX_MODE_UNDEFINED) {
+	if (set_mode == EM28XX_SUSPEND) {
 		dev->mode = set_mode;
-		return 0;
+
+		/* FIXME: add suspend support for ac97 */
+
+		return em28xx_gpio_set(dev, dev->board.suspend_gpio);
 	}
 
 	dev->mode = set_mode;

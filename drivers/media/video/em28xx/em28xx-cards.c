@@ -1456,7 +1456,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 
 	/* Unlock device */
-	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
 }
 
 static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)

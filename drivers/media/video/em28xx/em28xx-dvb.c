@@ -161,7 +161,7 @@ static int stop_streaming(struct em28xx_dvb *dvb)
 
 	em28xx_uninit_isoc(dev);
 
-	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
 
 	return 0;
 }
@@ -215,7 +215,7 @@ static int em28xx_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 	if (acquire)
 		return em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	else
-		return em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+		return em28xx_set_mode(dev, EM28XX_SUSPEND);
 }
 
 /* ------------------------------------------------------------------ */
@@ -466,12 +466,12 @@ static int dvb_init(struct em28xx *dev)
 	if (result < 0)
 		goto out_free;
 
-	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	printk(KERN_INFO "Successfully loaded em28xx-dvb\n");
 	return 0;
 
 out_free:
-	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	kfree(dvb);
 	dev->dvb = NULL;
 	return result;
