@@ -617,6 +617,9 @@ struct hda_bus {
 
 	struct snd_info_entry *proc;
 
+	/* assigned PCMs */
+	DECLARE_BITMAP(pcm_dev_bits, SNDRV_PCM_DEVICES);
+
 	/* misc op flags */
 	unsigned int needs_damn_long_delay :1;
 	unsigned int shutdown :1;	/* being unloaded */
@@ -846,6 +849,7 @@ int snd_hda_codec_build_controls(struct hda_codec *codec);
  * PCM
  */
 int snd_hda_build_pcms(struct hda_bus *bus);
+int snd_hda_codec_build_pcms(struct hda_codec *codec);
 void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 				u32 stream_tag,
 				int channel_id, int format);

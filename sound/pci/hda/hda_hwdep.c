@@ -168,7 +168,7 @@ static int reconfig_codec(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 	/* rebuild PCMs */
-	err = snd_hda_build_pcms(codec->bus);
+	err = snd_hda_codec_build_pcms(codec);
 	if (err < 0)
 		return err;
 	/* rebuild mixers */

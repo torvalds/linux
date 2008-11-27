@@ -1206,6 +1206,7 @@ int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl)
 	return 0;
 }
 
+#ifdef CONFIG_SND_HDA_RECONFIG
 /* Clear all controls assigned to the given codec */
 void snd_hda_ctls_clear(struct hda_codec *codec)
 {
@@ -1227,9 +1228,12 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 	snd_hda_ctls_clear(codec);
 	/* relase PCMs */
 	for (i = 0; i < codec->num_pcms; i++) {
-		if (codec->pcm_info[i].pcm)
+		if (codec->pcm_info[i].pcm) {
 			snd_device_free(codec->bus->card,
 					codec->pcm_info[i].pcm);
+			clear_bit(codec->pcm_info[i].device,
+				  codec->bus->pcm_dev_bits);
+		}
 	}
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
@@ -1240,6 +1244,7 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 	codec->pcm_info = NULL;
 	codec->preset = NULL;
 }
+#endif /* CONFIG_SND_HDA_RECONFIG */
 
 /* create a virtual master control and add slaves */
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
@@ -2433,10 +2438,58 @@ static int set_pcm_default_values(struct hda_codec *codec,
 }
 
 /*
+ * get the empty PCM device number to assign
+ */
+static int get_empty_pcm_device(struct hda_bus *bus, int type)
+{
+	static const char *dev_name[HDA_PCM_NTYPES] = {
+		"Audio", "SPDIF", "HDMI", "Modem"
+	};
+	/* starting device index for each PCM type */
+	static int dev_idx[HDA_PCM_NTYPES] = {
+		[HDA_PCM_TYPE_AUDIO] = 0,
+		[HDA_PCM_TYPE_SPDIF] = 1,
+		[HDA_PCM_TYPE_HDMI] = 3,
+		[HDA_PCM_TYPE_MODEM] = 6
+	};
+	/* normal audio device indices; not linear to keep compatibility */
+	static int audio_idx[4] = { 0, 2, 4, 5 };
+	int i, dev;
+
+	switch (type) {
+	case HDA_PCM_TYPE_AUDIO:
+		for (i = 0; i < ARRAY_SIZE(audio_idx); i++) {
+			dev = audio_idx[i];
+			if (!test_bit(dev, bus->pcm_dev_bits))
+				break;
+		}
+		if (i >= ARRAY_SIZE(audio_idx)) {
+			snd_printk(KERN_WARNING "Too many audio devices\n");
+			return -EAGAIN;
+		}
+		break;
+	case HDA_PCM_TYPE_SPDIF:
+	case HDA_PCM_TYPE_HDMI:
+	case HDA_PCM_TYPE_MODEM:
+		dev = dev_idx[type];
+		if (test_bit(dev, bus->pcm_dev_bits)) {
+			snd_printk(KERN_WARNING "%s already defined\n",
+				   dev_name[type]);
+			return -EAGAIN;
+		}
+		break;
+	default:
+		snd_printk(KERN_WARNING "Invalid PCM type %d\n", type);
+		return -EINVAL;
+	}
+	set_bit(dev, bus->pcm_dev_bits);
+	return dev;
+}
+
+/*
  * attach a new PCM stream
  */
-static int __devinit
-snd_hda_attach_pcm(struct hda_codec *codec, struct hda_pcm *pcm)
+static int snd_hda_attach_pcm(struct hda_codec *codec, struct hda_pcm *pcm)
 {
 	struct hda_bus *bus = codec->bus;
 	struct hda_pcm_stream *info;
@@ -2453,6 +2506,39 @@ snd_hda_attach_pcm(struct hda_codec *codec, struct hda_pcm *pcm)
 		}
 	}
 	return bus->ops.attach_pcm(bus, codec, pcm);
+}
+
+/* assign all PCMs of the given codec */
+int snd_hda_codec_build_pcms(struct hda_codec *codec)
+{
+	unsigned int pcm;
+	int err;
+
+	if (!codec->num_pcms) {
+		if (!codec->patch_ops.build_pcms)
+			return 0;
+		err = codec->patch_ops.build_pcms(codec);
+		if (err < 0)
+			return err;
+	}
+	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
+		struct hda_pcm *cpcm = &codec->pcm_info[pcm];
+		int dev;
+
+		if (!cpcm->stream[0].substreams && !cpcm->stream[1].substreams)
+			return 0; /* no substreams assigned */
+
+		if (!cpcm->pcm) {
+			dev = get_empty_pcm_device(codec->bus, cpcm->pcm_type);
+			if (dev < 0)
+				return 0;
+			cpcm->device = dev;
+			err = snd_hda_attach_pcm(codec, cpcm);
+			if (err < 0)
+				return err;
+		}
+	}
+	return 0;
 }
 
 /**
@@ -2481,76 +2567,14 @@ snd_hda_attach_pcm(struct hda_codec *codec, struct hda_pcm *pcm)
  *
  * This function returns 0 if successfull, or a negative error code.
  */
-int snd_hda_build_pcms(struct hda_bus *bus)
+int __devinit snd_hda_build_pcms(struct hda_bus *bus)
 {
-	static const char *dev_name[HDA_PCM_NTYPES] = {
-		"Audio", "SPDIF", "HDMI", "Modem"
-	};
-	/* starting device index for each PCM type */
-	static int dev_idx[HDA_PCM_NTYPES] = {
-		[HDA_PCM_TYPE_AUDIO] = 0,
-		[HDA_PCM_TYPE_SPDIF] = 1,
-		[HDA_PCM_TYPE_HDMI] = 3,
-		[HDA_PCM_TYPE_MODEM] = 6
-	};
-	/* normal audio device indices; not linear to keep compatibility */
-	static int audio_idx[4] = { 0, 2, 4, 5 };
 	struct hda_codec *codec;
-	int num_devs[HDA_PCM_NTYPES];
 
-	memset(num_devs, 0, sizeof(num_devs));
 	list_for_each_entry(codec, &bus->codec_list, list) {
-		unsigned int pcm;
-		int err;
-		if (!codec->num_pcms) {
-			if (!codec->patch_ops.build_pcms)
-				continue;
-			err = codec->patch_ops.build_pcms(codec);
-			if (err < 0)
-				return err;
-		}
-		for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-			struct hda_pcm *cpcm = &codec->pcm_info[pcm];
-			int type = cpcm->pcm_type;
-			int dev;
-
-			if (!cpcm->stream[0].substreams &&
-			    !cpcm->stream[1].substreams)
-				continue; /* no substreams assigned */
-
-			switch (type) {
-			case HDA_PCM_TYPE_AUDIO:
-				if (num_devs[type] >= ARRAY_SIZE(audio_idx)) {
-					snd_printk(KERN_WARNING
-						   "Too many audio devices\n");
-					continue;
-				}
-				dev = audio_idx[num_devs[type]];
-				break;
-			case HDA_PCM_TYPE_SPDIF:
-			case HDA_PCM_TYPE_HDMI:
-			case HDA_PCM_TYPE_MODEM:
-				if (num_devs[type]) {
-					snd_printk(KERN_WARNING
-						   "%s already defined\n",
-						   dev_name[type]);
-					continue;
-				}
-				dev = dev_idx[type];
-				break;
-			default:
-				snd_printk(KERN_WARNING
-					   "Invalid PCM type %d\n", type);
-				continue;
-			}
-			num_devs[type]++;
-			if (!cpcm->pcm) {
-				cpcm->device = dev;
-				err = snd_hda_attach_pcm(codec, cpcm);
-				if (err < 0)
-					return err;
-			}
-		}
+		int err = snd_hda_codec_build_pcms(codec);
+		if (err < 0)
+			return err;
 	}
 	return 0;
 }
