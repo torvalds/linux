@@ -2218,7 +2218,7 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
  *
  * Returns 0 if successful, otherwise a negative error code.
  */
-int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
+static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 				u32 *ratesp, u64 *formatsp, unsigned int *bpsp)
 {
 	int i;
@@ -3374,18 +3374,6 @@ int snd_hda_resume(struct hda_bus *bus)
 	}
 	return 0;
 }
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-int snd_hda_codecs_inuse(struct hda_bus *bus)
-{
-	struct hda_codec *codec;
-
-	list_for_each_entry(codec, &bus->codec_list, list) {
-		if (snd_hda_codec_needs_resume(codec))
-			return 1;
-	}
-	return 0;
-}
-#endif
 #endif
 
 /*

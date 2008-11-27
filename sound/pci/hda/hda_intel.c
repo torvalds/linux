@@ -1896,6 +1896,19 @@ static void azx_power_notify(struct hda_bus *bus)
 	else if (chip->running && power_save_controller)
 		azx_stop_chip(chip);
 }
+
+static int snd_hda_codecs_inuse(struct hda_bus *bus)
+{
+	struct hda_codec *codec;
+
+	list_for_each_entry(codec, &bus->codec_list, list) {
+		if (snd_hda_codec_needs_resume(codec))
+			return 1;
+	}
+	return 0;
+}
+#else /* !CONFIG_SND_HDA_POWER_SAVE */
+#define snd_hda_codecs_inuse(bus) 1
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
 
 #ifdef CONFIG_PM
