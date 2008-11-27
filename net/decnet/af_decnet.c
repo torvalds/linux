@@ -167,7 +167,7 @@ static struct hlist_head *dn_find_list(struct sock *sk)
 	if (scp->addr.sdn_flags & SDF_WILD)
 		return hlist_empty(&dn_wild_sk) ? &dn_wild_sk : NULL;
 
-	return &dn_sk_hash[dn_ntohs(scp->addrloc) & DN_SK_HASH_MASK];
+	return &dn_sk_hash[le16_to_cpu(scp->addrloc) & DN_SK_HASH_MASK];
 }
 
 /*
@@ -181,7 +181,7 @@ static int check_port(__le16 port)
 	if (port == 0)
 		return -1;
 
-	sk_for_each(sk, node, &dn_sk_hash[dn_ntohs(port) & DN_SK_HASH_MASK]) {
+	sk_for_each(sk, node, &dn_sk_hash[le16_to_cpu(port) & DN_SK_HASH_MASK]) {
 		struct dn_scp *scp = DN_SK(sk);
 		if (scp->addrloc == port)
 			return -1;
@@ -195,12 +195,12 @@ static unsigned short port_alloc(struct sock *sk)
 static unsigned short port = 0x2000;
 	unsigned short i_port = port;
 
-	while(check_port(dn_htons(++port)) != 0) {
+	while(check_port(cpu_to_le16(++port)) != 0) {
 		if (port == i_port)
 			return 0;
 	}
 
-	scp->addrloc = dn_htons(port);
+	scp->addrloc = cpu_to_le16(port);
 
 	return 1;
 }
@@ -255,7 +255,7 @@ static struct hlist_head *listen_hash(struct sockaddr_dn *addr)
 
 	if (hash == 0) {
 		hash = addr->sdn_objnamel;
-		for(i = 0; i < dn_ntohs(addr->sdn_objnamel); i++) {
+		for(i = 0; i < le16_to_cpu(addr->sdn_objnamel); i++) {
 			hash ^= addr->sdn_objname[i];
 			hash ^= (hash << 3);
 		}
@@ -297,16 +297,16 @@ int dn_sockaddr2username(struct sockaddr_dn *sdn, unsigned char *buf, unsigned c
 			break;
 		case 1:
 			*buf++ = 0;
-			*buf++ = dn_ntohs(sdn->sdn_objnamel);
-			memcpy(buf, sdn->sdn_objname, dn_ntohs(sdn->sdn_objnamel));
-			len = 3 + dn_ntohs(sdn->sdn_objnamel);
+			*buf++ = le16_to_cpu(sdn->sdn_objnamel);
+			memcpy(buf, sdn->sdn_objname, le16_to_cpu(sdn->sdn_objnamel));
+			len = 3 + le16_to_cpu(sdn->sdn_objnamel);
 			break;
 		case 2:
 			memset(buf, 0, 5);
 			buf += 5;
-			*buf++ = dn_ntohs(sdn->sdn_objnamel);
-			memcpy(buf, sdn->sdn_objname, dn_ntohs(sdn->sdn_objnamel));
-			len = 7 + dn_ntohs(sdn->sdn_objnamel);
+			*buf++ = le16_to_cpu(sdn->sdn_objnamel);
+			memcpy(buf, sdn->sdn_objname, le16_to_cpu(sdn->sdn_objnamel));
+			len = 7 + le16_to_cpu(sdn->sdn_objnamel);
 			break;
 	}
 
@@ -327,7 +327,7 @@ int dn_username2sockaddr(unsigned char *data, int len, struct sockaddr_dn *sdn, 
 	int namel = 12;
 
 	sdn->sdn_objnum = 0;
-	sdn->sdn_objnamel = dn_htons(0);
+	sdn->sdn_objnamel = cpu_to_le16(0);
 	memset(sdn->sdn_objname, 0, DN_MAXOBJL);
 
 	if (len < 2)
@@ -361,13 +361,13 @@ int dn_username2sockaddr(unsigned char *data, int len, struct sockaddr_dn *sdn, 
 	if (len < 0)
 		return -1;
 
-	sdn->sdn_objnamel = dn_htons(*data++);
-	len -= dn_ntohs(sdn->sdn_objnamel);
+	sdn->sdn_objnamel = cpu_to_le16(*data++);
+	len -= le16_to_cpu(sdn->sdn_objnamel);
 
-	if ((len < 0) || (dn_ntohs(sdn->sdn_objnamel) > namel))
+	if ((len < 0) || (le16_to_cpu(sdn->sdn_objnamel) > namel))
 		return -1;
 
-	memcpy(sdn->sdn_objname, data, dn_ntohs(sdn->sdn_objnamel));
+	memcpy(sdn->sdn_objname, data, le16_to_cpu(sdn->sdn_objnamel));
 
 	return size - len;
 }
@@ -391,7 +391,7 @@ struct sock *dn_sklist_find_listener(struct sockaddr_dn *addr)
 				continue;
 			if (scp->addr.sdn_objnamel != addr->sdn_objnamel)
 				continue;
-			if (memcmp(scp->addr.sdn_objname, addr->sdn_objname, dn_ntohs(addr->sdn_objnamel)) != 0)
+			if (memcmp(scp->addr.sdn_objname, addr->sdn_objname, le16_to_cpu(addr->sdn_objnamel)) != 0)
 				continue;
 		}
 		sock_hold(sk);
@@ -419,7 +419,7 @@ struct sock *dn_find_by_skb(struct sk_buff *skb)
 	struct dn_scp *scp;
 
 	read_lock(&dn_hash_lock);
-	sk_for_each(sk, node, &dn_sk_hash[dn_ntohs(cb->dst_port) & DN_SK_HASH_MASK]) {
+	sk_for_each(sk, node, &dn_sk_hash[le16_to_cpu(cb->dst_port) & DN_SK_HASH_MASK]) {
 		scp = DN_SK(sk);
 		if (cb->src != dn_saddr2dn(&scp->peer))
 			continue;
@@ -734,10 +734,10 @@ static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (saddr->sdn_family != AF_DECnet)
 		return -EINVAL;
 
-	if (dn_ntohs(saddr->sdn_nodeaddrl) && (dn_ntohs(saddr->sdn_nodeaddrl) != 2))
+	if (le16_to_cpu(saddr->sdn_nodeaddrl) && (le16_to_cpu(saddr->sdn_nodeaddrl) != 2))
 		return -EINVAL;
 
-	if (dn_ntohs(saddr->sdn_objnamel) > DN_MAXOBJL)
+	if (le16_to_cpu(saddr->sdn_objnamel) > DN_MAXOBJL)
 		return -EINVAL;
 
 	if (saddr->sdn_flags & ~SDF_WILD)
@@ -748,7 +748,7 @@ static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EACCES;
 
 	if (!(saddr->sdn_flags & SDF_WILD)) {
-		if (dn_ntohs(saddr->sdn_nodeaddrl)) {
+		if (le16_to_cpu(saddr->sdn_nodeaddrl)) {
 			read_lock(&dev_base_lock);
 			ldev = NULL;
 			for_each_netdev(&init_net, dev) {
@@ -799,15 +799,15 @@ static int dn_auto_bind(struct socket *sock)
 	if ((scp->accessdata.acc_accl != 0) &&
 		(scp->accessdata.acc_accl <= 12)) {
 
-		scp->addr.sdn_objnamel = dn_htons(scp->accessdata.acc_accl);
-		memcpy(scp->addr.sdn_objname, scp->accessdata.acc_acc, dn_ntohs(scp->addr.sdn_objnamel));
+		scp->addr.sdn_objnamel = cpu_to_le16(scp->accessdata.acc_accl);
+		memcpy(scp->addr.sdn_objname, scp->accessdata.acc_acc, le16_to_cpu(scp->addr.sdn_objnamel));
 
 		scp->accessdata.acc_accl = 0;
 		memset(scp->accessdata.acc_acc, 0, 40);
 	}
 	/* End of compatibility stuff */
 
-	scp->addr.sdn_add.a_len = dn_htons(2);
+	scp->addr.sdn_add.a_len = cpu_to_le16(2);
 	rv = dn_dev_bind_default((__le16 *)scp->addr.sdn_add.a_addr);
 	if (rv == 0) {
 		rv = dn_hash_sock(sk);
@@ -1027,7 +1027,7 @@ static void dn_user_copy(struct sk_buff *skb, struct optdata_dn *opt)
 	u16 len = *ptr++; /* yes, it's 8bit on the wire */
 
 	BUG_ON(len > 16); /* we've checked the contents earlier */
-	opt->opt_optl   = dn_htons(len);
+	opt->opt_optl   = cpu_to_le16(len);
 	opt->opt_status = 0;
 	memcpy(opt->opt_data, ptr, len);
 	skb_pull(skb, len + 1);
@@ -1375,7 +1375,7 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 			if (optlen != sizeof(struct optdata_dn))
 				return -EINVAL;
 
-			if (dn_ntohs(u.opt.opt_optl) > 16)
+			if (le16_to_cpu(u.opt.opt_optl) > 16)
 				return -EINVAL;
 
 			memcpy(&scp->conndata_out, &u.opt, optlen);
@@ -1388,7 +1388,7 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 			if (optlen != sizeof(struct optdata_dn))
 				return -EINVAL;
 
-			if (dn_ntohs(u.opt.opt_optl) > 16)
+			if (le16_to_cpu(u.opt.opt_optl) > 16)
 				return -EINVAL;
 
 			memcpy(&scp->discdata_out, &u.opt, optlen);
@@ -2213,12 +2213,12 @@ static void dn_printable_object(struct sockaddr_dn *dn, unsigned char *buf)
 {
 	int i;
 
-	switch (dn_ntohs(dn->sdn_objnamel)) {
+	switch (le16_to_cpu(dn->sdn_objnamel)) {
 		case 0:
 			sprintf(buf, "%d", dn->sdn_objnum);
 			break;
 		default:
-			for (i = 0; i < dn_ntohs(dn->sdn_objnamel); i++) {
+			for (i = 0; i < le16_to_cpu(dn->sdn_objnamel); i++) {
 				buf[i] = dn->sdn_objname[i];
 				if (IS_NOT_PRINTABLE(buf[i]))
 					buf[i] = '.';
@@ -2281,7 +2281,7 @@ static inline void dn_socket_format_entry(struct seq_file *seq, struct sock *sk)
 	seq_printf(seq,
 		   "%6s/%04X %04d:%04d %04d:%04d %01d %-16s "
 		   "%6s/%04X %04d:%04d %04d:%04d %01d %-16s %4s %s\n",
-		   dn_addr2asc(dn_ntohs(dn_saddr2dn(&scp->addr)), buf1),
+		   dn_addr2asc(le16_to_cpu(dn_saddr2dn(&scp->addr)), buf1),
 		   scp->addrloc,
 		   scp->numdat,
 		   scp->numoth,
@@ -2289,7 +2289,7 @@ static inline void dn_socket_format_entry(struct seq_file *seq, struct sock *sk)
 		   scp->ackxmt_oth,
 		   scp->flowloc_sw,
 		   local_object,
-		   dn_addr2asc(dn_ntohs(dn_saddr2dn(&scp->peer)), buf2),
+		   dn_addr2asc(le16_to_cpu(dn_saddr2dn(&scp->peer)), buf2),
 		   scp->addrrem,
 		   scp->numdat_rcv,
 		   scp->numoth_rcv,

@@ -126,7 +126,7 @@ static int parse_addr(__le16 *addr, char *str)
 	if (INVALID_END_CHAR(*str))
 		return -1;
 
-	*addr = dn_htons((area << 10) | node);
+	*addr = cpu_to_le16((area << 10) | node);
 
 	return 0;
 }
@@ -201,7 +201,7 @@ static int dn_node_address_handler(ctl_table *table, int write,
 		return 0;
 	}
 
-	dn_addr2asc(dn_ntohs(decnet_address), addr);
+	dn_addr2asc(le16_to_cpu(decnet_address), addr);
 	len = strlen(addr);
 	addr[len++] = '\n';
 

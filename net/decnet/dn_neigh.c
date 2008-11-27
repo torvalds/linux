@@ -250,7 +250,7 @@ static int dn_long_output(struct sk_buff *skb)
 	data = skb_push(skb, sizeof(struct dn_long_packet) + 3);
 	lp = (struct dn_long_packet *)(data+3);
 
-	*((__le16 *)data) = dn_htons(skb->len - 2);
+	*((__le16 *)data) = cpu_to_le16(skb->len - 2);
 	*(data + 2) = 1 | DN_RT_F_PF; /* Padding */
 
 	lp->msgflg   = DN_RT_PKT_LONG|(cb->rt_flags&(DN_RT_F_IE|DN_RT_F_RQR|DN_RT_F_RTS));
@@ -294,7 +294,7 @@ static int dn_short_output(struct sk_buff *skb)
 	}
 
 	data = skb_push(skb, sizeof(struct dn_short_packet) + 2);
-	*((__le16 *)data) = dn_htons(skb->len - 2);
+	*((__le16 *)data) = cpu_to_le16(skb->len - 2);
 	sp = (struct dn_short_packet *)(data+2);
 
 	sp->msgflg     = DN_RT_PKT_SHORT|(cb->rt_flags&(DN_RT_F_RQR|DN_RT_F_RTS));
@@ -336,12 +336,12 @@ static int dn_phase3_output(struct sk_buff *skb)
 	}
 
 	data = skb_push(skb, sizeof(struct dn_short_packet) + 2);
-	*((__le16 *)data) = dn_htons(skb->len - 2);
+	*((__le16 *)data) = cpu_to_le16(skb->len - 2);
 	sp = (struct dn_short_packet *)(data + 2);
 
 	sp->msgflg   = DN_RT_PKT_SHORT|(cb->rt_flags&(DN_RT_F_RQR|DN_RT_F_RTS));
-	sp->dstnode  = cb->dst & dn_htons(0x03ff);
-	sp->srcnode  = cb->src & dn_htons(0x03ff);
+	sp->dstnode  = cb->dst & cpu_to_le16(0x03ff);
+	sp->srcnode  = cb->src & cpu_to_le16(0x03ff);
 	sp->forward  = cb->hops & 0x3f;
 
 	skb_reset_network_header(skb);
@@ -394,7 +394,7 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 			if (neigh->dev->type == ARPHRD_ETHER)
 				memcpy(neigh->ha, &eth_hdr(skb)->h_source, ETH_ALEN);
 
-			dn->blksize  = dn_ntohs(msg->blksize);
+			dn->blksize  = le16_to_cpu(msg->blksize);
 			dn->priority = msg->priority;
 
 			dn->flags &= ~DN_NDFLAG_P3;
@@ -410,7 +410,7 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 		}
 
 		/* Only use routers in our area */
-		if ((dn_ntohs(src)>>10) == (dn_ntohs((decnet_address))>>10)) {
+		if ((le16_to_cpu(src)>>10) == (le16_to_cpu((decnet_address))>>10)) {
 			if (!dn_db->router) {
 				dn_db->router = neigh_clone(neigh);
 			} else {
@@ -453,7 +453,7 @@ int dn_neigh_endnode_hello(struct sk_buff *skb)
 			if (neigh->dev->type == ARPHRD_ETHER)
 				memcpy(neigh->ha, &eth_hdr(skb)->h_source, ETH_ALEN);
 			dn->flags   &= ~(DN_NDFLAG_R1 | DN_NDFLAG_R2);
-			dn->blksize  = dn_ntohs(msg->blksize);
+			dn->blksize  = le16_to_cpu(msg->blksize);
 			dn->priority = 0;
 		}
 
@@ -543,7 +543,7 @@ static inline void dn_neigh_format_entry(struct seq_file *seq,
 
 	read_lock(&n->lock);
 	seq_printf(seq, "%-7s %s%s%s   %02x    %02d  %07ld %-8s\n",
-		   dn_addr2asc(dn_ntohs(dn->addr), buf),
+		   dn_addr2asc(le16_to_cpu(dn->addr), buf),
 		   (dn->flags&DN_NDFLAG_R1) ? "1" : "-",
 		   (dn->flags&DN_NDFLAG_R2) ? "2" : "-",
 		   (dn->flags&DN_NDFLAG_P3) ? "3" : "-",
