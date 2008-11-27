@@ -335,8 +335,10 @@ struct em28xx_board {
 	/* i2c flags */
 	unsigned int tda9887_conf;
 
+	/* GPIO sequences */
 	struct em28xx_reg_seq *dvb_gpio;
 	struct em28xx_reg_seq *suspend_gpio;
+	struct em28xx_reg_seq *tuner_gpio;
 
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;
@@ -431,9 +433,6 @@ struct em28xx {
 
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
-
-	/* GPIO sequences for tuner callbacks */
-	struct em28xx_reg_seq *tuner_gpio;
 
 	struct list_head	devlist;
 

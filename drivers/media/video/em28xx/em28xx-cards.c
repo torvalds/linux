@@ -94,7 +94,7 @@ static struct em28xx_reg_seq em2880_msi_digivox_ad_analog[] = {
    Analog - No input analog */
 
 /* Callback for the most boards */
-static struct em28xx_reg_seq default_callback[] = {
+static struct em28xx_reg_seq default_tuner_gpio[] = {
 	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
 	{EM28XX_R08_GPIO,	0,		EM_GPIO_4,	10},
 	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
@@ -460,7 +460,9 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Terratec Cinergy A Hybrid XS",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
+
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
@@ -482,6 +484,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name	      = "KWorld PVRTV 300U",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -542,6 +545,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Terratec Cinergy T XS",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 	},
 	[EM2870_BOARD_TERRATEC_XS_MT2060] = {
 		.name         = "Terratec Cinergy T XS (MT2060)",
@@ -552,6 +556,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Kworld 350 U DVB-T",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 	},
 	[EM2870_BOARD_KWORLD_355U] = {
 		.name         = "Kworld 355 U DVB-T",
@@ -576,6 +581,7 @@ struct em28xx_board em28xx_boards[] = {
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.has_msp34xx  = 1,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -598,6 +604,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Hauppauge WinTV HVR 900",
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
 		.has_dvb      = 1,
 		.dvb_gpio     = hauppauge_wintv_hvr_900_digital,
@@ -623,6 +630,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Hauppauge WinTV HVR 900 (R2)",
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
@@ -645,6 +653,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
 		.name           = "Hauppauge WinTV HVR 950",
 		.tuner_type     = TUNER_XC2028,
+		.tuner_gpio     = default_tuner_gpio,
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
 		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
@@ -670,6 +679,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2880_BOARD_PINNACLE_PCTV_HD_PRO] = {
 		.name           = "Pinnacle PCTV HD Pro Stick",
 		.tuner_type     = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
 		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
@@ -695,6 +705,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600] = {
 		.name           = "AMD ATI TV Wonder HD 600",
 		.tuner_type     = TUNER_XC2028,
+		.tuner_gpio     = default_tuner_gpio,
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
 		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
@@ -720,6 +731,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
 		.name           = "Terratec Hybrid XS",
 		.tuner_type     = TUNER_XC2028,
+		.tuner_gpio     = default_tuner_gpio,
 		.decoder        = EM28XX_TVP5150,
 		.has_dvb        = 1,
 		.dvb_gpio       = default_analog,
@@ -746,6 +758,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2880_BOARD_TERRATEC_PRODIGY_XS] = {
 		.name         = "Terratec Prodigy XS",
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -932,6 +945,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "MSI DigiVox A/D",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -954,6 +968,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "MSI DigiVox A/D II",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -976,6 +991,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name	      = "KWorld DVB-T 305U",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -994,6 +1010,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2880_BOARD_KWORLD_DVB_310U] = {
 		.name	      = "KWorld DVB-T 310U",
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.has_dvb      = 1,
 		.dvb_gpio     = default_digital,
 		.mts_firmware = 1,
@@ -1019,6 +1036,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "DNT DA2 Hybrid",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1041,6 +1059,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Pinnacle Hybrid Pro",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1063,6 +1082,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Pinnacle Hybrid Pro (2)",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
@@ -1086,6 +1106,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Kworld VS-DVB-T 323UR",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1105,6 +1126,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Terratec Hybrid XS (em2882)",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1127,6 +1149,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Kworld PlusTV HD Hybrid 330",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1311,7 +1334,7 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 	if (command != XC2028_TUNER_RESET)
 		return 0;
 
-	rc = em28xx_gpio_set(dev, dev->tuner_gpio);
+	rc = em28xx_gpio_set(dev, dev->board.tuner_gpio);
 
 	return rc;
 }
@@ -1448,11 +1471,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		break;
 	}
 
-	/* Sets the default callback. Used only for certain tuners */
-	if (!dev->tuner_gpio)
-		dev->tuner_gpio       = default_callback;
-
-	em28xx_gpio_set(dev, dev->tuner_gpio);
+	em28xx_gpio_set(dev, dev->board.tuner_gpio);
 	em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 
 	/* Unlock device */
