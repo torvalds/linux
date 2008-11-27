@@ -361,34 +361,35 @@ ENTRY(save_paranoid)
 END(save_paranoid)
 
 /*
- * A newly forked process directly context switches into this.
+ * A newly forked process directly context switches into this address.
+ *
+ * rdi: prev task we switched from
  */
-/* rdi:	prev */
 ENTRY(ret_from_fork)
 	DEFAULT_FRAME
+
 	push kernel_eflags(%rip)
 	CFI_ADJUST_CFA_OFFSET 8
-	popf				# reset kernel eflags
+	popf					# reset kernel eflags
 	CFI_ADJUST_CFA_OFFSET -8
-	call schedule_tail
+
+	call schedule_tail			# rdi: 'prev' task parameter
+
 	GET_THREAD_INFO(%rcx)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),TI_flags(%rcx)
+
 	CFI_REMEMBER_STATE
-	jnz rff_trace
-rff_action:
 	RESTORE_REST
-	testl $3,CS-ARGOFFSET(%rsp)	# from kernel_thread?
+
+	testl $3, CS-ARGOFFSET(%rsp)		# from kernel_thread?
 	je   int_ret_from_sys_call
-	testl $_TIF_IA32,TI_flags(%rcx)
+
+	testl $_TIF_IA32, TI_flags(%rcx)	# 32-bit compat task needs IRET
 	jnz  int_ret_from_sys_call
+
 	RESTORE_TOP_OF_STACK %rdi, -ARGOFFSET
-	jmp ret_from_sys_call
+	jmp ret_from_sys_call			# go to the SYSRET fastpath
+
 	CFI_RESTORE_STATE
-rff_trace:
-	movq %rsp,%rdi
-	call syscall_trace_leave
-	GET_THREAD_INFO(%rcx)
-	jmp rff_action
 	CFI_ENDPROC
 END(ret_from_fork)
 
