@@ -15,15 +15,20 @@ extern void mcount(void);
 #define STUB_ADDR		((long)(ftrace_stub))
 
 #define MCOUNT_INSN_OFFSET	((STUB_ADDR - CALLER_ADDR) >> 1)
-#endif
+
+struct dyn_arch_ftrace {
+	/* No extra data needed on sh */
+};
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
 	/* 'addr' is the memory table address. */
 	return addr;
 }
-#endif
 
+#endif /* __ASSEMBLY__ */
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #endif /* __ASM_SH_FTRACE_H */
