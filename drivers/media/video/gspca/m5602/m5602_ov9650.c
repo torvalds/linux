@@ -128,10 +128,10 @@ int ov9650_probe(struct sd *sd)
 			m5602_write_bridge(sd, preinit_ov9650[i][1], data);
 	}
 
-	if (ov9650_read_sensor(sd, OV9650_PID, &prod_id, 1))
+	if (m5602_read_sensor(sd, OV9650_PID, &prod_id, 1))
 		return -ENODEV;
 
-	if (ov9650_read_sensor(sd, OV9650_VER, &ver_id, 1))
+	if (m5602_read_sensor(sd, OV9650_VER, &ver_id, 1))
 		return -ENODEV;
 
 	if ((prod_id == 0x96) && (ver_id == 0x52)) {
@@ -197,17 +197,17 @@ int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	int err;
 
-	err = ov9650_read_sensor(sd, OV9650_COM1, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_COM1, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 	*val = i2c_data & 0x03;
 
-	err = ov9650_read_sensor(sd, OV9650_AECH, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_AECH, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 	*val |= (i2c_data << 2);
 
-	err = ov9650_read_sensor(sd, OV9650_AECHM, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_AECHM, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 	*val |= (i2c_data & 0x3f) << 10;
@@ -254,10 +254,10 @@ int ov9650_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	ov9650_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
 	*val = (i2c_data & 0x03) << 8;
 
-	err = ov9650_read_sensor(sd, OV9650_GAIN, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_GAIN, &i2c_data, 1);
 	*val |= i2c_data;
 	PDEBUG(D_V4L2, "Read gain %d", *val);
 	return err;
@@ -272,7 +272,7 @@ int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	/* The 2 MSB */
 	/* Read the OV9650_VREF register first to avoid
 	   corrupting the VREF high and low bits */
-	ov9650_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
 	/* Mask away all uninteresting bits */
 	i2c_data = ((val & 0x0300) >> 2) |
 			(i2c_data & 0x3F);
@@ -290,7 +290,7 @@ int ov9650_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = ov9650_read_sensor(sd, OV9650_RED, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_RED, &i2c_data, 1);
 	*val = i2c_data;
 
 	PDEBUG(D_V4L2, "Read red gain %d", *val);
@@ -319,7 +319,7 @@ int ov9650_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = ov9650_read_sensor(sd, OV9650_BLUE, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_BLUE, &i2c_data, 1);
 	*val = i2c_data;
 
 	PDEBUG(D_V4L2, "Read blue gain %d", *val);
@@ -348,7 +348,7 @@ int ov9650_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = ov9650_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 	if (dmi_check_system(ov9650_flip_dmi_table))
 		*val = ((i2c_data & OV9650_HFLIP) >> 5) ? 0 : 1;
 	else
@@ -365,7 +365,7 @@ int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
-	err = ov9650_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 
@@ -387,7 +387,7 @@ int ov9650_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = ov9650_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 	if (dmi_check_system(ov9650_flip_dmi_table))
 		*val = ((i2c_data & 0x10) >> 4) ? 0 : 1;
 	else
@@ -404,7 +404,7 @@ int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
-	err = ov9650_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 
@@ -426,12 +426,12 @@ int ov9650_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = ov9650_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 	*val = (i2c_data & 0x03) << 8;
 
-	err = ov9650_read_sensor(sd, OV9650_GAIN, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_GAIN, &i2c_data, 1);
 	*val |= i2c_data;
 	PDEBUG(D_V4L2, "Read gain %d", *val);
 out:
@@ -448,7 +448,7 @@ int ov9650_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 
 	/* Read the OV9650_VREF register first to avoid
 		corrupting the VREF high and low bits */
-	err = ov9650_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 
@@ -472,7 +472,7 @@ int ov9650_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = ov9650_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	*val = (i2c_data & OV9650_AWB_EN) >> 1;
 	PDEBUG(D_V4L2, "Read auto white balance %d", *val);
 
@@ -486,7 +486,7 @@ int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	PDEBUG(D_V4L2, "Set auto white balance to %d", val);
-	err = ov9650_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 
@@ -502,7 +502,7 @@ int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = ov9650_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	*val = (i2c_data & OV9650_AGC_EN) >> 2;
 	PDEBUG(D_V4L2, "Read auto gain control %d", *val);
 
@@ -516,7 +516,7 @@ int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	PDEBUG(D_V4L2, "Set auto gain control to %d", val);
-	err = ov9650_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
+	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	if (err < 0)
 		goto out;
 
@@ -532,7 +532,7 @@ static void ov9650_dump_registers(struct sd *sd)
 	info("Dumping the ov9650 register state");
 	for (address = 0; address < 0xa9; address++) {
 		u8 value;
-		ov9650_read_sensor(sd, address, &value, 1);
+		m5602_read_sensor(sd, address, &value, 1);
 		info("register 0x%x contains 0x%x",
 		     address, value);
 	}
@@ -544,9 +544,9 @@ static void ov9650_dump_registers(struct sd *sd)
 		u8 old_value, ctrl_value;
 		u8 test_value[2] = {0xff, 0xff};
 
-		ov9650_read_sensor(sd, address, &old_value, 1);
+		m5602_read_sensor(sd, address, &old_value, 1);
 		m5602_write_sensor(sd, address, test_value, 1);
-		ov9650_read_sensor(sd, address, &ctrl_value, 1);
+		m5602_read_sensor(sd, address, &ctrl_value, 1);
 
 		if (ctrl_value == test_value[0])
 			info("register 0x%x is writeable", address);
