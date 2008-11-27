@@ -775,9 +775,9 @@ int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode)
 	dev->mode = set_mode;
 
 	if (dev->mode == EM28XX_DIGITAL_MODE)
-		return em28xx_gpio_set(dev, dev->digital_gpio);
+		return em28xx_gpio_set(dev, dev->board.dvb_gpio);
 	else
-		return em28xx_gpio_set(dev, dev->analog_gpio);
+		return em28xx_gpio_set(dev, INPUT(dev->ctl_input)->gpio);
 }
 EXPORT_SYMBOL_GPL(em28xx_set_mode);
 

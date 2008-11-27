@@ -431,9 +431,6 @@ struct em28xx {
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
 
-	/* GPIO sequences for analog and digital mode */
-	struct em28xx_reg_seq *analog_gpio, *digital_gpio;
-
 	/* GPIO sequences for tuner callbacks */
 	struct em28xx_reg_seq *tuner_gpio;
 
