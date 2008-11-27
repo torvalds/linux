@@ -184,12 +184,16 @@ int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	PDEBUG(D_V4L2, "Set hflip %d", val);
+	err = m5602_read_sensor(sd, PO1030_REG_CONTROL2, &i2c_data, 1);
+	if (err < 0)
+		goto out;
 
-	i2c_data = (val & 0x01) << 7;
+	i2c_data = (0x7f & i2c_data) | ((val & 0x01) << 7);
 
 	err = m5602_write_sensor(sd, PO1030_REG_CONTROL2,
-				  &i2c_data, 1);
+				 &i2c_data, 1);
 
+out:
 	return err;
 }
 
@@ -216,12 +220,16 @@ int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	PDEBUG(D_V4L2, "Set vflip %d", val);
+	err = m5602_read_sensor(sd, PO1030_REG_CONTROL2, &i2c_data, 1);
+	if (err < 0)
+		goto out;
 
-	i2c_data = (val & 0x01) << 6;
+	i2c_data = (i2c_data & 0xbf) | ((val & 0x01) << 6);
 
 	err = m5602_write_sensor(sd, PO1030_REG_CONTROL2,
-				  &i2c_data, 1);
+				 &i2c_data, 1);
 
+out:
 	return err;
 }
 
