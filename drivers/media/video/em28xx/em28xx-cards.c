@@ -89,17 +89,9 @@ static struct em28xx_reg_seq em2880_msi_digivox_ad_analog[] = {
 };
 
 /* Boards - EM2880 MSI DIGIVOX AD and EM2880_BOARD_MSI_DIGIVOX_AD_II */
-static struct em28xx_reg_seq em2880_msi_digivox_ad_digital[] = {
-	{EM28XX_R08_GPIO,	0x6a,	~EM_GPIO_4,	10},
-	{	-1,		-1,	-1,		-1},
-};
 
 /* Board  - EM2870 Kworld 355u
    Analog - No input analog */
-static struct em28xx_reg_seq em2870_kworld_355u_digital[] = {
-	{EM2880_R04_GPO,	0x01,	0xff,		10},
-	{  -1,			-1,	-1,		-1},
-};
 
 /* Callback for the most boards */
 static struct em28xx_reg_seq default_callback[] = {
@@ -467,14 +459,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2861_BOARD_KWORLD_PVRTV_300U] = {
@@ -576,14 +571,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		} },
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
@@ -592,19 +590,23 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_XC2028,
 		.mts_firmware = 1,
 		.has_dvb      = 1,
+		.dvb_gpio     = hauppauge_wintv_hvr_900_digital,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2] = {
@@ -617,14 +619,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = 3,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
@@ -632,20 +637,24 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type     = TUNER_XC2028,
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
+		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
 		.ir_codes       = ir_codes_hauppauge_new,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2880_BOARD_PINNACLE_PCTV_HD_PRO] = {
@@ -653,20 +662,24 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type     = TUNER_XC2028,
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
+		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
 		.ir_codes       = ir_codes_pinnacle_pctv_hd,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600] = {
@@ -674,20 +687,24 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type     = TUNER_XC2028,
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
+		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
 		.ir_codes       = ir_codes_ati_tv_wonder_hd_600,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
@@ -695,18 +712,22 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type     = TUNER_XC2028,
 		.decoder        = EM28XX_TVP5150,
 		.has_dvb        = 1,
+		.dvb_gpio       = default_analog,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		} },
 	},
 	/* maybe there's a reason behind it why Terratec sells the Hybrid XS
@@ -720,14 +741,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2820_BOARD_MSI_VOX_USB_2] = {
@@ -902,14 +926,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = em2880_msi_digivox_ad_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = em2880_msi_digivox_ad_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = em2880_msi_digivox_ad_analog,
 		} },
 	},
 	[EM2880_BOARD_MSI_DIGIVOX_AD_II] = {
@@ -921,14 +948,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = em2880_msi_digivox_ad_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = em2880_msi_digivox_ad_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = em2880_msi_digivox_ad_analog,
 		} },
 	},
 	[EM2880_BOARD_KWORLD_DVB_305U] = {
@@ -954,20 +984,24 @@ struct em28xx_board em28xx_boards[] = {
 		.name	      = "KWorld DVB-T 310U",
 		.tuner_type   = TUNER_XC2028,
 		.has_dvb      = 1,
+		.dvb_gpio     = default_digital,
 		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		}, {	/* S-video has not been tested yet */
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		} },
 	},
 	[EM2881_BOARD_DNT_DA2_HYBRID] = {
@@ -979,14 +1013,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		} },
 	},
 	[EM2881_BOARD_PINNACLE_HYBRID_PRO] = {
@@ -998,14 +1035,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = default_analog,
 		} },
 	},
 	[EM2882_BOARD_PINNACLE_HYBRID_PRO] = {
@@ -1018,14 +1058,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2882_BOARD_KWORLD_VS_DVBT] = {
@@ -1056,14 +1099,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2883_BOARD_KWORLD_HYBRID_A316] = {
@@ -1075,14 +1121,17 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
 	[EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU] = {
@@ -1104,6 +1153,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Pinnacle PCTV HD Mini",
 		.tuner_type   = TUNER_ABSENT,
 		.has_dvb      = 1,
+		.dvb_gpio     = em2874_pinnacle_80e_digital,
 		.ir_codes     = ir_codes_pinnacle_pctv_hd,
 		.decoder      = EM28XX_NODECODER,
 		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE |
@@ -1329,55 +1379,11 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	/* request some modules */
 	switch (dev->model) {
-	case EM2880_BOARD_TERRATEC_PRODIGY_XS:
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
-	case EM2860_BOARD_TERRATEC_HYBRID_XS:
-	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
-	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
-	case EM2882_BOARD_PINNACLE_HYBRID_PRO:
-	case EM2883_BOARD_KWORLD_HYBRID_A316:
-	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
-		/* Sets GPO/GPIO sequences for this device */
-		dev->analog_gpio      = hauppauge_wintv_hvr_900_analog;
-		dev->digital_gpio     = hauppauge_wintv_hvr_900_digital;
-		break;
-
-	case EM2882_BOARD_TERRATEC_HYBRID_XS:
-		/* Sets GPO/GPIO sequences for this device */
-		dev->analog_gpio      = hauppauge_wintv_hvr_900_analog;
-		dev->digital_gpio     = hauppauge_wintv_hvr_900_digital;
-		break;
-
-	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
-	case EM2880_BOARD_TERRATEC_HYBRID_XS:
-	case EM2870_BOARD_TERRATEC_XS:
-	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
-	case EM2880_BOARD_KWORLD_DVB_310U:
-	case EM2870_BOARD_KWORLD_350U:
-	case EM2881_BOARD_DNT_DA2_HYBRID:
-		/* NOTE: EM2881_DNT_DA2_HYBRID spend 140 msleep for digital
-			 and analog commands. If this commands doesn't work,
-			 add this timer. */
-
-		/* Sets GPO/GPIO sequences for this device */
-		dev->analog_gpio      = default_analog;
-		dev->digital_gpio     = default_digital;
-		break;
-
-	case EM2880_BOARD_MSI_DIGIVOX_AD:
-	case EM2880_BOARD_MSI_DIGIVOX_AD_II:
-		/* Sets GPO/GPIO sequences for this device */
-		dev->analog_gpio      = em2880_msi_digivox_ad_analog;
-		dev->digital_gpio     = em2880_msi_digivox_ad_digital;
-		break;
-
 	case EM2861_BOARD_PLEXTOR_PX_TV100U:
 		/* FIXME guess */
 		/* Turn on analog audio output */
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
 		break;
-
 	case EM2861_BOARD_KWORLD_PVRTV_300U:
 	case EM2880_BOARD_KWORLD_DVB_305U:
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0x6d);
@@ -1385,12 +1391,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0x7d);
 		msleep(10);
 		break;
-
-	case EM2870_BOARD_KWORLD_355U:
-		/* Sets GPO/GPIO sequences for this device */
-		dev->digital_gpio     = em2870_kworld_355u_digital;
-		break;
-
 	case EM2870_BOARD_COMPRO_VIDEOMATE:
 		/* TODO: someone can do some cleanup here...
 			 not everything's needed */
@@ -1407,7 +1407,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfc);
 		mdelay(70);
 		break;
-
 	case EM2870_BOARD_TERRATEC_XS_MT2060:
 		/* this device needs some gpio writes to get the DVB-T
 		   demod work */
@@ -1418,7 +1417,6 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
 		mdelay(70);
 		break;
-
 	case EM2870_BOARD_PINNACLE_PCTV_DVB:
 		/* this device needs some gpio writes to get the
 		   DVB-T demod work */
@@ -1429,15 +1427,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
 		mdelay(70);
 		break;
-
 	case EM2820_BOARD_GADMEI_UTV310:
 	case EM2820_BOARD_MSI_VOX_USB_2:
 		/* enables audio for that devices */
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
-		break;
-
-	case EM2874_BOARD_PINNACLE_PCTV_80E:
-		dev->digital_gpio = em2874_pinnacle_80e_digital;
 		break;
 	}
 

@@ -304,11 +304,18 @@ enum em28xx_aout {
 	EM28XX_AOUT_SURR   = 1 << 4,
 };
 
+struct em28xx_reg_seq {
+	int reg;
+	unsigned char val, mask;
+	int sleep;
+};
+
 struct em28xx_input {
 	enum enum28xx_itype type;
 	unsigned int vmux;
 	enum em28xx_amux amux;
 	enum em28xx_aout aout;
+	struct em28xx_reg_seq *gpio;
 };
 
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
@@ -319,12 +326,6 @@ enum em28xx_decoder {
 	EM28XX_SAA711X,
 };
 
-struct em28xx_reg_seq {
-	int reg;
-	unsigned char val, mask;
-	int sleep;
-};
-
 struct em28xx_board {
 	char *name;
 	int vchannels;
@@ -333,6 +334,8 @@ struct em28xx_board {
 
 	/* i2c flags */
 	unsigned int tda9887_conf;
+
+	struct em28xx_reg_seq *dvb_gpio;
 
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;
