@@ -1174,6 +1174,11 @@ ftrace_call:
 	popl %edx
 	popl %ecx
 	popl %eax
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+.globl ftrace_graph_call
+ftrace_graph_call:
+	jmp ftrace_stub
+#endif
 
 .globl ftrace_stub
 ftrace_stub:
@@ -1188,9 +1193,9 @@ ENTRY(mcount)
 
 	cmpl $ftrace_stub, ftrace_trace_function
 	jnz trace
-#ifdef CONFIG_FUNCTION_RET_TRACER
-	cmpl $ftrace_stub, ftrace_function_return
-	jnz ftrace_return_caller
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	cmpl $ftrace_stub, ftrace_graph_return
+	jnz ftrace_graph_caller
 #endif
 .globl ftrace_stub
 ftrace_stub:
@@ -1215,8 +1220,8 @@ END(mcount)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_TRACER */
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
-ENTRY(ftrace_return_caller)
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+ENTRY(ftrace_graph_caller)
 	cmpl $0, function_trace_stop
 	jne ftrace_stub
 
@@ -1230,7 +1235,7 @@ ENTRY(ftrace_return_caller)
 	popl %ecx
 	popl %eax
 	ret
-END(ftrace_return_caller)
+END(ftrace_graph_caller)
 
 .globl return_to_handler
 return_to_handler:

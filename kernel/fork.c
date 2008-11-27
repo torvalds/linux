@@ -140,7 +140,7 @@ void free_task(struct task_struct *tsk)
 	prop_local_destroy_single(&tsk->dirties);
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
-	ftrace_retfunc_exit_task(tsk);
+	ftrace_graph_exit_task(tsk);
 	free_task_struct(tsk);
 }
 EXPORT_SYMBOL(free_task);
@@ -1271,7 +1271,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	total_forks++;
 	spin_unlock(&current->sighand->siglock);
 	write_unlock_irq(&tasklist_lock);
-	ftrace_retfunc_init_task(p);
+	ftrace_graph_init_task(p);
 	proc_fork_connector(p);
 	cgroup_post_fork(p);
 	return p;

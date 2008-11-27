@@ -25,9 +25,11 @@ enum trace_type {
 	TRACE_BRANCH,
 	TRACE_BOOT_CALL,
 	TRACE_BOOT_RET,
-	TRACE_FN_RET,
+	TRACE_GRAPH_RET,
+	TRACE_GRAPH_ENT,
 	TRACE_USER_STACK,
 	TRACE_BTS,
+	TRACE_POWER,
 
 	__TRACE_LAST_TYPE
 };
@@ -56,14 +58,16 @@ struct ftrace_entry {
 	unsigned long		parent_ip;
 };
 
+/* Function call entry */
+struct ftrace_graph_ent_entry {
+	struct trace_entry			ent;
+	struct ftrace_graph_ent		graph_ent;
+};
+
 /* Function return entry */
-struct ftrace_ret_entry {
-	struct trace_entry	ent;
-	unsigned long		ip;
-	unsigned long		parent_ip;
-	unsigned long long	calltime;
-	unsigned long long	rettime;
-	unsigned long		overrun;
+struct ftrace_graph_ret_entry {
+	struct trace_entry			ent;
+	struct ftrace_graph_ret		ret;
 };
 extern struct tracer boot_tracer;
 
@@ -158,6 +162,11 @@ struct bts_entry {
 	struct trace_entry	ent;
 	unsigned long		from;
 	unsigned long		to;
+};
+
+struct trace_power {
+	struct trace_entry	ent;
+	struct power_trace	state_data;
 };
 
 /*
@@ -264,8 +273,12 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct trace_boot_call, TRACE_BOOT_CALL);\
 		IF_ASSIGN(var, ent, struct trace_boot_ret, TRACE_BOOT_RET);\
 		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
-		IF_ASSIGN(var, ent, struct ftrace_ret_entry, TRACE_FN_RET);\
+		IF_ASSIGN(var, ent, struct ftrace_graph_ent_entry,	\
+			  TRACE_GRAPH_ENT);		\
+		IF_ASSIGN(var, ent, struct ftrace_graph_ret_entry,	\
+			  TRACE_GRAPH_RET);		\
 		IF_ASSIGN(var, ent, struct bts_entry, TRACE_BTS);\
+ 		IF_ASSIGN(var, ent, struct trace_power, TRACE_POWER); \
 		__ftrace_bad_type();					\
 	} while (0)
 
@@ -397,9 +410,9 @@ void trace_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
 		    unsigned long flags, int pc);
-void
-trace_function_return(struct ftrace_retfunc *trace);
 
+void trace_graph_return(struct ftrace_graph_ret *trace);
+void trace_graph_entry(struct ftrace_graph_ent *trace);
 void trace_bts(struct trace_array *tr,
 	       unsigned long from,
 	       unsigned long to);
@@ -444,6 +457,7 @@ struct tracer_switch_ops {
 	struct tracer_switch_ops	*next;
 };
 
+char *trace_find_cmdline(int pid);
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -489,11 +503,11 @@ extern int trace_vprintk(unsigned long ip, const char *fmt, va_list args);
 extern unsigned long trace_flags;
 
 /* Standard output formatting function used for function return traces */
-#ifdef CONFIG_FUNCTION_RET_TRACER
-extern enum print_line_t print_return_function(struct trace_iterator *iter);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+extern enum print_line_t print_graph_function(struct trace_iterator *iter);
 #else
 static inline enum print_line_t
-print_return_function(struct trace_iterator *iter)
+print_graph_function(struct trace_iterator *iter)
 {
 	return TRACE_TYPE_UNHANDLED;
 }
