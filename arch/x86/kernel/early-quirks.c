@@ -17,6 +17,7 @@
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 #include <asm/iommu.h>
+#include <asm/gart.h>
 
 static void __init fix_hypertransport_config(int num, int slot, int func)
 {
