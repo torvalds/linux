@@ -2176,6 +2176,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	struct em28xx *dev = NULL;
 	int retval = -ENODEV;
 	int i, nr, ifnum, isoc_pipe;
+	char *speed;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
@@ -2186,11 +2187,12 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* Don't register audio interfaces */
 	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
-		em28xx_err(DRIVER_NAME " audio device (%04x:%04x): interface %i, class %i\n",
-				udev->descriptor.idVendor,
-				udev->descriptor.idProduct,
-				ifnum,
-				interface->altsetting[0].desc.bInterfaceClass);
+		em28xx_err(DRIVER_NAME " audio device (%04x:%04x): "
+			"interface %i, class %i\n",
+			le16_to_cpu(udev->descriptor.idVendor),
+			le16_to_cpu(udev->descriptor.idProduct),
+			ifnum,
+			interface->altsetting[0].desc.bInterfaceClass);
 
 		em28xx_devused &= ~(1<<nr);
 		return -ENODEV;
@@ -2219,8 +2221,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		if (!check_interface) {
 			em28xx_err(DRIVER_NAME " video device (%04x:%04x): "
 				"interface %i, class %i found.\n",
-				udev->descriptor.idVendor,
-				udev->descriptor.idProduct,
+				le16_to_cpu(udev->descriptor.idVendor),
+				le16_to_cpu(udev->descriptor.idProduct),
 				ifnum,
 				interface->altsetting[0].desc.bInterfaceClass);
 
@@ -2230,14 +2232,30 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			em28xx_devused &= ~(1<<nr);
 			return -ENODEV;
 		}
-
 	}
 
-	em28xx_err(DRIVER_NAME " new video device (%04x:%04x): interface %i, class %i\n",
-			udev->descriptor.idVendor,
-			udev->descriptor.idProduct,
-			ifnum,
-			interface->altsetting[0].desc.bInterfaceClass);
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+		speed = "1.5";
+		break;
+	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_FULL:
+		speed = "12";
+		break;
+	case USB_SPEED_HIGH:
+		speed = "480";
+		break;
+	default:
+		speed = "unknown";
+	}
+
+	printk(DRIVER_NAME ": New video device @ %s Mbps "
+		"(%04x:%04x, interface %d, class %d)\n",
+		speed,
+		le16_to_cpu(udev->descriptor.idVendor),
+		le16_to_cpu(udev->descriptor.idProduct),
+		ifnum,
+		interface->altsetting->desc.bInterfaceNumber);
 
 	if (nr >= EM28XX_MAXBOARDS) {
 		printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
