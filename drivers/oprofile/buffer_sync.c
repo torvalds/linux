@@ -464,33 +464,6 @@ static inline int is_code(unsigned long val)
 }
 
 
-/* "acquire" as many cpu buffer slots as we can */
-static unsigned long get_slots(struct oprofile_cpu_buffer *b)
-{
-	unsigned long head = b->head_pos;
-	unsigned long tail = b->tail_pos;
-
-	/*
-	 * Subtle. This resets the persistent last_task
-	 * and in_kernel values used for switching notes.
-	 * BUT, there is a small window between reading
-	 * head_pos, and this call, that means samples
-	 * can appear at the new head position, but not
-	 * be prefixed with the notes for switching
-	 * kernel mode or a task switch. This small hole
-	 * can lead to mis-attribution or samples where
-	 * we don't know if it's in the kernel or not,
-	 * at the start of an event buffer.
-	 */
-	cpu_buffer_reset(b);
-
-	if (head >= tail)
-		return head - tail;
-
-	return head + (b->buffer_size - tail);
-}
-
-
 /* Move tasks along towards death. Any tasks on dead_tasks
  * will definitely have no remaining references in any
  * CPU buffers at this point, because we use two lists,
@@ -576,11 +549,11 @@ void sync_buffer(int cpu)
 	/* Remember, only we can modify tail_pos */
 
 #ifndef CONFIG_OPROFILE_IBS
-	available = get_slots(cpu_buf);
+	available = cpu_buffer_entries(cpu_buf);
 
 	for (i = 0; i < available; ++i) {
 #else
-	while (get_slots(cpu_buf)) {
+	while (cpu_buffer_entries(cpu_buf)) {
 #endif
 		struct op_sample *s = cpu_buffer_read_entry(cpu_buf);
 

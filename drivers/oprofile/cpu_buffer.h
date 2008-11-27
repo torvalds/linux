@@ -81,6 +81,33 @@ struct op_sample *cpu_buffer_read_entry(struct oprofile_cpu_buffer *cpu_buf)
 	return &cpu_buf->buffer[cpu_buf->tail_pos];
 }
 
+/* "acquire" as many cpu buffer slots as we can */
+static inline
+unsigned long cpu_buffer_entries(struct oprofile_cpu_buffer *b)
+{
+	unsigned long head = b->head_pos;
+	unsigned long tail = b->tail_pos;
+
+	/*
+	 * Subtle. This resets the persistent last_task
+	 * and in_kernel values used for switching notes.
+	 * BUT, there is a small window between reading
+	 * head_pos, and this call, that means samples
+	 * can appear at the new head position, but not
+	 * be prefixed with the notes for switching
+	 * kernel mode or a task switch. This small hole
+	 * can lead to mis-attribution or samples where
+	 * we don't know if it's in the kernel or not,
+	 * at the start of an event buffer.
+	 */
+	cpu_buffer_reset(b);
+
+	if (head >= tail)
+		return head - tail;
+
+	return head + (b->buffer_size - tail);
+}
+
 /* transient events for the CPU buffer -> event buffer */
 #define CPU_IS_KERNEL 1
 #define CPU_TRACE_BEGIN 2
