@@ -3455,15 +3455,16 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 			u32 rmcs = IXGBE_READ_REG(hw, IXGBE_RMCS);
 #define FLOW_RX (frctl & IXGBE_FCTRL_RFCE)
 #define FLOW_TX (rmcs & IXGBE_RMCS_TFCE_802_3X)
-			DPRINTK(LINK, INFO, "NIC Link is Up %s, "
-			        "Flow Control: %s\n",
-			        (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
-			         "10 Gbps" :
-			         (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
-			          "1 Gbps" : "unknown speed")),
-			        ((FLOW_RX && FLOW_TX) ? "RX/TX" :
-			         (FLOW_RX ? "RX" :
-			         (FLOW_TX ? "TX" : "None"))));
+			printk(KERN_INFO "ixgbe: %s NIC Link is Up %s, "
+			       "Flow Control: %s\n",
+			       netdev->name,
+			       (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
+			        "10 Gbps" :
+			        (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
+			         "1 Gbps" : "unknown speed")),
+			       ((FLOW_RX && FLOW_TX) ? "RX/TX" :
+			        (FLOW_RX ? "RX" :
+			        (FLOW_TX ? "TX" : "None"))));
 
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
@@ -3475,7 +3476,8 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 		adapter->link_up = false;
 		adapter->link_speed = 0;
 		if (netif_carrier_ok(netdev)) {
-			DPRINTK(LINK, INFO, "NIC Link is Down\n");
+			printk(KERN_INFO "ixgbe: %s NIC Link is Down\n",
+			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_tx_stop_all_queues(netdev);
 		}
