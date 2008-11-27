@@ -16,6 +16,7 @@
 #define HWCAP_IWMMXT	512
 #define HWCAP_CRUNCH	1024
 #define HWCAP_THUMBEE	2048
+#define HWCAP_NEON	4096
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 /*
