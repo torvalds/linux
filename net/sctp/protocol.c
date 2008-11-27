@@ -139,11 +139,12 @@ out_snmp_proc_init:
 	}
 out_free_percpu:
 	percpu_counter_destroy(&sctp_sockets_allocated);
-out_nomem:
-	return -ENOMEM;
 #else
 	return 0;
 #endif /* CONFIG_PROC_FS */
+
+out_nomem:
+	return -ENOMEM;
 }
 
 /* Clean up the proc fs entry for the SCTP protocol.
