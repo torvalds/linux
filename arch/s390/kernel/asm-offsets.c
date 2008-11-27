@@ -32,7 +32,7 @@ int main(void)
 	DEFINE(__PT_GPRS, offsetof(struct pt_regs, gprs));
 	DEFINE(__PT_ORIG_GPR2, offsetof(struct pt_regs, orig_gpr2));
 	DEFINE(__PT_ILC, offsetof(struct pt_regs, ilc));
-	DEFINE(__PT_TRAP, offsetof(struct pt_regs, trap));
+	DEFINE(__PT_SVCNR, offsetof(struct pt_regs, svcnr));
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	DEFINE(__SF_BACKCHAIN, offsetof(struct stack_frame, back_chain));
