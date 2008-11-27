@@ -161,7 +161,7 @@ config EDAC_PASEMI
 
 config EDAC_CELL
 	tristate "Cell Broadband Engine memory controller"
-	depends on EDAC_MM_EDAC && PPC_CELL_NATIVE
+	depends on EDAC_MM_EDAC && PPC_CELL_COMMON
 	help
 	  Support for error detection and correction on the
 	  Cell Broadband Engine internal memory controller
