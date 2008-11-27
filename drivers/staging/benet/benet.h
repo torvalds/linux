@@ -280,7 +280,7 @@ struct be_adapter {
 
 	struct tasklet_struct sts_handler;
 	struct timer_list cq_timer;
-	spinlock_t int_lock;
+	spinlock_t int_lock;	/* to protect the isr field in adapter */
 
 	struct FWCMD_ETH_GET_STATISTICS *eth_statsp;
 	/*
@@ -300,7 +300,7 @@ struct be_adapter {
 	u32 max_rx_coal;
 	struct pci_dev *pdev;	/* Pointer to OS's PCI dvice */
 
-	spinlock_t txq_lock;
+	spinlock_t txq_lock;	/* to stop/wake queue based on tx_q_used */
 
 	u32 isr;		/* copy of Intr status reg. */
 

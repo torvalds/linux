@@ -1,5 +1,4 @@
 TODO:
-	- fix minor checkpatch.pl issues
 	- remove wrappers around common iowrite functions
 	- full netdev audit of common problems/issues
 

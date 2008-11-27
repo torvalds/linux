@@ -156,7 +156,8 @@ static inline int process_nic_rx_completion(struct be_net_object *pnob,
 	va = page_address(rx_page_info->page) + rx_page_info->page_offset;
 	prefetch(va);
 
-	skb->len = skb->data_len = n;
+	skb->len = n;
+	skb->data_len = n;
 	if (n <= BE_HDR_LEN) {
 		memcpy(skb->data, va, n);
 		put_page(rx_page_info->page);
@@ -717,7 +718,8 @@ irqreturn_t be_int(int irq, void *dev)
  */
 int be_poll(struct napi_struct *napi, int budget)
 {
-	struct be_net_object *pnob = container_of(napi, struct be_net_object, napi);
+	struct be_net_object *pnob =
+			container_of(napi, struct be_net_object, napi);
 	u32 work_done;
 
 	pnob->adapter->be_stat.bes_polls++;

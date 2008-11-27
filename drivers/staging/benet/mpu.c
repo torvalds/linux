@@ -942,7 +942,7 @@ be_mpu_init_mailbox(struct be_function_object *pfob, struct ring_desc *mailbox)
 	 */
 	{
 		u64 *endian_check = (u64 *) (pfob->mailbox.va +
-					offsetof(struct BE_MCC_MAILBOX_AMAP, wrb)/8);
+				offsetof(struct BE_MCC_MAILBOX_AMAP, wrb)/8);
 		*endian_check = 0xFF1234FFFF5678FFULL;
 	}
 

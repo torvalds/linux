@@ -39,28 +39,28 @@
  * in BladeEngine.
  */
 #define PD_READ(fo, field)	ioread32((fo)->db_va + \
-					offsetof(struct BE_PROTECTION_DOMAIN_DBMAP_AMAP, field)/8)
+		offsetof(struct BE_PROTECTION_DOMAIN_DBMAP_AMAP, field)/8)
 
 #define PD_WRITE(fo, field, val) iowrite32(val, (fo)->db_va + \
-					offsetof(struct BE_PROTECTION_DOMAIN_DBMAP_AMAP, field)/8)
+		offsetof(struct BE_PROTECTION_DOMAIN_DBMAP_AMAP, field)/8)
 
-#define CSR_READ(fo, field)		ioread32((fo)->csr_va + \
-					offsetof(struct BE_BLADE_ENGINE_CSRMAP_AMAP, field)/8)
+#define CSR_READ(fo, field)	ioread32((fo)->csr_va + \
+		offsetof(struct BE_BLADE_ENGINE_CSRMAP_AMAP, field)/8)
 
-#define CSR_WRITE(fo, field, val)	iowrite32(val, (fo)->csr_va +	\
-					offsetof(struct BE_BLADE_ENGINE_CSRMAP_AMAP, field)/8)
+#define CSR_WRITE(fo, field, val)	iowrite32(val, (fo)->csr_va + \
+		offsetof(struct BE_BLADE_ENGINE_CSRMAP_AMAP, field)/8)
 
 #define PCICFG0_READ(fo, field)	ioread32((fo)->pci_va + \
-					offsetof(struct BE_PCICFG0_CSRMAP_AMAP, field)/8)
+		offsetof(struct BE_PCICFG0_CSRMAP_AMAP, field)/8)
 
-#define PCICFG0_WRITE(fo, field, val)	iowrite32(val, (fo)->pci_va +	\
-					offsetof(struct BE_PCICFG0_CSRMAP_AMAP, field)/8)
+#define PCICFG0_WRITE(fo, field, val)	iowrite32(val, (fo)->pci_va + \
+		offsetof(struct BE_PCICFG0_CSRMAP_AMAP, field)/8)
 
-#define PCICFG1_READ(fo, field)		ioread32((fo)->pci_va + \
-					offsetof(struct BE_PCICFG1_CSRMAP_AMAP, field)/8)
+#define PCICFG1_READ(fo, field)	ioread32((fo)->pci_va + \
+		offsetof(struct BE_PCICFG1_CSRMAP_AMAP, field)/8)
 
-#define PCICFG1_WRITE(fo, field, val)	iowrite32(val, (fo)->pci_va +	\
-					offsetof(struct BE_PCICFG1_CSRMAP_AMAP, field)/8)
+#define PCICFG1_WRITE(fo, field, val)	iowrite32(val, (fo)->pci_va + \
+		offsetof(struct BE_PCICFG1_CSRMAP_AMAP, field)/8)
 
 #ifdef BE_DEBUG
 #define ASSERT(c)       BUG_ON(!(c));
@@ -118,14 +118,14 @@ static inline u32 be_subc(u32 a, u32 b, u32 max)
 {
 	ASSERT(a <= max && b <= max);
 	ASSERT(max > 0);
-	return (a >= b ? (a - b) : (max - b + a));
+	return a >= b ? (a - b) : (max - b + a);
 }
 
 static inline u32 be_addc(u32 a, u32 b, u32 max)
 {
 	ASSERT(a < max);
 	ASSERT(max > 0);
-	return ((max - a > b) ? (a + b) : (b + a - max));
+	return (max - a > b) ? (a + b) : (b + a - max);
 }
 
 /* descriptor for a physically contiguous memory used for ring */
@@ -174,7 +174,7 @@ struct mp_ring {
  */
 static inline u32 amap_mask(u32 bit_size)
 {
-    return (bit_size == 32 ? 0xFFFFFFFF : (1 << bit_size) - 1);
+	return bit_size == 32 ? 0xFFFFFFFF : (1 << bit_size) - 1;
 }
 
 #define AMAP_BIT_MASK(_struct_, field)       \
@@ -194,9 +194,9 @@ amap_set(void *ptr, u32 dw_offset, u32 mask, u32 offset, u32 value)
 }
 
 #define AMAP_SET_BITS_PTR(_struct_, field, _structPtr_, val)	\
-	amap_set(_structPtr_, AMAP_WORD_OFFSET(_struct_, field),	\
-		AMAP_BIT_MASK(_struct_, field),	AMAP_BIT_OFFSET(_struct_, field), val)
-
+	amap_set(_structPtr_, AMAP_WORD_OFFSET(_struct_, field),\
+		AMAP_BIT_MASK(_struct_, field),			\
+		AMAP_BIT_OFFSET(_struct_, field), val)
 /*
  * Non-optimized routine that gets the bits without knowing the correct DWORD.
  * e.g. fieldValue = AMAP_GET_BITS_PTR (struct, field1, &contextMemory);
@@ -207,13 +207,14 @@ amap_get(void *ptr, u32 dw_offset, u32 mask, u32 offset)
 	u32 *dw = (u32 *)ptr;
 	return mask & (*(dw + dw_offset) >> offset);
 }
-#define AMAP_GET_BITS_PTR(_struct_, field, _structPtr_)		\
+#define AMAP_GET_BITS_PTR(_struct_, field, _structPtr_)			\
 	amap_get(_structPtr_, AMAP_WORD_OFFSET(_struct_, field),	\
-		AMAP_BIT_MASK(_struct_, field),	AMAP_BIT_OFFSET(_struct_, field))
+		AMAP_BIT_MASK(_struct_, field),				\
+		AMAP_BIT_OFFSET(_struct_, field))
 
 /* Returns 0-31 representing bit offset within a DWORD of a bitfield. */
 #define AMAP_BIT_OFFSET(_struct_, field)                  \
-    (offsetof(struct BE_ ## _struct_ ## _AMAP, field) % 32)
+	(offsetof(struct BE_ ## _struct_ ## _AMAP, field) % 32)
 
 /* Returns 0-n representing DWORD offset of bitfield within the structure. */
 #define AMAP_WORD_OFFSET(_struct_, field)  \

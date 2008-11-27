@@ -386,7 +386,8 @@ static void wrb_fill(struct ETH_WRB_AMAP *wrb, u64 addr, int len)
 static void wrb_fill_extra(struct ETH_WRB_AMAP *wrb, struct sk_buff *skb,
 			   struct be_net_object *pnob)
 {
-	wrb->dw[2] = wrb->dw[3] = 0;
+	wrb->dw[2] = 0;
+	wrb->dw[3] = 0;
 	AMAP_SET_BITS_PTR(ETH_WRB, crc, wrb, 1);
 	if (skb_shinfo(skb)->gso_segs > 1 && skb_shinfo(skb)->gso_size) {
 		AMAP_SET_BITS_PTR(ETH_WRB, lso, wrb, 1);

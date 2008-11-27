@@ -1083,7 +1083,8 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	netif_napi_add(netdev, &pnob->napi, be_poll, 64);
 
 	/* if the rx_frag size if 2K, one page is shared as two RX frags */
-	pnob->rx_pg_shared = (pnob->rx_buf_size <= PAGE_SIZE / 2)? true : false;
+	pnob->rx_pg_shared =
+		(pnob->rx_buf_size <= PAGE_SIZE / 2) ? true : false;
 	if (pnob->rx_buf_size != rxbuf_size) {
 		printk(KERN_WARNING
 		       "Could not set Rx buffer size to %d. Using %d\n",

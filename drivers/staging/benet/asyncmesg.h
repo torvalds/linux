@@ -62,22 +62,6 @@ struct ASYNC_EVENT_TRAILER_AMAP {
  * port. The ARM firmware does not attempt to 'fail back' traffic to
  * the restored port.
  */
-#if 0
-struct BE_ASYNC_EVENT_LINK_STATE_AMAP {
-	struct BE_UEXACT8_AMAP port0_link_status;
-	struct BE_UEXACT8_AMAP port1_link_status;
-	struct BE_UEXACT8_AMAP active_port;
-	u8 rsvd0[8];	/* DWORD 0 */
-	struct BE_UEXACT8_AMAP port0_duplex;
-	struct BE_UEXACT8_AMAP port0_speed;
-	struct BE_UEXACT8_AMAP port1_duplex;
-	struct BE_UEXACT8_AMAP port1_speed;
-	struct BE_UEXACT8_AMAP port0_fault;
-	struct BE_UEXACT8_AMAP port1_fault;
-	u8 rsvd1[2][8];	/* DWORD 2 */
-	struct BE_ASYNC_EVENT_TRAILER_AMAP trailer;
-} __packed;
-#endif
 struct BE_ASYNC_EVENT_LINK_STATE_AMAP {
 	u8 port0_link_status[8];
 	u8 port1_link_status[8];
