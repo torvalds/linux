@@ -893,7 +893,7 @@ static int ocfs2_dquot_drop_slow(struct inode *inode)
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
-				goto out;
+		goto out;
 	}
 	dquot_drop(inode);
 	ocfs2_commit_trans(OCFS2_SB(sb), handle);
