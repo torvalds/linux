@@ -220,6 +220,15 @@ config DEFAULT_HOSTNAME
 	  but you may wish to use a different default here to make a minimal
 	  system more usable with less configuration.
 
+config VERSION_SIGNATURE
+	string "Arbitrary version signature"
+	help
+	  This string will be created in a file, /proc/version_signature. It
+	  is useful in determining arbitrary data about your kernel. For instance,
+	  if you have several kernels of the same version, but need to keep track
+	  of a revision of the same kernel, but not affect it's ability to load
+	  compatible modules, this is the easiest way to do that.
+
 config SWAP
 	bool "Support for paging of anonymous memory (swap)"
 	depends on MMU && BLOCK
