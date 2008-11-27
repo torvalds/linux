@@ -51,10 +51,10 @@ int s5k83a_probe(struct sd *sd)
 	/* We don't know what register (if any) that contain the product id
 	 * Just pick the first addresses that seem to produce the same results
 	 * on multiple machines */
-	if (s5k83a_read_sensor(sd, 0x00, &prod_id, 1))
+	if (m5602_read_sensor(sd, 0x00, &prod_id, 1))
 		return -ENODEV;
 
-	if (s5k83a_read_sensor(sd, 0x01, &ver_id, 1))
+	if (m5602_read_sensor(sd, 0x01, &ver_id, 1))
 		return -ENODEV;
 
 	if ((prod_id == 0xff) || (ver_id == 0xff))
@@ -154,14 +154,14 @@ void s5k83a_dump_registers(struct sd *sd)
 {
 	int address;
 	u8 page, old_page;
-	s5k83a_read_sensor(sd, S5K83A_PAGE_MAP, &old_page, 1);
+	m5602_read_sensor(sd, S5K83A_PAGE_MAP, &old_page, 1);
 
 	for (page = 0; page < 16; page++) {
 		m5602_write_sensor(sd, S5K83A_PAGE_MAP, &page, 1);
 		info("Dumping the s5k83a register state for page 0x%x", page);
 		for (address = 0; address <= 0xff; address++) {
 			u8 val = 0;
-			s5k83a_read_sensor(sd, address, &val, 1);
+			m5602_read_sensor(sd, address, &val, 1);
 			info("register 0x%x contains 0x%x",
 			     address, val);
 		}
@@ -175,9 +175,9 @@ void s5k83a_dump_registers(struct sd *sd)
 		for (address = 0; address <= 0xff; address++) {
 			u8 old_val, ctrl_val, test_val = 0xff;
 
-			s5k83a_read_sensor(sd, address, &old_val, 1);
+			m5602_read_sensor(sd, address, &old_val, 1);
 			m5602_write_sensor(sd, address, &test_val, 1);
-			s5k83a_read_sensor(sd, address, &ctrl_val, 1);
+			m5602_read_sensor(sd, address, &ctrl_val, 1);
 
 			if (ctrl_val == test_val)
 				info("register 0x%x is writeable", address);
@@ -198,7 +198,7 @@ int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 data[2];
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = s5k83a_read_sensor(sd, S5K83A_BRIGHTNESS, data, 2);
+	err = m5602_read_sensor(sd, S5K83A_BRIGHTNESS, data, 2);
 	if (err < 0)
 		goto out;
 
@@ -243,7 +243,7 @@ int s5k83a_get_whiteness(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = s5k83a_read_sensor(sd, S5K83A_WHITENESS, &data, 1);
+	err = m5602_read_sensor(sd, S5K83A_WHITENESS, &data, 1);
 	if (err < 0)
 		goto out;
 
@@ -271,7 +271,7 @@ int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	u8 data[2];
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	err = s5k83a_read_sensor(sd, S5K83A_GAIN, data, 2);
+	err = m5602_read_sensor(sd, S5K83A_GAIN, data, 2);
 	if (err < 0)
 		goto out;
 
@@ -308,7 +308,7 @@ int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	if (err < 0)
 		goto out;
 
-	err = s5k83a_read_sensor(sd, S5K83A_FLIP, data, 1);
+	err = m5602_read_sensor(sd, S5K83A_FLIP, data, 1);
 	*val = (data[0] | 0x40) ? 1 : 0;
 
 out:
@@ -326,7 +326,7 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		goto out;
 
-	err = s5k83a_read_sensor(sd, S5K83A_FLIP, data, 1);
+	err = m5602_read_sensor(sd, S5K83A_FLIP, data, 1);
 	if (err < 0)
 		goto out;
 
@@ -355,7 +355,7 @@ int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	if (err < 0)
 		goto out;
 
-	err = s5k83a_read_sensor(sd, S5K83A_FLIP, data, 1);
+	err = m5602_read_sensor(sd, S5K83A_FLIP, data, 1);
 	*val = (data[0] | 0x80) ? 1 : 0;
 
 out:
@@ -373,7 +373,7 @@ int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		goto out;
 
-	err = s5k83a_read_sensor(sd, S5K83A_FLIP, data, 1);
+	err = m5602_read_sensor(sd, S5K83A_FLIP, data, 1);
 	if (err < 0)
 		goto out;
 
