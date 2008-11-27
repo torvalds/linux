@@ -2524,10 +2524,11 @@ static void e1000_watchdog(unsigned long data)
 			                           &adapter->link_duplex);
 
 			ctrl = er32(CTRL);
-			DPRINTK(LINK, INFO, "NIC Link is Up %d Mbps %s, "
-			        "Flow Control: %s\n",
-			        adapter->link_speed,
-			        adapter->link_duplex == FULL_DUPLEX ?
+			printk(KERN_INFO "e1000: %s NIC Link is Up %d Mbps %s, "
+			       "Flow Control: %s\n",
+			       netdev->name,
+			       adapter->link_speed,
+			       adapter->link_duplex == FULL_DUPLEX ?
 			        "Full Duplex" : "Half Duplex",
 			        ((ctrl & E1000_CTRL_TFCE) && (ctrl &
 			        E1000_CTRL_RFCE)) ? "RX/TX" : ((ctrl &
@@ -2603,7 +2604,8 @@ static void e1000_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			DPRINTK(LINK, INFO, "NIC Link is Down\n");
+			printk(KERN_INFO "e1000: %s NIC Link is Down\n",
+			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 			mod_timer(&adapter->phy_info_timer, round_jiffies(jiffies + 2 * HZ));
