@@ -420,19 +420,6 @@
 
 
 /*
- * Pulse Width Modulator
- */
-
-#define PWM_CTRL0	__REG(0x40B00000)  /* PWM 0 Control Register */
-#define PWM_PWDUTY0	__REG(0x40B00004)  /* PWM 0 Duty Cycle Register */
-#define PWM_PERVAL0	__REG(0x40B00008)  /* PWM 0 Period Control Register */
-
-#define PWM_CTRL1	__REG(0x40C00000)  /* PWM 1Control Register */
-#define PWM_PWDUTY1	__REG(0x40C00004)  /* PWM 1 Duty Cycle Register */
-#define PWM_PERVAL1	__REG(0x40C00008)  /* PWM 1 Period Control Register */
-
-
-/*
  * Interrupt Controller
  */
 
