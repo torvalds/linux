@@ -233,39 +233,6 @@ out:
 	return err;
 }
 
-int mt9m111_read_sensor(struct sd *sd, const u8 address,
-			u8 *i2c_data, const u8 len) {
-	int err, i;
-
-	do {
-		err = m5602_read_bridge(sd, M5602_XB_I2C_STATUS, i2c_data);
-	} while ((*i2c_data & I2C_BUSY) && !err);
-	if (err < 0)
-		goto out;
-
-	err = m5602_write_bridge(sd, M5602_XB_I2C_DEV_ADDR,
-				 sd->sensor->i2c_slave_id);
-	if (err < 0)
-		goto out;
-
-	err = m5602_write_bridge(sd, M5602_XB_I2C_REG_ADDR, address);
-	if (err < 0)
-		goto out;
-
-	err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x1a);
-	if (err < 0)
-		goto out;
-
-	for (i = 0; i < len && !err; i++) {
-		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
-
-		PDEBUG(D_CONF, "Reading sensor register "
-		       "0x%x contains 0x%x ", address, *i2c_data);
-	}
-out:
-	return err;
-}
-
 static void mt9m111_dump_registers(struct sd *sd)
 {
 	u8 address, value[2] = {0x00, 0x00};
