@@ -148,22 +148,6 @@ static unsigned long nr_available_slots(struct oprofile_cpu_buffer const *b)
 	return tail + (b->buffer_size - head) - 1;
 }
 
-static void increment_head(struct oprofile_cpu_buffer *b)
-{
-	unsigned long new_head = b->head_pos + 1;
-
-	/*
-	 * Ensure anything written to the slot before we increment is
-	 * visible
-	 */
-	wmb();
-
-	if (new_head < b->buffer_size)
-		b->head_pos = new_head;
-	else
-		b->head_pos = 0;
-}
-
 static inline void
 add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	   unsigned long pc, unsigned long event)
@@ -171,7 +155,7 @@ add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	struct op_sample *entry = cpu_buffer_write_entry(cpu_buf);
 	entry->eip = pc;
 	entry->event = event;
-	increment_head(cpu_buf);
+	cpu_buffer_write_commit(cpu_buf);
 }
 
 static inline void

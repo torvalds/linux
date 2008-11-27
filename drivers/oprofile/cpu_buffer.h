@@ -59,6 +59,23 @@ struct op_sample *cpu_buffer_write_entry(struct oprofile_cpu_buffer *cpu_buf)
 }
 
 static inline
+void cpu_buffer_write_commit(struct oprofile_cpu_buffer *b)
+{
+	unsigned long new_head = b->head_pos + 1;
+
+	/*
+	 * Ensure anything written to the slot before we increment is
+	 * visible
+	 */
+	wmb();
+
+	if (new_head < b->buffer_size)
+		b->head_pos = new_head;
+	else
+		b->head_pos = 0;
+}
+
+static inline
 struct op_sample *cpu_buffer_read_entry(struct oprofile_cpu_buffer *cpu_buf)
 {
 	return &cpu_buf->buffer[cpu_buf->tail_pos];
