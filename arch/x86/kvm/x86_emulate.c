@@ -1057,20 +1057,33 @@ static inline void emulate_push(struct x86_emulate_ctxt *ctxt)
 					       c->regs[VCPU_REGS_RSP]);
 }
 
-static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
-				struct x86_emulate_ops *ops)
+static int emulate_pop(struct x86_emulate_ctxt *ctxt,
+		       struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
 	rc = ops->read_std(register_address(c, ss_base(ctxt),
 					    c->regs[VCPU_REGS_RSP]),
-			   &c->dst.val, c->dst.bytes, ctxt->vcpu);
+			   &c->src.val, c->src.bytes, ctxt->vcpu);
 	if (rc != 0)
 		return rc;
 
-	register_address_increment(c, &c->regs[VCPU_REGS_RSP], c->dst.bytes);
+	register_address_increment(c, &c->regs[VCPU_REGS_RSP], c->src.bytes);
+	return rc;
+}
 
+static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
+				struct x86_emulate_ops *ops)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+
+	c->src.bytes = c->dst.bytes;
+	rc = emulate_pop(ctxt, ops);
+	if (rc != 0)
+		return rc;
+	c->dst.val = c->src.val;
 	return 0;
 }
 
