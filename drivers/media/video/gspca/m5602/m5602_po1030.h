@@ -128,9 +128,6 @@ int po1030_probe(struct sd *sd);
 int po1030_init(struct sd *sd);
 int po1030_power_down(struct sd *sd);
 
-int po1030_read_sensor(struct sd *sd, const u8 address,
-			      u8 *i2c_data, const u8 len);
-
 int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
 int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
