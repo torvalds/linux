@@ -1110,8 +1110,15 @@ ixgb_watchdog(unsigned long data)
 
 	if (adapter->hw.link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			DPRINTK(LINK, INFO,
-			        "NIC Link is Up 10000 Mbps Full Duplex\n");
+			printk(KERN_INFO "ixgb: %s NIC Link is Up 10 Gbps "
+			       "Full Duplex, Flow Control: %s\n",
+			       netdev->name,
+			       (adapter->hw.fc.type == ixgb_fc_full) ?
+			        "RX/TX" :
+			        ((adapter->hw.fc.type == ixgb_fc_rx_pause) ?
+			         "RX" :
+			         ((adapter->hw.fc.type == ixgb_fc_tx_pause) ?
+			          "TX" : "None")));
 			adapter->link_speed = 10000;
 			adapter->link_duplex = FULL_DUPLEX;
 			netif_carrier_on(netdev);
@@ -1121,7 +1128,8 @@ ixgb_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			DPRINTK(LINK, INFO, "NIC Link is Down\n");
+			printk(KERN_INFO "ixgb: %s NIC Link is Down\n",
+			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 
