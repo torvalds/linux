@@ -74,11 +74,12 @@ static void rb532_pata_exec_command(struct ata_port *ap,
 	rb532_pata_finish_io(ap);
 }
 
-static void rb532_pata_data_xfer(struct ata_device *adev, unsigned char *buf,
+static unsigned int rb532_pata_data_xfer(struct ata_device *adev, unsigned char *buf,
 				unsigned int buflen, int write_data)
 {
 	struct ata_port *ap = adev->link->ap;
 	void __iomem *ioaddr = ap->ioaddr.data_addr;
+	int retlen = buflen;
 
 	if (write_data) {
 		for (; buflen > 0; buflen--, buf++)
@@ -89,6 +90,7 @@ static void rb532_pata_data_xfer(struct ata_device *adev, unsigned char *buf,
 	}
 
 	rb532_pata_finish_io(adev->link->ap);
+	return retlen;
 }
 
 static void rb532_pata_freeze(struct ata_port *ap)
