@@ -24,8 +24,8 @@
 int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 		      prepare_flush_fn *prepare_flush_fn)
 {
-	if (ordered & (QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH) &&
-	    prepare_flush_fn == NULL) {
+	if (!prepare_flush_fn && (ordered & (QUEUE_ORDERED_DO_PREFLUSH |
+					     QUEUE_ORDERED_DO_POSTFLUSH))) {
 		printk(KERN_ERR "%s: prepare_flush_fn required\n", __func__);
 		return -EINVAL;
 	}
@@ -134,7 +134,7 @@ static void queue_flush(struct request_queue *q, unsigned which)
 	struct request *rq;
 	rq_end_io_fn *end_io;
 
-	if (which == QUEUE_ORDERED_PREFLUSH) {
+	if (which == QUEUE_ORDERED_DO_PREFLUSH) {
 		rq = &q->pre_flush_rq;
 		end_io = pre_flush_end_io;
 	} else {
@@ -167,7 +167,7 @@ static inline struct request *start_ordered(struct request_queue *q,
 	blk_rq_init(q, rq);
 	if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
 		rq->cmd_flags |= REQ_RW;
-	if (q->ordered & QUEUE_ORDERED_FUA)
+	if (q->ordered & QUEUE_ORDERED_DO_FUA)
 		rq->cmd_flags |= REQ_FUA;
 	init_request_from_bio(rq, q->orig_bar_rq->bio);
 	rq->end_io = bar_end_io;
@@ -181,20 +181,20 @@ static inline struct request *start_ordered(struct request_queue *q,
 	 * there will be no data written between the pre and post flush.
 	 * Hence a single flush will suffice.
 	 */
-	if ((q->ordered & QUEUE_ORDERED_POSTFLUSH) && !blk_empty_barrier(rq))
-		queue_flush(q, QUEUE_ORDERED_POSTFLUSH);
+	if ((q->ordered & QUEUE_ORDERED_DO_POSTFLUSH) && !blk_empty_barrier(rq))
+		queue_flush(q, QUEUE_ORDERED_DO_POSTFLUSH);
 	else
 		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
 
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 
-	if (q->ordered & QUEUE_ORDERED_PREFLUSH) {
-		queue_flush(q, QUEUE_ORDERED_PREFLUSH);
+	if (q->ordered & QUEUE_ORDERED_DO_PREFLUSH) {
+		queue_flush(q, QUEUE_ORDERED_DO_PREFLUSH);
 		rq = &q->pre_flush_rq;
 	} else
 		q->ordseq |= QUEUE_ORDSEQ_PREFLUSH;
 
-	if ((q->ordered & QUEUE_ORDERED_TAG) || q->in_flight == 0)
+	if ((q->ordered & QUEUE_ORDERED_BY_TAG) || q->in_flight == 0)
 		q->ordseq |= QUEUE_ORDSEQ_DRAIN;
 	else
 		rq = NULL;
@@ -237,7 +237,7 @@ int blk_do_ordered(struct request_queue *q, struct request **rqp)
 	    rq != &q->pre_flush_rq && rq != &q->post_flush_rq)
 		return 1;
 
-	if (q->ordered & QUEUE_ORDERED_TAG) {
+	if (q->ordered & QUEUE_ORDERED_BY_TAG) {
 		/* Ordered by tag.  Blocking the next barrier is enough. */
 		if (is_barrier && rq != &q->bar_rq)
 			*rqp = NULL;
