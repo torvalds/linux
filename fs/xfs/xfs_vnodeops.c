@@ -681,7 +681,7 @@ xfs_fsync(
 		return XFS_ERROR(EIO);
 
 	/* capture size updates in I/O completion before writing the inode. */
-	error = filemap_fdatawait(VFS_I(ip)->i_mapping);
+	error = xfs_wait_on_pages(ip, 0, -1);
 	if (error)
 		return XFS_ERROR(error);
 
