@@ -5811,9 +5811,9 @@ error0:
 STATIC int
 xfs_getbmapx_fix_eof_hole(
 	xfs_inode_t		*ip,		/* xfs incore inode pointer */
-	struct getbmap		*out,		/* output structure */
+	struct getbmapx		*out,		/* output structure */
 	int			prealloced,	/* this is a file with
-						* preallocated data space */
+						 * preallocated data space */
 	__int64_t		end,		/* last block requested */
 	xfs_fsblock_t		startblock)
 {
@@ -5839,14 +5839,18 @@ xfs_getbmapx_fix_eof_hole(
 }
 
 /*
- * Fcntl interface to xfs_bmapi.
+ * Get inode's extents as described in bmv, and format for output.
+ * Calls formatter to fill the user's buffer until all extents
+ * are mapped, until the passed-in bmv->bmv_count slots have
+ * been filled, or until the formatter short-circuits the loop,
+ * if it is tracking filled-in extents on its own.
  */
 int						/* error code */
 xfs_getbmap(
 	xfs_inode_t		*ip,
-	struct getbmap		*bmv,		/* user bmap structure */
-	void			__user *ap,	/* pointer to user's array */
-	int			interface)	/* interface flags */
+	struct getbmapx		*bmv,		/* user bmap structure */
+	xfs_bmap_format_t	formatter,	/* format to user */
+	void			*arg)		/* formatter arg */
 {
 	__int64_t		bmvend;		/* last block requested */
 	int			error;		/* return value */
@@ -5859,19 +5863,20 @@ xfs_getbmap(
 	int			nexleft;	/* # of user extents left */
 	int			subnex;		/* # of bmapi's can do */
 	int			nmap;		/* number of map entries */
-	struct getbmap		out;		/* output structure */
+	struct getbmapx		out;		/* output structure */
 	int			whichfork;	/* data or attr fork */
 	int			prealloced;	/* this is a file with
 						 * preallocated data space */
 	int			sh_unwritten;	/* true, if unwritten */
 						/* extents listed separately */
+	int			iflags;		/* interface flags */
 	int			bmapi_flags;	/* flags for xfs_bmapi */
-	__int32_t		oflags;		/* getbmapx bmv_oflags field */
 
 	mp = ip->i_mount;
+	iflags = bmv->bmv_iflags;
 
-	whichfork = interface & BMV_IF_ATTRFORK ? XFS_ATTR_FORK : XFS_DATA_FORK;
-	sh_unwritten = (interface & BMV_IF_PREALLOC) != 0;
+	whichfork = iflags & BMV_IF_ATTRFORK ? XFS_ATTR_FORK : XFS_DATA_FORK;
+	sh_unwritten = (iflags & BMV_IF_PREALLOC) != 0;
 
 	/*	If the BMV_IF_NO_DMAPI_READ interface bit specified, do not
 	 *	generate a DMAPI read event.  Otherwise, if the DM_EVENT_READ
@@ -5886,7 +5891,7 @@ xfs_getbmap(
 	 *	could misinterpret holes in a DMAPI file as true holes,
 	 *	when in fact they may represent offline user data.
 	 */
-	if ((interface & BMV_IF_NO_DMAPI_READ) == 0 &&
+	if ((iflags & BMV_IF_NO_DMAPI_READ) == 0 &&
 	    DM_EVENT_ENABLED(ip, DM_EVENT_READ) &&
 	    whichfork == XFS_DATA_FORK) {
 		error = XFS_SEND_DATA(mp, DM_EVENT_READ, ip, 0, 0, 0, NULL);
@@ -5993,52 +5998,35 @@ xfs_getbmap(
 		ASSERT(nmap <= subnex);
 
 		for (i = 0; i < nmap && nexleft && bmv->bmv_length; i++) {
-			nexleft--;
-			oflags = (map[i].br_state == XFS_EXT_UNWRITTEN) ?
+			out.bmv_oflags = (map[i].br_state == XFS_EXT_UNWRITTEN) ?
 					BMV_OF_PREALLOC : 0;
 			out.bmv_offset = XFS_FSB_TO_BB(mp, map[i].br_startoff);
 			out.bmv_length = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
+			out.bmv_unused1 = out.bmv_unused2 = 0;
 			ASSERT(map[i].br_startblock != DELAYSTARTBLOCK);
                         if (map[i].br_startblock == HOLESTARTBLOCK &&
 			    whichfork == XFS_ATTR_FORK) {
 				/* came to the end of attribute fork */
 				goto unlock_and_return;
 			} else {
+				int full = 0;	/* user array is full */
+
 				if (!xfs_getbmapx_fix_eof_hole(ip, &out,
 							prealloced, bmvend,
 							map[i].br_startblock)) {
 					goto unlock_and_return;
 				}
 
-				/* return either getbmap/getbmapx structure. */
-				if (interface & BMV_IF_EXTENDED) {
-					struct	getbmapx	outx;
-
-					GETBMAP_CONVERT(out,outx);
-					outx.bmv_oflags = oflags;
-					outx.bmv_unused1 = outx.bmv_unused2 = 0;
-					if (copy_to_user(ap, &outx,
-							sizeof(outx))) {
-						error = XFS_ERROR(EFAULT);
-						goto unlock_and_return;
-					}
-				} else {
-					if (copy_to_user(ap, &out,
-							sizeof(out))) {
-						error = XFS_ERROR(EFAULT);
-						goto unlock_and_return;
-					}
-				}
+				/* format results & advance arg */
+				error = formatter(&arg, &out, &full);
+				if (error || full)
+					goto unlock_and_return;
+				nexleft--;
 				bmv->bmv_offset =
 					out.bmv_offset + out.bmv_length;
 				bmv->bmv_length = MAX((__int64_t)0,
 					(__int64_t)(bmvend - bmv->bmv_offset));
 				bmv->bmv_entries++;
-				ap = (interface & BMV_IF_EXTENDED) ?
-						(void __user *)
-					((struct getbmapx __user *)ap + 1) :
-						(void __user *)
-					((struct getbmap __user *)ap + 1);
 			}
 		}
 	} while (nmap && nexleft && bmv->bmv_length);

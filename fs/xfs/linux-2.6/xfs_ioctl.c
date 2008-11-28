@@ -1250,32 +1250,58 @@ xfs_ioc_setxflags(
 }
 
 STATIC int
+xfs_getbmap_format(void **ap, struct getbmapx *bmv, int *full)
+{
+	struct getbmap __user	*base = *ap;
+
+	/* copy only getbmap portion (not getbmapx) */
+	if (copy_to_user(base, bmv, sizeof(struct getbmap)))
+		return XFS_ERROR(EFAULT);
+
+	*ap += sizeof(struct getbmap);
+	return 0;
+}
+
+STATIC int
 xfs_ioc_getbmap(
 	struct xfs_inode	*ip,
 	int			ioflags,
 	unsigned int		cmd,
 	void			__user *arg)
 {
-	struct getbmap		bm;
-	int			iflags;
+	struct getbmapx		bmx;
 	int			error;
 
-	if (copy_from_user(&bm, arg, sizeof(bm)))
+	if (copy_from_user(&bmx, arg, sizeof(struct getbmapx)))
 		return -XFS_ERROR(EFAULT);
 
-	if (bm.bmv_count < 2)
+	if (bmx.bmv_count < 2)
 		return -XFS_ERROR(EINVAL);
 
-	iflags = (cmd == XFS_IOC_GETBMAPA ? BMV_IF_ATTRFORK : 0);
+	bmx.bmv_iflags = (cmd == XFS_IOC_GETBMAPA ? BMV_IF_ATTRFORK : 0);
 	if (ioflags & IO_INVIS)
-		iflags |= BMV_IF_NO_DMAPI_READ;
+		bmx.bmv_iflags |= BMV_IF_NO_DMAPI_READ;
 
-	error = xfs_getbmap(ip, &bm, (struct getbmap __user *)arg+1, iflags);
+	error = xfs_getbmap(ip, &bmx, xfs_getbmap_format,
+			    (struct getbmap *)arg+1);
 	if (error)
 		return -error;
 
-	if (copy_to_user(arg, &bm, sizeof(bm)))
+	/* copy back header - only size of getbmap */
+	if (copy_to_user(arg, &bmx, sizeof(struct getbmap)))
 		return -XFS_ERROR(EFAULT);
+	return 0;
+}
+
+STATIC int
+xfs_getbmapx_format(void **ap, struct getbmapx *bmv, int *full)
+{
+	struct getbmapx __user	*base = *ap;
+
+	if (copy_to_user(base, bmv, sizeof(struct getbmapx)))
+		return XFS_ERROR(EFAULT);
+
+	*ap += sizeof(struct getbmapx);
 	return 0;
 }
 
@@ -1285,8 +1311,6 @@ xfs_ioc_getbmapx(
 	void			__user *arg)
 {
 	struct getbmapx		bmx;
-	struct getbmap		bm;
-	int			iflags;
 	int			error;
 
 	if (copy_from_user(&bmx, arg, sizeof(bmx)))
@@ -1295,26 +1319,16 @@ xfs_ioc_getbmapx(
 	if (bmx.bmv_count < 2)
 		return -XFS_ERROR(EINVAL);
 
-	/*
-	 * Map input getbmapx structure to a getbmap
-	 * structure for xfs_getbmap.
-	 */
-	GETBMAP_CONVERT(bmx, bm);
-
-	iflags = bmx.bmv_iflags;
-
-	if (iflags & (~BMV_IF_VALID))
+	if (bmx.bmv_iflags & (~BMV_IF_VALID))
 		return -XFS_ERROR(EINVAL);
 
-	iflags |= BMV_IF_EXTENDED;
-
-	error = xfs_getbmap(ip, &bm, (struct getbmapx __user *)arg+1, iflags);
+	error = xfs_getbmap(ip, &bmx, xfs_getbmapx_format,
+			    (struct getbmapx *)arg+1);
 	if (error)
 		return -error;
 
-	GETBMAP_CONVERT(bm, bmx);
-
-	if (copy_to_user(arg, &bmx, sizeof(bmx)))
+	/* copy back header */
+	if (copy_to_user(arg, &bmx, sizeof(struct getbmapx)))
 		return -XFS_ERROR(EFAULT);
 
 	return 0;
