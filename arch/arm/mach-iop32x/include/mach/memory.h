@@ -5,8 +5,6 @@
 #ifndef __MEMORY_H
 #define __MEMORY_H
 
-#include <mach/hardware.h>
-
 /*
  * Physical DRAM offset.
  */

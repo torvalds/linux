@@ -11,7 +11,7 @@
 #ifndef __IO_H
 #define __IO_H
 
-#include <mach/hardware.h>
+#include <asm/hardware/iop3xx.h>
 
 extern void __iomem *__iop3xx_ioremap(unsigned long cookie, size_t size,
 	unsigned int mtype);
