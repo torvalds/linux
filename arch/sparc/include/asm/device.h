@@ -20,4 +20,16 @@ struct dev_archdata {
 	int			numa_node;
 };
 
+static inline void dev_archdata_set_node(struct dev_archdata *ad,
+					 struct device_node *np)
+{
+	ad->prom_node = np;
+}
+
+static inline struct device_node *
+dev_archdata_get_node(const struct dev_archdata *ad)
+{
+	return ad->prom_node;
+}
+
 #endif /* _ASM_SPARC_DEVICE_H */
