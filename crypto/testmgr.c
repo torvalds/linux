@@ -843,6 +843,14 @@ static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
 			goto out;
 		}
 
+		if (dlen != ctemplate[i].outlen) {
+			printk(KERN_ERR "alg: comp: Compression test %d "
+			       "failed for %s: output len = %d\n", i + 1, algo,
+			       dlen);
+			ret = -EINVAL;
+			goto out;
+		}
+
 		if (memcmp(result, ctemplate[i].output, dlen)) {
 			printk(KERN_ERR "alg: comp: Compression test %d "
 			       "failed for %s\n", i + 1, algo);
@@ -864,6 +872,14 @@ static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
 			printk(KERN_ERR "alg: comp: decompression failed "
 			       "on test %d for %s: ret=%d\n", i + 1, algo,
 			       -ret);
+			goto out;
+		}
+
+		if (dlen != dtemplate[i].outlen) {
+			printk(KERN_ERR "alg: comp: Decompression test %d "
+			       "failed for %s: output len = %d\n", i + 1, algo,
+			       dlen);
+			ret = -EINVAL;
 			goto out;
 		}
 
