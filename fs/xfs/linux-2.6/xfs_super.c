@@ -1848,10 +1848,9 @@ STATIC int __init
 init_xfs_fs(void)
 {
 	int			error;
-	static char		message[] __initdata = KERN_INFO \
-		XFS_VERSION_STRING " with " XFS_BUILD_OPTIONS " enabled\n";
 
-	printk(message);
+	printk(KERN_INFO XFS_VERSION_STRING " with "
+			 XFS_BUILD_OPTIONS " enabled\n");
 
 	ktrace_init(64);
 	vn_init();
