@@ -3147,13 +3147,12 @@ xlog_recover_process_one_iunlink(
 	/*
 	 * Get the on disk inode to find the next inode in the bucket.
 	 */
-	ASSERT(ip != NULL);
 	error = xfs_itobp(mp, NULL, ip, &dip, &ibp, XFS_BUF_LOCK);
 	if (error)
-		goto fail;
+		goto fail_iput;
 
-	ASSERT(dip != NULL);
 	ASSERT(ip->i_d.di_nlink == 0);
+	ASSERT(ip->i_d.di_mode != 0);
 
 	/* setup for the next pass */
 	agino = be32_to_cpu(dip->di_next_unlinked);
@@ -3165,18 +3164,11 @@ xlog_recover_process_one_iunlink(
 	 */
 	ip->i_d.di_dmevmask = 0;
 
-	/*
-	 * If this is a new inode, handle it specially.  Otherwise, just
-	 * drop our reference to the inode.  If there are no other
-	 * references, this will send the inode to xfs_inactive() which
-	 * will truncate the file and free the inode.
-	 */
-	if (ip->i_d.di_mode == 0)
-		xfs_iput_new(ip, 0);
-	else
-		IRELE(ip);
+	IRELE(ip);
 	return agino;
 
+ fail_iput:
+	IRELE(ip);
  fail:
 	/*
 	 * We can't read in the inode this bucket points to, or this inode
