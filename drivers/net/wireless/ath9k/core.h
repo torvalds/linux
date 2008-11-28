@@ -88,8 +88,15 @@ enum ATH_DEBUG {
 
 #ifdef CONFIG_ATH9K_DEBUG
 
+struct ath9k_debug {
+	int debug_mask;
+	struct dentry *debugfs_root;
+	struct dentry *debugfs_phy;
+};
+
 void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...);
-void ath9k_init_debug(struct ath_softc *sc);
+int ath9k_init_debug(struct ath_softc *sc);
+void ath9k_exit_debug(struct ath_softc *sc);
 
 #else
 
@@ -98,11 +105,16 @@ static inline void DPRINTF(struct ath_softc *sc, int dbg_mask,
 {
 }
 
-static inline ath9k_init_debug(struct ath_softc *sc)
+static inline int ath9k_init_debug(struct ath_softc *sc)
+{
+	return 0;
+}
+
+static inline void ath9k_exit_debug(struct ath_softc *sc)
 {
 }
 
-#endif
+#endif /* CONFIG_ATH9K_DEBUG */
 
 struct ath_config {
 	u32 ath_aggr_prot;
@@ -619,7 +631,7 @@ struct ath_softc {
 	u8 sc_bssidmask[ETH_ALEN];
 
 #ifdef CONFIG_ATH9K_DEBUG
-	int sc_debug;
+	struct ath9k_debug sc_debug;
 #endif
 	u32 sc_intrstatus;
 	u32 sc_flags; /* SC_OP_* */

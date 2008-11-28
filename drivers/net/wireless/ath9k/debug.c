@@ -24,7 +24,7 @@ void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...)
 	if (!sc)
 		return;
 
-	if (sc->sc_debug & dbg_mask) {
+	if (sc->sc_debug.debug_mask & dbg_mask) {
 		va_list args;
 
 		va_start(args, fmt);
@@ -34,7 +34,27 @@ void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...)
 	}
 }
 
-void ath9k_init_debug(struct ath_softc *sc)
+int ath9k_init_debug(struct ath_softc *sc)
 {
-	sc->sc_debug = ath9k_debug;
+	sc->sc_debug.debug_mask = ath9k_debug;
+
+	sc->sc_debug.debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (!sc->sc_debug.debugfs_root)
+		goto err;
+
+	sc->sc_debug.debugfs_phy = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
+						      sc->sc_debug.debugfs_root);
+	if (!sc->sc_debug.debugfs_phy)
+		goto err;
+
+	return 0;
+err:
+	ath9k_exit_debug(sc);
+	return -ENOMEM;
+}
+
+void ath9k_exit_debug(struct ath_softc *sc)
+{
+	debugfs_remove(sc->sc_debug.debugfs_phy);
+	debugfs_remove(sc->sc_debug.debugfs_root);
 }
