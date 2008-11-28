@@ -3569,7 +3569,8 @@ xfs_log_force_umount(
 	if (!log ||
 	    log->l_flags & XLOG_ACTIVE_RECOVERY) {
 		mp->m_flags |= XFS_MOUNT_FS_SHUTDOWN;
-		XFS_BUF_DONE(mp->m_sb_bp);
+		if (mp->m_sb_bp)
+			XFS_BUF_DONE(mp->m_sb_bp);
 		return 0;
 	}
 
@@ -3590,7 +3591,9 @@ xfs_log_force_umount(
 	spin_lock(&log->l_icloglock);
 	spin_lock(&log->l_grant_lock);
 	mp->m_flags |= XFS_MOUNT_FS_SHUTDOWN;
-	XFS_BUF_DONE(mp->m_sb_bp);
+	if (mp->m_sb_bp)
+		XFS_BUF_DONE(mp->m_sb_bp);
+
 	/*
 	 * This flag is sort of redundant because of the mount flag, but
 	 * it's good to maintain the separation between the log and the rest
