@@ -26,11 +26,12 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/mmc/host.h>
+#include <linux/io.h>
 
 #include <asm/dma.h>
-#include <asm/io.h>
 #include <asm/sizes.h>
 
+#include <mach/hardware.h>
 #include <mach/pxa-regs.h>
 #include <mach/mmc.h>
 

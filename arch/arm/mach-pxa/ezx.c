@@ -21,6 +21,7 @@
 #include <mach/pxafb.h>
 #include <mach/ohci.h>
 #include <mach/i2c.h>
+#include <mach/hardware.h>
 
 #include <mach/mfp-pxa27x.h>
 #include <mach/pxa-regs.h>
