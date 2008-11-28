@@ -320,23 +320,6 @@ void oops_exit(void)
 }
 
 #ifdef WANT_WARN_ON_SLOWPATH
-void warn_on_slowpath(const char *file, int line)
-{
-	char function[KSYM_SYMBOL_LEN];
-	unsigned long caller = (unsigned long) __builtin_return_address(0);
-	sprint_symbol(function, caller);
-
-	printk(KERN_WARNING "------------[ cut here ]------------\n");
-	printk(KERN_WARNING "WARNING: at %s:%d %s()\n", file,
-		line, function);
-	print_modules();
-	dump_stack();
-	print_oops_end_marker();
-	add_taint(TAINT_WARN);
-}
-EXPORT_SYMBOL(warn_on_slowpath);
-
-
 void warn_slowpath(const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
@@ -347,9 +330,12 @@ void warn_slowpath(const char *file, int line, const char *fmt, ...)
 	printk(KERN_WARNING "------------[ cut here ]------------\n");
 	printk(KERN_WARNING "WARNING: at %s:%d %s()\n", file,
 		line, function);
-	va_start(args, fmt);
-	vprintk(fmt, args);
-	va_end(args);
+
+	if (fmt) {
+		va_start(args, fmt);
+		vprintk(fmt, args);
+		va_end(args);
+	}
 
 	print_modules();
 	dump_stack();
@@ -357,6 +343,12 @@ void warn_slowpath(const char *file, int line, const char *fmt, ...)
 	add_taint(TAINT_WARN);
 }
 EXPORT_SYMBOL(warn_slowpath);
+
+void warn_on_slowpath(const char *file, int line)
+{
+	warn_slowpath(file, line, NULL);
+}
+EXPORT_SYMBOL(warn_on_slowpath);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR
