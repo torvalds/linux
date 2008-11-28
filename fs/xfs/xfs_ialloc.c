@@ -321,9 +321,9 @@ xfs_ialloc_ag_alloc(
 	 * able to use the file system.
 	 */
 	if (xfs_sb_version_hasnlink(&args.mp->m_sb))
-		version = XFS_DINODE_VERSION_2;
+		version = 2;
 	else
-		version = XFS_DINODE_VERSION_1;
+		version = 1;
 
 	/*
 	 * Seed the new inode cluster with a random generation number. This

@@ -1131,7 +1131,7 @@ xfs_ioctl_setattr(
 			 * the superblock version number since projids didn't
 			 * exist before DINODE_VERSION_2 and SB_VERSION_NLINK.
 			 */
-			if (ip->i_d.di_version == XFS_DINODE_VERSION_1)
+			if (ip->i_d.di_version == 1)
 				xfs_bump_ino_vers2(tp, ip);
 		}
 

@@ -139,7 +139,7 @@ xfs_bulkstat_one_dinode(
 	 * the new format. We don't change the version number so that we
 	 * can distinguish this from a real new format inode.
 	 */
-	if (dic->di_version == XFS_DINODE_VERSION_1) {
+	if (dic->di_version == 1) {
 		buf->bs_nlink = be16_to_cpu(dic->di_onlink);
 		buf->bs_projid = 0;
 	} else {
