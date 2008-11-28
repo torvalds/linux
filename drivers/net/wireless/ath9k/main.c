@@ -38,21 +38,6 @@ static struct pci_device_id ath_pci_id_table[] __devinitdata = {
 
 static void ath_detach(struct ath_softc *sc);
 
-void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...)
-{
-	if (!sc)
-		return;
-
-	if (sc->sc_debug & dbg_mask) {
-		va_list args;
-
-		va_start(args, fmt);
-		printk(KERN_DEBUG "ath9k: ");
-		vprintk(fmt, args);
-		va_end(args);
-	}
-}
-
 /* return bus cachesize in 4B word units */
 
 static void bus_read_cachesize(struct ath_softc *sc, int *csz)
@@ -1325,7 +1310,8 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 
 	/* XXX: hardware will not be ready until ath_open() being called */
 	sc->sc_flags |= SC_OP_INVALID;
-	sc->sc_debug = DBG_DEFAULT;
+
+	ath9k_init_debug(sc);
 
 	spin_lock_init(&sc->sc_resetlock);
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);

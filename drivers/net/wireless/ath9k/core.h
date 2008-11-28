@@ -105,6 +105,24 @@ enum ATH_DEBUG {
 
 #define DBG_DEFAULT (ATH_DBG_FATAL)
 
+#ifdef CONFIG_ATH9K_DEBUG
+
+void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...);
+void ath9k_init_debug(struct ath_softc *sc);
+
+#else
+
+static inline void DPRINTF(struct ath_softc *sc, int dbg_mask,
+			   const char *fmt, ...)
+{
+}
+
+static inline ath9k_init_debug(struct ath_softc *sc)
+{
+}
+
+#endif
+
 struct ath_config {
 	u32 ath_aggr_prot;
 	u16 txpowlimit;
@@ -619,7 +637,9 @@ struct ath_softc {
 	u8 sc_myaddr[ETH_ALEN];
 	u8 sc_bssidmask[ETH_ALEN];
 
+#ifdef CONFIG_ATH9K_DEBUG
 	int sc_debug;
+#endif
 	u32 sc_intrstatus;
 	u32 sc_flags; /* SC_OP_* */
 	unsigned int rx_filter;
@@ -713,7 +733,6 @@ struct ath_softc {
 	struct ath_ani sc_ani;
 };
 
-void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
