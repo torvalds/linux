@@ -72,6 +72,10 @@ config LOCKDEP_SUPPORT
 	bool
 	default y if SPARC64
 
+config HAVE_LATENCYTOP_SUPPORT
+	bool
+	default y if SPARC64
+
 config AUDIT_ARCH
 	bool
 	default y if SPARC64

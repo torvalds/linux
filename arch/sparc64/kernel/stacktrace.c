@@ -7,17 +7,18 @@
 
 #include "kstack.h"
 
-void save_stack_trace(struct stack_trace *trace)
+static void __save_stack_trace(struct thread_info *tp,
+			       struct stack_trace *trace,
+			       bool skip_sched)
 {
-	struct thread_info *tp = task_thread_info(current);
 	unsigned long ksp, fp;
 
-	stack_trace_flush();
-
-	__asm__ __volatile__(
-		"mov	%%fp, %0"
-		: "=r" (ksp)
-	);
+	if (tp == current_thread_info()) {
+		stack_trace_flush();
+		__asm__ __volatile__("mov %%fp, %0" : "=r" (ksp));
+	} else {
+		ksp = tp->ksp;
+	}
 
 	fp = ksp + STACK_BIAS;
 	do {
@@ -43,8 +44,21 @@ void save_stack_trace(struct stack_trace *trace)
 
 		if (trace->skip > 0)
 			trace->skip--;
-		else
+		else if (!skip_sched || !in_sched_functions(pc))
 			trace->entries[trace->nr_entries++] = pc;
 	} while (trace->nr_entries < trace->max_entries);
 }
+
+void save_stack_trace(struct stack_trace *trace)
+{
+	__save_stack_trace(current_thread_info(), trace, false);
+}
 EXPORT_SYMBOL_GPL(save_stack_trace);
+
+void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
+{
+	struct thread_info *tp = task_thread_info(tsk);
+
+	__save_stack_trace(tp, trace, true);
+}
+EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
