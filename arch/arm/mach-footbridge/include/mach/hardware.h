@@ -12,8 +12,6 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <mach/memory.h>
-
 /*   Virtual      Physical	Size
  * 0xff800000	0x40000000	1MB	X-Bus
  * 0xff000000	0x7c000000	1MB	PCI I/O space
