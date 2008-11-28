@@ -286,7 +286,6 @@ config MACH_MIOA701
 	bool "Mitac Mio A701 Support"
 	select PXA27x
 	select IWMMXT
-	select LEDS_GPIO
 	select HAVE_PWM
 	select GPIO_SYSFS
 	help
