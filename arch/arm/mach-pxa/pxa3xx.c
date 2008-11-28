@@ -29,6 +29,7 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/ssp.h>
+#include <mach/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -531,7 +532,7 @@ void __init pxa3xx_init_irq(void)
 
 void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 {
-	pxa3xx_device_i2c_power.dev.platform_data = info;
+	pxa_register_device(&pxa3xx_device_i2c_power, info);
 }
 
 static struct platform_device *devices[] __initdata = {
@@ -547,7 +548,6 @@ static struct platform_device *devices[] __initdata = {
 	&pxa3xx_device_ssp4,
 	&pxa27x_device_pwm0,
 	&pxa27x_device_pwm1,
-	&pxa3xx_device_i2c_power,
 };
 
 static struct sys_device pxa3xx_sysdev[] = {
