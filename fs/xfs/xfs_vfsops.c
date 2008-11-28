@@ -53,7 +53,6 @@
 #include "xfs_filestream.h"
 #include "xfs_fsops.h"
 #include "xfs_vnodeops.h"
-#include "xfs_vfsops.h"
 #include "xfs_utils.h"
 #include "xfs_sync.h"
 

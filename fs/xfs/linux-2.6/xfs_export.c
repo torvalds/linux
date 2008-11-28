@@ -29,7 +29,6 @@
 #include "xfs_vnodeops.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
-#include "xfs_vfsops.h"
 
 /*
  * Note that we only accept fileids which are long enough rather than allow
