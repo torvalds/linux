@@ -162,6 +162,14 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	q->ordered = q->next_ordered;
 	q->ordseq |= QUEUE_ORDSEQ_STARTED;
 
+	/*
+	 * For an empty barrier, there's no actual BAR request, which
+	 * in turn makes POSTFLUSH unnecessary.  Mask them off.
+	 */
+	if (!rq->hard_nr_sectors)
+		q->ordered &= ~(QUEUE_ORDERED_DO_BAR |
+				QUEUE_ORDERED_DO_POSTFLUSH);
+
 	/* stash away the original request */
 	elv_dequeue_request(q, rq);
 	q->orig_bar_rq = rq;
@@ -171,13 +179,9 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	 * Queue ordered sequence.  As we stack them at the head, we
 	 * need to queue in reverse order.  Note that we rely on that
 	 * no fs request uses ELEVATOR_INSERT_FRONT and thus no fs
-	 * request gets inbetween ordered sequence. If this request is
-	 * an empty barrier, we don't need to do a postflush ever since
-	 * there will be no data written between the pre and post flush.
-	 * Hence a single flush will suffice.
+	 * request gets inbetween ordered sequence.
 	 */
-	if ((q->ordered & QUEUE_ORDERED_DO_POSTFLUSH) &&
-	    !blk_empty_barrier(q->orig_bar_rq)) {
+	if (q->ordered & QUEUE_ORDERED_DO_POSTFLUSH) {
 		queue_flush(q, QUEUE_ORDERED_DO_POSTFLUSH);
 		rq = &q->post_flush_rq;
 	} else
