@@ -40,6 +40,82 @@
 #include "xfs_utils.h"
 #include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
+#include "xfs_bmap.h"
+#include "xfs_btree_trace.h"
+#include "xfs_dir2_trace.h"
+
+
+/*
+ * Allocate and initialise an xfs_inode.
+ */
+STATIC struct xfs_inode *
+xfs_inode_alloc(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino)
+{
+	struct xfs_inode	*ip;
+
+	/*
+	 * if this didn't occur in transactions, we could use
+	 * KM_MAYFAIL and return NULL here on ENOMEM. Set the
+	 * code up to do this anyway.
+	 */
+	ip = kmem_zone_alloc(xfs_inode_zone, KM_SLEEP);
+	if (!ip)
+		return NULL;
+
+	ASSERT(atomic_read(&ip->i_iocount) == 0);
+	ASSERT(atomic_read(&ip->i_pincount) == 0);
+	ASSERT(!spin_is_locked(&ip->i_flags_lock));
+	ASSERT(completion_done(&ip->i_flush));
+
+	/*
+	 * initialise the VFS inode here to get failures
+	 * out of the way early.
+	 */
+	if (!inode_init_always(mp->m_super, VFS_I(ip))) {
+		kmem_zone_free(xfs_inode_zone, ip);
+		return NULL;
+	}
+
+	/* initialise the xfs inode */
+	ip->i_ino = ino;
+	ip->i_mount = mp;
+	memset(&ip->i_imap, 0, sizeof(struct xfs_imap));
+	ip->i_afp = NULL;
+	memset(&ip->i_df, 0, sizeof(xfs_ifork_t));
+	ip->i_flags = 0;
+	ip->i_update_core = 0;
+	ip->i_update_size = 0;
+	ip->i_delayed_blks = 0;
+	memset(&ip->i_d, 0, sizeof(xfs_icdinode_t));
+	ip->i_size = 0;
+	ip->i_new_size = 0;
+
+	/*
+	 * Initialize inode's trace buffers.
+	 */
+#ifdef	XFS_INODE_TRACE
+	ip->i_trace = ktrace_alloc(INODE_TRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_BMAP_TRACE
+	ip->i_xtrace = ktrace_alloc(XFS_BMAP_KTRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_BTREE_TRACE
+	ip->i_btrace = ktrace_alloc(XFS_BMBT_KTRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_RW_TRACE
+	ip->i_rwtrace = ktrace_alloc(XFS_RW_KTRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_ILOCK_TRACE
+	ip->i_lock_trace = ktrace_alloc(XFS_ILOCK_KTRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_DIR2_TRACE
+	ip->i_dir_trace = ktrace_alloc(XFS_DIR2_KTRACE_SIZE, KM_NOFS);
+#endif
+
+	return ip;
+}
 
 /*
  * Check the validity of the inode we just found it the cache
@@ -155,13 +231,13 @@ xfs_iget_cache_miss(
 	unsigned long		first_index, mask;
 	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, ino);
 
-	/*
-	 * Read the disk inode attributes into a new inode structure and get
-	 * a new vnode for it. This should also initialize i_ino and i_mount.
-	 */
-	error = xfs_iread(mp, tp, ino, &ip, bno, flags);
+	ip = xfs_inode_alloc(mp, ino);
+	if (!ip)
+		return ENOMEM;
+
+	error = xfs_iread(mp, tp, ip, bno, flags);
 	if (error)
-		return error;
+		goto out_destroy;
 
 	xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
