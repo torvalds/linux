@@ -169,8 +169,8 @@ static int rb532_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 	gpch = container_of(chip, struct rb532_gpio_chip, chip);
 
-	if (rb532_get_bit(offset, gpch->regbase + GPIOFUNC))
-		return 1;	/* alternate function, GPIOCFG is ignored */
+	/* disable alternate function in case it's set */
+	rb532_set_bit(0, offset, gpch->regbase + GPIOFUNC);
 
 	rb532_set_bit(0, offset, gpch->regbase + GPIOCFG);
 	return 0;
@@ -186,8 +186,8 @@ static int rb532_gpio_direction_output(struct gpio_chip *chip,
 
 	gpch = container_of(chip, struct rb532_gpio_chip, chip);
 
-	if (rb532_get_bit(offset, gpch->regbase + GPIOFUNC))
-		return 1;	/* alternate function, GPIOCFG is ignored */
+	/* disable alternate function in case it's set */
+	rb532_set_bit(0, offset, gpch->regbase + GPIOFUNC);
 
 	/* set the initial output value */
 	rb532_set_bit(value, offset, gpch->regbase + GPIOD);
