@@ -1251,7 +1251,11 @@ These are the only wild cards which are supported.
 
   <match>*<match> will not work.
 
- # echo hrtimer_* > /debug/tracing/set_ftrace_filter
+Note: It is better to use quotes to enclose the wild cards, otherwise
+  the shell may expand the parameters into names of files in the local
+  directory.
+
+ # echo 'hrtimer_*' > /debug/tracing/set_ftrace_filter
 
 Produces:
 
@@ -1306,7 +1310,7 @@ Again, now we want to append.
  # echo sys_nanosleep > /debug/tracing/set_ftrace_filter
  # cat /debug/tracing/set_ftrace_filter
 sys_nanosleep
- # echo hrtimer_* >> /debug/tracing/set_ftrace_filter
+ # echo 'hrtimer_*' >> /debug/tracing/set_ftrace_filter
  # cat /debug/tracing/set_ftrace_filter
 hrtimer_run_queues
 hrtimer_run_pending
