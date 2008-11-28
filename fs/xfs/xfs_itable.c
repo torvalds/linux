@@ -595,7 +595,7 @@ xfs_bulkstat(
 
 						error = xfs_inotobp(mp, NULL, ino, &dip,
 								    &bp, &offset,
-								    XFS_IMAP_BULKSTAT);
+								    XFS_IGET_BULKSTAT);
 
 						if (!error)
 							clustidx = offset / mp->m_sb.sb_inodesize;

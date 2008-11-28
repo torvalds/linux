@@ -159,8 +159,7 @@ xfs_iget_cache_miss(
 	 * Read the disk inode attributes into a new inode structure and get
 	 * a new vnode for it. This should also initialize i_ino and i_mount.
 	 */
-	error = xfs_iread(mp, tp, ino, &ip, bno,
-			  (flags & XFS_IGET_BULKSTAT) ? XFS_IMAP_BULKSTAT : 0);
+	error = xfs_iread(mp, tp, ino, &ip, bno, flags);
 	if (error)
 		return error;
 

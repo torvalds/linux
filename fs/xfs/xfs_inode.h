@@ -167,11 +167,6 @@ typedef struct xfs_icdinode {
 #define	XFS_IFEXTIREC	0x08	/* Indirection array of extent blocks */
 
 /*
- * Flags for xfs_inotobp and xfs_imap().
- */
-#define XFS_IMAP_BULKSTAT	0x1
-
-/*
  * Fork handling.
  */
 
