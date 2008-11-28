@@ -553,60 +553,6 @@
  * Core Clock - see arch/arm/mach-pxa/include/mach/pxa2xx-regs.h
  */
 
-#ifdef CONFIG_PXA27x
-
-#define SRAM_SIZE		0x40000 /* 4x64K  */
-
-#define SRAM_MEM_PHYS		0x5C000000
-
-#define IMPMCR		__REG(0x58000000) /* IM Power Management Control Reg */
-#define IMPMSR		__REG(0x58000008) /* IM Power Management Status Reg */
-
-#define IMPMCR_PC3		(0x3 << 22) /* Bank 3 Power Control */
-#define IMPMCR_PC3_RUN_MODE	(0x0 << 22) /*   Run mode */
-#define IMPMCR_PC3_STANDBY_MODE	(0x1 << 22) /*   Standby mode */
-#define IMPMCR_PC3_AUTO_MODE	(0x3 << 22) /*   Automatically controlled */
-
-#define IMPMCR_PC2		(0x3 << 20) /* Bank 2 Power Control */
-#define IMPMCR_PC2_RUN_MODE	(0x0 << 20) /*   Run mode */
-#define IMPMCR_PC2_STANDBY_MODE	(0x1 << 20) /*   Standby mode */
-#define IMPMCR_PC2_AUTO_MODE	(0x3 << 20) /*   Automatically controlled */
-
-#define IMPMCR_PC1		(0x3 << 18) /* Bank 1 Power Control */
-#define IMPMCR_PC1_RUN_MODE	(0x0 << 18) /*   Run mode */
-#define IMPMCR_PC1_STANDBY_MODE	(0x1 << 18) /*   Standby mode */
-#define IMPMCR_PC1_AUTO_MODE	(0x3 << 18) /*   Automatically controlled */
-
-#define IMPMCR_PC0		(0x3 << 16) /* Bank 0 Power Control */
-#define IMPMCR_PC0_RUN_MODE	(0x0 << 16) /*   Run mode */
-#define IMPMCR_PC0_STANDBY_MODE	(0x1 << 16) /*   Standby mode */
-#define IMPMCR_PC0_AUTO_MODE	(0x3 << 16) /*   Automatically controlled */
-
-#define IMPMCR_AW3		(1 << 11) /* Bank 3 Automatic Wake-up enable */
-#define IMPMCR_AW2		(1 << 10) /* Bank 2 Automatic Wake-up enable */
-#define IMPMCR_AW1		(1 << 9)  /* Bank 1 Automatic Wake-up enable */
-#define IMPMCR_AW0		(1 << 8)  /* Bank 0 Automatic Wake-up enable */
-
-#define IMPMCR_DST		(0xFF << 0) /* Delay Standby Time, ms */
-
-#define IMPMSR_PS3		(0x3 << 6) /* Bank 3 Power Status: */
-#define IMPMSR_PS3_RUN_MODE	(0x0 << 6) /*    Run mode */
-#define IMPMSR_PS3_STANDBY_MODE	(0x1 << 6) /*    Standby mode */
-
-#define IMPMSR_PS2		(0x3 << 4) /* Bank 2 Power Status: */
-#define IMPMSR_PS2_RUN_MODE	(0x0 << 4) /*    Run mode */
-#define IMPMSR_PS2_STANDBY_MODE	(0x1 << 4) /*    Standby mode */
-
-#define IMPMSR_PS1		(0x3 << 2) /* Bank 1 Power Status: */
-#define IMPMSR_PS1_RUN_MODE	(0x0 << 2) /*    Run mode */
-#define IMPMSR_PS1_STANDBY_MODE	(0x1 << 2) /*    Standby mode */
-
-#define IMPMSR_PS0		(0x3 << 0) /* Bank 0 Power Status: */
-#define IMPMSR_PS0_RUN_MODE	(0x0 << 0) /*    Run mode */
-#define IMPMSR_PS0_STANDBY_MODE	(0x1 << 0) /*    Standby mode */
-
-#endif
-
 /* PWRMODE register M field values */
 
 #define PWRMODE_IDLE		0x1
