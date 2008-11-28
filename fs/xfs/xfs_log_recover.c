@@ -3970,7 +3970,6 @@ xlog_recover_check_summary(
 	xfs_agf_t	*agfp;
 	xfs_buf_t	*agfbp;
 	xfs_buf_t	*agibp;
-	xfs_daddr_t	agfdaddr;
 	xfs_buf_t	*sbbp;
 #ifdef XFS_LOUD_RECOVERY
 	xfs_sb_t	*sbp;
@@ -3987,21 +3986,18 @@ xlog_recover_check_summary(
 	itotal = 0LL;
 	ifree = 0LL;
 	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		agfdaddr = XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp));
-		agfbp = xfs_buf_read(mp->m_ddev_targp, agfdaddr,
-				XFS_FSS_TO_BB(mp, 1), 0);
-		if (XFS_BUF_ISERROR(agfbp)) {
-			xfs_ioerror_alert("xlog_recover_check_summary(agf)",
-						mp, agfbp, agfdaddr);
+		error = xfs_read_agf(mp, NULL, agno, 0, &agfbp);
+		if (error) {
+			xfs_fs_cmn_err(CE_ALERT, mp,
+					"xlog_recover_check_summary(agf)"
+					"agf read failed agno %d error %d",
+							agno, error);
+		} else {
+			agfp = XFS_BUF_TO_AGF(agfbp);
+			freeblks += be32_to_cpu(agfp->agf_freeblks) +
+				    be32_to_cpu(agfp->agf_flcount);
+			xfs_buf_relse(agfbp);
 		}
-		agfp = XFS_BUF_TO_AGF(agfbp);
-		ASSERT(XFS_AGF_MAGIC == be32_to_cpu(agfp->agf_magicnum));
-		ASSERT(XFS_AGF_GOOD_VERSION(be32_to_cpu(agfp->agf_versionnum)));
-		ASSERT(be32_to_cpu(agfp->agf_seqno) == agno);
-
-		freeblks += be32_to_cpu(agfp->agf_freeblks) +
-			    be32_to_cpu(agfp->agf_flcount);
-		xfs_buf_relse(agfbp);
 
 		error = xfs_read_agi(mp, NULL, agno, &agibp);
 		if (!error) {
