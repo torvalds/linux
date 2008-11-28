@@ -17,27 +17,8 @@
 #ifndef CORE_H
 #define CORE_H
 
-#include <linux/version.h>
-#include <linux/autoconf.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/spinlock.h>
-#include <linux/errno.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/ip.h>
-#include <linux/tcp.h>
-#include <linux/in.h>
-#include <linux/delay.h>
-#include <linux/wait.h>
 #include <linux/pci.h>
-#include <linux/interrupt.h>
-#include <linux/sched.h>
-#include <linux/list.h>
-#include <asm/byteorder.h>
-#include <linux/scatterlist.h>
-#include <asm/page.h>
 #include <net/mac80211.h>
 #include <linux/leds.h>
 #include <linux/rfkill.h>
