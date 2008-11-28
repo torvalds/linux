@@ -355,12 +355,12 @@ xfs_ialloc_ag_alloc(
 		xfs_biozero(fbuf, 0, ninodes << args.mp->m_sb.sb_inodelog);
 		for (i = 0; i < ninodes; i++) {
 			int	ioffset = i << args.mp->m_sb.sb_inodelog;
-			uint	isize = sizeof(xfs_dinode_t) + sizeof(__be32);
+			uint	isize = sizeof(struct xfs_dinode);
 
 			free = XFS_MAKE_IPTR(args.mp, fbuf, i);
-			free->di_core.di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
-			free->di_core.di_version = version;
-			free->di_core.di_gen = cpu_to_be32(gen);
+			free->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
+			free->di_version = version;
+			free->di_gen = cpu_to_be32(gen);
 			free->di_next_unlinked = cpu_to_be32(NULLAGINO);
 			xfs_trans_log_buf(tp, fbuf, ioffset, ioffset + isize - 1);
 		}

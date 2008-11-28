@@ -2320,7 +2320,7 @@ xlog_recover_do_inode_trans(
 	 * Make sure the place we're flushing out to really looks
 	 * like an inode!
 	 */
-	if (unlikely(be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC)) {
+	if (unlikely(be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC)) {
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
 			"xfs_inode_recover: Bad inode magic number, dino ptr = 0x%p, dino bp = 0x%p, ino = %Ld",
@@ -2343,12 +2343,12 @@ xlog_recover_do_inode_trans(
 	}
 
 	/* Skip replay when the on disk inode is newer than the log one */
-	if (dicp->di_flushiter < be16_to_cpu(dip->di_core.di_flushiter)) {
+	if (dicp->di_flushiter < be16_to_cpu(dip->di_flushiter)) {
 		/*
 		 * Deal with the wrap case, DI_MAX_FLUSH is less
 		 * than smaller numbers
 		 */
-		if (be16_to_cpu(dip->di_core.di_flushiter) == DI_MAX_FLUSH &&
+		if (be16_to_cpu(dip->di_flushiter) == DI_MAX_FLUSH &&
 		    dicp->di_flushiter < (DI_MAX_FLUSH >> 1)) {
 			/* do nothing */
 		} else {
@@ -2408,7 +2408,7 @@ xlog_recover_do_inode_trans(
 		error = EFSCORRUPTED;
 		goto error;
 	}
-	if (unlikely(item->ri_buf[1].i_len > sizeof(xfs_dinode_core_t))) {
+	if (unlikely(item->ri_buf[1].i_len > sizeof(struct xfs_icdinode))) {
 		XFS_CORRUPTION_ERROR("xlog_recover_do_inode_trans(7)",
 				     XFS_ERRLEVEL_LOW, mp, dicp);
 		xfs_buf_relse(bp);
@@ -2420,23 +2420,24 @@ xlog_recover_do_inode_trans(
 	}
 
 	/* The core is in in-core format */
-	xfs_dinode_to_disk(&dip->di_core,
-		(xfs_icdinode_t *)item->ri_buf[1].i_addr);
+	xfs_dinode_to_disk(dip, (xfs_icdinode_t *)item->ri_buf[1].i_addr);
 
 	/* the rest is in on-disk format */
-	if (item->ri_buf[1].i_len > sizeof(xfs_dinode_core_t)) {
-		memcpy((xfs_caddr_t) dip + sizeof(xfs_dinode_core_t),
-			item->ri_buf[1].i_addr + sizeof(xfs_dinode_core_t),
-			item->ri_buf[1].i_len  - sizeof(xfs_dinode_core_t));
+	if (item->ri_buf[1].i_len > sizeof(struct xfs_icdinode)) {
+		memcpy((xfs_caddr_t) dip + sizeof(struct xfs_icdinode),
+			item->ri_buf[1].i_addr + sizeof(struct xfs_icdinode),
+			item->ri_buf[1].i_len  - sizeof(struct xfs_icdinode));
 	}
 
 	fields = in_f->ilf_fields;
 	switch (fields & (XFS_ILOG_DEV | XFS_ILOG_UUID)) {
 	case XFS_ILOG_DEV:
-		dip->di_u.di_dev = cpu_to_be32(in_f->ilf_u.ilfu_rdev);
+		xfs_dinode_put_rdev(dip, in_f->ilf_u.ilfu_rdev);
 		break;
 	case XFS_ILOG_UUID:
-		dip->di_u.di_muuid = in_f->ilf_u.ilfu_uuid;
+		memcpy(XFS_DFORK_DPTR(dip),
+		       &in_f->ilf_u.ilfu_uuid,
+		       sizeof(uuid_t));
 		break;
 	}
 
@@ -2452,12 +2453,12 @@ xlog_recover_do_inode_trans(
 	switch (fields & XFS_ILOG_DFORK) {
 	case XFS_ILOG_DDATA:
 	case XFS_ILOG_DEXT:
-		memcpy(&dip->di_u, src, len);
+		memcpy(XFS_DFORK_DPTR(dip), src, len);
 		break;
 
 	case XFS_ILOG_DBROOT:
 		xfs_bmbt_to_bmdr(mp, (struct xfs_btree_block *)src, len,
-				 &dip->di_u.di_bmbt,
+				 (xfs_bmdr_block_t *)XFS_DFORK_DPTR(dip),
 				 XFS_DFORK_DSIZE(dip, mp));
 		break;
 

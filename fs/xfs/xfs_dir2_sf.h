@@ -34,13 +34,6 @@ struct xfs_mount;
 struct xfs_trans;
 
 /*
- * Maximum size of a shortform directory.
- */
-#define	XFS_DIR2_SF_MAX_SIZE	\
-	(XFS_DINODE_MAX_SIZE - (uint)sizeof(xfs_dinode_core_t) - \
-	 (uint)sizeof(xfs_agino_t))
-
-/*
  * Inode number stored as 8 8-bit values.
  */
 typedef	struct { __uint8_t i[8]; } xfs_dir2_ino8_t;

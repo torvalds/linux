@@ -19,7 +19,6 @@
 #define	__XFS_INODE_H__
 
 struct xfs_dinode;
-struct xfs_dinode_core;
 struct xfs_inode;
 
 /*
@@ -112,7 +111,7 @@ typedef struct xfs_ictimestamp {
 } xfs_ictimestamp_t;
 
 /*
- * NOTE:  This structure must be kept identical to struct xfs_dinode_core
+ * NOTE:  This structure must be kept identical to struct xfs_dinode
  * 	  in xfs_dinode.h except for the endianess annotations.
  */
 typedef struct xfs_icdinode {
@@ -553,8 +552,8 @@ int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
 			  struct xfs_inode *, struct xfs_dinode **,
 			  struct xfs_buf **, xfs_daddr_t, uint, uint);
 void		xfs_dinode_from_disk(struct xfs_icdinode *,
-				     struct xfs_dinode_core *);
-void		xfs_dinode_to_disk(struct xfs_dinode_core *,
+				     struct xfs_dinode *);
+void		xfs_dinode_to_disk(struct xfs_dinode *,
 				   struct xfs_icdinode *);
 void		xfs_idestroy_fork(struct xfs_inode *, int);
 void		xfs_idata_realloc(struct xfs_inode *, int, int);

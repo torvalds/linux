@@ -125,13 +125,9 @@ STATIC void
 xfs_bulkstat_one_dinode(
 	xfs_mount_t	*mp,		/* mount point for filesystem */
 	xfs_ino_t	ino,		/* inode number to get data for */
-	xfs_dinode_t	*dip,		/* dinode inode pointer */
+	xfs_dinode_t	*dic,		/* dinode inode pointer */
 	xfs_bstat_t	*buf)		/* return buffer */
 {
-	xfs_dinode_core_t *dic;		/* dinode core info pointer */
-
-	dic = &dip->di_core;
-
 	/*
 	 * The inode format changed when we moved the link count and
 	 * made it 32 bits long.  If this is an old format inode,
@@ -162,7 +158,7 @@ xfs_bulkstat_one_dinode(
 	buf->bs_mtime.tv_nsec = be32_to_cpu(dic->di_mtime.t_nsec);
 	buf->bs_ctime.tv_sec = be32_to_cpu(dic->di_ctime.t_sec);
 	buf->bs_ctime.tv_nsec = be32_to_cpu(dic->di_ctime.t_nsec);
-	buf->bs_xflags = xfs_dic2xflags(dip);
+	buf->bs_xflags = xfs_dic2xflags(dic);
 	buf->bs_extsize = be32_to_cpu(dic->di_extsize) << mp->m_sb.sb_blocklog;
 	buf->bs_extents = be32_to_cpu(dic->di_nextents);
 	buf->bs_gen = be32_to_cpu(dic->di_gen);
@@ -173,7 +169,7 @@ xfs_bulkstat_one_dinode(
 
 	switch (dic->di_format) {
 	case XFS_DINODE_FMT_DEV:
-		buf->bs_rdev = be32_to_cpu(dip->di_u.di_dev);
+		buf->bs_rdev = xfs_dinode_get_rdev(dic);
 		buf->bs_blksize = BLKDEV_IOSIZE;
 		buf->bs_blocks = 0;
 		break;
@@ -287,19 +283,19 @@ xfs_bulkstat_use_dinode(
 	 * to disk yet. This is a temporary hack that would require a proper
 	 * fix in the future.
 	 */
-	if (be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC ||
-	    !XFS_DINODE_GOOD_VERSION(dip->di_core.di_version) ||
-	    !dip->di_core.di_mode)
+	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC ||
+	    !XFS_DINODE_GOOD_VERSION(dip->di_version) ||
+	    !dip->di_mode)
 		return 0;
 	if (flags & BULKSTAT_FG_QUICK) {
 		*dipp = dip;
 		return 1;
 	}
 	/* BULKSTAT_FG_INLINE: if attr fork is local, or not there, use it */
-	aformat = dip->di_core.di_aformat;
+	aformat = dip->di_aformat;
 	if ((XFS_DFORK_Q(dip) == 0) ||
 	    (aformat == XFS_DINODE_FMT_LOCAL) ||
-	    (aformat == XFS_DINODE_FMT_EXTENTS && !dip->di_core.di_anextents)) {
+	    (aformat == XFS_DINODE_FMT_EXTENTS && !dip->di_anextents)) {
 		*dipp = dip;
 		return 1;
 	}

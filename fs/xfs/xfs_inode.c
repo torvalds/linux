@@ -174,8 +174,8 @@ xfs_imap_to_bp(
 
 		dip = (xfs_dinode_t *)xfs_buf_offset(bp,
 					(i << mp->m_sb.sb_inodelog));
-		di_ok = be16_to_cpu(dip->di_core.di_magic) == XFS_DINODE_MAGIC &&
-			    XFS_DINODE_GOOD_VERSION(dip->di_core.di_version);
+		di_ok = be16_to_cpu(dip->di_magic) == XFS_DINODE_MAGIC &&
+			    XFS_DINODE_GOOD_VERSION(dip->di_version);
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
 						XFS_ERRTAG_ITOBP_INOTOBP,
 						XFS_RANDOM_ITOBP_INOTOBP))) {
@@ -191,7 +191,7 @@ xfs_imap_to_bp(
 					"daddr %lld #%d (magic=%x)",
 				XFS_BUFTARG_NAME(mp->m_ddev_targp),
 				(unsigned long long)imap->im_blkno, i,
-				be16_to_cpu(dip->di_core.di_magic));
+				be16_to_cpu(dip->di_magic));
 #endif
 			xfs_trans_brelse(tp, bp);
 			return XFS_ERROR(EFSCORRUPTED);
@@ -350,26 +350,26 @@ xfs_iformat(
 		XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
 	error = 0;
 
-	if (unlikely(be32_to_cpu(dip->di_core.di_nextents) +
-		     be16_to_cpu(dip->di_core.di_anextents) >
-		     be64_to_cpu(dip->di_core.di_nblocks))) {
+	if (unlikely(be32_to_cpu(dip->di_nextents) +
+		     be16_to_cpu(dip->di_anextents) >
+		     be64_to_cpu(dip->di_nblocks))) {
 		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
 			"corrupt dinode %Lu, extent total = %d, nblocks = %Lu.",
 			(unsigned long long)ip->i_ino,
-			(int)(be32_to_cpu(dip->di_core.di_nextents) +
-			      be16_to_cpu(dip->di_core.di_anextents)),
+			(int)(be32_to_cpu(dip->di_nextents) +
+			      be16_to_cpu(dip->di_anextents)),
 			(unsigned long long)
-				be64_to_cpu(dip->di_core.di_nblocks));
+				be64_to_cpu(dip->di_nblocks));
 		XFS_CORRUPTION_ERROR("xfs_iformat(1)", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
-	if (unlikely(dip->di_core.di_forkoff > ip->i_mount->m_sb.sb_inodesize)) {
+	if (unlikely(dip->di_forkoff > ip->i_mount->m_sb.sb_inodesize)) {
 		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
 			"corrupt dinode %Lu, forkoff = 0x%x.",
 			(unsigned long long)ip->i_ino,
-			dip->di_core.di_forkoff);
+			dip->di_forkoff);
 		XFS_CORRUPTION_ERROR("xfs_iformat(2)", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
 		return XFS_ERROR(EFSCORRUPTED);
@@ -380,25 +380,25 @@ xfs_iformat(
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFSOCK:
-		if (unlikely(dip->di_core.di_format != XFS_DINODE_FMT_DEV)) {
+		if (unlikely(dip->di_format != XFS_DINODE_FMT_DEV)) {
 			XFS_CORRUPTION_ERROR("xfs_iformat(3)", XFS_ERRLEVEL_LOW,
 					      ip->i_mount, dip);
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 		ip->i_d.di_size = 0;
 		ip->i_size = 0;
-		ip->i_df.if_u2.if_rdev = be32_to_cpu(dip->di_u.di_dev);
+		ip->i_df.if_u2.if_rdev = xfs_dinode_get_rdev(dip);
 		break;
 
 	case S_IFREG:
 	case S_IFLNK:
 	case S_IFDIR:
-		switch (dip->di_core.di_format) {
+		switch (dip->di_format) {
 		case XFS_DINODE_FMT_LOCAL:
 			/*
 			 * no local regular files yet
 			 */
-			if (unlikely((be16_to_cpu(dip->di_core.di_mode) & S_IFMT) == S_IFREG)) {
+			if (unlikely((be16_to_cpu(dip->di_mode) & S_IFMT) == S_IFREG)) {
 				xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
 					"corrupt inode %Lu "
 					"(local format for regular file).",
@@ -409,7 +409,7 @@ xfs_iformat(
 				return XFS_ERROR(EFSCORRUPTED);
 			}
 
-			di_size = be64_to_cpu(dip->di_core.di_size);
+			di_size = be64_to_cpu(dip->di_size);
 			if (unlikely(di_size > XFS_DFORK_DSIZE(dip, ip->i_mount))) {
 				xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
 					"corrupt inode %Lu "
@@ -451,7 +451,7 @@ xfs_iformat(
 	ip->i_afp = kmem_zone_zalloc(xfs_ifork_zone, KM_SLEEP);
 	ip->i_afp->if_ext_max =
 		XFS_IFORK_ASIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
-	switch (dip->di_core.di_aformat) {
+	switch (dip->di_aformat) {
 	case XFS_DINODE_FMT_LOCAL:
 		atp = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
 		size = be16_to_cpu(atp->hdr.totsize);
@@ -663,7 +663,7 @@ xfs_iformat_btree(
 void
 xfs_dinode_from_disk(
 	xfs_icdinode_t		*to,
-	xfs_dinode_core_t	*from)
+	xfs_dinode_t		*from)
 {
 	to->di_magic = be16_to_cpu(from->di_magic);
 	to->di_mode = be16_to_cpu(from->di_mode);
@@ -697,7 +697,7 @@ xfs_dinode_from_disk(
 
 void
 xfs_dinode_to_disk(
-	xfs_dinode_core_t	*to,
+	xfs_dinode_t		*to,
 	xfs_icdinode_t		*from)
 {
 	to->di_magic = cpu_to_be16(from->di_magic);
@@ -784,9 +784,7 @@ uint
 xfs_dic2xflags(
 	xfs_dinode_t		*dip)
 {
-	xfs_dinode_core_t	*dic = &dip->di_core;
-
-	return _xfs_dic2xflags(be16_to_cpu(dic->di_flags)) |
+	return _xfs_dic2xflags(be16_to_cpu(dip->di_flags)) |
 				(XFS_DFORK_Q(dip) ? XFS_XFLAG_HASATTR : 0);
 }
 
@@ -905,12 +903,12 @@ xfs_iread(
 	 * If we got something that isn't an inode it means someone
 	 * (nfs or dmi) has a stale handle.
 	 */
-	if (be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC) {
+	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC) {
 #ifdef DEBUG
 		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_iread: "
-				"dip->di_core.di_magic (0x%x) != "
+				"dip->di_magic (0x%x) != "
 				"XFS_DINODE_MAGIC (0x%x)",
-				be16_to_cpu(dip->di_core.di_magic),
+				be16_to_cpu(dip->di_magic),
 				XFS_DINODE_MAGIC);
 #endif /* DEBUG */
 		error = XFS_ERROR(EINVAL);
@@ -924,8 +922,8 @@ xfs_iread(
 	 * specific information.
 	 * Otherwise, just get the truly permanent information.
 	 */
-	if (dip->di_core.di_mode) {
-		xfs_dinode_from_disk(&ip->i_d, &dip->di_core);
+	if (dip->di_mode) {
+		xfs_dinode_from_disk(&ip->i_d, dip);
 		error = xfs_iformat(ip, dip);
 		if (error)  {
 #ifdef DEBUG
@@ -936,10 +934,10 @@ xfs_iread(
 			goto out_brelse;
 		}
 	} else {
-		ip->i_d.di_magic = be16_to_cpu(dip->di_core.di_magic);
-		ip->i_d.di_version = dip->di_core.di_version;
-		ip->i_d.di_gen = be32_to_cpu(dip->di_core.di_gen);
-		ip->i_d.di_flushiter = be16_to_cpu(dip->di_core.di_flushiter);
+		ip->i_d.di_magic = be16_to_cpu(dip->di_magic);
+		ip->i_d.di_version = dip->di_version;
+		ip->i_d.di_gen = be32_to_cpu(dip->di_gen);
+		ip->i_d.di_flushiter = be16_to_cpu(dip->di_flushiter);
 		/*
 		 * Make sure to pull in the mode here as well in
 		 * case the inode is released without being used.
@@ -2295,7 +2293,7 @@ xfs_ifree(
 	* This is a temporary hack that would require a proper fix
 	* in the future.
 	*/
-	dip->di_core.di_mode = 0;
+	dip->di_mode = 0;
 
 	if (delete) {
 		xfs_ifree_cluster(ip, tp, first_ino);
@@ -2909,15 +2907,16 @@ xfs_iflush_fork(
 	case XFS_DINODE_FMT_DEV:
 		if (iip->ili_format.ilf_fields & XFS_ILOG_DEV) {
 			ASSERT(whichfork == XFS_DATA_FORK);
-			dip->di_u.di_dev = cpu_to_be32(ip->i_df.if_u2.if_rdev);
+			xfs_dinode_put_rdev(dip, ip->i_df.if_u2.if_rdev);
 		}
 		break;
 
 	case XFS_DINODE_FMT_UUID:
 		if (iip->ili_format.ilf_fields & XFS_ILOG_UUID) {
 			ASSERT(whichfork == XFS_DATA_FORK);
-			memcpy(&dip->di_u.di_muuid, &ip->i_df.if_u2.if_uuid,
-				sizeof(uuid_t));
+			memcpy(XFS_DFORK_DPTR(dip),
+			       &ip->i_df.if_u2.if_uuid,
+			       sizeof(uuid_t));
 		}
 		break;
 
@@ -3295,11 +3294,11 @@ xfs_iflush_int(
 	 */
 	xfs_synchronize_atime(ip);
 
-	if (XFS_TEST_ERROR(be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC,
+	if (XFS_TEST_ERROR(be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC,
 			       mp, XFS_ERRTAG_IFLUSH_1, XFS_RANDOM_IFLUSH_1)) {
 		xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
 		    "xfs_iflush: Bad inode %Lu magic number 0x%x, ptr 0x%p",
-			ip->i_ino, be16_to_cpu(dip->di_core.di_magic), dip);
+			ip->i_ino, be16_to_cpu(dip->di_magic), dip);
 		goto corrupt_out;
 	}
 	if (XFS_TEST_ERROR(ip->i_d.di_magic != XFS_DINODE_MAGIC,
@@ -3362,7 +3361,7 @@ xfs_iflush_int(
 	 * because if the inode is dirty at all the core must
 	 * be.
 	 */
-	xfs_dinode_to_disk(&dip->di_core, &ip->i_d);
+	xfs_dinode_to_disk(dip, &ip->i_d);
 
 	/* Wrap, we never let the log put out DI_MAX_FLUSH */
 	if (ip->i_d.di_flushiter == DI_MAX_FLUSH)
@@ -3382,7 +3381,7 @@ xfs_iflush_int(
 			 * Convert it back.
 			 */
 			ASSERT(ip->i_d.di_nlink <= XFS_MAXLINK_1);
-			dip->di_core.di_onlink = cpu_to_be16(ip->i_d.di_nlink);
+			dip->di_onlink = cpu_to_be16(ip->i_d.di_nlink);
 		} else {
 			/*
 			 * The superblock version has already been bumped,
@@ -3390,12 +3389,12 @@ xfs_iflush_int(
 			 * format permanent.
 			 */
 			ip->i_d.di_version = XFS_DINODE_VERSION_2;
-			dip->di_core.di_version =  XFS_DINODE_VERSION_2;
+			dip->di_version =  XFS_DINODE_VERSION_2;
 			ip->i_d.di_onlink = 0;
-			dip->di_core.di_onlink = 0;
+			dip->di_onlink = 0;
 			memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
-			memset(&(dip->di_core.di_pad[0]), 0,
-			      sizeof(dip->di_core.di_pad));
+			memset(&(dip->di_pad[0]), 0,
+			      sizeof(dip->di_pad));
 			ASSERT(ip->i_d.di_projid == 0);
 		}
 	}
