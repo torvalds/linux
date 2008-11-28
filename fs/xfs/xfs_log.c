@@ -1029,12 +1029,6 @@ xlog_iodone(xfs_buf_t *bp)
 	ASSERT(XFS_BUF_FSPRIVATE2(bp, unsigned long) == (unsigned long) 2);
 	XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)1);
 	aborted = 0;
-
-	/*
-	 * Some versions of cpp barf on the recursive definition of
-	 * ic_log -> hic_fields.ic_log and expand ic_log twice when
-	 * it is passed through two macros.  Workaround broken cpp.
-	 */
 	l = iclog->ic_log;
 
 	/*
@@ -1301,7 +1295,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		XFS_BUF_SET_BDSTRAT_FUNC(bp, xlog_bdstrat_cb);
 		XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)1);
 		iclog->ic_bp = bp;
-		iclog->hic_data = bp->b_addr;
+		iclog->ic_data = bp->b_addr;
 #ifdef DEBUG
 		log->l_iclog_bak[i] = (xfs_caddr_t)&(iclog->ic_header);
 #endif
@@ -1321,7 +1315,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		atomic_set(&iclog->ic_refcnt, 0);
 		spin_lock_init(&iclog->ic_callback_lock);
 		iclog->ic_callback_tail = &(iclog->ic_callback);
-		iclog->ic_datap = (char *)iclog->hic_data + log->l_iclog_hsize;
+		iclog->ic_datap = (char *)iclog->ic_data + log->l_iclog_hsize;
 
 		ASSERT(XFS_BUF_ISBUSY(iclog->ic_bp));
 		ASSERT(XFS_BUF_VALUSEMA(iclog->ic_bp) <= 0);
@@ -3463,7 +3457,7 @@ xlog_verify_iclog(xlog_t	 *log,
 	ptr = iclog->ic_datap;
 	base_ptr = ptr;
 	ophead = (xlog_op_header_t *)ptr;
-	xhdr = (xlog_in_core_2_t *)&iclog->ic_header;
+	xhdr = iclog->ic_data;
 	for (i = 0; i < len; i++) {
 		ophead = (xlog_op_header_t *)ptr;
 

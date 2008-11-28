@@ -3332,7 +3332,6 @@ xlog_pack_data(
 	int			size = iclog->ic_offset + roundoff;
 	__be32			cycle_lsn;
 	xfs_caddr_t		dp;
-	xlog_in_core_2_t	*xhdr;
 
 	xlog_pack_data_checksum(log, iclog, size);
 
@@ -3347,7 +3346,8 @@ xlog_pack_data(
 	}
 
 	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
-		xhdr = (xlog_in_core_2_t *)&iclog->ic_header;
+		xlog_in_core_2_t *xhdr = iclog->ic_data;
+
 		for ( ; i < BTOBB(size); i++) {
 			j = i / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 			k = i % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
@@ -3405,7 +3405,6 @@ xlog_unpack_data(
 	xlog_t			*log)
 {
 	int			i, j, k;
-	xlog_in_core_2_t	*xhdr;
 
 	for (i = 0; i < BTOBB(be32_to_cpu(rhead->h_len)) &&
 		  i < (XLOG_HEADER_CYCLE_SIZE / BBSIZE); i++) {
@@ -3414,7 +3413,7 @@ xlog_unpack_data(
 	}
 
 	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
-		xhdr = (xlog_in_core_2_t *)rhead;
+		xlog_in_core_2_t *xhdr = (xlog_in_core_2_t *)rhead;
 		for ( ; i < BTOBB(be32_to_cpu(rhead->h_len)); i++) {
 			j = i / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 			k = i % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
