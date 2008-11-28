@@ -530,10 +530,10 @@ EXPORT_SYMBOL_GPL(snd_hda_bus_new);
 #define is_generic_config(codec)	0
 #endif
 
-#ifdef CONFIG_SND_HDA_INTEL_MODULE
+#ifdef MODULE
 #define HDA_MODREQ_MAX_COUNT	2	/* two request_modules()'s */
 #else
-#define HDA_MODREQ_MAX_COUNT	0
+#define HDA_MODREQ_MAX_COUNT	0	/* all presets are statically linked */
 #endif
 
 /*
