@@ -333,6 +333,11 @@ struct snd_soc_dai_link  {
 /* SoC card */
 struct snd_soc_card {
 	char *name;
+	struct device *dev;
+
+	struct list_head list;
+
+	int instantiated;
 
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);

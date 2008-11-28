@@ -43,6 +43,12 @@ static DECLARE_WAIT_QUEUE_HEAD(soc_pm_waitq);
 static struct dentry *debugfs_root;
 #endif
 
+static DEFINE_MUTEX(client_mutex);
+static LIST_HEAD(card_list);
+
+static int snd_soc_register_card(struct snd_soc_card *card);
+static int snd_soc_unregister_card(struct snd_soc_card *card);
+
 /*
  * This is a timeout to do a DAPM powerdown after a stream is closed().
  * It can be used to eliminate pops between different playback streams, e.g.
@@ -784,6 +790,14 @@ static int soc_probe(struct platform_device *pdev)
 	/* Bodge while we push things out of socdev */
 	card->socdev = socdev;
 
+	/* Bodge while we unpick instantiation */
+	card->dev = &pdev->dev;
+	ret = snd_soc_register_card(card);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to register card\n");
+		return ret;
+	}
+
 	if (card->probe) {
 		ret = card->probe(pdev);
 		if (ret < 0)
@@ -862,6 +876,8 @@ static int soc_remove(struct platform_device *pdev)
 
 	if (card->remove)
 		card->remove(pdev);
+
+	snd_soc_unregister_card(card);
 
 	return 0;
 }
@@ -1956,6 +1972,52 @@ int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute)
 		return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_digital_mute);
+
+/**
+ * snd_soc_register_card - Register a card with the ASoC core
+ *
+ * @param card Card to register
+ *
+ * Note that currently this is an internal only function: it will be
+ * exposed to machine drivers after further backporting of ASoC v2
+ * registration APIs.
+ */
+static int snd_soc_register_card(struct snd_soc_card *card)
+{
+	if (!card->name || !card->dev)
+		return -EINVAL;
+
+	INIT_LIST_HEAD(&card->list);
+	card->instantiated = 0;
+
+	mutex_lock(&client_mutex);
+	list_add(&card->list, &card_list);
+	mutex_unlock(&client_mutex);
+
+	dev_dbg(card->dev, "Registered card '%s'\n", card->name);
+
+	return 0;
+}
+
+/**
+ * snd_soc_unregister_card - Unregister a card with the ASoC core
+ *
+ * @param card Card to unregister
+ *
+ * Note that currently this is an internal only function: it will be
+ * exposed to machine drivers after further backporting of ASoC v2
+ * registration APIs.
+ */
+static int snd_soc_unregister_card(struct snd_soc_card *card)
+{
+	mutex_lock(&client_mutex);
+	list_del(&card->list);
+	mutex_unlock(&client_mutex);
+
+	dev_dbg(card->dev, "Unregistered card '%s'\n", card->name);
+
+	return 0;
+}
 
 static int __devinit snd_soc_init(void)
 {
