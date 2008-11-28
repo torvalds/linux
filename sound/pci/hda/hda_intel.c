@@ -1233,12 +1233,12 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	memset(&bus_temp, 0, sizeof(bus_temp));
 	bus_temp.private_data = chip;
 	bus_temp.modelname = model;
-	bus_temp.power_save = &power_save;
 	bus_temp.pci = chip->pci;
 	bus_temp.ops.command = azx_send_cmd;
 	bus_temp.ops.get_response = azx_get_response;
 	bus_temp.ops.attach_pcm = azx_attach_pcm_stream;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+	bus_temp.power_save = &power_save;
 	bus_temp.ops.pm_notify = azx_power_notify;
 #endif
 
