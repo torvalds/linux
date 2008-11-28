@@ -1326,13 +1326,13 @@ static struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
 			mode = ATH9K_MODE_11NA_HT40PLUS;
 		break;
 	default:
-		DPRINTF(sc, ATH_DBG_RATE, "Invalid band\n");
+		DPRINTF(sc, ATH_DBG_CONFIG, "Invalid band\n");
 		return NULL;
 	}
 
 	BUG_ON(mode >= ATH9K_MODE_MAX);
 
-	DPRINTF(sc, ATH_DBG_RATE, "Choosing rate table for mode: %d\n", mode);
+	DPRINTF(sc, ATH_DBG_CONFIG, "Choosing rate table for mode: %d\n", mode);
 	return sc->hw_rate_table[mode];
 }
 
@@ -1572,8 +1572,7 @@ static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp
 	rate_priv = kzalloc(sizeof(struct ath_rate_priv), gfp);
 	if (!rate_priv) {
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: Unable to allocate private rc structure\n",
-			__func__);
+			"Unable to allocate private rc structure\n");
 		return NULL;
 	}
 

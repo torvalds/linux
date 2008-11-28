@@ -53,8 +53,8 @@ static bool ath9k_hw_ani_control(struct ath_hal *ah,
 
 		if (level >= ARRAY_SIZE(ahp->ah_totalSizeDesired)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-				"%s: level out of range (%u > %u)\n",
-				__func__, level,
+				"level out of range (%u > %u)\n",
+				level,
 				(unsigned)ARRAY_SIZE(ahp->ah_totalSizeDesired));
 			return false;
 		}
@@ -158,8 +158,8 @@ static bool ath9k_hw_ani_control(struct ath_hal *ah,
 
 		if (level >= ARRAY_SIZE(firstep)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-				"%s: level out of range (%u > %u)\n",
-				__func__, level,
+				"level out of range (%u > %u)\n",
+				level,
 				(unsigned) ARRAY_SIZE(firstep));
 			return false;
 		}
@@ -180,8 +180,8 @@ static bool ath9k_hw_ani_control(struct ath_hal *ah,
 
 		if (level >= ARRAY_SIZE(cycpwrThr1)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-				"%s: level out of range (%u > %u)\n",
-				__func__, level,
+				"level out of range (%u > %u)\n",
+				level,
 				(unsigned)
 				ARRAY_SIZE(cycpwrThr1));
 			return false;
@@ -200,11 +200,11 @@ static bool ath9k_hw_ani_control(struct ath_hal *ah,
 		break;
 	default:
 		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"%s: invalid cmd %u\n", __func__, cmd);
+			"invalid cmd %u\n", cmd);
 		return false;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "%s: ANI parameters:\n", __func__);
+	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "ANI parameters:\n");
 	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
 		"noiseImmunityLevel=%d, spurImmunityLevel=%d, "
 		"ofdmWeakSigDetectOff=%d\n",
@@ -262,8 +262,8 @@ static void ath9k_ani_restart(struct ath_hal *ah)
 				AR_PHY_COUNTMAX - aniState->cckTrigHigh;
 		}
 		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"%s: Writing ofdmbase=%u   cckbase=%u\n",
-			__func__, aniState->ofdmPhyErrBase,
+			"Writing ofdmbase=%u   cckbase=%u\n",
+			aniState->ofdmPhyErrBase,
 			aniState->cckPhyErrBase);
 		REG_WRITE(ah, AR_PHY_ERR_1, aniState->ofdmPhyErrBase);
 		REG_WRITE(ah, AR_PHY_ERR_2, aniState->cckPhyErrBase);
@@ -490,8 +490,7 @@ void ath9k_ani_reset(struct ath_hal *ah)
 	if (DO_ANI(ah) && ah->ah_opmode != ATH9K_M_STA
 	    && ah->ah_opmode != ATH9K_M_IBSS) {
 		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"%s: Reset ANI state opmode %u\n", __func__,
-			ah->ah_opmode);
+			"Reset ANI state opmode %u\n", ah->ah_opmode);
 		ahp->ah_stats.ast_ani_reset++;
 
 		ath9k_hw_ani_control(ah, ATH9K_ANI_NOISE_IMMUNITY_LEVEL, 0);
@@ -581,9 +580,9 @@ void ath9k_hw_ani_monitor(struct ath_hal *ah,
 		    phyCnt2 < aniState->cckPhyErrBase) {
 			if (phyCnt1 < aniState->ofdmPhyErrBase) {
 				DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-					"%s: phyCnt1 0x%x, resetting "
+					"phyCnt1 0x%x, resetting "
 					"counter value to 0x%x\n",
-					__func__, phyCnt1,
+					phyCnt1,
 					aniState->ofdmPhyErrBase);
 				REG_WRITE(ah, AR_PHY_ERR_1,
 					  aniState->ofdmPhyErrBase);
@@ -592,9 +591,9 @@ void ath9k_hw_ani_monitor(struct ath_hal *ah,
 			}
 			if (phyCnt2 < aniState->cckPhyErrBase) {
 				DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-					"%s: phyCnt2 0x%x, resetting "
+					"phyCnt2 0x%x, resetting "
 					"counter value to 0x%x\n",
-					__func__, phyCnt2,
+					phyCnt2,
 					aniState->cckPhyErrBase);
 				REG_WRITE(ah, AR_PHY_ERR_2,
 					  aniState->cckPhyErrBase);
@@ -692,8 +691,7 @@ u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hal *ah,
 
 	if (cycles == 0 || cycles > cc) {
 		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
-			"%s: cycle counter wrap. ExtBusy = 0\n",
-			__func__);
+			"cycle counter wrap. ExtBusy = 0\n");
 		good = 0;
 	} else {
 		u32 cc_d = cc - cycles;

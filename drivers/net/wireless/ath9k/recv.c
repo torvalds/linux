@@ -105,8 +105,7 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 			skb_reserve(skb, sc->sc_cachelsz - off);
 	} else {
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: skbuff alloc of size %u failed\n",
-			__func__, len);
+			"skbuff alloc of size %u failed\n", len);
 		return NULL;
 	}
 
@@ -263,11 +262,7 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
-
 	ath9k_hw_setmcastfilter(ah, mfilt[0], mfilt[1]);
-	DPRINTF(sc, ATH_DBG_CONFIG ,
-		"%s: RX filter 0x%x, MC filter %08x:%08x\n",
-		__func__, rfilt, mfilt[0], mfilt[1]);
 }
 
 int ath_rx_init(struct ath_softc *sc, int nbufs)
@@ -285,8 +280,8 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 					   min(sc->sc_cachelsz,
 					       (u16)64));
 
-		DPRINTF(sc, ATH_DBG_CONFIG, "%s: cachelsz %u rxbufsize %u\n",
-			__func__, sc->sc_cachelsz, sc->sc_rxbufsize);
+		DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
+			sc->sc_cachelsz, sc->sc_rxbufsize);
 
 		/* Initialize rx descriptors */
 
@@ -294,8 +289,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 					  "rx", nbufs, 1);
 		if (error != 0) {
 			DPRINTF(sc, ATH_DBG_FATAL,
-				"%s: failed to allocate rx descriptors: %d\n",
-				__func__, error);
+				"failed to allocate rx descriptors: %d\n", error);
 			break;
 		}
 
