@@ -36,21 +36,4 @@ static inline unsigned int __ioaddr (unsigned int port)			\
 
 #define __mem_pci(addr) (addr)
 
-/*
- * Translated address IO functions
- *
- * IO address has already been translated to a virtual address
- */
-#define outb_t(v,p)								\
-	(*(volatile unsigned char *)(p) = (v))
-
-#define inb_t(p)								\
-	(*(volatile unsigned char *)(p))
-
-#define outl_t(v,p)								\
-	(*(volatile unsigned long *)(p) = (v))
-
-#define inl_t(p)								\
-	(*(volatile unsigned long *)(p))
-
 #endif
