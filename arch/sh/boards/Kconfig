@@ -126,6 +126,10 @@ config SH_RTS7751R2D
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
 
+config SH_RSK7201
+	bool "RSK7201"
+	depends on CPU_SUBTYPE_SH7201
+
 config SH_RSK7203
 	bool "RSK7203"
 	select GENERIC_GPIO
