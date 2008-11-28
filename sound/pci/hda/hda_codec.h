@@ -784,6 +784,10 @@ struct hda_codec {
 	int power_count;	/* current (global) power refcount */
 	struct delayed_work power_work; /* delayed task for powerdown */
 #endif
+
+	/* codec-specific additional proc output */
+	void (*proc_widget_hook)(struct snd_info_buffer *buffer,
+				 struct hda_codec *codec, hda_nid_t nid);
 };
 
 /* direction */

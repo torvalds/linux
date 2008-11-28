@@ -414,17 +414,6 @@ static void print_conn_list(struct snd_info_buffer *buffer,
 	}
 }
 
-static void print_realtek_coef(struct snd_info_buffer *buffer,
-			       struct hda_codec *codec, hda_nid_t nid)
-{
-	int coeff = snd_hda_codec_read(codec, nid, 0,
-				       AC_VERB_GET_PROC_COEF, 0);
-	snd_iprintf(buffer, "  Processing Coefficient: 0x%02x\n", coeff);
-	coeff = snd_hda_codec_read(codec, nid, 0,
-				   AC_VERB_GET_COEF_INDEX, 0);
-	snd_iprintf(buffer, "  Coefficient Index: 0x%02x\n", coeff);
-}
-
 static void print_gpio(struct snd_info_buffer *buffer,
 		       struct hda_codec *codec, hda_nid_t nid)
 {
@@ -606,9 +595,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_caps & AC_WCAP_PROC_WID)
 			print_proc_caps(buffer, codec, nid);
 
-		/* NID 0x20 == Realtek Define Registers */
-		if (codec->vendor_id == 0x10ec && nid == 0x20)
-			print_realtek_coef(buffer, codec, nid);
+		if (codec->proc_widget_hook)
+			codec->proc_widget_hook(buffer, codec, nid);
 	}
 	snd_hda_power_down(codec);
 }
