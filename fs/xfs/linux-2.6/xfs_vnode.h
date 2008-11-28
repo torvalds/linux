@@ -18,7 +18,10 @@
 #ifndef __XFS_VNODE_H__
 #define __XFS_VNODE_H__
 
+#include "xfs_fs.h"
+
 struct file;
+struct xfs_inode;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
 

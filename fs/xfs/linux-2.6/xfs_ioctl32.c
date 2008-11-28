@@ -36,7 +36,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dir2_sf.h"
-#include "xfs_vfs.h"
 #include "xfs_vnode.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"

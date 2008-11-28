@@ -80,7 +80,6 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include <xfs_vfs.h>
 #include <xfs_cred.h>
 #include <xfs_vnode.h>
 #include <xfs_stats.h>
