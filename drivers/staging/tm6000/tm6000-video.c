@@ -139,6 +139,7 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 
 	if (list_empty(&dma_q->active)) {
 		dprintk(dev, V4L2_DEBUG_QUEUE, "No active queue to serve\n");
+		*buf = NULL;
 		return;
 	}
 
