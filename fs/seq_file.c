@@ -387,7 +387,7 @@ char *mangle_path(char *s, char *p, char *esc)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(mangle_path);
+EXPORT_SYMBOL(mangle_path);
 
 /*
  * return the absolute path of 'dentry' residing in mount 'mnt'.
