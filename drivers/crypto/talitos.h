@@ -134,34 +134,34 @@
  */
 
 /* written back when done */
-#define DESC_HDR_DONE			__constant_cpu_to_be32(0xff000000)
-#define DESC_HDR_LO_ICCR1_MASK		__constant_cpu_to_be32(0x00180000)
-#define DESC_HDR_LO_ICCR1_PASS		__constant_cpu_to_be32(0x00080000)
-#define DESC_HDR_LO_ICCR1_FAIL		__constant_cpu_to_be32(0x00100000)
+#define DESC_HDR_DONE			cpu_to_be32(0xff000000)
+#define DESC_HDR_LO_ICCR1_MASK		cpu_to_be32(0x00180000)
+#define DESC_HDR_LO_ICCR1_PASS		cpu_to_be32(0x00080000)
+#define DESC_HDR_LO_ICCR1_FAIL		cpu_to_be32(0x00100000)
 
 /* primary execution unit select */
-#define	DESC_HDR_SEL0_MASK		__constant_cpu_to_be32(0xf0000000)
-#define	DESC_HDR_SEL0_AFEU		__constant_cpu_to_be32(0x10000000)
-#define	DESC_HDR_SEL0_DEU		__constant_cpu_to_be32(0x20000000)
-#define	DESC_HDR_SEL0_MDEUA		__constant_cpu_to_be32(0x30000000)
-#define	DESC_HDR_SEL0_MDEUB		__constant_cpu_to_be32(0xb0000000)
-#define	DESC_HDR_SEL0_RNG		__constant_cpu_to_be32(0x40000000)
-#define	DESC_HDR_SEL0_PKEU		__constant_cpu_to_be32(0x50000000)
-#define	DESC_HDR_SEL0_AESU		__constant_cpu_to_be32(0x60000000)
-#define	DESC_HDR_SEL0_KEU		__constant_cpu_to_be32(0x70000000)
-#define	DESC_HDR_SEL0_CRCU		__constant_cpu_to_be32(0x80000000)
+#define	DESC_HDR_SEL0_MASK		cpu_to_be32(0xf0000000)
+#define	DESC_HDR_SEL0_AFEU		cpu_to_be32(0x10000000)
+#define	DESC_HDR_SEL0_DEU		cpu_to_be32(0x20000000)
+#define	DESC_HDR_SEL0_MDEUA		cpu_to_be32(0x30000000)
+#define	DESC_HDR_SEL0_MDEUB		cpu_to_be32(0xb0000000)
+#define	DESC_HDR_SEL0_RNG		cpu_to_be32(0x40000000)
+#define	DESC_HDR_SEL0_PKEU		cpu_to_be32(0x50000000)
+#define	DESC_HDR_SEL0_AESU		cpu_to_be32(0x60000000)
+#define	DESC_HDR_SEL0_KEU		cpu_to_be32(0x70000000)
+#define	DESC_HDR_SEL0_CRCU		cpu_to_be32(0x80000000)
 
 /* primary execution unit mode (MODE0) and derivatives */
-#define	DESC_HDR_MODE0_ENCRYPT		__constant_cpu_to_be32(0x00100000)
-#define	DESC_HDR_MODE0_AESU_CBC		__constant_cpu_to_be32(0x00200000)
-#define	DESC_HDR_MODE0_DEU_CBC		__constant_cpu_to_be32(0x00400000)
-#define	DESC_HDR_MODE0_DEU_3DES		__constant_cpu_to_be32(0x00200000)
-#define	DESC_HDR_MODE0_MDEU_INIT	__constant_cpu_to_be32(0x01000000)
-#define	DESC_HDR_MODE0_MDEU_HMAC	__constant_cpu_to_be32(0x00800000)
-#define	DESC_HDR_MODE0_MDEU_PAD		__constant_cpu_to_be32(0x00400000)
-#define	DESC_HDR_MODE0_MDEU_MD5		__constant_cpu_to_be32(0x00200000)
-#define	DESC_HDR_MODE0_MDEU_SHA256	__constant_cpu_to_be32(0x00100000)
-#define	DESC_HDR_MODE0_MDEU_SHA1	__constant_cpu_to_be32(0x00000000)
+#define	DESC_HDR_MODE0_ENCRYPT		cpu_to_be32(0x00100000)
+#define	DESC_HDR_MODE0_AESU_CBC		cpu_to_be32(0x00200000)
+#define	DESC_HDR_MODE0_DEU_CBC		cpu_to_be32(0x00400000)
+#define	DESC_HDR_MODE0_DEU_3DES		cpu_to_be32(0x00200000)
+#define	DESC_HDR_MODE0_MDEU_INIT	cpu_to_be32(0x01000000)
+#define	DESC_HDR_MODE0_MDEU_HMAC	cpu_to_be32(0x00800000)
+#define	DESC_HDR_MODE0_MDEU_PAD		cpu_to_be32(0x00400000)
+#define	DESC_HDR_MODE0_MDEU_MD5		cpu_to_be32(0x00200000)
+#define	DESC_HDR_MODE0_MDEU_SHA256	cpu_to_be32(0x00100000)
+#define	DESC_HDR_MODE0_MDEU_SHA1	cpu_to_be32(0x00000000)
 #define	DESC_HDR_MODE0_MDEU_MD5_HMAC	(DESC_HDR_MODE0_MDEU_MD5 | \
 					 DESC_HDR_MODE0_MDEU_HMAC)
 #define	DESC_HDR_MODE0_MDEU_SHA256_HMAC	(DESC_HDR_MODE0_MDEU_SHA256 | \
@@ -170,19 +170,19 @@
 					 DESC_HDR_MODE0_MDEU_HMAC)
 
 /* secondary execution unit select (SEL1) */
-#define	DESC_HDR_SEL1_MASK		__constant_cpu_to_be32(0x000f0000)
-#define	DESC_HDR_SEL1_MDEUA		__constant_cpu_to_be32(0x00030000)
-#define	DESC_HDR_SEL1_MDEUB		__constant_cpu_to_be32(0x000b0000)
-#define	DESC_HDR_SEL1_CRCU		__constant_cpu_to_be32(0x00080000)
+#define	DESC_HDR_SEL1_MASK		cpu_to_be32(0x000f0000)
+#define	DESC_HDR_SEL1_MDEUA		cpu_to_be32(0x00030000)
+#define	DESC_HDR_SEL1_MDEUB		cpu_to_be32(0x000b0000)
+#define	DESC_HDR_SEL1_CRCU		cpu_to_be32(0x00080000)
 
 /* secondary execution unit mode (MODE1) and derivatives */
-#define	DESC_HDR_MODE1_MDEU_CICV	__constant_cpu_to_be32(0x00004000)
-#define	DESC_HDR_MODE1_MDEU_INIT	__constant_cpu_to_be32(0x00001000)
-#define	DESC_HDR_MODE1_MDEU_HMAC	__constant_cpu_to_be32(0x00000800)
-#define	DESC_HDR_MODE1_MDEU_PAD		__constant_cpu_to_be32(0x00000400)
-#define	DESC_HDR_MODE1_MDEU_MD5		__constant_cpu_to_be32(0x00000200)
-#define	DESC_HDR_MODE1_MDEU_SHA256	__constant_cpu_to_be32(0x00000100)
-#define	DESC_HDR_MODE1_MDEU_SHA1	__constant_cpu_to_be32(0x00000000)
+#define	DESC_HDR_MODE1_MDEU_CICV	cpu_to_be32(0x00004000)
+#define	DESC_HDR_MODE1_MDEU_INIT	cpu_to_be32(0x00001000)
+#define	DESC_HDR_MODE1_MDEU_HMAC	cpu_to_be32(0x00000800)
+#define	DESC_HDR_MODE1_MDEU_PAD		cpu_to_be32(0x00000400)
+#define	DESC_HDR_MODE1_MDEU_MD5		cpu_to_be32(0x00000200)
+#define	DESC_HDR_MODE1_MDEU_SHA256	cpu_to_be32(0x00000100)
+#define	DESC_HDR_MODE1_MDEU_SHA1	cpu_to_be32(0x00000000)
 #define	DESC_HDR_MODE1_MDEU_MD5_HMAC	(DESC_HDR_MODE1_MDEU_MD5 | \
 					 DESC_HDR_MODE1_MDEU_HMAC)
 #define	DESC_HDR_MODE1_MDEU_SHA256_HMAC	(DESC_HDR_MODE1_MDEU_SHA256 | \
@@ -191,16 +191,16 @@
 					 DESC_HDR_MODE1_MDEU_HMAC)
 
 /* direction of overall data flow (DIR) */
-#define	DESC_HDR_DIR_INBOUND		__constant_cpu_to_be32(0x00000002)
+#define	DESC_HDR_DIR_INBOUND		cpu_to_be32(0x00000002)
 
 /* request done notification (DN) */
-#define	DESC_HDR_DONE_NOTIFY		__constant_cpu_to_be32(0x00000001)
+#define	DESC_HDR_DONE_NOTIFY		cpu_to_be32(0x00000001)
 
 /* descriptor types */
-#define DESC_HDR_TYPE_AESU_CTR_NONSNOOP		__constant_cpu_to_be32(0 << 3)
-#define DESC_HDR_TYPE_IPSEC_ESP			__constant_cpu_to_be32(1 << 3)
-#define DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU	__constant_cpu_to_be32(2 << 3)
-#define DESC_HDR_TYPE_HMAC_SNOOP_NO_AFEU	__constant_cpu_to_be32(4 << 3)
+#define DESC_HDR_TYPE_AESU_CTR_NONSNOOP		cpu_to_be32(0 << 3)
+#define DESC_HDR_TYPE_IPSEC_ESP			cpu_to_be32(1 << 3)
+#define DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU	cpu_to_be32(2 << 3)
+#define DESC_HDR_TYPE_HMAC_SNOOP_NO_AFEU	cpu_to_be32(4 << 3)
 
 /* link table extent field bits */
 #define DESC_PTR_LNKTBL_JUMP			0x80
