@@ -25,6 +25,18 @@
 
 #include "generic.h"
 
+#define GPIO0_BASE	((void __iomem *)io_p2v(0x40E00000))
+#define GPIO1_BASE	((void __iomem *)io_p2v(0x40E00004))
+#define GPIO2_BASE	((void __iomem *)io_p2v(0x40E00008))
+#define GPIO3_BASE	((void __iomem *)io_p2v(0x40E00100))
+
+#define GPLR_OFFSET	0x00
+#define GPDR_OFFSET	0x0C
+#define GPSR_OFFSET	0x18
+#define GPCR_OFFSET	0x24
+#define GRER_OFFSET	0x30
+#define GFER_OFFSET	0x3C
+#define GEDR_OFFSET	0x48
 
 struct pxa_gpio_chip {
 	struct gpio_chip chip;

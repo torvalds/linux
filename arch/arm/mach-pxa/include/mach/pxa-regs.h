@@ -203,19 +203,6 @@
  * General Purpose I/O
  */
 
-#define GPIO0_BASE	((void __iomem *)io_p2v(0x40E00000))
-#define GPIO1_BASE	((void __iomem *)io_p2v(0x40E00004))
-#define GPIO2_BASE	((void __iomem *)io_p2v(0x40E00008))
-#define GPIO3_BASE	((void __iomem *)io_p2v(0x40E00100))
-
-#define GPLR_OFFSET	0x00
-#define GPDR_OFFSET	0x0C
-#define GPSR_OFFSET	0x18
-#define GPCR_OFFSET	0x24
-#define GRER_OFFSET	0x30
-#define GFER_OFFSET	0x3C
-#define GEDR_OFFSET	0x48
-
 #define GPLR0		__REG(0x40E00000)  /* GPIO Pin-Level Register GPIO<31:0> */
 #define GPLR1		__REG(0x40E00004)  /* GPIO Pin-Level Register GPIO<63:32> */
 #define GPLR2		__REG(0x40E00008)  /* GPIO Pin-Level Register GPIO<80:64> */
@@ -265,10 +252,6 @@
 
 #define GPIO_bit(x)	(1 << ((x) & 0x1f))
 
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-
-/* Interrupt Controller */
-
 #define _GPLR(x)	__REG2(0x40E00000, ((x) & 0x60) >> 3)
 #define _GPDR(x)	__REG2(0x40E0000C, ((x) & 0x60) >> 3)
 #define _GPSR(x)	__REG2(0x40E00018, ((x) & 0x60) >> 3)
@@ -287,18 +270,7 @@
 #define GEDR(x)		(*((((x) & 0x7f) < 96) ? &_GEDR(x) : &GEDR3))
 #define GAFR(x)		(*((((x) & 0x7f) < 96) ? &_GAFR(x) : \
 			 ((((x) & 0x7f) < 112) ? &GAFR3_L : &GAFR3_U)))
-#else
 
-#define GPLR(x)		__REG2(0x40E00000, ((x) & 0x60) >> 3)
-#define GPDR(x)		__REG2(0x40E0000C, ((x) & 0x60) >> 3)
-#define GPSR(x)		__REG2(0x40E00018, ((x) & 0x60) >> 3)
-#define GPCR(x)		__REG2(0x40E00024, ((x) & 0x60) >> 3)
-#define GRER(x)		__REG2(0x40E00030, ((x) & 0x60) >> 3)
-#define GFER(x)		__REG2(0x40E0003C, ((x) & 0x60) >> 3)
-#define GEDR(x)		__REG2(0x40E00048, ((x) & 0x60) >> 3)
-#define GAFR(x)		__REG2(0x40E00054, ((x) & 0x70) >> 2)
-
-#endif
 
 /*
  * Power Manager - see pxa2xx-regs.h
