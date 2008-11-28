@@ -159,8 +159,7 @@ typedef struct xfs_icdinode {
 /*
  * Flags for xfs_inotobp, xfs_imap() and xfs_dilocate().
  */
-#define XFS_IMAP_LOOKUP		0x1
-#define XFS_IMAP_BULKSTAT	0x2
+#define XFS_IMAP_BULKSTAT	0x1
 
 /*
  * Fork handling.

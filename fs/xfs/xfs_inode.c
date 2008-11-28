@@ -237,7 +237,7 @@ xfs_inotobp(
 	int		error;
 
 	imap.im_blkno = 0;
-	error = xfs_imap(mp, tp, ino, &imap, imap_flags | XFS_IMAP_LOOKUP);
+	error = xfs_imap(mp, tp, ino, &imap, imap_flags);
 	if (error)
 		return error;
 
@@ -868,8 +868,7 @@ xfs_iread(
 	 * Get pointers to the on-disk inode and the buffer containing it.
 	 */
 	imap.im_blkno = bno;
-	error = xfs_imap(mp, tp, ip->i_ino, &imap,
-				XFS_IMAP_LOOKUP | imap_flags);
+	error = xfs_imap(mp, tp, ip->i_ino, &imap, imap_flags);
 	if (error)
 		goto out_destroy_inode;
 

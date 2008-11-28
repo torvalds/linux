@@ -2245,7 +2245,6 @@ xlog_recover_do_inode_trans(
 	xfs_inode_log_format_t	*in_f;
 	xfs_mount_t		*mp;
 	xfs_buf_t		*bp;
-	xfs_imap_t		imap;
 	xfs_dinode_t		*dip;
 	xfs_ino_t		ino;
 	int			len;
@@ -2273,48 +2272,29 @@ xlog_recover_do_inode_trans(
 	}
 	ino = in_f->ilf_ino;
 	mp = log->l_mp;
-	if (ITEM_TYPE(item) == XFS_LI_INODE) {
-		imap.im_blkno = (xfs_daddr_t)in_f->ilf_blkno;
-		imap.im_len = in_f->ilf_len;
-		imap.im_boffset = in_f->ilf_boffset;
-	} else {
-		/*
-		 * It's an old inode format record.  We don't know where
-		 * its cluster is located on disk, and we can't allow
-		 * xfs_imap() to figure it out because the inode btrees
-		 * are not ready to be used.  Therefore do not pass the
-		 * XFS_IMAP_LOOKUP flag to xfs_imap().  This will give
-		 * us only the single block in which the inode lives
-		 * rather than its cluster, so we must make sure to
-		 * invalidate the buffer when we write it out below.
-		 */
-		imap.im_blkno = 0;
-		error = xfs_imap(log->l_mp, NULL, ino, &imap, 0);
-		if (error)
-			goto error;
-	}
 
 	/*
 	 * Inode buffers can be freed, look out for it,
 	 * and do not replay the inode.
 	 */
-	if (xlog_check_buffer_cancelled(log, imap.im_blkno, imap.im_len, 0)) {
+	if (xlog_check_buffer_cancelled(log, in_f->ilf_blkno,
+					in_f->ilf_len, 0)) {
 		error = 0;
 		goto error;
 	}
 
-	bp = xfs_buf_read_flags(mp->m_ddev_targp, imap.im_blkno, imap.im_len,
-								XFS_BUF_LOCK);
+	bp = xfs_buf_read_flags(mp->m_ddev_targp, in_f->ilf_blkno,
+				in_f->ilf_len, XFS_BUF_LOCK);
 	if (XFS_BUF_ISERROR(bp)) {
 		xfs_ioerror_alert("xlog_recover_do..(read#2)", mp,
-				  bp, imap.im_blkno);
+				  bp, in_f->ilf_blkno);
 		error = XFS_BUF_GETERROR(bp);
 		xfs_buf_relse(bp);
 		goto error;
 	}
 	error = 0;
 	ASSERT(in_f->ilf_fields & XFS_ILOG_CORE);
-	dip = (xfs_dinode_t *)xfs_buf_offset(bp, imap.im_boffset);
+	dip = (xfs_dinode_t *)xfs_buf_offset(bp, in_f->ilf_boffset);
 
 	/*
 	 * Make sure the place we're flushing out to really looks
