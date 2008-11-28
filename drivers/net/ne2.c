@@ -137,9 +137,6 @@ extern int netcard_probe(struct net_device *dev);
 
 static int ne2_probe1(struct net_device *dev, int slot);
 
-static int ne_open(struct net_device *dev);
-static int ne_close(struct net_device *dev);
-
 static void ne_reset_8390(struct net_device *dev);
 static void ne_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 		int ring_page);
