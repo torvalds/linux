@@ -216,8 +216,8 @@ int blk_do_ordered(struct request_queue *q, struct request **rqp)
 			return 1;
 		} else {
 			/*
-			 * This can happen when the queue switches to
-			 * ORDERED_NONE while this request is on it.
+			 * Queue ordering not supported.  Terminate
+			 * with prejudice.
 			 */
 			elv_dequeue_request(q, rq);
 			if (__blk_end_request(rq, -EOPNOTSUPP,

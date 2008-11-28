@@ -1139,7 +1139,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 static int __make_request(struct request_queue *q, struct bio *bio)
 {
 	struct request *req;
-	int el_ret, nr_sectors, barrier, discard, err;
+	int el_ret, nr_sectors;
 	const unsigned short prio = bio_prio(bio);
 	const int sync = bio_sync(bio);
 	int rw_flags;
@@ -1153,22 +1153,9 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	 */
 	blk_queue_bounce(q, &bio);
 
-	barrier = bio_barrier(bio);
-	if (unlikely(barrier) && bio_has_data(bio) &&
-	    (q->next_ordered == QUEUE_ORDERED_NONE)) {
-		err = -EOPNOTSUPP;
-		goto end_io;
-	}
-
-	discard = bio_discard(bio);
-	if (unlikely(discard) && !q->prepare_discard_fn) {
-		err = -EOPNOTSUPP;
-		goto end_io;
-	}
-
 	spin_lock_irq(q->queue_lock);
 
-	if (unlikely(barrier) || elv_queue_empty(q))
+	if (unlikely(bio_barrier(bio)) || elv_queue_empty(q))
 		goto get_rq;
 
 	el_ret = elv_merge(q, &req, bio);
@@ -1261,10 +1248,6 @@ out:
 	if (sync)
 		__generic_unplug_device(q);
 	spin_unlock_irq(q->queue_lock);
-	return 0;
-
-end_io:
-	bio_endio(bio, err);
 	return 0;
 }
 
@@ -1418,15 +1401,13 @@ static inline void __generic_make_request(struct bio *bio)
 		char b[BDEVNAME_SIZE];
 
 		q = bdev_get_queue(bio->bi_bdev);
-		if (!q) {
+		if (unlikely(!q)) {
 			printk(KERN_ERR
 			       "generic_make_request: Trying to access "
 				"nonexistent block-device %s (%Lu)\n",
 				bdevname(bio->bi_bdev, b),
 				(long long) bio->bi_sector);
-end_io:
-			bio_endio(bio, err);
-			break;
+			goto end_io;
 		}
 
 		if (unlikely(nr_sectors > q->max_hw_sectors)) {
@@ -1463,14 +1444,19 @@ end_io:
 
 		if (bio_check_eod(bio, nr_sectors))
 			goto end_io;
-		if ((bio_empty_barrier(bio) && !q->prepare_flush_fn) ||
-		    (bio_discard(bio) && !q->prepare_discard_fn)) {
+
+		if (bio_discard(bio) && !q->prepare_discard_fn) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
+
+	return;
+
+end_io:
+	bio_endio(bio, err);
 }
 
 /*
@@ -1719,14 +1705,6 @@ static int __end_that_request_first(struct request *req, int error,
 	total_bytes = bio_nbytes = 0;
 	while ((bio = req->bio) != NULL) {
 		int nbytes;
-
-		/*
-		 * For an empty barrier request, the low level driver must
-		 * store a potential error location in ->sector. We pass
-		 * that back up in ->bi_sector.
-		 */
-		if (blk_empty_barrier(req))
-			bio->bi_sector = req->sector;
 
 		if (nr_bytes >= bio->bi_size) {
 			req->bio = bio->bi_next;
