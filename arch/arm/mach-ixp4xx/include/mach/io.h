@@ -49,8 +49,6 @@ extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
 
 #else
 
-#include <linux/mm.h>
-
 /*
  * In the case of using indirect PCI, we simply return the actual PCI
  * address and our read/write implementation use that to drive the 

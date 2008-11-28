@@ -11,10 +11,8 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H
 
-#include <linux/device.h>
-#include <asm/page.h>
+#include <asm/memory.h>
 #include <asm/sizes.h>
-#include <mach/hardware.h>
 
 #define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_64M)
 
