@@ -158,19 +158,10 @@ static inline struct request *start_ordered(struct request_queue *q,
 	q->ordered = q->next_ordered;
 	q->ordseq |= QUEUE_ORDSEQ_STARTED;
 
-	/*
-	 * Prep proxy barrier request.
-	 */
+	/* stash away the original request */
 	elv_dequeue_request(q, rq);
 	q->orig_bar_rq = rq;
-	rq = &q->bar_rq;
-	blk_rq_init(q, rq);
-	if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
-		rq->cmd_flags |= REQ_RW;
-	if (q->ordered & QUEUE_ORDERED_DO_FUA)
-		rq->cmd_flags |= REQ_FUA;
-	init_request_from_bio(rq, q->orig_bar_rq->bio);
-	rq->end_io = bar_end_io;
+	rq = NULL;
 
 	/*
 	 * Queue ordered sequence.  As we stack them at the head, we
@@ -181,12 +172,28 @@ static inline struct request *start_ordered(struct request_queue *q,
 	 * there will be no data written between the pre and post flush.
 	 * Hence a single flush will suffice.
 	 */
-	if ((q->ordered & QUEUE_ORDERED_DO_POSTFLUSH) && !blk_empty_barrier(rq))
+	if ((q->ordered & QUEUE_ORDERED_DO_POSTFLUSH) &&
+	    !blk_empty_barrier(q->orig_bar_rq)) {
 		queue_flush(q, QUEUE_ORDERED_DO_POSTFLUSH);
-	else
+		rq = &q->post_flush_rq;
+	} else
 		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
 
-	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
+	if (q->ordered & QUEUE_ORDERED_DO_BAR) {
+		rq = &q->bar_rq;
+
+		/* initialize proxy request and queue it */
+		blk_rq_init(q, rq);
+		if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
+			rq->cmd_flags |= REQ_RW;
+		if (q->ordered & QUEUE_ORDERED_DO_FUA)
+			rq->cmd_flags |= REQ_FUA;
+		init_request_from_bio(rq, q->orig_bar_rq->bio);
+		rq->end_io = bar_end_io;
+
+		elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
+	} else
+		q->ordseq |= QUEUE_ORDSEQ_BAR;
 
 	if (q->ordered & QUEUE_ORDERED_DO_PREFLUSH) {
 		queue_flush(q, QUEUE_ORDERED_DO_PREFLUSH);
@@ -194,10 +201,10 @@ static inline struct request *start_ordered(struct request_queue *q,
 	} else
 		q->ordseq |= QUEUE_ORDSEQ_PREFLUSH;
 
-	if ((q->ordered & QUEUE_ORDERED_BY_TAG) || q->in_flight == 0)
-		q->ordseq |= QUEUE_ORDSEQ_DRAIN;
-	else
+	if ((q->ordered & QUEUE_ORDERED_BY_DRAIN) && q->in_flight)
 		rq = NULL;
+	else
+		q->ordseq |= QUEUE_ORDSEQ_DRAIN;
 
 	return rq;
 }
