@@ -259,12 +259,6 @@ int __init rb532_gpio_init(void)
 		return -ENXIO;
 	}
 
-	/* configure CF_GPIO_NUM as CFRDY IRQ source */
-	rb532_gpio_set_func(0, CF_GPIO_NUM);
-	rb532_gpio_direction_input(&rb532_gpio_chip->chip, CF_GPIO_NUM);
-	rb532_gpio_set_ilevel(1, CF_GPIO_NUM);
-	rb532_gpio_set_istat(0, CF_GPIO_NUM);
-
 	return 0;
 }
 arch_initcall(rb532_gpio_init);
