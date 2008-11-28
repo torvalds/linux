@@ -319,26 +319,6 @@ void __init pxa27x_init_irq(void)
 /*
  * device registration specific to PXA27x.
  */
-
-static struct resource i2c_power_resources[] = {
-	{
-		.start	= 0x40f00180,
-		.end	= 0x40f001a3,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_PWRI2C,
-		.end	= IRQ_PWRI2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device pxa27x_device_i2c_power = {
-	.name		= "pxa2xx-i2c",
-	.id		= 1,
-	.resource	= i2c_power_resources,
-	.num_resources	= ARRAY_SIZE(i2c_power_resources),
-};
-
 void __init pxa27x_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 {
 	local_irq_disable();

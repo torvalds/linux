@@ -261,6 +261,48 @@ void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 	pxa_register_device(&pxa_device_i2c, info);
 }
 
+#ifdef CONFIG_PXA27x
+static struct resource pxa27x_resources_i2c_power[] = {
+	{
+		.start	= 0x40f00180,
+		.end	= 0x40f001a3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PWRI2C,
+		.end	= IRQ_PWRI2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa27x_device_i2c_power = {
+	.name		= "pxa2xx-i2c",
+	.id		= 1,
+	.resource	= pxa27x_resources_i2c_power,
+	.num_resources	= ARRAY_SIZE(pxa27x_resources_i2c_power),
+};
+#endif
+
+#ifdef CONFIG_PXA3xx
+static struct resource pxa3xx_resources_i2c_power[] = {
+	{
+		.start  = 0x40f500c0,
+		.end    = 0x40f500d3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PWRI2C,
+		.end	= IRQ_PWRI2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa3xx_device_i2c_power = {
+	.name		= "pxa2xx-i2c",
+	.id		= 1,
+	.resource	= pxa3xx_resources_i2c_power,
+	.num_resources	= ARRAY_SIZE(pxa3xx_resources_i2c_power),
+};
+#endif
+
 static struct resource pxai2s_resources[] = {
 	{
 		.start	= 0x40400000,

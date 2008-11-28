@@ -529,25 +529,6 @@ void __init pxa3xx_init_irq(void)
  * device registration specific to PXA3xx.
  */
 
-static struct resource i2c_power_resources[] = {
-	{
-		.start  = 0x40f500c0,
-		.end    = 0x40f500d3,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_PWRI2C,
-		.end	= IRQ_PWRI2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device pxa3xx_device_i2c_power = {
-	.name		= "pxa2xx-i2c",
-	.id		= 1,
-	.resource	= i2c_power_resources,
-	.num_resources	= ARRAY_SIZE(i2c_power_resources),
-};
-
 void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 {
 	pxa3xx_device_i2c_power.dev.platform_data = info;
