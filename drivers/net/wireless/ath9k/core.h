@@ -92,6 +92,7 @@ struct ath9k_debug {
 	int debug_mask;
 	struct dentry *debugfs_root;
 	struct dentry *debugfs_phy;
+	struct dentry *debugfs_dma;
 };
 
 void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...);

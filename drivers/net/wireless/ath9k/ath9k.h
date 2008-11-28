@@ -1009,7 +1009,6 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hal *ah, enum ath9k_int ints);
 
 /* MAC (PCU/QCU) */
 
-void ath9k_hw_dmaRegDump(struct ath_hal *ah);
 u32 ath9k_hw_gettxbuf(struct ath_hal *ah, u32 q);
 bool ath9k_hw_puttxbuf(struct ath_hal *ah, u32 q, u32 txdp);
 bool ath9k_hw_txstart(struct ath_hal *ah, u32 q);

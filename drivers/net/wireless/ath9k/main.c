@@ -17,6 +17,7 @@
 #include <linux/nl80211.h>
 #include "core.h"
 #include "reg.h"
+#include "hw.h"
 
 #define ATH_PCI_VERSION "0.1"
 
