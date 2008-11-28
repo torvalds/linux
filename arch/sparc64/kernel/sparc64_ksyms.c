@@ -49,6 +49,7 @@
 #include <asm/timer.h>
 #include <asm/cpudata.h>
 #include <asm/ftrace.h>
+#include <asm/hypervisor.h>
 
 struct poll {
 	int fd;
@@ -147,6 +148,11 @@ EXPORT_SYMBOL(flush_dcache_page);
 #ifdef DCACHE_ALIASING_POSSIBLE
 EXPORT_SYMBOL(__flush_dcache_range);
 #endif
+
+EXPORT_SYMBOL(sun4v_niagara_getperf);
+EXPORT_SYMBOL(sun4v_niagara_setperf);
+EXPORT_SYMBOL(sun4v_niagara2_getperf);
+EXPORT_SYMBOL(sun4v_niagara2_setperf);
 
 #ifdef CONFIG_SUN_AUXIO
 EXPORT_SYMBOL(auxio_set_led);
