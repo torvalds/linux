@@ -55,6 +55,10 @@ static unsigned long pcm990_pin_config[] __initdata = {
 	GPIO89_USBH1_PEN,
 	/* PWM0 */
 	GPIO16_PWM0_OUT,
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
 };
 
 /*

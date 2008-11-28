@@ -112,6 +112,10 @@ static unsigned long ezx_pin_config[] __initdata = {
 	GPIO91_USB_P3_1,	/* ICL_XRXD */
 	GPIO56_USB_P3_4,	/* ICL_VMOUT */
 	GPIO113_USB_P3_3,	/* /ICL_VMIN */
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
 };
 
 static void __init ezx_init(void)

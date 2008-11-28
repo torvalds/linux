@@ -122,6 +122,10 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO105_GPIO,	/* SPITZ_GPIO_CF_IRQ */
 	GPIO106_GPIO,	/* SPITZ_GPIO_CF2_IRQ */
 
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+
 	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
 };
 

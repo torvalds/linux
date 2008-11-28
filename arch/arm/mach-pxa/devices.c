@@ -10,7 +10,6 @@
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/i2c.h>
-#include <mach/mfp-pxa27x.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/pxa2xx_spi.h>
@@ -249,15 +248,8 @@ struct platform_device pxa_device_i2c = {
 	.num_resources	= ARRAY_SIZE(pxai2c_resources),
 };
 
-static unsigned long pxa27x_i2c_mfp_cfg[] = {
-	GPIO117_I2C_SCL,
-	GPIO118_I2C_SDA,
-};
-
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
-	if (cpu_is_pxa27x())
-		pxa2xx_mfp_config(ARRAY_AND_SIZE(pxa27x_i2c_mfp_cfg));
 	pxa_register_device(&pxa_device_i2c, info);
 }
 
