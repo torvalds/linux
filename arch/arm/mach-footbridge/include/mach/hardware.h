@@ -28,9 +28,6 @@
 #define XBUS_SIZE		0x00100000
 #define XBUS_BASE		0xff800000
 
-#define PCIO_SIZE		0x00100000
-#define PCIO_BASE		0xff000000
-
 #define ARMCSR_SIZE		0x00100000
 #define ARMCSR_BASE		0xfe000000
 

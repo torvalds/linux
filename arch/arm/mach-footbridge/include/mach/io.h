@@ -14,7 +14,8 @@
 #ifndef __ASM_ARM_ARCH_IO_H
 #define __ASM_ARM_ARCH_IO_H
 
-#include <mach/hardware.h>
+#define PCIO_SIZE		0x00100000
+#define PCIO_BASE		0xff000000
 
 #define IO_SPACE_LIMIT 0xffff
 
