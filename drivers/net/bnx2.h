@@ -6872,8 +6872,6 @@ struct bnx2 {
 	int			pm_cap;
 	int			pcix_cap;
 
-	struct net_device_stats net_stats;
-
 	struct flash_spec	*flash_info;
 	u32			flash_size;
 

@@ -6155,7 +6155,7 @@ bnx2_get_stats(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	struct statistics_block *stats_blk = bp->stats_blk;
-	struct net_device_stats *net_stats = &bp->net_stats;
+	struct net_device_stats *net_stats = &dev->stats;
 
 	if (bp->stats_blk == NULL) {
 		return net_stats;
