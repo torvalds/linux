@@ -238,7 +238,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		hdr->flags = cpu_to_le32(flags);
 		hdr->len = 0;
 		hdr->rts_duration = rts_dur;
-		hdr->retry = cpu_to_le32(info->control.rates[0].count << 8);
+		hdr->retry = cpu_to_le32((info->control.rates[0].count - 1) << 8);
 		buf = hdr;
 
 		ep = 2;
@@ -256,7 +256,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		memset(hdr, 0, sizeof(*hdr));
 		hdr->flags = cpu_to_le32(flags);
 		hdr->rts_duration = rts_dur;
-		hdr->retry = cpu_to_le32(info->control.rates[0].count << 8);
+		hdr->retry = cpu_to_le32((info->control.rates[0].count - 1) << 8);
 		hdr->tx_duration =
 			ieee80211_generic_frame_duration(dev, priv->vif,
 							 skb->len, txrate);
