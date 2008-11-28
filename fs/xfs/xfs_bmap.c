@@ -5819,6 +5819,9 @@ xfs_getbmapx_fix_eof_hole(
 {
 	__int64_t		fixlen;
 	xfs_mount_t		*mp;		/* file system mount point */
+	xfs_ifork_t		*ifp;		/* inode fork pointer */
+	xfs_extnum_t		lastx;		/* last extent pointer */
+	xfs_fileoff_t		fileblock;
 
 	if (startblock == HOLESTARTBLOCK) {
 		mp = ip->i_mount;
@@ -5832,7 +5835,15 @@ xfs_getbmapx_fix_eof_hole(
 			out->bmv_length = fixlen;
 		}
 	} else {
-		out->bmv_block = XFS_FSB_TO_DB(ip, startblock);
+		if (startblock == DELAYSTARTBLOCK)
+			out->bmv_block = -2;
+		else
+			out->bmv_block = XFS_FSB_TO_DB(ip, startblock);
+		fileblock = XFS_BB_TO_FSB(ip->i_mount, out->bmv_offset);
+		ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+		if (xfs_iext_bno_to_ext(ifp, fileblock, &lastx) &&
+		   (lastx == (ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t))-1))
+			out->bmv_oflags |= BMV_OF_LAST;
 	}
 
 	return 1;
@@ -5867,8 +5878,6 @@ xfs_getbmap(
 	int			whichfork;	/* data or attr fork */
 	int			prealloced;	/* this is a file with
 						 * preallocated data space */
-	int			sh_unwritten;	/* true, if unwritten */
-						/* extents listed separately */
 	int			iflags;		/* interface flags */
 	int			bmapi_flags;	/* flags for xfs_bmapi */
 
@@ -5876,7 +5885,6 @@ xfs_getbmap(
 	iflags = bmv->bmv_iflags;
 
 	whichfork = iflags & BMV_IF_ATTRFORK ? XFS_ATTR_FORK : XFS_DATA_FORK;
-	sh_unwritten = (iflags & BMV_IF_PREALLOC) != 0;
 
 	/*	If the BMV_IF_NO_DMAPI_READ interface bit specified, do not
 	 *	generate a DMAPI read event.  Otherwise, if the DM_EVENT_READ
@@ -5947,8 +5955,9 @@ xfs_getbmap(
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
-	if (whichfork == XFS_DATA_FORK &&
-		(ip->i_delayed_blks || ip->i_size > ip->i_d.di_size)) {
+	if (((iflags & BMV_IF_DELALLOC) == 0) &&
+	    (whichfork == XFS_DATA_FORK) &&
+	    (ip->i_delayed_blks || ip->i_size > ip->i_d.di_size)) {
 		/* xfs_fsize_t last_byte = xfs_file_last_byte(ip); */
 		error = xfs_flush_pages(ip, (xfs_off_t)0,
 					       -1, 0, FI_REMAPF);
@@ -5958,7 +5967,8 @@ xfs_getbmap(
 		}
 	}
 
-	ASSERT(whichfork == XFS_ATTR_FORK || ip->i_delayed_blks == 0);
+	ASSERT(whichfork == XFS_ATTR_FORK || (iflags & BMV_IF_DELALLOC) ||
+	       ip->i_delayed_blks == 0);
 
 	lock = xfs_ilock_map_shared(ip);
 
@@ -5970,7 +5980,7 @@ xfs_getbmap(
 		nex = XFS_IFORK_NEXTENTS(ip, whichfork) * 2 + 1;
 
 	bmapi_flags = XFS_BMAPI_AFLAG(whichfork) |
-			((sh_unwritten) ? 0 : XFS_BMAPI_IGSTATE);
+			((iflags & BMV_IF_PREALLOC) ? 0 : XFS_BMAPI_IGSTATE);
 
 	/*
 	 * Allocate enough space to handle "subnex" maps at a time.
@@ -5980,9 +5990,12 @@ xfs_getbmap(
 
 	bmv->bmv_entries = 0;
 
-	if (XFS_IFORK_NEXTENTS(ip, whichfork) == 0) {
-		error = 0;
-		goto unlock_and_return;
+	if ((XFS_IFORK_NEXTENTS(ip, whichfork) == 0)) {
+		if (((iflags & BMV_IF_DELALLOC) == 0) ||
+		    whichfork == XFS_ATTR_FORK) {
+			error = 0;
+			goto unlock_and_return;
+		}
 	}
 
 	nexleft = nex;
@@ -5998,15 +6011,20 @@ xfs_getbmap(
 		ASSERT(nmap <= subnex);
 
 		for (i = 0; i < nmap && nexleft && bmv->bmv_length; i++) {
-			out.bmv_oflags = (map[i].br_state == XFS_EXT_UNWRITTEN) ?
-					BMV_OF_PREALLOC : 0;
+			out.bmv_oflags = 0;
+			if (map[i].br_state == XFS_EXT_UNWRITTEN)
+				out.bmv_oflags |= BMV_OF_PREALLOC;
+			else if (map[i].br_startblock == DELAYSTARTBLOCK)
+				out.bmv_oflags |= BMV_OF_DELALLOC;
 			out.bmv_offset = XFS_FSB_TO_BB(mp, map[i].br_startoff);
 			out.bmv_length = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
 			out.bmv_unused1 = out.bmv_unused2 = 0;
-			ASSERT(map[i].br_startblock != DELAYSTARTBLOCK);
+			ASSERT(((iflags & BMV_IF_DELALLOC) != 0) ||
+			      (map[i].br_startblock != DELAYSTARTBLOCK));
                         if (map[i].br_startblock == HOLESTARTBLOCK &&
 			    whichfork == XFS_ATTR_FORK) {
 				/* came to the end of attribute fork */
+				out.bmv_oflags |= BMV_OF_LAST;
 				goto unlock_and_return;
 			} else {
 				int full = 0;	/* user array is full */
