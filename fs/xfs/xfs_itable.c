@@ -69,7 +69,7 @@ xfs_bulkstat_one_iget(
 	}
 
 	ASSERT(ip != NULL);
-	ASSERT(ip->i_blkno != (xfs_daddr_t)0);
+	ASSERT(ip->i_imap.im_blkno != 0);
 
 	dic = &ip->i_d;
 

@@ -36,7 +36,6 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
-#include "xfs_imap.h"
 #include "xfs_alloc.h"
 #include "xfs_ialloc.h"
 #include "xfs_log_priv.h"

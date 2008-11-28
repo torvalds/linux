@@ -23,7 +23,6 @@
 #include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
-#include "xfs_imap.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_sb.h"
@@ -134,7 +133,7 @@ STATIC int
 xfs_imap_to_bp(
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
-	xfs_imap_t	*imap,
+	struct xfs_imap	*imap,
 	xfs_buf_t	**bpp,
 	uint		buf_flags,
 	uint		imap_flags)
@@ -232,7 +231,7 @@ xfs_inotobp(
 	int		*offset,
 	uint		imap_flags)
 {
-	xfs_imap_t	imap;
+	struct xfs_imap	imap;
 	xfs_buf_t	*bp;
 	int		error;
 
@@ -277,17 +276,12 @@ xfs_itobp(
 	xfs_buf_t	**bpp,
 	uint		buf_flags)
 {
-	xfs_imap_t	imap;
 	xfs_buf_t	*bp;
 	int		error;
 
-	ASSERT(ip->i_blkno != 0);
+	ASSERT(ip->i_imap.im_blkno != 0);
 
-	imap.im_blkno = ip->i_blkno;
-	imap.im_len = ip->i_len;
-	imap.im_boffset = ip->i_boffset;
-
-	error = xfs_imap_to_bp(mp, tp, &imap, &bp, buf_flags, 0);
+	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &bp, buf_flags, 0);
 	if (error)
 		return error;
 
@@ -298,7 +292,7 @@ xfs_itobp(
 		return EAGAIN;
 	}
 
-	*dipp = (xfs_dinode_t *)xfs_buf_offset(bp, imap.im_boffset);
+	*dipp = (xfs_dinode_t *)xfs_buf_offset(bp, ip->i_imap.im_boffset);
 	*bpp = bp;
 	return 0;
 }
@@ -799,9 +793,7 @@ xfs_inode_alloc(
 	/* initialise the xfs inode */
 	ip->i_ino = ino;
 	ip->i_mount = mp;
-	ip->i_blkno = 0;
-	ip->i_len = 0;
-	ip->i_boffset =0;
+	memset(&ip->i_imap, 0, sizeof(struct xfs_imap));
 	ip->i_afp = NULL;
 	memset(&ip->i_df, 0, sizeof(xfs_ifork_t));
 	ip->i_flags = 0;
@@ -857,7 +849,6 @@ xfs_iread(
 	xfs_buf_t	*bp;
 	xfs_dinode_t	*dip;
 	xfs_inode_t	*ip;
-	xfs_imap_t	imap;
 	int		error;
 
 	ip = xfs_inode_alloc(mp, ino);
@@ -865,26 +856,22 @@ xfs_iread(
 		return ENOMEM;
 
 	/*
-	 * Get pointers to the on-disk inode and the buffer containing it.
+	 * Fill in the location information in the in-core inode.
 	 */
-	imap.im_blkno = bno;
-	error = xfs_imap(mp, tp, ip->i_ino, &imap, imap_flags);
+	ip->i_imap.im_blkno = bno;
+	error = xfs_imap(mp, tp, ip->i_ino, &ip->i_imap, imap_flags);
 	if (error)
 		goto out_destroy_inode;
+	ASSERT(bno == 0 || bno == ip->i_imap.im_blkno);
 
 	/*
-	 * Fill in the fields in the inode that will be used to
-	 * map the inode to its buffer from now on.
+	 * Get pointers to the on-disk inode and the buffer containing it.
 	 */
-	ip->i_blkno = imap.im_blkno;
-	ip->i_len = imap.im_len;
-	ip->i_boffset = imap.im_boffset;
-	ASSERT(bno == 0 || bno == imap.im_blkno);
-
-	error = xfs_imap_to_bp(mp, tp, &imap, &bp, XFS_BUF_LOCK, imap_flags);
+	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &bp,
+			       XFS_BUF_LOCK, imap_flags);
 	if (error)
 		goto out_destroy_inode;
-	dip = (xfs_dinode_t *)xfs_buf_offset(bp, imap.im_boffset);
+	dip = (xfs_dinode_t *)xfs_buf_offset(bp, ip->i_imap.im_boffset);
 
 	/*
 	 * If we got something that isn't an inode it means someone
@@ -1872,7 +1859,7 @@ xfs_iunlink(
 		ASSERT(be32_to_cpu(dip->di_next_unlinked) == NULLAGINO);
 		/* both on-disk, don't endian flip twice */
 		dip->di_next_unlinked = agi->agi_unlinked[bucket_index];
-		offset = ip->i_boffset +
+		offset = ip->i_imap.im_boffset +
 			offsetof(xfs_dinode_t, di_next_unlinked);
 		xfs_trans_inode_buf(tp, ibp);
 		xfs_trans_log_buf(tp, ibp, offset,
@@ -1958,7 +1945,7 @@ xfs_iunlink_remove(
 		ASSERT(next_agino != 0);
 		if (next_agino != NULLAGINO) {
 			dip->di_next_unlinked = cpu_to_be32(NULLAGINO);
-			offset = ip->i_boffset +
+			offset = ip->i_imap.im_boffset +
 				offsetof(xfs_dinode_t, di_next_unlinked);
 			xfs_trans_inode_buf(tp, ibp);
 			xfs_trans_log_buf(tp, ibp, offset,
@@ -2021,7 +2008,7 @@ xfs_iunlink_remove(
 		ASSERT(next_agino != agino);
 		if (next_agino != NULLAGINO) {
 			dip->di_next_unlinked = cpu_to_be32(NULLAGINO);
-			offset = ip->i_boffset +
+			offset = ip->i_imap.im_boffset +
 				offsetof(xfs_dinode_t, di_next_unlinked);
 			xfs_trans_inode_buf(tp, ibp);
 			xfs_trans_log_buf(tp, ibp, offset,
@@ -3201,7 +3188,7 @@ xfs_iflush_int(
 	}
 
 	/* set *dip = inode's place in the buffer */
-	dip = (xfs_dinode_t *)xfs_buf_offset(bp, ip->i_boffset);
+	dip = (xfs_dinode_t *)xfs_buf_offset(bp, ip->i_imap.im_boffset);
 
 	/*
 	 * Clear i_update_core before copying out the data.
