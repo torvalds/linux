@@ -499,3 +499,6 @@ const unsigned long cpu_bit_bitmap[BITS_PER_LONG+1][BITS_TO_LONGS(NR_CPUS)] = {
 #endif
 };
 EXPORT_SYMBOL_GPL(cpu_bit_bitmap);
+
+const DECLARE_BITMAP(cpu_all_bits, NR_CPUS) = CPU_BITS_ALL;
+EXPORT_SYMBOL(cpu_all_bits);

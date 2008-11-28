@@ -269,10 +269,11 @@ void irq_enter(void)
 {
 	int cpu = smp_processor_id();
 
-	if (idle_cpu(cpu) && !in_interrupt())
+	if (idle_cpu(cpu) && !in_interrupt()) {
+		__irq_enter();
 		tick_check_idle(cpu);
-
-	__irq_enter();
+	} else
+		__irq_enter();
 }
 
 #ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED

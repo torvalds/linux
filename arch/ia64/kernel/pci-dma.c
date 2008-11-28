@@ -12,16 +12,13 @@
 #include <asm/machvec.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/machvec.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_DMAR
 
 #include <linux/kernel.h>
-#include <linux/string.h>
 
 #include <asm/page.h>
-#include <asm/iommu.h>
 
 dma_addr_t bad_dma_address __read_mostly;
 EXPORT_SYMBOL(bad_dma_address);

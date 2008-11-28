@@ -1875,11 +1875,11 @@ static int nfsd_buffered_readdir(struct file *file, filldir_t func,
 		return -ENOMEM;
 
 	offset = *offsetp;
-	cdp->err = nfserr_eof; /* will be cleared on successful read */
 
 	while (1) {
 		unsigned int reclen;
 
+		cdp->err = nfserr_eof; /* will be cleared on successful read */
 		buf.used = 0;
 		buf.full = 0;
 
@@ -1912,9 +1912,6 @@ static int nfsd_buffered_readdir(struct file *file, filldir_t func,
 			de = (struct buffered_dirent *)((char *)de + reclen);
 		}
 		offset = vfs_llseek(file, 0, SEEK_CUR);
-		cdp->err = nfserr_eof;
-		if (!buf.full)
-			break;
 	}
 
  done:

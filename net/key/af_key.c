@@ -3188,6 +3188,7 @@ static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
 	return xp;
 
 out:
+	xp->walk.dead = 1;
 	xfrm_policy_destroy(xp);
 	return NULL;
 }

@@ -33,6 +33,7 @@
 #define LCD_CONN_TYPE(_x)	((_x) & 0x0f)
 #define LCD_CONN_WIDTH(_x)	(((_x) >> 4) & 0x1f)
 
+#define LCD_TYPE_MASK		0xf
 #define LCD_TYPE_UNKNOWN	0
 #define LCD_TYPE_MONO_STN	1
 #define LCD_TYPE_MONO_DSTN	2

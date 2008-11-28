@@ -172,7 +172,6 @@ static struct usb_interface_descriptor rndis_data_intf __initdata = {
 	.bDescriptorType =	USB_DT_INTERFACE,
 
 	/* .bInterfaceNumber = DYNAMIC */
-	.bAlternateSetting =	1,
 	.bNumEndpoints =	2,
 	.bInterfaceClass =	USB_CLASS_CDC_DATA,
 	.bInterfaceSubClass =	0,
@@ -303,7 +302,7 @@ static void rndis_response_available(void *_rndis)
 	__le32				*data = req->buf;
 	int				status;
 
-	if (atomic_inc_return(&rndis->notify_count))
+	if (atomic_inc_return(&rndis->notify_count) != 1)
 		return;
 
 	/* Send RNDIS RESPONSE_AVAILABLE notification; a

@@ -8,7 +8,11 @@ handling fcntl(F_SETLEASE).  Convert cifs to using blocking tcp
 sends, and also let tcp autotune the socket send and receive buffers.
 This reduces the number of EAGAIN errors returned by TCP/IP in
 high stress workloads (and the number of retries on socket writes
-when sending large SMBWriteX requests).
+when sending large SMBWriteX requests).  Fix case in which a portion of
+data can in some cases not get written to the file on the server before the
+file is closed.  Fix DFS parsing to properly handle path consumed field,
+and to handle certain codepage conversions better.  Fix mount and
+umount race that can cause oops in mount or umount or reconnect.
 
 Version 1.54
 ------------

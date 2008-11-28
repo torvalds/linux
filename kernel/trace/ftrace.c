@@ -185,7 +185,6 @@ enum {
 };
 
 static int ftrace_filtered;
-static int tracing_on;
 
 static LIST_HEAD(ftrace_new_addrs);
 
@@ -327,80 +326,76 @@ ftrace_record_ip(unsigned long ip)
 
 static int
 __ftrace_replace_code(struct dyn_ftrace *rec,
-		      unsigned char *old, unsigned char *new, int enable)
+		      unsigned char *nop, int enable)
 {
 	unsigned long ip, fl;
+	unsigned char *call, *old, *new;
 
 	ip = rec->ip;
 
-	if (ftrace_filtered && enable) {
-		/*
-		 * If filtering is on:
-		 *
-		 * If this record is set to be filtered and
-		 * is enabled then do nothing.
-		 *
-		 * If this record is set to be filtered and
-		 * it is not enabled, enable it.
-		 *
-		 * If this record is not set to be filtered
-		 * and it is not enabled do nothing.
-		 *
-		 * If this record is set not to trace then
-		 * do nothing.
-		 *
-		 * If this record is set not to trace and
-		 * it is enabled then disable it.
-		 *
-		 * If this record is not set to be filtered and
-		 * it is enabled, disable it.
-		 */
-
-		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_NOTRACE |
-				   FTRACE_FL_ENABLED);
-
-		if ((fl ==  (FTRACE_FL_FILTER | FTRACE_FL_ENABLED)) ||
-		    (fl ==  (FTRACE_FL_FILTER | FTRACE_FL_NOTRACE)) ||
-		    !fl || (fl == FTRACE_FL_NOTRACE))
+	/*
+	 * If this record is not to be traced and
+	 * it is not enabled then do nothing.
+	 *
+	 * If this record is not to be traced and
+	 * it is enabled then disabled it.
+	 *
+	 */
+	if (rec->flags & FTRACE_FL_NOTRACE) {
+		if (rec->flags & FTRACE_FL_ENABLED)
+			rec->flags &= ~FTRACE_FL_ENABLED;
+		else
 			return 0;
 
+	} else if (ftrace_filtered && enable) {
 		/*
-		 * If it is enabled disable it,
-		 * otherwise enable it!
+		 * Filtering is on:
 		 */
-		if (fl & FTRACE_FL_ENABLED) {
-			/* swap new and old */
-			new = old;
-			old = ftrace_call_replace(ip, FTRACE_ADDR);
+
+		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_ENABLED);
+
+		/* Record is filtered and enabled, do nothing */
+		if (fl == (FTRACE_FL_FILTER | FTRACE_FL_ENABLED))
+			return 0;
+
+		/* Record is not filtered and is not enabled do nothing */
+		if (!fl)
+			return 0;
+
+		/* Record is not filtered but enabled, disable it */
+		if (fl == FTRACE_FL_ENABLED)
 			rec->flags &= ~FTRACE_FL_ENABLED;
-		} else {
-			new = ftrace_call_replace(ip, FTRACE_ADDR);
+		else
+		/* Otherwise record is filtered but not enabled, enable it */
 			rec->flags |= FTRACE_FL_ENABLED;
-		}
 	} else {
+		/* Disable or not filtered */
 
 		if (enable) {
-			/*
-			 * If this record is set not to trace and is
-			 * not enabled, do nothing.
-			 */
-			fl = rec->flags & (FTRACE_FL_NOTRACE | FTRACE_FL_ENABLED);
-			if (fl == FTRACE_FL_NOTRACE)
-				return 0;
-
-			new = ftrace_call_replace(ip, FTRACE_ADDR);
-		} else
-			old = ftrace_call_replace(ip, FTRACE_ADDR);
-
-		if (enable) {
+			/* if record is enabled, do nothing */
 			if (rec->flags & FTRACE_FL_ENABLED)
 				return 0;
+
 			rec->flags |= FTRACE_FL_ENABLED;
+
 		} else {
+
+			/* if record is not enabled do nothing */
 			if (!(rec->flags & FTRACE_FL_ENABLED))
 				return 0;
+
 			rec->flags &= ~FTRACE_FL_ENABLED;
 		}
+	}
+
+	call = ftrace_call_replace(ip, FTRACE_ADDR);
+
+	if (rec->flags & FTRACE_FL_ENABLED) {
+		old = nop;
+		new = call;
+	} else {
+		old = call;
+		new = nop;
 	}
 
 	return ftrace_modify_code(ip, old, new);
@@ -409,14 +404,11 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 static void ftrace_replace_code(int enable)
 {
 	int i, failed;
-	unsigned char *new = NULL, *old = NULL;
+	unsigned char *nop = NULL;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 
-	if (enable)
-		old = ftrace_nop_replace();
-	else
-		new = ftrace_nop_replace();
+	nop = ftrace_nop_replace();
 
 	for (pg = ftrace_pages_start; pg; pg = pg->next) {
 		for (i = 0; i < pg->index; i++) {
@@ -434,7 +426,7 @@ static void ftrace_replace_code(int enable)
 				unfreeze_record(rec);
 			}
 
-			failed = __ftrace_replace_code(rec, old, new, enable);
+			failed = __ftrace_replace_code(rec, nop, enable);
 			if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
 				rec->flags |= FTRACE_FL_FAILED;
 				if ((system_state == SYSTEM_BOOTING) ||
@@ -506,13 +498,10 @@ static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
 
-	if (*command & FTRACE_ENABLE_CALLS) {
+	if (*command & FTRACE_ENABLE_CALLS)
 		ftrace_replace_code(1);
-		tracing_on = 1;
-	} else if (*command & FTRACE_DISABLE_CALLS) {
+	else if (*command & FTRACE_DISABLE_CALLS)
 		ftrace_replace_code(0);
-		tracing_on = 0;
-	}
 
 	if (*command & FTRACE_UPDATE_TRACE_FUNC)
 		ftrace_update_ftrace_func(ftrace_trace_function);
@@ -538,8 +527,7 @@ static void ftrace_startup(void)
 
 	mutex_lock(&ftrace_start_lock);
 	ftrace_start++;
-	if (ftrace_start == 1)
-		command |= FTRACE_ENABLE_CALLS;
+	command |= FTRACE_ENABLE_CALLS;
 
 	if (saved_ftrace_func != ftrace_trace_function) {
 		saved_ftrace_func = ftrace_trace_function;
@@ -677,7 +665,7 @@ static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
 
 	cnt = num_to_init / ENTRIES_PER_PAGE;
 	pr_info("ftrace: allocating %ld entries in %d pages\n",
-		num_to_init, cnt);
+		num_to_init, cnt + 1);
 
 	for (i = 0; i < cnt; i++) {
 		pg->next = (void *)get_zeroed_page(GFP_KERNEL);
@@ -738,6 +726,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		    ((iter->flags & FTRACE_ITER_FAILURES) &&
 		     !(rec->flags & FTRACE_FL_FAILED)) ||
 
+		    ((iter->flags & FTRACE_ITER_FILTER) &&
+		     !(rec->flags & FTRACE_FL_FILTER)) ||
+
 		    ((iter->flags & FTRACE_ITER_NOTRACE) &&
 		     !(rec->flags & FTRACE_FL_NOTRACE))) {
 			rec = NULL;
@@ -757,13 +748,11 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	void *p = NULL;
 	loff_t l = -1;
 
-	if (*pos != iter->pos) {
-		for (p = t_next(m, p, &l); p && l < *pos; p = t_next(m, p, &l))
-			;
-	} else {
-		l = *pos;
-		p = t_next(m, p, &l);
-	}
+	if (*pos > iter->pos)
+		*pos = iter->pos;
+
+	l = *pos;
+	p = t_next(m, p, &l);
 
 	return p;
 }
@@ -774,15 +763,21 @@ static void t_stop(struct seq_file *m, void *p)
 
 static int t_show(struct seq_file *m, void *v)
 {
+	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = v;
 	char str[KSYM_SYMBOL_LEN];
+	int ret = 0;
 
 	if (!rec)
 		return 0;
 
 	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
 
-	seq_printf(m, "%s\n", str);
+	ret = seq_printf(m, "%s\n", str);
+	if (ret < 0) {
+		iter->pos--;
+		iter->idx--;
+	}
 
 	return 0;
 }
@@ -808,7 +803,7 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	iter->pg = ftrace_pages_start;
-	iter->pos = -1;
+	iter->pos = 0;
 
 	ret = seq_open(file, &show_ftrace_seq_ops);
 	if (!ret) {
@@ -895,7 +890,7 @@ ftrace_regex_open(struct inode *inode, struct file *file, int enable)
 
 	if (file->f_mode & FMODE_READ) {
 		iter->pg = ftrace_pages_start;
-		iter->pos = -1;
+		iter->pos = 0;
 		iter->flags = enable ? FTRACE_ITER_FILTER :
 			FTRACE_ITER_NOTRACE;
 
@@ -1186,7 +1181,7 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 
 	mutex_lock(&ftrace_sysctl_lock);
 	mutex_lock(&ftrace_start_lock);
-	if (iter->filtered && ftrace_start && ftrace_enabled)
+	if (ftrace_start && ftrace_enabled)
 		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
 	mutex_unlock(&ftrace_start_lock);
 	mutex_unlock(&ftrace_sysctl_lock);

@@ -113,7 +113,6 @@ static inline void acpi_disable_pci(void)
 	acpi_pci_disabled = 1;
 	acpi_noirq_set();
 }
-extern int acpi_irq_balance_set(char *str);
 
 /* routines for saving/restoring kernel state */
 extern int acpi_save_state_mem(void);

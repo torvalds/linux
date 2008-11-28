@@ -114,9 +114,11 @@ static char *si_to_str[] = { "kcs", "smic", "bt" };
 
 #define DEVICE_NAME "ipmi_si"
 
-static struct device_driver ipmi_driver = {
-	.name = DEVICE_NAME,
-	.bus = &platform_bus_type
+static struct platform_driver ipmi_driver = {
+	.driver = {
+		.name = DEVICE_NAME,
+		.bus = &platform_bus_type
+	}
 };
 
 
@@ -2868,7 +2870,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			goto out_err;
 		}
 		new_smi->dev = &new_smi->pdev->dev;
-		new_smi->dev->driver = &ipmi_driver;
+		new_smi->dev->driver = &ipmi_driver.driver;
 
 		rv = platform_device_add(new_smi->pdev);
 		if (rv) {
@@ -2983,7 +2985,7 @@ static __devinit int init_ipmi_si(void)
 	initialized = 1;
 
 	/* Register the device drivers. */
-	rv = driver_register(&ipmi_driver);
+	rv = driver_register(&ipmi_driver.driver);
 	if (rv) {
 		printk(KERN_ERR
 		       "init_ipmi_si: Unable to register driver: %d\n",
@@ -3052,7 +3054,7 @@ static __devinit int init_ipmi_si(void)
 #ifdef CONFIG_PPC_OF
 		of_unregister_platform_driver(&ipmi_of_platform_driver);
 #endif
-		driver_unregister(&ipmi_driver);
+		driver_unregister(&ipmi_driver.driver);
 		printk(KERN_WARNING
 		       "ipmi_si: Unable to find any System Interface(s)\n");
 		return -ENODEV;
@@ -3151,7 +3153,7 @@ static __exit void cleanup_ipmi_si(void)
 		cleanup_one_si(e);
 	mutex_unlock(&smi_infos_lock);
 
-	driver_unregister(&ipmi_driver);
+	driver_unregister(&ipmi_driver.driver);
 }
 module_exit(cleanup_ipmi_si);
 

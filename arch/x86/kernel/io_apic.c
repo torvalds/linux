@@ -1140,6 +1140,20 @@ static void __clear_irq_vector(int irq)
 
 	cfg->vector = 0;
 	cpus_clear(cfg->domain);
+
+	if (likely(!cfg->move_in_progress))
+		return;
+	cpus_and(mask, cfg->old_domain, cpu_online_map);
+	for_each_cpu_mask_nr(cpu, mask) {
+		for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS;
+								vector++) {
+			if (per_cpu(vector_irq, cpu)[vector] != irq)
+				continue;
+			per_cpu(vector_irq, cpu)[vector] = -1;
+			break;
+		}
+	}
+	cfg->move_in_progress = 0;
 }
 
 void __setup_vector_irq(int cpu)
@@ -3611,6 +3625,8 @@ int __init probe_nr_irqs(void)
 	/* something wrong ? */
 	if (nr < nr_min)
 		nr = nr_min;
+	if (WARN_ON(nr > NR_IRQS))
+		nr = NR_IRQS;
 
 	return nr;
 }

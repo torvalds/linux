@@ -499,6 +499,10 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			goto next_desc;
 		}
 
+		/* adjust length to remove Ethernet CRC */
+		if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
+			length -= 4;
+
 		total_rx_bytes += length;
 		total_rx_packets++;
 
@@ -804,6 +808,10 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			pci_dma_sync_single_for_device(pdev, ps_page->dma,
 				PAGE_SIZE, PCI_DMA_FROMDEVICE);
 
+			/* remove the CRC */
+			if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
+				l1 -= 4;
+
 			skb_put(skb, l1);
 			goto copydone;
 		} /* if */
@@ -824,6 +832,12 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			skb->data_len += length;
 			skb->truesize += length;
 		}
+
+		/* strip the ethernet crc, problem is we're using pages now so
+		 * this whole operation can get a little cpu intensive
+		 */
+		if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
+			pskb_trim(skb, skb->len - 4);
 
 copydone:
 		total_rx_bytes += skb->len;
@@ -2301,8 +2315,12 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	else
 		rctl |= E1000_RCTL_LPE;
 
-	/* Enable hardware CRC frame stripping */
-	rctl |= E1000_RCTL_SECRC;
+	/* Some systems expect that the CRC is included in SMBUS traffic. The
+	 * hardware strips the CRC before sending to both SMBUS (BMC) and to
+	 * host memory when this is enabled
+	 */
+	if (adapter->flags2 & FLAG2_CRC_STRIPPING)
+		rctl |= E1000_RCTL_SECRC;
 
 	/* Setup buffer sizes */
 	rctl &= ~E1000_RCTL_SZ_4096;
@@ -4766,6 +4784,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	adapter->ei = ei;
 	adapter->pba = ei->pba;
 	adapter->flags = ei->flags;
+	adapter->flags2 = ei->flags2;
 	adapter->hw.adapter = adapter;
 	adapter->hw.mac.type = ei->mac;
 	adapter->msg_enable = (1 << NETIF_MSG_DRV | NETIF_MSG_PROBE) - 1;
@@ -4970,6 +4989,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wol = adapter->eeprom_wol;
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	/* reset the hardware with the new settings */
 	e1000e_reset(adapter);
@@ -5008,6 +5028,7 @@ err_hw_init:
 err_sw_init:
 	if (adapter->hw.flash_address)
 		iounmap(adapter->hw.flash_address);
+	e1000e_reset_interrupt_capability(adapter);
 err_flashmap:
 	iounmap(adapter->hw.hw_addr);
 err_ioremap:
