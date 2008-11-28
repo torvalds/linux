@@ -79,6 +79,19 @@ print_graph_cpu(struct trace_seq *s, int cpu)
 	int log10_all = log10_cpu(cpus_weight_nr(cpu_online_map));
 
 
+	/*
+	 * Start with a space character - to make it stand out
+	 * to the right a bit when trace output is pasted into
+	 * email:
+	 */
+	ret = trace_seq_printf(s, " ");
+
+	/*
+	 * Tricky - we space the CPU field according to the max
+	 * number of online CPUs. On a 2-cpu system it would take
+	 * a maximum of 1 digit - on a 128 cpu system it would
+	 * take up to 3 digits:
+	 */
 	for (i = 0; i < log10_all - log10_this; i++) {
 		ret = trace_seq_printf(s, " ");
 		if (!ret)
@@ -86,7 +99,8 @@ print_graph_cpu(struct trace_seq *s, int cpu)
 	}
 	ret = trace_seq_printf(s, "%d) ", cpu);
 	if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;
+		return TRACE_TYPE_PARTIAL_LINE;
+
 	return TRACE_TYPE_HANDLED;
 }
 
@@ -94,17 +108,34 @@ print_graph_cpu(struct trace_seq *s, int cpu)
 /* If the pid changed since the last trace, output this event */
 static int verif_pid(struct trace_seq *s, pid_t pid, int cpu)
 {
-	char *comm;
+	char *comm, *prev_comm;
+	pid_t prev_pid;
+	int ret;
 
 	if (last_pid[cpu] != -1 && last_pid[cpu] == pid)
 		return 1;
 
+	prev_pid = last_pid[cpu];
 	last_pid[cpu] = pid;
-	comm = trace_find_cmdline(pid);
 
-	return trace_seq_printf(s, "\n------------8<---------- thread %s-%d"
-				    " ------------8<----------\n\n",
-				    cpu, comm, pid);
+	comm = trace_find_cmdline(pid);
+	prev_comm = trace_find_cmdline(prev_pid);
+
+/*
+ * Context-switch trace line:
+
+ ------------------------------------------
+ | 1)  migration/0--1  =>  sshd-1755
+ ------------------------------------------
+
+ */
+	ret = trace_seq_printf(s,
+		" ------------------------------------------\n");
+	ret += trace_seq_printf(s, " | %d)  %s-%d  =>  %s-%d\n",
+				  cpu, prev_comm, prev_pid, comm, pid);
+	ret += trace_seq_printf(s,
+		" ------------------------------------------\n\n");
+	return ret;
 }
 
 static bool
@@ -142,7 +173,7 @@ static inline int
 print_graph_duration(unsigned long long duration, struct trace_seq *s)
 {
 	unsigned long nsecs_rem = do_div(duration, 1000);
-	return trace_seq_printf(s, "%4llu.%3lu us | ", duration, nsecs_rem);
+	return trace_seq_printf(s, "%4llu.%3lu us |  ", duration, nsecs_rem);
 }
 
 /* Signal a overhead of time execution to the output */
@@ -229,7 +260,7 @@ print_graph_entry_nested(struct ftrace_graph_ent_entry *entry,
 	}
 
 	/* No time */
-	ret = trace_seq_printf(s, "        |     ");
+	ret = trace_seq_printf(s, "            |  ");
 
 	/* Function */
 	for (i = 0; i < call->depth * TRACE_GRAPH_INDENT; i++) {
