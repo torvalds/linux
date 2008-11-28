@@ -54,28 +54,6 @@
 #include "xfs_vnodeops.h"
 
 int
-xfs_open(
-	xfs_inode_t	*ip)
-{
-	int		mode;
-
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return XFS_ERROR(EIO);
-
-	/*
-	 * If it's a directory with any blocks, read-ahead block 0
-	 * as we're almost certain to have the next operation be a read there.
-	 */
-	if (S_ISDIR(ip->i_d.di_mode) && ip->i_d.di_nextents > 0) {
-		mode = xfs_ilock_map_shared(ip);
-		if (ip->i_d.di_nextents > 0)
-			(void)xfs_da_reada_buf(NULL, ip, 0, XFS_DATA_FORK);
-		xfs_iunlock(ip, mode);
-	}
-	return 0;
-}
-
-int
 xfs_setattr(
 	struct xfs_inode	*ip,
 	struct iattr		*iattr,

@@ -38,6 +38,7 @@
 #include "xfs_rw.h"
 #include "xfs_ioctl32.h"
 #include "xfs_vnodeops.h"
+#include "xfs_da_btree.h"
 
 #include <linux/dcache.h>
 #include <linux/smp_lock.h>
@@ -169,11 +170,37 @@ xfs_file_splice_write_invis(
 STATIC int
 xfs_file_open(
 	struct inode	*inode,
-	struct file	*filp)
+	struct file	*file)
 {
-	if (!(filp->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
+	if (!(file->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
 		return -EFBIG;
-	return -xfs_open(XFS_I(inode));
+	if (XFS_FORCED_SHUTDOWN(XFS_M(inode->i_sb)))
+		return -EIO;
+	return 0;
+}
+
+STATIC int
+xfs_dir_open(
+	struct inode	*inode,
+	struct file	*file)
+{
+	struct xfs_inode *ip = XFS_I(inode);
+	int		mode;
+	int		error;
+
+	error = xfs_file_open(inode, file);
+	if (error)
+		return error;
+
+	/*
+	 * If there are any blocks, read-ahead block 0 as we're almost
+	 * certain to have the next operation be a read there.
+	 */
+	mode = xfs_ilock_map_shared(ip);
+	if (ip->i_d.di_nextents > 0)
+		xfs_da_reada_buf(NULL, ip, 0, XFS_DATA_FORK);
+	xfs_iunlock(ip, mode);
+	return 0;
 }
 
 STATIC int
@@ -345,6 +372,7 @@ const struct file_operations xfs_invis_file_operations = {
 
 
 const struct file_operations xfs_dir_file_operations = {
+	.open		= xfs_dir_open,
 	.read		= generic_read_dir,
 	.readdir	= xfs_file_readdir,
 	.llseek		= generic_file_llseek,
