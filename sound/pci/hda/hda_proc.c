@@ -493,6 +493,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 	}
 
 	print_gpio(buffer, codec, codec->afg);
+	if (codec->proc_widget_hook)
+		codec->proc_widget_hook(buffer, codec, codec->afg);
 
 	for (i = 0; i < nodes; i++, nid++) {
 		unsigned int wid_caps =

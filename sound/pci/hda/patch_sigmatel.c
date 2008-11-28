@@ -4262,6 +4262,52 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
+#ifdef CONFIG_PROC_FS
+static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
+			       struct hda_codec *codec, hda_nid_t nid)
+{
+	if (nid == codec->afg)
+		snd_iprintf(buffer, "Power-Map: 0x%02x\n", 
+			    snd_hda_codec_read(codec, nid, 0, 0x0fec, 0x0));
+}
+
+static void analog_loop_proc_hook(struct snd_info_buffer *buffer,
+				  struct hda_codec *codec,
+				  unsigned int verb)
+{
+	snd_iprintf(buffer, "Analog Loopback: 0x%02x\n",
+		    snd_hda_codec_read(codec, codec->afg, 0, verb, 0));
+}
+
+/* stac92hd71bxx, stac92hd73xx */
+static void stac92hd7x_proc_hook(struct snd_info_buffer *buffer,
+				 struct hda_codec *codec, hda_nid_t nid)
+{
+	stac92hd_proc_hook(buffer, codec, nid);
+	if (nid == codec->afg)
+		analog_loop_proc_hook(buffer, codec, 0xfa0);
+}
+
+static void stac9205_proc_hook(struct snd_info_buffer *buffer,
+			       struct hda_codec *codec, hda_nid_t nid)
+{
+	if (nid == codec->afg)
+		analog_loop_proc_hook(buffer, codec, 0xfe0);
+}
+
+static void stac927x_proc_hook(struct snd_info_buffer *buffer,
+			       struct hda_codec *codec, hda_nid_t nid)
+{
+	if (nid == codec->afg)
+		analog_loop_proc_hook(buffer, codec, 0xfeb);
+}
+#else
+#define stac92hd_proc_hook	NULL
+#define stac92hd7x_proc_hook	NULL
+#define stac9205_proc_hook	NULL
+#define stac927x_proc_hook	NULL
+#endif
+
 #ifdef SND_HDA_NEEDS_RESUME
 static int stac92xx_resume(struct hda_codec *codec)
 {
@@ -4585,6 +4631,8 @@ again:
 
 	codec->patch_ops = stac92xx_patch_ops;
 
+	codec->proc_widget_hook = stac92hd7x_proc_hook;
+
 	return 0;
 }
 
@@ -4670,6 +4718,8 @@ again:
 	}
 
 	codec->patch_ops = stac92xx_patch_ops;
+
+	codec->proc_widget_hook = stac92hd_proc_hook;
 
 	return 0;
 }
@@ -4888,6 +4938,8 @@ again:
 		stac92xx_free(codec);
 		return err;
 	}
+
+	codec->proc_widget_hook = stac92hd7x_proc_hook;
 
 	return 0;
 };
@@ -5109,6 +5161,8 @@ static int patch_stac927x(struct hda_codec *codec)
 
 	codec->patch_ops = stac92xx_patch_ops;
 
+	codec->proc_widget_hook = stac927x_proc_hook;
+
 	/*
 	 * !!FIXME!!
 	 * The STAC927x seem to require fairly long delays for certain
@@ -5223,6 +5277,8 @@ static int patch_stac9205(struct hda_codec *codec)
 	}
 
 	codec->patch_ops = stac92xx_patch_ops;
+
+	codec->proc_widget_hook = stac9205_proc_hook;
 
 	return 0;
 }
