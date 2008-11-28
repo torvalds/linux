@@ -786,7 +786,6 @@ enum {
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
 
 struct ftrace_iterator {
-	loff_t			pos;
 	struct ftrace_page	*pg;
 	unsigned		idx;
 	unsigned		flags;
@@ -811,6 +810,8 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 			iter->pg = iter->pg->next;
 			iter->idx = 0;
 			goto retry;
+		} else {
+			iter->idx = -1;
 		}
 	} else {
 		rec = &iter->pg->records[iter->idx++];
@@ -833,8 +834,6 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	}
 	spin_unlock(&ftrace_lock);
 
-	iter->pos = *pos;
-
 	return rec;
 }
 
@@ -842,13 +841,15 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	void *p = NULL;
-	loff_t l = -1;
 
-	if (*pos > iter->pos)
-		*pos = iter->pos;
+	if (*pos > 0) {
+		if (iter->idx < 0)
+			return p;
+		(*pos)--;
+		iter->idx--;
+	}
 
-	l = *pos;
-	p = t_next(m, p, &l);
+	p = t_next(m, p, pos);
 
 	return p;
 }
@@ -859,21 +860,15 @@ static void t_stop(struct seq_file *m, void *p)
 
 static int t_show(struct seq_file *m, void *v)
 {
-	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = v;
 	char str[KSYM_SYMBOL_LEN];
-	int ret = 0;
 
 	if (!rec)
 		return 0;
 
 	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
 
-	ret = seq_printf(m, "%s\n", str);
-	if (ret < 0) {
-		iter->pos--;
-		iter->idx--;
-	}
+	seq_printf(m, "%s\n", str);
 
 	return 0;
 }
@@ -899,7 +894,6 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	iter->pg = ftrace_pages_start;
-	iter->pos = 0;
 
 	ret = seq_open(file, &show_ftrace_seq_ops);
 	if (!ret) {
@@ -986,7 +980,6 @@ ftrace_regex_open(struct inode *inode, struct file *file, int enable)
 
 	if (file->f_mode & FMODE_READ) {
 		iter->pg = ftrace_pages_start;
-		iter->pos = 0;
 		iter->flags = enable ? FTRACE_ITER_FILTER :
 			FTRACE_ITER_NOTRACE;
 
