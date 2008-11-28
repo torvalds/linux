@@ -367,19 +367,11 @@ xfs_rename(
 					&first_block, &free_list, spaceres);
 	if (error)
 		goto abort_return;
+
 	xfs_ichgtime(src_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-
-	/*
-	 * Update the generation counts on all the directory inodes
-	 * that we're modifying.
-	 */
-	src_dp->i_gen++;
 	xfs_trans_log_inode(tp, src_dp, XFS_ILOG_CORE);
-
-	if (new_parent) {
-		target_dp->i_gen++;
+	if (new_parent)
 		xfs_trans_log_inode(tp, target_dp, XFS_ILOG_CORE);
-	}
 
 	/*
 	 * If this is a synchronous mount, make sure that the

@@ -1599,8 +1599,6 @@ xfs_create(
 		xfs_trans_set_sync(tp);
 	}
 
-	dp->i_gen++;
-
 	/*
 	 * Attach the dquot(s) to the inodes and modify them incore.
 	 * These ids of the inode couldn't have changed since the new
@@ -1967,13 +1965,6 @@ xfs_remove(
 	}
 	xfs_ichgtime(dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
-	/*
-	 * Bump the in memory generation count on the parent
-	 * directory so that other can know that it has changed.
-	 */
-	dp->i_gen++;
-	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
-
 	if (is_dir) {
 		/*
 		 * Drop the link from ip's "..".
@@ -1991,8 +1982,8 @@ xfs_remove(
 	} else {
 		/*
 		 * When removing a non-directory we need to log the parent
-		 * inode here for the i_gen update.  For a directory this is
-		 * done implicitly by the xfs_droplink call for the ".." entry.
+		 * inode here.  For a directory this is done implicitly
+		 * by the xfs_droplink call for the ".." entry.
 		 */
 		xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 	}
@@ -2152,7 +2143,6 @@ xfs_link(
 	if (error)
 		goto abort_return;
 	xfs_ichgtime(tdp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-	tdp->i_gen++;
 	xfs_trans_log_inode(tp, tdp, XFS_ILOG_CORE);
 
 	error = xfs_bumplink(tp, sip);
@@ -2329,18 +2319,10 @@ xfs_mkdir(
 	}
 	xfs_ichgtime(dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
-	/*
-	 * Bump the in memory version number of the parent directory
-	 * so that other processes accessing it will recognize that
-	 * the directory has changed.
-	 */
-	dp->i_gen++;
-
 	error = xfs_dir_init(tp, cdp, dp);
 	if (error)
 		goto error2;
 
-	cdp->i_gen = 1;
 	error = xfs_bumplink(tp, dp);
 	if (error)
 		goto error2;
@@ -2625,13 +2607,6 @@ xfs_symlink(
 		goto error1;
 	xfs_ichgtime(dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
-
-	/*
-	 * Bump the in memory version number of the parent directory
-	 * so that other processes accessing it will recognize that
-	 * the directory has changed.
-	 */
-	dp->i_gen++;
 
 	/*
 	 * If this is a synchronous mount, make sure that the
