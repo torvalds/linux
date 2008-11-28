@@ -615,8 +615,6 @@ struct hda_bus {
 	/* unsolicited event queue */
 	struct hda_bus_unsolicited *unsol;
 
-	struct snd_info_entry *proc;
-
 	/* assigned PCMs */
 	DECLARE_BITMAP(pcm_dev_bits, SNDRV_PCM_DEVICES);
 
