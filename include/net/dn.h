@@ -4,7 +4,7 @@
 #include <linux/dn.h>
 #include <net/sock.h>
 #include <asm/byteorder.h>
-#include <asm/unalignedh>
+#include <asm/unaligned.h>
 
 struct dn_scp                                   /* Session Control Port */
 {
