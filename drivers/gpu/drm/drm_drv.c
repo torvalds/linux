@@ -74,6 +74,9 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_SAREA_CTX, drm_setsareactx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_SAREA_CTX, drm_getsareactx, DRM_AUTH),
 
+	DRM_IOCTL_DEF(DRM_IOCTL_SET_MASTER, drm_setmaster_ioctl, DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_DROP_MASTER, drm_dropmaster_ioctl, DRM_ROOT_ONLY),
+
 	DRM_IOCTL_DEF(DRM_IOCTL_ADD_CTX, drm_addctx, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_RM_CTX, drm_rmctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_MOD_CTX, drm_modctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
@@ -138,8 +141,6 @@ static struct drm_ioctl_desc drm_ioctls[] = {
  */
 int drm_lastclose(struct drm_device * dev)
 {
-	struct drm_magic_entry *pt, *next;
-	struct drm_map_list *r_list, *list_t;
 	struct drm_vma_entry *vma, *vma_temp;
 	int i;
 
@@ -149,12 +150,6 @@ int drm_lastclose(struct drm_device * dev)
 		dev->driver->lastclose(dev);
 	DRM_DEBUG("driver lastclose completed\n");
 
-	if (dev->unique) {
-		drm_free(dev->unique, strlen(dev->unique) + 1, DRM_MEM_DRIVER);
-		dev->unique = NULL;
-		dev->unique_len = 0;
-	}
-
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
@@ -163,16 +158,6 @@ int drm_lastclose(struct drm_device * dev)
 	/* Free drawable information memory */
 	drm_drawable_free_all(dev);
 	del_timer(&dev->timer);
-
-	/* Clear pid list */
-	if (dev->magicfree.next) {
-		list_for_each_entry_safe(pt, next, &dev->magicfree, head) {
-			list_del(&pt->head);
-			drm_ht_remove_item(&dev->magiclist, &pt->hash_item);
-			drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
-		}
-		drm_ht_remove(&dev->magiclist);
-	}
 
 	/* Clear AGP information */
 	if (drm_core_has_AGP(dev) && dev->agp) {
@@ -205,13 +190,6 @@ int drm_lastclose(struct drm_device * dev)
 		drm_free(vma, sizeof(*vma), DRM_MEM_VMAS);
 	}
 
-	list_for_each_entry_safe(r_list, list_t, &dev->maplist, head) {
-		if (!(r_list->map->flags & _DRM_DRIVER)) {
-			drm_rmmap_locked(dev, r_list->map);
-			r_list = NULL;
-		}
-	}
-
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE) && dev->queuelist) {
 		for (i = 0; i < dev->queue_count; i++) {
 			if (dev->queuelist[i]) {
@@ -231,11 +209,6 @@ int drm_lastclose(struct drm_device * dev)
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		drm_dma_takedown(dev);
 
-	if (dev->lock.hw_lock) {
-		dev->sigdata.lock = dev->lock.hw_lock = NULL;	/* SHM removed */
-		dev->lock.file_priv = NULL;
-		wake_up_interruptible(&dev->lock.lock_queue);
-	}
 	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("lastclose completed\n");

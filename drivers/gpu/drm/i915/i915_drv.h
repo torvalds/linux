@@ -103,15 +103,18 @@ struct intel_opregion {
 	int enabled;
 };
 
+struct drm_i915_master_private {
+	drm_local_map_t *sarea;
+	struct _drm_i915_sarea *sarea_priv;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
 	int has_gem;
 
 	void __iomem *regs;
-	drm_local_map_t *sarea;
 
-	drm_i915_sarea_t *sarea_priv;
 	drm_i915_ring_buffer_t ring;
 
 	drm_dma_handle_t *status_page_dmah;
@@ -416,6 +419,9 @@ struct drm_i915_file_private {
 
 extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
+
+extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
+extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
 
 				/* i915_dma.c */
 extern void i915_kernel_lost_context(struct drm_device * dev);

@@ -79,6 +79,104 @@ again:
 	return new_id;
 }
 
+struct drm_master *drm_master_create(struct drm_minor *minor)
+{
+	struct drm_master *master;
+
+	master = drm_calloc(1, sizeof(*master), DRM_MEM_DRIVER);
+	if (!master)
+		return NULL;
+
+	kref_init(&master->refcount);
+	spin_lock_init(&master->lock.spinlock);
+	init_waitqueue_head(&master->lock.lock_queue);
+	drm_ht_create(&master->magiclist, DRM_MAGIC_HASH_ORDER);
+	INIT_LIST_HEAD(&master->magicfree);
+	master->minor = minor;
+
+	list_add_tail(&master->head, &minor->master_list);
+
+	return master;
+}
+
+struct drm_master *drm_master_get(struct drm_master *master)
+{
+	kref_get(&master->refcount);
+	return master;
+}
+
+static void drm_master_destroy(struct kref *kref)
+{
+	struct drm_master *master = container_of(kref, struct drm_master, refcount);
+	struct drm_magic_entry *pt, *next;
+	struct drm_device *dev = master->minor->dev;
+
+	list_del(&master->head);
+
+	if (dev->driver->master_destroy)
+		dev->driver->master_destroy(dev, master);
+
+	if (master->unique) {
+		drm_free(master->unique, strlen(master->unique) + 1, DRM_MEM_DRIVER);
+		master->unique = NULL;
+		master->unique_len = 0;
+	}
+
+	list_for_each_entry_safe(pt, next, &master->magicfree, head) {
+		list_del(&pt->head);
+		drm_ht_remove_item(&master->magiclist, &pt->hash_item);
+		drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
+	}
+
+	drm_ht_remove(&master->magiclist);
+
+	if (master->lock.hw_lock) {
+		if (dev->sigdata.lock == master->lock.hw_lock)
+			dev->sigdata.lock = NULL;
+		master->lock.hw_lock = NULL;
+		master->lock.file_priv = NULL;
+		wake_up_interruptible(&master->lock.lock_queue);
+	}
+
+	drm_free(master, sizeof(*master), DRM_MEM_DRIVER);
+}
+
+void drm_master_put(struct drm_master **master)
+{
+	kref_put(&(*master)->refcount, drm_master_destroy);
+	*master = NULL;
+}
+
+int drm_setmaster_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
+{
+	if (file_priv->minor->master && file_priv->minor->master != file_priv->master)
+		return -EINVAL;
+
+	if (!file_priv->master)
+		return -EINVAL;
+
+	if (!file_priv->minor->master &&
+	    file_priv->minor->master != file_priv->master) {
+		mutex_lock(&dev->struct_mutex);
+		file_priv->minor->master = drm_master_get(file_priv->master);
+		mutex_lock(&dev->struct_mutex);
+	}
+
+	return 0;
+}
+
+int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	if (!file_priv->master)
+		return -EINVAL;
+	mutex_lock(&dev->struct_mutex);
+	drm_master_put(&file_priv->minor->master);
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
 static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 			   const struct pci_device_id *ent,
 			   struct drm_driver *driver)
@@ -92,7 +190,6 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 
 	spin_lock_init(&dev->count_lock);
 	spin_lock_init(&dev->drw_lock);
-	spin_lock_init(&dev->lock.spinlock);
 	init_timer(&dev->timer);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);
@@ -200,6 +297,7 @@ static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int t
 	new_minor->device = MKDEV(DRM_MAJOR, minor_id);
 	new_minor->dev = dev;
 	new_minor->index = minor_id;
+	INIT_LIST_HEAD(&new_minor->master_list);
 
 	idr_replace(&drm_minors_idr, new_minor, minor_id);
 
@@ -299,11 +397,6 @@ int drm_put_dev(struct drm_device * dev)
 {
 	DRM_DEBUG("release primary %s\n", dev->driver->pci_driver.name);
 
-	if (dev->unique) {
-		drm_free(dev->unique, strlen(dev->unique) + 1, DRM_MEM_DRIVER);
-		dev->unique = NULL;
-		dev->unique_len = 0;
-	}
 	if (dev->devname) {
 		drm_free(dev->devname, strlen(dev->devname) + 1,
 			 DRM_MEM_DRIVER);

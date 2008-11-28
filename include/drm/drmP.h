@@ -238,11 +238,11 @@ struct drm_device;
  */
 #define LOCK_TEST_WITH_RETURN( dev, file_priv )				\
 do {									\
-	if ( !_DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ) ||		\
-	     dev->lock.file_priv != file_priv )	{			\
+	if (!_DRM_LOCK_IS_HELD(file_priv->master->lock.hw_lock->lock) ||		\
+	    file_priv->master->lock.file_priv != file_priv)	{			\
 		DRM_ERROR( "%s called without lock held, held  %d owner %p %p\n",\
-			   __func__, _DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ),\
-			   dev->lock.file_priv, file_priv );		\
+			   __func__, _DRM_LOCK_IS_HELD(file_priv->master->lock.hw_lock->lock),\
+			   file_priv->master->lock.file_priv, file_priv);		\
 		return -EINVAL;						\
 	}								\
 } while (0)
@@ -379,21 +379,25 @@ struct drm_buf_entry {
 /** File private data */
 struct drm_file {
 	int authenticated;
-	int master;
 	pid_t pid;
 	uid_t uid;
 	drm_magic_t magic;
 	unsigned long ioctl_count;
 	struct list_head lhead;
 	struct drm_minor *minor;
-	int remove_auth_on_close;
 	unsigned long lock_count;
+
 	/** Mapping of mm object handles to object pointers. */
 	struct idr object_idr;
 	/** Lock for synchronization of access to object_idr. */
 	spinlock_t table_lock;
+
 	struct file *filp;
 	void *driver_priv;
+
+	int is_master; /* this file private is a master for a minor */
+	struct drm_master *master; /* master this node is currently associated with
+				      N.B. not always minor->master */
 };
 
 /** Wait queue */
@@ -523,6 +527,7 @@ struct drm_map_list {
 	struct drm_hash_item hash;
 	struct drm_map *map;			/**< mapping */
 	uint64_t user_token;
+	struct drm_master *master;
 };
 
 typedef struct drm_map drm_local_map_t;
@@ -610,6 +615,30 @@ struct drm_gem_object {
 	uint32_t pending_write_domain;
 
 	void *driver_private;
+};
+
+/* per-master structure */
+struct drm_master {
+
+	struct kref refcount; /* refcount for this master */
+
+	struct list_head head; /**< each minor contains a list of masters */
+	struct drm_minor *minor; /**< link back to minor we are a master for */
+
+	char *unique;			/**< Unique identifier: e.g., busid */
+	int unique_len;			/**< Length of unique field */
+
+	int blocked;			/**< Blocked due to VC switch? */
+
+	/** \name Authentication */
+	/*@{ */
+	struct drm_open_hash magiclist;
+	struct list_head magicfree;
+	/*@} */
+
+	struct drm_lock_data lock;	/**< Information on hardware lock */
+
+	void *driver_priv; /**< Private structure for driver to use */
 };
 
 /**
@@ -712,6 +741,10 @@ struct drm_driver {
 	void (*set_version) (struct drm_device *dev,
 			     struct drm_set_version *sv);
 
+	/* Master routines */
+	int (*master_create)(struct drm_device *dev, struct drm_master *master);
+	void (*master_destroy)(struct drm_device *dev, struct drm_master *master);
+
 	int (*proc_init)(struct drm_minor *minor);
 	void (*proc_cleanup)(struct drm_minor *minor);
 
@@ -754,6 +787,8 @@ struct drm_minor {
 	struct device kdev;		/**< Linux device */
 	struct drm_device *dev;
 	struct proc_dir_entry *dev_root;  /**< proc directory entry */
+	struct drm_master *master; /* currently active master for this node */
+	struct list_head master_list;
 };
 
 /**
@@ -762,12 +797,8 @@ struct drm_minor {
  */
 struct drm_device {
 	struct list_head driver_item;	/**< list of devices per driver */
-	char *unique;			/**< Unique identifier: e.g., busid */
-	int unique_len;			/**< Length of unique field */
 	char *devname;			/**< For /proc/interrupts */
 	int if_version;			/**< Highest interface version set */
-
-	int blocked;			/**< Blocked due to VC switch? */
 
 	/** \name Locks */
 	/*@{ */
@@ -791,12 +822,7 @@ struct drm_device {
 	atomic_t counts[15];
 	/*@} */
 
-	/** \name Authentication */
-	/*@{ */
 	struct list_head filelist;
-	struct drm_open_hash magiclist;	/**< magic hash table */
-	struct list_head magicfree;
-	/*@} */
 
 	/** \name Memory management */
 	/*@{ */
@@ -813,7 +839,6 @@ struct drm_device {
 	struct idr ctx_idr;
 
 	struct list_head vmalist;	/**< List of vmas (for debugging) */
-	struct drm_lock_data lock;	/**< Information on hardware lock */
 	/*@} */
 
 	/** \name DMA queues (contexts) */
@@ -1192,6 +1217,13 @@ extern int drm_agp_unbind_memory(DRM_AGP_MEM * handle);
 extern void drm_agp_chipset_flush(struct drm_device *dev);
 
 				/* Stub support (drm_stub.h) */
+extern int drm_setmaster_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv);
+extern int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
+struct drm_master *drm_master_create(struct drm_minor *minor);
+extern struct drm_master *drm_master_get(struct drm_master *master);
+extern void drm_master_put(struct drm_master **master);
 extern int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		       struct drm_driver *driver);
 extern int drm_put_dev(struct drm_device *dev);
