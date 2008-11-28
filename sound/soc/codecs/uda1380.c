@@ -677,7 +677,7 @@ static int uda1380_init(struct snd_soc_device *socdev, int dac_clk)
 	/* uda1380 init */
 	uda1380_add_controls(codec);
 	uda1380_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		pr_err("uda1380: failed to register card\n");
 		goto card_err;

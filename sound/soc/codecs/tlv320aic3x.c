@@ -1187,7 +1187,7 @@ static int aic3x_init(struct snd_soc_device *socdev)
 
 	aic3x_add_controls(codec);
 	aic3x_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "aic3x: failed to register card\n");
 		goto card_err;

@@ -1247,7 +1247,7 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 
 	wm9713_add_controls(codec);
 	wm9713_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0)
 		goto reset_err;
 	return 0;

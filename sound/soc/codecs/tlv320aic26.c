@@ -359,7 +359,7 @@ static int aic26_probe(struct platform_device *pdev)
 
 	/* CODEC is setup, we can register the card now */
 	dev_dbg(&pdev->dev, "Registering card\n");
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "aic26: failed to register card\n");
 		goto card_err;

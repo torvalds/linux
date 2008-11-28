@@ -720,7 +720,7 @@ static int tlv320aic23_init(struct snd_soc_device *socdev)
 
 	tlv320aic23_add_controls(codec);
 	tlv320aic23_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "tlv320aic23: failed to register card\n");
 		goto card_err;

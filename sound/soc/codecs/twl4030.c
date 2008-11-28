@@ -764,7 +764,7 @@ static int twl4030_init(struct snd_soc_device *socdev)
 	twl4030_add_controls(codec);
 	twl4030_add_widgets(codec);
 
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "twl4030: failed to register card\n");
 		goto card_err;

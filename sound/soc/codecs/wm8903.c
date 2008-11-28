@@ -1648,7 +1648,7 @@ static int wm8903_init(struct snd_soc_device *socdev)
 
 	wm8903_add_controls(codec);
 	wm8903_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "wm8903: failed to register card\n");
 		goto card_err;

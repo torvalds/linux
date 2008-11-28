@@ -700,7 +700,7 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	wm9712_add_controls(codec);
 	wm9712_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "wm9712: failed to register card\n");
 		goto reset_err;

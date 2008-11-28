@@ -723,7 +723,7 @@ static int cs4270_probe(struct platform_device *pdev)
 	printk(KERN_INFO "cs4270: I2C disabled, using stand-alone mode\n");
 #endif
 
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "cs4270: failed to register card\n");
 		goto error_del_driver;

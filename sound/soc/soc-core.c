@@ -1233,7 +1233,7 @@ int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid)
 EXPORT_SYMBOL_GPL(snd_soc_new_pcms);
 
 /**
- * snd_soc_register_card - register sound card
+ * snd_soc_init_card - register sound card
  * @socdev: the SoC audio device
  *
  * Register a SoC sound card. Also registers an AC97 device if the
@@ -1241,7 +1241,7 @@ EXPORT_SYMBOL_GPL(snd_soc_new_pcms);
  *
  * Returns 0 for success, else error.
  */
-int snd_soc_register_card(struct snd_soc_device *socdev)
+int snd_soc_init_card(struct snd_soc_device *socdev)
 {
 	struct snd_soc_codec *codec = socdev->codec;
 	struct snd_soc_card *card = socdev->card;
@@ -1298,7 +1298,7 @@ int snd_soc_register_card(struct snd_soc_device *socdev)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(snd_soc_register_card);
+EXPORT_SYMBOL_GPL(snd_soc_init_card);
 
 /**
  * snd_soc_free_pcms - free sound card and pcms

@@ -658,7 +658,7 @@ static int wm8510_init(struct snd_soc_device *socdev)
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	wm8510_add_controls(codec);
 	wm8510_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8510: failed to register card\n");
 		goto card_err;

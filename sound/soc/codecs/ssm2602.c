@@ -624,7 +624,7 @@ static int ssm2602_init(struct snd_soc_device *socdev)
 
 	ssm2602_add_controls(codec);
 	ssm2602_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		pr_err("ssm2602: failed to register card\n");
 		goto card_err;

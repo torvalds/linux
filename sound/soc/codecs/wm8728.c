@@ -332,7 +332,7 @@ static int wm8728_init(struct snd_soc_device *socdev)
 
 	wm8728_add_controls(codec);
 	wm8728_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8728: failed to register card\n");
 		goto card_err;

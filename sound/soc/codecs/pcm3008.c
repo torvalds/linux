@@ -91,7 +91,7 @@ static int pcm3008_soc_probe(struct platform_device *pdev)
 	}
 
 	/* Register Card. */
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "pcm3008: failed to register card\n");
 		goto card_err;

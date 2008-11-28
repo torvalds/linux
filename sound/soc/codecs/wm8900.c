@@ -1365,7 +1365,7 @@ static int wm8900_init(struct snd_soc_device *socdev)
 	wm8900_add_controls(codec);
 	wm8900_add_widgets(codec);
 
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Failed to register card\n");
 		goto card_err;

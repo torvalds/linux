@@ -162,7 +162,7 @@ extern struct snd_ac97_bus_ops soc_ac97_ops;
 /* pcm <-> DAI connect */
 void snd_soc_free_pcms(struct snd_soc_device *socdev);
 int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid);
-int snd_soc_register_card(struct snd_soc_device *socdev);
+int snd_soc_init_card(struct snd_soc_device *socdev);
 
 /* set runtime hw params */
 int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
