@@ -661,7 +661,7 @@ static int gspca_set_alt0(struct gspca_dev *gspca_dev)
 
 	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 0);
 	if (ret < 0)
-		PDEBUG(D_ERR|D_STREAM, "set interface 0 err %d", ret);
+		PDEBUG(D_ERR|D_STREAM, "set alt 0 err %d", ret);
 	return ret;
 }
 
@@ -1069,6 +1069,35 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 		return ret;
 	}
 	return -EINVAL;
+}
+
+/*fixme: have an audio flag in gspca_dev?*/
+static int vidioc_s_audio(struct file *file, void *priv,
+			 struct v4l2_audio *audio)
+{
+	if (audio->index != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv,
+			 struct v4l2_audio *audio)
+{
+	memset(audio, 0, sizeof *audio);
+	strcpy(audio->name, "Microphone");
+	return 0;
+}
+
+static int vidioc_enumaudio(struct file *file, void *priv,
+			 struct v4l2_audio *audio)
+{
+	if (audio->index != 0)
+		return -EINVAL;
+
+	strcpy(audio->name, "Microphone");
+	audio->capability = 0;
+	audio->mode = 0;
+	return 0;
 }
 
 static int vidioc_querymenu(struct file *file, void *priv,
@@ -1787,6 +1816,9 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_queryctrl	= vidioc_queryctrl,
 	.vidioc_g_ctrl		= vidioc_g_ctrl,
 	.vidioc_s_ctrl		= vidioc_s_ctrl,
+	.vidioc_g_audio		= vidioc_g_audio,
+	.vidioc_s_audio		= vidioc_s_audio,
+	.vidioc_enumaudio	= vidioc_enumaudio,
 	.vidioc_querymenu	= vidioc_querymenu,
 	.vidioc_enum_input	= vidioc_enum_input,
 	.vidioc_g_input		= vidioc_g_input,
