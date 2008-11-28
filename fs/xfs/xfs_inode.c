@@ -1843,13 +1843,10 @@ xfs_iunlink(
 	xfs_dinode_t	*dip;
 	xfs_buf_t	*agibp;
 	xfs_buf_t	*ibp;
-	xfs_agnumber_t	agno;
-	xfs_daddr_t	agdaddr;
 	xfs_agino_t	agino;
 	short		bucket_index;
 	int		offset;
 	int		error;
-	int		agi_ok;
 
 	ASSERT(ip->i_d.di_nlink == 0);
 	ASSERT(ip->i_d.di_mode != 0);
@@ -1857,31 +1854,15 @@ xfs_iunlink(
 
 	mp = tp->t_mountp;
 
-	agno = XFS_INO_TO_AGNO(mp, ip->i_ino);
-	agdaddr = XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp));
-
 	/*
 	 * Get the agi buffer first.  It ensures lock ordering
 	 * on the list.
 	 */
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, agdaddr,
-				   XFS_FSS_TO_BB(mp, 1), 0, &agibp);
+	error = xfs_read_agi(mp, tp, XFS_INO_TO_AGNO(mp, ip->i_ino), &agibp);
 	if (error)
 		return error;
-
-	/*
-	 * Validate the magic number of the agi block.
-	 */
 	agi = XFS_BUF_TO_AGI(agibp);
-	agi_ok =
-		be32_to_cpu(agi->agi_magicnum) == XFS_AGI_MAGIC &&
-		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
-	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IUNLINK,
-			XFS_RANDOM_IUNLINK))) {
-		XFS_CORRUPTION_ERROR("xfs_iunlink", XFS_ERRLEVEL_LOW, mp, agi);
-		xfs_trans_brelse(tp, agibp);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
+
 	/*
 	 * Get the index into the agi hash table for the
 	 * list this inode will go on.
@@ -1941,7 +1922,6 @@ xfs_iunlink_remove(
 	xfs_buf_t	*agibp;
 	xfs_buf_t	*ibp;
 	xfs_agnumber_t	agno;
-	xfs_daddr_t	agdaddr;
 	xfs_agino_t	agino;
 	xfs_agino_t	next_agino;
 	xfs_buf_t	*last_ibp;
@@ -1949,45 +1929,20 @@ xfs_iunlink_remove(
 	short		bucket_index;
 	int		offset, last_offset = 0;
 	int		error;
-	int		agi_ok;
 
-	/*
-	 * First pull the on-disk inode from the AGI unlinked list.
-	 */
 	mp = tp->t_mountp;
-
 	agno = XFS_INO_TO_AGNO(mp, ip->i_ino);
-	agdaddr = XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp));
 
 	/*
 	 * Get the agi buffer first.  It ensures lock ordering
 	 * on the list.
 	 */
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, agdaddr,
-				   XFS_FSS_TO_BB(mp, 1), 0, &agibp);
-	if (error) {
-		cmn_err(CE_WARN,
-			"xfs_iunlink_remove: xfs_trans_read_buf()  returned an error %d on %s.  Returning error.",
-			error, mp->m_fsname);
+	error = xfs_read_agi(mp, tp, agno, &agibp);
+	if (error)
 		return error;
-	}
-	/*
-	 * Validate the magic number of the agi block.
-	 */
+
 	agi = XFS_BUF_TO_AGI(agibp);
-	agi_ok =
-		be32_to_cpu(agi->agi_magicnum) == XFS_AGI_MAGIC &&
-		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
-	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IUNLINK_REMOVE,
-			XFS_RANDOM_IUNLINK_REMOVE))) {
-		XFS_CORRUPTION_ERROR("xfs_iunlink_remove", XFS_ERRLEVEL_LOW,
-				     mp, agi);
-		xfs_trans_brelse(tp, agibp);
-		cmn_err(CE_WARN,
-			"xfs_iunlink_remove: XFS_TEST_ERROR()  returned an error on %s.  Returning EFSCORRUPTED.",
-			 mp->m_fsname);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
+
 	/*
 	 * Get the index into the agi hash table for the
 	 * list this inode will go on.

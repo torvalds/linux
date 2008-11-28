@@ -3117,19 +3117,16 @@ xlog_recover_clear_agi_bucket(
 	int		error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_CLEAR_AGI_BUCKET);
-	error = xfs_trans_reserve(tp, 0, XFS_CLEAR_AGI_BUCKET_LOG_RES(mp), 0, 0, 0);
-	if (!error)
-		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-				   XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
-				   XFS_FSS_TO_BB(mp, 1), 0, &agibp);
+	error = xfs_trans_reserve(tp, 0, XFS_CLEAR_AGI_BUCKET_LOG_RES(mp),
+				  0, 0, 0);
 	if (error)
 		goto out_abort;
 
-	error = EINVAL;
-	agi = XFS_BUF_TO_AGI(agibp);
-	if (be32_to_cpu(agi->agi_magicnum) != XFS_AGI_MAGIC)
+	error = xfs_read_agi(mp, tp, agno, &agibp);
+	if (error)
 		goto out_abort;
 
+	agi = XFS_BUF_TO_AGI(agibp);
 	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		 (sizeof(xfs_agino_t) * bucket);
@@ -3190,16 +3187,17 @@ xlog_recover_process_iunlinks(
 		/*
 		 * Find the agi for this ag.
 		 */
-		agibp = xfs_buf_read(mp->m_ddev_targp,
-				XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
-				XFS_FSS_TO_BB(mp, 1), 0);
-		if (XFS_BUF_ISERROR(agibp)) {
-			xfs_ioerror_alert("xlog_recover_process_iunlinks(#1)",
-				log->l_mp, agibp,
-				XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)));
+		error = xfs_read_agi(mp, NULL, agno, &agibp);
+		if (error) {
+			/*
+			 * AGI is b0rked. Don't process it.
+			 *
+			 * We should probably mark the filesystem as corrupt
+			 * after we've recovered all the ag's we can....
+			 */
+			continue;
 		}
 		agi = XFS_BUF_TO_AGI(agibp);
-		ASSERT(XFS_AGI_MAGIC == be32_to_cpu(agi->agi_magicnum));
 
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++) {
 
@@ -3278,22 +3276,12 @@ xlog_recover_process_iunlinks(
 
 				/*
 				 * Reacquire the agibuffer and continue around
-				 * the loop.
+				 * the loop. This should never fail as we know
+				 * the buffer was good earlier on.
 				 */
-				agibp = xfs_buf_read(mp->m_ddev_targp,
-						XFS_AG_DADDR(mp, agno,
-							XFS_AGI_DADDR(mp)),
-						XFS_FSS_TO_BB(mp, 1), 0);
-				if (XFS_BUF_ISERROR(agibp)) {
-					xfs_ioerror_alert(
-				"xlog_recover_process_iunlinks(#2)",
-						log->l_mp, agibp,
-						XFS_AG_DADDR(mp, agno,
-							XFS_AGI_DADDR(mp)));
-				}
+				error = xfs_read_agi(mp, NULL, agno, &agibp);
+				ASSERT(error == 0);
 				agi = XFS_BUF_TO_AGI(agibp);
-				ASSERT(XFS_AGI_MAGIC == be32_to_cpu(
-					agi->agi_magicnum));
 			}
 		}
 
@@ -3980,11 +3968,9 @@ xlog_recover_check_summary(
 {
 	xfs_mount_t	*mp;
 	xfs_agf_t	*agfp;
-	xfs_agi_t	*agip;
 	xfs_buf_t	*agfbp;
 	xfs_buf_t	*agibp;
 	xfs_daddr_t	agfdaddr;
-	xfs_daddr_t	agidaddr;
 	xfs_buf_t	*sbbp;
 #ifdef XFS_LOUD_RECOVERY
 	xfs_sb_t	*sbp;
@@ -3993,6 +3979,7 @@ xlog_recover_check_summary(
 	__uint64_t	freeblks;
 	__uint64_t	itotal;
 	__uint64_t	ifree;
+	int		error;
 
 	mp = log->l_mp;
 
@@ -4016,21 +4003,14 @@ xlog_recover_check_summary(
 			    be32_to_cpu(agfp->agf_flcount);
 		xfs_buf_relse(agfbp);
 
-		agidaddr = XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp));
-		agibp = xfs_buf_read(mp->m_ddev_targp, agidaddr,
-				XFS_FSS_TO_BB(mp, 1), 0);
-		if (XFS_BUF_ISERROR(agibp)) {
-			xfs_ioerror_alert("xlog_recover_check_summary(agi)",
-					  mp, agibp, agidaddr);
-		}
-		agip = XFS_BUF_TO_AGI(agibp);
-		ASSERT(XFS_AGI_MAGIC == be32_to_cpu(agip->agi_magicnum));
-		ASSERT(XFS_AGI_GOOD_VERSION(be32_to_cpu(agip->agi_versionnum)));
-		ASSERT(be32_to_cpu(agip->agi_seqno) == agno);
+		error = xfs_read_agi(mp, NULL, agno, &agibp);
+		if (!error) {
+			struct xfs_agi	*agi = XFS_BUF_TO_AGI(agibp);
 
-		itotal += be32_to_cpu(agip->agi_count);
-		ifree += be32_to_cpu(agip->agi_freecount);
-		xfs_buf_relse(agibp);
+			itotal += be32_to_cpu(agi->agi_count);
+			ifree += be32_to_cpu(agi->agi_freecount);
+			xfs_buf_relse(agibp);
+		}
 	}
 
 	sbbp = xfs_getsb(mp, 0);
