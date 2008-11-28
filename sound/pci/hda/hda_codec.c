@@ -1237,6 +1237,7 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 	}
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
+	codec->proc_widget_hook = NULL;
 	codec->spec = NULL;
 	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
