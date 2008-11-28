@@ -18,7 +18,4 @@
  */
 #define PHYS_OFFSET     (0x80000000)
 
-#define __virt_to_bus(x) ((x) - PAGE_OFFSET + PHYS_OFFSET)
-#define __bus_to_virt(x) ((x) + PAGE_OFFSET - PHYS_OFFSET)
-
 #endif

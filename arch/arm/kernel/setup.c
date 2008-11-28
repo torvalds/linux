@@ -59,7 +59,7 @@ static int __init fpe_setup(char *line)
 __setup("fpe=", fpe_setup);
 #endif
 
-extern void paging_init(struct meminfo *, struct machine_desc *desc);
+extern void paging_init(struct machine_desc *desc);
 extern void reboot_setup(char *str);
 extern void _text, _etext, __data_start, _edata, _end;
 
@@ -112,7 +112,6 @@ static struct stack stacks[NR_CPUS];
 char elf_platform[ELF_PLATFORM_SIZE];
 EXPORT_SYMBOL(elf_platform);
 
-static struct meminfo meminfo __initdata = { 0, };
 static const char *cpu_name;
 static const char *machine_name;
 static char __initdata command_line[COMMAND_LINE_SIZE];
@@ -367,21 +366,34 @@ static struct machine_desc * __init setup_machine(unsigned int nr)
 	return list;
 }
 
-static void __init arm_add_memory(unsigned long start, unsigned long size)
+static int __init arm_add_memory(unsigned long start, unsigned long size)
 {
-	struct membank *bank;
+	struct membank *bank = &meminfo.bank[meminfo.nr_banks];
+
+	if (meminfo.nr_banks >= NR_BANKS) {
+		printk(KERN_CRIT "NR_BANKS too low, "
+			"ignoring memory at %#lx\n", start);
+		return -EINVAL;
+	}
 
 	/*
 	 * Ensure that start/size are aligned to a page boundary.
 	 * Size is appropriately rounded down, start is rounded up.
 	 */
 	size -= start & ~PAGE_MASK;
-
-	bank = &meminfo.bank[meminfo.nr_banks++];
-
 	bank->start = PAGE_ALIGN(start);
 	bank->size  = size & PAGE_MASK;
 	bank->node  = PHYS_TO_NID(start);
+
+	/*
+	 * Check whether this memory region has non-zero size or
+	 * invalid node number.
+	 */
+	if (bank->size == 0 || bank->node >= MAX_NUMNODES)
+		return -EINVAL;
+
+	meminfo.nr_banks++;
+	return 0;
 }
 
 /*
@@ -539,14 +551,7 @@ __tagtable(ATAG_CORE, parse_tag_core);
 
 static int __init parse_tag_mem32(const struct tag *tag)
 {
-	if (meminfo.nr_banks >= NR_BANKS) {
-		printk(KERN_WARNING
-		       "Ignoring memory bank 0x%08x size %dKB\n",
-			tag->u.mem.start, tag->u.mem.size / 1024);
-		return -EINVAL;
-	}
-	arm_add_memory(tag->u.mem.start, tag->u.mem.size);
-	return 0;
+	return arm_add_memory(tag->u.mem.start, tag->u.mem.size);
 }
 
 __tagtable(ATAG_MEM, parse_tag_mem32);
@@ -718,7 +723,7 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(boot_command_line, from, COMMAND_LINE_SIZE);
 	boot_command_line[COMMAND_LINE_SIZE-1] = '\0';
 	parse_cmdline(cmdline_p, from);
-	paging_init(&meminfo, mdesc);
+	paging_init(mdesc);
 	request_standard_resources(&meminfo, mdesc);
 
 #ifdef CONFIG_SMP

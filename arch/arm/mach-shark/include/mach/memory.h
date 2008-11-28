@@ -36,9 +36,6 @@ static inline void __arch_adjust_zones(int node, unsigned long *zone_size, unsig
 
 #endif
 
-#define __virt_to_bus(x)	__virt_to_phys(x)
-#define __bus_to_virt(x)	__phys_to_virt(x)
-
 /*
  * Cache flushing area
  */
