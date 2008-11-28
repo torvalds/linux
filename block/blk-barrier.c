@@ -166,9 +166,21 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	 * For an empty barrier, there's no actual BAR request, which
 	 * in turn makes POSTFLUSH unnecessary.  Mask them off.
 	 */
-	if (!rq->hard_nr_sectors)
+	if (!rq->hard_nr_sectors) {
 		q->ordered &= ~(QUEUE_ORDERED_DO_BAR |
 				QUEUE_ORDERED_DO_POSTFLUSH);
+		/*
+		 * Empty barrier on a write-through device w/ ordered
+		 * tag has no command to issue and without any command
+		 * to issue, ordering by tag can't be used.  Drain
+		 * instead.
+		 */
+		if ((q->ordered & QUEUE_ORDERED_BY_TAG) &&
+		    !(q->ordered & QUEUE_ORDERED_DO_PREFLUSH)) {
+			q->ordered &= ~QUEUE_ORDERED_BY_TAG;
+			q->ordered |= QUEUE_ORDERED_BY_DRAIN;
+		}
+	}
 
 	/* stash away the original request */
 	elv_dequeue_request(q, rq);
