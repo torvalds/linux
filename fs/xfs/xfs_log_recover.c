@@ -3147,6 +3147,70 @@ out_error:
 	return;
 }
 
+STATIC xfs_agino_t
+xlog_recover_process_one_iunlink(
+	struct xfs_mount		*mp,
+	xfs_agnumber_t			agno,
+	xfs_agino_t			agino,
+	int				bucket)
+{
+	struct xfs_buf			*ibp;
+	struct xfs_dinode		*dip;
+	struct xfs_inode		*ip;
+	xfs_ino_t			ino;
+	int				error;
+
+	ino = XFS_AGINO_TO_INO(mp, agno, agino);
+	error = xfs_iget(mp, NULL, ino, 0, 0, &ip, 0);
+	if (error)
+		goto fail;
+
+	/*
+	 * Get the on disk inode to find the next inode in the bucket.
+	 */
+	ASSERT(ip != NULL);
+	error = xfs_itobp(mp, NULL, ip, &dip, &ibp, 0, 0, XFS_BUF_LOCK);
+	if (error)
+		goto fail;
+
+	ASSERT(dip != NULL);
+	ASSERT(ip->i_d.di_nlink == 0);
+
+	/* setup for the next pass */
+	agino = be32_to_cpu(dip->di_next_unlinked);
+	xfs_buf_relse(ibp);
+
+	/*
+	 * Prevent any DMAPI event from being sent when the reference on
+	 * the inode is dropped.
+	 */
+	ip->i_d.di_dmevmask = 0;
+
+	/*
+	 * If this is a new inode, handle it specially.  Otherwise, just
+	 * drop our reference to the inode.  If there are no other
+	 * references, this will send the inode to xfs_inactive() which
+	 * will truncate the file and free the inode.
+	 */
+	if (ip->i_d.di_mode == 0)
+		xfs_iput_new(ip, 0);
+	else
+		IRELE(ip);
+	return agino;
+
+ fail:
+	/*
+	 * We can't read in the inode this bucket points to, or this inode
+	 * is messed up.  Just ditch this bucket of inodes.  We will lose
+	 * some inodes and space, but at least we won't hang.
+	 *
+	 * Call xlog_recover_clear_agi_bucket() to perform a transaction to
+	 * clear the inode pointer in the bucket.
+	 */
+	xlog_recover_clear_agi_bucket(mp, agno, bucket);
+	return NULLAGINO;
+}
+
 /*
  * xlog_iunlink_recover
  *
@@ -3167,11 +3231,7 @@ xlog_recover_process_iunlinks(
 	xfs_agnumber_t	agno;
 	xfs_agi_t	*agi;
 	xfs_buf_t	*agibp;
-	xfs_buf_t	*ibp;
-	xfs_dinode_t	*dip;
-	xfs_inode_t	*ip;
 	xfs_agino_t	agino;
-	xfs_ino_t	ino;
 	int		bucket;
 	int		error;
 	uint		mp_dmevmask;
@@ -3201,10 +3261,8 @@ xlog_recover_process_iunlinks(
 		agi = XFS_BUF_TO_AGI(agibp);
 
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++) {
-
 			agino = be32_to_cpu(agi->agi_unlinked[bucket]);
 			while (agino != NULLAGINO) {
-
 				/*
 				 * Release the agi buffer so that it can
 				 * be acquired in the normal course of the
@@ -3212,68 +3270,8 @@ xlog_recover_process_iunlinks(
 				 */
 				xfs_buf_relse(agibp);
 
-				ino = XFS_AGINO_TO_INO(mp, agno, agino);
-				error = xfs_iget(mp, NULL, ino, 0, 0, &ip, 0);
-				ASSERT(error || (ip != NULL));
-
-				if (!error) {
-					/*
-					 * Get the on disk inode to find the
-					 * next inode in the bucket.
-					 */
-					error = xfs_itobp(mp, NULL, ip, &dip,
-							&ibp, 0, 0,
-							XFS_BUF_LOCK);
-					ASSERT(error || (dip != NULL));
-				}
-
-				if (!error) {
-					ASSERT(ip->i_d.di_nlink == 0);
-
-					/* setup for the next pass */
-					agino = be32_to_cpu(
-							dip->di_next_unlinked);
-					xfs_buf_relse(ibp);
-					/*
-					 * Prevent any DMAPI event from
-					 * being sent when the
-					 * reference on the inode is
-					 * dropped.
-					 */
-					ip->i_d.di_dmevmask = 0;
-
-					/*
-					 * If this is a new inode, handle
-					 * it specially.  Otherwise,
-					 * just drop our reference to the
-					 * inode.  If there are no
-					 * other references, this will
-					 * send the inode to
-					 * xfs_inactive() which will
-					 * truncate the file and free
-					 * the inode.
-					 */
-					if (ip->i_d.di_mode == 0)
-						xfs_iput_new(ip, 0);
-					else
-						IRELE(ip);
-				} else {
-					/*
-					 * We can't read in the inode
-					 * this bucket points to, or
-					 * this inode is messed up.  Just
-					 * ditch this bucket of inodes.  We
-					 * will lose some inodes and space,
-					 * but at least we won't hang.  Call
-					 * xlog_recover_clear_agi_bucket()
-					 * to perform a transaction to clear
-					 * the inode pointer in the bucket.
-					 */
-					xlog_recover_clear_agi_bucket(mp, agno,
-							bucket);
-
-					agino = NULLAGINO;
-				}
+				agino = xlog_recover_process_one_iunlink(mp,
+							agno, agino, bucket);
 
 				/*
 				 * Reacquire the agibuffer and continue around
