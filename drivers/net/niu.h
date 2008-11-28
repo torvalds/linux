@@ -3249,7 +3249,6 @@ struct niu {
 	spinlock_t			lock;
 
 	const struct niu_ops		*ops;
-	struct net_device_stats		net_stats;
 	union niu_mac_stats		mac_stats;
 
 	struct rx_ring_info		*rx_rings;

@@ -6078,10 +6078,10 @@ static void niu_get_rx_stats(struct niu *np)
 		dropped += rp->rx_dropped;
 		errors += rp->rx_errors;
 	}
-	np->net_stats.rx_packets = pkts;
-	np->net_stats.rx_bytes = bytes;
-	np->net_stats.rx_dropped = dropped;
-	np->net_stats.rx_errors = errors;
+	np->dev->stats.rx_packets = pkts;
+	np->dev->stats.rx_bytes = bytes;
+	np->dev->stats.rx_dropped = dropped;
+	np->dev->stats.rx_errors = errors;
 }
 
 static void niu_get_tx_stats(struct niu *np)
@@ -6097,9 +6097,9 @@ static void niu_get_tx_stats(struct niu *np)
 		bytes += rp->tx_bytes;
 		errors += rp->tx_errors;
 	}
-	np->net_stats.tx_packets = pkts;
-	np->net_stats.tx_bytes = bytes;
-	np->net_stats.tx_errors = errors;
+	np->dev->stats.tx_packets = pkts;
+	np->dev->stats.tx_bytes = bytes;
+	np->dev->stats.tx_errors = errors;
 }
 
 static struct net_device_stats *niu_get_stats(struct net_device *dev)
@@ -6109,7 +6109,7 @@ static struct net_device_stats *niu_get_stats(struct net_device *dev)
 	niu_get_rx_stats(np);
 	niu_get_tx_stats(np);
 
-	return &np->net_stats;
+	return &dev->stats;
 }
 
 static void niu_load_hash_xmac(struct niu *np, u16 *hash)
