@@ -349,12 +349,6 @@ void warn_slowpath(const char *file, int line, const char *fmt, ...)
 	add_taint(TAINT_WARN);
 }
 EXPORT_SYMBOL(warn_slowpath);
-
-void warn_on_slowpath(const char *file, int line)
-{
-	warn_slowpath(file, line, NULL);
-}
-EXPORT_SYMBOL(warn_on_slowpath);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR
