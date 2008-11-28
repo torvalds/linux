@@ -10,7 +10,7 @@
  */
 
 #include <linux/serial_reg.h>
-#include <mach/pxa-regs.h>
+#include <mach/regs-uart.h>
 #include <asm/mach-types.h>
 
 #define __REG(x)       ((volatile unsigned long *)x)

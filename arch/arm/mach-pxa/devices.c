@@ -156,8 +156,8 @@ void __init set_pxa_fb_parent(struct device *parent_dev)
 
 static struct resource pxa_resource_ffuart[] = {
 	{
-		.start	= __PREG(FFUART),
-		.end	= __PREG(FFUART) + 35,
+		.start	= 0x40100000,
+		.end	= 0x40100023,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_FFUART,
@@ -175,8 +175,8 @@ struct platform_device pxa_device_ffuart= {
 
 static struct resource pxa_resource_btuart[] = {
 	{
-		.start	= __PREG(BTUART),
-		.end	= __PREG(BTUART) + 35,
+		.start	= 0x40200000,
+		.end	= 0x40200023,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_BTUART,
@@ -194,8 +194,8 @@ struct platform_device pxa_device_btuart = {
 
 static struct resource pxa_resource_stuart[] = {
 	{
-		.start	= __PREG(STUART),
-		.end	= __PREG(STUART) + 35,
+		.start	= 0x40700000,
+		.end	= 0x40700023,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_STUART,
@@ -213,8 +213,8 @@ struct platform_device pxa_device_stuart = {
 
 static struct resource pxa_resource_hwuart[] = {
 	{
-		.start	= __PREG(HWUART),
-		.end	= __PREG(HWUART) + 47,
+		.start	= 0x41600000,
+		.end	= 0x4160002F,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_HWUART,
