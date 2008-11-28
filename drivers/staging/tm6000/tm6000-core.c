@@ -51,8 +51,7 @@ int tm6000_read_write_usb (struct tm6000_core *dev, u8 req_type, u8 req,
 		memcpy(data, buf, len);
 	}
 
-//	if (tm6000_debug & V4L2_DEBUG_I2C) {
-if(1){
+	if (tm6000_debug & V4L2_DEBUG_I2C) {
 		if (!ini)
 			last=ini=jiffies;
 
@@ -82,8 +81,7 @@ if(1){
 	if (req_type &  USB_DIR_IN)
 		memcpy(buf, data, len);
 
-//	if (tm6000_debug & V4L2_DEBUG_I2C) {
-if(1) {
+	if (tm6000_debug & V4L2_DEBUG_I2C) {
 		if (ret<0) {
 			if (req_type &  USB_DIR_IN)
 				printk("<<< (len=%d)\n",len);
