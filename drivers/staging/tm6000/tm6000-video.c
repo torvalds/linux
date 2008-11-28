@@ -273,6 +273,11 @@ static int copy_packet(struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 					get_next_buf (dma_q, buf);
 					if (!*buf)
 						return rc;
+					out_p = videobuf_to_vmalloc(&((*buf)->vb));
+					if (!out_p)
+						return rc;
+
+					pos = dev->isoc_ctl.pos = 0;
 				}
 			}
 
@@ -420,6 +425,10 @@ static int copy_multiplexed(u8 *ptr, u8 *out_p, unsigned long len,
 			get_next_buf (dma_q, buf);
 			if (!*buf)
 				break;
+			out_p = videobuf_to_vmalloc(&((*buf)->vb));
+			if (!out_p)
+				return rc;
+			pos = 0;
 		}
 	}
 
@@ -471,15 +480,24 @@ static void inline print_err_status (struct tm6000_core *dev,
 /*
  * Controls the isoc copy of each urb packet
  */
-static inline int tm6000_isoc_copy(struct urb *urb, struct tm6000_buffer **buf)
+static inline int tm6000_isoc_copy(struct urb *urb)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
-	void *outp=videobuf_to_vmalloc (&((*buf)->vb));
+	struct tm6000_buffer *buf;
 	int i, len=0, rc=1;
-	int size=(*buf)->vb.size;
-	char *p;
+	int size;
+	char *outp = NULL, *p;
 	unsigned long copied;
+
+	get_next_buf(dma_q, &buf);
+	if (!buf)
+		outp = videobuf_to_vmalloc(&buf->vb);
+
+	if (!outp)
+		return 0;
+
+	size = buf->vb.size;
 
 	copied=0;
 
@@ -501,12 +519,12 @@ static inline int tm6000_isoc_copy(struct urb *urb, struct tm6000_buffer **buf)
 //		if (len>=TM6000_URB_MSG_LEN) {
 			p=urb->transfer_buffer + urb->iso_frame_desc[i].offset;
 			if (!urb->iso_frame_desc[i].status) {
-				if (((*buf)->fmt->fourcc)==V4L2_PIX_FMT_TM6000) {
-					rc=copy_multiplexed(p,outp,len,urb,buf);
+				if ((buf->fmt->fourcc)==V4L2_PIX_FMT_TM6000) {
+					rc=copy_multiplexed(p, outp, len, urb, &buf);
 					if (rc<=0)
 						return rc;
 				} else {
-					copy_streams(p,outp,len,urb,buf);
+					copy_streams(p, outp, len, urb, &buf);
 				}
 			}
 			copied += len;
@@ -526,21 +544,22 @@ static inline int tm6000_isoc_copy(struct urb *urb, struct tm6000_buffer **buf)
  */
 static void tm6000_irq_callback(struct urb *urb)
 {
-	struct tm6000_buffer    *buf = NULL;
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
-	unsigned long flags;
+	int i;
 
 	if (!dev)
 		return;
 
-	spin_lock_irqsave(&dev->slock, flags);
+	spin_lock(&dev->slock);
+	tm6000_isoc_copy(urb);
+	spin_unlock(&dev->slock);
 
-	get_next_buf(dma_q, &buf);
-	if (buf)
-		 tm6000_isoc_copy(urb, &buf);
-	spin_unlock_irqrestore(&dev->slock, flags);
-
+	/* Reset urb buffers */
+	for (i = 0; i < urb->number_of_packets; i++) {
+		urb->iso_frame_desc[i].status = 0;
+		urb->iso_frame_desc[i].actual_length = 0;
+	}
 
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (urb->status)
