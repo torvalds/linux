@@ -737,6 +737,8 @@ struct drm_driver {
 	int num_ioctls;
 	struct file_operations fops;
 	struct pci_driver pci_driver;
+	/* List of devices hanging off this driver */
+	struct list_head device_list;
 };
 
 #define DRM_MINOR_UNASSIGNED 0
@@ -759,6 +761,7 @@ struct drm_minor {
  * may contain multiple heads.
  */
 struct drm_device {
+	struct list_head driver_item;	/**< list of devices per driver */
 	char *unique;			/**< Unique identifier: e.g., busid */
 	int unique_len;			/**< Length of unique field */
 	char *devname;			/**< For /proc/interrupts */

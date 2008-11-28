@@ -263,6 +263,8 @@ int drm_init(struct drm_driver *driver)
 
 	DRM_DEBUG("\n");
 
+	INIT_LIST_HEAD(&driver->device_list);
+
 	for (i = 0; driver->pci_driver.id_table[i].vendor != 0; i++) {
 		pid = (struct pci_device_id *)&driver->pci_driver.id_table[i];
 
@@ -334,30 +336,13 @@ static void drm_cleanup(struct drm_device * dev)
 		DRM_ERROR("Cannot unload module\n");
 }
 
-static int drm_minors_cleanup(int id, void *ptr, void *data)
-{
-	struct drm_minor *minor = ptr;
-	struct drm_device *dev;
-	struct drm_driver *driver = data;
-
-	dev = minor->dev;
-	if (minor->dev->driver != driver)
-		return 0;
-
-	if (minor->type != DRM_MINOR_LEGACY)
-		return 0;
-
-	if (dev)
-		pci_dev_put(dev->pdev);
-	drm_cleanup(dev);
-	return 1;
-}
-
 void drm_exit(struct drm_driver *driver)
 {
+	struct drm_device *dev, *tmp;
 	DRM_DEBUG("\n");
 
-	idr_for_each(&drm_minors_idr, &drm_minors_cleanup, driver);
+	list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
+		drm_cleanup(dev);
 
 	DRM_INFO("Module unloaded\n");
 }
