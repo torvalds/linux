@@ -373,6 +373,7 @@ ENTRY(ret_from_fork)
 	call schedule_tail
 	GET_THREAD_INFO(%rcx)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),TI_flags(%rcx)
+	CFI_REMEMBER_STATE
 	jnz rff_trace
 rff_action:
 	RESTORE_REST
@@ -382,6 +383,7 @@ rff_action:
 	jnz  int_ret_from_sys_call
 	RESTORE_TOP_OF_STACK %rdi, -ARGOFFSET
 	jmp ret_from_sys_call
+	CFI_RESTORE_STATE
 rff_trace:
 	movq %rsp,%rdi
 	call syscall_trace_leave
@@ -1173,6 +1175,7 @@ ENTRY(child_rip)
 	# exit
 	mov %eax, %edi
 	call do_exit
+	ud2			# padding for call trace
 	CFI_ENDPROC
 END(child_rip)
 

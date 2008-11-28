@@ -25,9 +25,13 @@
  */
 .macro do_flush flushins:req optflushins optnopins label
 
+	R2 = -L1_CACHE_BYTES;
+
+	/* start = (start & -L1_CACHE_BYTES) */
+	R0 = R0 & R2;
+
 	/* end = ((end - 1) & -L1_CACHE_BYTES) + L1_CACHE_BYTES; */
 	R1 += -1;
-	R2 = -L1_CACHE_BYTES;
 	R1 = R1 & R2;
 	R1 += L1_CACHE_BYTES;
 
@@ -63,7 +67,7 @@ ENDPROC(_blackfin_icache_flush_range)
 
 /* Flush all cache lines assocoiated with this area of memory. */
 ENTRY(_blackfin_icache_dcache_flush_range)
-	do_flush IFLUSH, FLUSH
+	do_flush FLUSH, IFLUSH
 ENDPROC(_blackfin_icache_dcache_flush_range)
 
 /* Throw away all D-cached data in specified region without any obligation to

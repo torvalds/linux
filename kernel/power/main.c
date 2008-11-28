@@ -174,7 +174,7 @@ static void suspend_test_finish(const char *label)
 	 * has some performance issues.  The stack dump of a WARN_ON
 	 * is more likely to get the right attention than a printk...
 	 */
-	WARN_ON(msec > (TEST_SUSPEND_SECONDS * 1000));
+	WARN(msec > (TEST_SUSPEND_SECONDS * 1000), "Component: %s\n", label);
 }
 
 #else

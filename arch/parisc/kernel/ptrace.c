@@ -183,10 +183,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
  * being 64 bit in both cases.
  */
 
-static long translate_usr_offset(long offset)
+static compat_ulong_t translate_usr_offset(compat_ulong_t offset)
 {
 	if (offset < 0)
-		return -1;
+		return sizeof(struct pt_regs);
 	else if (offset <= 32*4)	/* gr[0..31] */
 		return offset * 2 + 4;
 	else if (offset <= 32*4+32*8)	/* gr[0..31] + fr[0..31] */
@@ -194,7 +194,7 @@ static long translate_usr_offset(long offset)
 	else if (offset < sizeof(struct pt_regs)/2 + 32*4)
 		return offset * 2 + 4 - 32*8;
 	else
-		return -1;
+		return sizeof(struct pt_regs);
 }
 
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
@@ -209,7 +209,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		if (addr & (sizeof(compat_uint_t)-1))
 			break;
 		addr = translate_usr_offset(addr);
-		if (addr < 0)
+		if (addr >= sizeof(struct pt_regs))
 			break;
 
 		tmp = *(compat_uint_t *) ((char *) task_regs(child) + addr);
@@ -236,7 +236,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			if (addr & (sizeof(compat_uint_t)-1))
 				break;
 			addr = translate_usr_offset(addr);
-			if (addr < 0)
+			if (addr >= sizeof(struct pt_regs))
 				break;
 			if (addr >= PT_FR0 && addr <= PT_FR31 + 4) {
 				/* Special case, fp regs are 64 bits anyway */
