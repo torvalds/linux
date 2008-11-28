@@ -3169,7 +3169,7 @@ xlog_recover_process_one_iunlink(
 	 * Get the on disk inode to find the next inode in the bucket.
 	 */
 	ASSERT(ip != NULL);
-	error = xfs_itobp(mp, NULL, ip, &dip, &ibp, 0, 0, XFS_BUF_LOCK);
+	error = xfs_itobp(mp, NULL, ip, &dip, &ibp, XFS_BUF_LOCK);
 	if (error)
 		goto fail;
 

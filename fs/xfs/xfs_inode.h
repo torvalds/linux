@@ -157,7 +157,7 @@ typedef struct xfs_icdinode {
 #define	XFS_IFEXTIREC	0x08	/* Indirection array of extent blocks */
 
 /*
- * Flags for xfs_inotobp, xfs_itobp(), xfs_imap() and xfs_dilocate().
+ * Flags for xfs_inotobp, xfs_imap() and xfs_dilocate().
  */
 #define XFS_IMAP_LOOKUP		0x1
 #define XFS_IMAP_BULKSTAT	0x2
@@ -550,7 +550,7 @@ int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
 			    struct xfs_buf **, int *, uint);
 int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
 			  struct xfs_inode *, struct xfs_dinode **,
-			  struct xfs_buf **, xfs_daddr_t, uint, uint);
+			  struct xfs_buf **, uint);
 void		xfs_dinode_from_disk(struct xfs_icdinode *,
 				     struct xfs_dinode *);
 void		xfs_dinode_to_disk(struct xfs_dinode *,
