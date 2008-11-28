@@ -50,7 +50,7 @@
 
 STATIC void
 xfs_fill_statvfs_from_dquot(
-	bhv_statvfs_t		*statp,
+	struct kstatfs		*statp,
 	xfs_disk_dquot_t	*dp)
 {
 	__uint64_t		limit;
@@ -87,7 +87,7 @@ xfs_fill_statvfs_from_dquot(
 STATIC void
 xfs_qm_statvfs(
 	xfs_inode_t		*ip,
-	bhv_statvfs_t		*statp)
+	struct kstatfs		*statp)
 {
 	xfs_mount_t		*mp = ip->i_mount;
 	xfs_dquot_t		*dqp;

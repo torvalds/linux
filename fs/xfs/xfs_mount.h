@@ -134,7 +134,7 @@ typedef struct xfs_dquot * (*xfs_dqvopchown_t)(
 			struct xfs_dquot **, struct xfs_dquot *);
 typedef int	(*xfs_dqvopchownresv_t)(struct xfs_trans *, struct xfs_inode *,
 			struct xfs_dquot *, struct xfs_dquot *, uint);
-typedef void	(*xfs_dqstatvfs_t)(struct xfs_inode *, bhv_statvfs_t *);
+typedef void	(*xfs_dqstatvfs_t)(struct xfs_inode *, struct kstatfs *);
 typedef int	(*xfs_dqsync_t)(struct xfs_mount *, int flags);
 typedef int	(*xfs_quotactl_t)(struct xfs_mount *, int, int, xfs_caddr_t);
 

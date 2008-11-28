@@ -31,8 +31,6 @@ struct xfs_inode;
 struct xfs_mount;
 struct xfs_mount_args;
 
-typedef struct kstatfs	bhv_statvfs_t;
-
 #define SHUTDOWN_META_IO_ERROR	0x0001	/* write attempt to metadata failed */
 #define SHUTDOWN_LOG_IO_ERROR	0x0002	/* write attempt to the log failed */
 #define SHUTDOWN_FORCE_UMOUNT	0x0004	/* shutdown from a forced unmount */
