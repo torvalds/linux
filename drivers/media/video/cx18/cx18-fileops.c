@@ -195,11 +195,6 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 				return buf;
 		}
 
-		/* do we have leftover data? */
-		buf = cx18_dequeue(s, &s->q_io);
-		if (buf)
-			return buf;
-
 		/* do we have new data? */
 		buf = cx18_dequeue(s, &s->q_full);
 		if (buf) {
@@ -375,7 +370,7 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 					  cx->enc_mem,
 					1, buf->id, s->buf_size);
 			} else
-				cx18_enqueue(s, buf, &s->q_io);
+				cx18_push(s, buf, &s->q_full);
 		} else if (buf->readpos == buf->bytesused) {
 			int idx = cx->vbi.inserted_frame % CX18_VBI_FRAMES;
 
@@ -519,7 +514,7 @@ unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	CX18_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
-	if (atomic_read(&s->q_full.buffers) || atomic_read(&s->q_io.buffers))
+	if (atomic_read(&s->q_full.buffers))
 		return POLLIN | POLLRDNORM;
 	if (eof)
 		return POLLHUP;

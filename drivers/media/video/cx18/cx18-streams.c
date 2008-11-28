@@ -138,7 +138,6 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->id = -1;
 	cx18_queue_init(&s->q_free);
 	cx18_queue_init(&s->q_full);
-	cx18_queue_init(&s->q_io);
 }
 
 static int cx18_prep_dev(struct cx18 *cx, int type)

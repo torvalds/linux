@@ -42,8 +42,8 @@ void cx18_queue_init(struct cx18_queue *q)
 	q->bytesused = 0;
 }
 
-void cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
-		struct cx18_queue *q)
+void _cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
+		   struct cx18_queue *q, int to_front)
 {
 	/* clear the buffer if it is going to be enqueued to the free queue */
 	if (q == &s->q_free) {
@@ -53,7 +53,10 @@ void cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 		buf->skipped = 0;
 	}
 	mutex_lock(&s->qlock);
-	list_add_tail(&buf->list, &q->list);
+	if (to_front)
+		list_add(&buf->list, &q->list); /* LIFO */
+	else
+		list_add_tail(&buf->list, &q->list); /* FIFO */
 	atomic_inc(&q->buffers);
 	q->bytesused += buf->bytesused - buf->readpos;
 	mutex_unlock(&s->qlock);
@@ -159,7 +162,6 @@ static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 
 void cx18_flush_queues(struct cx18_stream *s)
 {
-	cx18_queue_flush(s, &s->q_io);
 	cx18_queue_flush(s, &s->q_full);
 }
 
