@@ -1,6 +1,8 @@
 #ifndef _IP6T_POLICY_H
 #define _IP6T_POLICY_H
 
+#include <linux/netfilter/xt_policy.h>
+
 #define IP6T_POLICY_MAX_ELEM		XT_POLICY_MAX_ELEM
 
 /* ip6t_policy_flags */

@@ -1,6 +1,8 @@
 #ifndef _IPT_POLICY_H
 #define _IPT_POLICY_H
 
+#include <linux/netfilter/xt_policy.h>
+
 #define IPT_POLICY_MAX_ELEM		XT_POLICY_MAX_ELEM
 
 /* ipt_policy_flags */

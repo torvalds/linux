@@ -28,6 +28,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
 MODULE_DESCRIPTION("SIP connection tracking helper");
 MODULE_ALIAS("ip_conntrack_sip");
+MODULE_ALIAS_NFCT_HELPER("sip");
 
 #define MAX_PORTS	8
 static unsigned short ports[MAX_PORTS];
