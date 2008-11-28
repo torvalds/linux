@@ -18,16 +18,17 @@ int __init detect_cpu_and_cache_system(void)
 	/* All SH-2A CPUs have support for 16 and 32-bit opcodes.. */
 	boot_cpu_data.flags			|= CPU_HAS_OP32;
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7203)
+#if defined(CONFIG_CPU_SUBTYPE_SH7201)
+	boot_cpu_data.type			= CPU_SH7201;
+	boot_cpu_data.flags			|= CPU_HAS_FPU;
+#elif defined(CONFIG_CPU_SUBTYPE_SH7203)
 	boot_cpu_data.type			= CPU_SH7203;
-	/* SH7203 has an FPU.. */
 	boot_cpu_data.flags			|= CPU_HAS_FPU;
 #elif defined(CONFIG_CPU_SUBTYPE_SH7263)
 	boot_cpu_data.type			= CPU_SH7263;
 	boot_cpu_data.flags			|= CPU_HAS_FPU;
 #elif defined(CONFIG_CPU_SUBTYPE_SH7206)
 	boot_cpu_data.type			= CPU_SH7206;
-	/* While SH7206 has a DSP.. */
 	boot_cpu_data.flags			|= CPU_HAS_DSP;
 #elif defined(CONFIG_CPU_SUBTYPE_MXG)
 	boot_cpu_data.type			= CPU_MXG;
