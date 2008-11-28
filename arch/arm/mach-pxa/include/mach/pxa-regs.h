@@ -124,18 +124,6 @@
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
 /*
- * I2C registers - moved into drivers/i2c/busses/i2c-pxa.c
- */
-
-/*
- * Serial Audio Controller - moved into sound/soc/pxa/pxa2xx-i2s.c
- */
-
-/*
- * Fast Infrared Communication Port - moved into drivers/net/irda/pxaficp_ir.c
- */
-
-/*
  * Real Time Clock
  */
 
@@ -270,22 +258,5 @@
 #define GEDR(x)		(*((((x) & 0x7f) < 96) ? &_GEDR(x) : &GEDR3))
 #define GAFR(x)		(*((((x) & 0x7f) < 96) ? &_GAFR(x) : \
 			 ((((x) & 0x7f) < 112) ? &GAFR3_L : &GAFR3_U)))
-
-
-/*
- * Power Manager - see pxa2xx-regs.h
- */
-
-/*
- * SSP Serial Port Registers - see arch/arm/mach-pxa/include/mach/regs-ssp.h
- */
-
-/*
- * MultiMediaCard (MMC) controller - see drivers/mmc/host/pxamci.h
- */
-
-/*
- * Core Clock - see arch/arm/mach-pxa/include/mach/pxa2xx-regs.h
- */
 
 #endif
