@@ -944,10 +944,14 @@ void elv_completed_request(struct request_queue *q, struct request *rq)
 	 * drained for flush sequence.
 	 */
 	if (unlikely(q->ordseq)) {
-		struct request *first_rq = list_entry_rq(q->queue_head.next);
-		if (q->in_flight == 0 &&
+		struct request *next = NULL;
+
+		if (!list_empty(&q->queue_head))
+			next = list_entry_rq(q->queue_head.next);
+
+		if (!q->in_flight &&
 		    blk_ordered_cur_seq(q) == QUEUE_ORDSEQ_DRAIN &&
-		    blk_ordered_req_seq(first_rq) > QUEUE_ORDSEQ_DRAIN) {
+		    (!next || blk_ordered_req_seq(next) > QUEUE_ORDSEQ_DRAIN)) {
 			blk_ordered_complete_seq(q, QUEUE_ORDSEQ_DRAIN, 0);
 			blk_start_queueing(q);
 		}
