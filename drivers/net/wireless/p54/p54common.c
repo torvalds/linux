@@ -739,7 +739,13 @@ static void p54_rx_eeprom_readback(struct ieee80211_hw *dev,
 	if (!priv->eeprom)
 		return ;
 
-	memcpy(priv->eeprom, eeprom->data, le16_to_cpu(eeprom->len));
+	if (priv->fw_var >= 0x509) {
+		memcpy(priv->eeprom, eeprom->v2.data,
+		       le16_to_cpu(eeprom->v2.len));
+	} else {
+		memcpy(priv->eeprom, eeprom->v1.data,
+		       le16_to_cpu(eeprom->v1.len));
+	}
 
 	complete(&priv->eeprom_comp);
 }
@@ -940,12 +946,18 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 	struct p54_hdr *hdr = NULL;
 	struct p54_eeprom_lm86 *eeprom_hdr;
 	struct sk_buff *skb;
-	size_t eeprom_size = 0x2020, offset = 0, blocksize;
+	size_t eeprom_size = 0x2020, offset = 0, blocksize, maxblocksize;
 	int ret = -ENOMEM;
 	void *eeprom = NULL;
 
-	skb = p54_alloc_skb(dev, 0x8000, sizeof(*hdr) + sizeof(*eeprom_hdr) +
-			    EEPROM_READBACK_LEN,
+	maxblocksize = EEPROM_READBACK_LEN;
+	if (priv->fw_var >= 0x509)
+		maxblocksize -= 0xc;
+	else
+		maxblocksize -= 0x4;
+
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL, sizeof(*hdr) +
+			    sizeof(*eeprom_hdr) + maxblocksize,
 			    P54_CONTROL_TYPE_EEPROM_READBACK, GFP_KERNEL);
 	if (!skb)
 		goto free;
@@ -957,12 +969,19 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 		goto free;
 
 	eeprom_hdr = (struct p54_eeprom_lm86 *) skb_put(skb,
-		     sizeof(*eeprom_hdr) + EEPROM_READBACK_LEN);
+		     sizeof(*eeprom_hdr) + maxblocksize);
 
 	while (eeprom_size) {
-		blocksize = min(eeprom_size, (size_t)EEPROM_READBACK_LEN);
-		eeprom_hdr->offset = cpu_to_le16(offset);
-		eeprom_hdr->len = cpu_to_le16(blocksize);
+		blocksize = min(eeprom_size, maxblocksize);
+		if (priv->fw_var < 0x509) {
+			eeprom_hdr->v1.offset = cpu_to_le16(offset);
+			eeprom_hdr->v1.len = cpu_to_le16(blocksize);
+		} else {
+			eeprom_hdr->v2.offset = cpu_to_le32(offset);
+			eeprom_hdr->v2.len = cpu_to_le16(blocksize);
+			eeprom_hdr->v2.magic2 = 0xf;
+			memcpy(eeprom_hdr->v2.magic, (const char *)"LOCK", 4);
+		}
 		priv->tx(dev, skb, 0);
 
 		if (!wait_for_completion_interruptible_timeout(&priv->eeprom_comp, HZ)) {

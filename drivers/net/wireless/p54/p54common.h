@@ -246,9 +246,21 @@ struct memrecord {
 };
 
 struct p54_eeprom_lm86 {
-	__le16 offset;
-	__le16 len;
-	u8 data[0];
+	union {
+		struct {
+			__le16 offset;
+			__le16 len;
+			u8 data[0];
+		} v1;
+		struct {
+			__le32 offset;
+			__le16 len;
+			u8 magic2;
+			u8 pad;
+			u8 magic[4];
+			u8 data[0];
+		} v2;
+	}  __attribute__ ((packed));
 } __attribute__ ((packed));
 
 enum p54_rx_decrypt_status {
