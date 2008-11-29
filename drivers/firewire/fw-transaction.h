@@ -237,13 +237,6 @@ struct fw_card {
 	int link_speed;
 	int config_rom_generation;
 
-	/*
-	 * We need to store up to 4 self ID for a maximum of 63
-	 * devices plus 3 words for the topology map header.
-	 */
-	u32 topology_map[252 + 3];
-	u32 broadcast_channel;
-
 	spinlock_t lock; /* Take this lock when handling the lists in
 			  * this struct. */
 	struct fw_node *local_node;
@@ -261,6 +254,9 @@ struct fw_card {
 	struct delayed_work work;
 	int bm_retries;
 	int bm_generation;
+
+	u32 broadcast_channel;
+	u32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
 };
 
 static inline struct fw_card *fw_card_get(struct fw_card *card)
