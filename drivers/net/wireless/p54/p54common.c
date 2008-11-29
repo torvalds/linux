@@ -652,6 +652,10 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		__skb_unlink(entry, &priv->tx_queue);
 		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
+		entry_hdr = (struct p54_hdr *) entry->data;
+		entry_data = (struct p54_tx_data *) entry_hdr->data;
+		priv->tx_stats[entry_data->hw_queue].len--;
+
 		if (unlikely(entry == priv->cached_beacon)) {
 			kfree_skb(entry);
 			priv->cached_beacon = NULL;
@@ -668,8 +672,6 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		BUILD_BUG_ON(offsetof(struct ieee80211_tx_info,
 				      status.ampdu_ack_len) != 23);
 
-		entry_hdr = (struct p54_hdr *) entry->data;
-		entry_data = (struct p54_tx_data *) entry_hdr->data;
 		if (entry_hdr->flags & cpu_to_le16(P54_HDR_FLAG_DATA_ALIGN))
 			pad = entry_data->align[0];
 
@@ -687,7 +689,6 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			}
 		}
 
-		priv->tx_stats[entry_data->hw_queue].len--;
 		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
 		     (!payload->status))
 			info->flags |= IEEE80211_TX_STAT_ACK;
@@ -1004,6 +1005,38 @@ static int p54_sta_unlock(struct ieee80211_hw *dev, u8 *addr)
 	return 0;
 }
 
+static void p54_sta_notify_ps(struct ieee80211_hw *dev,
+			      enum sta_notify_ps_cmd notify_cmd,
+			      struct ieee80211_sta *sta)
+{
+	switch (notify_cmd) {
+	case STA_NOTIFY_AWAKE:
+		p54_sta_unlock(dev, sta->addr);
+		break;
+	default:
+		break;
+	}
+}
+
+static void p54_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
+			      enum sta_notify_cmd notify_cmd,
+			      struct ieee80211_sta *sta)
+{
+	switch (notify_cmd) {
+	case STA_NOTIFY_ADD:
+	case STA_NOTIFY_REMOVE:
+		/*
+		 * Notify the firmware that we don't want or we don't
+		 * need to buffer frames for this station anymore.
+		 */
+
+		p54_sta_unlock(dev, sta->addr);
+		break;
+	default:
+		break;
+	}
+}
+
 static int p54_tx_cancel(struct ieee80211_hw *dev, struct sk_buff *entry)
 {
 	struct p54_common *priv = dev->priv;
@@ -1069,7 +1102,7 @@ static int p54_tx_fill(struct ieee80211_hw *dev, struct sk_buff *skb,
 		if (info->control.sta)
 			*aid = info->control.sta->aid;
 		else
-			*flags = P54_HDR_FLAG_DATA_OUT_NOCANCEL;
+			*flags |= P54_HDR_FLAG_DATA_OUT_NOCANCEL;
 	}
 	return ret;
 }
@@ -1082,7 +1115,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct p54_hdr *hdr;
 	struct p54_tx_data *txhdr;
 	size_t padding, len, tim_len = 0;
-	int i, j, ridx;
+	int i, j, ridx, ret;
 	u16 hdr_flags = 0, aid = 0;
 	u8 rate, queue;
 	u8 cts_rate = 0x20;
@@ -1092,29 +1125,17 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	queue = skb_get_queue_mapping(skb);
 
-	if (p54_tx_fill(dev, skb, info, &queue, &tim_len, &hdr_flags, &aid)) {
-		current_queue = &priv->tx_stats[queue];
-		if (unlikely(current_queue->len > current_queue->limit))
-			return NETDEV_TX_BUSY;
-		current_queue->len++;
-		current_queue->count++;
-		if (current_queue->len == current_queue->limit)
-			ieee80211_stop_queue(dev, skb_get_queue_mapping(skb));
-	}
+	ret = p54_tx_fill(dev, skb, info, &queue, &tim_len, &hdr_flags, &aid);
+	current_queue = &priv->tx_stats[queue];
+	if (unlikely((current_queue->len > current_queue->limit) && ret))
+		return NETDEV_TX_BUSY;
+	current_queue->len++;
+	current_queue->count++;
+	if ((current_queue->len == current_queue->limit) && ret)
+		ieee80211_stop_queue(dev, skb_get_queue_mapping(skb));
 
 	padding = (unsigned long)(skb->data - (sizeof(*hdr) + sizeof(*txhdr))) & 3;
 	len = skb->len;
-
-	if (info->flags & IEEE80211_TX_CTL_CLEAR_PS_FILT) {
-		if (info->control.sta)
-			if (p54_sta_unlock(dev, info->control.sta->addr)) {
-				if (current_queue) {
-					current_queue->len--;
-					current_queue->count--;
-				}
-				return NETDEV_TX_BUSY;
-			}
-	}
 
 	txhdr = (struct p54_tx_data *) skb_push(skb, sizeof(*txhdr) + padding);
 	hdr = (struct p54_hdr *) skb_push(skb, sizeof(*hdr));
@@ -1834,6 +1855,8 @@ static const struct ieee80211_ops p54_ops = {
 	.add_interface		= p54_add_interface,
 	.remove_interface	= p54_remove_interface,
 	.set_tim		= p54_set_tim,
+	.sta_notify_ps		= p54_sta_notify_ps,
+	.sta_notify		= p54_sta_notify,
 	.config			= p54_config,
 	.config_interface	= p54_config_interface,
 	.bss_info_changed	= p54_bss_info_changed,
