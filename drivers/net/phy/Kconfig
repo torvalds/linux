@@ -66,6 +66,11 @@ config REALTEK_PHY
 	---help---
 	  Supports the Realtek 821x PHY.
 
+config NATIONAL_PHY
+	tristate "Drivers for National Semiconductor PHYs"
+	---help---
+	  Currently supports the DP83865 PHY.
+
 config FIXED_PHY
 	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	depends on PHYLIB=y
