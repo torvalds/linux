@@ -1552,7 +1552,9 @@ special_insn:
 		emulate_push(ctxt);
 		break;
 	case 0x9d: /* popf */
+		c->dst.type = OP_REG;
 		c->dst.ptr = (unsigned long *) &ctxt->eflags;
+		c->dst.bytes = c->op_bytes;
 		goto pop_instruction;
 	case 0xa0 ... 0xa1:	/* mov */
 		c->dst.ptr = (unsigned long *)&c->regs[VCPU_REGS_RAX];
