@@ -87,11 +87,12 @@ struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id, int id,
 		return NULL;
 	}
 
-	len = i2c_smbus_read_word_data(&sat->i2c, 9);
-	if (len < 0) {
+	err = i2c_smbus_read_word_data(&sat->i2c, 9);
+	if (err < 0) {
 		printk(KERN_ERR "smu_sat_get_sdb_part rd len error\n");
 		return NULL;
 	}
+	len = err;
 	if (len == 0) {
 		printk(KERN_ERR "smu_sat_get_sdb_part no partition %x\n", id);
 		return NULL;
