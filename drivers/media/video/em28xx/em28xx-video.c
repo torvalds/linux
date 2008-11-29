@@ -2177,6 +2177,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	int retval = -ENODEV;
 	int i, nr, ifnum, isoc_pipe;
 	char *speed;
+	char descr[255] = "";
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
@@ -2249,8 +2250,20 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		speed = "unknown";
 	}
 
-	printk(DRIVER_NAME ": New video device @ %s Mbps "
+	if (udev->manufacturer)
+		strlcpy(descr, udev->manufacturer, sizeof(descr));
+
+	if (udev->product) {
+		if (*descr)
+			strlcat(descr, " ", sizeof(descr));
+		strlcat(descr, udev->product, sizeof(descr));
+	}
+	if (*descr)
+		strlcat(descr, " ", sizeof(descr));
+
+	printk(DRIVER_NAME ": New device %s@ %s Mbps "
 		"(%04x:%04x, interface %d, class %d)\n",
+		descr,
 		speed,
 		le16_to_cpu(udev->descriptor.idVendor),
 		le16_to_cpu(udev->descriptor.idProduct),

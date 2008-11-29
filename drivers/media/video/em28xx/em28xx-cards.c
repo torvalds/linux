@@ -1354,7 +1354,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	em28xx_set_model(dev);
 
-	em28xx_info("Found %s\n", dev->board.name);
+	em28xx_info("Identified as %s (card=%d)\n",
+		    dev->board.name, dev->model);
 
 	/* Set the default GPO/GPIO for legacy devices */
 	dev->reg_gpo_num = EM2880_R04_GPO;
