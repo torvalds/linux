@@ -374,7 +374,7 @@ static u16 group2_table[] = {
 			: "=m" (_eflags), "=m" ((_dst).val),		\
 			  "=&r" (_tmp)					\
 			: _y ((_src).val), "i" (EFLAGS_MASK));		\
-	} while (0);
+	} while (0)
 
 
 /* Raw emulation: instruction has two explicit operands. */
