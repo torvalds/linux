@@ -2306,7 +2306,7 @@ next_fl:
 
 static inline int is_pure_response(const struct rsp_desc *r)
 {
-	u32 n = ntohl(r->flags) & (F_RSPD_ASYNC_NOTIF | F_RSPD_IMM_DATA_VALID);
+	__be32 n = r->flags & htonl(F_RSPD_ASYNC_NOTIF | F_RSPD_IMM_DATA_VALID);
 
 	return (n | r->len_cq) == 0;
 }
