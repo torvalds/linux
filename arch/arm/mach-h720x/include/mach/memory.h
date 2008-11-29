@@ -16,6 +16,6 @@
  * If you set this, you must also set ISA_DMA_THRESHOLD and setup a DMA
  * zone if this does not cover all possible RAM.
  */
-#define MAX_DMA_ADDRESS		0xd0000000
+#define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_256M)
 
 #endif

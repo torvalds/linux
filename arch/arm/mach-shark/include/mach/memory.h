@@ -33,7 +33,7 @@ static inline void __arch_adjust_zones(int node, unsigned long *zone_size, unsig
 	__arch_adjust_zones(node, size, holes)
 
 #define ISA_DMA_THRESHOLD	(PHYS_OFFSET + SZ_4M - 1)
-#define MAX_DMA_ADDRESS		0xC0400000
+#define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_4M)
 
 #endif
 
