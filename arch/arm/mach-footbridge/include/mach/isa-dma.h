@@ -1,5 +1,5 @@
 /*
- *  arch/arm/mach-footbridge/include/mach/dma.h
+ *  arch/arm/mach-footbridge/include/mach/isa-dma.h
  *
  *  Architecture DMA routines
  *

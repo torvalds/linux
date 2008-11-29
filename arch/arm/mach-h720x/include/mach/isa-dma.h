@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-h720x/include/mach/dma.h
+ * arch/arm/mach-h720x/include/mach/isa-dma.h
  *
  * Architecture DMA routes
  *

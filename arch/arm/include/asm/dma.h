@@ -21,7 +21,7 @@
 
 typedef unsigned int dmach_t;
 
-#include <mach/dma.h>
+#include <mach/isa-dma.h>
 
 /*
  * DMA modes

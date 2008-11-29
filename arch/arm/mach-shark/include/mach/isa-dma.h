@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-shark/include/mach/dma.h
+ * arch/arm/mach-shark/include/mach/isa-dma.h
  *
  * by Alexander Schulz
  */

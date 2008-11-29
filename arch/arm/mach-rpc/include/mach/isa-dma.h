@@ -1,5 +1,5 @@
 /*
- *  arch/arm/mach-rpc/include/mach/dma.h
+ *  arch/arm/mach-rpc/include/mach/isa-dma.h
  *
  *  Copyright (C) 1997 Russell King
  *
