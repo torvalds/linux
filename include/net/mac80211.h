@@ -782,6 +782,19 @@ enum sta_notify_cmd {
 };
 
 /**
+ * enum sta_notify_ps_cmd - sta power save notify command
+ *
+ * Used with the sta_notify_ps() callback in &struct ieee80211_ops to
+ * notify the driver if a station made a power state transition.
+ *
+ * @STA_NOTIFY_SLEEP: a station is now sleeping
+ * @STA_NOTIFY_AWAKE: a sleeping station woke up
+ */
+enum sta_notify_ps_cmd {
+	STA_NOTIFY_SLEEP, STA_NOTIFY_AWAKE,
+};
+
+/**
  * enum ieee80211_tkip_key_type - get tkip key
  *
  * Used by drivers which need to get a tkip key for skb. Some drivers need a
@@ -1251,6 +1264,9 @@ enum ieee80211_ampdu_mlme_action {
  * @sta_notify: Notifies low level driver about addition or removal
  *	of associated station or AP.
  *
+ * @sta_ps_notify: Notifies low level driver about the power state transition
+ *	of a associated station. Must be atomic.
+ *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
  *
@@ -1317,6 +1333,8 @@ struct ieee80211_ops {
 	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
+	void (*sta_notify_ps)(struct ieee80211_hw *hw,
+			enum sta_notify_ps_cmd, struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,
 		       const struct ieee80211_tx_queue_params *params);
 	int (*get_tx_stats)(struct ieee80211_hw *hw,
