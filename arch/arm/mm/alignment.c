@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/uaccess.h>
 
 #include <asm/unaligned.h>

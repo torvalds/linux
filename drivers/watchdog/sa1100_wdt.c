@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
+#include <linux/timex.h>
 
 #ifdef CONFIG_ARCH_PXA
 #include <mach/pxa-regs.h>
