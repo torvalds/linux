@@ -17,7 +17,6 @@
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 
-#include <asm/dma.h>
 #include <mach/dma.h>
 
 #include <plat/cpu.h>

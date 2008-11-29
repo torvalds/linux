@@ -26,7 +26,7 @@
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/hardware/scoop.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/collie.h>
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/sharpsl_pm.h>

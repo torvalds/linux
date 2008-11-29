@@ -15,7 +15,7 @@
 #include <linux/proc_fs.h>
 #include <linux/device.h>
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 
 #include "ucb1x00.h"
 

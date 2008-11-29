@@ -32,8 +32,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
-#include <asm/dma.h>
 
+#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>
 #include <mach/regs-ssp.h>

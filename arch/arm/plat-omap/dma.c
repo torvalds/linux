@@ -29,7 +29,7 @@
 
 #include <asm/system.h>
 #include <mach/hardware.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 
 #include <mach/tc.h>
 

@@ -28,10 +28,11 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 
+#include <asm/scatterlist.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/imx-dma.h>
 
 struct imx_dma_channel imx_dma_channels[IMX_DMA_CHANNELS];
@@ -138,7 +139,7 @@ imx_dma_setup_sg_base(imx_dmach_t dma_ch,
 int
 imx_dma_setup_single(imx_dmach_t dma_ch, dma_addr_t dma_address,
 		     unsigned int dma_length, unsigned int dev_addr,
-		     dmamode_t dmamode)
+		     unsigned int dmamode)
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[dma_ch];
 
@@ -223,7 +224,7 @@ imx_dma_setup_single(imx_dmach_t dma_ch, dma_addr_t dma_address,
 int
 imx_dma_setup_sg(imx_dmach_t dma_ch,
 		 struct scatterlist *sg, unsigned int sgcount, unsigned int dma_length,
-		 unsigned int dev_addr, dmamode_t dmamode)
+		 unsigned int dev_addr, unsigned int dmamode)
 {
 	int res;
 	struct imx_dma_channel *imxdma = &imx_dma_channels[dma_ch];

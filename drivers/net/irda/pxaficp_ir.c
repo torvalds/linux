@@ -22,7 +22,7 @@
 #include <net/irda/wrapper.h>
 #include <net/irda/irda_device.h>
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/irda.h>
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>

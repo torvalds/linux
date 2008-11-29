@@ -28,9 +28,9 @@
 #include <linux/mmc/host.h>
 #include <linux/io.h>
 
-#include <asm/dma.h>
 #include <asm/sizes.h>
 
+#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>
 #include <mach/mmc.h>

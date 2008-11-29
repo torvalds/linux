@@ -22,7 +22,7 @@
  * MA 02110-1301, USA.
  */
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 
 #ifndef __ASM_ARCH_MXC_DMA_H
 #define __ASM_ARCH_MXC_DMA_H

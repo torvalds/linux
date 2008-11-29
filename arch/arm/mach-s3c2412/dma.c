@@ -18,7 +18,6 @@
 #include <linux/serial_core.h>
 #include <linux/io.h>
 
-#include <asm/dma.h>
 #include <mach/dma.h>
 
 #include <plat/dma.h>

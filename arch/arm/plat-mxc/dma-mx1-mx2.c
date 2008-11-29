@@ -34,7 +34,7 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/dma-mx1-mx2.h>
 
 #define DMA_DCR     0x00		/* Control Register */
