@@ -184,13 +184,6 @@ static unsigned long gumstix_pin_config[] __initdata = {
 	GPIO6_MMC_CLK,
 	GPIO53_MMC_CLK,
 	GPIO8_MMC_CS0,
-	/* these are used by AM200EPD */
-	GPIO51_GPIO,
-	GPIO49_GPIO,
-	GPIO48_GPIO,
-	GPIO32_GPIO,
-	GPIO17_GPIO,
-	GPIO16_GPIO,
 };
 
 static void __init gumstix_init(void)
