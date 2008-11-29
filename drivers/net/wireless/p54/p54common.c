@@ -158,21 +158,21 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			priv->fw_interface = be32_to_cpup((__be32 *)
 					     bootrec->data);
 			switch (priv->fw_interface) {
-			case FW_FMAC:
-				printk(KERN_INFO "p54: FreeMAC firmware\n");
-				break;
-			case FW_LM20:
-				printk(KERN_INFO "p54: LM20 firmware\n");
-				break;
 			case FW_LM86:
-				printk(KERN_INFO "p54: LM86 firmware\n");
+			case FW_LM20:
+			case FW_LM87: {
+				char *iftype = (char *)bootrec->data;
+				printk(KERN_INFO "%s: p54 detected a LM%c%c "
+						 "firmware\n",
+					wiphy_name(dev->wiphy),
+					iftype[2], iftype[3]);
 				break;
-			case FW_LM87:
-				printk(KERN_INFO "p54: LM87 firmware\n");
-				break;
+				}
+			case FW_FMAC:
 			default:
-				printk(KERN_INFO "p54: unknown firmware\n");
-				break;
+				printk(KERN_ERR "%s: unsupported firmware\n",
+					wiphy_name(dev->wiphy));
+				return -ENODEV;
 			}
 			break;
 		case BR_CODE_COMPONENT_VERSION:
@@ -216,13 +216,15 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 	}
 
 	if (fw_version)
-		printk(KERN_INFO "p54: FW rev %s - Softmac protocol %x.%x\n",
-			fw_version, priv->fw_var >> 8, priv->fw_var & 0xff);
+		printk(KERN_INFO "%s: FW rev %s - Softmac protocol %x.%x\n",
+			wiphy_name(dev->wiphy), fw_version,
+			priv->fw_var >> 8, priv->fw_var & 0xff);
 
 	if (priv->fw_var < 0x500)
-		printk(KERN_INFO "p54: you are using an obsolete firmware. "
+		printk(KERN_INFO "%s: you are using an obsolete firmware. "
 		       "visit http://wireless.kernel.org/en/users/Drivers/p54 "
-		       "and grab one for \"kernel >= 2.6.28\"!\n");
+		       "and grab one for \"kernel >= 2.6.28\"!\n",
+			wiphy_name(dev->wiphy));
 
 	if (priv->fw_var >= 0x300) {
 		/* Firmware supports QoS, use it! */
@@ -399,8 +401,9 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 				err = p54_convert_rev1(dev, curve_data);
 				break;
 			default:
-				printk(KERN_ERR "p54: unknown curve data "
+				printk(KERN_ERR "%s: unknown curve data "
 						"revision %d\n",
+						wiphy_name(dev->wiphy),
 						curve_data->cal_method_rev);
 				err = -ENODEV;
 				break;
@@ -460,7 +463,8 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		case PDR_PER_CHANNEL_BASEBAND_REGISTERS:
 			break;
 		default:
-			printk(KERN_INFO "p54: unknown eeprom code : 0x%x\n",
+			printk(KERN_INFO "%s: unknown eeprom code : 0x%x\n",
+				wiphy_name(dev->wiphy),
 				le16_to_cpu(entry->code));
 			break;
 		}
@@ -470,7 +474,8 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 
 	if (!synth || !priv->iq_autocal || !priv->output_limit ||
 	    !priv->curve_data) {
-		printk(KERN_ERR "p54: not all required entries found in eeprom!\n");
+		printk(KERN_ERR "%s: not all required entries found in eeprom!\n",
+			wiphy_name(dev->wiphy));
 		err = -EINVAL;
 		goto err;
 	}
@@ -515,7 +520,8 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		priv->curve_data = NULL;
 	}
 
-	printk(KERN_ERR "p54: eeprom parse failed!\n");
+	printk(KERN_ERR "%s: eeprom parse failed!\n",
+		wiphy_name(dev->wiphy));
 	return err;
 }
 
@@ -1573,28 +1579,23 @@ static int p54_beacon_tim(struct sk_buff *skb)
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	u8 *pos, *end;
 
-	if (skb->len <= sizeof(mgmt)) {
-		printk(KERN_ERR "p54: beacon is too short!\n");
+	if (skb->len <= sizeof(mgmt))
 		return -EINVAL;
-	}
 
 	pos = (u8 *)mgmt->u.beacon.variable;
 	end = skb->data + skb->len;
 	while (pos < end) {
-		if (pos + 2 + pos[1] > end) {
-			printk(KERN_ERR "p54: parsing beacon failed\n");
+		if (pos + 2 + pos[1] > end)
 			return -EINVAL;
-		}
 
 		if (pos[0] == WLAN_EID_TIM) {
 			u8 dtim_len = pos[1];
 			u8 dtim_period = pos[3];
 			u8 *next = pos + 2 + dtim_len;
 
-			if (dtim_len < 3) {
-				printk(KERN_ERR "p54: invalid dtim len!\n");
+			if (dtim_len < 3)
 				return -EINVAL;
-			}
+
 			memmove(pos, next, end - next);
 
 			if (dtim_len > 3)
