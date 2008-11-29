@@ -895,12 +895,13 @@ static void sbp2_host_reset(struct hpsb_host *host)
 		return;
 
 	read_lock_irqsave(&sbp2_hi_logical_units_lock, flags);
+
 	list_for_each_entry(lu, &hi->logical_units, lu_list)
-		if (likely(atomic_read(&lu->state) !=
-			   SBP2LU_STATE_IN_SHUTDOWN)) {
-			atomic_set(&lu->state, SBP2LU_STATE_IN_RESET);
+		if (atomic_cmpxchg(&lu->state,
+				   SBP2LU_STATE_RUNNING, SBP2LU_STATE_IN_RESET)
+		    == SBP2LU_STATE_RUNNING)
 			scsi_block_requests(lu->shost);
-		}
+
 	read_unlock_irqrestore(&sbp2_hi_logical_units_lock, flags);
 }
 
