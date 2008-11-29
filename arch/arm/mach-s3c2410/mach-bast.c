@@ -44,8 +44,8 @@
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 
-#include <asm/plat-s3c/nand.h>
-#include <asm/plat-s3c/iic.h>
+#include <plat/nand.h>
+#include <plat/iic.h>
 #include <mach/fb.h>
 
 #include <linux/mtd/mtd.h>

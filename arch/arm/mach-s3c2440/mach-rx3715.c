@@ -42,7 +42,7 @@
 #include <mach/regs-lcd.h>
 
 #include <mach/h1940.h>
-#include <asm/plat-s3c/nand.h>
+#include <plat/nand.h>
 #include <mach/fb.h>
 
 #include <plat/clock.h>

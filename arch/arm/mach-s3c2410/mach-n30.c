@@ -40,14 +40,14 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <asm/plat-s3c/iic.h>
+#include <plat/iic.h>
 #include <plat/regs-serial.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/s3c2410.h>
-#include <asm/plat-s3c24xx/udc.h>
+#include <plat/udc.h>
 
 static struct map_desc n30_iodesc[] __initdata = {
 	/* nothing here yet */

@@ -25,7 +25,7 @@
 #include <mach/regs-sdi.h>
 #include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/mci.h>
+#include <plat/mci.h>
 
 #include "s3cmci.h"
 

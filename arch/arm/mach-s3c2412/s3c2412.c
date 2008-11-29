@@ -39,7 +39,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-gpioj.h>
 #include <mach/regs-dsc.h>
-#include <asm/plat-s3c24xx/regs-spi.h>
+#include <plat/regs-spi.h>
 #include <mach/regs-s3c2412.h>
 
 #include <plat/s3c2412.h>

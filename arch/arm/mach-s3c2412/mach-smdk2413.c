@@ -37,7 +37,7 @@
 #include <mach/regs-lcd.h>
 
 #include <mach/idle.h>
-#include <asm/plat-s3c24xx/udc.h>
+#include <plat/udc.h>
 #include <mach/fb.h>
 
 #include <plat/s3c2410.h>

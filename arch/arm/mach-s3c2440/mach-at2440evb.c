@@ -35,7 +35,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
-#include <asm/plat-s3c/nand.h>
+#include <plat/nand.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
