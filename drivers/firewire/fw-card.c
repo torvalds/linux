@@ -189,6 +189,17 @@ static const char gap_count_table[] = {
 	63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 };
 
+void
+fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
+{
+	int scheduled;
+
+	fw_card_get(card);
+	scheduled = schedule_delayed_work(&card->work, delay);
+	if (!scheduled)
+		fw_card_put(card);
+}
+
 static void
 fw_card_bm_work(struct work_struct *work)
 {
@@ -206,7 +217,7 @@ fw_card_bm_work(struct work_struct *work)
 
 	if (local_node == NULL) {
 		spin_unlock_irqrestore(&card->lock, flags);
-		return;
+		goto out_put_card;
 	}
 	fw_node_get(local_node);
 	fw_node_get(root_node);
@@ -280,7 +291,7 @@ fw_card_bm_work(struct work_struct *work)
 		 * this task 100ms from now.
 		 */
 		spin_unlock_irqrestore(&card->lock, flags);
-		schedule_delayed_work(&card->work, DIV_ROUND_UP(HZ, 10));
+		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 10));
 		goto out;
 	}
 
@@ -355,6 +366,8 @@ fw_card_bm_work(struct work_struct *work)
 		fw_device_put(root_device);
 	fw_node_put(root_node);
 	fw_node_put(local_node);
+ out_put_card:
+	fw_card_put(card);
 }
 
 static void
@@ -510,7 +523,6 @@ fw_core_remove_card(struct fw_card *card)
 	fw_card_put(card);
 	wait_for_completion(&card->done);
 
-	cancel_delayed_work_sync(&card->work);
 	WARN_ON(!list_empty(&card->transaction_list));
 	del_timer_sync(&card->flush_timer);
 }

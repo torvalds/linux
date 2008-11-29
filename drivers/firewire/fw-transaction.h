@@ -278,6 +278,8 @@ static inline void fw_card_put(struct fw_card *card)
 	kref_put(&card->kref, fw_card_release);
 }
 
+extern void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
+
 /*
  * The iso packet format allows for an immediate header/payload part
  * stored in 'header' immediately after the packet info plus an

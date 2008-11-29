@@ -689,7 +689,7 @@ static void fw_device_init(struct work_struct *work)
 			fw_notify("giving up on config rom for node id %x\n",
 				  device->node_id);
 			if (device->node == device->card->root_node)
-				schedule_delayed_work(&device->card->work, 0);
+				fw_schedule_bm_work(device->card, 0);
 			fw_device_release(&device->device);
 		}
 		return;
@@ -758,7 +758,7 @@ static void fw_device_init(struct work_struct *work)
 	 * pretty harmless.
 	 */
 	if (device->node == device->card->root_node)
-		schedule_delayed_work(&device->card->work, 0);
+		fw_schedule_bm_work(device->card, 0);
 
 	return;
 
@@ -892,7 +892,7 @@ static void fw_device_refresh(struct work_struct *work)
 	fw_device_shutdown(work);
  out:
 	if (node_id == card->root_node->node_id)
-		schedule_delayed_work(&card->work, 0);
+		fw_schedule_bm_work(card, 0);
 }
 
 void fw_node_event(struct fw_card *card, struct fw_node *node, int event)

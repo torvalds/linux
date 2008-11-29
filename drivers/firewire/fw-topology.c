@@ -530,7 +530,7 @@ fw_core_handle_bus_reset(struct fw_card *card,
 	smp_wmb();
 	card->generation = generation;
 	card->reset_jiffies = jiffies;
-	schedule_delayed_work(&card->work, 0);
+	fw_schedule_bm_work(card, 0);
 
 	local_node = build_tree(card, self_ids, self_id_count);
 
