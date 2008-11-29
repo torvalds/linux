@@ -63,7 +63,7 @@ int ivtv_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		if (itv->video_dec_func(itv, VIDIOC_QUERYCTRL, qctrl))
+		if (v4l2_subdev_call(itv->sd_video, core, queryctrl, qctrl))
 			qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
 		return 0;
 
@@ -73,7 +73,7 @@ int ivtv_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_LOUDNESS:
-		if (ivtv_i2c_hw(itv, itv->card->hw_audio_ctrl, VIDIOC_QUERYCTRL, qctrl))
+		if (v4l2_subdev_call(itv->sd_audio, core, queryctrl, qctrl))
 			qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
 		return 0;
 
@@ -122,7 +122,7 @@ static int ivtv_s_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		return itv->video_dec_func(itv, VIDIOC_S_CTRL, vctrl);
+		return v4l2_subdev_call(itv->sd_video, core, s_ctrl, vctrl);
 
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_MUTE:
@@ -130,7 +130,7 @@ static int ivtv_s_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_LOUDNESS:
-		return ivtv_i2c_hw(itv, itv->card->hw_audio_ctrl, VIDIOC_S_CTRL, vctrl);
+		return v4l2_subdev_call(itv->sd_audio, core, s_ctrl, vctrl);
 
 	default:
 		IVTV_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
@@ -147,7 +147,7 @@ static int ivtv_g_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		return itv->video_dec_func(itv, VIDIOC_G_CTRL, vctrl);
+		return v4l2_subdev_call(itv->sd_video, core, g_ctrl, vctrl);
 
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_MUTE:
@@ -155,7 +155,7 @@ static int ivtv_g_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_LOUDNESS:
-		return ivtv_i2c_hw(itv, itv->card->hw_audio_ctrl, VIDIOC_G_CTRL, vctrl);
+		return v4l2_subdev_call(itv->sd_audio, core, g_ctrl, vctrl);
 	default:
 		IVTV_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
 		return -EINVAL;
@@ -268,7 +268,7 @@ int ivtv_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 			fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 			fmt.fmt.pix.width = itv->params.width / (is_mpeg1 ? 2 : 1);
 			fmt.fmt.pix.height = itv->params.height;
-			itv->video_dec_func(itv, VIDIOC_S_FMT, &fmt);
+			v4l2_subdev_call(itv->sd_video, video, s_fmt, &fmt);
 		}
 		err = cx2341x_update(itv, ivtv_api_func, &itv->params, &p);
 		if (!err && itv->params.stream_vbi_fmt != p.stream_vbi_fmt)
@@ -279,7 +279,7 @@ int ivtv_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		/* The audio clock of the digitizer must match the codec sample
 		   rate otherwise you get some very strange effects. */
 		if (idx < sizeof(freqs))
-			ivtv_call_i2c_clients(itv, VIDIOC_INT_AUDIO_CLOCK_FREQ, &freqs[idx]);
+			ivtv_call_all(itv, audio, s_clock_freq, freqs[idx]);
 		return err;
 	}
 	return -EINVAL;
