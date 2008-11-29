@@ -115,6 +115,8 @@ struct p54_common {
 	int noise;
 	void *eeprom;
 	struct completion eeprom_comp;
+	u8 privacy_caps;
+	u8 rx_keycache_size;
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);
