@@ -241,7 +241,6 @@ struct fw_card {
 	 * We need to store up to 4 self ID for a maximum of 63
 	 * devices plus 3 words for the topology map header.
 	 */
-	int self_id_count;
 	u32 topology_map[252 + 3];
 	u32 broadcast_channel;
 
