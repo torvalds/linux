@@ -13,4 +13,12 @@
 
 #define PHYS_OFFSET	UL(0x30000000)
 
+/*
+ * This is the maximum DMA address(physical address) that can be DMAd to.
+ *  Err, no, this is a virtual address.  And you must set ISA_DMA_THRESHOLD
+ *  and setup a DMA zone if this restricts the amount of RAM which is
+ *  capable of DMA.
+ */
+#define MAX_DMA_ADDRESS		0x40000000
+
 #endif

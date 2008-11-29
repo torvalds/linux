@@ -16,11 +16,6 @@
 #include <linux/sysdev.h>
 #include <mach/hardware.h>
 
-/*
- * This is the maximum DMA address(physical address) that can be DMAd to.
- *
- */
-#define MAX_DMA_ADDRESS		0x40000000
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
 
 /* We use `virtual` dma channels to hide the fact we have only a limited

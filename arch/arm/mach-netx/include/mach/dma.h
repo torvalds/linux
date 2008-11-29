@@ -18,4 +18,3 @@
  */
 
 #define MAX_DMA_CHANNELS 0
-#define MAX_DMA_ADDRESS ~0

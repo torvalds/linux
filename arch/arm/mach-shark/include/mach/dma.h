@@ -10,7 +10,6 @@
  * The rest is not DMAable. See dev /  .properties
  * in OpenFirmware.
  */
-#define MAX_DMA_ADDRESS		0xC0400000
 #define MAX_DMA_CHANNELS	8
 #define DMA_ISA_CASCADE         4
 

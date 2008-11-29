@@ -22,6 +22,7 @@ void ixp4xx_adjust_zones(int node, unsigned long *size, unsigned long *holes);
 	ixp4xx_adjust_zones(node, size, holes)
 
 #define ISA_DMA_THRESHOLD (SZ_64M - 1)
+#define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_64M)
 
 #endif
 

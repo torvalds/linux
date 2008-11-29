@@ -8,9 +8,3 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#ifndef __ASM_ARCH_DMA_H
-#define __ASM_ARCH_DMA_H
-
-#define MAX_DMA_ADDRESS			0xffffffff
-
-#endif /* __ASM_ARCH_DMA_H */
