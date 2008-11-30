@@ -46,16 +46,11 @@ build_mmio_write(__writel, "l", unsigned int, "r", )
 #define mmiowb() barrier()
 
 #ifdef CONFIG_X86_64
+
 build_mmio_read(readq, "q", unsigned long, "=r", :"memory")
-build_mmio_read(__readq, "q", unsigned long, "=r", )
 build_mmio_write(writeq, "q", unsigned long, "r", :"memory")
-build_mmio_write(__writeq, "q", unsigned long, "r", )
 
-#define readq_relaxed(a) __readq(a)
-#define __raw_readq __readq
-#define __raw_writeq writeq
-
-#else  /* CONFIG_X86_32 from here */
+#else
 
 static inline __u64 readq(const volatile void __iomem *addr)
 {
@@ -76,9 +71,14 @@ static inline void writeq(__u64 val, volatile void __iomem *addr)
 
 #endif
 
+#define readq_relaxed(a)	readq(a)
+
+#define __raw_readq(a)		readq(a)
+#define __raw_writeq(val, addr)	writeq(val, addr)
+
 /* Let people know that we have them */
-#define readq		readq
-#define writeq		writeq
+#define readq			readq
+#define writeq			writeq
 
 extern int iommu_bio_merge;
 
