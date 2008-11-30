@@ -278,6 +278,18 @@ struct twl4030_platform_data {
 	struct twl4030_keypad_data		*keypad;
 	struct twl4030_usb_data			*usb;
 
+	/* LDO regulators */
+	struct regulator_init_data		*vdac;
+	struct regulator_init_data		*vpll1;
+	struct regulator_init_data		*vpll2;
+	struct regulator_init_data		*vmmc1;
+	struct regulator_init_data		*vmmc2;
+	struct regulator_init_data		*vsim;
+	struct regulator_init_data		*vaux1;
+	struct regulator_init_data		*vaux2;
+	struct regulator_init_data		*vaux3;
+	struct regulator_init_data		*vaux4;
+
 	/* REVISIT more to come ... _nothing_ should be hard-wired */
 };
 
@@ -308,5 +320,40 @@ int twl4030_set_gpio_debounce(int gpio, int enable);
 #else
 	static inline int twl4030charger_usb_en(int enable) { return 0; }
 #endif
+
+/*----------------------------------------------------------------------*/
+
+/* Linux-specific regulator identifiers ... for now, we only support
+ * the LDOs, and leave the three buck converters alone.  VDD1 and VDD2
+ * need to tie into hardware based voltage scaling (cpufreq etc), while
+ * VIO is generally fixed.
+ */
+
+/* EXTERNAL dc-to-dc buck converters */
+#define TWL4030_REG_VDD1	0
+#define TWL4030_REG_VDD2	1
+#define TWL4030_REG_VIO		2
+
+/* EXTERNAL LDOs */
+#define TWL4030_REG_VDAC	3
+#define TWL4030_REG_VPLL1	4
+#define TWL4030_REG_VPLL2	5	/* not on all chips */
+#define TWL4030_REG_VMMC1	6
+#define TWL4030_REG_VMMC2	7	/* not on all chips */
+#define TWL4030_REG_VSIM	8	/* not on all chips */
+#define TWL4030_REG_VAUX1	9	/* not on all chips */
+#define TWL4030_REG_VAUX2_4030	10	/* (twl4030-specific) */
+#define TWL4030_REG_VAUX2	11	/* (twl5030 and newer) */
+#define TWL4030_REG_VAUX3	12	/* not on all chips */
+#define TWL4030_REG_VAUX4	13	/* not on all chips */
+
+/* INTERNAL LDOs */
+#define TWL4030_REG_VINTANA1	14
+#define TWL4030_REG_VINTANA2	15
+#define TWL4030_REG_VINTDIG	16
+#define TWL4030_REG_VUSB1V5	17
+#define TWL4030_REG_VUSB1V8	18
+#define TWL4030_REG_VUSB3V1	19
+#define TWL4030_REG_VUSBCP	20
 
 #endif /* End of __TWL4030_H */

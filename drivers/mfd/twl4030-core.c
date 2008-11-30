@@ -33,6 +33,8 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
+#include <linux/regulator/machine.h>
+
 #include <linux/i2c.h>
 #include <linux/i2c/twl4030.h>
 
@@ -69,6 +71,13 @@
 #define twl_has_gpio()	true
 #else
 #define twl_has_gpio()	false
+#endif
+
+#if defined(CONFIG_REGULATOR_TWL4030) \
+	|| defined(CONFIG_REGULATOR_TWL4030_MODULE)
+#define twl_has_regulator()	true
+#else
+#define twl_has_regulator()	false
 #endif
 
 #if defined(CONFIG_TWL4030_MADC) || defined(CONFIG_TWL4030_MADC_MODULE)
@@ -148,6 +157,10 @@
 #define HFCLK_FREQ_38p4_MHZ		(3 << 0)
 #define HIGH_PERF_SQ			(1 << 3)
 
+
+/* chip-specific feature flags, for i2c_device_id.driver_data */
+#define TWL4030_VAUX2		BIT(0)	/* pre-5030 voltage ranges */
+#define TPS_SUBSET		BIT(1)	/* tps659[23]0 have fewer LDOs */
 
 /*----------------------------------------------------------------------*/
 
@@ -352,7 +365,8 @@ EXPORT_SYMBOL(twl4030_i2c_read_u8);
 
 /*----------------------------------------------------------------------*/
 
-static struct device *add_child(unsigned chip, const char *name,
+static struct device *
+add_numbered_child(unsigned chip, const char *name, int num,
 		void *pdata, unsigned pdata_len,
 		bool can_wakeup, int irq0, int irq1)
 {
@@ -360,7 +374,7 @@ static struct device *add_child(unsigned chip, const char *name,
 	struct twl4030_client	*twl = &twl4030_modules[chip];
 	int			status;
 
-	pdev = platform_device_alloc(name, -1);
+	pdev = platform_device_alloc(name, num);
 	if (!pdev) {
 		dev_dbg(&twl->client->dev, "can't alloc dev\n");
 		status = -ENOMEM;
@@ -402,17 +416,52 @@ err:
 	return &pdev->dev;
 }
 
+static inline struct device *add_child(unsigned chip, const char *name,
+		void *pdata, unsigned pdata_len,
+		bool can_wakeup, int irq0, int irq1)
+{
+	return add_numbered_child(chip, name, -1, pdata, pdata_len,
+		can_wakeup, irq0, irq1);
+}
+
+static struct device *
+add_regulator_linked(int num, struct regulator_init_data *pdata,
+		struct regulator_consumer_supply *consumers,
+		unsigned num_consumers)
+{
+	/* regulator framework demands init_data ... */
+	if (!pdata)
+		return NULL;
+
+	if (consumers && !pdata->consumer_supplies) {
+		pdata->consumer_supplies = consumers;
+		pdata->num_consumer_supplies = num_consumers;
+	}
+
+	/* NOTE:  we currently ignore regulator IRQs, e.g. for short circuits */
+	return add_numbered_child(3, "twl4030_reg", num,
+		pdata, sizeof(*pdata), false, 0, 0);
+}
+
+static struct device *
+add_regulator(int num, struct regulator_init_data *pdata)
+{
+	return add_regulator_linked(num, pdata, NULL, 0);
+}
+
 /*
  * NOTE:  We know the first 8 IRQs after pdata->base_irq are
  * for the PIH, and the next are for the PWR_INT SIH, since
  * that's how twl_init_irq() sets things up.
  */
 
-static int add_children(struct twl4030_platform_data *pdata)
+static int
+add_children(struct twl4030_platform_data *pdata, unsigned long features)
 {
 	struct device	*child;
+	struct device	*usb_transceiver = NULL;
 
-	if (twl_has_bci() && pdata->bci) {
+	if (twl_has_bci() && pdata->bci && !(features & TPS_SUBSET)) {
 		child = add_child(3, "twl4030_bci",
 				pdata->bci, sizeof(*pdata->bci),
 				false,
@@ -467,6 +516,111 @@ static int add_children(struct twl4030_platform_data *pdata)
 				true,
 				/* irq0 = USB_PRES, irq1 = USB */
 				pdata->irq_base + 8 + 2, pdata->irq_base + 4);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		/* we need to connect regulators to this transceiver */
+		usb_transceiver = child;
+	}
+
+	if (twl_has_regulator()) {
+		/*
+		child = add_regulator(TWL4030_REG_VPLL1, pdata->vpll1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+		*/
+
+		child = add_regulator(TWL4030_REG_VMMC1, pdata->vmmc1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VDAC, pdata->vdac);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator((features & TWL4030_VAUX2)
+					? TWL4030_REG_VAUX2_4030
+					: TWL4030_REG_VAUX2,
+				pdata->vaux2);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
+	if (twl_has_regulator() && usb_transceiver) {
+		static struct regulator_consumer_supply usb1v5 = {
+			.supply =	"usb1v5",
+		};
+		static struct regulator_consumer_supply usb1v8 = {
+			.supply =	"usb1v8",
+		};
+		static struct regulator_consumer_supply usb3v1 = {
+			.supply =	"usb3v1",
+		};
+		static struct regulator_consumer_supply usbcp = {
+			.supply =	"usbcp",
+		};
+
+		/* this is a template that gets copied */
+		struct regulator_init_data usb_fixed = {
+			.constraints.valid_modes_mask =
+				  REGULATOR_MODE_NORMAL
+				| REGULATOR_MODE_STANDBY,
+			.constraints.valid_ops_mask =
+				  REGULATOR_CHANGE_MODE
+				| REGULATOR_CHANGE_STATUS,
+		};
+
+		usb1v5.dev = usb_transceiver;
+		usb1v8.dev = usb_transceiver;
+		usb3v1.dev = usb_transceiver;
+		usbcp.dev = usb_transceiver;
+
+		child = add_regulator_linked(TWL4030_REG_VUSB1V5, &usb_fixed,
+				&usb1v5, 1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator_linked(TWL4030_REG_VUSB1V8, &usb_fixed,
+				&usb1v8, 1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator_linked(TWL4030_REG_VUSB3V1, &usb_fixed,
+				&usb3v1, 1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator_linked(TWL4030_REG_VUSBCP, &usb_fixed,
+				&usbcp, 1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
+	/* maybe add LDOs that are omitted on cost-reduced parts */
+	if (twl_has_regulator() && !(features & TPS_SUBSET)) {
+		/*
+		child = add_regulator(TWL4030_REG_VPLL2, pdata->vpll2);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+		*/
+
+		child = add_regulator(TWL4030_REG_VMMC2, pdata->vmmc2);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VSIM, pdata->vsim);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VAUX1, pdata->vaux1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VAUX3, pdata->vaux3);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VAUX4, pdata->vaux4);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
@@ -632,7 +786,7 @@ twl4030_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto fail;
 	}
 
-	status = add_children(pdata);
+	status = add_children(pdata, id->driver_data);
 fail:
 	if (status < 0)
 		twl4030_remove(client);
@@ -640,11 +794,11 @@ fail:
 }
 
 static const struct i2c_device_id twl4030_ids[] = {
-	{ "twl4030", 0 },	/* "Triton 2" */
-	{ "tps65950", 0 },	/* catalog version of twl4030 */
-	{ "tps65930", 0 },	/* fewer LDOs and DACs; no charger */
-	{ "tps65920", 0 },	/* fewer LDOs; no codec or charger */
-	{ "twl5030", 0 },	/* T2 updated */
+	{ "twl4030", TWL4030_VAUX2 },	/* "Triton 2" */
+	{ "twl5030", 0 },		/* T2 updated */
+	{ "tps65950", 0 },		/* catalog version of twl5030 */
+	{ "tps65930", TPS_SUBSET },	/* fewer LDOs and DACs; no charger */
+	{ "tps65920", TPS_SUBSET },	/* fewer LDOs; no codec or charger */
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(i2c, twl4030_ids);
