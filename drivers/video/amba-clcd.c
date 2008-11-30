@@ -350,7 +350,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	}
 
 	fb->fb.fix.mmio_start	= fb->dev->res.start;
-	fb->fb.fix.mmio_len	= SZ_4K;
+	fb->fb.fix.mmio_len	= 4096;
 
 	fb->regs = ioremap(fb->fb.fix.mmio_start, fb->fb.fix.mmio_len);
 	if (!fb->regs) {
