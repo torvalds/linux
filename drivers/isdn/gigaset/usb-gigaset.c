@@ -941,8 +941,7 @@ static int __init usb_gigaset_init(void)
 		goto error;
 	}
 
-	info(DRIVER_AUTHOR);
-	info(DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 	return 0;
 
 error:

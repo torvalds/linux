@@ -701,7 +701,7 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 
 	ret = tty_register_driver(tty);
 	if (ret < 0) {
-		warn("failed to register tty driver (error %d)", ret);
+		err("failed to register tty driver (error %d)", ret);
 		goto error;
 	}
 	gig_dbg(DEBUG_IF, "tty driver initialized");
@@ -709,7 +709,7 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 	return;
 
 enomem:
-	warn("could not allocate tty structures");
+	err("could not allocate tty structures");
 error:
 	if (drv->tty)
 		put_tty_driver(drv->tty);

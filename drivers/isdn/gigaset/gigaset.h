@@ -104,14 +104,8 @@ enum debuglevel {
  * removed rather than fixed anyway.
  */
 #undef err
-#undef info
-#undef warn
 
 #define err(format, arg...) printk(KERN_ERR KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
-#define info(format, arg...) printk(KERN_INFO KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING KBUILD_MODNAME ": " \
 	format "\n" , ## arg)
 
 #ifdef CONFIG_GIGASET_DEBUG
