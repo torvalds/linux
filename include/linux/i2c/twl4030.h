@@ -285,33 +285,6 @@ struct twl4030_platform_data {
 
 int twl4030_sih_setup(int module);
 
-/*
- * FIXME completely stop using TWL4030_IRQ_BASE ... instead, pass the
- * IRQ data to subsidiary devices using platform device resources.
- */
-
-/* IRQ information-need base */
-#include <mach/irqs.h>
-/* TWL4030 interrupts */
-
-/* #define TWL4030_MODIRQ_GPIO		(TWL4030_IRQ_BASE + 0) */
-#define TWL4030_MODIRQ_KEYPAD		(TWL4030_IRQ_BASE + 1)
-#define TWL4030_MODIRQ_BCI		(TWL4030_IRQ_BASE + 2)
-#define TWL4030_MODIRQ_MADC		(TWL4030_IRQ_BASE + 3)
-/* #define TWL4030_MODIRQ_USB		(TWL4030_IRQ_BASE + 4) */
-/* #define TWL4030_MODIRQ_PWR		(TWL4030_IRQ_BASE + 5) */
-
-#define TWL4030_PWRIRQ_PWRBTN		(TWL4030_PWR_IRQ_BASE + 0)
-/* #define TWL4030_PWRIRQ_CHG_PRES		(TWL4030_PWR_IRQ_BASE + 1) */
-/* #define TWL4030_PWRIRQ_USB_PRES		(TWL4030_PWR_IRQ_BASE + 2) */
-/* #define TWL4030_PWRIRQ_RTC		(TWL4030_PWR_IRQ_BASE + 3) */
-/* #define TWL4030_PWRIRQ_HOT_DIE		(TWL4030_PWR_IRQ_BASE + 4) */
-/* #define TWL4030_PWRIRQ_PWROK_TIMEOUT	(TWL4030_PWR_IRQ_BASE + 5) */
-/* #define TWL4030_PWRIRQ_MBCHG		(TWL4030_PWR_IRQ_BASE + 6) */
-/* #define TWL4030_PWRIRQ_SC_DETECT	(TWL4030_PWR_IRQ_BASE + 7) */
-
-/* Rest are unsued currently*/
-
 /* Offsets to Power Registers */
 #define TWL4030_VDAC_DEV_GRP		0x3B
 #define TWL4030_VDAC_DEDICATED		0x3E
@@ -321,10 +294,6 @@ int twl4030_sih_setup(int module);
 #define TWL4030_VAUX2_DEDICATED		0x1E
 #define TWL4030_VAUX3_DEV_GRP		0x1F
 #define TWL4030_VAUX3_DEDICATED		0x22
-
-/* TWL4030 GPIO interrupt definitions */
-
-#define TWL4030_GPIO_IRQ_NO(n)		(TWL4030_GPIO_IRQ_BASE + (n))
 
 /*
  * Exported TWL4030 GPIO APIs
