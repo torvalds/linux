@@ -276,6 +276,7 @@ config ARCH_EP93XX
 	select ARM_VIC
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
