@@ -55,21 +55,17 @@ build_mmio_write(__writeq, "q", unsigned long, "r", )
 #define __raw_readq __readq
 #define __raw_writeq writeq
 
-/* Let people know we have them */
-#define readq readq
-#define writeq writeq
-
 #else  /* CONFIG_X86_32 from here */
 
 static inline __u64 readq(const volatile void __iomem *addr)
 {
 	const volatile u32 __iomem *p = addr;
-	u32 l, h;
+	u32 low, high;
 
-	l = readl(p);
-	h = readl(p + 1);
+	low = readl(p);
+	high = readl(p + 1);
 
-	return l + ((u64)h << 32);
+	return low + ((u64)high << 32);
 }
 
 static inline void writeq(__u64 val, volatile void __iomem *addr)
@@ -78,10 +74,11 @@ static inline void writeq(__u64 val, volatile void __iomem *addr)
 	writel(val >> 32, addr+4);
 }
 
+#endif
+
+/* Let people know that we have them */
 #define readq		readq
 #define writeq		writeq
-
-#endif
 
 extern int iommu_bio_merge;
 
