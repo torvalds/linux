@@ -51,6 +51,11 @@
 
 #include "hci_uart.h"
 
+#ifndef CONFIG_BT_HCIUART_DEBUG
+#undef  BT_DBG
+#define BT_DBG( A... )
+#endif
+
 /* HCILL commands */
 #define HCILL_GO_TO_SLEEP_IND	0x30
 #define HCILL_GO_TO_SLEEP_ACK	0x31
