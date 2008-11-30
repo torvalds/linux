@@ -190,22 +190,18 @@ static void wm8350_charger_handler(struct wm8350 *wm8350, int irq, void *data)
 	struct wm8350_charger_policy *policy = power->policy;
 
 	switch (irq) {
-	case WM8350_IRQ_CHG_BAT_HOT:
-		dev_err(wm8350->dev, "battery too hot\n");
-		break;
-	case WM8350_IRQ_CHG_BAT_COLD:
-		dev_err(wm8350->dev, "battery too cold\n");
-		break;
 	case WM8350_IRQ_CHG_BAT_FAIL:
 		dev_err(wm8350->dev, "battery failed\n");
 		break;
 	case WM8350_IRQ_CHG_TO:
 		dev_err(wm8350->dev, "charger timeout\n");
-		break;
-	case WM8350_IRQ_CHG_END:
 		power_supply_changed(&power->battery);
 		break;
+
+	case WM8350_IRQ_CHG_BAT_HOT:
+	case WM8350_IRQ_CHG_BAT_COLD:
 	case WM8350_IRQ_CHG_START:
+	case WM8350_IRQ_CHG_END:
 		power_supply_changed(&power->battery);
 		break;
 
@@ -308,6 +304,23 @@ static enum power_supply_property wm8350_usb_props[] = {
  *		Battery properties
  *********************************************************************/
 
+static int wm8350_bat_check_health(struct wm8350 *wm8350)
+{
+	u16 reg;
+
+	if (wm8350_read_battery_uvolts(wm8350) < 2850000)
+		return POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+
+	reg = wm8350_reg_read(wm8350, WM8350_CHARGER_OVERRIDES);
+	if (reg & WM8350_CHG_BATT_HOT_OVRDE)
+		return POWER_SUPPLY_HEALTH_OVERHEAT;
+
+	if (reg & WM8350_CHG_BATT_COLD_OVRDE)
+		return POWER_SUPPLY_HEALTH_COLD;
+
+	return POWER_SUPPLY_HEALTH_GOOD;
+}
+
 static int wm8350_bat_get_property(struct power_supply *psy,
 				   enum power_supply_property psp,
 				   union power_supply_propval *val)
@@ -326,6 +339,9 @@ static int wm8350_bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = wm8350_read_battery_uvolts(wm8350);
 		break;
+	case POWER_SUPPLY_PROP_HEALTH:
+		val->intval = wm8350_bat_check_health(wm8350);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -338,6 +354,7 @@ static enum power_supply_property wm8350_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_HEALTH,
 };
 
 /*********************************************************************

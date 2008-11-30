@@ -58,6 +58,7 @@
 #define WM8350_OVER_CURRENT_INT_STATUS_MASK     0x25
 #define WM8350_GPIO_INT_STATUS_MASK             0x26
 #define WM8350_COMPARATOR_INT_STATUS_MASK       0x27
+#define WM8350_CHARGER_OVERRIDES		0xE2
 #define WM8350_MISC_OVERRIDES			0xE3
 #define WM8350_COMPARATOR_OVERRIDES		0xE7
 #define WM8350_STATE_MACHINE_STATUS		0xE9
@@ -531,6 +532,12 @@
 #define WM8350_DC3_STS                          0x0004
 #define WM8350_DC2_STS                          0x0002
 #define WM8350_DC1_STS                          0x0001
+
+/*
+ * R226 (0xE2) - Charger status
+ */
+#define WM8350_CHG_BATT_HOT_OVRDE		0x8000
+#define WM8350_CHG_BATT_COLD_OVRDE		0x4000
 
 /*
  * R227 (0xE3) - Misc Overrides
