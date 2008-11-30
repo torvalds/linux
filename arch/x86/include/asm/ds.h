@@ -23,11 +23,12 @@
 #ifndef _ASM_X86_DS_H
 #define _ASM_X86_DS_H
 
-#ifdef CONFIG_X86_DS
 
 #include <linux/types.h>
 #include <linux/init.h>
 
+
+#ifdef CONFIG_X86_DS
 
 struct task_struct;
 
@@ -232,7 +233,8 @@ extern void ds_free(struct ds_context *context);
 
 #else /* CONFIG_X86_DS */
 
-#define ds_init_intel(config) do {} while (0)
+struct cpuinfo_x86;
+static inline void __cpuinit ds_init_intel(struct cpuinfo_x86 *ignored) {}
 
 #endif /* CONFIG_X86_DS */
 #endif /* _ASM_X86_DS_H */
