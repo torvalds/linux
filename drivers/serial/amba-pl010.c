@@ -692,7 +692,7 @@ static int pl010_probe(struct amba_device *dev, void *id)
 		goto free;
 	}
 
-	uap->clk = clk_get(&dev->dev, "UARTCLK");
+	uap->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(uap->clk)) {
 		ret = PTR_ERR(uap->clk);
 		goto unmap;

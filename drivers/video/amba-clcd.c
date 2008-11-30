@@ -343,7 +343,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 {
 	int ret;
 
-	fb->clk = clk_get(&fb->dev->dev, "CLCDCLK");
+	fb->clk = clk_get(&fb->dev->dev, NULL);
 	if (IS_ERR(fb->clk)) {
 		ret = PTR_ERR(fb->clk);
 		goto out;
