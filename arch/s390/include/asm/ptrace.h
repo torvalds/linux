@@ -321,8 +321,8 @@ struct pt_regs
 	psw_t psw;
 	unsigned long gprs[NUM_GPRS];
 	unsigned long orig_gpr2;
+	unsigned short svcnr;
 	unsigned short ilc;
-	unsigned short trap;
 };
 #endif
 
