@@ -159,8 +159,6 @@ struct scsi_device {
 	atomic_t iodone_cnt;
 	atomic_t ioerr_cnt;
 
-	int timeout;
-
 	struct device		sdev_gendev,
 				sdev_dev;
 
