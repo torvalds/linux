@@ -83,10 +83,14 @@ void cx18_writel_expect(struct cx18 *cx, u32 val, void __iomem *addr,
 			u32 eval, u32 mask)
 {
 	int i;
+	u32 r;
 	eval &= mask;
 	for (i = 0; i < CX18_MAX_MMIO_WR_RETRIES; i++) {
 		cx18_writel_noretry(cx, val, addr);
-		if (eval == (cx18_readl(cx, addr) & mask))
+		r = cx18_readl(cx, addr);
+		if (r == 0xffffffff && eval != 0xffffffff)
+			continue;
+		if (eval == (r & mask))
 			break;
 	}
 }
