@@ -289,7 +289,7 @@ static ssize_t pr_debug_write(struct file *file, const char __user *buf,
 					dynamic_enabled = DYNAMIC_ENABLED_SOME;
 					err = 0;
 					printk(KERN_DEBUG
-					       "debugging enabled for module %s",
+					       "debugging enabled for module %s\n",
 					       elem->name);
 				} else if (!value && (elem->enable == 1)) {
 					elem->enable = 0;
@@ -309,7 +309,7 @@ static ssize_t pr_debug_write(struct file *file, const char __user *buf,
 					err = 0;
 					printk(KERN_DEBUG
 					       "debugging disabled for module "
-					       "%s", elem->name);
+					       "%s\n", elem->name);
 				}
 			}
 		}
