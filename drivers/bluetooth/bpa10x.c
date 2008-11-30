@@ -489,6 +489,8 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 
 	hdev->owner = THIS_MODULE;
 
+	set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
+
 	err = hci_register_dev(hdev);
 	if (err < 0) {
 		hci_free_dev(hdev);

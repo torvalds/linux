@@ -399,8 +399,8 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 
 	hdev->owner = THIS_MODULE;
 
-	if (reset)
-		set_bit(HCI_QUIRK_RESET_ON_INIT, &hdev->quirks);
+	if (!reset)
+		set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
