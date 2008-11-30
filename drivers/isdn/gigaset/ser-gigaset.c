@@ -16,7 +16,6 @@
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/tty.h>
-#include <linux/poll.h>
 #include <linux/completion.h>
 
 /* Version Information */
@@ -571,7 +570,6 @@ gigaset_tty_close(struct tty_struct *tty)
 	}
 
 	/* prevent other callers from entering ldisc methods */
-	/* FIXME: should use the tty state flags */
 	tty->disc_data = NULL;
 
 	if (!cs->hw.ser)
@@ -673,18 +671,6 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 }
 
 /*
- * Poll on the tty.
- * Unused, always return zero.
- *
- * FIXME: should probably return an exception - especially on hangup
- */
-static unsigned int
-gigaset_tty_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
-{
-	return 0;
-}
-
-/*
  * Called by the tty driver when a block of data has been received.
  * Will not be re-entered while running but other ldisc functions
  * may be called in parallel.
@@ -773,7 +759,6 @@ static struct tty_ldisc_ops gigaset_ldisc = {
 	.read		= gigaset_tty_read,
 	.write		= gigaset_tty_write,
 	.ioctl		= gigaset_tty_ioctl,
-	.poll		= gigaset_tty_poll,
 	.receive_buf	= gigaset_tty_receive,
 	.write_wakeup	= gigaset_tty_wakeup,
 };
