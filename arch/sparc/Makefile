@@ -76,9 +76,8 @@ core-$(CONFIG_SPARC32) += arch/sparc/kernel/
 core-$(CONFIG_SPARC64) += arch/sparc64/kernel/
 core-y                 += arch/sparc/mm/ arch/sparc/math-emu/
 
-libs-$(CONFIG_SPARC32) += arch/sparc/prom/
+libs-y                 += arch/sparc/prom/
 libs-$(CONFIG_SPARC32) += arch/sparc/lib/
-libs-$(CONFIG_SPARC64) += arch/sparc64/prom/
 libs-$(CONFIG_SPARC64) += arch/sparc64/lib/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/

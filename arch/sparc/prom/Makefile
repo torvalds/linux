@@ -1,6 +1,8 @@
 # Makefile for the Sun Boot PROM interface library under
 # Linux.
 #
+asflags := -ansi
+ccflags := -Werror
 
 lib-y                 := bootstr_$(BITS).o
 lib-$(CONFIG_SPARC32) += devmap.o
@@ -15,3 +17,5 @@ lib-$(CONFIG_SPARC32) += segment.o
 lib-y                 += console_$(BITS).o
 lib-y                 += printf_$(BITS).o
 lib-y                 += tree_$(BITS).o
+lib-$(CONFIG_SPARC64) += p1275.o
+lib-$(CONFIG_SPARC64) += cif.o
