@@ -14,20 +14,13 @@
 #include <linux/err.h>
 
 struct module;
-struct icst525_params;
 
 struct clk {
 	struct list_head node;
 	unsigned long rate;
 	struct module *owner;
 	const char *name;
-//	void *data;
-//	const struct icst525_params *params;
-//	void (*setvco)(struct clk *, struct icst525_vco vco);
 };
-
-int clk_register(struct clk *clk);
-void clk_unregister(struct clk *clk);
 
 /* ----- */
 
@@ -147,26 +140,6 @@ int clk_set_rate (struct clk *clk, unsigned long rate)
 	return ret;
 }
 EXPORT_SYMBOL(clk_set_rate);
-
-#if 0
-/*
- * These are fixed clocks.
- */
-static struct clk kmi_clk = {
-	.name	= "KMIREFCLK",
-	.rate	= 24000000,
-};
-
-static struct clk uart_clk = {
-	.name	= "UARTCLK",
-	.rate	= 24000000,
-};
-
-static struct clk mmci_clk = {
-	.name	= "MCLK",
-	.rate	= 33000000,
-};
-#endif
 
 static struct clk clcd_clk = {
 	.name	= "CLCDCLK",
