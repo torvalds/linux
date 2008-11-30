@@ -365,4 +365,9 @@
 #define GPIO117_I2CSCL_MD	(117 | GPIO_ALT_FN_1_IN)
 #define GPIO118_I2CSDA_MD	(118 | GPIO_ALT_FN_1_IN)
 
+/*
+ * Handy routine to set GPIO alternate functions
+ */
+extern int pxa_gpio_mode( int gpio_mode );
+
 #endif /* __ASM_ARCH_PXA2XX_GPIO_H */

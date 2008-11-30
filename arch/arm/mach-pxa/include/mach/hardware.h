@@ -258,21 +258,6 @@
 	 })
 
 /*
- * Handy routine to set GPIO alternate functions
- */
-extern int pxa_gpio_mode( int gpio_mode );
-
-/*
- * Return GPIO level, nonzero means high, zero is low
- */
-extern int pxa_gpio_get_value(unsigned gpio);
-
-/*
- * Set output GPIO level
- */
-extern void pxa_gpio_set_value(unsigned gpio, int value);
-
-/*
  * return current memory and LCD clock frequency in units of 10kHz
  */
 extern unsigned int get_memclk_frequency_10khz(void);
