@@ -41,11 +41,6 @@
 
 #include <net/bluetooth/bluetooth.h>
 
-#ifndef CONFIG_BT_SOCK_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 #define VERSION "2.14"
 
 /* Bluetooth sockets */
@@ -245,7 +240,7 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	size_t copied;
 	int err;
 
-	BT_DBG("sock %p sk %p len %d", sock, sk, len);
+	BT_DBG("sock %p sk %p len %zu", sock, sk, len);
 
 	if (flags & (MSG_OOB))
 		return -EOPNOTSUPP;

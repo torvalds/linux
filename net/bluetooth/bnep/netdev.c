@@ -41,11 +41,6 @@
 
 #include "bnep.h"
 
-#ifndef CONFIG_BT_BNEP_DEBUG
-#undef  BT_DBG
-#define BT_DBG( A... )
-#endif
-
 #define BNEP_TX_QUEUE_LEN 20
 
 static int bnep_net_open(struct net_device *dev)

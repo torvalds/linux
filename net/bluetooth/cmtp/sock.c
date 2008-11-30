@@ -43,11 +43,6 @@
 
 #include "cmtp.h"
 
-#ifndef CONFIG_BT_CMTP_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 static int cmtp_sock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;

@@ -50,11 +50,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
-#ifndef CONFIG_BT_L2CAP_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 #define VERSION "2.11"
 
 static u32 l2cap_feat_mask = 0x0000;

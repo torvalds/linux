@@ -6,11 +6,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#ifndef CONFIG_BT_HCI_CORE_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 struct class *bt_class = NULL;
 EXPORT_SYMBOL_GPL(bt_class);
 
