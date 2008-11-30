@@ -58,8 +58,6 @@ archclean:
 # This is the image used for packaging
 KBUILD_IMAGE := $(boot)/zImage
 
-CLEAN_FILES += arch/$(ARCH)/boot/System.map
-
 # Don't use tabs in echo arguments.
 define archhelp
   echo  '* image        - kernel image ($(boot)/image)'
