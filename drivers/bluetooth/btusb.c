@@ -198,6 +198,7 @@ struct btusb_data {
 	struct usb_endpoint_descriptor *isoc_rx_ep;
 
 	int isoc_altsetting;
+	int suspend_count;
 };
 
 static void btusb_intr_complete(struct urb *urb)
@@ -948,10 +949,71 @@ static void btusb_disconnect(struct usb_interface *intf)
 	hci_free_dev(hdev);
 }
 
+static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct btusb_data *data = usb_get_intfdata(intf);
+
+	BT_DBG("intf %p", intf);
+
+	if (data->suspend_count++)
+		return 0;
+
+	cancel_work_sync(&data->work);
+
+	usb_kill_anchored_urbs(&data->tx_anchor);
+
+	usb_kill_anchored_urbs(&data->isoc_anchor);
+	usb_kill_anchored_urbs(&data->bulk_anchor);
+	usb_kill_anchored_urbs(&data->intr_anchor);
+
+	return 0;
+}
+
+static int btusb_resume(struct usb_interface *intf)
+{
+	struct btusb_data *data = usb_get_intfdata(intf);
+	struct hci_dev *hdev = data->hdev;
+	int err;
+
+	BT_DBG("intf %p", intf);
+
+	if (--data->suspend_count)
+		return 0;
+
+	if (!test_bit(HCI_RUNNING, &hdev->flags))
+		return 0;
+
+	if (test_bit(BTUSB_INTR_RUNNING, &data->flags)) {
+		err = btusb_submit_intr_urb(hdev, GFP_NOIO);
+		if (err < 0) {
+			clear_bit(BTUSB_INTR_RUNNING, &data->flags);
+			return err;
+		}
+	}
+
+	if (test_bit(BTUSB_BULK_RUNNING, &data->flags)) {
+		if (btusb_submit_bulk_urb(hdev, GFP_NOIO) < 0)
+			clear_bit(BTUSB_BULK_RUNNING, &data->flags);
+		else
+			btusb_submit_bulk_urb(hdev, GFP_NOIO);
+	}
+
+	if (test_bit(BTUSB_ISOC_RUNNING, &data->flags)) {
+		if (btusb_submit_isoc_urb(hdev, GFP_NOIO) < 0)
+			clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
+		else
+			btusb_submit_isoc_urb(hdev, GFP_NOIO);
+	}
+
+	return 0;
+}
+
 static struct usb_driver btusb_driver = {
 	.name		= "btusb",
 	.probe		= btusb_probe,
 	.disconnect	= btusb_disconnect,
+	.suspend	= btusb_suspend,
+	.resume		= btusb_resume,
 	.id_table	= btusb_table,
 };
 
