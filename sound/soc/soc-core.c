@@ -1952,7 +1952,7 @@ static int __devinit snd_soc_init(void)
 	return platform_driver_register(&soc_driver);
 }
 
-static void snd_soc_exit(void)
+static void __exit snd_soc_exit(void)
 {
 	platform_driver_unregister(&soc_driver);
 }
