@@ -323,6 +323,7 @@ struct ieee80211_tx_rate {
  * @flags: transmit info flags, defined above
  * @band: the band to transmit on (use for checking for races)
  * @antenna_sel_tx: antenna to use, 0 for automatic diversity
+ * @pad: padding, ignore
  * @control: union for control data
  * @status: union for status data
  * @driver_data: array of driver_data pointers
