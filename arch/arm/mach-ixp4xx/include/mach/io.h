@@ -239,7 +239,7 @@ __ixp4xx_readsl(const volatile void __iomem *bus_addr, u32 *vaddr, u32 count)
 
 #ifndef CONFIG_PCI
 
-#define	__io(v)		v
+#define	__io(v)		__typesafe_io(v)
 
 #else
 

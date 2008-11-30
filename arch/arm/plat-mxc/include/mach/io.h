@@ -35,8 +35,8 @@ __mx3_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 #endif
 
 /* io address mapping macro */
-#define __io(a)			((void __iomem *)(a))
+#define __io(a)		__typesafe_io(a)
 
-#define __mem_pci(a)		(a)
+#define __mem_pci(a)	(a)
 
 #endif
