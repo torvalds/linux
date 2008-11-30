@@ -45,6 +45,7 @@ static struct dentry *debugfs_root;
 
 static DEFINE_MUTEX(client_mutex);
 static LIST_HEAD(card_list);
+static LIST_HEAD(dai_list);
 
 static int snd_soc_register_card(struct snd_soc_card *card);
 static int snd_soc_unregister_card(struct snd_soc_card *card);
@@ -2018,6 +2019,88 @@ static int snd_soc_unregister_card(struct snd_soc_card *card)
 
 	return 0;
 }
+
+/**
+ * snd_soc_register_dai - Register a DAI with the ASoC core
+ *
+ * @param dai DAI to register
+ */
+int snd_soc_register_dai(struct snd_soc_dai *dai)
+{
+	if (!dai->name)
+		return -EINVAL;
+
+	/* The device should become mandatory over time */
+	if (!dai->dev)
+		printk(KERN_WARNING "No device for DAI %s\n", dai->name);
+
+	INIT_LIST_HEAD(&dai->list);
+
+	mutex_lock(&client_mutex);
+	list_add(&dai->list, &dai_list);
+	mutex_unlock(&client_mutex);
+
+	pr_debug("Registered DAI '%s'\n", dai->name);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_register_dai);
+
+/**
+ * snd_soc_unregister_dai - Unregister a DAI from the ASoC core
+ *
+ * @param dai DAI to unregister
+ */
+void snd_soc_unregister_dai(struct snd_soc_dai *dai)
+{
+	mutex_lock(&client_mutex);
+	list_del(&dai->list);
+	mutex_unlock(&client_mutex);
+
+	pr_debug("Unregistered DAI '%s'\n", dai->name);
+}
+EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
+
+/**
+ * snd_soc_register_dais - Register multiple DAIs with the ASoC core
+ *
+ * @param dai Array of DAIs to register
+ * @param count Number of DAIs
+ */
+int snd_soc_register_dais(struct snd_soc_dai *dai, size_t count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = snd_soc_register_dai(&dai[i]);
+		if (ret != 0)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	for (i--; i >= 0; i--)
+		snd_soc_unregister_dai(&dai[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_register_dais);
+
+/**
+ * snd_soc_unregister_dais - Unregister multiple DAIs from the ASoC core
+ *
+ * @param dai Array of DAIs to unregister
+ * @param count Number of DAIs
+ */
+void snd_soc_unregister_dais(struct snd_soc_dai *dai, size_t count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		snd_soc_unregister_dai(&dai[i]);
+}
+EXPORT_SYMBOL_GPL(snd_soc_unregister_dais);
 
 static int __devinit snd_soc_init(void)
 {

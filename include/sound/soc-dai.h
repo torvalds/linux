@@ -100,6 +100,12 @@ struct snd_soc_dai_ops;
 struct snd_soc_dai;
 struct snd_ac97_bus_ops;
 
+/* Digital Audio Interface registration */
+int snd_soc_register_dai(struct snd_soc_dai *dai);
+void snd_soc_unregister_dai(struct snd_soc_dai *dai);
+int snd_soc_register_dais(struct snd_soc_dai *dai, size_t count);
+void snd_soc_unregister_dais(struct snd_soc_dai *dai, size_t count);
+
 /* Digital Audio Interface clocking API.*/
 int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	unsigned int freq, int dir);
@@ -185,6 +191,8 @@ struct snd_soc_dai {
 	char *name;
 	unsigned int id;
 	int ac97_control;
+
+	struct device *dev;
 
 	/* DAI callbacks */
 	int (*probe)(struct platform_device *pdev,
