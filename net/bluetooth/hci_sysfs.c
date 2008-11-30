@@ -415,7 +415,7 @@ int hci_register_sysfs(struct hci_dev *hdev)
 	dev->class = bt_class;
 	dev->parent = hdev->parent;
 
-	dev_set_name(dev, hdev->name);
+	dev_set_name(dev, "%s", hdev->name);
 
 	dev_set_drvdata(dev, hdev);
 
