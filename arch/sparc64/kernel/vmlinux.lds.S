@@ -1,19 +1,45 @@
-/* ld script to make UltraLinux kernel */
+/* ld script for sparc32/sparc64 kernel */
 
-#include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/page.h>
 
+#ifdef CONFIG_SPARC32
+#define INITIAL_ADDRESS  0x10000 + SIZEOF_HEADERS
+#define TEXTSTART	0xf0004000
+
+#define SMP_CACHE_BYTES_SHIFT 5
+
+#else
+#define SMP_CACHE_BYTES_SHIFT 6
+#define INITIAL_ADDRESS 0x4000
+#define TEXTSTART      0x0000000000404000
+
+#endif
+
+#define SMP_CACHE_BYTES (1 << SMP_CACHE_BYTES_SHIFT)
+
+#ifdef CONFIG_SPARC32
+OUTPUT_FORMAT("elf32-sparc", "elf32-sparc", "elf32-sparc")
+OUTPUT_ARCH(sparc)
+ENTRY(_start)
+jiffies = jiffies_64 + 4;
+#else
+/* sparc64 */
 OUTPUT_FORMAT("elf64-sparc", "elf64-sparc", "elf64-sparc")
 OUTPUT_ARCH(sparc:v9a)
 ENTRY(_start)
-
 jiffies = jiffies_64;
+#endif
+
 SECTIONS
 {
+	/* swapper_low_pmd_dir is sparc64 only */
 	swapper_low_pmd_dir = 0x0000000000402000;
-	. = 0x4000;
-	.text 0x0000000000404000 : {
+	. = INITIAL_ADDRESS;
+	.text TEXTSTART :
+	{
 		_text = .;
+		*(.text.head)
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
@@ -24,25 +50,27 @@ SECTIONS
 	PROVIDE (etext = .);
 
 	RO_DATA(PAGE_SIZE)
-	.data : {
+	.data :	{
 		DATA_DATA
 		CONSTRUCTORS
 	}
 	.data1 : {
 		*(.data1)
 	}
-	. = ALIGN(64);
+	. = ALIGN(SMP_CACHE_BYTES);
 	.data.cacheline_aligned : {
 		*(.data.cacheline_aligned)
 	}
-	. = ALIGN(64);
+	. = ALIGN(SMP_CACHE_BYTES);
 	.data.read_mostly : {
 		*(.data.read_mostly)
 	}
 	_edata = .;
 	PROVIDE (edata = .);
 	.fixup : {
+		__start___fixup = .;
 		*(.fixup)
+		__stop___fixup = .;
 	}
 	. = ALIGN(16);
 	__ex_table : {
@@ -59,6 +87,7 @@ SECTIONS
 		INIT_TEXT
 		_einittext = .;
 	}
+	__init_text_end = .;
 	.init.data : {
 		INIT_DATA
 	}
