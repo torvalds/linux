@@ -236,7 +236,7 @@ static void btusb_intr_complete(struct urb *urb)
 	}
 }
 
-static int btusb_submit_intr_urb(struct hci_dev *hdev)
+static int btusb_submit_intr_urb(struct hci_dev *hdev, gfp_t mem_flags)
 {
 	struct btusb_data *data = hdev->driver_data;
 	struct urb *urb;
@@ -249,13 +249,13 @@ static int btusb_submit_intr_urb(struct hci_dev *hdev)
 	if (!data->intr_ep)
 		return -ENODEV;
 
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	urb = usb_alloc_urb(0, mem_flags);
 	if (!urb)
 		return -ENOMEM;
 
 	size = le16_to_cpu(data->intr_ep->wMaxPacketSize);
 
-	buf = kmalloc(size, GFP_ATOMIC);
+	buf = kmalloc(size, mem_flags);
 	if (!buf) {
 		usb_free_urb(urb);
 		return -ENOMEM;
@@ -271,7 +271,7 @@ static int btusb_submit_intr_urb(struct hci_dev *hdev)
 
 	usb_anchor_urb(urb, &data->intr_anchor);
 
-	err = usb_submit_urb(urb, GFP_ATOMIC);
+	err = usb_submit_urb(urb, mem_flags);
 	if (err < 0) {
 		BT_ERR("%s urb %p submission failed (%d)",
 						hdev->name, urb, -err);
@@ -319,7 +319,7 @@ static void btusb_bulk_complete(struct urb *urb)
 	}
 }
 
-static int btusb_submit_bulk_urb(struct hci_dev *hdev)
+static int btusb_submit_bulk_urb(struct hci_dev *hdev, gfp_t mem_flags)
 {
 	struct btusb_data *data = hdev->driver_data;
 	struct urb *urb;
@@ -332,13 +332,13 @@ static int btusb_submit_bulk_urb(struct hci_dev *hdev)
 	if (!data->bulk_rx_ep)
 		return -ENODEV;
 
-	urb = usb_alloc_urb(0, GFP_KERNEL);
+	urb = usb_alloc_urb(0, mem_flags);
 	if (!urb)
 		return -ENOMEM;
 
 	size = le16_to_cpu(data->bulk_rx_ep->wMaxPacketSize);
 
-	buf = kmalloc(size, GFP_KERNEL);
+	buf = kmalloc(size, mem_flags);
 	if (!buf) {
 		usb_free_urb(urb);
 		return -ENOMEM;
@@ -353,7 +353,7 @@ static int btusb_submit_bulk_urb(struct hci_dev *hdev)
 
 	usb_anchor_urb(urb, &data->bulk_anchor);
 
-	err = usb_submit_urb(urb, GFP_KERNEL);
+	err = usb_submit_urb(urb, mem_flags);
 	if (err < 0) {
 		BT_ERR("%s urb %p submission failed (%d)",
 						hdev->name, urb, -err);
@@ -430,7 +430,7 @@ static void inline __fill_isoc_descriptor(struct urb *urb, int len, int mtu)
 	urb->number_of_packets = i;
 }
 
-static int btusb_submit_isoc_urb(struct hci_dev *hdev)
+static int btusb_submit_isoc_urb(struct hci_dev *hdev, gfp_t mem_flags)
 {
 	struct btusb_data *data = hdev->driver_data;
 	struct urb *urb;
@@ -443,14 +443,14 @@ static int btusb_submit_isoc_urb(struct hci_dev *hdev)
 	if (!data->isoc_rx_ep)
 		return -ENODEV;
 
-	urb = usb_alloc_urb(BTUSB_MAX_ISOC_FRAMES, GFP_KERNEL);
+	urb = usb_alloc_urb(BTUSB_MAX_ISOC_FRAMES, mem_flags);
 	if (!urb)
 		return -ENOMEM;
 
 	size = le16_to_cpu(data->isoc_rx_ep->wMaxPacketSize) *
 						BTUSB_MAX_ISOC_FRAMES;
 
-	buf = kmalloc(size, GFP_KERNEL);
+	buf = kmalloc(size, mem_flags);
 	if (!buf) {
 		usb_free_urb(urb);
 		return -ENOMEM;
@@ -473,7 +473,7 @@ static int btusb_submit_isoc_urb(struct hci_dev *hdev)
 
 	usb_anchor_urb(urb, &data->isoc_anchor);
 
-	err = usb_submit_urb(urb, GFP_KERNEL);
+	err = usb_submit_urb(urb, mem_flags);
 	if (err < 0) {
 		BT_ERR("%s urb %p submission failed (%d)",
 						hdev->name, urb, -err);
@@ -520,7 +520,7 @@ static int btusb_open(struct hci_dev *hdev)
 	if (test_and_set_bit(BTUSB_INTR_RUNNING, &data->flags))
 		return 0;
 
-	err = btusb_submit_intr_urb(hdev);
+	err = btusb_submit_intr_urb(hdev, GFP_KERNEL);
 	if (err < 0) {
 		clear_bit(BTUSB_INTR_RUNNING, &data->flags);
 		clear_bit(HCI_RUNNING, &hdev->flags);
@@ -734,10 +734,10 @@ static void btusb_work(struct work_struct *work)
 
 	if (hdev->conn_hash.acl_num > 0) {
 		if (!test_and_set_bit(BTUSB_BULK_RUNNING, &data->flags)) {
-			if (btusb_submit_bulk_urb(hdev) < 0)
+			if (btusb_submit_bulk_urb(hdev, GFP_KERNEL) < 0)
 				clear_bit(BTUSB_BULK_RUNNING, &data->flags);
 			else
-				btusb_submit_bulk_urb(hdev);
+				btusb_submit_bulk_urb(hdev, GFP_KERNEL);
 		}
 	} else {
 		clear_bit(BTUSB_BULK_RUNNING, &data->flags);
@@ -754,10 +754,10 @@ static void btusb_work(struct work_struct *work)
 		}
 
 		if (!test_and_set_bit(BTUSB_ISOC_RUNNING, &data->flags)) {
-			if (btusb_submit_isoc_urb(hdev) < 0)
+			if (btusb_submit_isoc_urb(hdev, GFP_KERNEL) < 0)
 				clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 			else
-				btusb_submit_isoc_urb(hdev);
+				btusb_submit_isoc_urb(hdev, GFP_KERNEL);
 		}
 	} else {
 		clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
