@@ -13,6 +13,7 @@
 #ifndef __PXA_REGS_H
 #define __PXA_REGS_H
 
+#include <mach/hardware.h>
 
 /*
  * PXA Chip selects
