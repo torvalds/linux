@@ -268,12 +268,16 @@ static void isp1761_pci_shutdown(struct pci_dev *dev)
 	printk(KERN_ERR "ips1761_pci_shutdown\n");
 }
 
-static const struct pci_device_id isp1760_plx [] = { {
-	/* handle any USB 2.0 EHCI controller */
-	PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_OTHER << 8) | (0x06 << 16)), ~0),
-		.driver_data = 0,
-},
-{ /* end: all zeroes */ }
+static const struct pci_device_id isp1760_plx [] = {
+	{
+		.class          = PCI_CLASS_BRIDGE_OTHER << 8,
+		.class_mask     = ~0,
+		.vendor		= PCI_VENDOR_ID_PLX,
+		.device		= 0x5406,
+		.subvendor	= PCI_VENDOR_ID_PLX,
+		.subdevice	= 0x9054,
+	},
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, isp1760_plx);
 
