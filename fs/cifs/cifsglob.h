@@ -422,7 +422,6 @@ struct mid_q_entry {
 	unsigned long when_sent; /* time when smb send finished */
 	unsigned long when_received; /* when demux complete (taken off wire) */
 #endif
-	struct cifsSesInfo *ses;	/* smb was sent to this server */
 	struct task_struct *tsk;	/* task waiting for response */
 	struct smb_hdr *resp_buf;	/* response buffer */
 	int midState;	/* wish this were enum but can not pass to wait_event */

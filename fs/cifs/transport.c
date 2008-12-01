@@ -37,15 +37,11 @@ extern mempool_t *cifs_mid_poolp;
 extern struct kmem_cache *cifs_oplock_cachep;
 
 static struct mid_q_entry *
-AllocMidQEntry(const struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
+AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 {
 	struct mid_q_entry *temp;
 
-	if (ses == NULL) {
-		cERROR(1, ("Null session passed in to AllocMidQEntry"));
-		return NULL;
-	}
-	if (ses->server == NULL) {
+	if (server == NULL) {
 		cERROR(1, ("Null TCP session in AllocMidQEntry"));
 		return NULL;
 	}
@@ -62,12 +58,11 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 	/*	do_gettimeofday(&temp->when_sent);*/ /* easier to use jiffies */
 		/* when mid allocated can be before when sent */
 		temp->when_alloc = jiffies;
-		temp->ses = ses;
 		temp->tsk = current;
 	}
 
 	spin_lock(&GlobalMid_Lock);
-	list_add_tail(&temp->qhead, &ses->server->pending_mid_q);
+	list_add_tail(&temp->qhead, &server->pending_mid_q);
 	atomic_inc(&midCount);
 	temp->midState = MID_REQUEST_ALLOCATED;
 	spin_unlock(&GlobalMid_Lock);
@@ -400,7 +395,7 @@ static int allocate_mid(struct cifsSesInfo *ses, struct smb_hdr *in_buf,
 			return -EAGAIN;
 		/* else ok - we are setting up session */
 	}
-	*ppmidQ = AllocMidQEntry(in_buf, ses);
+	*ppmidQ = AllocMidQEntry(in_buf, ses->server);
 	if (*ppmidQ == NULL)
 		return -ENOMEM;
 	return 0;
