@@ -2314,7 +2314,7 @@ i915_gem_idle(struct drm_device *dev)
 	while (!list_empty(&dev_priv->mm.flushing_list)) {
 		struct drm_i915_gem_object *obj_priv;
 
-		obj_priv = list_first_entry(&dev_priv->mm.active_list,
+		obj_priv = list_first_entry(&dev_priv->mm.flushing_list,
 					    struct drm_i915_gem_object,
 					    list);
 		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
