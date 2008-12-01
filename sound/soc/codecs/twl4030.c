@@ -360,6 +360,12 @@ static DECLARE_TLV_DB_SCALE(master_tlv, -6300, 100, 1);
  */
 static DECLARE_TLV_DB_SCALE(master_coarse_tlv, 0, 600, 0);
 
+/*
+ * Capture gain after the ADCs
+ * from 0 dB to 31 dB in 1 dB steps
+ */
+static DECLARE_TLV_DB_SCALE(digital_capture_tlv, 0, 100, 0);
+
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("Master Playback Volume",
 		 TWL4030_REG_ARXL2PGA, TWL4030_REG_ARXR2PGA,
@@ -367,9 +373,11 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("Master PCM Playback Volume",
 		 TWL4030_REG_ARXL2PGA, TWL4030_REG_ARXR2PGA,
 		6, 0x2, 0, master_coarse_tlv),
-	SOC_DOUBLE_R("Capture Volume",
-		 TWL4030_REG_ATXL1PGA, TWL4030_REG_ATXR1PGA,
-		0, 0x1f, 0),
+
+	/* Common capture gain controls */
+	SOC_DOUBLE_R_TLV("Capture Volume",
+		TWL4030_REG_ATXL1PGA, TWL4030_REG_ATXR1PGA,
+		0, 0x1f, 0, digital_capture_tlv),
 };
 
 /* add non dapm controls */
