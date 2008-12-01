@@ -108,7 +108,7 @@ static struct map_desc realview_eb11mp_io_desc[] __initdata = {
 static void __init realview_eb_map_io(void)
 {
 	iotable_init(realview_eb_io_desc, ARRAY_SIZE(realview_eb_io_desc));
-	if (core_tile_eb11mp())
+	if (core_tile_eb11mp() || core_tile_a9mp())
 		iotable_init(realview_eb11mp_io_desc, ARRAY_SIZE(realview_eb11mp_io_desc));
 }
 
@@ -274,7 +274,7 @@ static int eth_device_register(void)
 
 static void __init gic_init_irq(void)
 {
-	if (core_tile_eb11mp()) {
+	if (core_tile_eb11mp() || core_tile_a9mp()) {
 		unsigned int pldctrl;
 
 		/* new irq mode */
@@ -342,7 +342,7 @@ static void __init realview_eb_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_EB_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_EB_TIMER2_3_BASE) + 0x20;
 
-	if (core_tile_eb11mp()) {
+	if (core_tile_eb11mp() || core_tile_a9mp()) {
 #ifdef CONFIG_LOCAL_TIMERS
 		twd_base_addr = __io_address(REALVIEW_EB11MP_TWD_BASE);
 		twd_size = REALVIEW_EB11MP_TWD_SIZE;
@@ -362,7 +362,7 @@ static void __init realview_eb_init(void)
 {
 	int i;
 
-	if (core_tile_eb11mp()) {
+	if (core_tile_eb11mp() || core_tile_a9mp()) {
 		realview_eb11mp_fixup();
 
 #ifdef CONFIG_CACHE_L2X0

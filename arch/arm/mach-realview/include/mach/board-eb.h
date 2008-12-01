@@ -163,7 +163,7 @@
 #define NR_IRQS			NR_IRQS_EB
 #endif
 
-#if defined(CONFIG_REALVIEW_EB_ARM11MP) \
+#if defined(CONFIG_REALVIEW_EB_ARM11MP) || defined(CONFIG_REALVIEW_EB_A9MP) \
 	&& (!defined(MAX_GIC_NR) || (MAX_GIC_NR < NR_GIC_EB11MP))
 #undef MAX_GIC_NR
 #define MAX_GIC_NR		NR_GIC_EB11MP
@@ -177,6 +177,7 @@
 #define REALVIEW_EB_PROC_ARM9		0x02000000
 #define REALVIEW_EB_PROC_ARM11		0x04000000
 #define REALVIEW_EB_PROC_ARM11MP	0x06000000
+#define REALVIEW_EB_PROC_A9MP		0x0C000000
 
 #define check_eb_proc(proc_type)						\
 	((readl(__io_address(REALVIEW_SYS_PROCID)) & REALVIEW_EB_PROC_MASK)	\
@@ -186,6 +187,12 @@
 #define core_tile_eb11mp()	check_eb_proc(REALVIEW_EB_PROC_ARM11MP)
 #else
 #define core_tile_eb11mp()	0
+#endif
+
+#ifdef CONFIG_REALVIEW_EB_A9MP
+#define core_tile_a9mp()	check_eb_proc(REALVIEW_EB_PROC_A9MP)
+#else
+#define core_tile_a9mp()	0
 #endif
 
 #endif	/* __ASM_ARCH_BOARD_EB_H */

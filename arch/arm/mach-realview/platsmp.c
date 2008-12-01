@@ -36,7 +36,8 @@ static unsigned int __init get_core_count(void)
 	unsigned int ncores;
 	void __iomem *scu_base = 0;
 
-	if (machine_is_realview_eb() && core_tile_eb11mp())
+	if (machine_is_realview_eb() &&
+	    (core_tile_eb11mp() || core_tile_a9mp()))
 		scu_base = __io_address(REALVIEW_EB11MP_SCU_BASE);
 	else if (machine_is_realview_pb11mp())
 		scu_base = __io_address(REALVIEW_TC11MP_SCU_BASE);
@@ -58,7 +59,8 @@ static void scu_enable(void)
 	u32 scu_ctrl;
 	void __iomem *scu_base;
 
-	if (machine_is_realview_eb() && core_tile_eb11mp())
+	if (machine_is_realview_eb() &&
+	    (core_tile_eb11mp() || core_tile_a9mp()))
 		scu_base = __io_address(REALVIEW_EB11MP_SCU_BASE);
 	else if (machine_is_realview_pb11mp())
 		scu_base = __io_address(REALVIEW_TC11MP_SCU_BASE);
@@ -88,7 +90,8 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	if (machine_is_realview_eb() && core_tile_eb11mp())
+	if (machine_is_realview_eb() &&
+	    (core_tile_eb11mp() || core_tile_a9mp()))
 		gic_cpu_init(0, __io_address(REALVIEW_EB11MP_GIC_CPU_BASE));
 	else if (machine_is_realview_pb11mp())
 		gic_cpu_init(0, __io_address(REALVIEW_TC11MP_GIC_CPU_BASE));
@@ -232,7 +235,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * dummy (!CONFIG_LOCAL_TIMERS), it was already registers in
 	 * realview_timer_init
 	 */
-	if ((machine_is_realview_eb() && core_tile_eb11mp()) ||
+	if ((machine_is_realview_eb() &&
+	     (core_tile_eb11mp() || core_tile_a9mp())) ||
 	    machine_is_realview_pb11mp())
 		local_timer_setup(cpu);
 #endif

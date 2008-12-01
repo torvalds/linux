@@ -7,6 +7,13 @@ config MACH_REALVIEW_EB
 	help
 	  Include support for the ARM(R) RealView Emulation Baseboard platform.
 
+config REALVIEW_EB_A9MP
+	bool "Support Multicore Cortex-A9"
+	depends on MACH_REALVIEW_EB
+	select CPU_V7
+	help
+	  Enable support for the Cortex-A9MPCore tile on the Realview platform.
+
 config REALVIEW_EB_ARM11MP
 	bool "Support ARM11MPCore tile"
 	depends on MACH_REALVIEW_EB
