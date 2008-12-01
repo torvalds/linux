@@ -1417,6 +1417,148 @@ cifs_put_tcp_session(struct TCP_Server_Info *server)
 		force_sig(SIGKILL, task);
 }
 
+static struct TCP_Server_Info *
+cifs_get_tcp_session(struct smb_vol *volume_info)
+{
+	struct TCP_Server_Info *tcp_ses = NULL;
+	struct sockaddr addr;
+	struct sockaddr_in *sin_server = (struct sockaddr_in *) &addr;
+	struct sockaddr_in6 *sin_server6 = (struct sockaddr_in6 *) &addr;
+	int rc;
+
+	memset(&addr, 0, sizeof(struct sockaddr));
+
+	if (volume_info->UNCip && volume_info->UNC) {
+		rc = cifs_inet_pton(AF_INET, volume_info->UNCip,
+				    &sin_server->sin_addr.s_addr);
+
+		if (rc <= 0) {
+			/* not ipv4 address, try ipv6 */
+			rc = cifs_inet_pton(AF_INET6, volume_info->UNCip,
+					    &sin_server6->sin6_addr.in6_u);
+			if (rc > 0)
+				addr.sa_family = AF_INET6;
+		} else {
+			addr.sa_family = AF_INET;
+		}
+
+		if (rc <= 0) {
+			/* we failed translating address */
+			rc = -EINVAL;
+			goto out_err;
+		}
+
+		cFYI(1, ("UNC: %s ip: %s", volume_info->UNC,
+			 volume_info->UNCip));
+	} else if (volume_info->UNCip) {
+		/* BB using ip addr as tcp_ses name to connect to the
+		   DFS root below */
+		cERROR(1, ("Connecting to DFS root not implemented yet"));
+		rc = -EINVAL;
+		goto out_err;
+	} else /* which tcp_sess DFS root would we conect to */ {
+		cERROR(1,
+		       ("CIFS mount error: No UNC path (e.g. -o "
+			"unc=//192.168.1.100/public) specified"));
+		rc = -EINVAL;
+		goto out_err;
+	}
+
+	/* see if we already have a matching tcp_ses */
+	tcp_ses = cifs_find_tcp_session(&addr);
+	if (tcp_ses)
+		return tcp_ses;
+
+	tcp_ses = kzalloc(sizeof(struct TCP_Server_Info), GFP_KERNEL);
+	if (!tcp_ses) {
+		rc = -ENOMEM;
+		goto out_err;
+	}
+
+	tcp_ses->hostname = extract_hostname(volume_info->UNC);
+	if (IS_ERR(tcp_ses->hostname)) {
+		rc = PTR_ERR(tcp_ses->hostname);
+		goto out_err;
+	}
+
+	tcp_ses->noblocksnd = volume_info->noblocksnd;
+	tcp_ses->noautotune = volume_info->noautotune;
+	atomic_set(&tcp_ses->inFlight, 0);
+	init_waitqueue_head(&tcp_ses->response_q);
+	init_waitqueue_head(&tcp_ses->request_q);
+	INIT_LIST_HEAD(&tcp_ses->pending_mid_q);
+	mutex_init(&tcp_ses->srv_mutex);
+	memcpy(tcp_ses->workstation_RFC1001_name,
+		volume_info->source_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
+	memcpy(tcp_ses->server_RFC1001_name,
+		volume_info->target_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
+	tcp_ses->sequence_number = 0;
+	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
+	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
+
+	/*
+	 * at this point we are the only ones with the pointer
+	 * to the struct since the kernel thread not created yet
+	 * no need to spinlock this init of tcpStatus or srv_count
+	 */
+	tcp_ses->tcpStatus = CifsNew;
+	++tcp_ses->srv_count;
+
+	if (addr.sa_family == AF_INET6) {
+		cFYI(1, ("attempting ipv6 connect"));
+		/* BB should we allow ipv6 on port 139? */
+		/* other OS never observed in Wild doing 139 with v6 */
+		memcpy(&tcp_ses->addr.sockAddr6, sin_server6,
+			sizeof(struct sockaddr_in6));
+		sin_server6->sin6_port = htons(volume_info->port);
+		rc = ipv6_connect(sin_server6, &tcp_ses->ssocket,
+				volume_info->noblocksnd);
+	} else {
+		memcpy(&tcp_ses->addr.sockAddr, sin_server,
+			sizeof(struct sockaddr_in));
+		sin_server->sin_port = htons(volume_info->port);
+		rc = ipv4_connect(sin_server, &tcp_ses->ssocket,
+			  volume_info->source_rfc1001_name,
+			  volume_info->target_rfc1001_name,
+			  volume_info->noblocksnd,
+			  volume_info->noautotune);
+	}
+	if (rc < 0) {
+		cERROR(1, ("Error connecting to socket. Aborting operation"));
+		goto out_err;
+	}
+
+	/*
+	 * since we're in a cifs function already, we know that
+	 * this will succeed. No need for try_module_get().
+	 */
+	__module_get(THIS_MODULE);
+	tcp_ses->tsk = kthread_run((void *)(void *)cifs_demultiplex_thread,
+				  tcp_ses, "cifsd");
+	if (IS_ERR(tcp_ses->tsk)) {
+		rc = PTR_ERR(tcp_ses->tsk);
+		cERROR(1, ("error %d create cifsd thread", rc));
+		module_put(THIS_MODULE);
+		goto out_err;
+	}
+
+	/* thread spawned, put it on the list */
+	write_lock(&cifs_tcp_ses_lock);
+	list_add(&tcp_ses->tcp_ses_list, &cifs_tcp_ses_list);
+	write_unlock(&cifs_tcp_ses_lock);
+
+	return tcp_ses;
+
+out_err:
+	if (tcp_ses) {
+		kfree(tcp_ses->hostname);
+		if (tcp_ses->ssocket)
+			sock_release(tcp_ses->ssocket);
+		kfree(tcp_ses);
+	}
+	return ERR_PTR(rc);
+}
+
 static struct cifsSesInfo *
 cifs_find_smb_ses(struct TCP_Server_Info *server, char *username)
 {
@@ -2043,10 +2185,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 {
 	int rc = 0;
 	int xid;
-	struct socket *csocket = NULL;
-	struct sockaddr addr;
-	struct sockaddr_in *sin_server = (struct sockaddr_in *) &addr;
-	struct sockaddr_in6 *sin_server6 = (struct sockaddr_in6 *) &addr;
 	struct smb_vol volume_info;
 	struct cifsSesInfo *pSesInfo = NULL;
 	struct cifsTconInfo *tcon = NULL;
@@ -2056,7 +2194,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 /* cFYI(1, ("Entering cifs_mount. Xid: %d with: %s", xid, mount_data)); */
 
-	memset(&addr, 0, sizeof(struct sockaddr));
 	memset(&volume_info, 0, sizeof(struct smb_vol));
 	if (cifs_parse_mount_options(mount_data, devname, &volume_info)) {
 		rc = -EINVAL;
@@ -2077,42 +2214,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		goto out;
 	}
 
-	if (volume_info.UNCip && volume_info.UNC) {
-		rc = cifs_inet_pton(AF_INET, volume_info.UNCip,
-				    &sin_server->sin_addr.s_addr);
-
-		if (rc <= 0) {
-			/* not ipv4 address, try ipv6 */
-			rc = cifs_inet_pton(AF_INET6, volume_info.UNCip,
-					    &sin_server6->sin6_addr.in6_u);
-			if (rc > 0)
-				addr.sa_family = AF_INET6;
-		} else {
-			addr.sa_family = AF_INET;
-		}
-
-		if (rc <= 0) {
-			/* we failed translating address */
-			rc = -EINVAL;
-			goto out;
-		}
-
-		cFYI(1, ("UNC: %s ip: %s", volume_info.UNC, volume_info.UNCip));
-		/* success */
-		rc = 0;
-	} else if (volume_info.UNCip) {
-		/* BB using ip addr as server name to connect to the
-		   DFS root below */
-		cERROR(1, ("Connecting to DFS root not implemented yet"));
-		rc = -EINVAL;
-		goto out;
-	} else /* which servers DFS root would we conect to */ {
-		cERROR(1,
-		       ("CIFS mount error: No UNC path (e.g. -o "
-			"unc=//192.168.1.100/public) specified"));
-		rc = -EINVAL;
-		goto out;
-	}
 
 	/* this is needed for ASCII cp to Unicode converts */
 	if (volume_info.iocharset == NULL) {
@@ -2128,94 +2229,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		}
 	}
 
-	srvTcp = cifs_find_tcp_session(&addr);
-	if (!srvTcp) { /* create socket */
-		if (addr.sa_family == AF_INET6) {
-			cFYI(1, ("attempting ipv6 connect"));
-			/* BB should we allow ipv6 on port 139? */
-			/* other OS never observed in Wild doing 139 with v6 */
-			sin_server6->sin6_port = htons(volume_info.port);
-			rc = ipv6_connect(sin_server6, &csocket,
-					volume_info.noblocksnd);
-		} else {
-			sin_server->sin_port = htons(volume_info.port);
-			rc = ipv4_connect(sin_server, &csocket,
-				  volume_info.source_rfc1001_name,
-				  volume_info.target_rfc1001_name,
-				  volume_info.noblocksnd,
-				  volume_info.noautotune);
-		}
-		if (rc < 0) {
-			cERROR(1, ("Error connecting to socket. "
-				   "Aborting operation"));
-			if (csocket != NULL)
-				sock_release(csocket);
-			goto out;
-		}
-
-		srvTcp = kzalloc(sizeof(struct TCP_Server_Info), GFP_KERNEL);
-		if (!srvTcp) {
-			rc = -ENOMEM;
-			sock_release(csocket);
-			goto out;
-		} else {
-			srvTcp->noblocksnd = volume_info.noblocksnd;
-			srvTcp->noautotune = volume_info.noautotune;
-			if (addr.sa_family == AF_INET6)
-				memcpy(&srvTcp->addr.sockAddr6, sin_server6,
-					sizeof(struct sockaddr_in6));
-			else
-				memcpy(&srvTcp->addr.sockAddr, sin_server,
-					sizeof(struct sockaddr_in));
-			atomic_set(&srvTcp->inFlight, 0);
-			/* BB Add code for ipv6 case too */
-			srvTcp->ssocket = csocket;
-			srvTcp->hostname = extract_hostname(volume_info.UNC);
-			if (IS_ERR(srvTcp->hostname)) {
-				rc = PTR_ERR(srvTcp->hostname);
-				sock_release(csocket);
-				goto out;
-			}
-			init_waitqueue_head(&srvTcp->response_q);
-			init_waitqueue_head(&srvTcp->request_q);
-			INIT_LIST_HEAD(&srvTcp->pending_mid_q);
-			/* at this point we are the only ones with the pointer
-			to the struct since the kernel thread not created yet
-			so no need to spinlock this init of tcpStatus */
-			srvTcp->tcpStatus = CifsNew;
-			mutex_init(&srvTcp->srv_mutex);
-
-			/*
-			 * since we're in a cifs function already, we know that
-			 * this will succeed. No need for try_module_get().
-			 */
-			__module_get(THIS_MODULE);
-			srvTcp->tsk = kthread_run((void *)(void *)cifs_demultiplex_thread, srvTcp, "cifsd");
-			if (IS_ERR(srvTcp->tsk)) {
-				rc = PTR_ERR(srvTcp->tsk);
-				cERROR(1, ("error %d create cifsd thread", rc));
-				module_put(THIS_MODULE);
-				srvTcp->tsk = NULL;
-				sock_release(csocket);
-				kfree(srvTcp->hostname);
-				goto out;
-			}
-			rc = 0;
-			memcpy(srvTcp->workstation_RFC1001_name,
-				volume_info.source_rfc1001_name,
-				RFC1001_NAME_LEN_WITH_NULL);
-			memcpy(srvTcp->server_RFC1001_name,
-				volume_info.target_rfc1001_name,
-				RFC1001_NAME_LEN_WITH_NULL);
-			srvTcp->sequence_number = 0;
-			INIT_LIST_HEAD(&srvTcp->tcp_ses_list);
-			INIT_LIST_HEAD(&srvTcp->smb_ses_list);
-			++srvTcp->srv_count;
-			write_lock(&cifs_tcp_ses_lock);
-			list_add(&srvTcp->tcp_ses_list,
-				 &cifs_tcp_ses_list);
-			write_unlock(&cifs_tcp_ses_lock);
-		}
+	/* get a reference to a tcp session */
+	srvTcp = cifs_get_tcp_session(&volume_info);
+	if (IS_ERR(srvTcp)) {
+		rc = PTR_ERR(srvTcp);
+		goto out;
 	}
 
 	pSesInfo = cifs_find_smb_ses(srvTcp, volume_info.username);
@@ -2245,12 +2263,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 		/* new SMB session uses our srvTcp ref */
 		pSesInfo->server = srvTcp;
-		if (addr.sa_family == AF_INET6)
+		if (srvTcp->addr.sockAddr6.sin6_family == AF_INET6)
 			sprintf(pSesInfo->serverName, NIP6_FMT,
-				NIP6(sin_server6->sin6_addr));
+				NIP6(srvTcp->addr.sockAddr6.sin6_addr));
 		else
 			sprintf(pSesInfo->serverName, NIPQUAD_FMT,
-				NIPQUAD(sin_server->sin_addr.s_addr));
+				NIPQUAD(srvTcp->addr.sockAddr.sin_addr.s_addr));
 
 		write_lock(&cifs_tcp_ses_lock);
 		list_add(&pSesInfo->smb_ses_list, &srvTcp->smb_ses_list);
