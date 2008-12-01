@@ -1609,6 +1609,10 @@ static int __cpuinit hrtimer_cpu_notify(struct notifier_block *self,
 		break;
 
 #ifdef CONFIG_HOTPLUG_CPU
+	case CPU_DYING:
+	case CPU_DYING_FROZEN:
+		clockevents_notify(CLOCK_EVT_NOTIFY_CPU_DYING, &scpu);
+		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 	{
