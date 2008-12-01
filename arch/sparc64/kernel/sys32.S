@@ -150,7 +150,7 @@ sys32_mmap2:
 sys32_socketcall:	/* %o0=call, %o1=args */
 	cmp		%o0, 1
 	bl,pn		%xcc, do_einval
-	 cmp		%o0, 17
+	 cmp		%o0, 18
 	bg,pn		%xcc, do_einval
 	 sub		%o0, 1, %o0
 	sllx		%o0, 5, %o0
@@ -319,6 +319,15 @@ do_sys_recvmsg: /* compat_sys_recvmsg(int, struct compat_msghdr *, unsigned int)
 	nop
 	nop
 	nop
+do_sys_accept4: /* sys_accept4(int, struct sockaddr *, int *, int) */
+63:	ldswa		[%o1 + 0x0] %asi, %o0
+	sethi		%hi(sys_accept4), %g1
+64:	lduwa		[%o1 + 0x8] %asi, %o2
+65:	ldswa		[%o1 + 0xc] %asi, %o3
+	jmpl		%g1 + %lo(sys_accept4), %g0
+66:	 lduwa		[%o1 + 0x4] %asi, %o1
+	nop
+	nop
 
 	.section	__ex_table,"a"
 	.align		4
@@ -353,4 +362,6 @@ do_sys_recvmsg: /* compat_sys_recvmsg(int, struct compat_msghdr *, unsigned int)
 	.word		57b, __retl_efault, 58b, __retl_efault
 	.word		59b, __retl_efault, 60b, __retl_efault
 	.word		61b, __retl_efault, 62b, __retl_efault
+	.word		63b, __retl_efault, 64b, __retl_efault
+	.word		65b, __retl_efault, 66b, __retl_efault
 	.previous
