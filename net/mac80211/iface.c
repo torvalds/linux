@@ -435,7 +435,11 @@ static int ieee80211_stop(struct net_device *dev)
 		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
-		sdata->u.sta.state = IEEE80211_STA_MLME_DISABLED;
+		/* Announce that we are leaving the network. */
+		if (sdata->u.sta.state != IEEE80211_STA_MLME_DISABLED)
+			ieee80211_sta_deauthenticate(sdata,
+						WLAN_REASON_DEAUTH_LEAVING);
+
 		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
 		del_timer_sync(&sdata->u.sta.timer);
 		/*
