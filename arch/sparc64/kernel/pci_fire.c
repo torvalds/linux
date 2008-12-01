@@ -455,7 +455,7 @@ static int __init pci_fire_pbm_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static int __init fire_probe(struct of_device *op,
+static int __devinit fire_probe(struct of_device *op,
 				const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
