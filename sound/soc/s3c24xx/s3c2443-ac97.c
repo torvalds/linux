@@ -285,7 +285,8 @@ static int s3c2443_ac97_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int s3c2443_ac97_trigger(struct snd_pcm_substream *substream, int cmd)
+static int s3c2443_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
+				struct snd_soc_dai *dai)
 {
 	u32 ac_glbctrl;
 
