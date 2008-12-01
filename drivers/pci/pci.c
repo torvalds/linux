@@ -56,6 +56,22 @@ unsigned char pci_bus_max_busnr(struct pci_bus* bus)
 }
 EXPORT_SYMBOL_GPL(pci_bus_max_busnr);
 
+#ifdef CONFIG_HAS_IOMEM
+void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar)
+{
+	/*
+	 * Make sure the BAR is actually a memory resource, not an IO resource
+	 */
+	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
+		WARN_ON(1);
+		return NULL;
+	}
+	return ioremap_nocache(pci_resource_start(pdev, bar),
+				     pci_resource_len(pdev, bar));
+}
+EXPORT_SYMBOL_GPL(pci_ioremap_bar);
+#endif
+
 #if 0
 /**
  * pci_max_busnr - returns maximum PCI bus number
