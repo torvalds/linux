@@ -35,8 +35,8 @@ static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);
 static DEFINE_MUTEX(video_lock);
 
-const static struct soc_camera_data_format*
-format_by_fourcc(struct soc_camera_device *icd, unsigned int fourcc)
+const static struct soc_camera_data_format *format_by_fourcc(
+	struct soc_camera_device *icd, unsigned int fourcc)
 {
 	unsigned int i;
 
@@ -47,7 +47,7 @@ format_by_fourcc(struct soc_camera_device *icd, unsigned int fourcc)
 }
 
 static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
-				  struct v4l2_format *f)
+				      struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -260,7 +260,7 @@ static int soc_camera_close(struct inode *inode, struct file *file)
 }
 
 static ssize_t soc_camera_read(struct file *file, char __user *buf,
-			   size_t count, loff_t *ppos)
+			       size_t count, loff_t *ppos)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -305,7 +305,6 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 	return ici->ops->poll(file, pt);
 }
 
-
 static struct file_operations soc_camera_fops = {
 	.owner		= THIS_MODULE,
 	.open		= soc_camera_open,
@@ -317,9 +316,8 @@ static struct file_operations soc_camera_fops = {
 	.llseek		= no_llseek,
 };
 
-
 static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
+				    struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -366,7 +364,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
-				   struct v4l2_fmtdesc *f)
+				       struct v4l2_fmtdesc *f)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
@@ -385,7 +383,7 @@ static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 }
 
 static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
+				    struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
