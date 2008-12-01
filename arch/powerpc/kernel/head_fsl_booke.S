@@ -751,7 +751,7 @@ finish_tlb_load:
 	iseleq	r12, r12, r10
 	
 #ifdef CONFIG_PTE_64BIT
-2:	rlwimi	r12, r13, 24, 0, 7	/* grab RPN[32:39] */
+	rlwimi	r12, r13, 24, 0, 7	/* grab RPN[32:39] */
 	rlwimi	r12, r11, 24, 8, 19	/* grab RPN[40:51] */
 	mtspr	SPRN_MAS3, r12
 BEGIN_FTR_SECTION
@@ -759,7 +759,7 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_MAS7, r10
 END_FTR_SECTION_IFSET(CPU_FTR_BIG_PHYS)
 #else
-2:	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
+	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
 	mtspr	SPRN_MAS3, r11
 #endif
 #ifdef CONFIG_E200
