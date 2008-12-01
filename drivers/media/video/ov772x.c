@@ -112,34 +112,34 @@
 #define AREF7       0x55 /* Analog reference control */
 #define UFIX        0x60 /* U channel fixed value output */
 #define VFIX        0x61 /* V channel fixed value output */
-#define AW_BB_BLK   0x62 /* AWB option for advanced AWB */
-#define AW_B_CTRL0  0x63 /* AWB control byte 0 */
+#define AWBB_BLK    0x62 /* AWB option for advanced AWB */
+#define AWB_CTRL0   0x63 /* AWB control byte 0 */
 #define DSP_CTRL1   0x64 /* DSP control byte 1 */
 #define DSP_CTRL2   0x65 /* DSP control byte 2 */
 #define DSP_CTRL3   0x66 /* DSP control byte 3 */
 #define DSP_CTRL4   0x67 /* DSP control byte 4 */
-#define AW_B_BIAS   0x68 /* AWB BLC level clip */
-#define AW_BCTRL1   0x69 /* AWB control  1 */
-#define AW_BCTRL2   0x6A /* AWB control  2 */
-#define AW_BCTRL3   0x6B /* AWB control  3 */
-#define AW_BCTRL4   0x6C /* AWB control  4 */
-#define AW_BCTRL5   0x6D /* AWB control  5 */
-#define AW_BCTRL6   0x6E /* AWB control  6 */
-#define AW_BCTRL7   0x6F /* AWB control  7 */
-#define AW_BCTRL8   0x70 /* AWB control  8 */
-#define AW_BCTRL9   0x71 /* AWB control  9 */
-#define AW_BCTRL10  0x72 /* AWB control 10 */
-#define AW_BCTRL11  0x73 /* AWB control 11 */
-#define AW_BCTRL12  0x74 /* AWB control 12 */
-#define AW_BCTRL13  0x75 /* AWB control 13 */
-#define AW_BCTRL14  0x76 /* AWB control 14 */
-#define AW_BCTRL15  0x77 /* AWB control 15 */
-#define AW_BCTRL16  0x78 /* AWB control 16 */
-#define AW_BCTRL17  0x79 /* AWB control 17 */
-#define AW_BCTRL18  0x7A /* AWB control 18 */
-#define AW_BCTRL19  0x7B /* AWB control 19 */
-#define AW_BCTRL20  0x7C /* AWB control 20 */
-#define AW_BCTRL21  0x7D /* AWB control 21 */
+#define AWB_BIAS    0x68 /* AWB BLC level clip */
+#define AWB_CTRL1   0x69 /* AWB control  1 */
+#define AWB_CTRL2   0x6A /* AWB control  2 */
+#define AWB_CTRL3   0x6B /* AWB control  3 */
+#define AWB_CTRL4   0x6C /* AWB control  4 */
+#define AWB_CTRL5   0x6D /* AWB control  5 */
+#define AWB_CTRL6   0x6E /* AWB control  6 */
+#define AWB_CTRL7   0x6F /* AWB control  7 */
+#define AWB_CTRL8   0x70 /* AWB control  8 */
+#define AWB_CTRL9   0x71 /* AWB control  9 */
+#define AWB_CTRL10  0x72 /* AWB control 10 */
+#define AWB_CTRL11  0x73 /* AWB control 11 */
+#define AWB_CTRL12  0x74 /* AWB control 12 */
+#define AWB_CTRL13  0x75 /* AWB control 13 */
+#define AWB_CTRL14  0x76 /* AWB control 14 */
+#define AWB_CTRL15  0x77 /* AWB control 15 */
+#define AWB_CTRL16  0x78 /* AWB control 16 */
+#define AWB_CTRL17  0x79 /* AWB control 17 */
+#define AWB_CTRL18  0x7A /* AWB control 18 */
+#define AWB_CTRL19  0x7B /* AWB control 19 */
+#define AWB_CTRL20  0x7C /* AWB control 20 */
+#define AWB_CTRL21  0x7D /* AWB control 21 */
 #define GAM1        0x7E /* Gamma Curve  1st segment input end point */
 #define GAM2        0x7F /* Gamma Curve  2nd segment input end point */
 #define GAM3        0x80 /* Gamma Curve  3rd segment input end point */
