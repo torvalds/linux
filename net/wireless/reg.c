@@ -1330,7 +1330,7 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 /* Caller must hold cfg80211_drv_mutex */
 void reg_device_remove(struct wiphy *wiphy)
 {
-	if (!last_request->wiphy)
+	if (!last_request || !last_request->wiphy)
 		return;
 	if (last_request->wiphy != wiphy)
 		return;
