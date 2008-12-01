@@ -2413,7 +2413,7 @@ static int stac92xx_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	if (spec->powerdown_adcs) {
 		msleep(40);
-		snd_hda_codec_write_cache(codec, nid, 0,
+		snd_hda_codec_write(codec, nid, 0,
 			AC_VERB_SET_POWER_STATE, AC_PWRST_D0);
 	}
 	snd_hda_codec_setup_stream(codec, nid, stream_tag, 0, format);
@@ -2429,7 +2429,7 @@ static int stac92xx_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 
 	snd_hda_codec_cleanup_stream(codec, nid);
 	if (spec->powerdown_adcs)
-		snd_hda_codec_write_cache(codec, nid, 0,
+		snd_hda_codec_write(codec, nid, 0,
 			AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
 	return 0;
 }
@@ -3866,7 +3866,7 @@ static void stac92xx_power_down(struct hda_codec *codec)
 	for (dac = spec->dac_list; *dac; dac++)
 		if (!is_in_dac_nids(spec, *dac) &&
 			spec->multiout.hp_nid != *dac)
-			snd_hda_codec_write_cache(codec, *dac, 0,
+			snd_hda_codec_write(codec, *dac, 0,
 					AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
 }
 
@@ -3885,7 +3885,7 @@ static int stac92xx_init(struct hda_codec *codec)
 	/* power down adcs initially */
 	if (spec->powerdown_adcs)
 		for (i = 0; i < spec->num_adcs; i++)
-			snd_hda_codec_write_cache(codec,
+			snd_hda_codec_write(codec,
 				spec->adc_nids[i], 0,
 				AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
 
@@ -4724,48 +4724,6 @@ again:
 	return 0;
 }
 
-#ifdef SND_HDA_NEEDS_RESUME
-static void stac92hd71xx_set_power_state(struct hda_codec *codec, int pwr)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	int i;
-	snd_hda_codec_write_cache(codec, codec->afg, 0,
-		AC_VERB_SET_POWER_STATE, pwr);
-
-	msleep(1);
-	for (i = 0; i < spec->num_adcs; i++) {
-		snd_hda_codec_write_cache(codec,
-			spec->adc_nids[i], 0,
-			AC_VERB_SET_POWER_STATE, pwr);
-	}
-};
-
-static int stac92hd71xx_resume(struct hda_codec *codec)
-{
-	stac92hd71xx_set_power_state(codec, AC_PWRST_D0);
-	return stac92xx_resume(codec);
-}
-
-static int stac92hd71xx_suspend(struct hda_codec *codec, pm_message_t state)
-{
-	stac92hd71xx_set_power_state(codec, AC_PWRST_D3);
-	return stac92xx_suspend(codec, state);
-};
-
-#endif
-
-static struct hda_codec_ops stac92hd71bxx_patch_ops = {
-	.build_controls = stac92xx_build_controls,
-	.build_pcms = stac92xx_build_pcms,
-	.init = stac92xx_init,
-	.free = stac92xx_free,
-	.unsol_event = stac92xx_unsol_event,
-#ifdef SND_HDA_NEEDS_RESUME
-	.suspend = stac92hd71xx_suspend,
-	.resume = stac92hd71xx_resume,
-#endif
-};
-
 static struct hda_input_mux stac92hd71bxx_dmux = {
 	.num_items = 4,
 	.items = {
@@ -4842,12 +4800,8 @@ again:
 			break;
 		}
 		if ((codec->revision_id & 0xf) == 0 ||
-				(codec->revision_id & 0xf) == 1) {
-#ifdef SND_HDA_NEEDS_RESUME
-			codec->patch_ops = stac92hd71bxx_patch_ops;
-#endif
+		    (codec->revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
-		}
 
 		/* no output amps */
 		spec->num_pwrs = 0;
@@ -4859,12 +4813,8 @@ again:
 		stac_change_pin_config(codec, 0xf, 0x40f000f0);
 		break;
 	case 0x111d7603: /* 6 Port with Analog Mixer */
-		if ((codec->revision_id & 0xf) == 1) {
-#ifdef SND_HDA_NEEDS_RESUME
-			codec->patch_ops = stac92hd71bxx_patch_ops;
-#endif
+		if ((codec->revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
-		}
 
 		/* no output amps */
 		spec->num_pwrs = 0;
