@@ -1836,6 +1836,9 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 		nuke(loop_ep, -ESHUTDOWN);
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
+	/* report disconnect; the controller is already quiesced */
+	driver->disconnect(&udc_controller->gadget);
+
 	/* unbind gadget and unhook driver. */
 	driver->unbind(&udc_controller->gadget);
 	udc_controller->gadget.dev.driver = NULL;
