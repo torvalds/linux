@@ -41,6 +41,8 @@ struct soc_camera_device {
 	const struct soc_camera_data_format *current_fmt;
 	const struct soc_camera_data_format *formats;
 	int num_formats;
+	struct soc_camera_format_xlate *user_formats;
+	int num_user_formats;
 	struct module *owner;
 	void *host_priv;		/* per-device host private data */
 	/* soc_camera.c private count. Only accessed with video_lock held */
@@ -65,8 +67,10 @@ struct soc_camera_host_ops {
 	struct module *owner;
 	int (*add)(struct soc_camera_device *);
 	void (*remove)(struct soc_camera_device *);
-	int (*suspend)(struct soc_camera_device *, pm_message_t state);
+	int (*suspend)(struct soc_camera_device *, pm_message_t);
 	int (*resume)(struct soc_camera_device *);
+	int (*get_formats)(struct soc_camera_device *, int,
+			   struct soc_camera_format_xlate *);
 	int (*set_fmt)(struct soc_camera_device *, __u32, struct v4l2_rect *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
@@ -107,12 +111,31 @@ extern void soc_camera_video_stop(struct soc_camera_device *icd);
 
 extern const struct soc_camera_data_format *soc_camera_format_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc);
+extern const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
+	struct soc_camera_device *icd, unsigned int fourcc);
 
 struct soc_camera_data_format {
 	const char *name;
 	unsigned int depth;
 	__u32 fourcc;
 	enum v4l2_colorspace colorspace;
+};
+
+/**
+ * struct soc_camera_format_xlate - match between host and sensor formats
+ * @cam_fmt: sensor format provided by the sensor
+ * @host_fmt: host format after host translation from cam_fmt
+ * @buswidth: bus width for this format
+ *
+ * Host and sensor translation structure. Used in table of host and sensor
+ * formats matchings in soc_camera_device. A host can override the generic list
+ * generation by implementing get_formats(), and use it for format checks and
+ * format setup.
+ */
+struct soc_camera_format_xlate {
+	const struct soc_camera_data_format *cam_fmt;
+	const struct soc_camera_data_format *host_fmt;
+	unsigned char buswidth;
 };
 
 struct soc_camera_ops {

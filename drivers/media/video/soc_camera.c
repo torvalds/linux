@@ -47,6 +47,18 @@ const struct soc_camera_data_format *soc_camera_format_by_fourcc(
 }
 EXPORT_SYMBOL(soc_camera_format_by_fourcc);
 
+const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
+	struct soc_camera_device *icd, unsigned int fourcc)
+{
+	unsigned int i;
+
+	for (i = 0; i < icd->num_user_formats; i++)
+		if (icd->user_formats[i].host_fmt->fourcc == fourcc)
+			return icd->user_formats + i;
+	return NULL;
+}
+EXPORT_SYMBOL(soc_camera_xlate_by_fourcc);
+
 static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 				      struct v4l2_format *f)
 {
@@ -161,6 +173,59 @@ static int soc_camera_dqbuf(struct file *file, void *priv,
 	return videobuf_dqbuf(&icf->vb_vidq, p, file->f_flags & O_NONBLOCK);
 }
 
+static int soc_camera_init_user_formats(struct soc_camera_device *icd)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	int i, fmts = 0;
+
+	if (!ici->ops->get_formats)
+		/*
+		 * Fallback mode - the host will have to serve all
+		 * sensor-provided formats one-to-one to the user
+		 */
+		fmts = icd->num_formats;
+	else
+		/*
+		 * First pass - only count formats this host-sensor
+		 * configuration can provide
+		 */
+		for (i = 0; i < icd->num_formats; i++)
+			fmts += ici->ops->get_formats(icd, i, NULL);
+
+	if (!fmts)
+		return -ENXIO;
+
+	icd->user_formats =
+		vmalloc(fmts * sizeof(struct soc_camera_format_xlate));
+	if (!icd->user_formats)
+		return -ENOMEM;
+
+	icd->num_user_formats = fmts;
+	fmts = 0;
+
+	dev_dbg(&icd->dev, "Found %d supported formats.\n", fmts);
+
+	/* Second pass - actually fill data formats */
+	for (i = 0; i < icd->num_formats; i++)
+		if (!ici->ops->get_formats) {
+			icd->user_formats[i].host_fmt = icd->formats + i;
+			icd->user_formats[i].cam_fmt = icd->formats + i;
+			icd->user_formats[i].buswidth = icd->formats[i].depth;
+		} else {
+			fmts += ici->ops->get_formats(icd, i,
+						      &icd->user_formats[fmts]);
+		}
+
+	icd->current_fmt = icd->user_formats[0].host_fmt;
+
+	return 0;
+}
+
+static void soc_camera_free_user_formats(struct soc_camera_device *icd)
+{
+	vfree(icd->user_formats);
+}
+
 static int soc_camera_open(struct inode *inode, struct file *file)
 {
 	struct video_device *vdev;
@@ -197,10 +262,12 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 
 	/* Now we really have to activate the camera */
 	if (icd->use_count == 1) {
+		ret = soc_camera_init_user_formats(icd);
+		if (ret < 0)
+			goto eiufmt;
 		ret = ici->ops->add(icd);
 		if (ret < 0) {
 			dev_err(&icd->dev, "Couldn't activate the camera: %d\n", ret);
-			icd->use_count--;
 			goto eiciadd;
 		}
 	}
@@ -216,6 +283,9 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 
 	/* All errors are entered with the video_lock held */
 eiciadd:
+	soc_camera_free_user_formats(icd);
+eiufmt:
+	icd->use_count--;
 	module_put(ici->ops->owner);
 emgi:
 	module_put(icd->ops->owner);
@@ -234,8 +304,10 @@ static int soc_camera_close(struct inode *inode, struct file *file)
 
 	mutex_lock(&video_lock);
 	icd->use_count--;
-	if (!icd->use_count)
+	if (!icd->use_count) {
 		ici->ops->remove(icd);
+		soc_camera_free_user_formats(icd);
+	}
 	module_put(icd->ops->owner);
 	module_put(ici->ops->owner);
 	mutex_unlock(&video_lock);
@@ -311,6 +383,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici =
 		to_soc_camera_host(icd->dev.parent);
+	__u32 pixfmt = f->fmt.pix.pixelformat;
 	int ret;
 	struct v4l2_rect rect;
 
@@ -328,14 +401,12 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	if (ret < 0) {
 		return ret;
 	} else if (!icd->current_fmt ||
-		   icd->current_fmt->fourcc != f->fmt.pix.pixelformat) {
-		dev_err(&ici->dev, "Host driver hasn't set up current "
-			"format correctly!\n");
+		   icd->current_fmt->fourcc != pixfmt) {
+		dev_err(&ici->dev,
+			"Host driver hasn't set up current format correctly!\n");
 		return -EINVAL;
 	}
 
-	/* buswidth may be further adjusted by the ici */
-	icd->buswidth		= icd->current_fmt->depth;
 	icd->width		= rect.width;
 	icd->height		= rect.height;
 	icf->vb_vidq.field	= f->fmt.pix.field;
@@ -347,7 +418,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 		icd->width, icd->height);
 
 	/* set physical bus parameters */
-	return ici->ops->set_bus_param(icd, f->fmt.pix.pixelformat);
+	return ici->ops->set_bus_param(icd, pixfmt);
 }
 
 static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
@@ -359,10 +430,10 @@ static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	if (f->index >= icd->num_formats)
+	if (f->index >= icd->num_user_formats)
 		return -EINVAL;
 
-	format = &icd->formats[f->index];
+	format = icd->user_formats[f->index].host_fmt;
 
 	strlcpy(f->description, format->name, sizeof(f->description));
 	f->pixelformat = format->fourcc;
@@ -918,8 +989,6 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 	vdev->release		= video_device_release;
 	vdev->minor		= -1;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN,
-
-	icd->current_fmt = &icd->formats[0];
 
 	err = video_register_device(vdev, VFL_TYPE_GRABBER, vdev->minor);
 	if (err < 0) {
