@@ -77,11 +77,6 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	/* test physical bus parameters */
-	ret = ici->ops->try_bus_param(icd, f->fmt.pix.pixelformat);
-	if (ret)
-		return ret;
-
 	/* limit format to hardware capabilities */
 	ret = ici->ops->try_fmt_cap(icd, f);
 

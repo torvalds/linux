@@ -913,6 +913,11 @@ static int pxa_camera_set_fmt_cap(struct soc_camera_device *icd,
 static int pxa_camera_try_fmt_cap(struct soc_camera_device *icd,
 				  struct v4l2_format *f)
 {
+	int ret = pxa_camera_try_bus_param(icd, f->fmt.pix.pixelformat);
+
+	if (ret < 0)
+		return ret;
+
 	/* limit to pxa hardware capabilities */
 	if (f->fmt.pix.height < 32)
 		f->fmt.pix.height = 32;
@@ -1039,7 +1044,6 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.reqbufs	= pxa_camera_reqbufs,
 	.poll		= pxa_camera_poll,
 	.querycap	= pxa_camera_querycap,
-	.try_bus_param	= pxa_camera_try_bus_param,
 	.set_bus_param	= pxa_camera_set_bus_param,
 };
 

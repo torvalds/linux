@@ -459,6 +459,11 @@ static int sh_mobile_ceu_set_fmt_cap(struct soc_camera_device *icd,
 static int sh_mobile_ceu_try_fmt_cap(struct soc_camera_device *icd,
 				     struct v4l2_format *f)
 {
+	int ret = sh_mobile_ceu_try_bus_param(icd, f->fmt.pix.pixelformat);
+
+	if (ret < 0)
+		return ret;
+
 	/* FIXME: calculate using depth and bus width */
 
 	if (f->fmt.pix.height < 4)
@@ -546,7 +551,6 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.reqbufs	= sh_mobile_ceu_reqbufs,
 	.poll		= sh_mobile_ceu_poll,
 	.querycap	= sh_mobile_ceu_querycap,
-	.try_bus_param	= sh_mobile_ceu_try_bus_param,
 	.set_bus_param	= sh_mobile_ceu_set_bus_param,
 	.init_videobuf	= sh_mobile_ceu_init_videobuf,
 };
