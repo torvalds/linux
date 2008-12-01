@@ -151,7 +151,7 @@ struct TCP_Server_Info {
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 #endif
 	enum statusEnum tcpStatus; /* what we think the status is */
-	struct semaphore tcpSem;
+	struct mutex srv_mutex;
 	struct task_struct *tsk;
 	char server_GUID[16];
 	char secMode;

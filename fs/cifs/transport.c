@@ -516,11 +516,11 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	   and avoid races inside tcp sendmsg code that could cause corruption
 	   of smb data */
 
-	down(&ses->server->tcpSem);
+	mutex_lock(&ses->server->srv_mutex);
 
 	rc = allocate_mid(ses, in_buf, &midQ);
 	if (rc) {
-		up(&ses->server->tcpSem);
+		mutex_unlock(&ses->server->srv_mutex);
 		cifs_small_buf_release(in_buf);
 		/* Update # of requests on wire to server */
 		atomic_dec(&ses->server->inFlight);
@@ -541,7 +541,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	midQ->when_sent = jiffies;
 #endif
 
-	up(&ses->server->tcpSem);
+	mutex_unlock(&ses->server->srv_mutex);
 	cifs_small_buf_release(in_buf);
 
 	if (rc < 0)
@@ -698,11 +698,11 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	   and avoid races inside tcp sendmsg code that could cause corruption
 	   of smb data */
 
-	down(&ses->server->tcpSem);
+	mutex_lock(&ses->server->srv_mutex);
 
 	rc = allocate_mid(ses, in_buf, &midQ);
 	if (rc) {
-		up(&ses->server->tcpSem);
+		mutex_unlock(&ses->server->srv_mutex);
 		/* Update # of requests on wire to server */
 		atomic_dec(&ses->server->inFlight);
 		wake_up(&ses->server->request_q);
@@ -713,7 +713,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		cERROR(1, ("Illegal length, greater than maximum frame, %d",
 			in_buf->smb_buf_length));
 		DeleteMidQEntry(midQ);
-		up(&ses->server->tcpSem);
+		mutex_unlock(&ses->server->srv_mutex);
 		/* Update # of requests on wire to server */
 		atomic_dec(&ses->server->inFlight);
 		wake_up(&ses->server->request_q);
@@ -733,7 +733,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	atomic_dec(&ses->server->inSend);
 	midQ->when_sent = jiffies;
 #endif
-	up(&ses->server->tcpSem);
+	mutex_unlock(&ses->server->srv_mutex);
 
 	if (rc < 0)
 		goto out;
@@ -861,16 +861,16 @@ send_nt_cancel(struct cifsTconInfo *tcon, struct smb_hdr *in_buf,
 
 	header_assemble(in_buf, SMB_COM_NT_CANCEL, tcon, 0);
 	in_buf->Mid = mid;
-	down(&ses->server->tcpSem);
+	mutex_lock(&ses->server->srv_mutex);
 	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
 	if (rc) {
-		up(&ses->server->tcpSem);
+		mutex_unlock(&ses->server->srv_mutex);
 		return rc;
 	}
 	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
 	      (struct sockaddr *) &(ses->server->addr.sockAddr),
 	      ses->server->noblocksnd);
-	up(&ses->server->tcpSem);
+	mutex_unlock(&ses->server->srv_mutex);
 	return rc;
 }
 
@@ -936,16 +936,16 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	   and avoid races inside tcp sendmsg code that could cause corruption
 	   of smb data */
 
-	down(&ses->server->tcpSem);
+	mutex_lock(&ses->server->srv_mutex);
 
 	rc = allocate_mid(ses, in_buf, &midQ);
 	if (rc) {
-		up(&ses->server->tcpSem);
+		mutex_unlock(&ses->server->srv_mutex);
 		return rc;
 	}
 
 	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
-		up(&ses->server->tcpSem);
+		mutex_unlock(&ses->server->srv_mutex);
 		cERROR(1, ("Illegal length, greater than maximum frame, %d",
 			in_buf->smb_buf_length));
 		DeleteMidQEntry(midQ);
@@ -965,7 +965,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	atomic_dec(&ses->server->inSend);
 	midQ->when_sent = jiffies;
 #endif
-	up(&ses->server->tcpSem);
+	mutex_unlock(&ses->server->srv_mutex);
 
 	if (rc < 0) {
 		DeleteMidQEntry(midQ);

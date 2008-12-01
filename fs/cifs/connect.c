@@ -156,7 +156,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	}
 	read_unlock(&cifs_tcp_ses_lock);
 	/* do not want to be sending data on a socket we are freeing */
-	down(&server->tcpSem);
+	mutex_lock(&server->srv_mutex);
 	if (server->ssocket) {
 		cFYI(1, ("State: 0x%x Flags: 0x%lx", server->ssocket->state,
 			server->ssocket->flags));
@@ -182,7 +182,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&GlobalMid_Lock);
-	up(&server->tcpSem);
+	mutex_unlock(&server->srv_mutex);
 
 	while ((server->tcpStatus != CifsExiting) &&
 	       (server->tcpStatus != CifsGood)) {
@@ -2175,7 +2175,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			to the struct since the kernel thread not created yet
 			so no need to spinlock this init of tcpStatus */
 			srvTcp->tcpStatus = CifsNew;
-			init_MUTEX(&srvTcp->tcpSem);
+			mutex_init(&srvTcp->srv_mutex);
 
 			/*
 			 * since we're in a cifs function already, we know that
