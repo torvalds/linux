@@ -108,15 +108,11 @@ static int corgi_startup(struct snd_pcm_substream *substream)
 }
 
 /* we need to unmute the HP at shutdown as the mute burns power on corgi */
-static int corgi_shutdown(struct snd_pcm_substream *substream)
+static void corgi_shutdown(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->codec;
-
 	/* set = unmute headphone */
 	gpio_set_value(CORGI_GPIO_MUTE_L, 1);
 	gpio_set_value(CORGI_GPIO_MUTE_R, 1);
-	return 0;
 }
 
 static int corgi_hw_params(struct snd_pcm_substream *substream,
