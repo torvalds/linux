@@ -34,7 +34,7 @@ struct s3c2410_spigpio {
 
 static inline struct s3c2410_spigpio *spidev_to_sg(struct spi_device *spi)
 {
-	return spi->controller_data;
+	return spi_master_get_devdata(spi->master);
 }
 
 static inline void setsck(struct spi_device *dev, int on)
