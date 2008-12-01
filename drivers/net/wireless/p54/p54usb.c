@@ -244,13 +244,13 @@ static void p54u_tx_3887(struct ieee80211_hw *dev, struct sk_buff *skb,
 	usb_submit_urb(data_urb, GFP_ATOMIC);
 }
 
-static __le32 p54u_lm87_chksum(const u32 *data, size_t length)
+static __le32 p54u_lm87_chksum(const __le32 *data, size_t length)
 {
 	u32 chk = 0;
 
 	length >>= 2;
 	while (length--) {
-		chk ^= *data++;
+		chk ^= le32_to_cpu(*data++);
 		chk = (chk >> 5) ^ (chk << 3);
 	}
 
@@ -270,7 +270,7 @@ static void p54u_tx_lm87(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (!data_urb)
 		return;
 
-	checksum = p54u_lm87_chksum((u32 *)skb->data, skb->len);
+	checksum = p54u_lm87_chksum((__le32 *)skb->data, skb->len);
 	hdr = (struct lm87_tx_hdr *)skb_push(skb, sizeof(*hdr));
 	hdr->chksum = checksum;
 	hdr->device_addr = addr;
