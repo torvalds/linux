@@ -366,18 +366,18 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
 int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
 {
 	static char *fw_files[][5] = {
-	[0] = { "xi_1_882.dat", "xc_1_882.dat",
-		"e321_512.e56", "b321_512.b56", "d321_512.d56" },
-	[1] = { "xi_1_882.dat", "xc_882e.dat",
-		"e321_512.e56", "b882e.b56", "d321_512.d56" },
-	[2] = { "xi_1_882.dat", "xc_1222.dat",
-		"e321_512.e56", "b1222.b56", "d1222.d56" },
-	[3] = { "xi_1_882.dat", "xc_1222e.dat",
-		"e321_512.e56", "b1222e.b56", "d1222.d56" },
-	[4] = { NULL, "x1_222hr.dat",
-		"e924.e56", "b924.b56", "l_1_222.d56" },
-	[5] = { NULL, "x1_924hr.dat",
-		"e924.e56", "b924.b56", "l_1_222.d56" },
+	[0] = { "xlxint.dat", "xlxc882hr.dat",
+		"dspe882.e56", "dspb882hr.b56", "dspd882.d56" },
+	[1] = { "xlxint.dat", "xlxc882e.dat",
+		"dspe882.e56", "dspb882e.b56", "dspd882.d56" },
+	[2] = { "xlxint.dat", "xlxc1222hr.dat",
+		"dspe882.e56", "dspb1222hr.b56", "dspd1222.d56" },
+	[3] = { "xlxint.dat", "xlxc1222e.dat",
+		"dspe882.e56", "dspb1222e.b56", "dspd1222.d56" },
+	[4] = { NULL, "xlxc222.dat",
+		"dspe924.e56", "dspb924.b56", "dspd222.d56" },
+	[5] = { NULL, "xlxc924.dat",
+		"dspe924.e56", "dspb924.b56", "dspd222.d56" },
 	};
 	char path[32];
 
@@ -404,25 +404,25 @@ int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
 	return 0;
 }
 
-MODULE_FIRMWARE("pcxhr/xi_1_882.dat");
-MODULE_FIRMWARE("pcxhr/xc_1_882.dat");
-MODULE_FIRMWARE("pcxhr/xc_882e.dat");
-MODULE_FIRMWARE("pcxhr/e321_512.e56");
-MODULE_FIRMWARE("pcxhr/b321_512.b56");
-MODULE_FIRMWARE("pcxhr/b882e.b56");
-MODULE_FIRMWARE("pcxhr/d321_512.d56");
+MODULE_FIRMWARE("pcxhr/xlxint.dat");
+MODULE_FIRMWARE("pcxhr/xlxc882hr.dat");
+MODULE_FIRMWARE("pcxhr/xlxc882e.dat");
+MODULE_FIRMWARE("pcxhr/dspe882.e56");
+MODULE_FIRMWARE("pcxhr/dspb882hr.b56");
+MODULE_FIRMWARE("pcxhr/dspb882e.b56");
+MODULE_FIRMWARE("pcxhr/dspd882.d56");
 
-MODULE_FIRMWARE("pcxhr/xc_1222.dat");
-MODULE_FIRMWARE("pcxhr/xc_1222e.dat");
-MODULE_FIRMWARE("pcxhr/b1222.b56");
-MODULE_FIRMWARE("pcxhr/b1222e.b56");
-MODULE_FIRMWARE("pcxhr/d1222.d56");
+MODULE_FIRMWARE("pcxhr/xlxc1222hr.dat");
+MODULE_FIRMWARE("pcxhr/xlxc1222e.dat");
+MODULE_FIRMWARE("pcxhr/dspb1222hr.b56");
+MODULE_FIRMWARE("pcxhr/dspb1222e.b56");
+MODULE_FIRMWARE("pcxhr/dspd1222.d56");
 
-MODULE_FIRMWARE("pcxhr/x1_222hr.dat");
-MODULE_FIRMWARE("pcxhr/x1_924hr.dat");
-MODULE_FIRMWARE("pcxhr/e924.e56");
-MODULE_FIRMWARE("pcxhr/b924.b56");
-MODULE_FIRMWARE("pcxhr/l_1_222.d56");
+MODULE_FIRMWARE("pcxhr/xlxc222.dat");
+MODULE_FIRMWARE("pcxhr/xlxc924.dat");
+MODULE_FIRMWARE("pcxhr/dspe924.e56");
+MODULE_FIRMWARE("pcxhr/dspb924.b56");
+MODULE_FIRMWARE("pcxhr/dspd222.d56");
 
 
 #else /* old style firmware loading */
