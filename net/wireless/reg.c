@@ -989,6 +989,9 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	u32 checksum = 0;
 	enum environment_cap env = ENVIRON_ANY;
 
+	if (!last_request)
+		return;
+
 	mutex_lock(&cfg80211_drv_mutex);
 
 	/* IE len must be evenly divisible by 2 */
