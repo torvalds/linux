@@ -593,12 +593,30 @@ static int ov772x_reset(struct i2c_client *client)
 
 static int ov772x_init(struct soc_camera_device *icd)
 {
-	return 0;
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+	int ret = 0;
+
+	if (priv->info->link.power) {
+		ret = priv->info->link.power(&priv->client->dev, 1);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (priv->info->link.reset)
+		ret = priv->info->link.reset(&priv->client->dev);
+
+	return ret;
 }
 
 static int ov772x_release(struct soc_camera_device *icd)
 {
-	return 0;
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+	int ret = 0;
+
+	if (priv->info->link.power)
+		ret = priv->info->link.power(&priv->client->dev, 0);
+
+	return ret;
 }
 
 static int ov772x_start_capture(struct soc_camera_device *icd)
@@ -814,9 +832,6 @@ static int ov772x_video_probe(struct soc_camera_device *icd)
 	icd->formats     = ov772x_fmt_lists;
 	icd->num_formats = ARRAY_SIZE(ov772x_fmt_lists);
 
-	if (priv->info->link.power)
-		priv->info->link.power(&priv->client->dev, 1);
-
 	/*
 	 * check and show product ID and manufacturer ID
 	 */
@@ -824,8 +839,8 @@ static int ov772x_video_probe(struct soc_camera_device *icd)
 	ver = i2c_smbus_read_byte_data(priv->client, VER);
 	if (pid != 0x77 ||
 	    ver != 0x21) {
-		if (priv->info->link.power)
-			priv->info->link.power(&priv->client->dev, 0);
+		dev_err(&icd->dev,
+			"Product ID error %x:%x\n", pid, ver);
 		return -ENODEV;
 	}
 
@@ -842,13 +857,7 @@ static int ov772x_video_probe(struct soc_camera_device *icd)
 
 static void ov772x_video_remove(struct soc_camera_device *icd)
 {
-	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
-
 	soc_camera_video_stop(icd);
-
-	if (priv->info->link.power)
-		priv->info->link.power(&priv->client->dev, 0);
-
 }
 
 static struct soc_camera_ops ov772x_ops = {
