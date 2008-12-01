@@ -37,6 +37,15 @@ config MACH_REALVIEW_PB1176
 	help
 	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
 
+config MACH_REALVIEW_PBA8
+	bool "Support RealView/PB-A8 platform"
+	select CPU_V7
+	select ARM_GIC
+	help
+	  Include support for the ARM(R) RealView Cortex-A8 Platform Baseboard.
+	  PB-A8 is a platform with an on-board Cortex-A8 and has support for
+	  PCI-E and Compact Flash.
+
 config REALVIEW_HIGH_PHYS_OFFSET
 	bool "High physical base address for the RealView platform"
 	depends on !MACH_REALVIEW_PB1176
