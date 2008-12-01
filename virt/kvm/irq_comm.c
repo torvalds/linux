@@ -63,9 +63,7 @@ void kvm_register_irq_ack_notifier(struct kvm *kvm,
 
 void kvm_unregister_irq_ack_notifier(struct kvm_irq_ack_notifier *kian)
 {
-	if (!kian)
-		return;
-	hlist_del(&kian->link);
+	hlist_del_init(&kian->link);
 }
 
 /* The caller must hold kvm->lock mutex */
