@@ -1,6 +1,6 @@
 /*
     FUSE: Filesystem in Userspace
-    Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
+    Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
 
     This program can be distributed under the terms of the GNU GPL.
     See the file COPYING.
@@ -20,25 +20,26 @@
  *
  * 7.10
  *  - add nonseekable open flag
+ *
+ * 7.11
+ *  - add IOCTL message
+ *  - add unsolicited notification support
+ *  - add POLL message and NOTIFY_POLL notification
  */
 
 #ifndef _LINUX_FUSE_H
 #define _LINUX_FUSE_H
 
-#include <asm/types.h>
-#include <linux/major.h>
+#include <linux/types.h>
 
 /** Version number of this interface */
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 10
+#define FUSE_KERNEL_MINOR_VERSION 11
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
-
-/** The major number of the fuse character device */
-#define FUSE_MAJOR MISC_MAJOR
 
 /* Make sure all structures are padded to 64bit boundary, so 32bit
    userspace works under 64bit kernels */
