@@ -590,12 +590,12 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 		else
 			nid = codec->slave_dig_outs[smux_idx - 1];
 		if (spec->cur_smux[smux_idx] == smux->num_items - 1)
-			val = AMP_OUT_MUTE;
+			val = HDA_AMP_MUTE;
 		else
-			val = AMP_OUT_UNMUTE;
+			val = 0;
 		/* un/mute SPDIF out */
-		snd_hda_codec_write_cache(codec, nid, 0,
-			AC_VERB_SET_AMP_GAIN_MUTE, val);
+		snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, val);
 	}
 	return 0;
 }
