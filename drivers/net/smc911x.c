@@ -2048,9 +2048,6 @@ err_out:
  */
 static int __devinit smc911x_drv_probe(struct platform_device *pdev)
 {
-#ifdef SMC_DYNAMIC_BUS_CONFIG
-	struct smc911x_platdata *pd = pdev->dev.platform_data;
-#endif
 	struct net_device *ndev;
 	struct resource *res;
 	struct smc911x_local *lp;
@@ -2085,11 +2082,14 @@ static int __devinit smc911x_drv_probe(struct platform_device *pdev)
 	lp = netdev_priv(ndev);
 	lp->netdev = ndev;
 #ifdef SMC_DYNAMIC_BUS_CONFIG
-	if (!pd) {
-		ret = -EINVAL;
-		goto release_both;
+	{
+		struct smc911x_platdata *pd = pdev->dev.platform_data;
+		if (!pd) {
+			ret = -EINVAL;
+			goto release_both;
+		}
+		memcpy(&lp->cfg, pd, sizeof(lp->cfg));
 	}
-	memcpy(&lp->cfg, pd, sizeof(lp->cfg));
 #endif
 
 	addr = ioremap(res->start, SMC911X_IO_EXTENT);
