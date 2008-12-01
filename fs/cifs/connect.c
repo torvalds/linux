@@ -102,19 +102,16 @@ struct smb_vol {
 };
 
 static int ipv4_connect(struct TCP_Server_Info *server);
-static int ipv6_connect(struct sockaddr_in6 *psin_server,
-			struct socket **csocket, bool noblocksnd);
+static int ipv6_connect(struct TCP_Server_Info *server);
 
-
-	/*
-	 * cifs tcp session reconnection
-	 *
-	 * mark tcp session as reconnecting so temporarily locked
-	 * mark all smb sessions as reconnecting for tcp session
-	 * reconnect tcp session
-	 * wake up waiters on reconnection? - (not needed currently)
-	 */
-
+/*
+ * cifs tcp session reconnection
+ *
+ * mark tcp session as reconnecting so temporarily locked
+ * mark all smb sessions as reconnecting for tcp session
+ * reconnect tcp session
+ * wake up waiters on reconnection? - (not needed currently)
+ */
 static int
 cifs_reconnect(struct TCP_Server_Info *server)
 {
@@ -183,8 +180,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	       (server->tcpStatus != CifsGood)) {
 		try_to_freeze();
 		if (server->addr.sockAddr6.sin6_family == AF_INET6)
-			rc = ipv6_connect(&server->addr.sockAddr6,
-					  &server->ssocket, server->noautotune);
+			rc = ipv6_connect(server);
 		else
 			rc = ipv4_connect(server);
 		if (rc) {
@@ -1501,8 +1497,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		memcpy(&tcp_ses->addr.sockAddr6, sin_server6,
 			sizeof(struct sockaddr_in6));
 		sin_server6->sin6_port = htons(volume_info->port);
-		rc = ipv6_connect(sin_server6, &tcp_ses->ssocket,
-				volume_info->noblocksnd);
+		rc = ipv6_connect(tcp_ses);
 	} else {
 		memcpy(&tcp_ses->addr.sockAddr, sin_server,
 			sizeof(struct sockaddr_in));
@@ -1875,79 +1870,81 @@ ipv4_connect(struct TCP_Server_Info *server)
 }
 
 static int
-ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket,
-	     bool noblocksnd)
+ipv6_connect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
-	int connected = 0;
+	bool connected = false;
 	__be16 orig_port = 0;
+	struct socket *socket = server->ssocket;
 
-	if (*csocket == NULL) {
+	if (socket == NULL) {
 		rc = sock_create_kern(PF_INET6, SOCK_STREAM,
-				      IPPROTO_TCP, csocket);
+				      IPPROTO_TCP, &socket);
 		if (rc < 0) {
 			cERROR(1, ("Error %d creating ipv6 socket", rc));
-			*csocket = NULL;
+			socket = NULL;
 			return rc;
-		} else {
-		/* BB other socket options to set KEEPALIVE, NODELAY? */
-			 cFYI(1, ("ipv6 Socket created"));
-			(*csocket)->sk->sk_allocation = GFP_NOFS;
-			cifs_reclassify_socket6(*csocket);
 		}
+
+		/* BB other socket options to set KEEPALIVE, NODELAY? */
+		cFYI(1, ("ipv6 Socket created"));
+		server->ssocket = socket;
+		socket->sk->sk_allocation = GFP_NOFS;
+		cifs_reclassify_socket6(socket);
 	}
 
-	psin_server->sin6_family = AF_INET6;
-
-	if (psin_server->sin6_port) { /* user overrode default port */
-		rc = (*csocket)->ops->connect(*csocket,
-				(struct sockaddr *) psin_server,
+	/* user overrode default port */
+	if (server->addr.sockAddr6.sin6_port) {
+		rc = socket->ops->connect(socket,
+				(struct sockaddr *) &server->addr.sockAddr6,
 				sizeof(struct sockaddr_in6), 0);
 		if (rc >= 0)
-			connected = 1;
+			connected = true;
 	}
 
 	if (!connected) {
 		/* save original port so we can retry user specified port
 			later if fall back ports fail this time  */
 
-		orig_port = psin_server->sin6_port;
+		orig_port = server->addr.sockAddr6.sin6_port;
 		/* do not retry on the same port we just failed on */
-		if (psin_server->sin6_port != htons(CIFS_PORT)) {
-			psin_server->sin6_port = htons(CIFS_PORT);
-
-			rc = (*csocket)->ops->connect(*csocket,
-					(struct sockaddr *) psin_server,
+		if (server->addr.sockAddr6.sin6_port != htons(CIFS_PORT)) {
+			server->addr.sockAddr6.sin6_port = htons(CIFS_PORT);
+			rc = socket->ops->connect(socket, (struct sockaddr *)
+					&server->addr.sockAddr6,
 					sizeof(struct sockaddr_in6), 0);
 			if (rc >= 0)
-				connected = 1;
+				connected = true;
 		}
 	}
 	if (!connected) {
-		psin_server->sin6_port = htons(RFC1001_PORT);
-		rc = (*csocket)->ops->connect(*csocket, (struct sockaddr *)
-				 psin_server, sizeof(struct sockaddr_in6), 0);
+		server->addr.sockAddr6.sin6_port = htons(RFC1001_PORT);
+		rc = socket->ops->connect(socket, (struct sockaddr *)
+				&server->addr.sockAddr6,
+				sizeof(struct sockaddr_in6), 0);
 		if (rc >= 0)
-			connected = 1;
+			connected = true;
 	}
 
 	/* give up here - unless we want to retry on different
 		protocol families some day */
 	if (!connected) {
 		if (orig_port)
-			psin_server->sin6_port = orig_port;
+			server->addr.sockAddr6.sin6_port = orig_port;
 		cFYI(1, ("Error %d connecting to server via ipv6", rc));
-		sock_release(*csocket);
-		*csocket = NULL;
+		sock_release(socket);
+		server->ssocket = NULL;
 		return rc;
 	}
-	/* Eventually check for other socket options to change from
-		the default. sock_setsockopt not used because it expects
-		user space buffer */
-	(*csocket)->sk->sk_rcvtimeo = 7 * HZ;
-	if (!noblocksnd)
-		(*csocket)->sk->sk_sndtimeo = 3 * HZ;
 
+	/*
+	 * Eventually check for other socket options to change from
+	 * the default. sock_setsockopt not used because it expects
+	 * user space buffer
+	 */
+	socket->sk->sk_rcvtimeo = 7 * HZ;
+	socket->sk->sk_sndtimeo = 3 * HZ;
+	server->ssocket = socket;
 
 	return rc;
 }
