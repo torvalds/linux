@@ -20,8 +20,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/dma.h>
 
+#include <mach/dma.h>
 #include <mach/pxa-regs.h>
 #include <mach/pxa3xx_nand.h>
 
