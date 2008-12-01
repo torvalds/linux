@@ -42,6 +42,7 @@ struct soc_camera_device {
 	const struct soc_camera_data_format *formats;
 	int num_formats;
 	struct module *owner;
+	void *host_priv;		/* per-device host private data */
 	/* soc_camera.c private count. Only accessed with video_lock held */
 	int use_count;
 };
