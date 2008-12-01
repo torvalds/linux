@@ -81,6 +81,9 @@ static void __init mxc_board_init(void)
 	mxc_iomux_mode(MX31_PIN_CSPI3_MISO__TXD3);
 
 	mxc_register_device(&mxc_uart_device2, &uart_pdata);
+
+	mxc_iomux_mode(MX31_PIN_BATT_LINE__OWIRE);
+	mxc_register_device(&mxc_w1_master_device, NULL);
 }
 
 /*
