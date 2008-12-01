@@ -337,14 +337,14 @@ static unsigned long mt9v022_query_bus_param(struct soc_camera_device *icd)
 		width_flag;
 }
 
-static int mt9v022_set_fmt_cap(struct soc_camera_device *icd,
-		__u32 pixfmt, struct v4l2_rect *rect)
+static int mt9v022_set_fmt(struct soc_camera_device *icd,
+			   __u32 pixfmt, struct v4l2_rect *rect)
 {
 	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
 	int ret;
 
 	/* The caller provides a supported format, as verified per call to
-	 * icd->try_fmt_cap(), datawidth is from our supported format list */
+	 * icd->try_fmt(), datawidth is from our supported format list */
 	switch (pixfmt) {
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y16:
@@ -400,8 +400,8 @@ static int mt9v022_set_fmt_cap(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int mt9v022_try_fmt_cap(struct soc_camera_device *icd,
-			       struct v4l2_format *f)
+static int mt9v022_try_fmt(struct soc_camera_device *icd,
+			   struct v4l2_format *f)
 {
 	if (f->fmt.pix.height < 32 + icd->y_skip_top)
 		f->fmt.pix.height = 32 + icd->y_skip_top;
@@ -538,8 +538,8 @@ static struct soc_camera_ops mt9v022_ops = {
 	.release		= mt9v022_release,
 	.start_capture		= mt9v022_start_capture,
 	.stop_capture		= mt9v022_stop_capture,
-	.set_fmt_cap		= mt9v022_set_fmt_cap,
-	.try_fmt_cap		= mt9v022_try_fmt_cap,
+	.set_fmt		= mt9v022_set_fmt,
+	.try_fmt		= mt9v022_try_fmt,
 	.set_bus_param		= mt9v022_set_bus_param,
 	.query_bus_param	= mt9v022_query_bus_param,
 	.controls		= mt9v022_controls,

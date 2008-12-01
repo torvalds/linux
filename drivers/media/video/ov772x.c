@@ -755,9 +755,9 @@ static int ov772x_set_register(struct soc_camera_device *icd,
 }
 #endif
 
-static int ov772x_set_fmt_cap(struct soc_camera_device *icd,
-			      __u32                     pixfmt,
-			      struct v4l2_rect         *rect)
+static int ov772x_set_fmt(struct soc_camera_device *icd,
+			  __u32                     pixfmt,
+			  struct v4l2_rect         *rect)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 	int ret = -EINVAL;
@@ -778,8 +778,8 @@ static int ov772x_set_fmt_cap(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int ov772x_try_fmt_cap(struct soc_camera_device *icd,
-			      struct v4l2_format       *f)
+static int ov772x_try_fmt(struct soc_camera_device *icd,
+			  struct v4l2_format       *f)
 {
 	struct v4l2_pix_format *pix  = &f->fmt.pix;
 	struct ov772x_priv     *priv;
@@ -868,8 +868,8 @@ static struct soc_camera_ops ov772x_ops = {
 	.release		= ov772x_release,
 	.start_capture		= ov772x_start_capture,
 	.stop_capture		= ov772x_stop_capture,
-	.set_fmt_cap		= ov772x_set_fmt_cap,
-	.try_fmt_cap		= ov772x_try_fmt_cap,
+	.set_fmt		= ov772x_set_fmt,
+	.try_fmt		= ov772x_try_fmt,
 	.set_bus_param		= ov772x_set_bus_param,
 	.query_bus_param	= ov772x_query_bus_param,
 	.get_chip_id		= ov772x_get_chip_id,

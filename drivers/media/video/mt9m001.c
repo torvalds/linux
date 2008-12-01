@@ -285,8 +285,8 @@ static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
 		width_flag;
 }
 
-static int mt9m001_set_fmt_cap(struct soc_camera_device *icd,
-		__u32 pixfmt, struct v4l2_rect *rect)
+static int mt9m001_set_fmt(struct soc_camera_device *icd,
+			   __u32 pixfmt, struct v4l2_rect *rect)
 {
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
 	int ret;
@@ -298,7 +298,7 @@ static int mt9m001_set_fmt_cap(struct soc_camera_device *icd,
 		ret = reg_write(icd, MT9M001_VERTICAL_BLANKING, vblank);
 
 	/* The caller provides a supported format, as verified per
-	 * call to icd->try_fmt_cap() */
+	 * call to icd->try_fmt() */
 	if (!ret)
 		ret = reg_write(icd, MT9M001_COLUMN_START, rect->left);
 	if (!ret)
@@ -325,8 +325,8 @@ static int mt9m001_set_fmt_cap(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int mt9m001_try_fmt_cap(struct soc_camera_device *icd,
-			       struct v4l2_format *f)
+static int mt9m001_try_fmt(struct soc_camera_device *icd,
+			   struct v4l2_format *f)
 {
 	if (f->fmt.pix.height < 32 + icd->y_skip_top)
 		f->fmt.pix.height = 32 + icd->y_skip_top;
@@ -447,8 +447,8 @@ static struct soc_camera_ops mt9m001_ops = {
 	.release		= mt9m001_release,
 	.start_capture		= mt9m001_start_capture,
 	.stop_capture		= mt9m001_stop_capture,
-	.set_fmt_cap		= mt9m001_set_fmt_cap,
-	.try_fmt_cap		= mt9m001_try_fmt_cap,
+	.set_fmt		= mt9m001_set_fmt,
+	.try_fmt		= mt9m001_try_fmt,
 	.set_bus_param		= mt9m001_set_bus_param,
 	.query_bus_param	= mt9m001_query_bus_param,
 	.controls		= mt9m001_controls,

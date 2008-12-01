@@ -450,8 +450,8 @@ static int sh_mobile_ceu_try_bus_param(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int sh_mobile_ceu_set_fmt_cap(struct soc_camera_device *icd,
-				     __u32 pixfmt, struct v4l2_rect *rect)
+static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
+				 __u32 pixfmt, struct v4l2_rect *rect)
 {
 	const struct soc_camera_data_format *cam_fmt;
 	int ret;
@@ -466,15 +466,15 @@ static int sh_mobile_ceu_set_fmt_cap(struct soc_camera_device *icd,
 			return -EINVAL;
 	}
 
-	ret = icd->ops->set_fmt_cap(icd, pixfmt, rect);
+	ret = icd->ops->set_fmt(icd, pixfmt, rect);
 	if (pixfmt && !ret)
 		icd->current_fmt = cam_fmt;
 
 	return ret;
 }
 
-static int sh_mobile_ceu_try_fmt_cap(struct soc_camera_device *icd,
-				     struct v4l2_format *f)
+static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
+				 struct v4l2_format *f)
 {
 	const struct soc_camera_data_format *cam_fmt;
 	int ret = sh_mobile_ceu_try_bus_param(icd, f->fmt.pix.pixelformat);
@@ -508,7 +508,7 @@ static int sh_mobile_ceu_try_fmt_cap(struct soc_camera_device *icd,
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 
 	/* limit to sensor capabilities */
-	return icd->ops->try_fmt_cap(icd, f);
+	return icd->ops->try_fmt(icd, f);
 }
 
 static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
@@ -576,8 +576,8 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= sh_mobile_ceu_add_device,
 	.remove		= sh_mobile_ceu_remove_device,
-	.set_fmt_cap	= sh_mobile_ceu_set_fmt_cap,
-	.try_fmt_cap	= sh_mobile_ceu_try_fmt_cap,
+	.set_fmt	= sh_mobile_ceu_set_fmt,
+	.try_fmt	= sh_mobile_ceu_try_fmt,
 	.reqbufs	= sh_mobile_ceu_reqbufs,
 	.poll		= sh_mobile_ceu_poll,
 	.querycap	= sh_mobile_ceu_querycap,

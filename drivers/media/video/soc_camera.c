@@ -73,7 +73,7 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	/* limit format to hardware capabilities */
-	ret = ici->ops->try_fmt_cap(icd, f);
+	ret = ici->ops->try_fmt(icd, f);
 
 	return ret;
 }
@@ -324,7 +324,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	rect.top	= icd->y_current;
 	rect.width	= f->fmt.pix.width;
 	rect.height	= f->fmt.pix.height;
-	ret = ici->ops->set_fmt_cap(icd, f->fmt.pix.pixelformat, &rect);
+	ret = ici->ops->set_fmt(icd, f->fmt.pix.pixelformat, &rect);
 	if (ret < 0) {
 		return ret;
 	} else if (!icd->current_fmt ||
@@ -553,7 +553,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	ret = ici->ops->set_fmt_cap(icd, 0, &a->c);
+	ret = ici->ops->set_fmt(icd, 0, &a->c);
 	if (!ret) {
 		icd->width	= a->c.width;
 		icd->height	= a->c.height;

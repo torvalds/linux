@@ -452,8 +452,8 @@ static int mt9m111_set_pixfmt(struct soc_camera_device *icd, u32 pixfmt)
 	return ret;
 }
 
-static int mt9m111_set_fmt_cap(struct soc_camera_device *icd,
-			       __u32 pixfmt, struct v4l2_rect *rect)
+static int mt9m111_set_fmt(struct soc_camera_device *icd,
+			   __u32 pixfmt, struct v4l2_rect *rect)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
 	int ret;
@@ -473,8 +473,8 @@ static int mt9m111_set_fmt_cap(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int mt9m111_try_fmt_cap(struct soc_camera_device *icd,
-			       struct v4l2_format *f)
+static int mt9m111_try_fmt(struct soc_camera_device *icd,
+			   struct v4l2_format *f)
 {
 	if (f->fmt.pix.height > MT9M111_MAX_HEIGHT)
 		f->fmt.pix.height = MT9M111_MAX_HEIGHT;
@@ -597,8 +597,8 @@ static struct soc_camera_ops mt9m111_ops = {
 	.release		= mt9m111_release,
 	.start_capture		= mt9m111_start_capture,
 	.stop_capture		= mt9m111_stop_capture,
-	.set_fmt_cap		= mt9m111_set_fmt_cap,
-	.try_fmt_cap		= mt9m111_try_fmt_cap,
+	.set_fmt		= mt9m111_set_fmt,
+	.try_fmt		= mt9m111_try_fmt,
 	.query_bus_param	= mt9m111_query_bus_param,
 	.set_bus_param		= mt9m111_set_bus_param,
 	.controls		= mt9m111_controls,

@@ -904,8 +904,8 @@ static int pxa_camera_try_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	return soc_camera_bus_param_compatible(camera_flags, bus_flags) ? 0 : -EINVAL;
 }
 
-static int pxa_camera_set_fmt_cap(struct soc_camera_device *icd,
-				  __u32 pixfmt, struct v4l2_rect *rect)
+static int pxa_camera_set_fmt(struct soc_camera_device *icd,
+			      __u32 pixfmt, struct v4l2_rect *rect)
 {
 	const struct soc_camera_data_format *cam_fmt;
 	int ret;
@@ -920,15 +920,15 @@ static int pxa_camera_set_fmt_cap(struct soc_camera_device *icd,
 			return -EINVAL;
 	}
 
-	ret = icd->ops->set_fmt_cap(icd, pixfmt, rect);
+	ret = icd->ops->set_fmt(icd, pixfmt, rect);
 	if (pixfmt && !ret)
 		icd->current_fmt = cam_fmt;
 
 	return ret;
 }
 
-static int pxa_camera_try_fmt_cap(struct soc_camera_device *icd,
-				  struct v4l2_format *f)
+static int pxa_camera_try_fmt(struct soc_camera_device *icd,
+			      struct v4l2_format *f)
 {
 	const struct soc_camera_data_format *cam_fmt;
 	int ret = pxa_camera_try_bus_param(icd, f->fmt.pix.pixelformat);
@@ -960,7 +960,7 @@ static int pxa_camera_try_fmt_cap(struct soc_camera_device *icd,
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 
 	/* limit to sensor capabilities */
-	return icd->ops->try_fmt_cap(icd, f);
+	return icd->ops->try_fmt(icd, f);
 }
 
 static int pxa_camera_reqbufs(struct soc_camera_file *icf,
@@ -1068,8 +1068,8 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.remove		= pxa_camera_remove_device,
 	.suspend	= pxa_camera_suspend,
 	.resume		= pxa_camera_resume,
-	.set_fmt_cap	= pxa_camera_set_fmt_cap,
-	.try_fmt_cap	= pxa_camera_try_fmt_cap,
+	.set_fmt	= pxa_camera_set_fmt,
+	.try_fmt	= pxa_camera_try_fmt,
 	.init_videobuf	= pxa_camera_init_videobuf,
 	.reqbufs	= pxa_camera_reqbufs,
 	.poll		= pxa_camera_poll,
