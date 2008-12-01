@@ -200,14 +200,11 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 	enable_irq(dev->host_irq);
 }
 
-static void kvm_free_assigned_device(struct kvm *kvm,
-				     struct kvm_assigned_dev_kernel
-				     *assigned_dev)
+static void kvm_free_assigned_irq(struct kvm *kvm,
+				  struct kvm_assigned_dev_kernel *assigned_dev)
 {
-	if (irqchip_in_kernel(kvm) && assigned_dev->irq_requested_type)
-		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
-	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI)
-		pci_disable_msi(assigned_dev->dev);
+	if (!irqchip_in_kernel(kvm))
+		return;
 
 	kvm_unregister_irq_ack_notifier(&assigned_dev->ack_notifier);
 
@@ -215,11 +212,29 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 		kvm_free_irq_source_id(kvm, assigned_dev->irq_source_id);
 	assigned_dev->irq_source_id = -1;
 
+	if (!assigned_dev->irq_requested_type)
+		return;
+
 	if (cancel_work_sync(&assigned_dev->interrupt_work))
 		/* We had pending work. That means we will have to take
 		 * care of kvm_put_kvm.
 		 */
 		kvm_put_kvm(kvm);
+
+	free_irq(assigned_dev->host_irq, (void *)assigned_dev);
+
+	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_HOST_MSI)
+		pci_disable_msi(assigned_dev->dev);
+
+	assigned_dev->irq_requested_type = 0;
+}
+
+
+static void kvm_free_assigned_device(struct kvm *kvm,
+				     struct kvm_assigned_dev_kernel
+				     *assigned_dev)
+{
+	kvm_free_assigned_irq(kvm, assigned_dev);
 
 	pci_reset_function(assigned_dev->dev);
 
