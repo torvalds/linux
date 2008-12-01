@@ -17,6 +17,7 @@ endif
 ifdef CONFIG_FUNCTION_GRAPH_TRACER
 # Don't trace __switch_to() but let it for function tracer
 CFLAGS_REMOVE_process_32.o = -pg
+CFLAGS_REMOVE_process_64.o = -pg
 endif
 
 #

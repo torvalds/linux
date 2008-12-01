@@ -467,8 +467,13 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	 * ignore such a protection.
 	 */
 	asm volatile(
+#ifdef CONFIG_X86_64
+		"1: movq (%[parent_old]), %[old]\n"
+		"2: movq %[return_hooker], (%[parent_replaced])\n"
+#else
 		"1: movl (%[parent_old]), %[old]\n"
 		"2: movl %[return_hooker], (%[parent_replaced])\n"
+#endif
 		"   movl $0, %[faulted]\n"
 
 		".section .fixup, \"ax\"\n"
@@ -476,8 +481,13 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		".previous\n"
 
 		".section __ex_table, \"a\"\n"
+#ifdef CONFIG_X86_64
+		"   .quad 1b, 3b\n"
+		"   .quad 2b, 3b\n"
+#else
 		"   .long 1b, 3b\n"
 		"   .long 2b, 3b\n"
+#endif
 		".previous\n"
 
 		: [parent_replaced] "=r" (parent), [old] "=r" (old),
@@ -509,5 +519,4 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	ftrace_graph_entry(&trace);
 
 }
-
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
