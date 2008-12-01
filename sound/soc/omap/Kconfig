@@ -1,6 +1,6 @@
 config SND_OMAP_SOC
 	tristate "SoC Audio for the Texas Instruments OMAP chips"
-	depends on ARCH_OMAP && SND_SOC
+	depends on ARCH_OMAP
 
 config SND_OMAP_SOC_MCBSP
 	tristate
