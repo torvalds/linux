@@ -29,6 +29,7 @@
 #include <asm/cputype.h>
 #include <asm/elf.h>
 #include <asm/procinfo.h>
+#include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/cacheflush.h>
@@ -61,7 +62,6 @@ __setup("fpe=", fpe_setup);
 
 extern void paging_init(struct machine_desc *desc);
 extern void reboot_setup(char *str);
-extern void _text, _etext, __data_start, _edata, _end;
 
 unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);
@@ -484,10 +484,10 @@ request_standard_resources(struct meminfo *mi, struct machine_desc *mdesc)
 	struct resource *res;
 	int i;
 
-	kernel_code.start   = virt_to_phys(&_text);
-	kernel_code.end     = virt_to_phys(&_etext - 1);
-	kernel_data.start   = virt_to_phys(&__data_start);
-	kernel_data.end     = virt_to_phys(&_end - 1);
+	kernel_code.start   = virt_to_phys(_text);
+	kernel_code.end     = virt_to_phys(_etext - 1);
+	kernel_data.start   = virt_to_phys(_data);
+	kernel_data.end     = virt_to_phys(_end - 1);
 
 	for (i = 0; i < mi->nr_banks; i++) {
 		if (mi->bank[i].size == 0)
@@ -715,10 +715,10 @@ void __init setup_arch(char **cmdline_p)
 		parse_tags(tags);
 	}
 
-	init_mm.start_code = (unsigned long) &_text;
-	init_mm.end_code   = (unsigned long) &_etext;
-	init_mm.end_data   = (unsigned long) &_edata;
-	init_mm.brk	   = (unsigned long) &_end;
+	init_mm.start_code = (unsigned long) _text;
+	init_mm.end_code   = (unsigned long) _etext;
+	init_mm.end_data   = (unsigned long) _edata;
+	init_mm.brk	   = (unsigned long) _end;
 
 	memcpy(boot_command_line, from, COMMAND_LINE_SIZE);
 	boot_command_line[COMMAND_LINE_SIZE-1] = '\0';

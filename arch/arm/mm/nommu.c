@@ -10,6 +10,7 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
+#include <asm/sections.h>
 #include <asm/page.h>
 #include <asm/mach/arch.h>
 
@@ -25,10 +26,10 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 * Note that this can only be in node 0.
 	 */
 #ifdef CONFIG_XIP_KERNEL
-	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start,
+	reserve_bootmem_node(pgdat, __pa(_data), _end - _data,
 			BOOTMEM_DEFAULT);
 #else
-	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext,
+	reserve_bootmem_node(pgdat, __pa(_stext), _end - _stext,
 			BOOTMEM_DEFAULT);
 #endif
 

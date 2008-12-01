@@ -17,6 +17,7 @@
 #include <linux/initrd.h>
 
 #include <asm/mach-types.h>
+#include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/tlb.h>
@@ -129,7 +130,7 @@ find_bootmap_pfn(int node, struct meminfo *mi, unsigned int bootmap_pages)
 {
 	unsigned int start_pfn, i, bootmap_pfn;
 
-	start_pfn   = PAGE_ALIGN(__pa(&_end)) >> PAGE_SHIFT;
+	start_pfn   = PAGE_ALIGN(__pa(_end)) >> PAGE_SHIFT;
 	bootmap_pfn = 0;
 
 	for_each_nodebank(i, mi, node) {
@@ -515,9 +516,9 @@ void __init mem_init(void)
 	}
 	printk(" = %luMB total\n", num_physpages >> (20 - PAGE_SHIFT));
 
-	codesize = &_etext - &_text;
-	datasize = &_end - &__data_start;
-	initsize = &__init_end - &__init_begin;
+	codesize = _etext - _text;
+	datasize = _end - _data;
+	initsize = __init_end - __init_begin;
 
 	printk(KERN_NOTICE "Memory: %luKB available (%dK code, "
 		"%dK data, %dK init)\n",
@@ -538,8 +539,8 @@ void __init mem_init(void)
 void free_initmem(void)
 {
 	if (!machine_is_integrator() && !machine_is_cintegrator())
-		totalram_pages += free_area(__phys_to_pfn(__pa(&__init_begin)),
-					    __phys_to_pfn(__pa(&__init_end)),
+		totalram_pages += free_area(__phys_to_pfn(__pa(__init_begin)),
+					    __phys_to_pfn(__pa(__init_end)),
 					    "init");
 }
 
