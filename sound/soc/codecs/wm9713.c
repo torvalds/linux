@@ -1283,7 +1283,6 @@ static int wm9713_soc_remove(struct platform_device *pdev)
 	snd_soc_free_ac97_codec(codec);
 	kfree(codec->private_data);
 	kfree(codec->reg_cache);
-	kfree(codec->dai);
 	kfree(codec);
 	return 0;
 }
