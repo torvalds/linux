@@ -364,6 +364,9 @@ struct kvm_arch{
 
 	struct page *ept_identity_pagetable;
 	bool ept_identity_pagetable_done;
+
+	unsigned long irq_sources_bitmap;
+	unsigned long irq_states[KVM_IOAPIC_NUM_PINS];
 };
 
 struct kvm_vm_stat {

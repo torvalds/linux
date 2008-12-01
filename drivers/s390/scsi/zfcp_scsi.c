@@ -24,14 +24,10 @@ char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *fcp_rsp_iu)
 static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
-	WARN_ON(!unit);
-	if (unit) {
-		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
-		sdpnt->hostdata = NULL;
-		unit->device = NULL;
-		zfcp_erp_unit_failed(unit, 12, NULL);
-		zfcp_unit_put(unit);
-	}
+	atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
+	unit->device = NULL;
+	zfcp_erp_unit_failed(unit, 12, NULL);
+	zfcp_unit_put(unit);
 }
 
 static int zfcp_scsi_slave_configure(struct scsi_device *sdp)

@@ -1,7 +1,7 @@
 
 /*
  *   pata-isapnp.c - ISA PnP PATA controller driver.
- *   Copyright 2005/2006 Red Hat Inc <alan@redhat.com>, all rights reserved.
+ *   Copyright 2005/2006 Red Hat Inc, all rights reserved.
  *
  *   Based in part on ide-pnp.c by Andrey Panin <pazke@donpac.ru>
  */

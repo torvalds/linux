@@ -298,9 +298,11 @@ static inline void account_group_user_time(struct task_struct *tsk,
 {
 	struct signal_struct *sig;
 
-	sig = tsk->signal;
-	if (unlikely(!sig))
+	/* tsk == current, ensure it is safe to use ->signal */
+	if (unlikely(tsk->exit_state))
 		return;
+
+	sig = tsk->signal;
 	if (sig->cputime.totals) {
 		struct task_cputime *times;
 
@@ -325,9 +327,11 @@ static inline void account_group_system_time(struct task_struct *tsk,
 {
 	struct signal_struct *sig;
 
-	sig = tsk->signal;
-	if (unlikely(!sig))
+	/* tsk == current, ensure it is safe to use ->signal */
+	if (unlikely(tsk->exit_state))
 		return;
+
+	sig = tsk->signal;
 	if (sig->cputime.totals) {
 		struct task_cputime *times;
 
@@ -353,8 +357,11 @@ static inline void account_group_exec_runtime(struct task_struct *tsk,
 	struct signal_struct *sig;
 
 	sig = tsk->signal;
+	/* see __exit_signal()->task_rq_unlock_wait() */
+	barrier();
 	if (unlikely(!sig))
 		return;
+
 	if (sig->cputime.totals) {
 		struct task_cputime *times;
 

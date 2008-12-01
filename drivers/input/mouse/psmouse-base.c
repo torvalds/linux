@@ -29,6 +29,7 @@
 #include "lifebook.h"
 #include "trackpoint.h"
 #include "touchkit_ps2.h"
+#include "elantech.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -650,6 +651,19 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		max_proto = PSMOUSE_IMEX;
 	}
 
+/*
+ * Try Elantech touchpad.
+ */
+	if (max_proto > PSMOUSE_IMEX &&
+			elantech_detect(psmouse, set_properties) == 0) {
+		if (!set_properties || elantech_init(psmouse) == 0)
+			return PSMOUSE_ELANTECH;
+/*
+ * Init failed, try basic relative protocols
+ */
+		max_proto = PSMOUSE_IMEX;
+	}
+
 	if (max_proto > PSMOUSE_IMEX) {
 		if (genius_detect(psmouse, set_properties) == 0)
 			return PSMOUSE_GENPS;
@@ -789,6 +803,15 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.detect		= hgpk_detect,
 	},
 #endif
+#ifdef CONFIG_MOUSE_PS2_ELANTECH
+	{
+		.type		= PSMOUSE_ELANTECH,
+		.name		= "ETPS/2",
+		.alias		= "elantech",
+		.detect		= elantech_detect,
+		.init		= elantech_init,
+	},
+ #endif
 	{
 		.type		= PSMOUSE_CORTRON,
 		.name		= "CortronPS/2",

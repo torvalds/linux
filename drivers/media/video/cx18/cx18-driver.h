@@ -199,12 +199,15 @@ struct cx18_options {
 #define CX18_F_S_APPL_IO        8	/* this stream is used read/written by an application */
 
 /* per-cx18, i_flags */
-#define CX18_F_I_LOADED_FW	0 	/* Loaded the firmware the first time */
-#define CX18_F_I_EOS		4 	/* End of encoder stream reached */
-#define CX18_F_I_RADIO_USER	5 	/* The radio tuner is selected */
-#define CX18_F_I_ENC_PAUSED	13 	/* the encoder is paused */
-#define CX18_F_I_INITED		21 	/* set after first open */
-#define CX18_F_I_FAILED		22 	/* set if first open failed */
+#define CX18_F_I_LOADED_FW		0 	/* Loaded firmware 1st time */
+#define CX18_F_I_EOS			4 	/* End of encoder stream */
+#define CX18_F_I_RADIO_USER		5 	/* radio tuner is selected */
+#define CX18_F_I_ENC_PAUSED		13 	/* the encoder is paused */
+#define CX18_F_I_HAVE_WORK		15   	/* there is work to be done */
+#define CX18_F_I_WORK_HANDLER_DVB	18   	/* work to be done for DVB */
+#define CX18_F_I_INITED			21 	/* set after first open */
+#define CX18_F_I_FAILED			22 	/* set if first open failed */
+#define CX18_F_I_WORK_INITED		23	/* worker thread initialized */
 
 /* These are the VBI types as they appear in the embedded VBI private packets. */
 #define CX18_SLICED_TYPE_TELETEXT_B     (1)
@@ -402,8 +405,6 @@ struct cx18 {
 	spinlock_t lock;        /* lock access to this struct */
 	int search_pack_header;
 
-	spinlock_t dma_reg_lock; /* lock access to DMA engine registers */
-
 	int open_id;		/* incremented each time an open occurs, used as
 				   unique ID. Starts at 1, so 0 can be used as
 				   uninitialized value in the stream->id. */
@@ -432,6 +433,9 @@ struct cx18 {
 	wait_queue_head_t cap_w;
 	/* when the current DMA is finished this queue is woken up */
 	wait_queue_head_t dma_waitq;
+
+	struct workqueue_struct *work_queue;
+	struct work_struct work;
 
 	/* i2c */
 	struct i2c_adapter i2c_adap[2];

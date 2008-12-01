@@ -473,6 +473,9 @@ static inline int ocfs2_uses_extended_slot_map(struct ocfs2_super *osb)
 		(____gd)->bg_signature);				\
 } while (0)
 
+#define OCFS2_IS_VALID_XATTR_BLOCK(ptr)					\
+	(!strcmp((ptr)->xb_signature, OCFS2_XATTR_BLOCK_SIGNATURE))
+
 static inline unsigned long ino_from_blkno(struct super_block *sb,
 					   u64 blkno)
 {

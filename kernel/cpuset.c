@@ -36,6 +36,7 @@
 #include <linux/list.h>
 #include <linux/mempolicy.h>
 #include <linux/mm.h>
+#include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -584,10 +585,9 @@ static int generate_sched_domains(cpumask_t **domains,
 	int i, j, k;		/* indices for partition finding loops */
 	cpumask_t *doms;	/* resulting partition; i.e. sched domains */
 	struct sched_domain_attr *dattr;  /* attributes for custom domains */
-	int ndoms;		/* number of sched domains in result */
+	int ndoms = 0;		/* number of sched domains in result */
 	int nslot;		/* next empty doms[] cpumask_t slot */
 
-	ndoms = 0;
 	doms = NULL;
 	dattr = NULL;
 	csa = NULL;
@@ -674,10 +674,8 @@ restart:
 	 * Convert <csn, csa> to <ndoms, doms> and populate cpu masks.
 	 */
 	doms = kmalloc(ndoms * sizeof(cpumask_t), GFP_KERNEL);
-	if (!doms) {
-		ndoms = 0;
+	if (!doms)
 		goto done;
-	}
 
 	/*
 	 * The rest of the code, including the scheduler, can deal with
@@ -731,6 +729,13 @@ restart:
 
 done:
 	kfree(csa);
+
+	/*
+	 * Fallback to the default domain if kmalloc() failed.
+	 * See comments in partition_sched_domains().
+	 */
+	if (doms == NULL)
+		ndoms = 1;
 
 	*domains    = doms;
 	*attributes = dattr;
@@ -2011,12 +2016,23 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
  * Call this routine anytime after node_states[N_HIGH_MEMORY] changes.
  * See also the previous routine cpuset_track_online_cpus().
  */
-void cpuset_track_online_nodes(void)
+static int cpuset_track_online_nodes(struct notifier_block *self,
+				unsigned long action, void *arg)
 {
 	cgroup_lock();
-	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
-	scan_for_empty_cpusets(&top_cpuset);
+	switch (action) {
+	case MEM_ONLINE:
+		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+		break;
+	case MEM_OFFLINE:
+		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+		scan_for_empty_cpusets(&top_cpuset);
+		break;
+	default:
+		break;
+	}
 	cgroup_unlock();
+	return NOTIFY_OK;
 }
 #endif
 
@@ -2032,6 +2048,7 @@ void __init cpuset_init_smp(void)
 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
 
 	hotcpu_notifier(cpuset_track_online_cpus, 0);
+	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
 }
 
 /**

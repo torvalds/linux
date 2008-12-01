@@ -1763,11 +1763,12 @@ static void r8a66597_timer(unsigned long _r8a66597)
 {
 	struct r8a66597 *r8a66597 = (struct r8a66597 *)_r8a66597;
 	unsigned long flags;
+	int port;
 
 	spin_lock_irqsave(&r8a66597->lock, flags);
 
-	r8a66597_root_hub_control(r8a66597, 0);
-	r8a66597_root_hub_control(r8a66597, 1);
+	for (port = 0; port < R8A66597_MAX_ROOT_HUB; port++)
+		r8a66597_root_hub_control(r8a66597, port);
 
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
 }

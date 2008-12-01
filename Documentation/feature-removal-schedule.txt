@@ -56,30 +56,6 @@ Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 
 ---------------------------
 
-What:	old tuner-3036 i2c driver
-When:	2.6.28
-Why:	This driver is for VERY old i2c-over-parallel port teletext receiver
-	boxes. Rather then spending effort on converting this driver to V4L2,
-	and since it is extremely unlikely that anyone still uses one of these
-	devices, it was decided to drop it.
-Who:	Hans Verkuil <hverkuil@xs4all.nl>
-	Mauro Carvalho Chehab <mchehab@infradead.org>
-
- ---------------------------
-
-What:   V4L2 dpc7146 driver
-When:   2.6.28
-Why:    Old driver for the dpc7146 demonstration board that is no longer
-	relevant. The last time this was tested on actual hardware was
-	probably around 2002. Since this is a driver for a demonstration
-	board the decision was made to remove it rather than spending a
-	lot of effort continually updating this driver to stay in sync
-	with the latest internal V4L2 or I2C API.
-Who:    Hans Verkuil <hverkuil@xs4all.nl>
-	Mauro Carvalho Chehab <mchehab@infradead.org>
-
----------------------------
-
 What:	PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
 When:	November 2005
 Files:	drivers/pcmcia/: pcmcia_ioctl.c

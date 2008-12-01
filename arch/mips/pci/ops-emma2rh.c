@@ -30,7 +30,7 @@
 #include <asm/addrspace.h>
 #include <asm/debug.h>
 
-#include <asm/emma2rh/emma2rh.h>
+#include <asm/emma/emma2rh.h>
 
 #define RTABORT (0x1<<9)
 #define RMABORT (0x1<<10)

@@ -424,7 +424,7 @@ out:
  */
 int appldata_register_ops(struct appldata_ops *ops)
 {
-	if ((ops->size > APPLDATA_MAX_REC_SIZE) || (ops->size < 0))
+	if (ops->size > APPLDATA_MAX_REC_SIZE)
 		return -EINVAL;
 
 	ops->ctl_table = kzalloc(4 * sizeof(struct ctl_table), GFP_KERNEL);

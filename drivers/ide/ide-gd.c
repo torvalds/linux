@@ -281,7 +281,12 @@ static int ide_gd_media_changed(struct gendisk *disk)
 static int ide_gd_revalidate_disk(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
-	set_capacity(disk, ide_gd_capacity(idkp->drive));
+	ide_drive_t *drive = idkp->drive;
+
+	if (ide_gd_media_changed(disk))
+		drive->disk_ops->get_capacity(drive);
+
+	set_capacity(disk, ide_gd_capacity(drive));
 	return 0;
 }
 

@@ -769,10 +769,6 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	struct cx8802_dev *dev;
 	struct cx88_core  *core;
 	int err;
-#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
-	struct videobuf_dvb_frontend *demod;
-	int i;
-#endif
 
 	/* general setup */
 	core = cx88_core_get(pci_dev);
@@ -803,15 +799,21 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.felist);
 
-	if (core->board.num_frontends)
-		printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__, core->board.num_frontends);
+	if (core->board.num_frontends) {
+		struct videobuf_dvb_frontend *fe;
+		int i;
 
-	for (i = 1; i <= core->board.num_frontends; i++) {
-		demod = videobuf_dvb_alloc_frontend(&dev->frontends, i);
-		if(demod == NULL) {
-			printk(KERN_ERR "%s() failed to alloc\n", __func__);
-			err = -ENOMEM;
-			goto fail_free;
+		printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__,
+			core->board.num_frontends);
+		for (i = 1; i <= core->board.num_frontends; i++) {
+			fe = videobuf_dvb_alloc_frontend(&dev->frontends, i);
+			if(fe == NULL) {
+				printk(KERN_ERR "%s() failed to alloc\n",
+					__func__);
+				videobuf_dvb_dealloc_frontends(&dev->frontends);
+				err = -ENOMEM;
+				goto fail_free;
+			}
 		}
 	}
 #endif

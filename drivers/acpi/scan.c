@@ -109,8 +109,7 @@ static int acpi_bus_hot_remove_device(void *context)
 		return 0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		"Hot-removing device %s...\n", device->dev.bus_id));
-
+		"Hot-removing device %s...\n", dev_name(&device->dev)));
 
 	if (acpi_bus_trim(device, 1)) {
 		printk(KERN_ERR PREFIX
@@ -460,7 +459,7 @@ static int acpi_device_register(struct acpi_device *device,
 		acpi_device_bus_id->instance_no = 0;
 		list_add_tail(&acpi_device_bus_id->node, &acpi_bus_id_list);
 	}
-	sprintf(device->dev.bus_id, "%s:%02x", acpi_device_bus_id->bus_id, acpi_device_bus_id->instance_no);
+	dev_set_name(&device->dev, "%s:%02x", acpi_device_bus_id->bus_id, acpi_device_bus_id->instance_no);
 
 	if (device->parent) {
 		list_add_tail(&device->node, &device->parent->children);
@@ -484,7 +483,8 @@ static int acpi_device_register(struct acpi_device *device,
 
 	result = acpi_device_setup_files(device);
 	if(result)
-		printk(KERN_ERR PREFIX "Error creating sysfs interface for device %s\n", device->dev.bus_id);
+		printk(KERN_ERR PREFIX "Error creating sysfs interface for device %s\n",
+		       dev_name(&device->dev));
 
 	device->removal_type = ACPI_BUS_REMOVAL_NORMAL;
 	return 0;
@@ -751,16 +751,6 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	if (!acpi_match_device_ids(device, button_device_ids))
 		device->wakeup.flags.run_wake = 1;
 
-	/*
-	 * Don't set Power button GPE as run_wake
-	 * if Fixed Power button is used
-	 */
-	if (!strcmp(device->pnp.hardware_id, "PNP0C0C") &&
-		!(acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON)) {
-		device->wakeup.flags.run_wake = 0;
-		device->wakeup.flags.valid = 0;
-	}
-
       end:
 	if (ACPI_FAILURE(status))
 		device->flags.wake_capable = 0;
@@ -919,36 +909,6 @@ static void acpi_device_get_busid(struct acpi_device *device,
 	}
 }
 
-static int
-acpi_video_bus_match(struct acpi_device *device)
-{
-	acpi_handle h_dummy;
-
-	if (!device)
-		return -EINVAL;
-
-	/* Since there is no HID, CID for ACPI Video drivers, we have
-	 * to check well known required nodes for each feature we support.
-	 */
-
-	/* Does this device able to support video switching ? */
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOD", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOS", &h_dummy)))
-		return 0;
-
-	/* Does this device able to retrieve a video ROM ? */
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_ROM", &h_dummy)))
-		return 0;
-
-	/* Does this device able to configure which video head to be POSTed ? */
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_VPO", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_GPD", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_SPD", &h_dummy)))
-		return 0;
-
-	return -ENODEV;
-}
-
 /*
  * acpi_bay_match - see if a device is an ejectable driver bay
  *
@@ -1031,7 +991,7 @@ static void acpi_device_set_id(struct acpi_device *device,
 		   will get autoloaded and the device might still match
 		   against another driver.
 		*/
-		if (ACPI_SUCCESS(acpi_video_bus_match(device)))
+		if (acpi_is_video_device(device))
 			cid_add = ACPI_VIDEO_HID;
 		else if (ACPI_SUCCESS(acpi_bay_match(device)))
 			cid_add = ACPI_BAY_HID;
@@ -1043,7 +1003,7 @@ static void acpi_device_set_id(struct acpi_device *device,
 		hid = ACPI_POWER_HID;
 		break;
 	case ACPI_BUS_TYPE_PROCESSOR:
-		hid = ACPI_PROCESSOR_HID;
+		hid = ACPI_PROCESSOR_OBJECT_HID;
 		break;
 	case ACPI_BUS_TYPE_SYSTEM:
 		hid = ACPI_SYSTEM_HID;

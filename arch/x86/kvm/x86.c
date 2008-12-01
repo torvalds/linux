@@ -1742,7 +1742,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		if (irqchip_in_kernel(kvm)) {
 			mutex_lock(&kvm->lock);
-			kvm_set_irq(kvm, irq_event.irq, irq_event.level);
+			kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID,
+				    irq_event.irq, irq_event.level);
 			mutex_unlock(&kvm->lock);
 			r = 0;
 		}
@@ -4012,6 +4013,9 @@ struct  kvm *kvm_arch_create_vm(void)
 
 	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
 	INIT_LIST_HEAD(&kvm->arch.assigned_dev_head);
+
+	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
+	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
 
 	return kvm;
 }

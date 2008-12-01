@@ -2,7 +2,7 @@
 # arch/sh/Makefile
 #
 # Copyright (C) 1999  Kaz Kojima
-# Copyright (C) 2002, 2003, 2004  Paul Mundt
+# Copyright (C) 2002 - 2008  Paul Mundt
 # Copyright (C) 2002  M. R. Brown
 #
 # This file is subject to the terms and conditions of the GNU General Public
@@ -18,15 +18,11 @@ isa-$(CONFIG_CPU_SH4)			:= sh4
 isa-$(CONFIG_CPU_SH4A)			:= sh4a
 isa-$(CONFIG_CPU_SH4AL_DSP)		:= sh4al
 isa-$(CONFIG_CPU_SH5)			:= shmedia
+
+ifeq ($(CONFIG_SUPERH32),y)
 isa-$(CONFIG_SH_DSP)			:= $(isa-y)-dsp
-
-ifndef CONFIG_SH_DSP
-ifndef CONFIG_SH_FPU
-isa-y			:= $(isa-y)-nofpu
+isa-y					:= $(isa-y)-up
 endif
-endif
-
-isa-y			:= $(isa-y)-up
 
 cflags-$(CONFIG_CPU_SH2)		:= $(call cc-option,-m2,)
 cflags-$(CONFIG_CPU_SH2A)		+= $(call cc-option,-m2a,) \
@@ -37,6 +33,22 @@ cflags-$(CONFIG_CPU_SH4)		:= $(call cc-option,-m4,) \
 cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a,) \
 					   $(call cc-option,-m4a-nofpu,)
 cflags-$(CONFIG_CPU_SH5)		:= $(call cc-option,-m5-32media-nofpu,)
+
+ifeq ($(cflags-y),)
+#
+# In the case where we are stuck with a compiler that has been uselessly
+# restricted to a particular ISA, a favourite default of newer GCCs when
+# extensive multilib targets are not provided, ensure we get the best fit
+# regarding FP generation. This is necessary to avoid references to FP
+# variants in libgcc where integer variants exist, which otherwise result
+# in link errors. This is intentionally stupid (albeit many orders of
+# magnitude less than GCC's default behaviour), as anything with a large
+# number of multilib targets better have been built correctly for
+# the target in mind.
+#
+cflags-y	+= $(shell $(CC) $(KBUILD_CFLAGS) -print-multi-lib | \
+		     grep nofpu | sed q | sed -e 's/^/-/;s/;.*$$//')
+endif
 
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
@@ -65,7 +77,8 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
 		   -R .stab -R .stabstr -S
 
 # Give the various platforms the opportunity to set default image types
-defaultimage-$(CONFIG_SUPERH32)	:= zImage
+defaultimage-$(CONFIG_SUPERH32)			:= zImage
+defaultimage-$(CONFIG_SH_SH7785LCR)		:= uImage
 
 # Set some sensible Kbuild defaults
 KBUILD_DEFCONFIG	:= shx3_defconfig

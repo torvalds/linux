@@ -586,6 +586,18 @@ static void gfar_configure_serdes(struct net_device *dev)
 	struct gfar_mii __iomem *regs =
 			(void __iomem *)&priv->regs->gfar_mii_regs;
 	int tbipa = gfar_read(&priv->regs->tbipa);
+	struct mii_bus *bus = gfar_get_miibus(priv);
+
+	if (bus)
+		mutex_lock(&bus->mdio_lock);
+
+	/* If the link is already up, we must already be ok, and don't need to
+	 * configure and reset the TBI<->SerDes link.  Maybe U-Boot configured
+	 * everything for us?  Resetting it takes the link down and requires
+	 * several seconds for it to come back.
+	 */
+	if (gfar_local_mdio_read(regs, tbipa, MII_BMSR) & BMSR_LSTATUS)
+		goto done;
 
 	/* Single clk mode, mii mode off(for serdes communication) */
 	gfar_local_mdio_write(regs, tbipa, MII_TBICON, TBICON_CLK_SELECT);
@@ -596,6 +608,10 @@ static void gfar_configure_serdes(struct net_device *dev)
 
 	gfar_local_mdio_write(regs, tbipa, MII_BMCR, BMCR_ANENABLE |
 			BMCR_ANRESTART | BMCR_FULLDPLX | BMCR_SPEED1000);
+
+	done:
+	if (bus)
+		mutex_unlock(&bus->mdio_lock);
 }
 
 static void init_registers(struct net_device *dev)
@@ -1391,6 +1407,10 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 		if (bdp->status & TXBD_DEF)
 			dev->stats.collisions++;
 
+		/* Unmap the DMA memory */
+		dma_unmap_single(&priv->dev->dev, bdp->bufPtr,
+				bdp->length, DMA_TO_DEVICE);
+
 		/* Free the sk buffer associated with this TxBD */
 		dev_kfree_skb_irq(priv->tx_skbuff[priv->skb_dirtytx]);
 
@@ -1650,6 +1670,9 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 		skb = priv->rx_skbuff[priv->skb_currx];
 
+		dma_unmap_single(&priv->dev->dev, bdp->bufPtr,
+				priv->rx_buffer_size, DMA_FROM_DEVICE);
+
 		/* We drop the frame if we failed to allocate a new buffer */
 		if (unlikely(!newskb || !(bdp->status & RXBD_LAST) ||
 				 bdp->status & RXBD_ERR)) {
@@ -1658,14 +1681,8 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 			if (unlikely(!newskb))
 				newskb = skb;
 
-			if (skb) {
-				dma_unmap_single(&priv->dev->dev,
-						bdp->bufPtr,
-						priv->rx_buffer_size,
-						DMA_FROM_DEVICE);
-
+			if (skb)
 				dev_kfree_skb_any(skb);
-			}
 		} else {
 			/* Increment the number of packets */
 			dev->stats.rx_packets++;
