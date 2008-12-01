@@ -303,7 +303,7 @@ static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hal *ah)
 		}
 	}
 
-	if (ah->ah_opmode == ATH9K_M_HOSTAP) {
+	if (ah->ah_opmode == NL80211_IFTYPE_AP) {
 		if (aniState->firstepLevel < HAL_FIRST_STEP_MAX) {
 			ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 					     aniState->firstepLevel + 1);
@@ -368,7 +368,7 @@ static void ath9k_hw_ani_cck_err_trigger(struct ath_hal *ah)
 			return;
 		}
 	}
-	if (ah->ah_opmode == ATH9K_M_HOSTAP) {
+	if (ah->ah_opmode == NL80211_IFTYPE_AP) {
 		if (aniState->firstepLevel < HAL_FIRST_STEP_MAX) {
 			ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 					     aniState->firstepLevel + 1);
@@ -398,7 +398,7 @@ static void ath9k_hw_ani_lower_immunity(struct ath_hal *ah)
 
 	aniState = ahp->ah_curani;
 
-	if (ah->ah_opmode == ATH9K_M_HOSTAP) {
+	if (ah->ah_opmode == NL80211_IFTYPE_AP) {
 		if (aniState->firstepLevel > 0) {
 			if (ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 						 aniState->firstepLevel - 1))
@@ -487,8 +487,8 @@ void ath9k_ani_reset(struct ath_hal *ah)
 	aniState = &ahp->ah_ani[index];
 	ahp->ah_curani = aniState;
 
-	if (DO_ANI(ah) && ah->ah_opmode != ATH9K_M_STA
-	    && ah->ah_opmode != ATH9K_M_IBSS) {
+	if (DO_ANI(ah) && ah->ah_opmode != NL80211_IFTYPE_STATION
+	    && ah->ah_opmode != NL80211_IFTYPE_ADHOC) {
 		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
 			"Reset ANI state opmode %u\n", ah->ah_opmode);
 		ahp->ah_stats.ast_ani_reset++;
@@ -504,7 +504,7 @@ void ath9k_ani_reset(struct ath_hal *ah)
 		ath9k_hw_setrxfilter(ah, ath9k_hw_getrxfilter(ah) |
 				     ATH9K_RX_FILTER_PHYERR);
 
-		if (ah->ah_opmode == ATH9K_M_HOSTAP) {
+		if (ah->ah_opmode == NL80211_IFTYPE_AP) {
 			ahp->ah_curani->ofdmTrigHigh =
 				ah->ah_config.ofdm_trig_high;
 			ahp->ah_curani->ofdmTrigLow =

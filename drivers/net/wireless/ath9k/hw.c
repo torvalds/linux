@@ -1040,7 +1040,8 @@ static void ath9k_hw_init_chain_masks(struct ath_hal *ah)
 			  REG_READ(ah, AR_PHY_ANALOG_SWAP) | 0x00000001);
 }
 
-static void ath9k_hw_init_interrupt_masks(struct ath_hal *ah, enum ath9k_opmode opmode)
+static void ath9k_hw_init_interrupt_masks(struct ath_hal *ah,
+					  enum nl80211_iftype opmode)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 
@@ -1057,7 +1058,7 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hal *ah, enum ath9k_opmode 
 
 	ahp->ah_maskReg |= AR_IMR_TXOK;
 
-	if (opmode == ATH9K_M_HOSTAP)
+	if (opmode == NL80211_IFTYPE_AP)
 		ahp->ah_maskReg |= AR_IMR_MIB;
 
 	REG_WRITE(ah, AR_IMR, ahp->ah_maskReg);
@@ -1423,18 +1424,18 @@ static void ath9k_hw_set_operating_mode(struct ath_hal *ah, int opmode)
 	val = REG_READ(ah, AR_STA_ID1);
 	val &= ~(AR_STA_ID1_STA_AP | AR_STA_ID1_ADHOC);
 	switch (opmode) {
-	case ATH9K_M_HOSTAP:
+	case NL80211_IFTYPE_AP:
 		REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_STA_AP
 			  | AR_STA_ID1_KSRCH_MODE);
 		REG_CLR_BIT(ah, AR_CFG, AR_CFG_AP_ADHOC_INDICATION);
 		break;
-	case ATH9K_M_IBSS:
+	case NL80211_IFTYPE_ADHOC:
 		REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_ADHOC
 			  | AR_STA_ID1_KSRCH_MODE);
 		REG_SET_BIT(ah, AR_CFG, AR_CFG_AP_ADHOC_INDICATION);
 		break;
-	case ATH9K_M_STA:
-	case ATH9K_M_MONITOR:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_MONITOR:
 		REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_KSRCH_MODE);
 		break;
 	}
@@ -3054,14 +3055,14 @@ void ath9k_hw_beaconinit(struct ath_hal *ah, u32 next_beacon, u32 beacon_period)
 	ahp->ah_beaconInterval = beacon_period;
 
 	switch (ah->ah_opmode) {
-	case ATH9K_M_STA:
-	case ATH9K_M_MONITOR:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_MONITOR:
 		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(next_beacon));
 		REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, 0xffff);
 		REG_WRITE(ah, AR_NEXT_SWBA, 0x7ffff);
 		flags |= AR_TBTT_TIMER_EN;
 		break;
-	case ATH9K_M_IBSS:
+	case NL80211_IFTYPE_ADHOC:
 		REG_SET_BIT(ah, AR_TXCFG,
 			    AR_TXCFG_ADHOC_BEACON_ATIM_TX_POLICY);
 		REG_WRITE(ah, AR_NEXT_NDP_TIMER,
@@ -3069,7 +3070,7 @@ void ath9k_hw_beaconinit(struct ath_hal *ah, u32 next_beacon, u32 beacon_period)
 				     (ahp->ah_atimWindow ? ahp->
 				      ah_atimWindow : 1)));
 		flags |= AR_NDP_TIMER_EN;
-	case ATH9K_M_HOSTAP:
+	case NL80211_IFTYPE_AP:
 		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(next_beacon));
 		REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT,
 			  TU_TO_USEC(next_beacon -
@@ -3081,6 +3082,12 @@ void ath9k_hw_beaconinit(struct ath_hal *ah, u32 next_beacon, u32 beacon_period)
 				     sw_beacon_response_time));
 		flags |=
 			AR_TBTT_TIMER_EN | AR_DBA_TIMER_EN | AR_SWBA_TIMER_EN;
+		break;
+	default:
+		DPRINTF(ah->ah_sc, ATH_DBG_BEACON,
+			"%s: unsupported opmode: %d\n",
+			__func__, ah->ah_opmode);
+		return;
 		break;
 	}
 
@@ -3177,7 +3184,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hal *ah)
 
 	capField = ath9k_hw_get_eeprom(ah, EEP_OP_CAP);
 
-	if (ah->ah_opmode != ATH9K_M_HOSTAP &&
+	if (ah->ah_opmode != NL80211_IFTYPE_AP &&
 	    ah->ah_subvendorid == AR_SUBVENDOR_ID_NEW_A) {
 		if (ah->ah_currentRD == 0x64 || ah->ah_currentRD == 0x65)
 			ah->ah_currentRD += 5;

@@ -456,7 +456,7 @@ ath9k_regd_add_channel(struct ath_hal *ah,
 		return false;
 	}
 
-	if ((rd->flags & NO_HOSTAP) && (ah->ah_opmode == ATH9K_M_HOSTAP)) {
+	if ((rd->flags & NO_HOSTAP) && (ah->ah_opmode == NL80211_IFTYPE_AP)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
 			"Skipping HOSTAP channel\n");
 		return false;

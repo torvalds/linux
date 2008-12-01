@@ -647,13 +647,6 @@ enum ath9k_ant_setting {
 	ATH9K_ANT_FIXED_B
 };
 
-enum ath9k_opmode {
-	ATH9K_M_STA = 1,
-	ATH9K_M_IBSS = 0,
-	ATH9K_M_HOSTAP = 6,
-	ATH9K_M_MONITOR = 8
-};
-
 #define ATH9K_SLOT_TIME_6 6
 #define ATH9K_SLOT_TIME_9 9
 #define ATH9K_SLOT_TIME_20 20
@@ -780,7 +773,8 @@ struct ath_hal {
 
 	void __iomem *ah_sh;
 	struct ath_softc *ah_sc;
-	enum ath9k_opmode ah_opmode;
+
+	enum nl80211_iftype ah_opmode;
 	struct ath9k_ops_config ah_config;
 	struct ath9k_hw_capabilities ah_caps;
 

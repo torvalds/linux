@@ -754,13 +754,17 @@ static int ath_key_config(struct ath_softc *sc,
 
 	/*
 	 *  Strategy:
-	 *   For _M_STA mc tx, we will not setup a key at all since we never
-	 *   tx mc.
-	 *   _M_STA mc rx, we will use the keyID.
-	 *   for _M_IBSS mc tx, we will use the keyID, and no macaddr.
-	 *   for _M_IBSS mc rx, we will alloc a slot and plumb the mac of the
-	 *   peer node. BUT we will plumb a cleartext key so that we can do
-	 *   perSta default key table lookup in software.
+	 *   For STA mc tx, we will not setup a key at
+	 *   all since we never tx mc.
+	 *
+	 *   For STA mc rx, we will use the keyID.
+	 *
+	 *   For ADHOC mc tx, we will use the keyID, and no macaddr.
+	 *
+	 *   For ADHOC mc rx, we will alloc a slot and plumb the mac of
+	 *   the peer node.
+	 *   BUT we will plumb a cleartext key so that we can do
+	 *   per-Sta default key table lookup in software.
 	 */
 	if (is_broadcast_ether_addr(addr)) {
 		switch (opmode) {
@@ -861,7 +865,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info ASSOC %d\n", bss_conf->aid);
 
 		/* New association, store aid */
-		if (avp->av_opmode == ATH9K_M_STA) {
+		if (avp->av_opmode == NL80211_IFTYPE_STATION) {
 			sc->sc_curaid = bss_conf->aid;
 			ath9k_hw_write_associd(sc->sc_ah, sc->sc_curbssid,
 					       sc->sc_curaid);
@@ -1373,7 +1377,8 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 		goto bad;
 
 	/* default to MONITOR mode */
-	sc->sc_ah->ah_opmode = ATH9K_M_MONITOR;
+	sc->sc_ah->ah_opmode = NL80211_IFTYPE_MONITOR;
+
 
 	/* Setup rate tables */
 
@@ -1938,8 +1943,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * Note we only do this (at the moment) for station mode.
 	 */
 	if (ath9k_hw_phycounters(sc->sc_ah) &&
-	    ((sc->sc_ah->ah_opmode == ATH9K_M_STA) ||
-	     (sc->sc_ah->ah_opmode == ATH9K_M_IBSS)))
+	    ((sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION) ||
+	     (sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)))
 		sc->sc_imask |= ATH9K_INT_MIB;
 	/*
 	 * Some hardware processes the TIM IE and fires an
@@ -1948,7 +1953,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * enable the TIM interrupt when operating as station.
 	 */
 	if ((sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_ENHANCEDPM) &&
-	    (sc->sc_ah->ah_opmode == ATH9K_M_STA) &&
+	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION) &&
 	    !sc->sc_config.swBeaconProcess)
 		sc->sc_imask |= ATH9K_INT_TIM;
 
@@ -2064,7 +2069,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_vap *avp = (void *)conf->vif->drv_priv;
-	int ic_opmode = 0;
+	enum nl80211_iftype ic_opmode = NL80211_IFTYPE_UNSPECIFIED;
 
 	/* Support only vap for now */
 
@@ -2073,13 +2078,13 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
-		ic_opmode = ATH9K_M_STA;
+		ic_opmode = NL80211_IFTYPE_STATION;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		ic_opmode = ATH9K_M_IBSS;
+		ic_opmode = NL80211_IFTYPE_ADHOC;
 		break;
 	case NL80211_IFTYPE_AP:
-		ic_opmode = ATH9K_M_HOSTAP;
+		ic_opmode = NL80211_IFTYPE_AP;
 		break;
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL,
@@ -2093,7 +2098,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	avp->av_opmode = ic_opmode;
 	avp->av_bslot = -1;
 
-	if (ic_opmode == ATH9K_M_HOSTAP)
+	if (ic_opmode == NL80211_IFTYPE_AP)
 		ath9k_hw_set_tsfadjust(sc->sc_ah, 1);
 
 	sc->sc_vaps[0] = conf->vif;
@@ -2127,8 +2132,8 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	del_timer_sync(&sc->sc_ani.timer);
 
 	/* Reclaim beacon resources */
-	if (sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP ||
-	    sc->sc_ah->ah_opmode == ATH9K_M_IBSS) {
+	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP ||
+	    sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC) {
 		ath9k_hw_stoptxdma(sc->sc_ah, sc->sc_bhalq);
 		ath_beacon_return(sc, avp);
 	}
@@ -2163,7 +2168,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			(curchan->band == IEEE80211_BAND_2GHZ) ?
 			CHANNEL_G : CHANNEL_A;
 
-		if ((sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP) &&
+		if ((sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP) &&
 		    (conf->ht.enabled)) {
 			sc->tx_chan_width = (!!conf->ht.sec_chan_offset) ?
 				ATH9K_HT_MACMODE_2040 : ATH9K_HT_MACMODE_20;
@@ -2202,8 +2207,8 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	/* TODO: Need to decide which hw opmode to use for multi-interface
 	 * cases */
 	if (vif->type == NL80211_IFTYPE_AP &&
-	    ah->ah_opmode != ATH9K_M_HOSTAP) {
-		ah->ah_opmode = ATH9K_M_HOSTAP;
+	    ah->ah_opmode != NL80211_IFTYPE_AP) {
+		ah->ah_opmode = NL80211_IFTYPE_STATION;
 		ath9k_hw_setopmode(ah);
 		ath9k_hw_write_associd(ah, sc->sc_myaddr, 0);
 		/* Request full reset to get hw opmode changed properly */
@@ -2258,7 +2263,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	}
 
 	/* Check for WLAN_CAPABILITY_PRIVACY ? */
-	if ((avp->av_opmode != ATH9K_M_STA)) {
+	if ((avp->av_opmode != NL80211_IFTYPE_STATION)) {
 		for (i = 0; i < IEEE80211_WEP_NKID; i++)
 			if (ath9k_hw_keyisvalid(sc->sc_ah, (u16)i))
 				ath9k_hw_keysetmac(sc->sc_ah,

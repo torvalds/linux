@@ -474,7 +474,7 @@ void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid
 
 struct ath_vap {
 	int av_bslot;
-	enum ath9k_opmode av_opmode;
+	enum nl80211_iftype av_opmode;
 	struct ath_buf *av_bcbuf;
 	struct ath_tx_control av_btxctl;
 };
