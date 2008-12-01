@@ -50,7 +50,7 @@
 
 #define REALVIEW_REFCOUNTER	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_24MHz_OFFSET)
 
-/* used by entry-macro.S */
+/* used by entry-macro.S and platsmp.c */
 void __iomem *gic_cpu_base_addr;
 
 /*

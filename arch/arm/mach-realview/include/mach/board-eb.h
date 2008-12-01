@@ -193,4 +193,7 @@
 #define core_tile_a9mp()	0
 #endif
 
+#define machine_is_realview_eb_mp() \
+	(machine_is_realview_eb() && (core_tile_eb11mp() || core_tile_a9mp()))
+
 #endif	/* __ASM_ARCH_BOARD_EB_H */
