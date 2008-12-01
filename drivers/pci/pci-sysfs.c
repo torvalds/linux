@@ -58,13 +58,14 @@ static ssize_t broken_parity_status_store(struct device *dev,
 					  const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	ssize_t consumed = -EINVAL;
+	unsigned long val;
 
-	if ((count > 0) && (*buf == '0' || *buf == '1')) {
-		pdev->broken_parity_status = *buf == '1' ? 1 : 0;
-		consumed = count;
-	}
-	return consumed;
+	if (strict_strtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	pdev->broken_parity_status = !!val;
+
+	return count;
 }
 
 static ssize_t local_cpus_show(struct device *dev,
@@ -133,19 +134,23 @@ static ssize_t is_enabled_store(struct device *dev,
 				struct device_attribute *attr, const char *buf,
 				size_t count)
 {
-	ssize_t result = -EINVAL;
 	struct pci_dev *pdev = to_pci_dev(dev);
+	unsigned long val;
+	ssize_t result = strict_strtoul(buf, 0, &val);
+
+	if (result < 0)
+		return result;
 
 	/* this can crash the machine when done on the "wrong" device */
 	if (!capable(CAP_SYS_ADMIN))
-		return count;
+		return -EPERM;
 
-	if (*buf == '0') {
+	if (!val) {
 		if (atomic_read(&pdev->enable_cnt) != 0)
 			pci_disable_device(pdev);
 		else
 			result = -EIO;
-	} else if (*buf == '1')
+	} else
 		result = pci_enable_device(pdev);
 
 	return result < 0 ? result : count;
@@ -185,25 +190,28 @@ msi_bus_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	unsigned long val;
+
+	if (strict_strtoul(buf, 0, &val) < 0)
+		return -EINVAL;
 
 	/* bad things may happen if the no_msi flag is changed
 	 * while some drivers are loaded */
 	if (!capable(CAP_SYS_ADMIN))
-		return count;
+		return -EPERM;
 
+	/* Maybe pci devices without subordinate busses shouldn't even have this
+	 * attribute in the first place?  */
 	if (!pdev->subordinate)
 		return count;
 
-	if (*buf == '0') {
-		pdev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
-		dev_warn(&pdev->dev, "forced subordinate bus to not support MSI,"
-			 " bad things could happen.\n");
-	}
+	/* Is the flag going to change, or keep the value it already had? */
+	if (!(pdev->subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI) ^
+	    !!val) {
+		pdev->subordinate->bus_flags ^= PCI_BUS_FLAGS_NO_MSI;
 
-	if (*buf == '1') {
-		pdev->subordinate->bus_flags &= ~PCI_BUS_FLAGS_NO_MSI;
-		dev_warn(&pdev->dev, "forced subordinate bus to support MSI,"
-			 " bad things could happen.\n");
+		dev_warn(&pdev->dev, "forced subordinate bus to%s support MSI,"
+			 " bad things could happen\n", val ? "" : " not");
 	}
 
 	return count;
