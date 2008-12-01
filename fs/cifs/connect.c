@@ -776,7 +776,7 @@ multi_t2_fnd:
 		set_current_state(TASK_RUNNING);
 	}
 
-	return 0;
+	module_put_and_exit(0);
 }
 
 /* extract the host portion of the UNC string */
@@ -2176,10 +2176,17 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			so no need to spinlock this init of tcpStatus */
 			srvTcp->tcpStatus = CifsNew;
 			init_MUTEX(&srvTcp->tcpSem);
+
+			/*
+			 * since we're in a cifs function already, we know that
+			 * this will succeed. No need for try_module_get().
+			 */
+			__module_get(THIS_MODULE);
 			srvTcp->tsk = kthread_run((void *)(void *)cifs_demultiplex_thread, srvTcp, "cifsd");
 			if (IS_ERR(srvTcp->tsk)) {
 				rc = PTR_ERR(srvTcp->tsk);
 				cERROR(1, ("error %d create cifsd thread", rc));
+				module_put(THIS_MODULE);
 				srvTcp->tsk = NULL;
 				sock_release(csocket);
 				kfree(srvTcp->hostname);
