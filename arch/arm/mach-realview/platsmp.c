@@ -23,6 +23,8 @@
 #include <mach/board-pb11mp.h>
 #include <mach/scu.h>
 
+#include "core.h"
+
 extern void realview_secondary_startup(void);
 
 /*
@@ -31,15 +33,20 @@ extern void realview_secondary_startup(void);
  */
 volatile int __cpuinitdata pen_release = -1;
 
+static void __iomem *scu_base_addr(void)
+{
+	if (machine_is_realview_eb_mp())
+		return __io_address(REALVIEW_EB11MP_SCU_BASE);
+	else if (machine_is_realview_pb11mp())
+		return __io_address(REALVIEW_TC11MP_SCU_BASE);
+	else
+		return (void __iomem *)0;
+}
+
 static unsigned int __init get_core_count(void)
 {
 	unsigned int ncores;
-	void __iomem *scu_base = 0;
-
-	if (machine_is_realview_eb() && core_tile_eb11mp())
-		scu_base = __io_address(REALVIEW_EB11MP_SCU_BASE);
-	else if (machine_is_realview_pb11mp())
-		scu_base = __io_address(REALVIEW_TC11MP_SCU_BASE);
+	void __iomem *scu_base = scu_base_addr();
 
 	if (scu_base) {
 		ncores = __raw_readl(scu_base + SCU_CONFIG);
@@ -56,14 +63,7 @@ static unsigned int __init get_core_count(void)
 static void scu_enable(void)
 {
 	u32 scu_ctrl;
-	void __iomem *scu_base;
-
-	if (machine_is_realview_eb() && core_tile_eb11mp())
-		scu_base = __io_address(REALVIEW_EB11MP_SCU_BASE);
-	else if (machine_is_realview_pb11mp())
-		scu_base = __io_address(REALVIEW_TC11MP_SCU_BASE);
-	else
-		BUG();
+	void __iomem *scu_base = scu_base_addr();
 
 	scu_ctrl = __raw_readl(scu_base + SCU_CTRL);
 	scu_ctrl |= 1;
@@ -88,10 +88,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	if (machine_is_realview_eb() && core_tile_eb11mp())
-		gic_cpu_init(0, __io_address(REALVIEW_EB11MP_GIC_CPU_BASE));
-	else if (machine_is_realview_pb11mp())
-		gic_cpu_init(0, __io_address(REALVIEW_TC11MP_GIC_CPU_BASE));
+	gic_cpu_init(0, gic_cpu_base_addr);
 
 	/*
 	 * let the primary processor know we're out of the
@@ -232,9 +229,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * dummy (!CONFIG_LOCAL_TIMERS), it was already registers in
 	 * realview_timer_init
 	 */
-	if ((machine_is_realview_eb() && core_tile_eb11mp()) ||
-	    machine_is_realview_pb11mp())
-		local_timer_setup(cpu);
+	local_timer_setup();
 #endif
 
 	/*
