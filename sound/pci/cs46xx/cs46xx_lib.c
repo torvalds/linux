@@ -3640,7 +3640,10 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_cs46xx *chip = card->private_data;
-	int i, amp_saved;
+	int amp_saved;
+#ifdef CONFIG_SND_CS46XX_NEW_DSP
+	int i;
+#endif
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
