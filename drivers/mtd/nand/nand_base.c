@@ -2523,7 +2523,6 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips)
 /**
  * nand_scan_tail - [NAND Interface] Scan for the NAND device
  * @mtd:	    MTD device structure
- * @maxchips:	    Number of chips to scan for
  *
  * This is the second phase of the normal nand_scan() function. It
  * fills out all the uninitialized function pointers with the defaults
