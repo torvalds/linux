@@ -334,7 +334,7 @@ MACHINE_START(REALVIEW_PB11MP, "ARM-RealView PB11MPCore")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.phys_io	= REALVIEW_PB11MP_UART0_BASE,
 	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PB11MP_UART0_BASE) >> 18) & 0xfffc,
-	.boot_params	= 0x00000100,
+	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.map_io		= realview_pb11mp_map_io,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pb11mp_timer,

@@ -37,4 +37,15 @@ config MACH_REALVIEW_PB1176
 	help
 	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
 
+config REALVIEW_HIGH_PHYS_OFFSET
+	bool "High physical base address for the RealView platform"
+	depends on !MACH_REALVIEW_PB1176
+	default y
+	help
+	  RealView boards other than PB1176 have the RAM available at
+	  0x70000000, 256MB of which being mirrored at 0x00000000. If
+	  the board supports 512MB of RAM, this option allows the
+	  memory to be accessed contiguously at the high physical
+	  offset.
+
 endmenu
