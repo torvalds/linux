@@ -1690,22 +1690,30 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 		if (ses_init_buf) {
 			ses_init_buf->trailer.session_req.called_len = 32;
 			if (target_name && (target_name[0] != 0)) {
-				rfc1002mangle(ses_init_buf->trailer.session_req.called_name,
-					target_name, 16);
+				rfc1002mangle(ses_init_buf->trailer.
+						session_req.called_name,
+					      target_name,
+					      RFC1001_NAME_LEN_WITH_NULL);
 			} else {
-				rfc1002mangle(ses_init_buf->trailer.session_req.called_name,
-					DEFAULT_CIFS_CALLED_NAME, 16);
+				rfc1002mangle(ses_init_buf->trailer.
+						session_req.called_name,
+					      DEFAULT_CIFS_CALLED_NAME,
+					      RFC1001_NAME_LEN_WITH_NULL);
 			}
 
 			ses_init_buf->trailer.session_req.calling_len = 32;
 			/* calling name ends in null (byte 16) from old smb
 			convention. */
 			if (netbios_name && (netbios_name[0] != 0)) {
-				rfc1002mangle(ses_init_buf->trailer.session_req.calling_name,
-					netbios_name, 16);
+				rfc1002mangle(ses_init_buf->trailer.
+						session_req.calling_name,
+					      netbios_name,
+					      RFC1001_NAME_LEN_WITH_NULL);
 			} else {
-				rfc1002mangle(ses_init_buf->trailer.session_req.calling_name,
-					"LINUX_CIFS_CLNT", 16);
+				rfc1002mangle(ses_init_buf->trailer.
+						session_req.calling_name,
+					      "LINUX_CIFS_CLNT",
+					      RFC1001_NAME_LEN_WITH_NULL);
 			}
 			ses_init_buf->trailer.session_req.scope1 = 0;
 			ses_init_buf->trailer.session_req.scope2 = 0;
@@ -2194,9 +2202,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			}
 			rc = 0;
 			memcpy(srvTcp->workstation_RFC1001_name,
-				volume_info.source_rfc1001_name, 16);
+				volume_info.source_rfc1001_name,
+				RFC1001_NAME_LEN_WITH_NULL);
 			memcpy(srvTcp->server_RFC1001_name,
-				volume_info.target_rfc1001_name, 16);
+				volume_info.target_rfc1001_name,
+				RFC1001_NAME_LEN_WITH_NULL);
 			srvTcp->sequence_number = 0;
 			INIT_LIST_HEAD(&srvTcp->tcp_ses_list);
 			INIT_LIST_HEAD(&srvTcp->smb_ses_list);
@@ -2235,8 +2245,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 		/* new SMB session uses our srvTcp ref */
 		pSesInfo->server = srvTcp;
-		sprintf(pSesInfo->serverName, "%u.%u.%u.%u",
-			NIPQUAD(sin_server->sin_addr.s_addr));
+		if (addr.sa_family == AF_INET6)
+			sprintf(pSesInfo->serverName, NIP6_FMT,
+				NIP6(sin_server6->sin6_addr));
+		else
+			sprintf(pSesInfo->serverName, NIPQUAD_FMT,
+				NIPQUAD(sin_server->sin_addr.s_addr));
 
 		write_lock(&cifs_tcp_ses_lock);
 		list_add(&pSesInfo->smb_ses_list, &srvTcp->smb_ses_list);

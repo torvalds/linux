@@ -47,7 +47,11 @@
  */
 #define CIFS_MAX_REQ 50
 
-#define SERVER_NAME_LENGTH 15
+#define RFC1001_NAME_LEN 15
+#define RFC1001_NAME_LEN_WITH_NULL (RFC1001_NAME_LEN + 1)
+
+/* currently length of NIP6_FMT */
+#define SERVER_NAME_LENGTH 40
 #define SERVER_NAME_LEN_WITH_NULL     (SERVER_NAME_LENGTH + 1)
 
 /* used to define string lengths for reversing unicode strings */
@@ -125,8 +129,7 @@ struct TCP_Server_Info {
 	struct list_head smb_ses_list;
 	int srv_count; /* reference counter */
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
-	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
-	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
+	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
 	union {
@@ -171,7 +174,7 @@ struct TCP_Server_Info {
 	__u16 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
 	/* 16th byte of RFC1001 workstation name is always null */
-	char workstation_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
+	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
 	struct mac_key mac_signing_key;
 	char ntlmv2_hash[16];
