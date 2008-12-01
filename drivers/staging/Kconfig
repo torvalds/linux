@@ -79,5 +79,7 @@ source "drivers/staging/asus_oled/Kconfig"
 
 source "drivers/staging/panel/Kconfig"
 
+source "drivers/staging/altpciechdma/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
