@@ -337,39 +337,59 @@ static int
 cifs_show_options(struct seq_file *s, struct vfsmount *m)
 {
 	struct cifs_sb_info *cifs_sb;
+	struct cifsTconInfo *tcon;
+	struct TCP_Server_Info *server;
 
 	cifs_sb = CIFS_SB(m->mnt_sb);
 
 	if (cifs_sb) {
-		if (cifs_sb->tcon) {
+		tcon = cifs_sb->tcon;
+		if (tcon) {
 /* BB add prepath to mount options displayed */
 			seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
-			if (cifs_sb->tcon->ses) {
-				if (cifs_sb->tcon->ses->userName)
+			if (tcon->ses) {
+				if (tcon->ses->userName)
 					seq_printf(s, ",username=%s",
-					   cifs_sb->tcon->ses->userName);
-				if (cifs_sb->tcon->ses->domainName)
+					   tcon->ses->userName);
+				if (tcon->ses->domainName)
 					seq_printf(s, ",domain=%s",
-					   cifs_sb->tcon->ses->domainName);
+					   tcon->ses->domainName);
+				server = tcon->ses->server;
+				if (server) {
+					seq_printf(s, ",addr=");
+					switch (server->addr.sockAddr6.
+						sin6_family) {
+					case AF_INET6:
+						seq_printf(s, NIP6_FMT,
+							   NIP6(server->addr.sockAddr6.sin6_addr));
+						break;
+					case AF_INET:
+						seq_printf(s, NIPQUAD_FMT,
+							   NIPQUAD(server->addr.sockAddr.sin_addr.s_addr));
+						break;
+					}
+				}
 			}
 			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID) ||
-			   !(cifs_sb->tcon->unix_ext))
+			   !(tcon->unix_ext))
 				seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
 			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
-			   !(cifs_sb->tcon->unix_ext))
+			   !(tcon->unix_ext))
 				seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
-			if (!cifs_sb->tcon->unix_ext) {
+			if (!tcon->unix_ext) {
 				seq_printf(s, ",file_mode=0%o,dir_mode=0%o",
 					   cifs_sb->mnt_file_mode,
 					   cifs_sb->mnt_dir_mode);
 			}
-			if (cifs_sb->tcon->seal)
+			if (tcon->seal)
 				seq_printf(s, ",seal");
-			if (cifs_sb->tcon->nocase)
+			if (tcon->nocase)
 				seq_printf(s, ",nocase");
-			if (cifs_sb->tcon->retry)
+			if (tcon->retry)
 				seq_printf(s, ",hard");
 		}
+		if (cifs_sb->prepath)
+			seq_printf(s, ",prepath=%s", cifs_sb->prepath);
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 			seq_printf(s, ",posixpaths");
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)
