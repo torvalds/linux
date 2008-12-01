@@ -221,13 +221,6 @@ static struct resource realview_pba8_smsc911x_resources[] = {
 	},
 };
 
-static struct platform_device realview_pba8_smsc911x_device = {
-	.name		= "smc911x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(realview_pba8_smsc911x_resources),
-	.resource	= realview_pba8_smsc911x_resources,
-};
-
 struct resource realview_pba8_cf_resources[] = {
 	[0] = {
 		.start		= REALVIEW_PBA8_CF_BASE,
@@ -281,7 +274,7 @@ static void __init realview_pba8_init(void)
 
 	realview_flash_register(realview_pba8_flash_resource,
 				ARRAY_SIZE(realview_pba8_flash_resource));
-	platform_device_register(&realview_pba8_smsc911x_device);
+	realview_eth_register(NULL, realview_pba8_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&realview_pba8_cf_device);
 

@@ -222,13 +222,6 @@ static struct resource realview_pb1176_smsc911x_resources[] = {
 	},
 };
 
-static struct platform_device realview_pb1176_smsc911x_device = {
-	.name		= "smc911x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(realview_pb1176_smsc911x_resources),
-	.resource	= realview_pb1176_smsc911x_resources,
-};
-
 static void __init gic_init_irq(void)
 {
 	/* ARM1176 DevChip GIC, primary */
@@ -268,7 +261,7 @@ static void __init realview_pb1176_init(void)
 	clk_register(&realview_clcd_clk);
 
 	realview_flash_register(&realview_pb1176_flash_resource, 1);
-	platform_device_register(&realview_pb1176_smsc911x_device);
+	realview_eth_register(NULL, realview_pb1176_smsc911x_resources);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

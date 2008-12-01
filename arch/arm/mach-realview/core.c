@@ -125,6 +125,21 @@ int realview_flash_register(struct resource *res, u32 num)
 	return platform_device_register(&realview_flash_device);
 }
 
+static struct platform_device realview_eth_device = {
+	.name		= "smc911x",
+	.id		= 0,
+	.num_resources	= 2,
+};
+
+int realview_eth_register(const char *name, struct resource *res)
+{
+	if (name)
+		realview_eth_device.name = name;
+	realview_eth_device.resource = res;
+
+	return platform_device_register(&realview_eth_device);
+}
+
 static struct resource realview_i2c_resource = {
 	.start		= REALVIEW_I2C_BASE,
 	.end		= REALVIEW_I2C_BASE + SZ_4K - 1,

@@ -242,12 +242,6 @@ static struct resource realview_eb_eth_resources[] = {
 	},
 };
 
-static struct platform_device realview_eb_eth_device = {
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(realview_eb_eth_resources),
-	.resource	= realview_eb_eth_resources,
-};
-
 /*
  * Detect and register the correct Ethernet device. RealView/EB rev D
  * platforms use the newer SMSC LAN9118 Ethernet chip
@@ -255,21 +249,19 @@ static struct platform_device realview_eb_eth_device = {
 static int eth_device_register(void)
 {
 	void __iomem *eth_addr = ioremap(REALVIEW_EB_ETH_BASE, SZ_4K);
+	const char *name = NULL;
 	u32 idrev;
 
 	if (!eth_addr)
 		return -ENOMEM;
 
 	idrev = readl(eth_addr + 0x50);
-	if ((idrev & 0xFFFF0000) == 0x01180000)
-		/* SMSC LAN9118 chip present */
-		realview_eb_eth_device.name = "smc911x";
-	else
-		/* SMSC 91C111 chip present */
-		realview_eb_eth_device.name = "smc91x";
+	if ((idrev & 0xFFFF0000) != 0x01180000)
+		/* SMSC LAN9118 not present, use LAN91C111 instead */
+		name = "smc91x";
 
 	iounmap(eth_addr);
-	return platform_device_register(&realview_eb_eth_device);
+	return realview_eth_register(name, realview_eb_eth_resources);
 }
 
 static void __init gic_init_irq(void)
