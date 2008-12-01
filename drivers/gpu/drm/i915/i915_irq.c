@@ -78,7 +78,7 @@ i915_pipestat(int pipe)
 		return PIPEASTAT;
 	if (pipe == 1)
 		return PIPEBSTAT;
-	BUG_ON(1);
+	BUG();
 }
 
 void
