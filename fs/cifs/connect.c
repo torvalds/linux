@@ -101,12 +101,7 @@ struct smb_vol {
 	char *prepath;
 };
 
-static int ipv4_connect(struct sockaddr_in *psin_server,
-			struct socket **csocket,
-			char *netb_name,
-			char *server_netb_name,
-			bool noblocksnd,
-			bool nosndbuf); /* ipv6 never set sndbuf size */
+static int ipv4_connect(struct TCP_Server_Info *server);
 static int ipv6_connect(struct sockaddr_in6 *psin_server,
 			struct socket **csocket, bool noblocksnd);
 
@@ -187,16 +182,11 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	while ((server->tcpStatus != CifsExiting) &&
 	       (server->tcpStatus != CifsGood)) {
 		try_to_freeze();
-		if (server->addr.sockAddr6.sin6_family == AF_INET6) {
+		if (server->addr.sockAddr6.sin6_family == AF_INET6)
 			rc = ipv6_connect(&server->addr.sockAddr6,
 					  &server->ssocket, server->noautotune);
-		} else {
-			rc = ipv4_connect(&server->addr.sockAddr,
-					&server->ssocket,
-					server->workstation_RFC1001_name,
-					server->server_RFC1001_name,
-					server->noblocksnd, server->noautotune);
-		}
+		else
+			rc = ipv4_connect(server);
 		if (rc) {
 			cFYI(1, ("reconnect error %d", rc));
 			msleep(3000);
@@ -1517,11 +1507,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		memcpy(&tcp_ses->addr.sockAddr, sin_server,
 			sizeof(struct sockaddr_in));
 		sin_server->sin_port = htons(volume_info->port);
-		rc = ipv4_connect(sin_server, &tcp_ses->ssocket,
-			  volume_info->source_rfc1001_name,
-			  volume_info->target_rfc1001_name,
-			  volume_info->noblocksnd,
-			  volume_info->noautotune);
+		rc = ipv4_connect(tcp_ses);
 	}
 	if (rc < 0) {
 		cERROR(1, ("Error connecting to socket. Aborting operation"));
@@ -1735,93 +1721,96 @@ static void rfc1002mangle(char *target, char *source, unsigned int length)
 
 
 static int
-ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
-	     char *netbios_name, char *target_name,
-	     bool noblocksnd, bool noautotune)
+ipv4_connect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
-	int connected = 0;
+	bool connected = false;
 	__be16 orig_port = 0;
+	struct socket *socket = server->ssocket;
 
-	if (*csocket == NULL) {
+	if (socket == NULL) {
 		rc = sock_create_kern(PF_INET, SOCK_STREAM,
-				      IPPROTO_TCP, csocket);
+				      IPPROTO_TCP, &socket);
 		if (rc < 0) {
 			cERROR(1, ("Error %d creating socket", rc));
-			*csocket = NULL;
 			return rc;
-		} else {
-		/* BB other socket options to set KEEPALIVE, NODELAY? */
-			cFYI(1, ("Socket created"));
-			(*csocket)->sk->sk_allocation = GFP_NOFS;
-			cifs_reclassify_socket4(*csocket);
 		}
+
+		/* BB other socket options to set KEEPALIVE, NODELAY? */
+		cFYI(1, ("Socket created"));
+		server->ssocket = socket;
+		socket->sk->sk_allocation = GFP_NOFS;
+		cifs_reclassify_socket4(socket);
 	}
 
-	psin_server->sin_family = AF_INET;
-	if (psin_server->sin_port) { /* user overrode default port */
-		rc = (*csocket)->ops->connect(*csocket,
-				(struct sockaddr *) psin_server,
-				sizeof(struct sockaddr_in), 0);
+	/* user overrode default port */
+	if (server->addr.sockAddr.sin_port) {
+		rc = socket->ops->connect(socket, (struct sockaddr *)
+					  &server->addr.sockAddr,
+					  sizeof(struct sockaddr_in), 0);
 		if (rc >= 0)
-			connected = 1;
+			connected = true;
 	}
 
 	if (!connected) {
 		/* save original port so we can retry user specified port
 			later if fall back ports fail this time  */
-		orig_port = psin_server->sin_port;
+		orig_port = server->addr.sockAddr.sin_port;
 
 		/* do not retry on the same port we just failed on */
-		if (psin_server->sin_port != htons(CIFS_PORT)) {
-			psin_server->sin_port = htons(CIFS_PORT);
-
-			rc = (*csocket)->ops->connect(*csocket,
-					(struct sockaddr *) psin_server,
-					sizeof(struct sockaddr_in), 0);
+		if (server->addr.sockAddr.sin_port != htons(CIFS_PORT)) {
+			server->addr.sockAddr.sin_port = htons(CIFS_PORT);
+			rc = socket->ops->connect(socket,
+						(struct sockaddr *)
+						&server->addr.sockAddr,
+						sizeof(struct sockaddr_in), 0);
 			if (rc >= 0)
-				connected = 1;
+				connected = true;
 		}
 	}
 	if (!connected) {
-		psin_server->sin_port = htons(RFC1001_PORT);
-		rc = (*csocket)->ops->connect(*csocket, (struct sockaddr *)
-					      psin_server,
+		server->addr.sockAddr.sin_port = htons(RFC1001_PORT);
+		rc = socket->ops->connect(socket, (struct sockaddr *)
+					      &server->addr.sockAddr,
 					      sizeof(struct sockaddr_in), 0);
 		if (rc >= 0)
-			connected = 1;
+			connected = true;
 	}
 
 	/* give up here - unless we want to retry on different
 		protocol families some day */
 	if (!connected) {
 		if (orig_port)
-			psin_server->sin_port = orig_port;
+			server->addr.sockAddr.sin_port = orig_port;
 		cFYI(1, ("Error %d connecting to server via ipv4", rc));
-		sock_release(*csocket);
-		*csocket = NULL;
+		sock_release(socket);
+		server->ssocket = NULL;
 		return rc;
 	}
-	/* Eventually check for other socket options to change from
-		the default. sock_setsockopt not used because it expects
-		user space buffer */
-	 cFYI(1, ("sndbuf %d rcvbuf %d rcvtimeo 0x%lx",
-		 (*csocket)->sk->sk_sndbuf,
-		 (*csocket)->sk->sk_rcvbuf, (*csocket)->sk->sk_rcvtimeo));
-	(*csocket)->sk->sk_rcvtimeo = 7 * HZ;
-	if (!noblocksnd)
-		(*csocket)->sk->sk_sndtimeo = 3 * HZ;
+
+
+	/*
+	 * Eventually check for other socket options to change from
+	 *  the default. sock_setsockopt not used because it expects
+	 *  user space buffer
+	 */
+	socket->sk->sk_rcvtimeo = 7 * HZ;
+	socket->sk->sk_sndtimeo = 3 * HZ;
 
 	/* make the bufsizes depend on wsize/rsize and max requests */
-	if (noautotune) {
-		if ((*csocket)->sk->sk_sndbuf < (200 * 1024))
-			(*csocket)->sk->sk_sndbuf = 200 * 1024;
-		if ((*csocket)->sk->sk_rcvbuf < (140 * 1024))
-			(*csocket)->sk->sk_rcvbuf = 140 * 1024;
+	if (server->noautotune) {
+		if (socket->sk->sk_sndbuf < (200 * 1024))
+			socket->sk->sk_sndbuf = 200 * 1024;
+		if (socket->sk->sk_rcvbuf < (140 * 1024))
+			socket->sk->sk_rcvbuf = 140 * 1024;
 	}
 
+	 cFYI(1, ("sndbuf %d rcvbuf %d rcvtimeo 0x%lx",
+		 socket->sk->sk_sndbuf,
+		 socket->sk->sk_rcvbuf, socket->sk->sk_rcvtimeo));
+
 	/* send RFC1001 sessinit */
-	if (psin_server->sin_port == htons(RFC1001_PORT)) {
+	if (server->addr.sockAddr.sin_port == htons(RFC1001_PORT)) {
 		/* some servers require RFC1001 sessinit before sending
 		negprot - BB check reconnection in case where second
 		sessinit is sent but no second negprot */
@@ -1831,39 +1820,42 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 				       GFP_KERNEL);
 		if (ses_init_buf) {
 			ses_init_buf->trailer.session_req.called_len = 32;
-			if (target_name && (target_name[0] != 0)) {
+			if (server->server_RFC1001_name &&
+			    server->server_RFC1001_name[0] != 0)
 				rfc1002mangle(ses_init_buf->trailer.
 						session_req.called_name,
-					      target_name,
+					      server->server_RFC1001_name,
 					      RFC1001_NAME_LEN_WITH_NULL);
-			} else {
+			else
 				rfc1002mangle(ses_init_buf->trailer.
 						session_req.called_name,
 					      DEFAULT_CIFS_CALLED_NAME,
 					      RFC1001_NAME_LEN_WITH_NULL);
-			}
 
 			ses_init_buf->trailer.session_req.calling_len = 32;
+
 			/* calling name ends in null (byte 16) from old smb
 			convention. */
-			if (netbios_name && (netbios_name[0] != 0)) {
+			if (server->workstation_RFC1001_name &&
+			    server->workstation_RFC1001_name[0] != 0)
 				rfc1002mangle(ses_init_buf->trailer.
 						session_req.calling_name,
-					      netbios_name,
+					      server->workstation_RFC1001_name,
 					      RFC1001_NAME_LEN_WITH_NULL);
-			} else {
+			else
 				rfc1002mangle(ses_init_buf->trailer.
 						session_req.calling_name,
 					      "LINUX_CIFS_CLNT",
 					      RFC1001_NAME_LEN_WITH_NULL);
-			}
+
 			ses_init_buf->trailer.session_req.scope1 = 0;
 			ses_init_buf->trailer.session_req.scope2 = 0;
 			smb_buf = (struct smb_hdr *)ses_init_buf;
 			/* sizeof RFC1002_SESSION_REQUEST with no scope */
 			smb_buf->smb_buf_length = 0x81000044;
-			rc = smb_send(*csocket, smb_buf, 0x44,
-				(struct sockaddr *)psin_server, noblocksnd);
+			rc = smb_send(socket, smb_buf, 0x44,
+				(struct sockaddr *) &server->addr.sockAddr,
+				server->noblocksnd);
 			kfree(ses_init_buf);
 			msleep(1); /* RFC1001 layer in at least one server
 				      requires very short break before negprot
