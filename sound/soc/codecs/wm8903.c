@@ -379,8 +379,8 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 	struct wm8903_priv *wm8903 = codec->private_data;
 	struct i2c_client *i2c = codec->control_data;
 	u16 val;
-	u16 uninitialized_var(reg);
-	int uninitialized_var(shift);
+	u16 reg;
+	int shift;
 	u16 cp_reg = wm8903_read(codec, WM8903_CHARGE_PUMP_0);
 
 	switch (w->reg) {
