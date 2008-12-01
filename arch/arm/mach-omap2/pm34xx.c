@@ -308,6 +308,7 @@ static void omap_sram_idle(void)
 	int core_next_state = PWRDM_POWER_ON;
 	int core_prev_state, per_prev_state;
 	u32 sdrc_pwr = 0;
+	int per_state_modified = 0;
 
 	if (!_omap_sram_idle)
 		return;
@@ -340,15 +341,21 @@ static void omap_sram_idle(void)
 
 	/* PER */
 	per_next_state = pwrdm_read_next_pwrst(per_pwrdm);
+	core_next_state = pwrdm_read_next_pwrst(core_pwrdm);
 	if (per_next_state < PWRDM_POWER_ON) {
-		omap2_gpio_prepare_for_retention();
 		omap_uart_prepare_idle(2);
-		if (per_next_state == PWRDM_POWER_OFF)
-			omap3_per_save_context();
+		omap2_gpio_prepare_for_retention();
+		if (per_next_state == PWRDM_POWER_OFF) {
+			if (core_next_state == PWRDM_POWER_ON) {
+				per_next_state = PWRDM_POWER_RET;
+				pwrdm_set_next_pwrst(per_pwrdm, per_next_state);
+				per_state_modified = 1;
+			} else
+				omap3_per_save_context();
+		}
 	}
 
 	/* CORE */
-	core_next_state = pwrdm_read_next_pwrst(core_pwrdm);
 	if (core_next_state < PWRDM_POWER_ON) {
 		omap_uart_prepare_idle(0);
 		omap_uart_prepare_idle(1);
@@ -413,10 +420,12 @@ static void omap_sram_idle(void)
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
-		omap_uart_resume_idle(2);
 		if (per_prev_state == PWRDM_POWER_OFF)
 			omap3_per_restore_context();
 		omap2_gpio_resume_after_retention();
+		omap_uart_resume_idle(2);
+		if (per_state_modified)
+			pwrdm_set_next_pwrst(per_pwrdm, PWRDM_POWER_OFF);
 	}
 
 	/* Disable IO-PAD wakeup */
