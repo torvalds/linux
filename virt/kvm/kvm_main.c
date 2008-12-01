@@ -210,7 +210,10 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 		pci_disable_msi(assigned_dev->dev);
 
 	kvm_unregister_irq_ack_notifier(&assigned_dev->ack_notifier);
-	kvm_free_irq_source_id(kvm, assigned_dev->irq_source_id);
+
+	if (assigned_dev->irq_source_id != -1)
+		kvm_free_irq_source_id(kvm, assigned_dev->irq_source_id);
+	assigned_dev->irq_source_id = -1;
 
 	if (cancel_work_sync(&assigned_dev->interrupt_work))
 		/* We had pending work. That means we will have to take
@@ -466,7 +469,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	match->host_busnr = assigned_dev->busnr;
 	match->host_devfn = assigned_dev->devfn;
 	match->dev = dev;
-
+	match->irq_source_id = -1;
 	match->kvm = kvm;
 
 	list_add(&match->list, &kvm->arch.assigned_dev_head);
