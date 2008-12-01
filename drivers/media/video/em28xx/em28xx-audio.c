@@ -75,9 +75,6 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	struct em28xx            *dev = urb->context;
 	int                      i;
 	unsigned int             oldptr;
-#ifdef NO_PCM_LOCK
-	unsigned long            flags;
-#endif
 	int                      period_elapsed = 0;
 	int                      status;
 	unsigned char            *cp;
@@ -98,9 +95,6 @@ static void em28xx_audio_isocirq(struct urb *urb)
 			if (!length)
 				continue;
 
-#ifdef NO_PCM_LOCK
-			spin_lock_irqsave(&dev->adev->slock, flags);
-#endif
 			oldptr = dev->adev->hwptr_done_capture;
 			if (oldptr + length >= runtime->buffer_size) {
 				unsigned int cnt =
@@ -114,9 +108,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 				       length * stride);
 			}
 
-#ifndef NO_PCM_LOCK
 			snd_pcm_stream_lock(substream);
-#endif
 
 			dev->adev->hwptr_done_capture += length;
 			if (dev->adev->hwptr_done_capture >=
@@ -132,11 +124,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 				period_elapsed = 1;
 			}
 
-#ifdef NO_PCM_LOCK
-			spin_unlock_irqrestore(&dev->adev->slock, flags);
-#else
 			snd_pcm_stream_unlock(substream);
-#endif
 		}
 		if (period_elapsed)
 			snd_pcm_period_elapsed(substream);
