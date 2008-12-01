@@ -190,6 +190,21 @@ struct platform_device mxc_wdt = {
 	.resource = mxc_wdt_resources,
 };
 
+static struct resource mxc_w1_master_resources[] = {
+	{
+		.start = OWIRE_BASE_ADDR,
+		.end   = OWIRE_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mxc_w1_master_device = {
+	.name = "mxc_w1",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_w1_master_resources),
+	.resource = mxc_w1_master_resources,
+};
+
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	[0] = {
