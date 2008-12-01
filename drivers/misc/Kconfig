@@ -120,7 +120,7 @@ config TIFM_CORE
 	  cards are supported via 'MMC/SD Card support: TI Flash Media MMC/SD
 	  Interface support (MMC_TIFM_SD)'.
 
-          To compile this driver as a module, choose M here: the module will
+	  To compile this driver as a module, choose M here: the module will
 	  be called tifm_core.
 
 config TIFM_7XX1
@@ -133,11 +133,11 @@ config TIFM_7XX1
 	  To make actual use of the device, you will have to select some
 	  flash card format drivers, as outlined in the TIFM_CORE Help.
 
-          To compile this driver as a module, choose M here: the module will
+	  To compile this driver as a module, choose M here: the module will
 	  be called tifm_7xx1.
 
 config ACER_WMI
-        tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
+	tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
 	depends on X86
 	depends on EXPERIMENTAL
 	depends on ACPI
@@ -159,14 +159,14 @@ config ACER_WMI
 	  here.
 
 config ASUS_LAPTOP
-        tristate "Asus Laptop Extras (EXPERIMENTAL)"
-        depends on X86
-        depends on ACPI
+	tristate "Asus Laptop Extras (EXPERIMENTAL)"
+	depends on X86
+	depends on ACPI
 	depends on EXPERIMENTAL && !ACPI_ASUS
 	depends on LEDS_CLASS
 	depends on NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
-        ---help---
+	---help---
 	  This is the new Linux driver for Asus laptops. It may also support some
 	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
 	  standard ACPI events that go through /proc/acpi/events. It also adds
@@ -179,12 +179,12 @@ config ASUS_LAPTOP
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
 config FUJITSU_LAPTOP
-        tristate "Fujitsu Laptop Extras"
-        depends on X86
-        depends on ACPI
+	tristate "Fujitsu Laptop Extras"
+	depends on X86
+	depends on ACPI
 	depends on INPUT
-        depends on BACKLIGHT_CLASS_DEVICE
-        ---help---
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
 	  This is a driver for laptops built by Fujitsu:
 
 	    * P2xxx/P5xxx/S6xxx/S7xxx series Lifebooks
@@ -221,11 +221,11 @@ config HP_WMI
        depends on INPUT
        depends on RFKILL
        help
-         Say Y here if you want to support WMI-based hotkeys on HP laptops and
+	 Say Y here if you want to support WMI-based hotkeys on HP laptops and
 	 to read data from WMI such as docking or ambient light sensor state.
 
-         To compile this driver as a module, choose M here: the module will
-         be called hp-wmi.
+	 To compile this driver as a module, choose M here: the module will
+	 be called hp-wmi.
 
 config ICS932S401
 	tristate "Integrated Circuits ICS932S401"
@@ -238,11 +238,11 @@ config ICS932S401
 	  will be called ics932s401.
 
 config MSI_LAPTOP
-        tristate "MSI Laptop Extras"
-        depends on X86
-        depends on ACPI
-        depends on BACKLIGHT_CLASS_DEVICE
-        ---help---
+	tristate "MSI Laptop Extras"
+	depends on X86
+	depends on ACPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
 	  This is a driver for laptops built by MSI (MICRO-STAR
 	  INTERNATIONAL):
 
@@ -259,7 +259,7 @@ config MSI_LAPTOP
 config PANASONIC_LAPTOP
 	tristate "Panasonic Laptop Extras"
 	depends on X86 && INPUT && ACPI
-        depends on BACKLIGHT_CLASS_DEVICE
+	depends on BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to backlight control and hotkeys
 	  on Panasonic Let's Note laptops.
