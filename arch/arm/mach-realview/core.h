@@ -52,8 +52,7 @@ extern struct clk realview_clcd_clk;
 extern struct clcd_board clcd_plat_data;
 extern void __iomem *gic_cpu_base_addr;
 #ifdef CONFIG_LOCAL_TIMERS
-extern void __iomem *twd_base_addr;
-extern unsigned int twd_size;
+extern void __iomem *twd_base;
 #endif
 extern void __iomem *timer0_va_base;
 extern void __iomem *timer1_va_base;

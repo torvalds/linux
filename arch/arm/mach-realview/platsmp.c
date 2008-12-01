@@ -238,7 +238,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if ((machine_is_realview_eb() &&
 	     (core_tile_eb11mp() || core_tile_a9mp())) ||
 	    machine_is_realview_pb11mp())
-		local_timer_setup(cpu);
+		local_timer_setup();
 #endif
 
 	/*

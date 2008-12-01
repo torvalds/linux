@@ -629,7 +629,7 @@ void __init realview_timer_init(unsigned int timer_irq)
 	 * The dummy clock device has to be registered before the main device
 	 * so that the latter will broadcast the clock events
 	 */
-	local_timer_setup(smp_processor_id());
+	local_timer_setup();
 #endif
 
 	/* 
