@@ -191,11 +191,26 @@ struct symbol *__add_symbol(const char *name, enum symbol_type type,
 				/* fall through */ ;
 			else if (sym->type == type &&
 				 equal_list(sym->defn, defn)) {
+				if (!sym->is_declared && sym->is_override) {
+					print_location();
+					print_type_name(type, name);
+					fprintf(stderr, " modversion is "
+						"unchanged\n");
+				}
 				sym->is_declared = 1;
 				return sym;
 			} else if (!sym->is_declared) {
-				status = is_unknown_symbol(sym) ?
-					STATUS_DEFINED : STATUS_MODIFIED;
+				if (sym->is_override && flag_preserve) {
+					print_location();
+					fprintf(stderr, "ignoring ");
+					print_type_name(type, name);
+					fprintf(stderr, " modversion change\n");
+					sym->is_declared = 1;
+					return sym;
+				} else {
+					status = is_unknown_symbol(sym) ?
+						STATUS_DEFINED : STATUS_MODIFIED;
+				}
 			} else {
 				error_with_pos("redefinition of %s", name);
 				return sym;
@@ -229,6 +244,7 @@ struct symbol *__add_symbol(const char *name, enum symbol_type type,
 
 	sym->is_declared = !is_reference;
 	sym->status = status;
+	sym->is_override = 0;
 
 	if (flag_debug) {
 		fprintf(debugfile, "Defn for %s %s == <",
@@ -348,9 +364,16 @@ static void read_reference(FILE *f)
 	while (!feof(f)) {
 		struct string_list *defn = NULL;
 		struct string_list *sym, *def;
-		int is_extern = 0;
+		int is_extern = 0, is_override = 0;
+		struct symbol *subsym;
 
 		sym = read_node(f);
+		if (sym && sym->tag == SYM_NORMAL &&
+		    !strcmp(sym->string, "override")) {
+			is_override = 1;
+			free_node(sym);
+			sym = read_node(f);
+		}
 		if (!sym)
 			continue;
 		def = read_node(f);
@@ -365,8 +388,9 @@ static void read_reference(FILE *f)
 			defn = def;
 			def = read_node(f);
 		}
-		add_reference_symbol(xstrdup(sym->string), sym->tag,
+		subsym = add_reference_symbol(xstrdup(sym->string), sym->tag,
 					      defn, is_extern);
+		subsym->is_override = is_override;
 		free_node(sym);
 	}
 }
@@ -743,6 +767,8 @@ int main(int argc, char **argv)
 		while (visited_symbols != (struct symbol *)-1L) {
 			struct symbol *sym = visited_symbols;
 
+			if (sym->is_override)
+				fputs("override ", dumpfile);
 			if (sym->type != SYM_NORMAL) {
 				putc(symbol_type_name[sym->type][0], dumpfile);
 				putc('#', dumpfile);

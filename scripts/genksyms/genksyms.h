@@ -49,6 +49,7 @@ struct symbol {
 	int is_extern;
 	int is_declared;
 	enum symbol_status status;
+	int is_override;
 };
 
 typedef struct string_list **yystype;
