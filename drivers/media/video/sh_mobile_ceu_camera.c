@@ -453,16 +453,42 @@ static int sh_mobile_ceu_try_bus_param(struct soc_camera_device *icd,
 static int sh_mobile_ceu_set_fmt_cap(struct soc_camera_device *icd,
 				     __u32 pixfmt, struct v4l2_rect *rect)
 {
-	return icd->ops->set_fmt_cap(icd, pixfmt, rect);
+	const struct soc_camera_data_format *cam_fmt;
+	int ret;
+
+	/*
+	 * TODO: find a suitable supported by the SoC output format, check
+	 * whether the sensor supports one of acceptable input formats.
+	 */
+	if (pixfmt) {
+		cam_fmt = soc_camera_format_by_fourcc(icd, pixfmt);
+		if (!cam_fmt)
+			return -EINVAL;
+	}
+
+	ret = icd->ops->set_fmt_cap(icd, pixfmt, rect);
+	if (pixfmt && !ret)
+		icd->current_fmt = cam_fmt;
+
+	return ret;
 }
 
 static int sh_mobile_ceu_try_fmt_cap(struct soc_camera_device *icd,
 				     struct v4l2_format *f)
 {
+	const struct soc_camera_data_format *cam_fmt;
 	int ret = sh_mobile_ceu_try_bus_param(icd, f->fmt.pix.pixelformat);
 
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * TODO: find a suitable supported by the SoC output format, check
+	 * whether the sensor supports one of acceptable input formats.
+	 */
+	cam_fmt = soc_camera_format_by_fourcc(icd, f->fmt.pix.pixelformat);
+	if (!cam_fmt)
+		return -EINVAL;
 
 	/* FIXME: calculate using depth and bus width */
 
@@ -476,6 +502,10 @@ static int sh_mobile_ceu_try_fmt_cap(struct soc_camera_device *icd,
 		f->fmt.pix.width = 2560;
 	f->fmt.pix.width &= ~0x01;
 	f->fmt.pix.height &= ~0x03;
+
+	f->fmt.pix.bytesperline = f->fmt.pix.width *
+		DIV_ROUND_UP(cam_fmt->depth, 8);
+	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 
 	/* limit to sensor capabilities */
 	return icd->ops->try_fmt_cap(icd, f);

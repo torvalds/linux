@@ -105,6 +105,9 @@ extern void soc_camera_device_unregister(struct soc_camera_device *icd);
 extern int soc_camera_video_start(struct soc_camera_device *icd);
 extern void soc_camera_video_stop(struct soc_camera_device *icd);
 
+extern const struct soc_camera_data_format *soc_camera_format_by_fourcc(
+	struct soc_camera_device *icd, unsigned int fourcc);
+
 struct soc_camera_data_format {
 	const char *name;
 	unsigned int depth;

@@ -35,7 +35,7 @@ static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);
 static DEFINE_MUTEX(video_lock);
 
-const static struct soc_camera_data_format *format_by_fourcc(
+const struct soc_camera_data_format *soc_camera_format_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc)
 {
 	unsigned int i;
@@ -45,6 +45,7 @@ const static struct soc_camera_data_format *format_by_fourcc(
 			return icd->formats + i;
 	return NULL;
 }
+EXPORT_SYMBOL(soc_camera_format_by_fourcc);
 
 static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 				      struct v4l2_format *f)
@@ -54,38 +55,25 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 	struct soc_camera_host *ici =
 		to_soc_camera_host(icd->dev.parent);
 	enum v4l2_field field;
-	const struct soc_camera_data_format *fmt;
 	int ret;
 
 	WARN_ON(priv != file->private_data);
 
-	fmt = format_by_fourcc(icd, f->fmt.pix.pixelformat);
-	if (!fmt) {
-		dev_dbg(&icd->dev, "invalid format 0x%08x\n",
-			f->fmt.pix.pixelformat);
-		return -EINVAL;
-	}
-
-	dev_dbg(&icd->dev, "fmt: 0x%08x\n", fmt->fourcc);
-
+	/*
+	 * TODO: this might also have to migrate to host-drivers, if anyone
+	 * wishes to support other fields
+	 */
 	field = f->fmt.pix.field;
 
 	if (field == V4L2_FIELD_ANY) {
-		field = V4L2_FIELD_NONE;
-	} else if (V4L2_FIELD_NONE != field) {
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+	} else if (field != V4L2_FIELD_NONE) {
 		dev_err(&icd->dev, "Field type invalid.\n");
 		return -EINVAL;
 	}
 
 	/* limit format to hardware capabilities */
 	ret = ici->ops->try_fmt_cap(icd, f);
-
-	/* calculate missing fields */
-	f->fmt.pix.field = field;
-	f->fmt.pix.bytesperline =
-		(f->fmt.pix.width * fmt->depth) >> 3;
-	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
 
 	return ret;
 }
@@ -325,18 +313,10 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 		to_soc_camera_host(icd->dev.parent);
 	int ret;
 	struct v4l2_rect rect;
-	const static struct soc_camera_data_format *data_fmt;
 
 	WARN_ON(priv != file->private_data);
 
-	data_fmt = format_by_fourcc(icd, f->fmt.pix.pixelformat);
-	if (!data_fmt)
-		return -EINVAL;
-
-	/* buswidth may be further adjusted by the ici */
-	icd->buswidth = data_fmt->depth;
-
-	ret = soc_camera_try_fmt_vid_cap(file, icf, f);
+	ret = soc_camera_try_fmt_vid_cap(file, priv, f);
 	if (ret < 0)
 		return ret;
 
@@ -345,14 +325,21 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	rect.width	= f->fmt.pix.width;
 	rect.height	= f->fmt.pix.height;
 	ret = ici->ops->set_fmt_cap(icd, f->fmt.pix.pixelformat, &rect);
-	if (ret < 0)
+	if (ret < 0) {
 		return ret;
+	} else if (!icd->current_fmt ||
+		   icd->current_fmt->fourcc != f->fmt.pix.pixelformat) {
+		dev_err(&ici->dev, "Host driver hasn't set up current "
+			"format correctly!\n");
+		return -EINVAL;
+	}
 
-	icd->current_fmt	= data_fmt;
+	/* buswidth may be further adjusted by the ici */
+	icd->buswidth		= icd->current_fmt->depth;
 	icd->width		= rect.width;
 	icd->height		= rect.height;
 	icf->vb_vidq.field	= f->fmt.pix.field;
-	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != f->type)
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
 			 f->type);
 
@@ -394,10 +381,9 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.height	= icd->height;
 	f->fmt.pix.field	= icf->vb_vidq.field;
 	f->fmt.pix.pixelformat	= icd->current_fmt->fourcc;
-	f->fmt.pix.bytesperline	=
-		(f->fmt.pix.width * icd->current_fmt->depth) >> 3;
-	f->fmt.pix.sizeimage	=
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.bytesperline	= f->fmt.pix.width *
+		DIV_ROUND_UP(icd->current_fmt->depth, 8);
+	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.bytesperline;
 	dev_dbg(&icd->dev, "current_fmt->fourcc: 0x%08x\n",
 		icd->current_fmt->fourcc);
 	return 0;
