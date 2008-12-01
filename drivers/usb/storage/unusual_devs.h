@@ -296,11 +296,17 @@ UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
-#ifdef CONFIG_USB_STORAGE_DPCM
+#ifdef CONFIG_USB_STORAGE_SDDR09
 UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate (DPCM_USB)",
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
+#else
+UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
+		"Microtech",
+		"CameraMate",
+		US_SC_SCSI, US_PR_CB, NULL,
+		US_FL_SINGLE_LUN ),
 #endif
 
 /* Patch submitted by Daniel Drake <dsd@gentoo.org>
@@ -601,6 +607,12 @@ UNUSUAL_DEV(  0x04e6, 0x0005, 0x0100, 0x0208,
 		"eUSB SmartMedia / CompactFlash Adapter",
 		US_SC_SCSI, US_PR_DPCM_USB, usb_stor_sddr09_dpcm_init,
 		0),
+#else
+UNUSUAL_DEV(  0x04e6, 0x0005, 0x0100, 0x0208,
+		"SCM Microsystems",
+		"eUSB CompactFlash Adapter",
+		US_SC_SCSI, US_PR_CB, NULL,
+		US_FL_SINGLE_LUN),
 #endif
 
 /* Reported by Markus Demleitner <msdemlei@cl.uni-heidelberg.de> */
@@ -1175,11 +1187,17 @@ UNUSUAL_DEV(  0x07af, 0x0005, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
 
-#ifdef CONFIG_USB_STORAGE_DPCM
+#ifdef CONFIG_USB_STORAGE_SDDR09
 UNUSUAL_DEV(  0x07af, 0x0006, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate (DPCM_USB)",
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
+#else
+UNUSUAL_DEV(  0x07af, 0x0006, 0x0100, 0x0100,
+		"Microtech",
+		"CameraMate",
+		US_SC_SCSI, US_PR_CB, NULL,
+		US_FL_SINGLE_LUN ),
 #endif
 
 #ifdef CONFIG_USB_STORAGE_ALAUDA

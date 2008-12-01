@@ -75,9 +75,6 @@
 #ifdef CONFIG_USB_STORAGE_SDDR55
 #include "sddr55.h"
 #endif
-#ifdef CONFIG_USB_STORAGE_DPCM
-#include "dpcm.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_FREECOM
 #include "freecom.h"
 #endif

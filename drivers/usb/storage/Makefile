@@ -14,7 +14,6 @@ usb-storage-obj-$(CONFIG_USB_STORAGE_USBAT)	+= shuttle_usbat.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_SDDR09)	+= sddr09.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_SDDR55)	+= sddr55.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_FREECOM)	+= freecom.o
-usb-storage-obj-$(CONFIG_USB_STORAGE_DPCM)	+= dpcm.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_ISD200)	+= isd200.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_DATAFAB)	+= datafab.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_JUMPSHOT)	+= jumpshot.o
