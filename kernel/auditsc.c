@@ -1459,7 +1459,6 @@ void audit_free(struct task_struct *tsk)
 
 /**
  * audit_syscall_entry - fill in an audit record at syscall entry
- * @tsk: task being audited
  * @arch: architecture type
  * @major: major syscall type (function)
  * @a1: additional syscall register 1
@@ -1567,7 +1566,6 @@ void audit_finish_fork(struct task_struct *child)
 
 /**
  * audit_syscall_exit - deallocate audit context after a system call
- * @tsk: task being audited
  * @valid: success/failure flag
  * @return_code: syscall return value
  *
