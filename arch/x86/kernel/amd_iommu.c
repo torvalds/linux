@@ -352,6 +352,30 @@ static void iommu_flush_tlb(struct amd_iommu *iommu, u16 domid)
 	iommu_queue_inv_iommu_pages(iommu, address, domid, 0, 1);
 }
 
+#ifdef CONFIG_IOMMU_API
+/*
+ * This function is used to flush the IO/TLB for a given protection domain
+ * on every IOMMU in the system
+ */
+static void iommu_flush_domain(u16 domid)
+{
+	unsigned long flags;
+	struct amd_iommu *iommu;
+	struct iommu_cmd cmd;
+
+	__iommu_build_inv_iommu_pages(&cmd, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
+				      domid, 1, 1);
+
+	list_for_each_entry(iommu, &amd_iommu_list, list) {
+		spin_lock_irqsave(&iommu->lock, flags);
+		__iommu_queue_command(iommu, &cmd);
+		__iommu_completion_wait(iommu);
+		__iommu_wait_for_completion(iommu);
+		spin_unlock_irqrestore(&iommu->lock, flags);
+	}
+}
+#endif
+
 /****************************************************************************
  *
  * The functions below are used the create the page table mappings for
