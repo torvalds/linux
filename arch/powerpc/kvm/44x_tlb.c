@@ -73,6 +73,25 @@ static inline void kvmppc_44x_tlbie(unsigned int index)
 	);
 }
 
+static inline void kvmppc_44x_tlbre(unsigned int index,
+                                    struct kvmppc_44x_tlbe *tlbe)
+{
+	asm volatile(
+		"tlbre %[word0], %[index], 0\n"
+		"mfspr %[tid], %[sprn_mmucr]\n"
+		"andi. %[tid], %[tid], 0xff\n"
+		"tlbre %[word1], %[index], 1\n"
+		"tlbre %[word2], %[index], 2\n"
+		: [word0] "=r"(tlbe->word0),
+		  [word1] "=r"(tlbe->word1),
+		  [word2] "=r"(tlbe->word2),
+		  [tid]   "=r"(tlbe->tid)
+		: [index] "r"(index),
+		  [sprn_mmucr] "i"(SPRN_MMUCR)
+		: "cc"
+	);
+}
+
 static inline void kvmppc_44x_tlbwe(unsigned int index,
                                     struct kvmppc_44x_tlbe *stlbe)
 {
@@ -115,6 +134,44 @@ static u32 kvmppc_44x_tlb_shadow_attrib(u32 attrib, int usermode)
 
 	return attrib;
 }
+
+/* Load shadow TLB back into hardware. */
+void kvmppc_44x_tlb_load(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+	int i;
+
+	for (i = 0; i <= tlb_44x_hwater; i++) {
+		struct kvmppc_44x_tlbe *stlbe = &vcpu_44x->shadow_tlb[i];
+
+		if (get_tlb_v(stlbe) && get_tlb_ts(stlbe))
+			kvmppc_44x_tlbwe(i, stlbe);
+	}
+}
+
+static void kvmppc_44x_tlbe_set_modified(struct kvmppc_vcpu_44x *vcpu_44x,
+                                         unsigned int i)
+{
+	vcpu_44x->shadow_tlb_mod[i] = 1;
+}
+
+/* Save hardware TLB to the vcpu, and invalidate all guest mappings. */
+void kvmppc_44x_tlb_put(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+	int i;
+
+	for (i = 0; i <= tlb_44x_hwater; i++) {
+		struct kvmppc_44x_tlbe *stlbe = &vcpu_44x->shadow_tlb[i];
+
+		if (vcpu_44x->shadow_tlb_mod[i])
+			kvmppc_44x_tlbre(i, stlbe);
+
+		if (get_tlb_v(stlbe) && get_tlb_ts(stlbe))
+			kvmppc_44x_tlbie(i);
+	}
+}
+
 
 /* Search the guest TLB for a matching entry. */
 int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr, unsigned int pid,
@@ -283,6 +340,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gpa_t gpaddr, u64 asid,
 	ref->tid = stlbe.tid;
 
 	/* Insert shadow mapping into hardware TLB. */
+	kvmppc_44x_tlbe_set_modified(vcpu_44x, victim);
 	kvmppc_44x_tlbwe(victim, &stlbe);
 	KVMTRACE_5D(STLB_WRITE, vcpu, victim, stlbe.tid, stlbe.word0, stlbe.word1,
 	            stlbe.word2, handler);

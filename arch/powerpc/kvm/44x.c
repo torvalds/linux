@@ -96,15 +96,12 @@ void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	kvmppc_44x_tlb_load(vcpu);
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	/* XXX Since every guest uses TS=1 TID=0/1 mappings, we can't leave any TLB
-	 * entries around when we're descheduled, so we must completely flush the
-	 * TLB of all guest mappings. On the other hand, if there is only one
-	 * guest, this flush is completely unnecessary. */
-	_tlbia();
+	kvmppc_44x_tlb_put(vcpu);
 }
 
 int kvmppc_core_check_processor_compat(void)
