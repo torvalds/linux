@@ -1089,7 +1089,7 @@ static struct platform_device i2c_bfin_twi_device = {
 
 #if defined(CONFIG_KEYBOARD_ADP5588) || defined(CONFIG_KEYBOARD_ADP5588_MODULE)
 #include <linux/input.h>
-#include <linux/i2c/adp5588_keys.h>
+#include <linux/i2c/adp5588.h>
 static const unsigned short adp5588_keymap[ADP5588_KEYMAPSIZE] = {
 	[0]	 = KEY_GRAVE,
 	[1]	 = KEY_1,
