@@ -621,7 +621,7 @@ static u64 *rmap_next(struct kvm *kvm, unsigned long *rmapp, u64 *spte)
 	return NULL;
 }
 
-static void rmap_write_protect(struct kvm *kvm, u64 gfn)
+static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 {
 	unsigned long *rmapp;
 	u64 *spte;
@@ -667,8 +667,7 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 		spte = rmap_next(kvm, rmapp, spte);
 	}
 
-	if (write_protected)
-		kvm_flush_remote_tlbs(kvm);
+	return write_protected;
 }
 
 static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp)
@@ -1083,7 +1082,8 @@ static int kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		return 1;
 	}
 
-	rmap_write_protect(vcpu->kvm, sp->gfn);
+	if (rmap_write_protect(vcpu->kvm, sp->gfn))
+		kvm_flush_remote_tlbs(vcpu->kvm);
 	kvm_unlink_unsync_page(vcpu->kvm, sp);
 	if (vcpu->arch.mmu.sync_page(vcpu, sp)) {
 		kvm_mmu_zap_page(vcpu->kvm, sp);
@@ -1162,6 +1162,14 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 
 	kvm_mmu_pages_init(parent, &parents, &pages);
 	while (mmu_unsync_walk(parent, &pages)) {
+		int protected = 0;
+
+		for_each_sp(pages, sp, parents, i)
+			protected |= rmap_write_protect(vcpu->kvm, sp->gfn);
+
+		if (protected)
+			kvm_flush_remote_tlbs(vcpu->kvm);
+
 		for_each_sp(pages, sp, parents, i) {
 			kvm_sync_page(vcpu, sp);
 			mmu_pages_clear_parents(&parents);
@@ -1226,7 +1234,8 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	sp->role = role;
 	hlist_add_head(&sp->hash_link, bucket);
 	if (!metaphysical) {
-		rmap_write_protect(vcpu->kvm, gfn);
+		if (rmap_write_protect(vcpu->kvm, gfn))
+			kvm_flush_remote_tlbs(vcpu->kvm);
 		account_shadowed(vcpu->kvm, gfn);
 	}
 	if (shadow_trap_nonpresent_pte != shadow_notrap_nonpresent_pte)
