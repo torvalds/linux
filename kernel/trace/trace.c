@@ -1209,7 +1209,7 @@ void trace_graph_entry(struct ftrace_graph_ent *trace)
 	int cpu;
 	int pc;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
@@ -1218,7 +1218,7 @@ void trace_graph_entry(struct ftrace_graph_ent *trace)
 		__trace_graph_entry(tr, data, trace, flags, pc);
 	}
 	atomic_dec(&data->disabled);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 void trace_graph_return(struct ftrace_graph_ret *trace)
@@ -1230,7 +1230,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 	int cpu;
 	int pc;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
@@ -1239,7 +1239,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 		__trace_graph_return(tr, data, trace, flags, pc);
 	}
 	atomic_dec(&data->disabled);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
@@ -2645,7 +2645,7 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 	if (err)
 		goto err_unlock;
 
-	raw_local_irq_disable();
+	local_irq_disable();
 	__raw_spin_lock(&ftrace_max_lock);
 	for_each_tracing_cpu(cpu) {
 		/*
@@ -2662,7 +2662,7 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 		}
 	}
 	__raw_spin_unlock(&ftrace_max_lock);
-	raw_local_irq_enable();
+	local_irq_enable();
 
 	tracing_cpumask = tracing_cpumask_new;
 

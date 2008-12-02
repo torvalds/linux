@@ -48,7 +48,7 @@ static inline void check_stack(void)
 	if (!object_is_on_stack(&this_size))
 		return;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	__raw_spin_lock(&max_stack_lock);
 
 	/* a race could have already updated it */
@@ -96,7 +96,7 @@ static inline void check_stack(void)
 
  out:
 	__raw_spin_unlock(&max_stack_lock);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 static void
@@ -162,11 +162,11 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	if (ret < 0)
 		return ret;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	__raw_spin_lock(&max_stack_lock);
 	*ptr = val;
 	__raw_spin_unlock(&max_stack_lock);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	return count;
 }
