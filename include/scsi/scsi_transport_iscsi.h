@@ -113,10 +113,15 @@ struct iscsi_transport {
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
 			   struct iscsi_stats *stats);
+
 	int (*init_task) (struct iscsi_task *task);
 	int (*xmit_task) (struct iscsi_task *task);
-	void (*cleanup_task) (struct iscsi_conn *conn,
-				  struct iscsi_task *task);
+	void (*cleanup_task) (struct iscsi_task *task);
+
+	int (*alloc_pdu) (struct iscsi_task *task);
+	int (*xmit_pdu) (struct iscsi_task *task);
+	int (*init_pdu) (struct iscsi_task *task, unsigned int offset,
+			 unsigned int count);
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
 	struct iscsi_endpoint *(*ep_connect) (struct sockaddr *dst_addr,
 					      int non_blocking);

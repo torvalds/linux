@@ -93,24 +93,38 @@ enum {
 	ISCSI_TASK_RUNNING,
 };
 
+struct iscsi_r2t_info {
+	__be32			ttt;		/* copied from R2T */
+	__be32			exp_statsn;	/* copied from R2T */
+	uint32_t		data_length;	/* copied from R2T */
+	uint32_t		data_offset;	/* copied from R2T */
+	int			data_count;	/* DATA-Out payload progress */
+	int			datasn;
+	/* LLDs should set/update these values */
+	int			sent;		/* R2T sequence progress */
+};
+
 struct iscsi_task {
 	/*
 	 * Because LLDs allocate their hdr differently, this is a pointer
 	 * and length to that storage. It must be setup at session
 	 * creation time.
 	 */
-	struct iscsi_cmd	*hdr;
+	struct iscsi_hdr	*hdr;
 	unsigned short		hdr_max;
 	unsigned short		hdr_len;	/* accumulated size of hdr used */
+	/* copied values in case we need to send tmfs */
+	itt_t			hdr_itt;
+	__be32			cmdsn;
+	uint8_t			lun[8];
+
 	int			itt;		/* this ITT */
 
-	uint32_t		unsol_datasn;
 	unsigned		imm_count;	/* imm-data (bytes)   */
-	unsigned		unsol_count;	/* unsolicited (bytes)*/
 	/* offset in unsolicited stream (bytes); */
-	unsigned		unsol_offset;
-	unsigned		data_count;	/* remaining Data-Out */
+	struct iscsi_r2t_info	unsol_r2t;
 	char			*data;		/* mgmt payload */
+	unsigned		data_count;
 	struct scsi_cmnd	*sc;		/* associated SCSI cmd*/
 	struct iscsi_conn	*conn;		/* used connection    */
 
@@ -120,6 +134,11 @@ struct iscsi_task {
 	struct list_head	running;	/* running cmd list */
 	void			*dd_data;	/* driver/transport data */
 };
+
+static inline int iscsi_task_has_unsol_data(struct iscsi_task *task)
+{
+	return task->unsol_r2t.data_length > task->unsol_r2t.sent;
+}
 
 static inline void* iscsi_next_hdr(struct iscsi_task *task)
 {
@@ -376,8 +395,9 @@ extern void iscsi_suspend_tx(struct iscsi_conn *conn);
  * pdu and task processing
  */
 extern void iscsi_update_cmdsn(struct iscsi_session *, struct iscsi_nopin *);
-extern void iscsi_prep_unsolicit_data_pdu(struct iscsi_task *,
-					struct iscsi_data *hdr);
+extern void iscsi_prep_data_out_pdu(struct iscsi_task *task,
+				    struct iscsi_r2t_info *r2t,
+				    struct iscsi_data *hdr);
 extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,
 				char *, uint32_t);
 extern int iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
