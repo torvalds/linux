@@ -475,8 +475,8 @@ static int iscsi_prep_mgmt_task(struct iscsi_conn *conn,
 		}
 	}
 
-	if (session->tt->init_task)
-		session->tt->init_task(task);
+	if (session->tt->init_task && session->tt->init_task(task))
+		return -EIO;
 
 	if ((hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGOUT)
 		session->state = ISCSI_STATE_LOGGING_OUT;
