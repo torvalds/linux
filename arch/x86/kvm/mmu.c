@@ -2441,7 +2441,8 @@ static void kvm_mmu_access_page(struct kvm_vcpu *vcpu, gfn_t gfn)
 }
 
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
-		       const u8 *new, int bytes)
+		       const u8 *new, int bytes,
+		       bool guest_initiated)
 {
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct kvm_mmu_page *sp;
@@ -2467,15 +2468,17 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	kvm_mmu_free_some_pages(vcpu);
 	++vcpu->kvm->stat.mmu_pte_write;
 	kvm_mmu_audit(vcpu, "pre pte write");
-	if (gfn == vcpu->arch.last_pt_write_gfn
-	    && !last_updated_pte_accessed(vcpu)) {
-		++vcpu->arch.last_pt_write_count;
-		if (vcpu->arch.last_pt_write_count >= 3)
-			flooded = 1;
-	} else {
-		vcpu->arch.last_pt_write_gfn = gfn;
-		vcpu->arch.last_pt_write_count = 1;
-		vcpu->arch.last_pte_updated = NULL;
+	if (guest_initiated) {
+		if (gfn == vcpu->arch.last_pt_write_gfn
+		    && !last_updated_pte_accessed(vcpu)) {
+			++vcpu->arch.last_pt_write_count;
+			if (vcpu->arch.last_pt_write_count >= 3)
+				flooded = 1;
+		} else {
+			vcpu->arch.last_pt_write_gfn = gfn;
+			vcpu->arch.last_pt_write_count = 1;
+			vcpu->arch.last_pte_updated = NULL;
+		}
 	}
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
@@ -2615,9 +2618,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 {
-	spin_lock(&vcpu->kvm->mmu_lock);
 	vcpu->arch.mmu.invlpg(vcpu, gva);
-	spin_unlock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_flush_tlb(vcpu);
 	++vcpu->stat.invlpg;
 }
