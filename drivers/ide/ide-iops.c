@@ -611,6 +611,7 @@ static const struct drive_list_entry ivb_list[] = {
 	{ "TSSTcorp CDDVDW SH-S202N"	, "SB01"	},
 	{ "TSSTcorp CDDVDW SH-S202H"	, "SB00"	},
 	{ "TSSTcorp CDDVDW SH-S202H"	, "SB01"	},
+	{ "SAMSUNG SP0822N"		, "WA100-10"	},
 	{ NULL				, NULL		}
 };
 
