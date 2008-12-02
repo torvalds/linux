@@ -426,6 +426,17 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 	return &priv->eeprom[address];
 }
 
+static s32 iwl5150_get_ct_threshold(struct iwl_priv *priv)
+{
+	const s32 volt2temp_coef = -5;
+	u16 *temp_calib = (u16 *)iwl_eeprom_query_addr(priv,
+						EEPROM_5000_TEMPERATURE);
+	/* offset =  temperate -  voltage / coef */
+	s32 offset = temp_calib[0] - temp_calib[1] / volt2temp_coef;
+	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD) - offset;
+	return threshold * volt2temp_coef;
+}
+
 /*
  *  Calibration
  */
@@ -859,7 +870,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	case CSR_HW_REV_TYPE_5150:
 		/* 5150 wants in Kelvin */
 		priv->hw_params.ct_kill_threshold =
-				CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+				iwl5150_get_ct_threshold(priv);
 		break;
 	}
 
