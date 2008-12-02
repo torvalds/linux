@@ -60,6 +60,7 @@ struct iwl_debugfs {
 		struct dentry *file_rx_statistics;
 		struct dentry *file_tx_statistics;
 		struct dentry *file_log_event;
+		struct dentry *file_channels;
 	} dbgfs_data_files;
 	struct dir_rf_files {
 		struct dentry *file_disable_sensitivity;
