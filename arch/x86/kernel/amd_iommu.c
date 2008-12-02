@@ -1718,4 +1718,33 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 	return 0;
 }
 
+static int amd_iommu_map_range(struct iommu_domain *dom,
+			       unsigned long iova, phys_addr_t paddr,
+			       size_t size, int iommu_prot)
+{
+	struct protection_domain *domain = dom->priv;
+	unsigned long i,  npages = iommu_num_pages(paddr, size, PAGE_SIZE);
+	int prot = 0;
+	int ret;
+
+	if (iommu_prot & IOMMU_READ)
+		prot |= IOMMU_PROT_IR;
+	if (iommu_prot & IOMMU_WRITE)
+		prot |= IOMMU_PROT_IW;
+
+	iova  &= PAGE_MASK;
+	paddr &= PAGE_MASK;
+
+	for (i = 0; i < npages; ++i) {
+		ret = iommu_map_page(domain, iova, paddr, prot);
+		if (ret)
+			return ret;
+
+		iova  += PAGE_SIZE;
+		paddr += PAGE_SIZE;
+	}
+
+	return 0;
+}
+
 #endif
