@@ -967,14 +967,13 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 	ide_startstop_t	startstop;
 	int             loops = 0;
 
-	/* for atari only: POSSIBLY BROKEN HERE(?) */
-	ide_get_lock(ide_intr, hwgroup);
-
 	/* caller must own ide_lock */
 	BUG_ON(!irqs_disabled());
 
 	while (!hwgroup->busy) {
 		hwgroup->busy = 1;
+		/* for atari only */
+		ide_get_lock(ide_intr, hwgroup);
 		drive = choose_drive(hwgroup);
 		if (drive == NULL) {
 			int sleeping = 0;
