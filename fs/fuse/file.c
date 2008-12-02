@@ -1612,7 +1612,7 @@ static long fuse_file_do_ioctl(struct file *file, unsigned int cmd,
 	if (!(flags & FUSE_IOCTL_UNRESTRICTED)) {
 		struct iovec *iov = page_address(iov_page);
 
-		iov->iov_base = (void *)arg;
+		iov->iov_base = (void __user *)arg;
 		iov->iov_len = _IOC_SIZE(cmd);
 
 		if (_IOC_DIR(cmd) & _IOC_WRITE) {
