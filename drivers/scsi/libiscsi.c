@@ -222,12 +222,14 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	struct scsi_cmnd *sc = task->sc;
 	struct iscsi_cmd *hdr;
 	unsigned hdrlength, cmd_len;
+	itt_t itt;
 	int rc;
 
 	rc = conn->session->tt->alloc_pdu(task);
 	if (rc)
 		return rc;
 	hdr = (struct iscsi_cmd *) task->hdr;
+	itt = hdr->itt;
 	memset(hdr, 0, sizeof(*hdr));
 
 	task->hdr_len = 0;
@@ -238,7 +240,11 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	hdr->flags = ISCSI_ATTR_SIMPLE;
 	int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
 	memcpy(task->lun, hdr->lun, sizeof(task->lun));
-	hdr->itt = task->hdr_itt = build_itt(task->itt, session->age);
+	if (session->tt->parse_pdu_itt)
+		hdr->itt = task->hdr_itt = itt;
+	else
+		hdr->itt = task->hdr_itt = build_itt(task->itt,
+						     task->conn->session->age);
 	hdr->cmdsn = task->cmdsn = cpu_to_be32(session->cmdsn);
 	session->cmdsn++;
 	hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
@@ -457,7 +463,6 @@ static int iscsi_prep_mgmt_task(struct iscsi_conn *conn,
 	 */
 	nop->cmdsn = cpu_to_be32(session->cmdsn);
 	if (hdr->itt != RESERVED_ITT) {
-		hdr->itt = build_itt(task->itt, session->age);
 		/*
 		 * TODO: We always use immediate, so we never hit this.
 		 * If we start to send tmfs or nops as non-immediate then
@@ -490,6 +495,7 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 {
 	struct iscsi_session *session = conn->session;
 	struct iscsi_task *task;
+	itt_t itt;
 
 	if (session->state == ISCSI_STATE_TERMINATE)
 		return NULL;
@@ -531,9 +537,18 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				 "pdu for mgmt task.\n");
 		goto requeue_task;
 	}
+	itt = task->hdr->itt;
 	task->hdr_len = sizeof(struct iscsi_hdr);
-
 	memcpy(task->hdr, hdr, sizeof(struct iscsi_hdr));
+
+	if (hdr->itt != RESERVED_ITT) {
+		if (session->tt->parse_pdu_itt)
+			task->hdr->itt = itt;
+		else
+			task->hdr->itt = build_itt(task->itt,
+						   task->conn->session->age);
+	}
+
 	INIT_LIST_HEAD(&task->running);
 	list_add_tail(&task->running, &conn->mgmtqueue);
 
@@ -745,7 +760,6 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 {
 	struct iscsi_reject *reject = (struct iscsi_reject *)hdr;
 	struct iscsi_hdr rejected_pdu;
-	uint32_t itt;
 
 	conn->exp_statsn = be32_to_cpu(reject->statsn) + 1;
 
@@ -755,10 +769,9 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 		if (ntoh24(reject->dlength) >= sizeof(struct iscsi_hdr)) {
 			memcpy(&rejected_pdu, data, sizeof(struct iscsi_hdr));
-			itt = get_itt(rejected_pdu.itt);
 			iscsi_conn_printk(KERN_ERR, conn,
-					  "itt 0x%x had pdu (op 0x%x) rejected "
-					  "due to DataDigest error.\n", itt,
+					  "pdu (op 0x%x) rejected "
+					  "due to DataDigest error.\n",
 					  rejected_pdu.opcode);
 		}
 	}
@@ -778,12 +791,15 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 static struct iscsi_task *iscsi_itt_to_task(struct iscsi_conn *conn, itt_t itt)
 {
 	struct iscsi_session *session = conn->session;
-	uint32_t i;
+	int i;
 
 	if (itt == RESERVED_ITT)
 		return NULL;
 
-	i = get_itt(itt);
+	if (session->tt->parse_pdu_itt)
+		session->tt->parse_pdu_itt(conn, itt, &i, NULL);
+	else
+		i = get_itt(itt);
 	if (i >= session->cmds_max)
 		return NULL;
 
@@ -958,20 +974,25 @@ EXPORT_SYMBOL_GPL(iscsi_complete_pdu);
 int iscsi_verify_itt(struct iscsi_conn *conn, itt_t itt)
 {
 	struct iscsi_session *session = conn->session;
-	uint32_t i;
+	int age = 0, i = 0;
 
 	if (itt == RESERVED_ITT)
 		return 0;
 
-	if (((__force u32)itt & ISCSI_AGE_MASK) !=
-	    (session->age << ISCSI_AGE_SHIFT)) {
+	if (session->tt->parse_pdu_itt)
+		session->tt->parse_pdu_itt(conn, itt, &i, &age);
+	else {
+		i = get_itt(itt);
+		age = ((__force u32)itt >> ISCSI_AGE_SHIFT) & ISCSI_AGE_MASK;
+	}
+
+	if (age != session->age) {
 		iscsi_conn_printk(KERN_ERR, conn,
 				  "received itt %x expected session age (%x)\n",
 				  (__force u32)itt, session->age);
 		return ISCSI_ERR_BAD_ITT;
 	}
 
-	i = get_itt(itt);
 	if (i >= session->cmds_max) {
 		iscsi_conn_printk(KERN_ERR, conn,
 				  "received invalid itt index %u (max cmds "

@@ -122,6 +122,9 @@ struct iscsi_transport {
 	int (*xmit_pdu) (struct iscsi_task *task);
 	int (*init_pdu) (struct iscsi_task *task, unsigned int offset,
 			 unsigned int count);
+	void (*parse_pdu_itt) (struct iscsi_conn *conn, itt_t itt,
+			       int *index, int *age);
+
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
 	struct iscsi_endpoint *(*ep_connect) (struct sockaddr *dst_addr,
 					      int non_blocking);

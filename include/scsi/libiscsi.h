@@ -30,6 +30,7 @@
 #include <linux/workqueue.h>
 #include <scsi/iscsi_proto.h>
 #include <scsi/iscsi_if.h>
+#include <scsi/scsi_transport_iscsi.h>
 
 struct scsi_transport_template;
 struct scsi_host_template;
@@ -70,12 +71,12 @@ enum {
 /* Connection suspend "bit" */
 #define ISCSI_SUSPEND_BIT		1
 
-#define ISCSI_ITT_MASK			(0x1fff)
+#define ISCSI_ITT_MASK			0x1fff
 #define ISCSI_TOTAL_CMDS_MAX		4096
 /* this must be a power of two greater than ISCSI_MGMT_CMDS_MAX */
 #define ISCSI_TOTAL_CMDS_MIN		16
 #define ISCSI_AGE_SHIFT			28
-#define ISCSI_AGE_MASK			(0xf << ISCSI_AGE_SHIFT)
+#define ISCSI_AGE_MASK			0xf
 
 #define ISCSI_ADDRESS_BUF_LEN		64
 
