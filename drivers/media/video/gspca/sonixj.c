@@ -1373,19 +1373,15 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	default:
 /*	case SENSOR_OV7660: */
 		ov7660_InitSensor(gspca_dev);
-		if (mode) {
-/*			reg17 = 0x21;	 * 320 */
-/*			reg1 = 0x44; */
-/*			reg1 = 0x46;	(done) */
-		} else {			/* 640 */
-			if (sd->bridge == BRIDGE_SN9C120) {
+		if (sd->bridge == BRIDGE_SN9C120) {
+			if (mode) {		/* 320x240 - 160x120 */
 				reg17 = 0xa2;
 				reg1 = 0x44;	/* 48 Mhz, video trf eneble */
-			} else {
-				reg17 = 0x22;
-				reg1 = 0x06;	/* 24 Mhz, video trf eneble
-						 * inverse power down */
 			}
+		} else {
+			reg17 = 0x22;
+			reg1 = 0x06;	/* 24 Mhz, video trf eneble
+					 * inverse power down */
 		}
 		break;
 	}
