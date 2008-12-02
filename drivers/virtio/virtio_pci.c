@@ -216,7 +216,7 @@ static struct virtqueue *vp_find_vq(struct virtio_device *vdev, unsigned index,
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtio_pci_vq_info *info;
 	struct virtqueue *vq;
-	unsigned long flags;
+	unsigned long flags, size;
 	u16 num;
 	int err;
 
@@ -237,7 +237,8 @@ static struct virtqueue *vp_find_vq(struct virtio_device *vdev, unsigned index,
 	info->queue_index = index;
 	info->num = num;
 
-	info->queue = kzalloc(PAGE_ALIGN(vring_size(num,PAGE_SIZE)), GFP_KERNEL);
+	size = PAGE_ALIGN(vring_size(num, PAGE_SIZE));
+	info->queue = alloc_pages_exact(size, GFP_KERNEL|__GFP_ZERO);
 	if (info->queue == NULL) {
 		err = -ENOMEM;
 		goto out_info;
@@ -266,7 +267,7 @@ static struct virtqueue *vp_find_vq(struct virtio_device *vdev, unsigned index,
 
 out_activate_queue:
 	iowrite32(0, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
-	kfree(info->queue);
+	free_pages_exact(info->queue, size);
 out_info:
 	kfree(info);
 	return ERR_PTR(err);
@@ -277,7 +278,7 @@ static void vp_del_vq(struct virtqueue *vq)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
 	struct virtio_pci_vq_info *info = vq->priv;
-	unsigned long flags;
+	unsigned long flags, size;
 
 	spin_lock_irqsave(&vp_dev->lock, flags);
 	list_del(&info->node);
@@ -289,7 +290,8 @@ static void vp_del_vq(struct virtqueue *vq)
 	iowrite16(info->queue_index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
 	iowrite32(0, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
 
-	kfree(info->queue);
+	size = PAGE_ALIGN(vring_size(info->num, PAGE_SIZE));
+	free_pages_exact(info->queue, size);
 	kfree(info);
 }
 
