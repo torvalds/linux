@@ -650,6 +650,32 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
+	[EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850] = {
+		.name           = "Hauppauge WinTV HVR 850",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_gpio     = default_tuner_gpio,
+		.mts_firmware   = 1,
+		.has_dvb        = 1,
+		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
+		.ir_codes       = ir_codes_hauppauge_new,
+		.decoder        = EM28XX_TVP5150,
+		.input          = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
+		}, {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_wintv_hvr_900_analog,
+		} },
+	},
 	[EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
 		.name           = "Hauppauge WinTV HVR 950",
 		.tuner_type     = TUNER_XC2028,
@@ -1281,8 +1307,8 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950 },
 	{ USB_DEVICE(0x2040, 0x651b), /* RP  HVR-950 */
 			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950 },
-	{ USB_DEVICE(0x2040, 0x651f), /* HCW HVR-850 */
-			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950 },
+	{ USB_DEVICE(0x2040, 0x651f),
+			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850 },
 	{ USB_DEVICE(0x0438, 0xb002),
 			.driver_info = EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600 },
 	{ USB_DEVICE(0x2001, 0xf112),
@@ -1502,6 +1528,7 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 		ctl->demod = XC3028_FE_DEFAULT;
 		ctl->fname = XC3028L_DEFAULT_FIRMWARE;
 		break;
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
 		/* FIXME: Better to specify the needed IF */
@@ -1686,6 +1713,7 @@ void em28xx_card_setup(struct em28xx *dev)
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	{
 		struct tveeprom tv;
