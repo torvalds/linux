@@ -245,13 +245,15 @@ int __init musb_platform_init(struct musb *musb)
 	}
 	gpio_direction_output(musb->config->gpio_vrsel, 0);
 
-	/* Anomaly #05000346 */
-	bfin_write_USB_APHY_CALIB(0x5411);
-	SSYNC();
+	if (ANOMALY_05000346) {
+		bfin_write_USB_APHY_CALIB(ANOMALY_05000346_value);
+		SSYNC();
+	}
 
-	/* Anomaly #05000347 */
-	bfin_write_USB_APHY_CNTRL(0x0);
-	SSYNC();
+	if (ANOMALY_05000347) {
+		bfin_write_USB_APHY_CNTRL(0x0);
+		SSYNC();
+	}
 
 	/* TODO
 	 * Set SIC-IVG register
