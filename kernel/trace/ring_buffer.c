@@ -687,6 +687,12 @@ static inline int rb_null_event(struct ring_buffer_event *event)
 	return event->type == RINGBUF_TYPE_PADDING;
 }
 
+static inline void *
+__rb_data_page_index(struct buffer_data_page *page, unsigned index)
+{
+	return page->data + index;
+}
+
 static inline void *__rb_page_index(struct buffer_page *page, unsigned index)
 {
 	return page->page->data + index;
@@ -2230,6 +2236,166 @@ int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 	atomic_dec(&cpu_buffer_b->record_disabled);
 
 	return 0;
+}
+
+static void rb_remove_entries(struct ring_buffer_per_cpu *cpu_buffer,
+			      struct buffer_data_page *page)
+{
+	struct ring_buffer_event *event;
+	unsigned long head;
+
+	__raw_spin_lock(&cpu_buffer->lock);
+	for (head = 0; head < local_read(&page->commit);
+	     head += rb_event_length(event)) {
+
+		event = __rb_data_page_index(page, head);
+		if (RB_WARN_ON(cpu_buffer, rb_null_event(event)))
+			return;
+		/* Only count data entries */
+		if (event->type != RINGBUF_TYPE_DATA)
+			continue;
+		cpu_buffer->entries--;
+	}
+	__raw_spin_unlock(&cpu_buffer->lock);
+}
+
+/**
+ * ring_buffer_alloc_read_page - allocate a page to read from buffer
+ * @buffer: the buffer to allocate for.
+ *
+ * This function is used in conjunction with ring_buffer_read_page.
+ * When reading a full page from the ring buffer, these functions
+ * can be used to speed up the process. The calling function should
+ * allocate a few pages first with this function. Then when it
+ * needs to get pages from the ring buffer, it passes the result
+ * of this function into ring_buffer_read_page, which will swap
+ * the page that was allocated, with the read page of the buffer.
+ *
+ * Returns:
+ *  The page allocated, or NULL on error.
+ */
+void *ring_buffer_alloc_read_page(struct ring_buffer *buffer)
+{
+	unsigned long addr;
+	struct buffer_data_page *page;
+
+	addr = __get_free_page(GFP_KERNEL);
+	if (!addr)
+		return NULL;
+
+	page = (void *)addr;
+
+	return page;
+}
+
+/**
+ * ring_buffer_free_read_page - free an allocated read page
+ * @buffer: the buffer the page was allocate for
+ * @data: the page to free
+ *
+ * Free a page allocated from ring_buffer_alloc_read_page.
+ */
+void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
+{
+	free_page((unsigned long)data);
+}
+
+/**
+ * ring_buffer_read_page - extract a page from the ring buffer
+ * @buffer: buffer to extract from
+ * @data_page: the page to use allocated from ring_buffer_alloc_read_page
+ * @cpu: the cpu of the buffer to extract
+ * @full: should the extraction only happen when the page is full.
+ *
+ * This function will pull out a page from the ring buffer and consume it.
+ * @data_page must be the address of the variable that was returned
+ * from ring_buffer_alloc_read_page. This is because the page might be used
+ * to swap with a page in the ring buffer.
+ *
+ * for example:
+ *	rpage = ring_buffer_alloc_page(buffer);
+ *	if (!rpage)
+ *		return error;
+ *	ret = ring_buffer_read_page(buffer, &rpage, cpu, 0);
+ *	if (ret)
+ *		process_page(rpage);
+ *
+ * When @full is set, the function will not return true unless
+ * the writer is off the reader page.
+ *
+ * Note: it is up to the calling functions to handle sleeps and wakeups.
+ *  The ring buffer can be used anywhere in the kernel and can not
+ *  blindly call wake_up. The layer that uses the ring buffer must be
+ *  responsible for that.
+ *
+ * Returns:
+ *  1 if data has been transferred
+ *  0 if no data has been transferred.
+ */
+int ring_buffer_read_page(struct ring_buffer *buffer,
+			    void **data_page, int cpu, int full)
+{
+	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
+	struct ring_buffer_event *event;
+	struct buffer_data_page *page;
+	unsigned long flags;
+	int ret = 0;
+
+	if (!data_page)
+		return 0;
+
+	page = *data_page;
+	if (!page)
+		return 0;
+
+	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+
+	/*
+	 * rb_buffer_peek will get the next ring buffer if
+	 * the current reader page is empty.
+	 */
+	event = rb_buffer_peek(buffer, cpu, NULL);
+	if (!event)
+		goto out;
+
+	/* check for data */
+	if (!local_read(&cpu_buffer->reader_page->page->commit))
+		goto out;
+	/*
+	 * If the writer is already off of the read page, then simply
+	 * switch the read page with the given page. Otherwise
+	 * we need to copy the data from the reader to the writer.
+	 */
+	if (cpu_buffer->reader_page == cpu_buffer->commit_page) {
+		unsigned int read = cpu_buffer->reader_page->read;
+
+		if (full)
+			goto out;
+		/* The writer is still on the reader page, we must copy */
+		page = cpu_buffer->reader_page->page;
+		memcpy(page->data,
+		       cpu_buffer->reader_page->page->data + read,
+		       local_read(&page->commit) - read);
+
+		/* consume what was read */
+		cpu_buffer->reader_page += read;
+
+	} else {
+		/* swap the pages */
+		rb_init_page(page);
+		page = cpu_buffer->reader_page->page;
+		cpu_buffer->reader_page->page = *data_page;
+		cpu_buffer->reader_page->read = 0;
+		*data_page = page;
+	}
+	ret = 1;
+
+	/* update the entry counter */
+	rb_remove_entries(cpu_buffer, page);
+ out:
+	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+
+	return ret;
 }
 
 static ssize_t
