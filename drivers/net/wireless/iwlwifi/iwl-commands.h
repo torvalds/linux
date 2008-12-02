@@ -3064,4 +3064,6 @@ struct iwl_rx_packet {
 
 #define IWL_RX_FRAME_SIZE        (4 + sizeof(struct iwl4965_rx_frame))
 
+int iwl_agn_check_rxon_cmd(struct iwl_rxon_cmd *rxon);
+
 #endif				/* __iwl_commands_h__ */
