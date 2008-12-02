@@ -1434,6 +1434,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	u32 blocksize;
 	u32 stripesize;
 	u64 generation;
+	u64 features;
 	struct btrfs_key location;
 	struct buffer_head *bh;
 	struct btrfs_root *extent_root = kzalloc(sizeof(struct btrfs_root),
@@ -1583,6 +1584,26 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = btrfs_parse_options(tree_root, options);
 	if (ret) {
 		err = ret;
+		goto fail_sb_buffer;
+	}
+
+	features = btrfs_super_incompat_flags(disk_super) &
+		~BTRFS_FEATURE_INCOMPAT_SUPP;
+	if (features) {
+		printk(KERN_ERR "BTRFS: couldn't mount because of "
+		       "unsupported optional features (%Lx).\n",
+		       features);
+		err = -EINVAL;
+		goto fail_sb_buffer;
+	}
+
+	features = btrfs_super_compat_ro_flags(disk_super) &
+		~BTRFS_FEATURE_COMPAT_RO_SUPP;
+	if (!(sb->s_flags & MS_RDONLY) && features) {
+		printk(KERN_ERR "BTRFS: couldn't mount RDWR because of "
+		       "unsupported option features (%Lx).\n",
+		       features);
+		err = -EINVAL;
 		goto fail_sb_buffer;
 	}
 
