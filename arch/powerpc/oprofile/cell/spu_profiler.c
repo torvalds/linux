@@ -31,8 +31,8 @@ static unsigned int profiling_interval;
 
 #define SPU_PC_MASK	     0xFFFF
 
-static DEFINE_SPINLOCK(sample_array_lock);
-unsigned long sample_array_lock_flags;
+static DEFINE_SPINLOCK(oprof_spu_smpl_arry_lck);
+unsigned long oprof_spu_smpl_arry_lck_flags;
 
 void set_spu_profiling_frequency(unsigned int freq_khz, unsigned int cycles_reset)
 {
@@ -145,13 +145,13 @@ static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 		 * sample array must be loaded and then processed for a given
 		 * cpu.	 The sample array is not per cpu.
 		 */
-		spin_lock_irqsave(&sample_array_lock,
-				  sample_array_lock_flags);
+		spin_lock_irqsave(&oprof_spu_smpl_arry_lck,
+				  oprof_spu_smpl_arry_lck_flags);
 		num_samples = cell_spu_pc_collection(cpu);
 
 		if (num_samples == 0) {
-			spin_unlock_irqrestore(&sample_array_lock,
-					       sample_array_lock_flags);
+			spin_unlock_irqrestore(&oprof_spu_smpl_arry_lck,
+					       oprof_spu_smpl_arry_lck_flags);
 			continue;
 		}
 
@@ -162,8 +162,8 @@ static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 					num_samples);
 		}
 
-		spin_unlock_irqrestore(&sample_array_lock,
-				       sample_array_lock_flags);
+		spin_unlock_irqrestore(&oprof_spu_smpl_arry_lck,
+				       oprof_spu_smpl_arry_lck_flags);
 
 	}
 	smp_wmb();	/* insure spu event buffer updates are written */
@@ -182,13 +182,13 @@ static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 
 static struct hrtimer timer;
 /*
- * Entry point for SPU profiling.
+ * Entry point for SPU cycle profiling.
  * NOTE:  SPU profiling is done system-wide, not per-CPU.
  *
  * cycles_reset is the count value specified by the user when
  * setting up OProfile to count SPU_CYCLES.
  */
-int start_spu_profiling(unsigned int cycles_reset)
+int start_spu_profiling_cycles(unsigned int cycles_reset)
 {
 	ktime_t kt;
 
@@ -212,10 +212,10 @@ int start_spu_profiling(unsigned int cycles_reset)
 	return 0;
 }
 
-void stop_spu_profiling(void)
+void stop_spu_profiling_cycles(void)
 {
 	spu_prof_running = 0;
 	hrtimer_cancel(&timer);
 	kfree(samples);
-	pr_debug("SPU_PROF: stop_spu_profiling issued\n");
+	pr_debug("SPU_PROF: stop_spu_profiling_cycles issued\n");
 }
