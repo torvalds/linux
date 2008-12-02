@@ -243,10 +243,8 @@ static void ftrace_update_pid_func(void)
 		set_ftrace_pid_function(func);
 		func = ftrace_pid_func;
 	} else {
-		if (func != ftrace_pid_func)
-			goto out;
-
-		set_ftrace_pid_function(func);
+		if (func == ftrace_pid_func)
+			func = ftrace_pid_function;
 	}
 
 #ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
