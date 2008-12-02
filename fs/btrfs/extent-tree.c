@@ -74,7 +74,7 @@ static int block_group_bits(struct btrfs_block_group_cache *cache, u64 bits)
  * this adds the block group to the fs_info rb tree for the block group
  * cache
  */
-int btrfs_add_block_group_cache(struct btrfs_fs_info *info,
+static int btrfs_add_block_group_cache(struct btrfs_fs_info *info,
 				struct btrfs_block_group_cache *block_group)
 {
 	struct rb_node **p;
@@ -289,7 +289,7 @@ err:
 /*
  * return the block group that starts at or after bytenr
  */
-struct btrfs_block_group_cache *btrfs_lookup_first_block_group(struct
+static struct btrfs_block_group_cache *btrfs_lookup_first_block_group(struct
 						       btrfs_fs_info *info,
 							 u64 bytenr)
 {
@@ -3445,7 +3445,7 @@ static int noinline cache_drop_leaf_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len,
+static int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len,
 			      u32 *refs)
 {
 	int ret;
@@ -5434,7 +5434,7 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	return flags;
 }
 
-int __alloc_chunk_for_shrink(struct btrfs_root *root,
+static int __alloc_chunk_for_shrink(struct btrfs_root *root,
 		     struct btrfs_block_group_cache *shrink_block_group,
 		     int force)
 {
@@ -5703,8 +5703,8 @@ out:
 	return ret;
 }
 
-int find_first_block_group(struct btrfs_root *root, struct btrfs_path *path,
-			   struct btrfs_key *key)
+static int find_first_block_group(struct btrfs_root *root,
+		struct btrfs_path *path, struct btrfs_key *key)
 {
 	int ret = 0;
 	struct btrfs_key found_key;

@@ -443,7 +443,8 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 	mutex_unlock(&block_group->alloc_mutex);
 }
 
-struct btrfs_free_space *btrfs_find_free_space_offset(struct
+#if 0
+static struct btrfs_free_space *btrfs_find_free_space_offset(struct
 						      btrfs_block_group_cache
 						      *block_group, u64 offset,
 						      u64 bytes)
@@ -458,7 +459,7 @@ struct btrfs_free_space *btrfs_find_free_space_offset(struct
 	return ret;
 }
 
-struct btrfs_free_space *btrfs_find_free_space_bytes(struct
+static struct btrfs_free_space *btrfs_find_free_space_bytes(struct
 						     btrfs_block_group_cache
 						     *block_group, u64 offset,
 						     u64 bytes)
@@ -472,6 +473,7 @@ struct btrfs_free_space *btrfs_find_free_space_bytes(struct
 
 	return ret;
 }
+#endif
 
 struct btrfs_free_space *btrfs_find_free_space(struct btrfs_block_group_cache
 					       *block_group, u64 offset,

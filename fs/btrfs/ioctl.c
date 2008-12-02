@@ -354,7 +354,7 @@ out_unlock:
 }
 
 
-int btrfs_defrag_file(struct file *file)
+static int btrfs_defrag_file(struct file *file)
 {
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -649,7 +649,7 @@ static int btrfs_ioctl_defrag(struct file *file)
 	return 0;
 }
 
-long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
+static long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
 {
 	struct btrfs_ioctl_vol_args *vol_args;
 	int ret;
@@ -671,7 +671,7 @@ out:
 	return ret;
 }
 
-long btrfs_ioctl_rm_dev(struct btrfs_root *root, void __user *arg)
+static long btrfs_ioctl_rm_dev(struct btrfs_root *root, void __user *arg)
 {
 	struct btrfs_ioctl_vol_args *vol_args;
 	int ret;
@@ -696,8 +696,8 @@ out:
 	return ret;
 }
 
-long btrfs_ioctl_clone(struct file *file, unsigned long srcfd, u64 off,
-		       u64 olen, u64 destoff)
+static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
+		u64 off, u64 olen, u64 destoff)
 {
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -1035,7 +1035,7 @@ out_fput:
 	return ret;
 }
 
-long btrfs_ioctl_clone_range(struct file *file, unsigned long argptr)
+static long btrfs_ioctl_clone_range(struct file *file, unsigned long argptr)
 {
 	struct btrfs_ioctl_clone_range_args args;
 
@@ -1051,7 +1051,7 @@ long btrfs_ioctl_clone_range(struct file *file, unsigned long argptr)
  * basically own the machine, and have a very in depth understanding
  * of all the possible deadlocks and enospc problems.
  */
-long btrfs_ioctl_trans_start(struct file *file)
+static long btrfs_ioctl_trans_start(struct file *file)
 {
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;

@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/pagemap.h>
 #include <linux/bio.h>
+#include "compression.h"
 
 /* Plan: call deflate() with avail_in == *sourcelen,
 	avail_out = *dstlen - 12 and flush == Z_FINISH.

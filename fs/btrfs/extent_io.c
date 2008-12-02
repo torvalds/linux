@@ -112,7 +112,7 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 }
 EXPORT_SYMBOL(extent_io_tree_init);
 
-struct extent_state *alloc_extent_state(gfp_t mask)
+static struct extent_state *alloc_extent_state(gfp_t mask)
 {
 	struct extent_state *state;
 #ifdef LEAK_DEBUG
@@ -136,7 +136,7 @@ struct extent_state *alloc_extent_state(gfp_t mask)
 }
 EXPORT_SYMBOL(alloc_extent_state);
 
-void free_extent_state(struct extent_state *state)
+static void free_extent_state(struct extent_state *state)
 {
 	if (!state)
 		return;
@@ -662,7 +662,7 @@ static void set_state_bits(struct extent_io_tree *tree,
  * [start, end] is inclusive
  * This takes the tree lock.
  */
-int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits,
+static int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits,
 		   int exclusive, u64 *failed_start, gfp_t mask)
 {
 	struct extent_state *state;
@@ -879,12 +879,11 @@ int set_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
 }
 EXPORT_SYMBOL(set_extent_new);
 
-int clear_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
+static int clear_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
 		       gfp_t mask)
 {
 	return clear_extent_bit(tree, start, end, EXTENT_NEW, 0, 0, mask);
 }
-EXPORT_SYMBOL(clear_extent_new);
 
 int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 			gfp_t mask)
@@ -894,27 +893,24 @@ int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 }
 EXPORT_SYMBOL(set_extent_uptodate);
 
-int clear_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
+static int clear_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 			  gfp_t mask)
 {
 	return clear_extent_bit(tree, start, end, EXTENT_UPTODATE, 0, 0, mask);
 }
-EXPORT_SYMBOL(clear_extent_uptodate);
 
-int set_extent_writeback(struct extent_io_tree *tree, u64 start, u64 end,
+static int set_extent_writeback(struct extent_io_tree *tree, u64 start, u64 end,
 			 gfp_t mask)
 {
 	return set_extent_bit(tree, start, end, EXTENT_WRITEBACK,
 			      0, NULL, mask);
 }
-EXPORT_SYMBOL(set_extent_writeback);
 
-int clear_extent_writeback(struct extent_io_tree *tree, u64 start, u64 end,
+static int clear_extent_writeback(struct extent_io_tree *tree, u64 start, u64 end,
 			   gfp_t mask)
 {
 	return clear_extent_bit(tree, start, end, EXTENT_WRITEBACK, 1, 0, mask);
 }
-EXPORT_SYMBOL(clear_extent_writeback);
 
 int wait_on_extent_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 {
@@ -994,7 +990,7 @@ EXPORT_SYMBOL(set_range_dirty);
 /*
  * helper function to set both pages and extents in the tree writeback
  */
-int set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
+static int set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 {
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
@@ -1010,7 +1006,6 @@ int set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 	set_extent_writeback(tree, start, end, GFP_NOFS);
 	return 0;
 }
-EXPORT_SYMBOL(set_range_writeback);
 
 /*
  * find the first offset in the io tree with 'bits' set. zero is
@@ -1432,11 +1427,13 @@ out:
 	spin_unlock_irq(&tree->lock);
 	return total_bytes;
 }
+
+#if 0
 /*
  * helper function to lock both pages and extents in the tree.
  * pages must be locked first.
  */
-int lock_range(struct extent_io_tree *tree, u64 start, u64 end)
+static int lock_range(struct extent_io_tree *tree, u64 start, u64 end)
 {
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
@@ -1473,12 +1470,11 @@ failed:
 	}
 	return err;
 }
-EXPORT_SYMBOL(lock_range);
 
 /*
  * helper function to unlock both pages and extents in the tree.
  */
-int unlock_range(struct extent_io_tree *tree, u64 start, u64 end)
+static int unlock_range(struct extent_io_tree *tree, u64 start, u64 end)
 {
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
@@ -1493,7 +1489,7 @@ int unlock_range(struct extent_io_tree *tree, u64 start, u64 end)
 	unlock_extent(tree, start, end, GFP_NOFS);
 	return 0;
 }
-EXPORT_SYMBOL(unlock_range);
+#endif
 
 /*
  * set the private field for a given byte offset in the tree.  If there isn't
@@ -1956,7 +1952,7 @@ void set_page_extent_mapped(struct page *page)
 }
 EXPORT_SYMBOL(set_page_extent_mapped);
 
-void set_page_extent_head(struct page *page, unsigned long len)
+static void set_page_extent_head(struct page *page, unsigned long len)
 {
 	set_page_private(page, EXTENT_PAGE_PRIVATE_FIRST_PAGE | len << 2);
 }
@@ -2397,7 +2393,7 @@ update_nr_written:
  * WB_SYNC_ALL then we were called for data integrity and we must wait for
  * existing IO to complete.
  */
-int extent_write_cache_pages(struct extent_io_tree *tree,
+static int extent_write_cache_pages(struct extent_io_tree *tree,
 			     struct address_space *mapping,
 			     struct writeback_control *wbc,
 			     writepage_t writepage, void *data,
@@ -2502,7 +2498,6 @@ retry:
 	}
 	return ret;
 }
-EXPORT_SYMBOL(extent_write_cache_pages);
 
 static noinline void flush_write_bio(void *data)
 {

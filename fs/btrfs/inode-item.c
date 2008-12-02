@@ -20,7 +20,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 
-int find_name_in_backref(struct btrfs_path *path, const char * name,
+static int find_name_in_backref(struct btrfs_path *path, const char *name,
 			 int name_len, struct btrfs_inode_ref **ref_ret)
 {
 	struct extent_buffer *leaf;

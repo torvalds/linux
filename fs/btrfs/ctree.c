@@ -217,7 +217,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
  * this uses that block instead of allocating a new one.  btrfs_alloc_reserved_extent
  * is used to finish the allocation.
  */
-int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
+static int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct extent_buffer *buf,
 			     struct extent_buffer *parent, int parent_slot,

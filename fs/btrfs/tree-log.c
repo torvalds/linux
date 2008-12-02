@@ -23,6 +23,7 @@
 #include "locking.h"
 #include "print-tree.h"
 #include "compat.h"
+#include "tree-log.h"
 
 /* magic values for the inode_only field in btrfs_log_inode:
  *
@@ -78,7 +79,7 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
  * tree of log tree roots.  This must be called with a tree log transaction
  * running (see start_log_trans).
  */
-int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
+static int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root)
 {
 	struct btrfs_key key;
@@ -1934,7 +1935,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-int wait_log_commit(struct btrfs_root *log)
+static int wait_log_commit(struct btrfs_root *log)
 {
 	DEFINE_WAIT(wait);
 	u64 transid = log->fs_info->tree_log_transid;

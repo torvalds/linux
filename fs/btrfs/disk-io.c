@@ -93,9 +93,9 @@ struct async_submit_bio {
  * extents on the btree inode are pretty simple, there's one extent
  * that covers the entire device
  */
-struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
-				    size_t page_offset, u64 start, u64 len,
-				    int create)
+static struct extent_map *btree_get_extent(struct inode *inode,
+		struct page *page, size_t page_offset, u64 start, u64 len,
+		int create)
 {
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_map *em;
@@ -295,7 +295,7 @@ printk("read extent buffer pages failed with ret %d mirror no %d\n", ret, mirror
  * checksum a dirty tree block before IO.  This has extra checks to make
  * sure we only fill in the checksum field in the first page of a multi-page block
  */
-int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
+static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 {
 	struct extent_io_tree *tree;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
@@ -365,7 +365,7 @@ static int check_tree_block_fsid(struct btrfs_root *root,
 	return ret;
 }
 
-int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
+static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
 	struct extent_io_tree *tree;
@@ -660,7 +660,7 @@ static int btree_writepages(struct address_space *mapping,
 	return extent_writepages(tree, mapping, btree_get_extent, wbc);
 }
 
-int btree_readpage(struct file *file, struct page *page)
+static int btree_readpage(struct file *file, struct page *page)
 {
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
@@ -1200,7 +1200,7 @@ static void __unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 	}
 }
 
-void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
+static void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {
 	struct inode *inode;
 	struct extent_map_tree *em_tree;
@@ -1842,7 +1842,7 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	put_bh(bh);
 }
 
-int write_all_supers(struct btrfs_root *root)
+static int write_all_supers(struct btrfs_root *root)
 {
 	struct list_head *cur;
 	struct list_head *head = &root->fs_info->fs_devices->devices;

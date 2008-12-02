@@ -647,7 +647,7 @@ static int btrfs_interface_init(void)
 	return misc_register(&btrfs_misc);
 }
 
-void btrfs_interface_exit(void)
+static void btrfs_interface_exit(void)
 {
 	if (misc_deregister(&btrfs_misc) < 0)
 		printk("misc_deregister failed for control device");

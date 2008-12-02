@@ -276,6 +276,7 @@ out:
 	return ret;
 }
 
+#if 0 /* this will get used when snapshot deletion is implemented */
 int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *tree_root,
 		       u64 root_id, u8 type, u64 ref_id)
@@ -299,6 +300,7 @@ int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
 	btrfs_free_path(path);
 	return ret;
 }
+#endif
 
 int btrfs_find_root_ref(struct btrfs_root *tree_root,
 		   struct btrfs_path *path,

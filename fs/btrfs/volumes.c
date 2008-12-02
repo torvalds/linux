@@ -238,7 +238,7 @@ done:
 	return 0;
 }
 
-void pending_bios_fn(struct btrfs_work *work)
+static void pending_bios_fn(struct btrfs_work *work)
 {
 	struct btrfs_device *device;
 
@@ -686,7 +686,7 @@ error:
 	return ret;
 }
 
-int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
+static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
 			  struct btrfs_device *device,
 			  u64 start)
 {
@@ -1393,7 +1393,7 @@ error:
 	goto out;
 }
 
-int noinline btrfs_update_device(struct btrfs_trans_handle *trans,
+static int noinline btrfs_update_device(struct btrfs_trans_handle *trans,
 				 struct btrfs_device *device)
 {
 	int ret;
@@ -1497,7 +1497,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int btrfs_del_sys_chunk(struct btrfs_root *root, u64 chunk_objectid, u64
+static int btrfs_del_sys_chunk(struct btrfs_root *root, u64 chunk_objectid, u64
 			chunk_offset)
 {
 	struct btrfs_super_block *super_copy = &root->fs_info->super_copy;
@@ -1543,7 +1543,7 @@ int btrfs_del_sys_chunk(struct btrfs_root *root, u64 chunk_objectid, u64
 	return ret;
 }
 
-int btrfs_relocate_chunk(struct btrfs_root *root,
+static int btrfs_relocate_chunk(struct btrfs_root *root,
 			 u64 chunk_tree, u64 chunk_objectid,
 			 u64 chunk_offset)
 {
@@ -1884,7 +1884,7 @@ done:
 	return ret;
 }
 
-int btrfs_add_system_chunk(struct btrfs_trans_handle *trans,
+static int btrfs_add_system_chunk(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   struct btrfs_key *key,
 			   struct btrfs_chunk *chunk, int item_size)

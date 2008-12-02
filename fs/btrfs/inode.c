@@ -1130,7 +1130,7 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
  * bytes in this file, and to maintain the list of inodes that
  * have pending delalloc work to be done.
  */
-int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
+static int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 		       unsigned long old, unsigned long bits)
 {
 	unsigned long flags;
@@ -1151,7 +1151,7 @@ int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 /*
  * extent_io.c clear_bit_hook, see set_bit_hook for why
  */
-int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
+static int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 			 unsigned long old, unsigned long bits)
 {
 	if ((old & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
@@ -1215,7 +1215,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-int __btrfs_submit_bio_start(struct inode *inode, int rw, struct bio *bio,
+static int __btrfs_submit_bio_start(struct inode *inode, int rw, struct bio *bio,
 			  int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -1234,7 +1234,7 @@ int __btrfs_submit_bio_start(struct inode *inode, int rw, struct bio *bio,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
+static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
 			  int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -1245,7 +1245,7 @@ int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
  * extent_io.c submission hook. This does the right thing for csum calculation on write,
  * or reading the csums from the tree before a read
  */
-int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 			  int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -1313,7 +1313,7 @@ struct btrfs_writepage_fixup {
 	struct btrfs_work work;
 };
 
-void btrfs_writepage_fixup_worker(struct btrfs_work *work)
+static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 {
 	struct btrfs_writepage_fixup *fixup;
 	struct btrfs_ordered_extent *ordered;
@@ -1372,7 +1372,7 @@ out_page:
  * to fix it up.  The async helper will wait for ordered extents, set
  * the delalloc bit and make it safe to write the page.
  */
-int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
+static int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
 {
 	struct inode *inode = page->mapping->host;
 	struct btrfs_writepage_fixup *fixup;
@@ -1526,7 +1526,7 @@ nocow:
 	return 0;
 }
 
-int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
+static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 				struct extent_state *state, int uptodate)
 {
 	return btrfs_finish_ordered_io(page->mapping->host, start, end);
@@ -1548,7 +1548,7 @@ struct io_failure_record {
 	int last_mirror;
 };
 
-int btrfs_io_failed_hook(struct bio *failed_bio,
+static int btrfs_io_failed_hook(struct bio *failed_bio,
 			 struct page *page, u64 start, u64 end,
 			 struct extent_state *state)
 {
@@ -1642,7 +1642,7 @@ int btrfs_io_failed_hook(struct bio *failed_bio,
  * each time an IO finishes, we do a fast check in the IO failure tree
  * to see if we need to process or clean up an io_failure_record
  */
-int btrfs_clean_io_failures(struct inode *inode, u64 start)
+static int btrfs_clean_io_failures(struct inode *inode, u64 start)
 {
 	u64 private;
 	u64 private_failure;
@@ -1675,7 +1675,7 @@ int btrfs_clean_io_failures(struct inode *inode, u64 start)
  * if there's a match, we allow the bio to finish.  If not, we go through
  * the io_failure_record routines to find good copies
  */
-int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
+static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
 	size_t offset = start - ((u64)page->index << PAGE_CACHE_SHIFT);
@@ -4362,8 +4362,8 @@ out:
  * Invalidate a single dcache entry at the root of the filesystem.
  * Needed after creation of snapshot or subvolume.
  */
-void btrfs_invalidate_dcache_root(struct inode *dir, char *name,
-				  int namelen)
+static void btrfs_invalidate_dcache_root(struct inode *dir,
+		char *name, int namelen)
 {
 	struct dentry *alias, *entry;
 	struct qstr qstr;
