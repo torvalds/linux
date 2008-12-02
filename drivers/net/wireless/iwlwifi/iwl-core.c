@@ -961,6 +961,30 @@ void iwl_uninit_drv(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_uninit_drv);
 
+
+void iwl_disable_interrupts(struct iwl_priv *priv)
+{
+	clear_bit(STATUS_INT_ENABLED, &priv->status);
+
+	/* disable interrupts from uCode/NIC to host */
+	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
+
+	/* acknowledge/clear/reset any interrupts still pending
+	 * from uCode or flow handler (Rx/Tx DMA) */
+	iwl_write32(priv, CSR_INT, 0xffffffff);
+	iwl_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
+	IWL_DEBUG_ISR("Disabled interrupts\n");
+}
+EXPORT_SYMBOL(iwl_disable_interrupts);
+
+void iwl_enable_interrupts(struct iwl_priv *priv)
+{
+	IWL_DEBUG_ISR("Enabling interrupts\n");
+	set_bit(STATUS_INT_ENABLED, &priv->status);
+	iwl_write32(priv, CSR_INT_MASK, CSR_INI_SET_MASK);
+}
+EXPORT_SYMBOL(iwl_enable_interrupts);
+
 int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags)
 {
 	u32 stat_flags = 0;
@@ -1335,6 +1359,7 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 			cmd.critical_temperature_R);
 }
 EXPORT_SYMBOL(iwl_rf_kill_ct_config);
+
 
 /*
  * CARD_STATE_CMD

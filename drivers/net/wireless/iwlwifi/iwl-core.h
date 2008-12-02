@@ -313,6 +313,12 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
 /*****************************************************
+ * PCI						     *
+ *****************************************************/
+void iwl_disable_interrupts(struct iwl_priv *priv);
+void iwl_enable_interrupts(struct iwl_priv *priv);
+
+/*****************************************************
 *  Error Handling Debugging
 ******************************************************/
 void iwl_dump_nic_error_log(struct iwl_priv *priv);

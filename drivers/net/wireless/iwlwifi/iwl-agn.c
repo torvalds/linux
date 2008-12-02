@@ -1255,13 +1255,6 @@ static void iwl_print_rx_config_cmd(struct iwl_priv *priv)
 }
 #endif
 
-static void iwl_enable_interrupts(struct iwl_priv *priv)
-{
-	IWL_DEBUG_ISR("Enabling interrupts\n");
-	set_bit(STATUS_INT_ENABLED, &priv->status);
-	iwl_write32(priv, CSR_INT_MASK, CSR_INI_SET_MASK);
-}
-
 /* call this function to flush any scheduled tasklet */
 static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 {
@@ -1269,21 +1262,6 @@ static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 	synchronize_irq(priv->pci_dev->irq);
 	tasklet_kill(&priv->irq_tasklet);
 }
-
-static inline void iwl_disable_interrupts(struct iwl_priv *priv)
-{
-	clear_bit(STATUS_INT_ENABLED, &priv->status);
-
-	/* disable interrupts from uCode/NIC to host */
-	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
-
-	/* acknowledge/clear/reset any interrupts still pending
-	 * from uCode or flow handler (Rx/Tx DMA) */
-	iwl_write32(priv, CSR_INT, 0xffffffff);
-	iwl_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
-	IWL_DEBUG_ISR("Disabled interrupts\n");
-}
-
 
 /**
  * iwl_irq_handle_error - called for HW or SW error interrupt from card
