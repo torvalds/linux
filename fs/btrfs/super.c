@@ -242,7 +242,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
  * All other options will be parsed on much later in the mount process and
  * only when we need to allocate a new super block.
  */
-static int btrfs_parse_early_options(const char *options, int flags,
+static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		void *holder, char **subvol_name,
 		struct btrfs_fs_devices **fs_devices)
 {
@@ -418,18 +418,22 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 	struct super_block *s;
 	struct dentry *root;
 	struct btrfs_fs_devices *fs_devices = NULL;
+	fmode_t mode = FMODE_READ;
 	int error = 0;
 
-	error = btrfs_parse_early_options(data, flags, fs_type,
+	if (!(flags & MS_RDONLY))
+		mode |= FMODE_WRITE;
+
+	error = btrfs_parse_early_options(data, mode, fs_type,
 					  &subvol_name, &fs_devices);
 	if (error)
 		goto error;
 
-	error = btrfs_scan_one_device(dev_name, flags, fs_type, &fs_devices);
+	error = btrfs_scan_one_device(dev_name, mode, fs_type, &fs_devices);
 	if (error)
 		goto error_free_subvol_name;
 
-	error = btrfs_open_devices(fs_devices, flags, fs_type);
+	error = btrfs_open_devices(fs_devices, mode, fs_type);
 	if (error)
 		goto error_free_subvol_name;
 
@@ -591,7 +595,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	len = strnlen(vol->name, BTRFS_PATH_NAME_MAX);
 	switch (cmd) {
 	case BTRFS_IOC_SCAN_DEV:
-		ret = btrfs_scan_one_device(vol->name, MS_RDONLY,
+		ret = btrfs_scan_one_device(vol->name, FMODE_READ,
 					    &btrfs_fs_type, &fs_devices);
 		break;
 	}

@@ -135,8 +135,8 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		  int mirror_num, int async_submit);
 int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
-		       int flags, void *holder);
-int btrfs_scan_one_device(const char *path, int flags, void *holder,
+		       fmode_t flags, void *holder);
+int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret);
 int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
 int btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices);

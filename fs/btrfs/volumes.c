@@ -394,7 +394,7 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 }
 
 int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
-			 int flags, void *holder)
+			 fmode_t flags, void *holder)
 {
 	struct block_device *bdev;
 	struct list_head *head = &fs_devices->devices;
@@ -469,7 +469,7 @@ int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 error_brelse:
 		brelse(bh);
 error_close:
-		close_bdev_exclusive(bdev, MS_RDONLY);
+		close_bdev_exclusive(bdev, FMODE_READ);
 error:
 		continue;
 	}
@@ -488,7 +488,7 @@ out:
 }
 
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
-		       int flags, void *holder)
+		       fmode_t flags, void *holder)
 {
 	int ret;
 
@@ -507,7 +507,7 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 	return ret;
 }
 
-int btrfs_scan_one_device(const char *path, int flags, void *holder,
+int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret)
 {
 	struct btrfs_super_block *disk_super;
@@ -1008,7 +1008,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 			goto out;
 		}
 	} else {
-		bdev = open_bdev_exclusive(device_path, MS_RDONLY,
+		bdev = open_bdev_exclusive(device_path, FMODE_READ,
 				      root->fs_info->bdev_holder);
 		if (IS_ERR(bdev)) {
 			ret = PTR_ERR(bdev);
@@ -1078,7 +1078,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		BUG_ON(device->writeable);
 		brelse(bh);
 		if (bdev)
-			close_bdev_exclusive(bdev, MS_RDONLY);
+			close_bdev_exclusive(bdev, FMODE_READ);
 
 		if (device->bdev) {
 			close_bdev_exclusive(device->bdev, device->mode);
@@ -1121,7 +1121,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	}
 	if (bdev) {
 		/* one close for us */
-		close_bdev_exclusive(bdev, MS_RDONLY);
+		close_bdev_exclusive(bdev, FMODE_READ);
 	}
 	kfree(device->name);
 	kfree(device);
@@ -1132,7 +1132,7 @@ error_brelse:
 	brelse(bh);
 error_close:
 	if (bdev)
-		close_bdev_exclusive(bdev, MS_RDONLY);
+		close_bdev_exclusive(bdev, FMODE_READ);
 out:
 	mutex_unlock(&root->fs_info->volume_mutex);
 	mutex_unlock(&uuid_mutex);
@@ -2913,7 +2913,7 @@ static int open_seed_devices(struct btrfs_root *root, u8 *fsid)
 		goto out;
 	}
 
-	ret = __btrfs_open_devices(fs_devices, MS_RDONLY,
+	ret = __btrfs_open_devices(fs_devices, FMODE_READ,
 				   root->fs_info->bdev_holder);
 	if (ret)
 		goto out;
