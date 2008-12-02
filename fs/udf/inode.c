@@ -1223,10 +1223,10 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	iinfo->i_lenExtents = inode->i_size;
 
 	if (fe->icbTag.fileType != ICBTAG_FILE_TYPE_DIRECTORY &&
-			sbi->s_fmode != -1)
+			sbi->s_fmode != UDF_INVALID_MODE)
 		inode->i_mode = sbi->s_fmode;
 	else if (fe->icbTag.fileType == ICBTAG_FILE_TYPE_DIRECTORY &&
-			sbi->s_dmode != -1)
+			sbi->s_dmode != UDF_INVALID_MODE)
 		inode->i_mode = sbi->s_dmode;
 	else
 		inode->i_mode = udf_convert_permissions(fe);

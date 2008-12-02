@@ -284,9 +284,9 @@ static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",gid=%u", sbi->s_gid);
 	if (sbi->s_umask != 0)
 		seq_printf(seq, ",umask=%o", sbi->s_umask);
-	if (sbi->s_fmode != -1)
+	if (sbi->s_fmode != UDF_INVALID_MODE)
 		seq_printf(seq, ",mode=%o", sbi->s_fmode);
-	if (sbi->s_dmode != -1)
+	if (sbi->s_dmode != UDF_INVALID_MODE)
 		seq_printf(seq, ",dmode=%o", sbi->s_dmode);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_SESSION_SET))
 		seq_printf(seq, ",session=%u", sbi->s_session);
@@ -1892,8 +1892,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	uopt.uid = -1;
 	uopt.gid = -1;
 	uopt.umask = 0;
-	uopt.fmode = -1;
-	uopt.dmode = -1;
+	uopt.fmode = UDF_INVALID_MODE;
+	uopt.dmode = UDF_INVALID_MODE;
 
 	sbi = kzalloc(sizeof(struct udf_sb_info), GFP_KERNEL);
 	if (!sbi)
