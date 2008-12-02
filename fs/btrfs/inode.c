@@ -1114,10 +1114,10 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 	if (btrfs_test_opt(root, NODATACOW) ||
 	    btrfs_test_flag(inode, NODATACOW))
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
-					 page_started, 0, nr_written);
+                                        page_started, 1, nr_written);
 	else if (btrfs_test_flag(inode, PREALLOC))
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
-					 page_started, 1, nr_written);
+                                        page_started, 0, nr_written);
 	else
 		ret = cow_file_range_async(inode, locked_page, start, end,
 				     page_started, nr_written);
