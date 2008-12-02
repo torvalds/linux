@@ -2284,7 +2284,8 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, int dd_size,
 	}
 	spin_unlock_bh(&session->lock);
 
-	data = kmalloc(ISCSI_DEF_MAX_RECV_SEG_LEN, GFP_KERNEL);
+	data = (char *) __get_free_pages(GFP_KERNEL,
+					 get_order(ISCSI_DEF_MAX_RECV_SEG_LEN));
 	if (!data)
 		goto login_task_data_alloc_fail;
 	conn->login_task->data = conn->data = data;
@@ -2355,7 +2356,8 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	iscsi_suspend_tx(conn);
 
 	spin_lock_bh(&session->lock);
-	kfree(conn->data);
+	free_pages((unsigned long) conn->data,
+		   get_order(ISCSI_DEF_MAX_RECV_SEG_LEN));
 	kfree(conn->persistent_address);
 	__kfifo_put(session->cmdpool.queue, (void*)&conn->login_task,
 		    sizeof(void*));
