@@ -286,6 +286,21 @@ static int iommu_queue_inv_dev_entry(struct amd_iommu *iommu, u16 devid)
 	return ret;
 }
 
+static void __iommu_build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
+					  u16 domid, int pde, int s)
+{
+	memset(cmd, 0, sizeof(*cmd));
+	address &= PAGE_MASK;
+	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
+	cmd->data[1] |= domid;
+	cmd->data[2] = lower_32_bits(address);
+	cmd->data[3] = upper_32_bits(address);
+	if (s) /* size bit - we flush more than one 4kb page */
+		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
+	if (pde) /* PDE bit - we wan't flush everything not only the PTEs */
+		cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
+}
+
 /*
  * Generic command send function for invalidaing TLB entries
  */
@@ -295,16 +310,7 @@ static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
 	struct iommu_cmd cmd;
 	int ret;
 
-	memset(&cmd, 0, sizeof(cmd));
-	address &= PAGE_MASK;
-	CMD_SET_TYPE(&cmd, CMD_INV_IOMMU_PAGES);
-	cmd.data[1] |= domid;
-	cmd.data[2] = lower_32_bits(address);
-	cmd.data[3] = upper_32_bits(address);
-	if (s) /* size bit - we flush more than one 4kb page */
-		cmd.data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
-	if (pde) /* PDE bit - we wan't flush everything not only the PTEs */
-		cmd.data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
+	__iommu_build_inv_iommu_pages(&cmd, address, domid, pde, s);
 
 	ret = iommu_queue_command(iommu, &cmd);
 
