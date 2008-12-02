@@ -803,6 +803,12 @@ struct rt2x00_dev {
 	u16 tx_power;
 
 	/*
+	 * Current retry values.
+	 */
+	u8 short_retry;
+	u8 long_retry;
+
+	/*
 	 * Rssi <-> Dbm offset
 	 */
 	u8 rssi_offset;

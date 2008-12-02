@@ -231,14 +231,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 * Determine retry information.
 	 */
 	txdesc->retry_limit = tx_info->control.rates[0].count - 1;
-	/*
-	 * XXX: If at this point we knew whether the HW is going to use
-	 *	the RETRY_MODE bit or the retry_limit (currently all
-	 *	use the RETRY_MODE bit) we could do something like b43
-	 *	does, set the RETRY_MODE bit when the RC algorithm is
-	 *	requesting more than the long retry limit.
-	 */
-	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
+	if (txdesc->retry_limit >= rt2x00dev->long_retry)
 		__set_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags);
 
 	/*
