@@ -170,6 +170,7 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 				KVM_ASSIGNED_DEV_GUEST_MSI) {
 		assigned_device_msi_dispatch(assigned_dev);
 		enable_irq(assigned_dev->host_irq);
+		assigned_dev->host_irq_disabled = false;
 	}
 	mutex_unlock(&assigned_dev->kvm->lock);
 	kvm_put_kvm(assigned_dev->kvm);
@@ -181,8 +182,12 @@ static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
 		(struct kvm_assigned_dev_kernel *) dev_id;
 
 	kvm_get_kvm(assigned_dev->kvm);
+
 	schedule_work(&assigned_dev->interrupt_work);
+
 	disable_irq_nosync(irq);
+	assigned_dev->host_irq_disabled = true;
+
 	return IRQ_HANDLED;
 }
 
@@ -196,8 +201,16 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 
 	dev = container_of(kian, struct kvm_assigned_dev_kernel,
 			   ack_notifier);
+
 	kvm_set_irq(dev->kvm, dev->irq_source_id, dev->guest_irq, 0);
-	enable_irq(dev->host_irq);
+
+	/* The guest irq may be shared so this ack may be
+	 * from another device.
+	 */
+	if (dev->host_irq_disabled) {
+		enable_irq(dev->host_irq);
+		dev->host_irq_disabled = false;
+	}
 }
 
 static void kvm_free_assigned_irq(struct kvm *kvm,

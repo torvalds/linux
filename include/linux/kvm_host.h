@@ -307,6 +307,7 @@ struct kvm_assigned_dev_kernel {
 	int host_busnr;
 	int host_devfn;
 	int host_irq;
+	bool host_irq_disabled;
 	int guest_irq;
 	struct msi_msg guest_msi;
 #define KVM_ASSIGNED_DEV_GUEST_INTX	(1 << 0)
