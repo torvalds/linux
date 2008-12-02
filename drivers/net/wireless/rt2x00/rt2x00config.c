@@ -108,33 +108,34 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp);
 }
 
+static inline
+enum antenna rt2x00lib_config_antenna_check(enum antenna current_ant,
+					    enum antenna default_ant)
+{
+	if (current_ant != ANTENNA_SW_DIVERSITY)
+		return current_ant;
+	return (default_ant != ANTENNA_SW_DIVERSITY) ? default_ant : ANTENNA_B;
+}
+
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 			      struct antenna_setup *ant)
 {
+	struct antenna_setup *def = &rt2x00dev->default_ant;
+	struct antenna_setup *active = &rt2x00dev->link.ant.active;
+
 	/*
 	 * Failsafe: Make sure we are not sending the
 	 * ANTENNA_SW_DIVERSITY state to the driver.
 	 * If that happes fallback to hardware default,
 	 * or our own default.
+	 * The calls to rt2x00lib_config_antenna_check()
+	 * might have caused that we restore back to the already
+	 * active setting. If that has happened we can quit.
 	 */
-	if (ant->rx == ANTENNA_SW_DIVERSITY) {
-		if (rt2x00dev->default_ant.rx == ANTENNA_SW_DIVERSITY)
-			ant->rx = ANTENNA_B;
-		else
-			ant->rx = rt2x00dev->default_ant.rx;
-	}
-	if (ant->tx == ANTENNA_SW_DIVERSITY) {
-		if (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY)
-			ant->tx = ANTENNA_B;
-		else
-			ant->tx = rt2x00dev->default_ant.tx;
-	}
+	ant->rx = rt2x00lib_config_antenna_check(ant->rx, def->rx);
+	ant->tx = rt2x00lib_config_antenna_check(ant->tx, def->tx);
 
-	/*
-	 * Only reconfigure when something has changed.
-	 */
-	if (ant->rx == rt2x00dev->link.ant.active.rx &&
-	    ant->tx == rt2x00dev->link.ant.active.tx)
+	if (ant->rx == active->rx && ant->tx == active->tx)
 		return;
 
 	/*
@@ -154,7 +155,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	rt2x00lib_reset_link_tuner(rt2x00dev);
 	rt2x00_reset_link_ant_rssi(&rt2x00dev->link);
 
-	memcpy(&rt2x00dev->link.ant.active, ant, sizeof(*ant));
+	memcpy(active, ant, sizeof(*ant));
 
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
