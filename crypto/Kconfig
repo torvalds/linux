@@ -351,7 +351,7 @@ config CRYPTO_RMD320
 
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
