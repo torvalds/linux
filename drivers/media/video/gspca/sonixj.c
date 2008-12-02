@@ -1207,17 +1207,17 @@ static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, v;
-	__u8 rega0[12];			/* U & V gains */
+	__u8 reg8a[12];			/* U & V gains */
 	static __s16 uv[6] = {		/* same as reg84 in signed decimal */
 		-24, -38, 64,		/* UR UG UB */
 		 62, -51, -9		/* VR VG VB */
 	};
 	for (i = 0; i < 6; i++) {
 		v = uv[i] * sd->colors / COLOR_DEF;
-		rega0[i * 2] = v;
-		rega0[i * 2 + 1] = (v >> 8) & 0x0f;
+		reg8a[i * 2] = v;
+		reg8a[i * 2 + 1] = (v >> 8) & 0x0f;
 	}
-	reg_w(gspca_dev, 0x84, rega0, sizeof rega0);
+	reg_w(gspca_dev, 0x8a, reg8a, sizeof reg8a);
 }
 
 static void setredblue(struct gspca_dev *gspca_dev)
