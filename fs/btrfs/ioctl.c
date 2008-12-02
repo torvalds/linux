@@ -1142,7 +1142,6 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_TRANS_END:
 		return btrfs_ioctl_trans_end(file);
 	case BTRFS_IOC_SYNC:
-		btrfs_start_delalloc_inodes(root);
 		btrfs_sync_fs(file->f_dentry->d_sb, 1);
 		return 0;
 	}
