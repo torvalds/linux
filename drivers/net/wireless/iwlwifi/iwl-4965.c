@@ -48,12 +48,15 @@
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
 static int iwl4965_hw_get_temperature(const struct iwl_priv *priv);
 
-/* Change firmware file name, using "-" and incrementing number,
- *   *only* when uCode interface or architecture changes so that it
- *   is not compatible with earlier drivers.
- * This number will also appear in << 8 position of 1st dword of uCode file */
-#define IWL4965_UCODE_API "-2"
-#define IWL4965_MODULE_FIRMWARE "iwlwifi-4965" IWL4965_UCODE_API ".ucode"
+/* Highest firmware API version supported */
+#define IWL4965_UCODE_API_MAX 2
+
+/* Lowest firmware API version supported */
+#define IWL4965_UCODE_API_MIN 2
+
+#define IWL4965_FW_PRE "iwlwifi-4965-"
+#define _IWL4965_MODULE_FIRMWARE(api) IWL4965_FW_PRE #api ".ucode"
+#define IWL4965_MODULE_FIRMWARE(api) _IWL4965_MODULE_FIRMWARE(api)
 
 
 /* module parameters */
@@ -2336,7 +2339,9 @@ static struct iwl_ops iwl4965_ops = {
 
 struct iwl_cfg iwl4965_agn_cfg = {
 	.name = "4965AGN",
-	.fw_name = IWL4965_MODULE_FIRMWARE,
+	.fw_name_pre = IWL4965_FW_PRE,
+	.ucode_api_max = IWL4965_UCODE_API_MAX,
+	.ucode_api_min = IWL4965_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
@@ -2346,7 +2351,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 };
 
 /* Module firmware */
-MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE);
+MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE(IWL4965_UCODE_API_MAX));
 
 module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");

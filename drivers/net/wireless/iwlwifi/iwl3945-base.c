@@ -5296,25 +5296,41 @@ static void iwl3945_nic_start(struct iwl3945_priv *priv)
 static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 {
 	struct iwl3945_ucode *ucode;
-	int ret = 0;
+	int ret = -EINVAL, index;
 	const struct firmware *ucode_raw;
 	/* firmware file name contains uCode/driver compatibility version */
-	const char *name = priv->cfg->fw_name;
+	const char *name_pre = priv->cfg->fw_name_pre;
+	const unsigned int api_max = priv->cfg->ucode_api_max;
+	const unsigned int api_min = priv->cfg->ucode_api_min;
+	char buf[25];
 	u8 *src;
 	size_t len;
-	u32 inst_size, data_size, init_size, init_data_size, boot_size;
+	u32 api_ver, inst_size, data_size, init_size, init_data_size, boot_size;
 
 	/* Ask kernel firmware_class module to get the boot firmware off disk.
 	 * request_firmware() is synchronous, file is in memory on return. */
-	ret = request_firmware(&ucode_raw, name, &priv->pci_dev->dev);
-	if (ret < 0) {
-		IWL_ERROR("%s firmware file req failed: Reason %d\n",
-				name, ret);
-		goto error;
+	for (index = api_max; index >= api_min; index--) {
+		sprintf(buf, "%s%u%s", name_pre, index, ".ucode");
+		ret = request_firmware(&ucode_raw, buf, &priv->pci_dev->dev);
+		if (ret < 0) {
+			IWL_ERROR("%s firmware file req failed: Reason %d\n",
+				  buf, ret);
+			if (ret == -ENOENT)
+				continue;
+			else
+				goto error;
+		} else {
+			if (index < api_max)
+				IWL_ERROR("Loaded firmware %s, which is deprecated. Please use API v%u instead.\n",
+					  buf, api_max);
+			IWL_DEBUG_INFO("Got firmware '%s' file (%zd bytes) from disk\n",
+				       buf, ucode_raw->size);
+			break;
+		}
 	}
 
-	IWL_DEBUG_INFO("Got firmware '%s' file (%zd bytes) from disk\n",
-		       name, ucode_raw->size);
+	if (ret < 0)
+		goto error;
 
 	/* Make sure that we got at least our header! */
 	if (ucode_raw->size < sizeof(*ucode)) {
@@ -5327,24 +5343,44 @@ static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 	ucode = (void *)ucode_raw->data;
 
 	priv->ucode_ver = le32_to_cpu(ucode->ver);
+	api_ver = IWL_UCODE_API(priv->ucode_ver);
 	inst_size = le32_to_cpu(ucode->inst_size);
 	data_size = le32_to_cpu(ucode->data_size);
 	init_size = le32_to_cpu(ucode->init_size);
 	init_data_size = le32_to_cpu(ucode->init_data_size);
 	boot_size = le32_to_cpu(ucode->boot_size);
 
-	IWL_DEBUG_INFO("f/w package hdr ucode version raw = 0x%x\n",
-		       priv->ucode_ver);
-	IWL_DEBUG_INFO("f/w package hdr ucode version = %u.%u.%u.%u\n",
+	/* api_ver should match the api version forming part of the
+	 * firmware filename ... but we don't check for that and only rely
+	 * on the API version read from firware header from here on forward */
+
+	if (api_ver < api_min || api_ver > api_max) {
+		IWL_ERROR("Driver unable to support your firmware API. "
+			  "Driver supports v%u, firmware is v%u.\n",
+			  api_max, api_ver);
+		priv->ucode_ver = 0;
+		ret = -EINVAL;
+		goto err_release;
+	}
+	if (api_ver != api_max)
+		IWL_ERROR("Firmware has old API version. Expected %u, "
+			  "got %u. New firmware can be obtained "
+			  "from http://www.intellinuxwireless.org.\n",
+			  api_max, api_ver);
+
+	printk(KERN_INFO DRV_NAME " loaded firmware version %u.%u.%u.%u\n",
 		       IWL_UCODE_MAJOR(priv->ucode_ver),
 		       IWL_UCODE_MINOR(priv->ucode_ver),
 		       IWL_UCODE_API(priv->ucode_ver),
 		       IWL_UCODE_SERIAL(priv->ucode_ver));
+	IWL_DEBUG_INFO("f/w package hdr ucode version raw = 0x%x\n",
+		       priv->ucode_ver);
 	IWL_DEBUG_INFO("f/w package hdr runtime inst size = %u\n", inst_size);
 	IWL_DEBUG_INFO("f/w package hdr runtime data size = %u\n", data_size);
 	IWL_DEBUG_INFO("f/w package hdr init inst size = %u\n", init_size);
 	IWL_DEBUG_INFO("f/w package hdr init data size = %u\n", init_data_size);
 	IWL_DEBUG_INFO("f/w package hdr boot inst size = %u\n", boot_size);
+
 
 	/* Verify size of file vs. image size info in file's header */
 	if (ucode_raw->size < sizeof(*ucode) +
@@ -8304,7 +8340,7 @@ static void __exit iwl3945_exit(void)
 	iwl3945_rate_control_unregister();
 }
 
-MODULE_FIRMWARE("iwlwifi-3945" IWL3945_UCODE_API ".ucode");
+MODULE_FIRMWARE(IWL3945_MODULE_FIRMWARE(IWL3945_UCODE_API_MAX));
 
 module_param_named(antenna, iwl3945_param_antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");

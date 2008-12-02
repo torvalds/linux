@@ -44,11 +44,21 @@
 #include "iwl-helpers.h"
 #include "iwl-5000-hw.h"
 
-#define IWL5000_UCODE_API  "-1"
-#define IWL5150_UCODE_API  "-1"
+/* Highest firmware API version supported */
+#define IWL5000_UCODE_API_MAX 1
+#define IWL5150_UCODE_API_MAX 1
 
-#define IWL5000_MODULE_FIRMWARE "iwlwifi-5000" IWL5000_UCODE_API ".ucode"
-#define IWL5150_MODULE_FIRMWARE "iwlwifi-5150" IWL5150_UCODE_API ".ucode"
+/* Lowest firmware API version supported */
+#define IWL5000_UCODE_API_MIN 1
+#define IWL5150_UCODE_API_MIN 1
+
+#define IWL5000_FW_PRE "iwlwifi-5000-"
+#define _IWL5000_MODULE_FIRMWARE(api) IWL5000_FW_PRE #api ".ucode"
+#define IWL5000_MODULE_FIRMWARE(api) _IWL5000_MODULE_FIRMWARE(api)
+
+#define IWL5150_FW_PRE "iwlwifi-5150-"
+#define _IWL5150_MODULE_FIRMWARE(api) IWL5150_FW_PRE #api ".ucode"
+#define IWL5150_MODULE_FIRMWARE(api) _IWL5150_MODULE_FIRMWARE(api)
 
 static const u16 iwl5000_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_AC3,
@@ -1532,7 +1542,9 @@ static struct iwl_mod_params iwl50_mod_params = {
 
 struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "5300AGN",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1543,7 +1555,9 @@ struct iwl_cfg iwl5300_agn_cfg = {
 
 struct iwl_cfg iwl5100_bg_cfg = {
 	.name = "5100BG",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1554,7 +1568,9 @@ struct iwl_cfg iwl5100_bg_cfg = {
 
 struct iwl_cfg iwl5100_abg_cfg = {
 	.name = "5100ABG",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1565,7 +1581,9 @@ struct iwl_cfg iwl5100_abg_cfg = {
 
 struct iwl_cfg iwl5100_agn_cfg = {
 	.name = "5100AGN",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1576,7 +1594,9 @@ struct iwl_cfg iwl5100_agn_cfg = {
 
 struct iwl_cfg iwl5350_agn_cfg = {
 	.name = "5350AGN",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1587,7 +1607,9 @@ struct iwl_cfg iwl5350_agn_cfg = {
 
 struct iwl_cfg iwl5150_agn_cfg = {
 	.name = "5150AGN",
-	.fw_name = IWL5150_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5150_FW_PRE,
+	.ucode_api_max = IWL5150_UCODE_API_MAX,
+	.ucode_api_min = IWL5150_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1596,8 +1618,8 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.mod_params = &iwl50_mod_params,
 };
 
-MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE);
-MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE);
+MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE(IWL5150_UCODE_API_MAX));
 
 module_param_named(disable50, iwl50_mod_params.disable, int, 0444);
 MODULE_PARM_DESC(disable50,
