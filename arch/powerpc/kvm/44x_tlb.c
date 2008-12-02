@@ -28,6 +28,13 @@
 
 #include "44x_tlb.h"
 
+#ifndef PPC44x_TLBE_SIZE
+#define PPC44x_TLBE_SIZE	PPC44x_TLB_4K
+#endif
+
+#define PAGE_SIZE_4K (1<<12)
+#define PAGE_MASK_4K (~(PAGE_SIZE_4K - 1))
+
 #define PPC44x_TLB_UATTR_MASK \
 	(PPC44x_TLB_U0|PPC44x_TLB_U1|PPC44x_TLB_U2|PPC44x_TLB_U3)
 #define PPC44x_TLB_USER_PERM_MASK (PPC44x_TLB_UX|PPC44x_TLB_UR|PPC44x_TLB_UW)
@@ -179,15 +186,26 @@ void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i)
 	vcpu_44x->shadow_tlb_mod[i] = 1;
 }
 
-/* Caller must ensure that the specified guest TLB entry is safe to insert into
- * the shadow TLB. */
-void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
-                    u32 flags)
+/**
+ * kvmppc_mmu_map -- create a host mapping for guest memory
+ *
+ * If the guest wanted a larger page than the host supports, only the first
+ * host page is mapped here and the rest are demand faulted.
+ *
+ * If the guest wanted a smaller page than the host page size, we map only the
+ * guest-size page (i.e. not a full host page mapping).
+ *
+ * Caller must ensure that the specified guest TLB entry is safe to insert into
+ * the shadow TLB.
+ */
+void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gpa_t gpaddr, u64 asid,
+                    u32 flags, u32 max_bytes)
 {
 	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	struct page *new_page;
 	struct kvmppc_44x_tlbe *stlbe;
 	hpa_t hpaddr;
+	gfn_t gfn;
 	unsigned int victim;
 
 	/* Future optimization: don't overwrite the TLB entry containing the
@@ -198,6 +216,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	stlbe = &vcpu_44x->shadow_tlb[victim];
 
 	/* Get reference to new page. */
+	gfn = gpaddr >> PAGE_SHIFT;
 	new_page = gfn_to_page(vcpu->kvm, gfn);
 	if (is_error_page(new_page)) {
 		printk(KERN_ERR "Couldn't get guest page for gfn %lx!\n", gfn);
@@ -220,10 +239,25 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	stlbe->tid = !(asid & 0xff);
 
 	/* Force TS=1 for all guest mappings. */
-	/* For now we hardcode 4KB mappings, but it will be important to
-	 * use host large pages in the future. */
-	stlbe->word0 = (gvaddr & PAGE_MASK) | PPC44x_TLB_VALID | PPC44x_TLB_TS
-	               | PPC44x_TLB_4K;
+	stlbe->word0 = PPC44x_TLB_VALID | PPC44x_TLB_TS;
+
+	if (max_bytes >= PAGE_SIZE) {
+		/* Guest mapping is larger than or equal to host page size. We can use
+		 * a "native" host mapping. */
+		stlbe->word0 |= (gvaddr & PAGE_MASK) | PPC44x_TLBE_SIZE;
+	} else {
+		/* Guest mapping is smaller than host page size. We must restrict the
+		 * size of the mapping to be at most the smaller of the two, but for
+		 * simplicity we fall back to a 4K mapping (this is probably what the
+		 * guest is using anyways). */
+		stlbe->word0 |= (gvaddr & PAGE_MASK_4K) | PPC44x_TLB_4K;
+
+		/* 'hpaddr' is a host page, which is larger than the mapping we're
+		 * inserting here. To compensate, we must add the in-page offset to the
+		 * sub-page. */
+		hpaddr |= gpaddr & (PAGE_MASK ^ PAGE_MASK_4K);
+	}
+
 	stlbe->word1 = (hpaddr & 0xfffffc00) | ((hpaddr >> 32) & 0xf);
 	stlbe->word2 = kvmppc_44x_tlb_shadow_attrib(flags,
 	                                            vcpu->arch.msr & MSR_PR);
@@ -322,10 +356,8 @@ static int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
 int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 {
 	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
-	u64 eaddr;
-	u64 raddr;
+	gva_t eaddr;
 	u64 asid;
-	u32 flags;
 	struct kvmppc_44x_tlbe *tlbe;
 	unsigned int index;
 
@@ -364,15 +396,22 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	}
 
 	if (tlbe_is_host_safe(vcpu, tlbe)) {
+		gpa_t gpaddr;
+		u32 flags;
+		u32 bytes;
+
 		eaddr = get_tlb_eaddr(tlbe);
-		raddr = get_tlb_raddr(tlbe);
+		gpaddr = get_tlb_raddr(tlbe);
+
+		/* Use the advertised page size to mask effective and real addrs. */
+		bytes = get_tlb_bytes(tlbe);
+		eaddr &= ~(bytes - 1);
+		gpaddr &= ~(bytes - 1);
+
 		asid = (tlbe->word0 & PPC44x_TLB_TS) | tlbe->tid;
 		flags = tlbe->word2 & 0xffff;
 
-		/* Create a 4KB mapping on the host. If the guest wanted a
-		 * large page, only the first 4KB is mapped here and the rest
-		 * are mapped on the fly. */
-		kvmppc_mmu_map(vcpu, eaddr, raddr >> PAGE_SHIFT, asid, flags);
+		kvmppc_mmu_map(vcpu, eaddr, gpaddr, asid, flags, bytes);
 	}
 
 	KVMTRACE_5D(GTLB_WRITE, vcpu, index,

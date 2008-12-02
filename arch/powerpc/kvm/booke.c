@@ -308,8 +308,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * b) the guest used a large mapping which we're faking
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
-			kvmppc_mmu_map(vcpu, eaddr, gfn, gtlbe->tid,
-			               gtlbe->word2);
+			kvmppc_mmu_map(vcpu, eaddr, vcpu->arch.paddr_accessed, gtlbe->tid,
+			               gtlbe->word2, get_tlb_bytes(gtlbe));
 			vcpu->stat.dtlb_virt_miss_exits++;
 			r = RESUME_GUEST;
 		} else {
@@ -325,6 +325,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOKE_INTERRUPT_ITLB_MISS: {
 		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.pc;
+		gpa_t gpaddr;
 		gfn_t gfn;
 
 		r = RESUME_GUEST;
@@ -340,7 +341,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		vcpu->stat.itlb_virt_miss_exits++;
 
-		gfn = tlb_xlate(gtlbe, eaddr) >> PAGE_SHIFT;
+		gpaddr = tlb_xlate(gtlbe, eaddr);
+		gfn = gpaddr >> PAGE_SHIFT;
 
 		if (kvm_is_visible_gfn(vcpu->kvm, gfn)) {
 			/* The guest TLB had a mapping, but the shadow TLB
@@ -349,8 +351,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * b) the guest used a large mapping which we're faking
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
-			kvmppc_mmu_map(vcpu, eaddr, gfn, gtlbe->tid,
-			               gtlbe->word2);
+			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlbe->tid,
+			               gtlbe->word2, get_tlb_bytes(gtlbe));
 		} else {
 			/* Guest mapped and leaped at non-RAM! */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_MACHINE_CHECK);
