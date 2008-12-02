@@ -63,6 +63,9 @@ struct iwl3945_rs_sta {
 	u8 ibss_sta_added;
 	struct timer_list rate_scale_flush;
 	struct iwl3945_rate_scale_data win[IWL_RATE_COUNT];
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct dentry *rs_sta_dbgfs_stats_table_file;
+#endif
 
 	/* used to be in sta_info */
 	int last_txrate_idx;
@@ -772,6 +775,60 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	IWL_DEBUG_RATE("leave: %d\n", index);
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+static int iwl3945_open_file_generic(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t iwl3945_sta_dbgfs_stats_table_read(struct file *file,
+						  char __user *user_buf,
+						  size_t count, loff_t *ppos)
+{
+	char buff[1024];
+	int desc = 0;
+	int j;
+	struct iwl3945_rs_sta *lq_sta = file->private_data;
+
+	desc += sprintf(buff + desc, "tx packets=%d last rate index=%d\n"
+			"rate=0x%X flush time %d\n",
+			lq_sta->tx_packets,
+			lq_sta->last_txrate_idx,
+			lq_sta->start_rate, jiffies_to_msecs(lq_sta->flush_time));
+	for (j = 0; j < IWL_RATE_COUNT; j++) {
+		desc += sprintf(buff+desc,
+				"counter=%d success=%d %%=%d\n",
+				lq_sta->win[j].counter,
+				lq_sta->win[j].success_counter,
+				lq_sta->win[j].success_ratio);
+	}
+	return simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+}
+
+static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
+	.read = iwl3945_sta_dbgfs_stats_table_read,
+	.open = iwl3945_open_file_generic,
+};
+
+static void iwl3945_add_debugfs(void *priv, void *priv_sta,
+				struct dentry *dir)
+{
+	struct iwl3945_rs_sta *lq_sta = priv_sta;
+
+	lq_sta->rs_sta_dbgfs_stats_table_file =
+		debugfs_create_file("rate_stats_table", 0600, dir,
+		lq_sta, &rs_sta_dbgfs_stats_table_ops);
+
+}
+
+static void iwl3945_remove_debugfs(void *priv, void *priv_sta)
+{
+	struct iwl3945_rs_sta *lq_sta = priv_sta;
+	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
+}
+#endif
+
 static struct rate_control_ops rs_ops = {
 	.module = NULL,
 	.name = RS_NAME,
@@ -782,6 +839,11 @@ static struct rate_control_ops rs_ops = {
 	.free = rs_free,
 	.alloc_sta = rs_alloc_sta,
 	.free_sta = rs_free_sta,
+#ifdef CONFIG_MAC80211_DEBUGFS
+	.add_sta_debugfs = iwl3945_add_debugfs,
+	.remove_sta_debugfs = iwl3945_remove_debugfs,
+#endif
+
 };
 
 void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
