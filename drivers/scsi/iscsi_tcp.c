@@ -486,7 +486,8 @@ iscsi_tcp_data_recv_prep(struct iscsi_tcp_conn *tcp_conn)
 	struct iscsi_conn *conn = tcp_conn->iscsi_conn;
 	struct hash_desc *rx_hash = NULL;
 
-	if (conn->datadgst_en)
+	if (conn->datadgst_en &
+	    !(conn->session->tt->caps & CAP_DIGEST_OFFLOAD))
 		rx_hash = &tcp_conn->rx_hash;
 
 	iscsi_segment_init_linear(&tcp_conn->in.segment,
@@ -774,7 +775,8 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 			 * we move on to the next scatterlist entry and
 			 * update the digest per-entry.
 			 */
-			if (conn->datadgst_en)
+			if (conn->datadgst_en &&
+			    !(conn->session->tt->caps & CAP_DIGEST_OFFLOAD))
 				rx_hash = &tcp_conn->rx_hash;
 
 			debug_tcp("iscsi_tcp_begin_data_in(%p, offset=%d, "
@@ -902,21 +904,114 @@ iscsi_tcp_hdr_recv_done(struct iscsi_tcp_conn *tcp_conn,
 	 * and go back for more. */
 	if (conn->hdrdgst_en) {
 		if (segment->digest_len == 0) {
+			/*
+			 * Even if we offload the digest processing we
+			 * splice it in so we can increment the skb/segment
+			 * counters in preparation for the data segment.
+			 */
 			iscsi_tcp_segment_splice_digest(segment,
 							segment->recv_digest);
 			return 0;
 		}
-		iscsi_tcp_dgst_header(&tcp_conn->rx_hash, hdr,
-				      segment->total_copied - ISCSI_DIGEST_SIZE,
-				      segment->digest);
 
-		if (!iscsi_tcp_dgst_verify(tcp_conn, segment))
-			return ISCSI_ERR_HDR_DGST;
+		if (!(conn->session->tt->caps & CAP_DIGEST_OFFLOAD)) {
+			iscsi_tcp_dgst_header(&tcp_conn->rx_hash, hdr,
+				segment->total_copied - ISCSI_DIGEST_SIZE,
+				segment->digest);
+
+			if (!iscsi_tcp_dgst_verify(tcp_conn, segment))
+				return ISCSI_ERR_HDR_DGST;
+		}
 	}
 
 	tcp_conn->in.hdr = hdr;
 	return iscsi_tcp_hdr_dissect(conn, hdr);
 }
+
+inline int iscsi_tcp_recv_segment_is_hdr(struct iscsi_tcp_conn *tcp_conn)
+{
+	return tcp_conn->in.segment.done == iscsi_tcp_hdr_recv_done;
+}
+
+enum {
+	ISCSI_TCP_SEGMENT_DONE,		/* curr seg has been processed */
+	ISCSI_TCP_SKB_DONE,		/* skb is out of data */
+	ISCSI_TCP_CONN_ERR,		/* iscsi layer has fired a conn err */
+	ISCSI_TCP_SUSPENDED,		/* conn is suspended */
+};
+
+/**
+ * iscsi_tcp_recv_skb - Process skb
+ * @conn: iscsi connection
+ * @skb: network buffer with header and/or data segment
+ * @offset: offset in skb
+ * @offload: bool indicating if transfer was offloaded
+ */
+int iscsi_tcp_recv_skb(struct iscsi_conn *conn, struct sk_buff *skb,
+		       unsigned int offset, bool offloaded, int *status)
+{
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+	struct iscsi_segment *segment = &tcp_conn->in.segment;
+	struct skb_seq_state seq;
+	unsigned int consumed = 0;
+	int rc = 0;
+
+	debug_tcp("in %d bytes\n", skb->len - offset);
+
+	if (unlikely(conn->suspend_rx)) {
+		debug_tcp("conn %d Rx suspended!\n", conn->id);
+		*status = ISCSI_TCP_SUSPENDED;
+		return 0;
+	}
+
+	if (offloaded) {
+		segment->total_copied = segment->total_size;
+		goto segment_done;
+	}
+
+	skb_prepare_seq_read(skb, offset, skb->len, &seq);
+	while (1) {
+		unsigned int avail;
+		const u8 *ptr;
+
+		avail = skb_seq_read(consumed, &ptr, &seq);
+		if (avail == 0) {
+			debug_tcp("no more data avail. Consumed %d\n",
+				  consumed);
+			*status = ISCSI_TCP_SKB_DONE;
+			skb_abort_seq_read(&seq);
+			goto skb_done;
+		}
+		BUG_ON(segment->copied >= segment->size);
+
+		debug_tcp("skb %p ptr=%p avail=%u\n", skb, ptr, avail);
+		rc = iscsi_tcp_segment_recv(tcp_conn, segment, ptr, avail);
+		BUG_ON(rc == 0);
+		consumed += rc;
+
+		if (segment->total_copied >= segment->total_size) {
+			skb_abort_seq_read(&seq);
+			goto segment_done;
+		}
+	}
+
+segment_done:
+	*status = ISCSI_TCP_SEGMENT_DONE;
+	debug_tcp("segment done\n");
+	rc = segment->done(tcp_conn, segment);
+	if (rc != 0) {
+		*status = ISCSI_TCP_CONN_ERR;
+		debug_tcp("Error receiving PDU, errno=%d\n", rc);
+		iscsi_conn_failure(conn, rc);
+		return 0;
+	}
+	/* The done() functions sets up the next segment. */
+
+skb_done:
+	conn->rxdata_octets += consumed;
+	return consumed;
+}
+EXPORT_SYMBOL_GPL(iscsi_tcp_recv_skb);
 
 /**
  * iscsi_tcp_recv - TCP receive in sendfile fashion
@@ -930,57 +1025,20 @@ iscsi_tcp_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
 	       unsigned int offset, size_t len)
 {
 	struct iscsi_conn *conn = rd_desc->arg.data;
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	struct iscsi_segment *segment = &tcp_conn->in.segment;
-	struct skb_seq_state seq;
-	unsigned int consumed = 0;
-	int rc = 0;
+	unsigned int consumed, total_consumed = 0;
+	int status;
 
 	debug_tcp("in %d bytes\n", skb->len - offset);
 
-	if (unlikely(conn->suspend_rx)) {
-		debug_tcp("conn %d Rx suspended!\n", conn->id);
-		return 0;
-	}
+	do {
+		status = 0;
+		consumed = iscsi_tcp_recv_skb(conn, skb, offset, 0, &status);
+		offset += consumed;
+		total_consumed += consumed;
+	} while (consumed != 0 && status != ISCSI_TCP_SKB_DONE);
 
-	skb_prepare_seq_read(skb, offset, skb->len, &seq);
-	while (1) {
-		unsigned int avail;
-		const u8 *ptr;
-
-		avail = skb_seq_read(consumed, &ptr, &seq);
-		if (avail == 0) {
-			debug_tcp("no more data avail. Consumed %d\n",
-				  consumed);
-			break;
-		}
-		BUG_ON(segment->copied >= segment->size);
-
-		debug_tcp("skb %p ptr=%p avail=%u\n", skb, ptr, avail);
-		rc = iscsi_tcp_segment_recv(tcp_conn, segment, ptr, avail);
-		BUG_ON(rc == 0);
-		consumed += rc;
-
-		if (segment->total_copied >= segment->total_size) {
-			debug_tcp("segment done\n");
-			rc = segment->done(tcp_conn, segment);
-			if (rc != 0) {
-				skb_abort_seq_read(&seq);
-				goto error;
-			}
-
-			/* The done() functions sets up the
-			 * next segment. */
-		}
-	}
-	skb_abort_seq_read(&seq);
-	conn->rxdata_octets += consumed;
-	return consumed;
-
-error:
-	debug_tcp("Error receiving PDU, errno=%d\n", rc);
-	iscsi_conn_failure(conn, rc);
-	return 0;
+	debug_tcp("read %d bytes status %d\n", skb->len - offset, status);
+	return total_consumed;
 }
 
 static void
