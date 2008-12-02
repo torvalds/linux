@@ -22,6 +22,9 @@
 #include <linux/bitops.h>
 #include <linux/scatterlist.h>
 #include <linux/iommu-helper.h>
+#ifdef CONFIG_IOMMU_API
+#include <linux/iommu.h>
+#endif
 #include <asm/proto.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -1604,6 +1607,33 @@ static void cleanup_domain(struct protection_domain *domain)
 			__detach_device(domain, devid);
 
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+}
+
+static int amd_iommu_domain_init(struct iommu_domain *dom)
+{
+	struct protection_domain *domain;
+
+	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	if (!domain)
+		return -ENOMEM;
+
+	spin_lock_init(&domain->lock);
+	domain->mode = PAGE_MODE_3_LEVEL;
+	domain->id = domain_id_alloc();
+	if (!domain->id)
+		goto out_free;
+	domain->pt_root = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!domain->pt_root)
+		goto out_free;
+
+	dom->priv = domain;
+
+	return 0;
+
+out_free:
+	kfree(domain);
+
+	return -ENOMEM;
 }
 
 #endif
