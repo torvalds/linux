@@ -1035,11 +1035,11 @@ out_fput:
 	return ret;
 }
 
-static long btrfs_ioctl_clone_range(struct file *file, unsigned long argptr)
+static long btrfs_ioctl_clone_range(struct file *file, void __user *argp)
 {
 	struct btrfs_ioctl_clone_range_args args;
 
-	if (copy_from_user(&args, (void *)argptr, sizeof(args)))
+	if (copy_from_user(&args, argp, sizeof(args)))
 		return -EFAULT;
 	return btrfs_ioctl_clone(file, args.src_fd, args.src_offset,
 				 args.src_length, args.dest_offset);
@@ -1137,7 +1137,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_CLONE:
 		return btrfs_ioctl_clone(file, arg, 0, 0, 0);
 	case BTRFS_IOC_CLONE_RANGE:
-		return btrfs_ioctl_clone_range(file, arg);
+		return btrfs_ioctl_clone_range(file, argp);
 	case BTRFS_IOC_TRANS_START:
 		return btrfs_ioctl_trans_start(file);
 	case BTRFS_IOC_TRANS_END:
