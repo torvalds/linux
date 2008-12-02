@@ -577,6 +577,8 @@ EXPORT_SYMBOL(clear_extent_bit);
 
 static int wait_on_state(struct extent_io_tree *tree,
 			 struct extent_state *state)
+		__releases(tree->lock)
+		__acquires(tree->lock)
 {
 	DEFINE_WAIT(wait);
 	prepare_to_wait(&state->wq, &wait, TASK_UNINTERRUPTIBLE);
