@@ -330,9 +330,10 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 #ifdef CONFIG_DMAR
 int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,
 			unsigned long npages);
-int kvm_iommu_map_guest(struct kvm *kvm,
-			struct kvm_assigned_dev_kernel *assigned_dev);
+int kvm_iommu_map_guest(struct kvm *kvm);
 int kvm_iommu_unmap_guest(struct kvm *kvm);
+int kvm_assign_device(struct kvm *kvm,
+		      struct kvm_assigned_dev_kernel *assigned_dev);
 #else /* CONFIG_DMAR */
 static inline int kvm_iommu_map_pages(struct kvm *kvm,
 				      gfn_t base_gfn,
@@ -341,14 +342,18 @@ static inline int kvm_iommu_map_pages(struct kvm *kvm,
 	return 0;
 }
 
-static inline int kvm_iommu_map_guest(struct kvm *kvm,
-				      struct kvm_assigned_dev_kernel
-				      *assigned_dev)
+static inline int kvm_iommu_map_guest(struct kvm *kvm)
 {
 	return -ENODEV;
 }
 
 static inline int kvm_iommu_unmap_guest(struct kvm *kvm)
+{
+	return 0;
+}
+
+static inline int kvm_assign_device(struct kvm *kvm,
+		struct kvm_assigned_dev_kernel *assigned_dev)
 {
 	return 0;
 }

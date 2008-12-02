@@ -45,20 +45,18 @@ int kvm_iommu_map_pages(struct kvm *kvm,
 
 	for (i = 0; i < npages; i++) {
 		/* check if already mapped */
-		pfn = (pfn_t)intel_iommu_iova_to_pfn(domain,
-						     gfn_to_gpa(gfn));
-		if (pfn)
+		if (intel_iommu_iova_to_phys(domain,
+					     gfn_to_gpa(gfn)))
 			continue;
 
 		pfn = gfn_to_pfn(kvm, gfn);
-		r = intel_iommu_page_mapping(domain,
-					     gfn_to_gpa(gfn),
-					     pfn_to_hpa(pfn),
-					     PAGE_SIZE,
-					     DMA_PTE_READ |
-					     DMA_PTE_WRITE);
+		r = intel_iommu_map_address(domain,
+					    gfn_to_gpa(gfn),
+					    pfn_to_hpa(pfn),
+					    PAGE_SIZE,
+					    DMA_PTE_READ | DMA_PTE_WRITE);
 		if (r) {
-			printk(KERN_ERR "kvm_iommu_map_pages:"
+			printk(KERN_ERR "kvm_iommu_map_address:"
 			       "iommu failed to map pfn=%lx\n", pfn);
 			goto unmap_pages;
 		}
@@ -86,10 +84,40 @@ static int kvm_iommu_map_memslots(struct kvm *kvm)
 	return r;
 }
 
-int kvm_iommu_map_guest(struct kvm *kvm,
-			struct kvm_assigned_dev_kernel *assigned_dev)
+int kvm_assign_device(struct kvm *kvm,
+		      struct kvm_assigned_dev_kernel *assigned_dev)
 {
 	struct pci_dev *pdev = NULL;
+	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
+	int r;
+
+	/* check if iommu exists and in use */
+	if (!domain)
+		return 0;
+
+	pdev = assigned_dev->dev;
+	if (pdev == NULL)
+		return -ENODEV;
+
+	r = intel_iommu_attach_device(domain, pdev);
+	if (r) {
+		printk(KERN_ERR "assign device %x:%x.%x failed",
+			pdev->bus->number,
+			PCI_SLOT(pdev->devfn),
+			PCI_FUNC(pdev->devfn));
+		return r;
+	}
+
+	printk(KERN_DEBUG "assign device: host bdf = %x:%x:%x\n",
+		assigned_dev->host_busnr,
+		PCI_SLOT(assigned_dev->host_devfn),
+		PCI_FUNC(assigned_dev->host_devfn));
+
+	return 0;
+}
+
+int kvm_iommu_map_guest(struct kvm *kvm)
+{
 	int r;
 
 	if (!intel_iommu_found()) {
@@ -97,39 +125,14 @@ int kvm_iommu_map_guest(struct kvm *kvm,
 		return -ENODEV;
 	}
 
-	printk(KERN_DEBUG "VT-d direct map: host bdf = %x:%x:%x\n",
-	       assigned_dev->host_busnr,
-	       PCI_SLOT(assigned_dev->host_devfn),
-	       PCI_FUNC(assigned_dev->host_devfn));
-
-	pdev = assigned_dev->dev;
-
-	if (pdev == NULL) {
-		if (kvm->arch.intel_iommu_domain) {
-			intel_iommu_domain_exit(kvm->arch.intel_iommu_domain);
-			kvm->arch.intel_iommu_domain = NULL;
-		}
-		return -ENODEV;
-	}
-
-	kvm->arch.intel_iommu_domain = intel_iommu_domain_alloc(pdev);
+	kvm->arch.intel_iommu_domain = intel_iommu_alloc_domain();
 	if (!kvm->arch.intel_iommu_domain)
-		return -ENODEV;
+		return -ENOMEM;
 
 	r = kvm_iommu_map_memslots(kvm);
 	if (r)
 		goto out_unmap;
 
-	intel_iommu_detach_dev(kvm->arch.intel_iommu_domain,
-			       pdev->bus->number, pdev->devfn);
-
-	r = intel_iommu_context_mapping(kvm->arch.intel_iommu_domain,
-					pdev);
-	if (r) {
-		printk(KERN_ERR "Domain context map for %s failed",
-		       pci_name(pdev));
-		goto out_unmap;
-	}
 	return 0;
 
 out_unmap:
@@ -138,19 +141,29 @@ out_unmap:
 }
 
 static void kvm_iommu_put_pages(struct kvm *kvm,
-			       gfn_t base_gfn, unsigned long npages)
+				gfn_t base_gfn, unsigned long npages)
 {
 	gfn_t gfn = base_gfn;
 	pfn_t pfn;
 	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
-	int i;
+	unsigned long i;
+	u64 phys;
+
+	/* check if iommu exists and in use */
+	if (!domain)
+		return;
 
 	for (i = 0; i < npages; i++) {
-		pfn = (pfn_t)intel_iommu_iova_to_pfn(domain,
-						     gfn_to_gpa(gfn));
+		phys = intel_iommu_iova_to_phys(domain,
+						gfn_to_gpa(gfn));
+		pfn = phys >> PAGE_SHIFT;
 		kvm_release_pfn_clean(pfn);
 		gfn++;
 	}
+
+	intel_iommu_unmap_address(domain,
+				  gfn_to_gpa(base_gfn),
+				  PAGE_SIZE * npages);
 }
 
 static int kvm_iommu_unmap_memslots(struct kvm *kvm)
@@ -182,10 +195,9 @@ int kvm_iommu_unmap_guest(struct kvm *kvm)
 		       PCI_FUNC(entry->host_devfn));
 
 		/* detach kvm dmar domain */
-		intel_iommu_detach_dev(domain, entry->host_busnr,
-				       entry->host_devfn);
+		intel_iommu_detach_device(domain, entry->dev);
 	}
 	kvm_iommu_unmap_memslots(kvm);
-	intel_iommu_domain_exit(domain);
+	intel_iommu_free_domain(domain);
 	return 0;
 }
