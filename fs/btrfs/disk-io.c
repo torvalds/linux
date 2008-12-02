@@ -1734,7 +1734,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_cleaner;
 
 	if (btrfs_super_log_root(disk_super) != 0) {
-		u32 blocksize;
 		u64 bytenr = btrfs_super_log_root(disk_super);
 
 		if (fs_devices->rw_devices == 0) {

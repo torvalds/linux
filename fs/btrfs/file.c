@@ -662,18 +662,18 @@ next_slot:
 		}
 
 		if (found_extent && !keep) {
-			u64 disk_bytenr = le64_to_cpu(old.disk_bytenr);
+			u64 old_disk_bytenr = le64_to_cpu(old.disk_bytenr);
 
-			if (disk_bytenr != 0) {
+			if (old_disk_bytenr != 0) {
 				inode_sub_bytes(inode,
 						le64_to_cpu(old.num_bytes));
 				ret = btrfs_free_extent(trans, root,
-						disk_bytenr,
+						old_disk_bytenr,
 						le64_to_cpu(old.disk_num_bytes),
 						leaf_start, root_owner,
 						root_gen, key.objectid, 0);
 				BUG_ON(ret);
-				*hint_byte = disk_bytenr;
+				*hint_byte = old_disk_bytenr;
 			}
 		}
 
