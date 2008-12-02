@@ -571,6 +571,18 @@ static u16 domain_id_alloc(void)
 	return id;
 }
 
+#ifdef CONFIG_IOMMU_API
+static void domain_id_free(int id)
+{
+	unsigned long flags;
+
+	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
+	if (id > 0 && id < MAX_DOMAIN_ID)
+		__clear_bit(id, amd_iommu_pd_alloc_bitmap);
+	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+}
+#endif
+
 /*
  * Used to reserve address ranges in the aperture (e.g. for exclusion
  * ranges.
