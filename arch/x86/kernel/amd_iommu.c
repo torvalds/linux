@@ -196,34 +196,14 @@ static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 }
 
 /*
- * This function is called whenever we need to ensure that the IOMMU has
- * completed execution of all commands we sent. It sends a
- * COMPLETION_WAIT command and waits for it to finish. The IOMMU informs
- * us about that by writing a value to a physical address we pass with
- * the command.
+ * This function waits until an IOMMU has completed a completion
+ * wait command
  */
-static int iommu_completion_wait(struct amd_iommu *iommu)
+static void __iommu_wait_for_completion(struct amd_iommu *iommu)
 {
-	int ret = 0, ready = 0;
+	int ready = 0;
 	unsigned status = 0;
-	struct iommu_cmd cmd;
-	unsigned long flags, i = 0;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.data[0] = CMD_COMPL_WAIT_INT_MASK;
-	CMD_SET_TYPE(&cmd, CMD_COMPL_WAIT);
-
-	spin_lock_irqsave(&iommu->lock, flags);
-
-	if (!iommu->need_sync)
-		goto out;
-
-	iommu->need_sync = 0;
-
-	ret = __iommu_queue_command(iommu, &cmd);
-
-	if (ret)
-		goto out;
+	unsigned long i = 0;
 
 	while (!ready && (i < EXIT_LOOP_COUNT)) {
 		++i;
@@ -238,6 +218,48 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 	if (unlikely(i == EXIT_LOOP_COUNT))
 		panic("AMD IOMMU: Completion wait loop failed\n");
+}
+
+/*
+ * This function queues a completion wait command into the command
+ * buffer of an IOMMU
+ */
+static int __iommu_completion_wait(struct amd_iommu *iommu)
+{
+	struct iommu_cmd cmd;
+
+	 memset(&cmd, 0, sizeof(cmd));
+	 cmd.data[0] = CMD_COMPL_WAIT_INT_MASK;
+	 CMD_SET_TYPE(&cmd, CMD_COMPL_WAIT);
+
+	 return __iommu_queue_command(iommu, &cmd);
+}
+
+/*
+ * This function is called whenever we need to ensure that the IOMMU has
+ * completed execution of all commands we sent. It sends a
+ * COMPLETION_WAIT command and waits for it to finish. The IOMMU informs
+ * us about that by writing a value to a physical address we pass with
+ * the command.
+ */
+static int iommu_completion_wait(struct amd_iommu *iommu)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iommu->lock, flags);
+
+	if (!iommu->need_sync)
+		goto out;
+
+	ret = __iommu_completion_wait(iommu);
+
+	iommu->need_sync = 0;
+
+	if (ret)
+		goto out;
+
+	__iommu_wait_for_completion(iommu);
 
 out:
 	spin_unlock_irqrestore(&iommu->lock, flags);
