@@ -274,7 +274,8 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 		return;
 	kvm_get_pfn(pfn);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
-		     gpte & PT_DIRTY_MASK, NULL, largepage, gpte_to_gfn(gpte),
+		     gpte & PT_DIRTY_MASK, NULL, largepage,
+		     gpte & PT_GLOBAL_MASK, gpte_to_gfn(gpte),
 		     pfn, true);
 }
 
@@ -301,8 +302,9 @@ static int FNAME(shadow_walk_entry)(struct kvm_shadow_walk *_sw,
 		mmu_set_spte(vcpu, sptep, access, gw->pte_access & access,
 			     sw->user_fault, sw->write_fault,
 			     gw->ptes[gw->level-1] & PT_DIRTY_MASK,
-			     sw->ptwrite, sw->largepage, gw->gfn, sw->pfn,
-			     false);
+			     sw->ptwrite, sw->largepage,
+			     gw->ptes[gw->level-1] & PT_GLOBAL_MASK,
+			     gw->gfn, sw->pfn, false);
 		sw->sptep = sptep;
 		return 1;
 	}
@@ -580,7 +582,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		nr_present++;
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
-			 is_dirty_pte(gpte), 0, gfn,
+			 is_dirty_pte(gpte), 0, gpte & PT_GLOBAL_MASK, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false);
 	}
 

@@ -182,6 +182,8 @@ struct kvm_mmu_page {
 	struct list_head link;
 	struct hlist_node hash_link;
 
+	struct list_head oos_link;
+
 	/*
 	 * The following two entries are used to key the shadow page in the
 	 * hash table.
@@ -200,6 +202,7 @@ struct kvm_mmu_page {
 	int multimapped;         /* More than one parent_pte? */
 	int root_count;          /* Currently serving as active root */
 	bool unsync;
+	bool global;
 	unsigned int unsync_children;
 	union {
 		u64 *parent_pte;               /* !multimapped */
@@ -356,6 +359,7 @@ struct kvm_arch{
 	 */
 	struct list_head active_mmu_pages;
 	struct list_head assigned_dev_head;
+	struct list_head oos_global_pages;
 	struct dmar_domain *intel_iommu_domain;
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
@@ -385,6 +389,7 @@ struct kvm_vm_stat {
 	u32 mmu_recycled;
 	u32 mmu_cache_miss;
 	u32 mmu_unsync;
+	u32 mmu_unsync_global;
 	u32 remote_tlb_flush;
 	u32 lpages;
 };
@@ -603,6 +608,7 @@ void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
 int kvm_mmu_load(struct kvm_vcpu *vcpu);
 void kvm_mmu_unload(struct kvm_vcpu *vcpu);
 void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu);
+void kvm_mmu_sync_global(struct kvm_vcpu *vcpu);
 
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
 
