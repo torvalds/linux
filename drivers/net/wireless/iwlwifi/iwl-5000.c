@@ -888,7 +888,10 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 		break;
 	case CSR_HW_REV_TYPE_5150:
 		priv->hw_params.calib_init_cfg =
-			BIT(IWL_CALIB_DC);
+			BIT(IWL_CALIB_DC)		|
+			BIT(IWL_CALIB_LO)		|
+			BIT(IWL_CALIB_TX_IQ) 		|
+			BIT(IWL_CALIB_BASE_BAND);
 
 		break;
 	}
