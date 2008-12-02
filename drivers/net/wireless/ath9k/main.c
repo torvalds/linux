@@ -421,8 +421,9 @@ static void ath_ani_calibrate(unsigned long data)
 	* The interval must be the shortest necessary to satisfy ANI,
 	* short calibration and long calibration.
 	*/
-
-	cal_interval = ATH_ANI_POLLINTERVAL;
+	cal_interval = ATH_LONG_CALINTERVAL;
+	if (sc->sc_ah->ah_config.enable_ani)
+		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
 	if (!sc->sc_ani.sc_caldone)
 		cal_interval = min(cal_interval, (u32)ATH_SHORT_CALINTERVAL);
 
