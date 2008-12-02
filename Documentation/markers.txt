@@ -51,11 +51,16 @@ to call) for the specific marker through marker_probe_register() and can be
 activated by calling marker_arm(). Marker deactivation can be done by calling
 marker_disarm() as many times as marker_arm() has been called. Removing a probe
 is done through marker_probe_unregister(); it will disarm the probe.
-marker_synchronize_unregister() must be called before the end of the module exit
-function to make sure there is no caller left using the probe. This, and the
-fact that preemption is disabled around the probe call, make sure that probe
-removal and module unload are safe. See the "Probe example" section below for a
-sample probe module.
+
+marker_synchronize_unregister() must be called between probe unregistration and
+the first occurrence of
+- the end of module exit function,
+  to make sure there is no caller left using the probe;
+- the free of any resource used by the probes,
+  to make sure the probes wont be accessing invalid data.
+This, and the fact that preemption is disabled around the probe call, make sure
+that probe removal and module unload are safe. See the "Probe example" section
+below for a sample probe module.
 
 The marker mechanism supports inserting multiple instances of the same marker.
 Markers can be put in inline functions, inlined static functions, and

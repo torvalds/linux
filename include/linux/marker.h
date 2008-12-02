@@ -211,8 +211,10 @@ extern void *marker_get_private_data(const char *name, marker_probe_func *probe,
 
 /*
  * marker_synchronize_unregister must be called between the last marker probe
- * unregistration and the end of module exit to make sure there is no caller
- * executing a probe when it is freed.
+ * unregistration and the first one of
+ * - the end of module exit function
+ * - the free of any resource used by the probes
+ * to ensure the code and data are valid for any possibly running probes.
  */
 #define marker_synchronize_unregister() synchronize_sched()
 
