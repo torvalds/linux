@@ -561,7 +561,7 @@ typedef unsigned long space_t;
  * IOMMU uses little endian for the pdir.
  */
 
-void SBA_INLINE
+static void SBA_INLINE
 sba_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 		  unsigned long hint)
 {
@@ -1874,7 +1874,7 @@ static struct parisc_device_id sba_tbl[] = {
 	{ 0, }
 };
 
-int sba_driver_callback(struct parisc_device *);
+static int sba_driver_callback(struct parisc_device *);
 
 static struct parisc_driver sba_driver = {
 	.name =		MODULE_NAME,
@@ -1887,8 +1887,7 @@ static struct parisc_driver sba_driver = {
 ** If so, initialize the chip and tell other partners in crime they
 ** have work to do.
 */
-int
-sba_driver_callback(struct parisc_device *dev)
+static int sba_driver_callback(struct parisc_device *dev)
 {
 	struct sba_device *sba_dev;
 	u32 func_class;
