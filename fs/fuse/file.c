@@ -1068,6 +1068,8 @@ static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
 
 /* Called under fc->lock, may release and reacquire it */
 static void fuse_send_writepage(struct fuse_conn *fc, struct fuse_req *req)
+__releases(&fc->lock)
+__acquires(&fc->lock)
 {
 	struct fuse_inode *fi = get_fuse_inode(req->inode);
 	loff_t size = i_size_read(req->inode);
@@ -1105,6 +1107,8 @@ static void fuse_send_writepage(struct fuse_conn *fc, struct fuse_req *req)
  * Called with fc->lock
  */
 void fuse_flush_writepages(struct inode *inode)
+__releases(&fc->lock)
+__acquires(&fc->lock)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
