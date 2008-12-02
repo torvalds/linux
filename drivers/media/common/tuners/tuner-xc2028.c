@@ -811,6 +811,10 @@ check_device:
 		  hwmodel, (version & 0xf000) >> 12, (version & 0xf00) >> 8,
 		  (version & 0xf0) >> 4, version & 0xf);
 
+
+	if (priv->ctrl.read_not_reliable)
+		goto read_not_reliable;
+
 	/* Check firmware version against what we downloaded. */
 	if (priv->firm_version != ((version & 0xf0) << 4 | (version & 0x0f))) {
 		if (!priv->ctrl.read_not_reliable) {
@@ -834,6 +838,7 @@ check_device:
 		goto fail;
 	}
 
+read_not_reliable:
 	memcpy(&priv->cur_fw, &new_fw, sizeof(priv->cur_fw));
 
 	/*
