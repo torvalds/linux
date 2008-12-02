@@ -304,7 +304,7 @@ struct net_device * __init mac8390_probe(int unit)
 	if (!MACH_IS_MAC)
 		return ERR_PTR(-ENODEV);
 
-	dev = ____alloc_ei_netdev(0);
+	dev = alloc_ei_netdev();
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -478,6 +478,20 @@ void cleanup_module(void)
 
 #endif /* MODULE */
 
+static const struct net_device_ops mac8390_netdev_ops = {
+	.ndo_open 		= mac8390_open,
+	.ndo_stop		= mac8390_close,
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ei_poll,
+#endif
+};
+
 static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * ndev,
 			    enum mac8390_type type)
 {
@@ -503,11 +517,7 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
 	int access_bitmode = 0;
 
 	/* Now fill in our stuff */
-	dev->open = &mac8390_open;
-	dev->stop = &mac8390_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = __ei_poll;
-#endif
+	dev->netdev_ops = &mac8390_netdev_ops;
 
 	/* GAR, ei_status is actually a macro even though it looks global */
 	ei_status.name = cardname[type];
