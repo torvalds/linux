@@ -445,6 +445,30 @@ static int iommu_map_page(struct protection_domain *dom,
 	return 0;
 }
 
+#ifdef CONFIG_IOMMU_API
+static void iommu_unmap_page(struct protection_domain *dom,
+			     unsigned long bus_addr)
+{
+	u64 *pte;
+
+	pte = &dom->pt_root[IOMMU_PTE_L2_INDEX(bus_addr)];
+
+	if (!IOMMU_PTE_PRESENT(*pte))
+		return;
+
+	pte = IOMMU_PTE_PAGE(*pte);
+	pte = &pte[IOMMU_PTE_L1_INDEX(bus_addr)];
+
+	if (!IOMMU_PTE_PRESENT(*pte))
+		return;
+
+	pte = IOMMU_PTE_PAGE(*pte);
+	pte = &pte[IOMMU_PTE_L1_INDEX(bus_addr)];
+
+	*pte = 0;
+}
+#endif
+
 /*
  * This function checks if a specific unity mapping entry is needed for
  * this specific IOMMU.
@@ -1745,6 +1769,23 @@ static int amd_iommu_map_range(struct iommu_domain *dom,
 	}
 
 	return 0;
+}
+
+static void amd_iommu_unmap_range(struct iommu_domain *dom,
+				  unsigned long iova, size_t size)
+{
+
+	struct protection_domain *domain = dom->priv;
+	unsigned long i,  npages = iommu_num_pages(iova, size, PAGE_SIZE);
+
+	iova  &= PAGE_MASK;
+
+	for (i = 0; i < npages; ++i) {
+		iommu_unmap_page(domain, iova);
+		iova  += PAGE_SIZE;
+	}
+
+	iommu_flush_domain(domain->id);
 }
 
 #endif
