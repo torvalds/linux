@@ -708,7 +708,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 
 	if ((tcon->ses->capabilities & CAP_UNIX) &&
 	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
-	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL == 0))
+	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
 		posix_locking = 1;
 	/* BB add code here to normalize offset and length to
 	account for negative length which we can not accept over the
