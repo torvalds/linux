@@ -146,11 +146,15 @@ static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
  * @RXDONE_SIGNAL_PLCP: Signal field contains the plcp value.
  * @RXDONE_SIGNAL_BITRATE: Signal field contains the bitrate value.
  * @RXDONE_MY_BSS: Does this frame originate from device's BSS.
+ * @RXDONE_CRYPTO_IV: Driver provided IV/EIV data.
+ * @RXDONE_CRYPTO_ICV: Driver provided ICV data.
  */
 enum rxdone_entry_desc_flags {
 	RXDONE_SIGNAL_PLCP = 1 << 0,
 	RXDONE_SIGNAL_BITRATE = 1 << 1,
 	RXDONE_MY_BSS = 1 << 2,
+	RXDONE_CRYPTO_IV = 1 << 3,
+	RXDONE_CRYPTO_ICV = 1 << 4,
 };
 
 /**

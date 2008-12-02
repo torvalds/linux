@@ -636,7 +636,8 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * provided seperately (through hardware descriptor)
 	 * in which case we should reinsert the data into the frame.
 	 */
-	if ((rxdesc.flags & RX_FLAG_IV_STRIPPED)) {
+	if ((rxdesc.dev_flags & RXDONE_CRYPTO_IV) &&
+	    (rxdesc.flags & RX_FLAG_IV_STRIPPED)) {
 		rt2x00crypto_rx_insert_iv(entry->skb, align,
 					  header_length, &rxdesc);
 	} else if (align) {

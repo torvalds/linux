@@ -1620,7 +1620,10 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	if (rxdesc->cipher != CIPHER_NONE) {
 		_rt2x00_desc_read(rxd, 2, &rxdesc->iv[0]);
 		_rt2x00_desc_read(rxd, 3, &rxdesc->iv[1]);
+		rxdesc->dev_flags |= RXDONE_CRYPTO_IV;
+
 		_rt2x00_desc_read(rxd, 4, &rxdesc->icv);
+		rxdesc->dev_flags |= RXDONE_CRYPTO_ICV;
 
 		/*
 		 * Hardware has stripped IV/EIV data from 802.11 frame during

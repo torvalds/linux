@@ -1330,6 +1330,8 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	if (rxdesc->cipher != CIPHER_NONE) {
 		_rt2x00_desc_read(rxd, 2, &rxdesc->iv[0]);
 		_rt2x00_desc_read(rxd, 3, &rxdesc->iv[1]);
+		rxdesc->dev_flags |= RXDONE_CRYPTO_IV;
+
 		/* ICV is located at the end of frame */
 
 		/*
