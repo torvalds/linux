@@ -4359,31 +4359,6 @@ out:
 }
 
 /*
- * Invalidate a single dcache entry at the root of the filesystem.
- * Needed after creation of snapshot or subvolume.
- */
-static void btrfs_invalidate_dcache_root(struct inode *dir,
-		char *name, int namelen)
-{
-	struct dentry *alias, *entry;
-	struct qstr qstr;
-
-	alias = d_find_alias(dir);
-	if (alias) {
-		qstr.name = name;
-		qstr.len = namelen;
-		/* change me if btrfs ever gets a d_hash operation */
-		qstr.hash = full_name_hash(qstr.name, qstr.len);
-		entry = d_lookup(alias, &qstr);
-		dput(alias);
-		if (entry) {
-			d_invalidate(entry);
-			dput(entry);
-		}
-	}
-}
-
-/*
  * create a new subvolume directory/inode (helper for the ioctl).
  */
 int btrfs_create_subvol_root(struct btrfs_root *new_root, struct dentry *dentry,
