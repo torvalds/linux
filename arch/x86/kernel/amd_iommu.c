@@ -792,6 +792,15 @@ free_dma_dom:
 }
 
 /*
+ * little helper function to check whether a given protection domain is a
+ * dma_ops domain
+ */
+static bool dma_ops_domain(struct protection_domain *domain)
+{
+	return domain->flags & PD_DMA_OPS_MASK;
+}
+
+/*
  * Find out the protection domain structure for a given PCI device. This
  * will give us the pointer to the page table root for example.
  */
@@ -1096,6 +1105,9 @@ static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
 		/* device not handled by any AMD IOMMU */
 		return (dma_addr_t)paddr;
 
+	if (!dma_ops_domain(domain))
+		return bad_dma_address;
+
 	spin_lock_irqsave(&domain->lock, flags);
 	addr = __map_single(dev, iommu, domain->priv, paddr, size, dir, false,
 			    dma_mask);
@@ -1124,6 +1136,9 @@ static void unmap_single(struct device *dev, dma_addr_t dma_addr,
 	if (!check_device(dev) ||
 	    !get_device_resources(dev, &iommu, &domain, &devid))
 		/* device not handled by any AMD IOMMU */
+		return;
+
+	if (!dma_ops_domain(domain))
 		return;
 
 	spin_lock_irqsave(&domain->lock, flags);
@@ -1180,6 +1195,9 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 	if (!iommu || !domain)
 		return map_sg_no_iommu(dev, sglist, nelems, dir);
 
+	if (!dma_ops_domain(domain))
+		return 0;
+
 	spin_lock_irqsave(&domain->lock, flags);
 
 	for_each_sg(sglist, s, nelems, i) {
@@ -1233,6 +1251,9 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
 	    !get_device_resources(dev, &iommu, &domain, &devid))
 		return;
 
+	if (!dma_ops_domain(domain))
+		return;
+
 	spin_lock_irqsave(&domain->lock, flags);
 
 	for_each_sg(sglist, s, nelems, i) {
@@ -1278,6 +1299,9 @@ static void *alloc_coherent(struct device *dev, size_t size,
 		return virt_addr;
 	}
 
+	if (!dma_ops_domain(domain))
+		goto out_free;
+
 	if (!dma_mask)
 		dma_mask = *dev->dma_mask;
 
@@ -1286,18 +1310,20 @@ static void *alloc_coherent(struct device *dev, size_t size,
 	*dma_addr = __map_single(dev, iommu, domain->priv, paddr,
 				 size, DMA_BIDIRECTIONAL, true, dma_mask);
 
-	if (*dma_addr == bad_dma_address) {
-		free_pages((unsigned long)virt_addr, get_order(size));
-		virt_addr = NULL;
-		goto out;
-	}
+	if (*dma_addr == bad_dma_address)
+		goto out_free;
 
 	iommu_completion_wait(iommu);
 
-out:
 	spin_unlock_irqrestore(&domain->lock, flags);
 
 	return virt_addr;
+
+out_free:
+
+	free_pages((unsigned long)virt_addr, get_order(size));
+
+	return NULL;
 }
 
 /*
@@ -1317,6 +1343,9 @@ static void free_coherent(struct device *dev, size_t size,
 	get_device_resources(dev, &iommu, &domain, &devid);
 
 	if (!iommu || !domain)
+		goto free_mem;
+
+	if (!dma_ops_domain(domain))
 		goto free_mem;
 
 	spin_lock_irqsave(&domain->lock, flags);
