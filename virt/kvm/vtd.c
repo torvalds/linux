@@ -116,6 +116,30 @@ int kvm_assign_device(struct kvm *kvm,
 	return 0;
 }
 
+int kvm_deassign_device(struct kvm *kvm,
+			struct kvm_assigned_dev_kernel *assigned_dev)
+{
+	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
+	struct pci_dev *pdev = NULL;
+
+	/* check if iommu exists and in use */
+	if (!domain)
+		return 0;
+
+	pdev = assigned_dev->dev;
+	if (pdev == NULL)
+		return -ENODEV;
+
+	intel_iommu_detach_device(domain, pdev);
+
+	printk(KERN_DEBUG "deassign device: host bdf = %x:%x:%x\n",
+		assigned_dev->host_busnr,
+		PCI_SLOT(assigned_dev->host_devfn),
+		PCI_FUNC(assigned_dev->host_devfn));
+
+	return 0;
+}
+
 int kvm_iommu_map_guest(struct kvm *kvm)
 {
 	int r;

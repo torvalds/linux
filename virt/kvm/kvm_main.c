@@ -530,6 +530,35 @@ out_free:
 }
 #endif
 
+#ifdef KVM_CAP_DEVICE_DEASSIGNMENT
+static int kvm_vm_ioctl_deassign_device(struct kvm *kvm,
+		struct kvm_assigned_pci_dev *assigned_dev)
+{
+	int r = 0;
+	struct kvm_assigned_dev_kernel *match;
+
+	mutex_lock(&kvm->lock);
+
+	match = kvm_find_assigned_dev(&kvm->arch.assigned_dev_head,
+				      assigned_dev->assigned_dev_id);
+	if (!match) {
+		printk(KERN_INFO "%s: device hasn't been assigned before, "
+		  "so cannot be deassigned\n", __func__);
+		r = -EINVAL;
+		goto out;
+	}
+
+	if (assigned_dev->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU)
+		kvm_deassign_device(kvm, match);
+
+	kvm_free_assigned_device(kvm, match);
+
+out:
+	mutex_unlock(&kvm->lock);
+	return r;
+}
+#endif
+
 static inline int valid_vcpu(int n)
 {
 	return likely(n >= 0 && n < KVM_MAX_VCPUS);
@@ -1858,6 +1887,19 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&assigned_irq, argp, sizeof assigned_irq))
 			goto out;
 		r = kvm_vm_ioctl_assign_irq(kvm, &assigned_irq);
+		if (r)
+			goto out;
+		break;
+	}
+#endif
+#ifdef KVM_CAP_DEVICE_DEASSIGNMENT
+	case KVM_DEASSIGN_PCI_DEVICE: {
+		struct kvm_assigned_pci_dev assigned_dev;
+
+		r = -EFAULT;
+		if (copy_from_user(&assigned_dev, argp, sizeof assigned_dev))
+			goto out;
+		r = kvm_vm_ioctl_deassign_device(kvm, &assigned_dev);
 		if (r)
 			goto out;
 		break;
