@@ -1579,12 +1579,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	disk_super = &fs_info->super_copy;
 	if (!btrfs_super_root(disk_super))
-		goto fail_sb_buffer;
+		goto fail_iput;
 
 	ret = btrfs_parse_options(tree_root, options);
 	if (ret) {
 		err = ret;
-		goto fail_sb_buffer;
+		goto fail_iput;
 	}
 
 	features = btrfs_super_incompat_flags(disk_super) &
@@ -1594,7 +1594,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		       "unsupported optional features (%Lx).\n",
 		       features);
 		err = -EINVAL;
-		goto fail_sb_buffer;
+		goto fail_iput;
 	}
 
 	features = btrfs_super_compat_ro_flags(disk_super) &
@@ -1604,7 +1604,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		       "unsupported option features (%Lx).\n",
 		       features);
 		err = -EINVAL;
-		goto fail_sb_buffer;
+		goto fail_iput;
 	}
 
 	/*
