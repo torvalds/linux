@@ -587,12 +587,12 @@ static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 	iommu_area_reserve(dom->bitmap, start_page, pages);
 }
 
-static void dma_ops_free_pagetable(struct dma_ops_domain *dma_dom)
+static void free_pagetable(struct protection_domain *domain)
 {
 	int i, j;
 	u64 *p1, *p2, *p3;
 
-	p1 = dma_dom->domain.pt_root;
+	p1 = domain->pt_root;
 
 	if (!p1)
 		return;
@@ -613,6 +613,8 @@ static void dma_ops_free_pagetable(struct dma_ops_domain *dma_dom)
 	}
 
 	free_page((unsigned long)p1);
+
+	domain->pt_root = NULL;
 }
 
 /*
@@ -624,7 +626,7 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 	if (!dom)
 		return;
 
-	dma_ops_free_pagetable(dom);
+	free_pagetable(&dom->domain);
 
 	kfree(dom->pte_pages);
 
