@@ -139,6 +139,28 @@ static void arch_decomp_error(const char *x)
 
 static void error(char *err);
 
+#ifdef CONFIG_S3C_BOOT_UART_FORCE_FIFO
+static inline void arch_enable_uart_fifo(void)
+{
+	u32 fifocon = uart_rd(S3C2410_UFCON);
+
+	if (!(fifocon & S3C2410_UFCON_FIFOMODE)) {
+		fifocon |= S3C2410_UFCON_RESETBOTH;
+		uart_wr(S3C2410_UFCON, fifocon);
+
+		/* wait for fifo reset to complete */
+		while (1) {
+			fifocon = uart_rd(S3C2410_UFCON);
+			if (!(fifocon & S3C2410_UFCON_RESETBOTH))
+				break;
+		}
+	}
+}
+#else
+#define arch_enable_uart_fifo() do { } while(0)
+#endif
+
+
 static void
 arch_decomp_setup(void)
 {
@@ -149,6 +171,12 @@ arch_decomp_setup(void)
 
 	arch_detect_cpu();
 	arch_decomp_wdog_start();
+
+	/* Enable the UART FIFOs if they where not enabled and our
+	 * configuration says we should turn them on.
+	 */
+
+	arch_enable_uart_fifo();
 }
 
 
