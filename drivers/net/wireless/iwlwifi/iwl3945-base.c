@@ -4785,17 +4785,33 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
 			continue;
 		}
 
-		if (!is_active || is_channel_passive(ch_info) ||
-		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN))
-			scan_ch->type = 0;	/* passive */
-		else
-			scan_ch->type = 1;	/* active */
-
-		if ((scan_ch->type & 1) && n_probes)
-			scan_ch->type |= IWL_SCAN_PROBE_MASK(n_probes);
-
 		scan_ch->active_dwell = cpu_to_le16(active_dwell);
 		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
+		/* If passive , set up for auto-switch
+		 *  and use long active_dwell time.
+		 */
+		if (!is_active || is_channel_passive(ch_info) ||
+		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
+			scan_ch->type = 0;	/* passive */
+			if (IWL_UCODE_API(priv->ucode_ver) == 1)
+				scan_ch->active_dwell = cpu_to_le16(passive_dwell - 1);
+		} else {
+			scan_ch->type = 1;	/* active */
+		}
+
+		/* Set direct probe bits. These may be used both for active
+		 * scan channels (probes gets sent right away),
+		 * or for passive channels (probes get se sent only after
+		 * hearing clear Rx packet).*/
+		if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
+			if (n_probes)
+				scan_ch->type |= IWL_SCAN_PROBE_MASK(n_probes);
+		} else {
+			/* uCode v1 does not allow setting direct probe bits on
+			 * passive channel. */
+			if ((scan_ch->type & 1) && n_probes)
+				scan_ch->type |= IWL_SCAN_PROBE_MASK(n_probes);
+		}
 
 		/* Set txpower levels to defaults */
 		scan_ch->tpc.dsp_atten = 110;

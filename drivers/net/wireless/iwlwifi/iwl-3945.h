@@ -51,7 +51,7 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 #include "iwl-3945-led.h"
 
 /* Highest firmware API version supported */
-#define IWL3945_UCODE_API_MAX 1
+#define IWL3945_UCODE_API_MAX 2
 
 /* Lowest firmware API version supported */
 #define IWL3945_UCODE_API_MIN 1
