@@ -338,10 +338,10 @@ static void iommu_flush_tlb(struct amd_iommu *iommu, u16 domid)
  * supporting all features of AMD IOMMU page tables like level skipping
  * and full 64 bit address spaces.
  */
-static int iommu_map(struct protection_domain *dom,
-		     unsigned long bus_addr,
-		     unsigned long phys_addr,
-		     int prot)
+static int iommu_map_page(struct protection_domain *dom,
+			  unsigned long bus_addr,
+			  unsigned long phys_addr,
+			  int prot)
 {
 	u64 __pte, *pte, *page;
 
@@ -440,7 +440,7 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 
 	for (addr = e->address_start; addr < e->address_end;
 	     addr += PAGE_SIZE) {
-		ret = iommu_map(&dma_dom->domain, addr, addr, e->prot);
+		ret = iommu_map_page(&dma_dom->domain, addr, addr, e->prot);
 		if (ret)
 			return ret;
 		/*
