@@ -745,6 +745,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	struct ipath_swqe *swq = NULL;
 	struct ipath_ibdev *dev;
 	size_t sz;
+	size_t sg_list_sz;
 	struct ib_qp *ret;
 
 	if (init_attr->create_flags) {
@@ -789,19 +790,31 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 			goto bail;
 		}
 		sz = sizeof(*qp);
+		sg_list_sz = 0;
 		if (init_attr->srq) {
 			struct ipath_srq *srq = to_isrq(init_attr->srq);
 
-			sz += sizeof(*qp->r_sg_list) *
-				srq->rq.max_sge;
-		} else
-			sz += sizeof(*qp->r_sg_list) *
-				init_attr->cap.max_recv_sge;
-		qp = kmalloc(sz, GFP_KERNEL);
+			if (srq->rq.max_sge > 1)
+				sg_list_sz = sizeof(*qp->r_sg_list) *
+					(srq->rq.max_sge - 1);
+		} else if (init_attr->cap.max_recv_sge > 1)
+			sg_list_sz = sizeof(*qp->r_sg_list) *
+				(init_attr->cap.max_recv_sge - 1);
+		qp = kmalloc(sz + sg_list_sz, GFP_KERNEL);
 		if (!qp) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_swq;
 		}
+		if (sg_list_sz && (init_attr->qp_type == IB_QPT_UD ||
+		    init_attr->qp_type == IB_QPT_SMI ||
+		    init_attr->qp_type == IB_QPT_GSI)) {
+			qp->r_ud_sg_list = kmalloc(sg_list_sz, GFP_KERNEL);
+			if (!qp->r_ud_sg_list) {
+				ret = ERR_PTR(-ENOMEM);
+				goto bail_qp;
+			}
+		} else
+			qp->r_ud_sg_list = NULL;
 		if (init_attr->srq) {
 			sz = 0;
 			qp->r_rq.size = 0;
@@ -818,7 +831,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 					      qp->r_rq.size * sz);
 			if (!qp->r_rq.wq) {
 				ret = ERR_PTR(-ENOMEM);
-				goto bail_qp;
+				goto bail_sg_list;
 			}
 		}
 
@@ -848,7 +861,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		if (err) {
 			ret = ERR_PTR(err);
 			vfree(qp->r_rq.wq);
-			goto bail_qp;
+			goto bail_sg_list;
 		}
 		qp->ip = NULL;
 		qp->s_tx = NULL;
@@ -925,6 +938,8 @@ bail_ip:
 		vfree(qp->r_rq.wq);
 	ipath_free_qp(&dev->qp_table, qp);
 	free_qpn(&dev->qp_table, qp->ibqp.qp_num);
+bail_sg_list:
+	kfree(qp->r_ud_sg_list);
 bail_qp:
 	kfree(qp);
 bail_swq:
@@ -989,6 +1004,7 @@ int ipath_destroy_qp(struct ib_qp *ibqp)
 		kref_put(&qp->ip->ref, ipath_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
+	kfree(qp->r_ud_sg_list);
 	vfree(qp->s_wq);
 	kfree(qp);
 	return 0;
