@@ -825,8 +825,9 @@ static void set_device_domain(struct amd_iommu *iommu,
 			      u16 devid)
 {
 	unsigned long flags;
-
 	u64 pte_root = virt_to_phys(domain->pt_root);
+
+	domain->dev_cnt += 1;
 
 	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
 		    << DEV_ENTRY_MODE_SHIFT;
