@@ -24,9 +24,9 @@
 #include "transaction.h"
 #include "print-tree.h"
 
-#define MAX_CSUM_ITEMS(r) ((((BTRFS_LEAF_DATA_SIZE(r) - \
-			       sizeof(struct btrfs_item) * 2) / \
-			       BTRFS_CRC32_SIZE) - 1))
+#define MAX_CSUM_ITEMS(r,size) ((((BTRFS_LEAF_DATA_SIZE(r) - \
+				   sizeof(struct btrfs_item) * 2) / \
+				  size) - 1))
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     u64 objectid, u64 pos,
@@ -83,6 +83,8 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 	struct btrfs_csum_item *item;
 	struct extent_buffer *leaf;
 	u64 csum_offset = 0;
+	u16 csum_size =
+		btrfs_super_csum_size(&root->fs_info->super_copy);
 	int csums_in_item;
 
 	file_key.objectid = objectid;
@@ -105,7 +107,7 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 		csum_offset = (offset - found_key.offset) >>
 				root->fs_info->sb->s_blocksize_bits;
 		csums_in_item = btrfs_item_size_nr(leaf, path->slots[0]);
-		csums_in_item /= BTRFS_CRC32_SIZE;
+		csums_in_item /= csum_size;
 
 		if (csum_offset >= csums_in_item) {
 			ret = -EFBIG;
@@ -114,7 +116,7 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 	}
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
 	item = (struct btrfs_csum_item *)((unsigned char *)item +
-					  csum_offset * BTRFS_CRC32_SIZE);
+					  csum_offset * csum_size);
 	return item;
 fail:
 	if (ret > 0)
@@ -150,6 +152,8 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 	u64 item_start_offset = 0;
 	u64 item_last_offset = 0;
 	u32 diff;
+	u16 csum_size =
+		btrfs_super_csum_size(&root->fs_info->super_copy);
 	int ret;
 	struct btrfs_path *path;
 	struct btrfs_csum_item *item = NULL;
@@ -195,7 +199,7 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 			item_size = btrfs_item_size_nr(path->nodes[0],
 						       path->slots[0]);
 			item_last_offset = item_start_offset +
-				(item_size / BTRFS_CRC32_SIZE) *
+				(item_size / csum_size) *
 				root->sectorsize;
 			item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 					      struct btrfs_csum_item);
@@ -206,11 +210,11 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 		 */
 		diff = offset - item_start_offset;
 		diff = diff / root->sectorsize;
-		diff = diff * BTRFS_CRC32_SIZE;
+		diff = diff * csum_size;
 
 		read_extent_buffer(path->nodes[0], &sum,
 				   ((unsigned long)item) + diff,
-				   BTRFS_CRC32_SIZE);
+				   csum_size);
 found:
 		set_state_private(io_tree, offset, sum);
 		bio_index++;
@@ -383,6 +387,8 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 	char *eb_token;
 	unsigned long map_len;
 	unsigned long map_start;
+	u16 csum_size =
+		btrfs_super_csum_size(&root->fs_info->super_copy);
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -408,7 +414,8 @@ again:
 		/* we found one, but it isn't big enough yet */
 		leaf = path->nodes[0];
 		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
-		if ((item_size / BTRFS_CRC32_SIZE) >= MAX_CSUM_ITEMS(root)) {
+		if ((item_size / csum_size) >=
+		    MAX_CSUM_ITEMS(root, csum_size)) {
 			/* already at max size, make a new one */
 			goto insert;
 		}
@@ -441,7 +448,7 @@ again:
 	 */
 	btrfs_release_path(root, path);
 	ret = btrfs_search_slot(trans, root, &file_key, path,
-				BTRFS_CRC32_SIZE, 1);
+				csum_size, 1);
 	if (ret < 0)
 		goto fail_unlock;
 	if (ret == 0) {
@@ -457,14 +464,14 @@ again:
 			root->fs_info->sb->s_blocksize_bits;
 	if (btrfs_key_type(&found_key) != BTRFS_CSUM_ITEM_KEY ||
 	    found_key.objectid != objectid ||
-	    csum_offset >= MAX_CSUM_ITEMS(root)) {
+	    csum_offset >= MAX_CSUM_ITEMS(root, csum_size)) {
 		goto insert;
 	}
 	if (csum_offset >= btrfs_item_size_nr(leaf, path->slots[0]) /
-	    BTRFS_CRC32_SIZE) {
-		u32 diff = (csum_offset + 1) * BTRFS_CRC32_SIZE;
+	    csum_size) {
+		u32 diff = (csum_offset + 1) * csum_size;
 		diff = diff - btrfs_item_size_nr(leaf, path->slots[0]);
-		if (diff != BTRFS_CRC32_SIZE)
+		if (diff != csum_size)
 			goto insert;
 		ret = btrfs_extend_item(trans, root, path, diff);
 		BUG_ON(ret);
@@ -479,10 +486,10 @@ insert:
 		tmp -= offset & ~((u64)root->sectorsize -1);
 		tmp >>= root->fs_info->sb->s_blocksize_bits;
 		tmp = max((u64)1, tmp);
-		tmp = min(tmp, (u64)MAX_CSUM_ITEMS(root));
-		ins_size = BTRFS_CRC32_SIZE * tmp;
+		tmp = min(tmp, (u64)MAX_CSUM_ITEMS(root, csum_size));
+		ins_size = csum_size * tmp;
 	} else {
-		ins_size = BTRFS_CRC32_SIZE;
+		ins_size = csum_size;
 	}
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      ins_size);
@@ -497,7 +504,7 @@ csum:
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
 	ret = 0;
 	item = (struct btrfs_csum_item *)((unsigned char *)item +
-					  csum_offset * BTRFS_CRC32_SIZE);
+					  csum_offset * csum_size);
 found:
 	item_end = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
 	item_end = (struct btrfs_csum_item *)((unsigned char *)item_end +
@@ -508,14 +515,14 @@ found:
 next_sector:
 
 	if (!eb_token ||
-	   (unsigned long)item  + BTRFS_CRC32_SIZE >= map_start + map_len) {
+	   (unsigned long)item + csum_size >= map_start + map_len) {
 		int err;
 
 		if (eb_token)
 			unmap_extent_buffer(leaf, eb_token, KM_USER1);
 		eb_token = NULL;
 		err = map_private_extent_buffer(leaf, (unsigned long)item,
-						BTRFS_CRC32_SIZE,
+						csum_size,
 						&eb_token, &eb_map,
 						&map_start, &map_len, KM_USER1);
 		if (err)
@@ -523,17 +530,17 @@ next_sector:
 	}
 	if (eb_token) {
 		memcpy(eb_token + ((unsigned long)item & (PAGE_CACHE_SIZE - 1)),
-		       &sector_sum->sum, BTRFS_CRC32_SIZE);
+		       &sector_sum->sum, csum_size);
 	} else {
 		write_extent_buffer(leaf, &sector_sum->sum,
-				    (unsigned long)item, BTRFS_CRC32_SIZE);
+				    (unsigned long)item, csum_size);
 	}
 
 	total_bytes += root->sectorsize;
 	sector_sum++;
 	if (total_bytes < sums->len) {
 		item = (struct btrfs_csum_item *)((char *)item +
-						  BTRFS_CRC32_SIZE);
+						  csum_size);
 		if (item < item_end && offset + PAGE_CACHE_SIZE ==
 		    sector_sum->offset) {
 			    offset = sector_sum->offset;
@@ -577,7 +584,8 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 	new_item_span = isize - key.offset;
 	blocks = (new_item_span + root->sectorsize - 1) >>
 		root->fs_info->sb->s_blocksize_bits;
-	new_item_size = blocks * BTRFS_CRC32_SIZE;
+	new_item_size = blocks *
+		btrfs_super_csum_size(&root->fs_info->super_copy);
 	if (new_item_size >= btrfs_item_size_nr(leaf, slot))
 		return 0;
 	ret = btrfs_truncate_item(trans, root, path, new_item_size, 1);

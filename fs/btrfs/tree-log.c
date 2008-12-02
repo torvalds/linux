@@ -929,13 +929,15 @@ static noinline int replay_one_csum(struct btrfs_trans_handle *trans,
 	int ret;
 	u32 item_size = btrfs_item_size_nr(eb, slot);
 	u64 cur_offset;
+	u16 csum_size =
+		btrfs_super_csum_size(&root->fs_info->super_copy);
 	unsigned long file_bytes;
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_sector_sum *sector_sum;
 	struct inode *inode;
 	unsigned long ptr;
 
-	file_bytes = (item_size / BTRFS_CRC32_SIZE) * root->sectorsize;
+	file_bytes = (item_size / csum_size) * root->sectorsize;
 	inode = read_one_inode(root, key->objectid);
 	if (!inode) {
 		return -EIO;
@@ -959,10 +961,10 @@ static noinline int replay_one_csum(struct btrfs_trans_handle *trans,
 	ptr = btrfs_item_ptr_offset(eb, slot);
 	while(item_size > 0) {
 		sector_sum->offset = cur_offset;
-		read_extent_buffer(eb, &sector_sum->sum, ptr, BTRFS_CRC32_SIZE);
+		read_extent_buffer(eb, &sector_sum->sum, ptr, csum_size);
 		sector_sum++;
-		item_size -= BTRFS_CRC32_SIZE;
-		ptr += BTRFS_CRC32_SIZE;
+		item_size -= csum_size;
+		ptr += csum_size;
 		cur_offset += root->sectorsize;
 	}
 

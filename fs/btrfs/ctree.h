@@ -109,8 +109,14 @@ struct btrfs_ordered_sum;
 
 /* 32 bytes in various csum fields */
 #define BTRFS_CSUM_SIZE 32
+
+/* csum types */
+#define BTRFS_CSUM_TYPE_CRC32	0
+
+static int btrfs_csum_sizes[] = { 4, 0 };
+
 /* four bytes for CRC32 */
-#define BTRFS_CRC32_SIZE 4
+//#define BTRFS_CRC32_SIZE 4
 #define BTRFS_EMPTY_DIR_SIZE 0
 
 #define BTRFS_FT_UNKNOWN	0
@@ -308,6 +314,7 @@ struct btrfs_super_block {
 	__le64 compat_flags;
 	__le64 compat_ro_flags;
 	__le64 incompat_flags;
+	__le16 csum_type;
 	u8 root_level;
 	u8 chunk_root_level;
 	u8 log_root_level;
@@ -1483,6 +1490,7 @@ BTRFS_SETGET_STACK_FUNCS(root_last_snapshot, struct btrfs_root_item,
 			 last_snapshot, 64);
 
 /* struct btrfs_super_block */
+
 BTRFS_SETGET_STACK_FUNCS(super_bytenr, struct btrfs_super_block, bytenr, 64);
 BTRFS_SETGET_STACK_FUNCS(super_flags, struct btrfs_super_block, flags, 64);
 BTRFS_SETGET_STACK_FUNCS(super_generation, struct btrfs_super_block,
@@ -1524,6 +1532,15 @@ BTRFS_SETGET_STACK_FUNCS(super_compat_ro_flags, struct btrfs_super_block,
 			 compat_flags, 64);
 BTRFS_SETGET_STACK_FUNCS(super_incompat_flags, struct btrfs_super_block,
 			 incompat_flags, 64);
+BTRFS_SETGET_STACK_FUNCS(super_csum_type, struct btrfs_super_block,
+			 csum_type, 16);
+
+static inline int btrfs_super_csum_size(struct btrfs_super_block *s)
+{
+	int t = btrfs_super_csum_type(s);
+	BUG_ON(t >= ARRAY_SIZE(btrfs_csum_sizes));
+	return btrfs_csum_sizes[t];
+}
 
 static inline unsigned long btrfs_leaf_data(struct extent_buffer *l)
 {

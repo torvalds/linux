@@ -714,7 +714,8 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	u64 len = olen;
 	u64 bs = root->fs_info->sb->s_blocksize;
 	u64 hint_byte;
-
+	u16 csum_size =
+		btrfs_super_csum_size(&root->fs_info->super_copy);
 	/*
 	 * TODO:
 	 * - split compressed inline extents.  annoying: we need to
@@ -964,7 +965,7 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			int coff, clen;
 
 			size = btrfs_item_size_nr(leaf, slot);
-			coverslen = (size / BTRFS_CRC32_SIZE) <<
+			coverslen = (size / csum_size) <<
 				root->fs_info->sb->s_blocksize_bits;
 			printk("csums for %llu~%llu\n",
 			       key.offset, coverslen);
@@ -981,12 +982,12 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			if (off > key.offset)
 				coff = ((off - key.offset) >>
 					root->fs_info->sb->s_blocksize_bits) *
-					BTRFS_CRC32_SIZE;
+					csum_size;
 			clen = size - coff;
 			if (key.offset + coverslen > off+len)
 				clen -= ((key.offset+coverslen-off-len) >>
 					 root->fs_info->sb->s_blocksize_bits) *
-					BTRFS_CRC32_SIZE;
+					csum_size;
 			printk(" will dup %d~%d of %d\n",
 			       coff, clen, size);
 
