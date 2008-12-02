@@ -173,6 +173,7 @@ ENTRY(ftrace_graph_caller)
 
 	leaq 8(%rbp), %rdi
 	movq 0x38(%rsp), %rsi
+	subq $MCOUNT_INSN_SIZE, %rsi
 
 	call	prepare_ftrace_return
 
