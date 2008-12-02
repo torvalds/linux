@@ -82,7 +82,7 @@ static int s3c_irq_eint_set_type(unsigned int irq, unsigned int type)
 	if (offs > 27)
 		return -EINVAL;
 
-	if (offs > 15)
+	if (offs <= 15)
 		reg = S3C64XX_EINT0CON0;
 	else
 		reg = S3C64XX_EINT0CON1;
