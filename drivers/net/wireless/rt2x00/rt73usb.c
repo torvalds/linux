@@ -1428,8 +1428,8 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 2, word);
 
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags)) {
-		_rt2x00_desc_write(txd, 3, skbdesc->iv);
-		_rt2x00_desc_write(txd, 4, skbdesc->eiv);
+		_rt2x00_desc_write(txd, 3, skbdesc->iv[0]);
+		_rt2x00_desc_write(txd, 4, skbdesc->iv[1]);
 	}
 
 	rt2x00_desc_read(txd, 5, &word);
@@ -1618,8 +1618,8 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	}
 
 	if (rxdesc->cipher != CIPHER_NONE) {
-		_rt2x00_desc_read(rxd, 2, &rxdesc->iv);
-		_rt2x00_desc_read(rxd, 3, &rxdesc->eiv);
+		_rt2x00_desc_read(rxd, 2, &rxdesc->iv[0]);
+		_rt2x00_desc_read(rxd, 3, &rxdesc->iv[1]);
 		_rt2x00_desc_read(rxd, 4, &rxdesc->icv);
 
 		/*
