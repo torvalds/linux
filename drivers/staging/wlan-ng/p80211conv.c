@@ -328,11 +328,11 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 		memcpy(saddr, w_hdr->a3.a2, WLAN_ETHADDR_LEN);
 	} else {
 		payload_offset = WLAN_HDR_A4_LEN;
-		payload_length -= ( WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN );
-		if (payload_length < 0 ) {
+		if (payload_length < WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN) {
 			WLAN_LOG_ERROR("A4 frame too short!\n");
 			return 1;
 		}
+		payload_length -= (WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN);
 		memcpy(daddr, w_hdr->a4.a3, WLAN_ETHADDR_LEN);
 		memcpy(saddr, w_hdr->a4.a4, WLAN_ETHADDR_LEN);
 	}
