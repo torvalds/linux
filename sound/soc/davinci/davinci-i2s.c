@@ -112,7 +112,7 @@ static void davinci_mcbsp_start(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = socdev->card->platform;
 	u32 w;
 	int ret;
 

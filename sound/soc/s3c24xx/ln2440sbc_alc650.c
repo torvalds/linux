@@ -40,13 +40,13 @@ static struct snd_soc_dai_link ln2440sbc_dai[] = {
 
 static struct snd_soc_card ln2440sbc = {
 	.name = "LN2440SBC",
+	.platform = &s3c24xx_soc_platform,
 	.dai_link = ln2440sbc_dai,
 	.num_links = ARRAY_SIZE(ln2440sbc_dai),
 };
 
 static struct snd_soc_device ln2440sbc_snd_ac97_devdata = {
 	.card = &ln2440sbc,
-	.platform = &s3c24xx_soc_platform,
 	.codec_dev = &soc_codec_dev_ac97,
 };
 

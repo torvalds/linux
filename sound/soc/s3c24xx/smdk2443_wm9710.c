@@ -36,13 +36,13 @@ static struct snd_soc_dai_link smdk2443_dai[] = {
 
 static struct snd_soc_card smdk2443 = {
 	.name = "SMDK2443",
+	.platform = &s3c24xx_soc_platform,
 	.dai_link = smdk2443_dai,
 	.num_links = ARRAY_SIZE(smdk2443_dai),
 };
 
 static struct snd_soc_device smdk2443_snd_ac97_devdata = {
 	.card = &smdk2443,
-	.platform = &s3c24xx_soc_platform,
 	.codec_dev = &soc_codec_dev_ac97,
 };
 

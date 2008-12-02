@@ -234,6 +234,7 @@ static struct snd_soc_dai_link s3c24xx_uda134x_dai_link = {
 
 static struct snd_soc_card snd_soc_s3c24xx_uda134x = {
 	.name = "S3C24XX_UDA134X",
+	.platform = &s3c24xx_soc_platform,
 	.dai_link = &s3c24xx_uda134x_dai_link,
 	.num_links = 1,
 };
@@ -271,7 +272,6 @@ static struct uda134x_platform_data s3c24xx_uda134x = {
 
 static struct snd_soc_device s3c24xx_uda134x_snd_devdata = {
 	.card = &snd_soc_s3c24xx_uda134x,
-	.platform = &s3c24xx_soc_platform,
 	.codec_dev = &soc_codec_dev_uda134x,
 	.codec_data = &s3c24xx_uda134x,
 };

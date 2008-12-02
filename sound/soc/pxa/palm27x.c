@@ -191,13 +191,13 @@ static struct snd_soc_dai_link palm27x_dai[] = {
 
 static struct snd_soc_card palm27x_asoc = {
 	.name = "Palm/PXA27x",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = palm27x_dai,
 	.num_links = ARRAY_SIZE(palm27x_dai),
 };
 
 static struct snd_soc_device palm27x_snd_devdata = {
 	.card = &palm27x_asoc,
-	.platform = &pxa2xx_soc_platform,
 	.codec_dev = &soc_codec_dev_wm9712,
 };
 

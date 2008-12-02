@@ -278,6 +278,7 @@ static struct snd_soc_dai_link poodle_dai = {
 /* poodle audio machine driver */
 static struct snd_soc_card snd_soc_poodle = {
 	.name = "Poodle",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = &poodle_dai,
 	.num_links = 1,
 };
@@ -291,7 +292,6 @@ static struct wm8731_setup_data poodle_wm8731_setup = {
 /* poodle audio subsystem */
 static struct snd_soc_device poodle_snd_devdata = {
 	.card = &snd_soc_poodle,
-	.platform = &pxa2xx_soc_platform,
 	.codec_dev = &soc_codec_dev_wm8731,
 	.codec_data = &poodle_wm8731_setup,
 };

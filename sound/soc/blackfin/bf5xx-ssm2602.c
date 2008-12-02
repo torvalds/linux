@@ -137,13 +137,13 @@ static struct ssm2602_setup_data bf5xx_ssm2602_setup = {
 
 static struct snd_soc_card bf5xx_ssm2602 = {
 	.name = "bf5xx_ssm2602",
+	.platform = &bf5xx_i2s_soc_platform,
 	.dai_link = &bf5xx_ssm2602_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_device bf5xx_ssm2602_snd_devdata = {
 	.card = &bf5xx_ssm2602,
-	.platform = &bf5xx_i2s_soc_platform,
 	.codec_dev = &soc_codec_dev_ssm2602,
 	.codec_data = &bf5xx_ssm2602_setup,
 };

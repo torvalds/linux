@@ -352,6 +352,7 @@ struct snd_soc_card {
 
 	struct snd_soc_device *socdev;
 
+	struct snd_soc_platform *platform;
 	struct delayed_work delayed_work;
 	struct work_struct deferred_resume_work;
 };
@@ -360,7 +361,6 @@ struct snd_soc_card {
 struct snd_soc_device {
 	struct device *dev;
 	struct snd_soc_card *card;
-	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;
 	void *codec_data;

@@ -363,6 +363,7 @@ static struct snd_soc_dai_link playpaq_wm8510_dai = {
 
 static struct snd_soc_card snd_soc_playpaq = {
 	.name = "LRS_PlayPaq_WM8510",
+	.platform = &at32_soc_platform,
 	.dai_link = &playpaq_wm8510_dai,
 	.num_links = 1,
 };
@@ -378,7 +379,6 @@ static struct wm8510_setup_data playpaq_wm8510_setup = {
 
 static struct snd_soc_device playpaq_wm8510_snd_devdata = {
 	.card = &snd_soc_playpaq,
-	.platform = &at32_soc_platform,
 	.codec_dev = &soc_codec_dev_wm8510,
 	.codec_data = &playpaq_wm8510_setup,
 };

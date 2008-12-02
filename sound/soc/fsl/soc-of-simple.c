@@ -158,7 +158,7 @@ int of_snd_soc_register_platform(struct snd_soc_platform *platform,
 
 	of_soc->platform_node = node;
 	of_soc->dai_link.cpu_dai = cpu_dai;
-	of_soc->device.platform = platform;
+	of_soc->card.platform = platform;
 	of_soc->card.name = of_soc->dai_link.cpu_dai->name;
 
 	/* Now try to register the SoC device */

@@ -93,6 +93,7 @@ static struct snd_soc_dai_link omap2evm_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_omap2evm = {
 	.name = "omap2evm",
+	.platform = &omap_soc_platform,
 	.dai_link = &omap2evm_dai,
 	.num_links = 1,
 };
@@ -100,7 +101,6 @@ static struct snd_soc_card snd_soc_omap2evm = {
 /* Audio subsystem */
 static struct snd_soc_device omap2evm_snd_devdata = {
 	.card = &snd_soc_omap2evm,
-	.platform = &omap_soc_platform,
 	.codec_dev = &soc_codec_dev_twl4030,
 };
 

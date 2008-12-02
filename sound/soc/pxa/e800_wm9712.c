@@ -42,13 +42,13 @@ static struct snd_soc_dai_link e800_dai[] = {
 
 static struct snd_soc_card e800 = {
 	.name = "Toshiba e800",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = e800_dai,
 	.num_links = ARRAY_SIZE(e800_dai),
 };
 
 static struct snd_soc_device e800_snd_devdata = {
 	.card = &e800,
-	.platform = &pxa2xx_soc_platform,
 	.codec_dev = &soc_codec_dev_wm9712,
 };
 

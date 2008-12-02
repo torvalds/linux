@@ -244,6 +244,7 @@ static struct snd_soc_dai_link at91sam9g20ek_dai = {
 
 static struct snd_soc_card snd_soc_at91sam9g20ek = {
 	.name = "WM8731",
+	.platform = &atmel_soc_platform,
 	.dai_link = &at91sam9g20ek_dai,
 	.num_links = 1,
 };
@@ -255,7 +256,6 @@ static struct wm8731_setup_data at91sam9g20ek_wm8731_setup = {
 
 static struct snd_soc_device at91sam9g20ek_snd_devdata = {
 	.card = &snd_soc_at91sam9g20ek,
-	.platform = &atmel_soc_platform,
 	.codec_dev = &soc_codec_dev_wm8731,
 	.codec_data = &at91sam9g20ek_wm8731_setup,
 };

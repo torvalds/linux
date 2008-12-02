@@ -93,6 +93,7 @@ static struct snd_soc_dai_link sdp3430_dai = {
 /* Audio machine driver */
 static struct snd_soc_machine snd_soc_machine_sdp3430 = {
 	.name = "SDP3430",
+	.platform = &omap_soc_platform,
 	.dai_link = &sdp3430_dai,
 	.num_links = 1,
 };
@@ -100,7 +101,6 @@ static struct snd_soc_machine snd_soc_machine_sdp3430 = {
 /* Audio subsystem */
 static struct snd_soc_device sdp3430_snd_devdata = {
 	.machine = &snd_soc_machine_sdp3430,
-	.platform = &omap_soc_platform,
 	.codec_dev = &soc_codec_dev_twl4030,
 };
 

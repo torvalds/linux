@@ -192,6 +192,7 @@ static struct snd_soc_dai_link bf5xx_ad73311_dai = {
 
 static struct snd_soc_card bf5xx_ad73311 = {
 	.name = "bf5xx_ad73311",
+	.platform = &bf5xx_i2s_soc_platform,
 	.probe = bf5xx_probe,
 	.dai_link = &bf5xx_ad73311_dai,
 	.num_links = 1,
@@ -199,7 +200,6 @@ static struct snd_soc_card bf5xx_ad73311 = {
 
 static struct snd_soc_device bf5xx_ad73311_snd_devdata = {
 	.card = &bf5xx_ad73311,
-	.platform = &bf5xx_i2s_soc_platform,
 	.codec_dev = &soc_codec_dev_ad73311,
 };
 

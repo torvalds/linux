@@ -312,6 +312,7 @@ static struct snd_soc_dai_link corgi_dai = {
 /* corgi audio machine driver */
 static struct snd_soc_card snd_soc_corgi = {
 	.name = "Corgi",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = &corgi_dai,
 	.num_links = 1,
 };
@@ -325,7 +326,6 @@ static struct wm8731_setup_data corgi_wm8731_setup = {
 /* corgi audio subsystem */
 static struct snd_soc_device corgi_snd_devdata = {
 	.card = &snd_soc_corgi,
-	.platform = &pxa2xx_soc_platform,
 	.codec_dev = &soc_codec_dev_wm8731,
 	.codec_data = &corgi_wm8731_setup,
 };

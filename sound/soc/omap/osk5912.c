@@ -145,6 +145,7 @@ static struct snd_soc_dai_link osk_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_card_osk = {
 	.name = "OSK5912",
+	.platform = &omap_soc_platform,
 	.dai_link = &osk_dai,
 	.num_links = 1,
 };
@@ -152,7 +153,6 @@ static struct snd_soc_card snd_soc_card_osk = {
 /* Audio subsystem */
 static struct snd_soc_device osk_snd_devdata = {
 	.card = &snd_soc_card_osk,
-	.platform = &omap_soc_platform,
 	.codec_dev = &soc_codec_dev_tlv320aic23,
 };
 

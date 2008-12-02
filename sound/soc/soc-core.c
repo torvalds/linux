@@ -109,9 +109,10 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_card *card = socdev->card;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
 	int ret = 0;
@@ -302,7 +303,7 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_card *card = socdev->card;
 	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
 	struct snd_soc_codec *codec = socdev->codec;
@@ -370,7 +371,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_card *card = socdev->card;
 	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
 	struct snd_soc_codec *codec = socdev->codec;
@@ -464,7 +465,8 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
 	int ret = 0;
@@ -534,7 +536,8 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
 	struct snd_soc_codec *codec = socdev->codec;
@@ -568,8 +571,9 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_card *card= socdev->card;
 	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
 	int ret;
@@ -610,7 +614,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_card *card = socdev->card;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
 	struct snd_soc_codec *codec = socdev->codec;
 	int i;
@@ -686,7 +690,7 @@ static void soc_resume_deferred(struct work_struct *work)
 						 struct snd_soc_card,
 						 deferred_resume_work);
 	struct snd_soc_device *socdev = card->socdev;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
 	struct snd_soc_codec *codec = socdev->codec;
 	struct platform_device *pdev = to_platform_device(socdev->dev);
@@ -770,7 +774,7 @@ static int soc_probe(struct platform_device *pdev)
 	int ret = 0, i;
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_card *card = socdev->card;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
 
 	/* Bodge while we push things out of socdev */
@@ -835,7 +839,7 @@ static int soc_remove(struct platform_device *pdev)
 	int i;
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_card *card = socdev->card;
-	struct snd_soc_platform *platform = socdev->platform;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
 
 	run_delayed_work(&card->delayed_work);
@@ -875,6 +879,8 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 	struct snd_soc_dai_link *dai_link, int num)
 {
 	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *codec_dai = dai_link->codec_dai;
 	struct snd_soc_dai *cpu_dai = dai_link->cpu_dai;
 	struct snd_soc_pcm_runtime *rtd;
@@ -910,13 +916,13 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 
 	dai_link->pcm = pcm;
 	pcm->private_data = rtd;
-	soc_pcm_ops.mmap = socdev->platform->pcm_ops->mmap;
-	soc_pcm_ops.pointer = socdev->platform->pcm_ops->pointer;
-	soc_pcm_ops.ioctl = socdev->platform->pcm_ops->ioctl;
-	soc_pcm_ops.copy = socdev->platform->pcm_ops->copy;
-	soc_pcm_ops.silence = socdev->platform->pcm_ops->silence;
-	soc_pcm_ops.ack = socdev->platform->pcm_ops->ack;
-	soc_pcm_ops.page = socdev->platform->pcm_ops->page;
+	soc_pcm_ops.mmap = platform->pcm_ops->mmap;
+	soc_pcm_ops.pointer = platform->pcm_ops->pointer;
+	soc_pcm_ops.ioctl = platform->pcm_ops->ioctl;
+	soc_pcm_ops.copy = platform->pcm_ops->copy;
+	soc_pcm_ops.silence = platform->pcm_ops->silence;
+	soc_pcm_ops.ack = platform->pcm_ops->ack;
+	soc_pcm_ops.page = platform->pcm_ops->page;
 
 	if (playback)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &soc_pcm_ops);
@@ -924,14 +930,14 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 	if (capture)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &soc_pcm_ops);
 
-	ret = socdev->platform->pcm_new(codec->card, codec_dai, pcm);
+	ret = platform->pcm_new(codec->card, codec_dai, pcm);
 	if (ret < 0) {
 		printk(KERN_ERR "asoc: platform pcm constructor failed\n");
 		kfree(rtd);
 		return ret;
 	}
 
-	pcm->private_free = socdev->platform->pcm_free;
+	pcm->private_free = platform->pcm_free;
 	printk(KERN_INFO "asoc: %s <-> %s mapping ok\n", codec_dai->name,
 		cpu_dai->name);
 	return ret;

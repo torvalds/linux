@@ -288,6 +288,7 @@ static struct snd_soc_dai_link n810_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_n810 = {
 	.name = "N810",
+	.platform = &omap_soc_platform,
 	.dai_link = &n810_dai,
 	.num_links = 1,
 };
@@ -303,7 +304,6 @@ static struct aic3x_setup_data n810_aic33_setup = {
 /* Audio subsystem */
 static struct snd_soc_device n810_snd_devdata = {
 	.card = &snd_soc_n810,
-	.platform = &omap_soc_platform,
 	.codec_dev = &soc_codec_dev_aic3x,
 	.codec_data = &n810_aic33_setup,
 };

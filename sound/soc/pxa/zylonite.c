@@ -175,13 +175,13 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 
 static struct snd_soc_card zylonite = {
 	.name = "Zylonite",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = zylonite_dai,
 	.num_links = ARRAY_SIZE(zylonite_dai),
 };
 
 static struct snd_soc_device zylonite_snd_ac97_devdata = {
 	.card = &zylonite,
-	.platform = &pxa2xx_soc_platform,
 	.codec_dev = &soc_codec_dev_wm9713,
 };
 

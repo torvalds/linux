@@ -252,6 +252,7 @@ static int tosa_remove(struct platform_device *dev)
 
 static struct snd_soc_card tosa = {
 	.name = "Tosa",
+	.platform = &pxa2xx_soc_platform,
 	.dai_link = tosa_dai,
 	.num_links = ARRAY_SIZE(tosa_dai),
 	.probe = tosa_probe,
@@ -260,7 +261,6 @@ static struct snd_soc_card tosa = {
 
 static struct snd_soc_device tosa_snd_devdata = {
 	.card = &tosa,
-	.platform = &pxa2xx_soc_platform,
 	.codec_dev = &soc_codec_dev_wm9712,
 };
 
