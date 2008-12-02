@@ -92,7 +92,8 @@ int drm_setunique(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	master->unique_len = u->unique_len;
-	master->unique = drm_alloc(u->unique_len + 1, DRM_MEM_DRIVER);
+	master->unique_size = u->unique_len + 1;
+	master->unique = drm_alloc(master->unique_size, DRM_MEM_DRIVER);
 	if (!master->unique)
 		return -ENOMEM;
 	if (copy_from_user(master->unique, u->unique, master->unique_len))
@@ -136,7 +137,8 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 		return -EBUSY;
 
 	master->unique_len = 40;
-	master->unique = drm_alloc(master->unique_len + 1, DRM_MEM_DRIVER);
+	master->unique_size = master->unique_len;
+	master->unique = drm_alloc(master->unique_size, DRM_MEM_DRIVER);
 	if (master->unique == NULL)
 		return -ENOMEM;
 
@@ -145,8 +147,10 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 		       dev->pdev->bus->number,
 		       PCI_SLOT(dev->pdev->devfn),
 		       PCI_FUNC(dev->pdev->devfn));
-	if (len > master->unique_len)
+	if (len >= master->unique_len)
 		DRM_ERROR("buffer overflow");
+	else
+		master->unique_len = len;
 
 	dev->devname =
 	    drm_alloc(strlen(dev->driver->pci_driver.name) + master->unique_len +

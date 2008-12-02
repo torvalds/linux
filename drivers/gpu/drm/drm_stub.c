@@ -117,7 +117,7 @@ static void drm_master_destroy(struct kref *kref)
 		dev->driver->master_destroy(dev, master);
 
 	if (master->unique) {
-		drm_free(master->unique, strlen(master->unique) + 1, DRM_MEM_DRIVER);
+		drm_free(master->unique, master->unique_size, DRM_MEM_DRIVER);
 		master->unique = NULL;
 		master->unique_len = 0;
 	}

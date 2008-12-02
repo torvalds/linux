@@ -627,6 +627,7 @@ struct drm_master {
 
 	char *unique;			/**< Unique identifier: e.g., busid */
 	int unique_len;			/**< Length of unique field */
+	int unique_size;		/**< amount allocated */
 
 	int blocked;			/**< Blocked due to VC switch? */
 
