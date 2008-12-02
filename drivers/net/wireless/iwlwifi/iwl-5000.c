@@ -827,6 +827,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			IWL50_NUM_QUEUES * sizeof(struct iwl5000_scd_bc_tbl);
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;

@@ -611,7 +611,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
  */
 void iwl_txq_ctx_stop(struct iwl_priv *priv)
 {
-	int txq_id;
+	int ch;
 	unsigned long flags;
 
 	/* Turn off all Tx DMA fifos */
@@ -624,12 +624,11 @@ void iwl_txq_ctx_stop(struct iwl_priv *priv)
 	priv->cfg->ops->lib->txq_set_sched(priv, 0);
 
 	/* Stop each Tx DMA channel, and wait for it to be idle */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
-		iwl_write_direct32(priv,
-				   FH_TCSR_CHNL_TX_CONFIG_REG(txq_id), 0x0);
+	for (ch = 0; ch < priv->hw_params.dma_chnl_num; ch++) {
+		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
 		iwl_poll_direct_bit(priv, FH_TSSR_TX_STATUS_REG,
-				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE
-				    (txq_id), 200);
+				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
+				    200);
 	}
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
