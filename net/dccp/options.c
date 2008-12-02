@@ -135,22 +135,13 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				      (unsigned long long)opt_recv->dccpor_ndp);
 			break;
 		case DCCPO_CHANGE_L:
-			/* fall through */
 		case DCCPO_CHANGE_R:
 			if (pkt_type == DCCP_PKT_DATA)
 				break;
-			if (len < 2)
-				goto out_invalid_option;
-			rc = dccp_feat_change_recv(sk, opt, *value, value + 1,
-						   len - 1);
-			/*
-			 * When there is a change error, change_recv is
-			 * responsible for dealing with it.  i.e. reply with an
-			 * empty confirm.
-			 * If the change was mandatory, then we need to die.
-			 */
-			if (rc && mandatory)
-				goto out_invalid_option;
+			rc = dccp_feat_parse_options(sk, dreq, mandatory, opt,
+						    *value, value + 1, len - 1);
+			if (rc)
+				goto out_featneg_failed;
 			break;
 		case DCCPO_CONFIRM_L:
 			/* fall through */
@@ -292,8 +283,10 @@ out_nonsensical_length:
 
 out_invalid_option:
 	DCCP_INC_STATS_BH(DCCP_MIB_INVALIDOPT);
-	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_OPTION_ERROR;
-	DCCP_WARN("DCCP(%p): invalid option %d, len=%d", sk, opt, len);
+	rc = DCCP_RESET_CODE_OPTION_ERROR;
+out_featneg_failed:
+	DCCP_WARN("DCCP(%p): Option %d (len=%d) error=%u\n", sk, opt, len, rc);
+	DCCP_SKB_CB(skb)->dccpd_reset_code = rc;
 	DCCP_SKB_CB(skb)->dccpd_reset_data[0] = opt;
 	DCCP_SKB_CB(skb)->dccpd_reset_data[1] = len > 0 ? value[0] : 0;
 	DCCP_SKB_CB(skb)->dccpd_reset_data[2] = len > 1 ? value[1] : 0;
