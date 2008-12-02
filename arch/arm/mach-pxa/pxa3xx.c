@@ -29,6 +29,7 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/ssp.h>
+#include <mach/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -544,28 +545,9 @@ void __init pxa3xx_init_irq(void)
  * device registration specific to PXA3xx.
  */
 
-static struct resource i2c_power_resources[] = {
-	{
-		.start  = 0x40f500c0,
-		.end    = 0x40f500d3,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_PWRI2C,
-		.end	= IRQ_PWRI2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device pxa3xx_device_i2c_power = {
-	.name		= "pxa2xx-i2c",
-	.id		= 1,
-	.resource	= i2c_power_resources,
-	.num_resources	= ARRAY_SIZE(i2c_power_resources),
-};
-
 void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 {
-	pxa3xx_device_i2c_power.dev.platform_data = info;
+	pxa_register_device(&pxa3xx_device_i2c_power, info);
 }
 
 static struct platform_device *devices[] __initdata = {
@@ -574,6 +556,7 @@ static struct platform_device *devices[] __initdata = {
 	&pxa_device_btuart,
 	&pxa_device_stuart,
 	&pxa_device_i2s,
+	&sa1100_device_rtc,
 	&pxa_device_rtc,
 	&pxa27x_device_ssp1,
 	&pxa27x_device_ssp2,
@@ -581,7 +564,6 @@ static struct platform_device *devices[] __initdata = {
 	&pxa3xx_device_ssp4,
 	&pxa27x_device_pwm0,
 	&pxa27x_device_pwm1,
-	&pxa3xx_device_i2c_power,
 };
 
 static struct sys_device pxa3xx_sysdev[] = {

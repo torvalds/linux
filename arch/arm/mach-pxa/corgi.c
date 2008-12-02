@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/mmc/host.h>
+#include <linux/mtd/physmap.h>
 #include <linux/pm.h>
 #include <linux/gpio.h>
 #include <linux/backlight.h>
@@ -541,11 +542,42 @@ err_free_1:
 static inline void corgi_init_spi(void) {}
 #endif
 
+static struct mtd_partition sharpsl_rom_parts[] = {
+	{
+		.name	="Boot PROM Filesystem",
+		.offset	= 0x00120000,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data sharpsl_rom_data = {
+	.width		= 2,
+	.nr_parts	= ARRAY_SIZE(sharpsl_rom_parts),
+	.parts		= sharpsl_rom_parts,
+};
+
+static struct resource sharpsl_rom_resources[] = {
+	{
+		.start	= 0x00000000,
+		.end	= 0x007fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device sharpsl_rom_device = {
+	.name	= "physmap-flash",
+	.id	= -1,
+	.resource = sharpsl_rom_resources,
+	.num_resources = ARRAY_SIZE(sharpsl_rom_resources),
+	.dev.platform_data = &sharpsl_rom_data,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&corgiscoop_device,
 	&corgifb_device,
 	&corgikbd_device,
 	&corgiled_device,
+	&sharpsl_rom_device,
 };
 
 static void corgi_poweroff(void)

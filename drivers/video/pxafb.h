@@ -124,6 +124,9 @@ struct pxafb_info {
 	struct notifier_block	freq_transition;
 	struct notifier_block	freq_policy;
 #endif
+
+	void (*lcd_power)(int, struct fb_var_screeninfo *);
+	void (*backlight_power)(int);
 };
 
 #define TO_INF(ptr,member) container_of(ptr,struct pxafb_info,member)

@@ -69,9 +69,6 @@
 #define LCCR3_INVALID_CONFIG_MASK	(LCCR3_HSP | LCCR3_VSP |\
 					 LCCR3_PCD | LCCR3_BPP)
 
-static void (*pxafb_backlight_power)(int);
-static void (*pxafb_lcd_power)(int, struct fb_var_screeninfo *);
-
 static int pxafb_activate_var(struct fb_var_screeninfo *var,
 				struct pxafb_info *);
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
@@ -814,6 +811,7 @@ static int pxafb_smart_init(struct pxafb_info *fbi)
 				__func__);
 		return PTR_ERR(fbi->smart_thread);
 	}
+
 	return 0;
 }
 #else
@@ -976,16 +974,16 @@ static inline void __pxafb_backlight_power(struct pxafb_info *fbi, int on)
 {
 	pr_debug("pxafb: backlight o%s\n", on ? "n" : "ff");
 
-	if (pxafb_backlight_power)
-		pxafb_backlight_power(on);
+	if (fbi->backlight_power)
+		fbi->backlight_power(on);
 }
 
 static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 {
 	pr_debug("pxafb: LCD power o%s\n", on ? "n" : "ff");
 
-	if (pxafb_lcd_power)
-		pxafb_lcd_power(on, &fbi->fb.var);
+	if (fbi->lcd_power)
+		fbi->lcd_power(on, &fbi->fb.var);
 }
 
 static void pxafb_setup_gpio(struct pxafb_info *fbi)
@@ -1748,8 +1746,7 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 		ret = -EINVAL;
 		goto failed;
 	}
-	pxafb_backlight_power = inf->pxafb_backlight_power;
-	pxafb_lcd_power = inf->pxafb_lcd_power;
+
 	fbi = pxafb_init_fbinfo(&dev->dev);
 	if (!fbi) {
 		/* only reason for pxafb_init_fbinfo to fail is kmalloc */
@@ -1757,6 +1754,9 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 		ret = -ENOMEM;
 		goto failed;
 	}
+
+	fbi->backlight_power = inf->pxafb_backlight_power;
+	fbi->lcd_power = inf->pxafb_lcd_power;
 
 	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (r == NULL) {

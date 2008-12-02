@@ -332,38 +332,18 @@ static int pxa27x_set_wake(unsigned int irq, unsigned int on)
 void __init pxa27x_init_irq(void)
 {
 	pxa_init_irq(34, pxa27x_set_wake);
-	pxa_init_gpio(128, pxa27x_set_wake);
+	pxa_init_gpio(121, pxa27x_set_wake);
 }
 
 /*
  * device registration specific to PXA27x.
  */
-
-static struct resource i2c_power_resources[] = {
-	{
-		.start	= 0x40f00180,
-		.end	= 0x40f001a3,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_PWRI2C,
-		.end	= IRQ_PWRI2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device pxa27x_device_i2c_power = {
-	.name		= "pxa2xx-i2c",
-	.id		= 1,
-	.resource	= i2c_power_resources,
-	.num_resources	= ARRAY_SIZE(i2c_power_resources),
-};
-
 void __init pxa27x_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 {
 	local_irq_disable();
 	PCFR |= PCFR_PI2CEN;
 	local_irq_enable();
-	pxa27x_device_i2c_power.dev.platform_data = info;
+	pxa_register_device(&pxa27x_device_i2c_power, info);
 }
 
 static struct platform_device *devices[] __initdata = {
@@ -372,8 +352,8 @@ static struct platform_device *devices[] __initdata = {
 	&pxa_device_btuart,
 	&pxa_device_stuart,
 	&pxa_device_i2s,
+	&sa1100_device_rtc,
 	&pxa_device_rtc,
-	&pxa27x_device_i2c_power,
 	&pxa27x_device_ssp1,
 	&pxa27x_device_ssp2,
 	&pxa27x_device_ssp3,

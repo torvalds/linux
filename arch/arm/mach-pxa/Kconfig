@@ -19,6 +19,9 @@ config CPU_PXA320
 config CPU_PXA930
 	bool "PXA930 (codename Tavor-P)"
 
+config CPU_PXA935
+	bool "PXA935 (codename Tavor-P65)"
+
 endmenu
 
 endif
@@ -199,6 +202,10 @@ config MACH_E800
 config TRIZEPS_PXA
 	bool "PXA based Keith und Koep Trizeps DIMM-Modules"
 
+config MACH_H5000
+	bool "HP iPAQ h5000"
+	select PXA25x
+
 config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
 	depends on TRIZEPS_PXA
@@ -283,7 +290,6 @@ config MACH_MIOA701
 	bool "Mitac Mio A701 Support"
 	select PXA27x
 	select IWMMXT
-	select LEDS_GPIO
 	select HAVE_PWM
 	select GPIO_SYSFS
 	help
@@ -395,6 +401,12 @@ config PXA27x
 	select CPU_XSCALE
 	help
 	  Select code specific to PXA27x variants
+
+config CPU_PXA26x
+	bool
+	select PXA25x
+	help
+	  Select code specific to PXA26x (codename Dalhart)
 
 config PXA3xx
 	bool

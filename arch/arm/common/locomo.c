@@ -1108,6 +1108,7 @@ void locomo_frontlight_set(struct locomo_dev *dev, int duty, int vr, int bpwf)
 	locomo_writel(bpwf | LOCOMO_ALC_EN, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALS);
 	spin_unlock_irqrestore(&lchip->lock, flags);
 }
+EXPORT_SYMBOL(locomo_frontlight_set);
 
 /*
  *	LoCoMo "Register Access Bus."

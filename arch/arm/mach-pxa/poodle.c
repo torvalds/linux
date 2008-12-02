@@ -20,6 +20,7 @@
 #include <linux/fb.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -413,9 +414,40 @@ static struct pxafb_mach_info poodle_fb_info = {
 	.lcd_conn	= LCD_COLOR_TFT_16BPP,
 };
 
+static struct mtd_partition sharpsl_rom_parts[] = {
+	{
+		.name	="Boot PROM Filesystem",
+		.offset	= 0x00120000,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data sharpsl_rom_data = {
+	.width		= 2,
+	.nr_parts	= ARRAY_SIZE(sharpsl_rom_parts),
+	.parts		= sharpsl_rom_parts,
+};
+
+static struct resource sharpsl_rom_resources[] = {
+	{
+		.start	= 0x00000000,
+		.end	= 0x007fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device sharpsl_rom_device = {
+	.name	= "physmap-flash",
+	.id	= -1,
+	.resource = sharpsl_rom_resources,
+	.num_resources = ARRAY_SIZE(sharpsl_rom_resources),
+	.dev.platform_data = &sharpsl_rom_data,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&poodle_locomo_device,
 	&poodle_scoop_device,
+	&sharpsl_rom_device,
 };
 
 static void poodle_poweroff(void)

@@ -36,12 +36,6 @@
 #include "devices.h"
 #include "clock.h"
 
-int cpu_is_pxa26x(void)
-{
-	return cpu_is_pxa250() && ((BOOT_DEF & 0x8) == 0);
-}
-EXPORT_SYMBOL_GPL(cpu_is_pxa26x);
-
 /*
  * Various clock factors driven by the CCCR register.
  */
@@ -319,13 +313,21 @@ void __init pxa25x_init_irq(void)
 	pxa_init_gpio(85, pxa25x_set_wake);
 }
 
+#ifdef CONFIG_CPU_PXA26x
+void __init pxa26x_init_irq(void)
+{
+	pxa_init_irq(32, pxa25x_set_wake);
+	pxa_init_gpio(90, pxa25x_set_wake);
+}
+#endif
+
 static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_udc,
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,
 	&pxa_device_i2s,
-	&pxa_device_rtc,
+	&sa1100_device_rtc,
 	&pxa25x_device_ssp,
 	&pxa25x_device_nssp,
 	&pxa25x_device_assp,
@@ -371,7 +373,7 @@ static int __init pxa25x_init(void)
 	}
 
 	/* Only add HWUART for PXA255/26x; PXA210/250 do not have it. */
-	if (cpu_is_pxa255() || cpu_is_pxa26x()) {
+	if (cpu_is_pxa255()) {
 		clks_register(&pxa25x_hwuart_clkreg, 1);
 		ret = platform_device_register(&pxa_device_hwuart);
 	}
