@@ -41,9 +41,11 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 	dump_fifo_data(src, len);
 
 	if (unlikely((unsigned long)src & 0x01))
-		outsw_8(fifo, src, len & 0x01 ? (len >> 1) + 1 : len >> 1);
+		outsw_8((unsigned long)fifo, src,
+			len & 0x01 ? (len >> 1) + 1 : len >> 1);
 	else
-		outsw(fifo, src, len & 0x01 ? (len >> 1) + 1 : len >> 1);
+		outsw((unsigned long)fifo, src,
+			len & 0x01 ? (len >> 1) + 1 : len >> 1);
 }
 
 /*
@@ -54,8 +56,6 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 	void __iomem *fifo = hw_ep->fifo;
 	u8 epnum = hw_ep->epnum;
 	u16 dma_reg = 0;
-	int i;
-	u16 *data;
 
 	DBG(4, "%cX ep%d fifo %p count %d buf %p\n",
 			'R', hw_ep->epnum, fifo, len, dst);
@@ -96,9 +96,11 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 	SSYNC();
 #else
 	if (unlikely((unsigned long)dst & 0x01))
-		insw_8(fifo, dst, len & 0x01 ? (len >> 1) + 1 : len >> 1);
+		insw_8((unsigned long)fifo, dst,
+			len & 0x01 ? (len >> 1) + 1 : len >> 1);
 	else
-		insw(fifo, dst, len & 0x01 ? (len >> 1) + 1 : len >> 1);
+		insw((unsigned long)fifo, dst,
+			len & 0x01 ? (len >> 1) + 1 : len >> 1);
 #endif
 
 	dump_fifo_data(dst, len);
