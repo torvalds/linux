@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
+#include <media/ov772x.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
@@ -326,6 +327,16 @@ static void camera_power(int mode)
 		camera_power_off();
 }
 
+static int ov7725_power(struct device *dev, int mode)
+{
+	if (mode)
+		camera_power_on();
+	else
+		camera_power_off();
+
+	return 0;
+}
+
 #ifdef CONFIG_I2C
 static unsigned char camera_ov772x_magic[] =
 {
@@ -448,6 +459,13 @@ static struct platform_device migor_ceu_device = {
 	},
 };
 
+static struct ov772x_camera_info ov7725_info = {
+	.buswidth  = SOCAM_DATAWIDTH_8,
+	.link = {
+		.power  = ov7725_power,
+	},
+};
+
 static struct platform_device *migor_devices[] __initdata = {
 	&smc91x_eth_device,
 	&sh_keysc_device,
@@ -467,6 +485,10 @@ static struct i2c_board_info migor_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("migor_ts", 0x51),
 		.irq = 38, /* IRQ6 */
+	},
+	{
+		I2C_BOARD_INFO("ov772x", 0x21),
+		.platform_data = &ov7725_info,
 	},
 };
 
