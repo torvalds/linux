@@ -554,48 +554,6 @@ iscsi_data_in(struct iscsi_conn *conn, struct iscsi_task *task)
 }
 
 /**
- * iscsi_solicit_data_init - initialize first Data-Out
- * @conn: iscsi connection
- * @task: scsi command task
- * @r2t: R2T info
- *
- * Notes:
- *	Initialize first Data-Out within this R2T sequence and finds
- *	proper data_offset within this SCSI command.
- *
- *	This function is called with connection lock taken.
- **/
-static void
-iscsi_solicit_data_init(struct iscsi_conn *conn, struct iscsi_task *task,
-			struct iscsi_r2t_info *r2t)
-{
-	struct iscsi_data *hdr;
-
-	hdr = &r2t->dtask.hdr;
-	memset(hdr, 0, sizeof(struct iscsi_data));
-	hdr->ttt = r2t->ttt;
-	hdr->datasn = cpu_to_be32(r2t->solicit_datasn);
-	r2t->solicit_datasn++;
-	hdr->opcode = ISCSI_OP_SCSI_DATA_OUT;
-	memcpy(hdr->lun, task->hdr->lun, sizeof(hdr->lun));
-	hdr->itt = task->hdr->itt;
-	hdr->exp_statsn = r2t->exp_statsn;
-	hdr->offset = cpu_to_be32(r2t->data_offset);
-	if (r2t->data_length > conn->max_xmit_dlength) {
-		hton24(hdr->dlength, conn->max_xmit_dlength);
-		r2t->data_count = conn->max_xmit_dlength;
-		hdr->flags = 0;
-	} else {
-		hton24(hdr->dlength, r2t->data_length);
-		r2t->data_count = r2t->data_length;
-		hdr->flags = ISCSI_FLAG_CMD_FINAL;
-	}
-	conn->dataout_pdus_cnt++;
-
-	r2t->sent = 0;
-}
-
-/**
  * iscsi_r2t_rsp - iSCSI R2T Response processing
  * @conn: iscsi connection
  * @task: scsi command task
@@ -1309,55 +1267,6 @@ iscsi_tcp_send_linear_data_prepare(struct iscsi_conn *conn, void *data,
 
 	iscsi_segment_init_linear(&tcp_conn->out.data_segment,
 				data, len, NULL, tx_hash);
-}
-
-/**
- * iscsi_solicit_data_cont - initialize next Data-Out
- * @conn: iscsi connection
- * @task: scsi command task
- * @r2t: R2T info
- * @left: bytes left to transfer
- *
- * Notes:
- *	Initialize next Data-Out within this R2T sequence and continue
- *	to process next Scatter-Gather element(if any) of this SCSI command.
- *
- *	Called under connection lock.
- **/
-static int
-iscsi_solicit_data_cont(struct iscsi_conn *conn, struct iscsi_task *task,
-			struct iscsi_r2t_info *r2t)
-{
-	struct iscsi_data *hdr;
-	int new_offset, left;
-
-	BUG_ON(r2t->data_length - r2t->sent < 0);
-	left = r2t->data_length - r2t->sent;
-	if (left == 0)
-		return 0;
-
-	hdr = &r2t->dtask.hdr;
-	memset(hdr, 0, sizeof(struct iscsi_data));
-	hdr->ttt = r2t->ttt;
-	hdr->datasn = cpu_to_be32(r2t->solicit_datasn);
-	r2t->solicit_datasn++;
-	hdr->opcode = ISCSI_OP_SCSI_DATA_OUT;
-	memcpy(hdr->lun, task->hdr->lun, sizeof(hdr->lun));
-	hdr->itt = task->hdr->itt;
-	hdr->exp_statsn = r2t->exp_statsn;
-	new_offset = r2t->data_offset + r2t->sent;
-	hdr->offset = cpu_to_be32(new_offset);
-	if (left > conn->max_xmit_dlength) {
-		hton24(hdr->dlength, conn->max_xmit_dlength);
-		r2t->data_count = conn->max_xmit_dlength;
-	} else {
-		hton24(hdr->dlength, left);
-		r2t->data_count = left;
-		hdr->flags = ISCSI_FLAG_CMD_FINAL;
-	}
-
-	conn->dataout_pdus_cnt++;
-	return 1;
 }
 
 static int iscsi_tcp_pdu_init(struct iscsi_task *task,
