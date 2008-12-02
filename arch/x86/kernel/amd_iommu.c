@@ -1683,4 +1683,39 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 	iommu_completion_wait(iommu);
 }
 
+static int amd_iommu_attach_device(struct iommu_domain *dom,
+				   struct device *dev)
+{
+	struct protection_domain *domain = dom->priv;
+	struct protection_domain *old_domain;
+	struct amd_iommu *iommu;
+	struct pci_dev *pdev;
+	u16 devid;
+
+	if (dev->bus != &pci_bus_type)
+		return -EINVAL;
+
+	pdev = to_pci_dev(dev);
+
+	devid = calc_devid(pdev->bus->number, pdev->devfn);
+
+	if (devid >= amd_iommu_last_bdf ||
+			devid != amd_iommu_alias_table[devid])
+		return -EINVAL;
+
+	iommu = amd_iommu_rlookup_table[devid];
+	if (!iommu)
+		return -EINVAL;
+
+	old_domain = domain_for_device(devid);
+	if (old_domain)
+		return -EBUSY;
+
+	attach_device(iommu, domain, devid);
+
+	iommu_completion_wait(iommu);
+
+	return 0;
+}
+
 #endif
