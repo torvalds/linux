@@ -809,12 +809,19 @@ int iwl3945_hw_txq_free_tfd(struct iwl3945_priv *priv, struct iwl3945_tx_queue *
 
 u8 iwl3945_hw_find_station(struct iwl3945_priv *priv, const u8 *addr)
 {
-	int i;
+	int i, start = IWL_AP_ID;
 	int ret = IWL_INVALID_STATION;
 	unsigned long flags;
 
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) ||
+	    (priv->iw_mode == NL80211_IFTYPE_AP))
+		start = IWL_STA_ID;
+
+	if (is_broadcast_ether_addr(addr))
+		return priv->hw_setting.bcast_sta_id;
+
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	for (i = IWL_STA_ID; i < priv->hw_setting.max_stations; i++)
+	for (i = start; i < priv->hw_setting.max_stations; i++)
 		if ((priv->stations[i].used) &&
 		    (!compare_ether_addr
 		     (priv->stations[i].sta.sta.addr, addr))) {
