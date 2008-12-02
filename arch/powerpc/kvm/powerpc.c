@@ -28,8 +28,8 @@
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/tlbflush.h>
+#include "timing.h"
 #include "../mm/mmu_decl.h"
-
 
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
@@ -171,11 +171,15 @@ void kvm_arch_flush_shadow(struct kvm *kvm)
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
-	return kvmppc_core_vcpu_create(kvm, id);
+	struct kvm_vcpu *vcpu;
+	vcpu = kvmppc_core_vcpu_create(kvm, id);
+	kvmppc_create_vcpu_debugfs(vcpu, id);
+	return vcpu;
 }
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
+	kvmppc_remove_vcpu_debugfs(vcpu);
 	kvmppc_core_vcpu_free(vcpu);
 }
 

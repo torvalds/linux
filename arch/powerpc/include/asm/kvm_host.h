@@ -71,6 +71,49 @@ struct kvmppc_44x_tlbe {
 	u32 word2;
 };
 
+enum kvm_exit_types {
+	MMIO_EXITS,
+	DCR_EXITS,
+	SIGNAL_EXITS,
+	ITLB_REAL_MISS_EXITS,
+	ITLB_VIRT_MISS_EXITS,
+	DTLB_REAL_MISS_EXITS,
+	DTLB_VIRT_MISS_EXITS,
+	SYSCALL_EXITS,
+	ISI_EXITS,
+	DSI_EXITS,
+	EMULATED_INST_EXITS,
+	EMULATED_MTMSRWE_EXITS,
+	EMULATED_WRTEE_EXITS,
+	EMULATED_MTSPR_EXITS,
+	EMULATED_MFSPR_EXITS,
+	EMULATED_MTMSR_EXITS,
+	EMULATED_MFMSR_EXITS,
+	EMULATED_TLBSX_EXITS,
+	EMULATED_TLBWE_EXITS,
+	EMULATED_RFI_EXITS,
+	DEC_EXITS,
+	EXT_INTR_EXITS,
+	HALT_WAKEUP,
+	USR_PR_INST,
+	FP_UNAVAIL,
+	DEBUG_EXITS,
+	TIMEINGUEST,
+	__NUMBER_OF_KVM_EXIT_TYPES
+};
+
+#ifdef CONFIG_KVM_EXIT_TIMING
+/* allow access to big endian 32bit upper/lower parts and 64bit var */
+struct exit_timing {
+	union {
+		u64 tv64;
+		struct {
+			u32 tbu, tbl;
+		} tv32;
+	};
+};
+#endif
+
 struct kvm_arch {
 };
 
@@ -129,6 +172,19 @@ struct kvm_vcpu_arch {
 	u32 ccr1;
 	u32 dbcr0;
 	u32 dbcr1;
+
+#ifdef CONFIG_KVM_EXIT_TIMING
+	struct exit_timing timing_exit;
+	struct exit_timing timing_last_enter;
+	u32 last_exit_type;
+	u32 timing_count_type[__NUMBER_OF_KVM_EXIT_TYPES];
+	u64 timing_sum_duration[__NUMBER_OF_KVM_EXIT_TYPES];
+	u64 timing_sum_quad_duration[__NUMBER_OF_KVM_EXIT_TYPES];
+	u64 timing_min_duration[__NUMBER_OF_KVM_EXIT_TYPES];
+	u64 timing_max_duration[__NUMBER_OF_KVM_EXIT_TYPES];
+	u64 timing_last_exit;
+	struct dentry *debugfs_exit_timing;
+#endif
 
 	u32 last_inst;
 	ulong fault_dear;

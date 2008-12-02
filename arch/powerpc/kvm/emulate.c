@@ -28,6 +28,7 @@
 #include <asm/byteorder.h>
 #include <asm/kvm_ppc.h>
 #include <asm/disassemble.h>
+#include "timing.h"
 
 void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 {
@@ -72,6 +73,9 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	int sprn;
 	enum emulation_result emulated = EMULATE_DONE;
 	int advance = 1;
+
+	/* this default type might be overwritten by subcategories */
+	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
 
 	switch (get_op(inst)) {
 	case 3:                                             /* trap */

@@ -32,6 +32,17 @@ config KVM_440
 
 	  If unsure, say N.
 
+config KVM_EXIT_TIMING
+	bool "Detailed exit timing"
+	depends on KVM
+	---help---
+	  Calculate elapsed time for every exit/enter cycle. A per-vcpu
+	  report is available in debugfs kvm/vm#_vcpu#_timing.
+	  The overhead is relatively small, however it is not recommended for
+	  production environments.
+
+	  If unsure, say N.
+
 config KVM_TRACE
 	bool "KVM trace support"
 	depends on KVM && MARKERS && SYSFS

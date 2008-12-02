@@ -28,6 +28,7 @@
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
+#include "timing.h"
 #include <asm/cacheflush.h>
 #include <asm/kvm_44x.h>
 
@@ -185,6 +186,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	enum emulation_result er;
 	int r = RESUME_HOST;
 
+	/* update before a new last_exit_type is rewritten */
+	kvmppc_update_timing_stats(vcpu);
+
 	local_irq_enable();
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
@@ -198,7 +202,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 
 	case BOOKE_INTERRUPT_EXTERNAL:
-		vcpu->stat.ext_intr_exits++;
+		account_exit(vcpu, EXT_INTR_EXITS);
 		if (need_resched())
 			cond_resched();
 		r = RESUME_GUEST;
@@ -208,8 +212,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		/* Since we switched IVPR back to the host's value, the host
 		 * handled this interrupt the moment we enabled interrupts.
 		 * Now we just offer it a chance to reschedule the guest. */
-
-		vcpu->stat.dec_exits++;
+		account_exit(vcpu, DEC_EXITS);
 		if (need_resched())
 			cond_resched();
 		r = RESUME_GUEST;
@@ -222,20 +225,21 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			vcpu->arch.esr = vcpu->arch.fault_esr;
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_PROGRAM);
 			r = RESUME_GUEST;
+			account_exit(vcpu, USR_PR_INST);
 			break;
 		}
 
 		er = kvmppc_emulate_instruction(run, vcpu);
 		switch (er) {
 		case EMULATE_DONE:
+			/* don't overwrite subtypes, just account kvm_stats */
+			account_exit_stat(vcpu, EMULATED_INST_EXITS);
 			/* Future optimization: only reload non-volatiles if
 			 * they were actually modified by emulation. */
-			vcpu->stat.emulated_inst_exits++;
 			r = RESUME_GUEST_NV;
 			break;
 		case EMULATE_DO_DCR:
 			run->exit_reason = KVM_EXIT_DCR;
-			vcpu->stat.dcr_exits++;
 			r = RESUME_HOST;
 			break;
 		case EMULATE_FAIL:
@@ -255,6 +259,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	case BOOKE_INTERRUPT_FP_UNAVAIL:
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_FP_UNAVAIL);
+		account_exit(vcpu, FP_UNAVAIL);
 		r = RESUME_GUEST;
 		break;
 
@@ -262,20 +267,20 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		vcpu->arch.dear = vcpu->arch.fault_dear;
 		vcpu->arch.esr = vcpu->arch.fault_esr;
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DATA_STORAGE);
-		vcpu->stat.dsi_exits++;
+		account_exit(vcpu, DSI_EXITS);
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_INST_STORAGE:
 		vcpu->arch.esr = vcpu->arch.fault_esr;
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_INST_STORAGE);
-		vcpu->stat.isi_exits++;
+		account_exit(vcpu, ISI_EXITS);
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_SYSCALL:
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SYSCALL);
-		vcpu->stat.syscall_exits++;
+		account_exit(vcpu, SYSCALL_EXITS);
 		r = RESUME_GUEST;
 		break;
 
@@ -294,7 +299,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
 			vcpu->arch.dear = vcpu->arch.fault_dear;
 			vcpu->arch.esr = vcpu->arch.fault_esr;
-			vcpu->stat.dtlb_real_miss_exits++;
+			account_exit(vcpu, DTLB_REAL_MISS_EXITS);
 			r = RESUME_GUEST;
 			break;
 		}
@@ -312,13 +317,13 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * invoking the guest. */
 			kvmppc_mmu_map(vcpu, eaddr, vcpu->arch.paddr_accessed, gtlbe->tid,
 			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
-			vcpu->stat.dtlb_virt_miss_exits++;
+			account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
 			r = RESUME_GUEST;
 		} else {
 			/* Guest has mapped and accessed a page which is not
 			 * actually RAM. */
 			r = kvmppc_emulate_mmio(run, vcpu);
-			vcpu->stat.mmio_exits++;
+			account_exit(vcpu, MMIO_EXITS);
 		}
 
 		break;
@@ -340,11 +345,11 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ITLB_MISS);
-			vcpu->stat.itlb_real_miss_exits++;
+			account_exit(vcpu, ITLB_REAL_MISS_EXITS);
 			break;
 		}
 
-		vcpu->stat.itlb_virt_miss_exits++;
+		account_exit(vcpu, ITLB_VIRT_MISS_EXITS);
 
 		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
 		gpaddr = tlb_xlate(gtlbe, eaddr);
@@ -378,6 +383,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		mtspr(SPRN_DBSR, dbsr);
 
 		run->exit_reason = KVM_EXIT_DEBUG;
+		account_exit(vcpu, DEBUG_EXITS);
 		r = RESUME_HOST;
 		break;
 	}
@@ -398,7 +404,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (signal_pending(current)) {
 			run->exit_reason = KVM_EXIT_INTR;
 			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-			vcpu->stat.signal_exits++;
+			account_exit(vcpu, SIGNAL_EXITS);
 		}
 	}
 
@@ -417,6 +423,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	/* Eye-catching number so we know if the guest takes an interrupt
 	 * before it's programmed its own IVPR. */
 	vcpu->arch.ivpr = 0x55550000;
+
+	kvmppc_init_timing_stats(vcpu);
 
 	return kvmppc_core_vcpu_setup(vcpu);
 }

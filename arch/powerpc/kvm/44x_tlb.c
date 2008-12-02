@@ -27,6 +27,7 @@
 #include <asm/mmu-44x.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_44x.h>
+#include "timing.h"
 
 #include "44x_tlb.h"
 
@@ -470,6 +471,7 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	KVMTRACE_5D(GTLB_WRITE, vcpu, gtlb_index, tlbe->tid, tlbe->word0,
 	            tlbe->word1, tlbe->word2, handler);
 
+	kvmppc_set_exit_type(vcpu, EMULATED_TLBWE_EXITS);
 	return EMULATE_DONE;
 }
 
@@ -493,5 +495,6 @@ int kvmppc_44x_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb, u8 rc)
 	}
 	vcpu->arch.gpr[rt] = gtlb_index;
 
+	kvmppc_set_exit_type(vcpu, EMULATED_TLBSX_EXITS);
 	return EMULATE_DONE;
 }

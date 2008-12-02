@@ -22,6 +22,7 @@
 #include <asm/dcr-regs.h>
 #include <asm/disassemble.h>
 #include <asm/kvm_44x.h>
+#include "timing.h"
 
 #include "booke.h"
 #include "44x_tlb.h"
@@ -58,11 +59,11 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int ws;
 
 	switch (get_op(inst)) {
-
 	case OP_RFI:
 		switch (get_xop(inst)) {
 		case XOP_RFI:
 			kvmppc_emul_rfi(vcpu);
+			kvmppc_set_exit_type(vcpu, EMULATED_RFI_EXITS);
 			*advance = 0;
 			break;
 
@@ -78,10 +79,12 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		case XOP_MFMSR:
 			rt = get_rt(inst);
 			vcpu->arch.gpr[rt] = vcpu->arch.msr;
+			kvmppc_set_exit_type(vcpu, EMULATED_MFMSR_EXITS);
 			break;
 
 		case XOP_MTMSR:
 			rs = get_rs(inst);
+			kvmppc_set_exit_type(vcpu, EMULATED_MTMSR_EXITS);
 			kvmppc_set_msr(vcpu, vcpu->arch.gpr[rs]);
 			break;
 
@@ -89,11 +92,13 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			rs = get_rs(inst);
 			vcpu->arch.msr = (vcpu->arch.msr & ~MSR_EE)
 							 | (vcpu->arch.gpr[rs] & MSR_EE);
+			kvmppc_set_exit_type(vcpu, EMULATED_WRTEE_EXITS);
 			break;
 
 		case XOP_WRTEEI:
 			vcpu->arch.msr = (vcpu->arch.msr & ~MSR_EE)
 							 | (inst & MSR_EE);
+			kvmppc_set_exit_type(vcpu, EMULATED_WRTEE_EXITS);
 			break;
 
 		case XOP_MFDCR:
@@ -127,6 +132,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				run->dcr.is_write = 0;
 				vcpu->arch.io_gpr = rt;
 				vcpu->arch.dcr_needed = 1;
+				account_exit(vcpu, DCR_EXITS);
 				emulated = EMULATE_DO_DCR;
 			}
 
@@ -146,6 +152,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				run->dcr.data = vcpu->arch.gpr[rs];
 				run->dcr.is_write = 1;
 				vcpu->arch.dcr_needed = 1;
+				account_exit(vcpu, DCR_EXITS);
 				emulated = EMULATE_DO_DCR;
 			}
 
@@ -276,6 +283,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		return EMULATE_FAIL;
 	}
 
+	kvmppc_set_exit_type(vcpu, EMULATED_MTSPR_EXITS);
 	return EMULATE_DONE;
 }
 
@@ -357,6 +365,7 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		return EMULATE_FAIL;
 	}
 
+	kvmppc_set_exit_type(vcpu, EMULATED_MFSPR_EXITS);
 	return EMULATE_DONE;
 }
 

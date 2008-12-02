@@ -22,6 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/kvm_host.h>
+#include "timing.h"
 
 /* interrupt priortity ordering */
 #define BOOKE_IRQPRIO_DATA_STORAGE 0
@@ -50,8 +51,10 @@ static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 
 	vcpu->arch.msr = new_msr;
 
-	if (vcpu->arch.msr & MSR_WE)
+	if (vcpu->arch.msr & MSR_WE) {
 		kvm_vcpu_block(vcpu);
+		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
+	};
 }
 
 #endif /* __KVM_BOOKE_H__ */

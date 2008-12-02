@@ -107,6 +107,18 @@ _GLOBAL(kvmppc_resume_host)
 	li	r6, 1
 	slw	r6, r6, r5
 
+#ifdef CONFIG_KVM_EXIT_TIMING
+	/* save exit time */
+1:
+	mfspr	r7, SPRN_TBRU
+	mfspr	r8, SPRN_TBRL
+	mfspr	r9, SPRN_TBRU
+	cmpw	r9, r7
+	bne	1b
+	stw	r8, VCPU_TIMING_EXIT_TBL(r4)
+	stw	r9, VCPU_TIMING_EXIT_TBU(r4)
+#endif
+
 	/* Save the faulting instruction and all GPRs for emulation. */
 	andi.	r7, r6, NEED_INST_MASK
 	beq	..skip_inst_copy
@@ -374,6 +386,18 @@ lightweight_exit:
 	mtspr	SPRN_SPRG6, r3
 	lwz	r3, VCPU_SPRG7(r4)
 	mtspr	SPRN_SPRG7, r3
+
+#ifdef CONFIG_KVM_EXIT_TIMING
+	/* save enter time */
+1:
+	mfspr	r6, SPRN_TBRU
+	mfspr	r7, SPRN_TBRL
+	mfspr	r8, SPRN_TBRU
+	cmpw	r8, r6
+	bne	1b
+	stw	r7, VCPU_TIMING_LAST_ENTER_TBL(r4)
+	stw	r8, VCPU_TIMING_LAST_ENTER_TBU(r4)
+#endif
 
 	/* Finish loading guest volatiles and jump to guest. */
 	lwz	r3, VCPU_CTR(r4)
