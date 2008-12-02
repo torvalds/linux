@@ -18,11 +18,21 @@
 #include <asm/cell-pmu.h>
 #include "pr_util.h"
 
-#define TRACE_ARRAY_SIZE 1024
 #define SCALE_SHIFT 14
 
 static u32 *samples;
 
+/* spu_prof_running is a flag used to indicate if spu profiling is enabled
+ * or not.  It is set by the routines start_spu_profiling_cycles() and
+ * start_spu_profiling_events().  The flag is cleared by the routines
+ * stop_spu_profiling_cycles() and stop_spu_profiling_events().  These
+ * routines are called via global_start() and global_stop() which are called in
+ * op_powerpc_start() and op_powerpc_stop().  These routines are called once
+ * per system as a result of the user starting/stopping oprofile.  Hence, only
+ * one CPU per user at a time will be changing  the value of spu_prof_running.
+ * In general, OProfile does not protect against multiple users trying to run
+ * OProfile at a time.
+ */
 int spu_prof_running;
 static unsigned int profiling_interval;
 
@@ -31,7 +41,7 @@ static unsigned int profiling_interval;
 
 #define SPU_PC_MASK	     0xFFFF
 
-static DEFINE_SPINLOCK(oprof_spu_smpl_arry_lck);
+DEFINE_SPINLOCK(oprof_spu_smpl_arry_lck);
 unsigned long oprof_spu_smpl_arry_lck_flags;
 
 void set_spu_profiling_frequency(unsigned int freq_khz, unsigned int cycles_reset)
@@ -212,10 +222,30 @@ int start_spu_profiling_cycles(unsigned int cycles_reset)
 	return 0;
 }
 
+/*
+ * Entry point for SPU event profiling.
+ * NOTE:  SPU profiling is done system-wide, not per-CPU.
+ *
+ * cycles_reset is the count value specified by the user when
+ * setting up OProfile to count SPU_CYCLES.
+ */
+void start_spu_profiling_events(void)
+{
+	spu_prof_running = 1;
+	schedule_delayed_work(&spu_work, DEFAULT_TIMER_EXPIRE);
+
+	return;
+}
+
 void stop_spu_profiling_cycles(void)
 {
 	spu_prof_running = 0;
 	hrtimer_cancel(&timer);
 	kfree(samples);
 	pr_debug("SPU_PROF: stop_spu_profiling_cycles issued\n");
+}
+
+void stop_spu_profiling_events(void)
+{
+	spu_prof_running = 0;
 }
