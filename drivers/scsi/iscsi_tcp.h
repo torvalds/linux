@@ -98,25 +98,9 @@ struct iscsi_tcp_conn {
 	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
 };
 
-struct iscsi_data_task {
-	struct iscsi_data	hdr;			/* PDU */
-	char			hdrext[ISCSI_DIGEST_SIZE];/* Header-Digest */
-};
-
-struct iscsi_r2t_info {
-	__be32			ttt;		/* copied from R2T */
-	__be32			exp_statsn;	/* copied from R2T */
-	uint32_t		data_length;	/* copied from R2T */
-	uint32_t		data_offset;	/* copied from R2T */
-	int			sent;		/* R2T sequence progress */
-	int			data_count;	/* DATA-Out payload progress */
-	int			solicit_datasn;
-	struct iscsi_data_task	dtask;		/* Data-Out header buf */
-};
-
 struct iscsi_tcp_task {
 	struct iscsi_hdr_buff {
-		struct iscsi_cmd	cmd_hdr;
+		struct iscsi_hdr	hdrbuf;
 		char			hdrextbuf[ISCSI_MAX_AHS_SIZE +
 		                                  ISCSI_DIGEST_SIZE];
 	} hdr;
@@ -124,10 +108,9 @@ struct iscsi_tcp_task {
 	int			sent;
 	uint32_t		exp_datasn;	/* expected target's R2TSN/DataSN */
 	int			data_offset;
-	struct iscsi_r2t_info	*r2t;		/* in progress R2T    */
+	struct iscsi_r2t_info	*r2t;		/* in progress solict R2T */
 	struct iscsi_pool	r2tpool;
 	struct kfifo		*r2tqueue;
-	struct iscsi_data_task	unsol_dtask;	/* Data-Out header buf */
 };
 
 #endif /* ISCSI_H */
