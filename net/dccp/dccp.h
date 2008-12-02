@@ -443,6 +443,8 @@ static inline int dccp_ack_pending(const struct sock *sk)
 
 extern int  dccp_feat_finalise_settings(struct dccp_sock *dp);
 extern int  dccp_feat_server_ccid_dependencies(struct dccp_request_sock *dreq);
+extern int  dccp_feat_insert_opts(struct dccp_sock*, struct dccp_request_sock*,
+				  struct sk_buff *skb);
 extern void dccp_feat_list_purge(struct list_head *fn_list);
 
 extern int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
