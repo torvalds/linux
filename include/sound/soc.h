@@ -349,6 +349,11 @@ struct snd_soc_card {
 	/* CPU <--> Codec DAI links  */
 	struct snd_soc_dai_link *dai_link;
 	int num_links;
+
+	struct snd_soc_device *socdev;
+
+	struct delayed_work delayed_work;
+	struct work_struct deferred_resume_work;
 };
 
 /* SoC Device - the audio subsystem */
@@ -358,8 +363,6 @@ struct snd_soc_device {
 	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;
-	struct delayed_work delayed_work;
-	struct work_struct deferred_resume_work;
 	void *codec_data;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry	*debugfs_root;
