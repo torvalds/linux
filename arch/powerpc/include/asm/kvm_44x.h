@@ -22,19 +22,25 @@
 
 #include <linux/kvm_host.h>
 
-/* XXX Can't include mmu-44x.h because it redefines struct mm_context. */
 #define PPC44x_TLB_SIZE 64
+
+/* If the guest is expecting it, this can be as large as we like; we'd just
+ * need to find some way of advertising it. */
+#define KVM44x_GUEST_TLB_SIZE 64
+
+struct kvmppc_44x_shadow_ref {
+	struct page *page;
+	u16 gtlb_index;
+	u8 writeable;
+	u8 tid;
+};
 
 struct kvmppc_vcpu_44x {
 	/* Unmodified copy of the guest's TLB. */
-	struct kvmppc_44x_tlbe guest_tlb[PPC44x_TLB_SIZE];
-	/* TLB that's actually used when the guest is running. */
-	struct kvmppc_44x_tlbe shadow_tlb[PPC44x_TLB_SIZE];
-	/* Pages which are referenced in the shadow TLB. */
-	struct page *shadow_pages[PPC44x_TLB_SIZE];
+	struct kvmppc_44x_tlbe guest_tlb[KVM44x_GUEST_TLB_SIZE];
 
-	/* Track which TLB entries we've modified in the current exit. */
-	u8 shadow_tlb_mod[PPC44x_TLB_SIZE];
+	/* References to guest pages in the hardware TLB. */
+	struct kvmppc_44x_shadow_ref shadow_refs[PPC44x_TLB_SIZE];
 
 	struct kvm_vcpu vcpu;
 };

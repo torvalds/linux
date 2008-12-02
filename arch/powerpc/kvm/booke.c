@@ -24,10 +24,12 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
+
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/cacheflush.h>
+#include <asm/kvm_44x.h>
 
 #include "booke.h"
 #include "44x_tlb.h"
@@ -207,10 +209,6 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		 * handled this interrupt the moment we enabled interrupts.
 		 * Now we just offer it a chance to reschedule the guest. */
 
-		/* XXX At this point the TLB still holds our shadow TLB, so if
-		 * we do reschedule the host will fault over it. Perhaps we
-		 * should politely restore the host's entries to minimize
-		 * misses before ceding control. */
 		vcpu->stat.dec_exits++;
 		if (need_resched())
 			cond_resched();
@@ -281,14 +279,17 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 
+	/* XXX move to a 440-specific file. */
 	case BOOKE_INTERRUPT_DTLB_MISS: {
+		struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.fault_dear;
+		int gtlb_index;
 		gfn_t gfn;
 
 		/* Check the guest TLB. */
-		gtlbe = kvmppc_44x_dtlb_search(vcpu, eaddr);
-		if (!gtlbe) {
+		gtlb_index = kvmppc_44x_dtlb_index(vcpu, eaddr);
+		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
 			vcpu->arch.dear = vcpu->arch.fault_dear;
@@ -298,6 +299,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 		}
 
+		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
 		vcpu->arch.paddr_accessed = tlb_xlate(gtlbe, eaddr);
 		gfn = vcpu->arch.paddr_accessed >> PAGE_SHIFT;
 
@@ -309,7 +311,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
 			kvmppc_mmu_map(vcpu, eaddr, vcpu->arch.paddr_accessed, gtlbe->tid,
-			               gtlbe->word2, get_tlb_bytes(gtlbe));
+			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
 			vcpu->stat.dtlb_virt_miss_exits++;
 			r = RESUME_GUEST;
 		} else {
@@ -322,17 +324,20 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	}
 
+	/* XXX move to a 440-specific file. */
 	case BOOKE_INTERRUPT_ITLB_MISS: {
+		struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.pc;
 		gpa_t gpaddr;
 		gfn_t gfn;
+		int gtlb_index;
 
 		r = RESUME_GUEST;
 
 		/* Check the guest TLB. */
-		gtlbe = kvmppc_44x_itlb_search(vcpu, eaddr);
-		if (!gtlbe) {
+		gtlb_index = kvmppc_44x_itlb_index(vcpu, eaddr);
+		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ITLB_MISS);
 			vcpu->stat.itlb_real_miss_exits++;
@@ -341,6 +346,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		vcpu->stat.itlb_virt_miss_exits++;
 
+		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
 		gpaddr = tlb_xlate(gtlbe, eaddr);
 		gfn = gpaddr >> PAGE_SHIFT;
 
@@ -352,7 +358,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
 			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlbe->tid,
-			               gtlbe->word2, get_tlb_bytes(gtlbe));
+			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
 		} else {
 			/* Guest mapped and leaped at non-RAM! */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_MACHINE_CHECK);

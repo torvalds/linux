@@ -96,21 +96,14 @@ void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	int i;
-
-	/* Mark every guest entry in the shadow TLB entry modified, so that they
-	 * will all be reloaded on the next vcpu run (instead of being
-	 * demand-faulted). */
-	for (i = 0; i <= tlb_44x_hwater; i++)
-		kvmppc_tlbe_set_modified(vcpu, i);
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	/* Don't leave guest TLB entries resident when being de-scheduled. */
-	/* XXX It would be nice to differentiate between heavyweight exit and
-	 * sched_out here, since we could avoid the TLB flush for heavyweight
-	 * exits. */
+	/* XXX Since every guest uses TS=1 TID=0/1 mappings, we can't leave any TLB
+	 * entries around when we're descheduled, so we must completely flush the
+	 * TLB of all guest mappings. On the other hand, if there is only one
+	 * guest, this flush is completely unnecessary. */
 	_tlbia();
 }
 
@@ -130,6 +123,7 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	struct kvmppc_44x_tlbe *tlbe = &vcpu_44x->guest_tlb[0];
+	int i;
 
 	tlbe->tid = 0;
 	tlbe->word0 = PPC44x_TLB_16M | PPC44x_TLB_VALID;
@@ -147,6 +141,9 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 	 * real timebase frequency. Accordingly, it must see the state of
 	 * CCR1[TCS]. */
 	vcpu->arch.ccr1 = mfspr(SPRN_CCR1);
+
+	for (i = 0; i < ARRAY_SIZE(vcpu_44x->shadow_refs); i++)
+		vcpu_44x->shadow_refs[i].gtlb_index = -1;
 
 	return 0;
 }
