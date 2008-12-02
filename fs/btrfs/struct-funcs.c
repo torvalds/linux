@@ -36,9 +36,14 @@
  * The extent buffer api is used to do all the kmapping and page
  * spanning work required to get extent buffers in highmem and have
  * a metadata blocksize different from the page size.
+ *
+ * The macro starts with a simple function prototype declaration so that
+ * sparse won't complain about it being static.
  */
 
 #define BTRFS_SETGET_FUNCS(name, type, member, bits)			\
+u##bits btrfs_##name(struct extent_buffer *eb, type *s);		\
+void btrfs_set_##name(struct extent_buffer *eb, type *s, u##bits val);	\
 u##bits btrfs_##name(struct extent_buffer *eb,				\
 				   type *s)				\
 {									\
@@ -59,14 +64,15 @@ u##bits btrfs_##name(struct extent_buffer *eb,				\
 		int unmap_on_exit = (eb->map_token == NULL);		\
 		unsigned long map_start;				\
 		unsigned long map_len;					\
-		__le##bits res;						\
+		u##bits res;						\
 		err = map_extent_buffer(eb, offset,			\
 			        sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
 				&map_start, &map_len, KM_USER1);	\
 		if (err) {						\
-			read_eb_member(eb, s, type, member, &res);	\
-			return le##bits##_to_cpu(res);			\
+			__le##bits leres;				\
+			read_eb_member(eb, s, type, member, &leres);	\
+			return le##bits##_to_cpu(leres);		\
 		}							\
 		p = (type *)(kaddr + part_offset - map_start);		\
 		res = le##bits##_to_cpu(p->member);			\
@@ -101,8 +107,9 @@ void btrfs_set_##name(struct extent_buffer *eb,				\
 				&map_token, &kaddr,			\
 				&map_start, &map_len, KM_USER1);	\
 		if (err) {						\
-			val = cpu_to_le##bits(val);			\
-			write_eb_member(eb, s, type, member, &val);	\
+			__le##bits val2;				\
+			val2 = cpu_to_le##bits(val);			\
+			write_eb_member(eb, s, type, member, &val2);	\
 			return;						\
 		}							\
 		p = (type *)(kaddr + part_offset - map_start);		\
