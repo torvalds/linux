@@ -1,3 +1,9 @@
+Version 1.56
+------------
+Add "forcemandatorylock" mount option to allow user to use mandatory
+rather than posix (advisory) byte range locks, even though server would
+support posix byte range locks.
+
 Version 1.55
 ------------
 Various fixes to make delete of open files behavior more predictable

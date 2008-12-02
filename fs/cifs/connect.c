@@ -89,6 +89,7 @@ struct smb_vol {
 	bool nullauth:1;   /* attempt to authenticate with null user */
 	bool nocase:1;     /* request case insensitive filenames */
 	bool nobrl:1;      /* disable sending byte range locks to srv */
+	bool mand_lock:1;  /* send mandatory not posix byte range lock reqs */
 	bool seal:1;       /* request transport encryption on share */
 	bool nodfs:1;      /* Do not request DFS, even if available */
 	bool local_lease:1; /* check leases only on local system, not remote */
@@ -1246,6 +1247,17 @@ cifs_parse_mount_options(char *options, const char *devname,
 			if (vol->file_mode ==
 				(S_IALLUGO & ~(S_ISUID | S_IXGRP)))
 				vol->file_mode = S_IALLUGO;
+		} else if (strnicmp(data, "forcemandatorylock", 9) == 0) {
+			/* will take the shorter form "forcemand" as well */
+			/* This mount option will force use of mandatory
+			  (DOS/Windows style) byte range locks, instead of
+			  using posix advisory byte range locks, even if the
+			  Unix extensions are available and posix locks would
+			  be supported otherwise. If Unix extensions are not
+			  negotiated this has no effect since mandatory locks
+			  would be used (mandatory locks is all that those
+			  those servers support) */
+			vol->mand_lock = 1;
 		} else if (strnicmp(data, "setuids", 7) == 0) {
 			vol->setuids = 1;
 		} else if (strnicmp(data, "nosetuids", 9) == 0) {
@@ -2150,6 +2162,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
 	if (pvolume_info->nobrl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+	if (pvolume_info->mand_lock)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOPOSIXBRL;
 	if (pvolume_info->cifs_acl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
 	if (pvolume_info->override_uid)
