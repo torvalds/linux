@@ -118,7 +118,7 @@ struct iscsi_transport {
 	int (*xmit_task) (struct iscsi_task *task);
 	void (*cleanup_task) (struct iscsi_task *task);
 
-	int (*alloc_pdu) (struct iscsi_task *task);
+	int (*alloc_pdu) (struct iscsi_task *task, uint8_t opcode);
 	int (*xmit_pdu) (struct iscsi_task *task);
 	int (*init_pdu) (struct iscsi_task *task, unsigned int offset,
 			 unsigned int count);

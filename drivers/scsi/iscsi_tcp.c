@@ -457,7 +457,7 @@ static int iscsi_sw_tcp_pdu_init(struct iscsi_task *task,
 	return 0;
 }
 
-static int iscsi_sw_tcp_pdu_alloc(struct iscsi_task *task)
+static int iscsi_sw_tcp_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
 {
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 

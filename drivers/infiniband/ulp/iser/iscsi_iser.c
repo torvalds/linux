@@ -119,7 +119,7 @@ error:
 	iscsi_conn_failure(conn, rc);
 }
 
-static int iscsi_iser_pdu_alloc(struct iscsi_task *task)
+static int iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 

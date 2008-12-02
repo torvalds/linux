@@ -1021,7 +1021,7 @@ flush:
 		return 0;
 	}
 
-	rc = conn->session->tt->alloc_pdu(task);
+	rc = conn->session->tt->alloc_pdu(task, ISCSI_OP_SCSI_DATA_OUT);
 	if (rc)
 		return rc;
 	iscsi_prep_data_out_pdu(task, r2t, (struct iscsi_data *) task->hdr);

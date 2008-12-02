@@ -225,13 +225,18 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	itt_t itt;
 	int rc;
 
-	rc = conn->session->tt->alloc_pdu(task);
+	rc = conn->session->tt->alloc_pdu(task, ISCSI_OP_SCSI_CMD);
 	if (rc)
 		return rc;
 	hdr = (struct iscsi_cmd *) task->hdr;
 	itt = hdr->itt;
 	memset(hdr, 0, sizeof(*hdr));
 
+	if (session->tt->parse_pdu_itt)
+		hdr->itt = task->hdr_itt = itt;
+	else
+		hdr->itt = task->hdr_itt = build_itt(task->itt,
+						     task->conn->session->age);
 	task->hdr_len = 0;
 	rc = iscsi_add_hdr(task, sizeof(*hdr));
 	if (rc)
@@ -240,11 +245,6 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	hdr->flags = ISCSI_ATTR_SIMPLE;
 	int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
 	memcpy(task->lun, hdr->lun, sizeof(task->lun));
-	if (session->tt->parse_pdu_itt)
-		hdr->itt = task->hdr_itt = itt;
-	else
-		hdr->itt = task->hdr_itt = build_itt(task->itt,
-						     task->conn->session->age);
 	hdr->cmdsn = task->cmdsn = cpu_to_be32(session->cmdsn);
 	session->cmdsn++;
 	hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
@@ -532,7 +532,7 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	} else
 		task->data_count = 0;
 
-	if (conn->session->tt->alloc_pdu(task)) {
+	if (conn->session->tt->alloc_pdu(task, hdr->opcode)) {
 		iscsi_conn_printk(KERN_ERR, conn, "Could not allocate "
 				 "pdu for mgmt task.\n");
 		goto requeue_task;
