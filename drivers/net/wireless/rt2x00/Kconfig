@@ -57,6 +57,7 @@ config RT2500USB
 	tristate "Ralink rt2500 (USB) support"
 	depends on USB
 	select RT2X00_LIB_USB
+	select RT2X00_LIB_CRYPTO
 	---help---
 	  This adds support for rt2500 wireless chipset family.
 	  Supported chips: RT2571 & RT2572.

@@ -219,6 +219,7 @@ static inline void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
 enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key);
 unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info);
+void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, unsigned int iv_len);
 void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len);
 void rt2x00crypto_tx_insert_iv(struct sk_buff *skb);
 void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
@@ -233,6 +234,11 @@ static inline enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *
 static inline unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info)
 {
 	return 0;
+}
+
+static inline void rt2x00crypto_tx_copy_iv(struct sk_buff *skb,
+					   unsigned int iv_len)
+{
 }
 
 static inline void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,

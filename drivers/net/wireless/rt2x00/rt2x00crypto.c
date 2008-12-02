@@ -69,6 +69,18 @@ unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info)
 	return overhead;
 }
 
+void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, unsigned int iv_len)
+{
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
+	unsigned int header_length = ieee80211_get_hdrlen_from_skb(skb);
+
+	if (unlikely(!iv_len))
+		return;
+
+	/* Copy IV/EIV data */
+	memcpy(skbdesc->iv, skb->data + header_length, iv_len);
+}
+
 void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);

@@ -79,10 +79,8 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	 * RTS/CTS frame should use the length of the frame plus any
 	 * encryption overhead that will be added by the hardware.
 	 */
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
 	if (!frag_skb->do_not_encrypt)
 		data_length += rt2x00crypto_tx_overhead(tx_info);
-#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		ieee80211_ctstoself_get(rt2x00dev->hw, tx_info->control.vif,
