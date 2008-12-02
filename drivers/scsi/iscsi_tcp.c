@@ -194,7 +194,7 @@ iscsi_sw_tcp_conn_restore_callbacks(struct iscsi_sw_tcp_conn *tcp_sw_conn)
 
 /**
  * iscsi_sw_tcp_xmit_segment - transmit segment
- * @tcp_sw_conn: the iSCSI TCP connection
+ * @tcp_conn: the iSCSI TCP connection
  * @segment: the buffer to transmnit
  *
  * This function transmits as much of the buffer as
@@ -205,14 +205,15 @@ iscsi_sw_tcp_conn_restore_callbacks(struct iscsi_sw_tcp_conn *tcp_sw_conn)
  * hash as it goes. When the entire segment has been transmitted,
  * it will retrieve the hash value and send it as well.
  */
-static int iscsi_sw_tcp_xmit_segment(struct iscsi_sw_tcp_conn *tcp_sw_conn,
+static int iscsi_sw_tcp_xmit_segment(struct iscsi_tcp_conn *tcp_conn,
 				     struct iscsi_segment *segment)
 {
+	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
 	struct socket *sk = tcp_sw_conn->sock;
 	unsigned int copied = 0;
 	int r = 0;
 
-	while (!iscsi_tcp_segment_done(segment, 0, r)) {
+	while (!iscsi_tcp_segment_done(tcp_conn, segment, 0, r)) {
 		struct scatterlist *sg;
 		unsigned int offset, copy;
 		int flags = 0;
@@ -263,7 +264,7 @@ static int iscsi_sw_tcp_xmit(struct iscsi_conn *conn)
 	int rc = 0;
 
 	while (1) {
-		rc = iscsi_sw_tcp_xmit_segment(tcp_sw_conn, segment);
+		rc = iscsi_sw_tcp_xmit_segment(tcp_conn, segment);
 		if (rc < 0) {
 			rc = ISCSI_ERR_XMIT_FAILED;
 			goto error;

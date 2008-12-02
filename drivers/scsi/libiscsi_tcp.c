@@ -159,6 +159,7 @@ iscsi_tcp_segment_splice_digest(struct iscsi_segment *segment, void *digest)
 
 /**
  * iscsi_tcp_segment_done - check whether the segment is complete
+ * @tcp_conn: iscsi tcp connection
  * @segment: iscsi segment to check
  * @recv: set to one of this is called from the recv path
  * @copied: number of bytes copied
@@ -172,7 +173,8 @@ iscsi_tcp_segment_splice_digest(struct iscsi_segment *segment, void *digest)
  *
  * This function must be re-entrant.
  */
-int iscsi_tcp_segment_done(struct iscsi_segment *segment, int recv,
+int iscsi_tcp_segment_done(struct iscsi_tcp_conn *tcp_conn,
+			   struct iscsi_segment *segment, int recv,
 			   unsigned copied)
 {
 	static unsigned char padbuf[ISCSI_PAD_LEN];
@@ -225,13 +227,15 @@ int iscsi_tcp_segment_done(struct iscsi_segment *segment, int recv,
 	}
 
 	/* Do we need to handle padding? */
-	pad = iscsi_padding(segment->total_copied);
-	if (pad != 0) {
-		debug_tcp("consume %d pad bytes\n", pad);
-		segment->total_size += pad;
-		segment->size = pad;
-		segment->data = padbuf;
-		return 0;
+	if (!(tcp_conn->iscsi_conn->session->tt->caps & CAP_PADDING_OFFLOAD)) {
+		pad = iscsi_padding(segment->total_copied);
+		if (pad != 0) {
+			debug_tcp("consume %d pad bytes\n", pad);
+			segment->total_size += pad;
+			segment->size = pad;
+			segment->data = padbuf;
+			return 0;
+		}
 	}
 
 	/*
@@ -273,7 +277,7 @@ iscsi_tcp_segment_recv(struct iscsi_tcp_conn *tcp_conn,
 {
 	unsigned int copy = 0, copied = 0;
 
-	while (!iscsi_tcp_segment_done(segment, 1, copy)) {
+	while (!iscsi_tcp_segment_done(tcp_conn, segment, 1, copy)) {
 		if (copied == len) {
 			debug_tcp("iscsi_tcp_segment_recv copied %d bytes\n",
 				  len);
@@ -794,7 +798,8 @@ iscsi_tcp_hdr_recv_done(struct iscsi_tcp_conn *tcp_conn,
 	/* We're done processing the header. See if we're doing
 	 * header digests; if so, set up the recv_digest buffer
 	 * and go back for more. */
-	if (conn->hdrdgst_en) {
+	if (conn->hdrdgst_en &&
+	    !(conn->session->tt->caps & CAP_DIGEST_OFFLOAD)) {
 		if (segment->digest_len == 0) {
 			/*
 			 * Even if we offload the digest processing we
@@ -806,14 +811,12 @@ iscsi_tcp_hdr_recv_done(struct iscsi_tcp_conn *tcp_conn,
 			return 0;
 		}
 
-		if (!(conn->session->tt->caps & CAP_DIGEST_OFFLOAD)) {
-			iscsi_tcp_dgst_header(tcp_conn->rx_hash, hdr,
-				segment->total_copied - ISCSI_DIGEST_SIZE,
-				segment->digest);
+		iscsi_tcp_dgst_header(tcp_conn->rx_hash, hdr,
+				      segment->total_copied - ISCSI_DIGEST_SIZE,
+				      segment->digest);
 
-			if (!iscsi_tcp_dgst_verify(tcp_conn, segment))
-				return ISCSI_ERR_HDR_DGST;
-		}
+		if (!iscsi_tcp_dgst_verify(tcp_conn, segment))
+			return ISCSI_ERR_HDR_DGST;
 	}
 
 	tcp_conn->in.hdr = hdr;

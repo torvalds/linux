@@ -99,7 +99,8 @@ extern int iscsi_tcp_task_xmit(struct iscsi_task *task);
 
 /* segment helpers */
 extern int iscsi_tcp_recv_segment_is_hdr(struct iscsi_tcp_conn *tcp_conn);
-extern int iscsi_tcp_segment_done(struct iscsi_segment *segment, int recv,
+extern int iscsi_tcp_segment_done(struct iscsi_tcp_conn *tcp_conn,
+				  struct iscsi_segment *segment, int recv,
 				  unsigned copied);
 extern void iscsi_tcp_segment_unmap(struct iscsi_segment *segment);
 

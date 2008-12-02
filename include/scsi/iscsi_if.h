@@ -336,6 +336,8 @@ enum iscsi_host_param {
 #define CAP_SENDTARGETS_OFFLOAD	0x400	/* offload discovery process */
 #define CAP_DATA_PATH_OFFLOAD	0x800	/* offload entire IO path */
 #define CAP_DIGEST_OFFLOAD	0x1000	/* offload hdr and data digests */
+#define CAP_PADDING_OFFLOAD	0x2000	/* offload padding insertion, removal,
+					 and verification */
 
 /*
  * These flags describes reason of stop_conn() call
