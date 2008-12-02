@@ -45,7 +45,7 @@ static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type) {}
 #endif /* CONFIG_KVM_EXIT_TIMING */
 
 /* account the exit in kvm_stats */
-static inline void account_exit_stat(struct kvm_vcpu *vcpu, int type)
+static inline void kvmppc_account_exit_stat(struct kvm_vcpu *vcpu, int type)
 {
 	/* type has to be known at build time for optimization */
 	BUILD_BUG_ON(__builtin_constant_p(type));
@@ -93,10 +93,10 @@ static inline void account_exit_stat(struct kvm_vcpu *vcpu, int type)
 }
 
 /* wrapper to set exit time and account for it in kvm_stats */
-static inline void account_exit(struct kvm_vcpu *vcpu, int type)
+static inline void kvmppc_account_exit(struct kvm_vcpu *vcpu, int type)
 {
 	kvmppc_set_exit_type(vcpu, type);
-	account_exit_stat(vcpu, type);
+	kvmppc_account_exit_stat(vcpu, type);
 }
 
 #endif /* __POWERPC_KVM_EXITTIMING_H__ */

@@ -202,7 +202,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 
 	case BOOKE_INTERRUPT_EXTERNAL:
-		account_exit(vcpu, EXT_INTR_EXITS);
+		kvmppc_account_exit(vcpu, EXT_INTR_EXITS);
 		if (need_resched())
 			cond_resched();
 		r = RESUME_GUEST;
@@ -212,7 +212,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		/* Since we switched IVPR back to the host's value, the host
 		 * handled this interrupt the moment we enabled interrupts.
 		 * Now we just offer it a chance to reschedule the guest. */
-		account_exit(vcpu, DEC_EXITS);
+		kvmppc_account_exit(vcpu, DEC_EXITS);
 		if (need_resched())
 			cond_resched();
 		r = RESUME_GUEST;
@@ -225,7 +225,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			vcpu->arch.esr = vcpu->arch.fault_esr;
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_PROGRAM);
 			r = RESUME_GUEST;
-			account_exit(vcpu, USR_PR_INST);
+			kvmppc_account_exit(vcpu, USR_PR_INST);
 			break;
 		}
 
@@ -233,7 +233,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		switch (er) {
 		case EMULATE_DONE:
 			/* don't overwrite subtypes, just account kvm_stats */
-			account_exit_stat(vcpu, EMULATED_INST_EXITS);
+			kvmppc_account_exit_stat(vcpu, EMULATED_INST_EXITS);
 			/* Future optimization: only reload non-volatiles if
 			 * they were actually modified by emulation. */
 			r = RESUME_GUEST_NV;
@@ -259,7 +259,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	case BOOKE_INTERRUPT_FP_UNAVAIL:
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_FP_UNAVAIL);
-		account_exit(vcpu, FP_UNAVAIL);
+		kvmppc_account_exit(vcpu, FP_UNAVAIL);
 		r = RESUME_GUEST;
 		break;
 
@@ -267,20 +267,20 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		vcpu->arch.dear = vcpu->arch.fault_dear;
 		vcpu->arch.esr = vcpu->arch.fault_esr;
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DATA_STORAGE);
-		account_exit(vcpu, DSI_EXITS);
+		kvmppc_account_exit(vcpu, DSI_EXITS);
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_INST_STORAGE:
 		vcpu->arch.esr = vcpu->arch.fault_esr;
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_INST_STORAGE);
-		account_exit(vcpu, ISI_EXITS);
+		kvmppc_account_exit(vcpu, ISI_EXITS);
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_SYSCALL:
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SYSCALL);
-		account_exit(vcpu, SYSCALL_EXITS);
+		kvmppc_account_exit(vcpu, SYSCALL_EXITS);
 		r = RESUME_GUEST;
 		break;
 
@@ -299,7 +299,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
 			vcpu->arch.dear = vcpu->arch.fault_dear;
 			vcpu->arch.esr = vcpu->arch.fault_esr;
-			account_exit(vcpu, DTLB_REAL_MISS_EXITS);
+			kvmppc_account_exit(vcpu, DTLB_REAL_MISS_EXITS);
 			r = RESUME_GUEST;
 			break;
 		}
@@ -317,13 +317,13 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * invoking the guest. */
 			kvmppc_mmu_map(vcpu, eaddr, vcpu->arch.paddr_accessed, gtlbe->tid,
 			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
-			account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
+			kvmppc_account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
 			r = RESUME_GUEST;
 		} else {
 			/* Guest has mapped and accessed a page which is not
 			 * actually RAM. */
 			r = kvmppc_emulate_mmio(run, vcpu);
-			account_exit(vcpu, MMIO_EXITS);
+			kvmppc_account_exit(vcpu, MMIO_EXITS);
 		}
 
 		break;
@@ -345,11 +345,11 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ITLB_MISS);
-			account_exit(vcpu, ITLB_REAL_MISS_EXITS);
+			kvmppc_account_exit(vcpu, ITLB_REAL_MISS_EXITS);
 			break;
 		}
 
-		account_exit(vcpu, ITLB_VIRT_MISS_EXITS);
+		kvmppc_account_exit(vcpu, ITLB_VIRT_MISS_EXITS);
 
 		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
 		gpaddr = tlb_xlate(gtlbe, eaddr);
@@ -383,7 +383,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		mtspr(SPRN_DBSR, dbsr);
 
 		run->exit_reason = KVM_EXIT_DEBUG;
-		account_exit(vcpu, DEBUG_EXITS);
+		kvmppc_account_exit(vcpu, DEBUG_EXITS);
 		r = RESUME_HOST;
 		break;
 	}
@@ -404,7 +404,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (signal_pending(current)) {
 			run->exit_reason = KVM_EXIT_INTR;
 			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-			account_exit(vcpu, SIGNAL_EXITS);
+			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
 		}
 	}
 

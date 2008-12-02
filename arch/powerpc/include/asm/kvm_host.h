@@ -102,9 +102,8 @@ enum kvm_exit_types {
 	__NUMBER_OF_KVM_EXIT_TYPES
 };
 
-#ifdef CONFIG_KVM_EXIT_TIMING
 /* allow access to big endian 32bit upper/lower parts and 64bit var */
-struct exit_timing {
+struct kvmppc_exit_timing {
 	union {
 		u64 tv64;
 		struct {
@@ -112,7 +111,6 @@ struct exit_timing {
 		} tv32;
 	};
 };
-#endif
 
 struct kvm_arch {
 };
@@ -174,8 +172,8 @@ struct kvm_vcpu_arch {
 	u32 dbcr1;
 
 #ifdef CONFIG_KVM_EXIT_TIMING
-	struct exit_timing timing_exit;
-	struct exit_timing timing_last_enter;
+	struct kvmppc_exit_timing timing_exit;
+	struct kvmppc_exit_timing timing_last_enter;
 	u32 last_exit_type;
 	u32 timing_count_type[__NUMBER_OF_KVM_EXIT_TYPES];
 	u64 timing_sum_duration[__NUMBER_OF_KVM_EXIT_TYPES];

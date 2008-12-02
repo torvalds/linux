@@ -12,7 +12,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
- * Copyright IBM Corp. 2007
+ * Copyright IBM Corp. 2008
  *
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  *          Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
@@ -24,9 +24,10 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
-#include "timing.h"
 #include <asm/time.h>
 #include <asm-generic/div64.h>
+
+#include "timing.h"
 
 void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu)
 {
@@ -52,8 +53,7 @@ void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu)
 	local_irq_enable();
 }
 
-static void add_exit_timing(struct kvm_vcpu *vcpu,
-					u64 duration, int type)
+static void add_exit_timing(struct kvm_vcpu *vcpu, u64 duration, int type)
 {
 	u64 old;
 
@@ -115,54 +115,46 @@ void kvmppc_update_timing_stats(struct kvm_vcpu *vcpu)
 }
 
 static const char *kvm_exit_names[__NUMBER_OF_KVM_EXIT_TYPES] = {
-	[MMIO_EXITS] = 			"MMIO",
-	[DCR_EXITS] =			"DCR",
-	[SIGNAL_EXITS] =		"SIGNAL",
-	[ITLB_REAL_MISS_EXITS] =	"ITLBREAL",
-	[ITLB_VIRT_MISS_EXITS] =	"ITLBVIRT",
-	[DTLB_REAL_MISS_EXITS] =	"DTLBREAL",
-	[DTLB_VIRT_MISS_EXITS] =	"DTLBVIRT",
-	[SYSCALL_EXITS] =		"SYSCALL",
-	[ISI_EXITS] =			"ISI",
-	[DSI_EXITS] =			"DSI",
-	[EMULATED_INST_EXITS] =		"EMULINST",
-	[EMULATED_MTMSRWE_EXITS] =	"EMUL_WAIT",
-	[EMULATED_WRTEE_EXITS] =	"EMUL_WRTEE",
-	[EMULATED_MTSPR_EXITS] =	"EMUL_MTSPR",
-	[EMULATED_MFSPR_EXITS] =	"EMUL_MFSPR",
-	[EMULATED_MTMSR_EXITS] =	"EMUL_MTMSR",
-	[EMULATED_MFMSR_EXITS] =	"EMUL_MFMSR",
-	[EMULATED_TLBSX_EXITS] =	"EMUL_TLBSX",
-	[EMULATED_TLBWE_EXITS] =	"EMUL_TLBWE",
-	[EMULATED_RFI_EXITS] =		"EMUL_RFI",
-	[DEC_EXITS] =			"DEC",
-	[EXT_INTR_EXITS] =		"EXTINT",
-	[HALT_WAKEUP] =			"HALT",
-	[USR_PR_INST] =			"USR_PR_INST",
-	[FP_UNAVAIL] =			"FP_UNAVAIL",
-	[DEBUG_EXITS] =			"DEBUG",
-	[TIMEINGUEST] =			"TIMEINGUEST"
+	[MMIO_EXITS] =              "MMIO",
+	[DCR_EXITS] =               "DCR",
+	[SIGNAL_EXITS] =            "SIGNAL",
+	[ITLB_REAL_MISS_EXITS] =    "ITLBREAL",
+	[ITLB_VIRT_MISS_EXITS] =    "ITLBVIRT",
+	[DTLB_REAL_MISS_EXITS] =    "DTLBREAL",
+	[DTLB_VIRT_MISS_EXITS] =    "DTLBVIRT",
+	[SYSCALL_EXITS] =           "SYSCALL",
+	[ISI_EXITS] =               "ISI",
+	[DSI_EXITS] =               "DSI",
+	[EMULATED_INST_EXITS] =     "EMULINST",
+	[EMULATED_MTMSRWE_EXITS] =  "EMUL_WAIT",
+	[EMULATED_WRTEE_EXITS] =    "EMUL_WRTEE",
+	[EMULATED_MTSPR_EXITS] =    "EMUL_MTSPR",
+	[EMULATED_MFSPR_EXITS] =    "EMUL_MFSPR",
+	[EMULATED_MTMSR_EXITS] =    "EMUL_MTMSR",
+	[EMULATED_MFMSR_EXITS] =    "EMUL_MFMSR",
+	[EMULATED_TLBSX_EXITS] =    "EMUL_TLBSX",
+	[EMULATED_TLBWE_EXITS] =    "EMUL_TLBWE",
+	[EMULATED_RFI_EXITS] =      "EMUL_RFI",
+	[DEC_EXITS] =               "DEC",
+	[EXT_INTR_EXITS] =          "EXTINT",
+	[HALT_WAKEUP] =             "HALT",
+	[USR_PR_INST] =             "USR_PR_INST",
+	[FP_UNAVAIL] =              "FP_UNAVAIL",
+	[DEBUG_EXITS] =             "DEBUG",
+	[TIMEINGUEST] =             "TIMEINGUEST"
 };
 
 static int kvmppc_exit_timing_show(struct seq_file *m, void *private)
 {
 	struct kvm_vcpu *vcpu = m->private;
 	int i;
-	u64 min, max;
+
+	seq_printf(m, "%s", "type	count	min	max	sum	sum_squared\n");
 
 	for (i = 0; i < __NUMBER_OF_KVM_EXIT_TYPES; i++) {
-		if (vcpu->arch.timing_min_duration[i] == 0xFFFFFFFF)
-			min = 0;
-		else
-			min = vcpu->arch.timing_min_duration[i];
-		if (vcpu->arch.timing_max_duration[i] == 0)
-			max = 0;
-		else
-			max = vcpu->arch.timing_max_duration[i];
-
-		seq_printf(m, "%12s: count %10d min %10lld "
-			"max %10lld sum %20lld sum_quad %20lld\n",
-			kvm_exit_names[i], vcpu->arch.timing_count_type[i],
+		seq_printf(m, "%12s	%10d	%10lld	%10lld	%20lld	%20lld\n",
+			kvm_exit_names[i],
+			vcpu->arch.timing_count_type[i],
 			vcpu->arch.timing_min_duration[i],
 			vcpu->arch.timing_max_duration[i],
 			vcpu->arch.timing_sum_duration[i],
@@ -171,31 +163,19 @@ static int kvmppc_exit_timing_show(struct seq_file *m, void *private)
 	return 0;
 }
 
+/* Write 'c' to clear the timing statistics. */
 static ssize_t kvmppc_exit_timing_write(struct file *file,
 				       const char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
-	size_t len;
-	int err;
-	const char __user *p;
+	int err = -EINVAL;
 	char c;
 
-	len = 0;
-	p = user_buf;
-	while (len < count) {
-		if (get_user(c, p++))
-			err = -EFAULT;
-		if (c == 0 || c == '\n')
-			break;
-		len++;
-	}
-
-	if (len > 1) {
-		err = -EINVAL;
+	if (count > 1) {
 		goto done;
 	}
 
-	if (copy_from_user(&c, user_buf, sizeof(c))) {
+	if (get_user(c, user_buf)) {
 		err = -EFAULT;
 		goto done;
 	}
@@ -203,16 +183,13 @@ static ssize_t kvmppc_exit_timing_write(struct file *file,
 	if (c == 'c') {
 		struct seq_file *seqf = (struct seq_file *)file->private_data;
 		struct kvm_vcpu *vcpu = seqf->private;
-		/* write does not affect out buffers previsously generated with
-		 * show. Seq file is locked here to prevent races of init with
+		/* Write does not affect our buffers previously generated with
+		 * show. seq_file is locked here to prevent races of init with
 		 * a show call */
 		mutex_lock(&seqf->lock);
 		kvmppc_init_timing_stats(vcpu);
 		mutex_unlock(&seqf->lock);
 		err = count;
-	} else {
-		err = -EINVAL;
-		goto done;
 	}
 
 done:
@@ -238,7 +215,7 @@ void kvmppc_create_vcpu_debugfs(struct kvm_vcpu *vcpu, unsigned int id)
 	static char dbg_fname[50];
 	struct dentry *debugfs_file;
 
-	snprintf(dbg_fname, sizeof(dbg_fname), "vm%u_vcpu%03u_timing",
+	snprintf(dbg_fname, sizeof(dbg_fname), "vm%u_vcpu%u_timing",
 		 current->pid, id);
 	debugfs_file = debugfs_create_file(dbg_fname, 0666,
 					kvm_debugfs_dir, vcpu,
