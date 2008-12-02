@@ -28,7 +28,6 @@
 #include "ref-cache.h"
 #include "tree-log.h"
 
-static int total_trans = 0;
 extern struct kmem_cache *btrfs_trans_handle_cachep;
 extern struct kmem_cache *btrfs_transaction_cachep;
 
@@ -39,8 +38,6 @@ static noinline void put_transaction(struct btrfs_transaction *transaction)
 	WARN_ON(transaction->use_count == 0);
 	transaction->use_count--;
 	if (transaction->use_count == 0) {
-		WARN_ON(total_trans == 0);
-		total_trans--;
 		list_del_init(&transaction->list);
 		memset(transaction, 0, sizeof(*transaction));
 		kmem_cache_free(btrfs_transaction_cachep, transaction);
@@ -57,7 +54,6 @@ static noinline int join_transaction(struct btrfs_root *root)
 	if (!cur_trans) {
 		cur_trans = kmem_cache_alloc(btrfs_transaction_cachep,
 					     GFP_NOFS);
-		total_trans++;
 		BUG_ON(!cur_trans);
 		root->fs_info->generation++;
 		root->fs_info->last_alloc = 0;
