@@ -477,6 +477,9 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 	 * uCode. iwl_send_calib_results sends them in a row according to their
 	 * index. We sort them here */
 	switch (hdr->op_code) {
+	case IWL_PHY_CALIBRATE_DC_CMD:
+		index = IWL_CALIB_DC;
+		break;
 	case IWL_PHY_CALIBRATE_LO_CMD:
 		index = IWL_CALIB_LO;
 		break;
@@ -873,7 +876,9 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			BIT(IWL_CALIB_BASE_BAND);
 		break;
 	case CSR_HW_REV_TYPE_5150:
-		priv->hw_params.calib_init_cfg = 0;
+		priv->hw_params.calib_init_cfg =
+			BIT(IWL_CALIB_DC);
+
 		break;
 	}
 

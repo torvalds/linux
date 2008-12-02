@@ -693,6 +693,7 @@ struct statistics_general_data {
  */
 enum iwl_calib {
 	IWL_CALIB_XTAL,
+	IWL_CALIB_DC,
 	IWL_CALIB_LO,
 	IWL_CALIB_TX_IQ,
 	IWL_CALIB_TX_IQ_PERD,
