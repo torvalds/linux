@@ -190,16 +190,20 @@
 /* FIXME: move this macro to <linux/pci.h> */
 #define PCI_BUS(x) (((x) >> 8) & 0xff)
 
+/* Protection domain flags */
+#define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
+
 /*
  * This structure contains generic data for  IOMMU protection domains
  * independent of their use.
  */
 struct protection_domain {
-	spinlock_t lock; /* mostly used to lock the page table*/
-	u16 id;		 /* the domain id written to the device table */
-	int mode;	 /* paging mode (0-6 levels) */
-	u64 *pt_root;	 /* page table root pointer */
-	void *priv;	 /* private data */
+	spinlock_t lock;	/* mostly used to lock the page table*/
+	u16 id;			/* the domain id written to the device table */
+	int mode;		/* paging mode (0-6 levels) */
+	u64 *pt_root;		/* page table root pointer */
+	unsigned long flags;	/* flags to find out type of domain */
+	void *priv;		/* private data */
 };
 
 /*
