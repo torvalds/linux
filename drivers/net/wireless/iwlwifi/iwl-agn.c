@@ -4210,7 +4210,11 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x423A, 0x1001, iwl5350_agn_cfg)},
 	{IWL_PCI_DEVICE(0x423A, 0x1021, iwl5350_agn_cfg)},
 	{IWL_PCI_DEVICE(0x423B, 0x1011, iwl5350_agn_cfg)},
+/* 5150 Wifi/WiMax */
+	{IWL_PCI_DEVICE(0x423C, PCI_ANY_ID, iwl5150_agn_cfg)},
+	{IWL_PCI_DEVICE(0x423D, PCI_ANY_ID, iwl5150_agn_cfg)},
 #endif /* CONFIG_IWL5000 */
+
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);

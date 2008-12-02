@@ -45,8 +45,10 @@
 #include "iwl-5000-hw.h"
 
 #define IWL5000_UCODE_API  "-1"
+#define IWL5150_UCODE_API  "-1"
 
 #define IWL5000_MODULE_FIRMWARE "iwlwifi-5000" IWL5000_UCODE_API ".ucode"
+#define IWL5150_MODULE_FIRMWARE "iwlwifi-5150" IWL5150_UCODE_API ".ucode"
 
 static const u16 iwl5000_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_AC3,
@@ -1563,7 +1565,17 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.mod_params = &iwl50_mod_params,
 };
 
+struct iwl_cfg iwl5150_agn_cfg = {
+	.name = "5150AGN",
+	.fw_name = IWL5150_MODULE_FIRMWARE,
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl5000_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.mod_params = &iwl50_mod_params,
+};
+
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE);
+MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE);
 
 module_param_named(disable50, iwl50_mod_params.disable, int, 0444);
 MODULE_PARM_DESC(disable50,
