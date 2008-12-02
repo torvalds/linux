@@ -1636,4 +1636,25 @@ out_free:
 	return -ENOMEM;
 }
 
+static void amd_iommu_domain_destroy(struct iommu_domain *dom)
+{
+	struct protection_domain *domain = dom->priv;
+
+	if (!domain)
+		return;
+
+	if (domain->dev_cnt > 0)
+		cleanup_domain(domain);
+
+	BUG_ON(domain->dev_cnt != 0);
+
+	free_pagetable(domain);
+
+	domain_id_free(domain->id);
+
+	kfree(domain);
+
+	dom->priv = NULL;
+}
+
 #endif
