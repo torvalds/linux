@@ -505,7 +505,7 @@ struct fw_desc {
 
 /* uCode file layout */
 struct iwl3945_ucode {
-	__le32 ver;		/* major/minor/subminor */
+	__le32 ver;		/* major/minor/API/serial */
 	__le32 inst_size;	/* bytes of runtime instructions */
 	__le32 data_size;	/* bytes of runtime data */
 	__le32 init_size;	/* bytes of initialization instructions */
@@ -762,6 +762,8 @@ struct iwl3945_priv {
 	void __iomem *hw_base;
 
 	/* uCode images, save to reload in case of failure */
+	u32 ucode_ver;			/* ucode version, copy of
+					   iwl3945_ucode.ver */
 	struct fw_desc ucode_code;	/* runtime inst */
 	struct fw_desc ucode_data;	/* runtime data original */
 	struct fw_desc ucode_data_backup;	/* runtime data save/restore */

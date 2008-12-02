@@ -69,6 +69,12 @@
 #ifndef __iwl_commands_h__
 #define __iwl_commands_h__
 
+/* uCode version contains 4 values: Major/Minor/API/Serial */
+#define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
+#define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
+#define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
+#define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
+
 enum {
 	REPLY_ALIVE = 0x1,
 	REPLY_ERROR = 0x2,

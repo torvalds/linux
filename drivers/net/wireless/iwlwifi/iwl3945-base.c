@@ -5302,7 +5302,7 @@ static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 	const char *name = priv->cfg->fw_name;
 	u8 *src;
 	size_t len;
-	u32 ver, inst_size, data_size, init_size, init_data_size, boot_size;
+	u32 inst_size, data_size, init_size, init_data_size, boot_size;
 
 	/* Ask kernel firmware_class module to get the boot firmware off disk.
 	 * request_firmware() is synchronous, file is in memory on return. */
@@ -5326,14 +5326,20 @@ static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 	/* Data from ucode file:  header followed by uCode images */
 	ucode = (void *)ucode_raw->data;
 
-	ver = le32_to_cpu(ucode->ver);
+	priv->ucode_ver = le32_to_cpu(ucode->ver);
 	inst_size = le32_to_cpu(ucode->inst_size);
 	data_size = le32_to_cpu(ucode->data_size);
 	init_size = le32_to_cpu(ucode->init_size);
 	init_data_size = le32_to_cpu(ucode->init_data_size);
 	boot_size = le32_to_cpu(ucode->boot_size);
 
-	IWL_DEBUG_INFO("f/w package hdr ucode version = 0x%x\n", ver);
+	IWL_DEBUG_INFO("f/w package hdr ucode version raw = 0x%x\n",
+		       priv->ucode_ver);
+	IWL_DEBUG_INFO("f/w package hdr ucode version = %u.%u.%u.%u\n",
+		       IWL_UCODE_MAJOR(priv->ucode_ver),
+		       IWL_UCODE_MINOR(priv->ucode_ver),
+		       IWL_UCODE_API(priv->ucode_ver),
+		       IWL_UCODE_SERIAL(priv->ucode_ver));
 	IWL_DEBUG_INFO("f/w package hdr runtime inst size = %u\n", inst_size);
 	IWL_DEBUG_INFO("f/w package hdr runtime data size = %u\n", data_size);
 	IWL_DEBUG_INFO("f/w package hdr init inst size = %u\n", init_size);
