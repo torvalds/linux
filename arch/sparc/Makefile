@@ -67,8 +67,8 @@ endif
 
 endif
 
-head-$(CONFIG_SPARC32) := arch/sparc/kernel/head.o
-head-$(CONFIG_SPARC32) += arch/sparc/kernel/init_task.o
+head-$(CONFIG_SPARC32) := arch/sparc/kernel/head_$(BITS).o
+head-$(CONFIG_SPARC32) += arch/sparc/kernel/init_task_$(BITS).o
 head-$(CONFIG_SPARC64) := arch/sparc64/kernel/head.o
 head-$(CONFIG_SPARC64) += arch/sparc64/kernel/init_task.o
 

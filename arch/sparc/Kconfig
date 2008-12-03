@@ -198,6 +198,17 @@ config EMULATED_CMPXCHG
 	  Sparc32 does not have a CAS instruction like sparc64. cmpxchg()
 	  is emulated, and therefore it is not completely atomic.
 
+# Makefile helpers
+config SPARC32_SMP
+	bool
+	default y
+	depends on SPARC32 && SMP
+
+config SPARC64_SMP
+	bool
+	default y
+	depends on SPARC64 && SMP
+
 choice
 	prompt "Kernel page size" if SPARC64
 	default SPARC64_PAGE_SIZE_8KB
@@ -505,6 +516,16 @@ config SUN_OPENPROMFS
 	  Only choose N if you know in advance that you will not need to modify
 	  OpenPROM settings on the running system.
 
+# Makefile helpers
+config SPARC32_PCI
+	bool
+	default y
+	depends on SPARC32 && PCI
+
+config SPARC64_PCI
+	bool
+	default y
+	depends on SPARC64 && PCI
 
 endmenu
 
