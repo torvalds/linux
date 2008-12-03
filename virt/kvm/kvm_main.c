@@ -504,7 +504,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	list_add(&match->list, &kvm->arch.assigned_dev_head);
 
 	if (assigned_dev->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU) {
-		if (!kvm->arch.intel_iommu_domain) {
+		if (!kvm->arch.iommu_domain) {
 			r = kvm_iommu_map_guest(kvm);
 			if (r)
 				goto out_list_del;

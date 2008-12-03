@@ -51,7 +51,7 @@ EXTRA_AFLAGS += -Ivirt/kvm -Iarch/ia64/kvm/
 common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o ioapic.o \
 		coalesced_mmio.o irq_comm.o)
 
-ifeq ($(CONFIG_DMAR),y)
+ifeq ($(CONFIG_IOMMU_API),y)
 common-objs += $(addprefix ../../../virt/kvm/, iommu.o)
 endif
 

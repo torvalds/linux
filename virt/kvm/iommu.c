@@ -25,6 +25,7 @@
 #include <linux/kvm_host.h>
 #include <linux/pci.h>
 #include <linux/dmar.h>
+#include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 
 static int kvm_iommu_unmap_memslots(struct kvm *kvm);
@@ -37,7 +38,7 @@ int kvm_iommu_map_pages(struct kvm *kvm,
 	gfn_t gfn = base_gfn;
 	pfn_t pfn;
 	int i, r = 0;
-	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
+	struct iommu_domain *domain = kvm->arch.iommu_domain;
 
 	/* check if iommu exists and in use */
 	if (!domain)
@@ -45,16 +46,15 @@ int kvm_iommu_map_pages(struct kvm *kvm,
 
 	for (i = 0; i < npages; i++) {
 		/* check if already mapped */
-		if (intel_iommu_iova_to_phys(domain,
-					     gfn_to_gpa(gfn)))
+		if (iommu_iova_to_phys(domain, gfn_to_gpa(gfn)))
 			continue;
 
 		pfn = gfn_to_pfn(kvm, gfn);
-		r = intel_iommu_map_address(domain,
-					    gfn_to_gpa(gfn),
-					    pfn_to_hpa(pfn),
-					    PAGE_SIZE,
-					    DMA_PTE_READ | DMA_PTE_WRITE);
+		r = iommu_map_range(domain,
+				    gfn_to_gpa(gfn),
+				    pfn_to_hpa(pfn),
+				    PAGE_SIZE,
+				    IOMMU_READ | IOMMU_WRITE);
 		if (r) {
 			printk(KERN_ERR "kvm_iommu_map_address:"
 			       "iommu failed to map pfn=%lx\n", pfn);
@@ -88,7 +88,7 @@ int kvm_assign_device(struct kvm *kvm,
 		      struct kvm_assigned_dev_kernel *assigned_dev)
 {
 	struct pci_dev *pdev = NULL;
-	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
+	struct iommu_domain *domain = kvm->arch.iommu_domain;
 	int r;
 
 	/* check if iommu exists and in use */
@@ -99,7 +99,7 @@ int kvm_assign_device(struct kvm *kvm,
 	if (pdev == NULL)
 		return -ENODEV;
 
-	r = intel_iommu_attach_device(domain, pdev);
+	r = iommu_attach_device(domain, &pdev->dev);
 	if (r) {
 		printk(KERN_ERR "assign device %x:%x.%x failed",
 			pdev->bus->number,
@@ -119,7 +119,7 @@ int kvm_assign_device(struct kvm *kvm,
 int kvm_deassign_device(struct kvm *kvm,
 			struct kvm_assigned_dev_kernel *assigned_dev)
 {
-	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
+	struct iommu_domain *domain = kvm->arch.iommu_domain;
 	struct pci_dev *pdev = NULL;
 
 	/* check if iommu exists and in use */
@@ -130,7 +130,7 @@ int kvm_deassign_device(struct kvm *kvm,
 	if (pdev == NULL)
 		return -ENODEV;
 
-	intel_iommu_detach_device(domain, pdev);
+	iommu_detach_device(domain, &pdev->dev);
 
 	printk(KERN_DEBUG "deassign device: host bdf = %x:%x:%x\n",
 		assigned_dev->host_busnr,
@@ -144,13 +144,13 @@ int kvm_iommu_map_guest(struct kvm *kvm)
 {
 	int r;
 
-	if (!intel_iommu_found()) {
-		printk(KERN_ERR "%s: intel iommu not found\n", __func__);
+	if (!iommu_found()) {
+		printk(KERN_ERR "%s: iommu not found\n", __func__);
 		return -ENODEV;
 	}
 
-	kvm->arch.intel_iommu_domain = intel_iommu_alloc_domain();
-	if (!kvm->arch.intel_iommu_domain)
+	kvm->arch.iommu_domain = iommu_domain_alloc();
+	if (!kvm->arch.iommu_domain)
 		return -ENOMEM;
 
 	r = kvm_iommu_map_memslots(kvm);
@@ -169,7 +169,7 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 {
 	gfn_t gfn = base_gfn;
 	pfn_t pfn;
-	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
+	struct iommu_domain *domain = kvm->arch.iommu_domain;
 	unsigned long i;
 	u64 phys;
 
@@ -178,16 +178,13 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 		return;
 
 	for (i = 0; i < npages; i++) {
-		phys = intel_iommu_iova_to_phys(domain,
-						gfn_to_gpa(gfn));
+		phys = iommu_iova_to_phys(domain, gfn_to_gpa(gfn));
 		pfn = phys >> PAGE_SHIFT;
 		kvm_release_pfn_clean(pfn);
 		gfn++;
 	}
 
-	intel_iommu_unmap_address(domain,
-				  gfn_to_gpa(base_gfn),
-				  PAGE_SIZE * npages);
+	iommu_unmap_range(domain, gfn_to_gpa(base_gfn), PAGE_SIZE * npages);
 }
 
 static int kvm_iommu_unmap_memslots(struct kvm *kvm)
@@ -205,13 +202,13 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 
 int kvm_iommu_unmap_guest(struct kvm *kvm)
 {
-	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
+	struct iommu_domain *domain = kvm->arch.iommu_domain;
 
 	/* check if iommu exists and in use */
 	if (!domain)
 		return 0;
 
 	kvm_iommu_unmap_memslots(kvm);
-	intel_iommu_free_domain(domain);
+	iommu_domain_free(domain);
 	return 0;
 }
