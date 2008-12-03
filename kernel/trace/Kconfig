@@ -67,6 +67,7 @@ config FUNCTION_GRAPH_TRACER
 	bool "Kernel Function Graph Tracer"
 	depends on HAVE_FUNCTION_GRAPH_TRACER
 	depends on FUNCTION_TRACER
+	default y
 	help
 	  Enable the kernel to trace a function at both its return
 	  and its entry.
