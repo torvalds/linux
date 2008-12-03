@@ -6,11 +6,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#ifndef CONFIG_BT_HCI_CORE_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 struct class *bt_class = NULL;
 EXPORT_SYMBOL_GPL(bt_class);
 
@@ -420,7 +415,7 @@ int hci_register_sysfs(struct hci_dev *hdev)
 	dev->class = bt_class;
 	dev->parent = hdev->parent;
 
-	dev_set_name(dev, hdev->name);
+	dev_set_name(dev, "%s", hdev->name);
 
 	dev_set_drvdata(dev, hdev);
 
