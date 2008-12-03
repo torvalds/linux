@@ -381,7 +381,7 @@ config CRYPTO_SHA512
 
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  Tiger hash algorithm 192, 160 and 128-bit hashes
 
