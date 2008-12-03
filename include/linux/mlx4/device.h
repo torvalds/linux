@@ -179,6 +179,7 @@ struct mlx4_caps {
 	int			num_ports;
 	int			vl_cap[MLX4_MAX_PORTS + 1];
 	int			ib_mtu_cap[MLX4_MAX_PORTS + 1];
+	__be32			ib_port_def_cap[MLX4_MAX_PORTS + 1];
 	u64			def_mac[MLX4_MAX_PORTS + 1];
 	int			eth_mtu_cap[MLX4_MAX_PORTS + 1];
 	int			gid_table_len[MLX4_MAX_PORTS + 1];
