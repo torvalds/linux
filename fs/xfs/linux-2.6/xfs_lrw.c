@@ -51,7 +51,6 @@
 #include "xfs_vnodeops.h"
 
 #include <linux/capability.h>
-#include <linux/mount.h>
 #include <linux/writeback.h>
 
 
@@ -668,15 +667,8 @@ start:
 	if (new_size > xip->i_size)
 		xip->i_new_size = new_size;
 
-	/*
-	 * We're not supposed to change timestamps in readonly-mounted
-	 * filesystems.  Throw it away if anyone asks us.
-	 */
-	if (likely(!(ioflags & IO_INVIS) &&
-		   !mnt_want_write(file->f_path.mnt))) {
+	if (likely(!(ioflags & IO_INVIS)))
 		xfs_ichgtime(xip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-		mnt_drop_write(file->f_path.mnt);
-	}
 
 	/*
 	 * If the offset is beyond the size of the file, we have a couple
