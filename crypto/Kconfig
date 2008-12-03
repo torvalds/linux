@@ -282,7 +282,7 @@ config CRYPTO_MD4
 
 config CRYPTO_MD5
 	tristate "MD5 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  MD5 message digest algorithm (RFC1321).
 
