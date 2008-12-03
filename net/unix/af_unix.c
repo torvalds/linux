@@ -1351,6 +1351,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
+	wait_for_unix_gc();
 	err = scm_send(sock, msg, siocb->scm);
 	if (err < 0)
 		return err;
@@ -1501,6 +1502,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
+	wait_for_unix_gc();
 	err = scm_send(sock, msg, siocb->scm);
 	if (err < 0)
 		return err;

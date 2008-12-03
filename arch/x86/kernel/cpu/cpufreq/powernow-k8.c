@@ -115,9 +115,20 @@ static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 	u32 i = 0;
 
 	if (cpu_family == CPU_HW_PSTATE) {
-		rdmsr(MSR_PSTATE_STATUS, lo, hi);
-		i = lo & HW_PSTATE_MASK;
-		data->currpstate = i;
+		if (data->currpstate == HW_PSTATE_INVALID) {
+			/* read (initial) hw pstate if not yet set */
+			rdmsr(MSR_PSTATE_STATUS, lo, hi);
+			i = lo & HW_PSTATE_MASK;
+
+			/*
+			 * a workaround for family 11h erratum 311 might cause
+			 * an "out-of-range Pstate if the core is in Pstate-0
+			 */
+			if (i >= data->numps)
+				data->currpstate = HW_PSTATE_0;
+			else
+				data->currpstate = i;
+		}
 		return 0;
 	}
 	do {
@@ -1121,6 +1132,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	}
 
 	data->cpu = pol->cpu;
+	data->currpstate = HW_PSTATE_INVALID;
 
 	if (powernow_k8_cpu_init_acpi(data)) {
 		/*

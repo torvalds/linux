@@ -1016,7 +1016,8 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 	 * The RAID firmware may require extended timeouts.
 	 */
 	if (sdev->channel >= MEGASAS_MAX_PD_CHANNELS)
-		sdev->timeout = MEGASAS_DEFAULT_CMD_TIMEOUT * HZ;
+		blk_queue_rq_timeout(sdev->request_queue,
+				     MEGASAS_DEFAULT_CMD_TIMEOUT * HZ);
 	return 0;
 }
 

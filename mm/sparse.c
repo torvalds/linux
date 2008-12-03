@@ -570,7 +570,7 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
  * set.  If this is <=0, then that means that the passed-in
  * map was not consumed and must be freed.
  */
-int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 			   int nr_pages)
 {
 	unsigned long section_nr = pfn_to_section_nr(start_pfn);

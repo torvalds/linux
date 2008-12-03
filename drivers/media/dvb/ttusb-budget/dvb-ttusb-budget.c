@@ -808,6 +808,12 @@ static int ttusb_alloc_iso_urbs(struct ttusb *ttusb)
 						 ISO_BUF_COUNT,
 						 &ttusb->iso_dma_handle);
 
+	if (!ttusb->iso_buffer) {
+		dprintk("%s: pci_alloc_consistent - not enough memory\n",
+			__func__);
+		return -ENOMEM;
+	}
+
 	memset(ttusb->iso_buffer, 0,
 	       ISO_FRAME_SIZE * FRAMES_PER_ISO_BUF * ISO_BUF_COUNT);
 
@@ -1659,7 +1665,14 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	ttusb_setup_interfaces(ttusb);
 
-	ttusb_alloc_iso_urbs(ttusb);
+	result = ttusb_alloc_iso_urbs(ttusb);
+	if (result < 0) {
+		dprintk("%s: ttusb_alloc_iso_urbs - failed\n", __func__);
+		mutex_unlock(&ttusb->semi2c);
+		kfree(ttusb);
+		return result;
+	}
+
 	if (ttusb_init_controller(ttusb))
 		printk("ttusb_init_controller: error\n");
 

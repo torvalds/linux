@@ -20,10 +20,11 @@ pressed or released a BUTTON_IRQ happens. The driver could look like:
 
 static struct input_dev *button_dev;
 
-static void button_interrupt(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t button_interrupt(int irq, void *dummy)
 {
 	input_report_key(button_dev, BTN_0, inb(BUTTON_PORT) & 1);
 	input_sync(button_dev);
+	return IRQ_HANDLED;
 }
 
 static int __init button_init(void)

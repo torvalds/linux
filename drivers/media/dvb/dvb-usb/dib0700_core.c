@@ -19,6 +19,22 @@ MODULE_PARM_DESC(dvb_usb_dib0700_ir_proto, "set ir protocol (0=NEC, 1=RC5 (defau
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+
+int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,
+			u32 *romversion, u32 *ramversion, u32 *fwtype)
+{
+	u8 b[16];
+	int ret = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0),
+				  REQUEST_GET_VERSION,
+				  USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,
+				  b, sizeof(b), USB_CTRL_GET_TIMEOUT);
+	*hwversion  = (b[0] << 24)  | (b[1] << 16)  | (b[2] << 8)  | b[3];
+	*romversion = (b[4] << 24)  | (b[5] << 16)  | (b[6] << 8)  | b[7];
+	*ramversion = (b[8] << 24)  | (b[9] << 16)  | (b[10] << 8) | b[11];
+	*fwtype     = (b[12] << 24) | (b[13] << 16) | (b[14] << 8) | b[15];
+	return ret;
+}
+
 /* expecting rx buffer: request data[0] data[1] ... data[2] */
 static int dib0700_ctrl_wr(struct dvb_usb_device *d, u8 *tx, u8 txlen)
 {
