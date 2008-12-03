@@ -51,6 +51,9 @@ static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
 static void xfrm_init_pmtu(struct dst_entry *dst);
 
+static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
+						int dir);
+
 static inline int
 __xfrm4_selector_match(struct xfrm_selector *sel, struct flowi *fl)
 {
@@ -584,12 +587,8 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	xfrm_pol_hold(policy);
 	net->xfrm.policy_count[dir]++;
 	atomic_inc(&flow_cache_genid);
-	if (delpol) {
-		hlist_del(&delpol->bydst);
-		hlist_del(&delpol->byidx);
-		list_del(&delpol->walk.all);
-		net->xfrm.policy_count[dir]--;
-	}
+	if (delpol)
+		__xfrm_policy_unlink(delpol, dir);
 	policy->index = delpol ? delpol->index : xfrm_gen_index(net, dir);
 	hlist_add_head(&policy->byidx, net->xfrm.policy_byidx+idx_hash(net, policy->index));
 	policy->curlft.add_time = get_seconds();
@@ -661,10 +660,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u8 type, int dir,
 					write_unlock_bh(&xfrm_policy_lock);
 					return pol;
 				}
-				hlist_del(&pol->bydst);
-				hlist_del(&pol->byidx);
-				list_del(&pol->walk.all);
-				net->xfrm.policy_count[dir]--;
+				__xfrm_policy_unlink(pol, dir);
 			}
 			ret = pol;
 			break;
@@ -705,10 +701,7 @@ struct xfrm_policy *xfrm_policy_byid(struct net *net, u8 type, int dir, u32 id,
 					write_unlock_bh(&xfrm_policy_lock);
 					return pol;
 				}
-				hlist_del(&pol->bydst);
-				hlist_del(&pol->byidx);
-				list_del(&pol->walk.all);
-				net->xfrm.policy_count[dir]--;
+				__xfrm_policy_unlink(pol, dir);
 			}
 			ret = pol;
 			break;
@@ -789,17 +782,14 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
 		struct xfrm_policy *pol;
 		struct hlist_node *entry;
-		int i, killed;
+		int i;
 
-		killed = 0;
 	again1:
 		hlist_for_each_entry(pol, entry,
 				     &net->xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
-			hlist_del(&pol->bydst);
-			hlist_del(&pol->byidx);
-			list_del(&pol->walk.all);
+			__xfrm_policy_unlink(pol, dir);
 			write_unlock_bh(&xfrm_policy_lock);
 
 			xfrm_audit_policy_delete(pol, 1, audit_info->loginuid,
@@ -807,7 +797,6 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 						 audit_info->secid);
 
 			xfrm_policy_kill(pol);
-			killed++;
 
 			write_lock_bh(&xfrm_policy_lock);
 			goto again1;
@@ -820,9 +809,7 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 					     bydst) {
 				if (pol->type != type)
 					continue;
-				hlist_del(&pol->bydst);
-				hlist_del(&pol->byidx);
-				list_del(&pol->walk.all);
+				__xfrm_policy_unlink(pol, dir);
 				write_unlock_bh(&xfrm_policy_lock);
 
 				xfrm_audit_policy_delete(pol, 1,
@@ -830,14 +817,12 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 							 audit_info->sessionid,
 							 audit_info->secid);
 				xfrm_policy_kill(pol);
-				killed++;
 
 				write_lock_bh(&xfrm_policy_lock);
 				goto again2;
 			}
 		}
 
-		net->xfrm.policy_count[dir] -= killed;
 	}
 	atomic_inc(&flow_cache_genid);
 out:
