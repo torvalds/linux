@@ -2022,8 +2022,9 @@ int xfrm_init_state(struct xfrm_state *x)
 		x->inner_mode = inner_mode;
 	} else {
 		struct xfrm_mode *inner_mode_iaf;
+		int iafamily = AF_INET;
 
-		inner_mode = xfrm_get_mode(x->props.mode, AF_INET);
+		inner_mode = xfrm_get_mode(x->props.mode, x->props.family);
 		if (inner_mode == NULL)
 			goto error;
 
@@ -2031,22 +2032,17 @@ int xfrm_init_state(struct xfrm_state *x)
 			xfrm_put_mode(inner_mode);
 			goto error;
 		}
+		x->inner_mode = inner_mode;
 
-		inner_mode_iaf = xfrm_get_mode(x->props.mode, AF_INET6);
-		if (inner_mode_iaf == NULL)
-			goto error;
+		if (x->props.family == AF_INET)
+			iafamily = AF_INET6;
 
-		if (!(inner_mode_iaf->flags & XFRM_MODE_FLAG_TUNNEL)) {
-			xfrm_put_mode(inner_mode_iaf);
-			goto error;
-		}
-
-		if (x->props.family == AF_INET) {
-			x->inner_mode = inner_mode;
-			x->inner_mode_iaf = inner_mode_iaf;
-		} else {
-			x->inner_mode = inner_mode_iaf;
-			x->inner_mode_iaf = inner_mode;
+		inner_mode_iaf = xfrm_get_mode(x->props.mode, iafamily);
+		if (inner_mode_iaf) {
+			if (inner_mode_iaf->flags & XFRM_MODE_FLAG_TUNNEL)
+				x->inner_mode_iaf = inner_mode_iaf;
+			else
+				xfrm_put_mode(inner_mode_iaf);
 		}
 	}
 
