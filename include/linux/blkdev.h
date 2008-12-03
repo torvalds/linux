@@ -786,6 +786,8 @@ static inline void blk_run_address_space(struct address_space *mapping)
 		blk_run_backing_dev(mapping->backing_dev_info, NULL);
 }
 
+extern void blkdev_dequeue_request(struct request *req);
+
 /*
  * blk_end_request() and friends.
  * __blk_end_request() and end_request() must be called with
@@ -819,11 +821,6 @@ extern void blk_update_request(struct request *rq, int error,
  */
 extern unsigned int blk_rq_bytes(struct request *rq);
 extern unsigned int blk_rq_cur_bytes(struct request *rq);
-
-static inline void blkdev_dequeue_request(struct request *req)
-{
-	elv_dequeue_request(req->q, req);
-}
 
 /*
  * Access functions for manipulating queue properties
