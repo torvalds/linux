@@ -729,8 +729,8 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		spin_lock(&log->l_icloglock);
 		iclog = log->l_iclog;
 		atomic_inc(&iclog->ic_refcnt);
-		spin_unlock(&log->l_icloglock);
 		xlog_state_want_sync(log, iclog);
+		spin_unlock(&log->l_icloglock);
 		error = xlog_state_release_iclog(log, iclog);
 
 		spin_lock(&log->l_icloglock);
@@ -767,9 +767,9 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		spin_lock(&log->l_icloglock);
 		iclog = log->l_iclog;
 		atomic_inc(&iclog->ic_refcnt);
-		spin_unlock(&log->l_icloglock);
 
 		xlog_state_want_sync(log, iclog);
+		spin_unlock(&log->l_icloglock);
 		error =  xlog_state_release_iclog(log, iclog);
 
 		spin_lock(&log->l_icloglock);
@@ -1984,7 +1984,9 @@ xlog_write(xfs_mount_t *	mp,
 		if (iclog->ic_size - log_offset <= sizeof(xlog_op_header_t)) {
 		    xlog_state_finish_copy(log, iclog, record_cnt, data_cnt);
 		    record_cnt = data_cnt = 0;
+		    spin_lock(&log->l_icloglock);
 		    xlog_state_want_sync(log, iclog);
+		    spin_unlock(&log->l_icloglock);
 		    if (commit_iclog) {
 			ASSERT(flags & XLOG_COMMIT_TRANS);
 			*commit_iclog = iclog;
@@ -3193,7 +3195,7 @@ try_again:
 STATIC void
 xlog_state_want_sync(xlog_t *log, xlog_in_core_t *iclog)
 {
-	spin_lock(&log->l_icloglock);
+	ASSERT(spin_is_locked(&log->l_icloglock));
 
 	if (iclog->ic_state == XLOG_STATE_ACTIVE) {
 		xlog_state_switch_iclogs(log, iclog, 0);
@@ -3201,10 +3203,7 @@ xlog_state_want_sync(xlog_t *log, xlog_in_core_t *iclog)
 		ASSERT(iclog->ic_state &
 			(XLOG_STATE_WANT_SYNC|XLOG_STATE_IOERROR));
 	}
-
-	spin_unlock(&log->l_icloglock);
-}	/* xlog_state_want_sync */
-
+}
 
 
 /*****************************************************************************
