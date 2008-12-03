@@ -825,8 +825,8 @@ setup_tba:
 	 restore
 sparc64_boot_end:
 
-#include "etrap.S"
-#include "rtrap.S"
+#include "etrap_64.S"
+#include "rtrap_64.S"
 #include "winfixup.S"
 #include "fpu_traps.S"
 #include "ivec.S"
@@ -882,7 +882,7 @@ swapper_4m_tsb:
 
 ! 0x0000000000428000
 
-#include "systbls.S"
+#include "systbls_64.S"
 
 	.data
 	.align	8

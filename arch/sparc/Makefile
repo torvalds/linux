@@ -67,13 +67,10 @@ endif
 
 endif
 
-head-$(CONFIG_SPARC32) := arch/sparc/kernel/head_$(BITS).o
-head-$(CONFIG_SPARC32) += arch/sparc/kernel/init_task_$(BITS).o
-head-$(CONFIG_SPARC64) := arch/sparc64/kernel/head.o
-head-$(CONFIG_SPARC64) += arch/sparc64/kernel/init_task.o
+head-y                 := arch/sparc/kernel/head_$(BITS).o
+head-y                 += arch/sparc/kernel/init_task_$(BITS).o
 
-core-$(CONFIG_SPARC32) += arch/sparc/kernel/
-core-$(CONFIG_SPARC64) += arch/sparc64/kernel/
+core-y                 += arch/sparc/kernel/
 core-y                 += arch/sparc/mm/ arch/sparc/math-emu/
 
 libs-y                 += arch/sparc/prom/
