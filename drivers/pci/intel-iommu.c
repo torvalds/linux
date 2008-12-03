@@ -2992,9 +2992,11 @@ static void intel_iommu_domain_destroy(struct iommu_domain *domain)
 	vm_domain_exit(dmar_domain);
 }
 
-int intel_iommu_attach_device(struct dmar_domain *domain,
-			      struct pci_dev *pdev)
+static int intel_iommu_attach_device(struct iommu_domain *domain,
+				     struct device *dev)
 {
+	struct dmar_domain *dmar_domain = domain->priv;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct intel_iommu *iommu;
 	int addr_width;
 	u64 end;
@@ -3006,7 +3008,7 @@ int intel_iommu_attach_device(struct dmar_domain *domain,
 
 		old_domain = find_domain(pdev);
 		if (old_domain) {
-			if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE)
+			if (dmar_domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE)
 				vm_domain_remove_one_dev_info(old_domain, pdev);
 			else
 				domain_remove_dev_info(old_domain);
@@ -3021,28 +3023,29 @@ int intel_iommu_attach_device(struct dmar_domain *domain,
 	addr_width = agaw_to_width(iommu->agaw);
 	end = DOMAIN_MAX_ADDR(addr_width);
 	end = end & VTD_PAGE_MASK;
-	if (end < domain->max_addr) {
+	if (end < dmar_domain->max_addr) {
 		printk(KERN_ERR "%s: iommu agaw (%d) is not "
 		       "sufficient for the mapped address (%llx)\n",
-		       __func__, iommu->agaw, domain->max_addr);
+		       __func__, iommu->agaw, dmar_domain->max_addr);
 		return -EFAULT;
 	}
 
-	ret = domain_context_mapping(domain, pdev);
+	ret = domain_context_mapping(dmar_domain, pdev);
 	if (ret)
 		return ret;
 
-	ret = vm_domain_add_dev_info(domain, pdev);
+	ret = vm_domain_add_dev_info(dmar_domain, pdev);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_iommu_attach_device);
 
-void intel_iommu_detach_device(struct dmar_domain *domain,
-			       struct pci_dev *pdev)
+static void intel_iommu_detach_device(struct iommu_domain *domain,
+				      struct device *dev)
 {
-	vm_domain_remove_one_dev_info(domain, pdev);
+	struct dmar_domain *dmar_domain = domain->priv;
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	vm_domain_remove_one_dev_info(dmar_domain, pdev);
 }
-EXPORT_SYMBOL_GPL(intel_iommu_detach_device);
 
 int intel_iommu_map_address(struct dmar_domain *domain, dma_addr_t iova,
 			    u64 hpa, size_t size, int prot)

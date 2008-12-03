@@ -330,10 +330,6 @@ extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 
 extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
-int intel_iommu_attach_device(struct dmar_domain *domain,
-			      struct pci_dev *pdev);
-void intel_iommu_detach_device(struct dmar_domain *domain,
-			       struct pci_dev *pdev);
 int intel_iommu_map_address(struct dmar_domain *domain, dma_addr_t iova,
 			    u64 hpa, size_t size, int prot);
 void intel_iommu_unmap_address(struct dmar_domain *domain,
