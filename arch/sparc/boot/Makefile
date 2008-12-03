@@ -37,8 +37,8 @@ define rule_image
 	echo 'cmd_$@ := $(cmd_image)' > $(@D)/.$(@F).cmd
 endef
 
-BTOBJS := $(HEAD_Y) $(INIT_Y)
-BTLIBS := $(CORE_Y) $(LIBS_Y) $(DRIVERS_Y) $(NET_Y)
+BTOBJS := $(patsubst %/, %/built-in.o, $(VMLINUX_INIT))
+BTLIBS := $(patsubst %/, %/built-in.o, $(VMLINUX_MAIN))
 LDFLAGS_image := -T arch/sparc/kernel/vmlinux.lds $(BTOBJS) \
                   --start-group $(BTLIBS) --end-group \
                   $(kallsyms.o) $(obj)/btfix.o

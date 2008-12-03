@@ -27,7 +27,6 @@ CPPFLAGS_vmlinux.lds += -m32
 LDFLAGS_vmlinux = -r
 
 head-y := arch/sparc/kernel/head.o arch/sparc/kernel/init_task.o
-HEAD_Y := $(head-y)
 
 core-y += arch/sparc/kernel/ arch/sparc/mm/ arch/sparc/math-emu/
 libs-y += arch/sparc/prom/ arch/sparc/lib/
@@ -35,22 +34,15 @@ libs-y += arch/sparc/prom/ arch/sparc/lib/
 drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
 
 # Export what is needed by arch/sparc/boot/Makefile
-# Renaming is done to avoid confusing pattern matching rules in 2.5.45 (multy-)
-INIT_Y		:= $(patsubst %/, %/built-in.o, $(init-y))
-CORE_Y		:= $(core-y)
-CORE_Y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/
-CORE_Y		:= $(patsubst %/, %/built-in.o, $(CORE_Y))
-DRIVERS_Y	:= $(patsubst %/, %/built-in.o, $(drivers-y))
-NET_Y		:= $(patsubst %/, %/built-in.o, $(net-y))
-LIBS_Y1		:= $(patsubst %/, %/lib.a, $(libs-y))
-LIBS_Y2		:= $(patsubst %/, %/built-in.o, $(libs-y))
-LIBS_Y		:= $(LIBS_Y1) $(LIBS_Y2)
+export VMLINUX_INIT VMLINUX_MAIN
+VMLINUX_INIT := $(head-y) $(init-y)
+VMLINUX_MAIN := $(core-y) kernel/ mm/ fs/ ipc/ security/ crypto/ block/
+VMLINUX_MAIN += $(patsubst %/, %/lib.a, $(libs-y)) $(libs-y)
+VMLINUX_MAIN += $(drivers-y) $(net-y)
 
 ifdef CONFIG_KALLSYMS
-kallsyms.o := .tmp_kallsyms2.o
+export kallsyms.o := .tmp_kallsyms2.o
 endif
-
-export INIT_Y CORE_Y DRIVERS_Y NET_Y LIBS_Y HEAD_Y kallsyms.o
 
 # Default target
 all: zImage
