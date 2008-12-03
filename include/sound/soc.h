@@ -152,7 +152,6 @@ struct snd_soc_dai;
 struct snd_soc_codec;
 struct soc_enum;
 struct snd_soc_ac97_ops;
-struct snd_soc_clock_info;
 
 typedef int (*hw_write_t)(void *,const char* ,int);
 typedef int (*hw_read_t)(void *,char* ,int);
