@@ -276,7 +276,7 @@ config CRYPTO_CRC32C_INTEL
 
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  MD4 message digest algorithm (RFC1320).
 
