@@ -41,6 +41,10 @@ static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 static LIST_HEAD(iommu_pd_list);
 static DEFINE_SPINLOCK(iommu_pd_list_lock);
 
+#ifdef CONFIG_IOMMU_API
+static struct iommu_ops amd_iommu_ops;
+#endif
+
 /*
  * general struct to manage commands send to an IOMMU
  */
@@ -1593,6 +1597,10 @@ int __init amd_iommu_init_dma_ops(void)
 	/* Make the driver finally visible to the drivers */
 	dma_ops = &amd_iommu_dma_ops;
 
+#ifdef CONFIG_IOMMU_API
+	register_iommu(&amd_iommu_ops);
+#endif
+
 	bus_register_notifier(&pci_bus_type, &device_nb);
 
 	return 0;
@@ -1818,5 +1826,15 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 
 	return paddr;
 }
+
+static struct iommu_ops amd_iommu_ops = {
+	.domain_init = amd_iommu_domain_init,
+	.domain_destroy = amd_iommu_domain_destroy,
+	.attach_dev = amd_iommu_attach_device,
+	.detach_dev = amd_iommu_detach_device,
+	.map = amd_iommu_map_range,
+	.unmap = amd_iommu_unmap_range,
+	.iova_to_phys = amd_iommu_iova_to_phys,
+};
 
 #endif
