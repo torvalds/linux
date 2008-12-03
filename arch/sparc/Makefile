@@ -2,9 +2,21 @@
 # sparc/Makefile
 #
 # Makefile for the architecture dependent flags and dependencies on the
-# Sparc.
+# Sparc and sparc64.
 #
-# Copyright (C) 1994 David S. Miller (davem@caip.rutgers.edu)
+# Copyright (C) 1994,1996,1998 David S. Miller (davem@caip.rutgers.edu)
+# Copyright (C) 1998 Jakub Jelinek (jj@ultra.linux.cz)
+
+# We are not yet configured - so test on arch
+ifeq ($(ARCH),sparc)
+        KBUILD_DEFCONFIG := sparc32_defconfig
+else
+        KBUILD_DEFCONFIG := sparc64_defconfig
+endif
+
+ifeq ($(CONFIG_SPARC32),y)
+#####
+# sparc32
 #
 
 #
@@ -26,10 +38,48 @@ CPPFLAGS_vmlinux.lds += -m32
 #  Actual linking is done with "make image".
 LDFLAGS_vmlinux = -r
 
-head-y := arch/sparc/kernel/head.o arch/sparc/kernel/init_task.o
+# Default target
+all: zImage
 
-core-y += arch/sparc/kernel/ arch/sparc/mm/ arch/sparc/math-emu/
-libs-y += arch/sparc/prom/ arch/sparc/lib/
+
+else
+#####
+# sparc64
+#
+
+CHECKFLAGS      += -D__sparc__ -D__sparc_v9__ -D__arch64__ -m64
+
+# Undefine sparc when processing vmlinux.lds - it is used
+# And teach CPP we are doing 64 bit builds (for this case)
+CPPFLAGS_vmlinux.lds += -m64 -Usparc
+LDFLAGS              := -m elf64_sparc
+export BITS          := 64
+
+KBUILD_CFLAGS += -m64 -pipe -mno-fpu -mcpu=ultrasparc -mcmodel=medlow   \
+                 -ffixed-g4 -ffixed-g5 -fcall-used-g7 -Wno-sign-compare \
+                 -Wa,--undeclared-regs
+KBUILD_CFLAGS += $(call cc-option,-mtune=ultrasparc3)
+KBUILD_AFLAGS += -m64 -mcpu=ultrasparc -Wa,--undeclared-regs
+
+ifeq ($(CONFIG_MCOUNT),y)
+  KBUILD_CFLAGS += -pg
+endif
+
+endif
+
+head-$(CONFIG_SPARC32) := arch/sparc/kernel/head.o
+head-$(CONFIG_SPARC32) += arch/sparc/kernel/init_task.o
+head-$(CONFIG_SPARC64) := arch/sparc64/kernel/head.o
+head-$(CONFIG_SPARC64) += arch/sparc64/kernel/init_task.o
+
+core-$(CONFIG_SPARC32) += arch/sparc/kernel/
+core-$(CONFIG_SPARC64) += arch/sparc64/kernel/
+core-y                 += arch/sparc/mm/ arch/sparc/math-emu/
+
+libs-$(CONFIG_SPARC32) += arch/sparc/prom/
+libs-$(CONFIG_SPARC32) += arch/sparc/lib/
+libs-$(CONFIG_SPARC64) += arch/sparc64/prom/
+libs-$(CONFIG_SPARC64) += arch/sparc64/lib/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
 
@@ -44,23 +94,29 @@ ifdef CONFIG_KALLSYMS
 export kallsyms.o := .tmp_kallsyms2.o
 endif
 
-# Default target
-all: zImage
+boot-y                 := arch/sparc/boot
+boot-$(CONFIG_SPARC64) := arch/sparc64/boot
 
-boot := arch/sparc/boot
-
-image zImage tftpboot.img: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+image zImage tftpboot.img vmlinux.aout: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot-y) $(boot-y)/$@
 
 archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
+	$(Q)$(MAKE) $(clean)=$(boot-y)
 
 # This is the image used for packaging
-KBUILD_IMAGE := $(boot)/zImage
+KBUILD_IMAGE := $(boot-y)/zImage
 
 # Don't use tabs in echo arguments.
+ifeq ($(ARCH),sparc)
 define archhelp
   echo  '* image        - kernel image ($(boot)/image)'
   echo  '* zImage       - stripped kernel image ($(boot)/zImage)'
   echo  '  tftpboot.img - image prepared for tftp'
 endef
+else
+define archhelp
+  echo  '* vmlinux       - Standard sparc64 kernel'
+  echo  '  vmlinux.aout  - a.out kernel for sparc64'
+  echo  '  tftpboot.img - image prepared for tftp'
+endef
+endif
