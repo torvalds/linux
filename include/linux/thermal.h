@@ -113,6 +113,7 @@ struct thermal_zone_device {
 	int polling_delay;
 	int last_temperature;
 	bool passive;
+	unsigned int forced_passive;
 	struct thermal_zone_device_ops *ops;
 	struct list_head cooling_devices;
 	struct idr idr;

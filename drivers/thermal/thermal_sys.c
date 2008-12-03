@@ -214,9 +214,69 @@ trip_point_temp_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%ld\n", temperature);
 }
 
+static ssize_t
+passive_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct thermal_zone_device *tz = to_thermal_zone(dev);
+	struct thermal_cooling_device *cdev = NULL;
+	int state;
+
+	if (!sscanf(buf, "%d\n", &state))
+		return -EINVAL;
+
+	if (state && !tz->forced_passive) {
+		mutex_lock(&thermal_list_lock);
+		list_for_each_entry(cdev, &thermal_cdev_list, node) {
+			if (!strncmp("Processor", cdev->type,
+				     sizeof("Processor")))
+				thermal_zone_bind_cooling_device(tz,
+								 THERMAL_TRIPS_NONE,
+								 cdev);
+		}
+		mutex_unlock(&thermal_list_lock);
+	} else if (!state && tz->forced_passive) {
+		mutex_lock(&thermal_list_lock);
+		list_for_each_entry(cdev, &thermal_cdev_list, node) {
+			if (!strncmp("Processor", cdev->type,
+				     sizeof("Processor")))
+				thermal_zone_unbind_cooling_device(tz,
+								   THERMAL_TRIPS_NONE,
+								   cdev);
+		}
+		mutex_unlock(&thermal_list_lock);
+	}
+
+	tz->tc1 = 1;
+	tz->tc2 = 1;
+
+	if (!tz->passive_delay)
+		tz->passive_delay = 1000;
+
+	if (!tz->polling_delay)
+		tz->polling_delay = 10000;
+
+	tz->forced_passive = state;
+
+	thermal_zone_device_update(tz);
+
+	return count;
+}
+
+static ssize_t
+passive_show(struct device *dev, struct device_attribute *attr,
+		   char *buf)
+{
+	struct thermal_zone_device *tz = to_thermal_zone(dev);
+
+	return sprintf(buf, "%d\n", tz->forced_passive);
+}
+
 static DEVICE_ATTR(type, 0444, type_show, NULL);
 static DEVICE_ATTR(temp, 0444, temp_show, NULL);
 static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
+static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, \
+		   passive_store);
 
 static struct device_attribute trip_point_attrs[] = {
 	__ATTR(trip_point_0_type, 0444, trip_point_type_show, NULL),
@@ -939,6 +999,11 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 			break;
 		}
 	}
+
+	if (tz->forced_passive)
+		thermal_zone_device_passive(tz, temp, tz->forced_passive,
+					    THERMAL_TRIPS_NONE);
+
 	tz->last_temperature = temp;
 	if (tz->passive)
 		thermal_zone_device_set_polling(tz, tz->passive_delay);
@@ -977,8 +1042,10 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 {
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *pos;
+	enum thermal_trip_type trip_type;
 	int result;
 	int count;
+	int passive = 0;
 
 	if (strlen(type) >= THERMAL_NAME_LENGTH)
 		return ERR_PTR(-EINVAL);
@@ -1041,7 +1108,17 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 		TRIP_POINT_ATTR_ADD(&tz->device, count, result);
 		if (result)
 			goto unregister;
+		tz->ops->get_trip_type(tz, count, &trip_type);
+		if (trip_type == THERMAL_TRIP_PASSIVE)
+			passive = 1;
 	}
+
+	if (!passive)
+		result = device_create_file(&tz->device,
+					    &dev_attr_passive);
+
+	if (result)
+		goto unregister;
 
 	result = thermal_add_hwmon_sysfs(tz);
 	if (result)
