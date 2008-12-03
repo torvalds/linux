@@ -634,7 +634,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 * When the erp information has changed, we should perform
 	 * additional configuration steps. For all other changes we are done.
 	 */
-	if (changes & (BSS_CHANGED_ERP_PREAMBLE | BSS_CHANGED_ERP_CTS_PROT)) {
+	if (changes & ~(BSS_CHANGED_ASSOC | BSS_CHANGED_HT)) {
 		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
 			rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
 		else
