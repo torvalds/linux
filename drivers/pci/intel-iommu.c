@@ -3105,12 +3105,6 @@ static void intel_iommu_unmap_range(struct iommu_domain *domain,
 		dmar_domain->max_addr = base;
 }
 
-int intel_iommu_found(void)
-{
-	return g_num_of_iommus;
-}
-EXPORT_SYMBOL_GPL(intel_iommu_found);
-
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 					    unsigned long iova)
 {

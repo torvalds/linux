@@ -330,15 +330,6 @@ extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 
 extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
-#ifdef CONFIG_DMAR
-int intel_iommu_found(void);
-#else /* CONFIG_DMAR */
-static inline int intel_iommu_found(void)
-{
-	return 0;
-}
-#endif /* CONFIG_DMAR */
-
 extern void *intel_alloc_coherent(struct device *, size_t, dma_addr_t *, gfp_t);
 extern void intel_free_coherent(struct device *, size_t, void *, dma_addr_t);
 extern dma_addr_t intel_map_single(struct device *, phys_addr_t, size_t, int);
