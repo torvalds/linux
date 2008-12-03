@@ -7,20 +7,31 @@
 
 #include <asm/break.h>
 
-#define BUG()								\
-do {									\
-	__asm__ __volatile__("break %0" : : "i" (BRK_BUG));		\
-} while (0)
+static inline void __noreturn BUG(void)
+{
+	__asm__ __volatile__("break %0" : : "i" (BRK_BUG));
+	/* Fool GCC into thinking the function doesn't return. */
+	while (1)
+		;
+}
 
 #define HAVE_ARCH_BUG
 
 #if (_MIPS_ISA > _MIPS_ISA_MIPS1)
 
-#define BUG_ON(condition)						\
-do {									\
-	__asm__ __volatile__("tne $0, %0, %1"				\
-			     : : "r" (condition), "i" (BRK_BUG));	\
-} while (0)
+static inline void  __BUG_ON(unsigned long condition)
+{
+	if (__builtin_constant_p(condition)) {
+		if (condition)
+			BUG();
+		else
+			return;
+	}
+	__asm__ __volatile__("tne $0, %0, %1"
+			     : : "r" (condition), "i" (BRK_BUG));
+}
+
+#define BUG_ON(C) __BUG_ON((unsigned long)(C))
 
 #define HAVE_ARCH_BUG_ON
 

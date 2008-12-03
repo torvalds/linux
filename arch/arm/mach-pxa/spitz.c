@@ -67,6 +67,7 @@
 static unsigned long spitz_pin_config[] __initdata = {
 	/* Chip Selects */
 	GPIO78_nCS_2,	/* SCOOP #2 */
+	GPIO79_nCS_3,	/* NAND */
 	GPIO80_nCS_4,	/* SCOOP #1 */
 
 	/* LCD - 16bpp Active TFT */
@@ -97,10 +98,10 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO51_nPIOW,
 	GPIO85_nPCE_1,
 	GPIO54_nPCE_2,
-	GPIO79_PSKTSEL,
 	GPIO55_nPREG,
 	GPIO56_nPWAIT,
 	GPIO57_nIOIS16,
+	GPIO104_PSKTSEL,
 
 	/* MMC */
 	GPIO32_MMC_CLK,
@@ -686,7 +687,6 @@ static void __init akita_init(void)
 	spitz_pcmcia_config.num_devs = 1;
 	platform_scoop_config = &spitz_pcmcia_config;
 
-	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(akita_i2c_board_info));
 
 	common_init();
