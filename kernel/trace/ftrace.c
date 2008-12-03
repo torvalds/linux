@@ -1671,8 +1671,10 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 		}
 
 		if (t->ret_stack == NULL) {
-			t->ret_stack = ret_stack_list[start++];
 			t->curr_ret_stack = -1;
+			/* Make sure IRQs see the -1 first: */
+			barrier();
+			t->ret_stack = ret_stack_list[start++];
 			atomic_set(&t->trace_overrun, 0);
 		}
 	} while_each_thread(g, t);

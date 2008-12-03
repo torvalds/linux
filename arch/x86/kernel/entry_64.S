@@ -98,6 +98,12 @@ ftrace_call:
 	movq (%rsp), %rax
 	addq $0x38, %rsp
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+.globl ftrace_graph_call
+ftrace_graph_call:
+	jmp ftrace_stub
+#endif
+
 .globl ftrace_stub
 ftrace_stub:
 	retq
@@ -110,6 +116,12 @@ ENTRY(mcount)
 
 	cmpq $ftrace_stub, ftrace_trace_function
 	jnz trace
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	cmpq $ftrace_stub, ftrace_graph_return
+	jnz ftrace_graph_caller
+#endif
+
 .globl ftrace_stub
 ftrace_stub:
 	retq
@@ -144,6 +156,68 @@ trace:
 END(mcount)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_TRACER */
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+ENTRY(ftrace_graph_caller)
+	cmpl $0, function_trace_stop
+	jne ftrace_stub
+
+	subq $0x38, %rsp
+	movq %rax, (%rsp)
+	movq %rcx, 8(%rsp)
+	movq %rdx, 16(%rsp)
+	movq %rsi, 24(%rsp)
+	movq %rdi, 32(%rsp)
+	movq %r8, 40(%rsp)
+	movq %r9, 48(%rsp)
+
+	leaq 8(%rbp), %rdi
+	movq 0x38(%rsp), %rsi
+
+	call	prepare_ftrace_return
+
+	movq 48(%rsp), %r9
+	movq 40(%rsp), %r8
+	movq 32(%rsp), %rdi
+	movq 24(%rsp), %rsi
+	movq 16(%rsp), %rdx
+	movq 8(%rsp), %rcx
+	movq (%rsp), %rax
+	addq $0x38, %rsp
+	retq
+END(ftrace_graph_caller)
+
+
+.globl return_to_handler
+return_to_handler:
+	subq  $80, %rsp
+
+	movq %rax, (%rsp)
+	movq %rcx, 8(%rsp)
+	movq %rdx, 16(%rsp)
+	movq %rsi, 24(%rsp)
+	movq %rdi, 32(%rsp)
+	movq %r8, 40(%rsp)
+	movq %r9, 48(%rsp)
+	movq %r10, 56(%rsp)
+	movq %r11, 64(%rsp)
+
+	call ftrace_return_to_handler
+
+	movq %rax, 72(%rsp)
+	movq 64(%rsp), %r11
+	movq 56(%rsp), %r10
+	movq 48(%rsp), %r9
+	movq 40(%rsp), %r8
+	movq 32(%rsp), %rdi
+	movq 24(%rsp), %rsi
+	movq 16(%rsp), %rdx
+	movq 8(%rsp), %rcx
+	movq (%rsp), %rax
+	addq $72, %rsp
+	retq
+#endif
+
 
 #ifndef CONFIG_PREEMPT
 #define retint_kernel retint_restore_args
