@@ -1388,35 +1388,6 @@ xfs_finish_flags(
 		return XFS_ERROR(EROFS);
 	}
 
-#if 0 /* shared mounts were never supported on Linux */
-	/*
-	 * check for shared mount.
-	 */
-	if (ap->flags & XFSMNT_SHARED) {
-		if (!xfs_sb_version_hasshared(&mp->m_sb))
-			return XFS_ERROR(EINVAL);
-
-		/*
-		 * For IRIX 6.5, shared mounts must have the shared
-		 * version bit set, have the persistent readonly
-		 * field set, must be version 0 and can only be mounted
-		 * read-only.
-		 */
-		if (!ronly || !(mp->m_sb.sb_flags & XFS_SBF_READONLY) ||
-		     (mp->m_sb.sb_shared_vn != 0))
-			return XFS_ERROR(EINVAL);
-
-		mp->m_flags |= XFS_MOUNT_SHARED;
-
-		/*
-		 * Shared XFS V0 can't deal with DMI.  Return EINVAL.
-		 */
-		if (mp->m_sb.sb_shared_vn == 0 &&
-		    (mp->m_flags & XFS_MOUNT_DMAPI))
-			return XFS_ERROR(EINVAL);
-	}
-#endif
-
 	return 0;
 }
 

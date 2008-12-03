@@ -1352,24 +1352,6 @@ xfs_log_sbcount(
 	return error;
 }
 
-STATIC void
-xfs_mark_shared_ro(
-	xfs_mount_t	*mp,
-	xfs_buf_t	*bp)
-{
-	xfs_dsb_t	*sb = XFS_BUF_TO_SBP(bp);
-	__uint16_t	version;
-
-	if (!(sb->sb_flags & XFS_SBF_READONLY))
-		sb->sb_flags |= XFS_SBF_READONLY;
-
-	version = be16_to_cpu(sb->sb_versionnum);
-	if ((version & XFS_SB_VERSION_NUMBITS) != XFS_SB_VERSION_4 ||
-	    !(version & XFS_SB_VERSION_SHAREDBIT))
-		version |= XFS_SB_VERSION_SHAREDBIT;
-	sb->sb_versionnum = cpu_to_be16(version);
-}
-
 int
 xfs_unmountfs_writesb(xfs_mount_t *mp)
 {
@@ -1385,12 +1367,6 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 
 		sbp = xfs_getsb(mp, 0);
 
-		/*
-		 * mark shared-readonly if desired
-		 */
-		if (mp->m_mk_sharedro)
-			xfs_mark_shared_ro(mp, sbp);
-
 		XFS_BUF_UNDONE(sbp);
 		XFS_BUF_UNREAD(sbp);
 		XFS_BUF_UNDELAYWRITE(sbp);
@@ -1402,8 +1378,6 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 		if (error)
 			xfs_ioerror_alert("xfs_unmountfs_writesb",
 					  mp, sbp, XFS_BUF_ADDR(sbp));
-		if (error && mp->m_mk_sharedro)
-			xfs_fs_cmn_err(CE_ALERT, mp, "Superblock write error detected while unmounting.  Filesystem may not be marked shared readonly");
 		xfs_buf_relse(sbp);
 	}
 	return error;
