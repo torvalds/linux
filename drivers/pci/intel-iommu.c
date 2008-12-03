@@ -277,6 +277,8 @@ static int intel_iommu_strict;
 static DEFINE_SPINLOCK(device_domain_lock);
 static LIST_HEAD(device_domain_list);
 
+static struct iommu_ops intel_iommu_ops;
+
 static int __init intel_iommu_setup(char *str)
 {
 	if (!str)
@@ -2729,6 +2731,9 @@ int __init intel_iommu_init(void)
 	init_timer(&unmap_timer);
 	force_iommu = 1;
 	dma_ops = &intel_dma_ops;
+
+	register_iommu(&intel_iommu_ops);
+
 	return 0;
 }
 
@@ -3119,3 +3124,13 @@ static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 
 	return phys;
 }
+
+static struct iommu_ops intel_iommu_ops = {
+	.domain_init	= intel_iommu_domain_init,
+	.domain_destroy = intel_iommu_domain_destroy,
+	.attach_dev	= intel_iommu_attach_device,
+	.detach_dev	= intel_iommu_detach_device,
+	.map		= intel_iommu_map_range,
+	.unmap		= intel_iommu_unmap_range,
+	.iova_to_phys	= intel_iommu_iova_to_phys,
+};
