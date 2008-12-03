@@ -149,6 +149,7 @@ struct snd_soc_ops;
 struct snd_soc_dai_mode;
 struct snd_soc_pcm_runtime;
 struct snd_soc_dai;
+struct snd_soc_platform;
 struct snd_soc_codec;
 struct soc_enum;
 struct snd_soc_ac97_ops;
@@ -157,6 +158,9 @@ typedef int (*hw_write_t)(void *,const char* ,int);
 typedef int (*hw_read_t)(void *,char* ,int);
 
 extern struct snd_ac97_bus_ops soc_ac97_ops;
+
+int snd_soc_register_platform(struct snd_soc_platform *platform);
+void snd_soc_unregister_platform(struct snd_soc_platform *platform);
 
 /* pcm <-> DAI connect */
 void snd_soc_free_pcms(struct snd_soc_device *socdev);
@@ -296,6 +300,7 @@ struct snd_soc_codec_device {
 /* SoC platform interface */
 struct snd_soc_platform {
 	char *name;
+	struct list_head list;
 
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);

@@ -46,6 +46,7 @@ static struct dentry *debugfs_root;
 static DEFINE_MUTEX(client_mutex);
 static LIST_HEAD(card_list);
 static LIST_HEAD(dai_list);
+static LIST_HEAD(platform_list);
 
 static int snd_soc_register_card(struct snd_soc_card *card);
 static int snd_soc_unregister_card(struct snd_soc_card *card);
@@ -2101,6 +2102,43 @@ void snd_soc_unregister_dais(struct snd_soc_dai *dai, size_t count)
 		snd_soc_unregister_dai(&dai[i]);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_dais);
+
+/**
+ * snd_soc_register_platform - Register a platform with the ASoC core
+ *
+ * @param platform platform to register
+ */
+int snd_soc_register_platform(struct snd_soc_platform *platform)
+{
+	if (!platform->name)
+		return -EINVAL;
+
+	INIT_LIST_HEAD(&platform->list);
+
+	mutex_lock(&client_mutex);
+	list_add(&platform->list, &platform_list);
+	mutex_unlock(&client_mutex);
+
+	pr_debug("Registered platform '%s'\n", platform->name);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_register_platform);
+
+/**
+ * snd_soc_unregister_platform - Unregister a platform from the ASoC core
+ *
+ * @param platform platform to unregister
+ */
+void snd_soc_unregister_platform(struct snd_soc_platform *platform)
+{
+	mutex_lock(&client_mutex);
+	list_del(&platform->list);
+	mutex_unlock(&client_mutex);
+
+	pr_debug("Unregistered platform '%s'\n", platform->name);
+}
+EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);
 
 static int __devinit snd_soc_init(void)
 {
