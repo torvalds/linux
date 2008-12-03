@@ -96,6 +96,8 @@
  * 2008-10-20	Alexey Klimov <klimov.linux@gmail.com>
  * 		- add support for KWorld USB FM Radio FM700
  * 		- blacklisted KWorld radio in hid-core.c and hid-ids.h
+ * 2008-12-03	Mark Lord <mlord@pobox.com>
+ *		- add support for DealExtreme USB Radio
  *
  * ToDo:
  * - add firmware download/update support
@@ -138,6 +140,8 @@ static struct usb_device_id si470x_usb_driver_id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x06e1, 0xa155, USB_CLASS_HID, 0, 0) },
 	/* KWorld USB FM Radio SnapMusic Mobile 700 (FM700) */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1b80, 0xd700, USB_CLASS_HID, 0, 0) },
+	/* DealExtreme USB Radio */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c5, 0x819a, USB_CLASS_HID, 0, 0) },
 	/* Terminating entry */
 	{ }
 };
