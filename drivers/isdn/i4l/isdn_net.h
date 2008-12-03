@@ -56,6 +56,11 @@ extern void isdn_net_write_super(isdn_net_local *lp, struct sk_buff *skb);
 
 #define ISDN_NET_MAX_QUEUE_LENGTH 2
 
+#define ISDN_MASTER_PRIV(lp) ((isdn_net_local *) netdev_priv(lp->master))
+#define ISDN_SLAVE_PRIV(lp) ((isdn_net_local *) netdev_priv(lp->slave))
+#define MASTER_TO_SLAVE(master)	\
+			(((isdn_net_local *) netdev_priv(master))->slave)
+
 /*
  * is this particular channel busy?
  */
@@ -126,7 +131,7 @@ static __inline__ void isdn_net_rm_from_bundle(isdn_net_local *lp)
 	unsigned long flags;
 
 	if (lp->master)
-		master_lp = (isdn_net_local *) lp->master->priv;
+		master_lp = ISDN_MASTER_PRIV(lp);
 
 //	printk(KERN_DEBUG "%s: lp:%s(%p) mlp:%s(%p) last(%p) next(%p) mndq(%p)\n",
 //		__func__, lp->name, lp, master_lp->name, master_lp, lp->last, lp->next, master_lp->netdev->queue);
