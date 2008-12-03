@@ -33,7 +33,6 @@
 #include <sound/jack.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-#include "hda_patch.h"
 #include "hda_beep.h"
 
 enum {
@@ -5461,7 +5460,7 @@ static int patch_stac9872(struct hda_codec *codec)
 /*
  * patch entries
  */
-struct hda_codec_preset snd_hda_preset_sigmatel[] = {
+static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
  	{ .id = 0x83847690, .name = "STAC9200", .patch = patch_stac9200 },
  	{ .id = 0x83847882, .name = "STAC9220 A1", .patch = patch_stac922x },
  	{ .id = 0x83847680, .name = "STAC9221 A1", .patch = patch_stac922x },
@@ -5525,3 +5524,27 @@ struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d76b7, .name = "92HD71B5X", .patch = patch_stac92hd71bxx },
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:8384*");
+MODULE_ALIAS("snd-hda-codec-id:111d*");
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("IDT/Sigmatel HD-audio codec");
+
+static struct hda_codec_preset_list sigmatel_list = {
+	.preset = snd_hda_preset_sigmatel,
+	.owner = THIS_MODULE,
+};
+
+static int __init patch_sigmatel_init(void)
+{
+	return snd_hda_add_codec_preset(&sigmatel_list);
+}
+
+static void __exit patch_sigmatel_exit(void)
+{
+	snd_hda_delete_codec_preset(&sigmatel_list);
+}
+
+module_init(patch_sigmatel_init)
+module_exit(patch_sigmatel_exit)

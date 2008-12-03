@@ -32,7 +32,6 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-#include "hda_patch.h"
 
 #define CVT_NID		0x02	/* audio converter */
 #define PIN_NID		0x03	/* HDMI output pin */
@@ -675,7 +674,7 @@ static int patch_intel_hdmi(struct hda_codec *codec)
 	return 0;
 }
 
-struct hda_codec_preset snd_hda_preset_intelhdmi[] = {
+static struct hda_codec_preset snd_hda_preset_intelhdmi[] = {
 	{ .id = 0x808629fb, .name = "INTEL G45 DEVCL",  .patch = patch_intel_hdmi },
 	{ .id = 0x80862801, .name = "INTEL G45 DEVBLC", .patch = patch_intel_hdmi },
 	{ .id = 0x80862802, .name = "INTEL G45 DEVCTG", .patch = patch_intel_hdmi },
@@ -683,3 +682,30 @@ struct hda_codec_preset snd_hda_preset_intelhdmi[] = {
 	{ .id = 0x10951392, .name = "SiI1392 HDMI",     .patch = patch_intel_hdmi },
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:808629fb");
+MODULE_ALIAS("snd-hda-codec-id:80862801");
+MODULE_ALIAS("snd-hda-codec-id:80862802");
+MODULE_ALIAS("snd-hda-codec-id:80862803");
+MODULE_ALIAS("snd-hda-codec-id:10951392");
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Intel HDMI HD-audio codec");
+
+static struct hda_codec_preset_list intel_list = {
+	.preset = snd_hda_preset_intelhdmi,
+	.owner = THIS_MODULE,
+};
+
+static int __init patch_intelhdmi_init(void)
+{
+	return snd_hda_add_codec_preset(&intel_list);
+}
+
+static void __exit patch_intelhdmi_exit(void)
+{
+	snd_hda_delete_codec_preset(&intel_list);
+}
+
+module_init(patch_intelhdmi_init)
+module_exit(patch_intelhdmi_exit)
