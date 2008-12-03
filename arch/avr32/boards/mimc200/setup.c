@@ -207,8 +207,6 @@ static int __init mimc200_init(void)
 	 * reserve any pins for it.
 	 */
 
-	at32_add_system_devices();
-
 	at32_add_device_usart(0);
 	at32_add_device_usart(1);
 	at32_add_device_usart(2);
