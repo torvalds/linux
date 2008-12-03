@@ -189,7 +189,7 @@ int asd_I_T_nexus_reset(struct domain_device *dev)
 	asd_clear_nexus_I_T(dev, NEXUS_PHASE_PRE);
 	/* send a hard reset */
 	ASD_DPRINTK("sending %s reset to %s\n",
-		    reset_type ? "hard" : "soft", phy->dev.bus_id);
+		    reset_type ? "hard" : "soft", dev_name(&phy->dev));
 	res = sas_phy_reset(phy, reset_type);
 	if (res == TMF_RESP_FUNC_COMPLETE) {
 		/* wait for the maximum settle time */

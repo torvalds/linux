@@ -1145,10 +1145,10 @@ static void ibmvfc_set_login_info(struct ibmvfc_host *vhost)
 	login_info->async.len = vhost->async_crq.size * sizeof(*vhost->async_crq.msgs);
 	strncpy(login_info->partition_name, vhost->partition_name, IBMVFC_MAX_NAME);
 	strncpy(login_info->device_name,
-		vhost->host->shost_gendev.bus_id, IBMVFC_MAX_NAME);
+		dev_name(&vhost->host->shost_gendev), IBMVFC_MAX_NAME);
 
 	location = of_get_property(of_node, "ibm,loc-code", NULL);
-	location = location ? location : vhost->dev->bus_id;
+	location = location ? location : dev_name(vhost->dev);
 	strncpy(login_info->drc_name, location, IBMVFC_MAX_NAME);
 }
 

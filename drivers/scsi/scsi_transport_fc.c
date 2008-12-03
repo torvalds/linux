@@ -2486,8 +2486,8 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	device_initialize(dev);			/* takes self reference */
 	dev->parent = get_device(&shost->shost_gendev); /* parent reference */
 	dev->release = fc_rport_dev_release;
-	sprintf(dev->bus_id, "rport-%d:%d-%d",
-		shost->host_no, channel, rport->number);
+	dev_set_name(dev, "rport-%d:%d-%d",
+		     shost->host_no, channel, rport->number);
 	transport_setup_device(dev);
 
 	error = device_add(dev);
@@ -3164,8 +3164,8 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	device_initialize(dev);			/* takes self reference */
 	dev->parent = get_device(pdev);		/* takes parent reference */
 	dev->release = fc_vport_dev_release;
-	sprintf(dev->bus_id, "vport-%d:%d-%d",
-		shost->host_no, channel, vport->number);
+	dev_set_name(dev, "vport-%d:%d-%d",
+		     shost->host_no, channel, vport->number);
 	transport_setup_device(dev);
 
 	error = device_add(dev);
@@ -3188,19 +3188,19 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	 */
 	if (pdev != &shost->shost_gendev) {
 		error = sysfs_create_link(&shost->shost_gendev.kobj,
-				 &dev->kobj, dev->bus_id);
+				 &dev->kobj, dev_name(dev));
 		if (error)
 			printk(KERN_ERR
 				"%s: Cannot create vport symlinks for "
 				"%s, err=%d\n",
-				__func__, dev->bus_id, error);
+				__func__, dev_name(dev), error);
 	}
 	spin_lock_irqsave(shost->host_lock, flags);
 	vport->flags &= ~FC_VPORT_CREATING;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	dev_printk(KERN_NOTICE, pdev,
-			"%s created via shost%d channel %d\n", dev->bus_id,
+			"%s created via shost%d channel %d\n", dev_name(dev),
 			shost->host_no, channel);
 
 	*ret_vport = vport;
@@ -3297,7 +3297,7 @@ fc_vport_terminate(struct fc_vport *vport)
 		return stat;
 
 	if (dev->parent != &shost->shost_gendev)
-		sysfs_remove_link(&shost->shost_gendev.kobj, dev->bus_id);
+		sysfs_remove_link(&shost->shost_gendev.kobj, dev_name(dev));
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
@@ -3329,7 +3329,7 @@ fc_vport_sched_delete(struct work_struct *work)
 		dev_printk(KERN_ERR, vport->dev.parent,
 			"%s: %s could not be deleted created via "
 			"shost%d channel %d - error %d\n", __func__,
-			vport->dev.bus_id, vport->shost->host_no,
+			dev_name(&vport->dev), vport->shost->host_no,
 			vport->channel, stat);
 }
 
