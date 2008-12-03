@@ -34,6 +34,7 @@
 #include <linux/mempool.h>
 #include <linux/timer.h>
 #include <linux/iova.h>
+#include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
@@ -2962,32 +2963,34 @@ static void vm_domain_exit(struct dmar_domain *domain)
 	free_domain_mem(domain);
 }
 
-struct dmar_domain *intel_iommu_alloc_domain(void)
+static int intel_iommu_domain_init(struct iommu_domain *domain)
 {
-	struct dmar_domain *domain;
+	struct dmar_domain *dmar_domain;
 
-	domain = iommu_alloc_vm_domain();
-	if (!domain) {
+	dmar_domain = iommu_alloc_vm_domain();
+	if (!dmar_domain) {
 		printk(KERN_ERR
-			"intel_iommu_domain_alloc: domain == NULL\n");
-		return NULL;
+			"intel_iommu_domain_init: dmar_domain == NULL\n");
+		return -ENOMEM;
 	}
-	if (vm_domain_init(domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
+	if (vm_domain_init(dmar_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
 		printk(KERN_ERR
-			"intel_iommu_domain_alloc: domain_init() failed\n");
-		vm_domain_exit(domain);
-		return NULL;
+			"intel_iommu_domain_init() failed\n");
+		vm_domain_exit(dmar_domain);
+		return -ENOMEM;
 	}
+	domain->priv = dmar_domain;
 
-	return domain;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(intel_iommu_alloc_domain);
 
-void intel_iommu_free_domain(struct dmar_domain *domain)
+static void intel_iommu_domain_destroy(struct iommu_domain *domain)
 {
-	vm_domain_exit(domain);
+	struct dmar_domain *dmar_domain = domain->priv;
+
+	domain->priv = NULL;
+	vm_domain_exit(dmar_domain);
 }
-EXPORT_SYMBOL_GPL(intel_iommu_free_domain);
 
 int intel_iommu_attach_device(struct dmar_domain *domain,
 			      struct pci_dev *pdev)

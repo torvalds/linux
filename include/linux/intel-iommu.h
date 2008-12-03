@@ -330,8 +330,6 @@ extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 
 extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
-struct dmar_domain *intel_iommu_alloc_domain(void);
-void intel_iommu_free_domain(struct dmar_domain *domain);
 int intel_iommu_attach_device(struct dmar_domain *domain,
 			      struct pci_dev *pdev);
 void intel_iommu_detach_device(struct dmar_domain *domain,
