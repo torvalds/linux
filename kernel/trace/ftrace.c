@@ -1636,11 +1636,15 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 static atomic_t ftrace_graph_active;
 
+int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace)
+{
+	return 0;
+}
+
 /* The callbacks that hook a function */
 trace_func_graph_ret_t ftrace_graph_return =
 			(trace_func_graph_ret_t)ftrace_stub;
-trace_func_graph_ent_t ftrace_graph_entry =
-			(trace_func_graph_ent_t)ftrace_stub;
+trace_func_graph_ent_t ftrace_graph_entry = ftrace_graph_entry_stub;
 
 /* Try to assign a return stack array on FTRACE_RETSTACK_ALLOC_SIZE tasks. */
 static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
@@ -1738,7 +1742,7 @@ void unregister_ftrace_graph(void)
 
 	atomic_dec(&ftrace_graph_active);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
-	ftrace_graph_entry = (trace_func_graph_ent_t)ftrace_stub;
+	ftrace_graph_entry = ftrace_graph_entry_stub;
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
 
 	mutex_unlock(&ftrace_sysctl_lock);

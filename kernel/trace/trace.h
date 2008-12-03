@@ -412,7 +412,7 @@ void trace_function(struct trace_array *tr,
 		    unsigned long flags, int pc);
 
 void trace_graph_return(struct ftrace_graph_ret *trace);
-void trace_graph_entry(struct ftrace_graph_ent *trace);
+int trace_graph_entry(struct ftrace_graph_ent *trace);
 void trace_bts(struct trace_array *tr,
 	       unsigned long from,
 	       unsigned long to);

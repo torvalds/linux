@@ -120,6 +120,9 @@ ENTRY(mcount)
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	cmpq $ftrace_stub, ftrace_graph_return
 	jnz ftrace_graph_caller
+
+	cmpq $ftrace_graph_entry_stub, ftrace_graph_entry
+	jnz ftrace_graph_caller
 #endif
 
 .globl ftrace_stub

@@ -1200,7 +1200,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-void trace_graph_entry(struct ftrace_graph_ent *trace)
+int trace_graph_entry(struct ftrace_graph_ent *trace)
 {
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
@@ -1219,6 +1219,8 @@ void trace_graph_entry(struct ftrace_graph_ent *trace)
 	}
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
+
+	return 1;
 }
 
 void trace_graph_return(struct ftrace_graph_ret *trace)

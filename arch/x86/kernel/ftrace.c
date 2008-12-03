@@ -425,6 +425,7 @@ static void pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 	trace->calltime = current->ret_stack[index].calltime;
 	trace->overrun = atomic_read(&current->trace_overrun);
 	trace->depth = index;
+	barrier();
 	current->curr_ret_stack--;
 }
 
@@ -506,7 +507,11 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	}
 
 	trace.func = self_addr;
-	ftrace_graph_entry(&trace);
 
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
+		current->curr_ret_stack--;
+		*parent = old;
+	}
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
