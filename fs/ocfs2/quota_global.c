@@ -87,13 +87,25 @@ struct qtree_fmt_operations ocfs2_global_ops = {
 	.is_id = ocfs2_global_is_id,
 };
 
+static int ocfs2_validate_quota_block(struct super_block *sb,
+				      struct buffer_head *bh)
+{
+	struct ocfs2_disk_dqtrailer *dqt = ocfs2_dq_trailer(sb, bh->b_data);
+
+	mlog(0, "Validating quota block %llu\n",
+	     (unsigned long long)bh->b_blocknr);
+
+	return 0;
+}
+
 int ocfs2_read_quota_block(struct inode *inode, u64 v_block,
 			   struct buffer_head **bh)
 {
 	int rc = 0;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_virt_blocks(inode, v_block, 1, &tmp, 0, NULL);
+	rc = ocfs2_read_virt_blocks(inode, v_block, 1, &tmp, 0,
+				    ocfs2_validate_quota_block);
 	if (rc)
 		mlog_errno(rc);
 
