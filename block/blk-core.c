@@ -592,7 +592,7 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 				   1 << QUEUE_FLAG_STACKABLE);
 	q->queue_lock		= lock;
 
-	blk_queue_segment_boundary(q, 0xffffffff);
+	blk_queue_segment_boundary(q, BLK_SEG_BOUNDARY_MASK);
 
 	blk_queue_make_request(q, __make_request);
 	blk_queue_max_segment_size(q, MAX_SEGMENT_SIZE);

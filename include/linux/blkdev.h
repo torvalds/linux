@@ -918,6 +918,8 @@ extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 
 #define MAX_SEGMENT_SIZE	65536
 
+#define BLK_SEG_BOUNDARY_MASK	0xFFFFFFFFUL
+
 #define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
 
 static inline int queue_hardsect_size(struct request_queue *q)
