@@ -1209,6 +1209,9 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	int cpu;
 	int pc;
 
+	if (!ftrace_trace_task(current))
+		return 0;
+
 	if (!ftrace_graph_addr(trace->func))
 		return 0;
 

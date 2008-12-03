@@ -48,7 +48,7 @@ int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
 
 /* set when tracing only a pid */
-static int ftrace_pid_trace = -1;
+int ftrace_pid_trace = -1;
 
 /* Quick disabling of function tracer. */
 int function_trace_stop;
