@@ -167,7 +167,7 @@ extern void		xfs_qm_destroy_quotainfo(xfs_mount_t *);
 extern void		xfs_qm_mount_quotas(xfs_mount_t *);
 extern int		xfs_qm_quotacheck(xfs_mount_t *);
 extern void		xfs_qm_unmount_quotadestroy(xfs_mount_t *);
-extern int		xfs_qm_unmount_quotas(xfs_mount_t *);
+extern void		xfs_qm_unmount_quotas(xfs_mount_t *);
 extern int		xfs_qm_write_sb_changes(xfs_mount_t *, __int64_t);
 extern int		xfs_qm_sync(xfs_mount_t *, int);
 

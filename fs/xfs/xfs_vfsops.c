@@ -68,74 +68,16 @@ xfs_unmount_flush(
 					   rid of. */
 	int             relocation)	/* Called from vfs relocation. */
 {
-	xfs_inode_t	*rip = mp->m_rootip;
-	xfs_inode_t	*rbmip;
-	xfs_inode_t	*rsumip = NULL;
-	int		error;
-
-	xfs_ilock(rip, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
-	xfs_iflock(rip);
-
-	/*
-	 * Flush out the real time inodes.
-	 */
-	if ((rbmip = mp->m_rbmip) != NULL) {
-		xfs_ilock(rbmip, XFS_ILOCK_EXCL);
-		xfs_iflock(rbmip);
-		error = xfs_iflush(rbmip, XFS_IFLUSH_SYNC);
-		xfs_iunlock(rbmip, XFS_ILOCK_EXCL);
-
-		if (error == EFSCORRUPTED)
-			goto fscorrupt_out;
-
-		ASSERT(vn_count(VFS_I(rbmip)) == 1);
-
-		rsumip = mp->m_rsumip;
-		xfs_ilock(rsumip, XFS_ILOCK_EXCL);
-		xfs_iflock(rsumip);
-		error = xfs_iflush(rsumip, XFS_IFLUSH_SYNC);
-		xfs_iunlock(rsumip, XFS_ILOCK_EXCL);
-
-		if (error == EFSCORRUPTED)
-			goto fscorrupt_out;
-
-		ASSERT(vn_count(VFS_I(rsumip)) == 1);
-	}
-
-	/*
-	 * Synchronously flush root inode to disk
-	 */
-	error = xfs_iflush(rip, XFS_IFLUSH_SYNC);
-	if (error == EFSCORRUPTED)
-		goto fscorrupt_out2;
-
-	if (vn_count(VFS_I(rip)) != 1 && !relocation) {
-		xfs_iunlock(rip, XFS_ILOCK_EXCL);
-		return XFS_ERROR(EBUSY);
-	}
-
 	/*
 	 * Release dquot that rootinode, rbmino and rsumino might be holding,
 	 * flush and purge the quota inodes.
 	 */
-	error = XFS_QM_UNMOUNT(mp);
-	if (error == EFSCORRUPTED)
-		goto fscorrupt_out2;
+	XFS_QM_UNMOUNT(mp);
 
-	if (rbmip) {
-		IRELE(rbmip);
-		IRELE(rsumip);
-	}
+	if (mp->m_rbmip)
+		IRELE(mp->m_rbmip);
+	if (mp->m_rsumip)
+		IRELE(mp->m_rsumip);
 
-	xfs_iunlock(rip, XFS_ILOCK_EXCL);
 	return 0;
-
-fscorrupt_out:
-	xfs_ifunlock(rip);
-
-fscorrupt_out2:
-	xfs_iunlock(rip, XFS_ILOCK_EXCL);
-
-	return XFS_ERROR(EFSCORRUPTED);
 }
-

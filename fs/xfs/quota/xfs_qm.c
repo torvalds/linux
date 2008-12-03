@@ -395,13 +395,10 @@ xfs_qm_mount_quotas(
 /*
  * Called from the vfsops layer.
  */
-int
+void
 xfs_qm_unmount_quotas(
 	xfs_mount_t	*mp)
 {
-	xfs_inode_t	*uqp, *gqp;
-	int		error = 0;
-
 	/*
 	 * Release the dquots that root inode, et al might be holding,
 	 * before we flush quotas and blow away the quotainfo structure.
@@ -414,43 +411,18 @@ xfs_qm_unmount_quotas(
 		xfs_qm_dqdetach(mp->m_rsumip);
 
 	/*
-	 * Flush out the quota inodes.
+	 * Release the quota inodes.
 	 */
-	uqp = gqp = NULL;
 	if (mp->m_quotainfo) {
-		if ((uqp = mp->m_quotainfo->qi_uquotaip) != NULL) {
-			xfs_ilock(uqp, XFS_ILOCK_EXCL);
-			xfs_iflock(uqp);
-			error = xfs_iflush(uqp, XFS_IFLUSH_SYNC);
-			xfs_iunlock(uqp, XFS_ILOCK_EXCL);
-			if (unlikely(error == EFSCORRUPTED)) {
-				XFS_ERROR_REPORT("xfs_qm_unmount_quotas(1)",
-						 XFS_ERRLEVEL_LOW, mp);
-				goto out;
-			}
+		if (mp->m_quotainfo->qi_uquotaip) {
+			IRELE(mp->m_quotainfo->qi_uquotaip);
+			mp->m_quotainfo->qi_uquotaip = NULL;
 		}
-		if ((gqp = mp->m_quotainfo->qi_gquotaip) != NULL) {
-			xfs_ilock(gqp, XFS_ILOCK_EXCL);
-			xfs_iflock(gqp);
-			error = xfs_iflush(gqp, XFS_IFLUSH_SYNC);
-			xfs_iunlock(gqp, XFS_ILOCK_EXCL);
-			if (unlikely(error == EFSCORRUPTED)) {
-				XFS_ERROR_REPORT("xfs_qm_unmount_quotas(2)",
-						 XFS_ERRLEVEL_LOW, mp);
-				goto out;
-			}
+		if (mp->m_quotainfo->qi_gquotaip) {
+			IRELE(mp->m_quotainfo->qi_gquotaip);
+			mp->m_quotainfo->qi_gquotaip = NULL;
 		}
 	}
-	if (uqp) {
-		 IRELE(uqp);
-		 mp->m_quotainfo->qi_uquotaip = NULL;
-	}
-	if (gqp) {
-		IRELE(gqp);
-		mp->m_quotainfo->qi_gquotaip = NULL;
-	}
-out:
-	return XFS_ERROR(error);
 }
 
 /*
