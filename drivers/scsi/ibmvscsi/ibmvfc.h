@@ -43,7 +43,8 @@
 #define IBMVFC_MAX_DISC_THREADS	4
 #define IBMVFC_TGT_MEMPOOL_SZ		64
 #define IBMVFC_MAX_CMDS_PER_LUN	64
-#define IBMVFC_MAX_INIT_RETRIES	3
+#define IBMVFC_MAX_HOST_INIT_RETRIES	6
+#define IBMVFC_MAX_TGT_INIT_RETRIES		3
 #define IBMVFC_DEV_LOSS_TMO		(5 * 60)
 #define IBMVFC_DEFAULT_LOG_LEVEL	2
 #define IBMVFC_MAX_CDB_LEN		16
@@ -673,6 +674,7 @@ struct ibmvfc_host {
 	int discovery_threads;
 	int client_migrated;
 	int reinit;
+	int delay_init;
 	int events_to_log;
 #define IBMVFC_AE_LINKUP	0x0001
 #define IBMVFC_AE_LINKDOWN	0x0002
