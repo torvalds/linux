@@ -48,7 +48,6 @@ static int frame_rate;
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-	__u8 frame_rate;
 };
 
 /* V4L2 controls supported by the driver */
@@ -358,45 +357,38 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *)gspca_dev;
+	int fr;
+
 	ov534_setup(gspca_dev->dev);
 
-	if (frame_rate > 0)
-		sd->frame_rate = frame_rate;
+	fr = frame_rate;
 
-	PDEBUG(D_PROBE, "frame_rate = %d", sd->frame_rate);
-
-	switch (sd->frame_rate) {
+	switch (fr) {
 	case 50:
 		sccb_reg_write(gspca_dev->dev, 0x11, 0x01);
-		sccb_check_status(gspca_dev->dev);
 		sccb_reg_write(gspca_dev->dev, 0x0d, 0x41);
-		sccb_check_status(gspca_dev->dev);
 		ov534_reg_verify_write(gspca_dev->dev, 0xe5, 0x02);
 		break;
 	case 40:
 		sccb_reg_write(gspca_dev->dev, 0x11, 0x02);
-		sccb_check_status(gspca_dev->dev);
 		sccb_reg_write(gspca_dev->dev, 0x0d, 0xc1);
-		sccb_check_status(gspca_dev->dev);
 		ov534_reg_verify_write(gspca_dev->dev, 0xe5, 0x04);
 		break;
-	case 30:
+/*	case 30: */
 	default:
+		fr = 30;
 		sccb_reg_write(gspca_dev->dev, 0x11, 0x04);
-		sccb_check_status(gspca_dev->dev);
 		sccb_reg_write(gspca_dev->dev, 0x0d, 0x81);
-		sccb_check_status(gspca_dev->dev);
 		ov534_reg_verify_write(gspca_dev->dev, 0xe5, 0x02);
 		break;
 	case 15:
 		sccb_reg_write(gspca_dev->dev, 0x11, 0x03);
-		sccb_check_status(gspca_dev->dev);
 		sccb_reg_write(gspca_dev->dev, 0x0d, 0x41);
-		sccb_check_status(gspca_dev->dev);
 		ov534_reg_verify_write(gspca_dev->dev, 0xe5, 0x04);
 		break;
-	};
+	}
+
+	PDEBUG(D_PROBE, "frame_rate: %d", fr);
 
 	return 0;
 }
