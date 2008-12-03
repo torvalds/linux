@@ -107,7 +107,6 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   xfs_lrw.o \
 				   xfs_super.o \
 				   xfs_sync.o \
-				   xfs_vnode.o \
 				   xfs_xattr.o)
 
 # Objects in support/

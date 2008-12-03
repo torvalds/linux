@@ -805,3 +805,51 @@ xfs_isilocked(
 }
 #endif
 
+#ifdef	XFS_INODE_TRACE
+
+#define KTRACE_ENTER(ip, vk, s, line, ra)			\
+	ktrace_enter((ip)->i_trace,				\
+/*  0 */		(void *)(__psint_t)(vk),		\
+/*  1 */		(void *)(s),				\
+/*  2 */		(void *)(__psint_t) line,		\
+/*  3 */		(void *)(__psint_t)atomic_read(&VFS_I(ip)->i_count), \
+/*  4 */		(void *)(ra),				\
+/*  5 */		NULL,					\
+/*  6 */		(void *)(__psint_t)current_cpu(),	\
+/*  7 */		(void *)(__psint_t)current_pid(),	\
+/*  8 */		(void *)__return_address,		\
+/*  9 */		NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+
+/*
+ * Vnode tracing code.
+ */
+void
+_xfs_itrace_entry(xfs_inode_t *ip, const char *func, inst_t *ra)
+{
+	KTRACE_ENTER(ip, INODE_KTRACE_ENTRY, func, 0, ra);
+}
+
+void
+_xfs_itrace_exit(xfs_inode_t *ip, const char *func, inst_t *ra)
+{
+	KTRACE_ENTER(ip, INODE_KTRACE_EXIT, func, 0, ra);
+}
+
+void
+xfs_itrace_hold(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+{
+	KTRACE_ENTER(ip, INODE_KTRACE_HOLD, file, line, ra);
+}
+
+void
+_xfs_itrace_ref(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+{
+	KTRACE_ENTER(ip, INODE_KTRACE_REF, file, line, ra);
+}
+
+void
+xfs_itrace_rele(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+{
+	KTRACE_ENTER(ip, INODE_KTRACE_RELE, file, line, ra);
+}
+#endif	/* XFS_INODE_TRACE */

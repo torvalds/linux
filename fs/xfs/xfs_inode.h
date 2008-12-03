@@ -536,6 +536,51 @@ void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
 void		xfs_synchronize_atime(xfs_inode_t *);
 void		xfs_mark_inode_dirty_sync(xfs_inode_t *);
 
+#if defined(XFS_INODE_TRACE)
+
+#define	INODE_TRACE_SIZE	16		/* number of trace entries */
+#define	INODE_KTRACE_ENTRY	1
+#define	INODE_KTRACE_EXIT	2
+#define	INODE_KTRACE_HOLD	3
+#define	INODE_KTRACE_REF	4
+#define	INODE_KTRACE_RELE	5
+
+extern void _xfs_itrace_entry(struct xfs_inode *, const char *, inst_t *);
+extern void _xfs_itrace_exit(struct xfs_inode *, const char *, inst_t *);
+extern void xfs_itrace_hold(struct xfs_inode *, char *, int, inst_t *);
+extern void _xfs_itrace_ref(struct xfs_inode *, char *, int, inst_t *);
+extern void xfs_itrace_rele(struct xfs_inode *, char *, int, inst_t *);
+#define xfs_itrace_entry(ip)	\
+	_xfs_itrace_entry(ip, __func__, (inst_t *)__return_address)
+#define xfs_itrace_exit(ip)	\
+	_xfs_itrace_exit(ip, __func__, (inst_t *)__return_address)
+#define xfs_itrace_exit_tag(ip, tag)	\
+	_xfs_itrace_exit(ip, tag, (inst_t *)__return_address)
+#define xfs_itrace_ref(ip)	\
+	_xfs_itrace_ref(ip, __FILE__, __LINE__, (inst_t *)__return_address)
+
+#else
+#define	xfs_itrace_entry(a)
+#define	xfs_itrace_exit(a)
+#define	xfs_itrace_exit_tag(a, b)
+#define	xfs_itrace_hold(a, b, c, d)
+#define	xfs_itrace_ref(a)
+#define	xfs_itrace_rele(a, b, c, d)
+#endif
+
+#define IHOLD(ip) \
+do { \
+	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \
+	atomic_inc(&(VFS_I(ip)->i_count)); \
+	xfs_itrace_hold((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+} while (0)
+
+#define IRELE(ip) \
+do { \
+	xfs_itrace_rele((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+	iput(VFS_I(ip)); \
+} while (0)
+
 #endif /* __KERNEL__ */
 
 int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
