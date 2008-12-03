@@ -93,7 +93,7 @@ EXPORT_SYMBOL_GPL(led_classdev_resume);
 
 /**
  * led_classdev_register - register a new object of led_classdev class.
- * @dev: The device to register.
+ * @parent: The device to register.
  * @led_cdev: the led_classdev structure for this device.
  */
 int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
