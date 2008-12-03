@@ -47,7 +47,7 @@
 int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
 
-/* ftrace_pid_trace >= 0 will only trace threads with this pid */
+/* set when tracing only a pid */
 static int ftrace_pid_trace = -1;
 
 /* Quick disabling of function tracer. */
@@ -90,7 +90,7 @@ static void ftrace_list_func(unsigned long ip, unsigned long parent_ip)
 
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip)
 {
-	if (current->pid != ftrace_pid_trace)
+	if (!test_tsk_trace_trace(current))
 		return;
 
 	ftrace_pid_function(ip, parent_ip);
@@ -1714,11 +1714,33 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 		ftrace_pid_trace = -1;
 
 	} else {
+		struct task_struct *p;
+		int found = 0;
 
 		if (ftrace_pid_trace == val)
 			goto out;
 
-		ftrace_pid_trace = val;
+		/*
+		 * Find the task that matches this pid.
+		 * TODO: use pid namespaces instead.
+		 */
+		rcu_read_lock();
+		for_each_process(p) {
+			if (p->pid == val) {
+				found = 1;
+				set_tsk_trace_trace(p);
+			} else if (test_tsk_trace_trace(p))
+				clear_tsk_trace_trace(p);
+		}
+		rcu_read_unlock();
+
+		if (found)
+			ftrace_pid_trace = val;
+		else {
+			if (ftrace_pid_trace < 0)
+				goto out;
+			ftrace_pid_trace = -1;
+		}
 	}
 
 	/* update the function call */
