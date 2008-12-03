@@ -222,16 +222,14 @@ static int bf5xx_i2s_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static void bf5xx_i2s_remove(struct platform_device *pdev,
-			   struct snd_soc_dai *dai)
+static void bf5xx_i2s_remove(struct snd_soc_dai *dai)
 {
 	pr_debug("%s enter\n", __func__);
 	peripheral_free_list(&sport_req[sport_num][0]);
 }
 
 #ifdef CONFIG_PM
-static int bf5xx_i2s_suspend(struct platform_device *dev,
-			     struct snd_soc_dai *dai)
+static int bf5xx_i2s_suspend(struct snd_soc_dai *dai)
 {
 	struct sport_device *sport =
 		(struct sport_device *)dai->private_data;

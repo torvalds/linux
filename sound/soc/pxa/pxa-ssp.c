@@ -244,8 +244,7 @@ static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
 
 #ifdef CONFIG_PM
 
-static int pxa_ssp_suspend(struct platform_device *pdev,
-	struct snd_soc_dai *cpu_dai)
+static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
 
@@ -257,8 +256,7 @@ static int pxa_ssp_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int pxa_ssp_resume(struct platform_device *pdev,
-	struct snd_soc_dai *cpu_dai)
+static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
 

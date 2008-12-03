@@ -628,8 +628,7 @@ static int atmel_ssc_prepare(struct snd_pcm_substream *substream,
 
 
 #ifdef CONFIG_PM
-static int atmel_ssc_suspend(struct platform_device *pdev,
-			    struct snd_soc_dai *cpu_dai)
+static int atmel_ssc_suspend(struct snd_soc_dai *cpu_dai)
 {
 	struct atmel_ssc_info *ssc_p;
 
@@ -657,8 +656,7 @@ static int atmel_ssc_suspend(struct platform_device *pdev,
 
 
 
-static int atmel_ssc_resume(struct platform_device *pdev,
-			   struct snd_soc_dai *cpu_dai)
+static int atmel_ssc_resume(struct snd_soc_dai *cpu_dai)
 {
 	struct atmel_ssc_info *ssc_p;
 	u32 cr;

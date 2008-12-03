@@ -269,8 +269,7 @@ struct snd_ac97_bus_ops soc_ac97_ops = {
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 #ifdef CONFIG_PM
-static int bf5xx_ac97_suspend(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int bf5xx_ac97_suspend(struct snd_soc_dai *dai)
 {
 	struct sport_device *sport =
 		(struct sport_device *)dai->private_data;
@@ -285,8 +284,7 @@ static int bf5xx_ac97_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int bf5xx_ac97_resume(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int bf5xx_ac97_resume(struct snd_soc_dai *dai)
 {
 	int ret;
 	struct sport_device *sport =

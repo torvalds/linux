@@ -419,8 +419,7 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev,
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2s_suspend(struct platform_device *pdev,
-		struct snd_soc_dai *cpu_dai)
+static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 {
 	DBG("Entered %s\n", __func__);
 
@@ -434,8 +433,7 @@ static int s3c24xx_i2s_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int s3c24xx_i2s_resume(struct platform_device *pdev,
-		struct snd_soc_dai *cpu_dai)
+static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
 {
 	DBG("Entered %s\n", __func__);
 	clk_enable(s3c24xx_i2s.iis_clk);

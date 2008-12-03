@@ -87,14 +87,12 @@ static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_mic_mono_in = {
 };
 
 #ifdef CONFIG_PM
-static int pxa2xx_ac97_suspend(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int pxa2xx_ac97_suspend(struct snd_soc_dai *dai)
 {
 	return pxa2xx_ac97_hw_suspend();
 }
 
-static int pxa2xx_ac97_resume(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int pxa2xx_ac97_resume(struct snd_soc_dai *dai)
 {
 	return pxa2xx_ac97_hw_resume();
 }

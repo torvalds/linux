@@ -650,7 +650,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai  *cpu_dai = card->dai_link[i].cpu_dai;
 		if (cpu_dai->suspend && !cpu_dai->ac97_control)
-			cpu_dai->suspend(pdev, cpu_dai);
+			cpu_dai->suspend(cpu_dai);
 		if (platform->suspend)
 			platform->suspend(cpu_dai);
 	}
@@ -676,7 +676,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
 		if (cpu_dai->suspend && cpu_dai->ac97_control)
-			cpu_dai->suspend(pdev, cpu_dai);
+			cpu_dai->suspend(cpu_dai);
 	}
 
 	if (card->suspend_post)
@@ -712,7 +712,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
 		if (cpu_dai->resume && cpu_dai->ac97_control)
-			cpu_dai->resume(pdev, cpu_dai);
+			cpu_dai->resume(cpu_dai);
 	}
 
 	if (codec_dev->resume)
@@ -739,7 +739,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
 		if (cpu_dai->resume && !cpu_dai->ac97_control)
-			cpu_dai->resume(pdev, cpu_dai);
+			cpu_dai->resume(cpu_dai);
 		if (platform->resume)
 			platform->resume(cpu_dai);
 	}

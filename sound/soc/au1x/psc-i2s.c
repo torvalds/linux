@@ -339,8 +339,7 @@ static void au1xpsc_i2s_remove(struct platform_device *pdev,
 	au1xpsc_i2s_workdata = NULL;
 }
 
-static int au1xpsc_i2s_suspend(struct platform_device *pdev,
-			       struct snd_soc_dai *cpu_dai)
+static int au1xpsc_i2s_suspend(struct snd_soc_dai *cpu_dai)
 {
 	/* save interesting register and disable PSC */
 	au1xpsc_i2s_workdata->pm[0] =
@@ -354,8 +353,7 @@ static int au1xpsc_i2s_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int au1xpsc_i2s_resume(struct platform_device *pdev,
-			      struct snd_soc_dai *cpu_dai)
+static int au1xpsc_i2s_resume(struct snd_soc_dai *cpu_dai)
 {
 	/* select I2S mode and PSC clock */
 	au_writel(PSC_CTRL_DISABLE, PSC_CTRL(au1xpsc_i2s_workdata));
