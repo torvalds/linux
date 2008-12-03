@@ -828,6 +828,8 @@ static int __devinit psc_i2s_of_probe(struct of_device *op,
 	if (rc)
 		dev_info(psc_i2s->dev, "error creating sysfs files\n");
 
+	snd_soc_register_platform(&psc_i2s_pcm_soc_platform);
+
 	/* Tell the ASoC OF helpers about it */
 	of_snd_soc_register_platform(&psc_i2s_pcm_soc_platform, op->node,
 				     &psc_i2s->dai);
@@ -840,6 +842,8 @@ static int __devexit psc_i2s_of_remove(struct of_device *op)
 	struct psc_i2s *psc_i2s = dev_get_drvdata(&op->dev);
 
 	dev_dbg(&op->dev, "psc_i2s_remove()\n");
+
+	snd_soc_unregister_platform(&psc_i2s_pcm_soc_platform);
 
 	bcom_gen_bd_rx_release(psc_i2s->capture.bcom_task);
 	bcom_gen_bd_tx_release(psc_i2s->playback.bcom_task);

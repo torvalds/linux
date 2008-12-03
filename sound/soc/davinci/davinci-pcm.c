@@ -384,6 +384,18 @@ struct snd_soc_platform davinci_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(davinci_soc_platform);
 
+static int __devinit davinci_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&davinci_soc_platform);
+}
+module_init(davinci_soc_platform_init);
+
+static void __exit davinci_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&davinci_soc_platform);
+}
+module_exit(davinci_soc_platform_exit);
+
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_DESCRIPTION("TI DAVINCI PCM DMA module");
 MODULE_LICENSE("GPL");

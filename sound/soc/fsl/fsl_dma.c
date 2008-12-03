@@ -853,6 +853,18 @@ int fsl_dma_configure(struct fsl_dma_info *dma_info)
 }
 EXPORT_SYMBOL_GPL(fsl_dma_configure);
 
+static int __devinit fsl_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&fsl_soc_platform);
+}
+module_init(fsl_soc_platform_init);
+
+static void __exit fsl_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&fsl_soc_platform);
+}
+module_exit(fsl_soc_platform_exit);
+
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale Elo DMA ASoC PCM module");
 MODULE_LICENSE("GPL");

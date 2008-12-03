@@ -118,6 +118,18 @@ struct snd_soc_platform pxa2xx_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(pxa2xx_soc_platform);
 
+static int __devinit pxa2xx_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&pxa2xx_soc_platform);
+}
+module_init(pxa2xx_soc_platform_init);
+
+static void __exit pxa2xx_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&pxa2xx_soc_platform);
+}
+module_exit(pxa2xx_soc_platform_exit);
+
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("Intel PXA2xx PCM DMA module");
 MODULE_LICENSE("GPL");

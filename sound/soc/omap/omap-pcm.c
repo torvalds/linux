@@ -354,6 +354,18 @@ struct snd_soc_platform omap_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(omap_soc_platform);
 
+static int __devinit omap_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&omap_soc_platform);
+}
+module_init(omap_soc_platform_init);
+
+static void __exit omap_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&omap_soc_platform);
+}
+module_exit(omap_soc_platform_exit);
+
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@nokia.com>");
 MODULE_DESCRIPTION("OMAP PCM DMA module");
 MODULE_LICENSE("GPL");

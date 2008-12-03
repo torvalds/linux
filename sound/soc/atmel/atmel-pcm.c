@@ -477,6 +477,18 @@ struct snd_soc_platform atmel_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(atmel_soc_platform);
 
+static int __devinit atmel_pcm_modinit(void)
+{
+	return snd_soc_register_platform(&atmel_soc_platform);
+}
+module_init(atmel_pcm_modinit);
+
+static void __exit atmel_pcm_exit(void)
+{
+	snd_soc_unregister_platform(&atmel_soc_platform);
+}
+module_exit(atmel_pcm_modexit);
+
 MODULE_AUTHOR("Sedji Gaouaou <sedji.gaouaou@atmel.com>");
 MODULE_DESCRIPTION("Atmel PCM module");
 MODULE_LICENSE("GPL");

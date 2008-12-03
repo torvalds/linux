@@ -451,6 +451,18 @@ struct snd_soc_platform bf5xx_ac97_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(bf5xx_ac97_soc_platform);
 
+static int __devinit bfin_ac97_init(void)
+{
+	return snd_soc_register_platform(&bf5xx_ac97_soc_platform);
+}
+module_init(bfin_ac97_init);
+
+static void __exit bfin_ac97_exit(void)
+{
+	snd_soc_unregister_platform(&bf5xx_ac97_soc_platform);
+}
+module_exit(bfin_ac97_exit);
+
 MODULE_AUTHOR("Cliff Cai");
 MODULE_DESCRIPTION("ADI Blackfin AC97 PCM DMA module");
 MODULE_LICENSE("GPL");
