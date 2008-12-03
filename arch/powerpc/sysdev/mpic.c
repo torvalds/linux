@@ -600,7 +600,7 @@ static int irq_choose_cpu(unsigned int virt_irq)
 		cpuid = first_cpu(tmp);
 	}
 
-	return cpuid;
+	return get_hard_smp_processor_id(cpuid);
 }
 #else
 static int irq_choose_cpu(unsigned int virt_irq)
@@ -1260,6 +1260,7 @@ void __init mpic_set_default_senses(struct mpic *mpic, u8 *senses, int count)
 void __init mpic_init(struct mpic *mpic)
 {
 	int i;
+	int cpu;
 
 	BUG_ON(mpic->num_sources == 0);
 
@@ -1302,6 +1303,11 @@ void __init mpic_init(struct mpic *mpic)
 
 	mpic_pasemi_msi_init(mpic);
 
+	if (mpic->flags & MPIC_PRIMARY)
+		cpu = hard_smp_processor_id();
+	else
+		cpu = 0;
+
 	for (i = 0; i < mpic->num_sources; i++) {
 		/* start with vector = source number, and masked */
 		u32 vecpri = MPIC_VECPRI_MASK | i |
@@ -1312,8 +1318,7 @@ void __init mpic_init(struct mpic *mpic)
 			continue;
 		/* init hw */
 		mpic_irq_write(i, MPIC_INFO(IRQ_VECTOR_PRI), vecpri);
-		mpic_irq_write(i, MPIC_INFO(IRQ_DESTINATION),
-			       1 << hard_smp_processor_id());
+		mpic_irq_write(i, MPIC_INFO(IRQ_DESTINATION), 1 << cpu);
 	}
 	
 	/* Init spurious vector */

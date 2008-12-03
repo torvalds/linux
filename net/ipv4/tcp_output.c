@@ -722,7 +722,8 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb,
 				 unsigned int mss_now)
 {
-	if (skb->len <= mss_now || !sk_can_gso(sk)) {
+	if (skb->len <= mss_now || !sk_can_gso(sk) ||
+	    tcp_urg_mode(tcp_sk(sk))) {
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
 		 */
@@ -1163,7 +1164,9 @@ static int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb,
 {
 	int tso_segs = tcp_skb_pcount(skb);
 
-	if (!tso_segs || (tso_segs > 1 && tcp_skb_mss(skb) != mss_now)) {
+	if (!tso_segs ||
+	    (tso_segs > 1 && (tcp_skb_mss(skb) != mss_now ||
+			      tcp_urg_mode(tcp_sk(sk))))) {
 		tcp_set_skb_tso_segs(sk, skb, mss_now);
 		tso_segs = tcp_skb_pcount(skb);
 	}

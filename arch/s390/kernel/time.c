@@ -59,7 +59,7 @@
 
 static ext_int_info_t ext_int_info_cc;
 static ext_int_info_t ext_int_etr_cc;
-static u64 jiffies_timer_cc;
+static u64 sched_clock_base_cc;
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
@@ -68,7 +68,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
  */
 unsigned long long sched_clock(void)
 {
-	return ((get_clock_xt() - jiffies_timer_cc) * 125) >> 9;
+	return ((get_clock_xt() - sched_clock_base_cc) * 125) >> 9;
 }
 
 /*
@@ -229,13 +229,10 @@ static struct clocksource clocksource_tod = {
  */
 void __init time_init(void)
 {
-	u64 init_timer_cc;
-
-	init_timer_cc = reset_tod_clock();
-	jiffies_timer_cc = init_timer_cc - jiffies_64 * CLK_TICKS_PER_JIFFY;
+	sched_clock_base_cc = reset_tod_clock();
 
 	/* set xtime */
-	tod_to_timeval(init_timer_cc - TOD_UNIX_EPOCH, &xtime);
+	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &xtime);
         set_normalized_timespec(&wall_to_monotonic,
                                 -xtime.tv_sec, -xtime.tv_nsec);
 
@@ -289,7 +286,7 @@ static unsigned long long adjust_time(unsigned long long old,
 		delta = -delta;
 		adjust.offset = -ticks * (1000000 / HZ);
 	}
-	jiffies_timer_cc += delta;
+	sched_clock_base_cc += delta;
 	if (adjust.offset != 0) {
 		printk(KERN_NOTICE "etr: time adjusted by %li micro-seconds\n",
 		       adjust.offset);

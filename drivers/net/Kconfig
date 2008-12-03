@@ -1825,9 +1825,10 @@ config FEC2
 
 config FEC_MPC52xx
 	tristate "MPC52xx FEC driver"
-	depends on PPC_MPC52xx && PPC_BESTCOMM_FEC
+	depends on PPC_MPC52xx && PPC_BESTCOMM
 	select CRC32
 	select PHYLIB
+	select PPC_BESTCOMM_FEC
 	---help---
 	  This option enables support for the MPC5200's on-chip
 	  Fast Ethernet Controller

@@ -764,7 +764,7 @@ static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
 		.callback = dmi_low_memory_corruption,
 		.ident = "Phoenix BIOS",
 		.matches = {
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies"),
 		},
 	},
 #endif

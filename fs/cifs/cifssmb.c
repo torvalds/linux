@@ -295,7 +295,7 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	   check for tcp and smb session status done differently
 	   for those three - in the calling routine */
 	if (tcon) {
-		if (tcon->need_reconnect) {
+		if (tcon->tidStatus == CifsExiting) {
 			/* only tree disconnect, open, and write,
 			  (and ulogoff which does not have tcon)
 			  are allowed as we start force umount */

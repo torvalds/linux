@@ -294,7 +294,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			Possible values are:
 			isolate - enable device isolation (each device, as far
 			          as possible, will get its own protection
-			          domain)
+			          domain) [default]
+			share - put every device behind one IOMMU into the
+				same protection domain
 			fullflush - enable flushing of IO/TLB entries when
 				    they are unmapped. Otherwise they are
 				    flushed before they will be reused, which
@@ -1193,8 +1195,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			it is equivalent to "nosmp", which also disables
 			the IO APIC.
 
-	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
-			equal to this physical address is ignored.
+	max_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory greater than
+			or equal to this physical address is ignored.
 
 	max_luns=	[SCSI] Maximum number of LUNs to probe.
 			Should be between 1 and 2^32-1.
@@ -1293,6 +1295,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			problem by letting the user disable the workaround.
 
 	mga=		[HW,DRM]
+
+	min_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory below this
+			physical address is ignored.
 
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this

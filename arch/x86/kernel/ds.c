@@ -21,8 +21,6 @@
  */
 
 
-#ifdef CONFIG_X86_DS
-
 #include <asm/ds.h>
 
 #include <linux/errno.h>
@@ -211,14 +209,15 @@ static DEFINE_PER_CPU(struct ds_context *, system_context);
 static inline struct ds_context *ds_get_context(struct task_struct *task)
 {
 	struct ds_context *context;
+	unsigned long irq;
 
-	spin_lock(&ds_lock);
+	spin_lock_irqsave(&ds_lock, irq);
 
 	context = (task ? task->thread.ds_ctx : this_system_context);
 	if (context)
 		context->count++;
 
-	spin_unlock(&ds_lock);
+	spin_unlock_irqrestore(&ds_lock, irq);
 
 	return context;
 }
@@ -226,18 +225,16 @@ static inline struct ds_context *ds_get_context(struct task_struct *task)
 /*
  * Same as ds_get_context, but allocates the context and it's DS
  * structure, if necessary; returns NULL; if out of memory.
- *
- * pre: requires ds_lock to be held
  */
 static inline struct ds_context *ds_alloc_context(struct task_struct *task)
 {
 	struct ds_context **p_context =
 		(task ? &task->thread.ds_ctx : &this_system_context);
 	struct ds_context *context = *p_context;
+	unsigned long irq;
 
 	if (!context) {
 		context = kzalloc(sizeof(*context), GFP_KERNEL);
-
 		if (!context)
 			return NULL;
 
@@ -247,18 +244,27 @@ static inline struct ds_context *ds_alloc_context(struct task_struct *task)
 			return NULL;
 		}
 
-		*p_context = context;
+		spin_lock_irqsave(&ds_lock, irq);
 
-		context->this = p_context;
-		context->task = task;
+		if (*p_context) {
+			kfree(context->ds);
+			kfree(context);
 
-		if (task)
-			set_tsk_thread_flag(task, TIF_DS_AREA_MSR);
+			context = *p_context;
+		} else {
+			*p_context = context;
 
-		if (!task || (task == current))
-			wrmsr(MSR_IA32_DS_AREA, (unsigned long)context->ds, 0);
+			context->this = p_context;
+			context->task = task;
 
-		get_tracer(task);
+			if (task)
+				set_tsk_thread_flag(task, TIF_DS_AREA_MSR);
+
+			if (!task || (task == current))
+				wrmsrl(MSR_IA32_DS_AREA,
+				       (unsigned long)context->ds);
+		}
+		spin_unlock_irqrestore(&ds_lock, irq);
 	}
 
 	context->count++;
@@ -272,10 +278,12 @@ static inline struct ds_context *ds_alloc_context(struct task_struct *task)
  */
 static inline void ds_put_context(struct ds_context *context)
 {
+	unsigned long irq;
+
 	if (!context)
 		return;
 
-	spin_lock(&ds_lock);
+	spin_lock_irqsave(&ds_lock, irq);
 
 	if (--context->count)
 		goto out;
@@ -297,7 +305,7 @@ static inline void ds_put_context(struct ds_context *context)
 	kfree(context->ds);
 	kfree(context);
  out:
-	spin_unlock(&ds_lock);
+	spin_unlock_irqrestore(&ds_lock, irq);
 }
 
 
@@ -368,6 +376,7 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
 	struct ds_context *context;
 	unsigned long buffer, adj;
 	const unsigned long alignment = (1 << 3);
+	unsigned long irq;
 	int error = 0;
 
 	if (!ds_cfg.sizeof_ds)
@@ -382,25 +391,27 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
 		return -EOPNOTSUPP;
 
 
-	spin_lock(&ds_lock);
-
-	if (!check_tracer(task))
-		return -EPERM;
-
-	error = -ENOMEM;
 	context = ds_alloc_context(task);
 	if (!context)
+		return -ENOMEM;
+
+	spin_lock_irqsave(&ds_lock, irq);
+
+	error = -EPERM;
+	if (!check_tracer(task))
 		goto out_unlock;
+
+	get_tracer(task);
 
 	error = -EALREADY;
 	if (context->owner[qual] == current)
-		goto out_unlock;
+		goto out_put_tracer;
 	error = -EPERM;
 	if (context->owner[qual] != NULL)
-		goto out_unlock;
+		goto out_put_tracer;
 	context->owner[qual] = current;
 
-	spin_unlock(&ds_lock);
+	spin_unlock_irqrestore(&ds_lock, irq);
 
 
 	error = -ENOMEM;
@@ -448,10 +459,17 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
  out_release:
 	context->owner[qual] = NULL;
 	ds_put_context(context);
+	put_tracer(task);
+	return error;
+
+ out_put_tracer:
+	spin_unlock_irqrestore(&ds_lock, irq);
+	ds_put_context(context);
+	put_tracer(task);
 	return error;
 
  out_unlock:
-	spin_unlock(&ds_lock);
+	spin_unlock_irqrestore(&ds_lock, irq);
 	ds_put_context(context);
 	return error;
 }
@@ -801,13 +819,21 @@ static const struct ds_configuration ds_cfg_var = {
 	.sizeof_ds    = sizeof(long) * 12,
 	.sizeof_field = sizeof(long),
 	.sizeof_rec[ds_bts]   = sizeof(long) * 3,
+#ifdef __i386__
 	.sizeof_rec[ds_pebs]  = sizeof(long) * 10
+#else
+	.sizeof_rec[ds_pebs]  = sizeof(long) * 18
+#endif
 };
 static const struct ds_configuration ds_cfg_64 = {
 	.sizeof_ds    = 8 * 12,
 	.sizeof_field = 8,
 	.sizeof_rec[ds_bts]   = 8 * 3,
+#ifdef __i386__
 	.sizeof_rec[ds_pebs]  = 8 * 10
+#else
+	.sizeof_rec[ds_pebs]  = 8 * 18
+#endif
 };
 
 static inline void
@@ -861,4 +887,3 @@ void ds_free(struct ds_context *context)
 	while (leftovers--)
 		ds_put_context(context);
 }
-#endif /* CONFIG_X86_DS */

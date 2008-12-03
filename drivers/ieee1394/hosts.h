@@ -13,6 +13,7 @@ struct module;
 
 #include "ieee1394_types.h"
 #include "csr.h"
+#include "highlevel.h"
 
 struct hpsb_packet;
 struct hpsb_iso;
@@ -72,6 +73,9 @@ struct hpsb_host {
 	struct { DECLARE_BITMAP(map, 64); } tl_pool[ALL_NODES];
 
 	struct csr_control csr;
+
+	struct hpsb_address_serve dummy_zero_addr;
+	struct hpsb_address_serve dummy_max_addr;
 };
 
 enum devctl_cmd {
