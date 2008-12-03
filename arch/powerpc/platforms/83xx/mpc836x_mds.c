@@ -18,6 +18,7 @@
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
+#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/reboot.h>
@@ -55,8 +56,6 @@
 #define DBG(fmt...)
 #endif
 
-static u8 *bcsr_regs = NULL;
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -65,13 +64,14 @@ static u8 *bcsr_regs = NULL;
 static void __init mpc836x_mds_setup_arch(void)
 {
 	struct device_node *np;
+	u8 __iomem *bcsr_regs = NULL;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc836x_mds_setup_arch()", 0);
 
 	/* Map BCSR area */
 	np = of_find_node_by_name(NULL, "bcsr");
-	if (np != 0) {
+	if (np) {
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
