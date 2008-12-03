@@ -304,6 +304,15 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 			bf->bf_buf_addr = pci_map_single(sc->pdev, skb->data,
 					 sc->sc_rxbufsize,
 					 PCI_DMA_FROMDEVICE);
+			if (unlikely(pci_dma_mapping_error(sc->pdev,
+				  bf->bf_buf_addr))) {
+				dev_kfree_skb_any(skb);
+				bf->bf_mpdu = NULL;
+				DPRINTF(sc, ATH_DBG_CONFIG,
+					"pci_dma_mapping_error() on RX init\n");
+				error = -ENOMEM;
+				break;
+			}
 			bf->bf_dmacontext = bf->bf_buf_addr;
 		}
 		sc->sc_rxlink = NULL;
@@ -589,6 +598,14 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		bf->bf_buf_addr = pci_map_single(sc->pdev, requeue_skb->data,
 					 sc->sc_rxbufsize,
 					 PCI_DMA_FROMDEVICE);
+		if (unlikely(pci_dma_mapping_error(sc->pdev,
+			  bf->bf_buf_addr))) {
+			dev_kfree_skb_any(requeue_skb);
+			bf->bf_mpdu = NULL;
+			DPRINTF(sc, ATH_DBG_CONFIG,
+				"pci_dma_mapping_error() on RX\n");
+			break;
+		}
 		bf->bf_dmacontext = bf->bf_buf_addr;
 
 		/*

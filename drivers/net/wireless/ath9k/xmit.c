@@ -1642,7 +1642,7 @@ static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
 	}
 }
 
-static void ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
+static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 				struct sk_buff *skb,
 				struct ath_tx_control *txctl)
 {
@@ -1701,9 +1701,18 @@ static void ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 	/* DMA setup */
 
 	bf->bf_mpdu = skb;
+
 	bf->bf_dmacontext = pci_map_single(sc->pdev, skb->data,
 					   skb->len, PCI_DMA_TODEVICE);
+	if (unlikely(pci_dma_mapping_error(sc->pdev, bf->bf_dmacontext))) {
+		bf->bf_mpdu = NULL;
+		DPRINTF(sc, ATH_DBG_CONFIG,
+			"pci_dma_mapping_error() on TX\n");
+		return -ENOMEM;
+	}
+
 	bf->bf_buf_addr = bf->bf_dmacontext;
+	return 0;
 }
 
 /* FIXME: tx power */
@@ -1775,10 +1784,12 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	spin_unlock_bh(&txctl->txq->axq_lock);
 }
 
+/* Upon failure caller should free skb */
 int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 		 struct ath_tx_control *txctl)
 {
 	struct ath_buf *bf;
+	int r;
 
 	/* Check if a tx buffer is available */
 
@@ -1788,7 +1799,15 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 		return -1;
 	}
 
-	ath_tx_setup_buffer(sc, bf, skb, txctl);
+	r = ath_tx_setup_buffer(sc, bf, skb, txctl);
+	if (unlikely(r)) {
+		spin_lock_bh(&sc->sc_txbuflock);
+		DPRINTF(sc, ATH_DBG_FATAL, "TX mem alloc failure\n");
+		list_add_tail(&bf->list, &sc->sc_txbuf);
+		spin_unlock_bh(&sc->sc_txbuflock);
+		return r;
+	}
+
 	ath_tx_start_dma(sc, bf, txctl);
 
 	return 0;

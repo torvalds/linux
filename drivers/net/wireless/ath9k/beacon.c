@@ -190,6 +190,13 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 		pci_map_single(sc->pdev, skb->data,
 			       skb->len,
 			       PCI_DMA_TODEVICE);
+	if (unlikely(pci_dma_mapping_error(sc->pdev, bf->bf_buf_addr))) {
+		dev_kfree_skb_any(skb);
+		bf->bf_mpdu = NULL;
+		DPRINTF(sc, ATH_DBG_CONFIG,
+			"pci_dma_mapping_error() on beaconing\n");
+		return NULL;
+	}
 
 	skb = ieee80211_get_buffered_bc(sc->hw, vif);
 
@@ -392,11 +399,18 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 		memcpy(&hdr[1], &val, sizeof(val));
 	}
 
+	bf->bf_mpdu = skb;
 	bf->bf_buf_addr = bf->bf_dmacontext =
 		pci_map_single(sc->pdev, skb->data,
 			       skb->len,
 			       PCI_DMA_TODEVICE);
-	bf->bf_mpdu = skb;
+	if (unlikely(pci_dma_mapping_error(sc->pdev, bf->bf_buf_addr))) {
+		dev_kfree_skb_any(skb);
+		bf->bf_mpdu = NULL;
+		DPRINTF(sc, ATH_DBG_CONFIG,
+			"pci_dma_mapping_error() on beacon alloc\n");
+		return -ENOMEM;
+	}
 
 	return 0;
 }
