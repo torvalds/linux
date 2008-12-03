@@ -572,6 +572,13 @@ config ARCH_MSM
 	  interface to the ARM9 modem processor which runs the baseband stack
 	  and controls some vital subsystems (clock and power control, etc).
 
+config ARCH_W90X900
+	bool "Nuvoton W90X900 CPU"
+	select CPU_ARM926T
+	help
+		Support for Nuvoton (Winbond logic dept.) ARM9 processor,You
+		can login www.mcuos.com or www.nuvoton.com to know more.
+
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
@@ -649,6 +656,8 @@ source "arch/arm/mach-davinci/Kconfig"
 source "arch/arm/mach-ks8695/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
+
+source "arch/arm/mach-w90x900/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN

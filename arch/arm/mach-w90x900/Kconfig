@@ -1,0 +1,19 @@
+if ARCH_W90X900
+
+config CPU_W90P910
+	bool
+	help
+	  Support for W90P910 of Nuvoton W90X900 CPUs.
+
+menu "W90P910 Machines"
+
+config MACH_W90P910EVB
+	bool "Nuvoton W90P910 Evaluation Board"
+	default y
+	select CPU_W90P910
+	help
+	   Say Y here if you are using the Nuvoton W90P910EVB
+
+endmenu
+
+endif
