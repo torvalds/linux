@@ -62,12 +62,12 @@ static struct v4l2_pix_format vga_mode[] = {
 	 .priv = 0},
 };
 
-static void ov534_reg_write(struct usb_device *udev, u16 reg, u16 val)
+static void ov534_reg_write(struct usb_device *udev, u16 reg, u8 val)
 {
-	u16 data = val;
+	u8 data = val;
 	int ret;
 
-	PDEBUG(D_USBO, "reg=0x%04x, val=0%04x", reg, val);
+	PDEBUG(D_USBO, "reg=0x%04x, val=0%02x", reg, val);
 	ret = usb_control_msg(udev,
 			      usb_sndctrlpipe(udev, 0),
 			      0x1,
@@ -77,9 +77,9 @@ static void ov534_reg_write(struct usb_device *udev, u16 reg, u16 val)
 		PDEBUG(D_ERR, "write failed");
 }
 
-static u16 ov534_reg_read(struct usb_device *udev, u16 reg)
+static u8 ov534_reg_read(struct usb_device *udev, u16 reg)
 {
-	u16 data;
+	u8 data;
 	int ret;
 
 	ret = usb_control_msg(udev,
@@ -87,21 +87,21 @@ static u16 ov534_reg_read(struct usb_device *udev, u16 reg)
 			      0x1,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0, reg, &data, 1, CTRL_TIMEOUT);
-	PDEBUG(D_USBI, "reg=0x%04x, data=0x%04x", reg, data);
+	PDEBUG(D_USBI, "reg=0x%04x, data=0x%02x", reg, data);
 	if (ret < 0)
 		PDEBUG(D_ERR, "read failed");
 	return data;
 }
 
-static void ov534_reg_verify_write(struct usb_device *udev, u16 reg, u16 val)
+static void ov534_reg_verify_write(struct usb_device *udev, u16 reg, u8 val)
 {
-	u16 data;
+	u8 data;
 
 	ov534_reg_write(udev, reg, val);
 	data = ov534_reg_read(udev, reg);
 	if (data != val) {
 		PDEBUG(D_ERR | D_USBO,
-		       "unexpected result from read: 0x%04x != 0x%04x", val,
+		       "unexpected result from read: 0x%02x != 0x%02x", val,
 		       data);
 	}
 }
@@ -110,7 +110,7 @@ static void ov534_reg_verify_write(struct usb_device *udev, u16 reg, u16 val)
  * (direction and output)? */
 static void ov534_set_led(struct usb_device *udev, int status)
 {
-	u16 data;
+	u8 data;
 
 	PDEBUG(D_CONF, "led status: %d", status);
 
@@ -129,13 +129,13 @@ static void ov534_set_led(struct usb_device *udev, int status)
 
 static int sccb_check_status(struct usb_device *udev)
 {
-	u16 data;
+	u8 data;
 	int i;
 
 	for (i = 0; i < 5; i++) {
 		data = ov534_reg_read(udev, OV534_REG_STATUS);
 
-		switch (data & 0xFF) {
+		switch (data) {
 		case 0x00:
 			return 1;
 		case 0x04:
@@ -150,9 +150,9 @@ static int sccb_check_status(struct usb_device *udev)
 	return 0;
 }
 
-static void sccb_reg_write(struct usb_device *udev, u16 reg, u16 val)
+static void sccb_reg_write(struct usb_device *udev, u16 reg, u8 val)
 {
-	PDEBUG(D_USBO, "reg: 0x%04x, val: 0x%04x", reg, val);
+	PDEBUG(D_USBO, "reg: 0x%04x, val: 0x%02x", reg, val);
 	ov534_reg_write(udev, OV534_REG_SUBADDR, reg);
 	ov534_reg_write(udev, OV534_REG_WRITE, val);
 	ov534_reg_write(udev, OV534_REG_OPERATION, OV534_OP_WRITE_3);
