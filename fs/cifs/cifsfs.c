@@ -361,12 +361,12 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 					switch (server->addr.sockAddr6.
 						sin6_family) {
 					case AF_INET6:
-						seq_printf(s, NIP6_FMT,
-							   NIP6(server->addr.sockAddr6.sin6_addr));
+						seq_printf(s, "%pI6",
+							   &server->addr.sockAddr6.sin6_addr);
 						break;
 					case AF_INET:
-						seq_printf(s, NIPQUAD_FMT,
-							   NIPQUAD(server->addr.sockAddr.sin_addr.s_addr));
+						seq_printf(s, "%pI4",
+							   &server->addr.sockAddr.sin_addr.s_addr);
 						break;
 					}
 				}
