@@ -1020,7 +1020,10 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		goto out_free;
 	}
 
-	kvm_free_physmem_slot(&old, &new);
+	kvm_free_physmem_slot(&old, npages ? &new : NULL);
+	/* Slot deletion case: we have to update the current slot */
+	if (!npages)
+		*memslot = old;
 #ifdef CONFIG_DMAR
 	/* map the pages in iommu page table */
 	r = kvm_iommu_map_pages(kvm, base_gfn, npages);
