@@ -55,14 +55,12 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * For IV/EIV/ICV assembly we must make sure there is
 	 * at least 8 bytes bytes available in headroom for IV/EIV
-	 * and 4 bytes for ICV data as tailroon.
+	 * and 8 bytes for ICV data as tailroon.
 	 */
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
 	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
 		head_size += 8;
-		tail_size += 4;
+		tail_size += 8;
 	}
-#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 	/*
 	 * Allocate skbuffer.
@@ -174,7 +172,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	txdesc->cw_max = entry->queue->cw_max;
 	txdesc->aifs = entry->queue->aifs;
 
-	/* Data length + CRC + IV/EIV/ICV/MMIC (when using encryption) */
+	/* Data length + CRC */
 	data_length = entry->skb->len + 4;
 
 	/*
@@ -183,34 +181,17 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK))
 		__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
 
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
 	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) &&
 	    !entry->skb->do_not_encrypt) {
-		struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
-
-		__set_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags);
-
-		txdesc->cipher = rt2x00crypto_key_to_cipher(hw_key);
-
-		if (hw_key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
-			__set_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags);
-
-		txdesc->key_idx = hw_key->hw_key_idx;
-		txdesc->iv_offset = ieee80211_get_hdrlen_from_skb(entry->skb);
+		/* Apply crypto specific descriptor information */
+		rt2x00crypto_create_tx_descriptor(entry, txdesc);
 
 		/*
 		 * Extend frame length to include all encryption overhead
 		 * that will be added by the hardware.
 		 */
 		data_length += rt2x00crypto_tx_overhead(tx_info);
-
-		if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV))
-			__set_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags);
-
-		if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
-			__set_bit(ENTRY_TXD_ENCRYPT_MMIC, &txdesc->flags);
 	}
-#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 	/*
 	 * Check if this is a RTS/CTS frame

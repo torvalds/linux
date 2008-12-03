@@ -46,6 +46,29 @@ enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key)
 	}
 }
 
+void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
+				       struct txentry_desc *txdesc)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
+
+	__set_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags);
+
+	txdesc->cipher = rt2x00crypto_key_to_cipher(hw_key);
+
+	if (hw_key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+		__set_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags);
+
+	txdesc->key_idx = hw_key->hw_key_idx;
+	txdesc->iv_offset = ieee80211_get_hdrlen_from_skb(entry->skb);
+
+	if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV))
+		__set_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags);
+
+	if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
+		__set_bit(ENTRY_TXD_ENCRYPT_MMIC, &txdesc->flags);
+}
+
 unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info)
 {
 	struct ieee80211_key_conf *key = tx_info->control.hw_key;

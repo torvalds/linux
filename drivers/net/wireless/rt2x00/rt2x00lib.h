@@ -218,6 +218,8 @@ static inline void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
  */
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
 enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key);
+void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
+				       struct txentry_desc *txdesc);
 unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info);
 void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, unsigned int iv_len);
 void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len);
@@ -229,6 +231,11 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
 static inline enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key)
 {
 	return CIPHER_NONE;
+}
+
+static inline void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
+						     struct txentry_desc *txdesc)
+{
 }
 
 static inline unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info)
@@ -256,7 +263,7 @@ static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 					     struct rxdone_entry_desc *rxdesc)
 {
 }
-#endif
+#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 /*
  * RFkill handlers.
