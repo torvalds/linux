@@ -346,7 +346,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
-	cam->bulk_size = vga_mode[0].sizeimage;
+	/*
+	 * On some architectures we need contiguous memory for urb buffers, and
+	 * in low memory situation 'sizeimage' can be too much.
+	 * 16kiB chunks should be available even when we are low in memory.
+	 * TODO: CHECK this description: is the problem arch-dependent or more
+	 *       general?
+	 */
+	cam->bulk_size = 16 * 1024;
 	cam->bulk_nurbs = 2;
 
 	PDEBUG(D_PROBE, "bulk_size = %d", cam->bulk_size);
@@ -395,14 +402,18 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
-	PDEBUG(D_PROBE, "width = %d, height = %d",
-	       gspca_dev->width, gspca_dev->height);
-
-	gspca_dev->cam.bulk_size = gspca_dev->width * gspca_dev->height * 2;
+	struct gspca_frame *frame;
 
 	/* start streaming data */
 	ov534_set_led(gspca_dev->dev, 1);
 	ov534_reg_write(gspca_dev->dev, 0xe0, 0x00);
+
+	frame = gspca_get_i_frame(gspca_dev);
+	if (frame == NULL) {
+		PDEBUG(D_ERR, "NULL frame!");
+		return -1;
+	}
+	gspca_frame_add(gspca_dev, FIRST_PACKET, frame, gspca_dev->usb_buf, 0);
 
 	return 0;
 }
@@ -421,18 +432,21 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 	 * The current camera setup doesn't stream the last pixel, so we set it
 	 * to a dummy value
 	 */
-	__u8 last_pixel[4] = { 0, 0, 0, 0 };
-	int framesize = gspca_dev->cam.bulk_size;
+	__u8 last[4] = { 0, 0, 0, 0 };
+	int framesize = frame->v4l2_buf.length;
 
-	if (len == framesize - 4) {
-		frame =
-		    gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, len);
-		frame =
-		    gspca_frame_add(gspca_dev, LAST_PACKET, frame, last_pixel,
-				    4);
+	PDEBUG(D_PACK, "");
+	PDEBUG(D_PACK, "** packet len = %d, framesize = %d", len, framesize);
+	PDEBUG(D_PACK, "** frame->data_end - frame->data + len = %d",
+			frame->data_end - frame->data + len);
+
+	if (frame->data_end - frame->data + len == framesize - 4) {
+		PDEBUG(D_PACK, "   end of frame!");
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, last, 4);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, 0);
 	} else
-		PDEBUG(D_PACK, "packet len = %d, framesize = %d", len,
-		       framesize);
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
 /* sub-driver description */
