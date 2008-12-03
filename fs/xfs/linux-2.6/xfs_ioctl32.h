@@ -20,9 +20,6 @@
 
 #include <linux/compat.h>
 
-extern long xfs_file_compat_ioctl(struct file *, unsigned, unsigned long);
-extern long xfs_file_compat_invis_ioctl(struct file *, unsigned, unsigned long);
-
 /*
  * on 32-bit arches, ioctl argument structures may have different sizes
  * and/or alignment.  We define compat structures which match the
