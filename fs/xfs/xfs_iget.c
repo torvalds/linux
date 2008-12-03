@@ -362,7 +362,6 @@ again:
 	}
 	xfs_put_perag(mp, pag);
 
-	xfs_iflags_set(ip, XFS_IMODIFIED);
 	*ipp = ip;
 
 	ASSERT(ip->i_df.if_ext_max ==

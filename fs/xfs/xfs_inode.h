@@ -403,17 +403,12 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 /*
  * In-core inode flags.
  */
-#define XFS_IGRIO	0x0001  /* inode used for guaranteed rate i/o */
-#define XFS_IUIOSZ	0x0002  /* inode i/o sizes have been explicitly set */
-#define XFS_IQUIESCE    0x0004  /* we have started quiescing for this inode */
-#define XFS_IRECLAIM    0x0008  /* we have started reclaiming this inode    */
-#define XFS_ISTALE	0x0010	/* inode has been staled */
-#define XFS_IRECLAIMABLE 0x0020 /* inode can be reclaimed */
-#define XFS_INEW	0x0040
-#define XFS_IFILESTREAM	0x0080	/* inode is in a filestream directory */
-#define XFS_IMODIFIED	0x0100	/* XFS inode state possibly differs */
-				/* to the Linux inode state. */
-#define XFS_ITRUNCATED	0x0200	/* truncated down so flush-on-close */
+#define XFS_IRECLAIM    0x0001  /* we have started reclaiming this inode    */
+#define XFS_ISTALE	0x0002	/* inode has been staled */
+#define XFS_IRECLAIMABLE 0x0004 /* inode can be reclaimed */
+#define XFS_INEW	0x0008	/* inode has just been allocated */
+#define XFS_IFILESTREAM	0x0010	/* inode is in a filestream directory */
+#define XFS_ITRUNCATED	0x0020	/* truncated down so flush-on-close */
 
 /*
  * Flags for inode locking.

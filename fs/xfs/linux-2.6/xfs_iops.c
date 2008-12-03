@@ -159,8 +159,6 @@ xfs_init_security(
 	}
 
 	error = xfs_attr_set(ip, name, value, length, ATTR_SECURE);
-	if (!error)
-		xfs_iflags_set(ip, XFS_IMODIFIED);
 
 	kfree(name);
 	kfree(value);
@@ -261,7 +259,6 @@ xfs_vn_mknod(
 		error = _ACL_INHERIT(inode, mode, default_acl);
 		if (unlikely(error))
 			goto out_cleanup_inode;
-		xfs_iflags_set(ip, XFS_IMODIFIED);
 		_ACL_FREE(default_acl);
 	}
 
@@ -377,7 +374,6 @@ xfs_vn_link(
 	if (unlikely(error))
 		return -error;
 
-	xfs_iflags_set(XFS_I(dir), XFS_IMODIFIED);
 	atomic_inc(&inode->i_count);
 	d_instantiate(dentry, inode);
 	return 0;
@@ -888,7 +884,6 @@ xfs_setup_inode(
 	inode->i_ctime.tv_sec	= ip->i_d.di_ctime.t_sec;
 	inode->i_ctime.tv_nsec	= ip->i_d.di_ctime.t_nsec;
 	xfs_diflags_to_iflags(inode, ip);
-	xfs_iflags_clear(ip, XFS_IMODIFIED);
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:

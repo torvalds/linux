@@ -317,14 +317,9 @@ xfs_map_blocks(
 	xfs_iomap_t		*mapp,
 	int			flags)
 {
-	xfs_inode_t		*ip = XFS_I(inode);
-	int			error, nmaps = 1;
+	int			nmaps = 1;
 
-	error = xfs_iomap(ip, offset, count,
-				flags, mapp, &nmaps);
-	if (!error && (flags & (BMAPI_WRITE|BMAPI_ALLOCATE)))
-		xfs_iflags_set(ip, XFS_IMODIFIED);
-	return -error;
+	return -xfs_iomap(XFS_I(inode), offset, count, flags, mapp, &nmaps);
 }
 
 STATIC_INLINE int

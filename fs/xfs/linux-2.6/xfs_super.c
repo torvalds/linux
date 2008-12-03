@@ -1025,7 +1025,6 @@ xfs_fs_clear_inode(
 	XFS_STATS_DEC(vn_active);
 
 	xfs_inactive(ip);
-	xfs_iflags_clear(ip, XFS_IMODIFIED);
 }
 
 STATIC void

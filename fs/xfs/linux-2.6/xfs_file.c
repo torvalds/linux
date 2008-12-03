@@ -281,11 +281,8 @@ xfs_file_ioctl(
 	unsigned int	cmd,
 	unsigned long	p)
 {
-	int		error;
 	struct inode	*inode = filp->f_path.dentry->d_inode;
 
-	error = xfs_ioctl(XFS_I(inode), filp, 0, cmd, (void __user *)p);
-	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
 
 	/* NOTE:  some of the ioctl's return positive #'s as a
 	 *	  byte count indicating success, such as
@@ -293,7 +290,7 @@ xfs_file_ioctl(
 	 *	  like most other routines.  This means true
 	 *	  errors need to be returned as a negative value.
 	 */
-	return error;
+	return xfs_ioctl(XFS_I(inode), filp, 0, cmd, (void __user *)p);
 }
 
 STATIC long
@@ -302,11 +299,8 @@ xfs_file_ioctl_invis(
 	unsigned int	cmd,
 	unsigned long	p)
 {
-	int		error;
 	struct inode	*inode = filp->f_path.dentry->d_inode;
 
-	error = xfs_ioctl(XFS_I(inode), filp, IO_INVIS, cmd, (void __user *)p);
-	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
 
 	/* NOTE:  some of the ioctl's return positive #'s as a
 	 *	  byte count indicating success, such as
@@ -314,7 +308,7 @@ xfs_file_ioctl_invis(
 	 *	  like most other routines.  This means true
 	 *	  errors need to be returned as a negative value.
 	 */
-	return error;
+	return xfs_ioctl(XFS_I(inode), filp, IO_INVIS, cmd, (void __user *)p);
 }
 
 /*
