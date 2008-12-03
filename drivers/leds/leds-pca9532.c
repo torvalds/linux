@@ -204,8 +204,8 @@ static int pca9532_configure(struct i2c_client *client,
 			led->ldev.brightness = LED_OFF;
 			led->ldev.brightness_set = pca9532_set_brightness;
 			led->ldev.blink_set = pca9532_set_blink;
-			if (led_classdev_register(&client->dev,
-				&led->ldev) < 0)	{
+			err = led_classdev_register(&client->dev, &led->ldev);
+			if (err < 0) {
 				dev_err(&client->dev,
 					"couldn't register LED %s\n",
 					led->name);
@@ -263,7 +263,6 @@ exit:
 			}
 
 	return err;
-
 }
 
 static int pca9532_probe(struct i2c_client *client,
@@ -271,12 +270,16 @@ static int pca9532_probe(struct i2c_client *client,
 {
 	struct pca9532_data *data = i2c_get_clientdata(client);
 	struct pca9532_platform_data *pca9532_pdata = client->dev.platform_data;
+	int err;
+
+	if (!pca9532_pdata)
+		return -EIO;
 
 	if (!i2c_check_functionality(client->adapter,
 		I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	data = kzalloc(sizeof(struct pca9532_data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -285,12 +288,13 @@ static int pca9532_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->update_lock);
 
-	if (pca9532_pdata == NULL)
-		return -EIO;
+	err = pca9532_configure(client, data, pca9532_pdata);
+	if (err) {
+		kfree(data);
+		i2c_set_clientdata(client, NULL);
+	}
 
-	pca9532_configure(client, data, pca9532_pdata);
-	return 0;
-
+	return err;
 }
 
 static int pca9532_remove(struct i2c_client *client)
