@@ -27,6 +27,7 @@
 
 #include <linux/idr.h>
 #include <linux/device.h>
+#include <linux/workqueue.h>
 
 struct thermal_zone_device;
 struct thermal_cooling_device;
@@ -58,6 +59,8 @@ struct thermal_zone_device_ops {
 	int (*get_trip_temp) (struct thermal_zone_device *, int,
 			      unsigned long *);
 	int (*get_crit_temp) (struct thermal_zone_device *, unsigned long *);
+	int (*notify) (struct thermal_zone_device *, int,
+		       enum thermal_trip_type);
 };
 
 struct thermal_cooling_device_ops {
@@ -104,11 +107,18 @@ struct thermal_zone_device {
 	struct device device;
 	void *devdata;
 	int trips;
+	int tc1;
+	int tc2;
+	int passive_delay;
+	int polling_delay;
+	int last_temperature;
+	bool passive;
 	struct thermal_zone_device_ops *ops;
 	struct list_head cooling_devices;
 	struct idr idr;
 	struct mutex lock;	/* protect cooling devices list */
 	struct list_head node;
+	struct delayed_work poll_queue;
 #if defined(CONFIG_THERMAL_HWMON)
 	struct list_head hwmon_node;
 	struct thermal_hwmon_device *hwmon;
@@ -120,13 +130,16 @@ struct thermal_zone_device {
 struct thermal_zone_device *thermal_zone_device_register(char *, int, void *,
 							 struct
 							 thermal_zone_device_ops
-							 *);
+							 *, int tc1, int tc2,
+							 int passive_freq,
+							 int polling_freq);
 void thermal_zone_device_unregister(struct thermal_zone_device *);
 
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
 				     struct thermal_cooling_device *);
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
 				       struct thermal_cooling_device *);
+void thermal_zone_device_update(struct thermal_zone_device *);
 struct thermal_cooling_device *thermal_cooling_device_register(char *, void *,
 							       struct
 							       thermal_cooling_device_ops

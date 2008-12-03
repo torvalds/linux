@@ -37,7 +37,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
-#include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/kmod.h>
 #include <linux/seq_file.h>
@@ -190,7 +189,6 @@ struct acpi_thermal {
 	struct acpi_thermal_state state;
 	struct acpi_thermal_trips trips;
 	struct acpi_handle_list devices;
-	struct timer_list timer;
 	struct thermal_zone_device *thermal_zone;
 	int tz_enabled;
 	struct mutex lock;
@@ -289,6 +287,11 @@ static int acpi_thermal_set_polling(struct acpi_thermal *tz, int seconds)
 		return -EINVAL;
 
 	tz->polling_frequency = seconds * 10;	/* Convert value to deci-seconds */
+
+	tz->thermal_zone->polling_delay = seconds * 1000;
+
+	if (tz->tz_enabled)
+		thermal_zone_device_update(tz->thermal_zone);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Polling frequency set to %lu seconds\n",
@@ -569,386 +572,11 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 	return acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
 }
 
-static int acpi_thermal_critical(struct acpi_thermal *tz)
-{
-	if (!tz || !tz->trips.critical.flags.valid)
-		return -EINVAL;
-
-	if (tz->temperature >= tz->trips.critical.temperature) {
-		printk(KERN_WARNING PREFIX "Critical trip point\n");
-		tz->trips.critical.flags.enabled = 1;
-	} else if (tz->trips.critical.flags.enabled)
-		tz->trips.critical.flags.enabled = 0;
-
-	acpi_bus_generate_proc_event(tz->device, ACPI_THERMAL_NOTIFY_CRITICAL,
-				tz->trips.critical.flags.enabled);
-	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
-					  dev_name(&tz->device->dev),
-					  ACPI_THERMAL_NOTIFY_CRITICAL,
-					  tz->trips.critical.flags.enabled);
-
-	/* take no action if nocrt is set */
-	if(!nocrt) {
-		printk(KERN_EMERG
-			"Critical temperature reached (%ld C), shutting down.\n",
-			KELVIN_TO_CELSIUS(tz->temperature));
-		orderly_poweroff(true);
-	}
-
-	return 0;
-}
-
-static int acpi_thermal_hot(struct acpi_thermal *tz)
-{
-	if (!tz || !tz->trips.hot.flags.valid)
-		return -EINVAL;
-
-	if (tz->temperature >= tz->trips.hot.temperature) {
-		printk(KERN_WARNING PREFIX "Hot trip point\n");
-		tz->trips.hot.flags.enabled = 1;
-	} else if (tz->trips.hot.flags.enabled)
-		tz->trips.hot.flags.enabled = 0;
-
-	acpi_bus_generate_proc_event(tz->device, ACPI_THERMAL_NOTIFY_HOT,
-				tz->trips.hot.flags.enabled);
-	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
-					  dev_name(&tz->device->dev),
-					  ACPI_THERMAL_NOTIFY_HOT,
-					  tz->trips.hot.flags.enabled);
-
-	/* TBD: Call user-mode "sleep(S4)" function if nocrt is cleared */
-
-	return 0;
-}
-
-static void acpi_thermal_passive(struct acpi_thermal *tz)
-{
-	int result = 1;
-	struct acpi_thermal_passive *passive = NULL;
-	int trend = 0;
-	int i = 0;
-
-
-	if (!tz || !tz->trips.passive.flags.valid)
-		return;
-
-	passive = &(tz->trips.passive);
-
-	/*
-	 * Above Trip?
-	 * -----------
-	 * Calculate the thermal trend (using the passive cooling equation)
-	 * and modify the performance limit for all passive cooling devices
-	 * accordingly.  Note that we assume symmetry.
-	 */
-	if (tz->temperature >= passive->temperature) {
-		trend =
-		    (passive->tc1 * (tz->temperature - tz->last_temperature)) +
-		    (passive->tc2 * (tz->temperature - passive->temperature));
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "trend[%d]=(tc1[%lu]*(tmp[%lu]-last[%lu]))+(tc2[%lu]*(tmp[%lu]-psv[%lu]))\n",
-				  trend, passive->tc1, tz->temperature,
-				  tz->last_temperature, passive->tc2,
-				  tz->temperature, passive->temperature));
-		passive->flags.enabled = 1;
-		/* Heating up? */
-		if (trend > 0)
-			for (i = 0; i < passive->devices.count; i++)
-				acpi_processor_set_thermal_limit(passive->
-								 devices.
-								 handles[i],
-								 ACPI_PROCESSOR_LIMIT_INCREMENT);
-		/* Cooling off? */
-		else if (trend < 0) {
-			for (i = 0; i < passive->devices.count; i++)
-				/*
-				 * assume that we are on highest
-				 * freq/lowest thrott and can leave
-				 * passive mode, even in error case
-				 */
-				if (!acpi_processor_set_thermal_limit
-				    (passive->devices.handles[i],
-				     ACPI_PROCESSOR_LIMIT_DECREMENT))
-					result = 0;
-			/*
-			 * Leave cooling mode, even if the temp might
-			 * higher than trip point This is because some
-			 * machines might have long thermal polling
-			 * frequencies (tsp) defined. We will fall back
-			 * into passive mode in next cycle (probably quicker)
-			 */
-			if (result) {
-				passive->flags.enabled = 0;
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-						  "Disabling passive cooling, still above threshold,"
-						  " but we are cooling down\n"));
-			}
-		}
-		return;
-	}
-
-	/*
-	 * Below Trip?
-	 * -----------
-	 * Implement passive cooling hysteresis to slowly increase performance
-	 * and avoid thrashing around the passive trip point.  Note that we
-	 * assume symmetry.
-	 */
-	if (!passive->flags.enabled)
-		return;
-	for (i = 0; i < passive->devices.count; i++)
-		if (!acpi_processor_set_thermal_limit
-		    (passive->devices.handles[i],
-		     ACPI_PROCESSOR_LIMIT_DECREMENT))
-			result = 0;
-	if (result) {
-		passive->flags.enabled = 0;
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Disabling passive cooling (zone is cool)\n"));
-	}
-}
-
-static void acpi_thermal_active(struct acpi_thermal *tz)
-{
-	int result = 0;
-	struct acpi_thermal_active *active = NULL;
-	int i = 0;
-	int j = 0;
-	unsigned long maxtemp = 0;
-
-
-	if (!tz)
-		return;
-
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		active = &(tz->trips.active[i]);
-		if (!active || !active->flags.valid)
-			break;
-		if (tz->temperature >= active->temperature) {
-			/*
-			 * Above Threshold?
-			 * ----------------
-			 * If not already enabled, turn ON all cooling devices
-			 * associated with this active threshold.
-			 */
-			if (active->temperature > maxtemp)
-				tz->state.active_index = i;
-			maxtemp = active->temperature;
-			if (active->flags.enabled)
-				continue;
-			for (j = 0; j < active->devices.count; j++) {
-				result =
-				    acpi_bus_set_power(active->devices.
-						       handles[j],
-						       ACPI_STATE_D0);
-				if (result) {
-					printk(KERN_WARNING PREFIX
-						      "Unable to turn cooling device [%p] 'on'\n",
-						      active->devices.
-						      handles[j]);
-					continue;
-				}
-				active->flags.enabled = 1;
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-						  "Cooling device [%p] now 'on'\n",
-						  active->devices.handles[j]));
-			}
-			continue;
-		}
-		if (!active->flags.enabled)
-			continue;
-		/*
-		 * Below Threshold?
-		 * ----------------
-		 * Turn OFF all cooling devices associated with this
-		 * threshold.
-		 */
-		for (j = 0; j < active->devices.count; j++) {
-			result = acpi_bus_set_power(active->devices.handles[j],
-						    ACPI_STATE_D3);
-			if (result) {
-				printk(KERN_WARNING PREFIX
-					      "Unable to turn cooling device [%p] 'off'\n",
-					      active->devices.handles[j]);
-				continue;
-			}
-			active->flags.enabled = 0;
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "Cooling device [%p] now 'off'\n",
-					  active->devices.handles[j]));
-		}
-	}
-}
-
-static void acpi_thermal_check(void *context);
-
-static void acpi_thermal_run(unsigned long data)
-{
-	struct acpi_thermal *tz = (struct acpi_thermal *)data;
-	if (!tz->zombie)
-		acpi_os_execute(OSL_GPE_HANDLER, acpi_thermal_check, (void *)data);
-}
-
-static void acpi_thermal_active_off(void *data)
-{
-	int result = 0;
-	struct acpi_thermal *tz = data;
-	int i = 0;
-	int j = 0;
-	struct acpi_thermal_active *active = NULL;
-
-	if (!tz) {
-		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
-		return;
-	}
-
-	result = acpi_thermal_get_temperature(tz);
-	if (result)
-		return;
-
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		active = &(tz->trips.active[i]);
-		if (!active || !active->flags.valid)
-			break;
-		if (tz->temperature >= active->temperature) {
-			/*
-			 * If the thermal temperature is greater than the
-			 * active threshod, unnecessary to turn off the
-			 * the active cooling device.
-			 */
-			continue;
-		}
-		/*
-		 * Below Threshold?
-		 * ----------------
-		 * Turn OFF all cooling devices associated with this
-		 * threshold.
-		 */
-		for (j = 0; j < active->devices.count; j++)
-			result = acpi_bus_set_power(active->devices.handles[j],
-						    ACPI_STATE_D3);
-	}
-}
-
 static void acpi_thermal_check(void *data)
 {
-	int result = 0;
 	struct acpi_thermal *tz = data;
-	unsigned long sleep_time = 0;
-	unsigned long timeout_jiffies = 0;
-	int i = 0;
-	struct acpi_thermal_state state;
 
-
-	if (!tz) {
-		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
-		return;
-	}
-
-	/* Check if someone else is already running */
-	if (!mutex_trylock(&tz->lock))
-		return;
-
-	state = tz->state;
-
-	result = acpi_thermal_get_temperature(tz);
-	if (result)
-		goto unlock;
-
-	if (!tz->tz_enabled)
-		goto unlock;
-
-	memset(&tz->state, 0, sizeof(tz->state));
-
-	/*
-	 * Check Trip Points
-	 * -----------------
-	 * Compare the current temperature to the trip point values to see
-	 * if we've entered one of the thermal policy states.  Note that
-	 * this function determines when a state is entered, but the 
-	 * individual policy decides when it is exited (e.g. hysteresis).
-	 */
-	if (tz->trips.critical.flags.valid)
-		state.critical |=
-		    (tz->temperature >= tz->trips.critical.temperature);
-	if (tz->trips.hot.flags.valid)
-		state.hot |= (tz->temperature >= tz->trips.hot.temperature);
-	if (tz->trips.passive.flags.valid)
-		state.passive |=
-		    (tz->temperature >= tz->trips.passive.temperature);
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
-		if (tz->trips.active[i].flags.valid)
-			state.active |=
-			    (tz->temperature >=
-			     tz->trips.active[i].temperature);
-
-	/*
-	 * Invoke Policy
-	 * -------------
-	 * Separated from the above check to allow individual policy to 
-	 * determine when to exit a given state.
-	 */
-	if (state.critical)
-		acpi_thermal_critical(tz);
-	if (state.hot)
-		acpi_thermal_hot(tz);
-	if (state.passive)
-		acpi_thermal_passive(tz);
-	if (state.active)
-		acpi_thermal_active(tz);
-
-	/*
-	 * Calculate State
-	 * ---------------
-	 * Again, separated from the above two to allow independent policy
-	 * decisions.
-	 */
-	tz->state.critical = tz->trips.critical.flags.enabled;
-	tz->state.hot = tz->trips.hot.flags.enabled;
-	tz->state.passive = tz->trips.passive.flags.enabled;
-	tz->state.active = 0;
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
-		tz->state.active |= tz->trips.active[i].flags.enabled;
-
-	/*
-	 * Calculate Sleep Time
-	 * --------------------
-	 * If we're in the passive state, use _TSP's value.  Otherwise
-	 * use the default polling frequency (e.g. _TZP).  If no polling
-	 * frequency is specified then we'll wait forever (at least until
-	 * a thermal event occurs).  Note that _TSP and _TZD values are
-	 * given in 1/10th seconds (we must covert to milliseconds).
-	 */
-	if (tz->state.passive) {
-		sleep_time = tz->trips.passive.tsp * 100;
-		timeout_jiffies =  jiffies + (HZ * sleep_time) / 1000;
-	} else if (tz->polling_frequency > 0) {
-		sleep_time = tz->polling_frequency * 100;
-		timeout_jiffies =  round_jiffies(jiffies + (HZ * sleep_time) / 1000);
-	}
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%s: temperature[%lu] sleep[%lu]\n",
-			  tz->name, tz->temperature, sleep_time));
-
-	/*
-	 * Schedule Next Poll
-	 * ------------------
-	 */
-	if (!sleep_time) {
-		if (timer_pending(&(tz->timer)))
-			del_timer(&(tz->timer));
-	} else {
-		if (timer_pending(&(tz->timer)))
-			mod_timer(&(tz->timer), timeout_jiffies);
-		else {
-			tz->timer.data = (unsigned long)tz;
-			tz->timer.function = acpi_thermal_run;
-			tz->timer.expires = timeout_jiffies;
-			add_timer(&(tz->timer));
-		}
-	}
-      unlock:
-	mutex_unlock(&tz->lock);
+	thermal_zone_device_update(tz->thermal_zone);
 }
 
 /* sys I/F for generic thermal sysfs support */
@@ -1122,6 +750,29 @@ static int thermal_get_crit_temp(struct thermal_zone_device *thermal,
 		return -EINVAL;
 }
 
+static int thermal_notify(struct thermal_zone_device *thermal, int trip,
+			   enum thermal_trip_type trip_type)
+{
+	u8 type = 0;
+	struct acpi_thermal *tz = thermal->devdata;
+
+	if (trip_type == THERMAL_TRIP_CRITICAL)
+		type = ACPI_THERMAL_NOTIFY_CRITICAL;
+	else if (trip_type == THERMAL_TRIP_HOT)
+		type = ACPI_THERMAL_NOTIFY_HOT;
+	else
+		return 0;
+
+	acpi_bus_generate_proc_event(tz->device, type, 1);
+	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
+					tz->device->dev.bus_id, type, 1);
+
+	if (trip_type == THERMAL_TRIP_CRITICAL && nocrt)
+		return 1;
+
+	return 0;
+}
+
 typedef int (*cb)(struct thermal_zone_device *, int,
 		  struct thermal_cooling_device *);
 static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
@@ -1214,6 +865,7 @@ static struct thermal_zone_device_ops acpi_thermal_zone_ops = {
 	.get_trip_type = thermal_get_trip_type,
 	.get_trip_temp = thermal_get_trip_temp,
 	.get_crit_temp = thermal_get_crit_temp,
+	.notify = thermal_notify,
 };
 
 static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
@@ -1234,8 +886,21 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE &&
 			tz->trips.active[i].flags.valid; i++, trips++);
-	tz->thermal_zone = thermal_zone_device_register("acpitz",
-					trips, tz, &acpi_thermal_zone_ops);
+
+	if (tz->trips.passive.flags.valid)
+		tz->thermal_zone =
+			thermal_zone_device_register("acpitz", trips, tz,
+						     &acpi_thermal_zone_ops,
+						     tz->trips.passive.tc1,
+						     tz->trips.passive.tc2,
+						     tz->trips.passive.tsp*100,
+						     tz->polling_frequency*100);
+	else
+		tz->thermal_zone =
+			thermal_zone_device_register("acpitz", trips, tz,
+						     &acpi_thermal_zone_ops,
+						     0, 0, 0,
+						     tz->polling_frequency);
 	if (IS_ERR(tz->thermal_zone))
 		return -ENODEV;
 
@@ -1467,13 +1132,13 @@ static int acpi_thermal_polling_seq_show(struct seq_file *seq, void *offset)
 	if (!tz)
 		goto end;
 
-	if (!tz->polling_frequency) {
+	if (!tz->thermal_zone->polling_delay) {
 		seq_puts(seq, "<polling disabled>\n");
 		goto end;
 	}
 
-	seq_printf(seq, "polling frequency:       %lu seconds\n",
-		   (tz->polling_frequency / 10));
+	seq_printf(seq, "polling frequency:       %d seconds\n",
+		   (tz->thermal_zone->polling_delay / 1000));
 
       end:
 	return 0;
@@ -1703,12 +1368,6 @@ static int acpi_thermal_add(struct acpi_device *device)
 	if (result)
 		goto unregister_thermal_zone;
 
-	init_timer(&tz->timer);
-
-	acpi_thermal_active_off(tz);
-
-	acpi_thermal_check(tz);
-
 	status = acpi_install_notify_handler(device->handle,
 					     ACPI_DEVICE_NOTIFY,
 					     acpi_thermal_notify, tz);
@@ -1737,35 +1396,14 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 	acpi_status status = AE_OK;
 	struct acpi_thermal *tz = NULL;
 
-
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	tz = acpi_driver_data(device);
 
-	/* avoid timer adding new defer task */
-	tz->zombie = 1;
-	/* wait for running timer (on other CPUs) finish */
-	del_timer_sync(&(tz->timer));
-	/* synchronize deferred task */
-	acpi_os_wait_events_complete(NULL);
-	/* deferred task may reinsert timer */
-	del_timer_sync(&(tz->timer));
-
 	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_thermal_notify);
-
-	/* Terminate policy */
-	if (tz->trips.passive.flags.valid && tz->trips.passive.flags.enabled) {
-		tz->trips.passive.flags.enabled = 0;
-		acpi_thermal_passive(tz);
-	}
-	if (tz->trips.active[0].flags.valid
-	    && tz->trips.active[0].flags.enabled) {
-		tz->trips.active[0].flags.enabled = 0;
-		acpi_thermal_active(tz);
-	}
 
 	acpi_thermal_remove_fs(device);
 	acpi_thermal_unregister_thermal_zone(tz);

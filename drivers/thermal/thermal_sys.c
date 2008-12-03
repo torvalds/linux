@@ -30,6 +30,7 @@
 #include <linux/idr.h>
 #include <linux/thermal.h>
 #include <linux/spinlock.h>
+#include <linux/reboot.h>
 
 MODULE_AUTHOR("Zhang Rui");
 MODULE_DESCRIPTION("Generic thermal management sysfs support");
@@ -517,6 +518,97 @@ thermal_remove_hwmon_sysfs(struct thermal_zone_device *tz)
 }
 #endif
 
+static void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
+					    int delay)
+{
+	cancel_delayed_work(&(tz->poll_queue));
+
+	if (!delay)
+		return;
+
+	if (delay > 1000)
+		schedule_delayed_work(&(tz->poll_queue),
+				      round_jiffies(msecs_to_jiffies(delay)));
+	else
+		schedule_delayed_work(&(tz->poll_queue),
+				      msecs_to_jiffies(delay));
+}
+
+static void thermal_zone_device_passive(struct thermal_zone_device *tz,
+					int temp, int trip_temp, int trip)
+{
+	int trend = 0;
+	struct thermal_cooling_device_instance *instance;
+	struct thermal_cooling_device *cdev;
+	long state, max_state;
+
+	/*
+	 * Above Trip?
+	 * -----------
+	 * Calculate the thermal trend (using the passive cooling equation)
+	 * and modify the performance limit for all passive cooling devices
+	 * accordingly.  Note that we assume symmetry.
+	 */
+	if (temp >= trip_temp) {
+		tz->passive = true;
+
+		trend = (tz->tc1 * (temp - tz->last_temperature)) +
+			(tz->tc2 * (temp - trip_temp));
+
+		/* Heating up? */
+		if (trend > 0) {
+			list_for_each_entry(instance, &tz->cooling_devices,
+					    node) {
+				if (instance->trip != trip)
+					continue;
+				cdev = instance->cdev;
+				cdev->ops->get_cur_state(cdev, &state);
+				cdev->ops->get_max_state(cdev, &max_state);
+				if (state++ < max_state)
+					cdev->ops->set_cur_state(cdev, state);
+			}
+		} else if (trend < 0) { /* Cooling off? */
+			list_for_each_entry(instance, &tz->cooling_devices,
+					    node) {
+				if (instance->trip != trip)
+					continue;
+				cdev = instance->cdev;
+				cdev->ops->get_cur_state(cdev, &state);
+				cdev->ops->get_max_state(cdev, &max_state);
+				if (state > 0)
+					cdev->ops->set_cur_state(cdev, --state);
+			}
+		}
+		return;
+	}
+
+	/*
+	 * Below Trip?
+	 * -----------
+	 * Implement passive cooling hysteresis to slowly increase performance
+	 * and avoid thrashing around the passive trip point.  Note that we
+	 * assume symmetry.
+	 */
+	list_for_each_entry(instance, &tz->cooling_devices, node) {
+		if (instance->trip != trip)
+			continue;
+		cdev = instance->cdev;
+		cdev->ops->get_cur_state(cdev, &state);
+		cdev->ops->get_max_state(cdev, &max_state);
+		if (state > 0)
+			cdev->ops->set_cur_state(cdev, --state);
+		if (state == 0)
+			tz->passive = false;
+	}
+}
+
+static void thermal_zone_device_check(struct work_struct *work)
+{
+	struct thermal_zone_device *tz = container_of(work, struct
+						      thermal_zone_device,
+						      poll_queue.work);
+	thermal_zone_device_update(tz);
+}
 
 /**
  * thermal_zone_bind_cooling_device - bind a cooling device to a thermal zone
@@ -787,20 +879,101 @@ void thermal_cooling_device_unregister(struct
 EXPORT_SYMBOL(thermal_cooling_device_unregister);
 
 /**
+ * thermal_zone_device_update - force an update of a thermal zone's state
+ * @ttz:	the thermal zone to update
+ */
+
+void thermal_zone_device_update(struct thermal_zone_device *tz)
+{
+	int count, ret = 0;
+	long temp, trip_temp;
+	enum thermal_trip_type trip_type;
+	struct thermal_cooling_device_instance *instance;
+	struct thermal_cooling_device *cdev;
+
+	mutex_lock(&tz->lock);
+
+	tz->ops->get_temp(tz, &temp);
+
+	for (count = 0; count < tz->trips; count++) {
+		tz->ops->get_trip_type(tz, count, &trip_type);
+		tz->ops->get_trip_temp(tz, count, &trip_temp);
+
+		switch (trip_type) {
+		case THERMAL_TRIP_CRITICAL:
+			if (temp > trip_temp) {
+				if (tz->ops->notify)
+					ret = tz->ops->notify(tz, count,
+							      trip_type);
+				if (!ret) {
+					printk(KERN_EMERG
+					       "Critical temperature reached (%ld C), shutting down.\n",
+					       temp/1000);
+					orderly_poweroff(true);
+				}
+			}
+			break;
+		case THERMAL_TRIP_HOT:
+			if (temp > trip_temp)
+				if (tz->ops->notify)
+					tz->ops->notify(tz, count, trip_type);
+			break;
+		case THERMAL_TRIP_ACTIVE:
+			list_for_each_entry(instance, &tz->cooling_devices,
+					    node) {
+				if (instance->trip != count)
+					continue;
+
+				cdev = instance->cdev;
+
+				if (temp > trip_temp)
+					cdev->ops->set_cur_state(cdev, 1);
+				else
+					cdev->ops->set_cur_state(cdev, 0);
+			}
+			break;
+		case THERMAL_TRIP_PASSIVE:
+			if (temp > trip_temp || tz->passive)
+				thermal_zone_device_passive(tz, temp,
+							    trip_temp, count);
+			break;
+		}
+	}
+	tz->last_temperature = temp;
+	if (tz->passive)
+		thermal_zone_device_set_polling(tz, tz->passive_delay);
+	else if (tz->polling_delay)
+		thermal_zone_device_set_polling(tz, tz->polling_delay);
+	mutex_unlock(&tz->lock);
+}
+EXPORT_SYMBOL(thermal_zone_device_update);
+
+/**
  * thermal_zone_device_register - register a new thermal zone device
  * @type:	the thermal zone device type
  * @trips:	the number of trip points the thermal zone support
  * @devdata:	private device data
  * @ops:	standard thermal zone device callbacks
+ * @tc1:	thermal coefficient 1 for passive calculations
+ * @tc2:	thermal coefficient 2 for passive calculations
+ * @passive_delay: number of milliseconds to wait between polls when
+ *		   performing passive cooling
+ * @polling_delay: number of milliseconds to wait between polls when checking
+ *		   whether trip points have been crossed (0 for interrupt
+ *		   driven systems)
  *
  * thermal_zone_device_unregister() must be called when the device is no
- * longer needed.
+ * longer needed. The passive cooling formula uses tc1 and tc2 as described in
+ * section 11.1.5.1 of the ACPI specification 3.0.
  */
 struct thermal_zone_device *thermal_zone_device_register(char *type,
 							 int trips,
 							 void *devdata, struct
 							 thermal_zone_device_ops
-							 *ops)
+							 *ops, int tc1, int
+							 tc2,
+							 int passive_delay,
+							 int polling_delay)
 {
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *pos;
@@ -834,6 +1007,11 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 	tz->device.class = &thermal_class;
 	tz->devdata = devdata;
 	tz->trips = trips;
+	tz->tc1 = tc1;
+	tz->tc2 = tc2;
+	tz->passive_delay = passive_delay;
+	tz->polling_delay = polling_delay;
+
 	dev_set_name(&tz->device, "thermal_zone%d", tz->id);
 	result = device_register(&tz->device);
 	if (result) {
@@ -879,6 +1057,10 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 		}
 	mutex_unlock(&thermal_list_lock);
 
+	INIT_DELAYED_WORK(&(tz->poll_queue), thermal_zone_device_check);
+
+	thermal_zone_device_update(tz);
+
 	if (!result)
 		return tz;
 
@@ -917,6 +1099,8 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 		list_for_each_entry(cdev, &thermal_cdev_list, node)
 		    tz->ops->unbind(tz, cdev);
 	mutex_unlock(&thermal_list_lock);
+
+	thermal_zone_device_set_polling(tz, 0);
 
 	if (tz->type[0])
 		device_remove_file(&tz->device, &dev_attr_type);
