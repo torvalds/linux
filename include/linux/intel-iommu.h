@@ -330,10 +330,6 @@ extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 
 extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
-int intel_iommu_map_address(struct dmar_domain *domain, dma_addr_t iova,
-			    u64 hpa, size_t size, int prot);
-void intel_iommu_unmap_address(struct dmar_domain *domain,
-			       dma_addr_t iova, size_t size);
 u64 intel_iommu_iova_to_phys(struct dmar_domain *domain, u64 iova);
 
 #ifdef CONFIG_DMAR
