@@ -279,6 +279,11 @@ struct snd_soc_codec {
 	/* codec DAI's */
 	struct snd_soc_dai *dai;
 	unsigned int num_dai;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_reg;
+	struct dentry *debugfs_pop_time;
+#endif
 };
 
 /* codec device */
@@ -364,9 +369,6 @@ struct snd_soc_device {
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;
 	void *codec_data;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry	*debugfs_root;
-#endif
 };
 
 /* runtime channel data */
