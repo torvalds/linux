@@ -1018,13 +1018,40 @@ int aic3x_get_gpio(struct snd_soc_codec *codec, int gpio)
 }
 EXPORT_SYMBOL_GPL(aic3x_get_gpio);
 
+void aic3x_set_headset_detection(struct snd_soc_codec *codec, int detect,
+				 int headset_debounce, int button_debounce)
+{
+	u8 val;
+
+	val = ((detect & AIC3X_HEADSET_DETECT_MASK)
+		<< AIC3X_HEADSET_DETECT_SHIFT) |
+	      ((headset_debounce & AIC3X_HEADSET_DEBOUNCE_MASK)
+		<< AIC3X_HEADSET_DEBOUNCE_SHIFT) |
+	      ((button_debounce & AIC3X_BUTTON_DEBOUNCE_MASK)
+		<< AIC3X_BUTTON_DEBOUNCE_SHIFT);
+
+	if (detect & AIC3X_HEADSET_DETECT_MASK)
+		val |= AIC3X_HEADSET_DETECT_ENABLED;
+
+	aic3x_write(codec, AIC3X_HEADSET_DETECT_CTRL_A, val);
+}
+EXPORT_SYMBOL_GPL(aic3x_set_headset_detection);
+
 int aic3x_headset_detected(struct snd_soc_codec *codec)
 {
 	u8 val;
-	aic3x_read(codec, AIC3X_RT_IRQ_FLAGS_REG, &val);
-	return (val >> 2) & 1;
+	aic3x_read(codec, AIC3X_HEADSET_DETECT_CTRL_B, &val);
+	return (val >> 4) & 1;
 }
 EXPORT_SYMBOL_GPL(aic3x_headset_detected);
+
+int aic3x_button_pressed(struct snd_soc_codec *codec)
+{
+	u8 val;
+	aic3x_read(codec, AIC3X_HEADSET_DETECT_CTRL_B, &val);
+	return (val >> 5) & 1;
+}
+EXPORT_SYMBOL_GPL(aic3x_button_pressed);
 
 #define AIC3X_RATES	SNDRV_PCM_RATE_8000_96000
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
