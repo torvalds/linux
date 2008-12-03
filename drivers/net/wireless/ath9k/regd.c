@@ -42,7 +42,7 @@ ath9k_regd_sort(void *a, u32 n, u32 size, ath_hal_cmp_t *cmp)
 			u8 *u = t - size;
 			if (cmp(u, t) <= 0)
 				break;
-			swap(u, t, size);
+			swap_array(u, t, size);
 		}
 }
 
