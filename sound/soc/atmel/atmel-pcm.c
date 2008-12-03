@@ -417,8 +417,7 @@ static void atmel_pcm_free_dma_buffers(struct snd_pcm *pcm)
 }
 
 #ifdef CONFIG_PM
-static int atmel_pcm_suspend(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int atmel_pcm_suspend(struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = dai->runtime;
 	struct atmel_runtime_data *prtd;
@@ -442,8 +441,7 @@ static int atmel_pcm_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int atmel_pcm_resume(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int atmel_pcm_resume(struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = dai->runtime;
 	struct atmel_runtime_data *prtd;

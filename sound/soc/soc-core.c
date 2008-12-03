@@ -652,7 +652,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 		if (cpu_dai->suspend && !cpu_dai->ac97_control)
 			cpu_dai->suspend(pdev, cpu_dai);
 		if (platform->suspend)
-			platform->suspend(pdev, cpu_dai);
+			platform->suspend(cpu_dai);
 	}
 
 	/* close any waiting streams and save state */
@@ -741,7 +741,7 @@ static void soc_resume_deferred(struct work_struct *work)
 		if (cpu_dai->resume && !cpu_dai->ac97_control)
 			cpu_dai->resume(pdev, cpu_dai);
 		if (platform->resume)
-			platform->resume(pdev, cpu_dai);
+			platform->resume(cpu_dai);
 	}
 
 	if (card->resume_post)
