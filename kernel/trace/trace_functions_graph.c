@@ -232,11 +232,50 @@ trace_branch_is_leaf(struct trace_iterator *iter,
 }
 
 
-static inline int
+static enum print_line_t
 print_graph_duration(unsigned long long duration, struct trace_seq *s)
 {
 	unsigned long nsecs_rem = do_div(duration, 1000);
-	return trace_seq_printf(s, "%4llu.%3lu us |  ", duration, nsecs_rem);
+	/* log10(ULONG_MAX) + '\0' */
+	char msecs_str[21];
+	char nsecs_str[5];
+	int ret, len;
+	int i;
+
+	sprintf(msecs_str, "%lu", (unsigned long) duration);
+
+	/* Print msecs */
+	ret = trace_seq_printf(s, msecs_str);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	len = strlen(msecs_str);
+
+	/* Print nsecs (we don't want to exceed 7 numbers) */
+	if (len < 7) {
+		snprintf(nsecs_str, 8 - len, "%03lu", nsecs_rem);
+		ret = trace_seq_printf(s, ".%s", nsecs_str);
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+		len += strlen(nsecs_str);
+	}
+
+	ret = trace_seq_printf(s, " us ");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	/* Print remaining spaces to fit the row's width */
+	for (i = len; i < 7; i++) {
+		ret = trace_seq_printf(s, " ");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	ret = trace_seq_printf(s, "|  ");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+	return TRACE_TYPE_HANDLED;
+
 }
 
 /* Signal a overhead of time execution to the output */
@@ -273,10 +312,6 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 	call = &entry->graph_ent;
 	duration = graph_ret->rettime - graph_ret->calltime;
 
-	/* Must not exceed 8 characters: 9999.999 us */
-	if (duration > 10000000ULL)
-		duration = 9999999ULL;
-
 	/* Overhead */
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERHEAD) {
 		ret = print_graph_overhead(duration, s);
@@ -286,7 +321,7 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 
 	/* Duration */
 	ret = print_graph_duration(duration, s);
-	if (!ret)
+	if (ret == TRACE_TYPE_PARTIAL_LINE)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* Function */
@@ -387,10 +422,6 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 	int ret;
 	unsigned long long duration = trace->rettime - trace->calltime;
 
-	/* Must not exceed 8 characters: xxxx.yyy us */
-	if (duration > 10000000ULL)
-		duration = 9999999ULL;
-
 	/* Pid */
 	if (verif_pid(s, ent->pid, cpu) == TRACE_TYPE_PARTIAL_LINE)
 		return TRACE_TYPE_PARTIAL_LINE;
@@ -422,7 +453,7 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 
 	/* Duration */
 	ret = print_graph_duration(duration, s);
-	if (!ret)
+	if (ret == TRACE_TYPE_PARTIAL_LINE)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* Closing brace */
