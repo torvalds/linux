@@ -484,14 +484,16 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		: "memory"
 	);
 
-	if (WARN_ON(faulted)) {
-		unregister_ftrace_graph();
+	if (unlikely(faulted)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
 		return;
 	}
 
-	if (WARN_ON(!__kernel_text_address(old))) {
-		unregister_ftrace_graph();
+	if (unlikely(!__kernel_text_address(old))) {
+		ftrace_graph_stop();
 		*parent = old;
+		WARN_ON(1);
 		return;
 	}
 

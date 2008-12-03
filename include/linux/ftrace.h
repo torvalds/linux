@@ -376,6 +376,8 @@ typedef void (*trace_func_graph_ent_t)(struct ftrace_graph_ent *); /* entry */
 extern int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 				trace_func_graph_ent_t entryfunc);
 
+extern void ftrace_graph_stop(void);
+
 /* The current handlers in use */
 extern trace_func_graph_ret_t ftrace_graph_return;
 extern trace_func_graph_ent_t ftrace_graph_entry;
