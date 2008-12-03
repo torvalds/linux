@@ -649,7 +649,7 @@ static int dma_sb_region_create(struct ps3_dma_region *r)
 {
 	int result;
 
-	pr_info(" -> %s:%d:\n", __func__, __LINE__);
+	DBG(" -> %s:%d:\n", __func__, __LINE__);
 
 	BUG_ON(!r);
 
