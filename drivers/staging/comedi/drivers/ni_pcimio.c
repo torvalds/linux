@@ -29,14 +29,14 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6014, PCI-6040E,
   PXI-6040E, PCI-6030E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
-  PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PCI-6225, PCI-6229,
-  PCI-6250, PCI-6251, PCIe-6251, PCI-6254, PCI-6259, PCIe-6259,
+  PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PXI-6224, PCI-6225,
+  PCI-6229, PCI-6250, PCI-6251, PCIe-6251, PCI-6254, PCI-6259, PCIe-6259,
   PCI-6280, PCI-6281, PXI-6281, PCI-6284, PCI-6289,
   PCI-6711, PXI-6711, PCI-6713, PXI-6713,
   PXI-6071E, PCI-6070E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733,
   PCI-6143, PXI-6143
-Updated: Wed Nov 29 10:30:36 EST 2006
+Updated: Wed, 03 Dec 2008 10:51:47 +0000
 
 These boards are almost identical to the AT-MIO E series, except that
 they use the PCI bus instead of ISA (i.e., AT).  See the notes for
@@ -899,6 +899,23 @@ static const ni_board ni_boards[] = {
 	{
 			.device_id = 0x70f2,
 			.name = "pci-6224",
+			.n_adchan = 32,
+			.adbits = 16,
+			.ai_fifo_depth = 4095,
+			.gainlkup = ai_gain_622x,
+			.ai_speed = 4000,
+			.n_aochan = 0,
+			.aobits = 0,
+			.ao_fifo_depth = 0,
+			.reg_type = ni_reg_622x,
+			.ao_unipolar = 0,
+			.num_p0_dio_channels = 32,
+			.caldac = {caldac_none},
+			.has_8255 = 0,
+		},
+	{
+			.device_id = 0x70f3,
+			.name = "pxi-6224",
 			.n_adchan = 32,
 			.adbits = 16,
 			.ai_fifo_depth = 4095,
