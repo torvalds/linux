@@ -347,7 +347,6 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	if (cifs_sb) {
 		tcon = cifs_sb->tcon;
 		if (tcon) {
-/* BB add prepath to mount options displayed */
 			seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
 			if (tcon->ses) {
 				if (tcon->ses->userName)
@@ -439,9 +438,8 @@ int cifs_xquota_set(struct super_block *sb, int quota_type, qid_t qid,
 	xid = GetXid();
 	if (pTcon) {
 		cFYI(1, ("set type: 0x%x id: %d", quota_type, qid));
-	} else {
+	} else
 		rc = -EIO;
-	}
 
 	FreeXid(xid);
 	return rc;
@@ -463,9 +461,8 @@ int cifs_xquota_get(struct super_block *sb, int quota_type, qid_t qid,
 	xid = GetXid();
 	if (pTcon) {
 		cFYI(1, ("set type: 0x%x id: %d", quota_type, qid));
-	} else {
+	} else
 		rc = -EIO;
-	}
 
 	FreeXid(xid);
 	return rc;
@@ -486,9 +483,8 @@ int cifs_xstate_set(struct super_block *sb, unsigned int flags, int operation)
 	xid = GetXid();
 	if (pTcon) {
 		cFYI(1, ("flags: 0x%x operation: 0x%x", flags, operation));
-	} else {
+	} else
 		rc = -EIO;
-	}
 
 	FreeXid(xid);
 	return rc;
@@ -501,17 +497,16 @@ int cifs_xstate_get(struct super_block *sb, struct fs_quota_stat *qstats)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *pTcon;
 
-	if (cifs_sb) {
+	if (cifs_sb)
 		pTcon = cifs_sb->tcon;
-	} else {
+	else
 		return -EIO;
-	}
+
 	xid = GetXid();
 	if (pTcon) {
 		cFYI(1, ("pqstats %p", qstats));
-	} else {
+	} else
 		rc = -EIO;
-	}
 
 	FreeXid(xid);
 	return rc;

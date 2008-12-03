@@ -2582,7 +2582,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		__u16 action = le16_to_cpu(pSMBr->resp.Action);
 		__u16 blob_len = le16_to_cpu(pSMBr->resp.SecurityBlobLength);
 		if (action & GUEST_LOGIN)
-			cFYI(1, (" Guest login")); /* BB mark SesInfo struct? */
+			cFYI(1, ("Guest login")); /* BB mark SesInfo struct? */
 		ses->Suid = smb_buffer_response->Uid; /* UID left in wire format
 							 (little endian) */
 		cFYI(1, ("UID = %d ", ses->Suid));
@@ -2728,13 +2728,11 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					      len));
 			}
 		} else {
-			cERROR(1,
-			       (" Security Blob Length extends beyond "
+			cERROR(1, ("Security Blob Length extends beyond "
 				"end of SMB"));
 		}
 	} else {
-		cERROR(1,
-		       (" Invalid Word count %d: ",
+		cERROR(1, ("Invalid Word count %d: ",
 			smb_buffer_response->WordCount));
 		rc = -EIO;
 	}
@@ -2892,7 +2890,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 		__u16 blob_len = le16_to_cpu(pSMBr->resp.SecurityBlobLength);
 
 		if (action & GUEST_LOGIN)
-			cFYI(1, (" Guest login"));
+			cFYI(1, ("Guest login"));
 	/* Do we want to set anything in SesInfo struct when guest login? */
 
 		bcc_ptr = pByteArea(smb_buffer_response);
@@ -2900,8 +2898,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 
 		SecurityBlob2 = (PCHALLENGE_MESSAGE) bcc_ptr;
 		if (SecurityBlob2->MessageType != NtLmChallenge) {
-			cFYI(1,
-			     ("Unexpected NTLMSSP message type received %d",
+			cFYI(1, ("Unexpected NTLMSSP message type received %d",
 			      SecurityBlob2->MessageType));
 		} else if (ses) {
 			ses->Suid = smb_buffer_response->Uid; /* UID left in le format */
@@ -3073,8 +3070,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 			cERROR(1, ("No session structure passed in."));
 		}
 	} else {
-		cERROR(1,
-		       (" Invalid Word count %d:",
+		cERROR(1, ("Invalid Word count %d:",
 			smb_buffer_response->WordCount));
 		rc = -EIO;
 	}
@@ -3313,7 +3309,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		__u16 action = le16_to_cpu(pSMBr->resp.Action);
 		__u16 blob_len = le16_to_cpu(pSMBr->resp.SecurityBlobLength);
 		if (action & GUEST_LOGIN)
-			cFYI(1, (" Guest login")); /* BB Should we set anything
+			cFYI(1, ("Guest login")); /* BB Should we set anything
 							 in SesInfo struct ? */
 /*		if (SecurityBlob2->MessageType != NtLm??) {
 			cFYI("Unexpected message type on auth response is %d"));

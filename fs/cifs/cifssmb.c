@@ -1382,13 +1382,13 @@ openRetry:
 		if (cpu_to_le32(FILE_CREATE) == pSMBr->CreateAction)
 			*pOplock |= CIFS_CREATE_ACTION;
 		if (pfile_info) {
-		    memcpy((char *)pfile_info, (char *)&pSMBr->CreationTime,
-			36 /* CreationTime to Attributes */);
-		    /* the file_info buf is endian converted by caller */
-		    pfile_info->AllocationSize = pSMBr->AllocationSize;
-		    pfile_info->EndOfFile = pSMBr->EndOfFile;
-		    pfile_info->NumberOfLinks = cpu_to_le32(1);
-		    pfile_info->DeletePending = 0;
+			memcpy((char *)pfile_info, (char *)&pSMBr->CreationTime,
+				36 /* CreationTime to Attributes */);
+			/* the file_info buf is endian converted by caller */
+			pfile_info->AllocationSize = pSMBr->AllocationSize;
+			pfile_info->EndOfFile = pSMBr->EndOfFile;
+			pfile_info->NumberOfLinks = cpu_to_le32(1);
+			pfile_info->DeletePending = 0;
 		}
 	}
 
@@ -1558,7 +1558,7 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	pSMB->DataOffset =
 		cpu_to_le16(offsetof(struct smb_com_write_req, Data) - 4);
 	if (buf)
-	    memcpy(pSMB->Data, buf, bytes_sent);
+		memcpy(pSMB->Data, buf, bytes_sent);
 	else if (ubuf) {
 		if (copy_from_user(pSMB->Data, ubuf, bytes_sent)) {
 			cifs_buf_release(pSMB);
