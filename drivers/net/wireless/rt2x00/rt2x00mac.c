@@ -487,6 +487,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      struct ieee80211_key_conf *key)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct ieee80211_sta *sta;
 	int (*set_key) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_crypto *crypto,
 			struct ieee80211_key_conf *key);
@@ -535,6 +536,17 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			       sizeof(crypto.rx_mic));
 	} else
 		memcpy(&crypto.key, &key->key[0], key->keylen);
+
+	/*
+	 * Discover the Association ID from mac80211.
+	 * Some drivers need this information when updating the
+	 * hardware key (either adding or removing).
+	 */
+	rcu_read_lock();
+	sta = ieee80211_find_sta(hw, address);
+	if (sta)
+		crypto.aid = sta->aid;
+	rcu_read_unlock();
 
 	/*
 	 * Each BSS has a maximum of 4 shared keys.
