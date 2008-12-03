@@ -3106,15 +3106,16 @@ int intel_iommu_found(void)
 }
 EXPORT_SYMBOL_GPL(intel_iommu_found);
 
-u64 intel_iommu_iova_to_phys(struct dmar_domain *domain, u64 iova)
+static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
+					    unsigned long iova)
 {
+	struct dmar_domain *dmar_domain = domain->priv;
 	struct dma_pte *pte;
 	u64 phys = 0;
 
-	pte = addr_to_dma_pte(domain, iova);
+	pte = addr_to_dma_pte(dmar_domain, iova);
 	if (pte)
 		phys = dma_pte_addr(pte);
 
 	return phys;
 }
-EXPORT_SYMBOL_GPL(intel_iommu_iova_to_phys);
