@@ -89,17 +89,16 @@ ifdef CONFIG_KALLSYMS
 export kallsyms.o := .tmp_kallsyms2.o
 endif
 
-boot-y                 := arch/sparc/boot
-boot-$(CONFIG_SPARC64) := arch/sparc64/boot
+boot := arch/sparc/boot
 
 image zImage tftpboot.img vmlinux.aout: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot-y) $(boot-y)/$@
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 archclean:
-	$(Q)$(MAKE) $(clean)=$(boot-y)
+	$(Q)$(MAKE) $(clean)=$(boot)
 
 # This is the image used for packaging
-KBUILD_IMAGE := $(boot-y)/zImage
+KBUILD_IMAGE := $(boot)/zImage
 
 # Don't use tabs in echo arguments.
 ifeq ($(ARCH),sparc)
