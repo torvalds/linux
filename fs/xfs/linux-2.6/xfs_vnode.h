@@ -63,7 +63,6 @@ extern void	vn_init(void);
  */
 extern void	vn_iowait(struct xfs_inode *ip);
 extern void	vn_iowake(struct xfs_inode *ip);
-extern void	vn_ioerror(struct xfs_inode *ip, int error, char *f, int l);
 
 #define IHOLD(ip) \
 do { \

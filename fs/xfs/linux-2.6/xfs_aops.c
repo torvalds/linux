@@ -146,16 +146,25 @@ xfs_destroy_ioend(
 	xfs_ioend_t		*ioend)
 {
 	struct buffer_head	*bh, *next;
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 
 	for (bh = ioend->io_buffer_head; bh; bh = next) {
 		next = bh->b_private;
 		bh->b_end_io(bh, !ioend->io_error);
 	}
-	if (unlikely(ioend->io_error)) {
-		vn_ioerror(XFS_I(ioend->io_inode), ioend->io_error,
-				__FILE__,__LINE__);
+
+	/*
+	 * Volume managers supporting multiple paths can send back ENODEV
+	 * when the final path disappears.  In this case continuing to fill
+	 * the page cache with dirty data which cannot be written out is
+	 * evil, so prevent that.
+	 */
+	if (unlikely(ioend->io_error == -ENODEV)) {
+		xfs_do_force_shutdown(ip->i_mount, SHUTDOWN_DEVICE_REQ,
+				      __FILE__, __LINE__);
 	}
-	vn_iowake(XFS_I(ioend->io_inode));
+
+	vn_iowake(ip);
 	mempool_free(ioend, xfs_ioend_pool);
 }
 

@@ -66,22 +66,6 @@ vn_iowake(
 		wake_up(vptosync(ip));
 }
 
-/*
- * Volume managers supporting multiple paths can send back ENODEV when the
- * final path disappears.  In this case continuing to fill the page cache
- * with dirty data which cannot be written out is evil, so prevent that.
- */
-void
-vn_ioerror(
-	xfs_inode_t	*ip,
-	int		error,
-	char		*f,
-	int		l)
-{
-	if (unlikely(error == -ENODEV))
-		xfs_do_force_shutdown(ip->i_mount, SHUTDOWN_DEVICE_REQ, f, l);
-}
-
 #ifdef	XFS_INODE_TRACE
 
 #define KTRACE_ENTER(ip, vk, s, line, ra)			\
