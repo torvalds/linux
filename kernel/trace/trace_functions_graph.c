@@ -173,7 +173,7 @@ verif_pid(struct trace_seq *s, pid_t pid, int cpu)
 
  */
 	ret = trace_seq_printf(s,
-		"\n ------------------------------------------\n |");
+		" ------------------------------------------\n");
 	if (!ret)
 		TRACE_TYPE_PARTIAL_LINE;
 
@@ -477,6 +477,71 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 	return TRACE_TYPE_HANDLED;
 }
 
+static enum print_line_t
+print_graph_comment(struct print_entry *trace, struct trace_seq *s,
+		   struct trace_entry *ent, struct trace_iterator *iter)
+{
+	int i;
+	int ret;
+
+	/* Pid */
+	if (verif_pid(s, ent->pid, iter->cpu) == TRACE_TYPE_PARTIAL_LINE)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	/* Cpu */
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_CPU) {
+		ret = print_graph_cpu(s, iter->cpu);
+		if (ret == TRACE_TYPE_PARTIAL_LINE)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	/* Proc */
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_PROC) {
+		ret = print_graph_proc(s, ent->pid);
+		if (ret == TRACE_TYPE_PARTIAL_LINE)
+			return TRACE_TYPE_PARTIAL_LINE;
+
+		ret = trace_seq_printf(s, " | ");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	/* No overhead */
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERHEAD) {
+		ret = trace_seq_printf(s, "  ");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	/* No time */
+	ret = trace_seq_printf(s, "            |  ");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	/* Indentation */
+	if (trace->depth > 0)
+		for (i = 0; i < (trace->depth + 1) * TRACE_GRAPH_INDENT; i++) {
+			ret = trace_seq_printf(s, " ");
+			if (!ret)
+				return TRACE_TYPE_PARTIAL_LINE;
+		}
+
+	/* The comment */
+	ret = trace_seq_printf(s, "/* %s", trace->buf);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	if (ent->flags & TRACE_FLAG_CONT)
+		trace_seq_print_cont(s, iter);
+
+	ret = trace_seq_printf(s, " */\n");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
+
 enum print_line_t
 print_graph_function(struct trace_iterator *iter)
 {
@@ -494,6 +559,11 @@ print_graph_function(struct trace_iterator *iter)
 		struct ftrace_graph_ret_entry *field;
 		trace_assign_type(field, entry);
 		return print_graph_return(&field->ret, s, entry, iter->cpu);
+	}
+	case TRACE_PRINT: {
+		struct print_entry *field;
+		trace_assign_type(field, entry);
+		return print_graph_comment(field, s, entry, iter);
 	}
 	default:
 		return TRACE_TYPE_UNHANDLED;

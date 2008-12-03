@@ -3335,7 +3335,7 @@ static int mark_printk(const char *fmt, ...)
 	int ret;
 	va_list args;
 	va_start(args, fmt);
-	ret = trace_vprintk(0, fmt, args);
+	ret = trace_vprintk(0, -1, fmt, args);
 	va_end(args);
 	return ret;
 }
@@ -3564,9 +3564,16 @@ static __init int tracer_init_debugfs(void)
 	return 0;
 }
 
-int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
+int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 {
-	static DEFINE_SPINLOCK(trace_buf_lock);
+	/*
+	 * Raw Spinlock because a normal spinlock would be traced here
+	 * and append an irrelevant couple spin_lock_irqsave/
+	 * spin_unlock_irqrestore traced by ftrace around this
+	 * TRACE_PRINTK trace.
+	 */
+	static raw_spinlock_t trace_buf_lock =
+				(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 	static char trace_buf[TRACE_BUF_SIZE];
 
 	struct ring_buffer_event *event;
@@ -3587,7 +3594,8 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	if (unlikely(atomic_read(&data->disabled)))
 		goto out;
 
-	spin_lock_irqsave(&trace_buf_lock, flags);
+	local_irq_save(flags);
+	__raw_spin_lock(&trace_buf_lock);
 	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	len = min(len, TRACE_BUF_SIZE-1);
@@ -3601,13 +3609,15 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	tracing_generic_entry_update(&entry->ent, flags, pc);
 	entry->ent.type			= TRACE_PRINT;
 	entry->ip			= ip;
+	entry->depth			= depth;
 
 	memcpy(&entry->buf, trace_buf, len);
 	entry->buf[len] = 0;
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 
  out_unlock:
-	spin_unlock_irqrestore(&trace_buf_lock, flags);
+	__raw_spin_unlock(&trace_buf_lock);
+	local_irq_restore(flags);
 
  out:
 	preempt_enable_notrace();
@@ -3625,7 +3635,13 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 		return 0;
 
 	va_start(ap, fmt);
-	ret = trace_vprintk(ip, fmt, ap);
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	ret = trace_vprintk(ip, current->curr_ret_stack, fmt, ap);
+#else
+	ret = trace_vprintk(ip, -1, fmt, ap);
+#endif
+
 	va_end(ap);
 	return ret;
 }
