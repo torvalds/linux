@@ -408,7 +408,7 @@ void blk_sync_queue(struct request_queue *q)
 {
 	del_timer_sync(&q->unplug_timer);
 	del_timer_sync(&q->timeout);
-	kblockd_flush_work(&q->unplug_work);
+	cancel_work_sync(&q->unplug_work);
 }
 EXPORT_SYMBOL(blk_sync_queue);
 
@@ -2146,12 +2146,6 @@ int kblockd_schedule_work(struct request_queue *q, struct work_struct *work)
 	return queue_work(kblockd_workqueue, work);
 }
 EXPORT_SYMBOL(kblockd_schedule_work);
-
-void kblockd_flush_work(struct work_struct *work)
-{
-	cancel_work_sync(work);
-}
-EXPORT_SYMBOL(kblockd_flush_work);
 
 int __init blk_dev_init(void)
 {
