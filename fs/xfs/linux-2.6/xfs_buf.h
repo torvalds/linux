@@ -214,9 +214,10 @@ extern void xfs_buf_lock(xfs_buf_t *);
 extern void xfs_buf_unlock(xfs_buf_t *);
 
 /* Buffer Read and Write Routines */
+extern int xfs_bawrite(void *mp, xfs_buf_t *bp);
+extern void xfs_bdwrite(void *mp, xfs_buf_t *bp);
 extern void xfs_buf_ioend(xfs_buf_t *,	int);
 extern void xfs_buf_ioerror(xfs_buf_t *, int);
-extern int xfs_buf_iostart(xfs_buf_t *, xfs_buf_flags_t);
 extern int xfs_buf_iorequest(xfs_buf_t *);
 extern int xfs_buf_iowait(xfs_buf_t *);
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, xfs_caddr_t,
@@ -366,14 +367,6 @@ extern void xfs_buf_trace(xfs_buf_t *, char *, void *, void *);
 #define XFS_BUF_TARGET(bp)		((bp)->b_target)
 #define XFS_BUFTARG_NAME(target)	xfs_buf_target_name(target)
 
-static inline int xfs_bawrite(void *mp, xfs_buf_t *bp)
-{
-	bp->b_fspriv3 = mp;
-	bp->b_strat = xfs_bdstrat_cb;
-	xfs_buf_delwri_dequeue(bp);
-	return xfs_buf_iostart(bp, XBF_WRITE | XBF_ASYNC | _XBF_RUN_QUEUES);
-}
-
 static inline void xfs_buf_relse(xfs_buf_t *bp)
 {
 	if (!bp->b_relse)
@@ -412,17 +405,6 @@ static inline int XFS_bwrite(xfs_buf_t *bp)
 		xfs_buf_relse(bp);
 	}
 	return error;
-}
-
-/*
- * No error can be returned from xfs_buf_iostart for delwri
- * buffers as they are queued and no I/O is issued.
- */
-static inline void xfs_bdwrite(void *mp, xfs_buf_t *bp)
-{
-	bp->b_strat = xfs_bdstrat_cb;
-	bp->b_fspriv3 = mp;
-	(void)xfs_buf_iostart(bp, XBF_DELWRI | XBF_ASYNC);
 }
 
 #define XFS_bdstrat(bp) xfs_buf_iorequest(bp)
