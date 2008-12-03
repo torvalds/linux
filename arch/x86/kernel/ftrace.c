@@ -420,6 +420,15 @@ static void pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 	int index;
 
 	index = current->curr_ret_stack;
+
+	if (unlikely(index < 0)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		/* Might as well panic, otherwise we have no where to go */
+		*ret = (unsigned long)panic;
+		return;
+	}
+
 	*ret = current->ret_stack[index].ret;
 	trace->func = current->ret_stack[index].func;
 	trace->calltime = current->ret_stack[index].calltime;
@@ -427,6 +436,7 @@ static void pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 	trace->depth = index;
 	barrier();
 	current->curr_ret_stack--;
+
 }
 
 /*
@@ -441,6 +451,13 @@ unsigned long ftrace_return_to_handler(void)
 	pop_return_trace(&trace, &ret);
 	trace.rettime = cpu_clock(raw_smp_processor_id());
 	ftrace_graph_return(&trace);
+
+	if (unlikely(!ret)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		/* Might as well panic. What else to do? */
+		ret = (unsigned long)panic;
+	}
 
 	return ret;
 }
