@@ -1289,8 +1289,8 @@ static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 }
 
 static struct ps3_system_bus_driver ps3fb_driver = {
-	.match_id	= PS3_MATCH_ID_GRAPHICS,
-	.match_sub_id	= PS3_MATCH_SUB_ID_FB,
+	.match_id	= PS3_MATCH_ID_GPU,
+	.match_sub_id	= PS3_MATCH_SUB_ID_GPU_FB,
 	.core.name	= DEVICE_NAME,
 	.core.owner	= THIS_MODULE,
 	.probe		= ps3fb_probe,
@@ -1348,4 +1348,4 @@ module_exit(ps3fb_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PS3 GPU Frame Buffer Driver");
 MODULE_AUTHOR("Sony Computer Entertainment Inc.");
-MODULE_ALIAS(PS3_MODULE_ALIAS_GRAPHICS);
+MODULE_ALIAS(PS3_MODULE_ALIAS_GPU_FB);
