@@ -1381,6 +1381,8 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 		add_timer(&evt->timer);
 	}
 
+	mb();
+
 	if ((rc = ibmvfc_send_crq(vhost, crq_as_u64[0], crq_as_u64[1]))) {
 		list_del(&evt->queue);
 		del_timer(&evt->timer);
