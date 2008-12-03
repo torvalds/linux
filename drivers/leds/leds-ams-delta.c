@@ -151,7 +151,7 @@ static int __init ams_delta_led_init(void)
 
 static void __exit ams_delta_led_exit(void)
 {
-	return platform_driver_unregister(&ams_delta_led_driver);
+	platform_driver_unregister(&ams_delta_led_driver);
 }
 
 module_init(ams_delta_led_init);
