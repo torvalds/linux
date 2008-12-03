@@ -1220,6 +1220,16 @@ xfs_unmountfs(
 	__uint64_t		resblks;
 	int			error;
 
+	/*
+	 * Release dquot that rootinode, rbmino and rsumino might be holding,
+	 * and release the quota inodes.
+	 */
+	XFS_QM_UNMOUNT(mp);
+
+	if (mp->m_rbmip)
+		IRELE(mp->m_rbmip);
+	if (mp->m_rsumip)
+		IRELE(mp->m_rsumip);
 	IRELE(mp->m_rootip);
 
 	/*

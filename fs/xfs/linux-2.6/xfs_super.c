@@ -1043,7 +1043,6 @@ xfs_fs_put_super(
 	struct xfs_mount	*mp = XFS_M(sb);
 	struct xfs_inode	*rip = mp->m_rootip;
 	int			unmount_event_flags = 0;
-	int			error;
 
 	xfs_syncd_stop(mp);
 	xfs_sync_inodes(mp, SYNC_ATTR|SYNC_DELWRI);
@@ -1071,8 +1070,6 @@ xfs_fs_put_super(
 	xfs_filestream_unmount(mp);
 
 	XFS_bflush(mp->m_ddev_targp);
-	error = xfs_unmount_flush(mp, 0);
-	WARN_ON(error);
 
 	if (mp->m_flags & XFS_MOUNT_DMAPI) {
 		XFS_SEND_UNMOUNT(mp, rip, DM_RIGHT_NULL, 0, 0,
@@ -1535,8 +1532,6 @@ xfs_fs_fill_super(
 	xfs_filestream_unmount(mp);
 
 	XFS_bflush(mp->m_ddev_targp);
-	error = xfs_unmount_flush(mp, 0);
-	WARN_ON(error);
 
 	xfs_unmountfs(mp);
 	goto out_free_sb;
