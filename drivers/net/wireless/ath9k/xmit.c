@@ -1652,7 +1652,9 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 	int hdrlen;
 	__le16 fc;
 
-	tx_info_priv = kzalloc(sizeof(*tx_info_priv), GFP_KERNEL);
+	tx_info_priv = kzalloc(sizeof(*tx_info_priv), GFP_ATOMIC);
+	if (unlikely(!tx_info_priv))
+		return -ENOMEM;
 	tx_info->rate_driver_data[0] = tx_info_priv;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 	fc = hdr->frame_control;
@@ -1801,10 +1803,26 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 
 	r = ath_tx_setup_buffer(sc, bf, skb, txctl);
 	if (unlikely(r)) {
-		spin_lock_bh(&sc->sc_txbuflock);
+		struct ath_txq *txq = txctl->txq;
+
 		DPRINTF(sc, ATH_DBG_FATAL, "TX mem alloc failure\n");
+
+		/* upon ath_tx_processq() this TX queue will be resumed, we
+		 * guarantee this will happen by knowing beforehand that
+		 * we will at least have to run TX completionon one buffer
+		 * on the queue */
+		spin_lock_bh(&txq->axq_lock);
+		if (ath_txq_depth(sc, txq->axq_qnum) > 1) {
+			ieee80211_stop_queue(sc->hw,
+				skb_get_queue_mapping(skb));
+			txq->stopped = 1;
+		}
+		spin_unlock_bh(&txq->axq_lock);
+
+		spin_lock_bh(&sc->sc_txbuflock);
 		list_add_tail(&bf->list, &sc->sc_txbuf);
 		spin_unlock_bh(&sc->sc_txbuflock);
+
 		return r;
 	}
 
