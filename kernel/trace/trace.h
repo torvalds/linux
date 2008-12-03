@@ -505,13 +505,41 @@ extern unsigned long trace_flags;
 /* Standard output formatting function used for function return traces */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 extern enum print_line_t print_graph_function(struct trace_iterator *iter);
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+/* TODO: make this variable */
+#define FTRACE_GRAPH_MAX_FUNCS		32
+extern int ftrace_graph_count;
+extern unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS];
+
+static inline int ftrace_graph_addr(unsigned long addr)
+{
+	int i;
+
+	if (!ftrace_graph_count || test_tsk_trace_graph(current))
+		return 1;
+
+	for (i = 0; i < ftrace_graph_count; i++) {
+		if (addr == ftrace_graph_funcs[i])
+			return 1;
+	}
+
+	return 0;
+}
 #else
+static inline int ftrace_trace_addr(unsigned long addr)
+{
+	return 1
+}
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+#else /* CONFIG_FUNCTION_GRAPH_TRACER */
 static inline enum print_line_t
 print_graph_function(struct trace_iterator *iter)
 {
 	return TRACE_TYPE_UNHANDLED;
 }
-#endif
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 /*
  * trace_iterator_flags is an enumeration that defines bit

@@ -1380,6 +1380,10 @@ struct task_struct {
 	 */
 	atomic_t trace_overrun;
 #endif
+#ifdef CONFIG_TRACING
+	/* state flags for use by tracers */
+	unsigned long trace;
+#endif
 };
 
 /*

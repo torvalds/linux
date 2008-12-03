@@ -1209,6 +1209,9 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	int cpu;
 	int pc;
 
+	if (!ftrace_graph_addr(trace->func))
+		return 0;
+
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
@@ -1217,6 +1220,9 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 		pc = preempt_count();
 		__trace_graph_entry(tr, data, trace, flags, pc);
 	}
+	/* Only do the atomic if it is not already set */
+	if (!test_tsk_trace_graph(current))
+		set_tsk_trace_graph(current);
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 
@@ -1240,6 +1246,8 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 		pc = preempt_count();
 		__trace_graph_return(tr, data, trace, flags, pc);
 	}
+	if (!trace->depth)
+		clear_tsk_trace_graph(current);
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 }

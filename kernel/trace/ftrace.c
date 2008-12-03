@@ -1320,6 +1320,224 @@ static struct file_operations ftrace_notrace_fops = {
 	.release = ftrace_notrace_release,
 };
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+
+static DEFINE_MUTEX(graph_lock);
+
+int ftrace_graph_count;
+unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS] __read_mostly;
+
+static void *
+g_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	unsigned long *array = m->private;
+	int index = *pos;
+
+	(*pos)++;
+
+	if (index >= ftrace_graph_count)
+		return NULL;
+
+	return &array[index];
+}
+
+static void *g_start(struct seq_file *m, loff_t *pos)
+{
+	void *p = NULL;
+
+	mutex_lock(&graph_lock);
+
+	p = g_next(m, p, pos);
+
+	return p;
+}
+
+static void g_stop(struct seq_file *m, void *p)
+{
+	mutex_unlock(&graph_lock);
+}
+
+static int g_show(struct seq_file *m, void *v)
+{
+	unsigned long *ptr = v;
+	char str[KSYM_SYMBOL_LEN];
+
+	if (!ptr)
+		return 0;
+
+	kallsyms_lookup(*ptr, NULL, NULL, NULL, str);
+
+	seq_printf(m, "%s\n", str);
+
+	return 0;
+}
+
+static struct seq_operations ftrace_graph_seq_ops = {
+	.start = g_start,
+	.next = g_next,
+	.stop = g_stop,
+	.show = g_show,
+};
+
+static int
+ftrace_graph_open(struct inode *inode, struct file *file)
+{
+	int ret = 0;
+
+	if (unlikely(ftrace_disabled))
+		return -ENODEV;
+
+	mutex_lock(&graph_lock);
+	if ((file->f_mode & FMODE_WRITE) &&
+	    !(file->f_flags & O_APPEND)) {
+		ftrace_graph_count = 0;
+		memset(ftrace_graph_funcs, 0, sizeof(ftrace_graph_funcs));
+	}
+
+	if (file->f_mode & FMODE_READ) {
+		ret = seq_open(file, &ftrace_graph_seq_ops);
+		if (!ret) {
+			struct seq_file *m = file->private_data;
+			m->private = ftrace_graph_funcs;
+		}
+	} else
+		file->private_data = ftrace_graph_funcs;
+	mutex_unlock(&graph_lock);
+
+	return ret;
+}
+
+static ssize_t
+ftrace_graph_read(struct file *file, char __user *ubuf,
+		       size_t cnt, loff_t *ppos)
+{
+	if (file->f_mode & FMODE_READ)
+		return seq_read(file, ubuf, cnt, ppos);
+	else
+		return -EPERM;
+}
+
+static int
+ftrace_set_func(unsigned long *array, int idx, char *buffer)
+{
+	char str[KSYM_SYMBOL_LEN];
+	struct dyn_ftrace *rec;
+	struct ftrace_page *pg;
+	int found = 0;
+	int i;
+
+	if (ftrace_disabled)
+		return -ENODEV;
+
+	/* should not be called from interrupt context */
+	spin_lock(&ftrace_lock);
+
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		for (i = 0; i < pg->index; i++) {
+			rec = &pg->records[i];
+
+			if (rec->flags & (FTRACE_FL_FAILED | FTRACE_FL_FREE))
+				continue;
+
+			kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+			if (strcmp(str, buffer) == 0) {
+				found = 1;
+				array[idx] = rec->ip;
+				break;
+			}
+		}
+	}
+	spin_unlock(&ftrace_lock);
+
+	return found ? 0 : -EINVAL;
+}
+
+static ssize_t
+ftrace_graph_write(struct file *file, const char __user *ubuf,
+		   size_t cnt, loff_t *ppos)
+{
+	unsigned char buffer[FTRACE_BUFF_MAX+1];
+	unsigned long *array;
+	size_t read = 0;
+	ssize_t ret;
+	int index = 0;
+	char ch;
+
+	if (!cnt || cnt < 0)
+		return 0;
+
+	mutex_lock(&graph_lock);
+
+	if (ftrace_graph_count >= FTRACE_GRAPH_MAX_FUNCS) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (file->f_mode & FMODE_READ) {
+		struct seq_file *m = file->private_data;
+		array = m->private;
+	} else
+		array = file->private_data;
+
+	ret = get_user(ch, ubuf++);
+	if (ret)
+		goto out;
+	read++;
+	cnt--;
+
+	/* skip white space */
+	while (cnt && isspace(ch)) {
+		ret = get_user(ch, ubuf++);
+		if (ret)
+			goto out;
+		read++;
+		cnt--;
+	}
+
+	if (isspace(ch)) {
+		*ppos += read;
+		ret = read;
+		goto out;
+	}
+
+	while (cnt && !isspace(ch)) {
+		if (index < FTRACE_BUFF_MAX)
+			buffer[index++] = ch;
+		else {
+			ret = -EINVAL;
+			goto out;
+		}
+		ret = get_user(ch, ubuf++);
+		if (ret)
+			goto out;
+		read++;
+		cnt--;
+	}
+	buffer[index] = 0;
+
+	/* we allow only one at a time */
+	ret = ftrace_set_func(array, ftrace_graph_count, buffer);
+	if (ret)
+		goto out;
+
+	ftrace_graph_count++;
+
+	file->f_pos += read;
+
+	ret = read;
+ out:
+	mutex_unlock(&graph_lock);
+
+	return ret;
+}
+
+static const struct file_operations ftrace_graph_fops = {
+	.open = ftrace_graph_open,
+	.read = ftrace_graph_read,
+	.write = ftrace_graph_write,
+};
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
 static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 {
 	struct dentry *entry;
@@ -1346,6 +1564,15 @@ static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'set_ftrace_notrace' entry\n");
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	entry = debugfs_create_file("set_graph_function", 0444, d_tracer,
+				    NULL,
+				    &ftrace_graph_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'set_graph_function' entry\n");
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 	return 0;
 }
