@@ -80,8 +80,6 @@ static inline void writeq(__u64 val, volatile void __iomem *addr)
 #define readq			readq
 #define writeq			writeq
 
-extern int iommu_bio_merge;
-
 #ifdef CONFIG_X86_32
 # include "io_32.h"
 #else
