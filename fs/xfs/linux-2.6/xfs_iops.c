@@ -367,21 +367,18 @@ xfs_vn_link(
 	struct inode	*dir,
 	struct dentry	*dentry)
 {
-	struct inode	*inode;	/* inode of guy being linked to */
+	struct inode	*inode = old_dentry->d_inode;
 	struct xfs_name	name;
 	int		error;
 
-	inode = old_dentry->d_inode;
 	xfs_dentry_to_name(&name, dentry);
 
-	igrab(inode);
 	error = xfs_link(XFS_I(dir), XFS_I(inode), &name);
-	if (unlikely(error)) {
-		iput(inode);
+	if (unlikely(error))
 		return -error;
-	}
 
 	xfs_iflags_set(XFS_I(dir), XFS_IMODIFIED);
+	atomic_inc(&inode->i_count);
 	d_instantiate(dentry, inode);
 	return 0;
 }
