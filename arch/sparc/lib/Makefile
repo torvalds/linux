@@ -18,5 +18,27 @@ lib-$(CONFIG_SPARC32) += lshrdi3.o ashldi3.o
 lib-y                 += rwsem_$(BITS).o
 lib-$(CONFIG_SPARC32) += muldi3.o bitext.o cmpdi2.o
 
+lib-$(CONFIG_SPARC64) += PeeCeeI.o copy_page.o clear_page.o bzero.o
+lib-$(CONFIG_SPARC64) += csum_copy.o csum_copy_from_user.o csum_copy_to_user.o
+lib-$(CONFIG_SPARC64) += VISsave.o
+lib-$(CONFIG_SPARC64) += bitops.o
+
+lib-$(CONFIG_SPARC64) += U1memcpy.o U1copy_from_user.o U1copy_to_user.o
+
+lib-$(CONFIG_SPARC64) += U3memcpy.o U3copy_from_user.o U3copy_to_user.o
+lib-$(CONFIG_SPARC64) += U3patch.o
+
+lib-$(CONFIG_SPARC64) += NGmemcpy.o NGcopy_from_user.o NGcopy_to_user.o
+lib-$(CONFIG_SPARC64) += NGpatch.o NGpage.o NGbzero.o
+
+lib-$(CONFIG_SPARC64) += NG2memcpy.o NG2copy_from_user.o NG2copy_to_user.o
+lib-$(CONFIG_SPARC64) +=  NG2patch.o NG2page.o
+
+lib-$(CONFIG_SPARC64) += GENmemcpy.o GENcopy_from_user.o GENcopy_to_user.o
+lib-$(CONFIG_SPARC64) += GENpatch.o GENpage.o GENbzero.o
+
+lib-$(CONFIG_SPARC64) += copy_in_user.o user_fixup.o memmove.o
+lib-$(CONFIG_SPARC64) += mcount.o ipcsum.o xor.o
+
 obj-y                 += iomap.o
 obj-$(CONFIG_SPARC32) += atomic32.o
