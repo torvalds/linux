@@ -396,6 +396,19 @@ struct snd_soc_dai s3c2443_ac97_dai[] = {
 EXPORT_SYMBOL_GPL(s3c2443_ac97_dai);
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
+static int __devinit s3c2443_ac97_init(void)
+{
+	return snd_soc_register_dai(&s3c2443_ac97_dai);
+}
+module_init(s3c2443_ac97_init);
+
+static void __exit s3c2443_ac97_exit(void)
+{
+	snd_soc_unregister_dai(&s3c2443_ac97_dai);
+}
+module_exit(s3c2443_ac97_exit);
+
+
 MODULE_AUTHOR("Graeme Gregory");
 MODULE_DESCRIPTION("AC97 driver for the Samsung s3c2443 chip");
 MODULE_LICENSE("GPL");

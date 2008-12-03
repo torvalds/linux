@@ -736,6 +736,19 @@ struct snd_soc_dai s3c2412_i2s_dai = {
 };
 EXPORT_SYMBOL_GPL(s3c2412_i2s_dai);
 
+static int __devinit s3c2412_i2s_init(void)
+{
+	return snd_soc_register_dai(&s3c2412_i2s_dai);
+}
+module_init(s3c2412_i2s_init);
+
+static void __exit s3c2412_i2s_exit(void)
+{
+	snd_soc_unregister_dai(&s3c2412_i2s_dai);
+}
+module_exit(s3c2412_i2s_exit);
+
+
 /* Module information */
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("S3C2412 I2S SoC Interface");

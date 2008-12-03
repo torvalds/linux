@@ -913,6 +913,18 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 };
 EXPORT_SYMBOL_GPL(pxa_ssp_dai);
 
+static int __devinit pxa_ssp_init(void)
+{
+	return snd_soc_register_dais(pxa_ssp_dai, ARRAY_SIZE(pxa_ssp_dai));
+}
+module_init(pxa_ssp_init);
+
+static void __exit pxa_ssp_exit(void)
+{
+	snd_soc_unregister_dais(pxa_ssp_dai, ARRAY_SIZE(pxa_ssp_dai));
+}
+module_exit(pxa_ssp_exit);
+
 /* Module information */
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("PXA SSP/PCM SoC Interface");

@@ -364,12 +364,23 @@ EXPORT_SYMBOL_GPL(pxa_i2s_dai);
 
 static int pxa2xx_i2s_probe(struct platform_device *dev)
 {
+	int ret;
+
 	clk_i2s = clk_get(&dev->dev, "I2SCLK");
-	return IS_ERR(clk_i2s) ? PTR_ERR(clk_i2s) : 0;
+	if (IS_ERR(clk_i2s))
+		return PTR_ERR(clk_i2s);
+
+	pxa_i2s_dai.dev = &dev->dev;
+	ret = snd_soc_register_dai(&pxa_i2s_dai);
+	if (ret != 0)
+		clk_put(clk_i2s);
+
+	return ret;
 }
 
 static int __devexit pxa2xx_i2s_remove(struct platform_device *dev)
 {
+	snd_soc_unregister_dai(&pxa_i2s_dai);
 	clk_put(clk_i2s);
 	clk_i2s = ERR_PTR(-ENOENT);
 	return 0;

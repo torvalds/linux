@@ -772,6 +772,17 @@ struct snd_soc_dai atmel_ssc_dai[NUM_SSC_DEVICES] = {
 };
 EXPORT_SYMBOL_GPL(atmel_ssc_dai);
 
+static int __devinit atmel_ssc_modinit(void)
+{
+	return snd_soc_register_dais(atmel_ssc_dai, ARRAY_SIZE(atmel_ssc_dai));
+}
+module_init(snd_soc_init);
+
+static void __exit snd_soc_exit(void)
+{
+	snd_soc_unregister_dais(atmel_ssc_dai, ARRAY_SIZE(atmel_ssc_dai));
+}
+
 /* Module information */
 MODULE_AUTHOR("Sedji Gaouaou, sedji.gaouaou@atmel.com, www.atmel.com");
 MODULE_DESCRIPTION("ATMEL SSC ASoC Interface");

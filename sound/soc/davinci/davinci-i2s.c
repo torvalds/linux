@@ -481,6 +481,18 @@ struct snd_soc_dai davinci_i2s_dai = {
 };
 EXPORT_SYMBOL_GPL(davinci_i2s_dai);
 
+static int __devinit davinci_i2s_init(void)
+{
+	return snd_soc_register_dai(&davinci_i2s_dai);
+}
+module_init(davinci_i2s_init);
+
+static void __exit davinci_i2s_exit(void)
+{
+	snd_soc_unregister_dai(&davinci_i2s_dai);
+}
+module_exit(davinci_i2s_exit);
+
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_DESCRIPTION("TI DAVINCI I2S (McBSP) SoC Interface");
 MODULE_LICENSE("GPL");

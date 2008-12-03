@@ -673,6 +673,14 @@ struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 	fsl_ssi_dai->private_data = ssi_private;
 	fsl_ssi_dai->name = ssi_private->name;
 	fsl_ssi_dai->id = ssi_info->id;
+	fsl_ssi_dai->dev = ssi_info->dev;
+
+	ret = snd_soc_register_dai(fsl_ssi_dai);
+	if (ret != 0) {
+		dev_err(ssi_info->dev, "failed to register DAI: %d\n", ret);
+		kfree(fsl_ssi_dai);
+		return NULL;
+	}
 
 	return fsl_ssi_dai;
 }
@@ -689,6 +697,8 @@ void fsl_ssi_destroy_dai(struct snd_soc_dai *fsl_ssi_dai)
 	container_of(fsl_ssi_dai, struct fsl_ssi_private, cpu_dai);
 
 	device_remove_file(ssi_private->dev, &ssi_private->dev_attr);
+
+	snd_soc_unregister_dai(&ssi_private->cpu_dai);
 
 	kfree(ssi_private);
 }

@@ -313,6 +313,18 @@ struct snd_soc_dai bf5xx_i2s_dai = {
 };
 EXPORT_SYMBOL_GPL(bf5xx_i2s_dai);
 
+static int __devinit bfin_i2s_init(void)
+{
+	return snd_soc_register_dai(&bfin_i2s_dai);
+}
+module_init(bfin_i2s_init);
+
+static void __exit bfin_i2s_exit(void)
+{
+	snd_soc_unregister_dai(&bfin_i2s_dai);
+}
+module_exit(bfin_i2s_exit);
+
 /* Module information */
 MODULE_AUTHOR("Cliff Cai");
 MODULE_DESCRIPTION("I2S driver for ADI Blackfin");

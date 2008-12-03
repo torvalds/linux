@@ -228,6 +228,18 @@ struct snd_soc_dai pxa_ac97_dai[] = {
 EXPORT_SYMBOL_GPL(pxa_ac97_dai);
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
+static int __devinit pxa_ac97_init(void)
+{
+	return snd_soc_register_dais(pxa_ac97_dai, ARRAY_SIZE(pxa_ac97_dai));
+}
+module_init(pxa_ac97_init);
+
+static void __exit pxa_ac97_exit(void)
+{
+	snd_soc_unregister_dais(pxa_ac97_dai, ARRAY_SIZE(pxa_ac97_dai));
+}
+module_exit(pxa_ac97_exit);
+
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("AC97 driver for the Intel PXA2xx chip");
 MODULE_LICENSE("GPL");

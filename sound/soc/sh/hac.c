@@ -314,6 +314,18 @@ struct snd_soc_dai sh4_hac_dai[] = {
 };
 EXPORT_SYMBOL_GPL(sh4_hac_dai);
 
+static int __devinit sh4_hac_init(void)
+{
+	return snd_soc_register_dais(sh4_hac_dai, ARRAY_SIZE(sh4_hac_dai));
+}
+module_init(sh4_hac_init);
+
+static void __exit sh4_hac_exit(void)
+{
+	snd_soc_unregister_dais(sh4_hac_dai, ARRAY_SIZE(sh4_hac_dai));
+}
+module_exit(sh4_hac_exit);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SuperH onchip HAC (AC97) audio driver");
 MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");

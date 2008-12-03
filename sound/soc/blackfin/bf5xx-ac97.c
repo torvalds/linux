@@ -431,6 +431,18 @@ struct snd_soc_dai bfin_ac97_dai = {
 };
 EXPORT_SYMBOL_GPL(bfin_ac97_dai);
 
+static int __devinit bfin_ac97_init(void)
+{
+	return snd_soc_register_dai(&bfin_ac97_dai);
+}
+module_init(bfin_ac97_init);
+
+static void __exit bfin_ac97_exit(void)
+{
+	snd_soc_unregister_dai(&bfin_ac97_dai);
+}
+module_exit(bfin_ac97_exit);
+
 MODULE_AUTHOR("Roy Huang");
 MODULE_DESCRIPTION("AC97 driver for ADI Blackfin");
 MODULE_LICENSE("GPL");

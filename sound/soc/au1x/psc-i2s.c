@@ -396,11 +396,12 @@ EXPORT_SYMBOL(au1xpsc_i2s_dai);
 static int __init au1xpsc_i2s_init(void)
 {
 	au1xpsc_i2s_workdata = NULL;
-	return 0;
+	return snd_soc_register_dai(&au1xpsc_i2s_dai);
 }
 
 static void __exit au1xpsc_i2s_exit(void)
 {
+	snd_soc_unregister_dai(&au1xpsc_i2s_dai);
 }
 
 module_init(au1xpsc_i2s_init);
