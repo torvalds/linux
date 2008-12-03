@@ -450,65 +450,109 @@ xfs_iput_new(
 	IRELE(ip);
 }
 
-
 /*
- * This routine embodies the part of the reclaim code that pulls
- * the inode from the inode hash table and the mount structure's
- * inode list.
- * This should only be called from xfs_reclaim().
+ * This is called free all the memory associated with an inode.
+ * It must free the inode itself and any buffers allocated for
+ * if_extents/if_data and if_broot.  It must also free the lock
+ * associated with the inode.
+ *
+ * Note: because we don't initialise everything on reallocation out
+ * of the zone, we must ensure we nullify everything correctly before
+ * freeing the structure.
  */
 void
-xfs_ireclaim(xfs_inode_t *ip)
+xfs_ireclaim(
+	struct xfs_inode	*ip)
 {
-	/*
-	 * Remove from old hash list and mount list.
-	 */
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_perag	*pag;
+
 	XFS_STATS_INC(xs_ig_reclaims);
 
-	xfs_iextract(ip);
-
 	/*
-	 * Here we do a spurious inode lock in order to coordinate with inode
-	 * cache radix tree lookups.  This is because the lookup can reference
-	 * the inodes in the cache without taking references.  We make that OK
-	 * here by ensuring that we wait until the inode is unlocked after the
-	 * lookup before we go ahead and free it.  We get both the ilock and
-	 * the iolock because the code may need to drop the ilock one but will
-	 * still hold the iolock.
+	 * Remove the inode from the per-AG radix tree.  It doesn't matter
+	 * if it was never added to it because radix_tree_delete can deal
+	 * with that case just fine.
 	 */
-	xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-
-	/*
-	 * Release dquots (and their references) if any. An inode may escape
-	 * xfs_inactive and get here via vn_alloc->vn_reclaim path.
-	 */
-	XFS_QM_DQDETACH(ip->i_mount, ip);
-
-	/*
-	 * Free all memory associated with the inode.
-	 */
-	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-	xfs_idestroy(ip);
-}
-
-/*
- * This routine removes an about-to-be-destroyed inode from
- * all of the lists in which it is located with the exception
- * of the behavior chain.
- */
-void
-xfs_iextract(
-	xfs_inode_t	*ip)
-{
-	xfs_mount_t	*mp = ip->i_mount;
-	xfs_perag_t	*pag = xfs_get_perag(mp, ip->i_ino);
-
+	pag = xfs_get_perag(mp, ip->i_ino);
 	write_lock(&pag->pag_ici_lock);
 	radix_tree_delete(&pag->pag_ici_root, XFS_INO_TO_AGINO(mp, ip->i_ino));
 	write_unlock(&pag->pag_ici_lock);
 	xfs_put_perag(mp, pag);
 
-	mp->m_ireclaims++;
+	/*
+	 * Here we do an (almost) spurious inode lock in order to coordinate
+	 * with inode cache radix tree lookups.  This is because the lookup
+	 * can reference the inodes in the cache without taking references.
+	 *
+	 * We make that OK here by ensuring that we wait until the inode is
+	 * unlocked after the lookup before we go ahead and free it.  We get
+	 * both the ilock and the iolock because the code may need to drop the
+	 * ilock one but will still hold the iolock.
+	 */
+	xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+	/*
+	 * Release dquots (and their references) if any.
+	 */
+	XFS_QM_DQDETACH(ip->i_mount, ip);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+
+	switch (ip->i_d.di_mode & S_IFMT) {
+	case S_IFREG:
+	case S_IFDIR:
+	case S_IFLNK:
+		xfs_idestroy_fork(ip, XFS_DATA_FORK);
+		break;
+	}
+
+	if (ip->i_afp)
+		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
+
+#ifdef XFS_INODE_TRACE
+	ktrace_free(ip->i_trace);
+#endif
+#ifdef XFS_BMAP_TRACE
+	ktrace_free(ip->i_xtrace);
+#endif
+#ifdef XFS_BTREE_TRACE
+	ktrace_free(ip->i_btrace);
+#endif
+#ifdef XFS_RW_TRACE
+	ktrace_free(ip->i_rwtrace);
+#endif
+#ifdef XFS_ILOCK_TRACE
+	ktrace_free(ip->i_lock_trace);
+#endif
+#ifdef XFS_DIR2_TRACE
+	ktrace_free(ip->i_dir_trace);
+#endif
+	if (ip->i_itemp) {
+		/*
+		 * Only if we are shutting down the fs will we see an
+		 * inode still in the AIL. If it is there, we should remove
+		 * it to prevent a use-after-free from occurring.
+		 */
+		xfs_log_item_t	*lip = &ip->i_itemp->ili_item;
+		struct xfs_ail	*ailp = lip->li_ailp;
+
+		ASSERT(((lip->li_flags & XFS_LI_IN_AIL) == 0) ||
+				       XFS_FORCED_SHUTDOWN(ip->i_mount));
+		if (lip->li_flags & XFS_LI_IN_AIL) {
+			spin_lock(&ailp->xa_lock);
+			if (lip->li_flags & XFS_LI_IN_AIL)
+				xfs_trans_ail_delete(ailp, lip);
+			else
+				spin_unlock(&ailp->xa_lock);
+		}
+		xfs_inode_item_destroy(ip);
+		ip->i_itemp = NULL;
+	}
+	/* asserts to verify all state is correct here */
+	ASSERT(atomic_read(&ip->i_iocount) == 0);
+	ASSERT(atomic_read(&ip->i_pincount) == 0);
+	ASSERT(!spin_is_locked(&ip->i_flags_lock));
+	ASSERT(completion_done(&ip->i_flush));
+	kmem_zone_free(xfs_inode_zone, ip);
 }
 
 /*
