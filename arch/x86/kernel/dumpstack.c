@@ -30,6 +30,37 @@ void printk_address(unsigned long address, int reliable)
 			reliable ? "" : "? ", (void *) address);
 }
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static void
+print_ftrace_graph_addr(unsigned long addr, void *data,
+			const struct stacktrace_ops *ops,
+			struct thread_info *tinfo, int *graph)
+{
+	struct task_struct *task = tinfo->task;
+	unsigned long ret_addr;
+	int index = task->curr_ret_stack;
+
+	if (addr != (unsigned long)return_to_handler)
+		return;
+
+	if (!task->ret_stack || index < *graph)
+		return;
+
+	index -= *graph;
+	ret_addr = task->ret_stack[index].ret;
+
+	ops->address(data, ret_addr, 1);
+
+	(*graph)++;
+}
+#else
+static inline void
+print_ftrace_graph_addr(unsigned long addr, void *data,
+			const struct stacktrace_ops *ops,
+			struct thread_info *tinfo, int *graph)
+{ }
+#endif
+
 /*
  * x86-64 can have up to three kernel stacks:
  * process stack
@@ -54,7 +85,7 @@ unsigned long
 print_context_stack(struct thread_info *tinfo,
 		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data,
-		unsigned long *end)
+		unsigned long *end, int *graph)
 {
 	struct stack_frame *frame = (struct stack_frame *)bp;
 
@@ -70,6 +101,7 @@ print_context_stack(struct thread_info *tinfo,
 			} else {
 				ops->address(data, addr, bp == 0);
 			}
+			print_ftrace_graph_addr(addr, data, ops, tinfo, graph);
 		}
 		stack++;
 	}

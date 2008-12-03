@@ -109,6 +109,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
 	unsigned used = 0;
 	struct thread_info *tinfo;
+	int graph = 0;
 
 	if (!task)
 		task = current;
@@ -149,7 +150,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 				break;
 
 			bp = print_context_stack(tinfo, stack, bp, ops,
-							data, estack_end);
+						 data, estack_end, &graph);
 			ops->stack(data, "<EOE>");
 			/*
 			 * We link to the next stack via the
@@ -168,7 +169,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 				if (ops->stack(data, "IRQ") < 0)
 					break;
 				bp = print_context_stack(tinfo, stack, bp,
-						ops, data, irqstack_end);
+					ops, data, irqstack_end, &graph);
 				/*
 				 * We link to the next stack (which would be
 				 * the process stack normally) the last
@@ -186,7 +187,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	/*
 	 * This handles the process stack:
 	 */
-	bp = print_context_stack(tinfo, stack, bp, ops, data, NULL);
+	bp = print_context_stack(tinfo, stack, bp, ops, data, NULL, &graph);
 	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);
