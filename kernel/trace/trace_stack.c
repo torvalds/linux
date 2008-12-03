@@ -78,6 +78,7 @@ static inline void check_stack(void)
 	 * on a new max, so it is far from a fast path.
 	 */
 	while (i < max_stack_trace.nr_entries) {
+		int found = 0;
 
 		stack_dump_index[i] = this_size;
 		p = start;
@@ -86,12 +87,14 @@ static inline void check_stack(void)
 			if (*p == stack_dump_trace[i]) {
 				this_size = stack_dump_index[i++] =
 					(top - p) * sizeof(unsigned long);
+				found = 1;
 				/* Start the search from here */
 				start = p + 1;
 			}
 		}
 
-		i++;
+		if (!found)
+			i++;
 	}
 
  out:
