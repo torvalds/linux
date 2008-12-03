@@ -624,7 +624,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_pselect6		6
 	sys	sys_ppoll		5
 	sys	sys_unshare		1
-	sys	sys_splice		4
+	sys	sys_splice		6
 	sys	sys_sync_file_range	7	/* 4305 */
 	sys	sys_tee			4
 	sys	sys_vmsplice		4
