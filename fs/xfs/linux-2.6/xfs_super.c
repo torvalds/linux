@@ -1822,7 +1822,7 @@ init_xfs_fs(void)
 			 XFS_BUILD_OPTIONS " enabled\n");
 
 	ktrace_init(64);
-	vn_init();
+	xfs_ioend_init();
 	xfs_dir_startup();
 
 	error = xfs_init_zones();

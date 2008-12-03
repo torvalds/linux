@@ -1322,8 +1322,8 @@ xfs_itrunc_trace(
  * direct I/O with the truncate operation.  Also, because we hold
  * the IOLOCK in exclusive mode, we prevent new direct I/Os from being
  * started until the truncate completes and drops the lock. Essentially,
- * the vn_iowait() call forms an I/O barrier that provides strict ordering
- * between direct I/Os and the truncate operation.
+ * the xfs_ioend_wait() call forms an I/O barrier that provides strict
+ * ordering between direct I/Os and the truncate operation.
  *
  * The flags parameter can have either the value XFS_ITRUNC_DEFINITE
  * or XFS_ITRUNC_MAYBE.  The XFS_ITRUNC_MAYBE value should be used
@@ -1354,7 +1354,7 @@ xfs_itruncate_start(
 
 	/* wait for the completion of any pending DIOs */
 	if (new_size == 0 || new_size < ip->i_size)
-		vn_iowait(ip);
+		xfs_ioend_wait(ip);
 
 	/*
 	 * Call toss_pages or flushinval_pages to get rid of pages

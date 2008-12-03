@@ -32,40 +32,6 @@
 #include "xfs_mount.h"
 
 
-/*
- * Dedicated vnode inactive/reclaim sync wait queues.
- * Prime number of hash buckets since address is used as the key.
- */
-#define NVSYNC                  37
-#define vptosync(v)             (&vsync[((unsigned long)v) % NVSYNC])
-static wait_queue_head_t vsync[NVSYNC];
-
-void __init
-vn_init(void)
-{
-	int i;
-
-	for (i = 0; i < NVSYNC; i++)
-		init_waitqueue_head(&vsync[i]);
-}
-
-void
-vn_iowait(
-	xfs_inode_t	*ip)
-{
-	wait_queue_head_t *wq = vptosync(ip);
-
-	wait_event(*wq, (atomic_read(&ip->i_iocount) == 0));
-}
-
-void
-vn_iowake(
-	xfs_inode_t	*ip)
-{
-	if (atomic_dec_and_test(&ip->i_iocount))
-		wake_up(vptosync(ip));
-}
-
 #ifdef	XFS_INODE_TRACE
 
 #define KTRACE_ENTER(ip, vk, s, line, ra)			\

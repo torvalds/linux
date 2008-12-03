@@ -133,7 +133,7 @@ xfs_sync_inodes_ag(
 			lock_flags |= XFS_IOLOCK_SHARED;
 			error = xfs_flush_pages(ip, 0, -1, fflag, FI_NONE);
 			if (flags & SYNC_IOWAIT)
-				vn_iowait(ip);
+				xfs_ioend_wait(ip);
 		}
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
 

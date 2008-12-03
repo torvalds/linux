@@ -54,16 +54,6 @@ struct attrlist_cursor_kern;
 					   Prevent VM access to the pages until
 					   the operation completes. */
 
-
-extern void	vn_init(void);
-
-/*
- * Yeah, these don't take vnode anymore at all, all this should be
- * cleaned up at some point.
- */
-extern void	vn_iowait(struct xfs_inode *ip);
-extern void	vn_iowake(struct xfs_inode *ip);
-
 #define IHOLD(ip) \
 do { \
 	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \

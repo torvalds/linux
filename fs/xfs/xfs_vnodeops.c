@@ -338,7 +338,7 @@ xfs_setattr(
 		}
 
 		/* wait for all I/O to complete */
-		vn_iowait(ip);
+		xfs_ioend_wait(ip);
 
 		if (!code)
 			code = xfs_itruncate_data(ip, iattr->ia_size);
@@ -2758,7 +2758,7 @@ xfs_reclaim(
 		return 0;
 	}
 
-	vn_iowait(ip);
+	xfs_ioend_wait(ip);
 
 	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
 
@@ -3149,7 +3149,8 @@ xfs_free_file_space(
 		need_iolock = 0;
 	if (need_iolock) {
 		xfs_ilock(ip, XFS_IOLOCK_EXCL);
-		vn_iowait(ip);	/* wait for the completion of any pending DIOs */
+		/* wait for the completion of any pending DIOs */
+		xfs_ioend_wait(ip);
 	}
 
 	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
