@@ -79,7 +79,7 @@ nsm_monitor(struct nlm_host *host)
 	struct nsm_res	res;
 	int		status;
 
-	dprintk("lockd: nsm_monitor(%s)\n", host->h_name);
+	dprintk("lockd: nsm_monitor(%s)\n", nsm->sm_name);
 	BUG_ON(nsm == NULL);
 
 	if (nsm->sm_monitored)
@@ -94,7 +94,7 @@ nsm_monitor(struct nlm_host *host)
 	status = nsm_mon_unmon(nsm, SM_MON, &res);
 
 	if (status < 0 || res.status != 0)
-		printk(KERN_NOTICE "lockd: cannot monitor %s\n", host->h_name);
+		printk(KERN_NOTICE "lockd: cannot monitor %s\n", nsm->sm_name);
 	else
 		nsm->sm_monitored = 1;
 	return status;
@@ -116,12 +116,12 @@ nsm_unmonitor(struct nlm_host *host)
 
 	if (atomic_read(&nsm->sm_count) == 1
 	 && nsm->sm_monitored && !nsm->sm_sticky) {
-		dprintk("lockd: nsm_unmonitor(%s)\n", host->h_name);
+		dprintk("lockd: nsm_unmonitor(%s)\n", nsm->sm_name);
 
 		status = nsm_mon_unmon(nsm, SM_UNMON, &res);
 		if (status < 0)
 			printk(KERN_NOTICE "lockd: cannot unmonitor %s\n",
-					host->h_name);
+					nsm->sm_name);
 		else
 			nsm->sm_monitored = 0;
 	}
