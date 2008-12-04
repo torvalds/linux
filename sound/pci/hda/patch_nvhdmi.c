@@ -167,6 +167,7 @@ static struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
 
 MODULE_ALIAS("snd-hda-codec-id:10de0002");
 MODULE_ALIAS("snd-hda-codec-id:10de0007");
+MODULE_ALIAS("snd-hda-codec-id:10de0067");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Nvidia HDMI HD-audio codec");
