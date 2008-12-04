@@ -183,13 +183,15 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
  * @timeout:	request timeout in seconds
  * @retries:	number of times to retry request
  * @flags:	or into request flags;
+ * @resid:	optional residual length
  *
  * returns the req->errors value which is the scsi_cmnd result
  * field.
  */
 int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
-		 unsigned char *sense, int timeout, int retries, int flags)
+		 unsigned char *sense, int timeout, int retries, int flags,
+		 int *resid)
 {
 	struct request *req;
 	int write = (data_direction == DMA_TO_DEVICE);
@@ -224,6 +226,8 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	if (unlikely(req->data_len > 0 && req->data_len <= bufflen))
 		memset(buffer + (bufflen - req->data_len), 0, req->data_len);
 
+	if (resid)
+		*resid = req->data_len;
 	ret = req->errors;
  out:
 	blk_put_request(req);
@@ -235,7 +239,8 @@ EXPORT_SYMBOL(scsi_execute);
 
 int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 		     int data_direction, void *buffer, unsigned bufflen,
-		     struct scsi_sense_hdr *sshdr, int timeout, int retries)
+		     struct scsi_sense_hdr *sshdr, int timeout, int retries,
+		     int *resid)
 {
 	char *sense = NULL;
 	int result;
@@ -246,7 +251,7 @@ int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 			return DRIVER_ERROR << 24;
 	}
 	result = scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
-			      sense, timeout, retries, 0);
+			      sense, timeout, retries, 0, resid);
 	if (sshdr)
 		scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE, sshdr);
 
@@ -2016,7 +2021,7 @@ scsi_mode_select(struct scsi_device *sdev, int pf, int sp, int modepage,
 	}
 
 	ret = scsi_execute_req(sdev, cmd, DMA_TO_DEVICE, real_buffer, len,
-			       sshdr, timeout, retries);
+			       sshdr, timeout, retries, NULL);
 	kfree(real_buffer);
 	return ret;
 }
@@ -2081,7 +2086,7 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 	memset(buffer, 0, len);
 
 	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer, len,
-				  sshdr, timeout, retries);
+				  sshdr, timeout, retries, NULL);
 
 	/* This code looks awful: what it's doing is making sure an
 	 * ILLEGAL REQUEST sense return identifies the actual command
@@ -2163,7 +2168,7 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
 	/* try to eat the UNIT_ATTENTION if there are enough retries */
 	do {
 		result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sshdr,
-					  timeout, retries);
+					  timeout, retries, NULL);
 		if (sdev->removable && scsi_sense_valid(sshdr) &&
 		    sshdr->sense_key == UNIT_ATTENTION)
 			sdev->changed = 1;
