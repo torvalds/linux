@@ -1,6 +1,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
+#include <linux/serial_8250.h>
+#include <linux/serial_reg.h>
 #include <asm/machvec.h>
 #include <mach-se/mach/se7343.h>
 #include <asm/heartbeat.h>
@@ -94,10 +96,41 @@ static struct platform_device nor_flash_device = {
 	.resource	= nor_flash_resources,
 };
 
+#define ST16C2550C_FLAGS (UPF_BOOT_AUTOCONF | UPF_IOREMAP)
+
+static struct plat_serial8250_port serial_platform_data[] = {
+	[0] = {
+		.iotype		= UPIO_MEM,
+		.mapbase	= 0x16000000,
+		.regshift	= 1,
+		.flags		= ST16C2550C_FLAGS,
+		.irq		= UARTA_IRQ,
+		.uartclk	= 7372800,
+	},
+	[1] = {
+		.iotype		= UPIO_MEM,
+		.mapbase	= 0x17000000,
+		.regshift	= 1,
+		.flags		= ST16C2550C_FLAGS,
+		.irq		= UARTB_IRQ,
+		.uartclk	= 7372800,
+	},
+	{ },
+};
+
+static struct platform_device uart_device = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_PLATFORM,
+	.dev			= {
+		.platform_data	= serial_platform_data,
+	},
+};
+
 static struct platform_device *sh7343se_platform_devices[] __initdata = {
 	&smc91x_device,
 	&heartbeat_device,
 	&nor_flash_device,
+	&uart_device,
 };
 
 static int __init sh7343se_devices_setup(void)
