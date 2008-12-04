@@ -1425,7 +1425,7 @@ ftrace_set_func(unsigned long *array, int idx, char *buffer)
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 	int found = 0;
-	int i;
+	int i, j;
 
 	if (ftrace_disabled)
 		return -ENODEV;
@@ -1443,7 +1443,13 @@ ftrace_set_func(unsigned long *array, int idx, char *buffer)
 			kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
 			if (strcmp(str, buffer) == 0) {
 				found = 1;
-				array[idx] = rec->ip;
+				for (j = 0; j < idx; j++)
+					if (array[j] == rec->ip) {
+						found = 0;
+						break;
+					}
+				if (found)
+					array[idx] = rec->ip;
 				break;
 			}
 		}
