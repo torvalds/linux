@@ -529,7 +529,11 @@ static inline int ftrace_graph_addr(unsigned long addr)
 #else
 static inline int ftrace_trace_addr(unsigned long addr)
 {
-	return 1
+	return 1;
+}
+static inline int ftrace_graph_addr(unsigned long addr)
+{
+	return 1;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
