@@ -105,22 +105,31 @@ static void nlm_clear_port(struct sockaddr *sap)
 	}
 }
 
+static void nlm_display_ipv6_address(const struct sockaddr *sap, char *buf,
+				     const size_t len)
+{
+	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
+
+	if (ipv6_addr_v4mapped(&sin6->sin6_addr))
+		snprintf(buf, len, "%pI4", &sin6->sin6_addr.s6_addr32[3]);
+	else if (sin6->sin6_scope_id != 0)
+		snprintf(buf, len, "%pI6%%%u", &sin6->sin6_addr,
+				sin6->sin6_scope_id);
+	else
+		snprintf(buf, len, "%pI6", &sin6->sin6_addr);
+}
+
 static void nlm_display_address(const struct sockaddr *sap,
 				char *buf, const size_t len)
 {
 	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
-	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
 
 	switch (sap->sa_family) {
 	case AF_INET:
 		snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
 		break;
 	case AF_INET6:
-		if (ipv6_addr_v4mapped(&sin6->sin6_addr))
-			snprintf(buf, len, "%pI4",
-				 &sin6->sin6_addr.s6_addr32[3]);
-		else
-			snprintf(buf, len, "%pI6", &sin6->sin6_addr);
+		nlm_display_ipv6_address(sap, buf, len);
 		break;
 	default:
 		snprintf(buf, len, "unsupported address family");

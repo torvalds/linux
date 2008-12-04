@@ -68,6 +68,14 @@ struct nlm_host {
 	char			*h_addrbuf;	/* address eyecatcher */
 };
 
+/*
+ * The largest string sm_addrbuf should hold is a full-size IPv6 address
+ * (no "::" anywhere) with a scope ID.  The buffer size is computed to
+ * hold eight groups of colon-separated four-hex-digit numbers, a
+ * percent sign, a scope id (at most 32 bits, in decimal), and NUL.
+ */
+#define NSM_ADDRBUF		((8 * 4 + 7) + (1 + 10) + 1)
+
 struct nsm_handle {
 	struct list_head	sm_link;
 	atomic_t		sm_count;
@@ -76,7 +84,7 @@ struct nsm_handle {
 	size_t			sm_addrlen;
 	unsigned int		sm_monitored : 1,
 				sm_sticky : 1;	/* don't unmonitor */
-	char			sm_addrbuf[48];	/* address eyecatcher */
+	char			sm_addrbuf[NSM_ADDRBUF];
 };
 
 /*
