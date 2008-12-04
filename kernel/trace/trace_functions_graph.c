@@ -19,6 +19,7 @@
 #define TRACE_GRAPH_PRINT_OVERRUN	0x1
 #define TRACE_GRAPH_PRINT_CPU		0x2
 #define TRACE_GRAPH_PRINT_OVERHEAD	0x4
+#define TRACE_GRAPH_PRINT_PROC		0x8
 
 static struct tracer_opt trace_opts[] = {
 	/* Display overruns ? */
@@ -27,11 +28,13 @@ static struct tracer_opt trace_opts[] = {
 	{ TRACER_OPT(funcgraph-cpu, TRACE_GRAPH_PRINT_CPU) },
 	/* Display Overhead ? */
 	{ TRACER_OPT(funcgraph-overhead, TRACE_GRAPH_PRINT_OVERHEAD) },
+	/* Display proc name/pid */
+	{ TRACER_OPT(funcgraph-proc, TRACE_GRAPH_PRINT_PROC) },
 	{ } /* Empty entry */
 };
 
 static struct tracer_flags tracer_flags = {
-	/* Don't display overruns by default */
+	/* Don't display overruns and proc by default */
 	.val = TRACE_GRAPH_PRINT_CPU | TRACE_GRAPH_PRINT_OVERHEAD,
 	.opts = trace_opts
 };
@@ -104,22 +107,62 @@ print_graph_cpu(struct trace_seq *s, int cpu)
 	return TRACE_TYPE_HANDLED;
 }
 
+#define TRACE_GRAPH_PROCINFO_LENGTH	14
+
+static enum print_line_t
+print_graph_proc(struct trace_seq *s, pid_t pid)
+{
+	int i;
+	int ret;
+	int len;
+	char comm[8];
+	int spaces = 0;
+	/* sign + log10(MAX_INT) + '\0' */
+	char pid_str[11];
+
+	strncpy(comm, trace_find_cmdline(pid), 7);
+	comm[7] = '\0';
+	sprintf(pid_str, "%d", pid);
+
+	/* 1 stands for the "-" character */
+	len = strlen(comm) + strlen(pid_str) + 1;
+
+	if (len < TRACE_GRAPH_PROCINFO_LENGTH)
+		spaces = TRACE_GRAPH_PROCINFO_LENGTH - len;
+
+	/* First spaces to align center */
+	for (i = 0; i < spaces / 2; i++) {
+		ret = trace_seq_printf(s, " ");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	ret = trace_seq_printf(s, "%s-%s", comm, pid_str);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	/* Last spaces to align center */
+	for (i = 0; i < spaces - (spaces / 2); i++) {
+		ret = trace_seq_printf(s, " ");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+	return TRACE_TYPE_HANDLED;
+}
+
 
 /* If the pid changed since the last trace, output this event */
-static int verif_pid(struct trace_seq *s, pid_t pid, int cpu)
+static enum print_line_t
+verif_pid(struct trace_seq *s, pid_t pid, int cpu)
 {
-	char *comm, *prev_comm;
 	pid_t prev_pid;
 	int ret;
 
 	if (last_pid[cpu] != -1 && last_pid[cpu] == pid)
-		return 1;
+		return TRACE_TYPE_HANDLED;
 
 	prev_pid = last_pid[cpu];
 	last_pid[cpu] = pid;
-
-	comm = trace_find_cmdline(pid);
-	prev_comm = trace_find_cmdline(prev_pid);
 
 /*
  * Context-switch trace line:
@@ -130,11 +173,31 @@ static int verif_pid(struct trace_seq *s, pid_t pid, int cpu)
 
  */
 	ret = trace_seq_printf(s,
-		" ------------------------------------------\n");
-	ret += trace_seq_printf(s, " | %d)  %s-%d  =>  %s-%d\n",
-				  cpu, prev_comm, prev_pid, comm, pid);
-	ret += trace_seq_printf(s,
-		" ------------------------------------------\n\n");
+		"\n ------------------------------------------\n |");
+	if (!ret)
+		TRACE_TYPE_PARTIAL_LINE;
+
+	ret = print_graph_cpu(s, cpu);
+	if (ret == TRACE_TYPE_PARTIAL_LINE)
+		TRACE_TYPE_PARTIAL_LINE;
+
+	ret = print_graph_proc(s, prev_pid);
+	if (ret == TRACE_TYPE_PARTIAL_LINE)
+		TRACE_TYPE_PARTIAL_LINE;
+
+	ret = trace_seq_printf(s, " => ");
+	if (!ret)
+		TRACE_TYPE_PARTIAL_LINE;
+
+	ret = print_graph_proc(s, pid);
+	if (ret == TRACE_TYPE_PARTIAL_LINE)
+		TRACE_TYPE_PARTIAL_LINE;
+
+	ret = trace_seq_printf(s,
+		"\n ------------------------------------------\n\n");
+	if (!ret)
+		TRACE_TYPE_PARTIAL_LINE;
+
 	return ret;
 }
 
@@ -169,11 +232,50 @@ trace_branch_is_leaf(struct trace_iterator *iter,
 }
 
 
-static inline int
+static enum print_line_t
 print_graph_duration(unsigned long long duration, struct trace_seq *s)
 {
 	unsigned long nsecs_rem = do_div(duration, 1000);
-	return trace_seq_printf(s, "%4llu.%3lu us |  ", duration, nsecs_rem);
+	/* log10(ULONG_MAX) + '\0' */
+	char msecs_str[21];
+	char nsecs_str[5];
+	int ret, len;
+	int i;
+
+	sprintf(msecs_str, "%lu", (unsigned long) duration);
+
+	/* Print msecs */
+	ret = trace_seq_printf(s, msecs_str);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	len = strlen(msecs_str);
+
+	/* Print nsecs (we don't want to exceed 7 numbers) */
+	if (len < 7) {
+		snprintf(nsecs_str, 8 - len, "%03lu", nsecs_rem);
+		ret = trace_seq_printf(s, ".%s", nsecs_str);
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+		len += strlen(nsecs_str);
+	}
+
+	ret = trace_seq_printf(s, " us ");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	/* Print remaining spaces to fit the row's width */
+	for (i = len; i < 7; i++) {
+		ret = trace_seq_printf(s, " ");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	ret = trace_seq_printf(s, "|  ");
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+	return TRACE_TYPE_HANDLED;
+
 }
 
 /* Signal a overhead of time execution to the output */
@@ -210,10 +312,6 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 	call = &entry->graph_ent;
 	duration = graph_ret->rettime - graph_ret->calltime;
 
-	/* Must not exceed 8 characters: 9999.999 us */
-	if (duration > 10000000ULL)
-		duration = 9999999ULL;
-
 	/* Overhead */
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERHEAD) {
 		ret = print_graph_overhead(duration, s);
@@ -223,7 +321,7 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 
 	/* Duration */
 	ret = print_graph_duration(duration, s);
-	if (!ret)
+	if (ret == TRACE_TYPE_PARTIAL_LINE)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* Function */
@@ -288,12 +386,23 @@ print_graph_entry(struct ftrace_graph_ent_entry *field, struct trace_seq *s,
 	struct trace_entry *ent = iter->ent;
 
 	/* Pid */
-	if (!verif_pid(s, ent->pid, cpu))
+	if (verif_pid(s, ent->pid, cpu) == TRACE_TYPE_PARTIAL_LINE)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* Cpu */
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_CPU) {
 		ret = print_graph_cpu(s, cpu);
+		if (ret == TRACE_TYPE_PARTIAL_LINE)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	/* Proc */
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_PROC) {
+		ret = print_graph_proc(s, ent->pid);
+		if (ret == TRACE_TYPE_PARTIAL_LINE)
+			return TRACE_TYPE_PARTIAL_LINE;
+
+		ret = trace_seq_printf(s, " | ");
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
@@ -313,17 +422,24 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 	int ret;
 	unsigned long long duration = trace->rettime - trace->calltime;
 
-	/* Must not exceed 8 characters: xxxx.yyy us */
-	if (duration > 10000000ULL)
-		duration = 9999999ULL;
-
 	/* Pid */
-	if (!verif_pid(s, ent->pid, cpu))
+	if (verif_pid(s, ent->pid, cpu) == TRACE_TYPE_PARTIAL_LINE)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* Cpu */
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_CPU) {
 		ret = print_graph_cpu(s, cpu);
+		if (ret == TRACE_TYPE_PARTIAL_LINE)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+
+	/* Proc */
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_PROC) {
+		ret = print_graph_proc(s, ent->pid);
+		if (ret == TRACE_TYPE_PARTIAL_LINE)
+			return TRACE_TYPE_PARTIAL_LINE;
+
+		ret = trace_seq_printf(s, " | ");
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
@@ -337,7 +453,7 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 
 	/* Duration */
 	ret = print_graph_duration(duration, s);
-	if (!ret)
+	if (ret == TRACE_TYPE_PARTIAL_LINE)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* Closing brace */

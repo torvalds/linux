@@ -120,6 +120,9 @@ ENTRY(mcount)
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	cmpq $ftrace_stub, ftrace_graph_return
 	jnz ftrace_graph_caller
+
+	cmpq $ftrace_graph_entry_stub, ftrace_graph_entry
+	jnz ftrace_graph_caller
 #endif
 
 .globl ftrace_stub
@@ -173,6 +176,7 @@ ENTRY(ftrace_graph_caller)
 
 	leaq 8(%rbp), %rdi
 	movq 0x38(%rsp), %rsi
+	subq $MCOUNT_INSN_SIZE, %rsi
 
 	call	prepare_ftrace_return
 

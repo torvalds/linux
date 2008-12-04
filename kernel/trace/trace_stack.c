@@ -48,7 +48,7 @@ static inline void check_stack(void)
 	if (!object_is_on_stack(&this_size))
 		return;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	__raw_spin_lock(&max_stack_lock);
 
 	/* a race could have already updated it */
@@ -78,6 +78,7 @@ static inline void check_stack(void)
 	 * on a new max, so it is far from a fast path.
 	 */
 	while (i < max_stack_trace.nr_entries) {
+		int found = 0;
 
 		stack_dump_index[i] = this_size;
 		p = start;
@@ -86,17 +87,19 @@ static inline void check_stack(void)
 			if (*p == stack_dump_trace[i]) {
 				this_size = stack_dump_index[i++] =
 					(top - p) * sizeof(unsigned long);
+				found = 1;
 				/* Start the search from here */
 				start = p + 1;
 			}
 		}
 
-		i++;
+		if (!found)
+			i++;
 	}
 
  out:
 	__raw_spin_unlock(&max_stack_lock);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 static void
@@ -162,11 +165,11 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	if (ret < 0)
 		return ret;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	__raw_spin_lock(&max_stack_lock);
 	*ptr = val;
 	__raw_spin_unlock(&max_stack_lock);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	return count;
 }

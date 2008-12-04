@@ -1196,6 +1196,9 @@ ENTRY(mcount)
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	cmpl $ftrace_stub, ftrace_graph_return
 	jnz ftrace_graph_caller
+
+	cmpl $ftrace_graph_entry_stub, ftrace_graph_entry
+	jnz ftrace_graph_caller
 #endif
 .globl ftrace_stub
 ftrace_stub:
@@ -1230,6 +1233,7 @@ ENTRY(ftrace_graph_caller)
 	pushl %edx
 	movl 0xc(%esp), %edx
 	lea 0x4(%ebp), %eax
+	subl $MCOUNT_INSN_SIZE, %edx
 	call prepare_ftrace_return
 	popl %edx
 	popl %ecx

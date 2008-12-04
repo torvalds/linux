@@ -124,6 +124,11 @@ void tracing_on(void);
 void tracing_off(void);
 void tracing_off_permanent(void);
 
+void *ring_buffer_alloc_read_page(struct ring_buffer *buffer);
+void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data);
+int ring_buffer_read_page(struct ring_buffer *buffer,
+			  void **data_page, int cpu, int full);
+
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,
 };

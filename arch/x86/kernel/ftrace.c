@@ -420,12 +420,23 @@ static void pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 	int index;
 
 	index = current->curr_ret_stack;
+
+	if (unlikely(index < 0)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		/* Might as well panic, otherwise we have no where to go */
+		*ret = (unsigned long)panic;
+		return;
+	}
+
 	*ret = current->ret_stack[index].ret;
 	trace->func = current->ret_stack[index].func;
 	trace->calltime = current->ret_stack[index].calltime;
 	trace->overrun = atomic_read(&current->trace_overrun);
 	trace->depth = index;
+	barrier();
 	current->curr_ret_stack--;
+
 }
 
 /*
@@ -440,6 +451,13 @@ unsigned long ftrace_return_to_handler(void)
 	pop_return_trace(&trace, &ret);
 	trace.rettime = cpu_clock(raw_smp_processor_id());
 	ftrace_graph_return(&trace);
+
+	if (unlikely(!ret)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		/* Might as well panic. What else to do? */
+		ret = (unsigned long)panic;
+	}
 
 	return ret;
 }
@@ -467,28 +485,16 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	 * ignore such a protection.
 	 */
 	asm volatile(
-#ifdef CONFIG_X86_64
-		"1: movq (%[parent_old]), %[old]\n"
-		"2: movq %[return_hooker], (%[parent_replaced])\n"
-#else
-		"1: movl (%[parent_old]), %[old]\n"
-		"2: movl %[return_hooker], (%[parent_replaced])\n"
-#endif
+		"1: " _ASM_MOV " (%[parent_old]), %[old]\n"
+		"2: " _ASM_MOV " %[return_hooker], (%[parent_replaced])\n"
 		"   movl $0, %[faulted]\n"
 
 		".section .fixup, \"ax\"\n"
 		"3: movl $1, %[faulted]\n"
 		".previous\n"
 
-		".section __ex_table, \"a\"\n"
-#ifdef CONFIG_X86_64
-		"   .quad 1b, 3b\n"
-		"   .quad 2b, 3b\n"
-#else
-		"   .long 1b, 3b\n"
-		"   .long 2b, 3b\n"
-#endif
-		".previous\n"
+		_ASM_EXTABLE(1b, 3b)
+		_ASM_EXTABLE(2b, 3b)
 
 		: [parent_replaced] "=r" (parent), [old] "=r" (old),
 		  [faulted] "=r" (faulted)
@@ -496,14 +502,16 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		: "memory"
 	);
 
-	if (WARN_ON(faulted)) {
-		unregister_ftrace_graph();
+	if (unlikely(faulted)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
 		return;
 	}
 
-	if (WARN_ON(!__kernel_text_address(old))) {
-		unregister_ftrace_graph();
+	if (unlikely(!__kernel_text_address(old))) {
+		ftrace_graph_stop();
 		*parent = old;
+		WARN_ON(1);
 		return;
 	}
 
@@ -516,7 +524,11 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	}
 
 	trace.func = self_addr;
-	ftrace_graph_entry(&trace);
 
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
+		current->curr_ret_stack--;
+		*parent = old;
+	}
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
