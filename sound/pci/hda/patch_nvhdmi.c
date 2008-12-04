@@ -161,6 +161,7 @@ static int patch_nvhdmi(struct hda_codec *codec)
 static struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
 	{ .id = 0x10de0002, .name = "NVIDIA MCP78 HDMI", .patch = patch_nvhdmi },
 	{ .id = 0x10de0007, .name = "NVIDIA MCP7A HDMI", .patch = patch_nvhdmi },
+	{ .id = 0x10de0067, .name = "NVIDIA MCP67 HDMI", .patch = patch_nvhdmi },
 	{} /* terminator */
 };
 
