@@ -122,7 +122,7 @@ static int __devinit zorro8390_init_one(struct zorro_dev *z,
 	    break;
     board = z->resource.start;
     ioaddr = board+cards[i].offset;
-    dev = ____alloc_ei_netdev(0);
+    dev = alloc_ei_netdev();
     if (!dev)
 	return -ENOMEM;
     if (!request_mem_region(ioaddr, NE_IO_EXTENT*2, DRV_NAME)) {
@@ -138,6 +138,20 @@ static int __devinit zorro8390_init_one(struct zorro_dev *z,
     zorro_set_drvdata(z, dev);
     return 0;
 }
+
+static const struct net_device_ops zorro8390_netdev_ops = {
+	.ndo_open		= zorro8390_open,
+	.ndo_stop		= zorro8390_close,
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ei_poll,
+#endif
+};
 
 static int __devinit zorro8390_init(struct net_device *dev,
 				    unsigned long board, const char *name,
@@ -230,12 +244,8 @@ static int __devinit zorro8390_init(struct net_device *dev,
     ei_status.block_output = &zorro8390_block_output;
     ei_status.get_8390_hdr = &zorro8390_get_8390_hdr;
     ei_status.reg_offset = zorro8390_offsets;
-    dev->open = &zorro8390_open;
-    dev->stop = &zorro8390_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = __ei_poll;
-#endif
 
+    dev->netdev_ops = &zorro8390_netdev_ops;
     __NS8390_init(dev, 0);
     err = register_netdev(dev);
     if (err) {
