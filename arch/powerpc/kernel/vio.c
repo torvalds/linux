@@ -41,9 +41,9 @@
 static struct bus_type vio_bus_type;
 
 static struct vio_dev vio_bus_device  = { /* fake "parent" device */
-	.name = vio_bus_device.dev.bus_id,
+	.name = "vio",
 	.type = "",
-	.dev.bus_id = "vio",
+	.dev.init_name = "vio",
 	.dev.bus = &vio_bus_type,
 };
 
@@ -1216,7 +1216,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 
 	viodev->irq = irq_of_parse_and_map(of_node, 0);
 
-	snprintf(viodev->dev.bus_id, BUS_ID_SIZE, "%x", *unit_address);
+	dev_set_name(&viodev->dev, "%x", *unit_address);
 	viodev->name = of_node->name;
 	viodev->type = of_node->type;
 	viodev->unit_address = *unit_address;
@@ -1243,7 +1243,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	/* register with generic device framework */
 	if (device_register(&viodev->dev)) {
 		printk(KERN_ERR "%s: failed to register device %s\n",
-				__func__, viodev->dev.bus_id);
+				__func__, dev_name(&viodev->dev));
 		/* XXX free TCE table */
 		kfree(viodev);
 		return NULL;
@@ -1400,13 +1400,13 @@ static struct vio_dev *vio_find_name(const char *name)
 struct vio_dev *vio_find_node(struct device_node *vnode)
 {
 	const uint32_t *unit_address;
-	char kobj_name[BUS_ID_SIZE];
+	char kobj_name[20];
 
 	/* construct the kobject name from the device node */
 	unit_address = of_get_property(vnode, "reg", NULL);
 	if (!unit_address)
 		return NULL;
-	snprintf(kobj_name, BUS_ID_SIZE, "%x", *unit_address);
+	snprintf(kobj_name, sizeof(kobj_name), "%x", *unit_address);
 
 	return vio_find_name(kobj_name);
 }

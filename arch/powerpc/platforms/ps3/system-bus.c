@@ -31,7 +31,7 @@
 #include "platform.h"
 
 static struct device ps3_system_bus = {
-	.bus_id = "ps3_system",
+	.init_name = "ps3_system",
 };
 
 /* FIXME: need device usage counters! */
@@ -356,12 +356,12 @@ static int ps3_system_bus_match(struct device *_dev,
 	if (result)
 		pr_info("%s:%d: dev=%u.%u(%s), drv=%u.%u(%s): match\n",
 			__func__, __LINE__,
-			dev->match_id, dev->match_sub_id, dev->core.bus_id,
+			dev->match_id, dev->match_sub_id, dev_name(&dev->core),
 			drv->match_id, drv->match_sub_id, drv->core.name);
 	else
 		pr_debug("%s:%d: dev=%u.%u(%s), drv=%u.%u(%s): miss\n",
 			__func__, __LINE__,
-			dev->match_id, dev->match_sub_id, dev->core.bus_id,
+			dev->match_id, dev->match_sub_id, dev_name(&dev->core),
 			drv->match_id, drv->match_sub_id, drv->core.name);
 
 	return result;
@@ -383,9 +383,9 @@ static int ps3_system_bus_probe(struct device *_dev)
 		result = drv->probe(dev);
 	else
 		pr_debug("%s:%d: %s no probe method\n", __func__, __LINE__,
-			dev->core.bus_id);
+			dev_name(&dev->core));
 
-	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev->core.bus_id);
+	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev_name(&dev->core));
 	return result;
 }
 
@@ -407,7 +407,7 @@ static int ps3_system_bus_remove(struct device *_dev)
 		dev_dbg(&dev->core, "%s:%d %s: no remove method\n",
 			__func__, __LINE__, drv->core.name);
 
-	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev->core.bus_id);
+	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev_name(&dev->core));
 	return result;
 }
 
@@ -432,7 +432,7 @@ static void ps3_system_bus_shutdown(struct device *_dev)
 	BUG_ON(!drv);
 
 	dev_dbg(&dev->core, "%s:%d: %s -> %s\n", __func__, __LINE__,
-		dev->core.bus_id, drv->core.name);
+		dev_name(&dev->core), drv->core.name);
 
 	if (drv->shutdown)
 		drv->shutdown(dev);
@@ -744,22 +744,18 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev)
 	switch (dev->dev_type) {
 	case PS3_DEVICE_TYPE_IOC0:
 		dev->core.archdata.dma_ops = &ps3_ioc0_dma_ops;
-		snprintf(dev->core.bus_id, sizeof(dev->core.bus_id),
-			"ioc0_%02x", ++dev_ioc0_count);
+		dev_set_name(&dev->core, "ioc0_%02x", ++dev_ioc0_count);
 		break;
 	case PS3_DEVICE_TYPE_SB:
 		dev->core.archdata.dma_ops = &ps3_sb_dma_ops;
-		snprintf(dev->core.bus_id, sizeof(dev->core.bus_id),
-			"sb_%02x", ++dev_sb_count);
+		dev_set_name(&dev->core, "sb_%02x", ++dev_sb_count);
 
 		break;
 	case PS3_DEVICE_TYPE_VUART:
-		snprintf(dev->core.bus_id, sizeof(dev->core.bus_id),
-			"vuart_%02x", ++dev_vuart_count);
+		dev_set_name(&dev->core, "vuart_%02x", ++dev_vuart_count);
 		break;
 	case PS3_DEVICE_TYPE_LPM:
-		snprintf(dev->core.bus_id, sizeof(dev->core.bus_id),
-			"lpm_%02x", ++dev_lpm_count);
+		dev_set_name(&dev->core, "lpm_%02x", ++dev_lpm_count);
 		break;
 	default:
 		BUG();
@@ -768,7 +764,7 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev)
 	dev->core.archdata.of_node = NULL;
 	set_dev_node(&dev->core, 0);
 
-	pr_debug("%s:%d add %s\n", __func__, __LINE__, dev->core.bus_id);
+	pr_debug("%s:%d add %s\n", __func__, __LINE__, dev_name(&dev->core));
 
 	result = device_register(&dev->core);
 	return result;

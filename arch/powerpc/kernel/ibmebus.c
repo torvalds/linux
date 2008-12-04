@@ -47,7 +47,7 @@
 #include <asm/abs_addr.h>
 
 static struct device ibmebus_bus_device = { /* fake "parent" device */
-	.bus_id = "ibmebus",
+	.init_name = "ibmebus",
 };
 
 struct bus_type ibmebus_bus_type;
