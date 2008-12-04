@@ -6,7 +6,7 @@ asflags-y := -ansi
 ccflags-y := -Werror
 
 extra-y     := head_$(BITS).o
-extra-y     += init_task_$(BITS).o
+extra-y     += init_task.o
 extra-y     += vmlinux.lds
 
 obj-$(CONFIG_SPARC32)   += entry.o wof.o wuf.o
