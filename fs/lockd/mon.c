@@ -52,6 +52,8 @@ nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 	clnt = nsm_create();
 	if (IS_ERR(clnt)) {
 		status = PTR_ERR(clnt);
+		dprintk("lockd: failed to create NSM upcall transport, "
+				"status=%d\n", status);
 		goto out;
 	}
 
@@ -60,8 +62,8 @@ nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 	msg.rpc_proc = &clnt->cl_procinfo[proc];
 	status = rpc_call_sync(clnt, &msg, 0);
 	if (status < 0)
-		printk(KERN_DEBUG "nsm_mon_unmon: rpc failed, status=%d\n",
-			status);
+		dprintk("lockd: NSM upcall RPC failed, status=%d\n",
+				status);
 	else
 		status = 0;
 	rpc_shutdown_client(clnt);
