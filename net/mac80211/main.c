@@ -243,10 +243,20 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	if (changed && local->open_count) {
 		ret = local->ops->config(local_to_hw(local), changed);
 		/*
+		 * Goal:
 		 * HW reconfiguration should never fail, the driver has told
 		 * us what it can support so it should live up to that promise.
+		 *
+		 * Current status:
+		 * rfkill is not integrated with mac80211 and a
+		 * configuration command can thus fail if hardware rfkill
+		 * is enabled
+		 *
+		 * FIXME: integrate rfkill with mac80211 and then add this
+		 * WARN_ON() back
+		 *
 		 */
-		WARN_ON(ret);
+		/* WARN_ON(ret); */
 	}
 
 	return ret;
