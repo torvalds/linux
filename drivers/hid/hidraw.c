@@ -357,7 +357,7 @@ int hidraw_connect(struct hid_device *hid)
 		goto out;
 	}
 
-	dev->dev = device_create(hidraw_class, NULL, MKDEV(hidraw_major, minor),
+	dev->dev = device_create(hidraw_class, &hid->dev, MKDEV(hidraw_major, minor),
 				 NULL, "%s%d", "hidraw", minor);
 
 	if (IS_ERR(dev->dev)) {
