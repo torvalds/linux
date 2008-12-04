@@ -65,9 +65,7 @@ struct nlm_host {
 	struct list_head	h_granted;	/* Locks in GRANTED state */
 	struct list_head	h_reclaim;	/* Locks in RECLAIM state */
 	struct nsm_handle	*h_nsmhandle;	/* NSM status handle */
-
-	char			h_addrbuf[48],	/* address eyecatchers */
-				h_srcaddrbuf[48];
+	char			*h_addrbuf;	/* address eyecatcher */
 };
 
 struct nsm_handle {
