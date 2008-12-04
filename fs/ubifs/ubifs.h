@@ -1700,7 +1700,7 @@ long ubifs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 /* compressor.c */
 int __init ubifs_compressors_init(void);
-void __exit ubifs_compressors_exit(void);
+void ubifs_compressors_exit(void);
 void ubifs_compress(const void *in_buf, int in_len, void *out_buf, int *out_len,
 		    int *compr_type);
 int ubifs_decompress(const void *buf, int len, void *out, int *out_len,

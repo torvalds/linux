@@ -244,7 +244,7 @@ out_lzo:
 /**
  * ubifs_compressors_exit - de-initialize UBIFS compressors.
  */
-void __exit ubifs_compressors_exit(void)
+void ubifs_compressors_exit(void)
 {
 	compr_exit(&lzo_compr);
 	compr_exit(&zlib_compr);
