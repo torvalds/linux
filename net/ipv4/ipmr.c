@@ -1879,7 +1879,7 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 		const struct mfc_cache *mfc = v;
 		const struct ipmr_mfc_iter *it = seq->private;
 
-		seq_printf(seq, "%08lX %08lX %-3d",
+		seq_printf(seq, "%08lX %08lX %-3hd",
 			   (unsigned long) mfc->mfc_mcastgrp,
 			   (unsigned long) mfc->mfc_origin,
 			   mfc->mfc_parent);
