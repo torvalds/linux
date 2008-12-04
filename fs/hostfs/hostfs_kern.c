@@ -168,7 +168,7 @@ static char *follow_link(char *link)
 		if (name == NULL)
 			goto out;
 
-		n = do_readlink(link, name, len);
+		n = hostfs_do_readlink(link, name, len);
 		if (n < len)
 			break;
 		len *= 2;
@@ -943,7 +943,7 @@ int hostfs_link_readpage(struct file *file, struct page *page)
 	name = inode_name(page->mapping->host, 0);
 	if (name == NULL)
 		return -ENOMEM;
-	err = do_readlink(name, buffer, PAGE_CACHE_SIZE);
+	err = hostfs_do_readlink(name, buffer, PAGE_CACHE_SIZE);
 	kfree(name);
 	if (err == PAGE_CACHE_SIZE)
 		err = -E2BIG;

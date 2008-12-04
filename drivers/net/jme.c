@@ -912,23 +912,23 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 		skb_put(skb, framesize);
 		skb->protocol = eth_type_trans(skb, jme->dev);
 
-		if (jme_rxsum_ok(jme, rxdesc->descwb.flags))
+		if (jme_rxsum_ok(jme, le16_to_cpu(rxdesc->descwb.flags)))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
 			skb->ip_summed = CHECKSUM_NONE;
 
-		if (rxdesc->descwb.flags & RXWBFLAG_TAGON) {
+		if (rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_TAGON)) {
 			if (jme->vlgrp) {
 				jme->jme_vlan_rx(skb, jme->vlgrp,
-					le32_to_cpu(rxdesc->descwb.vlan));
+					le16_to_cpu(rxdesc->descwb.vlan));
 				NET_STAT(jme).rx_bytes += 4;
 			}
 		} else {
 			jme->jme_rx(skb);
 		}
 
-		if ((le16_to_cpu(rxdesc->descwb.flags) & RXWBFLAG_DEST) ==
-				RXWBFLAG_DEST_MUL)
+		if ((rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_DEST)) ==
+		    cpu_to_le16(RXWBFLAG_DEST_MUL))
 			++(NET_STAT(jme).multicast);
 
 		jme->dev->last_rx = jiffies;
@@ -961,7 +961,7 @@ jme_process_receive(struct jme_adapter *jme, int limit)
 		rxdesc = rxring->desc;
 		rxdesc += i;
 
-		if ((rxdesc->descwb.flags & RXWBFLAG_OWN) ||
+		if ((rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_OWN)) ||
 		!(rxdesc->descwb.desccnt & RXWBDCNT_WBCPL))
 			goto out;
 
@@ -1763,10 +1763,9 @@ jme_expand_header(struct jme_adapter *jme, struct sk_buff *skb)
 }
 
 static int
-jme_tx_tso(struct sk_buff *skb,
-		u16 *mss, u8 *flags)
+jme_tx_tso(struct sk_buff *skb, __le16 *mss, u8 *flags)
 {
-	*mss = skb_shinfo(skb)->gso_size << TXDESC_MSS_SHIFT;
+	*mss = cpu_to_le16(skb_shinfo(skb)->gso_size << TXDESC_MSS_SHIFT);
 	if (*mss) {
 		*flags |= TXFLAG_LSEN;
 
@@ -1826,11 +1825,11 @@ jme_tx_csum(struct jme_adapter *jme, struct sk_buff *skb, u8 *flags)
 }
 
 static inline void
-jme_tx_vlan(struct sk_buff *skb, u16 *vlan, u8 *flags)
+jme_tx_vlan(struct sk_buff *skb, __le16 *vlan, u8 *flags)
 {
 	if (vlan_tx_tag_present(skb)) {
 		*flags |= TXFLAG_TAGON;
-		*vlan = vlan_tx_tag_get(skb);
+		*vlan = cpu_to_le16(vlan_tx_tag_get(skb));
 	}
 }
 

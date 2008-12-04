@@ -79,8 +79,6 @@ config HAVE_KRETPROBES
 #	task_pt_regs()		in asm/processor.h or asm/ptrace.h
 #	arch_has_single_step()	if there is hardware single-step support
 #	arch_has_block_step()	if there is hardware block-step support
-#	arch_ptrace()		and not #define __ARCH_SYS_PTRACE
-#	compat_arch_ptrace()	and #define __ARCH_WANT_COMPAT_SYS_PTRACE
 #	asm/syscall.h		supplying asm-generic/syscall.h interface
 #	linux/regset.h		user_regset interfaces
 #	CORE_DUMP_USE_REGSET	#define'd in linux/elf.h

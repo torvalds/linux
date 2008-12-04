@@ -435,9 +435,13 @@ static void reset_queue_map(struct ehca_queue_map *qmap)
 {
 	int i;
 
-	qmap->tail = 0;
-	for (i = 0; i < qmap->entries; i++)
+	qmap->tail = qmap->entries - 1;
+	qmap->left_to_poll = 0;
+	qmap->next_wqe_idx = 0;
+	for (i = 0; i < qmap->entries; i++) {
 		qmap->map[i].reported = 1;
+		qmap->map[i].cqe_req = 0;
+	}
 }
 
 /*
@@ -860,6 +864,11 @@ static struct ehca_qp *internal_create_qp(
 	if (qp_type == IB_QPT_GSI) {
 		h_ret = ehca_define_sqp(shca, my_qp, init_attr);
 		if (h_ret != H_SUCCESS) {
+			kfree(my_qp->mod_qp_parm);
+			my_qp->mod_qp_parm = NULL;
+			/* the QP pointer is no longer valid */
+			shca->sport[init_attr->port_num - 1].ibqp_sqp[qp_type] =
+				NULL;
 			ret = ehca2ib_return_code(h_ret);
 			goto create_qp_exit6;
 		}
@@ -1116,6 +1125,7 @@ static int calc_left_cqes(u64 wqe_p, struct ipz_queue *ipz_queue,
 	void *wqe_v;
 	u64 q_ofs;
 	u32 wqe_idx;
+	unsigned int tail_idx;
 
 	/* convert real to abs address */
 	wqe_p = wqe_p & (~(1UL << 63));
@@ -1128,12 +1138,17 @@ static int calc_left_cqes(u64 wqe_p, struct ipz_queue *ipz_queue,
 		return -EFAULT;
 	}
 
+	tail_idx = (qmap->tail + 1) % qmap->entries;
 	wqe_idx = q_ofs / ipz_queue->qe_size;
-	if (wqe_idx < qmap->tail)
-		qmap->left_to_poll = (qmap->entries - qmap->tail) + wqe_idx;
-	else
-		qmap->left_to_poll = wqe_idx - qmap->tail;
 
+	/* check all processed wqes, whether a cqe is requested or not */
+	while (tail_idx != wqe_idx) {
+		if (qmap->map[tail_idx].cqe_req)
+			qmap->left_to_poll++;
+		tail_idx = (tail_idx + 1) % qmap->entries;
+	}
+	/* save index in queue, where we have to start flushing */
+	qmap->next_wqe_idx = wqe_idx;
 	return 0;
 }
 
@@ -1180,10 +1195,14 @@ static int check_for_left_cqes(struct ehca_qp *my_qp, struct ehca_shca *shca)
 	} else {
 		spin_lock_irqsave(&my_qp->send_cq->spinlock, flags);
 		my_qp->sq_map.left_to_poll = 0;
+		my_qp->sq_map.next_wqe_idx = (my_qp->sq_map.tail + 1) %
+						my_qp->sq_map.entries;
 		spin_unlock_irqrestore(&my_qp->send_cq->spinlock, flags);
 
 		spin_lock_irqsave(&my_qp->recv_cq->spinlock, flags);
 		my_qp->rq_map.left_to_poll = 0;
+		my_qp->rq_map.next_wqe_idx = (my_qp->rq_map.tail + 1) %
+						my_qp->rq_map.entries;
 		spin_unlock_irqrestore(&my_qp->recv_cq->spinlock, flags);
 	}
 

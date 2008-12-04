@@ -47,6 +47,8 @@ enum pipe {
 	PIPE_B,
 };
 
+#define I915_NUM_PIPE	2
+
 /* Interface history:
  *
  * 1.1: Original.
@@ -132,6 +134,7 @@ typedef struct drm_i915_private {
 	int user_irq_refcount;
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask_reg;
+	u32 pipestat[2];
 
 	int tex_lru_log_granularity;
 	int allow_batchbuffer;
@@ -147,6 +150,7 @@ typedef struct drm_i915_private {
 	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
 	u32 saveRENDERSTANDBY;
+	u32 saveHWS;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;
 	u32 savePIPEASRC;
@@ -445,6 +449,13 @@ extern u32 i915_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
+
+void
+i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
+
+void
+i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
+
 
 /* i915_mem.c */
 extern int i915_mem_alloc(struct drm_device *dev, void *data,

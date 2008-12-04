@@ -37,6 +37,9 @@ static void snd_hda_generate_beep(struct work_struct *work)
 		container_of(work, struct hda_beep, beep_work);
 	struct hda_codec *codec = beep->codec;
 
+	if (!beep->enabled)
+		return;
+
 	/* generate tone */
 	snd_hda_codec_write_cache(codec, beep->nid, 0,
 			AC_VERB_SET_BEEP_CONTROL, beep->tone);
@@ -85,6 +88,10 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	snprintf(beep->phys, sizeof(beep->phys),
 		"card%d/codec#%d/beep0", codec->bus->card->number, codec->addr);
 	input_dev = input_allocate_device();
+	if (!input_dev) {
+		kfree(beep);
+		return -ENOMEM;
+	}
 
 	/* setup digital beep device */
 	input_dev->name = "HDA Digital PCBeep";
@@ -115,6 +122,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	beep->nid = nid;
 	beep->dev = input_dev;
 	beep->codec = codec;
+	beep->enabled = 1;
 	codec->beep = beep;
 
 	INIT_WORK(&beep->beep_work, &snd_hda_generate_beep);

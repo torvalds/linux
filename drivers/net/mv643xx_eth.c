@@ -899,7 +899,8 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		if (skb != NULL) {
 			if (skb_queue_len(&mp->rx_recycle) <
 					mp->default_rx_ring_size &&
-			    skb_recycle_check(skb, mp->skb_size))
+			    skb_recycle_check(skb, mp->skb_size +
+					dma_get_cache_alignment() - 1))
 				__skb_queue_head(&mp->rx_recycle, skb);
 			else
 				dev_kfree_skb(skb);
@@ -2435,8 +2436,8 @@ static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
 
 	if (pd == NULL || pd->shared_smi == NULL) {
-		mdiobus_free(msp->smi_bus);
 		mdiobus_unregister(msp->smi_bus);
+		mdiobus_free(msp->smi_bus);
 	}
 	if (msp->err_interrupt != NO_IRQ)
 		free_irq(msp->err_interrupt, msp);

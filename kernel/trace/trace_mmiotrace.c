@@ -18,12 +18,14 @@ struct header_iter {
 
 static struct trace_array *mmio_trace_array;
 static bool overrun_detected;
+static unsigned long prev_overruns;
 
 static void mmio_reset_data(struct trace_array *tr)
 {
 	int cpu;
 
 	overrun_detected = false;
+	prev_overruns = 0;
 	tr->time_start = ftrace_now(tr->cpu);
 
 	for_each_online_cpu(cpu)
@@ -128,16 +130,12 @@ static void mmio_close(struct trace_iterator *iter)
 
 static unsigned long count_overruns(struct trace_iterator *iter)
 {
-	int cpu;
 	unsigned long cnt = 0;
-/* FIXME: */
-#if 0
-	for_each_online_cpu(cpu) {
-		cnt += iter->overrun[cpu];
-		iter->overrun[cpu] = 0;
-	}
-#endif
-	(void)cpu;
+	unsigned long over = ring_buffer_overruns(iter->tr->buffer);
+
+	if (over > prev_overruns)
+		cnt = over - prev_overruns;
+	prev_overruns = over;
 	return cnt;
 }
 
