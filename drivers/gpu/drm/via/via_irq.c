@@ -314,7 +314,6 @@ int via_driver_irq_postinstall(struct drm_device *dev)
 	if (!dev_priv)
 		return -EINVAL;
 
-	drm_vblank_init(dev, 1);
 	status = VIA_READ(VIA_REG_INTERRUPT);
 	VIA_WRITE(VIA_REG_INTERRUPT, status | VIA_IRQ_GLOBAL
 		  | dev_priv->irq_enable_mask);

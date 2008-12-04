@@ -227,8 +227,17 @@ struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 	if (r)
 		return ERR_PTR(r);
 
-	/* If the phy_id is all Fs or all 0s, there is no device there */
-	if ((0xffff == phy_id) || (0x00 == phy_id))
+	/* If the phy_id is mostly Fs, there is no device there */
+	if ((phy_id & 0x1fffffff) == 0x1fffffff)
+		return NULL;
+
+	/*
+	 * Broken hardware is sometimes missing the pull down resistor on the
+	 * MDIO line, which results in reads to non-existent devices returning
+	 * 0 rather than 0xffff. Catch this here and treat 0 as a non-existent
+	 * device as well.
+	 */
+	if (phy_id == 0)
 		return NULL;
 
 	dev = phy_device_create(bus, addr, phy_id);
@@ -564,20 +573,32 @@ EXPORT_SYMBOL(genphy_restart_aneg);
  */
 int genphy_config_aneg(struct phy_device *phydev)
 {
-	int result = 0;
+	int result;
 
-	if (AUTONEG_ENABLE == phydev->autoneg) {
-		int result = genphy_config_advert(phydev);
+	if (AUTONEG_ENABLE != phydev->autoneg)
+		return genphy_setup_forced(phydev);
 
-		if (result < 0) /* error */
-			return result;
+	result = genphy_config_advert(phydev);
 
-		/* Only restart aneg if we are advertising something different
-		 * than we were before.	 */
-		if (result > 0)
-			result = genphy_restart_aneg(phydev);
-	} else
-		result = genphy_setup_forced(phydev);
+	if (result < 0) /* error */
+		return result;
+
+	if (result == 0) {
+		/* Advertisment hasn't changed, but maybe aneg was never on to
+		 * begin with?  Or maybe phy was isolated? */
+		int ctl = phy_read(phydev, MII_BMCR);
+
+		if (ctl < 0)
+			return ctl;
+
+		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
+			result = 1; /* do restart aneg */
+	}
+
+	/* Only restart aneg if we are advertising something different
+	 * than we were before.	 */
+	if (result > 0)
+		result = genphy_restart_aneg(phydev);
 
 	return result;
 }

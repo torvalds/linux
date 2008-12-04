@@ -233,6 +233,7 @@ nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
 		return status;
+	INIT_LIST_HEAD(dentries);
 
 	filp = dentry_open(dget(dir), mntget(rec_dir.mnt), O_RDONLY,
 			   current_cred());

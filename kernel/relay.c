@@ -400,7 +400,7 @@ void relay_reset(struct rchan *chan)
 	}
 
 	mutex_lock(&relay_channels_mutex);
-	for_each_online_cpu(i)
+	for_each_possible_cpu(i)
 		if (chan->buf[i])
 			__relay_reset(chan->buf[i], 0);
 	mutex_unlock(&relay_channels_mutex);
@@ -611,10 +611,9 @@ struct rchan *relay_open(const char *base_filename,
 	return chan;
 
 free_bufs:
-	for_each_online_cpu(i) {
-		if (!chan->buf[i])
-			break;
-		relay_close_buf(chan->buf[i]);
+	for_each_possible_cpu(i) {
+		if (chan->buf[i])
+			relay_close_buf(chan->buf[i]);
 	}
 
 	kref_put(&chan->kref, relay_destroy_channel);

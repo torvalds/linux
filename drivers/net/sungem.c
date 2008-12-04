@@ -1714,7 +1714,7 @@ static void gem_init_phy(struct gem *gp)
 		/* Reset PCS unit. */
 		val = readl(gp->regs + PCS_MIICTRL);
 		val |= PCS_MIICTRL_RST;
-		writeb(val, gp->regs + PCS_MIICTRL);
+		writel(val, gp->regs + PCS_MIICTRL);
 
 		limit = 32;
 		while (readl(gp->regs + PCS_MIICTRL) & PCS_MIICTRL_RST) {

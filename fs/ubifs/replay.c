@@ -1065,7 +1065,7 @@ int ubifs_replay_journal(struct ubifs_info *c)
 	ubifs_assert(c->bud_bytes <= c->max_bud_bytes || c->need_recovery);
 	dbg_mnt("finished, log head LEB %d:%d, max_sqnum %llu, "
 		"highest_inum %lu", c->lhead_lnum, c->lhead_offs, c->max_sqnum,
-		c->highest_inum);
+		(unsigned long)c->highest_inum);
 out:
 	destroy_replay_tree(c);
 	destroy_bud_list(c);

@@ -161,7 +161,7 @@ static inline struct request *start_ordered(struct request_queue *q,
 	/*
 	 * Prep proxy barrier request.
 	 */
-	blkdev_dequeue_request(rq);
+	elv_dequeue_request(q, rq);
 	q->orig_bar_rq = rq;
 	rq = &q->bar_rq;
 	blk_rq_init(q, rq);
@@ -219,7 +219,7 @@ int blk_do_ordered(struct request_queue *q, struct request **rqp)
 			 * This can happen when the queue switches to
 			 * ORDERED_NONE while this request is on it.
 			 */
-			blkdev_dequeue_request(rq);
+			elv_dequeue_request(q, rq);
 			if (__blk_end_request(rq, -EOPNOTSUPP,
 					      blk_rq_bytes(rq)))
 				BUG();

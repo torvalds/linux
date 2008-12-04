@@ -70,6 +70,8 @@ static int __devinit netmos_parallel_init(struct pci_dev *dev, struct parport_pc
 	 * parallel ports and <S> is the number of serial ports.
 	 */
 	card->numports = (dev->subsystem_device & 0xf0) >> 4;
+	if (card->numports > ARRAY_SIZE(card->addr))
+		card->numports = ARRAY_SIZE(card->addr);
 	return 0;
 }
 
