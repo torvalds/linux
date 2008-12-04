@@ -48,6 +48,8 @@ static int frame_rate;
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
+	__u32 last_fid;
+	__u32 last_pts;
 };
 
 /* V4L2 controls supported by the driver */
@@ -397,9 +399,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 			__u8 *data, int len)
 {
-	static __u32 last_pts;
+	struct sd *sd = (struct sd *) gspca_dev;
 	__u32 this_pts;
-	static int last_fid;
 	int this_fid;
 
 	/* Payloads are prefixed with a the UVC-style header.  We
@@ -428,10 +429,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 	this_fid = (data[1] & UVC_STREAM_FID) ? 1 : 0;
 
 	/* If PTS or FID has changed, start a new frame. */
-	if (this_pts != last_pts || this_fid != last_fid) {
+	if (this_pts != sd->last_pts || this_fid != sd->last_fid) {
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
-		last_pts = this_pts;
-		last_fid = this_fid;
+		sd->last_pts = this_pts;
+		sd->last_fid = this_fid;
 	}
 
 	/* Add the data from this payload */
@@ -440,7 +441,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 
 	/* If this packet is marked as EOF, end the frame */
 	if (data[1] & UVC_STREAM_EOF) {
-		last_pts = 0;
+		sd->last_pts = 0;
 
 		if ((frame->data_end - frame->data) !=
 		    (gspca_dev->width * gspca_dev->height * 2)) {
