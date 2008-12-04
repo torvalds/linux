@@ -151,9 +151,6 @@ struct htb_sched {
 	/* time of nearest event per level (row) */
 	psched_time_t near_ev_cache[TC_HTB_MAXDEPTH];
 
-	/* whether we hit non-work conserving class during this dequeue; we use */
-	int nwc_hit;		/* this to disable mindelay complaint in dequeue */
-
 	int defcls;		/* class where unclassified flows go to */
 
 	/* filters for qdisc itself */
@@ -807,7 +804,7 @@ next:
 			       cl->common.classid);
 			cl->warned = 1;
 		}
-		q->nwc_hit++;
+
 		htb_next_rb_node((level ? cl->parent->un.inner.ptr : q->
 				  ptr[0]) + prio);
 		cl = htb_lookup_leaf(q->row[level] + prio, prio,
@@ -852,7 +849,7 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 	q->now = psched_get_time();
 
 	next_event = q->now + 5 * PSCHED_TICKS_PER_SEC;
-	q->nwc_hit = 0;
+
 	for (level = 0; level < TC_HTB_MAXDEPTH; level++) {
 		/* common case optimization - skip event handler quickly */
 		int m;
