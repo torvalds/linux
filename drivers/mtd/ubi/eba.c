@@ -504,12 +504,9 @@ static int recover_peb(struct ubi_device *ubi, int pnum, int vol_id, int lnum,
 	if (!vid_hdr)
 		return -ENOMEM;
 
-	mutex_lock(&ubi->buf_mutex);
-
 retry:
 	new_pnum = ubi_wl_get_peb(ubi, UBI_UNKNOWN);
 	if (new_pnum < 0) {
-		mutex_unlock(&ubi->buf_mutex);
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		return new_pnum;
 	}
@@ -529,20 +526,23 @@ retry:
 		goto write_error;
 
 	data_size = offset + len;
+	mutex_lock(&ubi->buf_mutex);
 	memset(ubi->peb_buf1 + offset, 0xFF, len);
 
 	/* Read everything before the area where the write failure happened */
 	if (offset > 0) {
 		err = ubi_io_read_data(ubi, ubi->peb_buf1, pnum, 0, offset);
 		if (err && err != UBI_IO_BITFLIPS)
-			goto out_put;
+			goto out_unlock;
 	}
 
 	memcpy(ubi->peb_buf1 + offset, buf, len);
 
 	err = ubi_io_write_data(ubi, ubi->peb_buf1, new_pnum, 0, data_size);
-	if (err)
+	if (err) {
+		mutex_unlock(&ubi->buf_mutex);
 		goto write_error;
+	}
 
 	mutex_unlock(&ubi->buf_mutex);
 	ubi_free_vid_hdr(ubi, vid_hdr);
@@ -553,8 +553,9 @@ retry:
 	ubi_msg("data was successfully recovered");
 	return 0;
 
-out_put:
+out_unlock:
 	mutex_unlock(&ubi->buf_mutex);
+out_put:
 	ubi_wl_put_peb(ubi, new_pnum, 1);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 	return err;
@@ -567,7 +568,6 @@ write_error:
 	ubi_warn("failed to write to PEB %d", new_pnum);
 	ubi_wl_put_peb(ubi, new_pnum, 1);
 	if (++tries > UBI_IO_RETRIES) {
-		mutex_unlock(&ubi->buf_mutex);
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		return err;
 	}
