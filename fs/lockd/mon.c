@@ -107,15 +107,19 @@ int nsm_monitor(const struct nlm_host *host)
 	return status;
 }
 
-/*
- * Cease to monitor remote host
+/**
+ * nsm_unmonitor - Unregister peer notification
+ * @host: pointer to nlm_host of peer to stop monitoring
+ *
+ * If this peer is monitored, this function sends an upcall to
+ * tell the local rpc.statd not to send this peer a notification
+ * when we reboot.
  */
-int
-nsm_unmonitor(struct nlm_host *host)
+void nsm_unmonitor(const struct nlm_host *host)
 {
 	struct nsm_handle *nsm = host->h_nsmhandle;
 	struct nsm_res	res;
-	int		status = 0;
+	int status;
 
 	if (atomic_read(&nsm->sm_count) == 1
 	 && nsm->sm_monitored && !nsm->sm_sticky) {
@@ -128,7 +132,6 @@ nsm_unmonitor(struct nlm_host *host)
 		else
 			nsm->sm_monitored = 0;
 	}
-	return status;
 }
 
 /*

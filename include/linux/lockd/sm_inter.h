@@ -41,7 +41,6 @@ struct nsm_res {
 	u32		state;
 };
 
-int		nsm_unmonitor(struct nlm_host *);
 extern int	nsm_local_state;
 
 #endif /* LINUX_LOCKD_SM_INTER_H */
