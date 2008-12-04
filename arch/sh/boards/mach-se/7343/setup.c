@@ -126,7 +126,7 @@ static void __init sh7343se_setup(char **cmdline_p)
 static struct sh_machine_vector mv_7343se __initmv = {
 	.mv_name = "SolutionEngine 7343",
 	.mv_setup = sh7343se_setup,
-	.mv_nr_irqs = 108,
+	.mv_nr_irqs = SE7343_FPGA_IRQ_BASE + SE7343_FPGA_IRQ_NR,
 	.mv_inb = sh7343se_inb,
 	.mv_inw = sh7343se_inw,
 	.mv_inl = sh7343se_inl,
