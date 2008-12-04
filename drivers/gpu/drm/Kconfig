@@ -65,6 +65,11 @@ config DRM_I830
 	  will load the correct one.
 
 config DRM_I915
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select I2C_ALGOBIT
+	depends on FB
 	tristate "i915 driver"
 	help
 	  Choose this option if you have a system that has Intel 830M, 845G,
