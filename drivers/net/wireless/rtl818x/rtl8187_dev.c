@@ -313,29 +313,14 @@ static void rtl8187_rx_cb(struct urb *urb)
 		struct rtl8187_rx_hdr *hdr =
 			(typeof(hdr))(skb_tail_pointer(skb) - sizeof(*hdr));
 		flags = le32_to_cpu(hdr->flags);
-		signal = hdr->signal & 0x7f;
+		/* As with the RTL8187B below, the AGC is used to calculate
+		 * signal strength and quality. In this case, the scaling
+		 * constants are derived from the output of p54usb.
+		 */
+		quality = 130 - ((41 * hdr->agc) >> 6);
+		signal = -4 - ((27 * hdr->agc) >> 6);
 		rx_status.antenna = (hdr->signal >> 7) & 1;
-		rx_status.noise = hdr->noise;
 		rx_status.mactime = le64_to_cpu(hdr->mac_time);
-		priv->quality = signal;
-		rx_status.qual = priv->quality;
-		priv->noise = hdr->noise;
-		rate = (flags >> 20) & 0xF;
-		if (rate > 3) { /* OFDM rate */
-			if (signal > 90)
-				signal = 90;
-			else if (signal < 25)
-				signal = 25;
-			signal = 90 - signal;
-		} else {	/* CCK rate */
-			if (signal > 95)
-				signal = 95;
-			else if (signal < 30)
-				signal = 30;
-			signal = 95 - signal;
-		}
-		rx_status.signal = signal;
-		priv->signal = signal;
 	} else {
 		struct rtl8187b_rx_hdr *hdr =
 			(typeof(hdr))(skb_tail_pointer(skb) - sizeof(*hdr));
@@ -353,18 +338,18 @@ static void rtl8187_rx_cb(struct urb *urb)
 		 */
 		flags = le32_to_cpu(hdr->flags);
 		quality = 170 - hdr->agc;
-		if (quality > 100)
-			quality = 100;
 		signal = 14 - hdr->agc / 2;
-		rx_status.qual = quality;
-		priv->quality = quality;
-		rx_status.signal = signal;
-		priv->signal = signal;
 		rx_status.antenna = (hdr->rssi >> 7) & 1;
 		rx_status.mactime = le64_to_cpu(hdr->mac_time);
-		rate = (flags >> 20) & 0xF;
 	}
 
+	if (quality > 100)
+		quality = 100;
+	rx_status.qual = quality;
+	priv->quality = quality;
+	rx_status.signal = signal;
+	priv->signal = signal;
+	rate = (flags >> 20) & 0xF;
 	skb_trim(skb, flags & 0x0FFF);
 	rx_status.rate_idx = rate;
 	rx_status.freq = dev->conf.channel->center_freq;
@@ -1293,6 +1278,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 
 	priv->mode = NL80211_IFTYPE_MONITOR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
+		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_RX_INCLUDES_FCS;
 
 	eeprom.data = dev;
@@ -1408,13 +1394,8 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		(*channel++).hw_value = txpwr >> 8;
 	}
 
-	if (priv->is_rtl8187b) {
+	if (priv->is_rtl8187b)
 		printk(KERN_WARNING "rtl8187: 8187B chip detected.\n");
-		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
-	} else {
-		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
-		dev->max_signal = 65;
-	}
 
 	/*
 	 * XXX: Once this driver supports anything that requires
