@@ -518,11 +518,9 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 	unsigned char fl_type;
 	int status = -ENOLCK;
 
-	if (nsm_monitor(host) < 0) {
-		printk(KERN_NOTICE "lockd: failed to monitor %s\n",
-					host->h_name);
+	if (nsm_monitor(host) < 0)
 		goto out;
-	}
+
 	fl->fl_flags |= FL_ACCESS;
 	status = do_vfs_lock(fl);
 	fl->fl_flags = fl_flags;
