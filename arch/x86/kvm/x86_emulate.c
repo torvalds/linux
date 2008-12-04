@@ -76,7 +76,7 @@ enum {
 	Group1A, Group3_Byte, Group3, Group4, Group5, Group7,
 };
 
-static u16 opcode_table[256] = {
+static u32 opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
@@ -195,7 +195,7 @@ static u16 opcode_table[256] = {
 	ImplicitOps, ImplicitOps, Group | Group4, Group | Group5,
 };
 
-static u16 twobyte_table[256] = {
+static u32 twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	0, Group | GroupDual | Group7, 0, 0, 0, 0, ImplicitOps, 0,
 	ImplicitOps, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
@@ -253,7 +253,7 @@ static u16 twobyte_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static u16 group_table[] = {
+static u32 group_table[] = {
 	[Group1_80*8] =
 	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
 	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
@@ -297,7 +297,7 @@ static u16 group_table[] = {
 	SrcMem16 | ModRM | Mov, SrcMem | ModRM | ByteOp,
 };
 
-static u16 group2_table[] = {
+static u32 group2_table[] = {
 	[Group7*8] =
 	SrcNone | ModRM, 0, 0, 0,
 	SrcNone | ModRM | DstMem | Mov, 0,
