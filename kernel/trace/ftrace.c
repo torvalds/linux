@@ -49,6 +49,7 @@ static int last_ftrace_enabled;
 
 /* set when tracing only a pid */
 struct pid *ftrace_pid_trace;
+static struct pid * const ftrace_swapper_pid = (struct pid *)1;
 
 /* Quick disabling of function tracer. */
 int function_trace_stop;
@@ -1678,7 +1679,9 @@ ftrace_pid_read(struct file *file, char __user *ubuf,
 	char buf[64];
 	int r;
 
-	if (ftrace_pid_trace)
+	if (ftrace_pid_trace == ftrace_swapper_pid)
+		r = sprintf(buf, "swapper tasks\n");
+	else if (ftrace_pid_trace)
 		r = sprintf(buf, "%u\n", pid_nr(ftrace_pid_trace));
 	else
 		r = sprintf(buf, "no pid\n");
@@ -1686,25 +1689,67 @@ ftrace_pid_read(struct file *file, char __user *ubuf,
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
-static void clear_ftrace_pid_task(struct pid **pid)
+static void clear_ftrace_swapper(void)
+{
+	struct task_struct *p;
+	int cpu;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
+		p = idle_task(cpu);
+		clear_tsk_trace_trace(p);
+	}
+	put_online_cpus();
+}
+
+static void set_ftrace_swapper(void)
+{
+	struct task_struct *p;
+	int cpu;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
+		p = idle_task(cpu);
+		set_tsk_trace_trace(p);
+	}
+	put_online_cpus();
+}
+
+static void clear_ftrace_pid(struct pid *pid)
 {
 	struct task_struct *p;
 
-	do_each_pid_task(*pid, PIDTYPE_PID, p) {
+	do_each_pid_task(pid, PIDTYPE_PID, p) {
 		clear_tsk_trace_trace(p);
-	} while_each_pid_task(*pid, PIDTYPE_PID, p);
-	put_pid(*pid);
-
-	*pid = NULL;
+	} while_each_pid_task(pid, PIDTYPE_PID, p);
+	put_pid(pid);
 }
 
-static void set_ftrace_pid_task(struct pid *pid)
+static void set_ftrace_pid(struct pid *pid)
 {
 	struct task_struct *p;
 
 	do_each_pid_task(pid, PIDTYPE_PID, p) {
 		set_tsk_trace_trace(p);
 	} while_each_pid_task(pid, PIDTYPE_PID, p);
+}
+
+static void clear_ftrace_pid_task(struct pid **pid)
+{
+	if (*pid == ftrace_swapper_pid)
+		clear_ftrace_swapper();
+	else
+		clear_ftrace_pid(*pid);
+
+	*pid = NULL;
+}
+
+static void set_ftrace_pid_task(struct pid *pid)
+{
+	if (pid == ftrace_swapper_pid)
+		set_ftrace_swapper();
+	else
+		set_ftrace_pid(pid);
 }
 
 static ssize_t
@@ -1737,11 +1782,18 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 		clear_ftrace_pid_task(&ftrace_pid_trace);
 
 	} else {
-		pid = find_get_pid(val);
+		/* swapper task is special */
+		if (!val) {
+			pid = ftrace_swapper_pid;
+			if (pid == ftrace_pid_trace)
+				goto out;
+		} else {
+			pid = find_get_pid(val);
 
-		if (pid == ftrace_pid_trace) {
-			put_pid(pid);
-			goto out;
+			if (pid == ftrace_pid_trace) {
+				put_pid(pid);
+				goto out;
+			}
 		}
 
 		if (ftrace_pid_trace)
