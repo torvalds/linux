@@ -1242,12 +1242,8 @@ err_eeprom:
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
 err_flashmap:
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		dev_put(&adapter->polling_netdev[i]);
-
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
-	kfree(adapter->polling_netdev);
 err_sw_init:
 	iounmap(hw->hw_addr);
 err_ioremap:
@@ -1275,7 +1271,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	int i;
 
 	cancel_work_sync(&adapter->reset_task);
 
@@ -1285,9 +1280,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	 * would have already happened in close and is redundant. */
 	e1000_release_hw_control(adapter);
 
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		dev_put(&adapter->polling_netdev[i]);
-
 	unregister_netdev(netdev);
 
 	if (!e1000_check_phy_reset_block(hw))
@@ -1295,7 +1287,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
-	kfree(adapter->polling_netdev);
 
 	iounmap(hw->hw_addr);
 	if (hw->flash_address)
@@ -1321,7 +1312,6 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
-	int i;
 
 	/* PCI config space info */
 
@@ -1378,11 +1368,6 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		adapter->polling_netdev[i].priv = adapter;
-		dev_hold(&adapter->polling_netdev[i]);
-		set_bit(__LINK_STATE_START, &adapter->polling_netdev[i].state);
-	}
 	spin_lock_init(&adapter->tx_queue_lock);
 
 	/* Explicitly disable IRQ since the NIC can be in any state. */
@@ -1400,8 +1385,7 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
  * @adapter: board private structure to initialize
  *
  * We allocate one ring per queue at run-time since we don't know the
- * number of queues at compile-time.  The polling_netdev array is
- * intended for Multiqueue, but should work fine with a single queue.
+ * number of queues at compile-time.
  **/
 
 static int __devinit e1000_alloc_queues(struct e1000_adapter *adapter)
@@ -1415,15 +1399,6 @@ static int __devinit e1000_alloc_queues(struct e1000_adapter *adapter)
 	                           sizeof(struct e1000_rx_ring), GFP_KERNEL);
 	if (!adapter->rx_ring) {
 		kfree(adapter->tx_ring);
-		return -ENOMEM;
-	}
-
-	adapter->polling_netdev = kcalloc(adapter->num_rx_queues,
-	                                  sizeof(struct net_device),
-	                                  GFP_KERNEL);
-	if (!adapter->polling_netdev) {
-		kfree(adapter->tx_ring);
-		kfree(adapter->rx_ring);
 		return -ENOMEM;
 	}
 
