@@ -435,15 +435,18 @@ jme_check_link(struct net_device *netdev, int testonly)
 					GHC_DPX);
 		switch (phylink & PHY_LINK_SPEED_MASK) {
 		case PHY_LINK_SPEED_10M:
-			ghc |= GHC_SPEED_10M;
+			ghc |= GHC_SPEED_10M |
+				GHC_TO_CLK_PCIE | GHC_TXMAC_CLK_PCIE;
 			strcat(linkmsg, "10 Mbps, ");
 			break;
 		case PHY_LINK_SPEED_100M:
-			ghc |= GHC_SPEED_100M;
+			ghc |= GHC_SPEED_100M |
+				GHC_TO_CLK_PCIE | GHC_TXMAC_CLK_PCIE;
 			strcat(linkmsg, "100 Mbps, ");
 			break;
 		case PHY_LINK_SPEED_1000M:
-			ghc |= GHC_SPEED_1000M;
+			ghc |= GHC_SPEED_1000M |
+				GHC_TO_CLK_GPHY | GHC_TXMAC_CLK_GPHY;
 			strcat(linkmsg, "1000 Mbps, ");
 			break;
 		default:
@@ -463,14 +466,6 @@ jme_check_link(struct net_device *netdev, int testonly)
 				TXTRHD_TXREN |
 				((8 << TXTRHD_TXRL_SHIFT) & TXTRHD_TXRL));
 		}
-		strcat(linkmsg, (phylink & PHY_LINK_DUPLEX) ?
-					"Full-Duplex, " :
-					"Half-Duplex, ");
-
-		if (phylink & PHY_LINK_MDI_STAT)
-			strcat(linkmsg, "MDI-X");
-		else
-			strcat(linkmsg, "MDI");
 
 		gpreg1 = GPREG1_DEFAULT;
 		if (is_buggy250(jme->pdev->device, jme->chiprev)) {
@@ -492,11 +487,17 @@ jme_check_link(struct net_device *netdev, int testonly)
 				break;
 			}
 		}
+
 		jwrite32(jme, JME_GPREG1, gpreg1);
-
-		jme->reg_ghc = ghc;
 		jwrite32(jme, JME_GHC, ghc);
+		jme->reg_ghc = ghc;
 
+		strcat(linkmsg, (phylink & PHY_LINK_DUPLEX) ?
+					"Full-Duplex, " :
+					"Half-Duplex, ");
+		strcat(linkmsg, (phylink & PHY_LINK_MDI_STAT) ?
+					"MDI-X" :
+					"MDI");
 		msg_link(jme, "Link is up at %s.\n", linkmsg);
 		netif_carrier_on(netdev);
 	} else {
