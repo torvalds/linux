@@ -763,7 +763,7 @@ int avc_ca_info(struct firesat *firesat, char *app_info, unsigned int *len)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
-	/* int pos;  FIXME: unused */
+	int pos;
 
 	memset(&CmdFrm, 0, sizeof(AVCCmdFrm));
 	CmdFrm.cts = AVC;
@@ -783,13 +783,13 @@ int avc_ca_info(struct firesat *firesat, char *app_info, unsigned int *len)
 	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
-	/* pos = get_ca_object_pos(&RspFrm);  FIXME: unused */
+	pos = get_ca_object_pos(&RspFrm);
 	app_info[0] = (TAG_CA_INFO >> 16) & 0xFF;
 	app_info[1] = (TAG_CA_INFO >> 8) & 0xFF;
 	app_info[2] = (TAG_CA_INFO >> 0) & 0xFF;
 	app_info[3] = 2;
-	app_info[4] = app_info[5];
-	app_info[5] = app_info[6];
+	app_info[4] = RspFrm.operand[pos + 0];
+	app_info[5] = RspFrm.operand[pos + 1];
 	*len = app_info[3] + 4;
 
 	return 0;
