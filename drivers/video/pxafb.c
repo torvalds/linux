@@ -800,14 +800,19 @@ static int pxafb_smart_thread(void *arg)
 
 static int pxafb_smart_init(struct pxafb_info *fbi)
 {
-	if (!(fbi->lccr0 | LCCR0_LCDT))
+	if (!(fbi->lccr0 & LCCR0_LCDT))
 		return 0;
+
+	fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
+	fbi->n_smart_cmds = 0;
+
+	init_completion(&fbi->command_done);
+	init_completion(&fbi->refresh_done);
 
 	fbi->smart_thread = kthread_run(pxafb_smart_thread, fbi,
 					"lcd_refresh");
 	if (IS_ERR(fbi->smart_thread)) {
-		printk(KERN_ERR "%s: unable to create kernel thread\n",
-				__func__);
+		pr_err("%s: unable to create kernel thread\n", __func__);
 		return PTR_ERR(fbi->smart_thread);
 	}
 
@@ -823,7 +828,9 @@ int pxafb_smart_flush(struct fb_info *info)
 {
 	return 0;
 }
-#endif /* CONFIG_FB_SMART_PANEL */
+
+static inline int pxafb_smart_init(struct pxafb_info *fbi) { return 0; }
+#endif /* CONFIG_FB_PXA_SMARTPANEL */
 
 static void setup_parallel_timing(struct pxafb_info *fbi,
 				  struct fb_var_screeninfo *var)
@@ -1286,11 +1293,6 @@ static int __devinit pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
 
 	        pr_debug("pxafb: palette_mem_size = 0x%08x\n", fbi->palette_size*sizeof(u16));
-
-#ifdef CONFIG_FB_PXA_SMARTPANEL
-		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
-		fbi->n_smart_cmds = 0;
-#endif
 	}
 
 	return fbi->map_cpu ? 0 : -ENOMEM;
@@ -1412,10 +1414,6 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 	INIT_WORK(&fbi->task, pxafb_task);
 	mutex_init(&fbi->ctrlr_lock);
 	init_completion(&fbi->disable_done);
-#ifdef CONFIG_FB_PXA_SMARTPANEL
-	init_completion(&fbi->command_done);
-	init_completion(&fbi->refresh_done);
-#endif
 
 	return fbi;
 }
@@ -1747,13 +1745,12 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 		goto failed_free_mem;
 	}
 
-#ifdef CONFIG_FB_PXA_SMARTPANEL
 	ret = pxafb_smart_init(fbi);
 	if (ret) {
 		dev_err(&dev->dev, "failed to initialize smartpanel\n");
 		goto failed_free_irq;
 	}
-#endif
+
 	/*
 	 * This makes sure that our colour bitfield
 	 * descriptors are correctly initialised.
