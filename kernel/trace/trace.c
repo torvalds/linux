@@ -3657,13 +3657,7 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 		return 0;
 
 	va_start(ap, fmt);
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	ret = trace_vprintk(ip, current->curr_ret_stack, fmt, ap);
-#else
-	ret = trace_vprintk(ip, -1, fmt, ap);
-#endif
-
+	ret = trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
 	va_end(ap);
 	return ret;
 }

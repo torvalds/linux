@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/kallsyms.h>
 #include <linux/bitops.h>
+#include <linux/sched.h>
 
 #ifdef CONFIG_FUNCTION_TRACER
 
@@ -387,9 +388,19 @@ extern void unregister_ftrace_graph(void);
 
 extern void ftrace_graph_init_task(struct task_struct *t);
 extern void ftrace_graph_exit_task(struct task_struct *t);
+
+static inline int task_curr_ret_stack(struct task_struct *t)
+{
+	return t->curr_ret_stack;
+}
 #else
 static inline void ftrace_graph_init_task(struct task_struct *t) { }
 static inline void ftrace_graph_exit_task(struct task_struct *t) { }
+
+static inline int task_curr_ret_stack(struct task_struct *tsk)
+{
+	return -1;
+}
 #endif
 
 #ifdef CONFIG_TRACING
