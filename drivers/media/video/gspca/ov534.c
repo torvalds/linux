@@ -197,9 +197,9 @@ static const __u8 ov534_reg_initdata[][2] = {
 	{ 0x1d, 0x40 },
 	{ 0x1d, 0x02 },
 	{ 0x1d, 0x00 },
-	{ 0x1d, 0x02 },
-	{ 0x1d, 0x57 },
-	{ 0x1d, 0xff },
+	{ 0x1d, 0x02 }, /* frame size 0x025800 * 4 = 614400 */
+	{ 0x1d, 0x58 }, /* frame size */
+	{ 0x1d, 0x00 }, /* frame size */
 
 	{ 0x8d, 0x1c },
 	{ 0x8e, 0x80 },
@@ -409,25 +409,15 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 			__u8 *data, int len)
 {
-	/*
-	 * The current camera setup doesn't stream the last pixel, so we set it
-	 * to a dummy value
-	 */
-	__u8 last[4] = { 0, 0, 0, 0 };
 	int framesize = frame->v4l2_buf.length;
 
-	PDEBUG(D_PACK, "");
-	PDEBUG(D_PACK, "** packet len = %d, framesize = %d", len, framesize);
-	PDEBUG(D_PACK, "** frame->data_end - frame->data + len = %d",
-			frame->data_end - frame->data + len);
-
-	if (frame->data_end - frame->data + len == framesize - 4) {
-		PDEBUG(D_PACK, "   end of frame!");
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, last, 4);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, 0);
+	if (len == framesize) {
+		frame = gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+					data, len);
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
 	} else
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+		PDEBUG(D_PACK, "packet len = %d, framesize = %d", len,
+		       framesize);
 }
 
 /* sub-driver description */
