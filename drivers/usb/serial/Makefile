@@ -46,6 +46,7 @@ obj-$(CONFIG_USB_SERIAL_OPTION)			+= option.o
 obj-$(CONFIG_USB_SERIAL_OTI6858)		+= oti6858.o
 obj-$(CONFIG_USB_SERIAL_PL2303)			+= pl2303.o
 obj-$(CONFIG_USB_SERIAL_SAFE)			+= safe_serial.o
+obj-$(CONFIG_USB_SERIAL_SIEMENS_MPI)		+= siemens_mpi.o
 obj-$(CONFIG_USB_SERIAL_SIERRAWIRELESS)		+= sierra.o
 obj-$(CONFIG_USB_SERIAL_SPCP8X5)		+= spcp8x5.o
 obj-$(CONFIG_USB_SERIAL_TI)			+= ti_usb_3410_5052.o

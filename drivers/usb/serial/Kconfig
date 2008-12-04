@@ -496,6 +496,14 @@ config USB_SERIAL_SAFE_PADDED
 	bool "USB Secure Encapsulated Driver - Padded"
 	depends on USB_SERIAL_SAFE
 
+config USB_SERIAL_SIEMENS_MPI
+	tristate "USB Siemens MPI driver"
+	help
+	  Say M here if you want to use a Siemens USB/MPI adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called siemens_mpi.
+
 config USB_SERIAL_SIERRAWIRELESS
 	tristate "USB Sierra Wireless Driver"
 	help
