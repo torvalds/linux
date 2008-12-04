@@ -622,7 +622,10 @@ static int can_rcv_filter(struct dev_rcv_lists *d, struct sk_buff *skb)
 		}
 	}
 
-	/* check CAN_ID specific entries */
+	/* check filterlists for single non-RTR can_ids */
+	if (can_id & CAN_RTR_FLAG)
+		return matches;
+
 	if (can_id & CAN_EFF_FLAG) {
 		hlist_for_each_entry_rcu(r, n, &d->rx[RX_EFF], list) {
 			if (r->can_id == can_id) {
