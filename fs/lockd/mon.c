@@ -80,7 +80,6 @@ nsm_monitor(struct nlm_host *host)
 	int		status;
 
 	dprintk("lockd: nsm_monitor(%s)\n", nsm->sm_name);
-	BUG_ON(nsm == NULL);
 
 	if (nsm->sm_monitored)
 		return 0;
