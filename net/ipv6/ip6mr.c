@@ -692,20 +692,18 @@ static struct mfc6_cache *ip6mr_cache_find(struct in6_addr *origin, struct in6_a
  */
 static struct mfc6_cache *ip6mr_cache_alloc(void)
 {
-	struct mfc6_cache *c = kmem_cache_alloc(mrt_cachep, GFP_KERNEL);
+	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_KERNEL);
 	if (c == NULL)
 		return NULL;
-	memset(c, 0, sizeof(*c));
 	c->mfc_un.res.minvif = MAXMIFS;
 	return c;
 }
 
 static struct mfc6_cache *ip6mr_cache_alloc_unres(void)
 {
-	struct mfc6_cache *c = kmem_cache_alloc(mrt_cachep, GFP_ATOMIC);
+	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_ATOMIC);
 	if (c == NULL)
 		return NULL;
-	memset(c, 0, sizeof(*c));
 	skb_queue_head_init(&c->mfc_un.unres.unresolved);
 	c->mfc_un.unres.expires = jiffies + 10 * HZ;
 	return c;
