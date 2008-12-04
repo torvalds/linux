@@ -541,11 +541,11 @@ print_graph_function(struct trace_iterator *iter)
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
-extern int ftrace_pid_trace;
+extern struct pid *ftrace_pid_trace;
 
 static inline int ftrace_trace_task(struct task_struct *task)
 {
-	if (ftrace_pid_trace < 0)
+	if (ftrace_pid_trace)
 		return 1;
 
 	return test_tsk_trace_trace(task);

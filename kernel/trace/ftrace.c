@@ -48,7 +48,7 @@ int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
 
 /* set when tracing only a pid */
-int ftrace_pid_trace = -1;
+struct pid *ftrace_pid_trace;
 
 /* Quick disabling of function tracer. */
 int function_trace_stop;
@@ -153,7 +153,7 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 		else
 			func = ftrace_list_func;
 
-		if (ftrace_pid_trace >= 0) {
+		if (ftrace_pid_trace) {
 			set_ftrace_pid_function(func);
 			func = ftrace_pid_func;
 		}
@@ -209,7 +209,7 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 		if (ftrace_list->next == &ftrace_list_end) {
 			ftrace_func_t func = ftrace_list->func;
 
-			if (ftrace_pid_trace >= 0) {
+			if (ftrace_pid_trace) {
 				set_ftrace_pid_function(func);
 				func = ftrace_pid_func;
 			}
@@ -239,7 +239,7 @@ static void ftrace_update_pid_func(void)
 
 	func = ftrace_trace_function;
 
-	if (ftrace_pid_trace >= 0) {
+	if (ftrace_pid_trace) {
 		set_ftrace_pid_function(func);
 		func = ftrace_pid_func;
 	} else {
@@ -1678,18 +1678,40 @@ ftrace_pid_read(struct file *file, char __user *ubuf,
 	char buf[64];
 	int r;
 
-	if (ftrace_pid_trace >= 0)
-		r = sprintf(buf, "%u\n", ftrace_pid_trace);
+	if (ftrace_pid_trace)
+		r = sprintf(buf, "%u\n", pid_nr(ftrace_pid_trace));
 	else
 		r = sprintf(buf, "no pid\n");
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
+static void clear_ftrace_pid_task(struct pid **pid)
+{
+	struct task_struct *p;
+
+	do_each_pid_task(*pid, PIDTYPE_PID, p) {
+		clear_tsk_trace_trace(p);
+	} while_each_pid_task(*pid, PIDTYPE_PID, p);
+	put_pid(*pid);
+
+	*pid = NULL;
+}
+
+static void set_ftrace_pid_task(struct pid *pid)
+{
+	struct task_struct *p;
+
+	do_each_pid_task(pid, PIDTYPE_PID, p) {
+		set_tsk_trace_trace(p);
+	} while_each_pid_task(pid, PIDTYPE_PID, p);
+}
+
 static ssize_t
 ftrace_pid_write(struct file *filp, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
+	struct pid *pid;
 	char buf[64];
 	long val;
 	int ret;
@@ -1707,40 +1729,30 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 		return ret;
 
 	mutex_lock(&ftrace_start_lock);
-	if (ret < 0) {
+	if (val < 0) {
 		/* disable pid tracing */
-		if (ftrace_pid_trace < 0)
+		if (!ftrace_pid_trace)
 			goto out;
-		ftrace_pid_trace = -1;
+
+		clear_ftrace_pid_task(&ftrace_pid_trace);
 
 	} else {
-		struct task_struct *p;
-		int found = 0;
+		pid = find_get_pid(val);
 
-		if (ftrace_pid_trace == val)
+		if (pid == ftrace_pid_trace) {
+			put_pid(pid);
+			goto out;
+		}
+
+		if (ftrace_pid_trace)
+			clear_ftrace_pid_task(&ftrace_pid_trace);
+
+		if (!pid)
 			goto out;
 
-		/*
-		 * Find the task that matches this pid.
-		 * TODO: use pid namespaces instead.
-		 */
-		rcu_read_lock();
-		for_each_process(p) {
-			if (p->pid == val) {
-				found = 1;
-				set_tsk_trace_trace(p);
-			} else if (test_tsk_trace_trace(p))
-				clear_tsk_trace_trace(p);
-		}
-		rcu_read_unlock();
+		ftrace_pid_trace = pid;
 
-		if (found)
-			ftrace_pid_trace = val;
-		else {
-			if (ftrace_pid_trace < 0)
-				goto out;
-			ftrace_pid_trace = -1;
-		}
+		set_ftrace_pid_task(ftrace_pid_trace);
 	}
 
 	/* update the function call */
