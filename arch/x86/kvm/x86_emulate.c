@@ -431,6 +431,45 @@ static u32 group2_table[] = {
 	__emulate_2op_nobyte(_op, _src, _dst, _eflags,			\
 			     "w", "r", _LO32, "r", "", "r")
 
+/* Instruction has three operands and one operand is stored in ECX register */
+#define __emulate_2op_cl(_op, _cl, _src, _dst, _eflags, _suffix, _type) 	\
+	do {									\
+		unsigned long _tmp;						\
+		_type _clv  = (_cl).val;  					\
+		_type _srcv = (_src).val;    					\
+		_type _dstv = (_dst).val;					\
+										\
+		__asm__ __volatile__ (						\
+			_PRE_EFLAGS("0", "5", "2")				\
+			_op _suffix " %4,%1 \n"					\
+			_POST_EFLAGS("0", "5", "2")				\
+			: "=m" (_eflags), "+r" (_dstv), "=&r" (_tmp)		\
+			: "c" (_clv) , "r" (_srcv), "i" (EFLAGS_MASK)		\
+			); 							\
+										\
+		(_cl).val  = (unsigned long) _clv;				\
+		(_src).val = (unsigned long) _srcv;				\
+		(_dst).val = (unsigned long) _dstv;				\
+	} while (0)
+
+#define emulate_2op_cl(_op, _cl, _src, _dst, _eflags)				\
+	do {									\
+		switch ((_dst).bytes) {						\
+		case 2:								\
+			__emulate_2op_cl(_op, _cl, _src, _dst, _eflags,  	\
+						"w", unsigned short);         	\
+			break;							\
+		case 4: 							\
+			__emulate_2op_cl(_op, _cl, _src, _dst, _eflags,  	\
+						"l", unsigned int);           	\
+			break;							\
+		case 8:								\
+			ON64(__emulate_2op_cl(_op, _cl, _src, _dst, _eflags,	\
+						"q", unsigned long));  		\
+			break;							\
+		}								\
+	} while (0)
+
 #define __emulate_1op(_op, _dst, _eflags, _suffix)			\
 	do {								\
 		unsigned long _tmp;					\
