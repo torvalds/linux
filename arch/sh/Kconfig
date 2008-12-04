@@ -764,7 +764,9 @@ endmenu
 menu "Power management options (EXPERIMENTAL)"
 depends on EXPERIMENTAL
 
-source kernel/power/Kconfig
+source "kernel/power/Kconfig"
+
+source "drivers/cpuidle/Kconfig"
 
 endmenu
 
