@@ -577,6 +577,32 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	return NET_XMIT_SUCCESS;
 }
 
+static inline void htb_accnt_tokens(struct htb_class *cl, int bytes, long diff)
+{
+	long toks = diff + cl->tokens;
+
+	if (toks > cl->buffer)
+		toks = cl->buffer;
+	toks -= (long) qdisc_l2t(cl->rate, bytes);
+	if (toks <= -cl->mbuffer)
+		toks = 1 - cl->mbuffer;
+
+	cl->tokens = toks;
+}
+
+static inline void htb_accnt_ctokens(struct htb_class *cl, int bytes, long diff)
+{
+	long toks = diff + cl->ctokens;
+
+	if (toks > cl->cbuffer)
+		toks = cl->cbuffer;
+	toks -= (long) qdisc_l2t(cl->ceil, bytes);
+	if (toks <= -cl->mbuffer)
+		toks = 1 - cl->mbuffer;
+
+	cl->ctokens = toks;
+}
+
 /**
  * htb_charge_class - charges amount "bytes" to leaf and ancestors
  *
@@ -592,26 +618,20 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 			     int level, struct sk_buff *skb)
 {
 	int bytes = qdisc_pkt_len(skb);
-	long toks, diff;
 	enum htb_cmode old_mode;
-
-#define HTB_ACCNT(T,B,R) toks = diff + cl->T; \
-	if (toks > cl->B) toks = cl->B; \
-	toks -= (long) qdisc_l2t(cl->R, bytes); \
-	if (toks <= -cl->mbuffer) toks = 1-cl->mbuffer; \
-	cl->T = toks
+	long diff;
 
 	while (cl) {
 		diff = psched_tdiff_bounded(q->now, cl->t_c, cl->mbuffer);
 		if (cl->level >= level) {
 			if (cl->level == level)
 				cl->xstats.lends++;
-			HTB_ACCNT(tokens, buffer, rate);
+			htb_accnt_tokens(cl, bytes, diff);
 		} else {
 			cl->xstats.borrows++;
 			cl->tokens += diff;	/* we moved t_c; update tokens */
 		}
-		HTB_ACCNT(ctokens, cbuffer, ceil);
+		htb_accnt_ctokens(cl, bytes, diff);
 		cl->t_c = q->now;
 
 		old_mode = cl->cmode;
