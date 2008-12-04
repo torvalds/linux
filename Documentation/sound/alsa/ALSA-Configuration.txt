@@ -778,6 +778,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     specify a certain model in such a case.  There are different
     models depending on the codec chip.
 
+    See Documentation/sound/alsa/HD-Audio.txt for some details.
+
 	  Model name	Description
 	  ----------    -----------
 	ALC880
