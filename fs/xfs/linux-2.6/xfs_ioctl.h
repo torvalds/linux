@@ -74,7 +74,7 @@ xfs_file_compat_ioctl(
 	unsigned long		arg);
 
 extern long
-xfs_file_compat_ioctl_invis(
+xfs_file_compat_invis_ioctl(
 	struct file		*file,
 	unsigned int		cmd,
 	unsigned long		arg);
