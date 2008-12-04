@@ -3743,10 +3743,3 @@ MODULE_AUTHOR("Lawrence V. Stefani");
 MODULE_DESCRIPTION("DEC FDDIcontroller TC/EISA/PCI (DEFTA/DEFEA/DEFPA) driver "
 		   DRV_VERSION " " DRV_RELDATE);
 MODULE_LICENSE("GPL");
-
-
-/*
- * Local variables:
- * kernel-compile-command: "gcc -D__KERNEL__ -I/root/linux/include -Wall -Wstrict-prototypes -O2 -pipe -fomit-frame-pointer -fno-strength-reduce -m486 -malign-loops=2 -malign-jumps=2 -malign-functions=2 -c defxx.c"
- * End:
- */

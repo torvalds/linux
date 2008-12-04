@@ -936,14 +936,3 @@ cleanup_module(void)
 }
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
-
-
-/*
- * Local variables:
- *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -I/usr/src/linux/drivers/net -Wall -Wstrict-prototypes -O6 -m486 -c 3c507.c"
- *  version-control: t
- *  kept-new-versions: 5
- *  tab-width: 4
- *  c-indent-level: 4
- * End:
- */

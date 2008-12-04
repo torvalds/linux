@@ -3054,12 +3054,3 @@ static void __exit hp100_module_exit(void)
 
 module_init(hp100_module_init)
 module_exit(hp100_module_exit)
-
-
-/*
- * Local variables:
- *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -Wall -Wstrict-prototypes -O6 -m486 -c hp100.c"
- *  c-indent-level: 2
- *  tab-width: 8
- * End:
- */

@@ -1003,20 +1003,3 @@ void cleanup_module(void)
 }
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
-
-
-/*
- * (add '-DMODULE' when compiling as loadable module)
- *
- * compile-command:
- *	gcc -D__KERNEL__ -Wall -Wstrict-prototypes -O2 \
- *	 -fomit-frame-pointer -m486 \
- *	-I/usr/src/linux/include -I../../net/inet -c de620.c
-*/
-/*
- * Local variables:
- *  kernel-compile-command: "gcc -D__KERNEL__ -Ilinux/include -I../../net/inet -Wall -Wstrict-prototypes -O2 -m486 -c de620.c"
- *  module-compile-command: "gcc -D__KERNEL__ -DMODULE -Ilinux/include -I../../net/inet -Wall -Wstrict-prototypes -O2 -m486 -c de620.c"
- *  compile-command: "gcc -D__KERNEL__ -DMODULE -Ilinux/include -I../../net/inet -Wall -Wstrict-prototypes -O2 -m486 -c de620.c"
- * End:
- */

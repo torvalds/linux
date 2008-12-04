@@ -9,8 +9,6 @@
  *    [feel free to mail ....]
  *
  * when using as module: (no autoprobing!)
- *   compile with:
- *       gcc -O2 -fomit-frame-pointer -m486 -D__KERNEL__ -DMODULE -c ni52.c
  *   run with e.g:
  *       insmod ni52.o io=0x360 irq=9 memstart=0xd0000 memend=0xd4000
  *
@@ -1345,7 +1343,3 @@ void __exit cleanup_module(void)
 #endif /* MODULE */
 
 MODULE_LICENSE("GPL");
-
-/*
- * END: linux/drivers/net/ni52.c
- */

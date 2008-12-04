@@ -1474,15 +1474,3 @@ void __exit cleanup_module(void)
 	}
 }
 #endif /* MODULE */
-
-/*
- * Local variables:
- *  compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -c eth16i.c"
- *  alt-compile-command: "gcc -DMODVERSIONS -DMODULE -D__KERNEL__ -Wall -Wstrict -prototypes -O6 -c eth16i.c"
- *  tab-width: 8
- *  c-basic-offset: 8
- *  c-indent-level: 8
- * End:
- */
-
-/* End of file eth16i.c */

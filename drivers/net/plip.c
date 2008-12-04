@@ -1396,9 +1396,3 @@ static int __init plip_init (void)
 module_init(plip_init);
 module_exit(plip_cleanup_module);
 MODULE_LICENSE("GPL");
-
-/*
- * Local variables:
- * compile-command: "gcc -DMODULE -DMODVERSIONS -D__KERNEL__ -Wall -Wstrict-prototypes -O2 -g -fomit-frame-pointer -pipe -c plip.c"
- * End:
- */

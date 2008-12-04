@@ -1598,9 +1598,3 @@ void __exit cleanup_module(void)
 }
 
 #endif				/* MODULE */
-
-/*
- * Local variables:
- *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -Wall -Wstrict-prototypes -O6 -m486 -c 82596.c"
- * End:
- */

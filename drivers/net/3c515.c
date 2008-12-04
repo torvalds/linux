@@ -1577,11 +1577,3 @@ void cleanup_module(void)
 	}
 }
 #endif				/* MODULE */
-
-/*
- * Local variables:
- *  compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -c 3c515.c"
- *  c-indent-level: 4
- *  tab-width: 4
- * End:
- */

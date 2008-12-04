@@ -7,8 +7,6 @@
  * EtherBlaster. (probably it also works with every full NE2100
  * compatible card)
  *
- * To compile as module, type:
- *     gcc -O2 -fomit-frame-pointer -m486 -D__KERNEL__ -DMODULE -c ni65.c
  * driver probes: io: 0x360,0x300,0x320,0x340 / dma: 3,5,6,7
  *
  * This is an extension to the Linux operating system, and is covered by the
@@ -1265,7 +1263,3 @@ void __exit cleanup_module(void)
 #endif /* MODULE */
 
 MODULE_LICENSE("GPL");
-
-/*
- * END of ni65.c
- */
