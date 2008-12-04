@@ -365,15 +365,15 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 				rdid++)
 			rswitch->route_table[rdid] = RIO_INVALID_ROUTE;
 		rdev->rswitch = rswitch;
-		sprintf(rio_name(rdev), "%02x:s:%04x", rdev->net->id,
-			rdev->rswitch->switchid);
+		dev_set_name(&rdev->dev, "%02x:s:%04x", rdev->net->id,
+			     rdev->rswitch->switchid);
 		rio_route_set_ops(rdev);
 
 		list_add_tail(&rswitch->node, &rio_switches);
 
 	} else
-		sprintf(rio_name(rdev), "%02x:e:%04x", rdev->net->id,
-			rdev->destid);
+		dev_set_name(&rdev->dev, "%02x:e:%04x", rdev->net->id,
+			     rdev->destid);
 
 	rdev->dev.bus = &rio_bus_type;
 
