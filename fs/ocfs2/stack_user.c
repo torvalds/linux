@@ -740,6 +740,9 @@ static int user_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
 
 static void *user_dlm_lvb(union ocfs2_dlm_lksb *lksb)
 {
+	if (!lksb->lksb_fsdlm.sb_lvbptr)
+		lksb->lksb_fsdlm.sb_lvbptr = (char *)lksb +
+					     sizeof(struct dlm_lksb);
 	return (void *)(lksb->lksb_fsdlm.sb_lvbptr);
 }
 
