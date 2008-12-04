@@ -363,12 +363,41 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
 					      size, direction);
 }
 #else /* CONFIG_PPC_NEED_DMA_SYNC_OPS */
-#define dma_sync_single_for_cpu(d, h, s, dir) ((void)0)
-#define dma_sync_single_for_device(d, h, s, dir) ((void)0)
-#define dma_sync_single_range_for_cpu(d, h, o, s, dir) ((void)0)
-#define dma_sync_single_range_for_device(d, h, o, s, dir) ((void)0)
-#define dma_sync_sg_for_cpu(d, s, n, dir) ((void)0)
-#define dma_sync_sg_for_device(d, s, n, dir) ((void)0)
+static inline void dma_sync_single_for_cpu(struct device *dev,
+		dma_addr_t dma_handle, size_t size,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_single_for_device(struct device *dev,
+		dma_addr_t dma_handle, size_t size,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_sg_for_cpu(struct device *dev,
+		struct scatterlist *sgl, int nents,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_sg_for_device(struct device *dev,
+		struct scatterlist *sgl, int nents,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_single_range_for_cpu(struct device *dev,
+		dma_addr_t dma_handle, unsigned long offset, size_t size,
+		enum dma_data_direction direction)
+{
+}
+
+static inline void dma_sync_single_range_for_device(struct device *dev,
+		dma_addr_t dma_handle, unsigned long offset, size_t size,
+		enum dma_data_direction direction)
+{
+}
 #endif
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
