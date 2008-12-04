@@ -237,9 +237,14 @@ static u32 twobyte_table[256] = {
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
-	0, 0, 0, DstMem | SrcReg | ModRM | BitOp, 0, 0, 0, 0,
+	0, 0, 0, DstMem | SrcReg | ModRM | BitOp,
+	DstMem | SrcReg | Src2ImmByte | ModRM,
+	DstMem | SrcReg | Src2CL | ModRM, 0, 0,
 	/* 0xA8 - 0xAF */
-	0, 0, 0, DstMem | SrcReg | ModRM | BitOp, 0, 0, ModRM, 0,
+	0, 0, 0, DstMem | SrcReg | ModRM | BitOp,
+	DstMem | SrcReg | Src2ImmByte | ModRM,
+	DstMem | SrcReg | Src2CL | ModRM,
+	ModRM, 0,
 	/* 0xB0 - 0xB7 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM, 0,
 	    DstMem | SrcReg | ModRM | BitOp,
@@ -2037,11 +2042,19 @@ twobyte_insn:
 		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("bt", c->src, c->dst, ctxt->eflags);
 		break;
+	case 0xa4: /* shld imm8, r, r/m */
+	case 0xa5: /* shld cl, r, r/m */
+		emulate_2op_cl("shld", c->src2, c->src, c->dst, ctxt->eflags);
+		break;
 	case 0xab:
 	      bts:		/* bts */
 		/* only subword offset */
 		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("bts", c->src, c->dst, ctxt->eflags);
+		break;
+	case 0xac: /* shrd imm8, r, r/m */
+	case 0xad: /* shrd cl, r, r/m */
+		emulate_2op_cl("shrd", c->src2, c->src, c->dst, ctxt->eflags);
 		break;
 	case 0xae:              /* clflush */
 		break;
