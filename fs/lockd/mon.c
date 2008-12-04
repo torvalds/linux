@@ -126,6 +126,8 @@ void nsm_unmonitor(const struct nlm_host *host)
 		dprintk("lockd: nsm_unmonitor(%s)\n", nsm->sm_name);
 
 		status = nsm_mon_unmon(nsm, SM_UNMON, &res);
+		if (res.status != 0)
+			status = -EIO;
 		if (status < 0)
 			printk(KERN_NOTICE "lockd: cannot unmonitor %s\n",
 					nsm->sm_name);
