@@ -87,10 +87,17 @@ config GENERIC_LOCKBREAK
 
 config SYS_SUPPORTS_PM
 	bool
+	depends on !SMP
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool n
+
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool n
 
 config SYS_SUPPORTS_APM_EMULATION
 	bool
-	select SYS_SUPPORTS_PM
+	select ARCH_SUSPEND_POSSIBLE
 
 config SYS_SUPPORTS_SMP
 	bool
@@ -755,11 +762,7 @@ source "fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options (EXPERIMENTAL)"
-depends on EXPERIMENTAL && SYS_SUPPORTS_PM
-
-config ARCH_SUSPEND_POSSIBLE
-	def_bool y
-	depends on !SMP
+depends on EXPERIMENTAL
 
 source kernel/power/Kconfig
 
