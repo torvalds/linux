@@ -1,5 +1,12 @@
 # drivers/mtd/nand/Kconfig
 
+config MTD_NAND_IDS
+	tristate "Include chip ids for known NAND devices."
+	depends on MTD
+	help
+	  Useful for NAND drivers that do not use the NAND subsystem but
+	  still like to take advantage of the known chip information.
+
 menuconfig MTD_NAND
 	tristate "NAND Device Support"
 	depends on MTD
@@ -102,9 +109,6 @@ config MTD_NAND_TS7250
 	depends on MACH_TS72XX
 	help
 	  Support for NAND flash on Technologic Systems TS-7250 platform.
-
-config MTD_NAND_IDS
-	tristate
 
 config MTD_NAND_AU1550
 	tristate "Au1550/1200 NAND support"
