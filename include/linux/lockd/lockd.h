@@ -242,6 +242,10 @@ extern void	  nlm_host_rebooted(const struct sockaddr_in *, const char *,
 					unsigned int, u32);
 void		  nsm_release(struct nsm_handle *);
 
+/*
+ * Host monitoring
+ */
+int		  nsm_monitor(const struct nlm_host *host);
 
 /*
  * This is used in garbage collection and resource reclaim

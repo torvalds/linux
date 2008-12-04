@@ -69,11 +69,18 @@ nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 	return status;
 }
 
-/*
- * Set up monitoring of a remote host
+/**
+ * nsm_monitor - Notify a peer in case we reboot
+ * @host: pointer to nlm_host of peer to notify
+ *
+ * If this peer is not already monitored, this function sends an
+ * upcall to the local rpc.statd to record the name/address of
+ * the peer to notify in case we reboot.
+ *
+ * Returns zero if the peer is monitored by the local rpc.statd;
+ * otherwise a negative errno value is returned.
  */
-int
-nsm_monitor(struct nlm_host *host)
+int nsm_monitor(const struct nlm_host *host)
 {
 	struct nsm_handle *nsm = host->h_nsmhandle;
 	struct nsm_res	res;

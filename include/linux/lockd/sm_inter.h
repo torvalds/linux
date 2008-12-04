@@ -41,7 +41,6 @@ struct nsm_res {
 	u32		state;
 };
 
-int		nsm_monitor(struct nlm_host *);
 int		nsm_unmonitor(struct nlm_host *);
 extern int	nsm_local_state;
 
