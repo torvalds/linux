@@ -807,6 +807,8 @@ int vis_emul(struct pt_regs *regs, unsigned int insn)
 	if (get_user(insn, (u32 __user *) pc))
 		return -EFAULT;
 
+	save_and_clear_fpu();
+
 	opf = (insn & VIS_OPF_MASK) >> VIS_OPF_SHIFT;
 	switch (opf) {
 	default:
