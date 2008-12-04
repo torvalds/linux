@@ -123,6 +123,7 @@ struct decode_cache {
 	u8 ad_bytes;
 	u8 rex_prefix;
 	struct operand src;
+	struct operand src2;
 	struct operand dst;
 	bool has_seg_override;
 	u8 seg_override;

@@ -70,6 +70,12 @@
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 #define GroupMask   0xff        /* Group number stored in bits 0:7 */
+/* Source 2 operand type */
+#define Src2None    (0<<29)
+#define Src2CL      (1<<29)
+#define Src2ImmByte (2<<29)
+#define Src2One     (3<<29)
+#define Src2Mask    (7<<29)
 
 enum {
 	Group1_80, Group1_81, Group1_82, Group1_83,
@@ -997,6 +1003,29 @@ done_prefixes:
 		c->src.ptr = (unsigned long *)c->eip;
 		c->src.bytes = 1;
 		c->src.val = insn_fetch(s8, 1, c->eip);
+		break;
+	}
+
+	/*
+	 * Decode and fetch the second source operand: register, memory
+	 * or immediate.
+	 */
+	switch (c->d & Src2Mask) {
+	case Src2None:
+		break;
+	case Src2CL:
+		c->src2.bytes = 1;
+		c->src2.val = c->regs[VCPU_REGS_RCX] & 0x8;
+		break;
+	case Src2ImmByte:
+		c->src2.type = OP_IMM;
+		c->src2.ptr = (unsigned long *)c->eip;
+		c->src2.bytes = 1;
+		c->src2.val = insn_fetch(u8, 1, c->eip);
+		break;
+	case Src2One:
+		c->src2.bytes = 1;
+		c->src2.val = 1;
 		break;
 	}
 
