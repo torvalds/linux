@@ -821,7 +821,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
  * some RAM for the framebuffer at early boot.  This code figures out
  * how much was set aside so we can use it for our own purposes.
  */
-int i915_probe_agp(struct pci_dev *pdev, unsigned long *aperture_size,
+int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 		   unsigned long *preallocated_size)
 {
 	struct pci_dev *bridge_dev;
@@ -841,7 +841,7 @@ int i915_probe_agp(struct pci_dev *pdev, unsigned long *aperture_size,
 	*aperture_size = 1024 * 1024;
 	*preallocated_size = 1024 * 1024;
 
-	switch (pdev->device) {
+	switch (dev->pdev->device) {
 	case PCI_DEVICE_ID_INTEL_82830_CGC:
 	case PCI_DEVICE_ID_INTEL_82845G_IG:
 	case PCI_DEVICE_ID_INTEL_82855GM_IG:
@@ -853,7 +853,7 @@ int i915_probe_agp(struct pci_dev *pdev, unsigned long *aperture_size,
 		break;
 	default:
 		/* 9xx supports large sizes, just look at the length */
-		*aperture_size = pci_resource_len(pdev, 2);
+		*aperture_size = pci_resource_len(dev->pdev, 2);
 		break;
 	}
 
@@ -861,7 +861,11 @@ int i915_probe_agp(struct pci_dev *pdev, unsigned long *aperture_size,
 	 * Some of the preallocated space is taken by the GTT
 	 * and popup.  GTT is 1K per MB of aperture size, and popup is 4K.
 	 */
-	overhead = (*aperture_size / 1024) + 4096;
+	if (IS_G4X(dev))
+		overhead = 4096;
+	else
+		overhead = (*aperture_size / 1024) + 4096;
+
 	switch (tmp & INTEL_855_GMCH_GMS_MASK) {
 	case INTEL_855_GMCH_GMS_STOLEN_1M:
 		break; /* 1M already */
@@ -913,7 +917,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	else
 		dev_priv->cursor_needs_physical = false;
 
-	i915_probe_agp(dev->pdev, &agp_size, &prealloc_size);
+	i915_probe_agp(dev, &agp_size, &prealloc_size);
 
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
