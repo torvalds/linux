@@ -88,7 +88,6 @@ struct htb_class {
 		struct htb_class_leaf {
 			struct Qdisc *q;
 			int prio;
-			int aprio;
 			int quantum;
 			int deficit[TC_HTB_MAXDEPTH];
 			struct list_head drop_list;
@@ -527,10 +526,10 @@ static inline void htb_activate(struct htb_sched *q, struct htb_class *cl)
 	WARN_ON(cl->level || !cl->un.leaf.q || !cl->un.leaf.q->q.qlen);
 
 	if (!cl->prio_activity) {
-		cl->prio_activity = 1 << (cl->un.leaf.aprio = cl->un.leaf.prio);
+		cl->prio_activity = 1 << cl->un.leaf.prio;
 		htb_activate_prios(q, cl);
 		list_add_tail(&cl->un.leaf.drop_list,
-			      q->drops + cl->un.leaf.aprio);
+			      q->drops + cl->un.leaf.prio);
 	}
 }
 
