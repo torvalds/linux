@@ -43,8 +43,8 @@ struct nlm_host {
 	struct sockaddr_storage	h_addr;		/* peer address */
 	size_t			h_addrlen;
 	struct sockaddr_storage	h_srcaddr;	/* our address (optional) */
-	struct rpc_clnt	*	h_rpcclnt;	/* RPC client to talk to peer */
-	char *			h_name;		/* remote hostname */
+	struct rpc_clnt		*h_rpcclnt;	/* RPC client to talk to peer */
+	char			*h_name;		/* remote hostname */
 	u32			h_version;	/* interface version */
 	unsigned short		h_proto;	/* transport proto */
 	unsigned short		h_reclaiming : 1,
@@ -64,7 +64,7 @@ struct nlm_host {
 	spinlock_t		h_lock;
 	struct list_head	h_granted;	/* Locks in GRANTED state */
 	struct list_head	h_reclaim;	/* Locks in RECLAIM state */
-	struct nsm_handle *	h_nsmhandle;	/* NSM status handle */
+	struct nsm_handle	*h_nsmhandle;	/* NSM status handle */
 
 	char			h_addrbuf[48],	/* address eyecatchers */
 				h_srcaddrbuf[48];
