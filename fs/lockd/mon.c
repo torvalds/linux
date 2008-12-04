@@ -91,8 +91,9 @@ nsm_monitor(struct nlm_host *host)
 	nsm->sm_mon_name = nsm_use_hostnames ? nsm->sm_name : nsm->sm_addrbuf;
 
 	status = nsm_mon_unmon(nsm, SM_MON, &res);
-
-	if (status < 0 || res.status != 0)
+	if (res.status != 0)
+		status = -EIO;
+	if (status < 0)
 		printk(KERN_NOTICE "lockd: cannot monitor %s\n", nsm->sm_name);
 	else
 		nsm->sm_monitored = 1;
