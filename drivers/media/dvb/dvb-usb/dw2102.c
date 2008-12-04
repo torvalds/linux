@@ -660,7 +660,7 @@ static int dw2102_load_firmware(struct usb_device *dev,
 			/* check STV0299 frontend  */
 			dw210x_op_rw(dev, 0xb5, 0, 0, &reset16[0], 2,
 					DW210X_READ_MSG);
-			if (reset16[0] == 0xa1) {
+			if ((reset16[0] == 0xa1) || (reset16[0] == 0x80)) {
 				dw2102_properties.i2c_algo = &dw2102_i2c_algo;
 				dw2102_properties.adapter->tuner_attach = &dw2102_tuner_attach;
 				break;
