@@ -2359,13 +2359,21 @@ meta_guess:
 		} else
 			xb = (struct ocfs2_xattr_block *)xbs->xattr_bh->b_data;
 
+		/*
+		 * If there is already an xattr tree, good, we can calculate
+		 * like other b-trees. Otherwise we may have the chance of
+		 * create a tree, the credit calculation is borrowed from
+		 * ocfs2_calc_extend_credits with root_el = NULL. And the
+		 * new tree will be cluster based, so no meta is needed.
+		 */
 		if (le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED) {
 			struct ocfs2_extent_list *el =
 				 &xb->xb_attrs.xb_root.xt_list;
 			meta_add += ocfs2_extend_meta_needed(el);
 			credits += ocfs2_calc_extend_credits(inode->i_sb,
 							     el, 1);
-		}
+		} else
+			credits += OCFS2_SUBALLOC_ALLOC + 1;
 
 		/*
 		 * This cluster will be used either for new bucket or for
