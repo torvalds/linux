@@ -61,9 +61,7 @@ prom_cmdline(void)
 	restore_current();
 	install_linux_ticker();
 	spin_unlock_irqrestore(&prom_lock, flags);
-#ifdef CONFIG_SUN_AUXIO
 	set_auxio(AUXIO_LED, 0);
-#endif
 }
 
 /* Drop into the prom, but completely terminate the program.

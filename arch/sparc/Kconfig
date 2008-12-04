@@ -465,10 +465,6 @@ config SBUSCHAR
 	bool
 	default y
 
-config SUN_AUXIO
-	bool
-	default y
-
 config SUN_IO
 	bool
 	default y

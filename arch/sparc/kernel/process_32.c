@@ -168,11 +168,9 @@ void machine_restart(char * cmd)
 
 void machine_power_off(void)
 {
-#ifdef CONFIG_SUN_AUXIO
 	if (auxio_power_register &&
 	    (strcmp(of_console_device->type, "serial") || scons_pwroff))
 		*auxio_power_register |= AUXIO_POWER_OFF;
-#endif
 	machine_halt();
 }
 
