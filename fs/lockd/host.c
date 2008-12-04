@@ -112,9 +112,6 @@ static void nlm_display_address(const struct sockaddr *sap,
 	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
 
 	switch (sap->sa_family) {
-	case AF_UNSPEC:
-		snprintf(buf, len, "unspecified");
-		break;
 	case AF_INET:
 		snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
 		break;
