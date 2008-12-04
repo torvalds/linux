@@ -1651,10 +1651,6 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 	oi->ip_dyn_features |= flag;
 	di->i_dyn_features = cpu_to_le16(oi->ip_dyn_features);
 	spin_unlock(&oi->ip_lock);
-	/* Update inode ctime */
-	inode->i_ctime = CURRENT_TIME;
-	di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
 
 	ret = ocfs2_journal_dirty(handle, xs->inode_bh);
 	if (ret < 0)
@@ -2574,6 +2570,20 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 		}
 	}
 
+	if (!ret) {
+		/* Update inode ctime. */
+		ret = ocfs2_journal_access(ctxt->handle, inode, xis->inode_bh,
+					   OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		inode->i_ctime = CURRENT_TIME;
+		di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
+		di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+		ocfs2_journal_dirty(ctxt->handle, xis->inode_bh);
+	}
 out:
 	return ret;
 }
@@ -2750,6 +2760,8 @@ int ocfs2_xattr_set(struct inode *inode,
 		goto cleanup;
 	}
 
+	/* we need to update inode's ctime field, so add credit for it. */
+	credits += OCFS2_INODE_UPDATE_CREDITS;
 	ctxt.handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(ctxt.handle)) {
 		ret = PTR_ERR(ctxt.handle);
