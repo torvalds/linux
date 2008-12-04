@@ -105,6 +105,13 @@ static void nlm_clear_port(struct sockaddr *sap)
 	}
 }
 
+static void nlm_display_ipv4_address(const struct sockaddr *sap, char *buf,
+				     const size_t len)
+{
+	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
+	snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
+}
+
 static void nlm_display_ipv6_address(const struct sockaddr *sap, char *buf,
 				     const size_t len)
 {
@@ -122,11 +129,9 @@ static void nlm_display_ipv6_address(const struct sockaddr *sap, char *buf,
 static void nlm_display_address(const struct sockaddr *sap,
 				char *buf, const size_t len)
 {
-	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
-
 	switch (sap->sa_family) {
 	case AF_INET:
-		snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
+		nlm_display_ipv4_address(sap, buf, len);
 		break;
 	case AF_INET6:
 		nlm_display_ipv6_address(sap, buf, len);
