@@ -90,33 +90,6 @@ static const char version[] =
 
 #include "smc91x.h"
 
-#ifdef CONFIG_ISA
-/*
- * the LAN91C111 can be at any of the following port addresses.  To change,
- * for a slightly different card, you can add it to the array.  Keep in
- * mind that the array must end in zero.
- */
-static unsigned int smc_portlist[] __initdata = {
-	0x200, 0x220, 0x240, 0x260, 0x280, 0x2A0, 0x2C0, 0x2E0,
-	0x300, 0x320, 0x340, 0x360, 0x380, 0x3A0, 0x3C0, 0x3E0, 0
-};
-
-#ifndef SMC_IOADDR
-# define SMC_IOADDR		-1
-#endif
-static unsigned long io = SMC_IOADDR;
-module_param(io, ulong, 0400);
-MODULE_PARM_DESC(io, "I/O base address");
-
-#ifndef SMC_IRQ
-# define SMC_IRQ		-1
-#endif
-static int irq = SMC_IRQ;
-module_param(irq, int, 0400);
-MODULE_PARM_DESC(irq, "IRQ number");
-
-#endif  /* CONFIG_ISA */
-
 #ifndef SMC_NOWAIT
 # define SMC_NOWAIT		0
 #endif
@@ -2314,15 +2287,6 @@ static struct platform_driver smc_driver = {
 
 static int __init smc_init(void)
 {
-#ifdef MODULE
-#ifdef CONFIG_ISA
-	if (io == -1)
-		printk(KERN_WARNING
-			"%s: You shouldn't use auto-probing with insmod!\n",
-			CARDNAME);
-#endif
-#endif
-
 	return platform_driver_register(&smc_driver);
 }
 
