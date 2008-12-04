@@ -117,10 +117,6 @@ nsm_unmonitor(struct nlm_host *host)
 	struct nsm_res	res;
 	int		status = 0;
 
-	if (nsm == NULL)
-		return 0;
-	host->h_nsmhandle = NULL;
-
 	if (atomic_read(&nsm->sm_count) == 1
 	 && nsm->sm_monitored && !nsm->sm_sticky) {
 		dprintk("lockd: nsm_unmonitor(%s)\n", nsm->sm_name);
@@ -132,7 +128,6 @@ nsm_unmonitor(struct nlm_host *host)
 		else
 			nsm->sm_monitored = 0;
 	}
-	nsm_release(nsm);
 	return status;
 }
 
