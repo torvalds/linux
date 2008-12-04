@@ -18,8 +18,6 @@
 
 #define NLMDBG_FACILITY		NLMDBG_MONITOR
 
-#define XDR_ADDRBUF_LEN		(20)
-
 static struct rpc_clnt *	nsm_create(void);
 
 static struct rpc_program	nsm_program;
@@ -42,7 +40,7 @@ nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 		.prog		= NLM_PROGRAM,
 		.vers		= 3,
 		.proc		= NLMPROC_NSM_NOTIFY,
-		.mon_name	= nsm->sm_name,
+		.mon_name	= nsm->sm_mon_name,
 	};
 	struct rpc_message msg = {
 		.rpc_argp	= &args,
@@ -86,6 +84,12 @@ nsm_monitor(struct nlm_host *host)
 
 	if (nsm->sm_monitored)
 		return 0;
+
+	/*
+	 * Choose whether to record the caller_name or IP address of
+	 * this peer in the local rpc.statd's database.
+	 */
+	nsm->sm_mon_name = nsm_use_hostnames ? nsm->sm_name : nsm->sm_addrbuf;
 
 	status = nsm_mon_unmon(nsm, SM_MON, &res);
 
@@ -167,25 +171,10 @@ static __be32 *xdr_encode_nsm_string(__be32 *p, char *string)
 
 /*
  * "mon_name" specifies the host to be monitored.
- *
- * Linux uses a text version of the IP address of the remote
- * host as the host identifier (the "mon_name" argument).
- *
- * Linux statd always looks up the canonical hostname first for
- * whatever remote hostname it receives, so this works alright.
  */
 static __be32 *xdr_encode_mon_name(__be32 *p, struct nsm_args *argp)
 {
-	char	buffer[XDR_ADDRBUF_LEN + 1];
-	char	*name = argp->mon_name;
-
-	if (!nsm_use_hostnames) {
-		snprintf(buffer, XDR_ADDRBUF_LEN,
-			 "%pI4", &argp->addr);
-		name = buffer;
-	}
-
-	return xdr_encode_nsm_string(p, name);
+	return xdr_encode_nsm_string(p, argp->mon_name);
 }
 
 /*
