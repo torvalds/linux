@@ -56,6 +56,7 @@ static void cp2101_shutdown(struct usb_serial *);
 static int debug;
 
 static struct usb_device_id id_table [] = {
+	{ USB_DEVICE(0x0471, 0x066A) }, /* AKTAKOM ACE-1001 cable */
 	{ USB_DEVICE(0x0489, 0xE000) }, /* Pirelli Broadband S.p.A, DP-L10 SIP/GSM Mobile */
 	{ USB_DEVICE(0x08e6, 0x5501) }, /* Gemalto Prox-PU/CU contactless smartcard reader */
 	{ USB_DEVICE(0x0FCF, 0x1003) }, /* Dynastream ANT development board */

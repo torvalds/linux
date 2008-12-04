@@ -85,8 +85,7 @@ enum securityEnum {
 };
 
 enum protocolEnum {
-	IPV4 = 0,
-	IPV6,
+	TCP = 0,
 	SCTP
 	/* Netbios frames protocol not supported at this time */
 };
@@ -122,6 +121,9 @@ struct cifs_cred {
  */
 
 struct TCP_Server_Info {
+	struct list_head tcp_ses_list;
+	struct list_head smb_ses_list;
+	int srv_count; /* reference counter */
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
@@ -143,7 +145,6 @@ struct TCP_Server_Info {
 	bool svlocal:1;			/* local server or remote */
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
-	atomic_t socketUseCount; /* number of open cifs sessions on socket */
 	atomic_t inFlight;  /* number of requests on the wire to server */
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t inSend; /* requests trying to send */
@@ -194,13 +195,14 @@ struct cifsUidInfo {
  * Session structure.  One of these for each uid session with a particular host
  */
 struct cifsSesInfo {
-	struct list_head cifsSessionList;
+	struct list_head smb_ses_list;
+	struct list_head tcon_list;
 	struct semaphore sesSem;
 #if 0
 	struct cifsUidInfo *uidInfo;	/* pointer to user info */
 #endif
 	struct TCP_Server_Info *server;	/* pointer to server info */
-	atomic_t inUse; /* # of mounts (tree connections) on this ses */
+	int ses_count;		/* reference counter */
 	enum statusEnum status;
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
@@ -216,6 +218,7 @@ struct cifsSesInfo {
 	char userName[MAX_USERNAME_SIZE + 1];
 	char *domainName;
 	char *password;
+	bool need_reconnect:1; /* connection reset, uid now invalid */
 };
 /* no more than one of the following three session flags may be set */
 #define CIFS_SES_NT4 1
@@ -230,16 +233,15 @@ struct cifsSesInfo {
  * session
  */
 struct cifsTconInfo {
-	struct list_head cifsConnectionList;
+	struct list_head tcon_list;
+	int tc_count;
 	struct list_head openFileList;
-	struct semaphore tconSem;
 	struct cifsSesInfo *ses;	/* pointer to session associated with */
 	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
 	char *nativeFileSystem;
 	__u16 tid;		/* The 2 byte tree id */
 	__u16 Flags;		/* optional support bits */
 	enum statusEnum tidStatus;
-	atomic_t useCount;	/* how many explicit/implicit mounts to share */
 #ifdef CONFIG_CIFS_STATS
 	atomic_t num_smbs_sent;
 	atomic_t num_writes;
@@ -288,6 +290,7 @@ struct cifsTconInfo {
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
 	bool local_lease:1; /* check leases (only) on local system not remote */
+	bool need_reconnect:1; /* connection reset, tid now invalid */
 	/* BB add field for back pointer to sb struct(s)? */
 };
 
@@ -588,22 +591,30 @@ require use of the stronger protocol */
 #endif
 
 /*
- * The list of servers that did not respond with NT LM 0.12.
- * This list helps improve performance and eliminate the messages indicating
- * that we had a communications error talking to the server in this list.
+ * the list of TCP_Server_Info structures, ie each of the sockets
+ * connecting our client to a distinct server (ip address), is
+ * chained together by cifs_tcp_ses_list. The list of all our SMB
+ * sessions (and from that the tree connections) can be found
+ * by iterating over cifs_tcp_ses_list
  */
-/* Feature not supported */
-/* GLOBAL_EXTERN struct servers_not_supported *NotSuppList; */
+GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
 
 /*
- * The following is a hash table of all the users we know about.
+ * This lock protects the cifs_tcp_ses_list, the list of smb sessions per
+ * tcp session, and the list of tcon's per smb session. It also protects
+ * the reference counters for the server, smb session, and tcon. Finally,
+ * changes to the tcon->tidStatus should be done while holding this lock.
  */
-GLOBAL_EXTERN struct smbUidInfo *GlobalUidList[UID_HASH];
+GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
 
-/* GLOBAL_EXTERN struct list_head GlobalServerList; BB not implemented yet */
-GLOBAL_EXTERN struct list_head GlobalSMBSessionList;
-GLOBAL_EXTERN struct list_head GlobalTreeConnectionList;
-GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
+/*
+ * This lock protects the cifs_file->llist and cifs_file->flist
+ * list operations, and updates to some flags (cifs_file->invalidHandle)
+ * It will be moved to either use the tcon->stat_lock or equivalent later.
+ * If cifs_tcp_ses_lock and the lock below are both needed to be held, then
+ * the cifs_tcp_ses_lock must be grabbed first and released last.
+ */
+GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;
 
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;
 

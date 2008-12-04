@@ -267,7 +267,7 @@ static int da9030_mask_events(struct da903x_chip *chip, unsigned int events)
 {
 	uint8_t v[3];
 
-	chip->events_mask &= ~events;
+	chip->events_mask |= events;
 
 	v[0] = (chip->events_mask & 0xff);
 	v[1] = (chip->events_mask >> 8) & 0xff;

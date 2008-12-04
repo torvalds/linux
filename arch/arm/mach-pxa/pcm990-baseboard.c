@@ -385,6 +385,7 @@ static struct soc_camera_link iclink[] = {
 		.gpio	= NR_BUILTIN_GPIO + 1,
 	}, {
 		.bus_id	= 0, /* Must match with the camera ID above */
+		.gpio	= -ENXIO,
 	}
 };
 

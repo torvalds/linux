@@ -633,6 +633,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 						.saddr = saddr,
 						.tos = tos } },
 				    .proto = sk->sk_protocol,
+				    .flags = inet_sk_flowi_flags(sk),
 				    .uli_u = { .ports =
 					       { .sport = inet->sport,
 						 .dport = dport } } };

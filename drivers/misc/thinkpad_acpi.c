@@ -5318,6 +5318,7 @@ static enum fan_control_commands fan_control_commands;
 
 static u8 fan_control_initial_status;
 static u8 fan_control_desired_level;
+static u8 fan_control_resume_level;
 static int fan_watchdog_maxinterval;
 
 static struct mutex fan_mutex;
@@ -5440,8 +5441,8 @@ static int fan_set_level(int level)
 
 	case TPACPI_FAN_WR_ACPI_FANS:
 	case TPACPI_FAN_WR_TPEC:
-		if ((level != TP_EC_FAN_AUTO) &&
-		    (level != TP_EC_FAN_FULLSPEED) &&
+		if (!(level & TP_EC_FAN_AUTO) &&
+		    !(level & TP_EC_FAN_FULLSPEED) &&
 		    ((level < 0) || (level > 7)))
 			return -EINVAL;
 
@@ -6005,38 +6006,67 @@ static void fan_exit(void)
 
 static void fan_suspend(pm_message_t state)
 {
+	int rc;
+
 	if (!fan_control_allowed)
 		return;
 
 	/* Store fan status in cache */
-	fan_get_status_safe(NULL);
+	fan_control_resume_level = 0;
+	rc = fan_get_status_safe(&fan_control_resume_level);
+	if (rc < 0)
+		printk(TPACPI_NOTICE
+			"failed to read fan level for later "
+			"restore during resume: %d\n", rc);
+
+	/* if it is undefined, don't attempt to restore it.
+	 * KEEP THIS LAST */
 	if (tp_features.fan_ctrl_status_undef)
-		fan_control_desired_level = TP_EC_FAN_AUTO;
+		fan_control_resume_level = 0;
 }
 
 static void fan_resume(void)
 {
-	u8 saved_fan_level;
 	u8 current_level = 7;
 	bool do_set = false;
+	int rc;
 
 	/* DSDT *always* updates status on resume */
 	tp_features.fan_ctrl_status_undef = 0;
 
-	saved_fan_level = fan_control_desired_level;
 	if (!fan_control_allowed ||
+	    !fan_control_resume_level ||
 	    (fan_get_status_safe(&current_level) < 0))
 		return;
 
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_SFAN:
-		do_set = (saved_fan_level > current_level);
+		/* never decrease fan level */
+		do_set = (fan_control_resume_level > current_level);
 		break;
 	case TPACPI_FAN_WR_ACPI_FANS:
 	case TPACPI_FAN_WR_TPEC:
-		do_set = ((saved_fan_level & TP_EC_FAN_FULLSPEED) ||
-			  (saved_fan_level == 7 &&
-			   !(current_level & TP_EC_FAN_FULLSPEED)));
+		/* never decrease fan level, scale is:
+		 * TP_EC_FAN_FULLSPEED > 7 >= TP_EC_FAN_AUTO
+		 *
+		 * We expect the firmware to set either 7 or AUTO, but we
+		 * handle FULLSPEED out of paranoia.
+		 *
+		 * So, we can safely only restore FULLSPEED or 7, anything
+		 * else could slow the fan.  Restoring AUTO is useless, at
+		 * best that's exactly what the DSDT already set (it is the
+		 * slower it uses).
+		 *
+		 * Always keep in mind that the DSDT *will* have set the
+		 * fans to what the vendor supposes is the best level.  We
+		 * muck with it only to speed the fan up.
+		 */
+		if (fan_control_resume_level != 7 &&
+		    !(fan_control_resume_level & TP_EC_FAN_FULLSPEED))
+			return;
+		else
+			do_set = !(current_level & TP_EC_FAN_FULLSPEED) &&
+				 (current_level != fan_control_resume_level);
 		break;
 	default:
 		return;
@@ -6044,8 +6074,11 @@ static void fan_resume(void)
 	if (do_set) {
 		printk(TPACPI_NOTICE
 			"restoring fan level to 0x%02x\n",
-			saved_fan_level);
-		fan_set_level_safe(saved_fan_level);
+			fan_control_resume_level);
+		rc = fan_set_level_safe(fan_control_resume_level);
+		if (rc < 0)
+			printk(TPACPI_NOTICE
+				"failed to restore fan level: %d\n", rc);
 	}
 }
 

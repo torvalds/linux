@@ -623,6 +623,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * Try to allocate it some swap space here.
 		 */
 		if (PageAnon(page) && !PageSwapCache(page)) {
+			if (!(sc->gfp_mask & __GFP_IO))
+				goto keep_locked;
 			switch (try_to_munlock(page)) {
 			case SWAP_FAIL:		/* shouldn't happen */
 			case SWAP_AGAIN:
@@ -634,6 +636,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			}
 			if (!add_to_swap(page, GFP_ATOMIC))
 				goto activate_locked;
+			may_enter_fs = 1;
 		}
 #endif /* CONFIG_SWAP */
 
@@ -1245,6 +1248,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		list_add(&page->lru, &l_inactive);
 	}
 
+	spin_lock_irq(&zone->lru_lock);
 	/*
 	 * Count referenced pages from currently used mappings as
 	 * rotated, even though they are moved to the inactive list.
@@ -1260,7 +1264,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 
 	pgmoved = 0;
 	lru = LRU_BASE + file * LRU_FILE;
-	spin_lock_irq(&zone->lru_lock);
 	while (!list_empty(&l_inactive)) {
 		page = lru_to_page(&l_inactive);
 		prefetchw_prev_lru_page(page, &l_inactive, flags);
@@ -1386,9 +1389,9 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	file_prio = 200 - sc->swappiness;
 
 	/*
-	 *                  anon       recent_rotated[0]
-	 * %anon = 100 * ----------- / ----------------- * IO cost
-	 *               anon + file      rotate_sum
+	 * The amount of pressure on anon vs file pages is inversely
+	 * proportional to the fraction of recently scanned pages on
+	 * each list that were recently referenced and in active use.
 	 */
 	ap = (anon_prio + 1) * (zone->recent_scanned[0] + 1);
 	ap /= zone->recent_rotated[0] + 1;

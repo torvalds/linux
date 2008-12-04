@@ -338,7 +338,7 @@ common_swizzle(struct pci_dev *dev, u8 *pinp)
 	return PCI_SLOT(dev->devfn);
 }
 
-void __devinit
+void
 pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 			 struct resource *res)
 {
