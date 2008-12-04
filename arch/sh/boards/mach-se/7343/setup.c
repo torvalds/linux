@@ -3,6 +3,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
+#include <linux/usb/isp116x.h>
+#include <linux/delay.h>
 #include <asm/machvec.h>
 #include <mach-se/mach/se7343.h>
 #include <asm/heartbeat.h>
@@ -126,11 +128,54 @@ static struct platform_device uart_device = {
 	},
 };
 
+static void isp116x_delay(struct device *dev, int delay)
+{
+	ndelay(delay);
+}
+
+static struct resource usb_resources[] = {
+	[0] = {
+		.start  = 0x11800000,
+		.end    = 0x11800001,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 0x11800002,
+		.end    = 0x11800003,
+		.flags  = IORESOURCE_MEM,
+	},
+	[2] = {
+		.start  = USB_IRQ,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct isp116x_platform_data usb_platform_data = {
+	.sel15Kres		= 1,
+	.oc_enable		= 1,
+	.int_act_high		= 0,
+	.int_edge_triggered	= 0,
+	.remote_wakeup_enable	= 0,
+	.delay			= isp116x_delay,
+};
+
+static struct platform_device usb_device = {
+	.name			= "isp116x-hcd",
+	.id			= -1,
+	.num_resources  	= ARRAY_SIZE(usb_resources),
+	.resource       	= usb_resources,
+	.dev			= {
+		.platform_data	= &usb_platform_data,
+	},
+
+};
+
 static struct platform_device *sh7343se_platform_devices[] __initdata = {
 	&smc91x_device,
 	&heartbeat_device,
 	&nor_flash_device,
 	&uart_device,
+	&usb_device,
 };
 
 static int __init sh7343se_devices_setup(void)
