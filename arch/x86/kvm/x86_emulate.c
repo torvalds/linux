@@ -58,6 +58,7 @@
 #define SrcMem32    (4<<4)	/* Memory operand (32-bit). */
 #define SrcImm      (5<<4)	/* Immediate operand. */
 #define SrcImmByte  (6<<4)	/* 8-bit sign-extended immediate operand. */
+#define SrcOne      (7<<4)	/* Implied '1' */
 #define SrcMask     (7<<4)
 /* Generic ModRM decode. */
 #define ModRM       (1<<7)
@@ -1003,6 +1004,10 @@ done_prefixes:
 		c->src.ptr = (unsigned long *)c->eip;
 		c->src.bytes = 1;
 		c->src.val = insn_fetch(s8, 1, c->eip);
+		break;
+	case SrcOne:
+		c->src.bytes = 1;
+		c->src.val = 1;
 		break;
 	}
 
