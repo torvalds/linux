@@ -551,7 +551,7 @@ extern struct pid *ftrace_pid_trace;
 
 static inline int ftrace_trace_task(struct task_struct *task)
 {
-	if (ftrace_pid_trace)
+	if (!ftrace_pid_trace)
 		return 1;
 
 	return test_tsk_trace_trace(task);
