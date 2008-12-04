@@ -165,10 +165,6 @@ static const __u8 ov534_reg_initdata[][2] = {
 	{ 0xe2, 0x00 },
 	{ 0xe7, 0x3e },
 
-	{ 0x1c, 0x0a },
-	{ 0x1d, 0x22 },
-	{ 0x1d, 0x06 },
-
 	{ 0x96, 0x00 },
 
 	{ 0x97, 0x20 },
@@ -327,17 +323,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
-	/*
-	 * On some architectures we need contiguous memory for urb buffers, and
-	 * in low memory situation 'sizeimage' can be too much.
-	 * 16kiB chunks should be available even when we are low in memory.
-	 * TODO: CHECK this description: is the problem arch-dependent or more
-	 *       general?
-	 */
-	cam->bulk_size = 16 * 1024;
+	cam->bulk_size = 2048;
 	cam->bulk_nurbs = 2;
-
-	PDEBUG(D_PROBE, "bulk_size = %d", cam->bulk_size);
 
 	return 0;
 }
@@ -383,18 +370,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
-	struct gspca_frame *frame;
-
 	/* start streaming data */
 	ov534_set_led(gspca_dev->dev, 1);
 	ov534_reg_write(gspca_dev->dev, 0xe0, 0x00);
-
-	frame = gspca_get_i_frame(gspca_dev);
-	if (frame == NULL) {
-		PDEBUG(D_ERR, "NULL frame!");
-		return -1;
-	}
-	gspca_frame_add(gspca_dev, FIRST_PACKET, frame, gspca_dev->usb_buf, 0);
 
 	return 0;
 }
@@ -406,18 +384,79 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	ov534_set_led(gspca_dev->dev, 0);
 }
 
+/* Values for bmHeaderInfo (Video and Still Image Payload Headers, 2.4.3.3) */
+#define UVC_STREAM_EOH	(1 << 7)
+#define UVC_STREAM_ERR	(1 << 6)
+#define UVC_STREAM_STI	(1 << 5)
+#define UVC_STREAM_RES	(1 << 4)
+#define UVC_STREAM_SCR	(1 << 3)
+#define UVC_STREAM_PTS	(1 << 2)
+#define UVC_STREAM_EOF	(1 << 1)
+#define UVC_STREAM_FID	(1 << 0)
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 			__u8 *data, int len)
 {
-	int framesize = frame->v4l2_buf.length;
+	static __u32 last_pts;
+	__u32 this_pts;
+	static int last_fid;
+	int this_fid;
 
-	if (len == framesize) {
-		frame = gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-					data, len);
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
-	} else
-		PDEBUG(D_PACK, "packet len = %d, framesize = %d", len,
-		       framesize);
+	/* Payloads are prefixed with a the UVC-style header.  We
+	   consider a frame to start when the FID toggles, or the PTS
+	   changes.  A frame ends when EOF is set, and we've received
+	   the correct number of bytes. */
+
+	/* Verify UVC header.  Header length is always 12 */
+	if (data[0] != 12 || len < 12) {
+		PDEBUG(D_PACK, "bad header");
+		goto discard;
+	}
+
+	/* Check errors */
+	if (data[1] & UVC_STREAM_ERR) {
+		PDEBUG(D_PACK, "payload error");
+		goto discard;
+	}
+
+	/* Extract PTS and FID */
+	if (!(data[1] & UVC_STREAM_PTS)) {
+		PDEBUG(D_PACK, "PTS not present");
+		goto discard;
+	}
+	this_pts = (data[5] << 24) | (data[4] << 16) | (data[3] << 8) | data[2];
+	this_fid = (data[1] & UVC_STREAM_FID) ? 1 : 0;
+
+	/* If PTS or FID has changed, start a new frame. */
+	if (this_pts != last_pts || this_fid != last_fid) {
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
+		last_pts = this_pts;
+		last_fid = this_fid;
+	}
+
+	/* Add the data from this payload */
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+				data + 12, len - 12);
+
+	/* If this packet is marked as EOF, end the frame */
+	if (data[1] & UVC_STREAM_EOF) {
+		last_pts = 0;
+
+		if ((frame->data_end - frame->data) !=
+		    (gspca_dev->width * gspca_dev->height * 2)) {
+			PDEBUG(D_PACK, "short frame");
+			goto discard;
+		}
+
+		gspca_frame_add(gspca_dev, LAST_PACKET, frame, NULL, 0);
+	}
+
+	/* Done */
+	return;
+
+discard:
+	/* Discard data until a new frame starts. */
+	gspca_frame_add(gspca_dev, DISCARD_PACKET, frame, NULL, 0);
 }
 
 /* sub-driver description */
