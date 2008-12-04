@@ -50,7 +50,19 @@ struct oprofile_cpu_buffer {
 
 DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
-void cpu_buffer_reset(struct oprofile_cpu_buffer *cpu_buf);
+/*
+ * Resets the cpu buffer to a sane state.
+ *
+ * reset these to invalid values; the next sample collected will
+ * populate the buffer with proper values to initialize the buffer
+ */
+static inline void cpu_buffer_reset(int cpu)
+{
+	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(cpu_buffer, cpu);
+
+	cpu_buf->last_is_kernel = -1;
+	cpu_buf->last_task = NULL;
+}
 
 static inline
 struct op_sample *cpu_buffer_write_entry(struct oprofile_cpu_buffer *cpu_buf)
@@ -87,20 +99,6 @@ unsigned long cpu_buffer_entries(struct oprofile_cpu_buffer *b)
 {
 	unsigned long head = b->head_pos;
 	unsigned long tail = b->tail_pos;
-
-	/*
-	 * Subtle. This resets the persistent last_task
-	 * and in_kernel values used for switching notes.
-	 * BUT, there is a small window between reading
-	 * head_pos, and this call, that means samples
-	 * can appear at the new head position, but not
-	 * be prefixed with the notes for switching
-	 * kernel mode or a task switch. This small hole
-	 * can lead to mis-attribution or samples where
-	 * we don't know if it's in the kernel or not,
-	 * at the start of an event buffer.
-	 */
-	cpu_buffer_reset(b);
 
 	if (head >= tail)
 		return head - tail;

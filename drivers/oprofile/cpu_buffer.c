@@ -124,18 +124,6 @@ void end_cpu_work(void)
 	flush_scheduled_work();
 }
 
-/* Resets the cpu buffer to a sane state. */
-void cpu_buffer_reset(struct oprofile_cpu_buffer *cpu_buf)
-{
-	/*
-	 * reset these to invalid values; the next sample collected
-	 * will populate the buffer with proper values to initialize
-	 * the buffer
-	 */
-	cpu_buf->last_is_kernel = -1;
-	cpu_buf->last_task = NULL;
-}
-
 /* compute number of available slots in cpu_buffer queue */
 static unsigned long nr_available_slots(struct oprofile_cpu_buffer const *b)
 {

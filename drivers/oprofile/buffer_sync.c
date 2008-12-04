@@ -548,6 +548,7 @@ void sync_buffer(int cpu)
 
 	/* Remember, only we can modify tail_pos */
 
+	cpu_buffer_reset(cpu);
 #ifndef CONFIG_OPROFILE_IBS
 	available = cpu_buffer_entries(cpu_buf);
 
