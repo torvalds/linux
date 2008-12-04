@@ -2521,8 +2521,7 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
  * @adapter: board private structure to initialize
  *
  * We allocate one ring per queue at run-time since we don't know the
- * number of queues at compile-time.  The polling_netdev array is
- * intended for Multiqueue, but should work fine with a single queue.
+ * number of queues at compile-time.
  **/
 static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 {
