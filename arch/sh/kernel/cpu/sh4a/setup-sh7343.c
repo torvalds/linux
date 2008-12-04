@@ -117,7 +117,22 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xffe00000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		= { 80, 81, 83, 82 },
+		.irqs		= { 80, 80, 80, 80 },
+	}, {
+		.mapbase	= 0xffe10000,
+		.flags		= UPF_BOOT_AUTOCONF,
+		.type		= PORT_SCIF,
+		.irqs		= { 81, 81, 81, 81 },
+	}, {
+		.mapbase	= 0xffe20000,
+		.flags		= UPF_BOOT_AUTOCONF,
+		.type		= PORT_SCIF,
+		.irqs		= { 82, 82, 82, 82 },
+	}, {
+		.mapbase	= 0xffe30000,
+		.flags		= UPF_BOOT_AUTOCONF,
+		.type		= PORT_SCIF,
+		.irqs		= { 83, 83, 83, 83 },
 	}, {
 		.flags = 0,
 	}
@@ -165,7 +180,7 @@ enum {
 	MMC_ERR, MMC_TRAN, MMC_FSTAT, MMC_FRDY,
 	DMAC4, DMAC5, DMAC_DADERR,
 	KEYSC,
-	SCIF, SCIF1, SCIF2, SCIF3, SCIF4,
+	SCIF, SCIF1, SCIF2, SCIF3,
 	SIOF0, SIOF1, SIO,
 	FLCTL_FLSTEI, FLCTL_FLENDI, FLCTL_FLTREQ0I, FLCTL_FLTREQ1I,
 	I2C0_ALI, I2C0_TACKI, I2C0_WAITI, I2C0_DTEI,
