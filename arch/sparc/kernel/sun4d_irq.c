@@ -508,6 +508,7 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 	 * bootbus.
 	 */
 	reg = of_get_property(dp, "reg", NULL);
+	of_node_put(dp);
 	if (!reg) {
 		prom_printf("sun4d_init_timers: No reg property\n");
 		prom_halt();
