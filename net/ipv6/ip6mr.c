@@ -297,14 +297,15 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 		const struct mfc6_cache *mfc = v;
 		const struct ipmr_mfc_iter *it = seq->private;
 
-		seq_printf(seq, "%pI6 %pI6 %-3d %8ld %8ld %8ld",
+		seq_printf(seq, "%pI6 %pI6 %-3d",
 			   &mfc->mf6c_mcastgrp, &mfc->mf6c_origin,
-			   mfc->mf6c_parent,
-			   mfc->mfc_un.res.pkt,
-			   mfc->mfc_un.res.bytes,
-			   mfc->mfc_un.res.wrong_if);
+			   mfc->mf6c_parent);
 
 		if (it->cache != &mfc_unres_queue) {
+			seq_printf(seq, " %8lu %8lu %8lu",
+				   mfc->mfc_un.res.pkt,
+				   mfc->mfc_un.res.bytes,
+				   mfc->mfc_un.res.wrong_if);
 			for (n = mfc->mfc_un.res.minvif;
 			     n < mfc->mfc_un.res.maxvif; n++) {
 				if (MIF_EXISTS(n) &&
@@ -313,6 +314,11 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 						   " %2d:%-3d",
 						   n, mfc->mfc_un.res.ttls[n]);
 			}
+		} else {
+			/* unresolved mfc_caches don't contain
+			 * pkt, bytes and wrong_if values
+			 */
+			seq_printf(seq, " %8lu %8lu %8lu", 0ul, 0ul, 0ul);
 		}
 		seq_putc(seq, '\n');
 	}
