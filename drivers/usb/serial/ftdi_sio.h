@@ -40,6 +40,9 @@
 /* AlphaMicro Components AMC-232USB01 device */
 #define FTDI_AMC232_PID 0xFF00 /* Product Id */
 
+/* www.candapter.com Ewert Energy Systems CANdapter device */
+#define FTDI_CANDAPTER_PID 0x9F80 /* Product Id */
+
 /* SCS HF Radio Modems PID's (http://www.scs-ptc.com) */
 /* the VID is the standard ftdi vid (FTDI_VID) */
 #define FTDI_SCS_DEVICE_0_PID 0xD010    /* SCS PTC-IIusb */
