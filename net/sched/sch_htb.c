@@ -125,13 +125,6 @@ struct htb_class {
 	psched_time_t t_c;	/* checkpoint time */
 };
 
-static inline long L2T(struct htb_class *cl, struct qdisc_rate_table *rate,
-			   int size)
-{
-	long result = qdisc_l2t(rate, size);
-	return result;
-}
-
 struct htb_sched {
 	struct Qdisc_class_hash clhash;
 	struct list_head drops[TC_HTB_NUMPRIO];/* active leaves (for drops) */
@@ -604,7 +597,7 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 
 #define HTB_ACCNT(T,B,R) toks = diff + cl->T; \
 	if (toks > cl->B) toks = cl->B; \
-	toks -= L2T(cl, cl->R, bytes); \
+	toks -= (long) qdisc_l2t(cl->R, bytes); \
 	if (toks <= -cl->mbuffer) toks = 1-cl->mbuffer; \
 	cl->T = toks
 
