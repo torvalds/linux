@@ -77,6 +77,38 @@ lpfc_dump_mem(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, uint16_t offset)
 }
 
 /**
+ * lpfc_dump_mem: Prepare a mailbox command for retrieving wakeup params.
+ * @phba: pointer to lpfc hba data structure.
+ * @pmb: pointer to the driver internal queue element for mailbox command.
+ * This function create a dump memory mailbox command to dump wake up
+ * parameters.
+ */
+void
+lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb;
+	void *ctx;
+
+	mb = &pmb->mb;
+	/* Save context so that we can restore after memset */
+	ctx = pmb->context2;
+
+	/* Setup to dump VPD region */
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
+	mb->mbxCommand = MBX_DUMP_MEMORY;
+	mb->mbxOwner = OWN_HOST;
+	mb->un.varDmp.cv = 1;
+	mb->un.varDmp.type = DMP_NV_PARAMS;
+	mb->un.varDmp.entry_index = 0;
+	mb->un.varDmp.region_id = WAKE_UP_PARMS_REGION_ID;
+	mb->un.varDmp.word_cnt = WAKE_UP_PARMS_WORD_SIZE;
+	mb->un.varDmp.co = 0;
+	mb->un.varDmp.resp_offset = 0;
+	pmb->context2 = ctx;
+	return;
+}
+
+/**
  * lpfc_read_nv: Prepare a mailbox command for reading HBA's NVRAM param.
  * @phba: pointer to lpfc hba data structure.
  * @pmb: pointer to the driver internal queue element for mailbox command.
@@ -1060,6 +1092,9 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	pdma_addr = phba->slim2p.phys + offset;
 	mb->un.varCfgPort.pcbLow = putPaddrLow(pdma_addr);
 	mb->un.varCfgPort.pcbHigh = putPaddrHigh(pdma_addr);
+
+	/* Always Host Group Pointer is in SLIM */
+	mb->un.varCfgPort.hps = 1;
 
 	/* If HBA supports SLI=3 ask for it */
 

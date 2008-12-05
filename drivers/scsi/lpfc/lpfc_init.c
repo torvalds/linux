@@ -236,6 +236,48 @@ lpfc_config_async_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 }
 
 /**
+ * lpfc_dump_wakeup_param_cmpl: Completion handler for dump memory mailbox
+ *     command used for getting wake up parameters.
+ * @phba: pointer to lpfc hba data structure.
+ * @pmboxq: pointer to the driver internal queue element for mailbox command.
+ *
+ * This is the completion handler for dump mailbox command for getting
+ * wake up parameters. When this command complete, the response contain
+ * Option rom version of the HBA. This function translate the version number
+ * into a human readable string and store it in OptionROMVersion.
+ **/
+static void
+lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
+{
+	struct prog_id *prg;
+	uint32_t prog_id_word;
+	char dist = ' ';
+	/* character array used for decoding dist type. */
+	char dist_char[] = "nabx";
+
+	if (pmboxq->mb.mbxStatus != MBX_SUCCESS)
+		return;
+
+	prg = (struct prog_id *) &prog_id_word;
+
+	/* word 7 contain option rom version */
+	prog_id_word = pmboxq->mb.un.varWords[7];
+
+	/* Decode the Option rom version word to a readable string */
+	if (prg->dist < 4)
+		dist = dist_char[prg->dist];
+
+	if ((prg->dist == 3) && (prg->num == 0))
+		sprintf(phba->OptionROMVersion, "%d.%d%d",
+			prg->ver, prg->rev, prg->lev);
+	else
+		sprintf(phba->OptionROMVersion, "%d.%d%d%c%d",
+			prg->ver, prg->rev, prg->lev,
+			dist, prg->num);
+	return;
+}
+
+/**
  * lpfc_config_port_post: Perform lpfc initialization after config port.
  * @phba: pointer to lpfc hba data structure.
  *
@@ -482,6 +524,20 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				rc);
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
+
+	/* Get Option rom version */
+	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	lpfc_dump_wakeup_param(phba, pmb);
+	pmb->mbox_cmpl = lpfc_dump_wakeup_param_cmpl;
+	pmb->vport = phba->pport;
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+
+	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT, "0435 Adapter failed "
+				"to get Option ROM version status x%x\n.", rc);
+		mempool_free(pmb, phba->mbox_mem_pool);
+	}
+
 	return 0;
 }
 
@@ -2406,6 +2462,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	phba->eratt_poll.data = (unsigned long) phba;
 
 	pci_set_master(pdev);
+	pci_save_state(pdev);
 	pci_try_set_mwi(pdev);
 
 	if (pci_set_dma_mask(phba->pcidev, DMA_64BIT_MASK) != 0)
@@ -2982,7 +3039,9 @@ static pci_ers_result_t lpfc_io_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
-	pci_set_master(pdev);
+	pci_restore_state(pdev);
+	if (pdev->is_busmaster)
+		pci_set_master(pdev);
 
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
