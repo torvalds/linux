@@ -399,66 +399,6 @@ static char * __init build_full_name(struct device_node *dp)
 	return n;
 }
 
-static struct property * __init build_one_prop(phandle node, char *prev, char *special_name, void *special_val, int special_len)
-{
-	static struct property *tmp = NULL;
-	struct property *p;
-
-	if (tmp) {
-		p = tmp;
-		memset(p, 0, sizeof(*p) + 32);
-		tmp = NULL;
-	} else {
-		p = prom_early_alloc(sizeof(struct property) + 32);
-		p->unique_id = prom_unique_id++;
-	}
-
-	p->name = (char *) (p + 1);
-	if (special_name) {
-		strcpy(p->name, special_name);
-		p->length = special_len;
-		p->value = prom_early_alloc(special_len);
-		memcpy(p->value, special_val, special_len);
-	} else {
-		if (prev == NULL) {
-			prom_firstprop(node, p->name);
-		} else {
-			prom_nextprop(node, prev, p->name);
-		}
-		if (strlen(p->name) == 0) {
-			tmp = p;
-			return NULL;
-		}
-		p->length = prom_getproplen(node, p->name);
-		if (p->length <= 0) {
-			p->length = 0;
-		} else {
-			p->value = prom_early_alloc(p->length + 1);
-			prom_getproperty(node, p->name, p->value, p->length);
-			((unsigned char *)p->value)[p->length] = '\0';
-		}
-	}
-	return p;
-}
-
-static struct property * __init build_prop_list(phandle node)
-{
-	struct property *head, *tail;
-
-	head = tail = build_one_prop(node, NULL,
-				     ".node", &node, sizeof(node));
-
-	tail->next = build_one_prop(node, NULL, NULL, NULL, 0);
-	tail = tail->next;
-	while(tail) {
-		tail->next = build_one_prop(node, tail->name,
-					    NULL, NULL, 0);
-		tail = tail->next;
-	}
-
-	return head;
-}
-
 static char * __init get_one_property(phandle node, const char *name)
 {
 	char *buf = "<NULL>";

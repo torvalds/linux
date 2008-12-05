@@ -15,4 +15,6 @@ extern void irq_trans_init(struct device_node *dp);
 
 extern unsigned int prom_unique_id;
 
+extern struct property * __init build_prop_list(phandle node);
+
 #endif /* __PROM_H */

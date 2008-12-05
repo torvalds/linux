@@ -120,3 +120,84 @@ int of_find_in_proplist(const char *list, const char *match, int len)
 EXPORT_SYMBOL(of_find_in_proplist);
 
 unsigned int prom_unique_id;
+
+static struct property * __init build_one_prop(phandle node, char *prev,
+					       char *special_name,
+					       void *special_val,
+					       int special_len)
+{
+	static struct property *tmp = NULL;
+	struct property *p;
+	const char *name;
+
+	if (tmp) {
+		p = tmp;
+		memset(p, 0, sizeof(*p) + 32);
+		tmp = NULL;
+	} else {
+		p = prom_early_alloc(sizeof(struct property) + 32);
+		p->unique_id = prom_unique_id++;
+	}
+
+	p->name = (char *) (p + 1);
+	if (special_name) {
+		strcpy(p->name, special_name);
+		p->length = special_len;
+		p->value = prom_early_alloc(special_len);
+		memcpy(p->value, special_val, special_len);
+	} else {
+#ifdef CONFIG_SPARC32
+		if (prev == NULL) {
+			name = prom_firstprop(node, NULL);
+		} else {
+			name = prom_nextprop(node, prev, NULL);
+		}
+#else
+		if (prev == NULL) {
+			prom_firstprop(node, p->name);
+		} else {
+			prom_nextprop(node, prev, p->name);
+		}
+		name = p->name;
+#endif
+		if (strlen(name) == 0) {
+			tmp = p;
+			return NULL;
+		}
+#ifdef CONFIG_SPARC32
+		strcpy(p->name, name);
+#endif
+		p->length = prom_getproplen(node, p->name);
+		if (p->length <= 0) {
+			p->length = 0;
+		} else {
+			int len;
+
+			p->value = prom_early_alloc(p->length + 1);
+			len = prom_getproperty(node, p->name, p->value,
+					       p->length);
+			if (len <= 0)
+				p->length = 0;
+			((unsigned char *)p->value)[p->length] = '\0';
+		}
+	}
+	return p;
+}
+
+struct property * __init build_prop_list(phandle node)
+{
+	struct property *head, *tail;
+
+	head = tail = build_one_prop(node, NULL,
+				     ".node", &node, sizeof(node));
+
+	tail->next = build_one_prop(node, NULL, NULL, NULL, 0);
+	tail = tail->next;
+	while(tail) {
+		tail->next = build_one_prop(node, tail->name,
+					    NULL, NULL, 0);
+		tail = tail->next;
+	}
+
+	return head;
+}
