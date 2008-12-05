@@ -25,6 +25,15 @@
 
 #include "prom.h"
 
+struct device_node *of_console_device;
+EXPORT_SYMBOL(of_console_device);
+
+char *of_console_path;
+EXPORT_SYMBOL(of_console_path);
+
+char *of_console_options;
+EXPORT_SYMBOL(of_console_options);
+
 struct device_node *of_find_node_by_phandle(phandle handle)
 {
 	struct device_node *np;

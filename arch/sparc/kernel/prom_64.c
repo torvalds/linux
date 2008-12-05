@@ -526,15 +526,6 @@ void __init of_fill_in_cpu_data(void)
 	smp_fill_in_sib_core_maps();
 }
 
-struct device_node *of_console_device;
-EXPORT_SYMBOL(of_console_device);
-
-char *of_console_path;
-EXPORT_SYMBOL(of_console_path);
-
-char *of_console_options;
-EXPORT_SYMBOL(of_console_options);
-
 void __init of_console_init(void)
 {
 	char *msg = "OF stdout device is: %s\n";

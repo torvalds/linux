@@ -166,15 +166,6 @@ char * __init build_path_component(struct device_node *dp)
 	return n;
 }
 
-struct device_node *of_console_device;
-EXPORT_SYMBOL(of_console_device);
-
-char *of_console_path;
-EXPORT_SYMBOL(of_console_path);
-
-char *of_console_options;
-EXPORT_SYMBOL(of_console_options);
-
 extern void restore_current(void);
 
 void __init of_console_init(void)
