@@ -13,4 +13,6 @@ extern void * prom_early_alloc(unsigned long size);
 extern void irq_trans_init(struct device_node *dp);
 #endif
 
+extern unsigned int prom_unique_id;
+
 #endif /* __PROM_H */

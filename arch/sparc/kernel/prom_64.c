@@ -399,8 +399,6 @@ static char * __init build_full_name(struct device_node *dp)
 	return n;
 }
 
-static unsigned int unique_id;
-
 static struct property * __init build_one_prop(phandle node, char *prev, char *special_name, void *special_val, int special_len)
 {
 	static struct property *tmp = NULL;
@@ -412,7 +410,7 @@ static struct property * __init build_one_prop(phandle node, char *prev, char *s
 		tmp = NULL;
 	} else {
 		p = prom_early_alloc(sizeof(struct property) + 32);
-		p->unique_id = unique_id++;
+		p->unique_id = prom_unique_id++;
 	}
 
 	p->name = (char *) (p + 1);
@@ -483,7 +481,7 @@ static struct device_node * __init create_node(phandle node, struct device_node 
 		return NULL;
 
 	dp = prom_early_alloc(sizeof(*dp));
-	dp->unique_id = unique_id++;
+	dp->unique_id = prom_unique_id++;
 	dp->parent = parent;
 
 	kref_init(&dp->kref);

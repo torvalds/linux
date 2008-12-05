@@ -119,3 +119,4 @@ int of_find_in_proplist(const char *list, const char *match, int len)
 }
 EXPORT_SYMBOL(of_find_in_proplist);
 
+unsigned int prom_unique_id;
