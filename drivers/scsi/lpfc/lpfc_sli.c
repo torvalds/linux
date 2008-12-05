@@ -542,6 +542,7 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 */
 	nextiocb->iocb.ulpIoTag = (nextiocb->iocb_cmpl) ? nextiocb->iotag : 0;
 
+
 	if (pring->ringno == LPFC_ELS_RING) {
 		lpfc_debugfs_slow_ring_trc(phba,
 			"IOCB cmd ring:   wd4:x%08x wd6:x%08x wd7:x%08x",
@@ -3044,7 +3045,8 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 		phba->sli3_options &= ~(LPFC_SLI3_NPIV_ENABLED |
 					LPFC_SLI3_HBQ_ENABLED |
 					LPFC_SLI3_CRP_ENABLED |
-					LPFC_SLI3_INB_ENABLED);
+					LPFC_SLI3_INB_ENABLED |
+					LPFC_SLI3_BG_ENABLED);
 		if (rc != MBX_SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0442 Adapter failed to init, mbxCmd x%x "
@@ -3088,6 +3090,15 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 			phba->port_gp = phba->mbox->us.s3_pgp.port;
 			phba->inb_ha_copy = NULL;
 			phba->inb_counter = NULL;
+		}
+
+		if (phba->cfg_enable_bg) {
+			if (pmb->mb.un.varCfgPort.gbg)
+				phba->sli3_options |= LPFC_SLI3_BG_ENABLED;
+			else
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"0443 Adapter did not grant "
+						"BlockGuard\n");
 		}
 	} else {
 		phba->hbq_get = NULL;
