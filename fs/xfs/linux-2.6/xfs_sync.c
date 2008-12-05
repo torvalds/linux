@@ -707,8 +707,6 @@ restart:
 			break;
 		}
 
-		ASSERT(xfs_iflags_test(ip, (XFS_IRECLAIMABLE|XFS_IRECLAIM)));
-
 		/* ignore if already under reclaim */
 		if (xfs_iflags_test(ip, XFS_IRECLAIM)) {
 			read_unlock(&pag->pag_ici_lock);
