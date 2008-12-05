@@ -446,7 +446,7 @@ static int igb_request_msix(struct igb_adapter *adapter)
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *ring = &(adapter->tx_ring[i]);
-		sprintf(ring->name, "%s-tx%d", netdev->name, i);
+		sprintf(ring->name, "%s-tx-%d", netdev->name, i);
 		err = request_irq(adapter->msix_entries[vector].vector,
 				  &igb_msix_tx, 0, ring->name,
 				  &(adapter->tx_ring[i]));
@@ -459,7 +459,7 @@ static int igb_request_msix(struct igb_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *ring = &(adapter->rx_ring[i]);
 		if (strlen(netdev->name) < (IFNAMSIZ - 5))
-			sprintf(ring->name, "%s-rx%d", netdev->name, i);
+			sprintf(ring->name, "%s-rx-%d", netdev->name, i);
 		else
 			memcpy(ring->name, netdev->name, IFNAMSIZ);
 		err = request_irq(adapter->msix_entries[vector].vector,
