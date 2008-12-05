@@ -127,14 +127,20 @@ static int firesat_ca_pmt(struct firesat *firesat, void *arg)
 {
 	struct ca_msg *msg = arg;
 	int data_pos;
+	int data_length;
+	int i;
 
-	if (msg->msg[3] & 0x80)
-		data_pos = (msg->msg[4] && 0x7F) + 4;
-	else
-		data_pos = 4;
+	data_pos = 4;
+	if (msg->msg[3] & 0x80) {
+		data_length = 0;
+		for (i = 0; i < (msg->msg[3] & 0x7F); i++)
+			data_length = (data_length << 8) + msg->msg[data_pos++];
+	} else {
+		data_length = msg->msg[3];
+	}
 
-	return avc_ca_pmt(firesat, &msg->msg[data_pos],
-			  msg->length - data_pos) ? -EFAULT : 0;
+	return avc_ca_pmt(firesat, &msg->msg[data_pos], data_length) ?
+	       -EFAULT : 0;
 }
 
 static int firesat_ca_send_msg(struct firesat *firesat, void *arg)
