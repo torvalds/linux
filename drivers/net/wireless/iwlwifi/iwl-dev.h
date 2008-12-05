@@ -994,9 +994,6 @@ struct iwl_priv {
 	s8 tx_power_user_lmt;
 	s8 tx_power_channel_lmt;
 
-#ifdef CONFIG_PM
-	u32 pm_state[16];
-#endif
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	/* debugging info */

@@ -908,9 +908,6 @@ struct iwl3945_priv {
 	s8 user_txpower_limit;
 	s8 max_channel_txpower_limit;
 
-#ifdef CONFIG_PM
-	u32 pm_state[16];
-#endif
 
 #ifdef CONFIG_IWL3945_DEBUG
 	/* debugging info */
