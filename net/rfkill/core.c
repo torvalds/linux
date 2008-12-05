@@ -802,7 +802,7 @@ void rfkill_resume_polling(struct rfkill *rfkill)
 }
 EXPORT_SYMBOL(rfkill_resume_polling);
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_RFKILL_PM
 static int rfkill_suspend(struct device *dev)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
@@ -838,7 +838,9 @@ static struct class rfkill_class = {
 	.dev_release	= rfkill_release,
 	.dev_groups	= rfkill_dev_groups,
 	.dev_uevent	= rfkill_dev_uevent,
+#ifdef CONFIG_RFKILL_PM
 	.pm		= RFKILL_PM_OPS,
+#endif
 };
 
 bool rfkill_blocked(struct rfkill *rfkill)
