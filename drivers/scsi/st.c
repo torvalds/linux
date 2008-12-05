@@ -533,6 +533,28 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 	return SRpnt;
 }
 
+static int st_scsi_kern_execute(struct st_request *streq,
+				const unsigned char *cmd, int data_direction,
+				void *buffer, unsigned bufflen, int timeout,
+				int retries)
+{
+	struct scsi_tape *stp = streq->stp;
+	int ret, resid;
+
+	stp->buffer->cmdstat.have_sense = 0;
+	memcpy(streq->cmd, cmd, sizeof(streq->cmd));
+
+	ret = scsi_execute(stp->device, cmd, data_direction, buffer, bufflen,
+			   streq->sense, timeout, retries, 0, &resid);
+	if (driver_byte(ret) & DRIVER_ERROR)
+		return -EBUSY;
+
+	stp->buffer->cmdstat.midlevel_result = streq->result = ret;
+	stp->buffer->cmdstat.residual = resid;
+	stp->buffer->syscall_result = st_chk_result(stp, streq);
+
+	return 0;
+}
 
 /* Handle the write-behind checking (waits for completion). Returns -ENOSPC if
    write has been correct but EOM early warning reached, -EIO if write ended in
