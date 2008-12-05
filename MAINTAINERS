@@ -779,6 +779,7 @@ ATM
 P:	Chas Williams
 M:	chas@cmf.nrl.navy.mil
 L:	linux-atm-general@lists.sourceforge.net (subscribers-only)
+L:	netdev@vger.kernel.org
 W:	http://linux-atm.sourceforge.net
 S:	Maintained
 
@@ -4235,7 +4236,7 @@ M:	dedekind@infradead.org
 P:	Adrian Hunter
 M:	ext-adrian.hunter@nokia.com
 L:	linux-mtd@lists.infradead.org
-T:	git git://git.infradead.org/~dedekind/ubifs-2.6.git
+T:	git git://git.infradead.org/ubifs-2.6.git
 W:	http://www.linux-mtd.infradead.org/doc/ubifs.html
 S:	Maintained
 
@@ -4289,7 +4290,7 @@ P:	Artem Bityutskiy
 M:	dedekind@infradead.org
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
-T:	git git://git.infradead.org/~dedekind/ubi-2.6.git
+T:	git git://git.infradead.org/ubi-2.6.git
 S:	Maintained
 
 USB ACM DRIVER

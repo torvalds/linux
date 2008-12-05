@@ -167,7 +167,8 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 			continue;
 		if (host->h_server != ni->server)
 			continue;
-		if (!nlm_cmp_addr(nlm_srcaddr(host), ni->src_sap))
+		if (ni->server &&
+		    !nlm_cmp_addr(nlm_srcaddr(host), ni->src_sap))
 			continue;
 
 		/* Move to head of hash chain. */

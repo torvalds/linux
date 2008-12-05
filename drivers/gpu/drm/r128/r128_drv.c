@@ -45,6 +45,7 @@ static struct drm_driver driver = {
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
 	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
 	.dev_priv_size = sizeof(drm_r128_buf_priv_t),
+	.load = r128_driver_load,
 	.preclose = r128_driver_preclose,
 	.lastclose = r128_driver_lastclose,
 	.get_vblank_counter = r128_get_vblank_counter,
@@ -83,6 +84,11 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
+
+int r128_driver_load(struct drm_device * dev, unsigned long flags)
+{
+	return drm_vblank_init(dev, 1);
+}
 
 static int __init r128_init(void)
 {

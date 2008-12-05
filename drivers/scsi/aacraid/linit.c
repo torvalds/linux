@@ -427,8 +427,8 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		 * Firmware has an individual device recovery time typically
 		 * of 35 seconds, give us a margin.
 		 */
-		if (sdev->timeout < (45 * HZ))
-			sdev->timeout = 45 * HZ;
+		if (sdev->request_queue->rq_timeout < (45 * HZ))
+			blk_queue_rq_timeout(sdev->request_queue, 45*HZ);
 		for (cid = 0; cid < aac->maximum_num_containers; ++cid)
 			if (aac->fsa_dev[cid].valid)
 				++num_lsu;

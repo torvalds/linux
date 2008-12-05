@@ -1248,6 +1248,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		list_add(&page->lru, &l_inactive);
 	}
 
+	spin_lock_irq(&zone->lru_lock);
 	/*
 	 * Count referenced pages from currently used mappings as
 	 * rotated, even though they are moved to the inactive list.
@@ -1263,7 +1264,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 
 	pgmoved = 0;
 	lru = LRU_BASE + file * LRU_FILE;
-	spin_lock_irq(&zone->lru_lock);
 	while (!list_empty(&l_inactive)) {
 		page = lru_to_page(&l_inactive);
 		prefetchw_prev_lru_page(page, &l_inactive, flags);

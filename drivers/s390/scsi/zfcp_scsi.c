@@ -88,7 +88,7 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 	ret = zfcp_fsf_send_fcp_command_task(adapter, unit, scpnt, 0,
 					     ZFCP_REQ_AUTO_CLEANUP);
 	if (unlikely(ret == -EBUSY))
-		zfcp_scsi_command_fail(scpnt, DID_NO_CONNECT);
+		return SCSI_MLQUEUE_DEVICE_BUSY;
 	else if (unlikely(ret < 0))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
