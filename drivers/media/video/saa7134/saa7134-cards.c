@@ -4773,6 +4773,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_MD7134,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x16be, /* CTX946 analog TV, HW mpeg, DVB-T */
+		.subdevice    = 0x5000, /* only analog TV and DVB-T for now */
+		.driver_data  = SAA7134_BOARD_MD7134,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
 		.subvendor    = 0x1048,
 		.subdevice    = 0x226b,
