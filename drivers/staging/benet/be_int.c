@@ -623,25 +623,14 @@ void be_post_eth_rx_buffs(struct be_net_object *pnob)
 	 */
 	INIT_LIST_HEAD(&rxbl);
 
-	for (num_bufs = 0; num_bufs < max_bufs; ++num_bufs) {
+	for (num_bufs = 0; num_bufs < max_bufs &&
+		!pnob->rx_page_info[pnob->rx_pg_info_hd].page; ++num_bufs) {
 
 		rxbp = &pnob->eth_rx_bufs[num_bufs];
 		pg_hd = pnob->rx_pg_info_hd;
 		rx_page_info = &pnob->rx_page_info[pg_hd];
 
 		if (!page) {
-			/*
-			 * before we allocate a page make sure that we
-			 * have space in the RX queue to post the buffer.
-			 * We check for two vacant slots since with
-			 * 2K frags, we will need two slots.
-			 */
-			if ((pnob->rx_ctxt[(pnob->rx_q_hd + num_bufs) &
-					   (pnob->rx_q_len - 1)] != NULL)
-			    || (pnob->rx_ctxt[(pnob->rx_q_hd + num_bufs + 1) %
-					      pnob->rx_q_len] != NULL)) {
-				break;
-			}
 			page = alloc_pages(alloc_flags, page_order);
 			if (unlikely(page == NULL)) {
 				adapter->be_stat.bes_ethrx_post_fail++;
