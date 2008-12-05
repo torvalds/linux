@@ -1437,17 +1437,12 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_disable_device(udev, 0);
 	usb_hcd_synchronize_unlinks(udev);
 
+	usb_remove_ep_devs(&udev->ep0);
 	usb_unlock_device(udev);
 
-	/* Remove the device-specific files from sysfs.  This must be
-	 * done with udev unlocked, because some of the attribute
-	 * routines try to acquire the device lock.
-	 */
-	usb_remove_sysfs_dev_files(udev);
-
 	/* Unregister the device.  The device driver is responsible
-	 * for removing the device files from usbfs and sysfs and for
-	 * de-configuring the device.
+	 * for de-configuring the device and invoking the remove-device
+	 * notifier chain (used by usbfs and possibly others).
 	 */
 	device_del(&udev->dev);
 
@@ -1654,8 +1649,8 @@ int usb_new_device(struct usb_device *udev)
 	announce_device(udev);
 
 	/* Register the device.  The device driver is responsible
-	 * for adding the device files to sysfs and for configuring
-	 * the device.
+	 * for configuring the device and invoking the add-device
+	 * notifier chain (used by usbfs and possibly others).
 	 */
 	err = device_add(&udev->dev);
 	if (err) {
@@ -1663,8 +1658,7 @@ int usb_new_device(struct usb_device *udev)
 		goto fail;
 	}
 
-	/* put device-specific files into sysfs */
-	usb_create_sysfs_dev_files(udev);
+	(void) usb_create_ep_devs(&udev->dev, &udev->ep0, udev);
 	return err;
 
 fail:

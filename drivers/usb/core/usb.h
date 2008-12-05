@@ -6,10 +6,10 @@ extern int usb_create_sysfs_dev_files(struct usb_device *dev);
 extern void usb_remove_sysfs_dev_files(struct usb_device *dev);
 extern int usb_create_sysfs_intf_files(struct usb_interface *intf);
 extern void usb_remove_sysfs_intf_files(struct usb_interface *intf);
-extern int usb_create_ep_files(struct device *parent,
+extern int usb_create_ep_devs(struct device *parent,
 				struct usb_host_endpoint *endpoint,
 				struct usb_device *udev);
-extern void usb_remove_ep_files(struct usb_host_endpoint *endpoint);
+extern void usb_remove_ep_devs(struct usb_host_endpoint *endpoint);
 
 extern void usb_enable_endpoint(struct usb_device *dev,
 		struct usb_host_endpoint *ep);

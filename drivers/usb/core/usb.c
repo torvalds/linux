@@ -971,6 +971,37 @@ int usb_disabled(void)
 EXPORT_SYMBOL_GPL(usb_disabled);
 
 /*
+ * Notifications of device and interface registration
+ */
+static int usb_bus_notify(struct notifier_block *nb, unsigned long action,
+		void *data)
+{
+	struct device *dev = data;
+
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		if (dev->type == &usb_device_type)
+			(void) usb_create_sysfs_dev_files(to_usb_device(dev));
+		else if (dev->type == &usb_if_device_type)
+			(void) usb_create_sysfs_intf_files(
+					to_usb_interface(dev));
+		break;
+
+	case BUS_NOTIFY_DEL_DEVICE:
+		if (dev->type == &usb_device_type)
+			usb_remove_sysfs_dev_files(to_usb_device(dev));
+		else if (dev->type == &usb_if_device_type)
+			usb_remove_sysfs_intf_files(to_usb_interface(dev));
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block usb_bus_nb = {
+	.notifier_call = usb_bus_notify,
+};
+
+/*
  * Init
  */
 static int __init usb_init(void)
@@ -987,6 +1018,9 @@ static int __init usb_init(void)
 	retval = bus_register(&usb_bus_type);
 	if (retval)
 		goto bus_register_failed;
+	retval = bus_register_notifier(&usb_bus_type, &usb_bus_nb);
+	if (retval)
+		goto bus_notifier_failed;
 	retval = usb_host_init();
 	if (retval)
 		goto host_init_failed;
@@ -1021,6 +1055,8 @@ driver_register_failed:
 major_init_failed:
 	usb_host_cleanup();
 host_init_failed:
+	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
+bus_notifier_failed:
 	bus_unregister(&usb_bus_type);
 bus_register_failed:
 	ksuspend_usb_cleanup();
@@ -1044,6 +1080,7 @@ static void __exit usb_exit(void)
 	usb_devio_cleanup();
 	usb_hub_cleanup();
 	usb_host_cleanup();
+	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
 	bus_unregister(&usb_bus_type);
 	ksuspend_usb_cleanup();
 }

@@ -629,9 +629,6 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	struct device *dev = &udev->dev;
 	int retval;
 
-	/* Unforunately these attributes cannot be created before
-	 * the uevent is broadcast.
-	 */
 	retval = device_create_bin_file(dev, &dev_bin_attr_descriptors);
 	if (retval)
 		goto error;
@@ -643,11 +640,7 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	retval = add_power_attributes(dev);
 	if (retval)
 		goto error;
-
-	retval = usb_create_ep_files(dev, &udev->ep0, udev);
-	if (retval)
-		goto error;
-	return 0;
+	return retval;
 error:
 	usb_remove_sysfs_dev_files(udev);
 	return retval;
@@ -657,7 +650,6 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 {
 	struct device *dev = &udev->dev;
 
-	usb_remove_ep_files(&udev->ep0);
 	remove_power_attributes(dev);
 	remove_persist_attributes(dev);
 	device_remove_bin_file(dev, &dev_bin_attr_descriptors);
@@ -816,36 +808,24 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_host_interface *alt = intf->cur_altsetting;
-	int i;
 	int retval;
 
 	if (intf->sysfs_files_created || intf->unregistering)
 		return 0;
 
-	/* The interface string may be present in some altsettings
-	 * and missing in others.  Hence its attribute cannot be created
-	 * before the uevent is broadcast.
-	 */
 	if (alt->string == NULL)
 		alt->string = usb_cache_string(udev, alt->desc.iInterface);
 	if (alt->string)
 		retval = device_create_file(&intf->dev, &dev_attr_interface);
-	for (i = 0; i < alt->desc.bNumEndpoints; ++i)
-		usb_create_ep_files(&intf->dev, &alt->endpoint[i], udev);
 	intf->sysfs_files_created = 1;
 	return 0;
 }
 
 void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 {
-	struct usb_host_interface *alt = intf->cur_altsetting;
-	int i;
-
 	if (!intf->sysfs_files_created)
 		return;
 
-	for (i = 0; i < alt->desc.bNumEndpoints; ++i)
-		usb_remove_ep_files(&alt->endpoint[i]);
 	device_remove_file(&intf->dev, &dev_attr_interface);
 	intf->sysfs_files_created = 0;
 }
