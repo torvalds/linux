@@ -2041,8 +2041,6 @@ destroy_port(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 
-	kfree(vport->vname);
-
 	lpfc_debugfs_terminate(vport);
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
@@ -2716,18 +2714,27 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host  *shost = pci_get_drvdata(pdev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_vport **vports;
 	struct lpfc_hba   *phba = vport->phba;
+	int i;
 	int bars = pci_select_bars(pdev, IORESOURCE_MEM);
 
 	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
 
-	kfree(vport->vname);
 	lpfc_free_sysfs_attr(vport);
 
 	kthread_stop(phba->worker_thread);
 
+	/* Release all the vports against this physical port */
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for (i = 1; i <= phba->max_vpi && vports[i] != NULL; i++)
+			fc_vport_terminate(vports[i]->fc_vport);
+	lpfc_destroy_vport_work_array(phba, vports);
+
+	/* Remove FC host and then SCSI host with the physical port */
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 	lpfc_cleanup(vport);

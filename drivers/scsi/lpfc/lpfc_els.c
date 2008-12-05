@@ -221,7 +221,11 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 		/* For ELS_REQUEST64_CR, use the VPI by default */
 		icmd->ulpContext = vport->vpi;
 		icmd->ulpCt_h = 0;
-		icmd->ulpCt_l = 1;
+		/* The CT field must be 0=INVALID_RPI for the ECHO cmd */
+		if (elscmd == ELS_CMD_ECHO)
+			icmd->ulpCt_l = 0; /* context = invalid RPI */
+		else
+			icmd->ulpCt_l = 1; /* context = VPI */
 	}
 
 	bpl = (struct ulp_bde64 *) pbuflist->virt;

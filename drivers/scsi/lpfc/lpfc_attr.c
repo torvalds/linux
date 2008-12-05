@@ -3282,25 +3282,28 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	int error;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
+				      &sysfs_drvr_stat_data_attr);
+
+	/* Virtual ports do not need ctrl_reg and mbox */
+	if (error || vport->port_type == LPFC_NPIV_PORT)
+		goto out;
+
+	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_ctlreg_attr);
 	if (error)
-		goto out;
+		goto out_remove_stat_attr;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_mbox_attr);
 	if (error)
 		goto out_remove_ctlreg_attr;
 
-	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
-				      &sysfs_drvr_stat_data_attr);
-	if (error)
-		goto out_remove_mbox_attr;
-
 	return 0;
-out_remove_mbox_attr:
-	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_mbox_attr);
 out_remove_ctlreg_attr:
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
+out_remove_stat_attr:
+	sysfs_remove_bin_file(&shost->shost_dev.kobj,
+			&sysfs_drvr_stat_data_attr);
 out:
 	return error;
 }
@@ -3315,6 +3318,9 @@ lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	sysfs_remove_bin_file(&shost->shost_dev.kobj,
 		&sysfs_drvr_stat_data_attr);
+	/* Virtual ports do not need ctrl_reg and mbox */
+	if (vport->port_type == LPFC_NPIV_PORT)
+		return;
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_mbox_attr);
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
 }
@@ -3792,6 +3798,23 @@ lpfc_show_rport_##field (struct device *dev,				\
 	lpfc_rport_show_function(field, format_string, sz, )		\
 static FC_RPORT_ATTR(field, S_IRUGO, lpfc_show_rport_##field, NULL)
 
+/**
+ * lpfc_set_vport_symbolic_name: Set the vport's symbolic name.
+ * @fc_vport: The fc_vport who's symbolic name has been changed.
+ *
+ * Description:
+ * This function is called by the transport after the @fc_vport's symbolic name
+ * has been changed. This function re-registers the symbolic name with the
+ * switch to propogate the change into the fabric if the vport is active.
+ **/
+static void
+lpfc_set_vport_symbolic_name(struct fc_vport *fc_vport)
+{
+	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
+
+	if (vport->port_state == LPFC_VPORT_READY)
+		lpfc_ns_cmd(vport, SLI_CTNS_RSPN_ID, 0, 0);
+}
 
 struct fc_function_template lpfc_transport_functions = {
 	/* fixed attributes the driver supports */
@@ -3801,6 +3824,7 @@ struct fc_function_template lpfc_transport_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
+	.show_host_symbolic_name = 1,
 
 	/* dynamic attributes the driver supports */
 	.get_host_port_id = lpfc_get_host_port_id,
@@ -3850,6 +3874,10 @@ struct fc_function_template lpfc_transport_functions = {
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
 	.dd_fcvport_size = sizeof(struct lpfc_vport *),
+
+	.vport_disable = lpfc_vport_disable,
+
+	.set_vport_symbolic_name = lpfc_set_vport_symbolic_name,
 };
 
 struct fc_function_template lpfc_vport_transport_functions = {
@@ -3860,6 +3888,7 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
+	.show_host_symbolic_name = 1,
 
 	/* dynamic attributes the driver supports */
 	.get_host_port_id = lpfc_get_host_port_id,
@@ -3908,6 +3937,8 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
 	.vport_disable = lpfc_vport_disable,
+
+	.set_vport_symbolic_name = lpfc_set_vport_symbolic_name,
 };
 
 /**
