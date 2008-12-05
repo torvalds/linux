@@ -37,26 +37,26 @@ struct sd {
 	atomic_t avg_lum;
 	unsigned int exposure;
 
-	unsigned short brightness;
-	unsigned char contrast;
-	unsigned char colors;
-	unsigned char autogain;
+	__u16 brightness;
+	__u8 contrast;
+	__u8 colors;
+	__u8 autogain;
 	__u8 blue;
 	__u8 red;
 	__u8 vflip;			/* ov7630 only */
 	__u8 infrared;			/* mi0360 only */
 
-	signed char ag_cnt;
+	__s8 ag_cnt;
 #define AG_CNT_START 13
 
-	char qindex;
-	unsigned char bridge;
+	__u8 qindex;
+	__u8 bridge;
 #define BRIDGE_SN9C102P 0
 #define BRIDGE_SN9C105 1
 #define BRIDGE_SN9C110 2
 #define BRIDGE_SN9C120 3
 #define BRIDGE_SN9C325 4
-	char sensor;			/* Type of image sensor chip */
+	__u8 sensor;			/* Type of image sensor chip */
 #define SENSOR_HV7131R 0
 #define SENSOR_MI0360 1
 #define SENSOR_MO4000 2
@@ -64,7 +64,7 @@ struct sd {
 #define SENSOR_OV7630 4
 #define SENSOR_OV7648 5
 #define SENSOR_OV7660 6
-	unsigned char i2c_base;
+	__u8 i2c_base;
 };
 
 /* V4L2 controls supported by the driver */
@@ -205,6 +205,24 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setinfrared,
 	    .get = sd_getinfrared,
 	},
+};
+
+/* table of the disabled controls */
+static __u32 ctrl_dis[] = {
+	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+						/* SENSOR_HV7131R 0 */
+	(1 << VFLIP_IDX),
+						/* SENSOR_MI0360 1 */
+	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+						/* SENSOR_MO4000 2 */
+	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+						/* SENSOR_OM6802 3 */
+	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX),
+						/* SENSOR_OV7630 4 */
+	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+						/* SENSOR_OV7648 5 */
+	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+						/* SENSOR_OV7660 6 */
 };
 
 static struct v4l2_pix_format vga_mode[] = {
@@ -801,8 +819,6 @@ static void i2c_r5(struct gspca_dev *gspca_dev, __u8 reg)
 
 static int probesensor(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
 	i2c_w1(gspca_dev, 0x02, 0);			/* sensor wakeup */
 	msleep(10);
 	reg_w1(gspca_dev, 0x02, 0x66);			/* Gpio on */
@@ -814,8 +830,7 @@ static int probesensor(struct gspca_dev *gspca_dev)
 	    && gspca_dev->usb_buf[3] == 0x00
 	    && gspca_dev->usb_buf[4] == 0x00) {
 		PDEBUG(D_PROBE, "Find Sensor sn9c102P HV7131R");
-		sd->sensor = SENSOR_HV7131R;
-		return SENSOR_HV7131R;
+		return 0;
 	}
 	PDEBUG(D_PROBE, "Find Sensor 0x%02x 0x%02x 0x%02x",
 		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1],
@@ -1022,17 +1037,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->vflip = VFLIP_DEF;
 	sd->infrared = INFRARED_DEF;
 
-	switch (sd->sensor) {
-	case SENSOR_OV7630:
-	case SENSOR_OV7648:
-	case SENSOR_OV7660:
-		gspca_dev->ctrl_dis = (1 << AUTOGAIN_IDX);
-		break;
-	}
-	if (sd->sensor != SENSOR_OV7630)
-		gspca_dev->ctrl_dis |= (1 << VFLIP_IDX);
-	if (sd->sensor != SENSOR_MI0360)
-		gspca_dev->ctrl_dis |= (1 << INFRARED_IDX);
+	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
 	return 0;
 }
 
@@ -1040,7 +1045,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-/*	const __u8 *sn9c1xx; */
 	__u8 regGpio[] = { 0x29, 0x74 };
 	__u8 regF1;
 
@@ -1194,13 +1198,16 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 k2;
-	__u8 contrast[] = { 0x00, 0x00, 0x28, 0x00, 0x07, 0x00 };
+	__u8 contrast[6];
 
 	k2 = sd->contrast * 0x30 / (CONTRAST_MAX + 1) + 0x10;	/* 10..40 */
 	contrast[0] = (k2 + 1) / 2;		/* red */
+	contrast[1] = 0;
 	contrast[2] = k2;			/* green */
+	contrast[3] = 0;
 	contrast[4] = (k2 + 1) / 5;		/* blue */
-	reg_w(gspca_dev, 0x84, contrast, 6);
+	contrast[5] = 0;
+	reg_w(gspca_dev, 0x84, contrast, sizeof contrast);
 }
 
 static void setcolors(struct gspca_dev *gspca_dev)
@@ -1365,10 +1372,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		ov7648_InitSensor(gspca_dev);
 		reg17 = 0x21;
 /*		reg1 = 0x42;		 * 42 - 46? */
-/*		if (mode)
-			;		 * 320x2...
-		else
-			;		 * 640x... */
 		break;
 	default:
 /*	case SENSOR_OV7660: */
