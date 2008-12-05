@@ -2371,7 +2371,8 @@ static int st_set_options(struct scsi_tape *STp, long options)
 static int read_mode_page(struct scsi_tape *STp, int page, int omit_block_descs)
 {
 	unsigned char cmd[MAX_COMMAND_SIZE];
-	struct st_request *SRpnt = NULL;
+	struct st_request *SRpnt;
+	int ret;
 
 	memset(cmd, 0, MAX_COMMAND_SIZE);
 	cmd[0] = MODE_SENSE;
@@ -2380,14 +2381,17 @@ static int read_mode_page(struct scsi_tape *STp, int page, int omit_block_descs)
 	cmd[2] = page;
 	cmd[4] = 255;
 
-	SRpnt = st_do_scsi(SRpnt, STp, cmd, cmd[4], DMA_FROM_DEVICE,
-			   STp->device->request_queue->rq_timeout, 0, 1);
-	if (SRpnt == NULL)
-		return (STp->buffer)->syscall_result;
+	SRpnt = st_allocate_request(STp);
+	if (!SRpnt)
+		return STp->buffer->syscall_result;
 
+	ret = st_scsi_kern_execute(SRpnt, cmd, DMA_FROM_DEVICE,
+				   STp->buffer->b_data, cmd[4],
+				   STp->device->request_queue->rq_timeout,
+				   MAX_RETRIES);
 	st_release_request(SRpnt);
 
-	return (STp->buffer)->syscall_result;
+	return ret ? : STp->buffer->syscall_result;
 }
 
 
