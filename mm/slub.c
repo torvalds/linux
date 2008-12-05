@@ -696,7 +696,7 @@ static int check_object(struct kmem_cache *s, struct page *page,
 	if (!check_valid_pointer(s, page, get_freepointer(s, p))) {
 		object_err(s, page, p, "Freepointer corrupt");
 		/*
-		 * No choice but to zap it and thus loose the remainder
+		 * No choice but to zap it and thus lose the remainder
 		 * of the free objects in this slab. May cause
 		 * another error because the object count is now wrong.
 		 */
@@ -4344,7 +4344,7 @@ static void sysfs_slab_remove(struct kmem_cache *s)
 
 /*
  * Need to buffer aliases during bootup until sysfs becomes
- * available lest we loose that information.
+ * available lest we lose that information.
  */
 struct saved_alias {
 	struct kmem_cache *s;
