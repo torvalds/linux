@@ -738,13 +738,12 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 				int cancel)
 {
-	int err, put = 0, scrubbing = 0;
+	int err, scrubbing = 0;
 	struct ubi_wl_prot_entry *uninitialized_var(pe);
 	struct ubi_wl_entry *e1, *e2;
 	struct ubi_vid_hdr *vid_hdr;
 
 	kfree(wrk);
-
 	if (cancel)
 		return 0;
 
@@ -864,6 +863,8 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		}
 
 		ubi_free_vid_hdr(ubi, vid_hdr);
+		vid_hdr = NULL;
+
 		spin_lock(&ubi->wl_lock);
 		prot_tree_add(ubi, e1, pe, U_PROTECTION);
 		ubi_assert(!ubi->move_to_put);
@@ -871,6 +872,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		ubi->wl_scheduled = 0;
 		spin_unlock(&ubi->wl_lock);
 
+		e1 = NULL;
 		err = schedule_erase(ubi, e2, 0);
 		if (err)
 			goto out_error;
@@ -880,24 +882,27 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 	/* The PEB has been successfully moved */
 	ubi_free_vid_hdr(ubi, vid_hdr);
+	vid_hdr = NULL;
 	if (scrubbing)
 		ubi_msg("scrubbed PEB %d, data moved to PEB %d",
 			e1->pnum, e2->pnum);
 
 	spin_lock(&ubi->wl_lock);
-	if (!ubi->move_to_put)
+	if (!ubi->move_to_put) {
 		wl_tree_add(e2, &ubi->used);
-	else
-		put = 1;
+		e2 = NULL;
+	}
 	ubi->move_from = ubi->move_to = NULL;
 	ubi->move_to_put = ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
 
 	err = schedule_erase(ubi, e1, 0);
-	if (err)
+	if (err) {
+		e1 = NULL;
 		goto out_error;
+	}
 
-	if (put) {
+	if (e2) {
 		/*
 		 * Well, the target PEB was put meanwhile, schedule it for
 		 * erasure.
@@ -919,6 +924,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	 */
 out_not_moved:
 	ubi_free_vid_hdr(ubi, vid_hdr);
+	vid_hdr = NULL;
 	spin_lock(&ubi->wl_lock);
 	if (scrubbing)
 		wl_tree_add(e1, &ubi->scrub);
@@ -928,6 +934,7 @@ out_not_moved:
 	ubi->move_to_put = ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
 
+	e1 = NULL;
 	err = schedule_erase(ubi, e2, 0);
 	if (err)
 		goto out_error;
@@ -945,8 +952,10 @@ out_error:
 	ubi->move_to_put = ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
 
-	kmem_cache_free(ubi_wl_entry_slab, e1);
-	kmem_cache_free(ubi_wl_entry_slab, e2);
+	if (e1)
+		kmem_cache_free(ubi_wl_entry_slab, e1);
+	if (e2)
+		kmem_cache_free(ubi_wl_entry_slab, e2);
 	ubi_ro_mode(ubi);
 
 	mutex_unlock(&ubi->move_mutex);
