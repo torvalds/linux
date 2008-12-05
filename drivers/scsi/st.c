@@ -451,9 +451,23 @@ static void st_sleep_done(void *data, char *sense, int result, int resid)
 		complete(SRpnt->waiting);
 }
 
-static struct st_request *st_allocate_request(void)
+static struct st_request *st_allocate_request(struct scsi_tape *stp)
 {
-	return kzalloc(sizeof(struct st_request), GFP_KERNEL);
+	struct st_request *streq;
+
+	streq = kzalloc(sizeof(*streq), GFP_KERNEL);
+	if (streq)
+		streq->stp = stp;
+	else {
+		DEBC(printk(KERN_ERR "%s: Can't get SCSI request.\n",
+			    tape_name(stp)););
+		if (signal_pending(current))
+			stp->buffer->syscall_result = -EINTR;
+		else
+			stp->buffer->syscall_result = -EBUSY;
+	}
+
+	return streq;
 }
 
 static void st_release_request(struct st_request *streq)
@@ -481,18 +495,10 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 		return NULL;
 	}
 
-	if (SRpnt == NULL) {
-		SRpnt = st_allocate_request();
-		if (SRpnt == NULL) {
-			DEBC( printk(KERN_ERR "%s: Can't get SCSI request.\n",
-				     tape_name(STp)); );
-			if (signal_pending(current))
-				(STp->buffer)->syscall_result = (-EINTR);
-			else
-				(STp->buffer)->syscall_result = (-EBUSY);
+	if (!SRpnt) {
+		SRpnt = st_allocate_request(STp);
+		if (!SRpnt)
 			return NULL;
-		}
-		SRpnt->stp = STp;
 	}
 
 	/* If async IO, set last_SRpnt. This ptr tells write_behind_check
