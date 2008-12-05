@@ -1315,10 +1315,12 @@ lpfc_mbox_get(struct lpfc_hba * phba)
 void
 lpfc_mbox_cmpl_put(struct lpfc_hba * phba, LPFC_MBOXQ_t * mbq)
 {
+	unsigned long iflag;
+
 	/* This function expects to be called from interrupt context */
-	spin_lock(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflag);
 	list_add_tail(&mbq->list, &phba->sli.mboxq_cmpl);
-	spin_unlock(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
 	return;
 }
 

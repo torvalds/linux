@@ -592,6 +592,8 @@ struct lpfc_hba {
 
 	struct fc_host_statistics link_stats;
 	enum intr_type_t intr_type;
+	uint32_t intr_mode;
+#define LPFC_INTR_ERROR	0xFFFFFFFF
 	struct msix_entry msix_entries[LPFC_MSIX_VECTORS];
 
 	struct list_head port_list;
