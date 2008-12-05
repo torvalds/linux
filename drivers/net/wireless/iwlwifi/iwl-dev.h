@@ -553,15 +553,6 @@ struct iwl_hw_params {
 #define HT_SHORT_GI_40MHZ	(1 << 1)
 
 
-#define IWL_RX_HDR(x) ((struct iwl4965_rx_frame_hdr *)(\
-		       x->u.rx_frame.stats.payload + \
-		       x->u.rx_frame.stats.phy_count))
-#define IWL_RX_END(x) ((struct iwl4965_rx_frame_end *)(\
-		       IWL_RX_HDR(x)->payload + \
-		       le16_to_cpu(IWL_RX_HDR(x)->len)))
-#define IWL_RX_STATS(x) (&x->u.rx_frame.stats)
-#define IWL_RX_DATA(x) (IWL_RX_HDR(x)->payload)
-
 /******************************************************************************
  *
  * Functions implemented in core module which are forward declared here

@@ -1023,25 +1023,6 @@ struct iwl_wep_cmd {
  *
  *****************************************************************************/
 
-struct iwl4965_rx_frame_stats {
-	u8 phy_count;
-	u8 id;
-	u8 rssi;
-	u8 agc;
-	__le16 sig_avg;
-	__le16 noise_diff;
-	u8 payload[0];
-} __attribute__ ((packed));
-
-struct iwl4965_rx_frame_hdr {
-	__le16 channel;
-	__le16 phy_flags;
-	u8 reserved1;
-	u8 rate;
-	__le16 len;
-	u8 payload[0];
-} __attribute__ ((packed));
-
 #define RX_RES_STATUS_NO_CRC32_ERROR	cpu_to_le32(1 << 0)
 #define RX_RES_STATUS_NO_RXE_OVERFLOW	cpu_to_le32(1 << 1)
 
@@ -1071,26 +1052,6 @@ struct iwl4965_rx_frame_hdr {
 #define RX_MPDU_RES_STATUS_MIC_OK	(0x40)
 #define RX_MPDU_RES_STATUS_TTAK_OK	(1 << 7)
 #define RX_MPDU_RES_STATUS_DEC_DONE_MSK	(0x800)
-
-struct iwl4965_rx_frame_end {
-	__le32 status;
-	__le64 timestamp;
-	__le32 beacon_timestamp;
-} __attribute__ ((packed));
-
-/*
- * REPLY_3945_RX = 0x1b (response only, not a command)
- *
- * NOTE:  DO NOT dereference from casts to this structure
- * It is provided only for calculating minimum data set size.
- * The actual offsets of the hdr and end are dynamic based on
- * stats.phy_count
- */
-struct iwl4965_rx_frame {
-	struct iwl4965_rx_frame_stats stats;
-	struct iwl4965_rx_frame_hdr hdr;
-	struct iwl4965_rx_frame_end end;
-} __attribute__ ((packed));
 
 /* Fixed (non-configurable) rx data from phy */
 
@@ -3049,7 +3010,6 @@ struct iwl_rx_packet {
 	struct iwl_cmd_header hdr;
 	union {
 		struct iwl_alive_resp alive_frame;
-		struct iwl4965_rx_frame rx_frame;
 		struct iwl4965_tx_resp tx_resp;
 		struct iwl4965_spectrum_notification spectrum_notif;
 		struct iwl4965_csa_notification csa_notif;
@@ -3067,8 +3027,6 @@ struct iwl_rx_packet {
 		u8 raw[0];
 	} u;
 } __attribute__ ((packed));
-
-#define IWL_RX_FRAME_SIZE        (4 + sizeof(struct iwl4965_rx_frame))
 
 int iwl_agn_check_rxon_cmd(struct iwl_rxon_cmd *rxon);
 
