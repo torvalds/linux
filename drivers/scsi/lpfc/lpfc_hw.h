@@ -869,6 +869,12 @@ typedef struct _D_ID {		/* Structure is in Big Endian format */
 	} un;
 } D_ID;
 
+#define RSCN_ADDRESS_FORMAT_PORT	0x0
+#define RSCN_ADDRESS_FORMAT_AREA	0x1
+#define RSCN_ADDRESS_FORMAT_DOMAIN	0x2
+#define RSCN_ADDRESS_FORMAT_FABRIC	0x3
+#define RSCN_ADDRESS_FORMAT_MASK	0x3
+
 /*
  *  Structure to define all ELS Payload types
  */

@@ -275,7 +275,8 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 	return elsiocb;
 
 els_iocb_free_pbuf_exit:
-	lpfc_mbuf_free(phba, prsp->virt, prsp->phys);
+	if (expectRsp)
+		lpfc_mbuf_free(phba, prsp->virt, prsp->phys);
 	kfree(pbuflist);
 
 els_iocb_free_prsp_exit:
@@ -2472,6 +2473,15 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	case IOSTAT_LOCAL_REJECT:
 		switch ((irsp->un.ulpWord[4] & 0xff)) {
 		case IOERR_LOOP_OPEN_FAILURE:
+			if (cmd == ELS_CMD_FLOGI) {
+				if (PCI_DEVICE_ID_HORNET ==
+					phba->pcidev->device) {
+					phba->fc_topology = TOPOLOGY_LOOP;
+					phba->pport->fc_myDID = 0;
+					phba->alpa_map[0] = 0;
+					phba->alpa_map[1] = 0;
+				}
+			}
 			if (cmd == ELS_CMD_PLOGI && cmdiocb->retry == 0)
 				delay = 1000;
 			retry = 1;
@@ -3827,27 +3837,21 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 		while (payload_len) {
 			rscn_did.un.word = be32_to_cpu(*lp++);
 			payload_len -= sizeof(uint32_t);
-			switch (rscn_did.un.b.resv) {
-			case 0:	/* Single N_Port ID effected */
+			switch (rscn_did.un.b.resv & RSCN_ADDRESS_FORMAT_MASK) {
+			case RSCN_ADDRESS_FORMAT_PORT:
 				if (ns_did.un.word == rscn_did.un.word)
 					goto return_did_out;
 				break;
-			case 1:	/* Whole N_Port Area effected */
+			case RSCN_ADDRESS_FORMAT_AREA:
 				if ((ns_did.un.b.domain == rscn_did.un.b.domain)
 				    && (ns_did.un.b.area == rscn_did.un.b.area))
 					goto return_did_out;
 				break;
-			case 2:	/* Whole N_Port Domain effected */
+			case RSCN_ADDRESS_FORMAT_DOMAIN:
 				if (ns_did.un.b.domain == rscn_did.un.b.domain)
 					goto return_did_out;
 				break;
-			default:
-				/* Unknown Identifier in RSCN node */
-				lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-						 "0217 Unknown Identifier in "
-						 "RSCN payload Data: x%x\n",
-						 rscn_did.un.word);
-			case 3:	/* Whole Fabric effected */
+			case RSCN_ADDRESS_FORMAT_FABRIC:
 				goto return_did_out;
 			}
 		}
@@ -4935,10 +4939,6 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	uint32_t timeout;
 	uint32_t remote_ID = 0xffffffff;
 
-	/* If the timer is already canceled do nothing */
-	if ((vport->work_port_events & WORKER_ELS_TMO) == 0) {
-		return;
-	}
 	spin_lock_irq(&phba->hbalock);
 	timeout = (uint32_t)(phba->fc_ratov << 1);
 

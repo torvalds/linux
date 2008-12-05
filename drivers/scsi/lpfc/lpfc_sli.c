@@ -1982,7 +1982,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 			if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 				(irsp->un.ulpWord[4] == IOERR_NO_RESOURCES)) {
 				spin_unlock_irqrestore(&phba->hbalock, iflag);
-				lpfc_adjust_queue_depth(phba);
+				lpfc_rampdown_queue_depth(phba);
 				spin_lock_irqsave(&phba->hbalock, iflag);
 			}
 
@@ -2225,7 +2225,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 			if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 			     (irsp->un.ulpWord[4] == IOERR_NO_RESOURCES)) {
 				spin_unlock_irqrestore(&phba->hbalock, iflag);
-				lpfc_adjust_queue_depth(phba);
+				lpfc_rampdown_queue_depth(phba);
 				spin_lock_irqsave(&phba->hbalock, iflag);
 			}
 
@@ -2790,7 +2790,6 @@ lpfc_sli_brdrestart(struct lpfc_hba *phba)
 {
 	MAILBOX_t *mb;
 	struct lpfc_sli *psli;
-	uint16_t skip_post;
 	volatile uint32_t word0;
 	void __iomem *to_slim;
 
@@ -2815,13 +2814,10 @@ lpfc_sli_brdrestart(struct lpfc_hba *phba)
 	readl(to_slim); /* flush */
 
 	/* Only skip post after fc_ffinit is completed */
-	if (phba->pport->port_state) {
-		skip_post = 1;
+	if (phba->pport->port_state)
 		word0 = 1;	/* This is really setting up word1 */
-	} else {
-		skip_post = 0;
+	else
 		word0 = 0;	/* This is really setting up word1 */
-	}
 	to_slim = phba->MBslimaddr + sizeof (uint32_t);
 	writel(*(uint32_t *) mb, to_slim);
 	readl(to_slim); /* flush */
@@ -2835,10 +2831,8 @@ lpfc_sli_brdrestart(struct lpfc_hba *phba)
 	memset(&psli->lnk_stat_offsets, 0, sizeof(psli->lnk_stat_offsets));
 	psli->stats_start = get_seconds();
 
-	if (skip_post)
-		mdelay(100);
-	else
-		mdelay(2000);
+	/* Give the INITFF and Post time to settle. */
+	mdelay(100);
 
 	lpfc_hba_down_post(phba);
 
@@ -3084,7 +3078,6 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 		spin_unlock_irq(&phba->hbalock);
 		phba->pport->port_state = LPFC_VPORT_UNKNOWN;
 		lpfc_sli_brdrestart(phba);
-		msleep(2500);
 		rc = lpfc_sli_chipset_init(phba);
 		if (rc)
 			break;
@@ -3307,10 +3300,6 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	MAILBOX_t *mb = &pmbox->mb;
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
-
-	if (!(phba->pport->work_port_events & WORKER_MBOX_TMO)) {
-		return;
-	}
 
 	/* Mbox cmd <mbxCommand> timeout */
 	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
@@ -5186,6 +5175,10 @@ int
 lpfc_sli_check_eratt(struct lpfc_hba *phba)
 {
 	uint32_t ha_copy;
+
+	/* If PCI channel is offline, don't process it */
+	if (unlikely(pci_channel_offline(phba->pcidev)))
+		return 0;
 
 	/* If somebody is waiting to handle an eratt, don't process it
 	 * here. The brdkill function will do this.

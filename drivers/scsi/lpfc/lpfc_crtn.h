@@ -290,7 +290,7 @@ void lpfc_fabric_abort_nport(struct lpfc_nodelist *);
 void lpfc_fabric_abort_hba(struct lpfc_hba *);
 void lpfc_fabric_block_timeout(unsigned long);
 void lpfc_unblock_fabric_iocbs(struct lpfc_hba *);
-void lpfc_adjust_queue_depth(struct lpfc_hba *);
+void lpfc_rampdown_queue_depth(struct lpfc_hba *);
 void lpfc_ramp_down_queue_handler(struct lpfc_hba *);
 void lpfc_ramp_up_queue_handler(struct lpfc_hba *);
 void lpfc_scsi_dev_block(struct lpfc_hba *);

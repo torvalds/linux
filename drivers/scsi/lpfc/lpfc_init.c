@@ -742,11 +742,6 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		return;
 
 	spin_lock_irq(&phba->pport->work_port_lock);
-	/* If the timer is already canceled do nothing */
-	if (!(phba->pport->work_port_events & WORKER_HB_TMO)) {
-		spin_unlock_irq(&phba->pport->work_port_lock);
-		return;
-	}
 
 	if (time_after(phba->last_completion_time + LPFC_HB_MBOX_INTERVAL * HZ,
 		jiffies)) {
@@ -2701,8 +2696,6 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		sizeof(adapter_event),
 		(char *) &adapter_event,
 		LPFC_NL_VENDOR_ID);
-
-	scsi_scan_host(shost);
 
 	return 0;
 

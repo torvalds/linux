@@ -350,7 +350,7 @@ lpfc_send_fastpath_evt(struct lpfc_hba *phba,
 			evt_data_size = sizeof(fast_evt_data->un.
 				read_check_error);
 		} else if ((evt_sub_category == LPFC_EVENT_FABRIC_BUSY) ||
-			(evt_sub_category == IOSTAT_NPORT_BSY)) {
+			(evt_sub_category == LPFC_EVENT_PORT_BUSY)) {
 			evt_data = (char *) &fast_evt_data->un.fabric_evt;
 			evt_data_size = sizeof(fast_evt_data->un.fabric_evt);
 		} else {

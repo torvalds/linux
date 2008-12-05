@@ -148,7 +148,7 @@ lpfc_send_sdev_queuedepth_change_event(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_adjust_queue_depth: Post RAMP_DOWN_QUEUE event for worker thread.
+ * lpfc_rampdown_queue_depth: Post RAMP_DOWN_QUEUE event to worker thread.
  * @phba: The Hba for which this call is being executed.
  *
  * This routine is called when there is resource error in driver or firmware.
@@ -159,7 +159,7 @@ lpfc_send_sdev_queuedepth_change_event(struct lpfc_hba *phba,
  * This routine should be called with no lock held.
  **/
 void
-lpfc_adjust_queue_depth(struct lpfc_hba *phba)
+lpfc_rampdown_queue_depth(struct lpfc_hba *phba)
 {
 	unsigned long flags;
 	uint32_t evt_posted;
@@ -1551,7 +1551,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 
 	lpfc_cmd = lpfc_get_scsi_buf(phba);
 	if (lpfc_cmd == NULL) {
-		lpfc_adjust_queue_depth(phba);
+		lpfc_rampdown_queue_depth(phba);
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
 				 "0707 driver's buffer pool is empty, "
@@ -1559,7 +1559,6 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		goto out_host_busy;
 	}
 
-	lpfc_cmd->start_time = jiffies;
 	/*
 	 * Store the midlayer's command structure for the completion phase
 	 * and complete the command initialization.
@@ -1580,9 +1579,10 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	atomic_inc(&ndlp->cmd_pending);
 	err = lpfc_sli_issue_iocb(phba, &phba->sli.ring[psli->fcp_ring],
 				  &lpfc_cmd->cur_iocbq, SLI_IOCB_RET_IOCB);
-	if (err)
+	if (err) {
+		atomic_dec(&ndlp->cmd_pending);
 		goto out_host_busy_free_buf;
-
+	}
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_poll_fcp_ring(phba);
 		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
@@ -1592,7 +1592,6 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	return 0;
 
  out_host_busy_free_buf:
-	atomic_dec(&ndlp->cmd_pending);
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
