@@ -573,6 +573,8 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	/* Each pass gets up to three chances to ignore Unit Attention */
 	for (count = 0; count < 3; ++count) {
+		int resid;
+
 		memset(scsi_cmd, 0, 6);
 		scsi_cmd[0] = INQUIRY;
 		scsi_cmd[4] = (unsigned char) try_inquiry_len;
@@ -582,7 +584,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		result = scsi_execute_req(sdev,  scsi_cmd, DMA_FROM_DEVICE,
 					  inq_result, try_inquiry_len, &sshdr,
 					  HZ / 2 + HZ * scsi_inq_timeout, 3,
-					  NULL);
+					  &resid);
 
 		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: INQUIRY %s "
 				"with code 0x%x\n",
@@ -603,6 +605,14 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 				    (sshdr.ascq == 0))
 					continue;
 			}
+		} else {
+			/*
+			 * if nothing was transferred, we try
+			 * again. It's a workaround for some USB
+			 * devices.
+			 */
+			if (resid == try_inquiry_len)
+				continue;
 		}
 		break;
 	}
