@@ -229,6 +229,7 @@ static int init_chip_first(struct ipath_devdata *dd)
 	spin_lock_init(&dd->ipath_kernel_tid_lock);
 	spin_lock_init(&dd->ipath_user_tid_lock);
 	spin_lock_init(&dd->ipath_sendctrl_lock);
+	spin_lock_init(&dd->ipath_uctxt_lock);
 	spin_lock_init(&dd->ipath_sdma_lock);
 	spin_lock_init(&dd->ipath_gpio_lock);
 	spin_lock_init(&dd->ipath_eep_st_lock);

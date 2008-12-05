@@ -2046,7 +2046,9 @@ static int ipath_close(struct inode *in, struct file *fp)
 	struct ipath_filedata *fd;
 	struct ipath_portdata *pd;
 	struct ipath_devdata *dd;
+	unsigned long flags;
 	unsigned port;
+	struct pid *pid;
 
 	ipath_cdbg(VERBOSE, "close on dev %lx, private data %p\n",
 		   (long)in->i_rdev, fp->private_data);
@@ -2079,14 +2081,13 @@ static int ipath_close(struct inode *in, struct file *fp)
 		mutex_unlock(&ipath_mutex);
 		goto bail;
 	}
+	/* early; no interrupt users after this */
+	spin_lock_irqsave(&dd->ipath_uctxt_lock, flags);
 	port = pd->port_port;
-
-	if (pd->port_hdrqfull) {
-		ipath_cdbg(PROC, "%s[%u] had %u rcvhdrqfull errors "
-			   "during run\n", pd->port_comm, pid_nr(pd->port_pid),
-			   pd->port_hdrqfull);
-		pd->port_hdrqfull = 0;
-	}
+	dd->ipath_pd[port] = NULL;
+	pid = pd->port_pid;
+	pd->port_pid = NULL;
+	spin_unlock_irqrestore(&dd->ipath_uctxt_lock, flags);
 
 	if (pd->port_rcvwait_to || pd->port_piowait_to
 	    || pd->port_rcvnowait || pd->port_pionowait) {
@@ -2143,13 +2144,11 @@ static int ipath_close(struct inode *in, struct file *fp)
 			unlock_expected_tids(pd);
 		ipath_stats.sps_ports--;
 		ipath_cdbg(PROC, "%s[%u] closed port %u:%u\n",
-			   pd->port_comm, pid_nr(pd->port_pid),
+			   pd->port_comm, pid_nr(pid),
 			   dd->ipath_unit, port);
 	}
 
-	put_pid(pd->port_pid);
-	pd->port_pid = NULL;
-	dd->ipath_pd[pd->port_port] = NULL; /* before releasing mutex */
+	put_pid(pid);
 	mutex_unlock(&ipath_mutex);
 	ipath_free_pddata(dd, pd); /* after releasing the mutex */
 

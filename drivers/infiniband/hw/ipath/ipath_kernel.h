@@ -477,6 +477,8 @@ struct ipath_devdata {
 	spinlock_t ipath_kernel_tid_lock;
 	spinlock_t ipath_user_tid_lock;
 	spinlock_t ipath_sendctrl_lock;
+	/* around ipath_pd and (user ports) port_cnt use (intr vs free) */
+	spinlock_t ipath_uctxt_lock;
 
 	/*
 	 * IPATH_STATUS_*,
