@@ -229,7 +229,7 @@ struct fw_cdev_get_info {
  * Send a request to the device.  This ioctl implements all outgoing requests.
  * Both quadlet and block request specify the payload as a pointer to the data
  * in the @data field.  Once the transaction completes, the kernel writes an
- * &fw_cdev_event_request event back.  The @closure field is passed back to
+ * &fw_cdev_event_response event back.  The @closure field is passed back to
  * user space in the response event.
  */
 struct fw_cdev_send_request {
