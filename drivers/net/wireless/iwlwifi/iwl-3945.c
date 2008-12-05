@@ -1103,9 +1103,8 @@ int iwl3945_hw_nic_init(struct iwl3945_priv *priv)
 		    CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
 
 	iwl3945_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	rc = iwl3945_poll_bit(priv, CSR_GP_CNTRL,
-			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+	rc = iwl3945_poll_direct_bit(priv, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (rc < 0) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		IWL_DEBUG_INFO("Failed to init the card\n");
@@ -1286,8 +1285,7 @@ int iwl3945_hw_nic_stop_master(struct iwl3945_priv *priv)
 		IWL_DEBUG_INFO("Card in power save, master is already "
 			       "stopped\n");
 	else {
-		rc = iwl3945_poll_bit(priv, CSR_RESET,
-				  CSR_RESET_REG_FLAG_MASTER_DISABLED,
+		rc = iwl3945_poll_direct_bit(priv, CSR_RESET,
 				  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&priv->lock, flags);
@@ -1312,9 +1310,8 @@ int iwl3945_hw_nic_reset(struct iwl3945_priv *priv)
 
 	iwl3945_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
-	rc = iwl3945_poll_bit(priv, CSR_GP_CNTRL,
-			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+	iwl3945_poll_direct_bit(priv, CSR_GP_CNTRL,
+			 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 
 	rc = iwl3945_grab_nic_access(priv);
 	if (!rc) {
@@ -2311,7 +2308,8 @@ int iwl3945_hw_rxq_stop(struct iwl3945_priv *priv)
 	}
 
 	iwl3945_write_direct32(priv, FH_RCSR_CONFIG(0), 0);
-	rc = iwl3945_poll_direct_bit(priv, FH_RSSR_STATUS, (1 << 24), 1000);
+	rc = iwl3945_poll_direct_bit(priv, FH_RSSR_STATUS,
+			FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 	if (rc < 0)
 		IWL_ERROR("Can't stop Rx DMA.\n");
 

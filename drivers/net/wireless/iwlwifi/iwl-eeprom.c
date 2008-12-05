@@ -169,10 +169,9 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
-				   CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				   CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				   EEPROM_SEM_TIMEOUT);
+		ret = iwl_poll_direct_bit(priv, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
 			IWL_DEBUG_IO("Acquired semaphore after %d tries.\n",
 				count+1);

@@ -321,6 +321,7 @@ struct iwl3945_eeprom {
 /* RSSR */
 #define FH_RSSR_CTRL            (FH_RSSR_TABLE+0x000)
 #define FH_RSSR_STATUS          (FH_RSSR_TABLE+0x004)
+#define FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE	(0x01000000)
 /* TCSR */
 #define FH_TCSR(_channel)           (FH_TCSR_TABLE+(_channel)*0x20)
 #define FH_TCSR_CONFIG(_channel)    (FH_TCSR(_channel)+0x00)

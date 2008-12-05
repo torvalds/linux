@@ -269,19 +269,10 @@ static inline void iwl_write_reg_buf(struct iwl_priv *priv,
 	}
 }
 
-static inline int _iwl_poll_direct_bit(struct iwl_priv *priv,
-					   u32 addr, u32 mask, int timeout)
+static inline int _iwl_poll_direct_bit(struct iwl_priv *priv, u32 addr,
+				       u32 mask, int timeout)
 {
-	int i = 0;
-
-	do {
-		if ((_iwl_read_direct32(priv, addr) & mask) == mask)
-			return i;
-		udelay(10);
-		i += 10;
-	} while (i < timeout);
-
-	return -ETIMEDOUT;
+	return _iwl_poll_bit(priv, addr, mask, mask, timeout);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
