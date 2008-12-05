@@ -3019,11 +3019,17 @@ static int get_location(struct scsi_tape *STp, unsigned int *block, int *partiti
 		if (!logical && !STp->scsi2_logical)
 			scmd[1] = 1;
 	}
-	SRpnt = st_do_scsi(NULL, STp, scmd, 20, DMA_FROM_DEVICE,
-			   STp->device->request_queue->rq_timeout,
-			   MAX_READY_RETRIES, 1);
+
+	SRpnt = st_allocate_request(STp);
 	if (!SRpnt)
-		return (STp->buffer)->syscall_result;
+		return STp->buffer->syscall_result;
+
+	result = st_scsi_kern_execute(SRpnt, scmd, DMA_FROM_DEVICE,
+				      STp->buffer->b_data, 20,
+				      STp->device->request_queue->rq_timeout,
+				      MAX_READY_RETRIES);
+	if (result)
+		goto out;
 
 	if ((STp->buffer)->syscall_result != 0 ||
 	    (STp->device->scsi_level >= SCSI_2 &&
@@ -3051,6 +3057,7 @@ static int get_location(struct scsi_tape *STp, unsigned int *block, int *partiti
                 DEBC(printk(ST_DEB_MSG "%s: Got tape pos. blk %d part %d.\n", name,
                             *block, *partition));
 	}
+out:
 	st_release_request(SRpnt);
 	SRpnt = NULL;
 
