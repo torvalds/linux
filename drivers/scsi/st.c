@@ -1020,17 +1020,24 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 		}
 	}
 
+	SRpnt = st_allocate_request(STp);
+	if (!SRpnt) {
+		retval = STp->buffer->syscall_result;
+		goto err_out;
+	}
+
 	if (STp->omit_blklims)
 		STp->min_block = STp->max_block = (-1);
 	else {
 		memset((void *) &cmd[0], 0, MAX_COMMAND_SIZE);
 		cmd[0] = READ_BLOCK_LIMITS;
 
-		SRpnt = st_do_scsi(SRpnt, STp, cmd, 6, DMA_FROM_DEVICE,
-				   STp->device->request_queue->rq_timeout,
-				   MAX_READY_RETRIES, 1);
-		if (!SRpnt) {
-			retval = (STp->buffer)->syscall_result;
+		retval = st_scsi_kern_execute(SRpnt, cmd, DMA_FROM_DEVICE,
+					      STp->buffer->b_data, 6,
+					      STp->device->request_queue->rq_timeout,
+					      MAX_READY_RETRIES);
+		if (retval) {
+			st_release_request(SRpnt);
 			goto err_out;
 		}
 
@@ -1054,11 +1061,12 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 	cmd[0] = MODE_SENSE;
 	cmd[4] = 12;
 
-	SRpnt = st_do_scsi(SRpnt, STp, cmd, 12, DMA_FROM_DEVICE,
-			   STp->device->request_queue->rq_timeout,
-			   MAX_READY_RETRIES, 1);
-	if (!SRpnt) {
-		retval = (STp->buffer)->syscall_result;
+	retval = st_scsi_kern_execute(SRpnt, cmd, DMA_FROM_DEVICE,
+				      STp->buffer->b_data, 12,
+				      STp->device->request_queue->rq_timeout,
+				      MAX_READY_RETRIES);
+	if (retval) {
+		st_release_request(SRpnt);
 		goto err_out;
 	}
 
