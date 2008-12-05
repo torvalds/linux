@@ -184,7 +184,7 @@ static struct property * __init build_one_prop(phandle node, char *prev,
 	return p;
 }
 
-struct property * __init build_prop_list(phandle node)
+static struct property * __init build_prop_list(phandle node)
 {
 	struct property *head, *tail;
 
@@ -200,4 +200,43 @@ struct property * __init build_prop_list(phandle node)
 	}
 
 	return head;
+}
+
+static char * __init get_one_property(phandle node, const char *name)
+{
+	char *buf = "<NULL>";
+	int len;
+
+	len = prom_getproplen(node, name);
+	if (len > 0) {
+		buf = prom_early_alloc(len);
+		len = prom_getproperty(node, name, buf, len);
+	}
+
+	return buf;
+}
+
+struct device_node * __init create_node(phandle node,
+					struct device_node *parent)
+{
+	struct device_node *dp;
+
+	if (!node)
+		return NULL;
+
+	dp = prom_early_alloc(sizeof(*dp));
+	dp->unique_id = prom_unique_id++;
+	dp->parent = parent;
+
+	kref_init(&dp->kref);
+
+	dp->name = get_one_property(node, "name");
+	dp->type = get_one_property(node, "device_type");
+	dp->node = node;
+
+	/* Build interrupts later... */
+
+	dp->properties = build_prop_list(node);
+
+	return dp;
 }
