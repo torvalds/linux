@@ -2399,9 +2399,9 @@ static int read_mode_page(struct scsi_tape *STp, int page, int omit_block_descs)
    in the buffer is correctly formatted. The long timeout is used if slow is non-zero. */
 static int write_mode_page(struct scsi_tape *STp, int page, int slow)
 {
-	int pgo;
+	int pgo, timeout, ret = 0;
 	unsigned char cmd[MAX_COMMAND_SIZE];
-	struct st_request *SRpnt = NULL;
+	struct st_request *SRpnt;
 
 	memset(cmd, 0, MAX_COMMAND_SIZE);
 	cmd[0] = MODE_SELECT;
@@ -2415,14 +2415,21 @@ static int write_mode_page(struct scsi_tape *STp, int page, int slow)
 	(STp->buffer)->b_data[MH_OFF_DEV_SPECIFIC] &= ~MH_BIT_WP;
 	(STp->buffer)->b_data[pgo + MP_OFF_PAGE_NBR] &= MP_MSK_PAGE_NBR;
 
-	SRpnt = st_do_scsi(SRpnt, STp, cmd, cmd[4], DMA_TO_DEVICE,
-			   (slow ? STp->long_timeout : STp->device->request_queue->rq_timeout), 0, 1);
-	if (SRpnt == NULL)
-		return (STp->buffer)->syscall_result;
+	SRpnt = st_allocate_request(STp);
+	if (!SRpnt)
+		return ret;
+
+	timeout = slow ? STp->long_timeout :
+		STp->device->request_queue->rq_timeout;
+
+	ret = st_scsi_kern_execute(SRpnt, cmd, DMA_TO_DEVICE,
+				   STp->buffer->b_data, cmd[4], timeout, 0);
+	if (!ret)
+		ret = STp->buffer->syscall_result;
 
 	st_release_request(SRpnt);
 
-	return (STp->buffer)->syscall_result;
+	return ret;
 }
 
 
