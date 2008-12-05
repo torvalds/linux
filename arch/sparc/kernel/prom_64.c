@@ -51,14 +51,6 @@ void * __init prom_early_alloc(unsigned long size)
 	return ret;
 }
 
-static int is_root_node(const struct device_node *dp)
-{
-	if (!dp)
-		return 0;
-
-	return (dp->parent == NULL);
-}
-
 /* The following routines deal with the black magic of fully naming a
  * node.
  *
@@ -364,7 +356,7 @@ static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 	}
 }
 
-static char * __init build_path_component(struct device_node *dp)
+char * __init build_path_component(struct device_node *dp)
 {
 	char tmp_buf[64], *n;
 
@@ -377,57 +369,6 @@ static char * __init build_path_component(struct device_node *dp)
 	strcpy(n, tmp_buf);
 
 	return n;
-}
-
-static char * __init build_full_name(struct device_node *dp)
-{
-	int len, ourlen, plen;
-	char *n;
-
-	plen = strlen(dp->parent->full_name);
-	ourlen = strlen(dp->path_component_name);
-	len = ourlen + plen + 2;
-
-	n = prom_early_alloc(len);
-	strcpy(n, dp->parent->full_name);
-	if (!is_root_node(dp->parent)) {
-		strcpy(n + plen, "/");
-		plen++;
-	}
-	strcpy(n + plen, dp->path_component_name);
-
-	return n;
-}
-
-static struct device_node * __init build_tree(struct device_node *parent, phandle node, struct device_node ***nextp)
-{
-	struct device_node *ret = NULL, *prev_sibling = NULL;
-	struct device_node *dp;
-
-	while (1) {
-		dp = create_node(node, parent);
-		if (!dp)
-			break;
-
-		if (prev_sibling)
-			prev_sibling->sibling = dp;
-
-		if (!ret)
-			ret = dp;
-		prev_sibling = dp;
-
-		*(*nextp) = dp;
-		*nextp = &dp->allnext;
-
-		dp->path_component_name = build_path_component(dp);
-		dp->full_name = build_full_name(dp);
-
-		dp->child = build_tree(dp, prom_getchild(node), nextp);
-
-		node = prom_getsibling(node);
-	}
-
-	return ret;
 }
 
 static const char *get_mid_prop(void)
@@ -640,14 +581,14 @@ void __init prom_build_devicetree(void)
 {
 	struct device_node **nextp;
 
-	allnodes = create_node(prom_root_node, NULL);
+	allnodes = prom_create_node(prom_root_node, NULL);
 	allnodes->path_component_name = "";
 	allnodes->full_name = "/";
 
 	nextp = &allnodes->allnext;
-	allnodes->child = build_tree(allnodes,
-				     prom_getchild(allnodes->node),
-				     &nextp);
+	allnodes->child = prom_build_tree(allnodes,
+					  prom_getchild(allnodes->node),
+					  &nextp);
 	of_console_init();
 
 	printk("PROM: Built device tree with %u bytes of memory.\n",

@@ -15,7 +15,20 @@ extern void irq_trans_init(struct device_node *dp);
 
 extern unsigned int prom_unique_id;
 
-extern struct device_node * __init create_node(phandle node,
-					       struct device_node *parent);
+static inline int is_root_node(const struct device_node *dp)
+{
+	if (!dp)
+		return 0;
 
+	return (dp->parent == NULL);
+}
+
+extern char *build_path_component(struct device_node *dp);
+
+extern struct device_node * __init prom_create_node(phandle node,
+						    struct device_node *parent);
+
+extern struct device_node * __init prom_build_tree(struct device_node *parent,
+						   phandle node,
+						   struct device_node ***nextp);
 #endif /* __PROM_H */

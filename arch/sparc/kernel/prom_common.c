@@ -216,8 +216,8 @@ static char * __init get_one_property(phandle node, const char *name)
 	return buf;
 }
 
-struct device_node * __init create_node(phandle node,
-					struct device_node *parent)
+struct device_node * __init prom_create_node(phandle node,
+					     struct device_node *parent)
 {
 	struct device_node *dp;
 
@@ -239,4 +239,57 @@ struct device_node * __init create_node(phandle node,
 	dp->properties = build_prop_list(node);
 
 	return dp;
+}
+
+static char * __init build_full_name(struct device_node *dp)
+{
+	int len, ourlen, plen;
+	char *n;
+
+	plen = strlen(dp->parent->full_name);
+	ourlen = strlen(dp->path_component_name);
+	len = ourlen + plen + 2;
+
+	n = prom_early_alloc(len);
+	strcpy(n, dp->parent->full_name);
+	if (!is_root_node(dp->parent)) {
+		strcpy(n + plen, "/");
+		plen++;
+	}
+	strcpy(n + plen, dp->path_component_name);
+
+	return n;
+}
+
+struct device_node * __init prom_build_tree(struct device_node *parent,
+					    phandle node,
+					    struct device_node ***nextp)
+{
+	struct device_node *ret = NULL, *prev_sibling = NULL;
+	struct device_node *dp;
+
+	while (1) {
+		dp = prom_create_node(node, parent);
+		if (!dp)
+			break;
+
+		if (prev_sibling)
+			prev_sibling->sibling = dp;
+
+		if (!ret)
+			ret = dp;
+		prev_sibling = dp;
+
+		*(*nextp) = dp;
+		*nextp = &dp->allnext;
+
+		dp->path_component_name = build_path_component(dp);
+		dp->full_name = build_full_name(dp);
+
+		dp->child = prom_build_tree(dp, prom_getchild(node), nextp);
+
+		node = prom_getsibling(node);
+	}
+
+	return ret;
 }
