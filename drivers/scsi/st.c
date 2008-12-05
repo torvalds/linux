@@ -2515,13 +2515,16 @@ static int do_load_unload(struct scsi_tape *STp, struct file *filp, int load_cod
 		printk(ST_DEB_MSG "%s: Loading tape.\n", name);
 		);
 
-	SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_NONE,
-			   timeout, MAX_RETRIES, 1);
+	SRpnt = st_allocate_request(STp);
 	if (!SRpnt)
-		return (STp->buffer)->syscall_result;
+		return STp->buffer->syscall_result;
+
+	retval = st_scsi_kern_execute(SRpnt, cmd, DMA_NONE, NULL, 0, timeout,
+				      MAX_RETRIES);
+	if (retval)
+		goto out;
 
 	retval = (STp->buffer)->syscall_result;
-	st_release_request(SRpnt);
 
 	if (!retval) {	/* SCSI command successful */
 
@@ -2540,6 +2543,8 @@ static int do_load_unload(struct scsi_tape *STp, struct file *filp, int load_cod
 		STps = &(STp->ps[STp->partition]);
 		STps->drv_file = STps->drv_block = (-1);
 	}
+out:
+	st_release_request(SRpnt);
 
 	return retval;
 }
