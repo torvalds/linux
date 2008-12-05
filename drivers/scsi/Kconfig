@@ -1357,6 +1357,13 @@ config SCSI_LPFC
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
 
+config SCSI_LPFC_DEBUG_FS
+	bool "Emulex LightPulse Fibre Channel debugfs Support"
+	depends on SCSI_LPFC && DEBUG_FS
+	help
+	  This makes debugging infomation from the lpfc driver
+	  available via the debugfs filesystem.
+
 config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"
 	depends on (EISA || MCA) && SCSI
