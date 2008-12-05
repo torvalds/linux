@@ -1288,11 +1288,17 @@ static int st_flush(struct file *filp, fl_owner_t id)
 		cmd[0] = WRITE_FILEMARKS;
 		cmd[4] = 1 + STp->two_fm;
 
-		SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_NONE,
-				   STp->device->request_queue->rq_timeout,
-				   MAX_WRITE_RETRIES, 1);
+		SRpnt = st_allocate_request(STp);
 		if (!SRpnt) {
-			result = (STp->buffer)->syscall_result;
+			result = STp->buffer->syscall_result;
+			goto out;
+		}
+
+		result = st_scsi_kern_execute(SRpnt, cmd, DMA_NONE, NULL, 0,
+					      STp->device->request_queue->rq_timeout,
+					      MAX_WRITE_RETRIES);
+		if (result) {
+			st_release_request(SRpnt);
 			goto out;
 		}
 
