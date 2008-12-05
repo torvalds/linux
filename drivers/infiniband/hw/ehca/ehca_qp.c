@@ -1138,14 +1138,14 @@ static int calc_left_cqes(u64 wqe_p, struct ipz_queue *ipz_queue,
 		return -EFAULT;
 	}
 
-	tail_idx = (qmap->tail + 1) % qmap->entries;
+	tail_idx = next_index(qmap->tail, qmap->entries);
 	wqe_idx = q_ofs / ipz_queue->qe_size;
 
 	/* check all processed wqes, whether a cqe is requested or not */
 	while (tail_idx != wqe_idx) {
 		if (qmap->map[tail_idx].cqe_req)
 			qmap->left_to_poll++;
-		tail_idx = (tail_idx + 1) % qmap->entries;
+		tail_idx = next_index(tail_idx, qmap->entries);
 	}
 	/* save index in queue, where we have to start flushing */
 	qmap->next_wqe_idx = wqe_idx;
@@ -1195,14 +1195,14 @@ static int check_for_left_cqes(struct ehca_qp *my_qp, struct ehca_shca *shca)
 	} else {
 		spin_lock_irqsave(&my_qp->send_cq->spinlock, flags);
 		my_qp->sq_map.left_to_poll = 0;
-		my_qp->sq_map.next_wqe_idx = (my_qp->sq_map.tail + 1) %
-						my_qp->sq_map.entries;
+		my_qp->sq_map.next_wqe_idx = next_index(my_qp->sq_map.tail,
+							my_qp->sq_map.entries);
 		spin_unlock_irqrestore(&my_qp->send_cq->spinlock, flags);
 
 		spin_lock_irqsave(&my_qp->recv_cq->spinlock, flags);
 		my_qp->rq_map.left_to_poll = 0;
-		my_qp->rq_map.next_wqe_idx = (my_qp->rq_map.tail + 1) %
-						my_qp->rq_map.entries;
+		my_qp->rq_map.next_wqe_idx = next_index(my_qp->rq_map.tail,
+							my_qp->rq_map.entries);
 		spin_unlock_irqrestore(&my_qp->recv_cq->spinlock, flags);
 	}
 
