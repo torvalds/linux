@@ -45,6 +45,12 @@
 #include "lpfc_vport.h"
 #include "lpfc_version.h"
 
+char *_dump_buf_data;
+unsigned long _dump_buf_data_order;
+char *_dump_buf_dif;
+unsigned long _dump_buf_dif_order;
+spinlock_t _dump_buf_lock;
+
 static int lpfc_parse_vpd(struct lpfc_hba *, uint8_t *, int);
 static void lpfc_get_hba_model_desc(struct lpfc_hba *, uint8_t *, uint8_t *);
 static int lpfc_post_rcv_buf(struct lpfc_hba *);
@@ -2037,6 +2043,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	shost->max_lun = vport->cfg_max_luns;
 	shost->this_id = -1;
 	shost->max_cmd_len = 16;
+
 	/*
 	 * Set initial can_queue value since 0 is no longer supported and
 	 * scsi_add_host will fail. This will be adjusted later based on the
@@ -2864,6 +2871,75 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	 * the value of can_queue.
 	 */
 	shost->can_queue = phba->cfg_hba_queue_depth - 10;
+	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED) {
+
+		if (lpfc_prot_mask && lpfc_prot_guard) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"1478 Registering BlockGuard with the "
+					"SCSI layer\n");
+
+			scsi_host_set_prot(shost, lpfc_prot_mask);
+			scsi_host_set_guard(shost, lpfc_prot_guard);
+		}
+	}
+
+	if (!_dump_buf_data) {
+		int pagecnt = 10;
+		while (pagecnt) {
+			spin_lock_init(&_dump_buf_lock);
+			_dump_buf_data =
+				(char *) __get_free_pages(GFP_KERNEL, pagecnt);
+			if (_dump_buf_data) {
+				printk(KERN_ERR "BLKGRD allocated %d pages for "
+						"_dump_buf_data at 0x%p\n",
+						(1 << pagecnt), _dump_buf_data);
+				_dump_buf_data_order = pagecnt;
+				memset(_dump_buf_data, 0, ((1 << PAGE_SHIFT)
+							   << pagecnt));
+				break;
+			} else {
+				--pagecnt;
+			}
+
+		}
+
+		if (!_dump_buf_data_order)
+			printk(KERN_ERR "BLKGRD ERROR unable to allocate "
+					"memory for hexdump\n");
+
+	} else {
+		printk(KERN_ERR "BLKGRD already allocated _dump_buf_data=0x%p"
+		       "\n", _dump_buf_data);
+	}
+
+
+	if (!_dump_buf_dif) {
+		int pagecnt = 10;
+		while (pagecnt) {
+			_dump_buf_dif =
+				(char *) __get_free_pages(GFP_KERNEL, pagecnt);
+			if (_dump_buf_dif) {
+				printk(KERN_ERR "BLKGRD allocated %d pages for "
+						"_dump_buf_dif at 0x%p\n",
+						(1 << pagecnt), _dump_buf_dif);
+				_dump_buf_dif_order = pagecnt;
+				memset(_dump_buf_dif, 0, ((1 << PAGE_SHIFT)
+							  << pagecnt));
+				break;
+			} else {
+				--pagecnt;
+			}
+
+		}
+
+		if (!_dump_buf_dif_order)
+			printk(KERN_ERR "BLKGRD ERROR unable to allocate "
+					"memory for hexdump\n");
+
+	} else {
+		printk(KERN_ERR "BLKGRD already allocated _dump_buf_dif=0x%p\n",
+				_dump_buf_dif);
+	}
 
 	lpfc_host_attrib_init(shost);
 
@@ -3408,6 +3484,19 @@ lpfc_exit(void)
 	fc_release_transport(lpfc_transport_template);
 	if (lpfc_enable_npiv)
 		fc_release_transport(lpfc_vport_transport_template);
+	if (_dump_buf_data) {
+		printk(KERN_ERR "BLKGRD freeing %lu pages for _dump_buf_data "
+				"at 0x%p\n",
+				(1L << _dump_buf_data_order), _dump_buf_data);
+		free_pages((unsigned long)_dump_buf_data, _dump_buf_data_order);
+	}
+
+	if (_dump_buf_dif) {
+		printk(KERN_ERR "BLKGRD freeing %lu pages for _dump_buf_dif "
+				"at 0x%p\n",
+				(1L << _dump_buf_dif_order), _dump_buf_dif);
+		free_pages((unsigned long)_dump_buf_dif, _dump_buf_dif_order);
+	}
 }
 
 module_init(lpfc_init);
