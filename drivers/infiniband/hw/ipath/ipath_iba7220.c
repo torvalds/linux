@@ -2452,13 +2452,14 @@ static int ipath_7220_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 			}
 		}
 		/*
-		 * if we are in 1X, and are in autoneg width, it
-		 * could be due to an xgxs problem, so if we haven't
+		 * if we are in 1X on rev1 only, and are in autoneg width,
+		 * it could be due to an xgxs problem, so if we haven't
 		 * already tried, try twice to get to 4X; if we
 		 * tried, and couldn't, report it, since it will
 		 * probably not be what is desired.
 		 */
-		if ((dd->ipath_link_width_enabled & (IB_WIDTH_1X |
+		if (dd->ipath_minrev == 1 &&
+		    (dd->ipath_link_width_enabled & (IB_WIDTH_1X |
 			IB_WIDTH_4X)) == (IB_WIDTH_1X | IB_WIDTH_4X)
 			&& dd->ipath_link_width_active == IB_WIDTH_1X
 			&& dd->ipath_x1_fix_tries < 3) {
