@@ -3915,24 +3915,36 @@ static int stac92xx_init(struct hda_codec *codec)
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
+		for (i = 0; i < cfg->hp_outs; i++)
+			stac_toggle_power_map(codec, cfg->hp_pins[i], 1);
 	}
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = cfg->input_pins[i];
 		if (nid) {
-			unsigned int pinctl;
+			unsigned int pinctl, conf;
 			if (i == AUTO_PIN_MIC || i == AUTO_PIN_FRONT_MIC) {
 				/* for mic pins, force to initialize */
 				pinctl = stac92xx_get_vref(codec, nid);
+				pinctl |= AC_PINCTL_IN_EN;
+				stac92xx_auto_set_pinctl(codec, nid, pinctl);
 			} else {
 				pinctl = snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 				/* if PINCTL already set then skip */
-				if (pinctl & AC_PINCTL_IN_EN)
-					continue;
+				if (!(pinctl & AC_PINCTL_IN_EN)) {
+					pinctl |= AC_PINCTL_IN_EN;
+					stac92xx_auto_set_pinctl(codec, nid,
+								 pinctl);
+				}
 			}
-			pinctl |= AC_PINCTL_IN_EN;
-			stac92xx_auto_set_pinctl(codec, nid, pinctl);
-			enable_pin_detect(codec, nid, STAC_INSERT_EVENT);
+			conf = snd_hda_codec_read(codec, nid, 0,
+					      AC_VERB_GET_CONFIG_DEFAULT, 0);
+			if (get_defcfg_connect(conf) != AC_JACK_PORT_FIXED) {
+				enable_pin_detect(codec, nid,
+						  STAC_INSERT_EVENT);
+				stac_issue_unsol_event(codec, nid,
+						       STAC_INSERT_EVENT);
+			}
 		}
 	}
 	for (i = 0; i < spec->num_dmics; i++)
@@ -3969,8 +3981,10 @@ static int stac92xx_init(struct hda_codec *codec)
 				stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
-		enable_pin_detect(codec, nid, STAC_PWR_EVENT);
-		stac_issue_unsol_event(codec, nid, STAC_PWR_EVENT);
+		if (!stac_get_event(codec, nid, STAC_INSERT_EVENT)) {
+			enable_pin_detect(codec, nid, STAC_PWR_EVENT);
+			stac_issue_unsol_event(codec, nid, STAC_PWR_EVENT);
+		}
 	}
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
