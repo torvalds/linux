@@ -30,9 +30,7 @@
 #include <asm/upa.h>
 #include <asm/smp.h>
 
-extern struct device_node *allnodes;	/* temporary while merging */
-
-extern rwlock_t devtree_lock;	/* temporary while merging */
+#include "prom.h"
 
 struct device_node *of_find_node_by_phandle(phandle handle)
 {
