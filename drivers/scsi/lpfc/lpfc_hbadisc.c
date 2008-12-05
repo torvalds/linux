@@ -585,20 +585,25 @@ lpfc_do_work(void *p)
 	set_user_nice(current, -20);
 	phba->data_flags = 0;
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		/* wait and check worker queue activities */
 		rc = wait_event_interruptible(phba->work_waitq,
 					(test_and_clear_bit(LPFC_DATA_READY,
 							    &phba->data_flags)
 					 || kthread_should_stop()));
-		BUG_ON(rc);
-
-		if (kthread_should_stop())
+		/* Signal wakeup shall terminate the worker thread */
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+					"0433 Wakeup on signal: rc=x%x\n", rc);
 			break;
+		}
 
 		/* Attend pending lpfc data processing */
 		lpfc_work_done(phba);
 	}
+	phba->worker_thread = NULL;
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"0432 Worker thread stopped.\n");
 	return 0;
 }
 
