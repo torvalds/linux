@@ -1104,7 +1104,7 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 
 	/* Avoid firmware reload on slow devices */
 	if (no_poweroff)
-		return;
+		return 0;
 
 	tuner_dbg("Putting xc2028/3028 into poweroff mode.\n");
 
