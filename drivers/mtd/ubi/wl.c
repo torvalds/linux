@@ -738,7 +738,7 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 				int cancel)
 {
-	int err, scrubbing = 0;
+	int err, scrubbing = 0, torture = 0;
 	struct ubi_wl_prot_entry *uninitialized_var(pe);
 	struct ubi_wl_entry *e1, *e2;
 	struct ubi_vid_hdr *vid_hdr;
@@ -842,20 +842,26 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 	err = ubi_eba_copy_leb(ubi, e1->pnum, e2->pnum, vid_hdr);
 	if (err) {
-
+		if (err == -EAGAIN)
+			goto out_not_moved;
 		if (err < 0)
 			goto out_error;
-		if (err == 1)
+		if (err == 2) {
+			/* Target PEB write error, torture it */
+			torture = 1;
 			goto out_not_moved;
+		}
 
 		/*
-		 * For some reason the LEB was not moved - it might be because
-		 * the volume is being deleted. We should prevent this PEB from
-		 * being selected for wear-levelling movement for some "time",
-		 * so put it to the protection tree.
+		 * The LEB has not been moved because the volume is being
+		 * deleted or the PEB has been put meanwhile. We should prevent
+		 * this PEB from being selected for wear-leveling movement
+		 * again, so put it to the protection tree.
 		 */
 
-		dbg_wl("cancelled moving PEB %d", e1->pnum);
+		dbg_wl("canceled moving PEB %d", e1->pnum);
+		ubi_assert(err == 1);
+
 		pe = kmalloc(sizeof(struct ubi_wl_prot_entry), GFP_NOFS);
 		if (!pe) {
 			err = -ENOMEM;
@@ -920,9 +926,10 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	/*
 	 * For some reasons the LEB was not moved, might be an error, might be
 	 * something else. @e1 was not changed, so return it back. @e2 might
-	 * be changed, schedule it for erasure.
+	 * have been changed, schedule it for erasure.
 	 */
 out_not_moved:
+	dbg_wl("canceled moving PEB %d", e1->pnum);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 	vid_hdr = NULL;
 	spin_lock(&ubi->wl_lock);
@@ -930,12 +937,13 @@ out_not_moved:
 		wl_tree_add(e1, &ubi->scrub);
 	else
 		wl_tree_add(e1, &ubi->used);
+	ubi_assert(!ubi->move_to_put);
 	ubi->move_from = ubi->move_to = NULL;
-	ubi->move_to_put = ubi->wl_scheduled = 0;
+	ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
 
 	e1 = NULL;
-	err = schedule_erase(ubi, e2, 0);
+	err = schedule_erase(ubi, e2, torture);
 	if (err)
 		goto out_error;
 
@@ -1324,7 +1332,7 @@ int ubi_wl_flush(struct ubi_device *ubi)
 	up_write(&ubi->work_sem);
 
 	/*
-	 * And in case last was the WL worker and it cancelled the LEB
+	 * And in case last was the WL worker and it canceled the LEB
 	 * movement, flush again.
 	 */
 	while (ubi->works_count) {
