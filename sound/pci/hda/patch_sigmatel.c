@@ -4061,20 +4061,13 @@ static void stac92xx_reset_pinctl(struct hda_codec *codec, hda_nid_t nid,
 			pin_ctl & ~flag);
 }
 
-static int get_hp_pin_presence(struct hda_codec *codec, hda_nid_t nid)
+static int get_pin_presence(struct hda_codec *codec, hda_nid_t nid)
 {
 	if (!nid)
 		return 0;
 	if (snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_PIN_SENSE, 0x00)
-	    & (1 << 31)) {
-		unsigned int pinctl;
-		pinctl = snd_hda_codec_read(codec, nid, 0,
-					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		if (pinctl & AC_PINCTL_IN_EN)
-			return 0; /* mic- or line-input */
-		else
-			return 1; /* HP-output */
-	}
+	    & (1 << 31))
+		return 1;
 	return 0;
 }
 
@@ -4114,7 +4107,14 @@ static void stac92xx_hp_detect(struct hda_codec *codec)
 			break;
 		if (no_hp_sensing(spec, i))
 			continue;
-		presence = get_hp_pin_presence(codec, cfg->hp_pins[i]);
+		presence = get_pin_presence(codec, cfg->hp_pins[i]);
+		if (presence) {
+			unsigned int pinctl;
+			pinctl = snd_hda_codec_read(codec, cfg->hp_pins[i], 0,
+					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+			if (pinctl & AC_PINCTL_IN_EN)
+				presence = 0; /* mic- or line-input */
+		}
 	}
 
 	if (presence) {
@@ -4191,7 +4191,7 @@ static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 
 static void stac92xx_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 {
-	stac_toggle_power_map(codec, nid, get_hp_pin_presence(codec, nid));
+	stac_toggle_power_map(codec, nid, get_pin_presence(codec, nid));
 }
 
 static void stac92xx_report_jack(struct hda_codec *codec, hda_nid_t nid)
@@ -4213,7 +4213,7 @@ static void stac92xx_report_jack(struct hda_codec *codec, hda_nid_t nid)
 					type = (pin_ctl & AC_PINCTL_HP_EN)
 					? SND_JACK_HEADPHONE : SND_JACK_LINEOUT;
 				snd_jack_report(jacks->jack,
-					get_hp_pin_presence(codec, nid)
+					get_pin_presence(codec, nid)
 					? type : 0);
 			}
 			jacks++;
@@ -5349,7 +5349,7 @@ static int stac9872_vaio_init(struct hda_codec *codec)
 
 static void stac9872_vaio_hp_detect(struct hda_codec *codec, unsigned int res)
 {
-	if (get_hp_pin_presence(codec, 0x0a)) {
+	if (get_pin_presence(codec, 0x0a)) {
 		stac92xx_reset_pinctl(codec, 0x0f, AC_PINCTL_OUT_EN);
 		stac92xx_set_pinctl(codec, 0x0a, AC_PINCTL_OUT_EN);
 	} else {
