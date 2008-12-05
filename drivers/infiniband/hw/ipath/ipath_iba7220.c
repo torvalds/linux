@@ -951,6 +951,12 @@ static int ipath_7220_bringup_serdes(struct ipath_devdata *dd)
 				 INFINIPATH_HWE_SERDESPLLFAILED);
 	}
 
+	dd->ibdeltainprog = 1;
+	dd->ibsymsnap =
+	     ipath_read_creg32(dd, dd->ipath_cregs->cr_ibsymbolerrcnt);
+	dd->iblnkerrsnap =
+	     ipath_read_creg32(dd, dd->ipath_cregs->cr_iblinkerrrecovcnt);
+
 	if (!dd->ipath_ibcddrctrl) {
 		/* not on re-init after reset */
 		dd->ipath_ibcddrctrl =
@@ -1084,6 +1090,37 @@ static void ipath_7220_config_jint(struct ipath_devdata *dd,
 static void ipath_7220_quiet_serdes(struct ipath_devdata *dd)
 {
 	u64 val;
+	if (dd->ibsymdelta || dd->iblnkerrdelta ||
+	    dd->ibdeltainprog) {
+		u64 diagc;
+		/* enable counter writes */
+		diagc = ipath_read_kreg64(dd, dd->ipath_kregs->kr_hwdiagctrl);
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_hwdiagctrl,
+				 diagc | INFINIPATH_DC_COUNTERWREN);
+
+		if (dd->ibsymdelta || dd->ibdeltainprog) {
+			val = ipath_read_creg32(dd,
+					dd->ipath_cregs->cr_ibsymbolerrcnt);
+			if (dd->ibdeltainprog)
+				val -= val - dd->ibsymsnap;
+			val -= dd->ibsymdelta;
+			ipath_write_creg(dd,
+				  dd->ipath_cregs->cr_ibsymbolerrcnt, val);
+		}
+		if (dd->iblnkerrdelta || dd->ibdeltainprog) {
+			val = ipath_read_creg32(dd,
+					dd->ipath_cregs->cr_iblinkerrrecovcnt);
+			if (dd->ibdeltainprog)
+				val -= val - dd->iblnkerrsnap;
+			val -= dd->iblnkerrdelta;
+			ipath_write_creg(dd,
+				   dd->ipath_cregs->cr_iblinkerrrecovcnt, val);
+	     }
+
+	     /* and disable counter writes */
+	     ipath_write_kreg(dd, dd->ipath_kregs->kr_hwdiagctrl, diagc);
+	}
+
 	dd->ipath_flags &= ~IPATH_IB_AUTONEG_INPROG;
 	wake_up(&dd->ipath_autoneg_wait);
 	cancel_delayed_work(&dd->ipath_autoneg_work);
@@ -2325,7 +2362,7 @@ static void try_auto_neg(struct ipath_devdata *dd)
 
 static int ipath_7220_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 {
-	int ret = 0;
+	int ret = 0, symadj = 0;
 	u32 ltstate = ipath_ib_linkstate(dd, ibcs);
 
 	dd->ipath_link_width_active =
@@ -2368,6 +2405,13 @@ static int ipath_7220_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 			ipath_dbg("DDR negotiation try, %u/%u\n",
 				dd->ipath_autoneg_tries,
 				IPATH_AUTONEG_TRIES);
+			if (!dd->ibdeltainprog) {
+				dd->ibdeltainprog = 1;
+				dd->ibsymsnap = ipath_read_creg32(dd,
+					dd->ipath_cregs->cr_ibsymbolerrcnt);
+				dd->iblnkerrsnap = ipath_read_creg32(dd,
+					dd->ipath_cregs->cr_iblinkerrrecovcnt);
+			}
 			try_auto_neg(dd);
 			ret = 1; /* no other IB status change processing */
 		} else if ((dd->ipath_flags & IPATH_IB_AUTONEG_INPROG)
@@ -2388,6 +2432,7 @@ static int ipath_7220_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 				set_speed_fast(dd,
 					dd->ipath_link_speed_enabled);
 				wake_up(&dd->ipath_autoneg_wait);
+				symadj = 1;
 			} else if (dd->ipath_flags & IPATH_IB_AUTONEG_FAILED) {
 				/*
 				 * clear autoneg failure flag, and do setup
@@ -2403,6 +2448,7 @@ static int ipath_7220_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 					IBA7220_IBC_IBTA_1_2_MASK;
 				ipath_write_kreg(dd,
 					IPATH_KREG_OFFSET(IBNCModeCtrl), 0);
+				symadj = 1;
 			}
 		}
 		/*
@@ -2416,9 +2462,13 @@ static int ipath_7220_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 			IB_WIDTH_4X)) == (IB_WIDTH_1X | IB_WIDTH_4X)
 			&& dd->ipath_link_width_active == IB_WIDTH_1X
 			&& dd->ipath_x1_fix_tries < 3) {
-			if (++dd->ipath_x1_fix_tries == 3)
+		     if (++dd->ipath_x1_fix_tries == 3) {
 				dev_info(&dd->pcidev->dev,
 					"IB link is in 1X mode\n");
+				if (!(dd->ipath_flags &
+				      IPATH_IB_AUTONEG_INPROG))
+					symadj = 1;
+		     }
 			else {
 				ipath_cdbg(VERBOSE, "IB 1X in "
 					"auto-width, try %u to be "
@@ -2429,7 +2479,8 @@ static int ipath_7220_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 				dd->ipath_f_xgxs_reset(dd);
 				ret = 1; /* skip other processing */
 			}
-		}
+		} else if (!(dd->ipath_flags & IPATH_IB_AUTONEG_INPROG))
+			symadj = 1;
 
 		if (!ret) {
 			dd->delay_mult = rate_to_delay
@@ -2438,6 +2489,25 @@ static int ipath_7220_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
 
 			ipath_set_relock_poll(dd, ibup);
 		}
+	}
+
+	if (symadj) {
+		if (dd->ibdeltainprog) {
+			dd->ibdeltainprog = 0;
+			dd->ibsymdelta += ipath_read_creg32(dd,
+				dd->ipath_cregs->cr_ibsymbolerrcnt) -
+				dd->ibsymsnap;
+			dd->iblnkerrdelta += ipath_read_creg32(dd,
+				dd->ipath_cregs->cr_iblinkerrrecovcnt) -
+				dd->iblnkerrsnap;
+		}
+	} else if (!ibup && !dd->ibdeltainprog
+		   && !(dd->ipath_flags & IPATH_IB_AUTONEG_INPROG)) {
+		dd->ibdeltainprog = 1;
+		dd->ibsymsnap =	ipath_read_creg32(dd,
+				     dd->ipath_cregs->cr_ibsymbolerrcnt);
+		dd->iblnkerrsnap = ipath_read_creg32(dd,
+				     dd->ipath_cregs->cr_iblinkerrrecovcnt);
 	}
 
 	if (!ret)
