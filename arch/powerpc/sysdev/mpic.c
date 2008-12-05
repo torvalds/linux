@@ -600,7 +600,7 @@ static int irq_choose_cpu(unsigned int virt_irq)
 		cpuid = first_cpu(tmp);
 	}
 
-	return cpuid;
+	return get_hard_smp_processor_id(cpuid);
 }
 #else
 static int irq_choose_cpu(unsigned int virt_irq)

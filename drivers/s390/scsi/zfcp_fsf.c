@@ -930,8 +930,10 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 		goto out;
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_ABORT_FCP_CMND,
 				  req_flags, adapter->pool.fsf_req_abort);
-	if (IS_ERR(req))
+	if (IS_ERR(req)) {
+		req = NULL;
 		goto out;
+	}
 
 	if (unlikely(!(atomic_read(&unit->status) &
 		       ZFCP_STATUS_COMMON_UNBLOCKED)))
@@ -1584,6 +1586,7 @@ static void zfcp_fsf_open_wka_port_handler(struct zfcp_fsf_req *req)
 		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
 		break;
 	case FSF_PORT_ALREADY_OPEN:
+		break;
 	case FSF_GOOD:
 		wka_port->handle = header->port_handle;
 		wka_port->status = ZFCP_WKA_PORT_ONLINE;
@@ -2113,17 +2116,20 @@ static inline void zfcp_fsf_trace_latency(struct zfcp_fsf_req *fsf_req)
 
 static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 {
-	struct scsi_cmnd *scpnt = req->data;
+	struct scsi_cmnd *scpnt;
 	struct fcp_rsp_iu *fcp_rsp_iu = (struct fcp_rsp_iu *)
 	    &(req->qtcb->bottom.io.fcp_rsp);
 	u32 sns_len;
 	char *fcp_rsp_info = (unsigned char *) &fcp_rsp_iu[1];
 	unsigned long flags;
 
-	if (unlikely(!scpnt))
-		return;
-
 	read_lock_irqsave(&req->adapter->abort_lock, flags);
+
+	scpnt = req->data;
+	if (unlikely(!scpnt)) {
+		read_unlock_irqrestore(&req->adapter->abort_lock, flags);
+		return;
+	}
 
 	if (unlikely(req->status & ZFCP_STATUS_FSFREQ_ABORTED)) {
 		set_host_byte(scpnt, DID_SOFT_ERROR);
@@ -2442,8 +2448,10 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_adapter *adapter,
 		goto out;
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_FCP_CMND, req_flags,
 				  adapter->pool.fsf_req_scsi);
-	if (IS_ERR(req))
+	if (IS_ERR(req)) {
+		req = NULL;
 		goto out;
+	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_TASK_MANAGEMENT;
 	req->data = unit;

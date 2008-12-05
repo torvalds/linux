@@ -117,6 +117,7 @@ struct userstack_entry {
 struct print_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
+	int			depth;
 	char			buf[];
 };
 
@@ -498,7 +499,8 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip,
 extern ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf,
 				 size_t cnt);
 extern long ns2usecs(cycle_t nsec);
-extern int trace_vprintk(unsigned long ip, const char *fmt, va_list args);
+extern int
+trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args);
 
 extern unsigned long trace_flags;
 
