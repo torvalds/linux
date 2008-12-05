@@ -3034,6 +3034,8 @@ xfs_zero_remaining_bytes(
 	bp = xfs_buf_get_noaddr(mp->m_sb.sb_blocksize,
 				XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp);
+	if (!bp)
+		return XFS_ERROR(ENOMEM);
 
 	for (offset = startoff; offset <= endoff; offset = lastoffset + 1) {
 		offset_fsb = XFS_B_TO_FSBT(mp, offset);
