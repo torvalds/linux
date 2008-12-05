@@ -627,6 +627,7 @@ static int cross_eof(struct scsi_tape * STp, int forward)
 {
 	struct st_request *SRpnt;
 	unsigned char cmd[MAX_COMMAND_SIZE];
+	int ret;
 
 	cmd[0] = SPACE;
 	cmd[1] = 0x01;		/* Space FileMarks */
@@ -640,20 +641,26 @@ static int cross_eof(struct scsi_tape * STp, int forward)
         DEBC(printk(ST_DEB_MSG "%s: Stepping over filemark %s.\n",
 		   tape_name(STp), forward ? "forward" : "backward"));
 
-	SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_NONE,
-			   STp->device->request_queue->rq_timeout,
-			   MAX_RETRIES, 1);
+	SRpnt = st_allocate_request(STp);
 	if (!SRpnt)
-		return (STp->buffer)->syscall_result;
+		return STp->buffer->syscall_result;
 
-	st_release_request(SRpnt);
-	SRpnt = NULL;
+	ret = st_scsi_kern_execute(SRpnt, cmd, DMA_NONE, NULL, 0,
+				   STp->device->request_queue->rq_timeout,
+				   MAX_RETRIES);
+	if (ret)
+		goto out;
+
+	ret = STp->buffer->syscall_result;
 
 	if ((STp->buffer)->cmdstat.midlevel_result != 0)
 		printk(KERN_ERR "%s: Stepping over filemark %s failed.\n",
 		   tape_name(STp), forward ? "forward" : "backward");
 
-	return (STp->buffer)->syscall_result;
+out:
+	st_release_request(SRpnt);
+
+	return ret;
 }
 
 
