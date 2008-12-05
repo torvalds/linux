@@ -65,6 +65,9 @@
 #define SLI3_IOCB_RSP_SIZE	64
 
 
+/* vendor ID used in SCSI netlink calls */
+#define LPFC_NL_VENDOR_ID (SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX)
+
 /* Common Transport structures and definitions */
 
 union CtRevisionId {

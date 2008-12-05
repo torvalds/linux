@@ -387,7 +387,7 @@ lpfc_send_fastpath_evt(struct lpfc_hba *phba,
 		fc_get_event_number(),
 		evt_data_size,
 		evt_data,
-		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		LPFC_NL_VENDOR_ID);
 
 	lpfc_free_fast_evt(phba, fast_evt_data);
 	return;

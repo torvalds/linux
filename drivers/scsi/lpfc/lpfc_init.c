@@ -833,8 +833,7 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 	fc_host_post_vendor_event(shost, fc_get_event_number(),
 				  sizeof(board_event),
 				  (char *) &board_event,
-				  SCSI_NL_VID_TYPE_PCI
-				  | PCI_VENDOR_ID_EMULEX);
+				  LPFC_NL_VENDOR_ID);
 
 	if (phba->work_hs & HS_FFER6) {
 		/* Re-establishing Link */
@@ -2646,7 +2645,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	fc_host_post_vendor_event(shost, fc_get_event_number(),
 		sizeof(adapter_event),
 		(char *) &adapter_event,
-		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		LPFC_NL_VENDOR_ID);
 
 	scsi_scan_host(shost);
 

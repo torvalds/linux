@@ -4005,7 +4005,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 	shost = lpfc_shost_from_vport(phba->pport);
 	fc_host_post_vendor_event(shost, fc_get_event_number(),
 		sizeof(temp_event_data), (char *) &temp_event_data,
-		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		LPFC_NL_VENDOR_ID);
 
 }
 

@@ -1560,7 +1560,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 		fc_get_event_number(),
 		sizeof(scsi_event),
 		(char *)&scsi_event,
-		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		LPFC_NL_VENDOR_ID);
 
 	if (!rdata || pnode->nlp_state != NLP_STE_MAPPED_NODE) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
@@ -1657,7 +1657,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 		fc_get_event_number(),
 		sizeof(scsi_event),
 		(char *)&scsi_event,
-		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		LPFC_NL_VENDOR_ID);
 
 	lpfc_block_error_handler(cmnd);
 	/*

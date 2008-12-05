@@ -52,6 +52,13 @@
  * The payload sent via the fc transport is one-way driver->application.
  */
 
+/* RSCN event header */
+struct lpfc_rscn_event_header {
+	uint32_t event_type;
+	uint32_t payload_length; /* RSCN data length in bytes */
+	uint32_t rscn_payload[];
+};
+
 /* els event header */
 struct lpfc_els_event_header {
 	uint32_t event_type;
@@ -65,6 +72,7 @@ struct lpfc_els_event_header {
 #define LPFC_EVENT_PRLO_RCV		0x02
 #define LPFC_EVENT_ADISC_RCV		0x04
 #define LPFC_EVENT_LSRJT_RCV		0x08
+#define LPFC_EVENT_LOGO_RCV		0x10
 
 /* special els lsrjt event */
 struct lpfc_lsrjt_event {
@@ -74,6 +82,11 @@ struct lpfc_lsrjt_event {
 	uint32_t explanation;
 };
 
+/* special els logo event */
+struct lpfc_logo_event {
+	struct lpfc_els_event_header header;
+	uint8_t logo_wwpn[8];
+};
 
 /* fabric event header */
 struct lpfc_fabric_event_header {
@@ -125,6 +138,7 @@ struct lpfc_scsi_varqueuedepth_event {
 /* special case scsi check condition event */
 struct lpfc_scsi_check_condition_event {
 	struct lpfc_scsi_event_header scsi_event;
+	uint8_t opcode;
 	uint8_t sense_key;
 	uint8_t asc;
 	uint8_t ascq;
