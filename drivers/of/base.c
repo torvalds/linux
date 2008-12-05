@@ -547,14 +547,12 @@ int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
 		const u32 *cells;
 		const phandle *phandle;
 
-		phandle = list;
-		args = list + 1;
+		phandle = list++;
+		args = list;
 
 		/* one cell hole in the list = <>; */
-		if (!*phandle) {
-			list++;
+		if (!*phandle)
 			goto next;
-		}
 
 		node = of_find_node_by_phandle(*phandle);
 		if (!node) {
@@ -570,8 +568,7 @@ int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
 			goto err1;
 		}
 
-		/* Next phandle is at offset of one phandle cell + #cells */
-		list += 1 + *cells;
+		list += *cells;
 		if (list > list_end) {
 			pr_debug("%s: insufficient arguments length\n",
 				 np->full_name);
