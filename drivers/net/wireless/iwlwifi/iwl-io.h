@@ -299,6 +299,7 @@ static inline int __iwl_poll_direct_bit(const char *f, u32 l,
 static inline u32 _iwl_read_prph(struct iwl_priv *priv, u32 reg)
 {
 	_iwl_write_direct32(priv, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
+	rmb();
 	return _iwl_read_direct32(priv, HBUS_TARG_PRPH_RDAT);
 }
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -321,6 +322,7 @@ static inline void _iwl_write_prph(struct iwl_priv *priv,
 {
 	_iwl_write_direct32(priv, HBUS_TARG_PRPH_WADDR,
 			      ((addr & 0x0000FFFF) | (3 << 24)));
+	wmb();
 	_iwl_write_direct32(priv, HBUS_TARG_PRPH_WDAT, val);
 }
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -383,12 +385,14 @@ static inline void iwl_clear_bits_prph(struct iwl_priv
 static inline u32 iwl_read_targ_mem(struct iwl_priv *priv, u32 addr)
 {
 	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, addr);
+	rmb();
 	return iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 }
 
 static inline void iwl_write_targ_mem(struct iwl_priv *priv, u32 addr, u32 val)
 {
 	iwl_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
+	wmb();
 	iwl_write_direct32(priv, HBUS_TARG_MEM_WDAT, val);
 }
 
@@ -396,6 +400,7 @@ static inline void iwl_write_targ_mem_buf(struct iwl_priv *priv, u32 addr,
 					  u32 len, u32 *values)
 {
 	iwl_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
+	wmb();
 	for (; 0 < len; len -= sizeof(u32), values++)
 		iwl_write_direct32(priv, HBUS_TARG_MEM_WDAT, *values);
 }
