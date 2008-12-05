@@ -210,7 +210,7 @@ static char * __init get_one_property(phandle node, const char *name)
 	return buf;
 }
 
-static struct device_node * __init create_node(phandle node)
+static struct device_node * __init create_node(phandle node, struct device_node *parent)
 {
 	struct device_node *dp;
 
@@ -219,6 +219,7 @@ static struct device_node * __init create_node(phandle node)
 
 	dp = prom_early_alloc(sizeof(*dp));
 	dp->unique_id = prom_unique_id++;
+	dp->parent = parent;
 
 	kref_init(&dp->kref);
 
@@ -237,7 +238,7 @@ static struct device_node * __init build_tree(struct device_node *parent, phandl
 {
 	struct device_node *dp;
 
-	dp = create_node(node);
+	dp = create_node(node, parent);
 	if (dp) {
 		*(*nextp) = dp;
 		*nextp = &dp->allnext;
@@ -387,7 +388,7 @@ void __init prom_build_devicetree(void)
 {
 	struct device_node **nextp;
 
-	allnodes = create_node(prom_root_node);
+	allnodes = create_node(prom_root_node, NULL);
 	allnodes->path_component_name = "";
 	allnodes->full_name = "/";
 
