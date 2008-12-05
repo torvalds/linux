@@ -29,7 +29,7 @@
 
 static unsigned int prom_early_allocated;
 
-static void * __init prom_early_alloc(unsigned long size)
+void * __init prom_early_alloc(unsigned long size)
 {
 	void *ret;
 

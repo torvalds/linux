@@ -34,7 +34,7 @@
 
 static unsigned int prom_early_allocated __initdata;
 
-static void * __init prom_early_alloc(unsigned long size)
+void * __init prom_early_alloc(unsigned long size)
 {
 	unsigned long paddr = lmb_alloc(size, SMP_CACHE_BYTES);
 	void *ret;
