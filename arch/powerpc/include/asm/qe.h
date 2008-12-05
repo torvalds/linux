@@ -86,7 +86,11 @@ static inline bool qe_clock_is_brg(enum qe_clock clk)
 extern spinlock_t cmxgcr_lock;
 
 /* Export QE common operations */
+#ifdef CONFIG_QUICC_ENGINE
 extern void __init qe_reset(void);
+#else
+static inline void qe_reset(void) {}
+#endif
 
 /* QE PIO */
 #define QE_PIO_PINS 32
@@ -103,16 +107,24 @@ struct qe_pio_regs {
 #endif
 };
 
-extern int par_io_init(struct device_node *np);
-extern int par_io_of_config(struct device_node *np);
 #define QE_PIO_DIR_IN	2
 #define QE_PIO_DIR_OUT	1
 extern void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin,
 				int dir, int open_drain, int assignment,
 				int has_irq);
+#ifdef CONFIG_QUICC_ENGINE
+extern int par_io_init(struct device_node *np);
+extern int par_io_of_config(struct device_node *np);
 extern int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
 			     int assignment, int has_irq);
 extern int par_io_data_set(u8 port, u8 pin, u8 val);
+#else
+static inline int par_io_init(struct device_node *np) { return -ENOSYS; }
+static inline int par_io_of_config(struct device_node *np) { return -ENOSYS; }
+static inline int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
+		int assignment, int has_irq) { return -ENOSYS; }
+static inline int par_io_data_set(u8 port, u8 pin, u8 val) { return -ENOSYS; }
+#endif /* CONFIG_QUICC_ENGINE */
 
 /*
  * Pin multiplexing functions.
