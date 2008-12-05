@@ -95,7 +95,7 @@ static inline int _iwl_poll_bit(struct iwl_priv *priv, u32 addr,
 	do {
 		if ((_iwl_read32(priv, addr) & mask) == (bits & mask))
 			return i;
-		mdelay(10);
+		udelay(10);
 		i += 10;
 	} while (i < timeout);
 
@@ -277,7 +277,7 @@ static inline int _iwl_poll_direct_bit(struct iwl_priv *priv,
 	do {
 		if ((_iwl_read_direct32(priv, addr) & mask) == mask)
 			return i;
-		mdelay(10);
+		udelay(10);
 		i += 10;
 	} while (i < timeout);
 
