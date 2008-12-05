@@ -894,11 +894,6 @@ int device_add(struct device *dev)
 	if (platform_notify)
 		platform_notify(dev);
 
-	/* notify clients of device entry (new way) */
-	if (dev->bus)
-		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
-					     BUS_NOTIFY_ADD_DEVICE, dev);
-
 	error = device_create_file(dev, &uevent_attr);
 	if (error)
 		goto attrError;
@@ -926,6 +921,14 @@ int device_add(struct device *dev)
 	if (error)
 		goto DPMError;
 	device_pm_add(dev);
+
+	/* Notify clients of device addition.  This call must come
+	 * after dpm_sysf_add() and before kobject_uevent().
+	 */
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
+					     BUS_NOTIFY_ADD_DEVICE, dev);
+
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 	bus_attach_device(dev);
 	if (parent)
@@ -951,9 +954,6 @@ done:
  DPMError:
 	bus_remove_device(dev);
  BusError:
-	if (dev->bus)
-		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
-					     BUS_NOTIFY_DEL_DEVICE, dev);
 	device_remove_attrs(dev);
  AttrsError:
 	device_remove_class_symlinks(dev);
@@ -1038,6 +1038,12 @@ void device_del(struct device *dev)
 	struct device *parent = dev->parent;
 	struct class_interface *class_intf;
 
+	/* Notify clients of device removal.  This call must come
+	 * before dpm_sysfs_remove().
+	 */
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
+					     BUS_NOTIFY_DEL_DEVICE, dev);
 	device_pm_remove(dev);
 	dpm_sysfs_remove(dev);
 	if (parent)
@@ -1075,9 +1081,6 @@ void device_del(struct device *dev)
 	 */
 	if (platform_notify_remove)
 		platform_notify_remove(dev);
-	if (dev->bus)
-		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
-					     BUS_NOTIFY_DEL_DEVICE, dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	cleanup_device_parent(dev);
 	kobject_del(&dev->kobj);
