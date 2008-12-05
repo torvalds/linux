@@ -102,6 +102,7 @@ static struct pci_device_id rtl8180_pci_id_tbl[] __devinitdata = {
                 .subdevice = PCI_ANY_ID,
                 .driver_data = 0,
         },
+#if 0
         {
                 .vendor = PCI_VENDOR_ID_BELKIN,
                 .device = 0x6001,
@@ -130,6 +131,7 @@ static struct pci_device_id rtl8180_pci_id_tbl[] __devinitdata = {
 		.subdevice = PCI_ANY_ID,
 		.driver_data = 4,
 	},
+#endif
         {
                 .vendor = 0,
                 .device = 0,
