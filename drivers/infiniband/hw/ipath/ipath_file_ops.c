@@ -223,8 +223,13 @@ static int ipath_get_base_info(struct file *fp,
 			(unsigned long long) kinfo->spi_subport_rcvhdr_base);
 	}
 
-	kinfo->spi_pioindex = (kinfo->spi_piobufbase - dd->ipath_piobufbase) /
-		dd->ipath_palign;
+	/*
+	 * All user buffers are 2KB buffers.  If we ever support
+	 * giving 4KB buffers to user processes, this will need some
+	 * work.
+	 */
+	kinfo->spi_pioindex = (kinfo->spi_piobufbase -
+		(dd->ipath_piobufbase & 0xffffffff)) / dd->ipath_palign;
 	kinfo->spi_pioalign = dd->ipath_palign;
 
 	kinfo->spi_qpair = IPATH_KD_QP;
