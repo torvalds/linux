@@ -359,19 +359,18 @@ static int in_wl_tree(struct ubi_wl_entry *e, struct rb_root *root)
  * @ubi: UBI device description object
  * @e: the physical eraseblock to add
  * @pe: protection entry object to use
- * @abs_ec: absolute erase counter value when this physical eraseblock has
- * to be removed from the protection trees.
+ * @ec: for how many erase operations this PEB should be protected
  *
  * @wl->lock has to be locked.
  */
 static void prot_tree_add(struct ubi_device *ubi, struct ubi_wl_entry *e,
-			  struct ubi_wl_prot_entry *pe, int abs_ec)
+			  struct ubi_wl_prot_entry *pe, int ec)
 {
 	struct rb_node **p, *parent = NULL;
 	struct ubi_wl_prot_entry *pe1;
 
 	pe->e = e;
-	pe->abs_ec = ubi->abs_ec + abs_ec;
+	pe->abs_ec = ubi->abs_ec + ec;
 
 	p = &ubi->prot.pnum.rb_node;
 	while (*p) {
@@ -739,7 +738,7 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 				int cancel)
 {
-	int err, put = 0, scrubbing = 0, protect = 0;
+	int err, put = 0, scrubbing = 0;
 	struct ubi_wl_prot_entry *uninitialized_var(pe);
 	struct ubi_wl_entry *e1, *e2;
 	struct ubi_vid_hdr *vid_hdr;
@@ -864,17 +863,28 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			goto out_error;
 		}
 
-		protect = 1;
+		ubi_free_vid_hdr(ubi, vid_hdr);
+		spin_lock(&ubi->wl_lock);
+		prot_tree_add(ubi, e1, pe, U_PROTECTION);
+		ubi_assert(!ubi->move_to_put);
+		ubi->move_from = ubi->move_to = NULL;
+		ubi->wl_scheduled = 0;
+		spin_unlock(&ubi->wl_lock);
+
+		err = schedule_erase(ubi, e2, 0);
+		if (err)
+			goto out_error;
+		mutex_unlock(&ubi->move_mutex);
+		return 0;
 	}
 
+	/* The PEB has been successfully moved */
 	ubi_free_vid_hdr(ubi, vid_hdr);
-	if (scrubbing && !protect)
+	if (scrubbing)
 		ubi_msg("scrubbed PEB %d, data moved to PEB %d",
 			e1->pnum, e2->pnum);
 
 	spin_lock(&ubi->wl_lock);
-	if (protect)
-		prot_tree_add(ubi, e1, pe, protect);
 	if (!ubi->move_to_put)
 		wl_tree_add(e2, &ubi->used);
 	else
@@ -882,6 +892,10 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	ubi->move_from = ubi->move_to = NULL;
 	ubi->move_to_put = ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
+
+	err = schedule_erase(ubi, e1, 0);
+	if (err)
+		goto out_error;
 
 	if (put) {
 		/*
@@ -893,13 +907,6 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		if (err)
 			goto out_error;
 	}
-
-	if (!protect) {
-		err = schedule_erase(ubi, e1, 0);
-		if (err)
-			goto out_error;
-	}
-
 
 	dbg_wl("done");
 	mutex_unlock(&ubi->move_mutex);
