@@ -874,21 +874,24 @@ static int test_ready(struct scsi_tape *STp, int do_wait)
 	int attentions, waits, max_wait, scode;
 	int retval = CHKRES_READY, new_session = 0;
 	unsigned char cmd[MAX_COMMAND_SIZE];
-	struct st_request *SRpnt = NULL;
+	struct st_request *SRpnt;
 	struct st_cmdstatus *cmdstatp = &STp->buffer->cmdstat;
+
+	SRpnt = st_allocate_request(STp);
+	if (!SRpnt)
+		return STp->buffer->syscall_result;
 
 	max_wait = do_wait ? ST_BLOCK_SECONDS : 0;
 
 	for (attentions=waits=0; ; ) {
 		memset((void *) &cmd[0], 0, MAX_COMMAND_SIZE);
 		cmd[0] = TEST_UNIT_READY;
-		SRpnt = st_do_scsi(SRpnt, STp, cmd, 0, DMA_NONE,
-				   STp->long_timeout, MAX_READY_RETRIES, 1);
 
-		if (!SRpnt) {
-			retval = (STp->buffer)->syscall_result;
+		retval = st_scsi_kern_execute(SRpnt, cmd, DMA_NONE, NULL, 0,
+					      STp->long_timeout,
+					      MAX_READY_RETRIES);
+		if (retval)
 			break;
-		}
 
 		if (cmdstatp->have_sense) {
 
@@ -932,8 +935,8 @@ static int test_ready(struct scsi_tape *STp, int do_wait)
 		break;
 	}
 
-	if (SRpnt != NULL)
-		st_release_request(SRpnt);
+	st_release_request(SRpnt);
+
 	return retval;
 }
 
