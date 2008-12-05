@@ -3,7 +3,18 @@
  *
  * Copyright (C) 2008 Jean-Francois Moine (http://moinejf.free.fr)
  *
- * (This module is adapted from the ov51x-jpeg package)
+ * This module is adapted from the ov51x-jpeg package, which itself
+ * was adapted from the ov511 driver.
+ *
+ * Original copyright for the ov511 driver is:
+ *
+ * Copyright (c) 1999-2004 Mark W. McClelland
+ * Support for OV519, OV8610 Copyright (c) 2003 Joerg Heckenbach
+ *
+ * ov51x-jpeg original copyright is:
+ *
+ * Copyright (c) 2004-2007 Romain Beauxis <toots@rastageeks.org>
+ * Support for OV7670 sensors was contributed by Sam Skipsey <aoanla@yahoo.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
