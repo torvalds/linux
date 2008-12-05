@@ -49,7 +49,7 @@ static int last_ftrace_enabled;
 
 /* set when tracing only a pid */
 struct pid *ftrace_pid_trace;
-static struct pid * const ftrace_swapper_pid = (struct pid *)1;
+static struct pid * const ftrace_swapper_pid = &init_struct_pid;
 
 /* Quick disabling of function tracer. */
 int function_trace_stop;
