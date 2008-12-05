@@ -1259,68 +1259,6 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli_replace_hbqbuff: Replace the HBQ buffer with a new buffer.
- * @phba: Pointer to HBA context object.
- * @tag: Tag for the HBQ buffer.
- *
- * This function is called from unsolicited event handler code path to get the
- * HBQ buffer associated with an unsolicited iocb. This function is called with
- * no lock held. It returns the buffer associated with the given tag and posts
- * another buffer to the firmware. Note that the new buffer must be allocated
- * before taking the hbalock and that the hba lock must be held until it is
- * finished with the hbq entry swap.
- **/
-static struct lpfc_dmabuf *
-lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
-{
-	struct hbq_dmabuf *hbq_entry, *new_hbq_entry;
-	uint32_t hbqno;
-	void *virt;		/* virtual address ptr */
-	dma_addr_t phys;	/* mapped address */
-	unsigned long flags;
-
-	hbqno = tag >> 16;
-	new_hbq_entry = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
-	/* Check whether HBQ is still in use */
-	spin_lock_irqsave(&phba->hbalock, flags);
-	if (!phba->hbq_in_use) {
-		if (new_hbq_entry)
-			(phba->hbqs[hbqno].hbq_free_buffer)(phba,
-							    new_hbq_entry);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return NULL;
-	}
-
-	hbq_entry = lpfc_sli_hbqbuf_find(phba, tag);
-	if (hbq_entry == NULL) {
-		if (new_hbq_entry)
-			(phba->hbqs[hbqno].hbq_free_buffer)(phba,
-							    new_hbq_entry);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return NULL;
-	}
-	list_del(&hbq_entry->dbuf.list);
-
-	if (new_hbq_entry == NULL) {
-		list_add_tail(&hbq_entry->dbuf.list, &phba->hbqbuf_in_list);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return &hbq_entry->dbuf;
-	}
-	new_hbq_entry->tag = -1;
-	phys = new_hbq_entry->dbuf.phys;
-	virt = new_hbq_entry->dbuf.virt;
-	new_hbq_entry->dbuf.phys = hbq_entry->dbuf.phys;
-	new_hbq_entry->dbuf.virt = hbq_entry->dbuf.virt;
-	hbq_entry->dbuf.phys = phys;
-	hbq_entry->dbuf.virt = virt;
-	lpfc_sli_free_hbq(phba, hbq_entry);
-	list_add_tail(&new_hbq_entry->dbuf.list, &phba->hbqbuf_in_list);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-
-	return &new_hbq_entry->dbuf;
-}
-
-/**
  * lpfc_sli_get_buff: Get the buffer associated with the buffer tag.
  * @phba: Pointer to HBA context object.
  * @pring: Pointer to driver SLI ring object.
@@ -1334,13 +1272,17 @@ lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
  **/
 static struct lpfc_dmabuf *
 lpfc_sli_get_buff(struct lpfc_hba *phba,
-			struct lpfc_sli_ring *pring,
-			uint32_t tag)
+		  struct lpfc_sli_ring *pring,
+		  uint32_t tag)
 {
+	struct hbq_dmabuf *hbq_entry;
+
 	if (tag & QUE_BUFTAG_BIT)
 		return lpfc_sli_ring_taggedbuf_get(phba, pring, tag);
-	else
-		return lpfc_sli_replace_hbqbuff(phba, tag);
+	hbq_entry = lpfc_sli_hbqbuf_find(phba, tag);
+	if (!hbq_entry)
+		return NULL;
+	return &hbq_entry->dbuf;
 }
 
 
@@ -1372,8 +1314,6 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	match = 0;
 	irsp = &(saveq->iocb);
 
-	if (irsp->ulpStatus == IOSTAT_NEED_BUFFER)
-		return 1;
 	if (irsp->ulpCommand == CMD_ASYNC_STATUS) {
 		if (pring->lpfc_sli_rcv_async_status)
 			pring->lpfc_sli_rcv_async_status(phba, pring, saveq);

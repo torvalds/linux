@@ -255,8 +255,10 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	/* character array used for decoding dist type. */
 	char dist_char[] = "nabx";
 
-	if (pmboxq->mb.mbxStatus != MBX_SUCCESS)
+	if (pmboxq->mb.mbxStatus != MBX_SUCCESS) {
+		mempool_free(pmboxq, phba->mbox_mem_pool);
 		return;
+	}
 
 	prg = (struct prog_id *) &prog_id_word;
 
@@ -274,6 +276,7 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 		sprintf(phba->OptionROMVersion, "%d.%d%d%c%d",
 			prg->ver, prg->rev, prg->lev,
 			dist, prg->num);
+	mempool_free(pmboxq, phba->mbox_mem_pool);
 	return;
 }
 
@@ -2889,6 +2892,8 @@ out_remove_device:
 	lpfc_stop_phba_timers(phba);
 	phba->pport->work_port_events = 0;
 	lpfc_disable_intr(phba);
+	lpfc_sli_hba_down(phba);
+	lpfc_sli_brdrestart(phba);
 out_free_sysfs_attr:
 	lpfc_free_sysfs_attr(vport);
 out_destroy_port:
