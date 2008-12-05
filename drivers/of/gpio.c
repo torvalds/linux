@@ -80,6 +80,40 @@ err0:
 EXPORT_SYMBOL(of_get_gpio_flags);
 
 /**
+ * of_gpio_count - Count GPIOs for a device
+ * @np:		device node to count GPIOs for
+ *
+ * The function returns the count of GPIOs specified for a node.
+ *
+ * Note that the empty GPIO specifiers counts too. For example,
+ *
+ * gpios = <0
+ *          &pio1 1 2
+ *          0
+ *          &pio2 3 4>;
+ *
+ * defines four GPIOs (so this function will return 4), two of which
+ * are not specified.
+ */
+unsigned int of_gpio_count(struct device_node *np)
+{
+	unsigned int cnt = 0;
+
+	do {
+		int ret;
+
+		ret = of_parse_phandles_with_args(np, "gpios", "#gpio-cells",
+						  cnt, NULL, NULL);
+		/* A hole in the gpios = <> counts anyway. */
+		if (ret < 0 && ret != -EEXIST)
+			break;
+	} while (++cnt);
+
+	return cnt;
+}
+EXPORT_SYMBOL(of_gpio_count);
+
+/**
  * of_gpio_simple_xlate - translate gpio_spec to the GPIO number and flags
  * @of_gc:	pointer to the of_gpio_chip structure
  * @np:		device node of the GPIO chip
