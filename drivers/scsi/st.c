@@ -3088,10 +3088,14 @@ static int set_location(struct scsi_tape *STp, unsigned int block, int partition
 		timeout = STp->device->request_queue->rq_timeout;
 	}
 
-	SRpnt = st_do_scsi(NULL, STp, scmd, 0, DMA_NONE,
-			   timeout, MAX_READY_RETRIES, 1);
+	SRpnt = st_allocate_request(STp);
 	if (!SRpnt)
-		return (STp->buffer)->syscall_result;
+		return STp->buffer->syscall_result;
+
+	result = st_scsi_kern_execute(SRpnt, scmd, DMA_NONE, NULL, 0,
+				      timeout, MAX_READY_RETRIES);
+	if (result)
+		goto out;
 
 	STps->drv_block = STps->drv_file = (-1);
 	STps->eof = ST_NOEOF;
@@ -3116,7 +3120,7 @@ static int set_location(struct scsi_tape *STp, unsigned int block, int partition
 			STps->drv_block = STps->drv_file = 0;
 		result = 0;
 	}
-
+out:
 	st_release_request(SRpnt);
 	SRpnt = NULL;
 
