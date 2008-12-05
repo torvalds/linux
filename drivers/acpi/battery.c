@@ -173,19 +173,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 		val->intval = battery->voltage_now * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = battery->current_now;
-		if (battery->power_unit) {
-			val->intval *= 1000;
-		} else {
-			/*
-			 * If power units are mW, convert to mA by dividing by
-			 * current voltage.
-			 */
-			if (battery->voltage_now)
-				val->intval /= battery->voltage_now;
-			else
-				val->intval = -1;
-		}
+		val->intval = battery->current_now * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
