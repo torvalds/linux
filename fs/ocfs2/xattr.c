@@ -273,6 +273,15 @@ static int ocfs2_read_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 	rc = ocfs2_read_blocks(bucket->bu_inode, xb_blkno,
 			       bucket->bu_blocks, bucket->bu_bhs, 0,
 			       NULL);
+	if (!rc) {
+		rc = ocfs2_validate_meta_ecc_bhs(bucket->bu_inode->i_sb,
+						 bucket->bu_bhs,
+						 bucket->bu_blocks,
+						 &bucket_xh(bucket)->xh_check);
+		if (rc)
+			mlog_errno(rc);
+	}
+
 	if (rc)
 		ocfs2_xattr_bucket_relse(bucket);
 	return rc;
@@ -300,6 +309,10 @@ static void ocfs2_xattr_bucket_journal_dirty(handle_t *handle,
 					     struct ocfs2_xattr_bucket *bucket)
 {
 	int i;
+
+	ocfs2_compute_meta_ecc_bhs(bucket->bu_inode->i_sb,
+				   bucket->bu_bhs, bucket->bu_blocks,
+				   &bucket_xh(bucket)->xh_check);
 
 	for (i = 0; i < bucket->bu_blocks; i++)
 		ocfs2_journal_dirty(handle, bucket->bu_bhs[i]);
