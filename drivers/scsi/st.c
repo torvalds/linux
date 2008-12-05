@@ -2852,12 +2852,15 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		return (-ENOSYS);
 	}
 
-	SRpnt = st_do_scsi(NULL, STp, cmd, datalen, direction,
-			   timeout, MAX_RETRIES, 1);
+	SRpnt = st_allocate_request(STp);
 	if (!SRpnt)
 		return (STp->buffer)->syscall_result;
 
-	ioctl_result = (STp->buffer)->syscall_result;
+	ioctl_result = st_scsi_kern_execute(SRpnt, cmd, direction,
+					    STp->buffer->b_data, datalen,
+					    timeout, MAX_RETRIES);
+	if (!ioctl_result)
+		ioctl_result = (STp->buffer)->syscall_result;
 
 	if (!ioctl_result) {	/* SCSI command successful */
 		st_release_request(SRpnt);
