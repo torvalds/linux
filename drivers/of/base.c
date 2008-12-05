@@ -499,8 +499,8 @@ EXPORT_SYMBOL_GPL(of_modalias_node);
  * @list_name:	property name that contains a list
  * @cells_name:	property name that specifies phandles' arguments count
  * @index:	index of a phandle to parse out
- * @out_node:	pointer to device_node struct pointer (will be filled)
- * @out_args:	pointer to arguments pointer (will be filled)
+ * @out_node:	optional pointer to device_node struct pointer (will be filled)
+ * @out_args:	optional pointer to arguments pointer (will be filled)
  *
  * This function is useful to parse lists of phandles and their arguments.
  * Returns 0 on success and fills out_node and out_args, on error returns
@@ -534,7 +534,7 @@ int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
 	int size;
 	int cur_index = 0;
 	struct device_node *node = NULL;
-	const void *args;
+	const void *args = NULL;
 
 	list = of_get_property(np, list_name, &size);
 	if (!list) {
@@ -580,16 +580,26 @@ next:
 
 		of_node_put(node);
 		node = NULL;
+		args = NULL;
 		cur_index++;
 	}
 
 	if (!node) {
-		ret = -ENOENT;
+		/*
+		 * args w/o node indicates that the loop above has stopped at
+		 * the 'hole' cell. Report this differently.
+		 */
+		if (args)
+			ret = -EEXIST;
+		else
+			ret = -ENOENT;
 		goto err0;
 	}
 
-	*out_node = node;
-	*out_args = args;
+	if (out_node)
+		*out_node = node;
+	if (out_args)
+		*out_args = args;
 
 	return 0;
 err1:
