@@ -113,7 +113,7 @@ static int spi_execute(struct scsi_device *sdev, const void *cmd,
 				      REQ_FAILFAST_TRANSPORT |
 				      REQ_FAILFAST_DRIVER,
 				      NULL);
-		if (result & DRIVER_SENSE) {
+		if (driver_byte(result) & DRIVER_SENSE) {
 			struct scsi_sense_hdr sshdr_tmp;
 			if (!sshdr)
 				sshdr = &sshdr_tmp;
