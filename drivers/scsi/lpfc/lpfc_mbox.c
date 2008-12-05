@@ -1198,16 +1198,11 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				    sizeof(*phba->host_gp));
 	}
 
-	/* Setup Port Group ring pointer */
-	if (phba->sli3_options & LPFC_SLI3_INB_ENABLED) {
-		pgp_offset = offsetof(struct lpfc_sli2_slim,
-				      mbx.us.s3_inb_pgp.port);
-		phba->hbq_get = phba->mbox->us.s3_inb_pgp.hbq_get;
-	} else if (phba->sli_rev == 3) {
+	/* Setup Port Group offset */
+	if (phba->sli_rev == 3)
 		pgp_offset = offsetof(struct lpfc_sli2_slim,
 				      mbx.us.s3_pgp.port);
-		phba->hbq_get = phba->mbox->us.s3_pgp.hbq_get;
-	} else
+	else
 		pgp_offset = offsetof(struct lpfc_sli2_slim, mbx.us.s2.port);
 	pdma_addr = phba->slim2p.phys + pgp_offset;
 	phba->pcb->pgpAddrHigh = putPaddrHigh(pdma_addr);
