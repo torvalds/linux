@@ -117,8 +117,8 @@ static DEFINE_SPINLOCK(sparse_irq_lock);
 
 struct irq_desc *irq_desc_ptrs[NR_IRQS] __read_mostly;
 
-static struct irq_desc irq_desc_legacy[16] __cacheline_aligned_in_smp = {
-	[0 ... 15] = {
+static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_smp = {
+	[0 ... NR_IRQS_LEGACY-1] = {
 		.irq	    = -1,
 		.status	    = IRQ_DISABLED,
 		.chip	    = &no_irq_chip,
@@ -132,7 +132,7 @@ static struct irq_desc irq_desc_legacy[16] __cacheline_aligned_in_smp = {
 };
 
 /* FIXME: use bootmem alloc ...*/
-static unsigned int kstat_irqs_legacy[16][NR_CPUS];
+static unsigned int kstat_irqs_legacy[NR_IRQS_LEGACY][NR_CPUS];
 
 void __init early_irq_init(void)
 {

@@ -847,7 +847,7 @@ EXPORT_SYMBOL(IO_APIC_get_PCI_irq_vector);
  */
 static int EISA_ELCR(unsigned int irq)
 {
-	if (irq < 16) {
+	if (irq < NR_IRQS_LEGACY) {
 		unsigned int port = 0x4d0 + (irq >> 3);
 		return (inb(port) >> (irq & 7)) & 1;
 	}
@@ -1388,7 +1388,7 @@ static void setup_IO_APIC_irq(int apic, int pin, unsigned int irq,
 	}
 
 	ioapic_register_intr(irq, trigger);
-	if (irq < 16)
+	if (irq < NR_IRQS_LEGACY)
 		disable_8259A_irq(irq);
 
 	ioapic_write_entry(apic, pin, entry);
@@ -2080,7 +2080,7 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 	struct irq_cfg *cfg;
 
 	spin_lock_irqsave(&ioapic_lock, flags);
-	if (irq < 16) {
+	if (irq < NR_IRQS_LEGACY) {
 		disable_8259A_irq(irq);
 		if (i8259A_irq_pending(irq))
 			was_pending = 1;
@@ -2504,7 +2504,7 @@ static inline void init_IO_APIC_traps(void)
 			 * so default to an old-fashioned 8259
 			 * interrupt if we can..
 			 */
-			if (irq < 16)
+			if (irq < NR_IRQS_LEGACY)
 				make_8259A_irq(irq);
 			else
 				/* Strange. Oh, well.. */
@@ -3794,7 +3794,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int triggering, int p
 	/*
 	 * IRQs < 16 are already in the irq_2_pin[] map
 	 */
-	if (irq >= 16) {
+	if (irq >= NR_IRQS_LEGACY) {
 		cfg = desc->chip_data;
 		add_pin_to_irq_cpu(irq, cpu, ioapic, pin);
 	}
