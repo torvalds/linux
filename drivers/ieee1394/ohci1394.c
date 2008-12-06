@@ -3381,6 +3381,7 @@ static int ohci1394_pci_suspend(struct pci_dev *dev, pm_message_t state)
 	ohci_devctl(ohci->host, RESET_BUS, LONG_RESET_NO_FORCE_ROOT);
 	ohci_soft_reset(ohci);
 
+	free_irq(dev->irq, ohci);
 	err = pci_save_state(dev);
 	if (err) {
 		PRINT(KERN_ERR, "pci_save_state failed with %d", err);
@@ -3421,6 +3422,13 @@ static int ohci1394_pci_resume(struct pci_dev *dev)
 	reg_write(ohci, OHCI1394_IntEventClear, 0xffffffff);
 	reg_write(ohci, OHCI1394_IntMaskClear, 0xffffffff);
 	mdelay(50);
+
+	if (request_irq(dev->irq, ohci_irq_handler, IRQF_SHARED,
+			OHCI1394_DRIVER_NAME, ohci)) {
+		PRINT_G(KERN_ERR, "Failed to allocate interrupt %d", dev->irq);
+		return -EIO;
+	}
+
 	ohci_initialize(ohci);
 
 	hpsb_resume_host(ohci->host);
