@@ -17,6 +17,18 @@
 
 
 #define NLMDBG_FACILITY		NLMDBG_MONITOR
+#define NSM_PROGRAM		100024
+#define NSM_VERSION		1
+
+enum {
+	NSMPROC_NULL,
+	NSMPROC_STAT,
+	NSMPROC_MON,
+	NSMPROC_UNMON,
+	NSMPROC_UNMON_ALL,
+	NSMPROC_SIMU_CRASH,
+	NSMPROC_NOTIFY,
+};
 
 struct nsm_args {
 	__be32			addr;		/* remote address */
@@ -42,7 +54,7 @@ static struct rpc_program	nsm_program;
 int				nsm_local_state;
 
 /*
- * Common procedure for SM_MON/SM_UNMON calls
+ * Common procedure for NSMPROC_MON/NSMPROC_UNMON calls
  */
 static int
 nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
@@ -111,7 +123,7 @@ int nsm_monitor(const struct nlm_host *host)
 	 */
 	nsm->sm_mon_name = nsm_use_hostnames ? nsm->sm_name : nsm->sm_addrbuf;
 
-	status = nsm_mon_unmon(nsm, SM_MON, &res);
+	status = nsm_mon_unmon(nsm, NSMPROC_MON, &res);
 	if (res.status != 0)
 		status = -EIO;
 	if (status < 0)
@@ -139,7 +151,7 @@ void nsm_unmonitor(const struct nlm_host *host)
 	 && nsm->sm_monitored && !nsm->sm_sticky) {
 		dprintk("lockd: nsm_unmonitor(%s)\n", nsm->sm_name);
 
-		status = nsm_mon_unmon(nsm, SM_UNMON, &res);
+		status = nsm_mon_unmon(nsm, NSMPROC_UNMON, &res);
 		if (res.status != 0)
 			status = -EIO;
 		if (status < 0)
@@ -167,7 +179,7 @@ nsm_create(void)
 		.addrsize	= sizeof(sin),
 		.servername	= "localhost",
 		.program	= &nsm_program,
-		.version	= SM_VERSION,
+		.version	= NSM_VERSION,
 		.authflavor	= RPC_AUTH_NULL,
 	};
 
@@ -201,7 +213,7 @@ static __be32 *xdr_encode_mon_name(__be32 *p, struct nsm_args *argp)
 /*
  * The "my_id" argument specifies the hostname and RPC procedure
  * to be called when the status manager receives notification
- * (via the SM_NOTIFY call) that the state of host "mon_name"
+ * (via the NLMPROC_SM_NOTIFY call) that the state of host "mon_name"
  * has changed.
  */
 static __be32 *xdr_encode_my_id(__be32 *p, struct nsm_args *argp)
@@ -219,7 +231,7 @@ static __be32 *xdr_encode_my_id(__be32 *p, struct nsm_args *argp)
 
 /*
  * The "mon_id" argument specifies the non-private arguments
- * of an SM_MON or SM_UNMON call.
+ * of an NSMPROC_MON or NSMPROC_UNMON call.
  */
 static __be32 *xdr_encode_mon_id(__be32 *p, struct nsm_args *argp)
 {
@@ -232,8 +244,8 @@ static __be32 *xdr_encode_mon_id(__be32 *p, struct nsm_args *argp)
 
 /*
  * The "priv" argument may contain private information required
- * by the SM_MON call. This information will be supplied in the
- * SM_NOTIFY call.
+ * by the NSMPROC_MON call. This information will be supplied in the
+ * NLMPROC_SM_NOTIFY call.
  *
  * Linux provides the raw IP address of the monitored host,
  * left in network byte order.
@@ -300,22 +312,22 @@ xdr_decode_stat(struct rpc_rqst *rqstp, __be32 *p, struct nsm_res *resp)
 #define SM_unmonres_sz	1
 
 static struct rpc_procinfo	nsm_procedures[] = {
-[SM_MON] = {
-		.p_proc		= SM_MON,
+[NSMPROC_MON] = {
+		.p_proc		= NSMPROC_MON,
 		.p_encode	= (kxdrproc_t) xdr_encode_mon,
 		.p_decode	= (kxdrproc_t) xdr_decode_stat_res,
 		.p_arglen	= SM_mon_sz,
 		.p_replen	= SM_monres_sz,
-		.p_statidx	= SM_MON,
+		.p_statidx	= NSMPROC_MON,
 		.p_name		= "MONITOR",
 	},
-[SM_UNMON] = {
-		.p_proc		= SM_UNMON,
+[NSMPROC_UNMON] = {
+		.p_proc		= NSMPROC_UNMON,
 		.p_encode	= (kxdrproc_t) xdr_encode_unmon,
 		.p_decode	= (kxdrproc_t) xdr_decode_stat,
 		.p_arglen	= SM_mon_id_sz,
 		.p_replen	= SM_unmonres_sz,
-		.p_statidx	= SM_UNMON,
+		.p_statidx	= NSMPROC_UNMON,
 		.p_name		= "UNMONITOR",
 	},
 };
@@ -334,7 +346,7 @@ static struct rpc_stat		nsm_stats;
 
 static struct rpc_program	nsm_program = {
 		.name		= "statd",
-		.number		= SM_PROGRAM,
+		.number		= NSM_PROGRAM,
 		.nrvers		= ARRAY_SIZE(nsm_version),
 		.version	= nsm_version,
 		.stats		= &nsm_stats
