@@ -1252,7 +1252,7 @@ static void strip_write_some_more(struct tty_struct *tty)
 #endif
 	} else {		/* Else start transmission of another packet */
 
-		tty->flags &= ~(1 << TTY_DO_WRITE_WAKEUP);
+		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 		strip_unlock(strip_info);
 	}
 }
@@ -1455,8 +1455,7 @@ static void strip_send(struct strip *strip_info, struct sk_buff *skb)
 	 */
 	strip_info->tx_head = strip_info->tx_buff;
 	strip_info->tx_left = ptr - strip_info->tx_buff;
-	strip_info->tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
-
+	set_bit(TTY_DO_WRITE_WAKEUP, &strip_info->tty->flags);
 	/*
 	 * 4. Debugging check to make sure we're not overflowing the buffer.
 	 */
@@ -2454,8 +2453,7 @@ static int strip_close_low(struct net_device *dev)
 
 	if (strip_info->tty == NULL)
 		return -EBUSY;
-	strip_info->tty->flags &= ~(1 << TTY_DO_WRITE_WAKEUP);
-
+	clear_bit(TTY_DO_WRITE_WAKEUP, &strip_info->tty->flags);
 	netif_stop_queue(dev);
 
 	/*
