@@ -247,6 +247,12 @@ extern void	  nlm_host_rebooted(const struct sockaddr_in *, const char *,
 int		  nsm_monitor(const struct nlm_host *host);
 void		  nsm_unmonitor(const struct nlm_host *host);
 
+struct nsm_handle *nsm_find(const struct sockaddr *sap, const size_t salen,
+					const char *hostname,
+					const size_t hostname_len,
+					const int create);
+void		  nsm_release(struct nsm_handle *nsm);
+
 /*
  * This is used in garbage collection and resource reclaim
  * A return value != 0 means destroy the lock/block/share

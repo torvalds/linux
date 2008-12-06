@@ -47,11 +47,50 @@ struct nsm_res {
 static struct rpc_clnt *	nsm_create(void);
 
 static struct rpc_program	nsm_program;
+static				LIST_HEAD(nsm_handles);
+static				DEFINE_SPINLOCK(nsm_lock);
 
 /*
  * Local NSM state
  */
 int				nsm_local_state;
+
+static void nsm_display_ipv4_address(const struct sockaddr *sap, char *buf,
+				     const size_t len)
+{
+	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
+	snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
+}
+
+static void nsm_display_ipv6_address(const struct sockaddr *sap, char *buf,
+				     const size_t len)
+{
+	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
+
+	if (ipv6_addr_v4mapped(&sin6->sin6_addr))
+		snprintf(buf, len, "%pI4", &sin6->sin6_addr.s6_addr32[3]);
+	else if (sin6->sin6_scope_id != 0)
+		snprintf(buf, len, "%pI6%%%u", &sin6->sin6_addr,
+				sin6->sin6_scope_id);
+	else
+		snprintf(buf, len, "%pI6", &sin6->sin6_addr);
+}
+
+static void nsm_display_address(const struct sockaddr *sap,
+				char *buf, const size_t len)
+{
+	switch (sap->sa_family) {
+	case AF_INET:
+		nsm_display_ipv4_address(sap, buf, len);
+		break;
+	case AF_INET6:
+		nsm_display_ipv6_address(sap, buf, len);
+		break;
+	default:
+		snprintf(buf, len, "unsupported address family");
+		break;
+	}
+}
 
 /*
  * Common procedure for NSMPROC_MON/NSMPROC_UNMON calls
@@ -159,6 +198,100 @@ void nsm_unmonitor(const struct nlm_host *host)
 					nsm->sm_name);
 		else
 			nsm->sm_monitored = 0;
+	}
+}
+
+/**
+ * nsm_find - Find or create a cached nsm_handle
+ * @sap: pointer to socket address of handle to find
+ * @salen: length of socket address
+ * @hostname: pointer to C string containing hostname to find
+ * @hostname_len: length of C string
+ * @create: one means create new handle if not found in cache
+ *
+ * Behavior is modulated by the global nsm_use_hostnames variable
+ * and by the @create argument.
+ *
+ * Returns a cached nsm_handle after bumping its ref count, or if
+ * @create is set, returns a fresh nsm_handle if a handle that
+ * matches @sap and/or @hostname cannot be found in the handle cache.
+ * Returns NULL if an error occurs.
+ */
+struct nsm_handle *nsm_find(const struct sockaddr *sap, const size_t salen,
+			    const char *hostname, const size_t hostname_len,
+			    const int create)
+{
+	struct nsm_handle *nsm = NULL;
+	struct nsm_handle *pos;
+
+	if (!sap)
+		return NULL;
+
+	if (hostname && memchr(hostname, '/', hostname_len) != NULL) {
+		if (printk_ratelimit()) {
+			printk(KERN_WARNING "Invalid hostname \"%.*s\" "
+					    "in NFS lock request\n",
+				(int)hostname_len, hostname);
+		}
+		return NULL;
+	}
+
+retry:
+	spin_lock(&nsm_lock);
+	list_for_each_entry(pos, &nsm_handles, sm_link) {
+
+		if (hostname && nsm_use_hostnames) {
+			if (strlen(pos->sm_name) != hostname_len
+			 || memcmp(pos->sm_name, hostname, hostname_len))
+				continue;
+		} else if (!nlm_cmp_addr(nsm_addr(pos), sap))
+			continue;
+		atomic_inc(&pos->sm_count);
+		kfree(nsm);
+		nsm = pos;
+		goto found;
+	}
+	if (nsm) {
+		list_add(&nsm->sm_link, &nsm_handles);
+		goto found;
+	}
+	spin_unlock(&nsm_lock);
+
+	if (!create)
+		return NULL;
+
+	nsm = kzalloc(sizeof(*nsm) + hostname_len + 1, GFP_KERNEL);
+	if (nsm == NULL)
+		return NULL;
+
+	memcpy(nsm_addr(nsm), sap, salen);
+	nsm->sm_addrlen = salen;
+	nsm->sm_name = (char *) (nsm + 1);
+	memcpy(nsm->sm_name, hostname, hostname_len);
+	nsm->sm_name[hostname_len] = '\0';
+	nsm_display_address((struct sockaddr *)&nsm->sm_addr,
+				nsm->sm_addrbuf, sizeof(nsm->sm_addrbuf));
+	atomic_set(&nsm->sm_count, 1);
+	goto retry;
+
+found:
+	spin_unlock(&nsm_lock);
+	return nsm;
+}
+
+/**
+ * nsm_release - Release an NSM handle
+ * @nsm: pointer to handle to be released
+ *
+ */
+void nsm_release(struct nsm_handle *nsm)
+{
+	if (!nsm)
+		return;
+	if (atomic_dec_and_lock(&nsm->sm_count, &nsm_lock)) {
+		list_del(&nsm->sm_link);
+		spin_unlock(&nsm_lock);
+		kfree(nsm);
 	}
 }
 
