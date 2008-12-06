@@ -85,7 +85,7 @@ int prom_getsibling(int node)
 /* Return the length in bytes of property 'prop' at node 'node'.
  * Return -1 on error.
  */
-int prom_getproplen(int node, char *prop)
+int prom_getproplen(int node, const char *prop)
 {
 	int ret;
 	unsigned long flags;
@@ -104,7 +104,7 @@ int prom_getproplen(int node, char *prop)
  * 'buffer' which has a size of 'bufsize'.  If the acquisition
  * was successful the length will be returned, else -1 is returned.
  */
-int prom_getproperty(int node, char *prop, char *buffer, int bufsize)
+int prom_getproperty(int node, const char *prop, char *buffer, int bufsize)
 {
 	int plen, ret;
 	unsigned long flags;
@@ -303,7 +303,7 @@ int prom_node_has_property(int node, char *prop)
 /* Set property 'pname' at node 'node' to value 'value' which has a length
  * of 'size' bytes.  Return the number of bytes the prom accepted.
  */
-int prom_setprop(int node, char *pname, char *value, int size)
+int prom_setprop(int node, const char *pname, char *value, int size)
 {
 	unsigned long flags;
 	int ret;
