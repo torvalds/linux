@@ -1237,6 +1237,12 @@ static int tcp_check_dsack(struct sock *sk, struct sk_buff *ack_skb,
 	return dup_sack;
 }
 
+struct tcp_sacktag_state {
+	int reord;
+	int fack_count;
+	int flag;
+};
+
 /* Check if skb is fully within the SACK block. In presence of GSO skbs,
  * the incoming SACK may not exactly match but we can find smaller MSS
  * aligned portion of it that matches. Therefore we might need to fragment
@@ -1290,25 +1296,25 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 	return in_sack;
 }
 
-static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
-			   int *reord, int dup_sack, int fack_count,
-			   u8 *sackedto, int pcount)
+static u8 tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
+			  struct tcp_sacktag_state *state,
+			  int dup_sack, int pcount)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u8 sacked = TCP_SKB_CB(skb)->sacked;
-	int flag = 0;
+	int fack_count = state->fack_count;
 
 	/* Account D-SACK for retransmitted packet. */
 	if (dup_sack && (sacked & TCPCB_RETRANS)) {
 		if (after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
 			tp->undo_retrans--;
 		if (sacked & TCPCB_SACKED_ACKED)
-			*reord = min(fack_count, *reord);
+			state->reord = min(fack_count, state->reord);
 	}
 
 	/* Nothing to do; acked frame is about to be dropped (was ACKed). */
 	if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
-		return flag;
+		return sacked;
 
 	if (!(sacked & TCPCB_SACKED_ACKED)) {
 		if (sacked & TCPCB_SACKED_RETRANS) {
@@ -1317,7 +1323,7 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 			 * that retransmission is still in flight.
 			 */
 			if (sacked & TCPCB_LOST) {
-				*sackedto &= ~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
+				sacked &= ~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
 				tp->lost_out -= pcount;
 				tp->retrans_out -= pcount;
 			}
@@ -1328,21 +1334,22 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 				 */
 				if (before(TCP_SKB_CB(skb)->seq,
 					   tcp_highest_sack_seq(tp)))
-					*reord = min(fack_count, *reord);
+					state->reord = min(fack_count,
+							   state->reord);
 
 				/* SACK enhanced F-RTO (RFC4138; Appendix B) */
 				if (!after(TCP_SKB_CB(skb)->end_seq, tp->frto_highmark))
-					flag |= FLAG_ONLY_ORIG_SACKED;
+					state->flag |= FLAG_ONLY_ORIG_SACKED;
 			}
 
 			if (sacked & TCPCB_LOST) {
-				*sackedto &= ~TCPCB_LOST;
+				sacked &= ~TCPCB_LOST;
 				tp->lost_out -= pcount;
 			}
 		}
 
-		*sackedto |= TCPCB_SACKED_ACKED;
-		flag |= FLAG_DATA_SACKED;
+		sacked |= TCPCB_SACKED_ACKED;
+		state->flag |= FLAG_DATA_SACKED;
 		tp->sacked_out += pcount;
 
 		fack_count += pcount;
@@ -1361,21 +1368,20 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 	 * frames and clear it. undo_retrans is decreased above, L|R frames
 	 * are accounted above as well.
 	 */
-	if (dup_sack && (*sackedto & TCPCB_SACKED_RETRANS)) {
-		*sackedto &= ~TCPCB_SACKED_RETRANS;
+	if (dup_sack && (sacked & TCPCB_SACKED_RETRANS)) {
+		sacked &= ~TCPCB_SACKED_RETRANS;
 		tp->retrans_out -= pcount;
 	}
 
-	return flag;
+	return sacked;
 }
 
 static int tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
-			   struct sk_buff *skb, unsigned int pcount,
-			   int shifted, int fack_count, int *reord,
-			   int *flag, int mss)
+			   struct sk_buff *skb,
+			   struct tcp_sacktag_state *state,
+			   unsigned int pcount, int shifted, int mss)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	u8 dummy_sacked = TCP_SKB_CB(skb)->sacked;	/* We discard results */
 
 	BUG_ON(!pcount);
 
@@ -1407,8 +1413,8 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 		skb_shinfo(skb)->gso_type = 0;
 	}
 
-	*flag |= tcp_sacktag_one(skb, sk, reord, 0, fack_count, &dummy_sacked,
-				 pcount);
+	/* We discard results */
+	tcp_sacktag_one(skb, sk, state, 0, pcount);
 
 	/* Difference in this won't matter, both ACKed by the same cumul. ACK */
 	TCP_SKB_CB(prev)->sacked |= (TCP_SKB_CB(skb)->sacked & TCPCB_EVER_RETRANS);
@@ -1460,9 +1466,9 @@ static int skb_can_shift(struct sk_buff *skb)
  * skb.
  */
 static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
+					  struct tcp_sacktag_state *state,
 					  u32 start_seq, u32 end_seq,
-					  int dup_sack, int *fack_count,
-					  int *reord, int *flag)
+					  int dup_sack)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *prev;
@@ -1559,8 +1565,7 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 
 	if (!skb_shift(prev, skb, len))
 		goto fallback;
-	if (!tcp_shifted_skb(sk, prev, skb, pcount, len, *fack_count, reord,
-			     flag, mss))
+	if (!tcp_shifted_skb(sk, prev, skb, state, pcount, len, mss))
 		goto out;
 
 	/* Hole filled allows collapsing with the next as well, this is very
@@ -1579,12 +1584,12 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 	len = skb->len;
 	if (skb_shift(prev, skb, len)) {
 		pcount += tcp_skb_pcount(skb);
-		tcp_shifted_skb(sk, prev, skb, tcp_skb_pcount(skb), len,
-				*fack_count, reord, flag, mss);
+		tcp_shifted_skb(sk, prev, skb, state, tcp_skb_pcount(skb), len,
+				mss);
 	}
 
 out:
-	*fack_count += pcount;
+	state->fack_count += pcount;
 	return prev;
 
 noop:
@@ -1597,9 +1602,9 @@ fallback:
 
 static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 					struct tcp_sack_block *next_dup,
+					struct tcp_sacktag_state *state,
 					u32 start_seq, u32 end_seq,
-					int dup_sack_in, int *fack_count,
-					int *reord, int *flag)
+					int dup_sack_in)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *tmp;
@@ -1629,9 +1634,8 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 		 * so not even _safe variant of the loop is enough.
 		 */
 		if (in_sack <= 0) {
-			tmp = tcp_shift_skb_data(sk, skb, start_seq,
-						 end_seq, dup_sack,
-						 fack_count, reord, flag);
+			tmp = tcp_shift_skb_data(sk, skb, state,
+						 start_seq, end_seq, dup_sack);
 			if (tmp != NULL) {
 				if (tmp != skb) {
 					skb = tmp;
@@ -1650,17 +1654,17 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 			break;
 
 		if (in_sack) {
-			*flag |= tcp_sacktag_one(skb, sk, reord, dup_sack,
-						 *fack_count,
-						 &(TCP_SKB_CB(skb)->sacked),
-						 tcp_skb_pcount(skb));
+			TCP_SKB_CB(skb)->sacked = tcp_sacktag_one(skb, sk,
+								  state,
+								  dup_sack,
+								  tcp_skb_pcount(skb));
 
 			if (!before(TCP_SKB_CB(skb)->seq,
 				    tcp_highest_sack_seq(tp)))
 				tcp_advance_highest_sack(sk, skb);
 		}
 
-		*fack_count += tcp_skb_pcount(skb);
+		state->fack_count += tcp_skb_pcount(skb);
 	}
 	return skb;
 }
@@ -1669,7 +1673,8 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
  * a normal way
  */
 static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
-					u32 skip_to_seq, int *fack_count)
+					struct tcp_sacktag_state *state,
+					u32 skip_to_seq)
 {
 	tcp_for_write_queue_from(skb, sk) {
 		if (skb == tcp_send_head(sk))
@@ -1678,7 +1683,7 @@ static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
 		if (after(TCP_SKB_CB(skb)->end_seq, skip_to_seq))
 			break;
 
-		*fack_count += tcp_skb_pcount(skb);
+		state->fack_count += tcp_skb_pcount(skb);
 	}
 	return skb;
 }
@@ -1686,18 +1691,17 @@ static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
 static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
 						struct sock *sk,
 						struct tcp_sack_block *next_dup,
-						u32 skip_to_seq,
-						int *fack_count, int *reord,
-						int *flag)
+						struct tcp_sacktag_state *state,
+						u32 skip_to_seq)
 {
 	if (next_dup == NULL)
 		return skb;
 
 	if (before(next_dup->start_seq, skip_to_seq)) {
-		skb = tcp_sacktag_skip(skb, sk, next_dup->start_seq, fack_count);
-		skb = tcp_sacktag_walk(skb, sk, NULL,
-				     next_dup->start_seq, next_dup->end_seq,
-				     1, fack_count, reord, flag);
+		skb = tcp_sacktag_skip(skb, sk, state, next_dup->start_seq);
+		skb = tcp_sacktag_walk(skb, sk, NULL, state,
+				       next_dup->start_seq, next_dup->end_seq,
+				       1);
 	}
 
 	return skb;
@@ -1719,15 +1723,16 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 	struct tcp_sack_block_wire *sp_wire = (struct tcp_sack_block_wire *)(ptr+2);
 	struct tcp_sack_block sp[TCP_NUM_SACKS];
 	struct tcp_sack_block *cache;
+	struct tcp_sacktag_state state;
 	struct sk_buff *skb;
 	int num_sacks = min(TCP_NUM_SACKS, (ptr[1] - TCPOLEN_SACK_BASE) >> 3);
 	int used_sacks;
-	int reord = tp->packets_out;
-	int flag = 0;
 	int found_dup_sack = 0;
-	int fack_count;
 	int i, j;
 	int first_sack_index;
+
+	state.flag = 0;
+	state.reord = tp->packets_out;
 
 	if (!tp->sacked_out) {
 		if (WARN_ON(tp->fackets_out))
@@ -1738,7 +1743,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 	found_dup_sack = tcp_check_dsack(sk, ack_skb, sp_wire,
 					 num_sacks, prior_snd_una);
 	if (found_dup_sack)
-		flag |= FLAG_DSACKING_ACK;
+		state.flag |= FLAG_DSACKING_ACK;
 
 	/* Eliminate too old ACKs, but take into
 	 * account more or less fresh ones, they can
@@ -1807,7 +1812,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 	}
 
 	skb = tcp_write_queue_head(sk);
-	fack_count = 0;
+	state.fack_count = 0;
 	i = 0;
 
 	if (!tp->sacked_out) {
@@ -1832,7 +1837,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 
 		/* Event "B" in the comment above. */
 		if (after(end_seq, tp->high_seq))
-			flag |= FLAG_DATA_LOST;
+			state.flag |= FLAG_DATA_LOST;
 
 		/* Skip too early cached blocks */
 		while (tcp_sack_cache_ok(tp, cache) &&
@@ -1845,13 +1850,13 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 
 			/* Head todo? */
 			if (before(start_seq, cache->start_seq)) {
-				skb = tcp_sacktag_skip(skb, sk, start_seq,
-						       &fack_count);
+				skb = tcp_sacktag_skip(skb, sk, &state,
+						       start_seq);
 				skb = tcp_sacktag_walk(skb, sk, next_dup,
+						       &state,
 						       start_seq,
 						       cache->start_seq,
-						       dup_sack, &fack_count,
-						       &reord, &flag);
+						       dup_sack);
 			}
 
 			/* Rest of the block already fully processed? */
@@ -1859,9 +1864,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 				goto advance_sp;
 
 			skb = tcp_maybe_skipping_dsack(skb, sk, next_dup,
-						       cache->end_seq,
-						       &fack_count, &reord,
-						       &flag);
+						       &state,
+						       cache->end_seq);
 
 			/* ...tail remains todo... */
 			if (tcp_highest_sack_seq(tp) == cache->end_seq) {
@@ -1869,13 +1873,12 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 				skb = tcp_highest_sack(sk);
 				if (skb == NULL)
 					break;
-				fack_count = tp->fackets_out;
+				state.fack_count = tp->fackets_out;
 				cache++;
 				goto walk;
 			}
 
-			skb = tcp_sacktag_skip(skb, sk, cache->end_seq,
-					       &fack_count);
+			skb = tcp_sacktag_skip(skb, sk, &state, cache->end_seq);
 			/* Check overlap against next cached too (past this one already) */
 			cache++;
 			continue;
@@ -1885,20 +1888,20 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 			skb = tcp_highest_sack(sk);
 			if (skb == NULL)
 				break;
-			fack_count = tp->fackets_out;
+			state.fack_count = tp->fackets_out;
 		}
-		skb = tcp_sacktag_skip(skb, sk, start_seq, &fack_count);
+		skb = tcp_sacktag_skip(skb, sk, &state, start_seq);
 
 walk:
-		skb = tcp_sacktag_walk(skb, sk, next_dup, start_seq, end_seq,
-				       dup_sack, &fack_count, &reord, &flag);
+		skb = tcp_sacktag_walk(skb, sk, next_dup, &state,
+				       start_seq, end_seq, dup_sack);
 
 advance_sp:
 		/* SACK enhanced FRTO (RFC4138, Appendix B): Clearing correct
 		 * due to in-order walk
 		 */
 		if (after(end_seq, tp->frto_highmark))
-			flag &= ~FLAG_ONLY_ORIG_SACKED;
+			state.flag &= ~FLAG_ONLY_ORIG_SACKED;
 
 		i++;
 	}
@@ -1915,10 +1918,10 @@ advance_sp:
 
 	tcp_verify_left_out(tp);
 
-	if ((reord < tp->fackets_out) &&
+	if ((state.reord < tp->fackets_out) &&
 	    ((icsk->icsk_ca_state != TCP_CA_Loss) || tp->undo_marker) &&
 	    (!tp->frto_highmark || after(tp->snd_una, tp->frto_highmark)))
-		tcp_update_reordering(sk, tp->fackets_out - reord, 0);
+		tcp_update_reordering(sk, tp->fackets_out - state.reord, 0);
 
 out:
 
@@ -1928,7 +1931,7 @@ out:
 	WARN_ON((int)tp->retrans_out < 0);
 	WARN_ON((int)tcp_packets_in_flight(tp) < 0);
 #endif
-	return flag;
+	return state.flag;
 }
 
 /* Limits sacked_out so that sum with lost_out isn't ever larger than
