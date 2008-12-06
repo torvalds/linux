@@ -444,31 +444,34 @@ void nlm_release_host(struct nlm_host *host)
 	}
 }
 
-/*
- * We were notified that the host indicated by address &sin
- * has rebooted.
- * Release all resources held by that peer.
+/**
+ * nlm_host_rebooted - Release all resources held by rebooted host
+ * @info: pointer to decoded results of NLM_SM_NOTIFY call
+ *
+ * We were notified that the specified host has rebooted.  Release
+ * all resources held by that peer.
  */
-void nlm_host_rebooted(const struct sockaddr_in *sin,
-				const char *hostname,
-				unsigned int hostname_len,
-				u32 new_state)
+void nlm_host_rebooted(const struct nlm_reboot *info)
 {
+	const struct sockaddr_in sin = {
+		.sin_family		= AF_INET,
+		.sin_addr.s_addr	= info->addr,
+	};
 	struct hlist_head *chain;
 	struct hlist_node *pos;
 	struct nsm_handle *nsm;
 	struct nlm_host	*host;
 
-	nsm = nsm_find((struct sockaddr *)sin, sizeof(*sin),
-			hostname, hostname_len, 0);
+	nsm = nsm_find((struct sockaddr *)&sin, sizeof(sin),
+			info->mon, info->len, 0);
 	if (nsm == NULL) {
 		dprintk("lockd: never saw rebooted peer '%.*s' before\n",
-				hostname_len, hostname);
+				info->len, info->mon);
 		return;
 	}
 
 	dprintk("lockd: nlm_host_rebooted(%.*s, %s)\n",
-			hostname_len, hostname, nsm->sm_addrbuf);
+			info->len, info->mon, nsm->sm_addrbuf);
 
 	/* When reclaiming locks on this peer, make sure that
 	 * we set up a new notification */
@@ -483,8 +486,8 @@ again:	mutex_lock(&nlm_host_mutex);
 	for (chain = nlm_hosts; chain < nlm_hosts + NLM_HOST_NRHASH; ++chain) {
 		hlist_for_each_entry(host, pos, chain, h_hash) {
 			if (host->h_nsmhandle == nsm
-			 && host->h_nsmstate != new_state) {
-				host->h_nsmstate = new_state;
+			 && host->h_nsmstate != info->state) {
+				host->h_nsmstate = info->state;
 				host->h_state++;
 
 				nlm_get_host(host);

@@ -239,8 +239,7 @@ void		  nlm_rebind_host(struct nlm_host *);
 struct nlm_host * nlm_get_host(struct nlm_host *);
 void		  nlm_release_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
-extern void	  nlm_host_rebooted(const struct sockaddr_in *, const char *,
-					unsigned int, u32);
+void		  nlm_host_rebooted(const struct nlm_reboot *);
 
 /*
  * Host monitoring
