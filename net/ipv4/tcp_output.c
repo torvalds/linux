@@ -1334,7 +1334,7 @@ static int tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb)
 
 	/* Defer for less than two clock ticks. */
 	if (tp->tso_deferred &&
-	    ((jiffies << 1) >> 1) - (tp->tso_deferred >> 1) > 1)
+	    (((u32)jiffies << 1) >> 1) - (tp->tso_deferred >> 1) > 1)
 		goto send_now;
 
 	in_flight = tcp_packets_in_flight(tp);
