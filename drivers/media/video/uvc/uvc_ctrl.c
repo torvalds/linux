@@ -543,9 +543,14 @@ static inline __u8 *uvc_ctrl_data(struct uvc_control *ctrl, int id)
 	return ctrl->data + id * ctrl->info->size;
 }
 
-static inline int uvc_get_bit(const __u8 *data, int bit)
+static inline int uvc_test_bit(const __u8 *data, int bit)
 {
 	return (data[bit >> 3] >> (bit & 7)) & 1;
+}
+
+static inline void uvc_clear_bit(__u8 *data, int bit)
+{
+	data[bit >> 3] &= ~(1 << (bit & 7));
 }
 
 /* Extract the bit string specified by mapping->offset and mapping->size
@@ -1306,6 +1311,51 @@ end:
 }
 
 /*
+ * Prune an entity of its bogus controls. This currently includes processing
+ * unit auto controls for which no corresponding manual control is available.
+ * Such auto controls make little sense if any, and are known to crash at
+ * least the SiGma Micro webcam.
+ */
+static void
+uvc_ctrl_prune_entity(struct uvc_entity *entity)
+{
+	static const struct {
+		u8 idx_manual;
+		u8 idx_auto;
+	} blacklist[] = {
+		{ 2, 11 }, /* Hue */
+		{ 6, 12 }, /* White Balance Temperature */
+		{ 7, 13 }, /* White Balance Component */
+	};
+
+	u8 *controls;
+	unsigned int size;
+	unsigned int i;
+
+	if (UVC_ENTITY_TYPE(entity) != VC_PROCESSING_UNIT)
+		return;
+
+	controls = entity->processing.bmControls;
+	size = entity->processing.bControlSize;
+
+	for (i = 0; i < ARRAY_SIZE(blacklist); ++i) {
+		if (blacklist[i].idx_auto >= 8 * size ||
+		    blacklist[i].idx_manual >= 8 * size)
+			continue;
+
+		if (!uvc_test_bit(controls, blacklist[i].idx_auto) ||
+		     uvc_test_bit(controls, blacklist[i].idx_manual))
+			continue;
+
+		uvc_trace(UVC_TRACE_CONTROL, "Auto control %u/%u has no "
+			"matching manual control, removing it.\n", entity->id,
+			blacklist[i].idx_auto);
+
+		uvc_clear_bit(controls, blacklist[i].idx_auto);
+	}
+}
+
+/*
  * Initialize device controls.
  */
 int uvc_ctrl_init_device(struct uvc_device *dev)
@@ -1331,6 +1381,9 @@ int uvc_ctrl_init_device(struct uvc_device *dev)
 			bControlSize = entity->camera.bControlSize;
 		}
 
+		if (dev->quirks & UVC_QUIRK_PRUNE_CONTROLS)
+			uvc_ctrl_prune_entity(entity);
+
 		for (i = 0; i < bControlSize; ++i)
 			ncontrols += hweight8(bmControls[i]);
 
@@ -1345,7 +1398,7 @@ int uvc_ctrl_init_device(struct uvc_device *dev)
 
 		ctrl = entity->controls;
 		for (i = 0; i < bControlSize * 8; ++i) {
-			if (uvc_get_bit(bmControls, i) == 0)
+			if (uvc_test_bit(bmControls, i) == 0)
 				continue;
 
 			ctrl->entity = entity;
