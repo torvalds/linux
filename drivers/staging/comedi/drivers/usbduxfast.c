@@ -1715,7 +1715,7 @@ static int usbduxfast_attach(comedi_device *dev, comedi_devconfig *it)
 	/* trying to upload the firmware into the chip */
 	if (comedi_aux_data(it->options, 0) &&
 		it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		read_firmware(usbduxfastsub,
+		read_firmware(&usbduxfastsub[index],
 			comedi_aux_data(it->options, 0),
 			it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
 	}
