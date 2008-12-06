@@ -410,11 +410,8 @@ static int wait_for_response(struct cifsSesInfo *ses,
 
 	for (;;) {
 		curr_timeout = timeout + jiffies;
-		wait_event(ses->server->response_q,
-			(!(midQ->midState == MID_REQUEST_SUBMITTED)) ||
-			time_after(jiffies, curr_timeout) ||
-			((ses->server->tcpStatus != CifsGood) &&
-			 (ses->server->tcpStatus != CifsNew)));
+		wait_event_timeout(ses->server->response_q,
+			midQ->midState != MID_REQUEST_SUBMITTED, timeout);
 
 		if (time_after(jiffies, curr_timeout) &&
 			(midQ->midState == MID_REQUEST_SUBMITTED) &&
