@@ -1062,44 +1062,48 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
 			receive_len, xid));
 		rc = -EIO;
-	} else {		/* rcvd frame is ok */
-
-		if (midQ->resp_buf && out_buf
-		    && (midQ->midState == MID_RESPONSE_RECEIVED)) {
-			out_buf->smb_buf_length = receive_len;
-			memcpy((char *)out_buf + 4,
-			       (char *)midQ->resp_buf + 4,
-			       receive_len);
-
-			dump_smb(out_buf, 92);
-			/* convert the length into a more usable form */
-			if ((receive_len > 24) &&
-			   (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
-					SECMODE_SIGN_ENABLED))) {
-				rc = cifs_verify_signature(out_buf,
-						&ses->server->mac_signing_key,
-						midQ->sequence_number+1);
-				if (rc) {
-					cERROR(1, ("Unexpected SMB signature"));
-					/* BB FIXME add code to kill session */
-				}
-			}
-
-			*pbytes_returned = out_buf->smb_buf_length;
-
-			/* BB special case reconnect tid and uid here? */
-			rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
-
-			/* convert ByteCount if necessary */
-			if (receive_len >= sizeof(struct smb_hdr) - 4
-			    /* do not count RFC1001 header */  +
-			    (2 * out_buf->WordCount) + 2 /* bcc */ )
-				BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
-		} else {
-			rc = -EIO;
-			cERROR(1, ("Bad MID state?"));
-		}
+		goto out;
 	}
+
+	/* rcvd frame is ok */
+
+	if (midQ->resp_buf && out_buf
+	    && (midQ->midState == MID_RESPONSE_RECEIVED)) {
+		out_buf->smb_buf_length = receive_len;
+		memcpy((char *)out_buf + 4,
+		       (char *)midQ->resp_buf + 4,
+		       receive_len);
+
+		dump_smb(out_buf, 92);
+		/* convert the length into a more usable form */
+		if ((receive_len > 24) &&
+		    (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
+					     SECMODE_SIGN_ENABLED))) {
+			rc = cifs_verify_signature(out_buf,
+						   &ses->server->mac_signing_key,
+						   midQ->sequence_number+1);
+			if (rc) {
+				cERROR(1, ("Unexpected SMB signature"));
+				/* BB FIXME add code to kill session */
+			}
+		}
+
+		*pbytes_returned = out_buf->smb_buf_length;
+
+		/* BB special case reconnect tid and uid here? */
+		rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
+
+		/* convert ByteCount if necessary */
+		if (receive_len >= sizeof(struct smb_hdr) - 4
+		    /* do not count RFC1001 header */  +
+		    (2 * out_buf->WordCount) + 2 /* bcc */ )
+			BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
+	} else {
+		rc = -EIO;
+		cERROR(1, ("Bad MID state?"));
+	}
+
+out:
 	DeleteMidQEntry(midQ);
 	if (rstart && rc == -EACCES)
 		return -ERESTARTSYS;
