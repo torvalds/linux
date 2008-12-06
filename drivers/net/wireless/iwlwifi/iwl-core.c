@@ -238,7 +238,6 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_hw_nic_init);
 
-
 void iwl_reset_qos(struct iwl_priv *priv)
 {
 	u16 cw_min = 15;

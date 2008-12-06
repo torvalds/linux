@@ -233,10 +233,8 @@ static void __exit b1isa_exit(void)
 	int i;
 
 	for (i = 0; i < MAX_CARDS; i++) {
-		if (!io[i])
-			break;
-
-		b1isa_remove(&isa_dev[i]);
+		if (isa_dev[i].resource[0].start)
+			b1isa_remove(&isa_dev[i]);
 	}
 	unregister_capi_driver(&capi_driver_b1isa);
 }
