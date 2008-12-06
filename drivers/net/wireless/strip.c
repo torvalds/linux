@@ -1234,7 +1234,7 @@ static void ResetRadio(struct strip *strip_info)
 
 static void strip_write_some_more(struct tty_struct *tty)
 {
-	struct strip *strip_info = (struct strip *) tty->disc_data;
+	struct strip *strip_info = tty->disc_data;
 
 	/* First make sure we're connected. */
 	if (!strip_info || strip_info->magic != STRIP_MAGIC ||
@@ -2259,7 +2259,7 @@ static void process_message(struct strip *strip_info)
 static void strip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		  char *fp, int count)
 {
-	struct strip *strip_info = (struct strip *) tty->disc_data;
+	struct strip *strip_info = tty->disc_data;
 	const unsigned char *end = cp + count;
 
 	if (!strip_info || strip_info->magic != STRIP_MAGIC
@@ -2594,7 +2594,7 @@ static struct strip *strip_alloc(void)
 
 static int strip_open(struct tty_struct *tty)
 {
-	struct strip *strip_info = (struct strip *) tty->disc_data;
+	struct strip *strip_info = tty->disc_data;
 
 	/*
 	 * First make sure we're not already connected.
@@ -2665,7 +2665,7 @@ static int strip_open(struct tty_struct *tty)
 
 static void strip_close(struct tty_struct *tty)
 {
-	struct strip *strip_info = (struct strip *) tty->disc_data;
+	struct strip *strip_info = tty->disc_data;
 
 	/*
 	 * First make sure we're connected.
@@ -2691,7 +2691,7 @@ static void strip_close(struct tty_struct *tty)
 static int strip_ioctl(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	struct strip *strip_info = (struct strip *) tty->disc_data;
+	struct strip *strip_info = tty->disc_data;
 
 	/*
 	 * First make sure we're connected.

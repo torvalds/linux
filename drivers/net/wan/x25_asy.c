@@ -257,7 +257,7 @@ static void x25_asy_encaps(struct x25_asy *sl, unsigned char *icp, int len)
 static void x25_asy_write_wakeup(struct tty_struct *tty)
 {
 	int actual;
-	struct x25_asy *sl = (struct x25_asy *) tty->disc_data;
+	struct x25_asy *sl = tty->disc_data;
 
 	/* First make sure we're connected. */
 	if (!sl || sl->magic != X25_ASY_MAGIC || !netif_running(sl->dev))
@@ -523,7 +523,7 @@ static int x25_asy_close(struct net_device *dev)
 static void x25_asy_receive_buf(struct tty_struct *tty,
 				const unsigned char *cp, char *fp, int count)
 {
-	struct x25_asy *sl = (struct x25_asy *) tty->disc_data;
+	struct x25_asy *sl = tty->disc_data;
 
 	if (!sl || sl->magic != X25_ASY_MAGIC || !netif_running(sl->dev))
 		return;
@@ -551,7 +551,7 @@ static void x25_asy_receive_buf(struct tty_struct *tty,
 
 static int x25_asy_open_tty(struct tty_struct *tty)
 {
-	struct x25_asy *sl = (struct x25_asy *) tty->disc_data;
+	struct x25_asy *sl = tty->disc_data;
 	int err;
 
 	if (tty->ops->write == NULL)
@@ -592,7 +592,7 @@ static int x25_asy_open_tty(struct tty_struct *tty)
  */
 static void x25_asy_close_tty(struct tty_struct *tty)
 {
-	struct x25_asy *sl = (struct x25_asy *) tty->disc_data;
+	struct x25_asy *sl = tty->disc_data;
 
 	/* First make sure we're connected. */
 	if (!sl || sl->magic != X25_ASY_MAGIC)
@@ -692,7 +692,7 @@ static void x25_asy_unesc(struct x25_asy *sl, unsigned char s)
 static int x25_asy_ioctl(struct tty_struct *tty, struct file *file,
 			 unsigned int cmd,  unsigned long arg)
 {
-	struct x25_asy *sl = (struct x25_asy *) tty->disc_data;
+	struct x25_asy *sl = tty->disc_data;
 
 	/* First make sure we're connected. */
 	if (!sl || sl->magic != X25_ASY_MAGIC)
