@@ -701,13 +701,10 @@ static inline void tcp_set_rto(struct sock *sk)
 	 *    all the algo is pure shit and should be replaced
 	 *    with correct one. It is exactly, which we pretend to do.
 	 */
-}
 
-/* NOTE: clamping at TCP_RTO_MIN is not required, current algo
- * guarantees that rto is higher.
- */
-static inline void tcp_bound_rto(struct sock *sk)
-{
+	/* NOTE: clamping at TCP_RTO_MIN is not required, current algo
+	 * guarantees that rto is higher.
+	 */
 	if (inet_csk(sk)->icsk_rto > TCP_RTO_MAX)
 		inet_csk(sk)->icsk_rto = TCP_RTO_MAX;
 }
@@ -928,7 +925,6 @@ static void tcp_init_metrics(struct sock *sk)
 		tp->mdev_max = tp->rttvar = max(tp->mdev, tcp_rto_min(sk));
 	}
 	tcp_set_rto(sk);
-	tcp_bound_rto(sk);
 	if (inet_csk(sk)->icsk_rto < TCP_TIMEOUT_INIT && !tp->rx_opt.saw_tstamp)
 		goto reset;
 	tp->snd_cwnd = tcp_init_cwnd(tp, dst);
@@ -3081,7 +3077,6 @@ static void tcp_ack_saw_tstamp(struct sock *sk, int flag)
 	tcp_rtt_estimator(sk, seq_rtt);
 	tcp_set_rto(sk);
 	inet_csk(sk)->icsk_backoff = 0;
-	tcp_bound_rto(sk);
 }
 
 static void tcp_ack_no_tstamp(struct sock *sk, u32 seq_rtt, int flag)
@@ -3101,7 +3096,6 @@ static void tcp_ack_no_tstamp(struct sock *sk, u32 seq_rtt, int flag)
 	tcp_rtt_estimator(sk, seq_rtt);
 	tcp_set_rto(sk);
 	inet_csk(sk)->icsk_backoff = 0;
-	tcp_bound_rto(sk);
 }
 
 static inline void tcp_ack_update_rtt(struct sock *sk, const int flag,
