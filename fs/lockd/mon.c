@@ -31,7 +31,7 @@ enum {
 };
 
 struct nsm_args {
-	__be32			addr;		/* remote address */
+	struct nsm_private	*priv;
 	u32			prog;		/* RPC callback info */
 	u32			vers;
 	u32			proc;
@@ -101,7 +101,7 @@ nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 	struct rpc_clnt	*clnt;
 	int		status;
 	struct nsm_args args = {
-		.addr		= nsm_addr_in(nsm)->sin_addr.s_addr,
+		.priv		= &nsm->sm_priv,
 		.prog		= NLM_PROGRAM,
 		.vers		= 3,
 		.proc		= NLMPROC_NSM_NOTIFY,
@@ -407,9 +407,6 @@ static int encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
  * The "priv" argument may contain private information required
  * by the NSMPROC_MON call. This information will be supplied in the
  * NLMPROC_SM_NOTIFY call.
- *
- * Linux provides the raw IP address of the monitored host,
- * left in network byte order.
  */
 static int encode_priv(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
@@ -418,10 +415,7 @@ static int encode_priv(struct xdr_stream *xdr, const struct nsm_args *argp)
 	p = xdr_reserve_space(xdr, SM_PRIV_SIZE);
 	if (unlikely(p == NULL))
 		return -EIO;
-	*p++ = argp->addr;
-	*p++ = 0;
-	*p++ = 0;
-	*p++ = 0;
+	xdr_encode_opaque_fixed(p, argp->priv->data, SM_PRIV_SIZE);
 	return 0;
 }
 
