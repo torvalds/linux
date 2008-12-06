@@ -224,9 +224,6 @@ struct nsm_handle *nsm_find(const struct sockaddr *sap, const size_t salen,
 	struct nsm_handle *nsm = NULL;
 	struct nsm_handle *pos;
 
-	if (!sap)
-		return NULL;
-
 	if (hostname && memchr(hostname, '/', hostname_len) != NULL) {
 		if (printk_ratelimit()) {
 			printk(KERN_WARNING "Invalid hostname \"%.*s\" "
