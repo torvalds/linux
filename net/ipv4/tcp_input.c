@@ -1575,11 +1575,10 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 		goto out;
 	skb = tcp_write_queue_next(sk, prev);
 
-	if (!skb_can_shift(skb))
-		goto out;
-	if (skb == tcp_send_head(sk))
-		goto out;
-	if ((TCP_SKB_CB(skb)->sacked & TCPCB_TAGBITS) != TCPCB_SACKED_ACKED)
+	if (!skb_can_shift(skb) ||
+	    (skb == tcp_send_head(sk)) ||
+	    ((TCP_SKB_CB(skb)->sacked & TCPCB_TAGBITS) != TCPCB_SACKED_ACKED) ||
+	    (mss != tcp_shift_mss(skb)))
 		goto out;
 
 	len = skb->len;
