@@ -85,6 +85,7 @@ struct nsm_handle {
 	size_t			sm_addrlen;
 	unsigned int		sm_monitored : 1,
 				sm_sticky : 1;	/* don't unmonitor */
+	struct nsm_private	sm_priv;
 	char			sm_addrbuf[NSM_ADDRBUF];
 };
 

@@ -10,7 +10,6 @@
 #define LINUX_LOCKD_SM_INTER_H
 
 #define SM_MAXSTRLEN	1024
-#define SM_PRIV_SIZE	16
 
 extern int	nsm_local_state;
 

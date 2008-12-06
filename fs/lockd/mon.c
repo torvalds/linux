@@ -201,6 +201,21 @@ void nsm_unmonitor(const struct nlm_host *host)
 	}
 }
 
+/*
+ * Construct a unique cookie to match this nsm_handle to this monitored
+ * host.  It is passed to the local rpc.statd via NSMPROC_MON, and
+ * returned via NLMPROC_SM_NOTIFY, in the "priv" field of these
+ * requests.
+ *
+ * Linux provides the raw IP address of the monitored host,
+ * left in network byte order.
+ */
+static void nsm_init_private(struct nsm_handle *nsm)
+{
+	__be32 *p = (__be32 *)&nsm->sm_priv.data;
+	*p = nsm_addr_in(nsm)->sin_addr.s_addr;
+}
+
 /**
  * nsm_find - Find or create a cached nsm_handle
  * @sap: pointer to socket address of handle to find
@@ -271,6 +286,7 @@ retry:
 	nsm->sm_name = (char *) (nsm + 1);
 	memcpy(nsm->sm_name, hostname, hostname_len);
 	nsm->sm_name[hostname_len] = '\0';
+	nsm_init_private(nsm);
 	nsm_display_address((struct sockaddr *)&nsm->sm_addr,
 				nsm->sm_addrbuf, sizeof(nsm->sm_addrbuf));
 	atomic_set(&nsm->sm_count, 1);
