@@ -288,8 +288,6 @@ found:
  */
 void nsm_release(struct nsm_handle *nsm)
 {
-	if (!nsm)
-		return;
 	if (atomic_dec_and_lock(&nsm->sm_count, &nsm_lock)) {
 		list_del(&nsm->sm_link);
 		spin_unlock(&nsm_lock);
