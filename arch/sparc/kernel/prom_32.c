@@ -196,7 +196,7 @@ static char * __init build_full_name(struct device_node *dp)
 	return n;
 }
 
-static char * __init get_one_property(phandle node, char *name)
+static char * __init get_one_property(phandle node, const char *name)
 {
 	char *buf = "<NULL>";
 	int len;

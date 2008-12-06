@@ -407,7 +407,7 @@ static char * __init get_one_property(phandle node, const char *name)
 	len = prom_getproplen(node, name);
 	if (len > 0) {
 		buf = prom_early_alloc(len);
-		prom_getproperty(node, name, buf, len);
+		len = prom_getproperty(node, name, buf, len);
 	}
 
 	return buf;
