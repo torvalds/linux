@@ -453,30 +453,14 @@ void nlm_release_host(struct nlm_host *host)
  */
 void nlm_host_rebooted(const struct nlm_reboot *info)
 {
-	__be32 *p = (__be32 *)&info->priv.data;
-	const struct sockaddr_in sin = {
-		.sin_family		= AF_INET,
-		.sin_addr.s_addr	= *p,
-	};
 	struct hlist_head *chain;
 	struct hlist_node *pos;
 	struct nsm_handle *nsm;
 	struct nlm_host	*host;
 
-	nsm = nsm_find((struct sockaddr *)&sin, sizeof(sin),
-			info->mon, info->len, 0);
-	if (nsm == NULL) {
-		dprintk("lockd: never saw rebooted peer '%.*s' before\n",
-				info->len, info->mon);
+	nsm = nsm_reboot_lookup(info);
+	if (unlikely(nsm == NULL))
 		return;
-	}
-
-	dprintk("lockd: nlm_host_rebooted(%.*s, %s)\n",
-			info->len, info->mon, nsm->sm_addrbuf);
-
-	/* When reclaiming locks on this peer, make sure that
-	 * we set up a new notification */
-	nsm->sm_monitored = 0;
 
 	/* Mark all hosts tied to this NSM state as having rebooted.
 	 * We run the loop repeatedly, because we drop the host table
