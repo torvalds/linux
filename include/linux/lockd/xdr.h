@@ -83,10 +83,10 @@ struct nlm_res {
  * statd callback when client has rebooted
  */
 struct nlm_reboot {
-	char *		mon;
-	unsigned int	len;
-	u32		state;
-	__be32		addr;
+	char			*mon;
+	unsigned int		len;
+	u32			state;
+	struct nsm_private	priv;
 };
 
 /*

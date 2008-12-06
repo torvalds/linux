@@ -453,9 +453,10 @@ void nlm_release_host(struct nlm_host *host)
  */
 void nlm_host_rebooted(const struct nlm_reboot *info)
 {
+	__be32 *p = (__be32 *)&info->priv.data;
 	const struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
-		.sin_addr.s_addr	= info->addr,
+		.sin_addr.s_addr	= *p,
 	};
 	struct hlist_head *chain;
 	struct hlist_node *pos;
