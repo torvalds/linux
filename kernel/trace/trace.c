@@ -44,13 +44,14 @@
 unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
 unsigned long __read_mostly	tracing_thresh;
 
-/* We need to change this state when a selftest is running.
+/*
+ * We need to change this state when a selftest is running.
  * A selftest will lurk into the ring-buffer to count the
  * entries inserted during the selftest although some concurrent
  * insertions into the ring-buffer such as ftrace_printk could occurred
  * at the same time, giving false positive or negative results.
  */
-static atomic_t tracing_selftest_running = ATOMIC_INIT(0);
+static bool __read_mostly tracing_selftest_running;
 
 /* For tracers that don't implement custom flags */
 static struct tracer_opt dummy_tracer_opt[] = {
@@ -574,6 +575,8 @@ int register_tracer(struct tracer *type)
 	unlock_kernel();
 	mutex_lock(&trace_types_lock);
 
+	tracing_selftest_running = true;
+
 	for (t = trace_types; t; t = t->next) {
 		if (strcmp(type->name, t->name) == 0) {
 			/* already found */
@@ -598,7 +601,6 @@ int register_tracer(struct tracer *type)
 		struct trace_array *tr = &global_trace;
 		int i;
 
-		atomic_set(&tracing_selftest_running, 1);
 		/*
 		 * Run a selftest on this tracer.
 		 * Here we reset the trace buffer, and set the current
@@ -613,7 +615,6 @@ int register_tracer(struct tracer *type)
 		/* the test is responsible for initializing and enabling */
 		pr_info("Testing tracer %s: ", type->name);
 		ret = type->selftest(type, tr);
-		atomic_set(&tracing_selftest_running, 0);
 		/* the test is responsible for resetting too */
 		current_trace = saved_tracer;
 		if (ret) {
@@ -635,6 +636,7 @@ int register_tracer(struct tracer *type)
 		max_tracer_type_len = len;
 
  out:
+	tracing_selftest_running = false;
 	mutex_unlock(&trace_types_lock);
 	lock_kernel();
 
@@ -3605,7 +3607,7 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	unsigned long flags, irq_flags;
 	int cpu, len = 0, size, pc;
 
-	if (tracing_disabled || atomic_read(&tracing_selftest_running))
+	if (tracing_disabled || tracing_selftest_running)
 		return 0;
 
 	pc = preempt_count();
