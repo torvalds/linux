@@ -32,8 +32,6 @@
 
 #include "prom.h"
 
-static unsigned int prom_early_allocated __initdata;
-
 void * __init prom_early_alloc(unsigned long size)
 {
 	unsigned long paddr = lmb_alloc(size, SMP_CACHE_BYTES);
@@ -401,11 +399,15 @@ struct device_node *of_find_node_by_cpuid(int cpuid)
 	return NULL;
 }
 
-static void __init of_fill_in_cpu_data(void)
+void __init of_fill_in_cpu_data(void)
 {
 	struct device_node *dp;
-	const char *mid_prop = get_mid_prop();
+	const char *mid_prop;
 
+	if (tlb_type == hypervisor)
+		return;
+
+	mid_prop = get_mid_prop();
 	ncpus_probed = 0;
 	for_each_node_by_type(dp, "cpu") {
 		int cpuid = of_getintprop_default(dp, mid_prop, -1);
@@ -533,7 +535,7 @@ EXPORT_SYMBOL(of_console_path);
 char *of_console_options;
 EXPORT_SYMBOL(of_console_options);
 
-static void __init of_console_init(void)
+void __init of_console_init(void)
 {
 	char *msg = "OF stdout device is: %s\n";
 	struct device_node *dp;
@@ -575,25 +577,4 @@ static void __init of_console_init(void)
 	of_console_device = dp;
 
 	printk(msg, of_console_path);
-}
-
-void __init prom_build_devicetree(void)
-{
-	struct device_node **nextp;
-
-	allnodes = prom_create_node(prom_root_node, NULL);
-	allnodes->path_component_name = "";
-	allnodes->full_name = "/";
-
-	nextp = &allnodes->allnext;
-	allnodes->child = prom_build_tree(allnodes,
-					  prom_getchild(allnodes->node),
-					  &nextp);
-	of_console_init();
-
-	printk("PROM: Built device tree with %u bytes of memory.\n",
-	       prom_early_allocated);
-
-	if (tlb_type != hypervisor)
-		of_fill_in_cpu_data();
 }

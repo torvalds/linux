@@ -27,8 +27,6 @@
 
 #include "prom.h"
 
-static unsigned int prom_early_allocated;
-
 void * __init prom_early_alloc(unsigned long size)
 {
 	void *ret;
@@ -179,7 +177,7 @@ EXPORT_SYMBOL(of_console_options);
 
 extern void restore_current(void);
 
-static void __init of_console_init(void)
+void __init of_console_init(void)
 {
 	char *msg = "OF stdout device is: %s\n";
 	struct device_node *dp;
@@ -297,20 +295,6 @@ static void __init of_console_init(void)
 	printk(msg, of_console_path);
 }
 
-void __init prom_build_devicetree(void)
+void __init of_fill_in_cpu_data(void)
 {
-	struct device_node **nextp;
-
-	allnodes = prom_create_node(prom_root_node, NULL);
-	allnodes->path_component_name = "";
-	allnodes->full_name = "/";
-
-	nextp = &allnodes->allnext;
-	allnodes->child = prom_build_tree(allnodes,
-					  prom_getchild(allnodes->node),
-					  &nextp);
-	of_console_init();
-
-	printk("PROM: Built device tree with %u bytes of memory.\n",
-	       prom_early_allocated);
 }

@@ -24,11 +24,9 @@ static inline int is_root_node(const struct device_node *dp)
 }
 
 extern char *build_path_component(struct device_node *dp);
+extern void of_console_init(void);
+extern void of_fill_in_cpu_data(void);
 
-extern struct device_node * __init prom_create_node(phandle node,
-						    struct device_node *parent);
+extern unsigned int prom_early_allocated;
 
-extern struct device_node * __init prom_build_tree(struct device_node *parent,
-						   phandle node,
-						   struct device_node ***nextp);
 #endif /* __PROM_H */

@@ -216,8 +216,8 @@ static char * __init get_one_property(phandle node, const char *name)
 	return buf;
 }
 
-struct device_node * __init prom_create_node(phandle node,
-					     struct device_node *parent)
+static struct device_node * __init prom_create_node(phandle node,
+						    struct device_node *parent)
 {
 	struct device_node *dp;
 
@@ -261,9 +261,9 @@ static char * __init build_full_name(struct device_node *dp)
 	return n;
 }
 
-struct device_node * __init prom_build_tree(struct device_node *parent,
-					    phandle node,
-					    struct device_node ***nextp)
+static struct device_node * __init prom_build_tree(struct device_node *parent,
+						   phandle node,
+						   struct device_node ***nextp)
 {
 	struct device_node *ret = NULL, *prev_sibling = NULL;
 	struct device_node *dp;
@@ -292,4 +292,26 @@ struct device_node * __init prom_build_tree(struct device_node *parent,
 	}
 
 	return ret;
+}
+
+unsigned int prom_early_allocated __initdata;
+
+void __init prom_build_devicetree(void)
+{
+	struct device_node **nextp;
+
+	allnodes = prom_create_node(prom_root_node, NULL);
+	allnodes->path_component_name = "";
+	allnodes->full_name = "/";
+
+	nextp = &allnodes->allnext;
+	allnodes->child = prom_build_tree(allnodes,
+					  prom_getchild(allnodes->node),
+					  &nextp);
+	of_console_init();
+
+	printk("PROM: Built device tree with %u bytes of memory.\n",
+	       prom_early_allocated);
+
+	of_fill_in_cpu_data();
 }
