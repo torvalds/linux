@@ -1530,13 +1530,6 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 	int cwnd_quota;
 	int result;
 
-	/* If we are closed, the bytes will have to remain here.
-	 * In time closedown will finish, we empty the write queue and all
-	 * will be happy.
-	 */
-	if (unlikely(sk->sk_state == TCP_CLOSE))
-		return 0;
-
 	sent_pkts = 0;
 
 	/* Do MTU probing. */
@@ -1608,10 +1601,18 @@ void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 {
 	struct sk_buff *skb = tcp_send_head(sk);
 
-	if (skb) {
-		if (tcp_write_xmit(sk, cur_mss, nonagle))
-			tcp_check_probe_timer(sk);
-	}
+	if (!skb)
+		return;
+
+	/* If we are closed, the bytes will have to remain here.
+	 * In time closedown will finish, we empty the write queue and
+	 * all will be happy.
+	 */
+	if (unlikely(sk->sk_state == TCP_CLOSE))
+		return;
+
+	if (tcp_write_xmit(sk, cur_mss, nonagle))
+		tcp_check_probe_timer(sk);
 }
 
 /* Send _single_ skb sitting at the send head. This function requires
