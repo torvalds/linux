@@ -50,7 +50,7 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
-static int pcie_portdrv_suspend(struct pci_dev *dev, pm_message_t state)
+static int pcie_portdrv_suspend_late(struct pci_dev *dev, pm_message_t state)
 {
 	int ret = pcie_port_device_suspend(dev, state);
 
@@ -59,14 +59,14 @@ static int pcie_portdrv_suspend(struct pci_dev *dev, pm_message_t state)
 	return ret;
 }
 
-static int pcie_portdrv_resume(struct pci_dev *dev)
+static int pcie_portdrv_resume_early(struct pci_dev *dev)
 {
 	pcie_portdrv_restore_config(dev);
 	return pcie_port_device_resume(dev);
 }
 #else
-#define pcie_portdrv_suspend NULL
-#define pcie_portdrv_resume NULL
+#define pcie_portdrv_suspend_late NULL
+#define pcie_portdrv_resume_early NULL
 #endif
 
 /*
@@ -282,8 +282,8 @@ static struct pci_driver pcie_portdriver = {
 	.probe		= pcie_portdrv_probe,
 	.remove		= pcie_portdrv_remove,
 
-	.suspend	= pcie_portdrv_suspend,
-	.resume		= pcie_portdrv_resume,
+	.suspend_late	= pcie_portdrv_suspend_late,
+	.resume_early	= pcie_portdrv_resume_early,
 
 	.err_handler 	= &pcie_portdrv_err_handler,
 };
