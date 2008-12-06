@@ -1998,6 +1998,7 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 			/* Make sure IRQs see the -1 first: */
 			barrier();
 			t->ret_stack = ret_stack_list[start++];
+			atomic_set(&t->tracing_graph_pause, 0);
 			atomic_set(&t->trace_overrun, 0);
 		}
 	} while_each_thread(g, t);
@@ -2077,6 +2078,7 @@ void ftrace_graph_init_task(struct task_struct *t)
 		if (!t->ret_stack)
 			return;
 		t->curr_ret_stack = -1;
+		atomic_set(&t->tracing_graph_pause, 0);
 		atomic_set(&t->trace_overrun, 0);
 	} else
 		t->ret_stack = NULL;

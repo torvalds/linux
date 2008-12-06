@@ -3590,14 +3590,7 @@ static __init int tracer_init_debugfs(void)
 
 int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 {
-	/*
-	 * Raw Spinlock because a normal spinlock would be traced here
-	 * and append an irrelevant couple spin_lock_irqsave/
-	 * spin_unlock_irqrestore traced by ftrace around this
-	 * TRACE_PRINTK trace.
-	 */
-	static raw_spinlock_t trace_buf_lock =
-				(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(trace_buf_lock);
 	static char trace_buf[TRACE_BUF_SIZE];
 
 	struct ring_buffer_event *event;
@@ -3618,8 +3611,8 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	if (unlikely(atomic_read(&data->disabled)))
 		goto out;
 
-	local_irq_save(flags);
-	__raw_spin_lock(&trace_buf_lock);
+	pause_graph_tracing();
+	spin_lock_irqsave(&trace_buf_lock, irq_flags);
 	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	len = min(len, TRACE_BUF_SIZE-1);
@@ -3640,9 +3633,8 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 
  out_unlock:
-	__raw_spin_unlock(&trace_buf_lock);
-	local_irq_restore(flags);
-
+	spin_unlock_irqrestore(&trace_buf_lock, irq_flags);
+	unpause_graph_tracing();
  out:
 	preempt_enable_notrace();
 

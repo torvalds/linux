@@ -401,6 +401,16 @@ static inline int task_curr_ret_stack(struct task_struct *t)
 {
 	return t->curr_ret_stack;
 }
+
+static inline void pause_graph_tracing(void)
+{
+	atomic_inc(&current->tracing_graph_pause);
+}
+
+static inline void unpause_graph_tracing(void)
+{
+	atomic_dec(&current->tracing_graph_pause);
+}
 #else
 
 #define __notrace_funcgraph
@@ -412,6 +422,9 @@ static inline int task_curr_ret_stack(struct task_struct *tsk)
 {
 	return -1;
 }
+
+static inline void pause_graph_tracing(void) { }
+static inline void unpause_graph_tracing(void) { }
 #endif
 
 #ifdef CONFIG_TRACING

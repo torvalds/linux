@@ -476,7 +476,10 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 				&return_to_handler;
 
 	/* Nmi's are currently unsupported */
-	if (atomic_read(&in_nmi))
+	if (unlikely(atomic_read(&in_nmi)))
+		return;
+
+	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
 	/*

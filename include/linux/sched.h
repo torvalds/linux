@@ -1379,6 +1379,8 @@ struct task_struct {
 	 * because of depth overrun.
 	 */
 	atomic_t trace_overrun;
+	/* Pause for the tracing */
+	atomic_t tracing_graph_pause;
 #endif
 #ifdef CONFIG_TRACING
 	/* state flags for use by tracers */
