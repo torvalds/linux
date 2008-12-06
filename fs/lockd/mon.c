@@ -249,10 +249,15 @@ retry:
 		atomic_inc(&pos->sm_count);
 		kfree(nsm);
 		nsm = pos;
+		dprintk("lockd: found nsm_handle for %s (%s), cnt %d\n",
+				pos->sm_name, pos->sm_addrbuf,
+				atomic_read(&pos->sm_count));
 		goto found;
 	}
 	if (nsm) {
 		list_add(&nsm->sm_link, &nsm_handles);
+		dprintk("lockd: created nsm_handle for %s (%s)\n",
+				nsm->sm_name, nsm->sm_addrbuf);
 		goto found;
 	}
 	spin_unlock(&nsm_lock);
@@ -291,6 +296,8 @@ void nsm_release(struct nsm_handle *nsm)
 	if (atomic_dec_and_lock(&nsm->sm_count, &nsm_lock)) {
 		list_del(&nsm->sm_link);
 		spin_unlock(&nsm_lock);
+		dprintk("lockd: destroyed nsm_handle for %s (%s)\n",
+				nsm->sm_name, nsm->sm_addrbuf);
 		kfree(nsm);
 	}
 }
