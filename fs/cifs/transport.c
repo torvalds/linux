@@ -530,6 +530,11 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		return rc;
 	}
 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number);
+	if (rc) {
+		mutex_unlock(&ses->server->srv_mutex);
+		cifs_small_buf_release(in_buf);
+		goto out;
+	}
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 #ifdef CONFIG_CIFS_STATS2
@@ -718,6 +723,10 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	}
 
 	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
+	if (rc) {
+		mutex_unlock(&ses->server->srv_mutex);
+		goto out;
+	}
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 #ifdef CONFIG_CIFS_STATS2
@@ -948,6 +957,11 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	}
 
 	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
+	if (rc) {
+		DeleteMidQEntry(midQ);
+		mutex_unlock(&ses->server->srv_mutex);
+		return rc;
+	}
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 #ifdef CONFIG_CIFS_STATS2
