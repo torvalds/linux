@@ -586,26 +586,23 @@ static void __init __get_smp_config(unsigned int early)
 {
 	struct intel_mp_floating *mpf = mpf_found;
 
+	if (!mpf)
+		return;
+
+	if (acpi_lapic && early)
+		return;
+
+	/*
+	 * MPS doesn't support hyperthreading, aka only have
+	 * thread 0 apic id in MPS table
+	 */
+	if (acpi_lapic && acpi_ioapic)
+		return;
+
 	if (x86_quirks->mach_get_smp_config) {
 		if (x86_quirks->mach_get_smp_config(early))
 			return;
 	}
-	if (acpi_lapic && early)
-		return;
-	/*
-	 * ACPI supports both logical (e.g. Hyper-Threading) and physical
-	 * processors, where MPS only supports physical.
-	 */
-	if (acpi_lapic && acpi_ioapic) {
-		printk(KERN_INFO "Using ACPI (MADT) for SMP configuration "
-		       "information\n");
-		return;
-	} else if (acpi_lapic)
-		printk(KERN_INFO "Using ACPI for processor (LAPIC) "
-		       "configuration information\n");
-
-	if (!mpf)
-		return;
 
 	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
 	       mpf->mpf_specification);
