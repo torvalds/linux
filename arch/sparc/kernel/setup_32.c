@@ -328,8 +328,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "CPU0ClkTck\t: %ld\n"
 #endif
 		   ,
-		   sparc_cpu_type ? sparc_cpu_type : "undetermined",
-		   sparc_fpu_type ? sparc_fpu_type : "undetermined",
+		   sparc_cpu_type,
+		   sparc_fpu_type ,
 		   romvec->pv_romvers,
 		   prom_rev,
 		   romvec->pv_printrev >> 16,

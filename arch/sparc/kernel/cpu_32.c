@@ -152,8 +152,11 @@ void __cpuinit cpu_probe(void)
 	}
 
 	if (i == NSPARCCHIPS)
-		printk(KERN_DEBUG "psr.impl = 0x%x   psr.vers = 0x%x\n",
+	{
+		printk(KERN_ERR "CPU: Unknown chip, impl[0x%x] vers[0x%x]\n",
 		       psr_impl, psr_vers);
+		sparc_cpu_type = "Unknown CPU";
+	}
 
 	for (i = 0; i < NSPARCFPU; i++) {
 		if (linux_sparc_fpu[i].psr_impl == psr_impl)
@@ -164,8 +167,8 @@ void __cpuinit cpu_probe(void)
 	}
 
 	if (i == NSPARCFPU) {
-		printk(KERN_DEBUG "psr.impl = 0x%x  fsr.vers = 0x%x\n",
+		printk(KERN_ERR "FPU: Unknown chip, impl[0x%x] vers[0x%x]\n",
 		       psr_impl, fpu_vers);
-		sparc_fpu_type = linux_sparc_fpu[31].fp_name;
+		sparc_fpu_type = "Unknown FPU";
 	}
 }
