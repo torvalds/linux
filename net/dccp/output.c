@@ -175,7 +175,7 @@ unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 	 * make it a multiple of 4
 	 */
 
-	cur_mps -= ((5 + 6 + 10 + 6 + 6 + 6 + 3) / 4) * 4;
+	cur_mps -= roundup(5 + 6 + 10 + 6 + 6 + 6, 4);
 
 	/* And store cached results */
 	icsk->icsk_pmtu_cookie = pmtu;
