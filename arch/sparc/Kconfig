@@ -85,7 +85,7 @@ config HAVE_LATENCYTOP_SUPPORT
 
 config AUDIT_ARCH
 	bool
-	default y if SPARC64
+	default y
 
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y if SPARC64
