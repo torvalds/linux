@@ -86,10 +86,11 @@
 #define CPLD_FLASH_WR_ENABLE	1
 
 #ifndef __ASSEMBLY__
-extern void gpio_modify_op(int mask, int set);
-extern void gpio_modify_io(int mask, int in);
-extern int  gpio_read(void);
-extern void cpld_modify(int mask, int set);
+extern spinlock_t nw_gpio_lock;
+extern void nw_gpio_modify_op(unsigned int mask, unsigned int set);
+extern void nw_gpio_modify_io(unsigned int mask, unsigned int in);
+extern unsigned int nw_gpio_read(void);
+extern void nw_cpld_modify(unsigned int mask, unsigned int set);
 #endif
 
 #define pcibios_assign_all_busses()	1

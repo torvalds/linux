@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
  
 #include <asm/pgtable.h>
 #include <asm/page.h>

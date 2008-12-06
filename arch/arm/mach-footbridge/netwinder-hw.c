@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 
 #include <asm/hardware/dec21285.h>
 #include <asm/leds.h>
@@ -67,13 +68,14 @@ static inline void wb977_ww(int reg, int val)
 /*
  * This is a lock for accessing ports GP1_IO_BASE and GP2_IO_BASE
  */
-DEFINE_SPINLOCK(gpio_lock);
+DEFINE_SPINLOCK(nw_gpio_lock);
+EXPORT_SYMBOL(nw_gpio_lock);
 
 static unsigned int current_gpio_op;
 static unsigned int current_gpio_io;
 static unsigned int current_cpld;
 
-void gpio_modify_op(int mask, int set)
+void nw_gpio_modify_op(unsigned int mask, unsigned int set)
 {
 	unsigned int new_gpio, changed;
 
@@ -86,6 +88,7 @@ void gpio_modify_op(int mask, int set)
 	if (changed & 0xff00)
 		outb(new_gpio >> 8, GP2_IO_BASE);
 }
+EXPORT_SYMBOL(nw_gpio_modify_op);
 
 static inline void __gpio_modify_io(int mask, int in)
 {
@@ -118,7 +121,7 @@ static inline void __gpio_modify_io(int mask, int in)
 	}
 }
 
-void gpio_modify_io(int mask, int in)
+void nw_gpio_modify_io(unsigned int mask, unsigned int in)
 {
 	/* Open up the SuperIO chip */
 	wb977_open();
@@ -128,11 +131,13 @@ void gpio_modify_io(int mask, int in)
 	/* Close up the EFER gate */
 	wb977_close();
 }
+EXPORT_SYMBOL(nw_gpio_modify_io);
 
-int gpio_read(void)
+unsigned int nw_gpio_read(void)
 {
 	return inb(GP1_IO_BASE) | inb(GP2_IO_BASE) << 8;
 }
+EXPORT_SYMBOL(nw_gpio_read);
 
 /*
  * Initialise the Winbond W83977F global registers
@@ -322,9 +327,9 @@ static inline void wb977_init_gpio(void)
 	/*
 	 * Set Group1/Group2 outputs
 	 */
-	spin_lock_irqsave(&gpio_lock, flags);
-	gpio_modify_op(-1, GPIO_RED_LED | GPIO_FAN);
-	spin_unlock_irqrestore(&gpio_lock, flags);
+	spin_lock_irqsave(&nw_gpio_lock, flags);
+	nw_gpio_modify_op(-1, GPIO_RED_LED | GPIO_FAN);
+	spin_unlock_irqrestore(&nw_gpio_lock, flags);
 }
 
 /*
@@ -359,34 +364,35 @@ static void __init wb977_init(void)
 	wb977_close();
 }
 
-void cpld_modify(int mask, int set)
+void nw_cpld_modify(unsigned int mask, unsigned int set)
 {
 	int msk;
 
 	current_cpld = (current_cpld & ~mask) | set;
 
-	gpio_modify_io(GPIO_DATA | GPIO_IOCLK | GPIO_IOLOAD, 0);
-	gpio_modify_op(GPIO_IOLOAD, 0);
+	nw_gpio_modify_io(GPIO_DATA | GPIO_IOCLK | GPIO_IOLOAD, 0);
+	nw_gpio_modify_op(GPIO_IOLOAD, 0);
 
 	for (msk = 8; msk; msk >>= 1) {
 		int bit = current_cpld & msk;
 
-		gpio_modify_op(GPIO_DATA | GPIO_IOCLK, bit ? GPIO_DATA : 0);
-		gpio_modify_op(GPIO_IOCLK, GPIO_IOCLK);
+		nw_gpio_modify_op(GPIO_DATA | GPIO_IOCLK, bit ? GPIO_DATA : 0);
+		nw_gpio_modify_op(GPIO_IOCLK, GPIO_IOCLK);
 	}
 
-	gpio_modify_op(GPIO_IOCLK|GPIO_DATA, 0);
-	gpio_modify_op(GPIO_IOLOAD|GPIO_DSCLK, GPIO_IOLOAD|GPIO_DSCLK);
-	gpio_modify_op(GPIO_IOLOAD, 0);
+	nw_gpio_modify_op(GPIO_IOCLK|GPIO_DATA, 0);
+	nw_gpio_modify_op(GPIO_IOLOAD|GPIO_DSCLK, GPIO_IOLOAD|GPIO_DSCLK);
+	nw_gpio_modify_op(GPIO_IOLOAD, 0);
 }
+EXPORT_SYMBOL(nw_cpld_modify);
 
 static void __init cpld_init(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&gpio_lock, flags);
-	cpld_modify(-1, CPLD_UNMUTE | CPLD_7111_DISABLE);
-	spin_unlock_irqrestore(&gpio_lock, flags);
+	spin_lock_irqsave(&nw_gpio_lock, flags);
+	nw_cpld_modify(-1, CPLD_UNMUTE | CPLD_7111_DISABLE);
+	spin_unlock_irqrestore(&nw_gpio_lock, flags);
 }
 
 static unsigned char rwa_unlock[] __initdata =
@@ -596,12 +602,6 @@ static void __init rwa010_init(void)
 	rwa010_soundblaster_reset();
 }
 
-EXPORT_SYMBOL(gpio_lock);
-EXPORT_SYMBOL(gpio_modify_op);
-EXPORT_SYMBOL(gpio_modify_io);
-EXPORT_SYMBOL(cpld_modify);
-EXPORT_SYMBOL(gpio_read);
-
 /*
  * Initialise any other hardware after we've got the PCI bus
  * initialised.  We may need the PCI bus to talk to this other
@@ -616,9 +616,9 @@ static int __init nw_hw_init(void)
 		cpld_init();
 		rwa010_init();
 
-		spin_lock_irqsave(&gpio_lock, flags);
-		gpio_modify_op(GPIO_RED_LED|GPIO_GREEN_LED, DEFAULT_LEDS);
-		spin_unlock_irqrestore(&gpio_lock, flags);
+		spin_lock_irqsave(&nw_gpio_lock, flags);
+		nw_gpio_modify_op(GPIO_RED_LED|GPIO_GREEN_LED, DEFAULT_LEDS);
+		spin_unlock_irqrestore(&nw_gpio_lock, flags);
 	}
 	return 0;
 }
