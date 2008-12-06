@@ -369,6 +369,14 @@ struct ftrace_graph_ret {
 };
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+
+/*
+ * Sometimes we don't want to trace a function with the function
+ * graph tracer but we want them to keep traced by the usual function
+ * tracer if the function graph tracer is not configured.
+ */
+#define __notrace_funcgraph		notrace
+
 #define FTRACE_RETFUNC_DEPTH 50
 #define FTRACE_RETSTACK_ALLOC_SIZE 32
 /* Type of the callback handlers for tracing function graph*/
@@ -394,6 +402,9 @@ static inline int task_curr_ret_stack(struct task_struct *t)
 	return t->curr_ret_stack;
 }
 #else
+
+#define __notrace_funcgraph
+
 static inline void ftrace_graph_init_task(struct task_struct *t) { }
 static inline void ftrace_graph_exit_task(struct task_struct *t) { }
 

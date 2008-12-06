@@ -14,12 +14,6 @@ CFLAGS_REMOVE_paravirt-spinlocks.o = -pg
 CFLAGS_REMOVE_ftrace.o = -pg
 endif
 
-ifdef CONFIG_FUNCTION_GRAPH_TRACER
-# Don't trace __switch_to() but let it for function tracer
-CFLAGS_REMOVE_process_32.o = -pg
-CFLAGS_REMOVE_process_64.o = -pg
-endif
-
 #
 # vsyscalls (which work on the user stack) should have
 # no stack-protector checks:

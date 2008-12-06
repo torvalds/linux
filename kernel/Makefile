@@ -21,10 +21,6 @@ CFLAGS_REMOVE_cgroup-debug.o = -pg
 CFLAGS_REMOVE_sched_clock.o = -pg
 CFLAGS_REMOVE_sched.o = -pg
 endif
-ifdef CONFIG_FUNCTION_GRAPH_TRACER
-CFLAGS_REMOVE_extable.o = -pg # For __kernel_text_address()
-CFLAGS_REMOVE_module.o = -pg # For __module_text_address()
-endif
 
 obj-$(CONFIG_FREEZER) += freezer.o
 obj-$(CONFIG_PROFILING) += profile.o
