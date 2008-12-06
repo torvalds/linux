@@ -1121,9 +1121,7 @@ unsigned int audit_serial(void)
 static inline void audit_get_stamp(struct audit_context *ctx,
 				   struct timespec *t, unsigned int *serial)
 {
-	if (ctx)
-		auditsc_get_stamp(ctx, t, serial);
-	else {
+	if (!ctx || !auditsc_get_stamp(ctx, t, serial)) {
 		*t = CURRENT_TIME;
 		*serial = audit_serial();
 	}

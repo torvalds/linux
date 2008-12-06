@@ -1957,15 +1957,18 @@ EXPORT_SYMBOL_GPL(__audit_inode_child);
  *
  * Also sets the context as auditable.
  */
-void auditsc_get_stamp(struct audit_context *ctx,
+int auditsc_get_stamp(struct audit_context *ctx,
 		       struct timespec *t, unsigned int *serial)
 {
+	if (!ctx->in_syscall)
+		return 0;
 	if (!ctx->serial)
 		ctx->serial = audit_serial();
 	t->tv_sec  = ctx->ctime.tv_sec;
 	t->tv_nsec = ctx->ctime.tv_nsec;
 	*serial    = ctx->serial;
 	ctx->auditable = 1;
+	return 1;
 }
 
 /* global counter which is incremented every time something logs in */
