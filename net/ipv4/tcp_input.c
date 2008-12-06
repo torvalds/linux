@@ -1481,7 +1481,7 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 
 	/* Normally R but no L won't result in plain S */
 	if (!dup_sack &&
-	    (TCP_SKB_CB(skb)->sacked & TCPCB_TAGBITS) == TCPCB_SACKED_RETRANS)
+	    (TCP_SKB_CB(skb)->sacked & (TCPCB_LOST|TCPCB_SACKED_RETRANS)) == TCPCB_SACKED_RETRANS)
 		goto fallback;
 	if (!skb_can_shift(skb))
 		goto fallback;
