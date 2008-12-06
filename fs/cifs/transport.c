@@ -385,10 +385,14 @@ static int allocate_mid(struct cifsSesInfo *ses, struct smb_hdr *in_buf,
 {
 	if (ses->server->tcpStatus == CifsExiting) {
 		return -ENOENT;
-	} else if (ses->server->tcpStatus == CifsNeedReconnect) {
+	}
+
+	if (ses->server->tcpStatus == CifsNeedReconnect) {
 		cFYI(1, ("tcp session dead - return to caller to retry"));
 		return -EAGAIN;
-	} else if (ses->status != CifsGood) {
+	}
+
+	if (ses->status != CifsGood) {
 		/* check if SMB session is bad because we are setting it up */
 		if ((in_buf->Command != SMB_COM_SESSION_SETUP_ANDX) &&
 			(in_buf->Command != SMB_COM_NEGOTIATE))
