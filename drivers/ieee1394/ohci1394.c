@@ -3233,8 +3233,9 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	 * we need to get to that "no event", so enough should be initialized
 	 * by that point.
 	 */
-	if (request_irq(dev->irq, ohci_irq_handler, IRQF_SHARED,
-			 OHCI1394_DRIVER_NAME, ohci)) {
+	err = request_irq(dev->irq, ohci_irq_handler, IRQF_SHARED,
+			  OHCI1394_DRIVER_NAME, ohci);
+	if (err) {
 		PRINT_G(KERN_ERR, "Failed to allocate interrupt %d", dev->irq);
 		goto err;
 	}
@@ -3423,10 +3424,11 @@ static int ohci1394_pci_resume(struct pci_dev *dev)
 	reg_write(ohci, OHCI1394_IntMaskClear, 0xffffffff);
 	mdelay(50);
 
-	if (request_irq(dev->irq, ohci_irq_handler, IRQF_SHARED,
-			OHCI1394_DRIVER_NAME, ohci)) {
+	err = request_irq(dev->irq, ohci_irq_handler, IRQF_SHARED,
+			  OHCI1394_DRIVER_NAME, ohci);
+	if (err) {
 		PRINT_G(KERN_ERR, "Failed to allocate interrupt %d", dev->irq);
-		return -EIO;
+		return err;
 	}
 
 	ohci_initialize(ohci);
