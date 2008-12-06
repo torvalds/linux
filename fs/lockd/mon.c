@@ -201,6 +201,29 @@ void nsm_unmonitor(const struct nlm_host *host)
 	}
 }
 
+static struct nsm_handle *nsm_lookup_hostname(const char *hostname,
+					      const size_t len)
+{
+	struct nsm_handle *nsm;
+
+	list_for_each_entry(nsm, &nsm_handles, sm_link)
+		if (strlen(nsm->sm_name) == len &&
+		    memcmp(nsm->sm_name, hostname, len) == 0)
+			return nsm;
+	return NULL;
+}
+
+static struct nsm_handle *nsm_lookup_priv(const struct nsm_private *priv)
+{
+	struct nsm_handle *nsm;
+
+	list_for_each_entry(nsm, &nsm_handles, sm_link)
+		if (memcmp(nsm->sm_priv.data, priv->data,
+					sizeof(priv->data)) == 0)
+			return nsm;
+	return NULL;
+}
+
 /*
  * Construct a unique cookie to match this nsm_handle to this monitored
  * host.  It is passed to the local rpc.statd via NSMPROC_MON, and
@@ -295,6 +318,47 @@ retry:
 found:
 	spin_unlock(&nsm_lock);
 	return nsm;
+}
+
+/**
+ * nsm_reboot_lookup - match NLMPROC_SM_NOTIFY arguments to an nsm_handle
+ * @info: pointer to NLMPROC_SM_NOTIFY arguments
+ *
+ * Returns a matching nsm_handle if found in the nsm cache; the returned
+ * nsm_handle's reference count is bumped and sm_monitored is cleared.
+ * Otherwise returns NULL if some error occurred.
+ */
+struct nsm_handle *nsm_reboot_lookup(const struct nlm_reboot *info)
+{
+	struct nsm_handle *cached;
+
+	spin_lock(&nsm_lock);
+
+	if (nsm_use_hostnames && info->mon != NULL)
+		cached = nsm_lookup_hostname(info->mon, info->len);
+	else
+		cached = nsm_lookup_priv(&info->priv);
+
+	if (unlikely(cached == NULL)) {
+		spin_unlock(&nsm_lock);
+		dprintk("lockd: never saw rebooted peer '%.*s' before\n",
+				info->len, info->mon);
+		return cached;
+	}
+
+	atomic_inc(&cached->sm_count);
+	spin_unlock(&nsm_lock);
+
+	/*
+	 * During subsequent lock activity, force a fresh
+	 * notification to be set up for this host.
+	 */
+	cached->sm_monitored = 0;
+
+	dprintk("lockd: host %s (%s) rebooted, cnt %d\n",
+			cached->sm_name, cached->sm_addrbuf,
+			atomic_read(&cached->sm_count));
+	return cached;
 }
 
 /**
