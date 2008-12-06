@@ -1067,8 +1067,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 
 	/* rcvd frame is ok */
 
-	if ((midQ->resp_buf == NULL) || (out_buf == NULL)
-	    || (midQ->midState != MID_RESPONSE_RECEIVED)) {
+	if ((out_buf == NULL) || (midQ->midState != MID_RESPONSE_RECEIVED)) {
 		rc = -EIO;
 		cERROR(1, ("Bad MID state?"));
 		goto out;
