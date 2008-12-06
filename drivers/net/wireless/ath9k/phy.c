@@ -52,8 +52,7 @@ ath9k_hw_set_channel(struct ath_hal *ah, struct ath9k_channel *chan)
 			bModeSynth = 1;
 		} else {
 			DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
-				 "%s: invalid channel %u MHz\n", __func__,
-				 freq);
+				"Invalid channel %u MHz\n", freq);
 			return false;
 		}
 
@@ -86,7 +85,7 @@ ath9k_hw_set_channel(struct ath_hal *ah, struct ath9k_channel *chan)
 		aModeRefSel = ath9k_hw_reverse_bits(1, 2);
 	} else {
 		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
-			 "%s: invalid channel %u MHz\n", __func__, freq);
+			"Invalid channel %u MHz\n", freq);
 		return false;
 	}
 
@@ -348,8 +347,7 @@ bool ath9k_hw_init_rf(struct ath_hal *ah, int *status)
 		    || ahp->ah_analogBank6TPCData == NULL
 		    || ahp->ah_analogBank7Data == NULL) {
 			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				 "%s: cannot allocate RF banks\n",
-				 __func__);
+				"Cannot allocate RF banks\n");
 			*status = -ENOMEM;
 			return false;
 		}
@@ -360,8 +358,7 @@ bool ath9k_hw_init_rf(struct ath_hal *ah, int *status)
 			     ahp->ah_iniAddac.ia_columns), GFP_KERNEL);
 		if (ahp->ah_addac5416_21 == NULL) {
 			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				 "%s: cannot allocate ah_addac5416_21\n",
-				 __func__);
+				"Cannot allocate ah_addac5416_21\n");
 			*status = -ENOMEM;
 			return false;
 		}
@@ -371,8 +368,7 @@ bool ath9k_hw_init_rf(struct ath_hal *ah, int *status)
 			     ahp->ah_iniBank6.ia_rows), GFP_KERNEL);
 		if (ahp->ah_bank6Temp == NULL) {
 			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				 "%s: cannot allocate ah_bank6Temp\n",
-				 __func__);
+				"Cannot allocate ah_bank6Temp\n");
 			*status = -ENOMEM;
 			return false;
 		}

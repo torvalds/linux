@@ -1779,8 +1779,7 @@ void ieee80211_tx_pending(unsigned long data)
 
 /* functions for drivers to get certain frames */
 
-static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
-				     struct ieee80211_if_ap *bss,
+static void ieee80211_beacon_add_tim(struct ieee80211_if_ap *bss,
 				     struct sk_buff *skb,
 				     struct beacon_data *beacon)
 {
@@ -1848,7 +1847,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct sk_buff *skb = NULL;
 	struct ieee80211_tx_info *info;
-	struct net_device *bdev;
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_if_ap *ap = NULL;
 	struct ieee80211_if_sta *ifsta = NULL;
@@ -1861,7 +1859,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	rcu_read_lock();
 
 	sdata = vif_to_sdata(vif);
-	bdev = sdata->dev;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		ap = &sdata->u.ap;
@@ -1889,12 +1886,12 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 			 * of the tim bitmap in mac80211 and the driver.
 			 */
 			if (local->tim_in_locked_section) {
-				ieee80211_beacon_add_tim(local, ap, skb, beacon);
+				ieee80211_beacon_add_tim(ap, skb, beacon);
 			} else {
 				unsigned long flags;
 
 				spin_lock_irqsave(&local->sta_lock, flags);
-				ieee80211_beacon_add_tim(local, ap, skb, beacon);
+				ieee80211_beacon_add_tim(ap, skb, beacon);
 				spin_unlock_irqrestore(&local->sta_lock, flags);
 			}
 
@@ -2016,14 +2013,12 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	struct sk_buff *skb = NULL;
 	struct sta_info *sta;
 	struct ieee80211_tx_data tx;
-	struct net_device *bdev;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_ap *bss = NULL;
 	struct beacon_data *beacon;
 	struct ieee80211_tx_info *info;
 
 	sdata = vif_to_sdata(vif);
-	bdev = sdata->dev;
 	bss = &sdata->u.ap;
 
 	if (!bss)

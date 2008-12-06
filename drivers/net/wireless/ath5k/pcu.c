@@ -267,24 +267,23 @@ void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac)
  * @mac: The card's mac address
  *
  * Set station id on hw using the provided mac address
- *
- * NOTE: This is only called during attach, don't call it
- * on reset because it overwrites all AR5K_STA_ID1 settings.
- * We have set_opmode (above) for reset.
  */
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 {
 	u32 low_id, high_id;
+	u32 pcu_reg;
 
 	ATH5K_TRACE(ah->ah_sc);
 	/* Set new station ID */
 	memcpy(ah->ah_sta_id, mac, ETH_ALEN);
 
+	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
+
 	low_id = AR5K_LOW_ID(mac);
 	high_id = AR5K_HIGH_ID(mac);
 
 	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
-	ath5k_hw_reg_write(ah, high_id, AR5K_STA_ID1);
+	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
 
 	return 0;
 }
@@ -1014,6 +1013,23 @@ int ath5k_hw_is_key_valid(struct ath5k_hw *ah, u16 entry)
 		AR5K_KEYTABLE_VALID;
 }
 
+static
+int ath5k_keycache_type(const struct ieee80211_key_conf *key)
+{
+	switch (key->alg) {
+	case ALG_TKIP:
+		return AR5K_KEYTABLE_TYPE_TKIP;
+	case ALG_CCMP:
+		return AR5K_KEYTABLE_TYPE_CCM;
+	case ALG_WEP:
+		if (key->keylen == LEN_WEP40)
+			return AR5K_KEYTABLE_TYPE_40;
+		else if (key->keylen == LEN_WEP104)
+			return AR5K_KEYTABLE_TYPE_104;
+	}
+	return -EINVAL;
+}
+
 /*
  * Set a key entry on the table
  */
@@ -1028,6 +1044,7 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 	u32 keytype;
 	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
 	bool is_tkip;
+	const u8 *key_ptr;
 
 	ATH5K_TRACE(ah->ah_sc);
 
@@ -1043,33 +1060,25 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 		(is_tkip && micentry > AR5K_KEYTABLE_SIZE))
 		return -EOPNOTSUPP;
 
-	switch (keylen) {
-	/* WEP 40-bit   = 40-bit  entered key + 24 bit IV = 64-bit */
-	case 40 / 8:
-		memcpy(&key_v[0], key->key, 5);
-		keytype = AR5K_KEYTABLE_TYPE_40;
-		break;
+	if (unlikely(keylen > 16))
+		return -EOPNOTSUPP;
 
-	/* WEP 104-bit  = 104-bit entered key + 24-bit IV = 128-bit */
-	case 104 / 8:
-		memcpy(&key_v[0], &key->key[0], 6);
-		memcpy(&key_v[2], &key->key[6], 6);
-		memcpy(&key_v[4], &key->key[12], 1);
-		keytype = AR5K_KEYTABLE_TYPE_104;
-		break;
-	/* WEP/TKIP 128-bit  = 128-bit entered key + 24 bit IV = 152-bit */
-	case 128 / 8:
-		memcpy(&key_v[0], &key->key[0], 6);
-		memcpy(&key_v[2], &key->key[6], 6);
-		memcpy(&key_v[4], &key->key[12], 4);
-		keytype = is_tkip ?
-			AR5K_KEYTABLE_TYPE_TKIP :
-			AR5K_KEYTABLE_TYPE_128;
-		break;
+	keytype = ath5k_keycache_type(key);
+	if (keytype < 0)
+		return keytype;
 
-	default:
-		return -EINVAL; /* shouldn't happen */
+	/*
+	 * each key block is 6 bytes wide, written as pairs of
+	 * alternating 32 and 16 bit le values.
+	 */
+	key_ptr = key->key;
+	for (i = 0; keylen >= 6; keylen -= 6) {
+		memcpy(&key_v[i], key_ptr, 6);
+		i += 2;
+		key_ptr += 6;
 	}
+	if (keylen)
+		memcpy(&key_v[i], key_ptr, keylen);
 
 	/* intentionally corrupt key until mic is installed */
 	if (is_tkip) {
@@ -1087,20 +1096,20 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 		/* Install rx/tx MIC */
 		rxmic = (__le32 *) &key->key[16];
 		txmic = (__le32 *) &key->key[24];
-#if 0
-		/* MISC_MODE register & 0x04 - for mac srev >= griffin */
-		key_v[0] = rxmic[0];
-		key_v[1] = (txmic[0] >> 16) & 0xffff;
-		key_v[2] = rxmic[1];
-		key_v[3] = txmic[0] & 0xffff;
-		key_v[4] = txmic[1];
-#else
-		key_v[0] = rxmic[0];
-		key_v[1] = 0;
-		key_v[2] = rxmic[1];
-		key_v[3] = 0;
-		key_v[4] = 0;
-#endif
+
+		if (ah->ah_combined_mic) {
+			key_v[0] = rxmic[0];
+			key_v[1] = (txmic[0] >> 16) & 0xffff;
+			key_v[2] = rxmic[1];
+			key_v[3] = txmic[0] & 0xffff;
+			key_v[4] = txmic[1];
+		} else {
+			key_v[0] = rxmic[0];
+			key_v[1] = 0;
+			key_v[2] = rxmic[1];
+			key_v[3] = 0;
+			key_v[4] = 0;
+		}
 		for (i = 0; i < ARRAY_SIZE(key_v); i++)
 			ath5k_hw_reg_write(ah, le32_to_cpu(key_v[i]),
 				AR5K_KEYTABLE_OFF(micentry, i));

@@ -44,7 +44,7 @@
 /*
  * Module information.
  */
-#define DRV_VERSION	"2.2.2"
+#define DRV_VERSION	"2.2.3"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
 
 /*
@@ -653,6 +653,7 @@ enum rt2x00_flags {
 	CONFIG_EXTERNAL_LNA_BG,
 	CONFIG_DOUBLE_ANTENNA,
 	CONFIG_DISABLE_LINK_TUNING,
+	CONFIG_CRYPTO_COPY_IV,
 };
 
 /*
@@ -801,6 +802,12 @@ struct rt2x00_dev {
 	 * Current TX power value.
 	 */
 	u16 tx_power;
+
+	/*
+	 * Current retry values.
+	 */
+	u8 short_retry;
+	u8 long_retry;
 
 	/*
 	 * Rssi <-> Dbm offset

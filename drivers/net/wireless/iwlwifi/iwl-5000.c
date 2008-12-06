@@ -44,9 +44,21 @@
 #include "iwl-helpers.h"
 #include "iwl-5000-hw.h"
 
-#define IWL5000_UCODE_API  "-1"
+/* Highest firmware API version supported */
+#define IWL5000_UCODE_API_MAX 1
+#define IWL5150_UCODE_API_MAX 1
 
-#define IWL5000_MODULE_FIRMWARE "iwlwifi-5000" IWL5000_UCODE_API ".ucode"
+/* Lowest firmware API version supported */
+#define IWL5000_UCODE_API_MIN 1
+#define IWL5150_UCODE_API_MIN 1
+
+#define IWL5000_FW_PRE "iwlwifi-5000-"
+#define _IWL5000_MODULE_FIRMWARE(api) IWL5000_FW_PRE #api ".ucode"
+#define IWL5000_MODULE_FIRMWARE(api) _IWL5000_MODULE_FIRMWARE(api)
+
+#define IWL5150_FW_PRE "iwlwifi-5150-"
+#define _IWL5150_MODULE_FIRMWARE(api) IWL5150_FW_PRE #api ".ucode"
+#define IWL5150_MODULE_FIRMWARE(api) _IWL5150_MODULE_FIRMWARE(api)
 
 static const u16 iwl5000_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_AC3,
@@ -338,9 +350,13 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 
 	if (!data->radio_write) {
 		struct iwl_calib_chain_noise_gain_cmd cmd;
+
 		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
+		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
+		cmd.hdr.first_group = 0;
+		cmd.hdr.groups_num = 1;
+		cmd.hdr.data_valid = 1;
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
 		iwl_send_cmd_pdu_async(priv, REPLY_PHY_CALIBRATION_CMD,
@@ -362,14 +378,19 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+	int ret;
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
 		struct iwl_calib_chain_noise_reset_cmd cmd;
-
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
-		if (iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
-			sizeof(cmd), &cmd))
+
+		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
+		cmd.hdr.first_group = 0;
+		cmd.hdr.groups_num = 1;
+		cmd.hdr.data_valid = 1;
+		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+					sizeof(cmd), &cmd);
+		if (ret)
 			IWL_ERROR("Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
 		IWL_DEBUG_CALIB("Run chain_noise_calibrate\n");
@@ -415,22 +436,33 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 	return &priv->eeprom[address];
 }
 
+static s32 iwl5150_get_ct_threshold(struct iwl_priv *priv)
+{
+	const s32 volt2temp_coef = -5;
+	u16 *temp_calib = (u16 *)iwl_eeprom_query_addr(priv,
+						EEPROM_5000_TEMPERATURE);
+	/* offset =  temperate -  voltage / coef */
+	s32 offset = temp_calib[0] - temp_calib[1] / volt2temp_coef;
+	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD) - offset;
+	return threshold * volt2temp_coef;
+}
+
 /*
  *  Calibration
  */
 static int iwl5000_set_Xtal_calib(struct iwl_priv *priv)
 {
-	u8 data[sizeof(struct iwl_calib_hdr) +
-		sizeof(struct iwl_cal_xtal_freq)];
-	struct iwl_calib_cmd *cmd = (struct iwl_calib_cmd *)data;
-	struct iwl_cal_xtal_freq *xtal = (struct iwl_cal_xtal_freq *)cmd->data;
+	struct iwl_calib_xtal_freq_cmd cmd;
 	u16 *xtal_calib = (u16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_XTAL);
 
-	cmd->hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
-	xtal->cap_pin1 = (u8)xtal_calib[0];
-	xtal->cap_pin2 = (u8)xtal_calib[1];
+	cmd.hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
+	cmd.hdr.first_group = 0;
+	cmd.hdr.groups_num = 1;
+	cmd.hdr.data_valid = 1;
+	cmd.cap_pin1 = (u8)xtal_calib[0];
+	cmd.cap_pin2 = (u8)xtal_calib[1];
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_XTAL],
-			     data, sizeof(data));
+			     (u8 *)&cmd, sizeof(cmd));
 }
 
 static int iwl5000_send_calib_cfg(struct iwl_priv *priv)
@@ -466,6 +498,9 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 	 * uCode. iwl_send_calib_results sends them in a row according to their
 	 * index. We sort them here */
 	switch (hdr->op_code) {
+	case IWL_PHY_CALIBRATE_DC_CMD:
+		index = IWL_CALIB_DC;
+		break;
 	case IWL_PHY_CALIBRATE_LO_CMD:
 		index = IWL_CALIB_LO;
 		break;
@@ -802,6 +837,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			IWL50_NUM_QUEUES * sizeof(struct iwl5000_scd_bc_tbl);
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
@@ -845,7 +881,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	case CSR_HW_REV_TYPE_5150:
 		/* 5150 wants in Kelvin */
 		priv->hw_params.ct_kill_threshold =
-				CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+				iwl5150_get_ct_threshold(priv);
 		break;
 	}
 
@@ -862,7 +898,12 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			BIT(IWL_CALIB_BASE_BAND);
 		break;
 	case CSR_HW_REV_TYPE_5150:
-		priv->hw_params.calib_init_cfg = 0;
+		priv->hw_params.calib_init_cfg =
+			BIT(IWL_CALIB_DC)		|
+			BIT(IWL_CALIB_LO)		|
+			BIT(IWL_CALIB_TX_IQ) 		|
+			BIT(IWL_CALIB_BASE_BAND);
+
 		break;
 	}
 
@@ -1501,7 +1542,9 @@ static struct iwl_mod_params iwl50_mod_params = {
 
 struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "5300AGN",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1512,7 +1555,9 @@ struct iwl_cfg iwl5300_agn_cfg = {
 
 struct iwl_cfg iwl5100_bg_cfg = {
 	.name = "5100BG",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1523,7 +1568,9 @@ struct iwl_cfg iwl5100_bg_cfg = {
 
 struct iwl_cfg iwl5100_abg_cfg = {
 	.name = "5100ABG",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1534,7 +1581,9 @@ struct iwl_cfg iwl5100_abg_cfg = {
 
 struct iwl_cfg iwl5100_agn_cfg = {
 	.name = "5100AGN",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1545,7 +1594,9 @@ struct iwl_cfg iwl5100_agn_cfg = {
 
 struct iwl_cfg iwl5350_agn_cfg = {
 	.name = "5350AGN",
-	.fw_name = IWL5000_MODULE_FIRMWARE,
+	.fw_name_pre = IWL5000_FW_PRE,
+	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
@@ -1554,7 +1605,21 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.mod_params = &iwl50_mod_params,
 };
 
-MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE);
+struct iwl_cfg iwl5150_agn_cfg = {
+	.name = "5150AGN",
+	.fw_name_pre = IWL5150_FW_PRE,
+	.ucode_api_max = IWL5150_UCODE_API_MAX,
+	.ucode_api_min = IWL5150_UCODE_API_MIN,
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl5000_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
+	.mod_params = &iwl50_mod_params,
+};
+
+MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE(IWL5150_UCODE_API_MAX));
 
 module_param_named(disable50, iwl50_mod_params.disable, int, 0444);
 MODULE_PARM_DESC(disable50,

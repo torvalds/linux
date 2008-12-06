@@ -50,11 +50,15 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 #include "iwl-3945-debug.h"
 #include "iwl-3945-led.h"
 
-/* Change firmware file name, using "-" and incrementing number,
- *   *only* when uCode interface or architecture changes so that it
- *   is not compatible with earlier drivers.
- * This number will also appear in << 8 position of 1st dword of uCode file */
-#define IWL3945_UCODE_API "-1"
+/* Highest firmware API version supported */
+#define IWL3945_UCODE_API_MAX 2
+
+/* Lowest firmware API version supported */
+#define IWL3945_UCODE_API_MIN 1
+
+#define IWL3945_FW_PRE	"iwlwifi-3945-"
+#define _IWL3945_MODULE_FIRMWARE(api) IWL3945_FW_PRE #api ".ucode"
+#define IWL3945_MODULE_FIRMWARE(api) _IWL3945_MODULE_FIRMWARE(api)
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
@@ -505,7 +509,7 @@ struct fw_desc {
 
 /* uCode file layout */
 struct iwl3945_ucode {
-	__le32 ver;		/* major/minor/subminor */
+	__le32 ver;		/* major/minor/API/serial */
 	__le32 inst_size;	/* bytes of runtime instructions */
 	__le32 data_size;	/* bytes of runtime data */
 	__le32 init_size;	/* bytes of initialization instructions */
@@ -762,6 +766,8 @@ struct iwl3945_priv {
 	void __iomem *hw_base;
 
 	/* uCode images, save to reload in case of failure */
+	u32 ucode_ver;			/* ucode version, copy of
+					   iwl3945_ucode.ver */
 	struct fw_desc ucode_code;	/* runtime inst */
 	struct fw_desc ucode_data;	/* runtime data original */
 	struct fw_desc ucode_data_backup;	/* runtime data save/restore */

@@ -989,6 +989,9 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	u32 checksum = 0;
 	enum environment_cap env = ENVIRON_ANY;
 
+	if (!last_request)
+		return;
+
 	mutex_lock(&cfg80211_drv_mutex);
 
 	/* IE len must be evenly divisible by 2 */
@@ -1330,7 +1333,7 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 /* Caller must hold cfg80211_drv_mutex */
 void reg_device_remove(struct wiphy *wiphy)
 {
-	if (!last_request->wiphy)
+	if (!last_request || !last_request->wiphy)
 		return;
 	if (last_request->wiphy != wiphy)
 		return;

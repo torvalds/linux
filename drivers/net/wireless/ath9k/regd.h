@@ -125,7 +125,7 @@
 
 #define CHAN_FLAGS      (CHANNEL_ALL|CHANNEL_HALF|CHANNEL_QUARTER)
 
-#define swap(_a, _b, _size) {                   \
+#define swap_array(_a, _b, _size) {                   \
 	u8 *s = _b;                       \
 	int i = _size;                          \
 	do {                                    \

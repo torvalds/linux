@@ -79,10 +79,8 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	 * RTS/CTS frame should use the length of the frame plus any
 	 * encryption overhead that will be added by the hardware.
 	 */
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
 	if (!frag_skb->do_not_encrypt)
 		data_length += rt2x00crypto_tx_overhead(tx_info);
-#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		ieee80211_ctstoself_get(rt2x00dev->hw, tx_info->control.vif,
@@ -489,6 +487,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      struct ieee80211_key_conf *key)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct ieee80211_sta *sta;
 	int (*set_key) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_crypto *crypto,
 			struct ieee80211_key_conf *key);
@@ -537,6 +536,17 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			       sizeof(crypto.rx_mic));
 	} else
 		memcpy(&crypto.key, &key->key[0], key->keylen);
+
+	/*
+	 * Discover the Association ID from mac80211.
+	 * Some drivers need this information when updating the
+	 * hardware key (either adding or removing).
+	 */
+	rcu_read_lock();
+	sta = ieee80211_find_sta(hw, address);
+	if (sta)
+		crypto.aid = sta->aid;
+	rcu_read_unlock();
 
 	/*
 	 * Each BSS has a maximum of 4 shared keys.
@@ -636,7 +646,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 * When the erp information has changed, we should perform
 	 * additional configuration steps. For all other changes we are done.
 	 */
-	if (changes & (BSS_CHANGED_ERP_PREAMBLE | BSS_CHANGED_ERP_CTS_PROT)) {
+	if (changes & ~(BSS_CHANGED_ASSOC | BSS_CHANGED_HT)) {
 		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
 			rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
 		else

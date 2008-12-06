@@ -116,7 +116,7 @@ static int ath9k_hw_flash_map(struct ath_hal *ah)
 
 	if (!ahp->ah_cal_mem) {
 		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"%s: cannot remap eeprom region \n", __func__);
+			"cannot remap eeprom region \n");
 		return -EIO;
 	}
 
@@ -149,7 +149,7 @@ static bool ath9k_hw_fill_eeprom(struct ath_hal *ah)
 
 	if (!ath9k_hw_use_flash(ah)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"%s: Reading from EEPROM, not flash\n", __func__);
+			"Reading from EEPROM, not flash\n");
 		ar5416_eep_start_loc = 256;
 	}
 
@@ -162,8 +162,7 @@ static bool ath9k_hw_fill_eeprom(struct ath_hal *ah)
 		if (!ath9k_hw_nvram_read(ah, addr + ar5416_eep_start_loc,
 					 eep_data)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-				"%s: Unable to read eeprom region \n",
-				__func__);
+				"Unable to read eeprom region \n");
 			return false;
 		}
 		eep_data++;
@@ -185,12 +184,11 @@ static int ath9k_hw_check_eeprom(struct ath_hal *ah)
 		if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET,
 					 &magic)) {
 			DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-				"%s: Reading Magic # failed\n", __func__);
+				"Reading Magic # failed\n");
 			return false;
 		}
 
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM, "%s: Read Magic = 0x%04X\n",
-			 __func__, magic);
+		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM, "Read Magic = 0x%04X\n", magic);
 
 		if (magic != AR5416_EEPROM_MAGIC) {
 			magic2 = swab16(magic);
@@ -1205,11 +1203,11 @@ bool ath9k_hw_set_power_cal_table(struct ath_hal *ah,
 					((pdadcValues[4 * j + 3] & 0xFF) << 24);
 				REG_WRITE(ah, regOffset, reg32);
 
-				DPRINTF(ah->ah_sc, ATH_DBG_PHY_IO,
+				DPRINTF(ah->ah_sc, ATH_DBG_REG_IO,
 					"PDADC (%d,%4x): %4.4x %8.8x\n",
 					i, regChainOffset, regOffset,
 					reg32);
-				DPRINTF(ah->ah_sc, ATH_DBG_PHY_IO,
+				DPRINTF(ah->ah_sc, ATH_DBG_REG_IO,
 					"PDADC: Chain %d | PDADC %3d Value %3d | "
 					"PDADC %3d Value %3d | PDADC %3d Value %3d | "
 					"PDADC %3d Value %3d |\n",

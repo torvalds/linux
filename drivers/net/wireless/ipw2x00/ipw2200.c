@@ -7797,15 +7797,6 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 	memmove(rxb->skb->data + sizeof(struct ipw_rt_hdr),
 		rxb->skb->data + IPW_RX_FRAME_SIZE, len);
 
-	/* Zero the radiotap static buffer  ...  We only need to zero the bytes NOT
-	 * part of our real header, saves a little time.
-	 *
-	 * No longer necessary since we fill in all our data.  Purge before merging
-	 * patch officially.
-	 * memset(rxb->skb->data + sizeof(struct ipw_rt_hdr), 0,
-	 *        IEEE80211_RADIOTAP_HDRLEN - sizeof(struct ipw_rt_hdr));
-	 */
-
 	ipw_rt = (struct ipw_rt_hdr *)rxb->skb->data;
 
 	ipw_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
@@ -8012,15 +8003,6 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 		len = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
 
 	memcpy(ipw_rt->payload, hdr, len);
-
-	/* Zero the radiotap static buffer  ...  We only need to zero the bytes
-	 * NOT part of our real header, saves a little time.
-	 *
-	 * No longer necessary since we fill in all our data.  Purge before
-	 * merging patch officially.
-	 * memset(rxb->skb->data + sizeof(struct ipw_rt_hdr), 0,
-	 *        IEEE80211_RADIOTAP_HDRLEN - sizeof(struct ipw_rt_hdr));
-	 */
 
 	ipw_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	ipw_rt->rt_hdr.it_pad = 0;	/* always good to zero */
@@ -10409,9 +10391,9 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 		} else
 			len = src->len;
 
-		dst = alloc_skb(
-			len + IEEE80211_RADIOTAP_HDRLEN, GFP_ATOMIC);
-		if (!dst) continue;
+		dst = alloc_skb(len + sizeof(*rt_hdr), GFP_ATOMIC);
+		if (!dst)
+			continue;
 
 		rt_hdr = (void *)skb_put(dst, sizeof(*rt_hdr));
 

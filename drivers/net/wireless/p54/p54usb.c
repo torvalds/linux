@@ -244,13 +244,13 @@ static void p54u_tx_3887(struct ieee80211_hw *dev, struct sk_buff *skb,
 	usb_submit_urb(data_urb, GFP_ATOMIC);
 }
 
-static __le32 p54u_lm87_chksum(const u32 *data, size_t length)
+static __le32 p54u_lm87_chksum(const __le32 *data, size_t length)
 {
 	u32 chk = 0;
 
 	length >>= 2;
 	while (length--) {
-		chk ^= *data++;
+		chk ^= le32_to_cpu(*data++);
 		chk = (chk >> 5) ^ (chk << 3);
 	}
 
@@ -270,7 +270,7 @@ static void p54u_tx_lm87(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (!data_urb)
 		return;
 
-	checksum = p54u_lm87_chksum((u32 *)skb->data, skb->len);
+	checksum = p54u_lm87_chksum((__le32 *)skb->data, skb->len);
 	hdr = (struct lm87_tx_hdr *)skb_push(skb, sizeof(*hdr));
 	hdr->chksum = checksum;
 	hdr->device_addr = addr;
@@ -405,7 +405,8 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 
 	tmp = buf = kmalloc(P54U_FW_BLOCK, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "p54usb: cannot allocate firmware upload buffer!\n");
+		dev_err(&priv->udev->dev, "(p54usb) cannot allocate firmware"
+					  "upload buffer!\n");
 		err = -ENOMEM;
 		goto err_bufalloc;
 	}
@@ -413,13 +414,14 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 	memcpy(buf, start_string, 4);
 	err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, 4);
 	if (err) {
-		printk(KERN_ERR "p54usb: reset failed! (%d)\n", err);
+		dev_err(&priv->udev->dev, "(p54usb) reset failed! (%d)\n", err);
 		goto err_reset;
 	}
 
 	err = request_firmware(&fw_entry, "isl3887usb", &priv->udev->dev);
 	if (err) {
-		printk(KERN_ERR "p54usb: cannot find firmware (isl3887usb)\n");
+		dev_err(&priv->udev->dev, "p54usb: cannot find firmware "
+					  "(isl3887usb)\n");
 		err = request_firmware(&fw_entry, "isl3887usb_bare",
 			&priv->udev->dev);
 		if (err)
@@ -474,7 +476,8 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 
 		err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, block_size);
 		if (err) {
-			printk(KERN_ERR "p54usb: firmware upload failed!\n");
+			dev_err(&priv->udev->dev, "(p54usb) firmware "
+						  "upload failed!\n");
 			goto err_upload_failed;
 		}
 
@@ -485,10 +488,9 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 	*((__le32 *)buf) = cpu_to_le32(~crc32_le(~0, fw_entry->data, fw_entry->size));
 	err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, sizeof(u32));
 	if (err) {
-		printk(KERN_ERR "p54usb: firmware upload failed!\n");
+		dev_err(&priv->udev->dev, "(p54usb) firmware upload failed!\n");
 		goto err_upload_failed;
 	}
-
 	timeout = jiffies + msecs_to_jiffies(1000);
 	while (!(err = usb_bulk_msg(priv->udev,
 		usb_rcvbulkpipe(priv->udev, P54U_PIPE_DATA), buf, 128, &alen, 1000))) {
@@ -496,25 +498,27 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 			break;
 
 		if (alen > 5 && !memcmp(buf, "ERROR", 5)) {
-			printk(KERN_INFO "p54usb: firmware upload failed!\n");
 			err = -EINVAL;
 			break;
 		}
 
 		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "p54usb: firmware boot timed out!\n");
+			dev_err(&priv->udev->dev, "(p54usb) firmware boot "
+						  "timed out!\n");
 			err = -ETIMEDOUT;
 			break;
 		}
 	}
-	if (err)
+	if (err) {
+		dev_err(&priv->udev->dev, "(p54usb) firmware upload failed!\n");
 		goto err_upload_failed;
+	}
 
 	buf[0] = 'g';
 	buf[1] = '\r';
 	err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, 2);
 	if (err) {
-		printk(KERN_ERR "p54usb: firmware boot failed!\n");
+		dev_err(&priv->udev->dev, "(p54usb) firmware boot failed!\n");
 		goto err_upload_failed;
 	}
 
@@ -554,13 +558,15 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 
 	buf = kmalloc(512, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "p54usb: firmware buffer alloc failed!\n");
+		dev_err(&priv->udev->dev, "(p54usb) firmware buffer "
+					  "alloc failed!\n");
 		return -ENOMEM;
 	}
 
 	err = request_firmware(&fw_entry, "isl3886usb", &priv->udev->dev);
 	if (err) {
-		printk(KERN_ERR "p54usb: cannot find firmware (isl3886usb)\n");
+		dev_err(&priv->udev->dev, "(p54usb) cannot find firmware "
+					  "(isl3886usb)\n");
 		err = request_firmware(&fw_entry, "isl3890usb",
 			&priv->udev->dev);
 		if (err) {
@@ -685,8 +691,8 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 
 		err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, block_len);
 		if (err) {
-			printk(KERN_ERR "p54usb: firmware block upload "
-			       "failed\n");
+			dev_err(&priv->udev->dev, "(p54usb) firmware block "
+						  "upload failed\n");
 			goto fail;
 		}
 
@@ -719,8 +725,8 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 			  0x002C | (unsigned long)&devreg->direct_mem_win);
 		if (!(reg & cpu_to_le32(ISL38XX_DMA_STATUS_DONE)) ||
 		    !(reg & cpu_to_le32(ISL38XX_DMA_STATUS_READY))) {
-			printk(KERN_ERR "p54usb: firmware DMA transfer "
-			       "failed\n");
+			dev_err(&priv->udev->dev, "(p54usb) firmware DMA "
+						  "transfer failed\n");
 			goto fail;
 		}
 
@@ -825,8 +831,9 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 	unsigned int i, recognized_pipes;
 
 	dev = p54_init_common(sizeof(*priv));
+
 	if (!dev) {
-		printk(KERN_ERR "p54usb: ieee80211 alloc failed\n");
+		dev_err(&udev->dev, "(p54usb) ieee80211 alloc failed\n");
 		return -ENOMEM;
 	}
 
@@ -887,7 +894,7 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		printk(KERN_ERR "p54usb: Cannot register netdevice\n");
+		dev_err(&udev->dev, "(p54usb) Cannot register netdevice\n");
 		goto err_free_dev;
 	}
 

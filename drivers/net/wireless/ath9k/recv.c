@@ -105,8 +105,7 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 			skb_reserve(skb, sc->sc_cachelsz - off);
 	} else {
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: skbuff alloc of size %u failed\n",
-			__func__, len);
+			"skbuff alloc of size %u failed\n", len);
 		return NULL;
 	}
 
@@ -166,7 +165,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		 * discard the frame. Enable this if you want to see
 		 * error frames in Monitor mode.
 		 */
-		if (sc->sc_ah->ah_opmode != ATH9K_M_MONITOR)
+		if (sc->sc_ah->ah_opmode != NL80211_IFTYPE_MONITOR)
 			goto rx_next;
 	} else if (ds->ds_rxstat.rs_status != 0) {
 		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
@@ -192,7 +191,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		 * decryption and MIC failures. For monitor mode,
 		 * we also ignore the CRC error.
 		 */
-		if (sc->sc_ah->ah_opmode == ATH9K_M_MONITOR) {
+		if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_MONITOR) {
 			if (ds->ds_rxstat.rs_status &
 			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
 			      ATH9K_RXERR_CRC))
@@ -263,11 +262,7 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
-
 	ath9k_hw_setmcastfilter(ah, mfilt[0], mfilt[1]);
-	DPRINTF(sc, ATH_DBG_CONFIG ,
-		"%s: RX filter 0x%x, MC filter %08x:%08x\n",
-		__func__, rfilt, mfilt[0], mfilt[1]);
 }
 
 int ath_rx_init(struct ath_softc *sc, int nbufs)
@@ -285,8 +280,8 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 					   min(sc->sc_cachelsz,
 					       (u16)64));
 
-		DPRINTF(sc, ATH_DBG_CONFIG, "%s: cachelsz %u rxbufsize %u\n",
-			__func__, sc->sc_cachelsz, sc->sc_rxbufsize);
+		DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
+			sc->sc_cachelsz, sc->sc_rxbufsize);
 
 		/* Initialize rx descriptors */
 
@@ -294,8 +289,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 					  "rx", nbufs, 1);
 		if (error != 0) {
 			DPRINTF(sc, ATH_DBG_FATAL,
-				"%s: failed to allocate rx descriptors: %d\n",
-				__func__, error);
+				"failed to allocate rx descriptors: %d\n", error);
 			break;
 		}
 
@@ -310,6 +304,15 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 			bf->bf_buf_addr = pci_map_single(sc->pdev, skb->data,
 					 sc->sc_rxbufsize,
 					 PCI_DMA_FROMDEVICE);
+			if (unlikely(pci_dma_mapping_error(sc->pdev,
+				  bf->bf_buf_addr))) {
+				dev_kfree_skb_any(skb);
+				bf->bf_mpdu = NULL;
+				DPRINTF(sc, ATH_DBG_CONFIG,
+					"pci_dma_mapping_error() on RX init\n");
+				error = -ENOMEM;
+				break;
+			}
 			bf->bf_dmacontext = bf->bf_buf_addr;
 		}
 		sc->sc_rxlink = NULL;
@@ -367,25 +370,25 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		| ATH9K_RX_FILTER_MCAST;
 
 	/* If not a STA, enable processing of Probe Requests */
-	if (sc->sc_ah->ah_opmode != ATH9K_M_STA)
+	if (sc->sc_ah->ah_opmode != NL80211_IFTYPE_STATION)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/* Can't set HOSTAP into promiscous mode */
-	if (((sc->sc_ah->ah_opmode != ATH9K_M_HOSTAP) &&
+	if (((sc->sc_ah->ah_opmode != NL80211_IFTYPE_AP) &&
 	     (sc->rx_filter & FIF_PROMISC_IN_BSS)) ||
-	    (sc->sc_ah->ah_opmode == ATH9K_M_MONITOR)) {
+	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_MONITOR)) {
 		rfilt |= ATH9K_RX_FILTER_PROM;
 		/* ??? To prevent from sending ACK */
 		rfilt &= ~ATH9K_RX_FILTER_UCAST;
 	}
 
-	if (sc->sc_ah->ah_opmode == ATH9K_M_STA ||
-	    sc->sc_ah->ah_opmode == ATH9K_M_IBSS)
+	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION ||
+	    sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	/* If in HOSTAP mode, want to enable reception of PSPOLL frames
 	   & beacon frames */
-	if (sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP)
+	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP)
 		rfilt |= (ATH9K_RX_FILTER_BEACON | ATH9K_RX_FILTER_PSPOLL);
 
 	return rfilt;
@@ -595,6 +598,14 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		bf->bf_buf_addr = pci_map_single(sc->pdev, requeue_skb->data,
 					 sc->sc_rxbufsize,
 					 PCI_DMA_FROMDEVICE);
+		if (unlikely(pci_dma_mapping_error(sc->pdev,
+			  bf->bf_buf_addr))) {
+			dev_kfree_skb_any(requeue_skb);
+			bf->bf_mpdu = NULL;
+			DPRINTF(sc, ATH_DBG_CONFIG,
+				"pci_dma_mapping_error() on RX\n");
+			break;
+		}
 		bf->bf_dmacontext = bf->bf_buf_addr;
 
 		/*

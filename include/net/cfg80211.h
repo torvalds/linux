@@ -5,6 +5,8 @@
 #include <linux/skbuff.h>
 #include <linux/nl80211.h>
 #include <net/genetlink.h>
+/* remove once we remove the wext stuff */
+#include <net/iw_handler.h>
 
 /*
  * 802.11 configuration in-kernel interface
@@ -392,6 +394,9 @@ struct ieee80211_txq_params {
 /* from net/wireless.h */
 struct wiphy;
 
+/* from net/ieee80211.h */
+struct ieee80211_channel;
+
 /**
  * struct cfg80211_ops - backend description for wireless configuration
  *
@@ -450,6 +455,8 @@ struct wiphy;
  * @change_bss: Modify parameters for a given BSS.
  *
  * @set_txq_params: Set TX queue parameters
+ *
+ * @set_channel: Set channel
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -513,6 +520,19 @@ struct cfg80211_ops {
 
 	int	(*set_txq_params)(struct wiphy *wiphy,
 				  struct ieee80211_txq_params *params);
+
+	int	(*set_channel)(struct wiphy *wiphy,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_sec_chan_offset);
 };
+
+/* temporary wext handlers */
+int cfg80211_wext_giwname(struct net_device *dev,
+			  struct iw_request_info *info,
+			  char *name, char *extra);
+int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
+			  u32 *mode, char *extra);
+int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
+			  u32 *mode, char *extra);
 
 #endif /* __NET_CFG80211_H */

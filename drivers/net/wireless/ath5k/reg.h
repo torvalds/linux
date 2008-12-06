@@ -1729,6 +1729,7 @@
 #define	AR5K_MISC_MODE			0x8120			/* Register Address */
 #define	AR5K_MISC_MODE_FBSSID_MATCH	0x00000001	/* Force BSSID match */
 #define	AR5K_MISC_MODE_ACKSIFS_MEM	0x00000002	/* ACK SIFS memory (?) */
+#define	AR5K_MISC_MODE_COMBINED_MIC	0x00000004	/* use rx/tx MIC key */
 /* more bits */
 
 /*

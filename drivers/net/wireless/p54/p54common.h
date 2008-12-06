@@ -246,9 +246,21 @@ struct memrecord {
 };
 
 struct p54_eeprom_lm86 {
-	__le16 offset;
-	__le16 len;
-	u8 data[0];
+	union {
+		struct {
+			__le16 offset;
+			__le16 len;
+			u8 data[0];
+		} v1;
+		struct {
+			__le32 offset;
+			__le16 len;
+			u8 magic2;
+			u8 pad;
+			u8 magic[4];
+			u8 data[0];
+		} v2;
+	}  __attribute__ ((packed));
 } __attribute__ ((packed));
 
 enum p54_rx_decrypt_status {
@@ -302,7 +314,7 @@ enum p54_frame_sent_status {
 	P54_TX_OK = 0,
 	P54_TX_FAILED,
 	P54_TX_PSM,
-	P54_TX_PSM_CANCELLED
+	P54_TX_PSM_CANCELLED = 4
 };
 
 struct p54_frame_sent {

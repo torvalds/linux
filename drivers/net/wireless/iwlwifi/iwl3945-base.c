@@ -4311,35 +4311,6 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 	/* Safely ignore these bits for debug checks below */
 	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
-	/* HW RF KILL switch toggled (4965 only) */
-	if (inta & CSR_INT_BIT_RF_KILL) {
-		int hw_rf_kill = 0;
-		if (!(iwl3945_read32(priv, CSR_GP_CNTRL) &
-				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
-			hw_rf_kill = 1;
-
-		IWL_DEBUG(IWL_DL_INFO | IWL_DL_RF_KILL | IWL_DL_ISR,
-				"RF_KILL bit toggled to %s.\n",
-				hw_rf_kill ? "disable radio" : "enable radio");
-
-		/* Queue restart only if RF_KILL switch was set to "kill"
-		 *   when we loaded driver, and is now set to "enable".
-		 * After we're Alive, RF_KILL gets handled by
-		 *   iwl3945_rx_card_state_notif() */
-		if (!hw_rf_kill && !test_bit(STATUS_ALIVE, &priv->status)) {
-			clear_bit(STATUS_RF_KILL_HW, &priv->status);
-			queue_work(priv->workqueue, &priv->restart);
-		}
-
-		handled |= CSR_INT_BIT_RF_KILL;
-	}
-
-	/* Chip got too hot and stopped itself (4965 only) */
-	if (inta & CSR_INT_BIT_CT_KILL) {
-		IWL_ERROR("Microcode CT kill error detected.\n");
-		handled |= CSR_INT_BIT_CT_KILL;
-	}
-
 	/* Error detected by uCode */
 	if (inta & CSR_INT_BIT_SW_ERR) {
 		IWL_ERROR("Microcode SW error detected.  Restarting 0x%X.\n",
@@ -4440,7 +4411,7 @@ static irqreturn_t iwl3945_isr(int irq, void *data)
 
 	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
 		/* Hardware disappeared */
-		IWL_WARNING("HARDWARE GONE?? INTA == 0x%080x\n", inta);
+		IWL_WARNING("HARDWARE GONE?? INTA == 0x%08x\n", inta);
 		goto unplugged;
 	}
 
@@ -4814,17 +4785,33 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
 			continue;
 		}
 
-		if (!is_active || is_channel_passive(ch_info) ||
-		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN))
-			scan_ch->type = 0;	/* passive */
-		else
-			scan_ch->type = 1;	/* active */
-
-		if ((scan_ch->type & 1) && n_probes)
-			scan_ch->type |= IWL_SCAN_PROBE_MASK(n_probes);
-
 		scan_ch->active_dwell = cpu_to_le16(active_dwell);
 		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
+		/* If passive , set up for auto-switch
+		 *  and use long active_dwell time.
+		 */
+		if (!is_active || is_channel_passive(ch_info) ||
+		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
+			scan_ch->type = 0;	/* passive */
+			if (IWL_UCODE_API(priv->ucode_ver) == 1)
+				scan_ch->active_dwell = cpu_to_le16(passive_dwell - 1);
+		} else {
+			scan_ch->type = 1;	/* active */
+		}
+
+		/* Set direct probe bits. These may be used both for active
+		 * scan channels (probes gets sent right away),
+		 * or for passive channels (probes get se sent only after
+		 * hearing clear Rx packet).*/
+		if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
+			if (n_probes)
+				scan_ch->type |= IWL_SCAN_PROBE_MASK(n_probes);
+		} else {
+			/* uCode v1 does not allow setting direct probe bits on
+			 * passive channel. */
+			if ((scan_ch->type & 1) && n_probes)
+				scan_ch->type |= IWL_SCAN_PROBE_MASK(n_probes);
+		}
 
 		/* Set txpower levels to defaults */
 		scan_ch->tpc.dsp_atten = 110;
@@ -5325,25 +5312,41 @@ static void iwl3945_nic_start(struct iwl3945_priv *priv)
 static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 {
 	struct iwl3945_ucode *ucode;
-	int ret = 0;
+	int ret = -EINVAL, index;
 	const struct firmware *ucode_raw;
 	/* firmware file name contains uCode/driver compatibility version */
-	const char *name = priv->cfg->fw_name;
+	const char *name_pre = priv->cfg->fw_name_pre;
+	const unsigned int api_max = priv->cfg->ucode_api_max;
+	const unsigned int api_min = priv->cfg->ucode_api_min;
+	char buf[25];
 	u8 *src;
 	size_t len;
-	u32 ver, inst_size, data_size, init_size, init_data_size, boot_size;
+	u32 api_ver, inst_size, data_size, init_size, init_data_size, boot_size;
 
 	/* Ask kernel firmware_class module to get the boot firmware off disk.
 	 * request_firmware() is synchronous, file is in memory on return. */
-	ret = request_firmware(&ucode_raw, name, &priv->pci_dev->dev);
-	if (ret < 0) {
-		IWL_ERROR("%s firmware file req failed: Reason %d\n",
-				name, ret);
-		goto error;
+	for (index = api_max; index >= api_min; index--) {
+		sprintf(buf, "%s%u%s", name_pre, index, ".ucode");
+		ret = request_firmware(&ucode_raw, buf, &priv->pci_dev->dev);
+		if (ret < 0) {
+			IWL_ERROR("%s firmware file req failed: Reason %d\n",
+				  buf, ret);
+			if (ret == -ENOENT)
+				continue;
+			else
+				goto error;
+		} else {
+			if (index < api_max)
+				IWL_ERROR("Loaded firmware %s, which is deprecated. Please use API v%u instead.\n",
+					  buf, api_max);
+			IWL_DEBUG_INFO("Got firmware '%s' file (%zd bytes) from disk\n",
+				       buf, ucode_raw->size);
+			break;
+		}
 	}
 
-	IWL_DEBUG_INFO("Got firmware '%s' file (%zd bytes) from disk\n",
-		       name, ucode_raw->size);
+	if (ret < 0)
+		goto error;
 
 	/* Make sure that we got at least our header! */
 	if (ucode_raw->size < sizeof(*ucode)) {
@@ -5355,19 +5358,45 @@ static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 	/* Data from ucode file:  header followed by uCode images */
 	ucode = (void *)ucode_raw->data;
 
-	ver = le32_to_cpu(ucode->ver);
+	priv->ucode_ver = le32_to_cpu(ucode->ver);
+	api_ver = IWL_UCODE_API(priv->ucode_ver);
 	inst_size = le32_to_cpu(ucode->inst_size);
 	data_size = le32_to_cpu(ucode->data_size);
 	init_size = le32_to_cpu(ucode->init_size);
 	init_data_size = le32_to_cpu(ucode->init_data_size);
 	boot_size = le32_to_cpu(ucode->boot_size);
 
-	IWL_DEBUG_INFO("f/w package hdr ucode version = 0x%x\n", ver);
+	/* api_ver should match the api version forming part of the
+	 * firmware filename ... but we don't check for that and only rely
+	 * on the API version read from firware header from here on forward */
+
+	if (api_ver < api_min || api_ver > api_max) {
+		IWL_ERROR("Driver unable to support your firmware API. "
+			  "Driver supports v%u, firmware is v%u.\n",
+			  api_max, api_ver);
+		priv->ucode_ver = 0;
+		ret = -EINVAL;
+		goto err_release;
+	}
+	if (api_ver != api_max)
+		IWL_ERROR("Firmware has old API version. Expected %u, "
+			  "got %u. New firmware can be obtained "
+			  "from http://www.intellinuxwireless.org.\n",
+			  api_max, api_ver);
+
+	printk(KERN_INFO DRV_NAME " loaded firmware version %u.%u.%u.%u\n",
+		       IWL_UCODE_MAJOR(priv->ucode_ver),
+		       IWL_UCODE_MINOR(priv->ucode_ver),
+		       IWL_UCODE_API(priv->ucode_ver),
+		       IWL_UCODE_SERIAL(priv->ucode_ver));
+	IWL_DEBUG_INFO("f/w package hdr ucode version raw = 0x%x\n",
+		       priv->ucode_ver);
 	IWL_DEBUG_INFO("f/w package hdr runtime inst size = %u\n", inst_size);
 	IWL_DEBUG_INFO("f/w package hdr runtime data size = %u\n", data_size);
 	IWL_DEBUG_INFO("f/w package hdr init inst size = %u\n", init_size);
 	IWL_DEBUG_INFO("f/w package hdr init data size = %u\n", init_data_size);
 	IWL_DEBUG_INFO("f/w package hdr boot inst size = %u\n", boot_size);
+
 
 	/* Verify size of file vs. image size info in file's header */
 	if (ucode_raw->size < sizeof(*ucode) +
@@ -7843,7 +7872,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		    IEEE80211_HW_NOISE_DBM;
 
 	hw->wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
 
@@ -8328,7 +8356,7 @@ static void __exit iwl3945_exit(void)
 	iwl3945_rate_control_unregister();
 }
 
-MODULE_FIRMWARE("iwlwifi-3945" IWL3945_UCODE_API ".ucode");
+MODULE_FIRMWARE(IWL3945_MODULE_FIRMWARE(IWL3945_UCODE_API_MAX));
 
 module_param_named(antenna, iwl3945_param_antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");

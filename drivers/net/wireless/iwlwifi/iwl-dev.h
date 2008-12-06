@@ -54,6 +54,7 @@ extern struct iwl_cfg iwl5100_agn_cfg;
 extern struct iwl_cfg iwl5350_agn_cfg;
 extern struct iwl_cfg iwl5100_bg_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
+extern struct iwl_cfg iwl5150_agn_cfg;
 
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD	110 /* in Celsius */
@@ -461,7 +462,7 @@ struct fw_desc {
 
 /* uCode file layout */
 struct iwl_ucode {
-	__le32 ver;		/* major/minor/subminor */
+	__le32 ver;		/* major/minor/API/serial */
 	__le32 inst_size;	/* bytes of runtime instructions */
 	__le32 data_size;	/* bytes of runtime data */
 	__le32 init_size;	/* bytes of initialization instructions */
@@ -507,6 +508,7 @@ struct iwl_sensitivity_ranges {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
+ * @dma_chnl_num: Number of Tx DMA/FIFO channels
  * @scd_bc_tbls_size: size of scheduler byte count tables
  * @tx/rx_chains_num: Number of TX/RX chains
  * @valid_tx/rx_ant: usable antennas
@@ -524,7 +526,8 @@ struct iwl_sensitivity_ranges {
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  */
 struct iwl_hw_params {
-	u16 max_txq_num;
+	u8 max_txq_num;
+	u8 dma_chnl_num;
 	u16 scd_bc_tbls_size;
 	u8  tx_chains_num;
 	u8  rx_chains_num;
@@ -692,6 +695,7 @@ struct statistics_general_data {
  */
 enum iwl_calib {
 	IWL_CALIB_XTAL,
+	IWL_CALIB_DC,
 	IWL_CALIB_LO,
 	IWL_CALIB_TX_IQ,
 	IWL_CALIB_TX_IQ_PERD,
@@ -839,6 +843,8 @@ struct iwl_priv {
 	u8   rev_id;
 
 	/* uCode images, save to reload in case of failure */
+	u32 ucode_ver;			/* version of ucode, copy of
+					   iwl_ucode.ver */
 	struct fw_desc ucode_code;	/* runtime inst */
 	struct fw_desc ucode_data;	/* runtime data original */
 	struct fw_desc ucode_data_backup;	/* runtime data save/restore */
@@ -1083,10 +1089,5 @@ static inline int is_channel_ibss(const struct iwl_channel_info *ch)
 {
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
 }
-
-extern const struct iwl_channel_info *iwl_get_channel_info(
-	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);
-
-/* Requires full declaration of iwl_priv before including */
 
 #endif				/* __iwl_dev_h__ */

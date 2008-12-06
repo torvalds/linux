@@ -435,7 +435,11 @@ static int ieee80211_stop(struct net_device *dev)
 		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
-		sdata->u.sta.state = IEEE80211_STA_MLME_DISABLED;
+		/* Announce that we are leaving the network. */
+		if (sdata->u.sta.state != IEEE80211_STA_MLME_DISABLED)
+			ieee80211_sta_deauthenticate(sdata,
+						WLAN_REASON_DEAUTH_LEAVING);
+
 		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
 		del_timer_sync(&sdata->u.sta.timer);
 		/*
@@ -693,6 +697,10 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 
 	if (type == sdata->vif.type)
 		return 0;
+
+	/* Setting ad-hoc mode on non-IBSS channel is not supported. */
+	if (sdata->local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS)
+		return -EOPNOTSUPP;
 
 	/*
 	 * We could, here, on changes between IBSS/STA/MESH modes,

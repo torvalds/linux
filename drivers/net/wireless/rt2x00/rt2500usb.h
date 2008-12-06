@@ -447,6 +447,9 @@
 #define SEC_CSR30			0x04bc
 #define SEC_CSR31			0x04be
 
+#define KEY_ENTRY(__idx) \
+	( SEC_CSR0 + ((__idx) * 16) )
+
 /*
  * PHY control registers.
  */

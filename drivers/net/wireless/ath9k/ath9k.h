@@ -647,13 +647,6 @@ enum ath9k_ant_setting {
 	ATH9K_ANT_FIXED_B
 };
 
-enum ath9k_opmode {
-	ATH9K_M_STA = 1,
-	ATH9K_M_IBSS = 0,
-	ATH9K_M_HOSTAP = 6,
-	ATH9K_M_MONITOR = 8
-};
-
 #define ATH9K_SLOT_TIME_6 6
 #define ATH9K_SLOT_TIME_9 9
 #define ATH9K_SLOT_TIME_20 20
@@ -780,7 +773,8 @@ struct ath_hal {
 
 	void __iomem *ah_sh;
 	struct ath_softc *ah_sc;
-	enum ath9k_opmode ah_opmode;
+
+	enum nl80211_iftype ah_opmode;
 	struct ath9k_ops_config ah_config;
 	struct ath9k_hw_capabilities ah_caps;
 
@@ -1009,7 +1003,6 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hal *ah, enum ath9k_int ints);
 
 /* MAC (PCU/QCU) */
 
-void ath9k_hw_dmaRegDump(struct ath_hal *ah);
 u32 ath9k_hw_gettxbuf(struct ath_hal *ah, u32 q);
 bool ath9k_hw_puttxbuf(struct ath_hal *ah, u32 q, u32 txdp);
 bool ath9k_hw_txstart(struct ath_hal *ah, u32 q);
