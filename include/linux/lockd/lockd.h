@@ -247,10 +247,10 @@ void		  nlm_host_rebooted(const struct nlm_reboot *);
 int		  nsm_monitor(const struct nlm_host *host);
 void		  nsm_unmonitor(const struct nlm_host *host);
 
-struct nsm_handle *nsm_find(const struct sockaddr *sap, const size_t salen,
+struct nsm_handle *nsm_get_handle(const struct sockaddr *sap,
+					const size_t salen,
 					const char *hostname,
-					const size_t hostname_len,
-					const int create);
+					const size_t hostname_len);
 struct nsm_handle *nsm_reboot_lookup(const struct nlm_reboot *info);
 void		  nsm_release(struct nsm_handle *nsm);
 

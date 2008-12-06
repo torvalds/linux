@@ -240,24 +240,22 @@ static void nsm_init_private(struct nsm_handle *nsm)
 }
 
 /**
- * nsm_find - Find or create a cached nsm_handle
+ * nsm_get_handle - Find or create a cached nsm_handle
  * @sap: pointer to socket address of handle to find
  * @salen: length of socket address
  * @hostname: pointer to C string containing hostname to find
  * @hostname_len: length of C string
- * @create: one means create new handle if not found in cache
  *
- * Behavior is modulated by the global nsm_use_hostnames variable
- * and by the @create argument.
+ * Behavior is modulated by the global nsm_use_hostnames variable.
  *
- * Returns a cached nsm_handle after bumping its ref count, or if
- * @create is set, returns a fresh nsm_handle if a handle that
- * matches @sap and/or @hostname cannot be found in the handle cache.
- * Returns NULL if an error occurs.
+ * Returns a cached nsm_handle after bumping its ref count, or
+ * returns a fresh nsm_handle if a handle that matches @sap and/or
+ * @hostname cannot be found in the handle cache.  Returns NULL if
+ * an error occurs.
  */
-struct nsm_handle *nsm_find(const struct sockaddr *sap, const size_t salen,
-			    const char *hostname, const size_t hostname_len,
-			    const int create)
+struct nsm_handle *nsm_get_handle(const struct sockaddr *sap,
+				  const size_t salen, const char *hostname,
+				  const size_t hostname_len)
 {
 	struct nsm_handle *nsm = NULL;
 	struct nsm_handle *pos;
@@ -296,9 +294,6 @@ retry:
 		goto found;
 	}
 	spin_unlock(&nsm_lock);
-
-	if (!create)
-		return NULL;
 
 	nsm = kzalloc(sizeof(*nsm) + hostname_len + 1, GFP_KERNEL);
 	if (nsm == NULL)
