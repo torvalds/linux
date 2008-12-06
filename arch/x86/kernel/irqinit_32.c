@@ -69,7 +69,6 @@ void __init init_ISA_irqs (void)
 	 * 16 old-style INTA-cycle interrupts:
 	 */
 	for (i = 0; i < 16; i++) {
-		/* first time call this irq_desc */
 		struct irq_desc *desc = irq_to_desc(i);
 
 		desc->status = IRQ_DISABLED;

@@ -27,6 +27,7 @@ static int show_stat(struct seq_file *p, void *v)
 	u64 sum = 0;
 	struct timespec boottime;
 	unsigned int per_irq_sum;
+	struct irq_desc *desc;
 
 	user = nice = system = idle = iowait =
 		irq = softirq = steal = cputime64_zero;
@@ -44,10 +45,11 @@ static int show_stat(struct seq_file *p, void *v)
 		softirq = cputime64_add(softirq, kstat_cpu(i).cpustat.softirq);
 		steal = cputime64_add(steal, kstat_cpu(i).cpustat.steal);
 		guest = cputime64_add(guest, kstat_cpu(i).cpustat.guest);
-
-		for_each_irq_nr(j)
+		for_each_irq_desc(j, desc) {
+			if (!desc)
+				continue;
 			sum += kstat_irqs_cpu(j, i);
-
+		}
 		sum += arch_irq_stat_cpu(i);
 	}
 	sum += arch_irq_stat();
@@ -90,11 +92,14 @@ static int show_stat(struct seq_file *p, void *v)
 	seq_printf(p, "intr %llu", (unsigned long long)sum);
 
 	/* sum again ? it could be updated? */
-	for_each_irq_nr(j) {
+	for (j = 0; j < NR_IRQS; j++) {
+		desc = irq_to_desc(j);
 		per_irq_sum = 0;
 
-		for_each_possible_cpu(i)
-			per_irq_sum += kstat_irqs_cpu(j, i);
+		if (desc) {
+			for_each_possible_cpu(i)
+				per_irq_sum += kstat_irqs_cpu(j, i);
+		}
 
 		seq_printf(p, " %u", per_irq_sum);
 	}

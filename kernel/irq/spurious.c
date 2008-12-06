@@ -91,6 +91,9 @@ static int misrouted_irq(int irq)
 	int i, ok = 0;
 
 	for_each_irq_desc(i, desc) {
+		if (!desc)
+			continue;
+
 		if (!i)
 			 continue;
 
@@ -112,6 +115,8 @@ static void poll_spurious_irqs(unsigned long dummy)
 	for_each_irq_desc(i, desc) {
 		unsigned int status;
 
+		if (!desc)
+			continue;
 		if (!i)
 			 continue;
 
