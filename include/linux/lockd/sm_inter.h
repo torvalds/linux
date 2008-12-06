@@ -21,26 +21,6 @@
 #define SM_MAXSTRLEN	1024
 #define SM_PRIV_SIZE	16
 
-/*
- * Arguments for all calls to statd
- */
-struct nsm_args {
-	__be32		addr;		/* remote address */
-	u32		prog;		/* RPC callback info */
-	u32		vers;
-	u32		proc;
-
-	char *		mon_name;
-};
-
-/*
- * Result returned by statd
- */
-struct nsm_res {
-	u32		status;
-	u32		state;
-};
-
 extern int	nsm_local_state;
 
 #endif /* LINUX_LOCKD_SM_INTER_H */

@@ -18,6 +18,20 @@
 
 #define NLMDBG_FACILITY		NLMDBG_MONITOR
 
+struct nsm_args {
+	__be32			addr;		/* remote address */
+	u32			prog;		/* RPC callback info */
+	u32			vers;
+	u32			proc;
+
+	char			*mon_name;
+};
+
+struct nsm_res {
+	u32			status;
+	u32			state;
+};
+
 static struct rpc_clnt *	nsm_create(void);
 
 static struct rpc_program	nsm_program;
