@@ -1445,14 +1445,9 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 /* I wish gso_size would have a bit more sane initialization than
  * something-or-zero which complicates things
  */
-static int tcp_shift_mss(struct sk_buff *skb)
+static int tcp_skb_seglen(struct sk_buff *skb)
 {
-	int mss = tcp_skb_mss(skb);
-
-	if (!mss)
-		mss = skb->len;
-
-	return mss;
+	return tcp_skb_pcount(skb) == 1 ? skb->len : tcp_skb_mss(skb);
 }
 
 /* Shifting pages past head area doesn't work */
@@ -1503,12 +1498,12 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 	if (in_sack) {
 		len = skb->len;
 		pcount = tcp_skb_pcount(skb);
-		mss = tcp_shift_mss(skb);
+		mss = tcp_skb_seglen(skb);
 
 		/* TODO: Fix DSACKs to not fragment already SACKed and we can
 		 * drop this restriction as unnecessary
 		 */
-		if (mss != tcp_shift_mss(prev))
+		if (mss != tcp_skb_seglen(prev))
 			goto fallback;
 	} else {
 		if (!after(TCP_SKB_CB(skb)->end_seq, start_seq))
@@ -1549,7 +1544,7 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 		/* TODO: Fix DSACKs to not fragment already SACKed and we can
 		 * drop this restriction as unnecessary
 		 */
-		if (mss != tcp_shift_mss(prev))
+		if (mss != tcp_skb_seglen(prev))
 			goto fallback;
 
 		if (len == mss) {
@@ -1578,7 +1573,7 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 	if (!skb_can_shift(skb) ||
 	    (skb == tcp_send_head(sk)) ||
 	    ((TCP_SKB_CB(skb)->sacked & TCPCB_TAGBITS) != TCPCB_SACKED_ACKED) ||
-	    (mss != tcp_shift_mss(skb)))
+	    (mss != tcp_skb_seglen(skb)))
 		goto out;
 
 	len = skb->len;
@@ -2853,7 +2848,7 @@ void tcp_simple_retransmit(struct sock *sk)
 	tcp_for_write_queue(skb, sk) {
 		if (skb == tcp_send_head(sk))
 			break;
-		if (skb->len > mss &&
+		if (tcp_skb_seglen(skb) > mss &&
 		    !(TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)) {
 			if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) {
 				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
