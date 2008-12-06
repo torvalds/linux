@@ -583,10 +583,8 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	wait_for_response(ses, midQ, timeout, 10 * HZ);
 
 	spin_lock(&GlobalMid_Lock);
-	if (midQ->resp_buf) {
-		spin_unlock(&GlobalMid_Lock);
-		receive_len = midQ->resp_buf->smb_buf_length;
-	} else {
+
+	if (midQ->resp_buf == NULL) {
 		cERROR(1, ("No response to cmd %d mid %d",
 			midQ->command, midQ->mid));
 		if (midQ->midState == MID_REQUEST_SUBMITTED) {
@@ -613,6 +611,9 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
+
+	spin_unlock(&GlobalMid_Lock);
+	receive_len = midQ->resp_buf->smb_buf_length;
 
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
 		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
@@ -773,10 +774,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	wait_for_response(ses, midQ, timeout, 10 * HZ);
 
 	spin_lock(&GlobalMid_Lock);
-	if (midQ->resp_buf) {
-		spin_unlock(&GlobalMid_Lock);
-		receive_len = midQ->resp_buf->smb_buf_length;
-	} else {
+	if (midQ->resp_buf == NULL) {
 		cERROR(1, ("No response for cmd %d mid %d",
 			  midQ->command, midQ->mid));
 		if (midQ->midState == MID_REQUEST_SUBMITTED) {
@@ -803,6 +801,9 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
+
+	spin_unlock(&GlobalMid_Lock);
+	receive_len = midQ->resp_buf->smb_buf_length;
 
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
 		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
