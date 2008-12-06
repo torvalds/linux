@@ -2282,9 +2282,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 		/* volume_info->password freed at unmount */
 		if (volume_info->password) {
-			pSesInfo->password = volume_info->password;
-			/* set to NULL to prevent freeing on exit */
-			volume_info->password = NULL;
+			pSesInfo->password = kstrdup(volume_info->password,
+						     GFP_KERNEL);
+			if (!pSesInfo->password) {
+				rc = -ENOMEM;
+				goto mount_fail_check;
+			}
 		}
 		if (volume_info->username)
 			strncpy(pSesInfo->userName, volume_info->username,
@@ -2324,7 +2327,16 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				rc = -ENOMEM;
 				goto mount_fail_check;
 			}
+
 			tcon->ses = pSesInfo;
+			if (volume_info->password) {
+				tcon->password = kstrdup(volume_info->password,
+							 GFP_KERNEL);
+				if (!tcon->password) {
+					rc = -ENOMEM;
+					goto mount_fail_check;
+				}
+			}
 
 			/* check for null share name ie connect to dfs root */
 			if ((strchr(volume_info->UNC + 3, '\\') == NULL)
@@ -3532,15 +3544,14 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		   NTLMv2 password here) */
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 		if ((extended_security & CIFSSEC_MAY_LANMAN) &&
-			(ses->server->secType == LANMAN))
-			calc_lanman_hash(ses->password, ses->server->cryptKey,
+		    (ses->server->secType == LANMAN))
+			calc_lanman_hash(tcon->password, ses->server->cryptKey,
 					 ses->server->secMode &
 					    SECMODE_PW_ENCRYPT ? true : false,
 					 bcc_ptr);
 		else
 #endif /* CIFS_WEAK_PW_HASH */
-		SMBNTencrypt(ses->password,
-			     ses->server->cryptKey,
+		SMBNTencrypt(tcon->password, ses->server->cryptKey,
 			     bcc_ptr);
 
 		bcc_ptr += CIFS_SESS_KEY_SIZE;
