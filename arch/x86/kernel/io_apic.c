@@ -2973,7 +2973,7 @@ unsigned int create_irq_nr(unsigned int irq_want)
 
 	irq = 0;
 	spin_lock_irqsave(&vector_lock, flags);
-	for (new = irq_want; new > 0; new--) {
+	for (new = irq_want; new < NR_IRQS; new++) {
 		if (platform_legacy_irq(new))
 			continue;
 
@@ -3001,11 +3001,14 @@ unsigned int create_irq_nr(unsigned int irq_want)
 	return irq;
 }
 
+static int nr_irqs_gsi = NR_IRQS_LEGACY;
 int create_irq(void)
 {
+	unsigned int irq_want;
 	int irq;
 
-	irq = create_irq_nr(nr_irqs - 1);
+	irq_want = nr_irqs_gsi;
+	irq = create_irq_nr(irq_want);
 
 	if (irq == 0)
 		irq = -1;
@@ -3281,7 +3284,7 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc)
 	int ret;
 	unsigned int irq_want;
 
-	irq_want = nr_irqs - 1;
+	irq_want = nr_irqs_gsi;
 	irq = create_irq_nr(irq_want);
 	if (irq == 0)
 		return -1;
@@ -3321,11 +3324,11 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	int index = 0;
 #endif
 
-	irq_want = nr_irqs - 1;
+	irq_want = nr_irqs_gsi;
 	sub_handle = 0;
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		irq = create_irq_nr(irq_want);
-		irq_want--;
+		irq_want++;
 		if (irq == 0)
 			return -1;
 #ifdef CONFIG_INTR_REMAP
@@ -3674,9 +3677,16 @@ int __init io_apic_get_redir_entries (int ioapic)
 	return reg_01.bits.entries;
 }
 
-int __init probe_nr_irqs(void)
+void __init probe_nr_irqs_gsi(void)
 {
-	return NR_IRQS;
+	int idx;
+	int nr = 0;
+
+	for (idx = 0; idx < nr_ioapics; idx++)
+		nr += io_apic_get_redir_entries(idx) + 1;
+
+	if (nr > nr_irqs_gsi)
+		nr_irqs_gsi = nr;
 }
 
 /* --------------------------------------------------------------------------
