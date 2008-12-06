@@ -44,6 +44,7 @@
 #define DRIVER_VERSION		"v0.1.0"
 #endif
 
+unsigned int uvc_no_drop_param;
 static unsigned int uvc_quirks_param;
 unsigned int uvc_trace_param;
 
@@ -1939,6 +1940,8 @@ static void __exit uvc_cleanup(void)
 module_init(uvc_init);
 module_exit(uvc_cleanup);
 
+module_param_named(nodrop, uvc_no_drop_param, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(nodrop, "Don't drop incomplete frames");
 module_param_named(quirks, uvc_quirks_param, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(quirks, "Forced device quirks");
 module_param_named(trace, uvc_trace_param, uint, S_IRUGO|S_IWUSR);

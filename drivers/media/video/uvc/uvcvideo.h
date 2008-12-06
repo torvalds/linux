@@ -683,6 +683,7 @@ struct uvc_driver {
 #define UVC_WARN_MINMAX		0
 #define UVC_WARN_PROBE_DEF	1
 
+extern unsigned int uvc_no_drop_param;
 extern unsigned int uvc_trace_param;
 
 #define uvc_trace(flag, msg...) \

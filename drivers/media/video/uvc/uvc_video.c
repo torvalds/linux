@@ -1003,7 +1003,8 @@ int uvc_video_enable(struct uvc_video_device *video, int enable)
 		return 0;
 	}
 
-	if (video->streaming->cur_format->flags & UVC_FMT_FLAG_COMPRESSED)
+	if ((video->streaming->cur_format->flags & UVC_FMT_FLAG_COMPRESSED) ||
+	    uvc_no_drop_param)
 		video->queue.flags &= ~UVC_QUEUE_DROP_INCOMPLETE;
 	else
 		video->queue.flags |= UVC_QUEUE_DROP_INCOMPLETE;
