@@ -15,6 +15,7 @@
 struct idprom *idprom;
 static struct idprom idprom_buffer;
 
+#ifdef CONFIG_SPARC32
 #include <asm/machines.h>  /* Fun with Sun released architectures. */
 
 /* Here is the master table of Sun machines which use some implementation
@@ -61,9 +62,12 @@ static void __init display_system_type(unsigned char machtype)
 	}
 
 	prom_printf("IDPROM: Warning, bogus id_machtype value, 0x%x\n", machtype);
-	prom_halt();
 }
-
+#else
+static void __init display_system_type(unsigned char machtype)
+{
+}
+#endif
 /* Calculate the IDPROM checksum (xor of the data bytes). */
 static unsigned char __init calc_idprom_cksum(struct idprom *idprom)
 {
@@ -82,16 +86,12 @@ void __init idprom_init(void)
 
 	idprom = &idprom_buffer;
 
-	if (idprom->id_format != 0x01) {
+	if (idprom->id_format != 0x01)
 		prom_printf("IDPROM: Warning, unknown format type!\n");
-		prom_halt();
-	}
 
-	if (idprom->id_cksum != calc_idprom_cksum(idprom)) {
+	if (idprom->id_cksum != calc_idprom_cksum(idprom))
 		prom_printf("IDPROM: Warning, checksum failure (nvram=%x, calc=%x)!\n",
 			    idprom->id_cksum, calc_idprom_cksum(idprom));
-		prom_halt();
-	}
 
 	display_system_type(idprom->id_machtype);
 
