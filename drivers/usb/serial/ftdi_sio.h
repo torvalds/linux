@@ -75,6 +75,9 @@
 /* OpenDCC (www.opendcc.de) product id */
 #define FTDI_OPENDCC_PID	0xBFD8
 
+/* Sprog II (Andrew Crosland's SprogII DCC interface) */
+#define FTDI_SPROG_II		0xF0C8
+
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
 #define FTDI_XF_632_PID 0xFC08	/* 632: 16x2 Character Display */
