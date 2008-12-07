@@ -237,9 +237,6 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 		}
 	}
 
-	if (dev->driver->load)
-		if ((retcode = dev->driver->load(dev, ent->driver_data)))
-			goto error_out_unreg;
 
 	retcode = drm_ctxbitmap_init(dev);
 	if (retcode) {
@@ -368,6 +365,10 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	if ((ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY)))
 		goto err_g2;
 
+	if (dev->driver->load)
+		if ((ret = dev->driver->load(dev, ent->driver_data)))
+			goto err_g3;
+
 	list_add_tail(&dev->driver_item, &driver->device_list);
 
 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
@@ -376,6 +377,8 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	return 0;
 
+err_g3:
+	drm_put_minor(&dev->primary);
 err_g2:
 	pci_disable_device(pdev);
 err_g1:
