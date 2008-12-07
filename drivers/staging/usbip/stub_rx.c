@@ -234,8 +234,6 @@ static void tweak_special_requests(struct urb *urb)
 static int stub_recv_cmd_unlink(struct stub_device *sdev,
 						struct usbip_header *pdu)
 {
-	struct list_head *listhead = &sdev->priv_init;
-	struct list_head *ptr;
 	unsigned long flags;
 
 	struct stub_priv *priv;
@@ -243,8 +241,7 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 
-	for (ptr = listhead->next; ptr != listhead; ptr = ptr->next) {
-		priv = list_entry(ptr, struct stub_priv, list);
+	list_for_each_entry(priv, &sdev->priv_init, list) {
 		if (priv->seqnum == pdu->u.cmd_unlink.seqnum) {
 			int ret;
 
