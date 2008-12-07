@@ -2405,7 +2405,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 	/*
 	 * Init per tid tx state
 	 */
-	for (tidno = 0, tid = &an->an_aggr.tx.tid[tidno];
+	for (tidno = 0, tid = &an->tid[tidno];
 	     tidno < WME_NUM_TID;
 	     tidno++, tid++) {
 		tid->an        = an;
@@ -2419,7 +2419,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 		INIT_LIST_HEAD(&tid->buf_q);
 
 		acno = TID_TO_WME_AC(tidno);
-		tid->ac = &an->an_aggr.tx.ac[acno];
+		tid->ac = &an->ac[acno];
 
 		/* ADDBA state */
 		tid->state &= ~AGGR_ADDBA_COMPLETE;
@@ -2430,7 +2430,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 	/*
 	 * Init per ac tx state
 	 */
-	for (acno = 0, ac = &an->an_aggr.tx.ac[acno];
+	for (acno = 0, ac = &an->ac[acno];
 	     acno < WME_NUM_AC; acno++, ac++) {
 		ac->sched    = false;
 		INIT_LIST_HEAD(&ac->tid_q);
