@@ -789,7 +789,7 @@ spider_net_set_low_watermark(struct spider_net_card *card)
  * spider_net_release_tx_chain releases the tx descriptors that spider has
  * finished with (if non-brutal) or simply release tx descriptors (if brutal).
  * If some other context is calling this function, we return 1 so that we're
- * scheduled again (if we were scheduled) and will not loose initiative.
+ * scheduled again (if we were scheduled) and will not lose initiative.
  */
 static int
 spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
