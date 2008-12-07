@@ -4606,6 +4606,43 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio   = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG] = {
+		.name           = "Kworld Plus TV Analog Lite PCI",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_YMEC_TVF_5533MF,
+		.radio_type     = TUNER_TEA5767,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 0x80000700,
+		.inputs = { {
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = LINE2,
+			.tv     = 1,
+			.gpio   = 0x100,
+		}, {
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+			.gpio   = 0x200,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE1,
+			.gpio   = 0x200,
+		} },
+		.radio = {
+			.name   = name_radio,
+			.vmux   = 1,
+			.amux   = LINE1,
+			.gpio   = 0x100,
+		},
+		.mute = {
+			.name = name_mute,
+			.vmux = 8,
+			.amux = 2,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -5653,6 +5690,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x4878, /* REV:1.02G */
 		.driver_data  = SAA7134_BOARD_ASUSTeK_TIGER_3IN1,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x17de,
+		.subdevice    = 0x7128,
+		.driver_data  = SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -5880,6 +5923,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_507_9FM:
 	case SAA7134_BOARD_GENIUS_TVGO_A11MCE:
 	case SAA7134_BOARD_REAL_ANGEL_220:
+	case SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
