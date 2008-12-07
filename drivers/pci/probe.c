@@ -958,6 +958,9 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	/* MSI/MSI-X list */
 	pci_msi_init_pci_dev(dev);
 
+	/* Buffers for saving PCIe and PCI-X capabilities */
+	pci_allocate_cap_save_buffers(dev);
+
 	/* Power Management */
 	pci_pm_init(dev);
 

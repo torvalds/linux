@@ -640,19 +640,14 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	int pos, i = 0;
 	struct pci_cap_saved_state *save_state;
 	u16 *cap;
-	int found = 0;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (pos <= 0)
 		return 0;
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
-	if (!save_state)
-		save_state = kzalloc(sizeof(*save_state) + sizeof(u16) * 4, GFP_KERNEL);
-	else
-		found = 1;
 	if (!save_state) {
-		dev_err(&dev->dev, "out of memory in pci_save_pcie_state\n");
+		dev_err(&dev->dev, "buffer not found in %s\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 	cap = (u16 *)&save_state->data[0];
@@ -661,9 +656,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
-	save_state->cap_nr = PCI_CAP_ID_EXP;
-	if (!found)
-		pci_add_saved_cap(dev, save_state);
+
 	return 0;
 }
 
@@ -688,30 +681,21 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 
 static int pci_save_pcix_state(struct pci_dev *dev)
 {
-	int pos, i = 0;
+	int pos;
 	struct pci_cap_saved_state *save_state;
-	u16 *cap;
-	int found = 0;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (pos <= 0)
 		return 0;
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
-	if (!save_state)
-		save_state = kzalloc(sizeof(*save_state) + sizeof(u16), GFP_KERNEL);
-	else
-		found = 1;
 	if (!save_state) {
-		dev_err(&dev->dev, "out of memory in pci_save_pcie_state\n");
+		dev_err(&dev->dev, "buffer not found in %s\n", __FUNCTION__);
 		return -ENOMEM;
 	}
-	cap = (u16 *)&save_state->data[0];
 
-	pci_read_config_word(dev, pos + PCI_X_CMD, &cap[i++]);
-	save_state->cap_nr = PCI_CAP_ID_PCIX;
-	if (!found)
-		pci_add_saved_cap(dev, save_state);
+	pci_read_config_word(dev, pos + PCI_X_CMD, (u16 *)save_state->data);
+
 	return 0;
 }
 
@@ -1298,6 +1282,51 @@ void pci_pm_init(struct pci_dev *dev)
 	} else {
 		dev->pme_support = 0;
 	}
+}
+
+/**
+ * pci_add_save_buffer - allocate buffer for saving given capability registers
+ * @dev: the PCI device
+ * @cap: the capability to allocate the buffer for
+ * @size: requested size of the buffer
+ */
+static int pci_add_cap_save_buffer(
+	struct pci_dev *dev, char cap, unsigned int size)
+{
+	int pos;
+	struct pci_cap_saved_state *save_state;
+
+	pos = pci_find_capability(dev, cap);
+	if (pos <= 0)
+		return 0;
+
+	save_state = kzalloc(sizeof(*save_state) + size, GFP_KERNEL);
+	if (!save_state)
+		return -ENOMEM;
+
+	save_state->cap_nr = cap;
+	pci_add_saved_cap(dev, save_state);
+
+	return 0;
+}
+
+/**
+ * pci_allocate_cap_save_buffers - allocate buffers for saving capabilities
+ * @dev: the PCI device
+ */
+void pci_allocate_cap_save_buffers(struct pci_dev *dev)
+{
+	int error;
+
+	error = pci_add_cap_save_buffer(dev, PCI_CAP_ID_EXP, 4 * sizeof(u16));
+	if (error)
+		dev_err(&dev->dev,
+			"unable to preallocate PCI Express save buffer\n");
+
+	error = pci_add_cap_save_buffer(dev, PCI_CAP_ID_PCIX, sizeof(u16));
+	if (error)
+		dev_err(&dev->dev,
+			"unable to preallocate PCI-X save buffer\n");
 }
 
 /**
