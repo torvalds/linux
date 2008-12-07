@@ -394,7 +394,7 @@ config CRYPTO_TGR192
 
 config CRYPTO_WP512
 	tristate "Whirlpool digest algorithms"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  Whirlpool hash algorithm 512, 384 and 256-bit hashes
 
