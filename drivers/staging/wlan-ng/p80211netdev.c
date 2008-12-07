@@ -244,7 +244,7 @@ static int p80211knetdev_init( netdevice_t *netdev)
 static struct net_device_stats*
 p80211knetdev_get_stats(netdevice_t *netdev)
 {
-	wlandevice_t	*wlandev = (wlandevice_t*)netdev->priv;
+	wlandevice_t	*wlandev = netdev->ml_priv;
 	DBFENTER;
 
 	/* TODO: review the MIB stats for items that correspond to
@@ -272,7 +272,7 @@ p80211knetdev_get_stats(netdevice_t *netdev)
 static int p80211knetdev_open( netdevice_t *netdev )
 {
 	int 		result = 0; /* success */
-	wlandevice_t	*wlandev = (wlandevice_t*)(netdev->priv);
+	wlandevice_t	*wlandev = netdev->ml_priv;
 
 	DBFENTER;
 
@@ -315,7 +315,7 @@ static int p80211knetdev_open( netdevice_t *netdev )
 static int p80211knetdev_stop( netdevice_t *netdev )
 {
 	int		result = 0;
-	wlandevice_t	*wlandev = (wlandevice_t*)(netdev->priv);
+	wlandevice_t	*wlandev = netdev->ml_priv;
 
 	DBFENTER;
 
@@ -460,7 +460,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 {
 	int		result = 0;
 	int		txresult = -1;
-	wlandevice_t	*wlandev = (wlandevice_t*)netdev->priv;
+	wlandevice_t	*wlandev = netdev->ml_priv;
 	p80211_hdr_t    p80211_hdr;
 	p80211_metawep_t p80211_wep;
 
@@ -603,7 +603,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 ----------------------------------------------------------------*/
 static void p80211knetdev_set_multicast_list(netdevice_t *dev)
 {
-	wlandevice_t	*wlandev = (wlandevice_t*)dev->priv;
+	wlandevice_t	*wlandev = dev->ml_priv;
 
 	DBFENTER;
 
@@ -696,7 +696,7 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 {
 	int			result = 0;
 	p80211ioctl_req_t	*req = (p80211ioctl_req_t*)ifr;
-	wlandevice_t		*wlandev = (wlandevice_t*)dev->priv;
+	wlandevice_t		*wlandev = dev->ml_priv;
 	UINT8			*msgbuf;
 	DBFENTER;
 
@@ -812,7 +812,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	dot11req.msgcode = DIDmsg_dot11req_mibset;
 	dot11req.msglen = sizeof(p80211msg_dot11req_mibset_t);
 	memcpy(dot11req.devname,
-		((wlandevice_t*)(dev->priv))->name,
+		((wlandevice_t *)dev->ml_priv)->name,
 		WLAN_DEVNAMELEN_MAX - 1);
 
 	/* Set up the mibattribute argument */
@@ -833,7 +833,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	resultcode->data = 0;
 
 	/* now fire the request */
-	result = p80211req_dorequest(dev->priv, (UINT8*)&dot11req);
+	result = p80211req_dorequest(dev->ml_priv, (UINT8 *)&dot11req);
 
 	/* If the request wasn't successful, report an error and don't
 	 * change the netdev address
@@ -917,7 +917,7 @@ int wlan_setup(wlandevice_t *wlandev)
 		memset( dev, 0, sizeof(netdevice_t));
 		ether_setup(dev);
 		wlandev->netdev = dev;
-		dev->priv = wlandev;
+		dev->ml_priv = wlandev;
 		dev->hard_start_xmit =	p80211knetdev_hard_start_xmit;
 		dev->get_stats =	p80211knetdev_get_stats;
 #ifdef HAVE_PRIVATE_IOCTL
@@ -1487,7 +1487,7 @@ void    p80211_resume(wlandevice_t *wlandev)
 
 static void p80211knetdev_tx_timeout( netdevice_t *netdev)
 {
-	wlandevice_t	*wlandev = (wlandevice_t*)netdev->priv;
+	wlandevice_t	*wlandev = netdev->ml_priv;
 	DBFENTER;
 
 	if (wlandev->tx_timeout) {
