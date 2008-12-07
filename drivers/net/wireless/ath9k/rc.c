@@ -874,9 +874,8 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	 * So, set fourth rate in series to be same as third one for
 	 * above conditions.
 	 */
-	if ((sc->sc_curmode == ATH9K_MODE_11NG_HT20) ||
-	    (sc->sc_curmode == ATH9K_MODE_11NG_HT40PLUS) ||
-	    (sc->sc_curmode == ATH9K_MODE_11NG_HT40MINUS)) {
+	if ((sc->hw->conf.channel->band == IEEE80211_BAND_2GHZ) &&
+	    (sc->hw->conf.ht.enabled)) {
 		u8 dot11rate = rate_table->info[rix].dot11rate;
 		u8 phy = rate_table->info[rix].phy;
 		if (i == 4 &&
@@ -1354,8 +1353,8 @@ static void ath_rc_init(struct ath_softc *sc,
 						   sta->ht_cap.ht_supported,
 						   is_cw_40);
 	} else if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP) {
-		/* sc_curmode would be set on init through config() */
-		rate_table = sc->hw_rate_table[sc->sc_curmode];
+		/* cur_rate_table would be set on init through config() */
+		rate_table = sc->cur_rate_table;
 	}
 
 	if (!rate_table) {

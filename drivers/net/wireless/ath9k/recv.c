@@ -148,7 +148,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 			  struct ieee80211_rx_status *rx_status, bool *decrypt_error,
 			  struct ath_softc *sc)
 {
-	struct ath_rate_table *rate_table = sc->hw_rate_table[sc->sc_curmode];
+	struct ath_rate_table *rate_table = sc->cur_rate_table;
 	struct ieee80211_hdr *hdr;
 	int ratekbps, rix;
 	u8 ratecode;

@@ -646,7 +646,6 @@ struct ath_softc {
 	u8 sc_tx_chainmask;
 	u8 sc_rx_chainmask;
 	enum ath9k_int sc_imask;
-	enum wireless_mode sc_curmode;
 	enum PROT_MODE sc_protmode;
 
 	u8 sc_nbcnvaps;
