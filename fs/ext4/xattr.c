@@ -689,6 +689,7 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 		     struct ext4_xattr_info *i,
 		     struct ext4_xattr_block_find *bs)
 {
+	unsigned long count = 1;
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *new_bh = NULL;
 	struct ext4_xattr_search *s = &bs->s;
@@ -810,8 +811,8 @@ inserted:
 			/* We need to allocate a new block */
 			ext4_fsblk_t goal = ext4_group_first_block_no(sb,
 						EXT4_I(inode)->i_block_group);
-			ext4_fsblk_t block = ext4_new_meta_block(handle, inode,
-							goal, &error);
+			ext4_fsblk_t block = ext4_new_meta_blocks(handle, inode,
+						  goal, &count, &error);
 			if (error)
 				goto cleanup;
 			ea_idebug(inode, "creating block %d", block);

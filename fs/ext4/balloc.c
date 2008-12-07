@@ -724,23 +724,6 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 	return ret;
 }
 
-/*
- * ext4_new_meta_block() -- allocate block for meta data (indexing) blocks
- *
- * @handle:             handle to this transaction
- * @inode:              file inode
- * @goal:               given target block(filesystem wide)
- * @errp:               error code
- *
- * Return allocated block number on success
- */
-ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
-		ext4_fsblk_t goal, int *errp)
-{
-	unsigned long count = 1;
-	return ext4_new_meta_blocks(handle, inode, goal, &count, errp);
-}
-
 /**
  * ext4_count_free_blocks() -- count filesystem free blocks
  * @sb:		superblock
