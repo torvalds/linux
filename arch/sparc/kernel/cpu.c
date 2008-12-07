@@ -8,6 +8,8 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/threads.h>
+
+#include <asm/spitfire.h>
 #include <asm/oplib.h>
 #include <asm/page.h>
 #include <asm/head.h>
@@ -176,6 +178,52 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 		FPU(3, "Fujitsu or Weitek on-chip FPU"),
 		FPU(-1, NULL)
 	}
+},{
+	0x17,
+	.cpu_info = {
+		CPU(0x10, "TI UltraSparc I   (SpitFire)"),
+		CPU(0x11, "TI UltraSparc II  (BlackBird)"),
+		CPU(0x12, "TI UltraSparc IIi (Sabre)"),
+		CPU(0x13, "TI UltraSparc IIe (Hummingbird)"),
+		CPU(-1, NULL)
+	},
+	.fpu_info = {
+		FPU(0x10, "UltraSparc I integrated FPU"),
+		FPU(0x11, "UltraSparc II integrated FPU"),
+		FPU(0x12, "UltraSparc IIi integrated FPU"),
+		FPU(0x13, "UltraSparc IIe integrated FPU"),
+		FPU(-1, NULL)
+	}
+},{
+	0x22,
+	.cpu_info = {
+		CPU(0x10, "TI UltraSparc I   (SpitFire)"),
+		CPU(-1, NULL)
+	},
+	.fpu_info = {
+		FPU(0x10, "UltraSparc I integrated FPU"),
+		FPU(-1, NULL)
+	}
+},{
+	0x3e,
+	.cpu_info = {
+		CPU(0x14, "TI UltraSparc III (Cheetah)"),
+		CPU(0x15, "TI UltraSparc III+ (Cheetah+)"),
+		CPU(0x16, "TI UltraSparc IIIi (Jalapeno)"),
+		CPU(0x18, "TI UltraSparc IV (Jaguar)"),
+		CPU(0x19, "TI UltraSparc IV+ (Panther)"),
+		CPU(0x22, "TI UltraSparc IIIi+ (Serrano)"),
+		CPU(-1, NULL)
+	},
+	.fpu_info = {
+		FPU(0x14, "UltraSparc III integrated FPU"),
+		FPU(0x15, "UltraSparc III+ integrated FPU"),
+		FPU(0x16, "UltraSparc IIIi integrated FPU"),
+		FPU(0x18, "UltraSparc IV integrated FPU"),
+		FPU(0x19, "UltraSparc IV+ integrated FPU"),
+		FPU(0x22, "UltraSparc IIIi+ integrated FPU"),
+		FPU(-1, NULL)
+	}
 }};
 
 /* In order to get the fpu type correct, you need to take the IDPROM's
@@ -230,6 +278,7 @@ static void set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
 	}
 }
 
+#ifdef CONFIG_SPARC32
 void __cpuinit cpu_probe(void)
 {
 	int psr_impl, psr_vers, fpu_vers;
@@ -245,3 +294,45 @@ void __cpuinit cpu_probe(void)
 
 	set_cpu_and_fpu(psr_impl, psr_vers, fpu_vers);
 }
+#else
+static void __init sun4v_cpu_probe(void)
+{
+	switch (sun4v_chip_type) {
+	case SUN4V_CHIP_NIAGARA1:
+		sparc_cpu_type = "UltraSparc T1 (Niagara)";
+		sparc_fpu_type = "UltraSparc T1 integrated FPU";
+		break;
+
+	case SUN4V_CHIP_NIAGARA2:
+		sparc_cpu_type = "UltraSparc T2 (Niagara2)";
+		sparc_fpu_type = "UltraSparc T2 integrated FPU";
+		break;
+
+	default:
+		printk(KERN_WARNING "CPU: Unknown sun4v cpu type [%s]\n",
+		       prom_cpu_compatible);
+		sparc_cpu_type = "Unknown SUN4V CPU";
+		sparc_fpu_type = "Unknown SUN4V FPU";
+		break;
+	}
+}
+
+static int __init cpu_type_probe(void)
+{
+	if (tlb_type == hypervisor) {
+		sun4v_cpu_probe();
+	} else {
+		unsigned long ver;
+		int manuf, impl;
+
+		__asm__ __volatile__("rdpr %%ver, %0" : "=r" (ver));
+
+		manuf = ((ver >> 48) & 0xffff);
+		impl = ((ver >> 32) & 0xffff);
+		set_cpu_and_fpu(manuf, impl, impl);
+	}
+	return 0;
+}
+
+arch_initcall(cpu_type_probe);
+#endif

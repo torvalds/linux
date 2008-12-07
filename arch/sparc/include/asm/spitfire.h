@@ -6,6 +6,8 @@
 #ifndef _SPARC64_SPITFIRE_H
 #define _SPARC64_SPITFIRE_H
 
+#ifdef CONFIG_SPARC64
+
 #include <asm/asi.h>
 
 /* The following register addresses are accessible via ASI_DMMU
@@ -338,5 +340,5 @@ static inline void cheetah_put_itlb_data(int entry, unsigned long data)
 }
 
 #endif /* !(__ASSEMBLY__) */
-
+#endif /* CONFIG_SPARC64 */
 #endif /* !(_SPARC64_SPITFIRE_H) */
