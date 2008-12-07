@@ -658,12 +658,7 @@ static void __init clocks_init(void)
 		osc = clk_get(NULL, "osc_ck");
 	else
 		osc = clk_get(NULL, "osc_sys_ck");
-#else
-	/* REVISIT for non-OMAP systems, pass the clock rate from
-	 * board init code, using platform_data.
-	 */
-	osc = ERR_PTR(-EIO);
-#endif
+
 	if (IS_ERR(osc)) {
 		printk(KERN_WARNING "Skipping twl4030 internal clock init and "
 				"using bootloader value (unknown osc rate)\n");
@@ -672,6 +667,18 @@ static void __init clocks_init(void)
 
 	rate = clk_get_rate(osc);
 	clk_put(osc);
+
+#else
+	/* REVISIT for non-OMAP systems, pass the clock rate from
+	 * board init code, using platform_data.
+	 */
+	osc = ERR_PTR(-EIO);
+
+	printk(KERN_WARNING "Skipping twl4030 internal clock init and "
+	       "using bootloader value (unknown osc rate)\n");
+
+	return;
+#endif
 
 	switch (rate) {
 	case 19200000:
