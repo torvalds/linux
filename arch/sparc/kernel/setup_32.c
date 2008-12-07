@@ -46,6 +46,8 @@
 #include <asm/cpudata.h>
 #include <asm/setup.h>
 
+#include "kernel.h"
+
 struct screen_info screen_info = {
 	0, 0,			/* orig-x, orig-y */
 	0,			/* unused */
@@ -307,9 +309,6 @@ void __init setup_arch(char **cmdline_p)
 
 	smp_setup_cpu_possible_map();
 }
-
-extern char *sparc_cpu_type;
-extern char *sparc_fpu_type;
 
 static int ncpus_probed;
 

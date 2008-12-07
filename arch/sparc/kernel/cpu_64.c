@@ -16,6 +16,7 @@
 #include <asm/oplib.h>
 
 #include "entry.h"
+#include "kernel.h"
 
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
 

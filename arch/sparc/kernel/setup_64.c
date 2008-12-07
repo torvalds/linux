@@ -52,6 +52,7 @@
 #endif
 
 #include "entry.h"
+#include "kernel.h"
 
 /* Used to synchronize accesses to NatSemi SUPER I/O chip configure
  * operations in asm/ns87303.h
