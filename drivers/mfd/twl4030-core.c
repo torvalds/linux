@@ -433,7 +433,7 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 	if (!pdata)
 		return NULL;
 
-	if (consumers && !pdata->consumer_supplies) {
+	if (consumers) {
 		pdata->consumer_supplies = consumers;
 		pdata->num_consumer_supplies = num_consumers;
 	}
@@ -556,9 +556,6 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 		static struct regulator_consumer_supply usb3v1 = {
 			.supply =	"usb3v1",
 		};
-		static struct regulator_consumer_supply usbcp = {
-			.supply =	"usbcp",
-		};
 
 		/* this is a template that gets copied */
 		struct regulator_init_data usb_fixed = {
@@ -573,7 +570,6 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 		usb1v5.dev = usb_transceiver;
 		usb1v8.dev = usb_transceiver;
 		usb3v1.dev = usb_transceiver;
-		usbcp.dev = usb_transceiver;
 
 		child = add_regulator_linked(TWL4030_REG_VUSB1V5, &usb_fixed,
 				&usb1v5, 1);
@@ -587,11 +583,6 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 
 		child = add_regulator_linked(TWL4030_REG_VUSB3V1, &usb_fixed,
 				&usb3v1, 1);
-		if (IS_ERR(child))
-			return PTR_ERR(child);
-
-		child = add_regulator_linked(TWL4030_REG_VUSBCP, &usb_fixed,
-				&usbcp, 1);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
