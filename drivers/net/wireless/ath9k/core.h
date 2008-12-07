@@ -61,7 +61,7 @@ struct ath_node;
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
-#define	ATH_TXQ_SETUP(sc, i)        ((sc)->sc_txqsetup & (1<<i))
+#define	ATH_TXQ_SETUP(sc, i)        ((sc)->tx.txqsetup & (1<<i))
 
 static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -453,6 +453,28 @@ struct ath_node {
 	u8 mpdudensity;
 };
 
+struct ath_tx {
+	u16 seq_no;
+	u32 txqsetup;
+	int hwq_map[ATH9K_WME_AC_VO+1];
+	spinlock_t txbuflock;
+	struct list_head txbuf;
+	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
+	struct ath_descdma txdma;
+};
+
+struct ath_rx {
+	u8 defant;
+	u8 rxotherant;
+	u32 *rxlink;
+	int bufsize;
+	unsigned int rxfilter;
+	spinlock_t rxflushlock;
+	spinlock_t rxbuflock;
+	struct list_head rxbuf;
+	struct ath_descdma rxdma;
+};
+
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 void ath_flushrecv(struct ath_softc *sc);
@@ -540,6 +562,26 @@ struct ath_beacon_config {
 	} u; /* last received beacon/probe response timestamp of this BSS. */
 };
 
+struct ath_beacon {
+	enum {
+		OK,		/* no change needed */
+		UPDATE,		/* update pending */
+		COMMIT		/* beacon sent, commit change */
+	} updateslot;		/* slot time update fsm */
+
+	u32 beaconq;
+	u32 bmisscnt;
+	u32 ast_be_xmit;
+	u64 bc_tstamp;
+	int bslot[ATH_BCBUF];
+	int slottime;
+	int slotupdate;
+	struct ath9k_tx_queue_info beacon_qi;
+	struct ath_descdma bdma;
+	struct ath_txq *cabq;
+	struct list_head bbuf;
+};
+
 void ath9k_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, int if_id);
 int ath_beaconq_setup(struct ath_hal *ah);
@@ -610,7 +652,7 @@ struct ath_rfkill {
 #define DEFAULT_CACHELINE       32
 #define	ATH_DEFAULT_NOISE_FLOOR -95
 #define ATH_REGCLASSIDS_MAX     10
-#define ATH_CABQ_READY_TIME     80  /* % of beacon interval */
+#define ATH_CABQ_READY_TIME     80      /* % of beacon interval */
 #define ATH_MAX_SW_RETRIES      10
 #define ATH_CHAN_MAX            255
 #define IEEE80211_WEP_NKID      4       /* number of key ids */
@@ -623,7 +665,7 @@ struct ath_rfkill {
  * Different parts have different size key caches.  We handle
  * up to ATH_KEYMAX entries (could dynamically allocate state).
  */
-#define	ATH_KEYMAX	        128        /* max key cache size we handle */
+#define	ATH_KEYMAX	        128     /* max key cache size we handle */
 
 #define ATH_IF_ID_ANY   	0xff
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
@@ -656,105 +698,51 @@ struct ath_softc {
 	struct pci_dev *pdev;
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
-	struct ath_config sc_config;
 	struct ath_hal *sc_ah;
 	void __iomem *mem;
+	spinlock_t sc_resetlock;
 
 	u8 sc_curbssid[ETH_ALEN];
 	u8 sc_myaddr[ETH_ALEN];
 	u8 sc_bssidmask[ETH_ALEN];
-
-#ifdef CONFIG_ATH9K_DEBUG
-	struct ath9k_debug sc_debug;
-#endif
 	u32 sc_intrstatus;
 	u32 sc_flags; /* SC_OP_* */
-	unsigned int rx_filter;
 	u16 sc_curtxpow;
 	u16 sc_curaid;
 	u16 sc_cachelsz;
-	int sc_slotupdate;		/* slot to next advance fsm */
-	int sc_slottime;
-	int sc_bslot[ATH_BCBUF];
-	u8 sc_tx_chainmask;
-	u8 sc_rx_chainmask;
-	enum ath9k_int sc_imask;
-	enum PROT_MODE sc_protmode;
-
 	u8 sc_nbcnvaps;
 	u16 sc_nvaps;
-	struct ieee80211_vif *sc_vaps[ATH_BCBUF];
-
-	u8 sc_mcastantenna;
-	u8 sc_defant;
-	u8 sc_rxotherant;
-
-	struct ath9k_node_stats sc_halstats;
+	u8 sc_tx_chainmask;
+	u8 sc_rx_chainmask;
+	u32 sc_keymax;
+	DECLARE_BITMAP(sc_keymap, ATH_KEYMAX);
+	u8 sc_splitmic;
+	u8 sc_protrix;
+	enum ath9k_int sc_imask;
+	enum PROT_MODE sc_protmode;
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
 	enum ath9k_ht_macmode tx_chan_width;
 
-	enum {
-		OK,		/* no change needed */
-		UPDATE,		/* update pending */
-		COMMIT		/* beacon sent, commit change */
-	} sc_updateslot;	/* slot time update fsm */
-
-	/* Crypto */
-	u32 sc_keymax;
-	DECLARE_BITMAP(sc_keymap, ATH_KEYMAX);
-	u8 sc_splitmic;		/* split TKIP MIC keys */
-
-	/* RX */
-	struct list_head sc_rxbuf;
-	struct ath_descdma sc_rxdma;
-	int sc_rxbufsize;
-	u32 *sc_rxlink;
-
-	/* TX */
-	struct list_head sc_txbuf;
-	struct ath_txq sc_txq[ATH9K_NUM_TX_QUEUES];
-	struct ath_descdma sc_txdma;
-	u32 sc_txqsetup;
-	int sc_haltype2q[ATH9K_WME_AC_VO+1];
-	u16 seq_no; /* TX sequence number */
-
-	/* Beacon */
-	struct ath9k_tx_queue_info sc_beacon_qi;
-	struct ath_descdma sc_bdma;
-	struct ath_txq *sc_cabq;
-	struct list_head sc_bbuf;
-	u32 sc_bhalq;
-	u32 sc_bmisscount;
-	u32 ast_be_xmit;
-	u64 bc_tstamp;
-
-	/* Rate */
+	struct ath_config sc_config;
+	struct ath_rx rx;
+	struct ath_tx tx;
+	struct ath_beacon beacon;
+	struct ieee80211_vif *sc_vaps[ATH_BCBUF];
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
 	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	struct ath_rate_table *cur_rate_table;
-	u8 sc_protrix;
-
-	/* Channel, Band */
 	struct ieee80211_channel channels[IEEE80211_NUM_BANDS][ATH_CHAN_MAX];
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
-
-	/* Locks */
-	spinlock_t sc_rxflushlock;
-	spinlock_t sc_rxbuflock;
-	spinlock_t sc_txbuflock;
-	spinlock_t sc_resetlock;
-
-	/* LEDs */
 	struct ath_led radio_led;
 	struct ath_led assoc_led;
 	struct ath_led tx_led;
 	struct ath_led rx_led;
-
-	/* Rfkill */
 	struct ath_rfkill rf_kill;
-
-	/* ANI */
 	struct ath_ani sc_ani;
+	struct ath9k_node_stats sc_halstats;
+#ifdef CONFIG_ATH9K_DEBUG
+	struct ath9k_debug sc_debug;
+#endif
 };
 
 int ath_reset(struct ath_softc *sc, bool retry_tx);
