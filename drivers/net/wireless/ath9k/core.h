@@ -715,9 +715,6 @@ struct ath_softc {
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
 	enum ath9k_ht_macmode tx_chan_width;
 
-#ifdef CONFIG_SLOW_ANT_DIV
-	struct ath_antdiv sc_antdiv;
-#endif
 	enum {
 		OK,		/* no change needed */
 		UPDATE,		/* update pending */

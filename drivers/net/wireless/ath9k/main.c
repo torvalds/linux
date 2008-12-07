@@ -1513,11 +1513,6 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	/* save MISC configurations */
 	sc->sc_config.swBeaconProcess = 1;
 
-#ifdef CONFIG_SLOW_ANT_DIV
-	/* range is 40 - 255, we use something in the middle */
-	ath_slow_ant_div_init(&sc->sc_antdiv, sc, 0x127);
-#endif
-
 	/* setup channels and rates */
 
 	sc->sbands[IEEE80211_BAND_2GHZ].channels =
@@ -2129,9 +2124,6 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach Interface\n");
 
-#ifdef CONFIG_SLOW_ANT_DIV
-	ath_slow_ant_div_stop(&sc->sc_antdiv);
-#endif
 	/* Stop ANI */
 	del_timer_sync(&sc->sc_ani.timer);
 
