@@ -1180,6 +1180,7 @@ static struct dmar_domain * iommu_alloc_domain(struct intel_iommu *iommu)
 	set_bit(num, iommu->domain_ids);
 	domain->id = num;
 	domain->iommu = iommu;
+	domain->flags = 0;
 	iommu->domains[num] = domain;
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
