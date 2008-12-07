@@ -243,9 +243,9 @@ static struct device_node * __init prom_create_node(phandle node,
 	dp->type = get_one_property(node, "device_type");
 	dp->node = node;
 
-	/* Build interrupts later... */
-
 	dp->properties = build_prop_list(node);
+
+	irq_trans_init(dp);
 
 	return dp;
 }

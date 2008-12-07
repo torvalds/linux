@@ -289,3 +289,7 @@ void __init of_console_init(void)
 void __init of_fill_in_cpu_data(void)
 {
 }
+
+void __init irq_trans_init(struct device_node *dp)
+{
+}
