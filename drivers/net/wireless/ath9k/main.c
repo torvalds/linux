@@ -598,6 +598,8 @@ static irqreturn_t ath_isr(int irq, void *dev)
 		}
 	} while (0);
 
+	ath_debug_stat_interrupt(sc, status);
+
 	if (sched) {
 		/* turn off every interrupt except SWBA */
 		ath9k_hw_set_interrupts(ah, (sc->sc_imask & ATH9K_INT_SWBA));

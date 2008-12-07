@@ -88,16 +88,66 @@ enum ATH_DEBUG {
 
 #ifdef CONFIG_ATH9K_DEBUG
 
+/**
+ * struct ath_interrupt_stats - Contains statistics about interrupts
+ * @total: Total no. of interrupts generated so far
+ * @rxok: RX with no errors
+ * @rxeol: RX with no more RXDESC available
+ * @rxorn: RX FIFO overrun
+ * @txok: TX completed at the requested rate
+ * @txurn: TX FIFO underrun
+ * @mib: MIB regs reaching its threshold
+ * @rxphyerr: RX with phy errors
+ * @rx_keycache_miss: RX with key cache misses
+ * @swba: Software Beacon Alert
+ * @bmiss: Beacon Miss
+ * @bnr: Beacon Not Ready
+ * @cst: Carrier Sense TImeout
+ * @gtt: Global TX Timeout
+ * @tim: RX beacon TIM occurrence
+ * @cabend: RX End of CAB traffic
+ * @dtimsync: DTIM sync lossage
+ * @dtim: RX Beacon with DTIM
+ */
+struct ath_interrupt_stats {
+	u32 total;
+	u32 rxok;
+	u32 rxeol;
+	u32 rxorn;
+	u32 txok;
+	u32 txeol;
+	u32 txurn;
+	u32 mib;
+	u32 rxphyerr;
+	u32 rx_keycache_miss;
+	u32 swba;
+	u32 bmiss;
+	u32 bnr;
+	u32 cst;
+	u32 gtt;
+	u32 tim;
+	u32 cabend;
+	u32 dtimsync;
+	u32 dtim;
+};
+
+struct ath_stats {
+	struct ath_interrupt_stats istats;
+};
+
 struct ath9k_debug {
 	int debug_mask;
 	struct dentry *debugfs_root;
 	struct dentry *debugfs_phy;
 	struct dentry *debugfs_dma;
+	struct dentry *debugfs_interrupt;
+	struct ath_stats stats;
 };
 
 void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...);
 int ath9k_init_debug(struct ath_softc *sc);
 void ath9k_exit_debug(struct ath_softc *sc);
+void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 
 #else
 
@@ -112,6 +162,11 @@ static inline int ath9k_init_debug(struct ath_softc *sc)
 }
 
 static inline void ath9k_exit_debug(struct ath_softc *sc)
+{
+}
+
+static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
+					    enum ath9k_int status)
 {
 }
 
