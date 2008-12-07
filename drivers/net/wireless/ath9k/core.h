@@ -702,6 +702,7 @@ struct ath_softc {
 	/* Rate */
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
 	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
+	struct ath_rate_table *cur_rate_table;
 	u8 sc_protrix;
 
 	/* Channel, Band */
