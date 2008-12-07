@@ -70,7 +70,7 @@ module_param(msi2intx, bool, 0);
 DEFINE_SPINLOCK(kvm_lock);
 LIST_HEAD(vm_list);
 
-static cpumask_t cpus_hardware_enabled;
+static cpumask_var_t cpus_hardware_enabled;
 
 struct kmem_cache *kvm_vcpu_cache;
 EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
@@ -1965,9 +1965,9 @@ static void hardware_enable(void *junk)
 {
 	int cpu = raw_smp_processor_id();
 
-	if (cpu_isset(cpu, cpus_hardware_enabled))
+	if (cpumask_test_cpu(cpu, cpus_hardware_enabled))
 		return;
-	cpu_set(cpu, cpus_hardware_enabled);
+	cpumask_set_cpu(cpu, cpus_hardware_enabled);
 	kvm_arch_hardware_enable(NULL);
 }
 
@@ -1975,9 +1975,9 @@ static void hardware_disable(void *junk)
 {
 	int cpu = raw_smp_processor_id();
 
-	if (!cpu_isset(cpu, cpus_hardware_enabled))
+	if (!cpumask_test_cpu(cpu, cpus_hardware_enabled))
 		return;
-	cpu_clear(cpu, cpus_hardware_enabled);
+	cpumask_clear_cpu(cpu, cpus_hardware_enabled);
 	kvm_arch_hardware_disable(NULL);
 }
 
@@ -2211,9 +2211,14 @@ int kvm_init(void *opaque, unsigned int vcpu_size,
 
 	bad_pfn = page_to_pfn(bad_page);
 
+	if (!alloc_cpumask_var(&cpus_hardware_enabled, GFP_KERNEL)) {
+		r = -ENOMEM;
+		goto out_free_0;
+	}
+
 	r = kvm_arch_hardware_setup();
 	if (r < 0)
-		goto out_free_0;
+		goto out_free_0a;
 
 	for_each_online_cpu(cpu) {
 		smp_call_function_single(cpu,
@@ -2277,6 +2282,8 @@ out_free_2:
 	on_each_cpu(hardware_disable, NULL, 1);
 out_free_1:
 	kvm_arch_hardware_unsetup();
+out_free_0a:
+	free_cpumask_var(cpus_hardware_enabled);
 out_free_0:
 	__free_page(bad_page);
 out:
@@ -2300,6 +2307,7 @@ void kvm_exit(void)
 	kvm_arch_hardware_unsetup();
 	kvm_arch_exit();
 	kvm_exit_debug();
+	free_cpumask_var(cpus_hardware_enabled);
 	__free_page(bad_page);
 }
 EXPORT_SYMBOL_GPL(kvm_exit);
