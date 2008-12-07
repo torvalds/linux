@@ -309,9 +309,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
     iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
     memcpy(iwe.u.ap_addr.sa_data, list->bssid, ETH_ALEN);
     current_ev = iwe_stream_add_event(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 	info,
-#endif
 	current_ev,
 	end_buf, &iwe, IW_EV_ADDR_LEN);
 
@@ -332,9 +330,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
     iwe.cmd = SIOCGIWESSID;
     iwe.u.data.flags = 1;
     current_ev = iwe_stream_add_point(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 	info,
-#endif
 	current_ev, end_buf, &iwe, &list->ssid[2]);
 
     /* Ran out of buffer */
@@ -355,9 +351,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
         else
             iwe.u.mode = IW_MODE_ADHOC;
         current_ev = iwe_stream_add_event(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 		info,
-#endif
 		current_ev, end_buf, &iwe, IW_EV_UINT_LEN);
     }
 
@@ -389,9 +383,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
     }
     iwe.u.freq.e = 6;
     current_ev = iwe_stream_add_event(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 	info,
-#endif
     	current_ev, end_buf, &iwe, IW_EV_FREQ_LEN);
 
     /* Ran out of buffer */
@@ -412,9 +404,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
     iwe.u.qual.noise = 0;
     iwe.u.qual.qual = list->signalQuality;
     current_ev = iwe_stream_add_event(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 	info,
-#endif
 	current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
 
     /* Ran out of buffer */
@@ -435,9 +425,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
 
     iwe.u.data.length = 0;
     current_ev = iwe_stream_add_point(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 	info,
-#endif
 	current_ev, end_buf, &iwe, list->ssid);
 
     /* Ran out of buffer */
@@ -462,9 +450,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
         iwe.u.bitrate.value = ((list->supportedRates[i+2] & 0x7f) * 500000);
 /* Add new value to event */
         current_val = iwe_stream_add_value(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 		info,
-#endif
 		current_ev, current_val, end_buf, &iwe, IW_EV_PARAM_LEN);
 
         /* Ran out of buffer */
@@ -482,9 +468,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
         iwe.u.bitrate.value = ((list->extSupportedRates[i+2] & 0x7f) * 500000);
 /* Add new value to event */
         current_val = iwe_stream_add_value(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 		info,
-#endif
 		current_ev, current_val, end_buf, &iwe, IW_EV_PARAM_LEN);
 
         /* Ran out of buffer */
@@ -506,9 +490,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
     snprintf(buf, sizeof(buf), "bcn_int=%d", (list->beaconInterval[1] << 8) + list->beaconInterval[0]);
     iwe.u.data.length = strlen(buf);
     current_ev = iwe_stream_add_point(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 		info,
-#endif
 		current_ev, end_buf, &iwe, buf);
 
     /* Ran out of buffer */
@@ -537,9 +519,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
 
         if (iwe.u.data.length != 0)
             current_ev = iwe_stream_add_point(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 		info,
-#endif
 		current_ev, end_buf, &iwe, buf);
 
         /* Ran out of buffer */
@@ -563,9 +543,7 @@ char *usbdrv_translate_scan(struct net_device *dev,
                 rsn_leader, sizeof(rsn_leader)-1);
             if (iwe.u.data.length != 0)
                 current_ev = iwe_stream_add_point(
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 			info,
-#endif
 			current_ev, end_buf,  &iwe, buf);
 
             /* Ran out of buffer */

@@ -144,11 +144,7 @@ void zfwUsbCmd(zdev_t* dev, u8_t endpt, u32_t* cmd, u16_t cmdLen)
     if (ret != 0)
     {
         usb_free_urb(macp->RegOutUrb);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) /* tune me! */
         macp->RegOutUrb = usb_alloc_urb(0, GFP_ATOMIC);
-#else
-        macp->RegOutUrb = usb_alloc_urb(0);
-#endif
         ret = zfLnxUsbWriteReg(dev, cmd, cmdLen);
     }
 }

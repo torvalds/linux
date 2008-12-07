@@ -51,11 +51,7 @@ extern void zfDumpDescriptor(zdev_t* dev, u16_t type);
 //extern void zfiWlanQueryMacAddress(zdev_t* dev, u8_t* addr);
 
 // ISR handler
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0))
 irqreturn_t usbdrv_intr(int, void *, struct pt_regs *);
-#else
-void usbdrv_intr(int, void *, struct pt_regs *);
-#endif
 
 // Network Device interface related function
 int usbdrv_open(struct net_device *);
@@ -316,11 +312,7 @@ void zfLnxInitVapStruct(void);
  * the RX & TX queues & starts the RU if it has stopped due
  * to no resources.
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
 irqreturn_t usbdrv_intr(int irq, void *dev_inst, struct pt_regs *regs)
-#else
-void usbdrv_intr(int irq, void *dev_inst, struct pt_regs *regs)
-#endif
 {
     struct net_device *dev;
     struct usbdrv_private *macp;
@@ -331,38 +323,22 @@ void usbdrv_intr(int irq, void *dev_inst, struct pt_regs *regs)
 
     /* Read register error, card may be unpluged */
     if (0)//(intr_status == -1)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
         return IRQ_NONE;
-#else
-        return;
-#endif
 
     /* the device is closed, don't continue or else bad things may happen. */
     if (!netif_running(dev)) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
         return IRQ_NONE;
-#else
-        return;
-#endif
     }
 
     if (macp->driver_isolated) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
         return IRQ_NONE;
-#else
-        return;
-#endif
     }
 
 #if (WLAN_HOSTIF == WLAN_PCI)
     //zfiIsrPci(dev);
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
     return IRQ_HANDLED;
-#else
-    return;
-#endif
 }
 
 int usbdrv_open(struct net_device *dev)
@@ -477,11 +453,7 @@ int usbdrv_open(struct net_device *dev)
     zfiWlanEnable(dev);
 
 #ifdef ZM_ENABLE_CENC
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,14)
-    macp->netlink_sk = netlink_kernel_create(NETLINK_USERSOCK, NULL);
-#else
     macp->netlink_sk = netlink_kernel_create(NETLINK_USERSOCK, 1, NULL, THIS_MODULE);
-#endif
 
     if (macp->netlink_sk == NULL)
     {
@@ -884,11 +856,7 @@ int zfLnxRegisterVapDev(struct net_device* parentDev, u16_t vapId)
 #else
     vap[vapId].dev->do_ioctl = NULL;
 #endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
     vap[vapId].dev->destructor = free_netdev;
-#else
-    vap[vapId].dev->features |= NETIF_F_DYNALLOC;
-#endif
 
     vap[vapId].dev->tx_queue_len = 0;
 
@@ -939,13 +907,8 @@ int zfLnxUnregisterVapDev(struct net_device* parentDev, u16_t vapId)
 
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) /* tune me! */
 #  define SUBMIT_URB(u,f)       usb_submit_urb(u,f)
 #  define USB_ALLOC_URB(u,f)    usb_alloc_urb(u,f)
-#else
-#  define SUBMIT_URB(u,f)       usb_submit_urb(u)
-#  define USB_ALLOC_URB(u,f)    usb_alloc_urb(u)
-#endif
 
 //extern void zfiWlanQueryMacAddress(zdev_t* dev, u8_t* addr);
 
@@ -963,26 +926,16 @@ extern UsbTxQ_t *zfLnxGetUsbTxBuffer(struct net_device *dev);
 int zfLnxAllocAllUrbs(struct usbdrv_private *macp)
 {
     struct usb_interface *interface = macp->interface;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-    struct usb_interface_descriptor *iface_desc = &interface->altsetting[0];
-#else
     struct usb_host_interface *iface_desc = &interface->altsetting[0];
-#endif
 
     struct usb_endpoint_descriptor *endpoint;
     int i;
 
     /* descriptor matches, let's find the endpoints needed */
     /* check out the endpoints */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-    for (i = 0; i < iface_desc->bNumEndpoints; ++i)
-    {
-        endpoint = &iface_desc->endpoint[i];
-#else
     for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
     {
         endpoint = &iface_desc->endpoint[i].desc;
-#endif
         if ((endpoint->bEndpointAddress & 0x80) &&
             ((endpoint->bmAttributes & 3) == 0x02))
         {
@@ -1100,9 +1053,6 @@ void zfLnxUnlinkAllUrbs(struct usbdrv_private *macp)
     {
         if (macp->WlanTxDataUrb[i] != NULL)
         {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-            macp->WlanTxDataUrb[i]->transfer_flags &= ~URB_ASYNC_UNLINK;
-#endif
             usb_unlink_urb(macp->WlanTxDataUrb[i]);
         }
     }
@@ -1112,22 +1062,13 @@ void zfLnxUnlinkAllUrbs(struct usbdrv_private *macp)
     {
         if (macp->WlanRxDataUrb[i] != NULL)
         {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-            macp->WlanRxDataUrb[i]->transfer_flags &= ~URB_ASYNC_UNLINK;
-#endif
             usb_unlink_urb(macp->WlanRxDataUrb[i]);
         }
     }
 
     /* Unlink USB Register Read/Write URB */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-    macp->RegOutUrb->transfer_flags &= ~URB_ASYNC_UNLINK;
-#endif
     usb_unlink_urb(macp->RegOutUrb);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-    macp->RegInUrb->transfer_flags &= ~URB_ASYNC_UNLINK;
-#endif
     usb_unlink_urb(macp->RegInUrb);
 }
 
@@ -1166,14 +1107,12 @@ u8_t zfLnxInitSetup(struct net_device *dev, struct usbdrv_private *macp)
 
     dev->flags |= IFF_MULTICAST;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24))
     dev->dev_addr[0] = 0x00;
     dev->dev_addr[1] = 0x03;
     dev->dev_addr[2] = 0x7f;
     dev->dev_addr[3] = 0x11;
     dev->dev_addr[4] = 0x22;
     dev->dev_addr[5] = 0x33;
-#endif
 
     /* Initialize Heart Beat timer */
     init_timer(&macp->hbTimer10ms);

@@ -65,11 +65,7 @@ void zfLnxRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
                 if(skb1 != NULL)
                 {
                     skb1->dev = dev;
-                #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22))
-	            skb1->mac.raw = skb1->data;
-                #else
                     skb1->mac_header = skb1->data;
-                #endif
 	            skb1->ip_summed = CHECKSUM_NONE;
 	            skb1->pkt_type = PACKET_OTHERHOST;
 	            skb1->protocol = __constant_htons(0x0019);  /* ETH_P_80211_RAW */

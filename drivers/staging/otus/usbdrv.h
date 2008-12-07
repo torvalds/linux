@@ -35,15 +35,10 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/version.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/wireless.h>
 #include <linux/if_arp.h>
-#include <asm/io.h>
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-    #include <asm/div64.h>
-#endif
+#include <linux/io.h>
 
 #include "zdcompat.h"
 
