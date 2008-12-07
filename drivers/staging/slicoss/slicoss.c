@@ -765,8 +765,7 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #ifdef SLIC_USER_REQUEST_DUMP_ENABLED
 	case SIOCSLICDUMPCARD:
 		{
-			struct adapter *adapter = (struct adapter *)
-							dev->priv;
+			struct adapter *adapter = netdev_priv(dev);
 			struct sliccard *card;
 
 			ASSERT(adapter);
@@ -1685,7 +1684,7 @@ static void slic_timer_ping(ulong dev)
 	struct sliccard *card;
 
 	ASSERT(dev);
-	adapter = (struct adapter *)((struct net_device *) dev)->priv;
+	adapter = netdev_priv((struct net_device *)dev);
 	ASSERT(adapter);
 	card = adapter->card;
 	ASSERT(card);
@@ -3136,7 +3135,7 @@ static void slic_timer_get_stats(ulong dev)
 	struct slic_shmem *pshmem;
 
 	ASSERT(dev);
-	adapter = (struct adapter *)((struct net_device *)dev)->priv;
+	adapter = netdev_priv((struct net_device *)dev);
 	ASSERT(adapter);
 	card = adapter->card;
 	ASSERT(card);
