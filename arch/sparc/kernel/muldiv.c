@@ -17,6 +17,8 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
+#include "kernel.h"
+
 /* #define DEBUG_MULDIV */
 
 static inline int has_imm13(int insn)
@@ -88,9 +90,6 @@ store_reg(unsigned int result, unsigned int reg, struct pt_regs *regs)
 		return (put_user(result, &win->locals[reg - 16]));
 	}
 }
-		
-extern void handle_hw_divzero (struct pt_regs *regs, unsigned long pc,
-			       unsigned long npc, unsigned long psr);
 
 /* Should return 0 if mul/div emulation succeeded and SIGILL should
  * not be issued.

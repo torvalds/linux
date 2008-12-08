@@ -5,6 +5,40 @@
 #include <linux/types.h>
 #include <linux/init.h>
 
+#ifdef CONFIG_SPARC32
+/* traps */
+extern void do_hw_interrupt(struct pt_regs *regs, unsigned long type);
+extern void do_illegal_instruction(struct pt_regs *regs, unsigned long pc,
+                                   unsigned long npc, unsigned long psr);
+
+extern void do_priv_instruction(struct pt_regs *regs, unsigned long pc,
+                                unsigned long npc, unsigned long psr);
+extern void do_memaccess_unaligned(struct pt_regs *regs, unsigned long pc,
+                                   unsigned long npc,
+                                   unsigned long psr);
+extern void do_fpd_trap(struct pt_regs *regs, unsigned long pc,
+                        unsigned long npc, unsigned long psr);
+extern void do_fpe_trap(struct pt_regs *regs, unsigned long pc,
+                        unsigned long npc, unsigned long psr);
+extern void handle_tag_overflow(struct pt_regs *regs, unsigned long pc,
+                                unsigned long npc, unsigned long psr);
+extern void handle_watchpoint(struct pt_regs *regs, unsigned long pc,
+                              unsigned long npc, unsigned long psr);
+extern void handle_reg_access(struct pt_regs *regs, unsigned long pc,
+                              unsigned long npc, unsigned long psr);
+extern void handle_cp_disabled(struct pt_regs *regs, unsigned long pc,
+                               unsigned long npc, unsigned long psr);
+extern void handle_cp_exception(struct pt_regs *regs, unsigned long pc,
+                                unsigned long npc, unsigned long psr);
+
+
+
+/* entry.S */
+extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
+                   void *fpqueue, unsigned long *fpqdepth);
+extern void fpload(unsigned long *fpregs, unsigned long *fsr);
+
+#else /* CONFIG_SPARC32 */
 extern void __init per_cpu_patch(void);
 extern void __init sun4v_patch(void);
 extern void __init boot_cpu_id_too_large(int cpu);
@@ -189,4 +223,5 @@ extern void handler_irq(int irq, struct pt_regs *regs);
 extern void init_irqwork_curcpu(void);
 extern void __cpuinit sun4v_register_mondo_queues(int this_cpu);
 
+#endif /* CONFIG_SPARC32 */
 #endif /* _ENTRY_H */

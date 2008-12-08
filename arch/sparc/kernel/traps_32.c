@@ -25,31 +25,10 @@
 #include <asm/unistd.h>
 #include <asm/traps.h>
 
+#include "entry.h"
+#include "kernel.h"
+
 /* #define TRAP_DEBUG */
-
-struct trap_trace_entry {
-	unsigned long pc;
-	unsigned long type;
-};
-
-void syscall_trace_entry(struct pt_regs *regs)
-{
-	printk("%s[%d]: ", current->comm, task_pid_nr(current));
-	printk("scall<%d> (could be %d)\n", (int) regs->u_regs[UREG_G1],
-	       (int) regs->u_regs[UREG_I0]);
-}
-
-void syscall_trace_exit(struct pt_regs *regs)
-{
-}
-
-void sun4d_nmi(struct pt_regs *regs)
-{
-	printk("Aieee: sun4d NMI received!\n");
-	printk("you lose buddy boy...\n");
-	show_regs(regs);
-	prom_halt();
-}
 
 static void instruction_dump(unsigned long *pc)
 {
@@ -134,7 +113,6 @@ void do_hw_interrupt(struct pt_regs *regs, unsigned long type)
 void do_illegal_instruction(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 			    unsigned long psr)
 {
-	extern int do_user_muldiv (struct pt_regs *, unsigned long);
 	siginfo_t info;
 
 	if(psr & PSR_PS)
@@ -194,10 +172,6 @@ void do_memaccess_unaligned(struct pt_regs *regs, unsigned long pc, unsigned lon
 	info.si_trapno = 0;
 	send_sig_info(SIGBUS, &info, current);
 }
-
-extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
-		   void *fpqueue, unsigned long *fpqdepth);
-extern void fpload(unsigned long *fpregs, unsigned long *fsr);
 
 static unsigned long init_fsr = 0x0UL;
 static unsigned long init_fregs[32] __attribute__ ((aligned (8))) =
@@ -455,8 +429,6 @@ void do_BUG(const char *file, int line)
 /* Since we have our mappings set up, on multiprocessors we can spin them
  * up here so that timer interrupts work during initialization.
  */
-
-extern void sparc_cpu_startup(void);
 
 void trap_init(void)
 {
