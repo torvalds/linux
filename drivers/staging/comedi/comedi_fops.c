@@ -59,6 +59,9 @@ int comedi_debug;
 module_param(comedi_debug, int, 0644);
 #endif
 
+int comedi_autoconfig = 1;
+module_param(comedi_autoconfig, bool, 0444);
+
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
     *comedi_file_info_table[COMEDI_NUM_MINORS];
