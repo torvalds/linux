@@ -41,7 +41,7 @@ static struct dma_ops fb_dma_ops = {
 };
 #endif
 
-void __init arch_dma_init(dma_t *dma)
+static int __init fb_dma_init(void)
 {
 #if 0
 	dma[_DC21285_DMA(0)].d_ops = &fb_dma_ops;
@@ -49,6 +49,8 @@ void __init arch_dma_init(dma_t *dma)
 #endif
 #ifdef CONFIG_ISA_DMA
 	if (footbridge_cfn_mode())
-		isa_init_dma(dma + _ISA_DMA(0));
+		isa_init_dma();
 #endif
+	return 0;
 }
+core_initcall(fb_dma_init);

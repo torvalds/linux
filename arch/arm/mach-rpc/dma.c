@@ -302,8 +302,22 @@ static struct dma_ops sound_dma_ops = {
 	.disable	= sound_enable_disable_dma,
 };
 
-void __init arch_dma_init(dma_t *dma)
+static dma_t iomd_dma[6];
+
+static dma_t floppy_dma = {
+	.dma_irq	= FIQ_FLOPPYDATA,
+	.d_ops		= &floppy_dma_ops,
+};
+
+static dma_t sound_dma = {
+	.d_ops		= &sound_dma_ops,
+};
+
+static int __init rpc_dma_init(void)
 {
+	unsigned int i;
+	int ret;
+
 	iomd_writeb(0, IOMD_IO0CR);
 	iomd_writeb(0, IOMD_IO1CR);
 	iomd_writeb(0, IOMD_IO2CR);
@@ -311,31 +325,39 @@ void __init arch_dma_init(dma_t *dma)
 
 	iomd_writeb(0xa0, IOMD_DMATCR);
 
-	dma[DMA_0].dma_base		= IOMD_IO0CURA;
-	dma[DMA_0].dma_irq		= IRQ_DMA0;
-	dma[DMA_0].d_ops		= &iomd_dma_ops;
-	dma[DMA_1].dma_base		= IOMD_IO1CURA;
-	dma[DMA_1].dma_irq		= IRQ_DMA1;
-	dma[DMA_1].d_ops		= &iomd_dma_ops;
-	dma[DMA_2].dma_base		= IOMD_IO2CURA;
-	dma[DMA_2].dma_irq		= IRQ_DMA2;
-	dma[DMA_2].d_ops		= &iomd_dma_ops;
-	dma[DMA_3].dma_base		= IOMD_IO3CURA;
-	dma[DMA_3].dma_irq		= IRQ_DMA3;
-	dma[DMA_3].d_ops		= &iomd_dma_ops;
-	dma[DMA_S0].dma_base		= IOMD_SD0CURA;
-	dma[DMA_S0].dma_irq		= IRQ_DMAS0;
-	dma[DMA_S0].d_ops		= &iomd_dma_ops;
-	dma[DMA_S1].dma_base		= IOMD_SD1CURA;
-	dma[DMA_S1].dma_irq		= IRQ_DMAS1;
-	dma[DMA_S1].d_ops		= &iomd_dma_ops;
-	dma[DMA_VIRTUAL_FLOPPY].dma_irq	= FIQ_FLOPPYDATA;
-	dma[DMA_VIRTUAL_FLOPPY].d_ops	= &floppy_dma_ops;
-	dma[DMA_VIRTUAL_SOUND].d_ops	= &sound_dma_ops;
-
 	/*
 	 * Setup DMA channels 2,3 to be for podules
 	 * and channels 0,1 for internal devices
 	 */
 	iomd_writeb(DMA_EXT_IO3|DMA_EXT_IO2, IOMD_DMAEXT);
+
+	iomd_dma[DMA_0].dma_base	= IOMD_IO0CURA;
+	iomd_dma[DMA_0].dma_irq		= IRQ_DMA0;
+	iomd_dma[DMA_1].dma_base	= IOMD_IO1CURA;
+	iomd_dma[DMA_1].dma_irq		= IRQ_DMA1;
+	iomd_dma[DMA_2].dma_base	= IOMD_IO2CURA;
+	iomd_dma[DMA_2].dma_irq		= IRQ_DMA2;
+	iomd_dma[DMA_3].dma_base	= IOMD_IO3CURA;
+	iomd_dma[DMA_3].dma_irq		= IRQ_DMA3;
+	iomd_dma[DMA_S0].dma_base	= IOMD_SD0CURA;
+	iomd_dma[DMA_S0].dma_irq	= IRQ_DMAS0;
+	iomd_dma[DMA_S1].dma_base	= IOMD_SD1CURA;
+	iomd_dma[DMA_S1].dma_irq	= IRQ_DMAS1;
+
+	for (i = DMA_0; i <= DMA_S1; i++) {
+		iomd_dma[i].d_ops = &iomd_dma_ops;
+
+		ret = isa_dma_add(i, &iomd_dma[i]);
+		if (ret)
+			printk("IOMDDMA%u: unable to register: %d\n", i, ret);
+	}
+
+	ret = isa_dma_add(DMA_VIRTUAL_FLOPPY, &floppy_dma);
+	if (ret)
+		printk("IOMDFLOPPY: unable to register: %d\n", ret);
+	ret = isa_dma_add(DMA_VIRTUAL_SOUND, &sound_dma);
+	if (ret)
+		printk("IOMDSOUND: unable to register: %d\n", ret);
+	return 0;
 }
+core_initcall(rpc_dma_init);

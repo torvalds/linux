@@ -23,16 +23,24 @@
 DEFINE_SPINLOCK(dma_spin_lock);
 EXPORT_SYMBOL(dma_spin_lock);
 
-static dma_t dma_chan[MAX_DMA_CHANNELS];
+static dma_t *dma_chan[MAX_DMA_CHANNELS];
 
 static inline dma_t *dma_channel(unsigned int chan)
 {
-	dma_t *dma = dma_chan + chan;
-
-	if (chan >= MAX_DMA_CHANNELS || !dma->d_ops)
+	if (chan >= MAX_DMA_CHANNELS)
 		return NULL;
 
-	return dma;
+	return dma_chan[chan];
+}
+
+int __init isa_dma_add(unsigned int chan, dma_t *dma)
+{
+	if (!dma->d_ops)
+		return -EINVAL;
+	if (dma_chan[chan])
+		return -EBUSY;
+	dma_chan[chan] = dma;
+	return 0;
 }
 
 /*
@@ -252,10 +260,3 @@ int get_dma_residue(unsigned int chan)
 	return ret;
 }
 EXPORT_SYMBOL(get_dma_residue);
-
-static int __init init_dma(void)
-{
-	arch_dma_init(dma_chan);
-	return 0;
-}
-core_initcall(init_dma);

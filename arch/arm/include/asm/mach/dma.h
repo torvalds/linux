@@ -48,10 +48,12 @@ struct dma_struct {
 	struct dma_ops	*d_ops;
 };
 
-/* Prototype: void arch_dma_init(dma)
- * Purpose  : Initialise architecture specific DMA
- * Params   : dma - pointer to array of DMA structures
+/*
+ * isa_dma_add - add an ISA-style DMA channel
  */
-extern void arch_dma_init(dma_t *dma);
+extern int isa_dma_add(unsigned int, dma_t *dma);
 
-extern void isa_init_dma(dma_t *dma);
+/*
+ * Add the ISA DMA controller.  Always takes channels 0-7.
+ */
+extern void isa_init_dma(void);

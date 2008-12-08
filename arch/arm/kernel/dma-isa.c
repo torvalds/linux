@@ -160,7 +160,12 @@ static struct resource dma_resources[] = { {
 	.end	= 0x048f
 } };
 
-void __init isa_init_dma(dma_t *dma)
+static dma_t isa_dma[8];
+
+/*
+ * ISA DMA always starts at channel 0
+ */
+void __init isa_init_dma(void)
 {
 	/*
 	 * Try to autodetect presence of an ISA DMA controller.
@@ -178,10 +183,10 @@ void __init isa_init_dma(dma_t *dma)
 	outb(0xaa, 0x00);
 
 	if (inb(0) == 0x55 && inb(0) == 0xaa) {
-		int chan, i;
+		unsigned int chan, i;
 
 		for (chan = 0; chan < 8; chan++) {
-			dma[chan].d_ops = &isa_dma_ops;
+			isa_dma[chan].d_ops = &isa_dma_ops;
 			isa_disable_dma(chan, NULL);
 		}
 
@@ -217,5 +222,12 @@ void __init isa_init_dma(dma_t *dma)
 
 		for (i = 0; i < ARRAY_SIZE(dma_resources); i++)
 			request_resource(&ioport_resource, dma_resources + i);
+
+		for (chan = 0; chan < 8; chan++) {
+			int ret = isa_dma_add(chan, &isa_dma[chan]);
+			if (ret)
+				printk(KERN_ERR "ISADMA%u: unable to register: %d\n",
+					chan, ret);
+		}
 	}
 }
