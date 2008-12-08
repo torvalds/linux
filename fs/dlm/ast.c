@@ -89,13 +89,8 @@ static void process_asts(void)
 		if ((type & AST_COMP) && cast)
 			cast(lkb->lkb_astparam);
 
-		/* FIXME: Is it safe to look at lkb_grmode here
-		   without doing a lock_rsb() ?
-		   Look at other checks in v1 to avoid basts. */
-
 		if ((type & AST_BAST) && bast)
-			if (!dlm_modes_compat(lkb->lkb_grmode, bmode))
-				bast(lkb->lkb_astparam, bmode);
+			bast(lkb->lkb_astparam, bmode);
 
 		/* this removes the reference added by dlm_add_ast
 		   and may result in the lkb being freed */
