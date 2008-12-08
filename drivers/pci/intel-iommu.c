@@ -221,6 +221,8 @@ struct dmar_domain {
 	int		agaw;
 
 	int		flags;		/* flags to find out type of domain */
+
+	int		iommu_coherency;/* indicate coherency of iommu access */
 };
 
 /* PCI domain-device relationship */
@@ -394,6 +396,23 @@ static struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
 		return NULL;
 
 	return g_iommus[iommu_id];
+}
+
+/* "Coherency" capability may be different across iommus */
+static void domain_update_iommu_coherency(struct dmar_domain *domain)
+{
+	int i;
+
+	domain->iommu_coherency = 1;
+
+	i = find_first_bit(&domain->iommu_bmp, g_num_of_iommus);
+	for (; i < g_num_of_iommus; ) {
+		if (!ecap_coherent(g_iommus[i]->ecap)) {
+			domain->iommu_coherency = 0;
+			break;
+		}
+		i = find_next_bit(&domain->iommu_bmp, g_num_of_iommus, i+1);
+	}
 }
 
 /* Gets context entry for a given bus and devfn */
@@ -1345,6 +1364,11 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 	}
 	domain->agaw = agaw;
 	INIT_LIST_HEAD(&domain->devices);
+
+	if (ecap_coherent(iommu->ecap))
+		domain->iommu_coherency = 1;
+	else
+		domain->iommu_coherency = 0;
 
 	/* always allocate the top pgd */
 	domain->pgd = (struct dma_pte *)alloc_pgtable_page();
