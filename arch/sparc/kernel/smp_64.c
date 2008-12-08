@@ -773,7 +773,7 @@ static void xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask
 
 	/* Setup the initial cpu list.  */
 	cnt = 0;
-	for_each_cpu_mask_nr(i, *mask) {
+	for_each_cpu(i, mask) {
 		if (i == this_cpu || !cpu_online(i))
 			continue;
 		cpu_list[cnt++] = i;
