@@ -206,6 +206,11 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 /* devices under the same p2p bridge are owned in one domain */
 #define DOMAIN_FLAG_P2P_MULTIPLE_DEVICES (1 < 0)
 
+/* domain represents a virtual machine, more than one devices
+ * across iommus may be owned in one domain, e.g. kvm guest.
+ */
+#define DOMAIN_FLAG_VIRTUAL_MACHINE	(1 << 1)
+
 struct dmar_domain {
 	int	id;			/* domain id */
 	unsigned long iommu_bmp;	/* bitmap of iommus this domain uses*/
@@ -390,6 +395,8 @@ int iommu_calculate_agaw(struct intel_iommu *iommu)
 static struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
 {
 	int iommu_id;
+
+	BUG_ON(domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE);
 
 	iommu_id = find_first_bit(&domain->iommu_bmp, g_num_of_iommus);
 	if (iommu_id < 0 || iommu_id >= g_num_of_iommus)
