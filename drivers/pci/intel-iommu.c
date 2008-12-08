@@ -208,7 +208,7 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 
 struct dmar_domain {
 	int	id;			/* domain id */
-	struct intel_iommu *iommu;	/* back pointer to owning iommu */
+	unsigned long iommu_bmp;	/* bitmap of iommus this domain uses*/
 
 	struct list_head devices; 	/* all devices' list */
 	struct iova_domain iovad;	/* iova's that belong to this domain */
@@ -362,6 +362,18 @@ void free_iova_mem(struct iova *iova)
 	kmem_cache_free(iommu_iova_cache, iova);
 }
 
+/* in native case, each domain is related to only one iommu */
+static struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
+{
+	int iommu_id;
+
+	iommu_id = find_first_bit(&domain->iommu_bmp, g_num_of_iommus);
+	if (iommu_id < 0 || iommu_id >= g_num_of_iommus)
+		return NULL;
+
+	return g_iommus[iommu_id];
+}
+
 /* Gets context entry for a given bus and devfn */
 static struct context_entry * device_to_context_entry(struct intel_iommu *iommu,
 		u8 bus, u8 devfn)
@@ -502,6 +514,7 @@ static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
 	int level = agaw_to_level(domain->agaw);
 	int offset;
 	unsigned long flags;
+	struct intel_iommu *iommu = domain_get_iommu(domain);
 
 	BUG_ON(!domain->pgd);
 
@@ -525,7 +538,7 @@ static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
 					flags);
 				return NULL;
 			}
-			__iommu_flush_cache(domain->iommu, tmp_page,
+			__iommu_flush_cache(iommu, tmp_page,
 					PAGE_SIZE);
 			dma_set_pte_addr(pte, virt_to_phys(tmp_page));
 			/*
@@ -534,7 +547,7 @@ static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
 			 */
 			dma_set_pte_readable(pte);
 			dma_set_pte_writable(pte);
-			__iommu_flush_cache(domain->iommu, pte, sizeof(*pte));
+			__iommu_flush_cache(iommu, pte, sizeof(*pte));
 		}
 		parent = phys_to_virt(dma_pte_addr(pte));
 		level--;
@@ -571,13 +584,14 @@ static struct dma_pte *dma_addr_level_pte(struct dmar_domain *domain, u64 addr,
 static void dma_pte_clear_one(struct dmar_domain *domain, u64 addr)
 {
 	struct dma_pte *pte = NULL;
+	struct intel_iommu *iommu = domain_get_iommu(domain);
 
 	/* get last level pte */
 	pte = dma_addr_level_pte(domain, addr, 1);
 
 	if (pte) {
 		dma_clear_pte(pte);
-		__iommu_flush_cache(domain->iommu, pte, sizeof(*pte));
+		__iommu_flush_cache(iommu, pte, sizeof(*pte));
 	}
 }
 
@@ -608,6 +622,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 	int total = agaw_to_level(domain->agaw);
 	int level;
 	u64 tmp;
+	struct intel_iommu *iommu = domain_get_iommu(domain);
 
 	start &= (((u64)1) << addr_width) - 1;
 	end &= (((u64)1) << addr_width) - 1;
@@ -625,7 +640,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 				free_pgtable_page(
 					phys_to_virt(dma_pte_addr(pte)));
 				dma_clear_pte(pte);
-				__iommu_flush_cache(domain->iommu,
+				__iommu_flush_cache(iommu,
 						pte, sizeof(*pte));
 			}
 			tmp += level_size(level);
@@ -1195,7 +1210,8 @@ static struct dmar_domain * iommu_alloc_domain(struct intel_iommu *iommu)
 
 	set_bit(num, iommu->domain_ids);
 	domain->id = num;
-	domain->iommu = iommu;
+	memset(&domain->iommu_bmp, 0, sizeof(unsigned long));
+	set_bit(iommu->seq_id, &domain->iommu_bmp);
 	domain->flags = 0;
 	iommu->domains[num] = domain;
 	spin_unlock_irqrestore(&iommu->lock, flags);
@@ -1206,10 +1222,13 @@ static struct dmar_domain * iommu_alloc_domain(struct intel_iommu *iommu)
 static void iommu_free_domain(struct dmar_domain *domain)
 {
 	unsigned long flags;
+	struct intel_iommu *iommu;
 
-	spin_lock_irqsave(&domain->iommu->lock, flags);
-	clear_bit(domain->id, domain->iommu->domain_ids);
-	spin_unlock_irqrestore(&domain->iommu->lock, flags);
+	iommu = domain_get_iommu(domain);
+
+	spin_lock_irqsave(&iommu->lock, flags);
+	clear_bit(domain->id, iommu->domain_ids);
+	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
 static struct iova_domain reserved_iova_list;
@@ -1288,7 +1307,7 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 	domain_reserve_special_ranges(domain);
 
 	/* calculate AGAW */
-	iommu = domain->iommu;
+	iommu = domain_get_iommu(domain);
 	if (guest_width > cap_mgaw(iommu->cap))
 		guest_width = cap_mgaw(iommu->cap);
 	domain->gaw = guest_width;
@@ -1341,7 +1360,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		u8 bus, u8 devfn)
 {
 	struct context_entry *context;
-	struct intel_iommu *iommu = domain->iommu;
+	struct intel_iommu *iommu = domain_get_iommu(domain);
 	unsigned long flags;
 
 	pr_debug("Set context mapping for %02x:%02x.%d\n",
@@ -1413,8 +1432,9 @@ static int domain_context_mapped(struct dmar_domain *domain,
 {
 	int ret;
 	struct pci_dev *tmp, *parent;
+	struct intel_iommu *iommu = domain_get_iommu(domain);
 
-	ret = device_context_mapped(domain->iommu,
+	ret = device_context_mapped(iommu,
 		pdev->bus->number, pdev->devfn);
 	if (!ret)
 		return ret;
@@ -1425,17 +1445,17 @@ static int domain_context_mapped(struct dmar_domain *domain,
 	/* Secondary interface's bus number and devfn 0 */
 	parent = pdev->bus->self;
 	while (parent != tmp) {
-		ret = device_context_mapped(domain->iommu, parent->bus->number,
+		ret = device_context_mapped(iommu, parent->bus->number,
 			parent->devfn);
 		if (!ret)
 			return ret;
 		parent = parent->bus->self;
 	}
 	if (tmp->is_pcie)
-		return device_context_mapped(domain->iommu,
+		return device_context_mapped(iommu,
 			tmp->subordinate->number, 0);
 	else
-		return device_context_mapped(domain->iommu,
+		return device_context_mapped(iommu,
 			tmp->bus->number, tmp->devfn);
 }
 
@@ -1447,6 +1467,7 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 	struct dma_pte *pte;
 	int index;
 	int addr_width = agaw_to_width(domain->agaw);
+	struct intel_iommu *iommu = domain_get_iommu(domain);
 
 	hpa &= (((u64)1) << addr_width) - 1;
 
@@ -1466,7 +1487,7 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 		BUG_ON(dma_pte_addr(pte));
 		dma_set_pte_addr(pte, start_pfn << VTD_PAGE_SHIFT);
 		dma_set_pte_prot(pte, prot);
-		__iommu_flush_cache(domain->iommu, pte, sizeof(*pte));
+		__iommu_flush_cache(iommu, pte, sizeof(*pte));
 		start_pfn++;
 		index++;
 	}
@@ -1475,10 +1496,12 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 
 static void detach_domain_for_dev(struct dmar_domain *domain, u8 bus, u8 devfn)
 {
-	clear_context_table(domain->iommu, bus, devfn);
-	domain->iommu->flush.flush_context(domain->iommu, 0, 0, 0,
+	struct intel_iommu *iommu = domain_get_iommu(domain);
+
+	clear_context_table(iommu, bus, devfn);
+	iommu->flush.flush_context(iommu, 0, 0, 0,
 					   DMA_CCMD_GLOBAL_INVL, 0);
-	domain->iommu->flush.flush_iotlb(domain->iommu, 0, 0, 0,
+	iommu->flush.flush_iotlb(iommu, 0, 0, 0,
 					 DMA_TLB_GLOBAL_FLUSH, 0);
 }
 
@@ -2033,6 +2056,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	struct iova *iova;
 	int prot = 0;
 	int ret;
+	struct intel_iommu *iommu;
 
 	BUG_ON(dir == DMA_NONE);
 	if (pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO)
@@ -2042,6 +2066,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	if (!domain)
 		return 0;
 
+	iommu = domain_get_iommu(domain);
 	size = aligned_size((u64)paddr, size);
 
 	iova = __intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
@@ -2055,7 +2080,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	 * mappings..
 	 */
 	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL || \
-			!cap_zlr(domain->iommu->cap))
+			!cap_zlr(iommu->cap))
 		prot |= DMA_PTE_READ;
 	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
 		prot |= DMA_PTE_WRITE;
@@ -2071,10 +2096,10 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 		goto error;
 
 	/* it's a non-present to present mapping */
-	ret = iommu_flush_iotlb_psi(domain->iommu, domain->id,
+	ret = iommu_flush_iotlb_psi(iommu, domain->id,
 			start_paddr, size >> VTD_PAGE_SHIFT, 1);
 	if (ret)
-		iommu_flush_write_buffer(domain->iommu);
+		iommu_flush_write_buffer(iommu);
 
 	return start_paddr + ((u64)paddr & (~PAGE_MASK));
 
@@ -2132,12 +2157,14 @@ static void add_unmap(struct dmar_domain *dom, struct iova *iova)
 {
 	unsigned long flags;
 	int next, iommu_id;
+	struct intel_iommu *iommu;
 
 	spin_lock_irqsave(&async_umap_flush_lock, flags);
 	if (list_size == HIGH_WATER_MARK)
 		flush_unmaps();
 
-	iommu_id = dom->iommu->seq_id;
+	iommu = domain_get_iommu(dom);
+	iommu_id = iommu->seq_id;
 
 	next = deferred_flush[iommu_id].next;
 	deferred_flush[iommu_id].domain[next] = dom;
@@ -2159,11 +2186,14 @@ void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
 	struct dmar_domain *domain;
 	unsigned long start_addr;
 	struct iova *iova;
+	struct intel_iommu *iommu;
 
 	if (pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO)
 		return;
 	domain = find_domain(pdev);
 	BUG_ON(!domain);
+
+	iommu = domain_get_iommu(domain);
 
 	iova = find_iova(&domain->iovad, IOVA_PFN(dev_addr));
 	if (!iova)
@@ -2180,9 +2210,9 @@ void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
 	/* free page tables */
 	dma_pte_free_pagetable(domain, start_addr, start_addr + size);
 	if (intel_iommu_strict) {
-		if (iommu_flush_iotlb_psi(domain->iommu,
+		if (iommu_flush_iotlb_psi(iommu,
 			domain->id, start_addr, size >> VTD_PAGE_SHIFT, 0))
-			iommu_flush_write_buffer(domain->iommu);
+			iommu_flush_write_buffer(iommu);
 		/* free iova */
 		__free_iova(&domain->iovad, iova);
 	} else {
@@ -2243,11 +2273,15 @@ void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	size_t size = 0;
 	void *addr;
 	struct scatterlist *sg;
+	struct intel_iommu *iommu;
 
 	if (pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO)
 		return;
 
 	domain = find_domain(pdev);
+	BUG_ON(!domain);
+
+	iommu = domain_get_iommu(domain);
 
 	iova = find_iova(&domain->iovad, IOVA_PFN(sglist[0].dma_address));
 	if (!iova)
@@ -2264,9 +2298,9 @@ void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	/* free page tables */
 	dma_pte_free_pagetable(domain, start_addr, start_addr + size);
 
-	if (iommu_flush_iotlb_psi(domain->iommu, domain->id, start_addr,
+	if (iommu_flush_iotlb_psi(iommu, domain->id, start_addr,
 			size >> VTD_PAGE_SHIFT, 0))
-		iommu_flush_write_buffer(domain->iommu);
+		iommu_flush_write_buffer(iommu);
 
 	/* free iova */
 	__free_iova(&domain->iovad, iova);
@@ -2300,6 +2334,7 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 	int ret;
 	struct scatterlist *sg;
 	unsigned long start_addr;
+	struct intel_iommu *iommu;
 
 	BUG_ON(dir == DMA_NONE);
 	if (pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO)
@@ -2308,6 +2343,8 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 	domain = get_valid_domain_for_dev(pdev);
 	if (!domain)
 		return 0;
+
+	iommu = domain_get_iommu(domain);
 
 	for_each_sg(sglist, sg, nelems, i) {
 		addr = SG_ENT_VIRT_ADDRESS(sg);
@@ -2326,7 +2363,7 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 	 * mappings..
 	 */
 	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL || \
-			!cap_zlr(domain->iommu->cap))
+			!cap_zlr(iommu->cap))
 		prot |= DMA_PTE_READ;
 	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
 		prot |= DMA_PTE_WRITE;
@@ -2358,9 +2395,9 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 	}
 
 	/* it's a non-present to present mapping */
-	if (iommu_flush_iotlb_psi(domain->iommu, domain->id,
+	if (iommu_flush_iotlb_psi(iommu, domain->id,
 			start_addr, offset >> VTD_PAGE_SHIFT, 1))
-		iommu_flush_write_buffer(domain->iommu);
+		iommu_flush_write_buffer(iommu);
 	return nelems;
 }
 
