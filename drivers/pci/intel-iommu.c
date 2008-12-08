@@ -2101,10 +2101,11 @@ static void flush_unmaps(void)
 
 	/* just flush them all */
 	for (i = 0; i < g_num_of_iommus; i++) {
-		if (deferred_flush[i].next) {
-			struct intel_iommu *iommu =
-				deferred_flush[i].domain[0]->iommu;
+		struct intel_iommu *iommu = g_iommus[i];
+		if (!iommu)
+			continue;
 
+		if (deferred_flush[i].next) {
 			iommu->flush.flush_iotlb(iommu, 0, 0, 0,
 						 DMA_TLB_GLOBAL_FLUSH, 0);
 			for (j = 0; j < deferred_flush[i].next; j++) {
