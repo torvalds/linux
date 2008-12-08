@@ -145,18 +145,6 @@ void end_cpu_work(void)
 	flush_scheduled_work();
 }
 
-/* compute number of available slots in cpu_buffer queue */
-static unsigned long nr_available_slots(struct oprofile_cpu_buffer const *b)
-{
-	unsigned long head = b->head_pos;
-	unsigned long tail = b->tail_pos;
-
-	if (tail > head)
-		return (tail - head) - 1;
-
-	return tail + (b->buffer_size - head) - 1;
-}
-
 static inline void
 add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	   unsigned long pc, unsigned long event)
@@ -206,11 +194,6 @@ static int log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
 		return 0;
 	}
 
-	if (nr_available_slots(cpu_buf) < 3) {
-		cpu_buf->sample_lost_overflow++;
-		return 0;
-	}
-
 	is_kernel = !!is_kernel;
 
 	task = current;
@@ -233,11 +216,6 @@ static int log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
 
 static int oprofile_begin_trace(struct oprofile_cpu_buffer *cpu_buf)
 {
-	if (nr_available_slots(cpu_buf) < 4) {
-		cpu_buf->sample_lost_overflow++;
-		return 0;
-	}
-
 	add_code(cpu_buf, CPU_TRACE_BEGIN);
 	cpu_buf->tracing = 1;
 	return 1;
@@ -291,12 +269,6 @@ void oprofile_add_ibs_sample(struct pt_regs * const regs,
 
 	cpu_buf->sample_received++;
 
-	if (nr_available_slots(cpu_buf) < MAX_IBS_SAMPLE_SIZE) {
-		/* we can't backtrace since we lost the source of this event */
-		cpu_buf->sample_lost_overflow++;
-		return;
-	}
-
 	/* notice a switch from user->kernel or vice versa */
 	if (cpu_buf->last_is_kernel != is_kernel) {
 		cpu_buf->last_is_kernel = is_kernel;
@@ -341,12 +313,6 @@ void oprofile_add_trace(unsigned long pc)
 
 	if (!cpu_buf->tracing)
 		return;
-
-	if (nr_available_slots(cpu_buf) < 1) {
-		cpu_buf->tracing = 0;
-		cpu_buf->sample_lost_overflow++;
-		return;
-	}
 
 	/*
 	 * broken frame can give an eip with the same value as an
