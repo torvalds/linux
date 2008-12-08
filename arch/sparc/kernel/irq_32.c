@@ -46,6 +46,7 @@
 #include <asm/cacheflush.h>
 #include <asm/irq_regs.h>
 
+#include "kernel.h"
 #include "irq.h"
 
 #ifdef CONFIG_SMP
@@ -592,19 +593,19 @@ EXPORT_SYMBOL(request_irq);
 
 void disable_irq_nosync(unsigned int irq)
 {
-	return __disable_irq(irq);
+	__disable_irq(irq);
 }
 EXPORT_SYMBOL(disable_irq_nosync);
 
 void disable_irq(unsigned int irq)
 {
-	return __disable_irq(irq);
+	__disable_irq(irq);
 }
 EXPORT_SYMBOL(disable_irq);
 
 void enable_irq(unsigned int irq)
 {
-	return __enable_irq(irq);
+	__enable_irq(irq);
 }
 
 EXPORT_SYMBOL(enable_irq);

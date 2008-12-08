@@ -5,6 +5,9 @@
 #include <linux/types.h>
 #include <linux/init.h>
 
+/* irq */
+extern void handler_irq(int irq, struct pt_regs *regs);
+
 #ifdef CONFIG_SPARC32
 /* traps */
 extern void do_hw_interrupt(struct pt_regs *regs, unsigned long type);
@@ -219,7 +222,6 @@ struct ino_bucket {
 extern struct ino_bucket *ivector_table;
 extern unsigned long ivector_table_pa;
 
-extern void handler_irq(int irq, struct pt_regs *regs);
 extern void init_irqwork_curcpu(void);
 extern void __cpuinit sun4v_register_mondo_queues(int this_cpu);
 
