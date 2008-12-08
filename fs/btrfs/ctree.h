@@ -73,6 +73,9 @@ struct btrfs_ordered_sum;
 /* directory objectid inside the root tree */
 #define BTRFS_ROOT_TREE_DIR_OBJECTID 6ULL
 
+/* holds checksums of all the data extents */
+#define BTRFS_CSUM_TREE_OBJECTID 7ULL
+
 /* orhpan objectid for tracking unlinked/truncated files */
 #define BTRFS_ORPHAN_OBJECTID -5ULL
 
@@ -83,6 +86,13 @@ struct btrfs_ordered_sum;
 /* for space balancing */
 #define BTRFS_TREE_RELOC_OBJECTID -8ULL
 #define BTRFS_DATA_RELOC_TREE_OBJECTID -9ULL
+
+/*
+ * extent checksums all have this objectid
+ * this allows them to share the logging tree
+ * for fsyncs
+ */
+#define BTRFS_EXTENT_CSUM_OBJECTID -10ULL
 
 /* dummy objectid represents multiple objectids */
 #define BTRFS_MULTIPLE_OBJECTIDS -255ULL
@@ -634,6 +644,7 @@ struct btrfs_fs_info {
 	struct btrfs_root *chunk_root;
 	struct btrfs_root *dev_root;
 	struct btrfs_root *fs_root;
+	struct btrfs_root *csum_root;
 
 	/* the log root tree is a directory of all the other log roots */
 	struct btrfs_root *log_root_tree;
@@ -716,6 +727,7 @@ struct btrfs_fs_info {
 	struct btrfs_workers workers;
 	struct btrfs_workers delalloc_workers;
 	struct btrfs_workers endio_workers;
+	struct btrfs_workers endio_meta_workers;
 	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers submit_workers;
 	/*
@@ -858,13 +870,12 @@ struct btrfs_root {
  * extent data is for file data
  */
 #define BTRFS_EXTENT_DATA_KEY	108
+
 /*
- * csum items have the checksums for data in the extents
+ * extent csums are stored in a separate tree and hold csums for
+ * an entire extent on disk.
  */
-#define BTRFS_CSUM_ITEM_KEY	120
-
-
-/* reserve 21-31 for other file/dir stuff */
+#define BTRFS_EXTENT_CSUM_KEY	128
 
 /*
  * root items point to tree roots.  There are typically in the root
@@ -1917,7 +1928,7 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 
 /* file-item.c */
 int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
-			  struct bio *bio);
+			  struct bio *bio, u32 *dst);
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     u64 objectid, u64 pos,
@@ -1929,17 +1940,16 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_path *path, u64 objectid,
 			     u64 bytenr, int mod);
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, struct inode *inode,
+			   struct btrfs_root *root,
 			   struct btrfs_ordered_sum *sums);
 int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
-		       struct bio *bio);
+		       struct bio *bio, u64 file_start, int contig);
 int btrfs_csum_file_bytes(struct btrfs_root *root, struct inode *inode,
 			  u64 start, unsigned long len);
 struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path,
-					  u64 objectid, u64 offset,
-					  int cow);
+					  u64 bytenr, int cow);
 int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);

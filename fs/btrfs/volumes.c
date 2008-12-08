@@ -2771,6 +2771,7 @@ static struct btrfs_device *add_missing_dev(struct btrfs_root *root,
 	device->work.func = pending_bios_fn;
 	fs_devices->num_devices++;
 	spin_lock_init(&device->io_lock);
+	INIT_LIST_HEAD(&device->dev_alloc_list);
 	memcpy(device->uuid, dev_uuid, BTRFS_UUID_SIZE);
 	return device;
 }

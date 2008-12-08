@@ -445,11 +445,18 @@ static void end_workqueue_bio(struct bio *bio, int err)
 	end_io_wq->error = err;
 	end_io_wq->work.func = end_workqueue_fn;
 	end_io_wq->work.flags = 0;
-	if (bio->bi_rw & (1 << BIO_RW))
+
+	if (bio->bi_rw & (1 << BIO_RW)) {
 		btrfs_queue_worker(&fs_info->endio_write_workers,
 				   &end_io_wq->work);
-	else
-		btrfs_queue_worker(&fs_info->endio_workers, &end_io_wq->work);
+	} else {
+		if (end_io_wq->metadata)
+			btrfs_queue_worker(&fs_info->endio_meta_workers,
+					   &end_io_wq->work);
+		else
+			btrfs_queue_worker(&fs_info->endio_workers,
+					   &end_io_wq->work);
+	}
 }
 
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
@@ -1208,6 +1215,9 @@ static void __unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 	info = (struct btrfs_fs_info *)bdi->unplug_io_data;
 	list_for_each(cur, &info->fs_devices->devices) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
+		if (!device->bdev)
+			continue;
+
 		bdi = blk_get_backing_dev_info(device->bdev);
 		if (bdi->unplug_io_fn) {
 			bdi->unplug_io_fn(bdi, page);
@@ -1344,7 +1354,7 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	 * blocksize <= pagesize, it is basically a noop
 	 */
 	if (end_io_wq->metadata && !bio_ready_for_csum(bio)) {
-		btrfs_queue_worker(&fs_info->endio_workers,
+		btrfs_queue_worker(&fs_info->endio_meta_workers,
 				   &end_io_wq->work);
 		return;
 	}
@@ -1454,6 +1464,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	struct buffer_head *bh;
 	struct btrfs_root *extent_root = kzalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
+	struct btrfs_root *csum_root = kzalloc(sizeof(struct btrfs_root),
+						 GFP_NOFS);
 	struct btrfs_root *tree_root = kzalloc(sizeof(struct btrfs_root),
 					       GFP_NOFS);
 	struct btrfs_fs_info *fs_info = kzalloc(sizeof(*fs_info),
@@ -1470,7 +1482,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	struct btrfs_super_block *disk_super;
 
 	if (!extent_root || !tree_root || !fs_info ||
-	    !chunk_root || !dev_root) {
+	    !chunk_root || !dev_root || !csum_root) {
 		err = -ENOMEM;
 		goto fail;
 	}
@@ -1487,6 +1499,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	init_completion(&fs_info->kobj_unregister);
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
+	fs_info->csum_root = csum_root;
 	fs_info->chunk_root = chunk_root;
 	fs_info->dev_root = dev_root;
 	fs_info->fs_devices = fs_devices;
@@ -1652,6 +1665,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1);
 	btrfs_init_workers(&fs_info->endio_workers, "endio",
 			   fs_info->thread_pool_size);
+	btrfs_init_workers(&fs_info->endio_meta_workers, "endio-meta",
+			   fs_info->thread_pool_size);
 	btrfs_init_workers(&fs_info->endio_write_workers, "endio-write",
 			   fs_info->thread_pool_size);
 
@@ -1667,6 +1682,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_start_workers(&fs_info->delalloc_workers, 1);
 	btrfs_start_workers(&fs_info->fixup_workers, 1);
 	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
+	btrfs_start_workers(&fs_info->endio_meta_workers,
+			    fs_info->thread_pool_size);
 	btrfs_start_workers(&fs_info->endio_write_workers,
 			    fs_info->thread_pool_size);
 
@@ -1751,6 +1768,13 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (ret)
 		goto fail_extent_root;
 
+	ret = find_and_setup_root(tree_root, fs_info,
+				  BTRFS_CSUM_TREE_OBJECTID, csum_root);
+	if (ret)
+		goto fail_extent_root;
+
+	csum_root->track_dirty = 1;
+
 	btrfs_read_block_groups(extent_root);
 
 	fs_info->generation = generation + 1;
@@ -1761,7 +1785,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
 	if (!fs_info->cleaner_kthread)
-		goto fail_extent_root;
+		goto fail_csum_root;
 
 	fs_info->transaction_kthread = kthread_run(transaction_kthread,
 						   tree_root,
@@ -1825,6 +1849,8 @@ fail_cleaner:
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 
+fail_csum_root:
+	free_extent_buffer(csum_root->node);
 fail_extent_root:
 	free_extent_buffer(extent_root->node);
 fail_tree_root:
@@ -1838,6 +1864,7 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->delalloc_workers);
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
+	btrfs_stop_workers(&fs_info->endio_meta_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 fail_iput:
@@ -1853,6 +1880,7 @@ fail:
 	kfree(fs_info);
 	kfree(chunk_root);
 	kfree(dev_root);
+	kfree(csum_root);
 	return ERR_PTR(err);
 }
 
@@ -2131,6 +2159,9 @@ int close_ctree(struct btrfs_root *root)
 	if (root->fs_info->dev_root->node);
 		free_extent_buffer(root->fs_info->dev_root->node);
 
+	if (root->fs_info->csum_root->node);
+		free_extent_buffer(root->fs_info->csum_root->node);
+
 	btrfs_free_block_groups(root->fs_info);
 
 	del_fs_roots(fs_info);
@@ -2141,6 +2172,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->delalloc_workers);
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
+	btrfs_stop_workers(&fs_info->endio_meta_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 
@@ -2163,6 +2195,7 @@ int close_ctree(struct btrfs_root *root)
 	kfree(fs_info->tree_root);
 	kfree(fs_info->chunk_root);
 	kfree(fs_info->dev_root);
+	kfree(fs_info->csum_root);
 	return 0;
 }
 

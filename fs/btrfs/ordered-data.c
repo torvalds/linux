@@ -610,7 +610,8 @@ out:
  * try to find a checksum.  This is used because we allow pages to
  * be reclaimed before their checksum is actually put into the btree
  */
-int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum)
+int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
+			   u32 *sum)
 {
 	struct btrfs_ordered_sum *ordered_sum;
 	struct btrfs_sector_sum *sector_sums;
@@ -629,11 +630,11 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum)
 	mutex_lock(&tree->mutex);
 	list_for_each_prev(cur, &ordered->list) {
 		ordered_sum = list_entry(cur, struct btrfs_ordered_sum, list);
-		if (offset >= ordered_sum->file_offset) {
+		if (disk_bytenr >= ordered_sum->bytenr) {
 			num_sectors = ordered_sum->len / sectorsize;
 			sector_sums = ordered_sum->sums;
 			for (i = 0; i < num_sectors; i++) {
-				if (sector_sums[i].offset == offset) {
+				if (sector_sums[i].bytenr == disk_bytenr) {
 					*sum = sector_sums[i].sum;
 					ret = 0;
 					goto out;

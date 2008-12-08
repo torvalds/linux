@@ -934,24 +934,17 @@ static noinline int replay_one_csum(struct btrfs_trans_handle *trans,
 	unsigned long file_bytes;
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_sector_sum *sector_sum;
-	struct inode *inode;
 	unsigned long ptr;
 
 	file_bytes = (item_size / csum_size) * root->sectorsize;
-	inode = read_one_inode(root, key->objectid);
-	if (!inode) {
-		return -EIO;
-	}
-
 	sums = kzalloc(btrfs_ordered_sum_size(root, file_bytes), GFP_NOFS);
 	if (!sums) {
-		iput(inode);
 		return -ENOMEM;
 	}
 
 	INIT_LIST_HEAD(&sums->list);
 	sums->len = file_bytes;
-	sums->file_offset = key->offset;
+	sums->bytenr = key->offset;
 
 	/*
 	 * copy all the sums into the ordered sum struct
@@ -960,7 +953,7 @@ static noinline int replay_one_csum(struct btrfs_trans_handle *trans,
 	cur_offset = key->offset;
 	ptr = btrfs_item_ptr_offset(eb, slot);
 	while(item_size > 0) {
-		sector_sum->offset = cur_offset;
+		sector_sum->bytenr = cur_offset;
 		read_extent_buffer(eb, &sector_sum->sum, ptr, csum_size);
 		sector_sum++;
 		item_size -= csum_size;
@@ -969,11 +962,9 @@ static noinline int replay_one_csum(struct btrfs_trans_handle *trans,
 	}
 
 	/* let btrfs_csum_file_blocks add them into the file */
-	ret = btrfs_csum_file_blocks(trans, root, inode, sums);
+	ret = btrfs_csum_file_blocks(trans, root->fs_info->csum_root, sums);
 	BUG_ON(ret);
 	kfree(sums);
-	iput(inode);
-
 	return 0;
 }
 /*
@@ -1670,7 +1661,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			ret = replay_one_extent(wc->trans, root, path,
 						eb, i, &key);
 			BUG_ON(ret);
-		} else if (key.type == BTRFS_CSUM_ITEM_KEY) {
+		} else if (key.type == BTRFS_EXTENT_CSUM_KEY) {
 			ret = replay_one_csum(wc->trans, root, path,
 					      eb, i, &key);
 			BUG_ON(ret);
@@ -2466,6 +2457,85 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+static noinline int copy_extent_csums(struct btrfs_trans_handle *trans,
+				      struct list_head *list,
+				      struct btrfs_root *root,
+				      u64 disk_bytenr, u64 len)
+{
+	struct btrfs_ordered_sum *sums;
+	struct btrfs_sector_sum *sector_sum;
+	int ret;
+	struct btrfs_path *path;
+	struct btrfs_csum_item *item = NULL;
+	u64 end = disk_bytenr + len;
+	u64 item_start_offset = 0;
+	u64 item_last_offset = 0;
+	u32 diff;
+	u32 sum;
+	u16 csum_size = btrfs_super_csum_size(&root->fs_info->super_copy);
+
+	sums = kzalloc(btrfs_ordered_sum_size(root, len), GFP_NOFS);
+
+	sector_sum = sums->sums;
+	sums->bytenr = disk_bytenr;
+	sums->len = len;
+	list_add_tail(&sums->list, list);
+
+	path = btrfs_alloc_path();
+	while(disk_bytenr < end) {
+		if (!item || disk_bytenr < item_start_offset ||
+		    disk_bytenr >= item_last_offset) {
+			struct btrfs_key found_key;
+			u32 item_size;
+
+			if (item)
+				btrfs_release_path(root, path);
+			item = btrfs_lookup_csum(NULL, root, path,
+						 disk_bytenr, 0);
+			if (IS_ERR(item)) {
+				ret = PTR_ERR(item);
+				if (ret == -ENOENT || ret == -EFBIG)
+					ret = 0;
+				sum = 0;
+				printk("log no csum found for byte %llu\n",
+				       (unsigned long long)disk_bytenr);
+				item = NULL;
+				btrfs_release_path(root, path);
+				goto found;
+			}
+			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
+					      path->slots[0]);
+
+			item_start_offset = found_key.offset;
+			item_size = btrfs_item_size_nr(path->nodes[0],
+						       path->slots[0]);
+			item_last_offset = item_start_offset +
+				(item_size / csum_size) *
+				root->sectorsize;
+			item = btrfs_item_ptr(path->nodes[0], path->slots[0],
+					      struct btrfs_csum_item);
+		}
+		/*
+		 * this byte range must be able to fit inside
+		 * a single leaf so it will also fit inside a u32
+		 */
+		diff = disk_bytenr - item_start_offset;
+		diff = diff / root->sectorsize;
+		diff = diff * csum_size;
+
+		read_extent_buffer(path->nodes[0], &sum,
+				   ((unsigned long)item) + diff,
+				   csum_size);
+found:
+		sector_sum->bytenr = disk_bytenr;
+		sector_sum->sum = sum;
+		disk_bytenr += root->sectorsize;
+		sector_sum++;
+	}
+	btrfs_free_path(path);
+	return 0;
+}
+
 static noinline int copy_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *log,
 			       struct btrfs_path *dst_path,
@@ -2481,6 +2551,9 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	u32 *ins_sizes;
 	char *ins_data;
 	int i;
+	struct list_head ordered_sums;
+
+	INIT_LIST_HEAD(&ordered_sums);
 
 	ins_data = kmalloc(nr * sizeof(struct btrfs_key) +
 			   nr * sizeof(u32), GFP_NOFS);
@@ -2535,6 +2608,9 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 								   extent);
 				u64 dl = btrfs_file_extent_disk_num_bytes(src,
 								      extent);
+				u64 cs = btrfs_file_extent_offset(src, extent);
+				u64 cl = btrfs_file_extent_num_bytes(src,
+								     extent);;
 				/* ds == 0 is a hole */
 				if (ds != 0) {
 					ret = btrfs_inc_extent_ref(trans, log,
@@ -2543,6 +2619,11 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 						   BTRFS_TREE_LOG_OBJECTID,
 						   trans->transid,
 						   ins_keys[i].objectid);
+					BUG_ON(ret);
+					ret = copy_extent_csums(trans,
+						&ordered_sums,
+						log->fs_info->csum_root,
+						ds + cs, cl);
 					BUG_ON(ret);
 				}
 			}
@@ -2553,6 +2634,20 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(dst_path->nodes[0]);
 	btrfs_release_path(log, dst_path);
 	kfree(ins_data);
+
+	/*
+	 * we have to do this after the loop above to avoid changing the
+	 * log tree while trying to change the log tree.
+	 */
+	while(!list_empty(&ordered_sums)) {
+		struct btrfs_ordered_sum *sums = list_entry(ordered_sums.next,
+						   struct btrfs_ordered_sum,
+						   list);
+		ret = btrfs_csum_file_blocks(trans, log, sums);
+		BUG_ON(ret);
+		list_del(&sums->list);
+		kfree(sums);
+	}
 	return 0;
 }
 

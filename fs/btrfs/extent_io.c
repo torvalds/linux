@@ -1732,6 +1732,9 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 	int whole_page;
 	int ret;
 
+	if (err)
+		uptodate = 0;
+
 	do {
 		struct page *page = bvec->bv_page;
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
@@ -1761,6 +1764,8 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			if (ret == 0) {
 				uptodate =
 					test_bit(BIO_UPTODATE, &bio->bi_flags);
+				if (err)
+					uptodate = 0;
 				continue;
 			}
 		}

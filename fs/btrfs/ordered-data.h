@@ -33,15 +33,17 @@ struct btrfs_ordered_inode_tree {
  * the ordered extent are on disk
  */
 struct btrfs_sector_sum {
-	u64 offset;
+	/* bytenr on disk */
+	u64 bytenr;
 	u32 sum;
 };
 
 struct btrfs_ordered_sum {
-	u64 file_offset;
+	/* bytenr is the start of this extent on disk */
+	u64 bytenr;
+
 	/*
 	 * this is the length in bytes covered by the sums array below.
-	 * But, the sums array may not be contiguous in the file.
 	 */
 	unsigned long len;
 	struct list_head list;
@@ -147,7 +149,7 @@ struct btrfs_ordered_extent *
 btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset);
 int btrfs_ordered_update_i_size(struct inode *inode,
 				struct btrfs_ordered_extent *ordered);
-int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum);
+int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr, u32 *sum);
 int btrfs_wait_on_page_writeback_range(struct address_space *mapping,
 				       pgoff_t start, pgoff_t end);
 int btrfs_fdatawrite_range(struct address_space *mapping, loff_t start,

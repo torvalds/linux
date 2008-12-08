@@ -69,10 +69,26 @@ struct compressed_bio {
 
 	/* IO errors */
 	int errors;
+	int mirror_num;
 
 	/* for reads, this is the bio we are copying the data into */
 	struct bio *orig_bio;
+
+	/*
+	 * the start of a variable length array of checksums only
+	 * used by reads
+	 */
+	u32 sums;
 };
+
+static inline int compressed_bio_size(struct btrfs_root *root,
+				      unsigned long disk_size)
+{
+	u16 csum_size = btrfs_super_csum_size(&root->fs_info->super_copy);
+	return sizeof(struct compressed_bio) +
+		((disk_size + root->sectorsize - 1) / root->sectorsize) *
+		csum_size;
+}
 
 static struct bio *compressed_bio_alloc(struct block_device *bdev,
 					u64 first_byte, gfp_t gfp_flags)
@@ -94,6 +110,47 @@ static struct bio *compressed_bio_alloc(struct block_device *bdev,
 		bio->bi_sector = first_byte >> 9;
 	}
 	return bio;
+}
+
+static int check_compressed_csum(struct inode *inode,
+				 struct compressed_bio *cb,
+				 u64 disk_start)
+{
+	int ret;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct page *page;
+	unsigned long i;
+	char *kaddr;
+	u32 csum;
+	u32 *cb_sum = &cb->sums;
+
+	if (btrfs_test_opt(root, NODATASUM) ||
+	    btrfs_test_flag(inode, NODATASUM))
+		return 0;
+
+	for (i = 0; i < cb->nr_pages; i++) {
+		page = cb->compressed_pages[i];
+		csum = ~(u32)0;
+
+		kaddr = kmap_atomic(page, KM_USER0);
+		csum = btrfs_csum_data(root, kaddr, csum, PAGE_CACHE_SIZE);
+		btrfs_csum_final(csum, (char *)&csum);
+		kunmap_atomic(kaddr, KM_USER0);
+
+		if (csum != *cb_sum) {
+			printk("btrfs csum failed ino %lu extent %llu csum %u "
+			       "wanted %u mirror %d\n", inode->i_ino,
+			       (unsigned long long)disk_start,
+			       csum, *cb_sum, cb->mirror_num);
+			ret = -EIO;
+			goto fail;
+		}
+		cb_sum++;
+
+	}
+	ret = 0;
+fail:
+	return ret;
 }
 
 /* when we finish reading compressed pages from the disk, we
@@ -124,16 +181,21 @@ static void end_compressed_bio_read(struct bio *bio, int err)
 	if (!atomic_dec_and_test(&cb->pending_bios))
 		goto out;
 
+	inode = cb->inode;
+	ret = check_compressed_csum(inode, cb, (u64)bio->bi_sector << 9);
+	if (ret)
+		goto csum_failed;
+
 	/* ok, we're the last bio for this extent, lets start
 	 * the decompression.
 	 */
-	inode = cb->inode;
 	tree = &BTRFS_I(inode)->io_tree;
 	ret = btrfs_zlib_decompress_biovec(cb->compressed_pages,
 					cb->start,
 					cb->orig_bio->bi_io_vec,
 					cb->orig_bio->bi_vcnt,
 					cb->compressed_len);
+csum_failed:
 	if (ret)
 		cb->errors = 1;
 
@@ -148,8 +210,21 @@ static void end_compressed_bio_read(struct bio *bio, int err)
 	/* do io completion on the original bio */
 	if (cb->errors) {
 		bio_io_error(cb->orig_bio);
-	} else
+	} else {
+		int bio_index = 0;
+		struct bio_vec *bvec = cb->orig_bio->bi_io_vec;
+
+		/*
+		 * we have verified the checksum already, set page
+		 * checked so the end_io handlers know about it
+		 */
+		while(bio_index < cb->orig_bio->bi_vcnt) {
+			SetPageChecked(bvec->bv_page);
+			bvec++;
+			bio_index++;
+		}
 		bio_endio(cb->orig_bio, 0);
+	}
 
 	/* finally free the cb struct */
 	kfree(cb->compressed_pages);
@@ -277,21 +352,19 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	int ret;
 
 	WARN_ON(start & ((u64)PAGE_CACHE_SIZE - 1));
-	cb = kmalloc(sizeof(*cb), GFP_NOFS);
+	cb = kmalloc(compressed_bio_size(root, compressed_len), GFP_NOFS);
 	atomic_set(&cb->pending_bios, 0);
 	cb->errors = 0;
 	cb->inode = inode;
 	cb->start = start;
 	cb->len = len;
+	cb->mirror_num = 0;
 	cb->compressed_pages = compressed_pages;
 	cb->compressed_len = compressed_len;
 	cb->orig_bio = NULL;
 	cb->nr_pages = nr_pages;
 
 	bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
-
-	ret = btrfs_csum_file_bytes(root, inode, start, len);
-	BUG_ON(ret);
 
 	bio = compressed_bio_alloc(bdev, first_byte, GFP_NOFS);
 	bio->bi_private = cb;
@@ -325,6 +398,9 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
 			BUG_ON(ret);
 
+			ret = btrfs_csum_one_bio(root, inode, bio, start, 1);
+			BUG_ON(ret);
+
 			ret = btrfs_map_bio(root, WRITE, bio, 0, 1);
 			BUG_ON(ret);
 
@@ -346,6 +422,9 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	bio_get(bio);
 
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
+	BUG_ON(ret);
+
+	ret = btrfs_csum_one_bio(root, inode, bio, start, 1);
 	BUG_ON(ret);
 
 	ret = btrfs_map_bio(root, WRITE, bio, 0, 1);
@@ -510,6 +589,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	u64 em_start;
 	struct extent_map *em;
 	int ret;
+	u32 *sums;
 
 	tree = &BTRFS_I(inode)->io_tree;
 	em_tree = &BTRFS_I(inode)->extent_tree;
@@ -521,15 +601,18 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				   PAGE_CACHE_SIZE);
 	spin_unlock(&em_tree->lock);
 
-	cb = kmalloc(sizeof(*cb), GFP_NOFS);
+	compressed_len = em->block_len;
+	cb = kmalloc(compressed_bio_size(root, compressed_len), GFP_NOFS);
 	atomic_set(&cb->pending_bios, 0);
 	cb->errors = 0;
 	cb->inode = inode;
+	cb->mirror_num = mirror_num;
+	sums = &cb->sums;
 
 	cb->start = em->orig_start;
-	compressed_len = em->block_len;
 	em_len = em->len;
 	em_start = em->start;
+
 	free_extent_map(em);
 	em = NULL;
 
@@ -551,11 +634,6 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 	add_ra_bio_pages(inode, em_start + em_len, cb);
 
-	if (!btrfs_test_opt(root, NODATASUM) &&
-	    !btrfs_test_flag(inode, NODATASUM)) {
-		btrfs_lookup_bio_sums(root, inode, cb->orig_bio);
-	}
-
 	/* include any pages we added in add_ra-bio_pages */
 	uncompressed_len = bio->bi_vcnt * PAGE_CACHE_SIZE;
 	cb->len = uncompressed_len;
@@ -568,6 +646,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	for (page_index = 0; page_index < nr_pages; page_index++) {
 		page = cb->compressed_pages[page_index];
 		page->mapping = inode->i_mapping;
+		page->index = em_start >> PAGE_CACHE_SHIFT;
+
 		if (comp_bio->bi_size)
 			ret = tree->ops->merge_bio_hook(page, 0,
 							PAGE_CACHE_SIZE,
@@ -591,7 +671,16 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			 */
 			atomic_inc(&cb->pending_bios);
 
-			ret = btrfs_map_bio(root, READ, comp_bio, 0, 0);
+			if (!btrfs_test_opt(root, NODATASUM) &&
+			    !btrfs_test_flag(inode, NODATASUM)) {
+				btrfs_lookup_bio_sums(root, inode, comp_bio,
+						      sums);
+			}
+			sums += (comp_bio->bi_size + root->sectorsize - 1) /
+				root->sectorsize;
+
+			ret = btrfs_map_bio(root, READ, comp_bio,
+					    mirror_num, 0);
 			BUG_ON(ret);
 
 			bio_put(comp_bio);
@@ -610,7 +699,12 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio, 0);
 	BUG_ON(ret);
 
-	ret = btrfs_map_bio(root, READ, comp_bio, 0, 0);
+	if (!btrfs_test_opt(root, NODATASUM) &&
+	    !btrfs_test_flag(inode, NODATASUM)) {
+		btrfs_lookup_bio_sums(root, inode, comp_bio, sums);
+	}
+
+	ret = btrfs_map_bio(root, READ, comp_bio, mirror_num, 0);
 	BUG_ON(ret);
 
 	bio_put(comp_bio);

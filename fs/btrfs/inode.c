@@ -1221,7 +1221,7 @@ static int __btrfs_submit_bio_start(struct inode *inode, int rw, struct bio *bio
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
 
-	ret = btrfs_csum_one_bio(root, inode, bio);
+	ret = btrfs_csum_one_bio(root, inode, bio, 0, 0);
 	BUG_ON(ret);
 	return 0;
 }
@@ -1259,12 +1259,11 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		btrfs_test_flag(inode, NODATASUM);
 
 	if (!(rw & (1 << BIO_RW))) {
-
-		if (bio_flags & EXTENT_BIO_COMPRESSED)
+		if (bio_flags & EXTENT_BIO_COMPRESSED) {
 			return btrfs_submit_compressed_read(inode, bio,
 						    mirror_num, bio_flags);
-		else if (!skip_sum)
-			btrfs_lookup_bio_sums(root, inode, bio);
+		} else if (!skip_sum)
+			btrfs_lookup_bio_sums(root, inode, bio, NULL);
 		goto mapit;
 	} else if (!skip_sum) {
 		/* we're doing a write, do the async checksumming */
@@ -1292,8 +1291,8 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 	btrfs_set_trans_block_group(trans, inode);
 	list_for_each(cur, list) {
 		sum = list_entry(cur, struct btrfs_ordered_sum, list);
-		btrfs_csum_file_blocks(trans, BTRFS_I(inode)->root,
-				       inode, sum);
+		btrfs_csum_file_blocks(trans,
+		       BTRFS_I(inode)->root->fs_info->csum_root, sum);
 	}
 	return 0;
 }
@@ -1545,6 +1544,7 @@ struct io_failure_record {
 	u64 start;
 	u64 len;
 	u64 logical;
+	unsigned long bio_flags;
 	int last_mirror;
 };
 
@@ -1563,7 +1563,6 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 	int ret;
 	int rw;
 	u64 logical;
-	unsigned long bio_flags = 0;
 
 	ret = get_state_private(failure_tree, start, &private);
 	if (ret) {
@@ -1573,6 +1572,7 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 		failrec->start = start;
 		failrec->len = end - start + 1;
 		failrec->last_mirror = 0;
+		failrec->bio_flags = 0;
 
 		spin_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, start, failrec->len);
@@ -1588,8 +1588,10 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 		}
 		logical = start - em->start;
 		logical = em->block_start + logical;
-		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
-			bio_flags = EXTENT_BIO_COMPRESSED;
+		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
+			logical = em->block_start;
+			failrec->bio_flags = EXTENT_BIO_COMPRESSED;
+		}
 		failrec->logical = logical;
 		free_extent_map(em);
 		set_extent_bits(failure_tree, start, end, EXTENT_LOCKED |
@@ -1626,6 +1628,7 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 	bio->bi_sector = failrec->logical >> 9;
 	bio->bi_bdev = failed_bio->bi_bdev;
 	bio->bi_size = 0;
+
 	bio_add_page(bio, page, failrec->len, start - page_offset(page));
 	if (failed_bio->bi_rw & (1 << BIO_RW))
 		rw = WRITE;
@@ -1634,7 +1637,7 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 
 	BTRFS_I(inode)->io_tree.ops->submit_bio_hook(inode, rw, bio,
 						      failrec->last_mirror,
-						      bio_flags);
+						      failrec->bio_flags);
 	return 0;
 }
 
@@ -1688,9 +1691,14 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	u32 csum = ~(u32)0;
 	unsigned long flags;
 
+	if (PageChecked(page)) {
+		ClearPageChecked(page);
+		goto good;
+	}
 	if (btrfs_test_opt(root, NODATASUM) ||
 	    btrfs_test_flag(inode, NODATASUM))
 		return 0;
+
 	if (state && state->start == start) {
 		private = state->private;
 		ret = 0;
@@ -1709,7 +1717,7 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	}
 	kunmap_atomic(kaddr, KM_IRQ0);
 	local_irq_restore(flags);
-
+good:
 	/* if the io failure tree for this inode is non-empty,
 	 * check to see if we've recovered from a failed IO
 	 */
@@ -2243,6 +2251,7 @@ fail:
 	return err;
 }
 
+#if 0
 /*
  * when truncating bytes in a file, it is possible to avoid reading
  * the leaves that contain only checksum items.  This can be the
@@ -2410,6 +2419,8 @@ out:
 	return ret;
 }
 
+#endif
+
 /*
  * this can truncate away extent items, csum items and directory items.
  * It starts at a high offset and removes keys until it can't find
@@ -2459,9 +2470,6 @@ noinline int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 
 	btrfs_init_path(path);
 
-	ret = drop_csum_leaves(trans, root, path, inode, new_size);
-	BUG_ON(ret);
-
 search_again:
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0) {
@@ -2509,16 +2517,11 @@ search_again:
 			}
 			item_end--;
 		}
-		if (found_type == BTRFS_CSUM_ITEM_KEY) {
-			ret = btrfs_csum_truncate(trans, root, path,
-						  new_size);
-			BUG_ON(ret);
-		}
 		if (item_end < new_size) {
 			if (found_type == BTRFS_DIR_ITEM_KEY) {
 				found_type = BTRFS_INODE_ITEM_KEY;
 			} else if (found_type == BTRFS_EXTENT_ITEM_KEY) {
-				found_type = BTRFS_CSUM_ITEM_KEY;
+				found_type = BTRFS_EXTENT_DATA_KEY;
 			} else if (found_type == BTRFS_EXTENT_DATA_KEY) {
 				found_type = BTRFS_XATTR_ITEM_KEY;
 			} else if (found_type == BTRFS_XATTR_ITEM_KEY) {

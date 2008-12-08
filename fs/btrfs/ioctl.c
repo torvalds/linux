@@ -714,8 +714,7 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	u64 len = olen;
 	u64 bs = root->fs_info->sb->s_blocksize;
 	u64 hint_byte;
-	u16 csum_size =
-		btrfs_super_csum_size(&root->fs_info->super_copy);
+
 	/*
 	 * TODO:
 	 * - split compressed inline extents.  annoying: we need to
@@ -833,7 +832,7 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		slot = path->slots[0];
 
 		btrfs_item_key_to_cpu(leaf, &key, slot);
-		if (btrfs_key_type(&key) > BTRFS_CSUM_ITEM_KEY ||
+		if (btrfs_key_type(&key) > BTRFS_EXTENT_DATA_KEY ||
 		    key.objectid != src->i_ino)
 			break;
 
@@ -955,56 +954,6 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				inode_add_bytes(inode, datal);
 			}
 
-			btrfs_mark_buffer_dirty(leaf);
-		}
-
-		if (btrfs_key_type(&key) == BTRFS_CSUM_ITEM_KEY) {
-			u32 size;
-			struct btrfs_key new_key;
-			u64 coverslen;
-			int coff, clen;
-
-			size = btrfs_item_size_nr(leaf, slot);
-			coverslen = (size / csum_size) <<
-				root->fs_info->sb->s_blocksize_bits;
-			printk("csums for %llu~%llu\n",
-			       key.offset, coverslen);
-			if (key.offset + coverslen < off ||
-			    key.offset >= off+len)
-				goto next;
-
-			read_extent_buffer(leaf, buf,
-					   btrfs_item_ptr_offset(leaf, slot),
-					   size);
-			btrfs_release_path(root, path);
-
-			coff = 0;
-			if (off > key.offset)
-				coff = ((off - key.offset) >>
-					root->fs_info->sb->s_blocksize_bits) *
-					csum_size;
-			clen = size - coff;
-			if (key.offset + coverslen > off+len)
-				clen -= ((key.offset+coverslen-off-len) >>
-					 root->fs_info->sb->s_blocksize_bits) *
-					csum_size;
-			printk(" will dup %d~%d of %d\n",
-			       coff, clen, size);
-
-			memcpy(&new_key, &key, sizeof(new_key));
-			new_key.objectid = inode->i_ino;
-			new_key.offset = key.offset + destoff - off;
-
-			ret = btrfs_insert_empty_item(trans, root, path,
-						      &new_key, clen);
-			if (ret)
-				goto out;
-
-			leaf = path->nodes[0];
-			slot = path->slots[0];
-			write_extent_buffer(leaf, buf + coff,
-					    btrfs_item_ptr_offset(leaf, slot),
-					    clen);
 			btrfs_mark_buffer_dirty(leaf);
 		}
 
