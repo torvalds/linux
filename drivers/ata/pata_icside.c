@@ -57,7 +57,6 @@ struct pata_icside_state {
 		u8 disabled;
 		unsigned int speed[ATA_MAX_DEVICES];
 	} port[2];
-	struct scatterlist sg[PATA_ICSIDE_MAX_SG];
 };
 
 struct pata_icside_info {
@@ -222,9 +221,7 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pata_icside_state *state = ap->host->private_data;
-	struct scatterlist *sg, *rsg = state->sg;
 	unsigned int write = qc->tf.flags & ATA_TFLAG_WRITE;
-	unsigned int si;
 
 	/*
 	 * We are simplex; BUG if we try to fiddle with DMA
@@ -233,20 +230,12 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 	BUG_ON(dma_channel_active(state->dma));
 
 	/*
-	 * Copy ATAs scattered sg list into a contiguous array of sg
-	 */
-	for_each_sg(qc->sg, sg, qc->n_elem, si) {
-		memcpy(rsg, sg, sizeof(*sg));
-		rsg++;
-	}
-
-	/*
 	 * Route the DMA signals to the correct interface
 	 */
 	writeb(state->port[ap->port_no].port_sel, state->ioc_base);
 
 	set_dma_speed(state->dma, state->port[ap->port_no].speed[qc->dev->devno]);
-	set_dma_sg(state->dma, state->sg, rsg - state->sg);
+	set_dma_sg(state->dma, qc->sg, qc->n_elem);
 	set_dma_mode(state->dma, write ? DMA_MODE_WRITE : DMA_MODE_READ);
 
 	/* issue r/w command */
