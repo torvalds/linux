@@ -34,12 +34,12 @@
 #include "drm_crtc_helper.h"
 
 /*
- * Detailed mode info for a standard 640x480@60Hz monitor
+ * Detailed mode info for 800x600@60Hz
  */
 static struct drm_display_mode std_mode[] = {
-	{ DRM_MODE("640x480", DRM_MODE_TYPE_DEFAULT, 25200, 640, 656,
-		   752, 800, 0, 480, 490, 492, 525, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) },
+	{ DRM_MODE("800x600", DRM_MODE_TYPE_DEFAULT, 40000, 800, 840,
+		   968, 1056, 0, 600, 601, 605, 628, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
 };
 
 /**
