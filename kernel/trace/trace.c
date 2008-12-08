@@ -3596,9 +3596,9 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	struct ring_buffer_event *event;
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
-	struct print_entry *entry;
-	unsigned long flags, irq_flags;
 	int cpu, len = 0, size, pc;
+	struct print_entry *entry;
+	unsigned long irq_flags;
 
 	if (tracing_disabled || tracing_selftest_running)
 		return 0;
@@ -3623,7 +3623,7 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	if (!event)
 		goto out_unlock;
 	entry = ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
+	tracing_generic_entry_update(&entry->ent, irq_flags, pc);
 	entry->ent.type			= TRACE_PRINT;
 	entry->ip			= ip;
 	entry->depth			= depth;
