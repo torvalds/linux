@@ -40,12 +40,20 @@ struct dma_struct {
 	unsigned int	lock;		/* Device is allocated		*/
 	const char	*device_id;	/* Device name			*/
 
-	unsigned int	dma_base;	/* Controller base address	*/
-	int		dma_irq;	/* Controller IRQ		*/
-	struct scatterlist cur_sg;	/* Current controller buffer	*/
-	unsigned int	state;
-
 	struct dma_ops	*d_ops;
+};
+
+struct floppy_dma {
+	struct dma_struct	dma;
+	unsigned int		fiq;
+};
+
+struct iomd_dma {
+	struct dma_struct	dma;
+	unsigned int		state;
+	unsigned long		base;		/* Controller base address */
+	int			irq;		/* Controller IRQ */
+	struct scatterlist	cur_sg;		/* Current controller buffer */
 };
 
 /*
