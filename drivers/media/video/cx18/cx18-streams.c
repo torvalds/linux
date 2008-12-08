@@ -111,7 +111,6 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
 	struct video_device *dev = s->v4l2dev;
-	u32 max_size = cx->options.megabytes[type] * 1024 * 1024;
 
 	/* we need to keep v4l2dev, so restore it afterwards */
 	memset(s, 0, sizeof(*s));
@@ -124,9 +123,9 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->handle = CX18_INVALID_TASK_HANDLE;
 
 	s->dma = cx18_stream_info[type].dma;
+	s->buffers = cx->stream_buffers[type];
 	s->buf_size = cx->stream_buf_size[type];
-	if (s->buf_size)
-		s->buffers = max_size / s->buf_size;
+
 	mutex_init(&s->qlock);
 	init_waitqueue_head(&s->waitq);
 	s->id = -1;
@@ -162,7 +161,7 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	/* User explicitly selected 0 buffers for these streams, so don't
 	   create them. */
 	if (cx18_stream_info[type].dma != PCI_DMA_NONE &&
-	    cx->options.megabytes[type] == 0) {
+	    cx->stream_buffers[type] == 0) {
 		CX18_INFO("Disabled %s device\n", cx18_stream_info[type].name);
 		return 0;
 	}
@@ -262,8 +261,9 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
-		CX18_INFO("Registered device video%d for %s (%d MB)\n",
-			num, s->name, cx->options.megabytes[type]);
+		CX18_INFO("Registered device video%d for %s (%d x %d kB)\n",
+			  num, s->name, cx->stream_buffers[type],
+			  cx->stream_buf_size[type]/1024);
 		break;
 
 	case VFL_TYPE_RADIO:
@@ -272,10 +272,11 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 		break;
 
 	case VFL_TYPE_VBI:
-		if (cx->options.megabytes[type])
-			CX18_INFO("Registered device vbi%d for %s (%d MB)\n",
-				num,
-				s->name, cx->options.megabytes[type]);
+		if (cx->stream_buffers[type])
+			CX18_INFO("Registered device vbi%d for %s "
+				  "(%d x %d bytes)\n",
+				  num, s->name, cx->stream_buffers[type],
+				  cx->stream_buf_size[type]);
 		else
 			CX18_INFO("Registered device vbi%d for %s\n",
 				num, s->name);

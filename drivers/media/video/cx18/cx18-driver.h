@@ -115,6 +115,17 @@
 #define CX18_DEFAULT_ENC_VBI_BUFFERS 1
 #define CX18_DEFAULT_ENC_PCM_BUFFERS 1
 
+/* Maximum firmware DMA buffers per stream */
+#define CX18_MAX_MDLS_PER_STREAM 63
+
+/* DMA buffer, default size in kB allocated */
+#define CX18_DEFAULT_ENC_TS_BUFSIZE   32
+#define CX18_DEFAULT_ENC_MPG_BUFSIZE  32
+#define CX18_DEFAULT_ENC_IDX_BUFSIZE  32
+#define CX18_DEFAULT_ENC_YUV_BUFSIZE 128
+/* Default VBI bufsize based on standards supported by card tuner for now */
+#define CX18_DEFAULT_ENC_PCM_BUFSIZE   4
+
 /* i2c stuff */
 #define I2C_CLIENTS_MAX 16
 
@@ -408,6 +419,7 @@ struct cx18 {
 
 	struct mutex serialize_lock;    /* mutex used to serialize open/close/start/stop/ioctl operations */
 	struct cx18_options options; 	/* User options */
+	int stream_buffers[CX18_MAX_STREAMS]; /* # of buffers for each stream */
 	int stream_buf_size[CX18_MAX_STREAMS]; /* Stream buffer size */
 	struct cx18_stream streams[CX18_MAX_STREAMS]; 	/* Stream data */
 	unsigned long i_flags;  /* global cx18 flags */

@@ -83,11 +83,27 @@ static char secam[] = "--";
 static char ntsc[] = "-";
 
 /* Buffers */
-static int enc_mpg_buffers = CX18_DEFAULT_ENC_MPG_BUFFERS;
 static int enc_ts_buffers = CX18_DEFAULT_ENC_TS_BUFFERS;
+static int enc_mpg_buffers = CX18_DEFAULT_ENC_MPG_BUFFERS;
+static int enc_idx_buffers = CX18_DEFAULT_ENC_IDX_BUFFERS;
 static int enc_yuv_buffers = CX18_DEFAULT_ENC_YUV_BUFFERS;
 static int enc_vbi_buffers = CX18_DEFAULT_ENC_VBI_BUFFERS;
 static int enc_pcm_buffers = CX18_DEFAULT_ENC_PCM_BUFFERS;
+
+static int enc_ts_bufsize = CX18_DEFAULT_ENC_TS_BUFSIZE;
+static int enc_mpg_bufsize = CX18_DEFAULT_ENC_MPG_BUFSIZE;
+static int enc_idx_bufsize = CX18_DEFAULT_ENC_IDX_BUFSIZE;
+static int enc_yuv_bufsize = CX18_DEFAULT_ENC_YUV_BUFSIZE;
+/* VBI bufsize based on standards supported by card tuner for now */
+static int enc_pcm_bufsize = CX18_DEFAULT_ENC_PCM_BUFSIZE;
+
+static int enc_ts_bufs = -1;
+static int enc_mpg_bufs = -1;
+static int enc_idx_bufs = -1;
+static int enc_yuv_bufs = -1;
+static int enc_vbi_bufs = -1;
+static int enc_pcm_bufs = -1;
+
 
 static int cx18_pci_latency = 1;
 
@@ -108,11 +124,26 @@ module_param(retry_mmio, int, 0644);
 module_param(cx18_pci_latency, int, 0644);
 module_param(cx18_first_minor, int, 0644);
 
-module_param(enc_mpg_buffers, int, 0644);
 module_param(enc_ts_buffers, int, 0644);
+module_param(enc_mpg_buffers, int, 0644);
+module_param(enc_idx_buffers, int, 0644);
 module_param(enc_yuv_buffers, int, 0644);
 module_param(enc_vbi_buffers, int, 0644);
 module_param(enc_pcm_buffers, int, 0644);
+
+module_param(enc_ts_bufsize, int, 0644);
+module_param(enc_mpg_bufsize, int, 0644);
+module_param(enc_idx_bufsize, int, 0644);
+module_param(enc_yuv_bufsize, int, 0644);
+/* VBI bufsize based on standards supported by card tuner for now */
+module_param(enc_pcm_bufsize, int, 0644);
+
+module_param(enc_ts_bufs, int, 0644);
+module_param(enc_mpg_bufs, int, 0644);
+module_param(enc_idx_bufs, int, 0644);
+module_param(enc_yuv_bufs, int, 0644);
+module_param(enc_vbi_bufs, int, 0644);
+module_param(enc_pcm_bufs, int, 0644);
 
 MODULE_PARM_DESC(tuner, "Tuner type selection,\n"
 			"\t\t\tsee tuner.h for values");
@@ -154,21 +185,57 @@ MODULE_PARM_DESC(retry_mmio,
 MODULE_PARM_DESC(mmio_ndelay,
 		 "(Deprecated) MMIO accesses are now never purposely delayed\n"
 		 "\t\t\tEffectively: 0 ns");
-MODULE_PARM_DESC(enc_mpg_buffers,
-		 "Encoder MPG Buffers (in MB)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_MPG_BUFFERS));
 MODULE_PARM_DESC(enc_ts_buffers,
-		 "Encoder TS Buffers (in MB)\n"
+		 "Encoder TS buffer memory (MB). (enc_ts_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_TS_BUFFERS));
+MODULE_PARM_DESC(enc_ts_bufsize,
+		 "Size of an encoder TS buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_TS_BUFSIZE));
+MODULE_PARM_DESC(enc_ts_bufs,
+		 "Number of encoder TS buffers\n"
+		 "\t\t\tDefault is computed from other enc_ts_* parameters");
+MODULE_PARM_DESC(enc_mpg_buffers,
+		 "Encoder MPG buffer memory (MB). (enc_mpg_bufs can override)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_MPG_BUFFERS));
+MODULE_PARM_DESC(enc_mpg_bufsize,
+		 "Size of an encoder MPG buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_MPG_BUFSIZE));
+MODULE_PARM_DESC(enc_mpg_bufs,
+		 "Number of encoder MPG buffers\n"
+		 "\t\t\tDefault is computed from other enc_mpg_* parameters");
+MODULE_PARM_DESC(enc_idx_buffers,
+		 "Encoder IDX buffer memory (MB). (enc_idx_bufs can override)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFFERS));
+MODULE_PARM_DESC(enc_idx_bufsize,
+		 "Size of an encoder IDX buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFSIZE));
+MODULE_PARM_DESC(enc_idx_bufs,
+		 "Number of encoder IDX buffers\n"
+		 "\t\t\tDefault is computed from other enc_idx_* parameters");
 MODULE_PARM_DESC(enc_yuv_buffers,
-		 "Encoder YUV Buffers (in MB)\n"
+		 "Encoder YUV buffer memory (MB). (enc_yuv_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFFERS));
+MODULE_PARM_DESC(enc_yuv_bufsize,
+		 "Size of an encoder YUV buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFSIZE));
+MODULE_PARM_DESC(enc_yuv_bufs,
+		 "Number of encoder YUV buffers\n"
+		 "\t\t\tDefault is computed from other enc_yuv_* parameters");
 MODULE_PARM_DESC(enc_vbi_buffers,
-		 "Encoder VBI Buffers (in MB)\n"
+		 "Encoder VBI buffer memory (MB). (enc_vbi_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_VBI_BUFFERS));
+MODULE_PARM_DESC(enc_vbi_bufs,
+		 "Number of encoder VBI buffers\n"
+		 "\t\t\tDefault is computed from enc_vbi_buffers & tuner std");
 MODULE_PARM_DESC(enc_pcm_buffers,
-		 "Encoder PCM buffers (in MB)\n"
+		 "Encoder PCM buffer memory (MB). (enc_pcm_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_PCM_BUFFERS));
+MODULE_PARM_DESC(enc_pcm_bufsize,
+		 "Size of an encoder PCM buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_PCM_BUFSIZE));
+MODULE_PARM_DESC(enc_pcm_bufs,
+		 "Number of encoder PCM buffers\n"
+		 "\t\t\tDefault is computed from other enc_pcm_* parameters");
 
 MODULE_PARM_DESC(cx18_first_minor, "Set kernel number assigned to first card");
 
@@ -361,11 +428,65 @@ static void cx18_process_options(struct cx18 *cx)
 {
 	int i, j;
 
-	cx->options.megabytes[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_buffers;
 	cx->options.megabytes[CX18_ENC_STREAM_TYPE_TS] = enc_ts_buffers;
+	cx->options.megabytes[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_buffers;
+	cx->options.megabytes[CX18_ENC_STREAM_TYPE_IDX] = enc_idx_buffers;
 	cx->options.megabytes[CX18_ENC_STREAM_TYPE_YUV] = enc_yuv_buffers;
 	cx->options.megabytes[CX18_ENC_STREAM_TYPE_VBI] = enc_vbi_buffers;
 	cx->options.megabytes[CX18_ENC_STREAM_TYPE_PCM] = enc_pcm_buffers;
+	cx->options.megabytes[CX18_ENC_STREAM_TYPE_RAD] = 0; /* control only */
+
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_TS] = enc_ts_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_IDX] = enc_idx_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_YUV] = enc_yuv_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] = enc_vbi_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_PCM] = enc_pcm_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_RAD] = 0; /* control, no data */
+
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_TS] = enc_ts_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_IDX] = enc_idx_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_YUV] = enc_yuv_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = 0; /* computed later */
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_PCM] = enc_pcm_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_RAD] = 0; /* control no data */
+
+	/* Except for VBI ensure stream_buffers & stream_buf_size are valid */
+	for (i = 0; i < CX18_MAX_STREAMS; i++) {
+		/* User said to use 0 buffers */
+		if (cx->stream_buffers[i] == 0) {
+			cx->options.megabytes[i] = 0;
+			cx->stream_buf_size[i] = 0;
+			continue;
+		}
+		/* User said to use 0 MB total */
+		if (cx->options.megabytes[i] <= 0) {
+			cx->options.megabytes[i] = 0;
+			cx->stream_buffers[i] = 0;
+			cx->stream_buf_size[i] = 0;
+			continue;
+		}
+		/* VBI is computed later or user said buffer has size 0 */
+		if (cx->stream_buf_size[i] <= 0) {
+			if (i != CX18_ENC_STREAM_TYPE_VBI) {
+				cx->options.megabytes[i] = 0;
+				cx->stream_buffers[i] = 0;
+				cx->stream_buf_size[i] = 0;
+			}
+			continue;
+		}
+		if (cx->stream_buffers[i] < 0) {
+			cx->stream_buffers[i] = cx->options.megabytes[i] * 1024
+						/ cx->stream_buf_size[i];
+		} else {
+			/* N.B. This might round down to 0 */
+			cx->options.megabytes[i] =
+			  cx->stream_buffers[i] * cx->stream_buf_size[i] / 1024;
+		}
+		cx->stream_buf_size[i] *= 1024; /* convert from kB to bytes */
+	}
+
 	cx->options.cardtype = cardtype[cx->num];
 	cx->options.tuner = tuner[cx->num];
 	cx->options.radio = radio[cx->num];
@@ -768,12 +889,17 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	}
 	cx->params.video_gop_size = cx->is_60hz ? 15 : 12;
 
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_MPG] = 0x08000;
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_TS] = 0x08000;
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_PCM] = 0x01200;
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_YUV] = 0x20000;
 	vbi_buf_size = cx->vbi.raw_size * (cx->is_60hz ? 24 : 36) / 2;
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = vbi_buf_size;
+
+	if (cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] < 0)
+		cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] =
+		   cx->options.megabytes[CX18_ENC_STREAM_TYPE_VBI] * 1024 * 1024
+		   / vbi_buf_size;
+	else
+		cx->options.megabytes[CX18_ENC_STREAM_TYPE_VBI] =
+		     cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] * vbi_buf_size
+		     / (1024 * 1024);
 
 	if (cx->options.radio > 0)
 		cx->v4l2_cap |= V4L2_CAP_RADIO;

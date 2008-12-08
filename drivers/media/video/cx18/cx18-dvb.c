@@ -217,6 +217,10 @@ int cx18_dvb_register(struct cx18_stream *stream)
 	dvb_net_init(dvb_adapter, &dvb->dvbnet, dmx);
 
 	CX18_INFO("DVB Frontend registered\n");
+	CX18_INFO("Registered DVB adapter%d for %s (%d x %d kB)\n",
+		  stream->dvb.dvb_adapter.num, stream->name,
+		  stream->buffers, stream->buf_size/1024);
+
 	mutex_init(&dvb->feedlock);
 	dvb->enabled = 1;
 	return ret;
