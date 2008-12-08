@@ -205,22 +205,12 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 
 int kvm_iommu_unmap_guest(struct kvm *kvm)
 {
-	struct kvm_assigned_dev_kernel *entry;
 	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
 
 	/* check if iommu exists and in use */
 	if (!domain)
 		return 0;
 
-	list_for_each_entry(entry, &kvm->arch.assigned_dev_head, list) {
-		printk(KERN_DEBUG "VT-d unmap: host bdf = %x:%x:%x\n",
-		       entry->host_busnr,
-		       PCI_SLOT(entry->host_devfn),
-		       PCI_FUNC(entry->host_devfn));
-
-		/* detach kvm dmar domain */
-		intel_iommu_detach_device(domain, entry->dev);
-	}
 	kvm_iommu_unmap_memslots(kvm);
 	intel_iommu_free_domain(domain);
 	return 0;

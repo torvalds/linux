@@ -316,6 +316,7 @@ struct kvm_assigned_dev_kernel {
 #define KVM_ASSIGNED_DEV_HOST_MSI	(1 << 9)
 	unsigned long irq_requested_type;
 	int irq_source_id;
+	int flags;
 	struct pci_dev *dev;
 	struct kvm *kvm;
 };

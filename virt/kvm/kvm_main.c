@@ -496,6 +496,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	match->assigned_dev_id = assigned_dev->assigned_dev_id;
 	match->host_busnr = assigned_dev->busnr;
 	match->host_devfn = assigned_dev->devfn;
+	match->flags = assigned_dev->flags;
 	match->dev = dev;
 	match->irq_source_id = -1;
 	match->kvm = kvm;
