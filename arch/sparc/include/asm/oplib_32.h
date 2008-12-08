@@ -136,7 +136,7 @@ extern char prom_getchar(void);
 extern void prom_putchar(char character);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
-extern void prom_printf(char *fmt, ...);
+extern void prom_printf(const char *fmt, ...);
 extern void prom_write(const char *buf, unsigned int len);
 
 /* Multiprocessor operations... */
