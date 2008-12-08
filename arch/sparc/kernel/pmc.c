@@ -38,7 +38,7 @@ static u8 __iomem *regs;
  * CPU idle callback function
  * See .../arch/sparc/kernel/process.c
  */
-void pmc_swift_idle(void)
+static void pmc_swift_idle(void)
 {
 #ifdef PMC_DEBUG_LED
 	set_auxio(0x00, AUXIO_LED); 
