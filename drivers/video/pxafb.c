@@ -794,10 +794,14 @@ static int pxafb_smart_thread(void *arg)
 		if (try_to_freeze())
 			continue;
 
+		mutex_lock(&fbi->ctrlr_lock);
+
 		if (fbi->state == C_ENABLE) {
 			inf->smart_update(&fbi->fb);
 			complete(&fbi->refresh_done);
 		}
+
+		mutex_unlock(&fbi->ctrlr_lock);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(30 * HZ / 1000);
