@@ -567,15 +567,18 @@ static inline int scsi_host_is_busy(struct Scsi_Host *shost)
  */
 static void scsi_run_queue(struct request_queue *q)
 {
-	struct scsi_device *starved_head = NULL, *sdev = q->queuedata;
+	struct scsi_device *sdev = q->queuedata;
 	struct Scsi_Host *shost = sdev->host;
+	LIST_HEAD(starved_list);
 	unsigned long flags;
 
 	if (scsi_target(sdev)->single_lun)
 		scsi_single_lun_run(sdev);
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	while (!list_empty(&shost->starved_list) && !scsi_host_is_busy(shost)) {
+	list_splice_init(&shost->starved_list, &starved_list);
+
+	while (!list_empty(&starved_list)) {
 		int flagset;
 
 		/*
@@ -588,24 +591,18 @@ static void scsi_run_queue(struct request_queue *q)
 		 * scsi_request_fn must get the host_lock before checking
 		 * or modifying starved_list or starved_entry.
 		 */
-		sdev = list_entry(shost->starved_list.next,
-					  struct scsi_device, starved_entry);
-		/*
-		 * The *queue_ready functions can add a device back onto the
-		 * starved list's tail, so we must check for a infinite loop.
-		 */
-		if (sdev == starved_head)
+		if (scsi_host_is_busy(shost))
 			break;
-		if (!starved_head)
-			starved_head = sdev;
 
+		sdev = list_entry(starved_list.next,
+				  struct scsi_device, starved_entry);
+		list_del_init(&sdev->starved_entry);
 		if (scsi_target_is_busy(scsi_target(sdev))) {
 			list_move_tail(&sdev->starved_entry,
 				       &shost->starved_list);
 			continue;
 		}
 
-		list_del_init(&sdev->starved_entry);
 		spin_unlock(shost->host_lock);
 
 		spin_lock(sdev->request_queue->queue_lock);
@@ -621,6 +618,8 @@ static void scsi_run_queue(struct request_queue *q)
 
 		spin_lock(shost->host_lock);
 	}
+	/* put any unprocessed entries back */
+	list_splice(&starved_list, &shost->starved_list);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	blk_run_queue(q);

@@ -766,10 +766,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	}
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (!gspca_dev->present)
+		return;
 	if (sd->chip_revision == Rev012A) {
 		reg_w_val(gspca_dev->dev, 0x8118, 0x29);
 		reg_w_val(gspca_dev->dev, 0x8114, 0x08);

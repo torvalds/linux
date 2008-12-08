@@ -2790,7 +2790,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	return 0;
 
 out_mem:
-	blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
+	blkdev_put(bdev, FMODE_READ | FMODE_NDELAY);
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
 	return ret;
@@ -2975,7 +2975,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 	pkt_debugfs_dev_remove(pd);
 	pkt_sysfs_dev_remove(pd);
 
-	blkdev_put(pd->bdev, FMODE_READ|FMODE_WRITE);
+	blkdev_put(pd->bdev, FMODE_READ | FMODE_NDELAY);
 
 	remove_proc_entry(pd->name, pkt_proc);
 	DPRINTK(DRIVER_NAME": writer %s unmapped\n", pd->name);

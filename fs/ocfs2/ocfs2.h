@@ -85,7 +85,7 @@ enum ocfs2_unlock_action {
 };
 
 /* ocfs2_lock_res->l_flags flags. */
-#define OCFS2_LOCK_ATTACHED      (0x00000001) /* have we initialized
+#define OCFS2_LOCK_ATTACHED      (0x00000001) /* we have initialized
 					       * the lvb */
 #define OCFS2_LOCK_BUSY          (0x00000002) /* we are currently in
 					       * dlm_lock */

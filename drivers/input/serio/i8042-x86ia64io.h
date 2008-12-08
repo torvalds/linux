@@ -337,6 +337,20 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "2656"),
 		},
 	},
+	{
+		.ident = "Dell XPS M1530",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XPS M1530"),
+		},
+	},
+	{
+		.ident = "Compal HEL80I",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "COMPAL"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HEL80I"),
+		},
+	},
 	{ }
 };
 

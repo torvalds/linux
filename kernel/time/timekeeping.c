@@ -518,6 +518,28 @@ void update_wall_time(void)
 	/* correct the clock when NTP error is too big */
 	clocksource_adjust(offset);
 
+	/*
+	 * Since in the loop above, we accumulate any amount of time
+	 * in xtime_nsec over a second into xtime.tv_sec, its possible for
+	 * xtime_nsec to be fairly small after the loop. Further, if we're
+	 * slightly speeding the clocksource up in clocksource_adjust(),
+	 * its possible the required corrective factor to xtime_nsec could
+	 * cause it to underflow.
+	 *
+	 * Now, we cannot simply roll the accumulated second back, since
+	 * the NTP subsystem has been notified via second_overflow. So
+	 * instead we push xtime_nsec forward by the amount we underflowed,
+	 * and add that amount into the error.
+	 *
+	 * We'll correct this error next time through this function, when
+	 * xtime_nsec is not as small.
+	 */
+	if (unlikely((s64)clock->xtime_nsec < 0)) {
+		s64 neg = -(s64)clock->xtime_nsec;
+		clock->xtime_nsec = 0;
+		clock->error += neg << (NTP_SCALE_SHIFT - clock->shift);
+	}
+
 	/* store full nanoseconds into xtime after rounding it up and
 	 * add the remainder to the error difference.
 	 */

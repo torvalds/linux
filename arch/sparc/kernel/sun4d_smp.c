@@ -83,7 +83,7 @@ static inline void show_leds(int cpuid)
 			      "i" (ASI_M_CTL));
 }
 
-void __init smp4d_callin(void)
+void __cpuinit smp4d_callin(void)
 {
 	int cpuid = hard_smp4d_processor_id();
 	extern spinlock_t sun4d_imsk_lock;
@@ -386,7 +386,7 @@ void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 
 extern unsigned int lvl14_resolution;
 
-static void __init smp_setup_percpu_timer(void)
+static void __cpuinit smp_setup_percpu_timer(void)
 {
 	int cpu = hard_smp4d_processor_id();
 

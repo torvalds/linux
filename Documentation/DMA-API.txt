@@ -316,12 +316,10 @@ reduce current DMA mapping usage or delay and try again later).
 	pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg,
 		int nents, int direction)
 
-Maps a scatter gather list from the block layer.
-
 Returns: the number of physical segments mapped (this may be shorter
-than <nents> passed in if the block layer determines that some
-elements of the scatter/gather list are physically adjacent and thus
-may be mapped with a single entry).
+than <nents> passed in if some elements of the scatter/gather list are
+physically or virtually adjacent and an IOMMU maps them with a single
+entry).
 
 Please note that the sg cannot be mapped again if it has been mapped once.
 The mapping process is allowed to destroy information in the sg.
