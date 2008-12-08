@@ -385,9 +385,8 @@ struct ieee80211_device;
 #define SCM_TEMPORAL_KEY_LENGTH	16
 
 struct ieee80211_security {
-	u16 active_key:2,
-	    enabled:1,
-	    auth_mode:2, auth_algo:4, unicast_uses_group:1, encrypt:1;
+	u16 active_key:2, enabled:1, unicast_uses_group:1, encrypt:1;
+	u8 auth_mode;
 	u8 encode_alg[WEP_KEYS];
 	u8 key_sizes[WEP_KEYS];
 	u8 keys[WEP_KEYS][SCM_KEY_LEN];
