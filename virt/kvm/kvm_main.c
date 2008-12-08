@@ -552,10 +552,11 @@ static void ack_flush(void *_completed)
 {
 }
 
-void kvm_flush_remote_tlbs(struct kvm *kvm)
+static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 {
 	int i, cpu, me;
 	cpumask_t cpus;
+	bool called = false;
 	struct kvm_vcpu *vcpu;
 
 	me = get_cpu();
@@ -564,45 +565,30 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 		vcpu = kvm->vcpus[i];
 		if (!vcpu)
 			continue;
-		if (test_and_set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests))
+		if (test_and_set_bit(req, &vcpu->requests))
 			continue;
 		cpu = vcpu->cpu;
 		if (cpu != -1 && cpu != me)
 			cpu_set(cpu, cpus);
 	}
-	if (cpus_empty(cpus))
-		goto out;
-	++kvm->stat.remote_tlb_flush;
-	smp_call_function_mask(cpus, ack_flush, NULL, 1);
-out:
+	if (!cpus_empty(cpus)) {
+		smp_call_function_mask(cpus, ack_flush, NULL, 1);
+		called = true;
+	}
 	put_cpu();
+	return called;
+}
+
+void kvm_flush_remote_tlbs(struct kvm *kvm)
+{
+	if (make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))
+		++kvm->stat.remote_tlb_flush;
 }
 
 void kvm_reload_remote_mmus(struct kvm *kvm)
 {
-	int i, cpu, me;
-	cpumask_t cpus;
-	struct kvm_vcpu *vcpu;
-
-	me = get_cpu();
-	cpus_clear(cpus);
-	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-		vcpu = kvm->vcpus[i];
-		if (!vcpu)
-			continue;
-		if (test_and_set_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
-			continue;
-		cpu = vcpu->cpu;
-		if (cpu != -1 && cpu != me)
-			cpu_set(cpu, cpus);
-	}
-	if (cpus_empty(cpus))
-		goto out;
-	smp_call_function_mask(cpus, ack_flush, NULL, 1);
-out:
-	put_cpu();
+	make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);
 }
-
 
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 {
