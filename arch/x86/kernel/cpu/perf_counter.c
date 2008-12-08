@@ -383,17 +383,15 @@ static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 	struct cpu_hw_counters *cpuc;
 	u64 ack, status;
 
-	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
-	if (!status) {
-		ack_APIC_irq();
-		return;
-	}
-
 	/* Disable counters globally */
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0, 0);
 	ack_APIC_irq();
 
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
+
+	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
+	if (!status)
+		goto out;
 
 again:
 	ack = status;
@@ -440,7 +438,7 @@ again:
 	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 	if (status)
 		goto again;
-
+out:
 	/*
 	 * Do not reenable when global enable is off:
 	 */
