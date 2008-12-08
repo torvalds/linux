@@ -1454,6 +1454,11 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	struct context_entry *context;
 	unsigned long flags;
 	struct intel_iommu *iommu;
+	struct dma_pte *pgd;
+	unsigned long num;
+	unsigned long ndomains;
+	int id;
+	int agaw;
 
 	pr_debug("Set context mapping for %02x:%02x.%d\n",
 		bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
@@ -1472,9 +1477,53 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		return 0;
 	}
 
-	context_set_domain_id(context, domain->id);
-	context_set_address_width(context, domain->agaw);
-	context_set_address_root(context, virt_to_phys(domain->pgd));
+	id = domain->id;
+	pgd = domain->pgd;
+
+	if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE) {
+		int found = 0;
+
+		/* find an available domain id for this device in iommu */
+		ndomains = cap_ndoms(iommu->cap);
+		num = find_first_bit(iommu->domain_ids, ndomains);
+		for (; num < ndomains; ) {
+			if (iommu->domains[num] == domain) {
+				id = num;
+				found = 1;
+				break;
+			}
+			num = find_next_bit(iommu->domain_ids,
+					    cap_ndoms(iommu->cap), num+1);
+		}
+
+		if (found == 0) {
+			num = find_first_zero_bit(iommu->domain_ids, ndomains);
+			if (num >= ndomains) {
+				spin_unlock_irqrestore(&iommu->lock, flags);
+				printk(KERN_ERR "IOMMU: no free domain ids\n");
+				return -EFAULT;
+			}
+
+			set_bit(num, iommu->domain_ids);
+			iommu->domains[num] = domain;
+			id = num;
+		}
+
+		/* Skip top levels of page tables for
+		 * iommu which has less agaw than default.
+		 */
+		for (agaw = domain->agaw; agaw != iommu->agaw; agaw--) {
+			pgd = phys_to_virt(dma_pte_addr(pgd));
+			if (!dma_pte_present(pgd)) {
+				spin_unlock_irqrestore(&iommu->lock, flags);
+				return -ENOMEM;
+			}
+		}
+	}
+
+	context_set_domain_id(context, id);
+	context_set_address_width(context, iommu->agaw);
+	context_set_address_root(context, virt_to_phys(pgd));
 	context_set_translation_type(context, CONTEXT_TT_MULTI_LEVEL);
 	context_set_fault_enable(context);
 	context_set_present(context);
