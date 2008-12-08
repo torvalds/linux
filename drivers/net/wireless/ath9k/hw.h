@@ -495,6 +495,11 @@ enum ar5416_rates {
 	Ar5416RateSize
 };
 
+enum ath9k_hal_freq_band {
+	ATH9K_HAL_FREQ_BAND_5GHZ = 0,
+	ATH9K_HAL_FREQ_BAND_2GHZ = 1
+};
+
 struct base_eep_header {
 	u16 length;
 	u16 checksum;

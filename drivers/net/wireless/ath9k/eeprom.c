@@ -2631,7 +2631,7 @@ u8 ath9k_hw_get_def_num_ant_config(struct ath_hal *ah,
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ar5416_eeprom_def *eep = &ahp->ah_eeprom.def;
 	struct modal_eep_header *pModal =
-		&(eep->modalHeader[IEEE80211_BAND_5GHZ == freq_band]);
+		&(eep->modalHeader[ATH9K_HAL_FREQ_BAND_2GHZ == freq_band]);
 	struct base_eep_header *pBase = &eep->baseEepHeader;
 	u8 num_ant_config;
 
