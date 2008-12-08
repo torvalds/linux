@@ -130,26 +130,10 @@ static void __init ezx_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-static void __init ezx_fixup(struct machine_desc *desc, struct tag *tags,
-		char **cmdline, struct meminfo *mi)
-{
-	/* We have two ram chips. First one with 32MB at 0xA0000000 and a second
-	 * 16MB one at 0xAC000000
-	 */
-	mi->nr_banks = 2;
-	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
-	mi->bank[0].size = (32*1024*1024);
-	mi->bank[1].start = 0xac000000;
-	mi->bank[1].node = 1;
-	mi->bank[1].size = (16*1024*1024);
-}
-
 #ifdef CONFIG_MACH_EZX_A780
 MACHINE_START(EZX_A780, "Motorola EZX A780")
 	.phys_io        = 0x40000000,
 	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.fixup			= ezx_fixup,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
 	.init_irq       = pxa27x_init_irq,
@@ -162,7 +146,6 @@ MACHINE_END
 MACHINE_START(EZX_E680, "Motorola EZX E680")
 	.phys_io        = 0x40000000,
 	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.fixup			= ezx_fixup,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
 	.init_irq       = pxa27x_init_irq,
@@ -175,7 +158,6 @@ MACHINE_END
 MACHINE_START(EZX_A1200, "Motorola EZX A1200")
 	.phys_io        = 0x40000000,
 	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.fixup			= ezx_fixup,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
 	.init_irq       = pxa27x_init_irq,
@@ -188,7 +170,6 @@ MACHINE_END
 MACHINE_START(EZX_A910, "Motorola EZX A910")
 	.phys_io        = 0x40000000,
 	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.fixup			= ezx_fixup,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
 	.init_irq       = pxa27x_init_irq,
@@ -201,7 +182,6 @@ MACHINE_END
 MACHINE_START(EZX_E6, "Motorola EZX E6")
 	.phys_io        = 0x40000000,
 	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.fixup			= ezx_fixup,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
 	.init_irq       = pxa27x_init_irq,
@@ -214,7 +194,6 @@ MACHINE_END
 MACHINE_START(EZX_E2, "Motorola EZX E2")
 	.phys_io        = 0x40000000,
 	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.fixup			= ezx_fixup,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
 	.init_irq       = pxa27x_init_irq,
