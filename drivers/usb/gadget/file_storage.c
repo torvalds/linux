@@ -4182,6 +4182,7 @@ out:
 	fsg->state = FSG_STATE_TERMINATED;	// The thread is dead
 	fsg_unbind(gadget);
 	close_all_backing_files(fsg);
+	complete(&fsg->thread_notifier);
 	return rc;
 }
 
