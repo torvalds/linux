@@ -1908,6 +1908,7 @@ static int kvm_dev_ioctl_create_vm(void)
 static long kvm_dev_ioctl_check_extension_generic(long arg)
 {
 	switch (arg) {
+	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
 		return 1;
 	default:

@@ -964,7 +964,6 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IRQCHIP:
 	case KVM_CAP_HLT:
 	case KVM_CAP_MMU_SHADOW_CACHE_CONTROL:
-	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_SET_TSS_ADDR:
 	case KVM_CAP_EXT_CPUID:
 	case KVM_CAP_CLOCKSOURCE:

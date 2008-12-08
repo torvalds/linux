@@ -180,7 +180,6 @@ int kvm_dev_ioctl_check_extension(long ext)
 
 	switch (ext) {
 	case KVM_CAP_IRQCHIP:
-	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_MP_STATE:
 
 		r = 1;
