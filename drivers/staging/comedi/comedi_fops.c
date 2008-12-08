@@ -62,6 +62,9 @@ module_param(comedi_debug, int, 0644);
 int comedi_autoconfig = 1;
 module_param(comedi_autoconfig, bool, 0444);
 
+int comedi_num_legacy_minors = 0;
+module_param(comedi_num_legacy_minors, int, 0444);
+
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
     *comedi_file_info_table[COMEDI_NUM_MINORS];
@@ -1896,7 +1899,7 @@ static void comedi_cleanup_legacy_minors(void)
 {
 	unsigned i;
 
-	for (i = 0; i < COMEDI_NUM_LEGACY_MINORS; i++)
+	for (i = 0; i < comedi_num_legacy_minors; i++)
 		comedi_free_board_minor(i);
 }
 
@@ -1936,7 +1939,7 @@ static int __init comedi_init(void)
 	comedi_proc_init();
 
 	/* create devices files for legacy/manual use */
-	for (i = 0; i < COMEDI_NUM_LEGACY_MINORS; i++) {
+	for (i = 0; i < comedi_num_legacy_minors; i++) {
 		int minor;
 		minor = comedi_alloc_board_minor(NULL);
 		if (minor < 0) {
