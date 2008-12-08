@@ -1456,7 +1456,7 @@ static const struct sensor_info sensor_info_data[] = {
 	{SENSOR_OV7670,     0x80 | 0x21, 0x0a, 0x7673, 0x66, 0x67, 0x05},
 	{SENSOR_MI1310_SOC, 0x80 | 0x5d, 0x00, 0x143a, 0x24, 0x25, 0x01},
 /* (tested in vc032x_probe_sensor) */
-/*	{SENSOR_MI0360,	    0x80 | 0x5d, 0x00, 0x4382, 0x24, 0x25, 0x01}, */
+/*	{SENSOR_MI0360,	    0x80 | 0x5d, 0x00, 0x8243, 0x24, 0x25, 0x01}, */
 };
 
 /* read 'len' bytes in gspca_dev->usb_buf */
@@ -1513,18 +1513,18 @@ static void read_sensor_register(struct gspca_dev *gspca_dev,
 		msleep(1);
 	}
 	reg_r(gspca_dev, 0xa1, 0xb33e, 1);
-	hdata = gspca_dev->usb_buf[0];
+	ldata = gspca_dev->usb_buf[0];
 	reg_r(gspca_dev, 0xa1, 0xb33d, 1);
 	mdata = gspca_dev->usb_buf[0];
 	reg_r(gspca_dev, 0xa1, 0xb33c, 1);
-	ldata = gspca_dev->usb_buf[0];
-	PDEBUG(D_PROBE, "Read Sensor %02x %02x%02x",
+	hdata = gspca_dev->usb_buf[0];
+	PDEBUG(D_PROBE, "Read Sensor %02x%02x %02x",
 		hdata, mdata, ldata);
 	reg_r(gspca_dev, 0xa1, 0xb334, 1);
 	if (gspca_dev->usb_buf[0] == 0x02)
-		*value = (ldata << 8) + mdata;
+		*value = (hdata << 8) + mdata;
 	else
-		*value = ldata;
+		*value = hdata;
 }
 
 static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
@@ -1551,7 +1551,7 @@ static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 
 		/* special case for MI0360 */
 		if (ptsensor_info->sensorId == SENSOR_MI1310_SOC
-		    && value == 0x4382)
+		    && value == 0x8243)
 			return ptsensor_info->sensorId;
 	}
 	return -1;
