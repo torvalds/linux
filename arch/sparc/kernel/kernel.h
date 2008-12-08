@@ -1,3 +1,5 @@
+#ifndef __SPARC_KERNEL_H
+#define __SPARC_KERNEL_H
 /* cpu.c */
 extern const char *sparc_cpu_type;
 extern const char *sparc_fpu_type;
@@ -14,4 +16,5 @@ extern void handle_hw_divzero(struct pt_regs *regs, unsigned long pc,
 /* muldiv.c */
 extern int do_user_muldiv (struct pt_regs *, unsigned long);
 #else /* CONFIG_SPARC32 */
-#endif
+#endif /* CONFIG_SPARC32 */
+#endif /* !(__SPARC_KERNEL_H) */
