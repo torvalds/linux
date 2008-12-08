@@ -57,6 +57,9 @@
 #define DMA_32BIT_PFN		IOVA_PFN(DMA_32BIT_MASK)
 #define DMA_64BIT_PFN		IOVA_PFN(DMA_64BIT_MASK)
 
+/* global iommu list, set NULL for ignored DMAR units */
+static struct intel_iommu **g_iommus;
+
 /*
  * 0: Present
  * 1-11: Reserved
@@ -1153,6 +1156,17 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 	kfree(iommu->domains);
 	kfree(iommu->domain_ids);
 
+	g_iommus[iommu->seq_id] = NULL;
+
+	/* if all iommus are freed, free g_iommus */
+	for (i = 0; i < g_num_of_iommus; i++) {
+		if (g_iommus[i])
+			break;
+	}
+
+	if (i == g_num_of_iommus)
+		kfree(g_iommus);
+
 	/* free context mapping */
 	free_context_table(iommu);
 }
@@ -1794,9 +1808,18 @@ static int __init init_dmars(void)
 		 */
 	}
 
+	g_iommus = kcalloc(g_num_of_iommus, sizeof(struct intel_iommu *),
+			GFP_KERNEL);
+	if (!g_iommus) {
+		printk(KERN_ERR "Allocating global iommu array failed\n");
+		ret = -ENOMEM;
+		goto error;
+	}
+
 	deferred_flush = kzalloc(g_num_of_iommus *
 		sizeof(struct deferred_flush_tables), GFP_KERNEL);
 	if (!deferred_flush) {
+		kfree(g_iommus);
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -1806,6 +1829,7 @@ static int __init init_dmars(void)
 			continue;
 
 		iommu = drhd->iommu;
+		g_iommus[iommu->seq_id] = iommu;
 
 		ret = iommu_init_domains(iommu);
 		if (ret)
@@ -1918,6 +1942,7 @@ error:
 		iommu = drhd->iommu;
 		free_iommu(iommu);
 	}
+	kfree(g_iommus);
 	return ret;
 }
 
