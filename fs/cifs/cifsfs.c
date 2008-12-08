@@ -514,10 +514,11 @@ static void cifs_umount_begin(struct super_block *sb)
 	tcon = cifs_sb->tcon;
 	if (tcon == NULL)
 		return;
-	down(&tcon->tconSem);
-	if (atomic_read(&tcon->useCount) == 1)
+
+	read_lock(&cifs_tcp_ses_lock);
+	if (tcon->tc_count == 1)
 		tcon->tidStatus = CifsExiting;
-	up(&tcon->tconSem);
+	read_unlock(&cifs_tcp_ses_lock);
 
 	/* cancel_brl_requests(tcon); */ /* BB mark all brl mids as exiting */
 	/* cancel_notify_requests(tcon); */
@@ -1013,7 +1014,7 @@ static int cifs_oplock_thread(void *dummyarg)
 				not bother sending an oplock release if session
 				to server still is disconnected since oplock
 				already released by the server in that case */
-			if (pTcon->tidStatus != CifsNeedReconnect) {
+			if (!pTcon->need_reconnect) {
 				rc = CIFSSMBLock(0, pTcon, netfid,
 						0 /* len */ , 0 /* offset */, 0,
 						0, LOCKING_ANDX_OPLOCK_RELEASE,
@@ -1031,24 +1032,24 @@ static int cifs_oplock_thread(void *dummyarg)
 static int cifs_dnotify_thread(void *dummyarg)
 {
 	struct list_head *tmp;
-	struct cifsSesInfo *ses;
+	struct TCP_Server_Info *server;
 
 	do {
 		if (try_to_freeze())
 			continue;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(15*HZ);
-		read_lock(&GlobalSMBSeslock);
 		/* check if any stuck requests that need
 		   to be woken up and wakeq so the
 		   thread can wake up and error out */
-		list_for_each(tmp, &GlobalSMBSessionList) {
-			ses = list_entry(tmp, struct cifsSesInfo,
-				cifsSessionList);
-			if (ses->server && atomic_read(&ses->server->inFlight))
-				wake_up_all(&ses->server->response_q);
+		read_lock(&cifs_tcp_ses_lock);
+		list_for_each(tmp, &cifs_tcp_ses_list) {
+			server = list_entry(tmp, struct TCP_Server_Info,
+					 tcp_ses_list);
+			if (atomic_read(&server->inFlight))
+				wake_up_all(&server->response_q);
 		}
-		read_unlock(&GlobalSMBSeslock);
+		read_unlock(&cifs_tcp_ses_lock);
 	} while (!kthread_should_stop());
 
 	return 0;
@@ -1059,9 +1060,7 @@ init_cifs(void)
 {
 	int rc = 0;
 	cifs_proc_init();
-/*	INIT_LIST_HEAD(&GlobalServerList);*/	/* BB not implemented yet */
-	INIT_LIST_HEAD(&GlobalSMBSessionList);
-	INIT_LIST_HEAD(&GlobalTreeConnectionList);
+	INIT_LIST_HEAD(&cifs_tcp_ses_list);
 	INIT_LIST_HEAD(&GlobalOplock_Q);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	INIT_LIST_HEAD(&GlobalDnotifyReqList);
@@ -1089,6 +1088,7 @@ init_cifs(void)
 	GlobalMaxActiveXid = 0;
 	memset(Local_System_Name, 0, 15);
 	rwlock_init(&GlobalSMBSeslock);
+	rwlock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&GlobalMid_Lock);
 
 	if (cifs_max_pending < 2) {

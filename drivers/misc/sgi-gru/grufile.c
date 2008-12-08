@@ -481,7 +481,7 @@ struct vm_operations_struct gru_vm_ops = {
 	.fault		= gru_fault,
 };
 
-module_init(gru_init);
+fs_initcall(gru_init);
 module_exit(gru_exit);
 
 module_param(gru_options, ulong, 0644);

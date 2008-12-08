@@ -865,72 +865,30 @@ static struct notifier_block __cpuinitdata ppc64_numa_nb = {
 	.priority = 1 /* Must run before sched domains notifier. */
 };
 
-void __init do_init_bootmem(void)
+static void mark_reserved_regions_for_nid(int nid)
 {
-	int nid;
-	unsigned int i;
+	struct pglist_data *node = NODE_DATA(nid);
+	int i;
 
-	min_low_pfn = 0;
-	max_low_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
-	max_pfn = max_low_pfn;
-
-	if (parse_numa_properties())
-		setup_nonnuma();
-	else
-		dump_numa_memory_topology();
-
-	register_cpu_notifier(&ppc64_numa_nb);
-	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
-			  (void *)(unsigned long)boot_cpuid);
-
-	for_each_online_node(nid) {
-		unsigned long start_pfn, end_pfn;
-		unsigned long bootmem_paddr;
-		unsigned long bootmap_pages;
-
-		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-
-		/* Allocate the node structure node local if possible */
-		NODE_DATA(nid) = careful_allocation(nid,
-					sizeof(struct pglist_data),
-					SMP_CACHE_BYTES, end_pfn);
-		NODE_DATA(nid) = __va(NODE_DATA(nid));
-		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-
-  		dbg("node %d\n", nid);
-		dbg("NODE_DATA() = %p\n", NODE_DATA(nid));
-
-		NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
-		NODE_DATA(nid)->node_start_pfn = start_pfn;
-		NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
-
-		if (NODE_DATA(nid)->node_spanned_pages == 0)
-  			continue;
-
-  		dbg("start_paddr = %lx\n", start_pfn << PAGE_SHIFT);
-  		dbg("end_paddr = %lx\n", end_pfn << PAGE_SHIFT);
-
-		bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
-		bootmem_paddr = (unsigned long)careful_allocation(nid,
-					bootmap_pages << PAGE_SHIFT,
-					PAGE_SIZE, end_pfn);
-		memset(__va(bootmem_paddr), 0, bootmap_pages << PAGE_SHIFT);
-
-		dbg("bootmap_paddr = %lx\n", bootmem_paddr);
-
-		init_bootmem_node(NODE_DATA(nid), bootmem_paddr >> PAGE_SHIFT,
-				  start_pfn, end_pfn);
-
-		free_bootmem_with_active_regions(nid, end_pfn);
-	}
-
-	/* Mark reserved regions */
 	for (i = 0; i < lmb.reserved.cnt; i++) {
 		unsigned long physbase = lmb.reserved.region[i].base;
 		unsigned long size = lmb.reserved.region[i].size;
 		unsigned long start_pfn = physbase >> PAGE_SHIFT;
 		unsigned long end_pfn = ((physbase + size) >> PAGE_SHIFT);
 		struct node_active_region node_ar;
+		unsigned long node_end_pfn = node->node_start_pfn +
+					     node->node_spanned_pages;
+
+		/*
+		 * Check to make sure that this lmb.reserved area is
+		 * within the bounds of the node that we care about.
+		 * Checking the nid of the start and end points is not
+		 * sufficient because the reserved area could span the
+		 * entire node.
+		 */
+		if (end_pfn <= node->node_start_pfn ||
+		    start_pfn >= node_end_pfn)
+			continue;
 
 		get_node_active_region(start_pfn, &node_ar);
 		while (start_pfn < end_pfn &&
@@ -964,11 +922,81 @@ void __init do_init_bootmem(void)
 			size = size - reserve_size;
 			get_node_active_region(start_pfn, &node_ar);
 		}
-
 	}
+}
 
-	for_each_online_node(nid)
+
+void __init do_init_bootmem(void)
+{
+	int nid;
+	unsigned int i;
+
+	min_low_pfn = 0;
+	max_low_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	max_pfn = max_low_pfn;
+
+	if (parse_numa_properties())
+		setup_nonnuma();
+	else
+		dump_numa_memory_topology();
+
+	register_cpu_notifier(&ppc64_numa_nb);
+	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
+			  (void *)(unsigned long)boot_cpuid);
+
+	for_each_online_node(nid) {
+		unsigned long start_pfn, end_pfn;
+		unsigned long bootmem_paddr;
+		unsigned long bootmap_pages;
+
+		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
+
+		/*
+		 * Allocate the node structure node local if possible
+		 *
+		 * Be careful moving this around, as it relies on all
+		 * previous nodes' bootmem to be initialized and have
+		 * all reserved areas marked.
+		 */
+		NODE_DATA(nid) = careful_allocation(nid,
+					sizeof(struct pglist_data),
+					SMP_CACHE_BYTES, end_pfn);
+		NODE_DATA(nid) = __va(NODE_DATA(nid));
+		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+
+  		dbg("node %d\n", nid);
+		dbg("NODE_DATA() = %p\n", NODE_DATA(nid));
+
+		NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
+		NODE_DATA(nid)->node_start_pfn = start_pfn;
+		NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
+
+		if (NODE_DATA(nid)->node_spanned_pages == 0)
+  			continue;
+
+  		dbg("start_paddr = %lx\n", start_pfn << PAGE_SHIFT);
+  		dbg("end_paddr = %lx\n", end_pfn << PAGE_SHIFT);
+
+		bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
+		bootmem_paddr = (unsigned long)careful_allocation(nid,
+					bootmap_pages << PAGE_SHIFT,
+					PAGE_SIZE, end_pfn);
+		memset(__va(bootmem_paddr), 0, bootmap_pages << PAGE_SHIFT);
+
+		dbg("bootmap_paddr = %lx\n", bootmem_paddr);
+
+		init_bootmem_node(NODE_DATA(nid), bootmem_paddr >> PAGE_SHIFT,
+				  start_pfn, end_pfn);
+
+		free_bootmem_with_active_regions(nid, end_pfn);
+		/*
+		 * Be very careful about moving this around.  Future
+		 * calls to careful_allocation() depend on this getting
+		 * done correctly.
+		 */
+		mark_reserved_regions_for_nid(nid);
 		sparse_memory_present_with_active_regions(nid);
+	}
 }
 
 void __init paging_init(void)

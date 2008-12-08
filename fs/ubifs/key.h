@@ -345,7 +345,7 @@ static inline int key_type_flash(const struct ubifs_info *c, const void *k)
 {
 	const union ubifs_key *key = k;
 
-	return le32_to_cpu(key->u32[1]) >> UBIFS_S_KEY_BLOCK_BITS;
+	return le32_to_cpu(key->j32[1]) >> UBIFS_S_KEY_BLOCK_BITS;
 }
 
 /**
@@ -416,7 +416,7 @@ static inline unsigned int key_block_flash(const struct ubifs_info *c,
 {
 	const union ubifs_key *key = k;
 
-	return le32_to_cpu(key->u32[1]) & UBIFS_S_KEY_BLOCK_MASK;
+	return le32_to_cpu(key->j32[1]) & UBIFS_S_KEY_BLOCK_MASK;
 }
 
 /**

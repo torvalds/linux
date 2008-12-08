@@ -167,7 +167,7 @@ static const union acpi_predefined_info predefined_names[] = {
 	{.info = {"_BFS", 1, 0}},
 	{.info = {"_BIF", 0, ACPI_RTYPE_PACKAGE}}, {.ret_info = {ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER,
 					  9,
-					  ACPI_RTYPE_STRING, 4, 0}},	/* fixed (9 Int),(4 Str) */
+					  ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER, 4, 0}},	/* fixed (9 Int),(4 Str) */
 	{.info = {"_BLT", 3, 0}},
 	{.info = {"_BMC", 1, 0}},
 	{.info = {"_BMD", 0, ACPI_RTYPE_PACKAGE}}, {.ret_info = {ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 5, 0, 0, 0}},	/* fixed (5 Int) */
@@ -346,7 +346,7 @@ static const union acpi_predefined_info predefined_names[] = {
 
 	/* Acpi 1.0 defined _WAK with no return value. Later, it was changed to return a package */
 
-	{.info = {"_WAK", 1, ACPI_RTYPE_NONE | ACPI_RTYPE_PACKAGE}},
+	{.info = {"_WAK", 1, ACPI_RTYPE_NONE | ACPI_RTYPE_INTEGER | ACPI_RTYPE_PACKAGE}},
 	{.ret_info = {ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 2, 0, 0, 0}},	/* fixed (2 Int), but is optional */
 	{.ret_info = {0, 0, 0, 0, 0, 0}}	/* Table terminator */
 };

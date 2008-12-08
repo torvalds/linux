@@ -222,6 +222,9 @@ static irqreturn_t tmiofb_irq(int irq, void *__info)
 	unsigned int bbisc = tmio_ioread16(par->lcr + LCR_BBISC);
 
 
+	tmio_iowrite16(bbisc, par->lcr + LCR_BBISC);
+
+#ifdef CONFIG_FB_TMIO_ACCELL
 	/*
 	 * We were in polling mode and now we got correct irq.
 	 * Switch back to IRQ-based sync of command FIFO
@@ -231,9 +234,6 @@ static irqreturn_t tmiofb_irq(int irq, void *__info)
 		par->use_polling = false;
 	}
 
-	tmio_iowrite16(bbisc, par->lcr + LCR_BBISC);
-
-#ifdef CONFIG_FB_TMIO_ACCELL
 	if (bbisc & 1)
 		wake_up(&par->wait_acc);
 #endif
@@ -938,7 +938,9 @@ static void tmiofb_dump_regs(struct platform_device *dev)
 static int tmiofb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
+#ifdef CONFIG_FB_TMIO_ACCELL
 	struct tmiofb_par *par = info->par;
+#endif
 	struct mfd_cell *cell = dev->dev.platform_data;
 	int retval = 0;
 
@@ -950,12 +952,14 @@ static int tmiofb_suspend(struct platform_device *dev, pm_message_t state)
 		info->fbops->fb_sync(info);
 
 
+#ifdef CONFIG_FB_TMIO_ACCELL
 	/*
 	 * The fb should be usable even if interrupts are disabled (and they are
 	 * during suspend/resume). Switch temporary to forced polling.
 	 */
 	printk(KERN_INFO "tmiofb: switching to polling\n");
 	par->use_polling = true;
+#endif
 	tmiofb_hw_stop(dev);
 
 	if (cell->suspend)

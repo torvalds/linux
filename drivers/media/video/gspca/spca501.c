@@ -2022,8 +2022,11 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_write(gspca_dev->dev, SPCA501_REG_CTLRL, 0x01, 0x00);
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
+	if (!gspca_dev->present)
+		return;
 	reg_write(gspca_dev->dev, SPCA501_REG_CTLRL, 0x05, 0x00);
 }
 
