@@ -2594,12 +2594,15 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 			stripe_nr = stripe_nr * map->num_stripes + i;
 		}
 		bytenr = chunk_start + stripe_nr * map->stripe_len;
+		WARN_ON(nr >= map->num_stripes);
 		for (j = 0; j < nr; j++) {
 			if (buf[j] == bytenr)
 				break;
 		}
-		if (j == nr)
+		if (j == nr) {
+			WARN_ON(nr >= map->num_stripes);
 			buf[nr++] = bytenr;
+		}
 	}
 
 	for (i = 0; i > nr; i++) {

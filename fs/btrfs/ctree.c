@@ -813,7 +813,8 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 				unmap_extent_buffer(eb, map_token, KM_USER0);
 				map_token = NULL;
 			}
-			err = map_extent_buffer(eb, offset,
+
+			err = map_private_extent_buffer(eb, offset,
 						sizeof(struct btrfs_disk_key),
 						&map_token, &kaddr,
 						&map_start, &map_len, KM_USER0);
@@ -3585,6 +3586,7 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 	int level;
 	int ret = 1;
 
+	WARN_ON(!path->keep_locks);
 again:
 	cur = btrfs_lock_root_node(root);
 	level = btrfs_header_level(cur);
@@ -3708,6 +3710,7 @@ int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
 	int slot;
 	struct extent_buffer *c;
 
+	WARN_ON(!path->keep_locks);
 	while(level < BTRFS_MAX_LEVEL) {
 		if (!path->nodes[level])
 			return 1;

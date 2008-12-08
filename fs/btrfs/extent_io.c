@@ -3471,6 +3471,7 @@ int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		unmap_extent_buffer(eb, eb->map_token, km);
 		eb->map_token = NULL;
 		save = 1;
+		WARN_ON(!mutex_is_locked(&eb->mutex));
 	}
 	err = map_private_extent_buffer(eb, start, min_len, token, map,
 				       map_start, map_len, km);
