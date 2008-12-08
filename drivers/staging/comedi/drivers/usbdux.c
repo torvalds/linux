@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v2.1"
+#define DRIVER_VERSION "v2.2"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -25,8 +25,8 @@ Driver: usbdux
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 25 Nov 2007
-Status: Testing
+Updated: 8 Dec 2008
+Status: Stable
 Configuration options:
   You have to upload firmware with the -i option. The
   firmware is usually installed under /usr/share/usb or
@@ -79,6 +79,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  * 1.2:  added PWM suport via EP4
  * 2.0:  PWM seems to be stable and is not interfering with the other functions
  * 2.1:  changed PWM API
+ * 2.2:  added firmware kernel request to fix an udev problem
  *
  */
 
@@ -94,6 +95,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #include <linux/smp_lock.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
+#include <linux/firmware.h>
 
 #include "../comedidev.h"
 
@@ -718,31 +720,29 @@ static int usbduxsub_start(struct usbduxsub *usbduxsub)
 	int errcode = 0;
 	uint8_t local_transfer_buffer[16];
 
-	if (usbduxsub->probed) {
-		/* 7f92 to zero */
-		local_transfer_buffer[0] = 0;
-		errcode = usb_control_msg(usbduxsub->usbdev,
-			/* create a pipe for a control transfer */
-			usb_sndctrlpipe(usbduxsub->usbdev, 0),
-			/* bRequest, "Firmware" */
-			USBDUXSUB_FIRMWARE,
-			/* bmRequestType */
-			VENDOR_DIR_OUT,
-			/* Value */
-			USBDUXSUB_CPUCS,
-			/* Index */
-			0x0000,
-			/* address of the transfer buffer */
-			local_transfer_buffer,
-			/* Length */
-			1,
-			/* Timeout */
-			EZTIMEOUT);
-		if (errcode < 0) {
-			dev_err(&usbduxsub->interface->dev,
-				"comedi_: control msg failed (start)\n");
-			return errcode;
-		}
+	/* 7f92 to zero */
+	local_transfer_buffer[0] = 0;
+	errcode = usb_control_msg(usbduxsub->usbdev,
+				  /* create a pipe for a control transfer */
+				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
+				  /* bRequest, "Firmware" */
+				  USBDUXSUB_FIRMWARE,
+				  /* bmRequestType */
+				  VENDOR_DIR_OUT,
+				  /* Value */
+				  USBDUXSUB_CPUCS,
+				  /* Index */
+				  0x0000,
+				  /* address of the transfer buffer */
+				  local_transfer_buffer,
+				  /* Length */
+				  1,
+				  /* Timeout */
+				  EZTIMEOUT);
+	if (errcode < 0) {
+		dev_err(&usbduxsub->interface->dev,
+			"comedi_: control msg failed (start)\n");
+		return errcode;
 	}
 	return 0;
 }
@@ -752,28 +752,27 @@ static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 	int errcode = 0;
 
 	uint8_t local_transfer_buffer[16];
-	if (usbduxsub->probed) {
-		/* 7f92 to one */
-		local_transfer_buffer[0] = 1;
-		errcode = usb_control_msg(usbduxsub->usbdev,
-			usb_sndctrlpipe(usbduxsub->usbdev, 0),
-			/* bRequest, "Firmware" */
-			USBDUXSUB_FIRMWARE,
-			/* bmRequestType */
-			VENDOR_DIR_OUT,
-			/* Value */
-			USBDUXSUB_CPUCS,
-			/* Index */
-			0x0000, local_transfer_buffer,
-			/* Length */
-			1,
-			/* Timeout */
-			EZTIMEOUT);
-		if (errcode < 0) {
-			dev_err(&usbduxsub->interface->dev,
-				"comedi_: control msg failed (stop)\n");
-			return errcode;
-		}
+
+	/* 7f92 to one */
+	local_transfer_buffer[0] = 1;
+	errcode = usb_control_msg(usbduxsub->usbdev,
+				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
+				  /* bRequest, "Firmware" */
+				  USBDUXSUB_FIRMWARE,
+				  /* bmRequestType */
+				  VENDOR_DIR_OUT,
+				  /* Value */
+				  USBDUXSUB_CPUCS,
+				  /* Index */
+				  0x0000, local_transfer_buffer,
+				  /* Length */
+				  1,
+				  /* Timeout */
+				  EZTIMEOUT);
+	if (errcode < 0) {
+		dev_err(&usbduxsub->interface->dev,
+			"comedi_: control msg failed (stop)\n");
+		return errcode;
 	}
 	return 0;
 }
@@ -784,13 +783,7 @@ static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 {
 	int errcode;
 
-	if (usbduxsub->probed) {
-		dev_dbg(&usbduxsub->interface->dev,
-			"comedi%d: usbdux: uploading %d bytes"
-			" to addr %d, first byte=%d.\n",
-			usbduxsub->comedidev->minor, len,
-			startAddr, local_transfer_buffer[0]);
-		errcode = usb_control_msg(usbduxsub->usbdev,
+	errcode = usb_control_msg(usbduxsub->usbdev,
 			usb_sndctrlpipe(usbduxsub->usbdev, 0),
 			/* brequest, firmware */
 			USBDUXSUB_FIRMWARE,
@@ -806,16 +799,12 @@ static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 			len,
 			/* timeout */
 			EZTIMEOUT);
-		dev_dbg(&usbduxsub->interface->dev,
-			"comedi_: result=%d\n", errcode);
-		if (errcode < 0) {
-			dev_err(&usbduxsub->interface->dev,
-				"comedi_: upload failed\n");
-			return errcode;
-		}
-	} else {
-		/* no device on the bus for this index */
-		return -EFAULT;
+	dev_dbg(&usbduxsub->interface->dev,
+		"comedi_: result=%d\n", errcode);
+	if (errcode < 0) {
+		dev_err(&usbduxsub->interface->dev,
+		"comedi_: upload failed\n");
+		return errcode;
 	}
 	return 0;
 }
@@ -2292,7 +2281,7 @@ static unsigned hex2unsigned(char *h)
 #define FIRMWARE_MAX_LEN 0x2000
 
 /* taken from David Brownell's fxload and adjusted for this driver */
-static int read_firmware(struct usbduxsub *usbduxsub, void *firmwarePtr,
+static int read_firmware(struct usbduxsub *usbduxsub, const void *firmwarePtr,
 			 long size)
 {
 	struct device *dev = &usbduxsub->interface->dev;
@@ -2399,6 +2388,34 @@ static int read_firmware(struct usbduxsub *usbduxsub, void *firmwarePtr,
 	return res;
 }
 
+static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
+						     void *context)
+{
+	struct usbduxsub *usbduxsub_tmp = context;
+	struct usb_device *usbdev = usbduxsub_tmp->usbdev;
+	int ret;
+
+	if (fw == NULL) {
+		dev_err(&usbdev->dev,
+			"Firmware complete handler without firmware!\n");
+		return;
+	}
+
+	/*
+	 * we need to upload the firmware here because fw will be
+	 * freed once we've left this function
+	 */
+	ret = read_firmware(usbduxsub_tmp, fw->data, fw->size);
+
+	if (ret) {
+		dev_err(&usbdev->dev,
+			"Could not upload firmware (err=%d)\n",
+			ret);
+		return;
+	}
+	comedi_usb_auto_config(usbdev, BOARDNAME);
+}
+
 /* allocate memory for the urbs and initialise them */
 static int usbduxsub_probe(struct usb_interface *uinterf,
 			   const struct usb_device_id *id)
@@ -2407,6 +2424,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	struct device *dev = &uinterf->dev;
 	int i;
 	int index;
+	int ret;
 
 	dev_dbg(dev, "comedi_: usbdux_: "
 		"finding a free structure for the usb-device\n");
@@ -2641,6 +2659,19 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	/* we've reached the bottom of the function */
 	usbduxsub[index].probed = 1;
 	up(&start_stop_sem);
+
+	ret = request_firmware_nowait(THIS_MODULE,
+				      FW_ACTION_HOTPLUG,
+				      "usbdux_firmware.hex",
+				      &udev->dev,
+				      usbduxsub + index,
+				      usbdux_firmware_request_complete_handler);
+
+	if (ret) {
+		dev_err(dev, "Could not load firmware (err=%d)\n", ret);
+		return ret;
+	}
+
 	dev_info(dev, "comedi_: usbdux%d "
 		 "has been successfully initialised.\n", index);
 	/* success */
@@ -2662,6 +2693,7 @@ static void usbduxsub_disconnect(struct usb_interface *intf)
 			"comedi_: BUG! called with wrong ptr!!!\n");
 		return;
 	}
+	comedi_usb_auto_unconfig(udev);
 	down(&start_stop_sem);
 	down(&usbduxsub_tmp->sem);
 	tidy_up(usbduxsub_tmp);

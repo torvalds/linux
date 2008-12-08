@@ -33,9 +33,12 @@
  *       1MHz/16ch=62.5kHz
  * 0.99: Ian Abbott pointed out a bug which has been corrected. Thanks!
  * 0.99a: added external trigger.
+ * 1.00: added firmware kernel request to the driver which fixed
+ *       udev coldplug problem
  */
 
 #include <linux/kernel.h>
+#include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -48,7 +51,7 @@
 #include "../comedidev.h"
 
 
-#define DRIVER_VERSION "v0.99a"
+#define DRIVER_VERSION "v1.0"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 #define BOARDNAME "usbduxfast"
@@ -444,9 +447,6 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 	int ret;
 	unsigned char local_transfer_buffer[16];
 
-	if (!udfs->probed)
-		return 0;
-
 	/* 7f92 to zero */
 	local_transfer_buffer[0] = 0;
 	ret = usb_control_msg(udfs->usbdev,
@@ -470,9 +470,6 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 {
 	int ret;
 	unsigned char local_transfer_buffer[16];
-
-	if (!udfs->probed)
-		return 0;
 
 	/* 7f92 to one */
 	local_transfer_buffer[0] = 1;
@@ -499,10 +496,6 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	unsigned int startAddr, unsigned int len)
 {
 	int ret;
-
-	if (!udfs->probed)
-		/* no device on the bus for this index */
-		return -EFAULT;
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi%d: usbduxfast: uploading %d bytes",
@@ -1396,8 +1389,8 @@ static unsigned hex2unsigned(char *h)
 /*
  * taken from David Brownell's fxload and adjusted for this driver
  */
-static int read_firmware(struct usbduxfastsub_s *udfs, void *firmwarePtr,
-	long size)
+static int read_firmware(struct usbduxfastsub_s *udfs, const void *firmwarePtr,
+			 long size)
 {
 	int i = 0;
 	unsigned char *fp = (char *)firmwarePtr;
@@ -1538,6 +1531,32 @@ static void tidy_up(struct usbduxfastsub_s *udfs)
 	udfs->ai_cmd_running = 0;
 }
 
+static void usbduxfast_firmware_request_complete_handler(const struct firmware *fw,
+							 void *context)
+{
+	struct usbduxfastsub_s *usbduxfastsub_tmp = context;
+	struct usb_device *usbdev = usbduxfastsub_tmp->usbdev;
+	int ret;
+
+	if (fw == NULL)
+		return;
+
+	/*
+	 * we need to upload the firmware here because fw will be
+	 * freed once we've left this function
+	 */
+	ret = read_firmware(usbduxfastsub_tmp, fw->data, fw->size);
+
+	if (ret) {
+		dev_err(&usbdev->dev,
+			"Could not upload firmware (err=%d)\n",
+			ret);
+		return;
+	}
+
+	comedi_usb_auto_config(usbdev, BOARDNAME);
+}
+
 /*
  * allocate memory for the urbs and initialise them
  */
@@ -1547,6 +1566,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	struct usb_device *udev = interface_to_usbdev(uinterf);
 	int i;
 	int index;
+	int ret;
 
 	if (udev->speed != USB_SPEED_HIGH) {
 		printk(KERN_ERR "comedi_: usbduxfast_: This driver needs"
@@ -1644,6 +1664,20 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	/* we've reached the bottom of the function */
 	usbduxfastsub[index].probed = 1;
 	up(&start_stop_sem);
+
+	ret = request_firmware_nowait(THIS_MODULE,
+				      FW_ACTION_HOTPLUG,
+				      "usbduxfast_firmware.hex",
+				      &udev->dev,
+				      usbduxfastsub + index,
+				      usbduxfast_firmware_request_complete_handler);
+
+	if (ret) {
+		dev_err(&udev->dev, "could not load firmware (err=%d)\n",
+			ret);
+		return ret;
+	}
+
 	printk(KERN_INFO "comedi_: usbduxfast%d has been successfully "
 	       "initialized.\n", index);
 	/* success */
@@ -1665,6 +1699,9 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 		       "ptr!!!\n");
 		return;
 	}
+
+	comedi_usb_auto_unconfig(udev);
+
 	down(&start_stop_sem);
 	down(&udfs->sem);
 	tidy_up(udfs);
@@ -1714,10 +1751,10 @@ static int usbduxfast_attach(comedi_device *dev, comedi_devconfig *it)
 
 	/* trying to upload the firmware into the chip */
 	if (comedi_aux_data(it->options, 0) &&
-		it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
+	    it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
 		read_firmware(&usbduxfastsub[index],
-			comedi_aux_data(it->options, 0),
-			it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
+			      comedi_aux_data(it->options, 0),
+			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
 	}
 
 	dev->board_name = BOARDNAME;
