@@ -64,14 +64,6 @@
 	name:
 #endif
 
-#define KPROBE_ENTRY(name) \
-  .pushsection .kprobes.text, "ax"; \
-  ENTRY(name)
-
-#define KPROBE_END(name) \
-  END(name);		 \
-  .popsection
-
 #ifndef END
 #define END(name) \
   .size name, .-name
