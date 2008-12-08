@@ -344,37 +344,38 @@ static int wait_for_free_request(struct cifsSesInfo *ses, const int long_op)
 	if (long_op == CIFS_ASYNC_OP) {
 		/* oplock breaks must not be held up */
 		atomic_inc(&ses->server->inFlight);
-	} else {
-		spin_lock(&GlobalMid_Lock);
-		while (1) {
-			if (atomic_read(&ses->server->inFlight) >=
-					cifs_max_pending){
-				spin_unlock(&GlobalMid_Lock);
-#ifdef CONFIG_CIFS_STATS2
-				atomic_inc(&ses->server->num_waiters);
-#endif
-				wait_event(ses->server->request_q,
-					atomic_read(&ses->server->inFlight)
-					 < cifs_max_pending);
-#ifdef CONFIG_CIFS_STATS2
-				atomic_dec(&ses->server->num_waiters);
-#endif
-				spin_lock(&GlobalMid_Lock);
-			} else {
-				if (ses->server->tcpStatus == CifsExiting) {
-					spin_unlock(&GlobalMid_Lock);
-					return -ENOENT;
-				}
+		return 0;
+	}
 
-				/* can not count locking commands against total
-				   as they are allowed to block on server */
-
-				/* update # of requests on the wire to server */
-				if (long_op != CIFS_BLOCKING_OP)
-					atomic_inc(&ses->server->inFlight);
+	spin_lock(&GlobalMid_Lock);
+	while (1) {
+		if (atomic_read(&ses->server->inFlight) >=
+				cifs_max_pending){
+			spin_unlock(&GlobalMid_Lock);
+#ifdef CONFIG_CIFS_STATS2
+			atomic_inc(&ses->server->num_waiters);
+#endif
+			wait_event(ses->server->request_q,
+				   atomic_read(&ses->server->inFlight)
+				     < cifs_max_pending);
+#ifdef CONFIG_CIFS_STATS2
+			atomic_dec(&ses->server->num_waiters);
+#endif
+			spin_lock(&GlobalMid_Lock);
+		} else {
+			if (ses->server->tcpStatus == CifsExiting) {
 				spin_unlock(&GlobalMid_Lock);
-				break;
+				return -ENOENT;
 			}
+
+			/* can not count locking commands against total
+			   as they are allowed to block on server */
+
+			/* update # of requests on the wire to server */
+			if (long_op != CIFS_BLOCKING_OP)
+				atomic_inc(&ses->server->inFlight);
+			spin_unlock(&GlobalMid_Lock);
+			break;
 		}
 	}
 	return 0;
