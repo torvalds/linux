@@ -788,7 +788,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	struct snd_soc_codec_device *codec_dev = card->socdev->codec_dev;
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai *dai;
-	int i, found, ret;
+	int i, found, ret, ac97;
 
 	if (card->instantiated)
 		return;
@@ -805,6 +805,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 		return;
 	}
 
+	ac97 = 0;
 	for (i = 0; i < card->num_links; i++) {
 		found = 0;
 		list_for_each_entry(dai, &dai_list, list)
@@ -817,7 +818,31 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 				card->dai_link[i].cpu_dai->name);
 			return;
 		}
+
+		if (card->dai_link[i].cpu_dai->ac97_control)
+			ac97 = 1;
 	}
+
+	/* If we have AC97 in the system then don't wait for the
+	 * codec.  This will need revisiting if we have to handle
+	 * systems with mixed AC97 and non-AC97 parts.  Only check for
+	 * DAIs currently; we can't do this per link since some AC97
+	 * codecs have non-AC97 DAIs.
+	 */
+	if (!ac97)
+		for (i = 0; i < card->num_links; i++) {
+			found = 0;
+			list_for_each_entry(dai, &dai_list, list)
+				if (card->dai_link[i].codec_dai == dai) {
+					found = 1;
+					break;
+				}
+			if (!found) {
+				dev_dbg(card->dev, "DAI %s not registered\n",
+					card->dai_link[i].codec_dai->name);
+				return;
+			}
+		}
 
 	/* Note that we do not current check for codec components */
 
