@@ -200,6 +200,9 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 	return (pte->val & 3) != 0;
 }
 
+/* devices under the same p2p bridge are owned in one domain */
+#define DOMAIN_FLAG_P2P_MULTIPLE_DEVICES (1 < 0)
+
 struct dmar_domain {
 	int	id;			/* domain id */
 	struct intel_iommu *iommu;	/* back pointer to owning iommu */
@@ -214,8 +217,7 @@ struct dmar_domain {
 	/* adjusted guest address width, 0 is level 2 30-bit */
 	int		agaw;
 
-#define DOMAIN_FLAG_MULTIPLE_DEVICES 1
-	int		flags;
+	int		flags;		/* flags to find out type of domain */
 };
 
 /* PCI domain-device relationship */
@@ -1574,7 +1576,7 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 		info->dev = NULL;
 		info->domain = domain;
 		/* This domain is shared by devices under p2p bridge */
-		domain->flags |= DOMAIN_FLAG_MULTIPLE_DEVICES;
+		domain->flags |= DOMAIN_FLAG_P2P_MULTIPLE_DEVICES;
 
 		/* pcie-to-pci bridge already has a domain, uses it */
 		found = NULL;
