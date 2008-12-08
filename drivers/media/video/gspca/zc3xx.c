@@ -2368,12 +2368,12 @@ static const struct usb_action hv7131b_50HZ[] = {	/* 640x480*/
 	{0xaa, 0x21, 0x0050},			/* 00,21,50,aa */
 	{0xaa, 0x22, 0x001b},			/* 00,22,1b,aa */
 	{0xaa, 0x23, 0x00fc},			/* 00,23,fc,aa */
-	{0xa0, 0x2f, ZC3XX_R190_SYNC00LOW},	/* 01,90,2f,cc */
-	{0xa0, 0x9b, ZC3XX_R191_SYNC00MID},	/* 01,91,9b,cc */
-	{0xa0, 0x80, ZC3XX_R192_SYNC00HIGH},	/* 01,92,80,cc */
-	{0xa0, 0x00, ZC3XX_R195_SYNC01LOW},	/* 01,95,00,cc */
-	{0xa0, 0xea, ZC3XX_R196_SYNC01MID},	/* 01,96,ea,cc */
-	{0xa0, 0x60, ZC3XX_R197_SYNC01HIGH},	/* 01,97,60,cc */
+	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 01,90,2f,cc */
+	{0xa0, 0x9b, ZC3XX_R191_EXPOSURELIMITMID},	/* 01,91,9b,cc */
+	{0xa0, 0x80, ZC3XX_R192_EXPOSURELIMITLOW},	/* 01,92,80,cc */
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},	/* 01,95,00,cc */
+	{0xa0, 0xea, ZC3XX_R196_ANTIFLICKERMID},	/* 01,96,ea,cc */
+	{0xa0, 0x60, ZC3XX_R197_ANTIFLICKERLOW},	/* 01,97,60,cc */
 	{0xa0, 0x0c, ZC3XX_R18C_AEFREEZE},	/* 01,8c,0c,cc */
 	{0xa0, 0x18, ZC3XX_R18F_AEUNFREEZE},	/* 01,8f,18,cc */
 	{0xa0, 0x18, ZC3XX_R1A9_DIGITALLIMITDIFF},	/* 01,a9,18,cc */
@@ -2393,12 +2393,12 @@ static const struct usb_action hv7131b_50HZScale[] = {	/* 320x240 */
 	{0xaa, 0x21, 0x0050},			/* 00,21,50,aa */
 	{0xaa, 0x22, 0x0012},			/* 00,22,12,aa */
 	{0xaa, 0x23, 0x0080},			/* 00,23,80,aa */
-	{0xa0, 0x2f, ZC3XX_R190_SYNC00LOW},	/* 01,90,2f,cc */
-	{0xa0, 0x9b, ZC3XX_R191_SYNC00MID},	/* 01,91,9b,cc */
-	{0xa0, 0x80, ZC3XX_R192_SYNC00HIGH},	/* 01,92,80,cc */
-	{0xa0, 0x01, ZC3XX_R195_SYNC01LOW},	/* 01,95,01,cc */
-	{0xa0, 0xd4, ZC3XX_R196_SYNC01MID},	/* 01,96,d4,cc */
-	{0xa0, 0xc0, ZC3XX_R197_SYNC01HIGH},	/* 01,97,c0,cc */
+	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 01,90,2f,cc */
+	{0xa0, 0x9b, ZC3XX_R191_EXPOSURELIMITMID},	/* 01,91,9b,cc */
+	{0xa0, 0x80, ZC3XX_R192_EXPOSURELIMITLOW},	/* 01,92,80,cc */
+	{0xa0, 0x01, ZC3XX_R195_ANTIFLICKERHIGH},	/* 01,95,01,cc */
+	{0xa0, 0xd4, ZC3XX_R196_ANTIFLICKERMID},	/* 01,96,d4,cc */
+	{0xa0, 0xc0, ZC3XX_R197_ANTIFLICKERLOW},	/* 01,97,c0,cc */
 	{0xa0, 0x07, ZC3XX_R18C_AEFREEZE},	/* 01,8c,07,cc */
 	{0xa0, 0x0f, ZC3XX_R18F_AEUNFREEZE},	/* 01,8f,0f,cc */
 	{0xa0, 0x18, ZC3XX_R1A9_DIGITALLIMITDIFF},	/* 01,a9,18,cc */
@@ -2418,12 +2418,12 @@ static const struct usb_action hv7131b_60HZ[] = {	/* 640x480*/
 	{0xaa, 0x21, 0x0040},			/* 00,21,40,aa */
 	{0xaa, 0x22, 0x0013},			/* 00,22,13,aa */
 	{0xaa, 0x23, 0x004c},			/* 00,23,4c,aa */
-	{0xa0, 0x2f, ZC3XX_R190_SYNC00LOW},	/* 01,90,2f,cc */
-	{0xa0, 0x4d, ZC3XX_R191_SYNC00MID},	/* 01,91,4d,cc */
-	{0xa0, 0x60, ZC3XX_R192_SYNC00HIGH},	/* 01,92,60,cc */
-	{0xa0, 0x00, ZC3XX_R195_SYNC01LOW},	/* 01,95,00,cc */
-	{0xa0, 0xc3, ZC3XX_R196_SYNC01MID},	/* 01,96,c3,cc */
-	{0xa0, 0x50, ZC3XX_R197_SYNC01HIGH},	/* 01,97,50,cc */
+	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 01,90,2f,cc */
+	{0xa0, 0x4d, ZC3XX_R191_EXPOSURELIMITMID},	/* 01,91,4d,cc */
+	{0xa0, 0x60, ZC3XX_R192_EXPOSURELIMITLOW},	/* 01,92,60,cc */
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},	/* 01,95,00,cc */
+	{0xa0, 0xc3, ZC3XX_R196_ANTIFLICKERMID},	/* 01,96,c3,cc */
+	{0xa0, 0x50, ZC3XX_R197_ANTIFLICKERLOW},	/* 01,97,50,cc */
 	{0xa0, 0x0c, ZC3XX_R18C_AEFREEZE},	/* 01,8c,0c,cc */
 	{0xa0, 0x18, ZC3XX_R18F_AEUNFREEZE},	/* 01,8f,18,cc */
 	{0xa0, 0x18, ZC3XX_R1A9_DIGITALLIMITDIFF},	/* 01,a9,18,cc */
@@ -2443,12 +2443,12 @@ static const struct usb_action hv7131b_60HZScale[] = {	/* 320x240 */
 	{0xaa, 0x21, 0x00a0},			/* 00,21,a0,aa */
 	{0xaa, 0x22, 0x0016},			/* 00,22,16,aa */
 	{0xaa, 0x23, 0x0040},			/* 00,23,40,aa */
-	{0xa0, 0x2f, ZC3XX_R190_SYNC00LOW},	/* 01,90,2f,cc */
-	{0xa0, 0x4d, ZC3XX_R191_SYNC00MID},	/* 01,91,4d,cc */
-	{0xa0, 0x60, ZC3XX_R192_SYNC00HIGH},	/* 01,92,60,cc */
-	{0xa0, 0x01, ZC3XX_R195_SYNC01LOW},	/* 01,95,01,cc */
-	{0xa0, 0x86, ZC3XX_R196_SYNC01MID},	/* 01,96,86,cc */
-	{0xa0, 0xa0, ZC3XX_R197_SYNC01HIGH},	/* 01,97,a0,cc */
+	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 01,90,2f,cc */
+	{0xa0, 0x4d, ZC3XX_R191_EXPOSURELIMITMID},	/* 01,91,4d,cc */
+	{0xa0, 0x60, ZC3XX_R192_EXPOSURELIMITLOW},	/* 01,92,60,cc */
+	{0xa0, 0x01, ZC3XX_R195_ANTIFLICKERHIGH},	/* 01,95,01,cc */
+	{0xa0, 0x86, ZC3XX_R196_ANTIFLICKERMID},	/* 01,96,86,cc */
+	{0xa0, 0xa0, ZC3XX_R197_ANTIFLICKERLOW},	/* 01,97,a0,cc */
 	{0xa0, 0x07, ZC3XX_R18C_AEFREEZE},	/* 01,8c,07,cc */
 	{0xa0, 0x0f, ZC3XX_R18F_AEUNFREEZE},	/* 01,8f,0f,cc */
 	{0xa0, 0x18, ZC3XX_R1A9_DIGITALLIMITDIFF},	/* 01,a9,18,cc */
@@ -2468,12 +2468,12 @@ static const struct usb_action hv7131b_NoFliker[] = {	/* 640x480*/
 	{0xaa, 0x21, 0x0010},			/* 00,21,10,aa */
 	{0xaa, 0x22, 0x0000},			/* 00,22,00,aa */
 	{0xaa, 0x23, 0x0003},			/* 00,23,03,aa */
-	{0xa0, 0x2f, ZC3XX_R190_SYNC00LOW},	/* 01,90,2f,cc */
-	{0xa0, 0xf8, ZC3XX_R191_SYNC00MID},	/* 01,91,f8,cc */
-	{0xa0, 0x00, ZC3XX_R192_SYNC00HIGH},	/* 01,92,00,cc */
-	{0xa0, 0x00, ZC3XX_R195_SYNC01LOW},	/* 01,95,00,cc */
-	{0xa0, 0x02, ZC3XX_R196_SYNC01MID},	/* 01,96,02,cc */
-	{0xa0, 0x00, ZC3XX_R197_SYNC01HIGH},	/* 01,97,00,cc */
+	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 01,90,2f,cc */
+	{0xa0, 0xf8, ZC3XX_R191_EXPOSURELIMITMID},	/* 01,91,f8,cc */
+	{0xa0, 0x00, ZC3XX_R192_EXPOSURELIMITLOW},	/* 01,92,00,cc */
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},	/* 01,95,00,cc */
+	{0xa0, 0x02, ZC3XX_R196_ANTIFLICKERMID},	/* 01,96,02,cc */
+	{0xa0, 0x00, ZC3XX_R197_ANTIFLICKERLOW},	/* 01,97,00,cc */
 	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},	/* 01,8c,10,cc */
 	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},	/* 01,8f,20,cc */
 	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF},	/* 01,a9,00,cc */
@@ -2493,12 +2493,12 @@ static const struct usb_action hv7131b_NoFlikerScale[] = { /* 320x240 */
 	{0xaa, 0x21, 0x00a0},			/* 00,21,a0,aa */
 	{0xaa, 0x22, 0x0016},			/* 00,22,16,aa */
 	{0xaa, 0x23, 0x0040},			/* 00,23,40,aa */
-	{0xa0, 0x2f, ZC3XX_R190_SYNC00LOW},	/* 01,90,2f,cc */
-	{0xa0, 0xf8, ZC3XX_R191_SYNC00MID},	/* 01,91,f8,cc */
-	{0xa0, 0x00, ZC3XX_R192_SYNC00HIGH},	/* 01,92,00,cc */
-	{0xa0, 0x00, ZC3XX_R195_SYNC01LOW},	/* 01,95,00,cc */
-	{0xa0, 0x02, ZC3XX_R196_SYNC01MID},	/* 01,96,02,cc */
-	{0xa0, 0x00, ZC3XX_R197_SYNC01HIGH},	/* 01,97,00,cc */
+	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 01,90,2f,cc */
+	{0xa0, 0xf8, ZC3XX_R191_EXPOSURELIMITMID},	/* 01,91,f8,cc */
+	{0xa0, 0x00, ZC3XX_R192_EXPOSURELIMITLOW},	/* 01,92,00,cc */
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},	/* 01,95,00,cc */
+	{0xa0, 0x02, ZC3XX_R196_ANTIFLICKERMID},	/* 01,96,02,cc */
+	{0xa0, 0x00, ZC3XX_R197_ANTIFLICKERLOW},	/* 01,97,00,cc */
 	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},	/* 01,8c,10,cc */
 	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},	/* 01,8f,20,cc */
 	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF},	/* 01,a9,00,cc */
