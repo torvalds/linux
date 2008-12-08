@@ -201,7 +201,6 @@ EXPORT_SYMBOL_GPL(dccp_init_sock);
 void dccp_destroy_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct dccp_minisock *dmsk = dccp_msk(sk);
 
 	/*
 	 * DCCP doesn't use sk_write_queue, just sk_send_head
@@ -219,7 +218,7 @@ void dccp_destroy_sock(struct sock *sk)
 	kfree(dp->dccps_service_list);
 	dp->dccps_service_list = NULL;
 
-	if (dmsk->dccpms_send_ack_vector) {
+	if (dp->dccps_hc_rx_ackvec != NULL) {
 		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
 		dp->dccps_hc_rx_ackvec = NULL;
 	}
