@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
+#include <linux/scatterlist.h>
 
 #include <asm/dma.h>
 
@@ -37,6 +38,9 @@ int __init isa_dma_add(unsigned int chan, dma_t *dma)
 {
 	if (!dma->d_ops)
 		return -EINVAL;
+
+	sg_init_table(&dma->buf, 1);
+
 	if (dma_chan[chan])
 		return -EBUSY;
 	dma_chan[chan] = dma;
