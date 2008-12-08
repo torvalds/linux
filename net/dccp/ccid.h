@@ -111,11 +111,6 @@ extern int  ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 extern struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx,
 			     gfp_t gfp);
 
-extern struct ccid *ccid_hc_rx_new(unsigned char id, struct sock *sk,
-				   gfp_t gfp);
-extern struct ccid *ccid_hc_tx_new(unsigned char id, struct sock *sk,
-				   gfp_t gfp);
-
 static inline int ccid_get_current_rx_ccid(struct dccp_sock *dp)
 {
 	struct ccid *ccid = dp->dccps_hc_rx_ccid;
