@@ -1216,6 +1216,7 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 
 
 static void domain_exit(struct dmar_domain *domain);
+static void vm_domain_exit(struct dmar_domain *domain);
 
 void free_dmar_iommu(struct intel_iommu *iommu)
 {
@@ -1229,8 +1230,12 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 		clear_bit(i, iommu->domain_ids);
 
 		spin_lock_irqsave(&domain->iommu_lock, flags);
-		if (--domain->iommu_count == 0)
-			domain_exit(domain);
+		if (--domain->iommu_count == 0) {
+			if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE)
+				vm_domain_exit(domain);
+			else
+				domain_exit(domain);
+		}
 		spin_unlock_irqrestore(&domain->iommu_lock, flags);
 
 		i = find_next_bit(iommu->domain_ids,
@@ -2790,6 +2795,104 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 		spin_lock_irqsave(&device_domain_lock, flags1);
 	}
 	spin_unlock_irqrestore(&device_domain_lock, flags1);
+}
+
+/* domain id for virtual machine, it won't be set in context */
+static unsigned long vm_domid;
+
+static struct dmar_domain *iommu_alloc_vm_domain(void)
+{
+	struct dmar_domain *domain;
+
+	domain = alloc_domain_mem();
+	if (!domain)
+		return NULL;
+
+	domain->id = vm_domid++;
+	memset(&domain->iommu_bmp, 0, sizeof(unsigned long));
+	domain->flags = DOMAIN_FLAG_VIRTUAL_MACHINE;
+
+	return domain;
+}
+
+static int vm_domain_init(struct dmar_domain *domain, int guest_width)
+{
+	int adjust_width;
+
+	init_iova_domain(&domain->iovad, DMA_32BIT_PFN);
+	spin_lock_init(&domain->mapping_lock);
+	spin_lock_init(&domain->iommu_lock);
+
+	domain_reserve_special_ranges(domain);
+
+	/* calculate AGAW */
+	domain->gaw = guest_width;
+	adjust_width = guestwidth_to_adjustwidth(guest_width);
+	domain->agaw = width_to_agaw(adjust_width);
+
+	INIT_LIST_HEAD(&domain->devices);
+
+	domain->iommu_count = 0;
+	domain->iommu_coherency = 0;
+
+	/* always allocate the top pgd */
+	domain->pgd = (struct dma_pte *)alloc_pgtable_page();
+	if (!domain->pgd)
+		return -ENOMEM;
+	domain_flush_cache(domain, domain->pgd, PAGE_SIZE);
+	return 0;
+}
+
+static void iommu_free_vm_domain(struct dmar_domain *domain)
+{
+	unsigned long flags;
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
+	unsigned long i;
+	unsigned long ndomains;
+
+	for_each_drhd_unit(drhd) {
+		if (drhd->ignored)
+			continue;
+		iommu = drhd->iommu;
+
+		ndomains = cap_ndoms(iommu->cap);
+		i = find_first_bit(iommu->domain_ids, ndomains);
+		for (; i < ndomains; ) {
+			if (iommu->domains[i] == domain) {
+				spin_lock_irqsave(&iommu->lock, flags);
+				clear_bit(i, iommu->domain_ids);
+				iommu->domains[i] = NULL;
+				spin_unlock_irqrestore(&iommu->lock, flags);
+				break;
+			}
+			i = find_next_bit(iommu->domain_ids, ndomains, i+1);
+		}
+	}
+}
+
+static void vm_domain_exit(struct dmar_domain *domain)
+{
+	u64 end;
+
+	/* Domain 0 is reserved, so dont process it */
+	if (!domain)
+		return;
+
+	vm_domain_remove_all_dev_info(domain);
+	/* destroy iovas */
+	put_iova_domain(&domain->iovad);
+	end = DOMAIN_MAX_ADDR(domain->gaw);
+	end = end & (~VTD_PAGE_MASK);
+
+	/* clear ptes */
+	dma_pte_clear_range(domain, 0, end);
+
+	/* free page tables */
+	dma_pte_free_pagetable(domain, 0, end);
+
+	iommu_free_vm_domain(domain);
+	free_domain_mem(domain);
 }
 
 void intel_iommu_domain_exit(struct dmar_domain *domain)
