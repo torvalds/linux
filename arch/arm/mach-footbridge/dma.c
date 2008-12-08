@@ -20,16 +20,16 @@
 #include <asm/hardware/dec21285.h>
 
 #if 0
-static int fb_dma_request(dmach_t channel, dma_t *dma)
+static int fb_dma_request(unsigned int chan, dma_t *dma)
 {
 	return -EINVAL;
 }
 
-static void fb_dma_enable(dmach_t channel, dma_t *dma)
+static void fb_dma_enable(unsigned int chan, dma_t *dma)
 {
 }
 
-static void fb_dma_disable(dmach_t channel, dma_t *dma)
+static void fb_dma_disable(unsigned int chan, dma_t *dma)
 {
 }
 

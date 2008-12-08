@@ -125,18 +125,18 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int iomd_request_dma(dmach_t channel, dma_t *dma)
+static int iomd_request_dma(unsigned int chan, dma_t *dma)
 {
 	return request_irq(dma->dma_irq, iomd_dma_handle,
 			   IRQF_DISABLED, dma->device_id, dma);
 }
 
-static void iomd_free_dma(dmach_t channel, dma_t *dma)
+static void iomd_free_dma(unsigned int chan, dma_t *dma)
 {
 	free_irq(dma->dma_irq, dma);
 }
 
-static void iomd_enable_dma(dmach_t channel, dma_t *dma)
+static void iomd_enable_dma(unsigned int chan, dma_t *dma)
 {
 	unsigned long dma_base = dma->dma_base;
 	unsigned int ctrl = TRANSFER_SIZE | DMA_CR_E;
@@ -169,7 +169,7 @@ static void iomd_enable_dma(dmach_t channel, dma_t *dma)
 	enable_irq(dma->dma_irq);
 }
 
-static void iomd_disable_dma(dmach_t channel, dma_t *dma)
+static void iomd_disable_dma(unsigned int chan, dma_t *dma)
 {
 	unsigned long dma_base = dma->dma_base;
 	unsigned long flags;
@@ -181,7 +181,7 @@ static void iomd_disable_dma(dmach_t channel, dma_t *dma)
 	local_irq_restore(flags);
 }
 
-static int iomd_set_dma_speed(dmach_t channel, dma_t *dma, int cycle)
+static int iomd_set_dma_speed(unsigned int chan, dma_t *dma, int cycle)
 {
 	int tcr, speed;
 
@@ -197,7 +197,7 @@ static int iomd_set_dma_speed(dmach_t channel, dma_t *dma, int cycle)
 	tcr = iomd_readb(IOMD_DMATCR);
 	speed &= 3;
 
-	switch (channel) {
+	switch (chan) {
 	case DMA_0:
 		tcr = (tcr & ~0x03) | speed;
 		break;
@@ -236,7 +236,7 @@ static struct fiq_handler fh = {
 	.name	= "floppydma"
 };
 
-static void floppy_enable_dma(dmach_t channel, dma_t *dma)
+static void floppy_enable_dma(unsigned int chan, dma_t *dma)
 {
 	void *fiqhandler_start;
 	unsigned int fiqhandler_length;
@@ -269,13 +269,13 @@ static void floppy_enable_dma(dmach_t channel, dma_t *dma)
 	enable_fiq(dma->dma_irq);
 }
 
-static void floppy_disable_dma(dmach_t channel, dma_t *dma)
+static void floppy_disable_dma(unsigned int chan, dma_t *dma)
 {
 	disable_fiq(dma->dma_irq);
 	release_fiq(&fh);
 }
 
-static int floppy_get_residue(dmach_t channel, dma_t *dma)
+static int floppy_get_residue(unsigned int chan, dma_t *dma)
 {
 	struct pt_regs regs;
 	get_fiq_regs(&regs);
@@ -292,7 +292,7 @@ static struct dma_ops floppy_dma_ops = {
 /*
  * This is virtual DMA - we don't need anything here.
  */
-static void sound_enable_disable_dma(dmach_t channel, dma_t *dma)
+static void sound_enable_disable_dma(unsigned int chan, dma_t *dma)
 {
 }
 

@@ -15,12 +15,12 @@ struct dma_struct;
 typedef struct dma_struct dma_t;
 
 struct dma_ops {
-	int	(*request)(dmach_t, dma_t *);		/* optional */
-	void	(*free)(dmach_t, dma_t *);		/* optional */
-	void	(*enable)(dmach_t, dma_t *);		/* mandatory */
-	void 	(*disable)(dmach_t, dma_t *);		/* mandatory */
-	int	(*residue)(dmach_t, dma_t *);		/* optional */
-	int	(*setspeed)(dmach_t, dma_t *, int);	/* optional */
+	int	(*request)(unsigned int, dma_t *);		/* optional */
+	void	(*free)(unsigned int, dma_t *);			/* optional */
+	void	(*enable)(unsigned int, dma_t *);		/* mandatory */
+	void 	(*disable)(unsigned int, dma_t *);		/* mandatory */
+	int	(*residue)(unsigned int, dma_t *);		/* optional */
+	int	(*setspeed)(unsigned int, dma_t *, int);	/* optional */
 	char	*type;
 };
 
