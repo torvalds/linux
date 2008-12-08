@@ -1262,8 +1262,8 @@ enum ieee80211_ampdu_mlme_action {
  *	the device does fragmentation by itself; if this method is assigned then
  *	the stack will not do fragmentation.
  *
- * @sta_notify: Notifies low level driver about addition or removal
- *	of associated station or AP.
+ * @sta_notify: Notifies low level driver about addition or removal of an
+ *	associated station, AP, IBSS/WDS/mesh peer etc. Must be atomic.
  *
  * @sta_ps_notify: Notifies low level driver about the power state transition
  *	of a associated station. Must be atomic.
