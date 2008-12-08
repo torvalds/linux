@@ -126,7 +126,7 @@ char *sparc_fpu_type;
 
 unsigned int fsr_storage;
 
-void __init cpu_probe(void)
+void __cpuinit cpu_probe(void)
 {
 	int psr_impl, psr_vers, fpu_vers;
 	int i, psr;

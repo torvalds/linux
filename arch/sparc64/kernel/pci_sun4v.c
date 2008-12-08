@@ -929,7 +929,7 @@ static int __init pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static int __devinit pci_sun4v_probe(struct of_device *op,
+static int __init pci_sun4v_probe(struct of_device *op,
 				     const struct of_device_id *match)
 {
 	const struct linux_prom64_registers *regs;

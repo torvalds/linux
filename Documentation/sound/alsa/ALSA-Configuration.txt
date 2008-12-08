@@ -1072,10 +1072,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  ref		Reference board
 	  dell-m4-1	Dell desktops
 	  dell-m4-2	Dell desktops
+	  dell-m4-3	Dell desktops
 
 	STAC92HD73*
 	  ref		Reference board
-	  dell-m6	Dell desktops
+	  dell-m6-amic	Dell desktops/laptops with analog mics
+	  dell-m6-dmic	Dell desktops/laptops with digital mics
+	  dell-m6	Dell desktops/laptops with both type of mics
 
 	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110

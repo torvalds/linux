@@ -661,12 +661,11 @@ void xen_set_pgd(pgd_t *ptr, pgd_t val)
  * For 64-bit, we must skip the Xen hole in the middle of the address
  * space, just after the big x86-64 virtual hole.
  */
-static int xen_pgd_walk(struct mm_struct *mm,
-			int (*func)(struct mm_struct *mm, struct page *,
-				    enum pt_level),
-			unsigned long limit)
+static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+			  int (*func)(struct mm_struct *mm, struct page *,
+				      enum pt_level),
+			  unsigned long limit)
 {
-	pgd_t *pgd = mm->pgd;
 	int flush = 0;
 	unsigned hole_low, hole_high;
 	unsigned pgdidx_limit, pudidx_limit, pmdidx_limit;
@@ -751,6 +750,14 @@ out:
 	flush |= (*func)(mm, virt_to_page(pgd), PT_PGD);
 
 	return flush;
+}
+
+static int xen_pgd_walk(struct mm_struct *mm,
+			int (*func)(struct mm_struct *mm, struct page *,
+				    enum pt_level),
+			unsigned long limit)
+{
+	return __xen_pgd_walk(mm, mm->pgd, func, limit);
 }
 
 /* If we're using split pte locks, then take the page's lock and
@@ -854,7 +861,7 @@ static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
 
 	xen_mc_batch();
 
-	 if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
+	if (__xen_pgd_walk(mm, pgd, xen_pin_page, USER_LIMIT)) {
 		/* re-enable interrupts for flushing */
 		xen_mc_issue(0);
 
@@ -998,7 +1005,7 @@ static void __xen_pgd_unpin(struct mm_struct *mm, pgd_t *pgd)
 		       PT_PMD);
 #endif
 
-	xen_pgd_walk(mm, xen_unpin_page, USER_LIMIT);
+	__xen_pgd_walk(mm, pgd, xen_unpin_page, USER_LIMIT);
 
 	xen_mc_issue(0);
 }

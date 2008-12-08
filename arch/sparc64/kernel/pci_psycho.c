@@ -493,7 +493,7 @@ static void __init psycho_pbm_init(struct pci_pbm_info *pbm,
 	psycho_scan_bus(pbm, &op->dev);
 }
 
-static struct pci_pbm_info * __devinit psycho_find_sibling(u32 upa_portid)
+static struct pci_pbm_info * __init psycho_find_sibling(u32 upa_portid)
 {
 	struct pci_pbm_info *pbm;
 
@@ -506,7 +506,7 @@ static struct pci_pbm_info * __devinit psycho_find_sibling(u32 upa_portid)
 
 #define PSYCHO_CONFIGSPACE	0x001000000UL
 
-static int __devinit psycho_probe(struct of_device *op,
+static int __init psycho_probe(struct of_device *op,
 				  const struct of_device_id *match)
 {
 	const struct linux_prom64_registers *pr_regs;

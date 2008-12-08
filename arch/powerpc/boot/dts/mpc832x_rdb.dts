@@ -18,8 +18,8 @@
 	#size-cells = <1>;
 
 	aliases {
-		ethernet0 = &enet0;
-		ethernet1 = &enet1;
+		ethernet0 = &enet1;
+		ethernet1 = &enet0;
 		serial0 = &serial0;
 		serial1 = &serial1;
 		pci0 = &pci0;

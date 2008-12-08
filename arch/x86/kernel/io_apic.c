@@ -3608,27 +3608,7 @@ int __init io_apic_get_redir_entries (int ioapic)
 
 int __init probe_nr_irqs(void)
 {
-	int idx;
-	int nr = 0;
-#ifndef CONFIG_XEN
-	int nr_min = 32;
-#else
-	int nr_min = NR_IRQS;
-#endif
-
-	for (idx = 0; idx < nr_ioapics; idx++)
-		nr += io_apic_get_redir_entries(idx) + 1;
-
-	/* double it for hotplug and msi and nmi */
-	nr <<= 1;
-
-	/* something wrong ? */
-	if (nr < nr_min)
-		nr = nr_min;
-	if (WARN_ON(nr > NR_IRQS))
-		nr = NR_IRQS;
-
-	return nr;
+	return NR_IRQS;
 }
 
 /* --------------------------------------------------------------------------
@@ -3775,7 +3755,9 @@ int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
 void __init setup_ioapic_dest(void)
 {
 	int pin, ioapic, irq, irq_entry;
+	struct irq_desc *desc;
 	struct irq_cfg *cfg;
+	cpumask_t mask;
 
 	if (skip_ioapic_setup == 1)
 		return;
@@ -3792,16 +3774,30 @@ void __init setup_ioapic_dest(void)
 			 * cpu is online.
 			 */
 			cfg = irq_cfg(irq);
-			if (!cfg->vector)
+			if (!cfg->vector) {
 				setup_IO_APIC_irq(ioapic, pin, irq,
 						  irq_trigger(irq_entry),
 						  irq_polarity(irq_entry));
-#ifdef CONFIG_INTR_REMAP
-			else if (intr_remapping_enabled)
-				set_ir_ioapic_affinity_irq(irq, TARGET_CPUS);
-#endif
+				continue;
+
+			}
+
+			/*
+			 * Honour affinities which have been set in early boot
+			 */
+			desc = irq_to_desc(irq);
+			if (desc->status &
+			    (IRQ_NO_BALANCING | IRQ_AFFINITY_SET))
+				mask = desc->affinity;
 			else
-				set_ioapic_affinity_irq(irq, TARGET_CPUS);
+				mask = TARGET_CPUS;
+
+#ifdef CONFIG_INTR_REMAP
+			if (intr_remapping_enabled)
+				set_ir_ioapic_affinity_irq(irq, mask);
+			else
+#endif
+				set_ioapic_affinity_irq(irq, mask);
 		}
 
 	}
