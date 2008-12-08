@@ -14,5 +14,3 @@ profdrvr-$(CONFIG_CPU_SUBTYPE_SH7750)	:= op_model_sh7750.o
 profdrvr-$(CONFIG_CPU_SUBTYPE_SH7091)	:= op_model_sh7750.o
 
 oprofile-y				:= $(DRIVER_OBJS) $(profdrvr-y)
-
-EXTRA_CFLAGS += -Werror
