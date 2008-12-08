@@ -1,6 +1,7 @@
 /*
- * Renesas Technology Europe RSK+ 7201 Support.
+ * Renesas Technology Europe RSK+ Support.
  *
+ * Copyright (C) 2008 Paul Mundt
  * Copyright (C) 2008 Peter Griffin <pgriffin@mpc-data.co.uk>
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -22,7 +23,7 @@ static const char *probes[] = { "cmdlinepart", NULL };
 
 static struct mtd_partition *parsed_partitions;
 
-static struct mtd_partition rsk7201_partitions[] = {
+static struct mtd_partition rsk_partitions[] = {
 	{
 		.name		= "Bootloader",
 		.offset		= 0x00000000,
@@ -61,7 +62,7 @@ static struct platform_device flash_device = {
 
 static struct mtd_info *flash_mtd;
 
-static struct map_info rsk7201_flash_map = {
+static struct map_info rsk_flash_map = {
 	.name		= "RSK+ Flash",
 	.size		= 0x400000,
 	.bankwidth	= 2,
@@ -71,35 +72,35 @@ static void __init set_mtd_partitions(void)
 {
 	int nr_parts = 0;
 
-	simple_map_init(&rsk7201_flash_map);
-	flash_mtd = do_map_probe("cfi_probe", &rsk7201_flash_map);
+	simple_map_init(&rsk_flash_map);
+	flash_mtd = do_map_probe("cfi_probe", &rsk_flash_map);
 	nr_parts = parse_mtd_partitions(flash_mtd, probes,
 					&parsed_partitions, 0);
 	/* If there is no partition table, used the hard coded table */
 	if (nr_parts <= 0) {
-		flash_data.parts = rsk7201_partitions;
-		flash_data.nr_parts = ARRAY_SIZE(rsk7201_partitions);
+		flash_data.parts = rsk_partitions;
+		flash_data.nr_parts = ARRAY_SIZE(rsk_partitions);
 	} else {
 		flash_data.nr_parts = nr_parts;
 		flash_data.parts = parsed_partitions;
 	}
 }
 
-static struct platform_device *rsk7201_devices[] __initdata = {
+static struct platform_device *rsk_devices[] __initdata = {
 	&flash_device,
 };
 
-static int __init rsk7201_devices_setup(void)
+static int __init rsk_devices_setup(void)
 {
 	set_mtd_partitions();
-	return platform_add_devices(rsk7201_devices,
-				    ARRAY_SIZE(rsk7201_devices));
+	return platform_add_devices(rsk_devices,
+				    ARRAY_SIZE(rsk_devices));
 }
-device_initcall(rsk7201_devices_setup);
+device_initcall(rsk_devices_setup);
 
 /*
  * The Machine Vector
  */
-static struct sh_machine_vector mv_rsk7201 __initmv = {
-	.mv_name        = "RSK+7201",
+static struct sh_machine_vector mv_rsk __initmv = {
+	.mv_name        = "RSK+",
 };
