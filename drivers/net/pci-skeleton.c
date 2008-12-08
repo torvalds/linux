@@ -781,7 +781,7 @@ static int __devinit netdrv_init_one (struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 	dev->base_addr = (unsigned long) ioaddr;
 
-	/* dev->priv/tp zeroed and aligned in alloc_etherdev */
+	/* netdev_priv()/tp zeroed and aligned in alloc_etherdev */
 	tp = netdev_priv(dev);
 
 	/* note: tp->chipset set in netdrv_init_board */

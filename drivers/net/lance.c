@@ -519,7 +519,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		}
 	}
 
-	/* We can't allocate dev->priv from alloc_etherdev() because it must
+	/* We can't allocate private data from alloc_etherdev() because it must
 	   a ISA DMA-able region. */
 	chipname = chip_table[lance_version].name;
 	printk("%s: %s at %#3x, ", dev->name, chipname, ioaddr);

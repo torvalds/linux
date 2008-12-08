@@ -1046,7 +1046,7 @@ static void eexp_hw_tx_pio(struct net_device *dev, unsigned short *buf,
 /*
  * Sanity check the suspected EtherExpress card
  * Read hardware address, reset card, size memory and initialize buffer
- * memory pointers. These are held in dev->priv, in case someone has more
+ * memory pointers. These are held in netdev_priv(), in case someone has more
  * than one card in a machine.
  */
 

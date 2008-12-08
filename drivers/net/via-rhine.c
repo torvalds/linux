@@ -191,12 +191,13 @@ IIId. Synchronization
 
 The driver runs as two independent, single-threaded flows of control. One
 is the send-packet routine, which enforces single-threaded use by the
-dev->priv->lock spinlock. The other thread is the interrupt handler, which
-is single threaded by the hardware and interrupt handling software.
+netdev_priv(dev)->lock spinlock. The other thread is the interrupt handler,
+which is single threaded by the hardware and interrupt handling software.
 
 The send packet thread has partial control over the Tx ring. It locks the
-dev->priv->lock whenever it's queuing a Tx packet. If the next slot in the ring
-is not available it stops the transmit queue by calling netif_stop_queue.
+netdev_priv(dev)->lock whenever it's queuing a Tx packet. If the next slot in
+the ring is not available it stops the transmit queue by
+calling netif_stop_queue.
 
 The interrupt handler has exclusive control over the Rx ring and records stats
 from the Tx ring. After reaping the stats, it marks the Tx queue entry as

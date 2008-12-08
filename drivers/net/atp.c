@@ -420,7 +420,7 @@ static unsigned short __init eeprom_op(long ioaddr, u32 cmd)
    registers that "should" only need to be set once at boot, so that
    there is non-reboot way to recover if something goes wrong.
 
-   This is an attachable device: if there is no dev->priv entry then it wasn't
+   This is an attachable device: if there is no private entry then it wasn't
    probed for at boot-time, and we need to probe for it again.
    */
 static int net_open(struct net_device *dev)

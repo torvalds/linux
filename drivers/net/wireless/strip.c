@@ -2494,7 +2494,7 @@ static void strip_dev_setup(struct net_device *dev)
 	dev->type = ARPHRD_METRICOM;	/* dtang */
 	dev->hard_header_len = sizeof(STRIP_Header);
 	/*
-	 *  dev->priv             Already holds a pointer to our struct strip
+	 *  netdev_priv(dev) Already holds a pointer to our struct strip
 	 */
 
 	*(MetricomAddress *) & dev->broadcast = broadcast_address;

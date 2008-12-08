@@ -209,7 +209,7 @@ static int sun3_82586_open(struct net_device *dev)
 static int check586(struct net_device *dev,char *where,unsigned size)
 {
 	struct priv pb;
-	struct priv *p = /* (struct priv *) dev->priv*/ &pb;
+	struct priv *p = &pb;
 	char *iscp_addr;
 	int i;
 

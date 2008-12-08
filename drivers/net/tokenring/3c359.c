@@ -296,8 +296,9 @@ static int __devinit xl_probe(struct pci_dev *pdev,
 	} ; 
 
 	/* 
-	 * Allowing init_trdev to allocate the dev->priv structure will align xl_private
-   	 * on a 32 bytes boundary which we need for the rx/tx descriptors
+	 * Allowing init_trdev to allocate the private data will align
+	 * xl_private on a 32 bytes boundary which we need for the rx/tx
+	 * descriptors
 	 */
 
 	dev = alloc_trdev(sizeof(struct xl_private)) ; 

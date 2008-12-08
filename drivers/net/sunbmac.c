@@ -1233,7 +1233,7 @@ fail_and_cleanup:
 				  bp->bmac_block,
 				  bp->bblock_dvma);
 
-	/* This also frees the co-located 'dev->priv' */
+	/* This also frees the co-located private data */
 	free_netdev(dev);
 	return -ENODEV;
 }

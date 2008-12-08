@@ -1091,7 +1091,7 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 err_free_irq:
 	free_irq(dev->irq, dev);
 err:
-	/* This will also free the co-allocated 'dev->priv' */
+	/* This will also free the co-allocated private data*/
 	free_netdev(dev);
 	return -ENODEV;
 }

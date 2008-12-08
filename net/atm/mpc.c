@@ -341,8 +341,8 @@ static const char *mpoa_device_type_string(char type)
 }
 
 /*
- * lec device calls this via its dev->priv->lane2_ops->associate_indicator()
- * when it sees a TLV in LE_ARP packet.
+ * lec device calls this via its netdev_priv(dev)->lane2_ops
+ * ->associate_indicator() when it sees a TLV in LE_ARP packet.
  * We fill in the pointer above when we see a LANE2 lec initializing
  * See LANE2 spec 3.1.5
  *

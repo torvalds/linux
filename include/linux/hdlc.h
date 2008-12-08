@@ -43,7 +43,7 @@ struct hdlc_proto {
 };
 
 
-/* Pointed to by dev->priv */
+/* Pointed to by netdev_priv(dev) */
 typedef struct hdlc_device {
 	/* used by HDLC layer to take control over HDLC device from hw driver*/
 	int (*attach)(struct net_device *dev,

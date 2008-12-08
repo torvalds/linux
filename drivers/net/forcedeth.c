@@ -712,12 +712,12 @@ struct nv_skb_map {
 
 /*
  * SMP locking:
- * All hardware access under dev->priv->lock, except the performance
+ * All hardware access under netdev_priv(dev)->lock, except the performance
  * critical parts:
  * - rx is (pseudo-) lockless: it relies on the single-threading provided
  *	by the arch code for interrupts.
  * - tx setup is lockless: it relies on netif_tx_lock. Actual submission
- *	needs dev->priv->lock :-(
+ *	needs netdev_priv(dev)->lock :-(
  * - set_multicast_list: preparation lockless, relies on netif_tx_lock.
  */
 
