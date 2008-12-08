@@ -16,11 +16,13 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/pwm_backlight.h>
+#include <linux/input.h>
 
 #include <asm/setup.h>
 #include <mach/pxafb.h>
 #include <mach/ohci.h>
 #include <mach/i2c.h>
+#include <mach/pxa27x_keypad.h>
 
 #include <mach/mfp-pxa27x.h>
 #include <mach/pxa-regs.h>
@@ -372,6 +374,283 @@ static unsigned long e6_pin_config[] __initdata = {
 };
 #endif
 
+/* KEYPAD */
+#ifdef CONFIG_MACH_EZX_A780
+static unsigned int a780_key_map[] = {
+	KEY(0, 0, KEY_SEND),
+	KEY(0, 1, KEY_BACK),
+	KEY(0, 2, KEY_END),
+	KEY(0, 3, KEY_PAGEUP),
+	KEY(0, 4, KEY_UP),
+
+	KEY(1, 0, KEY_NUMERIC_1),
+	KEY(1, 1, KEY_NUMERIC_2),
+	KEY(1, 2, KEY_NUMERIC_3),
+	KEY(1, 3, KEY_SELECT),
+	KEY(1, 4, KEY_KPENTER),
+
+	KEY(2, 0, KEY_NUMERIC_4),
+	KEY(2, 1, KEY_NUMERIC_5),
+	KEY(2, 2, KEY_NUMERIC_6),
+	KEY(2, 3, KEY_RECORD),
+	KEY(2, 4, KEY_LEFT),
+
+	KEY(3, 0, KEY_NUMERIC_7),
+	KEY(3, 1, KEY_NUMERIC_8),
+	KEY(3, 2, KEY_NUMERIC_9),
+	KEY(3, 3, KEY_HOME),
+	KEY(3, 4, KEY_RIGHT),
+
+	KEY(4, 0, KEY_NUMERIC_STAR),
+	KEY(4, 1, KEY_NUMERIC_0),
+	KEY(4, 2, KEY_NUMERIC_POUND),
+	KEY(4, 3, KEY_PAGEDOWN),
+	KEY(4, 4, KEY_DOWN),
+};
+
+static struct pxa27x_keypad_platform_data a780_keypad_platform_data = {
+	.matrix_key_rows = 5,
+	.matrix_key_cols = 5,
+	.matrix_key_map = a780_key_map,
+	.matrix_key_map_size = ARRAY_SIZE(a780_key_map),
+
+	.direct_key_map = { KEY_CAMERA },
+	.direct_key_num = 1,
+
+	.debounce_interval = 30,
+};
+#endif /* CONFIG_MACH_EZX_A780 */
+
+#ifdef CONFIG_MACH_EZX_E680
+static unsigned int e680_key_map[] = {
+	KEY(0, 0, KEY_UP),
+	KEY(0, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_RESERVED),
+	KEY(0, 3, KEY_SEND),
+
+	KEY(1, 0, KEY_DOWN),
+	KEY(1, 1, KEY_LEFT),
+	KEY(1, 2, KEY_PAGEUP),
+	KEY(1, 3, KEY_PAGEDOWN),
+
+	KEY(2, 0, KEY_RESERVED),
+	KEY(2, 1, KEY_RESERVED),
+	KEY(2, 2, KEY_RESERVED),
+	KEY(2, 3, KEY_KPENTER),
+};
+
+static struct pxa27x_keypad_platform_data e680_keypad_platform_data = {
+	.matrix_key_rows = 3,
+	.matrix_key_cols = 4,
+	.matrix_key_map = e680_key_map,
+	.matrix_key_map_size = ARRAY_SIZE(e680_key_map),
+
+	.direct_key_map = {
+		KEY_CAMERA,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_F1,
+		KEY_CANCEL,
+		KEY_F2,
+	},
+	.direct_key_num = 6,
+
+	.debounce_interval = 30,
+};
+#endif /* CONFIG_MACH_EZX_E680 */
+
+#ifdef CONFIG_MACH_EZX_A1200
+static unsigned int a1200_key_map[] = {
+	KEY(0, 0, KEY_RESERVED),
+	KEY(0, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_PAGEDOWN),
+	KEY(0, 3, KEY_RESERVED),
+	KEY(0, 4, KEY_RESERVED),
+	KEY(0, 5, KEY_RESERVED),
+
+	KEY(1, 0, KEY_RESERVED),
+	KEY(1, 1, KEY_DOWN),
+	KEY(1, 2, KEY_CAMERA),
+	KEY(1, 3, KEY_RESERVED),
+	KEY(1, 4, KEY_RESERVED),
+	KEY(1, 5, KEY_RESERVED),
+
+	KEY(2, 0, KEY_RESERVED),
+	KEY(2, 1, KEY_KPENTER),
+	KEY(2, 2, KEY_RECORD),
+	KEY(2, 3, KEY_RESERVED),
+	KEY(2, 4, KEY_RESERVED),
+	KEY(2, 5, KEY_SELECT),
+
+	KEY(3, 0, KEY_RESERVED),
+	KEY(3, 1, KEY_UP),
+	KEY(3, 2, KEY_SEND),
+	KEY(3, 3, KEY_RESERVED),
+	KEY(3, 4, KEY_RESERVED),
+	KEY(3, 5, KEY_RESERVED),
+
+	KEY(4, 0, KEY_RESERVED),
+	KEY(4, 1, KEY_LEFT),
+	KEY(4, 2, KEY_PAGEUP),
+	KEY(4, 3, KEY_RESERVED),
+	KEY(4, 4, KEY_RESERVED),
+	KEY(4, 5, KEY_RESERVED),
+};
+
+static struct pxa27x_keypad_platform_data a1200_keypad_platform_data = {
+	.matrix_key_rows = 5,
+	.matrix_key_cols = 6,
+	.matrix_key_map = a1200_key_map,
+	.matrix_key_map_size = ARRAY_SIZE(a1200_key_map),
+
+	.debounce_interval = 30,
+};
+#endif /* CONFIG_MACH_EZX_A1200 */
+
+#ifdef CONFIG_MACH_EZX_E6
+static unsigned int e6_key_map[] = {
+	KEY(0, 0, KEY_RESERVED),
+	KEY(0, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_PAGEDOWN),
+	KEY(0, 3, KEY_RESERVED),
+	KEY(0, 4, KEY_RESERVED),
+	KEY(0, 5, KEY_NEXTSONG),
+
+	KEY(1, 0, KEY_RESERVED),
+	KEY(1, 1, KEY_DOWN),
+	KEY(1, 2, KEY_PROG1),
+	KEY(1, 3, KEY_RESERVED),
+	KEY(1, 4, KEY_RESERVED),
+	KEY(1, 5, KEY_RESERVED),
+
+	KEY(2, 0, KEY_RESERVED),
+	KEY(2, 1, KEY_ENTER),
+	KEY(2, 2, KEY_CAMERA),
+	KEY(2, 3, KEY_RESERVED),
+	KEY(2, 4, KEY_RESERVED),
+	KEY(2, 5, KEY_WWW),
+
+	KEY(3, 0, KEY_RESERVED),
+	KEY(3, 1, KEY_UP),
+	KEY(3, 2, KEY_SEND),
+	KEY(3, 3, KEY_RESERVED),
+	KEY(3, 4, KEY_RESERVED),
+	KEY(3, 5, KEY_PLAYPAUSE),
+
+	KEY(4, 0, KEY_RESERVED),
+	KEY(4, 1, KEY_LEFT),
+	KEY(4, 2, KEY_PAGEUP),
+	KEY(4, 3, KEY_RESERVED),
+	KEY(4, 4, KEY_RESERVED),
+	KEY(4, 5, KEY_PREVIOUSSONG),
+};
+
+static struct pxa27x_keypad_platform_data e6_keypad_platform_data = {
+	.matrix_key_rows = 5,
+	.matrix_key_cols = 6,
+	.matrix_key_map = e6_key_map,
+	.matrix_key_map_size = ARRAY_SIZE(e6_key_map),
+
+	.debounce_interval = 30,
+};
+#endif /* CONFIG_MACH_EZX_E6 */
+
+#ifdef CONFIG_MACH_EZX_A910
+static unsigned int a910_key_map[] = {
+	KEY(0, 0, KEY_NUMERIC_6),
+	KEY(0, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_PAGEDOWN),
+	KEY(0, 3, KEY_KPENTER),
+	KEY(0, 4, KEY_NUMERIC_5),
+	KEY(0, 5, KEY_CAMERA),
+
+	KEY(1, 0, KEY_NUMERIC_8),
+	KEY(1, 1, KEY_DOWN),
+	KEY(1, 2, KEY_RESERVED),
+	KEY(1, 3, KEY_F1), /* Left SoftKey */
+	KEY(1, 4, KEY_NUMERIC_STAR),
+	KEY(1, 5, KEY_RESERVED),
+
+	KEY(2, 0, KEY_NUMERIC_7),
+	KEY(2, 1, KEY_NUMERIC_9),
+	KEY(2, 2, KEY_RECORD),
+	KEY(2, 3, KEY_F2), /* Right SoftKey */
+	KEY(2, 4, KEY_BACK),
+	KEY(2, 5, KEY_SELECT),
+
+	KEY(3, 0, KEY_NUMERIC_2),
+	KEY(3, 1, KEY_UP),
+	KEY(3, 2, KEY_SEND),
+	KEY(3, 3, KEY_NUMERIC_0),
+	KEY(3, 4, KEY_NUMERIC_1),
+	KEY(3, 5, KEY_RECORD),
+
+	KEY(4, 0, KEY_NUMERIC_4),
+	KEY(4, 1, KEY_LEFT),
+	KEY(4, 2, KEY_PAGEUP),
+	KEY(4, 3, KEY_NUMERIC_POUND),
+	KEY(4, 4, KEY_NUMERIC_3),
+	KEY(4, 5, KEY_RESERVED),
+};
+
+static struct pxa27x_keypad_platform_data a910_keypad_platform_data = {
+	.matrix_key_rows = 5,
+	.matrix_key_cols = 6,
+	.matrix_key_map = a910_key_map,
+	.matrix_key_map_size = ARRAY_SIZE(a910_key_map),
+
+	.debounce_interval = 30,
+};
+#endif /* CONFIG_MACH_EZX_A910 */
+
+#ifdef CONFIG_MACH_EZX_E2
+static unsigned int e2_key_map[] = {
+	KEY(0, 0, KEY_NUMERIC_6),
+	KEY(0, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_NUMERIC_9),
+	KEY(0, 3, KEY_NEXTSONG),
+	KEY(0, 4, KEY_NUMERIC_5),
+	KEY(0, 5, KEY_F1), /* Left SoftKey */
+
+	KEY(1, 0, KEY_NUMERIC_8),
+	KEY(1, 1, KEY_DOWN),
+	KEY(1, 2, KEY_RESERVED),
+	KEY(1, 3, KEY_PAGEUP),
+	KEY(1, 4, KEY_NUMERIC_STAR),
+	KEY(1, 5, KEY_F2), /* Right SoftKey */
+
+	KEY(2, 0, KEY_NUMERIC_7),
+	KEY(2, 1, KEY_KPENTER),
+	KEY(2, 2, KEY_RECORD),
+	KEY(2, 3, KEY_PAGEDOWN),
+	KEY(2, 4, KEY_BACK),
+	KEY(2, 5, KEY_NUMERIC_0),
+
+	KEY(3, 0, KEY_NUMERIC_2),
+	KEY(3, 1, KEY_UP),
+	KEY(3, 2, KEY_SEND),
+	KEY(3, 3, KEY_PLAYPAUSE),
+	KEY(3, 4, KEY_NUMERIC_1),
+	KEY(3, 5, KEY_SOUND), /* Music SoftKey */
+
+	KEY(4, 0, KEY_NUMERIC_4),
+	KEY(4, 1, KEY_LEFT),
+	KEY(4, 2, KEY_NUMERIC_POUND),
+	KEY(4, 3, KEY_PREVIOUSSONG),
+	KEY(4, 4, KEY_NUMERIC_3),
+	KEY(4, 5, KEY_RESERVED),
+};
+
+static struct pxa27x_keypad_platform_data e2_keypad_platform_data = {
+	.matrix_key_rows = 5,
+	.matrix_key_cols = 6,
+	.matrix_key_map = e2_key_map,
+	.matrix_key_map_size = ARRAY_SIZE(e2_key_map),
+
+	.debounce_interval = 30,
+};
+#endif /* CONFIG_MACH_EZX_E2 */
+
 #ifdef CONFIG_MACH_EZX_A780
 static void __init a780_init(void)
 {
@@ -382,6 +661,8 @@ static void __init a780_init(void)
 	pxa_set_i2c_info(NULL);
 
 	set_pxa_fb_info(&ezx_fb_info_1);
+
+	pxa_set_keypad_info(&a780_keypad_platform_data);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
@@ -408,6 +689,8 @@ static void __init e680_init(void)
 
 	set_pxa_fb_info(&ezx_fb_info_1);
 
+	pxa_set_keypad_info(&e680_keypad_platform_data);
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
@@ -432,6 +715,8 @@ static void __init a1200_init(void)
 	pxa_set_i2c_info(NULL);
 
 	set_pxa_fb_info(&ezx_fb_info_2);
+
+	pxa_set_keypad_info(&a1200_keypad_platform_data);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
@@ -458,6 +743,8 @@ static void __init a910_init(void)
 
 	set_pxa_fb_info(&ezx_fb_info_2);
 
+	pxa_set_keypad_info(&a910_keypad_platform_data);
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
@@ -483,6 +770,8 @@ static void __init e6_init(void)
 
 	set_pxa_fb_info(&ezx_fb_info_2);
 
+	pxa_set_keypad_info(&e6_keypad_platform_data);
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
@@ -507,6 +796,8 @@ static void __init e2_init(void)
 	pxa_set_i2c_info(NULL);
 
 	set_pxa_fb_info(&ezx_fb_info_2);
+
+	pxa_set_keypad_info(&e2_keypad_platform_data);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
