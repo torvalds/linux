@@ -723,12 +723,19 @@ int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int n_cmds)
 	int i;
 	struct pxafb_info *fbi = container_of(info, struct pxafb_info, fb);
 
-	/* leave 2 commands for INTERRUPT and WAIT_FOR_SYNC */
-	for (i = 0; i < n_cmds; i++) {
+	for (i = 0; i < n_cmds; i++, cmds++) {
+		/* if it is a software delay, flush and delay */
+		if ((*cmds & 0xff00) == SMART_CMD_DELAY) {
+			pxafb_smart_flush(info);
+			mdelay(*cmds & 0xff);
+			continue;
+		}
+
+		/* leave 2 commands for INTERRUPT and WAIT_FOR_SYNC */
 		if (fbi->n_smart_cmds == CMD_BUFF_SIZE - 8)
 			pxafb_smart_flush(info);
 
-		fbi->smart_cmds[fbi->n_smart_cmds++] = *cmds++;
+		fbi->smart_cmds[fbi->n_smart_cmds++] = *cmds;
 	}
 
 	return 0;
