@@ -73,7 +73,7 @@ __mutex_fastpath_unlock(atomic_t *count, void (*fail_fn)(atomic_t *))
 		: "t");
 
 	__res |= !__ex_flag;
-	if (unlikely(__res != 0))
+	if (unlikely(__res <= 0))
 		fail_fn(count);
 }
 
