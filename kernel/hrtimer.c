@@ -1571,7 +1571,7 @@ static void tickle_timers(void *arg)
 static int __cpuinit hrtimer_cpu_notify(struct notifier_block *self,
 					unsigned long action, void *hcpu)
 {
-	int dcpu = -1, scpu = (long)hcpu;
+	int dcpu, scpu = (long)hcpu;
 
 	switch (action) {
 
@@ -1585,12 +1585,6 @@ static int __cpuinit hrtimer_cpu_notify(struct notifier_block *self,
 	case CPU_DEAD_FROZEN:
 		clockevents_notify(CLOCK_EVT_NOTIFY_CPU_DEAD, &scpu);
 		dcpu = migrate_hrtimers(scpu);
-		break;
-
-	case CPU_POST_DEAD:
-		if (dcpu == -1)
-			break;
-
 		smp_call_function_single(dcpu, tickle_timers, NULL, 0);
 		break;
 #endif
