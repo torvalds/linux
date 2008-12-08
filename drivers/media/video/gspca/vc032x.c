@@ -32,8 +32,10 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	unsigned char autogain;
-	unsigned char lightfreq;
+	__u8 autogain;
+	__u8 hflip;
+	__u8 vflip;
+	__u8 lightfreq;
 
 	char qindex;
 	char bridge;
@@ -52,6 +54,10 @@ struct sd {
 /* V4L2 controls supported by the driver */
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
@@ -70,7 +76,38 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
-#define LIGHTFREQ_IDX 1
+/* next 2 controls work with ov7660 and ov7670 only */
+#define HFLIP_IDX 1
+	{
+	    {
+		.id      = V4L2_CID_HFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Mirror",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define HFLIP_DEF 0
+		.default_value = HFLIP_DEF,
+	    },
+	    .set = sd_sethflip,
+	    .get = sd_gethflip,
+	},
+#define VFLIP_IDX 2
+	{
+	    {
+		.id      = V4L2_CID_VFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Vflip",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define VFLIP_DEF 0
+		.default_value = VFLIP_DEF,
+	    },
+	    .set = sd_setvflip,
+	    .get = sd_getvflip,
+	},
+#define LIGHTFREQ_IDX 3
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -111,6 +148,11 @@ static struct v4l2_pix_format vc0323_mode[] = {
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
+
+/* OV7660/7670 registers */
+#define OV7660_REG_MVFP 0x1e
+#define OV7660_MVFP_MIRROR	0x20
+#define OV7660_MVFP_VFLIP	0x10
 
 static const __u8 mi0360_matrix[9] = {
 	0x50, 0xf8, 0xf8, 0xf5, 0x50, 0xfb, 0xff, 0xf1, 0x50
@@ -1057,7 +1099,7 @@ static const __u8 ov7660_initVGA_data[][4] = {
 	{0x00, 0x01, 0x80, 0xaa},	{0x00, 0x02, 0x80, 0xaa},
 	{0x00, 0x12, 0x80, 0xaa},
 	{0x00, 0x12, 0x05, 0xaa},
-	{0x00, 0x1e, 0x01, 0xaa},
+	{0x00, 0x1e, 0x01, 0xaa},	/* MVFP */
 	{0x00, 0x3d, 0x40, 0xaa}, /* 0x3d <-40 gamma 01 */
 	{0x00, 0x41, 0x00, 0xaa}, /* edge 00 */
 	{0x00, 0x0d, 0x48, 0xaa},	{0x00, 0x0e, 0x04, 0xaa},
@@ -1111,7 +1153,7 @@ static const __u8 ov7660_initQVGA_data[][4] = {
 	{0xb8, 0x27, 0x20, 0xcc},	{0xb8, 0x8f, 0x50, 0xcc},
 	{0x00, 0x01, 0x80, 0xaa},	{0x00, 0x02, 0x80, 0xaa},
 	{0x00, 0x12, 0x80, 0xaa},	{0x00, 0x12, 0x05, 0xaa},
-	{0x00, 0x1e, 0x01, 0xaa},
+	{0x00, 0x1e, 0x01, 0xaa},	/* MVFP */
 	{0x00, 0x3d, 0x40, 0xaa}, /* 0x3d <-40 gamma 01 */
 	{0x00, 0x41, 0x00, 0xaa}, /* edge 00 */
 	{0x00, 0x0d, 0x48, 0xaa},	{0x00, 0x0e, 0x04, 0xaa},
@@ -1217,7 +1259,8 @@ static const __u8 ov7670_initVGA_JPG[][4] = {
 	{0x00, 0xa9, 0x90, 0xaa},	{0x00, 0xaa, 0x14, 0xaa},
 	{0x00, 0x13, 0xe5, 0xaa},	{0x00, 0x0e, 0x61, 0xaa},
 	{0x00, 0x0f, 0x4b, 0xaa},	{0x00, 0x16, 0x02, 0xaa},
-	{0x00, 0x1e, 0x07, 0xaa},	{0x00, 0x21, 0x02, 0xaa},
+	{0x00, 0x1e, 0x07, 0xaa},	/* MVFP */
+	{0x00, 0x21, 0x02, 0xaa},
 	{0x00, 0x22, 0x91, 0xaa},	{0x00, 0x29, 0x07, 0xaa},
 	{0x00, 0x33, 0x0b, 0xaa},	{0x00, 0x35, 0x0b, 0xaa},
 	{0x00, 0x37, 0x1d, 0xaa},	{0x00, 0x38, 0x71, 0xaa},
@@ -1282,7 +1325,8 @@ static const __u8 ov7670_initVGA_JPG[][4] = {
 	{0x00, 0x71, 0x35, 0xaa},	{0x00, 0x72, 0x11, 0xaa},
 	{0x00, 0x73, 0xf0, 0xaa},	{0x00, 0xa2, 0x02, 0xaa},
 	{0x00, 0xb1, 0x00, 0xaa},	{0x00, 0xb1, 0x0c, 0xaa},
-	{0x00, 0x1e, 0x37, 0xaa},	{0x00, 0xaa, 0x14, 0xaa},
+	{0x00, 0x1e, 0x37, 0xaa},	/* MVFP */
+	{0x00, 0xaa, 0x14, 0xaa},
 	{0x00, 0x24, 0x80, 0xaa},	{0x00, 0x25, 0x74, 0xaa},
 	{0x00, 0x26, 0xd3, 0xaa},	{0x00, 0x0d, 0x00, 0xaa},
 	{0x00, 0x14, 0x18, 0xaa},	{0x00, 0x9d, 0x99, 0xaa},
@@ -1344,7 +1388,8 @@ static const __u8 ov7670_initQVGA_JPG[][4] = {
 	{0x00, 0xa9, 0x90, 0xaa},	{0x00, 0xaa, 0x14, 0xaa},
 	{0x00, 0x13, 0xe5, 0xaa},	{0x00, 0x0e, 0x61, 0xaa},
 	{0x00, 0x0f, 0x4b, 0xaa},	{0x00, 0x16, 0x02, 0xaa},
-	{0x00, 0x1e, 0x07, 0xaa},	{0x00, 0x21, 0x02, 0xaa},
+	{0x00, 0x1e, 0x07, 0xaa},	/* MVFP */
+	{0x00, 0x21, 0x02, 0xaa},
 	{0x00, 0x22, 0x91, 0xaa},	{0x00, 0x29, 0x07, 0xaa},
 	{0x00, 0x33, 0x0b, 0xaa},	{0x00, 0x35, 0x0b, 0xaa},
 	{0x00, 0x37, 0x1d, 0xaa},	{0x00, 0x38, 0x71, 0xaa},
@@ -1409,7 +1454,8 @@ static const __u8 ov7670_initQVGA_JPG[][4] = {
 	{0x00, 0x71, 0x35, 0xaa},	{0x00, 0x72, 0x11, 0xaa},
 	{0x00, 0x73, 0xf0, 0xaa},	{0x00, 0xa2, 0x02, 0xaa},
 	{0x00, 0xb1, 0x00, 0xaa},	{0x00, 0xb1, 0x0c, 0xaa},
-	{0x00, 0x1e, 0x37, 0xaa},	{0x00, 0xaa, 0x14, 0xaa},
+	{0x00, 0x1e, 0x37, 0xaa},	/* MVFP */
+	{0x00, 0xaa, 0x14, 0xaa},
 	{0x00, 0x24, 0x80, 0xaa},	{0x00, 0x25, 0x74, 0xaa},
 	{0x00, 0x26, 0xd3, 0xaa},	{0x00, 0x0d, 0x00, 0xaa},
 	{0x00, 0x14, 0x18, 0xaa},	{0x00, 0x9d, 0x99, 0xaa},
@@ -1695,10 +1741,25 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	sd->qindex = 7;
+	sd->hflip = HFLIP_DEF;
+	sd->vflip = VFLIP_DEF;
+	if (sd->sensor == SENSOR_OV7670) {
+		sd->hflip = 1;
+		sd->vflip = 1;
+	}
 	sd->autogain = AUTOGAIN_DEF;
 	sd->lightfreq = FREQ_DEF;
 	if (sd->sensor != SENSOR_OV7670)
 		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
+	switch (sd->sensor) {
+	case SENSOR_OV7660:
+	case SENSOR_OV7670:
+		break;
+	default:
+		gspca_dev->ctrl_dis = (1 << HFLIP_IDX)
+					| (1 << VFLIP_IDX);
+		break;
+	}
 
 	if (sd->bridge == BRIDGE_VC0321) {
 		reg_r(gspca_dev, 0x8a, 0, 3);
@@ -1718,6 +1779,27 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 static void setquality(struct gspca_dev *gspca_dev)
 {
+}
+
+/* for OV7660 and OV7670 only */
+static void sethvflip(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u8 data;
+
+	switch (sd->sensor) {
+	case SENSOR_OV7660:
+		data = 1;
+		break;
+	case SENSOR_OV7670:
+		data = 7;
+		break;
+	default:
+		return;
+	}
+	data |= OV7660_MVFP_MIRROR * sd->hflip
+		| OV7660_MVFP_VFLIP * sd->vflip;
+	i2c_write(gspca_dev, OV7660_REG_MVFP, &data, 1);
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
@@ -1863,6 +1945,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev->dev, 0x89, 0xffff, 0xfdff);
 		msleep(100);
 		setquality(gspca_dev);
+		sethvflip(gspca_dev);
 		setautogain(gspca_dev);
 		setlightfreq(gspca_dev);
 	}
@@ -1928,6 +2011,42 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->autogain;
+	return 0;
+}
+
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->hflip = val;
+	if (gspca_dev->streaming)
+		sethvflip(gspca_dev);
+	return 0;
+}
+
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->hflip;
+	return 0;
+}
+
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->vflip = val;
+	if (gspca_dev->streaming)
+		sethvflip(gspca_dev);
+	return 0;
+}
+
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->vflip;
 	return 0;
 }
 
