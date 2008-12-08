@@ -239,7 +239,13 @@ static struct kobj_type uids_ktype = {
 	.release = uids_release,
 };
 
-/* create /sys/kernel/uids/<uid>/cpu_share file for this user */
+/*
+ * Create /sys/kernel/uids/<uid>/cpu_share file for this user
+ * We do not create this file for users in a user namespace (until
+ * sysfs tagging is implemented).
+ *
+ * See Documentation/scheduler/sched-design-CFS.txt for ramifications.
+ */
 static int uids_user_create(struct user_struct *up)
 {
 	struct kobject *kobj = &up->kobj;
