@@ -886,12 +886,14 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->mdev->select_queue = ieee80211_select_queue;
 
-	/* add one default STA interface */
-	result = ieee80211_if_add(local, "wlan%d", NULL,
-				  NL80211_IFTYPE_STATION, NULL);
-	if (result)
-		printk(KERN_WARNING "%s: Failed to add default virtual iface\n",
-		       wiphy_name(local->hw.wiphy));
+	/* add one default STA interface if supported */
+	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION)) {
+		result = ieee80211_if_add(local, "wlan%d", NULL,
+					  NL80211_IFTYPE_STATION, NULL);
+		if (result)
+			printk(KERN_WARNING "%s: Failed to add default virtual iface\n",
+			       wiphy_name(local->hw.wiphy));
+	}
 
 	rtnl_unlock();
 
