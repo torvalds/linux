@@ -50,6 +50,9 @@ bool ath9k_hw_init_rf(struct ath_hal *ah,
 #define AR_PHY_FC_SHORT_GI_40       0x00000080
 #define AR_PHY_FC_WALSH             0x00000100
 #define AR_PHY_FC_SINGLE_HT_LTF1    0x00000200
+#define AR_PHY_FC_ENABLE_DAC_FIFO   0x00000800
+
+#define AR_PHY_TEST2 		    0x9808
 
 #define AR_PHY_TIMING2           0x9810
 #define AR_PHY_TIMING3           0x9814
@@ -99,6 +102,8 @@ bool ath9k_hw_init_rf(struct ath_hal *ah,
 #define AR_PHY_RF_CTL4_FRAME_XPAB_ON_S    8
 #define AR_PHY_RF_CTL4_FRAME_XPAA_ON      0x000000FF
 #define AR_PHY_RF_CTL4_FRAME_XPAA_ON_S    0
+
+#define AR_PHY_TSTDAC_CONST               0x983c
 
 #define AR_PHY_SETTLING          0x9844
 #define AR_PHY_SETTLING_SWITCH   0x00003F80
