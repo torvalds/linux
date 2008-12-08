@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/usb.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -796,13 +797,21 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 	int minor;
 	struct comedi_device_file_info *dev_file_info;
 	int retval;
+	unsigned *private_data = NULL;
 
 	if (!comedi_autoconfig)
 		return -ENODEV;
 
 	minor = comedi_alloc_board_minor(hardware_device);
 	if(minor < 0) return minor;
-	dev_set_drvdata(hardware_device, (void*)(unsigned long)minor);
+
+	private_data = kmalloc(sizeof(unsigned), GFP_KERNEL);
+	if (private_data == NULL) {
+		retval = -ENOMEM;
+		goto cleanup;
+	}
+	*private_data = minor;
+	dev_set_drvdata(hardware_device, private_data);
 
 	dev_file_info = comedi_get_device_file_info(minor);
 
@@ -815,8 +824,11 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 	mutex_lock(&dev_file_info->device->mutex);
 	retval = comedi_device_attach(dev_file_info->device, &it);
 	mutex_unlock(&dev_file_info->device->mutex);
+
+cleanup:
 	if(retval < 0)
 	{
+		kfree(private_data);
 		comedi_free_board_minor(minor);
 	}
 	return retval;
@@ -824,11 +836,14 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 
 void comedi_auto_unconfig(struct device *hardware_device)
 {
-	unsigned long minor = (unsigned long)dev_get_drvdata(hardware_device);
+	unsigned *minor = (unsigned *)dev_get_drvdata(hardware_device);
+	if(minor == NULL) return;
 
-	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
+	BUG_ON(*minor >= COMEDI_NUM_BOARD_MINORS);
 
-	comedi_free_board_minor(minor);
+	comedi_free_board_minor(*minor);
+	dev_set_drvdata(hardware_device, NULL);
+	kfree(minor);
 }
 
 int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name)
@@ -846,4 +861,17 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name)
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 {
 	comedi_auto_unconfig(&pcidev->dev);
+}
+
+int comedi_usb_auto_config(struct usb_device *usbdev,
+	const char *board_name)
+{
+	BUG_ON(usbdev == NULL);
+	return comedi_auto_config(&usbdev->dev, board_name, NULL, 0);
+}
+
+void comedi_usb_auto_unconfig(struct usb_device *usbdev)
+{
+	BUG_ON(usbdev == NULL);
+	comedi_auto_unconfig(&usbdev->dev);
 }

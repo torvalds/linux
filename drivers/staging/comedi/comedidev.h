@@ -530,6 +530,9 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s);
 void comedi_free_subdevice_minor(comedi_subdevice *s);
 int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
+struct usb_device;	/* forward declaration */
+int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name);
+void comedi_usb_auto_unconfig(struct usb_device *usbdev);
 
 #include "comedi_rt.h"
 
