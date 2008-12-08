@@ -734,26 +734,27 @@ perf_counter_alloc(u32 hw_event_period, int cpu, u32 record_type)
  * @pid:		target pid
  */
 asmlinkage int
-sys_perf_counter_open(u32 hw_event_type,
-		      u32 hw_event_period,
-		      u32 record_type,
-		      pid_t pid,
-		      int cpu)
+sys_perf_counter_open(struct perf_counter_event __user *uevent, u32 record_type,
+		      pid_t pid, int cpu, int masterfd)
 {
 	struct perf_counter_context *ctx;
+	struct perf_counter_event event;
 	struct perf_counter *counter;
 	int ret;
+
+	if (copy_from_user(&event, uevent, sizeof(event)) != 0)
+		return -EFAULT;
 
 	ctx = find_get_context(pid, cpu);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
 	ret = -ENOMEM;
-	counter = perf_counter_alloc(hw_event_period, cpu, record_type);
+	counter = perf_counter_alloc(event.hw_event_period, cpu, record_type);
 	if (!counter)
 		goto err_put_context;
 
-	ret = hw_perf_counter_init(counter, hw_event_type);
+	ret = hw_perf_counter_init(counter, event.hw_event_type);
 	if (ret)
 		goto err_free_put_context;
 

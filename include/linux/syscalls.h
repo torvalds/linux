@@ -54,6 +54,7 @@ struct compat_stat;
 struct compat_timeval;
 struct robust_list_head;
 struct getcpu_cache;
+struct perf_counter_event;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -625,9 +626,6 @@ asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
 int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
 
 asmlinkage int
-sys_perf_counter_open(u32 hw_event_type,
-		      u32 hw_event_period,
-		      u32 record_type,
-		      pid_t pid,
-		      int cpu);
+sys_perf_counter_open(struct perf_counter_event __user *uevent, u32 record_type,
+		      pid_t pid, int cpu, int masterfd);
 #endif

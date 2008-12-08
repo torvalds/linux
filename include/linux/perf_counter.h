@@ -38,6 +38,7 @@ enum hw_event_types {
 	 * If this bit is set in the type, then trigger NMI sampling:
 	 */
 	PERF_COUNT_NMI			= (1 << 30),
+	PERF_COUNT_RAW			= (1 << 31),
 };
 
 /*
@@ -47,6 +48,12 @@ enum perf_record_type {
 	PERF_RECORD_SIMPLE,
 	PERF_RECORD_IRQ,
 	PERF_RECORD_GROUP,
+};
+
+struct perf_counter_event {
+	u32			hw_event_type;
+	u32			hw_event_period;
+	u64			hw_raw_ctrl;
 };
 
 /**
