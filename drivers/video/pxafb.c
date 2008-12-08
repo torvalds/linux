@@ -760,7 +760,9 @@ static void setup_smart_timing(struct pxafb_info *fbi,
 		LCCR1_HorSnchWdth(__smart_timing(t3, lclk));
 
 	fbi->reg_lccr2 = LCCR2_DisHght(var->yres);
-	fbi->reg_lccr3 = LCCR3_PixClkDiv(__smart_timing(t4, lclk));
+	fbi->reg_lccr3 = fbi->lccr3 | LCCR3_PixClkDiv(__smart_timing(t4, lclk));
+	fbi->reg_lccr3 |= (var->sync & FB_SYNC_HOR_HIGH_ACT) ? LCCR3_HSP : 0;
+	fbi->reg_lccr3 |= (var->sync & FB_SYNC_VERT_HIGH_ACT) ? LCCR3_VSP : 0;
 
 	/* FIXME: make this configurable */
 	fbi->reg_cmdcr = 1;

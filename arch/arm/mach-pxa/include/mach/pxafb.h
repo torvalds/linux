@@ -95,6 +95,10 @@ struct pxafb_mode_info {
 	 *    in pxa27x and pxa3xx, initialize them to the same value or
 	 *    the larger one will be used
 	 * 3. same to {rd,wr}_pulse_width
+	 *
+	 * 4. LCD_PCLK_EDGE_{RISE,FALL} controls the L_PCLK_WR polarity
+	 * 5. sync & FB_SYNC_HOR_HIGH_ACT controls the L_LCLK_A0
+	 * 6. sync & FB_SYNC_VERT_HIGH_ACT controls the L_LCLK_RD
 	 */
 	unsigned	a0csrd_set_hld;	/* A0 and CS Setup/Hold Time before/after L_FCLK_RD */
 	unsigned	a0cswr_set_hld;	/* A0 and CS Setup/Hold Time before/after L_PCLK_WR */
