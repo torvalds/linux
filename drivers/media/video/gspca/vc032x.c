@@ -32,7 +32,6 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	__u8 autogain;
 	__u8 hflip;
 	__u8 vflip;
 	__u8 lightfreq;
@@ -52,8 +51,6 @@ struct sd {
 };
 
 /* V4L2 controls supported by the driver */
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
@@ -62,22 +59,8 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
-	{
-	    {
-		.id      = V4L2_CID_AUTOGAIN,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Auto Gain",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-#define AUTOGAIN_DEF 1
-		.default_value = AUTOGAIN_DEF,
-	    },
-	    .set = sd_setautogain,
-	    .get = sd_getautogain,
-	},
 /* next 2 controls work with ov7660 and ov7670 only */
-#define HFLIP_IDX 1
+#define HFLIP_IDX 0
 	{
 	    {
 		.id      = V4L2_CID_HFLIP,
@@ -92,7 +75,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_sethflip,
 	    .get = sd_gethflip,
 	},
-#define VFLIP_IDX 2
+#define VFLIP_IDX 1
 	{
 	    {
 		.id      = V4L2_CID_VFLIP,
@@ -107,7 +90,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setvflip,
 	    .get = sd_getvflip,
 	},
-#define LIGHTFREQ_IDX 3
+#define LIGHTFREQ_IDX 2
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -1747,7 +1730,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		sd->hflip = 1;
 		sd->vflip = 1;
 	}
-	sd->autogain = AUTOGAIN_DEF;
 	sd->lightfreq = FREQ_DEF;
 	if (sd->sensor != SENSOR_OV7670)
 		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
@@ -1800,10 +1782,6 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 	data |= OV7660_MVFP_MIRROR * sd->hflip
 		| OV7660_MVFP_VFLIP * sd->vflip;
 	i2c_write(gspca_dev, OV7660_REG_MVFP, &data, 1);
-}
-
-static void setautogain(struct gspca_dev *gspca_dev)
-{
 }
 
 static void setlightfreq(struct gspca_dev *gspca_dev)
@@ -1946,7 +1924,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		msleep(100);
 		setquality(gspca_dev);
 		sethvflip(gspca_dev);
-		setautogain(gspca_dev);
 		setlightfreq(gspca_dev);
 	}
 	return 0;
@@ -1994,24 +1971,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		return;
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
-}
-
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->autogain = val;
-	if (gspca_dev->streaming)
-		setautogain(gspca_dev);
-	return 0;
-}
-
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->autogain;
-	return 0;
 }
 
 static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
