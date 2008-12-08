@@ -1055,6 +1055,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 
 	mutex_lock(&inode->i_mutex);
+	BTRFS_I(inode)->sequence++;
 	first_index = pos >> PAGE_CACHE_SHIFT;
 	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
 

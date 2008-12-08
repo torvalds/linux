@@ -49,9 +49,6 @@ struct btrfs_inode {
 	 */
 	struct extent_io_tree io_failure_tree;
 
-	/* held while inserting checksums to avoid races */
-	struct mutex csum_mutex;
-
 	/* held while inesrting or deleting extents from files */
 	struct mutex extent_mutex;
 
@@ -78,6 +75,9 @@ struct btrfs_inode {
 	 * enough field for this.
 	 */
 	u64 generation;
+
+	/* sequence number for NFS changes */
+	u64 sequence;
 
 	/*
 	 * transid of the trans_handle that last modified this inode

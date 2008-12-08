@@ -196,6 +196,12 @@ struct btrfs_dev_item {
 	/* expected generation for this device */
 	__le64 generation;
 
+	/*
+	 * starting byte of this partition on the device,
+	 * to allowr for stripe alignment in the future
+	 */
+	__le64 start_offset;
+
 	/* grouping information for allocation decisions */
 	__le32 dev_group;
 
@@ -311,6 +317,9 @@ struct btrfs_super_block {
 	__le64 root;
 	__le64 chunk_root;
 	__le64 log_root;
+
+	/* this will help find the new super based on the log root */
+	__le64 log_root_transid;
 	__le64 total_bytes;
 	__le64 bytes_used;
 	__le64 root_dir_objectid;
@@ -329,7 +338,11 @@ struct btrfs_super_block {
 	u8 chunk_root_level;
 	u8 log_root_level;
 	struct btrfs_dev_item dev_item;
+
 	char label[BTRFS_LABEL_SIZE];
+
+	/* future expansion */
+	__le64 reserved[32];
 	u8 sys_chunk_array[BTRFS_SYSTEM_CHUNK_ARRAY_SIZE];
 } __attribute__ ((__packed__));
 
@@ -463,6 +476,14 @@ struct btrfs_inode_item {
 	__le64 rdev;
 	__le64 flags;
 
+	/* modification sequence number for NFS */
+	__le64 sequence;
+
+	/*
+	 * a little future expansion, for more than this we can
+	 * just grow the inode item and version it
+	 */
+	__le64 reserved[4];
 	struct btrfs_timespec atime;
 	struct btrfs_timespec ctime;
 	struct btrfs_timespec mtime;
@@ -1001,6 +1022,8 @@ BTRFS_SETGET_FUNCS(device_total_bytes, struct btrfs_dev_item, total_bytes, 64);
 BTRFS_SETGET_FUNCS(device_bytes_used, struct btrfs_dev_item, bytes_used, 64);
 BTRFS_SETGET_FUNCS(device_io_align, struct btrfs_dev_item, io_align, 32);
 BTRFS_SETGET_FUNCS(device_io_width, struct btrfs_dev_item, io_width, 32);
+BTRFS_SETGET_FUNCS(device_start_offset, struct btrfs_dev_item,
+		   start_offset, 64);
 BTRFS_SETGET_FUNCS(device_sector_size, struct btrfs_dev_item, sector_size, 32);
 BTRFS_SETGET_FUNCS(device_id, struct btrfs_dev_item, devid, 64);
 BTRFS_SETGET_FUNCS(device_group, struct btrfs_dev_item, dev_group, 32);
@@ -1135,6 +1158,7 @@ BTRFS_SETGET_FUNCS(inode_ref_index, struct btrfs_inode_ref, index, 64);
 
 /* struct btrfs_inode_item */
 BTRFS_SETGET_FUNCS(inode_generation, struct btrfs_inode_item, generation, 64);
+BTRFS_SETGET_FUNCS(inode_sequence, struct btrfs_inode_item, sequence, 64);
 BTRFS_SETGET_FUNCS(inode_transid, struct btrfs_inode_item, transid, 64);
 BTRFS_SETGET_FUNCS(inode_size, struct btrfs_inode_item, size, 64);
 BTRFS_SETGET_FUNCS(inode_nbytes, struct btrfs_inode_item, nbytes, 64);
@@ -1519,6 +1543,8 @@ BTRFS_SETGET_STACK_FUNCS(super_chunk_root_level, struct btrfs_super_block,
 			 chunk_root_level, 8);
 BTRFS_SETGET_STACK_FUNCS(super_log_root, struct btrfs_super_block,
 			 log_root, 64);
+BTRFS_SETGET_STACK_FUNCS(super_log_root_transid, struct btrfs_super_block,
+			 log_root_transid, 64);
 BTRFS_SETGET_STACK_FUNCS(super_log_root_level, struct btrfs_super_block,
 			 log_root_level, 8);
 BTRFS_SETGET_STACK_FUNCS(super_total_bytes, struct btrfs_super_block,

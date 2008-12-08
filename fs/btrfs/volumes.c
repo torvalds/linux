@@ -890,6 +890,7 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 	btrfs_set_device_group(leaf, dev_item, 0);
 	btrfs_set_device_seek_speed(leaf, dev_item, 0);
 	btrfs_set_device_bandwidth(leaf, dev_item, 0);
+	btrfs_set_device_start_offset(leaf, dev_item, 0);
 
 	ptr = (unsigned long)btrfs_device_uuid(dev_item);
 	write_extent_buffer(leaf, device->uuid, ptr, BTRFS_UUID_SIZE);
