@@ -198,7 +198,6 @@ extern void arch_init_copy_chip_data(struct irq_desc *old_desc,
 extern void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc);
 
 #ifndef CONFIG_SPARSE_IRQ
-
 extern struct irq_desc irq_desc[NR_IRQS];
 
 static inline struct irq_desc *irq_to_desc(unsigned int irq)
@@ -209,14 +208,6 @@ static inline struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 {
 	return irq_to_desc(irq);
 }
-
-#ifdef CONFIG_GENERIC_HARDIRQS
-# define for_each_irq_desc(irq, desc)		\
-	for (irq = 0, desc = irq_desc; irq < nr_irqs; irq++, desc++)
-# define for_each_irq_desc_reverse(irq, desc)                          \
-	for (irq = nr_irqs - 1, desc = irq_desc + (nr_irqs - 1);        \
-	    irq >= 0; irq--, desc--)
-#endif
 
 #else
 

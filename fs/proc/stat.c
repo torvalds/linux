@@ -45,9 +45,12 @@ static int show_stat(struct seq_file *p, void *v)
 		softirq = cputime64_add(softirq, kstat_cpu(i).cpustat.softirq);
 		steal = cputime64_add(steal, kstat_cpu(i).cpustat.steal);
 		guest = cputime64_add(guest, kstat_cpu(i).cpustat.guest);
-		for_each_irq_desc(j, desc) {
+		for_each_irq_nr(j) {
+#ifdef CONFIG_SPARSE_IRQ
+			desc = irq_to_desc(j);
 			if (!desc)
 				continue;
+#endif
 			sum += kstat_irqs_cpu(j, i);
 		}
 		sum += arch_irq_stat_cpu(i);
@@ -92,14 +95,17 @@ static int show_stat(struct seq_file *p, void *v)
 	seq_printf(p, "intr %llu", (unsigned long long)sum);
 
 	/* sum again ? it could be updated? */
-	for (j = 0; j < NR_IRQS; j++) {
-		desc = irq_to_desc(j);
+	for_each_irq_nr(j) {
 		per_irq_sum = 0;
-
-		if (desc) {
-			for_each_possible_cpu(i)
-				per_irq_sum += kstat_irqs_cpu(j, i);
+#ifdef CONFIG_SPARSE_IRQ
+		desc = irq_to_desc(j);
+		if (!desc) {
+			seq_printf(p, " %u", per_irq_sum);
+			continue;
 		}
+#endif
+		for_each_possible_cpu(i)
+			per_irq_sum += kstat_irqs_cpu(j, i);
 
 		seq_printf(p, " %u", per_irq_sum);
 	}
