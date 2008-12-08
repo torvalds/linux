@@ -362,6 +362,28 @@ void free_iova_mem(struct iova *iova)
 	kmem_cache_free(iommu_iova_cache, iova);
 }
 
+
+static inline int width_to_agaw(int width);
+
+/* calculate agaw for each iommu.
+ * "SAGAW" may be different across iommus, use a default agaw, and
+ * get a supported less agaw for iommus that don't support the default agaw.
+ */
+int iommu_calculate_agaw(struct intel_iommu *iommu)
+{
+	unsigned long sagaw;
+	int agaw = -1;
+
+	sagaw = cap_sagaw(iommu->cap);
+	for (agaw = width_to_agaw(DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	     agaw >= 0; agaw--) {
+		if (test_bit(agaw, &sagaw))
+			break;
+	}
+
+	return agaw;
+}
+
 /* in native case, each domain is related to only one iommu */
 static struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
 {

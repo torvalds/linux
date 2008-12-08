@@ -17,6 +17,7 @@ struct dmar_domain;
 struct root_entry;
 
 extern void free_dmar_iommu(struct intel_iommu *iommu);
+extern int iommu_calculate_agaw(struct intel_iommu *iommu);
 
 extern int dmar_disabled;
 

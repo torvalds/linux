@@ -290,6 +290,7 @@ struct intel_iommu {
 	u32		gcmd; /* Holds TE, EAFL. Don't need SRTP, SFL, WBF */
 	spinlock_t	register_lock; /* protect register handling */
 	int		seq_id;	/* sequence id of the iommu */
+	int		agaw; /* agaw of this iommu */
 
 #ifdef CONFIG_DMAR
 	unsigned long 	*domain_ids; /* bitmap of domains */
