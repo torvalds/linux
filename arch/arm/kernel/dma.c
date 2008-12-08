@@ -25,6 +25,16 @@ EXPORT_SYMBOL(dma_spin_lock);
 
 static dma_t dma_chan[MAX_DMA_CHANNELS];
 
+static inline dma_t *dma_channel(unsigned int chan)
+{
+	dma_t *dma = dma_chan + chan;
+
+	if (chan >= MAX_DMA_CHANNELS || !dma->d_ops)
+		return NULL;
+
+	return dma;
+}
+
 /*
  * Request DMA channel
  *
@@ -32,10 +42,10 @@ static dma_t dma_chan[MAX_DMA_CHANNELS];
  */
 int request_dma(unsigned int chan, const char *device_id)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 	int ret;
 
-	if (chan >= MAX_DMA_CHANNELS || !dma->d_ops)
+	if (!dma)
 		goto bad_dma;
 
 	if (xchg(&dma->lock, 1) != 0)
@@ -70,9 +80,9 @@ EXPORT_SYMBOL(request_dma);
  */
 void free_dma(unsigned int chan)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 
-	if (chan >= MAX_DMA_CHANNELS || !dma->d_ops)
+	if (!dma)
 		goto bad_dma;
 
 	if (dma->active) {
@@ -99,7 +109,7 @@ EXPORT_SYMBOL(free_dma);
  */
 void set_dma_sg (unsigned int chan, struct scatterlist *sg, int nr_sg)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 
 	if (dma->active)
 		printk(KERN_ERR "dma%d: altering DMA SG while "
@@ -117,7 +127,7 @@ EXPORT_SYMBOL(set_dma_sg);
  */
 void __set_dma_addr (unsigned int chan, void *addr)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 
 	if (dma->active)
 		printk(KERN_ERR "dma%d: altering DMA address while "
@@ -135,7 +145,7 @@ EXPORT_SYMBOL(__set_dma_addr);
  */
 void set_dma_count (unsigned int chan, unsigned long count)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 
 	if (dma->active)
 		printk(KERN_ERR "dma%d: altering DMA count while "
@@ -151,7 +161,7 @@ EXPORT_SYMBOL(set_dma_count);
  */
 void set_dma_mode (unsigned int chan, dmamode_t mode)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 
 	if (dma->active)
 		printk(KERN_ERR "dma%d: altering DMA mode while "
@@ -166,7 +176,7 @@ EXPORT_SYMBOL(set_dma_mode);
  */
 void enable_dma (unsigned int chan)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 
 	if (!dma->lock)
 		goto free_dma;
@@ -187,7 +197,7 @@ EXPORT_SYMBOL(enable_dma);
  */
 void disable_dma (unsigned int chan)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 
 	if (!dma->lock)
 		goto free_dma;
@@ -209,7 +219,8 @@ EXPORT_SYMBOL(disable_dma);
  */
 int dma_channel_active(unsigned int chan)
 {
-	return dma_chan[chan].active;
+	dma_t *dma = dma_channel(chan);
+	return dma->active;
 }
 EXPORT_SYMBOL(dma_channel_active);
 
@@ -221,7 +232,7 @@ EXPORT_SYMBOL(set_dma_page);
 
 void set_dma_speed(unsigned int chan, int cycle_ns)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 	int ret = 0;
 
 	if (dma->d_ops->setspeed)
@@ -232,7 +243,7 @@ EXPORT_SYMBOL(set_dma_speed);
 
 int get_dma_residue(unsigned int chan)
 {
-	dma_t *dma = dma_chan + chan;
+	dma_t *dma = dma_channel(chan);
 	int ret = 0;
 
 	if (dma->d_ops->residue)
@@ -247,5 +258,4 @@ static int __init init_dma(void)
 	arch_dma_init(dma_chan);
 	return 0;
 }
-
 core_initcall(init_dma);
