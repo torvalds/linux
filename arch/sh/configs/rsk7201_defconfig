@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.28-rc6
-# Thu Nov 27 12:14:18 2008
+# Mon Dec  8 14:48:02 2008
 #
 CONFIG_SUPERH=y
 CONFIG_SUPERH32=y
@@ -16,6 +16,8 @@ CONFIG_GENERIC_IRQ_PROBE=y
 # CONFIG_GENERIC_GPIO is not set
 # CONFIG_GENERIC_TIME is not set
 # CONFIG_GENERIC_CLOCKEVENTS is not set
+# CONFIG_ARCH_SUSPEND_POSSIBLE is not set
+# CONFIG_ARCH_HIBERNATION_POSSIBLE is not set
 CONFIG_STACKTRACE_SUPPORT=y
 CONFIG_LOCKDEP_SUPPORT=y
 CONFIG_HAVE_LATENCYTOP_SUPPORT=y
@@ -207,7 +209,9 @@ CONFIG_CPU_HAS_FPU=y
 #
 # Board support
 #
+CONFIG_SH_RSK=y
 CONFIG_SH_RSK7201=y
+# CONFIG_SH_RSK7203 is not set
 
 #
 # Timer and clock configuration
@@ -277,6 +281,14 @@ CONFIG_BINFMT_ZFLAT=y
 CONFIG_BINFMT_SHARED_FLAT=y
 # CONFIG_HAVE_AOUT is not set
 # CONFIG_BINFMT_MISC is not set
+
+#
+# Power management options (EXPERIMENTAL)
+#
+CONFIG_PM=y
+# CONFIG_PM_DEBUG is not set
+CONFIG_CPU_IDLE=y
+CONFIG_CPU_IDLE_GOV_LADDER=y
 # CONFIG_NET is not set
 
 #
