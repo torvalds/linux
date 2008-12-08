@@ -230,6 +230,7 @@ struct dmar_domain {
 	int		iommu_coherency;/* indicate coherency of iommu access */
 	int		iommu_count;	/* reference count of iommu */
 	spinlock_t	iommu_lock;	/* protect iommu set in domain */
+	u64		max_addr;	/* maximum mapped address */
 };
 
 /* PCI domain-device relationship */
@@ -2849,6 +2850,22 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 /* domain id for virtual machine, it won't be set in context */
 static unsigned long vm_domid;
 
+static int vm_domain_min_agaw(struct dmar_domain *domain)
+{
+	int i;
+	int min_agaw = domain->agaw;
+
+	i = find_first_bit(&domain->iommu_bmp, g_num_of_iommus);
+	for (; i < g_num_of_iommus; ) {
+		if (min_agaw > g_iommus[i]->agaw)
+			min_agaw = g_iommus[i]->agaw;
+
+		i = find_next_bit(&domain->iommu_bmp, g_num_of_iommus, i+1);
+	}
+
+	return min_agaw;
+}
+
 static struct dmar_domain *iommu_alloc_vm_domain(void)
 {
 	struct dmar_domain *domain;
@@ -2883,6 +2900,7 @@ static int vm_domain_init(struct dmar_domain *domain, int guest_width)
 
 	domain->iommu_count = 0;
 	domain->iommu_coherency = 0;
+	domain->max_addr = 0;
 
 	/* always allocate the top pgd */
 	domain->pgd = (struct dma_pte *)alloc_pgtable_page();
@@ -2974,6 +2992,9 @@ EXPORT_SYMBOL_GPL(intel_iommu_free_domain);
 int intel_iommu_attach_device(struct dmar_domain *domain,
 			      struct pci_dev *pdev)
 {
+	struct intel_iommu *iommu;
+	int addr_width;
+	u64 end;
 	int ret;
 
 	/* normally pdev is not mapped */
@@ -2987,6 +3008,21 @@ int intel_iommu_attach_device(struct dmar_domain *domain,
 			else
 				domain_remove_dev_info(old_domain);
 		}
+	}
+
+	iommu = device_to_iommu(pdev->bus->number, pdev->devfn);
+	if (!iommu)
+		return -ENODEV;
+
+	/* check if this iommu agaw is sufficient for max mapped address */
+	addr_width = agaw_to_width(iommu->agaw);
+	end = DOMAIN_MAX_ADDR(addr_width);
+	end = end & VTD_PAGE_MASK;
+	if (end < domain->max_addr) {
+		printk(KERN_ERR "%s: iommu agaw (%d) is not "
+		       "sufficient for the mapped address (%llx)\n",
+		       __func__, iommu->agaw, domain->max_addr);
+		return -EFAULT;
 	}
 
 	ret = domain_context_mapping(domain, pdev);
@@ -3008,7 +3044,29 @@ EXPORT_SYMBOL_GPL(intel_iommu_detach_device);
 int intel_iommu_map_address(struct dmar_domain *domain, dma_addr_t iova,
 			    u64 hpa, size_t size, int prot)
 {
+	u64 max_addr;
+	int addr_width;
 	int ret;
+
+	max_addr = (iova & VTD_PAGE_MASK) + VTD_PAGE_ALIGN(size);
+	if (domain->max_addr < max_addr) {
+		int min_agaw;
+		u64 end;
+
+		/* check if minimum agaw is sufficient for mapped address */
+		min_agaw = vm_domain_min_agaw(domain);
+		addr_width = agaw_to_width(min_agaw);
+		end = DOMAIN_MAX_ADDR(addr_width);
+		end = end & VTD_PAGE_MASK;
+		if (end < max_addr) {
+			printk(KERN_ERR "%s: iommu agaw (%d) is not "
+			       "sufficient for the mapped address (%llx)\n",
+			       __func__, min_agaw, max_addr);
+			return -EFAULT;
+		}
+		domain->max_addr = max_addr;
+	}
+
 	ret = domain_page_mapping(domain, iova, hpa, size, prot);
 	return ret;
 }
@@ -3023,6 +3081,9 @@ void intel_iommu_unmap_address(struct dmar_domain *domain,
 	base = iova & VTD_PAGE_MASK;
 	size = VTD_PAGE_ALIGN(size);
 	dma_pte_clear_range(domain, base, base + size);
+
+	if (domain->max_addr == base + size)
+		domain->max_addr = base;
 }
 EXPORT_SYMBOL_GPL(intel_iommu_unmap_address);
 
