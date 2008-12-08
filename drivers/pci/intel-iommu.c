@@ -228,6 +228,8 @@ struct dmar_domain {
 	int		flags;		/* flags to find out type of domain */
 
 	int		iommu_coherency;/* indicate coherency of iommu access */
+	int		iommu_count;	/* reference count of iommu */
+	spinlock_t	iommu_lock;	/* protect iommu set in domain */
 };
 
 /* PCI domain-device relationship */
@@ -420,6 +422,27 @@ static void domain_update_iommu_coherency(struct dmar_domain *domain)
 		}
 		i = find_next_bit(&domain->iommu_bmp, g_num_of_iommus, i+1);
 	}
+}
+
+static struct intel_iommu *device_to_iommu(u8 bus, u8 devfn)
+{
+	struct dmar_drhd_unit *drhd = NULL;
+	int i;
+
+	for_each_drhd_unit(drhd) {
+		if (drhd->ignored)
+			continue;
+
+		for (i = 0; i < drhd->devices_cnt; i++)
+			if (drhd->devices[i]->bus->number == bus &&
+			    drhd->devices[i]->devfn == devfn)
+				return drhd->iommu;
+
+		if (drhd->include_all)
+			return drhd->iommu;
+	}
+
+	return NULL;
 }
 
 /* Gets context entry for a given bus and devfn */
@@ -1196,12 +1219,18 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 {
 	struct dmar_domain *domain;
 	int i;
+	unsigned long flags;
 
 	i = find_first_bit(iommu->domain_ids, cap_ndoms(iommu->cap));
 	for (; i < cap_ndoms(iommu->cap); ) {
 		domain = iommu->domains[i];
 		clear_bit(i, iommu->domain_ids);
-		domain_exit(domain);
+
+		spin_lock_irqsave(&domain->iommu_lock, flags);
+		if (--domain->iommu_count == 0)
+			domain_exit(domain);
+		spin_unlock_irqrestore(&domain->iommu_lock, flags);
+
 		i = find_next_bit(iommu->domain_ids,
 			cap_ndoms(iommu->cap), i+1);
 	}
@@ -1351,6 +1380,7 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 
 	init_iova_domain(&domain->iovad, DMA_32BIT_PFN);
 	spin_lock_init(&domain->mapping_lock);
+	spin_lock_init(&domain->iommu_lock);
 
 	domain_reserve_special_ranges(domain);
 
@@ -1376,6 +1406,8 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 		domain->iommu_coherency = 1;
 	else
 		domain->iommu_coherency = 0;
+
+	domain->iommu_count = 1;
 
 	/* always allocate the top pgd */
 	domain->pgd = (struct dma_pte *)alloc_pgtable_page();
@@ -1445,6 +1477,13 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_DSI_FLUSH, 0);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	spin_lock_irqsave(&domain->iommu_lock, flags);
+	if (!test_and_set_bit(iommu->seq_id, &domain->iommu_bmp)) {
+		domain->iommu_count++;
+		domain_update_iommu_coherency(domain);
+	}
+	spin_unlock_irqrestore(&domain->iommu_lock, flags);
 	return 0;
 }
 
@@ -1547,9 +1586,10 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 	return 0;
 }
 
-static void detach_domain_for_dev(struct dmar_domain *domain, u8 bus, u8 devfn)
+static void iommu_detach_dev(struct intel_iommu *iommu, u8 bus, u8 devfn)
 {
-	struct intel_iommu *iommu = domain_get_iommu(domain);
+	if (!iommu)
+		return;
 
 	clear_context_table(iommu, bus, devfn);
 	iommu->flush.flush_context(iommu, 0, 0, 0,
@@ -1562,6 +1602,7 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 {
 	struct device_domain_info *info;
 	unsigned long flags;
+	struct intel_iommu *iommu;
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	while (!list_empty(&domain->devices)) {
@@ -1573,7 +1614,8 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 			info->dev->dev.archdata.iommu = NULL;
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 
-		detach_domain_for_dev(info->domain, info->bus, info->devfn);
+		iommu = device_to_iommu(info->bus, info->devfn);
+		iommu_detach_dev(iommu, info->bus, info->devfn);
 		free_devinfo_mem(info);
 
 		spin_lock_irqsave(&device_domain_lock, flags);
@@ -2625,6 +2667,122 @@ int __init intel_iommu_init(void)
 	return 0;
 }
 
+static int vm_domain_add_dev_info(struct dmar_domain *domain,
+				  struct pci_dev *pdev)
+{
+	struct device_domain_info *info;
+	unsigned long flags;
+
+	info = alloc_devinfo_mem();
+	if (!info)
+		return -ENOMEM;
+
+	info->bus = pdev->bus->number;
+	info->devfn = pdev->devfn;
+	info->dev = pdev;
+	info->domain = domain;
+
+	spin_lock_irqsave(&device_domain_lock, flags);
+	list_add(&info->link, &domain->devices);
+	list_add(&info->global, &device_domain_list);
+	pdev->dev.archdata.iommu = info;
+	spin_unlock_irqrestore(&device_domain_lock, flags);
+
+	return 0;
+}
+
+static void vm_domain_remove_one_dev_info(struct dmar_domain *domain,
+					  struct pci_dev *pdev)
+{
+	struct device_domain_info *info;
+	struct intel_iommu *iommu;
+	unsigned long flags;
+	int found = 0;
+	struct list_head *entry, *tmp;
+
+	iommu = device_to_iommu(pdev->bus->number, pdev->devfn);
+	if (!iommu)
+		return;
+
+	spin_lock_irqsave(&device_domain_lock, flags);
+	list_for_each_safe(entry, tmp, &domain->devices) {
+		info = list_entry(entry, struct device_domain_info, link);
+		if (info->bus == pdev->bus->number &&
+		    info->devfn == pdev->devfn) {
+			list_del(&info->link);
+			list_del(&info->global);
+			if (info->dev)
+				info->dev->dev.archdata.iommu = NULL;
+			spin_unlock_irqrestore(&device_domain_lock, flags);
+
+			iommu_detach_dev(iommu, info->bus, info->devfn);
+			free_devinfo_mem(info);
+
+			spin_lock_irqsave(&device_domain_lock, flags);
+
+			if (found)
+				break;
+			else
+				continue;
+		}
+
+		/* if there is no other devices under the same iommu
+		 * owned by this domain, clear this iommu in iommu_bmp
+		 * update iommu count and coherency
+		 */
+		if (device_to_iommu(info->bus, info->devfn) == iommu)
+			found = 1;
+	}
+
+	if (found == 0) {
+		unsigned long tmp_flags;
+		spin_lock_irqsave(&domain->iommu_lock, tmp_flags);
+		clear_bit(iommu->seq_id, &domain->iommu_bmp);
+		domain->iommu_count--;
+		domain_update_iommu_coherency(domain);
+		spin_unlock_irqrestore(&domain->iommu_lock, tmp_flags);
+	}
+
+	spin_unlock_irqrestore(&device_domain_lock, flags);
+}
+
+static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
+{
+	struct device_domain_info *info;
+	struct intel_iommu *iommu;
+	unsigned long flags1, flags2;
+
+	spin_lock_irqsave(&device_domain_lock, flags1);
+	while (!list_empty(&domain->devices)) {
+		info = list_entry(domain->devices.next,
+			struct device_domain_info, link);
+		list_del(&info->link);
+		list_del(&info->global);
+		if (info->dev)
+			info->dev->dev.archdata.iommu = NULL;
+
+		spin_unlock_irqrestore(&device_domain_lock, flags1);
+
+		iommu = device_to_iommu(info->bus, info->devfn);
+		iommu_detach_dev(iommu, info->bus, info->devfn);
+
+		/* clear this iommu in iommu_bmp, update iommu count
+		 * and coherency
+		 */
+		spin_lock_irqsave(&domain->iommu_lock, flags2);
+		if (test_and_clear_bit(iommu->seq_id,
+				       &domain->iommu_bmp)) {
+			domain->iommu_count--;
+			domain_update_iommu_coherency(domain);
+		}
+		spin_unlock_irqrestore(&domain->iommu_lock, flags2);
+
+		free_devinfo_mem(info);
+		spin_lock_irqsave(&device_domain_lock, flags1);
+	}
+	spin_unlock_irqrestore(&device_domain_lock, flags1);
+}
+
 void intel_iommu_domain_exit(struct dmar_domain *domain)
 {
 	u64 end;
@@ -2702,7 +2860,10 @@ EXPORT_SYMBOL_GPL(intel_iommu_page_mapping);
 
 void intel_iommu_detach_dev(struct dmar_domain *domain, u8 bus, u8 devfn)
 {
-	detach_domain_for_dev(domain, bus, devfn);
+	struct intel_iommu *iommu;
+
+	iommu = device_to_iommu(bus, devfn);
+	iommu_detach_dev(iommu, bus, devfn);
 }
 EXPORT_SYMBOL_GPL(intel_iommu_detach_dev);
 
