@@ -1579,3 +1579,31 @@ free_domains:
 
 	return ret;
 }
+
+/*****************************************************************************
+ *
+ * The following functions belong to the exported interface of AMD IOMMU
+ *
+ * This interface allows access to lower level functions of the IOMMU
+ * like protection domain handling and assignement of devices to domains
+ * which is not possible with the dma_ops interface.
+ *
+ *****************************************************************************/
+
+#ifdef CONFIG_IOMMU_API
+
+static void cleanup_domain(struct protection_domain *domain)
+{
+	unsigned long flags;
+	u16 devid;
+
+	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
+
+	for (devid = 0; devid <= amd_iommu_last_bdf; ++devid)
+		if (amd_iommu_pd_table[devid] == domain)
+			__detach_device(domain, devid);
+
+	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+}
+
+#endif
