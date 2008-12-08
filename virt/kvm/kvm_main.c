@@ -555,12 +555,14 @@ static void ack_flush(void *_completed)
 static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 {
 	int i, cpu, me;
-	cpumask_t cpus;
-	bool called = false;
+	cpumask_var_t cpus;
+	bool called = true;
 	struct kvm_vcpu *vcpu;
 
+	if (alloc_cpumask_var(&cpus, GFP_ATOMIC))
+		cpumask_clear(cpus);
+
 	me = get_cpu();
-	cpus_clear(cpus);
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		vcpu = kvm->vcpus[i];
 		if (!vcpu)
@@ -568,14 +570,17 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		if (test_and_set_bit(req, &vcpu->requests))
 			continue;
 		cpu = vcpu->cpu;
-		if (cpu != -1 && cpu != me)
-			cpu_set(cpu, cpus);
+		if (cpus != NULL && cpu != -1 && cpu != me)
+			cpumask_set_cpu(cpu, cpus);
 	}
-	if (!cpus_empty(cpus)) {
-		smp_call_function_mask(cpus, ack_flush, NULL, 1);
-		called = true;
-	}
+	if (unlikely(cpus == NULL))
+		smp_call_function_many(cpu_online_mask, ack_flush, NULL, 1);
+	else if (!cpumask_empty(cpus))
+		smp_call_function_many(cpus, ack_flush, NULL, 1);
+	else
+		called = false;
 	put_cpu();
+	free_cpumask_var(cpus);
 	return called;
 }
 
