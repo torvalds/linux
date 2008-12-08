@@ -570,11 +570,36 @@ print_graph_function(struct trace_iterator *iter)
 	}
 }
 
+static void print_graph_headers(struct seq_file *s)
+{
+	/* 1st line */
+	seq_printf(s, "# ");
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_CPU)
+		seq_printf(s, "CPU ");
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_PROC)
+		seq_printf(s, "TASK/PID     ");
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERHEAD)
+		seq_printf(s, "OVERHEAD/");
+	seq_printf(s, "DURATION            FUNCTION CALLS\n");
+
+	/* 2nd line */
+	seq_printf(s, "# ");
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_CPU)
+		seq_printf(s, "|   ");
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_PROC)
+		seq_printf(s, "|      |     ");
+	if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERHEAD) {
+		seq_printf(s, "|        ");
+		seq_printf(s, "|                   |   |   |   |\n");
+	} else
+		seq_printf(s, "    |               |   |   |   |\n");
+}
 static struct tracer graph_trace __read_mostly = {
-	.name	     = "function_graph",
-	.init	     = graph_trace_init,
-	.reset	     = graph_trace_reset,
-	.print_line = print_graph_function,
+	.name	     	= "function_graph",
+	.init	     	= graph_trace_init,
+	.reset	     	= graph_trace_reset,
+	.print_line	= print_graph_function,
+	.print_header	= print_graph_headers,
 	.flags		= &tracer_flags,
 };
 
