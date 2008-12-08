@@ -687,6 +687,12 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	   to the same server. We may make this configurable later or
 	   use ses->maxReq */
 
+	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
+		cERROR(1, ("Illegal length, greater than maximum frame, %d",
+			   in_buf->smb_buf_length));
+		return -EIO;
+	}
+
 	rc = wait_for_free_request(ses, long_op);
 	if (rc)
 		return rc;
@@ -704,17 +710,6 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		atomic_dec(&ses->server->inFlight);
 		wake_up(&ses->server->request_q);
 		return rc;
-	}
-
-	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
-		cERROR(1, ("Illegal length, greater than maximum frame, %d",
-			in_buf->smb_buf_length));
-		DeleteMidQEntry(midQ);
-		mutex_unlock(&ses->server->srv_mutex);
-		/* Update # of requests on wire to server */
-		atomic_dec(&ses->server->inFlight);
-		wake_up(&ses->server->request_q);
-		return -EIO;
 	}
 
 	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
@@ -925,6 +920,12 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	   to the same server. We may make this configurable later or
 	   use ses->maxReq */
 
+	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
+		cERROR(1, ("Illegal length, greater than maximum frame, %d",
+			   in_buf->smb_buf_length));
+		return -EIO;
+	}
+
 	rc = wait_for_free_request(ses, CIFS_BLOCKING_OP);
 	if (rc)
 		return rc;
@@ -939,14 +940,6 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	if (rc) {
 		mutex_unlock(&ses->server->srv_mutex);
 		return rc;
-	}
-
-	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
-		mutex_unlock(&ses->server->srv_mutex);
-		cERROR(1, ("Illegal length, greater than maximum frame, %d",
-			in_buf->smb_buf_length));
-		DeleteMidQEntry(midQ);
-		return -EIO;
 	}
 
 	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
