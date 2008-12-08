@@ -80,10 +80,11 @@ static void tda827x_set_std(struct dvb_frontend *fe,
 		mode = "xx";
 	}
 
-	if (params->mode == V4L2_TUNER_RADIO)
+	if (params->mode == V4L2_TUNER_RADIO) {
 		priv->sgIF = 88; /* if frequency is 5.5 MHz */
-
-	dprintk("setting tda827x to system %s\n", mode);
+		dprintk("setting tda827x to radio FM\n");
+	} else
+		dprintk("setting tda827x to system %s\n", mode);
 }
 
 
