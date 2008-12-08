@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2008 Matt Fleming <mjf@gentoo.org>
+ * Copyright (C) 2008 Paul Mundt <lethal@linux-sh.org>
  *
  * Code for replacing ftrace calls with jumps.
  *
@@ -98,6 +99,29 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	new = ftrace_call_replace(ip, (unsigned long)func);
 
 	return ftrace_modify_code(ip + MCOUNT_INSN_OFFSET, old, new);
+}
+
+int ftrace_make_nop(struct module *mod,
+		    struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned char *new, *old;
+	unsigned long ip = rec->ip;
+
+	old = ftrace_call_replace(ip, addr);
+	new = ftrace_nop_replace();
+
+	return ftrace_modify_code(rec->ip, old, new);
+}
+
+int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned char *new, *old;
+	unsigned long ip = rec->ip;
+
+	old = ftrace_nop_replace();
+	new = ftrace_call_replace(ip, addr);
+
+	return ftrace_modify_code(rec->ip, old, new);
 }
 
 int __init ftrace_dyn_arch_init(void *data)
