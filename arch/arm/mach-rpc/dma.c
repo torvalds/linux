@@ -67,7 +67,7 @@ static void iomd_get_next_sg(struct scatterlist *sg, struct iomd_dma *idma)
 
 		if (idma->dma.sg->length == 0) {
 			if (idma->dma.sgcount > 1) {
-				idma->dma.sg++;
+				idma->dma.sg = sg_next(idma->dma.sg);
 				idma->dma.sgcount--;
 			} else {
 				idma->dma.sg = NULL;
