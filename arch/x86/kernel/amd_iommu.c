@@ -1657,4 +1657,30 @@ static void amd_iommu_domain_destroy(struct iommu_domain *dom)
 	dom->priv = NULL;
 }
 
+static void amd_iommu_detach_device(struct iommu_domain *dom,
+				    struct device *dev)
+{
+	struct protection_domain *domain = dom->priv;
+	struct amd_iommu *iommu;
+	struct pci_dev *pdev;
+	u16 devid;
+
+	if (dev->bus != &pci_bus_type)
+		return;
+
+	pdev = to_pci_dev(dev);
+
+	devid = calc_devid(pdev->bus->number, pdev->devfn);
+
+	if (devid > 0)
+		detach_device(domain, devid);
+
+	iommu = amd_iommu_rlookup_table[devid];
+	if (!iommu)
+		return;
+
+	iommu_queue_inv_dev_entry(iommu, devid);
+	iommu_completion_wait(iommu);
+}
+
 #endif
