@@ -28,7 +28,6 @@ struct btrfs_device {
 	struct list_head dev_alloc_list;
 	struct btrfs_fs_devices *fs_devices;
 	struct btrfs_root *dev_root;
-	struct buffer_head *pending_io;
 	struct bio *pending_bios;
 	struct bio *pending_bio_tail;
 	int running_pending;
@@ -125,7 +124,10 @@ int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 		    u64 logical, u64 *length,
 		    struct btrfs_multi_bio **multi_ret, int mirror_num);
-int btrfs_read_sys_array(struct btrfs_root *root);
+int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
+		     u64 chunk_start, u64 physical, u64 devid,
+		     u64 **logical, int *naddrs, int *stripe_len);
+int btrfs_read_sys_array(struct btrfs_root *root, u64 sb_bytenr);
 int btrfs_read_chunk_tree(struct btrfs_root *root);
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *extent_root, u64 type);

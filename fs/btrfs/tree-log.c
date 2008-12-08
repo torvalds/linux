@@ -1996,7 +1996,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	btrfs_set_super_log_root_level(&root->fs_info->super_for_commit,
 		       btrfs_header_level(log->fs_info->log_root_tree->node));
 
-	write_ctree_super(trans, log->fs_info->tree_root);
+	write_ctree_super(trans, log->fs_info->tree_root, 2);
 	log->fs_info->tree_log_transid++;
 	log->fs_info->tree_log_batch = 0;
 	atomic_set(&log->fs_info->tree_log_commit, 0);
@@ -2006,7 +2006,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 out:
 	mutex_unlock(&log->fs_info->tree_log_mutex);
 	return 0;
-
 }
 
 /* * free all the extents used by the tree log.  This should be called

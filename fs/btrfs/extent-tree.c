@@ -189,6 +189,29 @@ static int add_new_free_space(struct btrfs_block_group_cache *block_group,
 	return 0;
 }
 
+static int remove_sb_from_cache(struct btrfs_root *root,
+				struct btrfs_block_group_cache *cache)
+{
+	u64 bytenr;
+	u64 *logical;
+	int stripe_len;
+	int i, nr, ret;
+
+	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
+		bytenr = btrfs_sb_offset(i);
+		ret = btrfs_rmap_block(&root->fs_info->mapping_tree,
+				       cache->key.objectid, bytenr, 0,
+				       &logical, &nr, &stripe_len);
+		BUG_ON(ret);
+		while (nr--) {
+			btrfs_remove_free_space(cache, logical[nr],
+						stripe_len);
+		}
+		kfree(logical);
+	}
+	return 0;
+}
+
 static int cache_block_group(struct btrfs_root *root,
 			     struct btrfs_block_group_cache *block_group)
 {
@@ -197,9 +220,7 @@ static int cache_block_group(struct btrfs_root *root,
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
 	int slot;
-	u64 last = 0;
-	u64 first_free;
-	int found = 0;
+	u64 last = block_group->key.objectid;
 
 	if (!block_group)
 		return 0;
@@ -220,23 +241,13 @@ static int cache_block_group(struct btrfs_root *root,
 	 * skip the locking here
 	 */
 	path->skip_locking = 1;
-	first_free = max_t(u64, block_group->key.objectid,
-			   BTRFS_SUPER_INFO_OFFSET + BTRFS_SUPER_INFO_SIZE);
-	key.objectid = block_group->key.objectid;
+	key.objectid = last;
 	key.offset = 0;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
-	ret = btrfs_previous_item(root, path, 0, BTRFS_EXTENT_ITEM_KEY);
-	if (ret < 0)
-		goto err;
-	if (ret == 0) {
-		leaf = path->nodes[0];
-		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		if (key.objectid + key.offset > first_free)
-			first_free = key.objectid + key.offset;
-	}
+
 	while(1) {
 		leaf = path->nodes[0];
 		slot = path->slots[0];
@@ -258,11 +269,6 @@ static int cache_block_group(struct btrfs_root *root,
 			break;
 
 		if (btrfs_key_type(&key) == BTRFS_EXTENT_ITEM_KEY) {
-			if (!found) {
-				last = first_free;
-				found = 1;
-			}
-
 			add_new_free_space(block_group, root->fs_info, last,
 					   key.objectid);
 
@@ -272,13 +278,11 @@ next:
 		path->slots[0]++;
 	}
 
-	if (!found)
-		last = first_free;
-
 	add_new_free_space(block_group, root->fs_info, last,
 			   block_group->key.objectid +
 			   block_group->key.offset);
 
+	remove_sb_from_cache(root, block_group);
 	block_group->cached = 1;
 	ret = 0;
 err:
@@ -1974,10 +1978,8 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 		if (alloc) {
 			old_val += num_bytes;
 			cache->space_info->bytes_used += num_bytes;
-			if (cache->ro) {
+			if (cache->ro)
 				cache->space_info->bytes_readonly -= num_bytes;
-				WARN_ON(1);
-			}
 			btrfs_set_block_group_used(&cache->item, old_val);
 			spin_unlock(&cache->lock);
 			spin_unlock(&cache->space_info->lock);

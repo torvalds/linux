@@ -1595,8 +1595,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
 
-	bh = __bread(fs_devices->latest_bdev,
-		     BTRFS_SUPER_INFO_OFFSET / 4096, 4096);
+	bh = btrfs_read_dev_super(fs_devices->latest_bdev);
 	if (!bh)
 		goto fail_iput;
 
@@ -1710,7 +1709,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	}
 
 	mutex_lock(&fs_info->chunk_mutex);
-	ret = btrfs_read_sys_array(tree_root);
+	ret = btrfs_read_sys_array(tree_root, btrfs_super_bytenr(disk_super));
 	mutex_unlock(&fs_info->chunk_mutex);
 	if (ret) {
 		printk("btrfs: failed to read the system array on %s\n",
@@ -1905,19 +1904,147 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	put_bh(bh);
 }
 
-static int write_all_supers(struct btrfs_root *root)
+struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
+{
+	struct buffer_head *bh;
+	struct buffer_head *latest = NULL;
+	struct btrfs_super_block *super;
+	int i;
+	u64 transid = 0;
+	u64 bytenr;
+
+	/* we would like to check all the supers, but that would make
+	 * a btrfs mount succeed after a mkfs from a different FS.
+	 * So, we need to add a special mount option to scan for
+	 * later supers, using BTRFS_SUPER_MIRROR_MAX instead
+	 */
+	for (i = 0; i < 1; i++) {
+		bytenr = btrfs_sb_offset(i);
+		if (bytenr + 4096 >= i_size_read(bdev->bd_inode))
+			break;
+		bh = __bread(bdev, bytenr / 4096, 4096);
+		if (!bh)
+			continue;
+
+		super = (struct btrfs_super_block *)bh->b_data;
+		if (btrfs_super_bytenr(super) != bytenr ||
+		    strncmp((char *)(&super->magic), BTRFS_MAGIC,
+			    sizeof(super->magic))) {
+			brelse(bh);
+			continue;
+		}
+
+		if (!latest || btrfs_super_generation(super) > transid) {
+			brelse(latest);
+			latest = bh;
+			transid = btrfs_super_generation(super);
+		} else {
+			brelse(bh);
+		}
+	}
+	return latest;
+}
+
+static int write_dev_supers(struct btrfs_device *device,
+			    struct btrfs_super_block *sb,
+			    int do_barriers, int wait, int max_mirrors)
+{
+	struct buffer_head *bh;
+	int i;
+	int ret;
+	int errors = 0;
+	u32 crc;
+	u64 bytenr;
+	int last_barrier = 0;
+
+	if (max_mirrors == 0)
+		max_mirrors = BTRFS_SUPER_MIRROR_MAX;
+
+	/* make sure only the last submit_bh does a barrier */
+	if (do_barriers) {
+		for (i = 0; i < max_mirrors; i++) {
+			bytenr = btrfs_sb_offset(i);
+			if (bytenr + BTRFS_SUPER_INFO_SIZE >=
+			    device->total_bytes)
+				break;
+			last_barrier = i;
+		}
+	}
+
+	for (i = 0; i < max_mirrors; i++) {
+		bytenr = btrfs_sb_offset(i);
+		if (bytenr + BTRFS_SUPER_INFO_SIZE >= device->total_bytes)
+			break;
+
+		if (wait) {
+			bh = __find_get_block(device->bdev, bytenr / 4096,
+					      BTRFS_SUPER_INFO_SIZE);
+			BUG_ON(!bh);
+			brelse(bh);
+			wait_on_buffer(bh);
+			if (buffer_uptodate(bh)) {
+				brelse(bh);
+				continue;
+			}
+		} else {
+			btrfs_set_super_bytenr(sb, bytenr);
+
+			crc = ~(u32)0;
+			crc = btrfs_csum_data(NULL, (char *)sb +
+					      BTRFS_CSUM_SIZE, crc,
+					      BTRFS_SUPER_INFO_SIZE -
+					      BTRFS_CSUM_SIZE);
+			btrfs_csum_final(crc, sb->csum);
+
+			bh = __getblk(device->bdev, bytenr / 4096,
+				      BTRFS_SUPER_INFO_SIZE);
+			memcpy(bh->b_data, sb, BTRFS_SUPER_INFO_SIZE);
+
+			set_buffer_uptodate(bh);
+			get_bh(bh);
+			lock_buffer(bh);
+			bh->b_end_io = btrfs_end_buffer_write_sync;
+		}
+
+		if (i == last_barrier && do_barriers && device->barriers) {
+			ret = submit_bh(WRITE_BARRIER, bh);
+			if (ret == -EOPNOTSUPP) {
+				printk("btrfs: disabling barriers on dev %s\n",
+				       device->name);
+				set_buffer_uptodate(bh);
+				device->barriers = 0;
+				get_bh(bh);
+				lock_buffer(bh);
+				ret = submit_bh(WRITE, bh);
+			}
+		} else {
+			ret = submit_bh(WRITE, bh);
+		}
+
+		if (!ret && wait) {
+			wait_on_buffer(bh);
+			if (!buffer_uptodate(bh))
+				errors++;
+		} else if (ret) {
+			errors++;
+		}
+		if (wait)
+			brelse(bh);
+	}
+	return errors < i ? 0 : -1;
+}
+
+int write_all_supers(struct btrfs_root *root, int max_mirrors)
 {
 	struct list_head *cur;
 	struct list_head *head = &root->fs_info->fs_devices->devices;
 	struct btrfs_device *dev;
 	struct btrfs_super_block *sb;
 	struct btrfs_dev_item *dev_item;
-	struct buffer_head *bh;
 	int ret;
 	int do_barriers;
 	int max_errors;
 	int total_errors = 0;
-	u32 crc;
 	u64 flags;
 
 	max_errors = btrfs_super_num_devices(&root->fs_info->super_copy) - 1;
@@ -1944,40 +2071,11 @@ static int write_all_supers(struct btrfs_root *root)
 		btrfs_set_stack_device_sector_size(dev_item, dev->sector_size);
 		memcpy(dev_item->uuid, dev->uuid, BTRFS_UUID_SIZE);
 		memcpy(dev_item->fsid, dev->fs_devices->fsid, BTRFS_UUID_SIZE);
+
 		flags = btrfs_super_flags(sb);
 		btrfs_set_super_flags(sb, flags | BTRFS_HEADER_FLAG_WRITTEN);
 
-
-		crc = ~(u32)0;
-		crc = btrfs_csum_data(root, (char *)sb + BTRFS_CSUM_SIZE, crc,
-				      BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE);
-		btrfs_csum_final(crc, sb->csum);
-
-		bh = __getblk(dev->bdev, BTRFS_SUPER_INFO_OFFSET / 4096,
-			      BTRFS_SUPER_INFO_SIZE);
-
-		memcpy(bh->b_data, sb, BTRFS_SUPER_INFO_SIZE);
-		dev->pending_io = bh;
-
-		get_bh(bh);
-		set_buffer_uptodate(bh);
-		lock_buffer(bh);
-		bh->b_end_io = btrfs_end_buffer_write_sync;
-
-		if (do_barriers && dev->barriers) {
-			ret = submit_bh(WRITE_BARRIER, bh);
-			if (ret == -EOPNOTSUPP) {
-				printk("btrfs: disabling barriers on dev %s\n",
-				       dev->name);
-				set_buffer_uptodate(bh);
-				dev->barriers = 0;
-				get_bh(bh);
-				lock_buffer(bh);
-				ret = submit_bh(WRITE, bh);
-			}
-		} else {
-			ret = submit_bh(WRITE, bh);
-		}
+		ret = write_dev_supers(dev, sb, do_barriers, 0, max_mirrors);
 		if (ret)
 			total_errors++;
 	}
@@ -1985,8 +2083,8 @@ static int write_all_supers(struct btrfs_root *root)
 		printk("btrfs: %d errors while writing supers\n", total_errors);
 		BUG();
 	}
-	total_errors = 0;
 
+	total_errors = 0;
 	list_for_each(cur, head) {
 		dev = list_entry(cur, struct btrfs_device, dev_list);
 		if (!dev->bdev)
@@ -1994,29 +2092,9 @@ static int write_all_supers(struct btrfs_root *root)
 		if (!dev->in_fs_metadata || !dev->writeable)
 			continue;
 
-		BUG_ON(!dev->pending_io);
-		bh = dev->pending_io;
-		wait_on_buffer(bh);
-		if (!buffer_uptodate(dev->pending_io)) {
-			if (do_barriers && dev->barriers) {
-				printk("btrfs: disabling barriers on dev %s\n",
-				       dev->name);
-				set_buffer_uptodate(bh);
-				get_bh(bh);
-				lock_buffer(bh);
-				dev->barriers = 0;
-				ret = submit_bh(WRITE, bh);
-				BUG_ON(ret);
-				wait_on_buffer(bh);
-				if (!buffer_uptodate(bh))
-					total_errors++;
-			} else {
-				total_errors++;
-			}
-
-		}
-		dev->pending_io = NULL;
-		brelse(bh);
+		ret = write_dev_supers(dev, sb, do_barriers, 1, max_mirrors);
+		if (ret)
+			total_errors++;
 	}
 	if (total_errors > max_errors) {
 		printk("btrfs: %d errors while writing supers\n", total_errors);
@@ -2025,12 +2103,12 @@ static int write_all_supers(struct btrfs_root *root)
 	return 0;
 }
 
-int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
-		      *root)
+int write_ctree_super(struct btrfs_trans_handle *trans,
+		      struct btrfs_root *root, int max_mirrors)
 {
 	int ret;
 
-	ret = write_all_supers(root);
+	ret = write_all_supers(root, max_mirrors);
 	return ret;
 }
 
@@ -2116,7 +2194,7 @@ int btrfs_commit_super(struct btrfs_root *root)
 	ret = btrfs_write_and_wait_transaction(NULL, root);
 	BUG_ON(ret);
 
-	ret = write_ctree_super(NULL, root);
+	ret = write_ctree_super(NULL, root, 0);
 	return ret;
 }
 

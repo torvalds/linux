@@ -1038,7 +1038,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	mutex_unlock(&root->fs_info->trans_mutex);
 	ret = btrfs_write_and_wait_transaction(trans, root);
 	BUG_ON(ret);
-	write_ctree_super(trans, root);
+	write_ctree_super(trans, root, 0);
 
 	/*
 	 * the super is written, we can safely allow the tree-loggers

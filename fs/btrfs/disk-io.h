@@ -19,8 +19,20 @@
 #ifndef __DISKIO__
 #define __DISKIO__
 
-#define BTRFS_SUPER_INFO_OFFSET (16 * 1024)
+#define BTRFS_SUPER_INFO_OFFSET (64 * 1024)
 #define BTRFS_SUPER_INFO_SIZE 4096
+
+#define BTRFS_SUPER_MIRROR_MAX	 3
+#define BTRFS_SUPER_MIRROR_SHIFT 12
+
+static inline u64 btrfs_sb_offset(int mirror)
+{
+	u64 start = 16 * 1024;
+	if (mirror)
+		return start << (BTRFS_SUPER_MIRROR_SHIFT * mirror);
+	return BTRFS_SUPER_INFO_OFFSET;
+}
+
 struct btrfs_device;
 struct btrfs_fs_devices;
 
@@ -37,7 +49,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			      char *options);
 int close_ctree(struct btrfs_root *root);
 int write_ctree_super(struct btrfs_trans_handle *trans,
-		      struct btrfs_root *root);
+		      struct btrfs_root *root, int max_mirrors);
+struct buffer_head *btrfs_read_dev_super(struct block_device *bdev);
 int btrfs_commit_super(struct btrfs_root *root);
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 					    u64 bytenr, u32 blocksize);

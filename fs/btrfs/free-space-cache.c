@@ -290,7 +290,6 @@ __btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 			ret = -EINVAL;
 			goto out;
 		}
-
 		unlink_free_space(block_group, info);
 
 		if (info->bytes == bytes) {
