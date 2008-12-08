@@ -1874,6 +1874,18 @@ struct snd_soc_codec_device soc_codec_dev_wm8753 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8753);
 
+static int __devinit wm8753_modinit(void)
+{
+	return snd_soc_register_dais(wm8753_dai, ARRAY_SIZE(wm8753_dai));
+}
+module_init(wm8753_modinit);
+
+static void __exit wm8753_exit(void)
+{
+	snd_soc_unregister_dais(wm8753_dai, ARRAY_SIZE(wm8753_dai));
+}
+module_exit(wm8753_exit);
+
 MODULE_DESCRIPTION("ASoC WM8753 driver");
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_LICENSE("GPL");

@@ -847,6 +847,18 @@ struct snd_soc_codec_device soc_codec_dev_tlv320aic23 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_tlv320aic23);
 
+static int __devinit tlv320aic23_modinit(void)
+{
+	return snd_soc_register_dai(&tlv320aic23_dai);
+}
+module_init(tlv320aic23_modinit);
+
+static void __exit tlv320aic23_exit(void)
+{
+	snd_soc_unregister_dai(&tlv320aic23_dai);
+}
+module_exit(tlv320aic23_exit);
+
 MODULE_DESCRIPTION("ASoC TLV320AIC23 codec driver");
 MODULE_AUTHOR("Arun KS <arunks@mistralsolutions.com>");
 MODULE_LICENSE("GPL");

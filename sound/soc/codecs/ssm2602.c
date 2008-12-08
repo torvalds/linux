@@ -793,6 +793,18 @@ struct snd_soc_codec_device soc_codec_dev_ssm2602 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ssm2602);
 
+static int __devinit ssm2602_modinit(void)
+{
+	return snd_soc_register_dai(&ssm2602_dai);
+}
+module_init(ssm2602_modinit);
+
+static void __exit ssm2602_exit(void)
+{
+	snd_soc_unregister_dai(&ssm2602_dai);
+}
+module_exit(ssm2602_exit);
+
 MODULE_DESCRIPTION("ASoC ssm2602 driver");
 MODULE_AUTHOR("Cliff Cai");
 MODULE_LICENSE("GPL");

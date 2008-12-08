@@ -651,6 +651,18 @@ struct snd_soc_codec_device soc_codec_dev_uda134x = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_uda134x);
 
+static int __devinit uda134x_init(void)
+{
+	return snd_soc_register_dai(&uda134x_dai);
+}
+module_init(uda134x_init);
+
+static void __exit uda134x_exit(void)
+{
+	snd_soc_unregister_dai(&uda134x_dai);
+}
+module_exit(uda134x_exit);
+
 MODULE_DESCRIPTION("UDA134X ALSA soc codec driver");
 MODULE_AUTHOR("Zoltan Devai, Christian Pellegrin <chripell@evolware.org>");
 MODULE_LICENSE("GPL");

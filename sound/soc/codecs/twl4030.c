@@ -358,7 +358,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 	.put = snd_soc_put_volsw_r2_twl4030, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		.max = xmax, .invert = xinvert} }
+		 .rshift = xshift, .max = xmax, .invert = xinvert} }
 #define SOC_SINGLE_TLV_TWL4030(xname, xreg, xshift, xmax, xinvert, tlv_array) \
 	SOC_DOUBLE_TLV_TWL4030(xname, xreg, xshift, xshift, xmax, \
 			       xinvert, tlv_array)
@@ -1274,6 +1274,18 @@ struct snd_soc_codec_device soc_codec_dev_twl4030 = {
 	.resume = twl4030_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_twl4030);
+
+static int __devinit twl4030_init(void)
+{
+	return snd_soc_register_dai(&twl4030_dai);
+}
+module_init(twl4030_init);
+
+static void __exit twl4030_exit(void)
+{
+	snd_soc_unregister_dai(&twl4030_dai);
+}
+module_exit(twl4030_exit);
 
 MODULE_DESCRIPTION("ASoC TWL4030 codec driver");
 MODULE_AUTHOR("Steve Sakoman");

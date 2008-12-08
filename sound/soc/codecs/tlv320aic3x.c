@@ -1411,6 +1411,18 @@ struct snd_soc_codec_device soc_codec_dev_aic3x = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_aic3x);
 
+static int __devinit aic3x_modinit(void)
+{
+	return snd_soc_register_dai(&aic3x_dai);
+}
+module_init(aic3x_modinit);
+
+static void __exit aic3x_exit(void)
+{
+	snd_soc_unregister_dai(&aic3x_dai);
+}
+module_exit(aic3x_exit);
+
 MODULE_DESCRIPTION("ASoC TLV320AIC3X codec driver");
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_LICENSE("GPL");

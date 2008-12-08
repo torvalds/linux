@@ -793,6 +793,18 @@ struct snd_soc_codec_device soc_codec_dev_wm8731 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8731);
 
+static int __devinit wm8731_modinit(void)
+{
+	return snd_soc_register_dai(&wm8731_dai);
+}
+module_init(wm8731_modinit);
+
+static void __exit wm8731_exit(void)
+{
+	snd_soc_unregister_dai(&wm8731_dai);
+}
+module_exit(wm8731_exit);
+
 MODULE_DESCRIPTION("ASoC WM8731 driver");
 MODULE_AUTHOR("Richard Purdie");
 MODULE_LICENSE("GPL");

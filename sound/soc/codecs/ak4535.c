@@ -688,6 +688,18 @@ struct snd_soc_codec_device soc_codec_dev_ak4535 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ak4535);
 
+static int __devinit ak4535_modinit(void)
+{
+	return snd_soc_register_dai(&ak4535_dai);
+}
+module_init(ak4535_modinit);
+
+static void __exit ak4535_exit(void)
+{
+	snd_soc_unregister_dai(&ak4535_dai);
+}
+module_exit(ak4535_exit);
+
 MODULE_DESCRIPTION("Soc AK4535 driver");
 MODULE_AUTHOR("Richard Purdie");
 MODULE_LICENSE("GPL");

@@ -195,6 +195,18 @@ struct snd_soc_codec_device soc_codec_dev_pcm3008 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_pcm3008);
 
+static int __devinit pcm3008_init(void)
+{
+	return snd_soc_register_dai(&pcm3008_dai);
+}
+module_init(pcm3008_init);
+
+static void __exit pcm3008_exit(void)
+{
+	snd_soc_unregister_dai(&pcm3008_dai);
+}
+module_exit(pcm3008_exit);
+
 MODULE_DESCRIPTION("Soc PCM3008 driver");
 MODULE_AUTHOR("Hugo Villeneuve");
 MODULE_LICENSE("GPL");

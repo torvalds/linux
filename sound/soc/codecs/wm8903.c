@@ -1809,6 +1809,18 @@ struct snd_soc_codec_device soc_codec_dev_wm8903 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8903);
 
+static int __devinit wm8903_modinit(void)
+{
+	return snd_soc_register_dai(&wm8903_dai);
+}
+module_init(wm8903_modinit);
+
+static void __exit wm8903_exit(void)
+{
+	snd_soc_unregister_dai(&wm8903_dai);
+}
+module_exit(wm8903_exit);
+
 MODULE_DESCRIPTION("ASoC WM8903 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.cm>");
 MODULE_LICENSE("GPL");

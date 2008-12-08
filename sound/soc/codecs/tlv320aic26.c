@@ -426,7 +426,7 @@ static DEVICE_ATTR(keyclick, 0644, aic26_keyclick_show, aic26_keyclick_set);
 static int aic26_spi_probe(struct spi_device *spi)
 {
 	struct aic26 *aic26;
-	int rc, i, reg;
+	int ret, i, reg;
 
 	dev_dbg(&spi->dev, "probing tlv320aic26 spi device\n");
 
@@ -456,6 +456,14 @@ static int aic26_spi_probe(struct spi_device *spi)
 	aic26->codec.reg_cache_size = AIC26_NUM_REGS;
 	aic26->codec.reg_cache = aic26->reg_cache;
 
+	aic26_dai.dev = &spi->dev;
+	ret = snd_soc_register_dai(&aic26_dai);
+	if (ret != 0) {
+		dev_err(&spi->dev, "Failed to register DAI: %d\n", ret);
+		kfree(aic26);
+		return ret;
+	}
+
 	/* Reset the codec to power on defaults */
 	aic26_reg_write(&aic26->codec, AIC26_REG_RESET, 0xBB00);
 
@@ -474,8 +482,8 @@ static int aic26_spi_probe(struct spi_device *spi)
 
 	/* Register the sysfs files for debugging */
 	/* Create SysFS files */
-	rc = device_create_file(&spi->dev, &dev_attr_keyclick);
-	if (rc)
+	ret = device_create_file(&spi->dev, &dev_attr_keyclick);
+	if (ret)
 		dev_info(&spi->dev, "error creating sysfs files\n");
 
 #if defined(CONFIG_SND_SOC_OF_SIMPLE)
@@ -492,6 +500,7 @@ static int aic26_spi_remove(struct spi_device *spi)
 {
 	struct aic26 *aic26 = dev_get_drvdata(&spi->dev);
 
+	snd_soc_unregister_dai(&aic26_dai);
 	kfree(aic26);
 
 	return 0;
