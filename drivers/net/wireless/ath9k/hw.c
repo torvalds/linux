@@ -1212,6 +1212,14 @@ struct ath_hal *ath9k_hw_attach(u16 devid, struct ath_softc *sc,
 static void ath9k_hw_override_ini(struct ath_hal *ah,
 				  struct ath9k_channel *chan)
 {
+	/*
+	 * Set the RX_ABORT and RX_DIS and clear if off only after
+	 * RXE is set for MAC. This prevents frames with corrupted
+	 * descriptor status.
+	 */
+	REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
+
+
 	if (!AR_SREV_5416_V20_OR_LATER(ah) ||
 	    AR_SREV_9280_10_OR_LATER(ah))
 		return;
