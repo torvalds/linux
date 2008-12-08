@@ -1664,9 +1664,13 @@ static void __devinit quirk_netmos(struct pci_dev *dev)
 	 * of parallel ports and <S> is the number of serial ports.
 	 */
 	switch (dev->device) {
+	case PCI_DEVICE_ID_NETMOS_9835:
+		/* Well, this rule doesn't hold for the following 9835 device */
+		if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
+				dev->subsystem_device == 0x0299)
+			return;
 	case PCI_DEVICE_ID_NETMOS_9735:
 	case PCI_DEVICE_ID_NETMOS_9745:
-	case PCI_DEVICE_ID_NETMOS_9835:
 	case PCI_DEVICE_ID_NETMOS_9845:
 	case PCI_DEVICE_ID_NETMOS_9855:
 		if ((dev->class >> 8) == PCI_CLASS_COMMUNICATION_SERIAL &&
