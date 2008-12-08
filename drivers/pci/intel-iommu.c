@@ -2944,96 +2944,87 @@ static void vm_domain_exit(struct dmar_domain *domain)
 	free_domain_mem(domain);
 }
 
-void intel_iommu_domain_exit(struct dmar_domain *domain)
+struct dmar_domain *intel_iommu_alloc_domain(void)
 {
-	u64 end;
-
-	/* Domain 0 is reserved, so dont process it */
-	if (!domain)
-		return;
-
-	end = DOMAIN_MAX_ADDR(domain->gaw);
-	end = end & (~VTD_PAGE_MASK);
-
-	/* clear ptes */
-	dma_pte_clear_range(domain, 0, end);
-
-	/* free page tables */
-	dma_pte_free_pagetable(domain, 0, end);
-
-	iommu_free_domain(domain);
-	free_domain_mem(domain);
-}
-EXPORT_SYMBOL_GPL(intel_iommu_domain_exit);
-
-struct dmar_domain *intel_iommu_domain_alloc(struct pci_dev *pdev)
-{
-	struct dmar_drhd_unit *drhd;
 	struct dmar_domain *domain;
-	struct intel_iommu *iommu;
 
-	drhd = dmar_find_matched_drhd_unit(pdev);
-	if (!drhd) {
-		printk(KERN_ERR "intel_iommu_domain_alloc: drhd == NULL\n");
-		return NULL;
-	}
-
-	iommu = drhd->iommu;
-	if (!iommu) {
-		printk(KERN_ERR
-			"intel_iommu_domain_alloc: iommu == NULL\n");
-		return NULL;
-	}
-	domain = iommu_alloc_domain(iommu);
+	domain = iommu_alloc_vm_domain();
 	if (!domain) {
 		printk(KERN_ERR
 			"intel_iommu_domain_alloc: domain == NULL\n");
 		return NULL;
 	}
-	if (domain_init(domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
+	if (vm_domain_init(domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
 		printk(KERN_ERR
 			"intel_iommu_domain_alloc: domain_init() failed\n");
-		intel_iommu_domain_exit(domain);
+		vm_domain_exit(domain);
 		return NULL;
 	}
+
 	return domain;
 }
-EXPORT_SYMBOL_GPL(intel_iommu_domain_alloc);
+EXPORT_SYMBOL_GPL(intel_iommu_alloc_domain);
 
-int intel_iommu_context_mapping(
-	struct dmar_domain *domain, struct pci_dev *pdev)
+void intel_iommu_free_domain(struct dmar_domain *domain)
 {
-	int rc;
-	rc = domain_context_mapping(domain, pdev);
-	return rc;
+	vm_domain_exit(domain);
 }
-EXPORT_SYMBOL_GPL(intel_iommu_context_mapping);
+EXPORT_SYMBOL_GPL(intel_iommu_free_domain);
 
-int intel_iommu_page_mapping(
-	struct dmar_domain *domain, dma_addr_t iova,
-	u64 hpa, size_t size, int prot)
+int intel_iommu_attach_device(struct dmar_domain *domain,
+			      struct pci_dev *pdev)
 {
-	int rc;
-	rc = domain_page_mapping(domain, iova, hpa, size, prot);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(intel_iommu_page_mapping);
+	int ret;
 
-void intel_iommu_detach_dev(struct dmar_domain *domain, u8 bus, u8 devfn)
+	/* normally pdev is not mapped */
+	if (unlikely(domain_context_mapped(pdev))) {
+		struct dmar_domain *old_domain;
+
+		old_domain = find_domain(pdev);
+		if (old_domain) {
+			if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE)
+				vm_domain_remove_one_dev_info(old_domain, pdev);
+			else
+				domain_remove_dev_info(old_domain);
+		}
+	}
+
+	ret = domain_context_mapping(domain, pdev);
+	if (ret)
+		return ret;
+
+	ret = vm_domain_add_dev_info(domain, pdev);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(intel_iommu_attach_device);
+
+void intel_iommu_detach_device(struct dmar_domain *domain,
+			       struct pci_dev *pdev)
 {
-	struct intel_iommu *iommu;
-
-	iommu = device_to_iommu(bus, devfn);
-	iommu_detach_dev(iommu, bus, devfn);
+	vm_domain_remove_one_dev_info(domain, pdev);
 }
-EXPORT_SYMBOL_GPL(intel_iommu_detach_dev);
+EXPORT_SYMBOL_GPL(intel_iommu_detach_device);
 
-struct dmar_domain *
-intel_iommu_find_domain(struct pci_dev *pdev)
+int intel_iommu_map_address(struct dmar_domain *domain, dma_addr_t iova,
+			    u64 hpa, size_t size, int prot)
 {
-	return find_domain(pdev);
+	int ret;
+	ret = domain_page_mapping(domain, iova, hpa, size, prot);
+	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_iommu_find_domain);
+EXPORT_SYMBOL_GPL(intel_iommu_map_address);
+
+void intel_iommu_unmap_address(struct dmar_domain *domain,
+			       dma_addr_t iova, size_t size)
+{
+	dma_addr_t base;
+
+	/* The address might not be aligned */
+	base = iova & VTD_PAGE_MASK;
+	size = VTD_PAGE_ALIGN(size);
+	dma_pte_clear_range(domain, base, base + size);
+}
+EXPORT_SYMBOL_GPL(intel_iommu_unmap_address);
 
 int intel_iommu_found(void)
 {
@@ -3041,17 +3032,15 @@ int intel_iommu_found(void)
 }
 EXPORT_SYMBOL_GPL(intel_iommu_found);
 
-u64 intel_iommu_iova_to_pfn(struct dmar_domain *domain, u64 iova)
+u64 intel_iommu_iova_to_phys(struct dmar_domain *domain, u64 iova)
 {
 	struct dma_pte *pte;
-	u64 pfn;
+	u64 phys = 0;
 
-	pfn = 0;
 	pte = addr_to_dma_pte(domain, iova);
-
 	if (pte)
-		pfn = dma_pte_addr(pte);
+		phys = dma_pte_addr(pte);
 
-	return pfn >> VTD_PAGE_SHIFT;
+	return phys;
 }
-EXPORT_SYMBOL_GPL(intel_iommu_iova_to_pfn);
+EXPORT_SYMBOL_GPL(intel_iommu_iova_to_phys);
