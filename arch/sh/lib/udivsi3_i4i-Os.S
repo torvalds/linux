@@ -41,9 +41,7 @@ Boston, MA 02110-1301, USA.  */
 	.balign 4
 	.global	__udivsi3_i4i
 	.global	__udivsi3_i4
-	.global __udivsi3
 	.set	__udivsi3_i4, __udivsi3_i4i
-	.set	__udivsi3, __udivsi3_i4i
 	.type	__udivsi3_i4i, @function
 	.type	__sdivsi3_i4i, @function
 __udivsi3_i4i:

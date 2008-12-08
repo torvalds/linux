@@ -10,12 +10,13 @@ lib-y += movmem.o ashldi3.o ashrdi3.o lshrdi3.o \
 	 ashlsi3.o ashrsi3.o ashiftrt.o lshrsi3.o \
 	 udiv_qrnnd.o
 
-udivsi3-y			:= udivsi3-Os.o
+udivsi3-y			:= udivsi3_i4i-Os.o
 
 ifneq ($(CONFIG_CC_OPTIMIZE_FOR_SIZE),y)
-udivsi3-$(CONFIG_CPU_SH3)	:= udivsi3.o
-udivsi3-$(CONFIG_CPU_SH4)	:= udivsi3.o
+udivsi3-$(CONFIG_CPU_SH3)	:= udivsi3_i4i.o
+udivsi3-$(CONFIG_CPU_SH4)	:= udivsi3_i4i.o
 endif
+udivsi3-y			+= udivsi3.o
 
 obj-y				+= io.o
 
