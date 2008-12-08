@@ -844,6 +844,45 @@ static void attach_device(struct amd_iommu *iommu,
 	iommu_queue_inv_dev_entry(iommu, devid);
 }
 
+#ifdef CONFIG_IOMMU_API
+/*
+ * Removes a device from a protection domain (unlocked)
+ */
+static void __detach_device(struct protection_domain *domain, u16 devid)
+{
+
+	/* lock domain */
+	spin_lock(&domain->lock);
+
+	/* remove domain from the lookup table */
+	amd_iommu_pd_table[devid] = NULL;
+
+	/* remove entry from the device table seen by the hardware */
+	amd_iommu_dev_table[devid].data[0] = IOMMU_PTE_P | IOMMU_PTE_TV;
+	amd_iommu_dev_table[devid].data[1] = 0;
+	amd_iommu_dev_table[devid].data[2] = 0;
+
+	/* decrease reference counter */
+	domain->dev_cnt -= 1;
+
+	/* ready */
+	spin_unlock(&domain->lock);
+}
+
+/*
+ * Removes a device from a protection domain (with devtable_lock held)
+ */
+static void detach_device(struct protection_domain *domain, u16 devid)
+{
+	unsigned long flags;
+
+	/* lock device table */
+	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
+	__detach_device(domain, devid);
+	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+}
+#endif
+
 /*****************************************************************************
  *
  * The next functions belong to the dma_ops mapping/unmapping code.
