@@ -910,7 +910,7 @@ static void dma_ops_domain_unmap(struct amd_iommu *iommu,
 	if (address >= dom->aperture_size)
 		return;
 
-	WARN_ON(address & 0xfffULL || address > dom->aperture_size);
+	WARN_ON(address & ~PAGE_MASK || address >= dom->aperture_size);
 
 	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
 	pte += IOMMU_PTE_L0_INDEX(address);
