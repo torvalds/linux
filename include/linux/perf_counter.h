@@ -96,8 +96,7 @@ struct perf_counter {
 #else
 	atomic_t			count32[2];
 #endif
-	u64				__irq_period;
-
+	struct perf_counter_event	event;
 	struct hw_perf_counter		hw;
 
 	struct perf_counter_context	*ctx;
@@ -111,7 +110,6 @@ struct perf_counter {
 	int				oncpu;
 	int				cpu;
 
-	s32				hw_event_type;
 	enum perf_record_type		record_type;
 
 	/* read() / irq related data */

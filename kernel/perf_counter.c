@@ -37,7 +37,7 @@ static DEFINE_MUTEX(perf_resource_mutex);
  * Architecture provided APIs - weak aliases:
  */
 
-int __weak hw_perf_counter_init(struct perf_counter *counter, u32 hw_event_type)
+int __weak hw_perf_counter_init(struct perf_counter *counter)
 {
 	return -EINVAL;
 }
@@ -707,7 +707,7 @@ static const struct file_operations perf_fops = {
  * Allocate and initialize a counter structure
  */
 static struct perf_counter *
-perf_counter_alloc(u32 hw_event_period, int cpu, u32 record_type)
+perf_counter_alloc(struct perf_counter_event *event, int cpu, u32 record_type)
 {
 	struct perf_counter *counter = kzalloc(sizeof(*counter), GFP_KERNEL);
 
@@ -722,7 +722,7 @@ perf_counter_alloc(u32 hw_event_period, int cpu, u32 record_type)
 	counter->usrdata	= &counter->data[1];
 	counter->cpu		= cpu;
 	counter->record_type	= record_type;
-	counter->__irq_period	= hw_event_period;
+	counter->event		= *event;
 	counter->wakeup_pending = 0;
 
 	return counter;
@@ -750,11 +750,11 @@ sys_perf_counter_open(struct perf_counter_event __user *uevent, u32 record_type,
 		return PTR_ERR(ctx);
 
 	ret = -ENOMEM;
-	counter = perf_counter_alloc(event.hw_event_period, cpu, record_type);
+	counter = perf_counter_alloc(&event, cpu, record_type);
 	if (!counter)
 		goto err_put_context;
 
-	ret = hw_perf_counter_init(counter, event.hw_event_type);
+	ret = hw_perf_counter_init(counter);
 	if (ret)
 		goto err_free_put_context;
 

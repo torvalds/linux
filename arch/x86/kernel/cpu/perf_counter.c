@@ -56,9 +56,10 @@ const int max_intel_perfmon_events = ARRAY_SIZE(intel_perfmon_event_map);
 /*
  * Setup the hardware configuration for a given hw_event_type
  */
-int hw_perf_counter_init(struct perf_counter *counter, s32 hw_event_type)
+int hw_perf_counter_init(struct perf_counter *counter)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
+	u32 hw_event_type = counter->event.hw_event_type;
 
 	if (unlikely(!perf_counters_initialized))
 		return -EINVAL;
@@ -83,7 +84,7 @@ int hw_perf_counter_init(struct perf_counter *counter, s32 hw_event_type)
 	hwc->config_base = MSR_ARCH_PERFMON_EVENTSEL0;
 	hwc->counter_base = MSR_ARCH_PERFMON_PERFCTR0;
 
-	hwc->irq_period = counter->__irq_period;
+	hwc->irq_period = counter->event.hw_event_period;
 	/*
 	 * Intel PMCs cannot be accessed sanely above 32 bit width,
 	 * so we install an artificial 1<<31 period regardless of
@@ -95,21 +96,19 @@ int hw_perf_counter_init(struct perf_counter *counter, s32 hw_event_type)
 	hwc->next_count = -((s32) hwc->irq_period);
 
 	/*
-	 * Negative event types mean raw encoded event+umask values:
+	 * Raw event type provide the config in the event structure
 	 */
-	if (hw_event_type < 0) {
-		counter->hw_event_type = -hw_event_type;
-		counter->hw_event_type &= ~PERF_COUNT_NMI;
+	hw_event_type &= ~PERF_COUNT_NMI;
+	if (hw_event_type == PERF_COUNT_RAW) {
+		hwc->config |= counter->event.hw_raw_ctrl;
 	} else {
-		hw_event_type &= ~PERF_COUNT_NMI;
 		if (hw_event_type >= max_intel_perfmon_events)
 			return -EINVAL;
 		/*
 		 * The generic map:
 		 */
-		counter->hw_event_type = intel_perfmon_event_map[hw_event_type];
+		hwc->config |= intel_perfmon_event_map[hw_event_type];
 	}
-	hwc->config |= counter->hw_event_type;
 	counter->wakeup_pending = 0;
 
 	return 0;
@@ -373,7 +372,7 @@ perf_handle_group(struct perf_counter *leader, u64 *status, u64 *overflown)
 				perf_save_and_restart(counter);
 			}
 		}
-		perf_store_irq_data(leader, counter->hw_event_type);
+		perf_store_irq_data(leader, counter->event.hw_event_type);
 		perf_store_irq_data(leader, atomic64_counter_read(counter));
 	}
 }
@@ -418,7 +417,8 @@ again:
 			perf_store_irq_data(counter, instruction_pointer(regs));
 			break;
 		case PERF_RECORD_GROUP:
-			perf_store_irq_data(counter, counter->hw_event_type);
+			perf_store_irq_data(counter,
+					    counter->event.hw_event_type);
 			perf_store_irq_data(counter,
 					    atomic64_counter_read(counter));
 			perf_handle_group(counter, &status, &ack);
