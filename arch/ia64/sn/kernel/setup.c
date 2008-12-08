@@ -200,7 +200,7 @@ static int __cpuinitdata shub_1_1_found;
  * Set flag for enabling shub specific wars
  */
 
-static inline int __init is_shub_1_1(int nasid)
+static inline int __cpuinit is_shub_1_1(int nasid)
 {
 	unsigned long id;
 	int rev;
@@ -212,7 +212,7 @@ static inline int __init is_shub_1_1(int nasid)
 	return rev <= 2;
 }
 
-static void __init sn_check_for_wars(void)
+static void __cpuinit sn_check_for_wars(void)
 {
 	int cnode;
 
