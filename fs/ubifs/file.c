@@ -254,7 +254,7 @@ static int write_begin_slow(struct address_space *mapping,
 	}
 
 	if (!PageUptodate(page)) {
-		if (!(pos & PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
+		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
 			SetPageChecked(page);
 		else {
 			err = do_readpage(page);
@@ -444,7 +444,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 
 	if (!PageUptodate(page)) {
 		/* The page is not loaded from the flash */
-		if (!(pos & PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
+		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
 			/*
 			 * We change whole page so no need to load it. But we
 			 * have to set the @PG_checked flag to make the further
