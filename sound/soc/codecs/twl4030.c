@@ -887,7 +887,7 @@ static int twl4030_add_widgets(struct snd_soc_codec *codec)
 
 static void twl4030_power_up(struct snd_soc_codec *codec)
 {
-	u8 anamicl, regmisc1, byte, popn, hsgain;
+	u8 anamicl, regmisc1, byte, popn;
 	int i = 0;
 
 	/* set CODECPDZ to turn on codec */
@@ -925,10 +925,6 @@ static void twl4030_power_up(struct snd_soc_codec *codec)
 	popn |=	TWL4030_VMID_EN;
 	twl4030_write(codec, TWL4030_REG_HS_POPN_SET, popn);
 
-	/* enable output stage and gain setting */
-	hsgain = TWL4030_HSR_GAIN_0DB | TWL4030_HSL_GAIN_0DB;
-	twl4030_write(codec, TWL4030_REG_HS_GAIN_SET, hsgain);
-
 	/* enable anti-pop ramp */
 	popn |= TWL4030_RAMP_EN;
 	twl4030_write(codec, TWL4030_REG_HS_POPN_SET, popn);
@@ -936,16 +932,12 @@ static void twl4030_power_up(struct snd_soc_codec *codec)
 
 static void twl4030_power_down(struct snd_soc_codec *codec)
 {
-	u8 popn, hsgain;
+	u8 popn;
 
 	/* disable anti-pop ramp */
 	popn = twl4030_read_reg_cache(codec, TWL4030_REG_HS_POPN_SET);
 	popn &= ~TWL4030_RAMP_EN;
 	twl4030_write(codec, TWL4030_REG_HS_POPN_SET, popn);
-
-	/* disable output stage and gain setting */
-	hsgain = TWL4030_HSR_GAIN_PWR_DOWN | TWL4030_HSL_GAIN_PWR_DOWN;
-	twl4030_write(codec, TWL4030_REG_HS_GAIN_SET, hsgain);
 
 	/* disable bias out */
 	popn &= ~TWL4030_VMID_EN;
