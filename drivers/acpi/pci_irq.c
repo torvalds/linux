@@ -185,7 +185,6 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 	entry->id.segment = segment;
 	entry->id.bus = bus;
 	entry->id.device = (prt->address >> 16) & 0xFFFF;
-	entry->id.function = prt->address & 0xFFFF;
 	entry->pin = prt->pin;
 
 	do_prt_fixups(entry, prt);
