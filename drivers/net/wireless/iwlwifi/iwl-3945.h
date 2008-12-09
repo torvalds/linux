@@ -476,7 +476,6 @@ union iwl3945_qos_capabity {
 
 /* QoS structures */
 struct iwl3945_qos_info {
-	int qos_enable;
 	int qos_active;
 	union iwl3945_qos_capabity qos_cap;
 	struct iwl3945_qosparam_cmd def_qos_parm;

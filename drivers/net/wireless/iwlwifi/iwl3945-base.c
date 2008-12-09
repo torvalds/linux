@@ -69,7 +69,6 @@ static int iwl3945_param_debug;    /* def: 0 = minimal debug log messages */
 static int iwl3945_param_disable;  /* def: 0 = enable radio */
 static int iwl3945_param_antenna;  /* def: 0 = both antennas (use diversity) */
 int iwl3945_param_hwcrypto;        /* def: 0 = use software encryption */
-static int iwl3945_param_qos_enable = 1; /* def: 1 = use quality of service */
 int iwl3945_param_queues_num = IWL39_MAX_NUM_QUEUES; /* def: 8 Tx queues */
 
 /*
@@ -1693,17 +1692,21 @@ static void iwl3945_reset_qos(struct iwl3945_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->qos_data.qos_active = 0;
 
-	if (priv->iw_mode == NL80211_IFTYPE_ADHOC) {
-		if (priv->qos_data.qos_enable)
-			priv->qos_data.qos_active = 1;
-		if (!(priv->active_rate & 0xfff0)) {
-			cw_min = 31;
-			is_legacy = 1;
-		}
-	} else if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		if (priv->qos_data.qos_enable)
-			priv->qos_data.qos_active = 1;
-	} else if (!(priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK)) {
+	/* QoS always active in AP and ADHOC mode
+	 * In STA mode wait for association
+	 */
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC ||
+	    priv->iw_mode == NL80211_IFTYPE_AP)
+		priv->qos_data.qos_active = 1;
+	else
+		priv->qos_data.qos_active = 0;
+
+
+	/* check for legacy mode */
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+	     (priv->active_rate & IWL_OFDM_RATES_MASK) == 0) ||
+	    (priv->iw_mode == NL80211_IFTYPE_STATION &&
+	     (priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK) == 0)) {
 		cw_min = 31;
 		is_legacy = 1;
 	}
@@ -1773,9 +1776,6 @@ static void iwl3945_activate_qos(struct iwl3945_priv *priv, u8 force)
 	unsigned long flags;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (!priv->qos_data.qos_enable)
 		return;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -7095,11 +7095,6 @@ static int iwl3945_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		return 0;
 	}
 
-	if (!priv->qos_data.qos_enable) {
-		priv->qos_data.qos_active = 0;
-		IWL_DEBUG_MAC80211("leave - qos not enabled\n");
-		return 0;
-	}
 	q = AC_NUM - 1 - queue;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -7979,9 +7974,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 
-	if (iwl3945_param_qos_enable)
-		priv->qos_data.qos_enable = 1;
-
 	iwl3945_reset_qos(priv);
 
 	priv->qos_data.qos_active = 0;
@@ -8371,10 +8363,6 @@ MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 
 module_param_named(queues_num, iwl3945_param_queues_num, int, 0444);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
-
-/* QoS */
-module_param_named(qos_enable, iwl3945_param_qos_enable, int, 0444);
-MODULE_PARM_DESC(qos_enable, "enable all QoS functionality");
 
 module_exit(iwl3945_exit);
 module_init(iwl3945_init);
