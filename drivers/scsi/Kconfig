@@ -609,6 +609,13 @@ config LIBFC
 	---help---
 	  Fibre Channel library module
 
+config FCOE
+	tristate "FCoE module"
+	depends on SCSI
+	select LIBFC
+	---help---
+	  Fibre Channel over Ethernet module
+
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
 	depends on PCI && SCSI
