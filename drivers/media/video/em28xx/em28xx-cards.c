@@ -1173,15 +1173,17 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2883_BOARD_KWORLD_HYBRID_A316] = {
 		.name         = "Kworld PlusTV HD Hybrid 330",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
+		.mts_firmware = 1,
+		.has_dvb      = 1,
+		.dvb_gpio     = default_digital,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
-			.gpio     = hauppauge_wintv_hvr_900_analog,
+			.gpio     = default_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,

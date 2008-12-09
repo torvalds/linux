@@ -412,6 +412,7 @@ static int dvb_init(struct em28xx *dev)
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
+	case EM2883_BOARD_KWORLD_HYBRID_A316:
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
 		dvb->frontend = dvb_attach(lgdt330x_attach,
 					   &em2880_lgdt3303_dev,
