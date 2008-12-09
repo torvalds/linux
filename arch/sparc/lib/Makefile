@@ -6,7 +6,7 @@ ccflags-y := -Werror
 
 lib-$(CONFIG_SPARC32) += mul.o rem.o sdiv.o udiv.o umul.o urem.o ashrdi3.o
 lib-$(CONFIG_SPARC32) += memcpy.o memset.o
-lib-y                 += strlen_$(BITS).o
+lib-y                 += strlen.o
 lib-y                 += checksum_$(BITS).o
 lib-$(CONFIG_SPARC32) += blockops.o
 lib-y                 += memscan_$(BITS).o memcmp_$(BITS).o strncmp_$(BITS).o
