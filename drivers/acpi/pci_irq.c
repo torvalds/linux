@@ -382,6 +382,8 @@ static struct acpi_prt_entry *
 acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 {
 	struct acpi_prt_entry *entry;
+	struct pci_dev *bridge;
+	u8 bridge_pin, orig_pin = pin;
 
 	entry = acpi_pci_irq_find_prt_entry(dev, pin);
 	if (entry) {
@@ -389,19 +391,6 @@ acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 				  pci_name(dev), pin_name(pin)));
 		return entry;
 	}
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No %s[%c] _PRT entry\n",
-			  pci_name(dev), pin_name(pin)));
-	return NULL;
-}
-
-static struct acpi_prt_entry *
-acpi_pci_irq_derive(struct pci_dev *dev, int pin)
-{
-	struct acpi_prt_entry *entry = NULL;
-	struct pci_dev *bridge;
-	u8 bridge_pin = 0, orig_pin = pin;
-
 
 	/* 
 	 * Attempt to derive an IRQ for this device from a parent bridge's
@@ -423,7 +412,7 @@ acpi_pci_irq_derive(struct pci_dev *dev, int pin)
 			pin = bridge_pin;
 		}
 
-		entry = acpi_pci_irq_lookup(bridge, pin);
+		entry = acpi_pci_irq_find_prt_entry(bridge, pin);
 		if (entry) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					 "Derived GSI for %s INT %c from %s\n",
@@ -467,26 +456,8 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		return 0;
 	}
 
-	/* 
-	 * First we check the PCI IRQ routing table (PRT) for an IRQ.  PRT
-	 * values override any BIOS-assigned IRQs set during boot.
-	 */
 	entry = acpi_pci_irq_lookup(dev, pin);
-
-	/*
-	 * If no PRT entry was found, we'll try to derive an IRQ from the
-	 * device's parent bridge.
-	 */
-	if (!entry)
-		entry = acpi_pci_irq_derive(dev, pin);
-
-	if (entry)
-		gsi = acpi_pci_allocate_irq(entry, &triggering, &polarity,
-					    &link);
-	else
-		gsi = -1;
-
-	if (gsi < 0) {
+	if (!entry) {
 		/*
 		 * IDE legacy mode controller IRQs are magic. Why do compat
 		 * extensions always make such a nasty mess.
@@ -495,6 +466,13 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 				(dev->class & 0x05) == 0)
 			return 0;
 	}
+
+	if (entry)
+		gsi = acpi_pci_allocate_irq(entry, &triggering, &polarity,
+					    &link);
+	else
+		gsi = -1;
+
 	/*
 	 * No IRQ known to the ACPI subsystem - maybe the BIOS / 
 	 * driver reported one, then use it. Exit in any case.
@@ -550,18 +528,7 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	if (!pin)
 		return;
 
-	/*
-	 * First we check the PCI IRQ routing table (PRT) for an IRQ.
-	 */
 	entry = acpi_pci_irq_lookup(dev, pin);
-
-	/*
-	 * If no PRT entry was found, we'll try to derive an IRQ from the
-	 * device's parent bridge.
-	 */
-	if (!entry)
-		entry = acpi_pci_irq_derive(dev, pin);
-
 	if (!entry)
 		return;
 
