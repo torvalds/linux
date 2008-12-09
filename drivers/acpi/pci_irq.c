@@ -299,44 +299,6 @@ void acpi_pci_irq_del_prt(int segment, int bus)
 /* --------------------------------------------------------------------------
                           PCI Interrupt Routing Support
    -------------------------------------------------------------------------- */
-static int
-acpi_pci_allocate_irq(struct acpi_prt_entry *entry,
-		      int *triggering, int *polarity, char **link)
-{
-	int irq;
-
-
-	if (entry->link) {
-		irq = acpi_pci_link_allocate_irq(entry->link, entry->index,
-						 triggering, polarity, link);
-		if (irq < 0) {
-			printk(KERN_WARNING PREFIX
-				      "Invalid IRQ link routing entry\n");
-			return -1;
-		}
-	} else {
-		irq = entry->index;
-		*triggering = ACPI_LEVEL_SENSITIVE;
-		*polarity = ACPI_ACTIVE_LOW;
-	}
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found GSI %d\n", irq));
-	return irq;
-}
-
-static int
-acpi_pci_free_irq(struct acpi_prt_entry *entry)
-{
-	int irq;
-
-	if (entry->link) {
-		irq = acpi_pci_link_free_irq(entry->link);
-	} else {
-		irq = entry->index;
-	}
-	return irq;
-}
-
 static struct acpi_prt_entry *
 acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 {
@@ -426,10 +388,15 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 			return 0;
 	}
 
-	if (entry)
-		gsi = acpi_pci_allocate_irq(entry, &triggering, &polarity,
-					    &link);
-	else
+	if (entry) {
+		if (entry->link)
+			gsi = acpi_pci_link_allocate_irq(entry->link,
+							 entry->index,
+							 &triggering, &polarity,
+							 &link);
+		else
+			gsi = entry->index;
+	} else
 		gsi = -1;
 
 	/*
@@ -491,7 +458,10 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	if (!entry)
 		return;
 
-	gsi = acpi_pci_free_irq(entry);
+	if (entry->link)
+		gsi = acpi_pci_link_free_irq(entry->link);
+	else
+		gsi = entry->index;
 
 	/*
 	 * TBD: It might be worth clearing dev->irq by magic constant
