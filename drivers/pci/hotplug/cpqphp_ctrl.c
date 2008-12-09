@@ -2604,7 +2604,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			for (cloop = 0; cloop < 4; cloop++) {
 				if (irqs.valid_INT & (0x01 << cloop)) {
 					rc = cpqhp_set_irq(func->bus, func->device,
-							   0x0A + cloop, irqs.interrupt[cloop]);
+							   cloop + 1, irqs.interrupt[cloop]);
 					if (rc)
 						goto free_and_out;
 				}
@@ -2945,7 +2945,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		}
 
 		if (!behind_bridge) {
-			rc = cpqhp_set_irq(func->bus, func->device, temp_byte + 0x09, IRQ);
+			rc = cpqhp_set_irq(func->bus, func->device, temp_byte, IRQ);
 			if (rc)
 				return 1;
 		} else {
