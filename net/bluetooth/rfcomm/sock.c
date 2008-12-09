@@ -792,7 +792,7 @@ static int rfcomm_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned lon
 #endif
 	int err;
 
-	BT_DBG("sk %p cmd %x arg %lx", sk, cmd, arg);
+	BT_DBG("sk %p cmd %x arg %lx", sock, cmd, arg);
 
 	err = bt_sock_ioctl(sock, cmd, arg);
 
