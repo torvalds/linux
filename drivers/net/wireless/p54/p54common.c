@@ -874,7 +874,27 @@ static int p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 		return -EINVAL;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
+
 	left = skb_queue_len(&priv->tx_queue);
+	if (unlikely(left >= 28)) {
+		/*
+		 * The tx_queue is nearly full!
+		 * We have throttle normal data traffic, because we must
+		 * have a few spare slots for control frames left.
+		 */
+		ieee80211_stop_queues(dev);
+
+		if (unlikely(left == 32)) {
+			/*
+			 * The tx_queue is now really full.
+			 *
+			 * TODO: check if the device has crashed and reset it.
+			 */
+			spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
+			return -ENOSPC;
+		}
+	}
+
 	while (left--) {
 		u32 hole_size;
 		info = IEEE80211_SKB_CB(entry);
@@ -903,7 +923,7 @@ static int p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (!target_skb) {
 		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 		ieee80211_stop_queues(dev);
-		return -ENOMEM;
+		return -ENOSPC;
 	}
 
 	info = IEEE80211_SKB_CB(skb);
