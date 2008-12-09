@@ -1269,6 +1269,8 @@ static int walk_shadow(struct kvm_shadow_walk *walker,
 	if (level == PT32E_ROOT_LEVEL) {
 		shadow_addr = vcpu->arch.mmu.pae_root[(addr >> 30) & 3];
 		shadow_addr &= PT64_BASE_ADDR_MASK;
+		if (!shadow_addr)
+			return 1;
 		--level;
 	}
 
