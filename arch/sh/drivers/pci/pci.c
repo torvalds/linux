@@ -21,17 +21,12 @@
 #include <linux/init.h>
 #include <asm/io.h>
 
-static inline u8 bridge_swizzle(u8 pin, u8 slot)
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
 static u8 __init simple_swizzle(struct pci_dev *dev, u8 *pinp)
 {
 	u8 pin = *pinp;
 
 	while (dev->bus->parent) {
-		pin = bridge_swizzle(pin, PCI_SLOT(dev->devfn));
+		pin = pci_swizzle_interrupt_pin(dev, pin);
 		/* Move up the chain of bridges. */
 		dev = dev->bus->self;
 	}
