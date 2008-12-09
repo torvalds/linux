@@ -126,6 +126,7 @@ obj-$(CONFIG_SCSI_HPTIOP)	+= hptiop.o
 obj-$(CONFIG_SCSI_STEX)		+= stex.o
 obj-$(CONFIG_SCSI_MVSAS)	+= mvsas.o
 obj-$(CONFIG_PS3_ROM)		+= ps3rom.o
+obj-$(CONFIG_SCSI_CXGB3_ISCSI)	+= libiscsi.o libiscsi_tcp.o cxgb3i/
 
 obj-$(CONFIG_ARM)		+= arm/
 
