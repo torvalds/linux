@@ -94,7 +94,7 @@ static int __devinit hydra_init_one(struct zorro_dev *z,
     return 0;
 }
 
-static const struct net_device_ops etherh_netdev_ops = {
+static const struct net_device_ops hydra_netdev_ops = {
 	.ndo_open		= hydra_open,
 	.ndo_stop		= hydra_close,
 
