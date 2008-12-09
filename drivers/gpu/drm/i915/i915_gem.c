@@ -1104,6 +1104,8 @@ i915_gem_evict_everything(struct drm_device *dev)
 		if (ret != 0)
 			break;
 	}
+	if (ret == -ENOMEM)
+		return 0;
 	return ret;
 }
 
