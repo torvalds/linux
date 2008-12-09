@@ -491,17 +491,17 @@ EXPORT_SYMBOL(pcibios_bus_to_resource);
  */
 u8 __devinit pci_std_swizzle(struct pci_dev *dev, u8 *pinp)
 {
-	int pin = *pinp - 1;
+	int pin = *pinp;
 
 	while (dev->bus->self) {
-		pin = (pin + PCI_SLOT(dev->devfn)) & 3;
+		pin = pci_swizzle_interrupt_pin(dev, pin);
 		/*
 		 * move up the chain of bridges,
 		 * swizzling as we go.
 		 */
 		dev = dev->bus->self;
 	}
-	*pinp = pin + 1;
+	*pinp = pin;
 
 	return PCI_SLOT(dev->devfn);
 }
