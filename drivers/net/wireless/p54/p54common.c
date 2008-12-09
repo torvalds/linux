@@ -540,6 +540,14 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	size_t header_len = sizeof(*hdr);
 	u32 tsf32;
 
+	/*
+	 * If the device is in a unspecified state we have to
+	 * ignore all data frames. Else we could end up with a
+	 * nasty crash.
+	 */
+	if (unlikely(priv->mode == NL80211_IFTYPE_UNSPECIFIED))
+		return 0;
+
 	if (!(hdr->flags & cpu_to_le16(P54_HDR_FLAG_DATA_IN_FCS_GOOD))) {
 		if (priv->filter_flags & FIF_FCSFAIL)
 			rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -606,6 +614,12 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u32 freed = 0, last_addr = priv->rx_start;
 
 	if (unlikely(!skb || !dev || !skb_queue_len(&priv->tx_queue)))
+		return;
+
+	/*
+	 * don't try to free an already unlinked skb
+	 */
+	if (unlikely((!skb->next) || (!skb->prev)))
 		return;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
@@ -1695,19 +1709,18 @@ static void p54_stop(struct ieee80211_hw *dev)
 	struct sk_buff *skb;
 
 	mutex_lock(&priv->conf_mutex);
+	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	del_timer(&priv->stats_timer);
 	p54_free_skb(dev, priv->cached_stats);
 	priv->cached_stats = NULL;
 	if (priv->cached_beacon)
 		p54_tx_cancel(dev, priv->cached_beacon);
 
+	priv->stop(dev);
 	while ((skb = skb_dequeue(&priv->tx_queue)))
 		kfree_skb(skb);
-
 	priv->cached_beacon = NULL;
-	priv->stop(dev);
 	priv->tsf_high32 = priv->tsf_low32 = 0;
-	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	mutex_unlock(&priv->conf_mutex);
 }
 
