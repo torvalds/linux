@@ -104,13 +104,13 @@ void percpu_counter_destroy(struct percpu_counter *fbc)
 	if (!fbc->counters)
 		return;
 
-	free_percpu(fbc->counters);
-	fbc->counters = NULL;
 #ifdef CONFIG_HOTPLUG_CPU
 	mutex_lock(&percpu_counters_lock);
 	list_del(&fbc->list);
 	mutex_unlock(&percpu_counters_lock);
 #endif
+	free_percpu(fbc->counters);
+	fbc->counters = NULL;
 }
 EXPORT_SYMBOL(percpu_counter_destroy);
 
