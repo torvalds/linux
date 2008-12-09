@@ -220,7 +220,7 @@ static void wl_tree_add(struct ubi_wl_entry *e, struct rb_root *root)
 		struct ubi_wl_entry *e1;
 
 		parent = *p;
-		e1 = rb_entry(parent, struct ubi_wl_entry, rb);
+		e1 = rb_entry(parent, struct ubi_wl_entry, u.rb);
 
 		if (e->ec < e1->ec)
 			p = &(*p)->rb_left;
@@ -235,8 +235,8 @@ static void wl_tree_add(struct ubi_wl_entry *e, struct rb_root *root)
 		}
 	}
 
-	rb_link_node(&e->rb, parent, p);
-	rb_insert_color(&e->rb, root);
+	rb_link_node(&e->u.rb, parent, p);
+	rb_insert_color(&e->u.rb, root);
 }
 
 /**
@@ -331,7 +331,7 @@ static int in_wl_tree(struct ubi_wl_entry *e, struct rb_root *root)
 	while (p) {
 		struct ubi_wl_entry *e1;
 
-		e1 = rb_entry(p, struct ubi_wl_entry, rb);
+		e1 = rb_entry(p, struct ubi_wl_entry, u.rb);
 
 		if (e->pnum == e1->pnum) {
 			ubi_assert(e == e1);
@@ -413,14 +413,14 @@ static struct ubi_wl_entry *find_wl_entry(struct rb_root *root, int max)
 	struct rb_node *p;
 	struct ubi_wl_entry *e;
 
-	e = rb_entry(rb_first(root), struct ubi_wl_entry, rb);
+	e = rb_entry(rb_first(root), struct ubi_wl_entry, u.rb);
 	max += e->ec;
 
 	p = root->rb_node;
 	while (p) {
 		struct ubi_wl_entry *e1;
 
-		e1 = rb_entry(p, struct ubi_wl_entry, rb);
+		e1 = rb_entry(p, struct ubi_wl_entry, u.rb);
 		if (e1->ec >= max)
 			p = p->rb_left;
 		else {
@@ -491,12 +491,13 @@ retry:
 		 * eraseblock with erase counter greater or equivalent than the
 		 * lowest erase counter plus %WL_FREE_MAX_DIFF.
 		 */
-		first = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, rb);
-		last = rb_entry(rb_last(&ubi->free), struct ubi_wl_entry, rb);
+		first = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry,
+					u.rb);
+		last = rb_entry(rb_last(&ubi->free), struct ubi_wl_entry, u.rb);
 
 		if (last->ec - first->ec < WL_FREE_MAX_DIFF)
 			e = rb_entry(ubi->free.rb_node,
-					struct ubi_wl_entry, rb);
+					struct ubi_wl_entry, u.rb);
 		else {
 			medium_ec = (first->ec + WL_FREE_MAX_DIFF)/2;
 			e = find_wl_entry(&ubi->free, medium_ec);
@@ -508,7 +509,7 @@ retry:
 		 * For short term data we pick a physical eraseblock with the
 		 * lowest erase counter as we expect it will be erased soon.
 		 */
-		e = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, rb);
+		e = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, u.rb);
 		protect = ST_PROTECTION;
 		break;
 	default:
@@ -522,7 +523,7 @@ retry:
 	 * be protected from being moved for some time.
 	 */
 	paranoid_check_in_wl_tree(e, &ubi->free);
-	rb_erase(&e->rb, &ubi->free);
+	rb_erase(&e->u.rb, &ubi->free);
 	prot_tree_add(ubi, e, pe, protect);
 
 	dbg_wl("PEB %d EC %d, protection %d", e->pnum, e->ec, protect);
@@ -779,7 +780,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		 * highly worn-out free physical eraseblock. If the erase
 		 * counters differ much enough, start wear-leveling.
 		 */
-		e1 = rb_entry(rb_first(&ubi->used), struct ubi_wl_entry, rb);
+		e1 = rb_entry(rb_first(&ubi->used), struct ubi_wl_entry, u.rb);
 		e2 = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
 
 		if (!(e2->ec - e1->ec >= UBI_WL_THRESHOLD)) {
@@ -788,21 +789,21 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			goto out_cancel;
 		}
 		paranoid_check_in_wl_tree(e1, &ubi->used);
-		rb_erase(&e1->rb, &ubi->used);
+		rb_erase(&e1->u.rb, &ubi->used);
 		dbg_wl("move PEB %d EC %d to PEB %d EC %d",
 		       e1->pnum, e1->ec, e2->pnum, e2->ec);
 	} else {
 		/* Perform scrubbing */
 		scrubbing = 1;
-		e1 = rb_entry(rb_first(&ubi->scrub), struct ubi_wl_entry, rb);
+		e1 = rb_entry(rb_first(&ubi->scrub), struct ubi_wl_entry, u.rb);
 		e2 = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
 		paranoid_check_in_wl_tree(e1, &ubi->scrub);
-		rb_erase(&e1->rb, &ubi->scrub);
+		rb_erase(&e1->u.rb, &ubi->scrub);
 		dbg_wl("scrub PEB %d to PEB %d", e1->pnum, e2->pnum);
 	}
 
 	paranoid_check_in_wl_tree(e2, &ubi->free);
-	rb_erase(&e2->rb, &ubi->free);
+	rb_erase(&e2->u.rb, &ubi->free);
 	ubi->move_from = e1;
 	ubi->move_to = e2;
 	spin_unlock(&ubi->wl_lock);
@@ -1012,7 +1013,7 @@ static int ensure_wear_leveling(struct ubi_device *ubi)
 		 * erase counter of free physical eraseblocks is greater then
 		 * %UBI_WL_THRESHOLD.
 		 */
-		e1 = rb_entry(rb_first(&ubi->used), struct ubi_wl_entry, rb);
+		e1 = rb_entry(rb_first(&ubi->used), struct ubi_wl_entry, u.rb);
 		e2 = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
 
 		if (!(e2->ec - e1->ec >= UBI_WL_THRESHOLD))
@@ -1214,10 +1215,10 @@ retry:
 	} else {
 		if (in_wl_tree(e, &ubi->used)) {
 			paranoid_check_in_wl_tree(e, &ubi->used);
-			rb_erase(&e->rb, &ubi->used);
+			rb_erase(&e->u.rb, &ubi->used);
 		} else if (in_wl_tree(e, &ubi->scrub)) {
 			paranoid_check_in_wl_tree(e, &ubi->scrub);
-			rb_erase(&e->rb, &ubi->scrub);
+			rb_erase(&e->u.rb, &ubi->scrub);
 		} else {
 			err = prot_tree_del(ubi, e->pnum);
 			if (err) {
@@ -1279,7 +1280,7 @@ retry:
 
 	if (in_wl_tree(e, &ubi->used)) {
 		paranoid_check_in_wl_tree(e, &ubi->used);
-		rb_erase(&e->rb, &ubi->used);
+		rb_erase(&e->u.rb, &ubi->used);
 	} else {
 		int err;
 
@@ -1361,11 +1362,11 @@ static void tree_destroy(struct rb_root *root)
 		else if (rb->rb_right)
 			rb = rb->rb_right;
 		else {
-			e = rb_entry(rb, struct ubi_wl_entry, rb);
+			e = rb_entry(rb, struct ubi_wl_entry, u.rb);
 
 			rb = rb_parent(rb);
 			if (rb) {
-				if (rb->rb_left == &e->rb)
+				if (rb->rb_left == &e->u.rb)
 					rb->rb_left = NULL;
 				else
 					rb->rb_right = NULL;

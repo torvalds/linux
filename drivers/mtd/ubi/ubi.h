@@ -95,7 +95,7 @@ enum {
 
 /**
  * struct ubi_wl_entry - wear-leveling entry.
- * @rb: link in the corresponding RB-tree
+ * @u.rb: link in the corresponding (free/used) RB-tree
  * @ec: erase counter
  * @pnum: physical eraseblock number
  *
@@ -104,7 +104,9 @@ enum {
  * RB-trees. See WL sub-system for details.
  */
 struct ubi_wl_entry {
-	struct rb_node rb;
+	union {
+		struct rb_node rb;
+	} u;
 	int ec;
 	int pnum;
 };
