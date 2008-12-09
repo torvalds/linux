@@ -190,6 +190,19 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 
 }
 
+/* Earpiece */
+static const char *twl4030_earpiece_texts[] =
+		{"Off", "DACL1", "DACL2", "Invalid",
+		"DACR1"};
+
+static const struct soc_enum twl4030_earpiece_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_EAR_CTL, 1,
+			ARRAY_SIZE(twl4030_earpiece_texts),
+			twl4030_earpiece_texts);
+
+static const struct snd_kcontrol_new twl4030_dapm_earpiece_control =
+SOC_DAPM_ENUM("Route", twl4030_earpiece_enum);
+
 static int outmixer_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -645,6 +658,7 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUTPUT("OUTL"),
 	SND_SOC_DAPM_OUTPUT("OUTR"),
+	SND_SOC_DAPM_OUTPUT("EARPIECE"),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC("DACR1", "Right Front Playback",
@@ -666,6 +680,12 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("ARXL2_APGA", TWL4030_REG_ARXL2_APGA_CTL,
 			0, 0, NULL, 0),
 
+	/* Output MUX controls */
+	/* Earpiece */
+	SND_SOC_DAPM_MUX_E("Earpiece Mux", SND_SOC_NOPM, 0, 0,
+		&twl4030_dapm_earpiece_control, outmixer_event,
+		SND_SOC_DAPM_PRE_REG),
+
 	SND_SOC_DAPM_ADC("ADCL", "Left Capture", SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_ADC("ADCR", "Right Capture", SND_SOC_NOPM, 0, 0),
 };
@@ -676,9 +696,16 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"ARXL2_APGA", NULL, "DACL2"},
 	{"ARXR2_APGA", NULL, "DACR2"},
 
+	/* Internal playback routings */
+	/* Earpiece */
+	{"Earpiece Mux", "DACL1", "ARXL1_APGA"},
+	{"Earpiece Mux", "DACL2", "ARXL2_APGA"},
+	{"Earpiece Mux", "DACR1", "ARXR1_APGA"},
+
 	/* outputs */
 	{"OUTL", NULL, "ARXL2_APGA"},
 	{"OUTR", NULL, "ARXR2_APGA"},
+	{"EARPIECE", NULL, "Earpiece Mux"},
 
 	/* inputs */
 	{"ADCL", NULL, "INL"},
