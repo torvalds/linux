@@ -99,7 +99,7 @@ acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id)
 	 */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Device %s has PCI address %02x:%02x:%02x.%02x\n",
+			  "Device %s has PCI address %04x:%02x:%02x.%d\n",
 			  acpi_device_bid(device), id->segment, id->bus,
 			  id->device, id->function));
 
@@ -166,7 +166,7 @@ int acpi_pci_bind(struct acpi_device *device)
 	data->id.device = device->pnp.bus_address >> 16;
 	data->id.function = device->pnp.bus_address & 0xFFFF;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "...to %02x:%02x:%02x.%02x\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "...to %04x:%02x:%02x.%d\n",
 			  data->id.segment, data->id.bus, data->id.device,
 			  data->id.function));
 
@@ -196,7 +196,7 @@ int acpi_pci_bind(struct acpi_device *device)
 	}
 	if (!data->dev) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Device %02x:%02x:%02x.%02x not present in PCI namespace\n",
+				  "Device %04x:%02x:%02x.%d not present in PCI namespace\n",
 				  data->id.segment, data->id.bus,
 				  data->id.device, data->id.function));
 		result = -ENODEV;
@@ -204,7 +204,7 @@ int acpi_pci_bind(struct acpi_device *device)
 	}
 	if (!data->dev->bus) {
 		printk(KERN_ERR PREFIX
-			    "Device %02x:%02x:%02x.%02x has invalid 'bus' field\n",
+			    "Device %04x:%02x:%02x.%d has invalid 'bus' field\n",
 			    data->id.segment, data->id.bus,
 			    data->id.device, data->id.function);
 		result = -ENODEV;
@@ -219,7 +219,7 @@ int acpi_pci_bind(struct acpi_device *device)
 	 */
 	if (data->dev->subordinate) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Device %02x:%02x:%02x.%02x is a PCI bridge\n",
+				  "Device %04x:%02x:%02x.%d is a PCI bridge\n",
 				  data->id.segment, data->id.bus,
 				  data->id.device, data->id.function));
 		data->bus = data->dev->subordinate;
@@ -353,7 +353,7 @@ acpi_pci_bind_root(struct acpi_device *device,
 	acpi_get_name(device->handle, ACPI_FULL_PATHNAME, &buffer);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Binding PCI root bridge [%s] to "
-			  "%02x:%02x\n", pathname, id->segment, id->bus));
+			  "%04x:%02x\n", pathname, id->segment, id->bus));
 
 	status = acpi_attach_data(device->handle, acpi_pci_data_handler, data);
 	if (ACPI_FAILURE(status)) {

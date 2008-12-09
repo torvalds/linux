@@ -222,7 +222,7 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 		entry->link.index = prt->source_index;
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
-			      "      %02X:%02X:%02X[%c] -> %s[%d]\n",
+			      "      %04x:%02x:%02x[%c] -> %s[%d]\n",
 			      entry->id.segment, entry->id.bus,
 			      entry->id.device, ('A' + entry->pin), prt->source,
 			      entry->link.index));
@@ -328,8 +328,8 @@ void acpi_pci_irq_del_prt(int segment, int bus)
 	}
 
 	printk(KERN_DEBUG
-	       "ACPI: Delete PCI Interrupt Routing Table for %x:%x\n", segment,
-	       bus);
+	       "ACPI: Delete PCI Interrupt Routing Table for %04x:%02x\n",
+	       segment, bus);
 	spin_lock(&acpi_prt_lock);
 	list_for_each_safe(node, n, &acpi_prt.entries) {
 		entry = list_entry(node, struct acpi_prt_entry, node);
@@ -403,12 +403,12 @@ acpi_pci_irq_lookup(struct pci_bus *bus,
 
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Searching for PRT entry for %02x:%02x:%02x[%c]\n",
+			  "Searching for _PRT entry for %04x:%02x:%02x[%c]\n",
 			  segment, bus_nr, device, ('A' + pin)));
 
 	entry = acpi_pci_irq_find_prt_entry(segment, bus_nr, device, pin);
 	if (!entry) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "PRT entry not found\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "_PRT entry not found\n"));
 		return -1;
 	}
 
