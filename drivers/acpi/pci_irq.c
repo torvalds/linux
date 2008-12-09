@@ -399,7 +399,7 @@ static struct acpi_prt_entry *
 acpi_pci_irq_derive(struct pci_dev *dev, int pin)
 {
 	struct acpi_prt_entry *entry = NULL;
-	struct pci_dev *bridge = dev;
+	struct pci_dev *bridge;
 	u8 bridge_pin = 0, orig_pin = pin;
 
 
@@ -407,9 +407,9 @@ acpi_pci_irq_derive(struct pci_dev *dev, int pin)
 	 * Attempt to derive an IRQ for this device from a parent bridge's
 	 * PCI interrupt routing entry (eg. yenta bridge and add-in card bridge).
 	 */
-	while (bridge->bus->self) {
-		pin = (((pin - 1) + PCI_SLOT(bridge->devfn)) % 4) + 1;
-		bridge = bridge->bus->self;
+	bridge = dev->bus->self;
+	while (bridge) {
+		pin = (((pin - 1) + PCI_SLOT(dev->devfn)) % 4) + 1;
 
 		if ((bridge->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS) {
 			/* PC card has the same IRQ as its cardbridge */
@@ -431,6 +431,9 @@ acpi_pci_irq_derive(struct pci_dev *dev, int pin)
 					 pci_name(bridge)));
 			return entry;
 		}
+
+		dev = bridge;
+		bridge = dev->bus->self;
 	}
 
 	dev_warn(&dev->dev, "can't derive routing for PCI INT %c\n",
