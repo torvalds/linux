@@ -145,32 +145,31 @@ void end_cpu_work(void)
 	flush_scheduled_work();
 }
 
-static inline void
+static inline int
 add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	   unsigned long pc, unsigned long event)
 {
 	struct op_entry entry;
+	int ret;
 
-	if (cpu_buffer_write_entry(&entry))
-		goto Error;
+	ret = cpu_buffer_write_entry(&entry);
+	if (ret)
+		return ret;
 
 	entry.sample->eip = pc;
 	entry.sample->event = event;
 
-	if (cpu_buffer_write_commit(&entry))
-		goto Error;
+	ret = cpu_buffer_write_commit(&entry);
+	if (ret)
+		return ret;
 
-	return;
-
-Error:
-	cpu_buf->sample_lost_overflow++;
-	return;
+	return 0;
 }
 
-static inline void
+static inline int
 add_code(struct oprofile_cpu_buffer *buffer, unsigned long value)
 {
-	add_sample(buffer, ESCAPE_CODE, value);
+	return add_sample(buffer, ESCAPE_CODE, value);
 }
 
 /* This must be safe from any context. It's safe writing here
@@ -201,17 +200,25 @@ static int log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
 	/* notice a switch from user->kernel or vice versa */
 	if (cpu_buf->last_is_kernel != is_kernel) {
 		cpu_buf->last_is_kernel = is_kernel;
-		add_code(cpu_buf, is_kernel);
+		if (add_code(cpu_buf, is_kernel))
+			goto fail;
 	}
 
 	/* notice a task switch */
 	if (cpu_buf->last_task != task) {
 		cpu_buf->last_task = task;
-		add_code(cpu_buf, (unsigned long)task);
+		if (add_code(cpu_buf, (unsigned long)task))
+			goto fail;
 	}
 
-	add_sample(cpu_buf, pc, event);
+	if (add_sample(cpu_buf, pc, event))
+		goto fail;
+
 	return 1;
+
+fail:
+	cpu_buf->sample_lost_overflow++;
+	return 0;
 }
 
 static int oprofile_begin_trace(struct oprofile_cpu_buffer *cpu_buf)
@@ -266,37 +273,49 @@ void oprofile_add_ibs_sample(struct pt_regs * const regs,
 	int is_kernel = !user_mode(regs);
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
 	struct task_struct *task;
+	int fail = 0;
 
 	cpu_buf->sample_received++;
 
 	/* notice a switch from user->kernel or vice versa */
 	if (cpu_buf->last_is_kernel != is_kernel) {
+		if (add_code(cpu_buf, is_kernel))
+			goto fail;
 		cpu_buf->last_is_kernel = is_kernel;
-		add_code(cpu_buf, is_kernel);
 	}
 
 	/* notice a task switch */
 	if (!is_kernel) {
 		task = current;
 		if (cpu_buf->last_task != task) {
+			if (add_code(cpu_buf, (unsigned long)task))
+				goto fail;
 			cpu_buf->last_task = task;
-			add_code(cpu_buf, (unsigned long)task);
 		}
 	}
 
-	add_code(cpu_buf, ibs_code);
-	add_sample(cpu_buf, ibs_sample[0], ibs_sample[1]);
-	add_sample(cpu_buf, ibs_sample[2], ibs_sample[3]);
-	add_sample(cpu_buf, ibs_sample[4], ibs_sample[5]);
+	fail = fail || add_code(cpu_buf, ibs_code);
+	fail = fail || add_sample(cpu_buf, ibs_sample[0], ibs_sample[1]);
+	fail = fail || add_sample(cpu_buf, ibs_sample[2], ibs_sample[3]);
+	fail = fail || add_sample(cpu_buf, ibs_sample[4], ibs_sample[5]);
 
 	if (ibs_code == IBS_OP_BEGIN) {
-		add_sample(cpu_buf, ibs_sample[6], ibs_sample[7]);
-		add_sample(cpu_buf, ibs_sample[8], ibs_sample[9]);
-		add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
+		fail = fail || add_sample(cpu_buf, ibs_sample[6], ibs_sample[7]);
+		fail = fail || add_sample(cpu_buf, ibs_sample[8], ibs_sample[9]);
+		fail = fail || add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
 	}
+
+	if (fail)
+		goto fail;
 
 	if (backtrace_depth)
 		oprofile_ops.backtrace(regs, backtrace_depth);
+
+	return;
+
+fail:
+	cpu_buf->sample_lost_overflow++;
+	return;
 }
 
 #endif
@@ -318,13 +337,17 @@ void oprofile_add_trace(unsigned long pc)
 	 * broken frame can give an eip with the same value as an
 	 * escape code, abort the trace if we get it
 	 */
-	if (pc == ESCAPE_CODE) {
-		cpu_buf->tracing = 0;
-		cpu_buf->backtrace_aborted++;
-		return;
-	}
+	if (pc == ESCAPE_CODE)
+		goto fail;
 
-	add_sample(cpu_buf, pc, 0);
+	if (add_sample(cpu_buf, pc, 0))
+		goto fail;
+
+	return;
+fail:
+	cpu_buf->tracing = 0;
+	cpu_buf->backtrace_aborted++;
+	return;
 }
 
 /*
