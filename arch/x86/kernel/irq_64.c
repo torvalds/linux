@@ -13,6 +13,7 @@
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/ftrace.h>
 #include <asm/uaccess.h>
 #include <asm/io_apic.h>
 #include <asm/idle.h>
@@ -47,7 +48,7 @@ static inline void stack_overflow_check(struct pt_regs *regs)
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
-asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
+asmlinkage unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc *desc;

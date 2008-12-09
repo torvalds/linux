@@ -377,6 +377,16 @@ struct ftrace_graph_ret {
  */
 #define __notrace_funcgraph		notrace
 
+/*
+ * We want to which function is an entrypoint of a hardirq.
+ * That will help us to put a signal on output.
+ */
+#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
+
+/* Limits of hardirq entrypoints */
+extern char __irqentry_text_start[];
+extern char __irqentry_text_end[];
+
 #define FTRACE_RETFUNC_DEPTH 50
 #define FTRACE_RETSTACK_ALLOC_SIZE 32
 /* Type of the callback handlers for tracing function graph*/
@@ -414,6 +424,7 @@ static inline void unpause_graph_tracing(void)
 #else
 
 #define __notrace_funcgraph
+#define __irq_entry
 
 static inline void ftrace_graph_init_task(struct task_struct *t) { }
 static inline void ftrace_graph_exit_task(struct task_struct *t) { }
