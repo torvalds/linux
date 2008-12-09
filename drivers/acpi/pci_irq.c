@@ -384,16 +384,15 @@ acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 	struct acpi_prt_entry *entry;
 
 	entry = acpi_pci_irq_find_prt_entry(dev, pin);
-	if (!entry) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No %s[%c] _PRT entry\n",
+	if (entry) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %s[%c] _PRT entry\n",
 				  pci_name(dev), pin_name(pin)));
-		return NULL;
+		return entry;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %s[%c] _PRT entry\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No %s[%c] _PRT entry\n",
 			  pci_name(dev), pin_name(pin)));
-
-	return entry;
+	return NULL;
 }
 
 static struct acpi_prt_entry *
@@ -408,7 +407,7 @@ acpi_pci_irq_derive(struct pci_dev *dev, int pin)
 	 * Attempt to derive an IRQ for this device from a parent bridge's
 	 * PCI interrupt routing entry (eg. yenta bridge and add-in card bridge).
 	 */
-	while (!entry && bridge->bus->self) {
+	while (bridge->bus->self) {
 		pin = (((pin - 1) + PCI_SLOT(bridge->devfn)) % 4) + 1;
 		bridge = bridge->bus->self;
 
@@ -425,18 +424,18 @@ acpi_pci_irq_derive(struct pci_dev *dev, int pin)
 		}
 
 		entry = acpi_pci_irq_lookup(bridge, pin);
+		if (entry) {
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					 "Derived GSI for %s INT %c from %s\n",
+					 pci_name(dev), pin_name(orig_pin),
+					 pci_name(bridge)));
+			return entry;
+		}
 	}
 
-	if (!entry) {
-		dev_warn(&dev->dev, "can't derive routing for PCI INT %c\n",
-			 pin_name(orig_pin));
-		return NULL;
-	}
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Derived GSI for %s INT %c from %s\n",
-			  pci_name(dev), pin_name(orig_pin), pci_name(bridge)));
-
-	return entry;
+	dev_warn(&dev->dev, "can't derive routing for PCI INT %c\n",
+		 pin_name(orig_pin));
+	return NULL;
 }
 
 /*
