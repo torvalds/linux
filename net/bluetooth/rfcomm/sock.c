@@ -787,12 +787,10 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 
 static int rfcomm_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-#if defined(CONFIG_BT_RFCOMM_TTY) || defined(CONFIG_BT_RFCOMM_DEBUG)
-	struct sock *sk = sock->sk;
-#endif
+	struct sock *sk __maybe_unused = sock->sk;
 	int err;
 
-	BT_DBG("sk %p cmd %x arg %lx", sock, cmd, arg);
+	BT_DBG("sk %p cmd %x arg %lx", sk, cmd, arg);
 
 	err = bt_sock_ioctl(sock, cmd, arg);
 
