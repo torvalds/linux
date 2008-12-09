@@ -37,43 +37,16 @@
 /*
  * When pessimistic budget calculations say that there is no enough space,
  * UBIFS starts writing back dirty inodes and pages, doing garbage collection,
- * or committing. The below constants define maximum number of times UBIFS
+ * or committing. The below constant defines maximum number of times UBIFS
  * repeats the operations.
  */
-#define MAX_SHRINK_RETRIES 8
-#define MAX_GC_RETRIES     4
-#define MAX_CMT_RETRIES    2
-#define MAX_NOSPC_RETRIES  1
+#define MAX_MKSPC_RETRIES 3
 
 /*
  * The below constant defines amount of dirty pages which should be written
  * back at when trying to shrink the liability.
  */
 #define NR_TO_WRITE 16
-
-/**
- * struct retries_info - information about re-tries while making free space.
- * @prev_liability: previous liability
- * @shrink_cnt: how many times the liability was shrinked
- * @shrink_retries: count of liability shrink re-tries (increased when
- *                  liability does not shrink)
- * @try_gc: GC should be tried first
- * @gc_retries: how many times GC was run
- * @cmt_retries: how many times commit has been done
- * @nospc_retries: how many times GC returned %-ENOSPC
- *
- * Since we consider budgeting to be the fast-path, and this structure has to
- * be allocated on stack and zeroed out, we make it smaller using bit-fields.
- */
-struct retries_info {
-	long long prev_liability;
-	unsigned int shrink_cnt;
-	unsigned int shrink_retries:5;
-	unsigned int try_gc:1;
-	unsigned int gc_retries:4;
-	unsigned int cmt_retries:3;
-	unsigned int nospc_retries:1;
-};
 
 /**
  * shrink_liability - write-back some dirty pages/inodes.
@@ -147,9 +120,25 @@ static int run_gc(struct ubifs_info *c)
 }
 
 /**
+ * get_liability - calculate current liability.
+ * @c: UBIFS file-system description object
+ *
+ * This function calculates and returns current UBIFS liability, i.e. the
+ * amount of bytes UBIFS has "promised" to write to the media.
+ */
+static long long get_liability(struct ubifs_info *c)
+{
+	long long liab;
+
+	spin_lock(&c->space_lock);
+	liab = c->budg_idx_growth + c->budg_data_growth + c->budg_dd_growth;
+	spin_unlock(&c->space_lock);
+	return liab;
+}
+
+/**
  * make_free_space - make more free space on the file-system.
  * @c: UBIFS file-system description object
- * @ri: information about previous invocations of this function
  *
  * This function is called when an operation cannot be budgeted because there
  * is supposedly no free space. But in most cases there is some free space:
@@ -165,87 +154,42 @@ static int run_gc(struct ubifs_info *c)
  * Returns %-ENOSPC if it couldn't do more free space, and other negative error
  * codes on failures.
  */
-static int make_free_space(struct ubifs_info *c, struct retries_info *ri)
+static int make_free_space(struct ubifs_info *c)
 {
-	int err;
+	int err, retries = 0;
+	long long liab1, liab2;
 
-	/*
-	 * If we have some dirty pages and inodes (liability), try to write
-	 * them back unless this was tried too many times without effect
-	 * already.
-	 */
-	if (ri->shrink_retries < MAX_SHRINK_RETRIES && !ri->try_gc) {
-		long long liability;
+	do {
+		liab1 = get_liability(c);
+		/*
+		 * We probably have some dirty pages or inodes (liability), try
+		 * to write them back.
+		 */
+		dbg_budg("liability %lld, run write-back", liab1);
+		shrink_liability(c, NR_TO_WRITE);
 
-		spin_lock(&c->space_lock);
-		liability = c->budg_idx_growth + c->budg_data_growth +
-			    c->budg_dd_growth;
-		spin_unlock(&c->space_lock);
+		liab2 = get_liability(c);
+		if (liab2 < liab1)
+			return -EAGAIN;
 
-		if (ri->prev_liability >= liability) {
-			/* Liability does not shrink, next time try GC then */
-			ri->shrink_retries += 1;
-			if (ri->gc_retries < MAX_GC_RETRIES)
-				ri->try_gc = 1;
-			dbg_budg("liability did not shrink: retries %d of %d",
-				 ri->shrink_retries, MAX_SHRINK_RETRIES);
-		}
+		dbg_budg("new liability %lld (not shrinked)", liab2);
 
-		dbg_budg("force write-back (count %d)", ri->shrink_cnt);
-		shrink_liability(c, NR_TO_WRITE + ri->shrink_cnt);
-
-		ri->prev_liability = liability;
-		ri->shrink_cnt += 1;
-		return -EAGAIN;
-	}
-
-	/*
-	 * Try to run garbage collector unless it was already tried too many
-	 * times.
-	 */
-	if (ri->gc_retries < MAX_GC_RETRIES) {
-		ri->gc_retries += 1;
-		dbg_budg("run GC, retries %d of %d",
-			 ri->gc_retries, MAX_GC_RETRIES);
-
-		ri->try_gc = 0;
+		/* Liability did not shrink again, try GC */
+		dbg_budg("Run GC");
 		err = run_gc(c);
 		if (!err)
 			return -EAGAIN;
 
-		if (err == -EAGAIN) {
-			dbg_budg("GC asked to commit");
-			err = ubifs_run_commit(c);
-			if (err)
-				return err;
-			return -EAGAIN;
-		}
-
-		if (err != -ENOSPC)
+		if (err != -EAGAIN && err != -ENOSPC)
+			/* Some real error happened */
 			return err;
 
-		/*
-		 * GC could not make any progress. If this is the first time,
-		 * then it makes sense to try to commit, because it might make
-		 * some dirty space.
-		 */
-		dbg_budg("GC returned -ENOSPC, retries %d",
-			 ri->nospc_retries);
-		if (ri->nospc_retries >= MAX_NOSPC_RETRIES)
-			return err;
-		ri->nospc_retries += 1;
-	}
-
-	/* Neither GC nor write-back helped, try to commit */
-	if (ri->cmt_retries < MAX_CMT_RETRIES) {
-		ri->cmt_retries += 1;
-		dbg_budg("run commit, retries %d of %d",
-			 ri->cmt_retries, MAX_CMT_RETRIES);
+		dbg_budg("Run commit (retries %d)", retries);
 		err = ubifs_run_commit(c);
 		if (err)
 			return err;
-		return -EAGAIN;
-	}
+	} while (retries++ < MAX_MKSPC_RETRIES);
+
 	return -ENOSPC;
 }
 
@@ -523,8 +467,7 @@ static int calc_dd_growth(const struct ubifs_info *c,
 int ubifs_budget_space(struct ubifs_info *c, struct ubifs_budget_req *req)
 {
 	int uninitialized_var(cmt_retries), uninitialized_var(wb_retries);
-	int err, idx_growth, data_growth, dd_growth;
-	struct retries_info ri;
+	int err, idx_growth, data_growth, dd_growth, retried = 0;
 
 	ubifs_assert(req->new_page <= 1);
 	ubifs_assert(req->dirtied_page <= 1);
@@ -542,7 +485,6 @@ int ubifs_budget_space(struct ubifs_info *c, struct ubifs_budget_req *req)
 	if (!data_growth && !dd_growth)
 		return 0;
 	idx_growth = calc_idx_growth(c, req);
-	memset(&ri, 0, sizeof(struct retries_info));
 
 again:
 	spin_lock(&c->space_lock);
@@ -580,12 +522,17 @@ again:
 		return err;
 	}
 
-	err = make_free_space(c, &ri);
+	err = make_free_space(c);
+	cond_resched();
 	if (err == -EAGAIN) {
 		dbg_budg("try again");
-		cond_resched();
 		goto again;
 	} else if (err == -ENOSPC) {
+		if (!retried) {
+			retried = 1;
+			dbg_budg("-ENOSPC, but anyway try once again");
+			goto again;
+		}
 		dbg_budg("FS is full, -ENOSPC");
 		c->nospace = 1;
 		if (can_use_rp(c) || c->rp_size == 0)
