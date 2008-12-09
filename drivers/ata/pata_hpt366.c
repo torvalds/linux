@@ -211,11 +211,15 @@ static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
 
 static int hpt36x_cable_detect(struct ata_port *ap)
 {
-	u8 ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	u8 ata66;
 
+	/*
+	 * Each channel of pata_hpt366 occupies separate PCI function
+	 * as the primary channel and bit1 indicates the cable type.
+	 */
 	pci_read_config_byte(pdev, 0x5A, &ata66);
-	if (ata66 & (1 << ap->port_no))
+	if (ata66 & 2)
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
 }
