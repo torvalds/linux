@@ -730,6 +730,22 @@ config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
 	default "0x30000000"
 
+config LOWMEM_CAM_NUM_BOOL
+	bool "Set number of CAMs to use to map low memory"
+	depends on ADVANCED_OPTIONS && FSL_BOOKE
+	help
+	  This option allows you to set the maximum number of CAM slots that
+	  will be used to map low memory.  There are a limited number of slots
+	  available and even more limited number that will fit in the L1 MMU.
+	  However, using more entries will allow mapping more low memory.  This
+	  can be useful in optimizing the layout of kernel virtual memory.
+
+	  Say N here unless you know what you are doing.
+
+config LOWMEM_CAM_NUM
+	int "Number of CAMs to use to map low memory" if LOWMEM_CAM_NUM_BOOL
+	default 3
+
 config RELOCATABLE
 	bool "Build a relocatable kernel (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && ADVANCED_OPTIONS && FLATMEM && FSL_BOOKE

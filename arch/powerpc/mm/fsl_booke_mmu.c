@@ -56,9 +56,13 @@
 
 extern void loadcam_entry(unsigned int index);
 unsigned int tlbcam_index;
-static unsigned long cam[3];
+static unsigned long cam[CONFIG_LOWMEM_CAM_NUM];
 
 #define NUM_TLBCAMS	(16)
+
+#if defined(CONFIG_LOWMEM_CAM_NUM_BOOL) && (CONFIG_LOWMEM_CAM_NUM >= NUM_TLBCAMS)
+#error "LOWMEM_CAM_NUM must be less than NUM_TLBCAMS"
+#endif
 
 struct tlbcam TLBCAM[NUM_TLBCAMS];
 
