@@ -307,7 +307,7 @@ static void queue_cast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 	lkb->lkb_lksb->sb_status = rv;
 	lkb->lkb_lksb->sb_flags = lkb->lkb_sbflags;
 
-	dlm_add_ast(lkb, AST_COMP);
+	dlm_add_ast(lkb, AST_COMP, 0);
 }
 
 static inline void queue_cast_overlap(struct dlm_rsb *r, struct dlm_lkb *lkb)
@@ -320,10 +320,8 @@ static void queue_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rqmode)
 {
 	if (is_master_copy(lkb))
 		send_bast(r, lkb, rqmode);
-	else {
-		lkb->lkb_bastmode = rqmode;
-		dlm_add_ast(lkb, AST_BAST);
-	}
+	else
+		dlm_add_ast(lkb, AST_BAST, rqmode);
 }
 
 /*
