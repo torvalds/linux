@@ -41,6 +41,22 @@
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_irq");
 
+struct acpi_prt_entry {
+	struct list_head	node;
+	struct acpi_pci_id	id;
+	u8			pin;
+	struct {
+		acpi_handle		handle;
+		u32			index;
+	}			link;
+	u32			irq;
+};
+
+struct acpi_prt_list {
+	int			count;
+	struct list_head	entries;
+};
+
 static struct acpi_prt_list acpi_prt;
 static DEFINE_SPINLOCK(acpi_prt_lock);
 
