@@ -1282,12 +1282,13 @@ static int ocfs2_xattr_update_entry(struct inode *inode,
 				    handle_t *handle,
 				    struct ocfs2_xattr_info *xi,
 				    struct ocfs2_xattr_search *xs,
+				    struct ocfs2_xattr_value_buf *vb,
 				    size_t offs)
 {
 	int ret;
 
-	ret = ocfs2_journal_access(handle, inode, xs->xattr_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = vb->vb_access(handle, inode, vb->vb_bh,
+			    OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -1301,7 +1302,7 @@ static int ocfs2_xattr_update_entry(struct inode *inode,
 		ocfs2_xattr_set_local(xs->here, 0);
 	ocfs2_xattr_hash_entry(inode, xs->header, xs->here);
 
-	ret = ocfs2_journal_dirty(handle, xs->xattr_bh);
+	ret = ocfs2_journal_dirty(handle, vb->vb_bh);
 	if (ret < 0)
 		mlog_errno(ret);
 out:
@@ -1345,7 +1346,7 @@ static int ocfs2_xattr_set_value_outside(struct inode *inode,
 		mlog_errno(ret);
 		return ret;
 	}
-	ret = ocfs2_xattr_update_entry(inode, ctxt->handle, xi, xs, offs);
+	ret = ocfs2_xattr_update_entry(inode, ctxt->handle, xi, xs, &vb, offs);
 	if (ret < 0) {
 		mlog_errno(ret);
 		return ret;
@@ -1574,6 +1575,7 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 							       handle,
 							       xi,
 							       xs,
+							       &vb,
 							       offs);
 				if (ret < 0) {
 					mlog_errno(ret);
