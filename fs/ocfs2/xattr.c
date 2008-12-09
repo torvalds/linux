@@ -2611,9 +2611,7 @@ out:
 /*
  * This function only called duing creating inode
  * for init security/acl xattrs of the new inode.
- * The xattrs could be put into ibody or extent block,
- * xattr bucket would not be use in this case.
- * transanction credits also be reserved in here.
+ * All transanction credits have been reserved in mknod.
  */
 int ocfs2_xattr_set_handle(handle_t *handle,
 			   struct inode *inode,
@@ -2653,6 +2651,19 @@ int ocfs2_xattr_set_handle(handle_t *handle,
 	if (!ocfs2_supports_xattr(OCFS2_SB(inode->i_sb)))
 		return -EOPNOTSUPP;
 
+	/*
+	 * In extreme situation, may need xattr bucket when
+	 * block size is too small. And we have already reserved
+	 * the credits for bucket in mknod.
+	 */
+	if (inode->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE) {
+		xbs.bucket = ocfs2_xattr_bucket_new(inode);
+		if (!xbs.bucket) {
+			mlog_errno(-ENOMEM);
+			return -ENOMEM;
+		}
+	}
+
 	xis.inode_bh = xbs.inode_bh = di_bh;
 	di = (struct ocfs2_dinode *)di_bh->b_data;
 
@@ -2672,6 +2683,7 @@ int ocfs2_xattr_set_handle(handle_t *handle,
 cleanup:
 	up_write(&OCFS2_I(inode)->ip_xattr_sem);
 	brelse(xbs.xattr_bh);
+	ocfs2_xattr_bucket_free(xbs.bucket);
 
 	return ret;
 }
