@@ -836,7 +836,7 @@ static void __init *careful_allocation(int nid, unsigned long size,
 		ret = __lmb_alloc_base(size, align, lmb_end_of_DRAM());
 
 	if (!ret)
-		panic("numa.c: cannot allocate %lu bytes on node %d",
+		panic("numa.c: cannot allocate %lu bytes for node %d",
 		      size, nid);
 
 	/*
@@ -855,10 +855,6 @@ static void __init *careful_allocation(int nid, unsigned long size,
 	if (new_nid < nid) {
 		ret = (unsigned long)__alloc_bootmem_node(NODE_DATA(new_nid),
 				size, align, 0);
-
-		if (!ret)
-			panic("numa.c: cannot allocate %lu bytes on node %d",
-			      size, new_nid);
 
 		ret = __pa(ret);
 
