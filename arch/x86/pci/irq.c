@@ -1041,15 +1041,15 @@ static void __init pcibios_fixup_irqs(void)
 	dev = NULL;
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
 		pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
+		if (!pin)
+			continue;
+
 #ifdef CONFIG_X86_IO_APIC
 		/*
 		 * Recalculate IRQ numbers if we use the I/O APIC.
 		 */
 		if (io_apic_assign_pci_irqs) {
 			int irq;
-
-			if (!pin)
-				continue;
 
 			/*
 			 * interrupt pins are numbered starting from 1
@@ -1091,7 +1091,7 @@ static void __init pcibios_fixup_irqs(void)
 		/*
 		 * Still no IRQ? Try to lookup one...
 		 */
-		if (pin && !dev->irq)
+		if (!dev->irq)
 			pcibios_lookup_irq(dev, 0);
 	}
 }
