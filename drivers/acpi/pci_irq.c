@@ -333,7 +333,7 @@ acpi_pci_allocate_irq(struct acpi_prt_entry *entry,
 		*polarity = ACPI_ACTIVE_LOW;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found IRQ %d\n", irq));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found GSI %d\n", irq));
 	return irq;
 }
 
@@ -432,7 +432,7 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 		return -1;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Derive IRQ %d for device %s from %s\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Derive GSI %d for device %s from %s\n",
 			  irq, pci_name(dev), pci_name(bridge)));
 
 	return irq;
@@ -446,7 +446,7 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 
 int acpi_pci_irq_enable(struct pci_dev *dev)
 {
-	int irq = 0;
+	int gsi = 0;
 	u8 pin = 0;
 	int triggering = ACPI_LEVEL_SENSITIVE;
 	int polarity = ACPI_ACTIVE_LOW;
@@ -468,7 +468,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	 * First we check the PCI IRQ routing table (PRT) for an IRQ.  PRT
 	 * values override any BIOS-assigned IRQs set during boot.
 	 */
-	irq = acpi_pci_irq_lookup(dev->bus, PCI_SLOT(dev->devfn), pin,
+	gsi = acpi_pci_irq_lookup(dev->bus, PCI_SLOT(dev->devfn), pin,
 				  &triggering, &polarity, &link,
 				  acpi_pci_allocate_irq);
 
@@ -476,12 +476,12 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	 * If no PRT entry was found, we'll try to derive an IRQ from the
 	 * device's parent bridge.
 	 */
-	if (irq < 0)
-		irq = acpi_pci_irq_derive(dev, pin, &triggering,
+	if (gsi < 0)
+		gsi = acpi_pci_irq_derive(dev, pin, &triggering,
 					  &polarity, &link,
 					  acpi_pci_allocate_irq);
 
-	if (irq < 0) {
+	if (gsi < 0) {
 		/*
 		 * IDE legacy mode controller IRQs are magic. Why do compat
 		 * extensions always make such a nasty mess.
@@ -494,7 +494,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	 * No IRQ known to the ACPI subsystem - maybe the BIOS / 
 	 * driver reported one, then use it. Exit in any case.
 	 */
-	if (irq < 0) {
+	if (gsi < 0) {
 		dev_warn(&dev->dev, "PCI INT %c: no GSI", 'A' + pin);
 		/* Interrupt Line values above 0xF are forbidden */
 		if (dev->irq > 0 && (dev->irq <= 0xF)) {
@@ -508,7 +508,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		}
 	}
 
-	rc = acpi_register_gsi(irq, triggering, polarity);
+	rc = acpi_register_gsi(gsi, triggering, polarity);
 	if (rc < 0) {
 		dev_warn(&dev->dev, "PCI INT %c: failed to register GSI\n",
 			 'A' + pin);
@@ -522,7 +522,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		link_desc[0] = '\0';
 
 	dev_info(&dev->dev, "PCI INT %c%s -> GSI %u (%s, %s) -> IRQ %d\n",
-		 'A' + pin, link_desc, irq,
+		 'A' + pin, link_desc, gsi,
 		 (triggering == ACPI_LEVEL_SENSITIVE) ? "level" : "edge",
 		 (polarity == ACPI_ACTIVE_LOW) ? "low" : "high", dev->irq);
 
