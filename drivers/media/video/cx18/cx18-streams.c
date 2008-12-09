@@ -127,16 +127,11 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->buf_size = cx->stream_buf_size[type];
 	if (s->buf_size)
 		s->buffers = max_size / s->buf_size;
-	if (s->buffers > 63) {
-		/* Each stream has a maximum of 63 buffers,
-		   ensure we do not exceed that. */
-		s->buffers = 63;
-		s->buf_size = (max_size / s->buffers) & ~0xfff;
-	}
 	mutex_init(&s->qlock);
 	init_waitqueue_head(&s->waitq);
 	s->id = -1;
 	cx18_queue_init(&s->q_free);
+	cx18_queue_init(&s->q_busy);
 	cx18_queue_init(&s->q_full);
 }
 
@@ -401,11 +396,61 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 		cx18_api(cx, CX18_CPU_SET_RAW_VBI_PARAM, 6, data);
 }
 
+struct cx18_queue *cx18_stream_put_buf_fw(struct cx18_stream *s,
+					  struct cx18_buffer *buf)
+{
+	struct cx18 *cx = s->cx;
+	struct cx18_queue *q;
+
+	/* Don't give it to the firmware, if we're not running a capture */
+	if (s->handle == CX18_INVALID_TASK_HANDLE ||
+	    !test_bit(CX18_F_S_STREAMING, &s->s_flags))
+		return cx18_enqueue(s, buf, &s->q_free);
+
+	q = cx18_enqueue(s, buf, &s->q_busy);
+	if (q != &s->q_busy)
+		return q; /* The firmware has the max buffers it can handle */
+
+	cx18_buf_sync_for_device(s, buf);
+	cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
+		  (void __iomem *) &cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+		  1, buf->id, s->buf_size);
+	return q;
+}
+
+/* Must hold s->qlock when calling */
+void cx18_stream_load_fw_queue_nolock(struct cx18_stream *s)
+{
+	struct cx18_buffer *buf;
+	struct cx18 *cx = s->cx;
+
+	/* Move from q_free to q_busy notifying the firmware: 63 buf limit */
+	while (s->handle != CX18_INVALID_TASK_HANDLE &&
+	       test_bit(CX18_F_S_STREAMING, &s->s_flags) &&
+	       atomic_read(&s->q_busy.buffers) < 63 &&
+	       !list_empty(&s->q_free.list)) {
+
+		/* Move from q_free to q_busy */
+		buf = list_entry(s->q_free.list.next, struct cx18_buffer, list);
+		list_move_tail(&buf->list, &s->q_busy.list);
+		buf->bytesused = buf->readpos = buf->b_flags = buf->skipped = 0;
+		atomic_dec(&s->q_free.buffers);
+		atomic_inc(&s->q_busy.buffers);
+
+		/* Notify firmware */
+		cx18_buf_sync_for_device(s, buf);
+		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
+		  (void __iomem *) &cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+		  1, buf->id, s->buf_size);
+	}
+}
+
 int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 {
 	u32 data[MAX_MB_ARGUMENTS];
 	struct cx18 *cx = s->cx;
 	struct list_head *p;
+	struct cx18_buffer *buf;
 	int ts = 0;
 	int captype = 0;
 
@@ -488,16 +533,18 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		(void __iomem *)&cx->scb->cpu_mdl_ack[s->type][0] - cx->enc_mem,
 		(void __iomem *)&cx->scb->cpu_mdl_ack[s->type][1] - cx->enc_mem);
 
+	/* Init all the cpu_mdls for this stream */
+	cx18_flush_queues(s);
+	mutex_lock(&s->qlock);
 	list_for_each(p, &s->q_free.list) {
-		struct cx18_buffer *buf = list_entry(p, struct cx18_buffer, list);
-
+		buf = list_entry(p, struct cx18_buffer, list);
 		cx18_writel(cx, buf->dma_handle,
 					&cx->scb->cpu_mdl[buf->id].paddr);
 		cx18_writel(cx, s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
-		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
-			(void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
-			1, buf->id, s->buf_size);
 	}
+	cx18_stream_load_fw_queue_nolock(s);
+	mutex_unlock(&s->qlock);
+
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {
 		CX18_DEBUG_WARN("Error starting capture!\n");
@@ -506,9 +553,15 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 			cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 2, s->handle, 1);
 		else
 			cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 1, s->handle);
+		clear_bit(CX18_F_S_STREAMING, &s->s_flags);
+		/* FIXME - CX18_F_S_STREAMOFF as well? */
 		cx18_vapi(cx, CX18_CPU_DE_RELEASE_MDL, 1, s->handle);
 		cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
-		/* FIXME - clean-up DSP0_INT mask, i_flags, s_flags, etc. */
+		s->handle = CX18_INVALID_TASK_HANDLE;
+		if (atomic_read(&cx->tot_capturing) == 0) {
+			set_bit(CX18_F_I_EOS, &cx->i_flags);
+			cx18_write_reg(cx, 5, CX18_DSP0_INTERRUPT_MASK);
+		}
 		return -EINVAL;
 	}
 

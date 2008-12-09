@@ -189,16 +189,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_epu_work_order *order)
 			dvb_dmx_swfilter(&s->dvb.demux, buf->buf,
 					 buf->bytesused);
 
-			cx18_buf_sync_for_device(s, buf);
-			cx18_enqueue(s, buf, &s->q_free);
-
-			if (s->handle != CX18_INVALID_TASK_HANDLE &&
-			    test_bit(CX18_F_S_STREAMING, &s->s_flags))
-				cx18_vapi(cx,
-				       CX18_CPU_DE_SET_MDL, 5, s->handle,
-				       (void __iomem *)
-				       &cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
-				       1, buf->id, s->buf_size);
+			cx18_stream_put_buf_fw(s, buf);
 		} else
 			set_bit(CX18_F_B_NEED_BUF_SWAP, &buf->b_flags);
 	}

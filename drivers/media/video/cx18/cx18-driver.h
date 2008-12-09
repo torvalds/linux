@@ -289,7 +289,8 @@ struct cx18_stream {
 
 	/* Buffer Queues */
 	struct cx18_queue q_free;	/* free buffers */
-	struct cx18_queue q_full;	/* full buffers */
+	struct cx18_queue q_busy;	/* busy buffers - in use by firmware */
+	struct cx18_queue q_full;	/* full buffers - data for user apps */
 
 	/* DVB / Digital Transport */
 	struct cx18_dvb dvb;

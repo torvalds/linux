@@ -43,21 +43,21 @@ static inline void cx18_buf_sync_for_device(struct cx18_stream *s,
 void cx18_buf_swap(struct cx18_buffer *buf);
 
 /* cx18_queue utility functions */
-void _cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
-		   struct cx18_queue *q, int to_front);
+struct cx18_queue *_cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
+				 struct cx18_queue *q, int to_front);
 
 static inline
-void cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
-		  struct cx18_queue *q)
+struct cx18_queue *cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
+				struct cx18_queue *q)
 {
-	_cx18_enqueue(s, buf, q, 0); /* FIFO */
+	return _cx18_enqueue(s, buf, q, 0); /* FIFO */
 }
 
 static inline
-void cx18_push(struct cx18_stream *s, struct cx18_buffer *buf,
-	       struct cx18_queue *q)
+struct cx18_queue *cx18_push(struct cx18_stream *s, struct cx18_buffer *buf,
+			     struct cx18_queue *q)
 {
-	_cx18_enqueue(s, buf, q, 1); /* LIFO */
+	return _cx18_enqueue(s, buf, q, 1); /* LIFO */
 }
 
 void cx18_queue_init(struct cx18_queue *q);

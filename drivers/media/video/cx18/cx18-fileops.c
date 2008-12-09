@@ -187,7 +187,7 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 				while ((buf = cx18_dequeue(s_vbi, &s_vbi->q_full))) {
 					/* byteswap and process VBI data */
 /*					cx18_process_vbi_data(cx, buf, s_vbi->dma_pts, s_vbi->type); */
-					cx18_enqueue(s_vbi, buf, &s_vbi->q_free);
+					cx18_stream_put_buf_fw(s_vbi, buf);
 				}
 			}
 			buf = &cx->vbi.sliced_mpeg_buf;
@@ -361,15 +361,9 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 				tot_count - tot_written);
 
 		if (buf != &cx->vbi.sliced_mpeg_buf) {
-			if (buf->readpos == buf->bytesused) {
-				cx18_buf_sync_for_device(s, buf);
-				cx18_enqueue(s, buf, &s->q_free);
-				cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5,
-					s->handle,
-					(void __iomem *)&cx->scb->cpu_mdl[buf->id] -
-					  cx->enc_mem,
-					1, buf->id, s->buf_size);
-			} else
+			if (buf->readpos == buf->bytesused)
+				cx18_stream_put_buf_fw(s, buf);
+			else
 				cx18_push(s, buf, &s->q_full);
 		} else if (buf->readpos == buf->bytesused) {
 			int idx = cx->vbi.inserted_frame % CX18_VBI_FRAMES;

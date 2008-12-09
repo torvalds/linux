@@ -42,24 +42,32 @@ void cx18_queue_init(struct cx18_queue *q)
 	q->bytesused = 0;
 }
 
-void _cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
-		   struct cx18_queue *q, int to_front)
+struct cx18_queue *_cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
+				 struct cx18_queue *q, int to_front)
 {
-	/* clear the buffer if it is going to be enqueued to the free queue */
-	if (q == &s->q_free) {
+	/* clear the buffer if it is not to be enqueued to the full queue */
+	if (q != &s->q_full) {
 		buf->bytesused = 0;
 		buf->readpos = 0;
 		buf->b_flags = 0;
 		buf->skipped = 0;
 	}
+
 	mutex_lock(&s->qlock);
+
+	/* q_busy is restricted to 63 buffers to stay within firmware limits */
+	if (q == &s->q_busy && atomic_read(&q->buffers) >= 63)
+		q = &s->q_free;
+
 	if (to_front)
 		list_add(&buf->list, &q->list); /* LIFO */
 	else
 		list_add_tail(&buf->list, &q->list); /* FIFO */
-	atomic_inc(&q->buffers);
 	q->bytesused += buf->bytesused - buf->readpos;
+	atomic_inc(&q->buffers);
+
 	mutex_unlock(&s->qlock);
+	return q;
 }
 
 struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
@@ -70,9 +78,9 @@ struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 	if (!list_empty(&q->list)) {
 		buf = list_entry(q->list.next, struct cx18_buffer, list);
 		list_del_init(q->list.next);
-		atomic_dec(&q->buffers);
 		q->bytesused -= buf->bytesused - buf->readpos;
 		buf->skipped = 0;
+		atomic_dec(&q->buffers);
 	}
 	mutex_unlock(&s->qlock);
 	return buf;
@@ -85,28 +93,30 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 	struct cx18_buffer *buf;
 	struct cx18_buffer *ret = NULL;
 	struct list_head *p, *t;
-	LIST_HEAD(r);
 
 	mutex_lock(&s->qlock);
-	list_for_each_safe(p, t, &s->q_free.list) {
+	list_for_each_safe(p, t, &s->q_busy.list) {
 		buf = list_entry(p, struct cx18_buffer, list);
 
 		if (buf->id != id) {
 			buf->skipped++;
-			if (buf->skipped >= atomic_read(&s->q_free.buffers)-1) {
+			if (buf->skipped >= atomic_read(&s->q_busy.buffers)-1) {
 				/* buffer must have fallen out of rotation */
-				atomic_dec(&s->q_free.buffers);
-				list_move_tail(&buf->list, &r);
 				CX18_WARN("Skipped %s, buffer %d, %d "
 					  "times - it must have dropped out of "
 					  "rotation\n", s->name, buf->id,
 					  buf->skipped);
+				/* move it to q_free */
+				list_move_tail(&buf->list, &s->q_free.list);
+				buf->bytesused = buf->readpos = buf->b_flags =
+					buf->skipped = 0;
+				atomic_dec(&s->q_busy.buffers);
+				atomic_inc(&s->q_free.buffers);
 			}
 			continue;
 		}
 
 		buf->bytesused = bytesused;
-		atomic_dec(&s->q_free.buffers);
 		if (s->type == CX18_ENC_STREAM_TYPE_TS) {
 			/*
 			 * TS doesn't use q_full, but for sweeping up lost
@@ -116,28 +126,19 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 			 */
 			list_del_init(&buf->list);
 		} else {
-			atomic_inc(&s->q_full.buffers);
-			s->q_full.bytesused += buf->bytesused;
 			list_move_tail(&buf->list, &s->q_full.list);
+			s->q_full.bytesused += buf->bytesused;
+			atomic_inc(&s->q_full.buffers);
 		}
+		atomic_dec(&s->q_busy.buffers);
 
 		ret = buf;
 		break;
 	}
-	mutex_unlock(&s->qlock);
 
-	/* Put lost buffers back into firmware transfer rotation */
-	while (!list_empty(&r)) {
-		buf = list_entry(r.next, struct cx18_buffer, list);
-		list_del_init(r.next);
-		cx18_enqueue(s, buf, &s->q_free);
-		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
-		       (void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
-		       1, buf->id, s->buf_size);
-		CX18_INFO("Returning %s, buffer %d back to transfer rotation\n",
-			  s->name, buf->id);
-		/* and there was much rejoicing... */
-	}
+	/* Put more buffers into the transfer rotation from q_free, if we can */
+	cx18_stream_load_fw_queue_nolock(s);
+	mutex_unlock(&s->qlock);
 	return ret;
 }
 
@@ -162,6 +163,7 @@ static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 
 void cx18_flush_queues(struct cx18_stream *s)
 {
+	cx18_queue_flush(s, &s->q_busy);
 	cx18_queue_flush(s, &s->q_full);
 }
 
