@@ -136,14 +136,25 @@ void hw_perf_disable_all(void)
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0, 0);
 }
 
+static inline void
+__hw_perf_counter_disable(struct hw_perf_counter *hwc, unsigned int idx)
+{
+	wrmsr(hwc->config_base + idx, hwc->config, 0);
+}
+
 static DEFINE_PER_CPU(u64, prev_next_count[MAX_HW_COUNTERS]);
 
-static void __hw_perf_counter_enable(struct hw_perf_counter *hwc, int idx)
+static void __hw_perf_counter_set_period(struct hw_perf_counter *hwc, int idx)
 {
 	per_cpu(prev_next_count[idx], smp_processor_id()) = hwc->next_count;
 
 	wrmsr(hwc->counter_base + idx, hwc->next_count, 0);
-	wrmsr(hwc->config_base + idx, hwc->config, 0);
+}
+
+static void __hw_perf_counter_enable(struct hw_perf_counter *hwc, int idx)
+{
+	wrmsr(hwc->config_base + idx,
+	      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
 }
 
 void hw_perf_counter_enable(struct perf_counter *counter)
@@ -161,11 +172,11 @@ void hw_perf_counter_enable(struct perf_counter *counter)
 
 	perf_counters_lapic_init(hwc->nmi);
 
-	wrmsr(hwc->config_base + idx,
-	      hwc->config & ~ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
+	__hw_perf_counter_disable(hwc, idx);
 
 	cpuc->counters[idx] = counter;
-	counter->hw.config |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+
+	__hw_perf_counter_set_period(hwc, idx);
 	__hw_perf_counter_enable(hwc, idx);
 }
 
@@ -286,8 +297,7 @@ void hw_perf_counter_disable(struct perf_counter *counter)
 	struct hw_perf_counter *hwc = &counter->hw;
 	unsigned int idx = hwc->idx;
 
-	counter->hw.config &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
-	wrmsr(hwc->config_base + idx, hwc->config, 0);
+	__hw_perf_counter_disable(hwc, idx);
 
 	clear_bit(idx, cpuc->used);
 	cpuc->counters[idx] = NULL;
@@ -328,18 +338,24 @@ static void perf_store_irq_data(struct perf_counter *counter, u64 data)
 	}
 }
 
+/*
+ * NMI-safe enable method:
+ */
 static void perf_save_and_restart(struct perf_counter *counter)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
 	int idx = hwc->idx;
+	u64 pmc_ctrl;
+	int err;
 
-	wrmsr(hwc->config_base + idx,
-	      hwc->config & ~ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
+	err = rdmsrl_safe(MSR_ARCH_PERFMON_EVENTSEL0 + idx, &pmc_ctrl);
+	WARN_ON_ONCE(err);
 
-	if (hwc->config & ARCH_PERFMON_EVENTSEL0_ENABLE) {
-		__hw_perf_save_counter(counter, hwc, idx);
+	__hw_perf_save_counter(counter, hwc, idx);
+	__hw_perf_counter_set_period(hwc, idx);
+
+	if (pmc_ctrl & ARCH_PERFMON_EVENTSEL0_ENABLE)
 		__hw_perf_counter_enable(hwc, idx);
-	}
 }
 
 static void
