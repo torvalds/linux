@@ -2697,6 +2697,21 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->speed = 0;
 		cmd->duplex = cmd->port = cmd->phy_address =
 			cmd->transceiver = cmd->autoneg = 0;
+
+		/* serdes means usually a Fibre connector, with most fixed */
+		if (gp->phy_type == phy_serdes) {
+			cmd->port = PORT_FIBRE;
+			cmd->supported = (SUPPORTED_1000baseT_Half |
+				SUPPORTED_1000baseT_Full |
+				SUPPORTED_FIBRE | SUPPORTED_Autoneg |
+				SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+			cmd->advertising = cmd->supported;
+			cmd->transceiver = XCVR_INTERNAL;
+			if (gp->lstate == link_up)
+				cmd->speed = SPEED_1000;
+			cmd->duplex = DUPLEX_FULL;
+			cmd->autoneg = 1;
+		}
 	}
 	cmd->maxtxpkt = cmd->maxrxpkt = 0;
 
