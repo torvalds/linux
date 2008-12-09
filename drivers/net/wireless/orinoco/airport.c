@@ -279,7 +279,7 @@ init_airport(void)
 static void __exit
 exit_airport(void)
 {
-	return macio_unregister_driver(&airport_driver);
+	macio_unregister_driver(&airport_driver);
 }
 
 module_init(init_airport);
