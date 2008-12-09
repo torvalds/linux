@@ -162,21 +162,21 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 
 static void print_lock(struct seq_file *s, struct dlm_lkb *lkb, struct dlm_rsb *r)
 {
-	unsigned int waiting = 0;
-	uint64_t xid = 0;
+	u64 xid = 0;
+	u64 us;
 
 	if (lkb->lkb_flags & DLM_IFL_USER) {
 		if (lkb->lkb_ua)
 			xid = lkb->lkb_ua->xid;
 	}
 
-	if (lkb->lkb_timestamp)
-		waiting = jiffies_to_msecs(jiffies - lkb->lkb_timestamp);
+	/* microseconds since lkb was added to current queue */
+	us = ktime_to_us(ktime_sub(ktime_get(), lkb->lkb_timestamp));
 
-	/* id nodeid remid pid xid exflags flags sts grmode rqmode time_ms
+	/* id nodeid remid pid xid exflags flags sts grmode rqmode time_us
 	   r_nodeid r_len r_name */
 
-	seq_printf(s, "%x %d %x %u %llu %x %x %d %d %d %u %u %d \"%s\"\n",
+	seq_printf(s, "%x %d %x %u %llu %x %x %d %d %d %llu %u %d \"%s\"\n",
 		   lkb->lkb_id,
 		   lkb->lkb_nodeid,
 		   lkb->lkb_remid,
@@ -187,7 +187,7 @@ static void print_lock(struct seq_file *s, struct dlm_lkb *lkb, struct dlm_rsb *
 		   lkb->lkb_status,
 		   lkb->lkb_grmode,
 		   lkb->lkb_rqmode,
-		   waiting,
+		   (unsigned long long)us,
 		   r->res_nodeid,
 		   r->res_length,
 		   r->res_name);

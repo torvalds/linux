@@ -245,7 +245,7 @@ struct dlm_lkb {
 	struct list_head	lkb_astqueue;	/* need ast to be sent */
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	struct list_head	lkb_time_list;
-	unsigned long		lkb_timestamp;
+	ktime_t			lkb_timestamp;
 	unsigned long		lkb_timeout_cs;
 
 	char			*lkb_lvbptr;
