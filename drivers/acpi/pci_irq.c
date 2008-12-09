@@ -395,14 +395,15 @@ acpi_pci_irq_lookup(struct pci_dev *dev, int pin,
 	int ret;
 
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Searching for _PRT entry for %s[%c]\n",
-			  pci_name(dev), pin_name(pin)));
-
 	entry = acpi_pci_irq_find_prt_entry(dev, pin);
 	if (!entry) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "_PRT entry not found\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No %s[%c] _PRT entry\n",
+				  pci_name(dev), pin_name(pin)));
 		return -1;
 	}
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %s[%c] _PRT entry\n",
+			  pci_name(dev), pin_name(pin)));
 
 	ret = func(entry, triggering, polarity, link);
 	return ret;
@@ -455,8 +456,8 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 		return -1;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Derive GSI %d for device %s from %s\n",
-			  irq, pci_name(dev), pci_name(bridge)));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Derived GSI %d for %s INT %c from %s\n",
+			  irq, pci_name(dev), pin_name(orig_pin), pci_name(bridge)));
 
 	return irq;
 }
