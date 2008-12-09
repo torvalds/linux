@@ -32,7 +32,7 @@
 
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
 
-#define DEFAULT_TIMEOUT (2 * HZ)
+#define DEFAULT_TIMEOUT (5 * HZ)
 
 struct omap_uart_state {
 	int num;
@@ -235,7 +235,10 @@ static void omap_uart_block_sleep(struct omap_uart_state *uart)
 
 	omap_uart_smart_idle_enable(uart, 0);
 	uart->can_sleep = 0;
-	mod_timer(&uart->timer, jiffies + uart->timeout);
+	if (uart->timeout)
+		mod_timer(&uart->timer, jiffies + uart->timeout);
+	else
+		del_timer(&uart->timer);
 }
 
 static void omap_uart_allow_sleep(struct omap_uart_state *uart)
@@ -340,6 +343,8 @@ static irqreturn_t omap_uart_interrupt(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
+static u32 sleep_timeout = DEFAULT_TIMEOUT;
+
 static void omap_uart_idle_init(struct omap_uart_state *uart)
 {
 	u32 v;
@@ -347,7 +352,7 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 	int ret;
 
 	uart->can_sleep = 0;
-	uart->timeout = DEFAULT_TIMEOUT;
+	uart->timeout = sleep_timeout;
 	setup_timer(&uart->timer, omap_uart_idle_timer,
 		    (unsigned long) uart);
 	mod_timer(&uart->timer, jiffies + uart->timeout);
@@ -427,6 +432,39 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 	WARN_ON(ret);
 }
 
+static ssize_t sleep_timeout_show(struct kobject *kobj,
+				  struct kobj_attribute *attr,
+				  char *buf)
+{
+	return sprintf(buf, "%u\n", sleep_timeout / HZ);
+}
+
+static ssize_t sleep_timeout_store(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t n)
+{
+	struct omap_uart_state *uart;
+	unsigned int value;
+
+	if (sscanf(buf, "%u", &value) != 1) {
+		printk(KERN_ERR "sleep_timeout_store: Invalid value\n");
+		return -EINVAL;
+	}
+	sleep_timeout = value * HZ;
+	list_for_each_entry(uart, &uart_list, node) {
+		uart->timeout = sleep_timeout;
+		if (uart->timeout)
+			mod_timer(&uart->timer, jiffies + uart->timeout);
+		else
+			/* A zero value means disable timeout feature */
+			omap_uart_block_sleep(uart);
+	}
+	return n;
+}
+
+static struct kobj_attribute sleep_timeout_attr =
+	__ATTR(sleep_timeout, 0644, sleep_timeout_show, sleep_timeout_store);
+
 #else
 static inline void omap_uart_idle_init(struct omap_uart_state *uart) {}
 #endif /* CONFIG_PM */
@@ -496,6 +534,15 @@ static struct platform_device serial_device = {
 
 static int __init omap_init(void)
 {
-	return platform_device_register(&serial_device);
+	int ret;
+
+	ret = platform_device_register(&serial_device);
+
+#ifdef CONFIG_PM
+	if (!ret)
+		ret = sysfs_create_file(&serial_device.dev.kobj,
+					&sleep_timeout_attr.attr);
+#endif
+	return ret;
 }
 arch_initcall(omap_init);
