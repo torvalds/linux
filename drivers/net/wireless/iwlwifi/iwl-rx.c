@@ -1071,9 +1071,10 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
 	/* Set "1" to report good data frames in groups of 100 */
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (unlikely(priv->debug_level & IWL_DL_RX))
 		iwl_dbg_report_frame(priv, rx_start, len, header, 1);
-
+#endif
 	IWL_DEBUG_STATS_LIMIT("Rssi %d, noise %d, qual %d, TSF %llu\n",
 		rx_status.signal, rx_status.noise, rx_status.signal,
 		(unsigned long long)rx_status.mactime);
