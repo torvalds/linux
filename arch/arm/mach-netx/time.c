@@ -42,9 +42,9 @@ netx_timer_interrupt(int irq, void *dev_id)
 }
 
 static struct irqaction netx_timer_irq = {
-	.name           = "NetX Timer Tick",
-	.flags          = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler        = netx_timer_interrupt,
+	.name		= "NetX Timer Tick",
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.handler	= netx_timer_interrupt,
 };
 
 cycle_t netx_get_cycles(void)
@@ -53,11 +53,11 @@ cycle_t netx_get_cycles(void)
 }
 
 static struct clocksource clocksource_netx = {
-	.name 		= "netx_timer",
+	.name		= "netx_timer",
 	.rating		= 200,
 	.read		= netx_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift 		= 20,
+	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -77,20 +77,22 @@ static void __init netx_timer_init(void)
 	/* acknowledge interrupt */
 	writel(COUNTER_BIT(0), NETX_GPIO_IRQ);
 
-	/* Enable the interrupt in the specific timer register and start timer */
+	/* Enable the interrupt in the specific timer
+	 * register and start timer
+	 */
 	writel(COUNTER_BIT(0), NETX_GPIO_IRQ_ENABLE);
 	writel(NETX_GPIO_COUNTER_CTRL_IRQ_EN | NETX_GPIO_COUNTER_CTRL_RUN,
-		NETX_GPIO_COUNTER_CTRL(0));
+			NETX_GPIO_COUNTER_CTRL(0));
 
 	setup_irq(NETX_IRQ_TIMER0, &netx_timer_irq);
 
 	/* Setup timer one for clocksource */
-        writel(0, NETX_GPIO_COUNTER_CTRL(1));
-        writel(0, NETX_GPIO_COUNTER_CURRENT(1));
-        writel(0xFFFFFFFF, NETX_GPIO_COUNTER_MAX(1));
+	writel(0, NETX_GPIO_COUNTER_CTRL(1));
+	writel(0, NETX_GPIO_COUNTER_CURRENT(1));
+	writel(0xffffffff, NETX_GPIO_COUNTER_MAX(1));
 
-        writel(NETX_GPIO_COUNTER_CTRL_RUN,
-                NETX_GPIO_COUNTER_CTRL(1));
+	writel(NETX_GPIO_COUNTER_CTRL_RUN,
+			NETX_GPIO_COUNTER_CTRL(1));
 
 	clocksource_netx.mult =
 		clocksource_hz2mult(CLOCK_TICK_RATE, clocksource_netx.shift);
