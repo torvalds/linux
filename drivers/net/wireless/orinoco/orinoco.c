@@ -1750,7 +1750,7 @@ static void orinoco_send_bssid_wevent(struct orinoco_private *priv)
 	union iwreq_data wrqu;
 	int err;
 
-	err = hermes_read_ltv(hw, IRQ_BAP, HERMES_RID_CURRENTBSSID,
+	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENTBSSID,
 			      ETH_ALEN, NULL, wrqu.ap_addr.sa_data);
 	if (err != 0)
 		return;
@@ -1773,7 +1773,7 @@ static void orinoco_send_assocreqie_wevent(struct orinoco_private *priv)
 	if (!priv->has_wpa)
 		return;
 
-	err = hermes_read_ltv(hw, IRQ_BAP, HERMES_RID_CURRENT_ASSOC_REQ_INFO,
+	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENT_ASSOC_REQ_INFO,
 			      sizeof(buf), NULL, &buf);
 	if (err != 0)
 		return;
@@ -1803,7 +1803,7 @@ static void orinoco_send_assocrespie_wevent(struct orinoco_private *priv)
 	if (!priv->has_wpa)
 		return;
 
-	err = hermes_read_ltv(hw, IRQ_BAP, HERMES_RID_CURRENT_ASSOC_RESP_INFO,
+	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENT_ASSOC_RESP_INFO,
 			      sizeof(buf), NULL, &buf);
 	if (err != 0)
 		return;
