@@ -183,7 +183,9 @@ static unsigned long hpt366_filter(struct ata_device *adev, unsigned long mask)
 			mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 		if (hpt_dma_blacklisted(adev, "UDMA4", bad_ata66_4))
 			mask &= ~(0xF0 << ATA_SHIFT_UDMA);
-	}
+	} else if (adev->class == ATA_DEV_ATAPI)
+		mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
+
 	return ata_bmdma_mode_filter(adev, mask);
 }
 
