@@ -1374,9 +1374,9 @@ pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge)
 	pin = dev->pin;
 	if (!pin)
 		return -1;
-	pin--;
+
 	while (dev->bus->self) {
-		pin = (pin + PCI_SLOT(dev->devfn)) % 4;
+		pin = (((pin - 1) + PCI_SLOT(dev->devfn)) % 4) + 1;
 		dev = dev->bus->self;
 	}
 	*bridge = dev;

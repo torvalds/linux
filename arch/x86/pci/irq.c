@@ -533,7 +533,7 @@ static int pirq_bios_set(struct pci_dev *router, struct pci_dev *dev, int pirq, 
 {
 	struct pci_dev *bridge;
 	int pin = pci_get_interrupt_pin(dev, &bridge);
-	return pcibios_set_irq_routing(bridge, pin, irq);
+	return pcibios_set_irq_routing(bridge, pin - 1, irq);
 }
 
 #endif
