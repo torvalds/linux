@@ -616,8 +616,15 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("OUTL"),
 	SND_SOC_DAPM_OUTPUT("OUTR"),
 
-	SND_SOC_DAPM_DAC("DACL", "Left Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DACR", "Right Playback", SND_SOC_NOPM, 0, 0),
+	/* DACs */
+	SND_SOC_DAPM_DAC("DACR1", "Right Front Playback",
+			TWL4030_REG_AVDAC_CTL, 0, 0),
+	SND_SOC_DAPM_DAC("DACL1", "Left Front Playback",
+			TWL4030_REG_AVDAC_CTL, 1, 0),
+	SND_SOC_DAPM_DAC("DACR2", "Right Rear Playback",
+			TWL4030_REG_AVDAC_CTL, 2, 0),
+	SND_SOC_DAPM_DAC("DACL2", "Left Rear Playback",
+			TWL4030_REG_AVDAC_CTL, 3, 0),
 
 	SND_SOC_DAPM_ADC("ADCL", "Left Capture", SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_ADC("ADCR", "Right Capture", SND_SOC_NOPM, 0, 0),
@@ -625,8 +632,8 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route intercon[] = {
 	/* outputs */
-	{"OUTL", NULL, "DACL"},
-	{"OUTR", NULL, "DACR"},
+	{"OUTL", NULL, "DACL2"},
+	{"OUTR", NULL, "DACR2"},
 
 	/* inputs */
 	{"ADCL", NULL, "INL"},
