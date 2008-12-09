@@ -45,11 +45,8 @@ struct acpi_prt_entry {
 	struct list_head	list;
 	struct acpi_pci_id	id;
 	u8			pin;
-	struct {
-		acpi_handle		handle;
-		u32			index;
-	}			link;
-	u32			irq;
+	acpi_handle		link;
+	u32			index;		/* GSI, or link _CRS index */
 };
 
 static LIST_HEAD(acpi_prt_list);
@@ -205,6 +202,8 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 
 	do_prt_fixups(entry, prt);
 
+	entry->index = prt->source_index;
+
 	/*
 	 * Type 1: Dynamic
 	 * ---------------
@@ -218,10 +217,9 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 	 *       (e.g. exists somewhere 'below' this _PRT entry in the ACPI
 	 *       namespace).
 	 */
-	if (prt->source[0]) {
-		acpi_get_handle(handle, prt->source, &entry->link.handle);
-		entry->link.index = prt->source_index;
-	}
+	if (prt->source[0])
+		acpi_get_handle(handle, prt->source, &entry->link);
+
 	/*
 	 * Type 2: Static
 	 * --------------
@@ -229,14 +227,12 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 	 * the IRQ value, which is hardwired to specific interrupt inputs on
 	 * the interrupt controller.
 	 */
-	else
-		entry->link.index = prt->source_index;
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
 			      "      %04x:%02x:%02x[%c] -> %s[%d]\n",
 			      entry->id.segment, entry->id.bus,
 			      entry->id.device, pin_name(entry->pin),
-			      prt->source, entry->link.index));
+			      prt->source, entry->index));
 
 	spin_lock(&acpi_prt_lock);
 	list_add_tail(&entry->list, &acpi_prt_list);
@@ -310,17 +306,16 @@ acpi_pci_allocate_irq(struct acpi_prt_entry *entry,
 	int irq;
 
 
-	if (entry->link.handle) {
-		irq = acpi_pci_link_allocate_irq(entry->link.handle,
-						 entry->link.index, triggering,
-						 polarity, link);
+	if (entry->link) {
+		irq = acpi_pci_link_allocate_irq(entry->link, entry->index,
+						 triggering, polarity, link);
 		if (irq < 0) {
 			printk(KERN_WARNING PREFIX
 				      "Invalid IRQ link routing entry\n");
 			return -1;
 		}
 	} else {
-		irq = entry->link.index;
+		irq = entry->index;
 		*triggering = ACPI_LEVEL_SENSITIVE;
 		*polarity = ACPI_ACTIVE_LOW;
 	}
@@ -334,10 +329,10 @@ acpi_pci_free_irq(struct acpi_prt_entry *entry)
 {
 	int irq;
 
-	if (entry->link.handle) {
-		irq = acpi_pci_link_free_irq(entry->link.handle);
+	if (entry->link) {
+		irq = acpi_pci_link_free_irq(entry->link);
 	} else {
-		irq = entry->link.index;
+		irq = entry->index;
 	}
 	return irq;
 }
