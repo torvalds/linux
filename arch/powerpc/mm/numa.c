@@ -822,22 +822,27 @@ static void __init dump_numa_memory_topology(void)
  * required. nid is the preferred node and end is the physical address of
  * the highest address in the node.
  *
- * Returns the physical address of the memory.
+ * Returns the virtual address of the memory.
  */
 static void __init *careful_allocation(int nid, unsigned long size,
 				       unsigned long align,
 				       unsigned long end_pfn)
 {
+	void *ret;
 	int new_nid;
-	unsigned long ret = __lmb_alloc_base(size, align, end_pfn << PAGE_SHIFT);
+	unsigned long ret_paddr;
+
+	ret_paddr = __lmb_alloc_base(size, align, end_pfn << PAGE_SHIFT);
 
 	/* retry over all memory */
-	if (!ret)
-		ret = __lmb_alloc_base(size, align, lmb_end_of_DRAM());
+	if (!ret_paddr)
+		ret_paddr = __lmb_alloc_base(size, align, lmb_end_of_DRAM());
 
-	if (!ret)
+	if (!ret_paddr)
 		panic("numa.c: cannot allocate %lu bytes for node %d",
 		      size, nid);
+
+	ret = __va(ret_paddr);
 
 	/*
 	 * We initialize the nodes in numeric order: 0, 1, 2...
@@ -851,17 +856,15 @@ static void __init *careful_allocation(int nid, unsigned long size,
 	 * instead of the LMB.  We don't free the LMB memory
 	 * since it would be useless.
 	 */
-	new_nid = early_pfn_to_nid(ret >> PAGE_SHIFT);
+	new_nid = early_pfn_to_nid(ret_paddr >> PAGE_SHIFT);
 	if (new_nid < nid) {
-		ret = (unsigned long)__alloc_bootmem_node(NODE_DATA(new_nid),
+		ret = __alloc_bootmem_node(NODE_DATA(new_nid),
 				size, align, 0);
 
-		ret = __pa(ret);
-
-		dbg("alloc_bootmem %lx %lx\n", ret, size);
+		dbg("alloc_bootmem %p %lx\n", ret, size);
 	}
 
-	return (void *)ret;
+	return ret;
 }
 
 static struct notifier_block __cpuinitdata ppc64_numa_nb = {
@@ -956,7 +959,7 @@ void __init do_init_bootmem(void)
 
 	for_each_online_node(nid) {
 		unsigned long start_pfn, end_pfn;
-		unsigned long bootmem_paddr;
+		void *bootmem_vaddr;
 		unsigned long bootmap_pages;
 
 		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
@@ -971,7 +974,6 @@ void __init do_init_bootmem(void)
 		NODE_DATA(nid) = careful_allocation(nid,
 					sizeof(struct pglist_data),
 					SMP_CACHE_BYTES, end_pfn);
-		NODE_DATA(nid) = __va(NODE_DATA(nid));
 		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
   		dbg("node %d\n", nid);
@@ -988,14 +990,15 @@ void __init do_init_bootmem(void)
   		dbg("end_paddr = %lx\n", end_pfn << PAGE_SHIFT);
 
 		bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
-		bootmem_paddr = (unsigned long)careful_allocation(nid,
+		bootmem_vaddr = careful_allocation(nid,
 					bootmap_pages << PAGE_SHIFT,
 					PAGE_SIZE, end_pfn);
-		memset(__va(bootmem_paddr), 0, bootmap_pages << PAGE_SHIFT);
+		memset(bootmem_vaddr, 0, bootmap_pages << PAGE_SHIFT);
 
-		dbg("bootmap_paddr = %lx\n", bootmem_paddr);
+		dbg("bootmap_vaddr = %p\n", bootmem_vaddr);
 
-		init_bootmem_node(NODE_DATA(nid), bootmem_paddr >> PAGE_SHIFT,
+		init_bootmem_node(NODE_DATA(nid),
+				  __pa(bootmem_vaddr) >> PAGE_SHIFT,
 				  start_pfn, end_pfn);
 
 		free_bootmem_with_active_regions(nid, end_pfn);
