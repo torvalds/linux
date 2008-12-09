@@ -318,6 +318,8 @@ static inline void queue_cast_overlap(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 static void queue_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rqmode)
 {
+	lkb->lkb_time_bast = ktime_get();
+
 	if (is_master_copy(lkb))
 		send_bast(r, lkb, rqmode);
 	else
