@@ -2149,7 +2149,7 @@ out4:
 	return ret;
 }
 
-static struct ioc3_submodule ioc3uart_submodule = {
+static struct ioc3_submodule ioc3uart_ops = {
 	.name = "IOC3uart",
 	.probe = ioc3uart_probe,
 	.remove = ioc3uart_remove,
@@ -2173,7 +2173,7 @@ static int __devinit ioc3uart_init(void)
 		       __func__);
 		return ret;
 	}
-	ret = ioc3_register_submodule(&ioc3uart_submodule);
+	ret = ioc3_register_submodule(&ioc3uart_ops);
 	if (ret)
 		uart_unregister_driver(&ioc3_uart);
 	return ret;
@@ -2181,7 +2181,7 @@ static int __devinit ioc3uart_init(void)
 
 static void __devexit ioc3uart_exit(void)
 {
-	ioc3_unregister_submodule(&ioc3uart_submodule);
+	ioc3_unregister_submodule(&ioc3uart_ops);
 	uart_unregister_driver(&ioc3_uart);
 }
 
