@@ -92,10 +92,10 @@ static int xc_check_ptr(struct xc *x, unsigned long adr, unsigned int size)
 	return -1;
 }
 
-static int xc_patch(struct xc *x, void *patch, int count)
+static int xc_patch(struct xc *x, const void *patch, int count)
 {
 	unsigned int val, adr;
-	unsigned int *data = patch;
+	const unsigned int *data = patch;
 
 	int i;
 	for (i = 0; i < count; i++) {
@@ -117,7 +117,7 @@ int xc_request_firmware(struct xc *x)
 	struct fw_header *head;
 	unsigned int size;
 	int i;
-	void *src;
+	const void *src;
 	unsigned long dst;
 
 	sprintf(name, "xc%d.bin", x->no);
