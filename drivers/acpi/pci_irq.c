@@ -149,8 +149,8 @@ static struct prt_quirk prt_quirks[] = {
 		"\\_SB_.PCI0.LNK3"},
 };
 
-static void
-do_prt_fixups(struct acpi_prt_entry *entry, struct acpi_pci_routing_table *prt)
+static void do_prt_fixups(struct acpi_prt_entry *entry,
+			  struct acpi_pci_routing_table *prt)
 {
 	int i;
 	struct prt_quirk *quirk;
@@ -180,9 +180,8 @@ do_prt_fixups(struct acpi_prt_entry *entry, struct acpi_pci_routing_table *prt)
 	}
 }
 
-static int
-acpi_pci_irq_add_entry(acpi_handle handle,
-		       int segment, int bus, struct acpi_pci_routing_table *prt)
+static int acpi_pci_irq_add_entry(acpi_handle handle, int segment, int bus,
+				  struct acpi_pci_routing_table *prt)
 {
 	struct acpi_prt_entry *entry;
 
@@ -299,8 +298,7 @@ void acpi_pci_irq_del_prt(int segment, int bus)
 /* --------------------------------------------------------------------------
                           PCI Interrupt Routing Support
    -------------------------------------------------------------------------- */
-static struct acpi_prt_entry *
-acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
+static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 {
 	struct acpi_prt_entry *entry;
 	struct pci_dev *bridge;
@@ -351,23 +349,16 @@ acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 	return NULL;
 }
 
-/*
- * acpi_pci_irq_enable
- * success: return 0
- * failure: return < 0
- */
-
 int acpi_pci_irq_enable(struct pci_dev *dev)
 {
 	struct acpi_prt_entry *entry;
-	int gsi = 0;
-	u8 pin = 0;
+	int gsi;
+	u8 pin;
 	int triggering = ACPI_LEVEL_SENSITIVE;
 	int polarity = ACPI_ACTIVE_LOW;
 	char *link = NULL;
 	char link_desc[16];
 	int rc;
-
 
 	pin = dev->pin;
 	if (!pin) {
@@ -446,9 +437,8 @@ void __attribute__ ((weak)) acpi_unregister_gsi(u32 i)
 void acpi_pci_irq_disable(struct pci_dev *dev)
 {
 	struct acpi_prt_entry *entry;
-	int gsi = 0;
-	u8 pin = 0;
-
+	int gsi;
+	u8 pin;
 
 	pin = dev->pin;
 	if (!pin)
