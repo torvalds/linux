@@ -287,6 +287,7 @@ config ARCH_FOOTBRIDGE
 config ARCH_NETX
 	bool "Hilscher NetX based"
 	select ARM_VIC
+	select GENERIC_CLOCKEVENTS
 	select GENERIC_TIME
 	help
 	  This enables support for systems based on the Hilscher NetX Soc
