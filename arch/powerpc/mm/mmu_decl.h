@@ -99,8 +99,6 @@ extern unsigned int rtas_data, rtas_size;
 struct hash_pte;
 extern struct hash_pte *Hash, *Hash_end;
 extern unsigned long Hash_size, Hash_mask;
-
-extern unsigned int num_tlbcam_entries;
 #endif
 
 extern unsigned long ioremap_bot;

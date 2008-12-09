@@ -389,10 +389,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
 #endif
 #endif
 
-	mfspr	r3,SPRN_TLB1CFG
-	andi.	r3,r3,0xfff
-	lis	r4,num_tlbcam_entries@ha
-	stw	r3,num_tlbcam_entries@l(r4)
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */

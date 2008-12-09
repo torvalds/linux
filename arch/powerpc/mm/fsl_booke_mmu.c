@@ -56,7 +56,6 @@
 
 extern void loadcam_entry(unsigned int index);
 unsigned int tlbcam_index;
-unsigned int num_tlbcam_entries;
 static unsigned long __cam0, __cam1, __cam2;
 
 #define NUM_TLBCAMS	(16)
