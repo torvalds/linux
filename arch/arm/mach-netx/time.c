@@ -27,6 +27,8 @@
 #include <asm/mach/time.h>
 #include <mach/netx-regs.h>
 
+#define TIMER_CLOCKSOURCE 1
+
 /*
  * IRQ handler for the timer
  */
@@ -49,7 +51,7 @@ static struct irqaction netx_timer_irq = {
 
 cycle_t netx_get_cycles(void)
 {
-	return readl(NETX_GPIO_COUNTER_CURRENT(1));
+	return readl(NETX_GPIO_COUNTER_CURRENT(TIMER_CLOCKSOURCE));
 }
 
 static struct clocksource clocksource_netx = {
@@ -87,12 +89,12 @@ static void __init netx_timer_init(void)
 	setup_irq(NETX_IRQ_TIMER0, &netx_timer_irq);
 
 	/* Setup timer one for clocksource */
-	writel(0, NETX_GPIO_COUNTER_CTRL(1));
-	writel(0, NETX_GPIO_COUNTER_CURRENT(1));
-	writel(0xffffffff, NETX_GPIO_COUNTER_MAX(1));
+	writel(0, NETX_GPIO_COUNTER_CTRL(TIMER_CLOCKSOURCE));
+	writel(0, NETX_GPIO_COUNTER_CURRENT(TIMER_CLOCKSOURCE));
+	writel(0xffffffff, NETX_GPIO_COUNTER_MAX(TIMER_CLOCKSOURCE));
 
 	writel(NETX_GPIO_COUNTER_CTRL_RUN,
-			NETX_GPIO_COUNTER_CTRL(1));
+			NETX_GPIO_COUNTER_CTRL(TIMER_CLOCKSOURCE));
 
 	clocksource_netx.mult =
 		clocksource_hz2mult(CLOCK_TICK_RATE, clocksource_netx.shift);
