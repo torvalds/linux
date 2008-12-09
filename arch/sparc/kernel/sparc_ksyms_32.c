@@ -61,7 +61,6 @@ extern void (*bzero_1page)(void *);
 extern void *__bzero(void *, size_t);
 extern void *__memscan_zero(void *, size_t);
 extern void *__memscan_generic(void *, int, size_t);
-extern int __memcmp(const void *, const void *, __kernel_size_t);
 extern int __strncmp(const char *, const char *, __kernel_size_t);
 
 extern int __ashrdi3(int, int);
@@ -211,7 +210,6 @@ EXPORT_SYMBOL(bzero_1page);
 EXPORT_SYMBOL(__bzero);
 EXPORT_SYMBOL(__memscan_zero);
 EXPORT_SYMBOL(__memscan_generic);
-EXPORT_SYMBOL(__memcmp);
 EXPORT_SYMBOL(__strncmp);
 EXPORT_SYMBOL(__memmove);
 

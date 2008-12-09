@@ -62,7 +62,6 @@ extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 extern void *__bzero(void *, size_t);
 extern void *__memscan_zero(void *, size_t);
 extern void *__memscan_generic(void *, int, size_t);
-extern int __memcmp(const void *, const void *, __kernel_size_t);
 extern __kernel_size_t strlen(const char *);
 extern void sys_sigsuspend(void);
 extern int compat_sys_ioctl(unsigned int fd, unsigned int cmd, u32 arg);
@@ -223,7 +222,6 @@ EXPORT_SYMBOL(copy_user_page);
 EXPORT_SYMBOL(__bzero);
 EXPORT_SYMBOL(__memscan_zero);
 EXPORT_SYMBOL(__memscan_generic);
-EXPORT_SYMBOL(__memcmp);
 EXPORT_SYMBOL(__memset);
 
 EXPORT_SYMBOL(csum_partial);
