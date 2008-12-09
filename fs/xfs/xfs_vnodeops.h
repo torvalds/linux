@@ -53,8 +53,6 @@ int xfs_attr_set(struct xfs_inode *dp, const char *name, char *value,
 int xfs_attr_remove(struct xfs_inode *dp, const char *name, int flags);
 int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
 		int flags, struct attrlist_cursor_kern *cursor);
-int xfs_ioctl(struct xfs_inode *ip, struct file *filp,
-		int ioflags, unsigned int cmd, void __user *arg);
 ssize_t xfs_read(struct xfs_inode *ip, struct kiocb *iocb,
 		const struct iovec *iovp, unsigned int segs,
 		loff_t *offset, int ioflags);

@@ -599,19 +599,24 @@ out:
 	return error;
 }
 
-STATIC long
-xfs_compat_ioctl(
-	xfs_inode_t	*ip,
-	struct file	*filp,
-	int		ioflags,
-	unsigned	cmd,
-	void		__user *arg)
+long
+xfs_file_compat_ioctl(
+	struct file		*filp,
+	unsigned		cmd,
+	unsigned long		p)
 {
-	struct inode	*inode = filp->f_path.dentry->d_inode;
-	xfs_mount_t	*mp = ip->i_mount;
-	int		error;
+	struct inode		*inode = filp->f_path.dentry->d_inode;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	void			__user *arg = (void __user *)p;
+	int			ioflags = 0;
+	int			error;
 
-	xfs_itrace_entry(XFS_I(inode));
+	if (filp->f_mode & FMODE_NOCMTIME)
+		ioflags |= IO_INVIS;
+
+	xfs_itrace_entry(ip);
+
 	switch (cmd) {
 	/* No size or alignment issues on any arch */
 	case XFS_IOC_DIOINFO:
@@ -632,7 +637,7 @@ xfs_compat_ioctl(
 	case XFS_IOC_GOINGDOWN:
 	case XFS_IOC_ERROR_INJECTION:
 	case XFS_IOC_ERROR_CLEARALL:
-		return xfs_ioctl(ip, filp, ioflags, cmd, arg);
+		return xfs_file_ioctl(filp, cmd, p);
 #ifndef BROKEN_X86_ALIGNMENT
 	/* These are handled fine if no alignment issues */
 	case XFS_IOC_ALLOCSP:
@@ -646,7 +651,7 @@ xfs_compat_ioctl(
 	case XFS_IOC_FSGEOMETRY_V1:
 	case XFS_IOC_FSGROWFSDATA:
 	case XFS_IOC_FSGROWFSRT:
-		return xfs_ioctl(ip, filp, ioflags, cmd, arg);
+		return xfs_file_ioctl(filp, cmd, p);
 #else
 	case XFS_IOC_ALLOCSP_32:
 	case XFS_IOC_FREESP_32:
@@ -687,7 +692,7 @@ xfs_compat_ioctl(
 	case XFS_IOC_SETXFLAGS_32:
 	case XFS_IOC_GETVERSION_32:
 		cmd = _NATIVE_IOC(cmd, long);
-		return xfs_ioctl(ip, filp, ioflags, cmd, arg);
+		return xfs_file_ioctl(filp, cmd, p);
 	case XFS_IOC_SWAPEXT: {
 		struct xfs_swapext	  sxp;
 		struct compat_xfs_swapext __user *sxu = arg;
@@ -737,27 +742,4 @@ xfs_compat_ioctl(
 	default:
 		return -XFS_ERROR(ENOIOCTLCMD);
 	}
-}
-
-long
-xfs_file_compat_ioctl(
-	struct file		*filp,
-	unsigned int		cmd,
-	unsigned long		p)
-{
-	struct inode	*inode = filp->f_path.dentry->d_inode;
-
-	return xfs_compat_ioctl(XFS_I(inode), filp, 0, cmd, (void __user *)p);
-}
-
-long
-xfs_file_compat_invis_ioctl(
-	struct file		*filp,
-	unsigned int		cmd,
-	unsigned long		p)
-{
-	struct inode	*inode = filp->f_path.dentry->d_inode;
-
-	return xfs_compat_ioctl(XFS_I(inode), filp, IO_INVIS, cmd,
-				(void __user *)p);
 }
