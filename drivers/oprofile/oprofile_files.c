@@ -14,9 +14,13 @@
 #include "oprofile_stats.h"
 #include "oprof.h"
 
-unsigned long fs_buffer_size = 131072;
-unsigned long fs_cpu_buffer_size = 8192;
-unsigned long fs_buffer_watershed = 32768; /* FIXME: tune */
+#define FS_BUFFER_SIZE_DEFAULT		131072
+#define FS_CPU_BUFFER_SIZE_DEFAULT	8192
+#define FS_BUFFER_WATERSHED_DEFAULT	32768	/* FIXME: tune */
+
+unsigned long fs_buffer_size;
+unsigned long fs_cpu_buffer_size;
+unsigned long fs_buffer_watershed;
 
 static ssize_t depth_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
@@ -120,6 +124,11 @@ static const struct file_operations dump_fops = {
 
 void oprofile_create_files(struct super_block *sb, struct dentry *root)
 {
+	/* reinitialize default values */
+	fs_buffer_size =	FS_BUFFER_SIZE_DEFAULT;
+	fs_cpu_buffer_size =	FS_CPU_BUFFER_SIZE_DEFAULT;
+	fs_buffer_watershed =	FS_BUFFER_WATERSHED_DEFAULT;
+
 	oprofilefs_create_file(sb, root, "enable", &enable_fops);
 	oprofilefs_create_file_perm(sb, root, "dump", &dump_fops, 0666);
 	oprofilefs_create_file(sb, root, "buffer", &event_buffer_fops);
