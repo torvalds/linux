@@ -840,8 +840,16 @@ static void __init *careful_allocation(int nid, unsigned long size,
 		      size, nid);
 
 	/*
-	 * If the memory came from a previously allocated node, we must
-	 * retry with the bootmem allocator.
+	 * We initialize the nodes in numeric order: 0, 1, 2...
+	 * and hand over control from the LMB allocator to the
+	 * bootmem allocator.  If this function is called for
+	 * node 5, then we know that all nodes <5 are using the
+	 * bootmem allocator instead of the LMB allocator.
+	 *
+	 * So, check the nid from which this allocation came
+	 * and double check to see if we need to use bootmem
+	 * instead of the LMB.  We don't free the LMB memory
+	 * since it would be useless.
 	 */
 	new_nid = early_pfn_to_nid(ret >> PAGE_SHIFT);
 	if (new_nid < nid) {
