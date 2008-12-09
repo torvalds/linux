@@ -256,7 +256,8 @@ void radeonfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 
 	/* We only do 1 bpp color expansion for now */
-	if (info->flags & FBINFO_HWACCEL_DISABLED || image->depth != 1)
+	if (!accel_cexp ||
+	    (info->flags & FBINFO_HWACCEL_DISABLED) || image->depth != 1)
 		goto fallback;
 
 	/* Fallback if running out of the screen. We may do clipping
