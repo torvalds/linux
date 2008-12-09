@@ -60,6 +60,11 @@ struct acpi_prt_list {
 static struct acpi_prt_list acpi_prt;
 static DEFINE_SPINLOCK(acpi_prt_lock);
 
+static inline char pin_name(int pin)
+{
+	return 'A' + pin;
+}
+
 /* --------------------------------------------------------------------------
                          PCI IRQ Routing Table (PRT) Support
    -------------------------------------------------------------------------- */
@@ -174,14 +179,14 @@ do_prt_fixups(struct acpi_prt_entry *entry, struct acpi_pci_routing_table *prt)
 		    entry->id.segment == quirk->segment &&
 		    entry->id.bus == quirk->bus &&
 		    entry->id.device == quirk->device &&
-		    entry->pin + 'A' == quirk->pin &&
+		    pin_name(entry->pin) == quirk->pin &&
 		    !strcmp(prt->source, quirk->source) &&
 		    strlen(prt->source) >= strlen(quirk->actual_source)) {
 			printk(KERN_WARNING PREFIX "firmware reports "
 				"%04x:%02x:%02x PCI INT %c connected to %s; "
 				"changing to %s\n",
 				entry->id.segment, entry->id.bus,
-				entry->id.device, 'A' + entry->pin,
+				entry->id.device, pin_name(entry->pin),
 				prt->source, quirk->actual_source);
 			strcpy(prt->source, quirk->actual_source);
 		}
@@ -235,8 +240,8 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
 			      "      %04x:%02x:%02x[%c] -> %s[%d]\n",
 			      entry->id.segment, entry->id.bus,
-			      entry->id.device, ('A' + entry->pin), prt->source,
-			      entry->link.index));
+			      entry->id.device, pin_name(entry->pin),
+			      prt->source, entry->link.index));
 
 	spin_lock(&acpi_prt_lock);
 	list_add_tail(&entry->node, &acpi_prt.entries);
@@ -387,7 +392,7 @@ acpi_pci_irq_lookup(struct pci_bus *bus,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Searching for _PRT entry for %04x:%02x:%02x[%c]\n",
-			  segment, bus_nr, device, ('A' + pin)));
+			  segment, bus_nr, device, pin_name(pin)));
 
 	entry = acpi_pci_irq_find_prt_entry(segment, bus_nr, device, pin);
 	if (!entry) {
@@ -444,7 +449,7 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 
 	if (irq < 0) {
 		dev_warn(&dev->dev, "can't derive routing for PCI INT %c\n",
-			 'A' + orig_pin);
+			 pin_name(orig_pin));
 		return -1;
 	}
 
@@ -511,7 +516,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	 * driver reported one, then use it. Exit in any case.
 	 */
 	if (gsi < 0) {
-		dev_warn(&dev->dev, "PCI INT %c: no GSI", 'A' + pin);
+		dev_warn(&dev->dev, "PCI INT %c: no GSI", pin_name(pin));
 		/* Interrupt Line values above 0xF are forbidden */
 		if (dev->irq > 0 && (dev->irq <= 0xF)) {
 			printk(" - using IRQ %d\n", dev->irq);
@@ -527,7 +532,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	rc = acpi_register_gsi(gsi, triggering, polarity);
 	if (rc < 0) {
 		dev_warn(&dev->dev, "PCI INT %c: failed to register GSI\n",
-			 'A' + pin);
+			 pin_name(pin));
 		return rc;
 	}
 	dev->irq = rc;
@@ -538,7 +543,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		link_desc[0] = '\0';
 
 	dev_info(&dev->dev, "PCI INT %c%s -> GSI %u (%s, %s) -> IRQ %d\n",
-		 'A' + pin, link_desc, gsi,
+		 pin_name(pin), link_desc, gsi,
 		 (triggering == ACPI_LEVEL_SENSITIVE) ? "level" : "edge",
 		 (polarity == ACPI_ACTIVE_LOW) ? "low" : "high", dev->irq);
 
@@ -585,6 +590,6 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	 * (e.g. PCI_UNDEFINED_IRQ).
 	 */
 
-	dev_info(&dev->dev, "PCI INT %c disabled\n", 'A' + pin);
+	dev_info(&dev->dev, "PCI INT %c disabled\n", pin_name(pin));
 	acpi_unregister_gsi(gsi);
 }
