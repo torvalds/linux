@@ -299,7 +299,6 @@ typedef struct drm_radeon_private {
 	atomic_t swi_emitted;
 	int vblank_crtc;
 	uint32_t irq_enable_reg;
-	int irq_enabled;
 	uint32_t r500_disp_irq_reg;
 
 	struct radeon_surface surfaces[RADEON_MAX_SURFACES];
