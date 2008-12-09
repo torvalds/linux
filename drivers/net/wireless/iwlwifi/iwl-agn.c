@@ -546,9 +546,6 @@ static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (!priv->qos_data.qos_enable)
-		return;
-
 	priv->qos_data.def_qos_parm.qos_flags = 0;
 
 	if (priv->qos_data.qos_cap.q_AP.queue_request &&
@@ -3112,11 +3109,6 @@ static int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		return 0;
 	}
 
-	if (!priv->qos_data.qos_enable) {
-		priv->qos_data.qos_active = 0;
-		IWL_DEBUG_MAC80211("leave - qos not enabled\n");
-		return 0;
-	}
 	q = AC_NUM - 1 - queue;
 
 	spin_lock_irqsave(&priv->lock, flags);

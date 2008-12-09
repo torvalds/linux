@@ -63,7 +63,6 @@ static int iwl4965_hw_get_temperature(const struct iwl_priv *priv);
 static struct iwl_mod_params iwl4965_mod_params = {
 	.num_of_queues = IWL49_NUM_QUEUES,
 	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
-	.enable_qos = 1,
 	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	/* the rest are 0 by default */
@@ -2363,9 +2362,6 @@ MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 
 module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
-/* QoS */
-module_param_named(qos_enable, iwl4965_mod_params.enable_qos, int, 0444);
-MODULE_PARM_DESC(qos_enable, "enable all QoS functionality");
 /* 11n */
 module_param_named(11n_disable, iwl4965_mod_params.disable_11n, int, 0444);
 MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
