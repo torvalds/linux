@@ -69,11 +69,13 @@ static inline char pin_name(int pin)
                          PCI IRQ Routing Table (PRT) Support
    -------------------------------------------------------------------------- */
 
-static struct acpi_prt_entry *acpi_pci_irq_find_prt_entry(int segment,
-							  int bus,
-							  int device, int pin)
+static struct acpi_prt_entry *acpi_pci_irq_find_prt_entry(struct pci_dev *dev,
+							  int pin)
 {
 	struct acpi_prt_entry *entry = NULL;
+	int segment = pci_domain_nr(dev->bus);
+	int bus = dev->bus->number;
+	int device = PCI_SLOT(dev->devfn);
 
 	if (!acpi_prt.count)
 		return NULL;
@@ -385,23 +387,18 @@ acpi_pci_free_irq(struct acpi_prt_entry *entry,
  * failure: return -1
  */
 static int
-acpi_pci_irq_lookup(struct pci_bus *bus,
-		    int device,
-		    int pin,
+acpi_pci_irq_lookup(struct pci_dev *dev, int pin,
 		    int *triggering,
 		    int *polarity, char **link, irq_lookup_func func)
 {
 	struct acpi_prt_entry *entry = NULL;
-	int segment = pci_domain_nr(bus);
-	int bus_nr = bus->number;
 	int ret;
 
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Searching for _PRT entry for %04x:%02x:%02x[%c]\n",
-			  segment, bus_nr, device, pin_name(pin)));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Searching for _PRT entry for %s[%c]\n",
+			  pci_name(dev), pin_name(pin)));
 
-	entry = acpi_pci_irq_find_prt_entry(segment, bus_nr, device, pin);
+	entry = acpi_pci_irq_find_prt_entry(dev, pin);
 	if (!entry) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "_PRT entry not found\n"));
 		return -1;
@@ -447,7 +444,7 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 			pin = bridge_pin;
 		}
 
-		irq = acpi_pci_irq_lookup(bridge->bus, PCI_SLOT(bridge->devfn),
+		irq = acpi_pci_irq_lookup(bridge,
 					  pin, triggering, polarity,
 					  link, func);
 	}
@@ -493,7 +490,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	 * First we check the PCI IRQ routing table (PRT) for an IRQ.  PRT
 	 * values override any BIOS-assigned IRQs set during boot.
 	 */
-	gsi = acpi_pci_irq_lookup(dev->bus, PCI_SLOT(dev->devfn), pin,
+	gsi = acpi_pci_irq_lookup(dev, pin,
 				  &triggering, &polarity, &link,
 				  acpi_pci_allocate_irq);
 
@@ -574,7 +571,7 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	/*
 	 * First we check the PCI IRQ routing table (PRT) for an IRQ.
 	 */
-	gsi = acpi_pci_irq_lookup(dev->bus, PCI_SLOT(dev->devfn), pin,
+	gsi = acpi_pci_irq_lookup(dev, pin,
 				  &triggering, &polarity, NULL,
 				  acpi_pci_free_irq);
 	/*
