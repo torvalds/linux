@@ -814,9 +814,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 * Besides, if we don't timer interrupts ignore the global
 	 * interrupt lock, which is the WrongThing (tm) to do.
 	 */
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	local_apic_timer_interrupt();
 	irq_exit();
@@ -1682,9 +1680,7 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 {
 	u32 v;
 
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	/*
 	 * Check if this really is a spurious interrupt and ACK it
@@ -1713,9 +1709,7 @@ void smp_error_interrupt(struct pt_regs *regs)
 {
 	u32 v, v1;
 
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	/* First tickle the hardware, only then report what went on. -- REW */
 	v = apic_read(APIC_ESR);
