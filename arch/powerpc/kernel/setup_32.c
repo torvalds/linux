@@ -53,8 +53,6 @@ unsigned long ISA_DMA_THRESHOLD;
 unsigned int DMA_MODE_READ;
 unsigned int DMA_MODE_WRITE;
 
-int have_of = 1;
-
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
 EXPORT_SYMBOL(vgacon_remap_base);

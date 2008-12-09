@@ -70,7 +70,6 @@
 #define DBG(fmt...)
 #endif
 
-int have_of = 1;
 int boot_cpuid = 0;
 u64 ppc64_pft_size;
 

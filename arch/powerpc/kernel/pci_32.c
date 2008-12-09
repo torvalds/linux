@@ -266,9 +266,6 @@ pci_busdev_to_OF_node(struct pci_bus *bus, int devfn)
 {
 	struct device_node *parent, *np;
 
-	if (!have_of)
-		return NULL;
-
 	pr_debug("pci_busdev_to_OF_node(%d,0x%x)\n", bus->number, devfn);
 	parent = scan_OF_for_pci_bus(bus);
 	if (parent == NULL)
@@ -309,8 +306,6 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	struct pci_controller* hose;
 	struct pci_dev* dev = NULL;
 	
-	if (!have_of)
-		return -ENODEV;
 	/* Make sure it's really a PCI device */
 	hose = pci_find_hose_for_OF_device(node);
 	if (!hose || !hose->dn)
@@ -431,7 +426,7 @@ static int __init pcibios_init(void)
 	 * numbers vs. kernel bus numbers since we may have to
 	 * remap them.
 	 */
-	if (pci_assign_all_buses && have_of)
+	if (pci_assign_all_buses)
 		pcibios_make_OF_bus_map();
 
 	/* Call common code to handle resource allocation */

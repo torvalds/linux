@@ -69,8 +69,6 @@ extern int _prep_type;
 
 #ifdef __KERNEL__
 
-extern int have_of;
-
 struct task_struct;
 void start_thread(struct pt_regs *regs, unsigned long fdptr, unsigned long sp);
 void release_thread(struct task_struct *);

@@ -160,8 +160,6 @@ EXPORT_SYMBOL(pci_domain_nr);
  */
 struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 {
-	if (!have_of)
-		return NULL;
 	while(node) {
 		struct pci_controller *hose, *tmp;
 		list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
