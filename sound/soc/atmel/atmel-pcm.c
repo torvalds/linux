@@ -483,7 +483,7 @@ static int __devinit atmel_pcm_modinit(void)
 }
 module_init(atmel_pcm_modinit);
 
-static void __exit atmel_pcm_exit(void)
+static void __exit atmel_pcm_modexit(void)
 {
 	snd_soc_unregister_platform(&atmel_soc_platform);
 }

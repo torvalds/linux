@@ -776,12 +776,13 @@ static int __devinit atmel_ssc_modinit(void)
 {
 	return snd_soc_register_dais(atmel_ssc_dai, ARRAY_SIZE(atmel_ssc_dai));
 }
-module_init(snd_soc_init);
+module_init(atmel_ssc_modinit);
 
-static void __exit snd_soc_exit(void)
+static void __exit atmel_ssc_modexit(void)
 {
 	snd_soc_unregister_dais(atmel_ssc_dai, ARRAY_SIZE(atmel_ssc_dai));
 }
+module_exit(atmel_ssc_modexit);
 
 /* Module information */
 MODULE_AUTHOR("Sedji Gaouaou, sedji.gaouaou@atmel.com, www.atmel.com");
