@@ -114,6 +114,7 @@ my %text_sections = (
      ".text" => 1,
      ".sched.text" => 1,
      ".spinlock.text" => 1,
+     ".irqentry.text" => 1,
 );
 
 $objdump = "objdump" if ((length $objdump) == 0);
