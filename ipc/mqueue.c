@@ -120,7 +120,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = current_fsgid();
-		inode->i_blocks = 0;
 		inode->i_mtime = inode->i_ctime = inode->i_atime =
 				CURRENT_TIME;
 
