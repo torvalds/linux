@@ -1258,10 +1258,6 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *
- * @set_frag_threshold: Configuration of fragmentation threshold. Assign this if
- *	the device does fragmentation by itself; if this method is assigned then
- *	the stack will not do fragmentation.
- *
  * @sta_notify: Notifies low level driver about addition or removal of an
  *	associated station, AP, IBSS/WDS/mesh peer etc. Must be atomic.
  *
@@ -1331,7 +1327,6 @@ struct ieee80211_ops {
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
 			     u32 *iv32, u16 *iv16);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
-	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
 	void (*sta_notify_ps)(struct ieee80211_hw *hw,

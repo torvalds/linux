@@ -639,14 +639,6 @@ static int ieee80211_ioctl_siwfrag(struct net_device *dev,
 		local->fragmentation_threshold = frag->value & ~0x1;
 	}
 
-	/* If the wlan card performs fragmentation in hardware/firmware,
-	 * configure it here */
-
-	if (local->ops->set_frag_threshold)
-		return local->ops->set_frag_threshold(
-			local_to_hw(local),
-			local->fragmentation_threshold);
-
 	return 0;
 }
 
