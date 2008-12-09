@@ -2610,6 +2610,11 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 				u64 cs = btrfs_file_extent_offset(src, extent);
 				u64 cl = btrfs_file_extent_num_bytes(src,
 								     extent);;
+				if (btrfs_file_extent_compression(src,
+								  extent)) {
+					cs = 0;
+					cl = dl;
+				}
 				/* ds == 0 is a hole */
 				if (ds != 0) {
 					ret = btrfs_inc_extent_ref(trans, log,

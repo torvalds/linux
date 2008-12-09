@@ -1228,7 +1228,8 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	mutex_unlock(&root->fs_info->trans_mutex);
 
 	root->fs_info->tree_log_batch++;
-	filemap_fdatawait(inode->i_mapping);
+	filemap_fdatawrite(inode->i_mapping);
+	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 	root->fs_info->tree_log_batch++;
 
 	/*
