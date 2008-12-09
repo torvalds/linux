@@ -490,9 +490,14 @@ int ocfs2_calc_security_init(struct inode *dir,
 	}
 
 	/* reserve clusters for xattr value which will be set in B tree*/
-	if (si->value_len > OCFS2_XATTR_INLINE_SIZE)
-		*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb,
-							   si->value_len);
+	if (si->value_len > OCFS2_XATTR_INLINE_SIZE) {
+		int new_clusters = ocfs2_clusters_for_bytes(dir->i_sb,
+							    si->value_len);
+
+		*xattr_credits += ocfs2_clusters_to_blocks(dir->i_sb,
+							   new_clusters);
+		*want_clusters += new_clusters;
+	}
 	return ret;
 }
 
@@ -506,9 +511,7 @@ int ocfs2_calc_xattr_init(struct inode *dir,
 {
 	int ret = 0;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
-	int s_size = 0;
-	int a_size = 0;
-	int acl_len = 0;
+	int s_size = 0, a_size = 0, acl_len = 0, new_clusters;
 
 	if (si->enable)
 		s_size = ocfs2_xattr_entry_real_size(strlen(si->name),
@@ -556,16 +559,25 @@ int ocfs2_calc_xattr_init(struct inode *dir,
 		*xattr_credits += ocfs2_blocks_per_xattr_bucket(dir->i_sb);
 	}
 
-	/* reserve clusters for xattr value which will be set in B tree*/
-	if (si->enable && si->value_len > OCFS2_XATTR_INLINE_SIZE)
-		*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb,
-							   si->value_len);
+	/*
+	 * reserve credits and clusters for xattrs which has large value
+	 * and have to be set outside
+	 */
+	if (si->enable && si->value_len > OCFS2_XATTR_INLINE_SIZE) {
+		new_clusters = ocfs2_clusters_for_bytes(dir->i_sb,
+							si->value_len);
+		*xattr_credits += ocfs2_clusters_to_blocks(dir->i_sb,
+							   new_clusters);
+		*want_clusters += new_clusters;
+	}
 	if (osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL &&
 	    acl_len > OCFS2_XATTR_INLINE_SIZE) {
-		*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb, acl_len);
-		if (S_ISDIR(mode))
-			*want_clusters += ocfs2_clusters_for_bytes(dir->i_sb,
-								   acl_len);
+		/* for directory, it has DEFAULT and ACCESS two types of acls */
+		new_clusters = (S_ISDIR(mode) ? 2 : 1) *
+				ocfs2_clusters_for_bytes(dir->i_sb, acl_len);
+		*xattr_credits += ocfs2_clusters_to_blocks(dir->i_sb,
+							   new_clusters);
+		*want_clusters += new_clusters;
 	}
 
 	return ret;
