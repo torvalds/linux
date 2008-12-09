@@ -267,21 +267,16 @@ STATIC void
 xlog_recover_iodone(
 	struct xfs_buf	*bp)
 {
-	xfs_mount_t	*mp;
-
-	ASSERT(XFS_BUF_FSPRIVATE(bp, void *));
-
 	if (XFS_BUF_GETERROR(bp)) {
 		/*
 		 * We're not going to bother about retrying
 		 * this during recovery. One strike!
 		 */
-		mp = XFS_BUF_FSPRIVATE(bp, xfs_mount_t *);
 		xfs_ioerror_alert("xlog_recover_iodone",
-				  mp, bp, XFS_BUF_ADDR(bp));
-		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+				  bp->b_mount, bp, XFS_BUF_ADDR(bp));
+		xfs_force_shutdown(bp->b_mount, SHUTDOWN_META_IO_ERROR);
 	}
-	XFS_BUF_SET_FSPRIVATE(bp, NULL);
+	bp->b_mount = NULL;
 	XFS_BUF_CLR_IODONE_FUNC(bp);
 	xfs_biodone(bp);
 }
@@ -2225,9 +2220,8 @@ xlog_recover_do_buffer_trans(
 		XFS_BUF_STALE(bp);
 		error = xfs_bwrite(mp, bp);
 	} else {
-		ASSERT(XFS_BUF_FSPRIVATE(bp, void *) == NULL ||
-		       XFS_BUF_FSPRIVATE(bp, xfs_mount_t *) == mp);
-		XFS_BUF_SET_FSPRIVATE(bp, mp);
+		ASSERT(bp->b_mount == NULL || bp->b_mount == mp);
+		bp->b_mount = mp;
 		XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
 		xfs_bdwrite(mp, bp);
 	}
@@ -2490,9 +2484,8 @@ xlog_recover_do_inode_trans(
 
 write_inode_buffer:
 	if (ITEM_TYPE(item) == XFS_LI_INODE) {
-		ASSERT(XFS_BUF_FSPRIVATE(bp, void *) == NULL ||
-		       XFS_BUF_FSPRIVATE(bp, xfs_mount_t *) == mp);
-		XFS_BUF_SET_FSPRIVATE(bp, mp);
+		ASSERT(bp->b_mount == NULL || bp->b_mount == mp);
+		bp->b_mount = mp;
 		XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
 		xfs_bdwrite(mp, bp);
 	} else {
@@ -2623,9 +2616,8 @@ xlog_recover_do_dquot_trans(
 	memcpy(ddq, recddq, item->ri_buf[1].i_len);
 
 	ASSERT(dq_f->qlf_size == 2);
-	ASSERT(XFS_BUF_FSPRIVATE(bp, void *) == NULL ||
-	       XFS_BUF_FSPRIVATE(bp, xfs_mount_t *) == mp);
-	XFS_BUF_SET_FSPRIVATE(bp, mp);
+	ASSERT(bp->b_mount == NULL || bp->b_mount == mp);
+	bp->b_mount = mp;
 	XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
 	xfs_bdwrite(mp, bp);
 

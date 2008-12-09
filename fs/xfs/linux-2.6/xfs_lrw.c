@@ -847,13 +847,7 @@ retry:
 int
 xfs_bdstrat_cb(struct xfs_buf *bp)
 {
-	xfs_mount_t	*mp;
-
-	mp = XFS_BUF_FSPRIVATE3(bp, xfs_mount_t *);
-	if (!XFS_FORCED_SHUTDOWN(mp)) {
-		xfs_buf_iorequest(bp);
-		return 0;
-	} else {
+	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
 		xfs_buftrace("XFS__BDSTRAT IOERROR", bp);
 		/*
 		 * Metadata write that didn't get logged but
@@ -866,6 +860,9 @@ xfs_bdstrat_cb(struct xfs_buf *bp)
 		else
 			return (xfs_bioerror(bp));
 	}
+
+	xfs_buf_iorequest(bp);
+	return 0;
 }
 
 /*
