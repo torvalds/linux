@@ -824,7 +824,7 @@ static void __init dump_numa_memory_topology(void)
  *
  * Returns the virtual address of the memory.
  */
-static void __init *careful_allocation(int nid, unsigned long size,
+static void __init *careful_zallocation(int nid, unsigned long size,
 				       unsigned long align,
 				       unsigned long end_pfn)
 {
@@ -864,6 +864,7 @@ static void __init *careful_allocation(int nid, unsigned long size,
 		dbg("alloc_bootmem %p %lx\n", ret, size);
 	}
 
+	memset(ret, 0, size);
 	return ret;
 }
 
@@ -971,10 +972,9 @@ void __init do_init_bootmem(void)
 		 * previous nodes' bootmem to be initialized and have
 		 * all reserved areas marked.
 		 */
-		NODE_DATA(nid) = careful_allocation(nid,
+		NODE_DATA(nid) = careful_zallocation(nid,
 					sizeof(struct pglist_data),
 					SMP_CACHE_BYTES, end_pfn);
-		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
   		dbg("node %d\n", nid);
 		dbg("NODE_DATA() = %p\n", NODE_DATA(nid));
@@ -990,10 +990,9 @@ void __init do_init_bootmem(void)
   		dbg("end_paddr = %lx\n", end_pfn << PAGE_SHIFT);
 
 		bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
-		bootmem_vaddr = careful_allocation(nid,
+		bootmem_vaddr = careful_zallocation(nid,
 					bootmap_pages << PAGE_SHIFT,
 					PAGE_SIZE, end_pfn);
-		memset(bootmem_vaddr, 0, bootmap_pages << PAGE_SHIFT);
 
 		dbg("bootmap_vaddr = %p\n", bootmem_vaddr);
 
@@ -1004,7 +1003,7 @@ void __init do_init_bootmem(void)
 		free_bootmem_with_active_regions(nid, end_pfn);
 		/*
 		 * Be very careful about moving this around.  Future
-		 * calls to careful_allocation() depend on this getting
+		 * calls to careful_zallocation() depend on this getting
 		 * done correctly.
 		 */
 		mark_reserved_regions_for_nid(nid);
