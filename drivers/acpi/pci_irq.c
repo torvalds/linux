@@ -178,10 +178,6 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 {
 	struct acpi_prt_entry *entry = NULL;
 
-
-	if (!prt)
-		return -EINVAL;
-
 	entry = kzalloc(sizeof(struct acpi_prt_entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
@@ -432,9 +428,6 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 	u8 bridge_pin = 0, orig_pin = pin;
 
 
-	if (!dev)
-		return -EINVAL;
-
 	/* 
 	 * Attempt to derive an IRQ for this device from a parent bridge's
 	 * PCI interrupt routing entry (eg. yenta bridge and add-in card bridge).
@@ -491,9 +484,6 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	int rc;
 
 
-	if (!dev)
-		return -EINVAL;
-
 	pin = dev->pin;
 	if (!pin) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -502,11 +492,6 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		return 0;
 	}
 	pin--;
-
-	if (!dev->bus) {
-		dev_err(&dev->dev, "invalid (NULL) 'bus' field\n");
-		return -ENODEV;
-	}
 
 	/* 
 	 * First we check the PCI IRQ routing table (PRT) for an IRQ.  PRT
@@ -585,9 +570,6 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	int triggering = ACPI_LEVEL_SENSITIVE;
 	int polarity = ACPI_ACTIVE_LOW;
 
-
-	if (!dev || !dev->bus)
-		return;
 
 	pin = dev->pin;
 	if (!pin)
