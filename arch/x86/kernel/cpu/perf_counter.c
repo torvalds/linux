@@ -214,13 +214,11 @@ static void __hw_perf_save_counter(struct perf_counter *counter,
 {
 	s64 raw = -1;
 	s64 delta;
-	int err;
 
 	/*
 	 * Get the raw hw counter value:
 	 */
-	err = rdmsrl_safe(hwc->counter_base + idx, &raw);
-	WARN_ON_ONCE(err);
+	rdmsrl(hwc->counter_base + idx, raw);
 
 	/*
 	 * Rebase it to zero (it started counting at -irq_period),
@@ -252,20 +250,18 @@ static void __hw_perf_save_counter(struct perf_counter *counter,
 void perf_counter_print_debug(void)
 {
 	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, next_count;
-	int cpu, err, idx;
+	int cpu, idx;
+
+	if (!nr_hw_counters)
+		return;
 
 	local_irq_disable();
 
 	cpu = smp_processor_id();
 
-	err = rdmsrl_safe(MSR_CORE_PERF_GLOBAL_CTRL, &ctrl);
-	WARN_ON_ONCE(err);
-
-	err = rdmsrl_safe(MSR_CORE_PERF_GLOBAL_STATUS, &status);
-	WARN_ON_ONCE(err);
-
-	err = rdmsrl_safe(MSR_CORE_PERF_GLOBAL_OVF_CTRL, &overflow);
-	WARN_ON_ONCE(err);
+	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
+	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
+	rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "CPU#%d: ctrl:       %016llx\n", cpu, ctrl);
@@ -273,11 +269,8 @@ void perf_counter_print_debug(void)
 	printk(KERN_INFO "CPU#%d: overflow:   %016llx\n", cpu, overflow);
 
 	for (idx = 0; idx < nr_hw_counters; idx++) {
-		err = rdmsrl_safe(MSR_ARCH_PERFMON_EVENTSEL0 + idx, &pmc_ctrl);
-		WARN_ON_ONCE(err);
-
-		err = rdmsrl_safe(MSR_ARCH_PERFMON_PERFCTR0 + idx, &pmc_count);
-		WARN_ON_ONCE(err);
+		rdmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, pmc_ctrl);
+		rdmsrl(MSR_ARCH_PERFMON_PERFCTR0  + idx, pmc_count);
 
 		next_count = per_cpu(prev_next_count[idx], cpu);
 
@@ -310,13 +303,11 @@ void hw_perf_counter_read(struct perf_counter *counter)
 	unsigned long addr = hwc->counter_base + hwc->idx;
 	s64 offs, val = -1LL;
 	s32 val32;
-	int err;
 
 	/* Careful: NMI might modify the counter offset */
 	do {
 		offs = hwc->prev_count;
-		err = rdmsrl_safe(addr, &val);
-		WARN_ON_ONCE(err);
+		rdmsrl(addr, val);
 	} while (offs != hwc->prev_count);
 
 	val32 = (s32) val;
@@ -346,10 +337,8 @@ static void perf_save_and_restart(struct perf_counter *counter)
 	struct hw_perf_counter *hwc = &counter->hw;
 	int idx = hwc->idx;
 	u64 pmc_ctrl;
-	int err;
 
-	err = rdmsrl_safe(MSR_ARCH_PERFMON_EVENTSEL0 + idx, &pmc_ctrl);
-	WARN_ON_ONCE(err);
+	rdmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, pmc_ctrl);
 
 	__hw_perf_save_counter(counter, hwc, idx);
 	__hw_perf_counter_set_period(hwc, idx);
