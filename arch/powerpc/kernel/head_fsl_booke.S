@@ -909,7 +909,7 @@ KernelSPE:
 _GLOBAL(loadcam_entry)
 	lis	r4,TLBCAM@ha
 	addi	r4,r4,TLBCAM@l
-	mulli	r5,r3,20
+	mulli	r5,r3,TLBCAM_SIZE
 	add	r3,r5,r4
 	lwz	r4,0(r3)
 	mtspr	SPRN_MAS0,r4

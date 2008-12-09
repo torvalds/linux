@@ -61,13 +61,7 @@ static unsigned long __cam0, __cam1, __cam2;
 
 #define NUM_TLBCAMS	(16)
 
-struct tlbcam {
-   	u32	MAS0;
-	u32	MAS1;
-	u32	MAS2;
-	u32	MAS3;
-	u32	MAS7;
-} TLBCAM[NUM_TLBCAMS];
+struct tlbcam TLBCAM[NUM_TLBCAMS];
 
 struct tlbcamrange {
    	unsigned long start;
