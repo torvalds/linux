@@ -62,7 +62,7 @@ static DEFINE_SPINLOCK(acpi_prt_lock);
 
 static inline char pin_name(int pin)
 {
-	return 'A' + pin;
+	return 'A' + pin - 1;
 }
 
 /* --------------------------------------------------------------------------
@@ -203,10 +203,15 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 	if (!entry)
 		return -ENOMEM;
 
+	/*
+	 * Note that the _PRT uses 0=INTA, 1=INTB, etc, while PCI uses
+	 * 1=INTA, 2=INTB.  We use the PCI encoding throughout, so convert
+	 * it here.
+	 */
 	entry->id.segment = segment;
 	entry->id.bus = bus;
 	entry->id.device = (prt->address >> 16) & 0xFFFF;
-	entry->pin = prt->pin;
+	entry->pin = prt->pin + 1;
 
 	do_prt_fixups(entry, prt);
 
@@ -425,7 +430,7 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 	 * PCI interrupt routing entry (eg. yenta bridge and add-in card bridge).
 	 */
 	while (irq < 0 && bridge->bus->self) {
-		pin = (pin + PCI_SLOT(bridge->devfn)) % 4;
+		pin = (((pin - 1) + PCI_SLOT(bridge->devfn)) % 4) + 1;
 		bridge = bridge->bus->self;
 
 		if ((bridge->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS) {
@@ -437,8 +442,6 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 						  pci_name(bridge)));
 				return -1;
 			}
-			/* Pin is from 0 to 3 */
-			bridge_pin--;
 			pin = bridge_pin;
 		}
 
@@ -483,7 +486,6 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 				  pci_name(dev)));
 		return 0;
 	}
-	pin--;
 
 	/* 
 	 * First we check the PCI IRQ routing table (PRT) for an IRQ.  PRT
@@ -566,7 +568,6 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	pin = dev->pin;
 	if (!pin)
 		return;
-	pin--;
 
 	/*
 	 * First we check the PCI IRQ routing table (PRT) for an IRQ.
