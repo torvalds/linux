@@ -156,6 +156,8 @@ extern void perf_counter_task_tick(struct task_struct *task, int cpu);
 extern void perf_counter_init_task(struct task_struct *task);
 extern void perf_counter_notify(struct pt_regs *regs);
 extern void perf_counter_print_debug(void);
+extern void hw_perf_restore_ctrl(u64 ctrl);
+extern u64 hw_perf_disable_all(void);
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -166,6 +168,8 @@ perf_counter_task_tick(struct task_struct *task, int cpu)		{ }
 static inline void perf_counter_init_task(struct task_struct *task)	{ }
 static inline void perf_counter_notify(struct pt_regs *regs)		{ }
 static inline void perf_counter_print_debug(void)			{ }
+static inline void hw_perf_restore_ctrl(u64 ctrl)			{ }
+static inline u64 hw_perf_disable_all(void)		{ return 0; }
 #endif
 
 #endif /* _LINUX_PERF_COUNTER_H */
