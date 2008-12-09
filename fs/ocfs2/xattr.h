@@ -70,4 +70,18 @@ int ocfs2_calc_xattr_init(struct inode *, struct buffer_head *,
 			  int, struct ocfs2_security_xattr_info *,
 			  int *, int *, struct ocfs2_alloc_context **);
 
+/*
+ * xattrs can live inside an inode, as part of an external xattr block,
+ * or inside an xattr bucket, which is the leaf of a tree rooted in an
+ * xattr block.  Some of the xattr calls, especially the value setting
+ * functions, want to treat each of these locations as equal.  Let's wrap
+ * them in a structure that we can pass around instead of raw buffer_heads.
+ */
+struct ocfs2_xattr_value_buf {
+	struct buffer_head		*vb_bh;
+	ocfs2_journal_access_func	vb_access;
+	struct ocfs2_xattr_value_root	*vb_xv;
+};
+
+
 #endif /* OCFS2_XATTR_H */

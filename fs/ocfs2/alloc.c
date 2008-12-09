@@ -48,6 +48,7 @@
 #include "file.h"
 #include "super.h"
 #include "uptodate.h"
+#include "xattr.h"
 
 #include "buffer_head_io.h"
 
@@ -207,36 +208,33 @@ static void ocfs2_dinode_fill_root_el(struct ocfs2_extent_tree *et)
 
 static void ocfs2_xattr_value_fill_root_el(struct ocfs2_extent_tree *et)
 {
-	struct ocfs2_xattr_value_root *xv = et->et_object;
+	struct ocfs2_xattr_value_buf *vb = et->et_object;
 
-	et->et_root_el = &xv->xr_list;
+	et->et_root_el = &vb->vb_xv->xr_list;
 }
 
 static void ocfs2_xattr_value_set_last_eb_blk(struct ocfs2_extent_tree *et,
 					      u64 blkno)
 {
-	struct ocfs2_xattr_value_root *xv =
-		(struct ocfs2_xattr_value_root *)et->et_object;
+	struct ocfs2_xattr_value_buf *vb = et->et_object;
 
-	xv->xr_last_eb_blk = cpu_to_le64(blkno);
+	vb->vb_xv->xr_last_eb_blk = cpu_to_le64(blkno);
 }
 
 static u64 ocfs2_xattr_value_get_last_eb_blk(struct ocfs2_extent_tree *et)
 {
-	struct ocfs2_xattr_value_root *xv =
-		(struct ocfs2_xattr_value_root *) et->et_object;
+	struct ocfs2_xattr_value_buf *vb = et->et_object;
 
-	return le64_to_cpu(xv->xr_last_eb_blk);
+	return le64_to_cpu(vb->vb_xv->xr_last_eb_blk);
 }
 
 static void ocfs2_xattr_value_update_clusters(struct inode *inode,
 					      struct ocfs2_extent_tree *et,
 					      u32 clusters)
 {
-	struct ocfs2_xattr_value_root *xv =
-		(struct ocfs2_xattr_value_root *)et->et_object;
+	struct ocfs2_xattr_value_buf *vb = et->et_object;
 
-	le32_add_cpu(&xv->xr_clusters, clusters);
+	le32_add_cpu(&vb->vb_xv->xr_clusters, clusters);
 }
 
 static struct ocfs2_extent_tree_operations ocfs2_xattr_value_et_ops = {
@@ -334,10 +332,9 @@ void ocfs2_init_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
 
 void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
 					struct inode *inode,
-					struct buffer_head *bh,
-					struct ocfs2_xattr_value_root *xv)
+					struct ocfs2_xattr_value_buf *vb)
 {
-	__ocfs2_init_extent_tree(et, inode, bh, ocfs2_journal_access, xv,
+	__ocfs2_init_extent_tree(et, inode, vb->vb_bh, vb->vb_access, vb,
 				 &ocfs2_xattr_value_et_ops);
 }
 

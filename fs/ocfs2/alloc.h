@@ -71,10 +71,10 @@ void ocfs2_init_dinode_extent_tree(struct ocfs2_extent_tree *et,
 void ocfs2_init_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
 				       struct inode *inode,
 				       struct buffer_head *bh);
+struct ocfs2_xattr_value_buf;
 void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
 					struct inode *inode,
-					struct buffer_head *bh,
-					struct ocfs2_xattr_value_root *xv);
+					struct ocfs2_xattr_value_buf *vb);
 
 /*
  * Read an extent block into *bh.  If *bh is NULL, a bh will be

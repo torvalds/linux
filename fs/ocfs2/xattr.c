@@ -581,21 +581,26 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 	handle_t *handle = ctxt->handle;
 	enum ocfs2_alloc_restarted why;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	u32 prev_clusters, logical_start = le32_to_cpu(xv->xr_clusters);
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_bh	= xattr_bh,
+		.vb_xv = xv,
+		.vb_access = ocfs2_journal_access,
+	};
+	u32 prev_clusters, logical_start = le32_to_cpu(vb.vb_xv->xr_clusters);
 	struct ocfs2_extent_tree et;
 
 	mlog(0, "(clusters_to_add for xattr= %u)\n", clusters_to_add);
 
-	ocfs2_init_xattr_value_extent_tree(&et, inode, xattr_bh, xv);
+	ocfs2_init_xattr_value_extent_tree(&et, inode, &vb);
 
-	status = ocfs2_journal_access(handle, inode, xattr_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = vb.vb_access(handle, inode, vb.vb_bh,
+			      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
 	}
 
-	prev_clusters = le32_to_cpu(xv->xr_clusters);
+	prev_clusters = le32_to_cpu(vb.vb_xv->xr_clusters);
 	status = ocfs2_add_clusters_in_btree(osb,
 					     inode,
 					     &logical_start,
@@ -611,13 +616,13 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 		goto leave;
 	}
 
-	status = ocfs2_journal_dirty(handle, xattr_bh);
+	status = ocfs2_journal_dirty(handle, vb.vb_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
 	}
 
-	clusters_to_add -= le32_to_cpu(xv->xr_clusters) - prev_clusters;
+	clusters_to_add -= le32_to_cpu(vb.vb_xv->xr_clusters) - prev_clusters;
 
 	/*
 	 * We should have already allocated enough space before the transaction,
@@ -640,11 +645,16 @@ static int __ocfs2_remove_xattr_range(struct inode *inode,
 	u64 phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
 	handle_t *handle = ctxt->handle;
 	struct ocfs2_extent_tree et;
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_bh = root_bh,
+		.vb_xv = xv,
+		.vb_access = ocfs2_journal_access,
+	};
 
-	ocfs2_init_xattr_value_extent_tree(&et, inode, root_bh, xv);
+	ocfs2_init_xattr_value_extent_tree(&et, inode, &vb);
 
-	ret = ocfs2_journal_access(handle, inode, root_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = vb.vb_access(handle, inode, vb.vb_bh,
+			   OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -657,9 +667,9 @@ static int __ocfs2_remove_xattr_range(struct inode *inode,
 		goto out;
 	}
 
-	le32_add_cpu(&xv->xr_clusters, -len);
+	le32_add_cpu(&vb.vb_xv->xr_clusters, -len);
 
-	ret = ocfs2_journal_dirty(handle, root_bh);
+	ret = ocfs2_journal_dirty(handle, vb.vb_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
