@@ -179,9 +179,14 @@ void __init
 adjust_total_lowmem(void)
 {
 	phys_addr_t ram;
-	unsigned int max_cam = 28;	/* 2^28 = 256 Mb */
+	unsigned int max_cam = (mfspr(SPRN_TLB1CFG) >> 16) & 0xff;
 	char buf[ARRAY_SIZE(cam) * 5 + 1], *p = buf;
 	int i;
+	unsigned long virt = PAGE_OFFSET & 0xffffffffUL;
+	unsigned long phys = memstart_addr & 0xffffffffUL;
+
+	/* Convert (4^max) kB to (2^max) bytes */
+	max_cam = max_cam * 2 + 10;
 
 	/* adjust lowmem size to __max_low_memory */
 	ram = min((phys_addr_t)__max_low_memory, (phys_addr_t)total_lowmem);
@@ -190,11 +195,18 @@ adjust_total_lowmem(void)
 	__max_low_memory = 0;
 	for (i = 0; ram && i < ARRAY_SIZE(cam); i++) {
 		unsigned int camsize = __ilog2(ram) & ~1U;
+		unsigned int align = __ffs(virt | phys) & ~1U;
+
+		if (camsize > align)
+			camsize = align;
 		if (camsize > max_cam)
 			camsize = max_cam;
+
 		cam[i] = 1UL << camsize;
 		ram -= cam[i];
 		__max_low_memory += cam[i];
+		virt += cam[i];
+		phys += cam[i];
 
 		p += sprintf(p, "%lu/", cam[i] >> 20);
 	}

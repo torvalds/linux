@@ -794,7 +794,7 @@ config PHYSICAL_START
 
 config PHYSICAL_ALIGN
 	hex
-	default "0x10000000" if FSL_BOOKE
+	default "0x04000000" if FSL_BOOKE
 	help
 	  This value puts the alignment restrictions on physical address
 	  where kernel is loaded and run from. Kernel is compiled for an
