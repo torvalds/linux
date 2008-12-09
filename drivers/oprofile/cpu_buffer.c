@@ -28,6 +28,25 @@
 #include "buffer_sync.h"
 #include "oprof.h"
 
+#define OP_BUFFER_FLAGS	0
+
+/*
+ * Read and write access is using spin locking. Thus, writing to the
+ * buffer by NMI handler (x86) could occur also during critical
+ * sections when reading the buffer. To avoid this, there are 2
+ * buffers for independent read and write access. Read access is in
+ * process context only, write access only in the NMI handler. If the
+ * read buffer runs empty, both buffers are swapped atomically. There
+ * is potentially a small window during swapping where the buffers are
+ * disabled and samples could be lost.
+ *
+ * Using 2 buffers is a little bit overhead, but the solution is clear
+ * and does not require changes in the ring buffer implementation. It
+ * can be changed to a single buffer solution when the ring buffer
+ * access is implemented as non-locking atomic code.
+ */
+struct ring_buffer *op_ring_buffer_read;
+struct ring_buffer *op_ring_buffer_write;
 DEFINE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
 static void wq_sync_buffer(struct work_struct *work);
@@ -37,12 +56,12 @@ static int work_enabled;
 
 void free_cpu_buffers(void)
 {
-	int i;
-
-	for_each_possible_cpu(i) {
-		vfree(per_cpu(cpu_buffer, i).buffer);
-		per_cpu(cpu_buffer, i).buffer = NULL;
-	}
+	if (op_ring_buffer_read)
+		ring_buffer_free(op_ring_buffer_read);
+	op_ring_buffer_read = NULL;
+	if (op_ring_buffer_write)
+		ring_buffer_free(op_ring_buffer_write);
+	op_ring_buffer_write = NULL;
 }
 
 unsigned long oprofile_get_cpu_buffer_size(void)
@@ -64,13 +83,15 @@ int alloc_cpu_buffers(void)
 
 	unsigned long buffer_size = fs_cpu_buffer_size;
 
+	op_ring_buffer_read = ring_buffer_alloc(buffer_size, OP_BUFFER_FLAGS);
+	if (!op_ring_buffer_read)
+		goto fail;
+	op_ring_buffer_write = ring_buffer_alloc(buffer_size, OP_BUFFER_FLAGS);
+	if (!op_ring_buffer_write)
+		goto fail;
+
 	for_each_possible_cpu(i) {
 		struct oprofile_cpu_buffer *b = &per_cpu(cpu_buffer, i);
-
-		b->buffer = vmalloc_node(sizeof(struct op_sample) * buffer_size,
-			cpu_to_node(i));
-		if (!b->buffer)
-			goto fail;
 
 		b->last_task = NULL;
 		b->last_is_kernel = -1;
@@ -140,10 +161,22 @@ static inline void
 add_sample(struct oprofile_cpu_buffer *cpu_buf,
 	   unsigned long pc, unsigned long event)
 {
-	struct op_sample *entry = cpu_buffer_write_entry(cpu_buf);
-	entry->eip = pc;
-	entry->event = event;
-	cpu_buffer_write_commit(cpu_buf);
+	struct op_entry entry;
+
+	if (cpu_buffer_write_entry(&entry))
+		goto Error;
+
+	entry.sample->eip = pc;
+	entry.sample->event = event;
+
+	if (cpu_buffer_write_commit(&entry))
+		goto Error;
+
+	return;
+
+Error:
+	cpu_buf->sample_lost_overflow++;
+	return;
 }
 
 static inline void

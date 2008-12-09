@@ -15,6 +15,7 @@
 #include <linux/workqueue.h>
 #include <linux/cache.h>
 #include <linux/sched.h>
+#include <linux/ring_buffer.h>
 
 struct task_struct;
 
@@ -32,6 +33,12 @@ struct op_sample {
 	unsigned long event;
 };
 
+struct op_entry {
+	struct ring_buffer_event *event;
+	struct op_sample *sample;
+	unsigned long irq_flags;
+};
+
 struct oprofile_cpu_buffer {
 	volatile unsigned long head_pos;
 	volatile unsigned long tail_pos;
@@ -39,7 +46,6 @@ struct oprofile_cpu_buffer {
 	struct task_struct *last_task;
 	int last_is_kernel;
 	int tracing;
-	struct op_sample *buffer;
 	unsigned long sample_received;
 	unsigned long sample_lost_overflow;
 	unsigned long backtrace_aborted;
@@ -48,6 +54,8 @@ struct oprofile_cpu_buffer {
 	struct delayed_work work;
 };
 
+extern struct ring_buffer *op_ring_buffer_read;
+extern struct ring_buffer *op_ring_buffer_write;
 DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
 /*
@@ -64,46 +72,49 @@ static inline void cpu_buffer_reset(int cpu)
 	cpu_buf->last_task = NULL;
 }
 
-static inline
-struct op_sample *cpu_buffer_write_entry(struct oprofile_cpu_buffer *cpu_buf)
+static inline int cpu_buffer_write_entry(struct op_entry *entry)
 {
-	return &cpu_buf->buffer[cpu_buf->head_pos];
-}
-
-static inline
-void cpu_buffer_write_commit(struct oprofile_cpu_buffer *b)
-{
-	unsigned long new_head = b->head_pos + 1;
-
-	/*
-	 * Ensure anything written to the slot before we increment is
-	 * visible
-	 */
-	wmb();
-
-	if (new_head < b->buffer_size)
-		b->head_pos = new_head;
+	entry->event = ring_buffer_lock_reserve(op_ring_buffer_write,
+						sizeof(struct op_sample),
+						&entry->irq_flags);
+	if (entry->event)
+		entry->sample = ring_buffer_event_data(entry->event);
 	else
-		b->head_pos = 0;
+		entry->sample = NULL;
+
+	if (!entry->sample)
+		return -ENOMEM;
+
+	return 0;
 }
 
-static inline
-struct op_sample *cpu_buffer_read_entry(struct oprofile_cpu_buffer *cpu_buf)
+static inline int cpu_buffer_write_commit(struct op_entry *entry)
 {
-	return &cpu_buf->buffer[cpu_buf->tail_pos];
+	return ring_buffer_unlock_commit(op_ring_buffer_write, entry->event,
+					 entry->irq_flags);
+}
+
+static inline struct op_sample *cpu_buffer_read_entry(int cpu)
+{
+	struct ring_buffer_event *e;
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	if (e)
+		return ring_buffer_event_data(e);
+	if (ring_buffer_swap_cpu(op_ring_buffer_read,
+				 op_ring_buffer_write,
+				 cpu))
+		return NULL;
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	if (e)
+		return ring_buffer_event_data(e);
+	return NULL;
 }
 
 /* "acquire" as many cpu buffer slots as we can */
-static inline
-unsigned long cpu_buffer_entries(struct oprofile_cpu_buffer *b)
+static inline unsigned long cpu_buffer_entries(int cpu)
 {
-	unsigned long head = b->head_pos;
-	unsigned long tail = b->tail_pos;
-
-	if (head >= tail)
-		return head - tail;
-
-	return head + (b->buffer_size - tail);
+	return ring_buffer_entries_cpu(op_ring_buffer_read, cpu)
+		+ ring_buffer_entries_cpu(op_ring_buffer_write, cpu);
 }
 
 /* transient events for the CPU buffer -> event buffer */

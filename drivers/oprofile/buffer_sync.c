@@ -268,18 +268,6 @@ lookup_dcookie(struct mm_struct *mm, unsigned long addr, off_t *offset)
 	return cookie;
 }
 
-static void increment_tail(struct oprofile_cpu_buffer *b)
-{
-	unsigned long new_tail = b->tail_pos + 1;
-
-	rmb();	/* be sure fifo pointers are synchronized */
-
-	if (new_tail < b->buffer_size)
-		b->tail_pos = new_tail;
-	else
-		b->tail_pos = 0;
-}
-
 static unsigned long last_cookie = INVALID_COOKIE;
 
 static void add_cpu_switch(int i)
@@ -331,26 +319,25 @@ static void add_trace_begin(void)
 
 #define IBS_FETCH_CODE_SIZE	2
 #define IBS_OP_CODE_SIZE	5
-#define IBS_EIP(cpu_buf)	((cpu_buffer_read_entry(cpu_buf))->eip)
-#define IBS_EVENT(cpu_buf)	((cpu_buffer_read_entry(cpu_buf))->event)
 
 /*
  * Add IBS fetch and op entries to event buffer
  */
-static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
-			  struct mm_struct *mm)
+static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 {
 	unsigned long rip;
 	int i, count;
 	unsigned long ibs_cookie = 0;
 	off_t offset;
+	struct op_sample *sample;
 
-	increment_tail(cpu_buf);	/* move to RIP entry */
-
-	rip = IBS_EIP(cpu_buf);
+	sample = cpu_buffer_read_entry(cpu);
+	if (!sample)
+		goto Error;
+	rip = sample->eip;
 
 #ifdef __LP64__
-	rip += IBS_EVENT(cpu_buf) << 32;
+	rip += sample->event << 32;
 #endif
 
 	if (mm) {
@@ -374,8 +361,8 @@ static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
 	add_event_entry(offset);	/* Offset from Dcookie */
 
 	/* we send the Dcookie offset, but send the raw Linear Add also*/
-	add_event_entry(IBS_EIP(cpu_buf));
-	add_event_entry(IBS_EVENT(cpu_buf));
+	add_event_entry(sample->eip);
+	add_event_entry(sample->event);
 
 	if (code == IBS_FETCH_CODE)
 		count = IBS_FETCH_CODE_SIZE;	/*IBS FETCH is 2 int64s*/
@@ -383,10 +370,17 @@ static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
 		count = IBS_OP_CODE_SIZE;	/*IBS OP is 5 int64s*/
 
 	for (i = 0; i < count; i++) {
-		increment_tail(cpu_buf);
-		add_event_entry(IBS_EIP(cpu_buf));
-		add_event_entry(IBS_EVENT(cpu_buf));
+		sample = cpu_buffer_read_entry(cpu);
+		if (!sample)
+			goto Error;
+		add_event_entry(sample->eip);
+		add_event_entry(sample->event);
 	}
+
+	return;
+
+Error:
+	return;
 }
 
 #endif
@@ -530,33 +524,26 @@ typedef enum {
  */
 void sync_buffer(int cpu)
 {
-	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(cpu_buffer, cpu);
 	struct mm_struct *mm = NULL;
 	struct mm_struct *oldmm;
 	struct task_struct *new;
 	unsigned long cookie = 0;
 	int in_kernel = 1;
 	sync_buffer_state state = sb_buffer_start;
-#ifndef CONFIG_OPROFILE_IBS
 	unsigned int i;
 	unsigned long available;
-#endif
 
 	mutex_lock(&buffer_mutex);
 
 	add_cpu_switch(cpu);
 
-	/* Remember, only we can modify tail_pos */
-
 	cpu_buffer_reset(cpu);
-#ifndef CONFIG_OPROFILE_IBS
-	available = cpu_buffer_entries(cpu_buf);
+	available = cpu_buffer_entries(cpu);
 
 	for (i = 0; i < available; ++i) {
-#else
-	while (cpu_buffer_entries(cpu_buf)) {
-#endif
-		struct op_sample *s = cpu_buffer_read_entry(cpu_buf);
+		struct op_sample *s = cpu_buffer_read_entry(cpu);
+		if (!s)
+			break;
 
 		if (is_code(s->eip)) {
 			switch (s->event) {
@@ -575,11 +562,11 @@ void sync_buffer(int cpu)
 #ifdef CONFIG_OPROFILE_IBS
 			case IBS_FETCH_BEGIN:
 				state = sb_bt_start;
-				add_ibs_begin(cpu_buf, IBS_FETCH_CODE, mm);
+				add_ibs_begin(cpu, IBS_FETCH_CODE, mm);
 				break;
 			case IBS_OP_BEGIN:
 				state = sb_bt_start;
-				add_ibs_begin(cpu_buf, IBS_OP_CODE, mm);
+				add_ibs_begin(cpu, IBS_OP_CODE, mm);
 				break;
 #endif
 			default:
@@ -600,8 +587,6 @@ void sync_buffer(int cpu)
 				atomic_inc(&oprofile_stats.bt_lost_no_mapping);
 			}
 		}
-
-		increment_tail(cpu_buf);
 	}
 	release_mm(mm);
 
