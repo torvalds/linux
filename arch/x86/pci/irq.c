@@ -1068,7 +1068,7 @@ static void __init pcibios_fixup_irqs(void)
 				struct pci_dev *bridge = dev->bus->self;
 				int bus;
 
-				pin = (((pin - 1) + PCI_SLOT(dev->devfn)) % 4) + 1;
+				pin = pci_swizzle_interrupt_pin(dev, pin);
 				bus = bridge->bus->number;
 				irq = IO_APIC_get_PCI_irq_vector(bus,
 						PCI_SLOT(bridge->devfn), pin - 1);
@@ -1232,7 +1232,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			while (irq < 0 && dev->bus->parent) { /* go back to the bridge */
 				struct pci_dev *bridge = dev->bus->self;
 
-				pin = (((pin - 1) + PCI_SLOT(dev->devfn)) % 4) + 1;
+				pin = pci_swizzle_interrupt_pin(dev, pin);
 				irq = IO_APIC_get_PCI_irq_vector(bridge->bus->number,
 						PCI_SLOT(bridge->devfn), pin - 1);
 				if (irq >= 0)

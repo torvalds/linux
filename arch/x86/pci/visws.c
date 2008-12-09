@@ -24,17 +24,12 @@ static void pci_visws_disable_irq(struct pci_dev *dev) { }
 
 unsigned int pci_bus0, pci_bus1;
 
-static inline u8 bridge_swizzle(u8 pin, u8 slot) 
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
 static u8 __init visws_swizzle(struct pci_dev *dev, u8 *pinp)
 {
 	u8 pin = *pinp;
 
 	while (dev->bus->self) {	/* Move up the chain of bridges. */
-		pin = bridge_swizzle(pin, PCI_SLOT(dev->devfn));
+		pin = pci_swizzle_interrupt_pin(dev, pin);
 		dev = dev->bus->self;
 	}
 	*pinp = pin;
