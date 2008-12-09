@@ -603,6 +603,12 @@ config SCSI_FLASHPOINT
 	  substantial, so users of MultiMaster Host Adapters may not
 	  wish to include it.
 
+config LIBFC
+	tristate "LibFC module"
+	depends on SCSI && SCSI_FC_ATTRS
+	---help---
+	  Fibre Channel library module
+
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
 	depends on PCI && SCSI
