@@ -33,7 +33,6 @@ static u32 perf_counter_mask __read_mostly;
 struct cpu_hw_counters {
 	struct perf_counter	*counters[MAX_HW_COUNTERS];
 	unsigned long		used[BITS_TO_LONGS(MAX_HW_COUNTERS)];
-	int			enable_all;
 };
 
 /*
@@ -115,24 +114,13 @@ int hw_perf_counter_init(struct perf_counter *counter, s32 hw_event_type)
 	return 0;
 }
 
-static void __hw_perf_enable_all(void)
+void hw_perf_enable_all(void)
 {
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, perf_counter_mask, 0);
 }
 
-void hw_perf_enable_all(void)
-{
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-
-	cpuc->enable_all = 1;
-	__hw_perf_enable_all();
-}
-
 void hw_perf_disable_all(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-
-	cpuc->enable_all = 0;
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0, 0);
 }
 
@@ -385,8 +373,10 @@ perf_handle_group(struct perf_counter *leader, u64 *status, u64 *overflown)
 static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 {
 	int bit, cpu = smp_processor_id();
+	u64 ack, status, saved_global;
 	struct cpu_hw_counters *cpuc;
-	u64 ack, status;
+
+	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, saved_global);
 
 	/* Disable counters globally */
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0, 0);
@@ -445,10 +435,9 @@ again:
 		goto again;
 out:
 	/*
-	 * Do not reenable when global enable is off:
+	 * Restore - do not reenable when global enable is off:
 	 */
-	if (cpuc->enable_all)
-		__hw_perf_enable_all();
+	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, saved_global, 0);
 }
 
 void smp_perf_counter_interrupt(struct pt_regs *regs)
