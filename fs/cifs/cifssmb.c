@@ -1414,8 +1414,13 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon, const int netfid,
 	cFYI(1, ("Reading %d bytes on fid %d", count, netfid));
 	if (tcon->ses->capabilities & CAP_LARGE_FILES)
 		wct = 12;
-	else
+	else {
 		wct = 10; /* old style read */
+		if ((lseek >> 32) > 0)  {
+			/* can not handle this big offset for old */
+			return -EIO;
+		}
+	}
 
 	*nbytes = 0;
 	rc = small_smb_init(SMB_COM_READ_ANDX, wct, tcon, (void **) &pSMB);
@@ -1431,8 +1436,6 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon, const int netfid,
 	pSMB->OffsetLow = cpu_to_le32(lseek & 0xFFFFFFFF);
 	if (wct == 12)
 		pSMB->OffsetHigh = cpu_to_le32(lseek >> 32);
-	else if ((lseek >> 32) > 0) /* can not handle this big offset for old */
-		return -EIO;
 
 	pSMB->Remaining = 0;
 	pSMB->MaxCount = cpu_to_le16(count & 0xFFFF);
@@ -1519,8 +1522,13 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES)
 		wct = 14;
-	else
+	else {
 		wct = 12;
+		if ((offset >> 32) > 0) {
+			/* can not handle big offset for old srv */
+			return -EIO;
+		}
+	}
 
 	rc = smb_init(SMB_COM_WRITE_ANDX, wct, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -1535,8 +1543,6 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	pSMB->OffsetLow = cpu_to_le32(offset & 0xFFFFFFFF);
 	if (wct == 14)
 		pSMB->OffsetHigh = cpu_to_le32(offset >> 32);
-	else if ((offset >> 32) > 0) /* can not handle big offset for old srv */
-		return -EIO;
 
 	pSMB->Reserved = 0xFFFFFFFF;
 	pSMB->WriteMode = 0;
@@ -1621,10 +1627,15 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 
 	cFYI(1, ("write2 at %lld %d bytes", (long long)offset, count));
 
-	if (tcon->ses->capabilities & CAP_LARGE_FILES)
+	if (tcon->ses->capabilities & CAP_LARGE_FILES) {
 		wct = 14;
-	else
+	} else {
 		wct = 12;
+		if ((offset >> 32) > 0) {
+			/* can not handle big offset for old srv */
+			return -EIO;
+		}
+	}
 	rc = small_smb_init(SMB_COM_WRITE_ANDX, wct, tcon, (void **) &pSMB);
 	if (rc)
 		return rc;
@@ -1637,8 +1648,6 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	pSMB->OffsetLow = cpu_to_le32(offset & 0xFFFFFFFF);
 	if (wct == 14)
 		pSMB->OffsetHigh = cpu_to_le32(offset >> 32);
-	else if ((offset >> 32) > 0) /* can not handle big offset for old srv */
-		return -EIO;
 	pSMB->Reserved = 0xFFFFFFFF;
 	pSMB->WriteMode = 0;
 	pSMB->Remaining = 0;
