@@ -18,8 +18,6 @@
 #ifndef __XFS_MOUNT_H__
 #define	__XFS_MOUNT_H__
 
-#include "xfs_sync.h"
-
 typedef struct xfs_trans_reservations {
 	uint	tr_write;	/* extent alloc trans */
 	uint	tr_itruncate;	/* truncate trans */
@@ -52,6 +50,8 @@ typedef struct xfs_trans_reservations {
 	((xfs_agblock_t)(XFS_BB_TO_FSBT(mp, d) % (mp)->m_sb.sb_agblocks))
 
 #else /* __KERNEL__ */
+
+#include "xfs_sync.h"
 
 struct cred;
 struct log;
