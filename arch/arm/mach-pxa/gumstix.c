@@ -193,6 +193,20 @@ static unsigned long gumstix_pin_config[] __initdata = {
 	GPIO16_GPIO,
 };
 
+int __attribute__((weak)) am200_init(void)
+{
+	return 0;
+}
+
+static void __init carrier_board_init(void)
+{
+	/*
+	 * put carrier/expansion board init here if
+	 * they cannot be detected programatically
+	 */
+	am200_init();
+}
+
 static void __init gumstix_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(gumstix_pin_config));
@@ -201,6 +215,7 @@ static void __init gumstix_init(void)
 	gumstix_udc_init();
 	gumstix_mmc_init();
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
+	carrier_board_init();
 }
 
 MACHINE_START(GUMSTIX, "Gumstix")
