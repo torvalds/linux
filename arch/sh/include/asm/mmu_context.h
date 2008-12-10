@@ -22,7 +22,7 @@
 #define MMU_CONTEXT_ASID_MASK		0x000000ff
 #define MMU_CONTEXT_VERSION_MASK	0xffffff00
 #define MMU_CONTEXT_FIRST_VERSION	0x00000100
-#define NO_CONTEXT			0
+#define NO_CONTEXT			0UL
 
 /* ASID is 8-bit value, so it can't be 0x100 */
 #define MMU_NO_ASID			0x100
@@ -130,7 +130,7 @@ static inline void switch_mm(struct mm_struct *prev,
 #define destroy_context(mm)		do { } while (0)
 #define set_asid(asid)			do { } while (0)
 #define get_asid()			(0)
-#define cpu_asid(cpu, mm)		({ (void)cpu; 0; })
+#define cpu_asid(cpu, mm)		({ (void)cpu; NO_CONTEXT; })
 #define switch_and_save_asid(asid)	(0)
 #define set_TTB(pgd)			do { } while (0)
 #define get_TTB()			(0)
