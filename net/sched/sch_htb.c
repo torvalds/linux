@@ -698,14 +698,14 @@ static struct rb_node *htb_id_find_next_upper(int prio, struct rb_node *n,
 	while (n) {
 		struct htb_class *cl =
 		    rb_entry(n, struct htb_class, node[prio]);
-		if (id == cl->common.classid)
-			return n;
 
 		if (id > cl->common.classid) {
 			n = n->rb_right;
-		} else {
+		} else if (id < cl->common.classid) {
 			r = n;
 			n = n->rb_left;
+		} else {
+			return n;
 		}
 	}
 	return r;
