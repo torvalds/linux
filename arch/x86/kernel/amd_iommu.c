@@ -844,7 +844,6 @@ static struct dma_ops_domain *find_protection_domain(u16 devid)
 	list_for_each_entry(entry, &iommu_pd_list, list) {
 		if (entry->target_dev == devid) {
 			ret = entry;
-			list_del(&ret->list);
 			break;
 		}
 	}
