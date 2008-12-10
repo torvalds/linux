@@ -1327,6 +1327,17 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 	memset(parm, 0, sizeof *parm);
 	parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	parm->parm.capture.readbuffers = gspca_dev->nbufread;
+
+	if (gspca_dev->sd_desc->get_streamparm) {
+		int ret;
+
+		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
+			return -ERESTARTSYS;
+		ret = gspca_dev->sd_desc->get_streamparm(gspca_dev, parm);
+		mutex_unlock(&gspca_dev->usb_lock);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -1341,6 +1352,17 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 		parm->parm.capture.readbuffers = gspca_dev->nbufread;
 	else
 		gspca_dev->nbufread = n;
+
+	if (gspca_dev->sd_desc->set_streamparm) {
+		int ret;
+
+		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
+			return -ERESTARTSYS;
+		ret = gspca_dev->sd_desc->set_streamparm(gspca_dev, parm);
+		mutex_unlock(&gspca_dev->usb_lock);
+		return ret;
+	}
+
 	return 0;
 }
 

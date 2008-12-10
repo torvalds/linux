@@ -74,6 +74,8 @@ typedef void (*cam_v_op) (struct gspca_dev *);
 typedef int (*cam_cf_op) (struct gspca_dev *, const struct usb_device_id *);
 typedef int (*cam_jpg_op) (struct gspca_dev *,
 				struct v4l2_jpegcompression *);
+typedef int (*cam_streamparm_op) (struct gspca_dev *,
+				  struct v4l2_streamparm *);
 typedef int (*cam_qmnu_op) (struct gspca_dev *,
 			struct v4l2_querymenu *);
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
@@ -106,6 +108,8 @@ struct sd_desc {
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;
 	cam_qmnu_op querymenu;
+	cam_streamparm_op get_streamparm;
+	cam_streamparm_op set_streamparm;
 };
 
 /* packet types when moving from iso buf to frame buf */
