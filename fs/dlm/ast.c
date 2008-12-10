@@ -101,7 +101,7 @@ static void process_asts(void)
 		   and may result in the lkb being freed */
 		dlm_put_lkb(lkb);
 
-		schedule();
+		cond_resched();
 	}
 }
 
