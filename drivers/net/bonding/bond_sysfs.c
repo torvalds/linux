@@ -43,15 +43,8 @@
 
 /*---------------------------- Declarations -------------------------------*/
 
-
-extern struct list_head bond_dev_list;
 extern struct bond_params bonding_defaults;
-extern struct bond_parm_tbl bond_mode_tbl[];
-extern struct bond_parm_tbl bond_lacp_tbl[];
 extern struct bond_parm_tbl ad_select_tbl[];
-extern struct bond_parm_tbl xmit_hashtype_tbl[];
-extern struct bond_parm_tbl arp_validate_tbl[];
-extern struct bond_parm_tbl fail_over_mac_tbl[];
 
 static int expected_refcount = -1;
 /*--------------------------- Data Structures -----------------------------*/
