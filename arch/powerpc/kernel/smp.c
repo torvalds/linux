@@ -57,7 +57,6 @@
 #define DBG(fmt...)
 #endif
 
-int smp_hw_index[NR_CPUS];
 struct thread_info *secondary_ti;
 
 cpumask_t cpu_possible_map = CPU_MASK_NONE;
