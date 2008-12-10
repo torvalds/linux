@@ -5,7 +5,7 @@
 #include <linux/sched.h>
 #include <asm/ptrace.h>
 
-/* The system call number is given by the user in %g1 */
+/* The system call number is given by the user in R3 */
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
 {
