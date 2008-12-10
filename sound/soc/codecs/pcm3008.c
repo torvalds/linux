@@ -195,7 +195,7 @@ struct snd_soc_codec_device soc_codec_dev_pcm3008 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_pcm3008);
 
-static int __devinit pcm3008_init(void)
+static int __init pcm3008_init(void)
 {
 	return snd_soc_register_dai(&pcm3008_dai);
 }

@@ -853,7 +853,7 @@ int fsl_dma_configure(struct fsl_dma_info *dma_info)
 }
 EXPORT_SYMBOL_GPL(fsl_dma_configure);
 
-static int __devinit fsl_soc_platform_init(void)
+static int __init fsl_soc_platform_init(void)
 {
 	return snd_soc_register_platform(&fsl_soc_platform);
 }

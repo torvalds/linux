@@ -283,7 +283,7 @@ struct snd_soc_platform bf5xx_i2s_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(bf5xx_i2s_soc_platform);
 
-static int __devinit bfin_i2s_init(void)
+static int __init bfin_i2s_init(void)
 {
 	return snd_soc_register_platform(&bf5xx_i2s_soc_platform);
 }

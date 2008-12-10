@@ -841,7 +841,7 @@ struct snd_soc_codec_device soc_codec_dev_uda1380 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_uda1380);
 
-static int __devinit uda1380_modinit(void)
+static int __init uda1380_modinit(void)
 {
 	return snd_soc_register_dais(uda1380_dai, ARRAY_SIZE(uda1380_dai));
 }

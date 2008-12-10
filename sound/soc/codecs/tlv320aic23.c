@@ -847,7 +847,7 @@ struct snd_soc_codec_device soc_codec_dev_tlv320aic23 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_tlv320aic23);
 
-static int __devinit tlv320aic23_modinit(void)
+static int __init tlv320aic23_modinit(void)
 {
 	return snd_soc_register_dai(&tlv320aic23_dai);
 }

@@ -1809,7 +1809,7 @@ struct snd_soc_codec_device soc_codec_dev_wm8903 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8903);
 
-static int __devinit wm8903_modinit(void)
+static int __init wm8903_modinit(void)
 {
 	return snd_soc_register_dai(&wm8903_dai);
 }

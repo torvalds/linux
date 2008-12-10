@@ -481,7 +481,7 @@ struct snd_soc_dai davinci_i2s_dai = {
 };
 EXPORT_SYMBOL_GPL(davinci_i2s_dai);
 
-static int __devinit davinci_i2s_init(void)
+static int __init davinci_i2s_init(void)
 {
 	return snd_soc_register_dai(&davinci_i2s_dai);
 }

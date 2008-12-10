@@ -1643,7 +1643,7 @@ struct snd_soc_codec_device soc_codec_dev_wm8990 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8990);
 
-static int __devinit wm8990_modinit(void)
+static int __init wm8990_modinit(void)
 {
 	return snd_soc_register_dai(&wm8990_dai);
 }

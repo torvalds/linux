@@ -1874,7 +1874,7 @@ struct snd_soc_codec_device soc_codec_dev_wm8753 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8753);
 
-static int __devinit wm8753_modinit(void)
+static int __init wm8753_modinit(void)
 {
 	return snd_soc_register_dais(wm8753_dai, ARRAY_SIZE(wm8753_dai));
 }

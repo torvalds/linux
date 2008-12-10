@@ -793,7 +793,7 @@ struct snd_soc_codec_device soc_codec_dev_ssm2602 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ssm2602);
 
-static int __devinit ssm2602_modinit(void)
+static int __init ssm2602_modinit(void)
 {
 	return snd_soc_register_dai(&ssm2602_dai);
 }

@@ -465,7 +465,7 @@ struct snd_soc_platform s3c24xx_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(s3c24xx_soc_platform);
 
-static int __devinit s3c24xx_soc_platform_init(void)
+static int __init s3c24xx_soc_platform_init(void)
 {
 	return snd_soc_register_platform(&s3c24xx_soc_platform);
 }

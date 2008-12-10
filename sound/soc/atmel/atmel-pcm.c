@@ -477,7 +477,7 @@ struct snd_soc_platform atmel_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(atmel_soc_platform);
 
-static int __devinit atmel_pcm_modinit(void)
+static int __init atmel_pcm_modinit(void)
 {
 	return snd_soc_register_platform(&atmel_soc_platform);
 }

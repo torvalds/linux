@@ -228,7 +228,7 @@ struct snd_soc_dai pxa_ac97_dai[] = {
 EXPORT_SYMBOL_GPL(pxa_ac97_dai);
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
-static int __devinit pxa_ac97_init(void)
+static int __init pxa_ac97_init(void)
 {
 	return snd_soc_register_dais(pxa_ac97_dai, ARRAY_SIZE(pxa_ac97_dai));
 }

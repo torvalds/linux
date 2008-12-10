@@ -1411,7 +1411,7 @@ struct snd_soc_codec_device soc_codec_dev_aic3x = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_aic3x);
 
-static int __devinit aic3x_modinit(void)
+static int __init aic3x_modinit(void)
 {
 	return snd_soc_register_dai(&aic3x_dai);
 }

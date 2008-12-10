@@ -499,7 +499,7 @@ struct snd_soc_dai omap_mcbsp_dai[] = {
 
 EXPORT_SYMBOL_GPL(omap_mcbsp_dai);
 
-static int __devinit omap_mcbsp_init(void)
+static int __init omap_mcbsp_init(void)
 {
 	return snd_soc_register_dais(omap_mcbsp_dai,
 				     ARRAY_SIZE(omap_mcbsp_dai));

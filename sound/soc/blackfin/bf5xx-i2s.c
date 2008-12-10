@@ -313,7 +313,7 @@ struct snd_soc_dai bf5xx_i2s_dai = {
 };
 EXPORT_SYMBOL_GPL(bf5xx_i2s_dai);
 
-static int __devinit bfin_i2s_init(void)
+static int __init bfin_i2s_init(void)
 {
 	return snd_soc_register_dai(&bfin_i2s_dai);
 }

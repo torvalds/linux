@@ -1473,7 +1473,7 @@ struct snd_soc_codec_device soc_codec_dev_wm8900 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8900);
 
-static int __devinit wm8900_modinit(void)
+static int __init wm8900_modinit(void)
 {
 	return i2c_add_driver(&wm8900_i2c_driver);
 }

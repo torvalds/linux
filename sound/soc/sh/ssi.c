@@ -392,7 +392,7 @@ struct snd_soc_dai sh4_ssi_dai[] = {
 };
 EXPORT_SYMBOL_GPL(sh4_ssi_dai);
 
-static int __devinit sh4_ssi_init(void)
+static int __init sh4_ssi_init(void)
 {
 	return snd_soc_register_dais(sh4_ssi_dai, ARRAY_SIZE(sh4_ssi_dai));
 }

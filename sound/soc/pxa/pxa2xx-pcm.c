@@ -118,7 +118,7 @@ struct snd_soc_platform pxa2xx_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(pxa2xx_soc_platform);
 
-static int __devinit pxa2xx_soc_platform_init(void)
+static int __init pxa2xx_soc_platform_init(void)
 {
 	return snd_soc_register_platform(&pxa2xx_soc_platform);
 }

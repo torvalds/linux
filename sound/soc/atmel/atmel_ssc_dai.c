@@ -772,7 +772,7 @@ struct snd_soc_dai atmel_ssc_dai[NUM_SSC_DEVICES] = {
 };
 EXPORT_SYMBOL_GPL(atmel_ssc_dai);
 
-static int __devinit atmel_ssc_modinit(void)
+static int __init atmel_ssc_modinit(void)
 {
 	return snd_soc_register_dais(atmel_ssc_dai, ARRAY_SIZE(atmel_ssc_dai));
 }

@@ -688,7 +688,7 @@ struct snd_soc_codec_device soc_codec_dev_ak4535 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ak4535);
 
-static int __devinit ak4535_modinit(void)
+static int __init ak4535_modinit(void)
 {
 	return snd_soc_register_dai(&ak4535_dai);
 }

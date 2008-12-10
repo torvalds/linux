@@ -913,7 +913,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 };
 EXPORT_SYMBOL_GPL(pxa_ssp_dai);
 
-static int __devinit pxa_ssp_init(void)
+static int __init pxa_ssp_init(void)
 {
 	return snd_soc_register_dais(pxa_ssp_dai, ARRAY_SIZE(pxa_ssp_dai));
 }

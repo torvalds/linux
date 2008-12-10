@@ -651,7 +651,7 @@ struct snd_soc_codec_device soc_codec_dev_uda134x = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_uda134x);
 
-static int __devinit uda134x_init(void)
+static int __init uda134x_init(void)
 {
 	return snd_soc_register_dai(&uda134x_dai);
 }

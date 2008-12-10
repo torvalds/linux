@@ -889,7 +889,7 @@ struct snd_soc_codec_device soc_codec_dev_wm8510 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8510);
 
-static int __devinit wm8510_modinit(void)
+static int __init wm8510_modinit(void)
 {
 	return snd_soc_register_dai(&wm8510_dai);
 }

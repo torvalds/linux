@@ -774,7 +774,7 @@ struct snd_soc_codec_device soc_codec_device_cs4270 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_device_cs4270);
 
-static int __devinit cs4270_init(void)
+static int __init cs4270_init(void)
 {
 	return snd_soc_register_dai(&cs4270_dai);
 }

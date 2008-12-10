@@ -431,7 +431,7 @@ struct snd_soc_dai bfin_ac97_dai = {
 };
 EXPORT_SYMBOL_GPL(bfin_ac97_dai);
 
-static int __devinit bfin_ac97_init(void)
+static int __init bfin_ac97_init(void)
 {
 	return snd_soc_register_dai(&bfin_ac97_dai);
 }

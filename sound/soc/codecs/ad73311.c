@@ -98,7 +98,7 @@ struct snd_soc_codec_device soc_codec_dev_ad73311 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ad73311);
 
-static int __devinit ad73311_init(void)
+static int __init ad73311_init(void)
 {
 	return snd_soc_register_dai(&ad73311_dai);
 }

@@ -736,7 +736,7 @@ struct snd_soc_dai s3c2412_i2s_dai = {
 };
 EXPORT_SYMBOL_GPL(s3c2412_i2s_dai);
 
-static int __devinit s3c2412_i2s_init(void)
+static int __init s3c2412_i2s_init(void)
 {
 	return snd_soc_register_dai(&s3c2412_i2s_dai);
 }

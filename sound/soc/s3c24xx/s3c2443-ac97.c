@@ -396,7 +396,7 @@ struct snd_soc_dai s3c2443_ac97_dai[] = {
 EXPORT_SYMBOL_GPL(s3c2443_ac97_dai);
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
-static int __devinit s3c2443_ac97_init(void)
+static int __init s3c2443_ac97_init(void)
 {
 	return snd_soc_register_dai(&s3c2443_ac97_dai);
 }

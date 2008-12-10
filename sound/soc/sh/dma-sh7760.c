@@ -348,7 +348,7 @@ struct snd_soc_platform sh7760_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(sh7760_soc_platform);
 
-static int __devinit sh7760_soc_platform_init(void)
+static int __init sh7760_soc_platform_init(void)
 {
 	return snd_soc_register_platform(&sh7760_soc_platform);
 }

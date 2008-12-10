@@ -354,7 +354,7 @@ struct snd_soc_platform omap_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(omap_soc_platform);
 
-static int __devinit omap_soc_platform_init(void)
+static int __init omap_soc_platform_init(void)
 {
 	return snd_soc_register_platform(&omap_soc_platform);
 }

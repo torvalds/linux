@@ -2224,7 +2224,7 @@ void snd_soc_unregister_platform(struct snd_soc_platform *platform)
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);
 
-static int __devinit snd_soc_init(void)
+static int __init snd_soc_init(void)
 {
 #ifdef CONFIG_DEBUG_FS
 	debugfs_root = debugfs_create_dir("asoc", NULL);
