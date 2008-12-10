@@ -334,7 +334,7 @@ struct bio_pair {
 extern struct bio_pair *bio_split(struct bio *bi, int first_sectors);
 extern void bio_pair_release(struct bio_pair *dbio);
 
-extern struct bio_set *bioset_create(int, int);
+extern struct bio_set *bioset_create(unsigned int, unsigned int);
 extern void bioset_free(struct bio_set *);
 
 extern struct bio *bio_alloc(gfp_t, int);
@@ -379,6 +379,7 @@ extern struct bio *bio_copy_user_iov(struct request_queue *,
 extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio(struct bio *bio);
 extern struct bio_vec *bvec_alloc_bs(gfp_t, int, unsigned long *, struct bio_set *);
+extern void bvec_free_bs(struct bio_set *, struct bio_vec *, unsigned int);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
 
 /*
@@ -401,6 +402,8 @@ static inline void bio_set_completion_cpu(struct bio *bio, unsigned int cpu)
 
 struct bio_set {
 	struct kmem_cache *bio_slab;
+	unsigned int front_pad;
+
 	mempool_t *bio_pool;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	mempool_t *bio_integrity_pool;
@@ -415,6 +418,7 @@ struct biovec_slab {
 };
 
 extern struct bio_set *fs_bio_set;
+extern struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly;
 
 /*
  * a small number of entries is fine, not going to be performance critical.
