@@ -726,7 +726,7 @@ static struct htb_class *htb_lookup_leaf(struct rb_root *tree, int prio,
 		u32 *pid;
 	} stk[TC_HTB_MAXDEPTH], *sp = stk;
 
-	WARN_ON(!tree->rb_node);
+	BUG_ON(!tree->rb_node);
 	sp->root = tree->rb_node;
 	sp->pptr = pptr;
 	sp->pid = pid;
@@ -746,9 +746,10 @@ static struct htb_class *htb_lookup_leaf(struct rb_root *tree, int prio,
 				*sp->pptr = (*sp->pptr)->rb_left;
 			if (sp > stk) {
 				sp--;
-				WARN_ON(!*sp->pptr);
-				if (!*sp->pptr)
+				if (!*sp->pptr) {
+					WARN_ON(1);
 					return NULL;
+				}
 				htb_next_rb_node(sp->pptr);
 			}
 		} else {
@@ -779,8 +780,7 @@ static struct sk_buff *htb_dequeue_tree(struct htb_sched *q, int prio,
 
 	do {
 next:
-		WARN_ON(!cl);
-		if (!cl)
+		if (unlikely(!cl))
 			return NULL;
 
 		/* class can be empty - it is unlikely but can be true if leaf
