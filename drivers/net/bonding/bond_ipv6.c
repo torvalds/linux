@@ -75,7 +75,7 @@ static void bond_na_send(struct net_device *slave_dev,
 	addrconf_addr_solict_mult(daddr, &mcaddr);
 
 	dprintk("ipv6 na on slave %s: dest %pI6, src %pI6\n",
-	       slave->name, &mcaddr, daddr);
+	       slave_dev->name, &mcaddr, daddr);
 
 	skb = ndisc_build_skb(slave_dev, &mcaddr, daddr, &icmp6h, daddr,
 			      ND_OPT_TARGET_LL_ADDR);
