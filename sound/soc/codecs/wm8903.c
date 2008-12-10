@@ -997,6 +997,9 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			wm8903_write(codec, WM8903_CLOCK_RATES_2,
+				     WM8903_CLK_SYS_ENA);
+
 			wm8903_run_sequence(codec, 0);
 			wm8903_sync_reg_cache(codec, codec->reg_cache);
 
@@ -1027,6 +1030,9 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_OFF:
 		wm8903_run_sequence(codec, 32);
+		reg = wm8903_read(codec, WM8903_CLOCK_RATES_2);
+		reg &= ~WM8903_CLK_SYS_ENA;
+		wm8903_write(codec, WM8903_CLOCK_RATES_2, reg);
 		break;
 	}
 
@@ -1618,9 +1624,6 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 		 val & WM8903_CHIP_REV_MASK);
 
 	wm8903_reset(codec);
-
-	/* SYSCLK is required for pretty much anything */
-	wm8903_write(codec, WM8903_CLOCK_RATES_2, WM8903_CLK_SYS_ENA);
 
 	/* power on device */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
