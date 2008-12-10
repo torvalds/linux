@@ -86,6 +86,7 @@ struct pt_dspregs {
 	unsigned long	re;
 	unsigned long	mod;
 };
+#endif
 
 #define PTRACE_GETREGS		12	/* General registers */
 #define PTRACE_SETREGS		13
@@ -100,7 +101,6 @@ struct pt_dspregs {
 
 #define	PTRACE_GETDSPREGS	55	/* DSP registers */
 #define	PTRACE_SETDSPREGS	56
-#endif
 
 #ifdef __KERNEL__
 #include <asm/addrspace.h>
