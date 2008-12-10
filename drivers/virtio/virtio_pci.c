@@ -307,6 +307,20 @@ static struct virtio_config_ops virtio_pci_config_ops = {
 	.finalize_features = vp_finalize_features,
 };
 
+static void virtio_pci_release_dev(struct device *_d)
+{
+	struct virtio_device *dev = container_of(_d, struct virtio_device, dev);
+	struct virtio_pci_device *vp_dev = to_vp_device(dev);
+	struct pci_dev *pci_dev = vp_dev->pci_dev;
+
+	free_irq(pci_dev->irq, vp_dev);
+	pci_set_drvdata(pci_dev, NULL);
+	pci_iounmap(pci_dev, vp_dev->ioaddr);
+	pci_release_regions(pci_dev);
+	pci_disable_device(pci_dev);
+	kfree(vp_dev);
+}
+
 /* the PCI probing function */
 static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 				      const struct pci_device_id *id)
@@ -330,6 +344,7 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 		return -ENOMEM;
 
 	vp_dev->vdev.dev.parent = &virtio_pci_root;
+	vp_dev->vdev.dev.release = virtio_pci_release_dev;
 	vp_dev->vdev.config = &virtio_pci_config_ops;
 	vp_dev->pci_dev = pci_dev;
 	INIT_LIST_HEAD(&vp_dev->virtqueues);
@@ -389,12 +404,6 @@ static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
 
 	unregister_virtio_device(&vp_dev->vdev);
-	free_irq(pci_dev->irq, vp_dev);
-	pci_set_drvdata(pci_dev, NULL);
-	pci_iounmap(pci_dev, vp_dev->ioaddr);
-	pci_release_regions(pci_dev);
-	pci_disable_device(pci_dev);
-	kfree(vp_dev);
 }
 
 #ifdef CONFIG_PM
