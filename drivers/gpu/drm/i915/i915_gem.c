@@ -2498,6 +2498,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		/* unpin all of our buffers */
 		for (i = 0; i < pinned; i++)
 			i915_gem_object_unpin(object_list[i]);
+		pinned = 0;
 
 		/* evict everyone we can from the aperture */
 		ret = i915_gem_evict_everything(dev);
