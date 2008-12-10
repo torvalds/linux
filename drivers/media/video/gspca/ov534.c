@@ -43,14 +43,12 @@ MODULE_AUTHOR("Antonio Ospite <ospite@studenti.unina.it>");
 MODULE_DESCRIPTION("GSPCA/OV534 USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-/* global parameters */
-static int frame_rate;
-
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 	__u32 last_fid;
 	__u32 last_pts;
+	int frame_rate;
 };
 
 /* V4L2 controls supported by the driver */
@@ -296,6 +294,40 @@ static const __u8 ov772x_reg_initdata[][2] = {
 	{ 0x0c, 0xd0 }
 };
 
+/* set framerate */
+static void ov534_set_frame_rate(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int fr = sd->frame_rate;
+
+	switch (fr) {
+	case 50:
+		sccb_reg_write(gspca_dev->dev, 0x11, 0x01);
+		sccb_reg_write(gspca_dev->dev, 0x0d, 0x41);
+		ov534_reg_write(gspca_dev->dev, 0xe5, 0x02);
+		break;
+	case 40:
+		sccb_reg_write(gspca_dev->dev, 0x11, 0x02);
+		sccb_reg_write(gspca_dev->dev, 0x0d, 0xc1);
+		ov534_reg_write(gspca_dev->dev, 0xe5, 0x04);
+		break;
+/*	case 30: */
+	default:
+		fr = 30;
+		sccb_reg_write(gspca_dev->dev, 0x11, 0x04);
+		sccb_reg_write(gspca_dev->dev, 0x0d, 0x81);
+		ov534_reg_write(gspca_dev->dev, 0xe5, 0x02);
+		break;
+	case 15:
+		sccb_reg_write(gspca_dev->dev, 0x11, 0x03);
+		sccb_reg_write(gspca_dev->dev, 0x0d, 0x41);
+		ov534_reg_write(gspca_dev->dev, 0xe5, 0x04);
+		break;
+	}
+
+	sd->frame_rate = fr;
+	PDEBUG(D_PROBE, "frame_rate: %d", fr);
+}
 
 /* setup method */
 static void ov534_setup(struct usb_device *udev)
@@ -339,38 +371,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	int fr;
-
 	ov534_setup(gspca_dev->dev);
-
-	fr = frame_rate;
-
-	switch (fr) {
-	case 50:
-		sccb_reg_write(gspca_dev->dev, 0x11, 0x01);
-		sccb_reg_write(gspca_dev->dev, 0x0d, 0x41);
-		ov534_reg_write(gspca_dev->dev, 0xe5, 0x02);
-		break;
-	case 40:
-		sccb_reg_write(gspca_dev->dev, 0x11, 0x02);
-		sccb_reg_write(gspca_dev->dev, 0x0d, 0xc1);
-		ov534_reg_write(gspca_dev->dev, 0xe5, 0x04);
-		break;
-/*	case 30: */
-	default:
-		fr = 30;
-		sccb_reg_write(gspca_dev->dev, 0x11, 0x04);
-		sccb_reg_write(gspca_dev->dev, 0x0d, 0x81);
-		ov534_reg_write(gspca_dev->dev, 0xe5, 0x02);
-		break;
-	case 15:
-		sccb_reg_write(gspca_dev->dev, 0x11, 0x03);
-		sccb_reg_write(gspca_dev->dev, 0x0d, 0x41);
-		ov534_reg_write(gspca_dev->dev, 0xe5, 0x04);
-		break;
-	}
-
-	PDEBUG(D_PROBE, "frame_rate: %d", fr);
+	ov534_set_frame_rate(gspca_dev);
 
 	return 0;
 }
@@ -477,6 +479,46 @@ discard:
 	goto scan_next;
 }
 
+/* get stream parameters (framerate) */
+int sd_get_streamparm(struct gspca_dev *gspca_dev,
+		      struct v4l2_streamparm *parm)
+{
+	struct v4l2_captureparm *cp = &parm->parm.capture;
+	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	cp->capability |= V4L2_CAP_TIMEPERFRAME;
+	tpf->numerator = 1;
+	tpf->denominator = sd->frame_rate;
+
+	return 0;
+}
+
+/* set stream parameters (framerate) */
+int sd_set_streamparm(struct gspca_dev *gspca_dev,
+		      struct v4l2_streamparm *parm)
+{
+	struct v4l2_captureparm *cp = &parm->parm.capture;
+	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	/* Set requested framerate */
+	sd->frame_rate = tpf->denominator / tpf->numerator;
+	ov534_set_frame_rate(gspca_dev);
+
+	/* Return the actual framerate */
+	tpf->numerator = 1;
+	tpf->denominator = sd->frame_rate;
+
+	return 0;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name     = MODULE_NAME,
@@ -487,6 +529,8 @@ static const struct sd_desc sd_desc = {
 	.start    = sd_start,
 	.stopN    = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
+	.get_streamparm = sd_get_streamparm,
+	.set_streamparm = sd_set_streamparm,
 };
 
 /* -- module initialisation -- */
@@ -534,6 +578,3 @@ static void __exit sd_mod_exit(void)
 
 module_init(sd_mod_init);
 module_exit(sd_mod_exit);
-
-module_param(frame_rate, int, 0644);
-MODULE_PARM_DESC(frame_rate, "Frame rate (15, 30, 40, 50)");
