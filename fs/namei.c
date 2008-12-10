@@ -2897,6 +2897,6 @@ EXPORT_SYMBOL(generic_readlink);
 /* to be mentioned only in INIT_TASK */
 struct fs_struct init_fs = {
 	.count		= ATOMIC_INIT(1),
-	.lock		= RW_LOCK_UNLOCKED,
+	.lock		= __RW_LOCK_UNLOCKED(init_fs.lock),
 	.umask		= 0022,
 };
