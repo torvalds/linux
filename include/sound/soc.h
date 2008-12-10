@@ -161,6 +161,8 @@ extern struct snd_ac97_bus_ops soc_ac97_ops;
 
 int snd_soc_register_platform(struct snd_soc_platform *platform);
 void snd_soc_unregister_platform(struct snd_soc_platform *platform);
+int snd_soc_register_codec(struct snd_soc_codec *codec);
+void snd_soc_unregister_codec(struct snd_soc_codec *codec);
 
 /* pcm <-> DAI connect */
 void snd_soc_free_pcms(struct snd_soc_device *socdev);
@@ -247,6 +249,9 @@ struct snd_soc_codec {
 	char *name;
 	struct module *owner;
 	struct mutex mutex;
+	struct device *dev;
+
+	struct list_head list;
 
 	/* callbacks */
 	int (*set_bias_level)(struct snd_soc_codec *,

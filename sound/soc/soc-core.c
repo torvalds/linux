@@ -47,6 +47,7 @@ static DEFINE_MUTEX(client_mutex);
 static LIST_HEAD(card_list);
 static LIST_HEAD(dai_list);
 static LIST_HEAD(platform_list);
+static LIST_HEAD(codec_list);
 
 static int snd_soc_register_card(struct snd_soc_card *card);
 static int snd_soc_unregister_card(struct snd_soc_card *card);
@@ -2223,6 +2224,48 @@ void snd_soc_unregister_platform(struct snd_soc_platform *platform)
 	pr_debug("Unregistered platform '%s'\n", platform->name);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);
+
+/**
+ * snd_soc_register_codec - Register a codec with the ASoC core
+ *
+ * @param codec codec to register
+ */
+int snd_soc_register_codec(struct snd_soc_codec *codec)
+{
+	if (!codec->name)
+		return -EINVAL;
+
+	/* The device should become mandatory over time */
+	if (!codec->dev)
+		printk(KERN_WARNING "No device for codec %s\n", codec->name);
+
+	INIT_LIST_HEAD(&codec->list);
+
+	mutex_lock(&client_mutex);
+	list_add(&codec->list, &codec_list);
+	snd_soc_instantiate_cards();
+	mutex_unlock(&client_mutex);
+
+	pr_debug("Registered codec '%s'\n", codec->name);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_register_codec);
+
+/**
+ * snd_soc_unregister_codec - Unregister a codec from the ASoC core
+ *
+ * @param codec codec to unregister
+ */
+void snd_soc_unregister_codec(struct snd_soc_codec *codec)
+{
+	mutex_lock(&client_mutex);
+	list_del(&codec->list);
+	mutex_unlock(&client_mutex);
+
+	pr_debug("Unregistered codec '%s'\n", codec->name);
+}
+EXPORT_SYMBOL_GPL(snd_soc_unregister_codec);
 
 static int __init snd_soc_init(void)
 {
