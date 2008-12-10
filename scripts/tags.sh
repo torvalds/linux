@@ -18,28 +18,28 @@ ignore="( -name SCCS -o -name BitKeeper -o -name .svn -o \
           -prune -o"
 
 # Do not use full path is we do not use O=.. builds
-if [ ${src} == ${obj} ]; then
+if [ "${KBUILD_SRC}" == "" ]; then
 	tree=
 else
-	tree=${srctree}
+	tree=${srctree}/
 fi
 
 # find sources in arch/$ARCH
 find_arch_sources()
 {
-	find ${tree}arch/$1 $ignore -name $2 -print;
+	find ${tree}arch/$1 $ignore -name "$2" -print;
 }
 
 # find sources in arch/$1/include
 find_arch_include_sources()
 {
-	find ${tree}arch/$1/include $ignore -name $2 -print;
+	find ${tree}arch/$1/include $ignore -name "$2" -print;
 }
 
 # find sources in include/
 find_include_sources()
 {
-	find ${tree}include $ignore -name config -prune -o -name $1 -print;
+	find ${tree}include $ignore -name config -prune -o -name "$1" -print;
 }
 
 # find sources in rest of tree
@@ -48,27 +48,27 @@ find_other_sources()
 {
 	find ${tree}* $ignore \
 	     \( -name include -o -name arch -o -name '.tmp_*' \) -prune -o \
-	       -name $1 -print;
+	       -name "$1" -print;
 }
 
 find_sources()
 {
-	find_arch_sources $1 $2
-	find_include_sources $2
-	find_other_sources $2
+	find_arch_sources $1 "$2"
+	find_include_sources "$2"
+	find_other_sources "$2"
 }
 
 all_sources()
 {
-	find_sources $SRCARCH *.[chS]
+	find_sources $SRCARCH '*.[chS]'
 	if [ ! -z "$archinclude" ]; then
-		find_arch_include_sources $archinclude *.[chS]
+		find_arch_include_sources $archinclude '*.[chS]'
 	fi
 }
 
 all_kconfigs()
 {
-	find_sources $SRCARCH "Kconfig*"
+	find_sources $SRCARCH 'Kconfig*'
 }
 
 all_defconfigs()
