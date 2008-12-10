@@ -30,8 +30,8 @@ DECLARE_TRACE(sched_switch,
 		TPARGS(rq, prev, next));
 
 DECLARE_TRACE(sched_migrate_task,
-	TPPROTO(struct rq *rq, struct task_struct *p, int dest_cpu),
-		TPARGS(rq, p, dest_cpu));
+	TPPROTO(struct task_struct *p, int orig_cpu, int dest_cpu),
+		TPARGS(p, orig_cpu, dest_cpu));
 
 DECLARE_TRACE(sched_process_free,
 	TPPROTO(struct task_struct *p),
