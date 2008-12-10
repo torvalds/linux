@@ -389,18 +389,6 @@ extern int amd_iommu_isolate;
  */
 extern bool amd_iommu_unmap_flush;
 
-/* takes a PCI device id and prints it out in a readable form */
-static inline void print_devid(u16 devid, int nl)
-{
-	int bus = devid >> 8;
-	int dev = devid >> 3 & 0x1f;
-	int fn  = devid & 0x07;
-
-	printk("%02x:%02x.%x", bus, dev, fn);
-	if (nl)
-		printk("\n");
-}
-
 /* takes bus and device/function and returns the device id
  * FIXME: should that be in generic PCI code? */
 static inline u16 calc_devid(u8 bus, u8 devfn)

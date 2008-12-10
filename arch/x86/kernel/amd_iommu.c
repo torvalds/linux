@@ -1074,8 +1074,7 @@ static int get_device_resources(struct device *dev,
 		*domain = &dma_dom->domain;
 		attach_device(*iommu, *domain, *bdf);
 		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
-				"device ", (*domain)->id);
-		print_devid(_bdf, 1);
+				"device %s\n", (*domain)->id, dev_name(dev));
 	}
 
 	if (domain_for_device(_bdf) == NULL)
