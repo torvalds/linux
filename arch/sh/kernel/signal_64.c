@@ -47,6 +47,34 @@ static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		sigset_t *oldset, struct pt_regs * regs);
 
+static inline void
+handle_syscall_restart(struct pt_regs *regs, struct sigaction *sa)
+{
+	/* If we're not from a syscall, bail out */
+	if (regs->syscall_nr < 0)
+		return;
+
+	/* check for system call restart.. */
+	switch (regs->regs[REG_RET]) {
+		case -ERESTART_RESTARTBLOCK:
+		case -ERESTARTNOHAND:
+		no_system_call_restart:
+			regs->regs[REG_RET] = -EINTR;
+			regs->sr |= 1;
+			break;
+
+		case -ERESTARTSYS:
+			if (!(sa->sa_flags & SA_RESTART))
+				goto no_system_call_restart;
+		/* fallthrough */
+		case -ERESTARTNOINTR:
+			/* Decode syscall # */
+			regs->regs[REG_RET] = regs->syscall_nr;
+			regs->pc -= 4;
+			break;
+	}
+}
+
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
@@ -81,6 +109,9 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, 0);
 	if (signr > 0) {
+		if (regs->sr & 1)
+			handle_syscall_restart(regs, &ka.sa);
+
 		/* Whee!  Actually deliver the signal.  */
 		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
 			/*
@@ -128,7 +159,6 @@ no_signal:
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
-
 asmlinkage int
 sys_sigsuspend(old_sigset_t mask,
 	       unsigned long r3, unsigned long r4, unsigned long r5,
@@ -234,20 +264,16 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 	return do_sigaltstack(uss, uoss, REF_REG_SP);
 }
 
-
 /*
  * Do a signal return; undo the signal stack.
  */
-
-struct sigframe
-{
+struct sigframe {
 	struct sigcontext sc;
 	unsigned long extramask[_NSIG_WORDS-1];
 	long long retcode[2];
 };
 
-struct rt_sigframe
-{
+struct rt_sigframe {
 	struct siginfo __user *pinfo;
 	void *puc;
 	struct siginfo info;
@@ -449,7 +475,6 @@ badframe:
 /*
  * Set up a signal frame.
  */
-
 static int
 setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 		 unsigned long mask)
@@ -714,33 +739,11 @@ give_sigsegv:
 /*
  * OK, we're invoking a handler
  */
-
 static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		sigset_t *oldset, struct pt_regs * regs)
 {
 	int ret;
-
-	/* Are we from a system call? */
-	if (regs->syscall_nr >= 0) {
-		/* If so, check system call restarting.. */
-		switch (regs->regs[REG_RET]) {
-			case -ERESTART_RESTARTBLOCK:
-			case -ERESTARTNOHAND:
-			no_system_call_restart:
-				regs->regs[REG_RET] = -EINTR;
-				break;
-
-			case -ERESTARTSYS:
-				if (!(ka->sa.sa_flags & SA_RESTART))
-					goto no_system_call_restart;
-			/* fallthrough */
-			case -ERESTARTNOINTR:
-				/* Decode syscall # */
-				regs->regs[REG_RET] = regs->syscall_nr;
-				regs->pc -= 4;
-		}
-	}
 
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
