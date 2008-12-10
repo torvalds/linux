@@ -696,7 +696,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	int i;
 	size_t size;
 	struct mtd_concat *concat;
-	u_int32_t max_erasesize, curr_erasesize;
+	uint32_t max_erasesize, curr_erasesize;
 	int num_erase_region;
 
 	printk(KERN_NOTICE "Concatenating MTD devices:\n");

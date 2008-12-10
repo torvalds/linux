@@ -39,8 +39,8 @@ struct erase_info {
 	uint64_t fail_addr;
 	u_long time;
 	u_long retries;
-	u_int dev;
-	u_int cell;
+	unsigned dev;
+	unsigned cell;
 	void (*callback) (struct erase_info *self);
 	u_long priv;
 	u_char state;
@@ -49,8 +49,8 @@ struct erase_info {
 
 struct mtd_erase_region_info {
 	uint64_t offset;			/* At which this region starts, from the beginning of the MTD */
-	u_int32_t erasesize;		/* For this region */
-	u_int32_t numblocks;		/* Number of blocks of erasesize in this region */
+	uint32_t erasesize;		/* For this region */
+	uint32_t numblocks;		/* Number of blocks of erasesize in this region */
 	unsigned long *lockmap;		/* If keeping bitmap of locks */
 };
 
@@ -102,14 +102,14 @@ struct mtd_oob_ops {
 
 struct mtd_info {
 	u_char type;
-	u_int32_t flags;
+	uint32_t flags;
 	uint64_t size;	 // Total size of the MTD
 
 	/* "Major" erase size for the device. Naïve users may take this
 	 * to be the only erase size available, or may use the more detailed
 	 * information below if they desire
 	 */
-	u_int32_t erasesize;
+	uint32_t erasesize;
 	/* Minimal writable flash unit size. In case of NOR flash it is 1 (even
 	 * though individual bits can be cleared), in case of NAND flash it is
 	 * one NAND page (or half, or one-fourths of it), in case of ECC-ed NOR
@@ -117,10 +117,10 @@ struct mtd_info {
 	 * Any driver registering a struct mtd_info must ensure a writesize of
 	 * 1 or larger.
 	 */
-	u_int32_t writesize;
+	uint32_t writesize;
 
-	u_int32_t oobsize;   // Amount of OOB data per block (e.g. 16)
-	u_int32_t oobavail;  // Available OOB bytes per block
+	uint32_t oobsize;   // Amount of OOB data per block (e.g. 16)
+	uint32_t oobavail;  // Available OOB bytes per block
 
 	/*
 	 * If erasesize is a power of 2 then the shift is stored in
@@ -233,7 +233,7 @@ struct mtd_info {
 	void (*put_device) (struct mtd_info *mtd);
 };
 
-static inline u_int32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
+static inline uint32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
 {
 	if (mtd->erasesize_shift)
 		return sz >> mtd->erasesize_shift;
@@ -241,14 +241,14 @@ static inline u_int32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
 	return sz;
 }
 
-static inline u_int32_t mtd_mod_by_eb(uint64_t sz, struct mtd_info *mtd)
+static inline uint32_t mtd_mod_by_eb(uint64_t sz, struct mtd_info *mtd)
 {
 	if (mtd->erasesize_shift)
 		return sz & mtd->erasesize_mask;
 	return do_div(sz, mtd->erasesize);
 }
 
-static inline u_int32_t mtd_div_by_ws(uint64_t sz, struct mtd_info *mtd)
+static inline uint32_t mtd_div_by_ws(uint64_t sz, struct mtd_info *mtd)
 {
 	if (mtd->writesize_shift)
 		return sz >> mtd->writesize_shift;
@@ -256,7 +256,7 @@ static inline u_int32_t mtd_div_by_ws(uint64_t sz, struct mtd_info *mtd)
 	return sz;
 }
 
-static inline u_int32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
+static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 {
 	if (mtd->writesize_shift)
 		return sz & mtd->writesize_mask;
