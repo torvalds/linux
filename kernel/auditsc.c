@@ -174,12 +174,6 @@ struct audit_aux_data_socketcall {
 	unsigned long		args[0];
 };
 
-struct audit_aux_data_sockaddr {
-	struct audit_aux_data	d;
-	int			len;
-	char			a[0];
-};
-
 struct audit_aux_data_fd_pair {
 	struct	audit_aux_data d;
 	int	fd[2];
@@ -234,7 +228,8 @@ struct audit_context {
 	struct audit_context *previous; /* For nested syscalls */
 	struct audit_aux_data *aux;
 	struct audit_aux_data *aux_pids;
-
+	struct sockaddr_storage *sockaddr;
+	size_t sockaddr_len;
 				/* Save things to print about task_struct */
 	pid_t		    pid, ppid;
 	uid_t		    uid, euid, suid, fsuid;
@@ -921,6 +916,7 @@ static inline void audit_free_context(struct audit_context *context)
 		free_tree_refs(context);
 		audit_free_aux(context);
 		kfree(context->filterkey);
+		kfree(context->sockaddr);
 		kfree(context);
 		context  = previous;
 	} while (context);
@@ -1383,13 +1379,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				audit_log_format(ab, " a%d=%lx", i, axs->args[i]);
 			break; }
 
-		case AUDIT_SOCKADDR: {
-			struct audit_aux_data_sockaddr *axs = (void *)aux;
-
-			audit_log_format(ab, "saddr=");
-			audit_log_n_hex(ab, axs->a, axs->len);
-			break; }
-
 		case AUDIT_FD_PAIR: {
 			struct audit_aux_data_fd_pair *axs = (void *)aux;
 			audit_log_format(ab, "fd0=%d fd1=%d", axs->fd[0], axs->fd[1]);
@@ -1419,6 +1408,16 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		}
 		audit_log_end(ab);
+	}
+
+	if (context->sockaddr_len) {
+		ab = audit_log_start(context, GFP_KERNEL, AUDIT_SOCKADDR);
+		if (ab) {
+			audit_log_format(ab, "saddr=");
+			audit_log_n_hex(ab, (void *)context->sockaddr,
+					context->sockaddr_len);
+			audit_log_end(ab);
+		}
 	}
 
 	for (aux = context->aux_pids; aux; aux = aux->next) {
@@ -1689,6 +1688,7 @@ void audit_syscall_exit(int valid, long return_code)
 		context->aux_pids = NULL;
 		context->target_pid = 0;
 		context->target_sid = 0;
+		context->sockaddr_len = 0;
 		kfree(context->filterkey);
 		context->filterkey = NULL;
 		tsk->audit_context = context;
@@ -2468,22 +2468,20 @@ int __audit_fd_pair(int fd1, int fd2)
  */
 int audit_sockaddr(int len, void *a)
 {
-	struct audit_aux_data_sockaddr *ax;
 	struct audit_context *context = current->audit_context;
 
 	if (likely(!context || context->dummy))
 		return 0;
 
-	ax = kmalloc(sizeof(*ax) + len, GFP_KERNEL);
-	if (!ax)
-		return -ENOMEM;
+	if (!context->sockaddr) {
+		void *p = kmalloc(sizeof(struct sockaddr_storage), GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+		context->sockaddr = p;
+	}
 
-	ax->len = len;
-	memcpy(ax->a, a, len);
-
-	ax->d.type = AUDIT_SOCKADDR;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
+	context->sockaddr_len = len;
+	memcpy(context->sockaddr, a, len);
 	return 0;
 }
 
