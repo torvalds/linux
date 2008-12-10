@@ -198,7 +198,7 @@ static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 	spin_lock_irqsave(&iommu->lock, flags);
 	ret = __iommu_queue_command(iommu, cmd);
 	if (!ret)
-		iommu->need_sync = 1;
+		iommu->need_sync = true;
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return ret;
@@ -263,7 +263,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 	ret = __iommu_completion_wait(iommu);
 
-	iommu->need_sync = 0;
+	iommu->need_sync = false;
 
 	if (ret)
 		goto out;

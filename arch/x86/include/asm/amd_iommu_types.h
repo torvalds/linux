@@ -302,7 +302,7 @@ struct amd_iommu {
 	bool int_enabled;
 
 	/* if one, we need to send a completion wait command */
-	int need_sync;
+	bool need_sync;
 
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
