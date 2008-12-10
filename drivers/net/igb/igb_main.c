@@ -1801,25 +1801,21 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	 */
 	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_LPE | E1000_RCTL_SZ_256);
 
-	if (adapter->netdev->mtu <= ETH_DATA_LEN) {
-		/* Setup buffer sizes */
-		switch (adapter->rx_buffer_len) {
-		case IGB_RXBUFFER_256:
-			rctl |= E1000_RCTL_SZ_256;
-			break;
-		case IGB_RXBUFFER_512:
-			rctl |= E1000_RCTL_SZ_512;
-			break;
-		case IGB_RXBUFFER_1024:
-			rctl |= E1000_RCTL_SZ_1024;
-			break;
-		default:
-			rctl |= E1000_RCTL_SZ_2048;
-			break;
-		}
-	} else {
+	if (adapter->netdev->mtu > ETH_DATA_LEN)
 		rctl |= E1000_RCTL_LPE;
-		srrctl = adapter->rx_buffer_len >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+
+	/* Setup buffer sizes */
+	switch (adapter->rx_buffer_len) {
+	case IGB_RXBUFFER_256:
+		rctl |= E1000_RCTL_SZ_256;
+		break;
+	case IGB_RXBUFFER_512:
+		rctl |= E1000_RCTL_SZ_512;
+		break;
+	default:
+		srrctl = ALIGN(adapter->rx_buffer_len, 1024)
+		         >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+		break;
 	}
 
 	/* 82575 and greater support packet-split where the protocol
