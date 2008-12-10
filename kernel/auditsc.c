@@ -168,12 +168,6 @@ struct audit_aux_data_execve {
 	struct mm_struct *mm;
 };
 
-struct audit_aux_data_socketcall {
-	struct audit_aux_data	d;
-	int			nargs;
-	unsigned long		args[0];
-};
-
 struct audit_aux_data_fd_pair {
 	struct	audit_aux_data d;
 	int	fd[2];
@@ -246,6 +240,14 @@ struct audit_context {
 
 	struct audit_tree_refs *trees, *first_trees;
 	int tree_count;
+
+	int type;
+	union {
+		struct {
+			int nargs;
+			long args[6];
+		} socketcall;
+	};
 
 #if AUDIT_DEBUG
 	int		    put_count;
@@ -1226,6 +1228,27 @@ static void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
 		audit_log_format(ab, " cap_fe=%d cap_fver=%x", name->fcap.fE, name->fcap_ver);
 }
 
+static void show_special(struct audit_context *context)
+{
+	struct audit_buffer *ab;
+	int i;
+
+	ab = audit_log_start(context, GFP_KERNEL, context->type);
+	if (!ab)
+		return;
+
+	switch (context->type) {
+	case AUDIT_SOCKETCALL: {
+		int nargs = context->socketcall.nargs;
+		audit_log_format(ab, "nargs=%d", nargs);
+		for (i = 0; i < nargs; i++)
+			audit_log_format(ab, " a%d=%lx", i,
+				context->socketcall.args[i]);
+		break; }
+	}
+	audit_log_end(ab);
+}
+
 static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
 {
 	const struct cred *cred;
@@ -1372,13 +1395,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			audit_log_execve_info(context, &ab, axi);
 			break; }
 
-		case AUDIT_SOCKETCALL: {
-			struct audit_aux_data_socketcall *axs = (void *)aux;
-			audit_log_format(ab, "nargs=%d", axs->nargs);
-			for (i=0; i<axs->nargs; i++)
-				audit_log_format(ab, " a%d=%lx", i, axs->args[i]);
-			break; }
-
 		case AUDIT_FD_PAIR: {
 			struct audit_aux_data_fd_pair *axs = (void *)aux;
 			audit_log_format(ab, "fd0=%d fd1=%d", axs->fd[0], axs->fd[1]);
@@ -1409,6 +1425,9 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		}
 		audit_log_end(ab);
 	}
+
+	if (context->type)
+		show_special(context);
 
 	if (context->sockaddr_len) {
 		ab = audit_log_start(context, GFP_KERNEL, AUDIT_SOCKADDR);
@@ -1689,6 +1708,7 @@ void audit_syscall_exit(int valid, long return_code)
 		context->target_pid = 0;
 		context->target_sid = 0;
 		context->sockaddr_len = 0;
+		context->type = 0;
 		kfree(context->filterkey);
 		context->filterkey = NULL;
 		tsk->audit_context = context;
@@ -2406,27 +2426,17 @@ int audit_bprm(struct linux_binprm *bprm)
  * @nargs: number of args
  * @args: args array
  *
- * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_socketcall(int nargs, unsigned long *args)
+void audit_socketcall(int nargs, unsigned long *args)
 {
-	struct audit_aux_data_socketcall *ax;
 	struct audit_context *context = current->audit_context;
 
 	if (likely(!context || context->dummy))
-		return 0;
+		return;
 
-	ax = kmalloc(sizeof(*ax) + nargs * sizeof(unsigned long), GFP_KERNEL);
-	if (!ax)
-		return -ENOMEM;
-
-	ax->nargs = nargs;
-	memcpy(ax->args, args, nargs * sizeof(unsigned long));
-
-	ax->d.type = AUDIT_SOCKETCALL;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
+	context->type = AUDIT_SOCKETCALL;
+	context->socketcall.nargs = nargs;
+	memcpy(context->socketcall.args, args, nargs * sizeof(unsigned long));
 }
 
 /**
