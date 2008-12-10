@@ -246,12 +246,8 @@ static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 /* Function to enable the hardware */
 void __init iommu_enable(struct amd_iommu *iommu)
 {
-	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU "
-	       "at %02x:%02x.%x cap 0x%hx\n",
-	       iommu->dev->bus->number,
-	       PCI_SLOT(iommu->dev->devfn),
-	       PCI_FUNC(iommu->dev->devfn),
-	       iommu->cap_ptr);
+	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU at %s cap 0x%hx\n",
+	       dev_name(&iommu->dev->dev), iommu->cap_ptr);
 
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
 }
