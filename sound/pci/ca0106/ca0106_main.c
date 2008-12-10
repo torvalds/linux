@@ -1776,7 +1776,12 @@ static int snd_ca0106_resume(struct pci_dev *pci)
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
-	pci_enable_device(pci);
+
+	if (pci_enable_device(pci) < 0) {
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+
 	pci_set_master(pci);
 
 	ca0106_init_chip(chip);
