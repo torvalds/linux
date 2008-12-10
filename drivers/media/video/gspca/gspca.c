@@ -1264,10 +1264,10 @@ static int vidioc_s_jpegcomp(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = priv;
 	int ret;
 
-	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
-		return -ERESTARTSYS;
 	if (!gspca_dev->sd_desc->set_jcomp)
 		return -EINVAL;
+	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
+		return -ERESTARTSYS;
 	ret = gspca_dev->sd_desc->set_jcomp(gspca_dev, jpegcomp);
 	mutex_unlock(&gspca_dev->usb_lock);
 	return ret;
