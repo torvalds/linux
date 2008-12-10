@@ -41,32 +41,6 @@ qla2x00_poll(struct rsp_que *rsp)
 	local_irq_restore(flags);
 }
 
-/**
- * qla2x00_issue_marker() - Issue a Marker IOCB if necessary.
- * @ha: HA context
- * @ha_locked: is function called with the hardware lock
- *
- * Returns non-zero if a failure occurred, else zero.
- */
-static inline int
-qla2x00_issue_marker(scsi_qla_host_t *vha, int ha_locked)
-{
-	/* Send marker if required */
-	if (vha->marker_needed != 0) {
-		if (ha_locked) {
-			if (__qla2x00_marker(vha, 0, 0, MK_SYNC_ALL) !=
-			    QLA_SUCCESS)
-				return (QLA_FUNCTION_FAILED);
-		} else {
-			if (qla2x00_marker(vha, 0, 0, MK_SYNC_ALL) !=
-			    QLA_SUCCESS)
-				return (QLA_FUNCTION_FAILED);
-		}
-		vha->marker_needed = 0;
-	}
-	return (QLA_SUCCESS);
-}
-
 static inline uint8_t *
 host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
 {

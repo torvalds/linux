@@ -11,8 +11,9 @@
 
 #include <scsi/scsi_tcq.h>
 
-static request_t *qla2x00_req_pkt(scsi_qla_host_t *);
-static void qla2x00_isp_cmd(scsi_qla_host_t *);
+static request_t *qla2x00_req_pkt(struct scsi_qla_host *, struct req_que *,
+							struct rsp_que *rsp);
+static void qla2x00_isp_cmd(struct scsi_qla_host *, struct req_que *);
 
 /**
  * qla2x00_get_cmd_direction() - Determine control_flag data direction.
@@ -91,10 +92,9 @@ qla2x00_calc_iocbs_64(uint16_t dsds)
  * Returns a pointer to the Continuation Type 0 IOCB packet.
  */
 static inline cont_entry_t *
-qla2x00_prep_cont_type0_iocb(scsi_qla_host_t *vha)
+qla2x00_prep_cont_type0_iocb(struct req_que *req, struct scsi_qla_host *vha)
 {
 	cont_entry_t *cont_pkt;
-	struct req_que *req = vha->hw->req;
 	/* Adjust ring index. */
 	req->ring_index++;
 	if (req->ring_index == req->length) {
@@ -120,10 +120,9 @@ qla2x00_prep_cont_type0_iocb(scsi_qla_host_t *vha)
  * Returns a pointer to the continuation type 1 IOCB packet.
  */
 static inline cont_a64_entry_t *
-qla2x00_prep_cont_type1_iocb(scsi_qla_host_t *vha)
+qla2x00_prep_cont_type1_iocb(struct req_que *req, scsi_qla_host_t *vha)
 {
 	cont_a64_entry_t *cont_pkt;
-	struct req_que *req = vha->hw->req;
 
 	/* Adjust ring index. */
 	req->ring_index++;
@@ -160,6 +159,8 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 	struct scsi_cmnd *cmd;
 	struct scatterlist *sg;
 	int i;
+	struct req_que *req;
+	uint16_t que_id;
 
 	cmd = sp->cmd;
 
@@ -174,6 +175,8 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 	}
 
 	vha = sp->vha;
+	que_id = vha->req_ques[0];
+	req = vha->hw->req_q_map[que_id];
 
 	cmd_pkt->control_flags |= cpu_to_le16(qla2x00_get_cmd_direction(sp));
 
@@ -191,7 +194,7 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 			 * Seven DSDs are available in the Continuation
 			 * Type 0 IOCB.
 			 */
-			cont_pkt = qla2x00_prep_cont_type0_iocb(vha);
+			cont_pkt = qla2x00_prep_cont_type0_iocb(req, vha);
 			cur_dsd = (uint32_t *)&cont_pkt->dseg_0_address;
 			avail_dsds = 7;
 		}
@@ -219,6 +222,8 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 	struct scsi_cmnd *cmd;
 	struct scatterlist *sg;
 	int i;
+	struct req_que *req;
+	uint16_t que_id;
 
 	cmd = sp->cmd;
 
@@ -233,6 +238,8 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 	}
 
 	vha = sp->vha;
+	que_id = vha->req_ques[0];
+	req = vha->hw->req_q_map[que_id];
 
 	cmd_pkt->control_flags |= cpu_to_le16(qla2x00_get_cmd_direction(sp));
 
@@ -251,7 +258,7 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 			 * Five DSDs are available in the Continuation
 			 * Type 1 IOCB.
 			 */
-			cont_pkt = qla2x00_prep_cont_type1_iocb(vha);
+			cont_pkt = qla2x00_prep_cont_type1_iocb(req, vha);
 			cur_dsd = (uint32_t *)cont_pkt->dseg_0_address;
 			avail_dsds = 5;
 		}
@@ -287,6 +294,7 @@ qla2x00_start_scsi(srb_t *sp)
 	struct device_reg_2xxx __iomem *reg;
 	struct qla_hw_data *ha;
 	struct req_que *req;
+	struct rsp_que *rsp;
 
 	/* Setup device pointers. */
 	ret = 0;
@@ -294,13 +302,15 @@ qla2x00_start_scsi(srb_t *sp)
 	ha = vha->hw;
 	reg = &ha->iobase->isp;
 	cmd = sp->cmd;
-	req = ha->req;
+	req = ha->req_q_map[0];
+	rsp = ha->rsp_q_map[0];
 	/* So we know we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, 0, 0, MK_SYNC_ALL) != QLA_SUCCESS)
+		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL)
+							!= QLA_SUCCESS)
 			return (QLA_FUNCTION_FAILED);
 		vha->marker_needed = 0;
 	}
@@ -392,8 +402,8 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Manage unprocessed RIO/ZIO commands in response queue. */
 	if (vha->flags.process_response_queue &&
-	    ha->rsp->ring_ptr->signature != RESPONSE_PROCESSED)
-		qla2x00_process_response_queue(vha);
+	    rsp->ring_ptr->signature != RESPONSE_PROCESSED)
+		qla2x00_process_response_queue(rsp);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return (QLA_SUCCESS);
@@ -419,8 +429,9 @@ queuing_error:
  * Returns non-zero if a failure occurred, else zero.
  */
 int
-__qla2x00_marker(scsi_qla_host_t *vha, uint16_t loop_id, uint16_t lun,
-    uint8_t type)
+__qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
+			struct rsp_que *rsp, uint16_t loop_id,
+			uint16_t lun, uint8_t type)
 {
 	mrk_entry_t *mrk;
 	struct mrk_entry_24xx *mrk24;
@@ -428,7 +439,7 @@ __qla2x00_marker(scsi_qla_host_t *vha, uint16_t loop_id, uint16_t lun,
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	mrk24 = NULL;
-	mrk = (mrk_entry_t *)qla2x00_req_pkt(base_vha);
+	mrk = (mrk_entry_t *)qla2x00_req_pkt(vha, req, rsp);
 	if (mrk == NULL) {
 		DEBUG2_3(printk("%s(%ld): failed to allocate Marker IOCB.\n",
 		    __func__, base_vha->host_no));
@@ -453,22 +464,22 @@ __qla2x00_marker(scsi_qla_host_t *vha, uint16_t loop_id, uint16_t lun,
 	}
 	wmb();
 
-	qla2x00_isp_cmd(base_vha);
+	qla2x00_isp_cmd(vha, req);
 
 	return (QLA_SUCCESS);
 }
 
 int
-qla2x00_marker(scsi_qla_host_t *vha, uint16_t loop_id, uint16_t lun,
-    uint8_t type)
+qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
+		struct rsp_que *rsp, uint16_t loop_id, uint16_t lun,
+		uint8_t type)
 {
 	int ret;
 	unsigned long flags = 0;
-	struct qla_hw_data *ha = vha->hw;
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ret = __qla2x00_marker(vha, loop_id, lun, type);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
+	ret = __qla2x00_marker(vha, req, rsp, loop_id, lun, type);
+	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 	return (ret);
 }
@@ -482,27 +493,32 @@ qla2x00_marker(scsi_qla_host_t *vha, uint16_t loop_id, uint16_t lun,
  * Returns NULL if function failed, else, a pointer to the request packet.
  */
 static request_t *
-qla2x00_req_pkt(scsi_qla_host_t *vha)
+qla2x00_req_pkt(struct scsi_qla_host *vha, struct req_que *req,
+		struct rsp_que *rsp)
 {
 	struct qla_hw_data *ha = vha->hw;
-	device_reg_t __iomem *reg = ha->iobase;
+	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
 	request_t	*pkt = NULL;
 	uint16_t	cnt;
 	uint32_t	*dword_ptr;
 	uint32_t	timer;
 	uint16_t	req_cnt = 1;
-	struct req_que *req = ha->req;
 
 	/* Wait 1 second for slot. */
 	for (timer = HZ; timer; timer--) {
 		if ((req_cnt + 2) >= req->cnt) {
 			/* Calculate number of free request entries. */
-			if (IS_FWI2_CAPABLE(ha))
-				cnt = (uint16_t)RD_REG_DWORD(
-				    &reg->isp24.req_q_out);
-			else
-				cnt = qla2x00_debounce_register(
-				    ISP_REQ_Q_OUT(ha, &reg->isp));
+			if (ha->mqenable)
+				cnt = (uint16_t)
+					RD_REG_DWORD(&reg->isp25mq.req_q_out);
+			else {
+				if (IS_FWI2_CAPABLE(ha))
+					cnt = (uint16_t)RD_REG_DWORD(
+						&reg->isp24.req_q_out);
+				else
+					cnt = qla2x00_debounce_register(
+						ISP_REQ_Q_OUT(ha, &reg->isp));
+			}
 			if  (req->ring_index < cnt)
 				req->cnt = cnt - req->ring_index;
 			else
@@ -536,7 +552,7 @@ qla2x00_req_pkt(scsi_qla_host_t *vha)
 		/* Check for pending interrupts. */
 		/* During init we issue marker directly */
 		if (!vha->marker_needed && !vha->flags.init_done)
-			qla2x00_poll(ha->rsp);
+			qla2x00_poll(rsp);
 		spin_lock_irq(&ha->hardware_lock);
 	}
 	if (!pkt) {
@@ -553,11 +569,10 @@ qla2x00_req_pkt(scsi_qla_host_t *vha)
  * Note: The caller must hold the hardware lock before calling this routine.
  */
 static void
-qla2x00_isp_cmd(scsi_qla_host_t *vha)
+qla2x00_isp_cmd(struct scsi_qla_host *vha, struct req_que *req)
 {
 	struct qla_hw_data *ha = vha->hw;
-	device_reg_t __iomem *reg = ha->iobase;
-	struct req_que *req = ha->req;
+	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
 
 	DEBUG5(printk("%s(): IOCB data:\n", __func__));
 	DEBUG5(qla2x00_dump_buffer(
@@ -572,12 +587,17 @@ qla2x00_isp_cmd(scsi_qla_host_t *vha)
 		req->ring_ptr++;
 
 	/* Set chip new ring index. */
-	if (IS_FWI2_CAPABLE(ha)) {
-		WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
-		RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
-	} else {
-		WRT_REG_WORD(ISP_REQ_Q_IN(ha, &reg->isp), req->ring_index);
-		RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, &reg->isp));
+	if (ha->mqenable)
+		RD_REG_DWORD(&reg->isp25mq.req_q_out);
+	else {
+		if (IS_FWI2_CAPABLE(ha)) {
+			WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
+			RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
+		} else {
+			WRT_REG_WORD(ISP_REQ_Q_IN(ha, &reg->isp),
+				req->ring_index);
+			RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, &reg->isp));
+		}
 	}
 
 }
@@ -622,6 +642,8 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	struct scsi_cmnd *cmd;
 	struct scatterlist *sg;
 	int i;
+	uint16_t que_id;
+	struct req_que *req;
 
 	cmd = sp->cmd;
 
@@ -636,6 +658,8 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	}
 
 	vha = sp->vha;
+	que_id = vha->req_ques[0];
+	req = vha->hw->req_q_map[que_id];
 
 	/* Set transfer direction */
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
@@ -666,7 +690,7 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 			 * Five DSDs are available in the Continuation
 			 * Type 1 IOCB.
 			 */
-			cont_pkt = qla2x00_prep_cont_type1_iocb(vha);
+			cont_pkt = qla2x00_prep_cont_type1_iocb(req, vha);
 			cur_dsd = (uint32_t *)cont_pkt->dseg_0_address;
 			avail_dsds = 5;
 		}
@@ -691,8 +715,6 @@ qla24xx_start_scsi(srb_t *sp)
 {
 	int		ret, nseg;
 	unsigned long   flags;
-	scsi_qla_host_t	*vha;
-	struct scsi_cmnd *cmd;
 	uint32_t	*clr_ptr;
 	uint32_t        index;
 	uint32_t	handle;
@@ -700,23 +722,32 @@ qla24xx_start_scsi(srb_t *sp)
 	uint16_t	cnt;
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
-	struct device_reg_24xx __iomem *reg;
-	struct qla_hw_data *ha;
-	struct req_que *req;
+	struct req_que *req = NULL;
+	struct rsp_que *rsp = NULL;
+	struct scsi_cmnd *cmd = sp->cmd;
+	struct scsi_qla_host *vha = sp->vha;
+	struct qla_hw_data *ha = vha->hw;
+	device_reg_t __iomem *reg;
+	uint16_t que_id;
 
 	/* Setup device pointers. */
 	ret = 0;
-	vha = sp->vha;
-	ha = vha->hw;
-	reg = &ha->iobase->isp24;
-	cmd = sp->cmd;
-	req = ha->req;
+	que_id = vha->req_ques[0];
+
+	req = ha->req_q_map[que_id];
+	reg = ISP_QUE_REG(ha, req->id);
+
+	if (req->rsp)
+		rsp = req->rsp;
+	else
+		rsp = ha->rsp_q_map[que_id];
 	/* So we know we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, 0, 0, MK_SYNC_ALL) != QLA_SUCCESS)
+		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL)
+							!= QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 		vha->marker_needed = 0;
 	}
@@ -749,7 +780,13 @@ qla24xx_start_scsi(srb_t *sp)
 
 	req_cnt = qla24xx_calc_iocbs(tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
-		cnt = (uint16_t)RD_REG_DWORD_RELAXED(&reg->req_q_out);
+		if (ha->mqenable)
+			cnt = (uint16_t)
+				RD_REG_DWORD_RELAXED(&reg->isp25mq.req_q_out);
+		else
+			cnt = (uint16_t)
+				RD_REG_DWORD_RELAXED(&reg->isp24.req_q_out);
+
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
 		else
@@ -809,13 +846,17 @@ qla24xx_start_scsi(srb_t *sp)
 	sp->flags |= SRB_DMA_VALID;
 
 	/* Set chip new ring index. */
-	WRT_REG_DWORD(&reg->req_q_in, req->ring_index);
-	RD_REG_DWORD_RELAXED(&reg->req_q_in);		/* PCI Posting. */
+	if (ha->mqenable)
+		WRT_REG_DWORD(&reg->isp25mq.req_q_in, req->ring_index);
+	else {
+		WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
+		RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
+	}
 
 	/* Manage unprocessed RIO/ZIO commands in response queue. */
 	if (vha->flags.process_response_queue &&
-	    ha->rsp->ring_ptr->signature != RESPONSE_PROCESSED)
-		qla24xx_process_response_queue(vha);
+		rsp->ring_ptr->signature != RESPONSE_PROCESSED)
+		qla24xx_process_response_queue(rsp);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return QLA_SUCCESS;
@@ -828,3 +869,4 @@ queuing_error:
 
 	return QLA_FUNCTION_FAILED;
 }
+

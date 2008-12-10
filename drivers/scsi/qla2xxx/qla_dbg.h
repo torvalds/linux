@@ -4,6 +4,9 @@
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
+
+#include "qla_def.h"
+
 /*
  * Driver debug definitions.
  */
@@ -23,6 +26,7 @@
 /* #define QL_DEBUG_LEVEL_14 */ /* Output RSCN trace msgs */
 /* #define QL_DEBUG_LEVEL_15 */ /* Output NPIV trace msgs */
 /* #define QL_DEBUG_LEVEL_16 */ /* Output ISP84XX trace msgs */
+/* #define QL_DEBUG_LEVEL_17 */ /* Output MULTI-Q trace messages */
 
 /*
 * Macros use for debugging the driver.
@@ -43,6 +47,7 @@
 #define DEBUG2_11(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
 #define DEBUG2_13(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
 #define DEBUG2_16(x)	do { if (ql2xextended_error_logging) { x; } } while (0)
+#define DEBUG2_17(x) 	do { if (ql2xextended_error_logging) { x; } } while (0)
 
 #if defined(QL_DEBUG_LEVEL_3)
 #define DEBUG3(x)	do {x;} while (0)
@@ -127,7 +132,6 @@
 #else
 #define DEBUG16(x)	do {} while (0)
 #endif
-
 /*
  * Firmware Dump structure definition
  */
@@ -266,8 +270,17 @@ struct qla2xxx_fce_chain {
 	uint32_t eregs[8];
 };
 
+struct qla2xxx_mq_chain {
+	uint32_t type;
+	uint32_t chain_size;
+
+	uint32_t count;
+	uint32_t qregs[4 * QLA_MQ_SIZE];
+};
+
 #define DUMP_CHAIN_VARIANT	0x80000000
 #define DUMP_CHAIN_FCE		0x7FFFFAF0
+#define DUMP_CHAIN_MQ		0x7FFFFAF1
 #define DUMP_CHAIN_LAST		0x80000000
 
 struct qla2xxx_fw_dump {

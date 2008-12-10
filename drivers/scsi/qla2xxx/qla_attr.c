@@ -1143,8 +1143,11 @@ static int
 qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 {
 	int	ret = 0;
+	int	cnt = 0;
+	uint8_t	qos = QLA_DEFAULT_QUE_QOS;
 	scsi_qla_host_t *base_vha = shost_priv(fc_vport->shost);
 	scsi_qla_host_t *vha = NULL;
+	struct qla_hw_data *ha = base_vha->hw;
 
 	ret = qla24xx_vport_create_req_sanity_check(fc_vport);
 	if (ret) {
@@ -1200,6 +1203,22 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	qla24xx_vport_disable(fc_vport, disable);
 
+	/* Create a queue pair for the vport */
+	if (ha->mqenable) {
+		if (ha->npiv_info) {
+			for (; cnt < ha->nvram_npiv_size; cnt++) {
+				if (ha->npiv_info[cnt].port_name ==
+					vha->port_name &&
+					ha->npiv_info[cnt].node_name ==
+					vha->node_name) {
+					qos = ha->npiv_info[cnt].q_qos;
+					break;
+				}
+			}
+		}
+		qla25xx_create_queues(vha, qos);
+	}
+
 	return 0;
 vport_create_failed_2:
 	qla24xx_disable_vp(vha);
@@ -1213,10 +1232,19 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 {
 	scsi_qla_host_t *vha = fc_vport->dd_data;
 	fc_port_t *fcport, *tfcport;
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t id = vha->vp_idx;
 
 	while (test_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags) ||
 	    test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags))
 		msleep(1000);
+
+	if (ha->mqenable) {
+		if (qla25xx_delete_queues(vha, 0) != QLA_SUCCESS)
+			qla_printk(KERN_WARNING, ha,
+				"Queue delete failed.\n");
+		vha->req_ques[0] = ha->req_q_map[0]->id;
+	}
 
 	qla24xx_disable_vp(vha);
 
@@ -1240,7 +1268,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
         }
 
 	scsi_host_put(vha->host);
-
+	qla_printk(KERN_INFO, ha, "vport %d deleted\n", id);
 	return 0;
 }
 

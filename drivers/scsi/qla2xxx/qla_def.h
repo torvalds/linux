@@ -369,9 +369,17 @@ struct device_reg_2xxx {
 	} u_end;
 };
 
+struct device_reg_25xxmq {
+	volatile uint32_t req_q_in;
+	volatile uint32_t req_q_out;
+	volatile uint32_t rsp_q_in;
+	volatile uint32_t rsp_q_out;
+};
+
 typedef union {
 		struct device_reg_2xxx isp;
 		struct device_reg_24xx isp24;
+		struct device_reg_25xxmq isp25mq;
 } device_reg_t;
 
 #define ISP_REQ_Q_IN(ha, reg) \
@@ -2037,6 +2045,7 @@ typedef struct vport_params {
 #define VP_RET_CODE_NOT_FOUND		6
 
 struct qla_hw_data;
+struct req_que;
 
 /*
  * ISP operations
@@ -2059,7 +2068,8 @@ struct isp_operations {
 	void (*enable_intrs) (struct qla_hw_data *);
 	void (*disable_intrs) (struct qla_hw_data *);
 
-	int (*abort_command) (struct scsi_qla_host *, srb_t *);
+	int (*abort_command) (struct scsi_qla_host *, srb_t *,
+		struct req_que *);
 	int (*target_reset) (struct fc_port *, unsigned int);
 	int (*lun_reset) (struct fc_port *, unsigned int);
 	int (*fabric_login) (struct scsi_qla_host *, uint16_t, uint8_t,
@@ -2102,16 +2112,18 @@ struct isp_operations {
 #define QLA_MSIX_DEFAULT	0x00
 #define QLA_MSIX_RSP_Q		0x01
 
-#define QLA_MSIX_ENTRIES	2
 #define QLA_MIDX_DEFAULT	0
 #define QLA_MIDX_RSP_Q		1
+#define QLA_PCI_MSIX_CONTROL	0xa2
 
 struct scsi_qla_host;
+struct rsp_que;
 
 struct qla_msix_entry {
 	int have_irq;
-	uint32_t msix_vector;
-	uint16_t msix_entry;
+	uint32_t vector;
+	uint16_t entry;
+	struct rsp_que *rsp;
 };
 
 #define	WATCH_INTERVAL		1       /* number of seconds */
@@ -2162,6 +2174,23 @@ struct qla_statistics {
 	uint64_t output_bytes;
 };
 
+/* Multi queue support */
+#define MBC_INITIALIZE_MULTIQ 0x1f
+#define QLA_QUE_PAGE 0X1000
+#define QLA_MQ_SIZE 32
+#define QLA_MAX_HOST_QUES 16
+#define QLA_MAX_QUEUES 256
+#define ISP_QUE_REG(ha, id) \
+	((ha->mqenable) ? \
+	((void *)(ha->mqiobase) +\
+	(QLA_QUE_PAGE * id)) :\
+	((void *)(ha->iobase)))
+#define QLA_REQ_QUE_ID(tag) \
+	((tag < QLA_MAX_QUEUES && tag > 0) ? tag : 0)
+#define QLA_DEFAULT_QUE_QOS 5
+#define QLA_PRECONFIG_VPORTS 32
+#define QLA_MAX_VPORTS_QLA24XX	128
+#define QLA_MAX_VPORTS_QLA25XX	256
 /* Response queue data structure */
 struct rsp_que {
 	dma_addr_t  dma;
@@ -2171,9 +2200,12 @@ struct rsp_que {
 	uint16_t  out_ptr;
 	uint16_t  length;
 	uint16_t  options;
-	uint16_t  msix_vector;
 	uint16_t  rid;
+	uint16_t  id;
+	uint16_t  vp_idx;
 	struct qla_hw_data *hw;
+	struct qla_msix_entry *msix;
+	struct req_que *req;
 };
 
 /* Request queue data structure */
@@ -2187,10 +2219,10 @@ struct req_que {
 	uint16_t  length;
 	uint16_t  options;
 	uint16_t  rid;
+	uint16_t  id;
 	uint16_t  qos;
 	uint16_t  vp_idx;
-	struct rsp_que *asso_que;
-	/* Outstandings ISP commands. */
+	struct rsp_que *rsp;
 	srb_t *outstanding_cmds[MAX_OUTSTANDING_COMMANDS];
 	uint32_t current_outstanding_cmd;
 	int max_q_depth;
@@ -2240,8 +2272,17 @@ struct qla_hw_data {
 	resource_size_t pio_address;
 
 #define MIN_IOBASE_LEN          0x100
-	struct req_que *req;
-	struct rsp_que *rsp;
+/* Multi queue data structs */
+	device_reg_t    *mqiobase;
+	uint16_t        msix_count;
+	uint8_t         mqenable;
+	struct req_que **req_q_map;
+	struct rsp_que **rsp_q_map;
+	unsigned long req_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
+	unsigned long rsp_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
+	uint16_t 	max_queues;
+	struct qla_npiv_entry *npiv_info;
+	uint16_t	nvram_npiv_size;
 
 	uint16_t        switch_cap;
 #define FLOGI_SEQ_DEL           BIT_8
@@ -2502,7 +2543,7 @@ struct qla_hw_data {
 	uint16_t        zio_timer;
 	struct fc_host_statistics fc_host_stat;
 
-	struct qla_msix_entry msix_entries[QLA_MSIX_ENTRIES];
+	struct qla_msix_entry *msix_entries;
 
 	struct list_head        vp_list;        /* list of VP */
 	unsigned long   vp_idx_map[(MAX_MULTI_ID_FABRIC / 8) /
@@ -2524,7 +2565,6 @@ typedef struct scsi_qla_host {
 	struct list_head list;
 	struct list_head vp_fcports;	/* list of fcports */
 	struct list_head work_list;
-
 	/* Commonly used flags and state information. */
 	struct Scsi_Host *host;
 	unsigned long	host_no;
@@ -2640,8 +2680,8 @@ typedef struct scsi_qla_host {
 #define VP_ERR_FAB_LOGOUT	4
 #define VP_ERR_ADAP_NORESOURCES	5
 	struct qla_hw_data *hw;
+	int	req_ques[QLA_MAX_HOST_QUES];
 } scsi_qla_host_t;
-
 
 /*
  * Macros to help code, maintain, etc.

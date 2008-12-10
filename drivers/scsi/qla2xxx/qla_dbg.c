@@ -23,11 +23,10 @@ qla2xxx_prep_dump(struct qla_hw_data *ha, struct qla2xxx_fw_dump *fw_dump)
 }
 
 static inline void *
-qla2xxx_copy_queues(scsi_qla_host_t *vha, void *ptr)
+qla2xxx_copy_queues(struct qla_hw_data *ha, void *ptr)
 {
-	struct req_que *req = vha->hw->req;
-	struct rsp_que *rsp = vha->hw->rsp;
-
+	struct req_que *req = ha->req_q_map[0];
+	struct rsp_que *rsp = ha->rsp_q_map[0];
 	/* Request queue. */
 	memcpy(ptr, req->ring, req->length *
 	    sizeof(request_t));
@@ -327,6 +326,7 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	unsigned long	flags;
 	struct qla2300_fw_dump	*fw;
 	void		*nxt;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	flags = 0;
 
@@ -461,7 +461,7 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    ha->fw_memory_size - 0x11000 + 1, &nxt);
 
 	if (rval == QLA_SUCCESS)
-		qla2xxx_copy_queues(vha, nxt);
+		qla2xxx_copy_queues(ha, nxt);
 
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
@@ -471,7 +471,7 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    vha->host_no, ha->fw_dump);
+		    base_vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -497,6 +497,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint16_t __iomem *dmp_reg;
 	unsigned long	flags;
 	struct qla2100_fw_dump	*fw;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	risc_address = 0;
 	mb0 = mb2 = 0;
@@ -667,7 +668,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 
 	if (rval == QLA_SUCCESS)
-		qla2xxx_copy_queues(vha, &fw->risc_ram[cnt]);
+		qla2xxx_copy_queues(ha, &fw->risc_ram[cnt]);
 
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
@@ -677,7 +678,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    vha->host_no, ha->fw_dump);
+		    base_vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -701,6 +702,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	struct qla24xx_fw_dump *fw;
 	uint32_t	ext_mem_cnt;
 	void		*nxt;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
@@ -910,7 +912,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (rval != QLA_SUCCESS)
 		goto qla24xx_fw_dump_failed_0;
 
-	nxt = qla2xxx_copy_queues(vha, nxt);
+	nxt = qla2xxx_copy_queues(ha, nxt);
 	if (ha->eft)
 		memcpy(nxt, ha->eft, ntohl(ha->fw_dump->eft_size));
 
@@ -923,7 +925,7 @@ qla24xx_fw_dump_failed_0:
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    vha->host_no, ha->fw_dump);
+		    base_vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -940,6 +942,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t	risc_address;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	struct device_reg_25xxmq __iomem *reg25;
 	uint32_t __iomem *dmp_reg;
 	uint32_t	*iter_reg;
 	uint16_t __iomem *mbx_reg;
@@ -948,6 +951,11 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t	ext_mem_cnt;
 	void		*nxt;
 	struct qla2xxx_fce_chain *fcec;
+	struct qla2xxx_mq_chain *mq = NULL;
+	uint32_t	qreg_size;
+	uint8_t		req_cnt, rsp_cnt, que_cnt;
+	uint32_t	que_idx;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
@@ -992,6 +1000,29 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
 	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
 	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
+
+	/* Multi queue registers */
+	if (ha->mqenable) {
+		qreg_size = sizeof(struct qla2xxx_mq_chain);
+		mq = kzalloc(qreg_size, GFP_KERNEL);
+		if (!mq)
+			goto qla25xx_fw_dump_failed_0;
+		req_cnt = find_first_zero_bit(ha->req_qid_map, ha->max_queues);
+		rsp_cnt = find_first_zero_bit(ha->rsp_qid_map, ha->max_queues);
+		que_cnt = req_cnt > rsp_cnt ? req_cnt : rsp_cnt;
+		mq->count = htonl(que_cnt);
+		mq->chain_size = htonl(qreg_size);
+		mq->type = __constant_htonl(DUMP_CHAIN_MQ);
+		for (cnt = 0; cnt < que_cnt; cnt++) {
+			reg25 = (struct device_reg_25xxmq *) ((void *)
+				ha->mqiobase + cnt * QLA_QUE_PAGE);
+			que_idx = cnt * 4;
+			mq->qregs[que_idx] = htonl(reg25->req_q_in);
+			mq->qregs[que_idx+1] = htonl(reg25->req_q_out);
+			mq->qregs[que_idx+2] = htonl(reg25->rsp_q_in);
+			mq->qregs[que_idx+3] = htonl(reg25->rsp_q_out);
+		}
+	}
 	WRT_REG_DWORD(&reg->iobase_window, 0x00);
 	RD_REG_DWORD(&reg->iobase_window);
 
@@ -1219,7 +1250,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		goto qla25xx_fw_dump_failed_0;
 
 	/* Fibre Channel Trace Buffer. */
-	nxt = qla2xxx_copy_queues(vha, nxt);
+	nxt = qla2xxx_copy_queues(ha, nxt);
 	if (ha->eft)
 		memcpy(nxt, ha->eft, ntohl(ha->fw_dump->eft_size));
 
@@ -1229,7 +1260,14 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 
-	fcec = nxt + ntohl(ha->fw_dump->eft_size);
+	if (ha->mqenable) {
+		nxt = nxt + ntohl(ha->fw_dump->eft_size);
+		memcpy(nxt, mq, qreg_size);
+		kfree(mq);
+		fcec = nxt + qreg_size;
+	} else {
+		fcec = nxt + ntohl(ha->fw_dump->eft_size);
+	}
 	fcec->type = __constant_htonl(DUMP_CHAIN_FCE | DUMP_CHAIN_LAST);
 	fcec->chain_size = htonl(sizeof(struct qla2xxx_fce_chain) +
 	    fce_calc_size(ha->fce_bufs));
@@ -1252,7 +1290,7 @@ qla25xx_fw_dump_failed_0:
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    vha->host_no, ha->fw_dump);
+		    base_vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -1260,7 +1298,6 @@ qla25xx_fw_dump_failed:
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
-
 /****************************************************************************/
 /*                         Driver Debug Functions.                          */
 /****************************************************************************/
@@ -1307,3 +1344,5 @@ qla2x00_dump_buffer(uint8_t * b, uint32_t size)
 	if (cnt % 16)
 		printk("\n");
 }
+
+

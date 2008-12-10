@@ -547,7 +547,7 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 	uint16_t cnt, chksum, *wptr;
 	struct qla_flt_location *fltl;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = ha->req;
+	struct req_que *req = ha->req_q_map[0];
 
 	/*
 	 * FLT-location structure resides after the last PCI region.
@@ -624,7 +624,7 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	struct qla_flt_header *flt;
 	struct qla_flt_region *region;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = ha->req;
+	struct req_que *req = ha->req_q_map[0];
 
 	ha->flt_region_flt = flt_addr;
 	wptr = (uint16_t *)req->ring;
@@ -730,7 +730,7 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 	uint8_t	man_id, flash_id;
 	uint16_t mid, fid;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = ha->req;
+	struct req_que *req = ha->req_q_map[0];
 
 	wptr = (uint16_t *)req->ring;
 	fdt = (struct qla_fdt_layout *)req->ring;
@@ -833,6 +833,7 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	void *data;
 	uint16_t *wptr;
 	uint16_t cnt, chksum;
+	int i;
 	struct qla_npiv_header hdr;
 	struct qla_npiv_entry *entry;
 	struct qla_hw_data *ha = vha->hw;
@@ -876,7 +877,7 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 
 	entry = data + sizeof(struct qla_npiv_header);
 	cnt = le16_to_cpu(hdr.entries);
-	for ( ; cnt; cnt--, entry++) {
+	for (i = 0; cnt; cnt--, entry++, i++) {
 		uint16_t flags;
 		struct fc_vport_identifiers vid;
 		struct fc_vport *vport;
@@ -894,19 +895,25 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 		vid.port_name = wwn_to_u64(entry->port_name);
 		vid.node_name = wwn_to_u64(entry->node_name);
 
-		DEBUG2(qla_printk(KERN_DEBUG, ha, "NPIV[%02x]: wwpn=%llx "
-		    "wwnn=%llx vf_id=0x%x qos=0x%x.\n", cnt, vid.port_name,
-		    vid.node_name, le16_to_cpu(entry->vf_id),
-		    le16_to_cpu(entry->qos)));
+		memcpy(&ha->npiv_info[i], entry, sizeof(struct qla_npiv_entry));
 
-		vport = fc_vport_create(vha->host, 0, &vid);
-		if (!vport)
-			qla_printk(KERN_INFO, ha, "NPIV-Config: Failed to "
-			    "create vport [%02x]: wwpn=%llx wwnn=%llx.\n", cnt,
-			    vid.port_name, vid.node_name);
+		DEBUG2(qla_printk(KERN_DEBUG, ha, "NPIV[%02x]: wwpn=%llx "
+			"wwnn=%llx vf_id=0x%x Q_qos=0x%x F_qos=0x%x.\n", cnt,
+			vid.port_name, vid.node_name, le16_to_cpu(entry->vf_id),
+			entry->q_qos, entry->f_qos));
+
+		if (i < QLA_PRECONFIG_VPORTS) {
+			vport = fc_vport_create(vha->host, 0, &vid);
+			if (!vport)
+				qla_printk(KERN_INFO, ha,
+				"NPIV-Config: Failed to create vport [%02x]: "
+				"wwpn=%llx wwnn=%llx.\n", cnt,
+				vid.port_name, vid.node_name);
+		}
 	}
 done:
 	kfree(data);
+	ha->npiv_info = NULL;
 }
 
 static void
