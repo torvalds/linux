@@ -803,13 +803,9 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
 	}
 
 	audit_ipc_obj(ipcp);
-
-	if (cmd == IPC_SET) {
-		err = audit_ipc_set_perm(extra_perm, perm->uid,
+	if (cmd == IPC_SET)
+		audit_ipc_set_perm(extra_perm, perm->uid,
 					 perm->gid, perm->mode);
-		if (err)
-			goto out_unlock;
-	}
 
 	euid = current_euid();
 	if (euid == ipcp->cuid ||
@@ -817,7 +813,6 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
 		return ipcp;
 
 	err = -EPERM;
-out_unlock:
 	ipc_unlock(ipcp);
 out_up:
 	up_write(&ids->rw_mutex);

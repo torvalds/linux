@@ -151,16 +151,6 @@ struct audit_aux_data_mq_getsetattr {
 	struct mq_attr 		mqstat;
 };
 
-struct audit_aux_data_ipcctl {
-	struct audit_aux_data	d;
-	struct ipc_perm		p;
-	unsigned long		qbytes;
-	uid_t			uid;
-	gid_t			gid;
-	mode_t			mode;
-	u32			osid;
-};
-
 struct audit_aux_data_execve {
 	struct audit_aux_data	d;
 	int argc;
@@ -252,6 +242,11 @@ struct audit_context {
 			gid_t			gid;
 			mode_t			mode;
 			u32			osid;
+			int			has_perm;
+			uid_t			perm_uid;
+			gid_t			perm_gid;
+			mode_t			perm_mode;
+			unsigned long		qbytes;
 		} ipc;
 	};
 
@@ -1260,6 +1255,19 @@ static void show_special(struct audit_context *context, int *call_panic)
 				security_release_secctx(ctx, len);
 			}
 		}
+		if (context->ipc.has_perm) {
+			audit_log_end(ab);
+			ab = audit_log_start(context, GFP_KERNEL,
+					     AUDIT_IPC_SET_PERM);
+			audit_log_format(ab,
+				"qbytes=%lx ouid=%u ogid=%u mode=%#o",
+				context->ipc.qbytes,
+				context->ipc.perm_uid,
+				context->ipc.perm_gid,
+				context->ipc.perm_mode);
+			if (!ab)
+				return;
+		}
 		break; }
 	}
 	audit_log_end(ab);
@@ -1377,13 +1385,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				axi->mqdes,
 				axi->mqstat.mq_flags, axi->mqstat.mq_maxmsg,
 				axi->mqstat.mq_msgsize, axi->mqstat.mq_curmsgs);
-			break; }
-
-		case AUDIT_IPC_SET_PERM: {
-			struct audit_aux_data_ipcctl *axi = (void *)aux;
-			audit_log_format(ab,
-				"qbytes=%lx ouid=%u ogid=%u mode=%#o",
-				axi->qbytes, axi->uid, axi->gid, axi->mode);
 			break; }
 
 		case AUDIT_EXECVE: {
@@ -2352,6 +2353,7 @@ void __audit_ipc_obj(struct kern_ipc_perm *ipcp)
 	context->ipc.uid = ipcp->uid;
 	context->ipc.gid = ipcp->gid;
 	context->ipc.mode = ipcp->mode;
+	context->ipc.has_perm = 0;
 	security_ipc_getsecid(ipcp, &context->ipc.osid);
 	context->type = AUDIT_IPC;
 }
@@ -2363,26 +2365,17 @@ void __audit_ipc_obj(struct kern_ipc_perm *ipcp)
  * @gid: msgq group id
  * @mode: msgq mode (permissions)
  *
- * Returns 0 for success or NULL context or < 0 on error.
+ * Called only after audit_ipc_obj().
  */
-int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
+void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 {
-	struct audit_aux_data_ipcctl *ax;
 	struct audit_context *context = current->audit_context;
 
-	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
-	if (!ax)
-		return -ENOMEM;
-
-	ax->qbytes = qbytes;
-	ax->uid = uid;
-	ax->gid = gid;
-	ax->mode = mode;
-
-	ax->d.type = AUDIT_IPC_SET_PERM;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
+	context->ipc.qbytes = qbytes;
+	context->ipc.perm_uid = uid;
+	context->ipc.perm_gid = gid;
+	context->ipc.perm_mode = mode;
+	context->ipc.has_perm = 1;
 }
 
 int audit_bprm(struct linux_binprm *bprm)
