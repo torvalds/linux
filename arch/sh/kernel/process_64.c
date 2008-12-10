@@ -23,7 +23,6 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/proc_fs.h>
 #include <linux/io.h>
 #include <asm/syscalls.h>
 #include <asm/uaccess.h>
@@ -590,41 +589,3 @@ unsigned long get_wchan(struct task_struct *p)
 #endif
 	return pc;
 }
-
-/* Provide a /proc/asids file that lists out the
-   ASIDs currently associated with the processes.  (If the DM.PC register is
-   examined through the debug link, this shows ASID + PC.  To make use of this,
-   the PID->ASID relationship needs to be known.  This is primarily for
-   debugging.)
-   */
-
-#if defined(CONFIG_SH64_PROC_ASIDS)
-static int
-asids_proc_info(char *buf, char **start, off_t fpos, int length, int *eof, void *data)
-{
-	int len=0;
-	struct task_struct *p;
-	read_lock(&tasklist_lock);
-	for_each_process(p) {
-		int pid = p->pid;
-
-		if (!pid)
-			continue;
-		if (p->mm)
-			len += sprintf(buf+len, "%5d : %02lx\n", pid,
-				       asid_cache(smp_processor_id()));
-		else
-			len += sprintf(buf+len, "%5d : (none)\n", pid);
-	}
-	read_unlock(&tasklist_lock);
-	*eof = 1;
-	return len;
-}
-
-static int __init register_proc_asids(void)
-{
-	create_proc_read_entry("asids", 0, NULL, asids_proc_info, NULL);
-	return 0;
-}
-__initcall(register_proc_asids);
-#endif
