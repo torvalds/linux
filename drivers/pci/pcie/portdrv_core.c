@@ -103,7 +103,6 @@ static int pcie_port_resume_service(struct device *dev)
  */
 static void release_pcie_device(struct device *dev)
 {
-	dev_printk(KERN_DEBUG, dev, "free port service\n");
 	kfree(to_pcie_device(dev));			
 }
 
@@ -150,7 +149,6 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 	if (pos) {
 		struct msix_entry msix_entries[PCIE_PORT_DEVICE_MAXSERVICES] = 
 			{{0, 0}, {0, 1}, {0, 2}, {0, 3}};
-		dev_info(&dev->dev, "found MSI-X capability\n");
 		status = pci_enable_msix(dev, msix_entries, nvec);
 		if (!status) {
 			int j = 0;
@@ -165,7 +163,6 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 	if (status) {
 		pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 		if (pos) {
-			dev_info(&dev->dev, "found MSI capability\n");
 			status = pci_enable_msi(dev);
 			if (!status) {
 				interrupt_mode = PCIE_PORT_MSI_MODE;
@@ -239,7 +236,6 @@ static struct pcie_device* alloc_pcie_device(struct pci_dev *parent,
 		return NULL;
 
 	pcie_device_init(parent, device, port_type, service_type, irq,irq_mode);
-	dev_printk(KERN_DEBUG, &device->device, "allocate port service\n");
 	return device;
 }
 
