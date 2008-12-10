@@ -9,22 +9,25 @@ GENERAL
 HD-audio is the new standard on-board audio component on modern PCs
 after AC97.  Although Linux has been supporting HD-audio since long
 time ago, there are often problems with new machines.  A part of the
-problem is broken BIOS, and rest is the driver implementation.  This
-document explains the trouble-shooting and debugging methods for the
-HD-audio hardware.
+problem is broken BIOS, and the rest is the driver implementation.
+This document explains the brief trouble-shooting and debugging
+methods for the	HD-audio hardware.
 
 The HD-audio component consists of two parts: the controller chip and 
 the codec chips on the HD-audio bus.  Linux provides a single driver
-for all controllers, snd-hda-intel.  Since the HD-audio controllers
-are supposed to be compatible, the single snd-hda-driver should work
-in most cases.  But, not surprisingly, there are known bugs and issues
-specific to each controller type.  The snd-hda-intel driver has a
-bunch of workarounds for these as described below.
+for all controllers, snd-hda-intel.  Although the driver name contains
+a word of a well-known harware vendor, it's not specific to it but for
+all controller chips by other companies.  Since the HD-audio
+controllers are supposed to be compatible, the single snd-hda-driver
+should work in most cases.  But, not surprisingly, there are known
+bugs and issues specific to each controller type.  The snd-hda-intel
+driver has a bunch of workarounds for these as described below.
 
 A controller may have multiple codecs.  Usually you have one audio
-codec and optionally one modem codec.  In some cases, there can be
-multiple audio codecs, e.g. for analog and digital outputs, but the
-driver might not work properly.
+codec and optionally one modem codec.  In theory, there might be
+multiple audio codecs, e.g. for analog and digital outputs, and the
+driver might not work properly because of conflict of mixer elements.
+This should be fixed in future if such hardware really exists.
 
 The snd-hda-intel driver has several different codec parsers depending
 on the codec.  It has a generic parser as a fallback, but this
@@ -48,15 +51,16 @@ DMA-Position Problem
 The most common problem of the controller is the inaccurate DMA
 pointer reporting.  The DMA pointer for playback and capture can be
 read in two ways, either via a LPIB register or via a position-buffer
-map.  As default the driver tries to reads from the io-mapped
-position-buffer, and falls back to LPIB if it appears unupdated.
-However, this detection isn't perfect on some devices.  In such a
-case, you can change the default method via `position_fix` option.
+map.  As default the driver tries to read from the io-mapped
+position-buffer, and falls back to LPIB if the position-buffer appears
+dead.  However, this detection isn't perfect on some devices.  In such
+a case, you can change the default method via `position_fix` option.
 
 `position_fix=1` means to use LPIB method explicitly.
 `position_fix=2` means to use the position-buffer.  0 is the default
-value, the automatic check.  If you get a problem of repeated sounds,
-this option might help.
+value, the automatic check and fallback to LPIB as described in the
+above.  If you get a problem of repeated sounds, this option might
+help.
 
 In addition to that, every controller is known to be broken regarding
 the wake-up timing.  It wakes up a few samples before actually
@@ -67,9 +71,9 @@ via `bdl_pos_adj` option.
 
 When `bdl_pos_adj` is a negative value (as default), it's assigned to
 an appropriate value depending on the controller chip.  For Intel
-chip, it'd be 1 while it'd be 32 for others.  Usually this works.
+chips, it'd be 1 while it'd be 32 for others.  Usually this works.
 Only in case it doesn't work and you get warning messages, you should
-change to other values.
+change this parameter to other values.
 
 
 Codec-Probing Problem
@@ -77,13 +81,13 @@ Codec-Probing Problem
 A less often but a more severe problem is the codec probing.  When
 BIOS reports the available codec slots wrongly, the driver gets
 confused and tries to access the non-existing codec slot.  This often
-results in the total screw-up, and destruct the further communication
-with the codec chips.  The symptom appears usually as the error
-message like:
+results in the total screw-up, and destructs the further communication
+with the codec chips.  The symptom appears usually as error messages
+like:
 ------------------------------------------------------------------------
-  hda_intel: azx_get_response timeout, switching to polling mode: \
+  hda_intel: azx_get_response timeout, switching to polling mode:
         last cmd=0x12345678
-  hda_intel: azx_get_response timeout, switching to single_cmd mode: \
+  hda_intel: azx_get_response timeout, switching to single_cmd mode:
         last cmd=0x12345678
 ------------------------------------------------------------------------
 
@@ -98,9 +102,9 @@ accessing a non-existing codec slot.
 
 Thus, if the second error message appears, try to narrow the probed
 codec slots via `probe_mask` option.  It's a bitmask, and each bit
-corresponding to the codec slot.  For example, to probe only the
-first slot, pass `probe_mask=1`.  For the first and the third slots,
-pass `probe_mask=5` (where 5 = 1 | 4), and so on.
+corresponds to the codec slot.  For example, to probe only the first
+slot, pass `probe_mask=1`.  For the first and the third slots, pass
+`probe_mask=5` (where 5 = 1 | 4), and so on.
 
 Since 2.6.29 kernel, the driver has a more robust probing method, so
 this error might happen rarely, though.
@@ -119,10 +123,10 @@ HD-AUDIO CODEC
 
 Model Option
 ~~~~~~~~~~~~
-The most common problems with the HD-audio driver is the unsupported
-codec features or the mismatched device configuration.  Most of
-codec-specific code has several preset models, either to override the
-BIOS setup or to provide more comprehensive features.
+The most common problem regarding the HD-audio driver is the
+unsupported codec features or the mismatched device configuration.
+Most of codec-specific code has several preset models, either to
+override the BIOS setup or to provide more comprehensive features.
 
 The driver checks PCI SSID and looks through the static configuration
 table until any matching entry is found.  If you have a new machine,
@@ -130,44 +134,44 @@ you may see a message like below:
 ------------------------------------------------------------------------
     hda_codec: Unknown model for ALC880, trying auto-probe from BIOS...
 ------------------------------------------------------------------------
-Even if you such a message, DON'T PANIC.  Take a deep breath (and keep
-your towel).  First of all, it's an informational message, no warning,
-no error.  This means that the PCI SSID of your device isn't listed in
-the known preset model list.  But, this doesn't mean that the driver
-is broken.  Many codec-driver provides the automatic configuration
-based on the BIOS setup.
+Even if you see such a message, DON'T PANIC.  Take a deep breath and
+keep your towel.  First of all, it's an informational message, no
+warning, no error.  This means that the PCI SSID of your device isn't
+listed in the known preset model (white-)list.  But, this doesn't mean
+that the driver is broken.  Many codec-drivers provide the automatic
+configuration mechanism based on the BIOS setup.
 
 The HD-audio codec has usually "pin" widgets, and BIOS sets the default
 configuration of each pin, which indicates the location, the
 connection type, the jack color, etc.  The HD-audio driver can guess
 the right connection judging from these default configuration values.
-However -- some codec support codes, such as patch_analog.c, don't
+However -- some codec-support codes, such as patch_analog.c, don't
 support the automatic probing (yet as of 2.6.28).  And, BIOS is often,
 yes, pretty often broken.  It sets up wrong values and screws up the
 driver.
 
-The preset model is provided basically to override such a situation.
-When the matching preset model is found in the list, the driver
+The preset model is provided basically to overcome such a situation.
+When the matching preset model is found in the white-list, the driver
 assumes the static configuration of that preset and builds the mixer
-and PCM based on the static information.  Thus, if you have a newer
-machine with a slightly different PCI SSID from the existing one, you
-may have a good chance to re-use the same model.  You can pass the
-`model` option to specify the preset model instead of PCI SSID
-look-up.
+elements and PCM streams based on the static information.  Thus, if
+you have a newer machine with a slightly different PCI SSID from the
+existing one, you may have a good chance to re-use the same model.
+You can pass the `model` option to specify the preset model instead of
+PCI SSID look-up.
 
 What `model` option values are available depends on the codec chip.
 Check your codec chip from the codec proc file (see "Codec Proc-File"
 section below).  It will show the vendor/product name of your codec
-chip. Then, see Documentation/sound/alsa/ALSA-Configuration.txt file.
-In the section of HD-audio driver, you can find a list of codecs and
-`model` options belonging to each codec.  For example, for Realtek
+chip.  Then, see Documentation/sound/alsa/ALSA-Configuration.txt
+file, the section of HD-audio driver.  You can find a list of codecs
+and `model` options belonging to each codec.  For example, for Realtek
 ALC262 codec chip, pass `model=ultra` for devices that are compatible
 with Samsung Q1 Ultra.
 
-Thus, the first thing you can do for any brand-new, unsupported
-HD-audio hardware is to check HD-audio codec and several different
-`model` option values.  If you have a luck, some of them might suit
-with your device well.
+Thus, the first thing you can do for any brand-new, unsupported and
+non-working HD-audio hardware is to check HD-audio codec and several
+different `model` option values.  If you have a luck, some of them
+might suit with your device well.
 
 Some codecs such as ALC880 have a special model option `model=test`.
 This configures the driver to provide as many mixer controls as
@@ -188,12 +192,14 @@ One of the most frequent (and obvious) bugs with HD-audio is the
 silent output from either or both of a built-in speaker and a
 headphone jack.  In general, you should try a headphone output at
 first.  A speaker output often requires more additional controls like
-the amplifier.  Thus a headphone output has a slightly better chance.
+the external amplifier bits.  Thus a headphone output has a slightly
+better chance.
 
 Before making a bug report, double-check whether the mixer is set up
 correctly.  The recent version of snd-hda-intel driver provides mostly
-"Master" volume control as well as "Front" volume.  In addition, there
-are individual "Headphone" and "Speaker" controls.
+"Master" volume control as well as "Front" volume (where Front
+indicates the front-channels).  In addition, there can be individual
+"Headphone" and "Speaker" controls.
 
 Ditto for the speaker output.  There can be "External Amplifier"
 switch on some codecs.  Turn on this if present.
@@ -214,7 +220,7 @@ following:
   external amplifier.  This can be set usually via EAPD verb or a
   certain GPIO.  If the codec pin supports EAPD, you have a better
   chance via SET_EAPD_BTL verb (0x70c).  On others, GPIO pin (mostly
-  it's either GPIO0 or GPIO1) can turn on/off EAPD.
+  it's either GPIO0 or GPIO1) may turn on/off EAPD.
 - Some Realtek codecs require special vendor-specific coefficients to
   turn on the amplifier.  See patch_realtek.c.
 - IDT codecs may have extra power-enable/disable controls on each
@@ -227,29 +233,29 @@ following:
 
 Capture Problems
 ~~~~~~~~~~~~~~~~
-The capture problems are often missing setups of mixers.  Thus, before
-submitting a bug report, make sure that you set up the mixer
-correctly.  For example, both "Capture Volume" and "Capture Switch"
-have to be set properly in addition to the right "Capture Source" or
-"Input Source" selection.  Some devices have "Mic Boost" volume or
-switch.
+The capture problems are often because of missing setups of mixers.
+Thus, before submitting a bug report, make sure that you set up the
+mixer correctly.  For example, both "Capture Volume" and "Capture
+Switch" have to be set properly in addition to the right "Capture
+Source" or "Input Source" selection.  Some devices have "Mic Boost"
+volume or switch.
 
 When the PCM device is opened via "default" PCM (without pulse-audio
 plugin), you'll likely have "Digital Capture Volume" control as well.
 This is provided for the extra gain/attenuation of the signal in
 software, especially for the inputs without the hardware volume
 control such as digital microphones.  Unless really needed, this
-should be set to exactly 50%, corresponding to 0dB.  When you use "hw"
-PCM, i.e., a raw access PCM, this control will have no influence,
-though.
+should be set to exactly 50%, corresponding to 0dB -- neither extra
+gain nor attenuation.  When you use "hw" PCM, i.e., a raw access PCM,
+this control will have no influence, though.
 
 It's known that some codecs / devices have fairly bad analog circuits,
 and the recorded sound contains a certain DC-offset.  This is no bug
 of the driver.
 
-Most of modern laptops have no analog CD-input connection. Thus, the
+Most of modern laptops have no analog CD-input connection.  Thus, the
 recording from CD input won't work in many cases although the driver
-provides it as the capture source.
+provides it as the capture source.  Use CDDA instead.
 
 The automatic switching of the built-in and external mic per plugging
 is implemented on some codec models but not on every model.  Partly
@@ -264,7 +270,7 @@ to fight again the evil, try debugging via hitting the raw HD-audio
 codec verbs to the device.  Some tools are available: hda-emu and
 hda-analyzer.  The detailed description is found in the sections
 below.  You'd need to enable hwdep for using these tools.  See "Kernel
-Configuration".
+Configuration" section.
 
 
 OTHER ISSUES
@@ -284,15 +290,16 @@ sure to want it.
 Don't forget to turn on the appropriate `CONFIG_SND_HDA_CODEC_*`
 options.  Note that each of them corresponds to the codec chip, not
 the controller chip.  Thus, even if lspci shows the Nvidia controller,
-you may choose the option for other vendors.  If you are unsure, just
-choose all yes.
+you may need to choose the option for other vendors.  If you are
+unsure, just select all yes.
 
 `CONFIG_SND_HDA_HWDEP` is a useful option for debugging the driver.
 When this is enabled, the driver creates hardware-dependent devices
 (one per each codec), and you have a raw access to the device via
-hda-verb program.  For example, `hwC0D2` will be created for the card
-0 codec slot #2.  For debug tools such as hda-verb and hda-analyzer,
-the hwdep device has to be enabled.  Thus, turn this on always.
+these device files.  For example, `hwC0D2` will be created for the
+codec slot #2 of the first card (#0).  For debug-tools such as
+hda-verb and hda-analyzer, the hwdep device has to be enabled.
+Thus, it'd be better to turn this on always.
 
 `CONFIG_SND_HDA_RECONFIG` is a new option, and this depends on the
 hwdep option above.  When enabled, you'll have some sysfs files under
@@ -436,7 +443,7 @@ details.
 hda-verb
 ~~~~~~~~
 hda-verb is a tiny program that allows you to access the HD-audio
-codec directly.  It executes a HD-audio codec verb directly.
+codec directly.  You can execute a raw HD-audio codec verb with this.
 This program accesses the hwdep device, thus you need to enable the
 kernel config `CONFIG_SND_HDA_HWDEP=y` beforehand.
 
@@ -486,7 +493,7 @@ hda-analyzer
 ~~~~~~~~~~~~
 hda-analyzer provides a graphical interface to access the raw HD-audio
 control, based on pyGTK2 binding.  It's a more powerful version of
-hda-verb.  The program gives you a easy-to-use GUI stuff for showing
+hda-verb.  The program gives you an easy-to-use GUI stuff for showing
 the widget information and adjusting the amp values, as well as the
 proc-compatible output.
 
@@ -498,7 +505,7 @@ alsa-project.org:
 
 hda-emu
 ~~~~~~~
-hda-emu is a HD-audio emulator.  The main purpose of this program is
+hda-emu is an HD-audio emulator.  The main purpose of this program is
 to debug an HD-audio codec without the real hardware.  Thus, it
 doesn't emulate the behavior with the real audio I/O, but it just
 dumps the codec register changes and the ALSA-driver internal changes
