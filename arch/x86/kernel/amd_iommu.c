@@ -923,6 +923,8 @@ static int device_change_notifier(struct notifier_block *nb,
 	struct protection_domain *domain;
 	struct dma_ops_domain *dma_domain;
 	struct amd_iommu *iommu;
+	int order = amd_iommu_aperture_order;
+	unsigned long flags;
 
 	if (devid > amd_iommu_last_bdf)
 		goto out;
@@ -954,6 +956,21 @@ static int device_change_notifier(struct notifier_block *nb,
 		if (!domain)
 			goto out;
 		detach_device(domain, devid);
+		break;
+	case BUS_NOTIFY_ADD_DEVICE:
+		/* allocate a protection domain if a device is added */
+		dma_domain = find_protection_domain(devid);
+		if (dma_domain)
+			goto out;
+		dma_domain = dma_ops_domain_alloc(iommu, order);
+		if (!dma_domain)
+			goto out;
+		dma_domain->target_dev = devid;
+
+		spin_lock_irqsave(&iommu_pd_list_lock, flags);
+		list_add_tail(&dma_domain->list, &iommu_pd_list);
+		spin_unlock_irqrestore(&iommu_pd_list_lock, flags);
+
 		break;
 	default:
 		goto out;
