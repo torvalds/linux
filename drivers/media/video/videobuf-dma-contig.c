@@ -400,7 +400,7 @@ void videobuf_dma_contig_free(struct videobuf_queue *q,
 	   So, it should free memory only if the memory were allocated for
 	   read() operation.
 	 */
-	if ((buf->memory != V4L2_MEMORY_USERPTR) || !buf->baddr)
+	if ((buf->memory != V4L2_MEMORY_USERPTR) || buf->baddr)
 		return;
 
 	if (!mem)
