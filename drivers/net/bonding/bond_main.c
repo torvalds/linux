@@ -294,10 +294,8 @@ static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 		if (vlan->vlan_id == vlan_id) {
 			list_del(&vlan->vlan_list);
 
-			if ((bond->params.mode == BOND_MODE_TLB) ||
-			    (bond->params.mode == BOND_MODE_ALB)) {
+			if (bond_is_lb(bond))
 				bond_alb_clear_vlan(bond, vlan_id);
-			}
 
 			dprintk("removed VLAN ID %d from bond %s\n", vlan_id,
 				bond->dev->name);
@@ -1174,10 +1172,8 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 				bond_3ad_handle_link_change(new_active, BOND_LINK_UP);
 			}
 
-			if ((bond->params.mode == BOND_MODE_TLB) ||
-			    (bond->params.mode == BOND_MODE_ALB)) {
+			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, new_active, BOND_LINK_UP);
-			}
 		} else {
 			if (USES_PRIMARY(bond->params.mode)) {
 				printk(KERN_INFO DRV_NAME
@@ -1192,8 +1188,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 		bond_mc_swap(bond, new_active, old_active);
 	}
 
-	if ((bond->params.mode == BOND_MODE_TLB) ||
-	    (bond->params.mode == BOND_MODE_ALB)) {
+	if (bond_is_lb(bond)) {
 		bond_alb_handle_active_change(bond, new_active);
 		if (old_active)
 			bond_set_slave_inactive_flags(old_active);
@@ -1554,8 +1549,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	new_slave->dev = slave_dev;
 	slave_dev->priv_flags |= IFF_BONDING;
 
-	if ((bond->params.mode == BOND_MODE_TLB) ||
-	    (bond->params.mode == BOND_MODE_ALB)) {
+	if (bond_is_lb(bond)) {
 		/* bond_alb_init_slave() must be called before all other stages since
 		 * it might fail and we do not want to have to undo everything
 		 */
@@ -1871,8 +1865,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		bond_change_active_slave(bond, NULL);
 	}
 
-	if ((bond->params.mode == BOND_MODE_TLB) ||
-	    (bond->params.mode == BOND_MODE_ALB)) {
+	if (bond_is_lb(bond)) {
 		/* Must be called only after the slave has been
 		 * detached from the list and the curr_active_slave
 		 * has been cleared (if our_slave == old_current),
@@ -2061,8 +2054,7 @@ static int bond_release_all(struct net_device *bond_dev)
 		 */
 		write_unlock_bh(&bond->lock);
 
-		if ((bond->params.mode == BOND_MODE_TLB) ||
-		    (bond->params.mode == BOND_MODE_ALB)) {
+		if (bond_is_lb(bond)) {
 			/* must be called only after the slave
 			 * has been detached from the list
 			 */
@@ -2389,8 +2381,7 @@ static void bond_miimon_commit(struct bonding *bond)
 			if (bond->params.mode == BOND_MODE_8023AD)
 				bond_3ad_handle_link_change(slave, BOND_LINK_UP);
 
-			if ((bond->params.mode == BOND_MODE_TLB) ||
-			    (bond->params.mode == BOND_MODE_ALB))
+			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, slave,
 							    BOND_LINK_UP);
 
@@ -3796,8 +3787,7 @@ static int bond_open(struct net_device *bond_dev)
 
 	bond->kill_timers = 0;
 
-	if ((bond->params.mode == BOND_MODE_TLB) ||
-	    (bond->params.mode == BOND_MODE_ALB)) {
+	if (bond_is_lb(bond)) {
 		/* bond_alb_initialize must be called before the timer
 		 * is started.
 		 */
@@ -3882,8 +3872,7 @@ static int bond_close(struct net_device *bond_dev)
 	}
 
 
-	if ((bond->params.mode == BOND_MODE_TLB) ||
-	    (bond->params.mode == BOND_MODE_ALB)) {
+	if (bond_is_lb(bond)) {
 		/* Must be called only after all
 		 * slaves have been released
 		 */

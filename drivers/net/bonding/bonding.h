@@ -260,6 +260,12 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 	return (struct bonding *)netdev_priv(slave->dev->master);
 }
 
+static inline bool bond_is_lb(const struct bonding *bond)
+{
+	return bond->params.mode == BOND_MODE_TLB
+		|| bond->params.mode == BOND_MODE_ALB;
+}
+
 #define BOND_FOM_NONE			0
 #define BOND_FOM_ACTIVE			1
 #define BOND_FOM_FOLLOW			2
