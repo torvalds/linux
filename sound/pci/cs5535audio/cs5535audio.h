@@ -99,7 +99,7 @@ int snd_cs5535audio_suspend(struct pci_dev *pci, pm_message_t state);
 int snd_cs5535audio_resume(struct pci_dev *pci);
 #endif
 
-#ifdef CONFIG_OLPC
+#if defined(CONFIG_OLPC) && defined(CONFIG_MGEODE_LX)
 void __devinit olpc_prequirks(struct snd_card *card,
 		struct snd_ac97_template *ac97);
 int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97);
