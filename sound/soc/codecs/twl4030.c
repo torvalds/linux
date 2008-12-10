@@ -1275,11 +1275,11 @@ struct snd_soc_codec_device soc_codec_dev_twl4030 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_twl4030);
 
-static int __devinit twl4030_init(void)
+static int __init twl4030_modinit(void)
 {
 	return snd_soc_register_dai(&twl4030_dai);
 }
-module_init(twl4030_init);
+module_init(twl4030_modinit);
 
 static void __exit twl4030_exit(void)
 {
