@@ -1,6 +1,7 @@
 /*
  * ov534/ov772x gspca driver
  * Copyright (C) 2008 Antonio Ospite <ospite@studenti.unina.it>
+ * Copyright (C) 2008 Jim Paris <jim@jtan.com>
  *
  * Based on a prototype written by Mark Ferrell <majortrips@gmail.com>
  * USB protocol reverse engineered by Jim Paris <jim@jtan.com>
@@ -193,8 +194,8 @@ static const __u8 ov534_reg_initdata[][2] = {
 
 	{ 0x1c, 0x00 },
 	{ 0x1d, 0x40 },
-	{ 0x1d, 0x02 },
-	{ 0x1d, 0x00 },
+	{ 0x1d, 0x02 }, /* payload size 0x0200 * 4 = 2048 bytes */
+	{ 0x1d, 0x00 }, /* payload size */
 	{ 0x1d, 0x02 }, /* frame size 0x025800 * 4 = 614400 */
 	{ 0x1d, 0x58 }, /* frame size */
 	{ 0x1d, 0x00 }, /* frame size */
@@ -325,7 +326,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
-	cam->bulk_size = 2048;
+	cam->bulk_size = 16384;
 	cam->bulk_nurbs = 2;
 
 	return 0;
@@ -402,6 +403,17 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u32 this_pts;
 	int this_fid;
+	int remaining_len = len;
+	__u8 *next_data = data;
+
+scan_next:
+	if (remaining_len <= 0)
+		return;
+
+	data = next_data;
+	len = min(remaining_len, 2048);
+	remaining_len -= len;
+	next_data += len;
 
 	/* Payloads are prefixed with a the UVC-style header.  We
 	   consider a frame to start when the FID toggles, or the PTS
@@ -452,12 +464,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 		gspca_frame_add(gspca_dev, LAST_PACKET, frame, NULL, 0);
 	}
 
-	/* Done */
-	return;
+	/* Done this payload */
+	goto scan_next;
 
 discard:
 	/* Discard data until a new frame starts. */
 	gspca_frame_add(gspca_dev, DISCARD_PACKET, frame, NULL, 0);
+	goto scan_next;
 }
 
 /* sub-driver description */
