@@ -376,9 +376,9 @@ tlb_miss:
 !
 	.balign 	512,0,512
 interrupt:
-	mov.l	2f, k2
 	mov.l	3f, k3
 #if defined(CONFIG_KGDB_NMI)
+	mov.l	2f, k2
 	! Debounce (filter nested NMI)
 	mov.l	@k2, k0
 	mov.l	5f, k1
@@ -390,6 +390,7 @@ interrupt:
 	rte
 	 nop
 	.align	2
+2:	.long	INTEVT
 5:	.long	NMI_VEC
 6:	.long	in_nmi
 0:
@@ -399,7 +400,6 @@ interrupt:
 
 	.align	2
 1:	.long	EXPEVT
-2:	.long	INTEVT
 3:	.long	ret_from_irq
 4:	.long	ret_from_exception
 
