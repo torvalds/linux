@@ -443,7 +443,7 @@ extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 #define audit_get_loginuid(t) ((t)->loginuid)
 #define audit_get_sessionid(t) ((t)->sessionid)
 extern void audit_log_task_context(struct audit_buffer *ab);
-extern int __audit_ipc_obj(struct kern_ipc_perm *ipcp);
+extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
 extern int audit_bprm(struct linux_binprm *bprm);
 extern void audit_socketcall(int nargs, unsigned long *args);
@@ -460,11 +460,10 @@ extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 				  const struct cred *old);
 extern int __audit_log_capset(pid_t pid, const struct cred *new, const struct cred *old);
 
-static inline int audit_ipc_obj(struct kern_ipc_perm *ipcp)
+static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_ipc_obj(ipcp);
-	return 0;
+		__audit_ipc_obj(ipcp);
 }
 static inline int audit_fd_pair(int fd1, int fd2)
 {
@@ -546,7 +545,7 @@ extern int audit_signals;
 #define audit_get_loginuid(t) (-1)
 #define audit_get_sessionid(t) (-1)
 #define audit_log_task_context(b) do { ; } while (0)
-#define audit_ipc_obj(i) ({ 0; })
+#define audit_ipc_obj(i) ((void)0)
 #define audit_ipc_set_perm(q,u,g,m) ({ 0; })
 #define audit_bprm(p) ({ 0; })
 #define audit_socketcall(n,a) ((void)0)
