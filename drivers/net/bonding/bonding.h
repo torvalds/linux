@@ -345,11 +345,11 @@ void bond_unregister_arp(struct bonding *);
 
 /* exported from bond_main.c */
 extern struct list_head bond_dev_list;
-extern struct bond_parm_tbl bond_lacp_tbl[];
-extern struct bond_parm_tbl bond_mode_tbl[];
-extern struct bond_parm_tbl xmit_hashtype_tbl[];
-extern struct bond_parm_tbl arp_validate_tbl[];
-extern struct bond_parm_tbl fail_over_mac_tbl[];
+extern const struct bond_parm_tbl bond_lacp_tbl[];
+extern const struct bond_parm_tbl bond_mode_tbl[];
+extern const struct bond_parm_tbl xmit_hashtype_tbl[];
+extern const struct bond_parm_tbl arp_validate_tbl[];
+extern const struct bond_parm_tbl fail_over_mac_tbl[];
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 void bond_send_unsolicited_na(struct bonding *bond);

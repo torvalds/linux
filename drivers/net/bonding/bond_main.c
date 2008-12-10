@@ -162,13 +162,13 @@ static int xmit_hashtype= BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast	= 0;
 
 
-struct bond_parm_tbl bond_lacp_tbl[] = {
+const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
 {	"fast",		AD_LACP_FAST},
 {	NULL,		-1},
 };
 
-struct bond_parm_tbl bond_mode_tbl[] = {
+const struct bond_parm_tbl bond_mode_tbl[] = {
 {	"balance-rr",		BOND_MODE_ROUNDROBIN},
 {	"active-backup",	BOND_MODE_ACTIVEBACKUP},
 {	"balance-xor",		BOND_MODE_XOR},
@@ -179,14 +179,14 @@ struct bond_parm_tbl bond_mode_tbl[] = {
 {	NULL,			-1},
 };
 
-struct bond_parm_tbl xmit_hashtype_tbl[] = {
+const struct bond_parm_tbl xmit_hashtype_tbl[] = {
 {	"layer2",		BOND_XMIT_POLICY_LAYER2},
 {	"layer3+4",		BOND_XMIT_POLICY_LAYER34},
 {	"layer2+3",		BOND_XMIT_POLICY_LAYER23},
 {	NULL,			-1},
 };
 
-struct bond_parm_tbl arp_validate_tbl[] = {
+const struct bond_parm_tbl arp_validate_tbl[] = {
 {	"none",			BOND_ARP_VALIDATE_NONE},
 {	"active",		BOND_ARP_VALIDATE_ACTIVE},
 {	"backup",		BOND_ARP_VALIDATE_BACKUP},
@@ -194,7 +194,7 @@ struct bond_parm_tbl arp_validate_tbl[] = {
 {	NULL,			-1},
 };
 
-struct bond_parm_tbl fail_over_mac_tbl[] = {
+const struct bond_parm_tbl fail_over_mac_tbl[] = {
 {	"none",			BOND_FOM_NONE},
 {	"active",		BOND_FOM_ACTIVE},
 {	"follow",		BOND_FOM_FOLLOW},
