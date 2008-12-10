@@ -4723,7 +4723,7 @@ static void bond_free_all(void)
  * some mode names are substrings of other names, and calls from sysfs
  * may have whitespace in the name (trailing newlines, for example).
  */
-int bond_parse_parm(const char *buf, struct bond_parm_tbl *tbl)
+int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 {
 	int mode = -1, i, rv;
 	char *p, modestr[BOND_MAX_MODENAME_LEN + 1] = { 0, };
