@@ -764,13 +764,13 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HFR"),
 
 	/* DACs */
-	SND_SOC_DAPM_DAC("DACR1", "Right Front Playback",
+	SND_SOC_DAPM_DAC("DAC Right1", "Right Front Playback",
 			TWL4030_REG_AVDAC_CTL, 0, 0),
-	SND_SOC_DAPM_DAC("DACL1", "Left Front Playback",
+	SND_SOC_DAPM_DAC("DAC Left1", "Left Front Playback",
 			TWL4030_REG_AVDAC_CTL, 1, 0),
-	SND_SOC_DAPM_DAC("DACR2", "Right Rear Playback",
+	SND_SOC_DAPM_DAC("DAC Right2", "Right Rear Playback",
 			TWL4030_REG_AVDAC_CTL, 2, 0),
-	SND_SOC_DAPM_DAC("DACL2", "Left Rear Playback",
+	SND_SOC_DAPM_DAC("DAC Left2", "Left Rear Playback",
 			TWL4030_REG_AVDAC_CTL, 3, 0),
 
 	/* Analog PGAs */
@@ -816,10 +816,10 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
-	{"ARXL1_APGA", NULL, "DACL1"},
-	{"ARXR1_APGA", NULL, "DACR1"},
-	{"ARXL2_APGA", NULL, "DACL2"},
-	{"ARXR2_APGA", NULL, "DACR2"},
+	{"ARXL1_APGA", NULL, "DAC Left1"},
+	{"ARXR1_APGA", NULL, "DAC Right1"},
+	{"ARXL2_APGA", NULL, "DAC Left2"},
+	{"ARXR2_APGA", NULL, "DAC Right2"},
 
 	/* Internal playback routings */
 	/* Earpiece */
