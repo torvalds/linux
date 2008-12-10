@@ -535,7 +535,7 @@ static char *get_partition_name(int i)
 	return kstrdup(buf, GFP_KERNEL);
 }
 
-static u_int64_t divide(u_int64_t n, u_int32_t d)
+static uint64_t divide(uint64_t n, uint32_t d)
 {
 	do_div(n, d);
 	return n;
@@ -551,8 +551,8 @@ static int init_nandsim(struct mtd_info *mtd)
 	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
 	struct nandsim   *ns   = (struct nandsim *)(chip->priv);
 	int i, ret = 0;
-	u_int64_t remains;
-	u_int64_t next_offset;
+	uint64_t remains;
+	uint64_t next_offset;
 
 	if (NS_IS_INITIALIZED(ns)) {
 		NS_ERR("init_nandsim: nandsim is already initialized\n");
@@ -619,7 +619,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	remains = ns->geom.totsz;
 	next_offset = 0;
 	for (i = 0; i < parts_num; ++i) {
-		u_int64_t part_sz = (u_int64_t)parts[i] * ns->geom.secsz;
+		uint64_t part_sz = (uint64_t)parts[i] * ns->geom.secsz;
 
 		if (!part_sz || part_sz > remains) {
 			NS_ERR("bad partition size.\n");
@@ -2296,7 +2296,7 @@ static int __init ns_init_module(void)
 	}
 
 	if (overridesize) {
-		u_int64_t new_size = (u_int64_t)nsmtd->erasesize << overridesize;
+		uint64_t new_size = (uint64_t)nsmtd->erasesize << overridesize;
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
 			goto err_exit;
