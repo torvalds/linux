@@ -466,8 +466,7 @@ out:
 static struct device_node *cpu_to_l2cache(int cpu)
 {
 	struct device_node *np;
-	const phandle *php;
-	phandle ph;
+	struct device_node *cache;
 
 	if (!cpu_present(cpu))
 		return NULL;
@@ -476,13 +475,11 @@ static struct device_node *cpu_to_l2cache(int cpu)
 	if (np == NULL)
 		return NULL;
 
-	php = of_get_property(np, "l2-cache", NULL);
-	if (php == NULL)
-		return NULL;
-	ph = *php;
+	cache = of_find_next_cache_node(np);
+
 	of_node_put(np);
 
-	return of_find_node_by_phandle(ph);
+	return cache;
 }
 
 /* Activate a secondary processor. */
