@@ -2960,12 +2960,6 @@ static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 		goto out_unlock;
 	}
 
-	if (priv->iw_mode == NL80211_IFTYPE_AP) {	/* APs don't scan */
-		ret = -EIO;
-		IWL_ERROR("ERROR: APs don't scan\n");
-		goto out_unlock;
-	}
-
 	/* We don't schedule scan within next_scan_jiffies period.
 	 * Avoid scanning during possible EAPOL exchange, return
 	 * success immediately.

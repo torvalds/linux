@@ -2103,11 +2103,6 @@ static void iwl3945_setup_rxon_timing(struct iwl3945_priv *priv)
 
 static int iwl3945_scan_initiate(struct iwl3945_priv *priv)
 {
-	if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		IWL_ERROR("APs don't scan.\n");
-		return 0;
-	}
-
 	if (!iwl3945_is_ready_rf(priv)) {
 		IWL_DEBUG_SCAN("Aborting scan due to not ready.\n");
 		return -EIO;
@@ -6973,12 +6968,6 @@ static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
 	if (!iwl3945_is_ready_rf(priv)) {
 		rc = -EIO;
 		IWL_DEBUG_MAC80211("leave - not ready or exit pending\n");
-		goto out_unlock;
-	}
-
-	if (priv->iw_mode == NL80211_IFTYPE_AP) {	/* APs don't scan */
-		rc = -EIO;
-		IWL_ERROR("ERROR: APs don't scan\n");
 		goto out_unlock;
 	}
 
