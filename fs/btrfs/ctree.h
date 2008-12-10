@@ -409,6 +409,12 @@ struct btrfs_path {
 	int keep_locks;
 	int skip_locking;
 	int lowest_level;
+
+	/*
+	 * set by btrfs_split_item, tells search_slot to keep all locks
+	 * and to force calls to keep space in the nodes
+	 */
+	int search_for_split;
 };
 
 /*
@@ -1816,6 +1822,11 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct btrfs_path *path,
 			u32 new_size, int from_end);
+int btrfs_split_item(struct btrfs_trans_handle *trans,
+		     struct btrfs_root *root,
+		     struct btrfs_path *path,
+		     struct btrfs_key *new_key,
+		     unsigned long split_offset);
 int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, struct btrfs_path *p, int
 		      ins_len, int cow);
@@ -1953,6 +1964,8 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       struct btrfs_key *location, int mod);
 
 /* file-item.c */
+int btrfs_del_csums(struct btrfs_trans_handle *trans,
+		    struct btrfs_root *root, u64 bytenr, u64 len);
 int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 			  struct bio *bio, u32 *dst);
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,

@@ -2484,7 +2484,6 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 				mark_free = 1;
 			BUG_ON(ret < 0);
 		}
-
 		/* block accounting for super block */
 		spin_lock_irq(&info->delalloc_lock);
 		super_used = btrfs_super_bytes_used(&info->super_copy);
@@ -2503,6 +2502,11 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 		ret = update_block_group(trans, root, bytenr, num_bytes, 0,
 					 mark_free);
 		BUG_ON(ret);
+
+		if (owner_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
+			ret = btrfs_del_csums(trans, root, bytenr, num_bytes);
+			BUG_ON(ret);
+		}
 
 #ifdef BIO_RW_DISCARD
 		/* Tell the block device(s) that the sectors can be discarded */

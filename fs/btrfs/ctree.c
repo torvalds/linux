@@ -1512,7 +1512,8 @@ cow_done:
 			if (ret && slot > 0)
 				slot -= 1;
 			p->slots[level] = slot;
-			if (ins_len > 0 && btrfs_header_nritems(b) >=
+			if ((p->search_for_split || ins_len > 0) &&
+			    btrfs_header_nritems(b) >=
 			    BTRFS_NODEPTRS_PER_BLOCK(root) - 3) {
 				int sret = split_node(trans, root, p, level);
 				BUG_ON(sret > 0);
@@ -1596,7 +1597,8 @@ cow_done:
 					goto done;
 				}
 			}
-			unlock_up(p, level, lowest_unlock);
+			if (!p->search_for_split)
+				unlock_up(p, level, lowest_unlock);
 			goto done;
 		}
 	}
@@ -2636,11 +2638,11 @@ static noinline int split_leaf(struct btrfs_trans_handle *trans,
 	int num_doubles = 0;
 	struct btrfs_disk_key disk_key;
 
-	if (extend)
+	if (extend && data_size)
 		space_needed = data_size;
 
 	/* first try to make some room by pushing left and right */
-	if (ins_key->type != BTRFS_DIR_ITEM_KEY) {
+	if (data_size && ins_key->type != BTRFS_DIR_ITEM_KEY) {
 		wret = push_leaf_right(trans, root, path, data_size, 0);
 		if (wret < 0) {
 			return wret;
@@ -2721,7 +2723,7 @@ again:
 	} else {
 		if (leaf_space_used(l, 0, mid + 1) + space_needed >
 			BTRFS_LEAF_DATA_SIZE(root)) {
-			if (!extend && slot == 0) {
+			if (!extend && data_size && slot == 0) {
 				btrfs_cpu_key_to_disk(&disk_key, ins_key);
 				btrfs_set_header_nritems(right, 0);
 				wret = insert_ptr(trans, root, path,
@@ -2742,7 +2744,7 @@ again:
 				}
 				btrfs_mark_buffer_dirty(right);
 				return ret;
-			} else if (extend && slot == 0) {
+			} else if ((extend || !data_size) && slot == 0) {
 				mid = 1;
 			} else {
 				mid = slot;
@@ -2824,6 +2826,123 @@ again:
 		num_doubles++;
 		goto again;
 	}
+	return ret;
+}
+
+/*
+ * This function splits a single item into two items,
+ * giving 'new_key' to the new item and splitting the
+ * old one at split_offset (from the start of the item).
+ *
+ * The path may be released by this operation.  After
+ * the split, the path is pointing to the old item.  The
+ * new item is going to be in the same node as the old one.
+ *
+ * Note, the item being split must be smaller enough to live alone on
+ * a tree block with room for one extra struct btrfs_item
+ *
+ * This allows us to split the item in place, keeping a lock on the
+ * leaf the entire time.
+ */
+int btrfs_split_item(struct btrfs_trans_handle *trans,
+		     struct btrfs_root *root,
+		     struct btrfs_path *path,
+		     struct btrfs_key *new_key,
+		     unsigned long split_offset)
+{
+	u32 item_size;
+	struct extent_buffer *leaf;
+	struct btrfs_key orig_key;
+	struct btrfs_item *item;
+	struct btrfs_item *new_item;
+	int ret = 0;
+	int slot;
+	u32 nritems;
+	u32 orig_offset;
+	struct btrfs_disk_key disk_key;
+	char *buf;
+
+	leaf = path->nodes[0];
+	btrfs_item_key_to_cpu(leaf, &orig_key, path->slots[0]);
+	if (btrfs_leaf_free_space(root, leaf) >= sizeof(struct btrfs_item))
+		goto split;
+
+	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	btrfs_release_path(root, path);
+
+	path->search_for_split = 1;
+	path->keep_locks = 1;
+
+	ret = btrfs_search_slot(trans, root, &orig_key, path, 0, 1);
+	path->search_for_split = 0;
+
+	/* if our item isn't there or got smaller, return now */
+	if (ret != 0 || item_size != btrfs_item_size_nr(path->nodes[0],
+							path->slots[0])) {
+		path->keep_locks = 0;
+		return -EAGAIN;
+	}
+
+	ret = split_leaf(trans, root, &orig_key, path, 0, 0);
+	path->keep_locks = 0;
+	BUG_ON(ret);
+
+	BUG_ON(btrfs_leaf_free_space(root, leaf) < sizeof(struct btrfs_item));
+	leaf = path->nodes[0];
+
+split:
+	item = btrfs_item_nr(leaf, path->slots[0]);
+	orig_offset = btrfs_item_offset(leaf, item);
+	item_size = btrfs_item_size(leaf, item);
+
+
+	buf = kmalloc(item_size, GFP_NOFS);
+	read_extent_buffer(leaf, buf, btrfs_item_ptr_offset(leaf,
+			    path->slots[0]), item_size);
+	slot = path->slots[0] + 1;
+	leaf = path->nodes[0];
+
+	nritems = btrfs_header_nritems(leaf);
+
+	if (slot != nritems) {
+		/* shift the items */
+		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot + 1),
+			      btrfs_item_nr_offset(slot),
+			      (nritems - slot) * sizeof(struct btrfs_item));
+
+	}
+
+	btrfs_cpu_key_to_disk(&disk_key, new_key);
+	btrfs_set_item_key(leaf, &disk_key, slot);
+
+	new_item = btrfs_item_nr(leaf, slot);
+
+	btrfs_set_item_offset(leaf, new_item, orig_offset);
+	btrfs_set_item_size(leaf, new_item, item_size - split_offset);
+
+	btrfs_set_item_offset(leaf, item,
+			      orig_offset + item_size - split_offset);
+	btrfs_set_item_size(leaf, item, split_offset);
+
+	btrfs_set_header_nritems(leaf, nritems + 1);
+
+	/* write the data for the start of the original item */
+	write_extent_buffer(leaf, buf,
+			    btrfs_item_ptr_offset(leaf, path->slots[0]),
+			    split_offset);
+
+	/* write the data for the new item */
+	write_extent_buffer(leaf, buf + split_offset,
+			    btrfs_item_ptr_offset(leaf, slot),
+			    item_size - split_offset);
+	btrfs_mark_buffer_dirty(leaf);
+
+	ret = 0;
+	if (btrfs_leaf_free_space(root, leaf) < 0) {
+		btrfs_print_leaf(root, leaf);
+		BUG();
+	}
+	kfree(buf);
 	return ret;
 }
 
