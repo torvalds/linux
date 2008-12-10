@@ -31,8 +31,6 @@
  *
  */
 
-//#define BONDING_DEBUG 1
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -248,7 +246,7 @@ static int bond_add_vlan(struct bonding *bond, unsigned short vlan_id)
 {
 	struct vlan_entry *vlan;
 
-	dprintk("bond: %s, vlan id %d\n",
+	pr_debug("bond: %s, vlan id %d\n",
 		(bond ? bond->dev->name: "None"), vlan_id);
 
 	vlan = kzalloc(sizeof(struct vlan_entry), GFP_KERNEL);
@@ -265,7 +263,7 @@ static int bond_add_vlan(struct bonding *bond, unsigned short vlan_id)
 
 	write_unlock_bh(&bond->lock);
 
-	dprintk("added VLAN ID %d on bond %s\n", vlan_id, bond->dev->name);
+	pr_debug("added VLAN ID %d on bond %s\n", vlan_id, bond->dev->name);
 
 	return 0;
 }
@@ -282,7 +280,7 @@ static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 	struct vlan_entry *vlan;
 	int res = -ENODEV;
 
-	dprintk("bond: %s, vlan id %d\n", bond->dev->name, vlan_id);
+	pr_debug("bond: %s, vlan id %d\n", bond->dev->name, vlan_id);
 
 	write_lock_bh(&bond->lock);
 
@@ -293,7 +291,7 @@ static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 			if (bond_is_lb(bond))
 				bond_alb_clear_vlan(bond, vlan_id);
 
-			dprintk("removed VLAN ID %d from bond %s\n", vlan_id,
+			pr_debug("removed VLAN ID %d from bond %s\n", vlan_id,
 				bond->dev->name);
 
 			kfree(vlan);
@@ -313,7 +311,7 @@ static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 		}
 	}
 
-	dprintk("couldn't find VLAN ID %d in bond %s\n", vlan_id,
+	pr_debug("couldn't find VLAN ID %d in bond %s\n", vlan_id,
 		bond->dev->name);
 
 out:
@@ -337,13 +335,13 @@ static int bond_has_challenged_slaves(struct bonding *bond)
 
 	bond_for_each_slave(bond, slave, i) {
 		if (slave->dev->features & NETIF_F_VLAN_CHALLENGED) {
-			dprintk("found VLAN challenged slave - %s\n",
+			pr_debug("found VLAN challenged slave - %s\n",
 				slave->dev->name);
 			return 1;
 		}
 	}
 
-	dprintk("no VLAN challenged slaves found\n");
+	pr_debug("no VLAN challenged slaves found\n");
 	return 0;
 }
 
@@ -1319,9 +1317,9 @@ static void bond_detach_slave(struct bonding *bond, struct slave *slave)
 static int bond_sethwaddr(struct net_device *bond_dev,
 			  struct net_device *slave_dev)
 {
-	dprintk("bond_dev=%p\n", bond_dev);
-	dprintk("slave_dev=%p\n", slave_dev);
-	dprintk("slave_dev->addr_len=%d\n", slave_dev->addr_len);
+	pr_debug("bond_dev=%p\n", bond_dev);
+	pr_debug("slave_dev=%p\n", slave_dev);
+	pr_debug("slave_dev->addr_len=%d\n", slave_dev->addr_len);
 	memcpy(bond_dev->dev_addr, slave_dev->dev_addr, slave_dev->addr_len);
 	return 0;
 }
@@ -1412,14 +1410,14 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* already enslaved */
 	if (slave_dev->flags & IFF_SLAVE) {
-		dprintk("Error, Device was already enslaved\n");
+		pr_debug("Error, Device was already enslaved\n");
 		return -EBUSY;
 	}
 
 	/* vlan challenged mutual exclusion */
 	/* no need to lock since we're protected by rtnl_lock */
 	if (slave_dev->features & NETIF_F_VLAN_CHALLENGED) {
-		dprintk("%s: NETIF_F_VLAN_CHALLENGED\n", slave_dev->name);
+		pr_debug("%s: NETIF_F_VLAN_CHALLENGED\n", slave_dev->name);
 		if (!list_empty(&bond->vlan_list)) {
 			printk(KERN_ERR DRV_NAME
 			       ": %s: Error: cannot enslave VLAN "
@@ -1437,7 +1435,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
 		}
 	} else {
-		dprintk("%s: ! NETIF_F_VLAN_CHALLENGED\n", slave_dev->name);
+		pr_debug("%s: ! NETIF_F_VLAN_CHALLENGED\n", slave_dev->name);
 		if (bond->slave_cnt == 0) {
 			/* First slave, and it is not VLAN challenged,
 			 * so remove the block of adding VLANs over the bond.
@@ -1525,20 +1523,20 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		addr.sa_family = slave_dev->type;
 		res = dev_set_mac_address(slave_dev, &addr);
 		if (res) {
-			dprintk("Error %d calling set_mac_address\n", res);
+			pr_debug("Error %d calling set_mac_address\n", res);
 			goto err_free;
 		}
 	}
 
 	res = netdev_set_master(slave_dev, bond_dev);
 	if (res) {
-		dprintk("Error %d calling netdev_set_master\n", res);
+		pr_debug("Error %d calling netdev_set_master\n", res);
 		goto err_restore_mac;
 	}
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
 	if (res) {
-		dprintk("Openning slave %s failed\n", slave_dev->name);
+		pr_debug("Openning slave %s failed\n", slave_dev->name);
 		goto err_unset_master;
 	}
 
@@ -1643,18 +1641,18 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	if (!bond->params.miimon ||
 	    (bond_check_dev_link(bond, slave_dev, 0) == BMSR_LSTATUS)) {
 		if (bond->params.updelay) {
-			dprintk("Initial state of slave_dev is "
+			pr_debug("Initial state of slave_dev is "
 				"BOND_LINK_BACK\n");
 			new_slave->link  = BOND_LINK_BACK;
 			new_slave->delay = bond->params.updelay;
 		} else {
-			dprintk("Initial state of slave_dev is "
+			pr_debug("Initial state of slave_dev is "
 				"BOND_LINK_UP\n");
 			new_slave->link  = BOND_LINK_UP;
 		}
 		new_slave->jiffies = jiffies;
 	} else {
-		dprintk("Initial state of slave_dev is "
+		pr_debug("Initial state of slave_dev is "
 			"BOND_LINK_DOWN\n");
 		new_slave->link  = BOND_LINK_DOWN;
 	}
@@ -1715,7 +1713,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		bond_set_slave_inactive_flags(new_slave);
 		break;
 	default:
-		dprintk("This slave is always active in trunk mode\n");
+		pr_debug("This slave is always active in trunk mode\n");
 
 		/* always active in trunk mode */
 		new_slave->state = BOND_STATE_ACTIVE;
@@ -2536,7 +2534,7 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 {
 	struct sk_buff *skb;
 
-	dprintk("arp %d on slave %s: dst %x src %x vid %d\n", arp_op,
+	pr_debug("arp %d on slave %s: dst %x src %x vid %d\n", arp_op,
 	       slave_dev->name, dest_ip, src_ip, vlan_id);
 	       
 	skb = arp_create(arp_op, ETH_P_ARP, dest_ip, slave_dev, src_ip,
@@ -2569,9 +2567,9 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
 		if (!targets[i])
 			continue;
-		dprintk("basa: target %x\n", targets[i]);
+		pr_debug("basa: target %x\n", targets[i]);
 		if (list_empty(&bond->vlan_list)) {
-			dprintk("basa: empty vlan: arp_send\n");
+			pr_debug("basa: empty vlan: arp_send\n");
 			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
 				      bond->master_ip, 0);
 			continue;
@@ -2601,7 +2599,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		 */
 		if (rt->u.dst.dev == bond->dev) {
 			ip_rt_put(rt);
-			dprintk("basa: rtdev == bond->dev: arp_send\n");
+			pr_debug("basa: rtdev == bond->dev: arp_send\n");
 			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
 				      bond->master_ip, 0);
 			continue;
@@ -2612,7 +2610,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 			if (vlan_dev == rt->u.dst.dev) {
 				vlan_id = vlan->vlan_id;
-				dprintk("basa: vlan match on %s %d\n",
+				pr_debug("basa: vlan match on %s %d\n",
 				       vlan_dev->name, vlan_id);
 				break;
 			}
@@ -2647,7 +2645,7 @@ static void bond_send_gratuitous_arp(struct bonding *bond)
 	struct vlan_entry *vlan;
 	struct net_device *vlan_dev;
 
-	dprintk("bond_send_grat_arp: bond %s slave %s\n", bond->dev->name,
+	pr_debug("bond_send_grat_arp: bond %s slave %s\n", bond->dev->name,
 				slave ? slave->dev->name : "NULL");
 
 	if (!slave || !bond->send_grat_arp ||
@@ -2677,7 +2675,7 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 
 	targets = bond->params.arp_targets;
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS) && targets[i]; i++) {
-		dprintk("bva: sip %pI4 tip %pI4 t[%d] %pI4 bhti(tip) %d\n",
+		pr_debug("bva: sip %pI4 tip %pI4 t[%d] %pI4 bhti(tip) %d\n",
 			&sip, &tip, i, &targets[i], bond_has_this_ip(bond, tip));
 		if (sip == targets[i]) {
 			if (bond_has_this_ip(bond, tip))
@@ -2704,7 +2702,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	bond = netdev_priv(dev);
 	read_lock(&bond->lock);
 
-	dprintk("bond_arp_rcv: bond %s skb->dev %s orig_dev %s\n",
+	pr_debug("bond_arp_rcv: bond %s skb->dev %s orig_dev %s\n",
 		bond->dev->name, skb->dev ? skb->dev->name : "NULL",
 		orig_dev ? orig_dev->name : "NULL");
 
@@ -2730,7 +2728,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	arp_ptr += 4 + dev->addr_len;
 	memcpy(&tip, arp_ptr, 4);
 
-	dprintk("bond_arp_rcv: %s %s/%d av %d sv %d sip %pI4 tip %pI4\n",
+	pr_debug("bond_arp_rcv: %s %s/%d av %d sv %d sip %pI4 tip %pI4\n",
 		bond->dev->name, slave->dev->name, slave->state,
 		bond->params.arp_validate, slave_do_arp_validate(bond, slave),
 		&sip, &tip);
@@ -3595,7 +3593,7 @@ static int bond_netdev_event(struct notifier_block *this, unsigned long event, v
 	if (dev_net(event_dev) != &init_net)
 		return NOTIFY_DONE;
 
-	dprintk("event_dev: %s, event: %lx\n",
+	pr_debug("event_dev: %s, event: %lx\n",
 		(event_dev ? event_dev->name : "None"),
 		event);
 
@@ -3603,12 +3601,12 @@ static int bond_netdev_event(struct notifier_block *this, unsigned long event, v
 		return NOTIFY_DONE;
 
 	if (event_dev->flags & IFF_MASTER) {
-		dprintk("IFF_MASTER\n");
+		pr_debug("IFF_MASTER\n");
 		return bond_master_netdev_event(event, event_dev);
 	}
 
 	if (event_dev->flags & IFF_SLAVE) {
-		dprintk("IFF_SLAVE\n");
+		pr_debug("IFF_SLAVE\n");
 		return bond_slave_netdev_event(event, event_dev);
 	}
 
@@ -3937,7 +3935,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	struct mii_ioctl_data *mii = NULL;
 	int res = 0;
 
-	dprintk("bond_ioctl: master=%s, cmd=%d\n",
+	pr_debug("bond_ioctl: master=%s, cmd=%d\n",
 		bond_dev->name, cmd);
 
 	switch (cmd) {
@@ -4015,12 +4013,12 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	down_write(&(bonding_rwsem));
 	slave_dev = dev_get_by_name(&init_net, ifr->ifr_slave);
 
-	dprintk("slave_dev=%p: \n", slave_dev);
+	pr_debug("slave_dev=%p: \n", slave_dev);
 
 	if (!slave_dev) {
 		res = -ENODEV;
 	} else {
-		dprintk("slave_dev->name=%s: \n", slave_dev->name);
+		pr_debug("slave_dev->name=%s: \n", slave_dev->name);
 		switch (cmd) {
 		case BOND_ENSLAVE_OLD:
 		case SIOCBONDENSLAVE:
@@ -4131,7 +4129,7 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 	int res = 0;
 	int i;
 
-	dprintk("bond=%p, name=%s, new_mtu=%d\n", bond,
+	pr_debug("bond=%p, name=%s, new_mtu=%d\n", bond,
 		(bond_dev ? bond_dev->name : "None"), new_mtu);
 
 	/* Can't hold bond->lock with bh disabled here since
@@ -4150,7 +4148,7 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 	 */
 
 	bond_for_each_slave(bond, slave, i) {
-		dprintk("s %p s->p %p c_m %p\n", slave,
+		pr_debug("s %p s->p %p c_m %p\n", slave,
 			slave->prev, slave->dev->change_mtu);
 
 		res = dev_set_mtu(slave->dev, new_mtu);
@@ -4164,7 +4162,7 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 			 * means changing their mtu from timer context, which
 			 * is probably not a good idea.
 			 */
-			dprintk("err %d %s\n", res, slave->dev->name);
+			pr_debug("err %d %s\n", res, slave->dev->name);
 			goto unwind;
 		}
 	}
@@ -4181,7 +4179,7 @@ unwind:
 
 		tmp_res = dev_set_mtu(slave->dev, bond_dev->mtu);
 		if (tmp_res) {
-			dprintk("unwind err %d dev %s\n", tmp_res,
+			pr_debug("unwind err %d dev %s\n", tmp_res,
 				slave->dev->name);
 		}
 	}
@@ -4208,7 +4206,7 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 		return bond_alb_set_mac_address(bond_dev, addr);
 
 
-	dprintk("bond=%p, name=%s\n", bond, (bond_dev ? bond_dev->name : "None"));
+	pr_debug("bond=%p, name=%s\n", bond, (bond_dev ? bond_dev->name : "None"));
 
 	/*
 	 * If fail_over_mac is set to active, do nothing and return
@@ -4238,11 +4236,11 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 
 	bond_for_each_slave(bond, slave, i) {
 		const struct net_device_ops *slave_ops = slave->dev->netdev_ops;
-		dprintk("slave %p %s\n", slave, slave->dev->name);
+		pr_debug("slave %p %s\n", slave, slave->dev->name);
 
 		if (slave_ops->ndo_set_mac_address == NULL) {
 			res = -EOPNOTSUPP;
-			dprintk("EOPNOTSUPP %s\n", slave->dev->name);
+			pr_debug("EOPNOTSUPP %s\n", slave->dev->name);
 			goto unwind;
 		}
 
@@ -4254,7 +4252,7 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 			 * breakage anyway until ARP finish
 			 * updating, so...
 			 */
-			dprintk("err %d %s\n", res, slave->dev->name);
+			pr_debug("err %d %s\n", res, slave->dev->name);
 			goto unwind;
 		}
 	}
@@ -4274,7 +4272,7 @@ unwind:
 
 		tmp_res = dev_set_mac_address(slave->dev, &tmp_sa);
 		if (tmp_res) {
-			dprintk("unwind err %d dev %s\n", tmp_res,
+			pr_debug("unwind err %d dev %s\n", tmp_res,
 				slave->dev->name);
 		}
 	}
@@ -4593,7 +4591,7 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
-	dprintk("Begin bond_init for %s\n", bond_dev->name);
+	pr_debug("Begin bond_init for %s\n", bond_dev->name);
 
 	/* initialize rwlocks */
 	rwlock_init(&bond->lock);

@@ -36,8 +36,8 @@
 #include <linux/rtnetlink.h>
 #include <net/net_namespace.h>
 
-/* #define BONDING_DEBUG 1 */
 #include "bonding.h"
+
 #define to_dev(obj)	container_of(obj,struct device,kobj)
 #define to_bond(cd)	((struct bonding *)(netdev_priv(to_net_dev(cd))))
 

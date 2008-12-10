@@ -20,8 +20,6 @@
  *
  */
 
-//#define BONDING_DEBUG 1
-
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -361,12 +359,12 @@ static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct
 		goto out;
 
 	if (!arp) {
-		dprintk("Packet has no ARP data\n");
+		pr_debug("Packet has no ARP data\n");
 		goto out;
 	}
 
 	if (skb->len < sizeof(struct arp_pkt)) {
-		dprintk("Packet is too small to be an ARP\n");
+		pr_debug("Packet is too small to be an ARP\n");
 		goto out;
 	}
 
@@ -376,7 +374,7 @@ static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct
 		       bond_dev->name);
 		bond = netdev_priv(bond_dev);
 		rlb_update_entry_from_arp(bond, arp);
-		dprintk("Server received an ARP Reply from client\n");
+		pr_debug("Server received an ARP Reply from client\n");
 	}
 
 	res = NET_RX_SUCCESS;
@@ -730,7 +728,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 		if (tx_slave) {
 			memcpy(arp->mac_src,tx_slave->dev->dev_addr, ETH_ALEN);
 		}
-		dprintk("Server sent ARP Reply packet\n");
+		pr_debug("Server sent ARP Reply packet\n");
 	} else if (arp->op_code == htons(ARPOP_REQUEST)) {
 		/* Create an entry in the rx_hashtbl for this client as a
 		 * place holder.
@@ -750,7 +748,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 		 * updated with their assigned mac.
 		 */
 		rlb_req_update_subnet_clients(bond, arp->ip_src);
-		dprintk("Server sent ARP Request packet\n");
+		pr_debug("Server sent ARP Request packet\n");
 	}
 
 	return tx_slave;

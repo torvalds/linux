@@ -20,8 +20,6 @@
  *
  */
 
-//#define BONDING_DEBUG 1
-
 #include <linux/types.h>
 #include <linux/if_vlan.h>
 #include <net/ipv6.h>
@@ -74,7 +72,7 @@ static void bond_na_send(struct net_device *slave_dev,
 
 	addrconf_addr_solict_mult(daddr, &mcaddr);
 
-	dprintk("ipv6 na on slave %s: dest %pI6, src %pI6\n",
+	pr_debug("ipv6 na on slave %s: dest %pI6, src %pI6\n",
 	       slave_dev->name, &mcaddr, daddr);
 
 	skb = ndisc_build_skb(slave_dev, &mcaddr, daddr, &icmp6h, daddr,
@@ -110,7 +108,7 @@ void bond_send_unsolicited_na(struct bonding *bond)
 	struct inet6_dev *idev;
 	int is_router;
 
-	dprintk("bond_send_unsol_na: bond %s slave %s\n", bond->dev->name,
+	pr_debug("bond_send_unsol_na: bond %s slave %s\n", bond->dev->name,
 				slave ? slave->dev->name : "NULL");
 
 	if (!slave || !bond->send_unsol_na ||

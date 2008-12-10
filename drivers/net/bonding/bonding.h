@@ -32,14 +32,6 @@
 
 extern struct list_head bond_dev_list;
 
-#ifdef BONDING_DEBUG
-#define dprintk(fmt, args...) \
-	printk(KERN_DEBUG     \
-	       DRV_NAME ": %s() %d: " fmt, __func__, __LINE__ , ## args )
-#else
-#define dprintk(fmt, args...)
-#endif /* BONDING_DEBUG */
-
 #define IS_UP(dev)					   \
 	      ((((dev)->flags & IFF_UP) == IFF_UP)	&& \
 	       netif_running(dev)			&& \
