@@ -1699,7 +1699,7 @@ out:
 }
 
 static int ocfs2_remove_value_outside(struct inode*inode,
-				      struct buffer_head *bh,
+				      struct ocfs2_xattr_value_buf *vb,
 				      struct ocfs2_xattr_header *header)
 {
 	int ret = 0, i;
@@ -1720,17 +1720,13 @@ static int ocfs2_remove_value_outside(struct inode*inode,
 		struct ocfs2_xattr_entry *entry = &header->xh_entries[i];
 
 		if (!ocfs2_xattr_is_local(entry)) {
-			struct ocfs2_xattr_value_buf vb = {
-				.vb_bh = bh,
-				.vb_access = ocfs2_journal_access,
-			};
 			void *val;
 
 			val = (void *)header +
 				le16_to_cpu(entry->xe_name_offset);
-			vb.vb_xv = (struct ocfs2_xattr_value_root *)
+			vb->vb_xv = (struct ocfs2_xattr_value_root *)
 				(val + OCFS2_XATTR_SIZE(entry->xe_name_len));
-			ret = ocfs2_xattr_value_truncate(inode, &vb, 0, &ctxt);
+			ret = ocfs2_xattr_value_truncate(inode, vb, 0, &ctxt);
 			if (ret < 0) {
 				mlog_errno(ret);
 				break;
@@ -1752,12 +1748,16 @@ static int ocfs2_xattr_ibody_remove(struct inode *inode,
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 	struct ocfs2_xattr_header *header;
 	int ret;
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_bh = di_bh,
+		.vb_access = ocfs2_journal_access_di,
+	};
 
 	header = (struct ocfs2_xattr_header *)
 		 ((void *)di + inode->i_sb->s_blocksize -
 		 le16_to_cpu(di->i_xattr_inline_size));
 
-	ret = ocfs2_remove_value_outside(inode, di_bh, header);
+	ret = ocfs2_remove_value_outside(inode, &vb, header);
 
 	return ret;
 }
@@ -1767,11 +1767,15 @@ static int ocfs2_xattr_block_remove(struct inode *inode,
 {
 	struct ocfs2_xattr_block *xb;
 	int ret = 0;
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_bh = blk_bh,
+		.vb_access = ocfs2_journal_access_xb,
+	};
 
 	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
 	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)) {
 		struct ocfs2_xattr_header *header = &(xb->xb_attrs.xb_header);
-		ret = ocfs2_remove_value_outside(inode, blk_bh, header);
+		ret = ocfs2_remove_value_outside(inode, &vb, header);
 	} else
 		ret = ocfs2_delete_xattr_index_block(inode, blk_bh);
 
