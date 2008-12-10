@@ -192,8 +192,7 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 
 /* Earpiece */
 static const char *twl4030_earpiece_texts[] =
-		{"Off", "DACL1", "DACL2", "Invalid",
-		"DACR1"};
+		{"Off", "DACL1", "DACL2", "Invalid", "DACR1"};
 
 static const struct soc_enum twl4030_earpiece_enum =
 	SOC_ENUM_SINGLE(TWL4030_REG_EAR_CTL, 1,
@@ -205,8 +204,7 @@ SOC_DAPM_ENUM("Route", twl4030_earpiece_enum);
 
 /* PreDrive Left */
 static const char *twl4030_predrivel_texts[] =
-		{"Off", "DACL1", "DACL2", "Invalid",
-		"DACR2"};
+		{"Off", "DACL1", "DACL2", "Invalid", "DACR2"};
 
 static const struct soc_enum twl4030_predrivel_enum =
 	SOC_ENUM_SINGLE(TWL4030_REG_PREDL_CTL, 1,
@@ -218,8 +216,7 @@ SOC_DAPM_ENUM("Route", twl4030_predrivel_enum);
 
 /* PreDrive Right */
 static const char *twl4030_predriver_texts[] =
-		{"Off", "DACR1", "DACR2", "Invalid",
-		"DACL2"};
+		{"Off", "DACR1", "DACR2", "Invalid", "DACL2"};
 
 static const struct soc_enum twl4030_predriver_enum =
 	SOC_ENUM_SINGLE(TWL4030_REG_PREDR_CTL, 1,
