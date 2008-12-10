@@ -494,8 +494,6 @@ static void igb_get_regs(struct net_device *netdev,
 
 	/* These should probably be added to e1000_regs.h instead */
 	#define E1000_PSRTYPE_REG(_i) (0x05480 + ((_i) * 4))
-	#define E1000_RAL(_i)         (0x05400 + ((_i) * 8))
-	#define E1000_RAH(_i)         (0x05404 + ((_i) * 8))
 	#define E1000_IP4AT_REG(_i)   (0x05840 + ((_i) * 8))
 	#define E1000_IP6AT_REG(_i)   (0x05880 + ((_i) * 4))
 	#define E1000_WUPM_REG(_i)    (0x05A00 + ((_i) * 4))
