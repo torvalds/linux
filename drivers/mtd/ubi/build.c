@@ -561,7 +561,7 @@ static int io_init(struct ubi_device *ubi)
 	 */
 
 	ubi->peb_size   = ubi->mtd->erasesize;
-	ubi->peb_count  = ubi->mtd->size / ubi->mtd->erasesize;
+	ubi->peb_count  = mtd_div_by_eb(ubi->mtd->size, ubi->mtd);
 	ubi->flash_size = ubi->mtd->size;
 
 	if (ubi->mtd->block_isbad && ubi->mtd->block_markbad)

@@ -399,7 +399,7 @@ struct nand_chip {
 	int		bbt_erase_shift;
 	int		chip_shift;
 	int		numchips;
-	unsigned long	chipsize;
+	uint64_t	chipsize;
 	int		pagemask;
 	int		pagebuf;
 	int		subpagesize;

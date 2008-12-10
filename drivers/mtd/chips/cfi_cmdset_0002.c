@@ -71,8 +71,8 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 static void put_chip(struct map_info *map, struct flchip *chip, unsigned long adr);
 #include "fwh_lock.h"
 
-static int cfi_atmel_lock(struct mtd_info *mtd, loff_t ofs, size_t len);
-static int cfi_atmel_unlock(struct mtd_info *mtd, loff_t ofs, size_t len);
+static int cfi_atmel_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
+static int cfi_atmel_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 
 static struct mtd_chip_driver cfi_amdstd_chipdrv = {
 	.probe		= NULL, /* Not usable directly */
@@ -1774,12 +1774,12 @@ out_unlock:
 	return ret;
 }
 
-static int cfi_atmel_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int cfi_atmel_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	return cfi_varsize_frob(mtd, do_atmel_lock, ofs, len, NULL);
 }
 
-static int cfi_atmel_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int cfi_atmel_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	return cfi_varsize_frob(mtd, do_atmel_unlock, ofs, len, NULL);
 }

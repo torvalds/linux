@@ -80,9 +80,9 @@ static int mtdoops_erase_block(struct mtd_info *mtd, int offset)
 	if (ret) {
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&wait_q, &wait);
-		printk (KERN_WARNING "mtdoops: erase of region [0x%x, 0x%x] "
+		printk (KERN_WARNING "mtdoops: erase of region [0x%llx, 0x%llx] "
 				     "on \"%s\" failed\n",
-			erase.addr, erase.len, mtd->name);
+			(unsigned long long)erase.addr, (unsigned long long)erase.len, mtd->name);
 		return ret;
 	}
 
@@ -289,7 +289,10 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 	}
 
 	cxt->mtd = mtd;
-	cxt->oops_pages = mtd->size / OOPS_PAGE_SIZE;
+	if (mtd->size > INT_MAX)
+		cxt->oops_pages = INT_MAX / OOPS_PAGE_SIZE;
+	else
+		cxt->oops_pages = (int)mtd->size / OOPS_PAGE_SIZE;
 
 	find_next_position(cxt);
 
