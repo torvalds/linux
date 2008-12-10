@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 #include <linux/mtd/physmap.h>
 
 #include <mach/hardware.h>

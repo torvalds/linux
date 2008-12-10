@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/m48t86.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
