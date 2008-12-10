@@ -2,7 +2,7 @@
  * arch/sh/kernel/signal_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2003  Paul Mundt
+ * Copyright (C) 2003 - 2008  Paul Mundt
  * Copyright (C) 2004  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -43,7 +43,7 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-static void
+static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		sigset_t *oldset, struct pt_regs * regs);
 
@@ -80,21 +80,20 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, 0);
-
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &info, &ka, oldset, regs);
+		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
+			/*
+			 * If a signal was successfully delivered, the
+			 * saved sigmask is in its frame, and we can
+			 * clear the TIF_RESTORE_SIGMASK flag.
+			 */
+			if (test_thread_flag(TIF_RESTORE_SIGMASK))
+				clear_thread_flag(TIF_RESTORE_SIGMASK);
 
-		/*
-		 * If a signal was successfully delivered, the saved sigmask
-		 * is in its frame, and we can clear the TIF_RESTORE_SIGMASK
-		 * flag.
-		 */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-		tracehook_signal_handler(signr, &info, &ka, regs, 0);
-		return 1;
+			tracehook_signal_handler(signr, &info, &ka, regs, 0);
+			return 1;
+		}
 	}
 
 no_signal:
@@ -504,8 +503,8 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 void sa_default_restorer(void);		/* See comments below */
 void sa_default_rt_restorer(void);	/* See comments below */
 
-static void setup_frame(int sig, struct k_sigaction *ka,
-			sigset_t *set, struct pt_regs *regs)
+static int setup_frame(int sig, struct k_sigaction *ka,
+		       sigset_t *set, struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
 	int err = 0;
@@ -596,23 +595,21 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 
 	set_fs(USER_DS);
 
-#if DEBUG_SIG
 	/* Broken %016Lx */
-	printk("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
-		signal,
-		current->comm, current->pid, frame,
-		regs->pc >> 32, regs->pc & 0xffffffff,
-		DEREF_REG_PR >> 32, DEREF_REG_PR & 0xffffffff);
-#endif
+	pr_debug("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
+		 signal, current->comm, current->pid, frame,
+		 regs->pc >> 32, regs->pc & 0xffffffff,
+		 DEREF_REG_PR >> 32, DEREF_REG_PR & 0xffffffff);
 
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return -EFAULT;
 }
 
-static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-			   sigset_t *set, struct pt_regs *regs)
+static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+			  sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	int err = 0;
@@ -702,29 +699,28 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	set_fs(USER_DS);
 
-#if DEBUG_SIG
-	/* Broken %016Lx */
-	printk("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
-		signal,
-		current->comm, current->pid, frame,
-		regs->pc >> 32, regs->pc & 0xffffffff,
-		DEREF_REG_PR >> 32, DEREF_REG_PR & 0xffffffff);
-#endif
+	pr_debug("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
+		 signal, current->comm, current->pid, frame,
+		 regs->pc >> 32, regs->pc & 0xffffffff,
+		 DEREF_REG_PR >> 32, DEREF_REG_PR & 0xffffffff);
 
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return -EFAULT;
 }
 
 /*
  * OK, we're invoking a handler
  */
 
-static void
+static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		sigset_t *oldset, struct pt_regs * regs)
 {
+	int ret;
+
 	/* Are we from a system call? */
 	if (regs->syscall_nr >= 0) {
 		/* If so, check system call restarting.. */
@@ -748,16 +744,23 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(sig, ka, info, oldset, regs);
+		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_frame(sig, ka, oldset, regs);
+		ret = setup_frame(sig, ka, oldset, regs);
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked,sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	if (ka->sa.sa_flags & SA_ONESHOT)
+		ka->sa.sa_handler = SIG_DFL;
+
+	if (ret == 0) {
+		spin_lock_irq(&current->sighand->siglock);
+		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+		if (!(ka->sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked,sig);
+		recalc_sigpending();
+		spin_unlock_irq(&current->sighand->siglock);
+	}
+
+	return ret;
 }
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
