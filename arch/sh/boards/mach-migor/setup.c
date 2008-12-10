@@ -301,6 +301,7 @@ static void camera_power_on(void)
 	gpio_set_value(GPIO_PTT3, 0);
 	mdelay(10);
 	gpio_set_value(GPIO_PTT3, 1);
+	mdelay(10); /* wait to let chip come out of reset */
 }
 
 static void camera_power_off(void)
