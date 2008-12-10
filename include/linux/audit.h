@@ -454,7 +454,7 @@ extern int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr
 extern int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec __user *u_abs_timeout);
 extern int __audit_mq_timedreceive(mqd_t mqdes, size_t msg_len, unsigned int __user *u_msg_prio, const struct timespec __user *u_abs_timeout);
 extern int __audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification);
-extern int __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
+extern void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
 extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 				  const struct cred *new,
 				  const struct cred *old);
@@ -500,11 +500,10 @@ static inline int audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_n
 		return __audit_mq_notify(mqdes, u_notification);
 	return 0;
 }
-static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
+static inline void audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_mq_getsetattr(mqdes, mqstat);
-	return 0;
+		__audit_mq_getsetattr(mqdes, mqstat);
 }
 
 static inline int audit_log_bprm_fcaps(struct linux_binprm *bprm,
@@ -555,7 +554,7 @@ extern int audit_signals;
 #define audit_mq_timedsend(d,l,p,t) ({ 0; })
 #define audit_mq_timedreceive(d,l,p,t) ({ 0; })
 #define audit_mq_notify(d,n) ({ 0; })
-#define audit_mq_getsetattr(d,s) ({ 0; })
+#define audit_mq_getsetattr(d,s) ((void)0)
 #define audit_log_bprm_fcaps(b, ncr, ocr) ({ 0; })
 #define audit_log_capset(pid, ncr, ocr) ({ 0; })
 #define audit_ptrace(t) ((void)0)

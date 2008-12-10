@@ -145,12 +145,6 @@ struct audit_aux_data_mq_notify {
 	struct sigevent 	notification;
 };
 
-struct audit_aux_data_mq_getsetattr {
-	struct audit_aux_data	d;
-	mqd_t			mqdes;
-	struct mq_attr 		mqstat;
-};
-
 struct audit_aux_data_execve {
 	struct audit_aux_data	d;
 	int argc;
@@ -248,6 +242,10 @@ struct audit_context {
 			mode_t			perm_mode;
 			unsigned long		qbytes;
 		} ipc;
+		struct {
+			mqd_t			mqdes;
+			struct mq_attr 		mqstat;
+		} mq_getsetattr;
 	};
 
 #if AUDIT_DEBUG
@@ -1269,6 +1267,15 @@ static void show_special(struct audit_context *context, int *call_panic)
 				return;
 		}
 		break; }
+	case AUDIT_MQ_GETSETATTR: {
+		struct mq_attr *attr = &context->mq_getsetattr.mqstat;
+		audit_log_format(ab,
+			"mqdes=%d mq_flags=0x%lx mq_maxmsg=%ld mq_msgsize=%ld "
+			"mq_curmsgs=%ld ",
+			context->mq_getsetattr.mqdes,
+			attr->mq_flags, attr->mq_maxmsg,
+			attr->mq_msgsize, attr->mq_curmsgs);
+		break; }
 	}
 	audit_log_end(ab);
 }
@@ -1375,16 +1382,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				"mqdes=%d sigev_signo=%d",
 				axi->mqdes,
 				axi->notification.sigev_signo);
-			break; }
-
-		case AUDIT_MQ_GETSETATTR: {
-			struct audit_aux_data_mq_getsetattr *axi = (void *)aux;
-			audit_log_format(ab,
-				"mqdes=%d mq_flags=0x%lx mq_maxmsg=%ld mq_msgsize=%ld "
-				"mq_curmsgs=%ld ",
-				axi->mqdes,
-				axi->mqstat.mq_flags, axi->mqstat.mq_maxmsg,
-				axi->mqstat.mq_msgsize, axi->mqstat.mq_curmsgs);
 			break; }
 
 		case AUDIT_EXECVE: {
@@ -2316,30 +2313,13 @@ int __audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
  * @mqdes: MQ descriptor
  * @mqstat: MQ flags
  *
- * Returns 0 for success or NULL context or < 0 on error.
  */
-int __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
+void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 {
-	struct audit_aux_data_mq_getsetattr *ax;
 	struct audit_context *context = current->audit_context;
-
-	if (!audit_enabled)
-		return 0;
-
-	if (likely(!context))
-		return 0;
-
-	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
-	if (!ax)
-		return -ENOMEM;
-
-	ax->mqdes = mqdes;
-	ax->mqstat = *mqstat;
-
-	ax->d.type = AUDIT_MQ_GETSETATTR;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
+	context->mq_getsetattr.mqdes = mqdes;
+	context->mq_getsetattr.mqstat = *mqstat;
+	context->type = AUDIT_MQ_GETSETATTR;
 }
 
 /**
