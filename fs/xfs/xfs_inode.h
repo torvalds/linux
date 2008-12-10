@@ -223,7 +223,6 @@ struct xfs_dquot;
 
 #if defined(XFS_ILOCK_TRACE)
 #define XFS_ILOCK_KTRACE_SIZE	32
-extern ktrace_t *xfs_ilock_trace_buf;
 extern void xfs_ilock_trace(struct xfs_inode *, int, unsigned int, inst_t *);
 #else
 #define	xfs_ilock_trace(i,n,f,ra)

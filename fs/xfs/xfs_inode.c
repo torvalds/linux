@@ -3232,8 +3232,6 @@ corrupt_out:
 
 
 #ifdef XFS_ILOCK_TRACE
-ktrace_t	*xfs_ilock_trace_buf;
-
 void
 xfs_ilock_trace(xfs_inode_t *ip, int lock, unsigned int lockflags, inst_t *ra)
 {
