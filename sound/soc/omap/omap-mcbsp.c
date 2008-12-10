@@ -499,18 +499,18 @@ struct snd_soc_dai omap_mcbsp_dai[] = {
 
 EXPORT_SYMBOL_GPL(omap_mcbsp_dai);
 
-static int __init omap_mcbsp_init(void)
+static int __init snd_omap_mcbsp_init(void)
 {
 	return snd_soc_register_dais(omap_mcbsp_dai,
 				     ARRAY_SIZE(omap_mcbsp_dai));
 }
-module_init(omap_mcbsp_init);
+module_init(snd_omap_mcbsp_init);
 
-static void __exit omap_mcbsp_exit(void)
+static void __exit snd_omap_mcbsp_exit(void)
 {
 	snd_soc_unregister_dais(omap_mcbsp_dai, ARRAY_SIZE(omap_mcbsp_dai));
 }
-module_exit(omap_mcbsp_exit);
+module_exit(snd_omap_mcbsp_exit);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@nokia.com>");
 MODULE_DESCRIPTION("OMAP I2S SoC Interface");
