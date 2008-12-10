@@ -589,12 +589,3 @@ static int __init migor_devices_setup(void)
 	return platform_add_devices(migor_devices, ARRAY_SIZE(migor_devices));
 }
 __initcall(migor_devices_setup);
-
-static void __init migor_setup(char **cmdline_p)
-{
-}
-
-static struct sh_machine_vector mv_migor __initmv = {
-	.mv_name		= "Migo-R",
-	.mv_setup		= migor_setup,
-};
