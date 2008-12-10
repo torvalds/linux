@@ -24,65 +24,93 @@
 struct task_struct;
 
 /*
- * Generalized hardware event types, used by the hw_event_type parameter
- * of the sys_perf_counter_open() syscall:
+ * User-space ABI bits:
+ */
+
+/*
+ * Generalized performance counter event types, used by the hw_event.type
+ * parameter of the sys_perf_counter_open() syscall:
  */
 enum hw_event_types {
-	PERF_COUNT_CYCLES,
-	PERF_COUNT_INSTRUCTIONS,
-	PERF_COUNT_CACHE_REFERENCES,
-	PERF_COUNT_CACHE_MISSES,
-	PERF_COUNT_BRANCH_INSTRUCTIONS,
-	PERF_COUNT_BRANCH_MISSES,
 	/*
-	 * If this bit is set in the type, then trigger NMI sampling:
+	 * Common hardware events, generalized by the kernel:
 	 */
-	PERF_COUNT_NMI			= (1 << 30),
-	PERF_COUNT_RAW			= (1 << 31),
+	PERF_COUNT_CYCLES		=  0,
+	PERF_COUNT_INSTRUCTIONS		=  1,
+	PERF_COUNT_CACHE_REFERENCES	=  2,
+	PERF_COUNT_CACHE_MISSES		=  3,
+	PERF_COUNT_BRANCH_INSTRUCTIONS	=  4,
+	PERF_COUNT_BRANCH_MISSES	=  5,
+
+	/*
+	 * Special "software" counters provided by the kernel, even if
+	 * the hardware does not support performance counters. These
+	 * counters measure various physical and sw events of the
+	 * kernel (and allow the profiling of them as well):
+	 */
+	PERF_COUNT_CPU_CLOCK		= -1,
+	PERF_COUNT_TASK_CLOCK		= -2,
+	PERF_COUNT_PAGE_FAULTS		= -3,
+	PERF_COUNT_CONTEXT_SWITCHES	= -4,
 };
 
 /*
  * IRQ-notification data record type:
  */
-enum perf_record_type {
-	PERF_RECORD_SIMPLE,
-	PERF_RECORD_IRQ,
-	PERF_RECORD_GROUP,
+enum perf_counter_record_type {
+	PERF_RECORD_SIMPLE		=  0,
+	PERF_RECORD_IRQ			=  1,
+	PERF_RECORD_GROUP		=  2,
 };
 
-struct perf_counter_event {
-	u32			hw_event_type;
-	u32			hw_event_period;
-	u64			hw_raw_ctrl;
+/*
+ * Hardware event to monitor via a performance monitoring counter:
+ */
+struct perf_counter_hw_event {
+	u64			type;
+
+	u64			irq_period;
+	u32			record_type;
+
+	u32			disabled     :  1, /* off by default */
+				nmi	     :  1, /* NMI sampling   */
+				raw	     :  1, /* raw event type */
+				__reserved_1 : 29;
+
+	u64			__reserved_2;
 };
+
+/*
+ * Kernel-internal data types:
+ */
 
 /**
- * struct hw_perf_counter - performance counter hardware details
+ * struct hw_perf_counter - performance counter hardware details:
  */
 struct hw_perf_counter {
-	u64			config;
-	unsigned long		config_base;
-	unsigned long		counter_base;
-	int			nmi;
-	unsigned int		idx;
-	u64			prev_count;
-	s32			next_count;
-	u64			irq_period;
+	u64				config;
+	unsigned long			config_base;
+	unsigned long			counter_base;
+	int				nmi;
+	unsigned int			idx;
+	u64				prev_count;
+	u64				irq_period;
+	s32				next_count;
 };
 
 /*
  * Hardcoded buffer length limit for now, for IRQ-fed events:
  */
-#define PERF_DATA_BUFLEN	2048
+#define PERF_DATA_BUFLEN		2048
 
 /**
  * struct perf_data - performance counter IRQ data sampling ...
  */
 struct perf_data {
-	int			len;
-	int			rd_idx;
-	int			overrun;
-	u8			data[PERF_DATA_BUFLEN];
+	int				len;
+	int				rd_idx;
+	int				overrun;
+	u8				data[PERF_DATA_BUFLEN];
 };
 
 /**
@@ -96,7 +124,7 @@ struct perf_counter {
 #else
 	atomic_t			count32[2];
 #endif
-	struct perf_counter_event	event;
+	struct perf_counter_hw_event	hw_event;
 	struct hw_perf_counter		hw;
 
 	struct perf_counter_context	*ctx;
@@ -109,8 +137,6 @@ struct perf_counter {
 
 	int				oncpu;
 	int				cpu;
-
-	enum perf_record_type		record_type;
 
 	/* read() / irq related data */
 	wait_queue_head_t		waitq;

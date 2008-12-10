@@ -58,8 +58,8 @@ const int max_intel_perfmon_events = ARRAY_SIZE(intel_perfmon_event_map);
  */
 int hw_perf_counter_init(struct perf_counter *counter)
 {
+	struct perf_counter_hw_event *hw_event = &counter->hw_event;
 	struct hw_perf_counter *hwc = &counter->hw;
-	u32 hw_event_type = counter->event.hw_event_type;
 
 	if (unlikely(!perf_counters_initialized))
 		return -EINVAL;
@@ -77,14 +77,14 @@ int hw_perf_counter_init(struct perf_counter *counter)
 	hwc->nmi = 0;
 	if (capable(CAP_SYS_ADMIN)) {
 		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
-		if (hw_event_type & PERF_COUNT_NMI)
+		if (hw_event->nmi)
 			hwc->nmi = 1;
 	}
 
-	hwc->config_base = MSR_ARCH_PERFMON_EVENTSEL0;
-	hwc->counter_base = MSR_ARCH_PERFMON_PERFCTR0;
+	hwc->config_base	= MSR_ARCH_PERFMON_EVENTSEL0;
+	hwc->counter_base	= MSR_ARCH_PERFMON_PERFCTR0;
 
-	hwc->irq_period = counter->event.hw_event_period;
+	hwc->irq_period		= hw_event->irq_period;
 	/*
 	 * Intel PMCs cannot be accessed sanely above 32 bit width,
 	 * so we install an artificial 1<<31 period regardless of
@@ -93,21 +93,20 @@ int hw_perf_counter_init(struct perf_counter *counter)
 	if (!hwc->irq_period)
 		hwc->irq_period = 0x7FFFFFFF;
 
-	hwc->next_count = -((s32) hwc->irq_period);
+	hwc->next_count	= -(s32)hwc->irq_period;
 
 	/*
 	 * Raw event type provide the config in the event structure
 	 */
-	hw_event_type &= ~PERF_COUNT_NMI;
-	if (hw_event_type == PERF_COUNT_RAW) {
-		hwc->config |= counter->event.hw_raw_ctrl;
+	if (hw_event->raw) {
+		hwc->config |= hw_event->type;
 	} else {
-		if (hw_event_type >= max_intel_perfmon_events)
+		if (hw_event->type >= max_intel_perfmon_events)
 			return -EINVAL;
 		/*
 		 * The generic map:
 		 */
-		hwc->config |= intel_perfmon_event_map[hw_event_type];
+		hwc->config |= intel_perfmon_event_map[hw_event->type];
 	}
 	counter->wakeup_pending = 0;
 
@@ -354,7 +353,7 @@ perf_handle_group(struct perf_counter *leader, u64 *status, u64 *overflown)
 	int bit;
 
 	list_for_each_entry(counter, &ctx->counters, list) {
-		if (counter->record_type != PERF_RECORD_SIMPLE ||
+		if (counter->hw_event.record_type != PERF_RECORD_SIMPLE ||
 		    counter == leader)
 			continue;
 
@@ -372,7 +371,7 @@ perf_handle_group(struct perf_counter *leader, u64 *status, u64 *overflown)
 				perf_save_and_restart(counter);
 			}
 		}
-		perf_store_irq_data(leader, counter->event.hw_event_type);
+		perf_store_irq_data(leader, counter->hw_event.type);
 		perf_store_irq_data(leader, atomic64_counter_read(counter));
 	}
 }
@@ -410,7 +409,7 @@ again:
 
 		perf_save_and_restart(counter);
 
-		switch (counter->record_type) {
+		switch (counter->hw_event.record_type) {
 		case PERF_RECORD_SIMPLE:
 			continue;
 		case PERF_RECORD_IRQ:
@@ -418,7 +417,7 @@ again:
 			break;
 		case PERF_RECORD_GROUP:
 			perf_store_irq_data(counter,
-					    counter->event.hw_event_type);
+					    counter->hw_event.type);
 			perf_store_irq_data(counter,
 					    atomic64_counter_read(counter));
 			perf_handle_group(counter, &status, &ack);

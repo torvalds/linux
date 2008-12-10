@@ -669,7 +669,7 @@ perf_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	struct perf_counter *counter = file->private_data;
 
-	switch (counter->record_type) {
+	switch (counter->hw_event.record_type) {
 	case PERF_RECORD_SIMPLE:
 		return perf_read_hw(counter, buf, count);
 
@@ -707,7 +707,7 @@ static const struct file_operations perf_fops = {
  * Allocate and initialize a counter structure
  */
 static struct perf_counter *
-perf_counter_alloc(struct perf_counter_event *event, int cpu, u32 record_type)
+perf_counter_alloc(struct perf_counter_hw_event *hw_event, int cpu)
 {
 	struct perf_counter *counter = kzalloc(sizeof(*counter), GFP_KERNEL);
 
@@ -718,31 +718,37 @@ perf_counter_alloc(struct perf_counter_event *event, int cpu, u32 record_type)
 	INIT_LIST_HEAD(&counter->list);
 	init_waitqueue_head(&counter->waitq);
 
-	counter->irqdata	= &counter->data[0];
-	counter->usrdata	= &counter->data[1];
-	counter->cpu		= cpu;
-	counter->record_type	= record_type;
-	counter->event		= *event;
-	counter->wakeup_pending = 0;
+	counter->irqdata		= &counter->data[0];
+	counter->usrdata		= &counter->data[1];
+	counter->cpu			= cpu;
+	counter->hw_event		= *hw_event;
+	counter->wakeup_pending		= 0;
 
 	return counter;
 }
 
 /**
- * sys_perf_task_open - open a performance counter associate it to a task
- * @hw_event_type:	event type for monitoring/sampling...
+ * sys_perf_task_open - open a performance counter, associate it to a task/cpu
+ *
+ * @hw_event_uptr:	event type attributes for monitoring/sampling
  * @pid:		target pid
+ * @cpu:		target cpu
+ * @group_fd:		group leader counter fd
  */
-asmlinkage int
-sys_perf_counter_open(struct perf_counter_event __user *uevent, u32 record_type,
-		      pid_t pid, int cpu, int masterfd)
+asmlinkage int sys_perf_counter_open(
+
+	struct perf_counter_hw_event	*hw_event_uptr		__user,
+	pid_t				pid,
+	int				cpu,
+	int				group_fd)
+
 {
 	struct perf_counter_context *ctx;
-	struct perf_counter_event event;
+	struct perf_counter_hw_event hw_event;
 	struct perf_counter *counter;
 	int ret;
 
-	if (copy_from_user(&event, uevent, sizeof(event)) != 0)
+	if (copy_from_user(&hw_event, hw_event_uptr, sizeof(hw_event)) != 0)
 		return -EFAULT;
 
 	ctx = find_get_context(pid, cpu);
@@ -750,7 +756,7 @@ sys_perf_counter_open(struct perf_counter_event __user *uevent, u32 record_type,
 		return PTR_ERR(ctx);
 
 	ret = -ENOMEM;
-	counter = perf_counter_alloc(&event, cpu, record_type);
+	counter = perf_counter_alloc(&hw_event, cpu);
 	if (!counter)
 		goto err_put_context;
 
