@@ -32,6 +32,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/inet_lro.h>
+#include <linux/aer.h>
 
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
