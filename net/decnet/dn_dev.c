@@ -1106,7 +1106,7 @@ static void dn_dev_set_timer(struct net_device *dev)
 	add_timer(&dn_db->timer);
 }
 
-struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
+static struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 {
 	int i;
 	struct dn_dev_parms *p = dn_dev_list;

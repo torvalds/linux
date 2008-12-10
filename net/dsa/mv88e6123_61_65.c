@@ -407,14 +407,14 @@ static struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.get_sset_count		= mv88e6123_61_65_get_sset_count,
 };
 
-int __init mv88e6123_61_65_init(void)
+static int __init mv88e6123_61_65_init(void)
 {
 	register_switch_driver(&mv88e6123_61_65_switch_driver);
 	return 0;
 }
 module_init(mv88e6123_61_65_init);
 
-void __exit mv88e6123_61_65_cleanup(void)
+static void __exit mv88e6123_61_65_cleanup(void)
 {
 	unregister_switch_driver(&mv88e6123_61_65_switch_driver);
 }

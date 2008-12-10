@@ -219,7 +219,7 @@ static void irlap_backoff_timer_expired(void *data)
  *
  *
  */
-void irlap_media_busy_expired(void* data)
+static void irlap_media_busy_expired(void *data)
 {
 	struct irlap_cb *self = (struct irlap_cb *) data;
 

@@ -69,7 +69,7 @@
  * array is only concerned with the reply we are assured that we have
  * on extra page for the RPCRMDA header.
  */
-int fast_reg_xdr(struct svcxprt_rdma *xprt,
+static int fast_reg_xdr(struct svcxprt_rdma *xprt,
 		 struct xdr_buf *xdr,
 		 struct svc_rdma_req_map *vec)
 {

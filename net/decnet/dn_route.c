@@ -311,7 +311,7 @@ static int dn_insert_route(struct dn_route *rt, unsigned hash, struct dn_route *
 	return 0;
 }
 
-void dn_run_flush(unsigned long dummy)
+static void dn_run_flush(unsigned long dummy)
 {
 	int i;
 	struct dn_route *rt, *next;
@@ -1422,7 +1422,7 @@ e_neighbour:
 	goto done;
 }
 
-int dn_route_input(struct sk_buff *skb)
+static int dn_route_input(struct sk_buff *skb)
 {
 	struct dn_route *rt;
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
