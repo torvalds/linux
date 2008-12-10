@@ -99,6 +99,7 @@ struct rtl8187_priv {
 	struct ieee80211_supported_band band;
 	struct usb_device *udev;
 	u32 rx_conf;
+	struct usb_anchor anchored;
 	u16 txpwr_base;
 	u8 asic_rev;
 	u8 is_rtl8187b;
@@ -115,7 +116,6 @@ struct rtl8187_priv {
 	u8 aifsn[4];
 	struct {
 		__le64 buf;
-		struct urb *urb;
 		struct sk_buff_head queue;
 	} b_tx_status;
 };

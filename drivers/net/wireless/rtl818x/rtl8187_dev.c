@@ -99,7 +99,6 @@ static const struct ieee80211_channel rtl818x_channels[] = {
 static void rtl8187_iowrite_async_cb(struct urb *urb)
 {
 	kfree(urb->context);
-	usb_free_urb(urb);
 }
 
 static void rtl8187_iowrite_async(struct rtl8187_priv *priv, __le16 addr,
@@ -136,11 +135,13 @@ static void rtl8187_iowrite_async(struct rtl8187_priv *priv, __le16 addr,
 	usb_fill_control_urb(urb, priv->udev, usb_sndctrlpipe(priv->udev, 0),
 			     (unsigned char *)dr, buf, len,
 			     rtl8187_iowrite_async_cb, buf);
+	usb_anchor_urb(urb, &priv->anchored);
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (rc < 0) {
 		kfree(buf);
-		usb_free_urb(urb);
+		usb_unanchor_urb(urb);
 	}
+	usb_free_urb(urb);
 }
 
 static inline void rtl818x_iowrite32_async(struct rtl8187_priv *priv,
@@ -172,7 +173,6 @@ static void rtl8187_tx_cb(struct urb *urb)
 	struct ieee80211_hw *hw = info->rate_driver_data[0];
 	struct rtl8187_priv *priv = hw->priv;
 
-	usb_free_urb(info->rate_driver_data[1]);
 	skb_pull(skb, priv->is_rtl8187b ? sizeof(struct rtl8187b_tx_hdr) :
 					  sizeof(struct rtl8187_tx_hdr));
 	ieee80211_tx_info_clear_status(info);
@@ -273,11 +273,13 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	usb_fill_bulk_urb(urb, priv->udev, usb_sndbulkpipe(priv->udev, ep),
 			  buf, skb->len, rtl8187_tx_cb, skb);
+	usb_anchor_urb(urb, &priv->anchored);
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (rc < 0) {
-		usb_free_urb(urb);
+		usb_unanchor_urb(urb);
 		kfree_skb(skb);
 	}
+	usb_free_urb(urb);
 
 	return 0;
 }
@@ -301,14 +303,13 @@ static void rtl8187_rx_cb(struct urb *urb)
 		return;
 	}
 	spin_unlock(&priv->rx_queue.lock);
+	skb_put(skb, urb->actual_length);
 
 	if (unlikely(urb->status)) {
-		usb_free_urb(urb);
 		dev_kfree_skb_irq(skb);
 		return;
 	}
 
-	skb_put(skb, urb->actual_length);
 	if (!priv->is_rtl8187b) {
 		struct rtl8187_rx_hdr *hdr =
 			(typeof(hdr))(skb_tail_pointer(skb) - sizeof(*hdr));
@@ -361,7 +362,6 @@ static void rtl8187_rx_cb(struct urb *urb)
 
 	skb = dev_alloc_skb(RTL8187_MAX_RX);
 	if (unlikely(!skb)) {
-		usb_free_urb(urb);
 		/* TODO check rx queue length and refill *somewhere* */
 		return;
 	}
@@ -373,24 +373,32 @@ static void rtl8187_rx_cb(struct urb *urb)
 	urb->context = skb;
 	skb_queue_tail(&priv->rx_queue, skb);
 
-	usb_submit_urb(urb, GFP_ATOMIC);
+	usb_anchor_urb(urb, &priv->anchored);
+	if (usb_submit_urb(urb, GFP_ATOMIC)) {
+		usb_unanchor_urb(urb);
+		skb_unlink(skb, &priv->rx_queue);
+		dev_kfree_skb_irq(skb);
+	}
 }
 
 static int rtl8187_init_urbs(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
-	struct urb *entry;
+	struct urb *entry = NULL;
 	struct sk_buff *skb;
 	struct rtl8187_rx_info *info;
+	int ret = 0;
 
 	while (skb_queue_len(&priv->rx_queue) < 8) {
 		skb = __dev_alloc_skb(RTL8187_MAX_RX, GFP_KERNEL);
-		if (!skb)
-			break;
+		if (!skb) {
+			ret = -ENOMEM;
+			goto err;
+		}
 		entry = usb_alloc_urb(0, GFP_KERNEL);
 		if (!entry) {
-			kfree_skb(skb);
-			break;
+			ret = -ENOMEM;
+			goto err;
 		}
 		usb_fill_bulk_urb(entry, priv->udev,
 				  usb_rcvbulkpipe(priv->udev,
@@ -401,10 +409,22 @@ static int rtl8187_init_urbs(struct ieee80211_hw *dev)
 		info->urb = entry;
 		info->dev = dev;
 		skb_queue_tail(&priv->rx_queue, skb);
-		usb_submit_urb(entry, GFP_KERNEL);
+		usb_anchor_urb(entry, &priv->anchored);
+		ret = usb_submit_urb(entry, GFP_KERNEL);
+		if (ret) {
+			skb_unlink(skb, &priv->rx_queue);
+			usb_unanchor_urb(entry);
+			goto err;
+		}
+		usb_free_urb(entry);
 	}
+	return ret;
 
-	return 0;
+err:
+	usb_free_urb(entry);
+	kfree_skb(skb);
+	usb_kill_anchored_urbs(&priv->anchored);
+	return ret;
 }
 
 static void rtl8187b_status_cb(struct urb *urb)
@@ -414,10 +434,8 @@ static void rtl8187b_status_cb(struct urb *urb)
 	u64 val;
 	unsigned int cmd_type;
 
-	if (unlikely(urb->status)) {
-		usb_free_urb(urb);
+	if (unlikely(urb->status))
 		return;
-	}
 
 	/*
 	 * Read from status buffer:
@@ -488,26 +506,32 @@ static void rtl8187b_status_cb(struct urb *urb)
 		spin_unlock_irqrestore(&priv->b_tx_status.queue.lock, flags);
 	}
 
-	usb_submit_urb(urb, GFP_ATOMIC);
+	usb_anchor_urb(urb, &priv->anchored);
+	if (usb_submit_urb(urb, GFP_ATOMIC))
+		usb_unanchor_urb(urb);
 }
 
 static int rtl8187b_init_status_urb(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct urb *entry;
+	int ret = 0;
 
 	entry = usb_alloc_urb(0, GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
-	priv->b_tx_status.urb = entry;
 
 	usb_fill_bulk_urb(entry, priv->udev, usb_rcvbulkpipe(priv->udev, 9),
 			  &priv->b_tx_status.buf, sizeof(priv->b_tx_status.buf),
 			  rtl8187b_status_cb, dev);
 
-	usb_submit_urb(entry, GFP_KERNEL);
+	usb_anchor_urb(entry, &priv->anchored);
+	ret = usb_submit_urb(entry, GFP_KERNEL);
+	if (ret)
+		usb_unanchor_urb(entry);
+	usb_free_urb(entry);
 
-	return 0;
+	return ret;
 }
 
 static int rtl8187_cmd_reset(struct ieee80211_hw *dev)
@@ -841,6 +865,9 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 		return ret;
 
 	mutex_lock(&priv->conf_mutex);
+
+	init_usb_anchor(&priv->anchored);
+
 	if (priv->is_rtl8187b) {
 		reg = RTL818X_RX_CONF_MGMT |
 		      RTL818X_RX_CONF_DATA |
@@ -936,12 +963,12 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 
 	while ((skb = skb_dequeue(&priv->rx_queue))) {
 		info = (struct rtl8187_rx_info *)skb->cb;
-		usb_kill_urb(info->urb);
 		kfree_skb(skb);
 	}
 	while ((skb = skb_dequeue(&priv->b_tx_status.queue)))
 		dev_kfree_skb_any(skb);
-	usb_kill_urb(priv->b_tx_status.urb);
+
+	usb_kill_anchored_urbs(&priv->anchored);
 	mutex_unlock(&priv->conf_mutex);
 }
 
