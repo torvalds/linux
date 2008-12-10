@@ -7,7 +7,7 @@
 # Uses the following environment variables:
 # ARCH, SUBARCH, srctree, src, obj
 
-if [ $KBUILD_VERBOSE == 1 ]; then
+if [ "$KBUILD_VERBOSE" = "1" ]; then
 	set -x
 fi
 
@@ -18,7 +18,7 @@ ignore="( -name SCCS -o -name BitKeeper -o -name .svn -o \
           -prune -o"
 
 # Do not use full path is we do not use O=.. builds
-if [ "${KBUILD_SRC}" == "" ]; then
+if [ "${KBUILD_SRC}" = "" ]; then
 	tree=
 else
 	tree=${srctree}/
@@ -135,10 +135,10 @@ xtags()
 
 
 # Support um (which uses SUBARCH)
-if [ ${ARCH} == um ]; then
-	if [ $SUBARCH == i386 ]; then
+if [ "${ARCH}" = "um" ]; then
+	if [ "$SUBARCH" = "i386" ]; then
 		archinclude=x86
-	elif [ $SUBARCH == x86_64 ]; then
+	elif [ "$SUBARCH" = "x86_64" ]; then
 		archinclude=x86
 	else
 		archinclude=${SUBARCH}
