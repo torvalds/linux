@@ -392,6 +392,7 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 		break;
 	default:
 		BUG();
+		return -EINVAL;  /* Spurious warning from some compilers */
 	}
 
 	switch (w->shift) {
@@ -403,6 +404,7 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 		break;
 	default:
 		BUG();
+		return -EINVAL;  /* Spurious warning from some compilers */
 	}
 
 	if (event & SND_SOC_DAPM_PRE_PMU) {
