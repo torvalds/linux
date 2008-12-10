@@ -355,7 +355,6 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 		goto out;
 
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
-	gfs2_write_calc_reserv(ip, PAGE_CACHE_SIZE, &data_blocks, &ind_blocks);
 	ret = gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE, &alloc_required);
 	if (ret || !alloc_required)
 		goto out_unlock;
@@ -367,6 +366,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	ret = gfs2_quota_lock_check(ip);
 	if (ret)
 		goto out_alloc_put;
+	gfs2_write_calc_reserv(ip, PAGE_CACHE_SIZE, &data_blocks, &ind_blocks);
 	al->al_requested = data_blocks + ind_blocks;
 	ret = gfs2_inplace_reserve(ip);
 	if (ret)

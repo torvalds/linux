@@ -625,7 +625,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 {
 	struct gfs2_inode *ip = GFS2_I(mapping->host);
 	struct gfs2_sbd *sdp = GFS2_SB(mapping->host);
-	unsigned int data_blocks, ind_blocks, rblocks;
+	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
 	int alloc_required;
 	int error = 0;
 	struct gfs2_alloc *al;
@@ -639,10 +639,12 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	if (unlikely(error))
 		goto out_uninit;
 
-	gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);
 	error = gfs2_write_alloc_required(ip, pos, len, &alloc_required);
 	if (error)
 		goto out_unlock;
+
+	if (alloc_required || gfs2_is_jdata(ip))
+		gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);
 
 	if (alloc_required) {
 		al = gfs2_alloc_get(ip);

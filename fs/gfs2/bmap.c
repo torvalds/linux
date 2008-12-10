@@ -1231,35 +1231,6 @@ int gfs2_file_dealloc(struct gfs2_inode *ip)
 }
 
 /**
- * gfs2_write_calc_reserv - calculate number of blocks needed to write to a file
- * @ip: the file
- * @len: the number of bytes to be written to the file
- * @data_blocks: returns the number of data blocks required
- * @ind_blocks: returns the number of indirect blocks required
- *
- */
-
-void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
-			    unsigned int *data_blocks, unsigned int *ind_blocks)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	unsigned int tmp;
-
-	if (gfs2_is_dir(ip)) {
-		*data_blocks = DIV_ROUND_UP(len, sdp->sd_jbsize) + 2;
-		*ind_blocks = 3 * (sdp->sd_max_jheight - 1);
-	} else {
-		*data_blocks = (len >> sdp->sd_sb.sb_bsize_shift) + 3;
-		*ind_blocks = 3 * (sdp->sd_max_height - 1);
-	}
-
-	for (tmp = *data_blocks; tmp > sdp->sd_diptrs;) {
-		tmp = DIV_ROUND_UP(tmp, sdp->sd_inptrs);
-		*ind_blocks += tmp;
-	}
-}
-
-/**
  * gfs2_write_alloc_required - figure out if a write will require an allocation
  * @ip: the file being written to
  * @offset: the offset to write to
@@ -1276,6 +1247,7 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 	struct buffer_head bh;
 	unsigned int shift;
 	u64 lblock, lblock_stop, size;
+	u64 end_of_file;
 
 	*alloc_required = 0;
 
@@ -1291,19 +1263,12 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 
 	*alloc_required = 1;
 	shift = sdp->sd_sb.sb_bsize_shift;
-	if (gfs2_is_dir(ip)) {
-		unsigned int bsize = sdp->sd_jbsize;
-		lblock = offset;
-		do_div(lblock, bsize);
-		lblock_stop = offset + len + bsize - 1;
-		do_div(lblock_stop, bsize);
-	} else {
-		u64 end_of_file = (ip->i_disksize + sdp->sd_sb.sb_bsize - 1) >> shift;
-		lblock = offset >> shift;
-		lblock_stop = (offset + len + sdp->sd_sb.sb_bsize - 1) >> shift;
-		if (lblock_stop > end_of_file)
-			return 0;
-	}
+	BUG_ON(gfs2_is_dir(ip));
+	end_of_file = (ip->i_disksize + sdp->sd_sb.sb_bsize - 1) >> shift;
+	lblock = offset >> shift;
+	lblock_stop = (offset + len + sdp->sd_sb.sb_bsize - 1) >> shift;
+	if (lblock_stop > end_of_file)
+		return 0;
 
 	size = (lblock_stop - lblock) << shift;
 	do {
