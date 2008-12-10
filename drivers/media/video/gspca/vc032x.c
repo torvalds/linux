@@ -1866,7 +1866,7 @@ static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 		/* special case for MI0360 */
 		if (ptsensor_info->sensorId == SENSOR_MI1310_SOC
 		    && value == 0x8243)
-			return ptsensor_info->sensorId;
+			return SENSOR_MI0360;
 	}
 	return -1;
 }
