@@ -139,12 +139,6 @@ struct audit_aux_data_mq_sendrecv {
 	struct timespec		abs_timeout;
 };
 
-struct audit_aux_data_mq_notify {
-	struct audit_aux_data	d;
-	mqd_t			mqdes;
-	struct sigevent 	notification;
-};
-
 struct audit_aux_data_execve {
 	struct audit_aux_data	d;
 	int argc;
@@ -246,6 +240,10 @@ struct audit_context {
 			mqd_t			mqdes;
 			struct mq_attr 		mqstat;
 		} mq_getsetattr;
+		struct {
+			mqd_t			mqdes;
+			int			sigev_signo;
+		} mq_notify;
 	};
 
 #if AUDIT_DEBUG
@@ -1267,6 +1265,11 @@ static void show_special(struct audit_context *context, int *call_panic)
 				return;
 		}
 		break; }
+	case AUDIT_MQ_NOTIFY: {
+		audit_log_format(ab, "mqdes=%d sigev_signo=%d",
+				context->mq_notify.mqdes,
+				context->mq_notify.sigev_signo);
+		break; }
 	case AUDIT_MQ_GETSETATTR: {
 		struct mq_attr *attr = &context->mq_getsetattr.mqstat;
 		audit_log_format(ab,
@@ -1374,14 +1377,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				"abs_timeout_sec=%ld abs_timeout_nsec=%ld",
 				axi->mqdes, axi->msg_len, axi->msg_prio,
 				axi->abs_timeout.tv_sec, axi->abs_timeout.tv_nsec);
-			break; }
-
-		case AUDIT_MQ_NOTIFY: {
-			struct audit_aux_data_mq_notify *axi = (void *)aux;
-			audit_log_format(ab,
-				"mqdes=%d sigev_signo=%d",
-				axi->mqdes,
-				axi->notification.sigev_signo);
 			break; }
 
 		case AUDIT_EXECVE: {
@@ -2274,38 +2269,19 @@ int __audit_mq_timedreceive(mqd_t mqdes, size_t msg_len,
  * @mqdes: MQ descriptor
  * @u_notification: Notification event
  *
- * Returns 0 for success or NULL context or < 0 on error.
  */
 
-int __audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
+void __audit_mq_notify(mqd_t mqdes, const struct sigevent *notification)
 {
-	struct audit_aux_data_mq_notify *ax;
 	struct audit_context *context = current->audit_context;
 
-	if (!audit_enabled)
-		return 0;
+	if (notification)
+		context->mq_notify.sigev_signo = notification->sigev_signo;
+	else
+		context->mq_notify.sigev_signo = 0;
 
-	if (likely(!context))
-		return 0;
-
-	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
-	if (!ax)
-		return -ENOMEM;
-
-	if (u_notification != NULL) {
-		if (copy_from_user(&ax->notification, u_notification, sizeof(ax->notification))) {
-			kfree(ax);
-			return -EFAULT;
-		}
-	} else
-		memset(&ax->notification, 0, sizeof(ax->notification));
-
-	ax->mqdes = mqdes;
-
-	ax->d.type = AUDIT_MQ_NOTIFY;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
+	context->mq_notify.mqdes = mqdes;
+	context->type = AUDIT_MQ_NOTIFY;
 }
 
 /**

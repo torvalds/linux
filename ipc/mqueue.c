@@ -1003,17 +1003,17 @@ asmlinkage long sys_mq_notify(mqd_t mqdes,
 	struct mqueue_inode_info *info;
 	struct sk_buff *nc;
 
-	ret = audit_mq_notify(mqdes, u_notification);
-	if (ret != 0)
-		return ret;
+	if (u_notification) {
+		if (copy_from_user(&notification, u_notification,
+					sizeof(struct sigevent)))
+			return -EFAULT;
+	}
+
+	audit_mq_notify(mqdes, u_notification ? &notification : NULL);
 
 	nc = NULL;
 	sock = NULL;
 	if (u_notification != NULL) {
-		if (copy_from_user(&notification, u_notification,
-					sizeof(struct sigevent)))
-			return -EFAULT;
-
 		if (unlikely(notification.sigev_notify != SIGEV_NONE &&
 			     notification.sigev_notify != SIGEV_SIGNAL &&
 			     notification.sigev_notify != SIGEV_THREAD))
