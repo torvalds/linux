@@ -820,9 +820,9 @@ static struct protection_domain *domain_for_device(u16 devid)
  * If a device is not yet associated with a domain, this function does
  * assigns it visible for the hardware
  */
-static void set_device_domain(struct amd_iommu *iommu,
-			      struct protection_domain *domain,
-			      u16 devid)
+static void attach_device(struct amd_iommu *iommu,
+			  struct protection_domain *domain,
+			  u16 devid)
 {
 	unsigned long flags;
 	u64 pte_root = virt_to_phys(domain->pt_root);
@@ -929,14 +929,14 @@ static int get_device_resources(struct device *dev,
 		if (!dma_dom)
 			dma_dom = (*iommu)->default_dom;
 		*domain = &dma_dom->domain;
-		set_device_domain(*iommu, *domain, *bdf);
+		attach_device(*iommu, *domain, *bdf);
 		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
 				"device ", (*domain)->id);
 		print_devid(_bdf, 1);
 	}
 
 	if (domain_for_device(_bdf) == NULL)
-		set_device_domain(*iommu, *domain, _bdf);
+		attach_device(*iommu, *domain, _bdf);
 
 	return 1;
 }
