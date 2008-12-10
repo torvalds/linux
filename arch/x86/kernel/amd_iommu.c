@@ -1574,6 +1574,7 @@ int __init amd_iommu_init_dma_ops(void)
 		iommu->default_dom = dma_ops_domain_alloc(iommu, order);
 		if (iommu->default_dom == NULL)
 			return -ENOMEM;
+		iommu->default_dom->domain.flags |= PD_DEFAULT_MASK;
 		ret = iommu_init_unity_mappings(iommu);
 		if (ret)
 			goto free_domains;
