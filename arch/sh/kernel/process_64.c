@@ -305,18 +305,6 @@ void show_regs(struct pt_regs * regs)
 	}
 }
 
-struct task_struct * alloc_task_struct(void)
-{
-	/* Get task descriptor pages */
-	return (struct task_struct *)
-		__get_free_pages(GFP_KERNEL, get_order(THREAD_SIZE));
-}
-
-void free_task_struct(struct task_struct *p)
-{
-	free_pages((unsigned long) p, get_order(THREAD_SIZE));
-}
-
 /*
  * Create a kernel thread
  */
