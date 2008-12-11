@@ -28,11 +28,6 @@ struct btrfs_inode {
 	/* which subvolume this inode belongs to */
 	struct btrfs_root *root;
 
-	/* the block group preferred for allocations.  This pointer is buggy
-	 * and needs to be replaced with a bytenr instead
-	 */
-	struct btrfs_block_group_cache *block_group;
-
 	/* key used to find this inode on disk.  This is used by the code
 	 * to read in roots of subvolumes
 	 */
@@ -114,6 +109,9 @@ struct btrfs_inode {
 	 * number for new files that are created
 	 */
 	u64 index_cnt;
+
+	/* the start of block group preferred for allocations. */
+	u64 block_group;
 
 	struct inode vfs_inode;
 };

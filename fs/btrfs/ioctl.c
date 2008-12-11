@@ -173,7 +173,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	trans = btrfs_start_transaction(new_root, 1);
 	BUG_ON(!trans);
 
-	ret = btrfs_create_subvol_root(new_root, dentry, trans, new_dirid,
+	ret = btrfs_create_subvol_root(trans, new_root, dentry, new_dirid,
 				       BTRFS_I(dir)->block_group);
 	if (ret)
 		goto fail;

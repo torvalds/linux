@@ -182,7 +182,7 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	h->transaction = root->fs_info->running_transaction;
 	h->blocks_reserved = num_blocks;
 	h->blocks_used = 0;
-	h->block_group = NULL;
+	h->block_group = 0;
 	h->alloc_exclude_nr = 0;
 	h->alloc_exclude_start = 0;
 	root->fs_info->running_transaction->use_count++;

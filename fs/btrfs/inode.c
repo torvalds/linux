@@ -989,7 +989,6 @@ next_slot:
 
 		if (extent_type == BTRFS_FILE_EXTENT_REG ||
 		    extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
-			struct btrfs_block_group_cache *block_group;
 			disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 			extent_end = found_key.offset +
 				btrfs_file_extent_num_bytes(leaf, fi);
@@ -1007,9 +1006,7 @@ next_slot:
 				goto out_check;
 			if (btrfs_cross_ref_exist(trans, root, disk_bytenr))
 				goto out_check;
-			block_group = btrfs_lookup_block_group(root->fs_info,
-							       disk_bytenr);
-			if (!block_group || block_group->ro)
+			if (btrfs_extent_readonly(root, disk_bytenr))
 				goto out_check;
 			disk_bytenr += btrfs_file_extent_offset(leaf, fi);
 			nocow = 1;
@@ -1969,16 +1966,11 @@ void btrfs_read_locked_inode(struct inode *inode)
 	rdev = btrfs_inode_rdev(leaf, inode_item);
 
 	BTRFS_I(inode)->index_cnt = (u64)-1;
+	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 
 	alloc_group_block = btrfs_inode_block_group(leaf, inode_item);
-	BTRFS_I(inode)->block_group = btrfs_lookup_block_group(root->fs_info,
-						       alloc_group_block);
-	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
-	if (!BTRFS_I(inode)->block_group) {
-		BTRFS_I(inode)->block_group = btrfs_find_block_group(root,
-						 NULL, 0,
-						 BTRFS_BLOCK_GROUP_METADATA, 0);
-	}
+	BTRFS_I(inode)->block_group = btrfs_find_block_group(root, 0,
+						alloc_group_block, 0);
 	btrfs_free_path(path);
 	inode_item = NULL;
 
@@ -2048,8 +2040,7 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_transid(leaf, item, trans->transid);
 	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
 	btrfs_set_inode_flags(leaf, item, BTRFS_I(inode)->flags);
-	btrfs_set_inode_block_group(leaf, item,
-				    BTRFS_I(inode)->block_group->key.objectid);
+	btrfs_set_inode_block_group(leaf, item, BTRFS_I(inode)->block_group);
 }
 
 /*
@@ -3358,14 +3349,11 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     struct inode *dir,
 				     const char *name, int name_len,
-				     u64 ref_objectid,
-				     u64 objectid,
-				     struct btrfs_block_group_cache *group,
-				     int mode, u64 *index)
+				     u64 ref_objectid, u64 objectid,
+				     u64 alloc_hint, int mode, u64 *index)
 {
 	struct inode *inode;
 	struct btrfs_inode_item *inode_item;
-	struct btrfs_block_group_cache *new_inode_group;
 	struct btrfs_key *location;
 	struct btrfs_path *path;
 	struct btrfs_inode_ref *ref;
@@ -3401,13 +3389,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		owner = 0;
 	else
 		owner = 1;
-	new_inode_group = btrfs_find_block_group(root, group, 0,
-				       BTRFS_BLOCK_GROUP_METADATA, owner);
-	if (!new_inode_group) {
-		printk("find_block group failed\n");
-		new_inode_group = group;
-	}
-	BTRFS_I(inode)->block_group = new_inode_group;
+	BTRFS_I(inode)->block_group =
+			btrfs_find_block_group(root, 0, alloc_hint, owner);
 
 	key[0].objectid = objectid;
 	btrfs_set_key_type(&key[0], BTRFS_INODE_ITEM_KEY);
@@ -4366,16 +4349,16 @@ out:
 /*
  * create a new subvolume directory/inode (helper for the ioctl).
  */
-int btrfs_create_subvol_root(struct btrfs_root *new_root, struct dentry *dentry,
-		struct btrfs_trans_handle *trans, u64 new_dirid,
-		struct btrfs_block_group_cache *block_group)
+int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *new_root, struct dentry *dentry,
+			     u64 new_dirid, u64 alloc_hint)
 {
 	struct inode *inode;
 	int error;
 	u64 index = 0;
 
 	inode = btrfs_new_inode(trans, new_root, NULL, "..", 2, new_dirid,
-				new_dirid, block_group, S_IFDIR | 0700, &index);
+				new_dirid, alloc_hint, S_IFDIR | 0700, &index);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 	inode->i_op = &btrfs_dir_inode_operations;

@@ -653,6 +653,9 @@ struct btrfs_block_group_cache {
 
 	/* for block groups in the same raid type */
 	struct list_head list;
+
+	/* usage count */
+	atomic_t count;
 };
 
 struct btrfs_leaf_ref_tree {
@@ -1706,10 +1709,8 @@ int btrfs_copy_pinned(struct btrfs_root *root, struct extent_io_tree *copy);
 struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 							 btrfs_fs_info *info,
 							 u64 bytenr);
-struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
-						 struct btrfs_block_group_cache
-						 *hint, u64 search_start,
-						 int data, int owner);
+u64 btrfs_find_block_group(struct btrfs_root *root,
+			   u64 search_start, u64 search_hint, int owner);
 struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					     struct btrfs_root *root,
 					     u32 blocksize, u64 parent,
@@ -1770,6 +1771,7 @@ int btrfs_update_extent_ref(struct btrfs_trans_handle *trans,
 			    u64 owner_objectid);
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *root);
+int btrfs_extent_readonly(struct btrfs_root *root, u64 bytenr);
 int btrfs_free_block_groups(struct btrfs_fs_info *info);
 int btrfs_read_block_groups(struct btrfs_root *root);
 int btrfs_make_block_group(struct btrfs_trans_handle *trans,
@@ -2019,10 +2021,9 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root);
 int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end);
 int btrfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
-int btrfs_create_subvol_root(struct btrfs_root *new_root, struct dentry *dentry,
-		struct btrfs_trans_handle *trans, u64 new_dirid,
-		struct btrfs_block_group_cache *block_group);
-
+int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *new_root, struct dentry *dentry,
+			     u64 new_dirid, u64 alloc_hint);
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio, unsigned long bio_flags);
 
