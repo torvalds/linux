@@ -50,8 +50,11 @@ enum hw_event_types {
 	 */
 	PERF_COUNT_CPU_CLOCK		= -1,
 	PERF_COUNT_TASK_CLOCK		= -2,
-	PERF_COUNT_PAGE_FAULTS		= -3,
-	PERF_COUNT_CONTEXT_SWITCHES	= -4,
+	/*
+	 * Future software events:
+	 */
+	/* PERF_COUNT_PAGE_FAULTS	= -3,
+	   PERF_COUNT_CONTEXT_SWITCHES	= -4, */
 };
 
 /*
