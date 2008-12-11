@@ -67,7 +67,7 @@ enum perf_counter_record_type {
  * Hardware event to monitor via a performance monitoring counter:
  */
 struct perf_counter_hw_event {
-	u64			type;
+	s64			type;
 
 	u64			irq_period;
 	u32			record_type;
@@ -206,8 +206,8 @@ extern void perf_counter_task_tick(struct task_struct *task, int cpu);
 extern void perf_counter_init_task(struct task_struct *task);
 extern void perf_counter_notify(struct pt_regs *regs);
 extern void perf_counter_print_debug(void);
-extern void hw_perf_restore_ctrl(u64 ctrl);
-extern u64 hw_perf_disable_all(void);
+extern u64 hw_perf_save_disable(void);
+extern void hw_perf_restore(u64 ctrl);
 extern void atomic64_counter_set(struct perf_counter *counter, u64 val64);
 extern u64 atomic64_counter_read(struct perf_counter *counter);
 
@@ -221,8 +221,8 @@ perf_counter_task_tick(struct task_struct *task, int cpu)		{ }
 static inline void perf_counter_init_task(struct task_struct *task)	{ }
 static inline void perf_counter_notify(struct pt_regs *regs)		{ }
 static inline void perf_counter_print_debug(void)			{ }
-static inline void hw_perf_restore_ctrl(u64 ctrl)			{ }
-static inline u64 hw_perf_disable_all(void)		      { return 0; }
+static inline void hw_perf_restore(u64 ctrl)			{ }
+static inline u64 hw_perf_save_disable(void)		      { return 0; }
 #endif
 
 #endif /* _LINUX_PERF_COUNTER_H */

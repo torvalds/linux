@@ -43,8 +43,8 @@ hw_perf_counter_init(struct perf_counter *counter)
 	return ERR_PTR(-EINVAL);
 }
 
-u64 __weak hw_perf_disable_all(void)		{ return 0; }
-void __weak hw_perf_restore_ctrl(u64 ctrl)	{ }
+u64 __weak hw_perf_save_disable(void)		{ return 0; }
+void __weak hw_perf_restore(u64 ctrl)	{ }
 void __weak hw_perf_counter_setup(void)		{ }
 
 #if BITS_PER_LONG == 64
@@ -180,9 +180,9 @@ static void __perf_counter_remove_from_context(void *info)
 	 * Protect the list operation against NMI by disabling the
 	 * counters on a global level. NOP for non NMI based counters.
 	 */
-	perf_flags = hw_perf_disable_all();
+	perf_flags = hw_perf_save_disable();
 	list_del_counter(counter, ctx);
-	hw_perf_restore_ctrl(perf_flags);
+	hw_perf_restore(perf_flags);
 
 	if (!ctx->task) {
 		/*
@@ -273,9 +273,9 @@ static void __perf_install_in_context(void *info)
 	 * Protect the list operation against NMI by disabling the
 	 * counters on a global level. NOP for non NMI based counters.
 	 */
-	perf_flags = hw_perf_disable_all();
+	perf_flags = hw_perf_save_disable();
 	list_add_counter(counter, ctx);
-	hw_perf_restore_ctrl(perf_flags);
+	hw_perf_restore(perf_flags);
 
 	ctx->nr_counters++;
 
@@ -495,13 +495,13 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 	/*
 	 * Rotate the first entry last (works just fine for group counters too):
 	 */
-	perf_flags = hw_perf_disable_all();
+	perf_flags = hw_perf_save_disable();
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
 		list_del(&counter->list_entry);
 		list_add_tail(&counter->list_entry, &ctx->counter_list);
 		break;
 	}
-	hw_perf_restore_ctrl(perf_flags);
+	hw_perf_restore(perf_flags);
 
 	spin_unlock(&ctx->lock);
 
