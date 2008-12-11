@@ -34,12 +34,12 @@ struct omap_chip_id {
 #define OMAP_CHIP_INIT(x)	{ .oc = x }
 
 /*
- * system_rev bits:
+ * omap_rev bits:
  * CPU id bits	(0730, 1510, 1710, 2422...)	[31:16]
  * CPU revision	(See _REV_ defined in cpu.h)	[15:08]
  * CPU class bits (15xx, 16xx, 24xx, 34xx...)	[07:00]
  */
-extern unsigned int system_rev;
+unsigned int omap_rev(void);
 
 /*
  * Test if multicore OMAP support is needed
@@ -113,7 +113,7 @@ extern unsigned int system_rev;
  * cpu_is_omap243x():	True for OMAP2430
  * cpu_is_omap343x():	True for OMAP3430
  */
-#define GET_OMAP_CLASS	(system_rev & 0xff)
+#define GET_OMAP_CLASS	(omap_rev() & 0xff)
 
 #define IS_OMAP_CLASS(class, id)			\
 static inline int is_omap ##class (void)		\
@@ -121,7 +121,7 @@ static inline int is_omap ##class (void)		\
 	return (GET_OMAP_CLASS == (id)) ? 1 : 0;	\
 }
 
-#define GET_OMAP_SUBCLASS	((system_rev >> 20) & 0x0fff)
+#define GET_OMAP_SUBCLASS	((omap_rev() >> 20) & 0x0fff)
 
 #define IS_OMAP_SUBCLASS(subclass, id)			\
 static inline int is_omap ##subclass (void)		\
@@ -231,7 +231,7 @@ IS_OMAP_SUBCLASS(343x, 0x343)
  * cpu_is_omap2430():	True for OMAP2430
  * cpu_is_omap3430():	True for OMAP3430
  */
-#define GET_OMAP_TYPE	((system_rev >> 16) & 0xffff)
+#define GET_OMAP_TYPE	((omap_rev() >> 16) & 0xffff)
 
 #define IS_OMAP_TYPE(type, id)				\
 static inline int is_omap ##type (void)			\

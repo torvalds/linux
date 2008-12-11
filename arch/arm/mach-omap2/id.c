@@ -23,6 +23,14 @@
 #include <mach/cpu.h>
 
 static struct omap_chip_id omap_chip;
+static unsigned int omap_revision;
+
+
+unsigned int omap_rev(void)
+{
+	return omap_revision;
+}
+EXPORT_SYMBOL(omap_rev);
 
 /**
  * omap_chip_is - test whether currently running OMAP matches a chip type
@@ -50,7 +58,7 @@ EXPORT_SYMBOL(omap_chip_is);
 struct omap_id {
 	u16	hawkeye;	/* Silicon type (Hawkeye id) */
 	u8	dev;		/* Device type from production_id reg */
-	u32	type;		/* Combined type id copied to system_rev */
+	u32	type;		/* Combined type id copied to omap_revision */
 };
 
 /* Register values to detect the OMAP version */
@@ -116,9 +124,9 @@ void __init omap24xx_check_revision(void)
 		j = i;
 	}
 
-	pr_info("OMAP%04x", system_rev >> 16);
-	if ((system_rev >> 8) & 0x0f)
-		pr_info("ES%x", (system_rev >> 12) & 0xf);
+	pr_info("OMAP%04x", omap_rev() >> 16);
+	if ((omap_rev() >> 8) & 0x0f)
+		pr_info("ES%x", (omap_rev() >> 12) & 0xf);
 	pr_info("\n");
 }
 
@@ -136,7 +144,7 @@ void __init omap34xx_check_revision(void)
 	 */
 	cpuid = read_cpuid(CPUID_ID);
 	if ((((cpuid >> 4) & 0xfff) == 0xc08) && ((cpuid & 0xf) == 0x0)) {
-		system_rev = OMAP3430_REV_ES1_0;
+		omap_revision = OMAP3430_REV_ES1_0;
 		goto out;
 	}
 
@@ -153,26 +161,26 @@ void __init omap34xx_check_revision(void)
 	if (hawkeye == 0xb7ae) {
 		switch (rev) {
 		case 0:
-			system_rev = OMAP3430_REV_ES2_0;
+			omap_revision = OMAP3430_REV_ES2_0;
 			rev_name = "ES2.0";
 			break;
 		case 2:
-			system_rev = OMAP3430_REV_ES2_1;
+			omap_revision = OMAP3430_REV_ES2_1;
 			rev_name = "ES2.1";
 			break;
 		case 3:
-			system_rev = OMAP3430_REV_ES3_0;
+			omap_revision = OMAP3430_REV_ES3_0;
 			rev_name = "ES3.0";
 			break;
 		default:
 			/* Use the latest known revision as default */
-			system_rev = OMAP3430_REV_ES3_0;
+			omap_revision = OMAP3430_REV_ES3_0;
 			rev_name = "Unknown revision\n";
 		}
 	}
 
 out:
-	pr_info("OMAP%04x %s\n", system_rev >> 16, rev_name);
+	pr_info("OMAP%04x %s\n", omap_rev() >> 16, rev_name);
 }
 
 /*
@@ -203,9 +211,9 @@ void __init omap2_check_revision(void)
 		omap_chip.oc |= CHIP_IS_OMAP2420;
 	} else if (cpu_is_omap343x()) {
 		omap_chip.oc = CHIP_IS_OMAP3430;
-		if (system_rev == OMAP3430_REV_ES1_0)
+		if (omap_rev() == OMAP3430_REV_ES1_0)
 			omap_chip.oc |= CHIP_IS_OMAP3430ES1;
-		else if (system_rev > OMAP3430_REV_ES1_0)
+		else if (omap_rev() > OMAP3430_REV_ES1_0)
 			omap_chip.oc |= CHIP_IS_OMAP3430ES2;
 	} else {
 		pr_err("Uninitialized omap_chip, please fix!\n");
@@ -221,7 +229,7 @@ void __init omap2_check_revision(void)
  */
 void __init omap2_set_globals_tap(struct omap_globals *omap2_globals)
 {
-	system_rev = omap2_globals->class;
+	omap_revision = omap2_globals->class;
 	tap_base = omap2_globals->tap;
 
 	if (cpu_is_omap34xx())
