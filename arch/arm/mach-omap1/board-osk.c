@@ -260,7 +260,6 @@ static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 	},
 	/* TODO when driver support is ready:
 	 *  - aic23 audio chip at 0x1a
-	 *  - on Mistral, 24c04 eeprom at 0x50
 	 *  - optionally on Mistral, ov9640 camera sensor at 0x30
 	 */
 };
@@ -337,10 +336,27 @@ static struct omap_board_config_kernel osk_config[] __initdata = {
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 #include <linux/input.h>
+#include <linux/i2c/at24.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
 #include <mach/keypad.h>
+
+static struct at24_platform_data at24c04 = {
+	.byte_len	= SZ_4K / 8,
+	.page_size	= 16,
+};
+
+static struct i2c_board_info __initdata mistral_i2c_board_info[] = {
+	{
+		/* NOTE:  powered from LCD supply */
+		I2C_BOARD_INFO("24c04", 0x50),
+		.platform_data	= &at24c04,
+	},
+	/* TODO when driver support is ready:
+	 *  - optionally ov9640 camera sensor at 0x30
+	 */
+};
 
 static const int osk_keymap[] = {
 	/* KEY(col, row, code) */
@@ -488,7 +504,13 @@ static void __init osk_mistral_init(void)
 	spi_register_board_info(mistral_boardinfo,
 			ARRAY_SIZE(mistral_boardinfo));
 
-	/* the sideways button (SW1) is for use as a "wakeup" button */
+	/* the sideways button (SW1) is for use as a "wakeup" button
+	 *
+	 * NOTE:  The Mistral board has the wakeup button (SW1) wired
+	 * to the LCD 3.3V rail, which is powered down during suspend.
+	 * To allow this button to wake up the omap, work around this
+	 * HW bug by rewiring SW1 to use the main 3.3V rail.
+	 */
 	omap_cfg_reg(N15_1610_MPUIO2);
 	if (gpio_request(OMAP_MPUIO(2), "wakeup") == 0) {
 		int ret = 0;
@@ -520,6 +542,9 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(PWL);
 	if (gpio_request(2, "lcd_pwr") == 0)
 		gpio_direction_output(2, 1);
+
+	i2c_register_board_info(1, mistral_i2c_board_info,
+			ARRAY_SIZE(mistral_i2c_board_info));
 
 	platform_add_devices(mistral_devices, ARRAY_SIZE(mistral_devices));
 }
