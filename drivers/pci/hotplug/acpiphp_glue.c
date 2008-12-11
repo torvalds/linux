@@ -167,9 +167,9 @@ static int post_dock_fixups(struct notifier_block *nb, unsigned long val,
 
 	if (((buses >> 8) & 0xff) != bus->secondary) {
 		buses = (buses & 0xff000000)
-	     		| ((unsigned int)(bus->primary)     <<  0)
-	     		| ((unsigned int)(bus->secondary)   <<  8)
-	     		| ((unsigned int)(bus->subordinate) << 16);
+			| ((unsigned int)(bus->primary)     <<  0)
+			| ((unsigned int)(bus->secondary)   <<  8)
+			| ((unsigned int)(bus->subordinate) << 16);
 		pci_write_config_dword(bus->self, PCI_PRIMARY_BUS, buses);
 	}
 	return NOTIFY_OK;
