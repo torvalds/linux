@@ -1285,6 +1285,14 @@ static void gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	spin_unlock_irqrestore(&bank->lock, flags);
 }
 
+static int gpio_2irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct gpio_bank *bank;
+
+	bank = container_of(chip, struct gpio_bank, chip);
+	return bank->virtual_irq_start + offset;
+}
+
 /*---------------------------------------------------------------------*/
 
 static int initialized;
@@ -1480,6 +1488,7 @@ static int __init _omap_gpio_init(void)
 		bank->chip.get = gpio_get;
 		bank->chip.direction_output = gpio_output;
 		bank->chip.set = gpio_set;
+		bank->chip.to_irq = gpio_2irq;
 		if (bank_is_mpuio(bank)) {
 			bank->chip.label = "mpuio";
 #ifdef CONFIG_ARCH_OMAP16XX
