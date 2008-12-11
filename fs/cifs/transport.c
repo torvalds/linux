@@ -619,49 +619,52 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
 			receive_len, xid));
 		rc = -EIO;
-	} else {		/* rcvd frame is ok */
-		if (midQ->resp_buf &&
-			(midQ->midState == MID_RESPONSE_RECEIVED)) {
+		goto out;
+	}
 
-			iov[0].iov_base = (char *)midQ->resp_buf;
-			if (midQ->largeBuf)
-				*pRespBufType = CIFS_LARGE_BUFFER;
-			else
-				*pRespBufType = CIFS_SMALL_BUFFER;
-			iov[0].iov_len = receive_len + 4;
+	/* rcvd frame is ok */
 
-			dump_smb(midQ->resp_buf, 80);
-			/* convert the length into a more usable form */
-			if ((receive_len > 24) &&
-			   (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
-					SECMODE_SIGN_ENABLED))) {
-				rc = cifs_verify_signature(midQ->resp_buf,
+	if (midQ->resp_buf &&
+	    (midQ->midState == MID_RESPONSE_RECEIVED)) {
+
+		iov[0].iov_base = (char *)midQ->resp_buf;
+		if (midQ->largeBuf)
+			*pRespBufType = CIFS_LARGE_BUFFER;
+		else
+			*pRespBufType = CIFS_SMALL_BUFFER;
+		iov[0].iov_len = receive_len + 4;
+
+		dump_smb(midQ->resp_buf, 80);
+		/* convert the length into a more usable form */
+		if ((receive_len > 24) &&
+		    (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
+					     SECMODE_SIGN_ENABLED))) {
+			rc = cifs_verify_signature(midQ->resp_buf,
 						&ses->server->mac_signing_key,
 						midQ->sequence_number+1);
-				if (rc) {
-					cERROR(1, ("Unexpected SMB signature"));
-					/* BB FIXME add code to kill session */
-				}
+			if (rc) {
+				cERROR(1, ("Unexpected SMB signature"));
+				/* BB FIXME add code to kill session */
 			}
-
-			/* BB special case reconnect tid and uid here? */
-			rc = map_smb_to_linux_error(midQ->resp_buf,
-						flags & CIFS_LOG_ERROR);
-
-			/* convert ByteCount if necessary */
-			if (receive_len >= sizeof(struct smb_hdr) - 4
-			    /* do not count RFC1001 header */  +
-			    (2 * midQ->resp_buf->WordCount) + 2 /* bcc */ )
-				BCC(midQ->resp_buf) =
-					le16_to_cpu(BCC_LE(midQ->resp_buf));
-			if ((flags & CIFS_NO_RESP) == 0)
-				midQ->resp_buf = NULL;  /* mark it so buf will
-							   not be freed by
-							   DeleteMidQEntry */
-		} else {
-			rc = -EIO;
-			cFYI(1, ("Bad MID state?"));
 		}
+
+		/* BB special case reconnect tid and uid here? */
+		rc = map_smb_to_linux_error(midQ->resp_buf,
+					    flags & CIFS_LOG_ERROR);
+
+		/* convert ByteCount if necessary */
+		if (receive_len >= sizeof(struct smb_hdr) - 4
+		    /* do not count RFC1001 header */  +
+		    (2 * midQ->resp_buf->WordCount) + 2 /* bcc */ )
+			BCC(midQ->resp_buf) =
+				le16_to_cpu(BCC_LE(midQ->resp_buf));
+		if ((flags & CIFS_NO_RESP) == 0)
+			midQ->resp_buf = NULL;  /* mark it so buf will
+						   not be freed by
+						   DeleteMidQEntry */
+	} else {
+		rc = -EIO;
+		cFYI(1, ("Bad MID state?"));
 	}
 
 out:
@@ -809,43 +812,45 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
 			receive_len, xid));
 		rc = -EIO;
-	} else {		/* rcvd frame is ok */
+		goto out;
+	}
 
-		if (midQ->resp_buf && out_buf
-		    && (midQ->midState == MID_RESPONSE_RECEIVED)) {
-			out_buf->smb_buf_length = receive_len;
-			memcpy((char *)out_buf + 4,
-			       (char *)midQ->resp_buf + 4,
-			       receive_len);
+	/* rcvd frame is ok */
 
-			dump_smb(out_buf, 92);
-			/* convert the length into a more usable form */
-			if ((receive_len > 24) &&
-			   (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
-					SECMODE_SIGN_ENABLED))) {
-				rc = cifs_verify_signature(out_buf,
+	if (midQ->resp_buf && out_buf
+	    && (midQ->midState == MID_RESPONSE_RECEIVED)) {
+		out_buf->smb_buf_length = receive_len;
+		memcpy((char *)out_buf + 4,
+		       (char *)midQ->resp_buf + 4,
+		       receive_len);
+
+		dump_smb(out_buf, 92);
+		/* convert the length into a more usable form */
+		if ((receive_len > 24) &&
+		    (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
+					     SECMODE_SIGN_ENABLED))) {
+			rc = cifs_verify_signature(out_buf,
 						&ses->server->mac_signing_key,
 						midQ->sequence_number+1);
-				if (rc) {
-					cERROR(1, ("Unexpected SMB signature"));
-					/* BB FIXME add code to kill session */
-				}
+			if (rc) {
+				cERROR(1, ("Unexpected SMB signature"));
+				/* BB FIXME add code to kill session */
 			}
-
-			*pbytes_returned = out_buf->smb_buf_length;
-
-			/* BB special case reconnect tid and uid here? */
-			rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
-
-			/* convert ByteCount if necessary */
-			if (receive_len >= sizeof(struct smb_hdr) - 4
-			    /* do not count RFC1001 header */  +
-			    (2 * out_buf->WordCount) + 2 /* bcc */ )
-				BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
-		} else {
-			rc = -EIO;
-			cERROR(1, ("Bad MID state?"));
 		}
+
+		*pbytes_returned = out_buf->smb_buf_length;
+
+		/* BB special case reconnect tid and uid here? */
+		rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
+
+		/* convert ByteCount if necessary */
+		if (receive_len >= sizeof(struct smb_hdr) - 4
+		    /* do not count RFC1001 header */  +
+		    (2 * out_buf->WordCount) + 2 /* bcc */ )
+			BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
+	} else {
+		rc = -EIO;
+		cERROR(1, ("Bad MID state?"));
 	}
 
 out:
