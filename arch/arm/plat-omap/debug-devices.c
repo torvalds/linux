@@ -72,7 +72,7 @@ int __init debug_card_init(u32 addr, unsigned gpio)
 	smc91x_resources[1].start = gpio_to_irq(gpio);
 	smc91x_resources[1].end   = gpio_to_irq(gpio);
 
-	status = omap_request_gpio(gpio);
+	status = gpio_request(gpio, "SMC91x irq");
 	if (status < 0) {
 		printk(KERN_ERR "GPIO%d unavailable for smc91x IRQ\n", gpio);
 		return status;

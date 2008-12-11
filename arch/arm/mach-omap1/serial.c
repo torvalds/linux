@@ -244,7 +244,7 @@ static void __init omap_serial_set_port_wakeup(int gpio_nr)
 {
 	int ret;
 
-	ret = omap_request_gpio(gpio_nr);
+	ret = gpio_request(gpio_nr, "UART wake");
 	if (ret < 0) {
 		printk(KERN_ERR "Could not request UART wake GPIO: %i\n",
 		       gpio_nr);
@@ -254,7 +254,7 @@ static void __init omap_serial_set_port_wakeup(int gpio_nr)
 	ret = request_irq(gpio_to_irq(gpio_nr), &omap_serial_wake_interrupt,
 			  IRQF_TRIGGER_RISING, "serial wakeup", NULL);
 	if (ret) {
-		omap_free_gpio(gpio_nr);
+		gpio_free(gpio_nr);
 		printk(KERN_ERR "No interrupt for UART wake GPIO: %i\n",
 		       gpio_nr);
 		return;

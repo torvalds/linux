@@ -236,7 +236,7 @@ static inline void __init apollon_init_smc91x(void)
 	udelay(100);
 
 	omap_cfg_reg(W4__24XX_GPIO74);
-	if (omap_request_gpio(APOLLON_ETHR_GPIO_IRQ) < 0) {
+	if (gpio_request(APOLLON_ETHR_GPIO_IRQ, "SMC91x irq") < 0) {
 		printk(KERN_ERR "Failed to request GPIO%d for smc91x IRQ\n",
 			APOLLON_ETHR_GPIO_IRQ);
 		gpmc_cs_free(APOLLON_ETH_CS);
@@ -359,7 +359,7 @@ static void __init apollon_usb_init(void)
 	/* USB device */
 	/* DEVICE_SUSPEND */
 	omap_cfg_reg(P21_242X_GPIO12);
-	omap_request_gpio(12);
+	gpio_request(12, "USB suspend");
 	gpio_direction_output(12, 0);
 }
 

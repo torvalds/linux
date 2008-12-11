@@ -301,7 +301,7 @@ static void __init innovator_init_smc91x(void)
 			   OMAP1510_FPGA_RST);
 		udelay(750);
 	} else {
-		if ((omap_request_gpio(0)) < 0) {
+		if (gpio_request(0, "SMC91x irq") < 0) {
 			printk("Error requesting gpio 0 for smc91x irq\n");
 			return;
 		}

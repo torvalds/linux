@@ -124,7 +124,7 @@ static void mipid_dev_init(void)
 
 static void ads7846_dev_init(void)
 {
-	if (omap_request_gpio(ADS7846_PENDOWN_GPIO) < 0)
+	if (gpio_request(ADS7846_PENDOWN_GPIO, "ADS7846 pendown") < 0)
 		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
 }
 

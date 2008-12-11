@@ -168,23 +168,23 @@ static void __init voiceblue_init_irq(void)
 static void __init voiceblue_init(void)
 {
 	/* Watchdog */
-	omap_request_gpio(0);
+	gpio_request(0, "Watchdog");
 	/* smc91x reset */
-	omap_request_gpio(7);
+	gpio_request(7, "SMC91x reset");
 	gpio_direction_output(7, 1);
 	udelay(2);	/* wait at least 100ns */
 	gpio_set_value(7, 0);
 	mdelay(50);	/* 50ms until PHY ready */
 	/* smc91x interrupt pin */
-	omap_request_gpio(8);
+	gpio_request(8, "SMC91x irq");
 	/* 16C554 reset*/
-	omap_request_gpio(6);
+	gpio_request(6, "16C554 reset");
 	gpio_direction_output(6, 0);
 	/* 16C554 interrupt pins */
-	omap_request_gpio(12);
-	omap_request_gpio(13);
-	omap_request_gpio(14);
-	omap_request_gpio(15);
+	gpio_request(12, "16C554 irq");
+	gpio_request(13, "16C554 irq");
+	gpio_request(14, "16C554 irq");
+	gpio_request(15, "16C554 irq");
 	set_irq_type(gpio_to_irq(12), IRQ_TYPE_EDGE_RISING);
 	set_irq_type(gpio_to_irq(13), IRQ_TYPE_EDGE_RISING);
 	set_irq_type(gpio_to_irq(14), IRQ_TYPE_EDGE_RISING);
