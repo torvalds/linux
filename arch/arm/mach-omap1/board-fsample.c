@@ -205,7 +205,7 @@ static struct platform_device *devices[] __initdata = {
 
 static int nand_dev_ready(struct omap_nand_platform_data *data)
 {
-	return omap_get_gpio_datain(P2_NAND_RB_GPIO_PIN);
+	return gpio_get_value(P2_NAND_RB_GPIO_PIN);
 }
 
 static struct omap_uart_config fsample_uart_config __initdata = {

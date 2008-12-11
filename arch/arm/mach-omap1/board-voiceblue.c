@@ -172,16 +172,16 @@ static void __init voiceblue_init(void)
 	/* smc91x reset */
 	omap_request_gpio(7);
 	omap_set_gpio_direction(7, 0);
-	omap_set_gpio_dataout(7, 1);
+	gpio_set_value(7, 1);
 	udelay(2);	/* wait at least 100ns */
-	omap_set_gpio_dataout(7, 0);
+	gpio_set_value(7, 0);
 	mdelay(50);	/* 50ms until PHY ready */
 	/* smc91x interrupt pin */
 	omap_request_gpio(8);
 	/* 16C554 reset*/
 	omap_request_gpio(6);
 	omap_set_gpio_direction(6, 0);
-	omap_set_gpio_dataout(6, 0);
+	gpio_set_value(6, 0);
 	/* 16C554 interrupt pins */
 	omap_request_gpio(12);
 	omap_request_gpio(13);
@@ -245,17 +245,17 @@ static int wdt_gpio_state;
 void voiceblue_wdt_enable(void)
 {
 	omap_set_gpio_direction(0, 0);
-	omap_set_gpio_dataout(0, 0);
-	omap_set_gpio_dataout(0, 1);
-	omap_set_gpio_dataout(0, 0);
+	gpio_set_value(0, 0);
+	gpio_set_value(0, 1);
+	gpio_set_value(0, 0);
 	wdt_gpio_state = 0;
 }
 
 void voiceblue_wdt_disable(void)
 {
-	omap_set_gpio_dataout(0, 0);
-	omap_set_gpio_dataout(0, 1);
-	omap_set_gpio_dataout(0, 0);
+	gpio_set_value(0, 0);
+	gpio_set_value(0, 1);
+	gpio_set_value(0, 0);
 	omap_set_gpio_direction(0, 1);
 }
 
@@ -265,7 +265,7 @@ void voiceblue_wdt_ping(void)
 		return;
 
 	wdt_gpio_state = !wdt_gpio_state;
-	omap_set_gpio_dataout(0, wdt_gpio_state);
+	gpio_set_value(0, wdt_gpio_state);
 }
 
 void voiceblue_reset(void)

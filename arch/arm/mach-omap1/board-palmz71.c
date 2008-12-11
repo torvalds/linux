@@ -239,7 +239,7 @@ static struct platform_device *devices[] __initdata = {
 static int
 palmz71_get_pendown_state(void)
 {
-	return !omap_get_gpio_datain(PALMZ71_PENIRQ_GPIO);
+	return !gpio_get_value(PALMZ71_PENIRQ_GPIO);
 }
 
 static const struct ads7846_platform_data palmz71_ts_info = {
@@ -295,7 +295,7 @@ static struct omap_board_config_kernel palmz71_config[] __initdata = {
 static irqreturn_t
 palmz71_powercable(int irq, void *dev_id)
 {
-	if (omap_get_gpio_datain(PALMZ71_USBDETECT_GPIO)) {
+	if (gpio_get_value(PALMZ71_USBDETECT_GPIO)) {
 		printk(KERN_INFO "PM: Power cable connected\n");
 		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
 				IRQ_TYPE_EDGE_FALLING);
@@ -323,7 +323,7 @@ palmz71_gpio_setup(int early)
 {
 	if (early) {
 		/* Only set GPIO1 so we have a working serial */
-		omap_set_gpio_dataout(1, 1);
+		gpio_set_value(1, 1);
 		omap_set_gpio_direction(1, 0);
 	} else {
 		/* Set MMC/SD host WP pin as input */

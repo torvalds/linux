@@ -255,7 +255,7 @@ static void palmte_get_power_status(struct apm_power_info *info, int *battery)
 {
 	int charging, batt, hi, lo, mid;
 
-	charging = !omap_get_gpio_datain(PALMTE_DC_GPIO);
+	charging = !gpio_get_value(PALMTE_DC_GPIO);
 	batt = battery[0];
 	if (charging)
 		batt -= 60;
@@ -335,11 +335,11 @@ static void palmte_headphones_detect(void *data, int state)
 {
 	if (state) {
 		/* Headphones connected, disable speaker */
-		omap_set_gpio_dataout(PALMTE_SPEAKER_GPIO, 0);
+		gpio_set_value(PALMTE_SPEAKER_GPIO, 0);
 		printk(KERN_INFO "PM: speaker off\n");
 	} else {
 		/* Headphones unplugged, re-enable speaker */
-		omap_set_gpio_dataout(PALMTE_SPEAKER_GPIO, 1);
+		gpio_set_value(PALMTE_SPEAKER_GPIO, 1);
 		printk(KERN_INFO "PM: speaker on\n");
 	}
 }

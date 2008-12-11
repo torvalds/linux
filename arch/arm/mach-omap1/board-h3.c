@@ -498,7 +498,7 @@ static struct omap_gpio_switch h3_gpio_switches[] __initdata = {
 
 static int nand_dev_ready(struct omap_nand_platform_data *data)
 {
-	return omap_get_gpio_datain(H3_NAND_RB_GPIO_PIN);
+	return gpio_get_value(H3_NAND_RB_GPIO_PIN);
 }
 
 static void __init h3_init(void)
