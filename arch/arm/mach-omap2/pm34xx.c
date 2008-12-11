@@ -80,6 +80,7 @@ static int (*_omap_save_secure_sram)(u32 *addr);
 
 static struct powerdomain *mpu_pwrdm, *neon_pwrdm;
 static struct powerdomain *core_pwrdm, *per_pwrdm;
+static struct powerdomain *cam_pwrdm;
 
 static int set_pwrdm_state(struct powerdomain *pwrdm, u32 state);
 
@@ -355,6 +356,9 @@ static void omap_sram_idle(void)
 		}
 	}
 
+	if (pwrdm_read_pwrst(cam_pwrdm) == PWRDM_POWER_ON)
+		omap2_clkdm_deny_idle(mpu_pwrdm->pwrdm_clkdms[0]);
+
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
 		omap_uart_prepare_idle(0);
@@ -434,6 +438,7 @@ static void omap_sram_idle(void)
 
 	pwrdm_post_transition();
 
+	omap2_clkdm_allow_idle(mpu_pwrdm->pwrdm_clkdms[0]);
 }
 
 /*
@@ -1067,6 +1072,7 @@ static int __init omap3_pm_init(void)
 	neon_pwrdm = pwrdm_lookup("neon_pwrdm");
 	per_pwrdm = pwrdm_lookup("per_pwrdm");
 	core_pwrdm = pwrdm_lookup("core_pwrdm");
+	cam_pwrdm = pwrdm_lookup("cam_pwrdm");
 
 	omap_push_sram_idle();
 #ifdef CONFIG_SUSPEND
