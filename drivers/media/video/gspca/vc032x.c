@@ -2272,6 +2272,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				data, len);
 		return;
 	}
+
+	/* The vc0321 sends some additional data after sending the complete
+	 * frame, we ignore this. */
+	if (sd->bridge == BRIDGE_VC0321
+	    && len > frame->v4l2_buf.length - (frame->data_end - frame->data))
+		len = frame->v4l2_buf.length - (frame->data_end - frame->data);
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
