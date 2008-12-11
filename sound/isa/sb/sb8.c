@@ -140,8 +140,10 @@ static int __devinit snd_sb8_probe(struct device *pdev, unsigned int dev)
 				break;
 			}
 		}
-		if (i >= ARRAY_SIZE(possible_ports))
+		if (i >= ARRAY_SIZE(possible_ports)) {
+			err = -EINVAL;
 			goto _err;
+		}
 	}
 	acard->chip = chip;
 			
