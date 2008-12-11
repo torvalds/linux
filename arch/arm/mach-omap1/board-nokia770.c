@@ -35,6 +35,7 @@
 #include <mach/aic23.h>
 #include <mach/omapfb.h>
 #include <mach/lcd_mipid.h>
+#include <mach/mmc.h>
 
 #define ADS7846_PENDOWN_GPIO	15
 
@@ -173,26 +174,68 @@ static struct omap_usb_config nokia770_usb_config __initdata = {
 	.pins[0]	= 6,
 };
 
-static struct omap_mmc_config nokia770_mmc_config __initdata = {
-	.mmc[0] = {
-		.enabled	= 0,
-		.wire4		= 0,
-		.wp_pin		= -1,
-		.power_pin	= -1,
-		.switch_pin	= -1,
-	},
-	.mmc[1] = {
-		.enabled	= 0,
-		.wire4		= 0,
-		.wp_pin		= -1,
-		.power_pin	= -1,
-		.switch_pin	= -1,
+#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
+
+#define NOKIA770_GPIO_MMC_POWER		41
+#define NOKIA770_GPIO_MMC_SWITCH	23
+
+static int nokia770_mmc_set_power(struct device *dev, int slot, int power_on,
+				int vdd)
+{
+	if (power_on)
+		gpio_set_value(NOKIA770_GPIO_MMC_POWER, 1);
+	else
+		gpio_set_value(NOKIA770_GPIO_MMC_POWER, 0);
+
+	return 0;
+}
+
+static int nokia770_mmc_get_cover_state(struct device *dev, int slot)
+{
+	return gpio_get_value(NOKIA770_GPIO_MMC_SWITCH);
+}
+
+static struct omap_mmc_platform_data nokia770_mmc2_data = {
+	.nr_slots                       = 1,
+	.dma_mask			= 0xffffffff,
+	.slots[0]       = {
+		.set_power		= nokia770_mmc_set_power,
+		.get_cover_state	= nokia770_mmc_get_cover_state,
+		.name                   = "mmcblk",
 	},
 };
 
+static struct omap_mmc_platform_data *nokia770_mmc_data[OMAP16XX_NR_MMC];
+
+static void __init nokia770_mmc_init(void)
+{
+	int ret;
+
+	ret = gpio_request(NOKIA770_GPIO_MMC_POWER, "MMC power");
+	if (ret < 0)
+		return;
+	gpio_direction_output(NOKIA770_GPIO_MMC_POWER, 0);
+
+	ret = gpio_request(NOKIA770_GPIO_MMC_SWITCH, "MMC cover");
+	if (ret < 0) {
+		gpio_free(NOKIA770_GPIO_MMC_POWER);
+		return;
+	}
+	gpio_direction_input(NOKIA770_GPIO_MMC_SWITCH);
+
+	/* Only the second MMC controller is used */
+	nokia770_mmc_data[1] = &nokia770_mmc2_data;
+	omap1_init_mmc(nokia770_mmc_data, OMAP16XX_NR_MMC);
+}
+
+#else
+static inline void nokia770_mmc_init(void)
+{
+}
+#endif
+
 static struct omap_board_config_kernel nokia770_config[] __initdata = {
 	{ OMAP_TAG_USB,		NULL },
-	{ OMAP_TAG_MMC,		&nokia770_mmc_config },
 };
 
 #if	defined(CONFIG_OMAP_DSP)
@@ -335,6 +378,7 @@ static void __init omap_nokia770_init(void)
 	omap_dsp_init();
 	ads7846_dev_init();
 	mipid_dev_init();
+	nokia770_mmc_init();
 }
 
 static void __init omap_nokia770_map_io(void)

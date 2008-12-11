@@ -24,6 +24,7 @@
 #include <mach/mux.h>
 #include <mach/gpio.h>
 #include <mach/eac.h>
+#include <mach/mmc.h>
 
 #if defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
 #define OMAP2_MBOX_BASE		IO_ADDRESS(OMAP24XX_MAILBOX_BASE)
@@ -294,6 +295,88 @@ static void omap_init_sha1_md5(void)
 #else
 static inline void omap_init_sha1_md5(void) { }
 #endif
+
+/*-------------------------------------------------------------------------*/
+
+#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE) || \
+	defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
+
+static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
+			int controller_nr)
+{
+	if (cpu_is_omap2420() && controller_nr == 0) {
+		omap_cfg_reg(H18_24XX_MMC_CMD);
+		omap_cfg_reg(H15_24XX_MMC_CLKI);
+		omap_cfg_reg(G19_24XX_MMC_CLKO);
+		omap_cfg_reg(F20_24XX_MMC_DAT0);
+		omap_cfg_reg(F19_24XX_MMC_DAT_DIR0);
+		omap_cfg_reg(G18_24XX_MMC_CMD_DIR);
+		if (mmc_controller->slots[0].wire4) {
+			omap_cfg_reg(H14_24XX_MMC_DAT1);
+			omap_cfg_reg(E19_24XX_MMC_DAT2);
+			omap_cfg_reg(D19_24XX_MMC_DAT3);
+			omap_cfg_reg(E20_24XX_MMC_DAT_DIR1);
+			omap_cfg_reg(F18_24XX_MMC_DAT_DIR2);
+			omap_cfg_reg(E18_24XX_MMC_DAT_DIR3);
+		}
+
+		/*
+		 * Use internal loop-back in MMC/SDIO Module Input Clock
+		 * selection
+		 */
+		if (mmc_controller->slots[0].internal_clock) {
+			u32 v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+			v |= (1 << 24);
+			omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
+		}
+	}
+}
+
+void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
+			int nr_controllers)
+{
+	int i;
+
+	for (i = 0; i < nr_controllers; i++) {
+		unsigned long base, size;
+		unsigned int irq = 0;
+
+		if (!mmc_data[i])
+			continue;
+
+		omap2_mmc_mux(mmc_data[i], i);
+
+		switch (i) {
+		case 0:
+			base = OMAP2_MMC1_BASE;
+			irq = INT_24XX_MMC_IRQ;
+			break;
+		case 1:
+			base = OMAP2_MMC2_BASE;
+			irq = INT_24XX_MMC2_IRQ;
+			break;
+		case 2:
+			if (!cpu_is_omap34xx())
+				return;
+			base = OMAP3_MMC3_BASE;
+			irq = INT_34XX_MMC3_IRQ;
+			break;
+		default:
+			continue;
+		}
+
+		if (cpu_is_omap2420())
+			size = OMAP2420_MMC_SIZE;
+		else
+			size = HSMMC_SIZE;
+
+		omap_mmc_add(i, base, size, irq, mmc_data[i]);
+	};
+}
+
+#endif
+
+/*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_HDQ_MASTER_OMAP) || defined(CONFIG_HDQ_MASTER_OMAP_MODULE)
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430)

@@ -345,10 +345,25 @@ static void __init h2_init_smc91x(void)
 	}
 }
 
+static int tps_setup(struct i2c_client *client, void *context)
+{
+	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V |
+				TPS_LDO1_ENABLE | TPS_VLDO1_3_0V);
+
+	return 0;
+}
+
+static struct tps65010_board tps_board = {
+	.base		= H2_TPS_GPIO_BASE,
+	.outmask	= 0x0f,
+	.setup		= tps_setup,
+};
+
 static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("tps65010", 0x48),
 		.irq            = OMAP_GPIO_IRQ(58),
+		.platform_data	= &tps_board,
 	}, {
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
 		.irq		= OMAP_GPIO_IRQ(2),
