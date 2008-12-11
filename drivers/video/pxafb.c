@@ -50,7 +50,6 @@
 #include <asm/irq.h>
 #include <asm/div64.h>
 #include <mach/pxa-regs.h>
-#include <mach/pxa2xx-gpio.h>
 #include <mach/bitfield.h>
 #include <mach/pxafb.h>
 
@@ -986,57 +985,6 @@ static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 		fbi->lcd_power(on, &fbi->fb.var);
 }
 
-static void pxafb_setup_gpio(struct pxafb_info *fbi)
-{
-	int gpio, ldd_bits;
-	unsigned int lccr0 = fbi->lccr0;
-
-	/*
-	 * setup is based on type of panel supported
-	 */
-
-	/* 4 bit interface */
-	if ((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
-	    (lccr0 & LCCR0_SDS) == LCCR0_Sngl &&
-	    (lccr0 & LCCR0_DPD) == LCCR0_4PixMono)
-		ldd_bits = 4;
-
-	/* 8 bit interface */
-	else if (((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
-		  ((lccr0 & LCCR0_SDS) == LCCR0_Dual ||
-		   (lccr0 & LCCR0_DPD) == LCCR0_8PixMono)) ||
-		 ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
-		  (lccr0 & LCCR0_PAS) == LCCR0_Pas &&
-		  (lccr0 & LCCR0_SDS) == LCCR0_Sngl))
-		ldd_bits = 8;
-
-	/* 16 bit interface */
-	else if ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
-		 ((lccr0 & LCCR0_SDS) == LCCR0_Dual ||
-		  (lccr0 & LCCR0_PAS) == LCCR0_Act))
-		ldd_bits = 16;
-
-	else {
-		printk(KERN_ERR "pxafb_setup_gpio: unable to determine "
-			       "bits per pixel\n");
-		return;
-	}
-
-	for (gpio = 58; ldd_bits; gpio++, ldd_bits--)
-		pxa_gpio_mode(gpio | GPIO_ALT_FN_2_OUT);
-	/* 18 bit interface */
-	if (fbi->fb.var.bits_per_pixel > 16) {
-		pxa_gpio_mode(86 | GPIO_ALT_FN_2_OUT);
-		pxa_gpio_mode(87 | GPIO_ALT_FN_2_OUT);
-	}
-	pxa_gpio_mode(GPIO74_LCD_FCLK_MD);
-	pxa_gpio_mode(GPIO75_LCD_LCLK_MD);
-	pxa_gpio_mode(GPIO76_LCD_PCLK_MD);
-
-	if ((lccr0 & LCCR0_PAS) == 0)
-		pxa_gpio_mode(GPIO77_LCD_ACBIAS_MD);
-}
-
 static void pxafb_enable_controller(struct pxafb_info *fbi)
 {
 	pr_debug("pxafb: Enabling LCD controller\n");
@@ -1179,7 +1127,6 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		if (old_state == C_ENABLE) {
 			__pxafb_lcd_power(fbi, 0);
 			pxafb_disable_controller(fbi);
-			pxafb_setup_gpio(fbi);
 			pxafb_enable_controller(fbi);
 			__pxafb_lcd_power(fbi, 1);
 		}
@@ -1202,7 +1149,6 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		 */
 		if (old_state != C_ENABLE) {
 			fbi->state = C_ENABLE;
-			pxafb_setup_gpio(fbi);
 			pxafb_enable_controller(fbi);
 			__pxafb_lcd_power(fbi, 1);
 			__pxafb_backlight_power(fbi, 1);
