@@ -44,8 +44,6 @@ struct nsm_res {
 	u32			state;
 };
 
-static struct rpc_clnt *	nsm_create(void);
-
 static struct rpc_program	nsm_program;
 static				LIST_HEAD(nsm_handles);
 static				DEFINE_SPINLOCK(nsm_lock);
@@ -98,11 +96,26 @@ static void nsm_display_address(const struct sockaddr *sap,
 	}
 }
 
-/*
- * Common procedure for NSMPROC_MON/NSMPROC_UNMON calls
- */
-static int
-nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
+static struct rpc_clnt *nsm_create(void)
+{
+	struct sockaddr_in sin = {
+		.sin_family		= AF_INET,
+		.sin_addr.s_addr	= htonl(INADDR_LOOPBACK),
+	};
+	struct rpc_create_args args = {
+		.protocol		= XPRT_TRANSPORT_UDP,
+		.address		= (struct sockaddr *)&sin,
+		.addrsize		= sizeof(sin),
+		.servername		= "rpc.statd",
+		.program		= &nsm_program,
+		.version		= NSM_VERSION,
+		.authflavor		= RPC_AUTH_NULL,
+	};
+
+	return rpc_create(&args);
+}
+
+static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 {
 	struct rpc_clnt	*clnt;
 	int		status;
@@ -406,30 +419,6 @@ void nsm_release(struct nsm_handle *nsm)
 				nsm->sm_name, nsm->sm_addrbuf);
 		kfree(nsm);
 	}
-}
-
-/*
- * Create NSM client for the local host
- */
-static struct rpc_clnt *
-nsm_create(void)
-{
-	struct sockaddr_in	sin = {
-		.sin_family	= AF_INET,
-		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
-		.sin_port	= 0,
-	};
-	struct rpc_create_args args = {
-		.protocol	= XPRT_TRANSPORT_UDP,
-		.address	= (struct sockaddr *)&sin,
-		.addrsize	= sizeof(sin),
-		.servername	= "localhost",
-		.program	= &nsm_program,
-		.version	= NSM_VERSION,
-		.authflavor	= RPC_AUTH_NULL,
-	};
-
-	return rpc_create(&args);
 }
 
 /*
