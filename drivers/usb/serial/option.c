@@ -654,10 +654,6 @@ static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 			usb_unlink_urb(this_urb);
 			continue;
 		}
-		if (this_urb->status != 0)
-			dbg("usb_write %p failed (err=%d)",
-				this_urb, this_urb->status);
-
 		dbg("%s: endpoint %d buf %d", __func__,
 			usb_pipeendpoint(this_urb->pipe), i);
 
@@ -669,8 +665,7 @@ static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 		err = usb_submit_urb(this_urb, GFP_ATOMIC);
 		if (err) {
 			dbg("usb_submit_urb %p (write bulk) failed "
-				"(%d, has %d)", this_urb,
-				err, this_urb->status);
+				"(%d)", this_urb, err);
 			clear_bit(i, &portdata->out_busy);
 			continue;
 		}
