@@ -5094,30 +5094,30 @@ static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
 
 	ocfs2_init_dealloc_ctxt(&ctxt.dealloc);
 
-	ctxt.handle = ocfs2_start_trans(osb, credits);
-	if (IS_ERR(ctxt.handle)) {
-		ret = PTR_ERR(ctxt.handle);
-		mlog_errno(ret);
-		goto out;
-	}
-
 	for (i = 0; i < le16_to_cpu(xh->xh_count); i++) {
 		xe = &xh->xh_entries[i];
 		if (ocfs2_xattr_is_local(xe))
 			continue;
 
+		ctxt.handle = ocfs2_start_trans(osb, credits);
+		if (IS_ERR(ctxt.handle)) {
+			ret = PTR_ERR(ctxt.handle);
+			mlog_errno(ret);
+			break;
+		}
+
 		ret = ocfs2_xattr_bucket_value_truncate(inode, bucket,
 							i, 0, &ctxt);
+
+		ocfs2_commit_trans(osb, ctxt.handle);
 		if (ret) {
 			mlog_errno(ret);
 			break;
 		}
 	}
 
-	ret = ocfs2_commit_trans(osb, ctxt.handle);
 	ocfs2_schedule_truncate_log_flush(osb, 1);
 	ocfs2_run_deallocs(osb, &ctxt.dealloc);
-out:
 	return ret;
 }
 
