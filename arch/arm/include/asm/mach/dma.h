@@ -21,7 +21,7 @@ struct dma_ops {
 	void 	(*disable)(unsigned int, dma_t *);		/* mandatory */
 	int	(*residue)(unsigned int, dma_t *);		/* optional */
 	int	(*setspeed)(unsigned int, dma_t *, int);	/* optional */
-	char	*type;
+	const char *type;
 };
 
 struct dma_struct {
@@ -40,7 +40,7 @@ struct dma_struct {
 	unsigned int	lock;		/* Device is allocated		*/
 	const char	*device_id;	/* Device name			*/
 
-	struct dma_ops	*d_ops;
+	const struct dma_ops *d_ops;
 };
 
 struct floppy_dma {
