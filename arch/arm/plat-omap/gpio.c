@@ -245,6 +245,8 @@ static inline struct gpio_bank *get_gpio_bank(int gpio)
 		return &gpio_bank[gpio >> 5];
 	if (cpu_is_omap34xx())
 		return &gpio_bank[gpio >> 5];
+	BUG();
+	return NULL;
 }
 
 static inline int get_gpio_index(int gpio)
@@ -448,6 +450,7 @@ void omap_set_gpio_debounce(int gpio, int enable)
 {
 	struct gpio_bank *bank;
 	void __iomem *reg;
+	unsigned long flags;
 	u32 val, l = 1 << get_gpio_index(gpio);
 
 	if (cpu_class_is_omap1())
@@ -455,21 +458,28 @@ void omap_set_gpio_debounce(int gpio, int enable)
 
 	bank = get_gpio_bank(gpio);
 	reg = bank->base;
-
 	reg += OMAP24XX_GPIO_DEBOUNCE_EN;
+
+	spin_lock_irqsave(&bank->lock, flags);
 	val = __raw_readl(reg);
 
 	if (enable && !(val & l))
 		val |= l;
-	else if (!enable && val & l)
+	else if (!enable && (val & l))
 		val &= ~l;
 	else
-		return;
+		goto done;
 
-	if (cpu_is_omap34xx())
-		enable ? clk_enable(bank->dbck) : clk_disable(bank->dbck);
+	if (cpu_is_omap34xx()) {
+		if (enable)
+			clk_enable(bank->dbck);
+		else
+			clk_disable(bank->dbck);
+	}
 
 	__raw_writel(val, reg);
+done:
+	spin_unlock_irqrestore(&bank->lock, flags);
 }
 EXPORT_SYMBOL(omap_set_gpio_debounce);
 
