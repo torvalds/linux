@@ -117,7 +117,10 @@ struct perf_data {
  * struct perf_counter - performance counter kernel representation:
  */
 struct perf_counter {
-	struct list_head		list;
+	struct list_head		list_entry;
+	struct list_head		sibling_list;
+	struct perf_counter		*group_leader;
+
 	int				active;
 #if BITS_PER_LONG == 64
 	atomic64_t			count;
@@ -158,7 +161,8 @@ struct perf_counter_context {
 	 * Protect the list of counters:
 	 */
 	spinlock_t		lock;
-	struct list_head	counters;
+
+	struct list_head	counter_list;
 	int			nr_counters;
 	int			nr_active;
 	struct task_struct	*task;

@@ -346,18 +346,22 @@ static void perf_save_and_restart(struct perf_counter *counter)
 }
 
 static void
-perf_handle_group(struct perf_counter *leader, u64 *status, u64 *overflown)
+perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
 {
-	struct perf_counter_context *ctx = leader->ctx;
-	struct perf_counter *counter;
+	struct perf_counter *counter, *group_leader = sibling->group_leader;
 	int bit;
 
-	list_for_each_entry(counter, &ctx->counters, list) {
-		if (counter->hw_event.record_type != PERF_RECORD_SIMPLE ||
-		    counter == leader)
-			continue;
+	/*
+	 * Store the counter's own timestamp first:
+	 */
+	perf_store_irq_data(sibling, sibling->hw_event.type);
+	perf_store_irq_data(sibling, atomic64_counter_read(sibling));
 
-		if (counter->active) {
+	/*
+	 * Then store sibling timestamps (if any):
+	 */
+	list_for_each_entry(counter, &group_leader->sibling_list, list_entry) {
+		if (!counter->active) {
 			/*
 			 * When counter was not in the overflow mask, we have to
 			 * read it from hardware. We read it as well, when it
@@ -371,8 +375,8 @@ perf_handle_group(struct perf_counter *leader, u64 *status, u64 *overflown)
 				perf_save_and_restart(counter);
 			}
 		}
-		perf_store_irq_data(leader, counter->hw_event.type);
-		perf_store_irq_data(leader, atomic64_counter_read(counter));
+		perf_store_irq_data(sibling, counter->hw_event.type);
+		perf_store_irq_data(sibling, atomic64_counter_read(counter));
 	}
 }
 
@@ -416,10 +420,6 @@ again:
 			perf_store_irq_data(counter, instruction_pointer(regs));
 			break;
 		case PERF_RECORD_GROUP:
-			perf_store_irq_data(counter,
-					    counter->hw_event.type);
-			perf_store_irq_data(counter,
-					    atomic64_counter_read(counter));
 			perf_handle_group(counter, &status, &ack);
 			break;
 		}

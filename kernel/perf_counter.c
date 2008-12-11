@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/file.h>
 #include <linux/poll.h>
 #include <linux/sysfs.h>
 #include <linux/ptrace.h>
@@ -55,7 +56,7 @@ void __weak hw_perf_counter_setup(void) { }
  * Read the cached counter in counter safe against cross CPU / NMI
  * modifications. 64 bit version - no complications.
  */
-static inline u64 perf_read_counter_safe(struct perf_counter *counter)
+static inline u64 perf_counter_read_safe(struct perf_counter *counter)
 {
 	return (u64) atomic64_read(&counter->count);
 }
@@ -66,7 +67,7 @@ static inline u64 perf_read_counter_safe(struct perf_counter *counter)
  * Read the cached counter in counter safe against cross CPU / NMI
  * modifications. 32 bit version.
  */
-static u64 perf_read_counter_safe(struct perf_counter *counter)
+static u64 perf_counter_read_safe(struct perf_counter *counter)
 {
 	u32 cntl, cnth;
 
@@ -83,13 +84,55 @@ static u64 perf_read_counter_safe(struct perf_counter *counter)
 
 #endif
 
+static void
+list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
+{
+	struct perf_counter *group_leader = counter->group_leader;
+
+	/*
+	 * Depending on whether it is a standalone or sibling counter,
+	 * add it straight to the context's counter list, or to the group
+	 * leader's sibling list:
+	 */
+	if (counter->group_leader == counter)
+		list_add_tail(&counter->list_entry, &ctx->counter_list);
+	else
+		list_add_tail(&counter->list_entry, &group_leader->sibling_list);
+}
+
+static void
+list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
+{
+	struct perf_counter *sibling, *tmp;
+
+	list_del_init(&counter->list_entry);
+
+	if (list_empty(&counter->sibling_list))
+		return;
+
+	/*
+	 * If this was a group counter with sibling counters then
+	 * upgrade the siblings to singleton counters by adding them
+	 * to the context list directly:
+	 */
+	list_for_each_entry_safe(sibling, tmp,
+				 &counter->sibling_list, list_entry) {
+
+		list_del_init(&sibling->list_entry);
+		list_add_tail(&sibling->list_entry, &ctx->counter_list);
+		WARN_ON_ONCE(!sibling->group_leader);
+		WARN_ON_ONCE(sibling->group_leader == sibling);
+		sibling->group_leader = sibling;
+	}
+}
+
 /*
  * Cross CPU call to remove a performance counter
  *
  * We disable the counter on the hardware level first. After that we
  * remove it from the context list.
  */
-static void __perf_remove_from_context(void *info)
+static void __perf_counter_remove_from_context(void *info)
 {
 	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_counter *counter = info;
@@ -119,7 +162,7 @@ static void __perf_remove_from_context(void *info)
 	 * counters on a global level. NOP for non NMI based counters.
 	 */
 	hw_perf_disable_all();
-	list_del_init(&counter->list);
+	list_del_counter(counter, ctx);
 	hw_perf_enable_all();
 
 	if (!ctx->task) {
@@ -144,7 +187,7 @@ static void __perf_remove_from_context(void *info)
  * CPU counters are removed with a smp call. For task counters we only
  * call when the task is on a CPU.
  */
-static void perf_remove_from_context(struct perf_counter *counter)
+static void perf_counter_remove_from_context(struct perf_counter *counter)
 {
 	struct perf_counter_context *ctx = counter->ctx;
 	struct task_struct *task = ctx->task;
@@ -155,32 +198,32 @@ static void perf_remove_from_context(struct perf_counter *counter)
 		 * the removal is always sucessful.
 		 */
 		smp_call_function_single(counter->cpu,
-					 __perf_remove_from_context,
+					 __perf_counter_remove_from_context,
 					 counter, 1);
 		return;
 	}
 
 retry:
-	task_oncpu_function_call(task, __perf_remove_from_context,
+	task_oncpu_function_call(task, __perf_counter_remove_from_context,
 				 counter);
 
 	spin_lock_irq(&ctx->lock);
 	/*
 	 * If the context is active we need to retry the smp call.
 	 */
-	if (ctx->nr_active && !list_empty(&counter->list)) {
+	if (ctx->nr_active && !list_empty(&counter->list_entry)) {
 		spin_unlock_irq(&ctx->lock);
 		goto retry;
 	}
 
 	/*
 	 * The lock prevents that this context is scheduled in so we
-	 * can remove the counter safely, if it the call above did not
+	 * can remove the counter safely, if the call above did not
 	 * succeed.
 	 */
-	if (!list_empty(&counter->list)) {
+	if (!list_empty(&counter->list_entry)) {
 		ctx->nr_counters--;
-		list_del_init(&counter->list);
+		list_del_counter(counter, ctx);
 		counter->task = NULL;
 	}
 	spin_unlock_irq(&ctx->lock);
@@ -211,7 +254,7 @@ static void __perf_install_in_context(void *info)
 	 * counters on a global level. NOP for non NMI based counters.
 	 */
 	hw_perf_disable_all();
-	list_add_tail(&counter->list, &ctx->counters);
+	list_add_counter(counter, ctx);
 	hw_perf_enable_all();
 
 	ctx->nr_counters++;
@@ -268,7 +311,7 @@ retry:
 	 * If the context is active and the counter has not been added
 	 * we need to retry the smp call.
 	 */
-	if (ctx->nr_active && list_empty(&counter->list)) {
+	if (ctx->nr_active && list_empty(&counter->list_entry)) {
 		spin_unlock_irq(&ctx->lock);
 		goto retry;
 	}
@@ -278,11 +321,43 @@ retry:
 	 * can add the counter safely, if it the call above did not
 	 * succeed.
 	 */
-	if (list_empty(&counter->list)) {
-		list_add_tail(&counter->list, &ctx->counters);
+	if (list_empty(&counter->list_entry)) {
+		list_add_counter(counter, ctx);
 		ctx->nr_counters++;
 	}
 	spin_unlock_irq(&ctx->lock);
+}
+
+static void
+counter_sched_out(struct perf_counter *counter,
+		  struct perf_cpu_context *cpuctx,
+		  struct perf_counter_context *ctx)
+{
+	if (!counter->active)
+		return;
+
+	hw_perf_counter_disable(counter);
+	counter->active	=  0;
+	counter->oncpu	= -1;
+
+	cpuctx->active_oncpu--;
+	ctx->nr_active--;
+}
+
+static void
+group_sched_out(struct perf_counter *group_counter,
+		struct perf_cpu_context *cpuctx,
+		struct perf_counter_context *ctx)
+{
+	struct perf_counter *counter;
+
+	counter_sched_out(group_counter, cpuctx, ctx);
+
+	/*
+	 * Schedule out siblings (if any):
+	 */
+	list_for_each_entry(counter, &group_counter->sibling_list, list_entry)
+		counter_sched_out(counter, cpuctx, ctx);
 }
 
 /*
@@ -306,19 +381,46 @@ void perf_counter_task_sched_out(struct task_struct *task, int cpu)
 		return;
 
 	spin_lock(&ctx->lock);
-	list_for_each_entry(counter, &ctx->counters, list) {
-		if (!ctx->nr_active)
-			break;
-		if (counter->active) {
-			hw_perf_counter_disable(counter);
-			counter->active = 0;
-			counter->oncpu = -1;
-			ctx->nr_active--;
-			cpuctx->active_oncpu--;
-		}
+	if (ctx->nr_active) {
+		list_for_each_entry(counter, &ctx->counter_list, list_entry)
+			group_sched_out(counter, cpuctx, ctx);
 	}
 	spin_unlock(&ctx->lock);
 	cpuctx->task_ctx = NULL;
+}
+
+static void
+counter_sched_in(struct perf_counter *counter,
+		 struct perf_cpu_context *cpuctx,
+		 struct perf_counter_context *ctx,
+		 int cpu)
+{
+	if (!counter->active)
+		return;
+
+	hw_perf_counter_enable(counter);
+	counter->active = 1;
+	counter->oncpu = cpu;	/* TODO: put 'cpu' into cpuctx->cpu */
+
+	cpuctx->active_oncpu++;
+	ctx->nr_active++;
+}
+
+static void
+group_sched_in(struct perf_counter *group_counter,
+	       struct perf_cpu_context *cpuctx,
+	       struct perf_counter_context *ctx,
+	       int cpu)
+{
+	struct perf_counter *counter;
+
+	counter_sched_in(group_counter, cpuctx, ctx, cpu);
+
+	/*
+	 * Schedule in siblings as one group (if any):
+	 */
+	list_for_each_entry(counter, &group_counter->sibling_list, list_entry)
+		counter_sched_in(counter, cpuctx, ctx, cpu);
 }
 
 /*
@@ -342,19 +444,21 @@ void perf_counter_task_sched_in(struct task_struct *task, int cpu)
 		return;
 
 	spin_lock(&ctx->lock);
-	list_for_each_entry(counter, &ctx->counters, list) {
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
 		if (ctx->nr_active == cpuctx->max_pertask)
 			break;
+
+		/*
+		 * Listen to the 'cpu' scheduling filter constraint
+		 * of counters:
+		 */
 		if (counter->cpu != -1 && counter->cpu != cpu)
 			continue;
 
-		hw_perf_counter_enable(counter);
-		counter->active = 1;
-		counter->oncpu = cpu;
-		ctx->nr_active++;
-		cpuctx->active_oncpu++;
+		group_sched_in(counter, cpuctx, ctx, cpu);
 	}
 	spin_unlock(&ctx->lock);
+
 	cpuctx->task_ctx = ctx;
 }
 
@@ -371,12 +475,12 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 	spin_lock(&ctx->lock);
 
 	/*
-	 * Rotate the first entry last:
+	 * Rotate the first entry last (works just fine for group counters too):
 	 */
 	hw_perf_disable_all();
-	list_for_each_entry(counter, &ctx->counters, list) {
-		list_del(&counter->list);
-		list_add_tail(&counter->list, &ctx->counters);
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		list_del(&counter->list_entry);
+		list_add_tail(&counter->list_entry, &ctx->counter_list);
 		break;
 	}
 	hw_perf_enable_all();
@@ -387,16 +491,23 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 }
 
 /*
+ * Initialize the perf_counter context in a task_struct:
+ */
+static void
+__perf_counter_init_context(struct perf_counter_context *ctx,
+			    struct task_struct *task)
+{
+	spin_lock_init(&ctx->lock);
+	INIT_LIST_HEAD(&ctx->counter_list);
+	ctx->nr_counters	= 0;
+	ctx->task		= task;
+}
+/*
  * Initialize the perf_counter context in task_struct
  */
 void perf_counter_init_task(struct task_struct *task)
 {
-	struct perf_counter_context *ctx = &task->perf_counter_ctx;
-
-	spin_lock_init(&ctx->lock);
-	INIT_LIST_HEAD(&ctx->counters);
-	ctx->nr_counters = 0;
-	ctx->task = task;
+	__perf_counter_init_context(&task->perf_counter_ctx, task);
 }
 
 /*
@@ -407,7 +518,7 @@ static void __hw_perf_counter_read(void *info)
 	hw_perf_counter_read(info);
 }
 
-static u64 perf_read_counter(struct perf_counter *counter)
+static u64 perf_counter_read(struct perf_counter *counter)
 {
 	/*
 	 * If counter is enabled and currently active on a CPU, update the
@@ -418,7 +529,7 @@ static u64 perf_read_counter(struct perf_counter *counter)
 					 __hw_perf_counter_read, counter, 1);
 	}
 
-	return perf_read_counter_safe(counter);
+	return perf_counter_read_safe(counter);
 }
 
 /*
@@ -555,7 +666,7 @@ static int perf_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&counter->mutex);
 
-	perf_remove_from_context(counter);
+	perf_counter_remove_from_context(counter);
 	put_context(ctx);
 
 	mutex_unlock(&counter->mutex);
@@ -577,7 +688,7 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 		return -EINVAL;
 
 	mutex_lock(&counter->mutex);
-	cntval = perf_read_counter(counter);
+	cntval = perf_counter_read(counter);
 	mutex_unlock(&counter->mutex);
 
 	return put_user(cntval, (u64 __user *) buf) ? -EFAULT : sizeof(cntval);
@@ -707,15 +818,25 @@ static const struct file_operations perf_fops = {
  * Allocate and initialize a counter structure
  */
 static struct perf_counter *
-perf_counter_alloc(struct perf_counter_hw_event *hw_event, int cpu)
+perf_counter_alloc(struct perf_counter_hw_event *hw_event,
+		   int cpu,
+		   struct perf_counter *group_leader)
 {
 	struct perf_counter *counter = kzalloc(sizeof(*counter), GFP_KERNEL);
 
 	if (!counter)
 		return NULL;
 
+	/*
+	 * Single counters are their own group leaders, with an
+	 * empty sibling list:
+	 */
+	if (!group_leader)
+		group_leader = counter;
+
 	mutex_init(&counter->mutex);
-	INIT_LIST_HEAD(&counter->list);
+	INIT_LIST_HEAD(&counter->list_entry);
+	INIT_LIST_HEAD(&counter->sibling_list);
 	init_waitqueue_head(&counter->waitq);
 
 	counter->irqdata		= &counter->data[0];
@@ -723,6 +844,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event, int cpu)
 	counter->cpu			= cpu;
 	counter->hw_event		= *hw_event;
 	counter->wakeup_pending		= 0;
+	counter->group_leader		= group_leader;
 
 	return counter;
 }
@@ -743,20 +865,45 @@ asmlinkage int sys_perf_counter_open(
 	int				group_fd)
 
 {
-	struct perf_counter_context *ctx;
+	struct perf_counter *counter, *group_leader;
 	struct perf_counter_hw_event hw_event;
-	struct perf_counter *counter;
+	struct perf_counter_context *ctx;
+	struct file *group_file = NULL;
+	int fput_needed = 0;
 	int ret;
 
 	if (copy_from_user(&hw_event, hw_event_uptr, sizeof(hw_event)) != 0)
 		return -EFAULT;
 
+	/*
+	 * Look up the group leader:
+	 */
+	group_leader = NULL;
+	if (group_fd != -1) {
+		ret = -EINVAL;
+		group_file = fget_light(group_fd, &fput_needed);
+		if (!group_file)
+			goto out_fput;
+		if (group_file->f_op != &perf_fops)
+			goto out_fput;
+
+		group_leader = group_file->private_data;
+		/*
+		 * Do not allow a recursive hierarchy:
+		 */
+		if (group_leader->group_leader)
+			goto out_fput;
+	}
+
+	/*
+	 * Get the target context (task or percpu):
+	 */
 	ctx = find_get_context(pid, cpu);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
 	ret = -ENOMEM;
-	counter = perf_counter_alloc(&hw_event, cpu);
+	counter = perf_counter_alloc(&hw_event, cpu, group_leader);
 	if (!counter)
 		goto err_put_context;
 
@@ -770,11 +917,14 @@ asmlinkage int sys_perf_counter_open(
 	if (ret < 0)
 		goto err_remove_free_put_context;
 
+out_fput:
+	fput_light(group_file, fput_needed);
+
 	return ret;
 
 err_remove_free_put_context:
 	mutex_lock(&counter->mutex);
-	perf_remove_from_context(counter);
+	perf_counter_remove_from_context(counter);
 	mutex_unlock(&counter->mutex);
 
 err_free_put_context:
@@ -783,40 +933,40 @@ err_free_put_context:
 err_put_context:
 	put_context(ctx);
 
-	return ret;
+	goto out_fput;
 }
 
-static void __cpuinit perf_init_cpu(int cpu)
+static void __cpuinit perf_counter_init_cpu(int cpu)
 {
-	struct perf_cpu_context *ctx;
+	struct perf_cpu_context *cpuctx;
 
-	ctx = &per_cpu(perf_cpu_context, cpu);
-	spin_lock_init(&ctx->ctx.lock);
-	INIT_LIST_HEAD(&ctx->ctx.counters);
+	cpuctx = &per_cpu(perf_cpu_context, cpu);
+	__perf_counter_init_context(&cpuctx->ctx, NULL);
 
 	mutex_lock(&perf_resource_mutex);
-	ctx->max_pertask = perf_max_counters - perf_reserved_percpu;
+	cpuctx->max_pertask = perf_max_counters - perf_reserved_percpu;
 	mutex_unlock(&perf_resource_mutex);
+
 	hw_perf_counter_setup();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __perf_exit_cpu(void *info)
+static void __perf_counter_exit_cpu(void *info)
 {
 	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_counter_context *ctx = &cpuctx->ctx;
 	struct perf_counter *counter, *tmp;
 
-	list_for_each_entry_safe(counter, tmp, &ctx->counters, list)
-		__perf_remove_from_context(counter);
+	list_for_each_entry_safe(counter, tmp, &ctx->counter_list, list_entry)
+		__perf_counter_remove_from_context(counter);
 
 }
-static void perf_exit_cpu(int cpu)
+static void perf_counter_exit_cpu(int cpu)
 {
-	smp_call_function_single(cpu, __perf_exit_cpu, NULL, 1);
+	smp_call_function_single(cpu, __perf_counter_exit_cpu, NULL, 1);
 }
 #else
-static inline void perf_exit_cpu(int cpu) { }
+static inline void perf_counter_exit_cpu(int cpu) { }
 #endif
 
 static int __cpuinit
@@ -828,12 +978,12 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		perf_init_cpu(cpu);
+		perf_counter_init_cpu(cpu);
 		break;
 
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
-		perf_exit_cpu(cpu);
+		perf_counter_exit_cpu(cpu);
 		break;
 
 	default:
