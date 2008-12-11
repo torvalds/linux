@@ -186,12 +186,6 @@ struct iwl_channel_info {
 	u8 fat_extension_channel; /* HT_IE_EXT_CHANNEL_* */
 };
 
-struct iwl4965_clip_group {
-	/* maximum power level to prevent clipping for each rate, derived by
-	 *   us from this band's saturation power in EEPROM */
-	const s8 clip_powers[IWL_MAX_RATES];
-};
-
 
 #define IWL_TX_FIFO_AC0	0
 #define IWL_TX_FIFO_AC1	1
@@ -792,10 +786,6 @@ struct iwl_priv {
 	 *    Access via channel # using indirect index array */
 	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
-
-	/* each calibration channel group in the EEPROM has a derived
-	 * clip setting for each rate. */
-	const struct iwl4965_clip_group clip_groups[5];
 
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */

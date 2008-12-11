@@ -84,12 +84,6 @@
 #define IWL_CMD_FIFO_NUM        4
 #define IWL49_FIRST_AMPDU_QUEUE	7
 
-/* Tx rates */
-#define IWL_CCK_RATES 4
-#define IWL_OFDM_RATES 8
-#define IWL_HT_RATES 16
-#define IWL_MAX_RATES  (IWL_CCK_RATES+IWL_OFDM_RATES+IWL_HT_RATES)
-
 /* Time constants */
 #define SHORT_SLOT_TIME 9
 #define LONG_SLOT_TIME 20
