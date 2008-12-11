@@ -55,5 +55,8 @@ struct netns_ipv6 {
 	struct sock             *ndisc_sk;
 	struct sock             *tcp_sk;
 	struct sock             *igmp_sk;
+#ifdef CONFIG_IPV6_MROUTE
+	struct sock		*mroute6_sk;
+#endif
 };
 #endif

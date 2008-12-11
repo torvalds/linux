@@ -117,6 +117,7 @@ struct sioc_mif_req6
 
 #include <linux/pim.h>
 #include <linux/skbuff.h>	/* for struct sk_buff_head */
+#include <net/net_namespace.h>
 
 #ifdef CONFIG_IPV6_MROUTE
 static inline int ip6_mroute_opt(int opt)
@@ -232,10 +233,13 @@ struct rtmsg;
 extern int ip6mr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait);
 
 #ifdef CONFIG_IPV6_MROUTE
-extern struct sock *mroute6_socket;
+static inline struct sock *mroute6_socket(struct net *net)
+{
+	return net->ipv6.mroute6_sk;
+}
 extern int ip6mr_sk_done(struct sock *sk);
 #else
-#define mroute6_socket NULL
+static inline struct sock *mroute6_socket(struct net *net) { return NULL; }
 static inline int ip6mr_sk_done(struct sock *sk) { return 0; }
 #endif
 #endif

@@ -49,9 +49,6 @@
 #include <net/addrconf.h>
 #include <linux/netfilter_ipv6.h>
 
-struct sock *mroute6_socket;
-
-
 /* Big lock, protecting vif table, mrt cache and mroute socket state.
    Note that the changes are semaphored via rtnl_lock.
  */
@@ -820,7 +817,7 @@ static int ip6mr_cache_report(struct sk_buff *pkt, mifi_t mifi, int assert)
 	skb_pull(skb, sizeof(struct ipv6hdr));
 	}
 
-	if (mroute6_socket == NULL) {
+	if (init_net.ipv6.mroute6_sk == NULL) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -828,7 +825,8 @@ static int ip6mr_cache_report(struct sk_buff *pkt, mifi_t mifi, int assert)
 	/*
 	 *	Deliver to user space multicast routing algorithms
 	 */
-	if ((ret = sock_queue_rcv_skb(mroute6_socket, skb)) < 0) {
+	ret = sock_queue_rcv_skb(init_net.ipv6.mroute6_sk, skb);
+	if (ret < 0) {
 		if (net_ratelimit())
 			printk(KERN_WARNING "mroute6: pending queue full, dropping entries.\n");
 		kfree_skb(skb);
@@ -1145,8 +1143,8 @@ static int ip6mr_sk_init(struct sock *sk)
 
 	rtnl_lock();
 	write_lock_bh(&mrt_lock);
-	if (likely(mroute6_socket == NULL))
-		mroute6_socket = sk;
+	if (likely(init_net.ipv6.mroute6_sk == NULL))
+		init_net.ipv6.mroute6_sk = sk;
 	else
 		err = -EADDRINUSE;
 	write_unlock_bh(&mrt_lock);
@@ -1161,9 +1159,9 @@ int ip6mr_sk_done(struct sock *sk)
 	int err = 0;
 
 	rtnl_lock();
-	if (sk == mroute6_socket) {
+	if (sk == init_net.ipv6.mroute6_sk) {
 		write_lock_bh(&mrt_lock);
-		mroute6_socket = NULL;
+		init_net.ipv6.mroute6_sk = NULL;
 		write_unlock_bh(&mrt_lock);
 
 		mroute_clean_tables(sk);
@@ -1189,7 +1187,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 	mifi_t mifi;
 
 	if (optname != MRT6_INIT) {
-		if (sk != mroute6_socket && !capable(CAP_NET_ADMIN))
+		if (sk != init_net.ipv6.mroute6_sk && !capable(CAP_NET_ADMIN))
 			return -EACCES;
 	}
 
@@ -1214,7 +1212,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 		if (vif.mif6c_mifi >= MAXMIFS)
 			return -ENFILE;
 		rtnl_lock();
-		ret = mif6_add(&vif, sk == mroute6_socket);
+		ret = mif6_add(&vif, sk == init_net.ipv6.mroute6_sk);
 		rtnl_unlock();
 		return ret;
 
@@ -1242,7 +1240,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 		if (optname == MRT6_DEL_MFC)
 			ret = ip6mr_mfc_delete(&mfc);
 		else
-			ret = ip6mr_mfc_add(&mfc, sk == mroute6_socket);
+			ret = ip6mr_mfc_add(&mfc, sk == init_net.ipv6.mroute6_sk);
 		rtnl_unlock();
 		return ret;
 
