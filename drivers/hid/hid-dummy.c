@@ -61,6 +61,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_SUNPLUS_MODULE
 	HID_COMPAT_CALL_DRIVER(sunplus);
 #endif
+#ifdef CONFIG_GREENASIA_FF_MODULE
+	HID_COMPAT_CALL_DRIVER(greenasia);
+#endif
 #ifdef CONFIG_THRUSTMASTER_FF_MODULE
 	HID_COMPAT_CALL_DRIVER(thrustmaster);
 #endif
