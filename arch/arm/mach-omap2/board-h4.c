@@ -373,23 +373,12 @@ static struct omap_uart_config h4_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
 };
 
-static struct omap_mmc_config h4_mmc_config __initdata = {
-	.mmc [0] = {
-		.enabled	= 1,
-		.wire4		= 1,
-		.wp_pin		= -1,
-		.power_pin	= -1,
-		.switch_pin	= -1,
-	},
-};
-
 static struct omap_lcd_config h4_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
 static struct omap_board_config_kernel h4_config[] = {
 	{ OMAP_TAG_UART,	&h4_uart_config },
-	{ OMAP_TAG_MMC,		&h4_mmc_config },
 	{ OMAP_TAG_LCD,		&h4_lcd_config },
 };
 

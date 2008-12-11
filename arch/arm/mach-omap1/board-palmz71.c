@@ -267,16 +267,6 @@ static struct omap_usb_config palmz71_usb_config __initdata = {
 	.pins[0]	= 2,
 };
 
-static struct omap_mmc_config palmz71_mmc_config __initdata = {
-	.mmc[0] = {
-		.enabled	= 1,
-		.wire4		= 0,
-		.wp_pin		= PALMZ71_MMC_WP_GPIO,
-		.power_pin	= -1,
-		.switch_pin	= PALMZ71_MMC_IN_GPIO,
-	},
-};
-
 static struct omap_lcd_config palmz71_lcd_config __initdata = {
 	.ctrl_name = "internal",
 };
@@ -287,7 +277,6 @@ static struct omap_uart_config palmz71_uart_config __initdata = {
 
 static struct omap_board_config_kernel palmz71_config[] __initdata = {
 	{OMAP_TAG_USB,	&palmz71_usb_config},
-	{OMAP_TAG_MMC,	&palmz71_mmc_config},
 	{OMAP_TAG_LCD,	&palmz71_lcd_config},
 	{OMAP_TAG_UART,	&palmz71_uart_config},
 };

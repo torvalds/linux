@@ -48,59 +48,10 @@ static int sx1_mmc_set_power(struct device *dev, int slot, int power_on,
 	return sx1_i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, dat);
 }
 
-static int sx1_mmc_set_bus_mode(struct device *dev, int slot, int bus_mode)
-{
-#ifdef CONFIG_MMC_DEBUG
-	dev_dbg(dev, "Set slot %d bus_mode %s\n", slot + 1,
-		bus_mode == MMC_BUSMODE_OPENDRAIN ? "open-drain" : "push-pull");
-#endif
-	if (slot != 0) {
-		dev_err(dev, "No such slot %d\n", slot + 1);
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static int sx1_mmc_get_cover_state(struct device *dev, int slot)
-{
-	BUG_ON(slot != 0);
-
-	return slot_cover_open;
-}
-
-void sx1_mmc_slot_cover_handler(void *arg, int state)
-{
-	if (mmc_device == NULL)
-		return;
-
-	slot_cover_open = state;
-	omap_mmc_notify_cover_event(mmc_device, 0, state);
-}
-
-static int sx1_mmc_late_init(struct device *dev)
-{
-	int ret = 0;
-
-	mmc_device = dev;
-
-	return ret;
-}
-
-static void sx1_mmc_cleanup(struct device *dev)
-{
-}
-
 static struct omap_mmc_platform_data sx1_mmc_data = {
 	.nr_slots                       = 1,
-	.switch_slot                    = NULL,
-	.init                           = sx1_mmc_late_init,
-	.cleanup                        = sx1_mmc_cleanup,
 	.slots[0]       = {
 		.set_power              = sx1_mmc_set_power,
-		.set_bus_mode           = sx1_mmc_set_bus_mode,
-		.get_ro                 = NULL,
-		.get_cover_state        = sx1_mmc_get_cover_state,
 		.ocr_mask               = MMC_VDD_28_29 | MMC_VDD_30_31 |
 					  MMC_VDD_32_33 | MMC_VDD_33_34,
 		.name                   = "mmcblk",

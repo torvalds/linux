@@ -378,15 +378,6 @@ static struct omap_usb_config sx1_usb_config __initdata = {
 	.pins[2]	= 0,
 };
 
-/*----------- MMC -------------------------*/
-
-static struct omap_mmc_config sx1_mmc_config __initdata = {
-	.mmc [0] = {
-		.enabled	= 1,
-		.wire4		= 0,
-	},
-};
-
 /*----------- LCD -------------------------*/
 
 static struct platform_device sx1_lcd_device = {
@@ -414,7 +405,6 @@ static struct omap_uart_config sx1_uart_config __initdata = {
 
 static struct omap_board_config_kernel sx1_config[] __initdata = {
 	{ OMAP_TAG_USB,	&sx1_usb_config },
-	{ OMAP_TAG_MMC,	&sx1_mmc_config },
 	{ OMAP_TAG_LCD,	&sx1_lcd_config },
 	{ OMAP_TAG_UART,	&sx1_uart_config },
 };
