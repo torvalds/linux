@@ -53,6 +53,17 @@ static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
 
 /*
+ * If the kernel has IPv6 support available, always listen for
+ * both AF_INET and AF_INET6 requests.
+ */
+#if (defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)) && \
+	defined(CONFIG_SUNRPC_REGISTER_V4)
+static const sa_family_t	nlmsvc_family = AF_INET6;
+#else	/* (CONFIG_IPV6 || CONFIG_IPV6_MODULE) && CONFIG_SUNRPC_REGISTER_V4 */
+static const sa_family_t	nlmsvc_family = AF_INET;
+#endif	/* (CONFIG_IPV6 || CONFIG_IPV6_MODULE) && CONFIG_SUNRPC_REGISTER_V4 */
+
+/*
  * These can be set at insmod time (useful for NFS as root filesystem),
  * and also changed through the sysctl interface.  -- Jamie Lokier, Aug 2003
  */
@@ -256,7 +267,7 @@ int lockd_up(void)
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
 	error = -ENOMEM;
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, AF_INET, NULL);
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, nlmsvc_family, NULL);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		goto out;
