@@ -297,6 +297,8 @@ extern unsigned int get_memclk_frequency_10khz(void);
 #define PCIBIOS_MIN_IO		0
 #define PCIBIOS_MIN_MEM		0
 #define pcibios_assign_all_busses()	1
+#define HAVE_ARCH_PCI_SET_DMA_MASK	1
 #endif
+
 
 #endif  /* _ASM_ARCH_HARDWARE_H */
