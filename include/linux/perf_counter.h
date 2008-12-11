@@ -213,6 +213,8 @@ extern u64 hw_perf_save_disable(void);
 extern void hw_perf_restore(u64 ctrl);
 extern void atomic64_counter_set(struct perf_counter *counter, u64 val64);
 extern u64 atomic64_counter_read(struct perf_counter *counter);
+extern int perf_counter_task_disable(void);
+extern int perf_counter_task_enable(void);
 
 #else
 static inline void
@@ -226,6 +228,8 @@ static inline void perf_counter_notify(struct pt_regs *regs)		{ }
 static inline void perf_counter_print_debug(void)			{ }
 static inline void hw_perf_restore(u64 ctrl)			{ }
 static inline u64 hw_perf_save_disable(void)		      { return 0; }
+static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
+static inline int perf_counter_task_enable(void)	{ return -EINVAL; }
 #endif
 
 #endif /* _LINUX_PERF_COUNTER_H */

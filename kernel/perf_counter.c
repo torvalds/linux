@@ -415,6 +415,9 @@ counter_sched_in(struct perf_counter *counter,
 		 struct perf_counter_context *ctx,
 		 int cpu)
 {
+	if (counter->active == -1)
+		return;
+
 	counter->hw_ops->hw_perf_counter_enable(counter);
 	counter->active = 1;
 	counter->oncpu = cpu;	/* TODO: put 'cpu' into cpuctx->cpu */
@@ -477,6 +480,79 @@ void perf_counter_task_sched_in(struct task_struct *task, int cpu)
 	spin_unlock(&ctx->lock);
 
 	cpuctx->task_ctx = ctx;
+}
+
+int perf_counter_task_disable(void)
+{
+	struct task_struct *curr = current;
+	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
+	struct perf_counter *counter;
+	u64 perf_flags;
+	int cpu;
+
+	if (likely(!ctx->nr_counters))
+		return 0;
+
+	local_irq_disable();
+	cpu = smp_processor_id();
+
+	perf_counter_task_sched_out(curr, cpu);
+
+	spin_lock(&ctx->lock);
+
+	/*
+	 * Disable all the counters:
+	 */
+	perf_flags = hw_perf_save_disable();
+
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		WARN_ON_ONCE(counter->active == 1);
+		counter->active = -1;
+	}
+	hw_perf_restore(perf_flags);
+
+	spin_unlock(&ctx->lock);
+
+	local_irq_enable();
+
+	return 0;
+}
+
+int perf_counter_task_enable(void)
+{
+	struct task_struct *curr = current;
+	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
+	struct perf_counter *counter;
+	u64 perf_flags;
+	int cpu;
+
+	if (likely(!ctx->nr_counters))
+		return 0;
+
+	local_irq_disable();
+	cpu = smp_processor_id();
+
+	spin_lock(&ctx->lock);
+
+	/*
+	 * Disable all the counters:
+	 */
+	perf_flags = hw_perf_save_disable();
+
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		if (counter->active != -1)
+			continue;
+		counter->active = 0;
+	}
+	hw_perf_restore(perf_flags);
+
+	spin_unlock(&ctx->lock);
+
+	perf_counter_task_sched_in(curr, cpu);
+
+	local_irq_enable();
+
+	return 0;
 }
 
 void perf_counter_task_tick(struct task_struct *curr, int cpu)
@@ -951,13 +1027,9 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
  * @cpu:		target cpu
  * @group_fd:		group leader counter fd
  */
-asmlinkage int sys_perf_counter_open(
-
-	struct perf_counter_hw_event	*hw_event_uptr		__user,
-	pid_t				pid,
-	int				cpu,
-	int				group_fd)
-
+asmlinkage int
+sys_perf_counter_open(struct perf_counter_hw_event *hw_event_uptr __user,
+		      pid_t pid, int cpu, int group_fd)
 {
 	struct perf_counter *counter, *group_leader;
 	struct perf_counter_hw_event hw_event;
