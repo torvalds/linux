@@ -63,6 +63,9 @@ struct netns_ipv6 {
 	atomic_t		cache_resolve_queue_len;
 	int			mroute_do_assert;
 	int			mroute_do_pim;
+#ifdef CONFIG_IPV6_PIMSM_V2
+	int			mroute_reg_vif_num;
+#endif
 #endif
 };
 #endif
