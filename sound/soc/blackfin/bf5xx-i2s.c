@@ -315,13 +315,13 @@ EXPORT_SYMBOL_GPL(bf5xx_i2s_dai);
 
 static int __init bfin_i2s_init(void)
 {
-	return snd_soc_register_dai(&bfin_i2s_dai);
+	return snd_soc_register_dai(&bf5xx_i2s_dai);
 }
 module_init(bfin_i2s_init);
 
 static void __exit bfin_i2s_exit(void)
 {
-	snd_soc_unregister_dai(&bfin_i2s_dai);
+	snd_soc_unregister_dai(&bf5xx_i2s_dai);
 }
 module_exit(bfin_i2s_exit);
 
