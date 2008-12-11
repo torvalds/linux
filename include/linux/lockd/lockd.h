@@ -299,8 +299,14 @@ static inline int __nlm_privileged_request4(const struct sockaddr *sap)
 static inline int __nlm_privileged_request6(const struct sockaddr *sap)
 {
 	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
-	return (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LOOPBACK) &&
-			(ntohs(sin6->sin6_port) < 1024);
+
+	if (ntohs(sin6->sin6_port) > 1023)
+		return 0;
+
+	if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_MAPPED)
+		return ipv4_is_loopback(sin6->sin6_addr.s6_addr32[3]);
+
+	return ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LOOPBACK;
 }
 #else	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 static inline int __nlm_privileged_request6(const struct sockaddr *sap)
