@@ -59,7 +59,6 @@ unsigned long			nlmsvc_timeout;
 static unsigned long		nlm_grace_period;
 static unsigned long		nlm_timeout = LOCKD_DFLT_TIMEO;
 static int			nlm_udpport, nlm_tcpport;
-int				nsm_use_hostnames = 0;
 
 /* RLIM_NOFILE defaults to 1024. That seems like a reasonable default here. */
 static unsigned int		nlm_max_connections = 1024;

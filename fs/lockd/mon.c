@@ -53,7 +53,8 @@ static				DEFINE_SPINLOCK(nsm_lock);
 /*
  * Local NSM state
  */
-int				nsm_local_state;
+int	__read_mostly		nsm_local_state;
+int	__read_mostly		nsm_use_hostnames;
 
 static inline struct sockaddr *nsm_addr(const struct nsm_handle *nsm)
 {
