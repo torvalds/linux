@@ -13,7 +13,6 @@
 
 struct device_node;
 
-extern unsigned int ppc_pci_flags;
 enum {
 	/* Force re-assigning all resources (ignore firmware
 	 * setup completely)
@@ -36,6 +35,31 @@ enum {
 	/* ... except for domain 0 */
 	PPC_PCI_COMPAT_DOMAIN_0		= 0x00000020,
 };
+#ifdef CONFIG_PCI
+extern unsigned int ppc_pci_flags;
+
+static inline void ppc_pci_set_flags(int flags)
+{
+	ppc_pci_flags = flags;
+}
+
+static inline void ppc_pci_add_flags(int flags)
+{
+	ppc_pci_flags |= flags;
+}
+
+static inline int ppc_pci_has_flag(int flag)
+{
+	return (ppc_pci_flags & flag);
+}
+#else
+static inline void ppc_pci_set_flags(int flags) { }
+static inline void ppc_pci_add_flags(int flags) { }
+static inline int ppc_pci_has_flag(int flag)
+{
+	return 0;
+}
+#endif
 
 
 /*
