@@ -56,7 +56,7 @@ const int max_intel_perfmon_events = ARRAY_SIZE(intel_perfmon_event_map);
 /*
  * Setup the hardware configuration for a given hw_event_type
  */
-int hw_perf_counter_init(struct perf_counter *counter)
+static int __hw_perf_counter_init(struct perf_counter *counter)
 {
 	struct perf_counter_hw_event *hw_event = &counter->hw_event;
 	struct hw_perf_counter *hwc = &counter->hw;
@@ -135,7 +135,7 @@ u64 hw_perf_disable_all(void)
 EXPORT_SYMBOL_GPL(hw_perf_disable_all);
 
 static inline void
-__hw_perf_counter_disable(struct hw_perf_counter *hwc, unsigned int idx)
+__x86_perf_counter_disable(struct hw_perf_counter *hwc, unsigned int idx)
 {
 	wrmsr(hwc->config_base + idx, hwc->config, 0);
 }
@@ -149,13 +149,13 @@ static void __hw_perf_counter_set_period(struct hw_perf_counter *hwc, int idx)
 	wrmsr(hwc->counter_base + idx, hwc->next_count, 0);
 }
 
-static void __hw_perf_counter_enable(struct hw_perf_counter *hwc, int idx)
+static void __x86_perf_counter_enable(struct hw_perf_counter *hwc, int idx)
 {
 	wrmsr(hwc->config_base + idx,
 	      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
 }
 
-void hw_perf_counter_enable(struct perf_counter *counter)
+static void x86_perf_counter_enable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
@@ -170,12 +170,12 @@ void hw_perf_counter_enable(struct perf_counter *counter)
 
 	perf_counters_lapic_init(hwc->nmi);
 
-	__hw_perf_counter_disable(hwc, idx);
+	__x86_perf_counter_disable(hwc, idx);
 
 	cpuc->counters[idx] = counter;
 
 	__hw_perf_counter_set_period(hwc, idx);
-	__hw_perf_counter_enable(hwc, idx);
+	__x86_perf_counter_enable(hwc, idx);
 }
 
 #ifdef CONFIG_X86_64
@@ -282,20 +282,20 @@ void perf_counter_print_debug(void)
 	local_irq_enable();
 }
 
-void hw_perf_counter_disable(struct perf_counter *counter)
+static void x86_perf_counter_disable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
 	unsigned int idx = hwc->idx;
 
-	__hw_perf_counter_disable(hwc, idx);
+	__x86_perf_counter_disable(hwc, idx);
 
 	clear_bit(idx, cpuc->used);
 	cpuc->counters[idx] = NULL;
 	__hw_perf_save_counter(counter, hwc, idx);
 }
 
-void hw_perf_counter_read(struct perf_counter *counter)
+static void x86_perf_counter_read(struct perf_counter *counter)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
 	unsigned long addr = hwc->counter_base + hwc->idx;
@@ -342,7 +342,7 @@ static void perf_save_and_restart(struct perf_counter *counter)
 	__hw_perf_counter_set_period(hwc, idx);
 
 	if (pmc_ctrl & ARCH_PERFMON_EVENTSEL0_ENABLE)
-		__hw_perf_counter_enable(hwc, idx);
+		__x86_perf_counter_enable(hwc, idx);
 }
 
 static void
@@ -571,4 +571,21 @@ void __init init_hw_perf_counters(void)
 	register_die_notifier(&perf_counter_nmi_notifier);
 
 	perf_counters_initialized = true;
+}
+
+static struct hw_perf_counter_ops x86_perf_counter_ops = {
+	.hw_perf_counter_enable		= x86_perf_counter_enable,
+	.hw_perf_counter_disable	= x86_perf_counter_disable,
+	.hw_perf_counter_read		= x86_perf_counter_read,
+};
+
+struct hw_perf_counter_ops *hw_perf_counter_init(struct perf_counter *counter)
+{
+	int err;
+
+	err = __hw_perf_counter_init(counter);
+	if (err)
+		return NULL;
+
+	return &x86_perf_counter_ops;
 }

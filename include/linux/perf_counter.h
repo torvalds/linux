@@ -113,6 +113,17 @@ struct perf_data {
 	u8				data[PERF_DATA_BUFLEN];
 };
 
+struct perf_counter;
+
+/**
+ * struct hw_perf_counter_ops - performance counter hw ops
+ */
+struct hw_perf_counter_ops {
+	void (*hw_perf_counter_enable)	(struct perf_counter *counter);
+	void (*hw_perf_counter_disable)	(struct perf_counter *counter);
+	void (*hw_perf_counter_read)	(struct perf_counter *counter);
+};
+
 /**
  * struct perf_counter - performance counter kernel representation:
  */
@@ -120,6 +131,7 @@ struct perf_counter {
 	struct list_head		list_entry;
 	struct list_head		sibling_list;
 	struct perf_counter		*group_leader;
+	struct hw_perf_counter_ops	*hw_ops;
 
 	int				active;
 #if BITS_PER_LONG == 64
@@ -185,6 +197,9 @@ struct perf_cpu_context {
 extern int perf_max_counters;
 
 #ifdef CONFIG_PERF_COUNTERS
+extern struct hw_perf_counter_ops *
+hw_perf_counter_init(struct perf_counter *counter);
+
 extern void perf_counter_task_sched_in(struct task_struct *task, int cpu);
 extern void perf_counter_task_sched_out(struct task_struct *task, int cpu);
 extern void perf_counter_task_tick(struct task_struct *task, int cpu);

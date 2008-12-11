@@ -37,18 +37,15 @@ static DEFINE_MUTEX(perf_resource_mutex);
 /*
  * Architecture provided APIs - weak aliases:
  */
-
-int __weak hw_perf_counter_init(struct perf_counter *counter)
+extern __weak struct hw_perf_counter_ops *
+hw_perf_counter_init(struct perf_counter *counter)
 {
-	return -EINVAL;
+	return ERR_PTR(-EINVAL);
 }
 
-void __weak hw_perf_counter_enable(struct perf_counter *counter)	 { }
-void __weak hw_perf_counter_disable(struct perf_counter *counter)	 { }
-void __weak hw_perf_counter_read(struct perf_counter *counter)		 { }
-void __weak hw_perf_disable_all(void) { }
-void __weak hw_perf_enable_all(void) { }
-void __weak hw_perf_counter_setup(void) { }
+void __weak hw_perf_disable_all(void)	 { }
+void __weak hw_perf_enable_all(void)	 { }
+void __weak hw_perf_counter_setup(void)	 { }
 
 #if BITS_PER_LONG == 64
 
@@ -146,7 +143,7 @@ static void __perf_counter_remove_from_context(void *info)
 	spin_lock(&ctx->lock);
 
 	if (counter->active) {
-		hw_perf_counter_disable(counter);
+		counter->hw_ops->hw_perf_counter_disable(counter);
 		counter->active = 0;
 		ctx->nr_active--;
 		cpuctx->active_oncpu--;
@@ -257,7 +254,7 @@ static void __perf_install_in_context(void *info)
 	ctx->nr_counters++;
 
 	if (cpuctx->active_oncpu < perf_max_counters) {
-		hw_perf_counter_enable(counter);
+		counter->hw_ops->hw_perf_counter_enable(counter);
 		counter->active = 1;
 		counter->oncpu = cpu;
 		ctx->nr_active++;
@@ -333,7 +330,7 @@ counter_sched_out(struct perf_counter *counter,
 	if (!counter->active)
 		return;
 
-	hw_perf_counter_disable(counter);
+	counter->hw_ops->hw_perf_counter_disable(counter);
 	counter->active	=  0;
 	counter->oncpu	= -1;
 
@@ -392,7 +389,7 @@ counter_sched_in(struct perf_counter *counter,
 		 struct perf_counter_context *ctx,
 		 int cpu)
 {
-	hw_perf_counter_enable(counter);
+	counter->hw_ops->hw_perf_counter_enable(counter);
 	counter->active = 1;
 	counter->oncpu = cpu;	/* TODO: put 'cpu' into cpuctx->cpu */
 
@@ -509,7 +506,9 @@ void perf_counter_init_task(struct task_struct *task)
  */
 static void __hw_perf_counter_read(void *info)
 {
-	hw_perf_counter_read(info);
+	struct perf_counter *counter = info;
+
+	counter->hw_ops->hw_perf_counter_read(counter);
 }
 
 static u64 perf_counter_read(struct perf_counter *counter)
@@ -816,8 +815,10 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		   int cpu,
 		   struct perf_counter *group_leader)
 {
-	struct perf_counter *counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	struct hw_perf_counter_ops *hw_ops;
+	struct perf_counter *counter;
 
+	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
 	if (!counter)
 		return NULL;
 
@@ -839,6 +840,14 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	counter->hw_event		= *hw_event;
 	counter->wakeup_pending		= 0;
 	counter->group_leader		= group_leader;
+	counter->hw_ops			= NULL;
+
+	hw_ops = hw_perf_counter_init(counter);
+	if (!hw_ops) {
+		kfree(counter);
+		return NULL;
+	}
+	counter->hw_ops = hw_ops;
 
 	return counter;
 }
@@ -908,10 +917,6 @@ asmlinkage int sys_perf_counter_open(
 	if (!counter)
 		goto err_put_context;
 
-	ret = hw_perf_counter_init(counter);
-	if (ret)
-		goto err_free_put_context;
-
 	perf_install_in_context(ctx, counter, cpu);
 
 	ret = anon_inode_getfd("[perf_counter]", &perf_fops, counter, 0);
@@ -927,8 +932,6 @@ err_remove_free_put_context:
 	mutex_lock(&counter->mutex);
 	perf_counter_remove_from_context(counter);
 	mutex_unlock(&counter->mutex);
-
-err_free_put_context:
 	kfree(counter);
 
 err_put_context:
