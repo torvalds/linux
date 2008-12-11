@@ -566,6 +566,32 @@ int rtas_get_sensor(int sensor, int index, int *state)
 }
 EXPORT_SYMBOL(rtas_get_sensor);
 
+bool rtas_indicator_present(int token, int *maxindex)
+{
+	int proplen, count, i;
+	const struct indicator_elem {
+		u32 token;
+		u32 maxindex;
+	} *indicators;
+
+	indicators = of_get_property(rtas.dev, "rtas-indicators", &proplen);
+	if (!indicators)
+		return false;
+
+	count = proplen / sizeof(struct indicator_elem);
+
+	for (i = 0; i < count; i++) {
+		if (indicators[i].token != token)
+			continue;
+		if (maxindex)
+			*maxindex = indicators[i].maxindex;
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(rtas_indicator_present);
+
 int rtas_set_indicator(int indicator, int index, int new_value)
 {
 	int token = rtas_token("set-indicator");

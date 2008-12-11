@@ -744,9 +744,18 @@ static void xics_set_cpu_priority(unsigned char cppr)
 /* Have the calling processor join or leave the specified global queue */
 static void xics_set_cpu_giq(unsigned int gserver, unsigned int join)
 {
-	int status = rtas_set_indicator_fast(GLOBAL_INTERRUPT_QUEUE,
-		(1UL << interrupt_server_size) - 1 - gserver, join);
-	WARN_ON(status < 0);
+	int index;
+	int status;
+
+	if (!rtas_indicator_present(GLOBAL_INTERRUPT_QUEUE, NULL))
+		return;
+
+	index = (1UL << interrupt_server_size) - 1 - gserver;
+
+	status = rtas_set_indicator_fast(GLOBAL_INTERRUPT_QUEUE, index, join);
+
+	WARN(status < 0, "set-indicator(%d, %d, %u) returned %d\n",
+	     GLOBAL_INTERRUPT_QUEUE, index, join, status);
 }
 
 void xics_setup_cpu(void)
