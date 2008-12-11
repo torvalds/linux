@@ -1850,9 +1850,8 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		} else if (!rx->sta)
-			rx->sta = ieee80211_ibss_add_sta(sdata, rx->skb,
-						bssid, hdr->addr2,
-						BIT(rx->status->rate_idx));
+			rx->sta = ieee80211_ibss_add_sta(sdata, bssid, hdr->addr2,
+				BIT(rx->status->rate_idx));
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (!multicast &&
