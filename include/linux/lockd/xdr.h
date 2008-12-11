@@ -13,6 +13,7 @@
 #include <linux/nfs.h>
 #include <linux/sunrpc/xdr.h>
 
+#define SM_MAXSTRLEN		1024
 #define SM_PRIV_SIZE		16
 
 struct nsm_private {

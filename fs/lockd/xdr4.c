@@ -17,7 +17,6 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/lockd/lockd.h>
-#include <linux/lockd/sm_inter.h>
 
 #define NLMDBG_FACILITY		NLMDBG_XDR
 
