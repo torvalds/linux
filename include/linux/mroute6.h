@@ -245,7 +245,8 @@ void mfc6_net_set(struct mfc6_cache *mfc, struct net *net)
 
 #ifdef __KERNEL__
 struct rtmsg;
-extern int ip6mr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait);
+extern int ip6mr_get_route(struct net *net, struct sk_buff *skb,
+			   struct rtmsg *rtm, int nowait);
 
 #ifdef CONFIG_IPV6_MROUTE
 static inline struct sock *mroute6_socket(struct net *net)
