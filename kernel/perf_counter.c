@@ -107,9 +107,6 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 
 	list_del_init(&counter->list_entry);
 
-	if (list_empty(&counter->sibling_list))
-		return;
-
 	/*
 	 * If this was a group counter with sibling counters then
 	 * upgrade the siblings to singleton counters by adding them
@@ -395,9 +392,6 @@ counter_sched_in(struct perf_counter *counter,
 		 struct perf_counter_context *ctx,
 		 int cpu)
 {
-	if (!counter->active)
-		return;
-
 	hw_perf_counter_enable(counter);
 	counter->active = 1;
 	counter->oncpu = cpu;	/* TODO: put 'cpu' into cpuctx->cpu */
@@ -876,31 +870,38 @@ asmlinkage int sys_perf_counter_open(
 		return -EFAULT;
 
 	/*
-	 * Look up the group leader:
+	 * Get the target context (task or percpu):
+	 */
+	ctx = find_get_context(pid, cpu);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	/*
+	 * Look up the group leader (we will attach this counter to it):
 	 */
 	group_leader = NULL;
 	if (group_fd != -1) {
 		ret = -EINVAL;
 		group_file = fget_light(group_fd, &fput_needed);
 		if (!group_file)
-			goto out_fput;
+			goto err_put_context;
 		if (group_file->f_op != &perf_fops)
-			goto out_fput;
+			goto err_put_context;
 
 		group_leader = group_file->private_data;
 		/*
-		 * Do not allow a recursive hierarchy:
+		 * Do not allow a recursive hierarchy (this new sibling
+		 * becoming part of another group-sibling):
 		 */
-		if (group_leader->group_leader)
-			goto out_fput;
+		if (group_leader->group_leader != group_leader)
+			goto err_put_context;
+		/*
+		 * Do not allow to attach to a group in a different
+		 * task or CPU context:
+		 */
+		if (group_leader->ctx != ctx)
+			goto err_put_context;
 	}
-
-	/*
-	 * Get the target context (task or percpu):
-	 */
-	ctx = find_get_context(pid, cpu);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
 
 	ret = -ENOMEM;
 	counter = perf_counter_alloc(&hw_event, cpu, group_leader);
