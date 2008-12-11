@@ -776,7 +776,7 @@ struct ocfs2_dir_block_trailer {
 /*20*/	__le64		db_blkno;		/* Offset on disk, in blocks */
 	__le64		db_parent_dinode;	/* dinode which owns me, in
 						   blocks */
-/*30*/	__le64		db_check;		/* Error checking */
+/*30*/	struct ocfs2_block_check db_check;	/* Error checking */
 /*40*/
 };
 

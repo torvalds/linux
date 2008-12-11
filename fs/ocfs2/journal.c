@@ -415,6 +415,26 @@ static void ocfs2_dq_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
 	ocfs2_block_check_compute(data, size, &dqt->dq_check);
 }
 
+/*
+ * Directory blocks also have their own trigger because the
+ * struct ocfs2_block_check offset depends on the blocksize.
+ */
+static void ocfs2_db_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+				 struct buffer_head *bh,
+				 void *data, size_t size)
+{
+	struct ocfs2_dir_block_trailer *trailer =
+		ocfs2_dir_trailer_from_size(size, data);
+
+	/*
+	 * We aren't guaranteed to have the superblock here, so we
+	 * must unconditionally compute the ecc data.
+	 * __ocfs2_journal_access() will only set the triggers if
+	 * metaecc is enabled.
+	 */
+	ocfs2_block_check_compute(data, size, &trailer->db_check);
+}
+
 static void ocfs2_abort_trigger(struct jbd2_buffer_trigger_type *triggers,
 				struct buffer_head *bh)
 {
@@ -452,6 +472,13 @@ static struct ocfs2_triggers gd_triggers = {
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_group_desc, bg_check),
+};
+
+static struct ocfs2_triggers db_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_db_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
 };
 
 static struct ocfs2_triggers xb_triggers = {
@@ -555,8 +582,8 @@ int ocfs2_journal_access_gd(handle_t *handle, struct inode *inode,
 int ocfs2_journal_access_db(handle_t *handle, struct inode *inode,
 			    struct buffer_head *bh, int type)
 {
-	/* Right now, nothing for dirblocks */
-	return __ocfs2_journal_access(handle, inode, bh, NULL, type);
+	return __ocfs2_journal_access(handle, inode, bh, &db_triggers,
+				      type);
 }
 
 int ocfs2_journal_access_xb(handle_t *handle, struct inode *inode,

@@ -48,6 +48,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "blockcheck.h"
 #include "dir.h"
 #include "dlmglue.h"
 #include "extent_map.h"
@@ -106,6 +107,17 @@ static inline unsigned int ocfs2_dir_trailer_blk_off(struct super_block *sb)
 }
 
 #define ocfs2_trailer_from_bh(_bh, _sb) ((struct ocfs2_dir_block_trailer *) ((_bh)->b_data + ocfs2_dir_trailer_blk_off((_sb))))
+
+/* XXX ocfs2_block_dqtrailer() is similar but not quite - can we make
+ * them more consistent? */
+struct ocfs2_dir_block_trailer *ocfs2_dir_trailer_from_size(int blocksize,
+							    void *data)
+{
+	char *p = data;
+
+	p += blocksize - sizeof(struct ocfs2_dir_block_trailer);
+	return (struct ocfs2_dir_block_trailer *)p;
+}
 
 /*
  * XXX: This is executed once on every dirent. We should consider optimizing
@@ -268,14 +280,35 @@ out:
 static int ocfs2_validate_dir_block(struct super_block *sb,
 				    struct buffer_head *bh)
 {
+	int rc;
+	struct ocfs2_dir_block_trailer *trailer =
+		ocfs2_trailer_from_bh(bh, sb);
+
+
 	/*
-	 * Nothing yet.  We don't validate dirents here, that's handled
+	 * We don't validate dirents here, that's handled
 	 * in-place when the code walks them.
 	 */
 	mlog(0, "Validating dirblock %llu\n",
 	     (unsigned long long)bh->b_blocknr);
 
-	return 0;
+	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 *
+	 * Note that we are safe to call this even if the directory
+	 * doesn't have a trailer.  Filesystems without metaecc will do
+	 * nothing, and filesystems with it will have one.
+	 */
+	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &trailer->db_check);
+	if (rc)
+		mlog(ML_ERROR, "Checksum failed for dinode %llu\n",
+		     (unsigned long long)bh->b_blocknr);
+
+	return rc;
 }
 
 /*
