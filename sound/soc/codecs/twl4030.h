@@ -191,6 +191,12 @@
 #define TWL4030_RAMP_DELAY_2581MS	0x1C
 #define TWL4030_RAMP_EN			0x02
 
+/* HFL_CTL (0x29, 0x2A) Fields */
+#define TWL4030_HF_CTL_HB_EN		0x04
+#define TWL4030_HF_CTL_LOOP_EN		0x08
+#define TWL4030_HF_CTL_RAMP_EN		0x10
+#define TWL4030_HF_CTL_REF_EN		0x20
+
 /* APLL_CTL (0x3A) Fields */
 
 #define TWL4030_APLL_EN			0x10
