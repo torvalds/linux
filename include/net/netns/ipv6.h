@@ -57,6 +57,7 @@ struct netns_ipv6 {
 	struct sock             *igmp_sk;
 #ifdef CONFIG_IPV6_MROUTE
 	struct sock		*mroute6_sk;
+	struct mfc6_cache	**mfc6_cache_array;
 	struct mif_device	*vif6_table;
 	int			maxvif;
 #endif
