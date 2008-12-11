@@ -1097,6 +1097,8 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 		return fs_info->chunk_root;
 	if (location->objectid == BTRFS_DEV_TREE_OBJECTID)
 		return fs_info->dev_root;
+	if (location->objectid == BTRFS_CSUM_TREE_OBJECTID)
+		return fs_info->csum_root;
 
 	root = radix_tree_lookup(&fs_info->fs_roots_radix,
 				 (unsigned long)location->objectid);

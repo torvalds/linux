@@ -241,7 +241,7 @@ static int cache_block_group(struct btrfs_root *root,
 	 * skip the locking here
 	 */
 	path->skip_locking = 1;
-	key.objectid = last;
+	key.objectid = max_t(u64, last, BTRFS_SUPER_INFO_OFFSET);
 	key.offset = 0;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -4087,7 +4087,8 @@ static int is_cowonly_root(u64 root_objectid)
 	    root_objectid == BTRFS_EXTENT_TREE_OBJECTID ||
 	    root_objectid == BTRFS_CHUNK_TREE_OBJECTID ||
 	    root_objectid == BTRFS_DEV_TREE_OBJECTID ||
-	    root_objectid == BTRFS_TREE_LOG_OBJECTID)
+	    root_objectid == BTRFS_TREE_LOG_OBJECTID ||
+	    root_objectid == BTRFS_CSUM_TREE_OBJECTID)
 		return 1;
 	return 0;
 }
@@ -5497,8 +5498,7 @@ static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_generation(leaf, item, 1);
 	btrfs_set_inode_size(leaf, item, size);
 	btrfs_set_inode_mode(leaf, item, S_IFREG | 0600);
-	btrfs_set_inode_flags(leaf, item, BTRFS_INODE_NODATASUM |
-					  BTRFS_INODE_NOCOMPRESS);
+	btrfs_set_inode_flags(leaf, item, BTRFS_INODE_NOCOMPRESS);
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(root, path);
 out:
