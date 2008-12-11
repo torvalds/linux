@@ -61,13 +61,6 @@ static DEFINE_RWLOCK(mrt_lock);
 
 #define MIF_EXISTS(_net, _idx) ((_net)->ipv6.vif6_table[_idx].dev != NULL)
 
-static int mroute_do_assert;				/* Set in PIM assert	*/
-#ifdef CONFIG_IPV6_PIMSM_V2
-static int mroute_do_pim;
-#else
-#define mroute_do_pim 0
-#endif
-
 static struct mfc6_cache *mfc_unres_queue;		/* Queue of unresolved entries */
 
 /* Special spinlock for queue of unresolved entries */
@@ -1306,7 +1299,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 		int v;
 		if (get_user(v, (int __user *)optval))
 			return -EFAULT;
-		mroute_do_assert = !!v;
+		init_net.ipv6.mroute_do_assert = !!v;
 		return 0;
 	}
 
@@ -1319,10 +1312,10 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 		v = !!v;
 		rtnl_lock();
 		ret = 0;
-		if (v != mroute_do_pim) {
-			mroute_do_pim = v;
-			mroute_do_assert = v;
-			if (mroute_do_pim)
+		if (v != init_net.ipv6.mroute_do_pim) {
+			init_net.ipv6.mroute_do_pim = v;
+			init_net.ipv6.mroute_do_assert = v;
+			if (init_net.ipv6.mroute_do_pim)
 				ret = inet6_add_protocol(&pim6_protocol,
 							 IPPROTO_PIM);
 			else
@@ -1361,11 +1354,11 @@ int ip6_mroute_getsockopt(struct sock *sk, int optname, char __user *optval,
 		break;
 #ifdef CONFIG_IPV6_PIMSM_V2
 	case MRT6_PIM:
-		val = mroute_do_pim;
+		val = init_net.ipv6.mroute_do_pim;
 		break;
 #endif
 	case MRT6_ASSERT:
-		val = mroute_do_assert;
+		val = init_net.ipv6.mroute_do_assert;
 		break;
 	default:
 		return -ENOPROTOOPT;
@@ -1553,13 +1546,14 @@ static int ip6_mr_forward(struct sk_buff *skb, struct mfc6_cache *cache)
 		cache->mfc_un.res.wrong_if++;
 		true_vifi = ip6mr_find_vif(skb->dev);
 
-		if (true_vifi >= 0 && mroute_do_assert &&
+		if (true_vifi >= 0 && init_net.ipv6.mroute_do_assert &&
 		    /* pimsm uses asserts, when switching from RPT to SPT,
 		       so that we cannot check that packet arrived on an oif.
 		       It is bad, but otherwise we would need to move pretty
 		       large chunk of pimd to kernel. Ough... --ANK
 		     */
-		    (mroute_do_pim || cache->mfc_un.res.ttls[true_vifi] < 255) &&
+		    (init_net.ipv6.mroute_do_pim ||
+		     cache->mfc_un.res.ttls[true_vifi] < 255) &&
 		    time_after(jiffies,
 			       cache->mfc_un.res.last_assert + MFC_ASSERT_THRESH)) {
 			cache->mfc_un.res.last_assert = jiffies;

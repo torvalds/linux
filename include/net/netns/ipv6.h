@@ -61,6 +61,8 @@ struct netns_ipv6 {
 	struct mif_device	*vif6_table;
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;
+	int			mroute_do_assert;
+	int			mroute_do_pim;
 #endif
 };
 #endif
