@@ -878,7 +878,8 @@ static int ptrace_bts_write_record(struct task_struct *child,
 {
 	unsigned char bts_record[BTS_MAX_RECORD_SIZE];
 
-	BUG_ON(BTS_MAX_RECORD_SIZE < bts_cfg.sizeof_bts);
+	if (BTS_MAX_RECORD_SIZE < bts_cfg.sizeof_bts)
+		return -EOVERFLOW;
 
 	memset(bts_record, 0, bts_cfg.sizeof_bts);
 	switch (in->qualifier) {
@@ -1133,7 +1134,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		ret = ds_get_bts_index(child->bts, &size);
 		if (ret == 0) {
-			BUG_ON(size != (int) size);
+			WARN_ON_ONCE(size != (int) size);
 			ret = (int) size;
 		}
 		break;

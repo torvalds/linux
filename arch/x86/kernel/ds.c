@@ -452,7 +452,7 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 
 static void ds_release(struct ds_tracer *tracer, enum ds_qualifier qual)
 {
-	BUG_ON(tracer->context->owner[qual] != tracer);
+	WARN_ON_ONCE(tracer->context->owner[qual] != tracer);
 	tracer->context->owner[qual] = NULL;
 
 	put_tracer(tracer->context->task);
@@ -774,7 +774,7 @@ ds_configure(const struct ds_configuration *cfg)
 
 	printk(KERN_INFO "DS available\n");
 
-	BUG_ON(MAX_SIZEOF_DS < ds_cfg.sizeof_ds);
+	WARN_ON_ONCE(MAX_SIZEOF_DS < ds_cfg.sizeof_ds);
 }
 
 void __cpuinit ds_init_intel(struct cpuinfo_x86 *c)
