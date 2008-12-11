@@ -865,11 +865,8 @@ static u64 guest_read_tsc(void)
  * writes 'guest_tsc' into guest's timestamp counter "register"
  * guest_tsc = host_tsc + tsc_offset ==> tsc_offset = guest_tsc - host_tsc
  */
-static void guest_write_tsc(u64 guest_tsc)
+static void guest_write_tsc(u64 guest_tsc, u64 host_tsc)
 {
-	u64 host_tsc;
-
-	rdtscll(host_tsc);
 	vmcs_write64(TSC_OFFSET, guest_tsc - host_tsc);
 }
 
@@ -934,6 +931,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_msr_entry *msr;
+	u64 host_tsc;
 	int ret = 0;
 
 	switch (msr_index) {
@@ -959,7 +957,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		vmcs_writel(GUEST_SYSENTER_ESP, data);
 		break;
 	case MSR_IA32_TIME_STAMP_COUNTER:
-		guest_write_tsc(data);
+		rdtscll(host_tsc);
+		guest_write_tsc(data, host_tsc);
 		break;
 	case MSR_P6_PERFCTR0:
 	case MSR_P6_PERFCTR1:
@@ -2109,7 +2108,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 {
 	u32 host_sysenter_cs, msr_low, msr_high;
 	u32 junk;
-	u64 host_pat;
+	u64 host_pat, tsc_this, tsc_base;
 	unsigned long a;
 	struct descriptor_table dt;
 	int i;
@@ -2237,6 +2236,12 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
 	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
 
+	tsc_base = vmx->vcpu.kvm->arch.vm_init_tsc;
+	rdtscll(tsc_this);
+	if (tsc_this < vmx->vcpu.kvm->arch.vm_init_tsc)
+		tsc_base = tsc_this;
+
+	guest_write_tsc(0, tsc_base);
 
 	return 0;
 }
@@ -2327,8 +2332,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmcs_write32(GUEST_ACTIVITY_STATE, 0);
 	vmcs_write32(GUEST_INTERRUPTIBILITY_INFO, 0);
 	vmcs_write32(GUEST_PENDING_DBG_EXCEPTIONS, 0);
-
-	guest_write_tsc(0);
 
 	/* Special registers */
 	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
