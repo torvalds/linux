@@ -398,13 +398,15 @@ EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int __init s3c2443_ac97_init(void)
 {
-	return snd_soc_register_dai(&s3c2443_ac97_dai);
+	return snd_soc_register_dais(s3c2443_ac97_dai,
+				     ARRAY_SIZE(s3c2443_ac97_dai));
 }
 module_init(s3c2443_ac97_init);
 
 static void __exit s3c2443_ac97_exit(void)
 {
-	snd_soc_unregister_dai(&s3c2443_ac97_dai);
+	snd_soc_unregister_dais(s3c2443_ac97_dai,
+				ARRAY_SIZE(s3c2443_ac97_dai));
 }
 module_exit(s3c2443_ac97_exit);
 
