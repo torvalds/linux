@@ -498,6 +498,10 @@ struct iwl_sensitivity_ranges {
 
 #define IWL_FAT_CHANNEL_52 BIT(IEEE80211_BAND_5GHZ)
 
+#define KELVIN_TO_CELSIUS(x) ((x)-273)
+#define CELSIUS_TO_KELVIN(x) ((x)+273)
+
+
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported

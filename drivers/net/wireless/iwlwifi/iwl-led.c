@@ -41,7 +41,6 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-helpers.h"
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 static const char *led_type_str[] = {
