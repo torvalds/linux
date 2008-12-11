@@ -167,9 +167,9 @@ static void __perf_counter_remove_from_context(void *info)
 
 	spin_lock(&ctx->lock);
 
-	if (counter->active) {
+	if (counter->state == PERF_COUNTER_STATE_ACTIVE) {
 		counter->hw_ops->hw_perf_counter_disable(counter);
-		counter->active = 0;
+		counter->state = PERF_COUNTER_STATE_INACTIVE;
 		ctx->nr_active--;
 		cpuctx->active_oncpu--;
 		counter->task = NULL;
@@ -281,7 +281,7 @@ static void __perf_install_in_context(void *info)
 
 	if (cpuctx->active_oncpu < perf_max_counters) {
 		counter->hw_ops->hw_perf_counter_enable(counter);
-		counter->active = 1;
+		counter->state = PERF_COUNTER_STATE_ACTIVE;
 		counter->oncpu = cpu;
 		ctx->nr_active++;
 		cpuctx->active_oncpu++;
@@ -328,7 +328,6 @@ retry:
 
 	spin_lock_irq(&ctx->lock);
 	/*
-	 * If the context is active and the counter has not been added
 	 * we need to retry the smp call.
 	 */
 	if (ctx->nr_active && list_empty(&counter->list_entry)) {
@@ -353,12 +352,12 @@ counter_sched_out(struct perf_counter *counter,
 		  struct perf_cpu_context *cpuctx,
 		  struct perf_counter_context *ctx)
 {
-	if (!counter->active)
+	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
 		return;
 
 	counter->hw_ops->hw_perf_counter_disable(counter);
-	counter->active	=  0;
-	counter->oncpu	= -1;
+	counter->state = PERF_COUNTER_STATE_INACTIVE;
+	counter->oncpu = -1;
 
 	cpuctx->active_oncpu--;
 	ctx->nr_active--;
@@ -415,11 +414,11 @@ counter_sched_in(struct perf_counter *counter,
 		 struct perf_counter_context *ctx,
 		 int cpu)
 {
-	if (counter->active == -1)
+	if (counter->state == PERF_COUNTER_STATE_OFF)
 		return;
 
 	counter->hw_ops->hw_perf_counter_enable(counter);
-	counter->active = 1;
+	counter->state = PERF_COUNTER_STATE_ACTIVE;
 	counter->oncpu = cpu;	/* TODO: put 'cpu' into cpuctx->cpu */
 
 	cpuctx->active_oncpu++;
@@ -506,8 +505,8 @@ int perf_counter_task_disable(void)
 	perf_flags = hw_perf_save_disable();
 
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
-		WARN_ON_ONCE(counter->active == 1);
-		counter->active = -1;
+		WARN_ON_ONCE(counter->state == PERF_COUNTER_STATE_ACTIVE);
+		counter->state = PERF_COUNTER_STATE_OFF;
 	}
 	hw_perf_restore(perf_flags);
 
@@ -540,9 +539,9 @@ int perf_counter_task_enable(void)
 	perf_flags = hw_perf_save_disable();
 
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
-		if (counter->active != -1)
+		if (counter->state != PERF_COUNTER_STATE_OFF)
 			continue;
-		counter->active = 0;
+		counter->state = PERF_COUNTER_STATE_INACTIVE;
 	}
 	hw_perf_restore(perf_flags);
 
@@ -620,7 +619,7 @@ static u64 perf_counter_read(struct perf_counter *counter)
 	 * If counter is enabled and currently active on a CPU, update the
 	 * value in the counter structure:
 	 */
-	if (counter->active) {
+	if (counter->state == PERF_COUNTER_STATE_ACTIVE) {
 		smp_call_function_single(counter->oncpu,
 					 __hw_perf_counter_read, counter, 1);
 	}
@@ -673,7 +672,7 @@ static struct perf_data *perf_switch_irq_data(struct perf_counter *counter)
 
 retry:
 	spin_lock_irq(&ctx->lock);
-	if (!counter->active) {
+	if (counter->state != PERF_COUNTER_STATE_ACTIVE) {
 		counter->irqdata = counter->usrdata;
 		counter->usrdata = oldirqdata;
 		spin_unlock_irq(&ctx->lock);

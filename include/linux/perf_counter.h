@@ -128,6 +128,15 @@ struct hw_perf_counter_ops {
 };
 
 /**
+ * enum perf_counter_active_state - the states of a counter
+ */
+enum perf_counter_active_state {
+	PERF_COUNTER_STATE_OFF		= -1,
+	PERF_COUNTER_STATE_INACTIVE	=  0,
+	PERF_COUNTER_STATE_ACTIVE	=  1,
+};
+
+/**
  * struct perf_counter - performance counter kernel representation:
  */
 struct perf_counter {
@@ -136,7 +145,7 @@ struct perf_counter {
 	struct perf_counter		*group_leader;
 	const struct hw_perf_counter_ops *hw_ops;
 
-	int				active;
+	enum perf_counter_active_state	state;
 #if BITS_PER_LONG == 64
 	atomic64_t			count;
 #else

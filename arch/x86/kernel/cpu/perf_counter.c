@@ -332,7 +332,7 @@ perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
 	 * Then store sibling timestamps (if any):
 	 */
 	list_for_each_entry(counter, &group_leader->sibling_list, list_entry) {
-		if (!counter->active) {
+		if (counter->state != PERF_COUNTER_STATE_ACTIVE) {
 			/*
 			 * When counter was not in the overflow mask, we have to
 			 * read it from hardware. We read it as well, when it
