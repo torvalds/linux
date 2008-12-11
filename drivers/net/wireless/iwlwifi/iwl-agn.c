@@ -310,7 +310,7 @@ void iwl_update_chain_flags(struct iwl_priv *priv)
 
 static int iwl_send_bt_config(struct iwl_priv *priv)
 {
-	struct iwl4965_bt_cmd bt_cmd = {
+	struct iwl_bt_cmd bt_cmd = {
 		.flags = 3,
 		.lead_time = 0xAA,
 		.max_kill = 1,
@@ -319,7 +319,7 @@ static int iwl_send_bt_config(struct iwl_priv *priv)
 	};
 
 	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-				sizeof(struct iwl4965_bt_cmd), &bt_cmd);
+				sizeof(struct iwl_bt_cmd), &bt_cmd);
 }
 
 static void iwl_clear_free_frames(struct iwl_priv *priv)
@@ -857,7 +857,7 @@ static void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl_rxon_cmd *rxon = (void *)&priv->active_rxon;
-	struct iwl4965_csa_notification *csa = &(pkt->u.csa_notif);
+	struct iwl_csa_notification *csa = &(pkt->u.csa_notif);
 	IWL_DEBUG_11H("CSA notif: channel %d, status %d\n",
 		      le16_to_cpu(csa->channel), le32_to_cpu(csa->status));
 	rxon->channel = csa->channel;
@@ -869,7 +869,7 @@ static void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_sleep_notification *sleep = &(pkt->u.sleep_notif);
+	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	IWL_DEBUG_RX("sleep mode: %d, src: %d\n",
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
@@ -939,7 +939,8 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_beacon_notif *beacon = &(pkt->u.beacon_status);
+	struct iwl4965_beacon_notif *beacon =
+		(struct iwl4965_beacon_notif *)pkt->u.raw;
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
 	IWL_DEBUG_RX("beacon status %x retries %d iss %d "
