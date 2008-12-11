@@ -1900,6 +1900,12 @@ static void azx_power_notify(struct hda_bus *bus)
 	else if (chip->running && power_save_controller)
 		azx_stop_chip(chip);
 }
+#endif /* CONFIG_SND_HDA_POWER_SAVE */
+
+#ifdef CONFIG_PM
+/*
+ * power management
+ */
 
 static int snd_hda_codecs_inuse(struct hda_bus *bus)
 {
@@ -1911,14 +1917,7 @@ static int snd_hda_codecs_inuse(struct hda_bus *bus)
 	}
 	return 0;
 }
-#else /* !CONFIG_SND_HDA_POWER_SAVE */
-#define snd_hda_codecs_inuse(bus) 1
-#endif /* CONFIG_SND_HDA_POWER_SAVE */
 
-#ifdef CONFIG_PM
-/*
- * power management
- */
 static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
