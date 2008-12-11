@@ -45,8 +45,6 @@ static const struct portinfo pata_icside_portinfo_v6_2 = {
 	.stepping	= 6,
 };
 
-#define PATA_ICSIDE_MAX_SG	128
-
 struct pata_icside_state {
 	void __iomem *irq_port;
 	void __iomem *ioc_base;
@@ -295,8 +293,8 @@ static int icside_dma_init(struct pata_icside_info *info)
 
 static struct scsi_host_template pata_icside_sht = {
 	ATA_BASE_SHT(DRV_NAME),
-	.sg_tablesize		= PATA_ICSIDE_MAX_SG,
-	.dma_boundary		= ~0, /* no dma boundaries */
+	.sg_tablesize		= SCSI_MAX_SG_CHAIN_SEGMENTS,
+	.dma_boundary		= IOMD_DMA_BOUNDARY,
 };
 
 static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
