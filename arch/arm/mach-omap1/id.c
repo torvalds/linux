@@ -178,9 +178,6 @@ void __init omap_check_revision(void)
 	case 0x17:
 		system_rev |= 0x16;
 		break;
-	case 0x24:
-		system_rev |= 0x24;
-		break;
 	default:
 		printk("Unknown OMAP cpu type: 0x%02x\n", cpu_type);
 	}
