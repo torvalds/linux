@@ -266,7 +266,7 @@ submit the improvement patch to the author.
 Direct Debugging
 ~~~~~~~~~~~~~~~~
 If no model option gives you a better result, and you are a touch guy
-to fight again the evil, try debugging via hitting the raw HD-audio
+to fight against evil, try debugging via hitting the raw HD-audio
 codec verbs to the device.  Some tools are available: hda-emu and
 hda-analyzer.  The detailed description is found in the sections
 below.  You'd need to enable hwdep for using these tools.  See "Kernel
@@ -389,7 +389,7 @@ power-down/up depending on the device.  Some of them might be
 solvable, but some are hard, I'm afraid.  Some distros such as
 openSUSE enables the power-saving feature automatically when the power
 cable is unplugged.  Thus, if you hear noises, suspect first the
-power-saving.  See /sys/modules/snd_hda_intel/parameters/power_save to
+power-saving.  See /sys/module/snd_hda_intel/parameters/power_save to
 check the current value.  If it's non-zero, the feature is turned on.
 
 
@@ -501,6 +501,19 @@ The hda-analyzer is a part of alsa.git repository in
 alsa-project.org:
 
 - http://git.alsa-project.org/?p=alsa.git;a=tree;f=hda-analyzer
+
+
+Codecgraph
+~~~~~~~~~~
+Codecgraph is a utility program to generate a graph and visualizes the
+codec-node connection of a codec chip.  It's especially useful when
+you analyze or debug a codec without a proper datasheet.  The program
+parses the given codec proc file and converts to SVG via graphiz
+program.
+
+The tarball and GIT trees are found in the web page at:
+
+- http://helllabs.org/codecgraph/
 
 
 hda-emu
