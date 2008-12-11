@@ -751,12 +751,6 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 	if (print_dump)
 		iwl_print_hex_dump(priv, IWL_DL_RX, header, length);
 }
-#else
-static void iwl_dbg_report_frame(struct iwl_priv *priv,
-		      struct iwl_rx_phy_res *phy_res, u16 length,
-		      struct ieee80211_hdr *header, int group100)
-{
-}
 #endif
 
 static void iwl_update_rx_stats(struct iwl_priv *priv, u16 fc, u16 len)
