@@ -69,8 +69,8 @@ int __init debug_card_init(u32 addr, unsigned gpio)
 	smc91x_resources[0].start = addr + 0x300;
 	smc91x_resources[0].end   = addr + 0x30f;
 
-	smc91x_resources[1].start = OMAP_GPIO_IRQ(gpio);
-	smc91x_resources[1].end   = OMAP_GPIO_IRQ(gpio);
+	smc91x_resources[1].start = gpio_to_irq(gpio);
+	smc91x_resources[1].end   = gpio_to_irq(gpio);
 
 	status = omap_request_gpio(gpio);
 	if (status < 0) {
