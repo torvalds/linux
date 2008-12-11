@@ -1059,6 +1059,8 @@ long btrfs_ioctl_trans_end(struct file *file)
 	root->fs_info->open_ioctl_trans--;
 	mutex_unlock(&root->fs_info->trans_mutex);
 
+	mnt_drop_write(file->f_path.mnt);
+
 out:
 	return ret;
 }
