@@ -380,6 +380,10 @@ int main(void)
 	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
 	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
 #endif
+#ifdef CONFIG_44x
+	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
+	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
+#endif
 
 	return 0;
 }

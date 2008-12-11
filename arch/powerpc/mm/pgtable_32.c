@@ -68,24 +68,29 @@ extern unsigned long p_mapped_by_tlbcam(unsigned long pa);
 #define p_mapped_by_tlbcam(x)	(0UL)
 #endif /* HAVE_TLBCAM */
 
-#ifdef CONFIG_PTE_64BIT
-/* Some processors use an 8kB pgdir because they have 8-byte Linux PTEs. */
-#define PGDIR_ORDER	1
-#else
-#define PGDIR_ORDER	0
-#endif
+#define PGDIR_ORDER	(32 + PGD_T_LOG2 - PGDIR_SHIFT)
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *ret;
 
-	ret = (pgd_t *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, PGDIR_ORDER);
+	/* pgdir take page or two with 4K pages and a page fraction otherwise */
+#ifndef CONFIG_PPC_4K_PAGES
+	ret = (pgd_t *)kzalloc(1 << PGDIR_ORDER, GFP_KERNEL);
+#else
+	ret = (pgd_t *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
+			PGDIR_ORDER - PAGE_SHIFT);
+#endif
 	return ret;
 }
 
 void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	free_pages((unsigned long)pgd, PGDIR_ORDER);
+#ifndef CONFIG_PPC_4K_PAGES
+	kfree((void *)pgd);
+#else
+	free_pages((unsigned long)pgd, PGDIR_ORDER - PAGE_SHIFT);
+#endif
 }
 
 __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
@@ -385,7 +390,7 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
 static int fixmaps;
-unsigned long FIXADDR_TOP = 0xfffff000;
+unsigned long FIXADDR_TOP = (-PAGE_SIZE);
 EXPORT_SYMBOL(FIXADDR_TOP);
 
 void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
