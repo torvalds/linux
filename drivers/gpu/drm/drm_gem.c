@@ -516,7 +516,9 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_private_data = map->handle;
 	/* FIXME: use pgprot_writecombine when available */
 	prot = pgprot_val(vma->vm_page_prot);
+#ifdef CONFIG_X86
 	prot |= _PAGE_CACHE_WC;
+#endif
 	vma->vm_page_prot = __pgprot(prot);
 
 	vma->vm_file = filp;	/* Needed for drm_vm_open() */
