@@ -252,11 +252,14 @@ void exit_thread(void)
 		put_cpu();
 	}
 #ifdef CONFIG_X86_DS
-	/* Free any DS contexts that have not been properly released. */
-	if (unlikely(current->thread.ds_ctx)) {
-		/* we clear debugctl to make sure DS is not used. */
-		update_debugctlmsr(0);
-		ds_free(current->thread.ds_ctx);
+	/* Free any BTS tracers that have not been properly released. */
+	if (unlikely(current->bts)) {
+		ds_release_bts(current->bts);
+		current->bts = NULL;
+
+		kfree(current->bts_buffer);
+		current->bts_buffer = NULL;
+		current->bts_size = 0;
 	}
 #endif /* CONFIG_X86_DS */
 }
@@ -420,48 +423,19 @@ int set_tsc_mode(unsigned int val)
 	return 0;
 }
 
-#ifdef CONFIG_X86_DS
-static int update_debugctl(struct thread_struct *prev,
-			struct thread_struct *next, unsigned long debugctl)
-{
-	unsigned long ds_prev = 0;
-	unsigned long ds_next = 0;
-
-	if (prev->ds_ctx)
-		ds_prev = (unsigned long)prev->ds_ctx->ds;
-	if (next->ds_ctx)
-		ds_next = (unsigned long)next->ds_ctx->ds;
-
-	if (ds_next != ds_prev) {
-		/* we clear debugctl to make sure DS
-		 * is not in use when we change it */
-		debugctl = 0;
-		update_debugctlmsr(0);
-		wrmsr(MSR_IA32_DS_AREA, ds_next, 0);
-	}
-	return debugctl;
-}
-#else
-static int update_debugctl(struct thread_struct *prev,
-			struct thread_struct *next, unsigned long debugctl)
-{
-	return debugctl;
-}
-#endif /* CONFIG_X86_DS */
-
 static noinline void
 __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		 struct tss_struct *tss)
 {
 	struct thread_struct *prev, *next;
-	unsigned long debugctl;
 
 	prev = &prev_p->thread;
 	next = &next_p->thread;
 
-	debugctl = update_debugctl(prev, next, prev->debugctlmsr);
-
-	if (next->debugctlmsr != debugctl)
+	if (test_tsk_thread_flag(next_p, TIF_DS_AREA_MSR) ||
+	    test_tsk_thread_flag(prev_p, TIF_DS_AREA_MSR))
+		ds_switch_to(prev_p, next_p);
+	else if (next->debugctlmsr != prev->debugctlmsr)
 		update_debugctlmsr(next->debugctlmsr);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
@@ -482,15 +456,6 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		else
 			hard_enable_TSC();
 	}
-
-#ifdef CONFIG_X86_PTRACE_BTS
-	if (test_tsk_thread_flag(prev_p, TIF_BTS_TRACE_TS))
-		ptrace_bts_take_timestamp(prev_p, BTS_TASK_DEPARTS);
-
-	if (test_tsk_thread_flag(next_p, TIF_BTS_TRACE_TS))
-		ptrace_bts_take_timestamp(next_p, BTS_TASK_ARRIVES);
-#endif /* CONFIG_X86_PTRACE_BTS */
-
 
 	if (!test_tsk_thread_flag(next_p, TIF_IO_BITMAP)) {
 		/*
