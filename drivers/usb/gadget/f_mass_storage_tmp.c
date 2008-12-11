@@ -601,6 +601,7 @@ static void bulk_in_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct fsg_dev		*fsg = ep->driver_data;
 	struct fsg_buffhd	*bh = req->context;
+	unsigned long		flags;
 
 	if (req->status || req->actual != req->length)
 		DBG(fsg, "%s --> %d, %u/%u\n", __func__,
@@ -608,17 +609,18 @@ static void bulk_in_complete(struct usb_ep *ep, struct usb_request *req)
 
 	/* Hold the lock while we update the request and buffer states */
 	smp_wmb();
-	spin_lock(&fsg->lock);
+	spin_lock_irqsave(&fsg->lock, flags);
 	bh->inreq_busy = 0;
 	bh->state = BUF_STATE_EMPTY;
 	wakeup_thread(fsg);
-	spin_unlock(&fsg->lock);
+	spin_unlock_irqrestore(&fsg->lock, flags);
 }
 
 static void bulk_out_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct fsg_dev		*fsg = ep->driver_data;
 	struct fsg_buffhd	*bh = req->context;
+	unsigned long		flags;
 
 	dump_msg(fsg, "bulk-out", req->buf, req->actual);
 	if (req->status || req->actual != bh->bulk_out_intended_length)
@@ -628,11 +630,11 @@ static void bulk_out_complete(struct usb_ep *ep, struct usb_request *req)
 
 	/* Hold the lock while we update the request and buffer states */
 	smp_wmb();
-	spin_lock(&fsg->lock);
+	spin_lock_irqsave(&fsg->lock, flags);
 	bh->outreq_busy = 0;
 	bh->state = BUF_STATE_FULL;
 	wakeup_thread(fsg);
-	spin_unlock(&fsg->lock);
+	spin_unlock_irqrestore(&fsg->lock, flags);
 }
 
 static int fsg_function_setup(struct usb_function *f,
@@ -711,15 +713,16 @@ static void start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
 		enum fsg_buffer_state *state)
 {
 	int	rc;
+	unsigned long		flags;
 
 	DBG(fsg, "start_transfer req: %p, req->buf: %p\n", req, req->buf);
 	if (ep == fsg->bulk_in)
 		dump_msg(fsg, "bulk-in", req->buf, req->length);
 
-	spin_lock_irq(&fsg->lock);
+	spin_lock_irqsave(&fsg->lock, flags);
 	*pbusy = 1;
 	*state = BUF_STATE_BUSY;
-	spin_unlock_irq(&fsg->lock);
+	spin_unlock_irqrestore(&fsg->lock, flags);
 	rc = usb_ep_queue(ep, req, GFP_KERNEL);
 	if (rc != 0) {
 		*pbusy = 0;
@@ -2227,8 +2230,9 @@ static void adjust_wake_lock(struct fsg_dev *fsg)
 {
 	int ums_active = 0;
 	int i;
+	unsigned long		flags;
 
-	spin_lock_irq(&fsg->lock);
+	spin_lock_irqsave(&fsg->lock, flags);
 
 	if (fsg->config) {
 		for (i = 0; i < fsg->nluns; ++i) {
@@ -2242,7 +2246,7 @@ static void adjust_wake_lock(struct fsg_dev *fsg)
 	else
 		wake_unlock(&fsg->wake_lock);
 
-	spin_unlock_irq(&fsg->lock);
+	spin_unlock_irqrestore(&fsg->lock, flags);
 }
 
 /*
@@ -2288,6 +2292,7 @@ static void handle_exception(struct fsg_dev *fsg)
 	u8			new_config;
 	struct lun		*curlun;
 	int			rc;
+	unsigned long		flags;
 
 	DBG(fsg, "handle_exception state: %d\n", (int)fsg->state);
 	/* Clear the existing signals.  Anything but SIGUSR1 is converted
@@ -2317,7 +2322,7 @@ static void handle_exception(struct fsg_dev *fsg)
 	}
 	/* Reset the I/O buffer states and pointers, the SCSI
 	 * state, and the exception.  Then invoke the handler. */
-	spin_lock_irq(&fsg->lock);
+	spin_lock_irqsave(&fsg->lock, flags);
 
 	for (i = 0; i < NUM_BUFFERS; ++i) {
 		bh = &fsg->buffhds[i];
@@ -2342,7 +2347,7 @@ static void handle_exception(struct fsg_dev *fsg)
 		}
 		fsg->state = FSG_STATE_IDLE;
 	}
-	spin_unlock_irq(&fsg->lock);
+	spin_unlock_irqrestore(&fsg->lock, flags);
 
 	/* Carry out any extra actions required for the exception */
 	switch (old_state) {
@@ -2351,10 +2356,10 @@ static void handle_exception(struct fsg_dev *fsg)
 
 	case FSG_STATE_ABORT_BULK_OUT:
 		DBG(fsg, "FSG_STATE_ABORT_BULK_OUT\n");
-		spin_lock_irq(&fsg->lock);
+		spin_lock_irqsave(&fsg->lock, flags);
 		if (fsg->state == FSG_STATE_STATUS_PHASE)
 			fsg->state = FSG_STATE_IDLE;
-		spin_unlock_irq(&fsg->lock);
+		spin_unlock_irqrestore(&fsg->lock, flags);
 		break;
 
 	case FSG_STATE_RESET:
@@ -2378,9 +2383,9 @@ static void handle_exception(struct fsg_dev *fsg)
 			do_set_interface(fsg, -1);
 		}
 		do_set_config(fsg, 0);			/* Free resources */
-		spin_lock_irq(&fsg->lock);
+		spin_lock_irqsave(&fsg->lock, flags);
 		fsg->state = FSG_STATE_TERMINATED;	/* Stop the thread */
-		spin_unlock_irq(&fsg->lock);
+		spin_unlock_irqrestore(&fsg->lock, flags);
 		break;
 	}
 }
@@ -2391,6 +2396,7 @@ static void handle_exception(struct fsg_dev *fsg)
 static int fsg_main_thread(void *fsg_)
 {
 	struct fsg_dev		*fsg = fsg_;
+	unsigned long		flags;
 
 	/* Allow the thread to be killed by a signal, but set the signal mask
 	 * to block everything but INT, TERM, KILL, and USR1. */
@@ -2422,31 +2428,31 @@ static int fsg_main_thread(void *fsg_)
 		if (get_next_command(fsg))
 			continue;
 
-		spin_lock_irq(&fsg->lock);
+		spin_lock_irqsave(&fsg->lock, flags);
 		if (!exception_in_progress(fsg))
 			fsg->state = FSG_STATE_DATA_PHASE;
-		spin_unlock_irq(&fsg->lock);
+		spin_unlock_irqrestore(&fsg->lock, flags);
 
 		if (do_scsi_command(fsg) || finish_reply(fsg))
 			continue;
 
-		spin_lock_irq(&fsg->lock);
+		spin_lock_irqsave(&fsg->lock, flags);
 		if (!exception_in_progress(fsg))
 			fsg->state = FSG_STATE_STATUS_PHASE;
-		spin_unlock_irq(&fsg->lock);
+		spin_unlock_irqrestore(&fsg->lock, flags);
 
 		if (send_status(fsg))
 			continue;
 
-		spin_lock_irq(&fsg->lock);
+		spin_lock_irqsave(&fsg->lock, flags);
 		if (!exception_in_progress(fsg))
 			fsg->state = FSG_STATE_IDLE;
-		spin_unlock_irq(&fsg->lock);
-		}
+		spin_unlock_irqrestore(&fsg->lock, flags);
+	}
 
-	spin_lock_irq(&fsg->lock);
+	spin_lock_irqsave(&fsg->lock, flags);
 	fsg->thread_task = NULL;
-	spin_unlock_irq(&fsg->lock);
+	spin_unlock_irqrestore(&fsg->lock, flags);
 
 	/* In case we are exiting because of a signal, unregister the
 	 * gadget driver and close the backing file. */
