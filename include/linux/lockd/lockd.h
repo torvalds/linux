@@ -291,8 +291,11 @@ static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 static inline int __nlm_privileged_request4(const struct sockaddr *sap)
 {
 	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
-	return (sin->sin_addr.s_addr == htonl(INADDR_LOOPBACK)) &&
-			(ntohs(sin->sin_port) < 1024);
+
+	if (ntohs(sin->sin_port) > 1023)
+		return 0;
+
+	return ipv4_is_loopback(sin->sin_addr.s_addr);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
