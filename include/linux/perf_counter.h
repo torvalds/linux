@@ -131,7 +131,7 @@ struct perf_counter {
 	struct list_head		list_entry;
 	struct list_head		sibling_list;
 	struct perf_counter		*group_leader;
-	struct hw_perf_counter_ops	*hw_ops;
+	const struct hw_perf_counter_ops *hw_ops;
 
 	int				active;
 #if BITS_PER_LONG == 64
@@ -197,7 +197,7 @@ struct perf_cpu_context {
 extern int perf_max_counters;
 
 #ifdef CONFIG_PERF_COUNTERS
-extern struct hw_perf_counter_ops *
+extern const struct hw_perf_counter_ops *
 hw_perf_counter_init(struct perf_counter *counter);
 
 extern void perf_counter_task_sched_in(struct task_struct *task, int cpu);
@@ -208,6 +208,9 @@ extern void perf_counter_notify(struct pt_regs *regs);
 extern void perf_counter_print_debug(void);
 extern void hw_perf_restore_ctrl(u64 ctrl);
 extern u64 hw_perf_disable_all(void);
+extern void atomic64_counter_set(struct perf_counter *counter, u64 val64);
+extern u64 atomic64_counter_read(struct perf_counter *counter);
+
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -219,7 +222,7 @@ static inline void perf_counter_init_task(struct task_struct *task)	{ }
 static inline void perf_counter_notify(struct pt_regs *regs)		{ }
 static inline void perf_counter_print_debug(void)			{ }
 static inline void hw_perf_restore_ctrl(u64 ctrl)			{ }
-static inline u64 hw_perf_disable_all(void)		{ return 0; }
+static inline u64 hw_perf_disable_all(void)		      { return 0; }
 #endif
 
 #endif /* _LINUX_PERF_COUNTER_H */

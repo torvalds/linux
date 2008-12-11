@@ -178,35 +178,6 @@ static void x86_perf_counter_enable(struct perf_counter *counter)
 	__x86_perf_counter_enable(hwc, idx);
 }
 
-#ifdef CONFIG_X86_64
-static inline void atomic64_counter_set(struct perf_counter *counter, u64 val)
-{
-	atomic64_set(&counter->count, val);
-}
-
-static inline u64 atomic64_counter_read(struct perf_counter *counter)
-{
-	return atomic64_read(&counter->count);
-}
-#else
-/*
- * Todo: add proper atomic64_t support to 32-bit x86:
- */
-static inline void atomic64_counter_set(struct perf_counter *counter, u64 val64)
-{
-	u32 *val32 = (void *)&val64;
-
-	atomic_set(counter->count32 + 0, *(val32 + 0));
-	atomic_set(counter->count32 + 1, *(val32 + 1));
-}
-
-static inline u64 atomic64_counter_read(struct perf_counter *counter)
-{
-	return atomic_read(counter->count32 + 0) |
-		(u64) atomic_read(counter->count32 + 1) << 32;
-}
-#endif
-
 static void __hw_perf_save_counter(struct perf_counter *counter,
 				   struct hw_perf_counter *hwc, int idx)
 {
@@ -309,7 +280,7 @@ static void x86_perf_counter_read(struct perf_counter *counter)
 	} while (offs != hwc->prev_count);
 
 	val32 = (s32) val;
-	val =  (s64)hwc->irq_period + (s64)val32;
+	val = (s64)hwc->irq_period + (s64)val32;
 	atomic64_counter_set(counter, hwc->prev_count + val);
 }
 
@@ -573,13 +544,14 @@ void __init init_hw_perf_counters(void)
 	perf_counters_initialized = true;
 }
 
-static struct hw_perf_counter_ops x86_perf_counter_ops = {
+static const struct hw_perf_counter_ops x86_perf_counter_ops = {
 	.hw_perf_counter_enable		= x86_perf_counter_enable,
 	.hw_perf_counter_disable	= x86_perf_counter_disable,
 	.hw_perf_counter_read		= x86_perf_counter_read,
 };
 
-struct hw_perf_counter_ops *hw_perf_counter_init(struct perf_counter *counter)
+const struct hw_perf_counter_ops *
+hw_perf_counter_init(struct perf_counter *counter)
 {
 	int err;
 

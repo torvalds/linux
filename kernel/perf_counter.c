@@ -37,15 +37,15 @@ static DEFINE_MUTEX(perf_resource_mutex);
 /*
  * Architecture provided APIs - weak aliases:
  */
-extern __weak struct hw_perf_counter_ops *
+extern __weak const struct hw_perf_counter_ops *
 hw_perf_counter_init(struct perf_counter *counter)
 {
 	return ERR_PTR(-EINVAL);
 }
 
-void __weak hw_perf_disable_all(void)	 { }
-void __weak hw_perf_enable_all(void)	 { }
-void __weak hw_perf_counter_setup(void)	 { }
+u64 __weak hw_perf_disable_all(void)		{ return 0; }
+void __weak hw_perf_restore_ctrl(u64 ctrl)	{ }
+void __weak hw_perf_counter_setup(void)		{ }
 
 #if BITS_PER_LONG == 64
 
@@ -56,6 +56,16 @@ void __weak hw_perf_counter_setup(void)	 { }
 static inline u64 perf_counter_read_safe(struct perf_counter *counter)
 {
 	return (u64) atomic64_read(&counter->count);
+}
+
+void atomic64_counter_set(struct perf_counter *counter, u64 val)
+{
+	atomic64_set(&counter->count, val);
+}
+
+u64 atomic64_counter_read(struct perf_counter *counter)
+{
+	return atomic64_read(&counter->count);
 }
 
 #else
@@ -77,6 +87,20 @@ static u64 perf_counter_read_safe(struct perf_counter *counter)
 	local_irq_enable();
 
 	return cntl | ((u64) cnth) << 32;
+}
+
+void atomic64_counter_set(struct perf_counter *counter, u64 val64)
+{
+	u32 *val32 = (void *)&val64;
+
+	atomic_set(counter->count32 + 0, *(val32 + 0));
+	atomic_set(counter->count32 + 1, *(val32 + 1));
+}
+
+u64 atomic64_counter_read(struct perf_counter *counter)
+{
+	return atomic_read(counter->count32 + 0) |
+		(u64) atomic_read(counter->count32 + 1) << 32;
 }
 
 #endif
@@ -131,6 +155,7 @@ static void __perf_counter_remove_from_context(void *info)
 	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_counter *counter = info;
 	struct perf_counter_context *ctx = counter->ctx;
+	u64 perf_flags;
 
 	/*
 	 * If this is a task context, we need to check whether it is
@@ -155,9 +180,9 @@ static void __perf_counter_remove_from_context(void *info)
 	 * Protect the list operation against NMI by disabling the
 	 * counters on a global level. NOP for non NMI based counters.
 	 */
-	hw_perf_disable_all();
+	perf_flags = hw_perf_disable_all();
 	list_del_counter(counter, ctx);
-	hw_perf_enable_all();
+	hw_perf_restore_ctrl(perf_flags);
 
 	if (!ctx->task) {
 		/*
@@ -232,6 +257,7 @@ static void __perf_install_in_context(void *info)
 	struct perf_counter *counter = info;
 	struct perf_counter_context *ctx = counter->ctx;
 	int cpu = smp_processor_id();
+	u64 perf_flags;
 
 	/*
 	 * If this is a task context, we need to check whether it is
@@ -247,9 +273,9 @@ static void __perf_install_in_context(void *info)
 	 * Protect the list operation against NMI by disabling the
 	 * counters on a global level. NOP for non NMI based counters.
 	 */
-	hw_perf_disable_all();
+	perf_flags = hw_perf_disable_all();
 	list_add_counter(counter, ctx);
-	hw_perf_enable_all();
+	hw_perf_restore_ctrl(perf_flags);
 
 	ctx->nr_counters++;
 
@@ -457,6 +483,7 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 {
 	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
 	struct perf_counter *counter;
+	u64 perf_flags;
 
 	if (likely(!ctx->nr_counters))
 		return;
@@ -468,13 +495,13 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 	/*
 	 * Rotate the first entry last (works just fine for group counters too):
 	 */
-	hw_perf_disable_all();
+	perf_flags = hw_perf_disable_all();
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
 		list_del(&counter->list_entry);
 		list_add_tail(&counter->list_entry, &ctx->counter_list);
 		break;
 	}
-	hw_perf_enable_all();
+	hw_perf_restore_ctrl(perf_flags);
 
 	spin_unlock(&ctx->lock);
 
@@ -807,6 +834,42 @@ static const struct file_operations perf_fops = {
 	.poll			= perf_poll,
 };
 
+static void cpu_clock_perf_counter_enable(struct perf_counter *counter)
+{
+}
+
+static void cpu_clock_perf_counter_disable(struct perf_counter *counter)
+{
+}
+
+static void cpu_clock_perf_counter_read(struct perf_counter *counter)
+{
+	int cpu = raw_smp_processor_id();
+
+	atomic64_counter_set(counter, cpu_clock(cpu));
+}
+
+static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
+	.hw_perf_counter_enable		= cpu_clock_perf_counter_enable,
+	.hw_perf_counter_disable	= cpu_clock_perf_counter_disable,
+	.hw_perf_counter_read		= cpu_clock_perf_counter_read,
+};
+
+static const struct hw_perf_counter_ops *
+sw_perf_counter_init(struct perf_counter *counter)
+{
+	const struct hw_perf_counter_ops *hw_ops = NULL;
+
+	switch (counter->hw_event.type) {
+	case PERF_COUNT_CPU_CLOCK:
+		hw_ops = &perf_ops_cpu_clock;
+		break;
+	default:
+		break;
+	}
+	return hw_ops;
+}
+
 /*
  * Allocate and initialize a counter structure
  */
@@ -815,7 +878,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		   int cpu,
 		   struct perf_counter *group_leader)
 {
-	struct hw_perf_counter_ops *hw_ops;
+	const struct hw_perf_counter_ops *hw_ops;
 	struct perf_counter *counter;
 
 	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
@@ -842,7 +905,13 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	counter->group_leader		= group_leader;
 	counter->hw_ops			= NULL;
 
-	hw_ops = hw_perf_counter_init(counter);
+	hw_ops = NULL;
+	if (!hw_event->raw && hw_event->type < 0)
+		hw_ops = sw_perf_counter_init(counter);
+	if (!hw_ops) {
+		hw_ops = hw_perf_counter_init(counter);
+	}
+
 	if (!hw_ops) {
 		kfree(counter);
 		return NULL;
@@ -912,7 +981,7 @@ asmlinkage int sys_perf_counter_open(
 			goto err_put_context;
 	}
 
-	ret = -ENOMEM;
+	ret = -EINVAL;
 	counter = perf_counter_alloc(&hw_event, cpu, group_leader);
 	if (!counter)
 		goto err_put_context;
