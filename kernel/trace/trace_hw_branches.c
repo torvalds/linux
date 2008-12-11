@@ -1,5 +1,5 @@
 /*
- * BTS tracer
+ * h/w branch tracer for x86 based on bts
  *
  * Copyright (C) 2008 Markus Metzger <markus.t.metzger@gmail.com>
  *
@@ -25,68 +25,6 @@ static DEFINE_PER_CPU(unsigned char[SIZEOF_BTS], buffer);
 #define this_buffer per_cpu(buffer, smp_processor_id())
 
 
-/*
- * Information to interpret a BTS record.
- * This will go into an in-kernel BTS interface.
- */
-static unsigned char sizeof_field;
-static unsigned long debugctl_mask;
-
-#define sizeof_bts (3 * sizeof_field)
-
-static void bts_trace_cpuinit(struct cpuinfo_x86 *c)
-{
-	switch (c->x86) {
-	case 0x6:
-		switch (c->x86_model) {
-		case 0x0 ... 0xC:
-			break;
-		case 0xD:
-		case 0xE: /* Pentium M */
-			sizeof_field = sizeof(long);
-			debugctl_mask = (1<<6)|(1<<7);
-			break;
-		default:
-			sizeof_field = 8;
-			debugctl_mask = (1<<6)|(1<<7);
-			break;
-		}
-		break;
-	case 0xF:
-		switch (c->x86_model) {
-		case 0x0:
-		case 0x1:
-		case 0x2: /* Netburst */
-			sizeof_field = sizeof(long);
-			debugctl_mask = (1<<2)|(1<<3);
-			break;
-		default:
-			/* sorry, don't know about them */
-			break;
-		}
-		break;
-	default:
-		/* sorry, don't know about them */
-		break;
-	}
-}
-
-static inline void bts_enable(void)
-{
-	unsigned long debugctl;
-
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl | debugctl_mask);
-}
-
-static inline void bts_disable(void)
-{
-	unsigned long debugctl;
-
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl & ~debugctl_mask);
-}
-
 static void bts_trace_reset(struct trace_array *tr)
 {
 	int cpu;
@@ -99,15 +37,17 @@ static void bts_trace_reset(struct trace_array *tr)
 
 static void bts_trace_start_cpu(void *arg)
 {
+	if (this_tracer)
+		ds_release_bts(this_tracer);
+
 	this_tracer =
 		ds_request_bts(/* task = */ NULL, this_buffer, SIZEOF_BTS,
-			       /* ovfl = */ NULL, /* th = */ (size_t)-1);
+			       /* ovfl = */ NULL, /* th = */ (size_t)-1,
+			       BTS_KERNEL);
 	if (IS_ERR(this_tracer)) {
 		this_tracer = NULL;
 		return;
 	}
-
-	bts_enable();
 }
 
 static void bts_trace_start(struct trace_array *tr)
@@ -123,8 +63,6 @@ static void bts_trace_start(struct trace_array *tr)
 static void bts_trace_stop_cpu(void *arg)
 {
 	if (this_tracer) {
-		bts_disable();
-
 		ds_release_bts(this_tracer);
 		this_tracer = NULL;
 	}
@@ -140,7 +78,6 @@ static void bts_trace_stop(struct trace_array *tr)
 
 static int bts_trace_init(struct trace_array *tr)
 {
-	bts_trace_cpuinit(&boot_cpu_data);
 	bts_trace_reset(tr);
 	bts_trace_start(tr);
 
@@ -149,47 +86,37 @@ static int bts_trace_init(struct trace_array *tr)
 
 static void bts_trace_print_header(struct seq_file *m)
 {
-#ifdef __i386__
-	seq_puts(m, "# CPU#    FROM           TO     FUNCTION\n");
-	seq_puts(m, "#  |       |             |         |\n");
-#else
 	seq_puts(m,
 		 "# CPU#        FROM                   TO         FUNCTION\n");
 	seq_puts(m,
 		 "#  |           |                     |             |\n");
-#endif
 }
 
 static enum print_line_t bts_trace_print_line(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
 	struct trace_seq *seq = &iter->seq;
-	struct bts_entry *it;
+	struct hw_branch_entry *it;
 
 	trace_assign_type(it, entry);
 
-	if (entry->type == TRACE_BTS) {
-		int ret;
-#ifdef CONFIG_KALLSYMS
-		char function[KSYM_SYMBOL_LEN];
-		sprint_symbol(function, it->from);
-#else
-		char *function = "<unknown>";
-#endif
-
-		ret = trace_seq_printf(seq, "%4d  0x%lx -> 0x%lx [%s]\n",
-				       entry->cpu, it->from, it->to, function);
-		if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;;
-		return TRACE_TYPE_HANDLED;
+	if (entry->type == TRACE_HW_BRANCHES) {
+		if (trace_seq_printf(seq, "%4d  ", entry->cpu) &&
+		    trace_seq_printf(seq, "0x%016llx -> 0x%016llx ",
+				     it->from, it->to) &&
+		    (!it->from ||
+		     seq_print_ip_sym(seq, it->from, /* sym_flags = */ 0)) &&
+		    trace_seq_printf(seq, "\n"))
+			return TRACE_TYPE_HANDLED;
+		return TRACE_TYPE_PARTIAL_LINE;;
 	}
 	return TRACE_TYPE_UNHANDLED;
 }
 
-void trace_bts(struct trace_array *tr, unsigned long from, unsigned long to)
+void trace_hw_branch(struct trace_array *tr, u64 from, u64 to)
 {
 	struct ring_buffer_event *event;
-	struct bts_entry *entry;
+	struct hw_branch_entry *entry;
 	unsigned long irq;
 
 	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry), &irq);
@@ -197,56 +124,58 @@ void trace_bts(struct trace_array *tr, unsigned long from, unsigned long to)
 		return;
 	entry	= ring_buffer_event_data(event);
 	tracing_generic_entry_update(&entry->ent, 0, from);
-	entry->ent.type = TRACE_BTS;
+	entry->ent.type = TRACE_HW_BRANCHES;
 	entry->ent.cpu = smp_processor_id();
 	entry->from = from;
 	entry->to   = to;
 	ring_buffer_unlock_commit(tr->buffer, event, irq);
 }
 
-static void trace_bts_at(struct trace_array *tr, size_t index)
+static void trace_bts_at(struct trace_array *tr,
+			 const struct bts_trace *trace, void *at)
 {
-	const void *raw = NULL;
-	unsigned long from, to;
-	int err;
+	struct bts_struct bts;
+	int err = 0;
 
-	err = ds_access_bts(this_tracer, index, &raw);
+	WARN_ON_ONCE(!trace->read);
+	if (!trace->read)
+		return;
+
+	err = trace->read(this_tracer, at, &bts);
 	if (err < 0)
 		return;
 
-	from = *(const unsigned long *)raw;
-	to = *(const unsigned long *)((const char *)raw + sizeof_field);
-
-	trace_bts(tr, from, to);
+	switch (bts.qualifier) {
+	case BTS_BRANCH:
+		trace_hw_branch(tr, bts.variant.lbr.from, bts.variant.lbr.to);
+		break;
+	}
 }
 
 static void trace_bts_cpu(void *arg)
 {
 	struct trace_array *tr = (struct trace_array *) arg;
-	size_t index = 0, end = 0, i;
-	int err;
+	const struct bts_trace *trace;
+	unsigned char *at;
 
 	if (!this_tracer)
 		return;
 
-	bts_disable();
-
-	err = ds_get_bts_index(this_tracer, &index);
-	if (err < 0)
+	ds_suspend_bts(this_tracer);
+	trace = ds_read_bts(this_tracer);
+	if (!trace)
 		goto out;
 
-	err = ds_get_bts_end(this_tracer, &end);
-	if (err < 0)
-		goto out;
+	for (at = trace->ds.top; (void *)at < trace->ds.end;
+	     at += trace->ds.size)
+		trace_bts_at(tr, trace, at);
 
-	for (i = index; i < end; i++)
-		trace_bts_at(tr, i);
-
-	for (i = 0; i < index; i++)
-		trace_bts_at(tr, i);
+	for (at = trace->ds.begin; (void *)at < trace->ds.top;
+	     at += trace->ds.size)
+		trace_bts_at(tr, trace, at);
 
 out:
-	bts_enable();
+	ds_resume_bts(this_tracer);
 }
 
 static void trace_bts_prepare(struct trace_iterator *iter)
@@ -259,7 +188,7 @@ static void trace_bts_prepare(struct trace_iterator *iter)
 
 struct tracer bts_tracer __read_mostly =
 {
-	.name		= "bts",
+	.name		= "hw-branch-tracer",
 	.init		= bts_trace_init,
 	.reset		= bts_trace_stop,
 	.print_header	= bts_trace_print_header,
