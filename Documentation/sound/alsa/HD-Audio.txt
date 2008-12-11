@@ -393,6 +393,28 @@ power-saving.  See /sys/module/snd_hda_intel/parameters/power_save to
 check the current value.  If it's non-zero, the feature is turned on.
 
 
+Development Tree
+~~~~~~~~~~~~~~~~
+The latest development codes for HD-audio are found on sound git tree:
+
+- git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound-2.6.git
+
+The master branch or for-next branches can be used as the main
+development branches in general while the HD-audio specific patches
+are committed in topic/hda branch.
+
+If you are using the latest Linus tree, it'd be better to pull the
+above GIT tree onto it.  If you are using the older kernels, an easy
+way to try the latest ALSA code is to build from the snapshot
+tarball.  There are daily tarballs and the latest snapshot tarball.
+All can be built just like normal alsa-driver release packages, that
+is, installed via the usual spells: configure, make and make
+install(-modules).  See INSTALL in the package.  The snapshot tarballs
+are found at:
+
+- ftp://ftp.kernel.org/pub/linux/kernel/people/tiwai/snapshot/
+
+
 Sending a Bug Report
 ~~~~~~~~~~~~~~~~~~~~
 If any model or module options don't work for your device, it's time
