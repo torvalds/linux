@@ -98,19 +98,6 @@ config IRQSTACKS
 	  for handling hard and soft interrupts.  This can help avoid
 	  overflowing the process kernel stacks.
 
-config SH_KGDB
-	bool "Include KGDB kernel debugger"
-	select FRAME_POINTER
-	select DEBUG_INFO
-	depends on CPU_SH3 || CPU_SH4
-	help
-	  Include in-kernel hooks for kgdb, the Linux kernel source level
-	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
-	  Unless you are intending to debug the kernel, say N here.
-
-menu "KGDB configuration options"
-	depends on SH_KGDB
-
 config MORE_COMPILE_OPTIONS
 	bool "Add any additional compile options"
 	help
@@ -121,62 +108,6 @@ config MORE_COMPILE_OPTIONS
 config COMPILE_OPTIONS
 	string "Additional compile arguments"
 	depends on MORE_COMPILE_OPTIONS
-
-config KGDB_NMI
-	def_bool n
-	prompt "Enter KGDB on NMI"
-
-config SH_KGDB_CONSOLE
-	def_bool n
-	prompt "Console messages through GDB"
-	depends on !SERIAL_SH_SCI_CONSOLE && SERIAL_SH_SCI=y
-	select SERIAL_CORE_CONSOLE
-
-config KGDB_SYSRQ
-	def_bool y
-	prompt "Allow SysRq 'G' to enter KGDB"
-	depends on MAGIC_SYSRQ
-
-comment "Serial port setup"
-
-config KGDB_DEFPORT
-	int "Port number (ttySCn)"
-	default "1"
-
-config KGDB_DEFBAUD
-	int "Baud rate"
-	default "115200"
-
-choice
-	prompt "Parity"
-	depends on SH_KGDB
-	default KGDB_DEFPARITY_N
-
-config KGDB_DEFPARITY_N
-	bool "None"
-
-config KGDB_DEFPARITY_E
-	bool "Even"
-
-config KGDB_DEFPARITY_O
-	bool "Odd"
-
-endchoice
-
-choice
-	prompt "Data bits"
-	depends on SH_KGDB
-	default KGDB_DEFBITS_8
-
-config KGDB_DEFBITS_8
-	bool "8"
-
-config KGDB_DEFBITS_7
-	bool "7"
-
-endchoice
-
-endmenu
 
 if SUPERH64
 

@@ -277,11 +277,4 @@ void __init time_init(void)
 		       ((sh_hpt_frequency + 500) / 1000) / 1000,
 		       ((sh_hpt_frequency + 500) / 1000) % 1000);
 
-#if defined(CONFIG_SH_KGDB)
-	/*
-	 * Set up kgdb as requested. We do it here because the serial
-	 * init uses the timer vars we just set up for figuring baud.
-	 */
-	kgdb_init();
-#endif
 }

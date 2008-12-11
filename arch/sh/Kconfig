@@ -27,6 +27,7 @@ config SUPERH32
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_ARCH_KGDB
 
 config SUPERH64
 	def_bool y if CPU_SH5

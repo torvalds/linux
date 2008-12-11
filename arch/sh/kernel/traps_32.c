@@ -28,17 +28,6 @@
 #include <asm/fpu.h>
 #include <asm/kprobes.h>
 
-#ifdef CONFIG_SH_KGDB
-#include <asm/kgdb.h>
-#define CHK_REMOTE_DEBUG(regs)			\
-{						\
-	if (kgdb_debug_hook && !user_mode(regs))\
-		(*kgdb_debug_hook)(regs);       \
-}
-#else
-#define CHK_REMOTE_DEBUG(regs)
-#endif
-
 #ifdef CONFIG_CPU_SH2
 # define TRAP_RESERVED_INST	4
 # define TRAP_ILLEGAL_SLOT_INST	6
@@ -94,7 +83,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
 
-	CHK_REMOTE_DEBUG(regs);
 	print_modules();
 	show_regs(regs);
 
@@ -683,7 +671,6 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	error_code = lookup_exception_vector();
 
 	local_irq_enable();
-	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
 	die_if_no_fixup("reserved instruction", regs, error_code);
 }
@@ -761,7 +748,6 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	inst = lookup_exception_vector();
 
 	local_irq_enable();
-	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
 	die_if_no_fixup("illegal slot instruction", regs, inst);
 }

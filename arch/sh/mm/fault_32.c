@@ -20,7 +20,6 @@
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
-#include <asm/kgdb.h>
 
 /*
  * This routine handles page faults.  It determines the address,
@@ -281,11 +280,6 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 
 	if (notify_page_fault(regs, lookup_exception_vector()))
 		goto out;
-
-#ifdef CONFIG_SH_KGDB
-	if (kgdb_nofault && kgdb_bus_err_hook)
-		kgdb_bus_err_hook();
-#endif
 
 	ret = 1;
 
