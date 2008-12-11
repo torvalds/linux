@@ -103,7 +103,6 @@
  * Driver reads 16-bit value from bits 31-16 of CSR_EEPROM_REG.
  */
 #define IWL_EEPROM_ACCESS_TIMEOUT	5000 /* uSec */
-#define IWL_EEPROM_ACCESS_DELAY		10   /* uSec */
 
 /*
  * Regulatory channel usage flags in EEPROM struct iwl_eeprom_channel.flags.

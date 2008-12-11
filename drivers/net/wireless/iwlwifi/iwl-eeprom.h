@@ -68,17 +68,14 @@ struct iwl_priv;
 /*
  * EEPROM access time values:
  *
- * Driver initiates EEPROM read by writing byte address << 1 to CSR_EEPROM_REG,
- *   then clearing (with subsequent read/modify/write) CSR_EEPROM_REG bit
- *   CSR_EEPROM_REG_BIT_CMD (0x2).
+ * Driver initiates EEPROM read by writing byte address << 1 to CSR_EEPROM_REG.
  * Driver then polls CSR_EEPROM_REG for CSR_EEPROM_REG_READ_VALID_MSK (0x1).
  * When polling, wait 10 uSec between polling loops, up to a maximum 5000 uSec.
  * Driver reads 16-bit value from bits 31-16 of CSR_EEPROM_REG.
  */
 #define IWL_EEPROM_ACCESS_TIMEOUT	5000 /* uSec */
-#define IWL_EEPROM_ACCESS_DELAY		10   /* uSec */
 
-#define IWL_EEPROM_SEM_TIMEOUT 		10   /* milliseconds */
+#define IWL_EEPROM_SEM_TIMEOUT 		10   /* microseconds */
 #define IWL_EEPROM_SEM_RETRY_LIMIT	1000 /* number of attempts (not time) */
 
 

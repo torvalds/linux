@@ -1504,10 +1504,8 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 {
 	u16 *e = (u16 *)&priv->eeprom;
 	u32 gp = iwl3945_read32(priv, CSR_EEPROM_GP);
-	u32 r;
 	int sz = sizeof(priv->eeprom);
-	int rc;
-	int i;
+	int ret;
 	u16 addr;
 
 	/* The EEPROM structure has several padding buffers within it
@@ -1522,29 +1520,28 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	rc = iwl3945_eeprom_acquire_semaphore(priv);
-	if (rc < 0) {
+	ret = iwl3945_eeprom_acquire_semaphore(priv);
+	if (ret < 0) {
 		IWL_ERROR("Failed to acquire EEPROM semaphore.\n");
 		return -ENOENT;
 	}
 
 	/* eeprom is an array of 16bit values */
 	for (addr = 0; addr < sz; addr += sizeof(u16)) {
-		_iwl3945_write32(priv, CSR_EEPROM_REG, addr << 1);
+		u32 r;
+
+		_iwl3945_write32(priv, CSR_EEPROM_REG,
+				 CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 		_iwl3945_clear_bit(priv, CSR_EEPROM_REG, CSR_EEPROM_REG_BIT_CMD);
-
-		for (i = 0; i < IWL_EEPROM_ACCESS_TIMEOUT;
-					i += IWL_EEPROM_ACCESS_DELAY) {
-			r = _iwl3945_read_direct32(priv, CSR_EEPROM_REG);
-			if (r & CSR_EEPROM_REG_READ_VALID_MSK)
-				break;
-			udelay(IWL_EEPROM_ACCESS_DELAY);
-		}
-
-		if (!(r & CSR_EEPROM_REG_READ_VALID_MSK)) {
+		ret = iwl3945_poll_direct_bit(priv, CSR_EEPROM_REG,
+					      CSR_EEPROM_REG_READ_VALID_MSK,
+					      IWL_EEPROM_ACCESS_TIMEOUT);
+		if (ret < 0) {
 			IWL_ERROR("Time out reading EEPROM[%d]\n", addr);
-			return -ETIMEDOUT;
+			return ret;
 		}
+
+		r = _iwl3945_read_direct32(priv, CSR_EEPROM_REG);
 		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
 	}
 
