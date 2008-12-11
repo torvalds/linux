@@ -373,11 +373,10 @@ config NETFILTER_XT_TARGET_MARK
 config NETFILTER_XT_TARGET_NFLOG
 	tristate '"NFLOG" target support'
 	default m if NETFILTER_ADVANCED=n
+	select NETFILTER_NETLINK_LOG
 	help
 	  This option enables the NFLOG target, which allows to LOG
-	  messages through the netfilter logging API, which can use
-	  either the old LOG target, the old ULOG target or nfnetlink_log
-	  as backend.
+	  messages through nfnetlink_log.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
