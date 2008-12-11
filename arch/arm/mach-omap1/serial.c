@@ -250,7 +250,7 @@ static void __init omap_serial_set_port_wakeup(int gpio_nr)
 		       gpio_nr);
 		return;
 	}
-	omap_set_gpio_direction(gpio_nr, 1);
+	gpio_direction_input(gpio_nr);
 	ret = request_irq(OMAP_GPIO_IRQ(gpio_nr), &omap_serial_wake_interrupt,
 			  IRQF_TRIGGER_RISING, "serial wakeup", NULL);
 	if (ret) {

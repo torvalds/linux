@@ -331,7 +331,7 @@ palmz71_gpio_setup(int early)
 			printk(KERN_ERR "Could not reserve WP GPIO!\n");
 			return;
 		}
-		omap_set_gpio_direction(PALMZ71_MMC_WP_GPIO, 1);
+		gpio_direction_input(PALMZ71_MMC_WP_GPIO);
 
 		/* Monitor the Power-cable-connected signal */
 		if (omap_request_gpio(PALMZ71_USBDETECT_GPIO)) {
@@ -339,7 +339,7 @@ palmz71_gpio_setup(int early)
 				"Could not reserve cable signal GPIO!\n");
 			return;
 		}
-		omap_set_gpio_direction(PALMZ71_USBDETECT_GPIO, 1);
+		gpio_direction_input(PALMZ71_USBDETECT_GPIO);
 		if (request_irq(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
 				palmz71_powercable, IRQF_SAMPLE_RANDOM,
 				"palmz71-cable", 0))

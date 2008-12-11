@@ -634,7 +634,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 				"OneNAND\n", c->gpio_irq);
 			goto err_iounmap;
 	}
-	omap_set_gpio_direction(c->gpio_irq, 1);
+	gpio_direction_input(c->gpio_irq);
 
 	if ((r = request_irq(OMAP_GPIO_IRQ(c->gpio_irq),
 			     omap2_onenand_interrupt, IRQF_TRIGGER_RISING,

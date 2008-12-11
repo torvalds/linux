@@ -77,7 +77,7 @@ int __init debug_card_init(u32 addr, unsigned gpio)
 		printk(KERN_ERR "GPIO%d unavailable for smc91x IRQ\n", gpio);
 		return status;
 	}
-	omap_set_gpio_direction(gpio, 1);
+	gpio_direction_input(gpio);
 
 	led_resources[0].start = addr;
 	led_resources[0].end   = addr + SZ_4K - 1;

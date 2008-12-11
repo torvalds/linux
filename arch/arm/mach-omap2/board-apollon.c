@@ -242,7 +242,7 @@ static inline void __init apollon_init_smc91x(void)
 		gpmc_cs_free(APOLLON_ETH_CS);
 		goto out;
 	}
-	omap_set_gpio_direction(APOLLON_ETHR_GPIO_IRQ, 1);
+	gpio_direction_input(APOLLON_ETHR_GPIO_IRQ);
 
 out:
 	clk_disable(gpmc_fck);
@@ -327,15 +327,15 @@ static void __init apollon_sw_init(void)
 	/* Enter SW - Y11 */
 	omap_cfg_reg(Y11_242X_GPIO16);
 	omap_request_gpio(SW_ENTER_GPIO16);
-	omap_set_gpio_direction(SW_ENTER_GPIO16, 1);
+	gpio_direction_input(SW_ENTER_GPIO16);
 	/* Up SW - AA12 */
 	omap_cfg_reg(AA12_242X_GPIO17);
 	omap_request_gpio(SW_UP_GPIO17);
-	omap_set_gpio_direction(SW_UP_GPIO17, 1);
+	gpio_direction_input(SW_UP_GPIO17);
 	/* Down SW - AA8 */
 	omap_cfg_reg(AA8_242X_GPIO58);
 	omap_request_gpio(SW_DOWN_GPIO58);
-	omap_set_gpio_direction(SW_DOWN_GPIO58, 1);
+	gpio_direction_input(SW_DOWN_GPIO58);
 
 	set_irq_type(OMAP_GPIO_IRQ(SW_ENTER_GPIO16), IRQ_TYPE_EDGE_RISING);
 	if (request_irq(OMAP_GPIO_IRQ(SW_ENTER_GPIO16), &apollon_sw_interrupt,

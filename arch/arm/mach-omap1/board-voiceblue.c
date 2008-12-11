@@ -256,7 +256,7 @@ void voiceblue_wdt_disable(void)
 	gpio_set_value(0, 0);
 	gpio_set_value(0, 1);
 	gpio_set_value(0, 0);
-	omap_set_gpio_direction(0, 1);
+	gpio_direction_input(0);
 }
 
 void voiceblue_wdt_ping(void)
