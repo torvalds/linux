@@ -112,16 +112,6 @@ static inline struct sockaddr *nlm_srcaddr(const struct nlm_host *host)
 	return (struct sockaddr *)&host->h_srcaddr;
 }
 
-static inline struct sockaddr_in *nsm_addr_in(const struct nsm_handle *handle)
-{
-	return (struct sockaddr_in *)&handle->sm_addr;
-}
-
-static inline struct sockaddr *nsm_addr(const struct nsm_handle *handle)
-{
-	return (struct sockaddr *)&handle->sm_addr;
-}
-
 /*
  * Map an fl_owner_t into a unique 32-bit "pid"
  */

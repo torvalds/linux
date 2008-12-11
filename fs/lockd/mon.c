@@ -55,6 +55,11 @@ static				DEFINE_SPINLOCK(nsm_lock);
  */
 int				nsm_local_state;
 
+static inline struct sockaddr *nsm_addr(const struct nsm_handle *nsm)
+{
+	return (struct sockaddr *)&nsm->sm_addr;
+}
+
 static void nsm_display_ipv4_address(const struct sockaddr *sap, char *buf,
 				     const size_t len)
 {
