@@ -48,13 +48,13 @@ omap_leds_init(void)
 		 */
 		omap_cfg_reg(P18_1610_GPIO3);
 		if (omap_request_gpio(3) == 0)
-			omap_set_gpio_direction(3, 0);
+			gpio_direction_output(3, 1);
 		else
 			printk(KERN_WARNING "LED: can't get GPIO3/red?\n");
 
 		omap_cfg_reg(MPUIO4);
 		if (omap_request_gpio(OMAP_MPUIO(4)) == 0)
-			omap_set_gpio_direction(OMAP_MPUIO(4), 0);
+			gpio_direction_output(OMAP_MPUIO(4), 1);
 		else
 			printk(KERN_WARNING "LED: can't get MPUIO4/green?\n");
 	}

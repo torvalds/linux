@@ -323,8 +323,7 @@ palmz71_gpio_setup(int early)
 {
 	if (early) {
 		/* Only set GPIO1 so we have a working serial */
-		gpio_set_value(1, 1);
-		omap_set_gpio_direction(1, 0);
+		gpio_direction_output(1, 1);
 	} else {
 		/* Set MMC/SD host WP pin as input */
 		if (omap_request_gpio(PALMZ71_MMC_WP_GPIO)) {

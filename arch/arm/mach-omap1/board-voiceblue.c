@@ -171,8 +171,7 @@ static void __init voiceblue_init(void)
 	omap_request_gpio(0);
 	/* smc91x reset */
 	omap_request_gpio(7);
-	omap_set_gpio_direction(7, 0);
-	gpio_set_value(7, 1);
+	gpio_direction_output(7, 1);
 	udelay(2);	/* wait at least 100ns */
 	gpio_set_value(7, 0);
 	mdelay(50);	/* 50ms until PHY ready */
@@ -180,8 +179,7 @@ static void __init voiceblue_init(void)
 	omap_request_gpio(8);
 	/* 16C554 reset*/
 	omap_request_gpio(6);
-	omap_set_gpio_direction(6, 0);
-	gpio_set_value(6, 0);
+	gpio_direction_output(6, 0);
 	/* 16C554 interrupt pins */
 	omap_request_gpio(12);
 	omap_request_gpio(13);
@@ -244,8 +242,7 @@ static int wdt_gpio_state;
 
 void voiceblue_wdt_enable(void)
 {
-	omap_set_gpio_direction(0, 0);
-	gpio_set_value(0, 0);
+	gpio_direction_output(0, 0);
 	gpio_set_value(0, 1);
 	gpio_set_value(0, 0);
 	wdt_gpio_state = 0;
