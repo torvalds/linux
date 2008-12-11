@@ -65,6 +65,7 @@
 #define OCFS2_EXTENT_BLOCK_SIGNATURE	"EXBLK01"
 #define OCFS2_GROUP_DESC_SIGNATURE      "GROUP01"
 #define OCFS2_XATTR_BLOCK_SIGNATURE	"XATTR01"
+#define OCFS2_DIR_TRAILER_SIGNATURE	"DIRTRL1"
 
 /* Compatibility flags */
 #define OCFS2_HAS_COMPAT_FEATURE(sb,mask)			\
@@ -750,6 +751,34 @@ struct ocfs2_dir_entry {
 /*0C*/	char    name[OCFS2_MAX_FILENAME_LEN];   /* File name */
 /* Actual on-disk length specified by rec_len */
 } __attribute__ ((packed));
+
+/*
+ * Per-block record for the unindexed directory btree. This is carefully
+ * crafted so that the rec_len and name_len records of an ocfs2_dir_entry are
+ * mirrored. That way, the directory manipulation code needs a minimal amount
+ * of update.
+ *
+ * NOTE: Keep this structure aligned to a multiple of 4 bytes.
+ */
+struct ocfs2_dir_block_trailer {
+/*00*/	__le64		db_compat_inode;	/* Always zero. Was inode */
+
+	__le16		db_compat_rec_len;	/* Backwards compatible with
+						 * ocfs2_dir_entry. */
+	__u8		db_compat_name_len;	/* Always zero. Was name_len */
+	__u8		db_reserved0;
+	__le16		db_reserved1;
+	__le16		db_free_rec_len;	/* Size of largest empty hole
+						 * in this block. (unused) */
+/*10*/	__u8		db_signature[8];	/* Signature for verification */
+	__le64		db_reserved2;
+	__le64		db_free_next;		/* Next block in list (unused) */
+/*20*/	__le64		db_blkno;		/* Offset on disk, in blocks */
+	__le64		db_parent_dinode;	/* dinode which owns me, in
+						   blocks */
+/*30*/	__le64		db_check;		/* Error checking */
+/*40*/
+};
 
 /*
  * On disk allocator group structure for OCFS2
