@@ -19,6 +19,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
+#include <mach/control.h>
 #include <mach/tc.h>
 #include <mach/board.h>
 #include <mach/mux.h>
@@ -311,7 +312,7 @@ static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 		omap_cfg_reg(F20_24XX_MMC_DAT0);
 		omap_cfg_reg(F19_24XX_MMC_DAT_DIR0);
 		omap_cfg_reg(G18_24XX_MMC_CMD_DIR);
-		if (mmc_controller->slots[0].wire4) {
+		if (mmc_controller->slots[0].wires == 4) {
 			omap_cfg_reg(H14_24XX_MMC_DAT1);
 			omap_cfg_reg(E19_24XX_MMC_DAT2);
 			omap_cfg_reg(D19_24XX_MMC_DAT3);

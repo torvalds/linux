@@ -61,6 +61,11 @@ struct omap_mmc_platform_data {
 
 	struct omap_mmc_slot_data {
 
+		/* 4 wire signaling is optional, and is used for SD/SDIO/HSMMC;
+		 * 8 wire signaling is also optional, and is used with HSMMC
+		 */
+		u8 wires;
+
 		/*
 		 * nomux means "standard" muxing is wrong on this board, and
 		 * that board-specific code handled it before common init logic.
@@ -70,13 +75,12 @@ struct omap_mmc_platform_data {
 		/* switch pin can be for card detect (default) or card cover */
 		unsigned cover:1;
 
-		/* 4 wire signaling is optional, and is only used for SD/SDIO */
-		unsigned wire4:1;
-
 		/* use the internal clock */
 		unsigned internal_clock:1;
 		s16 power_pin;
-		s16 switch_pin;
+
+		int switch_pin;			/* gpio (card detect) */
+		int gpio_wp;			/* gpio (write protect) */
 
 		int (* set_bus_mode)(struct device *dev, int slot, int bus_mode);
 		int (* set_power)(struct device *dev, int slot, int power_on, int vdd);
@@ -111,7 +115,6 @@ void omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				int nr_controllers);
 void omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				int nr_controllers);
-void hsmmc_init(int controller_mask);
 int omap_mmc_add(int id, unsigned long base, unsigned long size,
 			unsigned int irq, struct omap_mmc_platform_data *data);
 #else
@@ -121,9 +124,6 @@ static inline void omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 }
 static inline void omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				int nr_controllers)
-{
-}
-static inline void hsmmc_init(int controller_mask)
 {
 }
 static inline int omap_mmc_add(int id, unsigned long base, unsigned long size,

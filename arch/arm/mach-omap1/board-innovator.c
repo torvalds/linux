@@ -385,7 +385,7 @@ static struct omap_mmc_platform_data mmc1_data = {
 	.nr_slots                       = 1,
 	.slots[0]       = {
 		.set_power		= mmc_set_power,
-		.wire4			= 1,
+		.wires			= 4,
 		.name                   = "mmcblk",
 	},
 };
