@@ -113,7 +113,7 @@ struct acpiphp_slot {
 
 	u8		device;		/* pci device# */
 
-	u32		sun;		/* ACPI _SUN (slot unique number) */
+	unsigned long long sun;		/* ACPI _SUN (slot unique number) */
 	u32		flags;		/* see below */
 };
 
