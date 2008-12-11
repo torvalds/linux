@@ -9,7 +9,7 @@
  */
 struct boot_trace_call {
 	pid_t			caller;
-	char			func[KSYM_NAME_LEN];
+	char			func[KSYM_SYMBOL_LEN];
 };
 
 /*
@@ -17,7 +17,7 @@ struct boot_trace_call {
  * while it returns.
  */
 struct boot_trace_ret {
-	char			func[KSYM_NAME_LEN];
+	char			func[KSYM_SYMBOL_LEN];
 	int				result;
 	unsigned long long	duration;		/* nsecs */
 };
