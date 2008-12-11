@@ -191,7 +191,7 @@ static void __init _set_omap_chip(void)
 
 }
 
-void __init omap2_check_revision(void)
+void __init omap24xx_check_revision(void)
 {
 	int i, j;
 	u32 idcode;
@@ -264,6 +264,11 @@ void __init omap2_check_revision(void)
 		pr_info("ES%x", (system_rev >> 12) & 0xf);
 	pr_info("\n");
 
+}
+
+void __init omap2_check_revision(void)
+{
+	omap24xx_check_revision();
 }
 
 void __init omap2_set_globals_tap(struct omap_globals *omap2_globals)
