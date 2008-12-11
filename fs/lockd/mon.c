@@ -213,6 +213,16 @@ static struct nsm_handle *nsm_lookup_hostname(const char *hostname,
 	return NULL;
 }
 
+static struct nsm_handle *nsm_lookup_addr(const struct sockaddr *sap)
+{
+	struct nsm_handle *nsm;
+
+	list_for_each_entry(nsm, &nsm_handles, sm_link)
+		if (nlm_cmp_addr(nsm_addr(nsm), sap))
+			return nsm;
+	return NULL;
+}
+
 static struct nsm_handle *nsm_lookup_priv(const struct nsm_private *priv)
 {
 	struct nsm_handle *nsm;
@@ -281,8 +291,7 @@ struct nsm_handle *nsm_get_handle(const struct sockaddr *sap,
 				  const size_t salen, const char *hostname,
 				  const size_t hostname_len)
 {
-	struct nsm_handle *nsm = NULL;
-	struct nsm_handle *pos;
+	struct nsm_handle *cached, *new = NULL;
 
 	if (hostname && memchr(hostname, '/', hostname_len) != NULL) {
 		if (printk_ratelimit()) {
@@ -295,38 +304,37 @@ struct nsm_handle *nsm_get_handle(const struct sockaddr *sap,
 
 retry:
 	spin_lock(&nsm_lock);
-	list_for_each_entry(pos, &nsm_handles, sm_link) {
 
-		if (hostname && nsm_use_hostnames) {
-			if (strlen(pos->sm_name) != hostname_len
-			 || memcmp(pos->sm_name, hostname, hostname_len))
-				continue;
-		} else if (!nlm_cmp_addr(nsm_addr(pos), sap))
-			continue;
-		atomic_inc(&pos->sm_count);
-		kfree(nsm);
-		nsm = pos;
-		dprintk("lockd: found nsm_handle for %s (%s), cnt %d\n",
-				pos->sm_name, pos->sm_addrbuf,
-				atomic_read(&pos->sm_count));
-		goto found;
+	if (nsm_use_hostnames && hostname != NULL)
+		cached = nsm_lookup_hostname(hostname, hostname_len);
+	else
+		cached = nsm_lookup_addr(sap);
+
+	if (cached != NULL) {
+		atomic_inc(&cached->sm_count);
+		spin_unlock(&nsm_lock);
+		kfree(new);
+		dprintk("lockd: found nsm_handle for %s (%s), "
+				"cnt %d\n", cached->sm_name,
+				cached->sm_addrbuf,
+				atomic_read(&cached->sm_count));
+		return cached;
 	}
-	if (nsm) {
-		list_add(&nsm->sm_link, &nsm_handles);
+
+	if (new != NULL) {
+		list_add(&new->sm_link, &nsm_handles);
+		spin_unlock(&nsm_lock);
 		dprintk("lockd: created nsm_handle for %s (%s)\n",
-				nsm->sm_name, nsm->sm_addrbuf);
-		goto found;
+				new->sm_name, new->sm_addrbuf);
+		return new;
 	}
+
 	spin_unlock(&nsm_lock);
 
-	nsm = nsm_create_handle(sap, salen, hostname, hostname_len);
-	if (unlikely(nsm == NULL))
+	new = nsm_create_handle(sap, salen, hostname, hostname_len);
+	if (unlikely(new == NULL))
 		return NULL;
 	goto retry;
-
-found:
-	spin_unlock(&nsm_lock);
-	return nsm;
 }
 
 /**
