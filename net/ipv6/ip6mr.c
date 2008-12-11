@@ -506,6 +506,12 @@ static int mif6_delete(int vifi)
 	return 0;
 }
 
+static inline void ip6mr_cache_free(struct mfc6_cache *c)
+{
+	release_net(mfc6_net(c));
+	kmem_cache_free(mrt_cachep, c);
+}
+
 /* Destroy an unresolved cache entry, killing queued skbs
    and reporting error to netlink readers.
  */
@@ -528,7 +534,7 @@ static void ip6mr_destroy_unres(struct mfc6_cache *c)
 			kfree_skb(skb);
 	}
 
-	kmem_cache_free(mrt_cachep, c);
+	ip6mr_cache_free(c);
 }
 
 
@@ -685,22 +691,24 @@ static struct mfc6_cache *ip6mr_cache_find(struct in6_addr *origin, struct in6_a
 /*
  *	Allocate a multicast cache entry
  */
-static struct mfc6_cache *ip6mr_cache_alloc(void)
+static struct mfc6_cache *ip6mr_cache_alloc(struct net *net)
 {
 	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_KERNEL);
 	if (c == NULL)
 		return NULL;
 	c->mfc_un.res.minvif = MAXMIFS;
+	mfc6_net_set(c, net);
 	return c;
 }
 
-static struct mfc6_cache *ip6mr_cache_alloc_unres(void)
+static struct mfc6_cache *ip6mr_cache_alloc_unres(struct net *net)
 {
 	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_ATOMIC);
 	if (c == NULL)
 		return NULL;
 	skb_queue_head_init(&c->mfc_un.unres.unresolved);
 	c->mfc_un.unres.expires = jiffies + 10 * HZ;
+	mfc6_net_set(c, net);
 	return c;
 }
 
@@ -856,7 +864,7 @@ ip6mr_cache_unresolved(mifi_t mifi, struct sk_buff *skb)
 		 */
 
 		if (atomic_read(&cache_resolve_queue_len) >= 10 ||
-		    (c = ip6mr_cache_alloc_unres()) == NULL) {
+		    (c = ip6mr_cache_alloc_unres(&init_net)) == NULL) {
 			spin_unlock_bh(&mfc_unres_lock);
 
 			kfree_skb(skb);
@@ -879,7 +887,7 @@ ip6mr_cache_unresolved(mifi_t mifi, struct sk_buff *skb)
 			 */
 			spin_unlock_bh(&mfc_unres_lock);
 
-			kmem_cache_free(mrt_cachep, c);
+			ip6mr_cache_free(c);
 			kfree_skb(skb);
 			return err;
 		}
@@ -924,7 +932,7 @@ static int ip6mr_mfc_delete(struct mf6cctl *mfc)
 			*cp = c->next;
 			write_unlock_bh(&mrt_lock);
 
-			kmem_cache_free(mrt_cachep, c);
+			ip6mr_cache_free(c);
 			return 0;
 		}
 	}
@@ -1073,7 +1081,7 @@ static int ip6mr_mfc_add(struct mf6cctl *mfc, int mrtsock)
 	if (!ipv6_addr_is_multicast(&mfc->mf6cc_mcastgrp.sin6_addr))
 		return -EINVAL;
 
-	c = ip6mr_cache_alloc();
+	c = ip6mr_cache_alloc(&init_net);
 	if (c == NULL)
 		return -ENOMEM;
 
@@ -1108,7 +1116,7 @@ static int ip6mr_mfc_add(struct mf6cctl *mfc, int mrtsock)
 
 	if (uc) {
 		ip6mr_cache_resolve(uc, c);
-		kmem_cache_free(mrt_cachep, uc);
+		ip6mr_cache_free(uc);
 	}
 	return 0;
 }
@@ -1145,7 +1153,7 @@ static void mroute_clean_tables(struct sock *sk)
 			*cp = c->next;
 			write_unlock_bh(&mrt_lock);
 
-			kmem_cache_free(mrt_cachep, c);
+			ip6mr_cache_free(c);
 		}
 	}
 
