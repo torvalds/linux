@@ -1,6 +1,10 @@
 #ifndef _LINUX_TRACE_BOOT_H
 #define _LINUX_TRACE_BOOT_H
 
+#include <linux/module.h>
+#include <linux/kallsyms.h>
+#include <linux/init.h>
+
 /*
  * Structure which defines the trace of an initcall
  * while it is called.
