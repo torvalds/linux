@@ -10,8 +10,8 @@ trigger interrupts when a threshold number of events have passed - and can
 thus be used to profile the code that runs on that CPU.
 
 The Linux Performance Counter subsystem provides an abstraction of these
-hardware capabilities. It provides per task and per CPU counters, and
-it provides event capabilities on top of those.
+hardware capabilities. It provides per task and per CPU counters, counter
+groups, and it provides event capabilities on top of those.
 
 Performance counters are accessed via special file descriptors.
 There's one file descriptor per virtual counter used.
@@ -19,12 +19,8 @@ There's one file descriptor per virtual counter used.
 The special file descriptor is opened via the perf_counter_open()
 system call:
 
- int
- perf_counter_open(u32 hw_event_type,
-                   u32 hw_event_period,
-                   u32 record_type,
-                   pid_t pid,
-                   int cpu);
+   int sys_perf_counter_open(struct perf_counter_hw_event *hw_event_uptr,
+			     pid_t pid, int cpu, int group_fd);
 
 The syscall returns the new fd. The fd can be used via the normal
 VFS system calls: read() can be used to read the counter, fcntl()
@@ -33,39 +29,78 @@ can be used to set the blocking mode, etc.
 Multiple counters can be kept open at a time, and the counters
 can be poll()ed.
 
-When creating a new counter fd, 'hw_event_type' is one of:
+When creating a new counter fd, 'perf_counter_hw_event' is:
 
- enum hw_event_types {
-	PERF_COUNT_CYCLES,
-	PERF_COUNT_INSTRUCTIONS,
-	PERF_COUNT_CACHE_REFERENCES,
-	PERF_COUNT_CACHE_MISSES,
-	PERF_COUNT_BRANCH_INSTRUCTIONS,
-	PERF_COUNT_BRANCH_MISSES,
- };
+/*
+ * Hardware event to monitor via a performance monitoring counter:
+ */
+struct perf_counter_hw_event {
+	s64			type;
+
+	u64			irq_period;
+	u32			record_type;
+
+	u32			disabled     :  1, /* off by default */
+				nmi	     :  1, /* NMI sampling   */
+				raw	     :  1, /* raw event type */
+				__reserved_1 : 29;
+
+	u64			__reserved_2;
+};
+
+/*
+ * Generalized performance counter event types, used by the hw_event.type
+ * parameter of the sys_perf_counter_open() syscall:
+ */
+enum hw_event_types {
+	/*
+	 * Common hardware events, generalized by the kernel:
+	 */
+	PERF_COUNT_CYCLES		=  0,
+	PERF_COUNT_INSTRUCTIONS		=  1,
+	PERF_COUNT_CACHE_REFERENCES	=  2,
+	PERF_COUNT_CACHE_MISSES		=  3,
+	PERF_COUNT_BRANCH_INSTRUCTIONS	=  4,
+	PERF_COUNT_BRANCH_MISSES	=  5,
+
+	/*
+	 * Special "software" counters provided by the kernel, even if
+	 * the hardware does not support performance counters. These
+	 * counters measure various physical and sw events of the
+	 * kernel (and allow the profiling of them as well):
+	 */
+	PERF_COUNT_CPU_CLOCK		= -1,
+	PERF_COUNT_TASK_CLOCK		= -2,
+	/*
+	 * Future software events:
+	 */
+	/* PERF_COUNT_PAGE_FAULTS	= -3,
+	   PERF_COUNT_CONTEXT_SWITCHES	= -4, */
+};
 
 These are standardized types of events that work uniformly on all CPUs
 that implements Performance Counters support under Linux. If a CPU is
 not able to count branch-misses, then the system call will return
 -EINVAL.
 
-[ Note: more hw_event_types are supported as well, but they are CPU
-  specific and are enumerated via /sys on a per CPU basis. Raw hw event
-  types can be passed in as negative numbers. For example, to count
-  "External bus cycles while bus lock signal asserted" events on Intel
-  Core CPUs, pass in a -0x4064 event type value. ]
-
-The parameter 'hw_event_period' is the number of events before waking up
-a read() that is blocked on a counter fd. Zero value means a non-blocking
-counter.
+More hw_event_types are supported as well, but they are CPU
+specific and are enumerated via /sys on a per CPU basis. Raw hw event
+types can be passed in under hw_event.type if hw_event.raw is 1.
+For example, to count "External bus cycles while bus lock signal asserted"
+events on Intel Core CPUs, pass in a 0x4064 event type value and set
+hw_event.raw to 1.
 
 'record_type' is the type of data that a read() will provide for the
 counter, and it can be one of:
 
-  enum perf_record_type {
-	PERF_RECORD_SIMPLE,
-	PERF_RECORD_IRQ,
-  };
+/*
+ * IRQ-notification data record type:
+ */
+enum perf_counter_record_type {
+	PERF_RECORD_SIMPLE		=  0,
+	PERF_RECORD_IRQ			=  1,
+	PERF_RECORD_GROUP		=  2,
+};
 
 a "simple" counter is one that counts hardware events and allows
 them to be read out into a u64 count value. (read() returns 8 on
@@ -75,6 +110,10 @@ An "irq" counter is one that will also provide an IRQ context information:
 the IP of the interrupted context. In this case read() will return
 the 8-byte counter value, plus the Instruction Pointer address of the
 interrupted context.
+
+The parameter 'hw_event_period' is the number of events before waking up
+a read() that is blocked on a counter fd. Zero value means a non-blocking
+counter.
 
 The 'pid' parameter allows the counter to be specific to a task:
 
@@ -92,7 +131,7 @@ CPU:
  cpu >= 0: the counter is restricted to a specific CPU
  cpu == -1: the counter counts on all CPUs
 
-Note: the combination of 'pid == -1' and 'cpu == -1' is not valid.
+(Note: the combination of 'pid == -1' and 'cpu == -1' is not valid.)
 
 A 'pid > 0' and 'cpu == -1' counter is a per task counter that counts
 events of that task and 'follows' that task to whatever CPU the task
@@ -101,4 +140,8 @@ their own tasks.
 
 A 'pid == -1' and 'cpu == x' counter is a per CPU counter that counts
 all events on CPU-x. Per CPU counters need CAP_SYS_ADMIN privilege.
+
+Group counters are created by passing in a group_fd of another counter.
+Groups are scheduled at once and can be used with PERF_RECORD_GROUP
+to record multi-dimensional timestamps.
 
