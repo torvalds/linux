@@ -1812,7 +1812,7 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 				seq_printf(s, "MPUIO %2d ", j);
 			else
 				seq_printf(s, "GPIO %3d ", gpio);
-			seq_printf(s, "(%10s): %s %s",
+			seq_printf(s, "(%-20.20s): %s %s",
 					label,
 					is_in ? "in " : "out",
 					value ? "hi"  : "lo");
