@@ -9,6 +9,8 @@
 #include <linux/types.h>
 #include <linux/utsname.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
+
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/xprtsock.h>
 #include <linux/sunrpc/svc.h>
@@ -240,13 +242,25 @@ static struct nsm_handle *nsm_lookup_priv(const struct nsm_private *priv)
  * returned via NLMPROC_SM_NOTIFY, in the "priv" field of these
  * requests.
  *
- * Linux provides the raw IP address of the monitored host,
- * left in network byte order.
+ * The NSM protocol requires that these cookies be unique while the
+ * system is running.  We prefer a stronger requirement of making them
+ * unique across reboots.  If user space bugs cause a stale cookie to
+ * be sent to the kernel, it could cause the wrong host to lose its
+ * lock state if cookies were not unique across reboots.
+ *
+ * The cookies are exposed only to local user space via loopback.  They
+ * do not appear on the physical network.  If we want greater security
+ * for some reason, nsm_init_private() could perform a one-way hash to
+ * obscure the contents of the cookie.
  */
 static void nsm_init_private(struct nsm_handle *nsm)
 {
-	__be32 *p = (__be32 *)&nsm->sm_priv.data;
-	*p = nsm_addr_in(nsm)->sin_addr.s_addr;
+	u64 *p = (u64 *)&nsm->sm_priv.data;
+	struct timespec ts;
+
+	ktime_get_ts(&ts);
+	*p++ = timespec_to_ns(&ts);
+	*p = (unsigned long)nsm;
 }
 
 static struct nsm_handle *nsm_create_handle(const struct sockaddr *sap,
@@ -351,11 +365,7 @@ struct nsm_handle *nsm_reboot_lookup(const struct nlm_reboot *info)
 
 	spin_lock(&nsm_lock);
 
-	if (nsm_use_hostnames && info->mon != NULL)
-		cached = nsm_lookup_hostname(info->mon, info->len);
-	else
-		cached = nsm_lookup_priv(&info->priv);
-
+	cached = nsm_lookup_priv(&info->priv);
 	if (unlikely(cached == NULL)) {
 		spin_unlock(&nsm_lock);
 		dprintk("lockd: never saw rebooted peer '%.*s' before\n",
