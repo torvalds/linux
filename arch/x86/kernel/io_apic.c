@@ -141,6 +141,9 @@ struct irq_cfg {
 	unsigned move_cleanup_count;
 	u8 vector;
 	u8 move_in_progress : 1;
+#ifdef CONFIG_NUMA_MIGRATE_IRQ_DESC
+	u8 move_desc_pending : 1;
+#endif
 };
 
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
@@ -223,6 +226,121 @@ void arch_init_chip_data(struct irq_desc *desc, int cpu)
 	}
 }
 
+#ifdef CONFIG_NUMA_MIGRATE_IRQ_DESC
+
+static void
+init_copy_irq_2_pin(struct irq_cfg *old_cfg, struct irq_cfg *cfg, int cpu)
+{
+	struct irq_pin_list *old_entry, *head, *tail, *entry;
+
+	cfg->irq_2_pin = NULL;
+	old_entry = old_cfg->irq_2_pin;
+	if (!old_entry)
+		return;
+
+	entry = get_one_free_irq_2_pin(cpu);
+	if (!entry)
+		return;
+
+	entry->apic	= old_entry->apic;
+	entry->pin	= old_entry->pin;
+	head		= entry;
+	tail		= entry;
+	old_entry	= old_entry->next;
+	while (old_entry) {
+		entry = get_one_free_irq_2_pin(cpu);
+		if (!entry) {
+			entry = head;
+			while (entry) {
+				head = entry->next;
+				kfree(entry);
+				entry = head;
+			}
+			/* still use the old one */
+			return;
+		}
+		entry->apic	= old_entry->apic;
+		entry->pin	= old_entry->pin;
+		tail->next	= entry;
+		tail		= entry;
+		old_entry	= old_entry->next;
+	}
+
+	tail->next = NULL;
+	cfg->irq_2_pin = head;
+}
+
+static void free_irq_2_pin(struct irq_cfg *old_cfg, struct irq_cfg *cfg)
+{
+	struct irq_pin_list *entry, *next;
+
+	if (old_cfg->irq_2_pin == cfg->irq_2_pin)
+		return;
+
+	entry = old_cfg->irq_2_pin;
+
+	while (entry) {
+		next = entry->next;
+		kfree(entry);
+		entry = next;
+	}
+	old_cfg->irq_2_pin = NULL;
+}
+
+void arch_init_copy_chip_data(struct irq_desc *old_desc,
+				 struct irq_desc *desc, int cpu)
+{
+	struct irq_cfg *cfg;
+	struct irq_cfg *old_cfg;
+
+	cfg = get_one_free_irq_cfg(cpu);
+
+	if (!cfg)
+		return;
+
+	desc->chip_data = cfg;
+
+	old_cfg = old_desc->chip_data;
+
+	memcpy(cfg, old_cfg, sizeof(struct irq_cfg));
+
+	init_copy_irq_2_pin(old_cfg, cfg, cpu);
+}
+
+static void free_irq_cfg(struct irq_cfg *old_cfg)
+{
+	kfree(old_cfg);
+}
+
+void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc)
+{
+	struct irq_cfg *old_cfg, *cfg;
+
+	old_cfg = old_desc->chip_data;
+	cfg = desc->chip_data;
+
+	if (old_cfg == cfg)
+		return;
+
+	if (old_cfg) {
+		free_irq_2_pin(old_cfg, cfg);
+		free_irq_cfg(old_cfg);
+		old_desc->chip_data = NULL;
+	}
+}
+
+static void set_extra_move_desc(struct irq_desc *desc, cpumask_t mask)
+{
+	struct irq_cfg *cfg = desc->chip_data;
+
+	if (!cfg->move_in_progress) {
+		/* it means that domain is not changed */
+		if (!cpus_intersects(desc->affinity, mask))
+			cfg->move_desc_pending = 1;
+	}
+}
+#endif
+
 #else
 static struct irq_cfg *irq_cfg(unsigned int irq)
 {
@@ -231,9 +349,11 @@ static struct irq_cfg *irq_cfg(unsigned int irq)
 
 #endif
 
+#ifndef CONFIG_NUMA_MIGRATE_IRQ_DESC
 static inline void set_extra_move_desc(struct irq_desc *desc, cpumask_t mask)
 {
 }
+#endif
 
 struct io_apic {
 	unsigned int index;
@@ -2346,13 +2466,33 @@ static void irq_complete_move(struct irq_desc **descp)
 	struct irq_cfg *cfg = desc->chip_data;
 	unsigned vector, me;
 
-	if (likely(!cfg->move_in_progress))
+	if (likely(!cfg->move_in_progress)) {
+#ifdef CONFIG_NUMA_MIGRATE_IRQ_DESC
+		if (likely(!cfg->move_desc_pending))
+			return;
+
+		/* domain is not change, but affinity is changed */
+		me = smp_processor_id();
+		if (cpu_isset(me, desc->affinity)) {
+			*descp = desc = move_irq_desc(desc, me);
+			/* get the new one */
+			cfg = desc->chip_data;
+			cfg->move_desc_pending = 0;
+		}
+#endif
 		return;
+	}
 
 	vector = ~get_irq_regs()->orig_ax;
 	me = smp_processor_id();
 	if ((vector == cfg->vector) && cpu_isset(me, cfg->domain)) {
 		cpumask_t cleanup_mask;
+
+#ifdef CONFIG_NUMA_MIGRATE_IRQ_DESC
+		*descp = desc = move_irq_desc(desc, me);
+		/* get the new one */
+		cfg = desc->chip_data;
+#endif
 
 		cpus_and(cleanup_mask, cfg->old_domain, cpu_online_map);
 		cfg->move_cleanup_count = cpus_weight(cleanup_mask);

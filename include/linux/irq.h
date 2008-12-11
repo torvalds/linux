@@ -227,6 +227,16 @@ extern struct irq_desc *move_irq_desc(struct irq_desc *old_desc, int cpu);
 
 #endif
 
+static inline struct irq_desc *
+irq_remap_to_desc(unsigned int irq, struct irq_desc *desc)
+{
+#ifdef CONFIG_NUMA_MIGRATE_IRQ_DESC
+	return irq_to_desc(irq);
+#else
+	return desc;
+#endif
+}
+
 /*
  * Migration helpers for obsolete names, they will go away:
  */
