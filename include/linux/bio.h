@@ -397,13 +397,14 @@ static inline void bio_set_completion_cpu(struct bio *bio, unsigned int cpu)
  */
 #define BIO_POOL_SIZE 2
 #define BIOVEC_NR_POOLS 6
+#define BIOVEC_MAX_IDX	(BIOVEC_NR_POOLS - 1)
 
 struct bio_set {
 	mempool_t *bio_pool;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	mempool_t *bio_integrity_pool;
 #endif
-	mempool_t *bvec_pools[BIOVEC_NR_POOLS];
+	mempool_t *bvec_pool;
 };
 
 struct biovec_slab {

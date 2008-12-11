@@ -58,7 +58,8 @@ unsigned int bvec_nr_vecs(unsigned short idx)
 	return bvec_slabs[idx].nr_vecs;
 }
 
-struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx, struct bio_set *bs)
+struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx,
+			      struct bio_set *bs)
 {
 	struct bio_vec *bvl;
 
@@ -67,60 +68,90 @@ struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx, struct
 	 * If not, this is a bio_kmalloc() allocation and just do a
 	 * kzalloc() for the exact number of vecs right away.
 	 */
-	if (bs) {
-		/*
-		 * see comment near bvec_array define!
-		 */
-		switch (nr) {
-		case 1:
-			*idx = 0;
-			break;
-		case 2 ... 4:
-			*idx = 1;
-			break;
-		case 5 ... 16:
-			*idx = 2;
-			break;
-		case 17 ... 64:
-			*idx = 3;
-			break;
-		case 65 ... 128:
-			*idx = 4;
-			break;
-		case 129 ... BIO_MAX_PAGES:
-			*idx = 5;
-			break;
-		default:
-			return NULL;
-		}
+	if (!bs)
+		bvl = kzalloc(nr * sizeof(struct bio_vec), gfp_mask);
+
+	/*
+	 * see comment near bvec_array define!
+	 */
+	switch (nr) {
+	case 1:
+		*idx = 0;
+		break;
+	case 2 ... 4:
+		*idx = 1;
+		break;
+	case 5 ... 16:
+		*idx = 2;
+		break;
+	case 17 ... 64:
+		*idx = 3;
+		break;
+	case 65 ... 128:
+		*idx = 4;
+		break;
+	case 129 ... BIO_MAX_PAGES:
+		*idx = 5;
+		break;
+	default:
+		return NULL;
+	}
+
+	/*
+	 * idx now points to the pool we want to allocate from. only the
+	 * 1-vec entry pool is mempool backed.
+	 */
+	if (*idx == BIOVEC_MAX_IDX) {
+fallback:
+		bvl = mempool_alloc(bs->bvec_pool, gfp_mask);
+	} else {
+		struct biovec_slab *bvs = bvec_slabs + *idx;
+		gfp_t __gfp_mask = gfp_mask & ~(__GFP_WAIT | __GFP_IO);
 
 		/*
-		 * idx now points to the pool we want to allocate from
+		 * Make this allocation restricted and don't dump info on
+		 * allocation failures, since we'll fallback to the mempool
+		 * in case of failure.
 		 */
-		bvl = mempool_alloc(bs->bvec_pools[*idx], gfp_mask);
-		if (bvl)
-			memset(bvl, 0,
-				bvec_nr_vecs(*idx) * sizeof(struct bio_vec));
-	} else
-		bvl = kzalloc(nr * sizeof(struct bio_vec), gfp_mask);
+		__gfp_mask |= __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
+
+		/*
+		 * Try a slab allocation. If this fails and __GFP_WAIT
+		 * is set, retry with the 1-entry mempool
+		 */
+		bvl = kmem_cache_alloc(bvs->slab, __gfp_mask);
+		if (unlikely(!bvl && (gfp_mask & __GFP_WAIT))) {
+			*idx = BIOVEC_MAX_IDX;
+			goto fallback;
+		}
+	}
+
+	if (bvl)
+		memset(bvl, 0, bvec_nr_vecs(*idx) * sizeof(struct bio_vec));
 
 	return bvl;
 }
 
-void bio_free(struct bio *bio, struct bio_set *bio_set)
+void bio_free(struct bio *bio, struct bio_set *bs)
 {
 	if (bio->bi_io_vec) {
 		const int pool_idx = BIO_POOL_IDX(bio);
 
 		BIO_BUG_ON(pool_idx >= BIOVEC_NR_POOLS);
 
-		mempool_free(bio->bi_io_vec, bio_set->bvec_pools[pool_idx]);
+		if (pool_idx == BIOVEC_MAX_IDX)
+			mempool_free(bio->bi_io_vec, bs->bvec_pool);
+		else {
+			struct biovec_slab *bvs = bvec_slabs + pool_idx;
+
+			kmem_cache_free(bvs->slab, bio->bi_io_vec);
+		}
 	}
 
 	if (bio_integrity(bio))
-		bio_integrity_free(bio, bio_set);
+		bio_integrity_free(bio, bs);
 
-	mempool_free(bio, bio_set->bio_pool);
+	mempool_free(bio, bs->bio_pool);
 }
 
 /*
@@ -1346,30 +1377,18 @@ EXPORT_SYMBOL(bio_sector_offset);
  */
 static int biovec_create_pools(struct bio_set *bs, int pool_entries)
 {
-	int i;
+	struct biovec_slab *bp = bvec_slabs + BIOVEC_MAX_IDX;
 
-	for (i = 0; i < BIOVEC_NR_POOLS; i++) {
-		struct biovec_slab *bp = bvec_slabs + i;
-		mempool_t **bvp = bs->bvec_pools + i;
+	bs->bvec_pool = mempool_create_slab_pool(pool_entries, bp->slab);
+	if (!bs->bvec_pool)
+		return -ENOMEM;
 
-		*bvp = mempool_create_slab_pool(pool_entries, bp->slab);
-		if (!*bvp)
-			return -ENOMEM;
-	}
 	return 0;
 }
 
 static void biovec_free_pools(struct bio_set *bs)
 {
-	int i;
-
-	for (i = 0; i < BIOVEC_NR_POOLS; i++) {
-		mempool_t *bvp = bs->bvec_pools[i];
-
-		if (bvp)
-			mempool_destroy(bvp);
-	}
-
+	mempool_destroy(bs->bvec_pool);
 }
 
 void bioset_free(struct bio_set *bs)
