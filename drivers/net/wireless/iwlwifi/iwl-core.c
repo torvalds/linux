@@ -1446,6 +1446,16 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
 		return 0;
 	}
 
+	/* when driver is up while rfkill is on, it wont receive
+	 * any CARD_STATE_NOTIFICATION notifications so we have to
+	 * restart it in here
+	 */
+	if (priv->is_open && !test_bit(STATUS_ALIVE, &priv->status)) {
+		clear_bit(STATUS_RF_KILL_SW, &priv->status);
+		if (!iwl_is_rfkill(priv))
+			queue_work(priv->workqueue, &priv->up);
+	}
+
 	/* If the driver is already loaded, it will receive
 	 * CARD_STATE_NOTIFICATION notifications and the handler will
 	 * call restart to reload the driver.

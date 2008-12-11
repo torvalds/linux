@@ -1402,8 +1402,11 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		 * the driver as well won't allow loading if RFKILL is set
 		 * therefore no need to restart the driver from this handler
 		 */
-		if (!hw_rf_kill && !test_bit(STATUS_ALIVE, &priv->status))
+		if (!hw_rf_kill && !test_bit(STATUS_ALIVE, &priv->status)) {
 			clear_bit(STATUS_RF_KILL_HW, &priv->status);
+			if (priv->is_open && !iwl_is_rfkill(priv))
+				queue_work(priv->workqueue, &priv->up);
+		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
 	}
