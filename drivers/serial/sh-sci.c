@@ -51,7 +51,6 @@
 #ifdef CONFIG_SUPERH
 #include <asm/clock.h>
 #include <asm/sh_bios.h>
-#include <asm/kgdb.h>
 #endif
 
 #include "sh-sci.h"
@@ -85,10 +84,6 @@ struct sci_port {
 #endif
 };
 
-#ifdef CONFIG_SH_KGDB
-static struct sci_port *kgdb_sci_port;
-#endif
-
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
 static struct sci_port *serial_console_port;
 #endif
@@ -107,21 +102,18 @@ to_sci_port(struct uart_port *uart)
 	return container_of(uart, struct sci_port, port);
 }
 
-#if defined(CONFIG_SERIAL_SH_SCI_CONSOLE) && \
-    defined(CONFIG_SH_STANDARD_BIOS) || defined(CONFIG_SH_KGDB)
+#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
 static inline void handle_error(struct uart_port *port)
 {
 	/* Clear error flags */
 	sci_out(port, SCxSR, SCxSR_ERROR_CLEAR(port));
 }
 
-static int get_char(struct uart_port *port)
+static int sci_poll_get_char(struct uart_port *port)
 {
-	unsigned long flags;
 	unsigned short status;
 	int c;
 
-	spin_lock_irqsave(&port->lock, flags);
 	do {
 		status = sci_in(port, SCxSR);
 		if (status & SCxSR_ERRORS(port)) {
@@ -129,23 +121,19 @@ static int get_char(struct uart_port *port)
 			continue;
 		}
 	} while (!(status & SCxSR_RDxF(port)));
+
 	c = sci_in(port, SCxRDR);
+
 	/* Dummy read */
 	sci_in(port, SCxSR);
 	sci_out(port, SCxSR, SCxSR_RDxF_CLEAR(port));
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	return c;
 }
-#endif /* CONFIG_SH_STANDARD_BIOS || CONFIG_SH_KGDB */
 
-#if defined(CONFIG_SERIAL_SH_SCI_CONSOLE) || defined(CONFIG_SH_KGDB)
-static void put_char(struct uart_port *port, char c)
+static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 {
-	unsigned long flags;
 	unsigned short status;
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	do {
 		status = sci_in(port, SCxSR);
@@ -154,82 +142,8 @@ static void put_char(struct uart_port *port, char c)
 	sci_in(port, SCxSR);            /* Dummy read */
 	sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
 	sci_out(port, SCxTDR, c);
-
-	spin_unlock_irqrestore(&port->lock, flags);
 }
-#endif
-
-#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
-static void put_string(struct sci_port *sci_port, const char *buffer, int count)
-{
-	struct uart_port *port = &sci_port->port;
-	const unsigned char *p = buffer;
-	int i;
-
-#if defined(CONFIG_SH_STANDARD_BIOS) || defined(CONFIG_SH_KGDB)
-	int checksum;
-	int usegdb = 0;
-
-#ifdef CONFIG_SH_STANDARD_BIOS
-	/* This call only does a trap the first time it is
-	 * called, and so is safe to do here unconditionally
-	 */
-	usegdb |= sh_bios_in_gdb_mode();
-#endif
-#ifdef CONFIG_SH_KGDB
-	usegdb |= (kgdb_in_gdb_mode && (sci_port == kgdb_sci_port));
-#endif
-
-	if (usegdb) {
-	    /*  $<packet info>#<checksum>. */
-	    do {
-		unsigned char c;
-		put_char(port, '$');
-		put_char(port, 'O'); /* 'O'utput to console */
-		checksum = 'O';
-
-		/* Don't use run length encoding */
-		for (i = 0; i < count; i++) {
-			int h, l;
-
-			c = *p++;
-			h = hex_asc_hi(c);
-			l = hex_asc_lo(c);
-			put_char(port, h);
-			put_char(port, l);
-			checksum += h + l;
-		}
-		put_char(port, '#');
-		put_char(port, hex_asc_hi(checksum));
-		put_char(port, hex_asc_lo(checksum));
-	    } while  (get_char(port) != '+');
-	} else
-#endif /* CONFIG_SH_STANDARD_BIOS || CONFIG_SH_KGDB */
-	for (i = 0; i < count; i++) {
-		if (*p == 10)
-			put_char(port, '\r');
-		put_char(port, *p++);
-	}
-}
-#endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
-
-#ifdef CONFIG_SH_KGDB
-static int kgdb_sci_getchar(void)
-{
-	int c;
-
-	/* Keep trying to read a character, this could be neater */
-	while ((c = get_char(&kgdb_sci_port->port)) < 0)
-		cpu_relax();
-
-	return c;
-}
-
-static inline void kgdb_sci_putchar(int c)
-{
-	put_char(&kgdb_sci_port->port, c);
-}
-#endif /* CONFIG_SH_KGDB */
+#endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE */
 
 #if defined(__H8300S__)
 enum { sci_disable, sci_enable };
@@ -1181,6 +1095,10 @@ static struct uart_ops sci_uart_ops = {
 	.request_port	= sci_request_port,
 	.config_port	= sci_config_port,
 	.verify_port	= sci_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	= sci_poll_get_char,
+	.poll_put_char	= sci_poll_put_char,
+#endif
 };
 
 static void __init sci_init_ports(void)
@@ -1247,7 +1165,15 @@ int __init early_sci_setup(struct uart_port *port)
 static void serial_console_write(struct console *co, const char *s,
 				 unsigned count)
 {
-	put_string(serial_console_port, s, count);
+	struct uart_port *port = &serial_console_port->port;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (*s == 10)
+			sci_poll_put_char(port, '\r');
+
+		sci_poll_put_char(port, *s++);
+	}
 }
 
 static int __init serial_console_setup(struct console *co, char *options)
@@ -1325,88 +1251,7 @@ static int __init sci_console_init(void)
 console_initcall(sci_console_init);
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
-#ifdef CONFIG_SH_KGDB_CONSOLE
-/*
- * FIXME: Most of this can go away.. at the moment, we rely on
- * arch/sh/kernel/setup.c to do the command line parsing for kgdb, though
- * most of that can easily be done here instead.
- *
- * For the time being, just accept the values that were parsed earlier..
- */
-static void __init kgdb_console_get_options(struct uart_port *port, int *baud,
-					    int *parity, int *bits)
-{
-	*baud = kgdb_baud;
-	*parity = tolower(kgdb_parity);
-	*bits = kgdb_bits - '0';
-}
-
-/*
- * The naming here is somewhat misleading, since kgdb_console_setup() takes
- * care of the early-on initialization for kgdb, regardless of whether we
- * actually use kgdb as a console or not.
- *
- * On the plus side, this lets us kill off the old kgdb_sci_setup() nonsense.
- */
-int __init kgdb_console_setup(struct console *co, char *options)
-{
-	struct uart_port *port = &sci_ports[kgdb_portnum].port;
-	int baud = 38400;
-	int bits = 8;
-	int parity = 'n';
-	int flow = 'n';
-
-	if (co->index != kgdb_portnum)
-		co->index = kgdb_portnum;
-
-	kgdb_sci_port = &sci_ports[co->index];
-	port = &kgdb_sci_port->port;
-
-	/*
-	 * Also need to check port->type, we don't actually have any
-	 * UPIO_PORT ports, but uart_report_port() handily misreports
-	 * it anyways if we don't have a port available by the time this is
-	 * called.
-	 */
-	if (!port->type)
-		return -ENODEV;
-	if (!port->membase || !port->mapbase)
-		return -ENODEV;
-
-	if (options)
-		uart_parse_options(options, &baud, &parity, &bits, &flow);
-	else
-		kgdb_console_get_options(port, &baud, &parity, &bits);
-
-	kgdb_getchar = kgdb_sci_getchar;
-	kgdb_putchar = kgdb_sci_putchar;
-
-	return uart_set_options(port, co, baud, parity, bits, flow);
-}
-
-static struct console kgdb_console = {
-	.name		= "ttySC",
-	.device		= uart_console_device,
-	.write		= kgdb_console_write,
-	.setup		= kgdb_console_setup,
-	.flags		= CON_PRINTBUFFER,
-	.index		= -1,
-	.data		= &sci_uart_driver,
-};
-
-/* Register the KGDB console so we get messages (d'oh!) */
-static int __init kgdb_console_init(void)
-{
-	sci_init_ports();
-	register_console(&kgdb_console);
-	return 0;
-}
-console_initcall(kgdb_console_init);
-#endif /* CONFIG_SH_KGDB_CONSOLE */
-
-#if defined(CONFIG_SH_KGDB_CONSOLE)
-#define SCI_CONSOLE	(&kgdb_console)
-#elif defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
+#if defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
 #define SCI_CONSOLE	(&serial_console)
 #else
 #define SCI_CONSOLE	0
@@ -1480,12 +1325,6 @@ static int __devinit sci_probe(struct platform_device *dev)
 
 		uart_add_one_port(&sci_uart_driver, &sciport->port);
 	}
-
-#if defined(CONFIG_SH_KGDB) && !defined(CONFIG_SH_KGDB_CONSOLE)
-	kgdb_sci_port	= &sci_ports[kgdb_portnum];
-	kgdb_getchar	= kgdb_sci_getchar;
-	kgdb_putchar	= kgdb_sci_putchar;
-#endif
 
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_HAVE_CLK)
 	cpufreq_register_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
