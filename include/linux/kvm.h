@@ -84,21 +84,18 @@ struct kvm_irqchip {
 #define KVM_EXIT_S390_RESET       14
 #define KVM_EXIT_DCR              15
 #define KVM_EXIT_NMI              16
-#define KVM_EXIT_NMI_WINDOW_OPEN  17
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
 	/* in */
 	__u8 request_interrupt_window;
-	__u8 request_nmi_window;
-	__u8 padding1[6];
+	__u8 padding1[7];
 
 	/* out */
 	__u32 exit_reason;
 	__u8 ready_for_interrupt_injection;
 	__u8 if_flag;
-	__u8 ready_for_nmi_injection;
-	__u8 padding2;
+	__u8 padding2[2];
 
 	/* in (pre_kvm_run), out (post_kvm_run) */
 	__u64 cr8;
@@ -391,12 +388,14 @@ struct kvm_trace_rec {
 #define KVM_CAP_DEVICE_ASSIGNMENT 17
 #endif
 #define KVM_CAP_IOMMU 18
-#define KVM_CAP_NMI 19
 #if defined(CONFIG_X86)
 #define KVM_CAP_DEVICE_MSI 20
 #endif
 /* Bug in KVM_SET_USER_MEMORY_REGION fixed: */
 #define KVM_CAP_DESTROY_MEMORY_REGION_WORKS 21
+#if defined(CONFIG_X86)
+#define KVM_CAP_USER_NMI 22
+#endif
 
 /*
  * ioctls for VM fds

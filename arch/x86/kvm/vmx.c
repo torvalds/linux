@@ -2498,15 +2498,13 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 	}
 	if (vcpu->arch.nmi_injected) {
 		vmx_inject_nmi(vcpu);
-		if (vcpu->arch.nmi_pending || kvm_run->request_nmi_window)
+		if (vcpu->arch.nmi_pending)
 			enable_nmi_window(vcpu);
 		else if (vcpu->arch.irq_summary
 			 || kvm_run->request_interrupt_window)
 			enable_irq_window(vcpu);
 		return;
 	}
-	if (!vcpu->arch.nmi_window_open || kvm_run->request_nmi_window)
-		enable_nmi_window(vcpu);
 
 	if (vcpu->arch.interrupt_window_open) {
 		if (vcpu->arch.irq_summary && !vcpu->arch.interrupt.pending)
@@ -3040,14 +3038,6 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
 	++vcpu->stat.nmi_window_exits;
 
-	/*
-	 * If the user space waits to inject a NMI, exit as soon as possible
-	 */
-	if (kvm_run->request_nmi_window && !vcpu->arch.nmi_pending) {
-		kvm_run->exit_reason = KVM_EXIT_NMI_WINDOW_OPEN;
-		return 0;
-	}
-
 	return 1;
 }
 
@@ -3162,7 +3152,7 @@ static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			vmx->soft_vnmi_blocked = 0;
 			vcpu->arch.nmi_window_open = 1;
 		} else if (vmx->vnmi_blocked_time > 1000000000LL &&
-		    (kvm_run->request_nmi_window || vcpu->arch.nmi_pending)) {
+			   vcpu->arch.nmi_pending) {
 			/*
 			 * This CPU don't support us in finding the end of an
 			 * NMI-blocked window if the guest runs with IRQs
@@ -3174,16 +3164,6 @@ static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			       __func__, vcpu->vcpu_id);
 			vmx->soft_vnmi_blocked = 0;
 			vmx->vcpu.arch.nmi_window_open = 1;
-		}
-
-		/*
-		 * If the user space waits to inject an NNI, exit ASAP
-		 */
-		if (vcpu->arch.nmi_window_open && kvm_run->request_nmi_window
-		    && !vcpu->arch.nmi_pending) {
-			kvm_run->exit_reason = KVM_EXIT_NMI_WINDOW_OPEN;
-			++vcpu->stat.nmi_window_exits;
-			return 0;
 		}
 	}
 

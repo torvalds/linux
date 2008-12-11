@@ -2887,37 +2887,18 @@ static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
 		(kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF));
 }
 
-/*
- * Check if userspace requested a NMI window, and that the NMI window
- * is open.
- *
- * No need to exit to userspace if we already have a NMI queued.
- */
-static int dm_request_for_nmi_injection(struct kvm_vcpu *vcpu,
-					struct kvm_run *kvm_run)
-{
-	return (!vcpu->arch.nmi_pending &&
-		kvm_run->request_nmi_window &&
-		vcpu->arch.nmi_window_open);
-}
-
 static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 			      struct kvm_run *kvm_run)
 {
 	kvm_run->if_flag = (kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF) != 0;
 	kvm_run->cr8 = kvm_get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
-	if (irqchip_in_kernel(vcpu->kvm)) {
+	if (irqchip_in_kernel(vcpu->kvm))
 		kvm_run->ready_for_interrupt_injection = 1;
-		kvm_run->ready_for_nmi_injection = 1;
-	} else {
+	else
 		kvm_run->ready_for_interrupt_injection =
 					(vcpu->arch.interrupt_window_open &&
 					 vcpu->arch.irq_summary == 0);
-		kvm_run->ready_for_nmi_injection =
-					(vcpu->arch.nmi_window_open &&
-					 vcpu->arch.nmi_pending == 0);
-	}
 }
 
 static void vapic_enter(struct kvm_vcpu *vcpu)
@@ -3093,11 +3074,6 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 
 		if (r > 0) {
-			if (dm_request_for_nmi_injection(vcpu, kvm_run)) {
-				r = -EINTR;
-				kvm_run->exit_reason = KVM_EXIT_NMI;
-				++vcpu->stat.request_nmi_exits;
-			}
 			if (dm_request_for_irq_injection(vcpu, kvm_run)) {
 				r = -EINTR;
 				kvm_run->exit_reason = KVM_EXIT_INTR;
