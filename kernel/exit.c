@@ -1093,11 +1093,12 @@ NORET_TYPE void do_exit(long code)
 	mpol_put(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
-#ifdef CONFIG_FUTEX
 	/*
-	 * This must happen late, after the PID is not
-	 * hashed anymore:
+	 * These must happen late, after the PID is not
+	 * hashed anymore, but still at a point that may sleep:
 	 */
+	perf_counter_exit_task(tsk);
+#ifdef CONFIG_FUTEX
 	if (unlikely(!list_empty(&tsk->pi_state_list)))
 		exit_pi_state_list(tsk);
 	if (unlikely(current->pi_state_cache))

@@ -75,10 +75,11 @@ struct perf_counter_hw_event {
 	u64			irq_period;
 	u32			record_type;
 
-	u32			disabled     :  1, /* off by default */
-				nmi	     :  1, /* NMI sampling   */
-				raw	     :  1, /* raw event type */
-				__reserved_1 : 29;
+	u32			disabled     :  1, /* off by default      */
+				nmi	     :  1, /* NMI sampling        */
+				raw	     :  1, /* raw event type      */
+				inherit	     :  1, /* children inherit it */
+				__reserved_1 : 28;
 
 	u64			__reserved_2;
 };
@@ -138,6 +139,8 @@ enum perf_counter_active_state {
 	PERF_COUNTER_STATE_ACTIVE	=  1,
 };
 
+struct file;
+
 /**
  * struct perf_counter - performance counter kernel representation:
  */
@@ -156,7 +159,10 @@ struct perf_counter {
 
 	struct perf_counter_context	*ctx;
 	struct task_struct		*task;
+	struct file			*filp;
 
+	unsigned int			nr_inherited;
+	struct perf_counter		*parent;
 	/*
 	 * Protect attach/detach:
 	 */
@@ -210,13 +216,16 @@ struct perf_cpu_context {
 extern int perf_max_counters;
 
 #ifdef CONFIG_PERF_COUNTERS
+extern void
+perf_counter_show(struct perf_counter *counter, char *str, int trace);
 extern const struct hw_perf_counter_ops *
 hw_perf_counter_init(struct perf_counter *counter);
 
 extern void perf_counter_task_sched_in(struct task_struct *task, int cpu);
 extern void perf_counter_task_sched_out(struct task_struct *task, int cpu);
 extern void perf_counter_task_tick(struct task_struct *task, int cpu);
-extern void perf_counter_init_task(struct task_struct *task);
+extern void perf_counter_init_task(struct task_struct *child);
+extern void perf_counter_exit_task(struct task_struct *child);
 extern void perf_counter_notify(struct pt_regs *regs);
 extern void perf_counter_print_debug(void);
 extern u64 hw_perf_save_disable(void);
@@ -226,12 +235,15 @@ extern int perf_counter_task_enable(void);
 
 #else
 static inline void
+perf_counter_show(struct perf_counter *counter, char *str, int trace)   { }
+static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
 static inline void
 perf_counter_task_sched_out(struct task_struct *task, int cpu)		{ }
 static inline void
 perf_counter_task_tick(struct task_struct *task, int cpu)		{ }
-static inline void perf_counter_init_task(struct task_struct *task)	{ }
+static inline void perf_counter_init_task(struct task_struct *child)	{ }
+static inline void perf_counter_exit_task(struct task_struct *child)	{ }
 static inline void perf_counter_notify(struct pt_regs *regs)		{ }
 static inline void perf_counter_print_debug(void)			{ }
 static inline void hw_perf_restore(u64 ctrl)			{ }
