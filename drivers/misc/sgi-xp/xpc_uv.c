@@ -119,16 +119,16 @@ xpc_gru_mq_watchlist_alloc_uv(struct xpc_gru_mq_uv *mq)
 	int ret;
 
 #if defined CONFIG_X86_64
-	ret = uv_bios_mq_watchlist_alloc(mq->mmr_blade, mq->address, mq->order,
-					 &mq->mmr_offset);
+	ret = uv_bios_mq_watchlist_alloc(mq->mmr_blade, uv_gpa(mq->address),
+					 mq->order, &mq->mmr_offset);
 	if (ret < 0) {
 		dev_err(xpc_part, "uv_bios_mq_watchlist_alloc() failed, "
 			"ret=%d\n", ret);
 		return ret;
 	}
 #elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
-	ret = sn_mq_watchlist_alloc(mq->mmr_blade, mq->address, mq->order,
-				    &mq->mmr_offset);
+	ret = sn_mq_watchlist_alloc(mq->mmr_blade, uv_gpa(mq->address),
+				    mq->order, &mq->mmr_offset);
 	if (ret < 0) {
 		dev_err(xpc_part, "sn_mq_watchlist_alloc() failed, ret=%d\n",
 			ret);

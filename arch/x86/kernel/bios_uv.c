@@ -101,15 +101,13 @@ s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
 }
 
 int
-uv_bios_mq_watchlist_alloc(int blade, void *mq, unsigned int mq_size,
+uv_bios_mq_watchlist_alloc(int blade, unsigned long addr, unsigned int mq_size,
 			   unsigned long *intr_mmr_offset)
 {
 	union uv_watchlist_u size_blade;
-	unsigned long addr;
 	u64 watchlist;
 	s64 ret;
 
-	addr = (unsigned long)mq;
 	size_blade.size = mq_size;
 	size_blade.blade = blade;
 
