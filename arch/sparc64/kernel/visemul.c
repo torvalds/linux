@@ -131,7 +131,7 @@
 #define VIS_OPF_SHIFT	5
 #define VIS_OPF_MASK	(0x1ff << VIS_OPF_SHIFT)
 
-#define RS1(INSN)	(((INSN) >> 24) & 0x1f)
+#define RS1(INSN)	(((INSN) >> 14) & 0x1f)
 #define RS2(INSN)	(((INSN) >>  0) & 0x1f)
 #define RD(INSN)	(((INSN) >> 25) & 0x1f)
 
@@ -445,7 +445,7 @@ static void pdist(struct pt_regs *regs, unsigned int insn)
 	unsigned long i;
 
 	rs1 = fpd_regval(f, RS1(insn));
-	rs2 = fpd_regval(f, RS1(insn));
+	rs2 = fpd_regval(f, RS2(insn));
 	rd = fpd_regaddr(f, RD(insn));
 
 	rd_val = *rd;
@@ -806,6 +806,8 @@ int vis_emul(struct pt_regs *regs, unsigned int insn)
 
 	if (get_user(insn, (u32 __user *) pc))
 		return -EFAULT;
+
+	save_and_clear_fpu();
 
 	opf = (insn & VIS_OPF_MASK) >> VIS_OPF_SHIFT;
 	switch (opf) {

@@ -574,9 +574,10 @@ static int netlbl_unlhsh_remove_addr4(struct net *net,
 	list_entry = netlbl_af4list_remove(addr->s_addr, mask->s_addr,
 					   &iface->addr4_list);
 	spin_unlock(&netlbl_unlhsh_lock);
-	if (list_entry == NULL)
+	if (list_entry != NULL)
+		entry = netlbl_unlhsh_addr4_entry(list_entry);
+	else
 		ret_val = -ENOENT;
-	entry = netlbl_unlhsh_addr4_entry(list_entry);
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_STCDEL,
 					      audit_info);
@@ -634,9 +635,10 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
 	spin_lock(&netlbl_unlhsh_lock);
 	list_entry = netlbl_af6list_remove(addr, mask, &iface->addr6_list);
 	spin_unlock(&netlbl_unlhsh_lock);
-	if (list_entry == NULL)
+	if (list_entry != NULL)
+		entry = netlbl_unlhsh_addr6_entry(list_entry);
+	else
 		ret_val = -ENOENT;
-	entry = netlbl_unlhsh_addr6_entry(list_entry);
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_STCDEL,
 					      audit_info);

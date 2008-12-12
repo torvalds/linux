@@ -6,6 +6,7 @@
 #include <linux/ktime.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/bitops.h>
 #include <linux/sched.h>
