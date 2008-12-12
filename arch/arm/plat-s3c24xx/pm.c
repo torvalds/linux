@@ -34,9 +34,6 @@
 #include <linux/serial_core.h>
 #include <linux/io.h>
 
-#include <asm/cacheflush.h>
-#include <mach/hardware.h>
-
 #include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
@@ -46,7 +43,6 @@
 #include <asm/mach/time.h>
 
 #include <plat/pm.h>
-
 
 #define PFX "s3c24xx-pm: "
 
@@ -115,66 +111,6 @@ static struct sleep_save misc_save[] = {
 	SAVE_ITEM(S3C2410_DCLKCON),
 };
 
-#ifdef CONFIG_S3C2410_PM_DEBUG
-
-#define SAVE_UART(va) \
-	SAVE_ITEM((va) + S3C2410_ULCON), \
-	SAVE_ITEM((va) + S3C2410_UCON), \
-	SAVE_ITEM((va) + S3C2410_UFCON), \
-	SAVE_ITEM((va) + S3C2410_UMCON), \
-	SAVE_ITEM((va) + S3C2410_UBRDIV)
-
-static struct sleep_save uart_save[] = {
-	SAVE_UART(S3C24XX_VA_UART0),
-	SAVE_UART(S3C24XX_VA_UART1),
-#ifndef CONFIG_CPU_S3C2400
-	SAVE_UART(S3C24XX_VA_UART2),
-#endif
-};
-
-/* debug
- *
- * we send the debug to printascii() to allow it to be seen if the
- * system never wakes up from the sleep
-*/
-
-static void s3c2410_pm_debug_init(void)
-{
-	unsigned long tmp = __raw_readl(S3C2410_CLKCON);
-
-	/* re-start uart clocks */
-	tmp |= S3C2410_CLKCON_UART0;
-	tmp |= S3C2410_CLKCON_UART1;
-	tmp |= S3C2410_CLKCON_UART2;
-
-	__raw_writel(tmp, S3C2410_CLKCON);
-	udelay(10);
-}
-
-#else
-#define s3c2410_pm_debug_init() do { } while(0)
-
-static struct sleep_save uart_save[] = {};
-#endif
-
-/* s3c2410_pm_show_resume_irqs
- *
- * print any IRQs asserted at resume time (ie, we woke from)
-*/
-
-static void s3c2410_pm_show_resume_irqs(int start, unsigned long which,
-					unsigned long mask)
-{
-	int i;
-
-	which &= ~mask;
-
-	for (i = 0; i <= 31; i++) {
-		if ((which) & (1L<<i)) {
-			S3C_PMDBG("IRQ %d asserted at resume\n", start+i);
-		}
-	}
-}
 
 /* s3c_pm_check_resume_pin
  *
@@ -206,12 +142,12 @@ static void s3c_pm_check_resume_pin(unsigned int pin, unsigned int irqoffs)
 	}
 }
 
-/* s3c2410_pm_configure_extint
+/* s3c_pm_configure_extint
  *
  * configure all external interrupt pins
 */
 
-static void s3c2410_pm_configure_extint(void)
+void s3c_pm_configure_extint(void)
 {
 	int pin;
 
@@ -235,12 +171,12 @@ static void s3c2410_pm_configure_extint(void)
 #define OFFS_DAT	(S3C2410_GPADAT - S3C2410_GPACON)
 #define OFFS_UP		(S3C2410_GPBUP  - S3C2410_GPBCON)
 
-/* s3c2410_pm_save_gpios()
+/* s3c_pm_save_gpios()
  *
  * Save the state of the GPIOs
  */
 
-static void s3c2410_pm_save_gpios(void)
+void s3c_pm_save_gpios(void)
 {
 	struct gpio_sleep *gps = gpio_save;
 	unsigned int gpio;
@@ -279,7 +215,10 @@ static inline int is_out(unsigned long con)
 	return con == 1;
 }
 
-/* s3c2410_pm_restore_gpio()
+/**
+ * s3c2410_pm_restore_gpio() - restore the given GPIO bank
+ * @index: The number of the GPIO bank being resumed.
+ * @gps: The sleep confgiuration for the bank.
  *
  * Restore one of the GPIO banks that was saved during suspend. This is
  * not as simple as once thought, due to the possibility of glitches
@@ -397,7 +336,7 @@ static void s3c2410_pm_restore_gpio(int index, struct gpio_sleep *gps)
  * Restore the state of the GPIOs
  */
 
-static void s3c2410_pm_restore_gpios(void)
+void s3c_pm_restore_gpios(void)
 {
 	struct gpio_sleep *gps = gpio_save;
 	int gpio;
@@ -407,150 +346,15 @@ static void s3c2410_pm_restore_gpios(void)
 	}
 }
 
-void (*pm_cpu_prep)(void);
-void (*pm_cpu_sleep)(void);
-
-#define any_allowed(mask, allow) (((mask) & (allow)) != (allow))
-
-/* s3c2410_pm_enter
- *
- * central control for sleep/resume process
-*/
-
-static int s3c2410_pm_enter(suspend_state_t state)
+void s3c_pm_restore_core(void)
 {
-	unsigned long regs_save[16];
-
-	/* ensure the debug is initialised (if enabled) */
-
-	s3c2410_pm_debug_init();
-
-	S3C_PMDBG("s3c2410_pm_enter(%d)\n", state);
-
-	if (pm_cpu_prep == NULL || pm_cpu_sleep == NULL) {
-		printk(KERN_ERR PFX "error: no cpu sleep functions set\n");
-		return -EINVAL;
-	}
-
-	/* check if we have anything to wake-up with... bad things seem
-	 * to happen if you suspend with no wakeup (system will often
-	 * require a full power-cycle)
-	*/
-
-	if (!any_allowed(s3c_irqwake_intmask, s3c_irqwake_intallow) &&
-	    !any_allowed(s3c_irqwake_eintmask, s3c_irqwake_eintallow)) {
-		printk(KERN_ERR PFX "No sources enabled for wake-up!\n");
-		printk(KERN_ERR PFX "Aborting sleep\n");
-		return -EINVAL;
-	}
-
-	/* prepare check area if configured */
-
-	s3c_pm_check_prepare();
-
-	/* store the physical address of the register recovery block */
-
-	s3c_sleep_save_phys = virt_to_phys(regs_save);
-
-	S3C_PMDBG("s3c_sleep_save_phys=0x%08lx\n", s3c_sleep_save_phys);
-
-	/* save all necessary core registers not covered by the drivers */
-
-	s3c2410_pm_save_gpios();
-	s3c_pm_do_save(misc_save, ARRAY_SIZE(misc_save));
-	s3c_pm_do_save(core_save, ARRAY_SIZE(core_save));
-	s3c_pm_do_save(uart_save, ARRAY_SIZE(uart_save));
-
-	/* set the irq configuration for wake */
-
-	s3c2410_pm_configure_extint();
-
-	S3C_PMDBG("sleep: irq wakeup masks: %08lx,%08lx\n",
-	    s3c_irqwake_intmask, s3c_irqwake_eintmask);
-
-	__raw_writel(s3c_irqwake_intmask, S3C2410_INTMSK);
-	__raw_writel(s3c_irqwake_eintmask, S3C2410_EINTMASK);
-
-	/* ack any outstanding external interrupts before we go to sleep */
-
-	__raw_writel(__raw_readl(S3C2410_EINTPEND), S3C2410_EINTPEND);
-	__raw_writel(__raw_readl(S3C2410_INTPND), S3C2410_INTPND);
-	__raw_writel(__raw_readl(S3C2410_SRCPND), S3C2410_SRCPND);
-
-	/* call cpu specific preparation */
-
-	pm_cpu_prep();
-
-	/* flush cache back to ram */
-
-	flush_cache_all();
-
-	s3c_pm_check_store();
-
-	/* send the cpu to sleep... */
-
-	__raw_writel(0x00, S3C2410_CLKCON);  /* turn off clocks over sleep */
-
-	/* s3c2410_cpu_save will also act as our return point from when
-	 * we resume as it saves its own register state, so use the return
-	 * code to differentiate return from save and return from sleep */
-
-	if (s3c2410_cpu_save(regs_save) == 0) {
-		flush_cache_all();
-		pm_cpu_sleep();
-	}
-
-	/* restore the cpu state */
-
-	cpu_init();
-
-	/* restore the system state */
-
 	s3c_pm_do_restore_core(core_save, ARRAY_SIZE(core_save));
 	s3c_pm_do_restore(misc_save, ARRAY_SIZE(misc_save));
-	s3c_pm_do_restore(uart_save, ARRAY_SIZE(uart_save));
-	s3c2410_pm_restore_gpios();
-
-	s3c2410_pm_debug_init();
-
-	/* check what irq (if any) restored the system */
-
-	S3C_PMDBG("post sleep: IRQs 0x%08x, 0x%08x\n",
-	    __raw_readl(S3C2410_SRCPND),
-	    __raw_readl(S3C2410_EINTPEND));
-
-	s3c2410_pm_show_resume_irqs(IRQ_EINT0, __raw_readl(S3C2410_SRCPND),
-				    s3c_irqwake_intmask);
-
-	s3c2410_pm_show_resume_irqs(IRQ_EINT4-4, __raw_readl(S3C2410_EINTPEND),
-				    s3c_irqwake_eintmask);
-
-	S3C_PMDBG("post sleep, preparing to return\n");
-
-	s3c_pm_check_restore();
-
-	/* ok, let's return from sleep */
-
-	S3C_PMDBG("S3C2410 PM Resume (post-restore)\n");
-	return 0;
 }
 
-static struct platform_suspend_ops s3c2410_pm_ops = {
-	.enter		= s3c2410_pm_enter,
-	.valid		= suspend_valid_only_mem,
-};
-
-/* s3c2410_pm_init
- *
- * Attach the power management functions. This should be called
- * from the board specific initialisation if the board supports
- * it.
-*/
-
-int __init s3c2410_pm_init(void)
+void s3c_pm_save_core(void)
 {
-	printk("S3C2410 Power Management, (c) 2004 Simtec Electronics\n");
-
-	suspend_set_ops(&s3c2410_pm_ops);
-	return 0;
+	s3c_pm_do_save(misc_save, ARRAY_SIZE(misc_save));
+	s3c_pm_do_save(core_save, ARRAY_SIZE(core_save));
 }
+

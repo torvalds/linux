@@ -113,3 +113,30 @@ extern void s3c_pm_check_store(void);
 #define s3c_pm_check_restore() do { } while(0)
 #define s3c_pm_check_store()   do { } while(0)
 #endif
+
+/**
+ * s3c_pm_configure_extint() - ensure pins are correctly set for IRQ
+ *
+ * Setup all the necessary GPIO pins for waking the system on external
+ * interrupt.
+ */
+extern void s3c_pm_configure_extint(void);
+
+/**
+ * s3c_pm_restore_gpios() - restore the state of the gpios after sleep.
+ *
+ * Restore the state of the GPIO pins after sleep, which may involve ensuring
+ * that we do not glitch the state of the pins from that the bootloader's
+ * resume code has done.
+*/
+extern void s3c_pm_restore_gpios(void);
+
+/**
+ * s3c_pm_save_gpios() - save the state of the GPIOs for restoring after sleep.
+ *
+ * Save the GPIO states for resotration on resume. See s3c_pm_restore_gpios().
+ */
+extern void s3c_pm_save_gpios(void);
+
+extern void s3c_pm_save_core(void);
+extern void s3c_pm_restore_core(void);
