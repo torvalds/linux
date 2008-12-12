@@ -67,6 +67,7 @@ static struct dma_ops_domain *find_protection_domain(u16 devid);
 DECLARE_STATS_COUNTER(compl_wait);
 DECLARE_STATS_COUNTER(cnt_map_single);
 DECLARE_STATS_COUNTER(cnt_unmap_single);
+DECLARE_STATS_COUNTER(cnt_map_sg);
 
 static struct dentry *stats_dir;
 static struct dentry *de_isolate;
@@ -96,6 +97,7 @@ static void amd_iommu_stats_init(void)
 	amd_iommu_stats_add(&compl_wait);
 	amd_iommu_stats_add(&cnt_map_single);
 	amd_iommu_stats_add(&cnt_unmap_single);
+	amd_iommu_stats_add(&cnt_map_sg);
 }
 
 #endif
@@ -1376,6 +1378,8 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 	phys_addr_t paddr;
 	int mapped_elems = 0;
 	u64 dma_mask;
+
+	INC_STATS_COUNTER(cnt_map_sg);
 
 	if (!check_device(dev))
 		return 0;
