@@ -10,6 +10,12 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/io.h>
+
+#include <mach/hardware.h>
+#include <mach/regs-irq.h>
+#include <mach/regs-gpio.h>
+
 #define irqdbf(x...)
 #define irqdbf2(x...)
 
@@ -102,7 +108,9 @@ s3c_irqsub_ack(unsigned int irqno, unsigned int parentmask, unsigned int group)
 
 #ifdef CONFIG_PM
 extern int s3c_irq_wake(unsigned int irqno, unsigned int state);
+extern int s3c_irqext_wake(unsigned int irqno, unsigned int state);
 #else
+#define s3c_irqext_wake NULL
 #define s3c_irq_wake NULL
 #endif
 
