@@ -74,6 +74,7 @@ DECLARE_STATS_COUNTER(cnt_free_coherent);
 DECLARE_STATS_COUNTER(cross_page);
 DECLARE_STATS_COUNTER(domain_flush_single);
 DECLARE_STATS_COUNTER(domain_flush_all);
+DECLARE_STATS_COUNTER(alloced_io_mem);
 
 static struct dentry *stats_dir;
 static struct dentry *de_isolate;
@@ -110,6 +111,7 @@ static void amd_iommu_stats_init(void)
 	amd_iommu_stats_add(&cross_page);
 	amd_iommu_stats_add(&domain_flush_single);
 	amd_iommu_stats_add(&domain_flush_all);
+	amd_iommu_stats_add(&alloced_io_mem);
 }
 
 #endif
@@ -1246,6 +1248,8 @@ static dma_addr_t __map_single(struct device *dev,
 	}
 	address += offset;
 
+	ADD_STATS_COUNTER(alloced_io_mem, size);
+
 	if (unlikely(dma_dom->need_flush && !amd_iommu_unmap_flush)) {
 		iommu_flush_tlb(iommu, dma_dom->domain.id);
 		dma_dom->need_flush = false;
@@ -1281,6 +1285,8 @@ static void __unmap_single(struct amd_iommu *iommu,
 		dma_ops_domain_unmap(iommu, dma_dom, start);
 		start += PAGE_SIZE;
 	}
+
+	SUB_STATS_COUNTER(alloced_io_mem, size);
 
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 
