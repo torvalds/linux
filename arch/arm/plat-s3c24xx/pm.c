@@ -49,9 +49,6 @@
 
 #include <plat/pm.h>
 
-/* for external use */
-
-unsigned long s3c_pm_flags;
 
 #define PFX "s3c24xx-pm: "
 
@@ -143,20 +140,6 @@ static struct sleep_save uart_save[] = {
  * system never wakes up from the sleep
 */
 
-extern void printascii(const char *);
-
-void pm_dbg(const char *fmt, ...)
-{
-	va_list va;
-	char buff[256];
-
-	va_start(va, fmt);
-	vsprintf(buff, fmt, va);
-	va_end(va);
-
-	printascii(buff);
-}
-
 static void s3c2410_pm_debug_init(void)
 {
 	unsigned long tmp = __raw_readl(S3C2410_CLKCON);
@@ -170,10 +153,7 @@ static void s3c2410_pm_debug_init(void)
 	udelay(10);
 }
 
-#define DBG(fmt...) pm_dbg(fmt)
 #else
-#define DBG(fmt...) printk(KERN_DEBUG fmt)
-
 #define s3c2410_pm_debug_init() do { } while(0)
 
 static struct sleep_save uart_save[] = {};
@@ -211,7 +191,7 @@ static void s3c2410_pm_run_res(struct resource *ptr, run_fn_t fn, u32 *arg)
 
 		if ((ptr->flags & IORESOURCE_MEM) &&
 		    strcmp(ptr->name, "System RAM") == 0) {
-			DBG("Found system RAM at %08lx..%08lx\n",
+			S3C_PMDBG("Found system RAM at %08lx..%08lx\n",
 			    ptr->start, ptr->end);
 			arg = (fn)(ptr, arg);
 		}
@@ -232,7 +212,7 @@ static u32 *s3c2410_pm_countram(struct resource *res, u32 *val)
 	size += CHECK_CHUNKSIZE-1;
 	size /= CHECK_CHUNKSIZE;
 
-	DBG("Area %08lx..%08lx, %d blocks\n", res->start, res->end, size);
+	S3C_PMDBG("Area %08lx..%08lx, %d blocks\n", res->start, res->end, size);
 
 	*val += size * sizeof(u32);
 	return val;
@@ -252,7 +232,7 @@ static void s3c2410_pm_check_prepare(void)
 
 	s3c2410_pm_run_sysram(s3c2410_pm_countram, &crc_size);
 
-	DBG("s3c2410_pm_prepare_check: %u checks needed\n", crc_size);
+	S3C_PMDBG("s3c2410_pm_prepare_check: %u checks needed\n", crc_size);
 
 	crcs = kmalloc(crc_size+4, GFP_KERNEL);
 	if (crcs == NULL)
@@ -308,7 +288,7 @@ static inline int in_region(void *ptr, int size, void *what, size_t whatsz)
 
 static u32 *s3c2410_pm_runcheck(struct resource *res, u32 *val)
 {
-	void *save_at = phys_to_virt(s3c2410_sleep_save_phys);
+	void *save_at = phys_to_virt(s3c_sleep_save_phys);
 	unsigned long addr;
 	unsigned long left;
 	void *ptr;
@@ -324,12 +304,12 @@ static u32 *s3c2410_pm_runcheck(struct resource *res, u32 *val)
 		ptr = phys_to_virt(addr);
 
 		if (in_region(ptr, left, crcs, crc_size)) {
-			DBG("skipping %08lx, has crc block in\n", addr);
+			S3C_PMDBG("skipping %08lx, has crc block in\n", addr);
 			goto skip_check;
 		}
 
 		if (in_region(ptr, left, save_at, 32*4 )) {
-			DBG("skipping %08lx, has save block in\n", addr);
+			S3C_PMDBG("skipping %08lx, has save block in\n", addr);
 			goto skip_check;
 		}
 
@@ -340,7 +320,7 @@ static u32 *s3c2410_pm_runcheck(struct resource *res, u32 *val)
 			printk(KERN_ERR PFX "Restore CRC error at "
 			       "%08lx (%08x vs %08x)\n", addr, calc, *val);
 
-			DBG("Restore CRC error at %08lx (%08x vs %08x)\n",
+			S3C_PMDBG("Restore CRC error at %08lx (%08x vs %08x)\n",
 			    addr, calc, *val);
 		}
 
@@ -373,49 +353,6 @@ static void s3c2410_pm_check_restore(void)
 #define s3c2410_pm_check_store()   do { } while(0)
 #endif
 
-/* helper functions to save and restore register state */
-
-void s3c2410_pm_do_save(struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		ptr->val = __raw_readl(ptr->reg);
-		DBG("saved %p value %08lx\n", ptr->reg, ptr->val);
-	}
-}
-
-/* s3c2410_pm_do_restore
- *
- * restore the system from the given list of saved registers
- *
- * Note, we do not use DBG() in here, as the system may not have
- * restore the UARTs state yet
-*/
-
-void s3c2410_pm_do_restore(struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		printk(KERN_DEBUG "restore %p (restore %08lx, was %08x)\n",
-		       ptr->reg, ptr->val, __raw_readl(ptr->reg));
-
-		__raw_writel(ptr->val, ptr->reg);
-	}
-}
-
-/* s3c2410_pm_do_restore_core
- *
- * similar to s3c2410_pm_do_restore_core
- *
- * WARNING: Do not put any debug in here that may effect memory or use
- * peripherals, as things may be changing!
-*/
-
-static void s3c2410_pm_do_restore_core(struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		__raw_writel(ptr->val, ptr->reg);
-	}
-}
-
 /* s3c2410_pm_show_resume_irqs
  *
  * print any IRQs asserted at resume time (ie, we woke from)
@@ -430,7 +367,7 @@ static void s3c2410_pm_show_resume_irqs(int start, unsigned long which,
 
 	for (i = 0; i <= 31; i++) {
 		if ((which) & (1L<<i)) {
-			DBG("IRQ %d asserted at resume\n", start+i);
+			S3C_PMDBG("IRQ %d asserted at resume\n", start+i);
 		}
 	}
 }
@@ -456,10 +393,10 @@ static void s3c2410_pm_check_resume_pin(unsigned int pin, unsigned int irqoffs)
 
 	if (!irqstate) {
 		if (pinstate == S3C2410_GPIO_IRQ)
-			DBG("Leaving IRQ %d (pin %d) enabled\n", irq, pin);
+			S3C_PMDBG("Leaving IRQ %d (pin %d) enabled\n", irq, pin);
 	} else {
 		if (pinstate == S3C2410_GPIO_IRQ) {
-			DBG("Disabling IRQ %d (pin %d)\n", irq, pin);
+			S3C_PMDBG("Disabling IRQ %d (pin %d)\n", irq, pin);
 			s3c2410_gpio_cfgpin(pin, S3C2410_GPIO_INPUT);
 		}
 	}
@@ -646,8 +583,8 @@ static void s3c2410_pm_restore_gpio(int index, struct gpio_sleep *gps)
 		__raw_writel(gps->gpup, base + OFFS_UP);
 	}
 
-	DBG("GPIO[%d] CON %08lx => %08lx, DAT %08lx => %08lx\n",
-	    index, old_gpcon, gps_gpcon, old_gpdat, gps_gpdat);
+	S3C_PMDBG("GPIO[%d] CON %08lx => %08lx, DAT %08lx => %08lx\n",
+		  index, old_gpcon, gps_gpcon, old_gpdat, gps_gpdat);
 }
 
 
@@ -684,7 +621,7 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	s3c2410_pm_debug_init();
 
-	DBG("s3c2410_pm_enter(%d)\n", state);
+	S3C_PMDBG("s3c2410_pm_enter(%d)\n", state);
 
 	if (pm_cpu_prep == NULL || pm_cpu_sleep == NULL) {
 		printk(KERN_ERR PFX "error: no cpu sleep functions set\n");
@@ -709,22 +646,22 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	/* store the physical address of the register recovery block */
 
-	s3c2410_sleep_save_phys = virt_to_phys(regs_save);
+	s3c_sleep_save_phys = virt_to_phys(regs_save);
 
-	DBG("s3c2410_sleep_save_phys=0x%08lx\n", s3c2410_sleep_save_phys);
+	S3C_PMDBG("s3c_sleep_save_phys=0x%08lx\n", s3c_sleep_save_phys);
 
 	/* save all necessary core registers not covered by the drivers */
 
 	s3c2410_pm_save_gpios();
-	s3c2410_pm_do_save(misc_save, ARRAY_SIZE(misc_save));
-	s3c2410_pm_do_save(core_save, ARRAY_SIZE(core_save));
-	s3c2410_pm_do_save(uart_save, ARRAY_SIZE(uart_save));
+	s3c_pm_do_save(misc_save, ARRAY_SIZE(misc_save));
+	s3c_pm_do_save(core_save, ARRAY_SIZE(core_save));
+	s3c_pm_do_save(uart_save, ARRAY_SIZE(uart_save));
 
 	/* set the irq configuration for wake */
 
 	s3c2410_pm_configure_extint();
 
-	DBG("sleep: irq wakeup masks: %08lx,%08lx\n",
+	S3C_PMDBG("sleep: irq wakeup masks: %08lx,%08lx\n",
 	    s3c_irqwake_intmask, s3c_irqwake_eintmask);
 
 	__raw_writel(s3c_irqwake_intmask, S3C2410_INTMSK);
@@ -765,16 +702,16 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	/* restore the system state */
 
-	s3c2410_pm_do_restore_core(core_save, ARRAY_SIZE(core_save));
-	s3c2410_pm_do_restore(misc_save, ARRAY_SIZE(misc_save));
-	s3c2410_pm_do_restore(uart_save, ARRAY_SIZE(uart_save));
+	s3c_pm_do_restore_core(core_save, ARRAY_SIZE(core_save));
+	s3c_pm_do_restore(misc_save, ARRAY_SIZE(misc_save));
+	s3c_pm_do_restore(uart_save, ARRAY_SIZE(uart_save));
 	s3c2410_pm_restore_gpios();
 
 	s3c2410_pm_debug_init();
 
 	/* check what irq (if any) restored the system */
 
-	DBG("post sleep: IRQs 0x%08x, 0x%08x\n",
+	S3C_PMDBG("post sleep: IRQs 0x%08x, 0x%08x\n",
 	    __raw_readl(S3C2410_SRCPND),
 	    __raw_readl(S3C2410_EINTPEND));
 
@@ -784,13 +721,13 @@ static int s3c2410_pm_enter(suspend_state_t state)
 	s3c2410_pm_show_resume_irqs(IRQ_EINT4-4, __raw_readl(S3C2410_EINTPEND),
 				    s3c_irqwake_eintmask);
 
-	DBG("post sleep, preparing to return\n");
+	S3C_PMDBG("post sleep, preparing to return\n");
 
 	s3c2410_pm_check_restore();
 
 	/* ok, let's return from sleep */
 
-	DBG("S3C2410 PM Resume (post-restore)\n");
+	S3C_PMDBG("S3C2410 PM Resume (post-restore)\n");
 	return 0;
 }
 

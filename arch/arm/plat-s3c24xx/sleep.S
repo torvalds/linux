@@ -84,7 +84,7 @@ resume_with_mmu:
 	.ltorg
 
 	@@ the next bits sit in the .data segment, even though they
-	@@ happen to be code... the s3c2410_sleep_save_phys needs to be
+	@@ happen to be code... the s3c_sleep_save_phys needs to be
 	@@ accessed by the resume code before it can restore the MMU.
 	@@ This means that the variable has to be close enough for the
 	@@ code to read it... since the .text segment needs to be RO,
@@ -92,8 +92,8 @@ resume_with_mmu:
 
 	.data
 
-	.global	s3c2410_sleep_save_phys
-s3c2410_sleep_save_phys:
+	.global	s3c_sleep_save_phys
+s3c_sleep_save_phys:
 	.word	0
 
 
@@ -145,7 +145,7 @@ ENTRY(s3c2410_cpu_resume)
 	mcr	p15, 0, r1, c8, c7, 0		@@ invalidate I & D TLBs
 	mcr	p15, 0, r1, c7, c7, 0		@@ invalidate I & D caches
 
-	ldr	r0, s3c2410_sleep_save_phys	@ address of restore block
+	ldr	r0, s3c_sleep_save_phys		@ address of restore block
 	ldmia	r0, { r4 - r13 }
 
 	mcr	p15, 0, r4, c13, c0, 0		@ PID

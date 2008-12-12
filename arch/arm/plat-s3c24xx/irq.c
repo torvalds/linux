@@ -616,7 +616,7 @@ int s3c24xx_irq_suspend(struct sys_device *dev, pm_message_t state)
 	for (i = 0; i < ARRAY_SIZE(save_eintflt); i++)
 		save_eintflt[i] = __raw_readl(S3C24XX_EINFLT0 + (i*4));
 
-	s3c2410_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
+	s3c_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
 	save_eintmask = __raw_readl(S3C24XX_EINTMASK);
 
 	return 0;
@@ -632,7 +632,7 @@ int s3c24xx_irq_resume(struct sys_device *dev)
 	for (i = 0; i < ARRAY_SIZE(save_eintflt); i++)
 		__raw_writel(save_eintflt[i], S3C24XX_EINFLT0 + (i*4));
 
-	s3c2410_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
+	s3c_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
 	__raw_writel(save_eintmask, S3C24XX_EINTMASK);
 
 	return 0;
