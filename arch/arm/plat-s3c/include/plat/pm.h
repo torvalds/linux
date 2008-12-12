@@ -71,6 +71,25 @@ struct sleep_save {
 #define SAVE_ITEM(x) \
 	{ .reg = (x) }
 
+/**
+ * struct pm_uart_save - save block for core UART
+ * @ulcon: Save value for S3C2410_ULCON
+ * @ucon: Save value for S3C2410_UCON
+ * @ufcon: Save value for S3C2410_UFCON
+ * @umcon: Save value for S3C2410_UMCON
+ * @ubrdiv: Save value for S3C2410_UBRDIV
+ *
+ * Save block for UART registers to be held over sleep and restored if they
+ * are needed (say by debug).
+*/
+struct pm_uart_save {
+	u32	ulcon;
+	u32	ucon;
+	u32	ufcon;
+	u32	umcon;
+	u32	ubrdiv;
+};
+
 /* helper functions to save/restore lists of registers. */
 
 extern void s3c_pm_do_save(struct sleep_save *ptr, int count);

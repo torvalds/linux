@@ -72,33 +72,50 @@ static inline void s3c_pm_debug_init(void)
 
 #ifdef CONFIG_S3C2410_PM_DEBUG
 
-#define SAVE_UART(va) \
-	SAVE_ITEM((va) + S3C2410_ULCON), \
-	SAVE_ITEM((va) + S3C2410_UCON), \
-	SAVE_ITEM((va) + S3C2410_UFCON), \
-	SAVE_ITEM((va) + S3C2410_UMCON), \
-	SAVE_ITEM((va) + S3C2410_UBRDIV)
+struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
 
-static struct sleep_save uart_save[] = {
-	SAVE_UART(S3C_VA_UART0),
-	SAVE_UART(S3C_VA_UART1),
-#ifndef CONFIG_CPU_S3C2400
-	SAVE_UART(S3C_VA_UART2),
-#endif
-};
-
-static void s3c_pm_save_uart(void)
+static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 {
-	s3c_pm_do_save(uart_save, ARRAY_SIZE(uart_save));
+	void __iomem *regs = S3C_VA_UARTx(uart);
+
+	save->ulcon = __raw_readl(regs + S3C2410_ULCON);
+	save->ucon = __raw_readl(regs + S3C2410_UCON);
+	save->ufcon = __raw_readl(regs + S3C2410_UFCON);
+	save->umcon = __raw_readl(regs + S3C2410_UMCON);
+	save->ubrdiv = __raw_readl(regs + S3C2410_UBRDIV);
 }
 
-static void s3c_pm_restore_uart(void)
+static void s3c_pm_save_uarts(void)
 {
-	s3c_pm_do_restore(uart_save, ARRAY_SIZE(uart_save));
+	struct pm_uart_save *save = uart_save;
+	unsigned int uart;
+
+	for (uart = 0; uart < CONFIG_SERIAL_SAMSUNG_UARTS; uart++, save++)
+		s3c_pm_save_uart(uart, save);
+}
+
+static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
+{
+	void __iomem *regs = S3C_VA_UARTx(uart);
+
+	__raw_writel(save->ulcon, regs + S3C2410_ULCON);
+	__raw_writel(save->ucon,  regs + S3C2410_UCON);
+	__raw_writel(save->ufcon, regs + S3C2410_UFCON);
+	__raw_writel(save->umcon, regs + S3C2410_UMCON);
+	__raw_writel(save->ubrdiv, regs + S3C2410_UBRDIV);
+}
+
+static void s3c_pm_restore_uarts(void)
+{
+	struct pm_uart_save *save = uart_save;
+	unsigned int uart;
+
+	for (uart = 0; uart < CONFIG_SERIAL_SAMSUNG_UARTS; uart++, save++)
+		s3c_pm_restore_uart(uart, save);
 }
 #else
-static void s3c_pm_save_uart(void) { }
-static void s3c_pm_restore_uart(void) { }
+static void s3c_pm_save_uarts(void) { }
+static void s3c_pm_restore_uarts(void) { }
 #endif
 
 /* The IRQ ext-int code goes here, it is too small to currently bother
@@ -250,7 +267,7 @@ static int s3c_pm_enter(suspend_state_t state)
 	/* save all necessary core registers not covered by the drivers */
 
 	s3c_pm_save_gpios();
-	s3c_pm_save_uart();
+	s3c_pm_save_uarts();
 	s3c_pm_save_core();
 
 	/* set the irq configuration for wake */
@@ -293,7 +310,7 @@ static int s3c_pm_enter(suspend_state_t state)
 	/* restore the system state */
 
 	s3c_pm_restore_core();
-	s3c_pm_restore_uart();
+	s3c_pm_restore_uarts();
 	s3c_pm_restore_gpios();
 
 	s3c_pm_debug_init();
