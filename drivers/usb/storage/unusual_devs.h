@@ -260,6 +260,13 @@ UNUSUAL_DEV(  0x0421, 0x04b9, 0x0500, 0x0551,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Paulo Fessel <pfessel@gmail.com> */
+UNUSUAL_DEV(  0x0421, 0x04bd, 0x0000, 0x9999,
+		"Nokia",
+		"5200",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Reported by Richard Nauber <RichardNauber@web.de> */
 UNUSUAL_DEV(  0x0421, 0x04fa, 0x0550, 0x0660,
 		"Nokia",
