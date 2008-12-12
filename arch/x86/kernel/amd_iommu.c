@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/bitops.h>
+#include <linux/debugfs.h>
 #include <linux/scatterlist.h>
 #include <linux/iommu-helper.h>
 #ifdef CONFIG_IOMMU_API
@@ -56,6 +57,40 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 			     struct unity_map_entry *e);
 static struct dma_ops_domain *find_protection_domain(u16 devid);
 
+
+#ifdef CONFIG_AMD_IOMMU_STATS
+
+/*
+ * Initialization code for statistics collection
+ */
+
+static struct dentry *stats_dir;
+static struct dentry *de_isolate;
+static struct dentry *de_fflush;
+
+static void amd_iommu_stats_add(struct __iommu_counter *cnt)
+{
+	if (stats_dir == NULL)
+		return;
+
+	cnt->dent = debugfs_create_u64(cnt->name, 0444, stats_dir,
+				       &cnt->value);
+}
+
+static void amd_iommu_stats_init(void)
+{
+	stats_dir = debugfs_create_dir("amd-iommu", NULL);
+	if (stats_dir == NULL)
+		return;
+
+	de_isolate = debugfs_create_bool("isolation", 0444, stats_dir,
+					 (u32 *)&amd_iommu_isolate);
+
+	de_fflush  = debugfs_create_bool("fullflush", 0444, stats_dir,
+					 (u32 *)&amd_iommu_unmap_flush);
+}
+
+#endif
 
 /* returns !0 if the IOMMU is caching non-present entries in its TLB */
 static int iommu_has_npcache(struct amd_iommu *iommu)
@@ -1619,6 +1654,8 @@ int __init amd_iommu_init_dma_ops(void)
 #endif
 
 	bus_register_notifier(&pci_bus_type, &device_nb);
+
+	amd_iommu_stats_init();
 
 	return 0;
 
