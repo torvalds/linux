@@ -76,7 +76,5 @@ EXPORT_SYMBOL(strcpy);
 #define DECLARE_EXPORT(name) extern void name(void);EXPORT_SYMBOL(name)
 
 DECLARE_EXPORT(__sdivsi3);
-DECLARE_EXPORT(__sdivsi3_2);
-DECLARE_EXPORT(__muldi3);
 DECLARE_EXPORT(__udivsi3);
 DECLARE_EXPORT(__div_table);
