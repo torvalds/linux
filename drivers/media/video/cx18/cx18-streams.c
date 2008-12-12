@@ -340,7 +340,7 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 static void cx18_vbi_setup(struct cx18_stream *s)
 {
 	struct cx18 *cx = s->cx;
-	int raw = cx->vbi.sliced_in->service_set == 0;
+	int raw = cx18_raw_vbi(cx);
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	int lines;
 
@@ -471,8 +471,8 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		captype = CAPTURE_CHANNEL_TYPE_PCM;
 		break;
 	case CX18_ENC_STREAM_TYPE_VBI:
-		captype = cx->vbi.sliced_in->service_set ?
-		    CAPTURE_CHANNEL_TYPE_SLICED_VBI : CAPTURE_CHANNEL_TYPE_VBI;
+		captype = cx18_raw_vbi(cx) ?
+		     CAPTURE_CHANNEL_TYPE_VBI : CAPTURE_CHANNEL_TYPE_SLICED_VBI;
 		cx->vbi.frame = 0;
 		cx->vbi.inserted_frame = 0;
 		memset(cx->vbi.sliced_mpeg_size,

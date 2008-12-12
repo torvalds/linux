@@ -238,13 +238,12 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	if (id->type == CX18_ENC_STREAM_TYPE_VBI &&
-			cx->vbi.sliced_in->service_set &&
-			atomic_read(&cx->ana_capturing) > 0)
+	if (!cx18_raw_vbi(cx) && atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
 	cx->vbi.sliced_in->service_set = 0;
-	cx18_av_cmd(cx, VIDIOC_S_FMT, &cx->vbi.in);
+	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
+	cx18_av_cmd(cx, VIDIOC_S_FMT, fmt);
 	return cx18_g_fmt_vbi_cap(file, fh, fmt);
 }
 

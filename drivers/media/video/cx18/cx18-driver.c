@@ -594,7 +594,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	init_waitqueue_head(&cx->dma_waitq);
 
 	/* VBI */
-	cx->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	cx->vbi.sliced_in = &cx->vbi.in.fmt.sliced;
 	cx->vbi.raw_size = 1456;
 	cx->vbi.raw_decoder_line_size = 1456;

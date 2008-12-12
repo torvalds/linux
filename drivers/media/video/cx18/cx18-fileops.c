@@ -67,12 +67,11 @@ static int cx18_claim_stream(struct cx18_open_id *id, int type)
 	}
 	s->id = id->open_id;
 
-	/* CX18_DEC_STREAM_TYPE_MPG needs to claim CX18_DEC_STREAM_TYPE_VBI,
-	   CX18_ENC_STREAM_TYPE_MPG needs to claim CX18_ENC_STREAM_TYPE_VBI
+	/* CX18_ENC_STREAM_TYPE_MPG needs to claim CX18_ENC_STREAM_TYPE_VBI
 	   (provided VBI insertion is on and sliced VBI is selected), for all
 	   other streams we're done */
 	if (type == CX18_ENC_STREAM_TYPE_MPG &&
-		   cx->vbi.insert_mpeg && cx->vbi.sliced_in->service_set) {
+	    cx->vbi.insert_mpeg && !cx18_raw_vbi(cx)) {
 		vbi_type = CX18_ENC_STREAM_TYPE_VBI;
 	} else {
 		return 0;
@@ -258,7 +257,7 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 	if (len > ucount)
 		len = ucount;
 	if (cx->vbi.insert_mpeg && s->type == CX18_ENC_STREAM_TYPE_MPG &&
-	    cx->vbi.sliced_in->service_set && buf != &cx->vbi.sliced_mpeg_buf) {
+	    !cx18_raw_vbi(cx) && buf != &cx->vbi.sliced_mpeg_buf) {
 		const char *start = buf->buf + buf->readpos;
 		const char *p = start + 1;
 		const u8 *q;
@@ -333,8 +332,7 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 	/* Each VBI buffer is one frame, the v4l2 API says that for VBI the
 	   frames should arrive one-by-one, so make sure we never output more
 	   than one VBI frame at a time */
-	if (s->type == CX18_ENC_STREAM_TYPE_VBI &&
-	    cx->vbi.sliced_in->service_set)
+	if (s->type == CX18_ENC_STREAM_TYPE_VBI && !cx18_raw_vbi(cx))
 		single_frame = 1;
 
 	for (;;) {

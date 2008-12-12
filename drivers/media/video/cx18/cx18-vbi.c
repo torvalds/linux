@@ -160,7 +160,7 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 		return;
 
 	/* Raw VBI data */
-	if (cx->vbi.sliced_in->service_set == 0) {
+	if (cx18_raw_vbi(cx)) {
 		u8 type;
 
 		cx18_buf_swap(buf);

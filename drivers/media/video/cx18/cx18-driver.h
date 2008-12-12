@@ -504,4 +504,10 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv);
 /* First-open initialization: load firmware, etc. */
 int cx18_init_on_first_open(struct cx18 *cx);
 
+/* Test if the current VBI mode is raw (1) or sliced (0) */
+static inline int cx18_raw_vbi(const struct cx18 *cx)
+{
+	return cx->vbi.in.type == V4L2_BUF_TYPE_VBI_CAPTURE;
+}
+
 #endif /* CX18_DRIVER_H */
