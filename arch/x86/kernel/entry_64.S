@@ -71,15 +71,7 @@ ENTRY(ftrace_caller)
 	cmpl $0, function_trace_stop
 	jne  ftrace_stub
 
-	/* taken from glibc */
-	subq $0x38, %rsp
-	movq %rax, (%rsp)
-	movq %rcx, 8(%rsp)
-	movq %rdx, 16(%rsp)
-	movq %rsi, 24(%rsp)
-	movq %rdi, 32(%rsp)
-	movq %r8, 40(%rsp)
-	movq %r9, 48(%rsp)
+	MCOUNT_SAVE_FRAME
 
 	movq 0x38(%rsp), %rdi
 	movq 8(%rbp), %rsi
@@ -89,14 +81,7 @@ ENTRY(ftrace_caller)
 ftrace_call:
 	call ftrace_stub
 
-	movq 48(%rsp), %r9
-	movq 40(%rsp), %r8
-	movq 32(%rsp), %rdi
-	movq 24(%rsp), %rsi
-	movq 16(%rsp), %rdx
-	movq 8(%rsp), %rcx
-	movq (%rsp), %rax
-	addq $0x38, %rsp
+	MCOUNT_RESTORE_FRAME
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
@@ -130,15 +115,7 @@ ftrace_stub:
 	retq
 
 trace:
-	/* taken from glibc */
-	subq $0x38, %rsp
-	movq %rax, (%rsp)
-	movq %rcx, 8(%rsp)
-	movq %rdx, 16(%rsp)
-	movq %rsi, 24(%rsp)
-	movq %rdi, 32(%rsp)
-	movq %r8, 40(%rsp)
-	movq %r9, 48(%rsp)
+	MCOUNT_SAVE_FRAME
 
 	movq 0x38(%rsp), %rdi
 	movq 8(%rbp), %rsi
@@ -146,14 +123,7 @@ trace:
 
 	call   *ftrace_trace_function
 
-	movq 48(%rsp), %r9
-	movq 40(%rsp), %r8
-	movq 32(%rsp), %rdi
-	movq 24(%rsp), %rsi
-	movq 16(%rsp), %rdx
-	movq 8(%rsp), %rcx
-	movq (%rsp), %rax
-	addq $0x38, %rsp
+	MCOUNT_RESTORE_FRAME
 
 	jmp ftrace_stub
 END(mcount)
@@ -165,14 +135,7 @@ ENTRY(ftrace_graph_caller)
 	cmpl $0, function_trace_stop
 	jne ftrace_stub
 
-	subq $0x38, %rsp
-	movq %rax, (%rsp)
-	movq %rcx, 8(%rsp)
-	movq %rdx, 16(%rsp)
-	movq %rsi, 24(%rsp)
-	movq %rdi, 32(%rsp)
-	movq %r8, 40(%rsp)
-	movq %r9, 48(%rsp)
+	MCOUNT_SAVE_FRAME
 
 	leaq 8(%rbp), %rdi
 	movq 0x38(%rsp), %rsi
@@ -180,14 +143,8 @@ ENTRY(ftrace_graph_caller)
 
 	call	prepare_ftrace_return
 
-	movq 48(%rsp), %r9
-	movq 40(%rsp), %r8
-	movq 32(%rsp), %rdi
-	movq 24(%rsp), %rsi
-	movq 16(%rsp), %rdx
-	movq 8(%rsp), %rcx
-	movq (%rsp), %rax
-	addq $0x38, %rsp
+	MCOUNT_RESTORE_FRAME
+
 	retq
 END(ftrace_graph_caller)
 
