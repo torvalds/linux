@@ -329,46 +329,46 @@
   Circular buffer used for analog input/output reads/writes.
   ===========================================================================*/
 
-typedef struct me4000_circ_buf {
+struct me4000_circ_buf {
 	s16 *buf;
 	int volatile head;
 	int volatile tail;
-} me4000_circ_buf_t;
+};
 
 /*=============================================================================
   Information about the hardware capabilities
   ===========================================================================*/
 
-typedef struct me4000_ao_info {
+struct me4000_ao_info {
 	int count;
 	int fifo_count;
-} me4000_ao_info_t;
+};
 
-typedef struct me4000_ai_info {
+struct me4000_ai_info {
 	int count;
 	int sh_count;
 	int diff_count;
 	int ex_trig_analog;
-} me4000_ai_info_t;
+};
 
-typedef struct me4000_dio_info {
+struct me4000_dio_info {
 	int count;
-} me4000_dio_info_t;
+};
 
-typedef struct me4000_cnt_info {
+struct me4000_cnt_info {
 	int count;
-} me4000_cnt_info_t;
+};
 
-typedef struct me4000_board {
+struct me4000_board {
 	u16 vendor_id;
 	u16 device_id;
-	me4000_ao_info_t ao;
-	me4000_ai_info_t ai;
-	me4000_dio_info_t dio;
-	me4000_cnt_info_t cnt;
-} me4000_board_t;
+	struct me4000_ao_info ao;
+	struct me4000_ai_info ai;
+	struct me4000_dio_info dio;
+	struct me4000_cnt_info cnt;
+};
 
-static me4000_board_t me4000_boards[] = {
+static struct me4000_board me4000_boards[] = {
 	{PCI_VENDOR_ID_MEILHAUS, 0x4610, {0, 0}, {16, 0, 0, 0}, {4}, {3}},
 
 	{PCI_VENDOR_ID_MEILHAUS, 0x4650, {0, 0}, {16, 0, 0, 0}, {4}, {0}},
@@ -390,8 +390,6 @@ static me4000_board_t me4000_boards[] = {
 
 	{0},
 };
-
-#define ME4000_BOARD_VERSIONS (sizeof(me4000_boards) / sizeof(me4000_board_t) - 1)
 
 /*=============================================================================
   PCI device table.
@@ -427,19 +425,19 @@ MODULE_DEVICE_TABLE(pci, me4000_pci_table);
   Global board and subdevice information structures
   ===========================================================================*/
 
-typedef struct me4000_info {
+struct me4000_info {
 	struct list_head list;	// List of all detected boards
 	int board_count;	// Index of the board after detection
 
 	unsigned long plx_regbase;	// PLX configuration space base address
-	unsigned long me4000_regbase;	// Base address of the ME4000
-	unsigned long timer_regbase;	// Base address of the timer circuit
-	unsigned long program_regbase;	// Base address to set the program pin for the xilinx
+	resource_size_t me4000_regbase;	// Base address of the ME4000
+	resource_size_t timer_regbase;	// Base address of the timer circuit
+	resource_size_t program_regbase;	// Base address to set the program pin for the xilinx
 
 	unsigned long plx_regbase_size;	// PLX register set space
-	unsigned long me4000_regbase_size;	// ME4000 register set space
-	unsigned long timer_regbase_size;	// Timer circuit register set space
-	unsigned long program_regbase_size;	// Size of program base address of the ME4000
+	resource_size_t me4000_regbase_size;	// ME4000 register set space
+	resource_size_t timer_regbase_size;	// Timer circuit register set space
+	resource_size_t program_regbase_size;	// Size of program base address of the ME4000
 
 	unsigned int serial_no;	// Serial number of the board
 	unsigned char hw_revision;	// Hardware revision of the board
@@ -451,7 +449,7 @@ typedef struct me4000_info {
 	int pci_func_no;	// PCI function number
 	struct pci_dev *pci_dev_p;	// General PCI information
 
-	me4000_board_t *board_p;	// Holds the board capabilities
+	struct me4000_board *board_p;	// Holds the board capabilities
 
 	unsigned int irq;	// IRQ assigned from the PCI BIOS
 	unsigned int irq_count;	// Count of external interrupts
@@ -464,18 +462,18 @@ typedef struct me4000_info {
 	struct me4000_dio_context *dio_context;	// Digital I/O specific context
 	struct me4000_cnt_context *cnt_context;	// Counter specific context
 	struct me4000_ext_int_context *ext_int_context;	// External interrupt specific context
-} me4000_info_t;
+};
 
-typedef struct me4000_ao_context {
+struct me4000_ao_context {
 	struct list_head list;	// linked list of me4000_ao_context_t
 	int index;		// Index in the list
 	int mode;		// Indicates mode (0 = single, 1 = wraparound, 2 = continous)
 	int dac_in_use;		// Indicates if already opend
 	spinlock_t use_lock;	// Guards in_use
 	spinlock_t int_lock;	// Used when locking out interrupts
-	me4000_circ_buf_t circ_buf;	// Circular buffer
+	struct me4000_circ_buf circ_buf;	// Circular buffer
 	wait_queue_head_t wait_queue;	// Wait queue to sleep while blocking write
-	me4000_info_t *board_info;
+	struct me4000_info *board_info;
 	unsigned int irq;	// The irq associated with this ADC
 	int volatile pipe_flag;	// Indicates broken pipe set from me4000_ao_isr()
 	unsigned long ctrl_reg;
@@ -486,9 +484,9 @@ typedef struct me4000_ao_context {
 	unsigned long irq_status_reg;
 	unsigned long preload_reg;
 	struct fasync_struct *fasync_p;	// Queue for asynchronous notification
-} me4000_ao_context_t;
+};
 
-typedef struct me4000_ai_context {
+struct me4000_ai_context {
 	struct list_head list;	// linked list of me4000_ai_info_t
 	int mode;		// Indicates mode
 	int in_use;		// Indicates if already opend
@@ -496,9 +494,9 @@ typedef struct me4000_ai_context {
 	spinlock_t int_lock;	// Used when locking out interrupts
 	int number;		// Number of the DAC
 	unsigned int irq;	// The irq associated with this ADC
-	me4000_circ_buf_t circ_buf;	// Circular buffer
+	struct me4000_circ_buf circ_buf;	// Circular buffer
 	wait_queue_head_t wait_queue;	// Wait queue to sleep while blocking read
-	me4000_info_t *board_info;
+	struct me4000_info *board_info;
 
 	struct fasync_struct *fasync_p;	// Queue for asynchronous notification
 
@@ -523,48 +521,48 @@ typedef struct me4000_ai_context {
 	unsigned long channel_list_count;
 	unsigned long sample_counter;
 	int sample_counter_reload;
-} me4000_ai_context_t;
+};
 
-typedef struct me4000_dio_context {
+struct me4000_dio_context {
 	struct list_head list;	// linked list of me4000_dio_context_t
 	int in_use;		// Indicates if already opend
 	spinlock_t use_lock;	// Guards in_use
 	int number;
 	int dio_count;
-	me4000_info_t *board_info;
+	struct me4000_info *board_info;
 	unsigned long dir_reg;
 	unsigned long ctrl_reg;
 	unsigned long port_0_reg;
 	unsigned long port_1_reg;
 	unsigned long port_2_reg;
 	unsigned long port_3_reg;
-} me4000_dio_context_t;
+};
 
-typedef struct me4000_cnt_context {
+struct me4000_cnt_context {
 	struct list_head list;	// linked list of me4000_dio_context_t
 	int in_use;		// Indicates if already opend
 	spinlock_t use_lock;	// Guards in_use
 	int number;
 	int cnt_count;
-	me4000_info_t *board_info;
+	struct me4000_info *board_info;
 	unsigned long ctrl_reg;
 	unsigned long counter_0_reg;
 	unsigned long counter_1_reg;
 	unsigned long counter_2_reg;
-} me4000_cnt_context_t;
+};
 
-typedef struct me4000_ext_int_context {
+struct me4000_ext_int_context {
 	struct list_head list;	// linked list of me4000_dio_context_t
 	int in_use;		// Indicates if already opend
 	spinlock_t use_lock;	// Guards in_use
 	int number;
-	me4000_info_t *board_info;
+	struct me4000_info *board_info;
 	unsigned int irq;
 	unsigned long int_count;
 	struct fasync_struct *fasync_ptr;
 	unsigned long ctrl_reg;
 	unsigned long irq_status_reg;
-} me4000_ext_int_context_t;
+};
 
 #endif
 
@@ -745,12 +743,12 @@ typedef struct me4000_ext_int_context {
   General type definitions
   ----------------------------------------------------------------------------*/
 
-typedef struct me4000_user_info {
+struct me4000_user_info {
 	int board_count;	// Index of the board after detection
 	unsigned long plx_regbase;	// PLX configuration space base address
-	unsigned long me4000_regbase;	// Base address of the ME4000
+	resource_size_t me4000_regbase;	// Base address of the ME4000
 	unsigned long plx_regbase_size;	// PLX register set space
-	unsigned long me4000_regbase_size;	// ME4000 register set space
+	resource_size_t me4000_regbase_size;	// ME4000 register set space
 	unsigned long serial_no;	// Serial number of the board
 	unsigned char hw_revision;	// Hardware revision of the board
 	unsigned short vendor_id;	// Meilhaus vendor id (0x1402)
@@ -773,62 +771,62 @@ typedef struct me4000_user_info {
 	int dio_count;		// Count of digital I/O ports
 
 	int cnt_count;		// Count of counters
-} me4000_user_info_t;
+};
 
 /*-----------------------------------------------------------------------------
   Type definitions for analog output
   ----------------------------------------------------------------------------*/
 
-typedef struct me4000_ao_channel_list {
+struct me4000_ao_channel_list {
 	unsigned long count;
 	unsigned long *list;
-} me4000_ao_channel_list_t;
+};
 
 /*-----------------------------------------------------------------------------
   Type definitions for analog input
   ----------------------------------------------------------------------------*/
 
-typedef struct me4000_ai_channel_list {
+struct me4000_ai_channel_list {
 	unsigned long count;
 	unsigned long *list;
-} me4000_ai_channel_list_t;
+};
 
-typedef struct me4000_ai_timer {
+struct me4000_ai_timer {
 	unsigned long pre_chan;
 	unsigned long chan;
 	unsigned long scan_low;
 	unsigned long scan_high;
-} me4000_ai_timer_t;
+};
 
-typedef struct me4000_ai_config {
-	me4000_ai_timer_t timer;
-	me4000_ai_channel_list_t channel_list;
+struct me4000_ai_config {
+	struct me4000_ai_timer timer;
+	struct me4000_ai_channel_list channel_list;
 	int sh;
-} me4000_ai_config_t;
+};
 
-typedef struct me4000_ai_single {
+struct me4000_ai_single {
 	int channel;
 	int range;
 	int mode;
 	short value;
 	unsigned long timeout;
-} me4000_ai_single_t;
+};
 
-typedef struct me4000_ai_trigger {
+struct me4000_ai_trigger {
 	int mode;
 	int edge;
-} me4000_ai_trigger_t;
+};
 
-typedef struct me4000_ai_sc {
+struct me4000_ai_sc {
 	unsigned long value;
 	int reload;
-} me4000_ai_sc_t;
+};
 
 /*-----------------------------------------------------------------------------
   Type definitions for eeprom
   ----------------------------------------------------------------------------*/
 
-typedef struct me4000_eeprom {
+struct me4000_eeprom {
 	unsigned long date;
 	short uni_10_offset;
 	short uni_10_fullscale;
@@ -842,45 +840,45 @@ typedef struct me4000_eeprom {
 	short diff_10_fullscale;
 	short diff_2_5_offset;
 	short diff_2_5_fullscale;
-} me4000_eeprom_t;
+};
 
 /*-----------------------------------------------------------------------------
   Type definitions for digital I/O
   ----------------------------------------------------------------------------*/
 
-typedef struct me4000_dio_config {
+struct me4000_dio_config {
 	int port;
 	int mode;
 	int function;
-} me4000_dio_config_t;
+};
 
-typedef struct me4000_dio_byte {
+struct me4000_dio_byte {
 	int port;
 	unsigned char byte;
-} me4000_dio_byte_t;
+};
 
 /*-----------------------------------------------------------------------------
   Type definitions for counters
   ----------------------------------------------------------------------------*/
 
-typedef struct me4000_cnt {
+struct me4000_cnt {
 	int counter;
 	unsigned short value;
-} me4000_cnt_t;
+};
 
-typedef struct me4000_cnt_config {
+struct me4000_cnt_config {
 	int counter;
 	int mode;
-} me4000_cnt_config_t;
+};
 
 /*-----------------------------------------------------------------------------
   Type definitions for external interrupt
   ----------------------------------------------------------------------------*/
 
-typedef struct {
+struct me4000_int {
 	int int1_count;
 	int int2_count;
-} me4000_int_type;
+};
 
 /*-----------------------------------------------------------------------------
   The ioctls of the board
@@ -888,7 +886,8 @@ typedef struct {
 
 #define ME4000_IOCTL_MAXNR 50
 #define ME4000_MAGIC 'y'
-#define ME4000_GET_USER_INFO          _IOR (ME4000_MAGIC, 0, me4000_user_info_t)
+#define ME4000_GET_USER_INFO          _IOR (ME4000_MAGIC, 0, \
+					    struct me4000_user_info)
 
 #define ME4000_AO_START               _IOW (ME4000_MAGIC, 1, unsigned long)
 #define ME4000_AO_STOP                _IO  (ME4000_MAGIC, 2)
@@ -904,25 +903,35 @@ typedef struct {
 #define ME4000_AO_DISABLE_DO          _IO  (ME4000_MAGIC, 12)
 #define ME4000_AO_FSM_STATE           _IOR (ME4000_MAGIC, 13, int)
 
-#define ME4000_AI_SINGLE              _IOR (ME4000_MAGIC, 14, me4000_ai_single_t)
+#define ME4000_AI_SINGLE              _IOR (ME4000_MAGIC, 14, \
+					    struct me4000_ai_single)
 #define ME4000_AI_START               _IOW (ME4000_MAGIC, 15, unsigned long)
 #define ME4000_AI_STOP                _IO  (ME4000_MAGIC, 16)
 #define ME4000_AI_IMMEDIATE_STOP      _IO  (ME4000_MAGIC, 17)
 #define ME4000_AI_EX_TRIG_ENABLE      _IO  (ME4000_MAGIC, 18)
 #define ME4000_AI_EX_TRIG_DISABLE     _IO  (ME4000_MAGIC, 19)
-#define ME4000_AI_EX_TRIG_SETUP       _IOW (ME4000_MAGIC, 20, me4000_ai_trigger_t)
-#define ME4000_AI_CONFIG              _IOW (ME4000_MAGIC, 21, me4000_ai_config_t)
-#define ME4000_AI_SC_SETUP            _IOW (ME4000_MAGIC, 22, me4000_ai_sc_t)
+#define ME4000_AI_EX_TRIG_SETUP       _IOW (ME4000_MAGIC, 20, \
+					    struct me4000_ai_trigger)
+#define ME4000_AI_CONFIG              _IOW (ME4000_MAGIC, 21, \
+					    struct me4000_ai_config)
+#define ME4000_AI_SC_SETUP            _IOW (ME4000_MAGIC, 22, \
+					    struct me4000_ai_sc)
 #define ME4000_AI_FSM_STATE           _IOR (ME4000_MAGIC, 23, int)
 
-#define ME4000_DIO_CONFIG             _IOW (ME4000_MAGIC, 24, me4000_dio_config_t)
-#define ME4000_DIO_GET_BYTE           _IOR (ME4000_MAGIC, 25, me4000_dio_byte_t)
-#define ME4000_DIO_SET_BYTE           _IOW (ME4000_MAGIC, 26, me4000_dio_byte_t)
+#define ME4000_DIO_CONFIG             _IOW (ME4000_MAGIC, 24, \
+					    struct me4000_dio_config)
+#define ME4000_DIO_GET_BYTE           _IOR (ME4000_MAGIC, 25, \
+					    struct me4000_dio_byte)
+#define ME4000_DIO_SET_BYTE           _IOW (ME4000_MAGIC, 26, \
+					    struct me4000_dio_byte)
 #define ME4000_DIO_RESET              _IO  (ME4000_MAGIC, 27)
 
-#define ME4000_CNT_READ               _IOR (ME4000_MAGIC, 28, me4000_cnt_t)
-#define ME4000_CNT_WRITE              _IOW (ME4000_MAGIC, 29, me4000_cnt_t)
-#define ME4000_CNT_CONFIG             _IOW (ME4000_MAGIC, 30, me4000_cnt_config_t)
+#define ME4000_CNT_READ               _IOR (ME4000_MAGIC, 28, \
+					    struct me4000_cnt)
+#define ME4000_CNT_WRITE              _IOW (ME4000_MAGIC, 29, \
+					    struct me4000_cnt)
+#define ME4000_CNT_CONFIG             _IOW (ME4000_MAGIC, 30, \
+					    struct me4000_cnt_config)
 #define ME4000_CNT_RESET              _IO  (ME4000_MAGIC, 31)
 
 #define ME4000_EXT_INT_DISABLE        _IO  (ME4000_MAGIC, 32)
@@ -934,13 +943,16 @@ typedef struct {
 #define ME4000_AI_FULLSCALE_ENABLE    _IO  (ME4000_MAGIC, 37)
 #define ME4000_AI_FULLSCALE_DISABLE   _IO  (ME4000_MAGIC, 38)
 
-#define ME4000_AI_EEPROM_READ         _IOR (ME4000_MAGIC, 39, me4000_eeprom_t)
-#define ME4000_AI_EEPROM_WRITE        _IOW (ME4000_MAGIC, 40, me4000_eeprom_t)
+#define ME4000_AI_EEPROM_READ         _IOR (ME4000_MAGIC, 39, \
+					    struct me4000_eeprom)
+#define ME4000_AI_EEPROM_WRITE        _IOW (ME4000_MAGIC, 40, \
+					    struct me4000_eeprom)
 
 #define ME4000_AO_SIMULTANEOUS_EX_TRIG _IO  (ME4000_MAGIC, 41)
 #define ME4000_AO_SIMULTANEOUS_SW      _IO  (ME4000_MAGIC, 42)
 #define ME4000_AO_SIMULTANEOUS_DISABLE _IO  (ME4000_MAGIC, 43)
-#define ME4000_AO_SIMULTANEOUS_UPDATE  _IOW (ME4000_MAGIC, 44, me4000_ao_channel_list_t)
+#define ME4000_AO_SIMULTANEOUS_UPDATE  _IOW (ME4000_MAGIC, 44, \
+					     struct me4000_ao_channel_list)
 
 #define ME4000_AO_SYNCHRONOUS_EX_TRIG  _IO  (ME4000_MAGIC, 45)
 #define ME4000_AO_SYNCHRONOUS_SW       _IO  (ME4000_MAGIC, 46)

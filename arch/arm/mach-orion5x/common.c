@@ -19,6 +19,7 @@
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/spi/orion_spi.h>
+#include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <asm/timex.h>
@@ -198,6 +199,40 @@ void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 
 
 /*****************************************************************************
+ * Ethernet switch
+ ****************************************************************************/
+static struct resource orion5x_switch_resources[] = {
+	{
+		.start	= 0,
+		.end	= 0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion5x_switch_device = {
+	.name		= "dsa",
+	.id		= 0,
+	.num_resources	= 0,
+	.resource	= orion5x_switch_resources,
+};
+
+void __init orion5x_eth_switch_init(struct dsa_platform_data *d, int irq)
+{
+	if (irq != NO_IRQ) {
+		orion5x_switch_resources[0].start = irq;
+		orion5x_switch_resources[0].end = irq;
+		orion5x_switch_device.num_resources = 1;
+	}
+
+	d->mii_bus = &orion5x_eth_shared.dev;
+	d->netdev = &orion5x_eth.dev;
+	orion5x_switch_device.dev.platform_data = d;
+
+	platform_device_register(&orion5x_switch_device);
+}
+
+
+/*****************************************************************************
  * I2C
  ****************************************************************************/
 static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
@@ -275,7 +310,8 @@ void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
  * SPI
  ****************************************************************************/
 static struct orion_spi_info orion5x_spi_plat_data = {
-	.tclk		= 0,
+	.tclk			= 0,
+	.enable_clock_fix	= 1,
 };
 
 static struct resource orion5x_spi_resources[] = {

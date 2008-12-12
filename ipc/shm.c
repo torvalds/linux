@@ -817,7 +817,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	struct ipc_namespace *ns;
 	struct shm_file_data *sfd;
 	struct path path;
-	mode_t f_mode;
+	fmode_t f_mode;
 
 	err = -EINVAL;
 	if (shmid < 0)

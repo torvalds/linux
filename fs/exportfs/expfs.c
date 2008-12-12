@@ -94,9 +94,8 @@ find_disconnected_root(struct dentry *dentry)
  * It may already be, as the flag isn't always updated when connection happens.
  */
 static int
-reconnect_path(struct vfsmount *mnt, struct dentry *target_dir)
+reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 {
-	char nbuf[NAME_MAX+1];
 	int noprogress = 0;
 	int err = -ESTALE;
 
@@ -281,13 +280,14 @@ static int get_name(struct vfsmount *mnt, struct dentry *dentry,
 		int old_seq = buffer.sequence;
 
 		error = vfs_readdir(file, filldir_one, &buffer);
+		if (buffer.found) {
+			error = 0;
+			break;
+		}
 
 		if (error < 0)
 			break;
 
-		error = 0;
-		if (buffer.found)
-			break;
 		error = -ENOENT;
 		if (old_seq == buffer.sequence)
 			break;
@@ -360,6 +360,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 {
 	const struct export_operations *nop = mnt->mnt_sb->s_export_op;
 	struct dentry *result, *alias;
+	char nbuf[NAME_MAX+1];
 	int err;
 
 	/*
@@ -381,7 +382,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 * filesystem root.
 		 */
 		if (result->d_flags & DCACHE_DISCONNECTED) {
-			err = reconnect_path(mnt, result);
+			err = reconnect_path(mnt, result, nbuf);
 			if (err)
 				goto err_result;
 		}
@@ -397,7 +398,6 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 * It's not a directory.  Life is a little more complicated.
 		 */
 		struct dentry *target_dir, *nresult;
-		char nbuf[NAME_MAX+1];
 
 		/*
 		 * See if either the dentry we just got from the filesystem
@@ -433,7 +433,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 * connected to the filesystem root.  The VFS really doesn't
 		 * like disconnected directories..
 		 */
-		err = reconnect_path(mnt, target_dir);
+		err = reconnect_path(mnt, target_dir, nbuf);
 		if (err) {
 			dput(target_dir);
 			goto err_result;

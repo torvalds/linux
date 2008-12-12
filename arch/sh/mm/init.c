@@ -137,6 +137,7 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	unsigned long vaddr;
 	int nid;
 
 	/* We don't need to map the kernel through the TLB, as
@@ -148,10 +149,15 @@ void __init paging_init(void)
 	 * check for a null value. */
 	set_TTB(swapper_pg_dir);
 
-	/* Populate the relevant portions of swapper_pg_dir so that
+	/*
+	 * Populate the relevant portions of swapper_pg_dir so that
 	 * we can use the fixmap entries without calling kmalloc.
-	 * pte's will be filled in by __set_fixmap(). */
-	page_table_range_init(FIXADDR_START, FIXADDR_TOP, swapper_pg_dir);
+	 * pte's will be filled in by __set_fixmap().
+	 */
+	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
+	page_table_range_init(vaddr, 0, swapper_pg_dir);
+
+	kmap_coherent_init();
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
@@ -321,21 +327,4 @@ int memory_add_physaddr_to_nid(u64 addr)
 }
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-int remove_memory(u64 start, u64 size)
-{
-	unsigned long start_pfn = start >> PAGE_SHIFT;
-	unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
-	int ret;
-
-	ret = offline_pages(start_pfn, end_pfn, 120 * HZ);
-	if (unlikely(ret))
-		printk("%s: Failed, offline_pages() == %d\n", __func__, ret);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(remove_memory);
-#endif
-
 #endif /* CONFIG_MEMORY_HOTPLUG */

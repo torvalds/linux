@@ -875,43 +875,43 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 
 #ifdef MODULE
 	/* load modules */
-#ifndef CONFIG_MEDIA_TUNER
+#ifdef CONFIG_MEDIA_TUNER_MODULE
 	hw = ivtv_request_module(itv, hw, "tuner", IVTV_HW_TUNER);
 #endif
-#ifndef CONFIG_VIDEO_CX25840
+#ifdef CONFIG_VIDEO_CX25840_MODULE
 	hw = ivtv_request_module(itv, hw, "cx25840", IVTV_HW_CX25840);
 #endif
-#ifndef CONFIG_VIDEO_SAA711X
+#ifdef CONFIG_VIDEO_SAA711X_MODULE
 	hw = ivtv_request_module(itv, hw, "saa7115", IVTV_HW_SAA711X);
 #endif
-#ifndef CONFIG_VIDEO_SAA7127
+#ifdef CONFIG_VIDEO_SAA7127_MODULE
 	hw = ivtv_request_module(itv, hw, "saa7127", IVTV_HW_SAA7127);
 #endif
-#ifndef CONFIG_VIDEO_SAA717X
+#ifdef CONFIG_VIDEO_SAA717X_MODULE
 	hw = ivtv_request_module(itv, hw, "saa717x", IVTV_HW_SAA717X);
 #endif
-#ifndef CONFIG_VIDEO_UPD64031A
+#ifdef CONFIG_VIDEO_UPD64031A_MODULE
 	hw = ivtv_request_module(itv, hw, "upd64031a", IVTV_HW_UPD64031A);
 #endif
-#ifndef CONFIG_VIDEO_UPD64083
+#ifdef CONFIG_VIDEO_UPD64083_MODULE
 	hw = ivtv_request_module(itv, hw, "upd64083", IVTV_HW_UPD6408X);
 #endif
-#ifndef CONFIG_VIDEO_MSP3400
+#ifdef CONFIG_VIDEO_MSP3400_MODULE
 	hw = ivtv_request_module(itv, hw, "msp3400", IVTV_HW_MSP34XX);
 #endif
-#ifndef CONFIG_VIDEO_VP27SMPX
+#ifdef CONFIG_VIDEO_VP27SMPX_MODULE
 	hw = ivtv_request_module(itv, hw, "vp27smpx", IVTV_HW_VP27SMPX);
 #endif
-#ifndef CONFIG_VIDEO_WM8775
+#ifdef CONFIG_VIDEO_WM8775_MODULE
 	hw = ivtv_request_module(itv, hw, "wm8775", IVTV_HW_WM8775);
 #endif
-#ifndef CONFIG_VIDEO_WM8739
+#ifdef CONFIG_VIDEO_WM8739_MODULE
 	hw = ivtv_request_module(itv, hw, "wm8739", IVTV_HW_WM8739);
 #endif
-#ifndef CONFIG_VIDEO_CS53L32A
+#ifdef CONFIG_VIDEO_CS53L32A_MODULE
 	hw = ivtv_request_module(itv, hw, "cs53l32a", IVTV_HW_CS53L32A);
 #endif
-#ifndef CONFIG_VIDEO_M52790
+#ifdef CONFIG_VIDEO_M52790_MODULE
 	hw = ivtv_request_module(itv, hw, "m52790", IVTV_HW_M52790);
 #endif
 #endif
@@ -1211,6 +1211,10 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_call_i2c_clients(itv, VIDIOC_INT_S_STD_OUTPUT, &itv->std);
+		/* Turn off the output signal. The mpeg decoder is not yet
+		   active so without this you would get a green image until the
+		   mpeg decoder becomes active. */
+		ivtv_saa7127(itv, VIDIOC_STREAMOFF, NULL);
 	}
 
 	/* clear interrupt mask, effectively disabling interrupts */
@@ -1330,6 +1334,10 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	ivtv_s_frequency(NULL, &fh, &vf);
 
 	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
+		/* Turn on the TV-out: ivtv_init_mpeg_decoder() initializes
+		   the mpeg decoder so now the saa7127 receives a proper
+		   signal. */
+		ivtv_saa7127(itv, VIDIOC_STREAMON, NULL);
 		ivtv_init_mpeg_decoder(itv);
 	}
 	ivtv_s_std(NULL, &fh, &itv->tuner_std);
@@ -1366,6 +1374,10 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 
 		/* Stop all decoding */
 		IVTV_DEBUG_INFO("Stopping decoding\n");
+
+		/* Turn off the TV-out */
+		if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
+			ivtv_saa7127(itv, VIDIOC_STREAMOFF, NULL);
 		if (atomic_read(&itv->decoding) > 0) {
 			int type;
 

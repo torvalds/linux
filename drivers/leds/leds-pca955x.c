@@ -226,7 +226,7 @@ static void pca955x_led_work(struct work_struct *work)
 	pca955x_write_ls(pca955x->client, chip_ls, ls);
 }
 
-void pca955x_led_set(struct led_classdev *led_cdev, enum led_brightness value)
+static void pca955x_led_set(struct led_classdev *led_cdev, enum led_brightness value)
 {
 	struct pca955x_led *pca955x;
 

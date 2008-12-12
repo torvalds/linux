@@ -10,4 +10,5 @@
 s8 sme_get_rssi(void *pcore_data, s32 *prssi)
 {
        BUG();
+       return 0;
 }

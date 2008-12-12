@@ -16,23 +16,23 @@
 //====================================================================================
 // Function declaration
 //====================================================================================
-void hal_remove_mapping_key(  phw_data_t pHwData,  PUCHAR pmac_addr );
+void hal_remove_mapping_key(  phw_data_t pHwData,  u8 *pmac_addr );
 void hal_remove_default_key(  phw_data_t pHwData,  u32 index );
-unsigned char hal_set_mapping_key(  phw_data_t Adapter,  PUCHAR pmac_addr,  u8 null_key,  u8 wep_on,  PUCHAR ptx_tsc,  PUCHAR prx_tsc,  u8 key_type,  u8 key_len,  PUCHAR pkey_data );
-unsigned char hal_set_default_key(  phw_data_t Adapter,  u8 index,  u8 null_key,  u8 wep_on,  PUCHAR ptx_tsc,  PUCHAR prx_tsc,  u8 key_type,  u8 key_len,  PUCHAR pkey_data );
+unsigned char hal_set_mapping_key(  phw_data_t Adapter,  u8 *pmac_addr,  u8 null_key,  u8 wep_on,  u8 *ptx_tsc,  u8 *prx_tsc,  u8 key_type,  u8 key_len,  u8 *pkey_data );
+unsigned char hal_set_default_key(  phw_data_t Adapter,  u8 index,  u8 null_key,  u8 wep_on,  u8 *ptx_tsc,  u8 *prx_tsc,  u8 key_type,  u8 key_len,  u8 *pkey_data );
 void hal_clear_all_default_key(  phw_data_t pHwData );
 void hal_clear_all_group_key(  phw_data_t pHwData );
 void hal_clear_all_mapping_key(  phw_data_t pHwData );
 void hal_clear_all_key(  phw_data_t pHwData );
-void hal_get_ethernet_address(  phw_data_t pHwData,  PUCHAR current_address );
-void hal_set_ethernet_address(  phw_data_t pHwData,  PUCHAR current_address );
-void hal_get_permanent_address(  phw_data_t pHwData,  PUCHAR pethernet_address );
+void hal_get_ethernet_address(  phw_data_t pHwData,  u8 *current_address );
+void hal_set_ethernet_address(  phw_data_t pHwData,  u8 *current_address );
+void hal_get_permanent_address(  phw_data_t pHwData,  u8 *pethernet_address );
 unsigned char hal_init_hardware(  phw_data_t pHwData,  PADAPTER Adapter );
 void hal_set_power_save_mode(  phw_data_t pHwData,  unsigned char power_save,  unsigned char wakeup,  unsigned char dtim );
-void hal_get_power_save_mode(  phw_data_t pHwData,   PBOOLEAN pin_pwr_save );
+void hal_get_power_save_mode(  phw_data_t pHwData,   u8 *pin_pwr_save );
 void hal_set_slot_time(  phw_data_t pHwData,  u8 type );
 #define hal_set_atim_window( _A, _ATM )
-void hal_set_rates(  phw_data_t pHwData,  PUCHAR pbss_rates,  u8 length,  unsigned char basic_rate_set );
+void hal_set_rates(  phw_data_t pHwData,  u8 *pbss_rates,  u8 length,  unsigned char basic_rate_set );
 #define hal_set_basic_rates( _A, _R, _L ) hal_set_rates( _A, _R, _L, TRUE )
 #define hal_set_op_rates( _A, _R, _L ) hal_set_rates( _A, _R, _L, FALSE )
 void hal_start_bss(  phw_data_t pHwData,  u8 mac_op_mode );
@@ -40,19 +40,19 @@ void hal_join_request(  phw_data_t pHwData,  u8 bss_type ); // 0:BSS STA 1:IBSS 
 void hal_stop_sync_bss(  phw_data_t pHwData );
 void hal_resume_sync_bss(  phw_data_t pHwData);
 void hal_set_aid(  phw_data_t pHwData,  u16 aid );
-void hal_set_bssid(  phw_data_t pHwData,  PUCHAR pbssid );
-void hal_get_bssid(  phw_data_t pHwData,  PUCHAR pbssid );
+void hal_set_bssid(  phw_data_t pHwData,  u8 *pbssid );
+void hal_get_bssid(  phw_data_t pHwData,  u8 *pbssid );
 void hal_set_beacon_period(  phw_data_t pHwData,  u16 beacon_period );
 void hal_set_listen_interval(  phw_data_t pHwData,  u16 listen_interval );
 void hal_set_cap_info(  phw_data_t pHwData,  u16 capability_info );
-void hal_set_ssid(  phw_data_t pHwData,  PUCHAR pssid,  u8 ssid_len );
+void hal_set_ssid(  phw_data_t pHwData,  u8 *pssid,  u8 ssid_len );
 void hal_set_current_channel(  phw_data_t pHwData,  ChanInfo channel );
 void hal_set_current_channel_ex(  phw_data_t pHwData,  ChanInfo channel );
 void hal_get_current_channel(  phw_data_t pHwData,  ChanInfo *channel );
 void hal_set_accept_broadcast(  phw_data_t pHwData,  u8 enable );
 void hal_set_accept_multicast(  phw_data_t pHwData,  u8 enable );
 void hal_set_accept_beacon(  phw_data_t pHwData,  u8 enable );
-void hal_set_multicast_address(  phw_data_t pHwData,  PUCHAR address,  u8 number );
+void hal_set_multicast_address(  phw_data_t pHwData,  u8 *address,  u8 number );
 u8 hal_get_accept_beacon(  phw_data_t pHwData );
 void hal_stop(  phw_data_t pHwData );
 void hal_halt(  phw_data_t pHwData, void *ppa_data );
@@ -97,7 +97,7 @@ void hal_surprise_remove(  phw_data_t pHwData );
 
 
 void hal_rate_change(  phw_data_t pHwData ); // Notify the HAL rate is changing 20060613.1
-unsigned char hal_get_dxx_reg(  phw_data_t pHwData,  u16 number,  PULONG pValue );
+unsigned char hal_get_dxx_reg(  phw_data_t pHwData,  u16 number,  u32 * pValue );
 unsigned char hal_set_dxx_reg(  phw_data_t pHwData,  u16 number,  u32 value );
 #define hal_get_time_count( _P )	(_P->time_count/10)	// return 100ms count
 #define hal_detect_error( _P )		(_P->WbUsb.DetectCount)
@@ -116,7 +116,7 @@ unsigned char	hal_idle(  phw_data_t pHwData );
 #define pa_stall_execution( _A )	//OS_SLEEP( 1 )
 #define hw_get_cxx_reg( _A, _B, _C )
 #define hw_set_cxx_reg( _A, _B, _C )
-#define hw_get_dxx_reg( _A, _B, _C )	hal_get_dxx_reg( _A, _B, (PULONG)_C )
+#define hw_get_dxx_reg( _A, _B, _C )	hal_get_dxx_reg( _A, _B, (u32 *)_C )
 #define hw_set_dxx_reg( _A, _B, _C )	hal_set_dxx_reg( _A, _B, (u32)_C )
 
 

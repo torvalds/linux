@@ -58,7 +58,7 @@
     {                                                                             \
         if (!(a)) {                                                               \
             DBG_ERROR("ASSERT() Failure: file %s, function %s  line %d\n",\
-                __FILE__, __FUNCTION__, __LINE__);                                \
+                __FILE__, __func__, __LINE__);                                \
         }                                                                         \
     }
 #endif

@@ -121,6 +121,14 @@
 				compatible = "dallas,ds1339";
 				reg = <0x68>;
 			};
+
+			mcu_pio: mcu@a {
+				#gpio-cells = <2>;
+				compatible = "fsl,mc9s08qg8-mpc8315erdb",
+					     "fsl,mcu-mpc8349emitx";
+				reg = <0x0a>;
+				gpio-controller;
+			};
 		};
 
 		spi@7000 {

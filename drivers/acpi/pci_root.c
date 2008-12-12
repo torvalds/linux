@@ -190,7 +190,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	struct acpi_pci_root *root = NULL;
 	struct acpi_pci_root *tmp;
 	acpi_status status = AE_OK;
-	unsigned long value = 0;
+	unsigned long long value = 0;
 	acpi_handle handle = NULL;
 	struct acpi_device *child;
 
@@ -206,7 +206,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	root->device = device;
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
-	acpi_driver_data(device) = root;
+	device->driver_data = root;
 
 	device->ops.bind = acpi_pci_bind;
 
@@ -376,14 +376,8 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 
 static int __init acpi_pci_root_init(void)
 {
-
 	if (acpi_pci_disabled)
 		return 0;
-
-	/* DEBUG:
-	   acpi_dbg_layer = ACPI_PCI_COMPONENT;
-	   acpi_dbg_level = 0xFFFFFFFF;
-	 */
 
 	if (acpi_bus_register_driver(&acpi_pci_root_driver) < 0)
 		return -ENODEV;

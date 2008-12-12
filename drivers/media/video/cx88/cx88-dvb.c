@@ -598,6 +598,11 @@ static int dvb_register(struct cx8802_dev *dev)
 	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
 
+	if (0 != core->i2c_rc) {
+		printk(KERN_ERR "%s/2: no i2c-bus available, cannot attach dvb drivers\n", core->name);
+		goto frontend_detach;
+	}
+
 	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
 	if (!fe0)
@@ -789,7 +794,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (fe0->dvb.frontend)
 			fe0->dvb.frontend->ops.i2c_gate_ctrl = NULL;
 		if (attach_xc3028(0x61, dev) < 0)
-			return -EINVAL;
+			goto frontend_detach;
 		break;
 	case CX88_BOARD_PCHDTV_HD3000:
 		fe0->dvb.frontend = dvb_attach(or51132_attach, &pchdtv_hd3000,
@@ -1058,7 +1063,6 @@ static int dvb_register(struct cx8802_dev *dev)
 					goto frontend_detach;
 				core->prev_set_voltage = fe0->dvb.frontend->ops.set_voltage;
 				fe0->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
-
 			}
 		}
 		break;
@@ -1110,10 +1114,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		&dev->pci->dev, adapter_nr, mfe_shared);
 
 frontend_detach:
-	if (fe0->dvb.frontend) {
-		dvb_frontend_detach(fe0->dvb.frontend);
-		fe0->dvb.frontend = NULL;
-	}
+	videobuf_dvb_dealloc_frontends(&dev->frontends);
 	return -EINVAL;
 }
 
@@ -1246,7 +1247,10 @@ fail_core:
 
 static int cx8802_dvb_remove(struct cx8802_driver *drv)
 {
+	struct cx88_core *core = drv->core;
 	struct cx8802_dev *dev = drv->core->dvbdev;
+
+	dprintk( 1, "%s\n", __func__);
 
 	videobuf_dvb_unregister_bus(&dev->frontends);
 

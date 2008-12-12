@@ -1,0 +1,7 @@
+TODO:
+	- fix transmit overflows
+	- audit userspace interfaces
+	- get reserved major/minor if needed
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
+Vijay Kumar <vijaykumar@bravegnu.org> and Jaya Kumar <jayakumar.lkml@gmail.com>

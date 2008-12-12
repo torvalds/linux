@@ -14,6 +14,7 @@
 #	M68k port by Geert Uytterhoeven and Andreas Schwab
 #	AVR32 port by Haavard Skinnemoen <hskinnemoen@atmel.com>
 #	PARISC port by Kyle McMartin <kyle@parisc-linux.org>
+#	sparc port by Martin Habets <errandir_news@mph.eclipse.co.uk>
 #
 #	Usage:
 #	objdump -d vmlinux | scripts/checkstack.pl [arch]
@@ -94,6 +95,9 @@ my (@stack, $re, $dre, $x, $xs);
 	} elsif ($arch =~ /^blackfin$/) {
 		#   0:   00 e8 38 01     LINK 0x4e0;
 		$re = qr/.*[[:space:]]LINK[[:space:]]*(0x$x{1,8})/o;
+	} elsif ($arch eq 'sparc' || $arch eq 'sparc64') {
+		# f0019d10:       9d e3 bf 90     save  %sp, -112, %sp
+		$re = qr/.*save.*%sp, -(([0-9]{2}|[3-9])[0-9]{2}), %sp/o;
 	} else {
 		print("wrong or unknown architecture \"$arch\"\n");
 		exit

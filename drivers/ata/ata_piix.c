@@ -14,7 +14,7 @@
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
- *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
+ *  Copyright (C) 2003 Red Hat Inc
  *
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -738,7 +738,6 @@ static void piix_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	do_pata_set_dmamode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
  *	@adev: Drive in question
- *	@udma: udma mode, 0 - 6
  *	@isich: set if the chip is an ICH device
  *
  *	Set UDMA mode for device, in host controller PCI config space.
@@ -1066,6 +1065,28 @@ static int piix_broken_suspend(void)
 	for (i = 0; i < ARRAY_SIZE(oemstrs); i++)
 		if (dmi_find_device(DMI_DEV_TYPE_OEM_STRING, oemstrs[i], NULL))
 			return 1;
+
+	/* TECRA M4 sometimes forgets its identify and reports bogus
+	 * DMI information.  As the bogus information is a bit
+	 * generic, match as many entries as possible.  This manual
+	 * matching is necessary because dmi_system_id.matches is
+	 * limited to four entries.
+	 */
+	if (dmi_get_system_info(DMI_SYS_VENDOR) &&
+	    dmi_get_system_info(DMI_PRODUCT_NAME) &&
+	    dmi_get_system_info(DMI_PRODUCT_VERSION) &&
+	    dmi_get_system_info(DMI_PRODUCT_SERIAL) &&
+	    dmi_get_system_info(DMI_BOARD_VENDOR) &&
+	    dmi_get_system_info(DMI_BOARD_NAME) &&
+	    dmi_get_system_info(DMI_BOARD_VERSION) &&
+	    !strcmp(dmi_get_system_info(DMI_SYS_VENDOR), "TOSHIBA") &&
+	    !strcmp(dmi_get_system_info(DMI_PRODUCT_NAME), "000000") &&
+	    !strcmp(dmi_get_system_info(DMI_PRODUCT_VERSION), "000000") &&
+	    !strcmp(dmi_get_system_info(DMI_PRODUCT_SERIAL), "000000") &&
+	    !strcmp(dmi_get_system_info(DMI_BOARD_VENDOR), "TOSHIBA") &&
+	    !strcmp(dmi_get_system_info(DMI_BOARD_NAME), "Portable PC") &&
+	    !strcmp(dmi_get_system_info(DMI_BOARD_VERSION), "Version A0"))
+		return 1;
 
 	return 0;
 }

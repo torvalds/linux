@@ -56,8 +56,13 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 static struct mci_platform_data __initdata mci0_data = {
 	.slot[0] = {
 		.bus_width	= 4,
+#ifndef CONFIG_BOARD_ATNGW100_EVKLCD10X
 		.detect_pin	= GPIO_PIN_PC(25),
 		.wp_pin		= GPIO_PIN_PE(0),
+#else
+		.detect_pin	= GPIO_PIN_NONE,
+		.wp_pin		= GPIO_PIN_NONE,
+#endif
 	},
 };
 
@@ -171,8 +176,6 @@ static int __init atngw100_init(void)
 	 * ATNGW100 uses 16-bit SDRAM interface, so we don't need to
 	 * reserve any pins for it.
 	 */
-
-	at32_add_system_devices();
 
 	at32_add_device_usart(0);
 

@@ -56,9 +56,9 @@ enum p9_debug_flags {
 	P9_DEBUG_PKT =		(1<<10),
 };
 
+#ifdef CONFIG_NET_9P_DEBUG
 extern unsigned int p9_debug_level;
 
-#ifdef CONFIG_NET_9P_DEBUG
 #define P9_DPRINTK(level, format, arg...) \
 do {  \
 	if ((p9_debug_level & level) == level) {\

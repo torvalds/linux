@@ -166,10 +166,9 @@ static int i915_gem_request_info(char *buf, char **start, off_t offset,
 	list_for_each_entry(gem_request, &dev_priv->mm.request_list,
 			    list)
 	{
-		DRM_PROC_PRINT("    %d @ %d %08x\n",
+		DRM_PROC_PRINT("    %d @ %d\n",
 			       gem_request->seqno,
-			       (int) (jiffies - gem_request->emitted_jiffies),
-			       gem_request->flush_domains);
+			       (int) (jiffies - gem_request->emitted_jiffies));
 	}
 	if (len > request + offset)
 		return request;
@@ -192,7 +191,12 @@ static int i915_gem_seqno_info(char *buf, char **start, off_t offset,
 
 	*start = &buf[offset];
 	*eof = 0;
-	DRM_PROC_PRINT("Current sequence: %d\n", i915_get_gem_seqno(dev));
+	if (dev_priv->hw_status_page != NULL) {
+		DRM_PROC_PRINT("Current sequence: %d\n",
+			       i915_get_gem_seqno(dev));
+	} else {
+		DRM_PROC_PRINT("Current sequence: hws uninitialized\n");
+	}
 	DRM_PROC_PRINT("Waiter sequence:  %d\n",
 		       dev_priv->mm.waiting_gem_seqno);
 	DRM_PROC_PRINT("IRQ sequence:     %d\n", dev_priv->mm.irq_gem_seqno);
@@ -230,8 +234,12 @@ static int i915_interrupt_info(char *buf, char **start, off_t offset,
 		       I915_READ(PIPEBSTAT));
 	DRM_PROC_PRINT("Interrupts received: %d\n",
 		       atomic_read(&dev_priv->irq_received));
-	DRM_PROC_PRINT("Current sequence:    %d\n",
-		       i915_get_gem_seqno(dev));
+	if (dev_priv->hw_status_page != NULL) {
+		DRM_PROC_PRINT("Current sequence:    %d\n",
+			       i915_get_gem_seqno(dev));
+	} else {
+		DRM_PROC_PRINT("Current sequence:    hws uninitialized\n");
+	}
 	DRM_PROC_PRINT("Waiter sequence:     %d\n",
 		       dev_priv->mm.waiting_gem_seqno);
 	DRM_PROC_PRINT("IRQ sequence:        %d\n",

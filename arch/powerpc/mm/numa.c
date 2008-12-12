@@ -116,6 +116,7 @@ static int __init get_active_region_work_fn(unsigned long start_pfn,
 
 /*
  * get_node_active_region - Return active region containing start_pfn
+ * Active range returned is empty if none found.
  * @start_pfn: The page to return the region for.
  * @node_ar: Returned set to the active region containing start_pfn
  */
@@ -126,6 +127,7 @@ static void __init get_node_active_region(unsigned long start_pfn,
 
 	node_ar->nid = nid;
 	node_ar->start_pfn = start_pfn;
+	node_ar->end_pfn = start_pfn;
 	work_with_active_regions(nid, get_active_region_work_fn, node_ar);
 }
 
@@ -526,11 +528,9 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 	/*
 	 * We use lmb_end_of_DRAM() in here instead of memory_limit because
 	 * we've already adjusted it for the limit and it takes care of
-	 * having memory holes below the limit.
+	 * having memory holes below the limit.  Also, in the case of
+	 * iommu_is_off, memory_limit is not set but is implicitly enforced.
 	 */
-
-	if (! memory_limit)
-		return size;
 
 	if (start + size <= lmb_end_of_DRAM())
 		return size;
@@ -865,6 +865,67 @@ static struct notifier_block __cpuinitdata ppc64_numa_nb = {
 	.priority = 1 /* Must run before sched domains notifier. */
 };
 
+static void mark_reserved_regions_for_nid(int nid)
+{
+	struct pglist_data *node = NODE_DATA(nid);
+	int i;
+
+	for (i = 0; i < lmb.reserved.cnt; i++) {
+		unsigned long physbase = lmb.reserved.region[i].base;
+		unsigned long size = lmb.reserved.region[i].size;
+		unsigned long start_pfn = physbase >> PAGE_SHIFT;
+		unsigned long end_pfn = ((physbase + size) >> PAGE_SHIFT);
+		struct node_active_region node_ar;
+		unsigned long node_end_pfn = node->node_start_pfn +
+					     node->node_spanned_pages;
+
+		/*
+		 * Check to make sure that this lmb.reserved area is
+		 * within the bounds of the node that we care about.
+		 * Checking the nid of the start and end points is not
+		 * sufficient because the reserved area could span the
+		 * entire node.
+		 */
+		if (end_pfn <= node->node_start_pfn ||
+		    start_pfn >= node_end_pfn)
+			continue;
+
+		get_node_active_region(start_pfn, &node_ar);
+		while (start_pfn < end_pfn &&
+			node_ar.start_pfn < node_ar.end_pfn) {
+			unsigned long reserve_size = size;
+			/*
+			 * if reserved region extends past active region
+			 * then trim size to active region
+			 */
+			if (end_pfn > node_ar.end_pfn)
+				reserve_size = (node_ar.end_pfn << PAGE_SHIFT)
+					- (start_pfn << PAGE_SHIFT);
+			dbg("reserve_bootmem %lx %lx nid=%d\n", physbase,
+				reserve_size, node_ar.nid);
+			reserve_bootmem_node(NODE_DATA(node_ar.nid), physbase,
+						reserve_size, BOOTMEM_DEFAULT);
+			/*
+			 * if reserved region is contained in the active region
+			 * then done.
+			 */
+			if (end_pfn <= node_ar.end_pfn)
+				break;
+
+			/*
+			 * reserved region extends past the active region
+			 *   get next active region that contains this
+			 *   reserved region
+			 */
+			start_pfn = node_ar.end_pfn;
+			physbase = start_pfn << PAGE_SHIFT;
+			size = size - reserve_size;
+			get_node_active_region(start_pfn, &node_ar);
+		}
+	}
+}
+
+
 void __init do_init_bootmem(void)
 {
 	int nid;
@@ -890,7 +951,13 @@ void __init do_init_bootmem(void)
 
 		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 
-		/* Allocate the node structure node local if possible */
+		/*
+		 * Allocate the node structure node local if possible
+		 *
+		 * Be careful moving this around, as it relies on all
+		 * previous nodes' bootmem to be initialized and have
+		 * all reserved areas marked.
+		 */
 		NODE_DATA(nid) = careful_allocation(nid,
 					sizeof(struct pglist_data),
 					SMP_CACHE_BYTES, end_pfn);
@@ -922,50 +989,14 @@ void __init do_init_bootmem(void)
 				  start_pfn, end_pfn);
 
 		free_bootmem_with_active_regions(nid, end_pfn);
-	}
-
-	/* Mark reserved regions */
-	for (i = 0; i < lmb.reserved.cnt; i++) {
-		unsigned long physbase = lmb.reserved.region[i].base;
-		unsigned long size = lmb.reserved.region[i].size;
-		unsigned long start_pfn = physbase >> PAGE_SHIFT;
-		unsigned long end_pfn = ((physbase + size) >> PAGE_SHIFT);
-		struct node_active_region node_ar;
-
-		get_node_active_region(start_pfn, &node_ar);
-		while (start_pfn < end_pfn) {
-			/*
-			 * if reserved region extends past active region
-			 * then trim size to active region
-			 */
-			if (end_pfn > node_ar.end_pfn)
-				size = (node_ar.end_pfn << PAGE_SHIFT)
-					- (start_pfn << PAGE_SHIFT);
-			dbg("reserve_bootmem %lx %lx nid=%d\n", physbase, size,
-				node_ar.nid);
-			reserve_bootmem_node(NODE_DATA(node_ar.nid), physbase,
-						size, BOOTMEM_DEFAULT);
-			/*
-			 * if reserved region is contained in the active region
-			 * then done.
-			 */
-			if (end_pfn <= node_ar.end_pfn)
-				break;
-
-			/*
-			 * reserved region extends past the active region
-			 *   get next active region that contains this
-			 *   reserved region
-			 */
-			start_pfn = node_ar.end_pfn;
-			physbase = start_pfn << PAGE_SHIFT;
-			get_node_active_region(start_pfn, &node_ar);
-		}
-
-	}
-
-	for_each_online_node(nid)
+		/*
+		 * Be very careful about moving this around.  Future
+		 * calls to careful_allocation() depend on this getting
+		 * done correctly.
+		 */
+		mark_reserved_regions_for_nid(nid);
 		sparse_memory_present_with_active_regions(nid);
+	}
 }
 
 void __init paging_init(void)

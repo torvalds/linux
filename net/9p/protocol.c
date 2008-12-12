@@ -53,6 +53,7 @@
 static int
 p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...);
 
+#ifdef CONFIG_NET_9P_DEBUG
 void
 p9pdu_dump(int way, struct p9_fcall *pdu)
 {
@@ -81,6 +82,12 @@ p9pdu_dump(int way, struct p9_fcall *pdu)
 	else
 		P9_DPRINTK(P9_DEBUG_PKT, "]]](%d) %s\n", datalen, buf);
 }
+#else
+void
+p9pdu_dump(int way, struct p9_fcall *pdu)
+{
+}
+#endif
 EXPORT_SYMBOL(p9pdu_dump);
 
 void p9stat_free(struct p9_wstat *stbuf)
@@ -179,7 +186,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 			}
 			break;
 		case 's':{
-				char **ptr = va_arg(ap, char **);
+				char **sptr = va_arg(ap, char **);
 				int16_t len;
 				int size;
 
@@ -189,17 +196,17 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 
 				size = MAX(len, 0);
 
-				*ptr = kmalloc(size + 1, GFP_KERNEL);
-				if (*ptr == NULL) {
+				*sptr = kmalloc(size + 1, GFP_KERNEL);
+				if (*sptr == NULL) {
 					errcode = -EFAULT;
 					break;
 				}
-				if (pdu_read(pdu, *ptr, size)) {
+				if (pdu_read(pdu, *sptr, size)) {
 					errcode = -EFAULT;
-					kfree(*ptr);
-					*ptr = NULL;
+					kfree(*sptr);
+					*sptr = NULL;
 				} else
-					(*ptr)[size] = 0;
+					(*sptr)[size] = 0;
 			}
 			break;
 		case 'Q':{
@@ -373,13 +380,13 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 			}
 			break;
 		case 's':{
-				const char *ptr = va_arg(ap, const char *);
+				const char *sptr = va_arg(ap, const char *);
 				int16_t len = 0;
-				if (ptr)
-					len = MIN(strlen(ptr), USHORT_MAX);
+				if (sptr)
+					len = MIN(strlen(sptr), USHORT_MAX);
 
 				errcode = p9pdu_writef(pdu, optional, "w", len);
-				if (!errcode && pdu_write(pdu, ptr, len))
+				if (!errcode && pdu_write(pdu, sptr, len))
 					errcode = -EFAULT;
 			}
 			break;
@@ -419,7 +426,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 		case 'U':{
 				int32_t count = va_arg(ap, int32_t);
 				const char __user *udata =
-						va_arg(ap, const void *);
+						va_arg(ap, const void __user *);
 				errcode =
 				    p9pdu_writef(pdu, optional, "d", count);
 				if (!errcode && pdu_write_u(pdu, udata, count))
@@ -542,8 +549,10 @@ int p9pdu_finalize(struct p9_fcall *pdu)
 	err = p9pdu_writef(pdu, 0, "d", size);
 	pdu->size = size;
 
+#ifdef CONFIG_NET_9P_DEBUG
 	if ((p9_debug_level & P9_DEBUG_PKT) == P9_DEBUG_PKT)
 		p9pdu_dump(0, pdu);
+#endif
 
 	P9_DPRINTK(P9_DEBUG_9P, ">>> size=%d type: %d tag: %d\n", pdu->size,
 							pdu->id, pdu->tag);

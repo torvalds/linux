@@ -392,7 +392,7 @@ static void set_fb_fix(struct fb_info *fbi)
 	int bpp;
 
 	rg = &plane->fbdev->mem_desc.region[plane->idx];
-	fbi->screen_base	= (char __iomem *)rg->vaddr;
+	fbi->screen_base	= rg->vaddr;
 	fix->smem_start		= rg->paddr;
 	fix->smem_len		= rg->size;
 

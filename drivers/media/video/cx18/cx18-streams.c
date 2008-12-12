@@ -200,16 +200,18 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 /* Initialize v4l2 variables and register v4l2 devices */
 int cx18_streams_setup(struct cx18 *cx)
 {
-	int type;
+	int type, ret;
 
 	/* Setup V4L2 Devices */
 	for (type = 0; type < CX18_MAX_STREAMS; type++) {
 		/* Prepare device */
-		if (cx18_prep_dev(cx, type))
+		ret = cx18_prep_dev(cx, type);
+		if (ret < 0)
 			break;
 
 		/* Allocate Stream */
-		if (cx18_stream_alloc(&cx->streams[type]))
+		ret = cx18_stream_alloc(&cx->streams[type]);
+		if (ret < 0)
 			break;
 	}
 	if (type == CX18_MAX_STREAMS)
@@ -217,14 +219,14 @@ int cx18_streams_setup(struct cx18 *cx)
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
 	cx18_streams_cleanup(cx, 0);
-	return -ENOMEM;
+	return ret;
 }
 
 static int cx18_reg_dev(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
 	int vfl_type = cx18_stream_info[type].vfl_type;
-	int num;
+	int num, ret;
 
 	/* TODO: Shouldn't this be a VFL_TYPE_TRANSPORT or something?
 	 * We need a VFL_TYPE_TS defined.
@@ -233,9 +235,10 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 		/* just return if no DVB is supported */
 		if ((cx->card->hw_all & CX18_HW_DVB) == 0)
 			return 0;
-		if (cx18_dvb_register(s) < 0) {
+		ret = cx18_dvb_register(s);
+		if (ret < 0) {
 			CX18_ERR("DVB failed to register\n");
-			return -EINVAL;
+			return ret;
 		}
 	}
 
@@ -252,12 +255,13 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 	}
 
 	/* Register device. First try the desired minor, then any free one. */
-	if (video_register_device(s->v4l2dev, vfl_type, num)) {
+	ret = video_register_device(s->v4l2dev, vfl_type, num);
+	if (ret < 0) {
 		CX18_ERR("Couldn't register v4l2 device for %s kernel number %d\n",
 			s->name, num);
 		video_device_release(s->v4l2dev);
 		s->v4l2dev = NULL;
-		return -ENOMEM;
+		return ret;
 	}
 	num = s->v4l2dev->num;
 
@@ -290,18 +294,22 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 int cx18_streams_register(struct cx18 *cx)
 {
 	int type;
-	int err = 0;
+	int err;
+	int ret = 0;
 
 	/* Register V4L2 devices */
-	for (type = 0; type < CX18_MAX_STREAMS; type++)
-		err |= cx18_reg_dev(cx, type);
+	for (type = 0; type < CX18_MAX_STREAMS; type++) {
+		err = cx18_reg_dev(cx, type);
+		if (err && ret == 0)
+			ret = err;
+	}
 
-	if (err == 0)
+	if (ret == 0)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
 	cx18_streams_cleanup(cx, 1);
-	return -ENOMEM;
+	return ret;
 }
 
 /* Unregister v4l2 devices */

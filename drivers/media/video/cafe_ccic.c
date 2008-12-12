@@ -1476,12 +1476,9 @@ static int cafe_v4l_open(struct inode *inode, struct file *filp)
 {
 	struct cafe_camera *cam;
 
-	lock_kernel();
 	cam = cafe_find_dev(iminor(inode));
-	if (cam == NULL) {
-		unlock_kernel();
+	if (cam == NULL)
 		return -ENODEV;
-	}
 	filp->private_data = cam;
 
 	mutex_lock(&cam->s_mutex);
@@ -1493,7 +1490,6 @@ static int cafe_v4l_open(struct inode *inode, struct file *filp)
 	}
 	(cam->users)++;
 	mutex_unlock(&cam->s_mutex);
-	unlock_kernel();
 	return 0;
 }
 
@@ -2059,10 +2055,10 @@ static void cafe_dfs_cam_setup(struct cafe_camera *cam)
 
 	if (!cafe_dfs_root)
 		return;
-	sprintf(fname, "regs-%d", cam->v4ldev.minor);
+	sprintf(fname, "regs-%d", cam->v4ldev.num);
 	cam->dfs_regs = debugfs_create_file(fname, 0444, cafe_dfs_root,
 			cam, &cafe_dfs_reg_ops);
-	sprintf(fname, "cam-%d", cam->v4ldev.minor);
+	sprintf(fname, "cam-%d", cam->v4ldev.num);
 	cam->dfs_cam_regs = debugfs_create_file(fname, 0444, cafe_dfs_root,
 			cam, &cafe_dfs_cam_ops);
 }

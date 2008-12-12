@@ -402,6 +402,8 @@ static int __init dynamic_printk_init(void)
 				iter->logical_modname,
 				iter->flag_names, iter->hash, iter->hash2);
 	}
+	if (dynamic_enabled == DYNAMIC_ENABLED_ALL)
+		set_all(true);
 	return 0;
 }
 module_init(dynamic_printk_init);
@@ -411,7 +413,7 @@ static int __init dynamic_printk_setup(char *str)
 {
 	if (str)
 		return -ENOENT;
-	set_all(true);
+	dynamic_enabled = DYNAMIC_ENABLED_ALL;
 	return 0;
 }
 /* Use early_param(), so we can get debug output as early as possible */

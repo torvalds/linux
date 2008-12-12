@@ -305,8 +305,6 @@ static int __init atstk1002_init(void)
 	at32_reserve_pin(GPIO_PIN_PE(15));	/* DATA[31]	*/
 	at32_reserve_pin(GPIO_PIN_PE(26));	/* SDCS		*/
 
-	at32_add_system_devices();
-
 #ifdef CONFIG_BOARD_ATSTK1006
 	smc_set_timing(&nand_config, &nand_timing);
 	smc_set_configuration(3, &nand_config);

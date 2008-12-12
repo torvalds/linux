@@ -21,7 +21,6 @@
 #include <linux/idr.h>
 #include <linux/hdreg.h>
 #include <linux/blktrace_api.h>
-#include <linux/smp_lock.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -76,7 +75,6 @@ union map_info *dm_get_mapinfo(struct bio *bio)
  */
 struct dm_wq_req {
 	enum {
-		DM_WQ_FLUSH_ALL,
 		DM_WQ_FLUSH_DEFERRED,
 	} type;
 	struct work_struct work;
@@ -151,40 +149,40 @@ static struct kmem_cache *_tio_cache;
 
 static int __init local_init(void)
 {
-	int r;
+	int r = -ENOMEM;
 
 	/* allocate a slab for the dm_ios */
 	_io_cache = KMEM_CACHE(dm_io, 0);
 	if (!_io_cache)
-		return -ENOMEM;
+		return r;
 
 	/* allocate a slab for the target ios */
 	_tio_cache = KMEM_CACHE(dm_target_io, 0);
-	if (!_tio_cache) {
-		kmem_cache_destroy(_io_cache);
-		return -ENOMEM;
-	}
+	if (!_tio_cache)
+		goto out_free_io_cache;
 
 	r = dm_uevent_init();
-	if (r) {
-		kmem_cache_destroy(_tio_cache);
-		kmem_cache_destroy(_io_cache);
-		return r;
-	}
+	if (r)
+		goto out_free_tio_cache;
 
 	_major = major;
 	r = register_blkdev(_major, _name);
-	if (r < 0) {
-		kmem_cache_destroy(_tio_cache);
-		kmem_cache_destroy(_io_cache);
-		dm_uevent_exit();
-		return r;
-	}
+	if (r < 0)
+		goto out_uevent_exit;
 
 	if (!_major)
 		_major = r;
 
 	return 0;
+
+out_uevent_exit:
+	dm_uevent_exit();
+out_free_tio_cache:
+	kmem_cache_destroy(_tio_cache);
+out_free_io_cache:
+	kmem_cache_destroy(_io_cache);
+
+	return r;
 }
 
 static void local_exit(void)
@@ -249,13 +247,13 @@ static void __exit dm_exit(void)
 /*
  * Block device functions
  */
-static int dm_blk_open(struct inode *inode, struct file *file)
+static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mapped_device *md;
 
 	spin_lock(&_minor_lock);
 
-	md = inode->i_bdev->bd_disk->private_data;
+	md = bdev->bd_disk->private_data;
 	if (!md)
 		goto out;
 
@@ -274,11 +272,9 @@ out:
 	return md ? 0 : -ENXIO;
 }
 
-static int dm_blk_close(struct inode *inode, struct file *file)
+static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
-	struct mapped_device *md;
-
-	md = inode->i_bdev->bd_disk->private_data;
+	struct mapped_device *md = disk->private_data;
 	atomic_dec(&md->open_count);
 	dm_put(md);
 	return 0;
@@ -315,20 +311,13 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return dm_get_geometry(md, geo);
 }
 
-static int dm_blk_ioctl(struct inode *inode, struct file *file,
+static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
-	struct mapped_device *md;
-	struct dm_table *map;
+	struct mapped_device *md = bdev->bd_disk->private_data;
+	struct dm_table *map = dm_get_table(md);
 	struct dm_target *tgt;
 	int r = -ENOTTY;
-
-	/* We don't really need this lock, but we do need 'inode'. */
-	unlock_kernel();
-
-	md = inode->i_bdev->bd_disk->private_data;
-
-	map = dm_get_table(md);
 
 	if (!map || !dm_table_get_size(map))
 		goto out;
@@ -345,12 +334,11 @@ static int dm_blk_ioctl(struct inode *inode, struct file *file,
 	}
 
 	if (tgt->type->ioctl)
-		r = tgt->type->ioctl(tgt, inode, file, cmd, arg);
+		r = tgt->type->ioctl(tgt, cmd, arg);
 
 out:
 	dm_table_put(map);
 
-	lock_kernel();
 	return r;
 }
 
@@ -387,7 +375,7 @@ static void start_io_acct(struct dm_io *io)
 	dm_disk(md)->part0.in_flight = atomic_inc_return(&md->pending);
 }
 
-static int end_io_acct(struct dm_io *io)
+static void end_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
 	struct bio *bio = io->bio;
@@ -403,7 +391,9 @@ static int end_io_acct(struct dm_io *io)
 	dm_disk(md)->part0.in_flight = pending =
 		atomic_dec_return(&md->pending);
 
-	return !pending;
+	/* nudge anyone waiting on suspend queue */
+	if (!pending)
+		wake_up(&md->wait);
 }
 
 /*
@@ -511,9 +501,7 @@ static void dec_pending(struct dm_io *io, int error)
 			spin_unlock_irqrestore(&io->md->pushback_lock, flags);
 		}
 
-		if (end_io_acct(io))
-			/* nudge anyone waiting on suspend queue */
-			wake_up(&io->md->wait);
+		end_io_acct(io);
 
 		if (io->error != DM_ENDIO_REQUEUE) {
 			blk_add_trace_bio(io->md->queue, io->bio,
@@ -669,6 +657,7 @@ static struct bio *split_bvec(struct bio *bio, sector_t sector,
 	clone->bi_size = to_bytes(len);
 	clone->bi_io_vec->bv_offset = offset;
 	clone->bi_io_vec->bv_len = clone->bi_size;
+	clone->bi_flags |= 1 << BIO_CLONED;
 
 	return clone;
 }
@@ -948,16 +937,24 @@ static void dm_unplug_all(struct request_queue *q)
 
 static int dm_any_congested(void *congested_data, int bdi_bits)
 {
-	int r;
-	struct mapped_device *md = (struct mapped_device *) congested_data;
-	struct dm_table *map = dm_get_table(md);
+	int r = bdi_bits;
+	struct mapped_device *md = congested_data;
+	struct dm_table *map;
 
-	if (!map || test_bit(DMF_BLOCK_IO, &md->flags))
-		r = bdi_bits;
-	else
-		r = dm_table_any_congested(map, bdi_bits);
+	atomic_inc(&md->pending);
 
-	dm_table_put(map);
+	if (!test_bit(DMF_BLOCK_IO, &md->flags)) {
+		map = dm_get_table(md);
+		if (map) {
+			r = dm_table_any_congested(map, bdi_bits);
+			dm_table_put(map);
+		}
+	}
+
+	if (!atomic_dec_return(&md->pending))
+		/* nudge anyone waiting on suspend queue */
+		wake_up(&md->wait);
+
 	return r;
 }
 
@@ -1394,9 +1391,6 @@ static void dm_wq_work(struct work_struct *work)
 
 	down_write(&md->io_lock);
 	switch (req->type) {
-	case DM_WQ_FLUSH_ALL:
-		__merge_pushback_list(md);
-		/* pass through */
 	case DM_WQ_FLUSH_DEFERRED:
 		__flush_deferred_io(md);
 		break;
@@ -1526,7 +1520,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		if (!md->suspended_bdev) {
 			DMWARN("bdget failed in dm_suspend");
 			r = -ENOMEM;
-			goto flush_and_out;
+			goto out;
 		}
 
 		/*
@@ -1576,14 +1570,6 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	dm_table_postsuspend_targets(map);
 
 	set_bit(DMF_SUSPENDED, &md->flags);
-
-flush_and_out:
-	if (r && noflush)
-		/*
-		 * Because there may be already I/Os in the pushback list,
-		 * flush them before return.
-		 */
-		dm_queue_flush(md, DM_WQ_FLUSH_ALL, NULL);
 
 out:
 	if (r && md->suspended_bdev) {

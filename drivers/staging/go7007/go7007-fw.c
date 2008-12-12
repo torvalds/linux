@@ -26,7 +26,6 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/device.h>

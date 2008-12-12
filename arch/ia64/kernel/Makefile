@@ -42,6 +42,10 @@ obj-$(CONFIG_IA64_ESI)		+= esi.o
 ifneq ($(CONFIG_IA64_ESI),)
 obj-y				+= esi_stub.o	# must be in kernel proper
 endif
+obj-$(CONFIG_DMAR)		+= pci-dma.o
+ifeq ($(CONFIG_DMAR), y)
+obj-$(CONFIG_SWIOTLB)		+= pci-swiotlb.o
+endif
 
 # The gate DSO image is built using a special linker script.
 targets += gate.so gate-syms.o
@@ -112,5 +116,23 @@ clean-files += $(objtree)/include/asm-ia64/nr-irqs.h
 ASM_PARAVIRT_OBJS = ivt.o entry.o
 define paravirtualized_native
 AFLAGS_$(1) += -D__IA64_ASM_PARAVIRTUALIZED_NATIVE
+AFLAGS_pvchk-sed-$(1) += -D__IA64_ASM_PARAVIRTUALIZED_PVCHECK
+extra-y += pvchk-$(1)
 endef
 $(foreach obj,$(ASM_PARAVIRT_OBJS),$(eval $(call paravirtualized_native,$(obj))))
+
+#
+# Checker for paravirtualizations of privileged operations.
+#
+quiet_cmd_pv_check_sed = PVCHK   $@
+define cmd_pv_check_sed
+	sed -f $(srctree)/arch/$(SRCARCH)/scripts/pvcheck.sed $< > $@
+endef
+
+$(obj)/pvchk-sed-%.s: $(src)/%.S $(srctree)/arch/$(SRCARCH)/scripts/pvcheck.sed FORCE
+	$(call if_changed_dep,as_s_S)
+$(obj)/pvchk-%.s: $(obj)/pvchk-sed-%.s FORCE
+	$(call if_changed,pv_check_sed)
+$(obj)/pvchk-%.o: $(obj)/pvchk-%.s FORCE
+	$(call if_changed,as_o_S)
+.PRECIOUS: $(obj)/pvchk-sed-%.s $(obj)/pvchk-%.s $(obj)/pvchk-%.o

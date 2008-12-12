@@ -202,7 +202,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	ret = usbip_xmit(0, ud->tcp_socket, (char *) &pdu, sizeof(pdu), 0);
 	if (ret != sizeof(pdu)) {
 		uerr("receiving pdu failed! size is %d, should be %d\n",
-				ret, sizeof(pdu));
+				ret, (unsigned int)sizeof(pdu));
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		return;
 	}

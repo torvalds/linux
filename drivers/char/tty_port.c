@@ -90,7 +90,7 @@ void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
 	spin_lock_irqsave(&port->lock, flags);
 	if (port->tty)
 		tty_kref_put(port->tty);
-	port->tty = tty;
+	port->tty = tty_kref_get(tty);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 EXPORT_SYMBOL(tty_port_tty_set);

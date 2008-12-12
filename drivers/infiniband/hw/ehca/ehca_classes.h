@@ -128,6 +128,8 @@ struct ehca_shca {
 	/* MR pgsize: bit 0-3 means 4K, 64K, 1M, 16M respectively */
 	u32 hca_cap_mr_pgsize;
 	int max_mtu;
+	int max_num_qps;
+	int max_num_cqs;
 	atomic_t num_cqs;
 	atomic_t num_qps;
 };
@@ -161,7 +163,8 @@ struct ehca_mod_qp_parm {
 /* struct for tracking if cqes have been reported to the application */
 struct ehca_qmap_entry {
 	u16 app_wr_id;
-	u16 reported;
+	u8 reported;
+	u8 cqe_req;
 };
 
 struct ehca_queue_map {
@@ -169,6 +172,7 @@ struct ehca_queue_map {
 	unsigned int entries;
 	unsigned int tail;
 	unsigned int left_to_poll;
+	unsigned int next_wqe_idx;   /* Idx to first wqe to be flushed */
 };
 
 struct ehca_qp {

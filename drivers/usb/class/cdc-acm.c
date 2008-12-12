@@ -158,16 +158,12 @@ static int acm_wb_is_avail(struct acm *acm)
 }
 
 /*
- * Finish write.
+ * Finish write. Caller must hold acm->write_lock
  */
 static void acm_write_done(struct acm *acm, struct acm_wb *wb)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&acm->write_lock, flags);
 	wb->use = 0;
 	acm->transmitting--;
-	spin_unlock_irqrestore(&acm->write_lock, flags);
 }
 
 /*
@@ -482,6 +478,7 @@ static void acm_write_bulk(struct urb *urb)
 {
 	struct acm_wb *wb = urb->context;
 	struct acm *acm = wb->instance;
+	unsigned long flags;
 
 	if (verbose || urb->status
 			|| (urb->actual_length != urb->transfer_buffer_length))
@@ -490,7 +487,9 @@ static void acm_write_bulk(struct urb *urb)
 			urb->transfer_buffer_length,
 			urb->status);
 
+	spin_lock_irqsave(&acm->write_lock, flags);
 	acm_write_done(acm, wb);
+	spin_unlock_irqrestore(&acm->write_lock, flags);
 	if (ACM_READY(acm))
 		schedule_work(&acm->work);
 	else
@@ -849,9 +848,10 @@ static void acm_write_buffers_free(struct acm *acm)
 {
 	int i;
 	struct acm_wb *wb;
+	struct usb_device *usb_dev = interface_to_usbdev(acm->control);
 
 	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++) {
-		usb_buffer_free(acm->dev, acm->writesize, wb->buf, wb->dmah);
+		usb_buffer_free(usb_dev, acm->writesize, wb->buf, wb->dmah);
 	}
 }
 

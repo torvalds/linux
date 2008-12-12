@@ -3261,6 +3261,7 @@ nfs4_state_shutdown(void)
 {
 	cancel_rearming_delayed_workqueue(laundry_wq, &laundromat_work);
 	destroy_workqueue(laundry_wq);
+	locks_end_grace(&nfsd4_manager);
 	nfs4_lock_state();
 	nfs4_release_reclaim();
 	__nfs4_state_shutdown();
@@ -3284,17 +3285,17 @@ int
 nfs4_reset_recoverydir(char *recdir)
 {
 	int status;
-	struct nameidata nd;
+	struct path path;
 
-	status = path_lookup(recdir, LOOKUP_FOLLOW, &nd);
+	status = kern_path(recdir, LOOKUP_FOLLOW, &path);
 	if (status)
 		return status;
 	status = -ENOTDIR;
-	if (S_ISDIR(nd.path.dentry->d_inode->i_mode)) {
+	if (S_ISDIR(path.dentry->d_inode->i_mode)) {
 		nfs4_set_recdir(recdir);
 		status = 0;
 	}
-	path_put(&nd.path);
+	path_put(&path);
 	return status;
 }
 

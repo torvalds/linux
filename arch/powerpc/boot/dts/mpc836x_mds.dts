@@ -69,7 +69,7 @@
 		};
 
 		bcsr@1,0 {
-			device_type = "board-control";
+ 			compatible = "fsl,mpc8360mds-bcsr";
 			reg = <1 0 0x8000>;
 		};
 	};

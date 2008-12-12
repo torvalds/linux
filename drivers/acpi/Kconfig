@@ -42,7 +42,7 @@ if ACPI
 
 config ACPI_SLEEP
 	bool
-	depends on PM_SLEEP
+	depends on SUSPEND || HIBERNATION
 	default y
 
 config ACPI_PROCFS
@@ -157,18 +157,11 @@ config ACPI_FAN
 	  applications to perform basic fan control (on, off, status).
 
 config ACPI_DOCK
-	tristate "Dock"
+	bool "Dock"
 	depends on EXPERIMENTAL
 	help
-	  This driver adds support for ACPI controlled docking stations
-
-config ACPI_BAY
-	tristate "Removable Drive Bay (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	depends on ACPI_DOCK
-	help
-	  This driver adds support for ACPI controlled removable drive
-	  bays such as the IBM ultrabay or the Dell Module Bay.
+	  This driver adds support for ACPI controlled docking stations and removable
+	  drive bays such as the IBM ultrabay or the Dell Module Bay.
 
 config ACPI_PROCESSOR
 	tristate "Processor"
@@ -319,9 +312,13 @@ config ACPI_DEBUG
 	bool "Debug Statements"
 	default n
 	help
-	  The ACPI driver can optionally report errors with a great deal
-	  of verbosity. Saying Y enables these statements. This will increase
-	  your kernel size by around 50K.
+	  The ACPI subsystem can produce debug output.  Saying Y enables this
+	  output and increases the kernel size by around 50K.
+
+	  Use the acpi.debug_layer and acpi.debug_level kernel command-line
+	  parameters documented in Documentation/acpi/debug.txt and
+	  Documentation/kernel-parameters.txt to control the type and
+	  amount of debug output.
 
 config ACPI_DEBUG_FUNC_TRACE
 	bool "Additionally enable ACPI function tracing"
@@ -331,14 +328,6 @@ config ACPI_DEBUG_FUNC_TRACE
 	  ACPI Debug Statements slow down ACPI processing. Function trace
 	  is about half of the penalty and is rarely useful.
 
-config ACPI_EC
-	bool
-	default y
-	help
-	  This driver is required on some systems for the proper operation of
-	  the battery and thermal drivers.  If you are compiling for a 
-	  mobile system, say Y.
-
 config ACPI_PCI_SLOT
 	tristate "PCI slot detection driver"
 	default n
@@ -347,10 +336,6 @@ config ACPI_PCI_SLOT
 	  and creates entries in /sys/bus/pci/slots/. This feature can
 	  help you correlate PCI bus addresses with the physical geography
 	  of your slots. If you are unsure, say N.
-
-config ACPI_POWER
-	bool
-	default y
 
 config ACPI_SYSTEM
 	bool

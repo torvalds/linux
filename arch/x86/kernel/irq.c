@@ -36,7 +36,7 @@ void ack_bad_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_X86_32
-# define irq_stats(x)		(&per_cpu(irq_stat,x))
+# define irq_stats(x)		(&per_cpu(irq_stat, x))
 #else
 # define irq_stats(x)		cpu_pda(x)
 #endif
@@ -113,7 +113,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (i == 0) {
 		seq_printf(p, "           ");
 		for_each_online_cpu(j)
-			seq_printf(p, "CPU%-8d",j);
+			seq_printf(p, "CPU%-8d", j);
 		seq_putc(p, '\n');
 	}
 

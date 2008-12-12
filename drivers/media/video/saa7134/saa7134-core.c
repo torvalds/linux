@@ -941,7 +941,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		       dev->name,(unsigned long long)pci_resource_start(pci_dev,0));
 		goto fail1;
 	}
-	dev->lmmio = ioremap(pci_resource_start(pci_dev,0), 0x1000);
+	dev->lmmio = ioremap(pci_resource_start(pci_dev, 0),
+			     pci_resource_len(pci_dev, 0));
 	dev->bmmio = (__u8 __iomem *)dev->lmmio;
 	if (NULL == dev->lmmio) {
 		err = -EIO;
@@ -996,7 +997,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		goto fail4;
 	}
 	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
-	       dev->name,dev->video_dev->minor & 0x1f);
+	       dev->name, dev->video_dev->num);
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
 
@@ -1005,7 +1006,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (err < 0)
 		goto fail4;
 	printk(KERN_INFO "%s: registered device vbi%d\n",
-	       dev->name,dev->vbi_dev->minor & 0x1f);
+	       dev->name, dev->vbi_dev->num);
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
@@ -1014,7 +1015,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		if (err < 0)
 			goto fail4;
 		printk(KERN_INFO "%s: registered device radio%d\n",
-		       dev->name,dev->radio_dev->minor & 0x1f);
+		       dev->name, dev->radio_dev->num);
 	}
 
 	/* everything worked */

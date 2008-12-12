@@ -9,7 +9,7 @@
 static int show_schedstat(struct seq_file *seq, void *v)
 {
 	int cpu;
-	int mask_len = NR_CPUS/32 * 9;
+	int mask_len = DIV_ROUND_UP(NR_CPUS, 32) * 9;
 	char *mask_str = kmalloc(mask_len, GFP_KERNEL);
 
 	if (mask_str == NULL)
@@ -90,12 +90,19 @@ static int schedstat_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-const struct file_operations proc_schedstat_operations = {
+static const struct file_operations proc_schedstat_operations = {
 	.open    = schedstat_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
+
+static int __init proc_schedstat_init(void)
+{
+	proc_create("schedstat", 0, NULL, &proc_schedstat_operations);
+	return 0;
+}
+module_init(proc_schedstat_init);
 
 /*
  * Expects runqueue lock to be held for atomicity of update
@@ -291,9 +298,11 @@ static inline void account_group_user_time(struct task_struct *tsk,
 {
 	struct signal_struct *sig;
 
-	sig = tsk->signal;
-	if (unlikely(!sig))
+	/* tsk == current, ensure it is safe to use ->signal */
+	if (unlikely(tsk->exit_state))
 		return;
+
+	sig = tsk->signal;
 	if (sig->cputime.totals) {
 		struct task_cputime *times;
 
@@ -318,9 +327,11 @@ static inline void account_group_system_time(struct task_struct *tsk,
 {
 	struct signal_struct *sig;
 
-	sig = tsk->signal;
-	if (unlikely(!sig))
+	/* tsk == current, ensure it is safe to use ->signal */
+	if (unlikely(tsk->exit_state))
 		return;
+
+	sig = tsk->signal;
 	if (sig->cputime.totals) {
 		struct task_cputime *times;
 
@@ -346,8 +357,11 @@ static inline void account_group_exec_runtime(struct task_struct *tsk,
 	struct signal_struct *sig;
 
 	sig = tsk->signal;
+	/* see __exit_signal()->task_rq_unlock_wait() */
+	barrier();
 	if (unlikely(!sig))
 		return;
+
 	if (sig->cputime.totals) {
 		struct task_cputime *times;
 

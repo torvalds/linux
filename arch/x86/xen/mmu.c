@@ -246,11 +246,21 @@ xmaddr_t arbitrary_virt_to_machine(void *vaddr)
 {
 	unsigned long address = (unsigned long)vaddr;
 	unsigned int level;
-	pte_t *pte = lookup_address(address, &level);
-	unsigned offset = address & ~PAGE_MASK;
+	pte_t *pte;
+	unsigned offset;
 
+	/*
+	 * if the PFN is in the linear mapped vaddr range, we can just use
+	 * the (quick) virt_to_machine() p2m lookup
+	 */
+	if (virt_addr_valid(vaddr))
+		return virt_to_machine(vaddr);
+
+	/* otherwise we have to do a (slower) full page-table walk */
+
+	pte = lookup_address(address, &level);
 	BUG_ON(pte == NULL);
-
+	offset = address & ~PAGE_MASK;
 	return XMADDR(((phys_addr_t)pte_mfn(*pte) << PAGE_SHIFT) + offset);
 }
 
@@ -410,7 +420,7 @@ void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 
 	xen_mc_batch();
 
-	u.ptr = virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
+	u.ptr = arbitrary_virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
 	u.val = pte_val_ma(pte);
 	xen_extend_mmu_update(&u);
 
@@ -651,12 +661,11 @@ void xen_set_pgd(pgd_t *ptr, pgd_t val)
  * For 64-bit, we must skip the Xen hole in the middle of the address
  * space, just after the big x86-64 virtual hole.
  */
-static int xen_pgd_walk(struct mm_struct *mm,
-			int (*func)(struct mm_struct *mm, struct page *,
-				    enum pt_level),
-			unsigned long limit)
+static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+			  int (*func)(struct mm_struct *mm, struct page *,
+				      enum pt_level),
+			  unsigned long limit)
 {
-	pgd_t *pgd = mm->pgd;
 	int flush = 0;
 	unsigned hole_low, hole_high;
 	unsigned pgdidx_limit, pudidx_limit, pmdidx_limit;
@@ -741,6 +750,14 @@ out:
 	flush |= (*func)(mm, virt_to_page(pgd), PT_PGD);
 
 	return flush;
+}
+
+static int xen_pgd_walk(struct mm_struct *mm,
+			int (*func)(struct mm_struct *mm, struct page *,
+				    enum pt_level),
+			unsigned long limit)
+{
+	return __xen_pgd_walk(mm, mm->pgd, func, limit);
 }
 
 /* If we're using split pte locks, then take the page's lock and
@@ -840,13 +857,16 @@ static int xen_pin_page(struct mm_struct *mm, struct page *page,
    read-only, and can be pinned. */
 static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
 {
+	vm_unmap_aliases();
+
 	xen_mc_batch();
 
-	if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
-		/* re-enable interrupts for kmap_flush_unused */
+	if (__xen_pgd_walk(mm, pgd, xen_pin_page, USER_LIMIT)) {
+		/* re-enable interrupts for flushing */
 		xen_mc_issue(0);
+
 		kmap_flush_unused();
-		vm_unmap_aliases();
+
 		xen_mc_batch();
 	}
 
@@ -864,7 +884,7 @@ static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
 #else /* CONFIG_X86_32 */
 #ifdef CONFIG_X86_PAE
 	/* Need to make sure unshared kernel PMD is pinnable */
-	xen_pin_page(mm, virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])),
+	xen_pin_page(mm, pgd_page(pgd[pgd_index(TASK_SIZE)]),
 		     PT_PMD);
 #endif
 	xen_do_pin(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(pgd)));
@@ -981,11 +1001,11 @@ static void __xen_pgd_unpin(struct mm_struct *mm, pgd_t *pgd)
 
 #ifdef CONFIG_X86_PAE
 	/* Need to make sure unshared kernel PMD is unpinned */
-	xen_unpin_page(mm, virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])),
+	xen_unpin_page(mm, pgd_page(pgd[pgd_index(TASK_SIZE)]),
 		       PT_PMD);
 #endif
 
-	xen_pgd_walk(mm, xen_unpin_page, USER_LIMIT);
+	__xen_pgd_walk(mm, pgd, xen_unpin_page, USER_LIMIT);
 
 	xen_mc_issue(0);
 }

@@ -768,8 +768,7 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 {
 	struct cx8802_dev *dev;
 	struct cx88_core  *core;
-	struct videobuf_dvb_frontend *demod;
-	int err,i;
+	int err;
 
 	/* general setup */
 	core = cx88_core_get(pci_dev);
@@ -781,11 +780,6 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	err = -ENODEV;
 	if (!core->board.mpeg)
 		goto fail_core;
-
-	if (!core->board.num_frontends) {
-		printk(KERN_ERR "%s() .num_frontends should be non-zero, err = %d\n", __func__, err);
-		goto fail_core;
-	}
 
 	err = -ENOMEM;
 	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
@@ -801,19 +795,28 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	INIT_LIST_HEAD(&dev->drvlist);
 	list_add_tail(&dev->devlist,&cx8802_devlist);
 
+#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.felist);
 
-	printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__, core->board.num_frontends);
+	if (core->board.num_frontends) {
+		struct videobuf_dvb_frontend *fe;
+		int i;
 
-	for (i = 1; i <= core->board.num_frontends; i++) {
-		demod = videobuf_dvb_alloc_frontend(&dev->frontends, i);
-		if(demod == NULL) {
-			printk(KERN_ERR "%s() failed to alloc\n", __func__);
-			err = -ENOMEM;
-			goto fail_free;
+		printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__,
+			core->board.num_frontends);
+		for (i = 1; i <= core->board.num_frontends; i++) {
+			fe = videobuf_dvb_alloc_frontend(&dev->frontends, i);
+			if(fe == NULL) {
+				printk(KERN_ERR "%s() failed to alloc\n",
+					__func__);
+				videobuf_dvb_dealloc_frontends(&dev->frontends);
+				err = -ENOMEM;
+				goto fail_free;
+			}
 		}
 	}
+#endif
 
 	/* Maintain a reference so cx88-video can query the 8802 device. */
 	core->dvbdev = dev;

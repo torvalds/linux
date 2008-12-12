@@ -406,19 +406,15 @@ static int register_snoop_agent(struct ib_mad_qp_info *qp_info,
 
 	if (i == qp_info->snoop_table_size) {
 		/* Grow table. */
-		new_snoop_table = kmalloc(sizeof mad_snoop_priv *
-					  qp_info->snoop_table_size + 1,
-					  GFP_ATOMIC);
+		new_snoop_table = krealloc(qp_info->snoop_table,
+					   sizeof mad_snoop_priv *
+					   (qp_info->snoop_table_size + 1),
+					   GFP_ATOMIC);
 		if (!new_snoop_table) {
 			i = -ENOMEM;
 			goto out;
 		}
-		if (qp_info->snoop_table) {
-			memcpy(new_snoop_table, qp_info->snoop_table,
-			       sizeof mad_snoop_priv *
-			       qp_info->snoop_table_size);
-			kfree(qp_info->snoop_table);
-		}
+
 		qp_info->snoop_table = new_snoop_table;
 		qp_info->snoop_table_size++;
 	}

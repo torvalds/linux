@@ -12,9 +12,9 @@
  * made by National Semiconductor. Both have an increased remote
  * temperature measurement accuracy (1 degree), and the LM99
  * additionally shifts remote temperatures (measured and limits) by 16
- * degrees, which allows for higher temperatures measurement. The
- * driver doesn't handle it since it can be done easily in user-space.
+ * degrees, which allows for higher temperatures measurement.
  * Note that there is no way to differentiate between both chips.
+ * When device is auto-detected, the driver will assume an LM99.
  *
  * This driver also supports the LM86, another sensor chip made by
  * National Semiconductor. It is exactly similar to the LM90 except it
@@ -169,8 +169,8 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "adt7461", adt7461 },
 	{ "lm90", lm90 },
 	{ "lm86", lm86 },
-	{ "lm89", lm99 },
-	{ "lm99", lm99 },	/* Missing temperature offset */
+	{ "lm89", lm86 },
+	{ "lm99", lm99 },
 	{ "max6646", max6646 },
 	{ "max6647", max6646 },
 	{ "max6649", max6646 },
@@ -366,6 +366,10 @@ static ssize_t show_temp8(struct device *dev, struct device_attribute *devattr,
 	else
 		temp = temp_from_s8(data->temp8[attr->index]);
 
+	/* +16 degrees offset for temp2 for the LM99 */
+	if (data->kind == lm99 && attr->index == 3)
+		temp += 16000;
+
 	return sprintf(buf, "%d\n", temp);
 }
 
@@ -384,6 +388,10 @@ static ssize_t set_temp8(struct device *dev, struct device_attribute *devattr,
 	struct lm90_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 	int nr = attr->index;
+
+	/* +16 degrees offset for temp2 for the LM99 */
+	if (data->kind == lm99 && attr->index == 3)
+		val -= 16000;
 
 	mutex_lock(&data->update_lock);
 	if (data->kind == adt7461)
@@ -411,6 +419,10 @@ static ssize_t show_temp11(struct device *dev, struct device_attribute *devattr,
 	else
 		temp = temp_from_s16(data->temp11[attr->index]);
 
+	/* +16 degrees offset for temp2 for the LM99 */
+	if (data->kind == lm99 &&  attr->index <= 2)
+		temp += 16000;
+
 	return sprintf(buf, "%d\n", temp);
 }
 
@@ -431,6 +443,10 @@ static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
 	struct lm90_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 	int nr = attr->index;
+
+	/* +16 degrees offset for temp2 for the LM99 */
+	if (data->kind == lm99 && attr->index <= 2)
+		val -= 16000;
 
 	mutex_lock(&data->update_lock);
 	if (data->kind == adt7461)
@@ -461,8 +477,14 @@ static ssize_t show_temphyst(struct device *dev, struct device_attribute *devatt
 
 	if (data->kind == adt7461)
 		temp = temp_from_u8_adt7461(data, data->temp8[attr->index]);
+	else if (data->kind == max6646)
+		temp = temp_from_u8(data->temp8[attr->index]);
 	else
 		temp = temp_from_s8(data->temp8[attr->index]);
+
+	/* +16 degrees offset for temp2 for the LM99 */
+	if (data->kind == lm99 && attr->index == 3)
+		temp += 16000;
 
 	return sprintf(buf, "%d\n", temp - temp_from_s8(data->temp_hyst));
 }
@@ -473,12 +495,19 @@ static ssize_t set_temphyst(struct device *dev, struct device_attribute *dummy,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm90_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
-	long hyst;
+	int temp;
 
 	mutex_lock(&data->update_lock);
-	hyst = temp_from_s8(data->temp8[2]) - val;
+	if (data->kind == adt7461)
+		temp = temp_from_u8_adt7461(data, data->temp8[2]);
+	else if (data->kind == max6646)
+		temp = temp_from_u8(data->temp8[2]);
+	else
+		temp = temp_from_s8(data->temp8[2]);
+
+	data->temp_hyst = hyst_to_reg(temp - val);
 	i2c_smbus_write_byte_data(client, LM90_REG_W_TCRIT_HYST,
-				  hyst_to_reg(hyst));
+				  data->temp_hyst);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -682,6 +711,15 @@ static int lm90_detect(struct i2c_client *new_client, int kind,
 				} else
 				if ((chip_id & 0xF0) == 0x30) { /* LM89/LM99 */
 					kind = lm99;
+					dev_info(&adapter->dev,
+						 "Assuming LM99 chip at "
+						 "0x%02x\n", address);
+					dev_info(&adapter->dev,
+						 "If it is an LM89, pass "
+						 "force_lm86=%d,0x%02x when "
+						 "loading the lm90 driver\n",
+						 i2c_adapter_id(adapter),
+						 address);
 				} else
 				if (address == 0x4C
 				 && (chip_id & 0xF0) == 0x10) { /* LM86 */

@@ -1470,7 +1470,8 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 		retval = -EIO;
 		goto error_vdev;
 	}
-	PDEBUG (0, "STV(i): registered new video device: video%d", stv680->vdev->minor);
+	PDEBUG(0, "STV(i): registered new video device: video%d",
+		stv680->vdev->num);
 
 	usb_set_intfdata (intf, stv680);
 	retval = stv680_create_sysfs_files(stv680->vdev);

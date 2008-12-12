@@ -97,7 +97,7 @@ struct sd_desc {
 	cam_pkt_op pkt_scan;
 /* optional operations */
 	cam_v_op stopN;		/* called on stream off - main alt */
-	cam_v_op stop0;		/* called on stream off - alt 0 */
+	cam_v_op stop0;		/* called on stream off & disconnect - alt 0 */
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;
@@ -120,8 +120,8 @@ struct gspca_frame {
 };
 
 struct gspca_dev {
-	struct video_device vdev;	/* !! must be the first item */
-	struct file_operations fops;
+	struct video_device *vdev;
+	struct module *module;		/* subdriver handling the device */
 	struct usb_device *dev;
 	struct kref kref;
 	struct file *capt_file;		/* file doing video capture */

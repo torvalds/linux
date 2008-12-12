@@ -282,6 +282,8 @@ static int backlight = 1;
 static int backlight = 0;
 #endif
 
+int accel_cexp = 0;
+
 /*
  * prototypes
  */
@@ -1875,6 +1877,7 @@ static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
 	info->fbops = &radeonfb_ops;
 	info->screen_base = rinfo->fb_base;
 	info->screen_size = rinfo->mapped_vram;
+
 	/* Fill fix common fields */
 	strlcpy(info->fix.id, rinfo->name, sizeof(info->fix.id));
         info->fix.smem_start = rinfo->fb_base_phys;
@@ -1889,8 +1892,25 @@ static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
         info->fix.mmio_len = RADEON_REGSIZE;
 	info->fix.accel = FB_ACCEL_ATI_RADEON;
 
+	/* Allocate colormap */
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
+	/* Setup pixmap used for acceleration */
+#define PIXMAP_SIZE	(2048 * 4)
+
+	info->pixmap.addr = kmalloc(PIXMAP_SIZE, GFP_KERNEL);
+	if (!info->pixmap.addr) {
+		printk(KERN_ERR "radeonfb: Failed to allocate pixmap !\n");
+		noaccel = 1;
+		goto bail;
+	}
+	info->pixmap.size = PIXMAP_SIZE;
+	info->pixmap.flags = FB_PIXMAP_SYSTEM;
+	info->pixmap.scan_align = 4;
+	info->pixmap.buf_align = 4;
+	info->pixmap.access_align = 32;
+
+bail:
 	if (noaccel)
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 
@@ -2502,6 +2522,8 @@ static int __init radeonfb_setup (char *options)
 		} else if (!strncmp(this_opt, "ignore_devlist", 14)) {
 			ignore_devlist = 1;
 #endif
+		} else if (!strncmp(this_opt, "accel_cexp", 12)) {
+			accel_cexp = 1;
 		} else
 			mode_option = this_opt;
 	}
@@ -2549,6 +2571,8 @@ module_param(monitor_layout, charp, 0);
 MODULE_PARM_DESC(monitor_layout, "Specify monitor mapping (like XFree86)");
 module_param(force_measure_pll, bool, 0);
 MODULE_PARM_DESC(force_measure_pll, "Force measurement of PLL (debug)");
+module_param(accel_cexp, bool, 0);
+MODULE_PARM_DESC(accel_cexp, "Use acceleration engine for color expansion");
 #ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "bool: disable use of MTRR registers");

@@ -33,6 +33,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
+#include "devices.h"
+
 static struct resource smc91x_resources[] = {
 	[0] = {
 		.start	= 0x9C004300,
@@ -53,31 +55,12 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-static void mddi0_panel_power(int on)
-{
-}
-
-static struct msm_mddi_platform_data msm_mddi0_pdata = {
-	.panel_power	= mddi0_panel_power,
-	.has_vsync_irq	= 0,
-};
-
-static struct platform_device msm_mddi0_device = {
-	.name	= "msm_mddi",
-	.id	= 0,
-	.dev	= {
-		.platform_data = &msm_mddi0_pdata
-	},
-};
-
-static struct platform_device msm_serial0_device = {
-	.name	= "msm_serial",
-	.id	= 0,
-};
-
 static struct platform_device *devices[] __initdata = {
-	&msm_serial0_device,
-	&msm_mddi0_device,
+	&msm_device_uart3,
+	&msm_device_smd,
+	&msm_device_nand,
+	&msm_device_hsusb,
+	&msm_device_i2c,
 	&smc91x_device,
 };
 
@@ -91,20 +74,15 @@ static void __init halibut_init_irq(void)
 static void __init halibut_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-	msm_add_devices();
 }
 
 static void __init halibut_map_io(void)
 {
 	msm_map_common_io();
+	msm_clock_init();
 }
 
 MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
-
-/* UART for LL DEBUG */
-	.phys_io	= MSM_UART1_PHYS,
-	.io_pg_offst	= ((MSM_UART1_BASE) >> 18) & 0xfffc,
-
 	.boot_params	= 0x10000100,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,

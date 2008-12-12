@@ -16,14 +16,49 @@
 #include <linux/list.h>
 #include <linux/fs.h>
 
+#include "trace.h"
+
+/* Global flag to disable all recording to ring buffers */
+static int ring_buffers_off __read_mostly;
+
+/**
+ * tracing_on - enable all tracing buffers
+ *
+ * This function enables all tracing buffers that may have been
+ * disabled with tracing_off.
+ */
+void tracing_on(void)
+{
+	ring_buffers_off = 0;
+}
+
+/**
+ * tracing_off - turn off all tracing buffers
+ *
+ * This function stops all tracing buffers from recording data.
+ * It does not disable any overhead the tracers themselves may
+ * be causing. This function simply causes all recording to
+ * the ring buffers to fail.
+ */
+void tracing_off(void)
+{
+	ring_buffers_off = 1;
+}
+
 /* Up this if you want to test the TIME_EXTENTS and normalization */
 #define DEBUG_SHIFT 0
 
 /* FIXME!!! */
 u64 ring_buffer_time_stamp(int cpu)
 {
+	u64 time;
+
+	preempt_disable_notrace();
 	/* shift to debug/test normalization and TIME_EXTENTS */
-	return sched_clock() << DEBUG_SHIFT;
+	time = sched_clock() << DEBUG_SHIFT;
+	preempt_enable_notrace();
+
+	return time;
 }
 
 void ring_buffer_normalize_time_stamp(int cpu, u64 *ts)
@@ -130,7 +165,7 @@ struct buffer_page {
 static inline void free_buffer_page(struct buffer_page *bpage)
 {
 	if (bpage->page)
-		__free_page(bpage->page);
+		free_page((unsigned long)bpage->page);
 	kfree(bpage);
 }
 
@@ -503,6 +538,12 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	LIST_HEAD(pages);
 	int i, cpu;
 
+	/*
+	 * Always succeed at resizing a non-existent buffer:
+	 */
+	if (!buffer)
+		return size;
+
 	size = DIV_ROUND_UP(size, BUF_PAGE_SIZE);
 	size *= BUF_PAGE_SIZE;
 	buffer_size = buffer->pages * BUF_PAGE_SIZE;
@@ -576,6 +617,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 		list_del_init(&page->list);
 		free_buffer_page(page);
 	}
+	mutex_unlock(&buffer->mutex);
 	return -ENOMEM;
 }
 
@@ -966,7 +1008,9 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 	if (unlikely(*delta > (1ULL << 59) && !once++)) {
 		printk(KERN_WARNING "Delta way too big! %llu"
 		       " ts=%llu write stamp = %llu\n",
-		       *delta, *ts, cpu_buffer->write_stamp);
+		       (unsigned long long)*delta,
+		       (unsigned long long)*ts,
+		       (unsigned long long)cpu_buffer->write_stamp);
 		WARN_ON(1);
 	}
 
@@ -1020,8 +1064,23 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	struct ring_buffer_event *event;
 	u64 ts, delta;
 	int commit = 0;
+	int nr_loops = 0;
 
  again:
+	/*
+	 * We allow for interrupts to reenter here and do a trace.
+	 * If one does, it will cause this original code to loop
+	 * back here. Even with heavy interrupts happening, this
+	 * should only happen a few times in a row. If this happens
+	 * 1000 times in a row, there must be either an interrupt
+	 * storm or we have something buggy.
+	 * Bail!
+	 */
+	if (unlikely(++nr_loops > 1000)) {
+		RB_WARN_ON(cpu_buffer, 1);
+		return NULL;
+	}
+
 	ts = ring_buffer_time_stamp(cpu_buffer->cpu);
 
 	/*
@@ -1043,7 +1102,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 
 		/* Did the write stamp get updated already? */
 		if (unlikely(ts < cpu_buffer->write_stamp))
-			goto again;
+			delta = 0;
 
 		if (test_time_stamp(delta)) {
 
@@ -1116,6 +1175,9 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer,
 	struct ring_buffer_event *event;
 	int cpu, resched;
 
+	if (ring_buffers_off)
+		return NULL;
+
 	if (atomic_read(&buffer->record_disabled))
 		return NULL;
 
@@ -1153,7 +1215,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer,
 
  out:
 	if (resched)
-		preempt_enable_notrace();
+		preempt_enable_no_resched_notrace();
 	else
 		preempt_enable_notrace();
 	return NULL;
@@ -1231,6 +1293,9 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	void *body;
 	int ret = -EBUSY;
 	int cpu, resched;
+
+	if (ring_buffers_off)
+		return -EBUSY;
 
 	if (atomic_read(&buffer->record_disabled))
 		return -EBUSY;
@@ -1530,10 +1595,23 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	struct buffer_page *reader = NULL;
 	unsigned long flags;
+	int nr_loops = 0;
 
 	spin_lock_irqsave(&cpu_buffer->lock, flags);
 
  again:
+	/*
+	 * This should normally only loop twice. But because the
+	 * start of the reader inserts an empty page, it causes
+	 * a case where we will loop three times. There should be no
+	 * reason to loop four times (that I know of).
+	 */
+	if (unlikely(++nr_loops > 3)) {
+		RB_WARN_ON(cpu_buffer, 1);
+		reader = NULL;
+		goto out;
+	}
+
 	reader = cpu_buffer->reader_page;
 
 	/* If there's more to read, return this page */
@@ -1663,6 +1741,7 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
 	struct buffer_page *reader;
+	int nr_loops = 0;
 
 	if (!cpu_isset(cpu, buffer->cpumask))
 		return NULL;
@@ -1670,6 +1749,19 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	cpu_buffer = buffer->buffers[cpu];
 
  again:
+	/*
+	 * We repeat when a timestamp is encountered. It is possible
+	 * to get multiple timestamps from an interrupt entering just
+	 * as one timestamp is about to be written. The max times
+	 * that this can happen is the number of nested interrupts we
+	 * can have.  Nesting 10 deep of interrupts is clearly
+	 * an anomaly.
+	 */
+	if (unlikely(++nr_loops > 10)) {
+		RB_WARN_ON(cpu_buffer, 1);
+		return NULL;
+	}
+
 	reader = rb_get_reader_page(cpu_buffer);
 	if (!reader)
 		return NULL;
@@ -1720,6 +1812,7 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	struct ring_buffer *buffer;
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
+	int nr_loops = 0;
 
 	if (ring_buffer_iter_empty(iter))
 		return NULL;
@@ -1728,6 +1821,19 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	buffer = cpu_buffer->buffer;
 
  again:
+	/*
+	 * We repeat when a timestamp is encountered. It is possible
+	 * to get multiple timestamps from an interrupt entering just
+	 * as one timestamp is about to be written. The max times
+	 * that this can happen is the number of nested interrupts we
+	 * can have. Nesting 10 deep of interrupts is clearly
+	 * an anomaly.
+	 */
+	if (unlikely(++nr_loops > 10)) {
+		RB_WARN_ON(cpu_buffer, 1);
+		return NULL;
+	}
+
 	if (rb_per_cpu_empty(cpu_buffer))
 		return NULL;
 
@@ -2012,3 +2118,69 @@ int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 	return 0;
 }
 
+static ssize_t
+rb_simple_read(struct file *filp, char __user *ubuf,
+	       size_t cnt, loff_t *ppos)
+{
+	int *p = filp->private_data;
+	char buf[64];
+	int r;
+
+	/* !ring_buffers_off == tracing_on */
+	r = sprintf(buf, "%d\n", !*p);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+}
+
+static ssize_t
+rb_simple_write(struct file *filp, const char __user *ubuf,
+		size_t cnt, loff_t *ppos)
+{
+	int *p = filp->private_data;
+	char buf[64];
+	long val;
+	int ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	/* !ring_buffers_off == tracing_on */
+	*p = !val;
+
+	(*ppos)++;
+
+	return cnt;
+}
+
+static struct file_operations rb_simple_fops = {
+	.open		= tracing_open_generic,
+	.read		= rb_simple_read,
+	.write		= rb_simple_write,
+};
+
+
+static __init int rb_init_debugfs(void)
+{
+	struct dentry *d_tracer;
+	struct dentry *entry;
+
+	d_tracer = tracing_init_dentry();
+
+	entry = debugfs_create_file("tracing_on", 0644, d_tracer,
+				    &ring_buffers_off, &rb_simple_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs 'tracing_on' entry\n");
+
+	return 0;
+}
+
+fs_initcall(rb_init_debugfs);

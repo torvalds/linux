@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/dma_remapping.h>
 #include <asm/cacheflush.h>
+#include <asm/iommu.h>
 
 /*
  * Intel IOMMU register specification per version 1.0 public spec.
@@ -127,6 +128,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 
 
 /* IOTLB_REG */
+#define DMA_TLB_FLUSH_GRANU_OFFSET  60
 #define DMA_TLB_GLOBAL_FLUSH (((u64)1) << 60)
 #define DMA_TLB_DSI_FLUSH (((u64)2) << 60)
 #define DMA_TLB_PSI_FLUSH (((u64)3) << 60)
@@ -140,6 +142,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_TLB_MAX_SIZE (0x3f)
 
 /* INVALID_DESC */
+#define DMA_CCMD_INVL_GRANU_OFFSET  61
 #define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 3)
 #define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 3)
 #define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 3)
@@ -200,22 +203,21 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define dma_frcd_type(d) ((d >> 30) & 1)
 #define dma_frcd_fault_reason(c) (c & 0xff)
 #define dma_frcd_source_id(c) (c & 0xffff)
-#define dma_frcd_page_addr(d) (d & (((u64)-1) << 12)) /* low 64 bit */
+/* low 64 bit */
+#define dma_frcd_page_addr(d) (d & (((u64)-1) << PAGE_SHIFT))
 
-#define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000) /* 10sec */
-
-#define IOMMU_WAIT_OP(iommu, offset, op, cond, sts) \
-{\
-	cycles_t start_time = get_cycles();\
-	while (1) {\
-		sts = op (iommu->reg + offset);\
-		if (cond)\
-			break;\
+#define IOMMU_WAIT_OP(iommu, offset, op, cond, sts)			\
+do {									\
+	cycles_t start_time = get_cycles();				\
+	while (1) {							\
+		sts = op(iommu->reg + offset);				\
+		if (cond)						\
+			break;						\
 		if (DMAR_OPERATION_TIMEOUT < (get_cycles() - start_time))\
-			panic("DMAR hardware is malfunctioning\n");\
-		cpu_relax();\
-	}\
-}
+			panic("DMAR hardware is malfunctioning\n");	\
+		cpu_relax();						\
+	}								\
+} while (0)
 
 #define QI_LENGTH	256	/* queue length */
 
@@ -237,6 +239,19 @@ enum {
 
 #define QI_IWD_STATUS_DATA(d)	(((u64)d) << 32)
 #define QI_IWD_STATUS_WRITE	(((u64)1) << 5)
+
+#define QI_IOTLB_DID(did) 	(((u64)did) << 16)
+#define QI_IOTLB_DR(dr) 	(((u64)dr) << 7)
+#define QI_IOTLB_DW(dw) 	(((u64)dw) << 6)
+#define QI_IOTLB_GRAN(gran) 	(((u64)gran) >> (DMA_TLB_FLUSH_GRANU_OFFSET-4))
+#define QI_IOTLB_ADDR(addr)	(((u64)addr) & VTD_PAGE_MASK)
+#define QI_IOTLB_IH(ih)		(((u64)ih) << 6)
+#define QI_IOTLB_AM(am)		(((u8)am))
+
+#define QI_CC_FM(fm)		(((u64)fm) << 48)
+#define QI_CC_SID(sid)		(((u64)sid) << 32)
+#define QI_CC_DID(did)		(((u64)did) << 16)
+#define QI_CC_GRAN(gran)	(((u64)gran) >> (DMA_CCMD_INVL_GRANU_OFFSET-4))
 
 struct qi_desc {
 	u64 low, high;
@@ -263,6 +278,13 @@ struct ir_table {
 };
 #endif
 
+struct iommu_flush {
+	int (*flush_context)(struct intel_iommu *iommu, u16 did, u16 sid, u8 fm,
+		u64 type, int non_present_entry_flush);
+	int (*flush_iotlb)(struct intel_iommu *iommu, u16 did, u64 addr,
+		unsigned int size_order, u64 type, int non_present_entry_flush);
+};
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64		cap;
@@ -282,6 +304,7 @@ struct intel_iommu {
 	unsigned char name[7];    /* Device Name */
 	struct msi_msg saved_msg;
 	struct sys_device sysdev;
+	struct iommu_flush flush;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
 #ifdef CONFIG_INTR_REMAP
@@ -303,6 +326,12 @@ extern void free_iommu(struct intel_iommu *iommu);
 extern int dmar_enable_qi(struct intel_iommu *iommu);
 extern void qi_global_iec(struct intel_iommu *iommu);
 
+extern int qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid,
+			        u8 fm, u64 type, int non_present_entry_flush);
+extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
+			  unsigned int size_order, u64 type,
+			  int non_present_entry_flush);
+
 extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
 void intel_iommu_domain_exit(struct dmar_domain *domain);
@@ -323,5 +352,12 @@ static inline int intel_iommu_found(void)
 	return 0;
 }
 #endif /* CONFIG_DMAR */
+
+extern void *intel_alloc_coherent(struct device *, size_t, dma_addr_t *, gfp_t);
+extern void intel_free_coherent(struct device *, size_t, void *, dma_addr_t);
+extern dma_addr_t intel_map_single(struct device *, phys_addr_t, size_t, int);
+extern void intel_unmap_single(struct device *, dma_addr_t, size_t, int);
+extern int intel_map_sg(struct device *, struct scatterlist *, int, int);
+extern void intel_unmap_sg(struct device *, struct scatterlist *, int, int);
 
 #endif

@@ -142,8 +142,7 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 		time_state = TIME_OOP;
 		printk(KERN_NOTICE "Clock: "
 		       "inserting leap second 23:59:60 UTC\n");
-		leap_timer.expires = ktime_add_ns(leap_timer.expires,
-						  NSEC_PER_SEC);
+		hrtimer_add_expires_ns(&leap_timer, NSEC_PER_SEC);
 		res = HRTIMER_RESTART;
 		break;
 	case TIME_DEL:

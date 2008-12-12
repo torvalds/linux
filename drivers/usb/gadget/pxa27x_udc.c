@@ -650,7 +650,7 @@ pxa_ep_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	struct pxa27x_request *req;
 
 	req = kzalloc(sizeof *req, gfp_flags);
-	if (!req || !_ep)
+	if (!req)
 		return NULL;
 
 	INIT_LIST_HEAD(&req->queue);

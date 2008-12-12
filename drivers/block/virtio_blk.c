@@ -146,11 +146,11 @@ static void do_virtblk_request(struct request_queue *q)
 		vblk->vq->vq_ops->kick(vblk->vq);
 }
 
-static int virtblk_ioctl(struct inode *inode, struct file *filp,
+static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 			 unsigned cmd, unsigned long data)
 {
-	return scsi_cmd_ioctl(filp, inode->i_bdev->bd_disk->queue,
-			      inode->i_bdev->bd_disk, cmd,
+	return scsi_cmd_ioctl(bdev->bd_disk->queue,
+			      bdev->bd_disk, mode, cmd,
 			      (void __user *)data);
 }
 
@@ -180,7 +180,7 @@ static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 }
 
 static struct block_device_operations virtblk_fops = {
-	.ioctl  = virtblk_ioctl,
+	.locked_ioctl = virtblk_ioctl,
 	.owner  = THIS_MODULE,
 	.getgeo = virtblk_getgeo,
 };

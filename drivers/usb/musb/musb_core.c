@@ -114,8 +114,8 @@
 
 
 
-unsigned debug;
-module_param(debug, uint, S_IRUGO | S_IWUSR);
+unsigned musb_debug;
+module_param(musb_debug, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
@@ -2248,7 +2248,7 @@ static int __init musb_init(void)
 		"host"
 #endif
 		", debug=%d\n",
-		musb_driver_name, debug);
+		musb_driver_name, musb_debug);
 	return platform_driver_probe(&musb_driver, musb_probe);
 }
 

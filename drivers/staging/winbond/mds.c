@@ -40,7 +40,7 @@ Mds_Tx(PADAPTER Adapter)
 	PMDS		pMds = &Adapter->Mds;
 	DESCRIPTOR	TxDes;
 	PDESCRIPTOR	pTxDes = &TxDes;
-	PUCHAR		XmitBufAddress;
+	u8		*XmitBufAddress;
 	u16		XmitBufSize, PacketSize, stmp, CurrentSize, FragmentThreshold;
 	u8		FillIndex, TxDesIndex, FragmentCount, FillCount;
 	unsigned char	BufferFilled = FALSE, MICAdd = 0;
@@ -90,7 +90,7 @@ Mds_Tx(PADAPTER Adapter)
 			BufferFilled = TRUE;
 
 			/* Leaves first u8 intact */
-			memset((PUCHAR)pTxDes + 1, 0, sizeof(DESCRIPTOR) - 1);
+			memset((u8 *)pTxDes + 1, 0, sizeof(DESCRIPTOR) - 1);
 
 			TxDesIndex = pMds->TxDesIndex;//Get the current ID
 			pTxDes->Descriptor_ID = TxDesIndex;
@@ -229,10 +229,10 @@ Mds_SendComplete(PADAPTER Adapter, PT02_DESCRIPTOR pT02)
 }
 
 void
-Mds_HeaderCopy(PADAPTER Adapter, PDESCRIPTOR pDes, PUCHAR TargetBuffer)
+Mds_HeaderCopy(PADAPTER Adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 {
 	PMDS	pMds = &Adapter->Mds;
-	PUCHAR	src_buffer = pDes->buffer_address[0];//931130.5.g
+	u8	*src_buffer = pDes->buffer_address[0];//931130.5.g
 	PT00_DESCRIPTOR	pT00;
 	PT01_DESCRIPTOR	pT01;
 	u16	stmp;
@@ -276,7 +276,7 @@ Mds_HeaderCopy(PADAPTER Adapter, PDESCRIPTOR pDes, PUCHAR TargetBuffer)
 	//
 	// Set tx rate
 	//
-	stmp = *(PUSHORT)(TargetBuffer+30); // 2n alignment address
+	stmp = *(u16 *)(TargetBuffer+30); // 2n alignment address
 
 	//Use basic rate
 	ctmp1 = ctmpf = CURRENT_TX_RATE_FOR_MNG;
@@ -326,11 +326,13 @@ Mds_HeaderCopy(PADAPTER Adapter, PDESCRIPTOR pDes, PUCHAR TargetBuffer)
 
 // The function return the 4n size of usb pk
 u16
-Mds_BodyCopy(PADAPTER Adapter, PDESCRIPTOR pDes, PUCHAR TargetBuffer)
+Mds_BodyCopy(PADAPTER Adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 {
 	PT00_DESCRIPTOR	pT00;
 	PMDS	pMds = &Adapter->Mds;
-	PUCHAR	buffer, src_buffer, pctmp;
+	u8	*buffer;
+	u8	*src_buffer;
+	u8	*pctmp;
 	u16	Size = 0;
 	u16	SizeLeft, CopySize, CopyLeft, stmp;
 	u8	buf_index, FragmentCount = 0;
@@ -354,7 +356,7 @@ Mds_BodyCopy(PADAPTER Adapter, PDESCRIPTOR pDes, PUCHAR TargetBuffer)
 		SizeLeft -= CopySize;
 
 		// 1 Byte operation
-		pctmp = (PUCHAR)( buffer + 8 + DOT_11_SEQUENCE_OFFSET );
+		pctmp = (u8 *)( buffer + 8 + DOT_11_SEQUENCE_OFFSET );
 		*pctmp &= 0xf0;
 		*pctmp |= FragmentCount;//931130.5.m
 		if( !FragmentCount )
@@ -379,7 +381,7 @@ Mds_BodyCopy(PADAPTER Adapter, PDESCRIPTOR pDes, PUCHAR TargetBuffer)
 				buf_index++;
 				buf_index %= MAX_DESCRIPTOR_BUFFER_INDEX;
 			} else {
-				PUCHAR	pctmp = pDes->buffer_address[buf_index];
+				u8	*pctmp = pDes->buffer_address[buf_index];
 				pctmp += CopySize;
 				pDes->buffer_address[buf_index] = pctmp;
 				pDes->buffer_size[buf_index] -= CopySize;
@@ -419,7 +421,7 @@ Mds_BodyCopy(PADAPTER Adapter, PDESCRIPTOR pDes, PUCHAR TargetBuffer)
 
 	pT00->T00_last_mpdu = 1;
 	pT00->T00_IsLastMpdu = 1;
-	buffer = (PUCHAR)pT00 + 8; // +8 for USB hdr
+	buffer = (u8 *)pT00 + 8; // +8 for USB hdr
 	buffer[1] &= ~0x04; // Clear more frag bit of 802.11 frame control
 	pDes->FragmentCount = FragmentCount; // Update the correct fragment number
 	return Size;
@@ -427,7 +429,7 @@ Mds_BodyCopy(PADAPTER Adapter, PDESCRIPTOR pDes, PUCHAR TargetBuffer)
 
 
 void
-Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  PUCHAR buffer )
+Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *buffer )
 {
 	PT00_DESCRIPTOR	pT00;
 	PT01_DESCRIPTOR	pT01;
@@ -435,7 +437,7 @@ Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  PUCHAR buffer )
 	u8	Rate, i;
 	unsigned char	CTS_on = FALSE, RTS_on = FALSE;
 	PT00_DESCRIPTOR pNextT00;
-	u16 BodyLen;
+	u16 BodyLen = 0;
 	unsigned char boGroupAddr = FALSE;
 
 
@@ -574,7 +576,7 @@ Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  PUCHAR buffer )
 							DEFAULT_SIFSTIME*3 );
 			}
 
-			((PUSHORT)buffer)[5] = cpu_to_le16(Duration);// 4 USHOR for skip 8B USB, 2USHORT=FC + Duration
+			((u16 *)buffer)[5] = cpu_to_le16(Duration);// 4 USHOR for skip 8B USB, 2USHORT=FC + Duration
 
 			//----20061009 add by anson's endian
 			pNextT00->value = cpu_to_le32(pNextT00->value);
@@ -615,7 +617,7 @@ Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  PUCHAR buffer )
 		}
 	}
 
-	((PUSHORT)buffer)[5] = cpu_to_le16(Duration);// 4 USHOR for skip 8B USB, 2USHORT=FC + Duration
+	((u16 *)buffer)[5] = cpu_to_le16(Duration);// 4 USHOR for skip 8B USB, 2USHORT=FC + Duration
 	pT00->value = cpu_to_le32(pT00->value);
 	pT01->value = cpu_to_le32(pT01->value);
 	//--end 20061009 add

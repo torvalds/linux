@@ -54,7 +54,6 @@
  *       IS-NIC driver.
  */
 
-#include <linux/version.h>
 
 #define SLIC_DUMP_ENABLED               0
 #define KLUDGE_FOR_4GB_BOUNDARY         1
@@ -96,17 +95,9 @@
 #include <linux/moduleparam.h>
 
 #include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/dma-mapping.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/if_vlan.h>
-#include <linux/skbuff.h>
-#include <linux/string.h>
 #include <asm/unaligned.h>
 
 #include <linux/ethtool.h>
@@ -274,7 +265,6 @@ static void slic_dbg_register_trace(struct adapter *adapter,
 			  i, card->reg_type[i], card->reg_offset[i],
 			  card->reg_value[i], card->reg_valueh[i]);
 	}
-}
 }
 #endif
 
@@ -606,6 +596,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	uint mmio_len = 0;
 	struct adapter *adapter = (struct adapter *) netdev_priv(dev);
 	struct sliccard *card;
+	struct mcast_address *mcaddr, *mlist;
 
 	ASSERT(adapter);
 	DBG_MSG("slicoss: %s ENTER dev[%p] adapter[%p]\n", __func__, dev,
@@ -625,6 +616,13 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	DBG_MSG("slicoss: %s iounmap dev->base_addr[%x]\n", __func__,
 		(uint) dev->base_addr);
 	iounmap((void __iomem *)dev->base_addr);
+	/* free multicast addresses */
+	mlist = adapter->mcastaddrs;
+	while (mlist) {
+		mcaddr = mlist;
+		mlist = mlist->next;
+		kfree(mcaddr);
+	}
 	ASSERT(adapter->card);
 	card = adapter->card;
 	ASSERT(card->adapters_allocated);

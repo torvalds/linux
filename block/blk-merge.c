@@ -222,27 +222,6 @@ new_segment:
 }
 EXPORT_SYMBOL(blk_rq_map_sg);
 
-static inline int ll_new_mergeable(struct request_queue *q,
-				   struct request *req,
-				   struct bio *bio)
-{
-	int nr_phys_segs = bio_phys_segments(q, bio);
-
-	if (req->nr_phys_segments + nr_phys_segs > q->max_phys_segments) {
-		req->cmd_flags |= REQ_NOMERGE;
-		if (req == q->last_merge)
-			q->last_merge = NULL;
-		return 0;
-	}
-
-	/*
-	 * A hw segment is just getting larger, bump just the phys
-	 * counter.
-	 */
-	req->nr_phys_segments += nr_phys_segs;
-	return 1;
-}
-
 static inline int ll_new_hw_segment(struct request_queue *q,
 				    struct request *req,
 				    struct bio *bio)

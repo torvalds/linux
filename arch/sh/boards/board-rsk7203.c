@@ -17,9 +17,10 @@
 #include <linux/mtd/map.h>
 #include <linux/smc911x.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
-#include <asm/sh7203.h>
+#include <cpu/sh7203.h>
 
 static struct smc911x_platdata smc911x_info = {
 	.flags		= SMC911X_USE_16BIT,
@@ -116,10 +117,46 @@ static void __init set_mtd_partitions(void)
 	}
 }
 
+static struct gpio_led rsk7203_gpio_leds[] = {
+	{
+		.name			= "green",
+		.gpio			= GPIO_PE10,
+		.active_low		= 1,
+	}, {
+		.name			= "orange",
+		.default_trigger	= "nand-disk",
+		.gpio			= GPIO_PE12,
+		.active_low		= 1,
+	}, {
+		.name			= "red:timer",
+		.default_trigger	= "timer",
+		.gpio			= GPIO_PC14,
+		.active_low		= 1,
+	}, {
+		.name			= "red:heartbeat",
+		.default_trigger	= "heartbeat",
+		.gpio			= GPIO_PE11,
+		.active_low		= 1,
+	},
+};
+
+static struct gpio_led_platform_data rsk7203_gpio_leds_info = {
+	.leds		= rsk7203_gpio_leds,
+	.num_leds	= ARRAY_SIZE(rsk7203_gpio_leds),
+};
+
+static struct platform_device led_device = {
+	.name		= "leds-gpio",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &rsk7203_gpio_leds_info,
+	},
+};
 
 static struct platform_device *rsk7203_devices[] __initdata = {
 	&smc911x_device,
 	&flash_device,
+	&led_device,
 };
 
 static int __init rsk7203_devices_setup(void)
@@ -127,11 +164,6 @@ static int __init rsk7203_devices_setup(void)
 	/* Select pins for SCIF0 */
 	gpio_request(GPIO_FN_TXD0, NULL);
 	gpio_request(GPIO_FN_RXD0, NULL);
-
-	/* Lit LED0 */
-	gpio_request(GPIO_PE10, NULL);
-	gpio_direction_output(GPIO_PE10, 0);
-	gpio_export(GPIO_PE10, 0);
 
 	set_mtd_partitions();
 	return platform_add_devices(rsk7203_devices,

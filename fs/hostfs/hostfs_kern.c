@@ -20,7 +20,7 @@
 struct hostfs_inode_info {
 	char *host_filename;
 	int fd;
-	int mode;
+	fmode_t mode;
 	struct inode vfs_inode;
 };
 
@@ -168,7 +168,7 @@ static char *follow_link(char *link)
 		if (name == NULL)
 			goto out;
 
-		n = do_readlink(link, name, len);
+		n = hostfs_do_readlink(link, name, len);
 		if (n < len)
 			break;
 		len *= 2;
@@ -373,7 +373,8 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 int hostfs_file_open(struct inode *ino, struct file *file)
 {
 	char *name;
-	int mode = 0, r = 0, w = 0, fd;
+	fmode_t mode = 0;
+	int r = 0, w = 0, fd;
 
 	mode = file->f_mode & (FMODE_READ | FMODE_WRITE);
 	if ((mode & HOSTFS_I(ino)->mode) == mode)
@@ -942,7 +943,7 @@ int hostfs_link_readpage(struct file *file, struct page *page)
 	name = inode_name(page->mapping->host, 0);
 	if (name == NULL)
 		return -ENOMEM;
-	err = do_readlink(name, buffer, PAGE_CACHE_SIZE);
+	err = hostfs_do_readlink(name, buffer, PAGE_CACHE_SIZE);
 	kfree(name);
 	if (err == PAGE_CACHE_SIZE)
 		err = -E2BIG;

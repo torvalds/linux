@@ -2,15 +2,14 @@
 #define _DMA_REMAPPING_H
 
 /*
- * We need a fixed PAGE_SIZE of 4K irrespective of
- * arch PAGE_SIZE for IOMMU page tables.
+ * VT-d hardware uses 4KiB page size regardless of host page size.
  */
-#define PAGE_SHIFT_4K		(12)
-#define PAGE_SIZE_4K		(1UL << PAGE_SHIFT_4K)
-#define PAGE_MASK_4K		(((u64)-1) << PAGE_SHIFT_4K)
-#define PAGE_ALIGN_4K(addr)	(((addr) + PAGE_SIZE_4K - 1) & PAGE_MASK_4K)
+#define VTD_PAGE_SHIFT		(12)
+#define VTD_PAGE_SIZE		(1UL << VTD_PAGE_SHIFT)
+#define VTD_PAGE_MASK		(((u64)-1) << VTD_PAGE_SHIFT)
+#define VTD_PAGE_ALIGN(addr)	(((addr) + VTD_PAGE_SIZE - 1) & VTD_PAGE_MASK)
 
-#define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT_4K)
+#define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
 #define DMA_32BIT_PFN		IOVA_PFN(DMA_32BIT_MASK)
 #define DMA_64BIT_PFN		IOVA_PFN(DMA_64BIT_MASK)
 
@@ -25,7 +24,7 @@ struct root_entry {
 	u64	val;
 	u64	rsvd1;
 };
-#define ROOT_ENTRY_NR (PAGE_SIZE_4K/sizeof(struct root_entry))
+#define ROOT_ENTRY_NR (VTD_PAGE_SIZE/sizeof(struct root_entry))
 static inline bool root_present(struct root_entry *root)
 {
 	return (root->val & 1);
@@ -36,7 +35,7 @@ static inline void set_root_present(struct root_entry *root)
 }
 static inline void set_root_value(struct root_entry *root, unsigned long value)
 {
-	root->val |= value & PAGE_MASK_4K;
+	root->val |= value & VTD_PAGE_MASK;
 }
 
 struct context_entry;
@@ -45,7 +44,7 @@ get_context_addr_from_root(struct root_entry *root)
 {
 	return (struct context_entry *)
 		(root_present(root)?phys_to_virt(
-		root->val & PAGE_MASK_4K):
+		root->val & VTD_PAGE_MASK) :
 		NULL);
 }
 
@@ -67,7 +66,7 @@ struct context_entry {
 #define context_present(c) ((c).lo & 1)
 #define context_fault_disable(c) (((c).lo >> 1) & 1)
 #define context_translation_type(c) (((c).lo >> 2) & 3)
-#define context_address_root(c) ((c).lo & PAGE_MASK_4K)
+#define context_address_root(c) ((c).lo & VTD_PAGE_MASK)
 #define context_address_width(c) ((c).hi &  7)
 #define context_domain_id(c) (((c).hi >> 8) & ((1 << 16) - 1))
 
@@ -81,7 +80,7 @@ struct context_entry {
 	} while (0)
 #define CONTEXT_TT_MULTI_LEVEL 0
 #define context_set_address_root(c, val) \
-	do {(c).lo |= (val) & PAGE_MASK_4K;} while (0)
+	do {(c).lo |= (val) & VTD_PAGE_MASK; } while (0)
 #define context_set_address_width(c, val) do {(c).hi |= (val) & 7;} while (0)
 #define context_set_domain_id(c, val) \
 	do {(c).hi |= ((val) & ((1 << 16) - 1)) << 8;} while (0)
@@ -107,9 +106,9 @@ struct dma_pte {
 #define dma_set_pte_writable(p) do {(p).val |= DMA_PTE_WRITE;} while (0)
 #define dma_set_pte_prot(p, prot) \
 		do {(p).val = ((p).val & ~3) | ((prot) & 3); } while (0)
-#define dma_pte_addr(p) ((p).val & PAGE_MASK_4K)
+#define dma_pte_addr(p) ((p).val & VTD_PAGE_MASK)
 #define dma_set_pte_addr(p, addr) do {\
-		(p).val |= ((addr) & PAGE_MASK_4K); } while (0)
+		(p).val |= ((addr) & VTD_PAGE_MASK); } while (0)
 #define dma_pte_present(p) (((p).val & 3) != 0)
 
 struct intel_iommu;

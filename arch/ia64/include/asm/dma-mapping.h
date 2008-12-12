@@ -7,6 +7,49 @@
  */
 #include <asm/machvec.h>
 #include <linux/scatterlist.h>
+#include <asm/swiotlb.h>
+
+struct dma_mapping_ops {
+	int             (*mapping_error)(struct device *dev,
+					 dma_addr_t dma_addr);
+	void*           (*alloc_coherent)(struct device *dev, size_t size,
+				dma_addr_t *dma_handle, gfp_t gfp);
+	void            (*free_coherent)(struct device *dev, size_t size,
+				void *vaddr, dma_addr_t dma_handle);
+	dma_addr_t      (*map_single)(struct device *hwdev, unsigned long ptr,
+				size_t size, int direction);
+	void            (*unmap_single)(struct device *dev, dma_addr_t addr,
+				size_t size, int direction);
+	void            (*sync_single_for_cpu)(struct device *hwdev,
+				dma_addr_t dma_handle, size_t size,
+				int direction);
+	void            (*sync_single_for_device)(struct device *hwdev,
+				dma_addr_t dma_handle, size_t size,
+				int direction);
+	void            (*sync_single_range_for_cpu)(struct device *hwdev,
+				dma_addr_t dma_handle, unsigned long offset,
+				size_t size, int direction);
+	void            (*sync_single_range_for_device)(struct device *hwdev,
+				dma_addr_t dma_handle, unsigned long offset,
+				size_t size, int direction);
+	void            (*sync_sg_for_cpu)(struct device *hwdev,
+				struct scatterlist *sg, int nelems,
+				int direction);
+	void            (*sync_sg_for_device)(struct device *hwdev,
+				struct scatterlist *sg, int nelems,
+				int direction);
+	int             (*map_sg)(struct device *hwdev, struct scatterlist *sg,
+				int nents, int direction);
+	void            (*unmap_sg)(struct device *hwdev,
+				struct scatterlist *sg, int nents,
+				int direction);
+	int             (*dma_supported_op)(struct device *hwdev, u64 mask);
+	int		is_phys;
+};
+
+extern struct dma_mapping_ops *dma_ops;
+extern struct ia64_machine_vector ia64_mv;
+extern void set_iommu_machvec(void);
 
 #define dma_alloc_coherent(dev, size, handle, gfp)	\
 	platform_dma_alloc_coherent(dev, size, handle, (gfp) | GFP_DMA)
@@ -95,5 +138,12 @@ dma_cache_sync (struct device *dev, void *vaddr, size_t size,
 }
 
 #define dma_is_consistent(d, h)	(1)	/* all we do is coherent memory... */
+
+static inline struct dma_mapping_ops *get_dma_ops(struct device *dev)
+{
+	return dma_ops;
+}
+
+
 
 #endif /* _ASM_IA64_DMA_MAPPING_H */

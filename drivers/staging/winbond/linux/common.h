@@ -39,14 +39,6 @@
 // Common type definition
 //===============================================================
 
-typedef u8*            PUCHAR;
-typedef s8*            PCHAR;
-typedef u8*            PBOOLEAN;
-typedef u16*           PUSHORT;
-typedef u32*           PULONG;
-typedef s16*   PSHORT;
-
-
 //===========================================
 #define IGNORE      2
 #define	SUCCESS     1
@@ -110,15 +102,8 @@ typedef struct urb * PURB;
 #define OS_ATOMIC_READ( _A, _V )	_V
 #define OS_ATOMIC_INC( _A, _V )		EncapAtomicInc( _A, (void*)_V )
 #define OS_ATOMIC_DEC( _A, _V )		EncapAtomicDec( _A, (void*)_V )
-#define OS_MEMORY_CLEAR( _A, _S )	memset( (PUCHAR)_A,0,_S)
+#define OS_MEMORY_CLEAR( _A, _S )	memset( (u8 *)_A,0,_S)
 #define OS_MEMORY_COMPARE( _A, _B, _S )	(memcmp(_A,_B,_S)? 0 : 1) // Definition is reverse with Ndis 1: the same 0: different
-
-
-#define OS_SPIN_LOCK				spinlock_t
-#define OS_SPIN_LOCK_ALLOCATE( _S )		spin_lock_init( _S );
-#define OS_SPIN_LOCK_FREE( _S )
-#define OS_SPIN_LOCK_ACQUIRED( _S )		spin_lock_irq( _S )
-#define OS_SPIN_LOCK_RELEASED( _S )		spin_unlock_irq( _S );
 
 #define OS_TIMER	struct timer_list
 #define OS_TIMER_INITIAL( _T, _F, _P )			\

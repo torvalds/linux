@@ -40,7 +40,6 @@
 #include <linux/cn_proc.h>
 #include <linux/mutex.h>
 #include <linux/futex.h>
-#include <linux/compat.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/audit.h> /* for audit_free() */
 #include <linux/resource.h>
@@ -141,6 +140,11 @@ static void __exit_signal(struct task_struct *tsk)
 	if (sig) {
 		flush_sigqueue(&sig->shared_pending);
 		taskstats_tgid_free(sig);
+		/*
+		 * Make sure ->signal can't go away under rq->lock,
+		 * see account_group_exec_runtime().
+		 */
+		task_rq_unlock_wait(tsk);
 		__cleanup_signal(sig);
 	}
 }
@@ -1054,14 +1058,6 @@ NORET_TYPE void do_exit(long code)
 		exit_itimers(tsk->signal);
 	}
 	acct_collect(code, group_dead);
-#ifdef CONFIG_FUTEX
-	if (unlikely(tsk->robust_list))
-		exit_robust_list(tsk);
-#ifdef CONFIG_COMPAT
-	if (unlikely(tsk->compat_robust_list))
-		compat_exit_robust_list(tsk);
-#endif
-#endif
 	if (group_dead)
 		tty_audit_exit();
 	if (unlikely(tsk->audit_context))

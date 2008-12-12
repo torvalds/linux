@@ -41,7 +41,7 @@ void of_register_i2c_devices(struct i2c_adapter *adap,
 
 		info.addr = *addr;
 
-		request_module(info.type);
+		request_module("%s", info.type);
 
 		result = i2c_new_device(adap, &info);
 		if (result == NULL) {

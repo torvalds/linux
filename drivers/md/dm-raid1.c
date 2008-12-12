@@ -1,116 +1,35 @@
 /*
  * Copyright (C) 2003 Sistina Software Limited.
+ * Copyright (C) 2005-2008 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
 
-#include "dm.h"
 #include "dm-bio-list.h"
 #include "dm-bio-record.h"
 
-#include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
-#include <linux/time.h>
-#include <linux/vmalloc.h>
 #include <linux/workqueue.h>
-#include <linux/log2.h>
-#include <linux/hardirq.h>
+#include <linux/device-mapper.h>
 #include <linux/dm-io.h>
 #include <linux/dm-dirty-log.h>
 #include <linux/dm-kcopyd.h>
+#include <linux/dm-region-hash.h>
 
 #define DM_MSG_PREFIX "raid1"
+
+#define MAX_RECOVERY 1	/* Maximum number of regions recovered in parallel. */
 #define DM_IO_PAGES 64
+#define DM_KCOPYD_PAGES 64
 
 #define DM_RAID1_HANDLE_ERRORS 0x01
 #define errors_handled(p)	((p)->features & DM_RAID1_HANDLE_ERRORS)
 
 static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
-
-/*-----------------------------------------------------------------
- * Region hash
- *
- * The mirror splits itself up into discrete regions.  Each
- * region can be in one of three states: clean, dirty,
- * nosync.  There is no need to put clean regions in the hash.
- *
- * In addition to being present in the hash table a region _may_
- * be present on one of three lists.
- *
- *   clean_regions: Regions on this list have no io pending to
- *   them, they are in sync, we are no longer interested in them,
- *   they are dull.  rh_update_states() will remove them from the
- *   hash table.
- *
- *   quiesced_regions: These regions have been spun down, ready
- *   for recovery.  rh_recovery_start() will remove regions from
- *   this list and hand them to kmirrord, which will schedule the
- *   recovery io with kcopyd.
- *
- *   recovered_regions: Regions that kcopyd has successfully
- *   recovered.  rh_update_states() will now schedule any delayed
- *   io, up the recovery_count, and remove the region from the
- *   hash.
- *
- * There are 2 locks:
- *   A rw spin lock 'hash_lock' protects just the hash table,
- *   this is never held in write mode from interrupt context,
- *   which I believe means that we only have to disable irqs when
- *   doing a write lock.
- *
- *   An ordinary spin lock 'region_lock' that protects the three
- *   lists in the region_hash, with the 'state', 'list' and
- *   'bhs_delayed' fields of the regions.  This is used from irq
- *   context, so all other uses will have to suspend local irqs.
- *---------------------------------------------------------------*/
-struct mirror_set;
-struct region_hash {
-	struct mirror_set *ms;
-	uint32_t region_size;
-	unsigned region_shift;
-
-	/* holds persistent region state */
-	struct dm_dirty_log *log;
-
-	/* hash table */
-	rwlock_t hash_lock;
-	mempool_t *region_pool;
-	unsigned int mask;
-	unsigned int nr_buckets;
-	struct list_head *buckets;
-
-	spinlock_t region_lock;
-	atomic_t recovery_in_flight;
-	struct semaphore recovery_count;
-	struct list_head clean_regions;
-	struct list_head quiesced_regions;
-	struct list_head recovered_regions;
-	struct list_head failed_recovered_regions;
-};
-
-enum {
-	RH_CLEAN,
-	RH_DIRTY,
-	RH_NOSYNC,
-	RH_RECOVERING
-};
-
-struct region {
-	struct region_hash *rh;	/* FIXME: can we get rid of this ? */
-	region_t key;
-	int state;
-
-	struct list_head hash_list;
-	struct list_head list;
-
-	atomic_t pending;
-	struct bio_list delayed_bios;
-};
-
 
 /*-----------------------------------------------------------------
  * Mirror set structures.
@@ -132,8 +51,7 @@ struct mirror {
 struct mirror_set {
 	struct dm_target *ti;
 	struct list_head list;
-	struct region_hash rh;
-	struct dm_kcopyd_client *kcopyd_client;
+
 	uint64_t features;
 
 	spinlock_t lock;	/* protects the lists */
@@ -141,6 +59,8 @@ struct mirror_set {
 	struct bio_list writes;
 	struct bio_list failures;
 
+	struct dm_region_hash *rh;
+	struct dm_kcopyd_client *kcopyd_client;
 	struct dm_io_client *io_client;
 	mempool_t *read_record_pool;
 
@@ -159,25 +79,14 @@ struct mirror_set {
 
 	struct work_struct trigger_event;
 
-	unsigned int nr_mirrors;
+	unsigned nr_mirrors;
 	struct mirror mirror[0];
 };
 
-/*
- * Conversion fns
- */
-static inline region_t bio_to_region(struct region_hash *rh, struct bio *bio)
+static void wakeup_mirrord(void *context)
 {
-	return (bio->bi_sector - rh->ms->ti->begin) >> rh->region_shift;
-}
+	struct mirror_set *ms = context;
 
-static inline sector_t region_to_sector(struct region_hash *rh, region_t region)
-{
-	return region << rh->region_shift;
-}
-
-static void wake(struct mirror_set *ms)
-{
 	queue_work(ms->kmirrord_wq, &ms->kmirrord_work);
 }
 
@@ -186,7 +95,7 @@ static void delayed_wake_fn(unsigned long data)
 	struct mirror_set *ms = (struct mirror_set *) data;
 
 	clear_bit(0, &ms->timer_pending);
-	wake(ms);
+	wakeup_mirrord(ms);
 }
 
 static void delayed_wake(struct mirror_set *ms)
@@ -200,473 +109,34 @@ static void delayed_wake(struct mirror_set *ms)
 	add_timer(&ms->timer);
 }
 
-/* FIXME move this */
-static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw);
-
-#define MIN_REGIONS 64
-#define MAX_RECOVERY 1
-static int rh_init(struct region_hash *rh, struct mirror_set *ms,
-		   struct dm_dirty_log *log, uint32_t region_size,
-		   region_t nr_regions)
+static void wakeup_all_recovery_waiters(void *context)
 {
-	unsigned int nr_buckets, max_buckets;
-	size_t i;
-
-	/*
-	 * Calculate a suitable number of buckets for our hash
-	 * table.
-	 */
-	max_buckets = nr_regions >> 6;
-	for (nr_buckets = 128u; nr_buckets < max_buckets; nr_buckets <<= 1)
-		;
-	nr_buckets >>= 1;
-
-	rh->ms = ms;
-	rh->log = log;
-	rh->region_size = region_size;
-	rh->region_shift = ffs(region_size) - 1;
-	rwlock_init(&rh->hash_lock);
-	rh->mask = nr_buckets - 1;
-	rh->nr_buckets = nr_buckets;
-
-	rh->buckets = vmalloc(nr_buckets * sizeof(*rh->buckets));
-	if (!rh->buckets) {
-		DMERR("unable to allocate region hash memory");
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < nr_buckets; i++)
-		INIT_LIST_HEAD(rh->buckets + i);
-
-	spin_lock_init(&rh->region_lock);
-	sema_init(&rh->recovery_count, 0);
-	atomic_set(&rh->recovery_in_flight, 0);
-	INIT_LIST_HEAD(&rh->clean_regions);
-	INIT_LIST_HEAD(&rh->quiesced_regions);
-	INIT_LIST_HEAD(&rh->recovered_regions);
-	INIT_LIST_HEAD(&rh->failed_recovered_regions);
-
-	rh->region_pool = mempool_create_kmalloc_pool(MIN_REGIONS,
-						      sizeof(struct region));
-	if (!rh->region_pool) {
-		vfree(rh->buckets);
-		rh->buckets = NULL;
-		return -ENOMEM;
-	}
-
-	return 0;
+	wake_up_all(&_kmirrord_recovery_stopped);
 }
 
-static void rh_exit(struct region_hash *rh)
-{
-	unsigned int h;
-	struct region *reg, *nreg;
-
-	BUG_ON(!list_empty(&rh->quiesced_regions));
-	for (h = 0; h < rh->nr_buckets; h++) {
-		list_for_each_entry_safe(reg, nreg, rh->buckets + h, hash_list) {
-			BUG_ON(atomic_read(&reg->pending));
-			mempool_free(reg, rh->region_pool);
-		}
-	}
-
-	if (rh->log)
-		dm_dirty_log_destroy(rh->log);
-	if (rh->region_pool)
-		mempool_destroy(rh->region_pool);
-	vfree(rh->buckets);
-}
-
-#define RH_HASH_MULT 2654435387U
-
-static inline unsigned int rh_hash(struct region_hash *rh, region_t region)
-{
-	return (unsigned int) ((region * RH_HASH_MULT) >> 12) & rh->mask;
-}
-
-static struct region *__rh_lookup(struct region_hash *rh, region_t region)
-{
-	struct region *reg;
-
-	list_for_each_entry (reg, rh->buckets + rh_hash(rh, region), hash_list)
-		if (reg->key == region)
-			return reg;
-
-	return NULL;
-}
-
-static void __rh_insert(struct region_hash *rh, struct region *reg)
-{
-	unsigned int h = rh_hash(rh, reg->key);
-	list_add(&reg->hash_list, rh->buckets + h);
-}
-
-static struct region *__rh_alloc(struct region_hash *rh, region_t region)
-{
-	struct region *reg, *nreg;
-
-	read_unlock(&rh->hash_lock);
-	nreg = mempool_alloc(rh->region_pool, GFP_ATOMIC);
-	if (unlikely(!nreg))
-		nreg = kmalloc(sizeof(struct region), GFP_NOIO);
-	nreg->state = rh->log->type->in_sync(rh->log, region, 1) ?
-		RH_CLEAN : RH_NOSYNC;
-	nreg->rh = rh;
-	nreg->key = region;
-
-	INIT_LIST_HEAD(&nreg->list);
-
-	atomic_set(&nreg->pending, 0);
-	bio_list_init(&nreg->delayed_bios);
-	write_lock_irq(&rh->hash_lock);
-
-	reg = __rh_lookup(rh, region);
-	if (reg)
-		/* we lost the race */
-		mempool_free(nreg, rh->region_pool);
-
-	else {
-		__rh_insert(rh, nreg);
-		if (nreg->state == RH_CLEAN) {
-			spin_lock(&rh->region_lock);
-			list_add(&nreg->list, &rh->clean_regions);
-			spin_unlock(&rh->region_lock);
-		}
-		reg = nreg;
-	}
-	write_unlock_irq(&rh->hash_lock);
-	read_lock(&rh->hash_lock);
-
-	return reg;
-}
-
-static inline struct region *__rh_find(struct region_hash *rh, region_t region)
-{
-	struct region *reg;
-
-	reg = __rh_lookup(rh, region);
-	if (!reg)
-		reg = __rh_alloc(rh, region);
-
-	return reg;
-}
-
-static int rh_state(struct region_hash *rh, region_t region, int may_block)
-{
-	int r;
-	struct region *reg;
-
-	read_lock(&rh->hash_lock);
-	reg = __rh_lookup(rh, region);
-	read_unlock(&rh->hash_lock);
-
-	if (reg)
-		return reg->state;
-
-	/*
-	 * The region wasn't in the hash, so we fall back to the
-	 * dirty log.
-	 */
-	r = rh->log->type->in_sync(rh->log, region, may_block);
-
-	/*
-	 * Any error from the dirty log (eg. -EWOULDBLOCK) gets
-	 * taken as a RH_NOSYNC
-	 */
-	return r == 1 ? RH_CLEAN : RH_NOSYNC;
-}
-
-static inline int rh_in_sync(struct region_hash *rh,
-			     region_t region, int may_block)
-{
-	int state = rh_state(rh, region, may_block);
-	return state == RH_CLEAN || state == RH_DIRTY;
-}
-
-static void dispatch_bios(struct mirror_set *ms, struct bio_list *bio_list)
-{
-	struct bio *bio;
-
-	while ((bio = bio_list_pop(bio_list))) {
-		queue_bio(ms, bio, WRITE);
-	}
-}
-
-static void complete_resync_work(struct region *reg, int success)
-{
-	struct region_hash *rh = reg->rh;
-
-	rh->log->type->set_region_sync(rh->log, reg->key, success);
-
-	/*
-	 * Dispatch the bios before we call 'wake_up_all'.
-	 * This is important because if we are suspending,
-	 * we want to know that recovery is complete and
-	 * the work queue is flushed.  If we wake_up_all
-	 * before we dispatch_bios (queue bios and call wake()),
-	 * then we risk suspending before the work queue
-	 * has been properly flushed.
-	 */
-	dispatch_bios(rh->ms, &reg->delayed_bios);
-	if (atomic_dec_and_test(&rh->recovery_in_flight))
-		wake_up_all(&_kmirrord_recovery_stopped);
-	up(&rh->recovery_count);
-}
-
-static void rh_update_states(struct region_hash *rh)
-{
-	struct region *reg, *next;
-
-	LIST_HEAD(clean);
-	LIST_HEAD(recovered);
-	LIST_HEAD(failed_recovered);
-
-	/*
-	 * Quickly grab the lists.
-	 */
-	write_lock_irq(&rh->hash_lock);
-	spin_lock(&rh->region_lock);
-	if (!list_empty(&rh->clean_regions)) {
-		list_splice_init(&rh->clean_regions, &clean);
-
-		list_for_each_entry(reg, &clean, list)
-			list_del(&reg->hash_list);
-	}
-
-	if (!list_empty(&rh->recovered_regions)) {
-		list_splice_init(&rh->recovered_regions, &recovered);
-
-		list_for_each_entry (reg, &recovered, list)
-			list_del(&reg->hash_list);
-	}
-
-	if (!list_empty(&rh->failed_recovered_regions)) {
-		list_splice_init(&rh->failed_recovered_regions,
-				 &failed_recovered);
-
-		list_for_each_entry(reg, &failed_recovered, list)
-			list_del(&reg->hash_list);
-	}
-
-	spin_unlock(&rh->region_lock);
-	write_unlock_irq(&rh->hash_lock);
-
-	/*
-	 * All the regions on the recovered and clean lists have
-	 * now been pulled out of the system, so no need to do
-	 * any more locking.
-	 */
-	list_for_each_entry_safe (reg, next, &recovered, list) {
-		rh->log->type->clear_region(rh->log, reg->key);
-		complete_resync_work(reg, 1);
-		mempool_free(reg, rh->region_pool);
-	}
-
-	list_for_each_entry_safe(reg, next, &failed_recovered, list) {
-		complete_resync_work(reg, errors_handled(rh->ms) ? 0 : 1);
-		mempool_free(reg, rh->region_pool);
-	}
-
-	list_for_each_entry_safe(reg, next, &clean, list) {
-		rh->log->type->clear_region(rh->log, reg->key);
-		mempool_free(reg, rh->region_pool);
-	}
-
-	rh->log->type->flush(rh->log);
-}
-
-static void rh_inc(struct region_hash *rh, region_t region)
-{
-	struct region *reg;
-
-	read_lock(&rh->hash_lock);
-	reg = __rh_find(rh, region);
-
-	spin_lock_irq(&rh->region_lock);
-	atomic_inc(&reg->pending);
-
-	if (reg->state == RH_CLEAN) {
-		reg->state = RH_DIRTY;
-		list_del_init(&reg->list);	/* take off the clean list */
-		spin_unlock_irq(&rh->region_lock);
-
-		rh->log->type->mark_region(rh->log, reg->key);
-	} else
-		spin_unlock_irq(&rh->region_lock);
-
-
-	read_unlock(&rh->hash_lock);
-}
-
-static void rh_inc_pending(struct region_hash *rh, struct bio_list *bios)
-{
-	struct bio *bio;
-
-	for (bio = bios->head; bio; bio = bio->bi_next)
-		rh_inc(rh, bio_to_region(rh, bio));
-}
-
-static void rh_dec(struct region_hash *rh, region_t region)
+static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw)
 {
 	unsigned long flags;
-	struct region *reg;
 	int should_wake = 0;
+	struct bio_list *bl;
 
-	read_lock(&rh->hash_lock);
-	reg = __rh_lookup(rh, region);
-	read_unlock(&rh->hash_lock);
-
-	spin_lock_irqsave(&rh->region_lock, flags);
-	if (atomic_dec_and_test(&reg->pending)) {
-		/*
-		 * There is no pending I/O for this region.
-		 * We can move the region to corresponding list for next action.
-		 * At this point, the region is not yet connected to any list.
-		 *
-		 * If the state is RH_NOSYNC, the region should be kept off
-		 * from clean list.
-		 * The hash entry for RH_NOSYNC will remain in memory
-		 * until the region is recovered or the map is reloaded.
-		 */
-
-		/* do nothing for RH_NOSYNC */
-		if (reg->state == RH_RECOVERING) {
-			list_add_tail(&reg->list, &rh->quiesced_regions);
-		} else if (reg->state == RH_DIRTY) {
-			reg->state = RH_CLEAN;
-			list_add(&reg->list, &rh->clean_regions);
-		}
-		should_wake = 1;
-	}
-	spin_unlock_irqrestore(&rh->region_lock, flags);
+	bl = (rw == WRITE) ? &ms->writes : &ms->reads;
+	spin_lock_irqsave(&ms->lock, flags);
+	should_wake = !(bl->head);
+	bio_list_add(bl, bio);
+	spin_unlock_irqrestore(&ms->lock, flags);
 
 	if (should_wake)
-		wake(rh->ms);
+		wakeup_mirrord(ms);
 }
 
-/*
- * Starts quiescing a region in preparation for recovery.
- */
-static int __rh_recovery_prepare(struct region_hash *rh)
+static void dispatch_bios(void *context, struct bio_list *bio_list)
 {
-	int r;
-	struct region *reg;
-	region_t region;
+	struct mirror_set *ms = context;
+	struct bio *bio;
 
-	/*
-	 * Ask the dirty log what's next.
-	 */
-	r = rh->log->type->get_resync_work(rh->log, &region);
-	if (r <= 0)
-		return r;
-
-	/*
-	 * Get this region, and start it quiescing by setting the
-	 * recovering flag.
-	 */
-	read_lock(&rh->hash_lock);
-	reg = __rh_find(rh, region);
-	read_unlock(&rh->hash_lock);
-
-	spin_lock_irq(&rh->region_lock);
-	reg->state = RH_RECOVERING;
-
-	/* Already quiesced ? */
-	if (atomic_read(&reg->pending))
-		list_del_init(&reg->list);
-	else
-		list_move(&reg->list, &rh->quiesced_regions);
-
-	spin_unlock_irq(&rh->region_lock);
-
-	return 1;
-}
-
-static void rh_recovery_prepare(struct region_hash *rh)
-{
-	/* Extra reference to avoid race with rh_stop_recovery */
-	atomic_inc(&rh->recovery_in_flight);
-
-	while (!down_trylock(&rh->recovery_count)) {
-		atomic_inc(&rh->recovery_in_flight);
-		if (__rh_recovery_prepare(rh) <= 0) {
-			atomic_dec(&rh->recovery_in_flight);
-			up(&rh->recovery_count);
-			break;
-		}
-	}
-
-	/* Drop the extra reference */
-	if (atomic_dec_and_test(&rh->recovery_in_flight))
-		wake_up_all(&_kmirrord_recovery_stopped);
-}
-
-/*
- * Returns any quiesced regions.
- */
-static struct region *rh_recovery_start(struct region_hash *rh)
-{
-	struct region *reg = NULL;
-
-	spin_lock_irq(&rh->region_lock);
-	if (!list_empty(&rh->quiesced_regions)) {
-		reg = list_entry(rh->quiesced_regions.next,
-				 struct region, list);
-		list_del_init(&reg->list);	/* remove from the quiesced list */
-	}
-	spin_unlock_irq(&rh->region_lock);
-
-	return reg;
-}
-
-static void rh_recovery_end(struct region *reg, int success)
-{
-	struct region_hash *rh = reg->rh;
-
-	spin_lock_irq(&rh->region_lock);
-	if (success)
-		list_add(&reg->list, &reg->rh->recovered_regions);
-	else {
-		reg->state = RH_NOSYNC;
-		list_add(&reg->list, &reg->rh->failed_recovered_regions);
-	}
-	spin_unlock_irq(&rh->region_lock);
-
-	wake(rh->ms);
-}
-
-static int rh_flush(struct region_hash *rh)
-{
-	return rh->log->type->flush(rh->log);
-}
-
-static void rh_delay(struct region_hash *rh, struct bio *bio)
-{
-	struct region *reg;
-
-	read_lock(&rh->hash_lock);
-	reg = __rh_find(rh, bio_to_region(rh, bio));
-	bio_list_add(&reg->delayed_bios, bio);
-	read_unlock(&rh->hash_lock);
-}
-
-static void rh_stop_recovery(struct region_hash *rh)
-{
-	int i;
-
-	/* wait for any recovering regions */
-	for (i = 0; i < MAX_RECOVERY; i++)
-		down(&rh->recovery_count);
-}
-
-static void rh_start_recovery(struct region_hash *rh)
-{
-	int i;
-
-	for (i = 0; i < MAX_RECOVERY; i++)
-		up(&rh->recovery_count);
-
-	wake(rh->ms);
+	while ((bio = bio_list_pop(bio_list)))
+		queue_bio(ms, bio, WRITE);
 }
 
 #define MIN_READ_RECORDS 20
@@ -776,8 +246,8 @@ out:
 static void recovery_complete(int read_err, unsigned long write_err,
 			      void *context)
 {
-	struct region *reg = (struct region *)context;
-	struct mirror_set *ms = reg->rh->ms;
+	struct dm_region *reg = context;
+	struct mirror_set *ms = dm_rh_region_context(reg);
 	int m, bit = 0;
 
 	if (read_err) {
@@ -803,31 +273,33 @@ static void recovery_complete(int read_err, unsigned long write_err,
 		}
 	}
 
-	rh_recovery_end(reg, !(read_err || write_err));
+	dm_rh_recovery_end(reg, !(read_err || write_err));
 }
 
-static int recover(struct mirror_set *ms, struct region *reg)
+static int recover(struct mirror_set *ms, struct dm_region *reg)
 {
 	int r;
-	unsigned int i;
+	unsigned i;
 	struct dm_io_region from, to[DM_KCOPYD_MAX_REGIONS], *dest;
 	struct mirror *m;
 	unsigned long flags = 0;
+	region_t key = dm_rh_get_region_key(reg);
+	sector_t region_size = dm_rh_get_region_size(ms->rh);
 
 	/* fill in the source */
 	m = get_default_mirror(ms);
 	from.bdev = m->dev->bdev;
-	from.sector = m->offset + region_to_sector(reg->rh, reg->key);
-	if (reg->key == (ms->nr_regions - 1)) {
+	from.sector = m->offset + dm_rh_region_to_sector(ms->rh, key);
+	if (key == (ms->nr_regions - 1)) {
 		/*
 		 * The final region may be smaller than
 		 * region_size.
 		 */
-		from.count = ms->ti->len & (reg->rh->region_size - 1);
+		from.count = ms->ti->len & (region_size - 1);
 		if (!from.count)
-			from.count = reg->rh->region_size;
+			from.count = region_size;
 	} else
-		from.count = reg->rh->region_size;
+		from.count = region_size;
 
 	/* fill in the destinations */
 	for (i = 0, dest = to; i < ms->nr_mirrors; i++) {
@@ -836,7 +308,7 @@ static int recover(struct mirror_set *ms, struct region *reg)
 
 		m = ms->mirror + i;
 		dest->bdev = m->dev->bdev;
-		dest->sector = m->offset + region_to_sector(reg->rh, reg->key);
+		dest->sector = m->offset + dm_rh_region_to_sector(ms->rh, key);
 		dest->count = from.count;
 		dest++;
 	}
@@ -853,22 +325,22 @@ static int recover(struct mirror_set *ms, struct region *reg)
 
 static void do_recovery(struct mirror_set *ms)
 {
+	struct dm_region *reg;
+	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
 	int r;
-	struct region *reg;
-	struct dm_dirty_log *log = ms->rh.log;
 
 	/*
 	 * Start quiescing some regions.
 	 */
-	rh_recovery_prepare(&ms->rh);
+	dm_rh_recovery_prepare(ms->rh);
 
 	/*
 	 * Copy any already quiesced regions.
 	 */
-	while ((reg = rh_recovery_start(&ms->rh))) {
+	while ((reg = dm_rh_recovery_start(ms->rh))) {
 		r = recover(ms, reg);
 		if (r)
-			rh_recovery_end(reg, 0);
+			dm_rh_recovery_end(reg, 0);
 	}
 
 	/*
@@ -909,9 +381,10 @@ static int default_ok(struct mirror *m)
 
 static int mirror_available(struct mirror_set *ms, struct bio *bio)
 {
-	region_t region = bio_to_region(&ms->rh, bio);
+	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
+	region_t region = dm_rh_bio_to_region(ms->rh, bio);
 
-	if (ms->rh.log->type->in_sync(ms->rh.log, region, 0))
+	if (log->type->in_sync(log, region, 0))
 		return choose_mirror(ms,  bio->bi_sector) ? 1 : 0;
 
 	return 0;
@@ -985,7 +458,14 @@ static void read_async_bio(struct mirror *m, struct bio *bio)
 
 	map_region(&io, m, bio);
 	bio_set_m(bio, m);
-	(void) dm_io(&io_req, 1, &io, NULL);
+	BUG_ON(dm_io(&io_req, 1, &io, NULL));
+}
+
+static inline int region_in_sync(struct mirror_set *ms, region_t region,
+				 int may_block)
+{
+	int state = dm_rh_get_state(ms->rh, region, may_block);
+	return state == DM_RH_CLEAN || state == DM_RH_DIRTY;
 }
 
 static void do_reads(struct mirror_set *ms, struct bio_list *reads)
@@ -995,13 +475,13 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
 	struct mirror *m;
 
 	while ((bio = bio_list_pop(reads))) {
-		region = bio_to_region(&ms->rh, bio);
+		region = dm_rh_bio_to_region(ms->rh, bio);
 		m = get_default_mirror(ms);
 
 		/*
 		 * We can only read balance if the region is in sync.
 		 */
-		if (likely(rh_in_sync(&ms->rh, region, 1)))
+		if (likely(region_in_sync(ms, region, 1)))
 			m = choose_mirror(ms, bio->bi_sector);
 		else if (m && atomic_read(&m->error_count))
 			m = NULL;
@@ -1024,57 +504,6 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
  * NOSYNC:	increment pending, just write to the default mirror
  *---------------------------------------------------------------*/
 
-/* __bio_mark_nosync
- * @ms
- * @bio
- * @done
- * @error
- *
- * The bio was written on some mirror(s) but failed on other mirror(s).
- * We can successfully endio the bio but should avoid the region being
- * marked clean by setting the state RH_NOSYNC.
- *
- * This function is _not_ safe in interrupt context!
- */
-static void __bio_mark_nosync(struct mirror_set *ms,
-			      struct bio *bio, unsigned done, int error)
-{
-	unsigned long flags;
-	struct region_hash *rh = &ms->rh;
-	struct dm_dirty_log *log = ms->rh.log;
-	struct region *reg;
-	region_t region = bio_to_region(rh, bio);
-	int recovering = 0;
-
-	/* We must inform the log that the sync count has changed. */
-	log->type->set_region_sync(log, region, 0);
-	ms->in_sync = 0;
-
-	read_lock(&rh->hash_lock);
-	reg = __rh_find(rh, region);
-	read_unlock(&rh->hash_lock);
-
-	/* region hash entry should exist because write was in-flight */
-	BUG_ON(!reg);
-	BUG_ON(!list_empty(&reg->list));
-
-	spin_lock_irqsave(&rh->region_lock, flags);
-	/*
-	 * Possible cases:
-	 *   1) RH_DIRTY
-	 *   2) RH_NOSYNC: was dirty, other preceeding writes failed
-	 *   3) RH_RECOVERING: flushing pending writes
-	 * Either case, the region should have not been connected to list.
-	 */
-	recovering = (reg->state == RH_RECOVERING);
-	reg->state = RH_NOSYNC;
-	BUG_ON(!list_empty(&reg->list));
-	spin_unlock_irqrestore(&rh->region_lock, flags);
-
-	bio_endio(bio, error);
-	if (recovering)
-		complete_resync_work(reg, 0);
-}
 
 static void write_callback(unsigned long error, void *context)
 {
@@ -1119,7 +548,7 @@ static void write_callback(unsigned long error, void *context)
 		bio_list_add(&ms->failures, bio);
 		spin_unlock_irqrestore(&ms->lock, flags);
 		if (should_wake)
-			wake(ms);
+			wakeup_mirrord(ms);
 		return;
 	}
 out:
@@ -1149,7 +578,7 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	 */
 	bio_set_m(bio, get_default_mirror(ms));
 
-	(void) dm_io(&io_req, ms->nr_mirrors, io, NULL);
+	BUG_ON(dm_io(&io_req, ms->nr_mirrors, io, NULL));
 }
 
 static void do_writes(struct mirror_set *ms, struct bio_list *writes)
@@ -1169,18 +598,19 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	bio_list_init(&recover);
 
 	while ((bio = bio_list_pop(writes))) {
-		state = rh_state(&ms->rh, bio_to_region(&ms->rh, bio), 1);
+		state = dm_rh_get_state(ms->rh,
+					dm_rh_bio_to_region(ms->rh, bio), 1);
 		switch (state) {
-		case RH_CLEAN:
-		case RH_DIRTY:
+		case DM_RH_CLEAN:
+		case DM_RH_DIRTY:
 			this_list = &sync;
 			break;
 
-		case RH_NOSYNC:
+		case DM_RH_NOSYNC:
 			this_list = &nosync;
 			break;
 
-		case RH_RECOVERING:
+		case DM_RH_RECOVERING:
 			this_list = &recover;
 			break;
 		}
@@ -1193,9 +623,9 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	 * be written to (writes to recover regions are going to
 	 * be delayed).
 	 */
-	rh_inc_pending(&ms->rh, &sync);
-	rh_inc_pending(&ms->rh, &nosync);
-	ms->log_failure = rh_flush(&ms->rh) ? 1 : 0;
+	dm_rh_inc_pending(ms->rh, &sync);
+	dm_rh_inc_pending(ms->rh, &nosync);
+	ms->log_failure = dm_rh_flush(ms->rh) ? 1 : 0;
 
 	/*
 	 * Dispatch io.
@@ -1204,13 +634,13 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		spin_lock_irq(&ms->lock);
 		bio_list_merge(&ms->failures, &sync);
 		spin_unlock_irq(&ms->lock);
-		wake(ms);
+		wakeup_mirrord(ms);
 	} else
 		while ((bio = bio_list_pop(&sync)))
 			do_write(ms, bio);
 
 	while ((bio = bio_list_pop(&recover)))
-		rh_delay(&ms->rh, bio);
+		dm_rh_delay(ms->rh, bio);
 
 	while ((bio = bio_list_pop(&nosync))) {
 		map_bio(get_default_mirror(ms), bio);
@@ -1226,8 +656,10 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 		return;
 
 	if (!ms->log_failure) {
-		while ((bio = bio_list_pop(failures)))
-			__bio_mark_nosync(ms, bio, bio->bi_size, 0);
+		while ((bio = bio_list_pop(failures))) {
+			ms->in_sync = 0;
+			dm_rh_mark_nosync(ms->rh, bio, bio->bi_size, 0);
+		}
 		return;
 	}
 
@@ -1280,8 +712,8 @@ static void trigger_event(struct work_struct *work)
  *---------------------------------------------------------------*/
 static void do_mirror(struct work_struct *work)
 {
-	struct mirror_set *ms =container_of(work, struct mirror_set,
-					    kmirrord_work);
+	struct mirror_set *ms = container_of(work, struct mirror_set,
+					     kmirrord_work);
 	struct bio_list reads, writes, failures;
 	unsigned long flags;
 
@@ -1294,7 +726,7 @@ static void do_mirror(struct work_struct *work)
 	bio_list_init(&ms->failures);
 	spin_unlock_irqrestore(&ms->lock, flags);
 
-	rh_update_states(&ms->rh);
+	dm_rh_update_states(ms->rh, errors_handled(ms));
 	do_recovery(ms);
 	do_reads(ms, &reads);
 	do_writes(ms, &writes);
@@ -1302,7 +734,6 @@ static void do_mirror(struct work_struct *work)
 
 	dm_table_unplug_all(ms->ti->table);
 }
-
 
 /*-----------------------------------------------------------------
  * Target functions
@@ -1314,9 +745,6 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 {
 	size_t len;
 	struct mirror_set *ms = NULL;
-
-	if (array_too_big(sizeof(*ms), sizeof(ms->mirror[0]), nr_mirrors))
-		return NULL;
 
 	len = sizeof(*ms) + (sizeof(ms->mirror[0]) * nr_mirrors);
 
@@ -1353,7 +781,11 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
  		return NULL;
 	}
 
-	if (rh_init(&ms->rh, ms, dl, region_size, ms->nr_regions)) {
+	ms->rh = dm_region_hash_create(ms, dispatch_bios, wakeup_mirrord,
+				       wakeup_all_recovery_waiters,
+				       ms->ti->begin, MAX_RECOVERY,
+				       dl, region_size, ms->nr_regions);
+	if (IS_ERR(ms->rh)) {
 		ti->error = "Error creating dirty region hash";
 		dm_io_client_destroy(ms->io_client);
 		mempool_destroy(ms->read_record_pool);
@@ -1371,7 +803,7 @@ static void free_context(struct mirror_set *ms, struct dm_target *ti,
 		dm_put_device(ti, ms->mirror[m].dev);
 
 	dm_io_client_destroy(ms->io_client);
-	rh_exit(&ms->rh);
+	dm_region_hash_destroy(ms->rh);
 	mempool_destroy(ms->read_record_pool);
 	kfree(ms);
 }
@@ -1411,10 +843,10 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
  * Create dirty log: log_type #log_params <log_params>
  */
 static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
-					  unsigned int argc, char **argv,
-					  unsigned int *args_used)
+					     unsigned argc, char **argv,
+					     unsigned *args_used)
 {
-	unsigned int param_count;
+	unsigned param_count;
 	struct dm_dirty_log *dl;
 
 	if (argc < 2) {
@@ -1545,7 +977,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = ms;
- 	ti->split_io = ms->rh.region_size;
+	ti->split_io = dm_rh_get_region_size(ms->rh);
 
 	ms->kmirrord_wq = create_singlethread_workqueue("kmirrord");
 	if (!ms->kmirrord_wq) {
@@ -1580,11 +1012,11 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_destroy_wq;
 	}
 
-	r = dm_kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
+	r = dm_kcopyd_client_create(DM_KCOPYD_PAGES, &ms->kcopyd_client);
 	if (r)
 		goto err_destroy_wq;
 
-	wake(ms);
+	wakeup_mirrord(ms);
 	return 0;
 
 err_destroy_wq:
@@ -1600,25 +1032,10 @@ static void mirror_dtr(struct dm_target *ti)
 
 	del_timer_sync(&ms->timer);
 	flush_workqueue(ms->kmirrord_wq);
+	flush_scheduled_work();
 	dm_kcopyd_client_destroy(ms->kcopyd_client);
 	destroy_workqueue(ms->kmirrord_wq);
 	free_context(ms, ti, ms->nr_mirrors);
-}
-
-static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw)
-{
-	unsigned long flags;
-	int should_wake = 0;
-	struct bio_list *bl;
-
-	bl = (rw == WRITE) ? &ms->writes : &ms->reads;
-	spin_lock_irqsave(&ms->lock, flags);
-	should_wake = !(bl->head);
-	bio_list_add(bl, bio);
-	spin_unlock_irqrestore(&ms->lock, flags);
-
-	if (should_wake)
-		wake(ms);
 }
 
 /*
@@ -1631,16 +1048,16 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 	struct mirror *m;
 	struct mirror_set *ms = ti->private;
 	struct dm_raid1_read_record *read_record = NULL;
+	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
 
 	if (rw == WRITE) {
 		/* Save region for mirror_end_io() handler */
-		map_context->ll = bio_to_region(&ms->rh, bio);
+		map_context->ll = dm_rh_bio_to_region(ms->rh, bio);
 		queue_bio(ms, bio, rw);
 		return DM_MAPIO_SUBMITTED;
 	}
 
-	r = ms->rh.log->type->in_sync(ms->rh.log,
-				      bio_to_region(&ms->rh, bio), 0);
+	r = log->type->in_sync(log, dm_rh_bio_to_region(ms->rh, bio), 0);
 	if (r < 0 && r != -EWOULDBLOCK)
 		return r;
 
@@ -1688,7 +1105,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	 * We need to dec pending if this was a write.
 	 */
 	if (rw == WRITE) {
-		rh_dec(&ms->rh, map_context->ll);
+		dm_rh_dec(ms->rh, map_context->ll);
 		return error;
 	}
 
@@ -1744,7 +1161,7 @@ out:
 static void mirror_presuspend(struct dm_target *ti)
 {
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
-	struct dm_dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
 
 	atomic_set(&ms->suspend, 1);
 
@@ -1752,10 +1169,10 @@ static void mirror_presuspend(struct dm_target *ti)
 	 * We must finish up all the work that we've
 	 * generated (i.e. recovery work).
 	 */
-	rh_stop_recovery(&ms->rh);
+	dm_rh_stop_recovery(ms->rh);
 
 	wait_event(_kmirrord_recovery_stopped,
-		   !atomic_read(&ms->rh.recovery_in_flight));
+		   !dm_rh_recovery_in_flight(ms->rh));
 
 	if (log->type->presuspend && log->type->presuspend(log))
 		/* FIXME: need better error handling */
@@ -1773,7 +1190,7 @@ static void mirror_presuspend(struct dm_target *ti)
 static void mirror_postsuspend(struct dm_target *ti)
 {
 	struct mirror_set *ms = ti->private;
-	struct dm_dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
 
 	if (log->type->postsuspend && log->type->postsuspend(log))
 		/* FIXME: need better error handling */
@@ -1783,13 +1200,13 @@ static void mirror_postsuspend(struct dm_target *ti)
 static void mirror_resume(struct dm_target *ti)
 {
 	struct mirror_set *ms = ti->private;
-	struct dm_dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
 
 	atomic_set(&ms->suspend, 0);
 	if (log->type->resume && log->type->resume(log))
 		/* FIXME: need better error handling */
 		DMWARN("log resume failed");
-	rh_start_recovery(&ms->rh);
+	dm_rh_start_recovery(ms->rh);
 }
 
 /*
@@ -1821,7 +1238,7 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 {
 	unsigned int m, sz = 0;
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
-	struct dm_dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
 	char buffer[ms->nr_mirrors + 1];
 
 	switch (type) {
@@ -1834,15 +1251,15 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 		buffer[m] = '\0';
 
 		DMEMIT("%llu/%llu 1 %s ",
-		      (unsigned long long)log->type->get_sync_count(ms->rh.log),
+		      (unsigned long long)log->type->get_sync_count(log),
 		      (unsigned long long)ms->nr_regions, buffer);
 
-		sz += log->type->status(ms->rh.log, type, result+sz, maxlen-sz);
+		sz += log->type->status(log, type, result+sz, maxlen-sz);
 
 		break;
 
 	case STATUSTYPE_TABLE:
-		sz = log->type->status(ms->rh.log, type, result, maxlen);
+		sz = log->type->status(log, type, result, maxlen);
 
 		DMEMIT("%d", ms->nr_mirrors);
 		for (m = 0; m < ms->nr_mirrors; m++)

@@ -11,6 +11,7 @@
 #define _ASM_IA64_MACHVEC_H
 
 #include <linux/types.h>
+#include <linux/swiotlb.h>
 
 /* forward declarations: */
 struct device;
@@ -120,6 +121,8 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  include <asm/machvec_hpsim.h>
 # elif defined (CONFIG_IA64_DIG)
 #  include <asm/machvec_dig.h>
+# elif defined(CONFIG_IA64_DIG_VTD)
+#  include <asm/machvec_dig_vtd.h>
 # elif defined (CONFIG_IA64_HP_ZX1)
 #  include <asm/machvec_hpzx1.h>
 # elif defined (CONFIG_IA64_HP_ZX1_SWIOTLB)
@@ -128,6 +131,8 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  include <asm/machvec_sn2.h>
 # elif defined (CONFIG_IA64_SGI_UV)
 #  include <asm/machvec_uv.h>
+# elif defined (CONFIG_IA64_XEN_GUEST)
+#  include <asm/machvec_xen.h>
 # elif defined (CONFIG_IA64_GENERIC)
 
 # ifdef MACHVEC_PLATFORM_HEADER
@@ -292,27 +297,6 @@ extern void machvec_init_from_cmdline(const char *cmdline);
 # else
 #  error Unknown configuration.  Update arch/ia64/include/asm/machvec.h.
 # endif /* CONFIG_IA64_GENERIC */
-
-/*
- * Declare default routines which aren't declared anywhere else:
- */
-extern ia64_mv_dma_init			swiotlb_init;
-extern ia64_mv_dma_alloc_coherent	swiotlb_alloc_coherent;
-extern ia64_mv_dma_free_coherent	swiotlb_free_coherent;
-extern ia64_mv_dma_map_single		swiotlb_map_single;
-extern ia64_mv_dma_map_single_attrs	swiotlb_map_single_attrs;
-extern ia64_mv_dma_unmap_single		swiotlb_unmap_single;
-extern ia64_mv_dma_unmap_single_attrs	swiotlb_unmap_single_attrs;
-extern ia64_mv_dma_map_sg		swiotlb_map_sg;
-extern ia64_mv_dma_map_sg_attrs		swiotlb_map_sg_attrs;
-extern ia64_mv_dma_unmap_sg		swiotlb_unmap_sg;
-extern ia64_mv_dma_unmap_sg_attrs	swiotlb_unmap_sg_attrs;
-extern ia64_mv_dma_sync_single_for_cpu	swiotlb_sync_single_for_cpu;
-extern ia64_mv_dma_sync_sg_for_cpu	swiotlb_sync_sg_for_cpu;
-extern ia64_mv_dma_sync_single_for_device swiotlb_sync_single_for_device;
-extern ia64_mv_dma_sync_sg_for_device	swiotlb_sync_sg_for_device;
-extern ia64_mv_dma_mapping_error	swiotlb_dma_mapping_error;
-extern ia64_mv_dma_supported		swiotlb_dma_supported;
 
 /*
  * Define default versions so we can extend machvec for new platforms without having

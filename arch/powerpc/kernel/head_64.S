@@ -106,6 +106,20 @@ __secondary_hold_acknowledge:
 	.llong hvReleaseData-KERNELBASE
 #endif /* CONFIG_PPC_ISERIES */
 
+#ifdef CONFIG_CRASH_DUMP
+	/* This flag is set to 1 by a loader if the kernel should run
+	 * at the loaded address instead of the linked address.  This
+	 * is used by kexec-tools to keep the the kdump kernel in the
+	 * crash_kernel region.  The loader is responsible for
+	 * observing the alignment requirement.
+	 */
+	/* Do not move this variable as kexec-tools knows about it. */
+	. = 0x5c
+	.globl	__run_at_load
+__run_at_load:
+	.long	0x72756e30	/* "run0" -- relocate to 0 by default */
+#endif
+
 	. = 0x60
 /*
  * The following code is used to hold secondary processors
@@ -1384,7 +1398,13 @@ _STATIC(__after_prom_start)
 	/* process relocations for the final address of the kernel */
 	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
 	sldi	r25,r25,32
-	mr	r3,r25
+#ifdef CONFIG_CRASH_DUMP
+	lwz	r7,__run_at_load-_stext(r26)
+	cmplwi	cr0,r7,1	/* kdump kernel ? - stay where we are */
+	bne	1f
+	add	r25,r25,r26
+#endif
+1:	mr	r3,r25
 	bl	.relocate
 #endif
 
@@ -1398,10 +1418,25 @@ _STATIC(__after_prom_start)
 	li	r3,0			/* target addr */
 	mr.	r4,r26			/* In some cases the loader may  */
 	beq	9f			/* have already put us at zero */
-	lis	r5,(copy_to_here - _stext)@ha
-	addi	r5,r5,(copy_to_here - _stext)@l /* # bytes of memory to copy */
 	li	r6,0x100		/* Start offset, the first 0x100 */
 					/* bytes were copied earlier.	 */
+
+#ifdef CONFIG_CRASH_DUMP
+/*
+ * Check if the kernel has to be running as relocatable kernel based on the
+ * variable __run_at_load, if it is set the kernel is treated as relocatable
+ * kernel, otherwise it will be moved to PHYSICAL_START
+ */
+	lwz	r7,__run_at_load-_stext(r26)
+	cmplwi	cr0,r7,1
+	bne	3f
+
+	li	r5,__end_interrupts - _stext	/* just copy interrupts */
+	b	5f
+3:
+#endif
+	lis	r5,(copy_to_here - _stext)@ha
+	addi	r5,r5,(copy_to_here - _stext)@l /* # bytes of memory to copy */
 
 	bl	.copy_and_flush		/* copy the first n bytes	 */
 					/* this includes the code being	 */
@@ -1411,14 +1446,14 @@ _STATIC(__after_prom_start)
 	mtctr	r8
 	bctr
 
+p_end:	.llong	_end - _stext
+
 4:	/* Now copy the rest of the kernel up to _end */
 	addis	r5,r26,(p_end - _stext)@ha
 	ld	r5,(p_end - _stext)@l(r5)	/* get _end */
-	bl	.copy_and_flush		/* copy the rest */
+5:	bl	.copy_and_flush		/* copy the rest */
 
 9:	b	.start_here_multiplatform
-
-p_end:	.llong	_end - _stext
 
 /*
  * Copy routine used to copy the kernel to start at physical address 0

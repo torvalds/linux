@@ -266,6 +266,9 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 
 	client->dev.platform_data = info->platform_data;
 
+	if (info->archdata)
+		client->dev.archdata = *info->archdata;
+
 	client->flags = info->flags;
 	client->addr = info->addr;
 	client->irq = info->irq;
@@ -628,7 +631,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 
 	/* detach any active clients. This must be done first, because
 	 * it can fail; in which case we give up. */
-	list_for_each_entry_safe(client, _n, &adap->clients, list) {
+	list_for_each_entry_safe_reverse(client, _n, &adap->clients, list) {
 		struct i2c_driver	*driver;
 
 		driver = client->driver;

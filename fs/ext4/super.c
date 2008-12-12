@@ -333,7 +333,8 @@ void ext4_abort(struct super_block *sb, const char *function,
 	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 	sb->s_flags |= MS_RDONLY;
 	EXT4_SB(sb)->s_mount_opt |= EXT4_MOUNT_ABORT;
-	jbd2_journal_abort(EXT4_SB(sb)->s_journal, -EIO);
+	if (EXT4_SB(sb)->s_journal)
+		jbd2_journal_abort(EXT4_SB(sb)->s_journal, -EIO);
 }
 
 void ext4_warning(struct super_block *sb, const char *function,
@@ -399,7 +400,7 @@ fail:
 static int ext4_blkdev_put(struct block_device *bdev)
 {
 	bd_release(bdev);
-	return blkdev_put(bdev);
+	return blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 }
 
 static int ext4_blkdev_remove(struct ext4_sb_info *sbi)
@@ -442,14 +443,16 @@ static void ext4_put_super(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
-	int i;
+	int i, err;
 
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
 	ext4_xattr_put_super(sb);
-	if (jbd2_journal_destroy(sbi->s_journal) < 0)
-		ext4_abort(sb, __func__, "Couldn't clean up the journal");
+	err = jbd2_journal_destroy(sbi->s_journal);
 	sbi->s_journal = NULL;
+	if (err < 0)
+		ext4_abort(sb, __func__, "Couldn't clean up the journal");
+
 	if (!(sb->s_flags & MS_RDONLY)) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
@@ -1455,9 +1458,8 @@ static int ext4_fill_flex_info(struct super_block *sb)
 
 	/* We allocate both existing and potentially added groups */
 	flex_group_count = ((sbi->s_groups_count + groups_per_flex - 1) +
-			    ((sbi->s_es->s_reserved_gdt_blocks +1 ) <<
-			      EXT4_DESC_PER_BLOCK_BITS(sb))) /
-			   groups_per_flex;
+			((le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks) + 1) <<
+			      EXT4_DESC_PER_BLOCK_BITS(sb))) / groups_per_flex;
 	sbi->s_flex_groups = kzalloc(flex_group_count *
 				     sizeof(struct flex_groups), GFP_KERNEL);
 	if (sbi->s_flex_groups == NULL) {
@@ -2553,7 +2555,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 	if (bd_claim(bdev, sb)) {
 		printk(KERN_ERR
 			"EXT4: failed to claim external journal device.\n");
-		blkdev_put(bdev);
+		blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 		return NULL;
 	}
 
@@ -2882,12 +2884,9 @@ int ext4_force_commit(struct super_block *sb)
 /*
  * Ext4 always journals updates to the superblock itself, so we don't
  * have to propagate any other updates to the superblock on disk at this
- * point.  Just start an async writeback to get the buffers on their way
- * to the disk.
- *
- * This implicitly triggers the writebehind on sync().
+ * point.  (We can probably nuke this function altogether, and remove
+ * any mention to sb->s_dirt in all of fs/ext4; eventual cleanup...)
  */
-
 static void ext4_write_super(struct super_block *sb)
 {
 	if (mutex_trylock(&sb->s_lock) != 0)
@@ -2897,15 +2896,15 @@ static void ext4_write_super(struct super_block *sb)
 
 static int ext4_sync_fs(struct super_block *sb, int wait)
 {
-	tid_t target;
+	int ret = 0;
 
 	trace_mark(ext4_sync_fs, "dev %s wait %d", sb->s_id, wait);
 	sb->s_dirt = 0;
-	if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, &target)) {
-		if (wait)
-			jbd2_log_wait_commit(EXT4_SB(sb)->s_journal, target);
-	}
-	return 0;
+	if (wait)
+		ret = ext4_force_commit(sb);
+	else
+		jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, NULL);
+	return ret;
 }
 
 /*
@@ -3328,30 +3327,30 @@ static int ext4_quota_on_mount(struct super_block *sb, int type)
  * Standard function to be called on quota_on
  */
 static int ext4_quota_on(struct super_block *sb, int type, int format_id,
-			 char *path, int remount)
+			 char *name, int remount)
 {
 	int err;
-	struct nameidata nd;
+	struct path path;
 
 	if (!test_opt(sb, QUOTA))
 		return -EINVAL;
-	/* When remounting, no checks are needed and in fact, path is NULL */
+	/* When remounting, no checks are needed and in fact, name is NULL */
 	if (remount)
-		return vfs_quota_on(sb, type, format_id, path, remount);
+		return vfs_quota_on(sb, type, format_id, name, remount);
 
-	err = path_lookup(path, LOOKUP_FOLLOW, &nd);
+	err = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (err)
 		return err;
 
 	/* Quotafile not on the same filesystem? */
-	if (nd.path.mnt->mnt_sb != sb) {
-		path_put(&nd.path);
+	if (path.mnt->mnt_sb != sb) {
+		path_put(&path);
 		return -EXDEV;
 	}
 	/* Journaling quota? */
 	if (EXT4_SB(sb)->s_qf_names[type]) {
 		/* Quotafile not in fs root? */
-		if (nd.path.dentry->d_parent->d_inode != sb->s_root->d_inode)
+		if (path.dentry->d_parent != sb->s_root)
 			printk(KERN_WARNING
 				"EXT4-fs: Quota file not on filesystem root. "
 				"Journaled quota will not work.\n");
@@ -3361,7 +3360,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 	 * When we journal data on quota file, we have to flush journal to see
 	 * all updates to the file when we bypass pagecache...
 	 */
-	if (ext4_should_journal_data(nd.path.dentry->d_inode)) {
+	if (ext4_should_journal_data(path.dentry->d_inode)) {
 		/*
 		 * We don't need to lock updates but journal_flush() could
 		 * otherwise be livelocked...
@@ -3370,13 +3369,13 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		err = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 		if (err) {
-			path_put(&nd.path);
+			path_put(&path);
 			return err;
 		}
 	}
 
-	err = vfs_quota_on_path(sb, type, format_id, &nd.path);
-	path_put(&nd.path);
+	err = vfs_quota_on_path(sb, type, format_id, &path);
+	path_put(&path);
 	return err;
 }
 

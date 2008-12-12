@@ -474,8 +474,8 @@ struct ide_disk_ops {
 	ide_startstop_t	(*do_request)(struct ide_drive_s *, struct request *,
 				      sector_t);
 	int		(*end_request)(struct ide_drive_s *, int, int);
-	int		(*ioctl)(struct ide_drive_s *, struct inode *,
-				 struct file *, unsigned int, unsigned long);
+	int		(*ioctl)(struct ide_drive_s *, struct block_device *,
+				 fmode_t, unsigned int, unsigned long);
 };
 
 /* ATAPI device flags */
@@ -1158,8 +1158,7 @@ struct ide_ioctl_devset {
 int ide_setting_ioctl(ide_drive_t *, struct block_device *, unsigned int,
 		      unsigned long, const struct ide_ioctl_devset *);
 
-int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *,
-		      unsigned, unsigned long);
+int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned long);
 
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
@@ -1297,6 +1296,13 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 #define ide_pci_register_driver(d) pci_register_driver(d)
 #endif
 
+static inline int ide_pci_is_in_compatibility_mode(struct pci_dev *dev)
+{
+	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE && (dev->class & 5) != 5)
+		return 1;
+	return 0;
+}
+
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int,
 			 hw_regs_t *, hw_regs_t **);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
@@ -1376,6 +1382,7 @@ enum {
 	IDE_HFLAG_IO_32BIT		= (1 << 24),
 	/* unmask IRQs */
 	IDE_HFLAG_UNMASK_IRQS		= (1 << 25),
+	IDE_HFLAG_BROKEN_ALTSTATUS	= (1 << 26),
 	/* serialize ports if DMA is possible (for sl82c105) */
 	IDE_HFLAG_SERIALIZE_DMA		= (1 << 27),
 	/* force host out of "simplex" mode */

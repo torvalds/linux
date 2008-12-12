@@ -1805,19 +1805,19 @@ int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
 }
 
 /* Actual function called from quotactl() */
-int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path,
+int vfs_quota_on(struct super_block *sb, int type, int format_id, char *name,
 		 int remount)
 {
-	struct nameidata nd;
+	struct path path;
 	int error;
 
 	if (remount)
 		return vfs_quota_on_remount(sb, type);
 
-	error = path_lookup(path, LOOKUP_FOLLOW, &nd);
+	error = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (!error) {
-		error = vfs_quota_on_path(sb, type, format_id, &nd.path);
-		path_put(&nd.path);
+		error = vfs_quota_on_path(sb, type, format_id, &path);
+		path_put(&path);
 	}
 	return error;
 }

@@ -204,10 +204,10 @@ static int __pit_timer_fn(struct kvm_kpit_state *ps)
 	if (vcpu0 && waitqueue_active(&vcpu0->wq))
 		wake_up_interruptible(&vcpu0->wq);
 
-	pt->timer.expires = ktime_add_ns(pt->timer.expires, pt->period);
-	pt->scheduled = ktime_to_ns(pt->timer.expires);
+	hrtimer_add_expires_ns(&pt->timer, pt->period);
+	pt->scheduled = hrtimer_get_expires_ns(&pt->timer);
 	if (pt->period)
-		ps->channels[0].count_load_time = pt->timer.expires;
+		ps->channels[0].count_load_time = hrtimer_get_expires(&pt->timer);
 
 	return (pt->period == 0 ? 0 : 1);
 }
@@ -257,7 +257,7 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 
 	timer = &pit->pit_state.pit_timer.timer;
 	if (hrtimer_cancel(timer))
-		hrtimer_start(timer, timer->expires, HRTIMER_MODE_ABS);
+		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
 }
 
 static void destroy_pit_timer(struct kvm_kpit_timer *pt)
@@ -545,6 +545,14 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm)
 	if (!pit)
 		return NULL;
 
+	mutex_lock(&kvm->lock);
+	pit->irq_source_id = kvm_request_irq_source_id(kvm);
+	mutex_unlock(&kvm->lock);
+	if (pit->irq_source_id < 0) {
+		kfree(pit);
+		return NULL;
+	}
+
 	mutex_init(&pit->pit_state.lock);
 	mutex_lock(&pit->pit_state.lock);
 	spin_lock_init(&pit->pit_state.inject_lock);
@@ -587,6 +595,7 @@ void kvm_free_pit(struct kvm *kvm)
 		mutex_lock(&kvm->arch.vpit->pit_state.lock);
 		timer = &kvm->arch.vpit->pit_state.pit_timer.timer;
 		hrtimer_cancel(timer);
+		kvm_free_irq_source_id(kvm, kvm->arch.vpit->irq_source_id);
 		mutex_unlock(&kvm->arch.vpit->pit_state.lock);
 		kfree(kvm->arch.vpit);
 	}
@@ -595,8 +604,8 @@ void kvm_free_pit(struct kvm *kvm)
 static void __inject_pit_timer_intr(struct kvm *kvm)
 {
 	mutex_lock(&kvm->lock);
-	kvm_set_irq(kvm, 0, 1);
-	kvm_set_irq(kvm, 0, 0);
+	kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 1);
+	kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 0);
 	mutex_unlock(&kvm->lock);
 }
 

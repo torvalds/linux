@@ -1746,6 +1746,11 @@ restart:
 			goto restart;
 		}
 
+		/* log sense for fatal error */
+		if (cqr->status == DASD_CQR_FAILED) {
+			dasd_log_sense(cqr, &cqr->irb);
+		}
+
 		/* First of all call extended error reporting. */
 		if (dasd_eer_enabled(base) &&
 		    cqr->status == DASD_CQR_FAILED) {
@@ -2011,10 +2016,9 @@ static void dasd_flush_request_queue(struct dasd_block *block)
 	spin_unlock_irq(&block->request_queue_lock);
 }
 
-static int dasd_open(struct inode *inp, struct file *filp)
+static int dasd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inp->i_bdev->bd_disk;
-	struct dasd_block *block = disk->private_data;
+	struct dasd_block *block = bdev->bd_disk->private_data;
 	struct dasd_device *base = block->base;
 	int rc;
 
@@ -2052,9 +2056,8 @@ unlock:
 	return rc;
 }
 
-static int dasd_release(struct inode *inp, struct file *filp)
+static int dasd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inp->i_bdev->bd_disk;
 	struct dasd_block *block = disk->private_data;
 
 	atomic_dec(&block->open_count);
@@ -2089,8 +2092,7 @@ dasd_device_operations = {
 	.owner		= THIS_MODULE,
 	.open		= dasd_open,
 	.release	= dasd_release,
-	.ioctl		= dasd_ioctl,
-	.compat_ioctl	= dasd_compat_ioctl,
+	.locked_ioctl	= dasd_ioctl,
 	.getgeo		= dasd_getgeo,
 };
 

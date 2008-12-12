@@ -2,7 +2,7 @@
  *  Copyright (C) 1994-1998	   Linus Torvalds & authors (see below)
  *  Copyright (C) 1998-2002	   Linux ATA Development
  *				      Andre Hedrick <andre@linux-ide.org>
- *  Copyright (C) 2003		   Red Hat <alan@redhat.com>
+ *  Copyright (C) 2003		   Red Hat
  *  Copyright (C) 2003-2005, 2007  Bartlomiej Zolnierkiewicz
  */
 
@@ -600,6 +600,7 @@ static int ide_disk_check(ide_drive_t *drive, const char *s)
 static void ide_disk_setup(ide_drive_t *drive)
 {
 	struct ide_disk_obj *idkp = drive->driver_data;
+	struct request_queue *q = drive->queue;
 	ide_hwif_t *hwif = drive->hwif;
 	u16 *id = drive->id;
 	char *m = (char *)&id[ATA_ID_PROD];
@@ -626,11 +627,14 @@ static void ide_disk_setup(ide_drive_t *drive)
 		if (max_s > hwif->rqsize)
 			max_s = hwif->rqsize;
 
-		blk_queue_max_sectors(drive->queue, max_s);
+		blk_queue_max_sectors(q, max_s);
 	}
 
 	printk(KERN_INFO "%s: max request size: %dKiB\n", drive->name,
-			 drive->queue->max_sectors / 2);
+		q->max_sectors / 2);
+
+	if (ata_id_is_ssd(id) || ata_id_is_cfa(id))
+		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 
 	/* calculate drive capacity, and select LBA if possible */
 	ide_disk_get_capacity(drive);

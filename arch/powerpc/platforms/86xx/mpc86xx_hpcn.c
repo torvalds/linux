@@ -101,13 +101,11 @@ mpc86xx_hpcn_setup_arch(void)
 static void
 mpc86xx_hpcn_show_cpuinfo(struct seq_file *m)
 {
-	uint memsize = total_memory;
 	uint svid = mfspr(SPRN_SVR);
 
 	seq_printf(m, "Vendor\t\t: Freescale Semiconductor\n");
 
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
-	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 }
 
 

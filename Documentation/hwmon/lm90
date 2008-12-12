@@ -8,7 +8,7 @@ Supported chips:
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/pf/LM/LM90.html
   * National Semiconductor LM89
-    Prefix: 'lm99'
+    Prefix: 'lm89' (no auto-detection)
     Addresses scanned: I2C 0x4c and 0x4d
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/mpf/LM/LM89.html

@@ -15,6 +15,7 @@
 #include <linux/dmi.h>
 #include <linux/device.h>
 #include <linux/suspend.h>
+#include <linux/reboot.h>
 
 #include <asm/io.h>
 
@@ -23,6 +24,36 @@
 #include "sleep.h"
 
 u8 sleep_states[ACPI_S_STATE_COUNT];
+
+static void acpi_sleep_tts_switch(u32 acpi_state)
+{
+	union acpi_object in_arg = { ACPI_TYPE_INTEGER };
+	struct acpi_object_list arg_list = { 1, &in_arg };
+	acpi_status status = AE_OK;
+
+	in_arg.integer.value = acpi_state;
+	status = acpi_evaluate_object(NULL, "\\_TTS", &arg_list, NULL);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+		/*
+		 * OS can't evaluate the _TTS object correctly. Some warning
+		 * message will be printed. But it won't break anything.
+		 */
+		printk(KERN_NOTICE "Failure in evaluating _TTS object\n");
+	}
+}
+
+static int tts_notify_reboot(struct notifier_block *this,
+			unsigned long code, void *x)
+{
+	acpi_sleep_tts_switch(ACPI_STATE_S5);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block tts_notifier = {
+	.notifier_call	= tts_notify_reboot,
+	.next		= NULL,
+	.priority	= 0,
+};
 
 static int acpi_sleep_prepare(u32 acpi_state)
 {
@@ -45,9 +76,8 @@ static int acpi_sleep_prepare(u32 acpi_state)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ACPI_SLEEP
 static u32 acpi_target_sleep_state = ACPI_STATE_S0;
-
 /*
  * ACPI 1.0 wants us to execute _PTS before suspending devices, so we allow the
  * user to request that behavior by using the 'acpi_old_suspend_ordering'
@@ -59,6 +89,18 @@ void __init acpi_old_suspend_ordering(void)
 {
 	old_suspend_ordering = true;
 }
+
+/*
+ * According to the ACPI specification the BIOS should make sure that ACPI is
+ * enabled and SCI_EN bit is set on wake-up from S1 - S3 sleep states.  Still,
+ * some BIOSes don't do that and therefore we use acpi_enable() to enable ACPI
+ * on such systems during resume.  Unfortunately that doesn't help in
+ * particularly pathological cases in which SCI_EN has to be set directly on
+ * resume, although the specification states very clearly that this flag is
+ * owned by the hardware.  The set_sci_en_on_resume variable will be set in such
+ * cases.
+ */
+static bool set_sci_en_on_resume;
 
 /**
  *	acpi_pm_disable_gpes - Disable the GPEs.
@@ -131,8 +173,11 @@ static void acpi_pm_end(void)
 	 * failing transition to a sleep state.
 	 */
 	acpi_target_sleep_state = ACPI_STATE_S0;
+	acpi_sleep_tts_switch(acpi_target_sleep_state);
 }
-#endif /* CONFIG_PM_SLEEP */
+#else /* !CONFIG_ACPI_SLEEP */
+#define acpi_target_sleep_state	ACPI_STATE_S0
+#endif /* CONFIG_ACPI_SLEEP */
 
 #ifdef CONFIG_SUSPEND
 extern void do_suspend_lowlevel(void);
@@ -155,6 +200,7 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 
 	if (sleep_states[acpi_state]) {
 		acpi_target_sleep_state = acpi_state;
+		acpi_sleep_tts_switch(acpi_target_sleep_state);
 	} else {
 		printk(KERN_ERR "ACPI does not support this state: %d\n",
 			pm_state);
@@ -199,6 +245,12 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		do_suspend_lowlevel();
 		break;
 	}
+
+	/* If ACPI is not enabled by the BIOS, we need to enable it here. */
+	if (set_sci_en_on_resume)
+		acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1);
+	else
+		acpi_enable();
 
 	/* Reprogram control registers and execute _BFS */
 	acpi_leave_sleep_state_prep(acpi_state);
@@ -287,6 +339,12 @@ static int __init init_old_suspend_ordering(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init init_set_sci_en_on_resume(const struct dmi_system_id *d)
+{
+	set_sci_en_on_resume = true;
+	return 0;
+}
+
 static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 	{
 	.callback = init_old_suspend_ordering,
@@ -294,6 +352,30 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 	.matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "http://www.abit.com.tw/"),
 		DMI_MATCH(DMI_BOARD_NAME, "KN9 Series(NF-CK804)"),
+		},
+	},
+	{
+	.callback = init_old_suspend_ordering,
+	.ident = "HP xw4600 Workstation",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP xw4600 Workstation"),
+		},
+	},
+	{
+	.callback = init_set_sci_en_on_resume,
+	.ident = "Apple MacBook 1,1",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MacBook1,1"),
+		},
+	},
+	{
+	.callback = init_set_sci_en_on_resume,
+	.ident = "Apple MacMini 1,1",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Macmini1,1"),
 		},
 	},
 	{},
@@ -313,6 +395,7 @@ void __init acpi_no_s4_hw_signature(void)
 static int acpi_hibernation_begin(void)
 {
 	acpi_target_sleep_state = ACPI_STATE_S4;
+	acpi_sleep_tts_switch(acpi_target_sleep_state);
 	return 0;
 }
 
@@ -376,7 +459,15 @@ static struct platform_hibernation_ops acpi_hibernation_ops = {
  */
 static int acpi_hibernation_begin_old(void)
 {
-	int error = acpi_sleep_prepare(ACPI_STATE_S4);
+	int error;
+	/*
+	 * The _TTS object should always be evaluated before the _PTS object.
+	 * When the old_suspended_ordering is true, the _PTS object is
+	 * evaluated in the acpi_sleep_prepare.
+	 */
+	acpi_sleep_tts_switch(ACPI_STATE_S4);
+
+	error = acpi_sleep_prepare(ACPI_STATE_S4);
 
 	if (!error)
 		acpi_target_sleep_state = ACPI_STATE_S4;
@@ -444,7 +535,7 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p)
 	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 	char acpi_method[] = "_SxD";
-	unsigned long d_min, d_max;
+	unsigned long long d_min, d_max;
 
 	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
 		printk(KERN_DEBUG "ACPI handle has no context!\n");
@@ -596,5 +687,10 @@ int __init acpi_sleep_init(void)
 		pm_power_off = acpi_power_off;
 	}
 	printk(")\n");
+	/*
+	 * Register the tts_notifier to reboot notifier list so that the _TTS
+	 * object can also be evaluated when the system enters S5.
+	 */
+	register_reboot_notifier(&tts_notifier);
 	return 0;
 }

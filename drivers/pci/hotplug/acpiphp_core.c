@@ -44,6 +44,9 @@
 
 #define MY_NAME	"acpiphp"
 
+/* name size which is used for entries in pcihpfs */
+#define SLOT_NAME_SIZE  21              /* {_SUN} */
+
 static int debug;
 int acpiphp_debug;
 
@@ -83,7 +86,6 @@ static struct hotplug_slot_ops acpi_hotplug_slot_ops = {
 	.get_latch_status	= get_latch_status,
 	.get_adapter_status	= get_adapter_status,
 };
-
 
 /**
  * acpiphp_register_attention - set attention LED callback
@@ -136,7 +138,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = hotplug_slot->private;
 
-	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	/* enable the specified slot */
 	return acpiphp_enable_slot(slot->acpi_slot);
@@ -154,7 +156,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	struct slot *slot = hotplug_slot->private;
 	int retval;
 
-	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	/* disable the specified slot */
 	retval = acpiphp_disable_slot(slot->acpi_slot);
@@ -177,7 +179,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
  {
 	int retval = -ENODEV;
 
- 	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot_name(hotplug_slot));
  
 	if (attention_info && try_module_get(attention_info->owner)) {
 		retval = attention_info->set_attn(hotplug_slot, status);
@@ -200,7 +202,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = hotplug_slot->private;
 
-	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	*value = acpiphp_get_power_status(slot->acpi_slot);
 
@@ -222,7 +224,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int retval = -EINVAL;
 
-	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot_name(hotplug_slot));
 
 	if (attention_info && try_module_get(attention_info->owner)) {
 		retval = attention_info->get_attn(hotplug_slot, value);
@@ -245,7 +247,7 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = hotplug_slot->private;
 
-	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	*value = acpiphp_get_latch_status(slot->acpi_slot);
 
@@ -265,7 +267,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = hotplug_slot->private;
 
-	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	*value = acpiphp_get_adapter_status(slot->acpi_slot);
 
@@ -299,7 +301,7 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = hotplug_slot->private;
 
-	dbg("%s - physical_slot = %s\n", __func__, hotplug_slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	kfree(slot->hotplug_slot);
 	kfree(slot);
@@ -310,6 +312,7 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 {
 	struct slot *slot;
 	int retval = -ENOMEM;
+	char name[SLOT_NAME_SIZE];
 
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
@@ -320,8 +323,6 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 		goto error_slot;
 
 	slot->hotplug_slot->info = &slot->info;
-
-	slot->hotplug_slot->name = slot->name;
 
 	slot->hotplug_slot->private = slot;
 	slot->hotplug_slot->release = &release_slot;
@@ -336,11 +337,12 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 	slot->hotplug_slot->info->cur_bus_speed = PCI_SPEED_UNKNOWN;
 
 	acpiphp_slot->slot = slot;
-	snprintf(slot->name, sizeof(slot->name), "%u", slot->acpi_slot->sun);
+	snprintf(name, SLOT_NAME_SIZE, "%u", slot->acpi_slot->sun);
 
 	retval = pci_hp_register(slot->hotplug_slot,
 					acpiphp_slot->bridge->pci_bus,
-					acpiphp_slot->device);
+					acpiphp_slot->device,
+					name);
 	if (retval == -EBUSY)
 		goto error_hpslot;
 	if (retval) {
@@ -348,7 +350,7 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 		goto error_hpslot;
  	}
 
-	info("Slot [%s] registered\n", slot->hotplug_slot->name);
+	info("Slot [%s] registered\n", slot_name(slot));
 
 	return 0;
 error_hpslot:
@@ -365,7 +367,7 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 	struct slot *slot = acpiphp_slot->slot;
 	int retval = 0;
 
-	info ("Slot [%s] unregistered\n", slot->hotplug_slot->name);
+	info("Slot [%s] unregistered\n", slot_name(slot));
 
 	retval = pci_hp_deregister(slot->hotplug_slot);
 	if (retval)

@@ -315,7 +315,7 @@ static int clk_pwm_tin_set_parent(struct clk *clk, struct clk *parent)
 	if (parent == s3c24xx_pwmclk_tclk(id))
 		bits = S3C2410_TCFG1_MUX_TCLK << shift;
 	else if (parent == s3c24xx_pwmclk_tdiv(id))
-		bits = clk_pwm_tdiv_bits(to_tdiv(clk)) << shift;
+		bits = clk_pwm_tdiv_bits(to_tdiv(parent)) << shift;
 	else
 		return -EINVAL;
 

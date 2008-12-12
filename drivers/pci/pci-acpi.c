@@ -24,16 +24,16 @@ struct acpi_osc_data {
 	acpi_handle handle;
 	u32 support_set;
 	u32 control_set;
-	int is_queried;
-	u32 query_result;
 	struct list_head sibiling;
 };
 static LIST_HEAD(acpi_osc_data_list);
 
 struct acpi_osc_args {
 	u32 capbuf[3];
-	u32 query_result;
+	u32 ctrl_result;
 };
+
+static DEFINE_MUTEX(pci_acpi_lock);
 
 static struct acpi_osc_data *acpi_get_osc_data(acpi_handle handle)
 {
@@ -63,7 +63,7 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 	union acpi_object in_params[4];
 	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *out_obj;
-	u32 osc_dw0, flags = osc_args->capbuf[OSC_QUERY_TYPE];
+	u32 errors, flags = osc_args->capbuf[OSC_QUERY_TYPE];
 
 	/* Setting up input parameters */
 	input.count = 4;
@@ -83,21 +83,25 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 	if (ACPI_FAILURE(status))
 		return status;
 
+	if (!output.length)
+		return AE_NULL_OBJECT;
+
 	out_obj = output.pointer;
 	if (out_obj->type != ACPI_TYPE_BUFFER) {
 		printk(KERN_DEBUG "Evaluate _OSC returns wrong type\n");
 		status = AE_TYPE;
 		goto out_kfree;
 	}
-	osc_dw0 = *((u32 *)out_obj->buffer.pointer);
-	if (osc_dw0) {
-		if (osc_dw0 & OSC_REQUEST_ERROR)
+	/* Need to ignore the bit0 in result code */
+	errors = *((u32 *)out_obj->buffer.pointer) & ~(1 << 0);
+	if (errors) {
+		if (errors & OSC_REQUEST_ERROR)
 			printk(KERN_DEBUG "_OSC request fails\n"); 
-		if (osc_dw0 & OSC_INVALID_UUID_ERROR)
+		if (errors & OSC_INVALID_UUID_ERROR)
 			printk(KERN_DEBUG "_OSC invalid UUID\n"); 
-		if (osc_dw0 & OSC_INVALID_REVISION_ERROR)
+		if (errors & OSC_INVALID_REVISION_ERROR)
 			printk(KERN_DEBUG "_OSC invalid revision\n"); 
-		if (osc_dw0 & OSC_CAPABILITIES_MASK_ERROR) {
+		if (errors & OSC_CAPABILITIES_MASK_ERROR) {
 			if (flags & OSC_QUERY_ENABLE)
 				goto out_success;
 			printk(KERN_DEBUG "_OSC FW not grant req. control\n");
@@ -108,13 +112,34 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 		goto out_kfree;
 	}
 out_success:
-	if (flags & OSC_QUERY_ENABLE)
-		osc_args->query_result =
-			*((u32 *)(out_obj->buffer.pointer + 8));
+	osc_args->ctrl_result =
+		*((u32 *)(out_obj->buffer.pointer + 8));
 	status = AE_OK;
 
 out_kfree:
 	kfree(output.pointer);
+	return status;
+}
+
+static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data,
+				    u32 *result)
+{
+	acpi_status status;
+	u32 support_set;
+	struct acpi_osc_args osc_args;
+
+	/* do _OSC query for all possible controls */
+	support_set = osc_data->support_set | (flags & OSC_SUPPORT_MASKS);
+	osc_args.capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
+	osc_args.capbuf[OSC_SUPPORT_TYPE] = support_set;
+	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
+
+	status = acpi_run_osc(osc_data->handle, &osc_args);
+	if (ACPI_SUCCESS(status)) {
+		osc_data->support_set = support_set;
+		*result = osc_args.ctrl_result;
+	}
+
 	return status;
 }
 
@@ -123,34 +148,24 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 {
 	acpi_status status;
 	struct acpi_osc_data *osc_data;
-	u32 flags = (unsigned long)context, support_set;
+	u32 flags = (unsigned long)context, dummy;
 	acpi_handle tmp;
-	struct acpi_osc_args osc_args;
 
 	status = acpi_get_handle(handle, "_OSC", &tmp);
 	if (ACPI_FAILURE(status))
-		return status;
+		return AE_OK;
 
+	mutex_lock(&pci_acpi_lock);
 	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
-		return AE_ERROR;
+		goto out;
 	}
 
-	/* do _OSC query for all possible controls */
-	support_set = osc_data->support_set | (flags & OSC_SUPPORT_MASKS);
-	osc_args.capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	osc_args.capbuf[OSC_SUPPORT_TYPE] = support_set;
-	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
-
-	status = acpi_run_osc(handle, &osc_args);
-	if (ACPI_SUCCESS(status)) {
-		osc_data->support_set = support_set;
-		osc_data->query_result = osc_args.query_result;
-		osc_data->is_queried = 1;
-	}
-
-	return status;
+	__acpi_query_osc(flags, osc_data, &dummy);
+out:
+	mutex_unlock(&pci_acpi_lock);
+	return AE_OK;
 }
 
 /**
@@ -181,7 +196,7 @@ acpi_status __pci_osc_support_set(u32 flags, const char *hid)
 acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {
 	acpi_status status;
-	u32 ctrlset, control_set;
+	u32 ctrlset, control_set, result;
 	acpi_handle tmp;
 	struct acpi_osc_data *osc_data;
 	struct acpi_osc_args osc_args;
@@ -190,19 +205,28 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 	if (ACPI_FAILURE(status))
 		return status;
 
+	mutex_lock(&pci_acpi_lock);
 	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
-		return AE_ERROR;
+		status = AE_ERROR;
+		goto out;
 	}
 
 	ctrlset = (flags & OSC_CONTROL_MASKS);
-	if (!ctrlset)
-		return AE_TYPE;
+	if (!ctrlset) {
+		status = AE_TYPE;
+		goto out;
+	}
 
-	if (osc_data->is_queried &&
-	    ((osc_data->query_result & ctrlset) != ctrlset))
-		return AE_SUPPORT;
+	status = __acpi_query_osc(osc_data->support_set, osc_data, &result);
+	if (ACPI_FAILURE(status))
+		goto out;
+
+	if ((result & ctrlset) != ctrlset) {
+		status = AE_SUPPORT;
+		goto out;
+	}
 
 	control_set = osc_data->control_set | ctrlset;
 	osc_args.capbuf[OSC_QUERY_TYPE] = 0;
@@ -211,7 +235,8 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 	status = acpi_run_osc(handle, &osc_args);
 	if (ACPI_SUCCESS(status))
 		osc_data->control_set = control_set;
-
+out:
+	mutex_unlock(&pci_acpi_lock);
 	return status;
 }
 EXPORT_SYMBOL(pci_osc_control_set);

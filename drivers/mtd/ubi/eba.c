@@ -1022,7 +1022,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	}
 
 	/*
-	 * OK, now the LEB is locked and we can safely start moving iy. Since
+	 * OK, now the LEB is locked and we can safely start moving it. Since
 	 * this function utilizes thie @ubi->peb1_buf buffer which is shared
 	 * with some other functions, so lock the buffer by taking the
 	 * @ubi->buf_mutex.

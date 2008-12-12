@@ -866,7 +866,7 @@ static int __init ar_init(void)
 	}
 
 	printk("video%d: Found M64278 VGA (IRQ %d, Freq %dMHz).\n",
-		ar->vdev->minor, M32R_IRQ_INT3, freq);
+		ar->vdev->num, M32R_IRQ_INT3, freq);
 
 	return 0;
 

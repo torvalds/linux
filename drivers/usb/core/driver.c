@@ -1610,7 +1610,8 @@ int usb_external_resume_device(struct usb_device *udev)
 	status = usb_resume_both(udev);
 	udev->last_busy = jiffies;
 	usb_pm_unlock(udev);
-	do_unbind_rebind(udev, DO_REBIND);
+	if (status == 0)
+		do_unbind_rebind(udev, DO_REBIND);
 
 	/* Now that the device is awake, we can start trying to autosuspend
 	 * it again. */

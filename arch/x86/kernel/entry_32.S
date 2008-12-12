@@ -1024,7 +1024,7 @@ ENTRY(machine_check)
 	RING0_INT_FRAME
 	pushl $0
 	CFI_ADJUST_CFA_OFFSET 4
-	pushl $do_machine_check
+	pushl machine_check_vector
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp error_code
 	CFI_ENDPROC
@@ -1149,7 +1149,7 @@ ENDPROC(xen_failsafe_callback)
 
 #endif	/* CONFIG_XEN */
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 ENTRY(mcount)
@@ -1204,7 +1204,7 @@ trace:
 	jmp ftrace_stub
 END(mcount)
 #endif /* CONFIG_DYNAMIC_FTRACE */
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 .section .rodata,"a"
 #include "syscall_table_32.S"

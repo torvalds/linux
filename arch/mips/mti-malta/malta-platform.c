@@ -3,10 +3,14 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2006, 07 MIPS Technologies, Inc.
  *   written by Ralf Baechle (ralf@linux-mips.org)
+ *     written by Ralf Baechle <ralf@linux-mips.org>
  *
- * Probe driver for the Malta's UART ports:
+ * Copyright (C) 2008 Wind River Systems, Inc.
+ *   updated by Tiejun Chen <tiejun.chen@windriver.com>
+ *
+ * 1. Probe driver for the Malta's UART ports:
  *
  *   o 2 ports in the SMC SuperIO
  *   o 1 port in the CBUS UART, a discrete 16550 which normally is only used
@@ -14,10 +18,17 @@
  *
  * We don't use 8250_platform.c on Malta as it would result in the CBUS
  * UART becoming ttyS0.
+ *
+ * 2. Register RTC-CMOS platform device on Malta.
  */
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/serial_8250.h>
+#include <linux/mc146818rtc.h>
+#include <linux/module.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
+#include <linux/platform_device.h>
+#include <mtd/mtd-abi.h>
 
 #define SMC_PORT(base, int)						\
 {									\
@@ -45,21 +56,93 @@ static struct plat_serial8250_port uart8250_data[] = {
 	{ },
 };
 
-static struct platform_device uart8250_device = {
+static struct platform_device malta_uart8250_device = {
 	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM2,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= uart8250_data,
 	},
 };
 
-static int __init uart8250_init(void)
+struct resource malta_rtc_resources[] = {
+	{
+		.start	= RTC_PORT(0),
+		.end	= RTC_PORT(7),
+		.flags	= IORESOURCE_IO,
+	}, {
+		.start	= RTC_IRQ,
+		.end	= RTC_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device malta_rtc_device = {
+	.name		= "rtc_cmos",
+	.id		= -1,
+	.resource	= malta_rtc_resources,
+	.num_resources	= ARRAY_SIZE(malta_rtc_resources),
+};
+
+static struct mtd_partition malta_mtd_partitions[] = {
+	{
+		.name =		"YAMON",
+		.offset =	0x0,
+		.size =		0x100000,
+		.mask_flags =	MTD_WRITEABLE
+	}, {
+		.name =		"User FS",
+		.offset = 	0x100000,
+		.size =		0x2e0000
+	}, {
+		.name =		"Board Config",
+		.offset =	0x3e0000,
+		.size =		0x020000,
+		.mask_flags =	MTD_WRITEABLE
+	}
+};
+
+static struct physmap_flash_data malta_flash_data = {
+	.width		= 4,
+	.nr_parts	= ARRAY_SIZE(malta_mtd_partitions),
+	.parts		= malta_mtd_partitions
+};
+
+static struct resource malta_flash_resource = {
+	.start		= 0x1e000000,
+	.end		= 0x1e3fffff,
+	.flags		= IORESOURCE_MEM
+};
+
+static struct platform_device malta_flash_device = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &malta_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &malta_flash_resource,
+};
+
+static struct platform_device *malta_devices[] __initdata = {
+	&malta_uart8250_device,
+	&malta_rtc_device,
+	&malta_flash_device,
+};
+
+static int __init malta_add_devices(void)
 {
-	return platform_device_register(&uart8250_device);
+	int err;
+
+	err = platform_add_devices(malta_devices, ARRAY_SIZE(malta_devices));
+	if (err)
+		return err;
+
+	/*
+	 * Set RTC to BCD mode to support current alarm code.
+	 */
+	CMOS_WRITE(CMOS_READ(RTC_CONTROL) & ~RTC_DM_BINARY, RTC_CONTROL);
+
+	return 0;
 }
 
-module_init(uart8250_init);
-
-MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("8250 UART probe driver for the Malta CBUS UART");
+device_initcall(malta_add_devices);

@@ -3149,7 +3149,9 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 
 	if (cpu_has_virtual_nmis()) {
 		if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
-			if (vmx_nmi_enabled(vcpu)) {
+			if (vcpu->arch.interrupt.pending) {
+				enable_nmi_window(vcpu);
+			} else if (vmx_nmi_enabled(vcpu)) {
 				vcpu->arch.nmi_pending = false;
 				vcpu->arch.nmi_injected = true;
 			} else {
@@ -3564,7 +3566,8 @@ static int __init vmx_init(void)
 		bypass_guest_pf = 0;
 		kvm_mmu_set_base_ptes(VMX_EPT_READABLE_MASK |
 			VMX_EPT_WRITABLE_MASK |
-			VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT);
+			VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT |
+			VMX_EPT_IGMT_BIT);
 		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
 				VMX_EPT_EXECUTABLE_MASK);
 		kvm_enable_tdp();

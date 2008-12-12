@@ -119,17 +119,17 @@ static struct plat_sci_port sci_platform_data[] = {
 	},{
 		.mapbase	= 0xa4e30000,
 		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCI,
+		.type		= PORT_SCIFA,
 		.irqs		= { 56, 56, 56, 56 },
 	},{
 		.mapbase	= 0xa4e40000,
 		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCI,
+		.type		= PORT_SCIFA,
 		.irqs		= { 88, 88, 88, 88 },
 	},{
 		.mapbase	= 0xa4e50000,
 		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCI,
+		.type		= PORT_SCIFA,
 		.irqs		= { 109, 109, 109, 109 },
 	}, {
 		.flags = 0,

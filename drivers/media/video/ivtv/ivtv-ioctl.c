@@ -1756,12 +1756,12 @@ static int ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 	return 0;
 }
 
-static int ivtv_serialized_ioctl(struct ivtv *itv, struct inode *inode, struct file *filp,
+static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
-	int ret;
+	long ret;
 
 	/* Filter dvb ioctls that cannot be handled by the v4l ioctl framework */
 	switch (cmd) {
@@ -1830,20 +1830,19 @@ static int ivtv_serialized_ioctl(struct ivtv *itv, struct inode *inode, struct f
 
 	if (ivtv_debug & IVTV_DBGFLG_IOCTL)
 		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
-	ret = video_ioctl2(inode, filp, cmd, arg);
+	ret = __video_ioctl2(filp, cmd, arg);
 	vfd->debug = 0;
 	return ret;
 }
 
-int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		    unsigned long arg)
+long ivtv_v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
 	struct ivtv *itv = id->itv;
-	int res;
+	long res;
 
 	mutex_lock(&itv->serialize_lock);
-	res = ivtv_serialized_ioctl(itv, inode, filp, cmd, arg);
+	res = ivtv_serialized_ioctl(itv, filp, cmd, arg);
 	mutex_unlock(&itv->serialize_lock);
 	return res;
 }

@@ -20,7 +20,7 @@
 static struct vesa_general_info vginfo;
 static struct vesa_mode_info vminfo;
 
-__videocard video_vesa;
+static __videocard video_vesa;
 
 #ifndef _WAKEUP
 static void vesa_store_mode_params_graphics(void);
@@ -293,7 +293,7 @@ void vesa_store_edid(void)
 
 #endif /* not _WAKEUP */
 
-__videocard video_vesa =
+static __videocard video_vesa =
 {
 	.card_name	= "VESA",
 	.probe		= vesa_probe,

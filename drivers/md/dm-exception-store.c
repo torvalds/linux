@@ -7,7 +7,6 @@
  * This file is released under the GPL.
  */
 
-#include "dm.h"
 #include "dm-snap.h"
 
 #include <linux/mm.h>
@@ -105,6 +104,11 @@ struct pstore {
 	void *area;
 
 	/*
+	 * An area of zeros used to clear the next area.
+	 */
+	void *zero_area;
+
+	/*
 	 * Used to keep track of which metadata area the data in
 	 * 'chunk' refers to.
 	 */
@@ -149,6 +153,13 @@ static int alloc_area(struct pstore *ps)
 	if (!ps->area)
 		return r;
 
+	ps->zero_area = vmalloc(len);
+	if (!ps->zero_area) {
+		vfree(ps->area);
+		return r;
+	}
+	memset(ps->zero_area, 0, len);
+
 	return 0;
 }
 
@@ -156,6 +167,8 @@ static void free_area(struct pstore *ps)
 {
 	vfree(ps->area);
 	ps->area = NULL;
+	vfree(ps->zero_area);
+	ps->zero_area = NULL;
 }
 
 struct mdata_req {
@@ -220,25 +233,41 @@ static chunk_t area_location(struct pstore *ps, chunk_t area)
  * Read or write a metadata area.  Remembering to skip the first
  * chunk which holds the header.
  */
-static int area_io(struct pstore *ps, chunk_t area, int rw)
+static int area_io(struct pstore *ps, int rw)
 {
 	int r;
 	chunk_t chunk;
 
-	chunk = area_location(ps, area);
+	chunk = area_location(ps, ps->current_area);
 
 	r = chunk_io(ps, chunk, rw, 0);
 	if (r)
 		return r;
 
-	ps->current_area = area;
 	return 0;
 }
 
-static int zero_area(struct pstore *ps, chunk_t area)
+static void zero_memory_area(struct pstore *ps)
 {
 	memset(ps->area, 0, ps->snap->chunk_size << SECTOR_SHIFT);
-	return area_io(ps, area, WRITE);
+}
+
+static int zero_disk_area(struct pstore *ps, chunk_t area)
+{
+	struct dm_io_region where = {
+		.bdev = ps->snap->cow->bdev,
+		.sector = ps->snap->chunk_size * area_location(ps, area),
+		.count = ps->snap->chunk_size,
+	};
+	struct dm_io_request io_req = {
+		.bi_rw = WRITE,
+		.mem.type = DM_IO_VMA,
+		.mem.ptr.vma = ps->zero_area,
+		.client = ps->io_client,
+		.notify.fn = NULL,
+	};
+
+	return dm_io(&io_req, 1, &where, NULL);
 }
 
 static int read_header(struct pstore *ps, int *new_snapshot)
@@ -411,15 +440,14 @@ static int insert_exceptions(struct pstore *ps, int *full)
 
 static int read_exceptions(struct pstore *ps)
 {
-	chunk_t area;
 	int r, full = 1;
 
 	/*
 	 * Keeping reading chunks and inserting exceptions until
 	 * we find a partially full area.
 	 */
-	for (area = 0; full; area++) {
-		r = area_io(ps, area, READ);
+	for (ps->current_area = 0; full; ps->current_area++) {
+		r = area_io(ps, READ);
 		if (r)
 			return r;
 
@@ -427,6 +455,8 @@ static int read_exceptions(struct pstore *ps)
 		if (r)
 			return r;
 	}
+
+	ps->current_area--;
 
 	return 0;
 }
@@ -486,12 +516,13 @@ static int persistent_read_metadata(struct exception_store *store)
 			return r;
 		}
 
-		r = zero_area(ps, 0);
+		ps->current_area = 0;
+		zero_memory_area(ps);
+		r = zero_disk_area(ps, 0);
 		if (r) {
-			DMWARN("zero_area(0) failed");
+			DMWARN("zero_disk_area(0) failed");
 			return r;
 		}
-
 	} else {
 		/*
 		 * Sanity checks.
@@ -551,7 +582,6 @@ static void persistent_commit(struct exception_store *store,
 			      void (*callback) (void *, int success),
 			      void *callback_context)
 {
-	int r;
 	unsigned int i;
 	struct pstore *ps = get_info(store);
 	struct disk_exception de;
@@ -572,33 +602,41 @@ static void persistent_commit(struct exception_store *store,
 	cb->context = callback_context;
 
 	/*
-	 * If there are no more exceptions in flight, or we have
-	 * filled this metadata area we commit the exceptions to
-	 * disk.
+	 * If there are exceptions in flight and we have not yet
+	 * filled this metadata area there's nothing more to do.
 	 */
-	if (atomic_dec_and_test(&ps->pending_count) ||
-	    (ps->current_committed == ps->exceptions_per_area)) {
-		r = area_io(ps, ps->current_area, WRITE);
-		if (r)
-			ps->valid = 0;
+	if (!atomic_dec_and_test(&ps->pending_count) &&
+	    (ps->current_committed != ps->exceptions_per_area))
+		return;
 
-		/*
-		 * Have we completely filled the current area ?
-		 */
-		if (ps->current_committed == ps->exceptions_per_area) {
-			ps->current_committed = 0;
-			r = zero_area(ps, ps->current_area + 1);
-			if (r)
-				ps->valid = 0;
-		}
+	/*
+	 * If we completely filled the current area, then wipe the next one.
+	 */
+	if ((ps->current_committed == ps->exceptions_per_area) &&
+	     zero_disk_area(ps, ps->current_area + 1))
+		ps->valid = 0;
 
-		for (i = 0; i < ps->callback_count; i++) {
-			cb = ps->callbacks + i;
-			cb->callback(cb->context, r == 0 ? 1 : 0);
-		}
+	/*
+	 * Commit exceptions to disk.
+	 */
+	if (ps->valid && area_io(ps, WRITE))
+		ps->valid = 0;
 
-		ps->callback_count = 0;
+	/*
+	 * Advance to the next area if this one is full.
+	 */
+	if (ps->current_committed == ps->exceptions_per_area) {
+		ps->current_committed = 0;
+		ps->current_area++;
+		zero_memory_area(ps);
 	}
+
+	for (i = 0; i < ps->callback_count; i++) {
+		cb = ps->callbacks + i;
+		cb->callback(cb->context, ps->valid);
+	}
+
+	ps->callback_count = 0;
 }
 
 static void persistent_drop(struct exception_store *store)

@@ -4,7 +4,10 @@
 #include <linux/bit_spinlock.h>
 #include <linux/page_cgroup.h>
 #include <linux/hash.h>
+#include <linux/slab.h>
 #include <linux/memory.h>
+#include <linux/vmalloc.h>
+#include <linux/cgroup.h>
 
 static void __meminit
 __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
@@ -18,7 +21,7 @@ static unsigned long total_usage;
 #if !defined(CONFIG_SPARSEMEM)
 
 
-void __init pgdat_page_cgroup_init(struct pglist_data *pgdat)
+void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
 {
 	pgdat->node_page_cgroup = NULL;
 }
@@ -46,6 +49,9 @@ static int __init alloc_node_page_cgroup(int nid)
 	start_pfn = NODE_DATA(nid)->node_start_pfn;
 	nr_pages = NODE_DATA(nid)->node_spanned_pages;
 
+	if (!nr_pages)
+		return 0;
+
 	table_size = sizeof(struct page_cgroup) * nr_pages;
 
 	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
@@ -65,6 +71,9 @@ void __init page_cgroup_init(void)
 {
 
 	int nid, fail;
+
+	if (mem_cgroup_subsys.disabled)
+		return;
 
 	for_each_online_node(nid)  {
 		fail = alloc_node_page_cgroup(nid);
@@ -91,7 +100,8 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
 	return section->page_cgroup + pfn;
 }
 
-int __meminit init_section_page_cgroup(unsigned long pfn)
+/* __alloc_bootmem...() is protected by !slab_available() */
+int __init_refok init_section_page_cgroup(unsigned long pfn)
 {
 	struct mem_section *section;
 	struct page_cgroup *base, *pc;
@@ -100,15 +110,30 @@ int __meminit init_section_page_cgroup(unsigned long pfn)
 
 	section = __pfn_to_section(pfn);
 
-	if (section->page_cgroup)
-		return 0;
-
-	nid = page_to_nid(pfn_to_page(pfn));
-
-	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-	base = kmalloc_node(table_size, GFP_KERNEL, nid);
-	if (!base)
-		base = vmalloc_node(table_size, nid);
+	if (!section->page_cgroup) {
+		nid = page_to_nid(pfn_to_page(pfn));
+		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+		if (slab_is_available()) {
+			base = kmalloc_node(table_size, GFP_KERNEL, nid);
+			if (!base)
+				base = vmalloc_node(table_size, nid);
+		} else {
+			base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+				table_size,
+				PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+		}
+	} else {
+		/*
+ 		 * We don't have to allocate page_cgroup again, but
+		 * address of memmap may be changed. So, we have to initialize
+		 * again.
+		 */
+		base = section->page_cgroup + pfn;
+		table_size = 0;
+		/* check address of memmap is changed or not. */
+		if (base->page == pfn_to_page(pfn))
+			return 0;
+	}
 
 	if (!base) {
 		printk(KERN_ERR "page cgroup allocation failure\n");
@@ -135,21 +160,26 @@ void __free_page_cgroup(unsigned long pfn)
 	if (!ms || !ms->page_cgroup)
 		return;
 	base = ms->page_cgroup + pfn;
-	ms->page_cgroup = NULL;
-	if (is_vmalloc_addr(base))
+	if (is_vmalloc_addr(base)) {
 		vfree(base);
-	else
-		kfree(base);
+		ms->page_cgroup = NULL;
+	} else {
+		struct page *page = virt_to_page(base);
+		if (!PageReserved(page)) { /* Is bootmem ? */
+			kfree(base);
+			ms->page_cgroup = NULL;
+		}
+	}
 }
 
-int online_page_cgroup(unsigned long start_pfn,
+int __meminit online_page_cgroup(unsigned long start_pfn,
 			unsigned long nr_pages,
 			int nid)
 {
 	unsigned long start, end, pfn;
 	int fail = 0;
 
-	start = start_pfn & (PAGES_PER_SECTION - 1);
+	start = start_pfn & ~(PAGES_PER_SECTION - 1);
 	end = ALIGN(start_pfn + nr_pages, PAGES_PER_SECTION);
 
 	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION) {
@@ -167,12 +197,12 @@ int online_page_cgroup(unsigned long start_pfn,
 	return -ENOMEM;
 }
 
-int offline_page_cgroup(unsigned long start_pfn,
+int __meminit offline_page_cgroup(unsigned long start_pfn,
 		unsigned long nr_pages, int nid)
 {
 	unsigned long start, end, pfn;
 
-	start = start_pfn & (PAGES_PER_SECTION - 1);
+	start = start_pfn & ~(PAGES_PER_SECTION - 1);
 	end = ALIGN(start_pfn + nr_pages, PAGES_PER_SECTION);
 
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION)
@@ -181,7 +211,7 @@ int offline_page_cgroup(unsigned long start_pfn,
 
 }
 
-static int page_cgroup_callback(struct notifier_block *self,
+static int __meminit page_cgroup_callback(struct notifier_block *self,
 			       unsigned long action, void *arg)
 {
 	struct memory_notify *mn = arg;
@@ -191,18 +221,23 @@ static int page_cgroup_callback(struct notifier_block *self,
 		ret = online_page_cgroup(mn->start_pfn,
 				   mn->nr_pages, mn->status_change_nid);
 		break;
-	case MEM_CANCEL_ONLINE:
 	case MEM_OFFLINE:
 		offline_page_cgroup(mn->start_pfn,
 				mn->nr_pages, mn->status_change_nid);
 		break;
+	case MEM_CANCEL_ONLINE:
 	case MEM_GOING_OFFLINE:
 		break;
 	case MEM_ONLINE:
 	case MEM_CANCEL_OFFLINE:
 		break;
 	}
-	ret = notifier_from_errno(ret);
+
+	if (ret)
+		ret = notifier_from_errno(ret);
+	else
+		ret = NOTIFY_OK;
+
 	return ret;
 }
 
@@ -212,6 +247,9 @@ void __init page_cgroup_init(void)
 {
 	unsigned long pfn;
 	int fail = 0;
+
+	if (mem_cgroup_subsys.disabled)
+		return;
 
 	for (pfn = 0; !fail && pfn < max_pfn; pfn += PAGES_PER_SECTION) {
 		if (!pfn_present(pfn))
@@ -229,7 +267,7 @@ void __init page_cgroup_init(void)
 	" want\n");
 }
 
-void __init pgdat_page_cgroup_init(struct pglist_data *pgdat)
+void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
 {
 	return;
 }

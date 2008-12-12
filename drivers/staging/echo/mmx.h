@@ -27,23 +27,22 @@
  * values by ULL, lest they be truncated by the compiler)
  */
 
-typedef        union {
-        long long               q;      /* Quadword (64-bit) value */
-        unsigned long long      uq;     /* Unsigned Quadword */
-        int                     d[2];   /* 2 Doubleword (32-bit) values */
-        unsigned int            ud[2];  /* 2 Unsigned Doubleword */
-        short                   w[4];   /* 4 Word (16-bit) values */
-        unsigned short          uw[4];  /* 4 Unsigned Word */
-        char                    b[8];   /* 8 Byte (8-bit) values */
-        unsigned char           ub[8];  /* 8 Unsigned Byte */
-        float                   s[2];   /* Single-precision (32-bit) value */
-} mmx_t;        /* On an 8-byte (64-bit) boundary */
+typedef union {
+	long long q;		/* Quadword (64-bit) value */
+	unsigned long long uq;	/* Unsigned Quadword */
+	int d[2];		/* 2 Doubleword (32-bit) values */
+	unsigned int ud[2];	/* 2 Unsigned Doubleword */
+	short w[4];		/* 4 Word (16-bit) values */
+	unsigned short uw[4];	/* 4 Unsigned Word */
+	char b[8];		/* 8 Byte (8-bit) values */
+	unsigned char ub[8];	/* 8 Unsigned Byte */
+	float s[2];		/* Single-precision (32-bit) value */
+} mmx_t;			/* On an 8-byte (64-bit) boundary */
 
 /* SSE registers */
 typedef union {
 	char b[16];
 } xmm_t;
-
 
 #define         mmx_i2r(op,imm,reg) \
         __asm__ __volatile__ (#op " %0, %%" #reg \
@@ -62,7 +61,6 @@ typedef union {
 
 #define         mmx_r2r(op,regs,regd) \
         __asm__ __volatile__ (#op " %" #regs ", %" #regd)
-
 
 #define         emms() __asm__ __volatile__ ("emms")
 
@@ -192,15 +190,12 @@ typedef union {
 #define         pxor_m2r(var,reg)           mmx_m2r (pxor, var, reg)
 #define         pxor_r2r(regs,regd)         mmx_r2r (pxor, regs, regd)
 
-
 /* 3DNOW extensions */
 
 #define         pavgusb_m2r(var,reg)        mmx_m2r (pavgusb, var, reg)
 #define         pavgusb_r2r(regs,regd)      mmx_r2r (pavgusb, regs, regd)
 
-
 /* AMD MMX extensions - also available in intel SSE */
-
 
 #define         mmx_m2ri(op,mem,reg,imm) \
         __asm__ __volatile__ (#op " %1, %0, %%" #reg \
@@ -215,7 +210,6 @@ typedef union {
         __asm__ __volatile__ ("prefetch" #hint " %0" \
                               : /* nothing */ \
                               : "m" (mem))
-
 
 #define         maskmovq(regs,maskreg)      mmx_r2ri (maskmovq, regs, maskreg)
 
@@ -283,6 +277,5 @@ typedef union {
 
 #define         punpcklqdq_r2r(regs,regd)   mmx_r2r (punpcklqdq, regs, regd)
 #define         punpckhqdq_r2r(regs,regd)   mmx_r2r (punpckhqdq, regs, regd)
-
 
 #endif /* AVCODEC_I386MMX_H */

@@ -1104,7 +1104,7 @@ xpc_do_exit(enum xp_retval reason)
 
 	if (is_shub())
 		xpc_exit_sn2();
-	else
+	else if (is_uv())
 		xpc_exit_uv();
 }
 
@@ -1363,7 +1363,7 @@ out_2:
 out_1:
 	if (is_shub())
 		xpc_exit_sn2();
-	else
+	else if (is_uv())
 		xpc_exit_uv();
 	return ret;
 }

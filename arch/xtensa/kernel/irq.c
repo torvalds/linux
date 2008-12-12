@@ -48,7 +48,7 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 
 	if (irq >= NR_IRQS) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
-				__FUNCTION__, irq);
+				__func__, irq);
 	}
 
 	irq_enter();

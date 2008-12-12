@@ -464,7 +464,7 @@ static int uvc_v4l2_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int uvc_v4l2_do_ioctl(struct inode *inode, struct file *file,
+static int __uvc_v4l2_do_ioctl(struct file *file,
 		     unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -978,14 +978,20 @@ static int uvc_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		return uvc_xu_ctrl_query(video, arg, 1);
 
 	default:
-		if ((ret = v4l_compat_translate_ioctl(inode, file, cmd, arg,
-			uvc_v4l2_do_ioctl)) == -ENOIOCTLCMD)
+		if ((ret = v4l_compat_translate_ioctl(file, cmd, arg,
+			__uvc_v4l2_do_ioctl)) == -ENOIOCTLCMD)
 			uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n",
 				  cmd);
 		return ret;
 	}
 
 	return ret;
+}
+
+static int uvc_v4l2_do_ioctl(struct inode *inode, struct file *file,
+			      unsigned int cmd, void *arg)
+{
+	return __uvc_v4l2_do_ioctl(file, cmd, arg);
 }
 
 static int uvc_v4l2_ioctl(struct inode *inode, struct file *file,

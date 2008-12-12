@@ -294,6 +294,8 @@ static void __init highlander_setup(char **cmdline_p)
 			 (ver >> 12) & 0xf, (ver >> 8) & 0xf,
 			 (ver >>  4) & 0xf, ver & 0xf);
 
+	highlander_plat_pinmux_setup();
+
 	/*
 	 * Enable the important clocks right away..
 	 */

@@ -42,7 +42,7 @@
 
 static char *phone = "kip1000";
 module_param(phone, charp, S_IRUSR);
-MODULE_PARM_DESC(phone, "Phone name {kip1000, gtalk, usbph01}");
+MODULE_PARM_DESC(phone, "Phone name {kip1000, gtalk, usbph01, atcom}");
 
 enum {
 	/* HID Registers */
@@ -254,6 +254,37 @@ static unsigned short keymap_usbph01(int scancode)
 	case 0x28: return KEY_ESC;			/*   hangup     */
 	case 0x48: return KEY_LEFT;			/*   IN         */
 	case 0x88: return KEY_RIGHT;			/*   OUT        */
+	default:   return special_keymap(scancode);
+	}
+}
+
+/*
+ * Keymap for ATCom AU-100
+ * http://www.atcom.cn/En_products_AU100.html
+ * http://www.packetizer.com/products/au100/
+ * http://www.voip-info.org/wiki/view/AU-100
+ *
+ * Contributed by daniel@gimpelevich.san-francisco.ca.us
+ */
+static unsigned short keymap_atcom(int scancode)
+{
+	switch (scancode) {				/* phone key:   */
+	case 0x82: return KEY_NUMERIC_0;		/*   0          */
+	case 0x11: return KEY_NUMERIC_1;		/*   1          */
+	case 0x12: return KEY_NUMERIC_2;		/*   2          */
+	case 0x14: return KEY_NUMERIC_3;		/*   3          */
+	case 0x21: return KEY_NUMERIC_4;		/*   4          */
+	case 0x22: return KEY_NUMERIC_5;		/*   5          */
+	case 0x24: return KEY_NUMERIC_6;		/*   6          */
+	case 0x41: return KEY_NUMERIC_7;		/*   7          */
+	case 0x42: return KEY_NUMERIC_8;		/*   8          */
+	case 0x44: return KEY_NUMERIC_9;		/*   9          */
+	case 0x84: return KEY_NUMERIC_POUND;		/*   #          */
+	case 0x81: return KEY_NUMERIC_STAR;		/*   *          */
+	case 0x18: return KEY_ENTER;			/*   pickup     */
+	case 0x28: return KEY_ESC;			/*   hangup     */
+	case 0x48: return KEY_LEFT;			/* left arrow   */
+	case 0x88: return KEY_RIGHT;			/* right arrow  */
 	default:   return special_keymap(scancode);
 	}
 }
@@ -840,6 +871,10 @@ static int __init cm109_select_keymap(void)
 		keymap = keymap_usbph01;
 		printk(KERN_INFO KBUILD_MODNAME ": "
 			"Keymap for Allied-Telesis Corega USBPH01 phone loaded\n");
+	} else if (!strcasecmp(phone, "atcom")) {
+		keymap = keymap_atcom;
+		printk(KERN_INFO KBUILD_MODNAME ": "
+			"Keymap for ATCom AU-100 phone loaded\n");
 	} else {
 		printk(KERN_ERR KBUILD_MODNAME ": "
 			"Unsupported phone: %s\n", phone);

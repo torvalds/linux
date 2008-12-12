@@ -40,6 +40,7 @@ struct dt_ops {
 			const int buflen);
 	int	(*setprop)(const void *phandle, const char *name,
 			const void *buf, const int buflen);
+	int (*del_node)(const void *phandle);
 	void *(*get_parent)(const void *phandle);
 	/* The node must not already exist. */
 	void *(*create_node)(const void *parent, const char *name);
@@ -124,6 +125,11 @@ static inline int setprop_str(void *devp, const char *name, const char *buf)
 		return dt_ops.setprop(devp, name, buf, strlen(buf) + 1);
 
 	return -1;
+}
+
+static inline int del_node(const void *devp)
+{
+	return dt_ops.del_node ? dt_ops.del_node(devp) : -1;
 }
 
 static inline void *get_parent(const char *devp)

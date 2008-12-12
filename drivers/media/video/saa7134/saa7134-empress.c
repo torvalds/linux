@@ -534,7 +534,7 @@ static int empress_init(struct saa7134_dev *dev)
 		return err;
 	}
 	printk(KERN_INFO "%s: registered device video%d [mpeg]\n",
-	       dev->name,dev->empress_dev->minor & 0x1f);
+	       dev->name, dev->empress_dev->num);
 
 	videobuf_queue_sg_init(&dev->empress_tsq, &saa7134_ts_qops,
 			    &dev->pci->dev, &dev->slock,

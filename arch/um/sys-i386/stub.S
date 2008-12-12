@@ -1,4 +1,3 @@
-#include "uml-config.h"
 #include "as-layout.h"
 
 	.globl syscall_stub

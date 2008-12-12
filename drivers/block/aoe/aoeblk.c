@@ -118,12 +118,10 @@ aoedisk_rm_sysfs(struct aoedev *d)
 }
 
 static int
-aoeblk_open(struct inode *inode, struct file *filp)
+aoeblk_open(struct block_device *bdev, fmode_t mode)
 {
-	struct aoedev *d;
+	struct aoedev *d = bdev->bd_disk->private_data;
 	ulong flags;
-
-	d = inode->i_bdev->bd_disk->private_data;
 
 	spin_lock_irqsave(&d->lock, flags);
 	if (d->flags & DEVFL_UP) {
@@ -136,12 +134,10 @@ aoeblk_open(struct inode *inode, struct file *filp)
 }
 
 static int
-aoeblk_release(struct inode *inode, struct file *filp)
+aoeblk_release(struct gendisk *disk, fmode_t mode)
 {
-	struct aoedev *d;
+	struct aoedev *d = disk->private_data;
 	ulong flags;
-
-	d = inode->i_bdev->bd_disk->private_data;
 
 	spin_lock_irqsave(&d->lock, flags);
 

@@ -14,8 +14,6 @@ extern unsigned long long elfcorehdr_addr;
 
 extern ssize_t copy_oldmem_page(unsigned long, char *, size_t,
 						unsigned long, int);
-extern const struct file_operations proc_vmcore_operations;
-extern struct proc_dir_entry *proc_vmcore;
 
 /* Architecture code defines this if there are other possible ELF
  * machine types, e.g. on bi-arch capable hardware. */

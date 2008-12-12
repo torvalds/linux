@@ -315,9 +315,9 @@ static void xfrm_policy_kill(struct xfrm_policy *policy)
 		return;
 	}
 
-	spin_lock(&xfrm_policy_gc_lock);
+	spin_lock_bh(&xfrm_policy_gc_lock);
 	hlist_add_head(&policy->bydst, &xfrm_policy_gc_list);
-	spin_unlock(&xfrm_policy_gc_lock);
+	spin_unlock_bh(&xfrm_policy_gc_lock);
 
 	schedule_work(&xfrm_policy_gc_work);
 }
@@ -817,6 +817,7 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 				continue;
 			hlist_del(&pol->bydst);
 			hlist_del(&pol->byidx);
+			list_del(&pol->walk.all);
 			write_unlock_bh(&xfrm_policy_lock);
 
 			xfrm_audit_policy_delete(pol, 1, audit_info->loginuid,
@@ -1251,6 +1252,8 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
 				 -EINVAL : -EAGAIN);
 			xfrm_state_put(x);
 		}
+		else if (error == -ESRCH)
+			error = -EAGAIN;
 
 		if (!tmpl->optional)
 			goto fail;

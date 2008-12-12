@@ -77,6 +77,7 @@
 
 #if defined(CONFIG_RELOCATABLE)
 #ifndef __ASSEMBLY__
+
 extern phys_addr_t memstart_addr;
 extern phys_addr_t kernstart_addr;
 #endif

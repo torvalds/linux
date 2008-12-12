@@ -298,9 +298,6 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 			child->resource[i] = child->parent->resource[i - 3];
 	}
 
-	for(i=0; i<3; i++)
-		child->resource[i] = &dev->resource[PCI_BRIDGE_RESOURCES+i];
-
 	res = child->resource[0];
 	pci_read_config_byte(dev, PCI_IO_BASE, &io_base_lo);
 	pci_read_config_byte(dev, PCI_IO_LIMIT, &io_limit_lo);
@@ -480,11 +477,19 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 	int is_cardbus = (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS);
 	u32 buses, i, j = 0;
 	u16 bctl;
+	int broken = 0;
 
 	pci_read_config_dword(dev, PCI_PRIMARY_BUS, &buses);
 
 	dev_dbg(&dev->dev, "scanning behind bridge, config %06x, pass %d\n",
 		buses & 0xffffff, pass);
+
+	/* Check if setup is sensible at all */
+	if (!pass &&
+	    ((buses & 0xff) != bus->number || ((buses >> 8) & 0xff) <= bus->number)) {
+		dev_dbg(&dev->dev, "bus configuration invalid, reconfiguring\n");
+		broken = 1;
+	}
 
 	/* Disable MasterAbortMode during probing to avoid reporting
 	   of bus errors (in some architectures) */ 
@@ -492,7 +497,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL,
 			      bctl & ~PCI_BRIDGE_CTL_MASTER_ABORT);
 
-	if ((buses & 0xffff00) && !pcibios_assign_all_busses() && !is_cardbus) {
+	if ((buses & 0xffff00) && !pcibios_assign_all_busses() && !is_cardbus && !broken) {
 		unsigned int cmax, busnr;
 		/*
 		 * Bus already configured by firmware, process it in the first
@@ -530,7 +535,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 		 * do in the second pass.
 		 */
 		if (!pass) {
-			if (pcibios_assign_all_busses())
+			if (pcibios_assign_all_busses() || broken)
 				/* Temporarily disable forwarding of the
 				   configuration cycles on all bridges in
 				   this bus segment to avoid possible
