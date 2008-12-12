@@ -16,6 +16,7 @@
 #include <asm/summit/apic.h>
 #include <asm/summit/ipi.h>
 #include <asm/summit/mpparse.h>
+#include <asm/mach-default/mach_wakecpu.h>
 
 static int probe_summit(void)
 {

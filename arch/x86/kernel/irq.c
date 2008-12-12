@@ -118,6 +118,9 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	desc = irq_to_desc(i);
+	if (!desc)
+		return 0;
+
 	spin_lock_irqsave(&desc->lock, flags);
 #ifndef CONFIG_SMP
 	any_count = kstat_irqs(i);

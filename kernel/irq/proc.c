@@ -243,7 +243,11 @@ void init_irq_proc(void)
 	/*
 	 * Create entries for all existing IRQs.
 	 */
-	for_each_irq_desc(irq, desc)
+	for_each_irq_desc(irq, desc) {
+		if (!desc)
+			continue;
+
 		register_irq_proc(irq, desc);
+	}
 }
 
