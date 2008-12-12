@@ -280,8 +280,9 @@ static int s3c_pm_enter(suspend_state_t state)
 	 * we resume as it saves its own register state, so use the return
 	 * code to differentiate return from save and return from sleep */
 
-	if (s3c2410_cpu_save(regs_save) == 0) {
+	if (s3c_cpu_save(regs_save) == 0) {
 		flush_cache_all();
+		S3C_PMDBG("preparing to sleep\n");
 		pm_cpu_sleep();
 	}
 

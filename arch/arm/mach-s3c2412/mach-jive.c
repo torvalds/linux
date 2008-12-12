@@ -494,7 +494,7 @@ static int jive_pm_suspend(struct sys_device *sd, pm_message_t state)
 	 * correct address to resume from. */
 
 	__raw_writel(0x2BED, S3C2412_INFORM0);
-	__raw_writel(virt_to_phys(s3c2410_cpu_resume), S3C2412_INFORM1);
+	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C2412_INFORM1);
 
 	return 0;
 }

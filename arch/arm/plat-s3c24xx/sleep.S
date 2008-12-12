@@ -41,7 +41,7 @@
 
 	.text
 
-	/* s3c2410_cpu_save
+	/* s3c_cpu_save
 	 *
 	 * save enough of the CPU state to allow us to re-start
 	 * pm.c code. as we store items like the sp/lr, we will
@@ -59,7 +59,7 @@
 	 *	     1 => resumed from sleep
 	*/
 
-ENTRY(s3c2410_cpu_save)
+ENTRY(s3c_cpu_save)
 	stmfd	sp!, { r4 - r12, lr }
 
 	@@ store co-processor registers
@@ -99,12 +99,12 @@ s3c_sleep_save_phys:
 
 	/* sleep magic, to allow the bootloader to check for an valid
 	 * image to resume to. Must be the first word before the
-	 * s3c2410_cpu_resume entry.
+	 * s3c_cpu_resume entry.
 	*/
 
 	.word	0x2bedf00d
 
-	/* s3c2410_cpu_resume
+	/* s3c_cpu_resume
 	 *
 	 * resume code entry for bootloader to call
 	 *
@@ -113,7 +113,7 @@ s3c_sleep_save_phys:
 	 * must not write to the code segment (code is read-only)
 	*/
 
-ENTRY(s3c2410_cpu_resume)
+ENTRY(s3c_cpu_resume)
 	mov	r0, #PSR_I_BIT | PSR_F_BIT | SVC_MODE
 	msr	cpsr_c, r0
 
