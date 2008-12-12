@@ -64,6 +64,8 @@ static struct dma_ops_domain *find_protection_domain(u16 devid);
  * Initialization code for statistics collection
  */
 
+DECLARE_STATS_COUNTER(compl_wait);
+
 static struct dentry *stats_dir;
 static struct dentry *de_isolate;
 static struct dentry *de_fflush;
@@ -88,6 +90,8 @@ static void amd_iommu_stats_init(void)
 
 	de_fflush  = debugfs_create_bool("fullflush", 0444, stats_dir,
 					 (u32 *)&amd_iommu_unmap_flush);
+
+	amd_iommu_stats_add(&compl_wait);
 }
 
 #endif
@@ -248,6 +252,8 @@ static void __iommu_wait_for_completion(struct amd_iommu *iommu)
 	int ready = 0;
 	unsigned status = 0;
 	unsigned long i = 0;
+
+	INC_STATS_COUNTER(compl_wait);
 
 	while (!ready && (i < EXIT_LOOP_COUNT)) {
 		++i;
