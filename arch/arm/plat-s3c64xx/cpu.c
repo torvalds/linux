@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -104,6 +105,16 @@ static struct map_desc s3c_iodesc[] __initdata = {
 	},
 };
 
+
+struct sysdev_class s3c64xx_sysclass = {
+	.name	= "s3c64xx-core",
+};
+
+static struct sys_device s3c64xx_sysdev = {
+	.cls	= &s3c64xx_sysclass,
+};
+
+
 /* read cpu identification code */
 
 void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
@@ -117,3 +128,11 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	idcode = __raw_readl(S3C_VA_SYS + 0x118);
 	s3c_init_cpu(idcode, cpu_ids, ARRAY_SIZE(cpu_ids));
 }
+
+static __init int s3c64xx_sysdev_init(void)
+{
+	sysdev_class_register(&s3c64xx_sysclass);
+	return sysdev_register(&s3c64xx_sysdev);
+}
+
+core_initcall(s3c64xx_sysdev_init);
