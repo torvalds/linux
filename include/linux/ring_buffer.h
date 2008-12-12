@@ -28,17 +28,19 @@ struct ring_buffer_event {
  *				 size = 8 bytes
  *
  * @RINGBUF_TYPE_TIME_STAMP:	Sync time stamp with external clock
- *				 array[0] = tv_nsec
- *				 array[1] = tv_sec
+ *				 array[0]    = tv_nsec
+ *				 array[1..2] = tv_sec
  *				 size = 16 bytes
  *
  * @RINGBUF_TYPE_DATA:		Data record
  *				 If len is zero:
  *				  array[0] holds the actual length
- *				  array[1..(length+3)/4-1] holds data
+ *				  array[1..(length+3)/4] holds data
+ *				  size = 4 + 4 + length (bytes)
  *				 else
  *				  length = len << 2
- *				  array[0..(length+3)/4] holds data
+ *				  array[0..(length+3)/4-1] holds data
+ *				  size = 4 + length (bytes)
  */
 enum ring_buffer_type {
 	RINGBUF_TYPE_PADDING,
