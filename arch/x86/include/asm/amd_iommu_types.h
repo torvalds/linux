@@ -396,4 +396,30 @@ static inline u16 calc_devid(u8 bus, u8 devfn)
 	return (((u16)bus) << 8) | devfn;
 }
 
+#ifdef CONFIG_AMD_IOMMU_STATS
+
+struct __iommu_counter {
+	char *name;
+	struct dentry *dent;
+	u64 value;
+};
+
+#define DECLARE_STATS_COUNTER(nm) \
+	static struct __iommu_counter nm = {	\
+		.name = #nm,			\
+	}
+
+#define INC_STATS_COUNTER(name)		name.value += 1
+#define ADD_STATS_COUNTER(name, x)	name.value += (x)
+#define SUB_STATS_COUNTER(name, x)	name.value -= (x)
+
+#else /* CONFIG_AMD_IOMMU_STATS */
+
+#define DECLARE_STATS_COUNTER(name)
+#define INC_STATS_COUNTER(name)
+#define ADD_STATS_COUNTER(name, x)
+#define SUB_STATS_COUNTER(name, x)
+
+#endif /* CONFIG_AMD_IOMMU_STATS */
+
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */
