@@ -254,10 +254,6 @@ static int s3c_pm_enter(suspend_state_t state)
 		return -EINVAL;
 	}
 
-	/* prepare check area if configured */
-
-	s3c_pm_check_prepare();
-
 	/* store the physical address of the register recovery block */
 
 	s3c_sleep_save_phys = virt_to_phys(regs_save);
@@ -329,8 +325,23 @@ static int s3c_pm_enter(suspend_state_t state)
 	return 0;
 }
 
+static int s3c_pm_prepare(void)
+{
+	/* prepare check area if configured */
+
+	s3c_pm_check_prepare();
+	return 0;
+}
+
+static void s3c_pm_finish(void)
+{
+	s3c_pm_check_cleanup();
+}
+
 static struct platform_suspend_ops s3c_pm_ops = {
 	.enter		= s3c_pm_enter,
+	.prepare	= s3c_pm_prepare,
+	.finish		= s3c_pm_finish,
 	.valid		= suspend_valid_only_mem,
 };
 

@@ -129,10 +129,12 @@ extern void s3c_pm_dbg(const char *msg, ...);
 #ifdef CONFIG_S3C2410_PM_CHECK
 extern void s3c_pm_check_prepare(void);
 extern void s3c_pm_check_restore(void);
+extern void s3c_pm_check_cleanup(void);
 extern void s3c_pm_check_store(void);
 #else
 #define s3c_pm_check_prepare() do { } while(0)
 #define s3c_pm_check_restore() do { } while(0)
+#define s3c_pm_check_cleanup() do { } while(0)
 #define s3c_pm_check_store()   do { } while(0)
 #endif
 

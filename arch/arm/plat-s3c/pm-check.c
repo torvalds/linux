@@ -222,9 +222,21 @@ static u32 *s3c_pm_runcheck(struct resource *res, u32 *val)
 */
 void s3c_pm_check_restore(void)
 {
-	if (crcs != NULL) {
+	if (crcs != NULL)
 		s3c_pm_run_sysram(s3c_pm_runcheck, crcs);
-		kfree(crcs);
-		crcs = NULL;
-	}
 }
+
+/**
+ * s3c_pm_check_cleanup() - free memory resources
+ *
+ * Free the resources that where allocated by the suspend
+ * memory check code. We do this separately from the
+ * s3c_pm_check_restore() function as we cannot call any
+ * functions that might sleep during that resume.
+ */
+void s3c_pm_check_cleanup(void)
+{
+	kfree(crcs);
+	crcs = NULL;
+}
+
