@@ -1638,6 +1638,22 @@ config EPIC100
 	  More specific information and updates are available from
 	  <http://www.scyld.com/network/epic100.html>.
 
+config SMSC9420
+	tristate "SMSC LAN9420 PCI ethernet adapter support"
+	depends on NET_PCI && PCI
+	select CRC32
+	select PHYLIB
+	select SMSC_PHY
+	help
+	  This is a driver for SMSC's LAN9420 PCI ethernet adapter.
+	  Say Y if you want it compiled into the kernel,
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.linuxdoc.org/docs.html#howto>.
+
+	  This driver is also available as a module. The module will be
+	  called smsc9420.  If you want to compile it as a module, say M
+	  here and read <file:Documentation/kbuild/modules.txt>
+
 config SUNDANCE
 	tristate "Sundance Alta support"
 	depends on NET_PCI && PCI
