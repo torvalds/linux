@@ -28,12 +28,9 @@
 */
 
 unsigned long s3c_irqwake_intallow	= 1L << (IRQ_RTC - IRQ_EINT0) | 0xfL;
-unsigned long s3c_irqwake_intmask	= 0xffffffffL;
 unsigned long s3c_irqwake_eintallow	= 0x0000fff0L;
-unsigned long s3c_irqwake_eintmask	= 0xffffffffL;
 
-int
-s3c_irq_wake(unsigned int irqno, unsigned int state)
+int s3c_irq_wake(unsigned int irqno, unsigned int state)
 {
 	unsigned long irqbit = 1 << (irqno - IRQ_EINT0);
 
@@ -47,24 +44,6 @@ s3c_irq_wake(unsigned int irqno, unsigned int state)
 		s3c_irqwake_intmask |= irqbit;
 	else
 		s3c_irqwake_intmask &= ~irqbit;
-
-	return 0;
-}
-
-int s3c_irqext_wake(unsigned int irqno, unsigned int state)
-{
-	unsigned long bit = 1L << (irqno - EXTINT_OFF);
-
-	if (!(s3c_irqwake_eintallow & bit))
-		return -ENOENT;
-
-	printk(KERN_INFO "wake %s for irq %d\n",
-	       state ? "enabled" : "disabled", irqno);
-
-	if (!state)
-		s3c_irqwake_eintmask |= bit;
-	else
-		s3c_irqwake_eintmask &= ~bit;
 
 	return 0;
 }

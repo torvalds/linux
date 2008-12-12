@@ -27,6 +27,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-mem.h>
 #include <mach/regs-irq.h>
+#include <asm/irq.h>
 
 #include <plat/pm.h>
 #include <plat/pm-core.h>
@@ -100,6 +101,29 @@ static void s3c_pm_save_uart(void) { }
 static void s3c_pm_restore_uart(void) { }
 #endif
 
+/* The IRQ ext-int code goes here, it is too small to currently bother
+ * with its own file. */
+
+unsigned long s3c_irqwake_intmask	= 0xffffffffL;
+unsigned long s3c_irqwake_eintmask	= 0xffffffffL;
+
+int s3c_irqext_wake(unsigned int irqno, unsigned int state)
+{
+	unsigned long bit = 1L << IRQ_EINT_BIT(irqno);
+
+	if (!(s3c_irqwake_eintallow & bit))
+		return -ENOENT;
+
+	printk(KERN_INFO "wake %s for irq %d\n",
+	       state ? "enabled" : "disabled", irqno);
+
+	if (!state)
+		s3c_irqwake_eintmask |= bit;
+	else
+		s3c_irqwake_eintmask &= ~bit;
+
+	return 0;
+}
 
 /* helper functions to save and restore register state */
 
