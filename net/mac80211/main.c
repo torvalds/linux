@@ -195,37 +195,30 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	struct ieee80211_channel *chan;
 	int ret = 0;
 	int power;
-	enum nl80211_sec_chan_offset sec_chan_offset;
+	enum nl80211_channel_type channel_type;
 
 	might_sleep();
 
 	if (local->sw_scanning) {
 		chan = local->scan_channel;
-		sec_chan_offset = NL80211_SEC_CHAN_NO_HT;
+		channel_type = NL80211_CHAN_NO_HT;
 	} else {
 		chan = local->oper_channel;
-		sec_chan_offset = local->oper_sec_chan_offset;
+		channel_type = local->oper_channel_type;
 	}
 
 	if (chan != local->hw.conf.channel ||
-	    sec_chan_offset != local->hw.conf.ht.sec_chan_offset) {
+	    channel_type != local->hw.conf.ht.channel_type) {
 		local->hw.conf.channel = chan;
-		switch (sec_chan_offset) {
-		case NL80211_SEC_CHAN_NO_HT:
+		local->hw.conf.ht.channel_type = channel_type;
+		switch (channel_type) {
+		case NL80211_CHAN_NO_HT:
 			local->hw.conf.ht.enabled = false;
-			local->hw.conf.ht.sec_chan_offset = 0;
 			break;
-		case NL80211_SEC_CHAN_DISABLED:
+		case NL80211_CHAN_HT20:
+		case NL80211_CHAN_HT40MINUS:
+		case NL80211_CHAN_HT40PLUS:
 			local->hw.conf.ht.enabled = true;
-			local->hw.conf.ht.sec_chan_offset = 0;
-			break;
-		case NL80211_SEC_CHAN_BELOW:
-			local->hw.conf.ht.enabled = true;
-			local->hw.conf.ht.sec_chan_offset = -1;
-			break;
-		case NL80211_SEC_CHAN_ABOVE:
-			local->hw.conf.ht.enabled = true;
-			local->hw.conf.ht.sec_chan_offset = 1;
 			break;
 		}
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;

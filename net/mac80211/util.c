@@ -641,7 +641,7 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 		    chan->flags & IEEE80211_CHAN_NO_IBSS)
 			return ret;
 		local->oper_channel = chan;
-		local->oper_sec_chan_offset = NL80211_SEC_CHAN_NO_HT;
+		local->oper_channel_type = NL80211_CHAN_NO_HT;
 
 		if (local->sw_scanning || local->hw_scanning)
 			ret = 0;

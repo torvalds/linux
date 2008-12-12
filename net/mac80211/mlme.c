@@ -858,6 +858,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 
 	local->hw.conf.ht.enabled = false;
+	local->oper_channel_type = NL80211_CHAN_NO_HT;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_HT);
 
 	ieee80211_bss_info_change_notify(sdata, changed);

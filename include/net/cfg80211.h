@@ -563,7 +563,7 @@ struct cfg80211_ops {
 
 	int	(*set_channel)(struct wiphy *wiphy,
 			       struct ieee80211_channel *chan,
-			       enum nl80211_sec_chan_offset);
+			       enum nl80211_channel_type channel_type);
 };
 
 /* temporary wext handlers */

@@ -1122,12 +1122,12 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 
 static int ieee80211_set_channel(struct wiphy *wiphy,
 				 struct ieee80211_channel *chan,
-				 enum nl80211_sec_chan_offset sec_chan_offset)
+				 enum nl80211_channel_type channel_type)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 
 	local->oper_channel = chan;
-	local->oper_sec_chan_offset = sec_chan_offset;
+	local->oper_channel_type = channel_type;
 
 	return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 }

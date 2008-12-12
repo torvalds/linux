@@ -623,37 +623,40 @@ static int ath_get_channel(struct ath_softc *sc,
 	return -1;
 }
 
-/* ext_chan_offset: (-1, 0, 1) (below, none, above) */
-
 static u32 ath_get_extchanmode(struct ath_softc *sc,
 			       struct ieee80211_channel *chan,
-			       int ext_chan_offset,
-			       enum ath9k_ht_macmode tx_chan_width)
+			       enum nl80211_channel_type channel_type)
 {
 	u32 chanmode = 0;
 
 	switch (chan->band) {
 	case IEEE80211_BAND_2GHZ:
-		if ((ext_chan_offset == 0) &&
-		    (tx_chan_width == ATH9K_HT_MACMODE_20))
+		switch(channel_type) {
+		case NL80211_CHAN_NO_HT:
+		case NL80211_CHAN_HT20:
 			chanmode = CHANNEL_G_HT20;
-		if ((ext_chan_offset == 1) &&
-		    (tx_chan_width == ATH9K_HT_MACMODE_2040))
+			break;
+		case NL80211_CHAN_HT40PLUS:
 			chanmode = CHANNEL_G_HT40PLUS;
-		if ((ext_chan_offset == -1) &&
-		    (tx_chan_width == ATH9K_HT_MACMODE_2040))
+			break;
+		case NL80211_CHAN_HT40MINUS:
 			chanmode = CHANNEL_G_HT40MINUS;
+			break;
+		}
 		break;
 	case IEEE80211_BAND_5GHZ:
-		if ((ext_chan_offset == 0) &&
-		    (tx_chan_width == ATH9K_HT_MACMODE_20))
+		switch(channel_type) {
+		case NL80211_CHAN_NO_HT:
+		case NL80211_CHAN_HT20:
 			chanmode = CHANNEL_A_HT20;
-		if ((ext_chan_offset == 1) &&
-		    (tx_chan_width == ATH9K_HT_MACMODE_2040))
+			break;
+		case NL80211_CHAN_HT40PLUS:
 			chanmode = CHANNEL_A_HT40PLUS;
-		if ((ext_chan_offset == -1) &&
-		    (tx_chan_width == ATH9K_HT_MACMODE_2040))
+			break;
+		case NL80211_CHAN_HT40MINUS:
 			chanmode = CHANNEL_A_HT40MINUS;
+			break;
+		}
 		break;
 	default:
 		break;
@@ -829,45 +832,15 @@ static void setup_ht_cap(struct ieee80211_sta_ht_cap *ht_info)
 	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 }
 
-static void ath9k_ht_conf(struct ath_softc *sc,
-			  struct ieee80211_bss_conf *bss_conf)
-{
-	if (sc->hw->conf.ht.enabled) {
-		if (bss_conf->ht.width_40_ok)
-			sc->tx_chan_width = ATH9K_HT_MACMODE_2040;
-		else
-			sc->tx_chan_width = ATH9K_HT_MACMODE_20;
-
-		ath9k_hw_set11nmac2040(sc->sc_ah, sc->tx_chan_width);
-
-		DPRINTF(sc, ATH_DBG_CONFIG,
-			"BSS Changed HT, chanwidth: %d\n", sc->tx_chan_width);
-	}
-}
-
-static inline int ath_sec_offset(u8 ext_offset)
-{
-	if (ext_offset == IEEE80211_HT_PARAM_CHA_SEC_NONE)
-		return 0;
-	else if (ext_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
-		return 1;
-	else if (ext_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW)
-		return -1;
-
-	return 0;
-}
-
 static void ath9k_bss_assoc_info(struct ath_softc *sc,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *bss_conf)
 {
-	struct ieee80211_hw *hw = sc->hw;
-	struct ieee80211_channel *curchan = hw->conf.channel;
 	struct ath_vap *avp = (void *)vif->drv_priv;
-	int pos;
 
 	if (bss_conf->assoc) {
-		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info ASSOC %d\n", bss_conf->aid);
+		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info ASSOC %d, bssid: %pM\n",
+			bss_conf->aid, sc->sc_curbssid);
 
 		/* New association, store aid */
 		if (avp->av_opmode == NL80211_IFTYPE_STATION) {
@@ -885,40 +858,6 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		sc->sc_halstats.ns_avgrssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_halstats.ns_avgtxrssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_halstats.ns_avgtxrate = ATH_RATE_DUMMY_MARKER;
-
-		/* Update chainmask */
-		ath_update_chainmask(sc, hw->conf.ht.enabled);
-
-		DPRINTF(sc, ATH_DBG_CONFIG,
-			"bssid %pM aid 0x%x\n",
-			sc->sc_curbssid, sc->sc_curaid);
-
-		pos = ath_get_channel(sc, curchan);
-		if (pos == -1) {
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Invalid channel: %d\n", curchan->center_freq);
-			return;
-		}
-
-		if (hw->conf.ht.enabled) {
-			int offset =
-				ath_sec_offset(bss_conf->ht.secondary_channel_offset);
-			sc->tx_chan_width = (bss_conf->ht.width_40_ok) ?
-				ATH9K_HT_MACMODE_2040 : ATH9K_HT_MACMODE_20;
-
-			sc->sc_ah->ah_channels[pos].chanmode =
-				ath_get_extchanmode(sc, curchan,
-						    offset, sc->tx_chan_width);
-		} else {
-			sc->sc_ah->ah_channels[pos].chanmode =
-				(curchan->band == IEEE80211_BAND_2GHZ) ?
-				CHANNEL_G : CHANNEL_A;
-		}
-
-		/* set h/w channel */
-		if (ath_set_channel(sc, &sc->sc_ah->ah_channels[pos]) < 0)
-			DPRINTF(sc, ATH_DBG_FATAL, "Unable to set channel: %d\n",
-				curchan->center_freq);
 
 		/* Start ANI */
 		mod_timer(&sc->sc_ani.timer,
@@ -2146,7 +2085,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_softc *sc = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+	if (changed & (IEEE80211_CONF_CHANGE_CHANNEL |
+		       IEEE80211_CONF_CHANGE_HT)) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos;
 
@@ -2165,25 +2105,23 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			(curchan->band == IEEE80211_BAND_2GHZ) ?
 			CHANNEL_G : CHANNEL_A;
 
-		if ((sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP) &&
-		    (conf->ht.enabled)) {
-			sc->tx_chan_width = (!!conf->ht.sec_chan_offset) ?
-				ATH9K_HT_MACMODE_2040 : ATH9K_HT_MACMODE_20;
+		if (conf->ht.enabled) {
+			if (conf->ht.channel_type == NL80211_CHAN_HT40PLUS ||
+			    conf->ht.channel_type == NL80211_CHAN_HT40MINUS)
+				sc->tx_chan_width = ATH9K_HT_MACMODE_2040;
 
 			sc->sc_ah->ah_channels[pos].chanmode =
 				ath_get_extchanmode(sc, curchan,
-						    conf->ht.sec_chan_offset,
-						    sc->tx_chan_width);
+						    conf->ht.channel_type);
 		}
 
 		if (ath_set_channel(sc, &sc->sc_ah->ah_channels[pos]) < 0) {
 			DPRINTF(sc, ATH_DBG_FATAL, "Unable to set channel\n");
 			return -EINVAL;
 		}
-	}
 
-	if (changed & IEEE80211_CONF_CHANGE_HT)
 		ath_update_chainmask(sc, conf->ht.enabled);
+	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		sc->sc_config.txpowlimit = 2 * conf->power_level;
@@ -2416,9 +2354,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
 	}
-
-	if (changed & BSS_CHANGED_HT)
-		ath9k_ht_conf(sc, bss_conf);
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		DPRINTF(sc, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",

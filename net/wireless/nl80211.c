@@ -60,7 +60,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 				      .len = BUS_ID_SIZE-1 },
 	[NL80211_ATTR_WIPHY_TXQ_PARAMS] = { .type = NLA_NESTED },
 	[NL80211_ATTR_WIPHY_FREQ] = { .type = NLA_U32 },
-	[NL80211_ATTR_WIPHY_SEC_CHAN_OFFSET] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_CHANNEL_TYPE] = { .type = NLA_U32 },
 
 	[NL80211_ATTR_IFTYPE] = { .type = NLA_U32 },
 	[NL80211_ATTR_IFINDEX] = { .type = NLA_U32 },
@@ -362,8 +362,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
-		enum nl80211_sec_chan_offset sec_chan_offset =
-			NL80211_SEC_CHAN_NO_HT;
+		enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 		struct ieee80211_channel *chan;
 		struct ieee80211_sta_ht_cap *ht_cap;
 		u32 freq, sec_freq;
@@ -375,13 +374,13 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 		result = -EINVAL;
 
-		if (info->attrs[NL80211_ATTR_WIPHY_SEC_CHAN_OFFSET]) {
-			sec_chan_offset = nla_get_u32(info->attrs[
-					NL80211_ATTR_WIPHY_SEC_CHAN_OFFSET]);
-			if (sec_chan_offset != NL80211_SEC_CHAN_NO_HT &&
-			    sec_chan_offset != NL80211_SEC_CHAN_DISABLED &&
-			    sec_chan_offset != NL80211_SEC_CHAN_BELOW &&
-			    sec_chan_offset != NL80211_SEC_CHAN_ABOVE)
+		if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
+			channel_type = nla_get_u32(info->attrs[
+					   NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
+			if (channel_type != NL80211_CHAN_NO_HT &&
+			    channel_type != NL80211_CHAN_HT20 &&
+			    channel_type != NL80211_CHAN_HT40PLUS &&
+			    channel_type != NL80211_CHAN_HT40MINUS)
 				goto bad_res;
 		}
 
@@ -392,9 +391,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
 			goto bad_res;
 
-		if (sec_chan_offset == NL80211_SEC_CHAN_BELOW)
+		if (channel_type == NL80211_CHAN_HT40MINUS)
 			sec_freq = freq - 20;
-		else if (sec_chan_offset == NL80211_SEC_CHAN_ABOVE)
+		else if (channel_type == NL80211_CHAN_HT40PLUS)
 			sec_freq = freq + 20;
 		else
 			sec_freq = 0;
@@ -402,7 +401,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		ht_cap = &rdev->wiphy.bands[chan->band]->ht_cap;
 
 		/* no HT capabilities */
-		if (sec_chan_offset != NL80211_SEC_CHAN_NO_HT &&
+		if (channel_type != NL80211_CHAN_NO_HT &&
 		    !ht_cap->ht_supported)
 			goto bad_res;
 
@@ -422,7 +421,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		result = rdev->ops->set_channel(&rdev->wiphy, chan,
-						sec_chan_offset);
+						channel_type);
 		if (result)
 			goto bad_res;
 	}

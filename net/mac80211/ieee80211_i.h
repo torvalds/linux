@@ -625,7 +625,7 @@ struct ieee80211_local {
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
 	struct ieee80211_channel *oper_channel, *scan_channel;
-	enum nl80211_sec_chan_offset oper_sec_chan_offset;
+	enum nl80211_channel_type oper_channel_type;
 	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
 	size_t scan_ssid_len;
 	struct list_head bss_list;
