@@ -552,8 +552,8 @@ int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sgl, int nents,
 	/* IIep is write-through, not flushing. */
 	for_each_sg(sgl, sg, nents, n) {
 		BUG_ON(page_address(sg_page(sg)) == NULL);
-		sg->dvma_address = virt_to_phys(sg_virt(sg));
-		sg->dvma_length = sg->length;
+		sg->dma_address = virt_to_phys(sg_virt(sg));
+		sg->dma_length = sg->length;
 	}
 	return nents;
 }
