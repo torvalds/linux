@@ -31,8 +31,6 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
-#include <linux/crc32.h>
-#include <linux/ioport.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
 
@@ -159,200 +157,6 @@ static void s3c2410_pm_debug_init(void)
 static struct sleep_save uart_save[] = {};
 #endif
 
-#if defined(CONFIG_S3C2410_PM_CHECK) && CONFIG_S3C2410_PM_CHECK_CHUNKSIZE != 0
-
-/* suspend checking code...
- *
- * this next area does a set of crc checks over all the installed
- * memory, so the system can verify if the resume was ok.
- *
- * CONFIG_S3C2410_PM_CHECK_CHUNKSIZE defines the block-size for the CRC,
- * increasing it will mean that the area corrupted will be less easy to spot,
- * and reducing the size will cause the CRC save area to grow
-*/
-
-#define CHECK_CHUNKSIZE (CONFIG_S3C2410_PM_CHECK_CHUNKSIZE * 1024)
-
-static u32 crc_size;	/* size needed for the crc block */
-static u32 *crcs;	/* allocated over suspend/resume */
-
-typedef u32 *(run_fn_t)(struct resource *ptr, u32 *arg);
-
-/* s3c2410_pm_run_res
- *
- * go thorugh the given resource list, and look for system ram
-*/
-
-static void s3c2410_pm_run_res(struct resource *ptr, run_fn_t fn, u32 *arg)
-{
-	while (ptr != NULL) {
-		if (ptr->child != NULL)
-			s3c2410_pm_run_res(ptr->child, fn, arg);
-
-		if ((ptr->flags & IORESOURCE_MEM) &&
-		    strcmp(ptr->name, "System RAM") == 0) {
-			S3C_PMDBG("Found system RAM at %08lx..%08lx\n",
-			    ptr->start, ptr->end);
-			arg = (fn)(ptr, arg);
-		}
-
-		ptr = ptr->sibling;
-	}
-}
-
-static void s3c2410_pm_run_sysram(run_fn_t fn, u32 *arg)
-{
-	s3c2410_pm_run_res(&iomem_resource, fn, arg);
-}
-
-static u32 *s3c2410_pm_countram(struct resource *res, u32 *val)
-{
-	u32 size = (u32)(res->end - res->start)+1;
-
-	size += CHECK_CHUNKSIZE-1;
-	size /= CHECK_CHUNKSIZE;
-
-	S3C_PMDBG("Area %08lx..%08lx, %d blocks\n", res->start, res->end, size);
-
-	*val += size * sizeof(u32);
-	return val;
-}
-
-/* s3c2410_pm_prepare_check
- *
- * prepare the necessary information for creating the CRCs. This
- * must be done before the final save, as it will require memory
- * allocating, and thus touching bits of the kernel we do not
- * know about.
-*/
-
-static void s3c2410_pm_check_prepare(void)
-{
-	crc_size = 0;
-
-	s3c2410_pm_run_sysram(s3c2410_pm_countram, &crc_size);
-
-	S3C_PMDBG("s3c2410_pm_prepare_check: %u checks needed\n", crc_size);
-
-	crcs = kmalloc(crc_size+4, GFP_KERNEL);
-	if (crcs == NULL)
-		printk(KERN_ERR "Cannot allocated CRC save area\n");
-}
-
-static u32 *s3c2410_pm_makecheck(struct resource *res, u32 *val)
-{
-	unsigned long addr, left;
-
-	for (addr = res->start; addr < res->end;
-	     addr += CHECK_CHUNKSIZE) {
-		left = res->end - addr;
-
-		if (left > CHECK_CHUNKSIZE)
-			left = CHECK_CHUNKSIZE;
-
-		*val = crc32_le(~0, phys_to_virt(addr), left);
-		val++;
-	}
-
-	return val;
-}
-
-/* s3c2410_pm_check_store
- *
- * compute the CRC values for the memory blocks before the final
- * sleep.
-*/
-
-static void s3c2410_pm_check_store(void)
-{
-	if (crcs != NULL)
-		s3c2410_pm_run_sysram(s3c2410_pm_makecheck, crcs);
-}
-
-/* in_region
- *
- * return TRUE if the area defined by ptr..ptr+size contatins the
- * what..what+whatsz
-*/
-
-static inline int in_region(void *ptr, int size, void *what, size_t whatsz)
-{
-	if ((what+whatsz) < ptr)
-		return 0;
-
-	if (what > (ptr+size))
-		return 0;
-
-	return 1;
-}
-
-static u32 *s3c2410_pm_runcheck(struct resource *res, u32 *val)
-{
-	void *save_at = phys_to_virt(s3c_sleep_save_phys);
-	unsigned long addr;
-	unsigned long left;
-	void *ptr;
-	u32 calc;
-
-	for (addr = res->start; addr < res->end;
-	     addr += CHECK_CHUNKSIZE) {
-		left = res->end - addr;
-
-		if (left > CHECK_CHUNKSIZE)
-			left = CHECK_CHUNKSIZE;
-
-		ptr = phys_to_virt(addr);
-
-		if (in_region(ptr, left, crcs, crc_size)) {
-			S3C_PMDBG("skipping %08lx, has crc block in\n", addr);
-			goto skip_check;
-		}
-
-		if (in_region(ptr, left, save_at, 32*4 )) {
-			S3C_PMDBG("skipping %08lx, has save block in\n", addr);
-			goto skip_check;
-		}
-
-		/* calculate and check the checksum */
-
-		calc = crc32_le(~0, ptr, left);
-		if (calc != *val) {
-			printk(KERN_ERR PFX "Restore CRC error at "
-			       "%08lx (%08x vs %08x)\n", addr, calc, *val);
-
-			S3C_PMDBG("Restore CRC error at %08lx (%08x vs %08x)\n",
-			    addr, calc, *val);
-		}
-
-	skip_check:
-		val++;
-	}
-
-	return val;
-}
-
-/* s3c2410_pm_check_restore
- *
- * check the CRCs after the restore event and free the memory used
- * to hold them
-*/
-
-static void s3c2410_pm_check_restore(void)
-{
-	if (crcs != NULL) {
-		s3c2410_pm_run_sysram(s3c2410_pm_runcheck, crcs);
-		kfree(crcs);
-		crcs = NULL;
-	}
-}
-
-#else
-
-#define s3c2410_pm_check_prepare() do { } while(0)
-#define s3c2410_pm_check_restore() do { } while(0)
-#define s3c2410_pm_check_store()   do { } while(0)
-#endif
-
 /* s3c2410_pm_show_resume_irqs
  *
  * print any IRQs asserted at resume time (ie, we woke from)
@@ -372,13 +176,13 @@ static void s3c2410_pm_show_resume_irqs(int start, unsigned long which,
 	}
 }
 
-/* s3c2410_pm_check_resume_pin
+/* s3c_pm_check_resume_pin
  *
  * check to see if the pin is configured correctly for sleep mode, and
  * make any necessary adjustments if it is not
 */
 
-static void s3c2410_pm_check_resume_pin(unsigned int pin, unsigned int irqoffs)
+static void s3c_pm_check_resume_pin(unsigned int pin, unsigned int irqoffs)
 {
 	unsigned long irqstate;
 	unsigned long pinstate;
@@ -417,11 +221,11 @@ static void s3c2410_pm_configure_extint(void)
 	*/
 
 	for (pin = S3C2410_GPF0; pin <= S3C2410_GPF7; pin++) {
-		s3c2410_pm_check_resume_pin(pin, pin - S3C2410_GPF0);
+		s3c_pm_check_resume_pin(pin, pin - S3C2410_GPF0);
 	}
 
 	for (pin = S3C2410_GPG0; pin <= S3C2410_GPG7; pin++) {
-		s3c2410_pm_check_resume_pin(pin, (pin - S3C2410_GPG0)+8);
+		s3c_pm_check_resume_pin(pin, (pin - S3C2410_GPG0)+8);
 	}
 }
 
@@ -642,7 +446,7 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	/* prepare check area if configured */
 
-	s3c2410_pm_check_prepare();
+	s3c_pm_check_prepare();
 
 	/* store the physical address of the register recovery block */
 
@@ -681,7 +485,7 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	flush_cache_all();
 
-	s3c2410_pm_check_store();
+	s3c_pm_check_store();
 
 	/* send the cpu to sleep... */
 
@@ -723,7 +527,7 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	S3C_PMDBG("post sleep, preparing to return\n");
 
-	s3c2410_pm_check_restore();
+	s3c_pm_check_restore();
 
 	/* ok, let's return from sleep */
 
