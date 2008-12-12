@@ -44,6 +44,8 @@ extern void (*pm_cpu_sleep)(void);
 
 extern unsigned long s3c_pm_flags;
 
+extern unsigned char pm_uart_udivslot;  /* true to save UART UDIVSLOT */
+
 /* from sleep.S */
 
 extern int  s3c_cpu_save(unsigned long *saveblk);
@@ -88,6 +90,7 @@ struct pm_uart_save {
 	u32	ufcon;
 	u32	umcon;
 	u32	ubrdiv;
+	u32	udivslot;
 };
 
 /* helper functions to save/restore lists of registers. */

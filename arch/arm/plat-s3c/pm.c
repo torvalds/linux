@@ -70,6 +70,8 @@ static inline void s3c_pm_debug_init(void)
 
 /* Save the UART configurations if we are configured for debug. */
 
+unsigned char pm_uart_udivslot;
+
 #ifdef CONFIG_S3C2410_PM_DEBUG
 
 struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
@@ -83,6 +85,9 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 	save->ufcon = __raw_readl(regs + S3C2410_UFCON);
 	save->umcon = __raw_readl(regs + S3C2410_UMCON);
 	save->ubrdiv = __raw_readl(regs + S3C2410_UBRDIV);
+
+	if (pm_uart_udivslot)
+		save->udivslot = __raw_readl(regs + S3C2443_DIVSLOT);
 
 	S3C_PMDBG("UART[%d]: ULCON=%04x, UCON=%04x, UFCON=%04x, UBRDIV=%04x\n",
 		  uart, save->ulcon, save->ucon, save->ufcon, save->ubrdiv);
@@ -108,6 +113,9 @@ static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 	__raw_writel(save->ufcon, regs + S3C2410_UFCON);
 	__raw_writel(save->umcon, regs + S3C2410_UMCON);
 	__raw_writel(save->ubrdiv, regs + S3C2410_UBRDIV);
+
+	if (pm_uart_udivslot)
+		__raw_writel(save->udivslot, regs + S3C2443_DIVSLOT);
 }
 
 static void s3c_pm_restore_uarts(void)
