@@ -180,7 +180,6 @@ EXPORT_SYMBOL(pci_dma_supported);
 EXPORT_SYMBOL(io_remap_pfn_range);
 
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(put_fs_struct);
 
 /* math-emu wants this */
 EXPORT_SYMBOL(die_if_kernel);
