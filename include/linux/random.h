@@ -8,6 +8,7 @@
 #define _LINUX_RANDOM_H
 
 #include <linux/ioctl.h>
+#include <linux/irqnr.h>
 
 /* ioctl()'s for the random number generator */
 
@@ -49,7 +50,6 @@ struct timer_rand_state;
 
 extern struct timer_rand_state *irq_timer_state[];
 
-extern int nr_irqs;
 static inline struct timer_rand_state *get_timer_rand_state(unsigned int irq)
 {
 	if (irq >= nr_irqs)
