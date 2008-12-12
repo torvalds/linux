@@ -111,33 +111,6 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 	return skb;
 }
 
-static int ath_rate2idx(struct ath_softc *sc, int rate)
-{
-	int i = 0, cur_band, n_rates;
-	struct ieee80211_hw *hw = sc->hw;
-
-	cur_band = hw->conf.channel->band;
-	n_rates = sc->sbands[cur_band].n_bitrates;
-
-	for (i = 0; i < n_rates; i++) {
-		if (sc->sbands[cur_band].bitrates[i].bitrate == rate)
-			break;
-	}
-
-	/*
-	 * NB:mac80211 validates rx rate index against the supported legacy rate
-	 * index only (should be done against ht rates also), return the highest
-	 * legacy rate index for rx rate which does not match any one of the
-	 * supported basic and extended rates to make mac80211 happy.
-	 * The following hack will be cleaned up once the issue with
-	 * the rx rate index validation in mac80211 is fixed.
-	 */
-	if (i == n_rates)
-		return n_rates - 1;
-
-	return i;
-}
-
 /*
  * For Decrypt or Demic errors, we only mark packet status here and always push
  * up the frame up to let mac80211 handle the actual error case, be it no
@@ -147,9 +120,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 			  struct ieee80211_rx_status *rx_status, bool *decrypt_error,
 			  struct ath_softc *sc)
 {
-	struct ath_rate_table *rate_table = sc->cur_rate_table;
 	struct ieee80211_hdr *hdr;
-	int ratekbps, rix;
 	u8 ratecode;
 	__le16 fc;
 
@@ -204,15 +175,36 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	}
 
 	ratecode = ds->ds_rxstat.rs_rate;
-	rix = rate_table->rateCodeToIndex[ratecode];
-	ratekbps = rate_table->info[rix].ratekbps;
 
-	/* HT rate */
 	if (ratecode & 0x80) {
+		/* HT rate */
+		rx_status->flag |= RX_FLAG_HT;
 		if (ds->ds_rxstat.rs_flags & ATH9K_RX_2040)
-			ratekbps = (ratekbps * 27) / 13;
+			rx_status->flag |= RX_FLAG_40MHZ;
 		if (ds->ds_rxstat.rs_flags & ATH9K_RX_GI)
-			ratekbps = (ratekbps * 10) / 9;
+			rx_status->flag |= RX_FLAG_SHORT_GI;
+		rx_status->rate_idx = ratecode & 0x7f;
+	} else {
+		int i = 0, cur_band, n_rates;
+		struct ieee80211_hw *hw = sc->hw;
+
+		cur_band = hw->conf.channel->band;
+		n_rates = sc->sbands[cur_band].n_bitrates;
+
+		for (i = 0; i < n_rates; i++) {
+			if (sc->sbands[cur_band].bitrates[i].hw_value ==
+			    ratecode) {
+				rx_status->rate_idx = i;
+				break;
+			}
+
+			if (sc->sbands[cur_band].bitrates[i].hw_value_short ==
+			    ratecode) {
+				rx_status->rate_idx = i;
+				rx_status->flag |= RX_FLAG_SHORTPRE;
+				break;
+			}
+		}
 	}
 
 	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
@@ -220,7 +212,6 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	rx_status->freq =  sc->hw->conf.channel->center_freq;
 	rx_status->noise = sc->sc_ani.sc_noise_floor;
 	rx_status->signal = rx_status->noise + ds->ds_rxstat.rs_rssi;
-	rx_status->rate_idx = ath_rate2idx(sc, (ratekbps / 100));
 	rx_status->antenna = ds->ds_rxstat.rs_antenna;
 
 	/* at 45 you will be able to use MCS 15 reliably. A more elaborate
