@@ -20,6 +20,18 @@
  * specific code.
 */
 
+struct s3c_gpio_chip;
+
+/**
+ * struct s3c_gpio_pm - power management (suspend/resume) information
+ * @save: Routine to save the state of the GPIO block
+ * @resume: Routine to resume the GPIO block.
+ */
+struct s3c_gpio_pm {
+	void (*save)(struct s3c_gpio_chip *chip);
+	void (*resume)(struct s3c_gpio_chip *chip);
+};
+
 struct s3c_gpio_cfg;
 
 /**
@@ -27,6 +39,7 @@ struct s3c_gpio_cfg;
  * @chip: The chip structure to be exported via gpiolib.
  * @base: The base pointer to the gpio configuration registers.
  * @config: special function and pull-resistor control information.
+ * @pm_save: Save information for suspend/resume support.
  *
  * This wrapper provides the necessary information for the Samsung
  * specific gpios being registered with gpiolib.
@@ -34,7 +47,11 @@ struct s3c_gpio_cfg;
 struct s3c_gpio_chip {
 	struct gpio_chip	chip;
 	struct s3c_gpio_cfg	*config;
+	struct s3c_gpio_pm	*pm;
 	void __iomem		*base;
+#ifdef CONFIG_PM
+	u32			pm_save[4];
+#endif
 };
 
 static inline struct s3c_gpio_chip *to_s3c_gpio(struct gpio_chip *gpc)
@@ -75,3 +92,16 @@ static inline struct s3c_gpio_chip *s3c_gpiolib_getchip(unsigned int chip)
 
 static inline void s3c_gpiolib_track(struct s3c_gpio_chip *chip) { }
 #endif
+
+#ifdef CONFIG_PM
+extern struct s3c_gpio_pm s3c_gpio_pm_1bit;
+extern struct s3c_gpio_pm s3c_gpio_pm_2bit;
+extern struct s3c_gpio_pm s3c_gpio_pm_4bit;
+#define __gpio_pm(x) x
+#else
+#define s3c_gpio_pm_1bit NULL
+#define s3c_gpio_pm_2bit NULL
+#define s3c_gpio_pm_4bit NULL
+#define __gpio_pm(x) NULL
+
+#endif /* CONFIG_PM */

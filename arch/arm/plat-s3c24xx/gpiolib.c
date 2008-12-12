@@ -22,6 +22,7 @@
 #include <mach/gpio-core.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
+#include <plat/pm.h>
 
 #include <mach/regs-gpio.h>
 
@@ -78,6 +79,7 @@ static int s3c24xx_gpiolib_bankg_toirq(struct gpio_chip *chip, unsigned offset)
 struct s3c_gpio_chip s3c24xx_gpios[] = {
 	[0] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPA0),
+		.pm	= __gpio_pm(&s3c_gpio_pm_1bit),
 		.chip	= {
 			.base			= S3C2410_GPA0,
 			.owner			= THIS_MODULE,
@@ -89,6 +91,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 	},
 	[1] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPB0),
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPB0,
 			.owner			= THIS_MODULE,
@@ -98,6 +101,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 	},
 	[2] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPC0),
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPC0,
 			.owner			= THIS_MODULE,
@@ -107,6 +111,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 	},
 	[3] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPD0),
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPD0,
 			.owner			= THIS_MODULE,
@@ -116,6 +121,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 	},
 	[4] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPE0),
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPE0,
 			.label			= "GPIOE",
@@ -125,6 +131,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 	},
 	[5] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPF0),
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPF0,
 			.owner			= THIS_MODULE,
@@ -135,6 +142,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 	},
 	[6] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPG0),
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPG0,
 			.owner			= THIS_MODULE,

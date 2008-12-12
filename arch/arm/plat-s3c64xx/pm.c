@@ -96,17 +96,6 @@ void s3c_pm_configure_extint(void)
 	__raw_writel(s3c_irqwake_eintmask, S3C64XX_EINT_MASK);
 }
 
-void s3c_pm_save_gpios(void)
-{
-	/* currently, unless the bootloader does something really stupid
-	 * the gpio blocks should be maintained over their sleep.
-	 */
-}
-
-void s3c_pm_restore_gpios(void)
-{
-}
-
 void s3c_pm_restore_core(void)
 {
 	__raw_writel(0, S3C64XX_EINT_MASK);
