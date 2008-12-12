@@ -540,8 +540,7 @@ void __init uv_system_init(void)
 		uv_blade_info[blade].nr_possible_cpus++;
 
 		uv_cpu_hub_info(cpu)->lowmem_remap_base = lowmem_redir_base;
-		uv_cpu_hub_info(cpu)->lowmem_remap_top =
-					lowmem_redir_base + lowmem_redir_size;
+		uv_cpu_hub_info(cpu)->lowmem_remap_top = lowmem_redir_size;
 		uv_cpu_hub_info(cpu)->m_val = m_val;
 		uv_cpu_hub_info(cpu)->n_val = m_val;
 		uv_cpu_hub_info(cpu)->numa_blade_id = blade;

@@ -210,7 +210,7 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 {
 	if (paddr < uv_hub_info->lowmem_remap_top)
-		paddr += uv_hub_info->lowmem_remap_base;
+		paddr |= uv_hub_info->lowmem_remap_base;
 	return paddr | uv_hub_info->gnode_upper;
 }
 
@@ -218,19 +218,7 @@ static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 /* socket virtual --> UV global physical address */
 static inline unsigned long uv_gpa(void *v)
 {
-	return __pa(v) | uv_hub_info->gnode_upper;
-}
-
-/* socket virtual --> UV global physical address */
-static inline void *uv_vgpa(void *v)
-{
-	return (void *)uv_gpa(v);
-}
-
-/* UV global physical address --> socket virtual */
-static inline void *uv_va(unsigned long gpa)
-{
-	return __va(gpa & uv_hub_info->gpa_mask);
+	return uv_soc_phys_ram_to_gpa(__pa(v));
 }
 
 /* pnode, offset --> socket virtual */
