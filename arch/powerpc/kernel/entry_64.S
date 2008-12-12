@@ -894,18 +894,6 @@ _GLOBAL(enter_prom)
 #ifdef CONFIG_DYNAMIC_FTRACE
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
-	/* Taken from output of objdump from lib64/glibc */
-	mflr	r3
-	stdu	r1, -112(r1)
-	std	r3, 128(r1)
-	subi	r3, r3, MCOUNT_INSN_SIZE
-	.globl mcount_call
-mcount_call:
-	bl	ftrace_stub
-	nop
-	ld	r0, 128(r1)
-	mtlr	r0
-	addi	r1, r1, 112
 	blr
 
 _GLOBAL(ftrace_caller)

@@ -39,6 +39,7 @@
 #include <linux/prctl.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/ftrace.h>
 
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -551,8 +552,9 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
  * - could test fs/gs bitsliced
  *
  * Kprobes not supported here. Set the probe on schedule instead.
+ * Function graph tracer not supported too.
  */
-struct task_struct *
+__notrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread;

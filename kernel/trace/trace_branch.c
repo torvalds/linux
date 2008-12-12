@@ -6,6 +6,7 @@
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/irqflags.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
@@ -41,7 +42,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	if (unlikely(!tr))
 		return;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	if (atomic_inc_return(&tr->data[cpu]->disabled) != 1)
 		goto out;
@@ -73,7 +74,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 
  out:
 	atomic_dec(&tr->data[cpu]->disabled);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 static inline

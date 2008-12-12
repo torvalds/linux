@@ -112,6 +112,8 @@ my ($arch, $bits, $objdump, $objcopy, $cc,
 # Acceptable sections to record.
 my %text_sections = (
      ".text" => 1,
+     ".sched.text" => 1,
+     ".spinlock.text" => 1,
 );
 
 $objdump = "objdump" if ((length $objdump) == 0);

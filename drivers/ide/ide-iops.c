@@ -457,18 +457,14 @@ int drive_is_ready (ide_drive_t *drive)
 	if (drive->waiting_for_dma)
 		return hwif->dma_ops->dma_test_irq(drive);
 
-#if 0
-	/* need to guarantee 400ns since last command was issued */
-	udelay(1);
-#endif
-
 	/*
 	 * We do a passive status test under shared PCI interrupts on
 	 * cards that truly share the ATA side interrupt, but may also share
 	 * an interrupt with another pci card/device.  We make no assumptions
 	 * about possible isa-pnp and pci-pnp issues yet.
 	 */
-	if (hwif->io_ports.ctl_addr)
+	if (hwif->io_ports.ctl_addr &&
+	    (hwif->host_flags & IDE_HFLAG_BROKEN_ALTSTATUS) == 0)
 		stat = hwif->tp_ops->read_altstatus(hwif);
 	else
 		/* Note: this may clear a pending IRQ!! */
@@ -610,6 +606,7 @@ static const struct drive_list_entry ivb_list[] = {
 	{ "TSSTcorp CDDVDW SH-S202N"	, "SB01"	},
 	{ "TSSTcorp CDDVDW SH-S202H"	, "SB00"	},
 	{ "TSSTcorp CDDVDW SH-S202H"	, "SB01"	},
+	{ "SAMSUNG SP0822N"		, "WA100-10"	},
 	{ NULL				, NULL		}
 };
 

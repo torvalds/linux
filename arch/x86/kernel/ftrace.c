@@ -111,7 +111,6 @@ static void ftrace_mod_code(void)
 	 */
 	mod_code_status = probe_kernel_write(mod_code_ip, mod_code_newcode,
 					     MCOUNT_INSN_SIZE);
-
 }
 
 void ftrace_nmi_enter(void)
@@ -323,9 +322,53 @@ int __init ftrace_dyn_arch_init(void *data)
 }
 #endif
 
-#ifdef CONFIG_FUNCTION_RET_TRACER
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-#ifndef CONFIG_DYNAMIC_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void ftrace_graph_call(void);
+
+static int ftrace_mod_jmp(unsigned long ip,
+			  int old_offset, int new_offset)
+{
+	unsigned char code[MCOUNT_INSN_SIZE];
+
+	if (probe_kernel_read(code, (void *)ip, MCOUNT_INSN_SIZE))
+		return -EFAULT;
+
+	if (code[0] != 0xe9 || old_offset != *(int *)(&code[1]))
+		return -EINVAL;
+
+	*(int *)(&code[1]) = new_offset;
+
+	if (do_ftrace_mod_code(ip, &code))
+		return -EPERM;
+
+	return 0;
+}
+
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	int old_offset, new_offset;
+
+	old_offset = (unsigned long)(&ftrace_stub) - (ip + MCOUNT_INSN_SIZE);
+	new_offset = (unsigned long)(&ftrace_graph_caller) - (ip + MCOUNT_INSN_SIZE);
+
+	return ftrace_mod_jmp(ip, old_offset, new_offset);
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	int old_offset, new_offset;
+
+	old_offset = (unsigned long)(&ftrace_graph_caller) - (ip + MCOUNT_INSN_SIZE);
+	new_offset = (unsigned long)(&ftrace_stub) - (ip + MCOUNT_INSN_SIZE);
+
+	return ftrace_mod_jmp(ip, old_offset, new_offset);
+}
+
+#else /* CONFIG_DYNAMIC_FTRACE */
 
 /*
  * These functions are picked from those used on
@@ -343,11 +386,12 @@ void ftrace_nmi_exit(void)
 {
 	atomic_dec(&in_nmi);
 }
+
 #endif /* !CONFIG_DYNAMIC_FTRACE */
 
 /* Add a function return address to the trace stack on thread info.*/
 static int push_return_trace(unsigned long ret, unsigned long long time,
-				unsigned long func)
+				unsigned long func, int *depth)
 {
 	int index;
 
@@ -365,22 +409,34 @@ static int push_return_trace(unsigned long ret, unsigned long long time,
 	current->ret_stack[index].ret = ret;
 	current->ret_stack[index].func = func;
 	current->ret_stack[index].calltime = time;
+	*depth = index;
 
 	return 0;
 }
 
 /* Retrieve a function return address to the trace stack on thread info.*/
-static void pop_return_trace(unsigned long *ret, unsigned long long *time,
-				unsigned long *func, unsigned long *overrun)
+static void pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 {
 	int index;
 
 	index = current->curr_ret_stack;
+
+	if (unlikely(index < 0)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		/* Might as well panic, otherwise we have no where to go */
+		*ret = (unsigned long)panic;
+		return;
+	}
+
 	*ret = current->ret_stack[index].ret;
-	*func = current->ret_stack[index].func;
-	*time = current->ret_stack[index].calltime;
-	*overrun = atomic_read(&current->trace_overrun);
+	trace->func = current->ret_stack[index].func;
+	trace->calltime = current->ret_stack[index].calltime;
+	trace->overrun = atomic_read(&current->trace_overrun);
+	trace->depth = index;
+	barrier();
 	current->curr_ret_stack--;
+
 }
 
 /*
@@ -389,13 +445,21 @@ static void pop_return_trace(unsigned long *ret, unsigned long long *time,
  */
 unsigned long ftrace_return_to_handler(void)
 {
-	struct ftrace_retfunc trace;
-	pop_return_trace(&trace.ret, &trace.calltime, &trace.func,
-			&trace.overrun);
-	trace.rettime = cpu_clock(raw_smp_processor_id());
-	ftrace_function_return(&trace);
+	struct ftrace_graph_ret trace;
+	unsigned long ret;
 
-	return trace.ret;
+	pop_return_trace(&trace, &ret);
+	trace.rettime = cpu_clock(raw_smp_processor_id());
+	ftrace_graph_return(&trace);
+
+	if (unlikely(!ret)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		/* Might as well panic. What else to do? */
+		ret = (unsigned long)panic;
+	}
+
+	return ret;
 }
 
 /*
@@ -407,11 +471,15 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	unsigned long old;
 	unsigned long long calltime;
 	int faulted;
+	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)
 				&return_to_handler;
 
 	/* Nmi's are currently unsupported */
-	if (atomic_read(&in_nmi))
+	if (unlikely(atomic_read(&in_nmi)))
+		return;
+
+	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
 	/*
@@ -420,18 +488,16 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	 * ignore such a protection.
 	 */
 	asm volatile(
-		"1: movl (%[parent_old]), %[old]\n"
-		"2: movl %[return_hooker], (%[parent_replaced])\n"
+		"1: " _ASM_MOV " (%[parent_old]), %[old]\n"
+		"2: " _ASM_MOV " %[return_hooker], (%[parent_replaced])\n"
 		"   movl $0, %[faulted]\n"
 
 		".section .fixup, \"ax\"\n"
 		"3: movl $1, %[faulted]\n"
 		".previous\n"
 
-		".section __ex_table, \"a\"\n"
-		"   .long 1b, 3b\n"
-		"   .long 2b, 3b\n"
-		".previous\n"
+		_ASM_EXTABLE(1b, 3b)
+		_ASM_EXTABLE(2b, 3b)
 
 		: [parent_replaced] "=r" (parent), [old] "=r" (old),
 		  [faulted] "=r" (faulted)
@@ -439,21 +505,33 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		: "memory"
 	);
 
-	if (WARN_ON(faulted)) {
-		unregister_ftrace_return();
+	if (unlikely(faulted)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
 		return;
 	}
 
-	if (WARN_ON(!__kernel_text_address(old))) {
-		unregister_ftrace_return();
+	if (unlikely(!__kernel_text_address(old))) {
+		ftrace_graph_stop();
 		*parent = old;
+		WARN_ON(1);
 		return;
 	}
 
 	calltime = cpu_clock(raw_smp_processor_id());
 
-	if (push_return_trace(old, calltime, self_addr) == -EBUSY)
+	if (push_return_trace(old, calltime,
+				self_addr, &trace.depth) == -EBUSY) {
 		*parent = old;
-}
+		return;
+	}
 
-#endif /* CONFIG_FUNCTION_RET_TRACER */
+	trace.func = self_addr;
+
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
+		current->curr_ret_stack--;
+		*parent = old;
+	}
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
