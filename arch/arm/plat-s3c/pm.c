@@ -83,6 +83,9 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 	save->ufcon = __raw_readl(regs + S3C2410_UFCON);
 	save->umcon = __raw_readl(regs + S3C2410_UMCON);
 	save->ubrdiv = __raw_readl(regs + S3C2410_UBRDIV);
+
+	S3C_PMDBG("UART[%d]: ULCON=%04x, UCON=%04x, UFCON=%04x, UBRDIV=%04x\n",
+		  uart, save->ulcon, save->ucon, save->ufcon, save->ubrdiv);
 }
 
 static void s3c_pm_save_uarts(void)
@@ -97,6 +100,8 @@ static void s3c_pm_save_uarts(void)
 static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 {
 	void __iomem *regs = S3C_VA_UARTx(uart);
+
+	s3c_pm_arch_update_uart(regs, save);
 
 	__raw_writel(save->ulcon, regs + S3C2410_ULCON);
 	__raw_writel(save->ucon,  regs + S3C2410_UCON);
