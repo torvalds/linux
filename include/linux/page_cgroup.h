@@ -17,7 +17,7 @@ struct page_cgroup {
 	struct list_head lru;		/* per cgroup LRU list */
 };
 
-void __init pgdat_page_cgroup_init(struct pglist_data *pgdat);
+void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
 void __init page_cgroup_init(void);
 struct page_cgroup *lookup_page_cgroup(struct page *page);
 
@@ -91,7 +91,7 @@ static inline void unlock_page_cgroup(struct page_cgroup *pc)
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 struct page_cgroup;
 
-static inline void pgdat_page_cgroup_init(struct pglist_data *pgdat)
+static inline void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
 {
 }
 

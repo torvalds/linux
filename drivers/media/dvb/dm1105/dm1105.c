@@ -376,7 +376,7 @@ static void dm1105dvb_dma_unmap(struct dm1105dvb *dm1105dvb)
 	pci_free_consistent(dm1105dvb->pdev, 6*DM1105_DMA_BYTES, dm1105dvb->ts_buf, dm1105dvb->dma_addr);
 }
 
-static void __devinit dm1105dvb_enable_irqs(struct dm1105dvb *dm1105dvb)
+static void dm1105dvb_enable_irqs(struct dm1105dvb *dm1105dvb)
 {
 	outb(INTMAK_ALLMASK, dm_io_mem(DM1105_INTMAK));
 	outb(1, dm_io_mem(DM1105_CR));

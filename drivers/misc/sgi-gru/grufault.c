@@ -254,7 +254,11 @@ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
 		return 1;
 
 	*paddr = pte_pfn(pte) << PAGE_SHIFT;
+#ifdef CONFIG_HUGETLB_PAGE
 	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
+#else
+	*pageshift = PAGE_SHIFT;
+#endif
 	return 0;
 
 err:

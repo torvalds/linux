@@ -33,7 +33,7 @@
 #include <linux/workqueue.h>
 
 /* user_lock_res->l_flags flags. */
-#define USER_LOCK_ATTACHED      (0x00000001) /* have we initialized
+#define USER_LOCK_ATTACHED      (0x00000001) /* we have initialized
 					       * the lvb */
 #define USER_LOCK_BUSY          (0x00000002) /* we are currently in
 					       * dlm_lock */

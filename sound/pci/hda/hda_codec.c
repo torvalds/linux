@@ -1436,12 +1436,12 @@ static void set_dig_out(struct hda_codec *codec, hda_nid_t nid,
 {
 	hda_nid_t *d;
 
-	snd_hda_codec_write(codec, nid, 0, verb, val);
+	snd_hda_codec_write_cache(codec, nid, 0, verb, val);
 	d = codec->slave_dig_outs;
 	if (!d)
 		return;
 	for (; *d; d++)
-		snd_hda_codec_write(codec, *d, 0, verb, val);
+		snd_hda_codec_write_cache(codec, *d, 0, verb, val);
 }
 
 static inline void set_dig_out_convert(struct hda_codec *codec, hda_nid_t nid,

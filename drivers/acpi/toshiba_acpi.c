@@ -848,8 +848,6 @@ static int __init toshiba_acpi_init(void)
 	ret = input_register_polled_device(toshiba_acpi.poll_dev);
 	if (ret) {
 		printk(MY_ERR "unable to register kill-switch input device\n");
-		rfkill_free(toshiba_acpi.rfk_dev);
-		toshiba_acpi.rfk_dev = NULL;
 		toshiba_acpi_exit();
 		return ret;
 	}

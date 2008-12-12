@@ -238,6 +238,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
+	kvmppc_core_destroy_mmu(vcpu);
 }
 
 /* Note: clearing MSR[DE] just means that the debug interrupt will not be

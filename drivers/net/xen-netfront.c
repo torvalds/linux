@@ -1785,7 +1785,7 @@ static int __devexit xennet_remove(struct xenbus_device *dev)
 	return 0;
 }
 
-static struct xenbus_driver netfront = {
+static struct xenbus_driver netfront_driver = {
 	.name = "vif",
 	.owner = THIS_MODULE,
 	.ids = netfront_ids,
@@ -1805,7 +1805,7 @@ static int __init netif_init(void)
 
 	printk(KERN_INFO "Initialising Xen virtual ethernet driver.\n");
 
-	return xenbus_register_frontend(&netfront);
+	return xenbus_register_frontend(&netfront_driver);
 }
 module_init(netif_init);
 
@@ -1815,7 +1815,7 @@ static void __exit netif_exit(void)
 	if (xen_initial_domain())
 		return;
 
-	xenbus_unregister_driver(&netfront);
+	xenbus_unregister_driver(&netfront_driver);
 }
 module_exit(netif_exit);
 
