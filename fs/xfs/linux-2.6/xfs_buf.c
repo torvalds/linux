@@ -1085,7 +1085,7 @@ xfs_bawrite(
 	bp->b_flags &= ~(XBF_READ | XBF_DELWRI | XBF_READ_AHEAD);
 	bp->b_flags |= (XBF_WRITE | XBF_ASYNC | _XBF_RUN_QUEUES);
 
-	bp->b_fspriv3 = mp;
+	bp->b_mount = mp;
 	bp->b_strat = xfs_bdstrat_cb;
 	return xfs_bdstrat_cb(bp);
 }
@@ -1098,7 +1098,7 @@ xfs_bdwrite(
 	XB_TRACE(bp, "bdwrite", 0);
 
 	bp->b_strat = xfs_bdstrat_cb;
-	bp->b_fspriv3 = mp;
+	bp->b_mount = mp;
 
 	bp->b_flags &= ~XBF_READ;
 	bp->b_flags |= (XBF_DELWRI | XBF_ASYNC);

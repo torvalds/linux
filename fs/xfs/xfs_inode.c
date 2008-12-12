@@ -870,7 +870,7 @@ xfs_iread(
 	 * around for a while.  This helps to keep recently accessed
 	 * meta-data in-core longer.
 	 */
-	 XFS_BUF_SET_REF(bp, XFS_INO_REF);
+	XFS_BUF_SET_REF(bp, XFS_INO_REF);
 
 	/*
 	 * Use xfs_trans_brelse() to release the buffer containing the
@@ -3232,8 +3232,6 @@ corrupt_out:
 
 
 #ifdef XFS_ILOCK_TRACE
-ktrace_t	*xfs_ilock_trace_buf;
-
 void
 xfs_ilock_trace(xfs_inode_t *ip, int lock, unsigned int lockflags, inst_t *ra)
 {

@@ -319,10 +319,11 @@ xfs_open_by_handle(
 		put_unused_fd(new_fd);
 		return -XFS_ERROR(-PTR_ERR(filp));
 	}
+
 	if (inode->i_mode & S_IFREG) {
 		/* invisible operation should not change atime */
 		filp->f_flags |= O_NOATIME;
-		filp->f_op = &xfs_invis_file_operations;
+		filp->f_mode |= FMODE_NOCMTIME;
 	}
 
 	fd_install(new_fd, filp);
@@ -1328,21 +1329,31 @@ xfs_ioc_getbmapx(
 	return 0;
 }
 
-int
-xfs_ioctl(
-	xfs_inode_t		*ip,
+/*
+ * Note: some of the ioctl's return positive numbers as a
+ * byte count indicating success, such as readlink_by_handle.
+ * So we don't "sign flip" like most other routines.  This means
+ * true errors need to be returned as a negative value.
+ */
+long
+xfs_file_ioctl(
 	struct file		*filp,
-	int			ioflags,
 	unsigned int		cmd,
-	void			__user *arg)
+	unsigned long		p)
 {
 	struct inode		*inode = filp->f_path.dentry->d_inode;
-	xfs_mount_t		*mp = ip->i_mount;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	void			__user *arg = (void __user *)p;
+	int			ioflags = 0;
 	int			error;
 
-	xfs_itrace_entry(XFS_I(inode));
-	switch (cmd) {
+	if (filp->f_mode & FMODE_NOCMTIME)
+		ioflags |= IO_INVIS;
 
+	xfs_itrace_entry(ip);
+
+	switch (cmd) {
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
 	case XFS_IOC_RESVSP:

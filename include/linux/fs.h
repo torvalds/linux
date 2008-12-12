@@ -81,6 +81,14 @@ extern int dir_notify_enable;
 #define FMODE_WRITE_IOCTL	((__force fmode_t)128)
 #define FMODE_NDELAY_NOW	((__force fmode_t)256)
 
+/*
+ * Don't update ctime and mtime.
+ *
+ * Currently a special hack for the XFS open_by_handle ioctl, but we'll
+ * hopefully graduate it to a proper O_CMTIME flag supported by open(2) soon.
+ */
+#define FMODE_NOCMTIME		((__force fmode_t)2048)
+
 #define RW_MASK		1
 #define RWA_MASK	2
 #define READ 0

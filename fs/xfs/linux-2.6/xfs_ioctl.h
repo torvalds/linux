@@ -68,13 +68,13 @@ xfs_attrmulti_attr_remove(
 	__uint32_t		flags);
 
 extern long
-xfs_file_compat_ioctl(
-	struct file		*file,
+xfs_file_ioctl(
+	struct file		*filp,
 	unsigned int		cmd,
-	unsigned long		arg);
+	unsigned long		p);
 
 extern long
-xfs_file_compat_invis_ioctl(
+xfs_file_compat_ioctl(
 	struct file		*file,
 	unsigned int		cmd,
 	unsigned long		arg);
