@@ -70,6 +70,8 @@ obj-$(CONFIG_MACH_ARMCORE)      += cm-x2xx.o cm-x255.o cm-x270.o
 obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
 obj-$(CONFIG_PXA_EZX)           += ezx.o
 
+obj-$(CONFIG_MACH_INTELMOTE2)   += imote2.o
+
 # Support for blinky lights
 led-y := leds.o
 led-$(CONFIG_ARCH_LUBBOCK)	+= leds-lubbock.o
