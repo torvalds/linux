@@ -390,11 +390,13 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 
 	dname = mesg;
 	len = qword_get(&mesg, dname, size);
-	if (len <= 0) return -EINVAL;
+	if (len <= 0)
+		return -EINVAL;
 	
 	path = dname+len+1;
 	len = qword_get(&mesg, path, size);
-	if (len <= 0) return -EINVAL;
+	if (len <= 0)
+		return -EINVAL;
 
 	len = get_int(&mesg, &maxsize);
 	if (len)
@@ -418,7 +420,8 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	if (len)
 		return len;
 	
-	mesg = buf; len = SIMPLE_TRANSACTION_LIMIT;
+	mesg = buf;
+	len = SIMPLE_TRANSACTION_LIMIT;
 	qword_addhex(&mesg, &len, (char*)&fh.fh_base, fh.fh_size);
 	mesg[-1] = '\n';
 	return mesg - buf;	
