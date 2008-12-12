@@ -425,11 +425,7 @@ out:
 void smp_perf_counter_interrupt(struct pt_regs *regs)
 {
 	irq_enter();
-#ifdef CONFIG_X86_64
-	add_pda(apic_perf_irqs, 1);
-#else
-	per_cpu(irq_stat, smp_processor_id()).apic_perf_irqs++;
-#endif
+	inc_irq_stat(apic_perf_irqs);
 	apic_write(APIC_LVTPC, LOCAL_PERF_VECTOR);
 	__smp_perf_counter_interrupt(regs, 0);
 
