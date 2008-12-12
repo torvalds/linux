@@ -14,12 +14,14 @@
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/serial_core.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 
 #include <asm/hardware/vic.h>
 
 #include <mach/map.h>
+#include <plat/regs-serial.h>
 #include <plat/regs-timer.h>
 #include <plat/cpu.h>
 
@@ -135,9 +137,6 @@ static inline unsigned int s3c_irq_uart_bit(unsigned int irq)
 }
 
 /* UART interrupt registers, not worth adding to seperate include header */
-#define S3C64XX_UINTP	0x30
-#define S3C64XX_UINTSP	0x34
-#define S3C64XX_UINTM	0x38
 
 static void s3c_irq_uart_mask(unsigned int irq)
 {
