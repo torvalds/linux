@@ -75,6 +75,7 @@ DECLARE_STATS_COUNTER(cross_page);
 DECLARE_STATS_COUNTER(domain_flush_single);
 DECLARE_STATS_COUNTER(domain_flush_all);
 DECLARE_STATS_COUNTER(alloced_io_mem);
+DECLARE_STATS_COUNTER(total_map_requests);
 
 static struct dentry *stats_dir;
 static struct dentry *de_isolate;
@@ -112,6 +113,7 @@ static void amd_iommu_stats_init(void)
 	amd_iommu_stats_add(&domain_flush_single);
 	amd_iommu_stats_add(&domain_flush_all);
 	amd_iommu_stats_add(&alloced_io_mem);
+	amd_iommu_stats_add(&total_map_requests);
 }
 
 #endif
@@ -1228,6 +1230,8 @@ static dma_addr_t __map_single(struct device *dev,
 
 	pages = iommu_num_pages(paddr, size, PAGE_SIZE);
 	paddr &= PAGE_MASK;
+
+	INC_STATS_COUNTER(total_map_requests);
 
 	if (pages > 1)
 		INC_STATS_COUNTER(cross_page);
