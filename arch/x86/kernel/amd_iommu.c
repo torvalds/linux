@@ -66,6 +66,7 @@ static struct dma_ops_domain *find_protection_domain(u16 devid);
 
 DECLARE_STATS_COUNTER(compl_wait);
 DECLARE_STATS_COUNTER(cnt_map_single);
+DECLARE_STATS_COUNTER(cnt_unmap_single);
 
 static struct dentry *stats_dir;
 static struct dentry *de_isolate;
@@ -94,6 +95,7 @@ static void amd_iommu_stats_init(void)
 
 	amd_iommu_stats_add(&compl_wait);
 	amd_iommu_stats_add(&cnt_map_single);
+	amd_iommu_stats_add(&cnt_unmap_single);
 }
 
 #endif
@@ -1320,6 +1322,8 @@ static void unmap_single(struct device *dev, dma_addr_t dma_addr,
 	struct amd_iommu *iommu;
 	struct protection_domain *domain;
 	u16 devid;
+
+	INC_STATS_COUNTER(cnt_unmap_single);
 
 	if (!check_device(dev) ||
 	    !get_device_resources(dev, &iommu, &domain, &devid))
