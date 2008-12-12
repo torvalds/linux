@@ -68,6 +68,7 @@ DECLARE_STATS_COUNTER(compl_wait);
 DECLARE_STATS_COUNTER(cnt_map_single);
 DECLARE_STATS_COUNTER(cnt_unmap_single);
 DECLARE_STATS_COUNTER(cnt_map_sg);
+DECLARE_STATS_COUNTER(cnt_unmap_sg);
 
 static struct dentry *stats_dir;
 static struct dentry *de_isolate;
@@ -98,6 +99,7 @@ static void amd_iommu_stats_init(void)
 	amd_iommu_stats_add(&cnt_map_single);
 	amd_iommu_stats_add(&cnt_unmap_single);
 	amd_iommu_stats_add(&cnt_map_sg);
+	amd_iommu_stats_add(&cnt_unmap_sg);
 }
 
 #endif
@@ -1442,6 +1444,8 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
 	struct scatterlist *s;
 	u16 devid;
 	int i;
+
+	INC_STATS_COUNTER(cnt_unmap_sg);
 
 	if (!check_device(dev) ||
 	    !get_device_resources(dev, &iommu, &domain, &devid))
