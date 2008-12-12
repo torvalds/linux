@@ -205,7 +205,7 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 }
 
 /* devices under the same p2p bridge are owned in one domain */
-#define DOMAIN_FLAG_P2P_MULTIPLE_DEVICES (1 < 0)
+#define DOMAIN_FLAG_P2P_MULTIPLE_DEVICES (1 << 0)
 
 /* domain represents a virtual machine, more than one devices
  * across iommus may be owned in one domain, e.g. kvm guest.
