@@ -36,7 +36,6 @@ struct sd {
 	__u8 vflip;
 	__u8 lightfreq;
 
-	char qindex;
 	char bridge;
 #define BRIDGE_VC0321 0
 #define BRIDGE_VC0323 1
@@ -2016,7 +2015,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		}
 	}
 
-	sd->qindex = 7;
 	sd->hflip = HFLIP_DEF;
 	sd->vflip = VFLIP_DEF;
 	if (sd->sensor == SENSOR_OV7670) {
@@ -2050,10 +2048,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 static int sd_init(struct gspca_dev *gspca_dev)
 {
 	return 0;
-}
-
-static void setquality(struct gspca_dev *gspca_dev)
-{
 }
 
 /* for OV7660 and OV7670 only */
@@ -2221,7 +2215,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		if (sd->sensor != SENSOR_PO1200) {
 			reg_w(gspca_dev->dev, 0x89, 0xffff, 0xfdff);
 			msleep(100);
-			setquality(gspca_dev);
 			sethvflip(gspca_dev);
 			setlightfreq(gspca_dev);
 		} else {
