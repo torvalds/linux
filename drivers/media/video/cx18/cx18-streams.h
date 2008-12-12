@@ -29,7 +29,7 @@ int cx18_streams_register(struct cx18 *cx);
 void cx18_streams_cleanup(struct cx18 *cx, int unregister);
 
 /* Capture related */
-void cx18_stream_load_fw_queue_nolock(struct cx18_stream *s);
+void cx18_stream_load_fw_queue(struct cx18_stream *s);
 struct cx18_queue *cx18_stream_put_buf_fw(struct cx18_stream *s,
 					  struct cx18_buffer *buf);
 int cx18_start_v4l2_encode_stream(struct cx18_stream *s);

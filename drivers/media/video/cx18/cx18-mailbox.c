@@ -163,7 +163,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_epu_work_order *order)
 		 * it's filled in).
 		 *
 		 * cx18_queue_get buf() will detect the lost buffers
-		 * and put them back in rotation eventually.
+		 * and send them back to q_free for fw rotation eventually.
 		 */
 		if ((order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) &&
 		    !(id >= s->mdl_offset &&
@@ -174,24 +174,27 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_epu_work_order *order)
 			break;
 		}
 		buf = cx18_queue_get_buf(s, id, mdl_ack->data_used);
+
 		CX18_DEBUG_HI_DMA("DMA DONE for %s (buffer %d)\n", s->name, id);
 		if (buf == NULL) {
 			CX18_WARN("Could not find buf %d for stream %s\n",
 				  id, s->name);
+			/* Put as many buffers as possible back into fw use */
+			cx18_stream_load_fw_queue(s);
 			continue;
 		}
 
-		cx18_buf_sync_for_cpu(s, buf);
 		if (s->type == CX18_ENC_STREAM_TYPE_TS && s->dvb.enabled) {
 			CX18_DEBUG_HI_DMA("TS recv bytesused = %d\n",
 					  buf->bytesused);
-
 			dvb_dmx_swfilter(&s->dvb.demux, buf->buf,
 					 buf->bytesused);
-
+		}
+		/* Put as many buffers as possible back into fw use */
+		cx18_stream_load_fw_queue(s);
+		/* Put back TS buffer, since it was removed from all queues */
+		if (s->type == CX18_ENC_STREAM_TYPE_TS)
 			cx18_stream_put_buf_fw(s, buf);
-		} else
-			set_bit(CX18_F_B_NEED_BUF_SWAP, &buf->b_flags);
 	}
 	wake_up(&cx->dma_waitq);
 	if (s->id != -1)

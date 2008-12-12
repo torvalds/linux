@@ -419,31 +419,22 @@ struct cx18_queue *cx18_stream_put_buf_fw(struct cx18_stream *s,
 	return q;
 }
 
-/* Must hold s->qlock when calling */
-void cx18_stream_load_fw_queue_nolock(struct cx18_stream *s)
+void cx18_stream_load_fw_queue(struct cx18_stream *s)
 {
+	struct cx18_queue *q;
 	struct cx18_buffer *buf;
-	struct cx18 *cx = s->cx;
 
-	/* Move from q_free to q_busy notifying the firmware: 63 buf limit */
-	while (s->handle != CX18_INVALID_TASK_HANDLE &&
-	       test_bit(CX18_F_S_STREAMING, &s->s_flags) &&
-	       atomic_read(&s->q_busy.buffers) < 63 &&
-	       !list_empty(&s->q_free.list)) {
+	if (atomic_read(&s->q_free.buffers) == 0 ||
+	    atomic_read(&s->q_busy.buffers) >= 63)
+		return;
 
-		/* Move from q_free to q_busy */
-		buf = list_entry(s->q_free.list.next, struct cx18_buffer, list);
-		list_move_tail(&buf->list, &s->q_busy.list);
-		buf->bytesused = buf->readpos = buf->b_flags = buf->skipped = 0;
-		atomic_dec(&s->q_free.buffers);
-		atomic_inc(&s->q_busy.buffers);
-
-		/* Notify firmware */
-		cx18_buf_sync_for_device(s, buf);
-		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
-		  (void __iomem *) &cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
-		  1, buf->id, s->buf_size);
-	}
+	/* Move from q_free to q_busy notifying the firmware, until the limit */
+	do {
+		buf = cx18_dequeue(s, &s->q_free);
+		if (buf == NULL)
+			break;
+		q = cx18_stream_put_buf_fw(s, buf);
+	} while (atomic_read(&s->q_busy.buffers) < 63 && q == &s->q_busy);
 }
 
 int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
@@ -543,8 +534,8 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 					&cx->scb->cpu_mdl[buf->id].paddr);
 		cx18_writel(cx, s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
 	}
-	cx18_stream_load_fw_queue_nolock(s);
 	mutex_unlock(&s->qlock);
+	cx18_stream_load_fw_queue(s);
 
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {

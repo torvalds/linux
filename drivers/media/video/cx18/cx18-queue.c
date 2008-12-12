@@ -117,16 +117,18 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 		}
 
 		buf->bytesused = bytesused;
+		/* Sync the buffer before we release the qlock */
+		cx18_buf_sync_for_cpu(s, buf);
 		if (s->type == CX18_ENC_STREAM_TYPE_TS) {
 			/*
-			 * TS doesn't use q_full, but for sweeping up lost
-			 * buffers, we want the TS to requeue the buffer just
-			 * before sending the MDL back to the firmware, so we
-			 * pull it off the list here.
+			 * TS doesn't use q_full.  As we pull the buffer off of
+			 * the queue here, the caller will have to put it back.
 			 */
 			list_del_init(&buf->list);
 		} else {
+			/* Move buffer from q_busy to q_full */
 			list_move_tail(&buf->list, &s->q_full.list);
+			set_bit(CX18_F_B_NEED_BUF_SWAP, &buf->b_flags);
 			s->q_full.bytesused += buf->bytesused;
 			atomic_inc(&s->q_full.buffers);
 		}
@@ -135,9 +137,6 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 		ret = buf;
 		break;
 	}
-
-	/* Put more buffers into the transfer rotation from q_free, if we can */
-	cx18_stream_load_fw_queue_nolock(s);
 	mutex_unlock(&s->qlock);
 	return ret;
 }
