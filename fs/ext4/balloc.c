@@ -666,59 +666,40 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 	return jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
 }
 
-#define EXT4_META_BLOCK 0x1
-
-static ext4_fsblk_t do_blk_alloc(handle_t *handle, struct inode *inode,
-				ext4_lblk_t iblock, ext4_fsblk_t goal,
-				unsigned long *count, int *errp, int flags)
-{
-	struct ext4_allocation_request ar;
-	ext4_fsblk_t ret;
-
-	memset(&ar, 0, sizeof(ar));
-	/* Fill with neighbour allocated blocks */
-
-	ar.inode = inode;
-	ar.goal = goal;
-	ar.len = *count;
-	ar.logical = iblock;
-
-	if (S_ISREG(inode->i_mode) && !(flags & EXT4_META_BLOCK))
-		/* enable in-core preallocation for data block allocation */
-		ar.flags = EXT4_MB_HINT_DATA;
-	else
-		/* disable in-core preallocation for non-regular files */
-		ar.flags = 0;
-
-	ret = ext4_mb_new_blocks(handle, &ar, errp);
-	*count = ar.len;
-	return ret;
-}
-
 /*
  * ext4_new_meta_blocks() -- allocate block for meta data (indexing) blocks
  *
  * @handle:             handle to this transaction
  * @inode:              file inode
  * @goal:               given target block(filesystem wide)
- * @count:		total number of blocks need
+ * @count:		pointer to total number of blocks needed
  * @errp:               error code
  *
- * Return 1st allocated block numberon success, *count stores total account
+ * Return 1st allocated block number on success, *count stores total account
  * error stores in errp pointer
  */
 ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 		ext4_fsblk_t goal, unsigned long *count, int *errp)
 {
+	struct ext4_allocation_request ar;
 	ext4_fsblk_t ret;
-	ret = do_blk_alloc(handle, inode, 0, goal,
-				count, errp, EXT4_META_BLOCK);
+
+	memset(&ar, 0, sizeof(ar));
+	/* Fill with neighbour allocated blocks */
+	ar.inode = inode;
+	ar.goal = goal;
+	ar.len = count ? *count : 1;
+
+	ret = ext4_mb_new_blocks(handle, &ar, errp);
+	if (count)
+		*count = ar.len;
+
 	/*
 	 * Account for the allocated meta blocks
 	 */
 	if (!(*errp) && EXT4_I(inode)->i_delalloc_reserved_flag) {
 		spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
-		EXT4_I(inode)->i_allocated_meta_blocks += *count;
+		EXT4_I(inode)->i_allocated_meta_blocks += ar.len;
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 	}
 	return ret;
