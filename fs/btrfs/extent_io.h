@@ -16,6 +16,7 @@
 #define EXTENT_ORDERED (1 << 9)
 #define EXTENT_ORDERED_METADATA (1 << 10)
 #define EXTENT_BOUNDARY (1 << 11)
+#define EXTENT_NODATASUM (1 << 12)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
 /* flags for bio submission */

@@ -771,6 +771,13 @@ static noinline int cow_file_range(struct inode *inode,
 					       ram_size, cur_alloc_size, 0);
 		BUG_ON(ret);
 
+		if (root->root_key.objectid ==
+		    BTRFS_DATA_RELOC_TREE_OBJECTID) {
+			ret = btrfs_reloc_clone_csums(inode, start,
+						      cur_alloc_size);
+			BUG_ON(ret);
+		}
+
 		if (disk_num_bytes < cur_alloc_size) {
 			printk("num_bytes %Lu cur_alloc %Lu\n", disk_num_bytes,
 			       cur_alloc_size);
@@ -910,6 +917,26 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	return 0;
 }
 
+static int noinline csum_exist_in_range(struct btrfs_root *root,
+					u64 bytenr, u64 num_bytes)
+{
+	int ret;
+	struct btrfs_ordered_sum *sums;
+	LIST_HEAD(list);
+
+	ret = btrfs_lookup_csums_range(root, bytenr, bytenr + num_bytes - 1,
+				       &list);
+	if (ret == 0 && list_empty(&list))
+		return 0;
+
+	while (!list_empty(&list)) {
+		sums = list_entry(list.next, struct btrfs_ordered_sum, list);
+		list_del(&sums->list);
+		kfree(sums);
+	}
+	return 1;
+}
+
 /*
  * when nowcow writeback call back.  This checks for snapshots or COW copies
  * of the extents that exist in the file, and COWs the file as required.
@@ -971,6 +998,7 @@ next_slot:
 
 		nocow = 0;
 		disk_bytenr = 0;
+		num_bytes = 0;
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 
 		if (found_key.objectid > inode->i_ino ||
@@ -996,19 +1024,29 @@ next_slot:
 				path->slots[0]++;
 				goto next_slot;
 			}
+			if (disk_bytenr == 0)
+				goto out_check;
 			if (btrfs_file_extent_compression(leaf, fi) ||
 			    btrfs_file_extent_encryption(leaf, fi) ||
 			    btrfs_file_extent_other_encoding(leaf, fi))
 				goto out_check;
-			if (disk_bytenr == 0)
-				goto out_check;
 			if (extent_type == BTRFS_FILE_EXTENT_REG && !force)
-				goto out_check;
-			if (btrfs_cross_ref_exist(trans, root, disk_bytenr))
 				goto out_check;
 			if (btrfs_extent_readonly(root, disk_bytenr))
 				goto out_check;
+			if (btrfs_cross_ref_exist(trans, root, inode->i_ino,
+						  disk_bytenr))
+				goto out_check;
 			disk_bytenr += btrfs_file_extent_offset(leaf, fi);
+			disk_bytenr += cur_offset - found_key.offset;
+			num_bytes = min(end + 1, extent_end) - cur_offset;
+			/*
+			 * force cow if csum exists in the range.
+			 * this ensure that csum for a given extent are
+			 * either valid or do not exist.
+			 */
+			if (csum_exist_in_range(root, disk_bytenr, num_bytes))
+				goto out_check;
 			nocow = 1;
 		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
 			extent_end = found_key.offset +
@@ -1041,8 +1079,6 @@ out_check:
 			cow_start = (u64)-1;
 		}
 
-		disk_bytenr += cur_offset - found_key.offset;
-		num_bytes = min(end + 1, extent_end) - cur_offset;
 		if (extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
 			struct extent_map *em;
 			struct extent_map_tree *em_tree;
@@ -1105,11 +1141,9 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 			      u64 start, u64 end, int *page_started,
 			      unsigned long *nr_written)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
-	if (btrfs_test_opt(root, NODATACOW) ||
-	    btrfs_test_flag(inode, NODATACOW))
+	if (btrfs_test_flag(inode, NODATACOW))
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
                                         page_started, 1, nr_written);
 	else if (btrfs_test_flag(inode, PREALLOC))
@@ -1252,8 +1286,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
 	BUG_ON(ret);
 
-	skip_sum = btrfs_test_opt(root, NODATASUM) ||
-		btrfs_test_flag(inode, NODATASUM);
+	skip_sum = btrfs_test_flag(inode, NODATASUM);
 
 	if (!(rw & (1 << BIO_RW))) {
 		if (bio_flags & EXTENT_BIO_COMPRESSED) {
@@ -1263,6 +1296,9 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 			btrfs_lookup_bio_sums(root, inode, bio, NULL);
 		goto mapit;
 	} else if (!skip_sum) {
+		/* csum items have already been cloned */
+		if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID)
+			goto mapit;
 		/* we're doing a write, do the async checksumming */
 		return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num,
@@ -1692,9 +1728,15 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		ClearPageChecked(page);
 		goto good;
 	}
-	if (btrfs_test_opt(root, NODATASUM) ||
-	    btrfs_test_flag(inode, NODATASUM))
+	if (btrfs_test_flag(inode, NODATASUM))
 		return 0;
+
+	if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID &&
+	    test_range_bit(io_tree, start, end, EXTENT_NODATASUM, 1)) {
+		clear_extent_bits(io_tree, start, end, EXTENT_NODATASUM,
+				  GFP_NOFS);
+		return 0;
+	}
 
 	if (state && state->start == start) {
 		private = state->private;
@@ -3391,6 +3433,12 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		owner = 1;
 	BTRFS_I(inode)->block_group =
 			btrfs_find_block_group(root, 0, alloc_hint, owner);
+	if ((mode & S_IFREG)) {
+		if (btrfs_test_opt(root, NODATASUM))
+			btrfs_set_flag(inode, NODATASUM);
+		if (btrfs_test_opt(root, NODATACOW))
+			btrfs_set_flag(inode, NODATACOW);
+	}
 
 	key[0].objectid = objectid;
 	btrfs_set_key_type(&key[0], BTRFS_INODE_ITEM_KEY);

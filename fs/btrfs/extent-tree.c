@@ -1359,7 +1359,7 @@ out:
 }
 
 int btrfs_cross_ref_exist(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, u64 bytenr)
+			  struct btrfs_root *root, u64 objectid, u64 bytenr)
 {
 	struct btrfs_root *extent_root = root->fs_info->extent_root;
 	struct btrfs_path *path;
@@ -1418,8 +1418,9 @@ int btrfs_cross_ref_exist(struct btrfs_trans_handle *trans,
 		ref_item = btrfs_item_ptr(leaf, path->slots[0],
 					  struct btrfs_extent_ref);
 		ref_root = btrfs_ref_root(leaf, ref_item);
-		if (ref_root != root->root_key.objectid &&
-		    ref_root != BTRFS_TREE_LOG_OBJECTID) {
+		if ((ref_root != root->root_key.objectid &&
+		     ref_root != BTRFS_TREE_LOG_OBJECTID) ||
+		     objectid != btrfs_ref_objectid(leaf, ref_item)) {
 			ret = 1;
 			goto out;
 		}
@@ -5367,7 +5368,6 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 				if (ret)
 					goto out;
 			}
-			btrfs_record_root_in_trans(found_root);
 			ret = replace_one_extent(trans, found_root,
 						path, extent_key,
 						&first_key, ref_path,
@@ -5534,6 +5534,7 @@ static struct inode noinline *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	} else {
 		BUG_ON(1);
 	}
+	BTRFS_I(inode)->index_cnt = group->key.objectid;
 
 	err = btrfs_orphan_add(trans, inode);
 out:
@@ -5544,6 +5545,47 @@ out:
 		inode = ERR_PTR(err);
 	}
 	return inode;
+}
+
+int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
+{
+
+	struct btrfs_ordered_sum *sums;
+	struct btrfs_sector_sum *sector_sum;
+	struct btrfs_ordered_extent *ordered;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct list_head list;
+	size_t offset;
+	int ret;
+	u64 disk_bytenr;
+
+	INIT_LIST_HEAD(&list);
+
+	ordered = btrfs_lookup_ordered_extent(inode, file_pos);
+	BUG_ON(ordered->file_offset != file_pos || ordered->len != len);
+
+	disk_bytenr = file_pos + BTRFS_I(inode)->index_cnt;
+	ret = btrfs_lookup_csums_range(root, disk_bytenr,
+				       disk_bytenr + len - 1, &list);
+
+	while (!list_empty(&list)) {
+		sums = list_entry(list.next, struct btrfs_ordered_sum, list);
+		list_del_init(&sums->list);
+
+		sector_sum = sums->sums;
+		sums->bytenr = ordered->start;
+
+		offset = 0;
+		while (offset < sums->len) {
+			sector_sum->bytenr += ordered->start - disk_bytenr;
+			sector_sum++;
+			offset += root->sectorsize;
+		}
+
+		btrfs_add_ordered_sum(inode, ordered, sums);
+	}
+	btrfs_put_ordered_extent(ordered);
+	return 0;
 }
 
 int btrfs_relocate_block_group(struct btrfs_root *root, u64 group_start)

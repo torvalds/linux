@@ -1702,7 +1702,7 @@ int btrfs_update_pinned_extents(struct btrfs_root *root,
 int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct extent_buffer *leaf);
 int btrfs_cross_ref_exist(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, u64 bytenr);
+			  struct btrfs_root *root, u64 objectid, u64 bytenr);
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root);
 int btrfs_copy_pinned(struct btrfs_root *root, struct extent_io_tree *copy);
@@ -1789,6 +1789,7 @@ int btrfs_reloc_tree_cache_ref(struct btrfs_trans_handle *trans,
 			       struct extent_buffer *buf, u64 orig_start);
 int btrfs_add_dead_reloc_root(struct btrfs_root *root);
 int btrfs_cleanup_reloc_trees(struct btrfs_root *root);
+int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len);
 u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags);
 /* ctree.c */
 int btrfs_previous_item(struct btrfs_root *root,
@@ -1994,6 +1995,8 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
+int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start,
+			     u64 end, struct list_head *list);
 /* inode.c */
 
 /* RHEL and EL kernels have a patch that renames PG_checked to FsMisc */
