@@ -69,3 +69,4 @@ extern struct sysdev_class s3c2412_sysclass;
 extern struct sysdev_class s3c2440_sysclass;
 extern struct sysdev_class s3c2442_sysclass;
 extern struct sysdev_class s3c2443_sysclass;
+extern struct sysdev_class s3c6410_sysclass;
