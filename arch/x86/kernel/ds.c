@@ -232,7 +232,7 @@ static DEFINE_PER_CPU(struct ds_context *, system_context_array);
 
 #define system_context per_cpu(system_context_array, smp_processor_id())
 
-static inline struct ds_context *ds_get_context(struct task_struct *task)
+static struct ds_context *ds_get_context(struct task_struct *task)
 {
 	struct ds_context **p_context =
 		(task ? &task->thread.ds_ctx : &system_context);
