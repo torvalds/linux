@@ -439,9 +439,9 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 		rv = get_int(&mesg, &newthreads);
 		if (rv)
 			return rv;
-		if (newthreads <0)
+		if (newthreads < 0)
 			return -EINVAL;
-		rv = nfsd_svc(2049, newthreads);
+		rv = nfsd_svc(NFS_PORT, newthreads);
 		if (rv)
 			return rv;
 	}
