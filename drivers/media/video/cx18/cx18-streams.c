@@ -358,8 +358,7 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	cx18_av_cmd(cx, VIDIOC_S_FMT, &cx->vbi.in);
 
 	/* determine number of lines and total number of VBI bytes.
-	   A raw line takes 1443 bytes: 2 * 720 + 4 byte frame header - 1
-	   The '- 1' byte is probably an unused U or V byte. Or something...
+	   A raw line takes 1444 bytes: 4 byte SAV code + 2 * 720
 	   A sliced line takes 51 bytes: 4 byte frame header, 4 byte internal
 	   header, 42 data bytes + checksum (to be confirmed) */
 	if (raw) {
@@ -377,14 +376,15 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	/* Lines per field */
 	data[1] = (lines / 2) | ((lines / 2) << 16);
 	/* bytes per line */
-	data[2] = (raw ? cx->vbi.raw_size : cx->vbi.sliced_size);
+	data[2] = (raw ? cx->vbi.raw_decoder_line_size
+		       : cx->vbi.sliced_decoder_line_size);
 	/* Every X number of frames a VBI interrupt arrives
 	   (frames as in 25 or 30 fps) */
 	data[3] = 1;
 	/* Setup VBI for the cx25840 digitizer */
 	if (raw) {
 		data[4] = 0x20602060;
-		data[5] = 0x30703070;
+		data[5] = 0x307090d0;
 	} else {
 		data[4] = 0xB0F0B0F0;
 		data[5] = 0xA0E0A0E0;

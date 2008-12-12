@@ -596,13 +596,47 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	/* VBI */
 	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	cx->vbi.sliced_in = &cx->vbi.in.fmt.sliced;
-	cx->vbi.raw_size = 1456;
-	cx->vbi.raw_decoder_line_size = 1456;
-	cx->vbi.raw_decoder_sav_odd_field = 0x20;
-	cx->vbi.raw_decoder_sav_even_field = 0x60;
-	cx->vbi.sliced_decoder_line_size = 272;
-	cx->vbi.sliced_decoder_sav_odd_field = 0xB0;
-	cx->vbi.sliced_decoder_sav_even_field = 0xF0;
+
+	/*
+	 * The VBI line sizes depend on the pixel clock and the horiz rate
+	 *
+	 * (1/Fh)*(2*Fp) = Samples/line
+	 *     = 4 bytes EAV + Anc data in hblank + 4 bytes SAV + active samples
+	 *
+	 *  Sliced VBI is sent as ancillary data during horizontal blanking
+	 *  Raw VBI is sent as active video samples during vertcal blanking
+	 *
+	 *  We use a  BT.656 pxiel clock of 13.5 MHz and a BT.656 active line
+	 *  length of 720 pixels @ 4:2:2 sampling.  Thus...
+	 *
+	 *  For NTSC:
+	 *
+	 *  (1/15,734 kHz) * 2 * 13.5 MHz = 1716 samples/line =
+	 *  4 bytes SAV + 268 bytes anc data + 4 bytes SAV + 1440 active samples
+	 *
+	 *  For PAL:
+	 *
+	 *  (1/15,625 kHz) * 2 * 13.5 MHz = 1728 samples/line =
+	 *  4 bytes SAV + 280 bytes anc data + 4 bytes SAV + 1440 active samples
+	 *
+	 */
+
+	/* CX18-AV-Core number of VBI samples output per horizontal line */
+	cx->vbi.raw_decoder_line_size = 1444;   /* 4 byte SAV + 2 * 720 */
+	cx->vbi.sliced_decoder_line_size = 272; /* 60 Hz: 268+4, 50 Hz: 280+4 */
+
+	/* CX18-AV-Core VBI samples/line possibly rounded up */
+	cx->vbi.raw_size = 1444;   /* Real max size is 1444 */
+	cx->vbi.sliced_size = 284; /* Real max size is  284 */
+
+	/*
+	 * CX18-AV-Core SAV/EAV RP codes in VIP 1.x mode
+	 * Task Field VerticalBlank HorizontalBlank 0 0 0 0
+	 */
+	cx->vbi.raw_decoder_sav_odd_field = 0x20;     /*   V  */
+	cx->vbi.raw_decoder_sav_even_field = 0x60;    /*  FV  */
+	cx->vbi.sliced_decoder_sav_odd_field = 0xB0;  /* T VH - actually EAV */
+	cx->vbi.sliced_decoder_sav_even_field = 0xF0; /* TFVH - actually EAV */
 	return 0;
 }
 
@@ -635,6 +669,7 @@ static void __devinit cx18_init_struct2(struct cx18 *cx)
 	cx->av_state.aud_input = CX18_AV_AUDIO8;
 	cx->av_state.audclk_freq = 48000;
 	cx->av_state.audmode = V4L2_TUNER_MODE_LANG1;
+	/* FIXME - 8 is NTSC value, investigate */
 	cx->av_state.vbi_line_offset = 8;
 }
 

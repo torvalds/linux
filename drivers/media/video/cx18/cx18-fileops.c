@@ -185,7 +185,9 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 			    !test_bit(CX18_F_S_APPL_IO, &s_vbi->s_flags)) {
 				while ((buf = cx18_dequeue(s_vbi, &s_vbi->q_full))) {
 					/* byteswap and process VBI data */
-/*					cx18_process_vbi_data(cx, buf, s_vbi->dma_pts, s_vbi->type); */
+					cx18_process_vbi_data(cx, buf,
+							      s_vbi->dma_pts,
+							      s_vbi->type);
 					cx18_stream_put_buf_fw(s_vbi, buf);
 				}
 			}
