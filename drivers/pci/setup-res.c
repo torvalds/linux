@@ -134,7 +134,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 
 	align = resource_alignment(res);
 	if (!align) {
-		dev_err(&dev->dev, "BAR %d: can't allocate resource (bogus "
+		dev_info(&dev->dev, "BAR %d: can't allocate resource (bogus "
 			"alignment) %pR flags %#lx\n",
 			resno, res, res->flags);
 		return -EINVAL;
@@ -157,7 +157,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	}
 
 	if (ret) {
-		dev_err(&dev->dev, "BAR %d: can't allocate %s resource %pR\n",
+		dev_info(&dev->dev, "BAR %d: can't allocate %s resource %pR\n",
 			resno, res->flags & IORESOURCE_IO ? "I/O" : "mem", res);
 	} else {
 		res->flags &= ~IORESOURCE_STARTALIGN;
