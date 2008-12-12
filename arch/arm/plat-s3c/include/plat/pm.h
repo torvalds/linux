@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
 */
 
-/* s3c2410_pm_init
+/* s3c_pm_init
  *
  * called from board at initialisation time to setup the power
  * management
@@ -17,11 +17,11 @@
 
 #ifdef CONFIG_PM
 
-extern __init int s3c2410_pm_init(void);
+extern __init int s3c_pm_init(void);
 
 #else
 
-static inline int s3c2410_pm_init(void)
+static inline int s3c_pm_init(void)
 {
 	return 0;
 }

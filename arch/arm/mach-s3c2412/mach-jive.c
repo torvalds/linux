@@ -630,7 +630,7 @@ static void __init jive_machine_init(void)
 
 	/* initialise the power management now we've setup everything. */
 
-	s3c2410_pm_init();
+	s3c_pm_init();
 
 	s3c_device_nand.dev.platform_data = &jive_nand_info;
 

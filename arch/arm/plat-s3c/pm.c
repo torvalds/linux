@@ -316,14 +316,14 @@ static struct platform_suspend_ops s3c_pm_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
-/* s3c2410_pm_init
+/* s3c_pm_init
  *
  * Attach the power management functions. This should be called
  * from the board specific initialisation if the board supports
  * it.
 */
 
-int __init s3c2410_pm_init(void)
+int __init s3c_pm_init(void)
 {
 	printk("S3C Power Management, Copyright 2004 Simtec Electronics\n");
 

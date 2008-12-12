@@ -40,13 +40,13 @@ Resuming
 Machine Support
 ---------------
 
-  The machine specific functions must call the s3c2410_pm_init() function
+  The machine specific functions must call the s3c_pm_init() function
   to say that its bootloader is capable of resuming. This can be as
   simple as adding the following to the machine's definition:
 
-  INITMACHINE(s3c2410_pm_init)
+  INITMACHINE(s3c_pm_init)
 
-  A board can do its own setup before calling s3c2410_pm_init, if it
+  A board can do its own setup before calling s3c_pm_init, if it
   needs to setup anything else for power management support.
 
   There is currently no support for over-riding the default method of
@@ -74,7 +74,7 @@ statuc void __init machine_init(void)
 
 	enable_irq_wake(IRQ_EINT0);
 
-	s3c2410_pm_init();
+	s3c_pm_init();
 }
 
 
