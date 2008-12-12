@@ -93,7 +93,6 @@ struct btrfs_fs_devices {
 
 	struct btrfs_fs_devices *seed;
 	int seeding;
-	int sprouted;
 
 	int opened;
 };
@@ -127,7 +126,7 @@ int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 		     u64 chunk_start, u64 physical, u64 devid,
 		     u64 **logical, int *naddrs, int *stripe_len);
-int btrfs_read_sys_array(struct btrfs_root *root, u64 sb_bytenr);
+int btrfs_read_sys_array(struct btrfs_root *root);
 int btrfs_read_chunk_tree(struct btrfs_root *root);
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *extent_root, u64 type);

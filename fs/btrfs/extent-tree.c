@@ -218,7 +218,7 @@ static int cache_block_group(struct btrfs_root *root,
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
 	int slot;
-	u64 last = block_group->key.objectid;
+	u64 last;
 
 	if (!block_group)
 		return 0;
@@ -239,7 +239,8 @@ static int cache_block_group(struct btrfs_root *root,
 	 * skip the locking here
 	 */
 	path->skip_locking = 1;
-	key.objectid = max_t(u64, last, BTRFS_SUPER_INFO_OFFSET);
+	last = max_t(u64, block_group->key.objectid, BTRFS_SUPER_INFO_OFFSET);
+	key.objectid = last;
 	key.offset = 0;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -5335,8 +5336,20 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 			prev_block = block_start;
 		}
 
-		if (ref_path->owner_objectid >= BTRFS_FIRST_FREE_OBJECTID &&
-		    pass >= 2) {
+		btrfs_record_root_in_trans(found_root);
+		if (ref_path->owner_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
+			/*
+			 * try to update data extent references while
+			 * keeping metadata shared between snapshots.
+			 */
+			if (pass == 1) {
+				ret = relocate_one_path(trans, found_root,
+						path, &first_key, ref_path,
+						group, reloc_inode);
+				if (ret < 0)
+					goto out;
+				continue;
+			}
 			/*
 			 * use fallback method to process the remaining
 			 * references.
@@ -5359,23 +5372,9 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 						path, extent_key,
 						&first_key, ref_path,
 						new_extents, nr_extents);
-			if (ret < 0)
-				goto out;
-			continue;
-		}
-
-		btrfs_record_root_in_trans(found_root);
-		if (ref_path->owner_objectid < BTRFS_FIRST_FREE_OBJECTID) {
+		} else {
 			ret = relocate_tree_block(trans, found_root, path,
 						  &first_key, ref_path);
-		} else {
-			/*
-			 * try to update data extent references while
-			 * keeping metadata shared between snapshots.
-			 */
-			ret = relocate_one_path(trans, found_root, path,
-						&first_key, ref_path,
-						group, reloc_inode);
 		}
 		if (ret < 0)
 			goto out;

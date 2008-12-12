@@ -58,14 +58,15 @@ static struct super_operations btrfs_super_ops;
 static void btrfs_put_super (struct super_block * sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
-	struct btrfs_fs_info *fs = root->fs_info;
 	int ret;
 
 	ret = close_ctree(root);
 	if (ret) {
 		printk("close ctree returns %d\n", ret);
 	}
-	btrfs_sysfs_del_super(fs);
+#if 0
+	btrfs_sysfs_del_super(root->fs_info);
+#endif
 	sb->s_fs_info = NULL;
 }
 
@@ -349,11 +350,12 @@ static int btrfs_fill_super(struct super_block * sb,
 		err = -ENOMEM;
 		goto fail_close;
 	}
-
+#if 0
 	/* this does the super kobj at the same time */
 	err = btrfs_sysfs_add_super(tree_root->fs_info);
 	if (err)
 		goto fail_close;
+#endif
 
 	sb->s_root = root_dentry;
 

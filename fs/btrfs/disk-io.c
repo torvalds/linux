@@ -1711,7 +1711,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	}
 
 	mutex_lock(&fs_info->chunk_mutex);
-	ret = btrfs_read_sys_array(tree_root, btrfs_super_bytenr(disk_super));
+	ret = btrfs_read_sys_array(tree_root);
 	mutex_unlock(&fs_info->chunk_mutex);
 	if (ret) {
 		printk("btrfs: failed to read the system array on %s\n",
