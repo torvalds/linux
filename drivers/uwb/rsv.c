@@ -669,7 +669,8 @@ void uwb_rsv_terminate(struct uwb_rsv *rsv)
 
 	mutex_lock(&rc->rsvs_mutex);
 
-	uwb_rsv_set_state(rsv, UWB_RSV_STATE_NONE);
+	if (rsv->state != UWB_RSV_STATE_NONE)
+		uwb_rsv_set_state(rsv, UWB_RSV_STATE_NONE);
 
 	mutex_unlock(&rc->rsvs_mutex);
 }
