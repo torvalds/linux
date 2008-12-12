@@ -686,6 +686,7 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata;
 	int err;
+	int layer2_update;
 
 	/* Prevent a race with changing the rate control algorithm */
 	if (!netif_running(dev))
@@ -716,17 +717,25 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 
 	rate_control_rate_init(sta);
 
+	layer2_update = sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+		sdata->vif.type == NL80211_IFTYPE_AP;
+
 	rcu_read_lock();
 
 	err = sta_info_insert(sta);
 	if (err) {
 		/* STA has been freed */
+		if (err == -EEXIST && layer2_update) {
+			/* Need to update layer 2 devices on reassociation */
+			sta = sta_info_get(local, mac);
+			if (sta)
+				ieee80211_send_layer2_update(sta);
+		}
 		rcu_read_unlock();
 		return err;
 	}
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-	    sdata->vif.type == NL80211_IFTYPE_AP)
+	if (layer2_update)
 		ieee80211_send_layer2_update(sta);
 
 	rcu_read_unlock();
