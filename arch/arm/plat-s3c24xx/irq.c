@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/irq.c
  *
- * Copyright (c) 2003,2004 Simtec Electronics
+ * Copyright (c) 2003,2004 Simtec Electronics 
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,38 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Changelog:
- *
- *   22-Jul-2004  Ben Dooks <ben@simtec.co.uk>
- *                Fixed compile warnings
- *
- *   22-Jul-2004  Roc Wu <cooloney@yahoo.com.cn>
- *                Fixed s3c_extirq_type
- *
- *   21-Jul-2004  Arnaud Patard (Rtp) <arnaud.patard@rtp-net.org>
- *                Addition of ADC/TC demux
- *
- *   04-Oct-2004  Klaus Fetscher <k.fetscher@fetron.de>
- *		  Fix for set_irq_type() on low EINT numbers
- *
- *   05-Oct-2004  Ben Dooks <ben@simtec.co.uk>
- *		  Tidy up KF's patch and sort out new release
- *
- *   05-Oct-2004  Ben Dooks <ben@simtec.co.uk>
- *		  Add support for power management controls
- *
- *   04-Nov-2004  Ben Dooks
- *		  Fix standard IRQ wake for EINT0..4 and RTC
- *
- *   22-Feb-2005  Ben Dooks
- *		  Fixed edge-triggering on ADC IRQ
- *
- *   28-Jun-2005  Ben Dooks
- *		  Mark IRQ_LCD valid
- *
- *   25-Jul-2005  Ben Dooks
- *		  Split the S3C2440 IRQ code to separate file
 */
 
 #include <linux/init.h>
