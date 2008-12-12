@@ -70,6 +70,7 @@ DECLARE_STATS_COUNTER(cnt_unmap_single);
 DECLARE_STATS_COUNTER(cnt_map_sg);
 DECLARE_STATS_COUNTER(cnt_unmap_sg);
 DECLARE_STATS_COUNTER(cnt_alloc_coherent);
+DECLARE_STATS_COUNTER(cnt_free_coherent);
 
 static struct dentry *stats_dir;
 static struct dentry *de_isolate;
@@ -102,6 +103,7 @@ static void amd_iommu_stats_init(void)
 	amd_iommu_stats_add(&cnt_map_sg);
 	amd_iommu_stats_add(&cnt_unmap_sg);
 	amd_iommu_stats_add(&cnt_alloc_coherent);
+	amd_iommu_stats_add(&cnt_free_coherent);
 }
 
 #endif
@@ -1540,6 +1542,8 @@ static void free_coherent(struct device *dev, size_t size,
 	struct amd_iommu *iommu;
 	struct protection_domain *domain;
 	u16 devid;
+
+	INC_STATS_COUNTER(cnt_free_coherent);
 
 	if (!check_device(dev))
 		return;
