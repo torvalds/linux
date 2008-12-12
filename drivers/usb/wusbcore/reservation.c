@@ -110,6 +110,9 @@ int wusbhc_rsv_establish(struct wusbhc *wusbhc)
  */
 void wusbhc_rsv_terminate(struct wusbhc *wusbhc)
 {
-	uwb_rsv_terminate(wusbhc->rsv);
-	uwb_rsv_destroy(wusbhc->rsv);
+	if (wusbhc->rsv) {
+		uwb_rsv_terminate(wusbhc->rsv);
+		uwb_rsv_destroy(wusbhc->rsv);
+		wusbhc->rsv = NULL;
+	}
 }
