@@ -84,6 +84,8 @@ static ssize_t write_unexport(struct file *file, char *buf, size_t size);
 static ssize_t write_getfd(struct file *file, char *buf, size_t size);
 static ssize_t write_getfs(struct file *file, char *buf, size_t size);
 static ssize_t write_filehandle(struct file *file, char *buf, size_t size);
+static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size);
+static ssize_t write_unlock_fs(struct file *file, char *buf, size_t size);
 static ssize_t write_threads(struct file *file, char *buf, size_t size);
 static ssize_t write_pool_threads(struct file *file, char *buf, size_t size);
 static ssize_t write_versions(struct file *file, char *buf, size_t size);
@@ -94,9 +96,6 @@ static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
 #endif
 
-static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size);
-static ssize_t failover_unlock_fs(struct file *file, char *buf, size_t size);
-
 static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Svc] = write_svc,
 	[NFSD_Add] = write_add,
@@ -106,8 +105,8 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Getfd] = write_getfd,
 	[NFSD_Getfs] = write_getfs,
 	[NFSD_Fh] = write_filehandle,
-	[NFSD_FO_UnlockIP] = failover_unlock_ip,
-	[NFSD_FO_UnlockFS] = failover_unlock_fs,
+	[NFSD_FO_UnlockIP] = write_unlock_ip,
+	[NFSD_FO_UnlockFS] = write_unlock_fs,
 	[NFSD_Threads] = write_threads,
 	[NFSD_Pool_Threads] = write_pool_threads,
 	[NFSD_Versions] = write_versions,
@@ -309,7 +308,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 	return err;
 }
 
-static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size)
+static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 {
 	struct sockaddr_in sin = {
 		.sin_family	= AF_INET,
@@ -339,7 +338,7 @@ static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size)
 	return nlmsvc_unlock_all_by_ip((struct sockaddr *)&sin);
 }
 
-static ssize_t failover_unlock_fs(struct file *file, char *buf, size_t size)
+static ssize_t write_unlock_fs(struct file *file, char *buf, size_t size)
 {
 	struct path path;
 	char *fo_path;
