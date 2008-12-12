@@ -149,7 +149,17 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	pos++;
 
 	/* IEEE80211_RADIOTAP_RATE */
-	*pos = rate->bitrate / 5;
+	if (status->flag & RX_FLAG_HT) {
+		/*
+		 * TODO: add following information into radiotap header once
+		 * suitable fields are defined for it:
+		 * - MCS index (status->rate_idx)
+		 * - HT40 (status->flag & RX_FLAG_40MHZ)
+		 * - short-GI (status->flag & RX_FLAG_SHORT_GI)
+		 */
+		*pos = 0;
+	} else
+		*pos = rate->bitrate / 5;
 	pos++;
 
 	/* IEEE80211_RADIOTAP_CHANNEL */
@@ -1849,9 +1859,15 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
-		} else if (!rx->sta)
+		} else if (!rx->sta) {
+			int rate_idx;
+			if (rx->status->flag & RX_FLAG_HT)
+				rate_idx = 0; /* TODO: HT rates */
+			else
+				rate_idx = rx->status->rate_idx;
 			rx->sta = ieee80211_ibss_add_sta(sdata, bssid, hdr->addr2,
-				BIT(rx->status->rate_idx));
+				BIT(rate_idx));
+		}
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (!multicast &&
@@ -2057,7 +2073,13 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 					tid_agg_rx->reorder_buf[index]->cb,
 					sizeof(status));
 				sband = local->hw.wiphy->bands[status.band];
-				rate = &sband->bitrates[status.rate_idx];
+				if (status.flag & RX_FLAG_HT) {
+					/* TODO: HT rates */
+					rate = sband->bitrates;
+				} else {
+					rate = &sband->bitrates
+						[status.rate_idx];
+				}
 				__ieee80211_rx_handle_packet(hw,
 					tid_agg_rx->reorder_buf[index],
 					&status, rate);
@@ -2101,7 +2123,10 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 		memcpy(&status, tid_agg_rx->reorder_buf[index]->cb,
 			sizeof(status));
 		sband = local->hw.wiphy->bands[status.band];
-		rate = &sband->bitrates[status.rate_idx];
+		if (status.flag & RX_FLAG_HT)
+			rate = sband->bitrates; /* TODO: HT rates */
+		else
+			rate = &sband->bitrates[status.rate_idx];
 		__ieee80211_rx_handle_packet(hw, tid_agg_rx->reorder_buf[index],
 					     &status, rate);
 		tid_agg_rx->stored_mpdu_num--;
@@ -2189,15 +2214,26 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	sband = local->hw.wiphy->bands[status->band];
-
-	if (!sband ||
-	    status->rate_idx < 0 ||
-	    status->rate_idx >= sband->n_bitrates) {
+	if (!sband) {
 		WARN_ON(1);
 		return;
 	}
 
-	rate = &sband->bitrates[status->rate_idx];
+	if (status->flag & RX_FLAG_HT) {
+		/* rate_idx is MCS index */
+		if (WARN_ON(status->rate_idx < 0 ||
+			    status->rate_idx >= 76))
+			return;
+		/* HT rates are not in the table - use the highest legacy rate
+		 * for now since other parts of mac80211 may not yet be fully
+		 * MCS aware. */
+		rate = &sband->bitrates[sband->n_bitrates - 1];
+	} else {
+		if (WARN_ON(status->rate_idx < 0 ||
+			    status->rate_idx >= sband->n_bitrates))
+			return;
+		rate = &sband->bitrates[status->rate_idx];
+	}
 
 	/*
 	 * key references and virtual interfaces are protected using RCU

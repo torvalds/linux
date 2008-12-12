@@ -436,6 +436,9 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	is valid. This is useful in monitor mode and necessary for beacon frames
  *	to enable IBSS merging.
  * @RX_FLAG_SHORTPRE: Short preamble was used for this frame
+ * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
+ * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
+ * @RX_FLAG_SHORT_GI: Short guard interval was used
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -446,7 +449,10 @@ enum mac80211_rx_flags {
 	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
 	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
 	RX_FLAG_TSFT		= 1<<7,
-	RX_FLAG_SHORTPRE	= 1<<8
+	RX_FLAG_SHORTPRE	= 1<<8,
+	RX_FLAG_HT		= 1<<9,
+	RX_FLAG_40MHZ		= 1<<10,
+	RX_FLAG_SHORT_GI	= 1<<11,
 };
 
 /**
@@ -466,7 +472,8 @@ enum mac80211_rx_flags {
  * @noise: noise when receiving this frame, in dBm.
  * @qual: overall signal quality indication, in percent (0-100).
  * @antenna: antenna used
- * @rate_idx: index of data rate into band's supported rates
+ * @rate_idx: index of data rate into band's supported rates or MCS index if
+ *	HT rates are use (RX_FLAG_HT)
  * @flag: %RX_FLAG_*
  */
 struct ieee80211_rx_status {

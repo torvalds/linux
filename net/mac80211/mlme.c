@@ -1613,8 +1613,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			 * e.g: at 1 MBit that means mactime is 192 usec earlier
 			 * (=24 bytes * 8 usecs/byte) than the beacon timestamp.
 			 */
-			int rate = local->hw.wiphy->bands[band]->
+			int rate;
+			if (rx_status->flag & RX_FLAG_HT) {
+				rate = 65; /* TODO: HT rates */
+			} else {
+				rate = local->hw.wiphy->bands[band]->
 					bitrates[rx_status->rate_idx].bitrate;
+			}
 			rx_timestamp = rx_status->mactime + (24 * 8 * 10 / rate);
 		} else if (local && local->ops && local->ops->get_tsf)
 			/* second best option: get current TSF */
