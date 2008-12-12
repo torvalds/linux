@@ -76,8 +76,8 @@ struct uio_device;
  */
 struct uio_info {
 	struct uio_device	*uio_dev;
-	char			*name;
-	char			*version;
+	const char		*name;
+	const char		*version;
 	struct uio_mem		mem[MAX_UIO_MAPS];
 	struct uio_port		port[MAX_UIO_PORT_REGIONS];
 	long			irq;
