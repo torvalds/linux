@@ -152,7 +152,7 @@ static inline int in_region(void *ptr, int size, void *what, size_t whatsz)
 }
 
 /**
- * s3c_pm_runcheck*() - helper to check a resource on restore.
+ * s3c_pm_runcheck() - helper to check a resource on restore.
  * @res: The resource to check
  * @vak: Pointer to list of CRC32 values to check.
  *
@@ -166,8 +166,11 @@ static u32 *s3c_pm_runcheck(struct resource *res, u32 *val)
 	void *save_at = phys_to_virt(s3c_sleep_save_phys);
 	unsigned long addr;
 	unsigned long left;
+	void *stkpage;
 	void *ptr;
 	u32 calc;
+
+	stkpage = (void *)((u32)&calc & ~PAGE_MASK);
 
 	for (addr = res->start; addr < res->end;
 	     addr += CHECK_CHUNKSIZE) {
@@ -177,6 +180,11 @@ static u32 *s3c_pm_runcheck(struct resource *res, u32 *val)
 			left = CHECK_CHUNKSIZE;
 
 		ptr = phys_to_virt(addr);
+
+		if (in_region(ptr, left, stkpage, 4096)) {
+			S3C_PMDBG("skipping %08lx, has stack in\n", addr);
+			goto skip_check;
+		}
 
 		if (in_region(ptr, left, crcs, crc_size)) {
 			S3C_PMDBG("skipping %08lx, has crc block in\n", addr);
