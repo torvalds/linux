@@ -1456,7 +1456,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct spi_imx_master *platform_info;
 	struct spi_master *master;
-	struct driver_data *drv_data = NULL;
+	struct driver_data *drv_data;
 	struct resource *res;
 	int irq, status = 0;
 
@@ -1466,14 +1466,6 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 		status = -ENODEV;
 		goto err_no_pdata;
 	}
-
-	drv_data->clk = clk_get(&pdev->dev, "perclk2");
-	if (IS_ERR(drv_data->clk)) {
-		dev_err(&pdev->dev, "probe - cannot get get\n");
-		status = PTR_ERR(drv_data->clk);
-		goto err_no_clk;
-	}
-	clk_enable(drv_data->clk);
 
 	/* Allocate master with space for drv_data */
 	master = spi_alloc_master(dev, sizeof(struct driver_data));
@@ -1494,6 +1486,14 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	master->transfer = transfer;
 
 	drv_data->dummy_dma_buf = SPI_DUMMY_u32;
+
+	drv_data->clk = clk_get(&pdev->dev, "perclk2");
+	if (IS_ERR(drv_data->clk)) {
+		dev_err(&pdev->dev, "probe - cannot get clock\n");
+		status = PTR_ERR(drv_data->clk);
+		goto err_no_clk;
+	}
+	clk_enable(drv_data->clk);
 
 	/* Find and map resources */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1630,12 +1630,13 @@ err_no_iomap:
 	kfree(drv_data->ioarea);
 
 err_no_iores:
+	clk_disable(drv_data->clk);
+	clk_put(drv_data->clk);
+
+err_no_clk:
 	spi_master_put(master);
 
 err_no_pdata:
-	clk_disable(drv_data->clk);
-	clk_put(drv_data->clk);
-err_no_clk:
 err_no_mem:
 	return status;
 }

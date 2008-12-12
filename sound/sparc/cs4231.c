@@ -1856,7 +1856,7 @@ static int __init snd_cs4231_sbus_create(struct snd_card *card,
 	return 0;
 }
 
-static int __init cs4231_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit cs4231_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct resource *rp = &op->resource[0];
 	struct snd_card *card;
@@ -2048,7 +2048,7 @@ static int __init snd_cs4231_ebus_create(struct snd_card *card,
 	return 0;
 }
 
-static int __init cs4231_ebus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit cs4231_ebus_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct snd_card *card;
 	int err;
@@ -2072,7 +2072,7 @@ static int __init cs4231_ebus_probe(struct of_device *op, const struct of_device
 }
 #endif
 
-static int __init cs4231_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit cs4231_probe(struct of_device *op, const struct of_device_id *match)
 {
 #ifdef EBUS_SUPPORT
 	if (!strcmp(op->node->parent->name, "ebus"))
@@ -2086,7 +2086,7 @@ static int __init cs4231_probe(struct of_device *op, const struct of_device_id *
 	return -ENODEV;
 }
 
-static int __exit cs4231_remove(struct of_device *op)
+static int __devexit cs4231_remove(struct of_device *op)
 {
 	struct snd_cs4231 *chip = dev_get_drvdata(&op->dev);
 
@@ -2112,7 +2112,7 @@ static struct of_platform_driver cs4231_driver = {
 	.name		= "audio",
 	.match_table	= cs4231_match,
 	.probe		= cs4231_probe,
-	.remove		= __exit_p(cs4231_remove),
+	.remove		= __devexit_p(cs4231_remove),
 };
 
 static int __init cs4231_init(void)

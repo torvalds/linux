@@ -58,7 +58,7 @@ endif
 kvm-objs := $(common-objs) kvm-ia64.o kvm_fw.o
 obj-$(CONFIG_KVM) += kvm.o
 
-EXTRA_CFLAGS_vcpu.o += -mfixed-range=f2-f5,f12-f127
+CFLAGS_vcpu.o += -mfixed-range=f2-f5,f12-f127
 kvm-intel-objs = vmm.o vmm_ivt.o trampoline.o vcpu.o optvfault.o mmio.o \
 	vtlb.o process.o
 #Add link memcpy and memset to avoid possible structure assignment error

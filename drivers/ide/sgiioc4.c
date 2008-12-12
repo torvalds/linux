@@ -550,7 +550,7 @@ static const struct ide_dma_ops sgiioc4_dma_ops = {
 	.dma_timeout		= ide_dma_timeout,
 };
 
-static const struct ide_port_info sgiioc4_port_info __devinitdata = {
+static const struct ide_port_info sgiioc4_port_info __devinitconst = {
 	.name			= DRV_NAME,
 	.chipset		= ide_pci,
 	.init_dma		= ide_dma_sgiioc4,
@@ -633,7 +633,7 @@ out:
 	return ret;
 }
 
-int
+int __devinit
 ioc4_ide_attach_one(struct ioc4_driver_data *idd)
 {
 	/* PCI-RT does not bring out IDE connection.
@@ -645,7 +645,7 @@ ioc4_ide_attach_one(struct ioc4_driver_data *idd)
 	return pci_init_sgiioc4(idd->idd_pdev);
 }
 
-static struct ioc4_submodule ioc4_ide_submodule = {
+static struct ioc4_submodule __devinitdata ioc4_ide_submodule = {
 	.is_name = "IOC4_ide",
 	.is_owner = THIS_MODULE,
 	.is_probe = ioc4_ide_attach_one,

@@ -361,7 +361,7 @@ fail:
 extern int bbc_envctrl_init(struct bbc_i2c_bus *bp);
 extern void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp);
 
-static int __init bbc_i2c_probe(struct of_device *op,
+static int __devinit bbc_i2c_probe(struct of_device *op,
 				   const struct of_device_id *match)
 {
 	struct bbc_i2c_bus *bp;
@@ -386,7 +386,7 @@ static int __init bbc_i2c_probe(struct of_device *op,
 	return err;
 }
 
-static int __exit bbc_i2c_remove(struct of_device *op)
+static int __devexit bbc_i2c_remove(struct of_device *op)
 {
 	struct bbc_i2c_bus *bp = dev_get_drvdata(&op->dev);
 
@@ -417,7 +417,7 @@ static struct of_platform_driver bbc_i2c_driver = {
 	.name		= "bbc_i2c",
 	.match_table	= bbc_i2c_match,
 	.probe		= bbc_i2c_probe,
-	.remove		= __exit_p(bbc_i2c_remove),
+	.remove		= __devexit_p(bbc_i2c_remove),
 };
 
 static int __init bbc_i2c_init(void)

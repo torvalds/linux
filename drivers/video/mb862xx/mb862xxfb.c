@@ -927,9 +927,9 @@ static int __devinit mb862xx_pci_probe(struct pci_dev *pdev,
 	}
 
 	dev_dbg(dev, "fb phys 0x%llx 0x%lx\n",
-		(u64)par->fb_base_phys, (ulong)par->mapped_vram);
+		(unsigned long long)par->fb_base_phys, (ulong)par->mapped_vram);
 	dev_dbg(dev, "mmio phys 0x%llx 0x%lx\n",
-		(u64)par->mmio_base_phys, (ulong)par->mmio_len);
+		(unsigned long long)par->mmio_base_phys, (ulong)par->mmio_len);
 
 	if (mb862xx_pci_gdc_init(par))
 		goto io_unmap;

@@ -251,13 +251,6 @@ struct amd_iommu {
 	/* Pointer to PCI device of this IOMMU */
 	struct pci_dev *dev;
 
-	/*
-	 * Capability pointer. There could be more than one IOMMU per PCI
-	 * device function if there are more than one AMD IOMMU capability
-	 * pointers.
-	 */
-	u16 cap_ptr;
-
 	/* physical address of MMIO space */
 	u64 mmio_phys;
 	/* virtual address of MMIO space */
@@ -265,6 +258,13 @@ struct amd_iommu {
 
 	/* capabilities of that IOMMU read from ACPI */
 	u32 cap;
+
+	/*
+	 * Capability pointer. There could be more than one IOMMU per PCI
+	 * device function if there are more than one AMD IOMMU capability
+	 * pointers.
+	 */
+	u16 cap_ptr;
 
 	/* pci domain of this IOMMU */
 	u16 pci_seg;
@@ -284,18 +284,18 @@ struct amd_iommu {
 	/* size of command buffer */
 	u32 cmd_buf_size;
 
-	/* event buffer virtual address */
-	u8 *evt_buf;
 	/* size of event buffer */
 	u32 evt_buf_size;
+	/* event buffer virtual address */
+	u8 *evt_buf;
 	/* MSI number for event interrupt */
 	u16 evt_msi_num;
 
-	/* if one, we need to send a completion wait command */
-	int need_sync;
-
 	/* true if interrupts for this IOMMU are already enabled */
 	bool int_enabled;
+
+	/* if one, we need to send a completion wait command */
+	int need_sync;
 
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;

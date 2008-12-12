@@ -77,7 +77,6 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
 
 	BUG_ON(addr >= end);
 	pgd = pgd_offset_k(addr);
-	flush_cache_vunmap(addr, end);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
@@ -543,14 +542,24 @@ static void purge_vmap_area_lazy(void)
 }
 
 /*
- * Free and unmap a vmap area
+ * Free and unmap a vmap area, caller ensuring flush_cache_vunmap had been
+ * called for the correct range previously.
  */
-static void free_unmap_vmap_area(struct vmap_area *va)
+static void free_unmap_vmap_area_noflush(struct vmap_area *va)
 {
 	va->flags |= VM_LAZY_FREE;
 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
 		try_purge_vmap_area_lazy();
+}
+
+/*
+ * Free and unmap a vmap area
+ */
+static void free_unmap_vmap_area(struct vmap_area *va)
+{
+	flush_cache_vunmap(va->va_start, va->va_end);
+	free_unmap_vmap_area_noflush(va);
 }
 
 static struct vmap_area *find_vmap_area(unsigned long addr)
@@ -734,7 +743,7 @@ static void free_vmap_block(struct vmap_block *vb)
 	spin_unlock(&vmap_block_tree_lock);
 	BUG_ON(tmp != vb);
 
-	free_unmap_vmap_area(vb->va);
+	free_unmap_vmap_area_noflush(vb->va);
 	call_rcu(&vb->rcu_head, rcu_free_vb);
 }
 
@@ -796,6 +805,9 @@ static void vb_free(const void *addr, unsigned long size)
 
 	BUG_ON(size & ~PAGE_MASK);
 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
+
+	flush_cache_vunmap((unsigned long)addr, (unsigned long)addr + size);
+
 	order = get_order(size);
 
 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
@@ -1705,7 +1717,7 @@ static int s_show(struct seq_file *m, void *p)
 		v->addr, v->addr + v->size, v->size);
 
 	if (v->caller) {
-		char buff[2 * KSYM_NAME_LEN];
+		char buff[KSYM_SYMBOL_LEN];
 
 		seq_putc(m, ' ');
 		sprint_symbol(buff, (unsigned long)v->caller);
