@@ -55,7 +55,8 @@ static void s3c_pm_run_res(struct resource *ptr, run_fn_t fn, u32 *arg)
 		if ((ptr->flags & IORESOURCE_MEM) &&
 		    strcmp(ptr->name, "System RAM") == 0) {
 			S3C_PMDBG("Found system RAM at %08lx..%08lx\n",
-			    ptr->start, ptr->end);
+				  (unsigned long)ptr->start,
+				  (unsigned long)ptr->end);
 			arg = (fn)(ptr, arg);
 		}
 
@@ -75,7 +76,8 @@ static u32 *s3c_pm_countram(struct resource *res, u32 *val)
 	size += CHECK_CHUNKSIZE-1;
 	size /= CHECK_CHUNKSIZE;
 
-	S3C_PMDBG("Area %08lx..%08lx, %d blocks\n", res->start, res->end, size);
+	S3C_PMDBG("Area %08lx..%08lx, %d blocks\n",
+		  (unsigned long)res->start, (unsigned long)res->end, size);
 
 	*val += size * sizeof(u32);
 	return val;
