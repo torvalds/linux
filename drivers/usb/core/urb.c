@@ -10,7 +10,6 @@
 
 #define to_urb(d) container_of(d, struct urb, kref)
 
-static DEFINE_SPINLOCK(usb_reject_lock);
 
 static void urb_destroy(struct kref *kref)
 {
@@ -131,9 +130,7 @@ void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor)
 	urb->anchor = anchor;
 
 	if (unlikely(anchor->poisoned)) {
-		spin_lock(&usb_reject_lock);
-		urb->reject++;
-		spin_unlock(&usb_reject_lock);
+		atomic_inc(&urb->reject);
 	}
 
 	spin_unlock_irqrestore(&anchor->lock, flags);
@@ -565,16 +562,12 @@ void usb_kill_urb(struct urb *urb)
 	might_sleep();
 	if (!(urb && urb->dev && urb->ep))
 		return;
-	spin_lock_irq(&usb_reject_lock);
-	++urb->reject;
-	spin_unlock_irq(&usb_reject_lock);
+	atomic_inc(&urb->reject);
 
 	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
 
-	spin_lock_irq(&usb_reject_lock);
-	--urb->reject;
-	spin_unlock_irq(&usb_reject_lock);
+	atomic_dec(&urb->reject);
 }
 EXPORT_SYMBOL_GPL(usb_kill_urb);
 
@@ -606,9 +599,7 @@ void usb_poison_urb(struct urb *urb)
 	might_sleep();
 	if (!(urb && urb->dev && urb->ep))
 		return;
-	spin_lock_irq(&usb_reject_lock);
-	++urb->reject;
-	spin_unlock_irq(&usb_reject_lock);
+	atomic_inc(&urb->reject);
 
 	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
@@ -617,14 +608,10 @@ EXPORT_SYMBOL_GPL(usb_poison_urb);
 
 void usb_unpoison_urb(struct urb *urb)
 {
-	unsigned long flags;
-
 	if (!urb)
 		return;
 
-	spin_lock_irqsave(&usb_reject_lock, flags);
-	--urb->reject;
-	spin_unlock_irqrestore(&usb_reject_lock, flags);
+	atomic_dec(&urb->reject);
 }
 EXPORT_SYMBOL_GPL(usb_unpoison_urb);
 
