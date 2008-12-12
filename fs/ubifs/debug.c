@@ -597,7 +597,9 @@ void dbg_dump_budg(struct ubifs_info *c)
 	struct rb_node *rb;
 	struct ubifs_bud *bud;
 	struct ubifs_gced_idx_leb *idx_gc;
+	long long available, outstanding, free;
 
+	ubifs_assert(spin_is_locked(&c->space_lock));
 	spin_lock(&dbg_lock);
 	printk(KERN_DEBUG "(pid %d) Budgeting info: budg_data_growth %lld, "
 	       "budg_dd_growth %lld, budg_idx_growth %lld\n", current->pid,
@@ -630,6 +632,17 @@ void dbg_dump_budg(struct ubifs_info *c)
 		printk(KERN_DEBUG "\tGC'ed idx LEB %d unmap %d\n",
 		       idx_gc->lnum, idx_gc->unmap);
 	printk(KERN_DEBUG "\tcommit state %d\n", c->cmt_state);
+
+	/* Print budgeting predictions */
+	available = ubifs_calc_available(c, c->min_idx_lebs);
+	outstanding = c->budg_data_growth + c->budg_dd_growth;
+	if (available > outstanding)
+		free = ubifs_reported_space(c, available - outstanding);
+	else
+		free = 0;
+	printk(KERN_DEBUG "Budgeting predictions:\n");
+	printk(KERN_DEBUG "\tavailable: %lld, outstanding %lld, free %lld\n",
+	       available, outstanding, free);
 	spin_unlock(&dbg_lock);
 }
 

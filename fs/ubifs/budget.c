@@ -713,8 +713,8 @@ void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
  * (e.g., via the 'statfs()' call) reports that it has N bytes available, they
  * are able to write a file of size N. UBIFS attaches node headers to each data
  * node and it has to write indexind nodes as well. This introduces additional
- * overhead, and UBIFS it has to report sligtly less free space to meet the
- * above expectetion.
+ * overhead, and UBIFS has to report sligtly less free space to meet the above
+ * expectetions.
  *
  * This function assumes free space is made up of uncompressed data nodes and
  * full index nodes (one per data node, tripled because we always allow enough
