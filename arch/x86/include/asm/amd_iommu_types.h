@@ -381,7 +381,7 @@ extern struct protection_domain **amd_iommu_pd_table;
 extern unsigned long *amd_iommu_pd_alloc_bitmap;
 
 /* will be 1 if device isolation is enabled */
-extern int amd_iommu_isolate;
+extern bool amd_iommu_isolate;
 
 /*
  * If true, the addresses will be flushed on unmap time, not when
