@@ -349,7 +349,7 @@ struct uwb_rc_neh *uwb_rc_neh_lookup(struct uwb_rc *rc,
 }
 
 
-/**
+/*
  * Process notifications coming from the radio control interface
  *
  * @rc:    UWB Radio Control Interface descriptor
@@ -400,23 +400,6 @@ void uwb_rc_notif(struct uwb_rc *rc, struct uwb_rceb *rceb, ssize_t size)
 	uwb_evt->type = UWB_EVT_TYPE_NOTIF;
 	uwb_evt->notif.size = size;
 	uwb_evt->notif.rceb = rceb;
-
-	switch (le16_to_cpu(rceb->wEvent)) {
-		/* Trap some vendor specific events
-		 *
-		 * FIXME: move this to handling in ptc-est, where we
-		 * register a NULL event handler for these two guys
-		 * using the Intel IDs.
-		 */
-	case 0x0103:
-		dev_info(dev, "FIXME: DEVICE ADD\n");
-		return;
-	case 0x0104:
-		dev_info(dev, "FIXME: DEVICE RM\n");
-		return;
-	default:
-		break;
-	}
 
 	uwbd_event_queue(uwb_evt);
 }
