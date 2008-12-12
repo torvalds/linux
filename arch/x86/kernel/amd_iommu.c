@@ -73,6 +73,7 @@ DECLARE_STATS_COUNTER(cnt_alloc_coherent);
 DECLARE_STATS_COUNTER(cnt_free_coherent);
 DECLARE_STATS_COUNTER(cross_page);
 DECLARE_STATS_COUNTER(domain_flush_single);
+DECLARE_STATS_COUNTER(domain_flush_all);
 
 static struct dentry *stats_dir;
 static struct dentry *de_isolate;
@@ -108,6 +109,7 @@ static void amd_iommu_stats_init(void)
 	amd_iommu_stats_add(&cnt_free_coherent);
 	amd_iommu_stats_add(&cross_page);
 	amd_iommu_stats_add(&domain_flush_single);
+	amd_iommu_stats_add(&domain_flush_all);
 }
 
 #endif
@@ -430,6 +432,8 @@ static void iommu_flush_domain(u16 domid)
 	unsigned long flags;
 	struct amd_iommu *iommu;
 	struct iommu_cmd cmd;
+
+	INC_STATS_COUNTER(domain_flush_all);
 
 	__iommu_build_inv_iommu_pages(&cmd, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
 				      domid, 1, 1);
