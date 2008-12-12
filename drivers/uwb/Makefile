@@ -6,6 +6,7 @@ obj-$(CONFIG_UWB_I1480U)	+= i1480/
 
 uwb-objs :=		\
 	address.o	\
+	allocator.o	\
 	beacon.o	\
 	driver.o	\
 	drp.o		\

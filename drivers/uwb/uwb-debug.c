@@ -82,29 +82,21 @@ struct uwb_dbg {
 	struct dentry *reservations_f;
 	struct dentry *accept_f;
 	struct dentry *drp_avail_f;
+	spinlock_t list_lock;
 };
 
 static struct dentry *root_dir;
 
 static void uwb_dbg_rsv_cb(struct uwb_rsv *rsv)
 {
-	struct uwb_rc *rc = rsv->rc;
-	struct device *dev = &rc->uwb_dev.dev;
-	struct uwb_dev_addr devaddr;
-	char owner[UWB_ADDR_STRSIZE], target[UWB_ADDR_STRSIZE];
+	struct uwb_dbg *dbg = rsv->pal_priv;
 
-	uwb_dev_addr_print(owner, sizeof(owner), &rsv->owner->dev_addr);
-	if (rsv->target.type == UWB_RSV_TARGET_DEV)
-		devaddr = rsv->target.dev->dev_addr;
-	else
-		devaddr = rsv->target.devaddr;
-	uwb_dev_addr_print(target, sizeof(target), &devaddr);
-
-	dev_dbg(dev, "debug: rsv %s -> %s: %s\n",
-		owner, target, uwb_rsv_state_str(rsv->state));
+	uwb_rsv_dump("debug", rsv);
 
 	if (rsv->state == UWB_RSV_STATE_NONE) {
+		spin_lock(&dbg->list_lock);
 		list_del(&rsv->pal_node);
+		spin_unlock(&dbg->list_lock);
 		uwb_rsv_destroy(rsv);
 	}
 }
@@ -128,20 +120,21 @@ static int cmd_rsv_establish(struct uwb_rc *rc,
 		return -ENOMEM;
 	}
 
-	rsv->owner       = &rc->uwb_dev;
-	rsv->target.type = UWB_RSV_TARGET_DEV;
-	rsv->target.dev  = target;
-	rsv->type        = cmd->type;
-	rsv->max_mas     = cmd->max_mas;
-	rsv->min_mas     = cmd->min_mas;
-	rsv->sparsity    = cmd->sparsity;
+	rsv->target.type  = UWB_RSV_TARGET_DEV;
+	rsv->target.dev   = target;
+	rsv->type         = cmd->type;
+	rsv->max_mas      = cmd->max_mas;
+	rsv->min_mas      = cmd->min_mas;
+	rsv->max_interval = cmd->max_interval;
 
 	ret = uwb_rsv_establish(rsv);
 	if (ret)
 		uwb_rsv_destroy(rsv);
-	else
+	else {
+		spin_lock(&(rc->dbg)->list_lock);
 		list_add_tail(&rsv->pal_node, &rc->dbg->rsvs);
-
+		spin_unlock(&(rc->dbg)->list_lock);
+	}
 	return ret;
 }
 
@@ -151,17 +144,24 @@ static int cmd_rsv_terminate(struct uwb_rc *rc,
 	struct uwb_rsv *rsv, *found = NULL;
 	int i = 0;
 
+	spin_lock(&(rc->dbg)->list_lock);
+
 	list_for_each_entry(rsv, &rc->dbg->rsvs, pal_node) {
 		if (i == cmd->index) {
 			found = rsv;
+			uwb_rsv_get(found);
 			break;
 		}
 		i++;
 	}
+
+	spin_unlock(&(rc->dbg)->list_lock);
+
 	if (!found)
 		return -EINVAL;
 
 	uwb_rsv_terminate(found);
+	uwb_rsv_put(found);
 
 	return 0;
 }
@@ -191,7 +191,7 @@ static ssize_t command_write(struct file *file, const char __user *buf,
 	struct uwb_rc *rc = file->private_data;
 	struct uwb_dbg_cmd cmd;
 	int ret = 0;
-
+	
 	if (len != sizeof(struct uwb_dbg_cmd))
 		return -EINVAL;
 
@@ -325,7 +325,9 @@ static void uwb_dbg_new_rsv(struct uwb_pal *pal, struct uwb_rsv *rsv)
 	struct uwb_dbg *dbg = container_of(pal, struct uwb_dbg, pal);
 
 	if (dbg->accept) {
+		spin_lock(&dbg->list_lock);
 		list_add_tail(&rsv->pal_node, &dbg->rsvs);
+		spin_unlock(&dbg->list_lock);
 		uwb_rsv_accept(rsv, uwb_dbg_rsv_cb, dbg);
 	}
 }
@@ -341,6 +343,7 @@ void uwb_dbg_add_rc(struct uwb_rc *rc)
 		return;
 
 	INIT_LIST_HEAD(&rc->dbg->rsvs);
+	spin_lock_init(&(rc->dbg)->list_lock);
 
 	uwb_pal_init(&rc->dbg->pal);
 	rc->dbg->pal.rc = rc;

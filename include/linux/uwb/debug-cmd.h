@@ -43,7 +43,7 @@ struct uwb_dbg_cmd_rsv_establish {
 	__u8  type;
 	__u16 max_mas;
 	__u16 min_mas;
-	__u8  sparsity;
+	__u8  max_interval;
 };
 
 struct uwb_dbg_cmd_rsv_terminate {

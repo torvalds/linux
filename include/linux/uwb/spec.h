@@ -59,6 +59,11 @@ enum { UWB_NUM_ZONES = 16 };
 #define UWB_MAS_PER_ZONE (UWB_NUM_MAS / UWB_NUM_ZONES)
 
 /*
+ * Number of MAS required before a row can be considered available.
+ */
+#define UWB_USABLE_MAS_PER_ROW (UWB_NUM_ZONES - 1)
+
+/*
  * Number of streams per DRP reservation between a pair of devices.
  *
  * [ECMA-368] section 16.8.6.
@@ -92,6 +97,26 @@ enum { UWB_BEACON_SLOT_LENGTH_US = 85 };
  * [ECMA-368] section 17.16
  */
 enum { UWB_MAX_LOST_BEACONS = 3 };
+
+/*
+ * mDRPBackOffWinMin
+ *
+ * The minimum number of superframes to wait before trying to reserve
+ * extra MAS.
+ *
+ * [ECMA-368] section 17.16
+ */
+enum { UWB_DRP_BACKOFF_WIN_MIN = 2 };
+
+/*
+ * mDRPBackOffWinMax
+ *
+ * The maximum number of superframes to wait before trying to reserve
+ * extra MAS.
+ *
+ * [ECMA-368] section 17.16
+ */
+enum { UWB_DRP_BACKOFF_WIN_MAX = 16 };
 
 /*
  * Length of a superframe in microseconds.

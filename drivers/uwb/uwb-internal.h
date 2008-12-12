@@ -92,6 +92,12 @@ extern const char *uwb_rc_strerror(unsigned code);
 
 struct uwb_rc_neh;
 
+extern int uwb_rc_cmd_async(struct uwb_rc *rc, const char *cmd_name,
+			    struct uwb_rccb *cmd, size_t cmd_size,
+			    u8 expected_type, u16 expected_event,
+			    uwb_rc_cmd_cb_f cb, void *arg);
+
+
 void uwb_rc_neh_create(struct uwb_rc *rc);
 void uwb_rc_neh_destroy(struct uwb_rc *rc);
 
@@ -106,7 +112,69 @@ void uwb_rc_neh_put(struct uwb_rc_neh *neh);
 extern int uwb_est_create(void);
 extern void uwb_est_destroy(void);
 
+/*
+ * UWB conflicting alien reservations
+ */
+struct uwb_cnflt_alien {
+	struct uwb_rc *rc;
+	struct list_head rc_node;
+	struct uwb_mas_bm mas;
+	struct timer_list timer;
+	struct work_struct cnflt_update_work;
+};
 
+enum uwb_uwb_rsv_alloc_result {
+	UWB_RSV_ALLOC_FOUND = 0,
+	UWB_RSV_ALLOC_NOT_FOUND,
+};
+
+enum uwb_rsv_mas_status {
+	UWB_RSV_MAS_NOT_AVAIL = 1,
+	UWB_RSV_MAS_SAFE,
+	UWB_RSV_MAS_UNSAFE,
+};
+
+struct uwb_rsv_col_set_info {
+	unsigned char start_col;
+	unsigned char interval;
+	unsigned char safe_mas_per_col;
+	unsigned char unsafe_mas_per_col;
+};
+
+struct uwb_rsv_col_info {
+	unsigned char max_avail_safe;
+	unsigned char max_avail_unsafe;
+	unsigned char highest_mas[UWB_MAS_PER_ZONE];
+	struct uwb_rsv_col_set_info csi;
+};
+
+struct uwb_rsv_row_info {
+	unsigned char avail[UWB_MAS_PER_ZONE];
+	unsigned char free_rows;
+	unsigned char used_rows;
+};
+
+/*
+ * UWB find allocation
+ */
+struct uwb_rsv_alloc_info {
+	unsigned char bm[UWB_MAS_PER_ZONE * UWB_NUM_ZONES];
+	struct uwb_rsv_col_info ci[UWB_NUM_ZONES];
+	struct uwb_rsv_row_info ri;
+	struct uwb_mas_bm *not_available;
+	struct uwb_mas_bm *result;
+	int min_mas;
+	int max_mas;
+	int max_interval;
+	int total_allocated_mases;
+	int safe_allocated_mases;
+	int unsafe_allocated_mases;
+	int interval;
+};
+
+int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *available, 
+				 struct uwb_mas_bm *result);
+void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc);
 /*
  * UWB Events & management daemon
  */
@@ -254,18 +322,28 @@ void uwb_rsv_init(struct uwb_rc *rc);
 int uwb_rsv_setup(struct uwb_rc *rc);
 void uwb_rsv_cleanup(struct uwb_rc *rc);
 void uwb_rsv_remove_all(struct uwb_rc *rc);
+void uwb_rsv_get(struct uwb_rsv *rsv);
+void uwb_rsv_put(struct uwb_rsv *rsv);
+bool uwb_rsv_has_two_drp_ies(struct uwb_rsv *rsv);
+void uwb_rsv_dump(char *text, struct uwb_rsv *rsv);
+int uwb_rsv_try_move(struct uwb_rsv *rsv, struct uwb_mas_bm *available);
+void uwb_rsv_backoff_win_timer(unsigned long arg);
+void uwb_rsv_backoff_win_increment(struct uwb_rc *rc);
+int uwb_rsv_status(struct uwb_rsv *rsv);
+int uwb_rsv_companion_status(struct uwb_rsv *rsv);
 
 void uwb_rsv_set_state(struct uwb_rsv *rsv, enum uwb_rsv_state new_state);
 void uwb_rsv_remove(struct uwb_rsv *rsv);
 struct uwb_rsv *uwb_rsv_find(struct uwb_rc *rc, struct uwb_dev *src,
 			     struct uwb_ie_drp *drp_ie);
 void uwb_rsv_sched_update(struct uwb_rc *rc);
+void uwb_rsv_queue_update(struct uwb_rc *rc);
 
-void uwb_drp_handle_timeout(struct uwb_rsv *rsv);
 int uwb_drp_ie_update(struct uwb_rsv *rsv);
 void uwb_drp_ie_to_bm(struct uwb_mas_bm *bm, const struct uwb_ie_drp *drp_ie);
 
 void uwb_drp_avail_init(struct uwb_rc *rc);
+void uwb_drp_available(struct uwb_rc *rc, struct uwb_mas_bm *avail);
 int  uwb_drp_avail_reserve_pending(struct uwb_rc *rc, struct uwb_mas_bm *mas);
 void uwb_drp_avail_reserve(struct uwb_rc *rc, struct uwb_mas_bm *mas);
 void uwb_drp_avail_release(struct uwb_rc *rc, struct uwb_mas_bm *mas);

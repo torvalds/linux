@@ -67,6 +67,7 @@ struct uwb_dev {
 	struct uwb_dev_addr dev_addr;
 	int beacon_slot;
 	DECLARE_BITMAP(streams, UWB_NUM_STREAMS);
+	DECLARE_BITMAP(last_availability_bm, UWB_NUM_MAS);
 };
 #define to_uwb_dev(d) container_of(d, struct uwb_dev, dev)
 
@@ -109,6 +110,9 @@ struct uwbd {
  */
 struct uwb_mas_bm {
 	DECLARE_BITMAP(bm, UWB_NUM_MAS);
+	DECLARE_BITMAP(unsafe_bm, UWB_NUM_MAS);
+	int safe;
+	int unsafe;
 };
 
 /**
@@ -134,14 +138,24 @@ struct uwb_mas_bm {
  * FIXME: further target states TBD.
  */
 enum uwb_rsv_state {
-	UWB_RSV_STATE_NONE,
+	UWB_RSV_STATE_NONE = 0,
 	UWB_RSV_STATE_O_INITIATED,
 	UWB_RSV_STATE_O_PENDING,
 	UWB_RSV_STATE_O_MODIFIED,
 	UWB_RSV_STATE_O_ESTABLISHED,
+	UWB_RSV_STATE_O_TO_BE_MOVED,
+	UWB_RSV_STATE_O_MOVE_EXPANDING,
+	UWB_RSV_STATE_O_MOVE_COMBINING,
+	UWB_RSV_STATE_O_MOVE_REDUCING,
 	UWB_RSV_STATE_T_ACCEPTED,
 	UWB_RSV_STATE_T_DENIED,
+	UWB_RSV_STATE_T_CONFLICT,
 	UWB_RSV_STATE_T_PENDING,
+	UWB_RSV_STATE_T_EXPANDING_ACCEPTED,
+	UWB_RSV_STATE_T_EXPANDING_CONFLICT,
+	UWB_RSV_STATE_T_EXPANDING_PENDING,
+	UWB_RSV_STATE_T_EXPANDING_DENIED,
+	UWB_RSV_STATE_T_RESIZED,
 
 	UWB_RSV_STATE_LAST,
 };
@@ -164,6 +178,12 @@ struct uwb_rsv_target {
 		struct uwb_dev *dev;
 		struct uwb_dev_addr devaddr;
 	};
+};
+
+struct uwb_rsv_move {
+	struct uwb_mas_bm final_mas;
+	struct uwb_ie_drp *companion_drp_ie;
+	struct uwb_mas_bm companion_mas;
 };
 
 /*
@@ -203,6 +223,7 @@ typedef void (*uwb_rsv_cb_f)(struct uwb_rsv *rsv);
  *
  * @status:         negotiation status
  * @stream:         stream index allocated for this reservation
+ * @tiebreaker:     conflict tiebreaker for this reservation
  * @mas:            reserved MAS
  * @drp_ie:         the DRP IE
  * @ie_valid:       true iff the DRP IE matches the reservation parameters
@@ -225,19 +246,22 @@ struct uwb_rsv {
 	enum uwb_drp_type type;
 	int max_mas;
 	int min_mas;
-	int sparsity;
+	int max_interval;
 	bool is_multicast;
 
 	uwb_rsv_cb_f callback;
 	void *pal_priv;
 
 	enum uwb_rsv_state state;
+	bool needs_release_companion_mas;
 	u8 stream;
+	u8 tiebreaker;
 	struct uwb_mas_bm mas;
 	struct uwb_ie_drp *drp_ie;
+	struct uwb_rsv_move mv;
 	bool ie_valid;
 	struct timer_list timer;
-	bool expired;
+	struct work_struct handle_timeout_work;
 };
 
 static const
@@ -279,6 +303,13 @@ struct uwb_drp_avail {
 	bool ie_valid;
 };
 
+struct uwb_drp_backoff_win {
+	u8 window;
+	u8 n;
+	int total_expired;
+	struct timer_list timer;
+	bool can_reserve_extra_mases;
+};
 
 const char *uwb_rsv_state_str(enum uwb_rsv_state state);
 const char *uwb_rsv_type_str(enum uwb_drp_type type);
@@ -293,6 +324,8 @@ int uwb_rsv_modify(struct uwb_rsv *rsv,
 void uwb_rsv_terminate(struct uwb_rsv *rsv);
 
 void uwb_rsv_accept(struct uwb_rsv *rsv, uwb_rsv_cb_f cb, void *pal_priv);
+
+void uwb_rsv_get_usable_mas(struct uwb_rsv *orig_rsv, struct uwb_mas_bm *mas);
 
 /**
  * Radio Control Interface instance
@@ -364,12 +397,18 @@ struct uwb_rc {
 
 	struct uwbd uwbd;
 
+	struct uwb_drp_backoff_win bow;
 	struct uwb_drp_avail drp_avail;
 	struct list_head reservations;
+	struct list_head cnflt_alien_list;
+	struct uwb_mas_bm cnflt_alien_bitmap;
 	struct mutex rsvs_mutex;
+	spinlock_t rsvs_lock;
 	struct workqueue_struct *rsv_workq;
-	struct work_struct rsv_update_work;
 
+	struct delayed_work rsv_update_work;
+	struct delayed_work rsv_alien_bp_work;
+	int set_drp_ie_pending;
 	struct mutex ies_mutex;
 	struct uwb_rc_cmd_set_ie *ies;
 	size_t ies_capacity;

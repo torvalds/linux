@@ -48,13 +48,15 @@ static void wusbhc_rsv_complete_cb(struct uwb_rsv *rsv)
 {
 	struct wusbhc *wusbhc = rsv->pal_priv;
 	struct device *dev = wusbhc->dev;
+	struct uwb_mas_bm mas;
 	char buf[72];
 
 	switch (rsv->state) {
 	case UWB_RSV_STATE_O_ESTABLISHED:
-		bitmap_scnprintf(buf, sizeof(buf), rsv->mas.bm, UWB_NUM_MAS);
+		uwb_rsv_get_usable_mas(rsv, &mas);
+		bitmap_scnprintf(buf, sizeof(buf), mas.bm, UWB_NUM_MAS);
 		dev_dbg(dev, "established reservation: %s\n", buf);
-		wusbhc_bwa_set(wusbhc, rsv->stream, &rsv->mas);
+		wusbhc_bwa_set(wusbhc, rsv->stream, &mas);
 		break;
 	case UWB_RSV_STATE_NONE:
 		dev_dbg(dev, "removed reservation\n");
@@ -85,13 +87,12 @@ int wusbhc_rsv_establish(struct wusbhc *wusbhc)
 	bcid.data[0] = wusbhc->cluster_id;
 	bcid.data[1] = 0;
 
-	rsv->owner = &rc->uwb_dev;
 	rsv->target.type = UWB_RSV_TARGET_DEVADDR;
 	rsv->target.devaddr = bcid;
 	rsv->type = UWB_DRP_TYPE_PRIVATE;
-	rsv->max_mas = 256;
-	rsv->min_mas = 16;  /* one MAS per zone? */
-	rsv->sparsity = 16; /* at least one MAS in each zone? */
+	rsv->max_mas = 256; /* try to get as much as possible */
+	rsv->min_mas = 15;  /* one MAS per zone */
+	rsv->max_interval = 1; /* max latency is one zone */
 	rsv->is_multicast = true;
 
 	ret = uwb_rsv_establish(rsv);
