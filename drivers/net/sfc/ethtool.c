@@ -568,10 +568,13 @@ static int efx_ethtool_get_eeprom(struct net_device *net_dev,
 	size_t len;
 	int rc;
 
-	mutex_lock(&efx->spi_lock);
+	rc = mutex_lock_interruptible(&efx->spi_lock);
+	if (rc)
+		return rc;
 	rc = falcon_spi_read(spi, eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
 			     eeprom->len, &len, buf);
 	mutex_unlock(&efx->spi_lock);
+
 	eeprom->magic = EFX_ETHTOOL_EEPROM_MAGIC;
 	eeprom->len = len;
 	return rc;
@@ -588,10 +591,13 @@ static int efx_ethtool_set_eeprom(struct net_device *net_dev,
 	if (eeprom->magic != EFX_ETHTOOL_EEPROM_MAGIC)
 		return -EINVAL;
 
-	mutex_lock(&efx->spi_lock);
+	rc = mutex_lock_interruptible(&efx->spi_lock);
+	if (rc)
+		return rc;
 	rc = falcon_spi_write(spi, eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
 			      eeprom->len, &len, buf);
 	mutex_unlock(&efx->spi_lock);
+
 	eeprom->len = len;
 	return rc;
 }
