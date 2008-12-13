@@ -44,66 +44,8 @@ hw_perf_counter_init(struct perf_counter *counter)
 }
 
 u64 __weak hw_perf_save_disable(void)		{ return 0; }
-void __weak hw_perf_restore(u64 ctrl)	{ }
+void __weak hw_perf_restore(u64 ctrl)		{ }
 void __weak hw_perf_counter_setup(void)		{ }
-
-#if BITS_PER_LONG == 64
-
-/*
- * Read the cached counter in counter safe against cross CPU / NMI
- * modifications. 64 bit version - no complications.
- */
-static inline u64 perf_counter_read_safe(struct perf_counter *counter)
-{
-	return (u64) atomic64_read(&counter->count);
-}
-
-void atomic64_counter_set(struct perf_counter *counter, u64 val)
-{
-	atomic64_set(&counter->count, val);
-}
-
-u64 atomic64_counter_read(struct perf_counter *counter)
-{
-	return atomic64_read(&counter->count);
-}
-
-#else
-
-/*
- * Read the cached counter in counter safe against cross CPU / NMI
- * modifications. 32 bit version.
- */
-static u64 perf_counter_read_safe(struct perf_counter *counter)
-{
-	u32 cntl, cnth;
-
-	local_irq_disable();
-	do {
-		cnth = atomic_read(&counter->count32[1]);
-		cntl = atomic_read(&counter->count32[0]);
-	} while (cnth != atomic_read(&counter->count32[1]));
-
-	local_irq_enable();
-
-	return cntl | ((u64) cnth) << 32;
-}
-
-void atomic64_counter_set(struct perf_counter *counter, u64 val64)
-{
-	u32 *val32 = (void *)&val64;
-
-	atomic_set(counter->count32 + 0, *(val32 + 0));
-	atomic_set(counter->count32 + 1, *(val32 + 1));
-}
-
-u64 atomic64_counter_read(struct perf_counter *counter)
-{
-	return atomic_read(counter->count32 + 0) |
-		(u64) atomic_read(counter->count32 + 1) << 32;
-}
-
-#endif
 
 static void
 list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
@@ -280,11 +222,11 @@ static void __perf_install_in_context(void *info)
 	ctx->nr_counters++;
 
 	if (cpuctx->active_oncpu < perf_max_counters) {
-		counter->hw_ops->hw_perf_counter_enable(counter);
 		counter->state = PERF_COUNTER_STATE_ACTIVE;
 		counter->oncpu = cpu;
 		ctx->nr_active++;
 		cpuctx->active_oncpu++;
+		counter->hw_ops->hw_perf_counter_enable(counter);
 	}
 
 	if (!ctx->task && cpuctx->max_pertask)
@@ -624,7 +566,7 @@ static u64 perf_counter_read(struct perf_counter *counter)
 					 __hw_perf_counter_read, counter, 1);
 	}
 
-	return perf_counter_read_safe(counter);
+	return atomic64_read(&counter->count);
 }
 
 /*
@@ -921,7 +863,7 @@ static void cpu_clock_perf_counter_read(struct perf_counter *counter)
 {
 	int cpu = raw_smp_processor_id();
 
-	atomic64_counter_set(counter, cpu_clock(cpu));
+	atomic64_set(&counter->count, cpu_clock(cpu));
 }
 
 static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
@@ -940,7 +882,7 @@ static void task_clock_perf_counter_disable(struct perf_counter *counter)
 
 static void task_clock_perf_counter_read(struct perf_counter *counter)
 {
-	atomic64_counter_set(counter, current->se.sum_exec_runtime);
+	atomic64_set(&counter->count, current->se.sum_exec_runtime);
 }
 
 static const struct hw_perf_counter_ops perf_ops_task_clock = {

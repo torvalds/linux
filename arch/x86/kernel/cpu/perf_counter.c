@@ -54,6 +54,48 @@ const int intel_perfmon_event_map[] =
 const int max_intel_perfmon_events = ARRAY_SIZE(intel_perfmon_event_map);
 
 /*
+ * Propagate counter elapsed time into the generic counter.
+ * Can only be executed on the CPU where the counter is active.
+ * Returns the delta events processed.
+ */
+static void
+x86_perf_counter_update(struct perf_counter *counter,
+			struct hw_perf_counter *hwc, int idx)
+{
+	u64 prev_raw_count, new_raw_count, delta;
+
+	WARN_ON_ONCE(counter->state != PERF_COUNTER_STATE_ACTIVE);
+	/*
+	 * Careful: an NMI might modify the previous counter value.
+	 *
+	 * Our tactic to handle this is to first atomically read and
+	 * exchange a new raw count - then add that new-prev delta
+	 * count to the generic counter atomically:
+	 */
+again:
+	prev_raw_count = atomic64_read(&hwc->prev_count);
+	rdmsrl(hwc->counter_base + idx, new_raw_count);
+
+	if (atomic64_cmpxchg(&hwc->prev_count, prev_raw_count,
+					new_raw_count) != prev_raw_count)
+		goto again;
+
+	/*
+	 * Now we have the new raw value and have updated the prev
+	 * timestamp already. We can now calculate the elapsed delta
+	 * (counter-)time and add that to the generic counter.
+	 *
+	 * Careful, not all hw sign-extends above the physical width
+	 * of the count, so we do that by clipping the delta to 32 bits:
+	 */
+	delta = (u64)(u32)((s32)new_raw_count - (s32)prev_raw_count);
+	WARN_ON_ONCE((int)delta < 0);
+
+	atomic64_add(delta, &counter->count);
+	atomic64_sub(delta, &hwc->period_left);
+}
+
+/*
  * Setup the hardware configuration for a given hw_event_type
  */
 static int __hw_perf_counter_init(struct perf_counter *counter)
@@ -90,10 +132,10 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	 * so we install an artificial 1<<31 period regardless of
 	 * the generic counter period:
 	 */
-	if (!hwc->irq_period)
+	if ((s64)hwc->irq_period <= 0 || hwc->irq_period > 0x7FFFFFFF)
 		hwc->irq_period = 0x7FFFFFFF;
 
-	hwc->next_count	= -(s32)hwc->irq_period;
+	atomic64_set(&hwc->period_left, hwc->irq_period);
 
 	/*
 	 * Raw event type provide the config in the event structure
@@ -118,12 +160,6 @@ void hw_perf_enable_all(void)
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, perf_counter_mask, 0);
 }
 
-void hw_perf_restore(u64 ctrl)
-{
-	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, ctrl, 0);
-}
-EXPORT_SYMBOL_GPL(hw_perf_restore);
-
 u64 hw_perf_save_disable(void)
 {
 	u64 ctrl;
@@ -134,27 +170,74 @@ u64 hw_perf_save_disable(void)
 }
 EXPORT_SYMBOL_GPL(hw_perf_save_disable);
 
+void hw_perf_restore(u64 ctrl)
+{
+	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, ctrl, 0);
+}
+EXPORT_SYMBOL_GPL(hw_perf_restore);
+
 static inline void
-__x86_perf_counter_disable(struct hw_perf_counter *hwc, unsigned int idx)
+__x86_perf_counter_disable(struct perf_counter *counter,
+			   struct hw_perf_counter *hwc, unsigned int idx)
 {
-	wrmsr(hwc->config_base + idx, hwc->config, 0);
+	int err;
+
+	err = wrmsr_safe(hwc->config_base + idx, hwc->config, 0);
+	WARN_ON_ONCE(err);
 }
 
-static DEFINE_PER_CPU(u64, prev_next_count[MAX_HW_COUNTERS]);
+static DEFINE_PER_CPU(u64, prev_left[MAX_HW_COUNTERS]);
 
-static void __hw_perf_counter_set_period(struct hw_perf_counter *hwc, int idx)
+/*
+ * Set the next IRQ period, based on the hwc->period_left value.
+ * To be called with the counter disabled in hw:
+ */
+static void
+__hw_perf_counter_set_period(struct perf_counter *counter,
+			     struct hw_perf_counter *hwc, int idx)
 {
-	per_cpu(prev_next_count[idx], smp_processor_id()) = hwc->next_count;
+	s32 left = atomic64_read(&hwc->period_left);
+	s32 period = hwc->irq_period;
 
-	wrmsr(hwc->counter_base + idx, hwc->next_count, 0);
+	WARN_ON_ONCE(period <= 0);
+
+	/*
+	 * If we are way outside a reasoable range then just skip forward:
+	 */
+	if (unlikely(left <= -period)) {
+		left = period;
+		atomic64_set(&hwc->period_left, left);
+	}
+
+	if (unlikely(left <= 0)) {
+		left += period;
+		atomic64_set(&hwc->period_left, left);
+	}
+
+	WARN_ON_ONCE(left <= 0);
+
+	per_cpu(prev_left[idx], smp_processor_id()) = left;
+
+	/*
+	 * The hw counter starts counting from this counter offset,
+	 * mark it to be able to extra future deltas:
+	 */
+	atomic64_set(&hwc->prev_count, (u64)(s64)-left);
+
+	wrmsr(hwc->counter_base + idx, -left, 0);
 }
 
-static void __x86_perf_counter_enable(struct hw_perf_counter *hwc, int idx)
+static void
+__x86_perf_counter_enable(struct perf_counter *counter,
+			  struct hw_perf_counter *hwc, int idx)
 {
 	wrmsr(hwc->config_base + idx,
 	      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
 }
 
+/*
+ * Find a PMC slot for the freshly enabled / scheduled in counter:
+ */
 static void x86_perf_counter_enable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
@@ -170,55 +253,17 @@ static void x86_perf_counter_enable(struct perf_counter *counter)
 
 	perf_counters_lapic_init(hwc->nmi);
 
-	__x86_perf_counter_disable(hwc, idx);
+	__x86_perf_counter_disable(counter, hwc, idx);
 
 	cpuc->counters[idx] = counter;
 
-	__hw_perf_counter_set_period(hwc, idx);
-	__x86_perf_counter_enable(hwc, idx);
-}
-
-static void __hw_perf_save_counter(struct perf_counter *counter,
-				   struct hw_perf_counter *hwc, int idx)
-{
-	s64 raw = -1;
-	s64 delta;
-
-	/*
-	 * Get the raw hw counter value:
-	 */
-	rdmsrl(hwc->counter_base + idx, raw);
-
-	/*
-	 * Rebase it to zero (it started counting at -irq_period),
-	 * to see the delta since ->prev_count:
-	 */
-	delta = (s64)hwc->irq_period + (s64)(s32)raw;
-
-	atomic64_counter_set(counter, hwc->prev_count + delta);
-
-	/*
-	 * Adjust the ->prev_count offset - if we went beyond
-	 * irq_period of units, then we got an IRQ and the counter
-	 * was set back to -irq_period:
-	 */
-	while (delta >= (s64)hwc->irq_period) {
-		hwc->prev_count += hwc->irq_period;
-		delta -= (s64)hwc->irq_period;
-	}
-
-	/*
-	 * Calculate the next raw counter value we'll write into
-	 * the counter at the next sched-in time:
-	 */
-	delta -= (s64)hwc->irq_period;
-
-	hwc->next_count = (s32)delta;
+	__hw_perf_counter_set_period(counter, hwc, idx);
+	__x86_perf_counter_enable(counter, hwc, idx);
 }
 
 void perf_counter_print_debug(void)
 {
-	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, next_count;
+	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left;
 	int cpu, idx;
 
 	if (!nr_hw_counters)
@@ -241,14 +286,14 @@ void perf_counter_print_debug(void)
 		rdmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, pmc_ctrl);
 		rdmsrl(MSR_ARCH_PERFMON_PERFCTR0  + idx, pmc_count);
 
-		next_count = per_cpu(prev_next_count[idx], cpu);
+		prev_left = per_cpu(prev_left[idx], cpu);
 
 		printk(KERN_INFO "CPU#%d: PMC%d ctrl:  %016llx\n",
 			cpu, idx, pmc_ctrl);
 		printk(KERN_INFO "CPU#%d: PMC%d count: %016llx\n",
 			cpu, idx, pmc_count);
-		printk(KERN_INFO "CPU#%d: PMC%d next:  %016llx\n",
-			cpu, idx, next_count);
+		printk(KERN_INFO "CPU#%d: PMC%d left:  %016llx\n",
+			cpu, idx, prev_left);
 	}
 	local_irq_enable();
 }
@@ -259,29 +304,16 @@ static void x86_perf_counter_disable(struct perf_counter *counter)
 	struct hw_perf_counter *hwc = &counter->hw;
 	unsigned int idx = hwc->idx;
 
-	__x86_perf_counter_disable(hwc, idx);
+	__x86_perf_counter_disable(counter, hwc, idx);
 
 	clear_bit(idx, cpuc->used);
 	cpuc->counters[idx] = NULL;
-	__hw_perf_save_counter(counter, hwc, idx);
-}
 
-static void x86_perf_counter_read(struct perf_counter *counter)
-{
-	struct hw_perf_counter *hwc = &counter->hw;
-	unsigned long addr = hwc->counter_base + hwc->idx;
-	s64 offs, val = -1LL;
-	s32 val32;
-
-	/* Careful: NMI might modify the counter offset */
-	do {
-		offs = hwc->prev_count;
-		rdmsrl(addr, val);
-	} while (offs != hwc->prev_count);
-
-	val32 = (s32) val;
-	val = (s64)hwc->irq_period + (s64)val32;
-	atomic64_counter_set(counter, hwc->prev_count + val);
+	/*
+	 * Drain the remaining delta count out of a counter
+	 * that we are disabling:
+	 */
+	x86_perf_counter_update(counter, hwc, idx);
 }
 
 static void perf_store_irq_data(struct perf_counter *counter, u64 data)
@@ -299,7 +331,8 @@ static void perf_store_irq_data(struct perf_counter *counter, u64 data)
 }
 
 /*
- * NMI-safe enable method:
+ * Save and restart an expired counter. Called by NMI contexts,
+ * so it has to be careful about preempting normal counter ops:
  */
 static void perf_save_and_restart(struct perf_counter *counter)
 {
@@ -309,45 +342,25 @@ static void perf_save_and_restart(struct perf_counter *counter)
 
 	rdmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, pmc_ctrl);
 
-	__hw_perf_save_counter(counter, hwc, idx);
-	__hw_perf_counter_set_period(hwc, idx);
+	x86_perf_counter_update(counter, hwc, idx);
+	__hw_perf_counter_set_period(counter, hwc, idx);
 
 	if (pmc_ctrl & ARCH_PERFMON_EVENTSEL0_ENABLE)
-		__x86_perf_counter_enable(hwc, idx);
+		__x86_perf_counter_enable(counter, hwc, idx);
 }
 
 static void
 perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
 {
 	struct perf_counter *counter, *group_leader = sibling->group_leader;
-	int bit;
 
 	/*
-	 * Store the counter's own timestamp first:
-	 */
-	perf_store_irq_data(sibling, sibling->hw_event.type);
-	perf_store_irq_data(sibling, atomic64_counter_read(sibling));
-
-	/*
-	 * Then store sibling timestamps (if any):
+	 * Store sibling timestamps (if any):
 	 */
 	list_for_each_entry(counter, &group_leader->sibling_list, list_entry) {
-		if (counter->state != PERF_COUNTER_STATE_ACTIVE) {
-			/*
-			 * When counter was not in the overflow mask, we have to
-			 * read it from hardware. We read it as well, when it
-			 * has not been read yet and clear the bit in the
-			 * status mask.
-			 */
-			bit = counter->hw.idx;
-			if (!test_bit(bit, (unsigned long *) overflown) ||
-			    test_bit(bit, (unsigned long *) status)) {
-				clear_bit(bit, (unsigned long *) status);
-				perf_save_and_restart(counter);
-			}
-		}
+		x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
 		perf_store_irq_data(sibling, counter->hw_event.type);
-		perf_store_irq_data(sibling, atomic64_counter_read(counter));
+		perf_store_irq_data(sibling, atomic64_read(&counter->count));
 	}
 }
 
@@ -538,6 +551,11 @@ void __init init_hw_perf_counters(void)
 	register_die_notifier(&perf_counter_nmi_notifier);
 
 	perf_counters_initialized = true;
+}
+
+static void x86_perf_counter_read(struct perf_counter *counter)
+{
+	x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
 }
 
 static const struct hw_perf_counter_ops x86_perf_counter_ops = {
