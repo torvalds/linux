@@ -171,7 +171,7 @@ static int (*unregister_interrupt)(void);
 static int interrupt_registered;
 
 static struct hfc_multi *syncmaster;
-int plxsd_master; /* if we have a master card (yet) */
+static int plxsd_master; /* if we have a master card (yet) */
 static spinlock_t plx_lock; /* may not acquire other lock inside */
 EXPORT_SYMBOL(plx_lock);
 
@@ -422,7 +422,7 @@ HFC_wait_debug(struct hfc_multi *hc, const char *function, int line)
 #endif
 
 /* write fifo data (REGIO) */
-void
+static void
 write_fifo_regio(struct hfc_multi *hc, u_char *data, int len)
 {
 	outb(A_FIFO_DATA0, (hc->pci_iobase)+4);
@@ -443,7 +443,7 @@ write_fifo_regio(struct hfc_multi *hc, u_char *data, int len)
 	}
 }
 /* write fifo data (PCIMEM) */
-void
+static void
 write_fifo_pcimem(struct hfc_multi *hc, u_char *data, int len)
 {
 	while (len>>2) {
@@ -465,7 +465,7 @@ write_fifo_pcimem(struct hfc_multi *hc, u_char *data, int len)
 	}
 }
 /* read fifo data (REGIO) */
-void
+static void
 read_fifo_regio(struct hfc_multi *hc, u_char *data, int len)
 {
 	outb(A_FIFO_DATA0, (hc->pci_iobase)+4);
@@ -487,7 +487,7 @@ read_fifo_regio(struct hfc_multi *hc, u_char *data, int len)
 }
 
 /* read fifo data (PCIMEM) */
-void
+static void
 read_fifo_pcimem(struct hfc_multi *hc, u_char *data, int len)
 {
 	while (len>>2) {
@@ -706,7 +706,7 @@ vpm_out(struct hfc_multi *c, int which, unsigned short addr,
 }
 
 
-void
+static void
 vpm_init(struct hfc_multi *wc)
 {
 	unsigned char reg;
@@ -789,7 +789,7 @@ vpm_init(struct hfc_multi *wc)
 	}
 }
 
-void
+static void
 vpm_check(struct hfc_multi *hctmp)
 {
 	unsigned char gpi2;
@@ -812,7 +812,7 @@ vpm_check(struct hfc_multi *hctmp)
  *
  */
 
-void
+static void
 vpm_echocan_on(struct hfc_multi *hc, int ch, int taps)
 {
 	unsigned int timeslot;
@@ -844,7 +844,7 @@ vpm_echocan_on(struct hfc_multi *hc, int ch, int taps)
 	vpm_out(hc, unit, timeslot, 0x7e);
 }
 
-void
+static void
 vpm_echocan_off(struct hfc_multi *hc, int ch)
 {
 	unsigned int timeslot;

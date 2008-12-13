@@ -393,7 +393,7 @@ dl_unit_data(struct manager *mgr, struct sk_buff *skb)
 	return 0;
 }
 
-unsigned int
+static unsigned int
 random_ri(void)
 {
 	u16 x;

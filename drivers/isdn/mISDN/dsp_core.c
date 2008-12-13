@@ -161,7 +161,7 @@
 #include "core.h"
 #include "dsp.h"
 
-const char *mISDN_dsp_revision = "2.0";
+static const char *mISDN_dsp_revision = "2.0";
 
 static int debug;
 static int options;

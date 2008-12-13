@@ -231,7 +231,7 @@ dsp_audio_generate_ulaw_samples(void)
  * tone sequence definition *
  ****************************/
 
-struct pattern {
+static struct pattern {
 	int tone;
 	u8 *data[10];
 	u32 *siz[10];
