@@ -274,8 +274,11 @@ static void efx_fill_test(unsigned int test_index,
 
 	/* Fill string, if applicable */
 	if (strings) {
-		snprintf(unit_str.name, sizeof(unit_str.name),
-			 unit_format, unit_id);
+		if (strchr(unit_format, '%'))
+			snprintf(unit_str.name, sizeof(unit_str.name),
+				 unit_format, unit_id);
+		else
+			strcpy(unit_str.name, unit_format);
 		snprintf(test_str.name, sizeof(test_str.name),
 			 test_format, test_id);
 		snprintf(strings[test_index].name,
@@ -284,7 +287,6 @@ static void efx_fill_test(unsigned int test_index,
 	}
 }
 
-#define EFX_PORT_NAME "port%d", 0
 #define EFX_CHANNEL_NAME(_channel) "chan%d", _channel->channel
 #define EFX_TX_QUEUE_NAME(_tx_queue) "txq%d", _tx_queue->queue
 #define EFX_RX_QUEUE_NAME(_rx_queue) "rxq%d", _rx_queue->queue
@@ -320,11 +322,11 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
 	}
 	efx_fill_test(test_index++, strings, data,
 		      &lb_tests->rx_good,
-		      EFX_PORT_NAME,
+		      "rx", 0,
 		      EFX_LOOPBACK_NAME(mode, "rx_good"));
 	efx_fill_test(test_index++, strings, data,
 		      &lb_tests->rx_bad,
-		      EFX_PORT_NAME,
+		      "rx", 0,
 		      EFX_LOOPBACK_NAME(mode, "rx_bad"));
 
 	return test_index;
@@ -372,7 +374,7 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	efx_fill_test(n++, strings, data, &tests->registers,
 		      "core", 0, "registers", NULL);
 	efx_fill_test(n++, strings, data, &tests->phy,
-		      EFX_PORT_NAME, "phy", NULL);
+		      "phy", 0, "bist", NULL);
 
 	/* Loopback tests */
 	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {
