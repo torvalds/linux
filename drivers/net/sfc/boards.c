@@ -241,6 +241,8 @@ struct efx_board_data {
 static struct efx_board_data board_data[] = {
 	{ EFX_BOARD_SFE4001, "SFE4001", "10GBASE-T adapter", sfe4001_init },
 	{ EFX_BOARD_SFE4002, "SFE4002", "XFP adapter", sfe4002_init },
+	{ EFX_BOARD_SFN4111T, "SFN4111T", "100/1000/10GBASE-T adapter",
+	  sfn4111t_init },
 };
 
 void efx_set_board_info(struct efx_nic *efx, u16 revision_info)

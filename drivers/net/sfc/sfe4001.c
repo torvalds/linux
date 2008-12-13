@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2007 Solarflare Communications Inc.
+ * Copyright 2007-2008 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -8,10 +8,21 @@
  */
 
 /*****************************************************************************
- * Support for the SFE4001 NIC: driver code for the PCA9539 I/O expander that
- * controls the PHY power rails, and for the MAX6647 temp. sensor used to check
- * the PHY
+ * Support for the SFE4001 and SFN4111T NICs.
+ *
+ * The SFE4001 does not power-up fully at reset due to its high power
+ * consumption.  We control its power via a PCA9539 I/O expander.
+ * Both boards have a MAX6647 temperature monitor which we expose to
+ * the lm90 driver.
+ *
+ * This also provides minimal support for reflashing the PHY, which is
+ * initiated by resetting it with the FLASH_CFG_1 pin pulled down.
+ * On SFE4001 rev A2 and later this is connected to the 3V3X output of
+ * the IO-expander; on the SFN4111T it is connected to Falcon's GPIO3.
+ * We represent reflash mode as PHY_MODE_SPECIAL and make it mutually
+ * exclusive with the network device being open.
  */
+
 #include <linux/delay.h>
 #include "net_driver.h"
 #include "efx.h"
@@ -171,38 +182,29 @@ fail_on:
 	return rc;
 }
 
-static int sfe4001_check_hw(struct efx_nic *efx)
+static int sfn4111t_reset(struct efx_nic *efx)
 {
-	s32 status;
+	efx_oword_t reg;
 
-	/* If XAUI link is up then do not monitor */
-	if (EFX_WORKAROUND_7884(efx) && efx->mac_up)
-		return 0;
+	/* GPIO pins are also used for I2C, so block that temporarily */
+	mutex_lock(&efx->i2c_adap.bus_lock);
 
-	/* Check the powered status of the PHY. Lack of power implies that
-	 * the MAX6647 has shut down power to it, probably due to a temp.
-	 * alarm. Reading the power status rather than the MAX6647 status
-	 * directly because the later is read-to-clear and would thus
-	 * start to power up the PHY again when polled, causing us to blip
-	 * the power undesirably.
-	 * We know we can read from the IO expander because we did
-	 * it during power-on. Assume failure now is bad news. */
-	status = i2c_smbus_read_byte_data(efx->board_info.ioexp_client, P1_IN);
-	if (status >= 0 &&
-	    (status & ((1 << P1_AFE_PWD_LBN) | (1 << P1_DSP_PWD25_LBN))) != 0)
-		return 0;
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
+	EFX_SET_OWORD_FIELD(reg, GPIO2_OEN, true);
+	EFX_SET_OWORD_FIELD(reg, GPIO2_OUT, false);
+	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
+	msleep(1000);
+	EFX_SET_OWORD_FIELD(reg, GPIO2_OUT, true);
+	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN, true);
+	EFX_SET_OWORD_FIELD(reg, GPIO3_OUT,
+			    !(efx->phy_mode & PHY_MODE_SPECIAL));
+	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
 
-	/* Use board power control, not PHY power control */
-	sfe4001_poweroff(efx);
-	efx->phy_mode = PHY_MODE_OFF;
+	mutex_unlock(&efx->i2c_adap.bus_lock);
 
-	return (status < 0) ? -EIO : -ERANGE;
+	ssleep(1);
+	return 0;
 }
-
-/* On SFE4001 rev A2 and later, we can control the FLASH_CFG_1 pin
- * using the 3V3X output of the IO-expander.  Allow the user to set
- * this when the device is stopped, and keep it stopped then.
- */
 
 static ssize_t show_phy_flash_cfg(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -231,7 +233,10 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 		err = -EBUSY;
 	} else {
 		efx->phy_mode = new_mode;
-		err = sfe4001_poweron(efx);
+		if (efx->board_info.type == EFX_BOARD_SFE4001)
+			err = sfe4001_poweron(efx);
+		else
+			err = sfn4111t_reset(efx);
 		efx_reconfigure_port(efx);
 	}
 	rtnl_unlock();
@@ -249,6 +254,34 @@ static void sfe4001_fini(struct efx_nic *efx)
 	sfe4001_poweroff(efx);
 	i2c_unregister_device(efx->board_info.ioexp_client);
 	i2c_unregister_device(efx->board_info.hwmon_client);
+}
+
+static int sfe4001_check_hw(struct efx_nic *efx)
+{
+	s32 status;
+
+	/* If XAUI link is up then do not monitor */
+	if (EFX_WORKAROUND_7884(efx) && efx->mac_up)
+		return 0;
+
+	/* Check the powered status of the PHY. Lack of power implies that
+	 * the MAX6647 has shut down power to it, probably due to a temp.
+	 * alarm. Reading the power status rather than the MAX6647 status
+	 * directly because the later is read-to-clear and would thus
+	 * start to power up the PHY again when polled, causing us to blip
+	 * the power undesirably.
+	 * We know we can read from the IO expander because we did
+	 * it during power-on. Assume failure now is bad news. */
+	status = i2c_smbus_read_byte_data(efx->board_info.ioexp_client, P1_IN);
+	if (status >= 0 &&
+	    (status & ((1 << P1_AFE_PWD_LBN) | (1 << P1_DSP_PWD25_LBN))) != 0)
+		return 0;
+
+	/* Use board power control, not PHY power control */
+	sfe4001_poweroff(efx);
+	efx->phy_mode = PHY_MODE_OFF;
+
+	return (status < 0) ? -EIO : -ERANGE;
 }
 
 static struct i2c_board_info sfe4001_hwmon_info = {
@@ -308,6 +341,64 @@ fail_on:
 	sfe4001_poweroff(efx);
 fail_ioexp:
 	i2c_unregister_device(efx->board_info.ioexp_client);
+fail_hwmon:
+	i2c_unregister_device(efx->board_info.hwmon_client);
+	return rc;
+}
+
+static int sfn4111t_check_hw(struct efx_nic *efx)
+{
+	s32 status;
+
+	/* If XAUI link is up then do not monitor */
+	if (EFX_WORKAROUND_7884(efx) && efx->mac_up)
+		return 0;
+
+	/* Test LHIGH, RHIGH, FAULT, EOT and IOT alarms */
+	status = i2c_smbus_read_byte_data(efx->board_info.hwmon_client,
+					  MAX664X_REG_RSL);
+	if (status < 0)
+		return -EIO;
+	if (status & 0x57)
+		return -ERANGE;
+	return 0;
+}
+
+static void sfn4111t_fini(struct efx_nic *efx)
+{
+	EFX_INFO(efx, "%s\n", __func__);
+
+	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
+	i2c_unregister_device(efx->board_info.hwmon_client);
+}
+
+static struct i2c_board_info sfn4111t_hwmon_info = {
+	I2C_BOARD_INFO("max6647", 0x4e),
+	.irq		= -1,
+};
+
+int sfn4111t_init(struct efx_nic *efx)
+{
+	int rc;
+
+	efx->board_info.hwmon_client =
+		i2c_new_device(&efx->i2c_adap, &sfn4111t_hwmon_info);
+	if (!efx->board_info.hwmon_client)
+		return -EIO;
+
+	efx->board_info.blink = tenxpress_phy_blink;
+	efx->board_info.monitor = sfn4111t_check_hw;
+	efx->board_info.fini = sfn4111t_fini;
+
+	rc = device_create_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
+	if (rc)
+		goto fail_hwmon;
+
+	if (efx->phy_mode & PHY_MODE_SPECIAL)
+		sfn4111t_reset(efx);
+
+	return 0;
+
 fail_hwmon:
 	i2c_unregister_device(efx->board_info.hwmon_client);
 	return rc;

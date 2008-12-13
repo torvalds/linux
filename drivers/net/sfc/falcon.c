@@ -2971,6 +2971,13 @@ int falcon_init_nic(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, ONCHIP_SRAM, 1);
 	falcon_write(efx, &temp, NIC_STAT_REG);
 
+	/* Set the source of the GMAC clock */
+	if (falcon_rev(efx) == FALCON_REV_B0) {
+		falcon_read(efx, &temp, GPIO_CTL_REG_KER);
+		EFX_SET_OWORD_FIELD(temp, GPIO_USE_NIC_CLK, true);
+		falcon_write(efx, &temp, GPIO_CTL_REG_KER);
+	}
+
 	/* Set buffer table mode */
 	EFX_POPULATE_OWORD_1(temp, BUF_TBL_MODE, BUF_TBL_MODE_FULL);
 	falcon_write(efx, &temp, BUF_TBL_CFG_REG_KER);

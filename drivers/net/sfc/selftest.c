@@ -702,8 +702,15 @@ int efx_offline_test(struct efx_nic *efx,
 	 */
 	mutex_lock(&efx->mac_lock);
 	efx->port_inhibited = true;
-	if (efx->loopback_modes)
-		efx->loopback_mode = __ffs(efx->loopback_modes);
+	if (efx->loopback_modes) {
+		/* We need the 312 clock from the PHY to test the XMAC
+		 * registers, so move into XGMII loopback if available */
+		if (efx->loopback_modes & (1 << LOOPBACK_XGMII))
+			efx->loopback_mode = LOOPBACK_XGMII;
+		else
+			efx->loopback_mode = __ffs(efx->loopback_modes);
+	}
+
 	__efx_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 

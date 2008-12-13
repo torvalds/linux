@@ -136,6 +136,8 @@
 
 /* GPIO control register */
 #define GPIO_CTL_REG_KER 0x0210
+#define GPIO_USE_NIC_CLK_LBN (30)
+#define GPIO_USE_NIC_CLK_WIDTH (1)
 #define GPIO_OUTPUTS_LBN   (16)
 #define GPIO_OUTPUTS_WIDTH (4)
 #define GPIO_INPUTS_LBN (8)
