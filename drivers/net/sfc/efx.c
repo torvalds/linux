@@ -39,6 +39,12 @@
  */
 static struct workqueue_struct *refill_workqueue;
 
+/* Reset workqueue. If any NIC has a hardware failure then a reset will be
+ * queued onto this work queue. This is not a per-nic work queue, because
+ * efx_reset_work() acquires the rtnl lock, so resets are naturally serialised.
+ */
+static struct workqueue_struct *reset_workqueue;
+
 /**************************************************************************
  *
  * Configurable values
@@ -1697,7 +1703,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 
 	efx->reset_pending = method;
 
-	queue_work(efx->reset_workqueue, &efx->reset_work);
+	queue_work(reset_workqueue, &efx->reset_work);
 }
 
 /**************************************************************************
@@ -1763,7 +1769,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
-	int i, rc;
+	int i;
 
 	/* Initialise common structures */
 	memset(efx, 0, sizeof(*efx));
@@ -1832,33 +1838,14 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 				  interrupt_mode);
 
 	efx->workqueue = create_singlethread_workqueue("sfc_work");
-	if (!efx->workqueue) {
-		rc = -ENOMEM;
-		goto fail1;
-	}
-
-	efx->reset_workqueue = create_singlethread_workqueue("sfc_reset");
-	if (!efx->reset_workqueue) {
-		rc = -ENOMEM;
-		goto fail2;
-	}
+	if (!efx->workqueue)
+		return -ENOMEM;
 
 	return 0;
-
- fail2:
-	destroy_workqueue(efx->workqueue);
-	efx->workqueue = NULL;
-
- fail1:
-	return rc;
 }
 
 static void efx_fini_struct(struct efx_nic *efx)
 {
-	if (efx->reset_workqueue) {
-		destroy_workqueue(efx->reset_workqueue);
-		efx->reset_workqueue = NULL;
-	}
 	if (efx->workqueue) {
 		destroy_workqueue(efx->workqueue);
 		efx->workqueue = NULL;
@@ -1923,7 +1910,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	 * scheduled from this point because efx_stop_all() has been
 	 * called, we are no longer registered with driverlink, and
 	 * the net_device's have been removed. */
-	flush_workqueue(efx->reset_workqueue);
+	cancel_work_sync(&efx->reset_work);
 
 	efx_pci_remove_main(efx);
 
@@ -2045,7 +2032,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		 * scheduled since efx_stop_all() has been called, and we
 		 * have not and never have been registered with either
 		 * the rtnetlink or driverlink layers. */
-		flush_workqueue(efx->reset_workqueue);
+		cancel_work_sync(&efx->reset_work);
 
 		/* Retry if a recoverably reset event has been scheduled */
 		if ((efx->reset_pending != RESET_TYPE_INVISIBLE) &&
@@ -2121,6 +2108,11 @@ static int __init efx_init_module(void)
 		rc = -ENOMEM;
 		goto err_refill;
 	}
+	reset_workqueue = create_singlethread_workqueue("sfc_reset");
+	if (!reset_workqueue) {
+		rc = -ENOMEM;
+		goto err_reset;
+	}
 
 	rc = pci_register_driver(&efx_pci_driver);
 	if (rc < 0)
@@ -2129,6 +2121,8 @@ static int __init efx_init_module(void)
 	return 0;
 
  err_pci:
+	destroy_workqueue(reset_workqueue);
+ err_reset:
 	destroy_workqueue(refill_workqueue);
  err_refill:
 	unregister_netdevice_notifier(&efx_netdev_notifier);
@@ -2141,6 +2135,7 @@ static void __exit efx_exit_module(void)
 	printk(KERN_INFO "Solarflare NET driver unloading\n");
 
 	pci_unregister_driver(&efx_pci_driver);
+	destroy_workqueue(reset_workqueue);
 	destroy_workqueue(refill_workqueue);
 	unregister_netdevice_notifier(&efx_netdev_notifier);
 
