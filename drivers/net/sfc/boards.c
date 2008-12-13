@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2007 Solarflare Communications Inc.
+ * Copyright 2007-2008 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -231,70 +231,38 @@ static int sfe4002_init(struct efx_nic *efx)
 /* This will get expanded as board-specific details get moved out of the
  * PHY drivers. */
 struct efx_board_data {
+	enum efx_board_type type;
 	const char *ref_model;
 	const char *gen_type;
 	int (*init) (struct efx_nic *nic);
 };
 
-static int dummy_init(struct efx_nic *nic)
-{
-	return 0;
-}
 
 static struct efx_board_data board_data[] = {
-	[EFX_BOARD_INVALID] =
-	{NULL,	    NULL,                  dummy_init},
-	[EFX_BOARD_SFE4001] =
-	{"SFE4001", "10GBASE-T adapter",   sfe4001_init},
-	[EFX_BOARD_SFE4002] =
-	{"SFE4002", "XFP adapter",         sfe4002_init},
+	{ EFX_BOARD_SFE4001, "SFE4001", "10GBASE-T adapter", sfe4001_init },
+	{ EFX_BOARD_SFE4002, "SFE4002", "XFP adapter", sfe4002_init },
 };
 
-int efx_set_board_info(struct efx_nic *efx, u16 revision_info)
+void efx_set_board_info(struct efx_nic *efx, u16 revision_info)
 {
-	int rc = 0;
-	struct efx_board_data *data;
+	struct efx_board_data *data = NULL;
+	int i;
 
-	if (BOARD_TYPE(revision_info) >= EFX_BOARD_MAX) {
-		EFX_ERR(efx, "squashing unknown board type %d\n",
-			BOARD_TYPE(revision_info));
-		revision_info = 0;
-	}
+	efx->board_info.type = BOARD_TYPE(revision_info);
+	efx->board_info.major = BOARD_MAJOR(revision_info);
+	efx->board_info.minor = BOARD_MINOR(revision_info);
 
-	if (BOARD_TYPE(revision_info) == 0) {
-		efx->board_info.major = 0;
-		efx->board_info.minor = 0;
-		/* For early boards that don't have revision info. there is
-		 * only 1 board for each PHY type, so we can work it out, with
-		 * the exception of the PHY-less boards. */
-		switch (efx->phy_type) {
-		case PHY_TYPE_10XPRESS:
-			efx->board_info.type = EFX_BOARD_SFE4001;
-			break;
-		case PHY_TYPE_XFP:
-			efx->board_info.type = EFX_BOARD_SFE4002;
-			break;
-		default:
-			efx->board_info.type = 0;
-			break;
-		}
-	} else {
-		efx->board_info.type = BOARD_TYPE(revision_info);
-		efx->board_info.major = BOARD_MAJOR(revision_info);
-		efx->board_info.minor = BOARD_MINOR(revision_info);
-	}
+	for (i = 0; i < ARRAY_SIZE(board_data); i++)
+		if (board_data[i].type == efx->board_info.type)
+			data = &board_data[i];
 
-	data = &board_data[efx->board_info.type];
-
-	/* Report the board model number or generic type for recognisable
-	 * boards. */
-	if (efx->board_info.type != 0)
+	if (data) {
 		EFX_INFO(efx, "board is %s rev %c%d\n",
 			 (efx->pci_dev->subsystem_vendor == EFX_VENDID_SFC)
 			 ? data->ref_model : data->gen_type,
 			 'A' + efx->board_info.major, efx->board_info.minor);
-
-	efx->board_info.init = data->init;
-
-	return rc;
+		efx->board_info.init = data->init;
+	} else {
+		EFX_ERR(efx, "unknown board type %d\n", efx->board_info.type);
+	}
 }
