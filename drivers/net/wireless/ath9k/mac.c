@@ -916,12 +916,11 @@ void ath9k_hw_rxena(struct ath_hal *ah)
 
 void ath9k_hw_startpcureceive(struct ath_hal *ah)
 {
-	REG_CLR_BIT(ah, AR_DIAG_SW,
-		    (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
-
 	ath9k_enable_mib_counters(ah);
 
 	ath9k_ani_reset(ah);
+
+	REG_CLR_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 }
 
 void ath9k_hw_stoppcurecv(struct ath_hal *ah)

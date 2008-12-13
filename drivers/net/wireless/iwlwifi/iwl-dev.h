@@ -19,7 +19,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -184,12 +184,6 @@ struct iwl_channel_info {
 	s8 fat_scan_power;	/* (dBm) eeprom, direct scans, any rate */
 	u8 fat_flags;		/* flags copied from EEPROM */
 	u8 fat_extension_channel; /* HT_IE_EXT_CHANNEL_* */
-};
-
-struct iwl4965_clip_group {
-	/* maximum power level to prevent clipping for each rate, derived by
-	 *   us from this band's saturation power in EEPROM */
-	const s8 clip_powers[IWL_MAX_RATES];
 };
 
 
@@ -436,7 +430,6 @@ union iwl_qos_capabity {
 
 /* QoS structures */
 struct iwl_qos_info {
-	int qos_enable;
 	int qos_active;
 	union iwl_qos_capabity qos_cap;
 	struct iwl_qosparam_cmd def_qos_parm;
@@ -505,6 +498,10 @@ struct iwl_sensitivity_ranges {
 
 #define IWL_FAT_CHANNEL_52 BIT(IEEE80211_BAND_5GHZ)
 
+#define KELVIN_TO_CELSIUS(x) ((x)-273)
+#define CELSIUS_TO_KELVIN(x) ((x)+273)
+
+
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
@@ -552,15 +549,6 @@ struct iwl_hw_params {
 #define HT_SHORT_GI_20MHZ	(1 << 0)
 #define HT_SHORT_GI_40MHZ	(1 << 1)
 
-
-#define IWL_RX_HDR(x) ((struct iwl4965_rx_frame_hdr *)(\
-		       x->u.rx_frame.stats.payload + \
-		       x->u.rx_frame.stats.phy_count))
-#define IWL_RX_END(x) ((struct iwl4965_rx_frame_end *)(\
-		       IWL_RX_HDR(x)->payload + \
-		       le16_to_cpu(IWL_RX_HDR(x)->len)))
-#define IWL_RX_STATS(x) (&x->u.rx_frame.stats)
-#define IWL_RX_DATA(x) (IWL_RX_HDR(x)->payload)
 
 /******************************************************************************
  *
@@ -792,7 +780,7 @@ struct iwl_priv {
 
 #ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 	/* spectrum measurement report caching */
-	struct iwl4965_spectrum_notification measure_report;
+	struct iwl_spectrum_notification measure_report;
 	u8 measurement_status;
 #endif
 	/* ucode beacon time */
@@ -802,10 +790,6 @@ struct iwl_priv {
 	 *    Access via channel # using indirect index array */
 	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
-
-	/* each calibration channel group in the EEPROM has a derived
-	 * clip setting for each rate. */
-	const struct iwl4965_clip_group clip_groups[5];
 
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */
@@ -1003,9 +987,6 @@ struct iwl_priv {
 	s8 tx_power_user_lmt;
 	s8 tx_power_channel_lmt;
 
-#ifdef CONFIG_PM
-	u32 pm_state[16];
-#endif
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	/* debugging info */

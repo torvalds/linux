@@ -22,7 +22,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -439,7 +439,7 @@ int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 			   FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
 			   FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY |
 			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
-			   FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME |
+			   FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK |
 			   rb_size|
 			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
 			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
@@ -467,10 +467,8 @@ int iwl_rxq_stop(struct iwl_priv *priv)
 
 	/* stop Rx DMA */
 	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	ret = iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
-				     (1 << 24), 1000);
-	if (ret < 0)
-		IWL_ERROR("Can't stop Rx DMA.\n");
+	iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
+			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -484,7 +482,7 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_missed_beacon_notif *missed_beacon;
+	struct iwl_missed_beacon_notif *missed_beacon;
 
 	missed_beacon = &pkt->u.missed_beacon;
 	if (le32_to_cpu(missed_beacon->consequtive_missed_beacons) > 5) {
@@ -622,20 +620,24 @@ static int iwl_calc_sig_qual(int rssi_dbm, int noise_dbm)
 	return sig_qual;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+/* Calc max signal level (dBm) among 3 possible receivers */
+static inline int iwl_calc_rssi(struct iwl_priv *priv,
+				struct iwl_rx_phy_res *rx_resp)
+{
+	return priv->cfg->ops->utils->calc_rssi(priv, rx_resp);
+}
 
+#ifdef CONFIG_IWLWIFI_DEBUG
 /**
  * iwl_dbg_report_frame - dump frame to syslog during debug sessions
  *
  * You may hack this function to show different aspects of received frames,
  * including selective frame dumps.
- * group100 parameter selects whether to show 1 out of 100 good frames.
- *
- * TODO:  This was originally written for 3945, need to audit for
- *        proper operation with 4965.
+ * group100 parameter selects whether to show 1 out of 100 good data frames.
+ *    All beacon and probe response frames are printed.
  */
 static void iwl_dbg_report_frame(struct iwl_priv *priv,
-		      struct iwl_rx_packet *pkt,
+		      struct iwl_rx_phy_res *phy_res, u16 length,
 		      struct ieee80211_hdr *header, int group100)
 {
 	u32 to_us;
@@ -647,20 +649,9 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 	u16 seq_ctl;
 	u16 channel;
 	u16 phy_flags;
-	int rate_sym;
-	u16 length;
-	u16 status;
-	u16 bcn_tmr;
+	u32 rate_n_flags;
 	u32 tsf_low;
-	u64 tsf;
-	u8 rssi;
-	u8 agc;
-	u16 sig_avg;
-	u16 noise_diff;
-	struct iwl4965_rx_frame_stats *rx_stats = IWL_RX_STATS(pkt);
-	struct iwl4965_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
-	struct iwl4965_rx_frame_end *rx_end = IWL_RX_END(pkt);
-	u8 *data = IWL_RX_DATA(pkt);
+	int rssi;
 
 	if (likely(!(priv->debug_level & IWL_DL_RX)))
 		return;
@@ -670,22 +661,13 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 	seq_ctl = le16_to_cpu(header->seq_ctrl);
 
 	/* metadata */
-	channel = le16_to_cpu(rx_hdr->channel);
-	phy_flags = le16_to_cpu(rx_hdr->phy_flags);
-	rate_sym = rx_hdr->rate;
-	length = le16_to_cpu(rx_hdr->len);
-
-	/* end-of-frame status and timestamp */
-	status = le32_to_cpu(rx_end->status);
-	bcn_tmr = le32_to_cpu(rx_end->beacon_timestamp);
-	tsf_low = le64_to_cpu(rx_end->timestamp) & 0x0ffffffff;
-	tsf = le64_to_cpu(rx_end->timestamp);
+	channel = le16_to_cpu(phy_res->channel);
+	phy_flags = le16_to_cpu(phy_res->phy_flags);
+	rate_n_flags = le32_to_cpu(phy_res->rate_n_flags);
 
 	/* signal statistics */
-	rssi = rx_stats->rssi;
-	agc = rx_stats->agc;
-	sig_avg = le16_to_cpu(rx_stats->sig_avg);
-	noise_diff = le16_to_cpu(rx_stats->noise_diff);
+	rssi = iwl_calc_rssi(priv, phy_res);
+	tsf_low = le64_to_cpu(phy_res->timestamp) & 0x0ffffffff;
 
 	to_us = !compare_ether_addr(header->addr1, priv->mac_addr);
 
@@ -739,11 +721,13 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 		else
 			title = "Frame";
 
-		rate_idx = iwl_hwrate_to_plcp_idx(rate_sym);
-		if (unlikely(rate_idx == -1))
+		rate_idx = iwl_hwrate_to_plcp_idx(rate_n_flags);
+		if (unlikely((rate_idx < 0) || (rate_idx >= IWL_RATE_COUNT))) {
 			bitrate = 0;
-		else
+			WARN_ON_ONCE(1);
+		} else {
 			bitrate = iwl_rates[rate_idx].ieee / 2;
+		}
 
 		/* print frame summary.
 		 * MAC addresses show just the last byte (for brevity),
@@ -755,24 +739,17 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 				     length, rssi, channel, bitrate);
 		else {
 			/* src/dst addresses assume managed mode */
-			IWL_DEBUG_RX("%s: 0x%04x, dst=0x%02x, "
-				     "src=0x%02x, rssi=%u, tim=%lu usec, "
+			IWL_DEBUG_RX("%s: 0x%04x, dst=0x%02x, src=0x%02x, "
+				     "len=%u, rssi=%d, tim=%lu usec, "
 				     "phy=0x%02x, chnl=%d\n",
 				     title, le16_to_cpu(fc), header->addr1[5],
-				     header->addr3[5], rssi,
+				     header->addr3[5], length, rssi,
 				     tsf_low - priv->scan_start_tsf,
 				     phy_flags, channel);
 		}
 	}
 	if (print_dump)
-		iwl_print_hex_dump(priv, IWL_DL_RX, data, length);
-}
-#else
-static inline void iwl_dbg_report_frame(struct iwl_priv *priv,
-					    struct iwl_rx_packet *pkt,
-					    struct ieee80211_hdr *header,
-					    int group100)
-{
+		iwl_print_hex_dump(priv, IWL_DL_RX, header, length);
 }
 #endif
 
@@ -966,14 +943,6 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	rxb->skb = NULL;
 }
 
-/* Calc max signal level (dBm) among 3 possible receivers */
-static inline int iwl_calc_rssi(struct iwl_priv *priv,
-				struct iwl_rx_phy_res *rx_resp)
-{
-	return priv->cfg->ops->utils->calc_rssi(priv, rx_resp);
-}
-
-
 /* This is necessary only for a number of statistics, see the caller. */
 static int iwl_is_network_packet(struct iwl_priv *priv,
 		struct ieee80211_hdr *header)
@@ -1096,9 +1065,10 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
 	/* Set "1" to report good data frames in groups of 100 */
-	/* FIXME: need to optimize the call: */
-	iwl_dbg_report_frame(priv, pkt, header, 1);
-
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (unlikely(priv->debug_level & IWL_DL_RX))
+		iwl_dbg_report_frame(priv, rx_start, len, header, 1);
+#endif
 	IWL_DEBUG_STATS_LIMIT("Rssi %d, noise %d, qual %d, TSF %llu\n",
 		rx_status.signal, rx_status.noise, rx_status.signal,
 		(unsigned long long)rx_status.mactime);

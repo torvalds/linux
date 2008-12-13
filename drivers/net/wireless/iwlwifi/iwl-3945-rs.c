@@ -19,7 +19,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -335,10 +335,11 @@ static void iwl3945_collect_tx_data(struct iwl3945_rs_sta *rs_sta,
 
 }
 
-static void rs_rate_init(void *priv, struct ieee80211_supported_band *sband,
+static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 			 struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
+	struct iwl3945_priv *priv = (struct iwl3945_priv *)priv_r;
 	int i;
 
 	IWL_DEBUG_RATE("enter\n");
@@ -348,16 +349,21 @@ static void rs_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	 * previous packets? Need to have IEEE 802.1X auth succeed immediately
 	 * after assoc.. */
 
-	for (i = IWL_RATE_COUNT - 1; i >= 0; i--) {
+	for (i = sband->n_bitrates - 1; i >= 0; i--) {
 		if (sta->supp_rates[sband->band] & (1 << i)) {
 			rs_sta->last_txrate_idx = i;
 			break;
 		}
 	}
 
+	priv->sta_supp_rates = sta->supp_rates[sband->band];
 	/* For 5 GHz band it start at IWL_FIRST_OFDM_RATE */
-	if (sband->band == IEEE80211_BAND_5GHZ)
+	if (sband->band == IEEE80211_BAND_5GHZ) {
 		rs_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
+		priv->sta_supp_rates = priv->sta_supp_rates <<
+						IWL_FIRST_OFDM_RATE;
+	}
+
 
 	IWL_DEBUG_RATE("leave\n");
 }

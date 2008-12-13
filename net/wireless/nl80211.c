@@ -365,6 +365,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		enum nl80211_sec_chan_offset sec_chan_offset =
 			NL80211_SEC_CHAN_NO_HT;
 		struct ieee80211_channel *chan;
+		struct ieee80211_sta_ht_cap *ht_cap;
 		u32 freq, sec_freq;
 
 		if (!rdev->ops->set_channel) {
@@ -372,26 +373,25 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			goto bad_res;
 		}
 
+		result = -EINVAL;
+
 		if (info->attrs[NL80211_ATTR_WIPHY_SEC_CHAN_OFFSET]) {
-			sec_chan_offset = nla_get_u32(
-				info->attrs[
+			sec_chan_offset = nla_get_u32(info->attrs[
 					NL80211_ATTR_WIPHY_SEC_CHAN_OFFSET]);
 			if (sec_chan_offset != NL80211_SEC_CHAN_NO_HT &&
 			    sec_chan_offset != NL80211_SEC_CHAN_DISABLED &&
 			    sec_chan_offset != NL80211_SEC_CHAN_BELOW &&
-			    sec_chan_offset != NL80211_SEC_CHAN_ABOVE) {
-				result = -EINVAL;
+			    sec_chan_offset != NL80211_SEC_CHAN_ABOVE)
 				goto bad_res;
-			}
 		}
 
 		freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
 		chan = ieee80211_get_channel(&rdev->wiphy, freq);
-		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED) {
-			/* Primary channel not allowed */
-			result = -EINVAL;
+
+		/* Primary channel not allowed */
+		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
 			goto bad_res;
-		}
+
 		if (sec_chan_offset == NL80211_SEC_CHAN_BELOW)
 			sec_freq = freq - 20;
 		else if (sec_chan_offset == NL80211_SEC_CHAN_ABOVE)
@@ -399,14 +399,26 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		else
 			sec_freq = 0;
 
+		ht_cap = &rdev->wiphy.bands[chan->band]->ht_cap;
+
+		/* no HT capabilities */
+		if (sec_chan_offset != NL80211_SEC_CHAN_NO_HT &&
+		    !ht_cap->ht_supported)
+			goto bad_res;
+
 		if (sec_freq) {
 			struct ieee80211_channel *schan;
-			schan = ieee80211_get_channel(&rdev->wiphy, sec_freq);
-			if (!schan || schan->flags & IEEE80211_CHAN_DISABLED) {
-				/* Secondary channel not allowed */
-				result = -EINVAL;
+
+			/* no 40 MHz capabilities */
+			if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
+			    (ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT))
 				goto bad_res;
-			}
+
+			schan = ieee80211_get_channel(&rdev->wiphy, sec_freq);
+
+			/* Secondary channel not allowed */
+			if (!schan || schan->flags & IEEE80211_CHAN_DISABLED)
+				goto bad_res;
 		}
 
 		result = rdev->ops->set_channel(&rdev->wiphy, chan,
@@ -416,7 +428,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 
-bad_res:
+ bad_res:
 	cfg80211_put_dev(rdev);
 	return result;
 }

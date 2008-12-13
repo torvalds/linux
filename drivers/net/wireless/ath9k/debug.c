@@ -128,6 +128,100 @@ static const struct file_operations fops_dma = {
 	.owner = THIS_MODULE
 };
 
+
+void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
+{
+	if (status)
+		sc->sc_debug.stats.istats.total++;
+	if (status & ATH9K_INT_RX)
+		sc->sc_debug.stats.istats.rxok++;
+	if (status & ATH9K_INT_RXEOL)
+		sc->sc_debug.stats.istats.rxeol++;
+	if (status & ATH9K_INT_RXORN)
+		sc->sc_debug.stats.istats.rxorn++;
+	if (status & ATH9K_INT_TX)
+		sc->sc_debug.stats.istats.txok++;
+	if (status & ATH9K_INT_TXURN)
+		sc->sc_debug.stats.istats.txurn++;
+	if (status & ATH9K_INT_MIB)
+		sc->sc_debug.stats.istats.mib++;
+	if (status & ATH9K_INT_RXPHY)
+		sc->sc_debug.stats.istats.rxphyerr++;
+	if (status & ATH9K_INT_RXKCM)
+		sc->sc_debug.stats.istats.rx_keycache_miss++;
+	if (status & ATH9K_INT_SWBA)
+		sc->sc_debug.stats.istats.swba++;
+	if (status & ATH9K_INT_BMISS)
+		sc->sc_debug.stats.istats.bmiss++;
+	if (status & ATH9K_INT_BNR)
+		sc->sc_debug.stats.istats.bnr++;
+	if (status & ATH9K_INT_CST)
+		sc->sc_debug.stats.istats.cst++;
+	if (status & ATH9K_INT_GTT)
+		sc->sc_debug.stats.istats.gtt++;
+	if (status & ATH9K_INT_TIM)
+		sc->sc_debug.stats.istats.tim++;
+	if (status & ATH9K_INT_CABEND)
+		sc->sc_debug.stats.istats.cabend++;
+	if (status & ATH9K_INT_DTIMSYNC)
+		sc->sc_debug.stats.istats.dtimsync++;
+	if (status & ATH9K_INT_DTIM)
+		sc->sc_debug.stats.istats.dtim++;
+}
+
+static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[512];
+	unsigned int len = 0;
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "RX", sc->sc_debug.stats.istats.rxok);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "RXEOL", sc->sc_debug.stats.istats.rxeol);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "RXORN", sc->sc_debug.stats.istats.rxorn);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "TX", sc->sc_debug.stats.istats.txok);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "TXURN", sc->sc_debug.stats.istats.txurn);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "MIB", sc->sc_debug.stats.istats.mib);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "RXPHY", sc->sc_debug.stats.istats.rxphyerr);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "RXKCM", sc->sc_debug.stats.istats.rx_keycache_miss);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "SWBA", sc->sc_debug.stats.istats.swba);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "BMISS", sc->sc_debug.stats.istats.bmiss);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "BNR", sc->sc_debug.stats.istats.bnr);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "CST", sc->sc_debug.stats.istats.cst);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "GTT", sc->sc_debug.stats.istats.gtt);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "TIM", sc->sc_debug.stats.istats.tim);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "CABEND", sc->sc_debug.stats.istats.cabend);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "DTIMSYNC", sc->sc_debug.stats.istats.dtimsync);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "DTIM", sc->sc_debug.stats.istats.dtim);
+	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "TOTAL", sc->sc_debug.stats.istats.total);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_interrupt = {
+	.read = read_file_interrupt,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
 int ath9k_init_debug(struct ath_softc *sc)
 {
 	sc->sc_debug.debug_mask = ath9k_debug;
@@ -146,6 +240,13 @@ int ath9k_init_debug(struct ath_softc *sc)
 	if (!sc->sc_debug.debugfs_dma)
 		goto err;
 
+	sc->sc_debug.debugfs_interrupt = debugfs_create_file("interrupt",
+						     S_IRUGO,
+						     sc->sc_debug.debugfs_phy,
+						     sc, &fops_interrupt);
+	if (!sc->sc_debug.debugfs_interrupt)
+		goto err;
+
 	return 0;
 err:
 	ath9k_exit_debug(sc);
@@ -154,6 +255,7 @@ err:
 
 void ath9k_exit_debug(struct ath_softc *sc)
 {
+	debugfs_remove(sc->sc_debug.debugfs_interrupt);
 	debugfs_remove(sc->sc_debug.debugfs_dma);
 	debugfs_remove(sc->sc_debug.debugfs_phy);
 	debugfs_remove(sc->sc_debug.debugfs_root);

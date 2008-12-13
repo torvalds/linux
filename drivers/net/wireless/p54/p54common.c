@@ -540,6 +540,14 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	size_t header_len = sizeof(*hdr);
 	u32 tsf32;
 
+	/*
+	 * If the device is in a unspecified state we have to
+	 * ignore all data frames. Else we could end up with a
+	 * nasty crash.
+	 */
+	if (unlikely(priv->mode == NL80211_IFTYPE_UNSPECIFIED))
+		return 0;
+
 	if (!(hdr->flags & cpu_to_le16(P54_HDR_FLAG_DATA_IN_FCS_GOOD))) {
 		if (priv->filter_flags & FIF_FCSFAIL)
 			rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -606,6 +614,12 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u32 freed = 0, last_addr = priv->rx_start;
 
 	if (unlikely(!skb || !dev || !skb_queue_len(&priv->tx_queue)))
+		return;
+
+	/*
+	 * don't try to free an already unlinked skb
+	 */
+	if (unlikely((!skb->next) || (!skb->prev)))
 		return;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
@@ -874,7 +888,27 @@ static int p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 		return -EINVAL;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
+
 	left = skb_queue_len(&priv->tx_queue);
+	if (unlikely(left >= 28)) {
+		/*
+		 * The tx_queue is nearly full!
+		 * We have throttle normal data traffic, because we must
+		 * have a few spare slots for control frames left.
+		 */
+		ieee80211_stop_queues(dev);
+
+		if (unlikely(left == 32)) {
+			/*
+			 * The tx_queue is now really full.
+			 *
+			 * TODO: check if the device has crashed and reset it.
+			 */
+			spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
+			return -ENOSPC;
+		}
+	}
+
 	while (left--) {
 		u32 hole_size;
 		info = IEEE80211_SKB_CB(entry);
@@ -903,7 +937,7 @@ static int p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (!target_skb) {
 		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 		ieee80211_stop_queues(dev);
-		return -ENOMEM;
+		return -ENOSPC;
 	}
 
 	info = IEEE80211_SKB_CB(skb);
@@ -1051,19 +1085,6 @@ static int p54_sta_unlock(struct ieee80211_hw *dev, u8 *addr)
 	return 0;
 }
 
-static void p54_sta_notify_ps(struct ieee80211_hw *dev,
-			      enum sta_notify_ps_cmd notify_cmd,
-			      struct ieee80211_sta *sta)
-{
-	switch (notify_cmd) {
-	case STA_NOTIFY_AWAKE:
-		p54_sta_unlock(dev, sta->addr);
-		break;
-	default:
-		break;
-	}
-}
-
 static void p54_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 			      enum sta_notify_cmd notify_cmd,
 			      struct ieee80211_sta *sta)
@@ -1076,6 +1097,10 @@ static void p54_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 		 * need to buffer frames for this station anymore.
 		 */
 
+		p54_sta_unlock(dev, sta->addr);
+		break;
+	case STA_NOTIFY_AWAKE:
+		/* update the firmware's filter table */
 		p54_sta_unlock(dev, sta->addr);
 		break;
 	default:
@@ -1684,19 +1709,18 @@ static void p54_stop(struct ieee80211_hw *dev)
 	struct sk_buff *skb;
 
 	mutex_lock(&priv->conf_mutex);
+	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	del_timer(&priv->stats_timer);
 	p54_free_skb(dev, priv->cached_stats);
 	priv->cached_stats = NULL;
 	if (priv->cached_beacon)
 		p54_tx_cancel(dev, priv->cached_beacon);
 
+	priv->stop(dev);
 	while ((skb = skb_dequeue(&priv->tx_queue)))
 		kfree_skb(skb);
-
 	priv->cached_beacon = NULL;
-	priv->stop(dev);
 	priv->tsf_high32 = priv->tsf_low32 = 0;
-	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	mutex_unlock(&priv->conf_mutex);
 }
 
@@ -2027,7 +2051,6 @@ static const struct ieee80211_ops p54_ops = {
 	.add_interface		= p54_add_interface,
 	.remove_interface	= p54_remove_interface,
 	.set_tim		= p54_set_tim,
-	.sta_notify_ps		= p54_sta_notify_ps,
 	.sta_notify		= p54_sta_notify,
 	.set_key		= p54_set_key,
 	.config			= p54_config,

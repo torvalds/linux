@@ -178,13 +178,17 @@ static int orinoco_cs_config_check(struct pcmcia_device *p_dev,
 	/* Note that the CIS values need to be rescaled */
 	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
 		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-			DEBUG(2, "spectrum_cs_config: Vcc mismatch (vcc = %d, CIS = %d)\n",  vcc, cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
+			DEBUG(2, "%s: Vcc mismatch (vcc = %d, CIS = %d)\n",
+			      __func__, vcc,
+			      cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
 			if (!ignore_cis_vcc)
 				goto next_entry;
 		}
 	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
 		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-			DEBUG(2, "spectrum_cs_config: Vcc mismatch (vcc = %d, CIS = %d)\n",  vcc, dflt->vcc.param[CISTPL_POWER_VNOM] / 10000);
+			DEBUG(2, "%s: Vcc mismatch (vcc = %d, CIS = %d)\n",
+			      __func__, vcc,
+			      dflt->vcc.param[CISTPL_POWER_VNOM] / 10000);
 			if (!ignore_cis_vcc)
 				goto next_entry;
 		}

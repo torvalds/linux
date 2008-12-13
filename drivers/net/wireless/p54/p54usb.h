@@ -133,6 +133,7 @@ struct p54u_priv {
 
 	spinlock_t lock;
 	struct sk_buff_head rx_queue;
+	struct usb_anchor submitted;
 };
 
 #endif /* P54USB_H */

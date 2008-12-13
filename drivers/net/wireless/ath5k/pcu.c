@@ -1099,9 +1099,9 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 
 		if (ah->ah_combined_mic) {
 			key_v[0] = rxmic[0];
-			key_v[1] = (txmic[0] >> 16) & 0xffff;
+			key_v[1] = cpu_to_le32(le32_to_cpu(txmic[0]) >> 16);
 			key_v[2] = rxmic[1];
-			key_v[3] = txmic[0] & 0xffff;
+			key_v[3] = cpu_to_le32(le32_to_cpu(txmic[0]) & 0xffff);
 			key_v[4] = txmic[1];
 		} else {
 			key_v[0] = rxmic[0];

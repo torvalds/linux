@@ -1565,8 +1565,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				    (unsigned long long) sta->sta.supp_rates[band]);
 #endif
 		} else {
-			ieee80211_ibss_add_sta(sdata, NULL, mgmt->bssid,
-					       mgmt->sa, supp_rates);
+			ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, supp_rates);
 		}
 
 		rcu_read_unlock();
@@ -1638,9 +1637,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			       sdata->dev->name, mgmt->bssid);
 #endif
 			ieee80211_sta_join_ibss(sdata, &sdata->u.sta, bss);
-			ieee80211_ibss_add_sta(sdata, NULL,
-					       mgmt->bssid, mgmt->sa,
-					       supp_rates);
+			ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, supp_rates);
 		}
 	}
 
@@ -2373,8 +2370,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
  * must be callable in atomic context.
  */
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-					struct sk_buff *skb, u8 *bssid,
-					u8 *addr, u64 supp_rates)
+					u8 *bssid,u8 *addr, u64 supp_rates)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;

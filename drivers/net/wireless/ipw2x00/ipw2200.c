@@ -4345,7 +4345,8 @@ static void ipw_handle_missed_beacon(struct ipw_priv *priv,
 		return;
 	}
 
-	if (priv->status & STATUS_SCANNING) {
+	if (priv->status & STATUS_SCANNING &&
+	    missed_count > IPW_MB_SCAN_CANCEL_THRESHOLD) {
 		/* Stop scan to keep fw from getting
 		 * stuck (only if we aren't roaming --
 		 * otherwise we'll never scan more than 2 or 3
@@ -6271,6 +6272,20 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 	}
 }
 
+static int ipw_passive_dwell_time(struct ipw_priv *priv)
+{
+	/* staying on passive channels longer than the DTIM interval during a
+	 * scan, while associated, causes the firmware to cancel the scan
+	 * without notification. Hence, don't stay on passive channels longer
+	 * than the beacon interval.
+	 */
+	if (priv->status & STATUS_ASSOCIATED
+	    && priv->assoc_network->beacon_interval > 10)
+		return priv->assoc_network->beacon_interval - 10;
+	else
+		return 120;
+}
+
 static int ipw_request_scan_helper(struct ipw_priv *priv, int type, int direct)
 {
 	struct ipw_scan_request_ext scan;
@@ -6314,16 +6329,16 @@ static int ipw_request_scan_helper(struct ipw_priv *priv, int type, int direct)
 	scan.full_scan_index = cpu_to_le32(ieee80211_get_scans(priv->ieee));
 
 	if (type == IW_SCAN_TYPE_PASSIVE) {
-	  	IPW_DEBUG_WX("use passive scanning\n");
-	  	scan_type = IPW_SCAN_PASSIVE_FULL_DWELL_SCAN;
+		IPW_DEBUG_WX("use passive scanning\n");
+		scan_type = IPW_SCAN_PASSIVE_FULL_DWELL_SCAN;
 		scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] =
-			cpu_to_le16(120);
+			cpu_to_le16(ipw_passive_dwell_time(priv));
 		ipw_add_scan_channels(priv, &scan, scan_type);
 		goto send_request;
 	}
 
 	/* Use active scan by default. */
-  	if (priv->config & CFG_SPEED_SCAN)
+	if (priv->config & CFG_SPEED_SCAN)
 		scan.dwell_time[IPW_SCAN_ACTIVE_BROADCAST_SCAN] =
 			cpu_to_le16(30);
 	else
@@ -6333,7 +6348,8 @@ static int ipw_request_scan_helper(struct ipw_priv *priv, int type, int direct)
 	scan.dwell_time[IPW_SCAN_ACTIVE_BROADCAST_AND_DIRECT_SCAN] =
 		cpu_to_le16(20);
 
-  	scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] = cpu_to_le16(120);
+	scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] =
+		cpu_to_le16(ipw_passive_dwell_time(priv));
 	scan.dwell_time[IPW_SCAN_ACTIVE_DIRECT_SCAN] = cpu_to_le16(20);
 
 #ifdef CONFIG_IPW2200_MONITOR

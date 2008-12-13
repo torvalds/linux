@@ -257,6 +257,58 @@ static ssize_t lbs_anycast_set(struct device *dev,
 	return strlen(buf);
 }
 
+/**
+ * @brief Get function for sysfs attribute prb_rsp_limit
+ */
+static ssize_t lbs_prb_rsp_limit_get(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct cmd_ds_mesh_access mesh_access;
+	int ret;
+	u32 retry_limit;
+
+	memset(&mesh_access, 0, sizeof(mesh_access));
+	mesh_access.data[0] = cpu_to_le32(CMD_ACT_GET);
+
+	ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_GET_PRB_RSP_LIMIT,
+			&mesh_access);
+	if (ret)
+		return ret;
+
+	retry_limit = le32_to_cpu(mesh_access.data[1]);
+	return snprintf(buf, 10, "%d\n", retry_limit);
+}
+
+/**
+ * @brief Set function for sysfs attribute prb_rsp_limit
+ */
+static ssize_t lbs_prb_rsp_limit_set(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct cmd_ds_mesh_access mesh_access;
+	int ret;
+	unsigned long retry_limit;
+
+	memset(&mesh_access, 0, sizeof(mesh_access));
+	mesh_access.data[0] = cpu_to_le32(CMD_ACT_SET);
+
+	if (!strict_strtoul(buf, 10, &retry_limit))
+		return -ENOTSUPP;
+	if (retry_limit > 15)
+		return -ENOTSUPP;
+
+	mesh_access.data[1] = cpu_to_le32(retry_limit);
+
+	ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_GET_PRB_RSP_LIMIT,
+			&mesh_access);
+	if (ret)
+		return ret;
+
+	return strlen(buf);
+}
+
 static int lbs_add_rtap(struct lbs_private *priv);
 static void lbs_remove_rtap(struct lbs_private *priv);
 static int lbs_add_mesh(struct lbs_private *priv);
@@ -375,8 +427,16 @@ static DEVICE_ATTR(lbs_mesh, 0644, lbs_mesh_get, lbs_mesh_set);
  */
 static DEVICE_ATTR(anycast_mask, 0644, lbs_anycast_get, lbs_anycast_set);
 
+/**
+ * prb_rsp_limit attribute to be exported per mshX interface
+ * through sysfs (/sys/class/net/mshX/prb_rsp_limit)
+ */
+static DEVICE_ATTR(prb_rsp_limit, 0644, lbs_prb_rsp_limit_get,
+		lbs_prb_rsp_limit_set);
+
 static struct attribute *lbs_mesh_sysfs_entries[] = {
 	&dev_attr_anycast_mask.attr,
+	&dev_attr_prb_rsp_limit.attr,
 	NULL,
 };
 

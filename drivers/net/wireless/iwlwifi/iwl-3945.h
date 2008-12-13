@@ -19,7 +19,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -476,7 +476,6 @@ union iwl3945_qos_capabity {
 
 /* QoS structures */
 struct iwl3945_qos_info {
-	int qos_enable;
 	int qos_active;
 	union iwl3945_qos_capabity qos_cap;
 	struct iwl3945_qosparam_cmd def_qos_parm;
@@ -810,6 +809,8 @@ struct iwl3945_priv {
 	u16 active_rate;
 	u16 active_rate_basic;
 
+	u32 sta_supp_rates;
+
 	u8 call_post_assoc_from_beacon;
 	/* Rate scaling data */
 	s8 data_retry_limit;
@@ -906,9 +907,6 @@ struct iwl3945_priv {
 	s8 user_txpower_limit;
 	s8 max_channel_txpower_limit;
 
-#ifdef CONFIG_PM
-	u32 pm_state[16];
-#endif
 
 #ifdef CONFIG_IWL3945_DEBUG
 	/* debugging info */

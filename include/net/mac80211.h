@@ -773,25 +773,16 @@ struct ieee80211_sta {
  * enum sta_notify_cmd - sta notify command
  *
  * Used with the sta_notify() callback in &struct ieee80211_ops, this
- * indicates addition and removal of a station to station table.
+ * indicates addition and removal of a station to station table,
+ * or if a associated station made a power state transition.
  *
  * @STA_NOTIFY_ADD: a station was added to the station table
  * @STA_NOTIFY_REMOVE: a station being removed from the station table
- */
-enum sta_notify_cmd {
-	STA_NOTIFY_ADD, STA_NOTIFY_REMOVE
-};
-
-/**
- * enum sta_notify_ps_cmd - sta power save notify command
- *
- * Used with the sta_notify_ps() callback in &struct ieee80211_ops to
- * notify the driver if a station made a power state transition.
- *
  * @STA_NOTIFY_SLEEP: a station is now sleeping
  * @STA_NOTIFY_AWAKE: a sleeping station woke up
  */
-enum sta_notify_ps_cmd {
+enum sta_notify_cmd {
+	STA_NOTIFY_ADD, STA_NOTIFY_REMOVE,
 	STA_NOTIFY_SLEEP, STA_NOTIFY_AWAKE,
 };
 
@@ -1258,15 +1249,9 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *
- * @set_frag_threshold: Configuration of fragmentation threshold. Assign this if
- *	the device does fragmentation by itself; if this method is assigned then
- *	the stack will not do fragmentation.
- *
- * @sta_notify: Notifies low level driver about addition or removal
- *	of associated station or AP.
- *
- * @sta_ps_notify: Notifies low level driver about the power state transition
- *	of a associated station. Must be atomic.
+ * @sta_notify: Notifies low level driver about addition, removal or power
+ *	state transition of an associated station, AP,  IBSS/WDS/mesh peer etc.
+ *	Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
@@ -1331,11 +1316,8 @@ struct ieee80211_ops {
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
 			     u32 *iv32, u16 *iv16);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
-	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
-	void (*sta_notify_ps)(struct ieee80211_hw *hw,
-			enum sta_notify_ps_cmd, struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,
 		       const struct ieee80211_tx_queue_params *params);
 	int (*get_tx_stats)(struct ieee80211_hw *hw,

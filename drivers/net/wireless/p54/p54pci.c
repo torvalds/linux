@@ -332,13 +332,6 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));
 	P54P_READ(dev_int);
-
-	/* FIXME: unlikely to happen because the device usually runs out of
-	   memory before we fill the ring up, but we can make it impossible */
-	if (idx - device_idx > ARRAY_SIZE(ring_control->tx_data) - 2) {
-		p54_free_skb(dev, skb);
-		printk(KERN_INFO "%s: tx overflow.\n", wiphy_name(dev->wiphy));
-	}
 }
 
 static void p54p_stop(struct ieee80211_hw *dev)

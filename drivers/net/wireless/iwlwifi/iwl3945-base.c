@@ -22,7 +22,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -69,7 +69,6 @@ static int iwl3945_param_debug;    /* def: 0 = minimal debug log messages */
 static int iwl3945_param_disable;  /* def: 0 = enable radio */
 static int iwl3945_param_antenna;  /* def: 0 = both antennas (use diversity) */
 int iwl3945_param_hwcrypto;        /* def: 0 = use software encryption */
-static int iwl3945_param_qos_enable = 1; /* def: 1 = use quality of service */
 int iwl3945_param_queues_num = IWL39_MAX_NUM_QUEUES; /* def: 8 Tx queues */
 
 /*
@@ -94,12 +93,13 @@ int iwl3945_param_queues_num = IWL39_MAX_NUM_QUEUES; /* def: 8 Tx queues */
 
 #define IWLWIFI_VERSION "1.2.26k" VD VS
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2008 Intel Corporation"
+#define DRV_AUTHOR     "<ilw@linux.intel.com>"
 #define DRV_VERSION     IWLWIFI_VERSION
 
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
-MODULE_AUTHOR(DRV_COPYRIGHT);
+MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
 static const struct ieee80211_supported_band *iwl3945_get_band(
@@ -1505,10 +1505,8 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 {
 	u16 *e = (u16 *)&priv->eeprom;
 	u32 gp = iwl3945_read32(priv, CSR_EEPROM_GP);
-	u32 r;
 	int sz = sizeof(priv->eeprom);
-	int rc;
-	int i;
+	int ret;
 	u16 addr;
 
 	/* The EEPROM structure has several padding buffers within it
@@ -1523,29 +1521,28 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	rc = iwl3945_eeprom_acquire_semaphore(priv);
-	if (rc < 0) {
+	ret = iwl3945_eeprom_acquire_semaphore(priv);
+	if (ret < 0) {
 		IWL_ERROR("Failed to acquire EEPROM semaphore.\n");
 		return -ENOENT;
 	}
 
 	/* eeprom is an array of 16bit values */
 	for (addr = 0; addr < sz; addr += sizeof(u16)) {
-		_iwl3945_write32(priv, CSR_EEPROM_REG, addr << 1);
+		u32 r;
+
+		_iwl3945_write32(priv, CSR_EEPROM_REG,
+				 CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 		_iwl3945_clear_bit(priv, CSR_EEPROM_REG, CSR_EEPROM_REG_BIT_CMD);
-
-		for (i = 0; i < IWL_EEPROM_ACCESS_TIMEOUT;
-					i += IWL_EEPROM_ACCESS_DELAY) {
-			r = _iwl3945_read_direct32(priv, CSR_EEPROM_REG);
-			if (r & CSR_EEPROM_REG_READ_VALID_MSK)
-				break;
-			udelay(IWL_EEPROM_ACCESS_DELAY);
-		}
-
-		if (!(r & CSR_EEPROM_REG_READ_VALID_MSK)) {
+		ret = iwl3945_poll_direct_bit(priv, CSR_EEPROM_REG,
+					      CSR_EEPROM_REG_READ_VALID_MSK,
+					      IWL_EEPROM_ACCESS_TIMEOUT);
+		if (ret < 0) {
 			IWL_ERROR("Time out reading EEPROM[%d]\n", addr);
-			return -ETIMEDOUT;
+			return ret;
 		}
+
+		r = _iwl3945_read_direct32(priv, CSR_EEPROM_REG);
 		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
 	}
 
@@ -1693,17 +1690,21 @@ static void iwl3945_reset_qos(struct iwl3945_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->qos_data.qos_active = 0;
 
-	if (priv->iw_mode == NL80211_IFTYPE_ADHOC) {
-		if (priv->qos_data.qos_enable)
-			priv->qos_data.qos_active = 1;
-		if (!(priv->active_rate & 0xfff0)) {
-			cw_min = 31;
-			is_legacy = 1;
-		}
-	} else if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		if (priv->qos_data.qos_enable)
-			priv->qos_data.qos_active = 1;
-	} else if (!(priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK)) {
+	/* QoS always active in AP and ADHOC mode
+	 * In STA mode wait for association
+	 */
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC ||
+	    priv->iw_mode == NL80211_IFTYPE_AP)
+		priv->qos_data.qos_active = 1;
+	else
+		priv->qos_data.qos_active = 0;
+
+
+	/* check for legacy mode */
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+	     (priv->active_rate & IWL_OFDM_RATES_MASK) == 0) ||
+	    (priv->iw_mode == NL80211_IFTYPE_STATION &&
+	     (priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK) == 0)) {
 		cw_min = 31;
 		is_legacy = 1;
 	}
@@ -1773,9 +1774,6 @@ static void iwl3945_activate_qos(struct iwl3945_priv *priv, u8 force)
 	unsigned long flags;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (!priv->qos_data.qos_enable)
 		return;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -2103,11 +2101,6 @@ static void iwl3945_setup_rxon_timing(struct iwl3945_priv *priv)
 
 static int iwl3945_scan_initiate(struct iwl3945_priv *priv)
 {
-	if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		IWL_ERROR("APs don't scan.\n");
-		return 0;
-	}
-
 	if (!iwl3945_is_ready_rf(priv)) {
 		IWL_DEBUG_SCAN("Aborting scan due to not ready.\n");
 		return -EIO;
@@ -6976,12 +6969,6 @@ static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
 		goto out_unlock;
 	}
 
-	if (priv->iw_mode == NL80211_IFTYPE_AP) {	/* APs don't scan */
-		rc = -EIO;
-		IWL_ERROR("ERROR: APs don't scan\n");
-		goto out_unlock;
-	}
-
 	/* we don't schedule scan within next_scan_jiffies period */
 	if (priv->next_scan_jiffies &&
 			time_after(priv->next_scan_jiffies, jiffies)) {
@@ -7095,11 +7082,6 @@ static int iwl3945_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		return 0;
 	}
 
-	if (!priv->qos_data.qos_enable) {
-		priv->qos_data.qos_active = 0;
-		IWL_DEBUG_MAC80211("leave - qos not enabled\n");
-		return 0;
-	}
 	q = AC_NUM - 1 - queue;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -7925,9 +7907,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 			CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
 
 	iwl3945_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	err = iwl3945_poll_bit(priv, CSR_GP_CNTRL,
-			       CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			       CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+	err = iwl3945_poll_direct_bit(priv, CSR_GP_CNTRL,
+				CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (err < 0) {
 		IWL_DEBUG_INFO("Failed to init the card\n");
 		goto out_remove_sysfs;
@@ -7979,9 +7960,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->band = IEEE80211_BAND_2GHZ;
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
-
-	if (iwl3945_param_qos_enable)
-		priv->qos_data.qos_enable = 1;
 
 	iwl3945_reset_qos(priv);
 
@@ -8372,10 +8350,6 @@ MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 
 module_param_named(queues_num, iwl3945_param_queues_num, int, 0444);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
-
-/* QoS */
-module_param_named(qos_enable, iwl3945_param_qos_enable, int, 0444);
-MODULE_PARM_DESC(qos_enable, "enable all QoS functionality");
 
 module_exit(iwl3945_exit);
 module_init(iwl3945_init);

@@ -418,8 +418,7 @@ static int ieee80211_ioctl_siwscan(struct net_device *dev,
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 	    sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
-	    sdata->vif.type != NL80211_IFTYPE_AP)
+	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
 
 	/* if SSID was specified explicitly then use that */
@@ -638,14 +637,6 @@ static int ieee80211_ioctl_siwfrag(struct net_device *dev,
 		/* Fragment length must be even, so strip LSB. */
 		local->fragmentation_threshold = frag->value & ~0x1;
 	}
-
-	/* If the wlan card performs fragmentation in hardware/firmware,
-	 * configure it here */
-
-	if (local->ops->set_frag_threshold)
-		return local->ops->set_frag_threshold(
-			local_to_hw(local),
-			local->fragmentation_threshold);
 
 	return 0;
 }

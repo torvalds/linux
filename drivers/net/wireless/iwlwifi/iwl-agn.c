@@ -22,7 +22,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -83,7 +83,7 @@
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
-MODULE_AUTHOR(DRV_COPYRIGHT);
+MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("iwl4965");
 
@@ -310,7 +310,7 @@ void iwl_update_chain_flags(struct iwl_priv *priv)
 
 static int iwl_send_bt_config(struct iwl_priv *priv)
 {
-	struct iwl4965_bt_cmd bt_cmd = {
+	struct iwl_bt_cmd bt_cmd = {
 		.flags = 3,
 		.lead_time = 0xAA,
 		.max_kill = 1,
@@ -319,7 +319,7 @@ static int iwl_send_bt_config(struct iwl_priv *priv)
 	};
 
 	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-				sizeof(struct iwl4965_bt_cmd), &bt_cmd);
+				sizeof(struct iwl_bt_cmd), &bt_cmd);
 }
 
 static void iwl_clear_free_frames(struct iwl_priv *priv)
@@ -544,9 +544,6 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (!priv->qos_data.qos_enable)
 		return;
 
 	priv->qos_data.def_qos_parm.qos_flags = 0;
@@ -860,7 +857,7 @@ static void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl_rxon_cmd *rxon = (void *)&priv->active_rxon;
-	struct iwl4965_csa_notification *csa = &(pkt->u.csa_notif);
+	struct iwl_csa_notification *csa = &(pkt->u.csa_notif);
 	IWL_DEBUG_11H("CSA notif: channel %d, status %d\n",
 		      le16_to_cpu(csa->channel), le32_to_cpu(csa->status));
 	rxon->channel = csa->channel;
@@ -872,7 +869,7 @@ static void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_sleep_notification *sleep = &(pkt->u.sleep_notif);
+	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	IWL_DEBUG_RX("sleep mode: %d, src: %d\n",
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
@@ -942,7 +939,8 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_beacon_notif *beacon = &(pkt->u.beacon_status);
+	struct iwl4965_beacon_notif *beacon =
+		(struct iwl4965_beacon_notif *)pkt->u.raw;
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
 	IWL_DEBUG_RX("beacon status %x retries %d iss %d "
@@ -1405,8 +1403,11 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		 * the driver as well won't allow loading if RFKILL is set
 		 * therefore no need to restart the driver from this handler
 		 */
-		if (!hw_rf_kill && !test_bit(STATUS_ALIVE, &priv->status))
+		if (!hw_rf_kill && !test_bit(STATUS_ALIVE, &priv->status)) {
 			clear_bit(STATUS_RF_KILL_HW, &priv->status);
+			if (priv->is_open && !iwl_is_rfkill(priv))
+				queue_work(priv->workqueue, &priv->up);
+		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
 	}
@@ -2963,12 +2964,6 @@ static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 		goto out_unlock;
 	}
 
-	if (priv->iw_mode == NL80211_IFTYPE_AP) {	/* APs don't scan */
-		ret = -EIO;
-		IWL_ERROR("ERROR: APs don't scan\n");
-		goto out_unlock;
-	}
-
 	/* We don't schedule scan within next_scan_jiffies period.
 	 * Avoid scanning during possible EAPOL exchange, return
 	 * success immediately.
@@ -3112,11 +3107,6 @@ static int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		return 0;
 	}
 
-	if (!priv->qos_data.qos_enable) {
-		priv->qos_data.qos_active = 0;
-		IWL_DEBUG_MAC80211("leave - qos not enabled\n");
-		return 0;
-	}
 	q = AC_NUM - 1 - queue;
 
 	spin_lock_irqsave(&priv->lock, flags);

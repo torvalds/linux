@@ -25,7 +25,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -83,12 +83,6 @@
 #define IWL_CMD_QUEUE_NUM       4
 #define IWL_CMD_FIFO_NUM        4
 #define IWL49_FIRST_AMPDU_QUEUE	7
-
-/* Tx rates */
-#define IWL_CCK_RATES 4
-#define IWL_OFDM_RATES 8
-#define IWL_HT_RATES 16
-#define IWL_MAX_RATES  (IWL_CCK_RATES+IWL_OFDM_RATES+IWL_HT_RATES)
 
 /* Time constants */
 #define SHORT_SLOT_TIME 9

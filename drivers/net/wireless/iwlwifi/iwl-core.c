@@ -22,7 +22,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * Tomas Winkler <tomas.winkler@intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
@@ -42,7 +42,7 @@
 
 MODULE_DESCRIPTION("iwl core");
 MODULE_VERSION(IWLWIFI_VERSION);
-MODULE_AUTHOR(DRV_COPYRIGHT);
+MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
 #define IWL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
@@ -243,24 +243,25 @@ void iwl_reset_qos(struct iwl_priv *priv)
 	u16 cw_min = 15;
 	u16 cw_max = 1023;
 	u8 aifs = 2;
-	u8 is_legacy = 0;
+	bool is_legacy = false;
 	unsigned long flags;
 	int i;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->qos_data.qos_active = 0;
+	/* QoS always active in AP and ADHOC mode
+	 * In STA mode wait for association
+	 */
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC ||
+	    priv->iw_mode == NL80211_IFTYPE_AP)
+		priv->qos_data.qos_active = 1;
+	else
+		priv->qos_data.qos_active = 0;
 
-	if (priv->iw_mode == NL80211_IFTYPE_ADHOC) {
-		if (priv->qos_data.qos_enable)
-			priv->qos_data.qos_active = 1;
-		if (!(priv->active_rate & 0xfff0)) {
-			cw_min = 31;
-			is_legacy = 1;
-		}
-	} else if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		if (priv->qos_data.qos_enable)
-			priv->qos_data.qos_active = 1;
-	} else if (!(priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK)) {
+	/* check for legacy mode */
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+	    (priv->active_rate & IWL_OFDM_RATES_MASK) == 0) ||
+	    (priv->iw_mode == NL80211_IFTYPE_STATION &&
+	    (priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK) == 0)) {
 		cw_min = 31;
 		is_legacy = 1;
 	}
@@ -890,9 +891,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 	iwl_set_rxon_chain(priv);
 	iwl_init_scan_params(priv);
 
-	if (priv->cfg->mod_params->enable_qos)
-		priv->qos_data.qos_enable = 1;
-
 	iwl_reset_qos(priv);
 
 	priv->qos_data.qos_active = 0;
@@ -1446,6 +1444,16 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
 		IWL_DEBUG_RF_KILL("Can not turn radio back on - "
 				  "disabled by HW switch\n");
 		return 0;
+	}
+
+	/* when driver is up while rfkill is on, it wont receive
+	 * any CARD_STATE_NOTIFICATION notifications so we have to
+	 * restart it in here
+	 */
+	if (priv->is_open && !test_bit(STATUS_ALIVE, &priv->status)) {
+		clear_bit(STATUS_RF_KILL_SW, &priv->status);
+		if (!iwl_is_rfkill(priv))
+			queue_work(priv->workqueue, &priv->up);
 	}
 
 	/* If the driver is already loaded, it will receive
