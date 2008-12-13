@@ -19,9 +19,9 @@
 #include "phy.h"
 #include "mac.h"
 
-#define XFP_REQUIRED_DEVS (MDIO_MMDREG_DEVS0_PCS |	\
-			   MDIO_MMDREG_DEVS0_PMAPMD |	\
-			   MDIO_MMDREG_DEVS0_PHYXS)
+#define XFP_REQUIRED_DEVS (MDIO_MMDREG_DEVS_PCS |	\
+			   MDIO_MMDREG_DEVS_PMAPMD |	\
+			   MDIO_MMDREG_DEVS_PHYXS)
 
 #define XFP_LOOPBACKS ((1 << LOOPBACK_PCS) |		\
 		       (1 << LOOPBACK_PMAPMD) |		\
@@ -64,7 +64,7 @@ static int xfp_reset_phy(struct efx_nic *efx)
 	/* Check that all the MMDs we expect are present and responding. We
 	 * expect faults on some if the link is down, but not on the PHY XS */
 	rc = mdio_clause45_check_mmds(efx, XFP_REQUIRED_DEVS,
-				      MDIO_MMDREG_DEVS0_PHYXS);
+				      MDIO_MMDREG_DEVS_PHYXS);
 	if (rc < 0)
 		goto fail;
 

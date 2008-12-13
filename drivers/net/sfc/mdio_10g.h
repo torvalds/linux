@@ -73,14 +73,14 @@
 #define MDIO_ID_MODEL(_id32)	((_id32 >> 4) & 0x3f)
 #define MDIO_ID_OUI(_id32)	(_id32 >> 10)
 
-/* Bits in MMDREG_DEVS0. Someone thoughtfully layed things out
+/* Bits in MMDREG_DEVS0/1. Someone thoughtfully layed things out
  * so the 'bit present' bit number of an MMD is the number of
  * that MMD */
 #define DEV_PRESENT_BIT(_b) (1 << _b)
 
-#define MDIO_MMDREG_DEVS0_PHYXS	 DEV_PRESENT_BIT(MDIO_MMD_PHYXS)
-#define MDIO_MMDREG_DEVS0_PCS	 DEV_PRESENT_BIT(MDIO_MMD_PCS)
-#define MDIO_MMDREG_DEVS0_PMAPMD DEV_PRESENT_BIT(MDIO_MMD_PMAPMD)
+#define MDIO_MMDREG_DEVS_PHYXS	DEV_PRESENT_BIT(MDIO_MMD_PHYXS)
+#define MDIO_MMDREG_DEVS_PCS	DEV_PRESENT_BIT(MDIO_MMD_PCS)
+#define MDIO_MMDREG_DEVS_PMAPMD	DEV_PRESENT_BIT(MDIO_MMD_PMAPMD)
 
 /* Bits in MMDREG_STAT2 */
 #define MDIO_MMDREG_STAT2_PRESENT_VAL	(2)

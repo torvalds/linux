@@ -19,9 +19,9 @@
 
 /* We expect these MMDs to be in the package */
 /* AN not here as mdio_check_mmds() requires STAT2 support */
-#define TENXPRESS_REQUIRED_DEVS (MDIO_MMDREG_DEVS0_PMAPMD | \
-				 MDIO_MMDREG_DEVS0_PCS    | \
-				 MDIO_MMDREG_DEVS0_PHYXS)
+#define TENXPRESS_REQUIRED_DEVS (MDIO_MMDREG_DEVS_PMAPMD	| \
+				 MDIO_MMDREG_DEVS_PCS		| \
+				 MDIO_MMDREG_DEVS_PHYXS)
 
 #define TENXPRESS_LOOPBACKS ((1 << LOOPBACK_PHYXS) |	\
 			     (1 << LOOPBACK_PCS) |	\

@@ -121,16 +121,18 @@ int mdio_clause45_wait_reset_mmds(struct efx_nic *efx,
 int mdio_clause45_check_mmds(struct efx_nic *efx,
 			     unsigned int mmd_mask, unsigned int fatal_mask)
 {
-	int devices, mmd = 0;
-	int probe_mmd;
+	u32 devices;
+	int mmd = 0, probe_mmd;
 
 	/* Historically we have probed the PHYXS to find out what devices are
 	 * present,but that doesn't work so well if the PHYXS isn't expected
 	 * to exist, if so just find the first item in the list supplied. */
-	probe_mmd = (mmd_mask & MDIO_MMDREG_DEVS0_PHYXS) ? MDIO_MMD_PHYXS :
+	probe_mmd = (mmd_mask & MDIO_MMDREG_DEVS_PHYXS) ? MDIO_MMD_PHYXS :
 	    __ffs(mmd_mask);
-	devices = mdio_clause45_read(efx, efx->mii.phy_id,
-				     probe_mmd, MDIO_MMDREG_DEVS0);
+	devices = (mdio_clause45_read(efx, efx->mii.phy_id,
+				      probe_mmd, MDIO_MMDREG_DEVS0) |
+		   mdio_clause45_read(efx, efx->mii.phy_id,
+				      probe_mmd, MDIO_MMDREG_DEVS1) << 16);
 
 	/* Check all the expected MMDs are present */
 	if (devices < 0) {
@@ -175,14 +177,14 @@ bool mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 	else if (efx_phy_mode_disabled(efx->phy_mode))
 		return false;
 	else if (efx->loopback_mode == LOOPBACK_PHYXS)
-		mmd_mask &= ~(MDIO_MMDREG_DEVS0_PHYXS |
-			      MDIO_MMDREG_DEVS0_PCS |
-			      MDIO_MMDREG_DEVS0_PMAPMD);
+		mmd_mask &= ~(MDIO_MMDREG_DEVS_PHYXS |
+			      MDIO_MMDREG_DEVS_PCS |
+			      MDIO_MMDREG_DEVS_PMAPMD);
 	else if (efx->loopback_mode == LOOPBACK_PCS)
-		mmd_mask &= ~(MDIO_MMDREG_DEVS0_PCS |
-			      MDIO_MMDREG_DEVS0_PMAPMD);
+		mmd_mask &= ~(MDIO_MMDREG_DEVS_PCS |
+			      MDIO_MMDREG_DEVS_PMAPMD);
 	else if (efx->loopback_mode == LOOPBACK_PMAPMD)
-		mmd_mask &= ~MDIO_MMDREG_DEVS0_PMAPMD;
+		mmd_mask &= ~MDIO_MMDREG_DEVS_PMAPMD;
 
 	while (mmd_mask) {
 		if (mmd_mask & 1) {
