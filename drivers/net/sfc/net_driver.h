@@ -511,6 +511,35 @@ enum efx_mac_type {
 	EFX_XMAC = 2,
 };
 
+static inline unsigned int efx_fc_advertise(enum efx_fc_type wanted_fc)
+{
+	unsigned int adv = 0;
+	if (wanted_fc & EFX_FC_RX)
+		adv = ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+	if (wanted_fc & EFX_FC_TX)
+		adv ^= ADVERTISE_PAUSE_ASYM;
+	return adv;
+}
+
+static inline enum efx_fc_type efx_fc_resolve(enum efx_fc_type wanted_fc,
+					      unsigned int lpa)
+{
+	unsigned int adv = efx_fc_advertise(wanted_fc);
+
+	if (!(wanted_fc & EFX_FC_AUTO))
+		return wanted_fc;
+
+	if (adv & lpa & ADVERTISE_PAUSE_CAP)
+		return EFX_FC_RX | EFX_FC_TX;
+	if (adv & lpa & ADVERTISE_PAUSE_ASYM) {
+		if (adv & ADVERTISE_PAUSE_CAP)
+			return EFX_FC_RX;
+		if (lpa & ADVERTISE_PAUSE_CAP)
+			return EFX_FC_TX;
+	}
+	return 0;
+}
+
 /**
  * struct efx_mac_operations - Efx MAC operations table
  * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
@@ -533,6 +562,8 @@ struct efx_mac_operations {
  * @check_hw: Check hardware
  * @get_settings: Get ethtool settings. Serialised by the mac_lock.
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
+ * @set_xnp_advertise: Set abilities advertised in Extended Next Page
+ *	(only needed where AN bit is set in mmds)
  * @mmds: MMD presence mask
  * @loopbacks: Supported loopback modes mask
  */
@@ -548,6 +579,7 @@ struct efx_phy_operations {
 			      struct ethtool_cmd *ecmd);
 	int (*set_settings) (struct efx_nic *efx,
 			     struct ethtool_cmd *ecmd);
+	bool (*set_xnp_advertise) (struct efx_nic *efx, u32);
 	int mmds;
 	unsigned loopbacks;
 };
@@ -724,11 +756,12 @@ union efx_multicast_hash {
  * @mac_up: MAC link state
  * @link_up: Link status
  * @link_fd: Link is full duplex
+ * @link_fc: Actualy flow control flags
  * @link_speed: Link speed (Mbps)
  * @n_link_state_changes: Number of times the link has changed state
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
- * @flow_control: Flow control flags - separate RX/TX so can't use link_options
+ * @wanted_fc: Wanted flow control flags
  * @reconfigure_work: work item for dealing with PHY events
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
@@ -805,12 +838,13 @@ struct efx_nic {
 	bool mac_up;
 	bool link_up;
 	bool link_fd;
+	enum efx_fc_type link_fc;
 	unsigned int link_speed;
 	unsigned int n_link_state_changes;
 
 	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
-	enum efx_fc_type flow_control;
+	enum efx_fc_type wanted_fc;
 	struct work_struct reconfigure_work;
 
 	atomic_t rx_reset;

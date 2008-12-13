@@ -142,7 +142,7 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 {
 	unsigned int max_frame_len;
 	efx_oword_t reg;
-	bool rx_fc = !!(efx->flow_control & EFX_FC_RX);
+	bool rx_fc = !!(efx->link_fc & EFX_FC_RX);
 
 	/* Configure MAC  - cut-thru mode is hard wired on */
 	EFX_POPULATE_DWORD_3(reg,

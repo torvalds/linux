@@ -1998,7 +1998,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	/* Transmission of pause frames when RX crosses the threshold is
 	 * covered by RX_XOFF_MAC_EN and XM_TX_CFG_REG:XM_FCNTL.
 	 * Action on receipt of pause frames is controller by XM_DIS_FCNTL */
-	tx_fc = !!(efx->flow_control & EFX_FC_TX);
+	tx_fc = !!(efx->link_fc & EFX_FC_TX);
 	falcon_read(efx, &reg, RX_CFG_REG_KER);
 	EFX_SET_OWORD_FIELD_VER(efx, reg, RX_XOFF_MAC_EN, tx_fc);
 
@@ -2328,9 +2328,9 @@ int falcon_probe_port(struct efx_nic *efx)
 
 	/* Hardware flow ctrl. FalconA RX FIFO too small for pause generation */
 	if (falcon_rev(efx) >= FALCON_REV_B0)
-		efx->flow_control = EFX_FC_RX | EFX_FC_TX;
+		efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 	else
-		efx->flow_control = EFX_FC_RX;
+		efx->wanted_fc = EFX_FC_RX;
 
 	/* Allocate buffer for stats */
 	rc = falcon_alloc_buffer(efx, &efx->stats_buffer,

@@ -155,6 +155,7 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 	efx->link_up = xfp_link_ok(efx);
 	efx->link_speed = 10000;
 	efx->link_fd = true;
+	efx->link_fc = efx->wanted_fc;
 }
 
 

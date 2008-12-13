@@ -17,10 +17,10 @@
 #include "boards.h"
 
 /* We expect these MMDs to be in the package */
-/* AN not here as mdio_check_mmds() requires STAT2 support */
 #define TENXPRESS_REQUIRED_DEVS (MDIO_MMDREG_DEVS_PMAPMD	| \
 				 MDIO_MMDREG_DEVS_PCS		| \
-				 MDIO_MMDREG_DEVS_PHYXS)
+				 MDIO_MMDREG_DEVS_PHYXS		| \
+				 MDIO_MMDREG_DEVS_AN)
 
 #define TENXPRESS_LOOPBACKS ((1 << LOOPBACK_PHYXS) |	\
 			     (1 << LOOPBACK_PCS) |	\
@@ -57,6 +57,7 @@
 #define	PMA_PMD_LED_ON		(1)
 #define	PMA_PMD_LED_OFF		(2)
 #define PMA_PMD_LED_FLASH	(3)
+#define PMA_PMD_LED_MASK	3
 /* All LEDs under hardware control */
 #define PMA_PMD_LED_FULL_AUTO	(0)
 /* Green and Amber under hardware control, Red off */
@@ -242,78 +243,60 @@ unlock:
 	return rc;
 }
 
-static void tenxpress_set_bad_lp(struct efx_nic *efx, bool bad_lp)
+static void tenxpress_check_bad_lp(struct efx_nic *efx, bool link_ok)
 {
 	struct tenxpress_phy_data *pd = efx->phy_data;
+	int phy_id = efx->mii.phy_id;
+	bool bad_lp;
 	int reg;
 
+	if (link_ok) {
+		bad_lp = false;
+	} else {
+		/* Check that AN has started but not completed. */
+		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
+					 MDIO_AN_STATUS);
+		if (!(reg & (1 << MDIO_AN_STATUS_LP_AN_CAP_LBN)))
+			return; /* LP status is unknown */
+		bad_lp = !(reg & (1 << MDIO_AN_STATUS_AN_DONE_LBN));
+		if (bad_lp)
+			pd->bad_lp_tries++;
+	}
+
 	/* Nothing to do if all is well and was previously so. */
-	if (!(bad_lp || pd->bad_lp_tries))
+	if (!pd->bad_lp_tries)
 		return;
 
-	reg = mdio_clause45_read(efx, efx->mii.phy_id,
-				 MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG);
-
-	if (bad_lp)
-		pd->bad_lp_tries++;
-	else
-		pd->bad_lp_tries = 0;
-
-	if (pd->bad_lp_tries == MAX_BAD_LP_TRIES) {
-		pd->bad_lp_tries = 0;	/* Restart count */
-		reg &= ~(PMA_PMD_LED_FLASH << PMA_PMD_LED_RX_LBN);
-		reg |= (PMA_PMD_LED_FLASH << PMA_PMD_LED_RX_LBN);
-		EFX_ERR(efx, "This NIC appears to be plugged into"
-			" a port that is not 10GBASE-T capable.\n"
-			" This PHY is 10GBASE-T ONLY, so no link can"
-			" be established.\n");
-	} else {
-		reg |= (PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN);
+	/* Use the RX (red) LED as an error indicator once we've seen AN
+	 * failure several times in a row, and also log a message. */
+	if (!bad_lp || pd->bad_lp_tries == MAX_BAD_LP_TRIES) {
+		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
+					 PMA_PMD_LED_OVERR_REG);
+		reg &= ~(PMA_PMD_LED_MASK << PMA_PMD_LED_RX_LBN);
+		if (!bad_lp) {
+			reg |= PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN;
+		} else {
+			reg |= PMA_PMD_LED_FLASH << PMA_PMD_LED_RX_LBN;
+			EFX_ERR(efx, "appears to be plugged into a port"
+				" that is not 10GBASE-T capable. The PHY"
+				" supports 10GBASE-T ONLY, so no link can"
+				" be established\n");
+		}
+		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
+				    PMA_PMD_LED_OVERR_REG, reg);
+		pd->bad_lp_tries = bad_lp;
 	}
-	mdio_clause45_write(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-			    PMA_PMD_LED_OVERR_REG, reg);
 }
 
-/* Check link status and return a boolean OK value. If the link is NOT
- * OK we have a quick rummage round to see if we appear to be plugged
- * into a non-10GBT port and if so warn the user that they won't get
- * link any time soon as we are 10GBT only, unless caller specified
- * not to do this check (it isn't useful in loopback) */
-static bool tenxpress_link_ok(struct efx_nic *efx, bool check_lp)
+static bool tenxpress_link_ok(struct efx_nic *efx)
 {
-	bool ok = mdio_clause45_links_ok(efx, TENXPRESS_REQUIRED_DEVS);
-
-	if (ok) {
-		tenxpress_set_bad_lp(efx, false);
-	} else if (check_lp) {
-		/* Are we plugged into the wrong sort of link? */
-		bool bad_lp = false;
-		int phy_id = efx->mii.phy_id;
-		int an_stat = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
-						 MDIO_AN_STATUS);
-		int xphy_stat = mdio_clause45_read(efx, phy_id,
-						   MDIO_MMD_PMAPMD,
-						   PMA_PMD_XSTATUS_REG);
-		/* Are we plugged into anything that sends FLPs? If
-		 * not we can't distinguish between not being plugged
-		 * in and being plugged into a non-AN antique. The FLP
-		 * bit has the advantage of not clearing when autoneg
-		 * restarts. */
-		if (!(xphy_stat & (1 << PMA_PMD_XSTAT_FLP_LBN))) {
-			tenxpress_set_bad_lp(efx, false);
-			return ok;
-		}
-
-		/* If it can do 10GBT it must be XNP capable */
-		bad_lp = !(an_stat & (1 << MDIO_AN_STATUS_XNP_LBN));
-		if (!bad_lp && (an_stat & (1 << MDIO_AN_STATUS_PAGE_LBN))) {
-			bad_lp = !(mdio_clause45_read(efx, phy_id,
-					MDIO_MMD_AN, MDIO_AN_10GBT_STATUS) &
-					(1 << MDIO_AN_10GBT_STATUS_LP_10G_LBN));
-		}
-		tenxpress_set_bad_lp(efx, bad_lp);
-	}
-	return ok;
+	if (efx->loopback_mode == LOOPBACK_NONE)
+		return mdio_clause45_links_ok(efx, MDIO_MMDREG_DEVS_AN);
+	else
+		return mdio_clause45_links_ok(efx,
+					      MDIO_MMDREG_DEVS_PMAPMD |
+					      MDIO_MMDREG_DEVS_PCS |
+					      MDIO_MMDREG_DEVS_PHYXS);
 }
 
 static void tenxpress_phyxs_loopback(struct efx_nic *efx)
@@ -359,9 +342,10 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 
 	phy_data->loopback_mode = efx->loopback_mode;
 	phy_data->phy_mode = efx->phy_mode;
-	efx->link_up = tenxpress_link_ok(efx, false);
+	efx->link_up = tenxpress_link_ok(efx);
 	efx->link_speed = 10000;
 	efx->link_fd = true;
+	efx->link_fc = mdio_clause45_get_pause(efx);
 }
 
 static void tenxpress_phy_clear_interrupt(struct efx_nic *efx)
@@ -377,7 +361,8 @@ static int tenxpress_phy_check_hw(struct efx_nic *efx)
 	bool link_ok;
 	int rc = 0;
 
-	link_ok = tenxpress_link_ok(efx, true);
+	link_ok = tenxpress_link_ok(efx);
+	tenxpress_check_bad_lp(efx, link_ok);
 
 	if (link_ok != efx->link_up)
 		falcon_sim_phy_event(efx);
@@ -451,6 +436,27 @@ static int tenxpress_phy_test(struct efx_nic *efx)
 	return tenxpress_special_reset(efx);
 }
 
+static u32 tenxpress_get_xnp_lpa(struct efx_nic *efx)
+{
+	int phy = efx->mii.phy_id;
+	u32 lpa = 0;
+	int reg;
+
+	reg = mdio_clause45_read(efx, phy, MDIO_MMD_AN, MDIO_AN_10GBT_STATUS);
+	if (reg & (1 << MDIO_AN_10GBT_STATUS_LP_10G_LBN))
+		lpa |= ADVERTISED_10000baseT_Full;
+	return lpa;
+}
+
+static void
+tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+{
+	mdio_clause45_get_settings_ext(efx, ecmd, ADVERTISED_10000baseT_Full,
+				       tenxpress_get_xnp_lpa(efx));
+	ecmd->supported |= SUPPORTED_10000baseT_Full;
+	ecmd->advertising |= ADVERTISED_10000baseT_Full;
+}
+
 struct efx_phy_operations falcon_tenxpress_phy_ops = {
 	.macs		  = EFX_XMAC,
 	.init             = tenxpress_phy_init,
@@ -459,7 +465,7 @@ struct efx_phy_operations falcon_tenxpress_phy_ops = {
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = tenxpress_phy_clear_interrupt,
 	.test             = tenxpress_phy_test,
-	.get_settings	  = mdio_clause45_get_settings,
+	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = mdio_clause45_set_settings,
 	.mmds             = TENXPRESS_REQUIRED_DEVS,
 	.loopbacks        = TENXPRESS_LOOPBACKS,

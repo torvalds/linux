@@ -12,11 +12,13 @@
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include "net_driver.h"
+#include "workarounds.h"
 #include "selftest.h"
 #include "efx.h"
 #include "ethtool.h"
 #include "falcon.h"
 #include "spi.h"
+#include "mdio_10g.h"
 
 const char *efx_loopback_mode_names[] = {
 	[LOOPBACK_NONE]		= "NONE",
@@ -674,14 +676,51 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 				      struct ethtool_pauseparam *pause)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	enum efx_fc_type flow_control = efx->flow_control;
+	enum efx_fc_type wanted_fc;
+	bool reset;
 
-	flow_control &= ~(EFX_FC_RX | EFX_FC_TX | EFX_FC_AUTO);
-	flow_control |= pause->rx_pause ? EFX_FC_RX : 0;
-	flow_control |= pause->tx_pause ? EFX_FC_TX : 0;
-	flow_control |= pause->autoneg ? EFX_FC_AUTO : 0;
+	wanted_fc = ((pause->rx_pause ? EFX_FC_RX : 0) |
+		     (pause->tx_pause ? EFX_FC_TX : 0) |
+		     (pause->autoneg ? EFX_FC_AUTO : 0));
 
-	efx_reconfigure_port(efx);
+	if ((wanted_fc & EFX_FC_TX) && !(wanted_fc & EFX_FC_RX)) {
+		EFX_LOG(efx, "Flow control unsupported: tx ON rx OFF\n");
+		return -EINVAL;
+	}
+
+	if (!(efx->phy_op->mmds & DEV_PRESENT_BIT(MDIO_MMD_AN)) &&
+	    (wanted_fc & EFX_FC_AUTO)) {
+		EFX_LOG(efx, "PHY does not support flow control "
+			"autonegotiation\n");
+		return -EINVAL;
+	}
+
+	/* TX flow control may automatically turn itself off if the
+	 * link partner (intermittently) stops responding to pause
+	 * frames. There isn't any indication that this has happened,
+	 * so the best we do is leave it up to the user to spot this
+	 * and fix it be cycling transmit flow control on this end. */
+	reset = (wanted_fc & EFX_FC_TX) && !(efx->wanted_fc & EFX_FC_TX);
+	if (EFX_WORKAROUND_11482(efx) && reset) {
+		if (falcon_rev(efx) >= FALCON_REV_B0) {
+			/* Recover by resetting the EM block */
+			if (efx->link_up)
+				falcon_drain_tx_fifo(efx);
+		} else {
+			/* Schedule a reset to recover */
+			efx_schedule_reset(efx, RESET_TYPE_INVISIBLE);
+		}
+	}
+
+	/* Try to push the pause parameters */
+	mutex_lock(&efx->mac_lock);
+
+	efx->wanted_fc = wanted_fc;
+	mdio_clause45_set_pause(efx);
+	__efx_reconfigure_port(efx);
+
+	mutex_unlock(&efx->mac_lock);
+
 	return 0;
 }
 
@@ -690,9 +729,9 @@ static void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	pause->rx_pause = !!(efx->flow_control & EFX_FC_RX);
-	pause->tx_pause = !!(efx->flow_control & EFX_FC_TX);
-	pause->autoneg = !!(efx->flow_control & EFX_FC_AUTO);
+	pause->rx_pause = !!(efx->wanted_fc & EFX_FC_RX);
+	pause->tx_pause = !!(efx->wanted_fc & EFX_FC_TX);
+	pause->autoneg = !!(efx->wanted_fc & EFX_FC_AUTO);
 }
 
 

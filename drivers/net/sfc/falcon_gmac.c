@@ -31,8 +31,8 @@ static void falcon_reconfigure_gmac(struct efx_nic *efx)
 	efx_oword_t reg;
 
 	/* Configuration register 1 */
-	tx_fc = (efx->flow_control & EFX_FC_TX) || !efx->link_fd;
-	rx_fc = !!(efx->flow_control & EFX_FC_RX);
+	tx_fc = (efx->link_fc & EFX_FC_TX) || !efx->link_fd;
+	rx_fc = !!(efx->link_fc & EFX_FC_RX);
 	loopback = (efx->loopback_mode == LOOPBACK_GMAC);
 	bytemode = (efx->link_speed == 1000);
 

@@ -81,6 +81,17 @@
 #define MDIO_MMDREG_DEVS_PHYXS	DEV_PRESENT_BIT(MDIO_MMD_PHYXS)
 #define MDIO_MMDREG_DEVS_PCS	DEV_PRESENT_BIT(MDIO_MMD_PCS)
 #define MDIO_MMDREG_DEVS_PMAPMD	DEV_PRESENT_BIT(MDIO_MMD_PMAPMD)
+#define MDIO_MMDREG_DEVS_AN	DEV_PRESENT_BIT(MDIO_MMD_AN)
+
+/* Bits in MMDREG_SPEED */
+#define MDIO_MMDREG_SPEED_10G_LBN	0
+#define MDIO_MMDREG_SPEED_10G_WIDTH	1
+#define MDIO_MMDREG_SPEED_1000M_LBN	4
+#define MDIO_MMDREG_SPEED_1000M_WIDTH	1
+#define MDIO_MMDREG_SPEED_100M_LBN	5
+#define MDIO_MMDREG_SPEED_100M_WIDTH	1
+#define MDIO_MMDREG_SPEED_10M_LBN	6
+#define MDIO_MMDREG_SPEED_10M_WIDTH	1
 
 /* Bits in MMDREG_STAT2 */
 #define MDIO_MMDREG_STAT2_PRESENT_VAL	(2)
@@ -119,12 +130,20 @@
 #define MDIO_PHYXS_LANE_ALIGNED_LBN	(12)
 
 /* AN registers */
+#define MDIO_AN_CTRL_XNP_LBN		13
 #define MDIO_AN_STATUS			(1)
 #define MDIO_AN_STATUS_XNP_LBN		(7)
 #define MDIO_AN_STATUS_PAGE_LBN		(6)
 #define MDIO_AN_STATUS_AN_DONE_LBN	(5)
 #define MDIO_AN_STATUS_LP_AN_CAP_LBN	(0)
 
+#define MDIO_AN_ADVERTISE		16
+#define MDIO_AN_ADVERTISE_XNP_LBN	12
+#define MDIO_AN_LPA			19
+#define MDIO_AN_XNP			22
+#define MDIO_AN_LPA_XNP			25
+
+#define MDIO_AN_10GBT_ADVERTISE		32
 #define MDIO_AN_10GBT_STATUS		(33)
 #define MDIO_AN_10GBT_STATUS_MS_FLT_LBN (15) /* MASTER/SLAVE config fault */
 #define MDIO_AN_10GBT_STATUS_MS_LBN     (14) /* MASTER/SLAVE config */
@@ -251,9 +270,22 @@ extern void mdio_clause45_set_mmds_lpower(struct efx_nic *efx,
 extern void mdio_clause45_get_settings(struct efx_nic *efx,
 				       struct ethtool_cmd *ecmd);
 
+/* Read (some of) the PHY settings over MDIO */
+extern void
+mdio_clause45_get_settings_ext(struct efx_nic *efx, struct ethtool_cmd *ecmd,
+			       u32 xnp, u32 xnp_lpa);
+
 /* Set (some of) the PHY settings over MDIO */
 extern int mdio_clause45_set_settings(struct efx_nic *efx,
 				      struct ethtool_cmd *ecmd);
+
+/* Set pause parameters to be advertised through AN (if available) */
+extern void mdio_clause45_set_pause(struct efx_nic *efx);
+
+/* Get pause parameters from AN if available (otherwise return
+ * requested pause parameters)
+ */
+enum efx_fc_type mdio_clause45_get_pause(struct efx_nic *efx);
 
 /* Wait for specified MMDs to exit reset within a timeout */
 extern int mdio_clause45_wait_reset_mmds(struct efx_nic *efx,
