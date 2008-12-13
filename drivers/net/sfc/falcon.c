@@ -2929,10 +2929,10 @@ int falcon_probe_nic(struct efx_nic *efx)
 		goto fail5;
 
 	/* Initialise I2C adapter */
- 	efx->i2c_adap.owner = THIS_MODULE;
+	efx->i2c_adap.owner = THIS_MODULE;
 	nic_data->i2c_data = falcon_i2c_bit_operations;
 	nic_data->i2c_data.data = efx;
- 	efx->i2c_adap.algo_data = &nic_data->i2c_data;
+	efx->i2c_adap.algo_data = &nic_data->i2c_data;
 	efx->i2c_adap.dev.parent = &efx->pci_dev->dev;
 	strlcpy(efx->i2c_adap.name, "SFC4000 GPIO", sizeof(efx->i2c_adap.name));
 	rc = i2c_bit_add_bus(&efx->i2c_adap);
