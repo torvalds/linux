@@ -287,6 +287,7 @@ static const char *trace_options[] = {
 	"annotate",
 	"userstacktrace",
 	"sym-userobj",
+	"printk-msg-only",
 	NULL
 };
 
@@ -2265,6 +2266,25 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	return TRACE_TYPE_HANDLED;
 }
 
+static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry = iter->ent;
+	struct print_entry *field;
+	int ret;
+
+	trace_assign_type(field, entry);
+
+	ret = trace_seq_printf(s, field->buf);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	if (entry->flags & TRACE_FLAG_CONT)
+		trace_seq_print_cont(s, iter);
+
+	return TRACE_TYPE_HANDLED;
+}
+
 static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -2344,6 +2364,11 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 		if (ret != TRACE_TYPE_UNHANDLED)
 			return ret;
 	}
+
+	if (iter->ent->type == TRACE_PRINT &&
+			trace_flags & TRACE_ITER_PRINTK &&
+			trace_flags & TRACE_ITER_PRINTK_MSGONLY)
+		return print_printk_msg_only(iter);
 
 	if (trace_flags & TRACE_ITER_BIN)
 		return print_bin_fmt(iter);
