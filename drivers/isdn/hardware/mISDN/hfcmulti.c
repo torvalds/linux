@@ -887,7 +887,7 @@ vpm_echocan_off(struct hfc_multi *hc, int ch)
 static inline void
 hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 {
-	struct hfc_multi *hc, *next, *pcmmaster = 0;
+	struct hfc_multi *hc, *next, *pcmmaster = NULL;
 	u_int *plx_acc_32, pv;
 	u_long flags;
 
