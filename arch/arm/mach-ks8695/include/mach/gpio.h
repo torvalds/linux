@@ -36,11 +36,6 @@
 extern int ks8695_gpio_interrupt(unsigned int pin, unsigned int type);
 
 /*
- * Map GPIO line to IRQ number.
- */
-extern int gpio_to_irq(unsigned int pin);
-
-/*
  * Map IRQ number to GPIO line.
  */
 extern int irq_to_gpio(unsigned int irq);
@@ -54,6 +49,7 @@ extern int irq_to_gpio(unsigned int irq);
  */
 #define gpio_get_value __gpio_get_value
 #define gpio_set_value __gpio_set_value
+#define gpio_to_irq __gpio_to_irq
 
 /* Register the GPIOs */
 extern void ks8695_register_gpios(void);
