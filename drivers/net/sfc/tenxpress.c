@@ -348,50 +348,34 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 	efx->link_fc = mdio_clause45_get_pause(efx);
 }
 
-static void tenxpress_phy_clear_interrupt(struct efx_nic *efx)
-{
-	/* Nothing done here - LASI interrupts aren't reliable so poll  */
-}
-
-
 /* Poll PHY for interrupt */
-static int tenxpress_phy_check_hw(struct efx_nic *efx)
+static void tenxpress_phy_poll(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	bool link_ok;
-	int rc = 0;
+	bool change = false, link_ok;
+	unsigned link_fc;
 
 	link_ok = tenxpress_link_ok(efx);
+	if (link_ok != efx->link_up) {
+		change = true;
+	} else {
+		link_fc = mdio_clause45_get_pause(efx);
+		if (link_fc != efx->link_fc)
+			change = true;
+	}
 	tenxpress_check_bad_lp(efx, link_ok);
 
-	if (link_ok != efx->link_up)
+	if (change)
 		falcon_sim_phy_event(efx);
 
 	if (phy_data->phy_mode != PHY_MODE_NORMAL)
-		return 0;
+		return;
 
 	if (atomic_read(&phy_data->bad_crc_count) > crc_error_reset_threshold) {
 		EFX_ERR(efx, "Resetting XAUI due to too many CRC errors\n");
 		falcon_reset_xaui(efx);
 		atomic_set(&phy_data->bad_crc_count, 0);
 	}
-
-	rc = efx->board_info.monitor(efx);
-	if (rc) {
-		EFX_ERR(efx, "Board sensor %s; shutting down PHY\n",
-			(rc == -ERANGE) ? "reported fault" : "failed");
-		if (efx->phy_mode & PHY_MODE_OFF) {
-			/* Assume that board has shut PHY off */
-			phy_data->phy_mode = PHY_MODE_OFF;
-		} else {
-			efx->phy_mode |= PHY_MODE_LOW_POWER;
-			mdio_clause45_set_mmds_lpower(efx, true,
-						      efx->phy_op->mmds);
-			phy_data->phy_mode |= PHY_MODE_LOW_POWER;
-		}
-	}
-
-	return rc;
 }
 
 static void tenxpress_phy_fini(struct efx_nic *efx)
@@ -461,9 +445,9 @@ struct efx_phy_operations falcon_tenxpress_phy_ops = {
 	.macs		  = EFX_XMAC,
 	.init             = tenxpress_phy_init,
 	.reconfigure      = tenxpress_phy_reconfigure,
-	.check_hw         = tenxpress_phy_check_hw,
+	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
-	.clear_interrupt  = tenxpress_phy_clear_interrupt,
+	.clear_interrupt  = efx_port_dummy_op_void,
 	.test             = tenxpress_phy_test,
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = mdio_clause45_set_settings,

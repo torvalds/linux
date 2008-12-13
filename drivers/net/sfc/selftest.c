@@ -594,12 +594,14 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct ethtool_cmd ecmd,
 		efx->loopback_mode = mode;
 		efx_reconfigure_port(efx);
 
-		/* Wait for the PHY to signal the link is up */
+		/* Wait for the PHY to signal the link is up. Interrupts
+		 * are enabled for PHY's using LASI, otherwise we poll()
+		 * quickly */
 		count = 0;
 		do {
 			struct efx_channel *channel = &efx->channel[0];
 
-			efx->mac_op->check_hw(efx);
+			efx->phy_op->poll(efx);
 			schedule_timeout_uninterruptible(HZ / 10);
 			if (channel->work_pending)
 				efx_process_channel_now(channel);

@@ -119,24 +119,12 @@ static int xfp_link_ok(struct efx_nic *efx)
 	return mdio_clause45_links_ok(efx, XFP_REQUIRED_DEVS);
 }
 
-static int xfp_phy_check_hw(struct efx_nic *efx)
+static void xfp_phy_poll(struct efx_nic *efx)
 {
-	int rc = 0;
 	int link_up = xfp_link_ok(efx);
 	/* Simulate a PHY event if link state has changed */
 	if (link_up != efx->link_up)
 		falcon_sim_phy_event(efx);
-
-	rc = efx->board_info.monitor(efx);
-	if (rc) {
-		struct xfp_phy_data *phy_data = efx->phy_data;
-		EFX_ERR(efx, "XFP sensor alert; putting PHY into low power\n");
-		efx->phy_mode |= PHY_MODE_LOW_POWER;
-		mdio_clause45_set_mmds_lpower(efx, 1, XFP_REQUIRED_DEVS);
-		phy_data->phy_mode |= PHY_MODE_LOW_POWER;
-	}
-
-	return rc;
 }
 
 static void xfp_phy_reconfigure(struct efx_nic *efx)
@@ -173,7 +161,7 @@ struct efx_phy_operations falcon_xfp_phy_ops = {
 	.macs		 = EFX_XMAC,
 	.init            = xfp_phy_init,
 	.reconfigure     = xfp_phy_reconfigure,
-	.check_hw        = xfp_phy_check_hw,
+	.poll            = xfp_phy_poll,
 	.fini            = xfp_phy_fini,
 	.clear_interrupt = xfp_phy_clear_interrupt,
 	.get_settings    = mdio_clause45_get_settings,

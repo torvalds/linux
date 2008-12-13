@@ -910,22 +910,20 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 				       efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
-	bool is_phy_event = false, handled = false;
+	bool handled = false;
 
-	/* Check for interrupt on either port.  Some boards have a
-	 * single PHY wired to the interrupt line for port 1. */
 	if (EFX_QWORD_FIELD(*event, G_PHY0_INTR) ||
 	    EFX_QWORD_FIELD(*event, G_PHY1_INTR) ||
-	    EFX_QWORD_FIELD(*event, XG_PHY_INTR))
-		is_phy_event = true;
+	    EFX_QWORD_FIELD(*event, XG_PHY_INTR) ||
+	    EFX_QWORD_FIELD(*event, XFP_PHY_INTR)) {
+		efx->phy_op->clear_interrupt(efx);
+		queue_work(efx->workqueue, &efx->phy_work);
+		handled = true;
+	}
 
 	if ((falcon_rev(efx) >= FALCON_REV_B0) &&
-	    EFX_QWORD_FIELD(*event, XG_MNT_INTR_B0))
-		is_phy_event = true;
-
-	if (is_phy_event) {
-		efx->phy_op->clear_interrupt(efx);
-		queue_work(efx->workqueue, &efx->reconfigure_work);
+	    EFX_QWORD_FIELD(*event, XG_MNT_INTR_B0)) {
+		queue_work(efx->workqueue, &efx->mac_work);
 		handled = true;
 	}
 

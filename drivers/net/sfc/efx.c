@@ -612,14 +612,23 @@ void efx_reconfigure_port(struct efx_nic *efx)
 /* Asynchronous efx_reconfigure_port work item. To speed up efx_flush_all()
  * we don't efx_reconfigure_port() if the port is disabled. Care is taken
  * in efx_stop_all() and efx_start_port() to prevent PHY events being lost */
-static void efx_reconfigure_work(struct work_struct *data)
+static void efx_phy_work(struct work_struct *data)
 {
-	struct efx_nic *efx = container_of(data, struct efx_nic,
-					   reconfigure_work);
+	struct efx_nic *efx = container_of(data, struct efx_nic, phy_work);
 
 	mutex_lock(&efx->mac_lock);
 	if (efx->port_enabled)
 		__efx_reconfigure_port(efx);
+	mutex_unlock(&efx->mac_lock);
+}
+
+static void efx_mac_work(struct work_struct *data)
+{
+	struct efx_nic *efx = container_of(data, struct efx_nic, mac_work);
+
+	mutex_lock(&efx->mac_lock);
+	if (efx->port_enabled)
+		efx->mac_op->irq(efx);
 	mutex_unlock(&efx->mac_lock);
 }
 
@@ -688,7 +697,7 @@ fail:
 
 /* Allow efx_reconfigure_port() to be scheduled, and close the window
  * between efx_stop_port and efx_flush_all whereby a previously scheduled
- * efx_reconfigure_port() may have been cancelled */
+ * efx_phy_work()/efx_mac_work() may have been cancelled */
 static void efx_start_port(struct efx_nic *efx)
 {
 	EFX_LOG(efx, "start port\n");
@@ -697,13 +706,14 @@ static void efx_start_port(struct efx_nic *efx)
 	mutex_lock(&efx->mac_lock);
 	efx->port_enabled = true;
 	__efx_reconfigure_port(efx);
+	efx->mac_op->irq(efx);
 	mutex_unlock(&efx->mac_lock);
 }
 
-/* Prevent efx_reconfigure_work and efx_monitor() from executing, and
- * efx_set_multicast_list() from scheduling efx_reconfigure_work.
- * efx_reconfigure_work can still be scheduled via NAPI processing
- * until efx_flush_all() is called */
+/* Prevent efx_phy_work, efx_mac_work, and efx_monitor() from executing,
+ * and efx_set_multicast_list() from scheduling efx_phy_work. efx_phy_work
+ * and efx_mac_work may still be scheduled via NAPI processing until
+ * efx_flush_all() is called */
 static void efx_stop_port(struct efx_nic *efx)
 {
 	EFX_LOG(efx, "stop port\n");
@@ -1094,7 +1104,8 @@ static void efx_flush_all(struct efx_nic *efx)
 		cancel_delayed_work_sync(&rx_queue->work);
 
 	/* Stop scheduled port reconfigurations */
-	cancel_work_sync(&efx->reconfigure_work);
+	cancel_work_sync(&efx->mac_work);
+	cancel_work_sync(&efx->phy_work);
 
 }
 
@@ -1131,7 +1142,7 @@ static void efx_stop_all(struct efx_nic *efx)
 	 * window to loose phy events */
 	efx_stop_port(efx);
 
-	/* Flush reconfigure_work, refill_workqueue, monitor_work */
+	/* Flush efx_phy_work, efx_mac_work, refill_workqueue, monitor_work */
 	efx_flush_all(efx);
 
 	/* Isolate the MAC from the TX and RX engines, so that queue
@@ -1203,24 +1214,31 @@ static void efx_monitor(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic,
 					   monitor_work.work);
+	int rc;
 
 	EFX_TRACE(efx, "hardware monitor executing on CPU %d\n",
 		  raw_smp_processor_id());
 
-
 	/* If the mac_lock is already held then it is likely a port
 	 * reconfiguration is already in place, which will likely do
 	 * most of the work of check_hw() anyway. */
-	if (!mutex_trylock(&efx->mac_lock)) {
-		queue_delayed_work(efx->workqueue, &efx->monitor_work,
-				   efx_monitor_interval);
-		return;
+	if (!mutex_trylock(&efx->mac_lock))
+		goto out_requeue;
+	if (!efx->port_enabled)
+		goto out_unlock;
+	rc = efx->board_info.monitor(efx);
+	if (rc) {
+		EFX_ERR(efx, "Board sensor %s; shutting down PHY\n",
+			(rc == -ERANGE) ? "reported fault" : "failed");
+		efx->phy_mode |= PHY_MODE_LOW_POWER;
+		falcon_sim_phy_event(efx);
 	}
+	efx->phy_op->poll(efx);
+	efx->mac_op->poll(efx);
 
-	if (efx->port_enabled)
-		efx->mac_op->check_hw(efx);
+out_unlock:
 	mutex_unlock(&efx->mac_lock);
-
+out_requeue:
 	queue_delayed_work(efx->workqueue, &efx->monitor_work,
 			   efx_monitor_interval);
 }
@@ -1477,7 +1495,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 		return;
 
 	if (changed)
-		queue_work(efx->workqueue, &efx->reconfigure_work);
+		queue_work(efx->workqueue, &efx->phy_work);
 
 	/* Create and activate new global multicast hash table */
 	falcon_set_multicast_hash(efx);
@@ -1800,12 +1818,14 @@ void efx_port_dummy_op_blink(struct efx_nic *efx, bool blink) {}
 
 static struct efx_mac_operations efx_dummy_mac_operations = {
 	.reconfigure	= efx_port_dummy_op_void,
+	.poll		= efx_port_dummy_op_void,
+	.irq		= efx_port_dummy_op_void,
 };
 
 static struct efx_phy_operations efx_dummy_phy_operations = {
 	.init		 = efx_port_dummy_op_int,
 	.reconfigure	 = efx_port_dummy_op_void,
-	.check_hw        = efx_port_dummy_op_int,
+	.poll		 = efx_port_dummy_op_void,
 	.fini		 = efx_port_dummy_op_void,
 	.clear_interrupt = efx_port_dummy_op_void,
 };
@@ -1857,7 +1877,8 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	efx->mac_op = &efx_dummy_mac_operations;
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mii.dev = net_dev;
-	INIT_WORK(&efx->reconfigure_work, efx_reconfigure_work);
+	INIT_WORK(&efx->phy_work, efx_phy_work);
+	INIT_WORK(&efx->mac_work, efx_mac_work);
 	atomic_set(&efx->netif_stop_count, 1);
 
 	for (i = 0; i < EFX_MAX_CHANNELS; i++) {

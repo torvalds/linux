@@ -544,12 +544,14 @@ static inline enum efx_fc_type efx_fc_resolve(enum efx_fc_type wanted_fc,
  * struct efx_mac_operations - Efx MAC operations table
  * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
  * @update_stats: Update statistics
- * @check_hw: Check hardware. Serialised by the mac_lock
+ * @irq: Hardware MAC event callback. Serialised by the mac_lock
+ * @poll: Poll for hardware state. Serialised by the mac_lock
  */
 struct efx_mac_operations {
 	void (*reconfigure) (struct efx_nic *efx);
 	void (*update_stats) (struct efx_nic *efx);
-	int (*check_hw) (struct efx_nic *efx);
+	void (*irq) (struct efx_nic *efx);
+	void (*poll) (struct efx_nic *efx);
 };
 
 /**
@@ -559,7 +561,7 @@ struct efx_mac_operations {
  * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
  * @clear_interrupt: Clear down interrupt
  * @blink: Blink LEDs
- * @check_hw: Check hardware
+ * @poll: Poll for hardware state. Serialised by the mac_lock.
  * @get_settings: Get ethtool settings. Serialised by the mac_lock.
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
  * @set_xnp_advertise: Set abilities advertised in Extended Next Page
@@ -573,7 +575,7 @@ struct efx_phy_operations {
 	void (*fini) (struct efx_nic *efx);
 	void (*reconfigure) (struct efx_nic *efx);
 	void (*clear_interrupt) (struct efx_nic *efx);
-	int (*check_hw) (struct efx_nic *efx);
+	void (*poll) (struct efx_nic *efx);
 	int (*test) (struct efx_nic *efx);
 	void (*get_settings) (struct efx_nic *efx,
 			      struct ethtool_cmd *ecmd);
@@ -728,10 +730,10 @@ union efx_multicast_hash {
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
  *	@port_inhibited, efx_monitor() and efx_reconfigure_port()
  * @port_enabled: Port enabled indicator.
- *	Serialises efx_stop_all(), efx_start_all() and efx_monitor() and
- *	efx_reconfigure_work with kernel interfaces. Safe to read under any
- *	one of the rtnl_lock, mac_lock, or netif_tx_lock, but all three must
- *	be held to modify it.
+ *	Serialises efx_stop_all(), efx_start_all(), efx_monitor(),
+ *	efx_phy_work(), and efx_mac_work() with kernel interfaces. Safe to read
+ *	under any one of the rtnl_lock, mac_lock, or netif_tx_lock, but all
+ *	three must be held to modify it.
  * @port_inhibited: If set, the netif_carrier is always off. Hold the mac_lock
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
@@ -762,7 +764,8 @@ union efx_multicast_hash {
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
  * @wanted_fc: Wanted flow control flags
- * @reconfigure_work: work item for dealing with PHY events
+ * @phy_work: work item for dealing with PHY events
+ * @mac_work: work item for dealing with MAC events
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
@@ -810,6 +813,7 @@ struct efx_nic {
 	struct falcon_nic_data *nic_data;
 
 	struct mutex mac_lock;
+	struct work_struct mac_work;
 	bool port_enabled;
 	bool port_inhibited;
 
@@ -830,6 +834,7 @@ struct efx_nic {
 
 	enum phy_type phy_type;
 	spinlock_t phy_lock;
+	struct work_struct phy_work;
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mii_if_info mii;
@@ -845,7 +850,6 @@ struct efx_nic {
 	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
 	enum efx_fc_type wanted_fc;
-	struct work_struct reconfigure_work;
 
 	atomic_t rx_reset;
 	enum efx_loopback_mode loopback_mode;

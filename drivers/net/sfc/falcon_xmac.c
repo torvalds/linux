@@ -342,33 +342,35 @@ static void falcon_update_stats_xmac(struct efx_nic *efx)
 		 mac_stats->rx_control * 64);
 }
 
-static int falcon_check_xmac(struct efx_nic *efx)
+static void falcon_xmac_irq(struct efx_nic *efx)
 {
-	bool xaui_link_ok;
-	int rc;
+	/* The XGMII link has a transient fault, which indicates either:
+	 *   - there's a transient xgmii fault
+	 *   - falcon's end of the xaui link may need a kick
+	 *   - the wire-side link may have gone down, but the lasi/poll()
+	 *     hasn't noticed yet.
+	 *
+	 * We only want to even bother polling XAUI if we're confident it's
+	 * not (1) or (3). In both cases, the only reliable way to spot this
+	 * is to wait a bit. We do this here by forcing the mac link state
+	 * to down, and waiting for the mac poll to come round and check
+	 */
+	efx->mac_up = false;
+}
 
-	if ((efx->loopback_mode == LOOPBACK_NETWORK) ||
-	    efx_phy_mode_disabled(efx->phy_mode))
-		return 0;
+static void falcon_poll_xmac(struct efx_nic *efx)
+{
+	if (!EFX_WORKAROUND_5147(efx) || !efx->link_up || efx->mac_up)
+		return;
 
 	falcon_mask_status_intr(efx, false);
-	xaui_link_ok = falcon_xaui_link_ok(efx);
-
-	if (EFX_WORKAROUND_5147(efx) && !xaui_link_ok)
-		falcon_reset_xaui(efx);
-
-	/* Call the PHY check_hw routine */
-	rc = efx->phy_op->check_hw(efx);
-
-	/* Unmask interrupt if everything was (and still is) ok */
-	if (xaui_link_ok && efx->link_up)
-		falcon_mask_status_intr(efx, true);
-
-	return rc;
+	falcon_check_xaui_link_up(efx, 1);
+	falcon_mask_status_intr(efx, true);
 }
 
 struct efx_mac_operations falcon_xmac_operations = {
 	.reconfigure	= falcon_reconfigure_xmac,
 	.update_stats	= falcon_update_stats_xmac,
-	.check_hw	= falcon_check_xmac,
+	.irq		= falcon_xmac_irq,
+	.poll		= falcon_poll_xmac,
 };
