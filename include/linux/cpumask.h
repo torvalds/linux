@@ -510,9 +510,6 @@ extern cpumask_t cpu_active_map;
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD	\
 }
 
-/* This produces more efficient code. */
-#define nr_cpumask_bits	NR_CPUS
-
 #else /* NR_CPUS > BITS_PER_LONG */
 
 #define CPU_BITS_ALL						\
@@ -520,9 +517,15 @@ extern cpumask_t cpu_active_map;
 	[0 ... BITS_TO_LONGS(NR_CPUS)-2] = ~0UL,		\
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD		\
 }
-
-#define nr_cpumask_bits	nr_cpu_ids
 #endif /* NR_CPUS > BITS_PER_LONG */
+
+#ifdef CONFIG_CPUMASK_OFFSTACK
+/* Assuming NR_CPUS is huge, a runtime limit is more efficient.  Also,
+ * not all bits may be allocated. */
+#define nr_cpumask_bits	nr_cpu_ids
+#else
+#define nr_cpumask_bits	NR_CPUS
+#endif
 
 /* verify cpu argument to cpumask_* operators */
 static inline unsigned int cpumask_check(unsigned int cpu)
