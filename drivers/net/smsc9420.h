@@ -43,6 +43,8 @@
 
 #define LAN_REGISTER_EXTENT		(0x400)
 
+#define SMSC9420_EEPROM_SIZE		((u32)11)
+
 #define FLOW_CTRL_TX			(1)
 #define FLOW_CTRL_RX			(2)
 
@@ -238,6 +240,7 @@
 #define GPIO_CFG_LED_3_			(0x40000000)
 #define GPIO_CFG_LED_2_			(0x20000000)
 #define GPIO_CFG_LED_1_			(0x10000000)
+#define GPIO_CFG_EEPR_EN_		(0x00700000)
 
 #define GPT_CFG				(0xD4)
 #define GPT_CFG_TIMER_EN_		(0x20000000)
