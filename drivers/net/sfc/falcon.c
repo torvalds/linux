@@ -2870,15 +2870,6 @@ int falcon_init_nic(struct efx_nic *efx)
 	unsigned thresh;
 	int rc;
 
-	/* Set up the address region register. This is only needed
-	 * for the B0 FPGA, but since we are just pushing in the
-	 * reset defaults this may as well be unconditional. */
-	EFX_POPULATE_OWORD_4(temp, ADR_REGION0, 0,
-				   ADR_REGION1, (1 << 16),
-				   ADR_REGION2, (2 << 16),
-				   ADR_REGION3, (3 << 16));
-	falcon_write(efx, &temp, ADR_REGION_REG_KER);
-
 	/* Use on-chip SRAM */
 	falcon_read(efx, &temp, NIC_STAT_REG);
 	EFX_SET_OWORD_FIELD(temp, ONCHIP_SRAM, 1);
