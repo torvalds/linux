@@ -2973,7 +2973,7 @@ alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 	return 0;
 }
 
-static void ohci_set_hw_config_rom(struct hpsb_host *host, quadlet_t *config_rom)
+static void ohci_set_hw_config_rom(struct hpsb_host *host, __be32 *config_rom)
 {
 	struct ti_ohci *ohci = host->hostdata;
 

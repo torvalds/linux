@@ -181,7 +181,7 @@ struct csr1212_csr_rom_cache {
 struct csr1212_csr {
 	size_t bus_info_len;	/* bus info block length in bytes */
 	size_t crc_len;		/* crc length in bytes */
-	u32 *bus_info_data;	/* bus info data incl bus name and EUI */
+	__be32 *bus_info_data;	/* bus info data incl bus name and EUI */
 
 	void *private;		/* private, bus specific data */
 	struct csr1212_bus_ops *ops;
