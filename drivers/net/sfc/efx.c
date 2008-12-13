@@ -129,6 +129,10 @@ static unsigned int rss_cpus;
 module_param(rss_cpus, uint, 0444);
 MODULE_PARM_DESC(rss_cpus, "Number of CPUs to use for Receive-Side Scaling");
 
+static int phy_flash_cfg;
+module_param(phy_flash_cfg, int, 0644);
+MODULE_PARM_DESC(phy_flash_cfg, "Set PHYs into reflash mode initially");
+
 /**************************************************************************
  *
  * Utility functions and prototypes
@@ -608,6 +612,9 @@ static int efx_probe_port(struct efx_nic *efx)
 	rc = falcon_probe_port(efx);
 	if (rc)
 		goto err;
+
+	if (phy_flash_cfg)
+		efx->phy_mode = PHY_MODE_SPECIAL;
 
 	/* Sanity check MAC address */
 	if (is_valid_ether_addr(efx->mac_address)) {
