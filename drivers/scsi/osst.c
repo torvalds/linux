@@ -5286,11 +5286,6 @@ static int enlarge_buffer(struct osst_buffer *STbuffer, int need_dma)
 		struct page *page = alloc_pages(priority, (OS_FRAME_SIZE - got <= PAGE_SIZE) ? 0 : order);
 		STbuffer->sg[segs].offset = 0;
 		if (page == NULL) {
-			if (OS_FRAME_SIZE - got <= (max_segs - segs) * b_size / 2 && order) {
-				b_size /= 2;  /* Large enough for the rest of the buffers */
-				order--;
-				continue;
-			}
 			printk(KERN_WARNING "osst :W: Failed to enlarge buffer to %d bytes.\n",
 						OS_FRAME_SIZE);
 #if DEBUG
