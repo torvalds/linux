@@ -1496,6 +1496,14 @@ static struct notifier_block efx_netdev_notifier = {
 	.notifier_call = efx_netdev_event,
 };
 
+static ssize_t
+show_phy_type(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	return sprintf(buf, "%d\n", efx->phy_type);
+}
+static DEVICE_ATTR(phy_type, 0644, show_phy_type, NULL);
+
 static int efx_register_netdev(struct efx_nic *efx)
 {
 	struct net_device *net_dev = efx->net_dev;
@@ -1522,7 +1530,17 @@ static int efx_register_netdev(struct efx_nic *efx)
 	strcpy(efx->name, net_dev->name);
 	efx_set_channel_names(efx);
 
+	rc = device_create_file(&efx->pci_dev->dev, &dev_attr_phy_type);
+	if (rc) {
+		EFX_ERR(efx, "failed to init net dev attributes\n");
+		goto fail_registered;
+	}
+
 	return 0;
+
+fail_registered:
+	unregister_netdev(net_dev);
+	return rc;
 }
 
 static void efx_unregister_netdev(struct efx_nic *efx)
@@ -1542,6 +1560,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 	if (efx_dev_registered(efx)) {
 		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
+		device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
 		unregister_netdev(efx->net_dev);
 	}
 }
