@@ -826,7 +826,7 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 #endif
 
 	if (unlikely(rx_ev_eth_crc_err && EFX_WORKAROUND_10750(efx) &&
-		     efx->phy_type == PHY_TYPE_10XPRESS))
+		     efx->phy_type == PHY_TYPE_SFX7101))
 		tenxpress_crc_err(efx);
 }
 
@@ -2245,8 +2245,12 @@ static void falcon_init_mdio(struct mii_if_info *gmii)
 static int falcon_probe_phy(struct efx_nic *efx)
 {
 	switch (efx->phy_type) {
-	case PHY_TYPE_10XPRESS:
-		efx->phy_op = &falcon_tenxpress_phy_ops;
+	case PHY_TYPE_SFX7101:
+		efx->phy_op = &falcon_sfx7101_phy_ops;
+		break;
+	case PHY_TYPE_SFT9001A:
+	case PHY_TYPE_SFT9001B:
+		efx->phy_op = &falcon_sft9001_phy_ops;
 		break;
 	case PHY_TYPE_XFP:
 		efx->phy_op = &falcon_xfp_phy_ops;

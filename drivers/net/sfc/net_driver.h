@@ -455,9 +455,11 @@ enum phy_type {
 	PHY_TYPE_NONE = 0,
 	PHY_TYPE_CX4_RTMR = 1,
 	PHY_TYPE_1G_ALASKA = 2,
-	PHY_TYPE_10XPRESS = 3,
+	PHY_TYPE_SFX7101 = 3,
 	PHY_TYPE_XFP = 4,
 	PHY_TYPE_PM8358 = 6,
+	PHY_TYPE_SFT9001A = 8,
+	PHY_TYPE_SFT9001B = 10,
 	PHY_TYPE_MAX	/* Insert any new items before this */
 };
 
