@@ -1605,7 +1605,7 @@ void falcon_fini_interrupt(struct efx_nic *efx)
  **************************************************************************
  */
 
-#define FALCON_SPI_MAX_LEN ((unsigned) sizeof(efx_oword_t))
+#define FALCON_SPI_MAX_LEN sizeof(efx_oword_t)
 
 /* Wait for SPI command completion */
 static int falcon_spi_wait(struct efx_nic *efx)
@@ -1630,7 +1630,7 @@ static int falcon_spi_wait(struct efx_nic *efx)
 
 int falcon_spi_cmd(const struct efx_spi_device *spi,
 		   unsigned int command, int address,
-		   const void *in, void *out, unsigned int len)
+		   const void *in, void *out, size_t len)
 {
 	struct efx_nic *efx = spi->efx;
 	bool addressed = (address >= 0);
@@ -1686,8 +1686,8 @@ int falcon_spi_cmd(const struct efx_spi_device *spi,
 	return 0;
 }
 
-static unsigned int
-falcon_spi_write_limit(const struct efx_spi_device *spi, unsigned int start)
+static size_t
+falcon_spi_write_limit(const struct efx_spi_device *spi, size_t start)
 {
 	return min(FALCON_SPI_MAX_LEN,
 		   (spi->block_size - (start & (spi->block_size - 1))));
@@ -1725,12 +1725,12 @@ int falcon_spi_fast_wait(const struct efx_spi_device *spi)
 int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
 		    size_t len, size_t *retlen, u8 *buffer)
 {
-	unsigned int command, block_len, pos = 0;
+	size_t block_len, pos = 0;
+	unsigned int command;
 	int rc = 0;
 
 	while (pos < len) {
-		block_len = min((unsigned int)len - pos,
-				FALCON_SPI_MAX_LEN);
+		block_len = min(len - pos, FALCON_SPI_MAX_LEN);
 
 		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
 		rc = falcon_spi_cmd(spi, command, start + pos, NULL,
@@ -1756,7 +1756,8 @@ int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
 		     size_t len, size_t *retlen, const u8 *buffer)
 {
 	u8 verify_buffer[FALCON_SPI_MAX_LEN];
-	unsigned int command, block_len, pos = 0;
+	size_t block_len, pos = 0;
+	unsigned int command;
 	int rc = 0;
 
 	while (pos < len) {
@@ -1764,7 +1765,7 @@ int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
 		if (rc)
 			break;
 
-		block_len = min((unsigned int)len - pos,
+		block_len = min(len - pos,
 				falcon_spi_write_limit(spi, start + pos));
 		command = efx_spi_munge_command(spi, SPI_WRITE, start + pos);
 		rc = falcon_spi_cmd(spi, command, start + pos,
