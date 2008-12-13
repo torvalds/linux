@@ -1743,6 +1743,7 @@ static struct efx_board efx_dummy_board_info = {
 	.init		= efx_port_dummy_op_int,
 	.init_leds	= efx_port_dummy_op_int,
 	.set_fault_led	= efx_port_dummy_op_blink,
+	.monitor	= efx_port_dummy_op_int,
 	.blink		= efx_port_dummy_op_blink,
 	.fini		= efx_port_dummy_op_void,
 };
@@ -1983,6 +1984,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	efx_fini_port(efx);
  fail5:
  fail4:
+	efx->board_info.fini(efx);
  fail3:
 	efx_fini_napi(efx);
  fail2:
