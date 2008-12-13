@@ -217,7 +217,7 @@ static void add_host(struct hpsb_host *host)
 
 	host->csr.generation = 2;
 
-	bus_info[1] = __constant_cpu_to_be32(0x31333934);
+	bus_info[1] = IEEE1394_BUSID_MAGIC;
 	bus_info[2] = cpu_to_be32((hpsb_disable_irm ? 0 : 1 << CSR_IRMC_SHIFT) |
 				  (1 << CSR_CMC_SHIFT) |
 				  (1 << CSR_ISC_SHIFT) |
@@ -250,7 +250,7 @@ static void remove_host(struct hpsb_host *host)
 {
 	quadlet_t bus_info[CSR_BUS_INFO_SIZE];
 
-	bus_info[1] = __constant_cpu_to_be32(0x31333934);
+	bus_info[1] = IEEE1394_BUSID_MAGIC;
 	bus_info[2] = cpu_to_be32((0 << CSR_IRMC_SHIFT) |
 				  (0 << CSR_CMC_SHIFT) |
 				  (0 << CSR_ISC_SHIFT) |
