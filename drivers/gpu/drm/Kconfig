@@ -7,6 +7,8 @@
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
 	depends on (AGP || AGP=n) && PCI && !EMULATED_CMPXCHG && MMU
+	select I2C
+	select I2C_ALGOBIT
 	help
 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
 	  introduced in XFree86 4.0. If you say Y here, you need to select
@@ -68,7 +70,6 @@ config DRM_I915
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select I2C_ALGOBIT
 	depends on FB
 	tristate "i915 driver"
 	help
