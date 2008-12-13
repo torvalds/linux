@@ -1574,7 +1574,7 @@ int falcon_init_interrupt(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, falcon_msi_interrupt,
 				 IRQF_PROBE_SHARED, /* Not shared */
-				 efx->name, channel);
+				 channel->name, channel);
 		if (rc) {
 			EFX_ERR(efx, "failed to hook IRQ %d\n", channel->irq);
 			goto fail2;

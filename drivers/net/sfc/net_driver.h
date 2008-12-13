@@ -327,6 +327,7 @@ enum efx_rx_alloc_method {
  *
  * @efx: Associated Efx NIC
  * @channel: Channel instance number
+ * @name: Name for channel and IRQ
  * @used_flags: Channel is used by net driver
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
@@ -357,6 +358,7 @@ enum efx_rx_alloc_method {
 struct efx_channel {
 	struct efx_nic *efx;
 	int channel;
+	char name[IFNAMSIZ + 6];
 	int used_flags;
 	bool enabled;
 	int irq;
