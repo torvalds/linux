@@ -7,7 +7,7 @@
  * by the Free Software Foundation, incorporated herein by reference.
  */
 /*
- * Driver for XFP optical PHYs (plus some support specific to the Quake 2032)
+ * Driver for XFP optical PHYs (plus some support specific to the Quake 2022/32)
  * See www.amcc.com for details (search for qt2032)
  */
 
