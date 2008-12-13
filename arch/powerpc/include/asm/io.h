@@ -713,13 +713,6 @@ static inline void * phys_to_virt(unsigned long address)
  */
 #define page_to_phys(page)	((phys_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
-/* We do NOT want virtual merging, it would put too much pressure on
- * our iommu allocator. Instead, we want drivers to be smart enough
- * to coalesce sglists that happen to have been mapped in a contiguous
- * way by the iommu
- */
-#define BIO_VMERGE_BOUNDARY	0
-
 /*
  * 32 bits still uses virt_to_bus() for it's implementation of DMA
  * mappings se we have to keep it defined here. We also have some old
