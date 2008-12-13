@@ -720,6 +720,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		entry_hdr = (struct p54_hdr *) entry->data;
 		entry_data = (struct p54_tx_data *) entry_hdr->data;
 		priv->tx_stats[entry_data->hw_queue].len--;
+		priv->stats.dot11ACKFailureCount += payload->tries - 1;
 
 		if (unlikely(entry == priv->cached_beacon)) {
 			kfree_skb(entry);
