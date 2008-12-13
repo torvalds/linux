@@ -397,6 +397,7 @@ config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
 	select CPU_ARM922T
 	select GENERIC_GPIO
+        select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
