@@ -355,6 +355,11 @@ struct p54_tx_data {
 	u8 align[0];
 } __attribute__ ((packed));
 
+/* unit is ms */
+#define P54_TX_FRAME_LIFETIME 2000
+#define P54_TX_TIMEOUT 4000
+#define P54_STATISTICS_UPDATE 5000
+
 #define P54_FILTER_TYPE_NONE		0
 #define P54_FILTER_TYPE_STATION		BIT(0)
 #define P54_FILTER_TYPE_IBSS		BIT(1)

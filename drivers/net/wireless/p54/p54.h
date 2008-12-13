@@ -71,6 +71,7 @@ struct p54_edcf_queue_param {
 #define FW_LM20 0x4c4d3230
 
 struct p54_common {
+	struct ieee80211_hw *hw;
 	u32 rx_start;
 	u32 rx_end;
 	struct sk_buff_head tx_queue;
@@ -106,9 +107,7 @@ struct p54_common {
 	struct ieee80211_tx_queue_stats tx_stats[8];
 	struct p54_edcf_queue_param qos_params[8];
 	struct ieee80211_low_level_stats stats;
-	struct timer_list stats_timer;
-	struct completion stats_comp;
-	struct sk_buff *cached_stats;
+	struct delayed_work work;
 	struct sk_buff *cached_beacon;
 	int noise;
 	void *eeprom;

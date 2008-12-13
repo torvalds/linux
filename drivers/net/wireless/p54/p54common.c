@@ -589,6 +589,9 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	ieee80211_rx_irqsafe(dev, skb, &rx_status);
 
+	queue_delayed_work(dev->workqueue, &priv->work,
+			   msecs_to_jiffies(P54_STATISTICS_UPDATE));
+
 	return -1;
 }
 
@@ -651,6 +654,27 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 		p54_wake_free_queues(dev);
 }
 EXPORT_SYMBOL_GPL(p54_free_skb);
+
+static struct sk_buff *p54_find_tx_entry(struct ieee80211_hw *dev,
+					   __le32 req_id)
+{
+	struct p54_common *priv = dev->priv;
+	struct sk_buff *entry = priv->tx_queue.next;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->tx_queue.lock, flags);
+	while (entry != (struct sk_buff *)&priv->tx_queue) {
+		struct p54_hdr *hdr = (struct p54_hdr *) entry->data;
+
+		if (hdr->req_id == req_id) {
+			spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
+			return entry;
+		}
+		entry = entry->next;
+	}
+	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
+	return NULL;
+}
 
 static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
@@ -775,8 +799,12 @@ static void p54_rx_stats(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct p54_common *priv = dev->priv;
 	struct p54_hdr *hdr = (struct p54_hdr *) skb->data;
 	struct p54_statistics *stats = (struct p54_statistics *) hdr->data;
-	u32 tsf32 = le32_to_cpu(stats->tsf32);
+	u32 tsf32;
 
+	if (unlikely(priv->mode == NL80211_IFTYPE_UNSPECIFIED))
+		return ;
+
+	tsf32 = le32_to_cpu(stats->tsf32);
 	if (tsf32 < priv->tsf_low32)
 		priv->tsf_high32++;
 	priv->tsf_low32 = tsf32;
@@ -786,9 +814,8 @@ static void p54_rx_stats(struct ieee80211_hw *dev, struct sk_buff *skb)
 	priv->stats.dot11FCSErrorCount = le32_to_cpu(stats->rx_bad_fcs);
 
 	priv->noise = p54_rssi_to_dbm(dev, le32_to_cpu(stats->noise));
-	complete(&priv->stats_comp);
 
-	mod_timer(&priv->stats_timer, jiffies + 5 * HZ);
+	p54_free_skb(dev, p54_find_tx_entry(dev, hdr->req_id));
 }
 
 static void p54_rx_trap(struct ieee80211_hw *dev, struct sk_buff *skb)
@@ -897,6 +924,8 @@ static int p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 		 * have a few spare slots for control frames left.
 		 */
 		ieee80211_stop_queues(dev);
+		queue_delayed_work(dev->workqueue, &priv->work,
+				   msecs_to_jiffies(P54_TX_TIMEOUT));
 
 		if (unlikely(left == 32)) {
 			/*
@@ -1354,6 +1383,10 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	if (unlikely(p54_assign_address(dev, skb, hdr, skb->len + tim_len)))
 		goto err;
 	priv->tx(dev, skb, 0);
+
+	queue_delayed_work(dev->workqueue, &priv->work,
+			   msecs_to_jiffies(P54_TX_FRAME_LIFETIME));
+
 	return 0;
 
  err:
@@ -1579,20 +1612,6 @@ static int p54_set_edcf(struct ieee80211_hw *dev)
 	return 0;
 }
 
-static int p54_init_stats(struct ieee80211_hw *dev)
-{
-	struct p54_common *priv = dev->priv;
-
-	priv->cached_stats = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL,
-			sizeof(struct p54_hdr) + sizeof(struct p54_statistics),
-			P54_CONTROL_TYPE_STAT_READBACK, GFP_KERNEL);
-	if (!priv->cached_stats)
-			return -ENOMEM;
-
-	mod_timer(&priv->stats_timer, jiffies + HZ);
-	return 0;
-}
-
 static int p54_beacon_tim(struct sk_buff *skb)
 {
 	/*
@@ -1686,9 +1705,6 @@ static int p54_start(struct ieee80211_hw *dev)
 	err = p54_set_edcf(dev);
 	if (err)
 		goto out;
-	err = p54_init_stats(dev);
-	if (err)
-		goto out;
 
 	memset(priv->bssid, ~0, ETH_ALEN);
 	priv->mode = NL80211_IFTYPE_MONITOR;
@@ -1697,6 +1713,8 @@ static int p54_start(struct ieee80211_hw *dev)
 		priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 		goto out;
 	}
+
+	queue_delayed_work(dev->workqueue, &priv->work, 0);
 
 out:
 	mutex_unlock(&priv->conf_mutex);
@@ -1710,9 +1728,7 @@ static void p54_stop(struct ieee80211_hw *dev)
 
 	mutex_lock(&priv->conf_mutex);
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
-	del_timer(&priv->stats_timer);
-	p54_free_skb(dev, priv->cached_stats);
-	priv->cached_stats = NULL;
+	cancel_delayed_work_sync(&priv->work);
 	if (priv->cached_beacon)
 		p54_tx_cancel(dev, priv->cached_beacon);
 
@@ -1889,14 +1905,29 @@ static int p54_init_xbow_synth(struct ieee80211_hw *dev)
 	return 0;
 }
 
-static void p54_statistics_timer(unsigned long data)
+static void p54_work(struct work_struct *work)
 {
-	struct ieee80211_hw *dev = (struct ieee80211_hw *) data;
-	struct p54_common *priv = dev->priv;
+	struct p54_common *priv = container_of(work, struct p54_common,
+					       work.work);
+	struct ieee80211_hw *dev = priv->hw;
+	struct sk_buff *skb;
 
-	BUG_ON(!priv->cached_stats);
+	if (unlikely(priv->mode == NL80211_IFTYPE_UNSPECIFIED))
+		return ;
 
-	priv->tx(dev, priv->cached_stats, 0);
+	/*
+	 * TODO: walk through tx_queue and do the following tasks
+	 * 	1. initiate bursts.
+	 *      2. cancel stuck frames / reset the device if necessary.
+	 */
+
+	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL, sizeof(struct p54_hdr) +
+			    sizeof(struct p54_statistics),
+			    P54_CONTROL_TYPE_STAT_READBACK, GFP_KERNEL);
+	if (!skb)
+		return ;
+
+	priv->tx(dev, skb, 0);
 }
 
 static int p54_get_stats(struct ieee80211_hw *dev,
@@ -1904,17 +1935,7 @@ static int p54_get_stats(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	del_timer(&priv->stats_timer);
-	p54_statistics_timer((unsigned long)dev);
-
-	if (!wait_for_completion_interruptible_timeout(&priv->stats_comp, HZ)) {
-		printk(KERN_ERR "%s: device does not respond!\n",
-			wiphy_name(dev->wiphy));
-		return -EBUSY;
-	}
-
 	memcpy(stats, &priv->stats, sizeof(*stats));
-
 	return 0;
 }
 
@@ -2072,6 +2093,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 		return NULL;
 
 	priv = dev->priv;
+	priv->hw = dev;
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->basic_rate_mask = 0x15f;
 	skb_queue_head_init(&priv->tx_queue);
@@ -2107,9 +2129,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 
 	mutex_init(&priv->conf_mutex);
 	init_completion(&priv->eeprom_comp);
-	init_completion(&priv->stats_comp);
-	setup_timer(&priv->stats_timer, p54_statistics_timer,
-		(unsigned long)dev);
+	INIT_DELAYED_WORK(&priv->work, p54_work);
 
 	return dev;
 }
@@ -2118,8 +2138,6 @@ EXPORT_SYMBOL_GPL(p54_init_common);
 void p54_free_common(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
-	del_timer(&priv->stats_timer);
-	kfree_skb(priv->cached_stats);
 	kfree(priv->iq_autocal);
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
