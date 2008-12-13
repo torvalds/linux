@@ -26,7 +26,6 @@
 #include "selftest.h"
 #include "boards.h"
 #include "workarounds.h"
-#include "mac.h"
 #include "spi.h"
 #include "falcon_io.h"
 #include "mdio_10g.h"
@@ -105,9 +104,11 @@ static int efx_test_mii(struct efx_nic *efx, struct efx_self_tests *tests)
 		goto out;
 	}
 
-	rc = mdio_clause45_check_mmds(efx, efx->phy_op->mmds, 0);
-	if (rc)
-		goto out;
+	if (EFX_IS10G(efx)) {
+		rc = mdio_clause45_check_mmds(efx, efx->phy_op->mmds, 0);
+		if (rc)
+			goto out;
+	}
 
 out:
 	mutex_unlock(&efx->mac_lock);
@@ -598,7 +599,7 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct ethtool_cmd ecmd,
 		do {
 			struct efx_channel *channel = &efx->channel[0];
 
-			falcon_check_xmac(efx);
+			efx->mac_op->check_hw(efx);
 			schedule_timeout_uninterruptible(HZ / 10);
 			if (channel->work_pending)
 				efx_process_channel_now(channel);
@@ -606,13 +607,12 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct ethtool_cmd ecmd,
 			flush_workqueue(efx->workqueue);
 			rmb();
 
-			/* efx->link_up can be 1 even if the XAUI link is down,
-			 * (bug5762). Usually, it's not worth bothering with the
-			 * difference, but for selftests, we need that extra
-			 * guarantee that the link is really, really, up.
-			 */
+			/* We need both the phy and xaui links to be ok.
+			 * rather than relying on the falcon_xmac irq/poll
+			 * regime, just poll xaui directly */
 			link_up = efx->link_up;
-			if (!falcon_xaui_link_ok(efx))
+			if (link_up && EFX_IS10G(efx) &&
+			    !falcon_xaui_link_ok(efx))
 				link_up = false;
 
 		} while ((++count < 20) && !link_up);
@@ -721,7 +721,6 @@ int efx_offline_test(struct efx_nic *efx,
 	if (ecmd_test.autoneg == AUTONEG_ENABLE) {
 		ecmd_test.autoneg = AUTONEG_DISABLE;
 		ecmd_test.duplex = DUPLEX_FULL;
-		ecmd_test.speed = SPEED_10000;
 	}
 	efx->loopback_mode = LOOPBACK_NONE;
 
@@ -731,9 +730,6 @@ int efx_offline_test(struct efx_nic *efx,
 		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
 		return rc;
 	}
-
-	tests->loopback_speed = ecmd_test.speed;
-	tests->loopback_full_duplex = ecmd_test.duplex;
 
 	rc = efx_test_phy(efx, tests);
 	if (rc && !rc2)

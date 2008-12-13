@@ -1168,6 +1168,19 @@ void falcon_generate_test_event(struct efx_channel *channel, unsigned int magic)
 	falcon_generate_event(channel, &test_event);
 }
 
+void falcon_sim_phy_event(struct efx_nic *efx)
+{
+	efx_qword_t phy_event;
+
+	EFX_POPULATE_QWORD_1(phy_event, EV_CODE, GLOBAL_EV_DECODE);
+	if (EFX_IS10G(efx))
+		EFX_SET_OWORD_FIELD(phy_event, XG_PHY_INTR, 1);
+	else
+		EFX_SET_OWORD_FIELD(phy_event, G_PHY0_INTR, 1);
+
+	falcon_generate_event(&efx->channel[0], &phy_event);
+}
+
 /**************************************************************************
  *
  * Flush handling
@@ -1839,40 +1852,61 @@ int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
  *
  **************************************************************************
  */
-void falcon_drain_tx_fifo(struct efx_nic *efx)
+
+static int falcon_reset_macs(struct efx_nic *efx)
 {
-	efx_oword_t temp;
+	efx_oword_t reg;
 	int count;
 
-	if ((falcon_rev(efx) < FALCON_REV_B0) ||
-	    (efx->loopback_mode != LOOPBACK_NONE))
-		return;
+	if (falcon_rev(efx) < FALCON_REV_B0) {
+		/* It's not safe to use GLB_CTL_REG to reset the
+		 * macs, so instead use the internal MAC resets
+		 */
+		if (!EFX_IS10G(efx)) {
+			EFX_POPULATE_OWORD_1(reg, GM_SW_RST, 1);
+			falcon_write(efx, &reg, GM_CFG1_REG);
+			udelay(1000);
 
-	falcon_read(efx, &temp, MAC0_CTRL_REG_KER);
-	/* There is no point in draining more than once */
-	if (EFX_OWORD_FIELD(temp, TXFIFO_DRAIN_EN_B0))
-		return;
+			EFX_POPULATE_OWORD_1(reg, GM_SW_RST, 0);
+			falcon_write(efx, &reg, GM_CFG1_REG);
+			udelay(1000);
+			return 0;
+		} else {
+			EFX_POPULATE_OWORD_1(reg, XM_CORE_RST, 1);
+			falcon_write(efx, &reg, XM_GLB_CFG_REG);
+
+			for (count = 0; count < 10000; count++) {
+				falcon_read(efx, &reg, XM_GLB_CFG_REG);
+				if (EFX_OWORD_FIELD(reg, XM_CORE_RST) == 0)
+					return 0;
+				udelay(10);
+			}
+
+			EFX_ERR(efx, "timed out waiting for XMAC core reset\n");
+			return -ETIMEDOUT;
+		}
+	}
 
 	/* MAC stats will fail whilst the TX fifo is draining. Serialise
 	 * the drain sequence with the statistics fetch */
 	spin_lock(&efx->stats_lock);
 
-	EFX_SET_OWORD_FIELD(temp, TXFIFO_DRAIN_EN_B0, 1);
-	falcon_write(efx, &temp, MAC0_CTRL_REG_KER);
+	falcon_read(efx, &reg, MAC0_CTRL_REG_KER);
+	EFX_SET_OWORD_FIELD(reg, TXFIFO_DRAIN_EN_B0, 1);
+	falcon_write(efx, &reg, MAC0_CTRL_REG_KER);
 
-	/* Reset the MAC and EM block. */
-	falcon_read(efx, &temp, GLB_CTL_REG_KER);
-	EFX_SET_OWORD_FIELD(temp, RST_XGTX, 1);
-	EFX_SET_OWORD_FIELD(temp, RST_XGRX, 1);
-	EFX_SET_OWORD_FIELD(temp, RST_EM, 1);
-	falcon_write(efx, &temp, GLB_CTL_REG_KER);
+	falcon_read(efx, &reg, GLB_CTL_REG_KER);
+	EFX_SET_OWORD_FIELD(reg, RST_XGTX, 1);
+	EFX_SET_OWORD_FIELD(reg, RST_XGRX, 1);
+	EFX_SET_OWORD_FIELD(reg, RST_EM, 1);
+	falcon_write(efx, &reg, GLB_CTL_REG_KER);
 
 	count = 0;
 	while (1) {
-		falcon_read(efx, &temp, GLB_CTL_REG_KER);
-		if (!EFX_OWORD_FIELD(temp, RST_XGTX) &&
-		    !EFX_OWORD_FIELD(temp, RST_XGRX) &&
-		    !EFX_OWORD_FIELD(temp, RST_EM)) {
+		falcon_read(efx, &reg, GLB_CTL_REG_KER);
+		if (!EFX_OWORD_FIELD(reg, RST_XGTX) &&
+		    !EFX_OWORD_FIELD(reg, RST_XGRX) &&
+		    !EFX_OWORD_FIELD(reg, RST_EM)) {
 			EFX_LOG(efx, "Completed MAC reset after %d loops\n",
 				count);
 			break;
@@ -1889,21 +1923,39 @@ void falcon_drain_tx_fifo(struct efx_nic *efx)
 
 	/* If we've reset the EM block and the link is up, then
 	 * we'll have to kick the XAUI link so the PHY can recover */
-	if (efx->link_up && EFX_WORKAROUND_5147(efx))
+	if (efx->link_up && EFX_IS10G(efx) && EFX_WORKAROUND_5147(efx))
 		falcon_reset_xaui(efx);
+
+	return 0;
+}
+
+void falcon_drain_tx_fifo(struct efx_nic *efx)
+{
+	efx_oword_t reg;
+
+	if ((falcon_rev(efx) < FALCON_REV_B0) ||
+	    (efx->loopback_mode != LOOPBACK_NONE))
+		return;
+
+	falcon_read(efx, &reg, MAC0_CTRL_REG_KER);
+	/* There is no point in draining more than once */
+	if (EFX_OWORD_FIELD(reg, TXFIFO_DRAIN_EN_B0))
+		return;
+
+	falcon_reset_macs(efx);
 }
 
 void falcon_deconfigure_mac_wrapper(struct efx_nic *efx)
 {
-	efx_oword_t temp;
+	efx_oword_t reg;
 
 	if (falcon_rev(efx) < FALCON_REV_B0)
 		return;
 
 	/* Isolate the MAC -> RX */
-	falcon_read(efx, &temp, RX_CFG_REG_KER);
-	EFX_SET_OWORD_FIELD(temp, RX_INGR_EN_B0, 0);
-	falcon_write(efx, &temp, RX_CFG_REG_KER);
+	falcon_read(efx, &reg, RX_CFG_REG_KER);
+	EFX_SET_OWORD_FIELD(reg, RX_INGR_EN_B0, 0);
+	falcon_write(efx, &reg, RX_CFG_REG_KER);
 
 	if (!efx->link_up)
 		falcon_drain_tx_fifo(efx);
@@ -2030,7 +2082,8 @@ static int falcon_gmii_wait(struct efx_nic *efx)
 	efx_dword_t md_stat;
 	int count;
 
-	for (count = 0; count < 1000; count++) {	/* wait upto 10ms */
+	/* wait upto 50ms - taken max from datasheet */
+	for (count = 0; count < 5000; count++) {
 		falcon_readl(efx, &md_stat, MD_STAT_REG_KER);
 		if (EFX_DWORD_FIELD(md_stat, MD_BSY) == 0) {
 			if (EFX_DWORD_FIELD(md_stat, MD_LNFL) != 0 ||
@@ -2206,8 +2259,57 @@ static int falcon_probe_phy(struct efx_nic *efx)
 		return -1;
 	}
 
-	efx->loopback_modes = LOOPBACKS_10G_INTERNAL | efx->phy_op->loopbacks;
+	if (efx->phy_op->macs & EFX_XMAC)
+		efx->loopback_modes |= ((1 << LOOPBACK_XGMII) |
+					(1 << LOOPBACK_XGXS) |
+					(1 << LOOPBACK_XAUI));
+	if (efx->phy_op->macs & EFX_GMAC)
+		efx->loopback_modes |= (1 << LOOPBACK_GMAC);
+	efx->loopback_modes |= efx->phy_op->loopbacks;
+
 	return 0;
+}
+
+int falcon_switch_mac(struct efx_nic *efx)
+{
+	struct efx_mac_operations *old_mac_op = efx->mac_op;
+	efx_oword_t nic_stat;
+	unsigned strap_val;
+
+	/* Internal loopbacks override the phy speed setting */
+	if (efx->loopback_mode == LOOPBACK_GMAC) {
+		efx->link_speed = 1000;
+		efx->link_fd = true;
+	} else if (LOOPBACK_INTERNAL(efx)) {
+		efx->link_speed = 10000;
+		efx->link_fd = true;
+	}
+
+	efx->mac_op = (EFX_IS10G(efx) ?
+		       &falcon_xmac_operations : &falcon_gmac_operations);
+	if (old_mac_op == efx->mac_op)
+		return 0;
+
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+
+	/* Not all macs support a mac-level link state */
+	efx->mac_up = true;
+
+	falcon_read(efx, &nic_stat, NIC_STAT_REG);
+	strap_val = EFX_IS10G(efx) ? 5 : 3;
+	if (falcon_rev(efx) >= FALCON_REV_B0) {
+		EFX_SET_OWORD_FIELD(nic_stat, EE_STRAP_EN, 1);
+		EFX_SET_OWORD_FIELD(nic_stat, EE_STRAP_OVR, strap_val);
+		falcon_write(efx, &nic_stat, NIC_STAT_REG);
+	} else {
+		/* Falcon A1 does not support 1G/10G speed switching
+		 * and must not be used with a PHY that does. */
+		BUG_ON(EFX_OWORD_FIELD(nic_stat, STRAP_PINS) != strap_val);
+	}
+
+
+	EFX_LOG(efx, "selected %cMAC\n", EFX_IS10G(efx) ? 'X' : 'G');
+	return falcon_reset_macs(efx);
 }
 
 /* This call is responsible for hooking in the MAC and PHY operations */
@@ -2362,6 +2464,10 @@ static struct {
 	  EFX_OWORD32(0x000003FF, 0x00000000, 0x00000000, 0x00000000) },
 	{ DP_CTRL_REG,
 	  EFX_OWORD32(0x00000FFF, 0x00000000, 0x00000000, 0x00000000) },
+	{ GM_CFG2_REG,
+	  EFX_OWORD32(0x00007337, 0x00000000, 0x00000000, 0x00000000) },
+	{ GMF_CFG0_REG,
+	  EFX_OWORD32(0x00001F1F, 0x00000000, 0x00000000, 0x00000000) },
 	{ XM_GLB_CFG_REG,
 	  EFX_OWORD32(0x00000C68, 0x00000000, 0x00000000, 0x00000000) },
 	{ XM_TX_CFG_REG,
@@ -2687,6 +2793,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 static int falcon_probe_nic_variant(struct efx_nic *efx)
 {
 	efx_oword_t altera_build;
+	efx_oword_t nic_stat;
 
 	falcon_read(efx, &altera_build, ALTERA_BUILD_REG_KER);
 	if (EFX_OWORD_FIELD(altera_build, VER_ALL)) {
@@ -2694,27 +2801,20 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 		return -ENODEV;
 	}
 
+	falcon_read(efx, &nic_stat, NIC_STAT_REG);
+
 	switch (falcon_rev(efx)) {
 	case FALCON_REV_A0:
 	case 0xff:
 		EFX_ERR(efx, "Falcon rev A0 not supported\n");
 		return -ENODEV;
 
-	case FALCON_REV_A1:{
-		efx_oword_t nic_stat;
-
-		falcon_read(efx, &nic_stat, NIC_STAT_REG);
-
+	case FALCON_REV_A1:
 		if (EFX_OWORD_FIELD(nic_stat, STRAP_PCIE) == 0) {
 			EFX_ERR(efx, "Falcon rev A1 PCI-X not supported\n");
 			return -ENODEV;
 		}
-		if (!EFX_OWORD_FIELD(nic_stat, STRAP_10G)) {
-			EFX_ERR(efx, "1G mode not supported\n");
-			return -ENODEV;
-		}
 		break;
-	}
 
 	case FALCON_REV_B0:
 		break;
@@ -2723,6 +2823,9 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 		EFX_ERR(efx, "Unknown Falcon rev %d\n", falcon_rev(efx));
 		return -ENODEV;
 	}
+
+	/* Initial assumed speed */
+	efx->link_speed = EFX_OWORD_FIELD(nic_stat, STRAP_10G) ? 10000 : 1000;
 
 	return 0;
 }

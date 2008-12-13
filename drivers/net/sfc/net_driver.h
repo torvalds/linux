@@ -463,6 +463,8 @@ enum phy_type {
 
 #define PHY_ADDR_INVALID 0xff
 
+#define EFX_IS10G(efx) ((efx)->link_speed == 10000)
+
 enum nic_state {
 	STATE_INIT = 0,
 	STATE_RUNNING = 1,
@@ -503,6 +505,24 @@ enum efx_fc_type {
 	EFX_FC_AUTO = 4,
 };
 
+/* Supported MAC bit-mask */
+enum efx_mac_type {
+	EFX_GMAC = 1,
+	EFX_XMAC = 2,
+};
+
+/**
+ * struct efx_mac_operations - Efx MAC operations table
+ * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
+ * @update_stats: Update statistics
+ * @check_hw: Check hardware. Serialised by the mac_lock
+ */
+struct efx_mac_operations {
+	void (*reconfigure) (struct efx_nic *efx);
+	void (*update_stats) (struct efx_nic *efx);
+	int (*check_hw) (struct efx_nic *efx);
+};
+
 /**
  * struct efx_phy_operations - Efx PHY operations table
  * @init: Initialise PHY
@@ -511,16 +531,23 @@ enum efx_fc_type {
  * @clear_interrupt: Clear down interrupt
  * @blink: Blink LEDs
  * @check_hw: Check hardware
+ * @get_settings: Get ethtool settings. Serialised by the mac_lock.
+ * @set_settings: Set ethtool settings. Serialised by the mac_lock.
  * @mmds: MMD presence mask
  * @loopbacks: Supported loopback modes mask
  */
 struct efx_phy_operations {
+	enum efx_mac_type macs;
 	int (*init) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *efx);
 	void (*reconfigure) (struct efx_nic *efx);
 	void (*clear_interrupt) (struct efx_nic *efx);
 	int (*check_hw) (struct efx_nic *efx);
 	int (*test) (struct efx_nic *efx);
+	void (*get_settings) (struct efx_nic *efx,
+			      struct ethtool_cmd *ecmd);
+	int (*set_settings) (struct efx_nic *efx,
+			     struct ethtool_cmd *ecmd);
 	int mmds;
 	unsigned loopbacks;
 };
@@ -686,6 +713,7 @@ union efx_multicast_hash {
  * @stats_lock: Statistics update lock. Serialises statistics fetches
  * @stats_enabled: Temporarily disable statistics fetches.
  *	Serialised by @stats_lock
+ * @mac_op: MAC interface
  * @mac_address: Permanent MAC address
  * @phy_type: PHY type
  * @phy_lock: PHY access lock
@@ -693,6 +721,7 @@ union efx_multicast_hash {
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mii: PHY interface
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
+ * @mac_up: MAC link state
  * @link_up: Link status
  * @link_fd: Link is full duplex
  * @link_speed: Link speed (Mbps)
@@ -763,6 +792,7 @@ struct efx_nic {
 	spinlock_t stats_lock;
 	bool stats_enabled;
 
+	struct efx_mac_operations *mac_op;
 	unsigned char mac_address[ETH_ALEN];
 
 	enum phy_type phy_type;
@@ -772,6 +802,7 @@ struct efx_nic {
 	struct mii_if_info mii;
 	enum efx_phy_mode phy_mode;
 
+	bool mac_up;
 	bool link_up;
 	bool link_fd;
 	unsigned int link_speed;

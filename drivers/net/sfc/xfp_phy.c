@@ -17,7 +17,7 @@
 #include "mdio_10g.h"
 #include "xenpack.h"
 #include "phy.h"
-#include "mac.h"
+#include "falcon.h"
 
 #define XFP_REQUIRED_DEVS (MDIO_MMDREG_DEVS_PCS |	\
 			   MDIO_MMDREG_DEVS_PMAPMD |	\
@@ -125,7 +125,7 @@ static int xfp_phy_check_hw(struct efx_nic *efx)
 	int link_up = xfp_link_ok(efx);
 	/* Simulate a PHY event if link state has changed */
 	if (link_up != efx->link_up)
-		falcon_xmac_sim_phy_event(efx);
+		falcon_sim_phy_event(efx);
 
 	rc = efx->board_info.monitor(efx);
 	if (rc) {
@@ -169,11 +169,14 @@ static void xfp_phy_fini(struct efx_nic *efx)
 }
 
 struct efx_phy_operations falcon_xfp_phy_ops = {
+	.macs		 = EFX_XMAC,
 	.init            = xfp_phy_init,
 	.reconfigure     = xfp_phy_reconfigure,
 	.check_hw        = xfp_phy_check_hw,
 	.fini            = xfp_phy_fini,
 	.clear_interrupt = xfp_phy_clear_interrupt,
+	.get_settings    = mdio_clause45_get_settings,
+	.set_settings	 = mdio_clause45_set_settings,
 	.mmds            = XFP_REQUIRED_DEVS,
 	.loopbacks       = XFP_LOOPBACKS,
 };

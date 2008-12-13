@@ -176,7 +176,7 @@ static int sfe4001_check_hw(struct efx_nic *efx)
 	s32 status;
 
 	/* If XAUI link is up then do not monitor */
-	if (EFX_WORKAROUND_7884(efx) && falcon_xaui_link_ok(efx))
+	if (EFX_WORKAROUND_7884(efx) && efx->mac_up)
 		return 0;
 
 	/* Check the powered status of the PHY. Lack of power implies that

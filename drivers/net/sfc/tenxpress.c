@@ -1,6 +1,6 @@
 /****************************************************************************
- * Driver for Solarflare 802.3an compliant PHY
- * Copyright 2007 Solarflare Communications Inc.
+ * Driver for Solarflare Solarstorm network controllers and boards
+ * Copyright 2007-2008 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -15,7 +15,6 @@
 #include "phy.h"
 #include "falcon_hwdefs.h"
 #include "boards.h"
-#include "mac.h"
 
 /* We expect these MMDs to be in the package */
 /* AN not here as mdio_check_mmds() requires STAT2 support */
@@ -381,7 +380,7 @@ static int tenxpress_phy_check_hw(struct efx_nic *efx)
 	link_ok = tenxpress_link_ok(efx, true);
 
 	if (link_ok != efx->link_up)
-		falcon_xmac_sim_phy_event(efx);
+		falcon_sim_phy_event(efx);
 
 	if (phy_data->phy_mode != PHY_MODE_NORMAL)
 		return 0;
@@ -453,12 +452,15 @@ static int tenxpress_phy_test(struct efx_nic *efx)
 }
 
 struct efx_phy_operations falcon_tenxpress_phy_ops = {
+	.macs		  = EFX_XMAC,
 	.init             = tenxpress_phy_init,
 	.reconfigure      = tenxpress_phy_reconfigure,
 	.check_hw         = tenxpress_phy_check_hw,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = tenxpress_phy_clear_interrupt,
 	.test             = tenxpress_phy_test,
+	.get_settings	  = mdio_clause45_get_settings,
+	.set_settings	  = mdio_clause45_set_settings,
 	.mmds             = TENXPRESS_REQUIRED_DEVS,
 	.loopbacks        = TENXPRESS_LOOPBACKS,
 };

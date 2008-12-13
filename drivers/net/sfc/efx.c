@@ -27,7 +27,6 @@
 #include "efx.h"
 #include "mdio_10g.h"
 #include "falcon.h"
-#include "mac.h"
 
 #define EFX_MAX_MTU (9 * 1024)
 
@@ -575,10 +574,28 @@ void __efx_reconfigure_port(struct efx_nic *efx)
 		netif_addr_unlock_bh(efx->net_dev);
 	}
 
-	falcon_reconfigure_xmac(efx);
+	falcon_deconfigure_mac_wrapper(efx);
+
+	/* Reconfigure the PHY, disabling transmit in mac level loopback. */
+	if (LOOPBACK_INTERNAL(efx))
+		efx->phy_mode |= PHY_MODE_TX_DISABLED;
+	else
+		efx->phy_mode &= ~PHY_MODE_TX_DISABLED;
+	efx->phy_op->reconfigure(efx);
+
+	if (falcon_switch_mac(efx))
+		goto fail;
+
+	efx->mac_op->reconfigure(efx);
 
 	/* Inform kernel of loss/gain of carrier */
 	efx_link_status_changed(efx);
+	return;
+
+fail:
+	EFX_ERR(efx, "failed to reconfigure MAC\n");
+	efx->phy_op->fini(efx);
+	efx->port_initialized = false;
 }
 
 /* Reinitialise the MAC to pick up new PHY settings, even if the port is
@@ -648,18 +665,25 @@ static int efx_init_port(struct efx_nic *efx)
 
 	EFX_LOG(efx, "init port\n");
 
-	/* Initialise the MAC and PHY */
-	rc = falcon_init_xmac(efx);
+	rc = efx->phy_op->init(efx);
 	if (rc)
 		return rc;
+	efx->phy_op->reconfigure(efx);
+
+	mutex_lock(&efx->mac_lock);
+	rc = falcon_switch_mac(efx);
+	mutex_unlock(&efx->mac_lock);
+	if (rc)
+		goto fail;
+	efx->mac_op->reconfigure(efx);
 
 	efx->port_initialized = true;
 	efx->stats_enabled = true;
-
-	/* Reconfigure port to program MAC registers */
-	falcon_reconfigure_xmac(efx);
-
 	return 0;
+
+fail:
+	efx->phy_op->fini(efx);
+	return rc;
 }
 
 /* Allow efx_reconfigure_port() to be scheduled, and close the window
@@ -702,7 +726,7 @@ static void efx_fini_port(struct efx_nic *efx)
 	if (!efx->port_initialized)
 		return;
 
-	falcon_fini_xmac(efx);
+	efx->phy_op->fini(efx);
 	efx->port_initialized = false;
 
 	efx->link_up = false;
@@ -1179,7 +1203,6 @@ static void efx_monitor(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic,
 					   monitor_work.work);
-	int rc = 0;
 
 	EFX_TRACE(efx, "hardware monitor executing on CPU %d\n",
 		  raw_smp_processor_id());
@@ -1195,7 +1218,7 @@ static void efx_monitor(struct work_struct *data)
 	}
 
 	if (efx->port_enabled)
-		rc = falcon_check_xmac(efx);
+		efx->mac_op->check_hw(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	queue_delayed_work(efx->workqueue, &efx->monitor_work,
@@ -1331,7 +1354,7 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 	if (!spin_trylock(&efx->stats_lock))
 		return stats;
 	if (efx->stats_enabled) {
-		falcon_update_stats_xmac(efx);
+		efx->mac_op->update_stats(efx);
 		falcon_update_nic_stats(efx);
 	}
 	spin_unlock(&efx->stats_lock);
@@ -1519,7 +1542,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 	netif_carrier_off(efx->net_dev);
 
 	/* Clear MAC statistics */
-	falcon_update_stats_xmac(efx);
+	efx->mac_op->update_stats(efx);
 	memset(&efx->mac_stats, 0, sizeof(efx->mac_stats));
 
 	rc = register_netdev(net_dev);
@@ -1575,8 +1598,6 @@ static void efx_unregister_netdev(struct efx_nic *efx)
  * before reset.  */
 void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	int rc;
-
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	/* The net_dev->get_stats handler is quite slow, and will fail
@@ -1589,9 +1610,7 @@ void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	mutex_lock(&efx->mac_lock);
 	mutex_lock(&efx->spi_lock);
 
-	rc = falcon_xmac_get_settings(efx, ecmd);
-	if (rc)
-		EFX_ERR(efx, "could not back up PHY settings\n");
+	efx->phy_op->get_settings(efx, ecmd);
 
 	efx_fini_channels(efx);
 }
@@ -1616,7 +1635,7 @@ int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd, bool ok)
 	if (ok) {
 		efx_init_channels(efx);
 
-		if (falcon_xmac_set_settings(efx, ecmd))
+		if (efx->phy_op->set_settings(efx, ecmd))
 			EFX_ERR(efx, "could not restore PHY settings\n");
 	}
 
@@ -1779,6 +1798,10 @@ int efx_port_dummy_op_int(struct efx_nic *efx)
 void efx_port_dummy_op_void(struct efx_nic *efx) {}
 void efx_port_dummy_op_blink(struct efx_nic *efx, bool blink) {}
 
+static struct efx_mac_operations efx_dummy_mac_operations = {
+	.reconfigure	= efx_port_dummy_op_void,
+};
+
 static struct efx_phy_operations efx_dummy_phy_operations = {
 	.init		 = efx_port_dummy_op_int,
 	.reconfigure	 = efx_port_dummy_op_void,
@@ -1831,6 +1854,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	spin_lock_init(&efx->netif_stop_lock);
 	spin_lock_init(&efx->stats_lock);
 	mutex_init(&efx->mac_lock);
+	efx->mac_op = &efx_dummy_mac_operations;
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mii.dev = net_dev;
 	INIT_WORK(&efx->reconfigure_work, efx_reconfigure_work);

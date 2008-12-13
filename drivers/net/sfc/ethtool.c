@@ -17,15 +17,14 @@
 #include "ethtool.h"
 #include "falcon.h"
 #include "spi.h"
-#include "mac.h"
 
 const char *efx_loopback_mode_names[] = {
 	[LOOPBACK_NONE]		= "NONE",
-	[LOOPBACK_MAC]		= "MAC",
+	[LOOPBACK_GMAC]		= "GMAC",
 	[LOOPBACK_XGMII]	= "XGMII",
 	[LOOPBACK_XGXS]		= "XGXS",
 	[LOOPBACK_XAUI] 	= "XAUI",
-	[LOOPBACK_PHY]		= "PHY",
+	[LOOPBACK_GPHY]		= "GPHY",
 	[LOOPBACK_PHYXS]	= "PHYXS",
 	[LOOPBACK_PCS]	 	= "PCS",
 	[LOOPBACK_PMAPMD]	= "PMA/PMD",
@@ -200,13 +199,15 @@ int efx_ethtool_get_settings(struct net_device *net_dev,
 			     struct ethtool_cmd *ecmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	int rc;
 
 	mutex_lock(&efx->mac_lock);
-	rc = falcon_xmac_get_settings(efx, ecmd);
+	efx->phy_op->get_settings(efx, ecmd);
 	mutex_unlock(&efx->mac_lock);
 
-	return rc;
+	/* Falcon GMAC does not support 1000Mbps HD */
+	ecmd->supported &= ~SUPPORTED_1000baseT_Half;
+
+	return 0;
 }
 
 /* This must be called with rtnl_lock held. */
@@ -216,8 +217,15 @@ int efx_ethtool_set_settings(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
+	/* Falcon GMAC does not support 1000Mbps HD */
+	if (ecmd->speed == SPEED_1000 && ecmd->duplex != DUPLEX_FULL) {
+		EFX_LOG(efx, "rejecting unsupported 1000Mbps HD"
+			" setting\n");
+		return -EINVAL;
+	}
+
 	mutex_lock(&efx->mac_lock);
-	rc = falcon_xmac_set_settings(efx, ecmd);
+	rc = efx->phy_op->set_settings(efx, ecmd);
 	mutex_unlock(&efx->mac_lock);
 	if (!rc)
 		efx_reconfigure_port(efx);
@@ -362,10 +370,6 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 		      EFX_PORT_NAME, "phy", NULL);
 
 	/* Loopback tests */
-	efx_fill_test(n++, strings, data, &tests->loopback_speed,
-		      EFX_PORT_NAME, "loopback.speed", NULL);
-	efx_fill_test(n++, strings, data, &tests->loopback_full_duplex,
-		      EFX_PORT_NAME, "loopback.full_duplex", NULL);
 	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {
 		if (!(efx->loopback_modes & (1 << mode)))
 			continue;
@@ -671,22 +675,14 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	enum efx_fc_type flow_control = efx->flow_control;
-	int rc;
 
 	flow_control &= ~(EFX_FC_RX | EFX_FC_TX | EFX_FC_AUTO);
 	flow_control |= pause->rx_pause ? EFX_FC_RX : 0;
 	flow_control |= pause->tx_pause ? EFX_FC_TX : 0;
 	flow_control |= pause->autoneg ? EFX_FC_AUTO : 0;
 
-	/* Try to push the pause parameters */
-	mutex_lock(&efx->mac_lock);
-	rc = falcon_xmac_set_pause(efx, flow_control);
-	mutex_unlock(&efx->mac_lock);
-
-	if (!rc)
-		efx_reconfigure_port(efx);
-
-	return rc;
+	efx_reconfigure_port(efx);
+	return 0;
 }
 
 static void efx_ethtool_get_pauseparam(struct net_device *net_dev,

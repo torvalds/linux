@@ -39,8 +39,6 @@ struct efx_self_tests {
 	/* offline tests */
 	int registers;
 	int phy;
-	int loopback_speed;
-	int loopback_full_duplex;
 	struct efx_loopback_self_tests loopback[LOOPBACK_TEST_MAX + 1];
 };
 
