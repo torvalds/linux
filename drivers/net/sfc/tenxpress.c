@@ -10,7 +10,6 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include "efx.h"
-#include "gmii.h"
 #include "mdio_10g.h"
 #include "falcon.h"
 #include "phy.h"
@@ -362,7 +361,8 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 	phy_data->loopback_mode = efx->loopback_mode;
 	phy_data->phy_mode = efx->phy_mode;
 	efx->link_up = tenxpress_link_ok(efx, false);
-	efx->link_options = GM_LPA_10000FULL;
+	efx->link_speed = 10000;
+	efx->link_fd = true;
 }
 
 static void tenxpress_phy_clear_interrupt(struct efx_nic *efx)

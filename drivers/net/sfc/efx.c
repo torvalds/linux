@@ -21,7 +21,6 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include "net_driver.h"
-#include "gmii.h"
 #include "ethtool.h"
 #include "tx.h"
 #include "rx.h"
@@ -551,26 +550,8 @@ static void efx_link_status_changed(struct efx_nic *efx)
 
 	/* Status message for kernel log */
 	if (efx->link_up) {
-		struct mii_if_info *gmii = &efx->mii;
-		unsigned adv, lpa;
-		/* NONE here means direct XAUI from the controller, with no
-		 * MDIO-attached device we can query. */
-		if (efx->phy_type != PHY_TYPE_NONE) {
-			adv = gmii_advertised(gmii);
-			lpa = gmii_lpa(gmii);
-		} else {
-			lpa = GM_LPA_10000 | LPA_DUPLEX;
-			adv = lpa;
-		}
-		EFX_INFO(efx, "link up at %dMbps %s-duplex "
-			 "(adv %04x lpa %04x) (MTU %d)%s\n",
-			 (efx->link_options & GM_LPA_10000 ? 10000 :
-			  (efx->link_options & GM_LPA_1000 ? 1000 :
-			   (efx->link_options & GM_LPA_100 ? 100 :
-			    10))),
-			 (efx->link_options & GM_LPA_DUPLEX ?
-			  "full" : "half"),
-			 adv, lpa,
+		EFX_INFO(efx, "link up at %uMbps %s-duplex (MTU %d)%s\n",
+			 efx->link_speed, efx->link_fd ? "full" : "half",
 			 efx->net_dev->mtu,
 			 (efx->promiscuous ? " [PROMISC]" : ""));
 	} else {

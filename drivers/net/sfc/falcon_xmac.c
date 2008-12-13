@@ -15,7 +15,6 @@
 #include "falcon_hwdefs.h"
 #include "falcon_io.h"
 #include "mac.h"
-#include "gmii.h"
 #include "mdio_10g.h"
 #include "phy.h"
 #include "boards.h"

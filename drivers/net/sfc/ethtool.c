@@ -16,7 +16,6 @@
 #include "efx.h"
 #include "ethtool.h"
 #include "falcon.h"
-#include "gmii.h"
 #include "spi.h"
 #include "mac.h"
 

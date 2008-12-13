@@ -694,7 +694,8 @@ union efx_multicast_hash {
  * @mii: PHY interface
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @link_up: Link status
- * @link_options: Link options (MII/GMII format)
+ * @link_fd: Link is full duplex
+ * @link_speed: Link speed (Mbps)
  * @n_link_state_changes: Number of times the link has changed state
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
@@ -772,7 +773,8 @@ struct efx_nic {
 	enum efx_phy_mode phy_mode;
 
 	bool link_up;
-	unsigned int link_options;
+	bool link_fd;
+	unsigned int link_speed;
 	unsigned int n_link_state_changes;
 
 	bool promiscuous;

@@ -14,7 +14,6 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include "efx.h"
-#include "gmii.h"
 #include "mdio_10g.h"
 #include "xenpack.h"
 #include "phy.h"
@@ -154,7 +153,8 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 
 	phy_data->phy_mode = efx->phy_mode;
 	efx->link_up = xfp_link_ok(efx);
-	efx->link_options = GM_LPA_10000FULL;
+	efx->link_speed = 10000;
+	efx->link_fd = true;
 }
 
 

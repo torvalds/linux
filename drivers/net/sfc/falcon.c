@@ -15,11 +15,11 @@
 #include <linux/seq_file.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/mii.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
 #include "mac.h"
-#include "gmii.h"
 #include "spi.h"
 #include "falcon.h"
 #include "falcon_hwdefs.h"
@@ -1915,14 +1915,12 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	int link_speed;
 	bool tx_fc;
 
-	if (efx->link_options & GM_LPA_10000)
-		link_speed = 0x3;
-	else if (efx->link_options & GM_LPA_1000)
-		link_speed = 0x2;
-	else if (efx->link_options & GM_LPA_100)
-		link_speed = 0x1;
-	else
-		link_speed = 0x0;
+	switch (efx->link_speed) {
+	case 10000: link_speed = 3; break;
+	case 1000:  link_speed = 2; break;
+	case 100:   link_speed = 1; break;
+	default:    link_speed = 0; break;
+	}
 	/* MAC_LINK_STATUS controls MAC backpressure but doesn't work
 	 * as advertised.  Disable to ensure packets are not
 	 * indefinitely held and TX queue can be flushed at any point
