@@ -1517,18 +1517,21 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 };
 
+static void efx_update_name(struct efx_nic *efx)
+{
+	strcpy(efx->name, efx->net_dev->name);
+	efx_mtd_rename(efx);
+	efx_set_channel_names(efx);
+}
+
 static int efx_netdev_event(struct notifier_block *this,
 			    unsigned long event, void *ptr)
 {
 	struct net_device *net_dev = ptr;
 
-	if (net_dev->netdev_ops == &efx_netdev_ops && event == NETDEV_CHANGENAME) {
-		struct efx_nic *efx = netdev_priv(net_dev);
-
-		strcpy(efx->name, net_dev->name);
-		efx_mtd_rename(efx);
-		efx_set_channel_names(efx);
-	}
+	if (net_dev->netdev_ops == &efx_netdev_ops &&
+	    event == NETDEV_CHANGENAME)
+		efx_update_name(netdev_priv(net_dev));
 
 	return NOTIFY_DONE;
 }
@@ -1568,8 +1571,10 @@ static int efx_register_netdev(struct efx_nic *efx)
 		EFX_ERR(efx, "could not register net dev\n");
 		return rc;
 	}
-	strcpy(efx->name, net_dev->name);
-	efx_set_channel_names(efx);
+
+	rtnl_lock();
+	efx_update_name(efx);
+	rtnl_unlock();
 
 	rc = device_create_file(&efx->pci_dev->dev, &dev_attr_phy_type);
 	if (rc) {
@@ -1978,8 +1983,6 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	if (!efx)
 		return;
 
-	efx_mtd_remove(efx);
-
 	/* Mark the NIC as fini, then stop the interface */
 	rtnl_lock();
 	efx->state = STATE_FINI;
@@ -1992,6 +1995,8 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 		goto out;
 
 	efx_unregister_netdev(efx);
+
+	efx_mtd_remove(efx);
 
 	/* Wait for any scheduled resets to complete. No more will be
 	 * scheduled from this point because efx_stop_all() has been
@@ -2146,17 +2151,15 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	/* Switch to the running state before we expose the device to
 	 * the OS.  This is to ensure that the initial gathering of
 	 * MAC stats succeeds. */
-	rtnl_lock();
 	efx->state = STATE_RUNNING;
-	rtnl_unlock();
+
+	efx_mtd_probe(efx); /* allowed to fail */
 
 	rc = efx_register_netdev(efx);
 	if (rc)
 		goto fail5;
 
 	EFX_LOG(efx, "initialisation successful\n");
-
-	efx_mtd_probe(efx); /* allowed to fail */
 	return 0;
 
  fail5:
