@@ -92,7 +92,7 @@ struct partial_datagram {
 	struct list_head list;
 	u16 dgl;
 	u16 dg_size;
-	u16 ether_type;
+	__be16 ether_type;
 	struct sk_buff *skb;
 	char *pbuf;
 	struct list_head frag_info;
@@ -767,7 +767,7 @@ static int ether1394_header_parse(const struct sk_buff *skb,
 static int ether1394_header_cache(const struct neighbour *neigh,
 				  struct hh_cache *hh)
 {
-	unsigned short type = hh->hh_type;
+	__be16 type = hh->hh_type;
 	struct net_device *dev = neigh->dev;
 	struct eth1394hdr *eth =
 		(struct eth1394hdr *)((u8 *)hh->hh_data + 16 - ETH1394_HLEN);
@@ -795,7 +795,7 @@ static void ether1394_header_cache_update(struct hh_cache *hh,
  ******************************************/
 
 /* Copied from net/ethernet/eth.c */
-static u16 ether1394_type_trans(struct sk_buff *skb, struct net_device *dev)
+static __be16 ether1394_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct eth1394hdr *eth;
 	unsigned char *rawp;
@@ -829,17 +829,17 @@ static u16 ether1394_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 /* Parse an encapsulated IP1394 header into an ethernet frame packet.
  * We also perform ARP translation here, if need be.  */
-static u16 ether1394_parse_encap(struct sk_buff *skb, struct net_device *dev,
+static __be16 ether1394_parse_encap(struct sk_buff *skb, struct net_device *dev,
 				 nodeid_t srcid, nodeid_t destid,
-				 u16 ether_type)
+				 __be16 ether_type)
 {
 	struct eth1394_priv *priv = netdev_priv(dev);
-	u64 dest_hw;
-	unsigned short ret = 0;
+	__be64 dest_hw;
+	__be16 ret = 0;
 
 	/* Setup our hw addresses. We use these to build the ethernet header. */
 	if (destid == (LOCAL_BUS | ALL_NODES))
-		dest_hw = ~0ULL;  /* broadcast */
+		dest_hw = ~cpu_to_be64(0);  /* broadcast */
 	else
 		dest_hw = cpu_to_be64((u64)priv->host->csr.guid_hi << 32 |
 				      priv->host->csr.guid_lo);
@@ -873,7 +873,7 @@ static u16 ether1394_parse_encap(struct sk_buff *skb, struct net_device *dev,
 		node = eth1394_find_node_guid(&priv->ip_node_list,
 					      be64_to_cpu(guid));
 		if (!node)
-			return 0;
+			return cpu_to_be16(0);
 
 		node_info =
 		    (struct eth1394_node_info *)node->ud->device.driver_data;
@@ -1063,7 +1063,7 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 	unsigned long flags;
 	struct eth1394_priv *priv = netdev_priv(dev);
 	union eth1394_hdr *hdr = (union eth1394_hdr *)buf;
-	u16 ether_type = 0;  /* initialized to clear warning */
+	__be16 ether_type = cpu_to_be16(0);  /* initialized to clear warning */
 	int hdr_len;
 	struct unit_directory *ud = priv->ud_list[NODEID_TO_NODE(srcid)];
 	struct eth1394_node_info *node_info;
@@ -1259,7 +1259,7 @@ static int ether1394_write(struct hpsb_host *host, int srcid, int destid,
 
 static void ether1394_iso(struct hpsb_iso *iso)
 {
-	quadlet_t *data;
+	__be32 *data;
 	char *buf;
 	struct eth1394_host_info *hi;
 	struct net_device *dev;
@@ -1283,7 +1283,7 @@ static void ether1394_iso(struct hpsb_iso *iso)
 	for (i = 0; i < nready; i++) {
 		struct hpsb_iso_packet_info *info =
 			&iso->infos[(iso->first_packet + i) % iso->buf_packets];
-		data = (quadlet_t *)(iso->data_buf.kvirt + info->offset);
+		data = (__be32 *)(iso->data_buf.kvirt + info->offset);
 
 		/* skip over GASP header */
 		buf = (char *)data + 8;
@@ -1614,7 +1614,7 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 		if (max_payload < dg_size + hdr_type_len[ETH1394_HDR_LF_UF])
 			priv->bc_dgl++;
 	} else {
-		__be64 guid = get_unaligned((u64 *)hdr_buf.h_dest);
+		__be64 guid = get_unaligned((__be64 *)hdr_buf.h_dest);
 
 		node = eth1394_find_node_guid(&priv->ip_node_list,
 					      be64_to_cpu(guid));
