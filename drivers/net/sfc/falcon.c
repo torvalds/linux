@@ -784,15 +784,18 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			   rx_ev_buf_owner_id_err | rx_ev_eth_crc_err |
 			   rx_ev_frm_trunc | rx_ev_ip_hdr_chksum_err);
 
-	/* Count errors that are not in MAC stats. */
+	/* Count errors that are not in MAC stats.  Ignore expected
+	 * checksum errors during self-test. */
 	if (rx_ev_frm_trunc)
 		++rx_queue->channel->n_rx_frm_trunc;
 	else if (rx_ev_tobe_disc)
 		++rx_queue->channel->n_rx_tobe_disc;
-	else if (rx_ev_ip_hdr_chksum_err)
-		++rx_queue->channel->n_rx_ip_hdr_chksum_err;
-	else if (rx_ev_tcp_udp_chksum_err)
-		++rx_queue->channel->n_rx_tcp_udp_chksum_err;
+	else if (!efx->loopback_selftest) {
+		if (rx_ev_ip_hdr_chksum_err)
+			++rx_queue->channel->n_rx_ip_hdr_chksum_err;
+		else if (rx_ev_tcp_udp_chksum_err)
+			++rx_queue->channel->n_rx_tcp_udp_chksum_err;
+	}
 	if (rx_ev_ip_frag_err)
 		++rx_queue->channel->n_rx_ip_frag_err;
 
