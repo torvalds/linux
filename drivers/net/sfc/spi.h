@@ -69,7 +69,7 @@ struct efx_spi_device {
 
 int falcon_spi_cmd(const struct efx_spi_device *spi, unsigned int command,
 		   int address, const void* in, void *out, size_t len);
-int falcon_spi_fast_wait(const struct efx_spi_device *spi);
+int falcon_spi_wait_write(const struct efx_spi_device *spi);
 int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
 		    size_t len, size_t *retlen, u8 *buffer);
 int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,

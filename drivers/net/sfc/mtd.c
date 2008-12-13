@@ -76,7 +76,7 @@ static int efx_spi_unlock(const struct efx_spi_device *spi)
 	rc = falcon_spi_cmd(spi, SPI_WRSR, -1, &status, NULL, sizeof(status));
 	if (rc)
 		return rc;
-	rc = falcon_spi_fast_wait(spi);
+	rc = falcon_spi_wait_write(spi);
 	if (rc)
 		return rc;
 
