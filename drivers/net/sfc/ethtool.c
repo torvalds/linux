@@ -182,12 +182,16 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
  */
 
 /* Identify device by flashing LEDs */
-static int efx_ethtool_phys_id(struct net_device *net_dev, u32 seconds)
+static int efx_ethtool_phys_id(struct net_device *net_dev, u32 count)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	efx->board_info.blink(efx, 1);
-	schedule_timeout_interruptible(seconds * HZ);
+	set_current_state(TASK_INTERRUPTIBLE);
+	if (count)
+		schedule_timeout(count * HZ);
+	else
+		schedule();
 	efx->board_info.blink(efx, 0);
 	return 0;
 }
