@@ -16,6 +16,8 @@ static inline void visws_early_detect(void) { }
 static inline int is_visws_box(void) { return 0; }
 #endif
 
+extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
+extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
 /*
  * Any setup quirks to be performed?
  */
@@ -39,6 +41,7 @@ struct x86_quirks {
 	void (*smp_read_mpc_oem)(struct mp_config_oemtable *oemtable,
                                     unsigned short oemsize);
 	int (*setup_ioapic_ids)(void);
+	int (*update_genapic)(void);
 };
 
 extern struct x86_quirks *x86_quirks;

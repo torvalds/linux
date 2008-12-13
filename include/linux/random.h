@@ -8,6 +8,7 @@
 #define _LINUX_RANDOM_H
 
 #include <linux/ioctl.h>
+#include <linux/irqnr.h>
 
 /* ioctl()'s for the random number generator */
 
@@ -43,6 +44,56 @@ struct rand_pool_info {
 #ifdef __KERNEL__
 
 extern void rand_initialize_irq(int irq);
+
+struct timer_rand_state;
+#ifndef CONFIG_SPARSE_IRQ
+
+extern struct timer_rand_state *irq_timer_state[];
+
+static inline struct timer_rand_state *get_timer_rand_state(unsigned int irq)
+{
+	if (irq >= nr_irqs)
+		return NULL;
+
+	return irq_timer_state[irq];
+}
+
+static inline void set_timer_rand_state(unsigned int irq, struct timer_rand_state *state)
+{
+	if (irq >= nr_irqs)
+		return;
+
+	irq_timer_state[irq] = state;
+}
+
+#else
+
+#include <linux/irq.h>
+static inline struct timer_rand_state *get_timer_rand_state(unsigned int irq)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+
+	if (!desc)
+		return NULL;
+
+	return desc->timer_rand_state;
+}
+
+static inline void set_timer_rand_state(unsigned int irq, struct timer_rand_state *state)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+
+	if (!desc)
+		return;
+
+	desc->timer_rand_state = state;
+}
+#endif
+
 
 extern void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value);

@@ -2184,24 +2184,15 @@ static noinline struct module *load_module(void __user *umod,
 		struct mod_debug *debug;
 		unsigned int num_debug;
 
-#ifdef CONFIG_MARKERS
-		marker_update_probe_range(mod->markers,
-			mod->markers + mod->num_markers);
-#endif
 		debug = section_objs(hdr, sechdrs, secstrings, "__verbose",
 				     sizeof(*debug), &num_debug);
 		dynamic_printk_setup(debug, num_debug);
-
-#ifdef CONFIG_TRACEPOINTS
-		tracepoint_update_probe_range(mod->tracepoints,
-			mod->tracepoints + mod->num_tracepoints);
-#endif
 	}
 
 	/* sechdrs[0].sh_size is always zero */
 	mseg = section_objs(hdr, sechdrs, secstrings, "__mcount_loc",
 			    sizeof(*mseg), &num_mcount);
-	ftrace_init_module(mseg, mseg + num_mcount);
+	ftrace_init_module(mod, mseg, mseg + num_mcount);
 
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
@@ -2713,7 +2704,7 @@ int is_module_address(unsigned long addr)
 
 
 /* Is this a valid kernel address? */
-struct module *__module_text_address(unsigned long addr)
+__notrace_funcgraph struct module *__module_text_address(unsigned long addr)
 {
 	struct module *mod;
 

@@ -325,7 +325,7 @@ extern struct class *tty_class;
  *	go away
  */
 
-extern inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
+static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 {
 	if (tty)
 		kref_get(&tty->kref);

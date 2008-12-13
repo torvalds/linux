@@ -653,7 +653,7 @@ config GENERIC_CMOS_UPDATE
 	bool
 	default y
 
-config SCHED_NO_NO_OMIT_FRAME_POINTER
+config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
 

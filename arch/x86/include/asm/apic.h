@@ -193,6 +193,7 @@ extern u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask);
 static inline void lapic_shutdown(void) { }
 #define local_apic_timer_c2_ok		1
 static inline void init_apic_mappings(void) { }
+static inline void disable_local_APIC(void) { }
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 

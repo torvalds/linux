@@ -242,6 +242,8 @@ void fixup_irqs(cpumask_t map)
 	for_each_irq_desc(irq, desc) {
 		cpumask_t mask;
 
+		if (!desc)
+			continue;
 		if (irq == 2)
 			continue;
 

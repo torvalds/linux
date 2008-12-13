@@ -53,6 +53,10 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
+DEFINE_TRACE(sched_process_free);
+DEFINE_TRACE(sched_process_exit);
+DEFINE_TRACE(sched_process_wait);
+
 static void exit_mm(struct task_struct * tsk);
 
 static inline int task_detached(struct task_struct *p)
@@ -1123,7 +1127,6 @@ NORET_TYPE void do_exit(long code)
 	preempt_disable();
 	/* causes final put_task_struct in finish_task_switch(). */
 	tsk->state = TASK_DEAD;
-
 	schedule();
 	BUG();
 	/* Avoid "noreturn function does return".  */
@@ -1321,10 +1324,10 @@ static int wait_task_zombie(struct task_struct *p, int options,
 		 * group, which consolidates times for all threads in the
 		 * group including the group leader.
 		 */
+		thread_group_cputime(p, &cputime);
 		spin_lock_irq(&p->parent->sighand->siglock);
 		psig = p->parent->signal;
 		sig = p->signal;
-		thread_group_cputime(p, &cputime);
 		psig->cutime =
 			cputime_add(psig->cutime,
 			cputime_add(cputime.utime,

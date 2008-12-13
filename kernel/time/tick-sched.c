@@ -144,7 +144,7 @@ void tick_nohz_update_jiffies(void)
 	if (!ts->tick_stopped)
 		return;
 
-	cpu_clear(cpu, nohz_cpu_mask);
+	cpumask_clear_cpu(cpu, nohz_cpu_mask);
 	now = ktime_get();
 	ts->idle_waketime = now;
 
@@ -283,7 +283,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 	if ((long)delta_jiffies >= 1) {
 
 		if (delta_jiffies > 1)
-			cpu_set(cpu, nohz_cpu_mask);
+			cpumask_set_cpu(cpu, nohz_cpu_mask);
 		/*
 		 * nohz_stop_sched_tick can be called several times before
 		 * the nohz_restart_sched_tick is called. This happens when
@@ -296,7 +296,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 				/*
 				 * sched tick not stopped!
 				 */
-				cpu_clear(cpu, nohz_cpu_mask);
+				cpumask_clear_cpu(cpu, nohz_cpu_mask);
 				goto out;
 			}
 
@@ -354,7 +354,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 		 * softirq.
 		 */
 		tick_do_update_jiffies64(ktime_get());
-		cpu_clear(cpu, nohz_cpu_mask);
+		cpumask_clear_cpu(cpu, nohz_cpu_mask);
 	}
 	raise_softirq_irqoff(TIMER_SOFTIRQ);
 out:
@@ -432,7 +432,7 @@ void tick_nohz_restart_sched_tick(void)
 	select_nohz_load_balancer(0);
 	now = ktime_get();
 	tick_do_update_jiffies64(now);
-	cpu_clear(cpu, nohz_cpu_mask);
+	cpumask_clear_cpu(cpu, nohz_cpu_mask);
 
 	/*
 	 * We stopped the tick in idle. Update process times would miss the

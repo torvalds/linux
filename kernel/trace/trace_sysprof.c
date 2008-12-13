@@ -261,27 +261,17 @@ static void stop_stack_trace(struct trace_array *tr)
 	mutex_unlock(&sample_timer_lock);
 }
 
-static void stack_trace_init(struct trace_array *tr)
+static int stack_trace_init(struct trace_array *tr)
 {
 	sysprof_trace = tr;
 
-	if (tr->ctrl)
-		start_stack_trace(tr);
+	start_stack_trace(tr);
+	return 0;
 }
 
 static void stack_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		stop_stack_trace(tr);
-}
-
-static void stack_trace_ctrl_update(struct trace_array *tr)
-{
-	/* When starting a new trace, reset the buffers */
-	if (tr->ctrl)
-		start_stack_trace(tr);
-	else
-		stop_stack_trace(tr);
+	stop_stack_trace(tr);
 }
 
 static struct tracer stack_trace __read_mostly =
@@ -289,7 +279,6 @@ static struct tracer stack_trace __read_mostly =
 	.name		= "sysprof",
 	.init		= stack_trace_init,
 	.reset		= stack_trace_reset,
-	.ctrl_update	= stack_trace_ctrl_update,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_sysprof,
 #endif

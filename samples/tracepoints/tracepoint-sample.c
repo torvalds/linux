@@ -13,6 +13,9 @@
 #include <linux/proc_fs.h>
 #include "tp-samples-trace.h"
 
+DEFINE_TRACE(subsys_event);
+DEFINE_TRACE(subsys_eventb);
+
 struct proc_dir_entry *pentry_example;
 
 static int my_open(struct inode *inode, struct file *file)

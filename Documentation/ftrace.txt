@@ -82,7 +82,7 @@ of ftrace. Here is a list of some of the key files:
 		tracer is not adding more data, they will display
 		the same information every time they are read.
 
-  iter_ctrl: This file lets the user control the amount of data
+  trace_options: This file lets the user control the amount of data
 		that is displayed in one of the above output
 		files.
 
@@ -94,10 +94,10 @@ of ftrace. Here is a list of some of the key files:
 		only be recorded if the latency is greater than
 		the value in this file. (in microseconds)
 
-  trace_entries: This sets or displays the number of bytes each CPU
+  buffer_size_kb: This sets or displays the number of kilobytes each CPU
 		buffer can hold. The tracer buffers are the same size
 		for each CPU. The displayed number is the size of the
-		 CPU buffer and not total size of all buffers. The
+		CPU buffer and not total size of all buffers. The
 		trace buffers are allocated in pages (blocks of memory
 		that the kernel uses for allocation, usually 4 KB in size).
 		If the last page allocated has room for more bytes
@@ -126,6 +126,8 @@ of ftrace. Here is a list of some of the key files:
 		set_ftrace_filter. Any function that is added here will not
 		be traced. If a function exists in both set_ftrace_filter
 		and set_ftrace_notrace,	the function will _not_ be traced.
+
+  set_ftrace_pid: Have the function tracer only trace a single thread.
 
   available_filter_functions: This lists the functions that ftrace
 		has processed and can trace. These are the function
@@ -316,23 +318,23 @@ The above is mostly meaningful for kernel developers.
   The rest is the same as the 'trace' file.
 
 
-iter_ctrl
----------
+trace_options
+-------------
 
-The iter_ctrl file is used to control what gets printed in the trace
+The trace_options file is used to control what gets printed in the trace
 output. To see what is available, simply cat the file:
 
-  cat /debug/tracing/iter_ctrl
+  cat /debug/tracing/trace_options
   print-parent nosym-offset nosym-addr noverbose noraw nohex nobin \
- noblock nostacktrace nosched-tree
+ noblock nostacktrace nosched-tree nouserstacktrace nosym-userobj
 
 To disable one of the options, echo in the option prepended with "no".
 
-  echo noprint-parent > /debug/tracing/iter_ctrl
+  echo noprint-parent > /debug/tracing/trace_options
 
 To enable an option, leave off the "no".
 
-  echo sym-offset > /debug/tracing/iter_ctrl
+  echo sym-offset > /debug/tracing/trace_options
 
 Here are the available options:
 
@@ -377,6 +379,20 @@ Here are the available options:
   stacktrace - This is one of the options that changes the trace itself.
 		When a trace is recorded, so is the stack of functions.
 		This allows for back traces of trace sites.
+
+  userstacktrace - This option changes the trace.
+		   It records a stacktrace of the current userspace thread.
+
+  sym-userobj - when user stacktrace are enabled, look up which object the
+		address belongs to, and print a relative address
+		This is especially useful when ASLR is on, otherwise you don't
+		get a chance to resolve the address to object/file/line after the app is no
+		longer running
+
+		The lookup is performed when you read trace,trace_pipe,latency_trace. Example:
+
+		a.out-1623  [000] 40874.465068: /root/a.out[+0x480] <-/root/a.out[+0
+x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 
   sched-tree - TBD (any users??)
 
@@ -1059,6 +1075,83 @@ For simple one time traces, the above is sufficent. For anything else,
 a search through /proc/mounts may be needed to find where the debugfs
 file-system is mounted.
 
+
+Single thread tracing
+---------------------
+
+By writing into /debug/tracing/set_ftrace_pid you can trace a
+single thread. For example:
+
+# cat /debug/tracing/set_ftrace_pid
+no pid
+# echo 3111 > /debug/tracing/set_ftrace_pid
+# cat /debug/tracing/set_ftrace_pid
+3111
+# echo function > /debug/tracing/current_tracer
+# cat /debug/tracing/trace | head
+ # tracer: function
+ #
+ #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+ #              | |       |          |         |
+     yum-updatesd-3111  [003]  1637.254676: finish_task_switch <-thread_return
+     yum-updatesd-3111  [003]  1637.254681: hrtimer_cancel <-schedule_hrtimeout_range
+     yum-updatesd-3111  [003]  1637.254682: hrtimer_try_to_cancel <-hrtimer_cancel
+     yum-updatesd-3111  [003]  1637.254683: lock_hrtimer_base <-hrtimer_try_to_cancel
+     yum-updatesd-3111  [003]  1637.254685: fget_light <-do_sys_poll
+     yum-updatesd-3111  [003]  1637.254686: pipe_poll <-do_sys_poll
+# echo -1 > /debug/tracing/set_ftrace_pid
+# cat /debug/tracing/trace |head
+ # tracer: function
+ #
+ #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+ #              | |       |          |         |
+ ##### CPU 3 buffer started ####
+     yum-updatesd-3111  [003]  1701.957688: free_poll_entry <-poll_freewait
+     yum-updatesd-3111  [003]  1701.957689: remove_wait_queue <-free_poll_entry
+     yum-updatesd-3111  [003]  1701.957691: fput <-free_poll_entry
+     yum-updatesd-3111  [003]  1701.957692: audit_syscall_exit <-sysret_audit
+     yum-updatesd-3111  [003]  1701.957693: path_put <-audit_syscall_exit
+
+If you want to trace a function when executing, you could use
+something like this simple program:
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main (int argc, char **argv)
+{
+        if (argc < 1)
+                exit(-1);
+
+        if (fork() > 0) {
+                int fd, ffd;
+                char line[64];
+                int s;
+
+                ffd = open("/debug/tracing/current_tracer", O_WRONLY);
+                if (ffd < 0)
+                        exit(-1);
+                write(ffd, "nop", 3);
+
+                fd = open("/debug/tracing/set_ftrace_pid", O_WRONLY);
+                s = sprintf(line, "%d\n", getpid());
+                write(fd, line, s);
+
+                write(ffd, "function", 8);
+
+                close(fd);
+                close(ffd);
+
+                execvp(argv[1], argv+1);
+        }
+
+        return 0;
+}
+
 dynamic ftrace
 --------------
 
@@ -1158,7 +1251,11 @@ These are the only wild cards which are supported.
 
   <match>*<match> will not work.
 
- # echo hrtimer_* > /debug/tracing/set_ftrace_filter
+Note: It is better to use quotes to enclose the wild cards, otherwise
+  the shell may expand the parameters into names of files in the local
+  directory.
+
+ # echo 'hrtimer_*' > /debug/tracing/set_ftrace_filter
 
 Produces:
 
@@ -1213,7 +1310,7 @@ Again, now we want to append.
  # echo sys_nanosleep > /debug/tracing/set_ftrace_filter
  # cat /debug/tracing/set_ftrace_filter
 sys_nanosleep
- # echo hrtimer_* >> /debug/tracing/set_ftrace_filter
+ # echo 'hrtimer_*' >> /debug/tracing/set_ftrace_filter
  # cat /debug/tracing/set_ftrace_filter
 hrtimer_run_queues
 hrtimer_run_pending
@@ -1299,41 +1396,29 @@ trace entries
 -------------
 
 Having too much or not enough data can be troublesome in diagnosing
-an issue in the kernel. The file trace_entries is used to modify
+an issue in the kernel. The file buffer_size_kb is used to modify
 the size of the internal trace buffers. The number listed
 is the number of entries that can be recorded per CPU. To know
 the full size, multiply the number of possible CPUS with the
 number of entries.
 
- # cat /debug/tracing/trace_entries
-65620
+ # cat /debug/tracing/buffer_size_kb
+1408 (units kilobytes)
 
 Note, to modify this, you must have tracing completely disabled. To do that,
 echo "nop" into the current_tracer. If the current_tracer is not set
 to "nop", an EINVAL error will be returned.
 
  # echo nop > /debug/tracing/current_tracer
- # echo 100000 > /debug/tracing/trace_entries
- # cat /debug/tracing/trace_entries
-100045
-
-
-Notice that we echoed in 100,000 but the size is 100,045. The entries
-are held in individual pages. It allocates the number of pages it takes
-to fulfill the request. If more entries may fit on the last page
-then they will be added.
-
- # echo 1 > /debug/tracing/trace_entries
- # cat /debug/tracing/trace_entries
-85
-
-This shows us that 85 entries can fit in a single page.
+ # echo 10000 > /debug/tracing/buffer_size_kb
+ # cat /debug/tracing/buffer_size_kb
+10000 (units kilobytes)
 
 The number of pages which will be allocated is limited to a percentage
 of available memory. Allocating too much will produce an error.
 
- # echo 1000000000000 > /debug/tracing/trace_entries
+ # echo 1000000000000 > /debug/tracing/buffer_size_kb
 -bash: echo: write error: Cannot allocate memory
- # cat /debug/tracing/trace_entries
+ # cat /debug/tracing/buffer_size_kb
 85
 
