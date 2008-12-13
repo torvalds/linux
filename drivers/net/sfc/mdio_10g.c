@@ -205,61 +205,24 @@ bool mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 
 void mdio_clause45_transmit_disable(struct efx_nic *efx)
 {
-	int phy_id = efx->mii.phy_id;
-	int ctrl1, ctrl2;
-
-	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-					   MDIO_MMDREG_TXDIS);
-	if (efx->phy_mode & PHY_MODE_TX_DISABLED)
-		ctrl2 |= (1 << MDIO_MMDREG_TXDIS_GLOBAL_LBN);
-	else
-		ctrl1 &= ~(1 << MDIO_MMDREG_TXDIS_GLOBAL_LBN);
-	if (ctrl1 != ctrl2)
-		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-				    MDIO_MMDREG_TXDIS, ctrl2);
+	mdio_clause45_set_flag(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
+			       MDIO_MMDREG_TXDIS, MDIO_MMDREG_TXDIS_GLOBAL_LBN,
+			       efx->phy_mode & PHY_MODE_TX_DISABLED);
 }
 
 void mdio_clause45_phy_reconfigure(struct efx_nic *efx)
 {
 	int phy_id = efx->mii.phy_id;
-	int ctrl1, ctrl2;
 
-	/* Handle (with debouncing) PMA/PMD loopback */
-	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-					   MDIO_MMDREG_CTRL1);
-
-	if (efx->loopback_mode == LOOPBACK_PMAPMD)
-		ctrl2 |= (1 << MDIO_PMAPMD_CTRL1_LBACK_LBN);
-	else
-		ctrl2 &= ~(1 << MDIO_PMAPMD_CTRL1_LBACK_LBN);
-
-	if (ctrl1 != ctrl2)
-		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-				    MDIO_MMDREG_CTRL1, ctrl2);
-
-	/* Handle (with debouncing) PCS loopback */
-	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PCS,
-					   MDIO_MMDREG_CTRL1);
-	if (efx->loopback_mode == LOOPBACK_PCS)
-		ctrl2 |= (1 << MDIO_MMDREG_CTRL1_LBACK_LBN);
-	else
-		ctrl2 &= ~(1 << MDIO_MMDREG_CTRL1_LBACK_LBN);
-
-	if (ctrl1 != ctrl2)
-		mdio_clause45_write(efx, phy_id, MDIO_MMD_PCS,
-				    MDIO_MMDREG_CTRL1, ctrl2);
-
-	/* Handle (with debouncing) PHYXS network loopback */
-	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PHYXS,
-					   MDIO_MMDREG_CTRL1);
-	if (efx->loopback_mode == LOOPBACK_NETWORK)
-		ctrl2 |= (1 << MDIO_MMDREG_CTRL1_LBACK_LBN);
-	else
-		ctrl2 &= ~(1 << MDIO_MMDREG_CTRL1_LBACK_LBN);
-
-	if (ctrl1 != ctrl2)
-		mdio_clause45_write(efx, phy_id, MDIO_MMD_PHYXS,
-				    MDIO_MMDREG_CTRL1, ctrl2);
+	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_PMAPMD,
+			       MDIO_MMDREG_CTRL1, MDIO_PMAPMD_CTRL1_LBACK_LBN,
+			       efx->loopback_mode == LOOPBACK_PMAPMD);
+	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_PCS,
+			       MDIO_MMDREG_CTRL1, MDIO_MMDREG_CTRL1_LBACK_LBN,
+			       efx->loopback_mode == LOOPBACK_PCS);
+	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_PHYXS,
+			       MDIO_MMDREG_CTRL1, MDIO_MMDREG_CTRL1_LBACK_LBN,
+			       efx->loopback_mode == LOOPBACK_NETWORK);
 }
 
 static void mdio_clause45_set_mmd_lpower(struct efx_nic *efx,
@@ -267,21 +230,13 @@ static void mdio_clause45_set_mmd_lpower(struct efx_nic *efx,
 {
 	int phy = efx->mii.phy_id;
 	int stat = mdio_clause45_read(efx, phy, mmd, MDIO_MMDREG_STAT1);
-	int ctrl1, ctrl2;
 
 	EFX_TRACE(efx, "Setting low power mode for MMD %d to %d\n",
 		  mmd, lpower);
 
 	if (stat & (1 << MDIO_MMDREG_STAT1_LPABLE_LBN)) {
-		ctrl1 = ctrl2 = mdio_clause45_read(efx, phy,
-						   mmd, MDIO_MMDREG_CTRL1);
-		if (lpower)
-			ctrl2 |= (1 << MDIO_MMDREG_CTRL1_LPOWER_LBN);
-		else
-			ctrl2 &= ~(1 << MDIO_MMDREG_CTRL1_LPOWER_LBN);
-		if (ctrl1 != ctrl2)
-			mdio_clause45_write(efx, phy, mmd,
-					    MDIO_MMDREG_CTRL1, ctrl2);
+		mdio_clause45_set_flag(efx, phy, mmd, MDIO_MMDREG_CTRL1,
+				       MDIO_MMDREG_CTRL1_LPOWER_LBN, lpower);
 	}
 }
 
@@ -394,4 +349,18 @@ int mdio_clause45_set_settings(struct efx_nic *efx,
 	    (ecmd->advertising == tmpcmd.advertising))
 		return 0;
 	return -EOPNOTSUPP;
+}
+
+void mdio_clause45_set_flag(struct efx_nic *efx, u8 prt, u8 dev,
+			    u16 addr, int bit, bool sense)
+{
+	int old_val = mdio_clause45_read(efx, prt, dev, addr);
+	int new_val;
+
+	if (sense)
+		new_val = old_val | (1 << bit);
+	else
+		new_val = old_val & ~(1 << bit);
+	if (old_val != new_val)
+		mdio_clause45_write(efx, prt, dev, addr, new_val);
 }

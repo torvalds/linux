@@ -259,4 +259,8 @@ extern int mdio_clause45_set_settings(struct efx_nic *efx,
 extern int mdio_clause45_wait_reset_mmds(struct efx_nic *efx,
 					 unsigned int mmd_mask);
 
+/* Set or clear flag, debouncing */
+extern void mdio_clause45_set_flag(struct efx_nic *efx, u8 prt, u8 dev,
+				   u16 addr, int bit, bool sense);
+
 #endif /* EFX_MDIO_10G_H */
