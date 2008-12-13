@@ -358,7 +358,7 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 	irq_server = get_irq_server(virq, 1);
 	if (irq_server == -1) {
 		char cpulist[128];
-		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
+		cpumask_scnprintf(cpulist, sizeof(cpulist), &cpumask);
 		printk(KERN_WARNING
 			"%s: No online cpus in the mask %s for irq %d\n",
 			__func__, cpulist, virq);
