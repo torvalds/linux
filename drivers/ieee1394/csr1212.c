@@ -1077,15 +1077,10 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 	int i;
 	int ret;
 
-	/* IEEE 1212 says that the entire bus info block should be readable in
-	 * a single transaction regardless of the max_rom value.
-	 * Unfortunately, many IEEE 1394 devices do not abide by that, so the
-	 * bus info block will be read 1 quadlet at a time.  The rest of the
-	 * ConfigROM will be read according to the max_rom field. */
 	for (i = 0; i < csr->bus_info_len; i += sizeof(u32)) {
 		ret = csr->ops->bus_read(csr, CSR1212_CONFIG_ROM_SPACE_BASE + i,
-			sizeof(u32), &csr->cache_head->data[bytes_to_quads(i)],
-			csr->private);
+				&csr->cache_head->data[bytes_to_quads(i)],
+				csr->private);
 		if (ret != CSR1212_SUCCESS)
 			return ret;
 
@@ -1104,8 +1099,8 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 	 * a time. */
 	for (i = csr->bus_info_len; i <= csr->crc_len; i += sizeof(u32)) {
 		ret = csr->ops->bus_read(csr, CSR1212_CONFIG_ROM_SPACE_BASE + i,
-			sizeof(u32), &csr->cache_head->data[bytes_to_quads(i)],
-			csr->private);
+				&csr->cache_head->data[bytes_to_quads(i)],
+				csr->private);
 		if (ret != CSR1212_SUCCESS)
 			return ret;
 	}
@@ -1289,7 +1284,7 @@ csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 
 		if (csr->ops->bus_read(csr,
 				       CSR1212_REGISTER_SPACE_BASE + kv->offset,
-				       sizeof(u32), &q, csr->private))
+				       &q, csr->private))
 			return -EIO;
 
 		kv->value.leaf.len = be32_to_cpu(q) >> 16;
@@ -1372,17 +1367,8 @@ csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 		addr = (CSR1212_CSR_ARCH_REG_SPACE_BASE + cache->offset +
 			cr->offset_end) & ~(csr->max_rom - 1);
 
-		if (csr->ops->bus_read(csr, addr, csr->max_rom, cache_ptr,
-				       csr->private)) {
-			if (csr->max_rom == 4)
-				/* We've got problems! */
-				return -EIO;
-
-			/* Apperently the max_rom value was a lie, set it to
-			 * do quadlet reads and try again. */
-			csr->max_rom = 4;
-			continue;
-		}
+		if (csr->ops->bus_read(csr, addr, cache_ptr, csr->private))
+			return -EIO;
 
 		cr->offset_end += csr->max_rom - (cr->offset_end &
 						  (csr->max_rom - 1));
@@ -1433,7 +1419,6 @@ csr1212_get_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 
 int csr1212_parse_csr(struct csr1212_csr *csr)
 {
-	static const int mr_map[] = { 4, 64, 1024, 0 };
 	struct csr1212_dentry *dentry;
 	int ret;
 
@@ -1443,15 +1428,13 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	if (ret != CSR1212_SUCCESS)
 		return ret;
 
-	if (!csr->ops->get_max_rom) {
-		csr->max_rom = mr_map[0];	/* default value */
-	} else {
-		int i = csr->ops->get_max_rom(csr->bus_info_data,
-					      csr->private);
-		if (i & ~0x3)
-			return -EINVAL;
-		csr->max_rom = mr_map[i];
-	}
+	/*
+	 * There has been a buggy firmware with bus_info_block.max_rom > 0
+	 * spotted which actually only supported quadlet read requests to the
+	 * config ROM.  Therefore read everything quadlet by quadlet regardless
+	 * of what the bus info block says.
+	 */
+	csr->max_rom = 4;
 
 	csr->cache_head->layout_head = csr->root_kv;
 	csr->cache_head->layout_tail = csr->root_kv;

@@ -200,7 +200,7 @@ struct csr1212_bus_ops {
 	 * entries located in the Units Space.  Must return 0 on success
 	 * anything else indicates an error. */
 	int (*bus_read) (struct csr1212_csr *csr, u64 addr,
-			 u16 length, void *buffer, void *private);
+			 void *buffer, void *private);
 
 	/* This function is used by csr1212 to allocate a region in units space
 	 * in the event that Config ROM entries don't all fit in the predefined
@@ -211,11 +211,6 @@ struct csr1212_bus_ops {
 	/* This function is used by csr1212 to release a region in units space
 	 * that is no longer needed. */
 	void (*release_addr) (u64 addr, void *private);
-
-	/* This function is used by csr1212 to determine the max read request
-	 * supported by a remote node when reading the ConfigROM space.  Must
-	 * return 0, 1, or 2 per IEEE 1212.  */
-	int (*get_max_rom) (u32 *bus_info, void *private);
 };
 
 
