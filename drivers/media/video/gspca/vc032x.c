@@ -35,6 +35,7 @@ struct sd {
 	__u8 hflip;
 	__u8 vflip;
 	__u8 lightfreq;
+	__u8 sharpness;
 
 	char bridge;
 #define BRIDGE_VC0321 0
@@ -57,6 +58,8 @@ static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 /* next 2 controls work with ov7660 and ov7670 only */
@@ -105,6 +108,22 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setfreq,
 	    .get = sd_getfreq,
 	},
+/* po1200 only */
+#define SHARPNESS_IDX 3
+	{
+	 {
+	  .id = V4L2_CID_SHARPNESS,
+	  .type = V4L2_CTRL_TYPE_INTEGER,
+	  .name = "Sharpness",
+	  .minimum = 0,
+	  .maximum = 2,
+	  .step = 1,
+#define SHARPNESS_DEF 1
+	  .default_value = SHARPNESS_DEF,
+	  },
+	 .set = sd_setsharpness,
+	 .get = sd_getsharpness,
+	 },
 };
 
 static struct v4l2_pix_format vc0321_mode[] = {
@@ -1519,7 +1538,7 @@ static const __u8 po1200_initVGA_data[][4] = {
 	{0x00, 0x03, 0x00, 0xaa},
 	{0x00, 0x12, 0x05, 0xaa},
 	{0x00, 0x13, 0x02, 0xaa},
-	{0x00, 0x1e, 0xc6, 0xaa},
+	{0x00, 0x1e, 0xc6, 0xaa},	/* h/v flip */
 	{0x00, 0x21, 0x00, 0xaa},
 	{0x00, 0x25, 0x02, 0xaa},
 	{0x00, 0x3c, 0x4f, 0xaa},
@@ -1529,7 +1548,7 @@ static const __u8 po1200_initVGA_data[][4] = {
 	{0x00, 0x55, 0xfe, 0xaa},
 	{0x00, 0x59, 0xd3, 0xaa},
 	{0x00, 0x5e, 0x04, 0xaa},
-	{0x00, 0x61, 0xb8, 0xaa},
+	{0x00, 0x61, 0xb8, 0xaa},	/* sharpness */
 	{0x00, 0x62, 0x02, 0xaa},
 	{0x00, 0xa7, 0x31, 0xaa},
 	{0x00, 0xa9, 0x66, 0xaa},
@@ -1625,7 +1644,7 @@ static const __u8 po1200_initVGA_data[][4] = {
 	{0x00, 0x20, 0xc4, 0xaa},
 	{0x00, 0x13, 0x03, 0xaa},
 	{0x00, 0x3c, 0x50, 0xaa},
-	{0x00, 0x61, 0x6a, 0xaa},
+	{0x00, 0x61, 0x6a, 0xaa},	/* sharpness? */
 	{0x00, 0x51, 0x5b, 0xaa},
 	{0x00, 0x52, 0x91, 0xaa},
 	{0x00, 0x53, 0x4c, 0xaa},
@@ -1680,7 +1699,7 @@ static const __u8 po1200_initVGA_data[][4] = {
 	{0x00, 0xe2, 0x01, 0xaa},
 	{0x00, 0xd6, 0x40, 0xaa},
 	{0x00, 0xe4, 0x40, 0xaa},
-	{0x00, 0xa8, 0x9f, 0xaa},
+	{0x00, 0xa8, 0x8f, 0xaa},
 	{0x00, 0xb4, 0x16, 0xaa},
 	{0xb0, 0x02, 0x06, 0xcc},
 	{0xb0, 0x18, 0x06, 0xcc},
@@ -1718,8 +1737,6 @@ static const __u8 po1200_initVGA_data[][4] = {
 	{0x00, 0x95, 0x85, 0xaa},
 /*matrix*/
 	{0x00, 0x03, 0x00, 0xaa},
-	{0x00, 0x61, 0xb8, 0xaa},
-	{0x00, 0x03, 0x00, 0xaa},
 	{0x00, 0x4d, 0x20, 0xaa},
 	{0xb8, 0x22, 0x40, 0xcc},
 	{0xb8, 0x23, 0x40, 0xcc},
@@ -1738,9 +1755,6 @@ static const __u8 po1200_initVGA_data[][4] = {
 	{0x00, 0x46, 0x3c, 0xaa},
 	{0x00, 0x00, 0x18, 0xdd},
 /*read bfff*/
-	{0x00, 0x03, 0x00, 0xaa},
-	{0x00, 0x1e, 0x46, 0xaa},
-	{0x00, 0xa8, 0x8f, 0xaa},
 	{0x00, 0x03, 0x00, 0xaa},
 	{0x00, 0xb4, 0x1c, 0xaa},
 	{0x00, 0xb5, 0x92, 0xaa},
@@ -2027,12 +2041,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	switch (sd->sensor) {
 	case SENSOR_OV7660:
 	case SENSOR_OV7670:
+	case SENSOR_PO1200:
 		break;
 	default:
 		gspca_dev->ctrl_dis = (1 << HFLIP_IDX)
 					| (1 << VFLIP_IDX);
 		break;
 	}
+
+	sd->sharpness = SHARPNESS_DEF;
 
 	if (sd->bridge == BRIDGE_VC0321) {
 		reg_r(gspca_dev, 0x8a, 0, 3);
@@ -2063,6 +2080,14 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7670:
 		data = 7;
 		break;
+	case SENSOR_PO1200:
+		data = 0;
+		i2c_write(gspca_dev, 0x03, &data, 1);
+		data = 0x80 * sd->hflip
+			| 0x40 * sd->vflip
+			| 0x06;
+		i2c_write(gspca_dev, 0x1e, &data, 1);
+		return;
 	default:
 		return;
 	}
@@ -2080,6 +2105,20 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 	if (sd->sensor != SENSOR_OV7660)
 		return;
 	usb_exchange(gspca_dev, ov7660_freq_tb[sd->lightfreq]);
+}
+
+/* po1200 only */
+static void setsharpness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u8 data;
+
+	if (sd->sensor != SENSOR_PO1200)
+		return;
+	data = 0;
+	i2c_write(gspca_dev, 0x03, &data, 1);
+	data = 0xb5 + sd->sharpness * 3;
+	i2c_write(gspca_dev, 0x61, &data, 1);
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
@@ -2218,6 +2257,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			sethvflip(gspca_dev);
 			setlightfreq(gspca_dev);
 		} else {
+			setsharpness(gspca_dev);
+			sethvflip(gspca_dev);
 			reg_w(gspca_dev->dev, 0x89, 0x0400, 0x1415);
 		}
 	}
@@ -2325,6 +2366,24 @@ static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->lightfreq;
+	return 0;
+}
+
+static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->sharpness = val;
+	if (gspca_dev->streaming)
+		setsharpness(gspca_dev);
+	return 0;
+}
+
+static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->sharpness;
 	return 0;
 }
 
