@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/mISDNif.h>
 
-static int	*debug;
+static u_int	*debug;
 
 
 struct mISDNtimerdev {
@@ -274,7 +274,7 @@ static struct miscdevice mISDNtimer = {
 };
 
 int
-mISDN_inittimer(int *deb)
+mISDN_inittimer(u_int *deb)
 {
 	int	err;
 

@@ -21,7 +21,7 @@
 #include "layer1.h"
 #include "fsm.h"
 
-static int *debug;
+static u_int *debug;
 
 struct layer1 {
 	u_long			Flags;

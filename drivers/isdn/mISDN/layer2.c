@@ -18,7 +18,7 @@
 #include "fsm.h"
 #include "layer2.h"
 
-static int *debug;
+static u_int *debug;
 
 static
 struct Fsm l2fsm = {NULL, 0, 0, NULL, NULL};
