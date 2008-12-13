@@ -152,11 +152,6 @@ void mga_driver_irq_preinstall(struct drm_device * dev)
 int mga_driver_irq_postinstall(struct drm_device *dev)
 {
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
-	int ret;
-
-	ret = drm_vblank_init(dev, 1);
-	if (ret)
-		return ret;
 
 	DRM_INIT_WAITQUEUE(&dev_priv->fence_queue);
 

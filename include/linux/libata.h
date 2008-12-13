@@ -375,6 +375,7 @@ enum {
 	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
 	ATA_HORKAGE_ATAPI_MOD16_DMA = (1 << 11), /* use ATAPI DMA for commands
 						    not multiple of 16 bytes */
+	ATA_HORKAGE_FIRMWARE_WARN = (1 << 12),	/* firwmare update warning */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */

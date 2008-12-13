@@ -31,6 +31,8 @@
 #include "i915_drv.h"
 #include <linux/swap.h>
 
+#define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+
 static int
 i915_gem_object_set_domain(struct drm_gem_object *obj,
 			    uint32_t read_domains,
@@ -83,20 +85,14 @@ int
 i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_get_aperture *args = data;
-	struct drm_i915_gem_object *obj_priv;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
 	args->aper_size = dev->gtt_total;
-	args->aper_available_size = args->aper_size;
-
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
-		if (obj_priv->pin_count > 0)
-			args->aper_available_size -= obj_priv->obj->size;
-	}
+	args->aper_available_size = (args->aper_size -
+				     atomic_read(&dev->pin_memory));
 
 	return 0;
 }
@@ -1870,17 +1866,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
-
-		if (obj_priv->gtt_space == NULL) {
-			/* We evicted the buffer in the process of validating
-			 * our set of buffers in.  We could try to recover by
-			 * kicking them everything out and trying again from
-			 * the start.
-			 */
-			ret = -ENOMEM;
-			goto err;
-		}
 
 		/* make sure all previous memory operations have passed */
 		ret = i915_gem_object_set_domain(obj,
@@ -2299,28 +2284,51 @@ i915_gem_idle(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev);
 
-	/* Active and flushing should now be empty as we've
-	 * waited for a sequence higher than any pending execbuffer
-	 */
-	BUG_ON(!list_empty(&dev_priv->mm.active_list));
-	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
+	if (!dev_priv->mm.wedged) {
+		/* Active and flushing should now be empty as we've
+		 * waited for a sequence higher than any pending execbuffer
+		 */
+		WARN_ON(!list_empty(&dev_priv->mm.active_list));
+		WARN_ON(!list_empty(&dev_priv->mm.flushing_list));
+		/* Request should now be empty as we've also waited
+		 * for the last request in the list
+		 */
+		WARN_ON(!list_empty(&dev_priv->mm.request_list));
+	}
 
-	/* Request should now be empty as we've also waited
-	 * for the last request in the list
+	/* Empty the active and flushing lists to inactive.  If there's
+	 * anything left at this point, it means that we're wedged and
+	 * nothing good's going to happen by leaving them there.  So strip
+	 * the GPU domains and just stuff them onto inactive.
 	 */
-	BUG_ON(!list_empty(&dev_priv->mm.request_list));
+	while (!list_empty(&dev_priv->mm.active_list)) {
+		struct drm_i915_gem_object *obj_priv;
 
-	/* Move all buffers out of the GTT. */
+		obj_priv = list_first_entry(&dev_priv->mm.active_list,
+					    struct drm_i915_gem_object,
+					    list);
+		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
+		i915_gem_object_move_to_inactive(obj_priv->obj);
+	}
+
+	while (!list_empty(&dev_priv->mm.flushing_list)) {
+		struct drm_i915_gem_object *obj_priv;
+
+		obj_priv = list_first_entry(&dev_priv->mm.flushing_list,
+					    struct drm_i915_gem_object,
+					    list);
+		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
+		i915_gem_object_move_to_inactive(obj_priv->obj);
+	}
+
+
+	/* Move all inactive buffers out of the GTT. */
 	ret = i915_gem_evict_from_list(dev, &dev_priv->mm.inactive_list);
+	WARN_ON(!list_empty(&dev_priv->mm.inactive_list));
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
-
-	BUG_ON(!list_empty(&dev_priv->mm.active_list));
-	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
-	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
-	BUG_ON(!list_empty(&dev_priv->mm.request_list));
 
 	i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);

@@ -37,7 +37,7 @@ $ echo mmiotrace > /debug/tracing/current_tracer
 $ cat /debug/tracing/trace_pipe > mydump.txt &
 Start X or whatever.
 $ echo "X is up" > /debug/tracing/trace_marker
-$ echo none > /debug/tracing/current_tracer
+$ echo nop > /debug/tracing/current_tracer
 Check for lost events.
 
 
@@ -66,7 +66,7 @@ which action. It is recommended to place descriptive markers about what you
 do.
 
 Shut down mmiotrace (requires root privileges):
-$ echo none > /debug/tracing/current_tracer
+$ echo nop > /debug/tracing/current_tracer
 The 'cat' process exits. If it does not, kill it by issuing 'fg' command and
 pressing ctrl+c.
 
@@ -81,7 +81,9 @@ are:
 $ cat /debug/tracing/trace_entries
 gives you a number. Approximately double this number and write it back, for
 instance:
+$ echo 0 > /debug/tracing/tracing_enabled
 $ echo 128000 > /debug/tracing/trace_entries
+$ echo 1 > /debug/tracing/tracing_enabled
 Then start again from the top.
 
 If you are doing a trace for a driver project, e.g. Nouveau, you should also

@@ -21,6 +21,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
+#include <linux/ata_platform.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
@@ -64,23 +65,27 @@ static struct hw_pci dns323_pci __initdata = {
 	.map_irq	= dns323_pci_map_irq,
 };
 
+static int __init dns323_dev_id(void)
+{
+	u32 dev, rev;
+
+	orion5x_pcie_id(&dev, &rev);
+
+	return dev;
+}
+
 static int __init dns323_pci_init(void)
 {
-	if (machine_is_dns323())
+	/* The 5182 doesn't really use it's PCI bus, and initialising PCI
+	 * gets in the way of initialising the SATA controller.
+	 */
+	if (machine_is_dns323() && dns323_dev_id() != MV88F5182_DEV_ID)
 		pci_common_init(&dns323_pci);
 
 	return 0;
 }
 
 subsys_initcall(dns323_pci_init);
-
-/****************************************************************************
- * Ethernet
- */
-
-static struct mv643xx_eth_platform_data dns323_eth_data = {
-	.phy_addr = MV643XX_ETH_PHY_ADDR(8),
-};
 
 /****************************************************************************
  * 8MiB NOR flash (Spansion S29GL064M90TFIR4)
@@ -141,6 +146,90 @@ static struct platform_device dns323_nor_flash = {
 	.resource	= &dns323_nor_flash_resource,
 	.num_resources	= 1,
 };
+
+/****************************************************************************
+ * Ethernet
+ */
+
+static struct mv643xx_eth_platform_data dns323_eth_data = {
+	.phy_addr = MV643XX_ETH_PHY_ADDR(8),
+};
+
+/* dns323_parse_hex_*() taken from tsx09-common.c; should a common copy of these
+ * functions be kept somewhere?
+ */
+static int __init dns323_parse_hex_nibble(char n)
+{
+	if (n >= '0' && n <= '9')
+		return n - '0';
+
+	if (n >= 'A' && n <= 'F')
+		return n - 'A' + 10;
+
+	if (n >= 'a' && n <= 'f')
+		return n - 'a' + 10;
+
+	return -1;
+}
+
+static int __init dns323_parse_hex_byte(const char *b)
+{
+	int hi;
+	int lo;
+
+	hi = dns323_parse_hex_nibble(b[0]);
+	lo = dns323_parse_hex_nibble(b[1]);
+
+	if (hi < 0 || lo < 0)
+		return -1;
+
+	return (hi << 4) | lo;
+}
+
+static int __init dns323_read_mac_addr(void)
+{
+	u_int8_t addr[6];
+	int i;
+	char *mac_page;
+
+	/* MAC address is stored as a regular ol' string in /dev/mtdblock4
+	 * (0x007d0000-0x00800000) starting at offset 196480 (0x2ff80).
+	 */
+	mac_page = ioremap(DNS323_NOR_BOOT_BASE + 0x7d0000 + 196480, 1024);
+	if (!mac_page)
+		return -ENOMEM;
+
+	/* Sanity check the string we're looking at */
+	for (i = 0; i < 5; i++) {
+		if (*(mac_page + (i * 3) + 2) != ':') {
+			goto error_fail;
+		}
+	}
+
+	for (i = 0; i < 6; i++)	{
+		int byte;
+
+		byte = dns323_parse_hex_byte(mac_page + (i * 3));
+		if (byte < 0) {
+			goto error_fail;
+		}
+
+		addr[i] = byte;
+	}
+
+	iounmap(mac_page);
+	printk("DNS323: Found ethernet MAC address: ");
+	for (i = 0; i < 6; i++)
+		printk("%.2x%s", addr[i], (i < 5) ? ":" : ".\n");
+
+	memcpy(dns323_eth_data.mac_addr, addr, 6);
+
+	return 0;
+
+error_fail:
+	iounmap(mac_page);
+	return -EINVAL;
+}
 
 /****************************************************************************
  * GPIO LEDs (simple - doesn't use hardware blinking support)
@@ -207,10 +296,17 @@ static struct platform_device dns323_button_device = {
 	},
 };
 
+/*****************************************************************************
+ * SATA
+ */
+static struct mv_sata_platform_data dns323_sata_data = {
+       .n_ports        = 2,
+};
+
 /****************************************************************************
  * General Setup
  */
-static struct orion5x_mpp_mode dns323_mpp_modes[] __initdata = {
+static struct orion5x_mpp_mode dns323_mv88f5181_mpp_modes[] __initdata = {
 	{  0, MPP_PCIE_RST_OUTn },
 	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
 	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
@@ -227,6 +323,30 @@ static struct orion5x_mpp_mode dns323_mpp_modes[] __initdata = {
 	{ 13, MPP_UNUSED },
 	{ 14, MPP_UNUSED },
 	{ 15, MPP_UNUSED },
+	{ 16, MPP_UNUSED },
+	{ 17, MPP_UNUSED },
+	{ 18, MPP_UNUSED },
+	{ 19, MPP_UNUSED },
+	{ -1 },
+};
+
+static struct orion5x_mpp_mode dns323_mv88f5182_mpp_modes[] __initdata = {
+	{  0, MPP_UNUSED },
+	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
+	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
+	{  3, MPP_UNUSED },
+	{  4, MPP_GPIO },		/* power button LED */
+	{  5, MPP_GPIO },		/* power button LED */
+	{  6, MPP_GPIO },		/* GMT G751-2f overtemp */
+	{  7, MPP_GPIO },		/* M41T80 nIRQ/OUT/SQW */
+	{  8, MPP_GPIO },		/* triggers power off */
+	{  9, MPP_GPIO },		/* power button switch */
+	{ 10, MPP_GPIO },		/* reset button switch */
+	{ 11, MPP_UNUSED },
+	{ 12, MPP_SATA_LED },
+	{ 13, MPP_SATA_LED },
+	{ 14, MPP_SATA_LED },
+	{ 15, MPP_SATA_LED },
 	{ 16, MPP_UNUSED },
 	{ 17, MPP_UNUSED },
 	{ 18, MPP_UNUSED },
@@ -264,16 +384,15 @@ static void __init dns323_init(void)
 	/* Setup basic Orion functions. Need to be called early. */
 	orion5x_init();
 
-	orion5x_mpp_conf(dns323_mpp_modes);
-	writel(0, MPP_DEV_CTRL);		/* DEV_D[31:16] */
-
-	/*
-	 * Configure peripherals.
+	/* Just to be tricky, the 5182 has a completely different
+	 * set of MPP modes to the 5181.
 	 */
-	orion5x_ehci0_init();
-	orion5x_eth_init(&dns323_eth_data);
-	orion5x_i2c_init();
-	orion5x_uart0_init();
+	if (dns323_dev_id() == MV88F5182_DEV_ID)
+		orion5x_mpp_conf(dns323_mv88f5182_mpp_modes);
+	else {
+		orion5x_mpp_conf(dns323_mv88f5181_mpp_modes);
+		writel(0, MPP_DEV_CTRL);		/* DEV_D[31:16] */
+	}
 
 	/* setup flash mapping
 	 * CS3 holds a 8 MB Spansion S29GL064M90TFIR4
@@ -287,6 +406,23 @@ static void __init dns323_init(void)
 
 	i2c_register_board_info(0, dns323_i2c_devices,
 				ARRAY_SIZE(dns323_i2c_devices));
+
+	/*
+	 * Configure peripherals.
+	 */
+	if (dns323_read_mac_addr() < 0)
+		printk("DNS323: Failed to read MAC address\n");
+
+	orion5x_ehci0_init();
+	orion5x_eth_init(&dns323_eth_data);
+	orion5x_i2c_init();
+	orion5x_uart0_init();
+
+	/* The 5182 has it's SATA controller on-chip, and needs it's own little
+	 * init routine.
+	 */
+	if (dns323_dev_id() == MV88F5182_DEV_ID)
+		orion5x_sata_init(&dns323_sata_data);
 
 	/* register dns323 specific power-off method */
 	if (gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0 ||

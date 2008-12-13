@@ -72,6 +72,7 @@ void __init orion5x_map_io(void)
  ****************************************************************************/
 static struct orion_ehci_data orion5x_ehci_data = {
 	.dram		= &orion5x_mbus_dram_info,
+	.phy_version	= EHCI_PHY_ORION,
 };
 
 static u64 ehci_dmamask = 0xffffffffUL;
