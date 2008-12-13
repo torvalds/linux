@@ -64,13 +64,15 @@ MODULE_PARM_DESC(lro, "Large receive offload acceleration");
 /*
  * Use separate channels for TX and RX events
  *
- * Set this to 1 to use separate channels for TX and RX. It allows us to
- * apply a higher level of interrupt moderation to TX events.
+ * Set this to 1 to use separate channels for TX and RX. It allows us
+ * to control interrupt affinity separately for TX and RX.
  *
- * This is forced to 0 for MSI interrupt mode as the interrupt vector
- * is not written
+ * This is only used in MSI-X interrupt mode
  */
-static unsigned int separate_tx_and_rx_channels = true;
+static unsigned int separate_tx_channels;
+module_param(separate_tx_channels, uint, 0644);
+MODULE_PARM_DESC(separate_tx_channels,
+		 "Use separate channels for TX and RX");
 
 /* This is the weight assigned to each of the (per-channel) virtual
  * NAPI devices.
@@ -846,26 +848,33 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
 		struct msix_entry xentries[EFX_MAX_CHANNELS];
 		int wanted_ints;
+		int rx_queues;
 
 		/* We want one RX queue and interrupt per CPU package
 		 * (or as specified by the rss_cpus module parameter).
 		 * We will need one channel per interrupt.
 		 */
-		wanted_ints = rss_cpus ? rss_cpus : efx_wanted_rx_queues();
-		efx->n_rx_queues = min(wanted_ints, max_channels);
+		rx_queues = rss_cpus ? rss_cpus : efx_wanted_rx_queues();
+		wanted_ints = rx_queues + (separate_tx_channels ? 1 : 0);
+		wanted_ints = min(wanted_ints, max_channels);
 
-		for (i = 0; i < efx->n_rx_queues; i++)
+		for (i = 0; i < wanted_ints; i++)
 			xentries[i].entry = i;
-		rc = pci_enable_msix(efx->pci_dev, xentries, efx->n_rx_queues);
+		rc = pci_enable_msix(efx->pci_dev, xentries, wanted_ints);
 		if (rc > 0) {
-			EFX_BUG_ON_PARANOID(rc >= efx->n_rx_queues);
-			efx->n_rx_queues = rc;
+			EFX_ERR(efx, "WARNING: Insufficient MSI-X vectors"
+				" available (%d < %d).\n", rc, wanted_ints);
+			EFX_ERR(efx, "WARNING: Performance may be reduced.\n");
+			EFX_BUG_ON_PARANOID(rc >= wanted_ints);
+			wanted_ints = rc;
 			rc = pci_enable_msix(efx->pci_dev, xentries,
-					     efx->n_rx_queues);
+					     wanted_ints);
 		}
 
 		if (rc == 0) {
-			for (i = 0; i < efx->n_rx_queues; i++)
+			efx->n_rx_queues = min(rx_queues, wanted_ints);
+			efx->n_channels = wanted_ints;
+			for (i = 0; i < wanted_ints; i++)
 				efx->channel[i].irq = xentries[i].vector;
 		} else {
 			/* Fall back to single channel MSI */
@@ -877,6 +886,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 	/* Try single interrupt MSI */
 	if (efx->interrupt_mode == EFX_INT_MODE_MSI) {
 		efx->n_rx_queues = 1;
+		efx->n_channels = 1;
 		rc = pci_enable_msi(efx->pci_dev);
 		if (rc == 0) {
 			efx->channel[0].irq = efx->pci_dev->irq;
@@ -889,6 +899,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 	/* Assume legacy interrupts */
 	if (efx->interrupt_mode == EFX_INT_MODE_LEGACY) {
 		efx->n_rx_queues = 1;
+		efx->n_channels = 1 + (separate_tx_channels ? 1 : 0);
 		efx->legacy_irq = efx->pci_dev->irq;
 	}
 }
@@ -913,8 +924,8 @@ static void efx_set_channels(struct efx_nic *efx)
 	struct efx_rx_queue *rx_queue;
 
 	efx_for_each_tx_queue(tx_queue, efx) {
-		if (!EFX_INT_MODE_USE_MSI(efx) && separate_tx_and_rx_channels)
-			tx_queue->channel = &efx->channel[1];
+		if (separate_tx_channels)
+			tx_queue->channel = &efx->channel[efx->n_channels-1];
 		else
 			tx_queue->channel = &efx->channel[0];
 		tx_queue->channel->used_flags |= EFX_USED_BY_TX;

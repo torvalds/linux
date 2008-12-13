@@ -649,6 +649,7 @@ union efx_multicast_hash {
  * @rx_queue: RX DMA queues
  * @channel: Channels
  * @n_rx_queues: Number of RX queues
+ * @n_channels: Number of channels in use
  * @rx_buffer_len: RX buffer length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
  * @irq_status: Interrupt status buffer
@@ -728,6 +729,7 @@ struct efx_nic {
 	struct efx_channel channel[EFX_MAX_CHANNELS];
 
 	int n_rx_queues;
+	int n_channels;
 	unsigned int rx_buffer_len;
 	unsigned int rx_buffer_order;
 
