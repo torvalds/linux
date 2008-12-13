@@ -110,3 +110,7 @@
 /* Y.C. Cable U.S.A., Inc - USB to RS-232 */
 #define YCCABLE_VENDOR_ID	0x05ad
 #define YCCABLE_PRODUCT_ID	0x0fba
+
+/* "Superial" USB - Serial */
+#define SUPERIAL_VENDOR_ID	0x5372
+#define SUPERIAL_PRODUCT_ID	0x2303
