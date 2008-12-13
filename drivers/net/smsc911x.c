@@ -1526,7 +1526,7 @@ static irqreturn_t smsc911x_irqhandler(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-void smsc911x_poll_controller(struct net_device *dev)
+static void smsc911x_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
 	smsc911x_irqhandler(0, dev);
