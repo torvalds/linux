@@ -25,19 +25,20 @@
 #include <mach/regs-wan.h>
 #include <mach/regs-lan.h>
 #include <mach/regs-hpna.h>
+#include <mach/regs-switch.h>
+#include <mach/regs-misc.h>
 
 
 /* --------------------------------------------------------------------
  *  Ethernet
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_ARM_KS8695_ETHER) || defined(CONFIG_ARM_KS8695_ETHER_MODULE)
 static u64 eth_dmamask = 0xffffffffUL;
 
 static struct resource ks8695_wan_resources[] = {
 	[0] = {
-		.start	= KS8695_WAN_VA,
-		.end	= KS8695_WAN_VA + 0x00ff,
+		.start	= KS8695_WAN_PA,
+		.end	= KS8695_WAN_PA + 0x00ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -58,6 +59,12 @@ static struct resource ks8695_wan_resources[] = {
 		.end	= KS8695_IRQ_WAN_LINK,
 		.flags	= IORESOURCE_IRQ,
 	},
+	[4] = {
+		.name	= "WAN PHY",
+		.start	= KS8695_MISC_PA,
+		.end	= KS8695_MISC_PA + 0x1f,
+		.flags	= IORESOURCE_MEM,
+	},
 };
 
 static struct platform_device ks8695_wan_device = {
@@ -74,8 +81,8 @@ static struct platform_device ks8695_wan_device = {
 
 static struct resource ks8695_lan_resources[] = {
 	[0] = {
-		.start	= KS8695_LAN_VA,
-		.end	= KS8695_LAN_VA + 0x00ff,
+		.start	= KS8695_LAN_PA,
+		.end	= KS8695_LAN_PA + 0x00ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -89,6 +96,12 @@ static struct resource ks8695_lan_resources[] = {
 		.start	= KS8695_IRQ_LAN_TX_STATUS,
 		.end	= KS8695_IRQ_LAN_TX_STATUS,
 		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.name	= "LAN SWITCH",
+		.start	= KS8695_SWITCH_PA,
+		.end	= KS8695_SWITCH_PA + 0x4f,
+		.flags	= IORESOURCE_MEM,
 	},
 };
 
@@ -106,8 +119,8 @@ static struct platform_device ks8695_lan_device = {
 
 static struct resource ks8695_hpna_resources[] = {
 	[0] = {
-		.start	= KS8695_HPNA_VA,
-		.end	= KS8695_HPNA_VA + 0x00ff,
+		.start	= KS8695_HPNA_PA,
+		.end	= KS8695_HPNA_PA + 0x00ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -149,18 +162,12 @@ void __init ks8696_add_device_hpna(void)
 {
 	platform_device_register(&ks8695_hpna_device);
 }
-#else
-void __init ks8695_add_device_wan(void) {}
-void __init ks8695_add_device_lan(void) {}
-void __init ks8696_add_device_hpna(void) {}
-#endif
 
 
 /* --------------------------------------------------------------------
  *  Watchdog
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_KS8695_WATCHDOG) || defined(CONFIG_KS8695_WATCHDOG_MODULE)
 static struct platform_device ks8695_wdt_device = {
 	.name		= "ks8695_wdt",
 	.id		= -1,
@@ -171,9 +178,6 @@ static void __init ks8695_add_device_watchdog(void)
 {
 	platform_device_register(&ks8695_wdt_device);
 }
-#else
-static void __init ks8695_add_device_watchdog(void) {}
-#endif
 
 
 /* --------------------------------------------------------------------
@@ -190,7 +194,7 @@ void __init ks8695_init_leds(u8 cpu_led, u8 timer_led)
 	gpio_direction_output(cpu_led, 1);
 	gpio_direction_output(timer_led, 1);
 
-	ks8695_leds_cpu   = cpu_led;
+	ks8695_leds_cpu	  = cpu_led;
 	ks8695_leds_timer = timer_led;
 }
 #else
