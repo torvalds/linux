@@ -40,33 +40,42 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
 	unsigned int irq = (int)(long)PDE(file->f_path.dentry->d_inode)->data;
-	cpumask_t new_value;
+	cpumask_var_t new_value;
 	int err;
 
 	if (!irq_to_desc(irq)->chip->set_affinity || no_irq_affinity ||
 	    irq_balancing_disabled(irq))
 		return -EIO;
 
-	err = cpumask_parse_user(buffer, count, &new_value);
-	if (err)
-		return err;
+	if (!alloc_cpumask_var(&new_value, GFP_KERNEL))
+		return -ENOMEM;
 
-	if (!is_affinity_mask_valid(new_value))
-		return -EINVAL;
+	err = cpumask_parse_user(buffer, count, new_value);
+	if (err)
+		goto free_cpumask;
+
+	if (!is_affinity_mask_valid(*new_value)) {
+		err = -EINVAL;
+		goto free_cpumask;
+	}
 
 	/*
 	 * Do not allow disabling IRQs completely - it's a too easy
 	 * way to make the system unusable accidentally :-) At least
 	 * one online CPU still has to be targeted.
 	 */
-	if (!cpus_intersects(new_value, cpu_online_map))
+	if (!cpumask_intersects(new_value, cpu_online_mask)) {
 		/* Special case for empty set - allow the architecture
 		   code to set default SMP affinity. */
-		return irq_select_affinity_usr(irq) ? -EINVAL : count;
+		err = irq_select_affinity_usr(irq) ? -EINVAL : count;
+	} else {
+		irq_set_affinity(irq, new_value);
+		err = count;
+	}
 
-	irq_set_affinity(irq, new_value);
-
-	return count;
+free_cpumask:
+	free_cpumask_var(new_value);
+	return err;
 }
 
 static int irq_affinity_proc_open(struct inode *inode, struct file *file)

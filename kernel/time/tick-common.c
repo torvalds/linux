@@ -136,7 +136,7 @@ void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
  */
 static void tick_setup_device(struct tick_device *td,
 			      struct clock_event_device *newdev, int cpu,
-			      const cpumask_t *cpumask)
+			      const struct cpumask *cpumask)
 {
 	ktime_t next_event;
 	void (*handler)(struct clock_event_device *) = NULL;
@@ -171,8 +171,8 @@ static void tick_setup_device(struct tick_device *td,
 	 * When the device is not per cpu, pin the interrupt to the
 	 * current cpu:
 	 */
-	if (!cpus_equal(newdev->cpumask, *cpumask))
-		irq_set_affinity(newdev->irq, *cpumask);
+	if (!cpumask_equal(&newdev->cpumask, cpumask))
+		irq_set_affinity(newdev->irq, cpumask);
 
 	/*
 	 * When global broadcasting is active, check if the current

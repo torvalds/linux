@@ -682,7 +682,7 @@ int migrate_platform_irqs(unsigned int cpu)
 {
 	int new_cpei_cpu;
 	irq_desc_t *desc = NULL;
-	cpumask_t 	mask;
+	const struct cpumask *mask;
 	int 		retval = 0;
 
 	/*
@@ -695,7 +695,7 @@ int migrate_platform_irqs(unsigned int cpu)
 			 * Now re-target the CPEI to a different processor
 			 */
 			new_cpei_cpu = any_online_cpu(cpu_online_map);
-			mask = cpumask_of_cpu(new_cpei_cpu);
+			mask = cpumask_of(new_cpei_cpu);
 			set_cpei_target_cpu(new_cpei_cpu);
 			desc = irq_desc + ia64_cpe_irq;
 			/*

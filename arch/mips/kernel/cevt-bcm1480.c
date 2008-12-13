@@ -148,6 +148,6 @@ void __cpuinit sb1480_clockevent_init(void)
 	action->name	= name;
 	action->dev_id	= cd;
 
-	irq_set_affinity(irq, cpumask_of_cpu(cpu));
+	irq_set_affinity(irq, cpumask_of(cpu));
 	setup_irq(irq, action);
 }

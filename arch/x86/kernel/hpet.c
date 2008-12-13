@@ -301,7 +301,7 @@ static void hpet_set_mode(enum clock_event_mode mode,
 			struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
 			hpet_setup_msi_irq(hdev->irq);
 			disable_irq(hdev->irq);
-			irq_set_affinity(hdev->irq, cpumask_of_cpu(hdev->cpu));
+			irq_set_affinity(hdev->irq, cpumask_of(hdev->cpu));
 			enable_irq(hdev->irq);
 		}
 		break;
@@ -449,7 +449,7 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 		return -1;
 
 	disable_irq(dev->irq);
-	irq_set_affinity(dev->irq, cpumask_of_cpu(dev->cpu));
+	irq_set_affinity(dev->irq, cpumask_of(dev->cpu));
 	enable_irq(dev->irq);
 
 	printk(KERN_DEBUG "hpet: %s irq %d for MSI\n",

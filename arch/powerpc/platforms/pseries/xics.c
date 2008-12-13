@@ -332,7 +332,7 @@ static void xics_eoi_lpar(unsigned int virq)
 	lpar_xirr_info_set((0xff << 24) | irq);
 }
 
-static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
+static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 {
 	unsigned int irq;
 	int status;
@@ -358,7 +358,7 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 	irq_server = get_irq_server(virq, 1);
 	if (irq_server == -1) {
 		char cpulist[128];
-		cpumask_scnprintf(cpulist, sizeof(cpulist), &cpumask);
+		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
 		printk(KERN_WARNING
 			"%s: No online cpus in the mask %s for irq %d\n",
 			__func__, cpulist, virq);
@@ -845,7 +845,7 @@ void xics_migrate_irqs_away(void)
 
 		/* Reset affinity to all cpus */
 		irq_desc[virq].affinity = CPU_MASK_ALL;
-		desc->chip->set_affinity(virq, CPU_MASK_ALL);
+		desc->chip->set_affinity(virq, cpu_all_mask);
 unlock:
 		spin_unlock_irqrestore(&desc->lock, flags);
 	}

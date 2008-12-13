@@ -361,7 +361,8 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, u8 vector)
 
 static int assign_irq_vector(int irq, cpumask_t mask);
 
-static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
+static void set_ioapic_affinity_irq(unsigned int irq,
+				    const struct cpumask *mask)
 {
 	struct irq_cfg *cfg;
 	unsigned long flags;
@@ -369,15 +370,14 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 	cpumask_t tmp;
 	struct irq_desc *desc;
 
-	cpus_and(tmp, mask, cpu_online_map);
-	if (cpus_empty(tmp))
+	if (!cpumask_intersects(mask, cpu_online_mask))
 		return;
 
 	cfg = irq_cfg(irq);
-	if (assign_irq_vector(irq, mask))
+	if (assign_irq_vector(irq, *mask))
 		return;
 
-	cpus_and(tmp, cfg->domain, mask);
+	cpumask_and(&tmp, &cfg->domain, mask);
 	dest = cpu_mask_to_apicid(tmp);
 	/*
 	 * Only the high 8 bits are valid.
@@ -387,7 +387,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 	desc = irq_to_desc(irq);
 	spin_lock_irqsave(&ioapic_lock, flags);
 	__target_IO_APIC_irq(irq, dest, cfg->vector);
-	desc->affinity = mask;
+	cpumask_copy(&desc->affinity, mask);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 #endif /* CONFIG_SMP */
@@ -2189,7 +2189,7 @@ static void ir_irq_migration(struct work_struct *work)
 				continue;
 			}
 
-			desc->chip->set_affinity(irq, desc->pending_mask);
+			desc->chip->set_affinity(irq, &desc->pending_mask);
 			spin_unlock_irqrestore(&desc->lock, flags);
 		}
 	}
@@ -2198,18 +2198,19 @@ static void ir_irq_migration(struct work_struct *work)
 /*
  * Migrates the IRQ destination in the process context.
  */
-static void set_ir_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
+static void set_ir_ioapic_affinity_irq(unsigned int irq,
+				       const struct cpumask *mask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
 	if (desc->status & IRQ_LEVEL) {
 		desc->status |= IRQ_MOVE_PENDING;
-		desc->pending_mask = mask;
+		cpumask_copy(&desc->pending_mask, mask);
 		migrate_irq_remapped_level(irq);
 		return;
 	}
 
-	migrate_ioapic_irq(irq, mask);
+	migrate_ioapic_irq(irq, *mask);
 }
 #endif
 
@@ -3027,7 +3028,7 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 }
 
 #ifdef CONFIG_SMP
-static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
+static void set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_cfg *cfg;
 	struct msi_msg msg;
@@ -3035,15 +3036,14 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 	cpumask_t tmp;
 	struct irq_desc *desc;
 
-	cpus_and(tmp, mask, cpu_online_map);
-	if (cpus_empty(tmp))
+	if (!cpumask_intersects(mask, cpu_online_mask))
 		return;
 
-	if (assign_irq_vector(irq, mask))
+	if (assign_irq_vector(irq, *mask))
 		return;
 
 	cfg = irq_cfg(irq);
-	cpus_and(tmp, cfg->domain, mask);
+	cpumask_and(&tmp, &cfg->domain, mask);
 	dest = cpu_mask_to_apicid(tmp);
 
 	read_msi_msg(irq, &msg);
@@ -3055,7 +3055,7 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 
 	write_msi_msg(irq, &msg);
 	desc = irq_to_desc(irq);
-	desc->affinity = mask;
+	cpumask_copy(&desc->affinity, mask);
 }
 
 #ifdef CONFIG_INTR_REMAP
@@ -3063,7 +3063,8 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
  * Migrate the MSI irq to another cpumask. This migration is
  * done in the process context using interrupt-remapping hardware.
  */
-static void ir_set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
+static void ir_set_msi_irq_affinity(unsigned int irq,
+				    const struct cpumask *mask)
 {
 	struct irq_cfg *cfg;
 	unsigned int dest;
@@ -3071,18 +3072,17 @@ static void ir_set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 	struct irte irte;
 	struct irq_desc *desc;
 
-	cpus_and(tmp, mask, cpu_online_map);
-	if (cpus_empty(tmp))
+	if (!cpumask_intersects(mask, cpu_online_mask))
 		return;
 
 	if (get_irte(irq, &irte))
 		return;
 
-	if (assign_irq_vector(irq, mask))
+	if (assign_irq_vector(irq, *mask))
 		return;
 
 	cfg = irq_cfg(irq);
-	cpus_and(tmp, cfg->domain, mask);
+	cpumask_and(&tmp, &cfg->domain, mask);
 	dest = cpu_mask_to_apicid(tmp);
 
 	irte.vector = cfg->vector;
@@ -3106,7 +3106,7 @@ static void ir_set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 	}
 
 	desc = irq_to_desc(irq);
-	desc->affinity = mask;
+	cpumask_copy(&desc->affinity, mask);
 }
 #endif
 #endif /* CONFIG_SMP */
@@ -3308,7 +3308,7 @@ void arch_teardown_msi_irq(unsigned int irq)
 
 #ifdef CONFIG_DMAR
 #ifdef CONFIG_SMP
-static void dmar_msi_set_affinity(unsigned int irq, cpumask_t mask)
+static void dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_cfg *cfg;
 	struct msi_msg msg;
@@ -3316,15 +3316,14 @@ static void dmar_msi_set_affinity(unsigned int irq, cpumask_t mask)
 	cpumask_t tmp;
 	struct irq_desc *desc;
 
-	cpus_and(tmp, mask, cpu_online_map);
-	if (cpus_empty(tmp))
+	if (!cpumask_intersects(mask, cpu_online_mask))
 		return;
 
-	if (assign_irq_vector(irq, mask))
+	if (assign_irq_vector(irq, *mask))
 		return;
 
 	cfg = irq_cfg(irq);
-	cpus_and(tmp, cfg->domain, mask);
+	cpumask_and(&tmp, &cfg->domain, mask);
 	dest = cpu_mask_to_apicid(tmp);
 
 	dmar_msi_read(irq, &msg);
@@ -3336,7 +3335,7 @@ static void dmar_msi_set_affinity(unsigned int irq, cpumask_t mask)
 
 	dmar_msi_write(irq, &msg);
 	desc = irq_to_desc(irq);
-	desc->affinity = mask;
+	cpumask_copy(&desc->affinity, mask);
 }
 #endif /* CONFIG_SMP */
 
@@ -3369,7 +3368,7 @@ int arch_setup_dmar_msi(unsigned int irq)
 #ifdef CONFIG_HPET_TIMER
 
 #ifdef CONFIG_SMP
-static void hpet_msi_set_affinity(unsigned int irq, cpumask_t mask)
+static void hpet_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_cfg *cfg;
 	struct irq_desc *desc;
@@ -3377,15 +3376,14 @@ static void hpet_msi_set_affinity(unsigned int irq, cpumask_t mask)
 	unsigned int dest;
 	cpumask_t tmp;
 
-	cpus_and(tmp, mask, cpu_online_map);
-	if (cpus_empty(tmp))
+	if (!cpumask_intersects(mask, cpu_online_mask))
 		return;
 
-	if (assign_irq_vector(irq, mask))
+	if (assign_irq_vector(irq, *mask))
 		return;
 
 	cfg = irq_cfg(irq);
-	cpus_and(tmp, cfg->domain, mask);
+	cpumask_and(&tmp, &cfg->domain, mask);
 	dest = cpu_mask_to_apicid(tmp);
 
 	hpet_msi_read(irq, &msg);
@@ -3397,7 +3395,7 @@ static void hpet_msi_set_affinity(unsigned int irq, cpumask_t mask)
 
 	hpet_msi_write(irq, &msg);
 	desc = irq_to_desc(irq);
-	desc->affinity = mask;
+	cpumask_copy(&desc->affinity, mask);
 }
 #endif /* CONFIG_SMP */
 
@@ -3451,27 +3449,26 @@ static void target_ht_irq(unsigned int irq, unsigned int dest, u8 vector)
 	write_ht_irq_msg(irq, &msg);
 }
 
-static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
+static void set_ht_irq_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_cfg *cfg;
 	unsigned int dest;
 	cpumask_t tmp;
 	struct irq_desc *desc;
 
-	cpus_and(tmp, mask, cpu_online_map);
-	if (cpus_empty(tmp))
+	if (!cpumask_intersects(mask, cpu_online_mask))
 		return;
 
-	if (assign_irq_vector(irq, mask))
+	if (assign_irq_vector(irq, *mask))
 		return;
 
 	cfg = irq_cfg(irq);
-	cpus_and(tmp, cfg->domain, mask);
+	cpumask_and(&tmp, &cfg->domain, mask);
 	dest = cpu_mask_to_apicid(tmp);
 
 	target_ht_irq(irq, dest, cfg->vector);
 	desc = irq_to_desc(irq);
-	desc->affinity = mask;
+	cpumask_copy(&desc->affinity, mask);
 }
 #endif
 
@@ -3794,10 +3791,10 @@ void __init setup_ioapic_dest(void)
 
 #ifdef CONFIG_INTR_REMAP
 			if (intr_remapping_enabled)
-				set_ir_ioapic_affinity_irq(irq, mask);
+				set_ir_ioapic_affinity_irq(irq, &mask);
 			else
 #endif
-				set_ioapic_affinity_irq(irq, mask);
+				set_ioapic_affinity_irq(irq, &mask);
 		}
 
 	}
