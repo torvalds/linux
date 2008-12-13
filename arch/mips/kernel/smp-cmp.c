@@ -226,7 +226,7 @@ void __init cmp_smp_setup(void)
 
 	for (i = 1; i < NR_CPUS; i++) {
 		if (amon_cpu_avail(i)) {
-			cpu_set(i, phys_cpu_present_map);
+			cpu_set(i, cpu_possible_map);
 			__cpu_number_map[i]	= ++ncpu;
 			__cpu_logical_map[ncpu]	= i;
 		}

@@ -131,12 +131,6 @@ struct task_struct *task_for_booting_cpu;
  */
 DEFINE_PER_CPU(int, cpu_state);
 
-/* Bitmasks of currently online, and possible CPUs */
-cpumask_t cpu_online_map;
-EXPORT_SYMBOL(cpu_online_map);
-cpumask_t cpu_possible_map = CPU_MASK_NONE;
-EXPORT_SYMBOL(cpu_possible_map);
-
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
 EXPORT_SYMBOL(cpu_core_map);
 DEFINE_PER_CPU_SHARED_ALIGNED(cpumask_t, cpu_sibling_map);
