@@ -869,7 +869,7 @@ static void register_decrementer_clockevent(int cpu)
 	struct clock_event_device *dec = &per_cpu(decrementers, cpu).event;
 
 	*dec = decrementer_clockevent;
-	dec->cpumask = cpumask_of_cpu(cpu);
+	dec->cpumask = cpumask_of(cpu);
 
 	printk(KERN_DEBUG "clockevent: %s mult[%lx] shift[%d] cpu[%d]\n",
 	       dec->name, dec->mult, dec->shift, cpu);

@@ -115,7 +115,7 @@ void __init setup_pit_timer(void)
 	 * Start pit with the boot cpu mask and make it global after the
 	 * IO_APIC has been initialized.
 	 */
-	cd->cpumask = cpumask_of_cpu(cpu);
+	cd->cpumask = cpumask_of(cpu);
 	clockevent_set_clock(cd, CLOCK_TICK_RATE);
 	cd->max_delta_ns = clockevent_delta2ns(0x7FFF, cd);
 	cd->min_delta_ns = clockevent_delta2ns(0xF, cd);

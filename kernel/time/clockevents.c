@@ -166,6 +166,8 @@ static void clockevents_notify_released(void)
 void clockevents_register_device(struct clock_event_device *dev)
 {
 	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
+	BUG_ON(!dev->cpumask);
+
 	/*
 	 * A nsec2cyc multiplicator of 0 is invalid and we'd crash
 	 * on it, so fix it up and emit a warning:

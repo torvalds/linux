@@ -322,7 +322,7 @@ static void __init davinci_timer_init(void)
 	clockevent_davinci.min_delta_ns =
 		clockevent_delta2ns(1, &clockevent_davinci);
 
-	clockevent_davinci.cpumask = cpumask_of_cpu(0);
+	clockevent_davinci.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_davinci);
 }
 

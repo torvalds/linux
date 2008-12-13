@@ -162,7 +162,6 @@ static struct clock_event_device clockevent_bfin = {
 	.name		= "bfin_core_timer",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_next_event = bfin_timer_set_next_event,
 	.set_mode	= bfin_timer_set_mode,
 };
@@ -193,6 +192,7 @@ static int __init bfin_clockevent_init(void)
 	clockevent_bfin.mult = div_sc(timer_clk, NSEC_PER_SEC, clockevent_bfin.shift);
 	clockevent_bfin.max_delta_ns = clockevent_delta2ns(-1, &clockevent_bfin);
 	clockevent_bfin.min_delta_ns = clockevent_delta2ns(100, &clockevent_bfin);
+	clockevent_bfin.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_bfin);
 
 	return 0;

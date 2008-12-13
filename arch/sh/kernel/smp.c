@@ -184,11 +184,11 @@ void arch_send_call_function_single_ipi(int cpu)
 	plat_send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
 }
 
-void smp_timer_broadcast(cpumask_t mask)
+void smp_timer_broadcast(const struct cpumask *mask)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, mask)
 		plat_send_ipi(cpu, SMP_MSG_TIMER);
 }
 

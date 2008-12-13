@@ -246,7 +246,7 @@ static void hpet_legacy_clockevent_register(void)
 	 * Start hpet with the boot cpu mask and make it
 	 * global after the IO_APIC has been initialized.
 	 */
-	hpet_clockevent.cpumask = cpumask_of_cpu(smp_processor_id());
+	hpet_clockevent.cpumask = cpumask_of(smp_processor_id());
 	clockevents_register_device(&hpet_clockevent);
 	global_clock_event = &hpet_clockevent;
 	printk(KERN_DEBUG "hpet clockevent registered\n");
@@ -500,7 +500,7 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 	/* 5 usec minimum reprogramming delta. */
 	evt->min_delta_ns = 5000;
 
-	evt->cpumask = cpumask_of_cpu(hdev->cpu);
+	evt->cpumask = cpumask_of(hdev->cpu);
 	clockevents_register_device(evt);
 }
 

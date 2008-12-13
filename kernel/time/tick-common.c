@@ -171,7 +171,7 @@ static void tick_setup_device(struct tick_device *td,
 	 * When the device is not per cpu, pin the interrupt to the
 	 * current cpu:
 	 */
-	if (!cpumask_equal(&newdev->cpumask, cpumask))
+	if (!cpumask_equal(newdev->cpumask, cpumask))
 		irq_set_affinity(newdev->irq, cpumask);
 
 	/*
@@ -202,14 +202,14 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 	spin_lock_irqsave(&tick_device_lock, flags);
 
 	cpu = smp_processor_id();
-	if (!cpu_isset(cpu, newdev->cpumask))
+	if (!cpumask_test_cpu(cpu, newdev->cpumask))
 		goto out_bc;
 
 	td = &per_cpu(tick_cpu_device, cpu);
 	curdev = td->evtdev;
 
 	/* cpu local device ? */
-	if (!cpus_equal(newdev->cpumask, cpumask_of_cpu(cpu))) {
+	if (!cpumask_equal(newdev->cpumask, cpumask_of(cpu))) {
 
 		/*
 		 * If the cpu affinity of the device interrupt can not
@@ -222,7 +222,7 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 		 * If we have a cpu local device already, do not replace it
 		 * by a non cpu local device
 		 */
-		if (curdev && cpus_equal(curdev->cpumask, cpumask_of_cpu(cpu)))
+		if (curdev && cpumask_equal(curdev->cpumask, cpumask_of(cpu)))
 			goto out_bc;
 	}
 
