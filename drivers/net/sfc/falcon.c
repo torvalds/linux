@@ -2690,7 +2690,7 @@ static int falcon_spi_device_init(struct efx_nic *efx,
 	struct efx_spi_device *spi_device;
 
 	if (device_type != 0) {
-		spi_device = kmalloc(sizeof(*spi_device), GFP_KERNEL);
+		spi_device = kzalloc(sizeof(*spi_device), GFP_KERNEL);
 		if (!spi_device)
 			return -ENOMEM;
 		spi_device->device_id = device_id;
