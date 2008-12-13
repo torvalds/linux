@@ -550,6 +550,15 @@ static irqreturn_t smsc9420_isr(int irq, void *dev_id)
 	return ret;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void smsc9420_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	smsc9420_isr(0, dev);
+	enable_irq(dev->irq);
+}
+#endif /* CONFIG_NET_POLL_CONTROLLER */
+
 static void smsc9420_dmac_soft_reset(struct smsc9420_pdata *pd)
 {
 	smsc9420_reg_write(pd, BUS_MODE, BUS_MODE_SWR_);
@@ -1418,6 +1427,9 @@ static const struct net_device_ops smsc9420_netdev_ops = {
 	.ndo_set_multicast_list	= smsc9420_set_multicast_list,
 	.ndo_do_ioctl		= smsc9420_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= smsc9420_poll_controller,
+#endif /* CONFIG_NET_POLL_CONTROLLER */
 };
 
 static int __devinit
