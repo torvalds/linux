@@ -2112,14 +2112,23 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	 * we're in STATE_INIT. */
 	for (i = 0; i < 5; i++) {
 		rc = efx_pci_probe_main(efx);
-		if (rc == 0)
-			break;
 
 		/* Serialise against efx_reset(). No more resets will be
 		 * scheduled since efx_stop_all() has been called, and we
 		 * have not and never have been registered with either
 		 * the rtnetlink or driverlink layers. */
 		cancel_work_sync(&efx->reset_work);
+
+		if (rc == 0) {
+			if (efx->reset_pending != RESET_TYPE_NONE) {
+				/* If there was a scheduled reset during
+				 * probe, the NIC is probably hosed anyway */
+				efx_pci_remove_main(efx);
+				rc = -EIO;
+			} else {
+				break;
+			}
+		}
 
 		/* Retry if a recoverably reset event has been scheduled */
 		if ((efx->reset_pending != RESET_TYPE_INVISIBLE) &&
