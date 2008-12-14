@@ -937,17 +937,13 @@ static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
 		struct ktermios *termios;
 		struct tty_struct *tty;
 
-		if (uport->info == NULL) {
-			printk(KERN_WARNING "%s: info NULL\n", __func__);
+		if (uport->info == NULL)
 			goto exit;
-		}
 
 		tty = uport->info->port.tty;
 
-		if (tty == NULL) {
-			printk(KERN_WARNING "%s: tty is NULL\n", __func__);
+		if (tty == NULL)
 			goto exit;
-		}
 
 		termios = tty->termios;
 
