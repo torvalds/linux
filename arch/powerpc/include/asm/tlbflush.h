@@ -40,6 +40,11 @@ extern void _tlbil_va(unsigned long address, unsigned int pid);
 extern void _tlbia(void);
 #endif
 
+static inline void local_flush_tlb_mm(struct mm_struct *mm)
+{
+	_tlbil_pid(mm->context.id);
+}
+
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 	_tlbil_pid(mm->context.id);
