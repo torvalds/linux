@@ -213,7 +213,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		kfree_skb(skb);
-		return 0;
+		return -ENOMEM;
 	}
 
 	flags = skb->len;
@@ -281,7 +281,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 	usb_free_urb(urb);
 
-	return 0;
+	return rc;
 }
 
 static void rtl8187_rx_cb(struct urb *urb)
