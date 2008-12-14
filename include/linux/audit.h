@@ -448,7 +448,7 @@ extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mod
 extern int audit_bprm(struct linux_binprm *bprm);
 extern void audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
-extern int __audit_fd_pair(int fd1, int fd2);
+extern void __audit_fd_pair(int fd1, int fd2);
 extern int audit_set_macxattr(const char *name);
 extern void __audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr);
 extern void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec *abs_timeout);
@@ -464,11 +464,10 @@ static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 	if (unlikely(!audit_dummy_context()))
 		__audit_ipc_obj(ipcp);
 }
-static inline int audit_fd_pair(int fd1, int fd2)
+static inline void audit_fd_pair(int fd1, int fd2)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_fd_pair(fd1, fd2);
-	return 0;
+		__audit_fd_pair(fd1, fd2);
 }
 static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 {
@@ -537,7 +536,7 @@ extern int audit_signals;
 #define audit_ipc_set_perm(q,u,g,m) ((void)0)
 #define audit_bprm(p) ({ 0; })
 #define audit_socketcall(n,a) ((void)0)
-#define audit_fd_pair(n,a) ({ 0; })
+#define audit_fd_pair(n,a) ((void)0)
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_set_macxattr(n) do { ; } while (0)
 #define audit_mq_open(o,m,a) ((void)0)

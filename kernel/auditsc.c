@@ -131,11 +131,6 @@ struct audit_aux_data_execve {
 	struct mm_struct *mm;
 };
 
-struct audit_aux_data_fd_pair {
-	struct	audit_aux_data d;
-	int	fd[2];
-};
-
 struct audit_aux_data_pids {
 	struct audit_aux_data	d;
 	pid_t			target_pid[AUDIT_AUX_PIDS];
@@ -241,6 +236,7 @@ struct audit_context {
 			struct mq_attr		attr;
 		} mq_open;
 	};
+	int fds[2];
 
 #if AUDIT_DEBUG
 	int		    put_count;
@@ -1382,11 +1378,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			audit_log_execve_info(context, &ab, axi);
 			break; }
 
-		case AUDIT_FD_PAIR: {
-			struct audit_aux_data_fd_pair *axs = (void *)aux;
-			audit_log_format(ab, "fd0=%d fd1=%d", axs->fd[0], axs->fd[1]);
-			break; }
-
 		case AUDIT_BPRM_FCAPS: {
 			struct audit_aux_data_bprm_fcaps *axs = (void *)aux;
 			audit_log_format(ab, "fver=%x", axs->fcap_ver);
@@ -1415,6 +1406,15 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 	if (context->type)
 		show_special(context, &call_panic);
+
+	if (context->fds[0] >= 0) {
+		ab = audit_log_start(context, GFP_KERNEL, AUDIT_FD_PAIR);
+		if (ab) {
+			audit_log_format(ab, "fd0=%d fd1=%d",
+					context->fds[0], context->fds[1]);
+			audit_log_end(ab);
+		}
+	}
 
 	if (context->sockaddr_len) {
 		ab = audit_log_start(context, GFP_KERNEL, AUDIT_SOCKADDR);
@@ -1696,6 +1696,7 @@ void audit_syscall_exit(int valid, long return_code)
 		context->target_sid = 0;
 		context->sockaddr_len = 0;
 		context->type = 0;
+		context->fds[0] = -1;
 		kfree(context->filterkey);
 		context->filterkey = NULL;
 		tsk->audit_context = context;
@@ -2291,29 +2292,12 @@ void audit_socketcall(int nargs, unsigned long *args)
  * @fd1: the first file descriptor
  * @fd2: the second file descriptor
  *
- * Returns 0 for success or NULL context or < 0 on error.
  */
-int __audit_fd_pair(int fd1, int fd2)
+void __audit_fd_pair(int fd1, int fd2)
 {
 	struct audit_context *context = current->audit_context;
-	struct audit_aux_data_fd_pair *ax;
-
-	if (likely(!context)) {
-		return 0;
-	}
-
-	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
-	if (!ax) {
-		return -ENOMEM;
-	}
-
-	ax->fd[0] = fd1;
-	ax->fd[1] = fd2;
-
-	ax->d.type = AUDIT_FD_PAIR;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
+	context->fds[0] = fd1;
+	context->fds[1] = fd2;
 }
 
 /**
