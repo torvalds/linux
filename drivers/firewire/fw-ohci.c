@@ -441,9 +441,8 @@ static inline void flush_writes(const struct fw_ohci *ohci)
 	reg_read(ohci, OHCI1394_Version);
 }
 
-static int
-ohci_update_phy_reg(struct fw_card *card, int addr,
-		    int clear_bits, int set_bits)
+static int ohci_update_phy_reg(struct fw_card *card, int addr,
+			       int clear_bits, int set_bits)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	u32 val, old;
@@ -658,8 +657,8 @@ static void ar_context_tasklet(unsigned long data)
 	}
 }
 
-static int
-ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 regs)
+static int ar_context_init(struct ar_context *ctx,
+			   struct fw_ohci *ohci, u32 regs)
 {
 	struct ar_buffer ab;
 
@@ -690,8 +689,7 @@ static void ar_context_run(struct ar_context *ctx)
 	flush_writes(ctx->ohci);
 }
 
-static struct descriptor *
-find_branch_descriptor(struct descriptor *d, int z)
+static struct descriptor *find_branch_descriptor(struct descriptor *d, int z)
 {
 	int b, key;
 
@@ -751,8 +749,7 @@ static void context_tasklet(unsigned long data)
  * Allocate a new buffer and add it to the list of free buffers for this
  * context.  Must be called with ohci->lock held.
  */
-static int
-context_add_buffer(struct context *ctx)
+static int context_add_buffer(struct context *ctx)
 {
 	struct descriptor_buffer *desc;
 	dma_addr_t uninitialized_var(bus_addr);
@@ -781,9 +778,8 @@ context_add_buffer(struct context *ctx)
 	return 0;
 }
 
-static int
-context_init(struct context *ctx, struct fw_ohci *ohci,
-	     u32 regs, descriptor_callback_t callback)
+static int context_init(struct context *ctx, struct fw_ohci *ohci,
+			u32 regs, descriptor_callback_t callback)
 {
 	ctx->ohci = ohci;
 	ctx->regs = regs;
@@ -814,8 +810,7 @@ context_init(struct context *ctx, struct fw_ohci *ohci,
 	return 0;
 }
 
-static void
-context_release(struct context *ctx)
+static void context_release(struct context *ctx)
 {
 	struct fw_card *card = &ctx->ohci->card;
 	struct descriptor_buffer *desc, *tmp;
@@ -827,8 +822,8 @@ context_release(struct context *ctx)
 }
 
 /* Must be called with ohci->lock held */
-static struct descriptor *
-context_get_descriptors(struct context *ctx, int z, dma_addr_t *d_bus)
+static struct descriptor *context_get_descriptors(struct context *ctx,
+						  int z, dma_addr_t *d_bus)
 {
 	struct descriptor *d = NULL;
 	struct descriptor_buffer *desc = ctx->buffer_tail;
@@ -912,8 +907,8 @@ struct driver_data {
  * Must always be called with the ochi->lock held to ensure proper
  * generation handling and locking around packet queue manipulation.
  */
-static int
-at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
+static int at_context_queue_packet(struct context *ctx,
+				   struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = ctx->ohci;
 	dma_addr_t d_bus, uninitialized_var(payload_bus);
@@ -1095,8 +1090,8 @@ static int handle_at_packet(struct context *context,
 #define HEADER_GET_DATA_LENGTH(q)	(((q) >> 16) & 0xffff)
 #define HEADER_GET_EXTENDED_TCODE(q)	(((q) >> 0) & 0xffff)
 
-static void
-handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
+static void handle_local_rom(struct fw_ohci *ohci,
+			     struct fw_packet *packet, u32 csr)
 {
 	struct fw_packet response;
 	int tcode, length, i;
@@ -1122,8 +1117,8 @@ handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
 	fw_core_handle_response(&ohci->card, &response);
 }
 
-static void
-handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
+static void handle_local_lock(struct fw_ohci *ohci,
+			      struct fw_packet *packet, u32 csr)
 {
 	struct fw_packet response;
 	int tcode, length, ext_tcode, sel;
@@ -1164,8 +1159,7 @@ handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
 	fw_core_handle_response(&ohci->card, &response);
 }
 
-static void
-handle_local_request(struct context *ctx, struct fw_packet *packet)
+static void handle_local_request(struct context *ctx, struct fw_packet *packet)
 {
 	u64 offset;
 	u32 csr;
@@ -1205,8 +1199,7 @@ handle_local_request(struct context *ctx, struct fw_packet *packet)
 	}
 }
 
-static void
-at_context_transmit(struct context *ctx, struct fw_packet *packet)
+static void at_context_transmit(struct context *ctx, struct fw_packet *packet)
 {
 	unsigned long flags;
 	int ret;
@@ -1590,8 +1583,8 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 	return 0;
 }
 
-static int
-ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
+static int ohci_set_config_rom(struct fw_card *card,
+			       u32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci;
 	unsigned long flags;
@@ -1711,8 +1704,8 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	return ret;
 }
 
-static int
-ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
+static int ohci_enable_phys_dma(struct fw_card *card,
+				int node_id, int generation)
 {
 #ifdef CONFIG_FIREWIRE_OHCI_REMOTE_DMA
 	return 0;
@@ -1752,8 +1745,7 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 #endif /* CONFIG_FIREWIRE_OHCI_REMOTE_DMA */
 }
 
-static u64
-ohci_get_bus_time(struct fw_card *card)
+static u64 ohci_get_bus_time(struct fw_card *card)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	u32 cycle_time;
@@ -1884,8 +1876,8 @@ static int handle_it_packet(struct context *context,
 	return 1;
 }
 
-static struct fw_iso_context *
-ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
+static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
+						int type, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct iso_context *ctx, *list;
@@ -2025,11 +2017,10 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 	spin_unlock_irqrestore(&ohci->lock, flags);
 }
 
-static int
-ohci_queue_iso_transmit(struct fw_iso_context *base,
-			struct fw_iso_packet *packet,
-			struct fw_iso_buffer *buffer,
-			unsigned long payload)
+static int ohci_queue_iso_transmit(struct fw_iso_context *base,
+				   struct fw_iso_packet *packet,
+				   struct fw_iso_buffer *buffer,
+				   unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct descriptor *d, *last, *pd;
@@ -2124,11 +2115,10 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 	return 0;
 }
 
-static int
-ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
-				  struct fw_iso_packet *packet,
-				  struct fw_iso_buffer *buffer,
-				  unsigned long payload)
+static int ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
+					     struct fw_iso_packet *packet,
+					     struct fw_iso_buffer *buffer,
+					     unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct db_descriptor *db = NULL;
@@ -2205,11 +2195,10 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	return 0;
 }
 
-static int
-ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
-					 struct fw_iso_packet *packet,
-					 struct fw_iso_buffer *buffer,
-					 unsigned long payload)
+static int ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
+					struct fw_iso_packet *packet,
+					struct fw_iso_buffer *buffer,
+					unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct descriptor *d = NULL, *pd = NULL;
@@ -2283,11 +2272,10 @@ ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 	return 0;
 }
 
-static int
-ohci_queue_iso(struct fw_iso_context *base,
-	       struct fw_iso_packet *packet,
-	       struct fw_iso_buffer *buffer,
-	       unsigned long payload)
+static int ohci_queue_iso(struct fw_iso_context *base,
+			  struct fw_iso_packet *packet,
+			  struct fw_iso_buffer *buffer,
+			  unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	unsigned long flags;
@@ -2353,8 +2341,8 @@ static void ohci_pmac_off(struct pci_dev *dev)
 #define ohci_pmac_off(dev)
 #endif /* CONFIG_PPC_PMAC */
 
-static int __devinit
-pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
+static int __devinit pci_probe(struct pci_dev *dev,
+			       const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
 	u32 bus_options, max_receive, link_speed, version;

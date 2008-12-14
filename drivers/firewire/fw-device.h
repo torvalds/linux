@@ -180,8 +180,7 @@ struct fw_driver {
 	const struct fw_device_id *id_table;
 };
 
-static inline struct fw_driver *
-fw_driver(struct device_driver *drv)
+static inline struct fw_driver *fw_driver(struct device_driver *drv)
 {
 	return container_of(drv, struct fw_driver, driver);
 }

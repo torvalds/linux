@@ -88,8 +88,7 @@
 #define fw_notify(s, args...) printk(KERN_NOTICE KBUILD_MODNAME ": " s, ## args)
 #define fw_error(s, args...) printk(KERN_ERR KBUILD_MODNAME ": " s, ## args)
 
-static inline void
-fw_memcpy_from_be32(void *_dst, void *_src, size_t size)
+static inline void fw_memcpy_from_be32(void *_dst, void *_src, size_t size)
 {
 	u32    *dst = _dst;
 	__be32 *src = _src;
@@ -99,8 +98,7 @@ fw_memcpy_from_be32(void *_dst, void *_src, size_t size)
 		dst[i] = be32_to_cpu(src[i]);
 }
 
-static inline void
-fw_memcpy_to_be32(void *_dst, void *_src, size_t size)
+static inline void fw_memcpy_to_be32(void *_dst, void *_src, size_t size)
 {
 	fw_memcpy_from_be32(_dst, _src, size);
 }
@@ -125,8 +123,7 @@ typedef void (*fw_packet_callback_t)(struct fw_packet *packet,
 				     struct fw_card *card, int status);
 
 typedef void (*fw_transaction_callback_t)(struct fw_card *card, int rcode,
-					  void *data,
-					  size_t length,
+					  void *data, size_t length,
 					  void *callback_data);
 
 /*
@@ -200,7 +197,6 @@ struct fw_address_handler {
 	void *callback_data;
 	struct list_head link;
 };
-
 
 struct fw_address_region {
 	u64 start;
@@ -315,10 +311,8 @@ struct fw_iso_packet {
 struct fw_iso_context;
 
 typedef void (*fw_iso_callback_t)(struct fw_iso_context *context,
-				  u32 cycle,
-				  size_t header_length,
-				  void *header,
-				  void *data);
+				  u32 cycle, size_t header_length,
+				  void *header, void *data);
 
 /*
  * An iso buffer is just a set of pages mapped for DMA in the
@@ -344,36 +338,22 @@ struct fw_iso_context {
 	void *callback_data;
 };
 
-int
-fw_iso_buffer_init(struct fw_iso_buffer *buffer,
-		   struct fw_card *card,
-		   int page_count,
-		   enum dma_data_direction direction);
-int
-fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma);
-void
-fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
+int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
+		       int page_count, enum dma_data_direction direction);
+int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma);
+void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
 
-struct fw_iso_context *
-fw_iso_context_create(struct fw_card *card, int type,
-		      int channel, int speed, size_t header_size,
-		      fw_iso_callback_t callback, void *callback_data);
-
-void
-fw_iso_context_destroy(struct fw_iso_context *ctx);
-
-int
-fw_iso_context_queue(struct fw_iso_context *ctx,
-		     struct fw_iso_packet *packet,
-		     struct fw_iso_buffer *buffer,
-		     unsigned long payload);
-
-int
-fw_iso_context_start(struct fw_iso_context *ctx,
-		     int cycle, int sync, int tags);
-
-int
-fw_iso_context_stop(struct fw_iso_context *ctx);
+struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
+		int type, int channel, int speed, size_t header_size,
+		fw_iso_callback_t callback, void *callback_data);
+int fw_iso_context_queue(struct fw_iso_context *ctx,
+			 struct fw_iso_packet *packet,
+			 struct fw_iso_buffer *buffer,
+			 unsigned long payload);
+int fw_iso_context_start(struct fw_iso_context *ctx,
+			 int cycle, int sync, int tags);
+int fw_iso_context_stop(struct fw_iso_context *ctx);
+void fw_iso_context_destroy(struct fw_iso_context *ctx);
 
 struct fw_card_driver {
 	/*
@@ -429,24 +409,18 @@ struct fw_card_driver {
 	int (*stop_iso)(struct fw_iso_context *ctx);
 };
 
-int
-fw_core_initiate_bus_reset(struct fw_card *card, int short_reset);
+int fw_core_initiate_bus_reset(struct fw_card *card, int short_reset);
 
-void
-fw_send_request(struct fw_card *card, struct fw_transaction *t,
+void fw_send_request(struct fw_card *card, struct fw_transaction *t,
 		int tcode, int destination_id, int generation, int speed,
 		unsigned long long offset, void *data, size_t length,
 		fw_transaction_callback_t callback, void *callback_data);
-
+int fw_cancel_transaction(struct fw_card *card,
+			  struct fw_transaction *transaction);
+void fw_flush_transactions(struct fw_card *card);
 int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       int generation, int speed, unsigned long long offset,
 		       void *data, size_t length);
-
-int fw_cancel_transaction(struct fw_card *card,
-			  struct fw_transaction *transaction);
-
-void fw_flush_transactions(struct fw_card *card);
-
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count);
 
@@ -454,29 +428,18 @@ void fw_send_phy_config(struct fw_card *card,
  * Called by the topology code to inform the device code of node
  * activity; found, lost, or updated nodes.
  */
-void
-fw_node_event(struct fw_card *card, struct fw_node *node, int event);
+void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 
 /* API used by card level drivers */
 
-void
-fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
-		   struct device *device);
-int
-fw_card_add(struct fw_card *card,
-	    u32 max_receive, u32 link_speed, u64 guid);
-
-void
-fw_core_remove_card(struct fw_card *card);
-
-void
-fw_core_handle_bus_reset(struct fw_card *card,
-			 int node_id, int generation,
-			 int self_id_count, u32 *self_ids);
-void
-fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
-
-void
-fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
+void fw_card_initialize(struct fw_card *card,
+		const struct fw_card_driver *driver, struct device *device);
+int fw_card_add(struct fw_card *card,
+		u32 max_receive, u32 link_speed, u64 guid);
+void fw_core_remove_card(struct fw_card *card);
+void fw_core_handle_bus_reset(struct fw_card *card, int node_id,
+		int generation, int self_id_count, u32 *self_ids);
+void fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
+void fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
 
 #endif /* __fw_transaction_h */

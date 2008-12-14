@@ -63,8 +63,7 @@ static int descriptor_count;
 #define BIB_CMC			((1) << 30)
 #define BIB_IMC			((1) << 31)
 
-static u32 *
-generate_config_rom(struct fw_card *card, size_t *config_rom_length)
+static u32 *generate_config_rom(struct fw_card *card, size_t *config_rom_length)
 {
 	struct fw_descriptor *desc;
 	static u32 config_rom[256];
@@ -128,8 +127,7 @@ generate_config_rom(struct fw_card *card, size_t *config_rom_length)
 	return config_rom;
 }
 
-static void
-update_config_roms(void)
+static void update_config_roms(void)
 {
 	struct fw_card *card;
 	u32 *config_rom;
@@ -141,8 +139,7 @@ update_config_roms(void)
 	}
 }
 
-int
-fw_core_add_descriptor(struct fw_descriptor *desc)
+int fw_core_add_descriptor(struct fw_descriptor *desc)
 {
 	size_t i;
 
@@ -171,8 +168,7 @@ fw_core_add_descriptor(struct fw_descriptor *desc)
 	return 0;
 }
 
-void
-fw_core_remove_descriptor(struct fw_descriptor *desc)
+void fw_core_remove_descriptor(struct fw_descriptor *desc)
 {
 	mutex_lock(&card_mutex);
 
@@ -189,8 +185,7 @@ static const char gap_count_table[] = {
 	63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 };
 
-void
-fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
+void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 {
 	int scheduled;
 
@@ -200,8 +195,7 @@ fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 		fw_card_put(card);
 }
 
-static void
-fw_card_bm_work(struct work_struct *work)
+static void fw_card_bm_work(struct work_struct *work)
 {
 	struct fw_card *card = container_of(work, struct fw_card, work.work);
 	struct fw_device *root_device;
@@ -371,17 +365,16 @@ fw_card_bm_work(struct work_struct *work)
 	fw_card_put(card);
 }
 
-static void
-flush_timer_callback(unsigned long data)
+static void flush_timer_callback(unsigned long data)
 {
 	struct fw_card *card = (struct fw_card *)data;
 
 	fw_flush_transactions(card);
 }
 
-void
-fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
-		   struct device *device)
+void fw_card_initialize(struct fw_card *card,
+			const struct fw_card_driver *driver,
+			struct device *device)
 {
 	static atomic_t index = ATOMIC_INIT(-1);
 
@@ -406,9 +399,8 @@ fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
-int
-fw_card_add(struct fw_card *card,
-	    u32 max_receive, u32 link_speed, u64 guid)
+int fw_card_add(struct fw_card *card,
+		u32 max_receive, u32 link_speed, u64 guid)
 {
 	u32 *config_rom;
 	size_t length;
@@ -442,23 +434,20 @@ EXPORT_SYMBOL(fw_card_add);
  * dummy driver just fails all IO.
  */
 
-static int
-dummy_enable(struct fw_card *card, u32 *config_rom, size_t length)
+static int dummy_enable(struct fw_card *card, u32 *config_rom, size_t length)
 {
 	BUG();
 	return -1;
 }
 
-static int
-dummy_update_phy_reg(struct fw_card *card, int address,
-		     int clear_bits, int set_bits)
+static int dummy_update_phy_reg(struct fw_card *card, int address,
+				int clear_bits, int set_bits)
 {
 	return -ENODEV;
 }
 
-static int
-dummy_set_config_rom(struct fw_card *card,
-		     u32 *config_rom, size_t length)
+static int dummy_set_config_rom(struct fw_card *card,
+				u32 *config_rom, size_t length)
 {
 	/*
 	 * We take the card out of card_list before setting the dummy
@@ -468,27 +457,23 @@ dummy_set_config_rom(struct fw_card *card,
 	return -1;
 }
 
-static void
-dummy_send_request(struct fw_card *card, struct fw_packet *packet)
+static void dummy_send_request(struct fw_card *card, struct fw_packet *packet)
 {
 	packet->callback(packet, card, -ENODEV);
 }
 
-static void
-dummy_send_response(struct fw_card *card, struct fw_packet *packet)
+static void dummy_send_response(struct fw_card *card, struct fw_packet *packet)
 {
 	packet->callback(packet, card, -ENODEV);
 }
 
-static int
-dummy_cancel_packet(struct fw_card *card, struct fw_packet *packet)
+static int dummy_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 {
 	return -ENOENT;
 }
 
-static int
-dummy_enable_phys_dma(struct fw_card *card,
-		      int node_id, int generation)
+static int dummy_enable_phys_dma(struct fw_card *card,
+				 int node_id, int generation)
 {
 	return -ENODEV;
 }
@@ -503,16 +488,14 @@ static struct fw_card_driver dummy_driver = {
 	.enable_phys_dma = dummy_enable_phys_dma,
 };
 
-void
-fw_card_release(struct kref *kref)
+void fw_card_release(struct kref *kref)
 {
 	struct fw_card *card = container_of(kref, struct fw_card, kref);
 
 	complete(&card->done);
 }
 
-void
-fw_core_remove_card(struct fw_card *card)
+void fw_core_remove_card(struct fw_card *card)
 {
 	card->driver->update_phy_reg(card, 4,
 				     PHY_LINK_ACTIVE | PHY_CONTENDER, 0);
@@ -536,8 +519,7 @@ fw_core_remove_card(struct fw_card *card)
 }
 EXPORT_SYMBOL(fw_core_remove_card);
 
-int
-fw_core_initiate_bus_reset(struct fw_card *card, int short_reset)
+int fw_core_initiate_bus_reset(struct fw_card *card, int short_reset)
 {
 	int reg = short_reset ? 5 : 1;
 	int bit = short_reset ? PHY_BUS_SHORT_RESET : PHY_BUS_RESET;

@@ -96,14 +96,12 @@ struct client {
 	struct list_head link;
 };
 
-static inline void __user *
-u64_to_uptr(__u64 value)
+static inline void __user *u64_to_uptr(__u64 value)
 {
 	return (void __user *)(unsigned long)value;
 }
 
-static inline __u64
-uptr_to_u64(void __user *ptr)
+static inline __u64 uptr_to_u64(void __user *ptr)
 {
 	return (__u64)(unsigned long)ptr;
 }
@@ -163,8 +161,8 @@ static void queue_event(struct client *client, struct event *event,
 	wake_up_interruptible(&client->wait);
 }
 
-static int
-dequeue_event(struct client *client, char __user *buffer, size_t count)
+static int dequeue_event(struct client *client,
+			 char __user *buffer, size_t count)
 {
 	unsigned long flags;
 	struct event *event;
@@ -203,18 +201,16 @@ dequeue_event(struct client *client, char __user *buffer, size_t count)
 	return ret;
 }
 
-static ssize_t
-fw_device_op_read(struct file *file,
-		  char __user *buffer, size_t count, loff_t *offset)
+static ssize_t fw_device_op_read(struct file *file, char __user *buffer,
+				 size_t count, loff_t *offset)
 {
 	struct client *client = file->private_data;
 
 	return dequeue_event(client, buffer, count);
 }
 
-static void
-fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
-		     struct client *client)
+static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
+				 struct client *client)
 {
 	struct fw_card *card = client->device->card;
 	unsigned long flags;
@@ -233,9 +229,8 @@ fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 	spin_unlock_irqrestore(&card->lock, flags);
 }
 
-static void
-for_each_client(struct fw_device *device,
-		void (*callback)(struct client *client))
+static void for_each_client(struct fw_device *device,
+			    void (*callback)(struct client *client))
 {
 	struct client *c;
 
@@ -245,8 +240,7 @@ for_each_client(struct fw_device *device,
 	mutex_unlock(&device->client_list_mutex);
 }
 
-static void
-queue_bus_reset_event(struct client *client)
+static void queue_bus_reset_event(struct client *client)
 {
 	struct bus_reset *bus_reset;
 
@@ -316,9 +310,8 @@ static int ioctl_get_info(struct client *client, void *buffer)
 	return 0;
 }
 
-static int
-add_client_resource(struct client *client, struct client_resource *resource,
-		    gfp_t gfp_mask)
+static int add_client_resource(struct client *client,
+			       struct client_resource *resource, gfp_t gfp_mask)
 {
 	unsigned long flags;
 	int ret;
@@ -341,10 +334,9 @@ add_client_resource(struct client *client, struct client_resource *resource,
 	return ret < 0 ? ret : 0;
 }
 
-static int
-release_client_resource(struct client *client, u32 handle,
-			client_resource_release_fn_t release,
-			struct client_resource **resource)
+static int release_client_resource(struct client *client, u32 handle,
+				   client_resource_release_fn_t release,
+				   struct client_resource **resource)
 {
 	struct client_resource *r;
 	unsigned long flags;
@@ -369,8 +361,8 @@ release_client_resource(struct client *client, u32 handle,
 	return 0;
 }
 
-static void
-release_transaction(struct client *client, struct client_resource *resource)
+static void release_transaction(struct client *client,
+				struct client_resource *resource)
 {
 	struct response *response =
 		container_of(resource, struct response, resource);
@@ -378,9 +370,8 @@ release_transaction(struct client *client, struct client_resource *resource)
 	fw_cancel_transaction(client->device->card, &response->transaction);
 }
 
-static void
-complete_transaction(struct fw_card *card, int rcode,
-		     void *payload, size_t length, void *data)
+static void complete_transaction(struct fw_card *card, int rcode,
+				 void *payload, size_t length, void *data)
 {
 	struct response *response = data;
 	struct client *client = response->client;
@@ -506,8 +497,8 @@ struct request_event {
 	struct fw_cdev_event_request request;
 };
 
-static void
-release_request(struct client *client, struct client_resource *resource)
+static void release_request(struct client *client,
+			    struct client_resource *resource)
 {
 	struct request *request =
 		container_of(resource, struct request, resource);
@@ -517,12 +508,11 @@ release_request(struct client *client, struct client_resource *resource)
 	kfree(request);
 }
 
-static void
-handle_request(struct fw_card *card, struct fw_request *r,
-	       int tcode, int destination, int source,
-	       int generation, int speed,
-	       unsigned long long offset,
-	       void *payload, size_t length, void *callback_data)
+static void handle_request(struct fw_card *card, struct fw_request *r,
+			   int tcode, int destination, int source,
+			   int generation, int speed,
+			   unsigned long long offset,
+			   void *payload, size_t length, void *callback_data)
 {
 	struct address_handler *handler = callback_data;
 	struct request *request;
@@ -561,9 +551,8 @@ handle_request(struct fw_card *card, struct fw_request *r,
 	fw_send_response(card, r, RCODE_CONFLICT_ERROR);
 }
 
-static void
-release_address_handler(struct client *client,
-			struct client_resource *resource)
+static void release_address_handler(struct client *client,
+				    struct client_resource *resource)
 {
 	struct address_handler *handler =
 		container_of(resource, struct address_handler, resource);
@@ -716,9 +705,8 @@ static int ioctl_remove_descriptor(struct client *client, void *buffer)
 				       release_descriptor, NULL);
 }
 
-static void
-iso_callback(struct fw_iso_context *context, u32 cycle,
-	     size_t header_length, void *header, void *data)
+static void iso_callback(struct fw_iso_context *context, u32 cycle,
+			 size_t header_length, void *header, void *data)
 {
 	struct client *client = data;
 	struct iso_interrupt *irq;
@@ -954,8 +942,8 @@ static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_get_cycle_timer,
 };
 
-static int
-dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
+static int dispatch_ioctl(struct client *client,
+			  unsigned int cmd, void __user *arg)
 {
 	char buffer[256];
 	int ret;
@@ -983,9 +971,8 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 	return ret;
 }
 
-static long
-fw_device_op_ioctl(struct file *file,
-		   unsigned int cmd, unsigned long arg)
+static long fw_device_op_ioctl(struct file *file,
+			       unsigned int cmd, unsigned long arg)
 {
 	struct client *client = file->private_data;
 
@@ -996,9 +983,8 @@ fw_device_op_ioctl(struct file *file,
 }
 
 #ifdef CONFIG_COMPAT
-static long
-fw_device_op_compat_ioctl(struct file *file,
-			  unsigned int cmd, unsigned long arg)
+static long fw_device_op_compat_ioctl(struct file *file,
+				      unsigned int cmd, unsigned long arg)
 {
 	struct client *client = file->private_data;
 

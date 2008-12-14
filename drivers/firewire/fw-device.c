@@ -134,8 +134,7 @@ static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
 			vendor, model, specifier_id, version);
 }
 
-static int
-fw_unit_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int fw_unit_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct fw_unit *unit = fw_unit(dev);
 	char modalias[64];
@@ -193,8 +192,8 @@ struct config_rom_attribute {
 	u32 key;
 };
 
-static ssize_t
-show_immediate(struct device *dev, struct device_attribute *dattr, char *buf)
+static ssize_t show_immediate(struct device *dev,
+			      struct device_attribute *dattr, char *buf)
 {
 	struct config_rom_attribute *attr =
 		container_of(dattr, struct config_rom_attribute, attr);
@@ -225,8 +224,8 @@ show_immediate(struct device *dev, struct device_attribute *dattr, char *buf)
 #define IMMEDIATE_ATTR(name, key)				\
 	{ __ATTR(name, S_IRUGO, show_immediate, NULL), key }
 
-static ssize_t
-show_text_leaf(struct device *dev, struct device_attribute *dattr, char *buf)
+static ssize_t show_text_leaf(struct device *dev,
+			      struct device_attribute *dattr, char *buf)
 {
 	struct config_rom_attribute *attr =
 		container_of(dattr, struct config_rom_attribute, attr);
@@ -295,10 +294,9 @@ static struct config_rom_attribute config_rom_attributes[] = {
 	TEXT_LEAF_ATTR(hardware_version_name, CSR_HARDWARE_VERSION),
 };
 
-static void
-init_fw_attribute_group(struct device *dev,
-			struct device_attribute *attrs,
-			struct fw_attribute_group *group)
+static void init_fw_attribute_group(struct device *dev,
+				    struct device_attribute *attrs,
+				    struct fw_attribute_group *group)
 {
 	struct device_attribute *attr;
 	int i, j;
@@ -321,9 +319,8 @@ init_fw_attribute_group(struct device *dev,
 	dev->groups = group->groups;
 }
 
-static ssize_t
-modalias_show(struct device *dev,
-	      struct device_attribute *attr, char *buf)
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct fw_unit *unit = fw_unit(dev);
 	int length;
@@ -334,9 +331,8 @@ modalias_show(struct device *dev,
 	return length + 1;
 }
 
-static ssize_t
-rom_index_show(struct device *dev,
-	       struct device_attribute *attr, char *buf)
+static ssize_t rom_index_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev->parent);
 	struct fw_unit *unit = fw_unit(dev);
@@ -351,8 +347,8 @@ static struct device_attribute fw_unit_attributes[] = {
 	__ATTR_NULL,
 };
 
-static ssize_t
-config_rom_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t config_rom_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev);
 	size_t length;
@@ -365,8 +361,8 @@ config_rom_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return length;
 }
 
-static ssize_t
-guid_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t guid_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev);
 	int ret;
@@ -385,8 +381,8 @@ static struct device_attribute fw_device_attributes[] = {
 	__ATTR_NULL,
 };
 
-static int
-read_rom(struct fw_device *device, int generation, int index, u32 *data)
+static int read_rom(struct fw_device *device,
+		    int generation, int index, u32 *data)
 {
 	int rcode;
 
