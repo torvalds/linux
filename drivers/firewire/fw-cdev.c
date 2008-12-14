@@ -591,9 +591,10 @@ static int ioctl_allocate(struct client *client, void *buffer)
 	handler->closure = request->closure;
 	handler->client = client;
 
-	if (fw_core_add_address_handler(&handler->handler, &region) < 0) {
+	ret = fw_core_add_address_handler(&handler->handler, &region);
+	if (ret < 0) {
 		kfree(handler);
-		return -EBUSY;
+		return ret;
 	}
 
 	handler->resource.release = release_address_handler;
