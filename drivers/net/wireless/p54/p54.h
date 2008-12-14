@@ -61,6 +61,13 @@ struct p54_edcf_queue_param {
 	__le16 txop;
 } __attribute__ ((packed));
 
+struct p54_rssi_linear_approximation {
+	s16 mul;
+	s16 add;
+	s16 longbow_unkn;
+	s16 longbow_unk2;
+};
+
 #define EEPROM_READBACK_LEN 0x3fc
 
 #define ISL38XX_DEV_FIRMWARE_ADDR 0x20000
@@ -91,6 +98,7 @@ struct p54_common {
 	struct pda_channel_output_limit *output_limit;
 	unsigned int output_limit_len;
 	struct pda_pa_curve_data *curve_data;
+	struct p54_rssi_linear_approximation rssical_db[IEEE80211_NUM_BANDS];
 	unsigned int filter_flags;
 	bool use_short_slot;
 	u16 rxhw;

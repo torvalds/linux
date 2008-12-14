@@ -335,6 +335,36 @@ static const char *p54_rf_chips[] = { "NULL", "Duette3", "Duette2",
                               "Frisbee", "Xbow", "Longbow", "NULL", "NULL" };
 static int p54_init_xbow_synth(struct ieee80211_hw *dev);
 
+static void p54_parse_rssical(struct ieee80211_hw *dev, void *data, int len,
+			     u16 type)
+{
+	struct p54_common *priv = dev->priv;
+	int offset = (type == PDR_RSSI_LINEAR_APPROXIMATION_EXTENDED) ? 2 : 0;
+	int entry_size = sizeof(struct pda_rssi_cal_entry) + offset;
+	int num_entries = (type == PDR_RSSI_LINEAR_APPROXIMATION) ? 1 : 2;
+	int i;
+
+	if (len != (entry_size * num_entries)) {
+		printk(KERN_ERR "%s: unknown rssi calibration data packing "
+				 " type:(%x) len:%d.\n",
+		       wiphy_name(dev->wiphy), type, len);
+
+		print_hex_dump_bytes("rssical:", DUMP_PREFIX_NONE,
+				     data, len);
+
+		printk(KERN_ERR "%s: please report this issue.\n",
+			wiphy_name(dev->wiphy));
+		return;
+	}
+
+	for (i = 0; i < num_entries; i++) {
+		struct pda_rssi_cal_entry *cal = data +
+						 (offset + i * entry_size);
+		priv->rssical_db[i].mul = (s16) le16_to_cpu(cal->mul);
+		priv->rssical_db[i].add = (s16) le16_to_cpu(cal->add);
+	}
+}
+
 static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 {
 	struct p54_common *priv = dev->priv;
@@ -434,6 +464,12 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		case PDR_HARDWARE_PLATFORM_COMPONENT_ID:
 			priv->version = *(u8 *)(entry->data + 1);
 			break;
+		case PDR_RSSI_LINEAR_APPROXIMATION:
+		case PDR_RSSI_LINEAR_APPROXIMATION_DUAL_BAND:
+		case PDR_RSSI_LINEAR_APPROXIMATION_EXTENDED:
+			p54_parse_rssical(dev, entry->data, data_len,
+					  le16_to_cpu(entry->code));
+			break;
 		case PDR_END:
 			/* make it overrun */
 			entry_len = len;
@@ -453,10 +489,7 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		case PDR_DEFAULT_COUNTRY:
 		case PDR_ANTENNA_GAIN:
 		case PDR_PRISM_INDIGO_PA_CALIBRATION_DATA:
-		case PDR_RSSI_LINEAR_APPROXIMATION:
-		case PDR_RSSI_LINEAR_APPROXIMATION_DUAL_BAND:
 		case PDR_REGULATORY_POWER_LIMITS:
-		case PDR_RSSI_LINEAR_APPROXIMATION_EXTENDED:
 		case PDR_RADIATED_TRANSMISSION_CORRECTION:
 		case PDR_PRISM_TX_IQ_CALIBRATION:
 		case PDR_BASEBAND_REGISTERS:
@@ -527,8 +560,11 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 
 static int p54_rssi_to_dbm(struct ieee80211_hw *dev, int rssi)
 {
-	/* TODO: get the rssi_add & rssi_mul data from the eeprom */
-	return ((rssi * 0x83) / 64 - 400) / 4;
+	struct p54_common *priv = dev->priv;
+	int band = dev->conf.channel->band;
+
+	return ((rssi * priv->rssical_db[band].mul) / 64 +
+			 priv->rssical_db[band].add) / 4;
 }
 
 static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
@@ -1466,15 +1502,15 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 	return 0;
 }
 
-static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell,
-		    u16 frequency)
+static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
 	struct p54_scan *chan;
 	unsigned int i;
 	void *entry;
-	__le16 freq = cpu_to_le16(frequency);
+	__le16 freq = cpu_to_le16(dev->conf.channel->center_freq);
+	int band = dev->conf.channel->band;
 
 	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*chan) +
 			    sizeof(struct p54_hdr), P54_CONTROL_TYPE_SCAN,
@@ -1535,11 +1571,11 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell,
 	}
 
 	if (priv->fw_var < 0x500) {
-		chan->v1.rssical_mul = cpu_to_le16(130);
-		chan->v1.rssical_add = cpu_to_le16(0xfe70);
+		chan->v1_rssi.mul = cpu_to_le16(priv->rssical_db[band].mul);
+		chan->v1_rssi.add = cpu_to_le16(priv->rssical_db[band].add);
 	} else {
-		chan->v2.rssical_mul = cpu_to_le16(130);
-		chan->v2.rssical_add = cpu_to_le16(0xfe70);
+		chan->v2.rssi.mul = cpu_to_le16(priv->rssical_db[band].mul);
+		chan->v2.rssi.add = cpu_to_le16(priv->rssical_db[band].add);
 		chan->v2.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		memset(chan->v2.rts_rates, 0, 8);
 	}
@@ -1801,8 +1837,7 @@ static int p54_config(struct ieee80211_hw *dev, u32 changed)
 			goto out;
 	}
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ret = p54_scan(dev, P54_SCAN_EXIT, 0,
-			       conf->channel->center_freq);
+		ret = p54_scan(dev, P54_SCAN_EXIT, 0);
 		if (ret)
 			goto out;
 	}
@@ -1828,8 +1863,7 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 	}
 
 	if (conf->changed & IEEE80211_IFCC_BEACON) {
-		ret = p54_scan(dev, P54_SCAN_EXIT, 0,
-			       dev->conf.channel->center_freq);
+		ret = p54_scan(dev, P54_SCAN_EXIT, 0);
 		if (ret)
 			goto out;
 		ret = p54_setup_mac(dev);
@@ -1968,8 +2002,7 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 			priv->basic_rate_mask = info->basic_rates;
 		p54_setup_mac(dev);
 		if (priv->fw_var >= 0x500)
-			p54_scan(dev, P54_SCAN_EXIT, 0,
-				 dev->conf.channel->center_freq);
+			p54_scan(dev, P54_SCAN_EXIT, 0);
 	}
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (info->assoc) {

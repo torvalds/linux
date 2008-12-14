@@ -178,6 +178,11 @@ struct pda_pa_curve_data {
 	u8 data[0];
 } __attribute__ ((packed));
 
+struct pda_rssi_cal_entry {
+	__le16 mul;
+	__le16 add;
+} __attribute__ ((packed));
+
 /*
  * this defines the PDR codes used to build PDAs as defined in document
  * number 553155. The current implementation mirrors version 1.1 of the
@@ -429,22 +434,18 @@ struct p54_scan {
 	u8 dup_16qam;
 	u8 dup_64qam;
 	union {
-		struct {
-			__le16 rssical_mul;
-			__le16 rssical_add;
-		} v1 __attribute__ ((packed));
+		struct pda_rssi_cal_entry v1_rssi;
 
 		struct {
 			__le32 basic_rate_mask;
 			u8 rts_rates[8];
-			__le16 rssical_mul;
-			__le16 rssical_add;
+			struct pda_rssi_cal_entry rssi;
 		} v2 __attribute__ ((packed));
 	} __attribute__ ((packed));
 } __attribute__ ((packed));
 
-#define P54_SCAN_V1_LEN (sizeof(struct p54_scan)-12)
-#define P54_SCAN_V2_LEN (sizeof(struct p54_scan))
+#define P54_SCAN_V1_LEN 0x70
+#define P54_SCAN_V2_LEN 0x7c
 
 struct p54_led {
 	__le16 mode;
