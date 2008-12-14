@@ -116,7 +116,7 @@
 #define CX18_DEFAULT_ENC_PCM_BUFFERS 1
 
 /* Maximum firmware DMA buffers per stream */
-#define CX18_MAX_MDLS_PER_STREAM 63
+#define CX18_MAX_FW_MDLS_PER_STREAM 63
 
 /* DMA buffer, default size in kB allocated */
 #define CX18_DEFAULT_ENC_TS_BUFSIZE   32
@@ -255,7 +255,8 @@ struct cx18_scb; /* forward reference */
 
 
 #define CX18_MAX_MDL_ACKS 2
-#define CX18_MAX_EPU_WORK_ORDERS 70 /* CPU_DE_RELEASE_MDL bursts 63 commands */
+#define CX18_MAX_EPU_WORK_ORDERS (CX18_MAX_FW_MDLS_PER_STREAM + 7)
+/* CPU_DE_RELEASE_MDL can burst CX18_MAX_FW_MDLS_PER_STREAM orders in a group */
 
 #define CX18_F_EWO_MB_STALE_UPON_RECEIPT 0x1
 #define CX18_F_EWO_MB_STALE_WHILE_PROC   0x2

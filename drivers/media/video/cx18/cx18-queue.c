@@ -55,8 +55,9 @@ struct cx18_queue *_cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 
 	mutex_lock(&s->qlock);
 
-	/* q_busy is restricted to 63 buffers to stay within firmware limits */
-	if (q == &s->q_busy && atomic_read(&q->buffers) >= 63)
+	/* q_busy is restricted to a max buffer count imposed by firmware */
+	if (q == &s->q_busy &&
+	    atomic_read(&q->buffers) >= CX18_MAX_FW_MDLS_PER_STREAM)
 		q = &s->q_free;
 
 	if (to_front)

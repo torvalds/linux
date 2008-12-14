@@ -425,7 +425,7 @@ void cx18_stream_load_fw_queue(struct cx18_stream *s)
 	struct cx18_buffer *buf;
 
 	if (atomic_read(&s->q_free.buffers) == 0 ||
-	    atomic_read(&s->q_busy.buffers) >= 63)
+	    atomic_read(&s->q_busy.buffers) >= CX18_MAX_FW_MDLS_PER_STREAM)
 		return;
 
 	/* Move from q_free to q_busy notifying the firmware, until the limit */
@@ -434,7 +434,8 @@ void cx18_stream_load_fw_queue(struct cx18_stream *s)
 		if (buf == NULL)
 			break;
 		q = cx18_stream_put_buf_fw(s, buf);
-	} while (atomic_read(&s->q_busy.buffers) < 63 && q == &s->q_busy);
+	} while (atomic_read(&s->q_busy.buffers) < CX18_MAX_FW_MDLS_PER_STREAM
+		 && q == &s->q_busy);
 }
 
 int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
