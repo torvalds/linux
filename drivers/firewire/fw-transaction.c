@@ -955,19 +955,10 @@ static int __init fw_core_init(void)
 		return fw_cdev_major;
 	}
 
-	retval = fw_core_add_address_handler(&topology_map,
-					     &topology_map_region);
-	BUG_ON(retval < 0);
-
-	retval = fw_core_add_address_handler(&registers,
-					     &registers_region);
-	BUG_ON(retval < 0);
-
-	/* Add the vendor textual descriptor. */
-	retval = fw_core_add_descriptor(&vendor_id_descriptor);
-	BUG_ON(retval < 0);
-	retval = fw_core_add_descriptor(&model_id_descriptor);
-	BUG_ON(retval < 0);
+	fw_core_add_address_handler(&topology_map, &topology_map_region);
+	fw_core_add_address_handler(&registers, &registers_region);
+	fw_core_add_descriptor(&vendor_id_descriptor);
+	fw_core_add_descriptor(&model_id_descriptor);
 
 	return 0;
 }
