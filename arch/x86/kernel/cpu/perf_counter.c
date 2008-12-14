@@ -157,6 +157,9 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 
 void hw_perf_enable_all(void)
 {
+	if (unlikely(!perf_counters_initialized))
+		return;
+
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, perf_counter_mask, 0);
 }
 
@@ -164,14 +167,21 @@ u64 hw_perf_save_disable(void)
 {
 	u64 ctrl;
 
+	if (unlikely(!perf_counters_initialized))
+		return 0;
+
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0, 0);
+
 	return ctrl;
 }
 EXPORT_SYMBOL_GPL(hw_perf_save_disable);
 
 void hw_perf_restore(u64 ctrl)
 {
+	if (unlikely(!perf_counters_initialized))
+		return;
+
 	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, ctrl, 0);
 }
 EXPORT_SYMBOL_GPL(hw_perf_restore);
