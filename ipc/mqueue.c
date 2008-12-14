@@ -588,22 +588,18 @@ static int mq_attr_ok(struct mq_attr *attr)
  * Invoked when creating a new queue via sys_mq_open
  */
 static struct file *do_create(struct dentry *dir, struct dentry *dentry,
-			int oflag, mode_t mode, struct mq_attr __user *u_attr)
+			int oflag, mode_t mode, struct mq_attr *attr)
 {
 	const struct cred *cred = current_cred();
-	struct mq_attr attr;
 	struct file *result;
 	int ret;
 
-	if (u_attr) {
-		ret = -EFAULT;
-		if (copy_from_user(&attr, u_attr, sizeof(attr)))
-			goto out;
+	if (attr) {
 		ret = -EINVAL;
-		if (!mq_attr_ok(&attr))
+		if (!mq_attr_ok(attr))
 			goto out;
 		/* store for use during create */
-		dentry->d_fsdata = &attr;
+		dentry->d_fsdata = attr;
 	}
 
 	mode &= ~current->fs->umask;
@@ -660,11 +656,13 @@ asmlinkage long sys_mq_open(const char __user *u_name, int oflag, mode_t mode,
 	struct dentry *dentry;
 	struct file *filp;
 	char *name;
+	struct mq_attr attr;
 	int fd, error;
 
-	error = audit_mq_open(oflag, mode, u_attr);
-	if (error != 0)
-		return error;
+	if (u_attr && copy_from_user(&attr, u_attr, sizeof(struct mq_attr)))
+		return -EFAULT;
+
+	audit_mq_open(oflag, mode, u_attr ? &attr : NULL);
 
 	if (IS_ERR(name = getname(u_name)))
 		return PTR_ERR(name);
@@ -690,7 +688,8 @@ asmlinkage long sys_mq_open(const char __user *u_name, int oflag, mode_t mode,
 			filp = do_open(dentry, oflag);
 		} else {
 			filp = do_create(mqueue_mnt->mnt_root, dentry,
-						oflag, mode, u_attr);
+						oflag, mode,
+						u_attr ? &attr : NULL);
 		}
 	} else {
 		error = -ENOENT;

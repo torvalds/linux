@@ -450,7 +450,7 @@ extern void audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int __audit_fd_pair(int fd1, int fd2);
 extern int audit_set_macxattr(const char *name);
-extern int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr);
+extern void __audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr);
 extern void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec *abs_timeout);
 extern void __audit_mq_notify(mqd_t mqdes, const struct sigevent *notification);
 extern void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
@@ -475,11 +475,10 @@ static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid
 	if (unlikely(!audit_dummy_context()))
 		__audit_ipc_set_perm(qbytes, uid, gid, mode);
 }
-static inline int audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr)
+static inline void audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr)
 {
 	if (unlikely(!audit_dummy_context()))
-		return __audit_mq_open(oflag, mode, u_attr);
-	return 0;
+		__audit_mq_open(oflag, mode, attr);
 }
 static inline void audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec *abs_timeout)
 {
@@ -541,7 +540,7 @@ extern int audit_signals;
 #define audit_fd_pair(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_set_macxattr(n) do { ; } while (0)
-#define audit_mq_open(o,m,a) ({ 0; })
+#define audit_mq_open(o,m,a) ((void)0)
 #define audit_mq_sendrecv(d,l,p,t) ((void)0)
 #define audit_mq_notify(d,n) ((void)0)
 #define audit_mq_getsetattr(d,s) ((void)0)

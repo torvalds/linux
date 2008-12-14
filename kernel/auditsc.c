@@ -124,13 +124,6 @@ struct audit_aux_data {
 /* Number of target pids per aux struct. */
 #define AUDIT_AUX_PIDS	16
 
-struct audit_aux_data_mq_open {
-	struct audit_aux_data	d;
-	int			oflag;
-	mode_t			mode;
-	struct mq_attr		attr;
-};
-
 struct audit_aux_data_execve {
 	struct audit_aux_data	d;
 	int argc;
@@ -242,6 +235,11 @@ struct audit_context {
 			unsigned int		msg_prio;
 			struct timespec		abs_timeout;
 		} mq_sendrecv;
+		struct {
+			int			oflag;
+			mode_t			mode;
+			struct mq_attr		attr;
+		} mq_open;
 	};
 
 #if AUDIT_DEBUG
@@ -1263,6 +1261,16 @@ static void show_special(struct audit_context *context, int *call_panic)
 				return;
 		}
 		break; }
+	case AUDIT_MQ_OPEN: {
+		audit_log_format(ab,
+			"oflag=0x%x mode=%#o mq_flags=0x%lx mq_maxmsg=%ld "
+			"mq_msgsize=%ld mq_curmsgs=%ld",
+			context->mq_open.oflag, context->mq_open.mode,
+			context->mq_open.attr.mq_flags,
+			context->mq_open.attr.mq_maxmsg,
+			context->mq_open.attr.mq_msgsize,
+			context->mq_open.attr.mq_curmsgs);
+		break; }
 	case AUDIT_MQ_SENDRECV: {
 		audit_log_format(ab,
 			"mqdes=%d msg_len=%zd msg_prio=%u "
@@ -1368,15 +1376,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			continue; /* audit_panic has been called */
 
 		switch (aux->type) {
-		case AUDIT_MQ_OPEN: {
-			struct audit_aux_data_mq_open *axi = (void *)aux;
-			audit_log_format(ab,
-				"oflag=0x%x mode=%#o mq_flags=0x%lx mq_maxmsg=%ld "
-				"mq_msgsize=%ld mq_curmsgs=%ld",
-				axi->oflag, axi->mode, axi->attr.mq_flags,
-				axi->attr.mq_maxmsg, axi->attr.mq_msgsize,
-				axi->attr.mq_curmsgs);
-			break; }
 
 		case AUDIT_EXECVE: {
 			struct audit_aux_data_execve *axi = (void *)aux;
@@ -2135,38 +2134,20 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
  * @mode: mode bits
  * @u_attr: queue attributes
  *
- * Returns 0 for success or NULL context or < 0 on error.
  */
-int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr)
+void __audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr)
 {
-	struct audit_aux_data_mq_open *ax;
 	struct audit_context *context = current->audit_context;
 
-	if (!audit_enabled)
-		return 0;
+	if (attr)
+		memcpy(&context->mq_open.attr, attr, sizeof(struct mq_attr));
+	else
+		memset(&context->mq_open.attr, 0, sizeof(struct mq_attr));
 
-	if (likely(!context))
-		return 0;
+	context->mq_open.oflag = oflag;
+	context->mq_open.mode = mode;
 
-	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
-	if (!ax)
-		return -ENOMEM;
-
-	if (u_attr != NULL) {
-		if (copy_from_user(&ax->attr, u_attr, sizeof(ax->attr))) {
-			kfree(ax);
-			return -EFAULT;
-		}
-	} else
-		memset(&ax->attr, 0, sizeof(ax->attr));
-
-	ax->oflag = oflag;
-	ax->mode = mode;
-
-	ax->d.type = AUDIT_MQ_OPEN;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
+	context->type = AUDIT_MQ_OPEN;
 }
 
 /**
