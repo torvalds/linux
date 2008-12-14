@@ -15,7 +15,4 @@
 
 #define PHYS_OFFSET     UL(0x50000000)
 
-#define __virt_to_bus(x) __virt_to_phys(x)
-#define __bus_to_virt(x) __phys_to_virt(x)
-
 #endif
