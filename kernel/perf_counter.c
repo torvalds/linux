@@ -1273,8 +1273,19 @@ __perf_counter_exit_task(struct task_struct *child,
 	local_irq_disable();
 	perf_flags = hw_perf_save_disable();
 
-	if (child_counter->state == PERF_COUNTER_STATE_ACTIVE)
+	if (child_counter->state == PERF_COUNTER_STATE_ACTIVE) {
+		struct perf_cpu_context *cpuctx;
+
+		cpuctx = &__get_cpu_var(perf_cpu_context);
+
 		child_counter->hw_ops->hw_perf_counter_disable(child_counter);
+		child_counter->state = PERF_COUNTER_STATE_INACTIVE;
+		child_counter->oncpu = -1;
+
+		cpuctx->active_oncpu--;
+		child_ctx->nr_active--;
+	}
+
 	list_del_init(&child_counter->list_entry);
 
 	hw_perf_restore(perf_flags);
@@ -1539,4 +1550,3 @@ static int __init perf_counter_sysfs_init(void)
 				  &perfclass_attr_group);
 }
 device_initcall(perf_counter_sysfs_init);
-
