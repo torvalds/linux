@@ -609,18 +609,21 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	 *  We use a  BT.656 pxiel clock of 13.5 MHz and a BT.656 active line
 	 *  length of 720 pixels @ 4:2:2 sampling.  Thus...
 	 *
-	 *  For NTSC:
+	 *  For systems that use a 15.734 kHz horizontal rate, such as
+	 *  NTSC-M, PAL-M, PAL-60, and other 60 Hz/525 line systems, we have:
 	 *
-	 *  (1/15,734 kHz) * 2 * 13.5 MHz = 1716 samples/line =
+	 *  (1/15.734 kHz) * 2 * 13.5 MHz = 1716 samples/line =
 	 *  4 bytes SAV + 268 bytes anc data + 4 bytes SAV + 1440 active samples
 	 *
-	 *  For PAL:
+	 *  For systems that use a 15.625 kHz horizontal rate, such as
+	 *  PAL-B/G/H, PAL-I, SECAM-L and other 50 Hz/625 line systems, we have:
 	 *
-	 *  (1/15,625 kHz) * 2 * 13.5 MHz = 1728 samples/line =
+	 *  (1/15.625 kHz) * 2 * 13.5 MHz = 1728 samples/line =
 	 *  4 bytes SAV + 280 bytes anc data + 4 bytes SAV + 1440 active samples
 	 *
 	 */
 
+	/* FIXME: init these based on tuner std & modify when std changes */
 	/* CX18-AV-Core number of VBI samples output per horizontal line */
 	cx->vbi.raw_decoder_line_size = 1444;   /* 4 byte SAV + 2 * 720 */
 	cx->vbi.sliced_decoder_line_size = 272; /* 60 Hz: 268+4, 50 Hz: 280+4 */
@@ -924,6 +927,11 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	}
 	cx->params.video_gop_size = cx->is_60hz ? 15 : 12;
 
+	/*
+	 * FIXME: setting the buffer size based on the tuner standard is
+	 * suboptimal, as the CVBS and SVideo inputs could use a different std
+	 * and the buffer could end up being too small in that case.
+	 */
 	vbi_buf_size = cx->vbi.raw_size * (cx->is_60hz ? 24 : 36) / 2;
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = vbi_buf_size;
 
