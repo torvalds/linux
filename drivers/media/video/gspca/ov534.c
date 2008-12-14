@@ -149,6 +149,7 @@ static void sccb_reg_write(struct usb_device *udev, u16 reg, u8 val)
 		PDEBUG(D_ERR, "sccb_reg_write failed");
 }
 
+#ifdef GSPCA_DEBUG
 static u8 sccb_reg_read(struct usb_device *udev, u16 reg)
 {
 	ov534_reg_write(udev, OV534_REG_SUBADDR, reg);
@@ -162,6 +163,7 @@ static u8 sccb_reg_read(struct usb_device *udev, u16 reg)
 
 	return ov534_reg_read(udev, OV534_REG_READ);
 }
+#endif
 
 static const __u8 ov534_reg_initdata[][2] = {
 	{ 0xe7, 0x3a },
