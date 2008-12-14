@@ -25,7 +25,7 @@
  */
 DEFINE_PER_CPU(struct perf_cpu_context, perf_cpu_context);
 
-int perf_max_counters __read_mostly;
+int perf_max_counters __read_mostly = 1;
 static int perf_reserved_percpu __read_mostly;
 static int perf_overcommit __read_mostly = 1;
 
