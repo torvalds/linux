@@ -683,7 +683,7 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 		freed = priv->rx_end - last_addr;
 	__skb_unlink(skb, &priv->tx_queue);
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
-	kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 
 	if (freed >= priv->headroom + sizeof(struct p54_hdr) + 48 +
 		     IEEE80211_MAX_RTS_THRESHOLD + priv->tailroom)
@@ -1088,7 +1088,7 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 			eeprom_hdr->v2.magic2 = 0xf;
 			memcpy(eeprom_hdr->v2.magic, (const char *)"LOCK", 4);
 		}
-		priv->tx(dev, skb, 0);
+		priv->tx(dev, skb);
 
 		if (!wait_for_completion_interruptible_timeout(&priv->eeprom_comp, HZ)) {
 			printk(KERN_ERR "%s: device does not respond!\n",
@@ -1129,7 +1129,7 @@ static int p54_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
 	tim = (struct p54_tim *) skb_put(skb, sizeof(*tim));
 	tim->count = 1;
 	tim->entry[0] = cpu_to_le16(set ? (sta->aid | 0x8000) : sta->aid);
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	return 0;
 }
 
@@ -1147,7 +1147,7 @@ static int p54_sta_unlock(struct ieee80211_hw *dev, u8 *addr)
 
 	sta = (struct p54_sta_unlock *)skb_put(skb, sizeof(*sta));
 	memcpy(sta->addr, addr, ETH_ALEN);
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	return 0;
 }
 
@@ -1190,7 +1190,7 @@ static int p54_tx_cancel(struct ieee80211_hw *dev, struct sk_buff *entry)
 	hdr = (void *)entry->data;
 	cancel = (struct p54_txcancel *)skb_put(skb, sizeof(*cancel));
 	cancel->req_id = hdr->req_id;
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	return 0;
 }
 
@@ -1419,7 +1419,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	/* modifies skb->cb and with it info, so must be last! */
 	if (unlikely(p54_assign_address(dev, skb, hdr, skb->len + tim_len)))
 		goto err;
-	priv->tx(dev, skb, 0);
+	priv->tx(dev, skb);
 
 	queue_delayed_work(dev->workqueue, &priv->work,
 			   msecs_to_jiffies(P54_TX_FRAME_LIFETIME));
@@ -1498,7 +1498,7 @@ static int p54_setup_mac(struct ieee80211_hw *dev)
 		setup->v2.lpf_bandwidth = cpu_to_le16(65535);
 		setup->v2.osc_start_delay = cpu_to_le16(65535);
 	}
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	return 0;
 }
 
@@ -1579,7 +1579,7 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 		chan->v2.basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		memset(chan->v2.rts_rates, 0, 8);
 	}
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	return 0;
 
  err:
@@ -1605,7 +1605,7 @@ static int p54_set_leds(struct ieee80211_hw *dev, int mode, int link, int act)
 	led->led_permanent = cpu_to_le16(link);
 	led->led_temporary = cpu_to_le16(act);
 	led->duration = cpu_to_le16(1000);
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	return 0;
 }
 
@@ -1645,7 +1645,7 @@ static int p54_set_edcf(struct ieee80211_hw *dev)
 	edcf->flags = 0;
 	memset(edcf->mapping, 0, sizeof(edcf->mapping));
 	memcpy(edcf->queue, priv->qos_params, sizeof(edcf->queue));
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	return 0;
 }
 
@@ -1936,7 +1936,7 @@ static int p54_init_xbow_synth(struct ieee80211_hw *dev)
 	xbow->magic2 = cpu_to_le16(0x2);
 	xbow->freq = cpu_to_le16(5390);
 	memset(xbow->padding, 0, sizeof(xbow->padding));
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	return 0;
 }
 
@@ -1962,7 +1962,7 @@ static void p54_work(struct work_struct *work)
 	if (!skb)
 		return ;
 
-	priv->tx(dev, skb, 0);
+	priv->tx(dev, skb);
 }
 
 static int p54_get_stats(struct ieee80211_hw *dev,
@@ -2094,7 +2094,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY]), 8);
 	}
 
-	priv->tx(dev, skb, 1);
+	priv->tx(dev, skb);
 	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }

@@ -227,7 +227,9 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 
 	while (i != idx) {
 		desc = &ring[i];
-		p54_free_skb(dev, tx_buf[i]);
+		if (tx_buf[i])
+			if (FREE_AFTER_TX((struct sk_buff *) tx_buf[i]))
+				p54_free_skb(dev, tx_buf[i]);
 		tx_buf[i] = NULL;
 
 		pci_unmap_single(priv->pdev, le32_to_cpu(desc->host_addr),
@@ -298,8 +300,7 @@ static irqreturn_t p54p_interrupt(int irq, void *dev_id)
 	return reg ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
-		    int free_on_tx)
+static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54p_priv *priv = dev->priv;
 	struct p54p_ring_control *ring_control = priv->ring_control;
@@ -314,6 +315,7 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	idx = le32_to_cpu(ring_control->host_idx[1]);
 	i = idx % ARRAY_SIZE(ring_control->tx_data);
 
+	priv->tx_buf_data[i] = skb;
 	mapping = pci_map_single(priv->pdev, skb->data, skb->len,
 				 PCI_DMA_TODEVICE);
 	desc = &ring_control->tx_data[i];
@@ -324,10 +326,6 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	wmb();
 	ring_control->host_idx[1] = cpu_to_le32(idx + 1);
-
-	if (free_on_tx)
-		priv->tx_buf_data[i] = skb;
-
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));

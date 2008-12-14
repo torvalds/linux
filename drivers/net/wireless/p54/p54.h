@@ -44,6 +44,9 @@ enum p54_control_frame_types {
 	P54_CONTROL_TYPE_BT_OPTIONS = 35
 };
 
+#define P54_HDR_FLAG_CONTROL		BIT(15)
+#define P54_HDR_FLAG_CONTROL_OPSET	(BIT(15) + BIT(0))
+
 struct p54_hdr {
 	__le16 flags;
 	__le16 len;
@@ -53,6 +56,10 @@ struct p54_hdr {
 	u8 tries;
 	u8 data[0];
 } __attribute__ ((packed));
+
+#define FREE_AFTER_TX(skb)						\
+	((((struct p54_hdr *) ((struct sk_buff *) skb)->data)->		\
+	flags) == cpu_to_le16(P54_HDR_FLAG_CONTROL_OPSET))
 
 struct p54_edcf_queue_param {
 	__le16 aifs;
@@ -82,8 +89,7 @@ struct p54_common {
 	u32 rx_start;
 	u32 rx_end;
 	struct sk_buff_head tx_queue;
-	void (*tx)(struct ieee80211_hw *dev, struct sk_buff *skb,
-		   int free_on_tx);
+	void (*tx)(struct ieee80211_hw *dev, struct sk_buff *skb);
 	int (*open)(struct ieee80211_hw *dev);
 	void (*stop)(struct ieee80211_hw *dev);
 	int mode;
