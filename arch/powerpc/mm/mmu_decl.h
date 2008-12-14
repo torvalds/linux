@@ -58,17 +58,14 @@ extern phys_addr_t lowmem_end_addr;
  * architectures.  -- Dan
  */
 #if defined(CONFIG_8xx)
-#define flush_HPTE(X, va, pg)	_tlbie(va, 0 /* 8xx doesn't care about PID */)
 #define MMU_init_hw()		do { } while(0)
 #define mmu_mapin_ram()		(0UL)
 
 #elif defined(CONFIG_4xx)
-#define flush_HPTE(pid, va, pg)	_tlbie(va, pid)
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(void);
 
 #elif defined(CONFIG_FSL_BOOKE)
-#define flush_HPTE(pid, va, pg)	_tlbie(va, pid)
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(void);
 extern void adjust_total_lowmem(void);
@@ -77,18 +74,4 @@ extern void adjust_total_lowmem(void);
 /* anything 32-bit except 4xx or 8xx */
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(void);
-
-/* Be careful....this needs to be updated if we ever encounter 603 SMPs,
- * which includes all new 82xx processors.  We need tlbie/tlbsync here
- * in that case (I think). -- Dan.
- */
-static inline void flush_HPTE(unsigned context, unsigned long va,
-			      unsigned long pdval)
-{
-	if ((Hash != 0) &&
-	    cpu_has_feature(CPU_FTR_HPTE_TABLE))
-		flush_hash_pages(0, va, pdval, 1);
-	else
-		_tlbie(va);
-}
 #endif

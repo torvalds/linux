@@ -342,7 +342,11 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 		return -EINVAL;
 	set_pte_at(&init_mm, address, kpte, mk_pte(page, prot));
 	wmb();
-	flush_HPTE(0, address, pmd_val(*kpmd));
+#ifdef CONFIG_PPC_STD_MMU
+	flush_hash_pages(0, address, pmd_val(*kpmd), 1);
+#else
+	flush_tlb_page(NULL, address);
+#endif
 	pte_unmap(kpte);
 
 	return 0;
