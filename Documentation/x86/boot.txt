@@ -537,8 +537,8 @@ Type:		read
 Offset/size:	0x248/4
 Protocol:	2.08+
 
-  If non-zero then this field contains the offset from the end of the
-  real-mode code to the payload.
+  If non-zero then this field contains the offset from the beginning
+  of the protected-mode code to the payload.
 
   The payload may be compressed. The format of both the compressed and
   uncompressed data should be determined using the standard magic
