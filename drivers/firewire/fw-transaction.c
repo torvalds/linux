@@ -502,12 +502,7 @@ fw_core_add_address_handler(struct fw_address_handler *handler,
 EXPORT_SYMBOL(fw_core_add_address_handler);
 
 /**
- * Deallocate a range of addresses allocated with fw_allocate.  This
- * will call the associated callback one last time with a the special
- * tcode TCODE_DEALLOCATE, to let the client destroy the registered
- * callback data.  For convenience, the callback parameters offset and
- * length are set to the start and the length respectively for the
- * deallocated region, payload is set to NULL.
+ * fw_core_remove_address_handler - unregister an address handler
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
