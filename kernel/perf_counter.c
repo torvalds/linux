@@ -850,17 +850,36 @@ static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
 	.hw_perf_counter_read		= cpu_clock_perf_counter_read,
 };
 
-static void task_clock_perf_counter_enable(struct perf_counter *counter)
+static void task_clock_perf_counter_update(struct perf_counter *counter)
 {
-}
+	u64 prev, now;
+	s64 delta;
 
-static void task_clock_perf_counter_disable(struct perf_counter *counter)
-{
+	prev = atomic64_read(&counter->hw.prev_count);
+	now = current->se.sum_exec_runtime;
+
+	atomic64_set(&counter->hw.prev_count, now);
+
+	delta = now - prev;
+	if (WARN_ON_ONCE(delta < 0))
+		delta = 0;
+
+	atomic64_add(delta, &counter->count);
 }
 
 static void task_clock_perf_counter_read(struct perf_counter *counter)
 {
-	atomic64_set(&counter->count, current->se.sum_exec_runtime);
+	task_clock_perf_counter_update(counter);
+}
+
+static void task_clock_perf_counter_enable(struct perf_counter *counter)
+{
+	atomic64_set(&counter->hw.prev_count, current->se.sum_exec_runtime);
+}
+
+static void task_clock_perf_counter_disable(struct perf_counter *counter)
+{
+	task_clock_perf_counter_update(counter);
 }
 
 static const struct hw_perf_counter_ops perf_ops_task_clock = {
