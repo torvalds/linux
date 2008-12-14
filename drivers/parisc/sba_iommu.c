@@ -1978,8 +1978,6 @@ static int sba_driver_callback(struct parisc_device *dev)
 	proc_create("sba_iommu-bitmap", 0, root, &sba_proc_bitmap_fops);
 #endif
 
-	parisc_vmerge_boundary = IOVP_SIZE;
-	parisc_vmerge_max_size = IOVP_SIZE * BITS_PER_LONG;
 	parisc_has_iommu();
 	return 0;
 }

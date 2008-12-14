@@ -1578,8 +1578,6 @@ static int __init ccio_probe(struct parisc_device *dev)
 
 	ioc_count++;
 
-	parisc_vmerge_boundary = IOVP_SIZE;
-	parisc_vmerge_max_size = BITS_PER_LONG * IOVP_SIZE;
 	parisc_has_iommu();
 	return 0;
 }
