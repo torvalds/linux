@@ -53,8 +53,8 @@ enum hw_event_types {
 	/*
 	 * Future software events:
 	 */
-	/* PERF_COUNT_PAGE_FAULTS	= -3,
-	   PERF_COUNT_CONTEXT_SWITCHES	= -4, */
+	PERF_COUNT_PAGE_FAULTS		= -3,
+	PERF_COUNT_CONTEXT_SWITCHES	= -4,
 };
 
 /*
