@@ -138,12 +138,6 @@ typedef void (*fw_address_callback_t)(struct fw_card *card,
 				      void *data, size_t length,
 				      void *callback_data);
 
-typedef void (*fw_bus_reset_callback_t)(struct fw_card *handle,
-					int node_id, int generation,
-					u32 *self_ids,
-					int self_id_count,
-					void *callback_data);
-
 struct fw_packet {
 	int speed;
 	int generation;
@@ -183,12 +177,6 @@ struct fw_transaction {
 	fw_transaction_callback_t callback;
 	void *callback_data;
 };
-
-static inline struct fw_packet *
-fw_packet(struct list_head *l)
-{
-	return list_entry(l, struct fw_packet, link);
-}
 
 struct fw_address_handler {
 	u64 offset;
