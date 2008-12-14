@@ -936,6 +936,52 @@ static const struct hw_perf_counter_ops perf_ops_context_switches = {
 	.hw_perf_counter_read		= context_switches_perf_counter_read,
 };
 
+static inline u64 get_cpu_migrations(void)
+{
+	return current->se.nr_migrations;
+}
+
+static void cpu_migrations_perf_counter_update(struct perf_counter *counter)
+{
+	u64 prev, now;
+	s64 delta;
+
+	prev = atomic64_read(&counter->hw.prev_count);
+	now = get_cpu_migrations();
+
+	atomic64_set(&counter->hw.prev_count, now);
+
+	delta = now - prev;
+	if (WARN_ON_ONCE(delta < 0))
+		delta = 0;
+
+	atomic64_add(delta, &counter->count);
+}
+
+static void cpu_migrations_perf_counter_read(struct perf_counter *counter)
+{
+	cpu_migrations_perf_counter_update(counter);
+}
+
+static void cpu_migrations_perf_counter_enable(struct perf_counter *counter)
+{
+	/*
+	 * se.nr_migrations is a per-task value already,
+	 * so we dont have to clear it on switch-in.
+	 */
+}
+
+static void cpu_migrations_perf_counter_disable(struct perf_counter *counter)
+{
+	cpu_migrations_perf_counter_update(counter);
+}
+
+static const struct hw_perf_counter_ops perf_ops_cpu_migrations = {
+	.hw_perf_counter_enable		= cpu_migrations_perf_counter_enable,
+	.hw_perf_counter_disable	= cpu_migrations_perf_counter_disable,
+	.hw_perf_counter_read		= cpu_migrations_perf_counter_read,
+};
+
 static const struct hw_perf_counter_ops *
 sw_perf_counter_init(struct perf_counter *counter)
 {
@@ -950,6 +996,9 @@ sw_perf_counter_init(struct perf_counter *counter)
 		break;
 	case PERF_COUNT_CONTEXT_SWITCHES:
 		hw_ops = &perf_ops_context_switches;
+		break;
+	case PERF_COUNT_CPU_MIGRATIONS:
+		hw_ops = &perf_ops_cpu_migrations;
 		break;
 	default:
 		break;
