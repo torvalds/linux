@@ -888,6 +888,54 @@ static const struct hw_perf_counter_ops perf_ops_task_clock = {
 	.hw_perf_counter_read		= task_clock_perf_counter_read,
 };
 
+static u64 get_page_faults(void)
+{
+	struct task_struct *curr = current;
+
+	return curr->maj_flt + curr->min_flt;
+}
+
+static void page_faults_perf_counter_update(struct perf_counter *counter)
+{
+	u64 prev, now;
+	s64 delta;
+
+	prev = atomic64_read(&counter->hw.prev_count);
+	now = get_page_faults();
+
+	atomic64_set(&counter->hw.prev_count, now);
+
+	delta = now - prev;
+	if (WARN_ON_ONCE(delta < 0))
+		delta = 0;
+
+	atomic64_add(delta, &counter->count);
+}
+
+static void page_faults_perf_counter_read(struct perf_counter *counter)
+{
+	page_faults_perf_counter_update(counter);
+}
+
+static void page_faults_perf_counter_enable(struct perf_counter *counter)
+{
+	/*
+	 * page-faults is a per-task value already,
+	 * so we dont have to clear it on switch-in.
+	 */
+}
+
+static void page_faults_perf_counter_disable(struct perf_counter *counter)
+{
+	page_faults_perf_counter_update(counter);
+}
+
+static const struct hw_perf_counter_ops perf_ops_page_faults = {
+	.hw_perf_counter_enable		= page_faults_perf_counter_enable,
+	.hw_perf_counter_disable	= page_faults_perf_counter_disable,
+	.hw_perf_counter_read		= page_faults_perf_counter_read,
+};
+
 static u64 get_context_switches(void)
 {
 	struct task_struct *curr = current;
@@ -993,6 +1041,9 @@ sw_perf_counter_init(struct perf_counter *counter)
 		break;
 	case PERF_COUNT_TASK_CLOCK:
 		hw_ops = &perf_ops_task_clock;
+		break;
+	case PERF_COUNT_PAGE_FAULTS:
+		hw_ops = &perf_ops_page_faults;
 		break;
 	case PERF_COUNT_CONTEXT_SWITCHES:
 		hw_ops = &perf_ops_context_switches;
