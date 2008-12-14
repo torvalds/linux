@@ -28,7 +28,7 @@
 #include <asm/machvec.h>
 #include <mach/sysasic.h>
 
-extern struct hw_interrupt_type systemasic_int;
+extern struct irq_chip systemasic_int;
 extern void aica_time_init(void);
 extern int gapspci_init(void);
 extern int systemasic_irq_demux(int);
@@ -47,7 +47,8 @@ static void __init dreamcast_setup(char **cmdline_p)
 
 	/* Assign all virtual IRQs to the System ASIC int. handler */
 	for (i = HW_EVENT_IRQ_BASE; i < HW_EVENT_IRQ_MAX; i++)
-		irq_desc[i].chip = &systemasic_int;
+		set_irq_chip_and_handler(i, &systemasic_int,
+					 handle_level_irq);
 
 	board_time_init = aica_time_init;
 
