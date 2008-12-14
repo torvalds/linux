@@ -50,46 +50,46 @@ struct cx24113_state {
 	u8 rev;
 	u8 ver;
 
-    u8 icp_mode:1;
+	u8 icp_mode:1;
 
 #define ICP_LEVEL1 0
 #define ICP_LEVEL2 1
 #define ICP_LEVEL3 2
 #define ICP_LEVEL4 3
-    u8 icp_man:2;
-    u8 icp_auto_low:2;
-    u8 icp_auto_mlow:2;
-    u8 icp_auto_mhi:2;
-    u8 icp_auto_hi:2;
-    u8 icp_dig;
+	u8 icp_man:2;
+	u8 icp_auto_low:2;
+	u8 icp_auto_mlow:2;
+	u8 icp_auto_mhi:2;
+	u8 icp_auto_hi:2;
+	u8 icp_dig;
 
 #define LNA_MIN_GAIN 0
 #define LNA_MID_GAIN 1
 #define LNA_MAX_GAIN 2
-    u8 lna_gain:2;
+	u8 lna_gain:2;
 
-    u8 acp_on:1;
+	u8 acp_on:1;
 
-    u8 vco_mode:2;
-    u8 vco_shift:1;
+	u8 vco_mode:2;
+	u8 vco_shift:1;
 #define VCOBANDSEL_6 0x80
 #define VCOBANDSEL_5 0x01
 #define VCOBANDSEL_4 0x02
 #define VCOBANDSEL_3 0x04
 #define VCOBANDSEL_2 0x08
 #define VCOBANDSEL_1 0x10
-    u8 vco_band;
+	u8 vco_band;
 
 #define VCODIV4 4
 #define VCODIV2 2
 	u8 vcodiv;
 
-    u8 bs_delay:4;
-    u16 bs_freqcnt:13;
-    u16 bs_rdiv;
-    u8 prescaler_mode:1;
+	u8 bs_delay:4;
+	u16 bs_freqcnt:13;
+	u16 bs_rdiv;
+	u8 prescaler_mode:1;
 
-    u8 rfvga_bias_ctrl;
+	u8 rfvga_bias_ctrl;
 
 	s16 tuner_gain_thres;
 	u8  gain_level;
@@ -345,12 +345,12 @@ static void cx24113_calc_pll_nf(struct cx24113_state *state, u16 *n, s32 *f)
 	}
 	F = freq_hz;
 	F *= (u64) (R * vcodiv * 262144);
-    dprintk("1 N: %d, F: %lld, R: %d\n", N, F, R);
+	dprintk("1 N: %d, F: %lld, R: %d\n", N, F, R);
 	do_div(F, state->config->xtal_khz*1000 * factor * 2);
-    dprintk("2 N: %d, F: %lld, R: %d\n", N, F, R);
+	dprintk("2 N: %d, F: %lld, R: %d\n", N, F, R);
 	F -= (N + 32) * 262144;
 
-    dprintk("3 N: %d, F: %lld, R: %d\n", N, F, R);
+	dprintk("3 N: %d, F: %lld, R: %d\n", N, F, R);
 
 	if (state->Fwindow_enabled) {
 		if (F > (262144 / 2 - 1638))
@@ -392,21 +392,21 @@ static int cx24113_set_frequency(struct cx24113_state *state, u32 frequency)
 	u16 n = 6;
 	s32 f = 0;
 
-    r = cx24113_readreg(state, 0x14);
+	r = cx24113_readreg(state, 0x14);
 	cx24113_writereg(state, 0x14, r & 0x3f);
 
-    r = cx24113_readreg(state, 0x10);
-    cx24113_writereg(state, 0x10, r & 0xbf);
+	r = cx24113_readreg(state, 0x10);
+	cx24113_writereg(state, 0x10, r & 0xbf);
 
 	state->frequency = frequency;
 
 	dprintk("tuning to frequency: %d\n", frequency);
 
-    cx24113_calc_pll_nf(state, &n, &f);
-    cx24113_set_nfr(state, n, f, state->refdiv);
+	cx24113_calc_pll_nf(state, &n, &f);
+	cx24113_set_nfr(state, n, f, state->refdiv);
 
 	r = cx24113_readreg(state, 0x18) & 0xbf;
-    if (state->vcodiv != VCODIV2)
+	if (state->vcodiv != VCODIV2)
 		r |= 1 << 6;
 	cx24113_writereg(state, 0x18, r);
 
@@ -527,7 +527,7 @@ static int cx24113_release(struct dvb_frontend *fe)
 {
 	struct cx24113_state *state = fe->tuner_priv;
 	dprintk("\n");
-    fe->tuner_priv = NULL;
+	fe->tuner_priv = NULL;
 	kfree(state);
 	return 0;
 }
@@ -557,6 +557,7 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 	/* allocate memory for the internal state */
 	struct cx24113_state *state =
 		kzalloc(sizeof(struct cx24113_state), GFP_KERNEL);
+	int rc;
 	if (state == NULL) {
 		err("Unable to kmalloc\n");
 		goto error;
@@ -572,15 +573,22 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 	 * after power on */
 	cx24113_readreg(state, 0x00);
 
-	switch (state->rev = cx24113_readreg(state, 0x00)) {
+	rc = cx24113_readreg(state, 0x00);
+	if (rc < 0) {
+		info("cx24113 not found.\n");
+		goto error;
+	}
+	state->rev = rc;
+
+	switch (rc) {
 	case 0x43:
-		info("unknown device\n");
+		info("detected Cx24113 variant\n");
 		break;
 	case REV_CX24113:
-		info("CX24113\n");
+		info("sucessfully detected\n");
 		break;
 	default:
-		err("unsupported revision: %x\n", state->rev);
+		err("unsupported device id: %x\n", state->rev);
 		goto error;
 	}
 	state->ver = cx24113_readreg(state, 0x01);
