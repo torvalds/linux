@@ -1,7 +1,7 @@
 /*
  * Pixart PAC207BCA library
  *
- * Copyright (C) 2008 Hans de Goede <j.w.r.degoede@hhs.nl>
+ * Copyright (C) 2008 Hans de Goede <hdgoede@redhat.com>
  * Copyright (C) 2005 Thomas Kaiser thomas@kaiser-linux.li
  * Copyleft (C) 2005 Michel Xhaard mxhaard@magic.fr
  *
@@ -27,7 +27,7 @@
 
 #include "gspca.h"
 
-MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
+MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
 MODULE_DESCRIPTION("Pixart PAC207");
 MODULE_LICENSE("GPL");
 
