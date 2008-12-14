@@ -575,14 +575,14 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 
 	rc = cx24113_readreg(state, 0x00);
 	if (rc < 0) {
-		info("cx24113 not found.\n");
+		info("CX24113 not found.\n");
 		goto error;
 	}
 	state->rev = rc;
 
 	switch (rc) {
 	case 0x43:
-		info("detected Cx24113 variant\n");
+		info("detected CX24113 variant\n");
 		break;
 	case REV_CX24113:
 		info("sucessfully detected\n");
