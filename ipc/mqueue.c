@@ -524,31 +524,27 @@ static void __do_notify(struct mqueue_inode_info *info)
 	wake_up(&info->wait_q);
 }
 
-static long prepare_timeout(const struct timespec __user *u_arg)
+static long prepare_timeout(struct timespec *p)
 {
-	struct timespec ts, nowts;
+	struct timespec nowts;
 	long timeout;
 
-	if (u_arg) {
-		if (unlikely(copy_from_user(&ts, u_arg,
-					sizeof(struct timespec))))
-			return -EFAULT;
-
-		if (unlikely(ts.tv_nsec < 0 || ts.tv_sec < 0
-			|| ts.tv_nsec >= NSEC_PER_SEC))
+	if (p) {
+		if (unlikely(p->tv_nsec < 0 || p->tv_sec < 0
+			|| p->tv_nsec >= NSEC_PER_SEC))
 			return -EINVAL;
 		nowts = CURRENT_TIME;
 		/* first subtract as jiffies can't be too big */
-		ts.tv_sec -= nowts.tv_sec;
-		if (ts.tv_nsec < nowts.tv_nsec) {
-			ts.tv_nsec += NSEC_PER_SEC;
-			ts.tv_sec--;
+		p->tv_sec -= nowts.tv_sec;
+		if (p->tv_nsec < nowts.tv_nsec) {
+			p->tv_nsec += NSEC_PER_SEC;
+			p->tv_sec--;
 		}
-		ts.tv_nsec -= nowts.tv_nsec;
-		if (ts.tv_sec < 0)
+		p->tv_nsec -= nowts.tv_nsec;
+		if (p->tv_sec < 0)
 			return 0;
 
-		timeout = timespec_to_jiffies(&ts) + 1;
+		timeout = timespec_to_jiffies(p) + 1;
 	} else
 		return MAX_SCHEDULE_TIMEOUT;
 
@@ -829,17 +825,22 @@ asmlinkage long sys_mq_timedsend(mqd_t mqdes, const char __user *u_msg_ptr,
 	struct ext_wait_queue *receiver;
 	struct msg_msg *msg_ptr;
 	struct mqueue_inode_info *info;
+	struct timespec ts, *p = NULL;
 	long timeout;
 	int ret;
 
-	ret = audit_mq_timedsend(mqdes, msg_len, msg_prio, u_abs_timeout);
-	if (ret != 0)
-		return ret;
+	if (u_abs_timeout) {
+		if (copy_from_user(&ts, u_abs_timeout, 
+					sizeof(struct timespec)))
+			return -EFAULT;
+		p = &ts;
+	}
 
 	if (unlikely(msg_prio >= (unsigned long) MQ_PRIO_MAX))
 		return -EINVAL;
 
-	timeout = prepare_timeout(u_abs_timeout);
+	audit_mq_sendrecv(mqdes, msg_len, msg_prio, p);
+	timeout = prepare_timeout(p);
 
 	ret = -EBADF;
 	filp = fget(mqdes);
@@ -918,12 +919,17 @@ asmlinkage ssize_t sys_mq_timedreceive(mqd_t mqdes, char __user *u_msg_ptr,
 	struct inode *inode;
 	struct mqueue_inode_info *info;
 	struct ext_wait_queue wait;
+	struct timespec ts, *p = NULL;
 
-	ret = audit_mq_timedreceive(mqdes, msg_len, u_msg_prio, u_abs_timeout);
-	if (ret != 0)
-		return ret;
+	if (u_abs_timeout) {
+		if (copy_from_user(&ts, u_abs_timeout, 
+					sizeof(struct timespec)))
+			return -EFAULT;
+		p = &ts;
+	}
 
-	timeout = prepare_timeout(u_abs_timeout);
+	audit_mq_sendrecv(mqdes, msg_len, 0, p);
+	timeout = prepare_timeout(p);
 
 	ret = -EBADF;
 	filp = fget(mqdes);

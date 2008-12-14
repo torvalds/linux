@@ -131,14 +131,6 @@ struct audit_aux_data_mq_open {
 	struct mq_attr		attr;
 };
 
-struct audit_aux_data_mq_sendrecv {
-	struct audit_aux_data	d;
-	mqd_t			mqdes;
-	size_t			msg_len;
-	unsigned int		msg_prio;
-	struct timespec		abs_timeout;
-};
-
 struct audit_aux_data_execve {
 	struct audit_aux_data	d;
 	int argc;
@@ -244,6 +236,12 @@ struct audit_context {
 			mqd_t			mqdes;
 			int			sigev_signo;
 		} mq_notify;
+		struct {
+			mqd_t			mqdes;
+			size_t			msg_len;
+			unsigned int		msg_prio;
+			struct timespec		abs_timeout;
+		} mq_sendrecv;
 	};
 
 #if AUDIT_DEBUG
@@ -1265,6 +1263,16 @@ static void show_special(struct audit_context *context, int *call_panic)
 				return;
 		}
 		break; }
+	case AUDIT_MQ_SENDRECV: {
+		audit_log_format(ab,
+			"mqdes=%d msg_len=%zd msg_prio=%u "
+			"abs_timeout_sec=%ld abs_timeout_nsec=%ld",
+			context->mq_sendrecv.mqdes,
+			context->mq_sendrecv.msg_len,
+			context->mq_sendrecv.msg_prio,
+			context->mq_sendrecv.abs_timeout.tv_sec,
+			context->mq_sendrecv.abs_timeout.tv_nsec);
+		break; }
 	case AUDIT_MQ_NOTIFY: {
 		audit_log_format(ab, "mqdes=%d sigev_signo=%d",
 				context->mq_notify.mqdes,
@@ -1368,15 +1376,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				axi->oflag, axi->mode, axi->attr.mq_flags,
 				axi->attr.mq_maxmsg, axi->attr.mq_msgsize,
 				axi->attr.mq_curmsgs);
-			break; }
-
-		case AUDIT_MQ_SENDRECV: {
-			struct audit_aux_data_mq_sendrecv *axi = (void *)aux;
-			audit_log_format(ab,
-				"mqdes=%d msg_len=%zd msg_prio=%u "
-				"abs_timeout_sec=%ld abs_timeout_nsec=%ld",
-				axi->mqdes, axi->msg_len, axi->msg_prio,
-				axi->abs_timeout.tv_sec, axi->abs_timeout.tv_nsec);
 			break; }
 
 		case AUDIT_EXECVE: {
@@ -2171,97 +2170,29 @@ int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr)
 }
 
 /**
- * __audit_mq_timedsend - record audit data for a POSIX MQ timed send
+ * __audit_mq_sendrecv - record audit data for a POSIX MQ timed send/receive
  * @mqdes: MQ descriptor
  * @msg_len: Message length
  * @msg_prio: Message priority
- * @u_abs_timeout: Message timeout in absolute time
+ * @abs_timeout: Message timeout in absolute time
  *
- * Returns 0 for success or NULL context or < 0 on error.
  */
-int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio,
-			const struct timespec __user *u_abs_timeout)
+void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio,
+			const struct timespec *abs_timeout)
 {
-	struct audit_aux_data_mq_sendrecv *ax;
 	struct audit_context *context = current->audit_context;
+	struct timespec *p = &context->mq_sendrecv.abs_timeout;
 
-	if (!audit_enabled)
-		return 0;
+	if (abs_timeout)
+		memcpy(p, abs_timeout, sizeof(struct timespec));
+	else
+		memset(p, 0, sizeof(struct timespec));
 
-	if (likely(!context))
-		return 0;
+	context->mq_sendrecv.mqdes = mqdes;
+	context->mq_sendrecv.msg_len = msg_len;
+	context->mq_sendrecv.msg_prio = msg_prio;
 
-	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
-	if (!ax)
-		return -ENOMEM;
-
-	if (u_abs_timeout != NULL) {
-		if (copy_from_user(&ax->abs_timeout, u_abs_timeout, sizeof(ax->abs_timeout))) {
-			kfree(ax);
-			return -EFAULT;
-		}
-	} else
-		memset(&ax->abs_timeout, 0, sizeof(ax->abs_timeout));
-
-	ax->mqdes = mqdes;
-	ax->msg_len = msg_len;
-	ax->msg_prio = msg_prio;
-
-	ax->d.type = AUDIT_MQ_SENDRECV;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
-}
-
-/**
- * __audit_mq_timedreceive - record audit data for a POSIX MQ timed receive
- * @mqdes: MQ descriptor
- * @msg_len: Message length
- * @u_msg_prio: Message priority
- * @u_abs_timeout: Message timeout in absolute time
- *
- * Returns 0 for success or NULL context or < 0 on error.
- */
-int __audit_mq_timedreceive(mqd_t mqdes, size_t msg_len,
-				unsigned int __user *u_msg_prio,
-				const struct timespec __user *u_abs_timeout)
-{
-	struct audit_aux_data_mq_sendrecv *ax;
-	struct audit_context *context = current->audit_context;
-
-	if (!audit_enabled)
-		return 0;
-
-	if (likely(!context))
-		return 0;
-
-	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
-	if (!ax)
-		return -ENOMEM;
-
-	if (u_msg_prio != NULL) {
-		if (get_user(ax->msg_prio, u_msg_prio)) {
-			kfree(ax);
-			return -EFAULT;
-		}
-	} else
-		ax->msg_prio = 0;
-
-	if (u_abs_timeout != NULL) {
-		if (copy_from_user(&ax->abs_timeout, u_abs_timeout, sizeof(ax->abs_timeout))) {
-			kfree(ax);
-			return -EFAULT;
-		}
-	} else
-		memset(&ax->abs_timeout, 0, sizeof(ax->abs_timeout));
-
-	ax->mqdes = mqdes;
-	ax->msg_len = msg_len;
-
-	ax->d.type = AUDIT_MQ_SENDRECV;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
+	context->type = AUDIT_MQ_SENDRECV;
 }
 
 /**
