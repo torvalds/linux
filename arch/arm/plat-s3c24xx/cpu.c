@@ -30,7 +30,6 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/delay.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>

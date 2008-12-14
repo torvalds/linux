@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include <linux/delay.h>
 #include <linux/gpio_keys.h>
 #include <linux/init.h>
 #include <linux/input.h>

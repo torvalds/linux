@@ -17,7 +17,6 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
-#include <linux/delay.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>

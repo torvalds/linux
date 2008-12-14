@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>

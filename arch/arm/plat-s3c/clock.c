@@ -38,7 +38,6 @@
 #include <linux/ioport.h>
 #include <linux/clk.h>
 #include <linux/spinlock.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
