@@ -421,7 +421,7 @@ scan_next:
 	remaining_len -= len;
 	next_data += len;
 
-	/* Payloads are prefixed with a the UVC-style header.  We
+	/* Payloads are prefixed with a UVC-style header.  We
 	   consider a frame to start when the FID toggles, or the PTS
 	   changes.  A frame ends when EOF is set, and we've received
 	   the correct number of bytes. */
