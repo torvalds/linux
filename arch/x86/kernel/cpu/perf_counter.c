@@ -557,10 +557,10 @@ void __init init_hw_perf_counters(void)
 	printk(KERN_INFO "... bit_width:    %d\n", eax.split.bit_width);
 	printk(KERN_INFO "... mask_length:  %d\n", eax.split.mask_length);
 
+	perf_counters_initialized = true;
+
 	perf_counters_lapic_init(0);
 	register_die_notifier(&perf_counter_nmi_notifier);
-
-	perf_counters_initialized = true;
 }
 
 static void x86_perf_counter_read(struct perf_counter *counter)
