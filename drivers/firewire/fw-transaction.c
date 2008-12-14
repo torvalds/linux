@@ -943,11 +943,11 @@ static struct fw_descriptor model_id_descriptor = {
 
 static int __init fw_core_init(void)
 {
-	int retval;
+	int ret;
 
-	retval = bus_register(&fw_bus_type);
-	if (retval < 0)
-		return retval;
+	ret = bus_register(&fw_bus_type);
+	if (ret < 0)
+		return ret;
 
 	fw_cdev_major = register_chrdev(0, "firewire", &fw_device_ops);
 	if (fw_cdev_major < 0) {

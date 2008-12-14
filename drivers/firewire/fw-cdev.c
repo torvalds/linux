@@ -169,13 +169,13 @@ dequeue_event(struct client *client, char __user *buffer, size_t count)
 	unsigned long flags;
 	struct event *event;
 	size_t size, total;
-	int i, retval;
+	int i, ret;
 
-	retval = wait_event_interruptible(client->wait,
-					  !list_empty(&client->event_list) ||
-					  fw_device_is_shutdown(client->device));
-	if (retval < 0)
-		return retval;
+	ret = wait_event_interruptible(client->wait,
+			!list_empty(&client->event_list) ||
+			fw_device_is_shutdown(client->device));
+	if (ret < 0)
+		return ret;
 
 	if (list_empty(&client->event_list) &&
 		       fw_device_is_shutdown(client->device))
@@ -190,17 +190,17 @@ dequeue_event(struct client *client, char __user *buffer, size_t count)
 	for (i = 0; i < ARRAY_SIZE(event->v) && total < count; i++) {
 		size = min(event->v[i].size, count - total);
 		if (copy_to_user(buffer + total, event->v[i].data, size)) {
-			retval = -EFAULT;
+			ret = -EFAULT;
 			goto out;
 		}
 		total += size;
 	}
-	retval = total;
+	ret = total;
 
  out:
 	kfree(event);
 
-	return retval;
+	return ret;
 }
 
 static ssize_t
@@ -958,7 +958,7 @@ static int
 dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 {
 	char buffer[256];
-	int retval;
+	int ret;
 
 	if (_IOC_TYPE(cmd) != '#' ||
 	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers))
@@ -970,9 +970,9 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 			return -EFAULT;
 	}
 
-	retval = ioctl_handlers[_IOC_NR(cmd)](client, buffer);
-	if (retval < 0)
-		return retval;
+	ret = ioctl_handlers[_IOC_NR(cmd)](client, buffer);
+	if (ret < 0)
+		return ret;
 
 	if (_IOC_DIR(cmd) & _IOC_READ) {
 		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
@@ -980,7 +980,7 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 			return -EFAULT;
 	}
 
-	return retval;
+	return ret;
 }
 
 static long
@@ -1014,7 +1014,7 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	struct client *client = file->private_data;
 	enum dma_data_direction direction;
 	unsigned long size;
-	int page_count, retval;
+	int page_count, ret;
 
 	if (fw_device_is_shutdown(client->device))
 		return -ENODEV;
@@ -1040,16 +1040,16 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	else
 		direction = DMA_FROM_DEVICE;
 
-	retval = fw_iso_buffer_init(&client->buffer, client->device->card,
-				    page_count, direction);
-	if (retval < 0)
-		return retval;
+	ret = fw_iso_buffer_init(&client->buffer, client->device->card,
+				 page_count, direction);
+	if (ret < 0)
+		return ret;
 
-	retval = fw_iso_buffer_map(&client->buffer, vma);
-	if (retval < 0)
+	ret = fw_iso_buffer_map(&client->buffer, vma);
+	if (ret < 0)
 		fw_iso_buffer_destroy(&client->buffer, client->device->card);
 
-	return retval;
+	return ret;
 }
 
 static int shutdown_resource(int id, void *p, void *data)

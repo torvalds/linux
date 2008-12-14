@@ -1209,7 +1209,7 @@ static void
 at_context_transmit(struct context *ctx, struct fw_packet *packet)
 {
 	unsigned long flags;
-	int retval;
+	int ret;
 
 	spin_lock_irqsave(&ctx->ohci->lock, flags);
 
@@ -1220,10 +1220,10 @@ at_context_transmit(struct context *ctx, struct fw_packet *packet)
 		return;
 	}
 
-	retval = at_context_queue_packet(ctx, packet);
+	ret = at_context_queue_packet(ctx, packet);
 	spin_unlock_irqrestore(&ctx->ohci->lock, flags);
 
-	if (retval < 0)
+	if (ret < 0)
 		packet->callback(packet, &ctx->ohci->card, packet->ack);
 
 }
@@ -1595,7 +1595,7 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci;
 	unsigned long flags;
-	int retval = -EBUSY;
+	int ret = -EBUSY;
 	__be32 *next_config_rom;
 	dma_addr_t uninitialized_var(next_config_rom_bus);
 
@@ -1649,7 +1649,7 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 
 		reg_write(ohci, OHCI1394_ConfigROMmap,
 			  ohci->next_config_rom_bus);
-		retval = 0;
+		ret = 0;
 	}
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
@@ -1661,13 +1661,13 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 	 * controller could need to access it before the bus reset
 	 * takes effect.
 	 */
-	if (retval == 0)
+	if (ret == 0)
 		fw_core_initiate_bus_reset(&ohci->card, 1);
 	else
 		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
 				  next_config_rom, next_config_rom_bus);
 
-	return retval;
+	return ret;
 }
 
 static void ohci_send_request(struct fw_card *card, struct fw_packet *packet)
@@ -1689,7 +1689,7 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct context *ctx = &ohci->at_request_ctx;
 	struct driver_data *driver_data = packet->driver_data;
-	int retval = -ENOENT;
+	int ret = -ENOENT;
 
 	tasklet_disable(&ctx->tasklet);
 
@@ -1704,12 +1704,11 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	driver_data->packet = NULL;
 	packet->ack = RCODE_CANCELLED;
 	packet->callback(packet, &ohci->card, packet->ack);
-	retval = 0;
-
+	ret = 0;
  out:
 	tasklet_enable(&ctx->tasklet);
 
-	return retval;
+	return ret;
 }
 
 static int
@@ -1720,7 +1719,7 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 #else
 	struct fw_ohci *ohci = fw_ohci(card);
 	unsigned long flags;
-	int n, retval = 0;
+	int n, ret = 0;
 
 	/*
 	 * FIXME:  Make sure this bitmask is cleared when we clear the busReset
@@ -1730,7 +1729,7 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 	spin_lock_irqsave(&ohci->lock, flags);
 
 	if (ohci->generation != generation) {
-		retval = -ESTALE;
+		ret = -ESTALE;
 		goto out;
 	}
 
@@ -1748,7 +1747,8 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 	flush_writes(ohci);
  out:
 	spin_unlock_irqrestore(&ohci->lock, flags);
-	return retval;
+
+	return ret;
 #endif /* CONFIG_FIREWIRE_OHCI_REMOTE_DMA */
 }
 
@@ -1892,7 +1892,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	descriptor_callback_t callback;
 	u32 *mask, regs;
 	unsigned long flags;
-	int index, retval = -ENOMEM;
+	int index, ret = -ENOMEM;
 
 	if (type == FW_ISO_CONTEXT_TRANSMIT) {
 		mask = &ohci->it_context_mask;
@@ -1928,8 +1928,8 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	if (ctx->header == NULL)
 		goto out;
 
-	retval = context_init(&ctx->context, ohci, regs, callback);
-	if (retval < 0)
+	ret = context_init(&ctx->context, ohci, regs, callback);
+	if (ret < 0)
 		goto out_with_header;
 
 	return &ctx->base;
@@ -1941,7 +1941,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	*mask |= 1 << index;
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
-	return ERR_PTR(retval);
+	return ERR_PTR(ret);
 }
 
 static int ohci_start_iso(struct fw_iso_context *base,
@@ -2291,21 +2291,20 @@ ohci_queue_iso(struct fw_iso_context *base,
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	unsigned long flags;
-	int retval;
+	int ret;
 
 	spin_lock_irqsave(&ctx->context.ohci->lock, flags);
 	if (base->type == FW_ISO_CONTEXT_TRANSMIT)
-		retval = ohci_queue_iso_transmit(base, packet, buffer, payload);
+		ret = ohci_queue_iso_transmit(base, packet, buffer, payload);
 	else if (ctx->context.ohci->use_dualbuffer)
-		retval = ohci_queue_iso_receive_dualbuffer(base, packet,
-							 buffer, payload);
+		ret = ohci_queue_iso_receive_dualbuffer(base, packet,
+							buffer, payload);
 	else
-		retval = ohci_queue_iso_receive_packet_per_buffer(base, packet,
-								buffer,
-								payload);
+		ret = ohci_queue_iso_receive_packet_per_buffer(base, packet,
+							buffer, payload);
 	spin_unlock_irqrestore(&ctx->context.ohci->lock, flags);
 
-	return retval;
+	return ret;
 }
 
 static const struct fw_card_driver ohci_driver = {
