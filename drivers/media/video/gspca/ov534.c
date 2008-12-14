@@ -149,6 +149,20 @@ static void sccb_reg_write(struct usb_device *udev, u16 reg, u8 val)
 		PDEBUG(D_ERR, "sccb_reg_write failed");
 }
 
+static u8 sccb_reg_read(struct usb_device *udev, u16 reg)
+{
+	ov534_reg_write(udev, OV534_REG_SUBADDR, reg);
+	ov534_reg_write(udev, OV534_REG_OPERATION, OV534_OP_WRITE_2);
+	if (!sccb_check_status(udev))
+		PDEBUG(D_ERR, "sccb_reg_read failed 1");
+
+	ov534_reg_write(udev, OV534_REG_OPERATION, OV534_OP_READ_2);
+	if (!sccb_check_status(udev))
+		PDEBUG(D_ERR, "sccb_reg_read failed 2");
+
+	return ov534_reg_read(udev, OV534_REG_READ);
+}
+
 static const __u8 ov534_reg_initdata[][2] = {
 	{ 0xe7, 0x3a },
 
@@ -338,6 +352,9 @@ static void ov534_setup(struct usb_device *udev)
 	for (i = 0; i < ARRAY_SIZE(ov534_reg_initdata); i++)
 		ov534_reg_write(udev, ov534_reg_initdata[i][0],
 				ov534_reg_initdata[i][1]);
+
+	PDEBUG(D_PROBE, "sensor is ov%02x%02x",
+		sccb_reg_read(udev, 0x0a), sccb_reg_read(udev, 0x0b));
 
 	ov534_set_led(udev, 1);
 
