@@ -1009,6 +1009,10 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct event *e, *next_e;
 	struct client_resource *r, *next_r;
 
+	mutex_lock(&client->device->client_list_mutex);
+	list_del(&client->link);
+	mutex_unlock(&client->device->client_list_mutex);
+
 	if (client->buffer.pages)
 		fw_iso_buffer_destroy(&client->buffer, client->device->card);
 
@@ -1025,10 +1029,6 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 
 	list_for_each_entry_safe(e, next_e, &client->event_list, link)
 		kfree(e);
-
-	mutex_lock(&client->device->client_list_mutex);
-	list_del(&client->link);
-	mutex_unlock(&client->device->client_list_mutex);
 
 	fw_device_put(client->device);
 	kfree(client);
