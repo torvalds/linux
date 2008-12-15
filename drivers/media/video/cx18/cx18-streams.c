@@ -442,7 +442,6 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 {
 	u32 data[MAX_MB_ARGUMENTS];
 	struct cx18 *cx = s->cx;
-	struct list_head *p;
 	struct cx18_buffer *buf;
 	int ts = 0;
 	int captype = 0;
@@ -529,8 +528,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	/* Init all the cpu_mdls for this stream */
 	cx18_flush_queues(s);
 	mutex_lock(&s->qlock);
-	list_for_each(p, &s->q_free.list) {
-		buf = list_entry(p, struct cx18_buffer, list);
+	list_for_each_entry(buf, &s->q_free.list, list) {
 		cx18_writel(cx, buf->dma_handle,
 					&cx->scb->cpu_mdl[buf->id].paddr);
 		cx18_writel(cx, s->buf_size, &cx->scb->cpu_mdl[buf->id].length);

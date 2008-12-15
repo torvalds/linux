@@ -77,8 +77,8 @@ struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 
 	mutex_lock(&s->qlock);
 	if (!list_empty(&q->list)) {
-		buf = list_entry(q->list.next, struct cx18_buffer, list);
-		list_del_init(q->list.next);
+		buf = list_first_entry(&q->list, struct cx18_buffer, list);
+		list_del_init(&buf->list);
 		q->bytesused -= buf->bytesused - buf->readpos;
 		buf->skipped = 0;
 		atomic_dec(&q->buffers);
@@ -92,13 +92,11 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 {
 	struct cx18 *cx = s->cx;
 	struct cx18_buffer *buf;
+	struct cx18_buffer *tmp;
 	struct cx18_buffer *ret = NULL;
-	struct list_head *p, *t;
 
 	mutex_lock(&s->qlock);
-	list_for_each_safe(p, t, &s->q_busy.list) {
-		buf = list_entry(p, struct cx18_buffer, list);
-
+	list_for_each_entry_safe(buf, tmp, &s->q_busy.list, list) {
 		if (buf->id != id) {
 			buf->skipped++;
 			if (buf->skipped >= atomic_read(&s->q_busy.buffers)-1) {
@@ -152,8 +150,8 @@ static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 
 	mutex_lock(&s->qlock);
 	while (!list_empty(&q->list)) {
-		buf = list_entry(q->list.next, struct cx18_buffer, list);
-		list_move_tail(q->list.next, &s->q_free.list);
+		buf = list_first_entry(&q->list, struct cx18_buffer, list);
+		list_move_tail(&buf->list, &s->q_free.list);
 		buf->bytesused = buf->readpos = buf->b_flags = buf->skipped = 0;
 		atomic_inc(&s->q_free.buffers);
 	}
