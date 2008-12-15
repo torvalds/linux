@@ -414,6 +414,8 @@ static int __init phyp_dump_setup(void)
 		of_node_put(rtas);
 	}
 
+	ibm_configure_kernel_dump = rtas_token("ibm,configure-kernel-dump");
+
 	print_dump_header(dump_header);
 	dump_area_length = init_dump_header(&phdr);
 	/* align down */
