@@ -130,6 +130,9 @@ static unsigned long init_dump_header(struct phyp_dump_header *ph)
 static void print_dump_header(const struct phyp_dump_header *ph)
 {
 #ifdef DEBUG
+	if (ph == NULL)
+		return;
+
 	printk(KERN_INFO "dump header:\n");
 	/* setup some ph->sections required */
 	printk(KERN_INFO "version = %d\n", ph->version);
