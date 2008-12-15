@@ -3025,9 +3025,33 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	kvm_guest_enter();
 
+	get_debugreg(vcpu->arch.host_dr6, 6);
+	get_debugreg(vcpu->arch.host_dr7, 7);
+	if (unlikely(vcpu->arch.switch_db_regs)) {
+		get_debugreg(vcpu->arch.host_db[0], 0);
+		get_debugreg(vcpu->arch.host_db[1], 1);
+		get_debugreg(vcpu->arch.host_db[2], 2);
+		get_debugreg(vcpu->arch.host_db[3], 3);
+
+		set_debugreg(0, 7);
+		set_debugreg(vcpu->arch.eff_db[0], 0);
+		set_debugreg(vcpu->arch.eff_db[1], 1);
+		set_debugreg(vcpu->arch.eff_db[2], 2);
+		set_debugreg(vcpu->arch.eff_db[3], 3);
+	}
 
 	KVMTRACE_0D(VMENTRY, vcpu, entryexit);
 	kvm_x86_ops->run(vcpu, kvm_run);
+
+	if (unlikely(vcpu->arch.switch_db_regs)) {
+		set_debugreg(0, 7);
+		set_debugreg(vcpu->arch.host_db[0], 0);
+		set_debugreg(vcpu->arch.host_db[1], 1);
+		set_debugreg(vcpu->arch.host_db[2], 2);
+		set_debugreg(vcpu->arch.host_db[3], 3);
+	}
+	set_debugreg(vcpu->arch.host_dr6, 6);
+	set_debugreg(vcpu->arch.host_dr7, 7);
 
 	vcpu->guest_mode = 0;
 	local_irq_enable();
@@ -4034,6 +4058,11 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.nmi_pending = false;
 	vcpu->arch.nmi_injected = false;
+
+	vcpu->arch.switch_db_regs = 0;
+	memset(vcpu->arch.db, 0, sizeof(vcpu->arch.db));
+	vcpu->arch.dr6 = DR6_FIXED_1;
+	vcpu->arch.dr7 = DR7_FIXED_1;
 
 	return kvm_x86_ops->vcpu_reset(vcpu);
 }

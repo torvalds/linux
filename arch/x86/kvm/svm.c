@@ -38,9 +38,6 @@ MODULE_LICENSE("GPL");
 #define IOPM_ALLOC_ORDER 2
 #define MSRPM_ALLOC_ORDER 1
 
-#define DR7_GD_MASK (1 << 13)
-#define DR6_BD_MASK (1 << 13)
-
 #define SEG_TYPE_LDT 2
 #define SEG_TYPE_BUSY_TSS16 3
 
@@ -179,32 +176,6 @@ static inline unsigned long kvm_read_cr2(void)
 static inline void kvm_write_cr2(unsigned long val)
 {
 	asm volatile ("mov %0, %%cr2" :: "r" (val));
-}
-
-static inline unsigned long read_dr6(void)
-{
-	unsigned long dr6;
-
-	asm volatile ("mov %%dr6, %0" : "=r" (dr6));
-	return dr6;
-}
-
-static inline void write_dr6(unsigned long val)
-{
-	asm volatile ("mov %0, %%dr6" :: "r" (val));
-}
-
-static inline unsigned long read_dr7(void)
-{
-	unsigned long dr7;
-
-	asm volatile ("mov %%dr7, %0" : "=r" (dr7));
-	return dr7;
-}
-
-static inline void write_dr7(unsigned long val)
-{
-	asm volatile ("mov %0, %%dr7" :: "r" (val));
 }
 
 static inline void force_new_asid(struct kvm_vcpu *vcpu)
@@ -695,7 +666,6 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	clear_page(svm->vmcb);
 	svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
 	svm->asid_generation = 0;
-	memset(svm->db_regs, 0, sizeof(svm->db_regs));
 	init_vmcb(svm);
 
 	fx_init(&svm->vcpu);
@@ -1035,7 +1005,29 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *svm_data)
 
 static unsigned long svm_get_dr(struct kvm_vcpu *vcpu, int dr)
 {
-	unsigned long val = to_svm(vcpu)->db_regs[dr];
+	struct vcpu_svm *svm = to_svm(vcpu);
+	unsigned long val;
+
+	switch (dr) {
+	case 0 ... 3:
+		val = vcpu->arch.db[dr];
+		break;
+	case 6:
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+			val = vcpu->arch.dr6;
+		else
+			val = svm->vmcb->save.dr6;
+		break;
+	case 7:
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+			val = vcpu->arch.dr7;
+		else
+			val = svm->vmcb->save.dr7;
+		break;
+	default:
+		val = 0;
+	}
+
 	KVMTRACE_2D(DR_READ, vcpu, (u32)dr, (u32)val, handler);
 	return val;
 }
@@ -1045,33 +1037,40 @@ static void svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value,
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	*exception = 0;
+	KVMTRACE_2D(DR_WRITE, vcpu, (u32)dr, (u32)value, handler);
 
-	if (svm->vmcb->save.dr7 & DR7_GD_MASK) {
-		svm->vmcb->save.dr7 &= ~DR7_GD_MASK;
-		svm->vmcb->save.dr6 |= DR6_BD_MASK;
-		*exception = DB_VECTOR;
-		return;
-	}
+	*exception = 0;
 
 	switch (dr) {
 	case 0 ... 3:
-		svm->db_regs[dr] = value;
+		vcpu->arch.db[dr] = value;
+		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
+			vcpu->arch.eff_db[dr] = value;
 		return;
 	case 4 ... 5:
-		if (vcpu->arch.cr4 & X86_CR4_DE) {
+		if (vcpu->arch.cr4 & X86_CR4_DE)
 			*exception = UD_VECTOR;
-			return;
-		}
-	case 7: {
-		if (value & ~((1ULL << 32) - 1)) {
+		return;
+	case 6:
+		if (value & 0xffffffff00000000ULL) {
 			*exception = GP_VECTOR;
 			return;
 		}
-		svm->vmcb->save.dr7 = value;
+		vcpu->arch.dr6 = (value & DR6_VOLATILE) | DR6_FIXED_1;
 		return;
-	}
+	case 7:
+		if (value & 0xffffffff00000000ULL) {
+			*exception = GP_VECTOR;
+			return;
+		}
+		vcpu->arch.dr7 = (value & DR7_VOLATILE) | DR7_FIXED_1;
+		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
+			svm->vmcb->save.dr7 = vcpu->arch.dr7;
+			vcpu->arch.switch_db_regs = (value & DR7_BP_EN_MASK);
+		}
+		return;
 	default:
+		/* FIXME: Possible case? */
 		printk(KERN_DEBUG "%s: unexpected dr %u\n",
 		       __func__, dr);
 		*exception = UD_VECTOR;
@@ -2365,22 +2364,6 @@ static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
 	return 0;
 }
 
-static void save_db_regs(unsigned long *db_regs)
-{
-	asm volatile ("mov %%dr0, %0" : "=r"(db_regs[0]));
-	asm volatile ("mov %%dr1, %0" : "=r"(db_regs[1]));
-	asm volatile ("mov %%dr2, %0" : "=r"(db_regs[2]));
-	asm volatile ("mov %%dr3, %0" : "=r"(db_regs[3]));
-}
-
-static void load_db_regs(unsigned long *db_regs)
-{
-	asm volatile ("mov %0, %%dr0" : : "r"(db_regs[0]));
-	asm volatile ("mov %0, %%dr1" : : "r"(db_regs[1]));
-	asm volatile ("mov %0, %%dr2" : : "r"(db_regs[2]));
-	asm volatile ("mov %0, %%dr3" : : "r"(db_regs[3]));
-}
-
 static void svm_flush_tlb(struct kvm_vcpu *vcpu)
 {
 	force_new_asid(vcpu);
@@ -2439,19 +2422,11 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	gs_selector = kvm_read_gs();
 	ldt_selector = kvm_read_ldt();
 	svm->host_cr2 = kvm_read_cr2();
-	svm->host_dr6 = read_dr6();
-	svm->host_dr7 = read_dr7();
 	if (!is_nested(svm))
 		svm->vmcb->save.cr2 = vcpu->arch.cr2;
 	/* required for live migration with NPT */
 	if (npt_enabled)
 		svm->vmcb->save.cr3 = vcpu->arch.cr3;
-
-	if (svm->vmcb->save.dr7 & 0xff) {
-		write_dr7(0);
-		save_db_regs(svm->host_db_regs);
-		load_db_regs(svm->db_regs);
-	}
 
 	clgi();
 
@@ -2528,16 +2503,11 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 #endif
 		);
 
-	if ((svm->vmcb->save.dr7 & 0xff))
-		load_db_regs(svm->host_db_regs);
-
 	vcpu->arch.cr2 = svm->vmcb->save.cr2;
 	vcpu->arch.regs[VCPU_REGS_RAX] = svm->vmcb->save.rax;
 	vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
 	vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
 
-	write_dr6(svm->host_dr6);
-	write_dr7(svm->host_dr7);
 	kvm_write_cr2(svm->host_cr2);
 
 	kvm_load_fs(fs_selector);

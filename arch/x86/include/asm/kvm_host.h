@@ -135,6 +135,19 @@ enum {
 
 #define KVM_NR_MEM_OBJS 40
 
+#define KVM_NR_DB_REGS	4
+
+#define DR6_BD		(1 << 13)
+#define DR6_BS		(1 << 14)
+#define DR6_FIXED_1	0xffff0ff0
+#define DR6_VOLATILE	0x0000e00f
+
+#define DR7_BP_EN_MASK	0x000000ff
+#define DR7_GE		(1 << 9)
+#define DR7_GD		(1 << 13)
+#define DR7_FIXED_1	0x00000400
+#define DR7_VOLATILE	0xffff23ff
+
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
  * enough memory for a single page fault in a cache.
@@ -334,6 +347,15 @@ struct kvm_vcpu_arch {
 
 	struct mtrr_state_type mtrr_state;
 	u32 pat;
+
+	int switch_db_regs;
+	unsigned long host_db[KVM_NR_DB_REGS];
+	unsigned long host_dr6;
+	unsigned long host_dr7;
+	unsigned long db[KVM_NR_DB_REGS];
+	unsigned long dr6;
+	unsigned long dr7;
+	unsigned long eff_db[KVM_NR_DB_REGS];
 };
 
 struct kvm_mem_alias {

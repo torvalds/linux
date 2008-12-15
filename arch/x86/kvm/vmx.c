@@ -2311,7 +2311,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		kvm_rip_write(vcpu, 0);
 	kvm_register_write(vcpu, VCPU_REGS_RSP, 0);
 
-	/* todo: dr0 = dr1 = dr2 = dr3 = 0; dr6 = 0xffff0ff0 */
 	vmcs_writel(GUEST_DR7, 0x400);
 
 	vmcs_writel(GUEST_GDTR_BASE, 0);
@@ -2577,7 +2576,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 intr_info, ex_no, error_code;
-	unsigned long cr2, rip;
+	unsigned long cr2, rip, dr6;
 	u32 vect_info;
 	enum emulation_result er;
 
@@ -2637,14 +2636,28 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	ex_no = intr_info & INTR_INFO_VECTOR_MASK;
-	if (ex_no == DB_VECTOR || ex_no == BP_VECTOR) {
+	switch (ex_no) {
+	case DB_VECTOR:
+		dr6 = vmcs_readl(EXIT_QUALIFICATION);
+		if (!(vcpu->guest_debug &
+		      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))) {
+			vcpu->arch.dr6 = dr6 | DR6_FIXED_1;
+			kvm_queue_exception(vcpu, DB_VECTOR);
+			return 1;
+		}
+		kvm_run->debug.arch.dr6 = dr6 | DR6_FIXED_1;
+		kvm_run->debug.arch.dr7 = vmcs_readl(GUEST_DR7);
+		/* fall through */
+	case BP_VECTOR:
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
 		kvm_run->debug.arch.pc = vmcs_readl(GUEST_CS_BASE) + rip;
 		kvm_run->debug.arch.exception = ex_no;
-	} else {
+		break;
+	default:
 		kvm_run->exit_reason = KVM_EXIT_EXCEPTION;
 		kvm_run->ex.exception = ex_no;
 		kvm_run->ex.error_code = error_code;
+		break;
 	}
 	return 0;
 }
@@ -2784,21 +2797,44 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	unsigned long val;
 	int dr, reg;
 
-	/*
-	 * FIXME: this code assumes the host is debugging the guest.
-	 *        need to deal with guest debugging itself too.
-	 */
+	dr = vmcs_readl(GUEST_DR7);
+	if (dr & DR7_GD) {
+		/*
+		 * As the vm-exit takes precedence over the debug trap, we
+		 * need to emulate the latter, either for the host or the
+		 * guest debugging itself.
+		 */
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP) {
+			kvm_run->debug.arch.dr6 = vcpu->arch.dr6;
+			kvm_run->debug.arch.dr7 = dr;
+			kvm_run->debug.arch.pc =
+				vmcs_readl(GUEST_CS_BASE) +
+				vmcs_readl(GUEST_RIP);
+			kvm_run->debug.arch.exception = DB_VECTOR;
+			kvm_run->exit_reason = KVM_EXIT_DEBUG;
+			return 0;
+		} else {
+			vcpu->arch.dr7 &= ~DR7_GD;
+			vcpu->arch.dr6 |= DR6_BD;
+			vmcs_writel(GUEST_DR7, vcpu->arch.dr7);
+			kvm_queue_exception(vcpu, DB_VECTOR);
+			return 1;
+		}
+	}
+
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
-	dr = exit_qualification & 7;
-	reg = (exit_qualification >> 8) & 15;
-	if (exit_qualification & 16) {
-		/* mov from dr */
+	dr = exit_qualification & DEBUG_REG_ACCESS_NUM;
+	reg = DEBUG_REG_ACCESS_REG(exit_qualification);
+	if (exit_qualification & TYPE_MOV_FROM_DR) {
 		switch (dr) {
+		case 0 ... 3:
+			val = vcpu->arch.db[dr];
+			break;
 		case 6:
-			val = 0xffff0ff0;
+			val = vcpu->arch.dr6;
 			break;
 		case 7:
-			val = 0x400;
+			val = vcpu->arch.dr7;
 			break;
 		default:
 			val = 0;
@@ -2806,7 +2842,38 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		kvm_register_write(vcpu, reg, val);
 		KVMTRACE_2D(DR_READ, vcpu, (u32)dr, (u32)val, handler);
 	} else {
-		/* mov to dr */
+		val = vcpu->arch.regs[reg];
+		switch (dr) {
+		case 0 ... 3:
+			vcpu->arch.db[dr] = val;
+			if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
+				vcpu->arch.eff_db[dr] = val;
+			break;
+		case 4 ... 5:
+			if (vcpu->arch.cr4 & X86_CR4_DE)
+				kvm_queue_exception(vcpu, UD_VECTOR);
+			break;
+		case 6:
+			if (val & 0xffffffff00000000ULL) {
+				kvm_queue_exception(vcpu, GP_VECTOR);
+				break;
+			}
+			vcpu->arch.dr6 = (val & DR6_VOLATILE) | DR6_FIXED_1;
+			break;
+		case 7:
+			if (val & 0xffffffff00000000ULL) {
+				kvm_queue_exception(vcpu, GP_VECTOR);
+				break;
+			}
+			vcpu->arch.dr7 = (val & DR7_VOLATILE) | DR7_FIXED_1;
+			if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
+				vmcs_writel(GUEST_DR7, vcpu->arch.dr7);
+				vcpu->arch.switch_db_regs =
+					(val & DR7_BP_EN_MASK);
+			}
+			break;
+		}
+		KVMTRACE_2D(DR_WRITE, vcpu, (u32)dr, (u32)val, handler);
 	}
 	skip_emulated_instruction(vcpu);
 	return 1;
@@ -2957,7 +3024,18 @@ static int handle_task_switch(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 	tss_selector = exit_qualification;
 
-	return kvm_task_switch(vcpu, tss_selector, reason);
+	if (!kvm_task_switch(vcpu, tss_selector, reason))
+		return 0;
+
+	/* clear all local breakpoint enable flags */
+	vmcs_writel(GUEST_DR7, vmcs_readl(GUEST_DR7) & ~55);
+
+	/*
+	 * TODO: What about debug traps on tss switch?
+	 *       Are we supposed to inject them and update dr6?
+	 */
+
+	return 1;
 }
 
 static int handle_ept_violation(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -3342,6 +3420,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 */
 	vmcs_writel(HOST_CR0, read_cr0());
 
+	set_debugreg(vcpu->arch.dr6, 6);
+
 	asm(
 		/* Store host registers */
 		"push %%"R"dx; push %%"R"bp;"
@@ -3435,6 +3515,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP));
 	vcpu->arch.regs_dirty = 0;
+
+	get_debugreg(vcpu->arch.dr6, 6);
 
 	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
 	if (vmx->rmode.irq.pending)
