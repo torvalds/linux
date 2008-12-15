@@ -958,6 +958,11 @@ static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 	} else
 		vcpu->guest_debug = 0;
 
+	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+		svm->vmcb->save.dr7 = dbg->arch.debugreg[7];
+	else
+		svm->vmcb->save.dr7 = vcpu->arch.dr7;
+
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
 		svm->vmcb->save.rflags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
 	else if (old_debug & KVM_GUESTDBG_SINGLESTEP)
