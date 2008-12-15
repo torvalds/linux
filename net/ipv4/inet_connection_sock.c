@@ -344,16 +344,17 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	struct net *net = sock_net(sk);
 
 	security_req_classify_flow(req, &fl);
-	if (ip_route_output_flow(net, &rt, &fl, sk, 0)) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
-		return NULL;
-	}
-	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway) {
-		ip_rt_put(rt);
-		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
-		return NULL;
-	}
+	if (ip_route_output_flow(net, &rt, &fl, sk, 0))
+		goto no_route;
+	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
+		goto route_err;
 	return &rt->u.dst;
+
+route_err:
+	ip_rt_put(rt);
+no_route:
+	IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
+	return NULL;
 }
 
 EXPORT_SYMBOL_GPL(inet_csk_route_req);
