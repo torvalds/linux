@@ -453,7 +453,7 @@ static int sh_mobile_ceu_try_bus_param(struct soc_camera_device *icd,
 static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 				 __u32 pixfmt, struct v4l2_rect *rect)
 {
-	const struct soc_camera_data_format *cam_fmt;
+	const struct soc_camera_data_format *cam_fmt = NULL;
 	int ret;
 
 	/*
