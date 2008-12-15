@@ -1688,21 +1688,16 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err = -ENOMEM;
 
 	if (!x)
-		return err;
+		goto nomem;
 
 	err = verify_newpolicy_info(&ua->policy);
-	if (err) {
-		printk("BAD policy passed\n");
-		kfree(x);
-		return err;
-	}
+	if (err)
+		goto bad_policy;
 
 	/*   build an XP */
 	xp = xfrm_policy_construct(net, &ua->policy, attrs, &err);
-	if (!xp) {
-		kfree(x);
-		return err;
-	}
+	if (!xp)
+		goto free_state;
 
 	memcpy(&x->id, &ua->id, sizeof(ua->id));
 	memcpy(&x->props.saddr, &ua->saddr, sizeof(ua->saddr));
@@ -1727,6 +1722,13 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	kfree(xp);
 
 	return 0;
+
+bad_policy:
+	printk("BAD policy passed\n");
+free_state:
+	kfree(x);
+nomem:
+	return err;
 }
 
 #ifdef CONFIG_XFRM_MIGRATE
