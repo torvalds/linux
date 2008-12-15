@@ -3005,9 +3005,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		goto out;
 	}
 
-	if (vcpu->guest_debug.enabled)
-		kvm_x86_ops->guest_debug_pre(vcpu);
-
 	vcpu->guest_mode = 1;
 	/*
 	 * Make sure that guest_mode assignment won't happen after
@@ -3218,7 +3215,7 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	/*
 	 * Don't leak debug flags in case they were set for guest debugging
 	 */
-	if (vcpu->guest_debug.enabled && vcpu->guest_debug.singlestep)
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
 		regs->rflags &= ~(X86_EFLAGS_TF | X86_EFLAGS_RF);
 
 	vcpu_put(vcpu);
@@ -3837,14 +3834,19 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
-				    struct kvm_debug_guest *dbg)
+int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+					struct kvm_guest_debug *dbg)
 {
 	int r;
 
 	vcpu_load(vcpu);
 
 	r = kvm_x86_ops->set_guest_debug(vcpu, dbg);
+
+	if (dbg->control & KVM_GUESTDBG_INJECT_DB)
+		kvm_queue_exception(vcpu, DB_VECTOR);
+	else if (dbg->control & KVM_GUESTDBG_INJECT_BP)
+		kvm_queue_exception(vcpu, BP_VECTOR);
 
 	vcpu_put(vcpu);
 

@@ -214,4 +214,11 @@ struct kvm_sregs {
 struct kvm_fpu {
 };
 
+struct kvm_debug_exit_arch {
+};
+
+/* for KVM_SET_GUEST_DEBUG */
+struct kvm_guest_debug_arch {
+};
+
 #endif

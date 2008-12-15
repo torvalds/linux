@@ -212,6 +212,24 @@ struct kvm_pit_channel_state {
 	__s64 count_load_time;
 };
 
+struct kvm_debug_exit_arch {
+	__u32 exception;
+	__u32 pad;
+	__u64 pc;
+	__u64 dr6;
+	__u64 dr7;
+};
+
+#define KVM_GUESTDBG_USE_SW_BP		0x00010000
+#define KVM_GUESTDBG_USE_HW_BP		0x00020000
+#define KVM_GUESTDBG_INJECT_DB		0x00040000
+#define KVM_GUESTDBG_INJECT_BP		0x00080000
+
+/* for KVM_SET_GUEST_DEBUG */
+struct kvm_guest_debug_arch {
+	__u64 debugreg[8];
+};
+
 struct kvm_pit_state {
 	struct kvm_pit_channel_state channels[3];
 };

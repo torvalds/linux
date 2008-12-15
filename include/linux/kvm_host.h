@@ -73,7 +73,7 @@ struct kvm_vcpu {
 	struct kvm_run *run;
 	int guest_mode;
 	unsigned long requests;
-	struct kvm_guest_debug guest_debug;
+	unsigned long guest_debug;
 	int fpu_active;
 	int guest_fpu_loaded;
 	wait_queue_head_t wq;
@@ -255,8 +255,8 @@ int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state);
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state);
-int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
-				    struct kvm_debug_guest *dbg);
+int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+					struct kvm_guest_debug *dbg);
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
 
 int kvm_arch_init(void *opaque);

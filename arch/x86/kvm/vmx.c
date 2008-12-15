@@ -480,8 +480,13 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 	eb = (1u << PF_VECTOR) | (1u << UD_VECTOR);
 	if (!vcpu->fpu_active)
 		eb |= 1u << NM_VECTOR;
-	if (vcpu->guest_debug.enabled)
-		eb |= 1u << DB_VECTOR;
+	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
+		if (vcpu->guest_debug &
+		    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
+			eb |= 1u << DB_VECTOR;
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+			eb |= 1u << BP_VECTOR;
+	}
 	if (vcpu->arch.rmode.active)
 		eb = ~0;
 	if (vm_need_ept())
@@ -1003,40 +1008,23 @@ static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 	}
 }
 
-static int set_guest_debug(struct kvm_vcpu *vcpu, struct kvm_debug_guest *dbg)
+static int set_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 {
-	unsigned long dr7 = 0x400;
-	int old_singlestep;
+	int old_debug = vcpu->guest_debug;
+	unsigned long flags;
 
-	old_singlestep = vcpu->guest_debug.singlestep;
+	vcpu->guest_debug = dbg->control;
+	if (!(vcpu->guest_debug & KVM_GUESTDBG_ENABLE))
+		vcpu->guest_debug = 0;
 
-	vcpu->guest_debug.enabled = dbg->enabled;
-	if (vcpu->guest_debug.enabled) {
-		int i;
-
-		dr7 |= 0x200;  /* exact */
-		for (i = 0; i < 4; ++i) {
-			if (!dbg->breakpoints[i].enabled)
-				continue;
-			vcpu->guest_debug.bp[i] = dbg->breakpoints[i].address;
-			dr7 |= 2 << (i*2);    /* global enable */
-			dr7 |= 0 << (i*4+16); /* execution breakpoint */
-		}
-
-		vcpu->guest_debug.singlestep = dbg->singlestep;
-	} else
-		vcpu->guest_debug.singlestep = 0;
-
-	if (old_singlestep && !vcpu->guest_debug.singlestep) {
-		unsigned long flags;
-
-		flags = vmcs_readl(GUEST_RFLAGS);
+	flags = vmcs_readl(GUEST_RFLAGS);
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		flags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
+	else if (old_debug & KVM_GUESTDBG_SINGLESTEP)
 		flags &= ~(X86_EFLAGS_TF | X86_EFLAGS_RF);
-		vmcs_writel(GUEST_RFLAGS, flags);
-	}
+	vmcs_writel(GUEST_RFLAGS, flags);
 
 	update_exception_bitmap(vcpu);
-	vmcs_writel(GUEST_DR7, dr7);
 
 	return 0;
 }
@@ -2540,24 +2528,6 @@ static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 	return 0;
 }
 
-static void kvm_guest_debug_pre(struct kvm_vcpu *vcpu)
-{
-	struct kvm_guest_debug *dbg = &vcpu->guest_debug;
-
-	set_debugreg(dbg->bp[0], 0);
-	set_debugreg(dbg->bp[1], 1);
-	set_debugreg(dbg->bp[2], 2);
-	set_debugreg(dbg->bp[3], 3);
-
-	if (dbg->singlestep) {
-		unsigned long flags;
-
-		flags = vmcs_readl(GUEST_RFLAGS);
-		flags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
-		vmcs_writel(GUEST_RFLAGS, flags);
-	}
-}
-
 static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 				  int vec, u32 err_code)
 {
@@ -2574,9 +2544,17 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	 *        the required debugging infrastructure rework.
 	 */
 	switch (vec) {
-	case DE_VECTOR:
 	case DB_VECTOR:
+		if (vcpu->guest_debug &
+		    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
+			return 0;
+		kvm_queue_exception(vcpu, vec);
+		return 1;
 	case BP_VECTOR:
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+			return 0;
+		/* fall through */
+	case DE_VECTOR:
 	case OF_VECTOR:
 	case BR_VECTOR:
 	case UD_VECTOR:
@@ -2593,7 +2571,7 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u32 intr_info, error_code;
+	u32 intr_info, ex_no, error_code;
 	unsigned long cr2, rip;
 	u32 vect_info;
 	enum emulation_result er;
@@ -2653,14 +2631,16 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return 1;
 	}
 
-	if ((intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK)) ==
-	    (INTR_TYPE_HARD_EXCEPTION | 1)) {
+	ex_no = intr_info & INTR_INFO_VECTOR_MASK;
+	if (ex_no == DB_VECTOR || ex_no == BP_VECTOR) {
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
-		return 0;
+		kvm_run->debug.arch.pc = vmcs_readl(GUEST_CS_BASE) + rip;
+		kvm_run->debug.arch.exception = ex_no;
+	} else {
+		kvm_run->exit_reason = KVM_EXIT_EXCEPTION;
+		kvm_run->ex.exception = ex_no;
+		kvm_run->ex.error_code = error_code;
 	}
-	kvm_run->exit_reason = KVM_EXIT_EXCEPTION;
-	kvm_run->ex.exception = intr_info & INTR_INFO_VECTOR_MASK;
-	kvm_run->ex.error_code = error_code;
 	return 0;
 }
 
@@ -3600,7 +3580,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.vcpu_put = vmx_vcpu_put,
 
 	.set_guest_debug = set_guest_debug,
-	.guest_debug_pre = kvm_guest_debug_pre,
 	.get_msr = vmx_get_msr,
 	.set_msr = vmx_set_msr,
 	.get_segment_base = vmx_get_segment_base,

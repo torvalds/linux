@@ -968,9 +968,32 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 
 }
 
-static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_debug_guest *dbg)
+static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 {
-	return -EOPNOTSUPP;
+	int old_debug = vcpu->guest_debug;
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	vcpu->guest_debug = dbg->control;
+
+	svm->vmcb->control.intercept_exceptions &=
+		~((1 << DB_VECTOR) | (1 << BP_VECTOR));
+	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
+		if (vcpu->guest_debug &
+		    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
+			svm->vmcb->control.intercept_exceptions |=
+				1 << DB_VECTOR;
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+			svm->vmcb->control.intercept_exceptions |=
+				1 << BP_VECTOR;
+	} else
+		vcpu->guest_debug = 0;
+
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		svm->vmcb->save.rflags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
+	else if (old_debug & KVM_GUESTDBG_SINGLESTEP)
+		svm->vmcb->save.rflags &= ~(X86_EFLAGS_TF | X86_EFLAGS_RF);
+
+	return 0;
 }
 
 static int svm_get_irq(struct kvm_vcpu *vcpu)
@@ -1092,6 +1115,27 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	if (!npt_enabled && event_injection)
 		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
+}
+
+static int db_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	if (!(svm->vcpu.guest_debug &
+	      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))) {
+		kvm_queue_exception(&svm->vcpu, DB_VECTOR);
+		return 1;
+	}
+	kvm_run->exit_reason = KVM_EXIT_DEBUG;
+	kvm_run->debug.arch.pc = svm->vmcb->save.cs.base + svm->vmcb->save.rip;
+	kvm_run->debug.arch.exception = DB_VECTOR;
+	return 0;
+}
+
+static int bp_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	kvm_run->exit_reason = KVM_EXIT_DEBUG;
+	kvm_run->debug.arch.pc = svm->vmcb->save.cs.base + svm->vmcb->save.rip;
+	kvm_run->debug.arch.exception = BP_VECTOR;
+	return 0;
 }
 
 static int ud_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
@@ -2050,6 +2094,8 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_WRITE_DR3]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR5]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR7]			= emulate_on_interception,
+	[SVM_EXIT_EXCP_BASE + DB_VECTOR]	= db_interception,
+	[SVM_EXIT_EXCP_BASE + BP_VECTOR]	= bp_interception,
 	[SVM_EXIT_EXCP_BASE + UD_VECTOR]	= ud_interception,
 	[SVM_EXIT_EXCP_BASE + PF_VECTOR] 	= pf_interception,
 	[SVM_EXIT_EXCP_BASE + NM_VECTOR] 	= nm_interception,

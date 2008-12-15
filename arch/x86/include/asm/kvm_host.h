@@ -135,12 +135,6 @@ enum {
 
 #define KVM_NR_MEM_OBJS 40
 
-struct kvm_guest_debug {
-	int enabled;
-	unsigned long bp[4];
-	int singlestep;
-};
-
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
  * enough memory for a single page fault in a cache.
@@ -448,8 +442,7 @@ struct kvm_x86_ops {
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 
 	int (*set_guest_debug)(struct kvm_vcpu *vcpu,
-			       struct kvm_debug_guest *dbg);
-	void (*guest_debug_pre)(struct kvm_vcpu *vcpu);
+			       struct kvm_guest_debug *dbg);
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 	u64 (*get_segment_base)(struct kvm_vcpu *vcpu, int seg);
