@@ -520,6 +520,15 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			continue;
 
 		/*
+		 * Synchronize the DMA transfer with CPU before
+		 * 1. accessing the frame
+		 * 2. requeueing the same buffer to h/w
+		 */
+		pci_dma_sync_single_for_cpu(sc->pdev, bf->bf_buf_addr,
+				sc->rx.bufsize,
+				PCI_DMA_FROMDEVICE);
+
+		/*
 		 * If we're asked to flush receive queue, directly
 		 * chain it back at the queue without processing it.
 		 */
@@ -547,10 +556,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		if (!requeue_skb)
 			goto requeue;
 
-		/* Sync and unmap the frame */
-		pci_dma_sync_single_for_cpu(sc->pdev, bf->bf_buf_addr,
-					    sc->rx.bufsize,
-					    PCI_DMA_FROMDEVICE);
+		/* Unmap the frame */
 		pci_unmap_single(sc->pdev, bf->bf_buf_addr,
 				 sc->rx.bufsize,
 				 PCI_DMA_FROMDEVICE);
