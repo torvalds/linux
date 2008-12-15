@@ -1911,6 +1911,22 @@ static int __init comedi_init(void)
 	printk(KERN_INFO "comedi: version " COMEDI_RELEASE
 	       " - http://www.comedi.org\n");
 
+	if (comedi_num_legacy_minors < 0 ||
+	    comedi_num_legacy_minors > COMEDI_NUM_BOARD_MINORS) {
+		printk(KERN_ERR "comedi: error: invalid value for module "
+		       "parameter \"comedi_num_legacy_minors\".  Valid values "
+		       "are 0 through %i.\n", COMEDI_NUM_BOARD_MINORS);
+		return -EINVAL;
+	}
+
+	/*
+	 * comedi is unusable if both comedi_autoconfig and
+	 * comedi_num_legacy_minors are zero, so we might as well adjust the
+	 * defaults in that case
+	 */
+	if (comedi_autoconfig == 0 && comedi_num_legacy_minors == 0)
+		comedi_num_legacy_minors = 16;
+
 	memset(comedi_file_info_table, 0,
 	       sizeof(struct comedi_device_file_info *) * COMEDI_NUM_MINORS);
 
