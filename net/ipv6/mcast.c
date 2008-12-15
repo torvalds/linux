@@ -303,20 +303,23 @@ static struct inet6_dev *ip6_mc_find_dev(struct net *net,
 		dev = dev_get_by_index(net, ifindex);
 
 	if (!dev)
-		return NULL;
+		goto nodev;
 	idev = in6_dev_get(dev);
-	if (!idev) {
-		dev_put(dev);
-		return NULL;
-	}
+	if (!idev)
+		goto release;
 	read_lock_bh(&idev->lock);
-	if (idev->dead) {
-		read_unlock_bh(&idev->lock);
-		in6_dev_put(idev);
-		dev_put(dev);
-		return NULL;
-	}
+	if (idev->dead)
+		goto unlock_release;
+
 	return idev;
+
+unlock_release:
+	read_unlock_bh(&idev->lock);
+	in6_dev_put(idev);
+release:
+	dev_put(dev);
+nodev:
+	return NULL;
 }
 
 void ipv6_sock_mc_close(struct sock *sk)
