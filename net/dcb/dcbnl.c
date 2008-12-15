@@ -469,7 +469,7 @@ static int dcbnl_setnumtcs(struct net_device *netdev, struct nlattr **tb,
 	u8 value;
 	int i;
 
-	if (!tb[DCB_ATTR_NUMTCS] || !netdev->dcbnl_ops->setstate)
+	if (!tb[DCB_ATTR_NUMTCS] || !netdev->dcbnl_ops->setnumtcs)
 		return ret;
 
 	ret = nla_parse_nested(data, DCB_NUMTCS_ATTR_MAX, tb[DCB_ATTR_NUMTCS],
