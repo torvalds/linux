@@ -212,7 +212,7 @@ xfs_rename(
 	if (unlikely((target_dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
 		     (target_dp->i_d.di_projid != src_ip->i_d.di_projid))) {
 		error = XFS_ERROR(EXDEV);
-		xfs_rename_unlock4(inodes, XFS_ILOCK_SHARED);
+		xfs_rename_unlock4(inodes, XFS_ILOCK_EXCL);
 		xfs_trans_cancel(tp, cancel_flags);
 		goto std_return;
 	}

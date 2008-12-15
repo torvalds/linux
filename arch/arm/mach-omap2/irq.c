@@ -23,6 +23,7 @@
 #define INTC_REVISION		0x0000
 #define INTC_SYSCONFIG		0x0010
 #define INTC_SYSSTATUS		0x0014
+#define INTC_SIR		0x0040
 #define INTC_CONTROL		0x0048
 #define INTC_MIR_CLEAR0		0x0088
 #define INTC_MIR_SET0		0x008c
@@ -60,6 +61,30 @@ static u32 intc_bank_read_reg(struct omap_irq_bank *bank, u16 reg)
 	return __raw_readl(bank->base_reg + reg);
 }
 
+static int previous_irq;
+
+/*
+ * On 34xx we can get occasional spurious interrupts if the ack from
+ * an interrupt handler does not get posted before we unmask. Warn about
+ * the interrupt handlers that need to flush posted writes.
+ */
+static int omap_check_spurious(unsigned int irq)
+{
+	u32 sir, spurious;
+
+	sir = intc_bank_read_reg(&irq_banks[0], INTC_SIR);
+	spurious = sir >> 6;
+
+	if (spurious > 1) {
+		printk(KERN_WARNING "Spurious irq %i: 0x%08x, please flush "
+					"posted write for irq %i\n",
+					irq, sir, previous_irq);
+		return spurious;
+	}
+
+	return 0;
+}
+
 /* XXX: FIQ and additional INTC support (only MPU at the moment) */
 static void omap_ack_irq(unsigned int irq)
 {
@@ -69,6 +94,20 @@ static void omap_ack_irq(unsigned int irq)
 static void omap_mask_irq(unsigned int irq)
 {
 	int offset = irq & (~(IRQ_BITS_PER_REG - 1));
+
+	if (cpu_is_omap34xx()) {
+		int spurious = 0;
+
+		/*
+		 * INT_34XX_GPT12_IRQ is also the spurious irq. Maybe because
+		 * it is the highest irq number?
+		 */
+		if (irq == INT_34XX_GPT12_IRQ)
+			spurious = omap_check_spurious(irq);
+
+		if (!spurious)
+			previous_irq = irq;
+	}
 
 	irq &= (IRQ_BITS_PER_REG - 1);
 

@@ -668,7 +668,7 @@ static void check_for_valid_limits(struct io_restrictions *rs)
 	if (!rs->max_segment_size)
 		rs->max_segment_size = MAX_SEGMENT_SIZE;
 	if (!rs->seg_boundary_mask)
-		rs->seg_boundary_mask = -1;
+		rs->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	if (!rs->bounce_pfn)
 		rs->bounce_pfn = -1;
 }

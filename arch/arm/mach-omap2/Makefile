@@ -32,4 +32,5 @@ obj-$(CONFIG_MACH_OMAP_APOLLON)		+= board-apollon.o
 obj-$(CONFIG_MACH_OMAP3_BEAGLE)		+= board-omap3beagle.o
 obj-$(CONFIG_MACH_OMAP_LDP)		+= board-ldp.o
 obj-$(CONFIG_MACH_OVERO)		+= board-overo.o
+obj-$(CONFIG_MACH_OMAP3_PANDORA)	+= board-omap3pandora.o
 

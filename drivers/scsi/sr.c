@@ -521,7 +521,7 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	 * if it doesn't recognise the ioctl
 	 */
 	ret = scsi_nonblockable_ioctl(sdev, cmd, argp,
-					(mode & FMODE_NDELAY_NOW) != 0);
+					(mode & FMODE_NDELAY) != 0);
 	if (ret != -ENODEV)
 		return ret;
 	return scsi_ioctl(sdev, cmd, argp);

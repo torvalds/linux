@@ -282,6 +282,8 @@ static int backlight = 1;
 static int backlight = 0;
 #endif
 
+int accel_cexp = 0;
+
 /*
  * prototypes
  */
@@ -2520,6 +2522,8 @@ static int __init radeonfb_setup (char *options)
 		} else if (!strncmp(this_opt, "ignore_devlist", 14)) {
 			ignore_devlist = 1;
 #endif
+		} else if (!strncmp(this_opt, "accel_cexp", 12)) {
+			accel_cexp = 1;
 		} else
 			mode_option = this_opt;
 	}
@@ -2567,6 +2571,8 @@ module_param(monitor_layout, charp, 0);
 MODULE_PARM_DESC(monitor_layout, "Specify monitor mapping (like XFree86)");
 module_param(force_measure_pll, bool, 0);
 MODULE_PARM_DESC(force_measure_pll, "Force measurement of PLL (debug)");
+module_param(accel_cexp, bool, 0);
+MODULE_PARM_DESC(accel_cexp, "Use acceleration engine for color expansion");
 #ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "bool: disable use of MTRR registers");

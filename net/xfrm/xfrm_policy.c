@@ -817,6 +817,7 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 				continue;
 			hlist_del(&pol->bydst);
 			hlist_del(&pol->byidx);
+			list_del(&pol->walk.all);
 			write_unlock_bh(&xfrm_policy_lock);
 
 			xfrm_audit_policy_delete(pol, 1, audit_info->loginuid,

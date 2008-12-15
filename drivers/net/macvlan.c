@@ -70,6 +70,9 @@ static void macvlan_broadcast(struct sk_buff *skb,
 	struct sk_buff *nskb;
 	unsigned int i;
 
+	if (skb->protocol == htons(ETH_P_PAUSE))
+		return;
+
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++) {
 		hlist_for_each_entry_rcu(vlan, n, &port->vlan_hash[i], hlist) {
 			dev = vlan->dev;

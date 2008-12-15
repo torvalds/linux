@@ -591,8 +591,8 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	/* Update the per-port timeout */
 	uart_update_timeout(port, new->c_cflag, baud);
 
-	/* Do our best to flush TX & RX, so we don't loose anything */
-	/* But we don't wait indefinitly ! */
+	/* Do our best to flush TX & RX, so we don't lose anything */
+	/* But we don't wait indefinitely ! */
 	j = 5000000;	/* Maximum wait */
 	/* FIXME Can't receive chars since set_termios might be called at early
 	 * boot for the console, all stuff is not yet ready to receive at that

@@ -326,6 +326,8 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 				tp->snd_cwnd = 2;
 			else if (tp->snd_cwnd > tp->snd_cwnd_clamp)
 				tp->snd_cwnd = tp->snd_cwnd_clamp;
+
+			tp->snd_ssthresh = tcp_current_ssthresh(sk);
 		}
 
 		/* Wipe the slate clean for the next RTT. */

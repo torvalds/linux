@@ -168,13 +168,13 @@ static inline void __init sdp2430_init_smc91x(void)
 	sdp2430_smc91x_resources[0].end = cs_mem_base + 0x30f;
 	udelay(100);
 
-	if (omap_request_gpio(OMAP24XX_ETHR_GPIO_IRQ) < 0) {
+	if (gpio_request(OMAP24XX_ETHR_GPIO_IRQ, "SMC91x irq") < 0) {
 		printk(KERN_ERR "Failed to request GPIO%d for smc91x IRQ\n",
 			OMAP24XX_ETHR_GPIO_IRQ);
 		gpmc_cs_free(eth_cs);
 		goto out;
 	}
-	omap_set_gpio_direction(OMAP24XX_ETHR_GPIO_IRQ, 1);
+	gpio_direction_input(OMAP24XX_ETHR_GPIO_IRQ);
 
 out:
 	clk_disable(gpmc_fck);
