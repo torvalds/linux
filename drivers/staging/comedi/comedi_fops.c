@@ -104,8 +104,12 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_device_file_info *dev_file_info =
 	    comedi_get_device_file_info(minor);
-	comedi_device *dev = dev_file_info->device;
+	comedi_device *dev;
 	int rc;
+
+	if (dev_file_info == NULL || dev_file_info->device == NULL)
+		return -ENODEV;
+	dev = dev_file_info->device;
 
 	mutex_lock(&dev->mutex);
 
