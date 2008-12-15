@@ -332,6 +332,10 @@ void cx18_init_memory(struct cx18 *cx)
 
 int cx18_firmware_init(struct cx18 *cx)
 {
+	u32 fw_entry_addr;
+	int sz, retries;
+	u32 api_args[MAX_MB_ARGUMENTS];
+
 	/* Allow chip to control CLKRUN */
 	cx18_write_reg(cx, 0x5, CX18_DSP0_INTERRUPT_MASK);
 
@@ -341,64 +345,61 @@ int cx18_firmware_init(struct cx18 *cx)
 
 	cx18_msleep_timeout(1, 0);
 
+	/* If the CPU is still running */
+	if ((cx18_read_reg(cx, CX18_PROC_SOFT_RESET) & 8) == 0) {
+		CX18_ERR("%s: couldn't stop CPU to load firmware\n", __func__);
+		return -EIO;
+	}
+
 	cx18_sw1_irq_enable(cx, IRQ_CPU_TO_EPU | IRQ_APU_TO_EPU);
 	cx18_sw2_irq_enable(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
 
-	/* Only if the processor is not running */
-	if (cx18_read_reg(cx, CX18_PROC_SOFT_RESET) & 8) {
-		u32 fw_entry_addr = 0;
-		int sz = load_apu_fw_direct("v4l-cx23418-apu.fw",
-			       cx->enc_mem, cx, &fw_entry_addr);
+	sz = load_cpu_fw_direct("v4l-cx23418-cpu.fw", cx->enc_mem, cx);
+	if (sz <= 0)
+		return sz;
 
-		if (sz <= 0)
-			return sz;
+	/* The SCB & IPC area *must* be correct before starting the firmwares */
+	cx18_init_scb(cx);
 
-		/* Clear bit0 for APU to start from 0 */
-		cx18_write_reg(cx, cx18_read_reg(cx, 0xc72030) & ~1, 0xc72030);
+	fw_entry_addr = 0;
+	sz = load_apu_fw_direct("v4l-cx23418-apu.fw", cx->enc_mem, cx,
+				&fw_entry_addr);
+	if (sz <= 0)
+		return sz;
 
-		cx18_write_enc(cx, 0xE51FF004, 0);    /* ldr pc, [pc, #-4] */
-		cx18_write_enc(cx, fw_entry_addr, 4);
+	/* Start the CPU. The CPU will take care of the APU for us. */
+	cx18_write_reg_expect(cx, 0x00080000, CX18_PROC_SOFT_RESET,
+				  0x00000000, 0x00080008);
 
-		/* Start APU */
-		cx18_write_reg_expect(cx, 0x00010000, CX18_PROC_SOFT_RESET,
-					  0x00000000, 0x00010001);
-		cx18_msleep_timeout(500, 0);
+	/* Wait up to 500 ms for the APU to come out of reset */
+	for (retries = 0;
+	     retries < 50 && (cx18_read_reg(cx, CX18_PROC_SOFT_RESET) & 1) == 1;
+	     retries++)
+		cx18_msleep_timeout(10, 0);
 
-		sz = sz <= 0 ? sz : load_cpu_fw_direct("v4l-cx23418-cpu.fw",
-					cx->enc_mem, cx);
+	cx18_msleep_timeout(200, 0);
 
-		if (sz > 0) {
-			int retries = 0;
-
-			/* start the CPU */
-			cx18_write_reg_expect(cx,
-					      0x00080000, CX18_PROC_SOFT_RESET,
-					      0x00000000, 0x00080008);
-			while (retries++ < 50) { /* Loop for max 500mS */
-				if ((cx18_read_reg(cx, CX18_PROC_SOFT_RESET)
-				     & 1) == 0)
-					break;
-				cx18_msleep_timeout(10, 0);
-			}
-			cx18_msleep_timeout(200, 0);
-			if (retries == 51) {
-				CX18_ERR("Could not start the CPU\n");
-				return -EIO;
-			}
-		}
-		if (sz <= 0)
-			return -EIO;
+	if (retries == 50 &&
+	    (cx18_read_reg(cx, CX18_PROC_SOFT_RESET) & 1) == 1) {
+		CX18_ERR("Could not start the CPU\n");
+		return -EIO;
 	}
 
 	/*
-	 * The CPU firmware apparently sets up to receive an interrupt for it's
-	 * outgoing IRQ_CPU_TO_EPU_ACK to us (*boggle*).  We get an interrupt
-	 * when it sends us an ack, but by the time we process it, that flag in
-	 * the SW2 status register has been cleared by the CPU firmware.
-	 * We'll prevent that not so useful behavior by clearing the CPU's
-	 * interrupt enables for Ack IRQ's we want to process.
+	 * The CPU had once before set up to receive an interrupt for it's
+	 * outgoing IRQ_CPU_TO_EPU_ACK to us.  If it ever does this, we get an
+	 * interrupt when it sends us an ack, but by the time we process it,
+	 * that flag in the SW2 status register has been cleared by the CPU
+	 * firmware.  We'll prevent that not so useful condition from happening
+	 * by clearing the CPU's interrupt enables for Ack IRQ's we want to
+	 * process.
 	 */
 	cx18_sw2_irq_disable_cpu(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
+
+	/* Try a benign command to see if the CPU is alive and well */
+	sz = cx18_vapi_result(cx, api_args, CX18_CPU_DEBUG_PEEK32, 1, 0);
+	if (sz < 0)
+		return sz;
 
 	/* initialize GPIO */
 	cx18_write_reg_expect(cx, 0x14001400, 0xc78110, 0x00001400, 0x14001400);

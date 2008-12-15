@@ -118,6 +118,5 @@ void cx18_init_scb(struct cx18 *cx)
 	cx18_writel(cx, SCB_OFFSET + offsetof(struct cx18_scb, cpu_state),
 			&cx->scb->ipc_offset);
 
-	cx18_writel(cx, 1, &cx->scb->hpu_state);
 	cx18_writel(cx, 1, &cx->scb->epu_state);
 }

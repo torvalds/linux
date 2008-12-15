@@ -878,6 +878,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 		goto free_i2c;
 	}
 	cx18_init_memory(cx);
+	cx18_init_scb(cx);
 
 	/* Register IRQ */
 	retval = request_irq(cx->dev->irq, cx18_irq_handler,
