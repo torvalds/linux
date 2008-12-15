@@ -332,6 +332,7 @@ static noinline int compress_file_range(struct inode *inode,
 	u64 disk_num_bytes;
 	u64 blocksize = root->sectorsize;
 	u64 actual_end;
+	u64 isize = i_size_read(inode);
 	int ret = 0;
 	struct page **pages = NULL;
 	unsigned long nr_pages;
@@ -345,12 +346,12 @@ static noinline int compress_file_range(struct inode *inode,
 
 	orig_start = start;
 
+	actual_end = min_t(u64, isize, end + 1);
 again:
 	will_compress = 0;
 	nr_pages = (end >> PAGE_CACHE_SHIFT) - (start >> PAGE_CACHE_SHIFT) + 1;
 	nr_pages = min(nr_pages, (128 * 1024UL) / PAGE_CACHE_SIZE);
 
-	actual_end = min_t(u64, i_size_read(inode), end + 1);
 	total_compressed = actual_end - start;
 
 	/* we want to make sure that amount of ram required to uncompress
@@ -488,7 +489,7 @@ again:
 		add_async_extent(async_cow, start, num_bytes,
 				 total_compressed, pages, nr_pages_ret);
 
-		if (start + num_bytes < end) {
+		if (start + num_bytes < end && start + num_bytes < actual_end) {
 			start += num_bytes;
 			pages = NULL;
 			cond_resched();
@@ -696,6 +697,7 @@ static noinline int cow_file_range(struct inode *inode,
 	u64 cur_alloc_size;
 	u64 blocksize = root->sectorsize;
 	u64 actual_end;
+	u64 isize = i_size_read(inode);
 	struct btrfs_key ins;
 	struct extent_map *em;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
@@ -705,7 +707,7 @@ static noinline int cow_file_range(struct inode *inode,
 	BUG_ON(!trans);
 	btrfs_set_trans_block_group(trans, inode);
 
-	actual_end = min_t(u64, i_size_read(inode), end + 1);
+	actual_end = min_t(u64, isize, end + 1);
 
 	num_bytes = (end - start + blocksize) & ~(blocksize - 1);
 	num_bytes = max(blocksize,  num_bytes);

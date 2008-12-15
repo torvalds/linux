@@ -2887,8 +2887,8 @@ int btrfs_split_item(struct btrfs_trans_handle *trans,
 	path->keep_locks = 0;
 	BUG_ON(ret);
 
-	BUG_ON(btrfs_leaf_free_space(root, leaf) < sizeof(struct btrfs_item));
 	leaf = path->nodes[0];
+	BUG_ON(btrfs_leaf_free_space(root, leaf) < sizeof(struct btrfs_item));
 
 split:
 	item = btrfs_item_nr(leaf, path->slots[0]);
