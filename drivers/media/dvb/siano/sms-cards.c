@@ -120,7 +120,7 @@ static struct sms_board sms_boards[] = {
 		.name	= "Hauppauge WinTV MiniCard",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
-		.lna_ctrl  = 1,
+		.lna_ctrl  = -1,
 	},
 };
 
