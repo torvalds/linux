@@ -1501,8 +1501,7 @@ static int ip6mr_forward2(struct sk_buff *skb, struct mfc6_cache *c, int vifi)
 		vif->dev->stats.tx_bytes += skb->len;
 		vif->dev->stats.tx_packets++;
 		ip6mr_cache_report(net, skb, vifi, MRT6MSG_WHOLEPKT);
-		kfree_skb(skb);
-		return 0;
+		goto out_free;
 	}
 #endif
 
