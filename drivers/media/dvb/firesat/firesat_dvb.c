@@ -206,7 +206,7 @@ int firesat_dvbdev_init(struct firesat *firesat, struct device *dev)
 	err = DVB_REGISTER_ADAPTER(&firesat->adapter,
 				   firedtv_model_names[firesat->type],
 				   THIS_MODULE, dev, adapter_nr);
-	if (err)
+	if (err < 0)
 		goto fail_log;
 
 	/*DMX_TS_FILTERING | DMX_SECTION_FILTERING*/
