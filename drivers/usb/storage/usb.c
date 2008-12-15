@@ -134,6 +134,8 @@ static struct quirks_entry *quirks_list, *quirks_end;
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin,bcdDeviceMax), \
   .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
 
+#define COMPLIANT_DEV	UNUSUAL_DEV
+
 #define USUAL_DEV(useProto, useTrans, useType) \
 { USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, useProto, useTrans), \
   .driver_info = (USB_US_TYPE_STOR<<24) }
@@ -142,6 +144,7 @@ static struct usb_device_id storage_usb_ids [] = {
 
 #	include "unusual_devs.h"
 #undef UNUSUAL_DEV
+#undef COMPLIANT_DEV
 #undef USUAL_DEV
 	/* Terminating entry */
 	{ }
@@ -172,6 +175,8 @@ MODULE_DEVICE_TABLE (usb, storage_usb_ids);
 	.initFunction = init_function,	\
 }
 
+#define COMPLIANT_DEV	UNUSUAL_DEV
+
 #define USUAL_DEV(use_protocol, use_transport, use_type) \
 { \
 	.useProtocol = use_protocol,	\
@@ -181,6 +186,7 @@ MODULE_DEVICE_TABLE (usb, storage_usb_ids);
 static struct us_unusual_dev us_unusual_dev_list[] = {
 #	include "unusual_devs.h" 
 #	undef UNUSUAL_DEV
+#	undef COMPLIANT_DEV
 #	undef USUAL_DEV
 
 	/* Terminating entry */

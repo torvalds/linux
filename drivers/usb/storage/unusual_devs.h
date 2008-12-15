@@ -27,7 +27,8 @@
 
 /* IMPORTANT NOTE: This file must be included in another file which does
  * the following thing for it to work:
- * The macro UNUSUAL_DEV() must be defined before this file is included
+ * The UNUSUAL_DEV, COMPLIANT_DEV, and USUAL_DEV macros must be defined
+ * before this file is included.
  */
 
 /* If you edit this file, please try to keep it sorted first by VendorID,
@@ -44,6 +45,12 @@
  * Alan Stern <stern@rowland.harvard.edu>, and don't forget to CC: the
  * USB development list <linux-usb@vger.kernel.org> and the USB storage list
  * <usb-storage@lists.one-eyed-alien.net>
+ */
+
+/* Note: If you add an entry only in order to set the CAPACITY_OK flag,
+ * use the COMPLIANT_DEV macro instead of UNUSUAL_DEV.  This is
+ * because such entries mark devices which actually work correctly,
+ * as opposed to devices that do something strangely or wrongly.
  */
 
 /* patch submitted by Vivian Bregier <Vivian.Bregier@imag.fr>
@@ -703,6 +710,13 @@ UNUSUAL_DEV(  0x0525, 0xa140, 0x0100, 0x0100,
 		"USB Clik! 40",
 		US_SC_8070, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
+
+/* Added by Alan Stern <stern@rowland.harvard.edu> */
+COMPLIANT_DEV(0x0525, 0xa4a5, 0x0000, 0x9999,
+		"Linux",
+		"File-backed Storage Gadget",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_CAPACITY_OK ),
 
 /* Yakumo Mega Image 37
  * Submitted by Stephan Fuhrmann <atomenergie@t-online.de> */

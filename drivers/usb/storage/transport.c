@@ -57,6 +57,9 @@
 #include "scsiglue.h"
 #include "debug.h"
 
+#include <linux/blkdev.h>
+#include "../../scsi/sd.h"
+
 
 /***********************************************************************
  * Data transfer routines
@@ -511,6 +514,110 @@ int usb_stor_bulk_transfer_sg(struct us_data* us, unsigned int pipe,
  * Transport routines
  ***********************************************************************/
 
+/* There are so many devices that report the capacity incorrectly,
+ * this routine was written to counteract some of the resulting
+ * problems.
+ */
+static void last_sector_hacks(struct us_data *us, struct scsi_cmnd *srb)
+{
+	struct gendisk *disk;
+	struct scsi_disk *sdkp;
+	u32 sector;
+
+	/* To Report "Medium Error: Record Not Found */
+	static unsigned char record_not_found[18] = {
+		[0]	= 0x70,			/* current error */
+		[2]	= MEDIUM_ERROR,		/* = 0x03 */
+		[7]	= 0x0a,			/* additional length */
+		[12]	= 0x14			/* Record Not Found */
+	};
+
+	/* If last-sector problems can't occur, whether because the
+	 * capacity was already decremented or because the device is
+	 * known to report the correct capacity, then we don't need
+	 * to do anything.
+	 */
+	if (!us->use_last_sector_hacks)
+		return;
+
+	/* Was this command a READ(10) or a WRITE(10)? */
+	if (srb->cmnd[0] != READ_10 && srb->cmnd[0] != WRITE_10)
+		goto done;
+
+	/* Did this command access the last sector? */
+	sector = (srb->cmnd[2] << 24) | (srb->cmnd[3] << 16) |
+			(srb->cmnd[4] << 8) | (srb->cmnd[5]);
+	disk = srb->request->rq_disk;
+	if (!disk)
+		goto done;
+	sdkp = scsi_disk(disk);
+	if (!sdkp)
+		goto done;
+	if (sector + 1 != sdkp->capacity)
+		goto done;
+
+	if (srb->result == SAM_STAT_GOOD && scsi_get_resid(srb) == 0) {
+
+		/* The command succeeded.  If the capacity is odd
+		 * (i.e., if the sector number is even) then the
+		 * "always-even" heuristic would be wrong for this
+		 * device.  Issue a WARN() so that the kerneloops.org
+		 * project will be notified and we will then know to
+		 * mark the device with a CAPACITY_OK flag.  Hopefully
+		 * this will occur for only a few devices.
+		 *
+		 * Use the sign of us->last_sector_hacks to tell whether
+		 * the warning has already been issued; we don't need
+		 * more than one warning per device.
+		 */
+		if (!(sector & 1) && us->use_last_sector_hacks > 0) {
+			unsigned vid = le16_to_cpu(
+					us->pusb_dev->descriptor.idVendor);
+			unsigned pid = le16_to_cpu(
+					us->pusb_dev->descriptor.idProduct);
+			unsigned rev = le16_to_cpu(
+					us->pusb_dev->descriptor.bcdDevice);
+
+			WARN(1, "%s: Successful last sector success at %u, "
+					"device %04x:%04x:%04x\n",
+					sdkp->disk->disk_name, sector,
+					vid, pid, rev);
+			us->use_last_sector_hacks = -1;
+		}
+
+	} else {
+		/* The command failed.  Allow up to 3 retries in case this
+		 * is some normal sort of failure.  After that, assume the
+		 * capacity is wrong and we're trying to access the sector
+		 * beyond the end.  Replace the result code and sense data
+		 * with values that will cause the SCSI core to fail the
+		 * command immediately, instead of going into an infinite
+		 * (or even just a very long) retry loop.
+		 */
+		if (++us->last_sector_retries < 3)
+			return;
+		srb->result = SAM_STAT_CHECK_CONDITION;
+		memcpy(srb->sense_buffer, record_not_found,
+				sizeof(record_not_found));
+
+		/* In theory we might want to issue a WARN() here if the
+		 * capacity is even, since it could indicate the device
+		 * has the READ CAPACITY bug _and_ the real capacity is
+		 * odd.  But it could also indicate that the device
+		 * simply can't access its last sector, a failure mode
+		 * which is surprisingly common.  So no warning.
+		 */
+	}
+
+ done:
+	/* Don't reset the retry counter for TEST UNIT READY commands,
+	 * because they get issued after device resets which might be
+	 * caused by a failed last-sector access.
+	 */
+	if (srb->cmnd[0] != TEST_UNIT_READY)
+		us->last_sector_retries = 0;
+}
+
 /* Invoke the transport and basic error-handling/recovery methods
  *
  * This is used by the protocol layers to actually send the message to
@@ -544,6 +651,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* if the transport provided its own sense data, don't auto-sense */
 	if (result == USB_STOR_TRANSPORT_NO_SENSE) {
 		srb->result = SAM_STAT_CHECK_CONDITION;
+		last_sector_hacks(us, srb);
 		return;
 	}
 
@@ -705,6 +813,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 			scsi_bufflen(srb) - scsi_get_resid(srb) < srb->underflow)
 		srb->result = (DID_ERROR << 16) | (SUGGEST_RETRY << 24);
 
+	last_sector_hacks(us, srb);
 	return;
 
 	/* Error and abort processing: try to resynchronize with the device
@@ -732,6 +841,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		us->transport_reset(us);
 	}
 	clear_bit(US_FLIDX_RESETTING, &us->dflags);
+	last_sector_hacks(us, srb);
 }
 
 /* Stop the current URB transfer */

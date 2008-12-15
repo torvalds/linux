@@ -208,6 +208,14 @@ static int slave_configure(struct scsi_device *sdev)
 		 * sector in a larger then 1 sector read, since the performance
 		 * impact is negible we set this flag for all USB disks */
 		sdev->last_sector_bug = 1;
+
+		/* Enable last-sector hacks for single-target devices using
+		 * the Bulk-only transport, unless we already know the
+		 * capacity will be decremented or is correct. */
+		if (!(us->fflags & (US_FL_FIX_CAPACITY | US_FL_CAPACITY_OK |
+					US_FL_SCM_MULT_TARG)) &&
+				us->protocol == US_PR_BULK)
+			us->use_last_sector_hacks = 1;
 	} else {
 
 		/* Non-disk-type devices don't need to blacklist any pages

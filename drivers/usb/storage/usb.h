@@ -154,6 +154,10 @@ struct us_data {
 #ifdef CONFIG_PM
 	pm_hook			suspend_resume_hook;
 #endif
+
+	/* hacks for READ CAPACITY bug handling */
+	int			use_last_sector_hacks;
+	int			last_sector_retries;
 };
 
 /* Convert between us_data and the corresponding Scsi_Host */
