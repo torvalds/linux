@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
+#include <linux/mfd/tc6393xb.h>
 
 #include <video/w100fb.h>
 
@@ -23,12 +24,14 @@
 #include <asm/mach-types.h>
 
 #include <mach/mfp-pxa25x.h>
+#include <mach/pxa-regs.h>
 #include <mach/hardware.h>
 #include <mach/eseries-gpio.h>
 #include <mach/udc.h>
 
 #include "generic.h"
 #include "eseries.h"
+#include "clock.h"
 
 /* ------------------------ e800 LCD definitions ------------------------- */
 
@@ -160,14 +163,41 @@ static struct pxa2xx_udc_mach_info e800_udc_mach_info = {
 	.gpio_pullup_inverted = 1
 };
 
+/* ----------------- e800 tc6393xb parameters ------------------ */
+
+static struct tc6393xb_platform_data e800_tc6393xb_info = {
+	.irq_base       = IRQ_BOARD_START,
+	.scr_pll2cr     = 0x0cc1,
+	.scr_gper       = 0,
+	.gpio_base      = -1,
+	.suspend        = &eseries_tmio_suspend,
+	.resume         = &eseries_tmio_resume,
+	.enable         = &eseries_tmio_enable,
+	.disable        = &eseries_tmio_disable,
+};
+
+static struct platform_device e800_tc6393xb_device = {
+	.name           = "tc6393xb",
+	.id             = -1,
+	.dev            = {
+		.platform_data = &e800_tc6393xb_info,
+	},
+	.num_resources = 2,
+	.resource      = eseries_tmio_resources,
+};
+
 /* ----------------------------------------------------------------------- */
 
 static struct platform_device *devices[] __initdata = {
 	&e800_fb_device,
+	&e800_tc6393xb_device,
 };
 
 static void __init e800_init(void)
 {
+	clk_add_alias("CLK_CK3P6MI", &e800_tc6393xb_device.dev,
+			"GPIO11_CLK", NULL),
+	eseries_get_tmio_gpios();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_udc_info(&e800_udc_mach_info);
 }
