@@ -1010,12 +1010,6 @@ static void ethdev_setup(struct net_device *dev)
 	if (ei_debug > 1)
 		printk(version);
 
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	dev->hard_start_xmit = ei_start_xmit;
-	dev->get_stats	= ei_get_stats;
-	dev->set_multicast_list = ei_set_multicast_list;
-	dev->tx_timeout = __ei_tx_timeout;
-#endif
 	ether_setup(dev);
 
 	spin_lock_init(&ei_local->page_lock);
