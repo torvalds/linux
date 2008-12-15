@@ -409,6 +409,7 @@ static int init_ibs_nmi(void)
 				       | IBSCTL_LVTOFFSETVAL);
 		pci_read_config_dword(cpu_cfg, IBSCTL, &value);
 		if (value != (ibs_eilvt_off | IBSCTL_LVTOFFSETVAL)) {
+			pci_dev_put(cpu_cfg);
 			printk(KERN_DEBUG "Failed to setup IBS LVT offset, "
 				"IBSCTL = 0x%08x", value);
 			return 1;
