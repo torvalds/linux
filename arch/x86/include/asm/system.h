@@ -17,11 +17,11 @@
 # define AT_VECTOR_SIZE_ARCH 1
 #endif
 
-#ifdef CONFIG_X86_32
-
 struct task_struct; /* one of the stranger aspects of C forward declarations */
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next);
+
+#ifdef CONFIG_X86_32
 
 /*
  * Saving eflags is important. It switches not only IOPL between tasks,
