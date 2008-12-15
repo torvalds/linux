@@ -125,7 +125,15 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
-	tx_info->status.rates[0].count = tx_status->retries + 1;
+	tx_info->status.rates[0].count = tx_status->retries;
+	if (tx_info->status.rates[0].flags & IEEE80211_TX_RC_MCS) {
+		/* Change idx from internal table index to MCS index */
+		int idx = tx_info->status.rates[0].idx;
+		struct ath_rate_table *rate_table = sc->cur_rate_table;
+		if (idx >= 0 && idx < rate_table->rate_cnt)
+			tx_info->status.rates[0].idx =
+				rate_table->info[idx].ratecode & 0x7f;
+	}
 
 	ieee80211_tx_status(hw, skb);
 }
