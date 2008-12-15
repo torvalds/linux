@@ -510,12 +510,9 @@ static void __cpuinit mce_cpu_features(struct cpuinfo_x86 *c)
  */
 void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 {
-	static cpumask_t mce_cpus = CPU_MASK_NONE;
-
 	mce_cpu_quirks(c);
 
 	if (mce_dont_init ||
-	    cpu_test_and_set(smp_processor_id(), mce_cpus) ||
 	    !mce_available(c))
 		return;
 
