@@ -189,21 +189,21 @@ static inline int is_page_fault(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
 			     INTR_INFO_VALID_MASK)) ==
-		(INTR_TYPE_EXCEPTION | PF_VECTOR | INTR_INFO_VALID_MASK);
+		(INTR_TYPE_HARD_EXCEPTION | PF_VECTOR | INTR_INFO_VALID_MASK);
 }
 
 static inline int is_no_device(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
 			     INTR_INFO_VALID_MASK)) ==
-		(INTR_TYPE_EXCEPTION | NM_VECTOR | INTR_INFO_VALID_MASK);
+		(INTR_TYPE_HARD_EXCEPTION | NM_VECTOR | INTR_INFO_VALID_MASK);
 }
 
 static inline int is_invalid_opcode(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
 			     INTR_INFO_VALID_MASK)) ==
-		(INTR_TYPE_EXCEPTION | UD_VECTOR | INTR_INFO_VALID_MASK);
+		(INTR_TYPE_HARD_EXCEPTION | UD_VECTOR | INTR_INFO_VALID_MASK);
 }
 
 static inline int is_external_interrupt(u32 intr_info)
@@ -747,29 +747,33 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 				bool has_error_code, u32 error_code)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 intr_info = nr | INTR_INFO_VALID_MASK;
 
-	if (has_error_code)
+	if (has_error_code) {
 		vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, error_code);
+		intr_info |= INTR_INFO_DELIVER_CODE_MASK;
+	}
 
 	if (vcpu->arch.rmode.active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = nr;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
-		if (nr == BP_VECTOR)
+		if (nr == BP_VECTOR || nr == OF_VECTOR)
 			vmx->rmode.irq.rip++;
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-			     nr | INTR_TYPE_SOFT_INTR
-			     | (has_error_code ? INTR_INFO_DELIVER_CODE_MASK : 0)
-			     | INTR_INFO_VALID_MASK);
+		intr_info |= INTR_TYPE_SOFT_INTR;
+		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
 		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
 		return;
 	}
 
-	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-		     nr | INTR_TYPE_EXCEPTION
-		     | (has_error_code ? INTR_INFO_DELIVER_CODE_MASK : 0)
-		     | INTR_INFO_VALID_MASK);
+	if (nr == BP_VECTOR || nr == OF_VECTOR) {
+		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
+		intr_info |= INTR_TYPE_SOFT_EXCEPTION;
+	} else
+		intr_info |= INTR_TYPE_HARD_EXCEPTION;
+
+	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
 }
 
 static bool vmx_exception_injected(struct kvm_vcpu *vcpu)
@@ -2650,7 +2654,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	if ((intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK)) ==
-	    (INTR_TYPE_EXCEPTION | 1)) {
+	    (INTR_TYPE_HARD_EXCEPTION | 1)) {
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
 		return 0;
 	}
@@ -3238,7 +3242,8 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 			vmx->vcpu.arch.nmi_injected = false;
 	}
 	kvm_clear_exception_queue(&vmx->vcpu);
-	if (idtv_info_valid && type == INTR_TYPE_EXCEPTION) {
+	if (idtv_info_valid && (type == INTR_TYPE_HARD_EXCEPTION ||
+				type == INTR_TYPE_SOFT_EXCEPTION)) {
 		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
 			error = vmcs_read32(IDT_VECTORING_ERROR_CODE);
 			kvm_queue_exception_e(&vmx->vcpu, vector, error);
