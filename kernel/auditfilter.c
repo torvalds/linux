@@ -919,6 +919,7 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 	new->action = old->action;
 	for (i = 0; i < AUDIT_BITMASK_SIZE; i++)
 		new->mask[i] = old->mask[i];
+	new->prio = old->prio;
 	new->buflen = old->buflen;
 	new->inode_f = old->inode_f;
 	new->watch = NULL;
@@ -987,9 +988,8 @@ static void audit_update_watch(struct audit_parent *parent,
 
 		/* If the update involves invalidating rules, do the inode-based
 		 * filtering now, so we don't omit records. */
-		if (invalidating && current->audit_context &&
-		    audit_filter_inodes(current, current->audit_context) == AUDIT_RECORD_CONTEXT)
-			audit_set_auditable(current->audit_context);
+		if (invalidating && current->audit_context)
+			audit_filter_inodes(current, current->audit_context);
 
 		nwatch = audit_dupe_watch(owatch);
 		if (IS_ERR(nwatch)) {
@@ -1258,6 +1258,9 @@ static int audit_add_watch(struct audit_krule *krule, struct nameidata *ndp,
 	return ret;
 }
 
+static u64 prio_low = ~0ULL/2;
+static u64 prio_high = ~0ULL/2 - 1;
+
 /* Add rule to given filterlist if not a duplicate. */
 static inline int audit_add_rule(struct audit_entry *entry,
 				 struct list_head *list)
@@ -1317,6 +1320,14 @@ static inline int audit_add_rule(struct audit_entry *entry,
 			mutex_unlock(&audit_filter_mutex);
 			goto error;
 		}
+	}
+
+	entry->rule.prio = ~0ULL;
+	if (entry->rule.listnr == AUDIT_FILTER_EXIT) {
+		if (entry->rule.flags & AUDIT_FILTER_PREPEND)
+			entry->rule.prio = ++prio_high;
+		else
+			entry->rule.prio = --prio_low;
 	}
 
 	if (entry->rule.flags & AUDIT_FILTER_PREPEND) {
