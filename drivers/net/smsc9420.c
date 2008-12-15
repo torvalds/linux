@@ -293,6 +293,29 @@ static int smsc9420_ethtool_nway_reset(struct net_device *netdev)
 	return phy_start_aneg(pd->phy_dev);
 }
 
+static int smsc9420_ethtool_getregslen(struct net_device *dev)
+{
+	/* all smsc9420 registers plus all phy registers */
+	return 0x100 + (32 * sizeof(u32));
+}
+
+static void
+smsc9420_ethtool_getregs(struct net_device *dev, struct ethtool_regs *regs,
+			 void *buf)
+{
+	struct smsc9420_pdata *pd = netdev_priv(dev);
+	struct phy_device *phy_dev = pd->phy_dev;
+	unsigned int i, j = 0;
+	u32 *data = buf;
+
+	regs->version = smsc9420_reg_read(pd, ID_REV);
+	for (i = 0; i < 0x100; i += (sizeof(u32)))
+		data[j++] = smsc9420_reg_read(pd, i);
+
+	for (i = 0; i <= 31; i++)
+		data[j++] = smsc9420_mii_read(phy_dev->bus, phy_dev->addr, i);
+}
+
 static void smsc9420_eeprom_enable_access(struct smsc9420_pdata *pd)
 {
 	unsigned int temp = smsc9420_reg_read(pd, GPIO_CFG);
@@ -422,6 +445,8 @@ static const struct ethtool_ops smsc9420_ethtool_ops = {
 	.get_eeprom_len = smsc9420_ethtool_get_eeprom_len,
 	.get_eeprom = smsc9420_ethtool_get_eeprom,
 	.set_eeprom = smsc9420_ethtool_set_eeprom,
+	.get_regs_len = smsc9420_ethtool_getregslen,
+	.get_regs = smsc9420_ethtool_getregs,
 };
 
 /* Sets the device MAC address to dev_addr */
