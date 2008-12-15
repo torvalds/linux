@@ -2309,7 +2309,14 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 
 	obj_priv = obj->driver_private;
-	args->busy = obj_priv->active;
+	/* Don't count being on the flushing list against the object being
+	 * done.  Otherwise, a buffer left on the flushing list but not getting
+	 * flushed (because nobody's flushing that domain) won't ever return
+	 * unbusy and get reused by libdrm's bo cache.  The other expected
+	 * consumer of this interface, OpenGL's occlusion queries, also specs
+	 * that the objects get unbusy "eventually" without any interference.
+	 */
+	args->busy = obj_priv->active && obj_priv->last_rendering_seqno != 0;
 
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
