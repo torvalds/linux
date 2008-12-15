@@ -2478,6 +2478,11 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 {
 	vmx_update_window_states(vcpu);
 
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
+				GUEST_INTR_STATE_STI |
+				GUEST_INTR_STATE_MOV_SS);
+
 	if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
 		if (vcpu->arch.interrupt.pending) {
 			enable_nmi_window(vcpu);
@@ -3243,6 +3248,11 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 	update_tpr_threshold(vcpu);
 
 	vmx_update_window_states(vcpu);
+
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
+				GUEST_INTR_STATE_STI |
+				GUEST_INTR_STATE_MOV_SS);
 
 	if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
 		if (vcpu->arch.interrupt.pending) {
