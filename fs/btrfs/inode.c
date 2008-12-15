@@ -101,10 +101,9 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 	u64 total;
 	u64 used;
 	u64 thresh;
-	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
+	spin_lock(&root->fs_info->delalloc_lock);
 	total = btrfs_super_total_bytes(&root->fs_info->super_copy);
 	used = btrfs_super_bytes_used(&root->fs_info->super_copy);
 	if (for_del)
@@ -116,7 +115,7 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 
 	if (used + root->fs_info->delalloc_bytes + num_required > thresh)
 		ret = -ENOSPC;
-	spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
+	spin_unlock(&root->fs_info->delalloc_lock);
 	return ret;
 }
 
@@ -1166,17 +1165,21 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 static int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 		       unsigned long old, unsigned long bits)
 {
-	unsigned long flags;
+	/*
+	 * set_bit and clear bit hooks normally require _irqsave/restore
+	 * but in this case, we are only testeing for the DELALLOC
+	 * bit, which is only set or cleared with irqs on
+	 */
 	if (!(old & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
-		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
+		spin_lock(&root->fs_info->delalloc_lock);
 		BTRFS_I(inode)->delalloc_bytes += end - start + 1;
 		root->fs_info->delalloc_bytes += end - start + 1;
 		if (list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
 			list_add_tail(&BTRFS_I(inode)->delalloc_inodes,
 				      &root->fs_info->delalloc_inodes);
 		}
-		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
+		spin_unlock(&root->fs_info->delalloc_lock);
 	}
 	return 0;
 }
@@ -1187,11 +1190,15 @@ static int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 static int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 			 unsigned long old, unsigned long bits)
 {
+	/*
+	 * set_bit and clear bit hooks normally require _irqsave/restore
+	 * but in this case, we are only testeing for the DELALLOC
+	 * bit, which is only set or cleared with irqs on
+	 */
 	if ((old & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
-		unsigned long flags;
 
-		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
+		spin_lock(&root->fs_info->delalloc_lock);
 		if (end - start + 1 > root->fs_info->delalloc_bytes) {
 			printk("warning: delalloc account %Lu %Lu\n",
 			       end - start + 1, root->fs_info->delalloc_bytes);
@@ -1205,7 +1212,7 @@ static int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 		    !list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
 			list_del_init(&BTRFS_I(inode)->delalloc_inodes);
 		}
-		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
+		spin_unlock(&root->fs_info->delalloc_lock);
 	}
 	return 0;
 }
@@ -4651,27 +4658,26 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root)
 	struct list_head *head = &root->fs_info->delalloc_inodes;
 	struct btrfs_inode *binode;
 	struct inode *inode;
-	unsigned long flags;
 
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
-	spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
+	spin_lock(&root->fs_info->delalloc_lock);
 	while(!list_empty(head)) {
 		binode = list_entry(head->next, struct btrfs_inode,
 				    delalloc_inodes);
 		inode = igrab(&binode->vfs_inode);
 		if (!inode)
 			list_del_init(&binode->delalloc_inodes);
-		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
+		spin_unlock(&root->fs_info->delalloc_lock);
 		if (inode) {
 			filemap_flush(inode->i_mapping);
 			iput(inode);
 		}
 		cond_resched();
-		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
+		spin_lock(&root->fs_info->delalloc_lock);
 	}
-	spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
+	spin_unlock(&root->fs_info->delalloc_lock);
 
 	/* the filemap_flush will queue IO into the worker threads, but
 	 * we have to make sure the IO is actually started and that

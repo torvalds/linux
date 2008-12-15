@@ -1047,11 +1047,11 @@ search:
 		end = pos;
 
 		/* update the free space counters */
-		spin_lock_irq(&info->delalloc_lock);
+		spin_lock(&info->delalloc_lock);
 		super_used = btrfs_super_bytes_used(&info->super_copy);
 		btrfs_set_super_bytes_used(&info->super_copy,
 					   super_used - bytes_freed);
-		spin_unlock_irq(&info->delalloc_lock);
+		spin_unlock(&info->delalloc_lock);
 
 		root_used = btrfs_root_used(&extent_root->root_item);
 		btrfs_set_root_used(&extent_root->root_item,
@@ -2463,11 +2463,11 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 			BUG_ON(ret < 0);
 		}
 		/* block accounting for super block */
-		spin_lock_irq(&info->delalloc_lock);
+		spin_lock(&info->delalloc_lock);
 		super_used = btrfs_super_bytes_used(&info->super_copy);
 		btrfs_set_super_bytes_used(&info->super_copy,
 					   super_used - num_bytes);
-		spin_unlock_irq(&info->delalloc_lock);
+		spin_unlock(&info->delalloc_lock);
 
 		/* block accounting for root item */
 		root_used = btrfs_root_used(&root->root_item);
@@ -3151,10 +3151,10 @@ static int __btrfs_alloc_reserved_extent(struct btrfs_trans_handle *trans,
 		parent = ins->objectid;
 
 	/* block accounting for super block */
-	spin_lock_irq(&info->delalloc_lock);
+	spin_lock(&info->delalloc_lock);
 	super_used = btrfs_super_bytes_used(&info->super_copy);
 	btrfs_set_super_bytes_used(&info->super_copy, super_used + num_bytes);
-	spin_unlock_irq(&info->delalloc_lock);
+	spin_unlock(&info->delalloc_lock);
 
 	/* block accounting for root item */
 	root_used = btrfs_root_used(&root->root_item);
