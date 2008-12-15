@@ -913,6 +913,8 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 #endif
 	default:
 		v4l_print_ioctl("compat_ioctl32", cmd);
+		printk(KERN_CONT "\n");
+		break;
 	}
 	return ret;
 }
