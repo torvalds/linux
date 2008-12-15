@@ -19,6 +19,9 @@
 /* kernel/ioport.c */
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
 
+/* kernel/ldt.c */
+asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
+
 /* X86_32 only */
 #ifdef CONFIG_X86_32
 /* kernel/process_32.c */
@@ -37,9 +40,6 @@ asmlinkage int sys_rt_sigreturn(unsigned long);
 
 /* kernel/ioport.c */
 asmlinkage long sys_iopl(unsigned long);
-
-/* kernel/ldt.c */
-asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
 
 /* kernel/sys_i386_32.c */
 asmlinkage long sys_mmap2(unsigned long, unsigned long, unsigned long,
