@@ -1314,7 +1314,15 @@ static void cfq_exit_single_io_context(struct io_context *ioc,
 		unsigned long flags;
 
 		spin_lock_irqsave(q->queue_lock, flags);
-		__cfq_exit_single_io_context(cfqd, cic);
+
+		/*
+		 * Ensure we get a fresh copy of the ->key to prevent
+		 * race between exiting task and queue
+		 */
+		smp_read_barrier_depends();
+		if (cic->key)
+			__cfq_exit_single_io_context(cfqd, cic);
+
 		spin_unlock_irqrestore(q->queue_lock, flags);
 	}
 }
