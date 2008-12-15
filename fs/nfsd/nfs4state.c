@@ -2416,6 +2416,26 @@ out:
 #define LOCK_HASH_SIZE             (1 << LOCK_HASH_BITS)
 #define LOCK_HASH_MASK             (LOCK_HASH_SIZE - 1)
 
+static inline u64
+end_offset(u64 start, u64 len)
+{
+	u64 end;
+
+	end = start + len;
+	return end >= start ? end: NFS4_MAX_UINT64;
+}
+
+/* last octet in a range */
+static inline u64
+last_byte_offset(u64 start, u64 len)
+{
+	u64 end;
+
+	BUG_ON(!len);
+	end = start + len;
+	return end > start ? end - 1: NFS4_MAX_UINT64;
+}
+
 #define lockownerid_hashval(id) \
         ((id) & LOCK_HASH_MASK)
 
@@ -2519,8 +2539,8 @@ nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 		deny->ld_clientid.cl_id = 0;
 	}
 	deny->ld_start = fl->fl_start;
-	deny->ld_length = ~(u64)0;
-	if (fl->fl_end != ~(u64)0)
+	deny->ld_length = NFS4_MAX_UINT64;
+	if (fl->fl_end != NFS4_MAX_UINT64)
 		deny->ld_length = fl->fl_end - fl->fl_start + 1;        
 	deny->ld_type = NFS4_READ_LT;
 	if (fl->fl_type != F_RDLCK)
@@ -2617,7 +2637,7 @@ out:
 static int
 check_lock_length(u64 offset, u64 length)
 {
-	return ((length == 0)  || ((length != ~(u64)0) &&
+	return ((length == 0)  || ((length != NFS4_MAX_UINT64) &&
 	     LOFF_OVERFLOW(offset, length)));
 }
 
@@ -2737,11 +2757,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 
 	file_lock.fl_start = lock->lk_offset;
-	if ((lock->lk_length == ~(u64)0) || 
-			LOFF_OVERFLOW(lock->lk_offset, lock->lk_length))
-		file_lock.fl_end = ~(u64)0;
-	else
-		file_lock.fl_end = lock->lk_offset + lock->lk_length - 1;
+	file_lock.fl_end = last_byte_offset(lock->lk_offset, lock->lk_length);
 	nfs4_transform_lock_offset(&file_lock);
 
 	/*
@@ -2858,10 +2874,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 
 	file_lock.fl_start = lockt->lt_offset;
-	if ((lockt->lt_length == ~(u64)0) || LOFF_OVERFLOW(lockt->lt_offset, lockt->lt_length))
-		file_lock.fl_end = ~(u64)0;
-	else
-		file_lock.fl_end = lockt->lt_offset + lockt->lt_length - 1;
+	file_lock.fl_end = last_byte_offset(lockt->lt_offset, lockt->lt_length);
 
 	nfs4_transform_lock_offset(&file_lock);
 
@@ -2917,10 +2930,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 	file_lock.fl_start = locku->lu_offset;
 
-	if ((locku->lu_length == ~(u64)0) || LOFF_OVERFLOW(locku->lu_offset, locku->lu_length))
-		file_lock.fl_end = ~(u64)0;
-	else
-		file_lock.fl_end = locku->lu_offset + locku->lu_length - 1;
+	file_lock.fl_end = last_byte_offset(locku->lu_offset, locku->lu_length);
 	nfs4_transform_lock_offset(&file_lock);
 
 	/*
