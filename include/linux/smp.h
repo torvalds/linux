@@ -21,6 +21,9 @@ struct call_single_data {
 	u16 priv;
 };
 
+/* total number of cpus in this system (may exceed NR_CPUS) */
+extern unsigned int total_cpus;
+
 #ifdef CONFIG_SMP
 
 #include <linux/preempt.h>
