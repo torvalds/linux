@@ -1345,12 +1345,11 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 {
 	struct task_struct *curr = rq->curr;
 	struct sched_entity *se = &curr->se, *pse = &p->se;
+	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
+
+	update_curr(cfs_rq);
 
 	if (unlikely(rt_prio(p->prio))) {
-		struct cfs_rq *cfs_rq = task_cfs_rq(curr);
-
-		update_rq_clock(rq);
-		update_curr(cfs_rq);
 		resched_task(curr);
 		return;
 	}
