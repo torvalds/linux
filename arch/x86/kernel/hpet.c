@@ -811,7 +811,7 @@ int __init hpet_enable(void)
 
 out_nohpet:
 	hpet_clear_mapping();
-	boot_hpet_disable = 1;
+	hpet_address = 0;
 	return 0;
 }
 
