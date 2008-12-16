@@ -93,6 +93,7 @@ static struct equiv_cpu_entry *equiv_cpu_table;
 static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	u32 dummy;
 
 	memset(csig, 0, sizeof(*csig));
 
@@ -102,9 +103,7 @@ static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 		return -1;
 	}
 
-	asm volatile("movl %1, %%ecx; rdmsr"
-		     : "=a" (csig->rev)
-		     : "i" (0x0000008B) : "ecx");
+	rdmsr(MSR_AMD64_PATCH_LEVEL, csig->rev, dummy);
 
 	printk(KERN_INFO "microcode: collect_cpu_info_amd : patch_id=0x%x\n",
 		csig->rev);
@@ -181,12 +180,10 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 static void apply_microcode_amd(int cpu)
 {
 	unsigned long flags;
-	unsigned int eax, edx;
-	unsigned int rev;
+	u32 rev, dummy;
 	int cpu_num = raw_smp_processor_id();
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 	struct microcode_amd *mc_amd = uci->mc;
-	unsigned long addr;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu_num != cpu);
@@ -195,19 +192,9 @@ static void apply_microcode_amd(int cpu)
 		return;
 
 	spin_lock_irqsave(&microcode_update_lock, flags);
-
-	addr = (unsigned long)&mc_amd->hdr.data_code;
-	edx = (unsigned int)(((unsigned long)upper_32_bits(addr)));
-	eax = (unsigned int)(((unsigned long)lower_32_bits(addr)));
-
-	asm volatile("movl %0, %%ecx; wrmsr" :
-		     : "i" (0xc0010020), "a" (eax), "d" (edx) : "ecx");
-
+	wrmsrl(MSR_AMD64_PATCH_LOADER, &mc_amd->hdr.data_code);
 	/* get patch id after patching */
-	asm volatile("movl %1, %%ecx; rdmsr"
-		     : "=a" (rev)
-		     : "i" (0x0000008B) : "ecx");
-
+	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 	spin_unlock_irqrestore(&microcode_update_lock, flags);
 
 	/* check current patch id and patch's id for match */
