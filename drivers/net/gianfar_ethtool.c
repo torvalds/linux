@@ -462,10 +462,11 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 		spin_lock(&priv->rxlock);
 
 		gfar_halt(dev);
-		gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 		spin_unlock(&priv->rxlock);
 		spin_unlock_irqrestore(&priv->txlock, flags);
+
+		gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
@@ -476,9 +477,10 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 	priv->tx_ring_size = rvals->tx_pending;
 
 	/* Rebuild the rings with the new size */
-	if (dev->flags & IFF_UP)
+	if (dev->flags & IFF_UP) {
 		err = startup_gfar(dev);
-
+		netif_wake_queue(dev);
+	}
 	return err;
 }
 
@@ -498,10 +500,11 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 		spin_lock(&priv->rxlock);
 
 		gfar_halt(dev);
-		gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 		spin_unlock(&priv->rxlock);
 		spin_unlock_irqrestore(&priv->txlock, flags);
+
+		gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
@@ -511,9 +514,10 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 	priv->rx_csum_enable = data;
 	spin_unlock_irqrestore(&priv->bflock, flags);
 
-	if (dev->flags & IFF_UP)
+	if (dev->flags & IFF_UP) {
 		err = startup_gfar(dev);
-
+		netif_wake_queue(dev);
+	}
 	return err;
 }
 
@@ -529,22 +533,19 @@ static uint32_t gfar_get_rx_csum(struct net_device *dev)
 
 static int gfar_set_tx_csum(struct net_device *dev, uint32_t data)
 {
-	unsigned long flags;
 	struct gfar_private *priv = netdev_priv(dev);
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return -EOPNOTSUPP;
 
-	spin_lock_irqsave(&priv->txlock, flags);
-	gfar_halt(dev);
+	netif_tx_lock_bh(dev);
 
 	if (data)
 		dev->features |= NETIF_F_IP_CSUM;
 	else
 		dev->features &= ~NETIF_F_IP_CSUM;
 
-	gfar_start(dev);
-	spin_unlock_irqrestore(&priv->txlock, flags);
+	netif_tx_unlock_bh(dev);
 
 	return 0;
 }
