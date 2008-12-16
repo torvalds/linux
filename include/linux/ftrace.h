@@ -6,6 +6,7 @@
 #include <linux/ktime.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/module.h>
 #include <linux/kallsyms.h>
 
 #ifdef CONFIG_FUNCTION_TRACER
@@ -231,7 +232,7 @@ ftrace_init_module(unsigned long *start, unsigned long *end) { }
 
 struct boot_trace {
 	pid_t			caller;
-	char			func[KSYM_NAME_LEN];
+	char			func[KSYM_SYMBOL_LEN];
 	int			result;
 	unsigned long long	duration;		/* usecs */
 	ktime_t			calltime;

@@ -209,12 +209,18 @@ static int ds1672_probe(struct i2c_client *client,
 	return err;
 }
 
+static struct i2c_device_id ds1672_id[] = {
+	{ "ds1672", 0 },
+	{ }
+};
+
 static struct i2c_driver ds1672_driver = {
 	.driver = {
 		   .name = "rtc-ds1672",
 		   },
 	.probe = &ds1672_probe,
 	.remove = &ds1672_remove,
+	.id_table = ds1672_id,
 };
 
 static int __init ds1672_init(void)

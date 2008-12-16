@@ -413,6 +413,9 @@ static int axon_msi_probe(struct of_device *device,
 			MSIC_CTRL_IRQ_ENABLE | MSIC_CTRL_ENABLE |
 			MSIC_CTRL_FIFO_SIZE);
 
+	msic->read_offset = dcr_read(msic->dcr_host, MSIC_WRITE_OFFSET_REG)
+				& MSIC_FIFO_SIZE_MASK;
+
 	device->dev.platform_data = msic;
 
 	ppc_md.setup_msi_irqs = axon_msi_setup_msi_irqs;

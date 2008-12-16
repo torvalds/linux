@@ -111,6 +111,7 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void dma_free_noncoherent(struct device *dev, size_t size, void *vaddr,
 	dma_addr_t dma_handle)
 {
+	plat_unmap_dma_mem(dma_handle);
 	free_pages((unsigned long) vaddr, get_order(size));
 }
 
@@ -120,6 +121,8 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 	dma_addr_t dma_handle)
 {
 	unsigned long addr = (unsigned long) vaddr;
+
+	plat_unmap_dma_mem(dma_handle);
 
 	if (!plat_device_is_coherent(dev))
 		addr = CAC_ADDR(addr);

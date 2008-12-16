@@ -92,7 +92,7 @@ static void highlander_i2c_setup(struct highlander_i2c_dev *dev)
 static void smbus_write_data(u8 *src, u16 *dst, int len)
 {
 	for (; len > 1; len -= 2) {
-		*dst++ = be16_to_cpup((u16 *)src);
+		*dst++ = be16_to_cpup((__be16 *)src);
 		src += 2;
 	}
 
@@ -103,7 +103,7 @@ static void smbus_write_data(u8 *src, u16 *dst, int len)
 static void smbus_read_data(u16 *src, u8 *dst, int len)
 {
 	for (; len > 1; len -= 2) {
-		*(u16 *)dst = cpu_to_be16p(src++);
+		*(__be16 *)dst = cpu_to_be16p(src++);
 		dst += 2;
 	}
 

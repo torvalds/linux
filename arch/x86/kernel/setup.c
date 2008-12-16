@@ -794,6 +794,9 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
 
+	/* VMI may relocate the fixmap; do this before touching ioremap area */
+	vmi_init();
+
 	early_cpu_init();
 	early_ioremap_init();
 
@@ -880,13 +883,8 @@ void __init setup_arch(char **cmdline_p)
 	check_efer();
 #endif
 
-#if defined(CONFIG_VMI) && defined(CONFIG_X86_32)
-	/*
-	 * Must be before kernel pagetables are setup
-	 * or fixmap area is touched.
-	 */
-	vmi_init();
-#endif
+	/* Must be before kernel pagetables are setup */
+	vmi_activate();
 
 	/* after early param, so could get panic from serial */
 	reserve_early_setup_data();

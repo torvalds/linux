@@ -479,6 +479,8 @@ _GLOBAL(_tlbil_pid)
  * (no broadcast)
  */
 _GLOBAL(_tlbil_va)
+	mfmsr	r10
+	wrteei	0
 	slwi	r4,r4,16
 	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
 	tlbsx	0,r3
@@ -490,6 +492,7 @@ _GLOBAL(_tlbil_va)
 	tlbwe
 	msync
 	isync
+	wrtee	r10
 	blr
 #endif /* CONFIG_FSL_BOOKE */
 
