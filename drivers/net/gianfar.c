@@ -1166,11 +1166,11 @@ static int gfar_enet_open(struct net_device *dev)
 	return err;
 }
 
-static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb, struct txbd8 *bdp)
+static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
 {
 	struct txfcb *fcb = (struct txfcb *)skb_push (skb, GMAC_FCB_LEN);
 
-	memset(fcb, 0, GMAC_FCB_LEN);
+	cacheable_memzero(fcb, GMAC_FCB_LEN);
 
 	return fcb;
 }
@@ -1233,14 +1233,14 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Set up checksumming */
 	if (CHECKSUM_PARTIAL == skb->ip_summed) {
-		fcb = gfar_add_fcb(skb, txbdp);
+		fcb = gfar_add_fcb(skb);
 		status |= TXBD_TOE;
 		gfar_tx_checksum(skb, fcb);
 	}
 
 	if (priv->vlgrp && vlan_tx_tag_present(skb)) {
 		if (unlikely(NULL == fcb)) {
-			fcb = gfar_add_fcb(skb, txbdp);
+			fcb = gfar_add_fcb(skb);
 			status |= TXBD_TOE;
 		}
 
