@@ -630,7 +630,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 		return -ENOMEM;
 
 	sachip->clk = clk_get(me, "SA1111_CLK");
-	if (!sachip->clk) {
+	if (IS_ERR(sachip->clk)) {
 		ret = PTR_ERR(sachip->clk);
 		goto err_free;
 	}
