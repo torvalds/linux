@@ -484,6 +484,9 @@ static int bts_read(struct bts_tracer *tracer, const void *at,
 		out->qualifier = bts_branch;
 		out->variant.lbr.from = bts_get(at, bts_from);
 		out->variant.lbr.to   = bts_get(at, bts_to);
+
+		if (!out->variant.lbr.from && !out->variant.lbr.to)
+			out->qualifier = bts_invalid;
 	}
 
 	return ds_cfg.sizeof_rec[ds_bts];
