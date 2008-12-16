@@ -748,7 +748,7 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	return ret;
 }
 
-#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_HAVE_CLK)
+#ifdef CONFIG_HAVE_CLK
 /*
  * Here we define a transistion notifier so that we can update all of our
  * ports' baud rate when the peripheral clock changes.
@@ -756,41 +756,20 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 static int sci_notifier(struct notifier_block *self,
 			unsigned long phase, void *p)
 {
-	struct cpufreq_freqs *freqs = p;
 	int i;
 
 	if ((phase == CPUFREQ_POSTCHANGE) ||
-	    (phase == CPUFREQ_RESUMECHANGE)) {
+	    (phase == CPUFREQ_RESUMECHANGE))
 		for (i = 0; i < SCI_NPORTS; i++) {
-			struct uart_port *port = &sci_ports[i].port;
-			struct clk *clk;
-
-			/*
-			 * Update the uartclk per-port if frequency has
-			 * changed, since it will no longer necessarily be
-			 * consistent with the old frequency.
-			 *
-			 * Really we want to be able to do something like
-			 * uart_change_speed() or something along those lines
-			 * here to implicitly reset the per-port baud rate..
-			 *
-			 * Clean this up later..
-			 */
-			clk = clk_get(NULL, "module_clk");
-			port->uartclk = clk_get_rate(clk);
-			clk_put(clk);
+			struct sci_port *s = &sci_ports[i];
+			s->port.uartclk = clk_get_rate(s->clk);
 		}
-
-		printk(KERN_INFO "%s: got a postchange notification "
-		       "for cpu %d (old %d, new %d)\n",
-		       __func__, freqs->cpu, freqs->old, freqs->new);
-	}
 
 	return NOTIFY_OK;
 }
 
 static struct notifier_block sci_nb = { &sci_notifier, NULL, 0 };
-#endif /* CONFIG_CPU_FREQ && CONFIG_HAVE_CLK */
+#endif
 
 static int sci_request_irq(struct sci_port *port)
 {
@@ -1326,9 +1305,8 @@ static int __devinit sci_probe(struct platform_device *dev)
 		uart_add_one_port(&sci_uart_driver, &sciport->port);
 	}
 
-#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_HAVE_CLK)
+#ifdef CONFIG_HAVE_CLK
 	cpufreq_register_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
-	dev_info(&dev->dev, "CPU frequency notifier registered\n");
 #endif
 
 #ifdef CONFIG_SH_STANDARD_BIOS
@@ -1347,6 +1325,10 @@ err_unreg:
 static int __devexit sci_remove(struct platform_device *dev)
 {
 	int i;
+
+#ifdef CONFIG_HAVE_CLK
+	cpufreq_unregister_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
+#endif
 
 	for (i = 0; i < SCI_NPORTS; i++)
 		uart_remove_one_port(&sci_uart_driver, &sci_ports[i].port);
