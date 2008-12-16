@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/acpi.h>
 #include <linux/kallsyms.h>
+#include <linux/dmi.h>
 #include "pci.h"
 
 int isa_dma_bridge_buggy;
@@ -42,20 +43,6 @@ static void __devinit quirk_mellanox_tavor(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX,PCI_DEVICE_ID_MELLANOX_TAVOR,quirk_mellanox_tavor);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX,PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE,quirk_mellanox_tavor);
-
-/* Many VIA bridges seem to corrupt data for DAC. Disable it here */
-int forbid_dac __read_mostly;
-EXPORT_SYMBOL(forbid_dac);
-
-static __devinit void via_no_dac(struct pci_dev *dev)
-{
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI && forbid_dac == 0) {
-		dev_info(&dev->dev,
-			"VIA PCI bridge detected. Disabling DAC.\n");
-		forbid_dac = 1;
-	}
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID, via_no_dac);
 
 /* Deal with broken BIOS'es that neglect to enable passive release,
    which can cause problems in combination with the 82441FX/PPro MTRRs */
@@ -1706,24 +1693,24 @@ static void __devinit quirk_brcm_570x_limit_vpd(struct pci_dev *dev)
 	}
 }
 
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5706,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5706S,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5708,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5708S,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5709,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5709S,
-			 quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5706,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5706S,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5708,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5708S,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5709,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5709S,
+			quirk_brcm_570x_limit_vpd);
 
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting
@@ -1841,6 +1828,22 @@ static void __devinit ht_enable_msi_mapping(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS,
 			 PCI_DEVICE_ID_SERVERWORKS_HT1000_PXB,
 			 ht_enable_msi_mapping);
+
+/* The P5N32-SLI Premium motherboard from Asus has a problem with msi
+ * for the MCP55 NIC. It is not yet determined whether the msi problem
+ * also affects other devices. As for now, turn off msi for this device.
+ */
+static void __devinit nvenet_msi_disable(struct pci_dev *dev)
+{
+	if (dmi_name_in_vendors("P5N32-SLI PREMIUM")) {
+		dev_info(&dev->dev,
+			 "Disabling msi for MCP55 NIC on P5N32-SLI Premium\n");
+		dev->no_msi = 1;
+	}
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
+			PCI_DEVICE_ID_NVIDIA_NVENET_15,
+			nvenet_msi_disable);
 
 static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 {

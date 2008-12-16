@@ -48,11 +48,11 @@
 				__func__, __LINE__ , ## args); \
 	} } while (0)
 
-extern unsigned debug;
+extern unsigned musb_debug;
 
 static inline int _dbg_level(unsigned l)
 {
-	return debug >= l;
+	return musb_debug >= l;
 }
 
 #define DBG(level, fmt, args...) xprintk(level, KERN_DEBUG, fmt, ## args)

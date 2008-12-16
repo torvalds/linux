@@ -22,7 +22,6 @@ obj-$(CONFIG_I82365)				+= i82365.o
 obj-$(CONFIG_I82092)				+= i82092.o
 obj-$(CONFIG_TCIC)				+= tcic.o
 obj-$(CONFIG_PCMCIA_M8XX)			+= m8xx_pcmcia.o
-obj-$(CONFIG_HD64465_PCMCIA)			+= hd64465_ss.o
 obj-$(CONFIG_PCMCIA_SA1100)			+= sa11xx_core.o sa1100_cs.o
 obj-$(CONFIG_PCMCIA_SA1111)			+= sa11xx_core.o sa1111_cs.o
 obj-$(CONFIG_M32R_PCC)				+= m32r_pcc.o

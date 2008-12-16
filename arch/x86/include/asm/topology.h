@@ -154,7 +154,7 @@ extern unsigned long node_remap_size[];
 
 #endif
 
-/* sched_domains SD_NODE_INIT for NUMAQ machines */
+/* sched_domains SD_NODE_INIT for NUMA machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
 	.min_interval		= 8,			\
 	.max_interval		= 32,			\
@@ -169,8 +169,9 @@ extern unsigned long node_remap_size[];
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_EXEC	\
 				| SD_BALANCE_FORK	\
-				| SD_SERIALIZE		\
-				| SD_WAKE_BALANCE,	\
+				| SD_WAKE_AFFINE	\
+				| SD_WAKE_BALANCE	\
+				| SD_SERIALIZE,		\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 }
@@ -238,7 +239,7 @@ struct pci_bus;
 void set_pci_bus_resources_arch_default(struct pci_bus *b);
 
 #ifdef CONFIG_SMP
-#define mc_capable()			(boot_cpu_data.x86_max_cores > 1)
+#define mc_capable()	(cpus_weight(per_cpu(cpu_core_map, 0)) != nr_cpu_ids)
 #define smt_capable()			(smp_num_siblings > 1)
 #endif
 

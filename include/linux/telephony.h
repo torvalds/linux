@@ -14,7 +14,7 @@
  *    Authors:       Ed Okerson, <eokerson@quicknet.net>
  *                   Greg Herlein, <gherlein@quicknet.net>
  *
- *    Contributors:  Alan Cox, <alan@redhat.com>
+ *    Contributors:  Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *                   David W. Erhart, <derhart@quicknet.net>
  *
  * IN NO EVENT SHALL QUICKNET TECHNOLOGIES, INC. BE LIABLE TO ANY PARTY FOR

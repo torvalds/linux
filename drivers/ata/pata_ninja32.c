@@ -1,7 +1,6 @@
 /*
  * pata_ninja32.c 	- Ninja32 PATA for new ATA layer
  *			  (C) 2007 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  * Note: The controller like many controllers has shared timings for
  * PIO and DMA. We thus flip to the DMA timings in dma_start and flip back
@@ -45,7 +44,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_ninja32"
-#define DRV_VERSION "0.0.1"
+#define DRV_VERSION "0.1.3"
 
 
 /**
@@ -89,6 +88,17 @@ static struct ata_port_operations ninja32_port_ops = {
 	.set_piomode	= ninja32_set_piomode,
 };
 
+static void ninja32_program(void __iomem *base)
+{
+	iowrite8(0x05, base + 0x01);	/* Enable interrupt lines */
+	iowrite8(0xBE, base + 0x02);	/* Burst, ?? setup */
+	iowrite8(0x01, base + 0x03);	/* Unknown */
+	iowrite8(0x20, base + 0x04);	/* WAIT0 */
+	iowrite8(0x8f, base + 0x05);	/* Unknown */
+	iowrite8(0xa4, base + 0x1c);	/* Unknown */
+	iowrite8(0x83, base + 0x1d);	/* BMDMA control: WAIT0 */
+}
+
 static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct ata_host *host;
@@ -120,7 +130,8 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		return rc;
 	pci_set_master(dev);
 
-	/* Set up the register mappings */
+	/* Set up the register mappings. We use the I/O mapping as only the
+	   older chips also have MMIO on BAR 1 */
 	base = host->iomap[0];
 	if (!base)
 		return -ENOMEM;
@@ -134,21 +145,35 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	ap->ioaddr.bmdma_addr = base;
 	ata_sff_std_ports(&ap->ioaddr);
 
-	iowrite8(0x05, base + 0x01);	/* Enable interrupt lines */
-	iowrite8(0xBE, base + 0x02);	/* Burst, ?? setup */
-	iowrite8(0x01, base + 0x03);	/* Unknown */
-	iowrite8(0x20, base + 0x04);	/* WAIT0 */
-	iowrite8(0x8f, base + 0x05);	/* Unknown */
-	iowrite8(0xa4, base + 0x1c);	/* Unknown */
-	iowrite8(0x83, base + 0x1d);	/* BMDMA control: WAIT0 */
+	ninja32_program(base);
 	/* FIXME: Should we disable them at remove ? */
 	return ata_host_activate(host, dev->irq, ata_sff_interrupt,
 				 IRQF_SHARED, &ninja32_sht);
 }
 
+#ifdef CONFIG_PM
+
+static int ninja32_reinit_one(struct pci_dev *pdev)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+	ninja32_program(host->iomap[0]);
+	ata_host_resume(host);
+	return 0;			
+}
+#endif
+
 static const struct pci_device_id ninja32[] = {
+	{ 0x10FC, 0x0003, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0x1145, 0x8008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0x1145, 0xf008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0x1145, 0xf021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0x1145, 0xf024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0x1145, 0xf02C, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ },
 };
 
@@ -156,7 +181,11 @@ static struct pci_driver ninja32_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= ninja32,
 	.probe 		= ninja32_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ninja32_reinit_one,
+#endif
 };
 
 static int __init ninja32_init(void)

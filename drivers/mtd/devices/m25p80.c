@@ -37,9 +37,9 @@
 #define	OPCODE_NORM_READ	0x03	/* Read data bytes (low frequency) */
 #define	OPCODE_FAST_READ	0x0b	/* Read data bytes (high frequency) */
 #define	OPCODE_PP		0x02	/* Page program (up to 256 bytes) */
-#define	OPCODE_BE_4K 		0x20	/* Erase 4KiB block */
+#define	OPCODE_BE_4K		0x20	/* Erase 4KiB block */
 #define	OPCODE_BE_32K		0x52	/* Erase 32KiB block */
-#define	OPCODE_BE		0xc7	/* Erase whole flash block */
+#define	OPCODE_CHIP_ERASE	0xc7	/* Erase whole flash chip */
 #define	OPCODE_SE		0xd8	/* Sector erase (usually 64KiB) */
 #define	OPCODE_RDID		0x9f	/* Read JEDEC ID */
 
@@ -167,7 +167,7 @@ static int wait_till_ready(struct m25p *flash)
  *
  * Returns 0 if successful, non-zero otherwise.
  */
-static int erase_block(struct m25p *flash)
+static int erase_chip(struct m25p *flash)
 {
 	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB\n",
 			flash->spi->dev.bus_id, __func__,
@@ -181,7 +181,7 @@ static int erase_block(struct m25p *flash)
 	write_enable(flash);
 
 	/* Set up command buffer. */
-	flash->command[0] = OPCODE_BE;
+	flash->command[0] = OPCODE_CHIP_ERASE;
 
 	spi_write(flash->spi, flash->command, 1);
 
@@ -250,15 +250,18 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	mutex_lock(&flash->lock);
 
-	/* REVISIT in some cases we could speed up erasing large regions
-	 * by using OPCODE_SE instead of OPCODE_BE_4K
-	 */
-
-	/* now erase those sectors */
-	if (len == flash->mtd.size && erase_block(flash)) {
+	/* whole-chip erase? */
+	if (len == flash->mtd.size && erase_chip(flash)) {
 		instr->state = MTD_ERASE_FAILED;
 		mutex_unlock(&flash->lock);
 		return -EIO;
+
+	/* REVISIT in some cases we could speed up erasing large regions
+	 * by using OPCODE_SE instead of OPCODE_BE_4K.  We may have set up
+	 * to use "small sector erase", but that's not always optimal.
+	 */
+
+	/* "sector"-at-a-time erase */
 	} else {
 		while (len) {
 			if (erase_sector(flash, addr)) {
@@ -574,10 +577,11 @@ static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
 	for (tmp = 0, info = m25p_data;
 			tmp < ARRAY_SIZE(m25p_data);
 			tmp++, info++) {
-		if (info->jedec_id == jedec)
-			if (ext_jedec != 0 && info->ext_id != ext_jedec)
+		if (info->jedec_id == jedec) {
+			if (info->ext_id != 0 && info->ext_id != ext_jedec)
 				continue;
 			return info;
+		}
 	}
 	dev_err(&spi->dev, "unrecognized JEDEC id %06x\n", jedec);
 	return NULL;

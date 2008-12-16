@@ -1995,11 +1995,6 @@ pfm_close(struct inode *inode, struct file *filp)
 		return -EBADF;
 	}
 
-	if (filp->f_flags & FASYNC) {
-		DPRINT(("cleaning up async_queue=%p\n", ctx->ctx_async_queue));
-		pfm_do_fasync(-1, filp, ctx, 0);
-	}
-
 	PROTECT_CTX(ctx, flags);
 
 	state     = ctx->ctx_state;

@@ -40,6 +40,7 @@
 #include <linux/jiffies.h>
 #include <linux/tracehook.h>
 #include <linux/futex.h>
+#include <linux/compat.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/rcupdate.h>
 #include <linux/ptrace.h>
@@ -314,17 +315,20 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		file = tmp->vm_file;
 		if (file) {
 			struct inode *inode = file->f_path.dentry->d_inode;
+			struct address_space *mapping = file->f_mapping;
+
 			get_file(file);
 			if (tmp->vm_flags & VM_DENYWRITE)
 				atomic_dec(&inode->i_writecount);
-
-			/* insert tmp into the share list, just after mpnt */
-			spin_lock(&file->f_mapping->i_mmap_lock);
+			spin_lock(&mapping->i_mmap_lock);
+			if (tmp->vm_flags & VM_SHARED)
+				mapping->i_mmap_writable++;
 			tmp->vm_truncate_count = mpnt->vm_truncate_count;
-			flush_dcache_mmap_lock(file->f_mapping);
+			flush_dcache_mmap_lock(mapping);
+			/* insert tmp into the share list, just after mpnt */
 			vma_prio_tree_add(tmp, mpnt);
-			flush_dcache_mmap_unlock(file->f_mapping);
-			spin_unlock(&file->f_mapping->i_mmap_lock);
+			flush_dcache_mmap_unlock(mapping);
+			spin_unlock(&mapping->i_mmap_lock);
 		}
 
 		/*
@@ -518,6 +522,16 @@ EXPORT_SYMBOL_GPL(get_task_mm);
 void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 {
 	struct completion *vfork_done = tsk->vfork_done;
+
+	/* Get rid of any futexes when releasing the mm */
+#ifdef CONFIG_FUTEX
+	if (unlikely(tsk->robust_list))
+		exit_robust_list(tsk);
+#ifdef CONFIG_COMPAT
+	if (unlikely(tsk->compat_robust_list))
+		compat_exit_robust_list(tsk);
+#endif
+#endif
 
 	/* Get rid of any cached register state */
 	deactivate_mm(tsk, mm);
@@ -1387,6 +1401,7 @@ long do_fork(unsigned long clone_flags,
 			init_completion(&vfork);
 		}
 
+		audit_finish_fork(p);
 		tracehook_report_clone(trace, regs, clone_flags, nr, p);
 
 		/*

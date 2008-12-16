@@ -174,12 +174,12 @@ static void radeonfb_prim_imageblit(struct radeonfb_info *rinfo,
 				    const struct fb_image *image,
 				    u32 fg, u32 bg)
 {
-	unsigned int src_bytes, dwords;
+	unsigned int dwords;
 	u32 *bits;
 
 	radeonfb_set_creg(rinfo, DP_GUI_MASTER_CNTL, &rinfo->dp_gui_mc_cache,
 			  rinfo->dp_gui_mc_base |
-			  GMC_BRUSH_NONE |
+			  GMC_BRUSH_NONE | GMC_DST_CLIP_LEAVE |
 			  GMC_SRC_DATATYPE_MONO_FG_BG |
 			  ROP3_S |
 			  GMC_BYTE_ORDER_MSB_TO_LSB |
@@ -188,9 +188,6 @@ static void radeonfb_prim_imageblit(struct radeonfb_info *rinfo,
 			  DST_X_LEFT_TO_RIGHT | DST_Y_TOP_TO_BOTTOM);
 	radeonfb_set_creg(rinfo, DP_SRC_FRGD_CLR, &rinfo->dp_src_fg_cache, fg);
 	radeonfb_set_creg(rinfo, DP_SRC_BKGD_CLR, &rinfo->dp_src_bg_cache, bg);
-
-	radeon_fifo_wait(rinfo, 1);
-	OUTREG(DST_Y_X, (image->dy << 16) | image->dx);
 
 	/* Ensure the dst cache is flushed and the engine idle before
 	 * issuing the operation.
@@ -205,13 +202,19 @@ static void radeonfb_prim_imageblit(struct radeonfb_info *rinfo,
 
 	/* X here pads width to a multiple of 32 and uses the clipper to
 	 * adjust the result. Is that really necessary ? Things seem to
-	 * work ok for me without that and the doco doesn't seem to imply
+	 * work ok for me without that and the doco doesn't seem to imply]
 	 * there is such a restriction.
 	 */
-	OUTREG(DST_WIDTH_HEIGHT, (image->width << 16) | image->height);
+	radeon_fifo_wait(rinfo, 4);
+	OUTREG(SC_TOP_LEFT, (image->dy << 16) | image->dx);
+	OUTREG(SC_BOTTOM_RIGHT, ((image->dy + image->height) << 16) |
+	       (image->dx + image->width));
+	OUTREG(DST_Y_X, (image->dy << 16) | image->dx);
 
-	src_bytes = (((image->width * image->depth) + 7) / 8) * image->height;
-	dwords = (src_bytes + 3) / 4;
+	OUTREG(DST_HEIGHT_WIDTH, (image->height << 16) | ((image->width + 31) & ~31));
+
+	dwords = (image->width + 31) >> 5;
+	dwords *= image->height;
 	bits = (u32*)(image->data);
 
 	while(dwords >= 8) {
@@ -253,7 +256,8 @@ void radeonfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 
 	/* We only do 1 bpp color expansion for now */
-	if (info->flags & FBINFO_HWACCEL_DISABLED || image->depth != 1)
+	if (!accel_cexp ||
+	    (info->flags & FBINFO_HWACCEL_DISABLED) || image->depth != 1)
 		goto fallback;
 
 	/* Fallback if running out of the screen. We may do clipping

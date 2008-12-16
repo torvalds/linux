@@ -65,6 +65,14 @@ config GPIO_SYSFS
 
 # put expanders in the right section, in alphabetical order
 
+comment "Memory mapped GPIO expanders:"
+
+config GPIO_XILINX
+	bool "Xilinx GPIO support"
+	depends on PPC_OF
+	help
+	  Say yes here to support the Xilinx FPGA GPIO device
+
 comment "I2C GPIO expanders:"
 
 config GPIO_MAX732X

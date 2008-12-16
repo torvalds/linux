@@ -63,7 +63,7 @@ irq_trace(void)
  */
 static __cacheline_aligned_in_smp	unsigned long max_sequence;
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 /*
  * irqsoff uses its own tracer function to keep the overhead down:
  */
@@ -104,7 +104,7 @@ static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = irqsoff_tracer_call,
 };
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 /*
  * Should this new latency be reported/recorded?

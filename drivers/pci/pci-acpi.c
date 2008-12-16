@@ -63,7 +63,7 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 	union acpi_object in_params[4];
 	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *out_obj;
-	u32 osc_dw0, flags = osc_args->capbuf[OSC_QUERY_TYPE];
+	u32 errors, flags = osc_args->capbuf[OSC_QUERY_TYPE];
 
 	/* Setting up input parameters */
 	input.count = 4;
@@ -83,21 +83,25 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 	if (ACPI_FAILURE(status))
 		return status;
 
+	if (!output.length)
+		return AE_NULL_OBJECT;
+
 	out_obj = output.pointer;
 	if (out_obj->type != ACPI_TYPE_BUFFER) {
 		printk(KERN_DEBUG "Evaluate _OSC returns wrong type\n");
 		status = AE_TYPE;
 		goto out_kfree;
 	}
-	osc_dw0 = *((u32 *)out_obj->buffer.pointer);
-	if (osc_dw0) {
-		if (osc_dw0 & OSC_REQUEST_ERROR)
+	/* Need to ignore the bit0 in result code */
+	errors = *((u32 *)out_obj->buffer.pointer) & ~(1 << 0);
+	if (errors) {
+		if (errors & OSC_REQUEST_ERROR)
 			printk(KERN_DEBUG "_OSC request fails\n"); 
-		if (osc_dw0 & OSC_INVALID_UUID_ERROR)
+		if (errors & OSC_INVALID_UUID_ERROR)
 			printk(KERN_DEBUG "_OSC invalid UUID\n"); 
-		if (osc_dw0 & OSC_INVALID_REVISION_ERROR)
+		if (errors & OSC_INVALID_REVISION_ERROR)
 			printk(KERN_DEBUG "_OSC invalid revision\n"); 
-		if (osc_dw0 & OSC_CAPABILITIES_MASK_ERROR) {
+		if (errors & OSC_CAPABILITIES_MASK_ERROR) {
 			if (flags & OSC_QUERY_ENABLE)
 				goto out_success;
 			printk(KERN_DEBUG "_OSC FW not grant req. control\n");

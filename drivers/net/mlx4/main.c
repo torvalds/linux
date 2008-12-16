@@ -753,6 +753,7 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
 	int port;
+	__be32 ib_port_default_caps;
 
 	err = mlx4_init_uar_table(dev);
 	if (err) {
@@ -852,6 +853,13 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 	}
 
 	for (port = 1; port <= dev->caps.num_ports; port++) {
+		ib_port_default_caps = 0;
+		err = mlx4_get_port_ib_caps(dev, port, &ib_port_default_caps);
+		if (err)
+			mlx4_warn(dev, "failed to get port %d default "
+				  "ib capabilities (%d). Continuing with "
+				  "caps = 0\n", port, err);
+		dev->caps.ib_port_def_cap[port] = ib_port_default_caps;
 		err = mlx4_SET_PORT(dev, port);
 		if (err) {
 			mlx4_err(dev, "Failed to set port %d, aborting\n",

@@ -31,6 +31,7 @@
 #define _I915_DRV_H_
 
 #include "i915_reg.h"
+#include <linux/io-mapping.h>
 
 /* General customization:
  */
@@ -45,6 +46,8 @@ enum pipe {
 	PIPE_A = 0,
 	PIPE_B,
 };
+
+#define I915_NUM_PIPE	2
 
 /* Interface history:
  *
@@ -86,13 +89,6 @@ struct mem_block {
 	int size;
 	struct drm_file *file_priv; /* NULL: free, -1: heap, other: real files */
 };
-
-typedef struct _drm_i915_vbl_swap {
-	struct list_head head;
-	drm_drawable_t drw_id;
-	unsigned int pipe;
-	unsigned int sequence;
-} drm_i915_vbl_swap_t;
 
 struct opregion_header;
 struct opregion_acpi;
@@ -138,16 +134,13 @@ typedef struct drm_i915_private {
 	int user_irq_refcount;
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask_reg;
+	u32 pipestat[2];
 
 	int tex_lru_log_granularity;
 	int allow_batchbuffer;
 	struct mem_block *agp_heap;
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
-
-	spinlock_t swaps_lock;
-	drm_i915_vbl_swap_t vbl_swaps;
-	unsigned int swaps_pending;
 
 	struct intel_opregion opregion;
 
@@ -156,6 +149,8 @@ typedef struct drm_i915_private {
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
+	u32 saveRENDERSTANDBY;
+	u32 saveHWS;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;
 	u32 savePIPEASRC;
@@ -240,15 +235,18 @@ typedef struct drm_i915_private {
 	u8 saveDACDATA[256*3]; /* 256 3-byte colors */
 	u8 saveCR[37];
 
-	/** Work task for vblank-related ring access */
-	struct work_struct vblank_work;
-
 	struct {
 		struct drm_mm gtt_space;
+
+		struct io_mapping *gtt_mapping;
 
 		/**
 		 * List of objects currently involved in rendering from the
 		 * ringbuffer.
+		 *
+		 * Includes buffers having the contents of their GPU caches
+		 * flushed, not necessarily primitives.  last_rendering_seqno
+		 * represents when the rendering involved will be completed.
 		 *
 		 * A reference is held on the buffer while on this list.
 		 */
@@ -259,6 +257,8 @@ typedef struct drm_i915_private {
 		 * still have a write_domain which needs to be flushed before
 		 * unbinding.
 		 *
+		 * last_rendering_seqno is 0 while an object is in this list.
+		 *
 		 * A reference is held on the buffer while on this list.
 		 */
 		struct list_head flushing_list;
@@ -266,6 +266,8 @@ typedef struct drm_i915_private {
 		/**
 		 * LRU list of objects which are not in the ringbuffer and
 		 * are ready to unbind, but are still in the GTT.
+		 *
+		 * last_rendering_seqno is 0 while an object is in this list.
 		 *
 		 * A reference is not held on the buffer while on this list,
 		 * as merely being GTT-bound shouldn't prevent its being
@@ -377,8 +379,8 @@ struct drm_i915_gem_object {
 	uint32_t agp_type;
 
 	/**
-	 * Flagging of which individual pages are valid in GEM_DOMAIN_CPU when
-	 * GEM_DOMAIN_CPU is not in the object's read domain.
+	 * If present, while GEM_DOMAIN_CPU is in the read domain this array
+	 * flags which individual pages are valid.
 	 */
 	uint8_t *page_cpu_valid;
 };
@@ -399,9 +401,6 @@ struct drm_i915_gem_request {
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
-
-	/** Cache domains that were flushed at the start of the request. */
-	uint32_t flush_domains;
 
 	struct list_head list;
 };
@@ -441,7 +440,6 @@ extern int i915_irq_wait(struct drm_device *dev, void *data,
 void i915_user_irq_get(struct drm_device *dev);
 void i915_user_irq_put(struct drm_device *dev);
 
-extern void i915_vblank_work_handler(struct work_struct *work);
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(struct drm_device * dev);
 extern int i915_driver_irq_postinstall(struct drm_device *dev);
@@ -456,6 +454,13 @@ extern u32 i915_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
+
+void
+i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
+
+void
+i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
+
 
 /* i915_mem.c */
 extern int i915_mem_alloc(struct drm_device *dev, void *data,
@@ -502,6 +507,8 @@ int i915_gem_set_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_get_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_proc_init(struct drm_minor *minor);
 void i915_gem_proc_cleanup(struct drm_minor *minor);
@@ -539,11 +546,18 @@ extern int i915_restore_state(struct drm_device *dev);
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
+#ifdef CONFIG_ACPI
 /* i915_opregion.c */
 extern int intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_free(struct drm_device *dev);
 extern void opregion_asle_intr(struct drm_device *dev);
 extern void opregion_enable_asle(struct drm_device *dev);
+#else
+static inline int intel_opregion_init(struct drm_device *dev) { return 0; }
+static inline void intel_opregion_free(struct drm_device *dev) { return; }
+static inline void opregion_asle_intr(struct drm_device *dev) { return; }
+static inline void opregion_enable_asle(struct drm_device *dev) { return; }
+#endif
 
 /**
  * Lock test for when it's just for synchronization of ring access.
@@ -610,8 +624,9 @@ extern void opregion_enable_asle(struct drm_device *dev);
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
 #define READ_HWSP(dev_priv, reg)  (((volatile u32*)(dev_priv->hw_status_page))[reg])
-#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, 5)
+#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
+#define I915_BREADCRUMB_INDEX		0x21
 
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 

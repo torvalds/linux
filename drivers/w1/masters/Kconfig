@@ -36,7 +36,7 @@ config W1_MASTER_DS2482
 
 config W1_MASTER_DS1WM
 	tristate "Maxim DS1WM 1-wire busmaster"
-	depends on W1 && ARM
+	depends on W1 && ARM && HAVE_CLK
 	help
 	  Say Y here to enable the DS1WM 1-wire driver, such as that
 	  in HP iPAQ devices like h5xxx, h2200, and ASIC3-based like
@@ -51,6 +51,13 @@ config W1_MASTER_GPIO
 
 	  This support is also available as a module.  If so, the module
 	  will be called w1-gpio.ko.
+
+config HDQ_MASTER_OMAP
+	tristate "OMAP HDQ driver"
+	depends on ARCH_OMAP2430 || ARCH_OMAP34XX
+	help
+	  Say Y here if you want support for the 1-wire or HDQ Interface
+	  on an OMAP processor.
 
 endmenu
 

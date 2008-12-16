@@ -96,7 +96,7 @@ Letting the PHY Abstraction Layer do Everything
    static void adjust_link(struct net_device *dev);
  
  Next, you need to know the device name of the PHY connected to this device. 
- The name will look something like, "phy0:0", where the first number is the
+ The name will look something like, "0:00", where the first number is the
  bus id, and the second is the PHY's address on that bus.  Typically,
  the bus is responsible for making its ID unique.
  

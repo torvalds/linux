@@ -26,7 +26,7 @@ EXPORT_SYMBOL(init_mm);
 /*
  * Initial thread structure.
  *
- * We need to make sure that this is 8192-byte aligned due to the
+ * We need to make sure that this is THREAD_SIZE aligned due to the
  * way process stacks are handled. This is done by having a special
  * "init_task" linker map entry..
  */

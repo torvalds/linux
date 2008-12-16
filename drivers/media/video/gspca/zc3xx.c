@@ -2266,7 +2266,7 @@ static const struct usb_action hdcs2020b_NoFliker[] = {
 	{}
 };
 
-static const struct usb_action hv7131bxx_Initial[] = {
+static const struct usb_action hv7131bxx_Initial[] = {		/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -2290,7 +2290,7 @@ static const struct usb_action hv7131bxx_Initial[] = {
 	{0xaa, 0x14, 0x0001},
 	{0xaa, 0x15, 0x00e8},
 	{0xaa, 0x16, 0x0002},
-	{0xaa, 0x17, 0x0086},
+	{0xaa, 0x17, 0x0086},		/* 00,17,88,aa */
 	{0xaa, 0x31, 0x0038},
 	{0xaa, 0x32, 0x0038},
 	{0xaa, 0x33, 0x0038},
@@ -2309,7 +2309,7 @@ static const struct usb_action hv7131bxx_Initial[] = {
 	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
 	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
-	{0xaa, 0x02, 0x0080},	/* {0xaa, 0x02, 0x0090}; */
+	{0xaa, 0x02, 0x0090},			/* 00,02,80,aa */
 	{0xa1, 0x01, 0x0002},
 	{0xa0, 0x00, ZC3XX_R092_I2CADDRESSSELECT},
 	{0xa0, 0x02, ZC3XX_R090_I2CCOMMAND},
@@ -2374,7 +2374,7 @@ static const struct usb_action hv7131bxx_Initial[] = {
 	{}
 };
 
-static const struct usb_action hv7131bxx_InitialScale[] = {
+static const struct usb_action hv7131bxx_InitialScale[] = {	/* 640x480*/
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -6388,6 +6388,8 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 /*fixme: is it really write to 011d and 018d for all other sensors? */
 	brightness = sd->brightness;
 	reg_w(gspca_dev->dev, brightness, 0x011d);
+	if (sd->sensor == SENSOR_HV7131B)
+		return;
 	if (brightness < 0x70)
 		brightness += 0x10;
 	else
@@ -6529,6 +6531,7 @@ static void setquality(struct gspca_dev *gspca_dev)
 
 	switch (sd->sensor) {
 	case SENSOR_GC0305:
+	case SENSOR_HV7131B:
 	case SENSOR_OV7620:
 	case SENSOR_PO2030:
 		return;
@@ -7209,7 +7212,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	zc3_init = init_tb[(int) sd->sensor][mode];
 	switch (sd->sensor) {
-	case SENSOR_HV7131B:
 	case SENSOR_HV7131C:
 		zcxx_probeSensor(gspca_dev);
 		break;
@@ -7334,10 +7336,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (!gspca_dev->present)
+		return;
 	send_unknown(gspca_dev->dev, sd->sensor);
 }
 

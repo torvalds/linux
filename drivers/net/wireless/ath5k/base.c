@@ -240,6 +240,10 @@ static u64 ath5k_get_tsf(struct ieee80211_hw *hw);
 static void ath5k_reset_tsf(struct ieee80211_hw *hw);
 static int ath5k_beacon_update(struct ieee80211_hw *hw,
 		struct sk_buff *skb);
+static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
+		struct ieee80211_vif *vif,
+		struct ieee80211_bss_conf *bss_conf,
+		u32 changes);
 
 static struct ieee80211_ops ath5k_hw_ops = {
 	.tx 		= ath5k_tx,
@@ -256,6 +260,7 @@ static struct ieee80211_ops ath5k_hw_ops = {
 	.get_tx_stats 	= ath5k_get_tx_stats,
 	.get_tsf 	= ath5k_get_tsf,
 	.reset_tsf 	= ath5k_reset_tsf,
+	.bss_info_changed = ath5k_bss_info_changed,
 };
 
 /*
@@ -661,8 +666,7 @@ ath5k_pci_resume(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_hw *ah = sc->ah;
-	int i, err;
+	int err;
 
 	pci_restore_state(pdev);
 
@@ -688,16 +692,6 @@ ath5k_pci_resume(struct pci_dev *pdev)
 		goto err_irq;
 	ath5k_led_enable(sc);
 
-	/*
-	 * Reset the key cache since some parts do not
-	 * reset the contents on initial power up or resume.
-	 *
-	 * FIXME: This may need to be revisited when mac80211 becomes
-	 *        aware of suspend/resume.
-	 */
-	for (i = 0; i < AR5K_KEYTABLE_SIZE; i++)
-		ath5k_hw_reset_key(ah, i);
-
 	return 0;
 err_irq:
 	free_irq(pdev->irq, sc);
@@ -718,7 +712,6 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
 	u8 mac[ETH_ALEN];
-	unsigned int i;
 	int ret;
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_ANY, "devid 0x%x\n", pdev->device);
@@ -735,13 +728,6 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 		goto err;
 	if (ret > 0)
 		__set_bit(ATH_STAT_MRRETRY, sc->status);
-
-	/*
-	 * Reset the key cache since some parts do not
-	 * reset the contents on initial power up.
-	 */
-	for (i = 0; i < AR5K_KEYTABLE_SIZE; i++)
-		ath5k_hw_reset_key(ah, i);
 
 	/*
 	 * Collect the channel list.  The 802.11 layer
@@ -2202,7 +2188,8 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 static int
 ath5k_init(struct ath5k_softc *sc, bool is_resume)
 {
-	int ret;
+	struct ath5k_hw *ah = sc->ah;
+	int ret, i;
 
 	mutex_lock(&sc->lock);
 
@@ -2235,10 +2222,17 @@ ath5k_init(struct ath5k_softc *sc, bool is_resume)
 	if (ret)
 		goto done;
 
+	/*
+	 * Reset the key cache since some parts do not reset the
+	 * contents on initial power up or resume from suspend.
+	 */
+	for (i = 0; i < AR5K_KEYTABLE_SIZE; i++)
+		ath5k_hw_reset_key(ah, i);
+
 	__set_bit(ATH_STAT_STARTED, sc->status);
 
 	/* Set ack to be sent at low bit-rates */
-	ath5k_hw_set_ack_bitrate_high(sc->ah, false);
+	ath5k_hw_set_ack_bitrate_high(ah, false);
 
 	mod_timer(&sc->calib_tim, round_jiffies(jiffies +
 			msecs_to_jiffies(ath5k_calinterval * 1000)));
@@ -2953,7 +2947,7 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		sc->opmode != NL80211_IFTYPE_MESH_POINT &&
 		test_bit(ATH_STAT_PROMISC, sc->status))
 		rfilt |= AR5K_RX_FILTER_PROM;
-	if (sc->opmode == NL80211_IFTYPE_STATION ||
+	if ((sc->opmode == NL80211_IFTYPE_STATION && sc->assoc) ||
 		sc->opmode == NL80211_IFTYPE_ADHOC) {
 		rfilt |= AR5K_RX_FILTER_BEACON;
 	}
@@ -3094,4 +3088,32 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 end:
 	return ret;
 }
+static void
+set_beacon_filter(struct ieee80211_hw *hw, bool enable)
+{
+	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_hw *ah = sc->ah;
+	u32 rfilt;
+	rfilt = ath5k_hw_get_rx_filter(ah);
+	if (enable)
+		rfilt |= AR5K_RX_FILTER_BEACON;
+	else
+		rfilt &= ~AR5K_RX_FILTER_BEACON;
+	ath5k_hw_set_rx_filter(ah, rfilt);
+	sc->filter_flags = rfilt;
+}
 
+static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_bss_conf *bss_conf,
+				    u32 changes)
+{
+	struct ath5k_softc *sc = hw->priv;
+	if (changes & BSS_CHANGED_ASSOC) {
+		mutex_lock(&sc->lock);
+		sc->assoc = bss_conf->assoc;
+		if (sc->opmode == NL80211_IFTYPE_STATION)
+			set_beacon_filter(hw, sc->assoc);
+		mutex_unlock(&sc->lock);
+	}
+}

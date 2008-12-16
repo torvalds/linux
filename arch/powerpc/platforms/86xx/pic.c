@@ -44,7 +44,8 @@ void __init mpc86xx_init_irq(void)
 
 	mpic = mpic_alloc(np, res.start,
 			MPIC_PRIMARY | MPIC_WANTS_RESET |
-			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS,
+			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
+			MPIC_SINGLE_DEST_CPU,
 			0, 256, " MPIC     ");
 	of_node_put(np);
 	BUG_ON(mpic == NULL);

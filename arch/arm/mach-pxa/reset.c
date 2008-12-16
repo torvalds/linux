@@ -90,11 +90,12 @@ void arch_reset(char mode)
 		/* Jump into ROM at address 0 */
 		cpu_reset(0);
 		break;
-	case 'h':
-		do_hw_reset();
-		break;
 	case 'g':
 		do_gpio_reset();
+		break;
+	case 'h':
+	default:
+		do_hw_reset();
 		break;
 	}
 }

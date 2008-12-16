@@ -73,8 +73,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	if (err)
 		goto free;
 
-	snprintf(host->class_dev.bus_id, BUS_ID_SIZE,
-		 "mmc%d", host->index);
+	dev_set_name(&host->class_dev, "mmc%d", host->index);
 
 	host->parent = dev;
 	host->class_dev.parent = dev;
@@ -121,7 +120,7 @@ int mmc_add_host(struct mmc_host *host)
 	WARN_ON((host->caps & MMC_CAP_SDIO_IRQ) &&
 		!host->ops->enable_sdio_irq);
 
-	led_trigger_register_simple(host->class_dev.bus_id, &host->led);
+	led_trigger_register_simple(dev_name(&host->class_dev), &host->led);
 
 	err = device_add(&host->class_dev);
 	if (err)

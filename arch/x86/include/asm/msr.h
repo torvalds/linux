@@ -108,9 +108,7 @@ static __always_inline unsigned long long __native_read_tsc(void)
 {
 	DECLARE_ARGS(val, low, high);
 
-	rdtsc_barrier();
 	asm volatile("rdtsc" : EAX_EDX_RET(val, low, high));
-	rdtsc_barrier();
 
 	return EAX_EDX_VAL(val, low, high);
 }

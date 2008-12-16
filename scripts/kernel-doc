@@ -378,6 +378,10 @@ sub dump_section {
 #	print STDERR "parameter def '$1' = '$contents'\n";
 	$name = $1;
 	$parameterdescs{$name} = $contents;
+    } elsif ($name eq "@\.\.\.") {
+#	print STDERR "parameter def '...' = '$contents'\n";
+	$name = "...";
+	$parameterdescs{$name} = $contents;
     } else {
 #	print STDERR "other section '$name' = '$contents'\n";
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
@@ -1588,12 +1592,12 @@ sub push_parameter($$$) {
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
-	    $type="";
-	    $parameterdescs{$param} = "variable arguments";
+	    if (!defined $parameterdescs{$param} || $parameterdescs{$param} eq "") {
+		$parameterdescs{$param} = "variable arguments";
+	    }
 	}
 	elsif ($type eq "" && ($param eq "" or $param eq "void"))
 	{
-	    $type="";
 	    $param="void";
 	    $parameterdescs{void} = "no arguments";
 	}
@@ -1648,7 +1652,7 @@ sub dump_function($$) {
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__devinit +//;
     $prototype =~ s/__init +//;
-    $prototype =~ s/^#define\s+//; #ak added
+    $prototype =~ s/^#\s*define\s+//; #ak added
     $prototype =~ s/__attribute__\s*\(\([a-z,]*\)\)//;
 
     # Yes, this truly is vile.  We are looking for:
@@ -1764,13 +1768,13 @@ sub process_state3_function($$) {
 
     $x =~ s@\/\/.*$@@gos; # strip C99-style comments to end of line
 
-    if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#define/)) {
+    if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#\s*define/)) {
 	# do nothing
     }
     elsif ($x =~ /([^\{]*)/) {
 	$prototype .= $1;
     }
-    if (($x =~ /\{/) || ($x =~ /\#define/) || ($x =~ /;/)) {
+    if (($x =~ /\{/) || ($x =~ /\#\s*define/) || ($x =~ /;/)) {
 	$prototype =~ s@/\*.*?\*/@@gos;	# strip comments.
 	$prototype =~ s@[\r\n]+@ @gos; # strip newlines/cr's.
 	$prototype =~ s@^\s+@@gos; # strip leading spaces

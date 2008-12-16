@@ -1,7 +1,7 @@
 /*
  *    pata_radisys.c - Intel PATA/SATA controllers
  *
- *	(C) 2006 Red Hat <alan@redhat.com>
+ *	(C) 2006 Red Hat <alan@lxorguk.ukuu.org.uk>
  *
  *    Some parts based on ata_piix.c by Jeff Garzik and others.
  *

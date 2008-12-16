@@ -804,6 +804,9 @@ static int pxafb_smart_thread(void *arg)
 
 static int pxafb_smart_init(struct pxafb_info *fbi)
 {
+	if (!(fbi->lccr0 | LCCR0_LCDT))
+		return 0;
+
 	fbi->smart_thread = kthread_run(pxafb_smart_thread, fbi,
 					"lcd_refresh");
 	if (IS_ERR(fbi->smart_thread)) {
@@ -1372,7 +1375,7 @@ static void pxafb_decode_mach_info(struct pxafb_info *fbi,
 	fbi->cmap_inverse	= inf->cmap_inverse;
 	fbi->cmap_static	= inf->cmap_static;
 
-	switch (lcd_conn & 0xf) {
+	switch (lcd_conn & LCD_TYPE_MASK) {
 	case LCD_TYPE_MONO_STN:
 		fbi->lccr0 = LCCR0_CMS;
 		break;
