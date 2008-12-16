@@ -146,7 +146,7 @@ static inline void native_pgd_clear(pgd_t *pgd)
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 
 
-#define MAXMEM		 _AC(0x00003fffffffffff, UL)
+#define MAXMEM		 _AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
 #define VMALLOC_START    _AC(0xffffc20000000000, UL)
 #define VMALLOC_END      _AC(0xffffe1ffffffffff, UL)
 #define VMEMMAP_START	 _AC(0xffffe20000000000, UL)
