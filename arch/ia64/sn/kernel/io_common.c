@@ -26,7 +26,6 @@
 #include <linux/acpi.h>
 #include <asm/sn/sn2/sn_hwperf.h>
 #include <asm/sn/acpi.h>
-#include "acpi/acglobal.h"
 
 extern void sn_init_cpei_timer(void);
 extern void register_sn_procfs(void);

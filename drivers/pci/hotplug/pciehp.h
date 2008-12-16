@@ -217,7 +217,6 @@ struct hpc_ops {
 #ifdef CONFIG_ACPI
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
-#include <acpi/actypes.h>
 #include <linux/pci-acpi.h>
 
 static inline int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)

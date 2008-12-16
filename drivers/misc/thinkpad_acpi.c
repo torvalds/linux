@@ -76,7 +76,6 @@
 #include <linux/workqueue.h>
 
 #include <acpi/acpi_drivers.h>
-#include <acpi/acnamesp.h>
 
 #include <linux/pci_ids.h>
 

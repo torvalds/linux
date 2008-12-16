@@ -8,7 +8,6 @@
 #include <acpi/acpi_drivers.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <acpi/acevents.h>
 #include "sleep.h"
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT

@@ -30,7 +30,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <acpi/acpi.h>
-#include <acpi/actypes.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/platform_device.h>
