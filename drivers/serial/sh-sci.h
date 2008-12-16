@@ -507,18 +507,6 @@ static inline int sci_rxd_in(struct uart_port *port)
 {
 	  return sci_in(port,SCxSR)&0x0010 ? 1 : 0;
 }
-static inline void set_sh771x_scif_pfc(struct uart_port *port)
-{
-	if (port->mapbase == 0xA4400000){
-		ctrl_outw(ctrl_inw(PACR)&0xffc0,PACR);
-		ctrl_outw(ctrl_inw(PBCR)&0x0fff,PBCR);
-		return;
-	}
-	if (port->mapbase == 0xA4410000){
-		ctrl_outw(ctrl_inw(PBCR)&0xf003,PBCR);
-		return;
-	}
-}
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || \
       defined(CONFIG_CPU_SUBTYPE_SH7721)
 static inline int sci_rxd_in(struct uart_port *port)

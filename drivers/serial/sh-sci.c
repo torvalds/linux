@@ -64,10 +64,6 @@ struct sci_port {
 	/* Port IRQs: ERI, RXI, TXI, BRI (optional) */
 	unsigned int		irqs[SCIx_NR_IRQS];
 
-	/* Port pin configuration */
-	void			(*init_pins)(struct uart_port *port,
-					     unsigned int cflag);
-
 	/* Port enable callback */
 	void			(*enable)(struct uart_port *port);
 
@@ -172,7 +168,7 @@ static inline void h8300_sci_disable(struct uart_port *port)
 #endif
 
 #if defined(__H8300H__) || defined(__H8300S__)
-static void sci_init_pins_sci(struct uart_port *port, unsigned int cflag)
+static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
 	int ch = (port->mapbase - SMR0) >> 3;
 
@@ -187,140 +183,99 @@ static void sci_init_pins_sci(struct uart_port *port, unsigned int cflag)
 	/* tx mark output*/
 	H8300_SCI_DR(ch) |= h8300_sci_pins[ch].tx;
 }
-#else
-#define sci_init_pins_sci NULL
-#endif
-
-#if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709)
-static void sci_init_pins_irda(struct uart_port *port, unsigned int cflag)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
+static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
-	unsigned int fcr_val = 0;
-
-	if (cflag & CRTSCTS)
-		fcr_val |= SCFCR_MCE;
-
-	sci_out(port, SCFCR, fcr_val);
-}
-#else
-#define sci_init_pins_irda NULL
-#endif
-
-#if defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
-static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
-{
-	unsigned int fcr_val = 0;
-
-	set_sh771x_scif_pfc(port);
-	if (cflag & CRTSCTS)
-		fcr_val |= SCFCR_MCE;
-	sci_out(port, SCFCR, fcr_val);
+	if (port->mapbase == 0xA4400000) {
+		__raw_writew(__raw_readw(PACR) & 0xffc0, PACR);
+		__raw_writew(__raw_readw(PBCR) & 0x0fff, PBCR);
+	} else if (port->mapbase == 0xA4410000)
+		__raw_writew(__raw_readw(PBCR) & 0xf003, PBCR);
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || defined(CONFIG_CPU_SUBTYPE_SH7721)
-static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
+static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
-	unsigned int fcr_val = 0;
 	unsigned short data;
 
 	if (cflag & CRTSCTS) {
 		/* enable RTS/CTS */
 		if (port->mapbase == 0xa4430000) { /* SCIF0 */
 			/* Clear PTCR bit 9-2; enable all scif pins but sck */
-			data = ctrl_inw(PORT_PTCR);
-			ctrl_outw((data & 0xfc03), PORT_PTCR);
+			data = __raw_readw(PORT_PTCR);
+			__raw_writew((data & 0xfc03), PORT_PTCR);
 		} else if (port->mapbase == 0xa4438000) { /* SCIF1 */
 			/* Clear PVCR bit 9-2 */
-			data = ctrl_inw(PORT_PVCR);
-			ctrl_outw((data & 0xfc03), PORT_PVCR);
+			data = __raw_readw(PORT_PVCR);
+			__raw_writew((data & 0xfc03), PORT_PVCR);
 		}
-		fcr_val |= SCFCR_MCE;
 	} else {
 		if (port->mapbase == 0xa4430000) { /* SCIF0 */
 			/* Clear PTCR bit 5-2; enable only tx and rx  */
-			data = ctrl_inw(PORT_PTCR);
-			ctrl_outw((data & 0xffc3), PORT_PTCR);
+			data = __raw_readw(PORT_PTCR);
+			__raw_writew((data & 0xffc3), PORT_PTCR);
 		} else if (port->mapbase == 0xa4438000) { /* SCIF1 */
 			/* Clear PVCR bit 5-2 */
-			data = ctrl_inw(PORT_PVCR);
-			ctrl_outw((data & 0xffc3), PORT_PVCR);
+			data = __raw_readw(PORT_PVCR);
+			__raw_writew((data & 0xffc3), PORT_PVCR);
 		}
 	}
-	sci_out(port, SCFCR, fcr_val);
 }
 #elif defined(CONFIG_CPU_SH3)
 /* For SH7705, SH7706, SH7707, SH7709, SH7709A, SH7729 */
-static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
+static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
-	unsigned int fcr_val = 0;
 	unsigned short data;
 
 	/* We need to set SCPCR to enable RTS/CTS */
-	data = ctrl_inw(SCPCR);
+	data = __raw_readw(SCPCR);
 	/* Clear out SCP7MD1,0, SCP6MD1,0, SCP4MD1,0*/
-	ctrl_outw(data & 0x0fcf, SCPCR);
+	__raw_writew(data & 0x0fcf, SCPCR);
 
-	if (cflag & CRTSCTS)
-		fcr_val |= SCFCR_MCE;
-	else {
+	if (!(cflag & CRTSCTS)) {
 		/* We need to set SCPCR to enable RTS/CTS */
-		data = ctrl_inw(SCPCR);
+		data = __raw_readw(SCPCR);
 		/* Clear out SCP7MD1,0, SCP4MD1,0,
 		   Set SCP6MD1,0 = {01} (output)  */
-		ctrl_outw((data & 0x0fcf) | 0x1000, SCPCR);
+		__raw_writew((data & 0x0fcf) | 0x1000, SCPCR);
 
 		data = ctrl_inb(SCPDR);
 		/* Set /RTS2 (bit6) = 0 */
 		ctrl_outb(data & 0xbf, SCPDR);
 	}
-
-	sci_out(port, SCFCR, fcr_val);
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
-static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
+static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
-	unsigned int fcr_val = 0;
 	unsigned short data;
 
 	if (port->mapbase == 0xffe00000) {
-		data = ctrl_inw(PSCR);
+		data = __raw_readw(PSCR);
 		data &= ~0x03cf;
-		if (cflag & CRTSCTS)
-			fcr_val |= SCFCR_MCE;
-		else
+		if (!(cflag & CRTSCTS))
 			data |= 0x0340;
 
-		ctrl_outw(data, PSCR);
+		__raw_writew(data, PSCR);
 	}
-	/* SCIF1 and SCIF2 should be setup by board code */
-
-	sci_out(port, SCFCR, fcr_val);
 }
-#elif defined(CONFIG_CPU_SUBTYPE_SH7723)
-static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
-{
-	/* Nothing to do here.. */
-	sci_out(port, SCFCR, 0);
-}
-#else
-/* For SH7750 */
-static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
-{
-	unsigned int fcr_val = 0;
-
-	if (cflag & CRTSCTS) {
-		fcr_val |= SCFCR_MCE;
-	} else {
-#if defined(CONFIG_CPU_SUBTYPE_SH7343) || defined(CONFIG_CPU_SUBTYPE_SH7366)
-		/* Nothing */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780) || \
       defined(CONFIG_CPU_SUBTYPE_SH7785) || \
       defined(CONFIG_CPU_SUBTYPE_SHX3)
-		ctrl_outw(0x0080, SCSPTR0); /* Set RTS = 1 */
+static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
+{
+	if (!(cflag & CRTSCTS))
+		__raw_writew(0x0080, SCSPTR0); /* Set RTS = 1 */
+}
+#elif defined(CONFIG_CPU_SH4)
+static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
+{
+	if (!(cflag & CRTSCTS))
+		__raw_writew(0x0080, SCSPTR2); /* Set RTS = 1 */
+}
 #else
-		ctrl_outw(0x0080, SCSPTR2); /* Set RTS = 1 */
-#endif
-	}
-	sci_out(port, SCFCR, fcr_val);
+static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
+{
+	/* Nothing to do */
 }
 #endif
 
@@ -941,7 +896,6 @@ static void sci_shutdown(struct uart_port *port)
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
-	struct sci_port *s = &sci_ports[port->line];
 	unsigned int status, baud, smr_val;
 	int t = -1;
 
@@ -983,8 +937,8 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		udelay((1000000+(baud-1)) / baud); /* Wait one bit interval */
 	}
 
-	if (likely(s->init_pins))
-		s->init_pins(port, termios->c_cflag);
+	sci_init_pins(port, termios->c_cflag);
+	sci_out(port, SCFCR, (termios->c_cflag & CRTSCTS) ? SCFCR_MCE : 0);
 
 	sci_out(port, SCSCR, SCSCR_INIT(port));
 
@@ -1024,19 +978,6 @@ static void sci_config_port(struct uart_port *port, int flags)
 	struct sci_port *s = &sci_ports[port->line];
 
 	port->type = s->type;
-
-	switch (port->type) {
-	case PORT_SCI:
-		s->init_pins = sci_init_pins_sci;
-		break;
-	case PORT_SCIF:
-	case PORT_SCIFA:
-		s->init_pins = sci_init_pins_scif;
-		break;
-	case PORT_IRDA:
-		s->init_pins = sci_init_pins_irda;
-		break;
-	}
 
 	if (port->flags & UPF_IOREMAP && !port->membase) {
 #if defined(CONFIG_SUPERH64)
