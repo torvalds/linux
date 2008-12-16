@@ -107,7 +107,7 @@ u64 ring_buffer_time_stamp(int cpu)
 	preempt_disable_notrace();
 	/* shift to debug/test normalization and TIME_EXTENTS */
 	time = sched_clock() << DEBUG_SHIFT;
-	preempt_enable_notrace();
+	preempt_enable_no_resched_notrace();
 
 	return time;
 }
