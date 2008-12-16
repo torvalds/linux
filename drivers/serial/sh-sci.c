@@ -625,6 +625,27 @@ static inline int sci_handle_errors(struct uart_port *port)
 	return copied;
 }
 
+static inline int sci_handle_fifo_overrun(struct uart_port *port)
+{
+	struct tty_struct *tty = port->info->port.tty;
+	int copied = 0;
+
+	if (port->type != PORT_SCIF)
+		return 0;
+
+	if ((sci_in(port, SCLSR) & SCIF_ORER) != 0) {
+		sci_out(port, SCLSR, 0);
+
+		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_flip_buffer_push(tty);
+
+		dev_notice(port->dev, "overrun error\n");
+		copied++;
+	}
+
+	return copied;
+}
+
 static inline int sci_handle_breaks(struct uart_port *port)
 {
 	int copied = 0;
@@ -647,19 +668,10 @@ static inline int sci_handle_breaks(struct uart_port *port)
 		dev_dbg(port->dev, "BREAK detected\n");
 	}
 
-#if defined(SCIF_ORER)
-	/* XXX: Handle SCIF overrun error */
-	if (port->type != PORT_SCI && (sci_in(port, SCLSR) & SCIF_ORER) != 0) {
-		sci_out(port, SCLSR, 0);
-		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN)) {
-			copied++;
-			dev_notice(port->dev, "overrun error\n");
-		}
-	}
-#endif
-
 	if (copied)
 		tty_flip_buffer_push(tty);
+
+	copied += sci_handle_fifo_overrun(port);
 
 	return copied;
 }
@@ -698,16 +710,7 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 			sci_out(port, SCxSR, SCxSR_RDxF_CLEAR(port));
 		}
 	} else {
-#if defined(SCIF_ORER)
-		if ((sci_in(port, SCLSR) & SCIF_ORER) != 0) {
-			struct tty_struct *tty = port->info->port.tty;
-
-			sci_out(port, SCLSR, 0);
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-			tty_flip_buffer_push(tty);
-			dev_notice(port->dev, "overrun error\n");
-		}
-#endif
+		sci_handle_fifo_overrun(port);
 		sci_rx_interrupt(irq, ptr);
 	}
 

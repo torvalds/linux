@@ -232,6 +232,10 @@
 # define SCIF_TXROOM_MAX 16
 #endif
 
+#ifndef SCIF_ORER
+#define SCIF_ORER	0x0000
+#endif
+
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
 #define SCxSR_ERRORS(port)	(((port)->type == PORT_SCI) ? SCI_ERRORS : SCIF_ERRORS)
 #define SCxSR_RDxF(port)	(((port)->type == PORT_SCI) ? SCI_RDRF   : SCIF_RDF)
@@ -239,12 +243,7 @@
 #define SCxSR_FER(port)		(((port)->type == PORT_SCI) ? SCI_FER    : SCIF_FER)
 #define SCxSR_PER(port)		(((port)->type == PORT_SCI) ? SCI_PER    : SCIF_PER)
 #define SCxSR_BRK(port)		(((port)->type == PORT_SCI) ? 0x00       : SCIF_BRK)
-
-#if defined(CONFIG_CPU_SUBTYPE_SH7705)
-# define SCxSR_ORER(port)	(((port)->type == PORT_SCI) ? SCI_ORER : SCIF_ORER)
-#else
-# define SCxSR_ORER(port)	(((port)->type == PORT_SCI) ? SCI_ORER : 0x0000)
-#endif
+#define SCxSR_ORER(port)	(((port)->type == PORT_SCI) ? SCI_ORER	 : SCIF_ORER)
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
     defined(CONFIG_CPU_SUBTYPE_SH7720) || \
