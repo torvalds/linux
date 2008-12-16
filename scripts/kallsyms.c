@@ -130,18 +130,9 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 static int symbol_valid(struct sym_entry *s)
 {
 	/* Symbols which vary between passes.  Passes 1 and 2 must have
-	 * identical symbol lists.  The kallsyms_* symbols below are only added
-	 * after pass 1, they would be included in pass 2 when --all-symbols is
-	 * specified so exclude them to get a stable symbol list.
+	 * identical symbol lists.
 	 */
 	static char *special_symbols[] = {
-		"kallsyms_addresses",
-		"kallsyms_num_syms",
-		"kallsyms_names",
-		"kallsyms_markers",
-		"kallsyms_token_table",
-		"kallsyms_token_index",
-
 	/* Exclude linker generated symbols which vary between passes */
 		"_SDA_BASE_",		/* ppc */
 		"_SDA2_BASE_",		/* ppc */
@@ -173,7 +164,9 @@ static int symbol_valid(struct sym_entry *s)
 	}
 
 	/* Exclude symbols which vary between passes. */
-	if (strstr((char *)s->sym + offset, "_compiled."))
+	if (strstr((char *)s->sym + offset, "_compiled.") ||
+	    strncmp((char*)s->sym + offset, "__compound_literal.", 19) == 0 ||
+	    strncmp((char*)s->sym + offset, "__compound_literal$", 19) == 0)
 		return 0;
 
 	for (i = 0; special_symbols[i]; i++)
@@ -550,8 +543,10 @@ int main(int argc, char **argv)
 		usage();
 
 	read_map(stdin);
-	sort_symbols();
-	optimize_token_table();
+	if (table_cnt) {
+		sort_symbols();
+		optimize_token_table();
+	}
 	write_src();
 
 	return 0;

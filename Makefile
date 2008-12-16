@@ -604,6 +604,9 @@ export	INSTALL_PATH ?= /boot
 MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
 
+strip-symbols := $(srctree)/scripts/strip-symbols \
+		 $(wildcard $(srctree)/arch/$(ARCH)/scripts/strip-symbols)
+
 #
 # INSTALL_MOD_STRIP, if defined, will cause modules to be stripped while
 # they get installed.  If INSTALL_MOD_STRIP is '1', then the default
@@ -611,8 +614,10 @@ export MODLIB
 # be used as the option(s) to the objcopy command.
 ifdef INSTALL_MOD_STRIP
 ifeq ($(INSTALL_MOD_STRIP),1)
-mod_strip_cmd = $(OBJCOPY) --strip-debug --strip-symbols \
-		$(srctree)/scripts/strip-symbols --wildcard
+mod_strip_cmd = $(OBJCOPY) --strip-debug
+ifeq ($(CONFIG_KALLSYMS_ALL),$(CONFIG_KALLSYMS_STRIP_GENERATED))
+mod_strip_cmd += --wildcard $(addprefix --strip-symbols ,$(strip-symbols))
+endif
 else
 mod_strip_cmd = $(OBJCOPY) $(INSTALL_MOD_STRIP)
 endif # INSTALL_MOD_STRIP=1
@@ -747,6 +752,7 @@ last_kallsyms := 2
 endif
 
 kallsyms.o := .tmp_kallsyms$(last_kallsyms).o
+kallsyms.h := $(wildcard include/config/kallsyms/*.h) $(wildcard include/config/kallsyms/*/*.h)
 
 define verify_kallsyms
 	$(Q)$(if $($(quiet)cmd_sysmap),                                      \
@@ -771,24 +777,41 @@ endef
 
 # Generate .S file with all kernel symbols
 quiet_cmd_kallsyms = KSYM    $@
-      cmd_kallsyms = $(NM) -n $< | $(KALLSYMS) \
-                     $(if $(CONFIG_KALLSYMS_ALL),--all-symbols) > $@
+      cmd_kallsyms = { test $* -eq 0 || $(NM) -n $<; } \
+		     | $(KALLSYMS) $(if $(CONFIG_KALLSYMS_ALL),--all-symbols) >$@
 
-.tmp_kallsyms1.o .tmp_kallsyms2.o .tmp_kallsyms3.o: %.o: %.S scripts FORCE
+quiet_cmd_kstrip = STRIP   $@
+      cmd_kstrip = $(OBJCOPY) --wildcard $(addprefix --strip$(if $(CONFIG_RELOCATABLE),-unneeded)-symbols ,$(filter %/scripts/strip-symbols,$^)) $< $@
+
+$(foreach n,0 1 2 3,.tmp_kallsyms$(n).o): KBUILD_AFLAGS += -Wa,--strip-local-absolute
+$(foreach n,0 1 2 3,.tmp_kallsyms$(n).o): %.o: %.S scripts FORCE
 	$(call if_changed_dep,as_o_S)
 
-.tmp_kallsyms%.S: .tmp_vmlinux% $(KALLSYMS)
+ifeq ($(CONFIG_KALLSYMS_STRIP_GENERATED),y)
+strip-ext := .stripped
+endif
+
+.tmp_kallsyms%.S: .tmp_vmlinux%$(strip-ext) $(KALLSYMS) $(kallsyms.h)
 	$(call cmd,kallsyms)
 
+# make -jN seems to have problems with intermediate files, see bug #3330.
+.SECONDARY: $(foreach n,1 2 3,.tmp_vmlinux$(n).stripped)
+.tmp_vmlinux%.stripped: .tmp_vmlinux% $(strip-symbols) $(kallsyms.h)
+	$(call cmd,kstrip)
+
+ifneq ($(CONFIG_DEBUG_INFO),y)
+.tmp_vmlinux%: LDFLAGS_vmlinux += -S
+endif
 # .tmp_vmlinux1 must be complete except kallsyms, so update vmlinux version
-.tmp_vmlinux1: $(vmlinux-lds) $(vmlinux-all) FORCE
-	$(call if_changed_rule,ksym_ld)
+.tmp_vmlinux%: $(vmlinux-lds) $(vmlinux-all) FORCE
+	$(if $(filter 1,$*),$(call if_changed_rule,ksym_ld),$(call if_changed,vmlinux__))
 
-.tmp_vmlinux2: $(vmlinux-lds) $(vmlinux-all) .tmp_kallsyms1.o FORCE
-	$(call if_changed,vmlinux__)
+.tmp_vmlinux0$(strip-ext):
+	$(Q)echo "placeholder" >$@
 
-.tmp_vmlinux3: $(vmlinux-lds) $(vmlinux-all) .tmp_kallsyms2.o FORCE
-	$(call if_changed,vmlinux__)
+.tmp_vmlinux1: .tmp_kallsyms0.o
+.tmp_vmlinux2: .tmp_kallsyms1.o
+.tmp_vmlinux3: .tmp_kallsyms2.o
 
 # Needs to visit scripts/ before $(KALLSYMS) can be used.
 $(KALLSYMS): scripts ;
