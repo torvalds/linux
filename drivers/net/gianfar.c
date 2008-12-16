@@ -131,7 +131,8 @@ static void gfar_netpoll(struct net_device *dev);
 #endif
 int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit);
 static int gfar_clean_tx_ring(struct net_device *dev);
-static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb, int length);
+static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
+			      int amount_pull);
 static void gfar_vlan_rx_register(struct net_device *netdev,
 		                struct vlan_group *grp);
 void gfar_halt(struct net_device *dev);
@@ -210,6 +211,7 @@ static int gfar_of_init(struct net_device *dev)
 			FSL_GIANFAR_DEV_HAS_COALESCE |
 			FSL_GIANFAR_DEV_HAS_RMON |
 			FSL_GIANFAR_DEV_HAS_MULTI_INTR |
+			FSL_GIANFAR_DEV_HAS_PADDING |
 			FSL_GIANFAR_DEV_HAS_CSUM |
 			FSL_GIANFAR_DEV_HAS_VLAN |
 			FSL_GIANFAR_DEV_HAS_MAGIC_PACKET |
@@ -1668,59 +1670,38 @@ static inline void gfar_rx_checksum(struct sk_buff *skb, struct rxfcb *fcb)
 }
 
 
-static inline struct rxfcb *gfar_get_fcb(struct sk_buff *skb)
-{
-	struct rxfcb *fcb = (struct rxfcb *)skb->data;
-
-	/* Remove the FCB from the skb */
-	skb_pull(skb, GMAC_FCB_LEN);
-
-	return fcb;
-}
-
 /* gfar_process_frame() -- handle one incoming packet if skb
  * isn't NULL.  */
 static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
-		int length)
+			      int amount_pull)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct rxfcb *fcb = NULL;
 
-	if (NULL == skb) {
-		if (netif_msg_rx_err(priv))
-			printk(KERN_WARNING "%s: Missing skb!!.\n", dev->name);
-		dev->stats.rx_dropped++;
-		priv->extra_stats.rx_skbmissing++;
-	} else {
-		int ret;
+	int ret;
 
-		/* Prep the skb for the packet */
-		skb_put(skb, length);
+	/* fcb is at the beginning if exists */
+	fcb = (struct rxfcb *)skb->data;
 
-		/* Grab the FCB if there is one */
-		if (gfar_uses_fcb(priv))
-			fcb = gfar_get_fcb(skb);
+	/* Remove the FCB from the skb */
+	/* Remove the padded bytes, if there are any */
+	if (amount_pull)
+		skb_pull(skb, amount_pull);
 
-		/* Remove the padded bytes, if there are any */
-		if (priv->padding)
-			skb_pull(skb, priv->padding);
+	if (priv->rx_csum_enable)
+		gfar_rx_checksum(skb, fcb);
 
-		if (priv->rx_csum_enable)
-			gfar_rx_checksum(skb, fcb);
+	/* Tell the skb what kind of packet this is */
+	skb->protocol = eth_type_trans(skb, dev);
 
-		/* Tell the skb what kind of packet this is */
-		skb->protocol = eth_type_trans(skb, dev);
+	/* Send the packet up the stack */
+	if (unlikely(priv->vlgrp && (fcb->flags & RXFCB_VLN)))
+		ret = vlan_hwaccel_receive_skb(skb, priv->vlgrp, fcb->vlctl);
+	else
+		ret = netif_receive_skb(skb);
 
-		/* Send the packet up the stack */
-		if (unlikely(priv->vlgrp && (fcb->flags & RXFCB_VLN))) {
-			ret = vlan_hwaccel_receive_skb(skb, priv->vlgrp,
-						       fcb->vlctl);
-		} else
-			ret = netif_receive_skb(skb);
-
-		if (NET_RX_DROP == ret)
-			priv->extra_stats.kernel_dropped++;
-	}
+	if (NET_RX_DROP == ret)
+		priv->extra_stats.kernel_dropped++;
 
 	return 0;
 }
@@ -1733,12 +1714,16 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 {
 	struct rxbd8 *bdp;
 	struct sk_buff *skb;
-	u16 pkt_len;
+	int pkt_len;
+	int amount_pull;
 	int howmany = 0;
 	struct gfar_private *priv = netdev_priv(dev);
 
 	/* Get the first full descriptor */
 	bdp = priv->cur_rx;
+
+	amount_pull = (gfar_uses_fcb(priv) ? GMAC_FCB_LEN : 0) +
+		priv->padding;
 
 	while (!((bdp->status & RXBD_EMPTY) || (--rx_work_limit < 0))) {
 		struct sk_buff *newskb;
@@ -1767,12 +1752,22 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 			dev->stats.rx_packets++;
 			howmany++;
 
-			/* Remove the FCS from the packet length */
-			pkt_len = bdp->length - 4;
+			if (likely(skb)) {
+				pkt_len = bdp->length - ETH_FCS_LEN;
+				/* Remove the FCS from the packet length */
+				skb_put(skb, pkt_len);
+				dev->stats.rx_bytes += pkt_len;
 
-			gfar_process_frame(dev, skb, pkt_len);
+				gfar_process_frame(dev, skb, amount_pull);
 
-			dev->stats.rx_bytes += pkt_len;
+			} else {
+				if (netif_msg_rx_err(priv))
+					printk(KERN_WARNING
+					       "%s: Missing skb!\n", dev->name);
+				dev->stats.rx_dropped++;
+				priv->extra_stats.rx_skbmissing++;
+			}
+
 		}
 
 		priv->rx_skbuff[priv->skb_currx] = newskb;
