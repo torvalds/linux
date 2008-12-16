@@ -1315,7 +1315,7 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 
 	printk(KERN_ERR "BG ERROR in cmd 0x%x lba 0x%llx blk cnt 0x%lx "
 			"bgstat=0x%x bghm=0x%x\n",
-			cmd->cmnd[0], (u64)scsi_get_lba(cmd),
+			cmd->cmnd[0], (unsigned long long)scsi_get_lba(cmd),
 			cmd->request->nr_sectors, bgstat, bghm);
 
 	spin_lock(&_dump_buf_lock);
@@ -2376,13 +2376,13 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					"9035 BLKGRD: READ @ sector %llu, "
 					 "count %lu\n",
-					 (u64)scsi_get_lba(cmnd),
+					 (unsigned long long)scsi_get_lba(cmnd),
 					cmnd->request->nr_sectors);
 		else if (cmnd->cmnd[0] == WRITE_10)
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					"9036 BLKGRD: WRITE @ sector %llu, "
 					"count %lu cmd=%p\n",
-					(u64)scsi_get_lba(cmnd),
+					(unsigned long long)scsi_get_lba(cmnd),
 					cmnd->request->nr_sectors,
 					cmnd);
 
@@ -2403,13 +2403,14 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		if (cmnd->cmnd[0] == READ_10)
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					 "9040 dbg: READ @ sector %llu, "
-					 "count %lu\n", (u64)scsi_get_lba(cmnd),
+					 "count %lu\n",
+					 (unsigned long long)scsi_get_lba(cmnd),
 					 cmnd->request->nr_sectors);
 		else if (cmnd->cmnd[0] == WRITE_10)
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					 "9041 dbg: WRITE @ sector %llu, "
 					 "count %lu cmd=%p\n",
-					 (u64)scsi_get_lba(cmnd),
+					 (unsigned long long)scsi_get_lba(cmnd),
 					 cmnd->request->nr_sectors, cmnd);
 		else
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,

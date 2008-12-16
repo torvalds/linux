@@ -123,7 +123,8 @@ lpfc_bg_guard_err_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", phba->bg_guard_err_cnt);
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_guard_err_cnt);
 }
 
 static ssize_t
@@ -134,7 +135,8 @@ lpfc_bg_apptag_err_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", phba->bg_apptag_err_cnt);
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_apptag_err_cnt);
 }
 
 static ssize_t
@@ -145,7 +147,8 @@ lpfc_bg_reftag_err_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", phba->bg_reftag_err_cnt);
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_reftag_err_cnt);
 }
 
 /**
