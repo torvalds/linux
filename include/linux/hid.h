@@ -793,6 +793,8 @@ dbg_hid(const char *fmt, ...)
 
 #ifdef CONFIG_HID_COMPAT
 #define HID_COMPAT_LOAD_DRIVER(name)	\
+/* prototype to avoid sparse warning */	\
+extern void hid_compat_##name(void);	\
 void hid_compat_##name(void) { }	\
 EXPORT_SYMBOL(hid_compat_##name)
 #else
