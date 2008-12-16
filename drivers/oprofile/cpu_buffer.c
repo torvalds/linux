@@ -277,8 +277,9 @@ static void oprofile_end_trace(struct oprofile_cpu_buffer *cpu_buf)
 	cpu_buf->tracing = 0;
 }
 
-void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
-				unsigned long event, int is_kernel)
+static inline void
+__oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
+			  unsigned long event, int is_kernel)
 {
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
 
@@ -299,12 +300,18 @@ void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
 	oprofile_end_trace(cpu_buf);
 }
 
+void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
+			     unsigned long event, int is_kernel)
+{
+	__oprofile_add_ext_sample(pc, regs, event, is_kernel);
+}
+
 void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 {
 	int is_kernel = !user_mode(regs);
 	unsigned long pc = profile_pc(regs);
 
-	oprofile_add_ext_sample(pc, regs, event, is_kernel);
+	__oprofile_add_ext_sample(pc, regs, event, is_kernel);
 }
 
 #ifdef CONFIG_OPROFILE_IBS
