@@ -78,6 +78,18 @@ extern unsigned long ia64_native_getreg_func(int regnum);
 			ia64_native_rsm(mask);	\
 	} while (0)
 
+/* returned ip value should be the one in the caller,
+ * not in __paravirt_getreg() */
+#define paravirt_getreg(reg)					\
+	({							\
+		unsigned long res;				\
+		if ((reg) == _IA64_REG_IP)			\
+			res = ia64_native_getreg(_IA64_REG_IP); \
+		else						\
+			res = pv_cpu_ops.getreg(reg);		\
+		res;						\
+	})
+
 /******************************************************************************
  * replacement of hand written assembly codes.
  */

@@ -646,15 +646,14 @@ static void gspca_stream_off(struct gspca_dev *gspca_dev)
 {
 	gspca_dev->streaming = 0;
 	atomic_set(&gspca_dev->nevent, 0);
-	if (gspca_dev->present) {
-		if (gspca_dev->sd_desc->stopN)
-			gspca_dev->sd_desc->stopN(gspca_dev);
-		destroy_urbs(gspca_dev);
-		gspca_set_alt0(gspca_dev);
-		if (gspca_dev->sd_desc->stop0)
-			gspca_dev->sd_desc->stop0(gspca_dev);
-		PDEBUG(D_STREAM, "stream off OK");
-	}
+	if (gspca_dev->present
+	    && gspca_dev->sd_desc->stopN)
+		gspca_dev->sd_desc->stopN(gspca_dev);
+	destroy_urbs(gspca_dev);
+	gspca_set_alt0(gspca_dev);
+	if (gspca_dev->sd_desc->stop0)
+		gspca_dev->sd_desc->stop0(gspca_dev);
+	PDEBUG(D_STREAM, "stream off OK");
 }
 
 static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
@@ -863,7 +862,7 @@ static int dev_open(struct inode *inode, struct file *file)
 	int ret;
 
 	PDEBUG(D_STREAM, "%s open", current->comm);
-	gspca_dev = (struct gspca_dev *) video_devdata(file);
+	gspca_dev = video_drvdata(file);
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 	if (!gspca_dev->present) {
@@ -875,6 +874,13 @@ static int dev_open(struct inode *inode, struct file *file)
 		ret = -EBUSY;
 		goto out;
 	}
+
+	/* protect the subdriver against rmmod */
+	if (!try_module_get(gspca_dev->module)) {
+		ret = -ENODEV;
+		goto out;
+	}
+
 	gspca_dev->users++;
 
 	/* one more user */
@@ -884,10 +890,10 @@ static int dev_open(struct inode *inode, struct file *file)
 #ifdef GSPCA_DEBUG
 	/* activate the v4l2 debug */
 	if (gspca_debug & D_V4L2)
-		gspca_dev->vdev.debug |= V4L2_DEBUG_IOCTL
+		gspca_dev->vdev->debug |= V4L2_DEBUG_IOCTL
 					| V4L2_DEBUG_IOCTL_ARG;
 	else
-		gspca_dev->vdev.debug &= ~(V4L2_DEBUG_IOCTL
+		gspca_dev->vdev->debug &= ~(V4L2_DEBUG_IOCTL
 					| V4L2_DEBUG_IOCTL_ARG);
 #endif
 	ret = 0;
@@ -921,6 +927,7 @@ static int dev_close(struct inode *inode, struct file *file)
 		gspca_dev->memory = GSPCA_MEMORY_NO;
 	}
 	file->private_data = NULL;
+	module_put(gspca_dev->module);
 	mutex_unlock(&gspca_dev->queue_lock);
 
 	PDEBUG(D_STREAM, "close done");
@@ -1748,11 +1755,6 @@ out:
 	return ret;
 }
 
-static void dev_release(struct video_device *vfd)
-{
-	/* nothing */
-}
-
 static struct file_operations dev_fops = {
 	.owner = THIS_MODULE,
 	.open = dev_open,
@@ -1800,7 +1802,7 @@ static struct video_device gspca_template = {
 	.name = "gspca main driver",
 	.fops = &dev_fops,
 	.ioctl_ops = &dev_ioctl_ops,
-	.release = dev_release,		/* mandatory */
+	.release = video_device_release,
 	.minor = -1,
 };
 
@@ -1869,17 +1871,18 @@ int gspca_dev_probe(struct usb_interface *intf,
 	init_waitqueue_head(&gspca_dev->wq);
 
 	/* init video stuff */
-	memcpy(&gspca_dev->vdev, &gspca_template, sizeof gspca_template);
-	gspca_dev->vdev.parent = &dev->dev;
-	memcpy(&gspca_dev->fops, &dev_fops, sizeof gspca_dev->fops);
-	gspca_dev->vdev.fops = &gspca_dev->fops;
-	gspca_dev->fops.owner = module;		/* module protection */
+	gspca_dev->vdev = video_device_alloc();
+	memcpy(gspca_dev->vdev, &gspca_template, sizeof gspca_template);
+	gspca_dev->vdev->parent = &dev->dev;
+	gspca_dev->module = module;
 	gspca_dev->present = 1;
-	ret = video_register_device(&gspca_dev->vdev,
+	video_set_drvdata(gspca_dev->vdev, gspca_dev);
+	ret = video_register_device(gspca_dev->vdev,
 				  VFL_TYPE_GRABBER,
 				  video_nr);
 	if (ret < 0) {
 		err("video_register_device err %d", ret);
+		video_device_release(gspca_dev->vdev);
 		goto out;
 	}
 
@@ -1887,7 +1890,8 @@ int gspca_dev_probe(struct usb_interface *intf,
 	PDEBUG(D_PROBE, "probe ok");
 	return 0;
 out:
-	kref_put(&gspca_dev->kref, gspca_delete);
+	kfree(gspca_dev->usb_buf);
+	kfree(gspca_dev);
 	return ret;
 }
 EXPORT_SYMBOL(gspca_dev_probe);
@@ -1905,7 +1909,7 @@ void gspca_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 /* We don't want people trying to open up the device */
-	video_unregister_device(&gspca_dev->vdev);
+	video_unregister_device(gspca_dev->vdev);
 
 	gspca_dev->present = 0;
 	gspca_dev->streaming = 0;

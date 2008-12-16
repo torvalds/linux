@@ -522,17 +522,7 @@ static int gdbstub_single_step(struct pt_regs *regs)
 	} else {
 		switch (cur) {
 			/* Bxx (d8,PC) */
-		case 0xc0:
-		case 0xc1:
-		case 0xc2:
-		case 0xc3:
-		case 0xc4:
-		case 0xc5:
-		case 0xc6:
-		case 0xc7:
-		case 0xc8:
-		case 0xc9:
-		case 0xca:
+		case 0xc0 ... 0xca:
 			if (gdbstub_read_byte(pc + 1, (u8 *) &x) < 0)
 				goto fault;
 			if (!__gdbstub_mark_bp(pc + 2, 0))
@@ -543,17 +533,7 @@ static int gdbstub_single_step(struct pt_regs *regs)
 			break;
 
 			/* LXX (d8,PC) */
-		case 0xd0:
-		case 0xd1:
-		case 0xd2:
-		case 0xd3:
-		case 0xd4:
-		case 0xd5:
-		case 0xd6:
-		case 0xd7:
-		case 0xd8:
-		case 0xd9:
-		case 0xda:
+		case 0xd0 ... 0xda:
 			if (!__gdbstub_mark_bp(pc + 1, 0))
 				goto fault;
 			if (regs->pc != regs->lar &&

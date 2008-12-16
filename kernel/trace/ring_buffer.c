@@ -617,6 +617,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 		list_del_init(&page->list);
 		free_buffer_page(page);
 	}
+	mutex_unlock(&buffer->mutex);
 	return -ENOMEM;
 }
 
@@ -1214,7 +1215,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer,
 
  out:
 	if (resched)
-		preempt_enable_notrace();
+		preempt_enable_no_resched_notrace();
 	else
 		preempt_enable_notrace();
 	return NULL;

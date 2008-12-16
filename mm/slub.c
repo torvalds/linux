@@ -2931,8 +2931,10 @@ static int slab_memory_callback(struct notifier_block *self,
 	case MEM_CANCEL_OFFLINE:
 		break;
 	}
-
-	ret = notifier_from_errno(ret);
+	if (ret)
+		ret = notifier_from_errno(ret);
+	else
+		ret = NOTIFY_OK;
 	return ret;
 }
 
@@ -3595,7 +3597,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	for (i = 0; i < t.count; i++) {
 		struct location *l = &t.loc[i];
 
-		if (len > PAGE_SIZE - 100)
+		if (len > PAGE_SIZE - KSYM_SYMBOL_LEN - 100)
 			break;
 		len += sprintf(buf + len, "%7ld ", l->count);
 

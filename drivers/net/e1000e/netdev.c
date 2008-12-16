@@ -345,7 +345,6 @@ no_buffers:
 /**
  * e1000_alloc_jumbo_rx_buffers - Replace used jumbo receive buffers
  * @adapter: address of board private structure
- * @rx_ring: pointer to receive ring structure
  * @cleaned_count: number of buffers to allocate this pass
  **/
 

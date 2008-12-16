@@ -253,6 +253,7 @@ placeholder:
 		 __func__, pci_domain_nr(parent), parent->number, slot_nr);
 
 out:
+	kfree(slot_name);
 	up_write(&pci_bus_sem);
 	return slot;
 err:

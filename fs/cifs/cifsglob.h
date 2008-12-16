@@ -606,7 +606,15 @@ GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
  * changes to the tcon->tidStatus should be done while holding this lock.
  */
 GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
-GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
+
+/*
+ * This lock protects the cifs_file->llist and cifs_file->flist
+ * list operations, and updates to some flags (cifs_file->invalidHandle)
+ * It will be moved to either use the tcon->stat_lock or equivalent later.
+ * If cifs_tcp_ses_lock and the lock below are both needed to be held, then
+ * the cifs_tcp_ses_lock must be grabbed first and released last.
+ */
+GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;
 
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;
 

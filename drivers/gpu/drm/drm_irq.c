@@ -94,7 +94,7 @@ static void vblank_disable_fn(unsigned long arg)
 	}
 }
 
-static void drm_vblank_cleanup(struct drm_device *dev)
+void drm_vblank_cleanup(struct drm_device *dev)
 {
 	/* Bail if the driver didn't call drm_vblank_init() */
 	if (dev->num_crtcs == 0)
@@ -277,8 +277,6 @@ int drm_irq_uninstall(struct drm_device * dev)
 	dev->driver->irq_uninstall(dev);
 
 	free_irq(dev->pdev->irq, dev);
-
-	drm_vblank_cleanup(dev);
 
 	return 0;
 }

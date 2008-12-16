@@ -846,10 +846,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	int retry = 50;
 
+	if (!gspca_dev->present)
+		return;
 	reg_w_val(gspca_dev, 0x0000, 0x00);
 	reg_r(gspca_dev, 0x0002, 1);
 	reg_w_val(gspca_dev, 0x0053, 0x00);

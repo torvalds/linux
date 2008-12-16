@@ -1498,7 +1498,7 @@ static int ftdi_open(struct tty_struct *tty,
 			priv->interface, buf, 0, WDR_TIMEOUT);
 
 	/* Termios defaults are set by usb_serial_init. We don't change
-	   port->tty->termios - this would loose speed settings, etc.
+	   port->tty->termios - this would lose speed settings, etc.
 	   This is same behaviour as serial.c/rs_open() - Kuba */
 
 	/* ftdi_set_termios  will send usb control messages */

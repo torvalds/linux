@@ -1973,13 +1973,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 
 	/* make sure that we don't pick a non-existing transmit queue */
 	ntxq = pkt_dev->odev->real_num_tx_queues;
-	if (ntxq > num_online_cpus() && (pkt_dev->flags & F_QUEUE_MAP_CPU)) {
-		printk(KERN_WARNING "pktgen: WARNING: QUEUE_MAP_CPU "
-		       "disabled because CPU count (%d) exceeds number "
-		       "of tx queues (%d) on %s\n", num_online_cpus(), ntxq,
-		       pkt_dev->odev->name);
-		pkt_dev->flags &= ~F_QUEUE_MAP_CPU;
-	}
+
 	if (ntxq <= pkt_dev->queue_map_min) {
 		printk(KERN_WARNING "pktgen: WARNING: Requested "
 		       "queue_map_min (zero-based) (%d) exceeds valid range "
@@ -2202,6 +2196,7 @@ static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 		}
 		pkt_dev->cur_queue_map = t;
 	}
+	pkt_dev->cur_queue_map  = pkt_dev->cur_queue_map % pkt_dev->odev->real_num_tx_queues;
 }
 
 /* Increment/randomize headers according to flags and current values

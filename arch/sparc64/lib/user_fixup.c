@@ -24,7 +24,7 @@ static unsigned long compute_size(unsigned long start, unsigned long size, unsig
 	if (fault_addr < start || fault_addr >= end) {
 		*offset = 0;
 	} else {
-		*offset = start - fault_addr;
+		*offset = fault_addr - start;
 		size = end - fault_addr;
 	}
 	return size;

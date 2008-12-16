@@ -167,6 +167,13 @@ UNUSUAL_DEV(  0x0421, 0x005d, 0x0001, 0x0600,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Patch for Nokia 5310 capacity */
+UNUSUAL_DEV(  0x0421, 0x006a, 0x0000, 0x0591,
+		"Nokia",
+		"5310",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Reported by Mario Rettig <mariorettig@web.de> */
 UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
 		"Nokia",
@@ -233,14 +240,14 @@ UNUSUAL_DEV(  0x0421, 0x0495, 0x0370, 0x0370,
 		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Cedric Godin <cedric@belbone.be> */
-UNUSUAL_DEV(  0x0421, 0x04b9, 0x0551, 0x0551,
+UNUSUAL_DEV(  0x0421, 0x04b9, 0x0500, 0x0551,
 		"Nokia",
 		"5300",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
 /* Reported by Richard Nauber <RichardNauber@web.de> */
-UNUSUAL_DEV(  0x0421, 0x04fa, 0x0601, 0x0601,
+UNUSUAL_DEV(  0x0421, 0x04fa, 0x0550, 0x0660,
 		"Nokia",
 		"6300",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -311,6 +318,18 @@ UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
 		US_SC_SCSI, US_PR_KARMA, rio_karma_init, 0),
 #endif
 
+/* Reported by Tamas Kerecsen <kerecsen@bigfoot.com>
+ * Obviously the PROM has not been customized by the VAR;
+ * the Vendor and Product string descriptors are:
+ *	Generic Mass Storage (PROTOTYPE--Remember to change idVendor)
+ *	Generic Manufacturer (PROTOTYPE--Remember to change idVendor)
+ */
+UNUSUAL_DEV(  0x045e, 0xffff, 0x0000, 0x0000,
+		"Mitac",
+		"GPS",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
+
 /*
  * This virtual floppy is found in Sun equipment (x4600, x4200m2, etc.)
  * Reported by Pete Zaitcev <zaitcev@redhat.com>
@@ -367,6 +386,13 @@ UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
 UNUSUAL_DEV(  0x04b0, 0x0401, 0x0200, 0x0200,
 		"NIKON",
 		"NIKON DSC D100",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
+/* Reported by Tobias Kunze Briseno <t-linux@fictive.com> */
+UNUSUAL_DEV(  0x04b0, 0x0403, 0x0200, 0x0200,
+		"NIKON",
+		"NIKON DSC D2H",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
