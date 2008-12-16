@@ -156,6 +156,32 @@ static dma_addr_t swiotlb_sg_to_bus(struct scatterlist *sg)
 	return swiotlb_phys_to_bus(page_to_phys(sg_page(sg)) + sg->offset);
 }
 
+static void swiotlb_print_info(unsigned long bytes)
+{
+	phys_addr_t pstart, pend;
+	dma_addr_t bstart, bend;
+
+	pstart = virt_to_phys(io_tlb_start);
+	pend = virt_to_phys(io_tlb_end);
+
+	bstart = swiotlb_phys_to_bus(pstart);
+	bend = swiotlb_phys_to_bus(pend);
+
+	printk(KERN_INFO "Placing %luMB software IO TLB between %p - %p\n",
+	       bytes >> 20, io_tlb_start, io_tlb_end);
+	if (pstart != bstart || pend != bend)
+		printk(KERN_INFO "software IO TLB at phys %#llx - %#llx"
+		       " bus %#llx - %#llx\n",
+		       (unsigned long long)pstart,
+		       (unsigned long long)pend,
+		       (unsigned long long)bstart,
+		       (unsigned long long)bend);
+	else
+		printk(KERN_INFO "software IO TLB at phys %#llx - %#llx\n",
+		       (unsigned long long)pstart,
+		       (unsigned long long)pend);
+}
+
 /*
  * Statically reserve bounce buffer space and initialize bounce buffer data
  * structures for the software IO TLB used to implement the DMA API.
@@ -198,8 +224,7 @@ swiotlb_init_with_default_size(size_t default_size)
 	if (!io_tlb_overflow_buffer)
 		panic("Cannot allocate SWIOTLB overflow buffer!\n");
 
-	printk(KERN_INFO "Placing software IO TLB between 0x%lx - 0x%lx\n",
-	       swiotlb_virt_to_bus(io_tlb_start), swiotlb_virt_to_bus(io_tlb_end));
+	swiotlb_print_info(bytes);
 }
 
 void __init
@@ -279,9 +304,7 @@ swiotlb_late_init_with_default_size(size_t default_size)
 	if (!io_tlb_overflow_buffer)
 		goto cleanup4;
 
-	printk(KERN_INFO "Placing %luMB software IO TLB between 0x%lx - "
-	       "0x%lx\n", bytes >> 20,
-	       swiotlb_virt_to_bus(io_tlb_start), swiotlb_virt_to_bus(io_tlb_end));
+	swiotlb_print_info(bytes);
 
 	return 0;
 
