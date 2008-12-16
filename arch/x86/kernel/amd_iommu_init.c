@@ -1074,7 +1074,8 @@ int __init amd_iommu_init(void)
 		goto free;
 
 	/* IOMMU rlookup table - find the IOMMU for a specific device */
-	amd_iommu_rlookup_table = (void *)__get_free_pages(GFP_KERNEL,
+	amd_iommu_rlookup_table = (void *)__get_free_pages(
+			GFP_KERNEL | __GFP_ZERO,
 			get_order(rlookup_table_size));
 	if (amd_iommu_rlookup_table == NULL)
 		goto free;
