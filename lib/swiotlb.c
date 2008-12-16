@@ -301,6 +301,10 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 	start_dma_addr = virt_to_bus(io_tlb_start) & mask;
 
 	offset_slots = ALIGN(start_dma_addr, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT;
+
+	/*
+ 	 * Carefully handle integer overflow which can occur when mask == ~0UL.
+ 	 */
 	max_slots = mask + 1
 		    ? ALIGN(mask + 1, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT
 		    : 1UL << (BITS_PER_LONG - IO_TLB_SHIFT);
