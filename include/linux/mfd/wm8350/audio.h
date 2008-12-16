@@ -1,7 +1,7 @@
 /*
  * audio.h  --  Audio Driver for Wolfson WM8350 PMIC
  *
- * Copyright 2007 Wolfson Microelectronics PLC
+ * Copyright 2007, 2008 Wolfson Microelectronics PLC
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -70,9 +70,9 @@
 #define WM8350_CODEC_ISEL_0_5                   3	/* x0.5 */
 
 #define WM8350_VMID_OFF                         0
-#define WM8350_VMID_500K                        1
-#define WM8350_VMID_100K                        2
-#define WM8350_VMID_10K                         3
+#define WM8350_VMID_300K                        1
+#define WM8350_VMID_50K                         2
+#define WM8350_VMID_5K                          3
 
 /*
  * R40 (0x28) - Clock Control 1
@@ -591,8 +591,38 @@
 #define WM8350_IRQ_CODEC_MICSCD			41
 #define WM8350_IRQ_CODEC_MICD			42
 
+/*
+ * WM8350 Platform data.
+ *
+ * This must be initialised per platform for best audio performance.
+ * Please see WM8350 datasheet for information.
+ */
+struct wm8350_audio_platform_data {
+	int vmid_discharge_msecs;	/* VMID --> OFF discharge time */
+	int drain_msecs;	/* OFF drain time */
+	int cap_discharge_msecs;	/* Cap ON (from OFF) discharge time */
+	int vmid_charge_msecs;	/* vmid power up time */
+	u32 vmid_s_curve:2;	/* vmid enable s curve speed */
+	u32 dis_out4:2;		/* out4 discharge speed */
+	u32 dis_out3:2;		/* out3 discharge speed */
+	u32 dis_out2:2;		/* out2 discharge speed */
+	u32 dis_out1:2;		/* out1 discharge speed */
+	u32 vroi_out4:1;	/* out4 tie off */
+	u32 vroi_out3:1;	/* out3 tie off */
+	u32 vroi_out2:1;	/* out2 tie off */
+	u32 vroi_out1:1;	/* out1 tie off */
+	u32 vroi_enable:1;	/* enable tie off */
+	u32 codec_current_on:2;	/* current level ON */
+	u32 codec_current_standby:2;	/* current level STANDBY */
+	u32 codec_current_charge:2;	/* codec current @ vmid charge */
+};
+
+struct snd_soc_codec;
+
 struct wm8350_codec {
 	struct platform_device *pdev;
+	struct snd_soc_codec *codec;
+	struct wm8350_audio_platform_data *platform_data;
 };
 
 #endif

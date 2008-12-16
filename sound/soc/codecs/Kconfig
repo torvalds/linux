@@ -13,6 +13,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
+	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8510 if (I2C || SPI_MASTER)
 	select SND_SOC_WM8580 if I2C
 	select SND_SOC_WM8728 if (I2C || SPI_MASTER)
@@ -99,6 +100,9 @@ config SND_SOC_UDA134X
 
 config SND_SOC_UDA1380
         tristate
+
+config SND_SOC_WM8350
+	tristate
 
 config SND_SOC_WM8510
 	tristate
