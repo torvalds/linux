@@ -237,6 +237,11 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	u8 order_code;
 	int rc;
 
+	/* sigp in userspace can exit */
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu,
+						   PGM_PRIVILEGED_OPERATION);
+
 	order_code = disp2;
 	if (base2)
 		order_code += vcpu->arch.guest_gprs[base2];

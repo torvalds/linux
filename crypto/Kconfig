@@ -31,34 +31,62 @@ config CRYPTO_FIPS
 
 config CRYPTO_ALGAPI
 	tristate
+	select CRYPTO_ALGAPI2
 	help
 	  This option provides the API for cryptographic algorithms.
 
+config CRYPTO_ALGAPI2
+	tristate
+
 config CRYPTO_AEAD
 	tristate
+	select CRYPTO_AEAD2
 	select CRYPTO_ALGAPI
+
+config CRYPTO_AEAD2
+	tristate
+	select CRYPTO_ALGAPI2
 
 config CRYPTO_BLKCIPHER
 	tristate
+	select CRYPTO_BLKCIPHER2
 	select CRYPTO_ALGAPI
-	select CRYPTO_RNG
+
+config CRYPTO_BLKCIPHER2
+	tristate
+	select CRYPTO_ALGAPI2
+	select CRYPTO_RNG2
 
 config CRYPTO_HASH
 	tristate
+	select CRYPTO_HASH2
 	select CRYPTO_ALGAPI
+
+config CRYPTO_HASH2
+	tristate
+	select CRYPTO_ALGAPI2
 
 config CRYPTO_RNG
 	tristate
+	select CRYPTO_RNG2
 	select CRYPTO_ALGAPI
+
+config CRYPTO_RNG2
+	tristate
+	select CRYPTO_ALGAPI2
 
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
-	select CRYPTO_AEAD
-	select CRYPTO_HASH
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER2
 	help
 	  Create default cryptographic template instantiations such as
 	  cbc(aes).
+
+config CRYPTO_MANAGER2
+	def_tristate CRYPTO_MANAGER || (CRYPTO_MANAGER!=n && CRYPTO_ALGAPI=y)
+	select CRYPTO_AEAD2
+	select CRYPTO_HASH2
+	select CRYPTO_BLKCIPHER2
 
 config CRYPTO_GF128MUL
 	tristate "GF(2^128) multiplication functions (EXPERIMENTAL)"

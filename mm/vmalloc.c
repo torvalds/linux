@@ -77,7 +77,6 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
 
 	BUG_ON(addr >= end);
 	pgd = pgd_offset_k(addr);
-	flush_cache_vunmap(addr, end);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
@@ -178,7 +177,7 @@ static int vmap_page_range(unsigned long addr, unsigned long end,
 static inline int is_vmalloc_or_module_addr(const void *x)
 {
 	/*
-	 * x86-64 and sparc64 put modules in a special place,
+	 * ARM, x86-64 and sparc64 put modules in a special place,
 	 * and fall back on vmalloc() if that fails. Others
 	 * just put it in the vmalloc space.
 	 */
@@ -324,14 +323,14 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 
 	BUG_ON(size & ~PAGE_MASK);
 
-	addr = ALIGN(vstart, align);
-
 	va = kmalloc_node(sizeof(struct vmap_area),
 			gfp_mask & GFP_RECLAIM_MASK, node);
 	if (unlikely(!va))
 		return ERR_PTR(-ENOMEM);
 
 retry:
+	addr = ALIGN(vstart, align);
+
 	spin_lock(&vmap_area_lock);
 	/* XXX: could have a last_hole cache */
 	n = vmap_area_root.rb_node;
@@ -362,7 +361,7 @@ retry:
 				goto found;
 		}
 
-		while (addr + size >= first->va_start && addr + size <= vend) {
+		while (addr + size > first->va_start && addr + size <= vend) {
 			addr = ALIGN(first->va_end + PAGE_SIZE, align);
 
 			n = rb_next(&first->rb_node);
@@ -522,9 +521,10 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 }
 
 /*
- * Kick off a purge of the outstanding lazy areas.
+ * Kick off a purge of the outstanding lazy areas. Don't bother if somebody
+ * is already purging.
  */
-static void purge_vmap_area_lazy(void)
+static void try_purge_vmap_area_lazy(void)
 {
 	unsigned long start = ULONG_MAX, end = 0;
 
@@ -532,14 +532,34 @@ static void purge_vmap_area_lazy(void)
 }
 
 /*
- * Free and unmap a vmap area
+ * Kick off a purge of the outstanding lazy areas.
  */
-static void free_unmap_vmap_area(struct vmap_area *va)
+static void purge_vmap_area_lazy(void)
+{
+	unsigned long start = ULONG_MAX, end = 0;
+
+	__purge_vmap_area_lazy(&start, &end, 1, 0);
+}
+
+/*
+ * Free and unmap a vmap area, caller ensuring flush_cache_vunmap had been
+ * called for the correct range previously.
+ */
+static void free_unmap_vmap_area_noflush(struct vmap_area *va)
 {
 	va->flags |= VM_LAZY_FREE;
 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
-		purge_vmap_area_lazy();
+		try_purge_vmap_area_lazy();
+}
+
+/*
+ * Free and unmap a vmap area
+ */
+static void free_unmap_vmap_area(struct vmap_area *va)
+{
+	flush_cache_vunmap(va->va_start, va->va_end);
+	free_unmap_vmap_area_noflush(va);
 }
 
 static struct vmap_area *find_vmap_area(unsigned long addr)
@@ -591,6 +611,8 @@ static void free_unmap_vmap_area_addr(unsigned long addr)
 						VMALLOC_PAGES / NR_CPUS / 16))
 
 #define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
+
+static bool vmap_initialized __read_mostly = false;
 
 struct vmap_block_queue {
 	spinlock_t lock;
@@ -721,7 +743,7 @@ static void free_vmap_block(struct vmap_block *vb)
 	spin_unlock(&vmap_block_tree_lock);
 	BUG_ON(tmp != vb);
 
-	free_unmap_vmap_area(vb->va);
+	free_unmap_vmap_area_noflush(vb->va);
 	call_rcu(&vb->rcu_head, rcu_free_vb);
 }
 
@@ -783,6 +805,9 @@ static void vb_free(const void *addr, unsigned long size)
 
 	BUG_ON(size & ~PAGE_MASK);
 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
+
+	flush_cache_vunmap((unsigned long)addr, (unsigned long)addr + size);
+
 	order = get_order(size);
 
 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
@@ -827,6 +852,9 @@ void vm_unmap_aliases(void)
 	unsigned long start = ULONG_MAX, end = 0;
 	int cpu;
 	int flush = 0;
+
+	if (unlikely(!vmap_initialized))
+		return;
 
 	for_each_possible_cpu(cpu) {
 		struct vmap_block_queue *vbq = &per_cpu(vmap_block_queue, cpu);
@@ -942,6 +970,8 @@ void __init vmalloc_init(void)
 		INIT_LIST_HEAD(&vbq->dirty);
 		vbq->nr_dirty = 0;
 	}
+
+	vmap_initialized = true;
 }
 
 void unmap_kernel_range(unsigned long addr, unsigned long size)
@@ -1687,7 +1717,7 @@ static int s_show(struct seq_file *m, void *p)
 		v->addr, v->addr + v->size, v->size);
 
 	if (v->caller) {
-		char buff[2 * KSYM_NAME_LEN];
+		char buff[KSYM_SYMBOL_LEN];
 
 		seq_putc(m, ' ');
 		sprint_symbol(buff, (unsigned long)v->caller);

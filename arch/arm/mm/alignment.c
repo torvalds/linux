@@ -70,6 +70,10 @@ static unsigned long ai_dword;
 static unsigned long ai_multi;
 static int ai_usermode;
 
+#define UM_WARN		(1 << 0)
+#define UM_FIXUP	(1 << 1)
+#define UM_SIGNAL	(1 << 2)
+
 #ifdef CONFIG_PROC_FS
 static const char *usermode_action[] = {
 	"ignored",
@@ -754,7 +758,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  user:
 	ai_user += 1;
 
-	if (ai_usermode & 1)
+	if (ai_usermode & UM_WARN)
 		printk("Alignment trap: %s (%d) PC=0x%08lx Instr=0x%0*lx "
 		       "Address=0x%08lx FSR 0x%03x\n", current->comm,
 			task_pid_nr(current), instrptr,
@@ -762,10 +766,10 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		        thumb_mode(regs) ? tinstr : instr,
 		        addr, fsr);
 
-	if (ai_usermode & 2)
+	if (ai_usermode & UM_FIXUP)
 		goto fixup;
 
-	if (ai_usermode & 4)
+	if (ai_usermode & UM_SIGNAL)
 		force_sig(SIGBUS, current);
 	else
 		set_cr(cr_no_alignment);
@@ -795,6 +799,22 @@ static int __init alignment_init(void)
 	res->read_proc = proc_alignment_read;
 	res->write_proc = proc_alignment_write;
 #endif
+
+	/*
+	 * ARMv6 and later CPUs can perform unaligned accesses for
+	 * most single load and store instructions up to word size.
+	 * LDM, STM, LDRD and STRD still need to be handled.
+	 *
+	 * Ignoring the alignment fault is not an option on these
+	 * CPUs since we spin re-faulting the instruction without
+	 * making any progress.
+	 */
+	if (cpu_architecture() >= CPU_ARCH_ARMv6 && (cr_alignment & CR_U)) {
+		cr_alignment &= ~CR_A;
+		cr_no_alignment &= ~CR_A;
+		set_cr(cr_alignment);
+		ai_usermode = UM_FIXUP;
+	}
 
 	hook_fault_code(1, do_alignment, SIGILL, "alignment exception");
 	hook_fault_code(3, do_alignment, SIGILL, "alignment exception");

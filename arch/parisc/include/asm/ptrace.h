@@ -47,8 +47,6 @@ struct pt_regs {
 
 #define task_regs(task) ((struct pt_regs *) ((char *)(task) + TASK_REGS))
 
-#define __ARCH_WANT_COMPAT_SYS_PTRACE
-
 struct task_struct;
 #define arch_has_single_step()	1
 void user_disable_single_step(struct task_struct *task);

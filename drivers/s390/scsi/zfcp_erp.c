@@ -472,6 +472,7 @@ static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 				   ZFCP_STATUS_ERP_TIMEDOUT)) {
 			act->fsf_req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
 			zfcp_rec_dbf_event_action(142, act);
+			act->fsf_req->erp_action = NULL;
 		}
 		if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
 			zfcp_rec_dbf_event_action(143, act);
@@ -719,7 +720,6 @@ static int zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *act,
 		goto failed_openfcp;
 
 	atomic_set_mask(ZFCP_STATUS_COMMON_OPEN, &act->adapter->status);
-	schedule_work(&act->adapter->scan_work);
 
 	return ZFCP_ERP_SUCCEEDED;
 
@@ -1185,7 +1185,9 @@ static void zfcp_erp_scsi_scan(struct work_struct *work)
 		container_of(work, struct zfcp_erp_add_work, work);
 	struct zfcp_unit *unit = p->unit;
 	struct fc_rport *rport = unit->port->rport;
-	scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
+
+	if (rport && rport->port_state == FC_PORTSTATE_ONLINE)
+		scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
 			 scsilun_to_int((struct scsi_lun *)&unit->fcp_lun), 0);
 	atomic_clear_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
 	zfcp_unit_put(unit);
@@ -1281,6 +1283,8 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		if (result != ZFCP_ERP_SUCCEEDED)
 			zfcp_erp_rports_del(adapter);
+		else
+			schedule_work(&adapter->scan_work);
 		zfcp_adapter_put(adapter);
 		break;
 	}

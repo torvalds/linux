@@ -7,12 +7,14 @@
  *	Original driver code supplied by Multi-Tech
  *
  *	Changes
- *	1/9/98	alan@redhat.com		Merge to 2.0.x kernel tree
+ *	1/9/98	alan@lxorguk.ukuu.org.uk
+ *					Merge to 2.0.x kernel tree
  *					Obtain and use official major/minors
  *					Loader switched to a misc device
  *					(fixed range check bug as a side effect)
  *					Printk clean up
- *	9/12/98	alan@redhat.com		Rough port to 2.1.x
+ *	9/12/98	alan@lxorguk.ukuu.org.uk
+ *					Rough port to 2.1.x
  *
  *	10/6/99 sameer			Merged the ISA and PCI drivers to
  *					a new unified driver.

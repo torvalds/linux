@@ -59,7 +59,7 @@
 #endif
 
 
-#ifdef CONFIG_VERBOSE_DEBUG
+#ifdef CONFIG_DEBUG_VERBOSE
 #define verbose_printk(fmt, arg...) \
 	printk(fmt, ##arg)
 #else
@@ -147,9 +147,12 @@ static void decode_address(char *buf, unsigned long address)
 				char *name = p->comm;
 				struct file *file = vma->vm_file;
 
-				if (file)
-					name = d_path(&file->f_path, _tmpbuf,
+				if (file) {
+					char *d_name = d_path(&file->f_path, _tmpbuf,
 						      sizeof(_tmpbuf));
+					if (!IS_ERR(d_name))
+						name = d_name;
+				}
 
 				/* FLAT does not have its text aligned to the start of
 				 * the map while FDPIC ELF does ...
@@ -571,7 +574,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #endif
 			panic("Kernel exception");
 		} else {
-#ifdef CONFIG_VERBOSE_DEBUG
+#ifdef CONFIG_DEBUG_VERBOSE
 			unsigned long *stack;
 			/* Dump the user space stack */
 			stack = (unsigned long *)rdusp();

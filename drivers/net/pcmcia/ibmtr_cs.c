@@ -349,7 +349,7 @@ static int ibmtr_suspend(struct pcmcia_device *link)
 	return 0;
 }
 
-static int ibmtr_resume(struct pcmcia_device *link)
+static int __devinit ibmtr_resume(struct pcmcia_device *link)
 {
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;

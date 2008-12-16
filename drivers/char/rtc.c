@@ -788,8 +788,6 @@ static int rtc_release(struct inode *inode, struct file *file)
 	}
 	spin_unlock_irq(&rtc_lock);
 
-	if (file->f_flags & FASYNC)
-		rtc_fasync(-1, file, 0);
 no_irq:
 #endif
 

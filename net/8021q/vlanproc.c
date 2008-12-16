@@ -314,7 +314,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 		   dev_info->ingress_priority_map[6],
 		   dev_info->ingress_priority_map[7]);
 
-	seq_printf(seq, "EGRESSS priority Mappings: ");
+	seq_printf(seq, " EGRESS priority mappings: ");
 	for (i = 0; i < 16; i++) {
 		const struct vlan_priority_tci_mapping *mp
 			= dev_info->egress_priority_map[i];

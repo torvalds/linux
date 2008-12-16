@@ -1250,7 +1250,8 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		 * separate masks.
 		 */
 		alignment = queue_dma_alignment(q) | q->dma_pad_mask;
-		if ((unsigned long)buf & alignment || rq->data_len & alignment
+		if ((unsigned long)buf & alignment
+		    || rq->data_len & q->dma_pad_mask
 		    || object_is_on_stack(buf))
 			drive->dma = 0;
 	}

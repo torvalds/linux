@@ -87,18 +87,15 @@ enum {
 
 #ifdef CONFIG_MLX4_DEBUG
 extern int mlx4_debug_level;
+#else /* CONFIG_MLX4_DEBUG */
+#define mlx4_debug_level	(0)
+#endif /* CONFIG_MLX4_DEBUG */
 
 #define mlx4_dbg(mdev, format, arg...)					\
 	do {								\
 		if (mlx4_debug_level)					\
 			dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ## arg); \
 	} while (0)
-
-#else /* CONFIG_MLX4_DEBUG */
-
-#define mlx4_dbg(mdev, format, arg...) do { (void) mdev; } while (0)
-
-#endif /* CONFIG_MLX4_DEBUG */
 
 #define mlx4_err(mdev, format, arg...) \
 	dev_err(&mdev->pdev->dev, format, ## arg)
@@ -388,5 +385,6 @@ void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
 
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
+int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
 
 #endif /* MLX4_H */

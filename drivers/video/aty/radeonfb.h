@@ -638,4 +638,6 @@ static inline void radeonfb_bl_init(struct radeonfb_info *rinfo) {}
 static inline void radeonfb_bl_exit(struct radeonfb_info *rinfo) {}
 #endif
 
+extern int accel_cexp;
+
 #endif /* __RADEONFB_H__ */

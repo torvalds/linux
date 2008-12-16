@@ -149,7 +149,7 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 
 void skb_truesize_bug(struct sk_buff *skb)
 {
-	printk(KERN_ERR "SKB BUG: Invalid truesize (%u) "
+	WARN(net_ratelimit(), KERN_ERR "SKB BUG: Invalid truesize (%u) "
 	       "len=%u, sizeof(sk_buff)=%Zd\n",
 	       skb->truesize, skb->len, sizeof(struct sk_buff));
 }
@@ -449,6 +449,18 @@ void kfree_skb(struct sk_buff *skb)
 	__kfree_skb(skb);
 }
 
+/**
+ *	skb_recycle_check - check if skb can be reused for receive
+ *	@skb: buffer
+ *	@skb_size: minimum receive buffer size
+ *
+ *	Checks that the skb passed in is not shared or cloned, and
+ *	that it is linear and its head portion at least as large as
+ *	skb_size so that it can be recycled as a receive buffer.
+ *	If these conditions are met, this function does any necessary
+ *	reference count dropping and cleans up the skbuff as if it
+ *	just came from __alloc_skb().
+ */
 int skb_recycle_check(struct sk_buff *skb, int skb_size)
 {
 	struct skb_shared_info *shinfo;
@@ -474,8 +486,8 @@ int skb_recycle_check(struct sk_buff *skb, int skb_size)
 	shinfo->frag_list = NULL;
 
 	memset(skb, 0, offsetof(struct sk_buff, tail));
-	skb_reset_tail_pointer(skb);
 	skb->data = skb->head + NET_SKB_PAD;
+	skb_reset_tail_pointer(skb);
 
 	return 1;
 }

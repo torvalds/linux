@@ -324,6 +324,9 @@ static int do_assign_storage(sclp_cmdw_t cmd, u16 rn)
 	case 0x0120:
 		break;
 	default:
+		pr_warning("assign storage failed (cmd=0x%08x, "
+			   "response=0x%04x, rn=0x%04x)\n", cmd,
+			   sccb->header.response_code, rn);
 		rc = -EIO;
 		break;
 	}

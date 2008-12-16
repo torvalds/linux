@@ -874,11 +874,15 @@ void ccw_device_move_to_orphanage(struct work_struct *work)
 	replacing_cdev = get_disc_ccwdev_by_dev_id(&dev_id, cdev);
 	if (replacing_cdev) {
 		sch_attach_disconnected_device(sch, replacing_cdev);
+		/* Release reference from get_disc_ccwdev_by_dev_id() */
+		put_device(&cdev->dev);
 		return;
 	}
 	replacing_cdev = get_orphaned_ccwdev_by_dev_id(css, &dev_id);
 	if (replacing_cdev) {
 		sch_attach_orphaned_device(sch, replacing_cdev);
+		/* Release reference from get_orphaned_ccwdev_by_dev_id() */
+		put_device(&cdev->dev);
 		return;
 	}
 	sch_create_and_recog_new_device(sch);

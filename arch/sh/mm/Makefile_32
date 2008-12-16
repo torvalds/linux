@@ -2,7 +2,7 @@
 # Makefile for the Linux SuperH-specific parts of the memory manager.
 #
 
-obj-y			:= init.o extable_32.o consistent.o
+obj-y			:= init.o extable_32.o consistent.o mmap.o
 
 ifndef CONFIG_CACHE_OFF
 cache-$(CONFIG_CPU_SH2)		:= cache-sh2.o

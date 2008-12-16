@@ -1832,7 +1832,7 @@ int pci_reset_function(struct pci_dev *dev)
 	if (!(cap & PCI_EXP_DEVCAP_FLR))
 		return -ENOTTY;
 
-	if (!dev->msi_enabled && !dev->msix_enabled)
+	if (!dev->msi_enabled && !dev->msix_enabled && dev->irq != 0)
 		disable_irq(dev->irq);
 	pci_save_state(dev);
 
@@ -1841,7 +1841,7 @@ int pci_reset_function(struct pci_dev *dev)
 	r = pci_execute_reset_function(dev);
 
 	pci_restore_state(dev);
-	if (!dev->msi_enabled && !dev->msix_enabled)
+	if (!dev->msi_enabled && !dev->msix_enabled && dev->irq != 0)
 		enable_irq(dev->irq);
 
 	return r;
@@ -2042,7 +2042,7 @@ static int __devinit pci_init(void)
 	return 0;
 }
 
-static int __devinit pci_setup(char *str)
+static int __init pci_setup(char *str)
 {
 	while (str) {
 		char *k = strchr(str, ',');

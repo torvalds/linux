@@ -90,7 +90,7 @@
 			compatible = "fsl,mpc8572-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <32>;	// 32 bytes
-			cache-size = <0x80000>;	// L2, 512K
+			cache-size = <0x100000>; // L2, 1M
 			interrupt-parent = <&mpic>;
 			interrupts = <16 2>;
 		};

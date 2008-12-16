@@ -266,11 +266,19 @@ int drm_init(struct drm_driver *driver)
 	for (i = 0; driver->pci_driver.id_table[i].vendor != 0; i++) {
 		pid = (struct pci_device_id *)&driver->pci_driver.id_table[i];
 
+		/* Loop around setting up a DRM device for each PCI device
+		 * matching our ID and device class.  If we had the internal
+		 * function that pci_get_subsys and pci_get_class used, we'd
+		 * be able to just pass pid in instead of doing a two-stage
+		 * thing.
+		 */
 		pdev = NULL;
-		/* pass back in pdev to account for multiple identical cards */
 		while ((pdev =
 			pci_get_subsys(pid->vendor, pid->device, pid->subvendor,
 				       pid->subdevice, pdev)) != NULL) {
+			if ((pdev->class & pid->class_mask) != pid->class)
+				continue;
+
 			/* stealth mode requires a manual probe */
 			pci_dev_get(pdev);
 			drm_get_dev(pdev, pid, driver);
@@ -296,6 +304,8 @@ static void drm_cleanup(struct drm_device * dev)
 		DRM_ERROR("cleanup called no dev\n");
 		return;
 	}
+
+	drm_vblank_cleanup(dev);
 
 	drm_lastclose(dev);
 

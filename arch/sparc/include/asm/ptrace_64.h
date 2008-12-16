@@ -142,8 +142,6 @@ struct global_reg_snapshot {
 };
 extern struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
 
-#define __ARCH_WANT_COMPAT_SYS_PTRACE
-
 #define force_successful_syscall_return()	    \
 do {	current_thread_info()->syscall_noerror = 1; \
 } while (0)

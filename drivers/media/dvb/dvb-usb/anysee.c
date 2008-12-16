@@ -46,7 +46,7 @@ module_param_named(delsys, dvb_usb_anysee_delsys, int, 0644);
 MODULE_PARM_DESC(delsys, "select delivery mode (0=DVB-C, 1=DVB-T)");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static struct mutex anysee_usb_mutex;
+static DEFINE_MUTEX(anysee_usb_mutex);
 
 static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
 	u8 *rbuf, u8 rlen)
@@ -455,8 +455,6 @@ static int anysee_probe(struct usb_interface *intf,
 	struct dvb_usb_device *d;
 	struct usb_host_interface *alt;
 	int ret;
-
-	mutex_init(&anysee_usb_mutex);
 
 	/* There is one interface with two alternate settings.
 	   Alternate setting 0 is for bulk transfer.

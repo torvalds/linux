@@ -125,7 +125,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
  */
 static int hgpk_validate_byte(unsigned char *packet)
 {
-	return (packet[0] & 0x0C) == 0x08;
+	return (packet[0] & 0x0C) != 0x08;
 }
 
 static void hgpk_process_packet(struct psmouse *psmouse)

@@ -341,23 +341,20 @@ static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		cfs_rq->rb_leftmost = next_node;
 	}
 
-	if (cfs_rq->next == se)
-		cfs_rq->next = NULL;
-
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
-}
-
-static inline struct rb_node *first_fair(struct cfs_rq *cfs_rq)
-{
-	return cfs_rq->rb_leftmost;
 }
 
 static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
 {
-	return rb_entry(first_fair(cfs_rq), struct sched_entity, run_node);
+	struct rb_node *left = cfs_rq->rb_leftmost;
+
+	if (!left)
+		return NULL;
+
+	return rb_entry(left, struct sched_entity, run_node);
 }
 
-static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
+static struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline);
 
@@ -719,6 +716,15 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 		__enqueue_entity(cfs_rq, se);
 }
 
+static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	if (cfs_rq->last == se)
+		cfs_rq->last = NULL;
+
+	if (cfs_rq->next == se)
+		cfs_rq->next = NULL;
+}
+
 static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
@@ -740,6 +746,8 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 		}
 #endif
 	}
+
+	clear_buddies(cfs_rq, se);
 
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
@@ -794,24 +802,15 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static int
 wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se);
 
-static struct sched_entity *
-pick_next(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	if (!cfs_rq->next || wakeup_preempt_entity(cfs_rq->next, se) == 1)
-		return se;
-
-	return cfs_rq->next;
-}
-
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
-	struct sched_entity *se = NULL;
+	struct sched_entity *se = __pick_next_entity(cfs_rq);
 
-	if (first_fair(cfs_rq)) {
-		se = __pick_next_entity(cfs_rq);
-		se = pick_next(cfs_rq, se);
-		set_next_entity(cfs_rq, se);
-	}
+	if (cfs_rq->next && wakeup_preempt_entity(cfs_rq->next, se) < 1)
+		return cfs_rq->next;
+
+	if (cfs_rq->last && wakeup_preempt_entity(cfs_rq->last, se) < 1)
+		return cfs_rq->last;
 
 	return se;
 }
@@ -982,6 +981,8 @@ static void yield_task_fair(struct rq *rq)
 	 */
 	if (unlikely(cfs_rq->nr_running == 1))
 		return;
+
+	clear_buddies(cfs_rq, se);
 
 	if (likely(!sysctl_sched_compat_yield) && curr->policy != SCHED_BATCH) {
 		update_rq_clock(rq);
@@ -1325,26 +1326,53 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 	return 0;
 }
 
+static void set_last_buddy(struct sched_entity *se)
+{
+	for_each_sched_entity(se)
+		cfs_rq_of(se)->last = se;
+}
+
+static void set_next_buddy(struct sched_entity *se)
+{
+	for_each_sched_entity(se)
+		cfs_rq_of(se)->next = se;
+}
+
 /*
  * Preempt the current task with a newly woken task if needed:
  */
 static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 {
 	struct task_struct *curr = rq->curr;
-	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	struct sched_entity *se = &curr->se, *pse = &p->se;
 
 	if (unlikely(rt_prio(p->prio))) {
+		struct cfs_rq *cfs_rq = task_cfs_rq(curr);
+
 		update_rq_clock(rq);
 		update_curr(cfs_rq);
 		resched_task(curr);
 		return;
 	}
 
+	if (unlikely(p->sched_class != &fair_sched_class))
+		return;
+
 	if (unlikely(se == pse))
 		return;
 
-	cfs_rq_of(pse)->next = pse;
+	/*
+	 * Only set the backward buddy when the current task is still on the
+	 * rq. This can happen when a wakeup gets interleaved with schedule on
+	 * the ->pre_schedule() or idle_balance() point, either of which can
+	 * drop the rq lock.
+	 *
+	 * Also, during early boot the idle thread is in the fair class, for
+	 * obvious reasons its a bad idea to schedule back to the idle thread.
+	 */
+	if (sched_feat(LAST_BUDDY) && likely(se->on_rq && curr != rq->idle))
+		set_last_buddy(se);
+	set_next_buddy(pse);
 
 	/*
 	 * We can come here with TIF_NEED_RESCHED already set from new task
@@ -1396,6 +1424,7 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 
 	do {
 		se = pick_next_entity(cfs_rq);
+		set_next_entity(cfs_rq, se);
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);
 

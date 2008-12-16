@@ -167,8 +167,11 @@ config GENERIC_PENDING_IRQ
 config X86_SMP
 	bool
 	depends on SMP && ((X86_32 && !X86_VOYAGER) || X86_64)
-	select USE_GENERIC_SMP_HELPERS
 	default y
+
+config USE_GENERIC_SMP_HELPERS
+	def_bool y
+	depends on SMP
 
 config X86_32_SMP
 	def_bool y
@@ -1494,7 +1497,7 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool X86_64
 	depends on NUMA
 
-menu "Power management options"
+menu "Power management and ACPI options"
 	depends on !X86_VOYAGER
 
 config ARCH_HIBERNATION_HEADER
@@ -1893,6 +1896,10 @@ config SYSVIPC_COMPAT
 
 endmenu
 
+
+config HAVE_ATOMIC_IOMAP
+	def_bool y
+	depends on X86_32
 
 source "net/Kconfig"
 

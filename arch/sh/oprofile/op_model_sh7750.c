@@ -255,10 +255,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		return -ENODEV;
 
 	ops = &sh7750_perf_counter_ops;
-	ops->cpu_type = (char *)get_cpu_subtype(&current_cpu_data);
+	ops->cpu_type = "sh/sh7750";
 
-	printk(KERN_INFO "oprofile: using SH-4 (%s) performance monitoring.\n",
-	       sh7750_perf_counter_ops.cpu_type);
+	printk(KERN_INFO "oprofile: using SH-4 performance monitoring.\n");
 
 	/* Clear the counters */
 	ctrl_outw(ctrl_inw(PMCR1) | PMCR_PMCLR, PMCR1);
@@ -270,4 +269,3 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 void oprofile_arch_exit(void)
 {
 }
-
