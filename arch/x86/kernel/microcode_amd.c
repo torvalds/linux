@@ -75,15 +75,9 @@ struct microcode_amd {
 	unsigned int mpb[0];
 };
 
-#define UCODE_MAX_SIZE          (2048)
-#define DEFAULT_UCODE_DATASIZE	(896)
-#define MC_HEADER_SIZE		(sizeof(struct microcode_header_amd))
-#define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE)
-#define DWSIZE			(sizeof(u32))
-/* For now we support a fixed ucode total size only */
-#define get_totalsize(mc) \
-	((((struct microcode_amd *)mc)->hdr.mc_patch_data_len * 28) \
-	 + MC_HEADER_SIZE)
+#define UCODE_MAX_SIZE			2048
+#define UCODE_CONTAINER_SECTION_HDR	8
+#define UCODE_CONTAINER_HEADER_SIZE	12
 
 /* serialize access to the physical write */
 static DEFINE_SPINLOCK(microcode_update_lock);
@@ -222,7 +216,6 @@ static void *get_next_ucode(const u8 *buf, unsigned int size,
 			    unsigned int *mc_size)
 {
 	unsigned int total_size;
-#define UCODE_CONTAINER_SECTION_HDR	8
 	u8 section_hdr[UCODE_CONTAINER_SECTION_HDR];
 	void *mc;
 
@@ -255,14 +248,12 @@ static void *get_next_ucode(const u8 *buf, unsigned int size,
 		} else
 			*mc_size = total_size + UCODE_CONTAINER_SECTION_HDR;
 	}
-#undef UCODE_CONTAINER_SECTION_HDR
 	return mc;
 }
 
 
 static int install_equiv_cpu_table(const u8 *buf)
 {
-#define UCODE_CONTAINER_HEADER_SIZE	12
 	u8 *container_hdr[UCODE_CONTAINER_HEADER_SIZE];
 	unsigned int *buf_pos = (unsigned int *)container_hdr;
 	unsigned long size;
@@ -291,7 +282,6 @@ static int install_equiv_cpu_table(const u8 *buf)
 	}
 
 	return size + UCODE_CONTAINER_HEADER_SIZE; /* add header length */
-#undef UCODE_CONTAINER_HEADER_SIZE
 }
 
 static void free_equiv_cpu_table(void)
