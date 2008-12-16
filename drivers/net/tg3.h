@@ -2338,8 +2338,6 @@ struct tg3_link_config {
 	u8				duplex;
 	u8				autoneg;
 	u8				flowctrl;
-#define TG3_FLOW_CTRL_TX		0x01
-#define TG3_FLOW_CTRL_RX		0x02
 
 	/* Describes what we actually have. */
 	u8				active_flowctrl;

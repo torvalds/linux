@@ -45,9 +45,6 @@
 
 #define SMSC9420_EEPROM_SIZE		((u32)11)
 
-#define FLOW_CTRL_TX			(1)
-#define FLOW_CTRL_RX			(2)
-
 #define PKT_BUF_SZ			(VLAN_ETH_FRAME_LEN + NET_IP_ALIGN + 4)
 
 /***********************************************/

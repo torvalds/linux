@@ -45,8 +45,6 @@
 #define SMSC95XX_INTERNAL_PHY_ID	(1)
 #define SMSC95XX_TX_OVERHEAD		(8)
 #define SMSC95XX_TX_OVERHEAD_CSUM	(12)
-#define FLOW_CTRL_TX			(1)
-#define FLOW_CTRL_RX			(2)
 
 struct smsc95xx_priv {
 	u32 mac_cr;

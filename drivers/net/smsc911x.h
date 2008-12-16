@@ -61,9 +61,6 @@
 #define SMSC_ASSERT_MAC_LOCK(pdata) do {} while (0)
 #endif				/* CONFIG_DEBUG_SPINLOCK */
 
-#define FLOW_CTRL_TX		(1)
-#define FLOW_CTRL_RX		(2)
-
 /* SMSC911x registers and bitfields */
 #define RX_DATA_FIFO			0x00
 
