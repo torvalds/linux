@@ -113,6 +113,7 @@ struct pxafb_mach_info {
 	unsigned int num_modes;
 
 	unsigned int	lcd_conn;
+	unsigned long	video_mem_size;
 
 	u_int		fixed_modes:1,
 			cmap_inverse:1,

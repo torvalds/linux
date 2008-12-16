@@ -5,9 +5,13 @@ The driver supports the following options, either via
 options=<OPTIONS> when modular or video=pxafb:<OPTIONS> when built in.
 
 For example:
-	modprobe pxafb options=mode:640x480-8,passive
+	modprobe pxafb options=vmem:2M,mode:640x480-8,passive
 or on the kernel command line
-	video=pxafb:mode:640x480-8,passive
+	video=pxafb:vmem:2M,mode:640x480-8,passive
+
+vmem: VIDEO_MEM_SIZE
+	Amount of video memory to allocate (can be suffixed with K or M
+	for kilobytes or megabytes)
 
 mode:XRESxYRES[-BPP]
 	XRES == LCCR1_PPL + 1

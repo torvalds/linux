@@ -72,6 +72,8 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 				struct pxafb_info *);
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
 
+static unsigned long video_mem_size = 0;
+
 static inline unsigned long
 lcd_readl(struct pxafb_info *fbi, unsigned int off)
 {
@@ -498,20 +500,6 @@ static int pxafb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static int pxafb_mmap(struct fb_info *info,
-		      struct vm_area_struct *vma)
-{
-	struct pxafb_info *fbi = (struct pxafb_info *)info;
-	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
-
-	if (off < info->fix.smem_len) {
-		vma->vm_pgoff += fbi->video_offset / PAGE_SIZE;
-		return dma_mmap_writecombine(fbi->dev, vma, fbi->map_cpu,
-					     fbi->map_dma, fbi->map_size);
-	}
-	return -EINVAL;
-}
-
 static struct fb_ops pxafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= pxafb_check_var,
@@ -521,7 +509,6 @@ static struct fb_ops pxafb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_blank	= pxafb_blank,
-	.fb_mmap	= pxafb_mmap,
 };
 
 /*
@@ -614,7 +601,7 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 	dma_desc = &fbi->dma_buff->dma_desc[dma];
 	dma_desc_off = offsetof(struct pxafb_dma_buff, dma_desc[dma]);
 
-	dma_desc->fsadr = fbi->screen_dma + offset;
+	dma_desc->fsadr = fbi->video_mem_phys + offset;
 	dma_desc->fidr  = 0;
 	dma_desc->ldcmd = size;
 
@@ -1267,69 +1254,30 @@ static int pxafb_resume(struct platform_device *dev)
 #define pxafb_resume	NULL
 #endif
 
-/*
- * pxafb_map_video_memory():
- *      Allocates the DRAM memory for the frame buffer.  This buffer is
- *	remapped into a non-cached, non-buffered, memory region to
- *      allow palette and pixel writes to occur without flushing the
- *      cache.  Once this area is remapped, all virtual memory
- *      access to the video memory should occur at the new region.
- */
-static int __devinit pxafb_map_video_memory(struct pxafb_info *fbi)
+static int __devinit pxafb_init_video_memory(struct pxafb_info *fbi)
 {
-	/*
-	 * We reserve one page for the palette, plus the size
-	 * of the framebuffer.
-	 */
-	fbi->video_offset = PAGE_ALIGN(sizeof(struct pxafb_dma_buff));
-	fbi->map_size = PAGE_ALIGN(fbi->fb.fix.smem_len + fbi->video_offset);
-	fbi->map_cpu = dma_alloc_writecombine(fbi->dev, fbi->map_size,
-					      &fbi->map_dma, GFP_KERNEL);
+	int size = PAGE_ALIGN(fbi->video_mem_size);
 
-	if (fbi->map_cpu) {
-		/* prevent initial garbage on screen */
-		memset(fbi->map_cpu, 0, fbi->map_size);
-		fbi->fb.screen_base = fbi->map_cpu + fbi->video_offset;
-		fbi->screen_dma = fbi->map_dma + fbi->video_offset;
+	fbi->video_mem = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
+	if (fbi->video_mem == NULL)
+		return -ENOMEM;
 
-		/*
-		 * FIXME: this is actually the wrong thing to place in
-		 * smem_start.  But fbdev suffers from the problem that
-		 * it needs an API which doesn't exist (in this case,
-		 * dma_writecombine_mmap)
-		 */
-		fbi->fb.fix.smem_start = fbi->screen_dma;
-		fbi->palette_size = fbi->fb.var.bits_per_pixel == 8 ? 256 : 16;
+	fbi->video_mem_phys = virt_to_phys(fbi->video_mem);
+	fbi->video_mem_size = size;
 
-		fbi->dma_buff = (void *) fbi->map_cpu;
-		fbi->dma_buff_phys = fbi->map_dma;
-		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
+	fbi->fb.fix.smem_start	= fbi->video_mem_phys;
+	fbi->fb.fix.smem_len	= fbi->video_mem_size;
+	fbi->fb.screen_base	= fbi->video_mem;
 
-	        pr_debug("pxafb: palette_mem_size = 0x%08x\n", fbi->palette_size*sizeof(u16));
-	}
-
-	return fbi->map_cpu ? 0 : -ENOMEM;
-}
-
-static void pxafb_decode_mode_info(struct pxafb_info *fbi,
-				   struct pxafb_mode_info *modes,
-				   unsigned int num_modes)
-{
-	unsigned int i, smemlen;
-
-	pxafb_setmode(&fbi->fb.var, &modes[0]);
-
-	for (i = 0; i < num_modes; i++) {
-		smemlen = modes[i].xres * modes[i].yres * modes[i].bpp / 8;
-		if (smemlen > fbi->fb.fix.smem_len)
-			fbi->fb.fix.smem_len = smemlen;
-	}
+	return fbi->video_mem ? 0 : -ENOMEM;
 }
 
 static void pxafb_decode_mach_info(struct pxafb_info *fbi,
 				   struct pxafb_mach_info *inf)
 {
 	unsigned int lcd_conn = inf->lcd_conn;
+	struct pxafb_mode_info *m;
+	int i;
 
 	fbi->cmap_inverse	= inf->cmap_inverse;
 	fbi->cmap_static	= inf->cmap_static;
@@ -1371,7 +1319,22 @@ static void pxafb_decode_mach_info(struct pxafb_info *fbi,
 	fbi->lccr3 |= (lcd_conn & LCD_PCLK_EDGE_FALL)  ? LCCR3_PCP : 0;
 
 decode_mode:
-	pxafb_decode_mode_info(fbi, inf->modes, inf->num_modes);
+	pxafb_setmode(&fbi->fb.var, &inf->modes[0]);
+
+	/* decide video memory size as follows:
+	 * 1. default to mode of maximum resolution
+	 * 2. allow platform to override
+	 * 3. allow module parameter to override
+	 */
+	for (i = 0, m = &inf->modes[0]; i < inf->num_modes; i++, m++)
+		fbi->video_mem_size = max_t(size_t, fbi->video_mem_size,
+				m->xres * m->yres * m->bpp / 8);
+
+	if (inf->video_mem_size > fbi->video_mem_size)
+		fbi->video_mem_size = inf->video_mem_size;
+
+	if (video_mem_size > fbi->video_mem_size)
+		fbi->video_mem_size = video_mem_size;
 }
 
 static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
@@ -1499,7 +1462,9 @@ static int __devinit parse_opt(struct device *dev, char *this_opt)
 
 	s[0] = '\0';
 
-	if (!strncmp(this_opt, "mode:", 5)) {
+	if (!strncmp(this_opt, "vmem:", 5)) {
+		video_mem_size = memparse(this_opt + 5, NULL);
+	} else if (!strncmp(this_opt, "mode:", 5)) {
 		return parse_opt_mode(dev, this_opt);
 	} else if (!strncmp(this_opt, "pixclock:", 9)) {
 		mode->pixclock = simple_strtoul(this_opt+9, NULL, 0);
@@ -1736,12 +1701,20 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 		goto failed_free_res;
 	}
 
-	/* Initialize video memory */
-	ret = pxafb_map_video_memory(fbi);
+	fbi->dma_buff_size = PAGE_ALIGN(sizeof(struct pxafb_dma_buff));
+	fbi->dma_buff = dma_alloc_coherent(fbi->dev, fbi->dma_buff_size,
+				&fbi->dma_buff_phys, GFP_KERNEL);
+	if (fbi->dma_buff == NULL) {
+		dev_err(&dev->dev, "failed to allocate memory for DMA\n");
+		ret = -ENOMEM;
+		goto failed_free_io;
+	}
+
+	ret = pxafb_init_video_memory(fbi);
 	if (ret) {
 		dev_err(&dev->dev, "Failed to allocate video RAM: %d\n", ret);
 		ret = -ENOMEM;
-		goto failed_free_io;
+		goto failed_free_dma;
 	}
 
 	irq = platform_get_irq(dev, 0);
@@ -1811,8 +1784,10 @@ failed_free_cmap:
 failed_free_irq:
 	free_irq(irq, fbi);
 failed_free_mem:
-	dma_free_writecombine(&dev->dev, fbi->map_size,
-			fbi->map_cpu, fbi->map_dma);
+	free_pages_exact(fbi->video_mem, fbi->video_mem_size);
+failed_free_dma:
+	dma_free_coherent(&dev->dev, fbi->dma_buff_size,
+			fbi->dma_buff, fbi->dma_buff_phys);
 failed_free_io:
 	iounmap(fbi->mmio_base);
 failed_free_res:
@@ -1847,8 +1822,10 @@ static int __devexit pxafb_remove(struct platform_device *dev)
 	irq = platform_get_irq(dev, 0);
 	free_irq(irq, fbi);
 
-	dma_free_writecombine(&dev->dev, fbi->map_size,
-					fbi->map_cpu, fbi->map_dma);
+	free_pages_exact(fbi->video_mem, fbi->video_mem_size);
+
+	dma_free_writecombine(&dev->dev, fbi->dma_buff_size,
+			fbi->dma_buff, fbi->dma_buff_phys);
 
 	iounmap(fbi->mmio_base);
 

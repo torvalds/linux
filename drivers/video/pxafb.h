@@ -69,24 +69,15 @@ struct pxafb_info {
 	void __iomem		*mmio_base;
 
 	struct pxafb_dma_buff	*dma_buff;
+	size_t			dma_buff_size;
 	dma_addr_t		dma_buff_phys;
 	dma_addr_t		fdadr[DMA_MAX];
 
-	/*
-	 * These are the addresses we mapped
-	 * the framebuffer memory region to.
-	 */
-	/* raw memory addresses */
-	dma_addr_t		map_dma;	/* physical */
-	u_char *		map_cpu;	/* virtual */
-	u_int			map_size;
-
-	/* addresses of pieces placed in raw buffer */
-	u_char *		screen_cpu;	/* virtual address of frame buffer */
-	dma_addr_t		screen_dma;	/* physical address of frame buffer */
+	void __iomem		*video_mem;	/* virtual address of frame buffer */
+	unsigned long		video_mem_phys;	/* physical address of frame buffer */
+	size_t			video_mem_size;	/* size of the frame buffer */
 	u16 *			palette_cpu;	/* virtual address of palette memory */
 	u_int			palette_size;
-	ssize_t			video_offset;
 
 	u_int			lccr0;
 	u_int			lccr3;
