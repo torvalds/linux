@@ -1093,6 +1093,9 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	counter->group_leader		= group_leader;
 	counter->hw_ops			= NULL;
 
+	if (hw_event->disabled)
+		counter->state = PERF_COUNTER_STATE_OFF;
+
 	hw_ops = NULL;
 	if (!hw_event->raw && hw_event->type < 0)
 		hw_ops = sw_perf_counter_init(counter);
