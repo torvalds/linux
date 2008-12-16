@@ -772,7 +772,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	struct omap_i2c_dev	*dev;
 	struct i2c_adapter	*adap;
 	struct resource		*mem, *irq, *ioarea;
-	void *isr;
+	irq_handler_t isr;
 	int r;
 	u32 speed = 0;
 
