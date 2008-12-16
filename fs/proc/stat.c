@@ -27,7 +27,6 @@ static int show_stat(struct seq_file *p, void *v)
 	u64 sum = 0;
 	struct timespec boottime;
 	unsigned int per_irq_sum;
-	struct irq_desc *desc;
 
 	user = nice = system = idle = iowait =
 		irq = softirq = steal = cputime64_zero;
@@ -47,8 +46,7 @@ static int show_stat(struct seq_file *p, void *v)
 		guest = cputime64_add(guest, kstat_cpu(i).cpustat.guest);
 		for_each_irq_nr(j) {
 #ifdef CONFIG_SPARSE_IRQ
-			desc = irq_to_desc(j);
-			if (!desc)
+			if (!irq_to_desc(j))
 				continue;
 #endif
 			sum += kstat_irqs_cpu(j, i);
@@ -98,8 +96,7 @@ static int show_stat(struct seq_file *p, void *v)
 	for_each_irq_nr(j) {
 		per_irq_sum = 0;
 #ifdef CONFIG_SPARSE_IRQ
-		desc = irq_to_desc(j);
-		if (!desc) {
+		if (!irq_to_desc(j)) {
 			seq_printf(p, " %u", per_irq_sum);
 			continue;
 		}
