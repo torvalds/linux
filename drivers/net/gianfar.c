@@ -149,7 +149,7 @@ MODULE_LICENSE("GPL");
 /* Returns 1 if incoming frames use an FCB */
 static inline int gfar_uses_fcb(struct gfar_private *priv)
 {
-	return (priv->vlan_enable || priv->rx_csum_enable);
+	return priv->vlgrp || priv->rx_csum_enable;
 }
 
 static int gfar_of_init(struct net_device *dev)
@@ -376,8 +376,6 @@ static int gfar_probe(struct of_device *ofdev,
 		dev->vlan_rx_register = gfar_vlan_rx_register;
 
 		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-
-		priv->vlan_enable = 1;
 	}
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_EXTENDED_HASH) {
@@ -1078,9 +1076,6 @@ int startup_gfar(struct net_device *dev)
 		rctrl |= RCTRL_EMEN;
 	}
 
-	if (priv->vlan_enable)
-		rctrl |= RCTRL_VLAN;
-
 	if (priv->padding) {
 		rctrl &= ~RCTRL_PAL_MASK;
 		rctrl |= RCTRL_PADDING(priv->padding);
@@ -1241,8 +1236,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		gfar_tx_checksum(skb, fcb);
 	}
 
-	if (priv->vlan_enable &&
-			unlikely(priv->vlgrp && vlan_tx_tag_present(skb))) {
+	if (priv->vlgrp && vlan_tx_tag_present(skb)) {
 		if (unlikely(NULL == fcb)) {
 			fcb = gfar_add_fcb(skb, txbdp);
 			status |= TXBD_TOE;
@@ -1344,11 +1338,15 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
+	struct vlan_group *old_grp;
 	u32 tempval;
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 
-	priv->vlgrp = grp;
+	old_grp = priv->vlgrp;
+
+	if (old_grp == grp)
+		return;
 
 	if (grp) {
 		/* Enable VLAN tag insertion */
@@ -1360,6 +1358,7 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 		/* Enable VLAN tag extraction */
 		tempval = gfar_read(&priv->regs->rctrl);
 		tempval |= RCTRL_VLEX;
+		tempval |= (RCTRL_VLEX | RCTRL_PRSDEP_INIT);
 		gfar_write(&priv->regs->rctrl, tempval);
 	} else {
 		/* Disable VLAN tag insertion */
@@ -1370,8 +1369,15 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 		/* Disable VLAN tag extraction */
 		tempval = gfar_read(&priv->regs->rctrl);
 		tempval &= ~RCTRL_VLEX;
+		/* If parse is no longer required, then disable parser */
+		if (tempval & RCTRL_REQ_PARSER)
+			tempval |= RCTRL_PRSDEP_INIT;
+		else
+			tempval &= ~RCTRL_PRSDEP_INIT;
 		gfar_write(&priv->regs->rctrl, tempval);
 	}
+
+	gfar_change_mtu(dev, dev->mtu);
 
 	spin_unlock_irqrestore(&priv->rxlock, flags);
 }
@@ -1383,13 +1389,8 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 	int oldsize = priv->rx_buffer_size;
 	int frame_size = new_mtu + ETH_HLEN;
 
-	if (priv->vlan_enable)
+	if (priv->vlgrp)
 		frame_size += VLAN_HLEN;
-
-	if (gfar_uses_fcb(priv))
-		frame_size += GMAC_FCB_LEN;
-
-	frame_size += priv->padding;
 
 	if ((frame_size < 64) || (frame_size > JUMBO_FRAME_SIZE)) {
 		if (netif_msg_drv(priv))
@@ -1397,6 +1398,11 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 					dev->name);
 		return -EINVAL;
 	}
+
+	if (gfar_uses_fcb(priv))
+		frame_size += GMAC_FCB_LEN;
+
+	frame_size += priv->padding;
 
 	tempsize =
 	    (frame_size & ~(INCREMENTAL_BUFFER_SIZE - 1)) +

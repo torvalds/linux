@@ -206,8 +206,10 @@ extern const char gfar_driver_version[];
 #define RCTRL_PRSDEP_INIT	0x000000c0
 #define RCTRL_PROM		0x00000008
 #define RCTRL_EMEN		0x00000002
-#define RCTRL_CHECKSUMMING	(RCTRL_IPCSEN \
-		| RCTRL_TUCSEN | RCTRL_PRSDEP_INIT)
+#define RCTRL_REQ_PARSER	(RCTRL_VLEX | RCTRL_IPCSEN | \
+				 RCTRL_TUCSEN)
+#define RCTRL_CHECKSUMMING	(RCTRL_IPCSEN | RCTRL_TUCSEN | \
+				RCTRL_PRSDEP_INIT)
 #define RCTRL_EXTHASH		(RCTRL_GHTX)
 #define RCTRL_VLAN		(RCTRL_PRSDEP_INIT)
 #define RCTRL_PADDING(x)	((x << 16) & RCTRL_PAL_MASK)
@@ -754,8 +756,7 @@ struct gfar_private {
 	phy_interface_t interface;
 	char	phy_bus_id[BUS_ID_SIZE];
 	u32 device_flags;
-	unsigned char vlan_enable:1,
-		rx_csum_enable:1,
+	unsigned char rx_csum_enable:1,
 		extended_hash:1,
 		bd_stash_en:1,
 		wol_en:1; /* Wake-on-LAN enabled */
