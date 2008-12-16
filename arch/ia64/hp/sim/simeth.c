@@ -167,6 +167,15 @@ netdev_read(int fd, unsigned char *buf, unsigned int len)
 	return ia64_ssc(fd, __pa(buf), len, 0, SSC_NETDEV_RECV);
 }
 
+static const struct net_device_ops simeth_netdev_ops = {
+	.ndo_open		= simeth_open,
+	.ndo_stop		= simeth_close,
+	.ndo_start_xmit		= simeth_tx,
+	.ndo_get_stats		= simeth_get_stats,
+	.ndo_set_multicast_list	= set_multicast_list, /* not yet used */
+
+};
+
 /*
  * Function shared with module code, so cannot be in init section
  *
@@ -209,11 +218,7 @@ simeth_probe1(void)
 	local = netdev_priv(dev);
 	local->simfd = fd; /* keep track of underlying file descriptor */
 
-	dev->open		= simeth_open;
-	dev->stop		= simeth_close;
-	dev->hard_start_xmit	= simeth_tx;
-	dev->get_stats		= simeth_get_stats;
-	dev->set_multicast_list = set_multicast_list; /* no yet used */
+	dev->netdev_ops = &simeth_netdev_ops;
 
 	err = register_netdev(dev);
 	if (err) {
