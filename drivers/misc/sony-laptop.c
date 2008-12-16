@@ -935,14 +935,17 @@ static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 static acpi_status sony_walk_callback(acpi_handle handle, u32 level,
 				      void *context, void **return_value)
 {
-	struct acpi_namespace_node *node;
-	union acpi_operand_object *operand;
+	struct acpi_device_info *info;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 
-	node = (struct acpi_namespace_node *)handle;
-	operand = (union acpi_operand_object *)node->object;
+	if (ACPI_SUCCESS(acpi_get_object_info(handle, &buffer))) {
+		info = buffer.pointer;
 
-	printk(KERN_WARNING DRV_PFX "method: name: %4.4s, args %X\n", node->name.ascii,
-	       (u32) operand->method.param_count);
+		printk(KERN_WARNING DRV_PFX "method: name: %4.4s, args %X\n",
+			(char *)&info->name, info->param_count);
+
+		kfree(buffer.pointer);
+	}
 
 	return AE_OK;
 }
