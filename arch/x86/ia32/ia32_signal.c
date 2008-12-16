@@ -396,7 +396,7 @@ static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	}
 
 	/* This is the legacy signal stack switching. */
-	else if ((regs->ss & 0xffff) != __USER_DS &&
+	else if ((regs->ss & 0xffff) != __USER32_DS &&
 		!(ka->sa.sa_flags & SA_RESTORER) &&
 		 ka->sa.sa_restorer)
 		sp = (unsigned long) ka->sa.sa_restorer;
