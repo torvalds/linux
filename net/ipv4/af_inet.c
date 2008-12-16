@@ -94,6 +94,7 @@
 #include <linux/igmp.h>
 #include <linux/inetdevice.h>
 #include <linux/netdevice.h>
+#include <net/checksum.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/arp.h>
@@ -1241,6 +1242,100 @@ out:
 	return segs;
 }
 
+static struct sk_buff **inet_gro_receive(struct sk_buff **head,
+					 struct sk_buff *skb)
+{
+	struct net_protocol *ops;
+	struct sk_buff **pp = NULL;
+	struct sk_buff *p;
+	struct iphdr *iph;
+	int flush = 1;
+	int proto;
+	int id;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
+		goto out;
+
+	iph = ip_hdr(skb);
+	proto = iph->protocol & (MAX_INET_PROTOS - 1);
+
+	rcu_read_lock();
+	ops = rcu_dereference(inet_protos[proto]);
+	if (!ops || !ops->gro_receive)
+		goto out_unlock;
+
+	if (iph->version != 4 || iph->ihl != 5)
+		goto out_unlock;
+
+	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
+		goto out_unlock;
+
+	flush = ntohs(iph->tot_len) != skb->len ||
+		iph->frag_off != htons(IP_DF);
+	id = ntohs(iph->id);
+
+	for (p = *head; p; p = p->next) {
+		struct iphdr *iph2;
+
+		if (!NAPI_GRO_CB(p)->same_flow)
+			continue;
+
+		iph2 = ip_hdr(p);
+
+		if (iph->protocol != iph2->protocol ||
+		    iph->tos != iph2->tos ||
+		    memcmp(&iph->saddr, &iph2->saddr, 8)) {
+			NAPI_GRO_CB(p)->same_flow = 0;
+			continue;
+		}
+
+		/* All fields must match except length and checksum. */
+		NAPI_GRO_CB(p)->flush |=
+			memcmp(&iph->frag_off, &iph2->frag_off, 4) ||
+			(u16)(ntohs(iph2->id) + NAPI_GRO_CB(p)->count) != id;
+
+		NAPI_GRO_CB(p)->flush |= flush;
+	}
+
+	NAPI_GRO_CB(skb)->flush |= flush;
+	__skb_pull(skb, sizeof(*iph));
+	skb_reset_transport_header(skb);
+
+	pp = ops->gro_receive(head, skb);
+
+out_unlock:
+	rcu_read_unlock();
+
+out:
+	NAPI_GRO_CB(skb)->flush |= flush;
+
+	return pp;
+}
+
+static int inet_gro_complete(struct sk_buff *skb)
+{
+	struct net_protocol *ops;
+	struct iphdr *iph = ip_hdr(skb);
+	int proto = iph->protocol & (MAX_INET_PROTOS - 1);
+	int err = -ENOSYS;
+	__be16 newlen = htons(skb->len - skb_network_offset(skb));
+
+	csum_replace2(&iph->check, iph->tot_len, newlen);
+	iph->tot_len = newlen;
+
+	rcu_read_lock();
+	ops = rcu_dereference(inet_protos[proto]);
+	if (WARN_ON(!ops || !ops->gro_complete))
+		goto out_unlock;
+
+	err = ops->gro_complete(skb);
+
+out_unlock:
+	rcu_read_unlock();
+
+	return err;
+}
+
 int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 			 unsigned short type, unsigned char protocol,
 			 struct net *net)
@@ -1407,6 +1502,8 @@ static struct packet_type ip_packet_type = {
 	.func = ip_rcv,
 	.gso_send_check = inet_gso_send_check,
 	.gso_segment = inet_gso_segment,
+	.gro_receive = inet_gro_receive,
+	.gro_complete = inet_gro_complete,
 };
 
 static int __init inet_init(void)
