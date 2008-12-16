@@ -590,8 +590,7 @@ extern int iwl3945_send_cmd_pdu(struct iwl3945_priv *priv, u8 id, u16 len,
 extern int __must_check iwl3945_send_cmd(struct iwl3945_priv *priv,
 		struct iwl3945_host_cmd *cmd);
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl3945_priv *priv,
-					struct ieee80211_hdr *hdr,
-					const u8 *dest, int left);
+					struct ieee80211_hdr *hdr,int left);
 extern int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv,
 					 struct iwl3945_rx_queue *q);
 extern int iwl3945_send_statistics_request(struct iwl3945_priv *priv);
