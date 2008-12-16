@@ -28,8 +28,6 @@ void acpi_enable_wakeup_device_prep(u8 sleep_state)
 {
 	struct list_head *node, *next;
 
-	ACPI_FUNCTION_TRACE("acpi_enable_wakeup_device_prep");
-
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
 		struct acpi_device *dev = container_of(node,
@@ -61,7 +59,6 @@ void acpi_enable_wakeup_device(u8 sleep_state)
 	 * Caution: this routine must be invoked when interrupt is disabled 
 	 * Refer ACPI2.0: P212
 	 */
-	ACPI_FUNCTION_TRACE("acpi_enable_wakeup_device");
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
 		struct acpi_device *dev =
@@ -102,8 +99,6 @@ void acpi_enable_wakeup_device(u8 sleep_state)
 void acpi_disable_wakeup_device(u8 sleep_state)
 {
 	struct list_head *node, *next;
-
-	ACPI_FUNCTION_TRACE("acpi_disable_wakeup_device");
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
