@@ -505,8 +505,10 @@ void dlm_change_lockres_owner(struct dlm_ctxt *dlm,
 static void dlm_lockres_release(struct kref *kref)
 {
 	struct dlm_lock_resource *res;
+	struct dlm_ctxt *dlm;
 
 	res = container_of(kref, struct dlm_lock_resource, refs);
+	dlm = res->dlm;
 
 	/* This should not happen -- all lockres' have a name
 	 * associated with them at init time. */
@@ -515,6 +517,7 @@ static void dlm_lockres_release(struct kref *kref)
 	mlog(0, "destroying lockres %.*s\n", res->lockname.len,
 	     res->lockname.name);
 
+	spin_lock(&dlm->track_lock);
 	if (!list_empty(&res->tracking))
 		list_del_init(&res->tracking);
 	else {
@@ -522,6 +525,9 @@ static void dlm_lockres_release(struct kref *kref)
 		     res->lockname.len, res->lockname.name);
 		dlm_print_one_lock_resource(res);
 	}
+	spin_unlock(&dlm->track_lock);
+
+	dlm_put(dlm);
 
 	if (!hlist_unhashed(&res->hash_node) ||
 	    !list_empty(&res->granted) ||
@@ -594,6 +600,10 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 	atomic_set(&res->asts_reserved, 0);
 	res->migration_pending = 0;
 	res->inflight_locks = 0;
+
+	/* put in dlm_lockres_release */
+	dlm_grab(dlm);
+	res->dlm = dlm;
 
 	kref_init(&res->refs);
 
