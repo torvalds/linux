@@ -1433,7 +1433,9 @@ static u32 TLan_HandleTxEOF( struct net_device *dev, u16 host_int )
 		if ( ! bbuf ) {
 			struct sk_buff *skb = TLan_GetSKB(head_list);
 			pci_unmap_single(priv->pciDev, head_list->buffer[0].address,
-					 skb->len, PCI_DMA_TODEVICE);
+					 max(skb->len,
+					     (unsigned int)TLAN_MIN_FRAME_SIZE),
+					 PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(skb);
 			head_list->buffer[8].address = 0;
 			head_list->buffer[9].address = 0;
@@ -2057,9 +2059,12 @@ static void TLan_FreeLists( struct net_device *dev )
 			list = priv->txList + i;
 			skb = TLan_GetSKB(list);
 			if ( skb ) {
-				pci_unmap_single(priv->pciDev,
-						 list->buffer[0].address, skb->len,
-						 PCI_DMA_TODEVICE);
+				pci_unmap_single(
+					priv->pciDev,
+					list->buffer[0].address,
+					max(skb->len,
+					    (unsigned int)TLAN_MIN_FRAME_SIZE),
+					PCI_DMA_TODEVICE);
 				dev_kfree_skb_any( skb );
 				list->buffer[8].address = 0;
 				list->buffer[9].address = 0;
