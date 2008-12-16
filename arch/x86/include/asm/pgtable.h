@@ -10,7 +10,6 @@
 #define _PAGE_BIT_PCD		4	/* page cache disabled */
 #define _PAGE_BIT_ACCESSED	5	/* was accessed (raised by CPU) */
 #define _PAGE_BIT_DIRTY		6	/* was written to (raised by CPU) */
-#define _PAGE_BIT_FILE		6
 #define _PAGE_BIT_PSE		7	/* 4 MB (or 2MB) page */
 #define _PAGE_BIT_PAT		7	/* on 4KB pages */
 #define _PAGE_BIT_GLOBAL	8	/* Global TLB entry PPro+ */
@@ -21,6 +20,12 @@
 #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
 #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
 #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
+
+/* If _PAGE_BIT_PRESENT is clear, we use these: */
+/* - if the user mapped it with PROT_NONE; pte_present gives true */
+#define _PAGE_BIT_PROTNONE	_PAGE_BIT_GLOBAL
+/* - set: nonlinear file mapping, saved PTE; unset:swap */
+#define _PAGE_BIT_FILE		_PAGE_BIT_DIRTY
 
 #define _PAGE_PRESENT	(_AT(pteval_t, 1) << _PAGE_BIT_PRESENT)
 #define _PAGE_RW	(_AT(pteval_t, 1) << _PAGE_BIT_RW)
@@ -46,11 +51,8 @@
 #define _PAGE_NX	(_AT(pteval_t, 0))
 #endif
 
-/* If _PAGE_PRESENT is clear, we use these: */
-#define _PAGE_FILE	_PAGE_DIRTY	/* nonlinear file mapping,
-					 * saved PTE; unset:swap */
-#define _PAGE_PROTNONE	_PAGE_PSE	/* if the user mapped it with PROT_NONE;
-					   pte_present gives true */
+#define _PAGE_FILE	(_AT(pteval_t, 1) << _PAGE_BIT_FILE)
+#define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
 
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
 			 _PAGE_ACCESSED | _PAGE_DIRTY)
