@@ -107,7 +107,7 @@ static bool set_sci_en_on_resume;
  */
 static int acpi_pm_disable_gpes(void)
 {
-	acpi_hw_disable_all_gpes();
+	acpi_disable_all_gpes();
 	return 0;
 }
 
@@ -135,7 +135,7 @@ static int acpi_pm_prepare(void)
 	int error = __acpi_pm_prepare();
 
 	if (!error)
-		acpi_hw_disable_all_gpes();
+		acpi_disable_all_gpes();
 	return error;
 }
 
@@ -267,7 +267,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	 * (like wakeup GPE) haven't handler, this can avoid such GPE misfire.
 	 * acpi_leave_sleep_state will reenable specific GPEs later
 	 */
-	acpi_hw_disable_all_gpes();
+	acpi_disable_all_gpes();
 
 	local_irq_restore(flags);
 	printk(KERN_DEBUG "Back to C!\n");
@@ -436,7 +436,7 @@ static void acpi_hibernation_leave(void)
 
 static void acpi_pm_enable_gpes(void)
 {
-	acpi_hw_enable_all_runtime_gpes();
+	acpi_enable_all_runtime_gpes();
 }
 
 static struct platform_hibernation_ops acpi_hibernation_ops = {
@@ -622,7 +622,7 @@ static void acpi_power_off_prepare(void)
 {
 	/* Prepare to power off the system */
 	acpi_sleep_prepare(ACPI_STATE_S5);
-	acpi_hw_disable_all_gpes();
+	acpi_disable_all_gpes();
 }
 
 static void acpi_power_off(void)
@@ -671,7 +671,7 @@ int __init acpi_sleep_init(void)
 		sleep_states[ACPI_STATE_S4] = 1;
 		printk(" S4");
 		if (!nosigcheck) {
-			acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
+			acpi_get_table(ACPI_SIG_FACS, 1,
 				(struct acpi_table_header **)&facs);
 			if (facs)
 				s4_hardware_signature =
