@@ -316,6 +316,8 @@ source "drivers/mtd/nand/Kconfig"
 
 source "drivers/mtd/onenand/Kconfig"
 
+source "drivers/mtd/lpddr/Kconfig"
+
 source "drivers/mtd/ubi/Kconfig"
 
 endif # MTD
