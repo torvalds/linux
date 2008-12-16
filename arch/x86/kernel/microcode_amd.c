@@ -10,7 +10,7 @@
  *  This driver allows to upgrade microcode on AMD
  *  family 0x10 and 0x11 processors.
  *
- *  Licensed unter the terms of the GNU General Public
+ *  Licensed under the terms of the GNU General Public
  *  License version 2. See file COPYING for details.
 */
 
@@ -133,7 +133,7 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 
 	if (!equiv_cpu_id) {
 		printk(KERN_ERR "microcode: CPU%d cpu_id "
-		       "not found in equivalent cpu table \n", cpu);
+		       "not found in equivalent cpu table\n", cpu);
 		return 0;
 	}
 
@@ -151,7 +151,7 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 					    NULL);
 		if ((!nb_pci_dev) ||
 		    (mc_header->nb_rev_id != nb_pci_dev->revision)) {
-			printk(KERN_ERR "microcode: CPU%d NB mismatch \n", cpu);
+			printk(KERN_ERR "microcode: CPU%d NB mismatch\n", cpu);
 			pci_dev_put(nb_pci_dev);
 			return 0;
 		}
@@ -165,7 +165,7 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 					    NULL);
 		if ((!sb_pci_dev) ||
 		    (mc_header->sb_rev_id != sb_pci_dev->revision)) {
-			printk(KERN_ERR "microcode: CPU%d SB mismatch \n", cpu);
+			printk(KERN_ERR "microcode: CPU%d SB mismatch\n", cpu);
 			pci_dev_put(sb_pci_dev);
 			return 0;
 		}
@@ -219,7 +219,7 @@ static void apply_microcode_amd(int cpu)
 	}
 
 	printk(KERN_INFO "microcode: CPU%d updated from revision "
-	       "0x%x to 0x%x \n",
+	       "0x%x to 0x%x\n",
 	       cpu_num, uci->cpu_sig.rev, mc_amd->hdr.patch_id);
 
 	uci->cpu_sig.rev = rev;
@@ -282,7 +282,7 @@ static int install_equiv_cpu_table(u8 *buf,
 
 	if (buf_pos[1] != UCODE_EQUIV_CPU_TABLE_TYPE || !size) {
 		printk(KERN_ERR "microcode: error! "
-		       "Wrong microcode equivalnet cpu table\n");
+		       "Wrong microcode equivalent cpu table\n");
 		return 0;
 	}
 
