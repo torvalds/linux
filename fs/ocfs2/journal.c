@@ -76,18 +76,6 @@ static inline int ocfs2_wait_on_quotas(struct ocfs2_super *osb)
 	return __ocfs2_wait_on_mount(osb, 1);
 }
 
-
-
-/*
- * The recovery_list is a simple linked list of node numbers to recover.
- * It is protected by the recovery_lock.
- */
-
-struct ocfs2_recovery_map {
-	unsigned int rm_used;
-	unsigned int *rm_entries;
-};
-
 int ocfs2_recovery_init(struct ocfs2_super *osb)
 {
 	struct ocfs2_recovery_map *rm;

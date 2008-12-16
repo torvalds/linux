@@ -38,6 +38,17 @@ enum ocfs2_journal_state {
 struct ocfs2_super;
 struct ocfs2_dinode;
 
+/*
+ * The recovery_list is a simple linked list of node numbers to recover.
+ * It is protected by the recovery_lock.
+ */
+
+struct ocfs2_recovery_map {
+	unsigned int rm_used;
+	unsigned int *rm_entries;
+};
+
+
 struct ocfs2_journal {
 	enum ocfs2_journal_state   j_state;    /* Journals current state   */
 
