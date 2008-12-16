@@ -1026,6 +1026,10 @@ include/linux/version.h: $(srctree)/Makefile FORCE
 include/linux/utsrelease.h: include/config/kernel.release FORCE
 	$(call filechk,utsrelease.h)
 
+PHONY += headerdep
+headerdep:
+	$(Q)find include/ -name '*.h' | xargs --max-args 1 scripts/headerdep.pl
+
 # ---------------------------------------------------------------------------
 
 PHONY += depend dep
@@ -1274,7 +1278,8 @@ help:
 	@echo  '  versioncheck    - Sanity check on version.h usage'
 	@echo  '  includecheck    - Check for duplicate included header files'
 	@echo  '  export_report   - List the usages of all exported symbols'
-	@echo  '  headers_check   - Sanity check on exported headers'; \
+	@echo  '  headers_check   - Sanity check on exported headers'
+	@echo  '  headerdep       - Detect inclusion cycles in headers'; \
 	 echo  ''
 	@echo  'Kernel packaging:'
 	@$(MAKE) $(build)=$(package-dir) help
