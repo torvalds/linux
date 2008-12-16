@@ -368,8 +368,6 @@ struct device_dma_parameters {
 };
 
 struct device {
-	struct klist		klist_children;
-	struct klist_node	knode_parent;	/* node in sibling list */
 	struct klist_node	knode_driver;
 	struct klist_node	knode_bus;
 	struct device		*parent;
