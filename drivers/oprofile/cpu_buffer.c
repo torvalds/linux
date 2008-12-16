@@ -66,7 +66,7 @@ void free_cpu_buffers(void)
 
 unsigned long oprofile_get_cpu_buffer_size(void)
 {
-	return fs_cpu_buffer_size;
+	return oprofile_cpu_buffer_size;
 }
 
 void oprofile_cpu_buffer_inc_smpl_lost(void)
@@ -81,7 +81,7 @@ int alloc_cpu_buffers(void)
 {
 	int i;
 
-	unsigned long buffer_size = fs_cpu_buffer_size;
+	unsigned long buffer_size = oprofile_cpu_buffer_size;
 
 	op_ring_buffer_read = ring_buffer_alloc(buffer_size, OP_BUFFER_FLAGS);
 	if (!op_ring_buffer_read)
@@ -238,7 +238,7 @@ void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
 {
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
 
-	if (!backtrace_depth) {
+	if (!oprofile_backtrace_depth) {
 		log_sample(cpu_buf, pc, is_kernel, event);
 		return;
 	}
@@ -251,7 +251,7 @@ void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
 	 * source of this event
 	 */
 	if (log_sample(cpu_buf, pc, is_kernel, event))
-		oprofile_ops.backtrace(regs, backtrace_depth);
+		oprofile_ops.backtrace(regs, oprofile_backtrace_depth);
 	oprofile_end_trace(cpu_buf);
 }
 
@@ -308,8 +308,8 @@ void oprofile_add_ibs_sample(struct pt_regs * const regs,
 	if (fail)
 		goto fail;
 
-	if (backtrace_depth)
-		oprofile_ops.backtrace(regs, backtrace_depth);
+	if (oprofile_backtrace_depth)
+		oprofile_ops.backtrace(regs, oprofile_backtrace_depth);
 
 	return;
 
