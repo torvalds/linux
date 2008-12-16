@@ -730,18 +730,16 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	/* width must even because of the YUYV format
 	   height must be even because of interlacing */
 	height &= 0xfffe;
-	width &= 0xfffe;
+	width  &= 0xfffe;
 
-	if (height < 32)
+	if (unlikely(height < 32))
 		height = 32;
-	if (height > maxh)
+	if (unlikely(height > maxh))
 		height = maxh;
-	if (width < 48)
+	if (unlikely(width < 48))
 		width = 48;
-	if (width > maxw)
+	if (unlikely(width > maxw))
 		width = maxw;
-
-	mutex_lock(&dev->lock);
 
 	if (dev->board.is_em2800) {
 		/* the em2800 can only scale down to 50% */
@@ -772,7 +770,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
