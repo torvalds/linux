@@ -2465,6 +2465,106 @@ out:
 }
 EXPORT_SYMBOL(tcp_tso_segment);
 
+struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
+{
+	struct sk_buff **pp = NULL;
+	struct sk_buff *p;
+	struct tcphdr *th;
+	struct tcphdr *th2;
+	unsigned int thlen;
+	unsigned int flags;
+	unsigned int total;
+	unsigned int mss = 1;
+	int flush = 1;
+
+	if (!pskb_may_pull(skb, sizeof(*th)))
+		goto out;
+
+	th = tcp_hdr(skb);
+	thlen = th->doff * 4;
+	if (thlen < sizeof(*th))
+		goto out;
+
+	if (!pskb_may_pull(skb, thlen))
+		goto out;
+
+	th = tcp_hdr(skb);
+	__skb_pull(skb, thlen);
+
+	flags = tcp_flag_word(th);
+
+	for (; (p = *head); head = &p->next) {
+		if (!NAPI_GRO_CB(p)->same_flow)
+			continue;
+
+		th2 = tcp_hdr(p);
+
+		if (th->source != th2->source || th->dest != th2->dest) {
+			NAPI_GRO_CB(p)->same_flow = 0;
+			continue;
+		}
+
+		goto found;
+	}
+
+	goto out_check_final;
+
+found:
+	flush = NAPI_GRO_CB(p)->flush;
+	flush |= flags & TCP_FLAG_CWR;
+	flush |= (flags ^ tcp_flag_word(th2)) &
+		  ~(TCP_FLAG_CWR | TCP_FLAG_FIN | TCP_FLAG_PSH);
+	flush |= th->ack_seq != th2->ack_seq || th->window != th2->window;
+	flush |= memcmp(th + 1, th2 + 1, thlen - sizeof(*th));
+
+	total = p->len;
+	mss = total;
+	if (skb_shinfo(p)->frag_list)
+		mss = skb_shinfo(p)->frag_list->len;
+
+	flush |= skb->len > mss || skb->len <= 0;
+	flush |= ntohl(th2->seq) + total != ntohl(th->seq);
+
+	if (flush || skb_gro_receive(head, skb)) {
+		mss = 1;
+		goto out_check_final;
+	}
+
+	p = *head;
+	th2 = tcp_hdr(p);
+	tcp_flag_word(th2) |= flags & (TCP_FLAG_FIN | TCP_FLAG_PSH);
+
+out_check_final:
+	flush = skb->len < mss;
+	flush |= flags & (TCP_FLAG_URG | TCP_FLAG_PSH | TCP_FLAG_RST |
+			  TCP_FLAG_SYN | TCP_FLAG_FIN);
+
+	if (p && (!NAPI_GRO_CB(skb)->same_flow || flush))
+		pp = head;
+
+out:
+	NAPI_GRO_CB(skb)->flush |= flush;
+
+	return pp;
+}
+
+int tcp_gro_complete(struct sk_buff *skb)
+{
+	struct tcphdr *th = tcp_hdr(skb);
+
+	skb->csum_start = skb_transport_header(skb) - skb->head;
+	skb->csum_offset = offsetof(struct tcphdr, check);
+	skb->ip_summed = CHECKSUM_PARTIAL;
+
+	skb_shinfo(skb)->gso_size = skb_shinfo(skb)->frag_list->len;
+	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
+
+	if (th->cwr)
+		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
+
+	return 0;
+}
+
 #ifdef CONFIG_TCP_MD5SIG
 static unsigned long tcp_md5sig_users;
 static struct tcp_md5sig_pool **tcp_md5sig_pool;

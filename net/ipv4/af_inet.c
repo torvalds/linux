@@ -1410,6 +1410,8 @@ static struct net_protocol tcp_protocol = {
 	.err_handler =	tcp_v4_err,
 	.gso_send_check = tcp_v4_gso_send_check,
 	.gso_segment =	tcp_tso_segment,
+	.gro_receive =	tcp4_gro_receive,
+	.gro_complete =	tcp4_gro_complete,
 	.no_policy =	1,
 	.netns_ok =	1,
 };
