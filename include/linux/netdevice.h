@@ -314,8 +314,9 @@ struct napi_struct {
 	spinlock_t		poll_lock;
 	int			poll_owner;
 	struct net_device	*dev;
-	struct list_head	dev_list;
 #endif
+	struct list_head	dev_list;
+	struct sk_buff		*gro_list;
 };
 
 enum
@@ -376,22 +377,8 @@ static inline int napi_reschedule(struct napi_struct *napi)
  *
  * Mark NAPI processing as complete.
  */
-static inline void __napi_complete(struct napi_struct *n)
-{
-	BUG_ON(!test_bit(NAPI_STATE_SCHED, &n->state));
-	list_del(&n->poll_list);
-	smp_mb__before_clear_bit();
-	clear_bit(NAPI_STATE_SCHED, &n->state);
-}
-
-static inline void napi_complete(struct napi_struct *n)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__napi_complete(n);
-	local_irq_restore(flags);
-}
+extern void __napi_complete(struct napi_struct *n);
+extern void napi_complete(struct napi_struct *n);
 
 /**
  *	napi_disable - prevent NAPI from scheduling
@@ -640,9 +627,7 @@ struct net_device
 	unsigned long		state;
 
 	struct list_head	dev_list;
-#ifdef CONFIG_NETPOLL
 	struct list_head	napi_list;
-#endif
 
 	/* Net device features */
 	unsigned long		features;
@@ -661,6 +646,7 @@ struct net_device
 #define NETIF_F_LLTX		4096	/* LockLess TX - deprecated. Please */
 					/* do not use LLTX in new drivers */
 #define NETIF_F_NETNS_LOCAL	8192	/* Does not change network namespaces */
+#define NETIF_F_GRO		16384	/* Generic receive offload */
 #define NETIF_F_LRO		32768	/* large receive offload */
 
 	/* Segmentation offload features */
@@ -984,22 +970,8 @@ static inline void *netdev_priv(const struct net_device *dev)
  * netif_napi_add() must be used to initialize a napi context prior to calling
  * *any* of the other napi related functions.
  */
-static inline void netif_napi_add(struct net_device *dev,
-				  struct napi_struct *napi,
-				  int (*poll)(struct napi_struct *, int),
-				  int weight)
-{
-	INIT_LIST_HEAD(&napi->poll_list);
-	napi->poll = poll;
-	napi->weight = weight;
-#ifdef CONFIG_NETPOLL
-	napi->dev = dev;
-	list_add(&napi->dev_list, &dev->napi_list);
-	spin_lock_init(&napi->poll_lock);
-	napi->poll_owner = -1;
-#endif
-	set_bit(NAPI_STATE_SCHED, &napi->state);
-}
+void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
+		    int (*poll)(struct napi_struct *, int), int weight);
 
 /**
  *  netif_napi_del - remove a napi context
@@ -1007,12 +979,20 @@ static inline void netif_napi_add(struct net_device *dev,
  *
  *  netif_napi_del() removes a napi context from the network device napi list
  */
-static inline void netif_napi_del(struct napi_struct *napi)
-{
-#ifdef CONFIG_NETPOLL
-	list_del(&napi->dev_list);
-#endif
-}
+void netif_napi_del(struct napi_struct *napi);
+
+struct napi_gro_cb {
+	/* This is non-zero if the packet may be of the same flow. */
+	int same_flow;
+
+	/* This is non-zero if the packet cannot be merged with the new skb. */
+	int flush;
+
+	/* Number of segments aggregated. */
+	int count;
+};
+
+#define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
 
 struct packet_type {
 	__be16			type;	/* This is really htons(ether_type). */
@@ -1024,6 +1004,9 @@ struct packet_type {
 	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
 						int features);
 	int			(*gso_send_check)(struct sk_buff *skb);
+	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
+					       struct sk_buff *skb);
+	int			(*gro_complete)(struct sk_buff *skb);
 	void			*af_packet_priv;
 	struct list_head	list;
 };
@@ -1377,6 +1360,9 @@ extern int		netif_rx(struct sk_buff *skb);
 extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
+extern void		napi_gro_flush(struct napi_struct *napi);
+extern int		napi_gro_receive(struct napi_struct *napi,
+					 struct sk_buff *skb);
 extern void		netif_nit_deliver(struct sk_buff *skb);
 extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
@@ -1621,17 +1607,7 @@ static inline void __netif_rx_complete(struct net_device *dev,
 static inline void netif_rx_complete(struct net_device *dev,
 				     struct napi_struct *napi)
 {
-	unsigned long flags;
-
-	/*
-	 * don't let napi dequeue from the cpu poll list
-	 * just in case its running on a different cpu
-	 */
-	if (unlikely(test_bit(NAPI_STATE_NPSVC, &napi->state)))
-		return;
-	local_irq_save(flags);
-	__netif_rx_complete(dev, napi);
-	local_irq_restore(flags);
+	napi_complete(napi);
 }
 
 static inline void __netif_tx_lock(struct netdev_queue *txq, int cpu)

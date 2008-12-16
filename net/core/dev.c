@@ -129,6 +129,9 @@
 
 #include "net-sysfs.h"
 
+/* Instead of increasing this, you should create a hash table. */
+#define MAX_GRO_SKBS 8
+
 /*
  *	The list of packet types we will receive (as opposed to discard)
  *	and the routines to invoke.
@@ -2335,6 +2338,122 @@ static void flush_backlog(void *arg)
 		}
 }
 
+static int napi_gro_complete(struct sk_buff *skb)
+{
+	struct packet_type *ptype;
+	__be16 type = skb->protocol;
+	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
+	int err = -ENOENT;
+
+	if (!skb_shinfo(skb)->frag_list)
+		goto out;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ptype, head, list) {
+		if (ptype->type != type || ptype->dev || !ptype->gro_complete)
+			continue;
+
+		err = ptype->gro_complete(skb);
+		break;
+	}
+	rcu_read_unlock();
+
+	if (err) {
+		WARN_ON(&ptype->list == head);
+		kfree_skb(skb);
+		return NET_RX_SUCCESS;
+	}
+
+out:
+	__skb_push(skb, -skb_network_offset(skb));
+	return netif_receive_skb(skb);
+}
+
+void napi_gro_flush(struct napi_struct *napi)
+{
+	struct sk_buff *skb, *next;
+
+	for (skb = napi->gro_list; skb; skb = next) {
+		next = skb->next;
+		skb->next = NULL;
+		napi_gro_complete(skb);
+	}
+
+	napi->gro_list = NULL;
+}
+EXPORT_SYMBOL(napi_gro_flush);
+
+int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+{
+	struct sk_buff **pp = NULL;
+	struct packet_type *ptype;
+	__be16 type = skb->protocol;
+	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
+	int count = 0;
+	int mac_len;
+
+	if (!(skb->dev->features & NETIF_F_GRO))
+		goto normal;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ptype, head, list) {
+		struct sk_buff *p;
+
+		if (ptype->type != type || ptype->dev || !ptype->gro_receive)
+			continue;
+
+		skb_reset_network_header(skb);
+		mac_len = skb->network_header - skb->mac_header;
+		skb->mac_len = mac_len;
+		NAPI_GRO_CB(skb)->same_flow = 0;
+		NAPI_GRO_CB(skb)->flush = 0;
+
+		for (p = napi->gro_list; p; p = p->next) {
+			count++;
+			NAPI_GRO_CB(p)->same_flow =
+				p->mac_len == mac_len &&
+				!memcmp(skb_mac_header(p), skb_mac_header(skb),
+					mac_len);
+			NAPI_GRO_CB(p)->flush = 0;
+		}
+
+		pp = ptype->gro_receive(&napi->gro_list, skb);
+		break;
+	}
+	rcu_read_unlock();
+
+	if (&ptype->list == head)
+		goto normal;
+
+	if (pp) {
+		struct sk_buff *nskb = *pp;
+
+		*pp = nskb->next;
+		nskb->next = NULL;
+		napi_gro_complete(nskb);
+		count--;
+	}
+
+	if (NAPI_GRO_CB(skb)->same_flow)
+		goto ok;
+
+	if (NAPI_GRO_CB(skb)->flush || count >= MAX_GRO_SKBS) {
+		__skb_push(skb, -skb_network_offset(skb));
+		goto normal;
+	}
+
+	NAPI_GRO_CB(skb)->count = 1;
+	skb->next = napi->gro_list;
+	napi->gro_list = skb;
+
+ok:
+	return NET_RX_SUCCESS;
+
+normal:
+	return netif_receive_skb(skb);
+}
+EXPORT_SYMBOL(napi_gro_receive);
+
 static int process_backlog(struct napi_struct *napi, int quota)
 {
 	int work = 0;
@@ -2354,8 +2473,10 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		}
 		local_irq_enable();
 
-		netif_receive_skb(skb);
+		napi_gro_receive(napi, skb);
 	} while (++work < quota && jiffies == start_time);
+
+	napi_gro_flush(napi);
 
 	return work;
 }
@@ -2376,6 +2497,68 @@ void __napi_schedule(struct napi_struct *n)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(__napi_schedule);
+
+void __napi_complete(struct napi_struct *n)
+{
+	BUG_ON(!test_bit(NAPI_STATE_SCHED, &n->state));
+	BUG_ON(n->gro_list);
+
+	list_del(&n->poll_list);
+	smp_mb__before_clear_bit();
+	clear_bit(NAPI_STATE_SCHED, &n->state);
+}
+EXPORT_SYMBOL(__napi_complete);
+
+void napi_complete(struct napi_struct *n)
+{
+	unsigned long flags;
+
+	/*
+	 * don't let napi dequeue from the cpu poll list
+	 * just in case its running on a different cpu
+	 */
+	if (unlikely(test_bit(NAPI_STATE_NPSVC, &n->state)))
+		return;
+
+	napi_gro_flush(n);
+	local_irq_save(flags);
+	__napi_complete(n);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(napi_complete);
+
+void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
+		    int (*poll)(struct napi_struct *, int), int weight)
+{
+	INIT_LIST_HEAD(&napi->poll_list);
+	napi->gro_list = NULL;
+	napi->poll = poll;
+	napi->weight = weight;
+	list_add(&napi->dev_list, &dev->napi_list);
+#ifdef CONFIG_NETPOLL
+	napi->dev = dev;
+	spin_lock_init(&napi->poll_lock);
+	napi->poll_owner = -1;
+#endif
+	set_bit(NAPI_STATE_SCHED, &napi->state);
+}
+EXPORT_SYMBOL(netif_napi_add);
+
+void netif_napi_del(struct napi_struct *napi)
+{
+	struct sk_buff *skb, *next;
+
+	list_del(&napi->dev_list);
+
+	for (skb = napi->gro_list; skb; skb = next) {
+		next = skb->next;
+		skb->next = NULL;
+		kfree_skb(skb);
+	}
+
+	napi->gro_list = NULL;
+}
+EXPORT_SYMBOL(netif_napi_del);
 
 
 static void net_rx_action(struct softirq_action *h)
@@ -4380,7 +4563,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	netdev_init_queues(dev);
 
-	netpoll_netdev_init(dev);
+	INIT_LIST_HEAD(&dev->napi_list);
 	setup(dev);
 	strcpy(dev->name, name);
 	return dev;
@@ -4397,9 +4580,14 @@ EXPORT_SYMBOL(alloc_netdev_mq);
  */
 void free_netdev(struct net_device *dev)
 {
+	struct napi_struct *p, *n;
+
 	release_net(dev_net(dev));
 
 	kfree(dev->_tx);
+
+	list_for_each_entry_safe(p, n, &dev->napi_list, dev_list)
+		netif_napi_del(p);
 
 	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED) {
@@ -4949,6 +5137,7 @@ static int __init net_dev_init(void)
 
 		queue->backlog.poll = process_backlog;
 		queue->backlog.weight = weight_p;
+		queue->backlog.gro_list = NULL;
 	}
 
 	dev_boot_phase = 0;
