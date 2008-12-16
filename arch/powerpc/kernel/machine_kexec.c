@@ -13,8 +13,10 @@
 #include <linux/reboot.h>
 #include <linux/threads.h>
 #include <linux/lmb.h>
+#include <linux/of.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
+#include <asm/sections.h>
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {
@@ -118,3 +120,35 @@ int overlaps_crashkernel(unsigned long start, unsigned long size)
 {
 	return (start + size) > crashk_res.start && start <= crashk_res.end;
 }
+
+/* Values we need to export to the second kernel via the device tree. */
+static unsigned long kernel_end;
+
+static struct property kernel_end_prop = {
+	.name = "linux,kernel-end",
+	.length = sizeof(unsigned long),
+	.value = &kernel_end,
+};
+
+static int __init kexec_setup(void)
+{
+	struct device_node *node;
+	struct property *prop;
+
+	node = of_find_node_by_path("/chosen");
+	if (!node)
+		return -ENOENT;
+
+	/* remove any stale properties so ours can be found */
+	prop = of_find_property(node, kernel_end_prop.name, NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	/* information needed by userspace when using default_machine_kexec */
+	kernel_end = __pa(_end);
+	prom_add_property(node, &kernel_end_prop);
+
+	of_node_put(node);
+	return 0;
+}
+late_initcall(kexec_setup);

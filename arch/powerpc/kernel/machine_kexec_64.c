@@ -289,7 +289,7 @@ void default_machine_kexec(struct kimage *image)
 }
 
 /* Values we need to export to the second kernel via the device tree. */
-static unsigned long htab_base, kernel_end;
+static unsigned long htab_base;
 
 static struct property htab_base_prop = {
 	.name = "linux,htab-base",
@@ -303,25 +303,20 @@ static struct property htab_size_prop = {
 	.value = &htab_size_bytes,
 };
 
-static struct property kernel_end_prop = {
-	.name = "linux,kernel-end",
-	.length = sizeof(unsigned long),
-	.value = &kernel_end,
-};
-
 static void __init export_htab_values(void)
 {
 	struct device_node *node;
 	struct property *prop;
+
+	/* On machines with no htab htab_address is NULL */
+	if (!htab_address)
+		return;
 
 	node = of_find_node_by_path("/chosen");
 	if (!node)
 		return;
 
 	/* remove any stale propertys so ours can be found */
-	prop = of_find_property(node, kernel_end_prop.name, NULL);
-	if (prop)
-		prom_remove_property(node, prop);
 	prop = of_find_property(node, htab_base_prop.name, NULL);
 	if (prop)
 		prom_remove_property(node, prop);
@@ -329,19 +324,10 @@ static void __init export_htab_values(void)
 	if (prop)
 		prom_remove_property(node, prop);
 
-	/* information needed by userspace when using default_machine_kexec */
-	kernel_end = __pa(_end);
-	prom_add_property(node, &kernel_end_prop);
-
-	/* On machines with no htab htab_address is NULL */
-	if (NULL == htab_address)
-		goto out;
-
 	htab_base = __pa(htab_address);
 	prom_add_property(node, &htab_base_prop);
 	prom_add_property(node, &htab_size_prop);
 
- out:
 	of_node_put(node);
 }
 
