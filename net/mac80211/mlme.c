@@ -309,7 +309,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						  IEEE80211_STYPE_ASSOC_REQ);
 		mgmt->u.assoc_req.capab_info = cpu_to_le16(capab);
-		mgmt->u.reassoc_req.listen_interval =
+		mgmt->u.assoc_req.listen_interval =
 				cpu_to_le16(local->hw.conf.listen_interval);
 	}
 
