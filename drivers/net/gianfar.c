@@ -1215,7 +1215,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct txfcb *fcb = NULL;
-	struct txbd8 *txbdp;
+	struct txbd8 *txbdp, *base;
 	u16 status;
 	unsigned long flags;
 
@@ -1227,6 +1227,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Point at the first free tx descriptor */
 	txbdp = priv->cur_tx;
+	base = priv->tx_bd_base;
 
 	/* Clear all but the WRAP status flags */
 	status = txbdp->status & TXBD_WRAP;
@@ -1279,12 +1280,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	eieio();
 	txbdp->status = status;
 
-	/* If this was the last BD in the ring, the next one */
-	/* is at the beginning of the ring */
-	if (txbdp->status & TXBD_WRAP)
-		txbdp = priv->tx_bd_base;
-	else
-		txbdp++;
+	txbdp = next_bd(txbdp, base, priv->tx_ring_size);
 
 	/* If the next BD still needs to be cleaned up, then the bds
 	   are full.  We need to tell the kernel to stop sending us stuff. */
@@ -1470,11 +1466,12 @@ static void gfar_timeout(struct net_device *dev)
 /* Interrupt Handler for Transmit complete */
 static int gfar_clean_tx_ring(struct net_device *dev)
 {
-	struct txbd8 *bdp;
+	struct txbd8 *bdp, *base;
 	struct gfar_private *priv = netdev_priv(dev);
 	int howmany = 0;
 
 	bdp = priv->dirty_tx;
+	base = priv->tx_bd_base;
 	while ((bdp->status & TXBD_READY) == 0) {
 		/* If dirty_tx and cur_tx are the same, then either the */
 		/* ring is empty or full now (it could only be full in the beginning, */
@@ -1504,11 +1501,7 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 		/* Clean BD length for empty detection */
 		bdp->length = 0;
 
-		/* update bdp to point at next bd in the ring (wrapping if necessary) */
-		if (bdp->status & TXBD_WRAP)
-			bdp = priv->tx_bd_base;
-		else
-			bdp++;
+		bdp = next_bd(bdp, base, priv->tx_ring_size);
 
 		/* Move dirty_tx to be the next bd */
 		priv->dirty_tx = bdp;
@@ -1712,7 +1705,7 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
  */
 int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 {
-	struct rxbd8 *bdp;
+	struct rxbd8 *bdp, *base;
 	struct sk_buff *skb;
 	int pkt_len;
 	int amount_pull;
@@ -1721,6 +1714,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 	/* Get the first full descriptor */
 	bdp = priv->cur_rx;
+	base = priv->rx_bd_base;
 
 	amount_pull = (gfar_uses_fcb(priv) ? GMAC_FCB_LEN : 0) +
 		priv->padding;
@@ -1776,10 +1770,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 		gfar_new_rxbdp(dev, bdp, newskb);
 
 		/* Update to the next pointer */
-		if (bdp->status & RXBD_WRAP)
-			bdp = priv->rx_bd_base;
-		else
-			bdp++;
+		bdp = next_bd(bdp, base, priv->rx_ring_size);
 
 		/* update to point at the next skb */
 		priv->skb_currx =

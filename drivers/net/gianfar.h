@@ -196,6 +196,12 @@ extern const char gfar_driver_version[];
 #define DEFAULT_TXIC mk_ic_value(DEFAULT_TXCOUNT, DEFAULT_TXTIME)
 #define DEFAULT_RXIC mk_ic_value(DEFAULT_RXCOUNT, DEFAULT_RXTIME)
 
+#define skip_bd(bdp, stride, base, ring_size) ({ \
+	typeof(bdp) new_bd = (bdp) + (stride); \
+	(new_bd >= (base) + (ring_size)) ? (new_bd - (ring_size)) : new_bd; })
+
+#define next_bd(bdp, base, ring_size) skip_bd(bdp, 1, base, ring_size)
+
 #define RCTRL_PAL_MASK		0x001f0000
 #define RCTRL_VLEX		0x00002000
 #define RCTRL_FILREN		0x00001000
