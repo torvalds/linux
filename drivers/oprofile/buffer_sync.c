@@ -333,7 +333,7 @@ static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 
 	sample = op_cpu_buffer_read_entry(cpu);
 	if (!sample)
-		goto Error;
+		return;
 	rip = sample->eip;
 
 #ifdef __LP64__
@@ -372,14 +372,11 @@ static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
 	for (i = 0; i < count; i++) {
 		sample = op_cpu_buffer_read_entry(cpu);
 		if (!sample)
-			goto Error;
+			return;
 		add_event_entry(sample->eip);
 		add_event_entry(sample->event);
 	}
 
-	return;
-
-Error:
 	return;
 }
 
