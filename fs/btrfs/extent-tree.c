@@ -2477,15 +2477,15 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 				      num_to_del);
 		BUG_ON(ret);
 		btrfs_release_path(extent_root, path);
-		ret = update_block_group(trans, root, bytenr, num_bytes, 0,
-					 mark_free);
-		BUG_ON(ret);
 
 		if (owner_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
 			ret = btrfs_del_csums(trans, root, bytenr, num_bytes);
 			BUG_ON(ret);
 		}
 
+		ret = update_block_group(trans, root, bytenr, num_bytes, 0,
+					 mark_free);
+		BUG_ON(ret);
 #ifdef BIO_RW_DISCARD
 		/* Tell the block device(s) that the sectors can be discarded */
 		ret = btrfs_map_block(&root->fs_info->mapping_tree, READ,

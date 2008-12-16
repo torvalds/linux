@@ -537,6 +537,8 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 		if (key.offset >= bytenr && csum_end <= end_byte) {
 			ret = btrfs_del_item(trans, root, path);
 			BUG_ON(ret);
+			if (key.offset == bytenr)
+				break;
 		} else if (key.offset < bytenr && csum_end > end_byte) {
 			unsigned long offset;
 			unsigned long shift_len;
@@ -583,6 +585,8 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 			ret = truncate_one_csum(trans, root, path,
 						&key, bytenr, len);
 			BUG_ON(ret);
+			if (key.offset < bytenr)
+				break;
 		}
 		btrfs_release_path(root, path);
 	}
