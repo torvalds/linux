@@ -225,8 +225,8 @@ static void apply_microcode_amd(int cpu)
 	uci->cpu_sig.rev = rev;
 }
 
-static void *get_next_ucode(u8 *buf, unsigned int size,
-			int (*get_ucode_data)(void *, const void *, size_t),
+static void *get_next_ucode(const u8 *buf, unsigned int size,
+			int (*get_ucode_data)(void *, const u8 *, size_t),
 			unsigned int *mc_size)
 {
 	unsigned int total_size;
@@ -268,8 +268,8 @@ static void *get_next_ucode(u8 *buf, unsigned int size,
 }
 
 
-static int install_equiv_cpu_table(u8 *buf,
-		int (*get_ucode_data)(void *, const void *, size_t))
+static int install_equiv_cpu_table(const u8 *buf,
+		int (*get_ucode_data)(void *, const u8 *, size_t))
 {
 #define UCODE_CONTAINER_HEADER_SIZE	12
 	u8 *container_hdr[UCODE_CONTAINER_HEADER_SIZE];
@@ -311,11 +311,13 @@ static void free_equiv_cpu_table(void)
 	}
 }
 
-static int generic_load_microcode(int cpu, void *data, size_t size,
-		int (*get_ucode_data)(void *, const void *, size_t))
+static int generic_load_microcode(int cpu, const u8 *data, size_t size,
+		int (*get_ucode_data)(void *, const u8 *, size_t))
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	u8 *ucode_ptr = data, *new_mc = NULL, *mc;
+	const u8 *ucode_ptr = data;
+	void *new_mc = NULL;
+	void *mc;
 	int new_rev = uci->cpu_sig.rev;
 	unsigned int leftover;
 	unsigned long offset;
@@ -368,7 +370,7 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 	return (int)leftover;
 }
 
-static int get_ucode_fw(void *to, const void *from, size_t n)
+static int get_ucode_fw(void *to, const u8 *from, size_t n)
 {
 	memcpy(to, from, n);
 	return 0;
@@ -390,7 +392,7 @@ static int request_microcode_fw(int cpu, struct device *device)
 		return ret;
 	}
 
-	ret = generic_load_microcode(cpu, (void*)firmware->data, firmware->size,
+	ret = generic_load_microcode(cpu, firmware->data, firmware->size,
 			&get_ucode_fw);
 
 	release_firmware(firmware);
