@@ -2292,7 +2292,7 @@ static void set_ir_ioapic_affinity_irq_desc(struct irq_desc *desc,
 		return;
 	}
 
-	migrate_ioapic_irq_desc(desc, mask);
+	migrate_ioapic_irq_desc(desc, *mask);
 }
 static void set_ir_ioapic_affinity_irq(unsigned int irq,
 				       const struct cpumask *mask)
@@ -3203,7 +3203,7 @@ static void ir_set_msi_irq_affinity(unsigned int irq,
 	if (assign_irq_vector(irq, cfg, *mask))
 		return;
 
-	set_extra_move_desc(desc, mask);
+	set_extra_move_desc(desc, *mask);
 
 	cpumask_and(&tmp, &cfg->domain, mask);
 	dest = cpu_mask_to_apicid(tmp);
