@@ -11,7 +11,6 @@
 #include <asm/pgtable.h>
 #include <asm/msr.h>
 #include <asm/uaccess.h>
-#include <asm/ptrace.h>
 #include <asm/ds.h>
 #include <asm/bugs.h>
 
@@ -308,9 +307,6 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	if (c->x86 == 6)
 		set_cpu_cap(c, X86_FEATURE_P3);
 #endif
-
-	if (cpu_has_bts)
-		ptrace_bts_init_intel(c);
 
 	detect_extended_topology(c);
 	if (!cpu_has(c, X86_FEATURE_XTOPOLOGY)) {

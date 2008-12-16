@@ -752,6 +752,19 @@ extern void switch_to_new_gdt(void);
 extern void cpu_init(void);
 extern void init_gdt(int cpu);
 
+static inline unsigned long get_debugctlmsr(void)
+{
+    unsigned long debugctlmsr = 0;
+
+#ifndef CONFIG_X86_DEBUGCTLMSR
+	if (boot_cpu_data.x86 < 6)
+		return 0;
+#endif
+	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+
+    return debugctlmsr;
+}
+
 static inline void update_debugctlmsr(unsigned long debugctlmsr)
 {
 #ifndef CONFIG_X86_DEBUGCTLMSR

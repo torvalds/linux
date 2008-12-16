@@ -1176,6 +1176,7 @@ struct task_struct {
 	 * The buffer to hold the BTS data.
 	 */
 	void *bts_buffer;
+	size_t bts_size;
 #endif /* CONFIG_X86_PTRACE_BTS */
 
 	/* PID/PID hash table linkage. */

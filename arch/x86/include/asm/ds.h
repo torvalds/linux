@@ -6,13 +6,13 @@
  * precise-event based sampling (PEBS).
  *
  * It manages:
- * - per-thread and per-cpu allocation of BTS and PEBS
+ * - DS and BTS hardware configuration
  * - buffer overflow handling (to be done)
  * - buffer access
  *
- * It assumes:
- * - get_task_struct on all traced tasks
- * - current is allowed to trace tasks
+ * It does not do:
+ * - security checking (is the caller allowed to trace the task)
+ * - buffer allocation (memory accounting)
  *
  *
  * Copyright (C) 2007-2008 Intel Corporation.
@@ -31,12 +31,45 @@
 #ifdef CONFIG_X86_DS
 
 struct task_struct;
+struct ds_context;
 struct ds_tracer;
 struct bts_tracer;
 struct pebs_tracer;
 
 typedef void (*bts_ovfl_callback_t)(struct bts_tracer *);
 typedef void (*pebs_ovfl_callback_t)(struct pebs_tracer *);
+
+
+/*
+ * A list of features plus corresponding macros to talk about them in
+ * the ds_request function's flags parameter.
+ *
+ * We use the enum to index an array of corresponding control bits;
+ * we use the macro to index a flags bit-vector.
+ */
+enum ds_feature {
+	dsf_bts = 0,
+	dsf_bts_kernel,
+#define BTS_KERNEL (1 << dsf_bts_kernel)
+	/* trace kernel-mode branches */
+
+	dsf_bts_user,
+#define BTS_USER (1 << dsf_bts_user)
+	/* trace user-mode branches */
+
+	dsf_bts_overflow,
+	dsf_bts_max,
+	dsf_pebs = dsf_bts_max,
+
+	dsf_pebs_max,
+	dsf_ctl_max = dsf_pebs_max,
+	dsf_bts_timestamps = dsf_ctl_max,
+#define BTS_TIMESTAMPS (1 << dsf_bts_timestamps)
+	/* add timestamps into BTS trace */
+
+#define BTS_USER_FLAGS (BTS_KERNEL | BTS_USER | BTS_TIMESTAMPS)
+};
+
 
 /*
  * Request BTS or PEBS
@@ -58,92 +91,135 @@ typedef void (*pebs_ovfl_callback_t)(struct pebs_tracer *);
  *       NULL if cyclic buffer requested
  * th: the interrupt threshold in records from the end of the buffer;
  *     -1 if no interrupt threshold is requested.
+ * flags: a bit-mask of the above flags
  */
 extern struct bts_tracer *ds_request_bts(struct task_struct *task,
 					 void *base, size_t size,
-					 bts_ovfl_callback_t ovfl, size_t th);
+					 bts_ovfl_callback_t ovfl,
+					 size_t th, unsigned int flags);
 extern struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 					   void *base, size_t size,
 					   pebs_ovfl_callback_t ovfl,
-					   size_t th);
+					   size_t th, unsigned int flags);
 
 /*
  * Release BTS or PEBS resources
- *
- * Returns 0 on success; -Eerrno otherwise
+ * Suspend and resume BTS or PEBS tracing
  *
  * tracer: the tracer handle returned from ds_request_~()
  */
-extern int ds_release_bts(struct bts_tracer *tracer);
-extern int ds_release_pebs(struct pebs_tracer *tracer);
+extern void ds_release_bts(struct bts_tracer *tracer);
+extern void ds_suspend_bts(struct bts_tracer *tracer);
+extern void ds_resume_bts(struct bts_tracer *tracer);
+extern void ds_release_pebs(struct pebs_tracer *tracer);
+extern void ds_suspend_pebs(struct pebs_tracer *tracer);
+extern void ds_resume_pebs(struct pebs_tracer *tracer);
+
 
 /*
- * Get the (array) index of the write pointer.
- * (assuming an array of BTS/PEBS records)
+ * The raw DS buffer state as it is used for BTS and PEBS recording.
  *
- * Returns 0 on success; -Eerrno on error
- *
- * tracer: the tracer handle returned from ds_request_~()
- * pos (out): will hold the result
+ * This is the low-level, arch-dependent interface for working
+ * directly on the raw trace data.
  */
-extern int ds_get_bts_index(struct bts_tracer *tracer, size_t *pos);
-extern int ds_get_pebs_index(struct pebs_tracer *tracer, size_t *pos);
+struct ds_trace {
+	/* the number of bts/pebs records */
+	size_t n;
+	/* the size of a bts/pebs record in bytes */
+	size_t size;
+	/* pointers into the raw buffer:
+	   - to the first entry */
+	void *begin;
+	/* - one beyond the last entry */
+	void *end;
+	/* - one beyond the newest entry */
+	void *top;
+	/* - the interrupt threshold */
+	void *ith;
+	/* flags given on ds_request() */
+	unsigned int flags;
+};
 
 /*
- * Get the (array) index one record beyond the end of the array.
- * (assuming an array of BTS/PEBS records)
- *
- * Returns 0 on success; -Eerrno on error
- *
- * tracer: the tracer handle returned from ds_request_~()
- * pos (out): will hold the result
+ * An arch-independent view on branch trace data.
  */
-extern int ds_get_bts_end(struct bts_tracer *tracer, size_t *pos);
-extern int ds_get_pebs_end(struct pebs_tracer *tracer, size_t *pos);
+enum bts_qualifier {
+	bts_invalid,
+#define BTS_INVALID bts_invalid
+
+	bts_branch,
+#define BTS_BRANCH bts_branch
+
+	bts_task_arrives,
+#define BTS_TASK_ARRIVES bts_task_arrives
+
+	bts_task_departs,
+#define BTS_TASK_DEPARTS bts_task_departs
+
+	bts_qual_bit_size = 4,
+	bts_qual_max = (1 << bts_qual_bit_size),
+};
+
+struct bts_struct {
+	__u64 qualifier;
+	union {
+		/* BTS_BRANCH */
+		struct {
+			__u64 from;
+			__u64 to;
+		} lbr;
+		/* BTS_TASK_ARRIVES or BTS_TASK_DEPARTS */
+		struct {
+			__u64 jiffies;
+			pid_t pid;
+		} timestamp;
+	} variant;
+};
+
 
 /*
- * Provide a pointer to the BTS/PEBS record at parameter index.
- * (assuming an array of BTS/PEBS records)
+ * The BTS state.
  *
- * The pointer points directly into the buffer. The user is
- * responsible for copying the record.
- *
- * Returns the size of a single record on success; -Eerrno on error
- *
- * tracer: the tracer handle returned from ds_request_~()
- * index: the index of the requested record
- * record (out): pointer to the requested record
+ * This gives access to the raw DS state and adds functions to provide
+ * an arch-independent view of the BTS data.
  */
-extern int ds_access_bts(struct bts_tracer *tracer,
-			 size_t index, const void **record);
-extern int ds_access_pebs(struct pebs_tracer *tracer,
-			  size_t index, const void **record);
+struct bts_trace {
+	struct ds_trace ds;
+
+	int (*read)(struct bts_tracer *tracer, const void *at,
+		    struct bts_struct *out);
+	int (*write)(struct bts_tracer *tracer, const struct bts_struct *in);
+};
+
 
 /*
- * Write one or more BTS/PEBS records at the write pointer index and
- * advance the write pointer.
+ * The PEBS state.
  *
- * If size is not a multiple of the record size, trailing bytes are
- * zeroed out.
+ * This gives access to the raw DS state and the PEBS-specific counter
+ * reset value.
+ */
+struct pebs_trace {
+	struct ds_trace ds;
+
+	/* the PEBS reset value */
+	unsigned long long reset_value;
+};
+
+
+/*
+ * Read the BTS or PEBS trace.
  *
- * May result in one or more overflow notifications.
+ * Returns a view on the trace collected for the parameter tracer.
  *
- * If called during overflow handling, that is, with index >=
- * interrupt threshold, the write will wrap around.
- *
- * An overflow notification is given if and when the interrupt
- * threshold is reached during or after the write.
- *
- * Returns the number of bytes written or -Eerrno.
+ * The view remains valid as long as the traced task is not running or
+ * the tracer is suspended.
+ * Writes into the trace buffer are not reflected.
  *
  * tracer: the tracer handle returned from ds_request_~()
- * buffer: the buffer to write
- * size: the size of the buffer
  */
-extern int ds_write_bts(struct bts_tracer *tracer,
-			const void *buffer, size_t size);
-extern int ds_write_pebs(struct pebs_tracer *tracer,
-			 const void *buffer, size_t size);
+extern const struct bts_trace *ds_read_bts(struct bts_tracer *tracer);
+extern const struct pebs_trace *ds_read_pebs(struct pebs_tracer *tracer);
+
 
 /*
  * Reset the write pointer of the BTS/PEBS buffer.
@@ -154,27 +230,6 @@ extern int ds_write_pebs(struct pebs_tracer *tracer,
  */
 extern int ds_reset_bts(struct bts_tracer *tracer);
 extern int ds_reset_pebs(struct pebs_tracer *tracer);
-
-/*
- * Clear the BTS/PEBS buffer and reset the write pointer.
- * The entire buffer will be zeroed out.
- *
- * Returns 0 on success; -Eerrno on error
- *
- * tracer: the tracer handle returned from ds_request_~()
- */
-extern int ds_clear_bts(struct bts_tracer *tracer);
-extern int ds_clear_pebs(struct pebs_tracer *tracer);
-
-/*
- * Provide the PEBS counter reset value.
- *
- * Returns 0 on success; -Eerrno on error
- *
- * tracer: the tracer handle returned from ds_request_pebs()
- * value (out): the counter reset value
- */
-extern int ds_get_pebs_reset(struct pebs_tracer *tracer, u64 *value);
 
 /*
  * Set the PEBS counter reset value.
@@ -192,35 +247,17 @@ extern int ds_set_pebs_reset(struct pebs_tracer *tracer, u64 value);
 struct cpuinfo_x86;
 extern void __cpuinit ds_init_intel(struct cpuinfo_x86 *);
 
-
-
 /*
- * The DS context - part of struct thread_struct.
+ * Context switch work
  */
-#define MAX_SIZEOF_DS (12 * 8)
-
-struct ds_context {
-	/* pointer to the DS configuration; goes into MSR_IA32_DS_AREA */
-	unsigned char ds[MAX_SIZEOF_DS];
-	/* the owner of the BTS and PEBS configuration, respectively */
-	struct ds_tracer  *owner[2];
-	/* use count */
-	unsigned long count;
-	/* a pointer to the context location inside the thread_struct
-	 * or the per_cpu context array */
-	struct ds_context **this;
-	/* a pointer to the task owning this context, or NULL, if the
-	 * context is owned by a cpu */
-	struct task_struct *task;
-};
-
-/* called by exit_thread() to free leftover contexts */
-extern void ds_free(struct ds_context *context);
+extern void ds_switch_to(struct task_struct *prev, struct task_struct *next);
 
 #else /* CONFIG_X86_DS */
 
 struct cpuinfo_x86;
 static inline void __cpuinit ds_init_intel(struct cpuinfo_x86 *ignored) {}
+static inline void ds_switch_to(struct task_struct *prev,
+				struct task_struct *next) {}
 
 #endif /* CONFIG_X86_DS */
 #endif /* _ASM_X86_DS_H */

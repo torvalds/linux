@@ -2425,7 +2425,7 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 
 	/* Notify the tracer early; before we stop tracing. */
 	if (iter->trace && iter->trace->open)
-			iter->trace->open(iter);
+		iter->trace->open(iter);
 
 	/* Annotate start of buffers if we had overruns */
 	if (ring_buffer_overruns(iter->tr->buffer))

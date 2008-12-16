@@ -251,9 +251,9 @@ config STACK_TRACER
 
 	  Say N if unsure.
 
-config BTS_TRACER
+config HW_BRANCH_TRACER
 	depends on HAVE_HW_BRANCH_TRACER
-	bool "Trace branches"
+	bool "Trace hw branches"
 	select TRACING
 	help
 	  This tracer records all branches on the system in a circular
