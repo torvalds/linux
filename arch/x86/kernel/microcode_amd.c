@@ -32,9 +32,9 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
+#include <linux/uaccess.h>
 
 #include <asm/msr.h>
-#include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/microcode.h>
 
@@ -225,7 +225,7 @@ static void apply_microcode_amd(int cpu)
 	uci->cpu_sig.rev = rev;
 }
 
-static void * get_next_ucode(u8 *buf, unsigned int size,
+static void *get_next_ucode(u8 *buf, unsigned int size,
 			int (*get_ucode_data)(void *, const void *, size_t),
 			unsigned int *mc_size)
 {
@@ -256,7 +256,8 @@ static void * get_next_ucode(u8 *buf, unsigned int size,
 	mc = vmalloc(UCODE_MAX_SIZE);
 	if (mc) {
 		memset(mc, 0, UCODE_MAX_SIZE);
-		if (get_ucode_data(mc, buf + UCODE_CONTAINER_SECTION_HDR, total_size)) {
+		if (get_ucode_data(mc, buf + UCODE_CONTAINER_SECTION_HDR,
+				   total_size)) {
 			vfree(mc);
 			mc = NULL;
 		} else
@@ -332,7 +333,8 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 		unsigned int uninitialized_var(mc_size);
 		struct microcode_header_amd *mc_header;
 
-		mc = get_next_ucode(ucode_ptr, leftover, get_ucode_data, &mc_size);
+		mc = get_next_ucode(ucode_ptr, leftover, get_ucode_data,
+				    &mc_size);
 		if (!mc)
 			break;
 
@@ -342,7 +344,7 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 				vfree(new_mc);
 			new_rev = mc_header->patch_id;
 			new_mc  = mc;
-		} else 
+		} else
 			vfree(mc);
 
 		ucode_ptr += mc_size;
@@ -354,9 +356,9 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 			if (uci->mc)
 				vfree(uci->mc);
 			uci->mc = new_mc;
-			pr_debug("microcode: CPU%d found a matching microcode update with"
-				" version 0x%x (current=0x%x)\n",
-				cpu, new_rev, uci->cpu_sig.rev);
+			pr_debug("microcode: CPU%d found a matching microcode "
+				 "update with version 0x%x (current=0x%x)\n",
+				 cpu, new_rev, uci->cpu_sig.rev);
 		} else
 			vfree(new_mc);
 	}
@@ -383,7 +385,8 @@ static int request_microcode_fw(int cpu, struct device *device)
 
 	ret = request_firmware(&firmware, fw_name, device);
 	if (ret) {
-		printk(KERN_ERR "microcode: ucode data file %s load failed\n", fw_name);
+		printk(KERN_ERR "microcode: ucode data file %s load failed\n",
+		       fw_name);
 		return ret;
 	}
 
@@ -397,8 +400,8 @@ static int request_microcode_fw(int cpu, struct device *device)
 
 static int request_microcode_user(int cpu, const void __user *buf, size_t size)
 {
-	printk(KERN_WARNING "microcode: AMD microcode update via /dev/cpu/microcode"
-			"is not supported\n");
+	printk(KERN_WARNING "microcode: AMD microcode update via "
+	       "/dev/cpu/microcode is not supported\n");
 	return -1;
 }
 
