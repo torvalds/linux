@@ -473,7 +473,7 @@ sn_io_early_init(void)
 	{
 		struct acpi_table_header *header = NULL;
 
-		acpi_get_table_by_index(ACPI_TABLE_INDEX_DSDT, &header);
+		acpi_get_table(ACPI_SIG_DSDT, 1, &header);
 		BUG_ON(header == NULL);
 		sn_acpi_rev = header->oem_revision;
 	}
@@ -505,7 +505,7 @@ sn_io_early_init(void)
 
 	{
 		struct acpi_table_header *header;
-		(void)acpi_get_table_by_index(ACPI_TABLE_INDEX_DSDT, &header);
+		(void)acpi_get_table(ACPI_SIG_DSDT, 1, &header);
 		printk(KERN_INFO "ACPI  DSDT OEM Rev 0x%x\n",
 			header->oem_revision);
 	}
