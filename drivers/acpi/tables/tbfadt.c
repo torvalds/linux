@@ -524,7 +524,7 @@ static void acpi_tb_validate_fadt(void)
 	if (acpi_gbl_FADT.facs &&
 	    (acpi_gbl_FADT.Xfacs != (u64) acpi_gbl_FADT.facs)) {
 		ACPI_WARNING((AE_INFO,
-			      "32/64 FACS address mismatch in FADT - "
+			      "32/64X FACS address mismatch in FADT - "
 			      "two FACS tables! %8.8X/%8.8X%8.8X",
 			      acpi_gbl_FADT.facs,
 			      ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xfacs)));
@@ -533,7 +533,7 @@ static void acpi_tb_validate_fadt(void)
 	if (acpi_gbl_FADT.dsdt &&
 	    (acpi_gbl_FADT.Xdsdt != (u64) acpi_gbl_FADT.dsdt)) {
 		ACPI_WARNING((AE_INFO,
-			      "32/64 DSDT address mismatch in FADT - "
+			      "32/64X DSDT address mismatch in FADT - "
 			      "two DSDT tables! %8.8X/%8.8X%8.8X",
 			      acpi_gbl_FADT.dsdt,
 			      ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xdsdt)));
@@ -563,7 +563,7 @@ static void acpi_tb_validate_fadt(void)
 		 */
 		if (address64 && (address64->bit_width != ACPI_MUL_8(length))) {
 			ACPI_WARNING((AE_INFO,
-				      "32/64X bit length mismatch in %s: %d/%d",
+				      "32/64X length mismatch in %s: %d/%d",
 				      name, ACPI_MUL_8(length),
 				      address64->bit_width));
 		}
@@ -602,7 +602,7 @@ static void acpi_tb_validate_fadt(void)
 		if (address64->address && *address32 &&
 		    (address64->address != (u64) * address32)) {
 			ACPI_ERROR((AE_INFO,
-				    "32/64X address mismatch in %s: [%8.8X] [%8.8X%8.8X], using 64X",
+				    "32/64X address mismatch in %s: %8.8X/%8.8X%8.8X, using 64X",
 				    name, *address32,
 				    ACPI_FORMAT_UINT64(address64->address)));
 		}
