@@ -732,14 +732,21 @@ lookup:
 	if (tmpres) {
 		int dropping_ref = 0;
 
+		spin_unlock(&dlm->spinlock);
+
 		spin_lock(&tmpres->spinlock);
+		/* We wait for the other thread that is mastering the resource */
+		if (tmpres->owner == DLM_LOCK_RES_OWNER_UNKNOWN) {
+			__dlm_wait_on_lockres(tmpres);
+			BUG_ON(tmpres->owner == DLM_LOCK_RES_OWNER_UNKNOWN);
+		}
+
 		if (tmpres->owner == dlm->node_num) {
 			BUG_ON(tmpres->state & DLM_LOCK_RES_DROPPING_REF);
 			dlm_lockres_grab_inflight_ref(dlm, tmpres);
 		} else if (tmpres->state & DLM_LOCK_RES_DROPPING_REF)
 			dropping_ref = 1;
 		spin_unlock(&tmpres->spinlock);
-		spin_unlock(&dlm->spinlock);
 
 		/* wait until done messaging the master, drop our ref to allow
 		 * the lockres to be purged, start over. */
