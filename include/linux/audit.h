@@ -247,6 +247,18 @@
 #define AUDIT_GREATER_THAN_OR_EQUAL	(AUDIT_GREATER_THAN|AUDIT_EQUAL)
 #define AUDIT_OPERATORS			(AUDIT_EQUAL|AUDIT_NOT_EQUAL|AUDIT_BIT_MASK)
 
+enum {
+	Audit_equal,
+	Audit_not_equal,
+	Audit_bitmask,
+	Audit_bittest,
+	Audit_lt,
+	Audit_gt,
+	Audit_le,
+	Audit_ge,
+	Audit_bad
+};
+
 /* Status symbols */
 				/* Mask values */
 #define AUDIT_STATUS_ENABLED		0x0001

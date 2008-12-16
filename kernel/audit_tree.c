@@ -618,7 +618,7 @@ int audit_make_tree(struct audit_krule *rule, char *pathname, u32 op)
 
 	if (pathname[0] != '/' ||
 	    rule->listnr != AUDIT_FILTER_EXIT ||
-	    op & ~AUDIT_EQUAL ||
+	    op != Audit_equal ||
 	    rule->inode_f || rule->watch || rule->tree)
 		return -EINVAL;
 	rule->tree = alloc_tree(pathname);
