@@ -25,11 +25,8 @@
  *
  *  Theory of operation
  *
- *  The driver is initialized through platform_device.  Structures which
- *  define the configuration needed by the board are defined in a
- *  board structure in arch/ppc/platforms (though I do not
- *  discount the possibility that other architectures could one
- *  day be supported.
+ *  The driver is initialized through of_device. Configuration information
+ *  is therefore conveyed through an OF-style device tree.
  *
  *  The Gianfar Ethernet Controller uses a ring of buffer
  *  descriptors.  The beginning is indicated by a register
@@ -78,7 +75,7 @@
 #include <linux/if_vlan.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
-#include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
@@ -92,6 +89,8 @@
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
+#include <linux/of.h>
 
 #include "gianfar.h"
 #include "gianfar_mii.h"
@@ -119,8 +118,9 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id);
 static void adjust_link(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
-static int gfar_probe(struct platform_device *pdev);
-static int gfar_remove(struct platform_device *pdev);
+static int gfar_probe(struct of_device *ofdev,
+		const struct of_device_id *match);
+static int gfar_remove(struct of_device *ofdev);
 static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
@@ -152,25 +152,158 @@ static inline int gfar_uses_fcb(struct gfar_private *priv)
 	return (priv->vlan_enable || priv->rx_csum_enable);
 }
 
+static int gfar_of_init(struct net_device *dev)
+{
+	struct device_node *phy, *mdio;
+	const unsigned int *id;
+	const char *model;
+	const char *ctype;
+	const void *mac_addr;
+	const phandle *ph;
+	u64 addr, size;
+	int err = 0;
+	struct gfar_private *priv = netdev_priv(dev);
+	struct device_node *np = priv->node;
+	char bus_name[MII_BUS_ID_SIZE];
+
+	if (!np || !of_device_is_available(np))
+		return -ENODEV;
+
+	/* get a pointer to the register memory */
+	addr = of_translate_address(np, of_get_address(np, 0, &size, NULL));
+	priv->regs = ioremap(addr, size);
+
+	if (priv->regs == NULL)
+		return -ENOMEM;
+
+	priv->interruptTransmit = irq_of_parse_and_map(np, 0);
+
+	model = of_get_property(np, "model", NULL);
+
+	/* If we aren't the FEC we have multiple interrupts */
+	if (model && strcasecmp(model, "FEC")) {
+		priv->interruptReceive = irq_of_parse_and_map(np, 1);
+
+		priv->interruptError = irq_of_parse_and_map(np, 2);
+
+		if (priv->interruptTransmit < 0 ||
+				priv->interruptReceive < 0 ||
+				priv->interruptError < 0) {
+			err = -EINVAL;
+			goto err_out;
+		}
+	}
+
+	mac_addr = of_get_mac_address(np);
+	if (mac_addr)
+		memcpy(dev->dev_addr, mac_addr, MAC_ADDR_LEN);
+
+	if (model && !strcasecmp(model, "TSEC"))
+		priv->device_flags =
+			FSL_GIANFAR_DEV_HAS_GIGABIT |
+			FSL_GIANFAR_DEV_HAS_COALESCE |
+			FSL_GIANFAR_DEV_HAS_RMON |
+			FSL_GIANFAR_DEV_HAS_MULTI_INTR;
+	if (model && !strcasecmp(model, "eTSEC"))
+		priv->device_flags =
+			FSL_GIANFAR_DEV_HAS_GIGABIT |
+			FSL_GIANFAR_DEV_HAS_COALESCE |
+			FSL_GIANFAR_DEV_HAS_RMON |
+			FSL_GIANFAR_DEV_HAS_MULTI_INTR |
+			FSL_GIANFAR_DEV_HAS_CSUM |
+			FSL_GIANFAR_DEV_HAS_VLAN |
+			FSL_GIANFAR_DEV_HAS_MAGIC_PACKET |
+			FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
+
+	ctype = of_get_property(np, "phy-connection-type", NULL);
+
+	/* We only care about rgmii-id.  The rest are autodetected */
+	if (ctype && !strcmp(ctype, "rgmii-id"))
+		priv->interface = PHY_INTERFACE_MODE_RGMII_ID;
+	else
+		priv->interface = PHY_INTERFACE_MODE_MII;
+
+	if (of_get_property(np, "fsl,magic-packet", NULL))
+		priv->device_flags |= FSL_GIANFAR_DEV_HAS_MAGIC_PACKET;
+
+	ph = of_get_property(np, "phy-handle", NULL);
+	if (ph == NULL) {
+		u32 *fixed_link;
+
+		fixed_link = (u32 *)of_get_property(np, "fixed-link", NULL);
+		if (!fixed_link) {
+			err = -ENODEV;
+			goto err_out;
+		}
+
+		snprintf(priv->phy_bus_id, BUS_ID_SIZE, PHY_ID_FMT, "0",
+				fixed_link[0]);
+	} else {
+		phy = of_find_node_by_phandle(*ph);
+
+		if (phy == NULL) {
+			err = -ENODEV;
+			goto err_out;
+		}
+
+		mdio = of_get_parent(phy);
+
+		id = of_get_property(phy, "reg", NULL);
+
+		of_node_put(phy);
+		of_node_put(mdio);
+
+		gfar_mdio_bus_name(bus_name, mdio);
+		snprintf(priv->phy_bus_id, BUS_ID_SIZE, "%s:%02x",
+				bus_name, *id);
+	}
+
+	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
+	ph = of_get_property(np, "tbi-handle", NULL);
+	if (ph) {
+		struct device_node *tbi = of_find_node_by_phandle(*ph);
+		struct of_device *ofdev;
+		struct mii_bus *bus;
+
+		if (!tbi)
+			return 0;
+
+		mdio = of_get_parent(tbi);
+		if (!mdio)
+			return 0;
+
+		ofdev = of_find_device_by_node(mdio);
+
+		of_node_put(mdio);
+
+		id = of_get_property(tbi, "reg", NULL);
+		if (!id)
+			return 0;
+
+		of_node_put(tbi);
+
+		bus = dev_get_drvdata(&ofdev->dev);
+
+		priv->tbiphy = bus->phy_map[*id];
+	}
+
+	return 0;
+
+err_out:
+	iounmap(priv->regs);
+	return err;
+}
+
 /* Set up the ethernet device structure, private data,
  * and anything else we need before we start */
-static int gfar_probe(struct platform_device *pdev)
+static int gfar_probe(struct of_device *ofdev,
+		const struct of_device_id *match)
 {
 	u32 tempval;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
-	struct gianfar_platform_data *einfo;
-	struct resource *r;
-	int err = 0, irq;
-
-	einfo = (struct gianfar_platform_data *) pdev->dev.platform_data;
-
-	if (NULL == einfo) {
-		printk(KERN_ERR "gfar %d: Missing additional data!\n",
-		       pdev->id);
-
-		return -ENODEV;
-	}
+	int err = 0;
+	DECLARE_MAC_BUF(mac);
 
 	/* Create an ethernet device instance */
 	dev = alloc_etherdev(sizeof (*priv));
@@ -180,48 +313,19 @@ static int gfar_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(dev);
 	priv->dev = dev;
+	priv->node = ofdev->node;
 
-	/* Set the info in the priv to the current info */
-	priv->einfo = einfo;
+	err = gfar_of_init(dev);
 
-	/* fill out IRQ fields */
-	if (einfo->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
-		irq = platform_get_irq_byname(pdev, "tx");
-		if (irq < 0)
-			goto regs_fail;
-		priv->interruptTransmit = irq;
-
-		irq = platform_get_irq_byname(pdev, "rx");
-		if (irq < 0)
-			goto regs_fail;
-		priv->interruptReceive = irq;
-
-		irq = platform_get_irq_byname(pdev, "error");
-		if (irq < 0)
-			goto regs_fail;
-		priv->interruptError = irq;
-	} else {
-		irq = platform_get_irq(pdev, 0);
-		if (irq < 0)
-			goto regs_fail;
-		priv->interruptTransmit = irq;
-	}
-
-	/* get a pointer to the register memory */
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = ioremap(r->start, sizeof (struct gfar));
-
-	if (NULL == priv->regs) {
-		err = -ENOMEM;
+	if (err)
 		goto regs_fail;
-	}
 
 	spin_lock_init(&priv->txlock);
 	spin_lock_init(&priv->rxlock);
 	spin_lock_init(&priv->bflock);
 	INIT_WORK(&priv->reset_task, gfar_reset_task);
 
-	platform_set_drvdata(pdev, dev);
+	dev_set_drvdata(&ofdev->dev, priv);
 
 	/* Stop the DMA engine now, in case it was running before */
 	/* (The firmware could have used it, and left it running). */
@@ -239,13 +343,10 @@ static int gfar_probe(struct platform_device *pdev)
 	/* Initialize ECNTRL */
 	gfar_write(&priv->regs->ecntrl, ECNTRL_INIT_SETTINGS);
 
-	/* Copy the station address into the dev structure, */
-	memcpy(dev->dev_addr, einfo->mac_addr, MAC_ADDR_LEN);
-
 	/* Set the dev->base_addr to the gfar reg region */
 	dev->base_addr = (unsigned long) (priv->regs);
 
-	SET_NETDEV_DEV(dev, &pdev->dev);
+	SET_NETDEV_DEV(dev, &ofdev->dev);
 
 	/* Fill in the dev structure */
 	dev->open = gfar_enet_open;
@@ -263,7 +364,7 @@ static int gfar_probe(struct platform_device *pdev)
 
 	dev->ethtool_ops = &gfar_ethtool_ops;
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM) {
 		priv->rx_csum_enable = 1;
 		dev->features |= NETIF_F_IP_CSUM;
 	} else
@@ -271,7 +372,7 @@ static int gfar_probe(struct platform_device *pdev)
 
 	priv->vlgrp = NULL;
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_VLAN) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_VLAN) {
 		dev->vlan_rx_register = gfar_vlan_rx_register;
 
 		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
@@ -279,7 +380,7 @@ static int gfar_probe(struct platform_device *pdev)
 		priv->vlan_enable = 1;
 	}
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_EXTENDED_HASH) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_EXTENDED_HASH) {
 		priv->extended_hash = 1;
 		priv->hash_width = 9;
 
@@ -314,7 +415,7 @@ static int gfar_probe(struct platform_device *pdev)
 		priv->hash_regs[7] = &priv->regs->gaddr7;
 	}
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_PADDING)
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_PADDING)
 		priv->padding = DEFAULT_PADDING;
 	else
 		priv->padding = 0;
@@ -368,29 +469,28 @@ regs_fail:
 	return err;
 }
 
-static int gfar_remove(struct platform_device *pdev)
+static int gfar_remove(struct of_device *ofdev)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_private *priv = dev_get_drvdata(&ofdev->dev);
 
-	platform_set_drvdata(pdev, NULL);
+	dev_set_drvdata(&ofdev->dev, NULL);
 
 	iounmap(priv->regs);
-	free_netdev(dev);
+	free_netdev(priv->dev);
 
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int gfar_suspend(struct platform_device *pdev, pm_message_t state)
+static int gfar_suspend(struct of_device *ofdev, pm_message_t state)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_private *priv = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = priv->dev;
 	unsigned long flags;
 	u32 tempval;
 
 	int magic_packet = priv->wol_en &&
-		(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
+		(priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
 
 	netif_device_detach(dev);
 
@@ -431,14 +531,14 @@ static int gfar_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int gfar_resume(struct platform_device *pdev)
+static int gfar_resume(struct of_device *ofdev)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_private *priv = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = priv->dev;
 	unsigned long flags;
 	u32 tempval;
 	int magic_packet = priv->wol_en &&
-		(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
+		(priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
 
 	if (!netif_running(dev)) {
 		netif_device_attach(dev);
@@ -497,7 +597,7 @@ static phy_interface_t gfar_get_interface(struct net_device *dev)
 		if (ecntrl & ECNTRL_REDUCED_MII_MODE)
 			return PHY_INTERFACE_MODE_RMII;
 		else {
-			phy_interface_t interface = priv->einfo->interface;
+			phy_interface_t interface = priv->interface;
 
 			/*
 			 * This isn't autodetected right now, so it must
@@ -510,7 +610,7 @@ static phy_interface_t gfar_get_interface(struct net_device *dev)
 		}
 	}
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT)
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT)
 		return PHY_INTERFACE_MODE_GMII;
 
 	return PHY_INTERFACE_MODE_MII;
@@ -524,21 +624,18 @@ static int init_phy(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	uint gigabit_support =
-		priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
+		priv->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
 		SUPPORTED_1000baseT_Full : 0;
 	struct phy_device *phydev;
-	char phy_id[BUS_ID_SIZE];
 	phy_interface_t interface;
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, priv->einfo->bus_id, priv->einfo->phy_id);
-
 	interface = gfar_get_interface(dev);
 
-	phydev = phy_connect(dev, phy_id, &adjust_link, 0, interface);
+	phydev = phy_connect(dev, priv->phy_bus_id, &adjust_link, 0, interface);
 
 	if (interface == PHY_INTERFACE_MODE_SGMII)
 		gfar_configure_serdes(dev);
@@ -569,35 +666,31 @@ static int init_phy(struct net_device *dev)
 static void gfar_configure_serdes(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar_mii __iomem *regs =
-			(void __iomem *)&priv->regs->gfar_mii_regs;
-	int tbipa = gfar_read(&priv->regs->tbipa);
-	struct mii_bus *bus = gfar_get_miibus(priv);
 
-	if (bus)
-		mutex_lock(&bus->mdio_lock);
+	if (!priv->tbiphy) {
+		printk(KERN_WARNING "SGMII mode requires that the device "
+				"tree specify a tbi-handle\n");
+		return;
+	}
 
-	/* If the link is already up, we must already be ok, and don't need to
+	/*
+	 * If the link is already up, we must already be ok, and don't need to
 	 * configure and reset the TBI<->SerDes link.  Maybe U-Boot configured
 	 * everything for us?  Resetting it takes the link down and requires
 	 * several seconds for it to come back.
 	 */
-	if (gfar_local_mdio_read(regs, tbipa, MII_BMSR) & BMSR_LSTATUS)
-		goto done;
+	if (phy_read(priv->tbiphy, MII_BMSR) & BMSR_LSTATUS)
+		return;
 
 	/* Single clk mode, mii mode off(for serdes communication) */
-	gfar_local_mdio_write(regs, tbipa, MII_TBICON, TBICON_CLK_SELECT);
+	phy_write(priv->tbiphy, MII_TBICON, TBICON_CLK_SELECT);
 
-	gfar_local_mdio_write(regs, tbipa, MII_ADVERTISE,
+	phy_write(priv->tbiphy, MII_ADVERTISE,
 			ADVERTISE_1000XFULL | ADVERTISE_1000XPAUSE |
 			ADVERTISE_1000XPSE_ASYM);
 
-	gfar_local_mdio_write(regs, tbipa, MII_BMCR, BMCR_ANENABLE |
+	phy_write(priv->tbiphy, MII_BMCR, BMCR_ANENABLE |
 			BMCR_ANRESTART | BMCR_FULLDPLX | BMCR_SPEED1000);
-
-	done:
-	if (bus)
-		mutex_unlock(&bus->mdio_lock);
 }
 
 static void init_registers(struct net_device *dev)
@@ -630,7 +723,7 @@ static void init_registers(struct net_device *dev)
 	gfar_write(&priv->regs->gaddr7, 0);
 
 	/* Zero out the rmon mib registers if it has them */
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
 		memset_io(&(priv->regs->rmon), 0, sizeof (struct rmon_mib));
 
 		/* Mask off the CAM interrupts */
@@ -705,7 +798,7 @@ void stop_gfar(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->txlock, flags);
 
 	/* Free the IRQs */
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
 		free_irq(priv->interruptError, dev);
 		free_irq(priv->interruptTransmit, dev);
 		free_irq(priv->interruptReceive, dev);
@@ -919,7 +1012,7 @@ int startup_gfar(struct net_device *dev)
 
 	/* If the device has multiple interrupts, register for
 	 * them.  Otherwise, only register for the one */
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
 		/* Install our interrupt handlers for Error,
 		 * Transmit, and Receive */
 		if (request_irq(priv->interruptError, gfar_error,
@@ -1751,7 +1844,7 @@ static void gfar_netpoll(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 
 	/* If the device has multiple interrupts, run tx/rx */
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
 		disable_irq(priv->interruptTransmit);
 		disable_irq(priv->interruptReceive);
 		disable_irq(priv->interruptError);
@@ -2045,7 +2138,7 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 	gfar_write(&priv->regs->ievent, events & IEVENT_ERR_MASK);
 
 	/* Magic Packet is not an error. */
-	if ((priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
+	if ((priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
 	    (events & IEVENT_MAG))
 		events &= ~IEVENT_MAG;
 
@@ -2111,16 +2204,24 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:fsl-gianfar");
 
+static struct of_device_id gfar_match[] =
+{
+	{
+		.type = "network",
+		.compatible = "gianfar",
+	},
+	{},
+};
+
 /* Structure for a device driver */
-static struct platform_driver gfar_driver = {
+static struct of_platform_driver gfar_driver = {
+	.name = "fsl-gianfar",
+	.match_table = gfar_match,
+
 	.probe = gfar_probe,
 	.remove = gfar_remove,
 	.suspend = gfar_suspend,
 	.resume = gfar_resume,
-	.driver	= {
-		.name = "fsl-gianfar",
-		.owner = THIS_MODULE,
-	},
 };
 
 static int __init gfar_init(void)
@@ -2130,7 +2231,7 @@ static int __init gfar_init(void)
 	if (err)
 		return err;
 
-	err = platform_driver_register(&gfar_driver);
+	err = of_register_platform_driver(&gfar_driver);
 
 	if (err)
 		gfar_mdio_exit();
@@ -2140,7 +2241,7 @@ static int __init gfar_init(void)
 
 static void __exit gfar_exit(void)
 {
-	platform_driver_unregister(&gfar_driver);
+	of_unregister_platform_driver(&gfar_driver);
 	gfar_mdio_exit();
 }
 

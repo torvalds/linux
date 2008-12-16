@@ -121,7 +121,7 @@ static void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
 		memcpy(buf, stat_gstrings, GFAR_STATS_LEN * ETH_GSTRING_LEN);
 	else
 		memcpy(buf, stat_gstrings,
@@ -138,7 +138,7 @@ static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 	struct gfar_private *priv = netdev_priv(dev);
 	u64 *extra = (u64 *) & priv->extra_stats;
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
 		u32 __iomem *rmon = (u32 __iomem *) & priv->regs->rmon;
 		struct gfar_stats *stats = (struct gfar_stats *) buf;
 
@@ -158,7 +158,7 @@ static int gfar_sset_count(struct net_device *dev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
+		if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
 			return GFAR_STATS_LEN;
 		else
 			return GFAR_EXTRA_STATS_LEN;
@@ -280,7 +280,7 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
 	if (NULL == priv->phydev)
@@ -332,7 +332,7 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
 	/* Set up rx coalescing */
@@ -482,7 +482,7 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 	unsigned long flags;
 	int err = 0;
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return -EOPNOTSUPP;
 
 	if (dev->flags & IFF_UP) {
@@ -515,7 +515,7 @@ static uint32_t gfar_get_rx_csum(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return 0;
 
 	return priv->rx_csum_enable;
@@ -526,7 +526,7 @@ static int gfar_set_tx_csum(struct net_device *dev, uint32_t data)
 	unsigned long flags;
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(&priv->txlock, flags);
@@ -547,7 +547,7 @@ static uint32_t gfar_get_tx_csum(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return 0;
 
 	return (dev->features & NETIF_F_IP_CSUM) != 0;
@@ -570,7 +570,7 @@ static void gfar_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) {
 		wol->supported = WAKE_MAGIC;
 		wol->wolopts = priv->wol_en ? WAKE_MAGIC : 0;
 	} else {
@@ -583,7 +583,7 @@ static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
 	    wol->wolopts != 0)
 		return -EINVAL;
 

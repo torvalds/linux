@@ -179,6 +179,46 @@
 				reg = <5>;
 				device_type = "ethernet-phy";
 			};
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@25520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x25520 0x20>;
+
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@26520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x26520 0x20>;
+
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@27520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x27520 0x20>;
+
+			tbi3: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet0: ethernet@24000 {
@@ -190,6 +230,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <29 2 30 2 34 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi0>;
 			phy-handle = <&phy2>;
 		};
 
@@ -202,6 +243,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <35 2 36 2 40 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi1>;
 			phy-handle = <&phy1>;
 		};
 
@@ -214,6 +256,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <31 2 32 2 33 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi2>;
 			phy-handle = <&phy3>;
 		};
 
@@ -226,6 +269,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <37 2 38 2 39 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi3>;
 			phy-handle = <&phy4>;
 		};
 

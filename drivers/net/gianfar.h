@@ -657,6 +657,19 @@ struct gfar {
 
 };
 
+/* Flags related to gianfar device features */
+#define FSL_GIANFAR_DEV_HAS_GIGABIT		0x00000001
+#define FSL_GIANFAR_DEV_HAS_COALESCE		0x00000002
+#define FSL_GIANFAR_DEV_HAS_RMON		0x00000004
+#define FSL_GIANFAR_DEV_HAS_MULTI_INTR		0x00000008
+#define FSL_GIANFAR_DEV_HAS_CSUM		0x00000010
+#define FSL_GIANFAR_DEV_HAS_VLAN		0x00000020
+#define FSL_GIANFAR_DEV_HAS_EXTENDED_HASH	0x00000040
+#define FSL_GIANFAR_DEV_HAS_PADDING		0x00000080
+#define FSL_GIANFAR_DEV_HAS_MAGIC_PACKET	0x00000100
+#define FSL_GIANFAR_DEV_HAS_BD_STASHING		0x00000200
+#define FSL_GIANFAR_DEV_HAS_BUF_STASHING	0x00000400
+
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
  * (Ok, that's not so true anymore, but there is a family resemblence)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
@@ -694,6 +707,7 @@ struct gfar_private {
 	/* RX Locked fields */
 	spinlock_t rxlock;
 
+	struct device_node *node;
 	struct net_device *dev;
 	struct napi_struct napi;
 
@@ -733,6 +747,9 @@ struct gfar_private {
 	/* Bitfield update lock */
 	spinlock_t bflock;
 
+	phy_interface_t interface;
+	char	phy_bus_id[BUS_ID_SIZE];
+	u32 device_flags;
 	unsigned char vlan_enable:1,
 		rx_csum_enable:1,
 		extended_hash:1,
@@ -744,11 +761,9 @@ struct gfar_private {
 	unsigned int interruptReceive;
 	unsigned int interruptError;
 
-	/* info structure initialized by platform code */
-	struct gianfar_platform_data *einfo;
-
 	/* PHY stuff */
 	struct phy_device *phydev;
+	struct phy_device *tbiphy;
 	struct mii_bus *mii_bus;
 	int oldspeed;
 	int oldduplex;

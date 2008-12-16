@@ -116,7 +116,25 @@
 				reg = <0x1>;
 				device_type = "ethernet-phy";
 			};
+
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
+
+		mdio@26520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x26520 0x20>;
+
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
 
 		dma@21300 {
 			#address-cells = <1>;
@@ -169,6 +187,7 @@
 			interrupts = <29 2 30 2 34 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
+			tbi-handle = <&tbi0>;
 			phy-connection-type = "rgmii-id";
 		};
 
@@ -182,6 +201,7 @@
 			interrupts = <31 2 32 2 33 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
+			tbi-handle = <&tbi1>;
 			phy-connection-type = "rgmii-id";
 		};
 

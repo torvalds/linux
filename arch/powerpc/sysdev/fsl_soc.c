@@ -207,236 +207,51 @@ static int __init of_add_fixed_phys(void)
 arch_initcall(of_add_fixed_phys);
 #endif /* CONFIG_FIXED_PHY */
 
-static int gfar_mdio_of_init_one(struct device_node *np)
+#ifdef CONFIG_PPC_83xx
+static int __init mpc83xx_wdt_init(void)
 {
-	int k;
-	struct device_node *child = NULL;
-	struct gianfar_mdio_data mdio_data;
-	struct platform_device *mdio_dev;
-	struct resource res;
-	int ret;
-
-	memset(&res, 0, sizeof(res));
-	memset(&mdio_data, 0, sizeof(mdio_data));
-
-	ret = of_address_to_resource(np, 0, &res);
-	if (ret)
-		return ret;
-
-	/* The gianfar device will try to use the same ID created below to find
-	 * this bus, to coordinate register access (since they share).  */
-	mdio_dev = platform_device_register_simple("fsl-gianfar_mdio",
-			res.start&0xfffff, &res, 1);
-	if (IS_ERR(mdio_dev))
-		return PTR_ERR(mdio_dev);
-
-	for (k = 0; k < 32; k++)
-		mdio_data.irq[k] = PHY_POLL;
-
-	while ((child = of_get_next_child(np, child)) != NULL) {
-		int irq = irq_of_parse_and_map(child, 0);
-		if (irq != NO_IRQ) {
-			const u32 *id = of_get_property(child, "reg", NULL);
-			mdio_data.irq[*id] = irq;
-		}
-	}
-
-	ret = platform_device_add_data(mdio_dev, &mdio_data,
-				sizeof(struct gianfar_mdio_data));
-	if (ret)
-		platform_device_unregister(mdio_dev);
-
-	return ret;
-}
-
-static int __init gfar_mdio_of_init(void)
-{
-	struct device_node *np = NULL;
-
-	for_each_compatible_node(np, NULL, "fsl,gianfar-mdio")
-		gfar_mdio_of_init_one(np);
-
-	/* try the deprecated version */
-	for_each_compatible_node(np, "mdio", "gianfar");
-		gfar_mdio_of_init_one(np);
-
-	return 0;
-}
-
-arch_initcall(gfar_mdio_of_init);
-
-static const char *gfar_tx_intr = "tx";
-static const char *gfar_rx_intr = "rx";
-static const char *gfar_err_intr = "error";
-
-static int __init gfar_of_init(void)
-{
+	struct resource r;
 	struct device_node *np;
-	unsigned int i;
-	struct platform_device *gfar_dev;
-	struct resource res;
+	struct platform_device *dev;
+	u32 freq = fsl_get_sys_freq();
 	int ret;
 
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "network", "gianfar")) != NULL;
-	     i++) {
-		struct resource r[4];
-		struct device_node *phy, *mdio;
-		struct gianfar_platform_data gfar_data;
-		const unsigned int *id;
-		const char *model;
-		const char *ctype;
-		const void *mac_addr;
-		const phandle *ph;
-		int n_res = 2;
+	np = of_find_compatible_node(NULL, "watchdog", "mpc83xx_wdt");
 
-		if (!of_device_is_available(np))
-			continue;
-
-		memset(r, 0, sizeof(r));
-		memset(&gfar_data, 0, sizeof(gfar_data));
-
-		ret = of_address_to_resource(np, 0, &r[0]);
-		if (ret)
-			goto err;
-
-		of_irq_to_resource(np, 0, &r[1]);
-
-		model = of_get_property(np, "model", NULL);
-
-		/* If we aren't the FEC we have multiple interrupts */
-		if (model && strcasecmp(model, "FEC")) {
-			r[1].name = gfar_tx_intr;
-
-			r[2].name = gfar_rx_intr;
-			of_irq_to_resource(np, 1, &r[2]);
-
-			r[3].name = gfar_err_intr;
-			of_irq_to_resource(np, 2, &r[3]);
-
-			n_res += 2;
-		}
-
-		gfar_dev =
-		    platform_device_register_simple("fsl-gianfar", i, &r[0],
-						    n_res);
-
-		if (IS_ERR(gfar_dev)) {
-			ret = PTR_ERR(gfar_dev);
-			goto err;
-		}
-
-		mac_addr = of_get_mac_address(np);
-		if (mac_addr)
-			memcpy(gfar_data.mac_addr, mac_addr, 6);
-
-		if (model && !strcasecmp(model, "TSEC"))
-			gfar_data.device_flags =
-			    FSL_GIANFAR_DEV_HAS_GIGABIT |
-			    FSL_GIANFAR_DEV_HAS_COALESCE |
-			    FSL_GIANFAR_DEV_HAS_RMON |
-			    FSL_GIANFAR_DEV_HAS_MULTI_INTR;
-		if (model && !strcasecmp(model, "eTSEC"))
-			gfar_data.device_flags =
-			    FSL_GIANFAR_DEV_HAS_GIGABIT |
-			    FSL_GIANFAR_DEV_HAS_COALESCE |
-			    FSL_GIANFAR_DEV_HAS_RMON |
-			    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
-			    FSL_GIANFAR_DEV_HAS_CSUM |
-			    FSL_GIANFAR_DEV_HAS_VLAN |
-			    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
-
-		ctype = of_get_property(np, "phy-connection-type", NULL);
-
-		/* We only care about rgmii-id.  The rest are autodetected */
-		if (ctype && !strcmp(ctype, "rgmii-id"))
-			gfar_data.interface = PHY_INTERFACE_MODE_RGMII_ID;
-		else
-			gfar_data.interface = PHY_INTERFACE_MODE_MII;
-
-		if (of_get_property(np, "fsl,magic-packet", NULL))
-			gfar_data.device_flags |= FSL_GIANFAR_DEV_HAS_MAGIC_PACKET;
-
-		ph = of_get_property(np, "phy-handle", NULL);
-		if (ph == NULL) {
-			u32 *fixed_link;
-
-			fixed_link = (u32 *)of_get_property(np, "fixed-link",
-							   NULL);
-			if (!fixed_link) {
-				ret = -ENODEV;
-				goto unreg;
-			}
-
-			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "0");
-			gfar_data.phy_id = fixed_link[0];
-		} else {
-			phy = of_find_node_by_phandle(*ph);
-
-			if (phy == NULL) {
-				ret = -ENODEV;
-				goto unreg;
-			}
-
-			mdio = of_get_parent(phy);
-
-			id = of_get_property(phy, "reg", NULL);
-			ret = of_address_to_resource(mdio, 0, &res);
-			if (ret) {
-				of_node_put(phy);
-				of_node_put(mdio);
-				goto unreg;
-			}
-
-			gfar_data.phy_id = *id;
-			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%llx",
-				 (unsigned long long)res.start&0xfffff);
-
-			of_node_put(phy);
-			of_node_put(mdio);
-		}
-
-		/* Get MDIO bus controlled by this eTSEC, if any.  Normally only
-		 * eTSEC 1 will control an MDIO bus, not necessarily the same
-		 * bus that its PHY is on ('mdio' above), so we can't just use
-		 * that.  What we do is look for a gianfar mdio device that has
-		 * overlapping registers with this device.  That's really the
-		 * whole point, to find the device sharing our registers to
-		 * coordinate access with it.
-		 */
-		for_each_compatible_node(mdio, NULL, "fsl,gianfar-mdio") {
-			if (of_address_to_resource(mdio, 0, &res))
-				continue;
-
-			if (res.start >= r[0].start && res.end <= r[0].end) {
-				/* Get the ID the mdio bus platform device was
-				 * registered with.  gfar_data.bus_id is
-				 * different because it's for finding a PHY,
-				 * while this is for finding a MII bus.
-				 */
-				gfar_data.mdio_bus = res.start&0xfffff;
-				of_node_put(mdio);
-				break;
-			}
-		}
-
-		ret =
-		    platform_device_add_data(gfar_dev, &gfar_data,
-					     sizeof(struct
-						    gianfar_platform_data));
-		if (ret)
-			goto unreg;
+	if (!np) {
+		ret = -ENODEV;
+		goto nodev;
 	}
 
+	memset(&r, 0, sizeof(r));
+
+	ret = of_address_to_resource(np, 0, &r);
+	if (ret)
+		goto err;
+
+	dev = platform_device_register_simple("mpc83xx_wdt", 0, &r, 1);
+	if (IS_ERR(dev)) {
+		ret = PTR_ERR(dev);
+		goto err;
+	}
+
+	ret = platform_device_add_data(dev, &freq, sizeof(freq));
+	if (ret)
+		goto unreg;
+
+	of_node_put(np);
 	return 0;
 
 unreg:
-	platform_device_unregister(gfar_dev);
+	platform_device_unregister(dev);
 err:
+	of_node_put(np);
+nodev:
 	return ret;
 }
 
-arch_initcall(gfar_of_init);
+arch_initcall(mpc83xx_wdt_init);
+#endif
 
 static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 {
