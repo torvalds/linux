@@ -104,8 +104,6 @@ static inline RTIME nano2count(long long ns)
 #define start_rt_timer(x)
 #define stop_rt_timer()
 
-#define comedi_rt_task_context_t	int
-
 #endif
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
