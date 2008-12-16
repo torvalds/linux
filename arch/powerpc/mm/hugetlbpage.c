@@ -507,6 +507,9 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 {
 	struct hstate *hstate = hstate_file(file);
 	int mmu_psize = shift_to_mmu_psize(huge_page_shift(hstate));
+
+	if (!mmu_huge_psizes[mmu_psize])
+		return -EINVAL;
 	return slice_get_unmapped_area(addr, len, flags, mmu_psize, 1, 0);
 }
 
