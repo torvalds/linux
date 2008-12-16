@@ -49,7 +49,7 @@ probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 }
 
 static void
-probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee)
+probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee, int success)
 {
 	struct trace_array_cpu *data;
 	unsigned long flags;
