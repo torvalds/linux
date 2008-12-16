@@ -253,7 +253,7 @@ void fixup_irqs(cpumask_t map)
 			mask = map;
 		}
 		if (desc->chip->set_affinity)
-			desc->chip->set_affinity(irq, mask);
+			desc->chip->set_affinity(irq, &mask);
 		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}

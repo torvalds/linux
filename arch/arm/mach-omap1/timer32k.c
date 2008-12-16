@@ -187,7 +187,7 @@ static __init void omap_init_32k_timer(void)
 	clockevent_32k_timer.min_delta_ns =
 		clockevent_delta2ns(1, &clockevent_32k_timer);
 
-	clockevent_32k_timer.cpumask = cpumask_of_cpu(0);
+	clockevent_32k_timer.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_32k_timer);
 }
 

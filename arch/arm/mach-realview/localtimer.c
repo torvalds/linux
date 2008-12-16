@@ -161,7 +161,7 @@ void __cpuinit local_timer_setup(unsigned int cpu)
 	clk->set_mode		= local_timer_set_mode;
 	clk->set_next_event	= local_timer_set_next_event;
 	clk->irq		= IRQ_LOCALTIMER;
-	clk->cpumask		= cpumask_of_cpu(cpu);
+	clk->cpumask		= cpumask_of(cpu);
 	clk->shift		= 20;
 	clk->mult		= div_sc(mpcore_timer_rate, NSEC_PER_SEC, clk->shift);
 	clk->max_delta_ns	= clockevent_delta2ns(0xffffffff, clk);
@@ -199,7 +199,7 @@ void __cpuinit local_timer_setup(unsigned int cpu)
 	clk->rating		= 200;
 	clk->set_mode		= dummy_timer_set_mode;
 	clk->broadcast		= smp_timer_broadcast;
-	clk->cpumask		= cpumask_of_cpu(cpu);
+	clk->cpumask		= cpumask_of(cpu);
 
 	clockevents_register_device(clk);
 }

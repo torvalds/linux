@@ -31,7 +31,7 @@ enum {
 };
 
 void smp_message_recv(unsigned int msg);
-void smp_timer_broadcast(cpumask_t mask);
+void smp_timer_broadcast(const struct cpumask *mask);
 
 void local_timer_interrupt(void);
 void local_timer_setup(unsigned int cpu);

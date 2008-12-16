@@ -158,10 +158,10 @@ titan_cpu_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 }
 
 static void
-titan_set_irq_affinity(unsigned int irq, cpumask_t affinity)
+titan_set_irq_affinity(unsigned int irq, const struct cpumask *affinity)
 { 
 	spin_lock(&titan_irq_lock);
-	titan_cpu_set_irq_affinity(irq - 16, affinity);
+	titan_cpu_set_irq_affinity(irq - 16, *affinity);
 	titan_update_irq_hw(titan_cached_irq_mask);
 	spin_unlock(&titan_irq_lock);
 }

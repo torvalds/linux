@@ -118,7 +118,7 @@ void fixup_irqs(cpumask_t map)
 			desc->chip->mask(irq);
 
 		if (desc->chip->set_affinity)
-			desc->chip->set_affinity(irq, mask);
+			desc->chip->set_affinity(irq, &mask);
 		else if (!(warned++))
 			set_affinity = 0;
 

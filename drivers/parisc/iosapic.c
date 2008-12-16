@@ -704,16 +704,17 @@ static unsigned int iosapic_startup_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_SMP
-static void iosapic_set_affinity_irq(unsigned int irq, cpumask_t dest)
+static void iosapic_set_affinity_irq(unsigned int irq,
+				     const struct cpumask *dest)
 {
 	struct vector_info *vi = iosapic_get_vector(irq);
 	u32 d0, d1, dummy_d0;
 	unsigned long flags;
 
-	if (cpu_check_affinity(irq, &dest))
+	if (cpu_check_affinity(irq, dest))
 		return;
 
-	vi->txn_addr = txn_affinity_addr(irq, first_cpu(dest));
+	vi->txn_addr = txn_affinity_addr(irq, cpumask_first(dest));
 
 	spin_lock_irqsave(&iosapic_lock, flags);
 	/* d1 contains the destination CPU, so only want to set that
