@@ -241,8 +241,6 @@ static int acpi_pcc_write_sset(struct pcc_acpi *pcc, int func, int val)
 	};
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_pcc_write_sset");
-
 	status = acpi_evaluate_object(pcc->handle, METHOD_HKEY_SSET,
 				      &params, NULL);
 
@@ -253,8 +251,6 @@ static inline int acpi_pcc_get_sqty(struct acpi_device *device)
 {
 	unsigned long long s;
 	acpi_status status;
-
-	ACPI_FUNCTION_TRACE("acpi_pcc_get_sqty");
 
 	status = acpi_evaluate_integer(device->handle, METHOD_HKEY_SQTY,
 				       NULL, &s);
@@ -273,8 +269,6 @@ static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc, u32 *sinf)
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *hkey = NULL;
 	int i;
-
-	ACPI_FUNCTION_TRACE("acpi_pcc_retrieve_biosdata");
 
 	status = acpi_evaluate_object(pcc->handle, METHOD_HKEY_SINF, 0,
 				      &buffer);
@@ -501,8 +495,6 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 	int key_code, hkey_num;
 	unsigned long long result;
 
-	ACPI_FUNCTION_TRACE("acpi_pcc_generate_keyinput");
-
 	rc = acpi_evaluate_integer(pcc->handle, METHOD_HKEY_QUERY,
 				   NULL, &result);
 	if (!ACPI_SUCCESS(rc)) {
@@ -538,8 +530,6 @@ static void acpi_pcc_hotkey_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct pcc_acpi *pcc = (struct pcc_acpi *) data;
 
-	ACPI_FUNCTION_TRACE("acpi_pcc_hotkey_notify");
-
 	switch (event) {
 	case HKEY_NOTIFY:
 		acpi_pcc_generate_keyinput(pcc);
@@ -553,8 +543,6 @@ static void acpi_pcc_hotkey_notify(acpi_handle handle, u32 event, void *data)
 static int acpi_pcc_init_input(struct pcc_acpi *pcc)
 {
 	int i, rc;
-
-	ACPI_FUNCTION_TRACE("acpi_pcc_init_input");
 
 	pcc->input_dev = input_allocate_device();
 	if (!pcc->input_dev) {
@@ -597,8 +585,6 @@ static int acpi_pcc_hotkey_resume(struct acpi_device *device)
 	struct pcc_acpi *pcc = acpi_driver_data(device);
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_pcc_hotkey_resume");
-
 	if (device == NULL || pcc == NULL)
 		return -EINVAL;
 
@@ -615,8 +601,6 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	acpi_status status;
 	struct pcc_acpi *pcc;
 	int num_sifr, result;
-
-	ACPI_FUNCTION_TRACE("acpi_pcc_hotkey_add");
 
 	if (!device)
 		return -EINVAL;
@@ -714,8 +698,6 @@ static int __init acpi_pcc_init(void)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_pcc_init");
-
 	if (acpi_disabled)
 		return -ENODEV;
 
@@ -732,8 +714,6 @@ static int __init acpi_pcc_init(void)
 static int acpi_pcc_hotkey_remove(struct acpi_device *device, int type)
 {
 	struct pcc_acpi *pcc = acpi_driver_data(device);
-
-	ACPI_FUNCTION_TRACE("acpi_pcc_hotkey_remove");
 
 	if (!device || !pcc)
 		return -EINVAL;
@@ -757,8 +737,6 @@ static int acpi_pcc_hotkey_remove(struct acpi_device *device, int type)
 
 static void __exit acpi_pcc_exit(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_pcc_exit");
-
 	acpi_bus_unregister_driver(&acpi_pcc_driver);
 }
 
