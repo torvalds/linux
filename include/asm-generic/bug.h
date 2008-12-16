@@ -8,9 +8,17 @@
 #ifdef CONFIG_GENERIC_BUG
 #ifndef __ASSEMBLY__
 struct bug_entry {
+#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
 	unsigned long	bug_addr;
+#else
+	signed int	bug_addr_disp;
+#endif
 #ifdef CONFIG_DEBUG_BUGVERBOSE
+#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
 	const char	*file;
+#else
+	signed int	file_disp;
+#endif
 	unsigned short	line;
 #endif
 	unsigned short	flags;

@@ -5,6 +5,8 @@
 
   CONFIG_BUG - emit BUG traps.  Nothing happens without this.
   CONFIG_GENERIC_BUG - enable this code.
+  CONFIG_GENERIC_BUG_RELATIVE_POINTERS - use 32-bit pointers relative to
+	the containing struct bug_entry for bug_addr and file.
   CONFIG_DEBUG_BUGVERBOSE - emit full file+line information for each BUG
 
   CONFIG_BUG and CONFIG_DEBUG_BUGVERBOSE are potentially user-settable
@@ -43,6 +45,15 @@
 
 extern const struct bug_entry __start___bug_table[], __stop___bug_table[];
 
+static inline unsigned long bug_addr(const struct bug_entry *bug)
+{
+#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
+	return bug->bug_addr;
+#else
+	return (unsigned long)bug + bug->bug_addr_disp;
+#endif
+}
+
 #ifdef CONFIG_MODULES
 static LIST_HEAD(module_bug_list);
 
@@ -55,7 +66,7 @@ static const struct bug_entry *module_find_bug(unsigned long bugaddr)
 		unsigned i;
 
 		for (i = 0; i < mod->num_bugs; ++i, ++bug)
-			if (bugaddr == bug->bug_addr)
+			if (bugaddr == bug_addr(bug))
 				return bug;
 	}
 	return NULL;
@@ -108,7 +119,7 @@ const struct bug_entry *find_bug(unsigned long bugaddr)
 	const struct bug_entry *bug;
 
 	for (bug = __start___bug_table; bug < __stop___bug_table; ++bug)
-		if (bugaddr == bug->bug_addr)
+		if (bugaddr == bug_addr(bug))
 			return bug;
 
 	return module_find_bug(bugaddr);
@@ -133,7 +144,11 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 
 	if (bug) {
 #ifdef CONFIG_DEBUG_BUGVERBOSE
+#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
 		file = bug->file;
+#else
+		file = (const char *)bug + bug->file_disp;
+#endif
 		line = bug->line;
 #endif
 		warning = (bug->flags & BUGFLAG_WARNING) != 0;
