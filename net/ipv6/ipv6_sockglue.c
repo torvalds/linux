@@ -395,6 +395,28 @@ sticky_done:
 		break;
 	}
 
+	case IPV6_PKTINFO:
+	{
+		struct in6_pktinfo pkt;
+
+		if (optlen == 0)
+			goto e_inval;
+		else if (optlen < sizeof(struct in6_pktinfo) || optval == NULL)
+			goto e_inval;
+
+		if (copy_from_user(&pkt, optval, optlen)) {
+				retv = -EFAULT;
+				break;
+		}
+		if (sk->sk_bound_dev_if && pkt.ipi6_ifindex != sk->sk_bound_dev_if)
+			goto e_inval;
+
+		np->sticky_pktinfo.ipi6_ifindex = pkt.ipi6_ifindex;
+		ipv6_addr_copy(&np->sticky_pktinfo.ipi6_addr, &pkt.ipi6_addr);
+		retv = 0;
+		break;
+	}
+
 	case IPV6_2292PKTOPTIONS:
 	{
 		struct ipv6_txoptions *opt = NULL;
