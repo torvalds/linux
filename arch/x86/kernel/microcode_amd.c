@@ -108,7 +108,6 @@ static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 static int get_matching_microcode(int cpu, void *mc, int rev)
 {
 	struct microcode_header_amd *mc_header = mc;
-	struct pci_dev *nb_pci_dev, *sb_pci_dev;
 	unsigned int current_cpu_id;
 	unsigned int equiv_cpu_id = 0x00;
 	unsigned int i = 0;
@@ -137,32 +136,11 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 		return 0;
 	}
 
-	/* ucode may be northbridge specific */
-	if (mc_header->nb_dev_id) {
-		nb_pci_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-					    (mc_header->nb_dev_id & 0xff),
-					    NULL);
-		if ((!nb_pci_dev) ||
-		    (mc_header->nb_rev_id != nb_pci_dev->revision)) {
-			printk(KERN_ERR "microcode: CPU%d NB mismatch\n", cpu);
-			pci_dev_put(nb_pci_dev);
-			return 0;
-		}
-		pci_dev_put(nb_pci_dev);
-	}
-
-	/* ucode may be southbridge specific */
-	if (mc_header->sb_dev_id) {
-		sb_pci_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-					    (mc_header->sb_dev_id & 0xff),
-					    NULL);
-		if ((!sb_pci_dev) ||
-		    (mc_header->sb_rev_id != sb_pci_dev->revision)) {
-			printk(KERN_ERR "microcode: CPU%d SB mismatch\n", cpu);
-			pci_dev_put(sb_pci_dev);
-			return 0;
-		}
-		pci_dev_put(sb_pci_dev);
+	/* ucode might be chipset specific -- currently we don't support this */
+	if (mc_header->nb_dev_id || mc_header->sb_dev_id) {
+		printk(KERN_WARNING "microcode: CPU%d loading of chipset "
+		       "specific code not yet supported\n", cpu);
+		return 0;
 	}
 
 	if (mc_header->patch_id <= rev)
