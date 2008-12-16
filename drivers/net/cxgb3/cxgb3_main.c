@@ -550,7 +550,8 @@ static int setup_sge_qsets(struct adapter *adap)
 			err = t3_sge_alloc_qset(adap, qset_idx, 1,
 				(adap->flags & USING_MSIX) ? qset_idx + 1 :
 							     irq_idx,
-				&adap->params.sge.qset[qset_idx], ntxq, dev);
+				&adap->params.sge.qset[qset_idx], ntxq, dev,
+				netdev_get_tx_queue(dev, j));
 			if (err) {
 				t3_stop_sge_timers(adap);
 				t3_free_sge_resources(adap);
@@ -1165,9 +1166,10 @@ static int cxgb_open(struct net_device *dev)
 			       "Could not initialize offload capabilities\n");
 	}
 
+	dev->real_num_tx_queues = pi->nqsets;
 	link_start(dev);
 	t3_port_intr_enable(adapter, pi->port_id);
-	netif_start_queue(dev);
+	netif_tx_start_all_queues(dev);
 	if (!other_ports)
 		schedule_chk_task(adapter);
 
@@ -1180,7 +1182,7 @@ static int cxgb_close(struct net_device *dev)
 	struct adapter *adapter = pi->adapter;
 
 	t3_port_intr_disable(adapter, pi->port_id);
-	netif_stop_queue(dev);
+	netif_tx_stop_all_queues(dev);
 	pi->phy.ops->power_down(&pi->phy, 1);
 	netif_carrier_off(dev);
 	t3_mac_disable(&pi->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
@@ -2932,7 +2934,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	for (i = 0; i < ai->nports; ++i) {
 		struct net_device *netdev;
 
-		netdev = alloc_etherdev(sizeof(struct port_info));
+		netdev = alloc_etherdev_mq(sizeof(struct port_info), SGE_QSETS);
 		if (!netdev) {
 			err = -ENOMEM;
 			goto out_free_dev;
@@ -2946,6 +2948,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		pi->rx_csum_offload = 1;
 		pi->port_id = i;
 		netif_carrier_off(netdev);
+		netif_tx_stop_all_queues(netdev);
 		netdev->irq = pdev->irq;
 		netdev->mem_start = mmio_start;
 		netdev->mem_end = mmio_start + mmio_len - 1;

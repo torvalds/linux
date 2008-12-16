@@ -1120,10 +1120,10 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 			 htonl(V_WR_TID(q->token)));
 }
 
-static inline void t3_stop_queue(struct net_device *dev, struct sge_qset *qs,
-				 struct sge_txq *q)
+static inline void t3_stop_tx_queue(struct netdev_queue *txq,
+				    struct sge_qset *qs, struct sge_txq *q)
 {
-	netif_stop_queue(dev);
+	netif_tx_stop_queue(txq);
 	set_bit(TXQ_ETH, &qs->txq_stopped);
 	q->stops++;
 }
@@ -1137,11 +1137,13 @@ static inline void t3_stop_queue(struct net_device *dev, struct sge_qset *qs,
  */
 int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	int qidx;
 	unsigned int ndesc, pidx, credits, gen, compl;
 	const struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
-	struct sge_qset *qs = pi->qs;
-	struct sge_txq *q = &qs->txq[TXQ_ETH];
+	struct netdev_queue *txq;
+	struct sge_qset *qs;
+	struct sge_txq *q;
 
 	/*
 	 * The chip min packet length is 9 octets but play safe and reject
@@ -1152,6 +1154,11 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
+	qidx = skb_get_queue_mapping(skb);
+	qs = &pi->qs[qidx];
+	q = &qs->txq[TXQ_ETH];
+	txq = netdev_get_tx_queue(dev, qidx);
+
 	spin_lock(&q->lock);
 	reclaim_completed_tx(adap, q);
 
@@ -1159,7 +1166,7 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	ndesc = calc_tx_descs(skb);
 
 	if (unlikely(credits < ndesc)) {
-		t3_stop_queue(dev, qs, q);
+		t3_stop_tx_queue(txq, qs, q);
 		dev_err(&adap->pdev->dev,
 			"%s: Tx ring %u full while queue awake!\n",
 			dev->name, q->cntxt_id & 7);
@@ -1169,12 +1176,12 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	q->in_use += ndesc;
 	if (unlikely(credits - ndesc < q->stop_thres)) {
-		t3_stop_queue(dev, qs, q);
+		t3_stop_tx_queue(txq, qs, q);
 
 		if (should_restart_tx(q) &&
 		    test_and_clear_bit(TXQ_ETH, &qs->txq_stopped)) {
 			q->restarts++;
-			netif_wake_queue(dev);
+			netif_tx_wake_queue(txq);
 		}
 	}
 
@@ -1838,7 +1845,7 @@ static void restart_tx(struct sge_qset *qs)
 	    test_and_clear_bit(TXQ_ETH, &qs->txq_stopped)) {
 		qs->txq[TXQ_ETH].restarts++;
 		if (netif_running(qs->netdev))
-			netif_wake_queue(qs->netdev);
+			netif_tx_wake_queue(qs->tx_q);
 	}
 
 	if (test_bit(TXQ_OFLD, &qs->txq_stopped) &&
@@ -2824,6 +2831,7 @@ void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p)
  *	@p: configuration parameters for this queue set
  *	@ntxq: number of Tx queues for the queue set
  *	@netdev: net device associated with this queue set
+ *	@netdevq: net device TX queue associated with this queue set
  *
  *	Allocate resources and initialize an SGE queue set.  A queue set
  *	comprises a response queue, two Rx free-buffer queues, and up to 3
@@ -2832,7 +2840,8 @@ void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p)
  */
 int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 		      int irq_vec_idx, const struct qset_params *p,
-		      int ntxq, struct net_device *dev)
+		      int ntxq, struct net_device *dev,
+		      struct netdev_queue *netdevq)
 {
 	int i, avail, ret = -ENOMEM;
 	struct sge_qset *q = &adapter->sge.qs[id];
@@ -2968,6 +2977,7 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 
 	q->adap = adapter;
 	q->netdev = dev;
+	q->tx_q = netdevq;
 	t3_update_qset_coalesce(q, p);
 
 	init_lro_mgr(q, lro_mgr);
