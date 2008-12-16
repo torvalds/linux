@@ -62,7 +62,7 @@ struct microcode_header_amd {
 	unsigned int  mc_patch_data_checksum;
 	unsigned int  nb_dev_id;
 	unsigned int  sb_dev_id;
-	unsigned char processor_rev_id[2];
+	u16 processor_rev_id;
 	unsigned char nb_rev_id;
 	unsigned char sb_rev_id;
 	unsigned char bios_api_rev;
@@ -125,7 +125,7 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 
 	while (equiv_cpu_table[i].installed_cpu != 0) {
 		if (current_cpu_id == equiv_cpu_table[i].installed_cpu) {
-			equiv_cpu_id = equiv_cpu_table[i].equiv_cpu;
+			equiv_cpu_id = equiv_cpu_table[i].equiv_cpu & 0xffff;
 			break;
 		}
 		i++;
@@ -137,21 +137,10 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 		return 0;
 	}
 
-	if ((mc_header->processor_rev_id[0]) != (equiv_cpu_id & 0xff)) {
-		printk(KERN_ERR
-			"microcode: CPU%d patch does not match "
-			"(patch is %x, cpu extended is %x) \n",
-			cpu, mc_header->processor_rev_id[0],
-			(equiv_cpu_id & 0xff));
-		return 0;
-	}
-
-	if ((mc_header->processor_rev_id[1]) != ((equiv_cpu_id >> 16) & 0xff)) {
-		printk(KERN_ERR "microcode: CPU%d patch does not match "
-			"(patch is %x, cpu base id is %x) \n",
-			cpu, mc_header->processor_rev_id[1],
-			((equiv_cpu_id >> 16) & 0xff));
-
+	if (mc_header->processor_rev_id != equiv_cpu_id) {
+		printk(KERN_ERR	"microcode: CPU%d patch does not match "
+		       "(processor_rev_id: %x, eqiv_cpu_id: %x)\n",
+		       cpu, mc_header->processor_rev_id, equiv_cpu_id);
 		return 0;
 	}
 
