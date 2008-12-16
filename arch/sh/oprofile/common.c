@@ -27,6 +27,8 @@ static struct op_sh_model *model;
 
 static struct op_counter_config ctr[20];
 
+extern void sh_backtrace(struct pt_regs * const regs, unsigned int depth);
+
 static int op_sh_setup(void)
 {
 	/* Pre-compute the values to stuff in the hardware registers.  */
@@ -84,6 +86,13 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	struct op_sh_model *lmodel = NULL;
 	int ret;
+
+	/*
+	 * Always assign the backtrace op. If the counter initialization
+	 * fails, we fall back to the timer which will still make use of
+	 * this.
+	 */
+	ops->backtrace = sh_backtrace;
 
 	switch (current_cpu_data.type) {
 	/* SH-4 types */
