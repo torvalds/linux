@@ -428,11 +428,9 @@ static int gfar_probe(struct of_device *ofdev,
 	priv->rx_ring_size = DEFAULT_RX_RING_SIZE;
 
 	priv->txcoalescing = DEFAULT_TX_COALESCE;
-	priv->txcount = DEFAULT_TXCOUNT;
-	priv->txtime = DEFAULT_TXTIME;
+	priv->txic = DEFAULT_TXIC;
 	priv->rxcoalescing = DEFAULT_RX_COALESCE;
-	priv->rxcount = DEFAULT_RXCOUNT;
-	priv->rxtime = DEFAULT_RXTIME;
+	priv->rxic = DEFAULT_RXIC;
 
 	/* Enable most messages by default */
 	priv->msg_enable = (NETIF_MSG_IFUP << 1 ) - 1;
@@ -1060,17 +1058,13 @@ int startup_gfar(struct net_device *dev)
 	phy_start(priv->phydev);
 
 	/* Configure the coalescing support */
+	gfar_write(&regs->txic, 0);
 	if (priv->txcoalescing)
-		gfar_write(&regs->txic,
-			   mk_ic_value(priv->txcount, priv->txtime));
-	else
-		gfar_write(&regs->txic, 0);
+		gfar_write(&regs->txic, priv->txic);
 
+	gfar_write(&regs->rxic, 0);
 	if (priv->rxcoalescing)
-		gfar_write(&regs->rxic,
-			   mk_ic_value(priv->rxcount, priv->rxtime));
-	else
-		gfar_write(&regs->rxic, 0);
+		gfar_write(&regs->rxic, priv->rxic);
 
 	if (priv->rx_csum_enable)
 		rctrl |= RCTRL_CHECKSUMMING;
@@ -1538,8 +1532,7 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id)
 	/* Otherwise, clear it */
 	if (likely(priv->txcoalescing)) {
 		gfar_write(&priv->regs->txic, 0);
-		gfar_write(&priv->regs->txic,
-			   mk_ic_value(priv->txcount, priv->txtime));
+		gfar_write(&priv->regs->txic, priv->txic);
 	}
 
 	spin_unlock(&priv->txlock);
@@ -1825,8 +1818,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		/* Otherwise, clear it */
 		if (likely(priv->rxcoalescing)) {
 			gfar_write(&priv->regs->rxic, 0);
-			gfar_write(&priv->regs->rxic,
-				   mk_ic_value(priv->rxcount, priv->rxtime));
+			gfar_write(&priv->regs->rxic, priv->rxic);
 		}
 	}
 

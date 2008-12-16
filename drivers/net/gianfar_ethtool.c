@@ -201,8 +201,8 @@ static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (NULL == phydev)
 		return -ENODEV;
 
-	cmd->maxtxpkt = priv->txcount;
-	cmd->maxrxpkt = priv->rxcount;
+	cmd->maxtxpkt = get_icft_value(priv->txic);
+	cmd->maxrxpkt = get_icft_value(priv->rxic);
 
 	return phy_ethtool_gset(phydev, cmd);
 }
@@ -279,6 +279,10 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	unsigned long rxtime;
+	unsigned long rxcount;
+	unsigned long txtime;
+	unsigned long txcount;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
@@ -286,11 +290,15 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 	if (NULL == priv->phydev)
 		return -ENODEV;
 
-	cvals->rx_coalesce_usecs = gfar_ticks2usecs(priv, priv->rxtime);
-	cvals->rx_max_coalesced_frames = priv->rxcount;
+	rxtime  = get_ictt_value(priv->rxic);
+	rxcount = get_icft_value(priv->rxic);
+	txtime  = get_ictt_value(priv->txic);
+	txcount = get_icft_value(priv->txic);;
+	cvals->rx_coalesce_usecs = gfar_ticks2usecs(priv, rxtime);
+	cvals->rx_max_coalesced_frames = rxcount;
 
-	cvals->tx_coalesce_usecs = gfar_ticks2usecs(priv, priv->txtime);
-	cvals->tx_max_coalesced_frames = priv->txcount;
+	cvals->tx_coalesce_usecs = gfar_ticks2usecs(priv, txtime);
+	cvals->tx_max_coalesced_frames = txcount;
 
 	cvals->use_adaptive_rx_coalesce = 0;
 	cvals->use_adaptive_tx_coalesce = 0;
@@ -358,8 +366,9 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		return -EINVAL;
 	}
 
-	priv->rxtime = gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs);
-	priv->rxcount = cvals->rx_max_coalesced_frames;
+	priv->rxic = mk_ic_value(
+		gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs),
+		cvals->rx_max_coalesced_frames);
 
 	/* Set up tx coalescing */
 	if ((cvals->tx_coalesce_usecs == 0) ||
@@ -381,20 +390,17 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		return -EINVAL;
 	}
 
-	priv->txtime = gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs);
-	priv->txcount = cvals->tx_max_coalesced_frames;
+	priv->txic = mk_ic_value(
+		gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs),
+		cvals->tx_max_coalesced_frames);
 
+	gfar_write(&priv->regs->rxic, 0);
 	if (priv->rxcoalescing)
-		gfar_write(&priv->regs->rxic,
-			   mk_ic_value(priv->rxcount, priv->rxtime));
-	else
-		gfar_write(&priv->regs->rxic, 0);
+		gfar_write(&priv->regs->rxic, priv->rxic);
 
+	gfar_write(&priv->regs->txic, 0);
 	if (priv->txcoalescing)
-		gfar_write(&priv->regs->txic,
-			   mk_ic_value(priv->txcount, priv->txtime));
-	else
-		gfar_write(&priv->regs->txic, 0);
+		gfar_write(&priv->regs->txic, priv->txic);
 
 	return 0;
 }

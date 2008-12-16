@@ -189,6 +189,12 @@ extern const char gfar_driver_version[];
 #define mk_ic_value(count, time) (IC_ICEN | \
 				mk_ic_icft(count) | \
 				mk_ic_ictt(time))
+#define get_icft_value(ic)	(((unsigned long)ic & IC_ICFT_MASK) >> \
+				 IC_ICFT_SHIFT)
+#define get_ictt_value(ic)	((unsigned long)ic & IC_ICTT_MASK)
+
+#define DEFAULT_TXIC mk_ic_value(DEFAULT_TXCOUNT, DEFAULT_TXTIME)
+#define DEFAULT_RXIC mk_ic_value(DEFAULT_RXCOUNT, DEFAULT_RXTIME)
 
 #define RCTRL_PAL_MASK		0x001f0000
 #define RCTRL_VLEX		0x00002000
@@ -694,8 +700,7 @@ struct gfar_private {
 
 	/* Configuration info for the coalescing features */
 	unsigned char txcoalescing;
-	unsigned short txcount;
-	unsigned short txtime;
+	unsigned long txic;
 
 	/* Buffer descriptor pointers */
 	struct txbd8 *tx_bd_base;	/* First tx buffer descriptor */
@@ -717,8 +722,7 @@ struct gfar_private {
 
 	/* RX Coalescing values */
 	unsigned char rxcoalescing;
-	unsigned short rxcount;
-	unsigned short rxtime;
+	unsigned long rxic;
 
 	struct rxbd8 *rx_bd_base;	/* First Rx buffers */
 	struct rxbd8 *cur_rx;           /* Next free rx ring entry */
