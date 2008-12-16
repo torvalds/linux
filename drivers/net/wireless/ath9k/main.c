@@ -1229,9 +1229,6 @@ static void ath_detach(struct ath_softc *sc)
 	ath_deinit_leds(sc);
 
 	ieee80211_unregister_hw(hw);
-
-	ath_rate_control_unregister();
-
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 
@@ -1512,15 +1509,7 @@ static int ath_attach(u16 devid, struct ath_softc *sc)
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vap);
 
-	/* Register rate control */
 	hw->rate_control_algorithm = "ath9k_rate_control";
-	error = ath_rate_control_register();
-	if (error != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to register rate control algorithm: %d\n", error);
-		ath_rate_control_unregister();
-		goto bad;
-	}
 
 	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {
 		setup_ht_cap(&sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
@@ -1553,10 +1542,6 @@ static int ath_attach(u16 devid, struct ath_softc *sc)
 #endif
 
 	error = ieee80211_register_hw(hw);
-	if (error != 0) {
-		ath_rate_control_unregister();
-		goto bad;
-	}
 
 	/* Initialize LED control */
 	ath_init_leds(sc);
@@ -1564,7 +1549,6 @@ static int ath_attach(u16 devid, struct ath_softc *sc)
 	return 0;
 detach:
 	ath_detach(sc);
-bad:
 	return error;
 }
 
@@ -2714,11 +2698,24 @@ static struct pci_driver ath_pci_driver = {
 
 static int __init init_ath_pci(void)
 {
+	int error;
+
 	printk(KERN_INFO "%s: %s\n", dev_info, ATH_PCI_VERSION);
+
+	/* Register rate control algorithm */
+	error = ath_rate_control_register();
+	if (error != 0) {
+		printk(KERN_ERR
+			"Unable to register rate control algorithm: %d\n",
+			error);
+		ath_rate_control_unregister();
+		return error;
+	}
 
 	if (pci_register_driver(&ath_pci_driver) < 0) {
 		printk(KERN_ERR
 			"ath_pci: No devices found, driver not installed.\n");
+		ath_rate_control_unregister();
 		pci_unregister_driver(&ath_pci_driver);
 		return -ENODEV;
 	}
@@ -2729,6 +2726,7 @@ module_init(init_ath_pci);
 
 static void __exit exit_ath_pci(void)
 {
+	ath_rate_control_unregister();
 	pci_unregister_driver(&ath_pci_driver);
 	printk(KERN_INFO "%s: Driver unloaded\n", dev_info);
 }
