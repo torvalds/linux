@@ -47,28 +47,29 @@ MODULE_LICENSE("GPL v2");
 #define UCODE_UCODE_TYPE           0x00000001
 
 struct equiv_cpu_entry {
-	unsigned int installed_cpu;
-	unsigned int fixed_errata_mask;
-	unsigned int fixed_errata_compare;
-	unsigned int equiv_cpu;
-};
+	u32	installed_cpu;
+	u32	fixed_errata_mask;
+	u32	fixed_errata_compare;
+	u16	equiv_cpu;
+	u16	res;
+} __attribute__((packed));
 
 struct microcode_header_amd {
-	unsigned int  data_code;
-	unsigned int  patch_id;
-	unsigned char mc_patch_data_id[2];
-	unsigned char mc_patch_data_len;
-	unsigned char init_flag;
-	unsigned int  mc_patch_data_checksum;
-	unsigned int  nb_dev_id;
-	unsigned int  sb_dev_id;
-	u16 processor_rev_id;
-	unsigned char nb_rev_id;
-	unsigned char sb_rev_id;
-	unsigned char bios_api_rev;
-	unsigned char reserved1[3];
-	unsigned int  match_reg[8];
-};
+	u32	data_code;
+	u32	patch_id;
+	u16	mc_patch_data_id;
+	u8	mc_patch_data_len;
+	u8	init_flag;
+	u32	mc_patch_data_checksum;
+	u32	nb_dev_id;
+	u32	sb_dev_id;
+	u16	processor_rev_id;
+	u8	nb_rev_id;
+	u8	sb_rev_id;
+	u8	bios_api_rev;
+	u8	reserved1[3];
+	u32	match_reg[8];
+} __attribute__((packed));
 
 struct microcode_amd {
 	struct microcode_header_amd hdr;
@@ -109,7 +110,7 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 {
 	struct microcode_header_amd *mc_header = mc;
 	unsigned int current_cpu_id;
-	unsigned int equiv_cpu_id = 0x00;
+	u16 equiv_cpu_id = 0;
 	unsigned int i = 0;
 
 	BUG_ON(equiv_cpu_table == NULL);
@@ -117,7 +118,7 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 
 	while (equiv_cpu_table[i].installed_cpu != 0) {
 		if (current_cpu_id == equiv_cpu_table[i].installed_cpu) {
-			equiv_cpu_id = equiv_cpu_table[i].equiv_cpu & 0xffff;
+			equiv_cpu_id = equiv_cpu_table[i].equiv_cpu;
 			break;
 		}
 		i++;
