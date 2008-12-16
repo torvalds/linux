@@ -1482,29 +1482,13 @@ dont_forward:
 	return 0;
 }
 
-#ifdef CONFIG_IP_PIMSM_V1
-/*
- * Handle IGMP messages of PIMv1
- */
-
-int pim_rcv_v1(struct sk_buff * skb)
+#ifdef CONFIG_IP_PIMSM
+static int __pim_rcv(struct sk_buff *skb, unsigned int pimlen)
 {
-	struct igmphdr *pim;
-	struct iphdr   *encap;
-	struct net_device  *reg_dev = NULL;
+	struct net_device *reg_dev = NULL;
+	struct iphdr *encap;
 
-	if (!pskb_may_pull(skb, sizeof(*pim) + sizeof(*encap)))
-		goto drop;
-
-	pim = igmp_hdr(skb);
-
-	if (!mroute_do_pim ||
-	    skb->len < sizeof(*pim) + sizeof(*encap) ||
-	    pim->group != PIM_V1_VERSION || pim->code != PIM_V1_REGISTER)
-		goto drop;
-
-	encap = (struct iphdr *)(skb_transport_header(skb) +
-				 sizeof(struct igmphdr));
+	encap = (struct iphdr *)(skb_transport_header(skb) + pimlen);
 	/*
 	   Check that:
 	   a. packet is really destinted to a multicast group
@@ -1513,8 +1497,8 @@ int pim_rcv_v1(struct sk_buff * skb)
 	 */
 	if (!ipv4_is_multicast(encap->daddr) ||
 	    encap->tot_len == 0 ||
-	    ntohs(encap->tot_len) + sizeof(*pim) > skb->len)
-		goto drop;
+	    ntohs(encap->tot_len) + pimlen > skb->len)
+		return 1;
 
 	read_lock(&mrt_lock);
 	if (reg_vif_num >= 0)
@@ -1524,7 +1508,7 @@ int pim_rcv_v1(struct sk_buff * skb)
 	read_unlock(&mrt_lock);
 
 	if (reg_dev == NULL)
-		goto drop;
+		return 1;
 
 	skb->mac_header = skb->network_header;
 	skb_pull(skb, (u8*)encap - skb->data);
@@ -1540,9 +1524,33 @@ int pim_rcv_v1(struct sk_buff * skb)
 	nf_reset(skb);
 	netif_rx(skb);
 	dev_put(reg_dev);
+
 	return 0;
- drop:
-	kfree_skb(skb);
+}
+#endif
+
+#ifdef CONFIG_IP_PIMSM_V1
+/*
+ * Handle IGMP messages of PIMv1
+ */
+
+int pim_rcv_v1(struct sk_buff * skb)
+{
+	struct igmphdr *pim;
+
+	if (!pskb_may_pull(skb, sizeof(*pim) + sizeof(struct iphdr)))
+		goto drop;
+
+	pim = igmp_hdr(skb);
+
+	if (!mroute_do_pim ||
+	    pim->group != PIM_V1_VERSION || pim->code != PIM_V1_REGISTER)
+		goto drop;
+
+	if (__pim_rcv(skb, sizeof(*pim))) {
+drop:
+		kfree_skb(skb);
+	}
 	return 0;
 }
 #endif
@@ -1551,10 +1559,8 @@ int pim_rcv_v1(struct sk_buff * skb)
 static int pim_rcv(struct sk_buff * skb)
 {
 	struct pimreghdr *pim;
-	struct iphdr   *encap;
-	struct net_device  *reg_dev = NULL;
 
-	if (!pskb_may_pull(skb, sizeof(*pim) + sizeof(*encap)))
+	if (!pskb_may_pull(skb, sizeof(*pim) + sizeof(struct iphdr)))
 		goto drop;
 
 	pim = (struct pimreghdr *)skb_transport_header(skb);
@@ -1564,41 +1570,10 @@ static int pim_rcv(struct sk_buff * skb)
 	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
-	/* check if the inner packet is destined to mcast group */
-	encap = (struct iphdr *)(skb_transport_header(skb) +
-				 sizeof(struct pimreghdr));
-	if (!ipv4_is_multicast(encap->daddr) ||
-	    encap->tot_len == 0 ||
-	    ntohs(encap->tot_len) + sizeof(*pim) > skb->len)
-		goto drop;
-
-	read_lock(&mrt_lock);
-	if (reg_vif_num >= 0)
-		reg_dev = vif_table[reg_vif_num].dev;
-	if (reg_dev)
-		dev_hold(reg_dev);
-	read_unlock(&mrt_lock);
-
-	if (reg_dev == NULL)
-		goto drop;
-
-	skb->mac_header = skb->network_header;
-	skb_pull(skb, (u8*)encap - skb->data);
-	skb_reset_network_header(skb);
-	skb->dev = reg_dev;
-	skb->protocol = htons(ETH_P_IP);
-	skb->ip_summed = 0;
-	skb->pkt_type = PACKET_HOST;
-	dst_release(skb->dst);
-	reg_dev->stats.rx_bytes += skb->len;
-	reg_dev->stats.rx_packets++;
-	skb->dst = NULL;
-	nf_reset(skb);
-	netif_rx(skb);
-	dev_put(reg_dev);
-	return 0;
- drop:
-	kfree_skb(skb);
+	if (__pim_rcv(skb, sizeof(*pim))) {
+drop:
+		kfree_skb(skb);
+	}
 	return 0;
 }
 #endif
