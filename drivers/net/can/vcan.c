@@ -128,6 +128,10 @@ static int vcan_tx(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+static const struct net_device_ops vcan_netdev_ops = {
+	.ndo_start_xmit = vcan_tx,
+};
+
 static void vcan_setup(struct net_device *dev)
 {
 	dev->type              = ARPHRD_CAN;
@@ -141,7 +145,7 @@ static void vcan_setup(struct net_device *dev)
 	if (echo)
 		dev->flags |= IFF_ECHO;
 
-	dev->hard_start_xmit   = vcan_tx;
+	dev->netdev_ops        = &vcan_netdev_ops;
 	dev->destructor        = free_netdev;
 }
 
