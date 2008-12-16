@@ -834,9 +834,10 @@ static __init int hpet_late_init(void)
 
 		hpet_address = force_hpet_address;
 		hpet_enable();
-		if (!hpet_virt_address)
-			return -ENODEV;
 	}
+
+	if (!hpet_virt_address)
+		return -ENODEV;
 
 	hpet_reserve_platform_timers(hpet_readl(HPET_ID));
 
