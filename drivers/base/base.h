@@ -68,6 +68,7 @@ struct class_private {
  *
  * @klist_children - klist containing all children of this device
  * @knode_parent - node in sibling list
+ * @knode_driver - node in driver list
  * @device - pointer back to the struct class that this structure is
  * associated with.
  *
@@ -76,10 +77,13 @@ struct class_private {
 struct device_private {
 	struct klist klist_children;
 	struct klist_node knode_parent;
+	struct klist_node knode_driver;
 	struct device *device;
 };
 #define to_device_private_parent(obj)	\
 	container_of(obj, struct device_private, knode_parent)
+#define to_device_private_driver(obj)	\
+	container_of(obj, struct device_private, knode_driver)
 
 /* initialisation functions */
 extern int devices_init(void);
