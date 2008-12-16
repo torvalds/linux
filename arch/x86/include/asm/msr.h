@@ -181,10 +181,10 @@ static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 }
 
 #define rdtscl(low)						\
-	((low) = (u32)native_read_tsc())
+	((low) = (u32)__native_read_tsc())
 
 #define rdtscll(val)						\
-	((val) = native_read_tsc())
+	((val) = __native_read_tsc())
 
 #define rdpmc(counter, low, high)			\
 do {							\
