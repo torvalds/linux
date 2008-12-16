@@ -262,6 +262,7 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 		struct SmsMsgHdr_ST	Msg;
 		u32		Data[3];
 	} Msg;
+	int ret;
 
 	Msg.Msg.msgSrcId  = DVBT_BDA_CONTROL_MSG_ID;
 	Msg.Msg.msgDstId  = HIF_TASK;
@@ -280,6 +281,24 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 	case BANDWIDTH_6_MHZ: Msg.Data[1] = BW_6_MHZ; break;
 	case BANDWIDTH_AUTO: return -EOPNOTSUPP;
 	default: return -EINVAL;
+	}
+
+	/* Disable LNA, if any. An error is returned if no LNA is present */
+	ret = sms_board_lna_control(client->coredev, 0);
+	if (ret == 0) {
+		fe_status_t status;
+
+		/* tune with LNA off at first */
+		ret = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+						  &client->tune_done);
+
+		smsdvb_read_status(fe, &status);
+
+		if (status & FE_HAS_LOCK)
+			return ret;
+
+		/* previous tune didnt lock - enable LNA and tune again */
+		sms_board_lna_control(client->coredev, 1);
 	}
 
 	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),

@@ -117,6 +117,7 @@ static struct sms_board sms_boards[] = {
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
 		.lna_ctrl  = 29,
+		.rf_switch = 17,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2] = {
 		.name	= "Hauppauge WinTV MiniCard",
@@ -199,8 +200,8 @@ int sms_board_power(struct smscore_device_t *coredev, int onoff)
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
 		/* LNA */
-		sms_set_gpio(coredev,
-			     board->lna_ctrl, onoff ? 1 : 0);
+		if (!onoff)
+			sms_set_gpio(coredev, board->lna_ctrl, 0);
 		break;
 	}
 	return 0;
@@ -226,4 +227,22 @@ int sms_board_led_feedback(struct smscore_device_t *coredev, int led)
 		break;
 	}
 	return 0;
+}
+
+int sms_board_lna_control(struct smscore_device_t *coredev, int onoff)
+{
+	int board_id = smscore_get_board_id(coredev);
+	struct sms_board *board = sms_get_board(board_id);
+
+	sms_debug("%s: LNA %s", __func__, onoff ? "enabled" : "disabled");
+
+	switch (board_id) {
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
+		sms_set_gpio(coredev,
+			     board->rf_switch, onoff ? 1 : 0);
+		return sms_set_gpio(coredev,
+				    board->lna_ctrl, onoff ? 1 : 0);
+	}
+	return -EINVAL;
 }
