@@ -45,8 +45,8 @@
  * can be changed to a single buffer solution when the ring buffer
  * access is implemented as non-locking atomic code.
  */
-struct ring_buffer *op_ring_buffer_read;
-struct ring_buffer *op_ring_buffer_write;
+static struct ring_buffer *op_ring_buffer_read;
+static struct ring_buffer *op_ring_buffer_write;
 DEFINE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
 static void wq_sync_buffer(struct work_struct *work);
@@ -143,6 +143,50 @@ void end_cpu_work(void)
 	}
 
 	flush_scheduled_work();
+}
+
+int op_cpu_buffer_write_entry(struct op_entry *entry)
+{
+	entry->event = ring_buffer_lock_reserve(op_ring_buffer_write,
+						sizeof(struct op_sample),
+						&entry->irq_flags);
+	if (entry->event)
+		entry->sample = ring_buffer_event_data(entry->event);
+	else
+		entry->sample = NULL;
+
+	if (!entry->sample)
+		return -ENOMEM;
+
+	return 0;
+}
+
+int op_cpu_buffer_write_commit(struct op_entry *entry)
+{
+	return ring_buffer_unlock_commit(op_ring_buffer_write, entry->event,
+					 entry->irq_flags);
+}
+
+struct op_sample *op_cpu_buffer_read_entry(int cpu)
+{
+	struct ring_buffer_event *e;
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	if (e)
+		return ring_buffer_event_data(e);
+	if (ring_buffer_swap_cpu(op_ring_buffer_read,
+				 op_ring_buffer_write,
+				 cpu))
+		return NULL;
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	if (e)
+		return ring_buffer_event_data(e);
+	return NULL;
+}
+
+unsigned long op_cpu_buffer_entries(int cpu)
+{
+	return ring_buffer_entries_cpu(op_ring_buffer_read, cpu)
+		+ ring_buffer_entries_cpu(op_ring_buffer_write, cpu);
 }
 
 static inline int
