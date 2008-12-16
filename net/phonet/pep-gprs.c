@@ -40,7 +40,7 @@ struct gprs_dev {
 	void			(*old_data_ready)(struct sock *, int);
 	void			(*old_write_space)(struct sock *);
 
-	struct net_device	*net;
+	struct net_device	*dev;
 
 	struct sk_buff_head	tx_queue;
 	struct work_struct	tx_work;
@@ -72,17 +72,19 @@ static __be16 gprs_type_trans(struct sk_buff *skb)
 
 static void gprs_state_change(struct sock *sk)
 {
-	struct gprs_dev *dev = sk->sk_user_data;
+	struct gprs_dev *gp = sk->sk_user_data;
 
 	if (sk->sk_state == TCP_CLOSE_WAIT) {
-		netif_stop_queue(dev->net);
-		netif_carrier_off(dev->net);
+		struct net_device *dev = gp->dev;
+
+		netif_stop_queue(dev);
+		netif_carrier_off(dev);
 	}
 }
 
-static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
+static int gprs_recv(struct gprs_dev *gp, struct sk_buff *skb)
 {
-	struct net_device *net = dev->net;
+	struct net_device *dev = gp->dev;
 	int err = 0;
 	__be16 protocol = gprs_type_trans(skb);
 
@@ -99,7 +101,7 @@ static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
 		 * so wrap the IP packet as a single fragment of an head-less
 		 * socket buffer. The network stack will pull what it needs,
 		 * but at least, the whole IP payload is not memcpy'd. */
-		rskb = netdev_alloc_skb(net, 0);
+		rskb = netdev_alloc_skb(dev, 0);
 		if (!rskb) {
 			err = -ENOBUFS;
 			goto drop;
@@ -123,11 +125,11 @@ static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
 
 	skb->protocol = protocol;
 	skb_reset_mac_header(skb);
-	skb->dev = net;
+	skb->dev = dev;
 
-	if (likely(net->flags & IFF_UP)) {
-		net->stats.rx_packets++;
-		net->stats.rx_bytes += skb->len;
+	if (likely(dev->flags & IFF_UP)) {
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 		skb = NULL;
 	} else
@@ -136,33 +138,33 @@ static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
 drop:
 	if (skb) {
 		dev_kfree_skb(skb);
-		net->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 	}
 	return err;
 }
 
 static void gprs_data_ready(struct sock *sk, int len)
 {
-	struct gprs_dev *dev = sk->sk_user_data;
+	struct gprs_dev *gp = sk->sk_user_data;
 	struct sk_buff *skb;
 
 	while ((skb = pep_read(sk)) != NULL) {
 		skb_orphan(skb);
-		gprs_recv(dev, skb);
+		gprs_recv(gp, skb);
 	}
 }
 
 static void gprs_write_space(struct sock *sk)
 {
-	struct gprs_dev *dev = sk->sk_user_data;
-	struct net_device *net = dev->net;
+	struct gprs_dev *gp = sk->sk_user_data;
+	struct net_device *dev = gp->dev;
 	unsigned credits = pep_writeable(sk);
 
-	spin_lock_bh(&dev->tx_lock);
-	dev->tx_max = credits;
-	if (credits > skb_queue_len(&dev->tx_queue) && netif_running(net))
-		netif_wake_queue(net);
-	spin_unlock_bh(&dev->tx_lock);
+	spin_lock_bh(&gp->tx_lock);
+	gp->tx_max = credits;
+	if (credits > skb_queue_len(&gp->tx_queue) && netif_running(dev))
+		netif_wake_queue(dev);
+	spin_unlock_bh(&gp->tx_lock);
 }
 
 /*
@@ -186,9 +188,9 @@ static int gprs_close(struct net_device *dev)
 	return 0;
 }
 
-static int gprs_xmit(struct sk_buff *skb, struct net_device *net)
+static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct gprs_dev *dev = netdev_priv(net);
+	struct gprs_dev *gp = netdev_priv(dev);
 
 	switch (skb->protocol) {
 	case  htons(ETH_P_IP):
@@ -199,16 +201,16 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *net)
 		return 0;
 	}
 
-	spin_lock(&dev->tx_lock);
-	if (likely(skb_queue_len(&dev->tx_queue) < dev->tx_max)) {
-		skb_queue_tail(&dev->tx_queue, skb);
+	spin_lock(&gp->tx_lock);
+	if (likely(skb_queue_len(&gp->tx_queue) < gp->tx_max)) {
+		skb_queue_tail(&gp->tx_queue, skb);
 		skb = NULL;
 	}
-	if (skb_queue_len(&dev->tx_queue) >= dev->tx_max)
-		netif_stop_queue(net);
-	spin_unlock(&dev->tx_lock);
+	if (skb_queue_len(&gp->tx_queue) >= gp->tx_max)
+		netif_stop_queue(dev);
+	spin_unlock(&gp->tx_lock);
 
-	schedule_work(&dev->tx_work);
+	schedule_work(&gp->tx_work);
 	if (unlikely(skb))
 		dev_kfree_skb(skb);
 	return 0;
@@ -216,16 +218,16 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *net)
 
 static void gprs_tx(struct work_struct *work)
 {
-	struct gprs_dev *dev = container_of(work, struct gprs_dev, tx_work);
-	struct net_device *net = dev->net;
-	struct sock *sk = dev->sk;
+	struct gprs_dev *gp = container_of(work, struct gprs_dev, tx_work);
+	struct net_device *dev = gp->dev;
+	struct sock *sk = gp->sk;
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(&dev->tx_queue)) != NULL) {
+	while ((skb = skb_dequeue(&gp->tx_queue)) != NULL) {
 		int err;
 
-		net->stats.tx_bytes += skb->len;
-		net->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
+		dev->stats.tx_packets++;
 
 		skb_orphan(skb);
 		skb_set_owner_w(skb, sk);
@@ -234,9 +236,9 @@ static void gprs_tx(struct work_struct *work)
 		err = pep_write(sk, skb);
 		if (err) {
 			LIMIT_NETDEBUG(KERN_WARNING"%s: TX error (%d)\n",
-					net->name, err);
-			net->stats.tx_aborted_errors++;
-			net->stats.tx_errors++;
+					dev->name, err);
+			dev->stats.tx_aborted_errors++;
+			dev->stats.tx_errors++;
 		}
 		release_sock(sk);
 	}
@@ -246,30 +248,30 @@ static void gprs_tx(struct work_struct *work)
 	release_sock(sk);
 }
 
-static int gprs_set_mtu(struct net_device *net, int new_mtu)
+static int gprs_set_mtu(struct net_device *dev, int new_mtu)
 {
 	if ((new_mtu < 576) || (new_mtu > (PHONET_MAX_MTU - 11)))
 		return -EINVAL;
 
-	net->mtu = new_mtu;
+	dev->mtu = new_mtu;
 	return 0;
 }
 
-static void gprs_setup(struct net_device *net)
+static void gprs_setup(struct net_device *dev)
 {
-	net->features		= NETIF_F_FRAGLIST;
-	net->type		= ARPHRD_NONE;
-	net->flags		= IFF_POINTOPOINT | IFF_NOARP;
-	net->mtu		= GPRS_DEFAULT_MTU;
-	net->hard_header_len	= 0;
-	net->addr_len		= 0;
-	net->tx_queue_len	= 10;
+	dev->features		= NETIF_F_FRAGLIST;
+	dev->type		= ARPHRD_NONE;
+	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
+	dev->mtu		= GPRS_DEFAULT_MTU;
+	dev->hard_header_len	= 0;
+	dev->addr_len		= 0;
+	dev->tx_queue_len	= 10;
 
-	net->destructor		= free_netdev;
-	net->open		= gprs_open;
-	net->stop		= gprs_close;
-	net->hard_start_xmit	= gprs_xmit; /* mandatory */
-	net->change_mtu		= gprs_set_mtu;
+	dev->destructor		= free_netdev;
+	dev->open		= gprs_open;
+	dev->stop		= gprs_close;
+	dev->hard_start_xmit	= gprs_xmit; /* mandatory */
+	dev->change_mtu		= gprs_set_mtu;
 }
 
 /*
@@ -283,28 +285,28 @@ static void gprs_setup(struct net_device *net)
 int gprs_attach(struct sock *sk)
 {
 	static const char ifname[] = "gprs%d";
-	struct gprs_dev *dev;
-	struct net_device *net;
+	struct gprs_dev *gp;
+	struct net_device *dev;
 	int err;
 
 	if (unlikely(sk->sk_type == SOCK_STREAM))
 		return -EINVAL; /* need packet boundaries */
 
 	/* Create net device */
-	net = alloc_netdev(sizeof(*dev), ifname, gprs_setup);
-	if (!net)
+	dev = alloc_netdev(sizeof(*gp), ifname, gprs_setup);
+	if (!dev)
 		return -ENOMEM;
-	dev = netdev_priv(net);
-	dev->net = net;
-	dev->tx_max = 0;
-	spin_lock_init(&dev->tx_lock);
-	skb_queue_head_init(&dev->tx_queue);
-	INIT_WORK(&dev->tx_work, gprs_tx);
+	gp = netdev_priv(dev);
+	gp->dev = dev;
+	gp->tx_max = 0;
+	spin_lock_init(&gp->tx_lock);
+	skb_queue_head_init(&gp->tx_queue);
+	INIT_WORK(&gp->tx_work, gprs_tx);
 
-	netif_stop_queue(net);
-	err = register_netdev(net);
+	netif_stop_queue(dev);
+	err = register_netdev(dev);
 	if (err) {
-		free_netdev(net);
+		free_netdev(dev);
 		return err;
 	}
 
@@ -318,40 +320,40 @@ int gprs_attach(struct sock *sk)
 		err = -EINVAL;
 		goto out_rel;
 	}
-	sk->sk_user_data	= dev;
-	dev->old_state_change	= sk->sk_state_change;
-	dev->old_data_ready	= sk->sk_data_ready;
-	dev->old_write_space	= sk->sk_write_space;
+	sk->sk_user_data	= gp;
+	gp->old_state_change	= sk->sk_state_change;
+	gp->old_data_ready	= sk->sk_data_ready;
+	gp->old_write_space	= sk->sk_write_space;
 	sk->sk_state_change	= gprs_state_change;
 	sk->sk_data_ready	= gprs_data_ready;
 	sk->sk_write_space	= gprs_write_space;
 	release_sock(sk);
 
 	sock_hold(sk);
-	dev->sk = sk;
+	gp->sk = sk;
 
-	printk(KERN_DEBUG"%s: attached\n", net->name);
-	return net->ifindex;
+	printk(KERN_DEBUG"%s: attached\n", dev->name);
+	return dev->ifindex;
 
 out_rel:
 	release_sock(sk);
-	unregister_netdev(net);
+	unregister_netdev(dev);
 	return err;
 }
 
 void gprs_detach(struct sock *sk)
 {
-	struct gprs_dev *dev = sk->sk_user_data;
-	struct net_device *net = dev->net;
+	struct gprs_dev *gp = sk->sk_user_data;
+	struct net_device *dev = gp->dev;
 
 	lock_sock(sk);
 	sk->sk_user_data	= NULL;
-	sk->sk_state_change	= dev->old_state_change;
-	sk->sk_data_ready	= dev->old_data_ready;
-	sk->sk_write_space	= dev->old_write_space;
+	sk->sk_state_change	= gp->old_state_change;
+	sk->sk_data_ready	= gp->old_data_ready;
+	sk->sk_write_space	= gp->old_write_space;
 	release_sock(sk);
 
-	printk(KERN_DEBUG"%s: detached\n", net->name);
-	unregister_netdev(net);
+	printk(KERN_DEBUG"%s: detached\n", dev->name);
+	unregister_netdev(dev);
 	sock_put(sk);
 }
