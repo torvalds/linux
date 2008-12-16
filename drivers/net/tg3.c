@@ -1227,28 +1227,6 @@ static u16 tg3_advert_flowctrl_1000X(u8 flow_ctrl)
 	return miireg;
 }
 
-static u8 tg3_resolve_flowctrl_1000T(u16 lcladv, u16 rmtadv)
-{
-	u8 cap = 0;
-
-	if (lcladv & ADVERTISE_PAUSE_CAP) {
-		if (lcladv & ADVERTISE_PAUSE_ASYM) {
-			if (rmtadv & LPA_PAUSE_CAP)
-				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
-			else if (rmtadv & LPA_PAUSE_ASYM)
-				cap = TG3_FLOW_CTRL_RX;
-		} else {
-			if (rmtadv & LPA_PAUSE_CAP)
-				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
-		}
-	} else if (lcladv & ADVERTISE_PAUSE_ASYM) {
-		if ((rmtadv & LPA_PAUSE_CAP) && (rmtadv & LPA_PAUSE_ASYM))
-			cap = TG3_FLOW_CTRL_TX;
-	}
-
-	return cap;
-}
-
 static u8 tg3_resolve_flowctrl_1000X(u16 lcladv, u16 rmtadv)
 {
 	u8 cap = 0;
@@ -1288,7 +1266,7 @@ static void tg3_setup_flow_control(struct tg3 *tp, u32 lcladv, u32 rmtadv)
 		if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES)
 			flowctrl = tg3_resolve_flowctrl_1000X(lcladv, rmtadv);
 		else
-			flowctrl = tg3_resolve_flowctrl_1000T(lcladv, rmtadv);
+			flowctrl = mii_resolve_flowctrl_fdx(lcladv, rmtadv);
 	} else
 		flowctrl = tp->link_config.flowctrl;
 

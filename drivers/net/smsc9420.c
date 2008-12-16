@@ -1080,28 +1080,6 @@ static void smsc9420_set_multicast_list(struct net_device *dev)
 	smsc9420_pci_flush_write(pd);
 }
 
-static u8 smsc9420_resolve_flowctrl_fulldplx(u16 lcladv, u16 rmtadv)
-{
-	u8 cap = 0;
-
-	if (lcladv & ADVERTISE_PAUSE_CAP) {
-		if (lcladv & ADVERTISE_PAUSE_ASYM) {
-			if (rmtadv & LPA_PAUSE_CAP)
-				cap = FLOW_CTRL_TX | FLOW_CTRL_RX;
-			else if (rmtadv & LPA_PAUSE_ASYM)
-				cap = FLOW_CTRL_RX;
-		} else {
-			if (rmtadv & LPA_PAUSE_CAP)
-				cap = FLOW_CTRL_TX | FLOW_CTRL_RX;
-		}
-	} else if (lcladv & ADVERTISE_PAUSE_ASYM) {
-		if ((rmtadv & LPA_PAUSE_CAP) && (rmtadv & LPA_PAUSE_ASYM))
-			cap = FLOW_CTRL_TX;
-	}
-
-	return cap;
-}
-
 static void smsc9420_phy_update_flowcontrol(struct smsc9420_pdata *pd)
 {
 	struct phy_device *phy_dev = pd->phy_dev;
@@ -1110,7 +1088,7 @@ static void smsc9420_phy_update_flowcontrol(struct smsc9420_pdata *pd)
 	if (phy_dev->duplex == DUPLEX_FULL) {
 		u16 lcladv = phy_read(phy_dev, MII_ADVERTISE);
 		u16 rmtadv = phy_read(phy_dev, MII_LPA);
-		u8 cap = smsc9420_resolve_flowctrl_fulldplx(lcladv, rmtadv);
+		u8 cap = mii_resolve_flowctrl_fdx(lcladv, rmtadv);
 
 		if (cap & FLOW_CTRL_RX)
 			flow = 0xFFFF0002;
