@@ -145,6 +145,11 @@ static void *swiotlb_bus_to_virt(dma_addr_t address)
 	return phys_to_virt(swiotlb_bus_to_phys(address));
 }
 
+int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
+{
+	return 0;
+}
+
 /*
  * Statically reserve bounce buffer space and initialize bounce buffer data
  * structures for the software IO TLB used to implement the DMA API.
@@ -295,6 +300,11 @@ static int
 address_needs_mapping(struct device *hwdev, dma_addr_t addr, size_t size)
 {
 	return !is_buffer_dma_capable(dma_get_mask(hwdev), addr, size);
+}
+
+static inline int range_needs_mapping(void *ptr, size_t size)
+{
+	return swiotlb_force || swiotlb_arch_range_needs_mapping(ptr, size);
 }
 
 static int is_swiotlb_buffer(char *addr)
@@ -585,7 +595,8 @@ swiotlb_map_single_attrs(struct device *hwdev, void *ptr, size_t size,
 	 * we can safely return the device addr and not worry about bounce
 	 * buffering it.
 	 */
-	if (!address_needs_mapping(hwdev, dev_addr, size) && !swiotlb_force)
+	if (!address_needs_mapping(hwdev, dev_addr, size) &&
+	    !range_needs_mapping(ptr, size))
 		return dev_addr;
 
 	/*
@@ -745,7 +756,7 @@ swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
 	for_each_sg(sgl, sg, nelems, i) {
 		addr = SG_ENT_VIRT_ADDRESS(sg);
 		dev_addr = swiotlb_virt_to_bus(addr);
-		if (swiotlb_force ||
+		if (range_needs_mapping(sg_virt(sg), sg->length) ||
 		    address_needs_mapping(hwdev, dev_addr, sg->length)) {
 			void *map = map_single(hwdev, addr, sg->length, dir);
 			if (!map) {
