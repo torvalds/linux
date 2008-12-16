@@ -312,6 +312,15 @@ static int is_swiotlb_buffer(char *addr)
 	return addr >= io_tlb_start && addr < io_tlb_end;
 }
 
+static void
+__sync_single(char *buffer, char *dma_addr, size_t size, int dir)
+{
+	if (dir == DMA_TO_DEVICE)
+		memcpy(dma_addr, buffer, size);
+	else
+		memcpy(buffer, dma_addr, size);
+}
+
 /*
  * Allocates bounce buffer and returns its kernel virtual address.
  */
@@ -413,7 +422,7 @@ found:
 	for (i = 0; i < nslots; i++)
 		io_tlb_orig_addr[index+i] = buffer + (i << IO_TLB_SHIFT);
 	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
-		memcpy(dma_addr, buffer, size);
+		__sync_single(buffer, dma_addr, size, DMA_TO_DEVICE);
 
 	return dma_addr;
 }
@@ -437,7 +446,7 @@ unmap_single(struct device *hwdev, char *dma_addr, size_t size, int dir)
 		 * bounce... copy the data back into the original buffer * and
 		 * delete the bounce buffer.
 		 */
-		memcpy(buffer, dma_addr, size);
+		__sync_single(buffer, dma_addr, size, DMA_FROM_DEVICE);
 
 	/*
 	 * Return the buffer to the free list by setting the corresponding
@@ -477,13 +486,13 @@ sync_single(struct device *hwdev, char *dma_addr, size_t size,
 	switch (target) {
 	case SYNC_FOR_CPU:
 		if (likely(dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
-			memcpy(buffer, dma_addr, size);
+			__sync_single(buffer, dma_addr, size, DMA_FROM_DEVICE);
 		else
 			BUG_ON(dir != DMA_TO_DEVICE);
 		break;
 	case SYNC_FOR_DEVICE:
 		if (likely(dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
-			memcpy(dma_addr, buffer, size);
+			__sync_single(buffer, dma_addr, size, DMA_TO_DEVICE);
 		else
 			BUG_ON(dir != DMA_FROM_DEVICE);
 		break;
