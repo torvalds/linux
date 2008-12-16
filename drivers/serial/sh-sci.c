@@ -496,7 +496,7 @@ static inline void sci_receive_chars(struct uart_port *port)
 					}
 
 					/* Nonzero => end-of-break */
-					pr_debug("scif: debounce<%02x>\n", c);
+					dev_dbg(port->dev, "debounce<%02x>\n", c);
 					sci_port->break_flag = 0;
 
 					if (STEPFN(c)) {
@@ -513,12 +513,13 @@ static inline void sci_receive_chars(struct uart_port *port)
 				/* Store data and status */
 				if (status&SCxSR_FER(port)) {
 					flag = TTY_FRAME;
-					pr_debug("sci: frame error\n");
+					dev_notice(port->dev, "frame error\n");
 				} else if (status&SCxSR_PER(port)) {
 					flag = TTY_PARITY;
-					pr_debug("sci: parity error\n");
+					dev_notice(port->dev, "parity error\n");
 				} else
 					flag = TTY_NORMAL;
+
 				tty_insert_flip_char(tty, c, flag);
 			}
 		}
@@ -578,7 +579,8 @@ static inline int sci_handle_errors(struct uart_port *port)
 		/* overrun error */
 		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN))
 			copied++;
-		pr_debug("sci: overrun error\n");
+
+		dev_notice(port->dev, "overrun error");
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -593,7 +595,9 @@ static inline int sci_handle_errors(struct uart_port *port)
 				/* Do sysrq handling. */
 				if (uart_handle_break(port))
 					return 0;
-				pr_debug("sci: BREAK detected\n");
+
+				dev_dbg(port->dev, "BREAK detected\n");
+
 				if (tty_insert_flip_char(tty, 0, TTY_BREAK))
 					copied++;
 			}
@@ -602,7 +606,8 @@ static inline int sci_handle_errors(struct uart_port *port)
 			/* frame error */
 			if (tty_insert_flip_char(tty, 0, TTY_FRAME))
 				copied++;
-			pr_debug("sci: frame error\n");
+
+			dev_notice(port->dev, "frame error\n");
 		}
 	}
 
@@ -610,7 +615,8 @@ static inline int sci_handle_errors(struct uart_port *port)
 		/* parity error */
 		if (tty_insert_flip_char(tty, 0, TTY_PARITY))
 			copied++;
-		pr_debug("sci: parity error\n");
+
+		dev_notice(port->dev, "parity error");
 	}
 
 	if (copied)
@@ -637,7 +643,8 @@ static inline int sci_handle_breaks(struct uart_port *port)
 		/* Notify of BREAK */
 		if (tty_insert_flip_char(tty, 0, TTY_BREAK))
 			copied++;
-		pr_debug("sci: BREAK detected\n");
+
+		dev_dbg(port->dev, "BREAK detected\n");
 	}
 
 #if defined(SCIF_ORER)
@@ -646,7 +653,7 @@ static inline int sci_handle_breaks(struct uart_port *port)
 		sci_out(port, SCLSR, 0);
 		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN)) {
 			copied++;
-			pr_debug("sci: overrun error\n");
+			dev_notice(port->dev, "overrun error\n");
 		}
 	}
 #endif
@@ -698,7 +705,7 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 			sci_out(port, SCLSR, 0);
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 			tty_flip_buffer_push(tty);
-			pr_debug("scif: overrun error\n");
+			dev_notice(port->dev, "overrun error\n");
 		}
 #endif
 		sci_rx_interrupt(irq, ptr);
@@ -782,23 +789,22 @@ static int sci_request_irq(struct sci_port *port)
 			       "SCI Transmit Data Empty", "SCI Break" };
 
 	if (port->irqs[0] == port->irqs[1]) {
-		if (!port->irqs[0]) {
-			printk(KERN_ERR "sci: Cannot allocate irq.(IRQ=0)\n");
+		if (unlikely(!port->irqs[0]))
 			return -ENODEV;
-		}
 
 		if (request_irq(port->irqs[0], sci_mpxed_interrupt,
 				IRQF_DISABLED, "sci", port)) {
-			printk(KERN_ERR "sci: Cannot allocate irq.\n");
+			dev_err(port->port.dev, "Can't allocate IRQ\n");
 			return -ENODEV;
 		}
 	} else {
 		for (i = 0; i < ARRAY_SIZE(handlers); i++) {
-			if (!port->irqs[i])
+			if (unlikely(!port->irqs[i]))
 				continue;
+
 			if (request_irq(port->irqs[i], handlers[i],
 					IRQF_DISABLED, desc[i], port)) {
-				printk(KERN_ERR "sci: Cannot allocate irq.\n");
+				dev_err(port->port.dev, "Can't allocate IRQ\n");
 				return -ENODEV;
 			}
 		}
@@ -811,12 +817,9 @@ static void sci_free_irq(struct sci_port *port)
 {
 	int i;
 
-	if (port->irqs[0] == port->irqs[1]) {
-		if (!port->irqs[0])
-			printk(KERN_ERR "sci: sci_free_irq error\n");
-		else
-			free_irq(port->irqs[0], port);
-	} else {
+	if (port->irqs[0] == port->irqs[1])
+		free_irq(port->irqs[0], port);
+	else {
 		for (i = 0; i < ARRAY_SIZE(port->irqs); i++) {
 			if (!port->irqs[i])
 				continue;
@@ -1040,7 +1043,7 @@ static void sci_config_port(struct uart_port *port, int flags)
 		port->membase = ioremap_nocache(port->mapbase, 0x40);
 #endif
 
-		printk(KERN_ERR "sci: can't remap port#%d\n", port->line);
+		dev_err(port->dev, "can't remap port#%d\n", port->line);
 	}
 }
 
