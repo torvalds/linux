@@ -28,8 +28,6 @@ static int acpi_system_sleep_seq_show(struct seq_file *seq, void *offset)
 {
 	int i;
 
-	ACPI_FUNCTION_TRACE("acpi_system_sleep_seq_show");
-
 	for (i = 0; i <= ACPI_STATE_S5; i++) {
 		if (sleep_states[i]) {
 			seq_printf(seq, "S%d ", i);
@@ -92,8 +90,6 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 	u32 day, mo, yr, cent = 0;
 	unsigned char rtc_control = 0;
 	unsigned long flags;
-
-	ACPI_FUNCTION_TRACE("acpi_system_alarm_seq_show");
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
@@ -227,13 +223,11 @@ acpi_system_write_alarm(struct file *file,
 	int adjust = 0;
 	unsigned char rtc_control = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_system_write_alarm");
-
 	if (count > sizeof(alarm_string) - 1)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (copy_from_user(alarm_string, buffer, count))
-		return_VALUE(-EFAULT);
+		return -EFAULT;
 
 	alarm_string[count] = '\0';
 
@@ -334,7 +328,7 @@ acpi_system_write_alarm(struct file *file,
 
 	result = 0;
       end:
-	return_VALUE(result ? result : count);
+	return result ? result : count;
 }
 #endif				/* HAVE_ACPI_LEGACY_ALARM */
 
