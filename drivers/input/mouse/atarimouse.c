@@ -108,7 +108,7 @@ static int atamouse_open(struct input_dev *dev)
 static void atamouse_close(struct input_dev *dev)
 {
 	ikbd_mouse_disable();
-	atari_mouse_interrupt_hook = NULL;
+	atari_input_mouse_interrupt_hook = NULL;
 }
 
 static int __init atamouse_init(void)
