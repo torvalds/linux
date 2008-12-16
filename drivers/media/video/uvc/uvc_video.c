@@ -368,7 +368,7 @@ static int uvc_video_decode_start(struct uvc_video_device *video,
 
 	/* Synchronize to the input stream by waiting for the FID bit to be
 	 * toggled when the the buffer state is not UVC_BUF_STATE_ACTIVE.
-	 * queue->last_fid is initialized to -1, so the first isochronous
+	 * video->last_fid is initialized to -1, so the first isochronous
 	 * frame will always be in sync.
 	 *
 	 * If the device doesn't toggle the FID bit, invert video->last_fid
@@ -395,7 +395,7 @@ static int uvc_video_decode_start(struct uvc_video_device *video,
 	 * last payload can be lost anyway). We thus must check if the FID has
 	 * been toggled.
 	 *
-	 * queue->last_fid is initialized to -1, so the first isochronous
+	 * video->last_fid is initialized to -1, so the first isochronous
 	 * frame will never trigger an end of frame detection.
 	 *
 	 * Empty buffers (bytesused == 0) don't trigger end of frame detection
@@ -512,7 +512,7 @@ static void uvc_video_decode_bulk(struct urb *urb,
 	/* If the URB is the first of its payload, decode and save the
 	 * header.
 	 */
-	if (video->bulk.header_size == 0) {
+	if (video->bulk.header_size == 0 && !video->bulk.skip_payload) {
 		do {
 			ret = uvc_video_decode_start(video, buf, mem, len);
 			if (ret == -EAGAIN)
@@ -522,14 +522,13 @@ static void uvc_video_decode_bulk(struct urb *urb,
 		/* If an error occured skip the rest of the payload. */
 		if (ret < 0 || buf == NULL) {
 			video->bulk.skip_payload = 1;
-			return;
+		} else {
+			memcpy(video->bulk.header, mem, ret);
+			video->bulk.header_size = ret;
+
+			mem += ret;
+			len -= ret;
 		}
-
-		video->bulk.header_size = ret;
-		memcpy(video->bulk.header, mem, video->bulk.header_size);
-
-		mem += ret;
-		len -= ret;
 	}
 
 	/* The buffer queue might have been cancelled while a bulk transfer
