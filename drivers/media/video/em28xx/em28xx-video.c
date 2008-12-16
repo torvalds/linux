@@ -599,12 +599,10 @@ static int res_get(struct em28xx_fh *fh)
 		return rc;
 
 	if (dev->stream_on)
-		return -EINVAL;
+		return -EBUSY;
 
-	mutex_lock(&dev->lock);
 	dev->stream_on = 1;
 	fh->stream_on  = 1;
-	mutex_unlock(&dev->lock);
 	return rc;
 }
 
@@ -1257,8 +1255,12 @@ static int vidioc_streamon(struct file *file, void *priv,
 		return rc;
 
 
-	if (unlikely(res_get(fh) < 0))
-		return -EBUSY;
+	mutex_lock(&dev->lock);
+	rc = res_get(fh);
+	mutex_unlock(&dev->lock);
+
+	if (unlikely(rc < 0))
+		return rc;
 
 	return (videobuf_streamon(&fh->vb_vidq));
 }
@@ -1738,8 +1740,12 @@ em28xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
 	 */
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		if (unlikely(res_get(fh)))
-			return -EBUSY;
+		mutex_lock(&dev->lock);
+		rc = res_get(fh);
+		mutex_unlock(&dev->lock);
+
+		if (unlikely(rc < 0))
+			return rc;
 
 		return videobuf_read_stream(&fh->vb_vidq, buf, count, pos, 0,
 					filp->f_flags & O_NONBLOCK);
@@ -1761,7 +1767,11 @@ static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
 	if (rc < 0)
 		return rc;
 
-	if (unlikely(res_get(fh) < 0))
+	mutex_lock(&dev->lock);
+	rc = res_get(fh);
+	mutex_unlock(&dev->lock);
+
+	if (unlikely(rc < 0))
 		return POLLERR;
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
@@ -1779,11 +1789,15 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct em28xx	 *dev   = fh->dev;
 	int		 rc;
 
-	if (unlikely(res_get(fh) < 0))
-		return -EBUSY;
-
 	rc = check_dev(dev);
 	if (rc < 0)
+		return rc;
+
+	mutex_lock(&dev->lock);
+	rc = res_get(fh);
+	mutex_unlock(&dev->lock);
+
+	if (unlikely(rc < 0))
 		return rc;
 
 	rc = videobuf_mmap_mapper(&fh->vb_vidq, vma);
