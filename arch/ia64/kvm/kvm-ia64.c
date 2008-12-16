@@ -831,9 +831,8 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 
 int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	int i;
 	struct vpd *vpd = to_host(vcpu->kvm, vcpu->arch.vpd);
-	int r;
+	int i;
 
 	vcpu_load(vcpu);
 
@@ -850,18 +849,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	vpd->vpr = regs->vpd.vpr;
 
-	r = -EFAULT;
-	r = copy_from_user(&vcpu->arch.guest, regs->saved_guest,
-						sizeof(union context));
-	if (r)
-		goto out;
-	r = copy_from_user(vcpu + 1, regs->saved_stack +
-			sizeof(struct kvm_vcpu),
-			KVM_STK_OFFSET - sizeof(struct kvm_vcpu));
-	if (r)
-		goto out;
-	vcpu->arch.exit_data =
-		((struct kvm_vcpu *)(regs->saved_stack))->arch.exit_data;
+	memcpy(&vcpu->arch.guest, &regs->saved_guest, sizeof(union context));
 
 	RESTORE_REGS(mp_state);
 	RESTORE_REGS(vmm_rr);
@@ -895,9 +883,8 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	set_bit(KVM_REQ_RESUME, &vcpu->requests);
 
 	vcpu_put(vcpu);
-	r = 0;
-out:
-	return r;
+
+	return 0;
 }
 
 long kvm_arch_vm_ioctl(struct file *filp,
@@ -1378,9 +1365,9 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	int i;
-	int r;
 	struct vpd *vpd = to_host(vcpu->kvm, vcpu->arch.vpd);
+	int i;
+
 	vcpu_load(vcpu);
 
 	for (i = 0; i < 16; i++) {
@@ -1395,14 +1382,8 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->vpd.vpsr = vpd->vpsr;
 	regs->vpd.vpr = vpd->vpr;
 
-	r = -EFAULT;
-	r = copy_to_user(regs->saved_guest, &vcpu->arch.guest,
-					sizeof(union context));
-	if (r)
-		goto out;
-	r = copy_to_user(regs->saved_stack, (void *)vcpu, KVM_STK_OFFSET);
-	if (r)
-		goto out;
+	memcpy(&regs->saved_guest, &vcpu->arch.guest, sizeof(union context));
+
 	SAVE_REGS(mp_state);
 	SAVE_REGS(vmm_rr);
 	memcpy(regs->itrs, vcpu->arch.itrs, sizeof(struct thash_data) * NITRS);
@@ -1430,10 +1411,9 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	SAVE_REGS(metaphysical_saved_rr4);
 	SAVE_REGS(fp_psr);
 	SAVE_REGS(saved_gp);
+
 	vcpu_put(vcpu);
-	r = 0;
-out:
-	return r;
+	return 0;
 }
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
