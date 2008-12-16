@@ -22,6 +22,8 @@ void machine_crash_shutdown(struct pt_regs *regs)
 {
 	if (ppc_md.machine_crash_shutdown)
 		ppc_md.machine_crash_shutdown(regs);
+	else
+		default_machine_crash_shutdown(regs);
 }
 
 /*
@@ -33,11 +35,8 @@ int machine_kexec_prepare(struct kimage *image)
 {
 	if (ppc_md.machine_kexec_prepare)
 		return ppc_md.machine_kexec_prepare(image);
-	/*
-	 * Fail if platform doesn't provide its own machine_kexec_prepare
-	 * implementation.
-	 */
-	return -ENOSYS;
+	else
+		return default_machine_kexec_prepare(image);
 }
 
 void machine_kexec_cleanup(struct kimage *image)
@@ -54,13 +53,11 @@ void machine_kexec(struct kimage *image)
 {
 	if (ppc_md.machine_kexec)
 		ppc_md.machine_kexec(image);
-	else {
-		/*
-		 * Fall back to normal restart if platform doesn't provide
-		 * its own kexec function, and user insist to kexec...
-		 */
-		machine_restart(NULL);
-	}
+	else
+		default_machine_kexec(image);
+
+	/* Fall back to normal restart if we're still alive. */
+	machine_restart(NULL);
 	for(;;);
 }
 
