@@ -1091,7 +1091,7 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 	int error = 0;
 	bool pme_done = false;
 
-	if (!device_may_wakeup(&dev->dev))
+	if (enable && !device_may_wakeup(&dev->dev))
 		return -EINVAL;
 
 	/*
