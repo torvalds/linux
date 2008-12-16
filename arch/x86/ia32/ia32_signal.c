@@ -467,7 +467,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	 * These are actually not used anymore, but left because some
 	 * gdb versions depend on them as a marker.
 	 */
-	err |= __copy_to_user(frame->retcode, &code, 8);
+	err |= __put_user(*((u64 *)&code), (u64 *)frame->retcode);
 	if (err)
 		return -EFAULT;
 
@@ -554,7 +554,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * Not actually used anymore, but left because some gdb
 	 * versions need it.
 	 */
-	err |= __copy_to_user(frame->retcode, &code, 8);
+	err |= __put_user(*((u64 *)&code), (u64 *)frame->retcode);
 	if (err)
 		return -EFAULT;
 
