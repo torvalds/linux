@@ -16,7 +16,6 @@
  *	linux-arm-kernel@lists.arm.linux.org.uk
  */
 
-//#define DEBUG 1
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -32,9 +31,8 @@
 #include <linux/cpufreq.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
-#include <mach/hardware.h>
-#include <asm/io.h>
 #include <mach/imxfb.h>
 
 /*
@@ -43,6 +41,73 @@
 #define DEBUG_VAR 1
 
 #include "imxfb.h"
+
+#define DRIVER_NAME "imx-fb"
+
+#define LCDC_SSA	0x00
+
+#define LCDC_SIZE	0x04
+#define SIZE_XMAX(x)	((((x) >> 4) & 0x3f) << 20)
+#define SIZE_YMAX(y)	((y) & 0x1ff)
+
+#define LCDC_VPW	0x08
+#define VPW_VPW(x)	((x) & 0x3ff)
+
+#define LCDC_CPOS	0x0C
+#define CPOS_CC1	(1<<31)
+#define CPOS_CC0	(1<<30)
+#define CPOS_OP		(1<<28)
+#define CPOS_CXP(x)	(((x) & 3ff) << 16)
+#define CPOS_CYP(y)	((y) & 0x1ff)
+
+#define LCDC_LCWHB	0x10
+#define LCWHB_BK_EN	(1<<31)
+#define LCWHB_CW(w)	(((w) & 0x1f) << 24)
+#define LCWHB_CH(h)	(((h) & 0x1f) << 16)
+#define LCWHB_BD(x)	((x) & 0xff)
+
+#define LCDC_LCHCC	0x14
+#define LCHCC_CUR_COL_R(r) (((r) & 0x1f) << 11)
+#define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 5)
+#define LCHCC_CUR_COL_B(b) ((b) & 0x1f)
+
+#define LCDC_PCR	0x18
+
+#define LCDC_HCR	0x1C
+#define HCR_H_WIDTH(x)	(((x) & 0x3f) << 26)
+#define HCR_H_WAIT_1(x)	(((x) & 0xff) << 8)
+#define HCR_H_WAIT_2(x)	((x) & 0xff)
+
+#define LCDC_VCR	0x20
+#define VCR_V_WIDTH(x)	(((x) & 0x3f) << 26)
+#define VCR_V_WAIT_1(x)	(((x) & 0xff) << 8)
+#define VCR_V_WAIT_2(x)	((x) & 0xff)
+
+#define LCDC_POS	0x24
+#define POS_POS(x)	((x) & 1f)
+
+#define LCDC_LSCR1	0x28
+/* bit fields in imxfb.h */
+
+#define LCDC_PWMR	0x2C
+/* bit fields in imxfb.h */
+
+#define LCDC_DMACR	0x30
+/* bit fields in imxfb.h */
+
+#define LCDC_RMCR	0x34
+#define RMCR_LCDC_EN	(1<<1)
+#define RMCR_SELF_REF	(1<<0)
+
+#define LCDC_LCDICR	0x38
+#define LCDICR_INT_SYN	(1<<2)
+#define LCDICR_INT_CON	(1)
+
+#define LCDC_LCDISR	0x40
+#define LCDISR_UDR_ERR	(1<<3)
+#define LCDISR_ERR_RES	(1<<2)
+#define LCDISR_EOF	(1<<1)
+#define LCDISR_BOF	(1<<0)
 
 static struct imxfb_rgb def_rgb_16 = {
 	.red	= { .offset = 8,  .length = 4, },
@@ -67,7 +132,6 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-#define LCDC_PALETTE(x) __REG2(IMX_LCDC_BASE+0x800, (x)<<2)
 static int
 imxfb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
 		       u_int trans, struct fb_info *info)
@@ -81,7 +145,7 @@ imxfb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
 		      (CNVT_TOHW(green,4) << 4) |
 		      CNVT_TOHW(blue,  4);
 
-		LCDC_PALETTE(regno) = val;
+		writel(val, fbi->regs + 0x800 + (regno << 2));
 		ret = 0;
 	}
 	return ret;
@@ -235,18 +299,23 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	pr_debug("Enabling LCD controller\n");
 
 	/* initialize LCDC */
-	LCDC_RMCR &= ~RMCR_LCDC_EN;		/* just to be safe... */
+	writel(readl(fbi->regs + LCDC_RMCR) & ~RMCR_LCDC_EN,
+		fbi->regs + LCDC_RMCR);	/* just to be safe... */
 
-	LCDC_SSA	= fbi->screen_dma;
+	writel(fbi->screen_dma, fbi->regs + LCDC_SSA);
+
 	/* physical screen start address	    */
-	LCDC_VPW	= VPW_VPW(fbi->max_xres * fbi->max_bpp / 8 / 4);
+	writel(VPW_VPW(fbi->max_xres * fbi->max_bpp / 8 / 4),
+		fbi->regs + LCDC_VPW);
 
-	LCDC_POS	= 0x00000000;   /* panning offset 0 (0 pixel offset)        */
+	/* panning offset 0 (0 pixel offset)        */
+	writel(0x00000000, fbi->regs + LCDC_POS);
 
 	/* disable hardware cursor */
-	LCDC_CPOS	&= ~(CPOS_CC0 | CPOS_CC1);
+	writel(readl(fbi->regs + LCDC_CPOS) & ~(CPOS_CC0 | CPOS_CC1),
+		fbi->regs + LCDC_CPOS);
 
-	LCDC_RMCR = RMCR_LCDC_EN;
+	writel(RMCR_LCDC_EN, fbi->regs + LCDC_RMCR);
 
 	if(fbi->backlight_power)
 		fbi->backlight_power(1);
@@ -263,7 +332,7 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 	if(fbi->lcd_power)
 		fbi->lcd_power(0);
 
-	LCDC_RMCR = 0;
+	writel(0, fbi->regs + LCDC_RMCR);
 }
 
 static int imxfb_blank(int blank, struct fb_info *info)
@@ -340,19 +409,22 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 			info->fix.id, var->lower_margin);
 #endif
 
-	LCDC_HCR	= HCR_H_WIDTH(var->hsync_len) |
-	                  HCR_H_WAIT_1(var->left_margin) |
-			  HCR_H_WAIT_2(var->right_margin);
+	writel(HCR_H_WIDTH(var->hsync_len) |
+		HCR_H_WAIT_1(var->left_margin) |
+		HCR_H_WAIT_2(var->right_margin),
+		fbi->regs + LCDC_HCR);
 
-	LCDC_VCR	= VCR_V_WIDTH(var->vsync_len) |
-	                  VCR_V_WAIT_1(var->upper_margin) |
-			  VCR_V_WAIT_2(var->lower_margin);
+	writel(VCR_V_WIDTH(var->vsync_len) |
+		VCR_V_WAIT_1(var->upper_margin) |
+		VCR_V_WAIT_2(var->lower_margin),
+		fbi->regs + LCDC_VCR);
 
-	LCDC_SIZE	= SIZE_XMAX(var->xres) | SIZE_YMAX(var->yres);
-	LCDC_PCR	= fbi->pcr;
-	LCDC_PWMR	= fbi->pwmr;
-	LCDC_LSCR1	= fbi->lscr1;
-	LCDC_DMACR	= fbi->dmacr;
+	writel(SIZE_XMAX(var->xres) | SIZE_YMAX(var->yres),
+			fbi->regs + LCDC_SIZE);
+	writel(fbi->pcr, fbi->regs + LCDC_PCR);
+	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
+	writel(fbi->lscr1, fbi->regs + LCDC_LSCR1);
+	writel(fbi->dmacr, fbi->regs + LCDC_DMACR);
 
 	return 0;
 }
@@ -384,10 +456,10 @@ static int imxfb_resume(struct platform_device *dev)
 #define imxfb_resume	NULL
 #endif
 
-static int __init imxfb_init_fbinfo(struct device *dev)
+static int __init imxfb_init_fbinfo(struct platform_device *pdev)
 {
-	struct imxfb_mach_info *inf = dev->platform_data;
-	struct fb_info *info = dev_get_drvdata(dev);
+	struct imxfb_mach_info *inf = pdev->dev.platform_data;
+	struct fb_info *info = dev_get_drvdata(&pdev->dev);
 	struct imxfb_info *fbi = info->par;
 
 	pr_debug("%s\n",__func__);
@@ -397,7 +469,6 @@ static int __init imxfb_init_fbinfo(struct device *dev)
 		return -ENOMEM;
 
 	memset(fbi, 0, sizeof(struct imxfb_info));
-	fbi->dev = dev;
 
 	strlcpy(info->fix.id, IMX_NAME, sizeof(info->fix.id));
 
@@ -453,31 +524,6 @@ static int __init imxfb_init_fbinfo(struct device *dev)
 	return 0;
 }
 
-/*
- *      Allocates the DRAM memory for the frame buffer.  This buffer is
- *	remapped into a non-cached, non-buffered, memory region to
- *      allow pixel writes to occur without flushing the cache.
- *      Once this area is remapped, all virtual memory access to the
- *      video memory should occur at the new region.
- */
-static int __init imxfb_map_video_memory(struct fb_info *info)
-{
-	struct imxfb_info *fbi = info->par;
-
-	fbi->map_size = PAGE_ALIGN(info->fix.smem_len);
-	fbi->map_cpu = dma_alloc_writecombine(fbi->dev, fbi->map_size,
-					&fbi->map_dma,GFP_KERNEL);
-
-	if (fbi->map_cpu) {
-		info->screen_base = fbi->map_cpu;
-		fbi->screen_cpu = fbi->map_cpu;
-		fbi->screen_dma = fbi->map_dma;
-		info->fix.smem_start = fbi->screen_dma;
-	}
-
-	return fbi->map_cpu ? 0 : -ENOMEM;
-}
-
 static int __init imxfb_probe(struct platform_device *pdev)
 {
 	struct imxfb_info *fbi;
@@ -506,23 +552,38 @@ static int __init imxfb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	ret = imxfb_init_fbinfo(&pdev->dev);
+	ret = imxfb_init_fbinfo(pdev);
 	if( ret < 0 )
 		goto failed_init;
 
-	res = request_mem_region(res->start, res->end - res->start + 1, "IMXFB");
+	res = request_mem_region(res->start, resource_size(res),
+				DRIVER_NAME);
 	if (!res) {
 		ret = -EBUSY;
-		goto failed_regs;
+		goto failed_req;
+	}
+
+	fbi->regs = ioremap(res->start, resource_size(res));
+	if (fbi->regs == NULL) {
+		printk(KERN_ERR"Cannot map frame buffer registers\n");
+		goto failed_ioremap;
 	}
 
 	if (!inf->fixed_screen_cpu) {
-		ret = imxfb_map_video_memory(info);
-		if (ret) {
+		fbi->map_size = PAGE_ALIGN(info->fix.smem_len);
+		fbi->map_cpu = dma_alloc_writecombine(&pdev->dev,
+				fbi->map_size, &fbi->map_dma, GFP_KERNEL);
+
+		if (!fbi->map_cpu) {
 			dev_err(&pdev->dev, "Failed to allocate video RAM: %d\n", ret);
 			ret = -ENOMEM;
 			goto failed_map;
 		}
+
+		info->screen_base = fbi->map_cpu;
+		fbi->screen_cpu = fbi->map_cpu;
+		fbi->screen_dma = fbi->map_dma;
+		info->fix.smem_start = fbi->screen_dma;
 	} else {
 		/* Fixed framebuffer mapping enables location of the screen in eSRAM */
 		fbi->map_cpu = inf->fixed_screen_cpu;
@@ -559,18 +620,20 @@ failed_register:
 failed_cmap:
 	if (!inf->fixed_screen_cpu)
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
-		           fbi->map_dma);
+			fbi->map_dma);
 failed_map:
-	kfree(info->pseudo_palette);
-failed_regs:
+	iounmap(fbi->regs);
+failed_ioremap:
 	release_mem_region(res->start, res->end - res->start);
+failed_req:
+	kfree(info->pseudo_palette);
 failed_init:
 	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(info);
 	return ret;
 }
 
-static int imxfb_remove(struct platform_device *pdev)
+static int __devexit imxfb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct imxfb_info *fbi = info->par;
@@ -586,6 +649,7 @@ static int imxfb_remove(struct platform_device *pdev)
 	kfree(info->pseudo_palette);
 	framebuffer_release(info);
 
+	iounmap(fbi->regs);
 	release_mem_region(res->start, res->end - res->start + 1);
 	platform_set_drvdata(pdev, NULL);
 
@@ -600,19 +664,18 @@ void  imxfb_shutdown(struct platform_device * dev)
 }
 
 static struct platform_driver imxfb_driver = {
-	.probe		= imxfb_probe,
 	.suspend	= imxfb_suspend,
 	.resume		= imxfb_resume,
-	.remove		= imxfb_remove,
+	.remove		= __devexit_p(imxfb_remove),
 	.shutdown	= imxfb_shutdown,
 	.driver		= {
-		.name	= "imx-fb",
+		.name	= DRIVER_NAME,
 	},
 };
 
 int __init imxfb_init(void)
 {
-	return platform_driver_register(&imxfb_driver);
+	return platform_driver_probe(&imxfb_driver, imxfb_probe);
 }
 
 static void __exit imxfb_cleanup(void)

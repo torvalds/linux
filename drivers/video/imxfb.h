@@ -29,7 +29,8 @@ struct imxfb_rgb {
 #define NR_RGB	2
 
 struct imxfb_info {
-	struct device		*dev;
+	void __iomem		*regs;
+
 	struct imxfb_rgb	*rgb[NR_RGB];
 
 	u_int			max_bpp;
