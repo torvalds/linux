@@ -67,7 +67,7 @@ static unsigned long __meminitdata table_top;
 
 static int __initdata after_init_bootmem;
 
-static __init void *alloc_low_page(unsigned long *phys)
+static __init void *alloc_low_page(void)
 {
 	unsigned long pfn = table_end++;
 	void *adr;
@@ -77,7 +77,6 @@ static __init void *alloc_low_page(unsigned long *phys)
 
 	adr = __va(pfn * PAGE_SIZE);
 	memset(adr, 0, PAGE_SIZE);
-	*phys  = pfn * PAGE_SIZE;
 	return adr;
 }
 
@@ -92,12 +91,11 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 	pmd_t *pmd_table;
 
 #ifdef CONFIG_X86_PAE
-	unsigned long phys;
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT)) {
 		if (after_init_bootmem)
 			pmd_table = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
 		else
-			pmd_table = (pmd_t *)alloc_low_page(&phys);
+			pmd_table = (pmd_t *)alloc_low_page();
 		paravirt_alloc_pmd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
@@ -128,10 +126,8 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 			if (!page_table)
 				page_table =
 				(pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
-		} else {
-			unsigned long phys;
-			page_table = (pte_t *)alloc_low_page(&phys);
-		}
+		} else
+			page_table = (pte_t *)alloc_low_page();
 
 		paravirt_alloc_pte(&init_mm, __pa(page_table) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
