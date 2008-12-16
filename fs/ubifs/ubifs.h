@@ -482,24 +482,26 @@ struct ubifs_lpt_lprops {
  * @empty_lebs: number of empty LEBs
  * @taken_empty_lebs: number of taken LEBs
  * @idx_lebs: number of indexing LEBs
- * @total_free: total free space in bytes
- * @total_dirty: total dirty space in bytes
- * @total_used: total used space in bytes (includes only data LEBs)
- * @total_dead: total dead space in bytes (includes only data LEBs)
- * @total_dark: total dark space in bytes (includes only data LEBs)
+ * @total_free: total free space in bytes (includes all LEBs)
+ * @total_dirty: total dirty space in bytes (includes all LEBs)
+ * @total_used: total used space in bytes (does not include index LEBs)
+ * @total_dead: total dead space in bytes (does not include index LEBs)
+ * @total_dark: total dark space in bytes (does not include index LEBs)
  *
- * N.B. total_dirty and total_used are different to other total_* fields,
- * because they account _all_ LEBs, not just data LEBs.
+ * The @taken_empty_lebs field counts the LEBs that are in the transient state
+ * of having been "taken" for use but not yet written to. @taken_empty_lebs is
+ * needed to account correctly for @gc_lnum, otherwise @empty_lebs could be
+ * used by itself (in which case 'unused_lebs' would be a better name). In the
+ * case of @gc_lnum, it is "taken" at mount time or whenever a LEB is retained
+ * by GC, but unlike other empty LEBs that are "taken", it may not be written
+ * straight away (i.e. before the next commit start or unmount), so either
+ * @gc_lnum must be specially accounted for, or the current approach followed
+ * i.e. count it under @taken_empty_lebs.
  *
- * 'taken_empty_lebs' counts the LEBs that are in the transient state of having
- * been 'taken' for use but not yet written to. 'taken_empty_lebs' is needed
- * to account correctly for gc_lnum, otherwise 'empty_lebs' could be used
- * by itself (in which case 'unused_lebs' would be a better name). In the case
- * of gc_lnum, it is 'taken' at mount time or whenever a LEB is retained by GC,
- * but unlike other empty LEBs that are 'taken', it may not be written straight
- * away (i.e. before the next commit start or unmount), so either gc_lnum must
- * be specially accounted for, or the current approach followed i.e. count it
- * under 'taken_empty_lebs'.
+ * @empty_lebs includes @taken_empty_lebs.
+ *
+ * @total_used, @total_dead and @total_dark fields do not account indexing
+ * LEBs.
  */
 struct ubifs_lp_stats {
 	int empty_lebs;
