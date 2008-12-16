@@ -987,25 +987,18 @@ out:
 /*
  * Determine the nodes of an array of pages and store it in an array of status.
  */
-static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
-			 const void __user * __user *pages,
-			 int __user *status)
+static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
+				const void __user **pages, int *status)
 {
 	unsigned long i;
-	int err;
 
 	down_read(&mm->mmap_sem);
 
 	for (i = 0; i < nr_pages; i++) {
-		const void __user *p;
-		unsigned long addr;
+		unsigned long addr = (unsigned long)(*pages);
 		struct vm_area_struct *vma;
 		struct page *page;
-
-		err = -EFAULT;
-		if (get_user(p, pages+i))
-			goto out;
-		addr = (unsigned long) p;
+		int err;
 
 		vma = find_vma(mm, addr);
 		if (!vma)
@@ -1024,12 +1017,52 @@ static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
 
 		err = page_to_nid(page);
 set_status:
-		put_user(err, status+i);
+		*status = err;
+
+		pages++;
+		status++;
+	}
+
+	up_read(&mm->mmap_sem);
+}
+
+/*
+ * Determine the nodes of a user array of pages and store it in
+ * a user array of status.
+ */
+static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
+			 const void __user * __user *pages,
+			 int __user *status)
+{
+#define DO_PAGES_STAT_CHUNK_NR 16
+	const void __user *chunk_pages[DO_PAGES_STAT_CHUNK_NR];
+	int chunk_status[DO_PAGES_STAT_CHUNK_NR];
+	unsigned long i, chunk_nr = DO_PAGES_STAT_CHUNK_NR;
+	int err;
+
+	for (i = 0; i < nr_pages; i += chunk_nr) {
+		if (chunk_nr + i > nr_pages)
+			chunk_nr = nr_pages - i;
+
+		err = copy_from_user(chunk_pages, &pages[i],
+				     chunk_nr * sizeof(*chunk_pages));
+		if (err) {
+			err = -EFAULT;
+			goto out;
+		}
+
+		do_pages_stat_array(mm, chunk_nr, chunk_pages, chunk_status);
+
+		err = copy_to_user(&status[i], chunk_status,
+				   chunk_nr * sizeof(*chunk_status));
+		if (err) {
+			err = -EFAULT;
+			goto out;
+		}
 	}
 	err = 0;
 
 out:
-	up_read(&mm->mmap_sem);
 	return err;
 }
 

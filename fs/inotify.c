@@ -428,11 +428,13 @@ void inotify_unmount_inodes(struct list_head *list)
 		watches = &inode->inotify_watches;
 		list_for_each_entry_safe(watch, next_w, watches, i_list) {
 			struct inotify_handle *ih= watch->ih;
+			get_inotify_watch(watch);
 			mutex_lock(&ih->mutex);
 			ih->in_ops->handle_event(watch, watch->wd, IN_UNMOUNT, 0,
 						 NULL, NULL);
 			inotify_remove_watch_locked(ih, watch);
 			mutex_unlock(&ih->mutex);
+			put_inotify_watch(watch);
 		}
 		mutex_unlock(&inode->inotify_mutex);
 		iput(inode);		

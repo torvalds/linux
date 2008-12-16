@@ -4,6 +4,7 @@ menu "HP Simulator drivers"
 
 config HP_SIMETH
 	bool "Simulated Ethernet "
+	depends on NET
 
 config HP_SIMSERIAL
 	bool "Simulated serial driver support"

@@ -220,8 +220,14 @@ build_up:
 	 */
 	while ((layers < (MAX_LEVEL - 1)) && (id >= (1 << (layers*IDR_BITS)))) {
 		layers++;
-		if (!p->count)
+		if (!p->count) {
+			/* special case: if the tree is currently empty,
+			 * then we grow the tree by moving the top node
+			 * upwards.
+			 */
+			p->layer++;
 			continue;
+		}
 		if (!(new = get_from_free_list(idp))) {
 			/*
 			 * The allocation failed.  If we built part of

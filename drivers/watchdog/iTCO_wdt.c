@@ -392,7 +392,7 @@ static int iTCO_wdt_stop(void)
 
 	/* Bit 13: TCO_EN -> 1 = Enables the TCO logic to generate SMI# */
 	val32 = inl(SMI_EN);
-	val32 &= 0x00002000;
+	val32 |= 0x00002000;
 	outl(val32, SMI_EN);
 
 	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */

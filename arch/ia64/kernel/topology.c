@@ -53,10 +53,12 @@ int __ref arch_register_cpu(int num)
 }
 EXPORT_SYMBOL(arch_register_cpu);
 
-void arch_unregister_cpu(int num)
+void __ref arch_unregister_cpu(int num)
 {
 	unregister_cpu(&sysfs_cpus[num].cpu);
+#ifdef CONFIG_ACPI
 	unmap_cpu_from_node(num, cpu_to_node(num));
+#endif
 }
 EXPORT_SYMBOL(arch_unregister_cpu);
 #else

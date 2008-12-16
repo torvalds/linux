@@ -176,7 +176,7 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 	int ret = 0;
 	struct device *dev;
 
-	if (WARN_ON(bdi->dev))
+	if (bdi->dev)	/* The driver needs to use separate queues per device */
 		goto exit;
 
 	va_start(args, fmt);

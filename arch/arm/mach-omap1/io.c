@@ -128,7 +128,7 @@ void __init omap1_map_common_io(void)
  * Common low-level hardware init for omap1. This should only get called from
  * board specific init.
  */
-void __init omap1_init_common_hw()
+void __init omap1_init_common_hw(void)
 {
 	/* REVISIT: Refer to OMAP5910 Errata, Advisory SYS_1: "Timeout Abort
 	 * on a Posted Write in the TIPB Bridge".
