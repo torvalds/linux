@@ -831,7 +831,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOIOCTLCMD;
 
-	if (!file->f_op->ioctl)
+	if (!file->f_op->ioctl && !file->f_op->unlocked_ioctl)
 		return ret;
 
 	switch (cmd) {
