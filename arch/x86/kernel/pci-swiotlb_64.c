@@ -33,6 +33,11 @@ phys_addr_t swiotlb_bus_to_phys(dma_addr_t baddr)
 	return baddr;
 }
 
+int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
+{
+	return 0;
+}
+
 static dma_addr_t
 swiotlb_map_single_phys(struct device *hwdev, phys_addr_t paddr, size_t size,
 			int direction)
