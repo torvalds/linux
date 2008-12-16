@@ -517,23 +517,6 @@ int genphy_setup_forced(struct phy_device *phydev)
 	
 	err = phy_write(phydev, MII_BMCR, ctl);
 
-	if (err < 0)
-		return err;
-
-	/*
-	 * Run the fixups on this PHY, just in case the
-	 * board code needs to change something after a reset
-	 */
-	err = phy_scan_fixups(phydev);
-
-	if (err < 0)
-		return err;
-
-	/* We just reset the device, so we'd better configure any
-	 * settings the PHY requires to operate */
-	if (phydev->drv->config_init)
-		err = phydev->drv->config_init(phydev);
-
 	return err;
 }
 
