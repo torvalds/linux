@@ -311,6 +311,8 @@ extern const char gfar_driver_version[];
 #define ATTRELI_EI_MASK		0x00003fff
 #define ATTRELI_EI(x) (x)
 
+#define BD_LFLAG(flags) ((flags) << 16)
+#define BD_LENGTH_MASK		0x00ff
 
 /* TxBD status field bits */
 #define TXBD_READY		0x8000
@@ -374,8 +376,13 @@ extern const char gfar_driver_version[];
 
 struct txbd8
 {
-	u16	status;	/* Status Fields */
-	u16	length;	/* Buffer length */
+	union {
+		struct {
+			u16	status;	/* Status Fields */
+			u16	length;	/* Buffer length */
+		};
+		u32 lstatus;
+	};
 	u32	bufPtr;	/* Buffer Pointer */
 };
 
@@ -390,8 +397,13 @@ struct txfcb {
 
 struct rxbd8
 {
-	u16	status;	/* Status Fields */
-	u16	length;	/* Buffer Length */
+	union {
+		struct {
+			u16	status;	/* Status Fields */
+			u16	length;	/* Buffer Length */
+		};
+		u32 lstatus;
+	};
 	u32	bufPtr;	/* Buffer Pointer */
 };
 

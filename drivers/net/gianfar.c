@@ -854,8 +854,7 @@ static void free_skb_resources(struct gfar_private *priv)
 				priv->rx_skbuff[i] = NULL;
 			}
 
-			rxbdp->status = 0;
-			rxbdp->length = 0;
+			rxbdp->lstatus = 0;
 			rxbdp->bufPtr = 0;
 
 			rxbdp++;
@@ -976,8 +975,7 @@ int startup_gfar(struct net_device *dev)
 	/* Initialize Transmit Descriptor Ring */
 	txbdp = priv->tx_bd_base;
 	for (i = 0; i < priv->tx_ring_size; i++) {
-		txbdp->status = 0;
-		txbdp->length = 0;
+		txbdp->lstatus = 0;
 		txbdp->bufPtr = 0;
 		txbdp++;
 	}
@@ -1216,7 +1214,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	struct txfcb *fcb = NULL;
 	struct txbd8 *txbdp, *base;
-	u16 status;
+	u32 lstatus;
 	unsigned long flags;
 
 	/* Update transmit stats */
@@ -1230,26 +1228,25 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	base = priv->tx_bd_base;
 
 	/* Clear all but the WRAP status flags */
-	status = txbdp->status & TXBD_WRAP;
+	lstatus = txbdp->lstatus & BD_LFLAG(TXBD_WRAP);
 
 	/* Set up checksumming */
 	if (CHECKSUM_PARTIAL == skb->ip_summed) {
 		fcb = gfar_add_fcb(skb);
-		status |= TXBD_TOE;
+		lstatus |= BD_LFLAG(TXBD_TOE);
 		gfar_tx_checksum(skb, fcb);
 	}
 
 	if (priv->vlgrp && vlan_tx_tag_present(skb)) {
 		if (unlikely(NULL == fcb)) {
 			fcb = gfar_add_fcb(skb);
-			status |= TXBD_TOE;
+			lstatus |= BD_LFLAG(TXBD_TOE);
 		}
 
 		gfar_tx_vlan(skb, fcb);
 	}
 
 	/* Set buffer length and pointer */
-	txbdp->length = skb->len;
 	txbdp->bufPtr = dma_map_single(&dev->dev, skb->data,
 			skb->len, DMA_TO_DEVICE);
 
@@ -1260,12 +1257,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	priv->skb_curtx =
 	    (priv->skb_curtx + 1) & TX_RING_MOD_MASK(priv->tx_ring_size);
 
-	/* Flag the BD as interrupt-causing */
-	status |= TXBD_INTERRUPT;
-
-	/* Flag the BD as ready to go, last in frame, and  */
-	/* in need of CRC */
-	status |= (TXBD_READY | TXBD_LAST | TXBD_CRC);
+	/* Flag the BD as ready, interrupt-causing, last, and in need of CRC */
+	lstatus |=
+		BD_LFLAG(TXBD_READY | TXBD_LAST | TXBD_CRC | TXBD_INTERRUPT) |
+		skb->len;
 
 	dev->trans_start = jiffies;
 
@@ -1278,7 +1273,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	eieio();
-	txbdp->status = status;
+	txbdp->lstatus = lstatus;
 
 	txbdp = next_bd(txbdp, base, priv->tx_ring_size);
 
@@ -1546,20 +1541,19 @@ static void gfar_new_rxbdp(struct net_device *dev, struct rxbd8 *bdp,
 		struct sk_buff *skb)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 * status_len = (u32 *)bdp;
-	u16 flags;
+	u32 lstatus;
 
 	bdp->bufPtr = dma_map_single(&dev->dev, skb->data,
 			priv->rx_buffer_size, DMA_FROM_DEVICE);
 
-	flags = RXBD_EMPTY | RXBD_INTERRUPT;
+	lstatus = BD_LFLAG(RXBD_EMPTY | RXBD_INTERRUPT);
 
 	if (bdp == priv->rx_bd_base + priv->rx_ring_size - 1)
-		flags |= RXBD_WRAP;
+		lstatus |= BD_LFLAG(RXBD_WRAP);
 
 	eieio();
 
-	*status_len = (u32)flags << 16;
+	bdp->lstatus = lstatus;
 }
 
 
