@@ -491,7 +491,6 @@ static int acpi_device_register(struct acpi_device *device,
 	 */
 	INIT_LIST_HEAD(&device->children);
 	INIT_LIST_HEAD(&device->node);
-	INIT_LIST_HEAD(&device->g_list);
 	INIT_LIST_HEAD(&device->wakeup_list);
 
 	new_bus_id = kzalloc(sizeof(struct acpi_device_bus_id), GFP_KERNEL);
@@ -521,11 +520,9 @@ static int acpi_device_register(struct acpi_device *device,
 	}
 	dev_set_name(&device->dev, "%s:%02x", acpi_device_bus_id->bus_id, acpi_device_bus_id->instance_no);
 
-	if (device->parent) {
+	if (device->parent)
 		list_add_tail(&device->node, &device->parent->children);
-		list_add_tail(&device->g_list, &device->parent->g_list);
-	} else
-		list_add_tail(&device->g_list, &acpi_device_list);
+
 	if (device->wakeup.flags.valid)
 		list_add_tail(&device->wakeup_list, &acpi_wakeup_device_list);
 	mutex_unlock(&acpi_device_lock);
@@ -550,11 +547,8 @@ static int acpi_device_register(struct acpi_device *device,
 	return 0;
   end:
 	mutex_lock(&acpi_device_lock);
-	if (device->parent) {
+	if (device->parent)
 		list_del(&device->node);
-		list_del(&device->g_list);
-	} else
-		list_del(&device->g_list);
 	list_del(&device->wakeup_list);
 	mutex_unlock(&acpi_device_lock);
 	return result;
@@ -563,11 +557,8 @@ static int acpi_device_register(struct acpi_device *device,
 static void acpi_device_unregister(struct acpi_device *device, int type)
 {
 	mutex_lock(&acpi_device_lock);
-	if (device->parent) {
+	if (device->parent)
 		list_del(&device->node);
-		list_del(&device->g_list);
-	} else
-		list_del(&device->g_list);
 
 	list_del(&device->wakeup_list);
 	mutex_unlock(&acpi_device_lock);
