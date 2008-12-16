@@ -652,7 +652,7 @@ static int audit_filter_rules(struct task_struct *tsk,
  * completely disabled for this task.  Since we only have the task
  * structure at this point, we can only check uid and gid.
  */
-static enum audit_state audit_filter_task(struct task_struct *tsk)
+static enum audit_state audit_filter_task(struct task_struct *tsk, char **key)
 {
 	struct audit_entry *e;
 	enum audit_state   state;
@@ -660,6 +660,8 @@ static enum audit_state audit_filter_task(struct task_struct *tsk)
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_TASK], list) {
 		if (audit_filter_rules(tsk, &e->rule, NULL, NULL, &state)) {
+			if (state == AUDIT_RECORD_CONTEXT)
+				*key = kstrdup(e->rule.filterkey, GFP_ATOMIC);
 			rcu_read_unlock();
 			return state;
 		}
@@ -866,18 +868,21 @@ int audit_alloc(struct task_struct *tsk)
 {
 	struct audit_context *context;
 	enum audit_state     state;
+	char *key = NULL;
 
 	if (likely(!audit_ever_enabled))
 		return 0; /* Return if not auditing. */
 
-	state = audit_filter_task(tsk);
+	state = audit_filter_task(tsk, &key);
 	if (likely(state == AUDIT_DISABLED))
 		return 0;
 
 	if (!(context = audit_alloc_context(state))) {
+		kfree(key);
 		audit_log_lost("out of memory in audit_alloc");
 		return -ENOMEM;
 	}
+	context->filterkey = key;
 
 	tsk->audit_context  = context;
 	set_tsk_thread_flag(tsk, TIF_SYSCALL_AUDIT);
@@ -1703,8 +1708,10 @@ void audit_syscall_exit(int valid, long return_code)
 		context->sockaddr_len = 0;
 		context->type = 0;
 		context->fds[0] = -1;
-		kfree(context->filterkey);
-		context->filterkey = NULL;
+		if (context->state != AUDIT_RECORD_CONTEXT) {
+			kfree(context->filterkey);
+			context->filterkey = NULL;
+		}
 		tsk->audit_context = context;
 	}
 }
