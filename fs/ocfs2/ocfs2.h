@@ -287,11 +287,6 @@ struct ocfs2_super
 
 	u64 la_last_gd;
 
-#ifdef CONFIG_OCFS2_FS_STATS
-	struct dentry *local_alloc_debug;
-	char *local_alloc_debug_buf;
-#endif
-
 	/* Next three fields are for local node slot recovery during
 	 * mount. */
 	int dirty;
