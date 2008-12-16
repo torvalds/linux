@@ -27,6 +27,9 @@ swiotlb_init(void);
 extern void *swiotlb_alloc_boot(size_t bytes, unsigned long nslabs);
 extern void *swiotlb_alloc(unsigned order, unsigned long nslabs);
 
+extern dma_addr_t swiotlb_phys_to_bus(phys_addr_t address);
+extern phys_addr_t swiotlb_bus_to_phys(dma_addr_t address);
+
 extern void
 *swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 			dma_addr_t *dma_handle, gfp_t flags);
