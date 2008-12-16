@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
+#include <linux/perf_counter.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 #include <linux/key.h>
@@ -1016,6 +1017,13 @@ int flush_old_exec(struct linux_binprm * bprm)
 		suid_keys(current);
 		set_dumpable(current->mm, suid_dumpable);
 	}
+
+	/*
+	 * Flush performance counters when crossing a
+	 * security domain:
+	 */
+	if (!get_dumpable(current->mm))
+		perf_counter_exit_task(current);
 
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */
