@@ -225,19 +225,7 @@ static int gfar_probe(struct platform_device *pdev)
 
 	/* Stop the DMA engine now, in case it was running before */
 	/* (The firmware could have used it, and left it running). */
-	/* To do this, we write Graceful Receive Stop and Graceful */
-	/* Transmit Stop, and then wait until the corresponding bits */
-	/* in IEVENT indicate the stops have completed. */
-	tempval = gfar_read(&priv->regs->dmactrl);
-	tempval &= ~(DMACTRL_GRS | DMACTRL_GTS);
-	gfar_write(&priv->regs->dmactrl, tempval);
-
-	tempval = gfar_read(&priv->regs->dmactrl);
-	tempval |= (DMACTRL_GRS | DMACTRL_GTS);
-	gfar_write(&priv->regs->dmactrl, tempval);
-
-	while (!(gfar_read(&priv->regs->ievent) & (IEVENT_GRSC | IEVENT_GTSC)))
-		cpu_relax();
+	gfar_halt(dev);
 
 	/* Reset MAC layer */
 	gfar_write(&priv->regs->maccfg1, MACCFG1_SOFT_RESET);
