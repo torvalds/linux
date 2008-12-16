@@ -914,7 +914,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		info = kmalloc(sizeof *info, GFP_KERNEL);
+		info = kzalloc(sizeof *info, GFP_KERNEL);
 		if (info == NULL)
 			return -ENOMEM;
 
@@ -941,7 +941,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		map = kmalloc(sizeof *map, GFP_KERNEL);
+		map = kzalloc(sizeof *map, GFP_KERNEL);
 		if (map == NULL)
 			return -ENOMEM;
 

@@ -384,6 +384,11 @@ struct uvc_control_mapping {
 
 	struct uvc_menu_info *menu_info;
 	__u32 menu_count;
+
+	__s32 (*get) (struct uvc_control_mapping *mapping, __u8 query,
+		      const __u8 *data);
+	void (*set) (struct uvc_control_mapping *mapping, __s32 value,
+		     __u8 *data);
 };
 
 struct uvc_control {

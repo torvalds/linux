@@ -327,6 +327,31 @@ static struct uvc_menu_info exposure_auto_controls[] = {
 	{ 8, "Aperture Priority Mode" },
 };
 
+static __s32 uvc_ctrl_get_zoom(struct uvc_control_mapping *mapping,
+	__u8 query, const __u8 *data)
+{
+	__s8 zoom = (__s8)data[0];
+
+	switch (query) {
+	case GET_CUR:
+		return (zoom == 0) ? 0 : (zoom > 0 ? data[2] : -data[2]);
+
+	case GET_MIN:
+	case GET_MAX:
+	case GET_RES:
+	case GET_DEF:
+	default:
+		return data[2];
+	}
+}
+
+static void uvc_ctrl_set_zoom(struct uvc_control_mapping *mapping,
+	__s32 value, __u8 *data)
+{
+	data[0] = value == 0 ? 0 : (value > 0) ? 1 : 0xff;
+	data[2] = min(abs(value), 0xff);
+}
+
 static struct uvc_control_mapping uvc_ctrl_mappings[] = {
 	{
 		.id		= V4L2_CID_BRIGHTNESS,
@@ -533,6 +558,28 @@ static struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.data_type	= UVC_CTRL_DATA_TYPE_BOOLEAN,
 	},
 	{
+		.id		= V4L2_CID_ZOOM_ABSOLUTE,
+		.name		= "Zoom, Absolute",
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_ZOOM_ABSOLUTE_CONTROL,
+		.size		= 16,
+		.offset		= 0,
+		.v4l2_type	= V4L2_CTRL_TYPE_INTEGER,
+		.data_type	= UVC_CTRL_DATA_TYPE_UNSIGNED,
+	},
+	{
+		.id		= V4L2_CID_ZOOM_CONTINUOUS,
+		.name		= "Zoom, Continuous",
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_ZOOM_RELATIVE_CONTROL,
+		.size		= 0,
+		.offset		= 0,
+		.v4l2_type	= V4L2_CTRL_TYPE_INTEGER,
+		.data_type	= UVC_CTRL_DATA_TYPE_SIGNED,
+		.get		= uvc_ctrl_get_zoom,
+		.set		= uvc_ctrl_set_zoom,
+	},
+	{
 		.id		= V4L2_CID_PRIVACY,
 		.name		= "Privacy",
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -568,8 +615,8 @@ static inline void uvc_clear_bit(__u8 *data, int bit)
  * a signed 32bit integer. Sign extension will be performed if the mapping
  * references a signed data type.
  */
-static __s32 uvc_get_le_value(const __u8 *data,
-	struct uvc_control_mapping *mapping)
+static __s32 uvc_get_le_value(struct uvc_control_mapping *mapping,
+	__u8 query, const __u8 *data)
 {
 	int bits = mapping->size;
 	int offset = mapping->offset;
@@ -598,8 +645,8 @@ static __s32 uvc_get_le_value(const __u8 *data,
 /* Set the bit string specified by mapping->offset and mapping->size
  * in the little-endian data stored at 'data' to the value 'value'.
  */
-static void uvc_set_le_value(__s32 value, __u8 *data,
-	struct uvc_control_mapping *mapping)
+static void uvc_set_le_value(struct uvc_control_mapping *mapping,
+	__s32 value, __u8 *data)
 {
 	int bits = mapping->size;
 	int offset = mapping->offset;
@@ -751,7 +798,7 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 				video->dev->intfnum, ctrl->info->selector,
 				data, ctrl->info->size)) < 0)
 			goto out;
-		v4l2_ctrl->default_value = uvc_get_le_value(data, mapping);
+		v4l2_ctrl->default_value = mapping->get(mapping, GET_DEF, data);
 	}
 
 	switch (mapping->v4l2_type) {
@@ -787,21 +834,21 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 				video->dev->intfnum, ctrl->info->selector,
 				data, ctrl->info->size)) < 0)
 			goto out;
-		v4l2_ctrl->minimum = uvc_get_le_value(data, mapping);
+		v4l2_ctrl->minimum = mapping->get(mapping, GET_MIN, data);
 	}
 	if (ctrl->info->flags & UVC_CONTROL_GET_MAX) {
 		if ((ret = uvc_query_ctrl(video->dev, GET_MAX, ctrl->entity->id,
 				video->dev->intfnum, ctrl->info->selector,
 				data, ctrl->info->size)) < 0)
 			goto out;
-		v4l2_ctrl->maximum = uvc_get_le_value(data, mapping);
+		v4l2_ctrl->maximum = mapping->get(mapping, GET_MAX, data);
 	}
 	if (ctrl->info->flags & UVC_CONTROL_GET_RES) {
 		if ((ret = uvc_query_ctrl(video->dev, GET_RES, ctrl->entity->id,
 				video->dev->intfnum, ctrl->info->selector,
 				data, ctrl->info->size)) < 0)
 			goto out;
-		v4l2_ctrl->step = uvc_get_le_value(data, mapping);
+		v4l2_ctrl->step = mapping->get(mapping, GET_RES, data);
 	}
 
 	ret = 0;
@@ -938,8 +985,8 @@ int uvc_ctrl_get(struct uvc_video_device *video,
 		ctrl->loaded = 1;
 	}
 
-	xctrl->value = uvc_get_le_value(
-		uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT), mapping);
+	xctrl->value = mapping->get(mapping, GET_CUR,
+		uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
 
 	if (mapping->v4l2_type == V4L2_CTRL_TYPE_MENU) {
 		menu = mapping->menu_info;
@@ -995,8 +1042,8 @@ int uvc_ctrl_set(struct uvc_video_device *video,
 		       ctrl->info->size);
 	}
 
-	uvc_set_le_value(value,
-		uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT), mapping);
+	mapping->set(mapping, value,
+		uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
 
 	ctrl->dirty = 1;
 	ctrl->modified = 1;
@@ -1271,6 +1318,11 @@ int uvc_ctrl_add_mapping(struct uvc_control_mapping *mapping)
 	struct uvc_control_info *info;
 	struct uvc_control_mapping *map;
 	int ret = -EINVAL;
+
+	if (mapping->get == NULL)
+		mapping->get = uvc_get_le_value;
+	if (mapping->set == NULL)
+		mapping->set = uvc_set_le_value;
 
 	if (mapping->id & ~V4L2_CTRL_ID_MASK) {
 		uvc_trace(UVC_TRACE_CONTROL, "Can't add mapping '%s' with "
