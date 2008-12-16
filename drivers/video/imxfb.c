@@ -357,57 +357,6 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	return 0;
 }
 
-static void imxfb_setup_gpio(struct imxfb_info *fbi)
-{
-	int width;
-
-	LCDC_RMCR	&= ~(RMCR_LCDC_EN | RMCR_SELF_REF);
-
-	if( fbi->pcr & PCR_TFT )
-		width = 16;
-	else
-		width = 1 << ((fbi->pcr >> 28) & 0x3);
-
-	switch(width) {
-	case 16:
-		imx_gpio_mode(PD30_PF_LD15);
-		imx_gpio_mode(PD29_PF_LD14);
-		imx_gpio_mode(PD28_PF_LD13);
-		imx_gpio_mode(PD27_PF_LD12);
-		imx_gpio_mode(PD26_PF_LD11);
-		imx_gpio_mode(PD25_PF_LD10);
-		imx_gpio_mode(PD24_PF_LD9);
-		imx_gpio_mode(PD23_PF_LD8);
-	case 8:
-		imx_gpio_mode(PD22_PF_LD7);
-		imx_gpio_mode(PD21_PF_LD6);
-		imx_gpio_mode(PD20_PF_LD5);
-		imx_gpio_mode(PD19_PF_LD4);
-	case 4:
-		imx_gpio_mode(PD18_PF_LD3);
-		imx_gpio_mode(PD17_PF_LD2);
-	case 2:
-		imx_gpio_mode(PD16_PF_LD1);
-	case 1:
-		imx_gpio_mode(PD15_PF_LD0);
-	}
-
-	/* initialize GPIOs */
-	imx_gpio_mode(PD6_PF_LSCLK);
-	imx_gpio_mode(PD11_PF_CONTRAST);
-	imx_gpio_mode(PD14_PF_FLM_VSYNC);
-	imx_gpio_mode(PD13_PF_LP_HSYNC);
-	imx_gpio_mode(PD12_PF_ACD_OE);
-
-	/* These are only needed for Sharp HR TFT displays */
-	if (fbi->pcr & PCR_SHARP) {
-		imx_gpio_mode(PD7_PF_REV);
-		imx_gpio_mode(PD8_PF_CLS);
-		imx_gpio_mode(PD9_PF_PS);
-		imx_gpio_mode(PD10_PF_SPL_SPR);
-	}
-}
-
 #ifdef CONFIG_PM
 /*
  * Power management hooks.  Note that we won't be called from IRQ context,
@@ -593,8 +542,6 @@ static int __init imxfb_probe(struct platform_device *pdev)
 	ret = fb_alloc_cmap(&info->cmap, 1<<info->var.bits_per_pixel, 0);
 	if (ret < 0)
 		goto failed_cmap;
-
-	imxfb_setup_gpio(fbi);
 
 	imxfb_set_par(info);
 	ret = register_framebuffer(info);
