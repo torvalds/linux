@@ -46,7 +46,7 @@
 #define DMACR_HM(x)	(((x) & 0xf) << 16)
 #define DMACR_TM(x)	((x) & 0xf)
 
-struct imxfb_mach_info {
+struct imx_fb_platform_data {
 	u_long		pixclock;
 
 	u_short		xres;
@@ -79,4 +79,5 @@ struct imxfb_mach_info {
 	void (*lcd_power)(int);
 	void (*backlight_power)(int);
 };
-void set_imx_fb_info(struct imxfb_mach_info *hard_imx_fb_info);
+
+void set_imx_fb_info(struct imx_fb_platform_data *);

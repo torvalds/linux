@@ -513,7 +513,7 @@ static int imxfb_resume(struct platform_device *dev)
 
 static int __init imxfb_init_fbinfo(struct platform_device *pdev)
 {
-	struct imxfb_mach_info *inf = pdev->dev.platform_data;
+	struct imx_fb_platform_data *pdata = pdev->dev.platform_data;
 	struct fb_info *info = dev_get_drvdata(&pdev->dev);
 	struct imxfb_info *fbi = info->par;
 
@@ -548,32 +548,32 @@ static int __init imxfb_init_fbinfo(struct platform_device *pdev)
 	fbi->rgb[RGB_16]		= &def_rgb_16;
 	fbi->rgb[RGB_8]			= &def_rgb_8;
 
-	fbi->max_xres			= inf->xres;
-	info->var.xres			= inf->xres;
-	info->var.xres_virtual		= inf->xres;
-	fbi->max_yres			= inf->yres;
-	info->var.yres			= inf->yres;
-	info->var.yres_virtual		= inf->yres;
-	fbi->max_bpp			= inf->bpp;
-	info->var.bits_per_pixel	= inf->bpp;
-	info->var.nonstd		= inf->nonstd;
-	info->var.pixclock		= inf->pixclock;
-	info->var.hsync_len		= inf->hsync_len;
-	info->var.left_margin		= inf->left_margin;
-	info->var.right_margin		= inf->right_margin;
-	info->var.vsync_len		= inf->vsync_len;
-	info->var.upper_margin		= inf->upper_margin;
-	info->var.lower_margin		= inf->lower_margin;
-	info->var.sync			= inf->sync;
-	info->var.grayscale		= inf->cmap_greyscale;
-	fbi->cmap_inverse		= inf->cmap_inverse;
-	fbi->cmap_static		= inf->cmap_static;
-	fbi->pcr			= inf->pcr;
-	fbi->lscr1			= inf->lscr1;
-	fbi->dmacr			= inf->dmacr;
-	fbi->pwmr			= inf->pwmr;
-	fbi->lcd_power			= inf->lcd_power;
-	fbi->backlight_power		= inf->backlight_power;
+	fbi->max_xres			= pdata->xres;
+	info->var.xres			= pdata->xres;
+	info->var.xres_virtual		= pdata->xres;
+	fbi->max_yres			= pdata->yres;
+	info->var.yres			= pdata->yres;
+	info->var.yres_virtual		= pdata->yres;
+	fbi->max_bpp			= pdata->bpp;
+	info->var.bits_per_pixel	= pdata->bpp;
+	info->var.nonstd		= pdata->nonstd;
+	info->var.pixclock		= pdata->pixclock;
+	info->var.hsync_len		= pdata->hsync_len;
+	info->var.left_margin		= pdata->left_margin;
+	info->var.right_margin		= pdata->right_margin;
+	info->var.vsync_len		= pdata->vsync_len;
+	info->var.upper_margin		= pdata->upper_margin;
+	info->var.lower_margin		= pdata->lower_margin;
+	info->var.sync			= pdata->sync;
+	info->var.grayscale		= pdata->cmap_greyscale;
+	fbi->cmap_inverse		= pdata->cmap_inverse;
+	fbi->cmap_static		= pdata->cmap_static;
+	fbi->pcr			= pdata->pcr;
+	fbi->lscr1			= pdata->lscr1;
+	fbi->dmacr			= pdata->dmacr;
+	fbi->pwmr			= pdata->pwmr;
+	fbi->lcd_power			= pdata->lcd_power;
+	fbi->backlight_power		= pdata->backlight_power;
 	info->fix.smem_len		= fbi->max_xres * fbi->max_yres *
 					  fbi->max_bpp / 8;
 
@@ -584,7 +584,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 {
 	struct imxfb_info *fbi;
 	struct fb_info *info;
-	struct imxfb_mach_info *inf;
+	struct imx_fb_platform_data *pdata;
 	struct resource *res;
 	int ret;
 
@@ -594,8 +594,8 @@ static int __init imxfb_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	inf = pdev->dev.platform_data;
-	if (!inf) {
+	pdata = pdev->dev.platform_data;
+	if (!pdata) {
 		dev_err(&pdev->dev,"No platform_data available\n");
 		return -ENOMEM;
 	}
@@ -625,7 +625,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		goto failed_ioremap;
 	}
 
-	if (!inf->fixed_screen_cpu) {
+	if (!pdata->fixed_screen_cpu) {
 		fbi->map_size = PAGE_ALIGN(info->fix.smem_len);
 		fbi->map_cpu = dma_alloc_writecombine(&pdev->dev,
 				fbi->map_size, &fbi->map_dma, GFP_KERNEL);
@@ -642,8 +642,8 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		info->fix.smem_start = fbi->screen_dma;
 	} else {
 		/* Fixed framebuffer mapping enables location of the screen in eSRAM */
-		fbi->map_cpu = inf->fixed_screen_cpu;
-		fbi->map_dma = inf->fixed_screen_dma;
+		fbi->map_cpu = pdata->fixed_screen_cpu;
+		fbi->map_dma = pdata->fixed_screen_dma;
 		info->screen_base = fbi->map_cpu;
 		fbi->screen_cpu = fbi->map_cpu;
 		fbi->screen_dma = fbi->map_dma;
@@ -674,7 +674,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 failed_register:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
-	if (!inf->fixed_screen_cpu)
+	if (!pdata->fixed_screen_cpu)
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 			fbi->map_dma);
 failed_map:
