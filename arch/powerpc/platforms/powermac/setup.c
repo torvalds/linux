@@ -60,7 +60,6 @@
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
-#include <asm/kexec.h>
 #include <asm/pci-bridge.h>
 #include <asm/ohare.h>
 #include <asm/mediabay.h>
@@ -738,11 +737,6 @@ define_machine(powermac) {
 	.pci_probe_mode		= pmac_pci_probe_mode,
 	.power_save		= power4_idle,
 	.enable_pmcs		= power4_enable_pmcs,
-#ifdef CONFIG_KEXEC
-	.machine_kexec		= default_machine_kexec,
-	.machine_kexec_prepare	= default_machine_kexec_prepare,
-	.machine_crash_shutdown	= default_machine_crash_shutdown,
-#endif
 #endif /* CONFIG_PPC64 */
 #ifdef CONFIG_PPC32
 	.pcibios_enable_device_hook = pmac_pci_enable_device_hook,

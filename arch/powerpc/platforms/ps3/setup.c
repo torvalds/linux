@@ -23,7 +23,6 @@
 #include <linux/fs.h>
 #include <linux/root_dev.h>
 #include <linux/console.h>
-#include <linux/kexec.h>
 #include <linux/bootmem.h>
 
 #include <asm/machdep.h>
@@ -281,8 +280,5 @@ define_machine(ps3) {
 	.halt				= ps3_halt,
 #if defined(CONFIG_KEXEC)
 	.kexec_cpu_down			= ps3_kexec_cpu_down,
-	.machine_kexec			= default_machine_kexec,
-	.machine_kexec_prepare		= default_machine_kexec_prepare,
-	.machine_crash_shutdown		= default_machine_crash_shutdown,
 #endif
 };

@@ -19,7 +19,6 @@
 #include <asm/prom.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/kexec.h>
 
 #include <mm/mmu_decl.h>
 
@@ -155,9 +154,4 @@ define_machine(prpmc2800){
 	.get_irq		= mv64x60_get_irq,
 	.restart		= prpmc2800_restart,
 	.calibrate_decr		= generic_calibrate_decr,
-#ifdef CONFIG_KEXEC
-	.machine_kexec		= default_machine_kexec,
-	.machine_kexec_prepare	= default_machine_kexec_prepare,
-	.machine_crash_shutdown	= default_machine_crash_shutdown,
-#endif
 };
