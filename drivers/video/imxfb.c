@@ -410,13 +410,13 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 #endif
 
 	writel(HCR_H_WIDTH(var->hsync_len) |
-		HCR_H_WAIT_1(var->left_margin) |
-		HCR_H_WAIT_2(var->right_margin),
+		HCR_H_WAIT_1(var->right_margin) |
+		HCR_H_WAIT_2(var->left_margin),
 		fbi->regs + LCDC_HCR);
 
 	writel(VCR_V_WIDTH(var->vsync_len) |
-		VCR_V_WAIT_1(var->upper_margin) |
-		VCR_V_WAIT_2(var->lower_margin),
+		VCR_V_WAIT_1(var->lower_margin) |
+		VCR_V_WAIT_2(var->upper_margin),
 		fbi->regs + LCDC_VCR);
 
 	writel(SIZE_XMAX(var->xres) | SIZE_YMAX(var->yres),
