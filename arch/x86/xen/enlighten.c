@@ -28,6 +28,7 @@
 #include <linux/console.h>
 
 #include <xen/interface/xen.h>
+#include <xen/interface/version.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/vcpu.h>
 #include <xen/features.h>

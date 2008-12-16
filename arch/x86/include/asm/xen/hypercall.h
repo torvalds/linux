@@ -33,8 +33,14 @@
 #ifndef _ASM_X86_XEN_HYPERCALL_H
 #define _ASM_X86_XEN_HYPERCALL_H
 
+#include <linux/kernel.h>
+#include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/types.h>
+
+#include <asm/page.h>
+#include <asm/pgtable.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>

@@ -1,11 +1,16 @@
 #ifndef _ASM_X86_XEN_PAGE_H
 #define _ASM_X86_XEN_PAGE_H
 
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/spinlock.h>
 #include <linux/pfn.h>
 
 #include <asm/uaccess.h>
+#include <asm/page.h>
 #include <asm/pgtable.h>
 
+#include <xen/interface/xen.h>
 #include <xen/features.h>
 
 /* Xen machine address */
