@@ -594,17 +594,7 @@ asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
 	return ax;
 
 badframe:
-	if (show_unhandled_signals && printk_ratelimit()) {
-		printk("%s%s[%d] bad frame in sigreturn frame:"
-			"%p ip:%lx sp:%lx oeax:%lx",
-		    task_pid_nr(current) > 1 ? KERN_INFO : KERN_EMERG,
-		    current->comm, task_pid_nr(current), frame, regs->ip,
-		    regs->sp, regs->orig_ax);
-		print_vma_addr(" in ", regs->ip);
-		printk(KERN_CONT "\n");
-	}
-
-	force_sig(SIGSEGV, current);
+	signal_fault(regs, frame, "sigreturn");
 
 	return 0;
 }
@@ -901,8 +891,9 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 	struct task_struct *me = current;
 
 	if (show_unhandled_signals && printk_ratelimit()) {
-		printk(KERN_INFO
+		printk("%s"
 		       "%s[%d] bad frame in %s frame:%p ip:%lx sp:%lx orax:%lx",
+		       task_pid_nr(current) > 1 ? KERN_INFO : KERN_EMERG,
 		       me->comm, me->pid, where, frame,
 		       regs->ip, regs->sp, regs->orig_ax);
 		print_vma_addr(" in ", regs->ip);
