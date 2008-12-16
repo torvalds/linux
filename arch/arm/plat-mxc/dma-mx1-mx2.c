@@ -34,7 +34,6 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <mach/dma.h>
 #include <mach/dma-mx1-mx2.h>
 
 #define DMA_DCR     0x00		/* Control Register */
@@ -114,7 +113,7 @@ struct imx_dma_channel {
 	void (*err_handler) (int, void *, int errcode);
 	void (*prog_handler) (int, void *, struct scatterlist *);
 	void *data;
-	dmamode_t  dma_mode;
+	unsigned int  dma_mode;
 	struct scatterlist *sg;
 	unsigned int resbytes;
 	int dma_num;
@@ -193,7 +192,7 @@ static inline int imx_dma_sg_next(int channel, struct scatterlist *sg)
 int
 imx_dma_setup_single(int channel, dma_addr_t dma_address,
 		     unsigned int dma_length, unsigned int dev_addr,
-		     dmamode_t dmamode)
+		     unsigned int dmamode)
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 
@@ -288,7 +287,7 @@ int
 imx_dma_setup_sg(int channel,
 		 struct scatterlist *sg, unsigned int sgcount,
 		 unsigned int dma_length, unsigned int dev_addr,
-		 dmamode_t dmamode)
+		 unsigned int dmamode)
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 
