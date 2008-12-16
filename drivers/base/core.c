@@ -109,6 +109,7 @@ static struct sysfs_ops dev_sysfs_ops = {
 static void device_release(struct kobject *kobj)
 {
 	struct device *dev = to_dev(kobj);
+	struct device_private *p = dev->p;
 
 	if (dev->release)
 		dev->release(dev);
@@ -120,6 +121,7 @@ static void device_release(struct kobject *kobj)
 		WARN(1, KERN_ERR "Device '%s' does not have a release() "
 			"function, it is broken and must be fixed.\n",
 			dev_name(dev));
+	kfree(p);
 }
 
 static struct kobj_type device_ktype = {
@@ -858,6 +860,13 @@ int device_add(struct device *dev)
 	dev = get_device(dev);
 	if (!dev)
 		goto done;
+
+	dev->p = kzalloc(sizeof(*dev->p), GFP_KERNEL);
+	if (!dev->p) {
+		error = -ENOMEM;
+		goto done;
+	}
+	dev->p->device = dev;
 
 	/*
 	 * for statically allocated devices, which should all be converted
