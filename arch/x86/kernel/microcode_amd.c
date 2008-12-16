@@ -225,9 +225,14 @@ static void apply_microcode_amd(int cpu)
 	uci->cpu_sig.rev = rev;
 }
 
+static int get_ucode_data(void *to, const u8 *from, size_t n)
+{
+	memcpy(to, from, n);
+	return 0;
+}
+
 static void *get_next_ucode(const u8 *buf, unsigned int size,
-			int (*get_ucode_data)(void *, const u8 *, size_t),
-			unsigned int *mc_size)
+			    unsigned int *mc_size)
 {
 	unsigned int total_size;
 #define UCODE_CONTAINER_SECTION_HDR	8
@@ -268,8 +273,7 @@ static void *get_next_ucode(const u8 *buf, unsigned int size,
 }
 
 
-static int install_equiv_cpu_table(const u8 *buf,
-		int (*get_ucode_data)(void *, const u8 *, size_t))
+static int install_equiv_cpu_table(const u8 *buf)
 {
 #define UCODE_CONTAINER_HEADER_SIZE	12
 	u8 *container_hdr[UCODE_CONTAINER_HEADER_SIZE];
@@ -311,8 +315,7 @@ static void free_equiv_cpu_table(void)
 	}
 }
 
-static int generic_load_microcode(int cpu, const u8 *data, size_t size,
-		int (*get_ucode_data)(void *, const u8 *, size_t))
+static int generic_load_microcode(int cpu, const u8 *data, size_t size)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	const u8 *ucode_ptr = data;
@@ -322,7 +325,7 @@ static int generic_load_microcode(int cpu, const u8 *data, size_t size,
 	unsigned int leftover;
 	unsigned long offset;
 
-	offset = install_equiv_cpu_table(ucode_ptr, get_ucode_data);
+	offset = install_equiv_cpu_table(ucode_ptr);
 	if (!offset) {
 		printk(KERN_ERR "microcode: installing equivalent cpu table failed\n");
 		return -EINVAL;
@@ -335,8 +338,7 @@ static int generic_load_microcode(int cpu, const u8 *data, size_t size,
 		unsigned int uninitialized_var(mc_size);
 		struct microcode_header_amd *mc_header;
 
-		mc = get_next_ucode(ucode_ptr, leftover, get_ucode_data,
-				    &mc_size);
+		mc = get_next_ucode(ucode_ptr, leftover, &mc_size);
 		if (!mc)
 			break;
 
@@ -370,12 +372,6 @@ static int generic_load_microcode(int cpu, const u8 *data, size_t size,
 	return (int)leftover;
 }
 
-static int get_ucode_fw(void *to, const u8 *from, size_t n)
-{
-	memcpy(to, from, n);
-	return 0;
-}
-
 static int request_microcode_fw(int cpu, struct device *device)
 {
 	const char *fw_name = "amd-ucode/microcode_amd.bin";
@@ -392,8 +388,7 @@ static int request_microcode_fw(int cpu, struct device *device)
 		return ret;
 	}
 
-	ret = generic_load_microcode(cpu, firmware->data, firmware->size,
-			&get_ucode_fw);
+	ret = generic_load_microcode(cpu, firmware->data, firmware->size);
 
 	release_firmware(firmware);
 
