@@ -21,14 +21,6 @@ static void __init init_sh03_IRQ(void)
 	plat_irq_setup_pins(IRQ_MODE_IRQ);
 }
 
-static void __iomem *sh03_ioport_map(unsigned long port, unsigned int size)
-{
-	if (PXSEG(port))
-		return (void __iomem *)port;
-
-        return (void __iomem *)(port + PCI_IO_BASE);
-}
-
 /* arch/sh/boards/sh03/rtc.c */
 void sh03_time_init(void);
 
@@ -99,6 +91,5 @@ static struct sh_machine_vector mv_sh03 __initmv = {
 	.mv_name		= "Interface (CTP/PCI-SH03)",
 	.mv_setup		= sh03_setup,
 	.mv_nr_irqs		= 48,
-	.mv_ioport_map		= sh03_ioport_map,
 	.mv_init_irq		= init_sh03_IRQ,
 };
