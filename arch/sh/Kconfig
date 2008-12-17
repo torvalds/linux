@@ -703,7 +703,7 @@ config MAPLE
 
 config CF_ENABLER
 	bool "Compact Flash Enabler support"
-	depends on SOLUTION_ENGINE || SH_SH03
+	depends on SOLUTION_ENGINE
 	---help---
 	  Compact Flash is a small, removable mass storage device introduced
 	  in 1994 originally as a PCMCIA device.  If you say `Y' here, you
