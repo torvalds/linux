@@ -48,6 +48,7 @@
 #include "actypes.h"
 #include "actbl.h"
 
+extern u32 acpi_rsdt_forced;
 /*
  * Global interfaces
  */
