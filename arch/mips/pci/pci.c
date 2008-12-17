@@ -149,21 +149,6 @@ out:
 	       "Skipping PCI bus scan due to resource conflict\n");
 }
 
-static u8 __init common_swizzle(struct pci_dev *dev, u8 *pinp)
-{
-	u8 pin = *pinp;
-
-	while (dev->bus->parent) {
-		pin = pci_swizzle_interrupt_pin(dev, pin);
-		/* Move up the chain of bridges. */
-		dev = dev->bus->self;
-        }
-	*pinp = pin;
-
-	/* The slot is the slot of the last bridge. */
-	return PCI_SLOT(dev->devfn);
-}
-
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose;
@@ -172,7 +157,7 @@ static int __init pcibios_init(void)
 	for (hose = hose_head; hose; hose = hose->next)
 		pcibios_scanbus(hose);
 
-	pci_fixup_irqs(common_swizzle, pcibios_map_irq);
+	pci_fixup_irqs(pci_common_swizzle, pcibios_map_irq);
 
 	pci_initialized = 1;
 
