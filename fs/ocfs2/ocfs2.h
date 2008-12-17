@@ -308,6 +308,7 @@ struct ocfs2_super
 	struct ocfs2_dlm_debug *osb_dlm_debug;
 
 	struct dentry *osb_debug_root;
+	struct dentry *osb_ctxt;
 
 	wait_queue_head_t recovery_event;
 
