@@ -1537,6 +1537,13 @@ UNUSUAL_DEV(  0x0d96, 0x5200, 0x0001, 0x0200,
 		"JD 5200 z3",
 		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_FIX_INQUIRY),
 
+/* Reported by  Jason Johnston <killean@shaw.ca> */
+UNUSUAL_DEV(  0x0dc4, 0x0073, 0x0000, 0x0000,
+		"Macpower Technology Co.LTD.",
+		"USB 2.0 3.5\" DEVICE",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* Reported by Lubomir Blaha <tritol@trilogic.cz>
  * I _REALLY_ don't know what 3rd, 4th number and all defines mean, but this
  * works for me. Can anybody correct these values? (I able to test corrected
