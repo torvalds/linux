@@ -17,7 +17,6 @@ obj-y	:= debugtraps.o disassemble.o idle.o io.o io_generic.o irq.o	\
 obj-y				+= cpu/ timers/
 obj-$(CONFIG_VSYSCALL)		+= vsyscall/
 obj-$(CONFIG_SMP)		+= smp.o
-obj-$(CONFIG_CF_ENABLER)	+= cf-enabler.o
 obj-$(CONFIG_SH_STANDARD_BIOS)	+= sh_bios.o
 obj-$(CONFIG_KGDB)		+= kgdb.o
 obj-$(CONFIG_SH_CPU_FREQ)	+= cpufreq.o
