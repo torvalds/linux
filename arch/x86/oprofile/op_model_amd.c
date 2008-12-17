@@ -106,7 +106,7 @@ struct ibs_op_sample {
 	unsigned int ibs_dc_phys_high;
 };
 
-static int ibs_allowed;	/* AMD Family10h and later */
+static int has_ibs;	/* AMD Family10h and later */
 
 struct op_ibs_config {
 	unsigned long op_enabled;
@@ -201,7 +201,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 	struct ibs_fetch_sample ibs_fetch;
 	struct ibs_op_sample ibs_op;
 
-	if (!ibs_allowed)
+	if (!has_ibs)
 		return 1;
 
 	if (ibs_config.fetch_enabled) {
@@ -305,14 +305,14 @@ static void op_amd_start(struct op_msrs const * const msrs)
 	}
 
 #ifdef CONFIG_OPROFILE_IBS
-	if (ibs_allowed && ibs_config.fetch_enabled) {
+	if (has_ibs && ibs_config.fetch_enabled) {
 		low = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
 		high = ((ibs_config.rand_en & 0x1) << 25) /* bit 57 */
 			+ IBS_FETCH_HIGH_ENABLE;
 		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 	}
 
-	if (ibs_allowed && ibs_config.op_enabled) {
+	if (has_ibs && ibs_config.op_enabled) {
 		low = ((ibs_config.max_cnt_op >> 4) & 0xFFFF)
 			+ ((ibs_config.dispatched_ops & 0x1) << 19) /* bit 19 */
 			+ IBS_OP_LOW_ENABLE;
@@ -341,14 +341,14 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	}
 
 #ifdef CONFIG_OPROFILE_IBS
-	if (ibs_allowed && ibs_config.fetch_enabled) {
+	if (has_ibs && ibs_config.fetch_enabled) {
 		/* clear max count and enable */
 		low = 0;
 		high = 0;
 		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 	}
 
-	if (ibs_allowed && ibs_config.op_enabled) {
+	if (has_ibs && ibs_config.op_enabled) {
 		/* clear max count and enable */
 		low = 0;
 		high = 0;
@@ -437,20 +437,20 @@ static int init_ibs_nmi(void)
 /* uninitialize the APIC for the IBS interrupts if needed */
 static void clear_ibs_nmi(void)
 {
-	if (ibs_allowed)
+	if (has_ibs)
 		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
 /* initialize the APIC for the IBS interrupts if available */
 static void ibs_init(void)
 {
-	ibs_allowed = boot_cpu_has(X86_FEATURE_IBS);
+	has_ibs = boot_cpu_has(X86_FEATURE_IBS);
 
-	if (!ibs_allowed)
+	if (!has_ibs)
 		return;
 
 	if (init_ibs_nmi()) {
-		ibs_allowed = 0;
+		has_ibs = 0;
 		return;
 	}
 
@@ -459,7 +459,7 @@ static void ibs_init(void)
 
 static void ibs_exit(void)
 {
-	if (!ibs_allowed)
+	if (!has_ibs)
 		return;
 
 	clear_ibs_nmi();
@@ -479,7 +479,7 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 	if (ret)
 		return ret;
 
-	if (!ibs_allowed)
+	if (!has_ibs)
 		return ret;
 
 	/* model specific files */
