@@ -128,9 +128,14 @@
 	.colorspace = _colorspace }
 #define RGB_FMT(_name, _depth, _fourcc) \
 	COL_FMT(_name, _depth, _fourcc, V4L2_COLORSPACE_SRGB)
+#define JPG_FMT(_name, _depth, _fourcc) \
+	COL_FMT(_name, _depth, _fourcc, V4L2_COLORSPACE_JPEG)
 
 static const struct soc_camera_data_format mt9m111_colour_formats[] = {
-	COL_FMT("YCrYCb 8 bit", 8, V4L2_PIX_FMT_YUYV, V4L2_COLORSPACE_JPEG),
+	JPG_FMT("CbYCrY 16 bit", 16, V4L2_PIX_FMT_UYVY),
+	JPG_FMT("CrYCbY 16 bit", 16, V4L2_PIX_FMT_VYUY),
+	JPG_FMT("YCbYCr 16 bit", 16, V4L2_PIX_FMT_YUYV),
+	JPG_FMT("YCrYCb 16 bit", 16, V4L2_PIX_FMT_YVYU),
 	RGB_FMT("RGB 565", 16, V4L2_PIX_FMT_RGB565),
 	RGB_FMT("RGB 555", 16, V4L2_PIX_FMT_RGB555),
 	RGB_FMT("Bayer (sRGB) 10 bit", 10, V4L2_PIX_FMT_SBGGR16),
@@ -438,7 +443,24 @@ static int mt9m111_set_pixfmt(struct soc_camera_device *icd, u32 pixfmt)
 	case V4L2_PIX_FMT_RGB565:
 		ret = mt9m111_setfmt_rgb565(icd);
 		break;
+	case V4L2_PIX_FMT_UYVY:
+		mt9m111->swap_yuv_y_chromas = 0;
+		mt9m111->swap_yuv_cb_cr = 0;
+		ret = mt9m111_setfmt_yuv(icd);
+		break;
+	case V4L2_PIX_FMT_VYUY:
+		mt9m111->swap_yuv_y_chromas = 0;
+		mt9m111->swap_yuv_cb_cr = 1;
+		ret = mt9m111_setfmt_yuv(icd);
+		break;
 	case V4L2_PIX_FMT_YUYV:
+		mt9m111->swap_yuv_y_chromas = 1;
+		mt9m111->swap_yuv_cb_cr = 0;
+		ret = mt9m111_setfmt_yuv(icd);
+		break;
+	case V4L2_PIX_FMT_YVYU:
+		mt9m111->swap_yuv_y_chromas = 1;
+		mt9m111->swap_yuv_cb_cr = 1;
 		ret = mt9m111_setfmt_yuv(icd);
 		break;
 	default:
