@@ -27,6 +27,8 @@ static bool perf_counters_initialized __read_mostly;
 static int nr_hw_counters __read_mostly;
 static u32 perf_counter_mask __read_mostly;
 
+static int nr_hw_counters_fixed __read_mostly;
+
 struct cpu_hw_counters {
 	struct perf_counter	*generic[X86_PMC_MAX_GENERIC];
 	unsigned long		used[BITS_TO_LONGS(X86_PMC_MAX_GENERIC)];
@@ -519,8 +521,9 @@ static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
 void __init init_hw_perf_counters(void)
 {
 	union cpuid10_eax eax;
-	unsigned int unused;
 	unsigned int ebx;
+	unsigned int unused;
+	union cpuid10_edx edx;
 
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
 		return;
@@ -529,14 +532,14 @@ void __init init_hw_perf_counters(void)
 	 * Check whether the Architectural PerfMon supports
 	 * Branch Misses Retired Event or not.
 	 */
-	cpuid(10, &(eax.full), &ebx, &unused, &unused);
+	cpuid(10, &eax.full, &ebx, &unused, &edx.full);
 	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
 		return;
 
 	printk(KERN_INFO "Intel Performance Monitoring support detected.\n");
 
-	printk(KERN_INFO "... version:      %d\n", eax.split.version_id);
-	printk(KERN_INFO "... num_counters: %d\n", eax.split.num_counters);
+	printk(KERN_INFO "... version:         %d\n", eax.split.version_id);
+	printk(KERN_INFO "... num counters:    %d\n", eax.split.num_counters);
 	nr_hw_counters = eax.split.num_counters;
 	if (nr_hw_counters > X86_PMC_MAX_GENERIC) {
 		nr_hw_counters = X86_PMC_MAX_GENERIC;
@@ -546,8 +549,16 @@ void __init init_hw_perf_counters(void)
 	perf_counter_mask = (1 << nr_hw_counters) - 1;
 	perf_max_counters = nr_hw_counters;
 
-	printk(KERN_INFO "... bit_width:    %d\n", eax.split.bit_width);
-	printk(KERN_INFO "... mask_length:  %d\n", eax.split.mask_length);
+	printk(KERN_INFO "... bit width:       %d\n", eax.split.bit_width);
+	printk(KERN_INFO "... mask length:     %d\n", eax.split.mask_length);
+
+	nr_hw_counters_fixed = edx.split.num_counters_fixed;
+	if (nr_hw_counters_fixed > X86_PMC_MAX_FIXED) {
+		nr_hw_counters_fixed = X86_PMC_MAX_FIXED;
+		WARN(1, KERN_ERR "hw perf counters fixed %d > max(%d), clipping!",
+			nr_hw_counters_fixed, X86_PMC_MAX_FIXED);
+	}
+	printk(KERN_INFO "... fixed counters:  %d\n", nr_hw_counters_fixed);
 
 	perf_counters_initialized = true;
 

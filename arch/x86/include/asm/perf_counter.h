@@ -41,6 +41,29 @@ union cpuid10_eax {
 	unsigned int full;
 };
 
+union cpuid10_edx {
+	struct {
+		unsigned int num_counters_fixed:4;
+		unsigned int reserved:28;
+	} split;
+	unsigned int full;
+};
+
+
+/*
+ * Fixed-purpose performance counters:
+ */
+
+/* Instr_Retired.Any: */
+#define MSR_ARCH_PERFMON_FIXED_CTR0			0x309
+
+/* CPU_CLK_Unhalted.Core: */
+#define MSR_ARCH_PERFMON_FIXED_CTR1			0x30a
+
+/* CPU_CLK_Unhalted.Ref: */
+#define MSR_ARCH_PERFMON_FIXED_CTR2			0x30b
+
+
 #ifdef CONFIG_PERF_COUNTERS
 extern void init_hw_perf_counters(void);
 extern void perf_counters_lapic_init(int nmi);
