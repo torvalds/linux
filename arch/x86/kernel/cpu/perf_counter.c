@@ -24,17 +24,14 @@ static bool perf_counters_initialized __read_mostly;
 /*
  * Number of (generic) HW counters:
  */
-static int nr_hw_counters __read_mostly;
-static u32 perf_counter_mask __read_mostly;
+static int nr_counters_generic __read_mostly;
+static u64 perf_counter_mask __read_mostly;
 
-static int nr_hw_counters_fixed __read_mostly;
+static int nr_counters_fixed __read_mostly;
 
 struct cpu_hw_counters {
-	struct perf_counter	*generic[X86_PMC_MAX_GENERIC];
-	unsigned long		used[BITS_TO_LONGS(X86_PMC_MAX_GENERIC)];
-
-	struct perf_counter	*fixed[X86_PMC_MAX_FIXED];
-	unsigned long		used_fixed[BITS_TO_LONGS(X86_PMC_MAX_FIXED)];
+	struct perf_counter	*counters[X86_PMC_IDX_MAX];
+	unsigned long		used[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 };
 
 /*
@@ -159,7 +156,7 @@ void hw_perf_enable_all(void)
 	if (unlikely(!perf_counters_initialized))
 		return;
 
-	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, perf_counter_mask, 0);
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, perf_counter_mask);
 }
 
 u64 hw_perf_save_disable(void)
@@ -170,7 +167,7 @@ u64 hw_perf_save_disable(void)
 		return 0;
 
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
-	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0, 0);
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 
 	return ctrl;
 }
@@ -181,7 +178,7 @@ void hw_perf_restore(u64 ctrl)
 	if (unlikely(!perf_counters_initialized))
 		return;
 
-	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, ctrl, 0);
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 }
 EXPORT_SYMBOL_GPL(hw_perf_restore);
 
@@ -239,6 +236,11 @@ __pmc_generic_enable(struct perf_counter *counter,
 	      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE, 0);
 }
 
+static int fixed_mode_idx(struct hw_perf_counter *hwc)
+{
+	return -1;
+}
+
 /*
  * Find a PMC slot for the freshly enabled / scheduled in counter:
  */
@@ -250,7 +252,7 @@ static void pmc_generic_enable(struct perf_counter *counter)
 
 	/* Try to get the previous counter again */
 	if (test_and_set_bit(idx, cpuc->used)) {
-		idx = find_first_zero_bit(cpuc->used, nr_hw_counters);
+		idx = find_first_zero_bit(cpuc->used, nr_counters_generic);
 		set_bit(idx, cpuc->used);
 		hwc->idx = idx;
 	}
@@ -259,7 +261,7 @@ static void pmc_generic_enable(struct perf_counter *counter)
 
 	__pmc_generic_disable(counter, hwc, idx);
 
-	cpuc->generic[idx] = counter;
+	cpuc->counters[idx] = counter;
 
 	__hw_perf_counter_set_period(counter, hwc, idx);
 	__pmc_generic_enable(counter, hwc, idx);
@@ -270,7 +272,7 @@ void perf_counter_print_debug(void)
 	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left;
 	int cpu, idx;
 
-	if (!nr_hw_counters)
+	if (!nr_counters_generic)
 		return;
 
 	local_irq_disable();
@@ -286,7 +288,7 @@ void perf_counter_print_debug(void)
 	printk(KERN_INFO "CPU#%d: status:     %016llx\n", cpu, status);
 	printk(KERN_INFO "CPU#%d: overflow:   %016llx\n", cpu, overflow);
 
-	for (idx = 0; idx < nr_hw_counters; idx++) {
+	for (idx = 0; idx < nr_counters_generic; idx++) {
 		rdmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, pmc_ctrl);
 		rdmsrl(MSR_ARCH_PERFMON_PERFCTR0  + idx, pmc_count);
 
@@ -311,7 +313,7 @@ static void pmc_generic_disable(struct perf_counter *counter)
 	__pmc_generic_disable(counter, hwc, idx);
 
 	clear_bit(idx, cpuc->used);
-	cpuc->generic[idx] = NULL;
+	cpuc->counters[idx] = NULL;
 
 	/*
 	 * Drain the remaining delta count out of a counter
@@ -381,7 +383,7 @@ static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, saved_global);
 
 	/* Disable counters globally */
-	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0, 0);
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 	ack_APIC_irq();
 
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
@@ -392,8 +394,8 @@ static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 
 again:
 	ack = status;
-	for_each_bit(bit, (unsigned long *) &status, nr_hw_counters) {
-		struct perf_counter *counter = cpuc->generic[bit];
+	for_each_bit(bit, (unsigned long *) &status, nr_counters_generic) {
+		struct perf_counter *counter = cpuc->counters[bit];
 
 		clear_bit(bit, (unsigned long *) &status);
 		if (!counter)
@@ -424,7 +426,7 @@ again:
 		}
 	}
 
-	wrmsr(MSR_CORE_PERF_GLOBAL_OVF_CTRL, ack, 0);
+	wrmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, ack);
 
 	/*
 	 * Repeat if there is more work to be done:
@@ -436,7 +438,7 @@ out:
 	/*
 	 * Restore - do not reenable when global enable is off:
 	 */
-	wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, saved_global, 0);
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, saved_global);
 }
 
 void smp_perf_counter_interrupt(struct pt_regs *regs)
@@ -462,8 +464,8 @@ void perf_counter_notify(struct pt_regs *regs)
 	cpu = smp_processor_id();
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
-	for_each_bit(bit, cpuc->used, nr_hw_counters) {
-		struct perf_counter *counter = cpuc->generic[bit];
+	for_each_bit(bit, cpuc->used, X86_PMC_IDX_MAX) {
+		struct perf_counter *counter = cpuc->counters[bit];
 
 		if (!counter)
 			continue;
@@ -540,26 +542,29 @@ void __init init_hw_perf_counters(void)
 
 	printk(KERN_INFO "... version:         %d\n", eax.split.version_id);
 	printk(KERN_INFO "... num counters:    %d\n", eax.split.num_counters);
-	nr_hw_counters = eax.split.num_counters;
-	if (nr_hw_counters > X86_PMC_MAX_GENERIC) {
-		nr_hw_counters = X86_PMC_MAX_GENERIC;
+	nr_counters_generic = eax.split.num_counters;
+	if (nr_counters_generic > X86_PMC_MAX_GENERIC) {
+		nr_counters_generic = X86_PMC_MAX_GENERIC;
 		WARN(1, KERN_ERR "hw perf counters %d > max(%d), clipping!",
-			nr_hw_counters, X86_PMC_MAX_GENERIC);
+			nr_counters_generic, X86_PMC_MAX_GENERIC);
 	}
-	perf_counter_mask = (1 << nr_hw_counters) - 1;
-	perf_max_counters = nr_hw_counters;
+	perf_counter_mask = (1 << nr_counters_generic) - 1;
+	perf_max_counters = nr_counters_generic;
 
 	printk(KERN_INFO "... bit width:       %d\n", eax.split.bit_width);
 	printk(KERN_INFO "... mask length:     %d\n", eax.split.mask_length);
 
-	nr_hw_counters_fixed = edx.split.num_counters_fixed;
-	if (nr_hw_counters_fixed > X86_PMC_MAX_FIXED) {
-		nr_hw_counters_fixed = X86_PMC_MAX_FIXED;
+	nr_counters_fixed = edx.split.num_counters_fixed;
+	if (nr_counters_fixed > X86_PMC_MAX_FIXED) {
+		nr_counters_fixed = X86_PMC_MAX_FIXED;
 		WARN(1, KERN_ERR "hw perf counters fixed %d > max(%d), clipping!",
-			nr_hw_counters_fixed, X86_PMC_MAX_FIXED);
+			nr_counters_fixed, X86_PMC_MAX_FIXED);
 	}
-	printk(KERN_INFO "... fixed counters:  %d\n", nr_hw_counters_fixed);
+	printk(KERN_INFO "... fixed counters:  %d\n", nr_counters_fixed);
 
+	perf_counter_mask |= ((1LL << nr_counters_fixed)-1) << X86_PMC_IDX_FIXED;
+
+	printk(KERN_INFO "... counter mask:    %016Lx\n", perf_counter_mask);
 	perf_counters_initialized = true;
 
 	perf_counters_lapic_init(0);

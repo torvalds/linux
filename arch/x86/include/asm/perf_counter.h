@@ -8,6 +8,10 @@
 #define X86_PMC_MAX_GENERIC					8
 #define X86_PMC_MAX_FIXED					3
 
+#define X86_PMC_IDX_GENERIC				        0
+#define X86_PMC_IDX_FIXED				       32
+#define X86_PMC_IDX_MAX					       64
+
 #define MSR_ARCH_PERFMON_PERFCTR0			      0xc1
 #define MSR_ARCH_PERFMON_PERFCTR1			      0xc2
 
@@ -54,6 +58,15 @@ union cpuid10_edx {
  * Fixed-purpose performance counters:
  */
 
+/*
+ * All 3 fixed-mode PMCs are configured via this single MSR:
+ */
+#define MSR_ARCH_PERFMON_FIXED_CTR_CTRL			0x38d
+
+/*
+ * The counts are available in three separate MSRs:
+ */
+
 /* Instr_Retired.Any: */
 #define MSR_ARCH_PERFMON_FIXED_CTR0			0x309
 
@@ -62,7 +75,6 @@ union cpuid10_edx {
 
 /* CPU_CLK_Unhalted.Ref: */
 #define MSR_ARCH_PERFMON_FIXED_CTR2			0x30b
-
 
 #ifdef CONFIG_PERF_COUNTERS
 extern void init_hw_perf_counters(void);
