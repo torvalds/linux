@@ -122,8 +122,8 @@ static unsigned int x2apic_cpu_mask_to_apicid(const cpumask_t *cpumask)
 		return BAD_APICID;
 }
 
-static unsigned int x2apic_cpu_mask_to_apicid_and(const cpumask_t *cpumask,
-						  const cpumask_t *andmask)
+static unsigned int x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+						  const struct cpumask *andmask)
 {
 	int cpu;
 
@@ -131,9 +131,9 @@ static unsigned int x2apic_cpu_mask_to_apicid_and(const cpumask_t *cpumask,
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	while ((cpu = next_cpu(-1, *cpumask)) < nr_cpu_ids)
-		if (cpu_isset(cpu, *andmask))
-			return per_cpu(x86_cpu_to_apicid, cpu);
+	cpu = cpumask_any_and(cpumask, andmask);
+	if (cpu < nr_cpu_ids)
+		return per_cpu(x86_cpu_to_apicid, cpu);
 	return BAD_APICID;
 }
 

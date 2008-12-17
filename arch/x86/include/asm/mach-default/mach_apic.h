@@ -67,11 +67,11 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	return cpus_addr(*cpumask)[0];
 }
 
-static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask,
-					      const cpumask_t *andmask)
+static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+						  const struct cpumask *andmask)
 {
-	unsigned long mask1 = cpus_addr(*cpumask)[0];
-	unsigned long mask2 = cpus_addr(*andmask)[0];
+	unsigned long mask1 = cpumask_bits(cpumask)[0];
+	unsigned long mask2 = cpumask_bits(andmask)[0];
 
 	return (unsigned int)(mask1 & mask2);
 }

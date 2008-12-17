@@ -58,8 +58,8 @@ struct genapic {
 	unsigned (*get_apic_id)(unsigned long x);
 	unsigned long apic_id_mask;
 	unsigned int (*cpu_mask_to_apicid)(const cpumask_t *cpumask);
-	unsigned int (*cpu_mask_to_apicid_and)(const cpumask_t *cpumask,
-					       const cpumask_t *andmask);
+	unsigned int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
+					       const struct cpumask *andmask);
 	void (*vector_allocation_domain)(int cpu, cpumask_t *retmask);
 
 #ifdef CONFIG_SMP

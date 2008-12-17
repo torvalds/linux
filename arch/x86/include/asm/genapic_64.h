@@ -31,8 +31,8 @@ struct genapic {
 	void (*send_IPI_self)(int vector);
 	/* */
 	unsigned int (*cpu_mask_to_apicid)(const cpumask_t *cpumask);
-	unsigned int (*cpu_mask_to_apicid_and)(const cpumask_t *cpumask,
-					       const cpumask_t *andmask);
+	unsigned int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
+					       const struct cpumask *andmask);
 	unsigned int (*phys_pkg_id)(int index_msb);
 	unsigned int (*get_apic_id)(unsigned long x);
 	unsigned long (*set_apic_id)(unsigned int id);

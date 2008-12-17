@@ -127,8 +127,8 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	return (int) 0xF;
 }
 
-static inline unsigned int cpu_mask_to_apicid_and(const cpumask_t *cpumask,
-						  const cpumask_t *andmask)
+static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+						  const struct cpumask *andmask)
 {
 	return (int) 0xF;
 }

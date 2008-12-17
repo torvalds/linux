@@ -158,13 +158,13 @@ static unsigned int flat_cpu_mask_to_apicid(const cpumask_t *cpumask)
 	return cpus_addr(*cpumask)[0] & APIC_ALL_CPUS;
 }
 
-static unsigned int flat_cpu_mask_to_apicid_and(const cpumask_t *cpumask,
-						const cpumask_t *andmask)
+static unsigned int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+						const struct cpumask *andmask)
 {
-	unsigned long mask1 = cpus_addr(*cpumask)[0] & APIC_ALL_CPUS;
-	unsigned long mask2 = cpus_addr(*andmask)[0] & APIC_ALL_CPUS;
+	unsigned long mask1 = cpumask_bits(cpumask)[0] & APIC_ALL_CPUS;
+	unsigned long mask2 = cpumask_bits(andmask)[0] & APIC_ALL_CPUS;
 
-	return (int)(mask1 & mask2);
+	return mask1 & mask2;
 }
 
 static unsigned int phys_pkg_id(int index_msb)
@@ -264,8 +264,9 @@ static unsigned int physflat_cpu_mask_to_apicid(const cpumask_t *cpumask)
 		return BAD_APICID;
 }
 
-static unsigned int physflat_cpu_mask_to_apicid_and(const cpumask_t *cpumask,
-						    const cpumask_t *andmask)
+static unsigned int
+physflat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+				const struct cpumask *andmask)
 {
 	int cpu;
 
@@ -273,9 +274,9 @@ static unsigned int physflat_cpu_mask_to_apicid_and(const cpumask_t *cpumask,
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	while ((cpu = next_cpu(-1, *cpumask)) < nr_cpu_ids)
-		if (cpu_isset(cpu, *andmask))
-			return per_cpu(x86_cpu_to_apicid, cpu);
+	cpu = cpumask_any_and(cpumask, andmask);
+	if (cpu < nr_cpu_ids)
+		return per_cpu(x86_cpu_to_apicid, cpu);
 	return BAD_APICID;
 }
 
