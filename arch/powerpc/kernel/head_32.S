@@ -183,7 +183,8 @@ __after_mmu_off:
 	bl	reloc_offset
 	mr	r26,r3
 	addis	r4,r3,KERNELBASE@h	/* current address of _start */
-	cmpwi	0,r4,0			/* are we already running at 0? */
+	lis	r5,PHYSICAL_START@h
+	cmplw	0,r4,r5			/* already running at PHYSICAL_START? */
 	bne	relocate_kernel
 /*
  * we now have the 1st 16M of ram mapped with the bats.
@@ -811,13 +812,13 @@ giveup_altivec:
 
 /*
  * This code is jumped to from the startup code to copy
- * the kernel image to physical address 0.
+ * the kernel image to physical address PHYSICAL_START.
  */
 relocate_kernel:
 	addis	r9,r26,klimit@ha	/* fetch klimit */
 	lwz	r25,klimit@l(r9)
 	addis	r25,r25,-KERNELBASE@h
-	li	r3,0			/* Destination base address */
+	lis	r3,PHYSICAL_START@h	/* Destination base address */
 	li	r6,0			/* Destination offset */
 	li	r5,0x4000		/* # bytes of memory to copy */
 	bl	copy_and_flush		/* copy the first 0x4000 bytes */
@@ -1188,11 +1189,11 @@ mmu_off:
 
 /*
  * Use the first pair of BAT registers to map the 1st 16MB
- * of RAM to KERNELBASE.  From this point on we can't safely
+ * of RAM to PAGE_OFFSET.  From this point on we can't safely
  * call OF any more.
  */
 initial_bats:
-	lis	r11,KERNELBASE@h
+	lis	r11,PAGE_OFFSET@h
 	mfspr	r9,SPRN_PVR
 	rlwinm	r9,r9,16,16,31		/* r9 = 1 for 601, 4 for 604 */
 	cmpwi	0,r9,1

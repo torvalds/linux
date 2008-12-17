@@ -269,7 +269,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 }
 
 /*
- * Map in a big chunk of physical memory starting at KERNELBASE.
+ * Map in a big chunk of physical memory starting at PAGE_OFFSET.
  */
 void __init mapin_ram(void)
 {
@@ -278,7 +278,7 @@ void __init mapin_ram(void)
 	int ktext;
 
 	s = mmu_mapin_ram();
-	v = KERNELBASE + s;
+	v = PAGE_OFFSET + s;
 	p = memstart_addr + s;
 	for (; s < total_lowmem; s += PAGE_SIZE) {
 		ktext = ((char *) v >= _stext && (char *) v < etext);
