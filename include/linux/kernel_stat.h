@@ -66,7 +66,15 @@ static inline unsigned int kstat_irqs(unsigned int irq)
 	return sum;
 }
 
+
+/*
+ * Lock/unlock the current runqueue - to extract task statistics:
+ */
+extern void curr_rq_lock_irq_save(unsigned long *flags);
+extern void curr_rq_unlock_irq_restore(unsigned long *flags);
+extern unsigned long long __task_delta_exec(struct task_struct *tsk, int update);
 extern unsigned long long task_delta_exec(struct task_struct *);
+
 extern void account_user_time(struct task_struct *, cputime_t);
 extern void account_user_time_scaled(struct task_struct *, cputime_t);
 extern void account_system_time(struct task_struct *, int, cputime_t);

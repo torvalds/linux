@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/anon_inodes.h>
+#include <linux/kernel_stat.h>
 #include <linux/perf_counter.h>
 
 /*
@@ -106,7 +107,8 @@ static void __perf_counter_remove_from_context(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	curr_rq_lock_irq_save(&flags);
+	spin_lock(&ctx->lock);
 
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE) {
 		counter->hw_ops->disable(counter);
@@ -135,7 +137,8 @@ static void __perf_counter_remove_from_context(void *info)
 			    perf_max_counters - perf_reserved_percpu);
 	}
 
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	spin_unlock(&ctx->lock);
+	curr_rq_unlock_irq_restore(&flags);
 }
 
 
@@ -209,7 +212,8 @@ static void __perf_install_in_context(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	curr_rq_lock_irq_save(&flags);
+	spin_lock(&ctx->lock);
 
 	/*
 	 * Protect the list operation against NMI by disabling the
@@ -232,7 +236,8 @@ static void __perf_install_in_context(void *info)
 	if (!ctx->task && cpuctx->max_pertask)
 		cpuctx->max_pertask--;
 
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	spin_unlock(&ctx->lock);
+	curr_rq_unlock_irq_restore(&flags);
 }
 
 /*
@@ -438,14 +443,18 @@ int perf_counter_task_disable(void)
 	struct task_struct *curr = current;
 	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
 	struct perf_counter *counter;
+	unsigned long flags;
 	u64 perf_flags;
 	int cpu;
 
 	if (likely(!ctx->nr_counters))
 		return 0;
 
-	local_irq_disable();
+	curr_rq_lock_irq_save(&flags);
 	cpu = smp_processor_id();
+
+	/* force the update of the task clock: */
+	__task_delta_exec(curr, 1);
 
 	perf_counter_task_sched_out(curr, cpu);
 
@@ -463,7 +472,7 @@ int perf_counter_task_disable(void)
 
 	spin_unlock(&ctx->lock);
 
-	local_irq_enable();
+	curr_rq_unlock_irq_restore(&flags);
 
 	return 0;
 }
@@ -473,14 +482,18 @@ int perf_counter_task_enable(void)
 	struct task_struct *curr = current;
 	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
 	struct perf_counter *counter;
+	unsigned long flags;
 	u64 perf_flags;
 	int cpu;
 
 	if (likely(!ctx->nr_counters))
 		return 0;
 
-	local_irq_disable();
+	curr_rq_lock_irq_save(&flags);
 	cpu = smp_processor_id();
+
+	/* force the update of the task clock: */
+	__task_delta_exec(curr, 1);
 
 	spin_lock(&ctx->lock);
 
@@ -493,6 +506,7 @@ int perf_counter_task_enable(void)
 		if (counter->state != PERF_COUNTER_STATE_OFF)
 			continue;
 		counter->state = PERF_COUNTER_STATE_INACTIVE;
+		counter->hw_event.disabled = 0;
 	}
 	hw_perf_restore(perf_flags);
 
@@ -500,7 +514,7 @@ int perf_counter_task_enable(void)
 
 	perf_counter_task_sched_in(curr, cpu);
 
-	local_irq_enable();
+	curr_rq_unlock_irq_restore(&flags);
 
 	return 0;
 }
@@ -540,8 +554,11 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 static void __read(void *info)
 {
 	struct perf_counter *counter = info;
+	unsigned long flags;
 
+	curr_rq_lock_irq_save(&flags);
 	counter->hw_ops->read(counter);
+	curr_rq_unlock_irq_restore(&flags);
 }
 
 static u64 perf_counter_read(struct perf_counter *counter)
@@ -860,13 +877,27 @@ static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
 	.read		= cpu_clock_perf_counter_read,
 };
 
-static void task_clock_perf_counter_update(struct perf_counter *counter)
+/*
+ * Called from within the scheduler:
+ */
+static u64 task_clock_perf_counter_val(struct perf_counter *counter, int update)
 {
-	u64 prev, now;
+	struct task_struct *curr = counter->task;
+	u64 delta;
+
+	WARN_ON_ONCE(counter->task != current);
+
+	delta = __task_delta_exec(curr, update);
+
+	return curr->se.sum_exec_runtime + delta;
+}
+
+static void task_clock_perf_counter_update(struct perf_counter *counter, u64 now)
+{
+	u64 prev;
 	s64 delta;
 
 	prev = atomic64_read(&counter->hw.prev_count);
-	now = current->se.sum_exec_runtime;
 
 	atomic64_set(&counter->hw.prev_count, now);
 
@@ -877,17 +908,23 @@ static void task_clock_perf_counter_update(struct perf_counter *counter)
 
 static void task_clock_perf_counter_read(struct perf_counter *counter)
 {
-	task_clock_perf_counter_update(counter);
+	u64 now = task_clock_perf_counter_val(counter, 1);
+
+	task_clock_perf_counter_update(counter, now);
 }
 
 static void task_clock_perf_counter_enable(struct perf_counter *counter)
 {
-	atomic64_set(&counter->hw.prev_count, current->se.sum_exec_runtime);
+	u64 now = task_clock_perf_counter_val(counter, 0);
+
+	atomic64_set(&counter->hw.prev_count, now);
 }
 
 static void task_clock_perf_counter_disable(struct perf_counter *counter)
 {
-	task_clock_perf_counter_update(counter);
+	u64 now = task_clock_perf_counter_val(counter, 0);
+
+	task_clock_perf_counter_update(counter, now);
 }
 
 static const struct hw_perf_counter_ops perf_ops_task_clock = {
@@ -1267,6 +1304,7 @@ __perf_counter_exit_task(struct task_struct *child,
 {
 	struct perf_counter *parent_counter;
 	u64 parent_val, child_val;
+	unsigned long flags;
 	u64 perf_flags;
 
 	/*
@@ -1275,7 +1313,7 @@ __perf_counter_exit_task(struct task_struct *child,
 	 * Be careful about zapping the list - IRQ/NMI context
 	 * could still be processing it:
 	 */
-	local_irq_disable();
+	curr_rq_lock_irq_save(&flags);
 	perf_flags = hw_perf_save_disable();
 
 	if (child_counter->state == PERF_COUNTER_STATE_ACTIVE) {
@@ -1294,7 +1332,7 @@ __perf_counter_exit_task(struct task_struct *child,
 	list_del_init(&child_counter->list_entry);
 
 	hw_perf_restore(perf_flags);
-	local_irq_enable();
+	curr_rq_unlock_irq_restore(&flags);
 
 	parent_counter = child_counter->parent;
 	/*

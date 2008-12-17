@@ -922,6 +922,12 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	forget_original_parent(tsk);
 	exit_task_namespaces(tsk);
 
+	/*
+	 * Flush inherited counters to the parent - before the parent
+	 * gets woken up by child-exit notifications.
+	 */
+	perf_counter_exit_task(tsk);
+
 	write_lock_irq(&tasklist_lock);
 	if (group_dead)
 		kill_orphaned_pgrp(tsk->group_leader, NULL);
@@ -1093,11 +1099,6 @@ NORET_TYPE void do_exit(long code)
 	mpol_put(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
-	/*
-	 * These must happen late, after the PID is not
-	 * hashed anymore, but still at a point that may sleep:
-	 */
-	perf_counter_exit_task(tsk);
 #ifdef CONFIG_FUTEX
 	if (unlikely(!list_empty(&tsk->pi_state_list)))
 		exit_pi_state_list(tsk);
@@ -1120,6 +1121,12 @@ NORET_TYPE void do_exit(long code)
 
 	if (tsk->splice_pipe)
 		__free_pipe_info(tsk->splice_pipe);
+
+	/*
+	 * These must happen late, after the PID is not
+	 * hashed anymore, but still at a point that may sleep:
+	 */
+	perf_counter_exit_task(tsk);
 
 	preempt_disable();
 	/* causes final put_task_struct in finish_task_switch(). */
