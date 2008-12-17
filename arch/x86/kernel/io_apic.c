@@ -347,13 +347,14 @@ void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc)
 	}
 }
 
-static void set_extra_move_desc(struct irq_desc *desc, cpumask_t mask)
+static void
+set_extra_move_desc(struct irq_desc *desc, const struct cpumask *mask)
 {
 	struct irq_cfg *cfg = desc->chip_data;
 
 	if (!cfg->move_in_progress) {
 		/* it means that domain is not changed */
-		if (!cpus_intersects(desc->affinity, mask))
+		if (!cpumask_intersects(&desc->affinity, mask))
 			cfg->move_desc_pending = 1;
 	}
 }
