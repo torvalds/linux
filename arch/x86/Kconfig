@@ -599,12 +599,12 @@ config MAXSMP
 	  If unsure, say N.
 
 config NR_CPUS
-	depends on SMP
 	int "Maximum number of CPUs" if SMP && !MAXSMP
 	range 2 512 if SMP && !MAXSMP
+	default "1" if !SMP
 	default "4096" if MAXSMP
-	default "32" if X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000
-	default "8"
+	default "32" if SMP && (X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000)
+	default "8" if SMP
 	help
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  The maximum supported value is 512 and the
