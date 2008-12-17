@@ -298,7 +298,6 @@ static void __device_release_driver(struct device *dev)
 	drv = dev->driver;
 	if (drv) {
 		driver_sysfs_remove(dev);
-		sysfs_remove_link(&dev->kobj, "driver");
 
 		if (dev->bus)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
