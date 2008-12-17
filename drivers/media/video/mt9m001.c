@@ -578,6 +578,7 @@ static int mt9m001_set_control(struct soc_camera_device *icd, struct v4l2_contro
 static int mt9m001_video_probe(struct soc_camera_device *icd)
 {
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
+	struct soc_camera_link *icl = mt9m001->client->dev.platform_data;
 	s32 data;
 	int ret;
 
@@ -600,7 +601,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd)
 	case 0x8421:
 		mt9m001->model = V4L2_IDENT_MT9M001C12ST;
 		icd->formats = mt9m001_colour_formats;
-		if (mt9m001->client->dev.platform_data)
+		if (gpio_is_valid(icl->gpio))
 			icd->num_formats = ARRAY_SIZE(mt9m001_colour_formats);
 		else
 			icd->num_formats = 1;
@@ -608,7 +609,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd)
 	case 0x8431:
 		mt9m001->model = V4L2_IDENT_MT9M001C12STM;
 		icd->formats = mt9m001_monochrome_formats;
-		if (mt9m001->client->dev.platform_data)
+		if (gpio_is_valid(icl->gpio))
 			icd->num_formats = ARRAY_SIZE(mt9m001_monochrome_formats);
 		else
 			icd->num_formats = 1;
