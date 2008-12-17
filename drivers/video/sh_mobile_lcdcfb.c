@@ -499,9 +499,11 @@ static struct fb_fix_screeninfo sh_mobile_lcdc_fix  = {
 
 static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_setcolreg	= sh_mobile_lcdc_setcolreg,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	.fb_read        = fb_sys_read,
+	.fb_write       = fb_sys_write,
+	.fb_fillrect	= sys_fillrect,
+	.fb_copyarea	= sys_copyarea,
+	.fb_imageblit	= sys_imageblit,
 };
 
 static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp)
