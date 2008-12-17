@@ -784,9 +784,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	vidioc_try_fmt_vid_cap(file, priv, f);
-
 	mutex_lock(&dev->lock);
+
+	vidioc_try_fmt_vid_cap(file, priv, f);
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		em28xx_errdev("%s queue busy\n", __func__);
@@ -828,14 +828,11 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 
 	mutex_lock(&dev->lock);
 	dev->norm = *norm;
-	mutex_unlock(&dev->lock);
 
 	/* Adjusts width/height, if needed */
 	f.fmt.pix.width = dev->width;
 	f.fmt.pix.height = dev->height;
 	vidioc_try_fmt_vid_cap(file, priv, &f);
-
-	mutex_lock(&dev->lock);
 
 	/* set new image size */
 	dev->width = f.fmt.pix.width;
@@ -966,11 +963,15 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 
+	mutex_lock(&dev->lock);
+
 	dev->ctl_ainput = INPUT(a->index)->amux;
 	dev->ctl_aoutput = INPUT(a->index)->aout;
 
 	if (!dev->ctl_aoutput)
 		dev->ctl_aoutput = EM28XX_AOUT_MASTER;
+
+	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1019,6 +1020,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	rc = check_dev(dev);
 	if (rc < 0)
 		return rc;
+
 	mutex_lock(&dev->lock);
 
 	if (!dev->board.has_msp34xx)
@@ -1129,8 +1131,10 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 
+	mutex_lock(&dev->lock);
 	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = dev->ctl_freq;
+	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1160,6 +1164,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, f);
 
 	mutex_unlock(&dev->lock);
+
 	return 0;
 }
 
@@ -1187,15 +1192,20 @@ static int vidioc_g_register(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (em28xx_reg_len(reg->reg) == 1) {
+		mutex_lock(&dev->lock);
 		ret = em28xx_read_reg(dev, reg->reg);
+		mutex_unlock(&dev->lock);
+
 		if (ret < 0)
 			return ret;
 
 		reg->val = ret;
 	} else {
 		__le64 val = 0;
+		mutex_lock(&dev->lock);
 		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
+		mutex_unlock(&dev->lock);
 		if (ret < 0)
 			return ret;
 
@@ -1211,11 +1221,16 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	__le64 buf;
+	int    rc;
 
 	buf = cpu_to_le64(reg->val);
 
-	return em28xx_write_regs(dev, reg->reg, (char *)&buf,
-				 em28xx_reg_len(reg->reg));
+	mutex_lock(&dev->lock);
+	rc = em28xx_write_regs(dev, reg->reg, (char *)&buf,
+			       em28xx_reg_len(reg->reg));
+	mutex_unlock(&dev->lock);
+
+	return rc;
 }
 #endif
 
@@ -1254,12 +1269,15 @@ static int vidioc_streamon(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 	rc = res_get(fh);
-	mutex_unlock(&dev->lock);
 
 	if (unlikely(rc < 0))
 		return rc;
 
-	return (videobuf_streamon(&fh->vb_vidq));
+	rc = videobuf_streamon(&fh->vb_vidq);
+
+	mutex_unlock(&dev->lock);
+
+	return rc;
 }
 
 static int vidioc_streamoff(struct file *file, void *priv,
@@ -1278,9 +1296,11 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	if (type != fh->type)
 		return -EINVAL;
 
-	videobuf_streamoff(&fh->vb_vidq);
 	mutex_lock(&dev->lock);
+
+	videobuf_streamoff(&fh->vb_vidq);
 	res_free(fh);
+
 	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1465,7 +1485,10 @@ static int radio_g_tuner(struct file *file, void *priv,
 	strcpy(t->name, "Radio");
 	t->type = V4L2_TUNER_RADIO;
 
+	mutex_lock(&dev->lock);
 	em28xx_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
+	mutex_unlock(&dev->lock);
+
 	return 0;
 }
 
@@ -1497,7 +1520,9 @@ static int radio_s_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
+	mutex_lock(&dev->lock);
 	em28xx_i2c_call_clients(dev, VIDIOC_S_TUNER, t);
+	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1561,6 +1586,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 		}
 	}
 	mutex_unlock(&em28xx_devlist_mutex);
+
 	if (NULL == dev)
 		return -ENODEV;
 
@@ -2036,7 +2062,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	unsigned int maxh, maxw;
 
 	dev->udev = udev;
-	mutex_init(&dev->lock);
 	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
 	init_waitqueue_head(&dev->open);
@@ -2151,7 +2176,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	return 0;
 
 fail_reg_devices:
-	mutex_unlock(&dev->lock);
 	return retval;
 }
 
@@ -2343,6 +2367,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		dev->model = card[nr];
 
 	/* allocate device struct */
+	mutex_init(&dev->lock);
+	mutex_lock(&dev->lock);
 	retval = em28xx_init_dev(&dev, udev, nr);
 	if (retval) {
 		em28xx_devused &= ~(1<<dev->devno);
@@ -2355,6 +2381,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, dev);
 
 	request_modules(dev);
+
+	/* Should be the last thing to do, to avoid newer udev's to
+	   open the device before fully initializing it
+	 */
+	mutex_unlock(&dev->lock);
 
 	return 0;
 }
