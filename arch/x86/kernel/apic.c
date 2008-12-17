@@ -141,7 +141,7 @@ static int lapic_next_event(unsigned long delta,
 			    struct clock_event_device *evt);
 static void lapic_timer_setup(enum clock_event_mode mode,
 			      struct clock_event_device *evt);
-static void lapic_timer_broadcast(const struct cpumask *mask);
+static void lapic_timer_broadcast(const cpumask_t *mask);
 static void apic_pm_activate(void);
 
 /*
@@ -453,10 +453,10 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 /*
  * Local APIC timer broadcast function
  */
-static void lapic_timer_broadcast(const struct cpumask *mask)
+static void lapic_timer_broadcast(const cpumask_t *mask)
 {
 #ifdef CONFIG_SMP
-	send_IPI_mask(*mask, LOCAL_TIMER_VECTOR);
+	send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
 #endif
 }
 
