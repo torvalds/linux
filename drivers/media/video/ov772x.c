@@ -378,30 +378,17 @@ struct ov772x_priv {
 
 #define ENDMARKER { 0xff, 0xff }
 
-static const struct regval_list ov772x_default_regs[] =
-{
-	{ COM3,  0x00 },
-	{ COM4,  PLL_4x | 0x01 },
-	{ 0x16,  0x00 }, /* Mystery */
-	{ COM11, 0x10 }, /* Mystery */
-	{ 0x28,  0x00 }, /* Mystery */
-	{ HREF,  0x00 },
-	{ COM13, 0xe2 }, /* Mystery */
-	{ AREF0, 0xef },
-	{ AREF2, 0x60 },
-	{ AREF6, 0x7a },
-	ENDMARKER,
-};
-
 /*
  * register setting for color format
  */
 static const struct regval_list ov772x_RGB555_regs[] = {
+	{ COM3, 0x00 },
 	{ COM7, FMT_RGB555 | OFMT_RGB },
 	ENDMARKER,
 };
 
 static const struct regval_list ov772x_RGB565_regs[] = {
+	{ COM3, 0x00 },
 	{ COM7, FMT_RGB565 | OFMT_RGB },
 	ENDMARKER,
 };
@@ -413,6 +400,7 @@ static const struct regval_list ov772x_YYUV_regs[] = {
 };
 
 static const struct regval_list ov772x_UVYY_regs[] = {
+	{ COM3, 0x00 },
 	{ COM7, OFMT_YUV },
 	ENDMARKER,
 };
@@ -634,9 +622,6 @@ static int ov772x_start_capture(struct soc_camera_device *icd)
 	 * reset hardware
 	 */
 	ov772x_reset(priv->client);
-	ret = ov772x_write_array(priv->client, ov772x_default_regs);
-	if (ret < 0)
-		goto start_end;
 
 	/*
 	 * set color format
