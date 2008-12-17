@@ -22,7 +22,7 @@
  * that will be different for 32-bit and 64-bit, because of the
  * different ABIs, though).
  */
-_GLOBAL(xmon_save_regs)
+_GLOBAL(ppc_save_regs)
 	PPC_STL	r0,0*SZL(r3)
 	PPC_STL	r2,2*SZL(r3)
 	PPC_STL	r3,3*SZL(r3)
