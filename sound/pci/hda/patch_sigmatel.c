@@ -69,6 +69,7 @@ enum {
 };
 
 enum {
+	STAC_92HD73XX_NO_JD, /* no jack-detection */
 	STAC_92HD73XX_REF,
 	STAC_DELL_M6_AMIC,
 	STAC_DELL_M6_DMIC,
@@ -1612,6 +1613,7 @@ static unsigned int *stac92hd73xx_brd_tbl[STAC_92HD73XX_MODELS] = {
 };
 
 static const char *stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
+	[STAC_92HD73XX_NO_JD] = "no-jd",
 	[STAC_92HD73XX_REF] = "ref",
 	[STAC_DELL_M6_AMIC] = "dell-m6-amic",
 	[STAC_DELL_M6_DMIC] = "dell-m6-dmic",
@@ -4358,6 +4360,9 @@ again:
 		stac92xx_free(codec);
 		return err;
 	}
+
+	if (spec->board_config == STAC_92HD73XX_NO_JD)
+		spec->hp_detect = 0;
 
 	codec->patch_ops = stac92xx_patch_ops;
 
