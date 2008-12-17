@@ -303,18 +303,18 @@ static struct property htab_size_prop = {
 	.value = &htab_size_bytes,
 };
 
-static void __init export_htab_values(void)
+static int __init export_htab_values(void)
 {
 	struct device_node *node;
 	struct property *prop;
 
 	/* On machines with no htab htab_address is NULL */
 	if (!htab_address)
-		return;
+		return -ENODEV;
 
 	node = of_find_node_by_path("/chosen");
 	if (!node)
-		return;
+		return -ENODEV;
 
 	/* remove any stale propertys so ours can be found */
 	prop = of_find_property(node, htab_base_prop.name, NULL);
@@ -329,54 +329,6 @@ static void __init export_htab_values(void)
 	prom_add_property(node, &htab_size_prop);
 
 	of_node_put(node);
-}
-
-static struct property crashk_base_prop = {
-	.name = "linux,crashkernel-base",
-	.length = sizeof(unsigned long),
-	.value = &crashk_res.start,
-};
-
-static unsigned long crashk_size;
-
-static struct property crashk_size_prop = {
-	.name = "linux,crashkernel-size",
-	.length = sizeof(unsigned long),
-	.value = &crashk_size,
-};
-
-static void __init export_crashk_values(void)
-{
-	struct device_node *node;
-	struct property *prop;
-
-	node = of_find_node_by_path("/chosen");
-	if (!node)
-		return;
-
-	/* There might be existing crash kernel properties, but we can't
-	 * be sure what's in them, so remove them. */
-	prop = of_find_property(node, "linux,crashkernel-base", NULL);
-	if (prop)
-		prom_remove_property(node, prop);
-
-	prop = of_find_property(node, "linux,crashkernel-size", NULL);
-	if (prop)
-		prom_remove_property(node, prop);
-
-	if (crashk_res.start != 0) {
-		prom_add_property(node, &crashk_base_prop);
-		crashk_size = crashk_res.end - crashk_res.start + 1;
-		prom_add_property(node, &crashk_size_prop);
-	}
-
-	of_node_put(node);
-}
-
-static int __init kexec_setup(void)
-{
-	export_htab_values();
-	export_crashk_values();
 	return 0;
 }
-__initcall(kexec_setup);
+late_initcall(export_htab_values);

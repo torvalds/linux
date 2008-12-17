@@ -120,12 +120,46 @@ int overlaps_crashkernel(unsigned long start, unsigned long size)
 
 /* Values we need to export to the second kernel via the device tree. */
 static unsigned long kernel_end;
+static unsigned long crashk_size;
 
 static struct property kernel_end_prop = {
 	.name = "linux,kernel-end",
 	.length = sizeof(unsigned long),
 	.value = &kernel_end,
 };
+
+static struct property crashk_base_prop = {
+	.name = "linux,crashkernel-base",
+	.length = sizeof(unsigned long),
+	.value = &crashk_res.start,
+};
+
+static struct property crashk_size_prop = {
+	.name = "linux,crashkernel-size",
+	.length = sizeof(unsigned long),
+	.value = &crashk_size,
+};
+
+static void __init export_crashk_values(struct device_node *node)
+{
+	struct property *prop;
+
+	/* There might be existing crash kernel properties, but we can't
+	 * be sure what's in them, so remove them. */
+	prop = of_find_property(node, "linux,crashkernel-base", NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	prop = of_find_property(node, "linux,crashkernel-size", NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	if (crashk_res.start != 0) {
+		prom_add_property(node, &crashk_base_prop);
+		crashk_size = crashk_res.end - crashk_res.start + 1;
+		prom_add_property(node, &crashk_size_prop);
+	}
+}
 
 static int __init kexec_setup(void)
 {
@@ -144,6 +178,8 @@ static int __init kexec_setup(void)
 	/* information needed by userspace when using default_machine_kexec */
 	kernel_end = __pa(_end);
 	prom_add_property(node, &kernel_end_prop);
+
+	export_crashk_values(node);
 
 	of_node_put(node);
 	return 0;
