@@ -141,7 +141,7 @@ static int lapic_next_event(unsigned long delta,
 			    struct clock_event_device *evt);
 static void lapic_timer_setup(enum clock_event_mode mode,
 			      struct clock_event_device *evt);
-static void lapic_timer_broadcast(const struct cpumask *mask);
+static void lapic_timer_broadcast(const cpumask_t *mask);
 static void apic_pm_activate(void);
 
 /*
@@ -453,10 +453,10 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 /*
  * Local APIC timer broadcast function
  */
-static void lapic_timer_broadcast(const struct cpumask *mask)
+static void lapic_timer_broadcast(const cpumask_t *mask)
 {
 #ifdef CONFIG_SMP
-	send_IPI_mask(*mask, LOCAL_TIMER_VECTOR);
+	send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
 #endif
 }
 
@@ -1903,8 +1903,8 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	}
 #endif
 
-	cpu_set(cpu, cpu_possible_map);
-	cpu_set(cpu, cpu_present_map);
+	set_cpu_possible(cpu, true);
+	set_cpu_present(cpu, true);
 }
 
 #ifdef CONFIG_X86_64
@@ -2106,7 +2106,7 @@ __cpuinit int apic_is_clustered_box(void)
 	bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < nr_cpu_ids; i++) {
 		/* are we being called early in kernel startup? */
 		if (bios_cpu_apicid) {
 			id = bios_cpu_apicid[i];
