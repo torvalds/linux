@@ -374,13 +374,8 @@ insert:
 		if (found_size > item_size) {
 			btrfs_truncate_item(trans, root, path, item_size, 1);
 		} else if (found_size < item_size) {
-			ret = btrfs_del_item(trans, root,
-					     path);
-			BUG_ON(ret);
-
-			btrfs_release_path(root, path);
-			ret = btrfs_insert_empty_item(trans,
-				  root, path, key, item_size);
+			ret = btrfs_extend_item(trans, root, path,
+						item_size - found_size);
 			BUG_ON(ret);
 		}
 	} else if (ret) {

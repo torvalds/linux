@@ -300,6 +300,10 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 
 		size = btrfs_item_size_nr(leaf, path->slots[0]);
 		csum_end = key.offset + (size / csum_size) * root->sectorsize;
+		if (csum_end <= start) {
+			path->slots[0]++;
+			continue;
+		}
 
 		size = min(csum_end, end + 1) - start;
 		sums = kzalloc(btrfs_ordered_sum_size(root, size), GFP_NOFS);
