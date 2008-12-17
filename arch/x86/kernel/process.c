@@ -1,6 +1,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <asm/idle.h>
 #include <linux/smp.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
