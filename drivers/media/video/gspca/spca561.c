@@ -900,42 +900,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev->dev, 0x8614, value);
 }
 
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 tot;
-
-	tot = 0;
-	reg_r(gspca_dev, 0x8611, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8612, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8613, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8614, 1);
-	tot += gspca_dev->usb_buf[0];
-	sd->brightness = tot >> 2;
-}
-
-/* rev72a only */
-static void getcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 tot;
-
-	tot = 0;
-	reg_r(gspca_dev, 0x8651, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8652, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8653, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8654, 1);
-	tot += gspca_dev->usb_buf[0];
-	sd->contrast = tot << 6;
-	PDEBUG(D_CONF, "get contrast %d", sd->contrast);
-}
-
 /* rev 72a only */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {
@@ -951,7 +915,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
@@ -971,7 +934,6 @@ static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcontrast(gspca_dev);
 	*val = sd->contrast;
 	return 0;
 }
