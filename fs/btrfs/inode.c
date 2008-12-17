@@ -1282,8 +1282,8 @@ static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
 }
 
 /*
- * extent_io.c submission hook. This does the right thing for csum calculation on write,
- * or reading the csums from the tree before a read
+ * extent_io.c submission hook. This does the right thing for csum calculation
+ * on write, or reading the csums from the tree before a read
  */
 static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 			  int mirror_num, unsigned long bio_flags)
@@ -1292,10 +1292,10 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	int ret = 0;
 	int skip_sum;
 
+	skip_sum = btrfs_test_flag(inode, NODATASUM);
+
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
 	BUG_ON(ret);
-
-	skip_sum = btrfs_test_flag(inode, NODATASUM);
 
 	if (!(rw & (1 << BIO_RW))) {
 		if (bio_flags & EXTENT_BIO_COMPRESSED) {
@@ -1648,13 +1648,13 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 			      failrec->logical, failrec->len);
 	failrec->last_mirror++;
 	if (!state) {
-		spin_lock_irq(&BTRFS_I(inode)->io_tree.lock);
+		spin_lock(&BTRFS_I(inode)->io_tree.lock);
 		state = find_first_extent_bit_state(&BTRFS_I(inode)->io_tree,
 						    failrec->start,
 						    EXTENT_LOCKED);
 		if (state && state->start != failrec->start)
 			state = NULL;
-		spin_unlock_irq(&BTRFS_I(inode)->io_tree.lock);
+		spin_unlock(&BTRFS_I(inode)->io_tree.lock);
 	}
 	if (!state || failrec->last_mirror > num_copies) {
 		set_state_private(failure_tree, failrec->start, 0);

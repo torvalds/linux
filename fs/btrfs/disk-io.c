@@ -447,8 +447,12 @@ static void end_workqueue_bio(struct bio *bio, int err)
 	end_io_wq->work.flags = 0;
 
 	if (bio->bi_rw & (1 << BIO_RW)) {
-		btrfs_queue_worker(&fs_info->endio_write_workers,
-				   &end_io_wq->work);
+		if (end_io_wq->metadata)
+			btrfs_queue_worker(&fs_info->endio_meta_write_workers,
+					   &end_io_wq->work);
+		else
+			btrfs_queue_worker(&fs_info->endio_write_workers,
+					   &end_io_wq->work);
 	} else {
 		if (end_io_wq->metadata)
 			btrfs_queue_worker(&fs_info->endio_meta_workers,
@@ -624,23 +628,24 @@ static int __btree_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
 static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags)
 {
-	/*
-	 * kthread helpers are used to submit writes so that checksumming
-	 * can happen in parallel across all CPUs
-	 */
+	int ret;
+
+	ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info,
+					  bio, 1);
+	BUG_ON(ret);
+
 	if (!(rw & (1 << BIO_RW))) {
-		int ret;
 		/*
 		 * called for a read, do the setup so that checksum validation
 		 * can happen in the async kernel threads
 		 */
-		ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info,
-					  bio, 1);
-		BUG_ON(ret);
-
 		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
 				     mirror_num, 0);
 	}
+	/*
+	 * kthread helpers are used to submit writes so that checksumming
+	 * can happen in parallel across all CPUs
+	 */
 	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num, 0,
 				   __btree_submit_bio_start,
@@ -1350,12 +1355,13 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	bio = end_io_wq->bio;
 	fs_info = end_io_wq->info;
 
-	/* metadata bios are special because the whole tree block must
+	/* metadata bio reads are special because the whole tree block must
 	 * be checksummed at once.  This makes sure the entire block is in
 	 * ram and up to date before trying to verify things.  For
 	 * blocksize <= pagesize, it is basically a noop
 	 */
-	if (end_io_wq->metadata && !bio_ready_for_csum(bio)) {
+	if (!(bio->bi_rw & (1 << BIO_RW)) && end_io_wq->metadata &&
+	    !bio_ready_for_csum(bio)) {
 		btrfs_queue_worker(&fs_info->endio_meta_workers,
 				   &end_io_wq->work);
 		return;
@@ -1668,6 +1674,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			   fs_info->thread_pool_size);
 	btrfs_init_workers(&fs_info->endio_meta_workers, "endio-meta",
 			   fs_info->thread_pool_size);
+	btrfs_init_workers(&fs_info->endio_meta_write_workers,
+			   "endio-meta-write", fs_info->thread_pool_size);
 	btrfs_init_workers(&fs_info->endio_write_workers, "endio-write",
 			   fs_info->thread_pool_size);
 
@@ -1677,6 +1685,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 */
 	fs_info->endio_workers.idle_thresh = 4;
 	fs_info->endio_write_workers.idle_thresh = 64;
+	fs_info->endio_meta_write_workers.idle_thresh = 64;
 
 	btrfs_start_workers(&fs_info->workers, 1);
 	btrfs_start_workers(&fs_info->submit_workers, 1);
@@ -1684,6 +1693,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_start_workers(&fs_info->fixup_workers, 1);
 	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
 	btrfs_start_workers(&fs_info->endio_meta_workers,
+			    fs_info->thread_pool_size);
+	btrfs_start_workers(&fs_info->endio_meta_write_workers,
 			    fs_info->thread_pool_size);
 	btrfs_start_workers(&fs_info->endio_write_workers,
 			    fs_info->thread_pool_size);
@@ -1866,6 +1877,7 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_workers);
+	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 fail_iput:
@@ -2253,6 +2265,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_workers);
+	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 

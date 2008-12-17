@@ -477,7 +477,6 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
 	struct rb_node *node;
-	unsigned long flags;
 	int err;
 	int set = 0;
 
@@ -488,7 +487,7 @@ again:
 			return -ENOMEM;
 	}
 
-	spin_lock_irqsave(&tree->lock, flags);
+	spin_lock(&tree->lock);
 	/*
 	 * this search will find the extents that end after
 	 * our range starts
@@ -559,7 +558,7 @@ again:
 	goto search_again;
 
 out:
-	spin_unlock_irqrestore(&tree->lock, flags);
+	spin_unlock(&tree->lock);
 	if (prealloc)
 		free_extent_state(prealloc);
 
@@ -568,7 +567,7 @@ out:
 search_again:
 	if (start > end)
 		goto out;
-	spin_unlock_irqrestore(&tree->lock, flags);
+	spin_unlock(&tree->lock);
 	if (mask & __GFP_WAIT)
 		cond_resched();
 	goto again;
@@ -582,9 +581,9 @@ static int wait_on_state(struct extent_io_tree *tree,
 {
 	DEFINE_WAIT(wait);
 	prepare_to_wait(&state->wq, &wait, TASK_UNINTERRUPTIBLE);
-	spin_unlock_irq(&tree->lock);
+	spin_unlock(&tree->lock);
 	schedule();
-	spin_lock_irq(&tree->lock);
+	spin_lock(&tree->lock);
 	finish_wait(&state->wq, &wait);
 	return 0;
 }
@@ -599,7 +598,7 @@ int wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits)
 	struct extent_state *state;
 	struct rb_node *node;
 
-	spin_lock_irq(&tree->lock);
+	spin_lock(&tree->lock);
 again:
 	while (1) {
 		/*
@@ -628,13 +627,13 @@ again:
 			break;
 
 		if (need_resched()) {
-			spin_unlock_irq(&tree->lock);
+			spin_unlock(&tree->lock);
 			cond_resched();
-			spin_lock_irq(&tree->lock);
+			spin_lock(&tree->lock);
 		}
 	}
 out:
-	spin_unlock_irq(&tree->lock);
+	spin_unlock(&tree->lock);
 	return 0;
 }
 EXPORT_SYMBOL(wait_extent_bit);
@@ -668,7 +667,6 @@ static int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int b
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
 	struct rb_node *node;
-	unsigned long flags;
 	int err = 0;
 	int set;
 	u64 last_start;
@@ -680,7 +678,7 @@ again:
 			return -ENOMEM;
 	}
 
-	spin_lock_irqsave(&tree->lock, flags);
+	spin_lock(&tree->lock);
 	/*
 	 * this search will find all the extents that end after
 	 * our range starts.
@@ -800,7 +798,7 @@ again:
 	goto search_again;
 
 out:
-	spin_unlock_irqrestore(&tree->lock, flags);
+	spin_unlock(&tree->lock);
 	if (prealloc)
 		free_extent_state(prealloc);
 
@@ -809,7 +807,7 @@ out:
 search_again:
 	if (start > end)
 		goto out;
-	spin_unlock_irqrestore(&tree->lock, flags);
+	spin_unlock(&tree->lock);
 	if (mask & __GFP_WAIT)
 		cond_resched();
 	goto again;
@@ -1021,7 +1019,7 @@ int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 	struct extent_state *state;
 	int ret = 1;
 
-	spin_lock_irq(&tree->lock);
+	spin_lock(&tree->lock);
 	/*
 	 * this search will find all the extents that end after
 	 * our range starts.
@@ -1044,7 +1042,7 @@ int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			break;
 	}
 out:
-	spin_unlock_irq(&tree->lock);
+	spin_unlock(&tree->lock);
 	return ret;
 }
 EXPORT_SYMBOL(find_first_extent_bit);
@@ -1097,7 +1095,7 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 	u64 found = 0;
 	u64 total_bytes = 0;
 
-	spin_lock_irq(&tree->lock);
+	spin_lock(&tree->lock);
 
 	/*
 	 * this search will find all the extents that end after
@@ -1134,7 +1132,7 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 			break;
 	}
 out:
-	spin_unlock_irq(&tree->lock);
+	spin_unlock(&tree->lock);
 	return found;
 }
 
@@ -1391,7 +1389,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		return 0;
 	}
 
-	spin_lock_irq(&tree->lock);
+	spin_lock(&tree->lock);
 	if (cur_start == 0 && bits == EXTENT_DIRTY) {
 		total_bytes = tree->dirty_bytes;
 		goto out;
@@ -1424,7 +1422,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 			break;
 	}
 out:
-	spin_unlock_irq(&tree->lock);
+	spin_unlock(&tree->lock);
 	return total_bytes;
 }
 
@@ -1501,7 +1499,7 @@ int set_state_private(struct extent_io_tree *tree, u64 start, u64 private)
 	struct extent_state *state;
 	int ret = 0;
 
-	spin_lock_irq(&tree->lock);
+	spin_lock(&tree->lock);
 	/*
 	 * this search will find all the extents that end after
 	 * our range starts.
@@ -1518,7 +1516,7 @@ int set_state_private(struct extent_io_tree *tree, u64 start, u64 private)
 	}
 	state->private = private;
 out:
-	spin_unlock_irq(&tree->lock);
+	spin_unlock(&tree->lock);
 	return ret;
 }
 
@@ -1528,7 +1526,7 @@ int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private)
 	struct extent_state *state;
 	int ret = 0;
 
-	spin_lock_irq(&tree->lock);
+	spin_lock(&tree->lock);
 	/*
 	 * this search will find all the extents that end after
 	 * our range starts.
@@ -1545,7 +1543,7 @@ int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private)
 	}
 	*private = state->private;
 out:
-	spin_unlock_irq(&tree->lock);
+	spin_unlock(&tree->lock);
 	return ret;
 }
 
@@ -1561,9 +1559,8 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state = NULL;
 	struct rb_node *node;
 	int bitset = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&tree->lock, flags);
+	spin_lock(&tree->lock);
 	node = tree_search(tree, start);
 	while (node && start <= end) {
 		state = rb_entry(node, struct extent_state, rb_node);
@@ -1594,7 +1591,7 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&tree->lock, flags);
+	spin_unlock(&tree->lock);
 	return bitset;
 }
 EXPORT_SYMBOL(test_range_bit);

@@ -758,6 +758,7 @@ struct btrfs_fs_info {
 	struct btrfs_workers delalloc_workers;
 	struct btrfs_workers endio_workers;
 	struct btrfs_workers endio_meta_workers;
+	struct btrfs_workers endio_meta_write_workers;
 	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers submit_workers;
 	/*
