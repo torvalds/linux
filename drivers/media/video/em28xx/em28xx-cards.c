@@ -1409,6 +1409,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		case CHIP_ID_EM2860:
 			em28xx_info("chip ID is em2860\n");
 			break;
+		case CHIP_ID_EM2870:
+			em28xx_info("chip ID is em2870\n");
+			dev->wait_after_write = 0;
+			break;
 		case CHIP_ID_EM2874:
 			em28xx_info("chip ID is em2874\n");
 			dev->reg_gpio_num = EM2874_R80_GPIO;
