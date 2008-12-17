@@ -86,6 +86,14 @@ static inline void ftrace_stop(void) { }
 static inline void ftrace_start(void) { }
 #endif /* CONFIG_FUNCTION_TRACER */
 
+#ifdef CONFIG_STACK_TRACER
+extern int stack_tracer_enabled;
+int
+stack_trace_sysctl(struct ctl_table *table, int write,
+		   struct file *file, void __user *buffer, size_t *lenp,
+		   loff_t *ppos);
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
 #include <asm/ftrace.h>

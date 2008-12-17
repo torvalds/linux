@@ -244,10 +244,15 @@ config STACK_TRACER
 
 	  This tracer works by hooking into every function call that the
 	  kernel executes, and keeping a maximum stack depth value and
-	  stack-trace saved. Because this logic has to execute in every
-	  kernel function, all the time, this option can slow down the
-	  kernel measurably and is generally intended for kernel
-	  developers only.
+	  stack-trace saved.  If this is configured with DYNAMIC_FTRACE
+	  then it will not have any overhead while the stack tracer
+	  is disabled.
+
+	  To enable the stack tracer on bootup, pass in 'stacktrace'
+	  on the kernel command line.
+
+	  The stack tracer can also be enabled or disabled via the
+	  sysctl kernel.stack_tracer_enabled
 
 	  Say N if unsure.
 

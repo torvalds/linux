@@ -487,6 +487,16 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= &ftrace_enable_sysctl,
 	},
 #endif
+#ifdef CONFIG_STACK_TRACER
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "stack_tracer_enabled",
+		.data		= &stack_tracer_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &stack_trace_sysctl,
+	},
+#endif
 #ifdef CONFIG_TRACING
 	{
 		.ctl_name	= CTL_UNNUMBERED,
