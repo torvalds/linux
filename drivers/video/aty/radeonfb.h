@@ -336,15 +336,7 @@ struct radeonfb_info {
 	int			mon2_type;
 	u8		        *mon2_EDID;
 
-	/* accel bits */
-	u32			dp_gui_mc_base;
-	u32			dp_gui_mc_cache;
-	u32			dp_cntl_cache;
-	u32			dp_brush_fg_cache;
-	u32			dp_brush_bg_cache;
-	u32			dp_src_fg_cache;
-	u32			dp_src_bg_cache;
-	u32			fifo_free;
+	u32			dp_gui_master_cntl;
 
 	struct pll_info		pll;
 
@@ -356,7 +348,6 @@ struct radeonfb_info {
 	int			lock_blank;
 	int			dynclk;
 	int			no_schedule;
-	int 			gfx_mode;
 	enum radeon_pm_mode	pm_mode;
 	reinit_function_ptr     reinit_func;
 
@@ -401,14 +392,8 @@ static inline void _radeon_msleep(struct radeonfb_info *rinfo, unsigned long ms)
 #define OUTREG8(addr,val)	writeb(val, (rinfo->mmio_base)+addr)
 #define INREG16(addr)		readw((rinfo->mmio_base)+addr)
 #define OUTREG16(addr,val)	writew(val, (rinfo->mmio_base)+addr)
-
-#ifdef CONFIG_PPC
-#define INREG(addr)	     	({ eieio(); ld_le32(rinfo->mmio_base+(addr)); })
-#define OUTREG(addr,val)	do { eieio(); st_le32(rinfo->mmio_base+(addr),(val)); } while(0)
-#else
 #define INREG(addr)		readl((rinfo->mmio_base)+addr)
 #define OUTREG(addr,val)	writel(val, (rinfo->mmio_base)+addr)
-#endif
 
 static inline void _OUTREGP(struct radeonfb_info *rinfo, u32 addr,
 		       u32 val, u32 mask)
@@ -550,7 +535,17 @@ static inline u32 radeon_get_dstbpp(u16 depth)
  * 2D Engine helper routines
  */
 
-extern void radeon_fifo_update_and_wait(struct radeonfb_info *rinfo, int entries);
+static inline void _radeon_fifo_wait(struct radeonfb_info *rinfo, int entries)
+{
+	int i;
+
+	for (i=0; i<2000000; i++) {
+		if ((INREG(RBBM_STATUS) & 0x7f) >= entries)
+			return;
+		udelay(1);
+	}
+	printk(KERN_ERR "radeonfb: FIFO Timeout !\n");
+}
 
 static inline void radeon_engine_flush (struct radeonfb_info *rinfo)
 {
@@ -563,7 +558,7 @@ static inline void radeon_engine_flush (struct radeonfb_info *rinfo)
 	/* Ensure FIFO is empty, ie, make sure the flush commands
 	 * has reached the cache
 	 */
-	radeon_fifo_update_and_wait(rinfo, 64);
+	_radeon_fifo_wait (rinfo, 64);
 
 	/* Wait for the flush to complete */
 	for (i=0; i < 2000000; i++) {
@@ -575,12 +570,12 @@ static inline void radeon_engine_flush (struct radeonfb_info *rinfo)
 }
 
 
-static inline void radeon_engine_idle(struct radeonfb_info *rinfo)
+static inline void _radeon_engine_idle(struct radeonfb_info *rinfo)
 {
 	int i;
 
 	/* ensure FIFO is empty before waiting for idle */
-	radeon_fifo_update_and_wait (rinfo, 64);
+	_radeon_fifo_wait (rinfo, 64);
 
 	for (i=0; i<2000000; i++) {
 		if (((INREG(RBBM_STATUS) & GUI_ACTIVE)) == 0) {
@@ -593,6 +588,8 @@ static inline void radeon_engine_idle(struct radeonfb_info *rinfo)
 }
 
 
+#define radeon_engine_idle()		_radeon_engine_idle(rinfo)
+#define radeon_fifo_wait(entries)	_radeon_fifo_wait(rinfo,entries)
 #define radeon_msleep(ms)		_radeon_msleep(rinfo,ms)
 
 
@@ -622,7 +619,6 @@ extern void radeonfb_imageblit(struct fb_info *p, const struct fb_image *image);
 extern int radeonfb_sync(struct fb_info *info);
 extern void radeonfb_engine_init (struct radeonfb_info *rinfo);
 extern void radeonfb_engine_reset(struct radeonfb_info *rinfo);
-extern void radeon_fixup_mem_offset(struct radeonfb_info *rinfo);
 
 /* Other functions */
 extern int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_switch);
@@ -637,7 +633,5 @@ extern void radeonfb_bl_exit(struct radeonfb_info *rinfo);
 static inline void radeonfb_bl_init(struct radeonfb_info *rinfo) {}
 static inline void radeonfb_bl_exit(struct radeonfb_info *rinfo) {}
 #endif
-
-extern int accel_cexp;
 
 #endif /* __RADEONFB_H__ */

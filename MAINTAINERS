@@ -1527,10 +1527,10 @@ W:	http://ebtables.sourceforge.net/
 S:	Maintained
 
 ECRYPT FILE SYSTEM
-P:	Mike Halcrow, Phillip Hellewell
-M:	mhalcrow@us.ibm.com, phillip@hellewell.homeip.net
-L:	ecryptfs-devel@lists.sourceforge.net
-W:	http://ecryptfs.sourceforge.net/
+P:	Tyler Hicks, Dustin Kirkland
+M:	tyhicks@linux.vnet.ibm.com, kirkland@canonical.com
+L:	ecryptfs-devel@lists.launchpad.net
+W:	https://launchpad.net/ecryptfs
 S:	Supported
 
 EDAC-CORE
@@ -1758,6 +1758,13 @@ P:	Jochen Friedrich
 M:	jochen@scram.de
 L:	linuxppc-dev@ozlabs.org
 L:	linux-i2c@vger.kernel.org
+S:	Maintained
+
+FREESCALE IMX / MXC FRAMEBUFFER DRIVER
+P:	Sascha Hauer
+M:	kernel@pengutronix.de
+L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
 FREESCALE SOC FS_ENET DRIVER

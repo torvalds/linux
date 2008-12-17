@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/mm.h>
+#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>

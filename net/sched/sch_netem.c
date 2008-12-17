@@ -46,9 +46,6 @@
 	 layering other disciplines.  It does not need to do bandwidth
 	 control either since that can be handled by using token
 	 bucket or other rate control.
-
-	 The simulator is limited by the Linux timer resolution
-	 and will create packet bursts on the HZ boundary (1ms).
 */
 
 struct netem_sched_data {

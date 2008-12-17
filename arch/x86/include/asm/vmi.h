@@ -223,9 +223,15 @@ struct pci_header {
 } __attribute__((packed));
 
 /* Function prototypes for bootstrapping */
+#ifdef CONFIG_VMI
 extern void vmi_init(void);
+extern void vmi_activate(void);
 extern void vmi_bringup(void);
-extern void vmi_apply_boot_page_allocations(void);
+#else
+static inline void vmi_init(void) {}
+static inline void vmi_activate(void) {}
+static inline void vmi_bringup(void) {}
+#endif
 
 /* State needed to start an application processor in an SMP system. */
 struct vmi_ap_state {
