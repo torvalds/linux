@@ -1286,6 +1286,26 @@ void pci_pm_init(struct pci_dev *dev)
 }
 
 /**
+ * platform_pci_wakeup_init - init platform wakeup if present
+ * @dev: PCI device
+ *
+ * Some devices don't have PCI PM caps but can still generate wakeup
+ * events through platform methods (like ACPI events).  If @dev supports
+ * platform wakeup events, set the device flag to indicate as much.  This
+ * may be redundant if the device also supports PCI PM caps, but double
+ * initialization should be safe in that case.
+ */
+void platform_pci_wakeup_init(struct pci_dev *dev)
+{
+	if (!platform_pci_can_wakeup(dev))
+		return;
+
+	device_set_wakeup_capable(&dev->dev, true);
+	device_set_wakeup_enable(&dev->dev, false);
+	platform_pci_sleep_wake(dev, false);
+}
+
+/**
  * pci_add_save_buffer - allocate buffer for saving given capability registers
  * @dev: the PCI device
  * @cap: the capability to allocate the buffer for
