@@ -14,8 +14,6 @@
 #include <linux/time.h>
 #include <asm/machtypes.h>
 
-struct device;
-
 struct sh_machine_vector {
 	void (*mv_setup)(char **cmdline_p);
 	const char *mv_name;
