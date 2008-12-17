@@ -486,9 +486,6 @@ source "arch/sh/drivers/Kconfig"
 
 endmenu
 
-config ISA_DMA_API
-	bool
-
 menu "Kernel features"
 
 source kernel/Kconfig.hz
