@@ -827,7 +827,7 @@ static int __init maple_bus_init(void)
 
 	maple_queue_cache =
 	    kmem_cache_create("maple_queue_cache", 0x400, 0,
-			      SLAB_POISON|SLAB_HWCACHE_ALIGN, NULL);
+			      SLAB_HWCACHE_ALIGN, NULL);
 
 	if (!maple_queue_cache)
 		goto cleanup_bothirqs;
