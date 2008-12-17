@@ -306,8 +306,6 @@ static void pxafb_setmode(struct fb_var_screeninfo *var,
 	var->lower_margin	= mode->lower_margin;
 	var->sync		= mode->sync;
 	var->grayscale		= mode->cmap_greyscale;
-	var->xres_virtual 	= var->xres;
-	var->yres_virtual	= var->yres;
 }
 
 /*
@@ -345,10 +343,14 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 			return -EINVAL;
 	}
 
-	var->xres_virtual =
-		max(var->xres_virtual, var->xres);
-	var->yres_virtual =
-		max(var->yres_virtual, var->yres);
+	/* we don't support xpan, force xres_virtual to be equal to xres */
+	var->xres_virtual = var->xres;
+
+	if (var->accel_flags & FB_ACCELF_TEXT)
+		var->yres_virtual = fbi->fb.fix.smem_len /
+			(var->xres_virtual * var->bits_per_pixel / 8);
+	else
+		var->yres_virtual = max(var->yres_virtual, var->yres);
 
 	/*
 	 * Setup the RGB parameters for this display.
@@ -878,7 +880,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 			      struct pxafb_info *fbi)
 {
 	u_long flags;
-	size_t nbytes;
+	size_t nbytes, offset;
 
 #if DEBUG_VAR
 	if (!(fbi->lccr0 & LCCR0_LCDT)) {
@@ -939,17 +941,18 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 
 	fbi->reg_lccr3 |= pxafb_bpp_to_lccr3(var);
 
-	nbytes = var->yres * fbi->fb.fix.line_length;
+	nbytes = fbi->fb.fix.line_length * var->yres;
+	offset = fbi->fb.fix.line_length * var->yoffset;
 
 	if ((fbi->lccr0 & LCCR0_SDS) == LCCR0_Dual) {
 		nbytes = nbytes / 2;
-		setup_frame_dma(fbi, DMA_LOWER, PAL_NONE, nbytes, nbytes);
+		setup_frame_dma(fbi, DMA_LOWER, PAL_NONE, offset + nbytes, nbytes);
 	}
 
 	if ((var->bits_per_pixel >= 16) || (fbi->lccr0 & LCCR0_LCDT))
-		setup_frame_dma(fbi, DMA_BASE, PAL_NONE, 0, nbytes);
+		setup_frame_dma(fbi, DMA_BASE, PAL_NONE, offset, nbytes);
 	else
-		setup_frame_dma(fbi, DMA_BASE, PAL_BASE, 0, nbytes);
+		setup_frame_dma(fbi, DMA_BASE, PAL_BASE, offset, nbytes);
 
 	fbi->reg_lccr4 = lcd_readl(fbi, LCCR4) & ~LCCR4_PAL_FOR_MASK;
 	fbi->reg_lccr4 |= (fbi->lccr4 & LCCR4_PAL_FOR_MASK);
@@ -1362,7 +1365,7 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 	fbi->fb.fix.type	= FB_TYPE_PACKED_PIXELS;
 	fbi->fb.fix.type_aux	= 0;
 	fbi->fb.fix.xpanstep	= 0;
-	fbi->fb.fix.ypanstep	= 0;
+	fbi->fb.fix.ypanstep	= 1;
 	fbi->fb.fix.ywrapstep	= 0;
 	fbi->fb.fix.accel	= FB_ACCEL_NONE;
 
@@ -1370,7 +1373,7 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 	fbi->fb.var.activate	= FB_ACTIVATE_NOW;
 	fbi->fb.var.height	= -1;
 	fbi->fb.var.width	= -1;
-	fbi->fb.var.accel_flags	= 0;
+	fbi->fb.var.accel_flags	= FB_ACCELF_TEXT;
 	fbi->fb.var.vmode	= FB_VMODE_NONINTERLACED;
 
 	fbi->fb.fbops		= &pxafb_ops;
