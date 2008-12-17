@@ -33,12 +33,12 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
+#include <asm/reg.h>
 
 typedef void (*crash_shutdown_t)(void);
 
 #ifdef CONFIG_KEXEC
 
-#ifdef __powerpc64__
 /*
  * This function is responsible for capturing register states if coming
  * via panic or invoking dump using sysrq-trigger.
@@ -48,6 +48,7 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 {
 	if (oldregs)
 		memcpy(newregs, oldregs, sizeof(*newregs));
+#ifdef __powerpc64__
 	else {
 		/* FIXME Merge this with xmon_save_regs ?? */
 		unsigned long tmp1, tmp2;
@@ -100,15 +101,11 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 			: "b" (newregs)
 			: "memory");
 	}
-}
 #else
-/*
- * Provide a dummy definition to avoid build failures. Will remain
- * empty till crash dump support is enabled.
- */
-static inline void crash_setup_regs(struct pt_regs *newregs,
-					struct pt_regs *oldregs) { }
-#endif /* !__powerpc64 __ */
+	else
+		ppc_save_regs(newregs);
+#endif /* __powerpc64__ */
+}
 
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */

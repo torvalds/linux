@@ -102,7 +102,7 @@ endif
 
 obj-$(CONFIG_PPC64)		+= $(obj64-y)
 
-ifneq ($(CONFIG_XMON),)
+ifneq ($(CONFIG_XMON)$(CONFIG_KEXEC),)
 obj-y				+= ppc_save_regs.o
 endif
 
