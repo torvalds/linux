@@ -146,98 +146,7 @@ static struct v4l2_pix_format sif_072a_mode[] = {
 #define SPCA561_SNAPBIT 0x20
 #define SPCA561_SNAPCTRL 0x40
 
-static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
-{
-	int ret;
-
-	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			      0,		/* request */
-			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      value, index, NULL, 0, 500);
-	PDEBUG(D_USBO, "reg write: 0x%02x:0x%02x", index, value);
-	if (ret < 0)
-		PDEBUG(D_ERR, "reg write: error %d", ret);
-}
-
-static void write_vector(struct gspca_dev *gspca_dev,
-			const __u16 data[][2])
-{
-	struct usb_device *dev = gspca_dev->dev;
-	int i;
-
-	i = 0;
-	while (data[i][1] != 0) {
-		reg_w_val(dev, data[i][1], data[i][0]);
-		i++;
-	}
-}
-
-/* read 'len' bytes to gspca_dev->usb_buf */
-static void reg_r(struct gspca_dev *gspca_dev,
-		  __u16 index, __u16 length)
-{
-	usb_control_msg(gspca_dev->dev,
-			usb_rcvctrlpipe(gspca_dev->dev, 0),
-			0,			/* request */
-			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0,			/* value */
-			index, gspca_dev->usb_buf, length, 500);
-}
-
-static void reg_w_buf(struct gspca_dev *gspca_dev,
-		      __u16 index, const __u8 *buffer, __u16 len)
-{
-	memcpy(gspca_dev->usb_buf, buffer, len);
-	usb_control_msg(gspca_dev->dev,
-			usb_sndctrlpipe(gspca_dev->dev, 0),
-			0,			/* request */
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0,			/* value */
-			index, gspca_dev->usb_buf, len, 500);
-}
-
-static void i2c_write(struct gspca_dev *gspca_dev, __u16 valeur, __u16 reg)
-{
-	int retry = 60;
-	__u8 DataLow;
-	__u8 DataHight;
-
-	DataLow = valeur;
-	DataHight = valeur >> 8;
-	reg_w_val(gspca_dev->dev, 0x8801, reg);
-	reg_w_val(gspca_dev->dev, 0x8805, DataLow);
-	reg_w_val(gspca_dev->dev, 0x8800, DataHight);
-	while (retry--) {
-		reg_r(gspca_dev, 0x8803, 1);
-		if (!gspca_dev->usb_buf[0])
-			break;
-	}
-}
-
-static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
-{
-	int retry = 60;
-	__u8 value;
-	__u8 vallsb;
-
-	reg_w_val(gspca_dev->dev, 0x8804, 0x92);
-	reg_w_val(gspca_dev->dev, 0x8801, reg);
-	reg_w_val(gspca_dev->dev, 0x8802, (mode | 0x01));
-	do {
-		reg_r(gspca_dev, 0x8803, 1);
-		if (!gspca_dev->usb_buf[0])
-			break;
-	} while (--retry);
-	if (retry == 0)
-		return -1;
-	reg_r(gspca_dev, 0x8800, 1);
-	value = gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8805, 1);
-	vallsb = gspca_dev->usb_buf[0];
-	return ((int) value << 8) | vallsb;
-}
-
-static const __u16 spca561_init_data[][2] = {
+static const __u16 rev72a_init_data[][2] = {
 	{0x0000, 0x8114},	/* Software GPIO output data */
 	{0x0001, 0x8114},	/* Software GPIO output data */
 	{0x0000, 0x8112},	/* Some kind of reset */
@@ -324,7 +233,7 @@ static const __u16 spca561_init_data[][2] = {
 
 	{0x0002, 0x865b},	/* Horizontal offset for valid pixels */
 	{0x0003, 0x865c},	/* Vertical offset for valid lines */
-	/***************//* sensor active */
+	/***************/		/* sensor active */
 	{0x0003, 0x8801},	/* 0x03 <- 0x01 0x21 //289 */
 	{0x0021, 0x8805},
 	{0x0001, 0x8800},
@@ -434,7 +343,6 @@ static const __u16 spca561_init_data[][2] = {
 	{}
 };
 
-
 /******************** QC Express etch2 stuff ********************/
 static const __u16 Pb100_1map8300[][2] = {
 	/* reg, value */
@@ -515,22 +423,103 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{}
 };
 
-static void sensor_mapwrite(struct gspca_dev *gspca_dev,
-			    const __u16 sensormap[][2])
+static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
 {
-	int i = 0;
-	__u8 usbval[2];
+	int ret;
 
-	while (sensormap[i][0]) {
-		usbval[0] = sensormap[i][1];
-		usbval[1] = sensormap[i][1] >> 8;
-		reg_w_buf(gspca_dev, sensormap[i][0], usbval, 2);
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+			      0,		/* request */
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      value, index, NULL, 0, 500);
+	PDEBUG(D_USBO, "reg write: 0x%02x:0x%02x", index, value);
+	if (ret < 0)
+		PDEBUG(D_ERR, "reg write: error %d", ret);
+}
+
+static void write_vector(struct gspca_dev *gspca_dev,
+			const __u16 data[][2])
+{
+	struct usb_device *dev = gspca_dev->dev;
+	int i;
+
+	i = 0;
+	while (data[i][1] != 0) {
+		reg_w_val(dev, data[i][1], data[i][0]);
 		i++;
 	}
 }
+
+/* read 'len' bytes to gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
+		  __u16 index, __u16 length)
+{
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
+			0,			/* request */
+			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0,			/* value */
+			index, gspca_dev->usb_buf, length, 500);
+}
+
+/* write 'len' bytes from gspca_dev->usb_buf */
+static void reg_w_buf(struct gspca_dev *gspca_dev,
+		      __u16 index, __u16 len)
+{
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0,			/* request */
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0,			/* value */
+			index, gspca_dev->usb_buf, len, 500);
+}
+
+static void i2c_write(struct gspca_dev *gspca_dev, __u16 value, __u16 reg)
+{
+	int retry = 60;
+
+	reg_w_val(gspca_dev->dev, 0x8801, reg);
+	reg_w_val(gspca_dev->dev, 0x8805, value);
+	reg_w_val(gspca_dev->dev, 0x8800, value >> 8);
+	do {
+		reg_r(gspca_dev, 0x8803, 1);
+		if (!gspca_dev->usb_buf[0])
+			return;
+	} while (--retry);
+}
+
+static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
+{
+	int retry = 60;
+	__u8 value;
+
+	reg_w_val(gspca_dev->dev, 0x8804, 0x92);
+	reg_w_val(gspca_dev->dev, 0x8801, reg);
+	reg_w_val(gspca_dev->dev, 0x8802, mode | 0x01);
+	do {
+		reg_r(gspca_dev, 0x8803, 1);
+		if (!gspca_dev->usb_buf[0]) {
+			reg_r(gspca_dev, 0x8800, 1);
+			value = gspca_dev->usb_buf[0];
+			reg_r(gspca_dev, 0x8805, 1);
+			return ((int) value << 8) | gspca_dev->usb_buf[0];
+		}
+	} while (--retry);
+	return -1;
+}
+
+static void sensor_mapwrite(struct gspca_dev *gspca_dev,
+			    const __u16 (*sensormap)[2])
+{
+	while ((*sensormap)[0]) {
+		gspca_dev->usb_buf[0] = (*sensormap)[1];
+		gspca_dev->usb_buf[1] = (*sensormap)[1] >> 8;
+		reg_w_buf(gspca_dev, (*sensormap)[0], 2);
+		sensormap++;
+	}
+}
+
 static void init_161rev12A(struct gspca_dev *gspca_dev)
 {
-/*	sensor_reset(gspca_dev);	(not in win) */
 	write_vector(gspca_dev, spca561_161rev12A_data1);
 	sensor_mapwrite(gspca_dev, Pb100_1map8300);
 /*fixme: should be in sd_start*/
@@ -598,7 +587,7 @@ static int sd_init_12a(struct gspca_dev *gspca_dev)
 static int sd_init_72a(struct gspca_dev *gspca_dev)
 {
 	PDEBUG(D_STREAM, "Chip revision: 072a");
-	write_vector(gspca_dev, spca561_init_data);
+	write_vector(gspca_dev, rev72a_init_data);
 	return 0;
 }
 
@@ -621,8 +610,9 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		static const __u8 Reg8391[] =
 			{ 0x92, 0x30, 0x20, 0x00, 0x0c, 0x00, 0x00, 0x00 };
 
-		reg_w_buf(gspca_dev, 0x8391, Reg8391, 8);
-		reg_w_buf(gspca_dev, 0x8390, Reg8391, 8);
+		memcpy(gspca_dev->usb_buf, Reg8391, 8);
+		reg_w_buf(gspca_dev, 0x8391, 8);
+		reg_w_buf(gspca_dev, 0x8390, 8);
 		break;
 	    }
 	}
@@ -649,7 +639,6 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int expo;
 	int clock_divider;
-	__u8 data[2];
 
 	/* Register 0x8309 controls exposure for the spca561,
 	   the basic exposure setting goes from 1-2047, where 1 is completely
@@ -673,20 +662,19 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		clock_divider = 3;
 	}
 	expo |= clock_divider << 11;
-	data[0] = expo;
-	data[1] = expo >> 8;
-	reg_w_buf(gspca_dev, 0x8309, data, 2);
+	gspca_dev->usb_buf[0] = expo;
+	gspca_dev->usb_buf[1] = expo >> 8;
+	reg_w_buf(gspca_dev, 0x8309, 2);
 }
 
 /* rev 12a only */
 static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 data[2];
 
-	data[0] = sd->gain;
-	data[1] = 0;
-	reg_w_buf(gspca_dev, 0x8335, data, 2);
+	gspca_dev->usb_buf[0] = sd->gain;
+	gspca_dev->usb_buf[1] = 0;
+	reg_w_buf(gspca_dev, 0x8335, 2);
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
@@ -716,7 +704,9 @@ static int sd_start_12a(struct gspca_dev *gspca_dev)
 		 * is sufficient to push raw frames at ~20fps */
 		reg_w_val(dev, 0x8500, mode);
 	}		/* -- qq@kuku.eu.org */
-	reg_w_buf(gspca_dev, 0x8307, Reg8307, 2);
+
+	memcpy(gspca_dev->usb_buf, Reg8307, sizeof Reg8307);
+	reg_w_buf(gspca_dev, 0x8307, sizeof Reg8307);
 	reg_w_val(gspca_dev->dev, 0x8700, Clck);
 					/* 0x8f 0x85 0x27 clock */
 	reg_w_val(gspca_dev->dev, 0x8112, 0x1e | 0x20);
@@ -791,7 +781,6 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	__u8 luma_mean = 110;
 	__u8 luma_delta = 20;
 	__u8 spring = 4;
-	__u8 reg8339[2];
 
 	if (sd->ag_cnt < 0)
 		return;
@@ -834,13 +823,13 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 
 			if (gainG > 0x3f)
 				gainG = 0x3f;
-			else if (gainG < 4)
+			else if (gainG < 3)
 				gainG = 3;
 			i2c_write(gspca_dev, gainG, 0x35);
 
-			if (expotimes >= 0x0256)
+			if (expotimes > 0x0256)
 				expotimes = 0x0256;
-			else if (expotimes < 4)
+			else if (expotimes < 3)
 				expotimes = 3;
 			i2c_write(gspca_dev, expotimes | pixelclk, 0x09);
 		}
@@ -848,13 +837,13 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	case Rev012A:
 		reg_r(gspca_dev, 0x8330, 2);
 		if (gspca_dev->usb_buf[1] > 0x08) {
-			reg8339[0] = ++sd->expo12a;
-			reg8339[1] = 0;
-			reg_w_buf(gspca_dev, 0x8339, reg8339, 2);
+			gspca_dev->usb_buf[0] = ++sd->expo12a;
+			gspca_dev->usb_buf[1] = 0;
+			reg_w_buf(gspca_dev, 0x8339, 2);
 		} else if (gspca_dev->usb_buf[1] < 0x02) {
-			reg8339[0] = --sd->expo12a;
-			reg8339[1] = 0;
-			reg_w_buf(gspca_dev, 0x8339, reg8339, 2);
+			gspca_dev->usb_buf[0] = --sd->expo12a;
+			gspca_dev->usb_buf[1] = 0;
+			reg_w_buf(gspca_dev, 0x8339, 2);
 		}
 		break;
 	}
@@ -867,8 +856,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	switch (data[0]) {
-	case 0:		/* start of frame */
+	switch (data[0]) {			/* sequence number */
+	case 0:					/* start of frame */
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
 		data += SPCA561_OFFSET_DATA;
@@ -890,8 +879,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 						frame, data, len);
 		}
 		return;
-	case 0xff:		/* drop */
-/*		gspca_dev->last_packet_type = DISCARD_PACKET; */
+	case 0xff:			/* drop (empty mpackets) */
 		return;
 	}
 	data++;
