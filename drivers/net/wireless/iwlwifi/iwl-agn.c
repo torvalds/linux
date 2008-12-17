@@ -3342,7 +3342,7 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 /*
  * The following adds a new attribute to the sysfs representation
- * of this device driver (i.e. a new file in /sys/bus/pci/drivers/iwl/)
+ * of this device driver (i.e. a new file in /sys/class/net/wlan0/device/)
  * used for controlling the debug level.
  *
  * See the level definitions in iwl for details.
