@@ -1422,6 +1422,26 @@ pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge)
 }
 
 /**
+ * pci_common_swizzle - swizzle INTx all the way to root bridge
+ * @dev: the PCI device
+ * @pinp: pointer to the INTx pin value (1=INTA, 2=INTB, 3=INTD, 4=INTD)
+ *
+ * Perform INTx swizzling for a device.  This traverses through all PCI-to-PCI
+ * bridges all the way up to a PCI root bus.
+ */
+u8 pci_common_swizzle(struct pci_dev *dev, u8 *pinp)
+{
+	u8 pin = *pinp;
+
+	while (dev->bus->self) {
+		pin = pci_swizzle_interrupt_pin(dev, pin);
+		dev = dev->bus->self;
+	}
+	*pinp = pin;
+	return PCI_SLOT(dev->devfn);
+}
+
+/**
  *	pci_release_region - Release a PCI bar
  *	@pdev: PCI device whose resources were previously reserved by pci_request_region
  *	@bar: BAR to release
