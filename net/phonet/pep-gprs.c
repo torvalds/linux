@@ -41,11 +41,6 @@ struct gprs_dev {
 	void			(*old_write_space)(struct sock *);
 
 	struct net_device	*dev;
-
-	struct sk_buff_head	tx_queue;
-	struct work_struct	tx_work;
-	spinlock_t		tx_lock;
-	unsigned		tx_max;
 };
 
 static __be16 gprs_type_trans(struct sk_buff *skb)
@@ -64,6 +59,14 @@ static __be16 gprs_type_trans(struct sk_buff *skb)
 		return htons(ETH_P_IPV6);
 	}
 	return htons(0);
+}
+
+static void gprs_writeable(struct gprs_dev *gp)
+{
+	struct net_device *dev = gp->dev;
+
+	if (pep_writeable(gp->sk))
+		netif_wake_queue(dev);
 }
 
 /*
@@ -157,14 +160,9 @@ static void gprs_data_ready(struct sock *sk, int len)
 static void gprs_write_space(struct sock *sk)
 {
 	struct gprs_dev *gp = sk->sk_user_data;
-	struct net_device *dev = gp->dev;
-	unsigned credits = pep_writeable(sk);
 
-	spin_lock_bh(&gp->tx_lock);
-	gp->tx_max = credits;
-	if (credits > skb_queue_len(&gp->tx_queue) && netif_running(dev))
-		netif_wake_queue(dev);
-	spin_unlock_bh(&gp->tx_lock);
+	if (netif_running(gp->dev))
+		gprs_writeable(gp);
 }
 
 /*
@@ -175,22 +173,21 @@ static int gprs_open(struct net_device *dev)
 {
 	struct gprs_dev *gp = netdev_priv(dev);
 
-	gprs_write_space(gp->sk);
+	gprs_writeable(gp);
 	return 0;
 }
 
 static int gprs_close(struct net_device *dev)
 {
-	struct gprs_dev *gp = netdev_priv(dev);
-
 	netif_stop_queue(dev);
-	flush_work(&gp->tx_work);
 	return 0;
 }
 
 static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct gprs_dev *gp = netdev_priv(dev);
+	struct sock *sk = gp->sk;
+	int len, err;
 
 	switch (skb->protocol) {
 	case  htons(ETH_P_IP):
@@ -201,51 +198,24 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 
-	spin_lock(&gp->tx_lock);
-	if (likely(skb_queue_len(&gp->tx_queue) < gp->tx_max)) {
-		skb_queue_tail(&gp->tx_queue, skb);
-		skb = NULL;
-	}
-	if (skb_queue_len(&gp->tx_queue) >= gp->tx_max)
-		netif_stop_queue(dev);
-	spin_unlock(&gp->tx_lock);
-
-	schedule_work(&gp->tx_work);
-	if (unlikely(skb))
+	skb_orphan(skb);
+	skb_set_owner_w(skb, sk);
+	len = skb->len;
+	err = pep_write(sk, skb);
+	if (err) {
+		LIMIT_NETDEBUG(KERN_WARNING"%s: TX error (%d)\n",
+				dev->name, err);
+		dev->stats.tx_aborted_errors++;
+		dev->stats.tx_errors++;
 		dev_kfree_skb(skb);
-	return 0;
-}
-
-static void gprs_tx(struct work_struct *work)
-{
-	struct gprs_dev *gp = container_of(work, struct gprs_dev, tx_work);
-	struct net_device *dev = gp->dev;
-	struct sock *sk = gp->sk;
-	struct sk_buff *skb;
-
-	while ((skb = skb_dequeue(&gp->tx_queue)) != NULL) {
-		int err;
-
-		dev->stats.tx_bytes += skb->len;
+	} else {
 		dev->stats.tx_packets++;
-
-		skb_orphan(skb);
-		skb_set_owner_w(skb, sk);
-
-		lock_sock(sk);
-		err = pep_write(sk, skb);
-		if (err) {
-			LIMIT_NETDEBUG(KERN_WARNING"%s: TX error (%d)\n",
-					dev->name, err);
-			dev->stats.tx_aborted_errors++;
-			dev->stats.tx_errors++;
-		}
-		release_sock(sk);
+		dev->stats.tx_bytes += len;
 	}
 
-	lock_sock(sk);
-	gprs_write_space(sk);
-	release_sock(sk);
+	if (!pep_writeable(sk))
+		netif_stop_queue(dev);
+	return 0;
 }
 
 static int gprs_set_mtu(struct net_device *dev, int new_mtu)
@@ -297,11 +267,8 @@ int gprs_attach(struct sock *sk)
 	if (!dev)
 		return -ENOMEM;
 	gp = netdev_priv(dev);
+	gp->sk = sk;
 	gp->dev = dev;
-	gp->tx_max = 0;
-	spin_lock_init(&gp->tx_lock);
-	skb_queue_head_init(&gp->tx_queue);
-	INIT_WORK(&gp->tx_work, gprs_tx);
 
 	netif_stop_queue(dev);
 	err = register_netdev(dev);
@@ -328,9 +295,7 @@ int gprs_attach(struct sock *sk)
 	sk->sk_data_ready	= gprs_data_ready;
 	sk->sk_write_space	= gprs_write_space;
 	release_sock(sk);
-
 	sock_hold(sk);
-	gp->sk = sk;
 
 	printk(KERN_DEBUG"%s: attached\n", dev->name);
 	return dev->ifindex;
