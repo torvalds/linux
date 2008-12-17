@@ -369,7 +369,7 @@ config CRYPTO_SHA256
 
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  SHA512 secure hash standard (DFIPS 180-2).
 
