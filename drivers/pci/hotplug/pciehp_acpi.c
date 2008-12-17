@@ -24,6 +24,8 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include "pciehp.h"
 
 #define PCIEHP_DETECT_PCIE	(0)
@@ -41,59 +43,11 @@ MODULE_PARM_DESC(pciehp_detect_mode,
 	 "  auto(default) - Auto select mode. Use acpi option if duplicate\n"
 	 "                  slot ids are found. Otherwise, use pcie option\n");
 
-static int is_ejectable(acpi_handle handle)
-{
-	acpi_status status;
-	acpi_handle tmp;
-	unsigned long long removable;
-	status = acpi_get_handle(handle, "_ADR", &tmp);
-	if (ACPI_FAILURE(status))
-		return 0;
-	status = acpi_get_handle(handle, "_EJ0", &tmp);
-	if (ACPI_SUCCESS(status))
-		return 1;
-	status = acpi_evaluate_integer(handle, "_RMV", NULL, &removable);
-	if (ACPI_SUCCESS(status) && removable)
-		return 1;
-	return 0;
-}
-
-static acpi_status
-check_hotplug(acpi_handle handle, u32 lvl, void *context, void **rv)
-{
-	int *found = (int *)context;
-	if (is_ejectable(handle)) {
-		*found = 1;
-		return AE_CTRL_TERMINATE;
-	}
-	return AE_OK;
-}
-
-static int pciehp_detect_acpi_slot(struct pci_bus *pbus)
-{
-	acpi_handle handle;
-	struct pci_dev *pdev = pbus->self;
-	int found = 0;
-
-	if (!pdev){
-		int seg = pci_domain_nr(pbus), busnr = pbus->number;
-		handle = acpi_get_pci_rootbridge_handle(seg, busnr);
-	} else
-		handle = DEVICE_ACPI_HANDLE(&(pdev->dev));
-
-	if (!handle)
-		return 0;
-
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-			    check_hotplug, (void *)&found, NULL);
-	return found;
-}
-
 int pciehp_acpi_slot_detection_check(struct pci_dev *dev)
 {
 	if (slot_detection_mode != PCIEHP_DETECT_ACPI)
 		return 0;
-	if (pciehp_detect_acpi_slot(dev->subordinate))
+	if (acpi_pci_detect_ejectable(dev->subordinate))
 		return 0;
 	return -ENODEV;
 }
@@ -135,6 +89,7 @@ static int __init dummy_probe(struct pcie_device *dev,
 	u32 slot_cap;
 	struct slot *slot, *tmp;
 	struct pci_dev *pdev = dev->port;
+	struct pci_bus *pbus = pdev->subordinate;
 	if (!(slot = kzalloc(sizeof(*slot), GFP_KERNEL)))
 		return -ENOMEM;
 	/* Note: pciehp_detect_mode != PCIEHP_DETECT_ACPI here */
@@ -149,7 +104,7 @@ static int __init dummy_probe(struct pcie_device *dev,
 			dup_slot_id++;
 	}
 	list_add_tail(&slot->slot_list, &dummy_slots);
-	if (!acpi_slot_detected && pciehp_detect_acpi_slot(pdev->subordinate))
+	if (!acpi_slot_detected && acpi_pci_detect_ejectable(pbus))
 		acpi_slot_detected = 1;
 	return -ENODEV;         /* dummy driver always returns error */
 }

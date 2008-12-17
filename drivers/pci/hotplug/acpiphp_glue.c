@@ -46,6 +46,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/pci-acpi.h>
 #include <linux/mutex.h>
 
 #include "../pci.h"
@@ -62,68 +63,6 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus);
 static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context);
 
-
-/*
- * initialization & terminatation routines
- */
-
-/**
- * is_ejectable - determine if a slot is ejectable
- * @handle: handle to acpi namespace
- *
- * Ejectable slot should satisfy at least these conditions:
- *
- *  1. has _ADR method
- *  2. has _EJ0 method or _RMV method
- *
- * optionally
- *
- *  1. has _STA method
- *  2. has _PS0 method
- *  3. has _PS3 method
- *  4. ..
- */
-static int is_ejectable(acpi_handle handle)
-{
-	acpi_status status;
-	acpi_handle tmp;
-	unsigned long long removable;
-
-	status = acpi_get_handle(handle, "_ADR", &tmp);
-	if (ACPI_FAILURE(status))
-		return 0;
-
-	status = acpi_get_handle(handle, "_EJ0", &tmp);
-	if (ACPI_SUCCESS(status))
-		return 1;
-
-	status = acpi_get_handle(handle, "_RMV", &tmp);
-	if (ACPI_SUCCESS(status)) {
-		status = acpi_evaluate_integer(handle, "_RMV", NULL,
-					       &removable);
-		if (ACPI_SUCCESS(status) && removable)
-			return 1;
-	}
-
-	return 0;
-}
-
-
-/* callback routine to check for the existence of ejectable slots */
-static acpi_status
-is_ejectable_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
-{
-	int *count = (int *)context;
-
-	if (is_ejectable(handle)) {
-		(*count)++;
-		/* only one ejectable slot is enough */
-		return AE_CTRL_TERMINATE;
-	} else {
-		return AE_OK;
-	}
-}
-
 /* callback routine to check for the existence of a pci dock device */
 static acpi_status
 is_pci_dock_device(acpi_handle handle, u32 lvl, void *context, void **rv)
@@ -137,9 +76,6 @@ is_pci_dock_device(acpi_handle handle, u32 lvl, void *context, void **rv)
 		return AE_OK;
 	}
 }
-
-
-
 
 /*
  * the _DCK method can do funny things... and sometimes not
@@ -191,8 +127,9 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	acpi_status status = AE_OK;
 	unsigned long long adr, sun;
 	int device, function, retval;
+	struct pci_bus *pbus = bridge->pci_bus;
 
-	if (!is_ejectable(handle) && !is_dock_device(handle))
+	if (!acpi_pci_check_ejectable(pbus, handle) && !is_dock_device(handle))
 		return AE_OK;
 
 	acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
@@ -258,8 +195,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		bridge->nr_slots++;
 
 		dbg("found ACPI PCI Hotplug slot %llu at PCI %04x:%02x:%02x\n",
-				slot->sun, pci_domain_nr(bridge->pci_bus),
-				bridge->pci_bus->number, slot->device);
+		    slot->sun, pci_domain_nr(pbus), pbus->number, device);
 		retval = acpiphp_register_hotplug_slot(slot);
 		if (retval) {
 			if (retval == -EBUSY)
@@ -276,8 +212,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	list_add_tail(&newfunc->sibling, &slot->funcs);
 
 	/* associate corresponding pci_dev */
-	newfunc->pci_dev = pci_get_slot(bridge->pci_bus,
-					 PCI_DEVFN(device, function));
+	newfunc->pci_dev = pci_get_slot(pbus, PCI_DEVFN(device, function));
 	if (newfunc->pci_dev) {
 		slot->flags |= (SLOT_ENABLED | SLOT_POWEREDON);
 	}
@@ -326,27 +261,15 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 
 /* see if it's worth looking at this bridge */
-static int detect_ejectable_slots(acpi_handle *bridge_handle)
+static int detect_ejectable_slots(struct pci_bus *pbus)
 {
-	acpi_status status;
-	int count;
-
-	count = 0;
-
-	/* only check slots defined directly below bridge object */
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge_handle, (u32)1,
-				     is_ejectable_slot, (void *)&count, NULL);
-
-	/*
-	 * we also need to add this bridge if there is a dock bridge or
-	 * other pci device on a dock station (removable)
-	 */
-	if (!count)
-		status = acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge_handle,
-				(u32)1, is_pci_dock_device, (void *)&count,
-				NULL);
-
-	return count;
+	int found = acpi_pci_detect_ejectable(pbus);
+	if (!found) {
+		acpi_handle bridge_handle = acpi_pci_get_bridge_handle(pbus);
+		acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge_handle, (u32)1,
+				    is_pci_dock_device, (void *)&found, NULL);
+	}
+	return found;
 }
 
 
@@ -556,7 +479,7 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 		goto out;
 
 	/* check if this bridge has ejectable slots */
-	if ((detect_ejectable_slots(handle) > 0)) {
+	if ((detect_ejectable_slots(dev->subordinate) > 0)) {
 		dbg("found PCI-to-PCI bridge at PCI %s\n", pci_name(dev));
 		add_p2p_bridge(handle, dev);
 	}
@@ -617,7 +540,7 @@ static int add_bridge(acpi_handle handle)
 	}
 
 	/* check if this bridge has ejectable slots */
-	if (detect_ejectable_slots(handle) > 0) {
+	if (detect_ejectable_slots(pci_bus) > 0) {
 		dbg("found PCI host-bus bridge with hot-pluggable slots\n");
 		add_host_bridge(handle, pci_bus);
 	}
