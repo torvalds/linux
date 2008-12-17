@@ -58,7 +58,7 @@ void __init xen_init_spinlocks(void);
 __cpuinit void xen_init_lock_cpu(int cpu);
 void xen_uninit_lock_cpu(int cpu);
 
-extern cpumask_t xen_cpu_initialized_map;
+extern cpumask_var_t xen_cpu_initialized_map;
 #else
 static inline void xen_smp_init(void) {}
 #endif

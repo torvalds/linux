@@ -33,7 +33,7 @@
 #include "xen-ops.h"
 #include "mmu.h"
 
-cpumask_t xen_cpu_initialized_map;
+cpumask_var_t xen_cpu_initialized_map;
 
 static DEFINE_PER_CPU(int, resched_irq);
 static DEFINE_PER_CPU(int, callfunc_irq);
@@ -192,7 +192,10 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 	if (xen_smp_intr_init(0))
 		BUG();
 
-	xen_cpu_initialized_map = cpumask_of_cpu(0);
+	if (!alloc_cpumask_var(&xen_cpu_initialized_map, GFP_KERNEL))
+		panic("could not allocate xen_cpu_initialized_map\n");
+
+	cpumask_copy(xen_cpu_initialized_map, cpumask_of(0));
 
 	/* Restrict the possible_map according to max_cpus. */
 	while ((num_possible_cpus() > 1) && (num_possible_cpus() > max_cpus)) {
@@ -221,7 +224,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	struct vcpu_guest_context *ctxt;
 	struct desc_struct *gdt;
 
-	if (cpu_test_and_set(cpu, xen_cpu_initialized_map))
+	if (cpumask_test_and_set_cpu(cpu, xen_cpu_initialized_map))
 		return 0;
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
