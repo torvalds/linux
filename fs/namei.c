@@ -1556,6 +1556,9 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 		 * Refuse to truncate files with mandatory locks held on them.
 		 */
 		error = locks_verify_locked(inode);
+		if (!error)
+			error = security_path_truncate(&nd->path, 0,
+					       ATTR_MTIME|ATTR_CTIME|ATTR_OPEN);
 		if (!error) {
 			DQUOT_INIT(inode);
 
@@ -1586,7 +1589,11 @@ static int __open_namei_create(struct nameidata *nd, struct path *path,
 
 	if (!IS_POSIXACL(dir->d_inode))
 		mode &= ~current->fs->umask;
+	error = security_path_mknod(&nd->path, path->dentry, mode, 0);
+	if (error)
+		goto out_unlock;
 	error = vfs_create(dir->d_inode, path->dentry, mode, nd);
+out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	dput(nd->path.dentry);
 	nd->path.dentry = path->dentry;
@@ -1999,6 +2006,9 @@ asmlinkage long sys_mknodat(int dfd, const char __user *filename, int mode,
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto out_dput;
+	error = security_path_mknod(&nd.path, dentry, mode, dev);
+	if (error)
+		goto out_drop_write;
 	switch (mode & S_IFMT) {
 		case 0: case S_IFREG:
 			error = vfs_create(nd.path.dentry->d_inode,dentry,mode,&nd);
@@ -2011,6 +2021,7 @@ asmlinkage long sys_mknodat(int dfd, const char __user *filename, int mode,
 			error = vfs_mknod(nd.path.dentry->d_inode,dentry,mode,0);
 			break;
 	}
+out_drop_write:
 	mnt_drop_write(nd.path.mnt);
 out_dput:
 	dput(dentry);
@@ -2070,7 +2081,11 @@ asmlinkage long sys_mkdirat(int dfd, const char __user *pathname, int mode)
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto out_dput;
+	error = security_path_mkdir(&nd.path, dentry, mode);
+	if (error)
+		goto out_drop_write;
 	error = vfs_mkdir(nd.path.dentry->d_inode, dentry, mode);
+out_drop_write:
 	mnt_drop_write(nd.path.mnt);
 out_dput:
 	dput(dentry);
@@ -2180,7 +2195,11 @@ static long do_rmdir(int dfd, const char __user *pathname)
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto exit3;
+	error = security_path_rmdir(&nd.path, dentry);
+	if (error)
+		goto exit4;
 	error = vfs_rmdir(nd.path.dentry->d_inode, dentry);
+exit4:
 	mnt_drop_write(nd.path.mnt);
 exit3:
 	dput(dentry);
@@ -2265,7 +2284,11 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 		error = mnt_want_write(nd.path.mnt);
 		if (error)
 			goto exit2;
+		error = security_path_unlink(&nd.path, dentry);
+		if (error)
+			goto exit3;
 		error = vfs_unlink(nd.path.dentry->d_inode, dentry);
+exit3:
 		mnt_drop_write(nd.path.mnt);
 	exit2:
 		dput(dentry);
@@ -2346,7 +2369,11 @@ asmlinkage long sys_symlinkat(const char __user *oldname,
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto out_dput;
+	error = security_path_symlink(&nd.path, dentry, from);
+	if (error)
+		goto out_drop_write;
 	error = vfs_symlink(nd.path.dentry->d_inode, dentry, from);
+out_drop_write:
 	mnt_drop_write(nd.path.mnt);
 out_dput:
 	dput(dentry);
@@ -2443,7 +2470,11 @@ asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto out_dput;
+	error = security_path_link(old_path.dentry, &nd.path, new_dentry);
+	if (error)
+		goto out_drop_write;
 	error = vfs_link(old_path.dentry, nd.path.dentry->d_inode, new_dentry);
+out_drop_write:
 	mnt_drop_write(nd.path.mnt);
 out_dput:
 	dput(new_dentry);
@@ -2679,8 +2710,13 @@ asmlinkage long sys_renameat(int olddfd, const char __user *oldname,
 	error = mnt_want_write(oldnd.path.mnt);
 	if (error)
 		goto exit5;
+	error = security_path_rename(&oldnd.path, old_dentry,
+				     &newnd.path, new_dentry);
+	if (error)
+		goto exit6;
 	error = vfs_rename(old_dir->d_inode, old_dentry,
 				   new_dir->d_inode, new_dentry);
+exit6:
 	mnt_drop_write(oldnd.path.mnt);
 exit5:
 	dput(new_dentry);

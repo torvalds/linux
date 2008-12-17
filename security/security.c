@@ -355,6 +355,72 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 }
 EXPORT_SYMBOL(security_inode_init_security);
 
+#ifdef CONFIG_SECURITY_PATH
+int security_path_mknod(struct path *path, struct dentry *dentry, int mode,
+			unsigned int dev)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_mknod(path, dentry, mode, dev);
+}
+EXPORT_SYMBOL(security_path_mknod);
+
+int security_path_mkdir(struct path *path, struct dentry *dentry, int mode)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_mkdir(path, dentry, mode);
+}
+
+int security_path_rmdir(struct path *path, struct dentry *dentry)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_rmdir(path, dentry);
+}
+
+int security_path_unlink(struct path *path, struct dentry *dentry)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_unlink(path, dentry);
+}
+
+int security_path_symlink(struct path *path, struct dentry *dentry,
+			  const char *old_name)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_symlink(path, dentry, old_name);
+}
+
+int security_path_link(struct dentry *old_dentry, struct path *new_dir,
+		       struct dentry *new_dentry)
+{
+	if (unlikely(IS_PRIVATE(old_dentry->d_inode)))
+		return 0;
+	return security_ops->path_link(old_dentry, new_dir, new_dentry);
+}
+
+int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
+			 struct path *new_dir, struct dentry *new_dentry)
+{
+	if (unlikely(IS_PRIVATE(old_dentry->d_inode) ||
+		     (new_dentry->d_inode && IS_PRIVATE(new_dentry->d_inode))))
+		return 0;
+	return security_ops->path_rename(old_dir, old_dentry, new_dir,
+					 new_dentry);
+}
+
+int security_path_truncate(struct path *path, loff_t length,
+			   unsigned int time_attrs)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_truncate(path, length, time_attrs);
+}
+#endif
+
 int security_inode_create(struct inode *dir, struct dentry *dentry, int mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))

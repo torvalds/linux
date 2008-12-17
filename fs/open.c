@@ -272,6 +272,8 @@ static long do_sys_truncate(const char __user *pathname, loff_t length)
 		goto put_write_and_out;
 
 	error = locks_verify_truncate(inode, NULL, length);
+	if (!error)
+		error = security_path_truncate(&path, length, 0);
 	if (!error) {
 		DQUOT_INIT(inode);
 		error = do_truncate(path.dentry, length, 0, NULL);
@@ -328,6 +330,9 @@ static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 		goto out_putf;
 
 	error = locks_verify_truncate(inode, file, length);
+	if (!error)
+		error = security_path_truncate(&file->f_path, length,
+					       ATTR_MTIME|ATTR_CTIME);
 	if (!error)
 		error = do_truncate(dentry, length, ATTR_MTIME|ATTR_CTIME, file);
 out_putf:
