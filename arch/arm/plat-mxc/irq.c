@@ -17,9 +17,11 @@
  * MA  02110-1301, USA.
  */
 
+#include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <mach/common.h>
+#include <asm/mach/irq.h>
 
 #define AVIC_BASE		IO_ADDRESS(AVIC_BASE_ADDR)
 #define AVIC_INTCNTL		(AVIC_BASE + 0x00)	/* int control reg */
@@ -65,6 +67,28 @@ void imx_irq_set_priority(unsigned char irq, unsigned char prio)
 EXPORT_SYMBOL(imx_irq_set_priority);
 #endif
 
+#ifdef CONFIG_FIQ
+int mxc_set_irq_fiq(unsigned int irq, unsigned int type)
+{
+	unsigned int irqt;
+
+	if (irq >= MXC_MAX_INT_LINES)
+		return -EINVAL;
+
+	if (irq < MXC_MAX_INT_LINES / 2) {
+		irqt = __raw_readl(AVIC_INTTYPEL) & ~(1 << irq);
+		__raw_writel(irqt | (!!type << irq), AVIC_INTTYPEL);
+	} else {
+		irq -= MXC_MAX_INT_LINES / 2;
+		irqt = __raw_readl(AVIC_INTTYPEH) & ~(1 << irq);
+		__raw_writel(irqt | (!!type << irq), AVIC_INTTYPEH);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mxc_set_irq_fiq);
+#endif /* CONFIG_FIQ */
+
 /* Disable interrupt number "irq" in the AVIC */
 static void mxc_mask_irq(unsigned int irq)
 {
@@ -91,7 +115,6 @@ static struct irq_chip mxc_avic_chip = {
 void __init mxc_init_irq(void)
 {
 	int i;
-	u32 reg;
 
 	/* put the AVIC into the reset value with
 	 * all interrupts disabled
@@ -118,6 +141,11 @@ void __init mxc_init_irq(void)
 
 	/* init architectures chained interrupt handler */
 	mxc_register_gpios();
+
+#ifdef CONFIG_FIQ
+	/* Initialize FIQ */
+	init_FIQ();
+#endif
 
 	printk(KERN_INFO "MXC IRQ initialized\n");
 }

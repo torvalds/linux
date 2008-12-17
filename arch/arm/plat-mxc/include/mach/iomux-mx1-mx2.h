@@ -21,12 +21,6 @@
 
 #include <linux/io.h>
 
-#define MXC_GPIO_ALLOC_MODE_NORMAL	0
-#define MXC_GPIO_ALLOC_MODE_NO_ALLOC	1
-#define MXC_GPIO_ALLOC_MODE_TRY_ALLOC	2
-#define MXC_GPIO_ALLOC_MODE_ALLOC_ONLY	4
-#define MXC_GPIO_ALLOC_MODE_RELEASE	8
-
 /*
  *  GPIO Module and I/O Multiplexer
  *  x = 0..3 for reg_A, reg_B, reg_C, reg_D
@@ -103,7 +97,8 @@
 
 extern void mxc_gpio_mode(int gpio_mode);
 extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
-					int alloc_mode, const char *label);
+					const char *label);
+extern void mxc_gpio_release_multiple_pins(const int *pin_list, int count);
 
 /*-------------------------------------------------------------------------*/
 
@@ -113,9 +108,9 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
  * missing on some (many) pins
  */
 #ifdef CONFIG_ARCH_MX1
-#define PA0_AIN_SPI2_CLK     (GPIO_GIUS | GPIO_PORTA | GPIO_OUT | 0)
+#define PA0_AIN_SPI2_CLK     (GPIO_PORTA | GPIO_OUT | 0)
 #define PA0_AF_ETMTRACESYNC  (GPIO_PORTA | GPIO_AF | 0)
-#define PA1_AOUT_SPI2_RXD    (GPIO_GIUS | GPIO_PORTA | GPIO_IN | 1)
+#define PA1_AOUT_SPI2_RXD    (GPIO_PORTA | GPIO_IN | 1)
 #define PA1_PF_TIN           (GPIO_PORTA | GPIO_PF | 1)
 #define PA2_PF_PWM0          (GPIO_PORTA | GPIO_OUT | GPIO_PF | 2)
 #define PA3_PF_CSI_MCLK      (GPIO_PORTA | GPIO_PF | 3)
@@ -133,7 +128,7 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PA15_PF_I2C_SDA      (GPIO_PORTA | GPIO_OUT | GPIO_PF | 15)
 #define PA16_PF_I2C_SCL      (GPIO_PORTA | GPIO_OUT | GPIO_PF | 16)
 #define PA17_AF_ETMTRACEPKT4 (GPIO_PORTA | GPIO_AF | 17)
-#define PA17_AIN_SPI2_SS     (GPIO_GIUS | GPIO_PORTA | GPIO_OUT | 17)
+#define PA17_AIN_SPI2_SS     (GPIO_PORTA | GPIO_OUT | 17)
 #define PA18_AF_ETMTRACEPKT5 (GPIO_PORTA | GPIO_AF | 18)
 #define PA19_AF_ETMTRACEPKT6 (GPIO_PORTA | GPIO_AF | 19)
 #define PA20_AF_ETMTRACEPKT7 (GPIO_PORTA | GPIO_AF | 20)
@@ -201,27 +196,27 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PC15_PF_SPI1_SS      (GPIO_PORTC | GPIO_PF | 15)
 #define PC16_PF_SPI1_MISO    (GPIO_PORTC | GPIO_PF | 16)
 #define PC17_PF_SPI1_MOSI    (GPIO_PORTC | GPIO_PF | 17)
-#define PC24_BIN_UART3_RI    (GPIO_GIUS | GPIO_PORTC | GPIO_OUT | GPIO_BIN | 24)
-#define PC25_BIN_UART3_DSR   (GPIO_GIUS | GPIO_PORTC | GPIO_OUT | GPIO_BIN | 25)
-#define PC26_AOUT_UART3_DTR  (GPIO_GIUS | GPIO_PORTC | GPIO_IN | 26)
-#define PC27_BIN_UART3_DCD   (GPIO_GIUS | GPIO_PORTC | GPIO_OUT | GPIO_BIN | 27)
-#define PC28_BIN_UART3_CTS   (GPIO_GIUS | GPIO_PORTC | GPIO_OUT | GPIO_BIN | 28)
-#define PC29_AOUT_UART3_RTS  (GPIO_GIUS | GPIO_PORTC | GPIO_IN | 29)
-#define PC30_BIN_UART3_TX    (GPIO_GIUS | GPIO_PORTC | GPIO_BIN | 30)
-#define PC31_AOUT_UART3_RX   (GPIO_GIUS | GPIO_PORTC | GPIO_IN | 31)
+#define PC24_BIN_UART3_RI    (GPIO_PORTC | GPIO_OUT | GPIO_BIN | 24)
+#define PC25_BIN_UART3_DSR   (GPIO_PORTC | GPIO_OUT | GPIO_BIN | 25)
+#define PC26_AOUT_UART3_DTR  (GPIO_PORTC | GPIO_IN | 26)
+#define PC27_BIN_UART3_DCD   (GPIO_PORTC | GPIO_OUT | GPIO_BIN | 27)
+#define PC28_BIN_UART3_CTS   (GPIO_PORTC | GPIO_OUT | GPIO_BIN | 28)
+#define PC29_AOUT_UART3_RTS  (GPIO_PORTC | GPIO_IN | 29)
+#define PC30_BIN_UART3_TX    (GPIO_PORTC | GPIO_BIN | 30)
+#define PC31_AOUT_UART3_RX   (GPIO_PORTC | GPIO_IN | 31)
 #define PD6_PF_LSCLK         (GPIO_PORTD | GPIO_OUT | GPIO_PF | 6)
 #define PD7_PF_REV           (GPIO_PORTD | GPIO_PF | 7)
-#define PD7_AF_UART2_DTR     (GPIO_GIUS | GPIO_PORTD | GPIO_IN | GPIO_AF | 7)
-#define PD7_AIN_SPI2_SCLK    (GPIO_GIUS | GPIO_PORTD | GPIO_AIN | 7)
+#define PD7_AF_UART2_DTR     (GPIO_PORTD | GPIO_IN | GPIO_AF | 7)
+#define PD7_AIN_SPI2_SCLK    (GPIO_PORTD | GPIO_AIN | 7)
 #define PD8_PF_CLS           (GPIO_PORTD | GPIO_PF | 8)
 #define PD8_AF_UART2_DCD     (GPIO_PORTD | GPIO_OUT | GPIO_AF | 8)
-#define PD8_AIN_SPI2_SS      (GPIO_GIUS | GPIO_PORTD | GPIO_AIN | 8)
+#define PD8_AIN_SPI2_SS      (GPIO_PORTD | GPIO_AIN | 8)
 #define PD9_PF_PS            (GPIO_PORTD | GPIO_PF | 9)
 #define PD9_AF_UART2_RI      (GPIO_PORTD | GPIO_OUT | GPIO_AF | 9)
-#define PD9_AOUT_SPI2_RXD    (GPIO_GIUS | GPIO_PORTD | GPIO_IN | 9)
+#define PD9_AOUT_SPI2_RXD    (GPIO_PORTD | GPIO_IN | 9)
 #define PD10_PF_SPL_SPR      (GPIO_PORTD | GPIO_OUT | GPIO_PF | 10)
 #define PD10_AF_UART2_DSR    (GPIO_PORTD | GPIO_OUT | GPIO_AF | 10)
-#define PD10_AIN_SPI2_TXD    (GPIO_GIUS | GPIO_PORTD | GPIO_OUT | 10)
+#define PD10_AIN_SPI2_TXD    (GPIO_PORTD | GPIO_OUT | 10)
 #define PD11_PF_CONTRAST     (GPIO_PORTD | GPIO_OUT | GPIO_PF | 11)
 #define PD12_PF_ACD_OE       (GPIO_PORTD | GPIO_OUT | GPIO_PF | 12)
 #define PD13_PF_LP_HSYNC     (GPIO_PORTD | GPIO_OUT | GPIO_PF | 13)
@@ -243,7 +238,7 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PD29_PF_LD14         (GPIO_PORTD | GPIO_OUT | GPIO_PF | 29)
 #define PD30_PF_LD15         (GPIO_PORTD | GPIO_OUT | GPIO_PF | 30)
 #define PD31_PF_TMR2OUT      (GPIO_PORTD | GPIO_PF | 31)
-#define PD31_BIN_SPI2_TXD    (GPIO_GIUS | GPIO_PORTD | GPIO_BIN | 31)
+#define PD31_BIN_SPI2_TXD    (GPIO_PORTD | GPIO_BIN | 31)
 #endif
 
 #ifdef CONFIG_ARCH_MX2
@@ -279,6 +274,12 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PA29_PF_VSYNC		(GPIO_PORTA | GPIO_OUT | GPIO_PF | 29)
 #define PA30_PF_CONTRAST	(GPIO_PORTA | GPIO_OUT | GPIO_PF | 30)
 #define PA31_PF_OE_ACD		(GPIO_PORTA | GPIO_OUT | GPIO_PF | 31)
+#define PB4_PF_SD2_D0		(GPIO_PORTB | GPIO_PF |  4)
+#define PB5_PF_SD2_D1		(GPIO_PORTB | GPIO_PF |  5)
+#define PB6_PF_SD2_D2		(GPIO_PORTB | GPIO_PF |  6)
+#define PB7_PF_SD2_D3		(GPIO_PORTB | GPIO_PF |  7)
+#define PB8_PF_SD2_CMD		(GPIO_PORTB | GPIO_PF |  8)
+#define PB9_PF_SD2_CLK		(GPIO_PORTB | GPIO_PF |  9)
 #define PB10_PF_CSI_D0		(GPIO_PORTB | GPIO_OUT | GPIO_PF | 10)
 #define PB10_AF_UART6_TXD	(GPIO_PORTB | GPIO_OUT | GPIO_AF | 10)
 #define PB11_PF_CSI_D1		(GPIO_PORTB | GPIO_OUT | GPIO_PF | 11)
@@ -315,6 +316,13 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PB31_AF_UART4_RXD	(GPIO_PORTB | GPIO_IN  | GPIO_AF | 31)
 #define PC5_PF_I2C2_SDA		(GPIO_PORTC | GPIO_IN  | GPIO_PF | 5)
 #define PC6_PF_I2C2_SCL		(GPIO_PORTC | GPIO_IN  | GPIO_PF | 6)
+#define PC7_PF_USBOTG_DATA5	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 7)
+#define PC8_PF_USBOTG_DATA6	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 8)
+#define PC9_PF_USBOTG_DATA0	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 9)
+#define PC10_PF_USBOTG_DATA2	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 10)
+#define PC11_PF_USBOTG_DATA1	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 11)
+#define PC12_PF_USBOTG_DATA4	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 12)
+#define PC13_PF_USBOTG_DATA3	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 13)
 #define PC16_PF_SSI4_FS		(GPIO_PORTC | GPIO_IN  | GPIO_PF | 16)
 #define PC17_PF_SSI4_RXD	(GPIO_PORTC | GPIO_IN  | GPIO_PF | 17)
 #define PC18_PF_SSI4_TXD	(GPIO_PORTC | GPIO_IN  | GPIO_PF | 18)
@@ -365,6 +373,9 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PD30_PF_CSPI1_MISO	(GPIO_PORTD | GPIO_IN | GPIO_PF  | 30)
 #define PD31_PF_CSPI1_MOSI	(GPIO_PORTD | GPIO_OUT | GPIO_PF  | 31)
 #define PF23_AIN_FEC_TX_EN	(GPIO_PORTF | GPIO_OUT | GPIO_AIN | 23)
+#define PE0_PF_USBOTG_NXT	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 0)
+#define PE1_PF_USBOTG_STP	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 1)
+#define PE2_PF_USBOTG_DIR	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 2)
 #define PE3_PF_UART2_CTS	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 3)
 #define PE4_PF_UART2_RTS	(GPIO_PORTE | GPIO_IN  | GPIO_PF | 4)
 #define PE6_PF_UART2_TXD	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 6)
@@ -379,10 +390,18 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PE15_PF_UART1_RTS	(GPIO_PORTE | GPIO_IN  | GPIO_PF | 15)
 #define PE16_AF_RTCK		(GPIO_PORTE | GPIO_OUT | GPIO_AF | 16)
 #define PE16_PF_RTCK		(GPIO_PORTE | GPIO_OUT | GPIO_PF | 16)
+#define PE18_PF_SDHC1_D0	(GPIO_PORTE | GPIO_PF | 18)
 #define PE18_AF_CSPI3_MISO	(GPIO_PORTE | GPIO_IN  | GPIO_AF | 18)
+#define PE19_PF_SDHC1_D1	(GPIO_PORTE | GPIO_PF | 19)
+#define PE20_PF_SDHC1_D2	(GPIO_PORTE | GPIO_PF | 20)
+#define PE21_PF_SDHC1_D3	(GPIO_PORTE | GPIO_PF | 21)
 #define PE21_AF_CSPI3_SS	(GPIO_PORTE | GPIO_OUT | GPIO_AF | 21)
+#define PE22_PF_SDHC1_CMD	(GPIO_PORTE | GPIO_PF | 22)
 #define PE22_AF_CSPI3_MOSI	(GPIO_PORTE | GPIO_OUT | GPIO_AF | 22)
+#define PE22_PF_SDHC1_CLK	(GPIO_PORTE | GPIO_PF | 23)
 #define PE23_AF_CSPI3_SCLK	(GPIO_PORTE | GPIO_OUT | GPIO_AF | 23)
+#define PE24_PF_USBOTG_CLK	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 24)
+#define PE25_PF_USBOTG_DATA7	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 25)
 #endif
 
 /* decode irq number to use with IMR(x), ISR(x) and friends */
@@ -392,5 +411,6 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define IRQ_GPIOB(x)  (IRQ_GPIOA(32) + x)
 #define IRQ_GPIOC(x)  (IRQ_GPIOB(32) + x)
 #define IRQ_GPIOD(x)  (IRQ_GPIOC(32) + x)
+#define IRQ_GPIOE(x)  (IRQ_GPIOD(32) + x)
 
 #endif /* _MXC_GPIO_MX1_MX2_H */

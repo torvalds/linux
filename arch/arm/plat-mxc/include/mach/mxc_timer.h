@@ -26,7 +26,7 @@
 #include <linux/clk.h>
 #include <mach/hardware.h>
 
-#ifdef CONFIG_ARCH_IMX
+#ifdef CONFIG_ARCH_MX1
 #define TIMER_BASE		IO_ADDRESS(TIM1_BASE_ADDR)
 #define TIMER_INTERRUPT		TIM1_INT
 
@@ -65,7 +65,7 @@ static void gpt_irq_acknowledge(void)
 {
 	__raw_writel(0, TIMER_BASE + MXC_TSTAT);
 }
-#endif /* CONFIG_ARCH_IMX */
+#endif /* CONFIG_ARCH_MX1 */
 
 #ifdef CONFIG_ARCH_MX2
 #define TIMER_BASE		IO_ADDRESS(GPT1_BASE_ADDR)

@@ -74,17 +74,18 @@ void mxc_iomux_set_pad(enum iomux_pins pin, u32 config)
 	u32 field, l;
 	void __iomem *reg;
 
-	reg = IOMUXSW_PAD_CTL + (pin + 2) / 3;
+	pin &= IOMUX_PADNUM_MASK;
+	reg = IOMUXSW_PAD_CTL + (pin + 2) / 3 * 4;
 	field = (pin + 2) % 3;
 
-	pr_debug("%s: reg offset = 0x%x field = %d\n",
+	pr_debug("%s: reg offset = 0x%x, field = %d\n",
 			__func__, (pin + 2) / 3, field);
 
 	spin_lock(&gpio_mux_lock);
 
 	l = __raw_readl(reg);
-	l &= ~(0x1ff << (field * 9));
-	l |= config << (field * 9);
+	l &= ~(0x1ff << (field * 10));
+	l |= config << (field * 10);
 	__raw_writel(l, reg);
 
 	spin_unlock(&gpio_mux_lock);
