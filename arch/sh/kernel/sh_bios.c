@@ -60,13 +60,13 @@ void sh_bios_gdb_detach(void)
 {
 	sh_bios_call(BIOS_CALL_GDB_DETACH, 0, 0, 0, 0);
 }
-
-EXPORT_SYMBOL(sh_bios_gdb_detach);
+EXPORT_SYMBOL_GPL(sh_bios_gdb_detach);
 
 void sh_bios_get_node_addr(unsigned char *node_addr)
 {
 	sh_bios_call(BIOS_CALL_ETH_NODE_ADDR, 0, (long)node_addr, 0, 0);
 }
+EXPORT_SYMBOL_GPL(sh_bios_get_node_addr);
 
 void sh_bios_shutdown(unsigned int how)
 {
