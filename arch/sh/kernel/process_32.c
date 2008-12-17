@@ -97,21 +97,10 @@ void show_regs(struct pt_regs * regs)
 /*
  * Create a kernel thread
  */
-
-/*
- * This is the mechanism for creating a new kernel thread.
- *
- */
-extern void kernel_thread_helper(void);
-__asm__(".align 5\n"
-	"kernel_thread_helper:\n\t"
-	"jsr	@r5\n\t"
-	" nop\n\t"
-	"mov.l	1f, r1\n\t"
-	"jsr	@r1\n\t"
-	" mov	r0, r4\n\t"
-	".align 2\n\t"
-	"1:.long do_exit");
+ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
+{
+	do_exit(fn(arg));
+}
 
 /* Don't use this in BL=1(cli).  Or else, CPU resets! */
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
