@@ -51,6 +51,7 @@ static struct usb_device_id usbtmc_devices[] = {
 	{ USB_INTERFACE_INFO(USB_CLASS_APP_SPEC, 3, 0), },
 	{ 0, } /* terminating entry */
 };
+MODULE_DEVICE_TABLE(usb, usbtmc_devices);
 
 /*
  * This structure is the capabilities for the device
