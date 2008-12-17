@@ -226,7 +226,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 		if (!buffer || (name_len + 1) > size_left) {
 			ret = -ERANGE;
-			break;
+			goto err;
 		}
 
 		name_ptr = (unsigned long)(di + 1);
