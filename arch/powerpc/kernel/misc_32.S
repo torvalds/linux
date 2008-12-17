@@ -486,13 +486,13 @@ _GLOBAL(_tlbil_va)
 	tlbsx	0,r3
 	mfspr	r4,SPRN_MAS1		/* check valid */
 	andis.	r3,r4,MAS1_VALID@h
-	beqlr
+	beq	1f
 	rlwinm	r4,r4,0,1,31
 	mtspr	SPRN_MAS1,r4
 	tlbwe
 	msync
 	isync
-	wrtee	r10
+1:	wrtee	r10
 	blr
 #endif /* CONFIG_FSL_BOOKE */
 
