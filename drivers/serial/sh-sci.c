@@ -99,6 +99,8 @@ to_sci_port(struct uart_port *uart)
 }
 
 #if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
+
+#ifdef CONFIG_CONSOLE_POLL
 static inline void handle_error(struct uart_port *port)
 {
 	/* Clear error flags */
@@ -126,6 +128,7 @@ static int sci_poll_get_char(struct uart_port *port)
 
 	return c;
 }
+#endif
 
 static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 {
