@@ -18,12 +18,6 @@
 #include <asm/io.h>
 #include <asm/machvec.h>
 
-extern void microdev_heartbeat(void);
-
-
-/****************************************************************************/
-
-
 	/*
 	 * Setup for the SMSC FDC37C93xAPM
 	 */
@@ -398,8 +392,4 @@ static struct sh_machine_vector mv_sh4202_microdev __initmv = {
 	.mv_outsl		= microdev_outsl,
 
 	.mv_init_irq		= init_microdev_irq,
-
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= microdev_heartbeat,
-#endif
 };
