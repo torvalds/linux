@@ -2443,7 +2443,7 @@ static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
 		spin_lock(&c->space_lock);
 		dbg_dump_budg(c);
 		spin_unlock(&c->space_lock);
-	} else if (file->f_path.dentry == d->dump_budg) {
+	} else if (file->f_path.dentry == d->dump_tnc) {
 		mutex_lock(&c->tnc_mutex);
 		dbg_dump_tnc(c);
 		mutex_unlock(&c->tnc_mutex);
