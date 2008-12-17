@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.8.2"
-#define DRV_MODULE_RELDATE	"Nov 10, 2008"
+#define DRV_MODULE_VERSION	"1.9.0"
+#define DRV_MODULE_RELDATE	"Dec 16, 2008"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -131,7 +131,7 @@ static DEFINE_PCI_DEVICE_TABLE(bnx2_pci_tbl) = {
 	{ PCI_VENDOR_ID_BROADCOM, 0x163b,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5716 },
 	{ PCI_VENDOR_ID_BROADCOM, 0x163c,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5716 },
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, BCM5716S },
 	{ 0, }
 };
 
