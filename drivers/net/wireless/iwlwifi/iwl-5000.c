@@ -1623,7 +1623,7 @@ MODULE_PARM_DESC(disable50,
 module_param_named(swcrypto50, iwl50_mod_params.sw_crypto, bool, 0444);
 MODULE_PARM_DESC(swcrypto50,
 		  "using software crypto engine (default 0 [hardware])\n");
-module_param_named(debug50, iwl50_mod_params.debug, int, 0444);
+module_param_named(debug50, iwl50_mod_params.debug, uint, 0444);
 MODULE_PARM_DESC(debug50, "50XX debug output mask");
 module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num50, "number of hw queues in 50xx series");

@@ -2354,7 +2354,7 @@ module_param_named(disable, iwl4965_mod_params.disable, int, 0444);
 MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
-module_param_named(debug, iwl4965_mod_params.debug, int, 0444);
+module_param_named(debug, iwl4965_mod_params.debug, uint, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 module_param_named(
 	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, 0444);
