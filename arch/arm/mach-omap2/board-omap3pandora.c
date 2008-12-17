@@ -35,16 +35,48 @@
 #include <mach/hardware.h>
 #include <mach/mcspi.h>
 
+#include "mmc-twl4030.h"
+
 #define OMAP3_PANDORA_TS_GPIO		94
+
+static struct twl4030_hsmmc_info omap3pandora_mmc[] = {
+	{
+		.mmc		= 1,
+		.wires		= 4,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= 126,
+		.ext_clock	= 0,
+	},
+	{
+		.mmc		= 2,
+		.wires		= 4,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= 127,
+		.ext_clock	= 1,
+	},
+	{}	/* Terminator */
+};
 
 static struct omap_uart_config omap3pandora_uart_config __initdata = {
 	.enabled_uarts	= (1 << 2), /* UART3 */
 };
 
+static int omap3pandora_twl_gpio_setup(struct device *dev,
+		unsigned gpio, unsigned ngpio)
+{
+	/* gpio + {0,1} is "mmc{0,1}_cd" (input/IRQ) */
+	omap3pandora_mmc[0].gpio_cd = gpio + 0;
+	omap3pandora_mmc[1].gpio_cd = gpio + 1;
+	twl4030_mmc_init(omap3pandora_mmc);
+
+	return 0;
+}
+
 static struct twl4030_gpio_platform_data omap3pandora_gpio_data = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES,
 	.irq_base	= TWL4030_GPIO_IRQ_BASE,
 	.irq_end	= TWL4030_GPIO_IRQ_END,
+	.setup		= omap3pandora_twl_gpio_setup,
 };
 
 static struct twl4030_usb_data omap3pandora_usb_data = {

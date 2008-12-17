@@ -345,10 +345,25 @@ static void __init h2_init_smc91x(void)
 	}
 }
 
+static int tps_setup(struct i2c_client *client, void *context)
+{
+	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V |
+				TPS_LDO1_ENABLE | TPS_VLDO1_3_0V);
+
+	return 0;
+}
+
+static struct tps65010_board tps_board = {
+	.base		= H2_TPS_GPIO_BASE,
+	.outmask	= 0x0f,
+	.setup		= tps_setup,
+};
+
 static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("tps65010", 0x48),
 		.irq            = OMAP_GPIO_IRQ(58),
+		.platform_data	= &tps_board,
 	}, {
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
 		.irq		= OMAP_GPIO_IRQ(2),
@@ -378,15 +393,6 @@ static struct omap_usb_config h2_usb_config __initdata = {
 	.pins[1]	= 3,
 };
 
-static struct omap_mmc_config h2_mmc_config __initdata = {
-	.mmc[0] = {
-		.enabled	= 1,
-		.wire4		= 1,
-	},
-};
-
-extern struct omap_mmc_platform_data h2_mmc_data;
-
 static struct omap_uart_config h2_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
 };
@@ -397,7 +403,6 @@ static struct omap_lcd_config h2_lcd_config __initdata = {
 
 static struct omap_board_config_kernel h2_config[] __initdata = {
 	{ OMAP_TAG_USB,		&h2_usb_config },
-	{ OMAP_TAG_MMC,		&h2_mmc_config },
 	{ OMAP_TAG_UART,	&h2_uart_config },
 	{ OMAP_TAG_LCD,		&h2_lcd_config },
 };
