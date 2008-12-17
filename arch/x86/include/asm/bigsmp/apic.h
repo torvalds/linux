@@ -138,7 +138,9 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	cpu = cpumask_any_and(cpumask, andmask);
+	for_each_cpu_and(cpu, cpumask, andmask)
+		if (cpumask_test_cpu(cpu, cpu_online_mask))
+			break;
 	if (cpu < nr_cpu_ids)
 		return cpu_to_logical_apicid(cpu);
 

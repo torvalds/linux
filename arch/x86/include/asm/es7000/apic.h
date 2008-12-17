@@ -214,51 +214,47 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	return apicid;
 }
 
-static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+
+static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
 						  const struct cpumask *andmask)
 {
 	int num_bits_set;
-	int num_bits_set2;
 	int cpus_found = 0;
 	int cpu;
-	int apicid = 0;
+	int apicid = cpu_to_logical_apicid(0);
+	cpumask_var_t cpumask;
+
+	if (!alloc_cpumask_var(&cpumask, GFP_ATOMIC))
+		return apicid;
+
+	cpumask_and(cpumask, inmask, andmask);
+	cpumask_and(cpumask, cpumask, cpu_online_mask);
 
 	num_bits_set = cpumask_weight(cpumask);
-	num_bits_set2 = cpumask_weight(andmask);
-	num_bits_set = min(num_bits_set, num_bits_set2);
 	/* Return id to all */
-	if (num_bits_set >= nr_cpu_ids)
-#if defined CONFIG_ES7000_CLUSTERED_APIC
-		return 0xFF;
-#else
-		return cpu_to_logical_apicid(0);
-#endif
+	if (num_bits_set == NR_CPUS)
+		goto exit;
 	/*
 	 * The cpus in the mask must all be on the apic cluster.  If are not
 	 * on the same apicid cluster return default value of TARGET_CPUS.
 	 */
-	cpu = cpumask_first_and(cpumask, andmask);
+	cpu = cpumask_first(cpumask);
 	apicid = cpu_to_logical_apicid(cpu);
-
 	while (cpus_found < num_bits_set) {
-		if (cpumask_test_cpu(cpu, cpumask) &&
-		    cpumask_test_cpu(cpu, andmask)) {
+		if (cpumask_test_cpu(cpu, cpumask)) {
 			int new_apicid = cpu_to_logical_apicid(cpu);
 			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)) {
-				printk(KERN_WARNING
-					"%s: Not a valid mask!\n", __func__);
-#if defined CONFIG_ES7000_CLUSTERED_APIC
-				return 0xFF;
-#else
+					apicid_cluster(new_apicid)){
+				printk ("%s: Not a valid mask!\n", __func__);
 				return cpu_to_logical_apicid(0);
-#endif
 			}
 			apicid = new_apicid;
 			cpus_found++;
 		}
 		cpu++;
 	}
+exit:
+	free_cpumask_var(cpumask);
 	return apicid;
 }
 

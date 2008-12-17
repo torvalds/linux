@@ -72,8 +72,9 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 {
 	unsigned long mask1 = cpumask_bits(cpumask)[0];
 	unsigned long mask2 = cpumask_bits(andmask)[0];
+	unsigned long mask3 = cpumask_bits(cpu_online_mask)[0];
 
-	return (unsigned int)(mask1 & mask2);
+	return (unsigned int)(mask1 & mask2 & mask3);
 }
 
 static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
