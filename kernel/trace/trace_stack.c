@@ -308,7 +308,7 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 
 	mutex_lock(&stack_sysctl_mutex);
 
-	ret  = proc_dointvec(table, write, file, buffer, lenp, ppos);
+	ret = proc_dointvec(table, write, file, buffer, lenp, ppos);
 
 	if (ret || !write ||
 	    (last_stack_tracer_enabled == stack_tracer_enabled))
@@ -326,11 +326,10 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int start_stack_trace __initdata;
-
 static __init int enable_stacktrace(char *str)
 {
-	start_stack_trace = 1;
+	stack_tracer_enabled = 1;
+	last_stack_tracer_enabled = 1;
 	return 1;
 }
 __setup("stacktrace", enable_stacktrace);
@@ -352,10 +351,8 @@ static __init int stack_trace_init(void)
 	if (!entry)
 		pr_warning("Could not create debugfs 'stack_trace' entry\n");
 
-	if (start_stack_trace) {
+	if (stack_tracer_enabled)
 		register_ftrace_function(&trace_ops);
-		stack_tracer_enabled = 1;
-	}
 
 	return 0;
 }
