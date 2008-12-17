@@ -152,6 +152,11 @@ void __init setup_per_cpu_areas(void)
 	old_size = PERCPU_ENOUGH_ROOM;
 	align = max_t(unsigned long, PAGE_SIZE, align);
 	size = roundup(old_size, align);
+
+	printk(KERN_INFO
+		"NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%d nr_node_ids:%d\n",
+		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
+
 	printk(KERN_INFO "PERCPU: Allocating %zd bytes of per cpu data\n",
 			  size);
 
@@ -168,23 +173,23 @@ void __init setup_per_cpu_areas(void)
 			       "cpu %d has no node %d or node-local memory\n",
 				cpu, node);
 			if (ptr)
-				printk(KERN_DEBUG "per cpu data for cpu%d at %016lx\n",
+				printk(KERN_DEBUG
+					"per cpu data for cpu%d at %016lx\n",
 					 cpu, __pa(ptr));
 		}
 		else {
 			ptr = __alloc_bootmem_node(NODE_DATA(node), size, align,
 							__pa(MAX_DMA_ADDRESS));
 			if (ptr)
-				printk(KERN_DEBUG "per cpu data for cpu%d on node%d at %016lx\n",
-					 cpu, node, __pa(ptr));
+				printk(KERN_DEBUG
+					"per cpu data for cpu%d on node%d "
+					"at %016lx\n",
+					cpu, node, __pa(ptr));
 		}
 #endif
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 	}
-
-	printk(KERN_DEBUG "NR_CPUS: %d, nr_cpu_ids: %d, nr_node_ids %d\n",
-		NR_CPUS, nr_cpu_ids, nr_node_ids);
 
 	/* Setup percpu data maps */
 	setup_per_cpu_maps();
