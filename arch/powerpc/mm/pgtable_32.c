@@ -173,6 +173,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 	if (p < 16*1024*1024)
 		p += _ISA_MEM_BASE;
 
+#ifndef CONFIG_CRASH_DUMP
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
@@ -182,6 +183,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 		       (unsigned long long)p, __builtin_return_address(0));
 		return NULL;
 	}
+#endif
 
 	if (size == 0)
 		return NULL;
