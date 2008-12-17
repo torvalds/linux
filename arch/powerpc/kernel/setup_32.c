@@ -126,6 +126,8 @@ notrace void __init machine_init(unsigned long dt_ptr)
 
 	probe_machine();
 
+	setup_kdump_trampoline();
+
 #ifdef CONFIG_6xx
 	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
 	    cpu_has_feature(CPU_FTR_CAN_NAP))
