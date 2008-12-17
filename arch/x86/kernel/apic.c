@@ -31,7 +31,7 @@
 #include <linux/dmi.h>
 #include <linux/dmar.h>
 
-#include <asm/intel_arch_perfmon.h>
+#include <asm/perf_counter.h>
 #include <asm/atomic.h>
 #include <asm/smp.h>
 #include <asm/mtrr.h>

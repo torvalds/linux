@@ -16,7 +16,7 @@
 #include <linux/kdebug.h>
 #include <linux/sched.h>
 
-#include <asm/intel_arch_perfmon.h>
+#include <asm/perf_counter.h>
 #include <asm/apic.h>
 
 static bool perf_counters_initialized __read_mostly;

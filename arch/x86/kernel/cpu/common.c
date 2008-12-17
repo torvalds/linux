@@ -17,7 +17,7 @@
 #include <asm/mmu_context.h>
 #include <asm/mtrr.h>
 #include <asm/mce.h>
-#include <asm/intel_arch_perfmon.h>
+#include <asm/perf_counter.h>
 #include <asm/pat.h>
 #include <asm/asm.h>
 #include <asm/numa.h>

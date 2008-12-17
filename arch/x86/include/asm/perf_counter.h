@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_INTEL_ARCH_PERFMON_H
-#define _ASM_X86_INTEL_ARCH_PERFMON_H
+#ifndef _ASM_X86_PERF_COUNTER_H
+#define _ASM_X86_PERF_COUNTER_H
 
 #define MSR_ARCH_PERFMON_PERFCTR0			      0xc1
 #define MSR_ARCH_PERFMON_PERFCTR1			      0xc2
@@ -38,4 +38,4 @@ static inline void init_hw_perf_counters(void)		{ }
 static inline void perf_counters_lapic_init(int nmi)	{ }
 #endif
 
-#endif /* _ASM_X86_INTEL_ARCH_PERFMON_H */
+#endif /* _ASM_X86_PERF_COUNTER_H */
