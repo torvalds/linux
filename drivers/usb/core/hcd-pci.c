@@ -128,6 +128,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	pci_set_master(dev);
+	device_set_wakeup_enable(&dev->dev, 1);
 
 	retval = usb_add_hcd(hcd, dev->irq, IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
