@@ -367,21 +367,26 @@ counter_sched_in(struct perf_counter *counter,
 	ctx->nr_active++;
 }
 
-static void
+static int
 group_sched_in(struct perf_counter *group_counter,
 	       struct perf_cpu_context *cpuctx,
 	       struct perf_counter_context *ctx,
 	       int cpu)
 {
 	struct perf_counter *counter;
+	int was_group = 0;
 
 	counter_sched_in(group_counter, cpuctx, ctx, cpu);
 
 	/*
 	 * Schedule in siblings as one group (if any):
 	 */
-	list_for_each_entry(counter, &group_counter->sibling_list, list_entry)
+	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
 		counter_sched_in(counter, cpuctx, ctx, cpu);
+		was_group = 1;
+	}
+
+	return was_group;
 }
 
 /*
@@ -416,7 +421,12 @@ void perf_counter_task_sched_in(struct task_struct *task, int cpu)
 		if (counter->cpu != -1 && counter->cpu != cpu)
 			continue;
 
-		group_sched_in(counter, cpuctx, ctx, cpu);
+		/*
+		 * If we scheduled in a group atomically and
+		 * exclusively, break out:
+		 */
+		if (group_sched_in(counter, cpuctx, ctx, cpu))
+			break;
 	}
 	spin_unlock(&ctx->lock);
 
