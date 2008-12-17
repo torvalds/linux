@@ -47,8 +47,6 @@ struct sh_machine_vector {
 	void (*mv_init_irq)(void);
 	void (*mv_init_pci)(void);
 
-	void (*mv_heartbeat)(void);
-
 	void __iomem *(*mv_ioport_map)(unsigned long port, unsigned int size);
 	void (*mv_ioport_unmap)(void __iomem *);
 };

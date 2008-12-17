@@ -125,11 +125,6 @@ void handle_timer_tick(void)
 	if (current->pid)
 		profile_tick(CPU_PROFILING);
 
-#ifdef CONFIG_HEARTBEAT
-	if (sh_mv.mv_heartbeat != NULL)
-		sh_mv.mv_heartbeat();
-#endif
-
 	/*
 	 * Here we are in the timer irq handler. We just have irqs locally
 	 * disabled but we don't know if the timer_bh is running on the other

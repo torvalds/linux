@@ -240,11 +240,6 @@ static inline void do_timer_interrupt(void)
 
 	do_timer(1);
 
-#ifdef CONFIG_HEARTBEAT
-	if (sh_mv.mv_heartbeat != NULL)
-		sh_mv.mv_heartbeat();
-#endif
-
 	/*
 	 * If we have an externally synchronized Linux clock, then update
 	 * RTC clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
