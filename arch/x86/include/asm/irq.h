@@ -37,7 +37,7 @@ extern int irqbalance_disable(char *str);
 
 #ifdef CONFIG_HOTPLUG_CPU
 #include <linux/cpumask.h>
-extern void fixup_irqs(cpumask_t map);
+extern void fixup_irqs(void);
 #endif
 
 extern unsigned int do_IRQ(struct pt_regs *regs);

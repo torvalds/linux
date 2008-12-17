@@ -1346,7 +1346,7 @@ void cpu_disable_common(void)
 	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
 	unlock_vector_lock();
-	fixup_irqs(cpu_online_map);
+	fixup_irqs();
 }
 
 int native_cpu_disable(void)
