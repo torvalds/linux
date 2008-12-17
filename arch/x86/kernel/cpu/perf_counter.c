@@ -27,13 +27,12 @@ static bool perf_counters_initialized __read_mostly;
 static int nr_hw_counters __read_mostly;
 static u32 perf_counter_mask __read_mostly;
 
-/* No support for fixed function counters yet */
-
-#define MAX_HW_COUNTERS		8
-
 struct cpu_hw_counters {
-	struct perf_counter	*counters[MAX_HW_COUNTERS];
-	unsigned long		used[BITS_TO_LONGS(MAX_HW_COUNTERS)];
+	struct perf_counter	*generic[X86_PMC_MAX_GENERIC];
+	unsigned long		used[BITS_TO_LONGS(X86_PMC_MAX_GENERIC)];
+
+	struct perf_counter	*fixed[X86_PMC_MAX_FIXED];
+	unsigned long		used_fixed[BITS_TO_LONGS(X86_PMC_MAX_FIXED)];
 };
 
 /*
@@ -185,7 +184,7 @@ void hw_perf_restore(u64 ctrl)
 EXPORT_SYMBOL_GPL(hw_perf_restore);
 
 static inline void
-__x86_perf_counter_disable(struct perf_counter *counter,
+__pmc_generic_disable(struct perf_counter *counter,
 			   struct hw_perf_counter *hwc, unsigned int idx)
 {
 	int err;
@@ -193,7 +192,7 @@ __x86_perf_counter_disable(struct perf_counter *counter,
 	err = wrmsr_safe(hwc->config_base + idx, hwc->config, 0);
 }
 
-static DEFINE_PER_CPU(u64, prev_left[MAX_HW_COUNTERS]);
+static DEFINE_PER_CPU(u64, prev_left[X86_PMC_MAX_GENERIC]);
 
 /*
  * Set the next IRQ period, based on the hwc->period_left value.
@@ -231,7 +230,7 @@ __hw_perf_counter_set_period(struct perf_counter *counter,
 }
 
 static void
-__x86_perf_counter_enable(struct perf_counter *counter,
+__pmc_generic_enable(struct perf_counter *counter,
 			  struct hw_perf_counter *hwc, int idx)
 {
 	wrmsr(hwc->config_base + idx,
@@ -241,7 +240,7 @@ __x86_perf_counter_enable(struct perf_counter *counter,
 /*
  * Find a PMC slot for the freshly enabled / scheduled in counter:
  */
-static void x86_perf_counter_enable(struct perf_counter *counter)
+static void pmc_generic_enable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
@@ -256,12 +255,12 @@ static void x86_perf_counter_enable(struct perf_counter *counter)
 
 	perf_counters_lapic_init(hwc->nmi);
 
-	__x86_perf_counter_disable(counter, hwc, idx);
+	__pmc_generic_disable(counter, hwc, idx);
 
-	cpuc->counters[idx] = counter;
+	cpuc->generic[idx] = counter;
 
 	__hw_perf_counter_set_period(counter, hwc, idx);
-	__x86_perf_counter_enable(counter, hwc, idx);
+	__pmc_generic_enable(counter, hwc, idx);
 }
 
 void perf_counter_print_debug(void)
@@ -301,16 +300,16 @@ void perf_counter_print_debug(void)
 	local_irq_enable();
 }
 
-static void x86_perf_counter_disable(struct perf_counter *counter)
+static void pmc_generic_disable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
 	unsigned int idx = hwc->idx;
 
-	__x86_perf_counter_disable(counter, hwc, idx);
+	__pmc_generic_disable(counter, hwc, idx);
 
 	clear_bit(idx, cpuc->used);
-	cpuc->counters[idx] = NULL;
+	cpuc->generic[idx] = NULL;
 
 	/*
 	 * Drain the remaining delta count out of a counter
@@ -349,7 +348,7 @@ static void perf_save_and_restart(struct perf_counter *counter)
 	__hw_perf_counter_set_period(counter, hwc, idx);
 
 	if (pmc_ctrl & ARCH_PERFMON_EVENTSEL0_ENABLE)
-		__x86_perf_counter_enable(counter, hwc, idx);
+		__pmc_generic_enable(counter, hwc, idx);
 }
 
 static void
@@ -392,7 +391,7 @@ static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 again:
 	ack = status;
 	for_each_bit(bit, (unsigned long *) &status, nr_hw_counters) {
-		struct perf_counter *counter = cpuc->counters[bit];
+		struct perf_counter *counter = cpuc->generic[bit];
 
 		clear_bit(bit, (unsigned long *) &status);
 		if (!counter)
@@ -412,7 +411,7 @@ again:
 		}
 		/*
 		 * From NMI context we cannot call into the scheduler to
-		 * do a task wakeup - but we mark these counters as
+		 * do a task wakeup - but we mark these generic as
 		 * wakeup_pending and initate a wakeup callback:
 		 */
 		if (nmi) {
@@ -462,7 +461,7 @@ void perf_counter_notify(struct pt_regs *regs)
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
 	for_each_bit(bit, cpuc->used, nr_hw_counters) {
-		struct perf_counter *counter = cpuc->counters[bit];
+		struct perf_counter *counter = cpuc->generic[bit];
 
 		if (!counter)
 			continue;
@@ -539,10 +538,10 @@ void __init init_hw_perf_counters(void)
 	printk(KERN_INFO "... version:      %d\n", eax.split.version_id);
 	printk(KERN_INFO "... num_counters: %d\n", eax.split.num_counters);
 	nr_hw_counters = eax.split.num_counters;
-	if (nr_hw_counters > MAX_HW_COUNTERS) {
-		nr_hw_counters = MAX_HW_COUNTERS;
+	if (nr_hw_counters > X86_PMC_MAX_GENERIC) {
+		nr_hw_counters = X86_PMC_MAX_GENERIC;
 		WARN(1, KERN_ERR "hw perf counters %d > max(%d), clipping!",
-			nr_hw_counters, MAX_HW_COUNTERS);
+			nr_hw_counters, X86_PMC_MAX_GENERIC);
 	}
 	perf_counter_mask = (1 << nr_hw_counters) - 1;
 	perf_max_counters = nr_hw_counters;
@@ -556,15 +555,15 @@ void __init init_hw_perf_counters(void)
 	register_die_notifier(&perf_counter_nmi_notifier);
 }
 
-static void x86_perf_counter_read(struct perf_counter *counter)
+static void pmc_generic_read(struct perf_counter *counter)
 {
 	x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
 }
 
 static const struct hw_perf_counter_ops x86_perf_counter_ops = {
-	.hw_perf_counter_enable		= x86_perf_counter_enable,
-	.hw_perf_counter_disable	= x86_perf_counter_disable,
-	.hw_perf_counter_read		= x86_perf_counter_read,
+	.hw_perf_counter_enable		= pmc_generic_enable,
+	.hw_perf_counter_disable	= pmc_generic_disable,
+	.hw_perf_counter_read		= pmc_generic_read,
 };
 
 const struct hw_perf_counter_ops *

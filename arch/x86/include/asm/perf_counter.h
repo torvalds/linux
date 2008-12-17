@@ -1,6 +1,13 @@
 #ifndef _ASM_X86_PERF_COUNTER_H
 #define _ASM_X86_PERF_COUNTER_H
 
+/*
+ * Performance counter hw details:
+ */
+
+#define X86_PMC_MAX_GENERIC					8
+#define X86_PMC_MAX_FIXED					3
+
 #define MSR_ARCH_PERFMON_PERFCTR0			      0xc1
 #define MSR_ARCH_PERFMON_PERFCTR1			      0xc2
 
@@ -20,6 +27,10 @@
 
 #define ARCH_PERFMON_BRANCH_MISSES_RETIRED			 6
 
+/*
+ * Intel "Architectural Performance Monitoring" CPUID
+ * detection/enumeration details:
+ */
 union cpuid10_eax {
 	struct {
 		unsigned int version_id:8;
