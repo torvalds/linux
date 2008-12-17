@@ -3,7 +3,7 @@
 
 #include <linux/io.h>
 
-static void __init mrshpc_setup_windows(void)
+static inline void __init mrshpc_setup_windows(void)
 {
 	if ((__raw_readw(MRSHPC_CSR) & 0x000c) != 0)
 		return;	/* Not detected */
