@@ -9,11 +9,9 @@
 #include <asm/sh_bios.h>
 
 #define BIOS_CALL_CONSOLE_WRITE		0
-#define BIOS_CALL_READ_BLOCK		1
 #define BIOS_CALL_ETH_NODE_ADDR		10
 #define BIOS_CALL_SHUTDOWN		11
 #define BIOS_CALL_CHAR_OUT		0x1f	/* TODO: hack */
-#define BIOS_CALL_GDB_GET_MODE_PTR	0xfe
 #define BIOS_CALL_GDB_DETACH		0xff
 
 static inline long sh_bios_call(long func, long arg0, long arg1, long arg2,
@@ -39,21 +37,6 @@ void sh_bios_console_write(const char *buf, unsigned int len)
 void sh_bios_char_out(char ch)
 {
 	sh_bios_call(BIOS_CALL_CHAR_OUT, ch, 0, 0, 0);
-}
-
-int sh_bios_in_gdb_mode(void)
-{
-	static char queried = 0;
-	static char *gdb_mode_p = 0;
-
-	if (!queried) {
-		/* Query the gdb stub for address of its gdb mode variable */
-		long r = sh_bios_call(BIOS_CALL_GDB_GET_MODE_PTR, 0, 0, 0, 0);
-		if (r != ~0)	/* BIOS returns -1 for unknown function */
-			gdb_mode_p = (char *)r;
-		queried = 1;
-	}
-	return (gdb_mode_p != 0 ? *gdb_mode_p : 0);
 }
 
 void sh_bios_gdb_detach(void)
