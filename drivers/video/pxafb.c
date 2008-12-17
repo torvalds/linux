@@ -71,6 +71,7 @@
 static int pxafb_activate_var(struct fb_var_screeninfo *var,
 				struct pxafb_info *);
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
+static void setup_base_frame(struct pxafb_info *fbi, int branch);
 
 static unsigned long video_mem_size = 0;
 
@@ -467,6 +468,24 @@ static int pxafb_set_par(struct fb_info *info)
 	return 0;
 }
 
+static int pxafb_pan_display(struct fb_var_screeninfo *var,
+			     struct fb_info *info)
+{
+	struct pxafb_info *fbi = (struct pxafb_info *)info;
+	int dma = DMA_MAX + DMA_BASE;
+
+	if (fbi->state != C_ENABLE)
+		return 0;
+
+	setup_base_frame(fbi, 1);
+
+	if (fbi->lccr0 & LCCR0_SDS)
+		lcd_writel(fbi, FBR1, fbi->fdadr[dma + 1] | 0x1);
+
+	lcd_writel(fbi, FBR0, fbi->fdadr[dma] | 0x1);
+	return 0;
+}
+
 /*
  * pxafb_blank():
  *	Blank the display by setting all palette values to zero.  Note, the
@@ -506,6 +525,7 @@ static struct fb_ops pxafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= pxafb_check_var,
 	.fb_set_par	= pxafb_set_par,
+	.fb_pan_display	= pxafb_pan_display,
 	.fb_setcolreg	= pxafb_setcolreg,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
@@ -597,7 +617,7 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 	struct pxafb_dma_descriptor *dma_desc, *pal_desc;
 	unsigned int dma_desc_off, pal_desc_off;
 
-	if (dma < 0 || dma >= DMA_MAX)
+	if (dma < 0 || dma >= DMA_MAX * 2)
 		return -EINVAL;
 
 	dma_desc = &fbi->dma_buff->dma_desc[dma];
@@ -607,7 +627,7 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 	dma_desc->fidr  = 0;
 	dma_desc->ldcmd = size;
 
-	if (pal < 0 || pal >= PAL_MAX) {
+	if (pal < 0 || pal >= PAL_MAX * 2) {
 		dma_desc->fdadr = fbi->dma_buff_phys + dma_desc_off;
 		fbi->fdadr[dma] = fbi->dma_buff_phys + dma_desc_off;
 	} else {
@@ -631,6 +651,27 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 	}
 
 	return 0;
+}
+
+static void setup_base_frame(struct pxafb_info *fbi, int branch)
+{
+	struct fb_var_screeninfo *var = &fbi->fb.var;
+	struct fb_fix_screeninfo *fix = &fbi->fb.fix;
+	unsigned int nbytes, offset;
+	int dma, pal, bpp = var->bits_per_pixel;
+
+	dma = DMA_BASE + (branch ? DMA_MAX : 0);
+	pal = (bpp >= 16) ? PAL_NONE : PAL_BASE + (branch ? PAL_MAX : 0);
+
+	nbytes = fix->line_length * var->yres;
+	offset = fix->line_length * var->yoffset;
+
+	if (fbi->lccr0 & LCCR0_SDS) {
+		nbytes = nbytes / 2;
+		setup_frame_dma(fbi, dma + 1, PAL_NONE, offset + nbytes, nbytes);
+	}
+
+	setup_frame_dma(fbi, dma, pal, offset, nbytes);
 }
 
 #ifdef CONFIG_FB_PXA_SMARTPANEL
@@ -880,7 +921,6 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 			      struct pxafb_info *fbi)
 {
 	u_long flags;
-	size_t nbytes, offset;
 
 #if DEBUG_VAR
 	if (!(fbi->lccr0 & LCCR0_LCDT)) {
@@ -935,24 +975,13 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 #endif
 		setup_parallel_timing(fbi, var);
 
+	setup_base_frame(fbi, 0);
+
 	fbi->reg_lccr0 = fbi->lccr0 |
 		(LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_EFM |
 		 LCCR0_QDM | LCCR0_BM  | LCCR0_OUM);
 
 	fbi->reg_lccr3 |= pxafb_bpp_to_lccr3(var);
-
-	nbytes = fbi->fb.fix.line_length * var->yres;
-	offset = fbi->fb.fix.line_length * var->yoffset;
-
-	if ((fbi->lccr0 & LCCR0_SDS) == LCCR0_Dual) {
-		nbytes = nbytes / 2;
-		setup_frame_dma(fbi, DMA_LOWER, PAL_NONE, offset + nbytes, nbytes);
-	}
-
-	if ((var->bits_per_pixel >= 16) || (fbi->lccr0 & LCCR0_LCDT))
-		setup_frame_dma(fbi, DMA_BASE, PAL_NONE, offset, nbytes);
-	else
-		setup_frame_dma(fbi, DMA_BASE, PAL_BASE, offset, nbytes);
 
 	fbi->reg_lccr4 = lcd_readl(fbi, LCCR4) & ~LCCR4_PAL_FOR_MASK;
 	fbi->reg_lccr4 |= (fbi->lccr4 & LCCR4_PAL_FOR_MASK);

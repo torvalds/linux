@@ -54,11 +54,14 @@ enum {
 #define PALETTE_SIZE	(256 * 4)
 #define CMD_BUFF_SIZE	(1024 * 50)
 
+/* NOTE: the palette and frame dma descriptors are doubled to allow
+ * the 2nd set for branch settings (FBRx)
+ */
 struct pxafb_dma_buff {
 	unsigned char palette[PAL_MAX * PALETTE_SIZE];
 	uint16_t cmd_buff[CMD_BUFF_SIZE];
-	struct pxafb_dma_descriptor pal_desc[PAL_MAX];
-	struct pxafb_dma_descriptor dma_desc[DMA_MAX];
+	struct pxafb_dma_descriptor pal_desc[PAL_MAX * 2];
+	struct pxafb_dma_descriptor dma_desc[DMA_MAX * 2];
 };
 
 struct pxafb_info {
@@ -71,7 +74,7 @@ struct pxafb_info {
 	struct pxafb_dma_buff	*dma_buff;
 	size_t			dma_buff_size;
 	dma_addr_t		dma_buff_phys;
-	dma_addr_t		fdadr[DMA_MAX];
+	dma_addr_t		fdadr[DMA_MAX * 2];
 
 	void __iomem		*video_mem;	/* virtual address of frame buffer */
 	unsigned long		video_mem_phys;	/* physical address of frame buffer */

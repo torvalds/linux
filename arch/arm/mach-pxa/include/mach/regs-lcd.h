@@ -12,12 +12,18 @@
 #define LCCR3		(0x00C)	/* LCD Controller Control Register 3 */
 #define LCCR4		(0x010)	/* LCD Controller Control Register 4 */
 #define LCCR5		(0x014)	/* LCD Controller Control Register 5 */
-#define DFBR0		(0x020)	/* DMA Channel 0 Frame Branch Register */
-#define DFBR1		(0x024)	/* DMA Channel 1 Frame Branch Register */
 #define LCSR		(0x038)	/* LCD Controller Status Register */
 #define LIIDR		(0x03C)	/* LCD Controller Interrupt ID Register */
 #define TMEDRGBR	(0x040)	/* TMED RGB Seed Register */
 #define TMEDCR		(0x044)	/* TMED Control Register */
+
+#define FBR0		(0x020)	/* DMA Channel 0 Frame Branch Register */
+#define FBR1		(0x024)	/* DMA Channel 1 Frame Branch Register */
+#define FBR2		(0x028) /* DMA Channel 2 Frame Branch Register */
+#define FBR3		(0x02C) /* DMA Channel 2 Frame Branch Register */
+#define FBR4		(0x030) /* DMA Channel 2 Frame Branch Register */
+#define FBR5		(0x110) /* DMA Channel 2 Frame Branch Register */
+#define FBR6		(0x114) /* DMA Channel 2 Frame Branch Register */
 
 #define CMDCR		(0x100)	/* Command Control Register */
 #define PRSR		(0x104)	/* Panel Read Status Register */
