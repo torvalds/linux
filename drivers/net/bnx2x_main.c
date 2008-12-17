@@ -1921,10 +1921,10 @@ static void bnx2x_link_report(struct bnx2x *bp)
 		else
 			printk("half duplex");
 
-		if (bp->link_vars.flow_ctrl != FLOW_CTRL_NONE) {
-			if (bp->link_vars.flow_ctrl & FLOW_CTRL_RX) {
+		if (bp->link_vars.flow_ctrl != BNX2X_FLOW_CTRL_NONE) {
+			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) {
 				printk(", receive ");
-				if (bp->link_vars.flow_ctrl & FLOW_CTRL_TX)
+				if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
 					printk("& transmit ");
 			} else {
 				printk(", transmit ");
@@ -1948,11 +1948,11 @@ static u8 bnx2x_initial_phy_init(struct bnx2x *bp)
 		/* It is recommended to turn off RX FC for jumbo frames
 		   for better performance */
 		if (IS_E1HMF(bp))
-			bp->link_params.req_fc_auto_adv = FLOW_CTRL_BOTH;
+			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
 		else if (bp->dev->mtu > 5000)
-			bp->link_params.req_fc_auto_adv = FLOW_CTRL_TX;
+			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_TX;
 		else
-			bp->link_params.req_fc_auto_adv = FLOW_CTRL_BOTH;
+			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
 
 		bnx2x_acquire_phy_lock(bp);
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
@@ -7362,9 +7362,9 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 
 	bp->link_params.req_flow_ctrl = (bp->port.link_config &
 					 PORT_FEATURE_FLOW_CONTROL_MASK);
-	if ((bp->link_params.req_flow_ctrl == FLOW_CTRL_AUTO) &&
+	if ((bp->link_params.req_flow_ctrl == BNX2X_FLOW_CTRL_AUTO) &&
 	    !(bp->port.supported & SUPPORTED_Autoneg))
-		bp->link_params.req_flow_ctrl = FLOW_CTRL_NONE;
+		bp->link_params.req_flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 
 	BNX2X_DEV_INFO("req_line_speed %d  req_duplex %d  req_flow_ctrl 0x%x"
 		       "  advertising 0x%x\n",
@@ -8353,13 +8353,13 @@ static void bnx2x_get_pauseparam(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	epause->autoneg = (bp->link_params.req_flow_ctrl == FLOW_CTRL_AUTO) &&
+	epause->autoneg = (bp->link_params.req_flow_ctrl == BNX2X_FLOW_CTRL_AUTO) &&
 			  (bp->link_params.req_line_speed == SPEED_AUTO_NEG);
 
-	epause->rx_pause = ((bp->link_vars.flow_ctrl & FLOW_CTRL_RX) ==
-			    FLOW_CTRL_RX);
-	epause->tx_pause = ((bp->link_vars.flow_ctrl & FLOW_CTRL_TX) ==
-			    FLOW_CTRL_TX);
+	epause->rx_pause = ((bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) ==
+			    BNX2X_FLOW_CTRL_RX);
+	epause->tx_pause = ((bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX) ==
+			    BNX2X_FLOW_CTRL_TX);
 
 	DP(NETIF_MSG_LINK, "ethtool_pauseparam: cmd %d\n"
 	   DP_LEVEL "  autoneg %d  rx_pause %d  tx_pause %d\n",
@@ -8378,16 +8378,16 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 	   DP_LEVEL "  autoneg %d  rx_pause %d  tx_pause %d\n",
 	   epause->cmd, epause->autoneg, epause->rx_pause, epause->tx_pause);
 
-	bp->link_params.req_flow_ctrl = FLOW_CTRL_AUTO;
+	bp->link_params.req_flow_ctrl = BNX2X_FLOW_CTRL_AUTO;
 
 	if (epause->rx_pause)
-		bp->link_params.req_flow_ctrl |= FLOW_CTRL_RX;
+		bp->link_params.req_flow_ctrl |= BNX2X_FLOW_CTRL_RX;
 
 	if (epause->tx_pause)
-		bp->link_params.req_flow_ctrl |= FLOW_CTRL_TX;
+		bp->link_params.req_flow_ctrl |= BNX2X_FLOW_CTRL_TX;
 
-	if (bp->link_params.req_flow_ctrl == FLOW_CTRL_AUTO)
-		bp->link_params.req_flow_ctrl = FLOW_CTRL_NONE;
+	if (bp->link_params.req_flow_ctrl == BNX2X_FLOW_CTRL_AUTO)
+		bp->link_params.req_flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 
 	if (epause->autoneg) {
 		if (!(bp->port.supported & SUPPORTED_Autoneg)) {
@@ -8396,7 +8396,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 		}
 
 		if (bp->link_params.req_line_speed == SPEED_AUTO_NEG)
-			bp->link_params.req_flow_ctrl = FLOW_CTRL_AUTO;
+			bp->link_params.req_flow_ctrl = BNX2X_FLOW_CTRL_AUTO;
 	}
 
 	DP(NETIF_MSG_LINK,
