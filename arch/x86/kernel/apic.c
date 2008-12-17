@@ -1819,28 +1819,32 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 void __cpuinit generic_processor_info(int apicid, int version)
 {
 	int cpu;
-	cpumask_t tmp_map;
 
 	/*
 	 * Validate version
 	 */
 	if (version == 0x0) {
 		pr_warning("BIOS bug, APIC version is 0 for CPU#%d! "
-			"fixing up to 0x10. (tell your hw vendor)\n",
-			version);
+			   "fixing up to 0x10. (tell your hw vendor)\n",
+				version);
 		version = 0x10;
 	}
 	apic_version[apicid] = version;
 
-	if (num_processors >= NR_CPUS) {
-		pr_warning("WARNING: NR_CPUS limit of %i reached."
-			"  Processor ignored.\n", NR_CPUS);
+	if (num_processors >= nr_cpu_ids) {
+		int max = nr_cpu_ids;
+		int thiscpu = max + disabled_cpus;
+
+		pr_warning(
+			"ACPI: NR_CPUS/possible_cpus limit of %i reached."
+			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
+
+		disabled_cpus++;
 		return;
 	}
 
 	num_processors++;
-	cpus_complement(tmp_map, cpu_present_map);
-	cpu = first_cpu(tmp_map);
+	cpu = cpumask_next_zero(-1, cpu_present_mask);
 
 	physid_set(apicid, phys_cpu_present_map);
 	if (apicid == boot_cpu_physical_apicid) {
