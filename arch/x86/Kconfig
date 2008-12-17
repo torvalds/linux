@@ -243,13 +243,22 @@ config X86_HAS_BOOT_CPU_ID
 
 config SPARSE_IRQ
 	bool "Support sparse irq numbering"
-	depends on (PCI_MSI || HT_IRQ) && SMP
+	depends on PCI_MSI || HT_IRQ
 	default y
 	help
 	  This enables support for sparse irq, esp for msi/msi-x. You may need
 	  if you have lots of cards supports msi-x installed.
 
 	  If you don't know what to do here, say Y.
+
+config NUMA_MIGRATE_IRQ_DESC
+	bool "Move irq desc when changing irq smp_affinity"
+	depends on SPARSE_IRQ && SMP
+	default n
+	help
+	  This enables moving irq_desc to cpu/node that irq will use handled.
+
+	  If you don't know what to do here, say N.
 
 config X86_FIND_SMP_CONFIG
 	def_bool y

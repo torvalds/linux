@@ -23,7 +23,7 @@
 /*
  * lockdep: we want to handle all irq_desc locks as a single lock-class:
  */
-static struct lock_class_key irq_desc_lock_class;
+struct lock_class_key irq_desc_lock_class;
 
 /**
  * handle_bad_irq - handle spurious and unhandled irqs
@@ -73,7 +73,7 @@ static struct irq_desc irq_desc_init = {
 #endif
 };
 
-static void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
+void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
 {
 	unsigned long bytes;
 	char *ptr;
@@ -113,7 +113,7 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
 /*
  * Protect the sparse_irqs:
  */
-static DEFINE_SPINLOCK(sparse_irq_lock);
+DEFINE_SPINLOCK(sparse_irq_lock);
 
 struct irq_desc *irq_desc_ptrs[NR_IRQS] __read_mostly;
 
@@ -337,8 +337,11 @@ unsigned int __do_IRQ(unsigned int irq)
 		/*
 		 * No locking required for CPU-local interrupts:
 		 */
-		if (desc->chip->ack)
+		if (desc->chip->ack) {
 			desc->chip->ack(irq);
+			/* get new one */
+			desc = irq_remap_to_desc(irq, desc);
+		}
 		if (likely(!(desc->status & IRQ_DISABLED))) {
 			action_ret = handle_IRQ_event(irq, desc->action);
 			if (!noirqdebug)
@@ -349,8 +352,10 @@ unsigned int __do_IRQ(unsigned int irq)
 	}
 
 	spin_lock(&desc->lock);
-	if (desc->chip->ack)
+	if (desc->chip->ack) {
 		desc->chip->ack(irq);
+		desc = irq_remap_to_desc(irq, desc);
+	}
 	/*
 	 * REPLAY is when Linux resends an IRQ that was dropped earlier
 	 * WAITING is used by probe to mark irqs that are being tested
