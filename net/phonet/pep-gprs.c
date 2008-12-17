@@ -260,7 +260,7 @@ static int gprs_set_mtu(struct net_device *dev, int new_mtu)
 static void gprs_setup(struct net_device *dev)
 {
 	dev->features		= NETIF_F_FRAGLIST;
-	dev->type		= ARPHRD_NONE;
+	dev->type		= ARPHRD_PHONET_PIPE;
 	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu		= GPRS_DEFAULT_MTU;
 	dev->hard_header_len	= 0;

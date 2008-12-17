@@ -88,6 +88,7 @@
 #define ARPHRD_IEEE80211_RADIOTAP 803	/* IEEE 802.11 + radiotap header */
 
 #define ARPHRD_PHONET	820		/* PhoNet media type		*/
+#define ARPHRD_PHONET_PIPE 821		/* PhoNet pipe header		*/
 
 #define ARPHRD_VOID	  0xFFFF	/* Void type, nothing is known */
 #define ARPHRD_NONE	  0xFFFE	/* zero header length */
