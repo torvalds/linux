@@ -2645,9 +2645,9 @@ static int ocfs2_xattr_update_xattr_search(struct inode *inode,
 				return ret;
 			}
 
-			i = xs->here - old_xh->xh_entries;
-			xs->here = &xs->header->xh_entries[i];
 		}
+		i = xs->here - old_xh->xh_entries;
+		xs->here = &xs->header->xh_entries[i];
 	}
 
 	return ret;
