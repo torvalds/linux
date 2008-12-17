@@ -1301,6 +1301,13 @@ lat_print_timestamp(struct trace_seq *s, u64 abs_usecs,
 
 static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
 
+static int task_state_char(unsigned long state)
+{
+	int bit = state ? __ffs(state) + 1 : 0;
+
+	return bit < sizeof(state_to_char) - 1 ? state_to_char[bit] : '?';
+}
+
 /*
  * The message is supposed to contain an ending newline.
  * If the printing stops prematurely, try to add a newline of our own.
@@ -1396,12 +1403,8 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 
 		trace_assign_type(field, entry);
 
-		T = field->next_state < sizeof(state_to_char) ?
-			state_to_char[field->next_state] : 'X';
-
-		state = field->prev_state ?
-			__ffs(field->prev_state) + 1 : 0;
-		S = state < sizeof(state_to_char) - 1 ? state_to_char[state] : 'X';
+		T = task_state_char(field->next_state);
+		S = task_state_char(field->prev_state);
 		comm = trace_find_cmdline(field->next_pid);
 		trace_seq_printf(s, " %5d:%3d:%c %s [%03d] %5d:%3d:%c %s\n",
 				 field->prev_pid,
@@ -1519,10 +1522,8 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 
 		trace_assign_type(field, entry);
 
-		S = field->prev_state < sizeof(state_to_char) ?
-			state_to_char[field->prev_state] : 'X';
-		T = field->next_state < sizeof(state_to_char) ?
-			state_to_char[field->next_state] : 'X';
+		T = task_state_char(field->next_state);
+		S = task_state_char(field->prev_state);
 		ret = trace_seq_printf(s, " %5d:%3d:%c %s [%03d] %5d:%3d:%c\n",
 				       field->prev_pid,
 				       field->prev_prio,
@@ -1621,12 +1622,9 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 
 		trace_assign_type(field, entry);
 
-		S = field->prev_state < sizeof(state_to_char) ?
-			state_to_char[field->prev_state] : 'X';
-		T = field->next_state < sizeof(state_to_char) ?
-			state_to_char[field->next_state] : 'X';
-		if (entry->type == TRACE_WAKE)
-			S = '+';
+		T = task_state_char(field->next_state);
+		S = entry->type == TRACE_WAKE ? '+' :
+			task_state_char(field->prev_state);
 		ret = trace_seq_printf(s, "%d %d %c %d %d %d %c\n",
 				       field->prev_pid,
 				       field->prev_prio,
@@ -1712,12 +1710,9 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 
 		trace_assign_type(field, entry);
 
-		S = field->prev_state < sizeof(state_to_char) ?
-			state_to_char[field->prev_state] : 'X';
-		T = field->next_state < sizeof(state_to_char) ?
-			state_to_char[field->next_state] : 'X';
-		if (entry->type == TRACE_WAKE)
-			S = '+';
+		T = task_state_char(field->next_state);
+		S = entry->type == TRACE_WAKE ? '+' :
+			task_state_char(field->prev_state);
 		SEQ_PUT_HEX_FIELD_RET(s, field->prev_pid);
 		SEQ_PUT_HEX_FIELD_RET(s, field->prev_prio);
 		SEQ_PUT_HEX_FIELD_RET(s, S);
