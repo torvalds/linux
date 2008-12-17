@@ -27,6 +27,7 @@
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/idr.h>
 #include <linux/netdevice.h>
 #include <linux/poll.h>
 #include <linux/ppp_defs.h>
@@ -172,35 +173,13 @@ struct channel {
  */
 
 /*
- * A cardmap represents a mapping from unsigned integers to pointers,
- * and provides a fast "find lowest unused number" operation.
- * It uses a broad (32-way) tree with a bitmap at each level.
- * It is designed to be space-efficient for small numbers of entries
- * and time-efficient for large numbers of entries.
- */
-#define CARDMAP_ORDER	5
-#define CARDMAP_WIDTH	(1U << CARDMAP_ORDER)
-#define CARDMAP_MASK	(CARDMAP_WIDTH - 1)
-
-struct cardmap {
-	int shift;
-	unsigned long inuse;
-	struct cardmap *parent;
-	void *ptr[CARDMAP_WIDTH];
-};
-static void *cardmap_get(struct cardmap *map, unsigned int nr);
-static int cardmap_set(struct cardmap **map, unsigned int nr, void *ptr);
-static unsigned int cardmap_find_first_free(struct cardmap *map);
-static void cardmap_destroy(struct cardmap **map);
-
-/*
  * all_ppp_mutex protects the all_ppp_units mapping.
  * It also ensures that finding a ppp unit in the all_ppp_units map
  * and updating its file.refcnt field is atomic.
  */
 static DEFINE_MUTEX(all_ppp_mutex);
-static struct cardmap *all_ppp_units;
 static atomic_t ppp_unit_count = ATOMIC_INIT(0);
+static struct idr ppp_units_idr;
 
 /*
  * all_channels_lock protects all_channels and last_channel_index,
@@ -269,6 +248,9 @@ static struct channel *ppp_find_channel(int unit);
 static int ppp_connect_channel(struct channel *pch, int unit);
 static int ppp_disconnect_channel(struct channel *pch);
 static void ppp_destroy_channel(struct channel *pch);
+static int unit_get(struct idr *p, void *ptr);
+static void unit_put(struct idr *p, int n);
+static void *unit_find(struct idr *p, int n);
 
 static struct class *ppp_class;
 
@@ -869,6 +851,8 @@ static int __init ppp_init(void)
 		device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL,
 			      "ppp");
 	}
+
+	idr_init(&ppp_units_idr);
 
 out:
 	if (err)
@@ -2440,10 +2424,22 @@ ppp_create_interface(int unit, int *retp)
 
 	ret = -EEXIST;
 	mutex_lock(&all_ppp_mutex);
-	if (unit < 0)
-		unit = cardmap_find_first_free(all_ppp_units);
-	else if (cardmap_get(all_ppp_units, unit) != NULL)
-		goto out2;	/* unit already exists */
+
+	if (unit < 0) {
+		unit = unit_get(&ppp_units_idr, ppp);
+		if (unit < 0) {
+			*retp = unit;
+			goto out2;
+		}
+	} else {
+		if (unit_find(&ppp_units_idr, unit))
+			goto out2; /* unit already exists */
+		else {
+			/* darn, someone is cheatting us? */
+			*retp = -EINVAL;
+			goto out2;
+		}
+	}
 
 	/* Initialize the new ppp unit */
 	ppp->file.index = unit;
@@ -2451,23 +2447,18 @@ ppp_create_interface(int unit, int *retp)
 
 	ret = register_netdev(dev);
 	if (ret != 0) {
+		unit_put(&ppp_units_idr, unit);
 		printk(KERN_ERR "PPP: couldn't register device %s (%d)\n",
 		       dev->name, ret);
 		goto out2;
 	}
 
 	atomic_inc(&ppp_unit_count);
-	ret = cardmap_set(&all_ppp_units, unit, ppp);
-	if (ret != 0)
-		goto out3;
-
 	mutex_unlock(&all_ppp_mutex);
+
 	*retp = 0;
 	return ppp;
 
-out3:
-	atomic_dec(&ppp_unit_count);
-	unregister_netdev(dev);
 out2:
 	mutex_unlock(&all_ppp_mutex);
 	free_netdev(dev);
@@ -2507,7 +2498,7 @@ static void ppp_shutdown_interface(struct ppp *ppp)
 		unregister_netdev(dev);
 		free_netdev(dev);
 	}
-	cardmap_set(&all_ppp_units, ppp->file.index, NULL);
+	unit_put(&ppp_units_idr, ppp->file.index);
 	ppp->file.dead = 1;
 	ppp->owner = NULL;
 	wake_up_interruptible(&ppp->file.rwait);
@@ -2561,7 +2552,7 @@ static void ppp_destroy_interface(struct ppp *ppp)
 static struct ppp *
 ppp_find_unit(int unit)
 {
-	return cardmap_get(all_ppp_units, unit);
+	return unit_find(&ppp_units_idr, unit);
 }
 
 /*
@@ -2679,123 +2670,45 @@ static void __exit ppp_cleanup(void)
 	/* should never happen */
 	if (atomic_read(&ppp_unit_count) || atomic_read(&channel_count))
 		printk(KERN_ERR "PPP: removing module but units remain!\n");
-	cardmap_destroy(&all_ppp_units);
 	unregister_chrdev(PPP_MAJOR, "ppp");
 	device_destroy(ppp_class, MKDEV(PPP_MAJOR, 0));
 	class_destroy(ppp_class);
+	idr_destroy(&ppp_units_idr);
 }
 
 /*
- * Cardmap implementation.
+ * Units handling. Caller must protect concurrent access
+ * by holding all_ppp_mutex
  */
-static void *cardmap_get(struct cardmap *map, unsigned int nr)
-{
-	struct cardmap *p;
-	int i;
 
-	for (p = map; p != NULL; ) {
-		if ((i = nr >> p->shift) >= CARDMAP_WIDTH)
-			return NULL;
-		if (p->shift == 0)
-			return p->ptr[i];
-		nr &= ~(CARDMAP_MASK << p->shift);
-		p = p->ptr[i];
+/* get new free unit number and associate pointer with it */
+static int unit_get(struct idr *p, void *ptr)
+{
+	int unit, err;
+
+again:
+	if (idr_pre_get(p, GFP_KERNEL) == 0) {
+		printk(KERN_ERR "Out of memory expanding drawable idr\n");
+		return -ENOMEM;
 	}
-	return NULL;
+
+	err = idr_get_new_above(p, ptr, 0, &unit);
+	if (err == -EAGAIN)
+		goto again;
+
+	return unit;
 }
 
-static int cardmap_set(struct cardmap **pmap, unsigned int nr, void *ptr)
+/* put unit number back to a pool */
+static void unit_put(struct idr *p, int n)
 {
-	struct cardmap *p;
-	int i;
-
-	p = *pmap;
-	if (p == NULL || (nr >> p->shift) >= CARDMAP_WIDTH) {
-		do {
-			/* need a new top level */
-			struct cardmap *np = kzalloc(sizeof(*np), GFP_KERNEL);
-			if (!np)
-				goto enomem;
-			np->ptr[0] = p;
-			if (p != NULL) {
-				np->shift = p->shift + CARDMAP_ORDER;
-				p->parent = np;
-			} else
-				np->shift = 0;
-			p = np;
-		} while ((nr >> p->shift) >= CARDMAP_WIDTH);
-		*pmap = p;
-	}
-	while (p->shift > 0) {
-		i = (nr >> p->shift) & CARDMAP_MASK;
-		if (p->ptr[i] == NULL) {
-			struct cardmap *np = kzalloc(sizeof(*np), GFP_KERNEL);
-			if (!np)
-				goto enomem;
-			np->shift = p->shift - CARDMAP_ORDER;
-			np->parent = p;
-			p->ptr[i] = np;
-		}
-		if (ptr == NULL)
-			clear_bit(i, &p->inuse);
-		p = p->ptr[i];
-	}
-	i = nr & CARDMAP_MASK;
-	p->ptr[i] = ptr;
-	if (ptr != NULL)
-		set_bit(i, &p->inuse);
-	else
-		clear_bit(i, &p->inuse);
-	return 0;
- enomem:
-	return -ENOMEM;
+	idr_remove(p, n);
 }
 
-static unsigned int cardmap_find_first_free(struct cardmap *map)
+/* get pointer associated with the number */
+static void *unit_find(struct idr *p, int n)
 {
-	struct cardmap *p;
-	unsigned int nr = 0;
-	int i;
-
-	if ((p = map) == NULL)
-		return 0;
-	for (;;) {
-		i = find_first_zero_bit(&p->inuse, CARDMAP_WIDTH);
-		if (i >= CARDMAP_WIDTH) {
-			if (p->parent == NULL)
-				return CARDMAP_WIDTH << p->shift;
-			p = p->parent;
-			i = (nr >> p->shift) & CARDMAP_MASK;
-			set_bit(i, &p->inuse);
-			continue;
-		}
-		nr = (nr & (~CARDMAP_MASK << p->shift)) | (i << p->shift);
-		if (p->shift == 0 || p->ptr[i] == NULL)
-			return nr;
-		p = p->ptr[i];
-	}
-}
-
-static void cardmap_destroy(struct cardmap **pmap)
-{
-	struct cardmap *p, *np;
-	int i;
-
-	for (p = *pmap; p != NULL; p = np) {
-		if (p->shift != 0) {
-			for (i = 0; i < CARDMAP_WIDTH; ++i)
-				if (p->ptr[i] != NULL)
-					break;
-			if (i < CARDMAP_WIDTH) {
-				np = p->ptr[i];
-				p->ptr[i] = NULL;
-				continue;
-			}
-		}
-		np = p->parent;
-		kfree(p);
-	}
-	*pmap = NULL;
+	return idr_find(p, n);
 }
 
 /* Module/initialization stuff */
