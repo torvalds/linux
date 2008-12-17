@@ -469,8 +469,12 @@ config SH_CPU_FREQ
 	depends on CPU_FREQ
 	select CPU_FREQ_TABLE
 	help
-	  This adds the cpufreq driver for SuperH. At present, only
-	  the SH-4 is supported.
+	  This adds the cpufreq driver for SuperH. Any CPU that supports
+	  clock rate rounding through the clock framework can use this
+	  driver. While it will make the kernel slightly larger, this is
+	  harmless for CPUs that don't support rate rounding. The driver
+	  will also generate a notice in the boot log before disabling
+	  itself if the CPU in question is not capable of rate rounding.
 
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
