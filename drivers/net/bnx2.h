@@ -6627,7 +6627,7 @@ struct bnx2_irq {
 	irq_handler_t	handler;
 	unsigned int	vector;
 	u8		requested;
-	char		name[16];
+	char		name[IFNAMSIZ + 2];
 };
 
 struct bnx2_tx_ring_info {
