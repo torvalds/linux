@@ -6848,9 +6848,6 @@ struct bnx2 {
 	u8			flow_ctrl;	/* actual flow ctrl settings */
 						/* may be different from     */
 						/* req_flow_ctrl if autoneg  */
-#define FLOW_CTRL_TX		1
-#define FLOW_CTRL_RX		2
-
 	u32			advertising;
 
 	u8			req_flow_ctrl;	/* flow ctrl advertisement */
