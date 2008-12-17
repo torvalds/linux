@@ -20,17 +20,18 @@ struct genapic {
 	u32 int_delivery_mode;
 	u32 int_dest_mode;
 	int (*apic_id_registered)(void);
-	const cpumask_t *(*target_cpus)(void);
-	void (*vector_allocation_domain)(int cpu, cpumask_t *retmask);
+	const struct cpumask *(*target_cpus)(void);
+	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask);
 	void (*init_apic_ldr)(void);
 	/* ipi */
-	void (*send_IPI_mask)(const cpumask_t *mask, int vector);
-	void (*send_IPI_mask_allbutself)(const cpumask_t *mask, int vector);
+	void (*send_IPI_mask)(const struct cpumask *mask, int vector);
+	void (*send_IPI_mask_allbutself)(const struct cpumask *mask,
+					 int vector);
 	void (*send_IPI_allbutself)(int vector);
 	void (*send_IPI_all)(int vector);
 	void (*send_IPI_self)(int vector);
 	/* */
-	unsigned int (*cpu_mask_to_apicid)(const cpumask_t *cpumask);
+	unsigned int (*cpu_mask_to_apicid)(const struct cpumask *cpumask);
 	unsigned int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
 					       const struct cpumask *andmask);
 	unsigned int (*phys_pkg_id)(int index_msb);

@@ -411,22 +411,23 @@ static void xen_smp_send_reschedule(int cpu)
 	xen_send_IPI_one(cpu, XEN_RESCHEDULE_VECTOR);
 }
 
-static void xen_send_IPI_mask(const cpumask_t *mask, enum ipi_vector vector)
+static void xen_send_IPI_mask(const struct cpumask *mask,
+			      enum ipi_vector vector)
 {
 	unsigned cpu;
 
-	for_each_cpu_and(cpu, mask, &cpu_online_map)
+	for_each_cpu_and(cpu, mask, cpu_online_mask)
 		xen_send_IPI_one(cpu, vector);
 }
 
-static void xen_smp_send_call_function_ipi(const cpumask_t *mask)
+static void xen_smp_send_call_function_ipi(const struct cpumask *mask)
 {
 	int cpu;
 
 	xen_send_IPI_mask(mask, XEN_CALL_FUNCTION_VECTOR);
 
 	/* Make sure other vcpus get a chance to run if they need to. */
-	for_each_cpu_mask_nr(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		if (xen_vcpu_stolen(cpu)) {
 			HYPERVISOR_sched_op(SCHEDOP_yield, 0);
 			break;
@@ -436,7 +437,7 @@ static void xen_smp_send_call_function_ipi(const cpumask_t *mask)
 
 static void xen_smp_send_call_function_single_ipi(int cpu)
 {
-	xen_send_IPI_mask(&cpumask_of_cpu(cpu),
+	xen_send_IPI_mask(cpumask_of(cpu),
 			  XEN_CALL_FUNCTION_SINGLE_VECTOR);
 }
 

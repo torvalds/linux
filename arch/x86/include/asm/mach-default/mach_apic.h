@@ -8,12 +8,12 @@
 
 #define APIC_DFR_VALUE	(APIC_DFR_FLAT)
 
-static inline const cpumask_t *target_cpus(void)
+static inline const struct cpumask *target_cpus(void)
 { 
 #ifdef CONFIG_SMP
-	return &cpu_online_map;
+	return cpu_online_mask;
 #else
-	return &cpumask_of_cpu(0);
+	return cpumask_of(0);
 #endif
 } 
 
@@ -62,9 +62,9 @@ static inline int apic_id_registered(void)
 	return physid_isset(read_apic_id(), phys_cpu_present_map);
 }
 
-static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
+static inline unsigned int cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	return cpus_addr(*cpumask)[0];
+	return cpumask_bits(cpumask)[0];
 }
 
 static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
@@ -98,7 +98,7 @@ static inline int apicid_to_node(int logical_apicid)
 #endif
 }
 
-static inline void vector_allocation_domain(int cpu, cpumask_t *retmask)
+static inline void vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
         /* Careful. Some cpus do not strictly honor the set of cpus
          * specified in the interrupt destination when using lowest

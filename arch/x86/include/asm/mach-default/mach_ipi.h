@@ -4,8 +4,8 @@
 /* Avoid include hell */
 #define NMI_VECTOR 0x02
 
-void send_IPI_mask_bitmask(const cpumask_t *mask, int vector);
-void send_IPI_mask_allbutself(const cpumask_t *mask, int vector);
+void send_IPI_mask_bitmask(const struct cpumask *mask, int vector);
+void send_IPI_mask_allbutself(const struct cpumask *mask, int vector);
 void __send_IPI_shortcut(unsigned int shortcut, int vector);
 
 extern int no_broadcast;
@@ -15,17 +15,17 @@ extern int no_broadcast;
 #define send_IPI_mask (genapic->send_IPI_mask)
 #define send_IPI_mask_allbutself (genapic->send_IPI_mask_allbutself)
 #else
-static inline void send_IPI_mask(const cpumask_t *mask, int vector)
+static inline void send_IPI_mask(const struct cpumask *mask, int vector)
 {
 	send_IPI_mask_bitmask(mask, vector);
 }
-void send_IPI_mask_allbutself(const cpumask_t *mask, int vector);
+void send_IPI_mask_allbutself(const struct cpumask *mask, int vector);
 #endif
 
 static inline void __local_send_IPI_allbutself(int vector)
 {
 	if (no_broadcast || vector == NMI_VECTOR)
-		send_IPI_mask_allbutself(&cpu_online_map, vector);
+		send_IPI_mask_allbutself(cpu_online_mask, vector);
 	else
 		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector);
 }
@@ -33,7 +33,7 @@ static inline void __local_send_IPI_allbutself(int vector)
 static inline void __local_send_IPI_all(int vector)
 {
 	if (no_broadcast || vector == NMI_VECTOR)
-		send_IPI_mask(&cpu_online_map, vector);
+		send_IPI_mask(cpu_online_mask, vector);
 	else
 		__send_IPI_shortcut(APIC_DEST_ALLINC, vector);
 }

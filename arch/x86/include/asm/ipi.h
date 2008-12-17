@@ -117,7 +117,8 @@ static inline void __send_IPI_dest_field(unsigned int mask, int vector,
 	native_apic_mem_write(APIC_ICR, cfg);
 }
 
-static inline void send_IPI_mask_sequence(const cpumask_t *mask, int vector)
+static inline void send_IPI_mask_sequence(const struct cpumask *mask,
+					  int vector)
 {
 	unsigned long flags;
 	unsigned long query_cpu;
@@ -128,14 +129,15 @@ static inline void send_IPI_mask_sequence(const cpumask_t *mask, int vector)
 	 * - mbligh
 	 */
 	local_irq_save(flags);
-	for_each_cpu_mask_nr(query_cpu, *mask) {
+	for_each_cpu(query_cpu, mask) {
 		__send_IPI_dest_field(per_cpu(x86_cpu_to_apicid, query_cpu),
 				      vector, APIC_DEST_PHYSICAL);
 	}
 	local_irq_restore(flags);
 }
 
-static inline void send_IPI_mask_allbutself(const cpumask_t *mask, int vector)
+static inline void send_IPI_mask_allbutself(const struct cpumask *mask,
+					    int vector)
 {
 	unsigned long flags;
 	unsigned int query_cpu;
@@ -144,7 +146,7 @@ static inline void send_IPI_mask_allbutself(const cpumask_t *mask, int vector)
 	/* See Hack comment above */
 
 	local_irq_save(flags);
-	for_each_cpu_mask_nr(query_cpu, *mask)
+	for_each_cpu(query_cpu, mask)
 		if (query_cpu != this_cpu)
 			__send_IPI_dest_field(
 				per_cpu(x86_cpu_to_apicid, query_cpu),
