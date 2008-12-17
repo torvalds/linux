@@ -301,6 +301,8 @@ static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct net2280_tx_hdr *hdr;
 	struct net2280_reg_write *reg;
 	int err = 0;
+	__le32 addr = ((struct p54_hdr *) skb->data)->req_id;
+	__le16 len = cpu_to_le16(skb->len);
 
 	reg = kmalloc(sizeof(*reg), GFP_ATOMIC);
 	if (!reg)
@@ -325,8 +327,8 @@ static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	hdr = (void *)skb_push(skb, sizeof(*hdr));
 	memset(hdr, 0, sizeof(*hdr));
-	hdr->device_addr = ((struct p54_hdr *)skb->data)->req_id;
-	hdr->len = cpu_to_le16(skb->len + sizeof(struct p54_hdr));
+	hdr->len = len;
+	hdr->device_addr = addr;
 
 	usb_fill_bulk_urb(int_urb, priv->udev,
 		usb_sndbulkpipe(priv->udev, P54U_PIPE_DEV), reg, sizeof(*reg),
