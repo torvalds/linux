@@ -634,18 +634,15 @@ static int mt9m111_set_flip(struct soc_camera_device *icd, int flip, int mask)
 
 static int mt9m111_get_global_gain(struct soc_camera_device *icd)
 {
-	unsigned int data, gain;
+	int data;
 
 	data = reg_read(GLOBAL_GAIN);
 	if (data >= 0)
-		gain = ((data & (1 << 10)) * 2)
-			| ((data & (1 << 9)) * 2)
-			| (data & 0x2f);
-	else
-		gain = data;
-
-	return gain;
+		return (data & 0x2f) * (1 << ((data >> 10) & 1)) *
+			(1 << ((data >> 9) & 1));
+	return data;
 }
+
 static int mt9m111_set_global_gain(struct soc_camera_device *icd, int gain)
 {
 	u16 val;
