@@ -41,6 +41,9 @@ static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
 	pr_debug("PCI MEM resource start 0x%016llx, size 0x%016llx.\n",
 		(u64)res->start, (u64)size);
 
+	if (res->flags & IORESOURCE_PREFETCH)
+		flags |= 0x10000000; /* enable relaxed ordering */
+
 	for (i = 0; size > 0; i++) {
 		unsigned int bits = min(__ilog2(size),
 					__ffs(pci_addr | phys_addr));
