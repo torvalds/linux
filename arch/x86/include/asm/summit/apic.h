@@ -170,6 +170,45 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	return apicid;
 }
 
+static inline unsigned int cpu_mask_to_apicid_and(const cpumask_t *cpumask,
+						  const cpumask_t *andmask)
+{
+	int num_bits_set;
+	int num_bits_set2;
+	int cpus_found = 0;
+	int cpu;
+	int apicid = 0;
+
+	num_bits_set = cpus_weight(*cpumask);
+	num_bits_set2 = cpus_weight(*andmask);
+	num_bits_set = min_t(int, num_bits_set, num_bits_set2);
+	/* Return id to all */
+	if (num_bits_set >= nr_cpu_ids)
+		return 0xFF;
+	/*
+	 * The cpus in the mask must all be on the apic cluster.  If are not
+	 * on the same apicid cluster return default value of TARGET_CPUS.
+	 */
+	while ((cpu = next_cpu(-1, *cpumask)) < nr_cpu_ids)
+		if (cpu_isset(cpu, *andmask)
+			apicid = cpu_to_logical_apicid(cpu);
+	while (cpus_found < num_bits_set) {
+		if (cpu_isset(cpu, *cpumask) && cpu_isset(cpu, *andmask)) {
+			int new_apicid = cpu_to_logical_apicid(cpu);
+			if (apicid_cluster(apicid) !=
+					apicid_cluster(new_apicid)) {
+				printk(KERN_WARNING
+					"%s: Not a valid mask!\n", __func__);
+				return 0xFF;
+			}
+			apicid = apicid | new_apicid;
+			cpus_found++;
+		}
+		cpu++;
+	}
+	return apicid;
+}
+
 /* cpuid returns the value latched in the HW at reset, not the APIC ID
  * register's value.  For any box whose BIOS changes APIC IDs, like
  * clustered APIC systems, we must use hard_smp_processor_id.

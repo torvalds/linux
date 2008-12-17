@@ -58,6 +58,8 @@ struct genapic {
 	unsigned (*get_apic_id)(unsigned long x);
 	unsigned long apic_id_mask;
 	unsigned int (*cpu_mask_to_apicid)(const cpumask_t *cpumask);
+	unsigned int (*cpu_mask_to_apicid_and)(const cpumask_t *cpumask,
+					       const cpumask_t *andmask);
 	void (*vector_allocation_domain)(int cpu, cpumask_t *retmask);
 
 #ifdef CONFIG_SMP
@@ -115,6 +117,7 @@ struct genapic {
 	APICFUNC(get_apic_id)				\
 	.apic_id_mask = APIC_ID_MASK,			\
 	APICFUNC(cpu_mask_to_apicid)			\
+	APICFUNC(cpu_mask_to_apicid_and)		\
 	APICFUNC(vector_allocation_domain)		\
 	APICFUNC(acpi_madt_oem_check)			\
 	IPIFUNC(send_IPI_mask)				\

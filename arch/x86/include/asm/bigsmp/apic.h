@@ -129,6 +129,22 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	return apicid;
 }
 
+static inline unsigned int cpu_mask_to_apicid_and(const cpumask_t *cpumask,
+						  const cpumask_t *andmask)
+{
+	int cpu;
+
+	/*
+	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * May as well be the first.
+	 */
+	while ((cpu = next_cpu(-1, *cpumask)) < nr_cpu_ids)
+		if (cpu_isset(cpu, *andmask))
+			return cpu_to_logical_apicid(cpu);
+
+	return BAD_APICID;
+}
+
 static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
 {
 	return cpuid_apic >> index_msb;

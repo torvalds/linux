@@ -28,6 +28,7 @@ static inline const cpumask_t *target_cpus(void)
 #define apic_id_registered (genapic->apic_id_registered)
 #define init_apic_ldr (genapic->init_apic_ldr)
 #define cpu_mask_to_apicid (genapic->cpu_mask_to_apicid)
+#define cpu_mask_to_apicid_and (genapic->cpu_mask_to_apicid_and)
 #define phys_pkg_id	(genapic->phys_pkg_id)
 #define vector_allocation_domain    (genapic->vector_allocation_domain)
 #define read_apic_id()  (GET_APIC_ID(apic_read(APIC_ID)))
@@ -64,6 +65,15 @@ static inline int apic_id_registered(void)
 static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
 	return cpus_addr(*cpumask)[0];
+}
+
+static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask,
+					      const cpumask_t *andmask)
+{
+	unsigned long mask1 = cpus_addr(*cpumask)[0];
+	unsigned long mask2 = cpus_addr(*andmask)[0];
+
+	return (unsigned int)(mask1 & mask2);
 }
 
 static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
