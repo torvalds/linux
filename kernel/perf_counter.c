@@ -109,7 +109,7 @@ static void __perf_counter_remove_from_context(void *info)
 	spin_lock_irqsave(&ctx->lock, flags);
 
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE) {
-		counter->hw_ops->hw_perf_counter_disable(counter);
+		counter->hw_ops->disable(counter);
 		counter->state = PERF_COUNTER_STATE_INACTIVE;
 		ctx->nr_active--;
 		cpuctx->active_oncpu--;
@@ -226,7 +226,7 @@ static void __perf_install_in_context(void *info)
 		counter->oncpu = cpu;
 		ctx->nr_active++;
 		cpuctx->active_oncpu++;
-		counter->hw_ops->hw_perf_counter_enable(counter);
+		counter->hw_ops->enable(counter);
 	}
 
 	if (!ctx->task && cpuctx->max_pertask)
@@ -297,7 +297,7 @@ counter_sched_out(struct perf_counter *counter,
 	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
 		return;
 
-	counter->hw_ops->hw_perf_counter_disable(counter);
+	counter->hw_ops->disable(counter);
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
 	counter->oncpu = -1;
 
@@ -327,7 +327,7 @@ group_sched_out(struct perf_counter *group_counter,
  *
  * We stop each counter and update the counter value in counter->count.
  *
- * This does not protect us against NMI, but hw_perf_counter_disable()
+ * This does not protect us against NMI, but disable()
  * sets the disabled bit in the control field of counter _before_
  * accessing the counter control register. If a NMI hits, then it will
  * not restart the counter.
@@ -359,7 +359,7 @@ counter_sched_in(struct perf_counter *counter,
 	if (counter->state == PERF_COUNTER_STATE_OFF)
 		return;
 
-	counter->hw_ops->hw_perf_counter_enable(counter);
+	counter->hw_ops->enable(counter);
 	counter->state = PERF_COUNTER_STATE_ACTIVE;
 	counter->oncpu = cpu;	/* TODO: put 'cpu' into cpuctx->cpu */
 
@@ -395,7 +395,7 @@ group_sched_in(struct perf_counter *group_counter,
  *
  * We restore the counter value and then enable it.
  *
- * This does not protect us against NMI, but hw_perf_counter_enable()
+ * This does not protect us against NMI, but enable()
  * sets the enabled bit in the control field of counter _before_
  * accessing the counter control register. If a NMI hits, then it will
  * keep the counter running.
@@ -537,11 +537,11 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 /*
  * Cross CPU call to read the hardware counter
  */
-static void __hw_perf_counter_read(void *info)
+static void __read(void *info)
 {
 	struct perf_counter *counter = info;
 
-	counter->hw_ops->hw_perf_counter_read(counter);
+	counter->hw_ops->read(counter);
 }
 
 static u64 perf_counter_read(struct perf_counter *counter)
@@ -552,7 +552,7 @@ static u64 perf_counter_read(struct perf_counter *counter)
 	 */
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE) {
 		smp_call_function_single(counter->oncpu,
-					 __hw_perf_counter_read, counter, 1);
+					 __read, counter, 1);
 	}
 
 	return atomic64_read(&counter->count);
@@ -855,9 +855,9 @@ static void cpu_clock_perf_counter_read(struct perf_counter *counter)
 }
 
 static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
-	.hw_perf_counter_enable		= cpu_clock_perf_counter_enable,
-	.hw_perf_counter_disable	= cpu_clock_perf_counter_disable,
-	.hw_perf_counter_read		= cpu_clock_perf_counter_read,
+	.enable		= cpu_clock_perf_counter_enable,
+	.disable	= cpu_clock_perf_counter_disable,
+	.read		= cpu_clock_perf_counter_read,
 };
 
 static void task_clock_perf_counter_update(struct perf_counter *counter)
@@ -891,9 +891,9 @@ static void task_clock_perf_counter_disable(struct perf_counter *counter)
 }
 
 static const struct hw_perf_counter_ops perf_ops_task_clock = {
-	.hw_perf_counter_enable		= task_clock_perf_counter_enable,
-	.hw_perf_counter_disable	= task_clock_perf_counter_disable,
-	.hw_perf_counter_read		= task_clock_perf_counter_read,
+	.enable		= task_clock_perf_counter_enable,
+	.disable	= task_clock_perf_counter_disable,
+	.read		= task_clock_perf_counter_read,
 };
 
 static u64 get_page_faults(void)
@@ -937,9 +937,9 @@ static void page_faults_perf_counter_disable(struct perf_counter *counter)
 }
 
 static const struct hw_perf_counter_ops perf_ops_page_faults = {
-	.hw_perf_counter_enable		= page_faults_perf_counter_enable,
-	.hw_perf_counter_disable	= page_faults_perf_counter_disable,
-	.hw_perf_counter_read		= page_faults_perf_counter_read,
+	.enable		= page_faults_perf_counter_enable,
+	.disable	= page_faults_perf_counter_disable,
+	.read		= page_faults_perf_counter_read,
 };
 
 static u64 get_context_switches(void)
@@ -983,9 +983,9 @@ static void context_switches_perf_counter_disable(struct perf_counter *counter)
 }
 
 static const struct hw_perf_counter_ops perf_ops_context_switches = {
-	.hw_perf_counter_enable		= context_switches_perf_counter_enable,
-	.hw_perf_counter_disable	= context_switches_perf_counter_disable,
-	.hw_perf_counter_read		= context_switches_perf_counter_read,
+	.enable		= context_switches_perf_counter_enable,
+	.disable	= context_switches_perf_counter_disable,
+	.read		= context_switches_perf_counter_read,
 };
 
 static inline u64 get_cpu_migrations(void)
@@ -1027,9 +1027,9 @@ static void cpu_migrations_perf_counter_disable(struct perf_counter *counter)
 }
 
 static const struct hw_perf_counter_ops perf_ops_cpu_migrations = {
-	.hw_perf_counter_enable		= cpu_migrations_perf_counter_enable,
-	.hw_perf_counter_disable	= cpu_migrations_perf_counter_disable,
-	.hw_perf_counter_read		= cpu_migrations_perf_counter_read,
+	.enable		= cpu_migrations_perf_counter_enable,
+	.disable	= cpu_migrations_perf_counter_disable,
+	.read		= cpu_migrations_perf_counter_read,
 };
 
 static const struct hw_perf_counter_ops *
@@ -1283,7 +1283,7 @@ __perf_counter_exit_task(struct task_struct *child,
 
 		cpuctx = &__get_cpu_var(perf_cpu_context);
 
-		child_counter->hw_ops->hw_perf_counter_disable(child_counter);
+		child_counter->hw_ops->disable(child_counter);
 		child_counter->state = PERF_COUNTER_STATE_INACTIVE;
 		child_counter->oncpu = -1;
 

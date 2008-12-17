@@ -577,9 +577,9 @@ static void pmc_generic_read(struct perf_counter *counter)
 }
 
 static const struct hw_perf_counter_ops x86_perf_counter_ops = {
-	.hw_perf_counter_enable		= pmc_generic_enable,
-	.hw_perf_counter_disable	= pmc_generic_disable,
-	.hw_perf_counter_read		= pmc_generic_read,
+	.enable		= pmc_generic_enable,
+	.disable	= pmc_generic_disable,
+	.read		= pmc_generic_read,
 };
 
 const struct hw_perf_counter_ops *
