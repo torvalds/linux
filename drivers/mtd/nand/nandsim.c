@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/random.h>
+#include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
