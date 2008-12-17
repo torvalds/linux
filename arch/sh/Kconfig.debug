@@ -98,6 +98,18 @@ config IRQSTACKS
 	  for handling hard and soft interrupts.  This can help avoid
 	  overflowing the process kernel stacks.
 
+config SH_NO_BSS_INIT
+	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
+	depends on DEBUG_KERNEL
+	default n
+	help
+	  If running in painfully slow environments, such as an RTL
+	  simulation or from remote memory via SHdebug, where the memory
+	  can already be gauranteed to ber zeroed on boot, say Y.
+
+	  For all other cases, say N. If this option seems perplexing, or
+	  you aren't sure, say N.
+
 config MORE_COMPILE_OPTIONS
 	bool "Add any additional compile options"
 	help
@@ -124,9 +136,6 @@ config POOR_MANS_STRACE
 config SH_ALPHANUMERIC
 	bool "Enable debug outputs to on-board alphanumeric display"
 	depends on SH_CAYMAN
-
-config SH_NO_BSS_INIT
-	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
 
 endif
 
