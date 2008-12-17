@@ -70,6 +70,15 @@
  * INIT calibrations framework
  *****************************************************************************/
 
+struct statistics_general_data {
+	u32 beacon_silence_rssi_a;
+	u32 beacon_silence_rssi_b;
+	u32 beacon_silence_rssi_c;
+	u32 beacon_energy_a;
+	u32 beacon_energy_b;
+	u32 beacon_energy_c;
+};
+
 int iwl_send_calib_results(struct iwl_priv *priv)
 {
 	int ret = 0;

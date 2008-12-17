@@ -405,12 +405,6 @@ struct iwl3945_rx_queue {
 
 #define SCAN_INTERVAL 100
 
-#define MAX_A_CHANNELS  252
-#define MIN_A_CHANNELS  7
-
-#define MAX_B_CHANNELS  14
-#define MIN_B_CHANNELS  1
-
 #define STATUS_HCMD_ACTIVE	0	/* host command in progress */
 #define STATUS_HCMD_SYNC_ACTIVE	1	/* sync host command in progress */
 #define STATUS_INT_ENABLED	2

@@ -323,14 +323,6 @@ struct iwl_rx_queue {
 
 #define IWL_SUPPORTED_RATES_IE_LEN         8
 
-#define SCAN_INTERVAL 100
-
-#define MAX_A_CHANNELS  252
-#define MIN_A_CHANNELS  7
-
-#define MAX_B_CHANNELS  14
-#define MIN_B_CHANNELS  1
-
 #define MAX_TID_COUNT        9
 
 #define IWL_INVALID_RATE     0xFF
@@ -496,8 +488,6 @@ struct iwl_sensitivity_ranges {
 };
 
 
-#define IWL_FAT_CHANNEL_52 BIT(IEEE80211_BAND_5GHZ)
-
 #define KELVIN_TO_CELSIUS(x) ((x)-273)
 #define CELSIUS_TO_KELVIN(x) ((x)+273)
 
@@ -546,9 +536,6 @@ struct iwl_hw_params {
 	const struct iwl_sensitivity_ranges *sens;
 };
 
-#define HT_SHORT_GI_20MHZ	(1 << 0)
-#define HT_SHORT_GI_40MHZ	(1 << 1)
-
 
 /******************************************************************************
  *
@@ -590,14 +577,14 @@ static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 }
 
 
-struct iwl_priv;
-
-
 struct iwl_dma_ptr {
 	dma_addr_t dma;
 	void *addr;
 	size_t size;
 };
+
+#define HT_SHORT_GI_20MHZ	(1 << 0)
+#define HT_SHORT_GI_40MHZ	(1 << 1)
 
 #define IWL_CHANNEL_WIDTH_20MHZ   0
 #define IWL_CHANNEL_WIDTH_40MHZ   1
@@ -613,7 +600,6 @@ struct iwl_dma_ptr {
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
 
 /* Sensitivity and chain noise calibration */
-#define INTERFERENCE_DATA_AVAILABLE	__constant_cpu_to_le32(1)
 #define INITIALIZATION_VALUE		0xFFFF
 #define CAL_NUM_OF_BEACONS		20
 #define MAXIMUM_ALLOWED_PATHLOSS	15
@@ -664,15 +650,6 @@ enum iwl4965_chain_noise_state {
 enum iwl4965_calib_enabled_state {
 	IWL_CALIB_DISABLED = 0,  /* must be 0 */
 	IWL_CALIB_ENABLED = 1,
-};
-
-struct statistics_general_data {
-	u32 beacon_silence_rssi_a;
-	u32 beacon_silence_rssi_b;
-	u32 beacon_silence_rssi_c;
-	u32 beacon_energy_a;
-	u32 beacon_energy_b;
-	u32 beacon_energy_c;
 };
 
 
