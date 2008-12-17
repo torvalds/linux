@@ -175,7 +175,15 @@ static __inline__ void enable_fpu(void)
 
 void show_trace(struct task_struct *tsk, unsigned long *sp,
 		struct pt_regs *regs);
+
+#ifdef CONFIG_DUMP_CODE
 void show_code(struct pt_regs *regs);
+#else
+static inline void show_code(struct pt_regs *regs)
+{
+}
+#endif
+
 extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->pc)
