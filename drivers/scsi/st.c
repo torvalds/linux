@@ -1524,7 +1524,6 @@ static int setup_buffering(struct scsi_tape *STp, const char __user *buf,
 		else
 			STbp->do_dio = 0;  /* fall back to buffering with any error */
 		STbp->sg_segs = STbp->do_dio;
-		STbp->frp_sg_current = 0;
 		DEB(
 		     if (STbp->do_dio) {
 			STp->nbr_dio++;
@@ -3844,7 +3843,6 @@ static void normalize_buffer(struct st_buffer * STbuffer)
 		STbuffer->buffer_size -= (PAGE_SIZE << order);
 	}
 	STbuffer->frp_segs = 0;
-	STbuffer->frp_sg_current = 0;
 	STbuffer->sg_segs = 0;
 	STbuffer->map_data.page_order = 0;
 	STbuffer->map_data.offset = 0;
