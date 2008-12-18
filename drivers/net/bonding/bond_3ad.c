@@ -95,34 +95,6 @@ static struct mac_addr null_mac_addr = {{0, 0, 0, 0, 0, 0}};
 static u16 ad_ticks_per_sec;
 static const int ad_delta_in_ticks = (AD_TIMER_INTERVAL * HZ) / 1000;
 
-// ================= 3AD api to bonding and kernel code ==================
-static u16 __get_link_speed(struct port *port);
-static u8 __get_duplex(struct port *port);
-static inline void __initialize_port_locks(struct port *port);
-//conversions
-static u16 __ad_timer_to_ticks(u16 timer_type, u16 Par);
-
-
-// ================= ad code helper functions ==================
-//needed by ad_rx_machine(...)
-static void __record_pdu(struct lacpdu *lacpdu, struct port *port);
-static void __record_default(struct port *port);
-static void __update_selected(struct lacpdu *lacpdu, struct port *port);
-static void __update_default_selected(struct port *port);
-static void __choose_matched(struct lacpdu *lacpdu, struct port *port);
-static void __update_ntt(struct lacpdu *lacpdu, struct port *port);
-
-//needed for ad_mux_machine(..)
-static void __attach_bond_to_agg(struct port *port);
-static void __detach_bond_from_agg(struct port *port);
-static int __agg_ports_are_ready(struct aggregator *aggregator);
-static void __set_agg_ports_ready(struct aggregator *aggregator, int val);
-
-//needed for ad_agg_selection_logic(...)
-static u32 __get_agg_bandwidth(struct aggregator *aggregator);
-static struct aggregator *__get_active_agg(struct aggregator *aggregator);
-
-
 // ================= main 802.3ad protocol functions ==================
 static int ad_lacpdu_send(struct port *port);
 static int ad_marker_send(struct port *port, struct bond_marker *marker);
