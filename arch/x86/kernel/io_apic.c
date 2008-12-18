@@ -3360,7 +3360,7 @@ static void
 ir_set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg;
+	struct irq_cfg *cfg = desc->chip_data;
 	unsigned int dest;
 	struct irte irte;
 
