@@ -94,6 +94,7 @@ struct sh_mobile_ceu_dev {
 	spinlock_t lock;
 	struct list_head capture;
 	struct videobuf_buffer *active;
+	int is_interlace;
 
 	struct sh_mobile_ceu_info *pdata;
 
@@ -163,7 +164,7 @@ static void free_buffer(struct videobuf_queue *vq,
 static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 {
 	struct soc_camera_device *icd = pcdev->icd;
-	dma_addr_t phys_addr;
+	dma_addr_t phys_addr_top, phys_addr_bottom;
 
 	/* The hardware is _very_ picky about this sequence. Especially
 	 * the CEU_CETCR_MAGIC value. It seems like we need to acknowledge
@@ -178,16 +179,24 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	if (!pcdev->active)
 		return;
 
-	phys_addr = videobuf_to_dma_contig(pcdev->active);
-	ceu_write(pcdev, CDAYR, phys_addr);
+	phys_addr_top = videobuf_to_dma_contig(pcdev->active);
+	ceu_write(pcdev, CDAYR, phys_addr_top);
+	if (pcdev->is_interlace) {
+		phys_addr_bottom = phys_addr_top + icd->width;
+		ceu_write(pcdev, CDBYR, phys_addr_bottom);
+	}
 
 	switch (icd->current_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
-		phys_addr += icd->width * icd->height;
-		ceu_write(pcdev, CDACR, phys_addr);
+		phys_addr_top += icd->width * icd->height;
+		ceu_write(pcdev, CDACR, phys_addr_top);
+		if (pcdev->is_interlace) {
+			phys_addr_bottom = phys_addr_top + icd->width;
+			ceu_write(pcdev, CDBCR, phys_addr_bottom);
+		}
 	}
 
 	pcdev->active->state = VIDEOBUF_ACTIVE;
@@ -381,7 +390,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	int ret, buswidth, width, cfszr_width, cdwdr_width;
+	int ret, buswidth, width, height, cfszr_width, cdwdr_width;
 	unsigned long camera_flags, common_flags, value;
 	int yuv_mode, yuv_lineskip;
 
@@ -448,7 +457,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CAMCR, value);
 
 	ceu_write(pcdev, CAPCR, 0x00300000);
-	ceu_write(pcdev, CAIFR, 0);
+	ceu_write(pcdev, CAIFR, (pcdev->is_interlace) ? 0x101 : 0);
 
 	mdelay(1);
 
@@ -463,10 +472,16 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 		cdwdr_width = buswidth == 16 ? width * 2 : width;
 	}
 
+	height = icd->height;
+	if (pcdev->is_interlace) {
+		height /= 2;
+		cdwdr_width *= 2;
+	}
+
 	ceu_write(pcdev, CAMOR, 0);
-	ceu_write(pcdev, CAPWR, (icd->height << 16) | width);
+	ceu_write(pcdev, CAPWR, (height << 16) | width);
 	ceu_write(pcdev, CFLCR, 0); /* no scaling */
-	ceu_write(pcdev, CFSZR, (icd->height << 16) | cfszr_width);
+	ceu_write(pcdev, CFSZR, (height << 16) | cfszr_width);
 	ceu_write(pcdev, CLFCR, 0); /* no lowpass filter */
 
 	/* A few words about byte order (observed in Big Endian mode)
@@ -615,8 +630,10 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 				 struct v4l2_format *f)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	const struct soc_camera_format_xlate *xlate;
 	__u32 pixfmt = f->fmt.pix.pixelformat;
+	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
@@ -642,7 +659,26 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 
 	/* limit to sensor capabilities */
-	return icd->ops->try_fmt(icd, f);
+	ret = icd->ops->try_fmt(icd, f);
+	if (ret < 0)
+		return ret;
+
+	switch (f->fmt.pix.field) {
+	case V4L2_FIELD_INTERLACED:
+		pcdev->is_interlace = 1;
+		break;
+	case V4L2_FIELD_ANY:
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+		/* fall-through */
+	case V4L2_FIELD_NONE:
+		pcdev->is_interlace = 0;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
 }
 
 static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
