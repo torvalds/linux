@@ -78,6 +78,12 @@ config MTD_DATAFLASH_OTP
 	  other key product data.  The second half is programmed with a
 	  unique-to-each-chip bit pattern at the factory.
 
+config MTD_NAND_TEGRA
+	tristate "Support for NAND Controller on NVIDIA Tegra"
+	depends on ARCH_TEGRA
+	help
+	  Enables NAND flash support for NVIDIA's Tegra family of chips.
+
 config MTD_M25P80
 	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
 	depends on SPI_MASTER && EXPERIMENTAL
