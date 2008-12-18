@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <mach/clock.h>
+#include <mach/hardware.h>
 #include <asm/div64.h>
 
 #include "crm_regs.h"

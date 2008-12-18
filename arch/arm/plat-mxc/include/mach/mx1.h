@@ -19,13 +19,6 @@
 #include <mach/vmalloc.h>
 
 /*
- * defines the hardware clock tick rate
- */
-#define CLOCK_TICK_RATE	16000000
-
-#define PHYS_OFFSET	UL(0x08000000)
-
-/*
  * Memory map
  */
 #define IMX_IO_PHYS	0x00200000
@@ -144,10 +137,6 @@
 #define DMA_INT			61
 #define GPIO_INT_PORTD		62
 #define WDT_INT			63
-
-#define MXC_MAX_INT_LINES	64
-
-#define NR_IRQS			256
 
 /* gpio and gpio based interrupt handling */
 #define GPIO_DR		 	0x1C

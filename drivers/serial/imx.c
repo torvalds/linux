@@ -191,7 +191,7 @@
 #define SERIAL_IMX_MAJOR        207
 #define MINOR_START	        16
 #define DEV_NAME		"ttymxc"
-#define MAX_INTERNAL_IRQ	MXC_MAX_INT_LINES
+#define MAX_INTERNAL_IRQ	MXC_INTERNAL_IRQS
 #endif
 
 /*

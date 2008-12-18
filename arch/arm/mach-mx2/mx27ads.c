@@ -93,7 +93,7 @@ static int uart_mxc_port1_init(struct platform_device *pdev)
 
 static int uart_mxc_port1_exit(struct platform_device *pdev)
 {
-	mxc_gpio_setup_release_pins(mxc_uart1_pins,
+	mxc_gpio_release_multiple_pins(mxc_uart1_pins,
 			ARRAY_SIZE(mxc_uart1_pins));
 	return 0;
 }
