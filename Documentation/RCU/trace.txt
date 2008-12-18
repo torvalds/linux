@@ -1,0 +1,413 @@
+CONFIG_RCU_TRACE debugfs Files and Formats
+
+
+The rcupreempt and rcutree implementations of RCU provide debugfs trace
+output that summarizes counters and state.  This information is useful for
+debugging RCU itself, and can sometimes also help to debug abuses of RCU.
+Note that the rcuclassic implementation of RCU does not provide debugfs
+trace output.
+
+The following sections describe the debugfs files and formats for
+preemptable RCU (rcupreempt) and hierarchical RCU (rcutree).
+
+
+Preemptable RCU debugfs Files and Formats
+
+This implementation of RCU provides three debugfs files under the
+top-level directory RCU: rcu/rcuctrs (which displays the per-CPU
+counters used by preemptable RCU) rcu/rcugp (which displays grace-period
+counters), and rcu/rcustats (which internal counters for debugging RCU).
+
+The output of "cat rcu/rcuctrs" looks as follows:
+
+CPU last cur F M
+  0    5  -5 0 0
+  1   -1   0 0 0
+  2    0   1 0 0
+  3    0   1 0 0
+  4    0   1 0 0
+  5    0   1 0 0
+  6    0   2 0 0
+  7    0  -1 0 0
+  8    0   1 0 0
+ggp = 26226, state = waitzero
+
+The per-CPU fields are as follows:
+
+o	"CPU" gives the CPU number.  Offline CPUs are not displayed.
+
+o	"last" gives the value of the counter that is being decremented
+	for the current grace period phase.  In the example above,
+	the counters sum to 4, indicating that there are still four
+	RCU read-side critical sections still running that started
+	before the last counter flip.
+
+o	"cur" gives the value of the counter that is currently being
+	both incremented (by rcu_read_lock()) and decremented (by
+	rcu_read_unlock()).  In the example above, the counters sum to
+	1, indicating that there is only one RCU read-side critical section
+	still running that started after the last counter flip.
+
+o	"F" indicates whether RCU is waiting for this CPU to acknowledge
+	a counter flip.  In the above example, RCU is not waiting on any,
+	which is consistent with the state being "waitzero" rather than
+	"waitack".
+
+o	"M" indicates whether RCU is waiting for this CPU to execute a
+	memory barrier.  In the above example, RCU is not waiting on any,
+	which is consistent with the state being "waitzero" rather than
+	"waitmb".
+
+o	"ggp" is the global grace-period counter.
+
+o	"state" is the RCU state, which can be one of the following:
+
+	o	"idle": there is no grace period in progress.
+
+	o	"waitack": RCU just incremented the global grace-period
+		counter, which has the effect of reversing the roles of
+		the "last" and "cur" counters above, and is waiting for
+		all the CPUs to acknowledge the flip.  Once the flip has
+		been acknowledged, CPUs will no longer be incrementing
+		what are now the "last" counters, so that their sum will
+		decrease monotonically down to zero.
+
+	o	"waitzero": RCU is waiting for the sum of the "last" counters
+		to decrease to zero.
+
+	o	"waitmb": RCU is waiting for each CPU to execute a memory
+		barrier, which ensures that instructions from a given CPU's
+		last RCU read-side critical section cannot be reordered
+		with instructions following the memory-barrier instruction.
+
+The output of "cat rcu/rcugp" looks as follows:
+
+oldggp=48870  newggp=48873
+
+Note that reading from this file provokes a synchronize_rcu().  The
+"oldggp" value is that of "ggp" from rcu/rcuctrs above, taken before
+executing the synchronize_rcu(), and the "newggp" value is also the
+"ggp" value, but taken after the synchronize_rcu() command returns.
+
+
+The output of "cat rcu/rcugp" looks as follows:
+
+na=1337955 nl=40 wa=1337915 wl=44 da=1337871 dl=0 dr=1337871 di=1337871
+1=50989 e1=6138 i1=49722 ie1=82 g1=49640 a1=315203 ae1=265563 a2=49640
+z1=1401244 ze1=1351605 z2=49639 m1=5661253 me1=5611614 m2=49639
+
+These are counters tracking internal preemptable-RCU events, however,
+some of them may be useful for debugging algorithms using RCU.  In
+particular, the "nl", "wl", and "dl" values track the number of RCU
+callbacks in various states.  The fields are as follows:
+
+o	"na" is the total number of RCU callbacks that have been enqueued
+	since boot.
+
+o	"nl" is the number of RCU callbacks waiting for the previous
+	grace period to end so that they can start waiting on the next
+	grace period.
+
+o	"wa" is the total number of RCU callbacks that have started waiting
+	for a grace period since boot.  "na" should be roughly equal to
+	"nl" plus "wa".
+
+o	"wl" is the number of RCU callbacks currently waiting for their
+	grace period to end.
+
+o	"da" is the total number of RCU callbacks whose grace periods
+	have completed since boot.  "wa" should be roughly equal to
+	"wl" plus "da".
+
+o	"dr" is the total number of RCU callbacks that have been removed
+	from the list of callbacks ready to invoke.  "dr" should be roughly
+	equal to "da".
+
+o	"di" is the total number of RCU callbacks that have been invoked
+	since boot.  "di" should be roughly equal to "da", though some
+	early versions of preemptable RCU had a bug so that only the
+	last CPU's count of invocations was displayed, rather than the
+	sum of all CPU's counts.
+
+o	"1" is the number of calls to rcu_try_flip().  This should be
+	roughly equal to the sum of "e1", "i1", "a1", "z1", and "m1"
+	described below.  In other words, the number of times that
+	the state machine is visited should be equal to the sum of the
+	number of times that each state is visited plus the number of
+	times that the state-machine lock acquisition failed.
+
+o	"e1" is the number of times that rcu_try_flip() was unable to
+	acquire the fliplock.
+
+o	"i1" is the number of calls to rcu_try_flip_idle().
+
+o	"ie1" is the number of times rcu_try_flip_idle() exited early
+	due to the calling CPU having no work for RCU.
+
+o	"g1" is the number of times that rcu_try_flip_idle() decided
+	to start a new grace period.  "i1" should be roughly equal to
+	"ie1" plus "g1".
+
+o	"a1" is the number of calls to rcu_try_flip_waitack().
+
+o	"ae1" is the number of times that rcu_try_flip_waitack() found
+	that at least one CPU had not yet acknowledge the new grace period
+	(AKA "counter flip").
+
+o	"a2" is the number of time rcu_try_flip_waitack() found that
+	all CPUs had acknowledged.  "a1" should be roughly equal to
+	"ae1" plus "a2".  (This particular output was collected on
+	a 128-CPU machine, hence the smaller-than-usual fraction of
+	calls to rcu_try_flip_waitack() finding all CPUs having already
+	acknowledged.)
+
+o	"z1" is the number of calls to rcu_try_flip_waitzero().
+
+o	"ze1" is the number of times that rcu_try_flip_waitzero() found
+	that not all of the old RCU read-side critical sections had
+	completed.
+
+o	"z2" is the number of times that rcu_try_flip_waitzero() finds
+	the sum of the counters equal to zero, in other words, that
+	all of the old RCU read-side critical sections had completed.
+	The value of "z1" should be roughly equal to "ze1" plus
+	"z2".
+
+o	"m1" is the number of calls to rcu_try_flip_waitmb().
+
+o	"me1" is the number of times that rcu_try_flip_waitmb() finds
+	that at least one CPU has not yet executed a memory barrier.
+
+o	"m2" is the number of times that rcu_try_flip_waitmb() finds that
+	all CPUs have executed a memory barrier.
+
+
+Hierarchical RCU debugfs Files and Formats
+
+This implementation of RCU provides three debugfs files under the
+top-level directory RCU: rcu/rcudata (which displays fields in struct
+rcu_data), rcu/rcugp (which displays grace-period counters), and
+rcu/rcuhier (which displays the struct rcu_node hierarchy).
+
+The output of "cat rcu/rcudata" looks as follows:
+
+rcu:
+  0 c=4011 g=4012 pq=1 pqc=4011 qp=0 rpfq=1 rp=3c2a dt=23301/73 dn=2 df=1882 of=0 ri=2126 ql=2 b=10
+  1 c=4011 g=4012 pq=1 pqc=4011 qp=0 rpfq=3 rp=39a6 dt=78073/1 dn=2 df=1402 of=0 ri=1875 ql=46 b=10
+  2 c=4010 g=4010 pq=1 pqc=4010 qp=0 rpfq=-5 rp=1d12 dt=16646/0 dn=2 df=3140 of=0 ri=2080 ql=0 b=10
+  3 c=4012 g=4013 pq=1 pqc=4012 qp=1 rpfq=3 rp=2b50 dt=21159/1 dn=2 df=2230 of=0 ri=1923 ql=72 b=10
+  4 c=4012 g=4013 pq=1 pqc=4012 qp=1 rpfq=3 rp=1644 dt=5783/1 dn=2 df=3348 of=0 ri=2805 ql=7 b=10
+  5 c=4012 g=4013 pq=0 pqc=4011 qp=1 rpfq=3 rp=1aac dt=5879/1 dn=2 df=3140 of=0 ri=2066 ql=10 b=10
+  6 c=4012 g=4013 pq=1 pqc=4012 qp=1 rpfq=3 rp=ed8 dt=5847/1 dn=2 df=3797 of=0 ri=1266 ql=10 b=10
+  7 c=4012 g=4013 pq=1 pqc=4012 qp=1 rpfq=3 rp=1fa2 dt=6199/1 dn=2 df=2795 of=0 ri=2162 ql=28 b=10
+rcu_bh:
+  0 c=-268 g=-268 pq=1 pqc=-268 qp=0 rpfq=-145 rp=21d6 dt=23301/73 dn=2 df=0 of=0 ri=0 ql=0 b=10
+  1 c=-268 g=-268 pq=1 pqc=-268 qp=1 rpfq=-170 rp=20ce dt=78073/1 dn=2 df=26 of=0 ri=5 ql=0 b=10
+  2 c=-268 g=-268 pq=1 pqc=-268 qp=1 rpfq=-83 rp=fbd dt=16646/0 dn=2 df=28 of=0 ri=4 ql=0 b=10
+  3 c=-268 g=-268 pq=1 pqc=-268 qp=0 rpfq=-105 rp=178c dt=21159/1 dn=2 df=28 of=0 ri=2 ql=0 b=10
+  4 c=-268 g=-268 pq=1 pqc=-268 qp=1 rpfq=-30 rp=b54 dt=5783/1 dn=2 df=32 of=0 ri=0 ql=0 b=10
+  5 c=-268 g=-268 pq=1 pqc=-268 qp=1 rpfq=-29 rp=df5 dt=5879/1 dn=2 df=30 of=0 ri=3 ql=0 b=10
+  6 c=-268 g=-268 pq=1 pqc=-268 qp=1 rpfq=-28 rp=788 dt=5847/1 dn=2 df=32 of=0 ri=0 ql=0 b=10
+  7 c=-268 g=-268 pq=1 pqc=-268 qp=1 rpfq=-53 rp=1098 dt=6199/1 dn=2 df=30 of=0 ri=3 ql=0 b=10
+
+The first section lists the rcu_data structures for rcu, the second for
+rcu_bh.  Each section has one line per CPU, or eight for this 8-CPU system.
+The fields are as follows:
+
+o	The number at the beginning of each line is the CPU number.
+	CPUs numbers followed by an exclamation mark are offline,
+	but have been online at least once since boot.	There will be
+	no output for CPUs that have never been online, which can be
+	a good thing in the surprisingly common case where NR_CPUS is
+	substantially larger than the number of actual CPUs.
+
+o	"c" is the count of grace periods that this CPU believes have
+	completed.  CPUs in dynticks idle mode may lag quite a ways
+	behind, for example, CPU 4 under "rcu" above, which has slept
+	through the past 25 RCU grace periods.	It is not unusual to
+	see CPUs lagging by thousands of grace periods.
+
+o	"g" is the count of grace periods that this CPU believes have
+	started.  Again, CPUs in dynticks idle mode may lag behind.
+	If the "c" and "g" values are equal, this CPU has already
+	reported a quiescent state for the last RCU grace period that
+	it is aware of, otherwise, the CPU believes that it owes RCU a
+	quiescent state.
+
+o	"pq" indicates that this CPU has passed through a quiescent state
+	for the current grace period.  It is possible for "pq" to be
+	"1" and "c" different than "g", which indicates that although
+	the CPU has passed through a quiescent state, either (1) this
+	CPU has not yet reported that fact, (2) some other CPU has not
+	yet reported for this grace period, or (3) both.
+
+o	"pqc" indicates which grace period the last-observed quiescent
+	state for this CPU corresponds to.  This is important for handling
+	the race between CPU 0 reporting an extended dynticks-idle
+	quiescent state for CPU 1 and CPU 1 suddenly waking up and
+	reporting its own quiescent state.  If CPU 1 was the last CPU
+	for the current grace period, then the CPU that loses this race
+	will attempt to incorrectly mark CPU 1 as having checked in for
+	the next grace period!
+
+o	"qp" indicates that RCU still expects a quiescent state from
+	this CPU.
+
+o	"rpfq" is the number of rcu_pending() calls on this CPU required
+	to induce this CPU to invoke force_quiescent_state().
+
+o	"rp" is low-order four hex digits of the count of how many times
+	rcu_pending() has been invoked on this CPU.
+
+o	"dt" is the current value of the dyntick counter that is incremented
+	when entering or leaving dynticks idle state, either by the
+	scheduler or by irq.  The number after the "/" is the interrupt
+	nesting depth when in dyntick-idle state, or one greater than
+	the interrupt-nesting depth otherwise.
+
+	This field is displayed only for CONFIG_NO_HZ kernels.
+
+o	"dn" is the current value of the dyntick counter that is incremented
+	when entering or leaving dynticks idle state via NMI.  If both
+	the "dt" and "dn" values are even, then this CPU is in dynticks
+	idle mode and may be ignored by RCU.  If either of these two
+	counters is odd, then RCU must be alert to the possibility of
+	an RCU read-side critical section running on this CPU.
+
+	This field is displayed only for CONFIG_NO_HZ kernels.
+
+o	"df" is the number of times that some other CPU has forced a
+	quiescent state on behalf of this CPU due to this CPU being in
+	dynticks-idle state.
+
+	This field is displayed only for CONFIG_NO_HZ kernels.
+
+o	"of" is the number of times that some other CPU has forced a
+	quiescent state on behalf of this CPU due to this CPU being
+	offline.  In a perfect world, this might neve happen, but it
+	turns out that offlining and onlining a CPU can take several grace
+	periods, and so there is likely to be an extended period of time
+	when RCU believes that the CPU is online when it really is not.
+	Please note that erring in the other direction (RCU believing a
+	CPU is offline when it is really alive and kicking) is a fatal
+	error, so it makes sense to err conservatively.
+
+o	"ri" is the number of times that RCU has seen fit to send a
+	reschedule IPI to this CPU in order to get it to report a
+	quiescent state.
+
+o	"ql" is the number of RCU callbacks currently residing on
+	this CPU.  This is the total number of callbacks, regardless
+	of what state they are in (new, waiting for grace period to
+	start, waiting for grace period to end, ready to invoke).
+
+o	"b" is the batch limit for this CPU.  If more than this number
+	of RCU callbacks is ready to invoke, then the remainder will
+	be deferred.
+
+
+The output of "cat rcu/rcugp" looks as follows:
+
+rcu: completed=33062  gpnum=33063
+rcu_bh: completed=464  gpnum=464
+
+Again, this output is for both "rcu" and "rcu_bh".  The fields are
+taken from the rcu_state structure, and are as follows:
+
+o	"completed" is the number of grace periods that have completed.
+	It is comparable to the "c" field from rcu/rcudata in that a
+	CPU whose "c" field matches the value of "completed" is aware
+	that the corresponding RCU grace period has completed.
+
+o	"gpnum" is the number of grace periods that have started.  It is
+	comparable to the "g" field from rcu/rcudata in that a CPU
+	whose "g" field matches the value of "gpnum" is aware that the
+	corresponding RCU grace period has started.
+
+	If these two fields are equal (as they are for "rcu_bh" above),
+	then there is no grace period in progress, in other words, RCU
+	is idle.  On the other hand, if the two fields differ (as they
+	do for "rcu" above), then an RCU grace period is in progress.
+
+
+The output of "cat rcu/rcuhier" looks as follows, with very long lines:
+
+c=6902 g=6903 s=2 jfq=3 j=72c7 nfqs=13142/nfqsng=0(13142) fqlh=6
+1/1 0:127 ^0    
+3/3 0:35 ^0    0/0 36:71 ^1    0/0 72:107 ^2    0/0 108:127 ^3    
+3/3f 0:5 ^0    2/3 6:11 ^1    0/0 12:17 ^2    0/0 18:23 ^3    0/0 24:29 ^4    0/0 30:35 ^5    0/0 36:41 ^0    0/0 42:47 ^1    0/0 48:53 ^2    0/0 54:59 ^3    0/0 60:65 ^4    0/0 66:71 ^5    0/0 72:77 ^0    0/0 78:83 ^1    0/0 84:89 ^2    0/0 90:95 ^3    0/0 96:101 ^4    0/0 102:107 ^5    0/0 108:113 ^0    0/0 114:119 ^1    0/0 120:125 ^2    0/0 126:127 ^3    
+rcu_bh:
+c=-226 g=-226 s=1 jfq=-5701 j=72c7 nfqs=88/nfqsng=0(88) fqlh=0
+0/1 0:127 ^0    
+0/3 0:35 ^0    0/0 36:71 ^1    0/0 72:107 ^2    0/0 108:127 ^3    
+0/3f 0:5 ^0    0/3 6:11 ^1    0/0 12:17 ^2    0/0 18:23 ^3    0/0 24:29 ^4    0/0 30:35 ^5    0/0 36:41 ^0    0/0 42:47 ^1    0/0 48:53 ^2    0/0 54:59 ^3    0/0 60:65 ^4    0/0 66:71 ^5    0/0 72:77 ^0    0/0 78:83 ^1    0/0 84:89 ^2    0/0 90:95 ^3    0/0 96:101 ^4    0/0 102:107 ^5    0/0 108:113 ^0    0/0 114:119 ^1    0/0 120:125 ^2    0/0 126:127 ^3
+
+This is once again split into "rcu" and "rcu_bh" portions.  The fields are
+as follows:
+
+o	"c" is exactly the same as "completed" under rcu/rcugp.
+
+o	"g" is exactly the same as "gpnum" under rcu/rcugp.
+
+o	"s" is the "signaled" state that drives force_quiescent_state()'s
+	state machine.
+
+o	"jfq" is the number of jiffies remaining for this grace period
+	before force_quiescent_state() is invoked to help push things
+	along.  Note that CPUs in dyntick-idle mode thoughout the grace
+	period will not report on their own, but rather must be check by
+	some other CPU via force_quiescent_state().
+
+o	"j" is the low-order four hex digits of the jiffies counter.
+	Yes, Paul did run into a number of problems that turned out to
+	be due to the jiffies counter no longer counting.  Why do you ask?
+
+o	"nfqs" is the number of calls to force_quiescent_state() since
+	boot.
+
+o	"nfqsng" is the number of useless calls to force_quiescent_state(),
+	where there wasn't actually a grace period active.  This can
+	happen due to races.  The number in parentheses is the difference
+	between "nfqs" and "nfqsng", or the number of times that
+	force_quiescent_state() actually did some real work.
+
+o	"fqlh" is the number of calls to force_quiescent_state() that
+	exited immediately (without even being counted in nfqs above)
+	due to contention on ->fqslock.
+
+o	Each element of the form "1/1 0:127 ^0" represents one struct
+	rcu_node.  Each line represents one level of the hierarchy, from
+	root to leaves.  It is best to think of the rcu_data structures
+	as forming yet another level after the leaves.  Note that there
+	might be either one, two, or three levels of rcu_node structures,
+	depending on the relationship between CONFIG_RCU_FANOUT and
+	CONFIG_NR_CPUS.
+	
+	o	The numbers separated by the "/" are the qsmask followed
+		by the qsmaskinit.  The qsmask will have one bit
+		set for each entity in the next lower level that
+		has not yet checked in for the current grace period.
+		The qsmaskinit will have one bit for each entity that is
+		currently expected to check in during each grace period.
+		The value of qsmaskinit is assigned to that of qsmask
+		at the beginning of each grace period.
+
+		For example, for "rcu", the qsmask of the first entry
+		of the lowest level is 0x14, meaning that we are still
+		waiting for CPUs 2 and 4 to check in for the current
+		grace period.
+
+	o	The numbers separated by the ":" are the range of CPUs
+		served by this struct rcu_node.  This can be helpful
+		in working out how the hierarchy is wired together.
+
+		For example, the first entry at the lowest level shows
+		"0:5", indicating that it covers CPUs 0 through 5.
+
+	o	The number after the "^" indicates the bit in the
+		next higher level rcu_node structure that this
+		rcu_node structure corresponds to.
+
+		For example, the first entry at the lowest level shows
+		"^0", indicating that it corresponds to bit zero in
+		the first entry at the middle level.

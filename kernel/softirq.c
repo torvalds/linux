@@ -269,6 +269,7 @@ void irq_enter(void)
 {
 	int cpu = smp_processor_id();
 
+	rcu_irq_enter();
 	if (idle_cpu(cpu) && !in_interrupt()) {
 		__irq_enter();
 		tick_check_idle(cpu);
@@ -295,9 +296,9 @@ void irq_exit(void)
 
 #ifdef CONFIG_NO_HZ
 	/* Make sure that timer wheel updates are propagated */
-	if (!in_interrupt() && idle_cpu(smp_processor_id()) && !need_resched())
-		tick_nohz_stop_sched_tick(0);
 	rcu_irq_exit();
+	if (idle_cpu(smp_processor_id()) && !in_interrupt() && !need_resched())
+		tick_nohz_stop_sched_tick(0);
 #endif
 	preempt_enable_no_resched();
 }

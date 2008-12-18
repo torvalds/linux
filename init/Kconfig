@@ -928,10 +928,16 @@ source "block/Kconfig"
 config PREEMPT_NOTIFIERS
 	bool
 
-config CLASSIC_RCU
-	def_bool !PREEMPT_RCU
+config TREE_RCU_TRACE
+	def_bool RCU_TRACE && TREE_RCU
+	select DEBUG_FS
 	help
-	  This option selects the classic RCU implementation that is
-	  designed for best read-side performance on non-realtime
-	  systems.  Classic RCU is the default.  Note that the
-	  PREEMPT_RCU symbol is used to select/deselect this option.
+	  This option provides tracing for the TREE_RCU implementation,
+	  permitting Makefile to trivially select kernel/rcutree_trace.c.
+
+config PREEMPT_RCU_TRACE
+	def_bool RCU_TRACE && PREEMPT_RCU
+	select DEBUG_FS
+	help
+	  This option provides tracing for the PREEMPT_RCU implementation,
+	  permitting Makefile to trivially select kernel/rcupreempt_trace.c.

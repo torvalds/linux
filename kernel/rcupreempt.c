@@ -551,6 +551,16 @@ void rcu_irq_exit(void)
 	}
 }
 
+void rcu_nmi_enter(void)
+{
+	rcu_irq_enter();
+}
+
+void rcu_nmi_exit(void)
+{
+	rcu_irq_exit();
+}
+
 static void dyntick_save_progress_counter(int cpu)
 {
 	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
