@@ -489,6 +489,9 @@ struct kvm_debug_guest {
 
 #define __KVM_DEPRECATED_DEBUG_GUEST _IOW(KVMIO,  0x87, struct kvm_debug_guest)
 
+#define KVM_IA64_VCPU_GET_STACK   _IOR(KVMIO,  0x9a, void *)
+#define KVM_IA64_VCPU_SET_STACK   _IOW(KVMIO,  0x9b, void *)
+
 #define KVM_TRC_INJ_VIRQ         (KVM_TRC_HANDLER + 0x02)
 #define KVM_TRC_REDELIVER_EVT    (KVM_TRC_HANDLER + 0x03)
 #define KVM_TRC_PEND_INTR        (KVM_TRC_HANDLER + 0x04)
