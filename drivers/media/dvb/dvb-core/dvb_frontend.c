@@ -580,7 +580,7 @@ restart:
 				if (fe->ops.tune)
 					fe->ops.tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
 
-				if (s != fepriv->status) {
+				if (s != fepriv->status && !(fepriv->tune_mode_flags & FE_TUNE_MODE_ONESHOT)) {
 					dprintk("%s: state changed, adding current state\n", __func__);
 					dvb_frontend_add_event(fe, s);
 					fepriv->status = s;
