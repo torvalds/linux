@@ -3723,6 +3723,12 @@ static struct st_buffer *
 	tb->buffer_size = got;
 	sg_init_table(tb->sg, max_sg);
 
+	tb->reserved_pages = kzalloc(max_sg * sizeof(struct page *), priority);
+	if (!tb->reserved_pages) {
+		kfree(tb);
+		return NULL;
+	}
+
 	return tb;
 }
 
@@ -3771,9 +3777,11 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dm
 		STbuffer->buffer_size = got;
 		if (STbuffer->cleared)
 			memset(page_address(STbuffer->frp[segs].page), 0, b_size);
+		STbuffer->reserved_pages[segs] = STbuffer->frp[segs].page;
 		segs++;
 	}
 	STbuffer->b_data = page_address(STbuffer->frp[0].page);
+	STbuffer->map_data.page_order = order;
 
 	return 1;
 }
@@ -3803,6 +3811,8 @@ static void normalize_buffer(struct st_buffer * STbuffer)
 	STbuffer->frp_segs = STbuffer->orig_frp_segs;
 	STbuffer->frp_sg_current = 0;
 	STbuffer->sg_segs = 0;
+	STbuffer->map_data.page_order = 0;
+	STbuffer->map_data.offset = 0;
 }
 
 
@@ -4282,6 +4292,7 @@ static void scsi_tape_release(struct kref *kref)
 	if (tpnt->buffer) {
 		tpnt->buffer->orig_frp_segs = 0;
 		normalize_buffer(tpnt->buffer);
+		kfree(tpnt->buffer->reserved_pages);
 		kfree(tpnt->buffer);
 	}
 
