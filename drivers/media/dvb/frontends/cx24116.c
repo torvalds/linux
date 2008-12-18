@@ -106,7 +106,7 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define CX24116_HAS_SYNCLOCK (0x08)
 #define CX24116_HAS_UNKNOWN1 (0x10)
 #define CX24116_HAS_UNKNOWN2 (0x20)
-#define CX24116_STATUS_MASK  (0x3f)
+#define CX24116_STATUS_MASK  (0x0f)
 #define CX24116_SIGNAL_MASK  (0xc0)
 
 #define CX24116_DISEQC_TONEOFF   (0)    /* toneburst never sent */
@@ -681,7 +681,8 @@ static int cx24116_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 
-	int lock = cx24116_readreg(state, CX24116_REG_SSTATUS);
+	int lock = cx24116_readreg(state, CX24116_REG_SSTATUS) &
+		CX24116_STATUS_MASK;
 
 	dprintk("%s: status = 0x%02x\n", __func__, lock);
 
@@ -1430,6 +1431,23 @@ tuned:  /* Set/Reset B/W */
 	return ret;
 }
 
+static int cx24116_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters *params,
+	unsigned int mode_flags, unsigned int *delay, fe_status_t *status)
+{
+	*delay = HZ / 5;
+	if (params) {
+		int ret = cx24116_set_frontend(fe, params);
+		if (ret)
+			return ret;
+	}
+	return cx24116_read_status(fe, status);
+}
+
+static int cx24116_get_algo(struct dvb_frontend *fe)
+{
+	return DVBFE_ALGO_HW;
+}
+
 static struct dvb_frontend_ops cx24116_ops = {
 
 	.info = {
@@ -1461,6 +1479,8 @@ static struct dvb_frontend_ops cx24116_ops = {
 	.set_voltage = cx24116_set_voltage,
 	.diseqc_send_master_cmd = cx24116_send_diseqc_msg,
 	.diseqc_send_burst = cx24116_diseqc_send_burst,
+	.get_frontend_algo = cx24116_get_algo,
+	.tune = cx24116_tune,
 
 	.set_property = cx24116_set_property,
 	.get_property = cx24116_get_property,
