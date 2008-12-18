@@ -291,6 +291,8 @@
  */
 extern unsigned int get_memclk_frequency_10khz(void);
 
+/* return the clock tick rate of the OS timer */
+extern unsigned long get_clock_tick_rate(void);
 #endif
 
 #if defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)
