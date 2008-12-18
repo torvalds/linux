@@ -78,6 +78,12 @@ int module_finalize(const Elf_Ehdr *hdr,
 				  (void *)sect->sh_addr,
 				  (void *)sect->sh_addr + sect->sh_size);
 
+	sect = find_section(hdr, sechdrs, "__mmu_ftr_fixup");
+	if (sect != NULL)
+		do_feature_fixups(cur_cpu_spec->mmu_features,
+				  (void *)sect->sh_addr,
+				  (void *)sect->sh_addr + sect->sh_size);
+
 #ifdef CONFIG_PPC64
 	sect = find_section(hdr, sechdrs, "__fw_ftr_fixup");
 	if (sect != NULL)

@@ -990,12 +990,12 @@ load_up_mmu:
 	LOAD_BAT(1,r3,r4,r5)
 	LOAD_BAT(2,r3,r4,r5)
 	LOAD_BAT(3,r3,r4,r5)
-BEGIN_FTR_SECTION
+BEGIN_MMU_FTR_SECTION
 	LOAD_BAT(4,r3,r4,r5)
 	LOAD_BAT(5,r3,r4,r5)
 	LOAD_BAT(6,r3,r4,r5)
 	LOAD_BAT(7,r3,r4,r5)
-END_FTR_SECTION_IFSET(CPU_FTR_HAS_HIGH_BATS)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	blr
 
 /*
@@ -1141,7 +1141,7 @@ clear_bats:
 	mtspr	SPRN_IBAT2L,r10
 	mtspr	SPRN_IBAT3U,r10
 	mtspr	SPRN_IBAT3L,r10
-BEGIN_FTR_SECTION
+BEGIN_MMU_FTR_SECTION
 	/* Here's a tweak: at this point, CPU setup have
 	 * not been called yet, so HIGH_BAT_EN may not be
 	 * set in HID0 for the 745x processors. However, it
@@ -1164,7 +1164,7 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_IBAT6L,r10
 	mtspr	SPRN_IBAT7U,r10
 	mtspr	SPRN_IBAT7L,r10
-END_FTR_SECTION_IFSET(CPU_FTR_HAS_HIGH_BATS)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	blr
 
 flush_tlbs:

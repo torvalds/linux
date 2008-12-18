@@ -767,10 +767,10 @@ finish_tlb_load:
 	rlwimi	r12, r13, 24, 0, 7	/* grab RPN[32:39] */
 	rlwimi	r12, r11, 24, 8, 19	/* grab RPN[40:51] */
 	mtspr	SPRN_MAS3, r12
-BEGIN_FTR_SECTION
+BEGIN_MMU_FTR_SECTION
 	srwi	r10, r13, 8		/* grab RPN[8:31] */
 	mtspr	SPRN_MAS7, r10
-END_FTR_SECTION_IFSET(CPU_FTR_BIG_PHYS)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 #else
 	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
 	mtspr	SPRN_MAS3, r11
