@@ -1218,6 +1218,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	__u32 pixfmt = pix->pixelformat;
+	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
@@ -1240,8 +1241,13 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
 	pix->sizeimage = pix->height * pix->bytesperline;
 
+	/* camera has to see its format, but the user the original one */
+	pix->pixelformat = xlate->cam_fmt->fourcc;
 	/* limit to sensor capabilities */
-	return icd->ops->try_fmt(icd, f);
+	ret = icd->ops->try_fmt(icd, f);
+	pix->pixelformat = xlate->host_fmt->fourcc;
+
+	return ret;
 }
 
 static int pxa_camera_reqbufs(struct soc_camera_file *icf,
