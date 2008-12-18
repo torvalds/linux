@@ -219,6 +219,11 @@ static inline unsigned long pte_pfn(pte_t pte)
 	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
+static inline u64 pte_pa(pte_t pte)
+{
+	return pte_val(pte) & PTE_PFN_MASK;
+}
+
 #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
 
 static inline int pmd_large(pmd_t pte)
@@ -327,6 +332,11 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 #define pte_pgprot(x) __pgprot(pte_flags(x) & PTE_FLAGS_MASK)
 
 #define canon_pgprot(p) __pgprot(pgprot_val(p) & __supported_pte_mask)
+
+/* Indicate that x86 has its own track and untrack pfn vma functions */
+#define track_pfn_vma_new track_pfn_vma_new
+#define track_pfn_vma_copy track_pfn_vma_copy
+#define untrack_pfn_vma untrack_pfn_vma
 
 #ifndef __ASSEMBLY__
 #define __HAVE_PHYS_MEM_ACCESS_PROT
