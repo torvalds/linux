@@ -744,6 +744,11 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	bss_info_changed |= BSS_CHANGED_BASIC_RATES;
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
+	if (local->powersave) {
+		local->hw.conf.flags |= IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	}
+
 	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
 
@@ -812,7 +817,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	u32 changed = 0;
+	u32 changed = 0, config_changed = 0;
 
 	rcu_read_lock();
 
@@ -859,8 +864,14 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	local->hw.conf.ht.enabled = false;
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_HT);
+	config_changed |= IEEE80211_CONF_CHANGE_HT;
 
+	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
+		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+		config_changed |= IEEE80211_CONF_CHANGE_PS;
+	}
+
+	ieee80211_hw_config(local, config_changed);
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	rcu_read_lock();
