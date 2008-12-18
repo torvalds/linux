@@ -25,7 +25,6 @@
 #include <linux/version.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/mutex.h>
 #include <linux/clk.h>
 
 #include <media/v4l2-common.h>
@@ -163,8 +162,6 @@
 #define CICR0_IRQ_MASK (CICR0_TOM | CICR0_RDAVM | CICR0_FEM | CICR0_EOLM | \
 			CICR0_PERRM | CICR0_QDM | CICR0_CDM | CICR0_SOFM | \
 			CICR0_EOFM | CICR0_FOM)
-
-static DEFINE_MUTEX(camera_lock);
 
 /*
  * Structures
@@ -813,15 +810,16 @@ static irqreturn_t pxa_camera_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* The following two functions absolutely depend on the fact, that
- * there can be only one camera on PXA quick capture interface */
+/*
+ * The following two functions absolutely depend on the fact, that
+ * there can be only one camera on PXA quick capture interface
+ * Called with .video_lock held
+ */
 static int pxa_camera_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
 	int ret;
-
-	mutex_lock(&camera_lock);
 
 	if (pcdev->icd) {
 		ret = -EBUSY;
@@ -838,11 +836,10 @@ static int pxa_camera_add_device(struct soc_camera_device *icd)
 		pcdev->icd = icd;
 
 ebusy:
-	mutex_unlock(&camera_lock);
-
 	return ret;
 }
 
+/* Called with .video_lock held */
 static void pxa_camera_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);

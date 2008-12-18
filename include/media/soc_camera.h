@@ -12,9 +12,10 @@
 #ifndef SOC_CAMERA_H
 #define SOC_CAMERA_H
 
+#include <linux/mutex.h>
+#include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
-#include <linux/pm.h>
 
 struct soc_camera_device {
 	struct list_head list;
@@ -45,9 +46,10 @@ struct soc_camera_device {
 	struct soc_camera_format_xlate *user_formats;
 	int num_user_formats;
 	struct module *owner;
-	void *host_priv;		/* per-device host private data */
-	/* soc_camera.c private count. Only accessed with video_lock held */
+	void *host_priv;		/* Per-device host private data */
+	/* soc_camera.c private count. Only accessed with .video_lock held */
 	int use_count;
+	struct mutex video_lock;	/* Protects device data */
 };
 
 struct soc_camera_file {

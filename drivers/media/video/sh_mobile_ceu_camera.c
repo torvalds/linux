@@ -29,7 +29,6 @@
 #include <linux/version.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/clk.h>
 
@@ -74,8 +73,6 @@
 #define CDACR2 0x94 /* Capture data address C register 2 */
 #define CDBYR2 0x98 /* Capture data bottom-field address Y register 2 */
 #define CDBCR2 0x9c /* Capture data bottom-field address C register 2 */
-
-static DEFINE_MUTEX(camera_lock);
 
 /* per video frame buffer */
 struct sh_mobile_ceu_buffer {
@@ -292,13 +289,12 @@ static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* Called with .video_lock held */
 static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	int ret = -EBUSY;
-
-	mutex_lock(&camera_lock);
 
 	if (pcdev->icd)
 		goto err;
@@ -319,11 +315,10 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 
 	pcdev->icd = icd;
 err:
-	mutex_unlock(&camera_lock);
-
 	return ret;
 }
 
+/* Called with .video_lock held */
 static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
