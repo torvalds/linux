@@ -51,6 +51,7 @@
 #define COM8        0x13 /* Common control 8 */
 #define COM9        0x14 /* Common control 9 */
 #define COM10       0x15 /* Common control 10 */
+#define REG16       0x16 /* Register 16 */
 #define HSTART      0x17 /* Horizontal sensor size */
 #define HSIZE       0x18 /* Horizontal frame (HREF column) end high 8-bit */
 #define VSTART      0x19 /* Vertical frame (row) start high 8-bit */
@@ -65,6 +66,7 @@
 #define AEW         0x24 /* AGC/AEC - Stable operating region (upper limit) */
 #define AEB         0x25 /* AGC/AEC - Stable operating region (lower limit) */
 #define VPT         0x26 /* AGC/AEC Fast mode operating region */
+#define REG28       0x28 /* Register 28 */
 #define HOUTSIZE    0x29 /* Horizontal data output size MSBs */
 #define EXHCH       0x2A /* Dummy pixel insert MSB */
 #define EXHCL       0x2B /* Dummy pixel insert LSB */
@@ -94,6 +96,7 @@
 #define TGT_R       0x43 /* BLC red  channel target value */
 #define TGT_GB      0x44 /* BLC Gb   channel target value */
 #define TGT_GR      0x45 /* BLC Gr   channel target value */
+/* for ov7720 */
 #define LCC0        0x46 /* Lens correction control 0 */
 #define LCC1        0x47 /* Lens correction option 1 - X coordinate */
 #define LCC2        0x48 /* Lens correction option 2 - Y coordinate */
@@ -101,6 +104,15 @@
 #define LCC4        0x4A /* Lens correction option 4 - radius of the circular */
 #define LCC5        0x4B /* Lens correction option 5 */
 #define LCC6        0x4C /* Lens correction option 6 */
+/* for ov7725 */
+#define LC_CTR      0x46 /* Lens correction control */
+#define LC_XC       0x47 /* X coordinate of lens correction center relative */
+#define LC_YC       0x48 /* Y coordinate of lens correction center relative */
+#define LC_COEF     0x49 /* Lens correction coefficient */
+#define LC_RADI     0x4A /* Lens correction radius */
+#define LC_COEFB    0x4B /* Lens B channel compensation coefficient */
+#define LC_COEFR    0x4C /* Lens R channel compensation coefficient */
+
 #define FIXGAIN     0x4D /* Analog fix gain amplifer */
 #define AREF0       0x4E /* Sensor reference control */
 #define AREF1       0x4F /* Sensor reference current control */
@@ -182,8 +194,13 @@
 #define SDE         0xA6 /* Special digital effect control */
 #define USAT        0xA7 /* U component saturation control */
 #define VSAT        0xA8 /* V component saturation control */
+/* for ov7720 */
 #define HUE0        0xA9 /* Hue control 0 */
 #define HUE1        0xAA /* Hue control 1 */
+/* for ov7725 */
+#define HUECOS      0xA9 /* Cosine value */
+#define HUESIN      0xAA /* Sine value */
+
 #define SIGN        0xAB /* Sign bit for Hue and contrast */
 #define DSPAUTO     0xAC /* DSP auto function ON/OFF control */
 
@@ -349,6 +366,7 @@
  * ID
  */
 #define OV7720  0x7720
+#define OV7725  0x7721
 #define VERSION(pid, ver) ((pid<<8)|(ver&0xFF))
 
 /*
@@ -837,6 +855,10 @@ static int ov772x_video_probe(struct soc_camera_device *icd)
 	case OV7720:
 		devname     = "ov7720";
 		priv->model = V4L2_IDENT_OV7720;
+		break;
+	case OV7725:
+		devname     = "ov7725";
+		priv->model = V4L2_IDENT_OV7725;
 		break;
 	default:
 		dev_err(&icd->dev,
