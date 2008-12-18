@@ -60,9 +60,6 @@ static int of_isp1760_probe(struct of_device *dev,
 	if (of_device_is_compatible(dp, "nxp,usb-isp1761"))
 		devflags |= ISP1760_FLAG_ISP1761;
 
-	if (of_get_property(dp, "port1-disable", NULL) != NULL)
-		devflags |= ISP1760_FLAG_PORT1_DIS;
-
 	/* Some systems wire up only 16 of the 32 data lines */
 	prop = of_get_property(dp, "bus-width", NULL);
 	if (prop && *prop == 16)
