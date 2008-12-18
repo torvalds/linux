@@ -145,4 +145,10 @@ struct pxafb_info {
 #define MIN_XRES	64
 #define MIN_YRES	64
 
+/* maximum X and Y resolutions - note these are limits from the register
+ * bits length instead of the real ones
+ */
+#define MAX_XRES	1024
+#define MAX_YRES	1024
+
 #endif /* __PXAFB_H__ */

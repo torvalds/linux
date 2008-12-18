@@ -391,6 +391,46 @@ static void pxafb_setmode(struct fb_var_screeninfo *var,
 	pxafb_set_pixfmt(var, mode->depth);
 }
 
+static int pxafb_adjust_timing(struct pxafb_info *fbi,
+			       struct fb_var_screeninfo *var)
+{
+	int line_length;
+
+	var->xres = max_t(int, var->xres, MIN_XRES);
+	var->yres = max_t(int, var->yres, MIN_YRES);
+
+	if (!(fbi->lccr0 & LCCR0_LCDT)) {
+		clamp_val(var->hsync_len, 1, 64);
+		clamp_val(var->vsync_len, 1, 64);
+		clamp_val(var->left_margin,  1, 255);
+		clamp_val(var->right_margin, 1, 255);
+		clamp_val(var->upper_margin, 1, 255);
+		clamp_val(var->lower_margin, 1, 255);
+	}
+
+	/* make sure each line is aligned on word boundary */
+	line_length = var->xres * var->bits_per_pixel / 8;
+	line_length = ALIGN(line_length, 4);
+	var->xres = line_length * 8 / var->bits_per_pixel;
+
+	/* we don't support xpan, force xres_virtual to be equal to xres */
+	var->xres_virtual = var->xres;
+
+	if (var->accel_flags & FB_ACCELF_TEXT)
+		var->yres_virtual = fbi->fb.fix.smem_len / line_length;
+	else
+		var->yres_virtual = max(var->yres_virtual, var->yres);
+
+	/* check for limits */
+	if (var->xres > MAX_XRES || var->yres > MAX_YRES)
+		return -EINVAL;
+
+	if (var->yres > var->yres_virtual)
+		return -EINVAL;
+
+	return 0;
+}
+
 /*
  *  pxafb_check_var():
  *    Get the video params out of 'var'. If a value doesn't fit, round it up,
@@ -406,11 +446,6 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct pxafb_mach_info *inf = fbi->dev->platform_data;
 	int err;
 
-	if (var->xres < MIN_XRES)
-		var->xres = MIN_XRES;
-	if (var->yres < MIN_YRES)
-		var->yres = MIN_YRES;
-
 	if (inf->fixed_modes) {
 		struct pxafb_mode_info *mode;
 
@@ -418,23 +453,7 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		if (!mode)
 			return -EINVAL;
 		pxafb_setmode(var, mode);
-	} else {
-		if (var->xres > inf->modes->xres)
-			return -EINVAL;
-		if (var->yres > inf->modes->yres)
-			return -EINVAL;
-		if (var->bits_per_pixel > inf->modes->bpp)
-			return -EINVAL;
 	}
-
-	/* we don't support xpan, force xres_virtual to be equal to xres */
-	var->xres_virtual = var->xres;
-
-	if (var->accel_flags & FB_ACCELF_TEXT)
-		var->yres_virtual = fbi->fb.fix.smem_len /
-			(var->xres_virtual * var->bits_per_pixel / 8);
-	else
-		var->yres_virtual = max(var->yres_virtual, var->yres);
 
 	/* do a test conversion to BPP fields to check the color formats */
 	err = pxafb_var_to_bpp(var);
@@ -442,6 +461,10 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		return err;
 
 	pxafb_set_pixfmt(var, var_to_depth(var));
+
+	err = pxafb_adjust_timing(fbi, var);
+	if (err)
+		return err;
 
 #ifdef CONFIG_CPU_FREQ
 	pr_debug("pxafb: dma period = %d ps\n",
@@ -948,49 +971,6 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 {
 	u_long flags;
 
-#if DEBUG_VAR
-	if (!(fbi->lccr0 & LCCR0_LCDT)) {
-		if (var->xres < 16 || var->xres > 1024)
-			printk(KERN_ERR "%s: invalid xres %d\n",
-				fbi->fb.fix.id, var->xres);
-		switch (var->bits_per_pixel) {
-		case 1:
-		case 2:
-		case 4:
-		case 8:
-		case 16:
-		case 24:
-		case 32:
-			break;
-		default:
-			printk(KERN_ERR "%s: invalid bit depth %d\n",
-			       fbi->fb.fix.id, var->bits_per_pixel);
-			break;
-		}
-
-		if (var->hsync_len < 1 || var->hsync_len > 64)
-			printk(KERN_ERR "%s: invalid hsync_len %d\n",
-				fbi->fb.fix.id, var->hsync_len);
-		if (var->left_margin < 1 || var->left_margin > 255)
-			printk(KERN_ERR "%s: invalid left_margin %d\n",
-				fbi->fb.fix.id, var->left_margin);
-		if (var->right_margin < 1 || var->right_margin > 255)
-			printk(KERN_ERR "%s: invalid right_margin %d\n",
-				fbi->fb.fix.id, var->right_margin);
-		if (var->yres < 1 || var->yres > 1024)
-			printk(KERN_ERR "%s: invalid yres %d\n",
-				fbi->fb.fix.id, var->yres);
-		if (var->vsync_len < 1 || var->vsync_len > 64)
-			printk(KERN_ERR "%s: invalid vsync_len %d\n",
-				fbi->fb.fix.id, var->vsync_len);
-		if (var->upper_margin < 0 || var->upper_margin > 255)
-			printk(KERN_ERR "%s: invalid upper_margin %d\n",
-				fbi->fb.fix.id, var->upper_margin);
-		if (var->lower_margin < 0 || var->lower_margin > 255)
-			printk(KERN_ERR "%s: invalid lower_margin %d\n",
-				fbi->fb.fix.id, var->lower_margin);
-	}
-#endif
 	/* Update shadow copy atomically */
 	local_irq_save(flags);
 
