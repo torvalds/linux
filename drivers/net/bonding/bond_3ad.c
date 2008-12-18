@@ -483,24 +483,25 @@ static u16 __ad_timer_to_ticks(u16 timer_type, u16 par)
  */
 static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
 {
-	// validate lacpdu and port
 	if (lacpdu && port) {
+		struct port_params *partner = &port->partner_oper;
+
 		// record the new parameter values for the partner operational
-		port->partner_oper.port_number = ntohs(lacpdu->actor_port);
-		port->partner_oper.port_priority = ntohs(lacpdu->actor_port_priority);
-		port->partner_oper.system = lacpdu->actor_system;
-		port->partner_oper.system_priority = ntohs(lacpdu->actor_system_priority);
-		port->partner_oper.key = ntohs(lacpdu->actor_key);
-		port->partner_oper.port_state = lacpdu->actor_state;
+		partner->port_number = ntohs(lacpdu->actor_port);
+		partner->port_priority = ntohs(lacpdu->actor_port_priority);
+		partner->system = lacpdu->actor_system;
+		partner->system_priority = ntohs(lacpdu->actor_system_priority);
+		partner->key = ntohs(lacpdu->actor_key);
+		partner->port_state = lacpdu->actor_state;
 
 		// set actor_oper_port_state.defaulted to FALSE
 		port->actor_oper_port_state &= ~AD_STATE_DEFAULTED;
 
 		// set the partner sync. to on if the partner is sync. and the port is matched
 		if ((port->sm_vars & AD_PORT_MATCHED) && (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION)) {
-			port->partner_oper.port_state |= AD_STATE_SYNCHRONIZATION;
+			partner->port_state |= AD_STATE_SYNCHRONIZATION;
 		} else {
-			port->partner_oper.port_state &= ~AD_STATE_SYNCHRONIZATION;
+			partner->port_state &= ~AD_STATE_SYNCHRONIZATION;
 		}
 	}
 }
