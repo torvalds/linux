@@ -56,8 +56,9 @@
 extern unsigned int tlb_44x_hwater;
 
 typedef struct {
-	unsigned long id;
-	unsigned long vdso_base;
+	unsigned int	id;
+	unsigned int	active;
+	unsigned long	vdso_base;
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */

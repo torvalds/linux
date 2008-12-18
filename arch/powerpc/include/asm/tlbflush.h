@@ -29,6 +29,8 @@
 
 #include <linux/mm.h>
 
+#define MMU_NO_CONTEXT      	((unsigned int)-1)
+
 extern void _tlbie(unsigned long address, unsigned int pid);
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
