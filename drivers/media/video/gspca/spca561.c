@@ -32,22 +32,22 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	__u16 contrast;			/* rev72a only */
-#define CONTRAST_MIN 0x0000
-#define CONTRAST_DEF 0x2000
-#define CONTRAST_MAX 0x3fff
-
 	__u16 exposure;			/* rev12a only */
 #define EXPOSURE_MIN 1
 #define EXPOSURE_DEF 200
 #define EXPOSURE_MAX (4095 - 900) /* see set_exposure */
 
+	__u8 contrast;			/* rev72a only */
+#define CONTRAST_MIN 0x00
+#define CONTRAST_DEF 0x20
+#define CONTRAST_MAX 0x3f
+
 	__u8 brightness;		/* rev72a only */
 #define BRIGHTNESS_MIN 0
-#define BRIGHTNESS_DEF 32
-#define BRIGHTNESS_MAX 63
+#define BRIGHTNESS_DEF 0x20
+#define BRIGHTNESS_MAX 0x3f
 
-	__u8 white;			/* rev12a only */
+	__u8 white;
 #define WHITE_MIN 1
 #define WHITE_DEF 0x40
 #define WHITE_MAX 0x7f
@@ -218,10 +218,11 @@ static const __u16 rev72a_init_data[][2] = {
 	{0x0004, 0x8612},	/* Gr offset for white balance */
 	{0x0007, 0x8613},	/* B offset for white balance */
 	{0x0000, 0x8614},	/* Gb offset for white balance */
-	{0x008c, 0x8651},	/* R gain for white balance */
-	{0x008c, 0x8652},	/* Gr gain for white balance */
-	{0x00b5, 0x8653},	/* B gain for white balance */
-	{0x008c, 0x8654},	/* Gb gain for white balance */
+/* from ms-win */
+	{0x0035, 0x8651},	/* R gain for white balance */
+	{0x0040, 0x8652},	/* Gr gain for white balance */
+	{0x005f, 0x8653},	/* B gain for white balance */
+	{0x0040, 0x8654},	/* Gb gain for white balance */
 	{0x0002, 0x8502},	/* Maximum average bit rate stuff */
 
 	{0x0011, 0x8802},
@@ -591,46 +592,60 @@ static int sd_init_72a(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void setcontrast(struct gspca_dev *gspca_dev)
+/* rev 72a only */
+static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 lowb;
+	__u8 value;
 
-	switch (sd->chip_revision) {
-	case Rev072A:
-		lowb = sd->contrast >> 8;
-		reg_w_val(dev, 0x8651, lowb);
-		reg_w_val(dev, 0x8652, lowb);
-		reg_w_val(dev, 0x8653, lowb);
-		reg_w_val(dev, 0x8654, lowb);
-		break;
-	default: {
-/*	case Rev012A: { */
-		static const __u8 Reg8391[] =
-			{ 0x92, 0x30, 0x20, 0x00, 0x0c, 0x00, 0x00, 0x00 };
+	value = sd->brightness;
 
-		memcpy(gspca_dev->usb_buf, Reg8391, 8);
-		reg_w_buf(gspca_dev, 0x8391, 8);
-		reg_w_buf(gspca_dev, 0x8390, 8);
-		break;
-	    }
-	}
+	/* offsets for white balance */
+	reg_w_val(dev, 0x8611, value);		/* R */
+	reg_w_val(dev, 0x8612, value);		/* Gr */
+	reg_w_val(dev, 0x8613, value);		/* B */
+	reg_w_val(dev, 0x8614, value);		/* Gb */
 }
 
-/* rev12a only */
 static void setwhite(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u16 white;
-	__u8 reg8614, reg8616;
+	__u8 blue, red;
+	__u16 reg;
 
-	white = sd->white;
 	/* try to emulate MS-win as possible */
-	reg8616 = 0x90 - white * 5 / 8;
-	reg_w_val(gspca_dev->dev, 0x8616, reg8616);
-	reg8614 = 0x20 + white * 3 / 8;
-	reg_w_val(gspca_dev->dev, 0x8614, reg8614);
+	white = sd->white;
+	red = 0x20 + white * 3 / 8;
+	blue = 0x90 - white * 5 / 8;
+	if (sd->chip_revision == Rev012A) {
+		reg = 0x8614;
+	} else {
+		reg = 0x8651;
+		red += sd->contrast - 0x20;
+		blue += sd->contrast - 0x20;
+	}
+	reg_w_val(gspca_dev->dev, reg, red);
+	reg_w_val(gspca_dev->dev, reg + 2, blue);
+}
+
+static void setcontrast(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct usb_device *dev = gspca_dev->dev;
+	__u8 value;
+
+	if (sd->chip_revision != Rev072A)
+		return;
+	value = sd->contrast + 0x20;
+
+	/* gains for white balance */
+	setwhite(gspca_dev);
+/*	reg_w_val(dev, 0x8651, value);		 * R - done by setwhite */
+	reg_w_val(dev, 0x8652, value);		/* Gr */
+/*	reg_w_val(dev, 0x8653, value);		 * B - done by setwhite */
+	reg_w_val(dev, 0x8654, value);		/* Gb */
 }
 
 /* rev 12a only */
@@ -690,9 +705,9 @@ static void setautogain(struct gspca_dev *gspca_dev)
 static int sd_start_12a(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	int Clck = 0x8a; /* lower 0x8X values lead to fps > 30 */
-	__u8 Reg8307[] = { 0xaa, 0x00 };
 	int mode;
+	static const __u8 Reg8391[8] =
+		{0x92, 0x30, 0x20, 0x00, 0x0c, 0x00, 0x00, 0x00};
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (mode <= 1) {
@@ -705,15 +720,20 @@ static int sd_start_12a(struct gspca_dev *gspca_dev)
 		reg_w_val(dev, 0x8500, mode);
 	}		/* -- qq@kuku.eu.org */
 
-	memcpy(gspca_dev->usb_buf, Reg8307, sizeof Reg8307);
-	reg_w_buf(gspca_dev, 0x8307, sizeof Reg8307);
-	reg_w_val(gspca_dev->dev, 0x8700, Clck);
+	gspca_dev->usb_buf[0] = 0xaa;
+	gspca_dev->usb_buf[1] = 0x00;
+	reg_w_buf(gspca_dev, 0x8307, 2);
+	/* clock - lower 0x8X values lead to fps > 30 */
+	reg_w_val(gspca_dev->dev, 0x8700, 0x8a);
 					/* 0x8f 0x85 0x27 clock */
 	reg_w_val(gspca_dev->dev, 0x8112, 0x1e | 0x20);
 	reg_w_val(gspca_dev->dev, 0x850b, 0x03);
-	setcontrast(gspca_dev);
+	memcpy(gspca_dev->usb_buf, Reg8391, 8);
+	reg_w_buf(gspca_dev, 0x8391, 8);
+	reg_w_buf(gspca_dev, 0x8390, 8);
 	setwhite(gspca_dev);
 	setautogain(gspca_dev);
+/*	setgain(gspca_dev);		*/
 	setexposure(gspca_dev);
 	return 0;
 }
@@ -740,6 +760,9 @@ static int sd_start_72a(struct gspca_dev *gspca_dev)
 	reg_w_val(dev, 0x8500, mode);	/* mode */
 	reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
 	reg_w_val(dev, 0x8112, 0x10 | 0x20);
+	setcontrast(gspca_dev);
+/*	setbrightness(gspca_dev);	 * fixme: bad values */
+	setwhite(gspca_dev);
 	setautogain(gspca_dev);
 	return 0;
 }
@@ -888,19 +911,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 }
 
 /* rev 72a only */
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 value;
-
-	value = sd->brightness;
-	reg_w_val(gspca_dev->dev, 0x8611, value);
-	reg_w_val(gspca_dev->dev, 0x8612, value);
-	reg_w_val(gspca_dev->dev, 0x8613, value);
-	reg_w_val(gspca_dev->dev, 0x8614, value);
-}
-
-/* rev 72a only */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -956,7 +966,6 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-/* rev12a only */
 static int sd_setwhite(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1070,6 +1079,19 @@ static struct ctrl sd_ctrls_12a[] = {
 };
 
 static struct ctrl sd_ctrls_72a[] = {
+	{
+	    {
+		.id = V4L2_CID_DO_WHITE_BALANCE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "White Balance",
+		.minimum = WHITE_MIN,
+		.maximum = WHITE_MAX,
+		.step = 1,
+		.default_value = WHITE_DEF,
+	    },
+	    .set = sd_setwhite,
+	    .get = sd_getwhite,
+	},
 	{
 	   {
 		.id = V4L2_CID_BRIGHTNESS,
