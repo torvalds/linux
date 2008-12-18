@@ -24,6 +24,14 @@
 static DEFINE_SPINLOCK(mmu_context_lock);
 static DEFINE_IDR(mmu_context_idr);
 
+/*
+ * The proto-VSID space has 2^35 - 1 segments available for user mappings.
+ * Each segment contains 2^28 bytes.  Each context maps 2^44 bytes,
+ * so we can support 2^19-1 contexts (19 == 35 + 28 - 44).
+ */
+#define NO_CONTEXT	0
+#define MAX_CONTEXT	((1UL << 19) - 1)
+
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int index;

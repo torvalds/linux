@@ -31,6 +31,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/bug.h>
 
 /* 601 only have IBAT; cr0.eq is set on 601 when using this macro */
 #define LOAD_BAT(n, reg, RA, RB)	\
@@ -1070,9 +1071,14 @@ start_here:
 	RFI
 
 /*
+ * void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next);
+ *
  * Set up the segment registers for a new context.
  */
-_ENTRY(set_context)
+_ENTRY(switch_mmu_context)
+	lwz	r3,MMCONTEXTID(r4)
+	cmpwi	cr0,r3,0
+	blt-	4f
 	mulli	r3,r3,897	/* multiply context by skew factor */
 	rlwinm	r3,r3,4,8,27	/* VSID = (context & 0xfffff) << 4 */
 	addis	r3,r3,0x6000	/* Set Ks, Ku bits */
@@ -1083,6 +1089,7 @@ _ENTRY(set_context)
 	/* Context switch the PTE pointer for the Abatron BDI2000.
 	 * The PGDIR is passed as second argument.
 	 */
+	lwz	r4,MM_PGD(r4)
 	lis	r5, KERNELBASE@h
 	lwz	r5, 0xf0(r5)
 	stw	r4, 0x4(r5)
@@ -1097,6 +1104,9 @@ _ENTRY(set_context)
 	bdnz	3b
 	sync
 	isync
+	blr
+4:	trap
+	EMIT_BUG_ENTRY 4b,__FILE__,__LINE__,0
 	blr
 
 /*

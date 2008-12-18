@@ -174,8 +174,7 @@ EXPORT_SYMBOL(cacheable_memcpy);
 #endif
 
 #ifdef CONFIG_PPC32
-EXPORT_SYMBOL(next_mmu_context);
-EXPORT_SYMBOL(set_context);
+EXPORT_SYMBOL(switch_mmu_context);
 #endif
 
 #ifdef CONFIG_PPC_STD_MMU_32
