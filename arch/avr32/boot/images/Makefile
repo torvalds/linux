@@ -10,7 +10,7 @@ MKIMAGE		:= $(srctree)/scripts/mkuboot.sh
 
 extra-y		:= vmlinux.bin vmlinux.gz
 
-OBJCOPYFLAGS_vmlinux.bin := -O binary
+OBJCOPYFLAGS_vmlinux.bin := -O binary -R .note.gnu.build-id
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
