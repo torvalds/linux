@@ -164,6 +164,7 @@ extern const char *powerpc_base_platform;
 #define CPU_FTR_NEED_PAIRED_STWCX	ASM_CONST(0x0000000004000000)
 #define CPU_FTR_LWSYNC			ASM_CONST(0x0000000008000000)
 #define CPU_FTR_NOEXECUTE		ASM_CONST(0x0000000010000000)
+#define CPU_FTR_INDEXED_DCR		ASM_CONST(0x0000000020000000)
 
 /*
  * Add the 64-bit processor unique features in the top half of the word;
@@ -369,6 +370,8 @@ extern const char *powerpc_base_platform;
 #define CPU_FTRS_8XX	(CPU_FTR_USE_TB)
 #define CPU_FTRS_40X	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_44X	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
+#define CPU_FTRS_440x6	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE | \
+	    CPU_FTR_INDEXED_DCR)
 #define CPU_FTRS_E200	(CPU_FTR_USE_TB | CPU_FTR_SPE_COMP | \
 	    CPU_FTR_NODSISRALIGN | CPU_FTR_COHERENT_ICACHE | \
 	    CPU_FTR_UNIFIED_ID_CACHE | CPU_FTR_NOEXECUTE)
@@ -455,7 +458,7 @@ enum {
 	    CPU_FTRS_40X |
 #endif
 #ifdef CONFIG_44x
-	    CPU_FTRS_44X |
+	    CPU_FTRS_44X | CPU_FTRS_440x6 |
 #endif
 #ifdef CONFIG_E200
 	    CPU_FTRS_E200 |
@@ -495,7 +498,7 @@ enum {
 	    CPU_FTRS_40X &
 #endif
 #ifdef CONFIG_44x
-	    CPU_FTRS_44X &
+	    CPU_FTRS_44X & CPU_FTRS_440x6 &
 #endif
 #ifdef CONFIG_E200
 	    CPU_FTRS_E200 &
