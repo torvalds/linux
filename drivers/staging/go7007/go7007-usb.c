@@ -680,9 +680,10 @@ static void go7007_usb_readinterrupt_complete(struct urb *urb)
 {
 	struct go7007 *go = (struct go7007 *)urb->context;
 	u16 *regs = (u16 *)urb->transfer_buffer;
+	int status = urb->status;
 
-	if (urb->status != 0) {
-		if (urb->status != -ESHUTDOWN &&
+	if (status) {
+		if (status != -ESHUTDOWN &&
 				go->status != STATUS_SHUTDOWN) {
 			printk(KERN_ERR
 				"go7007-usb: error in read interrupt: %d\n",
@@ -723,15 +724,14 @@ static int go7007_usb_read_interrupt(struct go7007 *go)
 static void go7007_usb_read_video_pipe_complete(struct urb *urb)
 {
 	struct go7007 *go = (struct go7007 *)urb->context;
-	int r;
+	int r, status = urb-> status;
 
 	if (!go->streaming) {
 		wake_up_interruptible(&go->frame_waitq);
 		return;
 	}
-	if (urb->status != 0) {
-		printk(KERN_ERR "go7007-usb: error in video pipe: %d\n",
-				urb->status);
+	if (status) {
+		printk(KERN_ERR "go7007-usb: error in video pipe: %d\n", status);
 		return;
 	}
 	if (urb->actual_length != urb->transfer_buffer_length) {
@@ -747,13 +747,12 @@ static void go7007_usb_read_video_pipe_complete(struct urb *urb)
 static void go7007_usb_read_audio_pipe_complete(struct urb *urb)
 {
 	struct go7007 *go = (struct go7007 *)urb->context;
-	int r;
+	int r, status = urb->status;
 
 	if (!go->streaming)
 		return;
-	if (urb->status != 0) {
-		printk(KERN_ERR "go7007-usb: error in audio pipe: %d\n",
-				urb->status);
+	if (status) {
+		printk(KERN_ERR "go7007-usb: error in audio pipe: %d\n", status);
 		return;
 	}
 	if (urb->actual_length != urb->transfer_buffer_length) {
@@ -794,7 +793,7 @@ static int go7007_usb_stream_start(struct go7007 *go)
 	return 0;
 
 audio_submit_failed:
-	for (i = 0; i < 8; ++i)
+	for (i = 0; i < 7; ++i)
 		usb_kill_urb(usb->audio_urbs[i]);
 video_submit_failed:
 	for (i = 0; i < 8; ++i)
@@ -1019,10 +1018,9 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		return 0;
 	}
 
-	usb = kmalloc(sizeof(struct go7007_usb), GFP_KERNEL);
+	usb = kzalloc(sizeof(struct go7007_usb), GFP_KERNEL);
 	if (usb == NULL)
 		return -ENOMEM;
-	memset(usb, 0, sizeof(struct go7007_usb));
 
 	/* Allocate the URB and buffer for receiving incoming interrupts */
 	usb->intr_urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -1227,6 +1225,7 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 {
 	struct go7007 *go = usb_get_intfdata(intf);
 	struct go7007_usb *usb = go->hpi_context;
+	struct urb *vurb, *aurb;
 	int i;
 
 	go->status = STATUS_SHUTDOWN;
@@ -1234,15 +1233,19 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 
 	/* Free USB-related structs */
 	for (i = 0; i < 8; ++i) {
-		if (usb->video_urbs[i] != NULL) {
-			if (usb->video_urbs[i]->transfer_buffer != NULL)
-				kfree(usb->video_urbs[i]->transfer_buffer);
-			usb_free_urb(usb->video_urbs[i]);
+		vurb = usb->video_urbs[i];
+		if (vurb) {
+			usb_kill_urb(vurb);
+			if (vurb->transfer_buffer)
+				kfree(vurb->transfer_buffer);
+			usb_free_urb(vurb);
 		}
-		if (usb->audio_urbs[i] != NULL) {
-			if (usb->audio_urbs[i]->transfer_buffer != NULL)
-				kfree(usb->audio_urbs[i]->transfer_buffer);
-			usb_free_urb(usb->audio_urbs[i]);
+		aurb = usb->audio_urbs[i];
+		if (aurb) {
+			usb_kill_urb(aurb);
+			if (aurb->transfer_buffer)
+				kfree(aurb->transfer_buffer);
+			usb_free_urb(aurb);
 		}
 	}
 	kfree(usb->intr_urb->transfer_buffer);
