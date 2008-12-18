@@ -579,12 +579,20 @@ void sync_buffer(int cpu)
 				add_user_ctx_switch(new, cookie);
 				break;
 			}
-		} else if (state >= sb_bt_start &&
-			   !add_sample(mm, s, in_kernel)) {
-			if (state == sb_bt_start) {
-				state = sb_bt_ignore;
-				atomic_inc(&oprofile_stats.bt_lost_no_mapping);
-			}
+			continue;
+		}
+
+		if (state < sb_bt_start)
+			/* ignore sample */
+			continue;
+
+		if (add_sample(mm, s, in_kernel))
+			continue;
+
+		/* ignore backtraces if failed to add a sample */
+		if (state == sb_bt_start) {
+			state = sb_bt_ignore;
+			atomic_inc(&oprofile_stats.bt_lost_no_mapping);
 		}
 	}
 	release_mm(mm);
