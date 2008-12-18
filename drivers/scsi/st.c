@@ -3749,7 +3749,7 @@ static struct st_buffer *new_tape_buffer(int need_dma, int max_sg)
 		printk(KERN_NOTICE "st: Can't allocate new tape buffer.\n");
 		return NULL;
 	}
-	tb->frp_segs = tb->orig_frp_segs = 0;
+	tb->frp_segs = 0;
 	tb->use_sg = max_sg;
 	tb->dma = need_dma;
 	tb->buffer_size = 0;
@@ -3839,11 +3839,11 @@ static void normalize_buffer(struct st_buffer * STbuffer)
 {
 	int i, order = STbuffer->map_data.page_order;
 
-	for (i = STbuffer->orig_frp_segs; i < STbuffer->frp_segs; i++) {
+	for (i = 0; i < STbuffer->frp_segs; i++) {
 		__free_pages(STbuffer->reserved_pages[i], order);
 		STbuffer->buffer_size -= (PAGE_SIZE << order);
 	}
-	STbuffer->frp_segs = STbuffer->orig_frp_segs;
+	STbuffer->frp_segs = 0;
 	STbuffer->frp_sg_current = 0;
 	STbuffer->sg_segs = 0;
 	STbuffer->map_data.page_order = 0;
@@ -4304,7 +4304,6 @@ static void scsi_tape_release(struct kref *kref)
 	tpnt->device = NULL;
 
 	if (tpnt->buffer) {
-		tpnt->buffer->orig_frp_segs = 0;
 		normalize_buffer(tpnt->buffer);
 		kfree(tpnt->buffer->reserved_pages);
 		kfree(tpnt->buffer);
