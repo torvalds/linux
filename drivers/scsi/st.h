@@ -29,6 +29,7 @@ struct st_request {
 	int result;
 	struct scsi_tape *stp;
 	struct completion *waiting;
+	struct bio *bio;
 };
 
 /* The tape buffer descriptor. */
