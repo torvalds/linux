@@ -1128,40 +1128,44 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 		 * on the bus. Take the bus from the cx23416 and enable the
 		 * cx22702 demod
 		 */
-		cx_set(MO_GP0_IO,   0x00000080); /* cx22702 out of reset and enable */
+		/* Toggle reset on cx22702 leaving i2c active */
+		cx_set(MO_GP0_IO, 0x00000080);
+		udelay(1000);
+		cx_clear(MO_GP0_IO, 0x00000080);
+		udelay(50);
+		cx_set(MO_GP0_IO, 0x00000080);
+		udelay(1000);
+		/* enable the cx22702 pins */
 		cx_clear(MO_GP0_IO, 0x00000004);
 		udelay(1000);
 		break;
 
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
-		if(core->dvbdev->frontends.active_fe_id == 1) {
-			/* DVB-S/S2 Enabled */
-
-			/* Toggle reset on cx22702 leaving i2c active */
-			cx_write(MO_GP0_IO, (core->board.input[0].gpio0 & 0x0000ff00) | 0x00000080);
-			udelay(1000);
-			cx_clear(MO_GP0_IO, 0x00000080);
-			udelay(50);
-			cx_set(MO_GP0_IO, 0x00000080); /* cx22702 out of reset */
-			cx_set(MO_GP0_IO, 0x00000004); /* tri-state the cx22702 pins */
-			udelay(1000);
-
-			cx_write(MO_SRST_IO, 1); /* Take the cx24116/cx24123 out of reset */
+		/* Toggle reset on cx22702 leaving i2c active */
+		cx_set(MO_GP0_IO, 0x00000080);
+		udelay(1000);
+		cx_clear(MO_GP0_IO, 0x00000080);
+		udelay(50);
+		cx_set(MO_GP0_IO, 0x00000080);
+		udelay(1000);
+		switch (core->dvbdev->frontends.active_fe_id) {
+		case 1: /* DVB-S/S2 Enabled */
+			/* tri-state the cx22702 pins */
+			cx_set(MO_GP0_IO, 0x00000004);
+			/* Take the cx24116/cx24123 out of reset */
+			cx_write(MO_SRST_IO, 1);
 			core->dvbdev->ts_gen_cntrl = 0x02; /* Parallel IO */
-		} else
-		if (core->dvbdev->frontends.active_fe_id == 2) {
-			/* DVB-T Enabled */
-
+			break;
+		case 2: /* DVB-T Enabled */
 			/* Put the cx24116/cx24123 into reset */
 			cx_write(MO_SRST_IO, 0);
-
-			/* cx22702 out of reset and enable it */
-			cx_set(MO_GP0_IO,   0x00000080);
+			/* enable the cx22702 pins */
 			cx_clear(MO_GP0_IO, 0x00000004);
 			core->dvbdev->ts_gen_cntrl = 0x0c; /* Serial IO */
-			udelay(1000);
+			break;
 		}
+		udelay(1000);
 		break;
 
 	default:

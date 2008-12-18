@@ -1244,8 +1244,16 @@ static int cx8802_blackbird_advise_acquire(struct cx8802_driver *drv)
 		 * We're being given access to re-arrange the GPIOs.
 		 * Take the bus off the cx22702 and put the cx23416 on it.
 		 */
-		cx_clear(MO_GP0_IO, 0x00000080); /* cx22702 in reset */
-		cx_set(MO_GP0_IO,   0x00000004); /* Disable the cx22702 */
+		/* Toggle reset on cx22702 leaving i2c active */
+		cx_set(MO_GP0_IO, 0x00000080);
+		udelay(1000);
+		cx_clear(MO_GP0_IO, 0x00000080);
+		udelay(50);
+		cx_set(MO_GP0_IO, 0x00000080);
+		udelay(1000);
+		/* tri-state the cx22702 pins */
+		cx_set(MO_GP0_IO, 0x00000004);
+		udelay(1000);
 		break;
 	default:
 		err = -ENODEV;
