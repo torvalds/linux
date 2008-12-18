@@ -322,6 +322,61 @@ static void vfp_enable(void *unused)
 	set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
 }
 
+#ifdef CONFIG_PM
+#include <linux/sysdev.h>
+
+static int vfp_pm_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct thread_info *ti = current_thread_info();
+	u32 fpexc = fmrx(FPEXC);
+
+	/* if vfp is on, then save state for resumption */
+	if (fpexc & FPEXC_EN) {
+		printk(KERN_DEBUG "%s: saving vfp state\n", __func__);
+		vfp_save_state(&ti->vfpstate, fpexc);
+
+		/* disable, just in case */
+		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
+	}
+
+	/* clear any information we had about last context state */
+	memset(last_VFP_context, 0, sizeof(last_VFP_context));
+
+	return 0;
+}
+
+static int vfp_pm_resume(struct sys_device *dev)
+{
+	/* ensure we have access to the vfp */
+	vfp_enable(NULL);
+
+	/* and disable it to ensure the next usage restores the state */
+	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
+
+	return 0;
+}
+
+static struct sysdev_class vfp_pm_sysclass = {
+	.name		= "vfp",
+	.suspend	= vfp_pm_suspend,
+	.resume		= vfp_pm_resume,
+};
+
+static struct sys_device vfp_pm_sysdev = {
+	.cls	= &vfp_pm_sysclass,
+};
+
+static void vfp_pm_init(void)
+{
+	sysdev_class_register(&vfp_pm_sysclass);
+	sysdev_register(&vfp_pm_sysdev);
+}
+
+
+#else
+static inline void vfp_pm_init(void) { }
+#endif /* CONFIG_PM */
+
 #include <linux/smp.h>
 
 /*
@@ -365,6 +420,7 @@ static int __init vfp_init(void)
 		vfp_vector = vfp_support_entry;
 
 		thread_register_notifier(&vfp_notifier_block);
+		vfp_pm_init();
 
 		/*
 		 * We detected VFP, and the support code is

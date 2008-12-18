@@ -172,7 +172,7 @@ process_exception:
 					@ retry the faulted instruction
 ENDPROC(vfp_support_entry)
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) || defined(CONFIG_PM)
 ENTRY(vfp_save_state)
 	@ Save the current VFP state
 	@ r0 - save location
