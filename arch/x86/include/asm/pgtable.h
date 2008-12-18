@@ -168,6 +168,9 @@
 
 #ifndef __ASSEMBLY__
 
+#define pgprot_writecombine	pgprot_writecombine
+extern pgprot_t pgprot_writecombine(pgprot_t prot);
+
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..

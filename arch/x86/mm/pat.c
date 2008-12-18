@@ -832,6 +832,14 @@ void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 	}
 }
 
+pgprot_t pgprot_writecombine(pgprot_t prot)
+{
+	if (pat_enabled)
+		return __pgprot(pgprot_val(prot) | _PAGE_CACHE_WC);
+	else
+		return pgprot_noncached(prot);
+}
+
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_X86_PAT)
 
 /* get Nth element of the linked list */
