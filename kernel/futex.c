@@ -92,11 +92,12 @@ struct futex_pi_state {
  * A futex_q has a woken state, just like tasks have TASK_RUNNING.
  * It is considered woken when plist_node_empty(&q->list) || q->lock_ptr == 0.
  * The order of wakup is always to make the first condition true, then
- * wake up q->waiters, then make the second condition true.
+ * wake up q->waiter, then make the second condition true.
  */
 struct futex_q {
 	struct plist_node list;
-	wait_queue_head_t waiters;
+	/* There can only be a single waiter */
+	wait_queue_head_t waiter;
 
 	/* Which hash list lock to use: */
 	spinlock_t *lock_ptr;
@@ -573,7 +574,7 @@ static void wake_futex(struct futex_q *q)
 	 * The lock in wake_up_all() is a crucial memory barrier after the
 	 * plist_del() and also before assigning to q->lock_ptr.
 	 */
-	wake_up_all(&q->waiters);
+	wake_up(&q->waiter);
 	/*
 	 * The waiting task can free the futex_q as soon as this is written,
 	 * without taking any locks.  This must come last.
@@ -930,7 +931,7 @@ static inline struct futex_hash_bucket *queue_lock(struct futex_q *q)
 {
 	struct futex_hash_bucket *hb;
 
-	init_waitqueue_head(&q->waiters);
+	init_waitqueue_head(&q->waiter);
 
 	get_futex_key_refs(&q->key);
 	hb = hash_futex(&q->key);
@@ -1221,7 +1222,7 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 
 	/* add_wait_queue is the barrier after __set_current_state. */
 	__set_current_state(TASK_INTERRUPTIBLE);
-	add_wait_queue(&q.waiters, &wait);
+	add_wait_queue(&q.waiter, &wait);
 	/*
 	 * !plist_node_empty() is safe here without any lock.
 	 * q.lock_ptr != 0 is not safe, because of ordering against wakeup.
