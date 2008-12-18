@@ -1,6 +1,10 @@
 #ifndef _ASM_X86_SIGFRAME_H
 #define _ASM_X86_SIGFRAME_H
 
+#include <asm/sigcontext.h>
+#include <asm/siginfo.h>
+#include <asm/ucontext.h>
+
 #ifdef CONFIG_X86_32
 #define sigframe_ia32		sigframe
 #define rt_sigframe_ia32	rt_sigframe
