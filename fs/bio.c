@@ -815,28 +815,30 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 
 	ret = 0;
 	i = 0;
+	if (map_data)
+		nr_pages = 1 << map_data->page_order;
 	while (len) {
-		unsigned int bytes;
-
-		if (map_data)
-			bytes = 1U << (PAGE_SHIFT + map_data->page_order);
-		else
-			bytes = PAGE_SIZE;
+		unsigned int bytes = PAGE_SIZE;
 
 		if (bytes > len)
 			bytes = len;
 
 		if (map_data) {
-			if (i == map_data->nr_entries) {
+			if (i == map_data->nr_entries * nr_pages) {
 				ret = -ENOMEM;
 				break;
 			}
-			page = map_data->pages[i++];
-		} else
+
+			page = map_data->pages[i / nr_pages];
+			page += (i % nr_pages);
+
+			i++;
+		} else {
 			page = alloc_page(q->bounce_gfp | gfp_mask);
-		if (!page) {
-			ret = -ENOMEM;
-			break;
+			if (!page) {
+				ret = -ENOMEM;
+				break;
+			}
 		}
 
 		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes)
