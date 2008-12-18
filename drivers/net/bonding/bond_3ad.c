@@ -769,6 +769,7 @@ static struct aggregator *__get_active_agg(struct aggregator *aggregator)
 static inline void __update_lacpdu_from_port(struct port *port)
 {
 	struct lacpdu *lacpdu = &port->lacpdu;
+	const struct port_params *partner = &port->partner_oper;
 
 	/* update current actual Actor parameters */
 	/* lacpdu->subtype                   initialized
@@ -789,12 +790,12 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	 * lacpdu->partner_information_length initialized
 	 */
 
-	lacpdu->partner_system_priority = htons(port->partner_oper.system_priority);
-	lacpdu->partner_system = port->partner_oper.system;
-	lacpdu->partner_key = htons(port->partner_oper.key);
-	lacpdu->partner_port_priority = htons(port->partner_oper.port_priority);
-	lacpdu->partner_port = htons(port->partner_oper.port_number);
-	lacpdu->partner_state = port->partner_oper.port_state;
+	lacpdu->partner_system_priority = htons(partner->system_priority);
+	lacpdu->partner_system = partner->system;
+	lacpdu->partner_key = htons(partner->key);
+	lacpdu->partner_port_priority = htons(partner->port_priority);
+	lacpdu->partner_port = htons(partner->port_number);
+	lacpdu->partner_state = partner->port_state;
 
 	/* lacpdu->reserved_3_2              initialized
 	 * lacpdu->tlv_type_collector_info   initialized
