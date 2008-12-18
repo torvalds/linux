@@ -232,53 +232,45 @@ static DEFINE_PER_CPU(struct ds_context *, system_context_array);
 
 #define system_context per_cpu(system_context_array, smp_processor_id())
 
-static struct ds_context *ds_get_context(struct task_struct *task)
+
+static inline struct ds_context *ds_get_context(struct task_struct *task)
 {
 	struct ds_context **p_context =
 		(task ? &task->thread.ds_ctx : &system_context);
-	struct ds_context *context = *p_context;
+	struct ds_context *context = NULL;
+	struct ds_context *new_context = NULL;
 	unsigned long irq;
 
+	/* Chances are small that we already have a context. */
+	new_context = kzalloc(sizeof(*new_context), GFP_KERNEL);
+	if (!new_context)
+		return NULL;
+
+	spin_lock_irqsave(&ds_lock, irq);
+
+	context = *p_context;
 	if (!context) {
-		context = kzalloc(sizeof(*context), GFP_KERNEL);
-		if (!context)
-			return NULL;
+		context = new_context;
 
-		spin_lock_irqsave(&ds_lock, irq);
+		context->this = p_context;
+		context->task = task;
+		context->count = 0;
 
-		if (*p_context) {
-			kfree(context);
+		if (task)
+			set_tsk_thread_flag(task, TIF_DS_AREA_MSR);
 
-			context = *p_context;
-		} else {
-			*p_context = context;
+		if (!task || (task == current))
+			wrmsrl(MSR_IA32_DS_AREA, (unsigned long)context->ds);
 
-			context->this = p_context;
-			context->task = task;
-
-			if (task)
-				set_tsk_thread_flag(task, TIF_DS_AREA_MSR);
-
-			if (!task || (task == current))
-				wrmsrl(MSR_IA32_DS_AREA,
-				       (unsigned long)context->ds);
-		}
-
-		context->count++;
-
-		spin_unlock_irqrestore(&ds_lock, irq);
-	} else {
-		spin_lock_irqsave(&ds_lock, irq);
-
-		context = *p_context;
-		if (context)
-			context->count++;
-
-		spin_unlock_irqrestore(&ds_lock, irq);
-
-		if (!context)
-			context = ds_get_context(task);
+		*p_context = context;
 	}
+
+	context->count++;
+
+	spin_unlock_irqrestore(&ds_lock, irq);
+
+	if (context != new_context)
+		kfree(new_context);
 
 	return context;
 }
@@ -492,6 +484,9 @@ static int bts_read(struct bts_tracer *tracer, const void *at,
 		out->qualifier = bts_branch;
 		out->variant.lbr.from = bts_get(at, bts_from);
 		out->variant.lbr.to   = bts_get(at, bts_to);
+
+		if (!out->variant.lbr.from && !out->variant.lbr.to)
+			out->qualifier = bts_invalid;
 	}
 
 	return ds_cfg.sizeof_rec[ds_bts];
