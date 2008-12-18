@@ -1,5 +1,5 @@
 /*
- * Driver for MT9M111 CMOS Image Sensor from Micron
+ * Driver for MT9M111/MT9M112 CMOS Image Sensor from Micron
  *
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
  *
@@ -19,7 +19,7 @@
 #include <media/soc_camera.h>
 
 /*
- * mt9m111 i2c address is 0x5d or 0x48 (depending on SAddr pin)
+ * mt9m111 and mt9m112 i2c address is 0x5d or 0x48 (depending on SAddr pin)
  * The platform has to define i2c_board_info and call i2c_register_board_info()
  */
 
@@ -150,7 +150,7 @@ enum mt9m111_context {
 struct mt9m111 {
 	struct i2c_client *client;
 	struct soc_camera_device icd;
-	int model;	/* V4L2_IDENT_MT9M111* codes from v4l2-chip-ident.h */
+	int model;	/* V4L2_IDENT_MT9M11x* codes from v4l2-chip-ident.h */
 	enum mt9m111_context context;
 	unsigned int left, top, width, height;
 	u32 pixfmt;
@@ -846,7 +846,7 @@ static int mt9m111_init(struct soc_camera_device *icd)
 	if (!ret)
 		ret = mt9m111_set_autoexposure(icd, mt9m111->autoexposure);
 	if (ret)
-		dev_err(&icd->dev, "mt9m111 init failed: %d\n", ret);
+		dev_err(&icd->dev, "mt9m11x init failed: %d\n", ret);
 	return ret;
 }
 
@@ -856,7 +856,7 @@ static int mt9m111_release(struct soc_camera_device *icd)
 
 	ret = mt9m111_disable(icd);
 	if (ret < 0)
-		dev_err(&icd->dev, "mt9m111 release failed: %d\n", ret);
+		dev_err(&icd->dev, "mt9m11x release failed: %d\n", ret);
 
 	return ret;
 }
@@ -889,19 +889,23 @@ static int mt9m111_video_probe(struct soc_camera_device *icd)
 	data = reg_read(CHIP_VERSION);
 
 	switch (data) {
-	case 0x143a:
+	case 0x143a: /* MT9M111 */
 		mt9m111->model = V4L2_IDENT_MT9M111;
-		icd->formats = mt9m111_colour_formats;
-		icd->num_formats = ARRAY_SIZE(mt9m111_colour_formats);
+		break;
+	case 0x148c: /* MT9M112 */
+		mt9m111->model = V4L2_IDENT_MT9M112;
 		break;
 	default:
 		ret = -ENODEV;
 		dev_err(&icd->dev,
-			"No MT9M111 chip detected, register read %x\n", data);
+			"No MT9M11x chip detected, register read %x\n", data);
 		goto ei2c;
 	}
 
-	dev_info(&icd->dev, "Detected a MT9M111 chip ID 0x143a\n");
+	icd->formats = mt9m111_colour_formats;
+	icd->num_formats = ARRAY_SIZE(mt9m111_colour_formats);
+
+	dev_info(&icd->dev, "Detected a MT9M11x chip ID %x\n", data);
 
 	ret = soc_camera_video_start(icd);
 	if (ret)
@@ -938,7 +942,7 @@ static int mt9m111_probe(struct i2c_client *client,
 	int ret;
 
 	if (!icl) {
-		dev_err(&client->dev, "MT9M111 driver needs platform data\n");
+		dev_err(&client->dev, "MT9M11x driver needs platform data\n");
 		return -EINVAL;
 	}
 
@@ -1017,6 +1021,6 @@ static void __exit mt9m111_mod_exit(void)
 module_init(mt9m111_mod_init);
 module_exit(mt9m111_mod_exit);
 
-MODULE_DESCRIPTION("Micron MT9M111 Camera driver");
+MODULE_DESCRIPTION("Micron MT9M111/MT9M112 Camera driver");
 MODULE_AUTHOR("Robert Jarzmik");
 MODULE_LICENSE("GPL");
