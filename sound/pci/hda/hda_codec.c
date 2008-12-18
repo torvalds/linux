@@ -58,6 +58,7 @@ static struct hda_vendor_id hda_vendor_ids[] = {
 	{ 0x1854, "LG" },
 	{ 0x1aec, "Wolfson Microelectronics" },
 	{ 0x434d, "C-Media" },
+	{ 0x8086, "Intel" },
 	{ 0x8384, "SigmaTel" },
 	{} /* terminator */
 };
