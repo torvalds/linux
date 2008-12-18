@@ -28,6 +28,7 @@
 
 #include "ubifs.h"
 #include <linux/random.h>
+#include <linux/math64.h>
 
 /*
  * Default journal size in logical eraseblocks as a percent of total
@@ -80,7 +81,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	int err, tmp, jnl_lebs, log_lebs, max_buds, main_lebs, main_first;
 	int lpt_lebs, lpt_first, orph_lebs, big_lpt, ino_waste, sup_flags = 0;
 	int min_leb_cnt = UBIFS_MIN_LEB_CNT;
-	uint64_t tmp64, main_bytes;
+	long long tmp64, main_bytes;
 	__le64 tmp_le64;
 
 	/* Some functions called from here depend on the @c->key_len filed */
@@ -160,7 +161,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	if (!sup)
 		return -ENOMEM;
 
-	tmp64 = (uint64_t)max_buds * c->leb_size;
+	tmp64 = (long long)max_buds * c->leb_size;
 	if (big_lpt)
 		sup_flags |= UBIFS_FLG_BIGLPT;
 
@@ -187,9 +188,8 @@ static int create_default_filesystem(struct ubifs_info *c)
 
 	generate_random_uuid(sup->uuid);
 
-	main_bytes = (uint64_t)main_lebs * c->leb_size;
-	tmp64 = main_bytes * DEFAULT_RP_PERCENT;
-	do_div(tmp64, 100);
+	main_bytes = (long long)main_lebs * c->leb_size;
+	tmp64 = div_u64(main_bytes * DEFAULT_RP_PERCENT, 100);
 	if (tmp64 > DEFAULT_MAX_RP_SIZE)
 		tmp64 = DEFAULT_MAX_RP_SIZE;
 	sup->rp_size = cpu_to_le64(tmp64);

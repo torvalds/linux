@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/debugfs.h>
+#include <linux/math64.h>
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 

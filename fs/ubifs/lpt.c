@@ -43,8 +43,9 @@
  * mounted.
  */
 
-#include <linux/crc16.h>
 #include "ubifs.h"
+#include <linux/crc16.h>
+#include <linux/math64.h>
 
 /**
  * do_calc_lpt_geom - calculate sizes for the LPT area.
@@ -135,15 +136,13 @@ static void do_calc_lpt_geom(struct ubifs_info *c)
 int ubifs_calc_lpt_geom(struct ubifs_info *c)
 {
 	int lebs_needed;
-	uint64_t sz;
+	long long sz;
 
 	do_calc_lpt_geom(c);
 
 	/* Verify that lpt_lebs is big enough */
 	sz = c->lpt_sz * 2; /* Must have at least 2 times the size */
-	sz += c->leb_size - 1;
-	do_div(sz, c->leb_size);
-	lebs_needed = sz;
+	lebs_needed = div_u64(sz + c->leb_size - 1, c->leb_size);
 	if (lebs_needed > c->lpt_lebs) {
 		ubifs_err("too few LPT LEBs");
 		return -EINVAL;
@@ -175,7 +174,7 @@ static int calc_dflt_lpt_geom(struct ubifs_info *c, int *main_lebs,
 			      int *big_lpt)
 {
 	int i, lebs_needed;
-	uint64_t sz;
+	long long sz;
 
 	/* Start by assuming the minimum number of LPT LEBs */
 	c->lpt_lebs = UBIFS_MIN_LPT_LEBS;
@@ -202,9 +201,7 @@ static int calc_dflt_lpt_geom(struct ubifs_info *c, int *main_lebs,
 	/* Now check there are enough LPT LEBs */
 	for (i = 0; i < 64 ; i++) {
 		sz = c->lpt_sz * 4; /* Allow 4 times the size */
-		sz += c->leb_size - 1;
-		do_div(sz, c->leb_size);
-		lebs_needed = sz;
+		lebs_needed = div_u64(sz + c->leb_size - 1, c->leb_size);
 		if (lebs_needed > c->lpt_lebs) {
 			/* Not enough LPT LEBs so try again with more */
 			c->lpt_lebs = lebs_needed;

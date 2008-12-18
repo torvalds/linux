@@ -34,6 +34,7 @@
 #include <linux/parser.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
+#include <linux/math64.h>
 #include "ubifs.h"
 
 /*
@@ -612,7 +613,7 @@ static int bud_wbuf_callback(struct ubifs_info *c, int lnum, int free, int pad)
 static int init_constants_late(struct ubifs_info *c)
 {
 	int tmp, err;
-	uint64_t tmp64;
+	long long tmp64;
 
 	c->main_bytes = (long long)c->main_lebs * c->leb_size;
 	c->max_znode_sz = sizeof(struct ubifs_znode) +
@@ -639,9 +640,8 @@ static int init_constants_late(struct ubifs_info *c)
 	 * Make sure that the log is large enough to fit reference nodes for
 	 * all buds plus one reserved LEB.
 	 */
-	tmp64 = c->max_bud_bytes;
-	tmp = do_div(tmp64, c->leb_size);
-	c->max_bud_cnt = tmp64 + !!tmp;
+	tmp64 = c->max_bud_bytes + c->leb_size - 1;
+	c->max_bud_cnt = div_u64(tmp64, c->leb_size);
 	tmp = (c->ref_node_alsz * c->max_bud_cnt + c->leb_size - 1);
 	tmp /= c->leb_size;
 	tmp += 1;
@@ -677,7 +677,7 @@ static int init_constants_late(struct ubifs_info *c)
 	 * Consequently, if the journal is too small, UBIFS will treat it as
 	 * always full.
 	 */
-	tmp64 = (uint64_t)(c->jhead_cnt + 1) * c->leb_size + 1;
+	tmp64 = (long long)(c->jhead_cnt + 1) * c->leb_size + 1;
 	if (c->bg_bud_bytes < tmp64)
 		c->bg_bud_bytes = tmp64;
 	if (c->max_bud_bytes < tmp64 + c->leb_size)
@@ -699,7 +699,7 @@ static int init_constants_late(struct ubifs_info *c)
 	 * head is available.
 	 */
 	tmp64 = c->main_lebs - 1 - 1 - MIN_INDEX_LEBS - c->jhead_cnt + 1;
-	tmp64 *= (uint64_t)c->leb_size - c->leb_overhead;
+	tmp64 *= (long long)c->leb_size - c->leb_overhead;
 	tmp64 = ubifs_reported_space(c, tmp64);
 	c->block_cnt = tmp64 >> UBIFS_BLOCK_SHIFT;
 
