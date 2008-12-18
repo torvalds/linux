@@ -182,7 +182,6 @@ static struct scsi_tape **scsi_tapes = NULL;
 
 static int modes_defined;
 
-static struct st_buffer *new_tape_buffer(int, int, int);
 static int enlarge_buffer(struct st_buffer *, int, int);
 static void clear_buffer(struct st_buffer *);
 static void normalize_buffer(struct st_buffer *);
@@ -3741,30 +3740,22 @@ static long st_compat_ioctl(struct file *file, unsigned int cmd, unsigned long a
 
 /* Try to allocate a new tape buffer. Calling function must not hold
    dev_arr_lock. */
-static struct st_buffer *
- new_tape_buffer(int from_initialization, int need_dma, int max_sg)
+static struct st_buffer *new_tape_buffer(int need_dma, int max_sg)
 {
-	int got = 0;
-	gfp_t priority;
 	struct st_buffer *tb;
 
-	if (from_initialization)
-		priority = GFP_ATOMIC;
-	else
-		priority = GFP_KERNEL;
-
-	tb = kzalloc(sizeof(struct st_buffer), priority);
+	tb = kzalloc(sizeof(struct st_buffer), GFP_ATOMIC);
 	if (!tb) {
 		printk(KERN_NOTICE "st: Can't allocate new tape buffer.\n");
 		return NULL;
 	}
 	tb->frp_segs = tb->orig_frp_segs = 0;
 	tb->use_sg = max_sg;
-
 	tb->dma = need_dma;
-	tb->buffer_size = got;
+	tb->buffer_size = 0;
 
-	tb->reserved_pages = kzalloc(max_sg * sizeof(struct page *), priority);
+	tb->reserved_pages = kzalloc(max_sg * sizeof(struct page *),
+				     GFP_ATOMIC);
 	if (!tb->reserved_pages) {
 		kfree(tb);
 		return NULL;
@@ -4059,7 +4050,7 @@ static int st_probe(struct device *dev)
 		SDp->request_queue->max_phys_segments);
 	if (st_max_sg_segs < i)
 		i = st_max_sg_segs;
-	buffer = new_tape_buffer(1, (SDp->host)->unchecked_isa_dma, i);
+	buffer = new_tape_buffer((SDp->host)->unchecked_isa_dma, i);
 	if (buffer == NULL) {
 		printk(KERN_ERR
 		       "st: Can't allocate new tape buffer. Device not attached.\n");
