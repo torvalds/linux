@@ -99,6 +99,50 @@ int randomize_va_space __read_mostly =
 					2;
 #endif
 
+#ifndef track_pfn_vma_new
+/*
+ * Interface that can be used by architecture code to keep track of
+ * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
+ *
+ * track_pfn_vma_new is called when a _new_ pfn mapping is being established
+ * for physical range indicated by pfn and size.
+ */
+int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t prot,
+			unsigned long pfn, unsigned long size)
+{
+	return 0;
+}
+#endif
+
+#ifndef track_pfn_vma_copy
+/*
+ * Interface that can be used by architecture code to keep track of
+ * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
+ *
+ * track_pfn_vma_copy is called when vma that is covering the pfnmap gets
+ * copied through copy_page_range().
+ */
+int track_pfn_vma_copy(struct vm_area_struct *vma)
+{
+	return 0;
+}
+#endif
+
+#ifndef untrack_pfn_vma
+/*
+ * Interface that can be used by architecture code to keep track of
+ * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
+ *
+ * untrack_pfn_vma is called while unmapping a pfnmap for a region.
+ * untrack can be called for a specific region indicated by pfn and size or
+ * can be for the entire vma (in which case size can be zero).
+ */
+void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
+			unsigned long size)
+{
+}
+#endif
+
 static int __init disable_randmaps(char *s)
 {
 	randomize_va_space = 0;
@@ -669,6 +713,16 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	if (is_vm_hugetlb_page(vma))
 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
 
+	if (is_pfn_mapping(vma)) {
+		/*
+		 * We do not free on error cases below as remove_vma
+		 * gets called on error from higher level routine
+		 */
+		ret = track_pfn_vma_copy(vma);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * We need to invalidate the secondary MMU mappings only when
 	 * there could be a permission downgrade on the ptes of the
@@ -914,6 +968,9 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 
 		if (vma->vm_flags & VM_ACCOUNT)
 			*nr_accounted += (end - start) >> PAGE_SHIFT;
+
+		if (is_pfn_mapping(vma))
+			untrack_pfn_vma(vma, 0, 0);
 
 		while (start != end) {
 			if (!tlb_start_valid) {
@@ -1473,6 +1530,7 @@ out:
 int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn)
 {
+	int ret;
 	/*
 	 * Technically, architectures with pte_special can avoid all these
 	 * restrictions (same for remap_pfn_range).  However we would like
@@ -1487,7 +1545,15 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return -EFAULT;
-	return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+	if (track_pfn_vma_new(vma, vma->vm_page_prot, pfn, PAGE_SIZE))
+		return -EINVAL;
+
+	ret = insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+
+	if (ret)
+		untrack_pfn_vma(vma, pfn, PAGE_SIZE);
+
+	return ret;
 }
 EXPORT_SYMBOL(vm_insert_pfn);
 
@@ -1625,6 +1691,10 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 
 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
 
+	err = track_pfn_vma_new(vma, prot, pfn, PAGE_ALIGN(size));
+	if (err)
+		return -EINVAL;
+
 	BUG_ON(addr >= end);
 	pfn -= addr >> PAGE_SHIFT;
 	pgd = pgd_offset(mm, addr);
@@ -1636,6 +1706,10 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
+
+	if (err)
+		untrack_pfn_vma(vma, pfn, PAGE_ALIGN(size));
+
 	return err;
 }
 EXPORT_SYMBOL(remap_pfn_range);
