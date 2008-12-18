@@ -9,9 +9,10 @@
 config PLAT_S3C64XX
 	bool
 	depends on ARCH_S3C64XX
+	default y
+	select CPU_V6
 	select PLAT_S3C
 	select ARM_VIC
-	default y
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
 	select S3C_GPIO_TRACK
