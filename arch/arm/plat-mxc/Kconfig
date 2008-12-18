@@ -8,6 +8,7 @@ choice
 
 config ARCH_MX1
 	bool "MX1-based"
+	select CPU_ARM920T
 	help
 	  This enables support for systems based on the Freescale i.MX1 family
 
