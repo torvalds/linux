@@ -265,14 +265,13 @@ fail:
 	return 0;
 }
 
-static int oprofile_begin_trace(struct oprofile_cpu_buffer *cpu_buf)
+static inline void oprofile_begin_trace(struct oprofile_cpu_buffer *cpu_buf)
 {
 	add_code(cpu_buf, CPU_TRACE_BEGIN);
 	cpu_buf->tracing = 1;
-	return 1;
 }
 
-static void oprofile_end_trace(struct oprofile_cpu_buffer *cpu_buf)
+static inline void oprofile_end_trace(struct oprofile_cpu_buffer *cpu_buf)
 {
 	cpu_buf->tracing = 0;
 }
@@ -288,8 +287,7 @@ __oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
 		return;
 	}
 
-	if (!oprofile_begin_trace(cpu_buf))
-		return;
+	oprofile_begin_trace(cpu_buf);
 
 	/*
 	 * if log_sample() fail we can't backtrace since we lost the
@@ -297,6 +295,7 @@ __oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
 	 */
 	if (log_sample(cpu_buf, pc, is_kernel, event))
 		oprofile_ops.backtrace(regs, oprofile_backtrace_depth);
+
 	oprofile_end_trace(cpu_buf);
 }
 
