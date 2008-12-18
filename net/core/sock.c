@@ -289,11 +289,7 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
-	/*
-	 * release dst right now while its hot
-	 */
-	dst_release(skb->dst);
-	skb->dst = NULL;
+
 	/* Cache the SKB length before we tack it onto the receive
 	 * queue.  Once it is added it no longer belongs to us and
 	 * may be freed by other threads of control pulling packets
