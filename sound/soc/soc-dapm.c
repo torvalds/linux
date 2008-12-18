@@ -1320,8 +1320,12 @@ int snd_soc_dapm_new_controls(struct snd_soc_codec *codec,
 
 	for (i = 0; i < num; i++) {
 		ret = snd_soc_dapm_new_control(codec, widget);
-		if (ret < 0)
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "ASoC: Failed to create DAPM control %s: %d\n",
+			       widget->name, ret);
 			return ret;
+		}
 		widget++;
 	}
 	return 0;
