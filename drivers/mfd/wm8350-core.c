@@ -1168,6 +1168,7 @@ static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
 				mode);
 			return -EINVAL;
 		}
+		break;
 
 	case 1:
 		switch (mode) {
