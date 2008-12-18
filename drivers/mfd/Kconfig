@@ -143,6 +143,22 @@ config MFD_WM8350_CONFIG_MODE_3
 	bool
 	depends on MFD_WM8350
 
+config MFD_WM8352_CONFIG_MODE_0
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8352_CONFIG_MODE_1
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8352_CONFIG_MODE_2
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8352_CONFIG_MODE_3
+	bool
+	depends on MFD_WM8350
+
 config MFD_WM8350_I2C
 	tristate "Support Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350

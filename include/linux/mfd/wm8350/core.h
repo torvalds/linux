@@ -589,6 +589,10 @@ extern const u16 wm8350_mode0_defaults[];
 extern const u16 wm8350_mode1_defaults[];
 extern const u16 wm8350_mode2_defaults[];
 extern const u16 wm8350_mode3_defaults[];
+extern const u16 wm8352_mode0_defaults[];
+extern const u16 wm8352_mode1_defaults[];
+extern const u16 wm8352_mode2_defaults[];
+extern const u16 wm8352_mode3_defaults[];
 
 struct wm8350;
 

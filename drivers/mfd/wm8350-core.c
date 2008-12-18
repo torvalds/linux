@@ -1133,35 +1133,75 @@ EXPORT_SYMBOL_GPL(wm8350_read_auxadc);
 /*
  * Cache is always host endian.
  */
-static int wm8350_create_cache(struct wm8350 *wm8350, int mode)
+static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
 {
 	int i, ret = 0;
 	u16 value;
 	const u16 *reg_map;
 
-	switch (mode) {
-#ifdef CONFIG_MFD_WM8350_CONFIG_MODE_0
+	switch (type) {
 	case 0:
-		reg_map = wm8350_mode0_defaults;
-		break;
+		switch (mode) {
+#ifdef CONFIG_MFD_WM8350_CONFIG_MODE_0
+		case 0:
+			reg_map = wm8350_mode0_defaults;
+			break;
 #endif
 #ifdef CONFIG_MFD_WM8350_CONFIG_MODE_1
-	case 1:
-		reg_map = wm8350_mode1_defaults;
-		break;
+		case 1:
+			reg_map = wm8350_mode1_defaults;
+			break;
 #endif
 #ifdef CONFIG_MFD_WM8350_CONFIG_MODE_2
-	case 2:
-		reg_map = wm8350_mode2_defaults;
-		break;
+		case 2:
+			reg_map = wm8350_mode2_defaults;
+			break;
 #endif
 #ifdef CONFIG_MFD_WM8350_CONFIG_MODE_3
-	case 3:
-		reg_map = wm8350_mode3_defaults;
-		break;
+		case 3:
+			reg_map = wm8350_mode3_defaults;
+			break;
 #endif
+		default:
+			dev_err(wm8350->dev,
+				"WM8350 configuration mode %d not supported\n",
+				mode);
+			return -EINVAL;
+		}
+
+	case 2:
+		switch (mode) {
+#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_0
+		case 0:
+			reg_map = wm8352_mode0_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_1
+		case 1:
+			reg_map = wm8352_mode1_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_2
+		case 2:
+			reg_map = wm8352_mode2_defaults;
+			break;
+#endif
+#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_3
+		case 3:
+			reg_map = wm8352_mode3_defaults;
+			break;
+#endif
+		default:
+			dev_err(wm8350->dev,
+				"WM8352 configuration mode %d not supported\n",
+				mode);
+			return -EINVAL;
+		}
+		break;
+
 	default:
-		dev_err(wm8350->dev, "Configuration mode %d not supported\n",
+		dev_err(wm8350->dev,
+			"WM835x configuration mode %d not supported\n",
 			mode);
 		return -EINVAL;
 	}
@@ -1284,13 +1324,27 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		}
 		break;
 
+	case 2:
+		switch (chip_rev) {
+		case 0:
+			dev_info(wm8350->dev, "WM8352 Rev A\n");
+			wm8350->power.rev_g_coeff = 1;
+			break;
+
+		default:
+			dev_err(wm8350->dev, "Unknown WM8352 CHIP_REV\n");
+			ret = -ENODEV;
+			goto err;
+		}
+		break;
+
 	default:
 		dev_err(wm8350->dev, "Unknown MASK_REV\n");
 		ret = -ENODEV;
 		goto err;
 	}
 
-	ret = wm8350_create_cache(wm8350, mode);
+	ret = wm8350_create_cache(wm8350, mask_rev, mode);
 	if (ret < 0) {
 		dev_err(wm8350->dev, "Failed to create register cache\n");
 		return ret;
