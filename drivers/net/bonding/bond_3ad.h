@@ -199,6 +199,15 @@ typedef struct aggregator {
 	u16 num_of_ports;
 } aggregator_t;
 
+struct port_params {
+	struct mac_addr system;
+	u16 system_priority;
+	u16 key;
+	u16 port_number;
+	u16 port_priority;
+	u16 port_state;
+};
+
 // port structure(43.4.6 in the 802.3ad standard)
 typedef struct port {
 	u16 actor_port_number;
@@ -211,18 +220,10 @@ typedef struct port {
 	u16 actor_oper_port_key;
 	u8 actor_admin_port_state;
 	u8 actor_oper_port_state;
-	struct mac_addr partner_admin_system;
-	struct mac_addr partner_oper_system;
-	u16 partner_admin_system_priority;
-	u16 partner_oper_system_priority;
-	u16 partner_admin_key;
-	u16 partner_oper_key;
-	u16 partner_admin_port_number;
-	u16 partner_oper_port_number;
-	u16 partner_admin_port_priority;
-	u16 partner_oper_port_priority;
-	u8 partner_admin_port_state;
-	u8 partner_oper_port_state;
+
+	struct port_params partner_admin;
+	struct port_params partner_oper;
+
 	u16 is_enabled;	      // BOOLEAN
 	// ****** PRIVATE PARAMETERS ******
 	u16 sm_vars;	      // all state machines variables for this port
