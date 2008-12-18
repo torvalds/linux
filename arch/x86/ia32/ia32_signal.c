@@ -174,7 +174,7 @@ asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
  * Do a signal return; undo the signal stack.
  */
 
-struct sigframe
+struct sigframe_ia32
 {
 	u32 pretcode;
 	int sig;
@@ -185,7 +185,7 @@ struct sigframe
 	/* fp state follows here */
 };
 
-struct rt_sigframe
+struct rt_sigframe_ia32
 {
 	u32 pretcode;
 	int sig;
@@ -271,7 +271,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 asmlinkage long sys32_sigreturn(struct pt_regs *regs)
 {
-	struct sigframe __user *frame = (struct sigframe __user *)(regs->sp-8);
+	struct sigframe_ia32 __user *frame = (struct sigframe_ia32 __user *)(regs->sp-8);
 	sigset_t set;
 	unsigned int ax;
 
@@ -301,12 +301,12 @@ badframe:
 
 asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 {
-	struct rt_sigframe __user *frame;
+	struct rt_sigframe_ia32 __user *frame;
 	sigset_t set;
 	unsigned int ax;
 	struct pt_regs tregs;
 
-	frame = (struct rt_sigframe __user *)(regs->sp - 4);
+	frame = (struct rt_sigframe_ia32 __user *)(regs->sp - 4);
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -418,7 +418,7 @@ static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 int ia32_setup_frame(int sig, struct k_sigaction *ka,
 		     compat_sigset_t *set, struct pt_regs *regs)
 {
-	struct sigframe __user *frame;
+	struct sigframe_ia32 __user *frame;
 	void __user *restorer;
 	int err = 0;
 	void __user *fpstate = NULL;
@@ -497,7 +497,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			compat_sigset_t *set, struct pt_regs *regs)
 {
-	struct rt_sigframe __user *frame;
+	struct rt_sigframe_ia32 __user *frame;
 	void __user *restorer;
 	int err = 0;
 	void __user *fpstate = NULL;
