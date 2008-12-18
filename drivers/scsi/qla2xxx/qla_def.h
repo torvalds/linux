@@ -181,11 +181,14 @@
 #define RESPONSE_ENTRY_CNT_2100		64	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2300		512	/* Number of response entries.*/
 
+struct req_que;
+
 /*
  * SCSI Request Block
  */
 typedef struct srb {
 	struct scsi_qla_host *vha;	/* HA the SP is queued on */
+	struct req_que *que;
 	struct fc_port *fcport;
 
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
@@ -2045,7 +2048,6 @@ typedef struct vport_params {
 #define VP_RET_CODE_NOT_FOUND		6
 
 struct qla_hw_data;
-struct req_que;
 
 /*
  * ISP operations
@@ -2101,6 +2103,9 @@ struct isp_operations {
 
 	int (*get_flash_version) (struct scsi_qla_host *, void *);
 	int (*start_scsi) (srb_t *);
+	void (*wrt_req_reg) (struct qla_hw_data *, uint16_t, uint16_t);
+	void (*wrt_rsp_reg) (struct qla_hw_data *, uint16_t, uint16_t);
+	uint16_t (*rd_req_reg) (struct qla_hw_data *, uint16_t);
 };
 
 /* MSI-X Support *************************************************************/

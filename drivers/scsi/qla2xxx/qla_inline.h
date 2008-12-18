@@ -63,4 +63,4 @@ qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
 
 	return ((loop_id > ha->max_loop_id && loop_id < SNS_FIRST_LOOP_ID) ||
 	    loop_id == MANAGEMENT_SERVER || loop_id == BROADCAST);
-};
+}

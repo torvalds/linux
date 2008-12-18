@@ -3129,7 +3129,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	rval = (int)qla2x00_mailbox_command(vha, mcp);
+	rval = qla2x00_mailbox_command(vha, mcp);
 	if (rval != QLA_SUCCESS)
 		DEBUG2_3_11(printk(KERN_WARNING "%s(%ld): failed=%x mb0=%x.\n",
 			__func__, vha->host_no, rval, mcp->mb[0]));
@@ -3180,7 +3180,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	rval = (int)qla2x00_mailbox_command(vha, mcp);
+	rval = qla2x00_mailbox_command(vha, mcp);
 	if (rval != QLA_SUCCESS)
 		DEBUG2_3_11(printk(KERN_WARNING "%s(%ld): failed=%x "
 			"mb0=%x.\n", __func__,

@@ -391,4 +391,10 @@ extern int qla25xx_delete_req_que(struct scsi_qla_host *, struct req_que *);
 extern int qla25xx_delete_rsp_que(struct scsi_qla_host *, struct rsp_que *);
 extern int qla25xx_create_queues(struct scsi_qla_host *, uint8_t);
 extern int qla25xx_delete_queues(struct scsi_qla_host *, uint8_t);
+extern uint16_t qla24xx_rd_req_reg(struct qla_hw_data *, uint16_t);
+extern uint16_t qla25xx_rd_req_reg(struct qla_hw_data *, uint16_t);
+extern void qla24xx_wrt_req_reg(struct qla_hw_data *, uint16_t, uint16_t);
+extern void qla25xx_wrt_req_reg(struct qla_hw_data *, uint16_t, uint16_t);
+extern void qla25xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
+extern void qla24xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
 #endif /* _QLA_GBL_H */

@@ -160,7 +160,6 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 	struct scatterlist *sg;
 	int i;
 	struct req_que *req;
-	uint16_t que_id;
 
 	cmd = sp->cmd;
 
@@ -175,8 +174,7 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 	}
 
 	vha = sp->vha;
-	que_id = vha->req_ques[0];
-	req = vha->hw->req_q_map[que_id];
+	req = sp->que;
 
 	cmd_pkt->control_flags |= cpu_to_le16(qla2x00_get_cmd_direction(sp));
 
@@ -223,7 +221,6 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 	struct scatterlist *sg;
 	int i;
 	struct req_que *req;
-	uint16_t que_id;
 
 	cmd = sp->cmd;
 
@@ -238,8 +235,7 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 	}
 
 	vha = sp->vha;
-	que_id = vha->req_ques[0];
-	req = vha->hw->req_q_map[que_id];
+	req = sp->que;
 
 	cmd_pkt->control_flags |= cpu_to_le16(qla2x00_get_cmd_direction(sp));
 
@@ -358,6 +354,7 @@ qla2x00_start_scsi(srb_t *sp)
 	req->current_outstanding_cmd = handle;
 	req->outstanding_cmds[handle] = sp;
 	sp->vha = vha;
+	sp->que = req;
 	sp->cmd->host_scribble = (unsigned char *)(unsigned long)handle;
 	req->cnt -= req_cnt;
 
@@ -573,6 +570,7 @@ qla2x00_isp_cmd(struct scsi_qla_host *vha, struct req_que *req)
 {
 	struct qla_hw_data *ha = vha->hw;
 	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
+	struct device_reg_2xxx __iomem *ioreg = &ha->iobase->isp;
 
 	DEBUG5(printk("%s(): IOCB data:\n", __func__));
 	DEBUG5(qla2x00_dump_buffer(
@@ -587,8 +585,10 @@ qla2x00_isp_cmd(struct scsi_qla_host *vha, struct req_que *req)
 		req->ring_ptr++;
 
 	/* Set chip new ring index. */
-	if (ha->mqenable)
-		RD_REG_DWORD(&reg->isp25mq.req_q_out);
+	if (ha->mqenable) {
+		WRT_REG_DWORD(&reg->isp25mq.req_q_in, req->ring_index);
+		RD_REG_DWORD(&ioreg->hccr);
+	}
 	else {
 		if (IS_FWI2_CAPABLE(ha)) {
 			WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
@@ -642,7 +642,6 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	struct scsi_cmnd *cmd;
 	struct scatterlist *sg;
 	int i;
-	uint16_t que_id;
 	struct req_que *req;
 
 	cmd = sp->cmd;
@@ -658,8 +657,7 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	}
 
 	vha = sp->vha;
-	que_id = vha->req_ques[0];
-	req = vha->hw->req_q_map[que_id];
+	req = sp->que;
 
 	/* Set transfer direction */
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
@@ -727,7 +725,6 @@ qla24xx_start_scsi(srb_t *sp)
 	struct scsi_cmnd *cmd = sp->cmd;
 	struct scsi_qla_host *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
-	device_reg_t __iomem *reg;
 	uint16_t que_id;
 
 	/* Setup device pointers. */
@@ -735,7 +732,7 @@ qla24xx_start_scsi(srb_t *sp)
 	que_id = vha->req_ques[0];
 
 	req = ha->req_q_map[que_id];
-	reg = ISP_QUE_REG(ha, req->id);
+	sp->que = req;
 
 	if (req->rsp)
 		rsp = req->rsp;
@@ -780,12 +777,7 @@ qla24xx_start_scsi(srb_t *sp)
 
 	req_cnt = qla24xx_calc_iocbs(tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
-		if (ha->mqenable)
-			cnt = (uint16_t)
-				RD_REG_DWORD_RELAXED(&reg->isp25mq.req_q_out);
-		else
-			cnt = (uint16_t)
-				RD_REG_DWORD_RELAXED(&reg->isp24.req_q_out);
+		cnt = ha->isp_ops->rd_req_reg(ha, req->id);
 
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
@@ -846,12 +838,7 @@ qla24xx_start_scsi(srb_t *sp)
 	sp->flags |= SRB_DMA_VALID;
 
 	/* Set chip new ring index. */
-	if (ha->mqenable)
-		WRT_REG_DWORD(&reg->isp25mq.req_q_in, req->ring_index);
-	else {
-		WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
-		RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
-	}
+	ha->isp_ops->wrt_req_reg(ha, req->id, req->ring_index);
 
 	/* Manage unprocessed RIO/ZIO commands in response queue. */
 	if (vha->flags.process_response_queue &&
@@ -868,5 +855,36 @@ queuing_error:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return QLA_FUNCTION_FAILED;
+}
+
+uint16_t
+qla24xx_rd_req_reg(struct qla_hw_data *ha, uint16_t id)
+{
+	device_reg_t __iomem *reg = (void *) ha->iobase;
+	return RD_REG_DWORD_RELAXED(&reg->isp24.req_q_out);
+}
+
+uint16_t
+qla25xx_rd_req_reg(struct qla_hw_data *ha, uint16_t id)
+{
+	device_reg_t __iomem *reg = (void *) ha->mqiobase + QLA_QUE_PAGE * id;
+	return RD_REG_DWORD_RELAXED(&reg->isp25mq.req_q_out);
+}
+
+void
+qla24xx_wrt_req_reg(struct qla_hw_data *ha, uint16_t id, uint16_t index)
+{
+	device_reg_t __iomem *reg = (void *) ha->iobase;
+	WRT_REG_DWORD(&reg->isp24.req_q_in, index);
+	RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
+}
+
+void
+qla25xx_wrt_req_reg(struct qla_hw_data *ha, uint16_t id, uint16_t index)
+{
+	device_reg_t __iomem *reg = (void *) ha->mqiobase + QLA_QUE_PAGE * id;
+	struct device_reg_2xxx __iomem *ioreg = &ha->iobase->isp;
+	WRT_REG_DWORD(&reg->isp25mq.req_q_in, index);
+	RD_REG_DWORD(&ioreg->hccr); /* PCI posting */
 }
 

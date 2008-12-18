@@ -1446,7 +1446,6 @@ void
 qla24xx_process_response_queue(struct rsp_que *rsp)
 {
 	struct qla_hw_data *ha = rsp->hw;
-	device_reg_t __iomem *reg = ISP_QUE_REG(ha, rsp->id);
 	struct sts_entry_24xx *pkt;
 	struct scsi_qla_host *vha;
 
@@ -1500,10 +1499,7 @@ qla24xx_process_response_queue(struct rsp_que *rsp)
 	}
 
 	/* Adjust ring index */
-	if (ha->mqenable)
-		WRT_REG_DWORD(&reg->isp25mq.rsp_q_out, rsp->ring_index);
-	else
-		WRT_REG_DWORD(&reg->isp24.rsp_q_out, rsp->ring_index);
+	ha->isp_ops->wrt_rsp_reg(ha, rsp->id, rsp->ring_index);
 }
 
 static void
@@ -1702,7 +1698,7 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 	if (!rsp->id)
 		msix_disabled_hccr &= __constant_cpu_to_le32(BIT_22);
 	else
-		msix_disabled_hccr &= BIT_6;
+		msix_disabled_hccr &= __constant_cpu_to_le32(BIT_6);
 
 	qla24xx_process_response_queue(rsp);
 
@@ -2075,5 +2071,19 @@ int qla25xx_request_irq(struct rsp_que *rsp)
 	msix->have_irq = 1;
 	msix->rsp = rsp;
 	return ret;
+}
+
+void
+qla25xx_wrt_rsp_reg(struct qla_hw_data *ha, uint16_t id, uint16_t index)
+{
+	device_reg_t __iomem *reg = (void *) ha->mqiobase + QLA_QUE_PAGE * id;
+	WRT_REG_DWORD(&reg->isp25mq.rsp_q_out, index);
+}
+
+void
+qla24xx_wrt_rsp_reg(struct qla_hw_data *ha, uint16_t id, uint16_t index)
+{
+	device_reg_t __iomem *reg = (void *) ha->iobase;
+	WRT_REG_DWORD(&reg->isp24.rsp_q_out, index);
 }
 

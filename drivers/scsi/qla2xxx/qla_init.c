@@ -796,7 +796,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		if (!tc) {
 			qla_printk(KERN_WARNING, ha, "Unable to allocate "
 			    "(%d KB) for FCE.\n", FCE_SIZE / 1024);
-			goto cont_alloc;
+			goto try_eft;
 		}
 
 		memset(tc, 0, FCE_SIZE);
@@ -808,7 +808,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, tc,
 			    tc_dma);
 			ha->flags.fce_enabled = 0;
-			goto cont_alloc;
+			goto try_eft;
 		}
 
 		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for FCE...\n",
