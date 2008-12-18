@@ -210,12 +210,10 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	if (bus && node != -1) {
 #ifdef CONFIG_ACPI_NUMA
 		if (pxm >= 0)
-			printk(KERN_DEBUG
-			       "pci %04x:%02x: bus on NUMA node %d (pxm %d)\n",
-				domain, busnum, node, pxm);
+			dev_printk(KERN_DEBUG, &bus->dev,
+				   "on NUMA node %d (pxm %d)\n", node, pxm);
 #else
-		printk(KERN_DEBUG "pci %04x:%02x: bus on NUMA node %d\n",
-			domain, busnum, node);
+		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA node %d\n", node);
 #endif
 	}
 
