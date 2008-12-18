@@ -766,8 +766,8 @@ static void mt9v022_video_remove(struct soc_camera_device *icd)
 	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
 
 	dev_dbg(&icd->dev, "Video %x removed: %p, %p\n", mt9v022->client->addr,
-		mt9v022->icd.dev.parent, mt9v022->icd.vdev);
-	soc_camera_video_stop(&mt9v022->icd);
+		icd->dev.parent, icd->vdev);
+	soc_camera_video_stop(icd);
 }
 
 static int mt9v022_probe(struct i2c_client *client,

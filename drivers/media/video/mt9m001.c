@@ -590,7 +590,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd)
 		return -ENODEV;
 
 	/* Enable the chip */
-	data = reg_write(&mt9m001->icd, MT9M001_CHIP_ENABLE, 1);
+	data = reg_write(icd, MT9M001_CHIP_ENABLE, 1);
 	dev_dbg(&icd->dev, "write: %d\n", data);
 
 	/* Read out the chip version register */
@@ -642,8 +642,8 @@ static void mt9m001_video_remove(struct soc_camera_device *icd)
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
 
 	dev_dbg(&icd->dev, "Video %x removed: %p, %p\n", mt9m001->client->addr,
-		mt9m001->icd.dev.parent, mt9m001->icd.vdev);
-	soc_camera_video_stop(&mt9m001->icd);
+		icd->dev.parent, icd->vdev);
+	soc_camera_video_stop(icd);
 }
 
 static int mt9m001_probe(struct i2c_client *client,
