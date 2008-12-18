@@ -36,6 +36,9 @@ struct s3c24xx_uart_port {
 	unsigned int			pm_level;
 	unsigned long			baudclk_rate;
 
+	unsigned int			rx_irq;
+	unsigned int			tx_irq;
+
 	struct s3c24xx_uart_info	*info;
 	struct s3c24xx_uart_clksrc	*clksrc;
 	struct clk			*clk;

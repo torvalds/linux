@@ -10,7 +10,6 @@
  * S3C2410 Timer configuration
 */
 
-
 #ifndef __ASM_ARCH_REGS_TIMER_H
 #define __ASM_ARCH_REGS_TIMER_H
 
@@ -20,6 +19,8 @@
 #define S3C2410_TCFG0	      S3C_TIMERREG(0x00)
 #define S3C2410_TCFG1	      S3C_TIMERREG(0x04)
 #define S3C2410_TCON	      S3C_TIMERREG(0x08)
+
+#define S3C64XX_TINT_CSTAT    S3C_TIMERREG(0x44)
 
 #define S3C2410_TCFG_PRESCALER0_MASK (255<<0)
 #define S3C2410_TCFG_PRESCALER1_MASK (255<<8)
@@ -71,6 +72,14 @@
 #define S3C2410_TCFG1_MUX_DIV16   (3<<0)
 #define S3C2410_TCFG1_MUX_TCLK    (4<<0)
 #define S3C2410_TCFG1_MUX_MASK	  (15<<0)
+
+#define S3C64XX_TCFG1_MUX_DIV1	  (0<<0)
+#define S3C64XX_TCFG1_MUX_DIV2	  (1<<0)
+#define S3C64XX_TCFG1_MUX_DIV4	  (2<<0)
+#define S3C64XX_TCFG1_MUX_DIV8    (3<<0)
+#define S3C64XX_TCFG1_MUX_DIV16   (4<<0)
+#define S3C64XX_TCFG1_MUX_TCLK    (5<<0)  /* 3 sets of TCLK */
+#define S3C64XX_TCFG1_MUX_MASK	  (15<<0)
 
 #define S3C2410_TCFG1_SHIFT(x)	  ((x) * 4)
 

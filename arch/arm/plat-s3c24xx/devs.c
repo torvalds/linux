@@ -192,8 +192,8 @@ void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 
 static struct resource s3c_nand_resource[] = {
 	[0] = {
-		.start = S3C2410_PA_NAND,
-		.end   = S3C2410_PA_NAND + S3C24XX_SZ_NAND - 1,
+		.start = S3C24XX_PA_NAND,
+		.end   = S3C24XX_PA_NAND + S3C24XX_SZ_NAND - 1,
 		.flags = IORESOURCE_MEM,
 	}
 };
@@ -390,8 +390,8 @@ struct platform_device s3c_device_hwmon = {
 
 static struct resource s3c_sdi_resource[] = {
 	[0] = {
-		.start = S3C2410_PA_SDI,
-		.end   = S3C2410_PA_SDI + S3C24XX_SZ_SDI - 1,
+		.start = S3C24XX_PA_SDI,
+		.end   = S3C24XX_PA_SDI + S3C24XX_SZ_SDI - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {

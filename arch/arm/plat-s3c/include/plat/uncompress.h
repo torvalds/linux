@@ -37,7 +37,7 @@ static void arch_detect_cpu(void);
 /* how many bytes we allow into the FIFO at a time in FIFO mode */
 #define FIFO_MAX	 (14)
 
-#define uart_base S3C24XX_PA_UART + (0x4000*CONFIG_S3C_LOWLEVEL_UART_PORT)
+#define uart_base S3C_PA_UART + (S3C_UART_OFFSET * CONFIG_S3C_LOWLEVEL_UART_PORT)
 
 static __inline__ void
 uart_wr(unsigned int reg, unsigned int val)

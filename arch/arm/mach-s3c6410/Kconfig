@@ -1,0 +1,21 @@
+# arch/arm/mach-s3c6410/Kconfig
+#
+# Copyright 2008 Openmoko, Inc.
+# Copyright 2008 Simtec Electronics
+#
+# Licensed under GPLv2
+
+# Configuration options for the S3C6410 CPU
+
+config CPU_S3C6410
+	bool
+	select CPU_S3C6400_INIT
+	select CPU_S3C6400_CLOCK
+	help
+	  Enable S3C6410 CPU support
+
+config MACH_SMDK6410
+	bool "SMDK6410"
+	select CPU_S3C6410
+	help
+	  Machine support for the Samsung SMDK6410

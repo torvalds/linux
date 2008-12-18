@@ -47,9 +47,9 @@
 #include <asm/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/map.h>
 
 #include <plat/regs-serial.h>
-#include <mach/regs-gpio.h>
 
 #include "samsung.h"
 
@@ -61,16 +61,11 @@
 
 /* we can support 3 uarts, but not always use them */
 
-#ifdef CONFIG_CPU_S3C2400
+#if defined(CONFIG_CPU_S3C2400) || defined(CONFIG_CPU_S3C24A0)
 #define NR_PORTS (2)
 #else
 #define NR_PORTS (3)
 #endif
-
-/* port irq numbers */
-
-#define TX_IRQ(port) ((port)->irq + 1)
-#define RX_IRQ(port) ((port)->irq)
 
 /* macros to change one thing to another */
 
@@ -137,8 +132,10 @@ static void s3c24xx_serial_rx_disable(struct uart_port *port)
 
 static void s3c24xx_serial_stop_tx(struct uart_port *port)
 {
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
 	if (tx_enabled(port)) {
-		disable_irq(TX_IRQ(port));
+		disable_irq(ourport->tx_irq);
 		tx_enabled(port) = 0;
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_enable(port);
@@ -147,11 +144,13 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 
 static void s3c24xx_serial_start_tx(struct uart_port *port)
 {
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
 	if (!tx_enabled(port)) {
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_disable(port);
 
-		enable_irq(TX_IRQ(port));
+		enable_irq(ourport->tx_irq);
 		tx_enabled(port) = 1;
 	}
 }
@@ -159,9 +158,11 @@ static void s3c24xx_serial_start_tx(struct uart_port *port)
 
 static void s3c24xx_serial_stop_rx(struct uart_port *port)
 {
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
 	if (rx_enabled(port)) {
 		dbg("s3c24xx_serial_stop_rx: port=%p\n", port);
-		disable_irq(RX_IRQ(port));
+		disable_irq(ourport->rx_irq);
 		rx_enabled(port) = 0;
 	}
 }
@@ -385,13 +386,13 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (ourport->tx_claimed) {
-		free_irq(TX_IRQ(port), ourport);
+		free_irq(ourport->tx_irq, ourport);
 		tx_enabled(port) = 0;
 		ourport->tx_claimed = 0;
 	}
 
 	if (ourport->rx_claimed) {
-		free_irq(RX_IRQ(port), ourport);
+		free_irq(ourport->rx_irq, ourport);
 		ourport->rx_claimed = 0;
 		rx_enabled(port) = 0;
 	}
@@ -408,12 +409,11 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	rx_enabled(port) = 1;
 
-	ret = request_irq(RX_IRQ(port),
-			  s3c24xx_serial_rx_chars, 0,
+	ret = request_irq(ourport->rx_irq, s3c24xx_serial_rx_chars, 0,
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret != 0) {
-		printk(KERN_ERR "cannot get irq %d\n", RX_IRQ(port));
+		printk(KERN_ERR "cannot get irq %d\n", ourport->rx_irq);
 		return ret;
 	}
 
@@ -423,12 +423,11 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	tx_enabled(port) = 1;
 
-	ret = request_irq(TX_IRQ(port),
-			  s3c24xx_serial_tx_chars, 0,
+	ret = request_irq(ourport->tx_irq, s3c24xx_serial_tx_chars, 0,
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret) {
-		printk(KERN_ERR "cannot get irq %d\n", TX_IRQ(port));
+		printk(KERN_ERR "cannot get irq %d\n", ourport->tx_irq);
 		goto err;
 	}
 
@@ -756,6 +755,8 @@ static const char *s3c24xx_serial_type(struct uart_port *port)
 		return "S3C2440";
 	case PORT_S3C2412:
 		return "S3C2412";
+	case PORT_S3C6400:
+		return "S3C6400/10";
 	default:
 		return NULL;
 	}
@@ -1034,18 +1035,26 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
 
-	port->mapbase	= res->start;
-	port->membase	= S3C24XX_VA_UART + (res->start - S3C24XX_PA_UART);
+	port->mapbase = res->start;
+	port->membase = S3C_VA_UART + res->start - (S3C_PA_UART & 0xfff00000);
 	ret = platform_get_irq(platdev, 0);
 	if (ret < 0)
 		port->irq = 0;
-	else
+	else {
 		port->irq = ret;
+		ourport->rx_irq = ret;
+		ourport->tx_irq = ret + 1;
+	}
+	
+	ret = platform_get_irq(platdev, 1);
+	if (ret > 0)
+		ourport->tx_irq = ret;
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
 
-	dbg("port: map=%08x, mem=%08x, irq=%d, clock=%ld\n",
-	    port->mapbase, port->membase, port->irq, port->uartclk);
+	dbg("port: map=%08x, mem=%08x, irq=%d (%d,%d), clock=%ld\n",
+	    port->mapbase, port->membase, port->irq,
+	    ourport->rx_irq, ourport->tx_irq, port->uartclk);
 
 	/* reset the fifos (and setup the uart) */
 	s3c24xx_serial_resetport(port, cfg);

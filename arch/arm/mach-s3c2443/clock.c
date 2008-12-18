@@ -147,12 +147,6 @@ static unsigned long s3c2443_roundrate_clksrc256(struct clk *clk,
 
 /* clock selections */
 
-/* CPU EXTCLK input */
-static struct clk clk_ext = {
-	.name		= "ext",
-	.id		= -1,
-};
-
 static struct clk clk_mpllref = {
 	.name		= "mpllref",
 	.parent		= &clk_xtal,
@@ -166,14 +160,6 @@ static struct clk clk_mpll = {
 	.id		= -1,
 };
 #endif
-
-static struct clk clk_epllref;
-
-static struct clk clk_epll = {
-	.name		= "epll",
-	.parent		= &clk_epllref,
-	.id		= -1,
-};
 
 static struct clk clk_i2s_ext = {
 	.name		= "i2s-ext",
@@ -1072,6 +1058,7 @@ void __init s3c2443_init_clocks(int xtal)
 	}
 
 	clk_epll.rate = s3c2443_get_epll(epllcon, xtal);
+	clk_epll.parent = &clk_epllref;
 	clk_usb_bus.parent = &clk_usb_bus_host;
 
 	/* ensure usb bus clock is within correct rate of 48MHz */
@@ -1120,4 +1107,6 @@ void __init s3c2443_init_clocks(int xtal)
 
 		(clkp->enable)(clkp, 0);
 	}
+
+	s3c_pwmclk_init();
 }

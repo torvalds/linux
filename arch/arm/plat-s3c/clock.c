@@ -239,6 +239,16 @@ struct clk clk_xtal = {
 	.ctrlbit	= 0,
 };
 
+struct clk clk_ext = {
+	.name		= "ext",
+	.id		= -1,
+};
+
+struct clk clk_epll = {
+	.name		= "epll",
+	.id		= -1,
+};
+
 struct clk clk_mpll = {
 	.name		= "mpll",
 	.id		= -1,

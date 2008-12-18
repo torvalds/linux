@@ -6,8 +6,8 @@
 
 config PLAT_S3C
 	bool
-	depends on ARCH_S3C2410
-	default y if ARCH_S3C2410
+	depends on ARCH_S3C2410 || ARCH_S3C24A0 || ARCH_S3C64XX
+	default y
 	select NO_IOPORT
 	help
 	  Base platform code for any Samsung S3C device
@@ -16,24 +16,24 @@ config PLAT_S3C
 
 config CPU_LLSERIAL_S3C2410_ONLY
 	bool
-	depends on ARCH_S3C2410
+	depends on PLAT_S3C
 	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
 
 config CPU_LLSERIAL_S3C2440_ONLY
 	bool
-	depends on ARCH_S3C2410
+	depends on PLAT_S3C
 	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
 
 config CPU_LLSERIAL_S3C2410
 	bool
-	depends on ARCH_S3C2410
+	depends on PLAT_S3C
 	help
 	  Selected if there is an S3C2410 (or register compatible) serial
 	  low-level implementation needed
 
 config CPU_LLSERIAL_S3C2440
 	bool
-	depends on ARCH_S3C2410
+	depends on PLAT_S3C
 	help
 	  Selected if there is an S3C2440 (or register compatible) serial
 	  low-level implementation needed
