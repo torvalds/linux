@@ -238,6 +238,21 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		return -EINVAL;
 	}
 
+	rcr = DAVINCI_MCBSP_RCR_RFRLEN1(1);
+	xcr = DAVINCI_MCBSP_XCR_XFIG | DAVINCI_MCBSP_XCR_XFRLEN1(1);
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_RIGHT_J:
+		break;
+	case SND_SOC_DAIFMT_I2S:
+	case SND_SOC_DAIFMT_DSP_B:
+		rcr |= DAVINCI_MCBSP_RCR_RDATDLY(1);
+		xcr |= DAVINCI_MCBSP_XCR_XDATDLY(1);
+		break;
+	default:
+		printk(KERN_ERR "%s:bad format\n", __func__);
+		return -EINVAL;
+	}
+
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_IB_NF:
 		/* CLKRP Receive clock polarity,
@@ -288,21 +303,6 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		 */
 		break;
 	default:
-		return -EINVAL;
-	}
-
-	rcr = DAVINCI_MCBSP_RCR_RFRLEN1(1);
-	xcr = DAVINCI_MCBSP_XCR_XFIG | DAVINCI_MCBSP_XCR_XFRLEN1(1);
-	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case SND_SOC_DAIFMT_RIGHT_J:
-		break;
-	case SND_SOC_DAIFMT_I2S:
-	case SND_SOC_DAIFMT_DSP_B:
-		rcr |= DAVINCI_MCBSP_RCR_RDATDLY(1);
-		xcr |= DAVINCI_MCBSP_XCR_XDATDLY(1);
-		break;
-	default:
-		printk(KERN_ERR "%s:bad format\n", __func__);
 		return -EINVAL;
 	}
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SRGR_REG, srgr);
