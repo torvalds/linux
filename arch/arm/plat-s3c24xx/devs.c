@@ -372,10 +372,18 @@ static struct resource s3c_adc_resource[] = {
 };
 
 struct platform_device s3c_device_adc = {
-	.name		  = "s3c2410-adc",
+	.name		  = "s3c24xx-adc",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s3c_adc_resource),
 	.resource	  = s3c_adc_resource,
+};
+
+/* HWMON */
+
+struct platform_device s3c_device_hwmon = {
+	.name		= "s3c24xx-hwmon",
+	.id		= -1,
+	.dev.parent	= &s3c_device_adc.dev,
 };
 
 /* SDI */

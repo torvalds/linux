@@ -22,5 +22,12 @@ struct s3c2410_spi_info {
 	void (*set_cs)(struct s3c2410_spi_info *spi, int cs, int pol);
 };
 
+/* Standard setup / suspend routines for SPI GPIO pins. */
+
+extern void s3c24xx_spi_gpiocfg_bus0_gpe11_12_13(struct s3c2410_spi_info *spi,
+						 int enable);
+
+extern void s3c24xx_spi_gpiocfg_bus1_gpg5_6_7(struct s3c2410_spi_info *spi,
+					      int enable);
 
 #endif /* __ASM_ARCH_SPI_H */

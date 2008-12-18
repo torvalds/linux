@@ -29,6 +29,7 @@ menu "S3C2440 Machines"
 config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
 	select CPU_S3C2440
+	select S3C24XX_DCLK
 	select PM_SIMTEC if PM
 	select HAVE_PATA_PLATFORM
 	select S3C24XX_GPIO_EXTRA64
@@ -39,6 +40,7 @@ config MACH_ANUBIS
 config MACH_OSIRIS
 	bool "Simtec IM2440D20 (OSIRIS) module"
 	select CPU_S3C2440
+	select S3C24XX_DCLK
 	select PM_SIMTEC if PM
 	select S3C24XX_GPIO_EXTRA128
 	help

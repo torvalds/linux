@@ -57,6 +57,14 @@ config S3C_BOOT_ERROR_RESET
 	  Say y here to use the watchdog to reset the system if the
 	  kernel decompressor detects an error during decompression.
 
+config S3C_BOOT_UART_FORCE_FIFO
+       bool "Force UART FIFO on during boot process"
+       depends on PLAT_S3C
+       default y
+       help
+         Say Y here to force the UART FIFOs on during the kernel
+	 uncompressor
+
 comment "Power management"
 
 config S3C2410_PM_DEBUG
