@@ -88,6 +88,7 @@ struct intel_crtc {
 	struct drm_crtc base;
 	int pipe;
 	int plane;
+	struct drm_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;

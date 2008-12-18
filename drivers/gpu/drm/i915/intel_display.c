@@ -986,19 +986,17 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
 	uint32_t temp;
 	size_t addr;
+	int ret;
 
 	DRM_DEBUG("\n");
 
 	/* if we want to turn off the cursor ignore width and height */
 	if (!handle) {
 		DRM_DEBUG("cursor off\n");
-		/* turn of the cursor */
-		temp = 0;
-		temp |= CURSOR_MODE_DISABLE;
-
-		I915_WRITE(control, temp);
-		I915_WRITE(base, 0);
-		return 0;
+		temp = CURSOR_MODE_DISABLE;
+		addr = 0;
+		bo = NULL;
+		goto finish;
 	}
 
 	/* Currently we only support 64x64 cursors */
@@ -1025,14 +1023,29 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		addr = obj_priv->gtt_offset;
 	}
 
-	intel_crtc->cursor_addr = addr;
+	ret = i915_gem_object_pin(bo, PAGE_SIZE);
+	if (ret) {
+		DRM_ERROR("failed to pin cursor bo\n");
+		drm_gem_object_unreference(bo);
+		return ret;
+	}
+
 	temp = 0;
 	/* set the pipe for the cursor */
 	temp |= (pipe << 28);
 	temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
 
+ finish:
 	I915_WRITE(control, temp);
 	I915_WRITE(base, addr);
+
+	if (intel_crtc->cursor_bo) {
+		i915_gem_object_unpin(intel_crtc->cursor_bo);
+		drm_gem_object_unreference(intel_crtc->cursor_bo);
+	}
+
+	intel_crtc->cursor_addr = addr;
+	intel_crtc->cursor_bo = bo;
 
 	return 0;
 }
