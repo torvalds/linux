@@ -82,7 +82,6 @@ MODULE_SUPPORTED_DEVICE("Frontier Designs Alphatrack Control Surface");
 
 /* These aren't done yet */
 
-#define ALPHATRACK_HAVE_SYSFS 0
 #define SUPPRESS_EXTRA_ONLINE_EVENTS 0
 #define BUFFERED_WRITES 0
 #define SUPPRESS_EXTRA_OFFLINE_EVENTS 0
@@ -231,12 +230,6 @@ static void usb_alphatrack_abort_transfers(struct usb_alphatrack *dev)
 		if (dev->intf)
 			usb_kill_urb(dev->interrupt_out_urb);
 }
-
-#if ALPHATRACK_HAVE_SYSFS
-/* lots and lots and lots of sysfs stuff */
-/* Currently borked, probably useless */
-#include "alphatrack_sysfs.c"
-#endif
 
 /**
  *	usb_alphatrack_delete
@@ -799,23 +792,6 @@ static int usb_alphatrack_probe(struct usb_interface *intf, const struct usb_dev
 	/* let the user know what node this device is now attached to */
 	dev_info(&intf->dev, "Alphatrack Device #%d now attached to major %d minor %d\n",
 		(intf->minor - USB_ALPHATRACK_MINOR_BASE), USB_MAJOR, intf->minor);
-
-#if ALPHATRACK_HAVE_SYSFS
-	if((retval = device_create_file(&intf->dev, &dev_attr_event))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_dump_state))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_enable))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_offline))) goto error;
-
-  /* exercise sysfs */
-
-	set_lights("32767"); // turn on all the lights
-	set_fader0("1023"); // Move fader to max
-	set_screen("INITIALIZING               ALPHATRACK...");
-	set_lights("0");
-	set_fader0("0");
-	set_screen("                                        ");
-
-#endif
 
 exit:
 	return retval;
