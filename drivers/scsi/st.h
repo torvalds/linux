@@ -54,7 +54,6 @@ struct st_buffer {
 	unsigned short orig_frp_segs;	/* number of segments allocated at first try */
 	unsigned short frp_segs;	/* number of buffer segments */
 	unsigned int frp_sg_current;	/* driver buffer length currently in s/g list */
-	struct scatterlist sg[1];	/* MUST BE last item */
 };
 
 /* The tape mode definition */

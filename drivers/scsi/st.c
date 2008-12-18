@@ -3744,7 +3744,7 @@ static long st_compat_ioctl(struct file *file, unsigned int cmd, unsigned long a
 static struct st_buffer *
  new_tape_buffer(int from_initialization, int need_dma, int max_sg)
 {
-	int i, got = 0;
+	int got = 0;
 	gfp_t priority;
 	struct st_buffer *tb;
 
@@ -3753,10 +3753,7 @@ static struct st_buffer *
 	else
 		priority = GFP_KERNEL;
 
-	i = sizeof(struct st_buffer) +
-		(max_sg - 1) * sizeof(struct scatterlist);
-
-	tb = kzalloc(i, priority);
+	tb = kzalloc(sizeof(struct st_buffer), priority);
 	if (!tb) {
 		printk(KERN_NOTICE "st: Can't allocate new tape buffer.\n");
 		return NULL;
@@ -3766,7 +3763,6 @@ static struct st_buffer *
 
 	tb->dma = need_dma;
 	tb->buffer_size = got;
-	sg_init_table(tb->sg, max_sg);
 
 	tb->reserved_pages = kzalloc(max_sg * sizeof(struct page *), priority);
 	if (!tb->reserved_pages) {
