@@ -3324,7 +3324,6 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	unsigned long flags;
 	int antenna;
 	int err = 0;
-	u32 savedirqs;
 
 	mutex_lock(&wl->mutex);
 
@@ -3335,24 +3334,14 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	dev = wl->current_dev;
 	phy = &dev->phy;
 
+	b43_mac_suspend(dev);
+
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		b43_set_retry_limits(dev, conf->short_frame_max_tx_count,
 					  conf->long_frame_max_tx_count);
 	changed &= ~IEEE80211_CONF_CHANGE_RETRY_LIMITS;
 	if (!changed)
-		goto out_unlock_mutex;
-
-	/* Disable IRQs while reconfiguring the device.
-	 * This makes it possible to drop the spinlock throughout
-	 * the reconfiguration process. */
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	if (b43_status(dev) < B43_STAT_STARTED) {
-		spin_unlock_irqrestore(&wl->irq_lock, flags);
-		goto out_unlock_mutex;
-	}
-	savedirqs = b43_interrupt_disable(dev, B43_IRQ_ALL);
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-	b43_synchronize_irq(dev);
+		goto out_mac_enable;
 
 	/* Switch to the requested channel.
 	 * The firmware takes care of races with the TX handler. */
@@ -3399,11 +3388,9 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_interrupt_enable(dev, savedirqs);
-	mmiowb();
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-      out_unlock_mutex:
+out_mac_enable:
+	b43_mac_enable(dev);
+out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
 
 	return err;
@@ -3461,27 +3448,12 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
-	struct b43_phy *phy;
-	unsigned long flags;
-	u32 savedirqs;
 
 	mutex_lock(&wl->mutex);
 
 	dev = wl->current_dev;
-	phy = &dev->phy;
-
-	/* Disable IRQs while reconfiguring the device.
-	 * This makes it possible to drop the spinlock throughout
-	 * the reconfiguration process. */
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	if (b43_status(dev) < B43_STAT_STARTED) {
-		spin_unlock_irqrestore(&wl->irq_lock, flags);
+	if (!dev || b43_status(dev) < B43_STAT_STARTED)
 		goto out_unlock_mutex;
-	}
-	savedirqs = b43_interrupt_disable(dev, B43_IRQ_ALL);
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-	b43_synchronize_irq(dev);
-
 	b43_mac_suspend(dev);
 
 	if (changed & BSS_CHANGED_BASIC_RATES)
@@ -3495,13 +3467,7 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	b43_mac_enable(dev);
-
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_interrupt_enable(dev, savedirqs);
-	/* XXX: why? */
-	mmiowb();
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
- out_unlock_mutex:
+out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
 
 	return;
