@@ -1207,7 +1207,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24116_cmd cmd;
 	fe_status_t tunerstat;
-	int i, status, ret, retune;
+	int i, status, ret, retune = 1;
 
 	dprintk("%s()\n", __func__);
 
@@ -1224,7 +1224,6 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 
 		/* Pilot doesn't exist in DVB-S, turn bit off */
 		state->dnxt.pilot_val = CX24116_PILOT_OFF;
-		retune = 1;
 
 		/* DVB-S only supports 0.35 */
 		if (c->rolloff != ROLLOFF_35) {
@@ -1252,7 +1251,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 		case PILOT_AUTO:	/* Not supported but emulated */
 			state->dnxt.pilot_val = (c->modulation == QPSK)
 				? CX24116_PILOT_OFF : CX24116_PILOT_ON;
-			retune = 2;
+			retune++;
 			break;
 		case PILOT_OFF:
 			state->dnxt.pilot_val = CX24116_PILOT_OFF;
