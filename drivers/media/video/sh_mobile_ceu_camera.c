@@ -101,13 +101,12 @@ struct sh_mobile_ceu_dev {
 };
 
 static void ceu_write(struct sh_mobile_ceu_dev *priv,
-		      unsigned long reg_offs, unsigned long data)
+		      unsigned long reg_offs, u32 data)
 {
 	iowrite32(data, priv->base + reg_offs);
 }
 
-static unsigned long ceu_read(struct sh_mobile_ceu_dev *priv,
-			      unsigned long reg_offs)
+static u32 ceu_read(struct sh_mobile_ceu_dev *priv, unsigned long reg_offs)
 {
 	return ioread32(priv->base + reg_offs);
 }
@@ -155,18 +154,26 @@ static void free_buffer(struct videobuf_queue *vq,
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
+#define CEU_CETCR_MAGIC 0x0317f313 /* acknowledge magical interrupt sources */
+#define CEU_CETCR_IGRW (1 << 4) /* prohibited register access interrupt bit */
+#define CEU_CEIER_CPEIE (1 << 0) /* one-frame capture end interrupt */
+#define CEU_CAPCR_CTNCP (1 << 16) /* continuous capture mode (if set) */
+
+
 static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 {
 	struct soc_camera_device *icd = pcdev->icd;
-	unsigned long phys_addr;
+	dma_addr_t phys_addr;
 
-	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) & ~1);
-	ceu_write(pcdev, CETCR, ~ceu_read(pcdev, CETCR) & 0x0317f313);
-	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) | 1);
-
-	ceu_write(pcdev, CAPCR, ceu_read(pcdev, CAPCR) & ~0x10000);
-
-	ceu_write(pcdev, CETCR, 0x0317f313 ^ 0x10);
+	/* The hardware is _very_ picky about this sequence. Especially
+	 * the CEU_CETCR_MAGIC value. It seems like we need to acknowledge
+	 * several not-so-well documented interrupt sources in CETCR.
+	 */
+	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) & ~CEU_CEIER_CPEIE);
+	ceu_write(pcdev, CETCR, ~ceu_read(pcdev, CETCR) & CEU_CETCR_MAGIC);
+	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) | CEU_CEIER_CPEIE);
+	ceu_write(pcdev, CAPCR, ceu_read(pcdev, CAPCR) & ~CEU_CAPCR_CTNCP);
+	ceu_write(pcdev, CETCR, CEU_CETCR_MAGIC ^ CEU_CETCR_IGRW);
 
 	if (!pcdev->active)
 		return;
@@ -179,7 +186,7 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
-		phys_addr += (icd->width * icd->height);
+		phys_addr += icd->width * icd->height;
 		ceu_write(pcdev, CDACR, phys_addr);
 	}
 
@@ -431,13 +438,13 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 		}
 	}
 
-	if ((icd->current_fmt->fourcc == V4L2_PIX_FMT_NV21) ||
-	    (icd->current_fmt->fourcc == V4L2_PIX_FMT_NV61))
+	if (icd->current_fmt->fourcc == V4L2_PIX_FMT_NV21 ||
+	    icd->current_fmt->fourcc == V4L2_PIX_FMT_NV61)
 		value ^= 0x00000100; /* swap U, V to change from NV1x->NVx1 */
 
-	value |= (common_flags & SOCAM_VSYNC_ACTIVE_LOW) ? (1 << 1) : 0;
-	value |= (common_flags & SOCAM_HSYNC_ACTIVE_LOW) ? (1 << 0) : 0;
-	value |= (buswidth == 16) ? (1 << 12) : 0;
+	value |= common_flags & SOCAM_VSYNC_ACTIVE_LOW ? 1 << 1 : 0;
+	value |= common_flags & SOCAM_HSYNC_ACTIVE_LOW ? 1 << 0 : 0;
+	value |= buswidth == 16 ? 1 << 12 : 0;
 	ceu_write(pcdev, CAMCR, value);
 
 	ceu_write(pcdev, CAPCR, 0x00300000);
@@ -447,13 +454,13 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 
 	if (yuv_mode) {
 		width = icd->width * 2;
-		width = (buswidth == 16) ? width / 2 : width;
+		width = buswidth == 16 ? width / 2 : width;
 		cfszr_width = cdwdr_width = icd->width;
 	} else {
 		width = icd->width * ((icd->current_fmt->depth + 7) >> 3);
-		width = (buswidth == 16) ? width / 2 : width;
-		cfszr_width = (buswidth == 8) ? width / 2 : width;
-		cdwdr_width = (buswidth == 16) ? width * 2 : width;
+		width = buswidth == 16 ? width / 2 : width;
+		cfszr_width = buswidth == 8 ? width / 2 : width;
+		cdwdr_width = buswidth == 16 ? width * 2 : width;
 	}
 
 	ceu_write(pcdev, CAMOR, 0);
