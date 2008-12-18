@@ -145,6 +145,15 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
 #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
 
+static inline int is_linear_pfn_mapping(struct vm_area_struct *vma)
+{
+	return ((vma->vm_flags & VM_PFNMAP) && vma->vm_pgoff);
+}
+
+static inline int is_pfn_mapping(struct vm_area_struct *vma)
+{
+	return (vma->vm_flags & VM_PFNMAP);
+}
 
 /*
  * vm_fault is filled by the the pagefault handler and passed to the vma's
