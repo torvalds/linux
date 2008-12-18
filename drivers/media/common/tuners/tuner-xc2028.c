@@ -1107,6 +1107,10 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 		return 0;
 
 	tuner_dbg("Putting xc2028/3028 into poweroff mode.\n");
+	if (debug > 1) {
+		tuner_dbg("Printing sleep stack trace:\n");
+		dump_stack();
+	}
 
 	mutex_lock(&priv->lock);
 
