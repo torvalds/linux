@@ -152,7 +152,14 @@ static int soc_camera_s_input(struct file *file, void *priv, unsigned int i)
 
 static int soc_camera_s_std(struct file *file, void *priv, v4l2_std_id *a)
 {
-	return 0;
+	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = icf->icd;
+	int ret = 0;
+
+	if (icd->ops->set_std)
+		ret = icd->ops->set_std(icd, a);
+
+	return ret;
 }
 
 static int soc_camera_reqbufs(struct file *file, void *priv,
