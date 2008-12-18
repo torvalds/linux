@@ -8349,7 +8349,7 @@ struct comp_testvec {
 
 /*
  * Deflate test vectors (null-terminated strings).
- * Params: winbits=11, Z_DEFAULT_COMPRESSION, MAX_MEM_LEVEL.
+ * Params: winbits=-11, Z_DEFAULT_COMPRESSION, MAX_MEM_LEVEL.
  */
 #define DEFLATE_COMP_TEST_VECTORS 2
 #define DEFLATE_DECOMP_TEST_VECTORS 2
