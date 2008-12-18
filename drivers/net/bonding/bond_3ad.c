@@ -1675,6 +1675,14 @@ static void ad_initialize_agg(struct aggregator *aggregator)
  */
 static void ad_initialize_port(struct port *port, int lacp_fast)
 {
+	static const struct port_params tmpl = {
+		.system_priority = 0xffff,
+		.key             = 1,
+		.port_number     = 1,
+		.port_priority   = 0xff,
+		.port_state      = 1,
+	};
+
 	if (port) {
 		port->actor_port_number = 1;
 		port->actor_port_priority = 0xff;
@@ -1691,18 +1699,9 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 			port->actor_oper_port_state |= AD_STATE_LACP_TIMEOUT;
 		}
 
-		port->partner_admin.system = null_mac_addr;
-		port->partner_oper.system  = null_mac_addr;
-		port->partner_admin.system_priority = 0xffff;
-		port->partner_oper.system_priority  = 0xffff;
-		port->partner_admin.key = 1;
-		port->partner_oper.key  = 1;
-		port->partner_admin.port_number = 1;
-		port->partner_oper.port_number  = 1;
-		port->partner_admin.port_priority = 0xff;
-		port->partner_oper.port_priority  = 0xff;
-		port->partner_admin.port_state = 1;
-		port->partner_oper.port_state  = 1;
+		memcpy(&port->partner_admin, &tmpl, sizeof(tmpl));
+		memcpy(&port->partner_oper, &tmpl, sizeof(tmpl));
+
 		port->is_enabled = 1;
 		// ****** private parameters ******
 		port->sm_vars = 0x3;
