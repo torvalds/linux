@@ -36,6 +36,7 @@ struct soc_camera_device {
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
 	unsigned char buswidth;		/* See comment in .c */
+	struct soc_camera_sense *sense;	/* See comment in struct definition */
 	struct soc_camera_ops *ops;
 	struct video_device *vdev;
 	const struct soc_camera_data_format *current_fmt;
@@ -170,6 +171,32 @@ struct soc_camera_ops {
 	int (*set_control)(struct soc_camera_device *, struct v4l2_control *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
+};
+
+#define SOCAM_SENSE_PCLK_CHANGED	(1 << 0)
+
+/**
+ * This struct can be attached to struct soc_camera_device by the host driver
+ * to request sense from the camera, for example, when calling .set_fmt(). The
+ * host then can check which flags are set and verify respective values if any.
+ * For example, if SOCAM_SENSE_PCLK_CHANGED is set, it means, pixclock has
+ * changed during this operation. After completion the host should detach sense.
+ *
+ * @flags		ored SOCAM_SENSE_* flags
+ * @master_clock	if the host wants to be informed about pixel-clock
+ *			change, it better set master_clock.
+ * @pixel_clock_max	maximum pixel clock frequency supported by the host,
+ *			camera is not allowed to exceed this.
+ * @pixel_clock		if the camera driver changed pixel clock during this
+ *			operation, it sets SOCAM_SENSE_PCLK_CHANGED, uses
+ *			master_clock to calculate the new pixel-clock and
+ *			sets this field.
+ */
+struct soc_camera_sense {
+	unsigned long flags;
+	unsigned long master_clock;
+	unsigned long pixel_clock_max;
+	unsigned long pixel_clock;
 };
 
 static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
