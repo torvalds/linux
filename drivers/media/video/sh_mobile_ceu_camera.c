@@ -96,6 +96,8 @@ struct sh_mobile_ceu_dev {
 	struct videobuf_buffer *active;
 
 	struct sh_mobile_ceu_info *pdata;
+
+	const struct soc_camera_data_format *camera_fmt;
 };
 
 static void ceu_write(struct sh_mobile_ceu_dev *priv,
@@ -155,6 +157,9 @@ static void free_buffer(struct videobuf_queue *vq,
 
 static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 {
+	struct soc_camera_device *icd = pcdev->icd;
+	unsigned long phys_addr;
+
 	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) & ~1);
 	ceu_write(pcdev, CETCR, ~ceu_read(pcdev, CETCR) & 0x0317f313);
 	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) | 1);
@@ -163,11 +168,21 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 
 	ceu_write(pcdev, CETCR, 0x0317f313 ^ 0x10);
 
-	if (pcdev->active) {
-		pcdev->active->state = VIDEOBUF_ACTIVE;
-		ceu_write(pcdev, CDAYR, videobuf_to_dma_contig(pcdev->active));
-		ceu_write(pcdev, CAPSR, 0x1); /* start capture */
+	if (!pcdev->active)
+		return;
+
+	phys_addr = videobuf_to_dma_contig(pcdev->active);
+	ceu_write(pcdev, CDAYR, phys_addr);
+
+	switch (icd->current_fmt->fourcc) {
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		phys_addr += (icd->width * icd->height);
+		ceu_write(pcdev, CDACR, phys_addr);
 	}
+
+	pcdev->active->state = VIDEOBUF_ACTIVE;
+	ceu_write(pcdev, CAPSR, 0x1); /* start capture */
 }
 
 static int sh_mobile_ceu_videobuf_prepare(struct videobuf_queue *vq,
@@ -359,6 +374,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	int ret, buswidth, width, cfszr_width, cdwdr_width;
 	unsigned long camera_flags, common_flags, value;
+	int yuv_mode, yuv_lineskip;
 
 	camera_flags = icd->ops->query_bus_param(icd);
 	common_flags = soc_camera_bus_param_compatible(camera_flags,
@@ -384,7 +400,35 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CRCNTR, 0);
 	ceu_write(pcdev, CRCMPR, 0);
 
-	value = 0x00000010;
+	value = 0x00000010; /* data fetch by default */
+	yuv_mode = yuv_lineskip = 0;
+
+	switch (icd->current_fmt->fourcc) {
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		yuv_lineskip = 1; /* skip for NV12/21, no skip for NV16/61 */
+		yuv_mode = 1;
+		switch (pcdev->camera_fmt->fourcc) {
+		case V4L2_PIX_FMT_UYVY:
+			value = 0x00000000; /* Cb0, Y0, Cr0, Y1 */
+			break;
+		case V4L2_PIX_FMT_VYUY:
+			value = 0x00000100; /* Cr0, Y0, Cb0, Y1 */
+			break;
+		case V4L2_PIX_FMT_YUYV:
+			value = 0x00000200; /* Y0, Cb0, Y1, Cr0 */
+			break;
+		case V4L2_PIX_FMT_YVYU:
+			value = 0x00000300; /* Y0, Cr0, Y1, Cb0 */
+			break;
+		default:
+			BUG();
+		}
+	}
+
+	if (icd->current_fmt->fourcc == V4L2_PIX_FMT_NV21)
+		value ^= 0x00000100; /* swap U, V to change from NV12->NV21 */
+
 	value |= (common_flags & SOCAM_VSYNC_ACTIVE_LOW) ? (1 << 1) : 0;
 	value |= (common_flags & SOCAM_HSYNC_ACTIVE_LOW) ? (1 << 0) : 0;
 	value |= (buswidth == 16) ? (1 << 12) : 0;
@@ -395,16 +439,22 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 
 	mdelay(1);
 
-	width = icd->width * (icd->current_fmt->depth / 8);
-	width = (buswidth == 16) ? width / 2 : width;
-	cfszr_width = (buswidth == 8) ? width / 2 : width;
-	cdwdr_width = (buswidth == 16) ? width * 2 : width;
+	if (yuv_mode) {
+		width = icd->width * 2;
+		width = (buswidth == 16) ? width / 2 : width;
+		cfszr_width = cdwdr_width = icd->width;
+	} else {
+		width = icd->width * ((icd->current_fmt->depth + 7) >> 3);
+		width = (buswidth == 16) ? width / 2 : width;
+		cfszr_width = (buswidth == 8) ? width / 2 : width;
+		cdwdr_width = (buswidth == 16) ? width * 2 : width;
+	}
 
 	ceu_write(pcdev, CAMOR, 0);
 	ceu_write(pcdev, CAPWR, (icd->height << 16) | width);
-	ceu_write(pcdev, CFLCR, 0); /* data fetch mode - no scaling */
+	ceu_write(pcdev, CFLCR, 0); /* no scaling */
 	ceu_write(pcdev, CFSZR, (icd->height << 16) | cfszr_width);
-	ceu_write(pcdev, CLFCR, 0); /* data fetch mode - no lowpass filter */
+	ceu_write(pcdev, CLFCR, 0); /* no lowpass filter */
 
 	/* A few words about byte order (observed in Big Endian mode)
 	 *
@@ -418,14 +468,16 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	 * using 7 we swap the data bytes to match the incoming order:
 	 * D0, D1, D2, D3, D4, D5, D6, D7
 	 */
-	ceu_write(pcdev, CDOCR, 0x00000017);
+	value = 0x00000017;
+	if (yuv_lineskip)
+		value &= ~0x00000010; /* convert 4:2:2 -> 4:2:0 */
+
+	ceu_write(pcdev, CDOCR, value);
 
 	ceu_write(pcdev, CDWDR, cdwdr_width);
 	ceu_write(pcdev, CFWCR, 0); /* keep "datafetch firewall" disabled */
 
 	/* not in bundle mode: skip CBDSR, CDAYR2, CDACR2, CDBYR2, CDBCR2 */
-	/* in data fetch mode: no need for CDACR, CDBYR, CDBCR */
-
 	return 0;
 }
 
@@ -444,11 +496,26 @@ static int sh_mobile_ceu_try_bus_param(struct soc_camera_device *icd)
 	return 0;
 }
 
+static const struct soc_camera_data_format sh_mobile_ceu_formats[] = {
+	{
+		.name		= "NV12",
+		.depth		= 12,
+		.fourcc		= V4L2_PIX_FMT_NV12,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
+	},
+	{
+		.name		= "NV21",
+		.depth		= 12,
+		.fourcc		= V4L2_PIX_FMT_NV21,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
+	},
+};
+
 static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 				     struct soc_camera_format_xlate *xlate)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int ret;
+	int ret, k, n;
 	int formats = 0;
 
 	ret = sh_mobile_ceu_try_bus_param(icd);
@@ -456,6 +523,21 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 		return 0;
 
 	switch (icd->formats[idx].fourcc) {
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_VYUY:
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_YVYU:
+		n = ARRAY_SIZE(sh_mobile_ceu_formats);
+		formats += n;
+		for (k = 0; xlate && k < n; k++) {
+			xlate->host_fmt = &sh_mobile_ceu_formats[k];
+			xlate->cam_fmt = icd->formats + idx;
+			xlate->buswidth = icd->formats[idx].depth;
+			xlate++;
+			dev_dbg(&ici->dev, "Providing format %s using %s\n",
+				sh_mobile_ceu_formats[k].name,
+				icd->formats[idx].name);
+		}
 	default:
 		/* Generic pass-through */
 		formats++;
@@ -477,6 +559,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 				 __u32 pixfmt, struct v4l2_rect *rect)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	const struct soc_camera_format_xlate *xlate;
 	int ret;
 
@@ -497,6 +580,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	if (pixfmt && !ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
+		pcdev->camera_fmt = xlate->cam_fmt;
 	}
 
 	return ret;
