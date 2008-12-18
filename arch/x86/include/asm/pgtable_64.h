@@ -177,12 +177,6 @@ static inline int pmd_bad(pmd_t pmd)
 #define pages_to_mb(x)	((x) >> (20 - PAGE_SHIFT))   /* FIXME: is this right? */
 
 /*
- * Macro to mark a page protection value as "uncacheable".
- */
-#define pgprot_noncached(prot)					\
-	(__pgprot(pgprot_val((prot)) | _PAGE_PCD | _PAGE_PWT))
-
-/*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
  */
