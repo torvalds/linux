@@ -3394,7 +3394,7 @@ out_balanced:
 		*imbalance = min_load_per_task;
 		if (sched_mc_power_savings >= POWERSAVINGS_BALANCE_WAKEUP) {
 			cpu_rq(this_cpu)->rd->sched_mc_preferred_wakeup_cpu =
-					first_cpu(group_leader->cpumask);
+				cpumask_first(sched_group_cpus(group_leader));
 		}
 		return group_min;
 	}
