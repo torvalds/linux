@@ -1350,7 +1350,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		return ret;
 	}
 
-	if (pdata->init) {
+	if (pdata && pdata->init) {
 		ret = pdata->init(wm8350);
 		if (ret != 0) {
 			dev_err(wm8350->dev, "Platform init() failed: %d\n",
