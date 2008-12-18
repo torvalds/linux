@@ -49,8 +49,10 @@ it and 002/048 sometime later.
 
 These files can be read as binary data.  The binary data consists
 of first the device descriptor, then the descriptors for each
-configuration of the device.  That information is also shown in
-text form by the /proc/bus/usb/devices file, described later.
+configuration of the device.  Multi-byte fields in the device and
+configuration descriptors, but not other descriptors, are converted
+to host endianness by the kernel.  This information is also shown
+in text form by the /proc/bus/usb/devices file, described later.
 
 These files may also be used to write user-level drivers for the USB
 devices.  You would open the /proc/bus/usb/BBB/DDD file read/write,
