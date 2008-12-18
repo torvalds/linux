@@ -66,6 +66,39 @@ EXPORT_SYMBOL(pci_bus_write_config_byte);
 EXPORT_SYMBOL(pci_bus_write_config_word);
 EXPORT_SYMBOL(pci_bus_write_config_dword);
 
+
+/**
+ * pci_read_vpd - Read one entry from Vital Product Data
+ * @dev:	pci device struct
+ * @pos:	offset in vpd space
+ * @count:	number of bytes to read
+ * @buf:	pointer to where to store result
+ *
+ */
+ssize_t pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf)
+{
+	if (!dev->vpd || !dev->vpd->ops)
+		return -ENODEV;
+	return dev->vpd->ops->read(dev, pos, count, buf);
+}
+EXPORT_SYMBOL(pci_read_vpd);
+
+/**
+ * pci_write_vpd - Write entry to Vital Product Data
+ * @dev:	pci device struct
+ * @pos:	offset in vpd space
+ * @count:	number of bytes to read
+ * @val:	value to write
+ *
+ */
+ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf)
+{
+	if (!dev->vpd || !dev->vpd->ops)
+		return -ENODEV;
+	return dev->vpd->ops->write(dev, pos, count, buf);
+}
+EXPORT_SYMBOL(pci_write_vpd);
+
 /*
  * The following routines are to prevent the user from accessing PCI config
  * space when it's unsafe to do so.  Some devices require this during BIST and
@@ -176,19 +209,17 @@ static int pci_vpd_pci22_wait(struct pci_dev *dev)
 	}
 }
 
-static int pci_vpd_pci22_read(struct pci_dev *dev, int pos, int size,
-			      char *buf)
+static ssize_t pci_vpd_pci22_read(struct pci_dev *dev, loff_t pos, size_t count,
+				  void *arg)
 {
 	struct pci_vpd_pci22 *vpd =
 		container_of(dev->vpd, struct pci_vpd_pci22, base);
-	u32 val;
-	int ret = 0;
-	int begin, end, i;
+	int ret;
+	loff_t end = pos + count;
+	u8 *buf = arg;
 
-	if (pos < 0 || pos > vpd->base.len || size > vpd->base.len  - pos)
+	if (pos < 0 || pos > vpd->base.len || end > vpd->base.len)
 		return -EINVAL;
-	if (size == 0)
-		return 0;
 
 	if (mutex_lock_killable(&vpd->lock))
 		return -EINTR;
@@ -196,73 +227,84 @@ static int pci_vpd_pci22_read(struct pci_dev *dev, int pos, int size,
 	ret = pci_vpd_pci22_wait(dev);
 	if (ret < 0)
 		goto out;
-	ret = pci_user_write_config_word(dev, vpd->cap + PCI_VPD_ADDR,
-					 pos & ~3);
-	if (ret < 0)
-		goto out;
 
-	vpd->busy = true;
-	vpd->flag = PCI_VPD_ADDR_F;
-	ret = pci_vpd_pci22_wait(dev);
-	if (ret < 0)
-		goto out;
-	ret = pci_user_read_config_dword(dev, vpd->cap + PCI_VPD_DATA,
-					 &val);
+	while (pos < end) {
+		u32 val;
+		unsigned int i, skip;
+
+		ret = pci_user_write_config_word(dev, vpd->cap + PCI_VPD_ADDR,
+						 pos & ~3);
+		if (ret < 0)
+			break;
+		vpd->busy = true;
+		vpd->flag = PCI_VPD_ADDR_F;
+		ret = pci_vpd_pci22_wait(dev);
+		if (ret < 0)
+			break;
+
+		ret = pci_user_read_config_dword(dev, vpd->cap + PCI_VPD_DATA, &val);
+		if (ret < 0)
+			break;
+
+		skip = pos & 3;
+		for (i = 0;  i < sizeof(u32); i++) {
+			if (i >= skip) {
+				*buf++ = val;
+				if (++pos == end)
+					break;
+			}
+			val >>= 8;
+		}
+	}
 out:
 	mutex_unlock(&vpd->lock);
-	if (ret < 0)
-		return ret;
-
-	/* Convert to bytes */
-	begin = pos & 3;
-	end = min(4, begin + size);
-	for (i = 0; i < end; ++i) {
-		if (i >= begin)
-			*buf++ = val;
-		val >>= 8;
-	}
-	return end - begin;
+	return ret ? ret : count;
 }
 
-static int pci_vpd_pci22_write(struct pci_dev *dev, int pos, int size,
-			       const char *buf)
+static ssize_t pci_vpd_pci22_write(struct pci_dev *dev, loff_t pos, size_t count,
+				   const void *arg)
 {
 	struct pci_vpd_pci22 *vpd =
 		container_of(dev->vpd, struct pci_vpd_pci22, base);
-	u32 val;
+	const u8 *buf = arg;
+	loff_t end = pos + count;
 	int ret = 0;
 
-	if (pos < 0 || pos > vpd->base.len || pos & 3 ||
-	    size > vpd->base.len - pos || size < 4)
+	if (pos < 0 || (pos & 3) || (count & 3) || end > vpd->base.len)
 		return -EINVAL;
-
-	val = (u8) *buf++;
-	val |= ((u8) *buf++) << 8;
-	val |= ((u8) *buf++) << 16;
-	val |= ((u32)(u8) *buf++) << 24;
 
 	if (mutex_lock_killable(&vpd->lock))
 		return -EINTR;
+
 	ret = pci_vpd_pci22_wait(dev);
 	if (ret < 0)
 		goto out;
-	ret = pci_user_write_config_dword(dev, vpd->cap + PCI_VPD_DATA,
-					  val);
-	if (ret < 0)
-		goto out;
-	ret = pci_user_write_config_word(dev, vpd->cap + PCI_VPD_ADDR,
-					 pos | PCI_VPD_ADDR_F);
-	if (ret < 0)
-		goto out;
-	vpd->busy = true;
-	vpd->flag = 0;
-	ret = pci_vpd_pci22_wait(dev);
+
+	while (pos < end) {
+		u32 val;
+
+		val = *buf++;
+		val |= *buf++ << 8;
+		val |= *buf++ << 16;
+		val |= *buf++ << 24;
+
+		ret = pci_user_write_config_dword(dev, vpd->cap + PCI_VPD_DATA, val);
+		if (ret < 0)
+			break;
+		ret = pci_user_write_config_word(dev, vpd->cap + PCI_VPD_ADDR,
+						 pos | PCI_VPD_ADDR_F);
+		if (ret < 0)
+			break;
+
+		vpd->busy = true;
+		vpd->flag = 0;
+		ret = pci_vpd_pci22_wait(dev);
+
+		pos += sizeof(u32);
+	}
 out:
 	mutex_unlock(&vpd->lock);
-	if (ret < 0)
-		return ret;
-
-	return 4;
+	return ret ? ret : count;
 }
 
 static void pci_vpd_pci22_release(struct pci_dev *dev)
@@ -270,7 +312,7 @@ static void pci_vpd_pci22_release(struct pci_dev *dev)
 	kfree(container_of(dev->vpd, struct pci_vpd_pci22, base));
 }
 
-static struct pci_vpd_ops pci_vpd_pci22_ops = {
+static const struct pci_vpd_ops pci_vpd_pci22_ops = {
 	.read = pci_vpd_pci22_read,
 	.write = pci_vpd_pci22_write,
 	.release = pci_vpd_pci22_release,

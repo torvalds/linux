@@ -371,55 +371,33 @@ pci_write_config(struct kobject *kobj, struct bin_attribute *bin_attr,
 }
 
 static ssize_t
-pci_read_vpd(struct kobject *kobj, struct bin_attribute *bin_attr,
-	     char *buf, loff_t off, size_t count)
-{
-	struct pci_dev *dev =
-		to_pci_dev(container_of(kobj, struct device, kobj));
-	int end;
-	int ret;
-
-	if (off > bin_attr->size)
-		count = 0;
-	else if (count > bin_attr->size - off)
-		count = bin_attr->size - off;
-	end = off + count;
-
-	while (off < end) {
-		ret = dev->vpd->ops->read(dev, off, end - off, buf);
-		if (ret < 0)
-			return ret;
-		buf += ret;
-		off += ret;
-	}
-
-	return count;
-}
-
-static ssize_t
-pci_write_vpd(struct kobject *kobj, struct bin_attribute *bin_attr,
+read_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
 	      char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *dev =
 		to_pci_dev(container_of(kobj, struct device, kobj));
-	int end;
-	int ret;
 
 	if (off > bin_attr->size)
 		count = 0;
 	else if (count > bin_attr->size - off)
 		count = bin_attr->size - off;
-	end = off + count;
 
-	while (off < end) {
-		ret = dev->vpd->ops->write(dev, off, end - off, buf);
-		if (ret < 0)
-			return ret;
-		buf += ret;
-		off += ret;
-	}
+	return pci_read_vpd(dev, off, count, buf);
+}
 
-	return count;
+static ssize_t
+write_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
+	       char *buf, loff_t off, size_t count)
+{
+	struct pci_dev *dev =
+		to_pci_dev(container_of(kobj, struct device, kobj));
+
+	if (off > bin_attr->size)
+		count = 0;
+	else if (count > bin_attr->size - off)
+		count = bin_attr->size - off;
+
+	return pci_write_vpd(dev, off, count, buf);
 }
 
 #ifdef HAVE_PCI_LEGACY
@@ -845,8 +823,8 @@ static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 		attr->size = dev->vpd->len;
 		attr->attr.name = "vpd";
 		attr->attr.mode = S_IRUSR | S_IWUSR;
-		attr->read = pci_read_vpd;
-		attr->write = pci_write_vpd;
+		attr->read = read_vpd_attr;
+		attr->write = write_vpd_attr;
 		retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
 		if (retval) {
 			kfree(dev->vpd->attr);

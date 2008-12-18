@@ -56,14 +56,14 @@ extern int pci_user_write_config_word(struct pci_dev *dev, int where, u16 val);
 extern int pci_user_write_config_dword(struct pci_dev *dev, int where, u32 val);
 
 struct pci_vpd_ops {
-	int (*read)(struct pci_dev *dev, int pos, int size, char *buf);
-	int (*write)(struct pci_dev *dev, int pos, int size, const char *buf);
+	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
+	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
 	void (*release)(struct pci_dev *dev);
 };
 
 struct pci_vpd {
 	unsigned int len;
-	struct pci_vpd_ops *ops;
+	const struct pci_vpd_ops *ops;
 	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
 };
 
