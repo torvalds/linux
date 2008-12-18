@@ -89,5 +89,7 @@ source "drivers/staging/rspiusb/Kconfig"
 
 source "drivers/staging/mimio/Kconfig"
 
+source "drivers/staging/frontier/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
