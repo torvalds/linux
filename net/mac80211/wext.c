@@ -833,7 +833,7 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_conf *conf = &local->hw.conf;
-	int ret = 0;
+	int ret = 0, timeout = 0;
 	bool ps;
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
@@ -841,6 +841,7 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 
 	if (wrq->disabled) {
 		ps = false;
+		timeout = 0;
 		goto set;
 	}
 
@@ -850,22 +851,31 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 	case IW_POWER_ALL_R:    /* If explicitely state all */
 		ps = true;
 		break;
-	default:                /* Otherwise we don't support it */
-		return -EINVAL;
+	default:                /* Otherwise we ignore */
+		break;
 	}
 
-	if (ps == local->powersave)
-		return ret;
+	if (wrq->flags & IW_POWER_TIMEOUT)
+		timeout = wrq->value / 1000;
 
 set:
+	if (ps == local->powersave && timeout == local->dynamic_ps_timeout)
+		return ret;
+
 	local->powersave = ps;
+	local->dynamic_ps_timeout = timeout;
 
 	if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
-		if (local->powersave)
-			conf->flags |= IEEE80211_CONF_PS;
-		else
-			conf->flags &= ~IEEE80211_CONF_PS;
-
+		if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) &&
+		    local->dynamic_ps_timeout > 0)
+			mod_timer(&local->dynamic_ps_timer, jiffies +
+				  msecs_to_jiffies(local->dynamic_ps_timeout));
+		else {
+			if (local->powersave)
+				conf->flags |= IEEE80211_CONF_PS;
+			else
+				conf->flags &= ~IEEE80211_CONF_PS;
+		}
 		ret = ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 

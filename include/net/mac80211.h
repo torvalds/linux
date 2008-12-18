@@ -854,6 +854,11 @@ enum ieee80211_tkip_key_type {
  *
  * @IEEE80211_HW_AMPDU_AGGREGATION:
  *	Hardware supports 11n A-MPDU aggregation.
+ *
+ * @IEEE80211_HW_NO_STACK_DYNAMIC_PS:
+ *	Hardware which has dynamic power save support, meaning
+ *	that power save is enabled in idle periods, and don't need support
+ *	from stack.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
@@ -866,6 +871,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_NOISE_DBM				= 1<<8,
 	IEEE80211_HW_SPECTRUM_MGMT			= 1<<9,
 	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<10,
+	IEEE80211_HW_NO_STACK_DYNAMIC_PS		= 1<<11,
 };
 
 /**
