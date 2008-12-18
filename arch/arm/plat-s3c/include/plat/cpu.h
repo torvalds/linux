@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/plat-s3c24xx/cpu.h
+/* linux/arch/arm/plat-s3c/include/plat/cpu.h
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -18,7 +18,7 @@
 #define MHZ (1000*1000)
 #endif
 
-#define print_mhz(m) ((m) / MHZ), ((m / 1000) % 1000)
+#define print_mhz(m) ((m) / MHZ), (((m) / 1000) % 1000)
 
 /* forward declaration */
 struct s3c24xx_uart_resources;
@@ -26,11 +26,28 @@ struct platform_device;
 struct s3c2410_uartcfg;
 struct map_desc;
 
+/* per-cpu initialisation function table. */
+
+struct cpu_table {
+	unsigned long	idcode;
+	unsigned long	idmask;
+	void		(*map_io)(void);
+	void		(*init_uarts)(struct s3c2410_uartcfg *cfg, int no);
+	void		(*init_clocks)(int xtal);
+	int		(*init)(void);
+	const char	*name;
+};
+
+extern void s3c_init_cpu(unsigned long idcode,
+			 struct cpu_table *cpus, unsigned int cputab_size);
+
 /* core initialisation functions */
 
 extern void s3c24xx_init_irq(void);
+extern void s3c64xx_init_irq(u32 vic0, u32 vic1);
 
 extern void s3c24xx_init_io(struct map_desc *mach_desc, int size);
+extern void s3c64xx_init_io(struct map_desc *mach_desc, int size);
 
 extern void s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 

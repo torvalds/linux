@@ -40,6 +40,7 @@
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 #include <plat/nand.h>
+#include <plat/iic.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -366,6 +367,8 @@ static struct sm501_initdata anubis_sm501_initdata = {
 		.mask	= 0,
 	},
 
+	.devices	= SM501_USE_GPIO,
+
 	/* set the SDRAM and bus clocks */
 	.mclk		= 72 * MHZ,
 	.m1xclk		= 144 * MHZ,
@@ -373,10 +376,12 @@ static struct sm501_initdata anubis_sm501_initdata = {
 
 static struct sm501_platdata_gpio_i2c anubis_sm501_gpio_i2c[] = {
 	[0] = {
+		.bus_num	= 1,
 		.pin_scl	= 44,
 		.pin_sda	= 45,
 	},
 	[1] = {
+		.bus_num	= 2,
 		.pin_scl	= 40,
 		.pin_sda	= 41,
 	},
@@ -384,6 +389,7 @@ static struct sm501_platdata_gpio_i2c anubis_sm501_gpio_i2c[] = {
 
 static struct sm501_platdata anubis_sm501_platdata = {
 	.init		= &anubis_sm501_initdata,
+	.gpio_base	= -1,
 	.gpio_i2c	= anubis_sm501_gpio_i2c,
 	.gpio_i2c_nr	= ARRAY_SIZE(anubis_sm501_gpio_i2c),
 };
@@ -404,7 +410,7 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_wdt,
 	&s3c_device_adc,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
  	&s3c_device_rtc,
 	&s3c_device_nand,
 	&anubis_device_ide0,
@@ -468,6 +474,7 @@ static void __init anubis_map_io(void)
 
 static void __init anubis_init(void)
 {
+	s3c_i2c0_set_platdata(NULL);
 	platform_add_devices(anubis_devices, ARRAY_SIZE(anubis_devices));
 
 	i2c_register_board_info(0, anubis_i2c_devs,

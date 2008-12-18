@@ -28,6 +28,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/fb.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
@@ -36,6 +37,7 @@
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 #include <plat/nand.h>
+#include <plat/iic.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -45,6 +47,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <asm/plat-s3c24xx/mci.h>
 
 static struct map_desc at2440evb_iodesc[] __initdata = {
 	/* Nothing here */
@@ -162,19 +165,60 @@ static struct platform_device at2440evb_device_eth = {
 	},
 };
 
+static struct s3c24xx_mci_pdata at2440evb_mci_pdata = {
+	.gpio_detect	= S3C2410_GPG10,
+};
+
+/* 7" LCD panel */
+
+static struct s3c2410fb_display at2440evb_lcd_cfg __initdata = {
+
+	.lcdcon5	= S3C2410_LCDCON5_FRM565 |
+			  S3C2410_LCDCON5_INVVLINE |
+			  S3C2410_LCDCON5_INVVFRAME |
+			  S3C2410_LCDCON5_PWREN |
+			  S3C2410_LCDCON5_HWSWP,
+
+	.type		= S3C2410_LCDCON1_TFT,
+
+	.width		= 800,
+	.height		= 480,
+
+	.pixclock	= 33333, /* HCLK 60 MHz, divisor 2 */
+	.xres		= 800,
+	.yres		= 480,
+	.bpp		= 16,
+	.left_margin	= 88,
+	.right_margin	= 40,
+	.hsync_len	= 128,
+	.upper_margin	= 32,
+	.lower_margin	= 11,
+	.vsync_len	= 2,
+};
+
+static struct s3c2410fb_mach_info at2440evb_fb_info __initdata = {
+	.displays	= &at2440evb_lcd_cfg,
+	.num_displays	= 1,
+	.default_display = 0,
+};
+
 static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_wdt,
 	&s3c_device_adc,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_rtc,
 	&s3c_device_nand,
+	&s3c_device_sdi,
+	&s3c_device_lcd,
 	&at2440evb_device_eth,
 };
 
 static void __init at2440evb_map_io(void)
 {
 	s3c_device_nand.dev.platform_data = &at2440evb_nand_info;
+	s3c_device_sdi.name = "s3c2440-sdi";
+	s3c_device_sdi.dev.platform_data = &at2440evb_mci_pdata;
 
 	s3c24xx_init_io(at2440evb_iodesc, ARRAY_SIZE(at2440evb_iodesc));
 	s3c24xx_init_clocks(16934400);
@@ -183,6 +227,9 @@ static void __init at2440evb_map_io(void)
 
 static void __init at2440evb_init(void)
 {
+	s3c24xx_fb_set_platdata(&at2440evb_fb_info);
+	s3c_i2c0_set_platdata(NULL);
+
 	platform_add_devices(at2440evb_devices, ARRAY_SIZE(at2440evb_devices));
 }
 

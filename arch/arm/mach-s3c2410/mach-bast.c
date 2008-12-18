@@ -406,7 +406,7 @@ static struct platform_device bast_sio = {
  * standard 100KHz i2c bus frequency
 */
 
-static struct s3c2410_platform_i2c bast_i2c_info = {
+static struct s3c2410_platform_i2c __initdata bast_i2c_info = {
 	.flags		= 0,
 	.slave_addr	= 0x10,
 	.bus_freq	= 100*1000,
@@ -553,7 +553,7 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
  	&s3c_device_rtc,
 	&s3c_device_nand,
 	&bast_device_dm9k,
@@ -588,7 +588,8 @@ static void __init bast_map_io(void)
 	s3c24xx_register_clocks(bast_clocks, ARRAY_SIZE(bast_clocks));
 
 	s3c_device_nand.dev.platform_data = &bast_nand_info;
-	s3c_device_i2c.dev.platform_data = &bast_i2c_info;
+
+	s3c_i2c0_set_platdata(&bast_i2c_info);
 
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);

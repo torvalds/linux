@@ -37,6 +37,7 @@
 
 #include <mach/idle.h>
 #include <mach/fb.h>
+#include <plat/iic.h>
 
 #include <plat/s3c2410.h>
 #include <plat/s3c2440.h>
@@ -103,8 +104,8 @@ static struct s3c2410_uartcfg smdk2443_uartcfgs[] __initdata = {
 
 static struct platform_device *smdk2443_devices[] __initdata = {
 	&s3c_device_wdt,
-	&s3c_device_i2c,
-	&s3c_device_hsmmc,
+	&s3c_device_i2c0,
+	&s3c_device_hsmmc0,
 };
 
 static void __init smdk2443_map_io(void)
@@ -116,6 +117,7 @@ static void __init smdk2443_map_io(void)
 
 static void __init smdk2443_machine_init(void)
 {
+	s3c_i2c0_set_platdata(NULL);
 	platform_add_devices(smdk2443_devices, ARRAY_SIZE(smdk2443_devices));
 	smdk_machine_init();
 }

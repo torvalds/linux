@@ -1,15 +1,12 @@
-/* arch/arm/mach-s3c2410/include/mach/vmalloc.h
+/* linux/include/asm-arm/arch-s3c24ao/vmalloc.h
  *
- * from arch/arm/mach-iop3xx/include/mach/vmalloc.h
- *
- * Copyright (c) 2003 Simtec Electronics <linux@simtec.co.uk>
- *		      http://www.simtec.co.uk/products/SWLINUX/
- *
+ * Copyright 2008 Simtec Electronics <linux@simtec.co.uk>
+
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * S3C2410 vmalloc definition
+ * S3C24A0 vmalloc definition
 */
 
 #ifndef __ASM_ARCH_VMALLOC_H

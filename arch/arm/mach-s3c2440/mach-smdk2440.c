@@ -37,6 +37,7 @@
 
 #include <mach/idle.h>
 #include <mach/fb.h>
+#include <plat/iic.h>
 
 #include <plat/s3c2410.h>
 #include <plat/s3c2440.h>
@@ -152,7 +153,7 @@ static struct platform_device *smdk2440_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_iis,
 };
 
@@ -166,6 +167,7 @@ static void __init smdk2440_map_io(void)
 static void __init smdk2440_machine_init(void)
 {
 	s3c24xx_fb_set_platdata(&smdk2440_fb_info);
+	s3c_i2c0_set_platdata(NULL);
 
 	platform_add_devices(smdk2440_devices, ARRAY_SIZE(smdk2440_devices));
 	smdk_machine_init();

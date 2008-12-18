@@ -69,12 +69,12 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 	/*
 	 * Make sure we clear all existing interrupts
 	 */
-	writel(0, base + VIC_VECT_ADDR);
+	writel(0, base + VIC_PL190_VECT_ADDR);
 	for (i = 0; i < 19; i++) {
 		unsigned int value;
 
-		value = readl(base + VIC_VECT_ADDR);
-		writel(value, base + VIC_VECT_ADDR);
+		value = readl(base + VIC_PL190_VECT_ADDR);
+		writel(value, base + VIC_PL190_VECT_ADDR);
 	}
 
 	for (i = 0; i < 16; i++) {
@@ -82,7 +82,7 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 		writel(VIC_VECT_CNTL_ENABLE | i, reg);
 	}
 
-	writel(32, base + VIC_DEF_VECT_ADDR);
+	writel(32, base + VIC_PL190_DEF_VECT_ADDR);
 
 	for (i = 0; i < 32; i++) {
 		unsigned int irq = irq_start + i;

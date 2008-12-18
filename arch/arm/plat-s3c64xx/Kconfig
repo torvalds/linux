@@ -1,0 +1,62 @@
+# arch/arm/plat-s3c64xx/Kconfig
+#
+# Copyright 2008 Openmoko, Inc.
+# Copyright 2008 Simtec Electronics
+#	Ben Dooks <ben@simtec.co.uk>
+#
+# Licensed under GPLv2
+
+config PLAT_S3C64XX
+	bool
+	depends on ARCH_S3C64XX
+	default y
+	select CPU_V6
+	select PLAT_S3C
+	select ARM_VIC
+	select NO_IOPORT
+	select ARCH_REQUIRE_GPIOLIB
+	select S3C_GPIO_TRACK
+	select S3C_GPIO_PULL_UPDOWN
+	select S3C_GPIO_CFG_S3C24XX
+	select S3C_GPIO_CFG_S3C64XX
+	help
+	  Base platform code for any Samsung S3C64XX device
+
+if PLAT_S3C64XX
+
+# Configuration options shared by all S3C64XX implementations
+
+config CPU_S3C6400_INIT
+	bool
+	help
+	  Common initialisation code for the S3C6400 that is shared
+	  by other CPUs in the series, such as the S3C6410.
+
+config CPU_S3C6400_CLOCK
+	bool
+	help
+	  Common clock support code for the S3C6400 that is shared
+	  by other CPUs in the series, such as the S3C6410.
+
+# platform specific device setup
+
+config S3C64XX_SETUP_I2C0
+	bool
+	default y
+	help
+	  Common setup code for i2c bus 0.
+
+	  Note, currently since i2c0 is always compiled, this setup helper
+	  is always compiled with it.
+
+config S3C64XX_SETUP_I2C1
+	bool
+	help
+	  Common setup code for i2c bus 1.
+
+config S3C64XX_SETUP_FB_24BPP
+	bool
+	help
+	  Common setup code for S3C64XX with an 24bpp RGB display helper.
+
+endif

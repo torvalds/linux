@@ -42,13 +42,6 @@
 #define S3C2410_CLKCON_IIS	     (1<<17)
 #define S3C2410_CLKCON_SPI	     (1<<18)
 
-#define S3C2410_PLLCON_MDIVSHIFT     12
-#define S3C2410_PLLCON_PDIVSHIFT     4
-#define S3C2410_PLLCON_SDIVSHIFT     0
-#define S3C2410_PLLCON_MDIVMASK	     ((1<<(1+(19-12)))-1)
-#define S3C2410_PLLCON_PDIVMASK	     ((1<<5)-1)
-#define S3C2410_PLLCON_SDIVMASK	     3
-
 /* DCLKCON register addresses in gpio.h */
 
 #define S3C2410_DCLKCON_DCLK0EN	     (1<<0)
@@ -75,32 +68,6 @@
 #define S3C2410_CLKSLOW_SLOW		(1<<4)
 #define S3C2410_CLKSLOW_SLOWVAL(x)	(x)
 #define S3C2410_CLKSLOW_GET_SLOWVAL(x)	((x) & 7)
-
-#ifndef __ASSEMBLY__
-
-#include <asm/div64.h>
-
-static inline unsigned int
-s3c2410_get_pll(unsigned int pllval, unsigned int baseclk)
-{
-	unsigned int mdiv, pdiv, sdiv;
-	uint64_t fvco;
-
-	mdiv = pllval >> S3C2410_PLLCON_MDIVSHIFT;
-	pdiv = pllval >> S3C2410_PLLCON_PDIVSHIFT;
-	sdiv = pllval >> S3C2410_PLLCON_SDIVSHIFT;
-
-	mdiv &= S3C2410_PLLCON_MDIVMASK;
-	pdiv &= S3C2410_PLLCON_PDIVMASK;
-	sdiv &= S3C2410_PLLCON_SDIVMASK;
-
-	fvco = (uint64_t)baseclk * (mdiv + 8);
-	do_div(fvco, (pdiv + 2) << sdiv);
-
-	return (unsigned int)fvco;
-}
-
-#endif /* __ASSEMBLY__ */
 
 #if defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2442)
 

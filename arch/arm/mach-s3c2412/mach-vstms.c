@@ -39,6 +39,7 @@
 #include <mach/idle.h>
 #include <mach/fb.h>
 
+#include <plat/iic.h>
 #include <plat/nand.h>
 
 #include <plat/s3c2410.h>
@@ -122,7 +123,7 @@ static struct s3c2410_platform_nand vstms_nand_info = {
 static struct platform_device *vstms_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_wdt,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_iis,
 	&s3c_device_rtc,
 	&s3c_device_nand,
@@ -151,6 +152,7 @@ static void __init vstms_map_io(void)
 
 static void __init vstms_init(void)
 {
+	s3c_i2c0_set_platdata(NULL);
 	platform_add_devices(vstms_devices, ARRAY_SIZE(vstms_devices));
 }
 
