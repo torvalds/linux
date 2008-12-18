@@ -32,8 +32,11 @@ static void dccp_get_info(struct sock *sk, struct tcp_info *info)
 	if (dp->dccps_hc_rx_ackvec != NULL)
 		info->tcpi_options |= TCPI_OPT_SACK;
 
-	ccid_hc_rx_get_info(dp->dccps_hc_rx_ccid, sk, info);
-	ccid_hc_tx_get_info(dp->dccps_hc_tx_ccid, sk, info);
+	if (dp->dccps_hc_rx_ccid != NULL)
+		ccid_hc_rx_get_info(dp->dccps_hc_rx_ccid, sk, info);
+
+	if (dp->dccps_hc_tx_ccid != NULL)
+		ccid_hc_tx_get_info(dp->dccps_hc_tx_ccid, sk, info);
 }
 
 static void dccp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
