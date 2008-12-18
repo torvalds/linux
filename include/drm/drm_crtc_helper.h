@@ -55,10 +55,12 @@ struct drm_crtc_helper_funcs {
 			   struct drm_display_mode *adjusted_mode);
 	/* Actually set the mode */
 	void (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode, int x, int y);
+			 struct drm_display_mode *adjusted_mode, int x, int y,
+			 struct drm_framebuffer *old_fb);
 
 	/* Move the crtc on the current fb to the given position *optional* */
-	void (*mode_set_base)(struct drm_crtc *crtc, int x, int y);
+	void (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
+			      struct drm_framebuffer *old_fb);
 };
 
 struct drm_encoder_helper_funcs {
@@ -93,7 +95,8 @@ extern bool drm_helper_initial_config(struct drm_device *dev, bool can_grow);
 extern int drm_crtc_helper_set_config(struct drm_mode_set *set);
 extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 				     struct drm_display_mode *mode,
-				     int x, int y);
+				     int x, int y,
+				     struct drm_framebuffer *old_fb);
 extern bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
 
 extern int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,

@@ -344,7 +344,8 @@ intel_wait_for_vblank(struct drm_device *dev)
 }
 
 static void
-intel_pipe_set_base(struct drm_crtc *crtc, int x, int y)
+intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
+		    struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -359,7 +360,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y)
 	int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
 	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
-	u32 dspcntr;
+	u32 dspcntr, alignment;
 
 	/* no fb bound */
 	if (!crtc->fb) {
@@ -368,9 +369,31 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y)
 	}
 
 	intel_fb = to_intel_framebuffer(crtc->fb);
-
 	obj = intel_fb->obj;
 	obj_priv = obj->driver_private;
+
+	switch (obj_priv->tiling_mode) {
+	case I915_TILING_NONE:
+		alignment = 64 * 1024;
+		break;
+	case I915_TILING_X:
+		if (IS_I9XX(dev))
+			alignment = 1024 * 1024;
+		else
+			alignment = 512 * 1024;
+		break;
+	case I915_TILING_Y:
+		/* FIXME: Is this true? */
+		DRM_ERROR("Y tiled not allowed for scan out buffers\n");
+		return;
+	default:
+		BUG();
+	}
+
+	if (i915_gem_object_pin(intel_fb->obj, alignment))
+		return;
+
+	i915_gem_object_set_to_gtt_domain(intel_fb->obj, 1);
 
 	Start = obj_priv->gtt_offset;
 	Offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
@@ -409,6 +432,12 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y)
 		I915_READ(dspbase);
 	}
 
+	intel_wait_for_vblank(dev);
+
+	if (old_fb) {
+		intel_fb = to_intel_framebuffer(old_fb);
+		i915_gem_object_unpin(intel_fb->obj);
+	}
 
 	if (!dev->primary->master)
 		return;
@@ -680,7 +709,8 @@ static int intel_panel_fitter_pipe (struct drm_device *dev)
 static void intel_crtc_mode_set(struct drm_crtc *crtc,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode,
-				int x, int y)
+				int x, int y,
+				struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -915,9 +945,7 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(dspcntr_reg, dspcntr);
 
 	/* Flush the plane changes */
-	intel_pipe_set_base(crtc, x, y);
-
-	intel_wait_for_vblank(dev);
+	intel_pipe_set_base(crtc, x, y, old_fb);
 
 	drm_vblank_post_modeset(dev, pipe);
 }
@@ -1153,7 +1181,7 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_output *intel_output,
 	if (!crtc->enabled) {
 		if (!mode)
 			mode = &load_detect_mode;
-		drm_crtc_helper_set_mode(crtc, mode, 0, 0);
+		drm_crtc_helper_set_mode(crtc, mode, 0, 0, crtc->fb);
 	} else {
 		if (intel_crtc->dpms_mode != DRM_MODE_DPMS_ON) {
 			crtc_funcs = crtc->helper_private;
