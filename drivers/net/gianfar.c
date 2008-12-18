@@ -1843,7 +1843,8 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 {
 	struct gfar_private *priv = container_of(napi, struct gfar_private, napi);
 	struct net_device *dev = priv->dev;
-	int howmany;
+	int tx_cleaned = 0;
+	int rx_cleaned = 0;
 	unsigned long flags;
 
 	/* Clear IEVENT, so interrupts aren't called again
@@ -1852,13 +1853,16 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 
 	/* If we fail to get the lock, don't bother with the TX BDs */
 	if (spin_trylock_irqsave(&priv->txlock, flags)) {
-		gfar_clean_tx_ring(dev);
+		tx_cleaned = gfar_clean_tx_ring(dev);
 		spin_unlock_irqrestore(&priv->txlock, flags);
 	}
 
-	howmany = gfar_clean_rx_ring(dev, budget);
+	rx_cleaned = gfar_clean_rx_ring(dev, budget);
 
-	if (howmany < budget) {
+	if (tx_cleaned)
+		return budget;
+
+	if (rx_cleaned < budget) {
 		netif_rx_complete(dev, napi);
 
 		/* Clear the halt bit in RSTAT */
@@ -1878,7 +1882,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	return howmany;
+	return rx_cleaned;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
