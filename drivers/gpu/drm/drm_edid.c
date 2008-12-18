@@ -205,7 +205,7 @@ static void edid_fixup_preferred(struct drm_connector *connector,
 				 u32 quirks)
 {
 	struct drm_display_mode *t, *cur_mode, *preferred_mode;
-	int target_refresh;
+	int target_refresh = 0;
 
 	if (list_empty(&connector->probed_modes))
 		return;
