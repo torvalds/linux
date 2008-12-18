@@ -327,15 +327,17 @@ static int mt9m001_set_fmt(struct soc_camera_device *icd,
 static int mt9m001_try_fmt(struct soc_camera_device *icd,
 			   struct v4l2_format *f)
 {
-	if (f->fmt.pix.height < 32 + icd->y_skip_top)
-		f->fmt.pix.height = 32 + icd->y_skip_top;
-	if (f->fmt.pix.height > 1024 + icd->y_skip_top)
-		f->fmt.pix.height = 1024 + icd->y_skip_top;
-	if (f->fmt.pix.width < 48)
-		f->fmt.pix.width = 48;
-	if (f->fmt.pix.width > 1280)
-		f->fmt.pix.width = 1280;
-	f->fmt.pix.width &= ~0x01; /* has to be even, unsure why was ~3 */
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	if (pix->height < 32 + icd->y_skip_top)
+		pix->height = 32 + icd->y_skip_top;
+	if (pix->height > 1024 + icd->y_skip_top)
+		pix->height = 1024 + icd->y_skip_top;
+	if (pix->width < 48)
+		pix->width = 48;
+	if (pix->width > 1280)
+		pix->width = 1280;
+	pix->width &= ~0x01; /* has to be even, unsure why was ~3 */
 
 	return 0;
 }

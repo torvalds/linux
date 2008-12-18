@@ -89,9 +89,10 @@ static int soc_camera_platform_try_fmt(struct soc_camera_device *icd,
 				       struct v4l2_format *f)
 {
 	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	f->fmt.pix.width = p->format.width;
-	f->fmt.pix.height = p->format.height;
+	pix->width = p->format.width;
+	pix->height = p->format.height;
 	return 0;
 }
 

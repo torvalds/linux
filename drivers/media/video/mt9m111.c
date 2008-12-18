@@ -503,10 +503,12 @@ static int mt9m111_set_fmt(struct soc_camera_device *icd,
 static int mt9m111_try_fmt(struct soc_camera_device *icd,
 			   struct v4l2_format *f)
 {
-	if (f->fmt.pix.height > MT9M111_MAX_HEIGHT)
-		f->fmt.pix.height = MT9M111_MAX_HEIGHT;
-	if (f->fmt.pix.width > MT9M111_MAX_WIDTH)
-		f->fmt.pix.width = MT9M111_MAX_WIDTH;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	if (pix->height > MT9M111_MAX_HEIGHT)
+		pix->height = MT9M111_MAX_HEIGHT;
+	if (pix->width > MT9M111_MAX_WIDTH)
+		pix->width = MT9M111_MAX_WIDTH;
 
 	return 0;
 }

@@ -98,8 +98,7 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	enum v4l2_field field;
 	int ret;
 
@@ -163,8 +162,7 @@ static int soc_camera_reqbufs(struct file *file, void *priv,
 	int ret;
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
 
@@ -388,8 +386,7 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	if (list_empty(&icf->vb_vidq.stream)) {
 		dev_err(&icd->dev, "Trying to poll with no queued buffers!\n");
@@ -415,9 +412,9 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
-	__u32 pixfmt = f->fmt.pix.pixelformat;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	__u32 pixfmt = pix->pixelformat;
 	int ret;
 	struct v4l2_rect rect;
 
@@ -429,9 +426,9 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	rect.left	= icd->x_current;
 	rect.top	= icd->y_current;
-	rect.width	= f->fmt.pix.width;
-	rect.height	= f->fmt.pix.height;
-	ret = ici->ops->set_fmt(icd, f->fmt.pix.pixelformat, &rect);
+	rect.width	= pix->width;
+	rect.height	= pix->height;
+	ret = ici->ops->set_fmt(icd, pix->pixelformat, &rect);
 	if (ret < 0) {
 		return ret;
 	} else if (!icd->current_fmt ||
@@ -443,7 +440,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	icd->width		= rect.width;
 	icd->height		= rect.height;
-	icf->vb_vidq.field	= f->fmt.pix.field;
+	icf->vb_vidq.field	= pix->field;
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
 			 f->type);
@@ -479,16 +476,17 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
 
 	WARN_ON(priv != file->private_data);
 
-	f->fmt.pix.width	= icd->width;
-	f->fmt.pix.height	= icd->height;
-	f->fmt.pix.field	= icf->vb_vidq.field;
-	f->fmt.pix.pixelformat	= icd->current_fmt->fourcc;
-	f->fmt.pix.bytesperline	= f->fmt.pix.width *
+	pix->width		= icd->width;
+	pix->height		= icd->height;
+	pix->field		= icf->vb_vidq.field;
+	pix->pixelformat	= icd->current_fmt->fourcc;
+	pix->bytesperline	= pix->width *
 		DIV_ROUND_UP(icd->current_fmt->depth, 8);
-	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.bytesperline;
+	pix->sizeimage		= pix->height * pix->bytesperline;
 	dev_dbg(&icd->dev, "current_fmt->fourcc: 0x%08x\n",
 		icd->current_fmt->fourcc);
 	return 0;
@@ -499,8 +497,7 @@ static int soc_camera_querycap(struct file *file, void  *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
 
@@ -651,8 +648,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	int ret;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -776,12 +772,8 @@ static int scan_add_device(struct soc_camera_device *icd)
 static int soc_camera_probe(struct device *dev)
 {
 	struct soc_camera_device *icd = to_soc_camera_dev(dev);
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	int ret;
-
-	if (!icd->ops->probe)
-		return -ENODEV;
 
 	/* We only call ->add() here to activate and probe the camera.
 	 * We shall ->remove() and deactivate it immediately afterwards. */
@@ -863,7 +855,16 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	int ret;
 	struct soc_camera_host *ix;
 
-	if (!ici->ops->init_videobuf || !ici->ops->add || !ici->ops->remove)
+	if (!ici || !ici->ops ||
+	    !ici->ops->try_fmt ||
+	    !ici->ops->set_fmt ||
+	    !ici->ops->set_bus_param ||
+	    !ici->ops->querycap ||
+	    !ici->ops->init_videobuf ||
+	    !ici->ops->reqbufs ||
+	    !ici->ops->add ||
+	    !ici->ops->remove ||
+	    !ici->ops->poll)
 		return -EINVAL;
 
 	/* Number might be equal to the platform device ID */
@@ -931,7 +932,16 @@ int soc_camera_device_register(struct soc_camera_device *icd)
 	struct soc_camera_device *ix;
 	int num = -1, i;
 
-	if (!icd)
+	if (!icd || !icd->ops ||
+	    !icd->ops->probe ||
+	    !icd->ops->init ||
+	    !icd->ops->release ||
+	    !icd->ops->start_capture ||
+	    !icd->ops->stop_capture ||
+	    !icd->ops->set_fmt ||
+	    !icd->ops->try_fmt ||
+	    !icd->ops->query_bus_param ||
+	    !icd->ops->set_bus_param)
 		return -EINVAL;
 
 	for (i = 0; i < 256 && num < 0; i++) {
@@ -953,7 +963,9 @@ int soc_camera_device_register(struct soc_camera_device *icd)
 	icd->dev.bus = &soc_camera_bus_type;
 	dev_set_name(&icd->dev, "%u-%u", icd->iface, icd->devnum);
 
-	icd->dev.release = dummy_release;
+	icd->dev.release	= dummy_release;
+	icd->use_count		= 0;
+	icd->host_priv		= NULL;
 
 	return scan_add_device(icd);
 }
