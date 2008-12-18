@@ -1301,6 +1301,9 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 
 	switch (mask_rev) {
 	case 0:
+		wm8350->pmic.max_dcdc = WM8350_DCDC_6;
+		wm8350->pmic.max_isink = WM8350_ISINK_B;
+
 		switch (chip_rev) {
 		case WM8350_REV_E:
 			dev_info(wm8350->dev, "WM8350 Rev E\n");
@@ -1325,6 +1328,9 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		break;
 
 	case 2:
+		wm8350->pmic.max_dcdc = WM8350_DCDC_6;
+		wm8350->pmic.max_isink = WM8350_ISINK_B;
+
 		switch (chip_rev) {
 		case 0:
 			dev_info(wm8350->dev, "WM8352 Rev A\n");
