@@ -79,7 +79,7 @@ struct v4l2_subdev_core_ops {
 	int (*g_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
 	int (*s_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
 	int (*querymenu)(struct v4l2_subdev *sd, struct v4l2_querymenu *qm);
-	int (*ioctl)(struct v4l2_subdev *sd, int cmd, void *arg);
+	int (*ioctl)(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	int (*g_register)(struct v4l2_subdev *sd, struct v4l2_register *reg);
 	int (*s_register)(struct v4l2_subdev *sd, struct v4l2_register *reg);

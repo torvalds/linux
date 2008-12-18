@@ -483,7 +483,7 @@ static int msp_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 }
 
 #ifdef CONFIG_VIDEO_ALLOW_V4L1
-static int msp_ioctl(struct v4l2_subdev *sd, int cmd, void *arg)
+static int msp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
