@@ -633,3 +633,79 @@ _GLOBAL(flush_hash_patch_B)
 	SYNC_601
 	isync
 	blr
+
+/*
+ * Flush an entry from the TLB
+ */
+_GLOBAL(_tlbie)
+#ifdef CONFIG_SMP
+	rlwinm	r8,r1,0,0,(31-THREAD_SHIFT)
+	lwz	r8,TI_CPU(r8)
+	oris	r8,r8,11
+	mfmsr	r10
+	SYNC
+	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
+	rlwinm	r0,r0,0,28,26		/* clear DR */
+	mtmsr	r0
+	SYNC_601
+	isync
+	lis	r9,mmu_hash_lock@h
+	ori	r9,r9,mmu_hash_lock@l
+	tophys(r9,r9)
+10:	lwarx	r7,0,r9
+	cmpwi	0,r7,0
+	bne-	10b
+	stwcx.	r8,0,r9
+	bne-	10b
+	eieio
+	tlbie	r3
+	sync
+	TLBSYNC
+	li	r0,0
+	stw	r0,0(r9)		/* clear mmu_hash_lock */
+	mtmsr	r10
+	SYNC_601
+	isync
+#else /* CONFIG_SMP */
+	tlbie	r3
+	sync
+#endif /* CONFIG_SMP */
+	blr
+
+/*
+ * Flush the entire TLB. 603/603e only
+ */
+_GLOBAL(_tlbia)
+#if defined(CONFIG_SMP)
+	rlwinm	r8,r1,0,0,(31-THREAD_SHIFT)
+	lwz	r8,TI_CPU(r8)
+	oris	r8,r8,10
+	mfmsr	r10
+	SYNC
+	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
+	rlwinm	r0,r0,0,28,26		/* clear DR */
+	mtmsr	r0
+	SYNC_601
+	isync
+	lis	r9,mmu_hash_lock@h
+	ori	r9,r9,mmu_hash_lock@l
+	tophys(r9,r9)
+10:	lwarx	r7,0,r9
+	cmpwi	0,r7,0
+	bne-	10b
+	stwcx.	r8,0,r9
+	bne-	10b
+	sync
+	tlbia
+	sync
+	TLBSYNC
+	li	r0,0
+	stw	r0,0(r9)		/* clear mmu_hash_lock */
+	mtmsr	r10
+	SYNC_601
+	isync
+#else /* CONFIG_SMP */
+	sync
+	tlbia
+	sync
+#endif /* CONFIG_SMP */

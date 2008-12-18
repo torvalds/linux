@@ -22,9 +22,57 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu.h>
 
+#ifdef CONFIG_PPC_MMU_NOHASH
+
+/*
+ * On 40x and 8xx, we directly inline tlbia and tlbivax
+ */
+#if defined(CONFIG_40x) || defined(CONFIG_8xx)
+static inline void _tlbil_all(void)
+{
+	asm volatile ("sync; tlbia; isync" : : : "memory")
+}
+static inline void _tlbil_pid(unsigned int pid)
+{
+	asm volatile ("sync; tlbia; isync" : : : "memory")
+}
+#else /* CONFIG_40x || CONFIG_8xx */
+extern void _tlbil_all(void);
+extern void _tlbil_pid(unsigned int pid);
+#endif /* !(CONFIG_40x || CONFIG_8xx) */
+
+/*
+ * On 8xx, we directly inline tlbie, on others, it's extern
+ */
+#ifdef CONFIG_8xx
+static inline void _tlbil_va(unsigned long address, unsigned int pid)
+{
+	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory")
+}
+#else /* CONFIG_8xx */
+extern void _tlbil_va(unsigned long address, unsigned int pid);
+#endif /* CONIFG_8xx */
+
+/*
+ * As of today, we don't support tlbivax broadcast on any
+ * implementation. When that becomes the case, this will be
+ * an extern.
+ */
+static inline void _tlbivax_bcast(unsigned long address, unsigned int pid)
+{
+	BUG();
+}
+
+#else /* CONFIG_PPC_MMU_NOHASH */
+
 extern void hash_preload(struct mm_struct *mm, unsigned long ea,
 			 unsigned long access, unsigned long trap);
 
+
+extern void _tlbie(unsigned long address);
+extern void _tlbia(void);
+
+#endif /* CONFIG_PPC_MMU_NOHASH */
 
 #ifdef CONFIG_PPC32
 extern void mapin_ram(void);

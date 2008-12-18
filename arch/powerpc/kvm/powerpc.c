@@ -330,7 +330,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	/* XXX It would be nice to differentiate between heavyweight exit and
 	 * sched_out here, since we could avoid the TLB flush for heavyweight
 	 * exits. */
-	_tlbia();
+	_tlbil_all();
 }
 
 int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,

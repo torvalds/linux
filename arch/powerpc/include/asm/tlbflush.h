@@ -33,17 +33,6 @@
 
 #define MMU_NO_CONTEXT      	((unsigned int)-1)
 
-extern void _tlbil_all(void);
-extern void _tlbil_pid(unsigned int pid);
-extern void _tlbil_va(unsigned long address, unsigned int pid);
-extern void _tlbivax_bcast(unsigned long address, unsigned int pid);
-
-#if defined(CONFIG_40x) || defined(CONFIG_8xx)
-#define _tlbia()	asm volatile ("tlbia; sync" : : : "memory")
-#else /* CONFIG_44x || CONFIG_FSL_BOOKE */
-extern void _tlbia(void);
-#endif
-
 extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
@@ -65,9 +54,6 @@ extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 /*
  * TLB flushing for "classic" hash-MMU 32-bit CPUs, 6xx, 7xx, 7xxx
  */
-extern void _tlbie(unsigned long address);
-extern void _tlbia(void);
-
 extern void flush_tlb_mm(struct mm_struct *mm);
 extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 extern void flush_tlb_page_nohash(struct vm_area_struct *vma, unsigned long addr);
