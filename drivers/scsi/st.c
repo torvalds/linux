@@ -3695,6 +3695,8 @@ static struct st_buffer *new_tape_buffer(int need_dma, int max_sg)
 
 
 /* Try to allocate enough space in the tape buffer */
+#define ST_MAX_ORDER 6
+
 static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dma)
 {
 	int segs, nbr, max_segs, b_size, order, got;
@@ -3723,8 +3725,15 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dm
 		b_size = PAGE_SIZE << order;
 	} else {
 		for (b_size = PAGE_SIZE, order = 0;
-		     order <= 6 && b_size < new_size; order++, b_size *= 2)
+		     order < ST_MAX_ORDER && b_size < new_size;
+		     order++, b_size *= 2)
 			;  /* empty */
+	}
+	if (max_segs * (PAGE_SIZE << order) < new_size) {
+		if (order == ST_MAX_ORDER)
+			return 0;
+		normalize_buffer(STbuffer);
+		return enlarge_buffer(STbuffer, new_size, need_dma);
 	}
 
 	for (segs = STbuffer->frp_segs, got = STbuffer->buffer_size;
