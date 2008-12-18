@@ -1528,38 +1528,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	return fb;
 }
 
-static int intel_insert_new_fb(struct drm_device *dev,
-			       struct drm_file *file_priv,
-			       struct drm_framebuffer *fb,
-			       struct drm_mode_fb_cmd *mode_cmd)
-{
-	struct intel_framebuffer *intel_fb;
-	struct drm_gem_object *obj;
-	struct drm_crtc *crtc;
-
-	intel_fb = to_intel_framebuffer(fb);
-
-	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
-
-	if (!obj)
-		return -EINVAL;
-
-	intel_fb->obj = obj;
-	drm_gem_object_unreference(intel_fb->obj);
-	drm_helper_mode_fill_fb_struct(fb, mode_cmd);
-	mutex_unlock(&dev->struct_mutex);
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->fb == fb) {
-			struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-			crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y);
-		}
-	}
-	return 0;
-}
-
 static const struct drm_mode_config_funcs intel_mode_funcs = {
-	.resize_fb = intel_insert_new_fb,
 	.fb_create = intel_user_framebuffer_create,
 	.fb_changed = intelfb_probe,
 };

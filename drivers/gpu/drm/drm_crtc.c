@@ -2302,46 +2302,6 @@ out:
 	return ret;
 }
 
-
-int drm_mode_replacefb(struct drm_device *dev,
-		       void *data, struct drm_file *file_priv)
-{
-	struct drm_mode_fb_cmd *r = data;
-	struct drm_mode_object *obj;
-	struct drm_framebuffer *fb;
-	int found = 0;
-	struct drm_framebuffer *fbl = NULL;
-	int ret = 0;
-
-	/* right replace the current bo attached to this fb with a new bo */
-	mutex_lock(&dev->mode_config.mutex);
-	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
-	if (!obj) {
-		ret = -EINVAL;
-		goto out;
-	}
-	fb = obj_to_fb(obj);
-
-	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
-		if (fb == fbl)
-			found = 1;
-
-	if (!found) {
-		DRM_ERROR("tried to replace an fb we didn't own\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (dev->mode_config.funcs->resize_fb)
-		ret = dev->mode_config.funcs->resize_fb(dev, file_priv, fb, r);
-	else
-		ret = -EINVAL;
-out:
-	mutex_unlock(&dev->mode_config.mutex);
-	return ret;
-
-}
-
 int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 				      struct drm_encoder *encoder)
 {

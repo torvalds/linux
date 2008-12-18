@@ -687,7 +687,6 @@ struct drm_gem_open {
 #define DRM_IOCTL_MODE_GETFB		DRM_IOWR(0xAD, struct drm_mode_fb_cmd)
 #define DRM_IOCTL_MODE_ADDFB		DRM_IOWR(0xAE, struct drm_mode_fb_cmd)
 #define DRM_IOCTL_MODE_RMFB		DRM_IOWR(0xAF, unsigned int)
-#define DRM_IOCTL_MODE_REPLACEFB	DRM_IOWR(0xB0, struct drm_mode_fb_cmd)
 
 /**
  * Device specific ioctls should only be in their respective headers
