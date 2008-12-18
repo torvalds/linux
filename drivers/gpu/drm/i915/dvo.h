@@ -148,4 +148,10 @@ struct intel_dvo_dev_ops {
 	void (*dump_regs)(struct intel_dvo_device *dvo);
 };
 
+extern struct intel_dvo_dev_ops sil164_ops;
+extern struct intel_dvo_dev_ops ch7xxx_ops;
+extern struct intel_dvo_dev_ops ivch_ops;
+extern struct intel_dvo_dev_ops tfp410_ops;
+extern struct intel_dvo_dev_ops ch7017_ops;
+
 #endif /* _INTEL_DVO_H */
