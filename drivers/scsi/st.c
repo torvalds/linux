@@ -537,6 +537,8 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 	   int bytes, int direction, int timeout, int retries, int do_wait)
 {
 	struct completion *waiting;
+	struct rq_map_data *mdata = &STp->buffer->map_data;
+	int ret;
 
 	/* if async, make sure there's no command outstanding */
 	if (!do_wait && ((STp->buffer)->last_SRpnt)) {
@@ -564,21 +566,34 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 	init_completion(waiting);
 	SRpnt->waiting = waiting;
 
-	if (!STp->buffer->do_dio)
+	if (!STp->buffer->do_dio) {
 		buf_to_sg(STp->buffer, bytes);
+
+		mdata->nr_entries =
+			DIV_ROUND_UP(bytes, PAGE_SIZE << mdata->page_order);
+		STp->buffer->map_data.pages = STp->buffer->reserved_pages;
+		STp->buffer->map_data.offset = 0;
+	}
 
 	memcpy(SRpnt->cmd, cmd, sizeof(SRpnt->cmd));
 	STp->buffer->cmdstat.have_sense = 0;
 	STp->buffer->syscall_result = 0;
 
-	if (scsi_execute_async(STp->device, cmd, COMMAND_SIZE(cmd[0]), direction,
-			&((STp->buffer)->sg[0]), bytes, (STp->buffer)->sg_segs,
-			       timeout, retries, SRpnt, st_sleep_done, GFP_KERNEL)) {
+	if (STp->buffer->do_dio)
+		ret = scsi_execute_async(STp->device, cmd, COMMAND_SIZE(cmd[0]),
+					 direction, &((STp->buffer)->sg[0]),
+					 bytes, (STp->buffer)->sg_segs, timeout,
+					 retries, SRpnt, st_sleep_done,
+					 GFP_KERNEL);
+	else
+		ret = st_scsi_execute(SRpnt, cmd, direction, NULL, bytes,
+				      timeout, retries);
+
+	if (ret) {
 		/* could not allocate the buffer or request was too large */
 		(STp->buffer)->syscall_result = (-EBUSY);
 		(STp->buffer)->last_SRpnt = NULL;
-	}
-	else if (do_wait) {
+	} else if (do_wait) {
 		wait_for_completion(waiting);
 		SRpnt->waiting = NULL;
 		(STp->buffer)->syscall_result = st_chk_result(STp, SRpnt);
