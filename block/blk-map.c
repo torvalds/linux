@@ -150,6 +150,9 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 			bio = rq->bio;
 		bytes_read += ret;
 		ubuf += ret;
+
+		if (map_data)
+			map_data->offset += ret;
 	}
 
 	if (!bio_flagged(bio, BIO_USER_MAPPED))

@@ -788,6 +788,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	int i, ret;
 	int nr_pages = 0;
 	unsigned int len = 0;
+	unsigned int offset = map_data ? map_data->offset & ~PAGE_MASK : 0;
 
 	for (i = 0; i < iov_count; i++) {
 		unsigned long uaddr;
@@ -814,11 +815,15 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	bio->bi_rw |= (!write_to_vm << BIO_RW);
 
 	ret = 0;
-	i = 0;
-	if (map_data)
+
+	if (map_data) {
 		nr_pages = 1 << map_data->page_order;
+		i = map_data->offset / PAGE_SIZE;
+	}
 	while (len) {
 		unsigned int bytes = PAGE_SIZE;
+
+		bytes -= offset;
 
 		if (bytes > len)
 			bytes = len;
@@ -841,10 +846,11 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 			}
 		}
 
-		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes)
+		if (bio_add_pc_page(q, bio, page, bytes, offset) < bytes)
 			break;
 
 		len -= bytes;
+		offset = 0;
 	}
 
 	if (ret)
