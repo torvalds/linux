@@ -200,10 +200,4 @@ struct kvm_vcpu_arch {
 	unsigned long pending_exceptions;
 };
 
-struct kvm_guest_debug {
-	int enabled;
-	unsigned long bp[4];
-	int singlestep;
-};
-
 #endif /* __POWERPC_KVM_HOST_H__ */

@@ -239,8 +239,6 @@ struct kvm_vm_data {
 
 struct kvm;
 struct kvm_vcpu;
-struct kvm_guest_debug{
-};
 
 struct kvm_mmio_req {
 	uint64_t addr;          /*  physical address		*/
