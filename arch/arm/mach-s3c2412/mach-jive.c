@@ -53,6 +53,7 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/udc.h>
+#include <plat/iic.h>
 
 static struct map_desc jive_iodesc[] __initdata = {
 };
@@ -452,14 +453,14 @@ static struct spi_board_info __initdata jive_spi_devs[] = {
 
 /* I2C bus and device configuration. */
 
-static struct s3c2410_platform_i2c jive_i2c_cfg = {
+static struct s3c2410_platform_i2c jive_i2c_cfg __initdata = {
 	.max_freq	= 80 * 1000,
 	.bus_freq	= 50 * 1000,
 	.flags		= S3C_IICFLG_FILTER,
 	.sda_delay	= 2,
 };
 
-static struct i2c_board_info jive_i2c_devs[] = {
+static struct i2c_board_info jive_i2c_devs[] __initdata = {
 	[0] = {
 		I2C_BOARD_INFO("lis302dl", 0x1c),
 		.irq	= IRQ_EINT14,
@@ -472,7 +473,7 @@ static struct platform_device *jive_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_lcd,
 	&jive_device_lcdspi,
 	&jive_device_wm8750,
@@ -665,7 +666,7 @@ static void __init jive_machine_init(void)
 
 	spi_register_board_info(jive_spi_devs, ARRAY_SIZE(jive_spi_devs));
 
-	s3c_device_i2c.dev.platform_data = &jive_i2c_cfg;
+	s3c_i2c0_set_platdata(&jive_i2c_cfg);
 	i2c_register_board_info(0, jive_i2c_devs, ARRAY_SIZE(jive_i2c_devs));
 
 	pm_power_off = jive_power_off;

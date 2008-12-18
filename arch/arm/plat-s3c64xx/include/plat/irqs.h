@@ -70,6 +70,7 @@
 #define IRQ_CAMIF_C		S3C64XX_IRQ_VIC0(3)
 #define IRQ_CAMIF_P		S3C64XX_IRQ_VIC0(4)
 #define IRQ_CAMIF_MC		S3C64XX_IRQ_VIC0(5)
+#define IRQ_S3C6410_IIC1	S3C64XX_IRQ_VIC0(5)
 #define IRQ_S3C6410_IIS		S3C64XX_IRQ_VIC0(6)
 #define IRQ_S3C6400_CAMIF_MP	S3C64XX_IRQ_VIC0(6)
 #define IRQ_CAMIF_WE_C		S3C64XX_IRQ_VIC0(7)
@@ -143,6 +144,10 @@
 #define IRQ_TIMER2		S3C64XX_TIMER_IRQ(2)
 #define IRQ_TIMER3		S3C64XX_TIMER_IRQ(3)
 #define IRQ_TIMER4		S3C64XX_TIMER_IRQ(4)
+
+/* compatibility for device defines */
+
+#define IRQ_IIC1		IRQ_S3C6410_IIC1
 
 /* Since the IRQ_EINT(x) are a linear mapping on current s3c64xx series
  * we just defined them as an IRQ_EINT(x) macro from S3C_IRQ_EINT_BASE

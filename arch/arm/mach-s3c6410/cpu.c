@@ -35,6 +35,8 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
+#include <plat/sdhci.h>
+#include <plat/iic-core.h>
 #include <plat/s3c6400.h>
 #include <plat/s3c6410.h>
 
@@ -51,6 +53,14 @@ static struct map_desc s3c6410_iodesc[] __initdata = {
 void __init s3c6410_map_io(void)
 {
 	iotable_init(s3c6410_iodesc, ARRAY_SIZE(s3c6410_iodesc));
+
+	/* initialise device information early */
+	s3c6410_default_sdhci0();
+	s3c6410_default_sdhci1();
+
+	/* the i2c devices are directly compatible with s3c2440 */
+	s3c_i2c0_setname("s3c2440-i2c");
+	s3c_i2c1_setname("s3c2440-i2c");
 }
 
 void __init s3c6410_init_clocks(int xtal)

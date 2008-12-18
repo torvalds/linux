@@ -40,6 +40,7 @@
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 #include <plat/nand.h>
+#include <plat/iic.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -409,7 +410,7 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_wdt,
 	&s3c_device_adc,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
  	&s3c_device_rtc,
 	&s3c_device_nand,
 	&anubis_device_ide0,
@@ -473,6 +474,7 @@ static void __init anubis_map_io(void)
 
 static void __init anubis_init(void)
 {
+	s3c_i2c0_set_platdata(NULL);
 	platform_add_devices(anubis_devices, ARRAY_SIZE(anubis_devices));
 
 	i2c_register_board_info(0, anubis_i2c_devs,

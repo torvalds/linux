@@ -271,31 +271,6 @@ struct platform_device s3c_device_wdt = {
 
 EXPORT_SYMBOL(s3c_device_wdt);
 
-/* I2C */
-
-static struct resource s3c_i2c_resource[] = {
-	[0] = {
-		.start = S3C24XX_PA_IIC,
-		.end   = S3C24XX_PA_IIC + S3C24XX_SZ_IIC - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_IIC,
-		.end   = IRQ_IIC,
-		.flags = IORESOURCE_IRQ,
-	}
-
-};
-
-struct platform_device s3c_device_i2c = {
-	.name		  = "s3c2410-i2c",
-	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(s3c_i2c_resource),
-	.resource	  = s3c_i2c_resource,
-};
-
-EXPORT_SYMBOL(s3c_device_i2c);
-
 /* IIS */
 
 static struct resource s3c_iis_resource[] = {
@@ -410,36 +385,6 @@ struct platform_device s3c_device_sdi = {
 };
 
 EXPORT_SYMBOL(s3c_device_sdi);
-
-/* High-speed MMC/SD */
-
-static struct resource s3c_hsmmc_resource[] = {
-	[0] = {
-		.start = S3C2443_PA_HSMMC,
-		.end   = S3C2443_PA_HSMMC + S3C2443_SZ_HSMMC - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_S3C2443_HSMMC,
-		.end   = IRQ_S3C2443_HSMMC,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
-static u64 s3c_device_hsmmc_dmamask = 0xffffffffUL;
-
-struct platform_device s3c_device_hsmmc = {
-	.name		  = "s3c-sdhci",
-	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(s3c_hsmmc_resource),
-	.resource	  = s3c_hsmmc_resource,
-	.dev              = {
-		.dma_mask = &s3c_device_hsmmc_dmamask,
-		.coherent_dma_mask = 0xffffffffUL
-	}
-};
-
-
 
 /* SPI (0) */
 

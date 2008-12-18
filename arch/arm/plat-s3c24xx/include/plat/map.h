@@ -51,7 +51,6 @@
 
 /* Standard size definitions for peripheral blocks. */
 
-#define S3C24XX_SZ_IIC		SZ_1M
 #define S3C24XX_SZ_IIS		SZ_1M
 #define S3C24XX_SZ_ADC		SZ_1M
 #define S3C24XX_SZ_SPI		SZ_1M
