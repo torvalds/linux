@@ -2474,7 +2474,7 @@ out:
 	return rc;
 }
 
-static int selinux_sb_kern_mount(struct super_block *sb, void *data)
+static int selinux_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	const struct cred *cred = current_cred();
 	struct avc_audit_data ad;

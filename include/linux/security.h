@@ -1308,7 +1308,7 @@ struct security_operations {
 	int (*sb_alloc_security) (struct super_block *sb);
 	void (*sb_free_security) (struct super_block *sb);
 	int (*sb_copy_data) (char *orig, char *copy);
-	int (*sb_kern_mount) (struct super_block *sb, void *data);
+	int (*sb_kern_mount) (struct super_block *sb, int flags, void *data);
 	int (*sb_show_options) (struct seq_file *m, struct super_block *sb);
 	int (*sb_statfs) (struct dentry *dentry);
 	int (*sb_mount) (char *dev_name, struct path *path,
@@ -1575,7 +1575,7 @@ int security_bprm_secureexec(struct linux_binprm *bprm);
 int security_sb_alloc(struct super_block *sb);
 void security_sb_free(struct super_block *sb);
 int security_sb_copy_data(char *orig, char *copy);
-int security_sb_kern_mount(struct super_block *sb, void *data);
+int security_sb_kern_mount(struct super_block *sb, int flags, void *data);
 int security_sb_show_options(struct seq_file *m, struct super_block *sb);
 int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(char *dev_name, struct path *path,
@@ -1850,7 +1850,7 @@ static inline int security_sb_copy_data(char *orig, char *copy)
 	return 0;
 }
 
-static inline int security_sb_kern_mount(struct super_block *sb, void *data)
+static inline int security_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	return 0;
 }

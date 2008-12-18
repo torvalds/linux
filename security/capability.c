@@ -59,7 +59,7 @@ static int cap_sb_copy_data(char *orig, char *copy)
 	return 0;
 }
 
-static int cap_sb_kern_mount(struct super_block *sb, void *data)
+static int cap_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	return 0;
 }

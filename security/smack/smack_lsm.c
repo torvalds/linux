@@ -250,11 +250,12 @@ static int smack_sb_copy_data(char *orig, char *smackopts)
 /**
  * smack_sb_kern_mount - Smack specific mount processing
  * @sb: the file system superblock
+ * @flags: the mount flags
  * @data: the smack mount options
  *
  * Returns 0 on success, an error code on failure
  */
-static int smack_sb_kern_mount(struct super_block *sb, void *data)
+static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	struct dentry *root = sb->s_root;
 	struct inode *inode = root->d_inode;
