@@ -756,12 +756,12 @@ static int ath_reserve_key_cache_slot(struct ath_softc *sc)
 			    (test_bit(i , sc->sc_keymap) ||
 			     test_bit(i + 32, sc->sc_keymap) ||
 			     test_bit(i + 64 + 32, sc->sc_keymap)))
-				return i;
+				return i + 64;
 			if (!test_bit(i + 64 + 32, sc->sc_keymap) &&
 			    (test_bit(i, sc->sc_keymap) ||
 			     test_bit(i + 32, sc->sc_keymap) ||
 			     test_bit(i + 64, sc->sc_keymap)))
-				return i;
+				return i + 64 + 32;
 		}
 	} else {
 		for (i = IEEE80211_WEP_NKID; i < sc->sc_keymax / 2; i++) {
