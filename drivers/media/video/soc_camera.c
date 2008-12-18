@@ -98,28 +98,11 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	enum v4l2_field field;
-	int ret;
 
 	WARN_ON(priv != file->private_data);
 
-	/*
-	 * TODO: this might also have to migrate to host-drivers, if anyone
-	 * wishes to support other fields
-	 */
-	field = f->fmt.pix.field;
-
-	if (field == V4L2_FIELD_ANY) {
-		f->fmt.pix.field = V4L2_FIELD_NONE;
-	} else if (field != V4L2_FIELD_NONE) {
-		dev_err(&icd->dev, "Field type invalid.\n");
-		return -EINVAL;
-	}
-
 	/* limit format to hardware capabilities */
-	ret = ici->ops->try_fmt(icd, f);
-
-	return ret;
+	return ici->ops->try_fmt(icd, f);
 }
 
 static int soc_camera_enum_input(struct file *file, void *priv,

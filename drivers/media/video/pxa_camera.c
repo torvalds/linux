@@ -1215,6 +1215,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	__u32 pixfmt = pix->pixelformat;
+	enum v4l2_field field;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
@@ -1243,6 +1244,15 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	/* limit to sensor capabilities */
 	ret = icd->ops->try_fmt(icd, f);
 	pix->pixelformat = xlate->host_fmt->fourcc;
+
+	field = pix->field;
+
+	if (field == V4L2_FIELD_ANY) {
+		pix->field = V4L2_FIELD_NONE;
+	} else if (field != V4L2_FIELD_NONE) {
+		dev_err(&icd->dev, "Field type %d unsupported.\n", field);
+		return -EINVAL;
+	}
 
 	return ret;
 }
