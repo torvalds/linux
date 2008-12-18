@@ -2300,8 +2300,6 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 	tempval &= ~(MACCFG1_ENABLE_RX | MACCFG1_ENABLE_TX);
 	out_be32(&ug_regs->maccfg1, tempval);
 
-	free_irq(ugeth->ug_info->uf_info.irq, ugeth->dev);
-
 	ucc_geth_memclean(ugeth);
 }
 
@@ -3759,21 +3757,20 @@ static int ucc_geth_open(struct net_device *dev)
 
 	phy_start(ugeth->phydev);
 
-	err =
-	    request_irq(ugeth->ug_info->uf_info.irq, ucc_geth_irq_handler, 0,
-			"UCC Geth", dev);
-	if (err) {
-		if (netif_msg_ifup(ugeth))
-			ugeth_err("%s: Cannot get IRQ for net device, aborting.",
-				  dev->name);
-		ucc_geth_stop(ugeth);
-		goto out_err;
-	}
-
 	err = ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
 	if (err) {
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Cannot enable net device, aborting.", dev->name);
+		ucc_geth_stop(ugeth);
+		goto out_err;
+	}
+
+	err = request_irq(ugeth->ug_info->uf_info.irq, ucc_geth_irq_handler,
+			  0, "UCC Geth", dev);
+	if (err) {
+		if (netif_msg_ifup(ugeth))
+			ugeth_err("%s: Cannot get IRQ for net device, aborting.",
+				  dev->name);
 		ucc_geth_stop(ugeth);
 		goto out_err;
 	}
@@ -3798,6 +3795,8 @@ static int ucc_geth_close(struct net_device *dev)
 	napi_disable(&ugeth->napi);
 
 	ucc_geth_stop(ugeth);
+
+	free_irq(ugeth->ug_info->uf_info.irq, ugeth->dev);
 
 	phy_disconnect(ugeth->phydev);
 	ugeth->phydev = NULL;
