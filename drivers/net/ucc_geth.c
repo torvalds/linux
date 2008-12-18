@@ -2218,7 +2218,10 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 	while (!list_empty(&ugeth->ind_hash_q))
 		put_enet_addr_container(ENET_ADDR_CONT_ENTRY
 					(dequeue(&ugeth->ind_hash_q)));
-
+	if (ugeth->ug_regs) {
+		iounmap(ugeth->ug_regs);
+		ugeth->ug_regs = NULL;
+	}
 }
 
 static void ucc_geth_set_multi(struct net_device *dev)
@@ -2423,7 +2426,12 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 		return -ENOMEM;
 	}
 
-	ugeth->ug_regs = (struct ucc_geth __iomem *) ioremap(uf_info->regs, sizeof(struct ucc_geth));
+	ugeth->ug_regs = ioremap(uf_info->regs, sizeof(*ugeth->ug_regs));
+	if (!ugeth->ug_regs) {
+		if (netif_msg_probe(ugeth))
+			ugeth_err("%s: Failed to ioremap regs.", __func__);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -3689,7 +3697,7 @@ static int ucc_geth_open(struct net_device *dev)
 	if (err) {
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Cannot configure internal struct, aborting.", dev->name);
-		return err;
+		goto out_err_stop;
 	}
 
 	napi_enable(&ugeth->napi);
@@ -3752,6 +3760,7 @@ static int ucc_geth_open(struct net_device *dev)
 
 out_err:
 	napi_disable(&ugeth->napi);
+out_err_stop:
 	ucc_geth_stop(ugeth);
 	return err;
 }
