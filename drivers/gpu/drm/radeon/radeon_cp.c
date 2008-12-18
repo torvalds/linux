@@ -1804,7 +1804,7 @@ void radeon_master_destroy(struct drm_device *dev, struct drm_master *master)
 
 	master_priv->sarea_priv = NULL;
 	if (master_priv->sarea)
-		drm_rmmap(dev, master_priv->sarea);
+		drm_rmmap_locked(dev, master_priv->sarea);
 
 	drm_free(master_priv, sizeof(*master_priv), DRM_MEM_DRIVER);
 

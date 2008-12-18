@@ -440,6 +440,7 @@ int drm_rmmap_locked(struct drm_device *dev, drm_local_map_t *map)
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_rmmap_locked);
 
 int drm_rmmap(struct drm_device *dev, drm_local_map_t *map)
 {
