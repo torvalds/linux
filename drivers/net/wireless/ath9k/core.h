@@ -701,6 +701,7 @@ struct ath_softc {
 	struct ath_hal *sc_ah;
 	void __iomem *mem;
 	spinlock_t sc_resetlock;
+	struct mutex mutex;
 
 	u8 sc_curbssid[ETH_ALEN];
 	u8 sc_myaddr[ETH_ALEN];
