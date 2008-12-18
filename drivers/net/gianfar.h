@@ -728,6 +728,7 @@ struct gfar_private {
 	struct txbd8 *dirty_tx;		/* First buffer in line
 					   to be transmitted */
 	unsigned int tx_ring_size;
+	unsigned int num_txbdfree;	/* number of TxBDs free */
 
 	/* RX Locked fields */
 	spinlock_t rxlock;

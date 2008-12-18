@@ -475,6 +475,7 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 	/* Change the size */
 	priv->rx_ring_size = rvals->rx_pending;
 	priv->tx_ring_size = rvals->tx_pending;
+	priv->num_txbdfree = priv->tx_ring_size;
 
 	/* Rebuild the rings with the new size */
 	if (dev->flags & IFF_UP) {
@@ -623,6 +624,7 @@ const struct ethtool_ops gfar_ethtool_ops = {
 	.get_tx_csum = gfar_get_tx_csum,
 	.set_rx_csum = gfar_set_rx_csum,
 	.set_tx_csum = gfar_set_tx_csum,
+	.set_sg = ethtool_op_set_sg,
 	.get_msglevel = gfar_get_msglevel,
 	.set_msglevel = gfar_set_msglevel,
 #ifdef CONFIG_PM
