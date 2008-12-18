@@ -330,9 +330,19 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_ctstoself_duration);
 
-void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue)
+static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
+				   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+
+	/* we don't need to track ampdu queues */
+	if (queue < ieee80211_num_regular_queues(hw)) {
+		__clear_bit(reason, &local->queue_stop_reasons[queue]);
+
+		if (local->queue_stop_reasons[queue] != 0)
+			/* someone still has this queue stopped */
+			return;
+	}
 
 	if (test_bit(queue, local->queues_pending)) {
 		set_bit(queue, local->queues_pending_run);
@@ -341,22 +351,74 @@ void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue)
 		netif_wake_subqueue(local->mdev, queue);
 	}
 }
+
+void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
+				    enum queue_stop_reason reason)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	unsigned long flags;
+
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	__ieee80211_wake_queue(hw, queue, reason);
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+}
+
+void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue)
+{
+	ieee80211_wake_queue_by_reason(hw, queue,
+				       IEEE80211_QUEUE_STOP_REASON_DRIVER);
+}
 EXPORT_SYMBOL(ieee80211_wake_queue);
 
-void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue)
+static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
+				   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
+	/* we don't need to track ampdu queues */
+	if (queue < ieee80211_num_regular_queues(hw))
+		__set_bit(reason, &local->queue_stop_reasons[queue]);
+
 	netif_stop_subqueue(local->mdev, queue);
+}
+
+void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
+				    enum queue_stop_reason reason)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	unsigned long flags;
+
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	__ieee80211_stop_queue(hw, queue, reason);
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+}
+
+void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue)
+{
+	ieee80211_stop_queue_by_reason(hw, queue,
+				       IEEE80211_QUEUE_STOP_REASON_DRIVER);
 }
 EXPORT_SYMBOL(ieee80211_stop_queue);
 
-void ieee80211_stop_queues(struct ieee80211_hw *hw)
+void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
+				    enum queue_stop_reason reason)
 {
+	struct ieee80211_local *local = hw_to_local(hw);
+	unsigned long flags;
 	int i;
 
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+
 	for (i = 0; i < ieee80211_num_queues(hw); i++)
-		ieee80211_stop_queue(hw, i);
+		__ieee80211_stop_queue(hw, i, reason);
+
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+}
+
+void ieee80211_stop_queues(struct ieee80211_hw *hw)
+{
+	ieee80211_stop_queues_by_reason(hw,
+					IEEE80211_QUEUE_STOP_REASON_DRIVER);
 }
 EXPORT_SYMBOL(ieee80211_stop_queues);
 
@@ -367,12 +429,24 @@ int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 }
 EXPORT_SYMBOL(ieee80211_queue_stopped);
 
-void ieee80211_wake_queues(struct ieee80211_hw *hw)
+void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
+				     enum queue_stop_reason reason)
 {
+	struct ieee80211_local *local = hw_to_local(hw);
+	unsigned long flags;
 	int i;
 
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+
 	for (i = 0; i < hw->queues + hw->ampdu_queues; i++)
-		ieee80211_wake_queue(hw, i);
+		__ieee80211_wake_queue(hw, i, reason);
+
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+}
+
+void ieee80211_wake_queues(struct ieee80211_hw *hw)
+{
+	ieee80211_wake_queues_by_reason(hw, IEEE80211_QUEUE_STOP_REASON_DRIVER);
 }
 EXPORT_SYMBOL(ieee80211_wake_queues);
 

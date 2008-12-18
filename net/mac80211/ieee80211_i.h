@@ -538,6 +538,10 @@ enum {
 	IEEE80211_ADDBA_MSG	= 4,
 };
 
+enum queue_stop_reason {
+	IEEE80211_QUEUE_STOP_REASON_DRIVER,
+};
+
 /* maximum number of hardware queues we support. */
 #define QD_MAX_QUEUES (IEEE80211_MAX_AMPDU_QUEUES + IEEE80211_MAX_QUEUES)
 
@@ -554,7 +558,8 @@ struct ieee80211_local {
 	const struct ieee80211_ops *ops;
 
 	unsigned long queue_pool[BITS_TO_LONGS(QD_MAX_QUEUES)];
-
+	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES];
+	spinlock_t queue_stop_reason_lock;
 	struct net_device *mdev; /* wmaster# - "master" 802.11 device */
 	int open_count;
 	int monitors, cooked_mntrs;
@@ -971,6 +976,11 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freq);
 u64 ieee80211_mandatory_rates(struct ieee80211_local *local,
 			      enum ieee80211_band band);
+
+void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
+				     enum queue_stop_reason reason);
+void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
+				     enum queue_stop_reason reason);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
