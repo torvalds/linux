@@ -1732,8 +1732,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 			if (unlikely(!newskb))
 				newskb = skb;
-
-			if (skb)
+			else if (skb)
 				dev_kfree_skb_any(skb);
 		} else {
 			/* Increment the number of packets */
