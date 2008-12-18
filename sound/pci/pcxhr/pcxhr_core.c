@@ -1213,7 +1213,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 		mgr->dsp_time_last = PCXHR_DSP_TIME_INVALID;
 		
 		mgr->src_it_dsp = reg;
-		tasklet_hi_schedule(&mgr->msg_taskq);
+		tasklet_schedule(&mgr->msg_taskq);
 	}
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	if (reg & PCXHR_FATAL_DSP_ERR)

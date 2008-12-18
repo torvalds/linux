@@ -548,7 +548,7 @@ irqreturn_t snd_vx_irq_handler(int irq, void *dev)
 	    (chip->chip_status & VX_STAT_IS_STALE))
 		return IRQ_NONE;
 	if (! vx_test_and_ack(chip))
-		tasklet_hi_schedule(&chip->tq);
+		tasklet_schedule(&chip->tq);
 	return IRQ_HANDLED;
 }
 

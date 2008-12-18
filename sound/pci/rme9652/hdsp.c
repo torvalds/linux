@@ -3750,7 +3750,7 @@ static irqreturn_t snd_hdsp_interrupt(int irq, void *dev_id)
 		}
 	}
 	if (hdsp->use_midi_tasklet && schedule)
-		tasklet_hi_schedule(&hdsp->midi_tasklet);
+		tasklet_schedule(&hdsp->midi_tasklet);
 	return IRQ_HANDLED;
 }
 

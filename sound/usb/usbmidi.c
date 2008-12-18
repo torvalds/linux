@@ -880,7 +880,7 @@ static void snd_usbmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 				snd_rawmidi_transmit_ack(substream, 1);
 			return;
 		}
-		tasklet_hi_schedule(&port->ep->tasklet);
+		tasklet_schedule(&port->ep->tasklet);
 	}
 }
 

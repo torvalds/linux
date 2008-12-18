@@ -1754,7 +1754,7 @@ snd_riptide_interrupt(int irq, void *dev_id)
 		if (IS_EOBIRQ(cif->hwport) || IS_EOSIRQ(cif->hwport) ||
 		    IS_EOCIRQ(cif->hwport)) {
 			chip->handled_irqs++;
-			tasklet_hi_schedule(&chip->riptide_tq);
+			tasklet_schedule(&chip->riptide_tq);
 		}
 		if (chip->rmidi && IS_MPUIRQ(cif->hwport)) {
 			chip->handled_irqs++;
