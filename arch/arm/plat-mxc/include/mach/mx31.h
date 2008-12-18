@@ -239,9 +239,6 @@
 #define PCMCIA_IO_ADDRESS(x) \
 	(((x) - X_MEMC_BASE_ADDR) + X_MEMC_BASE_ADDR_VIRT)
 
-/* Start of physical RAM - On many MX31 platforms, this is the first SDRAM bank (CSD0) */
-#define PHYS_OFFSET             CSD0_BASE_ADDR
-
 /*
  * Interrupt numbers
  */

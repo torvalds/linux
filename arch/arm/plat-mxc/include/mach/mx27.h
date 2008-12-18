@@ -289,7 +289,4 @@ extern int mx27_revision(void);
 /* this CPU supports up to 192 GPIOs (don't forget the baseboard!) */
 #define ARCH_NR_GPIOS		(192 + 16)
 
-/* Start of RAM */
-#define PHYS_OFFSET		SDRAM_BASE_ADDR
-
 #endif /* __ASM_ARCH_MXC_MX27_H__ */

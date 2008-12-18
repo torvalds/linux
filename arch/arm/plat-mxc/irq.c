@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <mach/common.h>
 #include <asm/mach/irq.h>
+#include <mach/hardware.h>
 
 #define AVIC_BASE		IO_ADDRESS(AVIC_BASE_ADDR)
 #define AVIC_INTCNTL		(AVIC_BASE + 0x00)	/* int control reg */

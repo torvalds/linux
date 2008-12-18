@@ -18,8 +18,6 @@
 
 #include <mach/vmalloc.h>
 
-#define PHYS_OFFSET	UL(0x08000000)
-
 /*
  * Memory map
  */
