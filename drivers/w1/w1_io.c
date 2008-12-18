@@ -217,7 +217,7 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
  * @param dev     the master device
  * @return        the byte read
  */
-static u8 w1_read_8(struct w1_master * dev)
+u8 w1_read_8(struct w1_master *dev)
 {
 	int i;
 	u8 res = 0;
@@ -230,6 +230,7 @@ static u8 w1_read_8(struct w1_master * dev)
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(w1_read_8);
 
 /**
  * Writes a series of bytes.

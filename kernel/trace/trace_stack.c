@@ -184,11 +184,16 @@ static struct file_operations stack_max_size_fops = {
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	long i = (long)m->private;
+	long i;
 
 	(*pos)++;
 
-	i++;
+	if (v == SEQ_START_TOKEN)
+		i = 0;
+	else {
+		i = *(long *)v;
+		i++;
+	}
 
 	if (i >= max_stack_trace.nr_entries ||
 	    stack_dump_trace[i] == ULONG_MAX)
@@ -201,11 +206,14 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	void *t = &m->private;
+	void *t = SEQ_START_TOKEN;
 	loff_t l = 0;
 
 	local_irq_disable();
 	__raw_spin_lock(&max_stack_lock);
+
+	if (*pos == 0)
+		return SEQ_START_TOKEN;
 
 	for (; t && l < *pos; t = t_next(m, t, &l))
 		;
@@ -235,16 +243,18 @@ static int trace_lookup_stack(struct seq_file *m, long i)
 
 static int t_show(struct seq_file *m, void *v)
 {
-	long i = *(long *)v;
+	long i;
 	int size;
 
-	if (i < 0) {
+	if (v == SEQ_START_TOKEN) {
 		seq_printf(m, "        Depth   Size      Location"
 			   "    (%d entries)\n"
 			   "        -----   ----      --------\n",
 			   max_stack_trace.nr_entries);
 		return 0;
 	}
+
+	i = *(long *)v;
 
 	if (i >= max_stack_trace.nr_entries ||
 	    stack_dump_trace[i] == ULONG_MAX)
@@ -275,10 +285,6 @@ static int stack_trace_open(struct inode *inode, struct file *file)
 	int ret;
 
 	ret = seq_open(file, &stack_trace_seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = (void *)-1;
-	}
 
 	return ret;
 }

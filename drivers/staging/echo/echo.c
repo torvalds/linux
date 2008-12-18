@@ -106,7 +106,6 @@
 
 #include <linux/kernel.h>	/* We're doing kernel work */
 #include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/slab.h>
 
 #include "bit_operations.h"

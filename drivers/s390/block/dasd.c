@@ -1746,6 +1746,11 @@ restart:
 			goto restart;
 		}
 
+		/* log sense for fatal error */
+		if (cqr->status == DASD_CQR_FAILED) {
+			dasd_log_sense(cqr, &cqr->irb);
+		}
+
 		/* First of all call extended error reporting. */
 		if (dasd_eer_enabled(base) &&
 		    cqr->status == DASD_CQR_FAILED) {

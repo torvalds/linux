@@ -81,9 +81,9 @@ static void dmi_table(u8 *buf, int len, int num,
 		const struct dmi_header *dm = (const struct dmi_header *)data;
 
 		/*
-		 *  We want to know the total length (formated area and strings)
-		 *  before decoding to make sure we won't run off the table in
-		 *  dmi_decode or dmi_string
+		 *  We want to know the total length (formatted area and
+		 *  strings) before decoding to make sure we won't run off the
+		 *  table in dmi_decode or dmi_string
 		 */
 		data += dm->length;
 		while ((data - buf < len - 1) && (data[0] || data[1]))

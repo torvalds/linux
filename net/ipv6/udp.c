@@ -138,6 +138,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	int peeked;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
+	int is_udp4;
 
 	if (addr_len)
 		*addr_len=sizeof(struct sockaddr_in6);
@@ -157,6 +158,8 @@ try_again:
 		copied = ulen;
 	else if (copied < ulen)
 		msg->msg_flags |= MSG_TRUNC;
+
+	is_udp4 = (skb->protocol == htons(ETH_P_IP));
 
 	/*
 	 * If checksum is needed at all, try to do it while copying the
@@ -180,9 +183,14 @@ try_again:
 	if (err)
 		goto out_free;
 
-	if (!peeked)
-		UDP6_INC_STATS_USER(sock_net(sk),
-				UDP_MIB_INDATAGRAMS, is_udplite);
+	if (!peeked) {
+		if (is_udp4)
+			UDP_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_INDATAGRAMS, is_udplite);
+		else
+			UDP6_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_INDATAGRAMS, is_udplite);
+	}
 
 	sock_recv_timestamp(msg, sk, skb);
 
@@ -196,7 +204,7 @@ try_again:
 		sin6->sin6_flowinfo = 0;
 		sin6->sin6_scope_id = 0;
 
-		if (skb->protocol == htons(ETH_P_IP))
+		if (is_udp4)
 			ipv6_addr_set(&sin6->sin6_addr, 0, 0,
 				      htonl(0xffff), ip_hdr(skb)->saddr);
 		else {
@@ -207,7 +215,7 @@ try_again:
 		}
 
 	}
-	if (skb->protocol == htons(ETH_P_IP)) {
+	if (is_udp4) {
 		if (inet->cmsg_flags)
 			ip_cmsg_recv(msg, skb);
 	} else {
@@ -228,8 +236,14 @@ out:
 
 csum_copy_err:
 	lock_sock(sk);
-	if (!skb_kill_datagram(sk, skb, flags))
-		UDP6_INC_STATS_USER(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
+	if (!skb_kill_datagram(sk, skb, flags)) {
+		if (is_udp4)
+			UDP_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_INERRORS, is_udplite);
+		else
+			UDP6_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_INERRORS, is_udplite);
+	}
 	release_sock(sk);
 
 	if (flags & MSG_DONTWAIT)

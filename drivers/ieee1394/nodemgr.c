@@ -115,8 +115,14 @@ static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
 	return error;
 }
 
+#define OUI_FREECOM_TECHNOLOGIES_GMBH 0x0001db
+
 static int nodemgr_get_max_rom(quadlet_t *bus_info_data, void *__ci)
 {
+	/* Freecom FireWire Hard Drive firmware bug */
+	if (be32_to_cpu(bus_info_data[3]) >> 8 == OUI_FREECOM_TECHNOLOGIES_GMBH)
+		return 0;
+
 	return (be32_to_cpu(bus_info_data[2]) >> 8) & 0x3;
 }
 
@@ -826,13 +832,11 @@ static struct node_entry *nodemgr_create_node(octlet_t guid,
 	memcpy(&ne->device, &nodemgr_dev_template_ne,
 	       sizeof(ne->device));
 	ne->device.parent = &host->device;
-	snprintf(ne->device.bus_id, BUS_ID_SIZE, "%016Lx",
-		 (unsigned long long)(ne->guid));
+	dev_set_name(&ne->device, "%016Lx", (unsigned long long)(ne->guid));
 
 	ne->node_dev.parent = &ne->device;
 	ne->node_dev.class = &nodemgr_ne_class;
-	snprintf(ne->node_dev.bus_id, BUS_ID_SIZE, "%016Lx",
-		(unsigned long long)(ne->guid));
+	dev_set_name(&ne->node_dev, "%016Lx", (unsigned long long)(ne->guid));
 
 	if (device_register(&ne->device))
 		goto fail_devreg;
@@ -932,13 +936,11 @@ static void nodemgr_register_device(struct node_entry *ne,
 
 	ud->device.parent = parent;
 
-	snprintf(ud->device.bus_id, BUS_ID_SIZE, "%s-%u",
-		 ne->device.bus_id, ud->id);
+	dev_set_name(&ud->device, "%s-%u", dev_name(&ne->device), ud->id);
 
 	ud->unit_dev.parent = &ud->device;
 	ud->unit_dev.class = &nodemgr_ud_class;
-	snprintf(ud->unit_dev.bus_id, BUS_ID_SIZE, "%s-%u",
-		 ne->device.bus_id, ud->id);
+	dev_set_name(&ud->unit_dev, "%s-%u", dev_name(&ne->device), ud->id);
 
 	if (device_register(&ud->device))
 		goto fail_devreg;
@@ -953,7 +955,7 @@ static void nodemgr_register_device(struct node_entry *ne,
 fail_classdevreg:
 	device_unregister(&ud->device);
 fail_devreg:
-	HPSB_ERR("Failed to create unit %s", ud->device.bus_id);
+	HPSB_ERR("Failed to create unit %s", dev_name(&ud->device));
 }	
 
 
@@ -1689,6 +1691,7 @@ static int nodemgr_host_thread(void *data)
 		g = get_hpsb_generation(host);
 		for (i = 0; i < 4 ; i++) {
 			msleep_interruptible(63);
+			try_to_freeze();
 			if (kthread_should_stop())
 				goto exit;
 
@@ -1729,6 +1732,7 @@ static int nodemgr_host_thread(void *data)
 		/* Sleep 3 seconds */
 		for (i = 3000/200; i; i--) {
 			msleep_interruptible(200);
+			try_to_freeze();
 			if (kthread_should_stop())
 				goto exit;
 

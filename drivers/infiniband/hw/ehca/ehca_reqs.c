@@ -179,6 +179,7 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 
 	qmap_entry->app_wr_id = get_app_wr_id(send_wr->wr_id);
 	qmap_entry->reported = 0;
+	qmap_entry->cqe_req = 0;
 
 	switch (send_wr->opcode) {
 	case IB_WR_SEND:
@@ -203,8 +204,10 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 
 	if ((send_wr->send_flags & IB_SEND_SIGNALED ||
 	    qp->init_attr.sq_sig_type == IB_SIGNAL_ALL_WR)
-	    && !hidden)
+	    && !hidden) {
 		wqe_p->wr_flag |= WQE_WRFLAG_REQ_SIGNAL_COM;
+		qmap_entry->cqe_req = 1;
+	}
 
 	if (send_wr->opcode == IB_WR_SEND_WITH_IMM ||
 	    send_wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM) {
@@ -569,6 +572,7 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 		qmap_entry = &my_qp->rq_map.map[rq_map_idx];
 		qmap_entry->app_wr_id = get_app_wr_id(cur_recv_wr->wr_id);
 		qmap_entry->reported = 0;
+		qmap_entry->cqe_req = 1;
 
 		wqe_cnt++;
 	} /* eof for cur_recv_wr */
@@ -706,19 +710,6 @@ repoll:
 		goto repoll;
 	wc->qp = &my_qp->ib_qp;
 
-	if (is_error) {
-		/*
-		 * set left_to_poll to 0 because in error state, we will not
-		 * get any additional CQEs
-		 */
-		ehca_add_to_err_list(my_qp, 1);
-		my_qp->sq_map.left_to_poll = 0;
-
-		if (HAS_RQ(my_qp))
-			ehca_add_to_err_list(my_qp, 0);
-		my_qp->rq_map.left_to_poll = 0;
-	}
-
 	qmap_tail_idx = get_app_wr_id(cqe->work_request_id);
 	if (!(cqe->w_completion_flags & WC_SEND_RECEIVE_BIT))
 		/* We got a send completion. */
@@ -726,6 +717,26 @@ repoll:
 	else
 		/* We got a receive completion. */
 		qmap = &my_qp->rq_map;
+
+	/* advance the tail pointer */
+	qmap->tail = qmap_tail_idx;
+
+	if (is_error) {
+		/*
+		 * set left_to_poll to 0 because in error state, we will not
+		 * get any additional CQEs
+		 */
+		my_qp->sq_map.next_wqe_idx = (my_qp->sq_map.tail + 1) %
+						my_qp->sq_map.entries;
+		my_qp->sq_map.left_to_poll = 0;
+		ehca_add_to_err_list(my_qp, 1);
+
+		my_qp->rq_map.next_wqe_idx = (my_qp->rq_map.tail + 1) %
+						my_qp->rq_map.entries;
+		my_qp->rq_map.left_to_poll = 0;
+		if (HAS_RQ(my_qp))
+			ehca_add_to_err_list(my_qp, 0);
+	}
 
 	qmap_entry = &qmap->map[qmap_tail_idx];
 	if (qmap_entry->reported) {
@@ -737,10 +748,6 @@ repoll:
 
 	wc->wr_id = replace_wr_id(cqe->work_request_id, qmap_entry->app_wr_id);
 	qmap_entry->reported = 1;
-
-	/* this is a proper completion, we need to advance the tail pointer */
-	if (++qmap->tail == qmap->entries)
-		qmap->tail = 0;
 
 	/* if left_to_poll is decremented to 0, add the QP to the error list */
 	if (qmap->left_to_poll > 0) {
@@ -805,13 +812,14 @@ static int generate_flush_cqes(struct ehca_qp *my_qp, struct ib_cq *cq,
 	else
 		qmap = &my_qp->rq_map;
 
-	qmap_entry = &qmap->map[qmap->tail];
+	qmap_entry = &qmap->map[qmap->next_wqe_idx];
 
 	while ((nr < num_entries) && (qmap_entry->reported == 0)) {
 		/* generate flush CQE */
+
 		memset(wc, 0, sizeof(*wc));
 
-		offset = qmap->tail * ipz_queue->qe_size;
+		offset = qmap->next_wqe_idx * ipz_queue->qe_size;
 		wqe = (struct ehca_wqe *)ipz_qeit_calc(ipz_queue, offset);
 		if (!wqe) {
 			ehca_err(cq->device, "Invalid wqe offset=%#lx on "
@@ -850,11 +858,12 @@ static int generate_flush_cqes(struct ehca_qp *my_qp, struct ib_cq *cq,
 
 		wc->qp = &my_qp->ib_qp;
 
-		/* mark as reported and advance tail pointer */
+		/* mark as reported and advance next_wqe pointer */
 		qmap_entry->reported = 1;
-		if (++qmap->tail == qmap->entries)
-			qmap->tail = 0;
-		qmap_entry = &qmap->map[qmap->tail];
+		qmap->next_wqe_idx++;
+		if (qmap->next_wqe_idx == qmap->entries)
+			qmap->next_wqe_idx = 0;
+		qmap_entry = &qmap->map[qmap->next_wqe_idx];
 
 		wc++; nr++;
 	}

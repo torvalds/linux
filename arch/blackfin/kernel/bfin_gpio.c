@@ -218,7 +218,7 @@ inline int check_gpio(unsigned gpio)
 	if (gpio == GPIO_PB15 || gpio == GPIO_PC14 || gpio == GPIO_PC15
 	    || gpio == GPIO_PH14 || gpio == GPIO_PH15
 	    || gpio == GPIO_PJ14 || gpio == GPIO_PJ15
-	    || gpio > MAX_BLACKFIN_GPIOS)
+	    || gpio >= MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
 	return 0;
 }

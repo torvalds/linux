@@ -120,6 +120,9 @@ unsigned long ring_buffer_overruns(struct ring_buffer *buffer);
 u64 ring_buffer_time_stamp(int cpu);
 void ring_buffer_normalize_time_stamp(int cpu, u64 *ts);
 
+void tracing_on(void);
+void tracing_off(void);
+
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,
 };

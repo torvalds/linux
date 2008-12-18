@@ -271,6 +271,7 @@ static int ieee80211_ioctl_siwmode(struct net_device *dev,
 				   __u32 *mode, char *extra)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	int type;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -281,6 +282,13 @@ static int ieee80211_ioctl_siwmode(struct net_device *dev,
 		type = NL80211_IFTYPE_STATION;
 		break;
 	case IW_MODE_ADHOC:
+		/* Setting ad-hoc mode on non ibss channel is not
+		 * supported.
+		 */
+		if (local->oper_channel &&
+		    (local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS))
+			return -EOPNOTSUPP;
+
 		type = NL80211_IFTYPE_ADHOC;
 		break;
 	case IW_MODE_REPEAT:

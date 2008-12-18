@@ -1515,9 +1515,6 @@ static u32 ql_get_link_state(struct ql3_adapter *qdev)
 		linkState = LS_UP;
 	} else {
 		linkState = LS_DOWN;
-		if (netif_msg_link(qdev))
-			printk(KERN_WARNING PFX
-			       "%s: Link is down.\n", qdev->ndev->name);
 	}
 	return linkState;
 }
@@ -1581,10 +1578,6 @@ static int ql_finish_auto_neg(struct ql3_adapter *qdev)
 			ql_mac_enable(qdev, 1);
 		}
 
-		if (netif_msg_link(qdev))
-			printk(KERN_DEBUG PFX
-			       "%s: Change port_link_state LS_DOWN to LS_UP.\n",
-			       qdev->ndev->name);
 		qdev->port_link_state = LS_UP;
 		netif_start_queue(qdev->ndev);
 		netif_carrier_on(qdev->ndev);
@@ -1655,14 +1648,9 @@ static void ql_link_state_machine_work(struct work_struct *work)
 		/* Fall Through */
 
 	case LS_DOWN:
-		if (netif_msg_link(qdev))
-			printk(KERN_DEBUG PFX
-			       "%s: port_link_state = LS_DOWN.\n",
-			       qdev->ndev->name);
 		if (curr_link_state == LS_UP) {
 			if (netif_msg_link(qdev))
-				printk(KERN_DEBUG PFX
-				       "%s: curr_link_state = LS_UP.\n",
+				printk(KERN_INFO PFX "%s: Link is up.\n",
 				       qdev->ndev->name);
 			if (ql_is_auto_neg_complete(qdev))
 				ql_finish_auto_neg(qdev);
@@ -1670,6 +1658,7 @@ static void ql_link_state_machine_work(struct work_struct *work)
 			if (qdev->port_link_state == LS_UP)
 				ql_link_down_detect_clear(qdev);
 
+			qdev->port_link_state = LS_UP;
 		}
 		break;
 
@@ -1678,12 +1667,14 @@ static void ql_link_state_machine_work(struct work_struct *work)
 		 * See if the link is currently down or went down and came
 		 * back up
 		 */
-		if ((curr_link_state == LS_DOWN) || ql_link_down_detect(qdev)) {
+		if (curr_link_state == LS_DOWN) {
 			if (netif_msg_link(qdev))
 				printk(KERN_INFO PFX "%s: Link is down.\n",
 				       qdev->ndev->name);
 			qdev->port_link_state = LS_DOWN;
 		}
+		if (ql_link_down_detect(qdev))
+			qdev->port_link_state = LS_DOWN;
 		break;
 	}
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);

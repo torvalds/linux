@@ -932,8 +932,7 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 		int i, rtn = NEEDS_RETRY;
 
 		for (i = 0; rtn == NEEDS_RETRY && i < 2; i++)
-			rtn = scsi_send_eh_cmnd(scmd, stu_command, 6,
-						scmd->device->timeout, 0);
+			rtn = scsi_send_eh_cmnd(scmd, stu_command, 6, scmd->device->request_queue->rq_timeout, 0);
 
 		if (rtn == SUCCESS)
 			return 0;
@@ -1340,9 +1339,10 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * LLD/transport was disrupted during processing of the IO.
 		 * The transport class is now blocked/blocking,
 		 * and the transport will decide what to do with the IO
-		 * based on its timers and recovery capablilities.
+		 * based on its timers and recovery capablilities if
+		 * there are enough retries.
 		 */
-		return ADD_TO_MLQUEUE;
+		goto maybe_retry;
 	case DID_TRANSPORT_FAILFAST:
 		/*
 		 * The transport decided to failfast the IO (most likely

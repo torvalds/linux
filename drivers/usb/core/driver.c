@@ -279,7 +279,9 @@ static int usb_unbind_interface(struct device *dev)
 	 * altsetting means creating new endpoint device entries).
 	 * When either of these happens, defer the Set-Interface.
 	 */
-	if (!error && intf->dev.power.status == DPM_ON)
+	if (intf->cur_altsetting->desc.bAlternateSetting == 0)
+		;	/* Already in altsetting 0 so skip Set-Interface */
+	else if (!error && intf->dev.power.status == DPM_ON)
 		usb_set_interface(udev, intf->altsetting[0].
 				desc.bInterfaceNumber, 0);
 	else

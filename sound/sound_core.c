@@ -457,7 +457,7 @@ EXPORT_SYMBOL(unregister_sound_mixer);
 
 void unregister_sound_midi(int unit)
 {
-	return sound_remove_unit(&chains[2], unit);
+	sound_remove_unit(&chains[2], unit);
 }
 
 EXPORT_SYMBOL(unregister_sound_midi);
@@ -474,7 +474,7 @@ EXPORT_SYMBOL(unregister_sound_midi);
 
 void unregister_sound_dsp(int unit)
 {
-	return sound_remove_unit(&chains[3], unit);
+	sound_remove_unit(&chains[3], unit);
 }
 
 
@@ -507,7 +507,7 @@ static struct sound_unit *__look_for_unit(int chain, int unit)
 	return NULL;
 }
 
-int soundcore_open(struct inode *inode, struct file *file)
+static int soundcore_open(struct inode *inode, struct file *file)
 {
 	int chain;
 	int unit = iminor(inode);

@@ -85,7 +85,7 @@ enum ocfs2_unlock_action {
 };
 
 /* ocfs2_lock_res->l_flags flags. */
-#define OCFS2_LOCK_ATTACHED      (0x00000001) /* have we initialized
+#define OCFS2_LOCK_ATTACHED      (0x00000001) /* we have initialized
 					       * the lvb */
 #define OCFS2_LOCK_BUSY          (0x00000002) /* we are currently in
 					       * dlm_lock */
@@ -472,6 +472,9 @@ static inline int ocfs2_uses_extended_slot_map(struct ocfs2_super *osb)
 		(unsigned long long)le64_to_cpu((____gd)->bg_blkno), 7, \
 		(____gd)->bg_signature);				\
 } while (0)
+
+#define OCFS2_IS_VALID_XATTR_BLOCK(ptr)					\
+	(!strcmp((ptr)->xb_signature, OCFS2_XATTR_BLOCK_SIGNATURE))
 
 static inline unsigned long ino_from_blkno(struct super_block *sb,
 					   u64 blkno)

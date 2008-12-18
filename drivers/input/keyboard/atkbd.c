@@ -824,7 +824,7 @@ static void atkbd_disconnect(struct serio *serio)
 	atkbd_disable(atkbd);
 
 	/* make sure we don't have a command in flight */
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&atkbd->event_work);
 
 	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
 	input_unregister_device(atkbd->dev);
@@ -865,6 +865,22 @@ static void atkbd_hp_keymap_fixup(struct atkbd *atkbd)
 		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
 			__set_bit(forced_release_keys[i],
 					atkbd->force_release_mask);
+}
+
+/*
+ * Inventec system with broken key release on volume keys
+ */
+static void atkbd_inventec_keymap_fixup(struct atkbd *atkbd)
+{
+	const unsigned int forced_release_keys[] = {
+		0xae, 0xb0,
+	};
+	int i;
+
+	if (atkbd->set == 2)
+		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
+			__set_bit(forced_release_keys[i],
+				  atkbd->force_release_mask);
 }
 
 /*
@@ -1467,6 +1483,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_fixup,
 		.driver_data = atkbd_hp_keymap_fixup,
+	},
+	{
+		.ident = "Inventec Symphony",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "INVENTEC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SYMPHONY 6.0/7.0"),
+		},
+		.callback = atkbd_setup_fixup,
+		.driver_data = atkbd_inventec_keymap_fixup,
 	},
 	{ }
 };

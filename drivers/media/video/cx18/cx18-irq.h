@@ -32,6 +32,4 @@
 
 irqreturn_t cx18_irq_handler(int irq, void *dev_id);
 
-void cx18_irq_work_handler(struct work_struct *work);
-void cx18_dma_stream_dec_prepare(struct cx18_stream *s, u32 offset, int lock);
-void cx18_unfinished_dma(unsigned long arg);
+void cx18_work_handler(struct work_struct *work);

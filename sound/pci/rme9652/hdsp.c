@@ -4548,10 +4548,19 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 {
 	struct hdsp *hdsp = (struct hdsp *)hw->private_data;	
 	void __user *argp = (void __user *)arg;
+	int err;
 
 	switch (cmd) {
 	case SNDRV_HDSP_IOCTL_GET_PEAK_RMS: {
 		struct hdsp_peak_rms __user *peak_rms = (struct hdsp_peak_rms __user *)arg;
+
+		err = hdsp_check_for_iobox(hdsp);
+		if (err < 0)
+			return err;
+
+		err = hdsp_check_for_firmware(hdsp, 1);
+		if (err < 0)
+			return err;
 
 		if (!(hdsp->state & HDSP_FirmwareLoaded)) {
 			snd_printk(KERN_ERR "Hammerfall-DSP: firmware needs to be uploaded to the card.\n");
@@ -4572,10 +4581,14 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 		unsigned long flags;
 		int i;
 		
-		if (!(hdsp->state & HDSP_FirmwareLoaded)) {
-			snd_printk(KERN_ERR "Hammerfall-DSP: Firmware needs to be uploaded to the card.\n");	
-			return -EINVAL;
-		}
+		err = hdsp_check_for_iobox(hdsp);
+		if (err < 0)
+			return err;
+
+		err = hdsp_check_for_firmware(hdsp, 1);
+		if (err < 0)
+			return err;
+
 		spin_lock_irqsave(&hdsp->lock, flags);
 		info.pref_sync_ref = (unsigned char)hdsp_pref_sync_ref(hdsp);
 		info.wordclock_sync_check = (unsigned char)hdsp_wc_sync_check(hdsp);
@@ -5045,6 +5058,10 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 		/* we wait 2 seconds to let freshly inserted cardbus cards do their hardware init */
 		ssleep(2);
 
+		err = hdsp_check_for_iobox(hdsp);
+		if (err < 0)
+			return err;
+
 		if ((hdsp_read (hdsp, HDSP_statusRegister) & HDSP_DllError) != 0) {
 #ifdef HDSP_FW_LOADER
 			if ((err = hdsp_request_fw_loader(hdsp)) < 0)
@@ -5057,7 +5074,7 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 				/* init is complete, we return */
 				return 0;
 #endif
-			/* no iobox connected, we defer initialization */
+			/* we defer initialization */
 			snd_printk(KERN_INFO "Hammerfall-DSP: card initialization pending : waiting for firmware\n");
 			if ((err = snd_hdsp_create_hwdep(card, hdsp)) < 0)
 				return err;

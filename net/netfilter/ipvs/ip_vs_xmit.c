@@ -713,7 +713,8 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	iph			=	ipv6_hdr(skb);
 	iph->version		=	6;
 	iph->nexthdr		=	IPPROTO_IPV6;
-	iph->payload_len	=	old_iph->payload_len + sizeof(old_iph);
+	iph->payload_len	=	old_iph->payload_len;
+	be16_add_cpu(&iph->payload_len, sizeof(*old_iph));
 	iph->priority		=	old_iph->priority;
 	memset(&iph->flow_lbl, 0, sizeof(iph->flow_lbl));
 	iph->daddr		=	rt->rt6i_dst.addr;

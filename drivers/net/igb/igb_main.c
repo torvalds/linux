@@ -1019,10 +1019,9 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 			state &= ~PCIE_LINK_STATE_L0S;
 			pci_write_config_word(us_dev, pos + PCI_EXP_LNKCTL,
 			                      state);
-			printk(KERN_INFO "Disabling ASPM L0s upstream switch "
-			       "port %x:%x.%x\n", us_dev->bus->number,
-			       PCI_SLOT(us_dev->devfn),
-			       PCI_FUNC(us_dev->devfn));
+			dev_info(&pdev->dev,
+				 "Disabling ASPM L0s upstream switch port %s\n",
+				 pci_name(us_dev));
 		}
 	default:
 		break;
@@ -1244,6 +1243,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wol = adapter->eeprom_wol;
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	/* reset the hardware with the new settings */
 	igb_reset(adapter);
@@ -1980,7 +1980,6 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 
 /**
  * igb_free_tx_resources - Free Tx Resources per Queue
- * @adapter: board private structure
  * @tx_ring: Tx descriptor ring for a specific queue
  *
  * Free all transmit software resources
@@ -2033,7 +2032,6 @@ static void igb_unmap_and_free_tx_resource(struct igb_adapter *adapter,
 
 /**
  * igb_clean_tx_ring - Free Tx Buffers
- * @adapter: board private structure
  * @tx_ring: ring to be cleaned
  **/
 static void igb_clean_tx_ring(struct igb_ring *tx_ring)
@@ -2080,7 +2078,6 @@ static void igb_clean_all_tx_rings(struct igb_adapter *adapter)
 
 /**
  * igb_free_rx_resources - Free Rx Resources
- * @adapter: board private structure
  * @rx_ring: ring to clean the resources from
  *
  * Free all receive software resources
@@ -2120,7 +2117,6 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
 
 /**
  * igb_clean_rx_ring - Free Rx Buffers per Queue
- * @adapter: board private structure
  * @rx_ring: ring to free buffers from
  **/
 static void igb_clean_rx_ring(struct igb_ring *rx_ring)

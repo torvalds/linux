@@ -322,6 +322,10 @@ struct mlx4_en_port_profile {
 	u32 rx_ring_num;
 	u32 tx_ring_size;
 	u32 rx_ring_size;
+	u8 rx_pause;
+	u8 rx_ppp;
+	u8 tx_pause;
+	u8 tx_ppp;
 };
 
 struct mlx4_en_profile {
@@ -333,10 +337,6 @@ struct mlx4_en_profile {
 	int rx_moder_cnt;
 	int rx_moder_time;
 	int auto_moder;
-	u8 rx_pause;
-	u8 rx_ppp;
-	u8 tx_pause;
-	u8 tx_ppp;
 	u8 no_reset;
 	struct mlx4_en_port_profile prof[MLX4_MAX_PORTS + 1];
 };

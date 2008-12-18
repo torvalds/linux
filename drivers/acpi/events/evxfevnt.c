@@ -248,21 +248,15 @@ ACPI_EXPORT_SYMBOL(acpi_set_gpe_type)
  * DESCRIPTION: Enable an ACPI event (general purpose)
  *
  ******************************************************************************/
-acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
+acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 {
 	acpi_status status = AE_OK;
+	acpi_cpu_flags flags;
 	struct acpi_gpe_event_info *gpe_event_info;
 
 	ACPI_FUNCTION_TRACE(acpi_enable_gpe);
 
-	/* Use semaphore lock if not executing at interrupt level */
-
-	if (flags & ACPI_NOT_ISR) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
 	/* Ensure that we have a valid GPE number */
 
@@ -277,9 +271,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 	status = acpi_ev_enable_gpe(gpe_event_info, TRUE);
 
       unlock_and_exit:
-	if (flags & ACPI_NOT_ISR) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
-	}
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
 
@@ -299,22 +291,15 @@ ACPI_EXPORT_SYMBOL(acpi_enable_gpe)
  * DESCRIPTION: Disable an ACPI event (general purpose)
  *
  ******************************************************************************/
-acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
+acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number)
 {
 	acpi_status status = AE_OK;
+	acpi_cpu_flags flags;
 	struct acpi_gpe_event_info *gpe_event_info;
 
 	ACPI_FUNCTION_TRACE(acpi_disable_gpe);
 
-	/* Use semaphore lock if not executing at interrupt level */
-
-	if (flags & ACPI_NOT_ISR) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 	/* Ensure that we have a valid GPE number */
 
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
@@ -325,10 +310,8 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 
 	status = acpi_ev_disable_gpe(gpe_event_info);
 
-      unlock_and_exit:
-	if (flags & ACPI_NOT_ISR) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
-	}
+unlock_and_exit:
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
 
@@ -521,6 +504,9 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	if (value)
 		*event_status |= ACPI_EVENT_FLAG_SET;
 
+	if (acpi_gbl_fixed_event_handlers[event].handler)
+		*event_status |= ACPI_EVENT_FLAG_HANDLE;
+
 	return_ACPI_STATUS(status);
 }
 
@@ -570,6 +556,9 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 	/* Obtain status on the requested GPE number */
 
 	status = acpi_hw_get_gpe_status(gpe_event_info, event_status);
+
+	if (gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK)
+		*event_status |= ACPI_EVENT_FLAG_HANDLE;
 
       unlock_and_exit:
 	if (flags & ACPI_NOT_ISR) {

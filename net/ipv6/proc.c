@@ -132,7 +132,7 @@ static struct snmp_mib snmp6_udplite6_list[] = {
 
 static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
 {
-	static char name[32];
+	char name[32];
 	int i;
 
 	/* print by name -- deprecated items */
@@ -144,7 +144,7 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
 		p = icmp6type2name[icmptype];
 		if (!p)	/* don't print un-named types here */
 			continue;
-		(void) snprintf(name, sizeof(name)-1, "Icmp6%s%s",
+		snprintf(name, sizeof(name), "Icmp6%s%s",
 			i & 0x100 ? "Out" : "In", p);
 		seq_printf(seq, "%-32s\t%lu\n", name,
 			snmp_fold_field(mib, i));
@@ -157,7 +157,7 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
 		val = snmp_fold_field(mib, i);
 		if (!val)
 			continue;
-		(void) snprintf(name, sizeof(name)-1, "Icmp6%sType%u",
+		snprintf(name, sizeof(name), "Icmp6%sType%u",
 			i & 0x100 ?  "Out" : "In", i & 0xff);
 		seq_printf(seq, "%-32s\t%lu\n", name, val);
 	}

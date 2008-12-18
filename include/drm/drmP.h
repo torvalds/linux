@@ -861,8 +861,6 @@ struct drm_device {
 	struct timer_list vblank_disable_timer;
 
 	u32 max_vblank_count;           /**< size of vblank counter register */
-	spinlock_t tasklet_lock;	/**< For drm_locked_tasklet */
-	void (*locked_tasklet_func)(struct drm_device *dev);
 
 	/*@} */
 	cycles_t ctx_start;
@@ -1149,16 +1147,14 @@ extern int drm_vblank_init(struct drm_device *dev, int num_crtcs);
 extern int drm_wait_vblank(struct drm_device *dev, void *data,
 			   struct drm_file *filp);
 extern int drm_vblank_wait(struct drm_device *dev, unsigned int *vbl_seq);
-extern void drm_locked_tasklet(struct drm_device *dev,
-			       void(*func)(struct drm_device *));
 extern u32 drm_vblank_count(struct drm_device *dev, int crtc);
 extern void drm_handle_vblank(struct drm_device *dev, int crtc);
 extern int drm_vblank_get(struct drm_device *dev, int crtc);
 extern void drm_vblank_put(struct drm_device *dev, int crtc);
+extern void drm_vblank_cleanup(struct drm_device *dev);
 /* Modesetting support */
 extern int drm_modeset_ctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
-extern void drm_locked_tasklet(struct drm_device *dev, void(*func)(struct drm_device*));
 
 				/* AGP/GART support (drm_agpsupport.h) */
 extern struct drm_agp_head *drm_agp_init(struct drm_device *dev);

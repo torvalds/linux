@@ -660,7 +660,7 @@ static void acpi_wmi_notify(acpi_handle handle, u32 event, void *data)
 				wblock->handler(event, wblock->handler_data);
 
 			acpi_bus_generate_netlink_event(
-				device->pnp.device_class, device->dev.bus_id,
+				device->pnp.device_class, dev_name(&device->dev),
 				event, 0);
 			break;
 		}

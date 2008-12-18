@@ -15,6 +15,15 @@ config DEBUG_DECOMPRESS_KERNEL
 	  decompressing Linux seeing "Uncompressing Linux... " and
 	  "Ok, booting the kernel.\n" on console.
 
+config TEST_MISALIGNMENT_HANDLER
+	bool "Run tests on the misalignment handler"
+	depends on DEBUG_KERNEL
+	default n
+	help
+	  If you say Y here the kernel will execute a list of misaligned memory
+	  accesses to make sure the misalignment handler deals them with
+	  correctly.  If it does not, the kernel will throw a BUG.
+
 config KPROBES
 	bool "Kprobes"
 	depends on DEBUG_KERNEL

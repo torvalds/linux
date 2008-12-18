@@ -32,7 +32,6 @@
 #include <linux/memory_hotplug.h>
 #include <acpi/acpi_drivers.h>
 
-#define ACPI_MEMORY_DEVICE_COMPONENT		0x08000000UL
 #define ACPI_MEMORY_DEVICE_CLASS		"memory"
 #define ACPI_MEMORY_DEVICE_HID			"PNP0C80"
 #define ACPI_MEMORY_DEVICE_NAME			"Hotplug Mem Device"
