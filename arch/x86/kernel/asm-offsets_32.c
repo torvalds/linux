@@ -11,7 +11,7 @@
 #include <linux/suspend.h>
 #include <linux/kbuild.h>
 #include <asm/ucontext.h>
-#include "sigframe.h"
+#include <asm/sigframe.h>
 #include <asm/pgtable.h>
 #include <asm/fixmap.h>
 #include <asm/processor.h>

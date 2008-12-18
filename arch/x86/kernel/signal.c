@@ -35,7 +35,7 @@
 #include <asm/syscall.h>
 #include <asm/syscalls.h>
 
-#include "sigframe.h"
+#include <asm/sigframe.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
