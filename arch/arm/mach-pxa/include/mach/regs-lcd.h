@@ -28,17 +28,7 @@
 #define CMDCR		(0x100)	/* Command Control Register */
 #define PRSR		(0x104)	/* Panel Read Status Register */
 
-#define LCCR3_1BPP	(0 << 24)
-#define LCCR3_2BPP	(1 << 24)
-#define LCCR3_4BPP	(2 << 24)
-#define LCCR3_8BPP	(3 << 24)
-#define LCCR3_16BPP	(4 << 24)
-#define LCCR3_18BPP	(5 << 24)
-#define LCCR3_18BPP_P	(6 << 24)
-#define LCCR3_19BPP	(7 << 24)
-#define LCCR3_19BPP_P	(1 << 29)
-#define LCCR3_24BPP	((1 << 29) | (1 << 24))
-#define LCCR3_25BPP	((1 << 29) | (2 << 24))
+#define LCCR3_BPP(x)	((((x) & 0x7) << 24) | (((x) & 0x8) ? (1 << 29) : 0))
 
 #define LCCR3_PDFOR_0	(0 << 30)
 #define LCCR3_PDFOR_1	(1 << 30)
@@ -132,9 +122,6 @@
 #define LCCR3_DPC	(1 << 27)	/* double pixel clock mode */
 #define LCCR3_PCD	Fld (8, 0)	/* Pixel Clock Divisor */
 #define LCCR3_PixClkDiv(Div)	(((Div) << FShft (LCCR3_PCD)))
-
-#define LCCR3_BPP	Fld (3, 24)	/* Bit Per Pixel */
-#define LCCR3_Bpp(Bpp)	(((Bpp) << FShft (LCCR3_BPP)))
 
 #define LCCR3_ACB	Fld (8, 8)	/* AC Bias */
 #define LCCR3_Acb(Acb)	(((Acb) << FShft (LCCR3_ACB)))

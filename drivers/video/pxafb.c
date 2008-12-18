@@ -66,7 +66,7 @@
 					 LCCR0_SFM | LCCR0_LDM | LCCR0_ENB)
 
 #define LCCR3_INVALID_CONFIG_MASK	(LCCR3_HSP | LCCR3_VSP |\
-					 LCCR3_PCD | LCCR3_BPP)
+					 LCCR3_PCD | LCCR3_BPP(0xf))
 
 static int pxafb_activate_var(struct fb_var_screeninfo *var,
 				struct pxafb_info *);
@@ -221,37 +221,110 @@ pxafb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	return ret;
 }
 
-/*
- *  pxafb_bpp_to_lccr3():
- *    Convert a bits per pixel value to the correct bit pattern for LCCR3
- */
-static int pxafb_bpp_to_lccr3(struct fb_var_screeninfo *var)
+/* calculate pixel depth, transparency bit included, >=16bpp formats _only_ */
+static inline int var_to_depth(struct fb_var_screeninfo *var)
 {
-	int ret = 0;
+	return var->red.length + var->green.length +
+		var->blue.length + var->transp.length;
+}
+
+/* calculate 4-bit BPP value for LCCR3 and OVLxC1 */
+static int pxafb_var_to_bpp(struct fb_var_screeninfo *var)
+{
+	int bpp = -EINVAL;
+
 	switch (var->bits_per_pixel) {
-	case 1:  ret = LCCR3_1BPP; break;
-	case 2:  ret = LCCR3_2BPP; break;
-	case 4:  ret = LCCR3_4BPP; break;
-	case 8:  ret = LCCR3_8BPP; break;
-	case 16: ret = LCCR3_16BPP; break;
+	case 1:  bpp = 0; break;
+	case 2:  bpp = 1; break;
+	case 4:  bpp = 2; break;
+	case 8:  bpp = 3; break;
+	case 16: bpp = 4; break;
 	case 24:
-		switch (var->red.length + var->green.length +
-				var->blue.length + var->transp.length) {
-		case 18: ret = LCCR3_18BPP_P | LCCR3_PDFOR_3; break;
-		case 19: ret = LCCR3_19BPP_P; break;
+		switch (var_to_depth(var)) {
+		case 18: bpp = 6; break; /* 18-bits/pixel packed */
+		case 19: bpp = 8; break; /* 19-bits/pixel packed */
+		case 24: bpp = 9; break;
 		}
 		break;
 	case 32:
-		switch (var->red.length + var->green.length +
-				var->blue.length + var->transp.length) {
-		case 18: ret = LCCR3_18BPP | LCCR3_PDFOR_3; break;
-		case 19: ret = LCCR3_19BPP; break;
-		case 24: ret = LCCR3_24BPP | LCCR3_PDFOR_3; break;
-		case 25: ret = LCCR3_25BPP; break;
+		switch (var_to_depth(var)) {
+		case 18: bpp = 5; break; /* 18-bits/pixel unpacked */
+		case 19: bpp = 7; break; /* 19-bits/pixel unpacked */
+		case 25: bpp = 10; break;
 		}
 		break;
 	}
-	return ret;
+	return bpp;
+}
+
+/*
+ *  pxafb_var_to_lccr3():
+ *    Convert a bits per pixel value to the correct bit pattern for LCCR3
+ *
+ *  NOTE: for PXA27x with overlays support, the LCCR3_PDFOR_x bits have an
+ *  implication of the acutal use of transparency bit,  which we handle it
+ *  here separatedly. See PXA27x Developer's Manual, Section <<7.4.6 Pixel
+ *  Formats>> for the valid combination of PDFOR, PAL_FOR for various BPP.
+ *
+ *  Transparency for palette pixel formats is not supported at the moment.
+ */
+static uint32_t pxafb_var_to_lccr3(struct fb_var_screeninfo *var)
+{
+	int bpp = pxafb_var_to_bpp(var);
+	uint32_t lccr3;
+
+	if (bpp < 0)
+		return 0;
+
+	lccr3 = LCCR3_BPP(bpp);
+
+	switch (var_to_depth(var)) {
+	case 16: lccr3 |= var->transp.length ? LCCR3_PDFOR_3 : 0; break;
+	case 18: lccr3 |= LCCR3_PDFOR_3; break;
+	case 24: lccr3 |= var->transp.length ? LCCR3_PDFOR_2 : LCCR3_PDFOR_3;
+		 break;
+	case 19:
+	case 25: lccr3 |= LCCR3_PDFOR_0; break;
+	}
+	return lccr3;
+}
+
+#define SET_PIXFMT(v, r, g, b, t)				\
+({								\
+	(v)->transp.offset = (t) ? (r) + (g) + (b) : 0;		\
+	(v)->transp.length = (t) ? (t) : 0;			\
+	(v)->blue.length   = (b); (v)->blue.offset = 0;		\
+	(v)->green.length  = (g); (v)->green.offset = (b);	\
+	(v)->red.length    = (r); (v)->red.offset = (b) + (g);	\
+})
+
+/* set the RGBT bitfields of fb_var_screeninf according to
+ * var->bits_per_pixel and given depth
+ */
+static void pxafb_set_pixfmt(struct fb_var_screeninfo *var, int depth)
+{
+	if (depth == 0)
+		depth = var->bits_per_pixel;
+
+	if (var->bits_per_pixel < 16) {
+		/* indexed pixel formats */
+		var->red.offset    = 0; var->red.length    = 8;
+		var->green.offset  = 0; var->green.length  = 8;
+		var->blue.offset   = 0; var->blue.length   = 8;
+		var->transp.offset = 0; var->transp.length = 8;
+	}
+
+	switch (depth) {
+	case 16: var->transp.length ?
+		 SET_PIXFMT(var, 5, 5, 5, 1) :		/* RGBT555 */
+		 SET_PIXFMT(var, 5, 6, 5, 0); break;	/* RGB565 */
+	case 18: SET_PIXFMT(var, 6, 6, 6, 0); break;	/* RGB666 */
+	case 19: SET_PIXFMT(var, 6, 6, 6, 1); break;	/* RGBT666 */
+	case 24: var->transp.length ?
+		 SET_PIXFMT(var, 8, 8, 7, 1) :		/* RGBT887 */
+		 SET_PIXFMT(var, 8, 8, 8, 0); break;	/* RGB888 */
+	case 25: SET_PIXFMT(var, 8, 8, 8, 1); break;	/* RGBT888 */
+	}
 }
 
 #ifdef CONFIG_CPU_FREQ
@@ -313,6 +386,9 @@ static void pxafb_setmode(struct fb_var_screeninfo *var,
 	var->lower_margin	= mode->lower_margin;
 	var->sync		= mode->sync;
 	var->grayscale		= mode->cmap_greyscale;
+
+	/* set the initial RGBA bitfields */
+	pxafb_set_pixfmt(var, mode->depth);
 }
 
 /*
@@ -328,6 +404,7 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
 	struct pxafb_mach_info *inf = fbi->dev->platform_data;
+	int err;
 
 	if (var->xres < MIN_XRES)
 		var->xres = MIN_XRES;
@@ -359,60 +436,12 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	else
 		var->yres_virtual = max(var->yres_virtual, var->yres);
 
-	/*
-	 * Setup the RGB parameters for this display.
-	 *
-	 * The pixel packing format is described on page 7-11 of the
-	 * PXA2XX Developer's Manual.
-	 */
-	if (var->bits_per_pixel == 16) {
-		var->red.offset   = 11; var->red.length   = 5;
-		var->green.offset = 5;  var->green.length = 6;
-		var->blue.offset  = 0;  var->blue.length  = 5;
-		var->transp.offset = var->transp.length = 0;
-	} else if (var->bits_per_pixel > 16) {
-		struct pxafb_mode_info *mode;
+	/* do a test conversion to BPP fields to check the color formats */
+	err = pxafb_var_to_bpp(var);
+	if (err < 0)
+		return err;
 
-		mode = pxafb_getmode(inf, var);
-		if (!mode)
-			return -EINVAL;
-
-		switch (mode->depth) {
-		case 18: /* RGB666 */
-			var->transp.offset = var->transp.length     = 0;
-			var->red.offset	   = 12; var->red.length    = 6;
-			var->green.offset  = 6;  var->green.length  = 6;
-			var->blue.offset   = 0;  var->blue.length   = 6;
-			break;
-		case 19: /* RGBT666 */
-			var->transp.offset = 18; var->transp.length = 1;
-			var->red.offset	   = 12; var->red.length    = 6;
-			var->green.offset  = 6;  var->green.length  = 6;
-			var->blue.offset   = 0;  var->blue.length   = 6;
-			break;
-		case 24: /* RGB888 */
-			var->transp.offset = var->transp.length     = 0;
-			var->red.offset	   = 16; var->red.length    = 8;
-			var->green.offset  = 8;  var->green.length  = 8;
-			var->blue.offset   = 0;  var->blue.length   = 8;
-			break;
-		case 25: /* RGBT888 */
-			var->transp.offset = 24; var->transp.length = 1;
-			var->red.offset	   = 16; var->red.length    = 8;
-			var->green.offset  = 8;  var->green.length  = 8;
-			var->blue.offset   = 0;  var->blue.length   = 8;
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else {
-		var->red.offset = var->green.offset = 0;
-		var->blue.offset = var->transp.offset = 0;
-		var->red.length   = 8;
-		var->green.length = 8;
-		var->blue.length  = 8;
-		var->transp.length = 0;
-	}
+	pxafb_set_pixfmt(var, var_to_depth(var));
 
 #ifdef CONFIG_CPU_FREQ
 	pr_debug("pxafb: dma period = %d ps\n",
@@ -978,7 +1007,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 		(LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_EFM |
 		 LCCR0_QDM | LCCR0_BM  | LCCR0_OUM);
 
-	fbi->reg_lccr3 |= pxafb_bpp_to_lccr3(var);
+	fbi->reg_lccr3 |= pxafb_var_to_lccr3(var);
 
 	fbi->reg_lccr4 = lcd_readl(fbi, LCCR4) & ~LCCR4_PAL_FOR_MASK;
 	fbi->reg_lccr4 |= (fbi->lccr4 & LCCR4_PAL_FOR_MASK);
