@@ -38,12 +38,14 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-					 SND_SOC_DAIFMT_CBM_CFM);
+					SND_SOC_DAIFMT_CBM_CFM |
+					SND_SOC_DAIFMT_NB_NF);
 	if (ret < 0)
 		return ret;
 
 	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBM_CFM |
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+					SND_SOC_DAIFMT_CBM_CFM |
 				       SND_SOC_DAIFMT_IB_NF);
 	if (ret < 0)
 		return ret;
