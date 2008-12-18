@@ -392,10 +392,28 @@ static void add_sample_entry(unsigned long offset, unsigned long event)
 }
 
 
-static int add_us_sample(struct mm_struct *mm, struct op_sample *s)
+/*
+ * Add a sample to the global event buffer. If possible the
+ * sample is converted into a persistent dentry/offset pair
+ * for later lookup from userspace. Return 0 on failure.
+ */
+static int
+add_sample(struct mm_struct *mm, struct op_sample *s, int in_kernel)
 {
 	unsigned long cookie;
 	off_t offset;
+
+	if (in_kernel) {
+		add_sample_entry(s->eip, s->event);
+		return 1;
+	}
+
+	/* add userspace sample */
+
+	if (!mm) {
+		atomic_inc(&oprofile_stats.sample_lost_no_mm);
+		return 0;
+	}
 
 	cookie = lookup_dcookie(mm, s->eip, &offset);
 
@@ -412,25 +430,6 @@ static int add_us_sample(struct mm_struct *mm, struct op_sample *s)
 	add_sample_entry(offset, s->event);
 
 	return 1;
-}
-
-
-/* Add a sample to the global event buffer. If possible the
- * sample is converted into a persistent dentry/offset pair
- * for later lookup from userspace.
- */
-static int
-add_sample(struct mm_struct *mm, struct op_sample *s, int in_kernel)
-{
-	if (in_kernel) {
-		add_sample_entry(s->eip, s->event);
-		return 1;
-	} else if (mm) {
-		return add_us_sample(mm, s);
-	} else {
-		atomic_inc(&oprofile_stats.sample_lost_no_mm);
-	}
-	return 0;
 }
 
 
