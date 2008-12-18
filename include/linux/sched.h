@@ -920,6 +920,15 @@ extern void partition_sched_domains(int ndoms_new, struct cpumask *doms_new,
 				    struct sched_domain_attr *dattr_new);
 extern int arch_reinit_sched_domains(void);
 
+/* Test a flag in parent sched domain */
+static inline int test_sd_parent(struct sched_domain *sd, int flag)
+{
+	if (sd->parent && (sd->parent->flags & flag))
+		return 1;
+
+	return 0;
+}
+
 #else /* CONFIG_SMP */
 
 struct sched_domain_attr;
@@ -1430,15 +1439,6 @@ struct task_struct {
 	unsigned long trace;
 #endif
 };
-
-/* Test a flag in parent sched domain */
-static inline int test_sd_parent(struct sched_domain *sd, int flag)
-{
-	if (sd->parent && (sd->parent->flags & flag))
-		return 1;
-
-	return 0;
-}
 
 /*
  * Priority of a process goes from 0..MAX_PRIO-1, valid RT
