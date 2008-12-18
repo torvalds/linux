@@ -491,16 +491,7 @@ static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
 		port->partner_oper_system = lacpdu->actor_system;
 		port->partner_oper_system_priority = ntohs(lacpdu->actor_system_priority);
 		port->partner_oper_key = ntohs(lacpdu->actor_key);
-		// zero partener's lase states
-		port->partner_oper_port_state = 0;
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_LACP_ACTIVITY);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_LACP_TIMEOUT);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_AGGREGATION);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_COLLECTING);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_DISTRIBUTING);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_DEFAULTED);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_EXPIRED);
+		port->partner_oper_port_state = lacpdu->actor_state;
 
 		// set actor_oper_port_state.defaulted to FALSE
 		port->actor_oper_port_state &= ~AD_STATE_DEFAULTED;
