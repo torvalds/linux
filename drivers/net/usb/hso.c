@@ -663,10 +663,9 @@ static int hso_net_open(struct net_device *net)
 	odev->rx_buf_missing = sizeof(struct iphdr);
 	spin_unlock_irqrestore(&odev->net_lock, flags);
 
-	hso_start_net_device(odev->parent);
-
 	/* We are up and running. */
 	set_bit(HSO_NET_RUNNING, &odev->flags);
+	hso_start_net_device(odev->parent);
 
 	/* Tell the kernel we are ready to start receiving from it */
 	netif_start_queue(net);
