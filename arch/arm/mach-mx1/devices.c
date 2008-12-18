@@ -232,25 +232,25 @@ static struct mxc_gpio_port imx_gpio_ports[] = {
 		.chip.label = "gpio-0",
 		.base = (void __iomem *)IO_ADDRESS(GPIO_BASE_ADDR),
 		.irq = GPIO_INT_PORTA,
-		.virtual_irq_start = MXC_MAX_INT_LINES
+		.virtual_irq_start = MXC_GPIO_IRQ_START
 	},
 	[1] = {
 		.chip.label = "gpio-1",
 		.base = (void __iomem *)IO_ADDRESS(GPIO_BASE_ADDR + 0x100),
 		.irq = GPIO_INT_PORTB,
-		.virtual_irq_start = MXC_MAX_INT_LINES + 32
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 32
 	},
 	[2] = {
 		.chip.label = "gpio-2",
 		.base = (void __iomem *)IO_ADDRESS(GPIO_BASE_ADDR + 0x200),
 		.irq = GPIO_INT_PORTC,
-		.virtual_irq_start = MXC_MAX_INT_LINES + 64
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 64
 	},
 	[3] = {
 		.chip.label = "gpio-3",
 		.base = (void __iomem *)IO_ADDRESS(GPIO_BASE_ADDR + 0x300),
 		.irq = GPIO_INT_PORTD,
-		.virtual_irq_start = MXC_MAX_INT_LINES + 96
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 96
 	}
 };
 

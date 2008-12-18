@@ -405,9 +405,9 @@ extern void mxc_gpio_release_multiple_pins(const int *pin_list, int count);
 #endif
 
 /* decode irq number to use with IMR(x), ISR(x) and friends */
-#define IRQ_TO_REG(irq) ((irq - MXC_MAX_INT_LINES) >> 5)
+#define IRQ_TO_REG(irq) ((irq - MXC_INTERNAL_IRQS) >> 5)
 
-#define IRQ_GPIOA(x)  (MXC_MAX_INT_LINES + x)
+#define IRQ_GPIOA(x)  (MXC_GPIO_IRQ_START + x)
 #define IRQ_GPIOB(x)  (IRQ_GPIOA(32) + x)
 #define IRQ_GPIOC(x)  (IRQ_GPIOB(32) + x)
 #define IRQ_GPIOD(x)  (IRQ_GPIOC(32) + x)

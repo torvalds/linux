@@ -230,32 +230,32 @@ static struct mxc_gpio_port imx_gpio_ports[] = {
 		.chip.label = "gpio-0",
 		.irq = MXC_INT_GPIO,
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 0),
-		.virtual_irq_start = MXC_MAX_INT_LINES,
+		.virtual_irq_start = MXC_GPIO_IRQ_START,
 	},
 	[1] = {
 		.chip.label = "gpio-1",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 1),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 32,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
 	},
 	[2] = {
 		.chip.label = "gpio-2",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 2),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 64,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 64,
 	},
 	[3] = {
 		.chip.label = "gpio-3",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 3),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 96,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 96,
 	},
 	[4] = {
 		.chip.label = "gpio-4",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 4),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 128,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 128,
 	},
 	[5] = {
 		.chip.label = "gpio-5",
 		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 5),
-		.virtual_irq_start = MXC_MAX_INT_LINES + 160,
+		.virtual_irq_start = MXC_GPIO_IRQ_START + 160,
 	}
 };
 

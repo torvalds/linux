@@ -11,7 +11,32 @@
 #ifndef __ASM_ARCH_MXC_IRQS_H__
 #define __ASM_ARCH_MXC_IRQS_H__
 
-#include <mach/hardware.h>
+/*
+ * So far all i.MX SoCs have 64 internal interrupts
+ */
+#define MXC_INTERNAL_IRQS	64
+
+#define MXC_GPIO_IRQ_START	MXC_INTERNAL_IRQS
+
+#if defined CONFIG_ARCH_MX1
+#define MXC_GPIO_IRQS		(32 * 4)
+#elif defined CONFIG_ARCH_MX2
+#define MXC_GPIO_IRQS		(32 * 6)
+#elif defined CONFIG_ARCH_MX3
+#define MXC_GPIO_IRQS		(32 * 3)
+#endif
+
+/*
+ * The next 16 interrupts are for board specific purposes.  Since
+ * the kernel can only run on one machine at a time, we can re-use
+ * these.  If you need more, increase MXC_BOARD_IRQS, but keep it
+ * within sensible limits.
+ */
+#define MXC_BOARD_IRQ_START	(MXC_INTERNAL_IRQS + MXC_GPIO_IRQS)
+#define MXC_BOARD_IRQS	16
+
+#define NR_IRQS		(MXC_BOARD_IRQ_START + MXC_BOARD_IRQS)
+
 extern void imx_irq_set_priority(unsigned char irq, unsigned char prio);
 
 /* all normal IRQs can be FIQs */

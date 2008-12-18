@@ -145,10 +145,6 @@
 #define GPIO_INT_PORTD		62
 #define WDT_INT			63
 
-#define MXC_MAX_INT_LINES	64
-
-#define NR_IRQS			256
-
 /* gpio and gpio based interrupt handling */
 #define GPIO_DR		 	0x1C
 #define GPIO_GDIR	 	0x00

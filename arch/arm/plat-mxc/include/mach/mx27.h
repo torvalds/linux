@@ -295,10 +295,4 @@ extern int mx27_revision(void);
 /* Start of RAM */
 #define PHYS_OFFSET		SDRAM_BASE_ADDR
 
-/* max interrupt lines count */
-#define NR_IRQS			256
-
-/* count of internal interrupt sources */
-#define MXC_MAX_INT_LINES	64
-
 #endif /* __ASM_ARCH_MXC_MX27_H__ */

@@ -72,14 +72,14 @@ int mxc_set_irq_fiq(unsigned int irq, unsigned int type)
 {
 	unsigned int irqt;
 
-	if (irq >= MXC_MAX_INT_LINES)
+	if (irq >= MXC_INTERNAL_IRQS)
 		return -EINVAL;
 
-	if (irq < MXC_MAX_INT_LINES / 2) {
+	if (irq < MXC_INTERNAL_IRQS / 2) {
 		irqt = __raw_readl(AVIC_INTTYPEL) & ~(1 << irq);
 		__raw_writel(irqt | (!!type << irq), AVIC_INTTYPEL);
 	} else {
-		irq -= MXC_MAX_INT_LINES / 2;
+		irq -= MXC_INTERNAL_IRQS / 2;
 		irqt = __raw_readl(AVIC_INTTYPEH) & ~(1 << irq);
 		__raw_writel(irqt | (!!type << irq), AVIC_INTTYPEH);
 	}
@@ -129,7 +129,7 @@ void __init mxc_init_irq(void)
 	/* all IRQ no FIQ */
 	__raw_writel(0, AVIC_INTTYPEH);
 	__raw_writel(0, AVIC_INTTYPEL);
-	for (i = 0; i < MXC_MAX_INT_LINES; i++) {
+	for (i = 0; i < MXC_INTERNAL_IRQS; i++) {
 		set_irq_chip(i, &mxc_avic_chip);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
