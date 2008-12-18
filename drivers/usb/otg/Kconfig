@@ -41,4 +41,14 @@ config ISP1301_OMAP
 	  This driver can also be built as a module.  If so, the module
 	  will be called isp1301_omap.
 
+config TWL4030_USB
+	tristate "TWL4030 USB Transceiver Driver"
+	depends on TWL4030_CORE
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the USB OTG transceiver on TWL4030
+	  family chips (including the TWL5030 and TPS659x0 devices).
+	  This transceiver supports high and full speed devices plus,
+	  in host mode, low speed.
+
 endif # USB || OTG
