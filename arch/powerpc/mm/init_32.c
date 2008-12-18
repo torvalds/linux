@@ -35,7 +35,6 @@
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
 #include <asm/io.h>
-#include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/smp.h>
@@ -179,9 +178,6 @@ void __init MMU_init(void)
 	/* Map in I/O resources */
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:setio", 0x302);
-
-	/* Initialize the context management stuff */
-	mmu_context_init();
 
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:exit", 0x211);

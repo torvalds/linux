@@ -38,6 +38,7 @@
 #include <asm/time.h>
 #include <asm/serial.h>
 #include <asm/udbg.h>
+#include <asm/mmu_context.h>
 
 #include "setup.h"
 
@@ -330,4 +331,8 @@ void __init setup_arch(char **cmdline_p)
 	if ( ppc_md.progress ) ppc_md.progress("arch: exit", 0x3eab);
 
 	paging_init();
+
+	/* Initialize the MMU context management stuff */
+	mmu_context_init();
+
 }
