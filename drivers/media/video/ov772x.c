@@ -346,6 +346,12 @@
 #define OP_SWAP_RGB 0x00000002
 
 /*
+ * ID
+ */
+#define OV7720  0x7720
+#define VERSION(pid, ver) ((pid<<8)|(ver&0xFF))
+
+/*
  * struct
  */
 struct regval_list {
@@ -374,6 +380,7 @@ struct ov772x_priv {
 	struct soc_camera_device          icd;
 	const struct ov772x_color_format *fmt;
 	const struct ov772x_win_size     *win;
+	int                               model;
 };
 
 #define ENDMARKER { 0xff, 0xff }
@@ -702,7 +709,9 @@ static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
 static int ov772x_get_chip_id(struct soc_camera_device *icd,
 			      struct v4l2_chip_ident   *id)
 {
-	id->ident    = V4L2_IDENT_OV772X;
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+
+	id->ident    = priv->model;
 	id->revision = 0;
 
 	return 0;
@@ -796,6 +805,7 @@ static int ov772x_video_probe(struct soc_camera_device *icd)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 	u8                  pid, ver;
+	const char         *devname;
 
 	/*
 	 * We must have a parent by now. And it cannot be a wrong one.
@@ -822,15 +832,21 @@ static int ov772x_video_probe(struct soc_camera_device *icd)
 	 */
 	pid = i2c_smbus_read_byte_data(priv->client, PID);
 	ver = i2c_smbus_read_byte_data(priv->client, VER);
-	if (pid != 0x77 ||
-	    ver != 0x21) {
+
+	switch (VERSION(pid, ver)) {
+	case OV7720:
+		devname     = "ov7720";
+		priv->model = V4L2_IDENT_OV7720;
+		break;
+	default:
 		dev_err(&icd->dev,
 			"Product ID error %x:%x\n", pid, ver);
 		return -ENODEV;
 	}
 
 	dev_info(&icd->dev,
-		 "ov772x Product ID %0x:%0x Manufacturer ID %x:%x\n",
+		 "%s Product ID %0x:%0x Manufacturer ID %x:%x\n",
+		 devname,
 		 pid,
 		 ver,
 		 i2c_smbus_read_byte_data(priv->client, MIDH),
@@ -921,7 +937,7 @@ static int ov772x_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ov772x_id[] = {
-	{"ov772x", 0},
+	{ "ov772x", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov772x_id);
@@ -941,7 +957,6 @@ static struct i2c_driver ov772x_i2c_driver = {
 
 static int __init ov772x_module_init(void)
 {
-	printk(KERN_INFO "ov772x driver\n");
 	return i2c_add_driver(&ov772x_i2c_driver);
 }
 
