@@ -34,11 +34,12 @@ if usbmon is built into the kernel.
 Verify that bus sockets are present.
 
 # ls /sys/kernel/debug/usbmon
-0s  0t  0u  1s  1t  1u  2s  2t  2u  3s  3t  3u  4s  4t  4u
+0s  0u  1s  1t  1u  2s  2t  2u  3s  3t  3u  4s  4t  4u
 #
 
-Now you can choose to either use the sockets numbered '0' (to capture packets on
-all buses), and skip to step #3, or find the bus used by your device with step #2.
+Now you can choose to either use the socket '0u' (to capture packets on all
+buses), and skip to step #3, or find the bus used by your device with step #2.
+This allows to filter away annoying devices that talk continuously.
 
 2. Find which bus connects to the desired device
 
@@ -99,8 +100,9 @@ on the event type, but there is a set of words, common for all types.
 
 Here is the list of words, from left to right:
 
-- URB Tag. This is used to identify URBs is normally a kernel mode address
- of the URB structure in hexadecimal.
+- URB Tag. This is used to identify URBs, and is normally an in-kernel address
+  of the URB structure in hexadecimal, but can be a sequence number or any
+  other unique string, within reason.
 
 - Timestamp in microseconds, a decimal number. The timestamp's resolution
   depends on available clock, and so it can be much worse than a microsecond

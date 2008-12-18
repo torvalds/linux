@@ -114,11 +114,11 @@ modules.
 Then you must load the gadget serial driver.  To load it as an
 ACM device (recommended for interoperability), do this:
 
-  modprobe g_serial use_acm=1
+  modprobe g_serial
 
 To load it as a vendor specific bulk in/out device, do this:
 
-  modprobe g_serial
+  modprobe g_serial use_acm=0
 
 This will also automatically load the underlying gadget peripheral
 controller driver.  This must be done each time you reboot the gadget

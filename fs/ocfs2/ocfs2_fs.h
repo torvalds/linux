@@ -86,7 +86,8 @@
 #define OCFS2_CLEAR_INCOMPAT_FEATURE(sb,mask)			\
 	OCFS2_SB(sb)->s_feature_incompat &= ~(mask)
 
-#define OCFS2_FEATURE_COMPAT_SUPP	OCFS2_FEATURE_COMPAT_BACKUP_SB
+#define OCFS2_FEATURE_COMPAT_SUPP	(OCFS2_FEATURE_COMPAT_BACKUP_SB	\
+					 | OCFS2_FEATURE_COMPAT_JBD2_SB)
 #define OCFS2_FEATURE_INCOMPAT_SUPP	(OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT \
 					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC \
 					 | OCFS2_FEATURE_INCOMPAT_INLINE_DATA \
@@ -151,6 +152,11 @@
  * has backup superblocks.
  */
 #define OCFS2_FEATURE_COMPAT_BACKUP_SB		0x0001
+
+/*
+ * The filesystem will correctly handle journal feature bits.
+ */
+#define OCFS2_FEATURE_COMPAT_JBD2_SB		0x0002
 
 /*
  * Unwritten extents support.
