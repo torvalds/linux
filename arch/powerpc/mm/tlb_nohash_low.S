@@ -75,18 +75,19 @@ _GLOBAL(_tlbil_va)
 	mfspr	r5,SPRN_MMUCR
 	rlwimi	r5,r4,0,24,31			/* Set TID */
 
-	/* We have to run the search with interrupts disabled, even critical
-	 * and debug interrupts (in fact the only critical exceptions we have
-	 * are debug and machine check).  Otherwise  an interrupt which causes
-	 * a TLB miss can clobber the MMUCR between the mtspr and the tlbsx. */
+	/* We have to run the search with interrupts disabled, otherwise
+	 * an interrupt which causes a TLB miss can clobber the MMUCR
+	 * between the mtspr and the tlbsx.
+	 *
+	 * Critical and Machine Check interrupts take care of saving
+	 * and restoring MMUCR, so only normal interrupts have to be
+	 * taken care of.
+	 */
 	mfmsr	r4
-	lis	r6,(MSR_EE|MSR_CE|MSR_ME|MSR_DE)@ha
-	addi	r6,r6,(MSR_EE|MSR_CE|MSR_ME|MSR_DE)@l
-	andc	r6,r4,r6
-	mtmsr	r6
+	wrteei	0
 	mtspr	SPRN_MMUCR,r5
 	tlbsx.	r3, 0, r3
-	mtmsr	r4
+	wrtee	r4
 	bne	1f
 	sync
 	/* There are only 64 TLB entries, so r3 < 64,
