@@ -166,6 +166,7 @@ struct soc_camera_ops {
 	int (*get_chip_id)(struct soc_camera_device *,
 			   struct v4l2_chip_ident *);
 	int (*set_std)(struct soc_camera_device *, v4l2_std_id *);
+	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	int (*get_register)(struct soc_camera_device *, struct v4l2_register *);
 	int (*set_register)(struct soc_camera_device *, struct v4l2_register *);
