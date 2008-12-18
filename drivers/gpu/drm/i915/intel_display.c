@@ -213,9 +213,9 @@ static void intel_clock(struct drm_device *dev, int refclk,
 			intel_clock_t *clock)
 {
 	if (IS_I9XX(dev))
-		return i9xx_clock (refclk, clock);
+		i9xx_clock (refclk, clock);
 	else
-		return i8xx_clock (refclk, clock);
+		i8xx_clock (refclk, clock);
 }
 
 /**
