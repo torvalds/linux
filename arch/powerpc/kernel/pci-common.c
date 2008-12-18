@@ -370,13 +370,10 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
 	}
 
 	/* XXX would be nice to have a way to ask for write-through */
-	prot |= _PAGE_NO_CACHE;
 	if (write_combine)
-		prot &= ~_PAGE_GUARDED;
+		return pgprot_noncached_wc(prot);
 	else
-		prot |= _PAGE_GUARDED;
-
-	return __pgprot(prot);
+		return pgprot_noncached(prot);
 }
 
 /*
@@ -387,19 +384,17 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
 pgprot_t pci_phys_mem_access_prot(struct file *file,
 				  unsigned long pfn,
 				  unsigned long size,
-				  pgprot_t protection)
+				  pgprot_t prot)
 {
 	struct pci_dev *pdev = NULL;
 	struct resource *found = NULL;
-	unsigned long prot = pgprot_val(protection);
 	resource_size_t offset = ((resource_size_t)pfn) << PAGE_SHIFT;
 	int i;
 
 	if (page_is_ram(pfn))
-		return __pgprot(prot);
+		return prot;
 
-	prot |= _PAGE_NO_CACHE | _PAGE_GUARDED;
-
+	prot = pgprot_noncached(prot);
 	for_each_pci_dev(pdev) {
 		for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
 			struct resource *rp = &pdev->resource[i];
@@ -420,14 +415,14 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 	}
 	if (found) {
 		if (found->flags & IORESOURCE_PREFETCH)
-			prot &= ~_PAGE_GUARDED;
+			prot = pgprot_noncached_wc(prot);
 		pci_dev_put(pdev);
 	}
 
 	pr_debug("PCI: Non-PCI map for %llx, prot: %lx\n",
-		 (unsigned long long)offset, prot);
+		 (unsigned long long)offset, pgprot_val(prot));
 
-	return __pgprot(prot);
+	return prot;
 }
 
 
@@ -583,8 +578,7 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 	pr_debug(" -> mapping phys %llx\n", (unsigned long long)offset);
 
 	vma->vm_pgoff = offset >> PAGE_SHIFT;
-	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
-				     | _PAGE_NO_CACHE | _PAGE_GUARDED);
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	return remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start,
 			       vma->vm_page_prot);

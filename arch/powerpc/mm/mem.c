@@ -102,8 +102,8 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 		return ppc_md.phys_mem_access_prot(file, pfn, size, vma_prot);
 
 	if (!page_is_ram(pfn))
-		vma_prot = __pgprot(pgprot_val(vma_prot)
-				    | _PAGE_GUARDED | _PAGE_NO_CACHE);
+		vma_prot = pgprot_noncached(vma_prot);
+
 	return vma_prot;
 }
 EXPORT_SYMBOL(phys_mem_access_prot);

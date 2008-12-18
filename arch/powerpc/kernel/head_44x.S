@@ -570,6 +570,7 @@ finish_tlb_load:
 	rlwimi	r10,r12,29,30,30		/* DIRTY -> SW position */
 	and	r11,r12,r10			/* Mask PTE bits to keep */
 	andi.	r10,r12,_PAGE_USER		/* User page ? */
+	ori	r11,r11,_PAGE_GUARDED		/* 440 errata, needs G set */
 	beq	1f				/* nope, leave U bits empty */
 	rlwimi	r11,r11,3,26,28			/* yes, copy S bits to U */
 1:	tlbwe	r11,r13,PPC44x_TLB_ATTRIB	/* Write ATTRIB */

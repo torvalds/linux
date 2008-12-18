@@ -323,8 +323,8 @@ _GLOBAL(create_hpte)
 	ori	r8,r8,0xe14		/* clear out reserved bits and M */
 	andc	r8,r5,r8		/* PP = user? (rw&dirty? 2: 3): 0 */
 BEGIN_FTR_SECTION
-	ori	r8,r8,_PAGE_COHERENT	/* set M (coherence required) */
-END_FTR_SECTION_IFSET(CPU_FTR_NEED_COHERENT)
+	rlwinm	r8,r8,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 #ifdef CONFIG_PTE_64BIT
 	/* Put the XPN bits into the PTE */
 	rlwimi	r8,r10,8,20,22
