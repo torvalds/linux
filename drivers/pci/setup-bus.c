@@ -536,9 +536,8 @@ static void pci_bus_dump_res(struct pci_bus *bus)
                 if (!res)
                         continue;
 
-		printk(KERN_DEBUG "pci %04x:%02x: bus resource %d %s %pR\n",
-		       pci_domain_nr(bus), bus->number, i,
-		       (res->flags & IORESOURCE_IO) ? "io: " : "mem:", res);
+		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %s %pR\n", i,
+			   (res->flags & IORESOURCE_IO) ? "io: " : "mem:", res);
         }
 }
 
