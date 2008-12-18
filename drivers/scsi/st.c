@@ -3747,20 +3747,20 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dm
 	priority = GFP_KERNEL | __GFP_NOWARN;
 	if (need_dma)
 		priority |= GFP_DMA;
-	for (b_size = PAGE_SIZE, order=0; order <= 6 &&
-	     b_size < new_size - STbuffer->buffer_size;
-	     order++, b_size *= 2)
-		;  /* empty */
+
+	if (STbuffer->frp_segs) {
+		b_size = STbuffer->frp[0].length;
+		order = get_order(b_size);
+	} else {
+		for (b_size = PAGE_SIZE, order = 0;
+		     order <= 6 && b_size < new_size; order++, b_size *= 2)
+			;  /* empty */
+	}
 
 	for (segs = STbuffer->frp_segs, got = STbuffer->buffer_size;
 	     segs < max_segs && got < new_size;) {
 		STbuffer->frp[segs].page = alloc_pages(priority, order);
 		if (STbuffer->frp[segs].page == NULL) {
-			if (new_size - got <= (max_segs - segs) * b_size / 2) {
-				b_size /= 2; /* Large enough for the rest of the buffers */
-				order--;
-				continue;
-			}
 			DEB(STbuffer->buffer_size = got);
 			normalize_buffer(STbuffer);
 			return 0;
