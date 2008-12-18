@@ -513,16 +513,16 @@ static void __record_default(struct port *port)
  */
 static void __update_selected(struct lacpdu *lacpdu, struct port *port)
 {
-	// validate lacpdu and port
 	if (lacpdu && port) {
+		const struct port_params *partner = &port->partner_oper;
+
 		// check if any parameter is different
-		if ((ntohs(lacpdu->actor_port) != port->partner_oper.port_number) ||
-		    (ntohs(lacpdu->actor_port_priority) != port->partner_oper.port_priority) ||
-		    MAC_ADDRESS_COMPARE(&(lacpdu->actor_system), &(port->partner_oper.system)) ||
-		    (ntohs(lacpdu->actor_system_priority) != port->partner_oper.system_priority) ||
-		    (ntohs(lacpdu->actor_key) != port->partner_oper.key) ||
-		    ((lacpdu->actor_state & AD_STATE_AGGREGATION) != (port->partner_oper.port_state & AD_STATE_AGGREGATION))
-		   ) {
+		if (ntohs(lacpdu->actor_port) != partner->port_number
+		    || ntohs(lacpdu->actor_port_priority) != partner->port_priority
+		    || MAC_ADDRESS_COMPARE(&lacpdu->actor_system, &partner->system)
+		    || ntohs(lacpdu->actor_system_priority) != partner->system_priority
+		    || ntohs(lacpdu->actor_key) != partner->key
+		    || (lacpdu->actor_state & AD_STATE_AGGREGATION) != (partner->port_state & AD_STATE_AGGREGATION)) {
 			// update the state machine Selected variable
 			port->sm_vars &= ~AD_PORT_SELECTED;
 		}
