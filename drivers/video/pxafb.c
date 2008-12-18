@@ -155,6 +155,12 @@ pxafb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
 		val |= ((blue  >> 8) & 0x000000fc);
 		((u32 *)(fbi->palette_cpu))[regno] = val;
 		break;
+	case LCCR4_PAL_FOR_3:
+		val  = ((red   << 8) & 0x00ff0000);
+		val |= ((green >> 0) & 0x0000ff00);
+		val |= ((blue  >> 8) & 0x000000ff);
+		((u32 *)(fbi->palette_cpu))[regno] = val;
+		break;
 	}
 
 	return 0;
@@ -416,11 +422,6 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-static inline void pxafb_set_truecolor(u_int is_true_color)
-{
-	/* do your machine-specific setup if needed */
-}
-
 /*
  * pxafb_set_par():
  *	Set the user defined part of the display for the specified console
@@ -452,11 +453,6 @@ static int pxafb_set_par(struct fb_info *info)
 					4 : 1 << var->bits_per_pixel;
 
 	fbi->palette_cpu = (u16 *)&fbi->dma_buff->palette[0];
-
-	/*
-	 * Set (any) board control register to handle new color depth
-	 */
-	pxafb_set_truecolor(fbi->fb.fix.visual == FB_VISUAL_TRUECOLOR);
 
 	if (fbi->fb.var.bits_per_pixel >= 16)
 		fb_dealloc_cmap(&fbi->fb.cmap);
@@ -727,6 +723,7 @@ int pxafb_smart_flush(struct fb_info *info)
 	lcd_writel(fbi, LCCR1, fbi->reg_lccr1);
 	lcd_writel(fbi, LCCR2, fbi->reg_lccr2);
 	lcd_writel(fbi, LCCR3, fbi->reg_lccr3);
+	lcd_writel(fbi, LCCR4, fbi->reg_lccr4);
 	lcd_writel(fbi, FDADR0, fbi->fdadr[0]);
 	lcd_writel(fbi, FDADR6, fbi->fdadr[6]);
 
@@ -995,6 +992,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 	    (lcd_readl(fbi, LCCR1) != fbi->reg_lccr1) ||
 	    (lcd_readl(fbi, LCCR2) != fbi->reg_lccr2) ||
 	    (lcd_readl(fbi, LCCR3) != fbi->reg_lccr3) ||
+	    (lcd_readl(fbi, LCCR4) != fbi->reg_lccr4) ||
 	    (lcd_readl(fbi, FDADR0) != fbi->fdadr[0]) ||
 	    (lcd_readl(fbi, FDADR1) != fbi->fdadr[1]))
 		pxafb_schedule_work(fbi, C_REENABLE);
@@ -1041,6 +1039,7 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 		return;
 
 	/* Sequence from 11.7.10 */
+	lcd_writel(fbi, LCCR4, fbi->reg_lccr4);
 	lcd_writel(fbi, LCCR3, fbi->reg_lccr3);
 	lcd_writel(fbi, LCCR2, fbi->reg_lccr2);
 	lcd_writel(fbi, LCCR1, fbi->reg_lccr1);
@@ -1313,6 +1312,7 @@ static void pxafb_decode_mach_info(struct pxafb_info *fbi,
 
 	fbi->cmap_inverse	= inf->cmap_inverse;
 	fbi->cmap_static	= inf->cmap_static;
+	fbi->lccr4 		= inf->lccr4;
 
 	switch (lcd_conn & LCD_TYPE_MASK) {
 	case LCD_TYPE_MONO_STN:
@@ -1337,7 +1337,6 @@ static void pxafb_decode_mach_info(struct pxafb_info *fbi,
 		/* fall back to backward compatibility way */
 		fbi->lccr0 = inf->lccr0;
 		fbi->lccr3 = inf->lccr3;
-		fbi->lccr4 = inf->lccr4;
 		goto decode_mode;
 	}
 

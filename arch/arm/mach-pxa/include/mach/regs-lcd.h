@@ -48,6 +48,7 @@
 #define LCCR4_PAL_FOR_0	(0 << 15)
 #define LCCR4_PAL_FOR_1	(1 << 15)
 #define LCCR4_PAL_FOR_2	(2 << 15)
+#define LCCR4_PAL_FOR_3	(3 << 15)
 #define LCCR4_PAL_FOR_MASK	(3 << 15)
 
 #define FDADR0		(0x200)	/* DMA Channel 0 Frame Descriptor Address Register */
