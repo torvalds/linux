@@ -125,7 +125,8 @@ int arch_update_cpu_topology(void);
 				| SD_WAKE_AFFINE	\
 				| SD_WAKE_BALANCE	\
 				| SD_SHARE_PKG_RESOURCES\
-				| sd_balance_for_mc_power(),\
+				| sd_balance_for_mc_power()\
+				| sd_power_saving_flags(),\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 }
@@ -150,7 +151,8 @@ int arch_update_cpu_topology(void);
 				| SD_BALANCE_FORK	\
 				| SD_WAKE_AFFINE	\
 				| SD_WAKE_BALANCE	\
-				| sd_balance_for_package_power(),\
+				| sd_balance_for_package_power()\
+				| sd_power_saving_flags(),\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 }

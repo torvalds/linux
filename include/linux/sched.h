@@ -792,6 +792,19 @@ static inline int sd_balance_for_package_power(void)
 	return 0;
 }
 
+/*
+ * Optimise SD flags for power savings:
+ * SD_BALANCE_NEWIDLE helps agressive task consolidation and power savings.
+ * Keep default SD flags if sched_{smt,mc}_power_saving=0
+ */
+
+static inline int sd_power_saving_flags(void)
+{
+	if (sched_mc_power_savings | sched_smt_power_savings)
+		return SD_BALANCE_NEWIDLE;
+
+	return 0;
+}
 
 struct sched_group {
 	struct sched_group *next;	/* Must be a circular list */
