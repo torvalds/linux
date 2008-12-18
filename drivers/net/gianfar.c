@@ -1604,29 +1604,19 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 	return howmany;
 }
 
+static void gfar_schedule_cleanup(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	if (netif_rx_schedule_prep(dev, &priv->napi)) {
+		gfar_write(&priv->regs->imask, IMASK_RTX_DISABLED);
+		__netif_rx_schedule(dev, &priv->napi);
+	}
+}
+
 /* Interrupt Handler for Transmit complete */
 static irqreturn_t gfar_transmit(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
-	struct gfar_private *priv = netdev_priv(dev);
-
-	/* Clear IEVENT */
-	gfar_write(&priv->regs->ievent, IEVENT_TX_MASK);
-
-	/* Lock priv */
-	spin_lock(&priv->txlock);
-
-	gfar_clean_tx_ring(dev);
-
-	/* If we are coalescing the interrupts, reset the timer */
-	/* Otherwise, clear it */
-	if (likely(priv->txcoalescing)) {
-		gfar_write(&priv->regs->txic, 0);
-		gfar_write(&priv->regs->txic, priv->txic);
-	}
-
-	spin_unlock(&priv->txlock);
-
+	gfar_schedule_cleanup((struct net_device *)dev_id);
 	return IRQ_HANDLED;
 }
 
@@ -1713,28 +1703,7 @@ static inline void count_errors(unsigned short status, struct net_device *dev)
 
 irqreturn_t gfar_receive(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
-	struct gfar_private *priv = netdev_priv(dev);
-	u32 tempval;
-
-	/* support NAPI */
-	/* Clear IEVENT, so interrupts aren't called again
-	 * because of the packets that have already arrived */
-	gfar_write(&priv->regs->ievent, IEVENT_RTX_MASK);
-
-	if (netif_rx_schedule_prep(dev, &priv->napi)) {
-		tempval = gfar_read(&priv->regs->imask);
-		tempval &= IMASK_RTX_DISABLED;
-		gfar_write(&priv->regs->imask, tempval);
-
-		__netif_rx_schedule(dev, &priv->napi);
-	} else {
-		if (netif_msg_rx_err(priv))
-			printk(KERN_DEBUG "%s: receive called twice (%x)[%x]\n",
-				dev->name, gfar_read(&priv->regs->ievent),
-				gfar_read(&priv->regs->imask));
-	}
-
+	gfar_schedule_cleanup((struct net_device *)dev_id);
 	return IRQ_HANDLED;
 }
 
@@ -1877,6 +1846,10 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	int howmany;
 	unsigned long flags;
 
+	/* Clear IEVENT, so interrupts aren't called again
+	 * because of the packets that have already arrived */
+	gfar_write(&priv->regs->ievent, IEVENT_RTX_MASK);
+
 	/* If we fail to get the lock, don't bother with the TX BDs */
 	if (spin_trylock_irqsave(&priv->txlock, flags)) {
 		gfar_clean_tx_ring(dev);
@@ -1898,6 +1871,10 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		if (likely(priv->rxcoalescing)) {
 			gfar_write(&priv->regs->rxic, 0);
 			gfar_write(&priv->regs->rxic, priv->rxic);
+		}
+		if (likely(priv->txcoalescing)) {
+			gfar_write(&priv->regs->txic, 0);
+			gfar_write(&priv->regs->txic, priv->txic);
 		}
 	}
 
