@@ -177,6 +177,8 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	switch (icd->current_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
 		phys_addr += (icd->width * icd->height);
 		ceu_write(pcdev, CDACR, phys_addr);
 	}
@@ -407,6 +409,9 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
 		yuv_lineskip = 1; /* skip for NV12/21, no skip for NV16/61 */
+		/* fall-through */
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
 		yuv_mode = 1;
 		switch (pcdev->camera_fmt->fourcc) {
 		case V4L2_PIX_FMT_UYVY:
@@ -426,8 +431,9 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 		}
 	}
 
-	if (icd->current_fmt->fourcc == V4L2_PIX_FMT_NV21)
-		value ^= 0x00000100; /* swap U, V to change from NV12->NV21 */
+	if ((icd->current_fmt->fourcc == V4L2_PIX_FMT_NV21) ||
+	    (icd->current_fmt->fourcc == V4L2_PIX_FMT_NV61))
+		value ^= 0x00000100; /* swap U, V to change from NV1x->NVx1 */
 
 	value |= (common_flags & SOCAM_VSYNC_ACTIVE_LOW) ? (1 << 1) : 0;
 	value |= (common_flags & SOCAM_HSYNC_ACTIVE_LOW) ? (1 << 0) : 0;
@@ -507,6 +513,18 @@ static const struct soc_camera_data_format sh_mobile_ceu_formats[] = {
 		.name		= "NV21",
 		.depth		= 12,
 		.fourcc		= V4L2_PIX_FMT_NV21,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
+	},
+	{
+		.name		= "NV16",
+		.depth		= 16,
+		.fourcc		= V4L2_PIX_FMT_NV16,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
+	},
+	{
+		.name		= "NV61",
+		.depth		= 16,
+		.fourcc		= V4L2_PIX_FMT_NV61,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 	},
 };
