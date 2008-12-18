@@ -29,6 +29,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/processor.h>
 #include <asm/kexec.h>
+#include <asm/bug.h>
 
 	.text
 
@@ -495,6 +496,14 @@ _GLOBAL(_tlbil_va)
 1:	wrtee	r10
 	blr
 #endif /* CONFIG_FSL_BOOKE */
+
+/*
+ * Nobody implements this yet
+ */
+_GLOBAL(_tlbivax_bcast)
+1:	trap
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0;
+	blr
 
 
 /*

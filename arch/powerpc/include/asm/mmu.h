@@ -30,6 +30,22 @@
  */
 #define MMU_FTR_BIG_PHYS		ASM_CONST(0x00020000)
 
+/* Enable use of broadcast TLB invalidations. We don't always set it
+ * on processors that support it due to other constraints with the
+ * use of such invalidations
+ */
+#define MMU_FTR_USE_TLBIVAX_BCAST	ASM_CONST(0x00040000)
+
+/* Enable use of tlbilx invalidate-by-PID variant.
+ */
+#define MMU_FTR_USE_TLBILX_PID		ASM_CONST(0x00080000)
+
+/* This indicates that the processor cannot handle multiple outstanding
+ * broadcast tlbivax or tlbsync. This makes the code use a spinlock
+ * around such invalidate forms.
+ */
+#define MMU_FTR_LOCK_BCAST_INVAL	ASM_CONST(0x00100000)
+
 #ifndef __ASSEMBLY__
 #include <asm/cputable.h>
 

@@ -488,7 +488,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		 * we invalidate the TLB here, thus avoiding dcbst
 		 * misbehaviour.
 		 */
-		_tlbie(address, 0 /* 8xx doesn't care about PID */);
+		_tlbil_va(address, 0 /* 8xx doesn't care about PID */);
 #endif
 		/* The _PAGE_USER test should really be _PAGE_EXEC, but
 		 * older glibc versions execute some code from no-exec
