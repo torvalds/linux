@@ -151,11 +151,23 @@ int da903x_write(struct device *dev, int reg, uint8_t val)
 }
 EXPORT_SYMBOL_GPL(da903x_write);
 
+int da903x_writes(struct device *dev, int reg, int len, uint8_t *val)
+{
+	return __da903x_writes(to_i2c_client(dev), reg, len, val);
+}
+EXPORT_SYMBOL_GPL(da903x_writes);
+
 int da903x_read(struct device *dev, int reg, uint8_t *val)
 {
 	return __da903x_read(to_i2c_client(dev), reg, val);
 }
 EXPORT_SYMBOL_GPL(da903x_read);
+
+int da903x_reads(struct device *dev, int reg, int len, uint8_t *val)
+{
+	return __da903x_reads(to_i2c_client(dev), reg, len, val);
+}
+EXPORT_SYMBOL_GPL(da903x_reads);
 
 int da903x_set_bits(struct device *dev, int reg, uint8_t bit_mask)
 {
