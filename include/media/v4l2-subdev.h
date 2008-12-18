@@ -110,6 +110,7 @@ struct v4l2_subdev_video_ops {
 	int (*decode_vbi_line)(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi_line);
 	int (*s_vbi_data)(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_data *vbi_data);
 	int (*g_vbi_data)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_data *vbi_data);
+	int (*g_sliced_vbi_cap)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_cap *cap);
 	int (*s_std_output)(struct v4l2_subdev *sd, v4l2_std_id std);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 	int (*s_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);

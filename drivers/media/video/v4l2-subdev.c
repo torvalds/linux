@@ -40,13 +40,13 @@ int v4l2_subdev_command(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 	case VIDIOC_G_CHIP_IDENT:
 		return v4l2_subdev_call(sd, core, g_chip_ident, arg);
 	case VIDIOC_INT_S_STANDBY:
-		return v4l2_subdev_call(sd, core, s_standby, *(u32 *)arg);
+		return v4l2_subdev_call(sd, core, s_standby, arg ? (*(u32 *)arg) : 0);
 	case VIDIOC_INT_RESET:
-		return v4l2_subdev_call(sd, core, reset, *(u32 *)arg);
+		return v4l2_subdev_call(sd, core, reset, arg ? (*(u32 *)arg) : 0);
 	case VIDIOC_INT_S_GPIO:
-		return v4l2_subdev_call(sd, core, s_gpio, *(u32 *)arg);
+		return v4l2_subdev_call(sd, core, s_gpio, arg ? (*(u32 *)arg) : 0);
 	case VIDIOC_INT_INIT:
-		return v4l2_subdev_call(sd, core, init, *(u32 *)arg);
+		return v4l2_subdev_call(sd, core, init, arg ? (*(u32 *)arg) : 0);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	case VIDIOC_DBG_G_REGISTER:
 		return v4l2_subdev_call(sd, core, g_register, arg);
@@ -90,6 +90,8 @@ int v4l2_subdev_command(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 		return v4l2_subdev_call(sd, video, s_vbi_data, arg);
 	case VIDIOC_INT_G_VBI_DATA:
 		return v4l2_subdev_call(sd, video, g_vbi_data, arg);
+	case VIDIOC_G_SLICED_VBI_CAP:
+		return v4l2_subdev_call(sd, video, g_sliced_vbi_cap, arg);
 	case VIDIOC_S_FMT:
 		return v4l2_subdev_call(sd, video, s_fmt, arg);
 	case VIDIOC_G_FMT:
