@@ -1186,6 +1186,7 @@ struct ucc_geth_private {
 	struct ucc_fast_private *uccf;
 	struct net_device *dev;
 	struct napi_struct napi;
+	struct work_struct timeout_work;
 	struct ucc_geth __iomem *ug_regs;
 	struct ucc_geth_init_pram *p_init_enet_param_shadow;
 	struct ucc_geth_exf_global_pram __iomem *p_exf_glbl_param;

@@ -3355,13 +3355,17 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	return 0;
 }
 
-/* ucc_geth_timeout gets called when a packet has not been
- * transmitted after a set amount of time.
- * For now, assume that clearing out all the structures, and
- * starting over will fix the problem. */
-static void ucc_geth_timeout(struct net_device *dev)
+static int ucc_geth_close(struct net_device *dev);
+static int ucc_geth_open(struct net_device *dev);
+
+/* Reopen device. This will reset the MAC and PHY. */
+static void ucc_geth_timeout_work(struct work_struct *work)
 {
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	struct ucc_geth_private *ugeth;
+	struct net_device *dev;
+
+	ugeth = container_of(work, struct ucc_geth_private, timeout_work);
+	dev = ugeth->dev;
 
 	ugeth_vdbg("%s: IN", __func__);
 
@@ -3370,11 +3374,27 @@ static void ucc_geth_timeout(struct net_device *dev)
 	ugeth_dump_regs(ugeth);
 
 	if (dev->flags & IFF_UP) {
-		ucc_geth_stop(ugeth);
-		ucc_geth_startup(ugeth);
+		/*
+		 * Must reset MAC *and* PHY. This is done by reopening
+		 * the device.
+		 */
+		ucc_geth_close(dev);
+		ucc_geth_open(dev);
 	}
 
 	netif_tx_schedule_all(dev);
+}
+
+/*
+ * ucc_geth_timeout gets called when a packet has not been
+ * transmitted after a set amount of time.
+ */
+static void ucc_geth_timeout(struct net_device *dev)
+{
+	struct ucc_geth_private *ugeth = netdev_priv(dev);
+
+	netif_carrier_off(dev);
+	schedule_work(&ugeth->timeout_work);
 }
 
 /* This is called by the kernel when a frame is ready for transmission. */
@@ -4027,6 +4047,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	dev->hard_start_xmit = ucc_geth_start_xmit;
 	dev->tx_timeout = ucc_geth_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
+	INIT_WORK(&ugeth->timeout_work, ucc_geth_timeout_work);
 	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, UCC_GETH_DEV_WEIGHT);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = ucc_netpoll;
