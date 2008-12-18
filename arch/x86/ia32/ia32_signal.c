@@ -32,6 +32,8 @@
 #include <asm/proto.h>
 #include <asm/vdso.h>
 
+#include <asm/sigframe.h>
+
 #define DEBUG_SIG 0
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -173,30 +175,6 @@ asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
 /*
  * Do a signal return; undo the signal stack.
  */
-
-struct sigframe_ia32
-{
-	u32 pretcode;
-	int sig;
-	struct sigcontext_ia32 sc;
-	struct _fpstate_ia32 fpstate_unused; /* look at kernel/sigframe.h */
-	unsigned int extramask[_COMPAT_NSIG_WORDS-1];
-	char retcode[8];
-	/* fp state follows here */
-};
-
-struct rt_sigframe_ia32
-{
-	u32 pretcode;
-	int sig;
-	u32 pinfo;
-	u32 puc;
-	compat_siginfo_t info;
-	struct ucontext_ia32 uc;
-	char retcode[8];
-	/* fp state follows here */
-};
-
 #define COPY(x)			{		\
 	err |= __get_user(regs->x, &sc->x);	\
 }
