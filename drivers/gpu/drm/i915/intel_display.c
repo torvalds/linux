@@ -343,7 +343,7 @@ intel_wait_for_vblank(struct drm_device *dev)
 	udelay(20000);
 }
 
-void
+static void
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1329,7 +1329,7 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 };
 
 
-void intel_crtc_init(struct drm_device *dev, int pipe)
+static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
 	struct intel_crtc *intel_crtc;
 	int i;
@@ -1375,7 +1375,7 @@ struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
 	return crtc;
 }
 
-int intel_connector_clones(struct drm_device *dev, int type_mask)
+static int intel_connector_clones(struct drm_device *dev, int type_mask)
 {
 	int index_mask = 0;
 	struct drm_connector *connector;

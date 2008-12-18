@@ -43,7 +43,7 @@ extern struct intel_dvo_dev_ops ivch_ops;
 extern struct intel_dvo_dev_ops tfp410_ops;
 extern struct intel_dvo_dev_ops ch7017_ops;
 
-struct intel_dvo_device intel_dvo_devices[] = {
+static struct intel_dvo_device intel_dvo_devices[] = {
 	{
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "sil164",
@@ -335,7 +335,7 @@ static const struct drm_connector_helper_funcs intel_dvo_connector_helper_funcs 
 	.best_encoder = intel_best_encoder,
 };
 
-void intel_dvo_enc_destroy(struct drm_encoder *encoder)
+static void intel_dvo_enc_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 }

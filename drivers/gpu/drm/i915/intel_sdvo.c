@@ -59,7 +59,7 @@ struct intel_sdvo_priv {
  * SDVOB and SDVOC to work around apparent hardware issues (according to
  * comments in the BIOS).
  */
-void intel_sdvo_write_sdvox(struct intel_output *intel_output, u32 val)
+static void intel_sdvo_write_sdvox(struct intel_output *intel_output, u32 val)
 {
 	struct drm_device *dev = intel_output->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -296,7 +296,7 @@ static u8 intel_sdvo_read_response(struct intel_output *intel_output,
 	return status;
 }
 
-int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
+static int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
 {
 	if (mode->clock >= 100000)
 		return 1;
@@ -311,7 +311,8 @@ int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
  * SDVO chips which defeats the purpose of doing a bus switch in the first
  * place.
  */
-void intel_sdvo_set_control_bus_switch(struct intel_output *intel_output, u8 target)
+static void intel_sdvo_set_control_bus_switch(struct intel_output *intel_output,
+					      u8 target)
 {
 	intel_sdvo_write_cmd(intel_output, SDVO_CMD_SET_CONTROL_BUS_SWITCH, &target, 1);
 }
@@ -967,7 +968,7 @@ static const struct drm_connector_helper_funcs intel_sdvo_connector_helper_funcs
 	.best_encoder = intel_best_encoder,
 };
 
-void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
+static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 }

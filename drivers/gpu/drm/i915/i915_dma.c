@@ -821,8 +821,8 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
  * some RAM for the framebuffer at early boot.  This code figures out
  * how much was set aside so we can use it for our own purposes.
  */
-int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
-		   unsigned long *preallocated_size)
+static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
+			  unsigned long *preallocated_size)
 {
 	struct pci_dev *bridge_dev;
 	u16 tmp = 0;
@@ -1007,7 +1007,7 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 }
 
 
-int i915_driver_firstopen(struct drm_device *dev)
+static int i915_driver_firstopen(struct drm_device *dev)
 {
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;

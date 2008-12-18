@@ -1612,7 +1612,7 @@ static const struct drm_connector_helper_funcs intel_tv_connector_helper_funcs =
 	.best_encoder = intel_best_encoder,
 };
 
-void intel_tv_enc_destroy(struct drm_encoder *encoder)
+static void intel_tv_enc_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 }

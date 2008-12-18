@@ -338,7 +338,7 @@ static void intelfb_off(struct fb_info *info, int dpms_mode)
 	}
 }
 
-int intelfb_blank(int blank, struct fb_info *info)
+static int intelfb_blank(int blank, struct fb_info *info)
 {
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
@@ -428,10 +428,10 @@ static struct notifier_block paniced = {
 	.notifier_call = intelfb_panic,
 };
 
-int intelfb_create(struct drm_device *dev, uint32_t fb_width,
-		   uint32_t fb_height, uint32_t surface_width,
-		   uint32_t surface_height,
-		   struct intel_framebuffer **intel_fb_p)
+static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
+			  uint32_t fb_height, uint32_t surface_width,
+			  uint32_t surface_height,
+			  struct intel_framebuffer **intel_fb_p)
 {
 	struct fb_info *info;
 	struct intelfb_par *par;
