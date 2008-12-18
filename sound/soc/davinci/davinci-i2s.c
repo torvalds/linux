@@ -235,18 +235,45 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_IB_NF:
+		/* CLKRP Receive clock polarity,
+		 *	1 - sampled on rising edge of CLKR
+		 *	valid on rising edge
+		 * CLKXP Transmit clock polarity,
+		 *	1 - clocked on falling edge of CLKX
+		 *	valid on rising edge
+		 * FSRP  Receive frame sync pol, 0 - active high
+		 * FSXP  Transmit frame sync pol, 0 - active high
+		 */
 		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_PCR_REG);
 		MOD_REG_BIT(w, DAVINCI_MCBSP_PCR_CLKXP |
 			       DAVINCI_MCBSP_PCR_CLKRP, 1);
 		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_PCR_REG, w);
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
+		/* CLKRP Receive clock polarity,
+		 *	0 - sampled on falling edge of CLKR
+		 *	valid on falling edge
+		 * CLKXP Transmit clock polarity,
+		 *	0 - clocked on rising edge of CLKX
+		 *	valid on falling edge
+		 * FSRP  Receive frame sync pol, 1 - active low
+		 * FSXP  Transmit frame sync pol, 1 - active low
+		 */
 		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_PCR_REG);
 		MOD_REG_BIT(w, DAVINCI_MCBSP_PCR_FSXP |
 			       DAVINCI_MCBSP_PCR_FSRP, 1);
 		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_PCR_REG, w);
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
+		/* CLKRP Receive clock polarity,
+		 *	1 - sampled on rising edge of CLKR
+		 *	valid on rising edge
+		 * CLKXP Transmit clock polarity,
+		 *	1 - clocked on falling edge of CLKX
+		 *	valid on rising edge
+		 * FSRP  Receive frame sync pol, 1 - active low
+		 * FSXP  Transmit frame sync pol, 1 - active low
+		 */
 		w = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_PCR_REG);
 		MOD_REG_BIT(w, DAVINCI_MCBSP_PCR_CLKXP |
 			       DAVINCI_MCBSP_PCR_CLKRP |
@@ -255,6 +282,15 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_PCR_REG, w);
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
+		/* CLKRP Receive clock polarity,
+		 *	0 - sampled on falling edge of CLKR
+		 *	valid on falling edge
+		 * CLKXP Transmit clock polarity,
+		 *	0 - clocked on rising edge of CLKX
+		 *	valid on falling edge
+		 * FSRP  Receive frame sync pol, 0 - active high
+		 * FSXP  Transmit frame sync pol, 0 - active high
+		 */
 		break;
 	default:
 		return -EINVAL;
