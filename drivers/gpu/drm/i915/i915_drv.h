@@ -168,10 +168,10 @@ typedef struct drm_i915_private {
 	struct drm_display_mode *vbt_mode; /* if any */
 
 	/* Feature bits from the VBIOS */
-	int int_tv_support:1;
-	int lvds_dither:1;
-	int lvds_vbt:1;
-	int int_crt_support:1;
+	unsigned int int_tv_support:1;
+	unsigned int lvds_dither:1;
+	unsigned int lvds_vbt:1;
+	unsigned int int_crt_support:1;
 
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
