@@ -1,3 +1,6 @@
+#ifndef _ASM_X86_SIGFRAME_H
+#define _ASM_X86_SIGFRAME_H
+
 #ifdef CONFIG_X86_32
 #define sigframe_ia32		sigframe
 #define rt_sigframe_ia32	rt_sigframe
@@ -59,3 +62,5 @@ struct rt_sigframe {
 	/* fp state follows here */
 };
 #endif /* CONFIG_X86_64 */
+
+#endif /* _ASM_X86_SIGFRAME_H */
