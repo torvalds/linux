@@ -160,6 +160,7 @@ struct cx24116_tuning {
 	fe_spectral_inversion_t inversion;
 	fe_code_rate_t fec;
 
+	fe_delivery_system_t delsys;
 	fe_modulation_t modulation;
 	fe_pilot_t pilot;
 	fe_rolloff_t rolloff;
@@ -411,14 +412,15 @@ struct cx24116_modfec {
 };
 
 static int cx24116_lookup_fecmod(struct cx24116_state *state,
-	fe_modulation_t m, fe_code_rate_t f)
+	fe_delivery_system_t d, fe_modulation_t m, fe_code_rate_t f)
 {
 	int i, ret = -EOPNOTSUPP;
 
 	dprintk("%s(0x%02x,0x%02x)\n", __func__, m, f);
 
 	for (i = 0; i < ARRAY_SIZE(CX24116_MODFEC_MODES); i++) {
-		if ((m == CX24116_MODFEC_MODES[i].modulation) &&
+		if ((d == CX24116_MODFEC_MODES[i].delivery_system) &&
+			(m == CX24116_MODFEC_MODES[i].modulation) &&
 			(f == CX24116_MODFEC_MODES[i].fec)) {
 				ret = i;
 				break;
@@ -429,13 +431,13 @@ static int cx24116_lookup_fecmod(struct cx24116_state *state,
 }
 
 static int cx24116_set_fec(struct cx24116_state *state,
-	fe_modulation_t mod, fe_code_rate_t fec)
+	fe_delivery_system_t delsys, fe_modulation_t mod, fe_code_rate_t fec)
 {
 	int ret = 0;
 
 	dprintk("%s(0x%02x,0x%02x)\n", __func__, mod, fec);
 
-	ret = cx24116_lookup_fecmod(state, mod, fec);
+	ret = cx24116_lookup_fecmod(state, delsys, mod, fec);
 
 	if (ret < 0)
 		return ret;
@@ -1287,6 +1289,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 			__func__, c->delivery_system);
 		return -EOPNOTSUPP;
 	}
+	state->dnxt.delsys = c->delivery_system;
 	state->dnxt.modulation = c->modulation;
 	state->dnxt.frequency = c->frequency;
 	state->dnxt.pilot = c->pilot;
@@ -1297,7 +1300,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 		return ret;
 
 	/* FEC_NONE/AUTO for DVB-S2 is not supported and detected here */
-	ret = cx24116_set_fec(state, c->modulation, c->fec_inner);
+	ret = cx24116_set_fec(state, c->delivery_system, c->modulation, c->fec_inner);
 	if (ret !=  0)
 		return ret;
 
@@ -1308,6 +1311,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 	/* discard the 'current' tuning parameters and prepare to tune */
 	cx24116_clone_params(fe);
 
+	dprintk("%s:   delsys      = %d\n", __func__, state->dcur.delsys);
 	dprintk("%s:   modulation  = %d\n", __func__, state->dcur.modulation);
 	dprintk("%s:   frequency   = %d\n", __func__, state->dcur.frequency);
 	dprintk("%s:   pilot       = %d (val = 0x%02x)\n", __func__,
