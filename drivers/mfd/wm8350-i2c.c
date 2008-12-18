@@ -97,6 +97,7 @@ static int wm8350_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id wm8350_i2c_id[] = {
        { "wm8350", 0 },
+       { "wm8351", 0 },
        { "wm8352", 0 },
        { }
 };
