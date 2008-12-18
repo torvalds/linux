@@ -776,6 +776,18 @@ static int ath_reserve_key_cache_slot(struct ath_softc *sc)
 
 	/* No partially used TKIP slots, pick any available slot */
 	for (i = IEEE80211_WEP_NKID; i < sc->sc_keymax; i++) {
+		/* Do not allow slots that could be needed for TKIP group keys
+		 * to be used. This limitation could be removed if we know that
+		 * TKIP will not be used. */
+		if (i >= 64 && i < 64 + IEEE80211_WEP_NKID)
+			continue;
+		if (sc->sc_splitmic) {
+			if (i >= 32 && i < 32 + IEEE80211_WEP_NKID)
+				continue;
+			if (i >= 64 + 32 && i < 64 + 32 + IEEE80211_WEP_NKID)
+				continue;
+		}
+
 		if (!test_bit(i, sc->sc_keymap))
 			return i; /* Found a free slot for a key */
 	}
@@ -1361,20 +1373,6 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	 */
 	for (i = 0; i < sc->sc_keymax; i++)
 		ath9k_hw_keyreset(ah, (u16) i);
-	/*
-	 * Mark key cache slots associated with global keys
-	 * as in use.  If we knew TKIP was not to be used we
-	 * could leave the +32, +64, and +32+64 slots free.
-	 */
-	for (i = 0; i < IEEE80211_WEP_NKID; i++) {
-		set_bit(i, sc->sc_keymap);
-		set_bit(i + 64, sc->sc_keymap);
-		if (ath9k_hw_getcapability(ah, ATH9K_CAP_TKIP_SPLIT,
-					   0, NULL)) {
-			set_bit(i + 32, sc->sc_keymap);
-			set_bit(i + 32 + 64, sc->sc_keymap);
-		}
-	}
 
 	/* Collect the channel list using the default country code */
 
