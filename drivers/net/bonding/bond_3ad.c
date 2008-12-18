@@ -516,15 +516,10 @@ static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
  */
 static void __record_default(struct port *port)
 {
-	// validate the port
 	if (port) {
 		// record the partner admin parameters
-		port->partner_oper.port_number = port->partner_admin.port_number;
-		port->partner_oper.port_priority = port->partner_admin.port_priority;
-		port->partner_oper.system = port->partner_admin.system;
-		port->partner_oper.system_priority = port->partner_admin.system_priority;
-		port->partner_oper.key = port->partner_admin.key;
-		port->partner_oper.port_state = port->partner_admin.port_state;
+		memcpy(&port->partner_oper, &port->partner_admin,
+		       sizeof(struct port_params));
 
 		// set actor_oper_port_state.defaulted to true
 		port->actor_oper_port_state |= AD_STATE_DEFAULTED;
