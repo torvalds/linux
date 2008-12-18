@@ -737,7 +737,7 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       &sh_mobile_ceu_videobuf_ops,
 				       &ici->dev, &pcdev->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
-				       V4L2_FIELD_NONE,
+				       V4L2_FIELD_ANY,
 				       sizeof(struct sh_mobile_ceu_buffer),
 				       icd);
 }
