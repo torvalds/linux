@@ -90,7 +90,7 @@
 #define MT9M111_OUTPUT_FORMAT_CTRL2_B	0x19b
 
 #define MT9M111_OPMODE_AUTOEXPO_EN	(1 << 14)
-
+#define MT9M111_OPMODE_AUTOWHITEBAL_EN	(1 << 1)
 
 #define MT9M111_OUTFMT_PROCESSED_BAYER	(1 << 14)
 #define MT9M111_OUTFMT_BYPASS_IFP	(1 << 10)
@@ -163,6 +163,7 @@ struct mt9m111 {
 	unsigned int swap_rgb_red_blue:1;
 	unsigned int swap_yuv_y_chromas:1;
 	unsigned int swap_yuv_cb_cr:1;
+	unsigned int autowhitebalance:1;
 };
 
 static int reg_page_map_set(struct i2c_client *client, const u16 reg)
@@ -702,6 +703,23 @@ static int mt9m111_set_autoexposure(struct soc_camera_device *icd, int on)
 
 	return ret;
 }
+
+static int mt9m111_set_autowhitebalance(struct soc_camera_device *icd, int on)
+{
+	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	int ret;
+
+	if (on)
+		ret = reg_set(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOWHITEBAL_EN);
+	else
+		ret = reg_clear(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOWHITEBAL_EN);
+
+	if (!ret)
+		mt9m111->autowhitebalance = on;
+
+	return ret;
+}
+
 static int mt9m111_get_control(struct soc_camera_device *icd,
 			       struct v4l2_control *ctrl)
 {
@@ -738,6 +756,9 @@ static int mt9m111_get_control(struct soc_camera_device *icd,
 	case V4L2_CID_EXPOSURE_AUTO:
 		ctrl->value = mt9m111->autoexposure;
 		break;
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		ctrl->value = mt9m111->autowhitebalance;
+		break;
 	}
 	return 0;
 }
@@ -771,6 +792,9 @@ static int mt9m111_set_control(struct soc_camera_device *icd,
 	case V4L2_CID_EXPOSURE_AUTO:
 		ret =  mt9m111_set_autoexposure(icd, ctrl->value);
 		break;
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		ret =  mt9m111_set_autowhitebalance(icd, ctrl->value);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -789,6 +813,7 @@ static int mt9m111_restore_state(struct soc_camera_device *icd)
 	mt9m111_set_flip(icd, mt9m111->vflip, MT9M111_RMB_MIRROR_ROWS);
 	mt9m111_set_global_gain(icd, icd->gain);
 	mt9m111_set_autoexposure(icd, mt9m111->autoexposure);
+	mt9m111_set_autowhitebalance(icd, mt9m111->autowhitebalance);
 	return 0;
 }
 
@@ -883,6 +908,7 @@ static int mt9m111_video_probe(struct soc_camera_device *icd)
 		goto eisis;
 
 	mt9m111->autoexposure = 1;
+	mt9m111->autowhitebalance = 1;
 
 	mt9m111->swap_rgb_even_odd = 1;
 	mt9m111->swap_rgb_red_blue = 1;
