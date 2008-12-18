@@ -138,16 +138,6 @@ enum LightID {
 	LightPunch
 	};
 
-static const char *Lightname[8] = { "LightRecord",
-																		"LightTracrec",
-																		"LightTrackmute",
-																		"LightTrackSolo",
-																		"LightAnySolo",
-																		"LightLoop",
-																		"LightPunch",
-																		NULL };
-
-
 /* Structure to hold all of our device specific stuff */
 
 struct usb_tranzport {
@@ -574,7 +564,6 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 			   loff_t *ppos)
 {
 	struct usb_tranzport *dev;
-	size_t bytes_to_read;
 	int retval = 0;
 
 #if BUFFERED_READS

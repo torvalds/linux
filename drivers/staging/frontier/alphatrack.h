@@ -39,31 +39,6 @@ enum LightID {
         LIGHT_LOOP
 };
 
-static const char *Lightname[] = { "eq",
-"out",
-"f2",
-"send",
-"in",
-"f1",
-"pan",
-"undef1",
-"undef2",
-"shift",
-"mute",
-"tracksolo",
-"trackrec",
-"read",
-"write",
-"anysolo",
-"auto",
-"f4",
-"record",
-"window",
-"plugin",
-"f3",
-"loop",
-NULL };
-
 #define BUTTONMASK_BATTERY     0x00004000
 #define BUTTONMASK_BACKLIGHT   0x00008000
 #define BUTTONMASK_FASTFORWARD 0x04000000

@@ -100,16 +100,10 @@ static int debug = 0;
 /* Use our own dbg macro */
 #define dbg_info(dev, format, arg...) do { if (debug) dev_info(dev , format , ## arg); } while (0)
 
-#if 0
-#define alphatrack_ocmd_info(dev, cmd, format, arg...) do { if (debug) ocmd_info(dev , cmd , format, ## arg); } while (0)
-
-#define alphatrack_icmd_info(dev, cmd, format, arg...) do { if (debug) icmd_info(dev , cmd, format, ## arg); } while (0)
-#else
 #define alphatrack_ocmd_info(dev, cmd, format, arg...)
 
 #define alphatrack_icmd_info(dev, cmd, format, arg...)
 
-#endif
 
 /* Module parameters */
 
@@ -197,23 +191,6 @@ static DEFINE_MUTEX(disconnect_mutex);
 
 static struct usb_driver usb_alphatrack_driver;
 
-static void icmd_info(struct usb_alphatrack *dev, char *cmd, char *str, char *a) {
-/*
-if (dev->verbose) {
-} else {
-}
-*/
-}
-
-static void ocmd_info(struct usb_alphatrack *dev, char *cmd, char *str, char* a) {
-/*
-if (dev->verbose) {
-} else {
-}
-*/
-}
-
-
 /**
  *	usb_alphatrack_abort_transfers
  *      aborts transfers and frees associated data structures
@@ -254,7 +231,6 @@ static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 	struct usb_alphatrack *dev = urb->context;
 	unsigned int next_ring_head;
 	int retval = -1;
-	int *iptr;
 
 	if (urb->status) {
 		if (urb->status == -ENOENT ||
