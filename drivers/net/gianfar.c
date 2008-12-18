@@ -304,8 +304,9 @@ static int gfar_probe(struct of_device *ofdev,
 	u32 tempval;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
-	int err = 0;
 	DECLARE_MAC_BUF(mac);
+	int err = 0;
+	int len_devname;
 
 	/* Create an ethernet device instance */
 	dev = alloc_etherdev(sizeof (*priv));
@@ -446,6 +447,23 @@ static int gfar_probe(struct of_device *ofdev,
 				dev->name);
 		goto register_fail;
 	}
+
+	/* fill out IRQ number and name fields */
+	len_devname = strlen(dev->name);
+	strncpy(&priv->int_name_tx[0], dev->name, len_devname);
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
+		strncpy(&priv->int_name_tx[len_devname],
+			"_tx", sizeof("_tx") + 1);
+
+		strncpy(&priv->int_name_rx[0], dev->name, len_devname);
+		strncpy(&priv->int_name_rx[len_devname],
+			"_rx", sizeof("_rx") + 1);
+
+		strncpy(&priv->int_name_er[0], dev->name, len_devname);
+		strncpy(&priv->int_name_er[len_devname],
+			"_er", sizeof("_er") + 1);
+	} else
+		priv->int_name_tx[len_devname] = '\0';
 
 	/* Create all the sysfs files */
 	gfar_init_sysfs(dev);
@@ -1020,7 +1038,7 @@ int startup_gfar(struct net_device *dev)
 		/* Install our interrupt handlers for Error,
 		 * Transmit, and Receive */
 		if (request_irq(priv->interruptError, gfar_error,
-				0, "enet_error", dev) < 0) {
+				0, priv->int_name_er, dev) < 0) {
 			if (netif_msg_intr(priv))
 				printk(KERN_ERR "%s: Can't get IRQ %d\n",
 					dev->name, priv->interruptError);
@@ -1030,7 +1048,7 @@ int startup_gfar(struct net_device *dev)
 		}
 
 		if (request_irq(priv->interruptTransmit, gfar_transmit,
-				0, "enet_tx", dev) < 0) {
+				0, priv->int_name_tx, dev) < 0) {
 			if (netif_msg_intr(priv))
 				printk(KERN_ERR "%s: Can't get IRQ %d\n",
 					dev->name, priv->interruptTransmit);
@@ -1041,7 +1059,7 @@ int startup_gfar(struct net_device *dev)
 		}
 
 		if (request_irq(priv->interruptReceive, gfar_receive,
-				0, "enet_rx", dev) < 0) {
+				0, priv->int_name_rx, dev) < 0) {
 			if (netif_msg_intr(priv))
 				printk(KERN_ERR "%s: Can't get IRQ %d (receive0)\n",
 						dev->name, priv->interruptReceive);
@@ -1051,10 +1069,10 @@ int startup_gfar(struct net_device *dev)
 		}
 	} else {
 		if (request_irq(priv->interruptTransmit, gfar_interrupt,
-				0, "gfar_interrupt", dev) < 0) {
+				0, priv->int_name_tx, dev) < 0) {
 			if (netif_msg_intr(priv))
 				printk(KERN_ERR "%s: Can't get IRQ %d\n",
-					dev->name, priv->interruptError);
+					dev->name, priv->interruptTransmit);
 
 			err = -1;
 			goto err_irq_fail;

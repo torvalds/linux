@@ -374,6 +374,8 @@ extern const char gfar_driver_version[];
 #define RXFCB_PERR_MASK		0x000c
 #define RXFCB_PERR_BADL3	0x0008
 
+#define GFAR_INT_NAME_MAX	IFNAMSIZ + 4
+
 struct txbd8
 {
 	union {
@@ -796,6 +798,11 @@ struct gfar_private {
 	uint32_t msg_enable;
 
 	struct work_struct reset_task;
+
+	char int_name_tx[GFAR_INT_NAME_MAX];
+	char int_name_rx[GFAR_INT_NAME_MAX];
+	char int_name_er[GFAR_INT_NAME_MAX];
+
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;
 };
