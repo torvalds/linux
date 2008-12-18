@@ -509,7 +509,6 @@ void thash_purge_all(struct kvm_vcpu *v)
 	local_flush_tlb_all();
 }
 
-
 /*
  * Lookup the hash table and its collision chain to find an entry
  * covering this address rid:va or the entry.
@@ -517,7 +516,6 @@ void thash_purge_all(struct kvm_vcpu *v)
  * INPUT:
  *  in: TLB format for both VHPT & TLB.
  */
-
 struct thash_data *vtlb_lookup(struct kvm_vcpu *v, u64 va, int is_data)
 {
 	struct thash_data  *cch;
@@ -546,7 +544,6 @@ struct thash_data *vtlb_lookup(struct kvm_vcpu *v, u64 va, int is_data)
 
 	return NULL;
 }
-
 
 /*
  * Initialize internal control data before service.
@@ -589,7 +586,6 @@ u64 kvm_gpa_to_mpa(u64 gpa)
 	return (pte >> PAGE_SHIFT << PAGE_SHIFT) | (gpa & ~PAGE_MASK);
 }
 
-
 /*
  * Fetch guest bundle code.
  * INPUT:
@@ -630,7 +626,6 @@ int fetch_code(struct kvm_vcpu *vcpu, u64 gip, IA64_BUNDLE *pbundle)
 
 	return IA64_NO_FAULT;
 }
-
 
 void kvm_init_vhpt(struct kvm_vcpu *v)
 {

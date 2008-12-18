@@ -167,7 +167,6 @@ static u64 vcpu_get_itir_on_fault(struct kvm_vcpu *vcpu, u64 ifa)
 	return (rr1.val);
 }
 
-
 /*
  * Set vIFA & vITIR & vIHA, when vPSR.ic =1
  * Parameter:
@@ -222,8 +221,6 @@ void itlb_fault(struct kvm_vcpu *vcpu, u64 vadr)
 	inject_guest_interruption(vcpu, IA64_INST_TLB_VECTOR);
 }
 
-
-
 /*
  * Data Nested TLB Fault
  *  @ Data Nested TLB Vector
@@ -245,7 +242,6 @@ void alt_dtlb(struct kvm_vcpu *vcpu, u64 vadr)
 	inject_guest_interruption(vcpu, IA64_ALT_DATA_TLB_VECTOR);
 }
 
-
 /*
  * Data TLB Fault
  *  @ Data TLB vector
@@ -265,8 +261,6 @@ static void _vhpt_fault(struct kvm_vcpu *vcpu, u64 vadr)
 	/* If vPSR.ic, IFA, ITIR, IHA*/
 	set_ifa_itir_iha(vcpu, vadr, 1, 1, 1);
 	inject_guest_interruption(vcpu, IA64_VHPT_TRANS_VECTOR);
-
-
 }
 
 /*
@@ -279,7 +273,6 @@ void ivhpt_fault(struct kvm_vcpu *vcpu, u64 vadr)
 	_vhpt_fault(vcpu, vadr);
 }
 
-
 /*
  * VHPT Data Fault
  *  @ VHPT Translation vector
@@ -290,8 +283,6 @@ void dvhpt_fault(struct kvm_vcpu *vcpu, u64 vadr)
 	_vhpt_fault(vcpu, vadr);
 }
 
-
-
 /*
  * Deal with:
  *  General Exception vector
@@ -300,7 +291,6 @@ void _general_exception(struct kvm_vcpu *vcpu)
 {
 	inject_guest_interruption(vcpu, IA64_GENEX_VECTOR);
 }
-
 
 /*
  * Illegal Operation Fault
@@ -419,18 +409,15 @@ static void __page_not_present(struct kvm_vcpu *vcpu, u64 vadr)
 	inject_guest_interruption(vcpu, IA64_PAGE_NOT_PRESENT_VECTOR);
 }
 
-
 void data_page_not_present(struct kvm_vcpu *vcpu, u64 vadr)
 {
 	__page_not_present(vcpu, vadr);
 }
 
-
 void inst_page_not_present(struct kvm_vcpu *vcpu, u64 vadr)
 {
 	__page_not_present(vcpu, vadr);
 }
-
 
 /* Deal with
  *  Data access rights vector
@@ -703,7 +690,6 @@ void vhpi_detection(struct kvm_vcpu *vcpu)
 	}
 }
 
-
 void leave_hypervisor_tail(void)
 {
 	struct kvm_vcpu *v = current_vcpu;
@@ -736,7 +722,6 @@ void leave_hypervisor_tail(void)
 		vhpi_detection(v);
 	}
 }
-
 
 static inline void handle_lds(struct kvm_pt_regs *regs)
 {
