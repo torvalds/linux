@@ -59,6 +59,13 @@
 #include "transport.h"
 #include "protocol.h"
 
+/* Vendor IDs for companies that seem to include the READ CAPACITY bug
+ * in all their devices
+ */
+#define VENDOR_ID_NOKIA		0x0421
+#define VENDOR_ID_NIKON		0x04b0
+#define VENDOR_ID_MOTOROLA	0x22b8
+
 /***********************************************************************
  * Host functions 
  ***********************************************************************/
@@ -141,6 +148,22 @@ static int slave_configure(struct scsi_device *sdev)
 	 * called before the device type is known.  Consequently these
 	 * settings can't be overridden via the scsi devinfo mechanism. */
 	if (sdev->type == TYPE_DISK) {
+
+		/* Some vendors seem to put the READ CAPACITY bug into
+		 * all their devices -- primarily makers of cell phones
+		 * and digital cameras.  Since these devices always use
+		 * flash media and can be expected to have an even number
+		 * of sectors, we will always enable the CAPACITY_HEURISTICS
+		 * flag unless told otherwise. */
+		switch (le16_to_cpu(us->pusb_dev->descriptor.idVendor)) {
+		case VENDOR_ID_NOKIA:
+		case VENDOR_ID_NIKON:
+		case VENDOR_ID_MOTOROLA:
+			if (!(us->fflags & (US_FL_FIX_CAPACITY |
+					US_FL_CAPACITY_OK)))
+				us->fflags |= US_FL_CAPACITY_HEURISTICS;
+			break;
+		}
 
 		/* Disk-type devices use MODE SENSE(6) if the protocol
 		 * (SubClass) is Transparent SCSI, otherwise they use
