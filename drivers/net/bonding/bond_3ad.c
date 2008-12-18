@@ -543,16 +543,18 @@ static void __update_selected(struct lacpdu *lacpdu, struct port *port)
  */
 static void __update_default_selected(struct port *port)
 {
-	// validate the port
 	if (port) {
+		const struct port_params *admin = &port->partner_admin;
+		const struct port_params *oper = &port->partner_oper;
+
 		// check if any parameter is different
-		if ((port->partner_admin.port_number != port->partner_oper.port_number) ||
-		    (port->partner_admin.port_priority != port->partner_oper.port_priority) ||
-		    MAC_ADDRESS_COMPARE(&(port->partner_admin.system), &(port->partner_oper.system)) ||
-		    (port->partner_admin.system_priority != port->partner_oper.system_priority) ||
-		    (port->partner_admin.key != port->partner_oper.key) ||
-		    ((port->partner_admin.port_state & AD_STATE_AGGREGATION) != (port->partner_oper.port_state & AD_STATE_AGGREGATION))
-		   ) {
+		if (admin->port_number != oper->port_number
+		    || admin->port_priority != oper->port_priority
+		    || MAC_ADDRESS_COMPARE(&admin->system, &oper->system)
+		    || admin->system_priority != oper->system_priority
+		    || admin->key != oper->key
+		    || (admin->port_state & AD_STATE_AGGREGATION)
+			!= (oper->port_state & AD_STATE_AGGREGATION)) {
 			// update the state machine Selected variable
 			port->sm_vars &= ~AD_PORT_SELECTED;
 		}
