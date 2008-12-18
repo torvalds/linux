@@ -18,11 +18,6 @@
 
 #include <mach/vmalloc.h>
 
-/*
- * defines the hardware clock tick rate
- */
-#define CLOCK_TICK_RATE	16000000
-
 #define PHYS_OFFSET	UL(0x08000000)
 
 /*

@@ -15,11 +15,6 @@
 #error "Do not include directly."
 #endif
 
-/*!
- * defines the hardware clock tick rate
- */
-#define CLOCK_TICK_RATE		16625000
-
 /*
  * MX31 memory map:
  *
