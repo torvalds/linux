@@ -1777,7 +1777,7 @@ int radeon_master_create(struct drm_device *dev, struct drm_master *master)
 		return -ENOMEM;
 
 	/* prebuild the SAREA */
-	sareapage = max(SAREA_MAX, PAGE_SIZE);
+	sareapage = max_t(unsigned long, SAREA_MAX, PAGE_SIZE);
 	ret = drm_addmap(dev, 0, sareapage, _DRM_SHM, _DRM_CONTAINS_LOCK|_DRM_DRIVER,
 			 &master_priv->sarea);
 	if (ret) {
