@@ -2981,9 +2981,9 @@ int in_gate_area_no_task(unsigned long addr)
 #endif	/* __HAVE_ARCH_GATE_AREA */
 
 #ifdef CONFIG_HAVE_IOREMAP_PROT
-static resource_size_t follow_phys(struct vm_area_struct *vma,
-			unsigned long address, unsigned int flags,
-			unsigned long *prot)
+int follow_phys(struct vm_area_struct *vma,
+		unsigned long address, unsigned int flags,
+		unsigned long *prot, resource_size_t *phys)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -2992,24 +2992,26 @@ static resource_size_t follow_phys(struct vm_area_struct *vma,
 	spinlock_t *ptl;
 	resource_size_t phys_addr = 0;
 	struct mm_struct *mm = vma->vm_mm;
+	int ret = -EINVAL;
 
-	VM_BUG_ON(!(vma->vm_flags & (VM_IO | VM_PFNMAP)));
+	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
+		goto out;
 
 	pgd = pgd_offset(mm, address);
 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		goto no_page_table;
+		goto out;
 
 	pud = pud_offset(pgd, address);
 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-		goto no_page_table;
+		goto out;
 
 	pmd = pmd_offset(pud, address);
 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		goto no_page_table;
+		goto out;
 
 	/* We cannot handle huge page PFN maps. Luckily they don't exist. */
 	if (pmd_huge(*pmd))
-		goto no_page_table;
+		goto out;
 
 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
 	if (!ptep)
@@ -3024,13 +3026,13 @@ static resource_size_t follow_phys(struct vm_area_struct *vma,
 	phys_addr <<= PAGE_SHIFT; /* Shift here to avoid overflow on PAE */
 
 	*prot = pgprot_val(pte_pgprot(pte));
+	*phys = phys_addr;
+	ret = 0;
 
 unlock:
 	pte_unmap_unlock(ptep, ptl);
 out:
-	return phys_addr;
-no_page_table:
-	return 0;
+	return ret;
 }
 
 int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
@@ -3041,12 +3043,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 	void *maddr;
 	int offset = addr & (PAGE_SIZE-1);
 
-	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
-		return -EINVAL;
-
-	phys_addr = follow_phys(vma, addr, write, &prot);
-
-	if (!phys_addr)
+	if (follow_phys(vma, addr, write, &prot, &phys_addr))
 		return -EINVAL;
 
 	maddr = ioremap_prot(phys_addr, PAGE_SIZE, prot);
