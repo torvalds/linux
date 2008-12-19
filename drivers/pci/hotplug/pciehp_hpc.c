@@ -419,8 +419,7 @@ static int hpc_check_lnk_status(struct controller *ctrl)
 	}
 
 	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
-	if ( (lnk_status & LNK_TRN) || (lnk_status & LNK_TRN_ERR) ||
-		!(lnk_status & NEG_LINK_WD)) {
+	if ((lnk_status & LNK_TRN) || !(lnk_status & NEG_LINK_WD)) {
 		ctrl_err(ctrl, "Link Training Error occurs \n");
 		retval = -1;
 		return retval;
