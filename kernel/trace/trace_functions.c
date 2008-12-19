@@ -16,20 +16,10 @@
 
 #include "trace.h"
 
-static void function_reset(struct trace_array *tr)
-{
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
-}
-
 static void start_function_trace(struct trace_array *tr)
 {
 	tr->cpu = get_cpu();
-	function_reset(tr);
+	tracing_reset_online_cpus(tr);
 	put_cpu();
 
 	tracing_start_cmdline_record();
@@ -55,7 +45,7 @@ static void function_trace_reset(struct trace_array *tr)
 
 static void function_trace_start(struct trace_array *tr)
 {
-	function_reset(tr);
+	tracing_reset_online_cpus(tr);
 }
 
 static struct tracer function_trace __read_mostly =

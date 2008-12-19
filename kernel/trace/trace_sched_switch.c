@@ -72,16 +72,6 @@ probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee)
 	local_irq_restore(flags);
 }
 
-static void sched_switch_reset(struct trace_array *tr)
-{
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
-}
-
 static int tracing_sched_register(void)
 {
 	int ret;
@@ -197,7 +187,7 @@ void tracing_sched_switch_assign_trace(struct trace_array *tr)
 
 static void start_sched_trace(struct trace_array *tr)
 {
-	sched_switch_reset(tr);
+	tracing_reset_online_cpus(tr);
 	tracing_start_sched_switch_record();
 }
 
@@ -221,7 +211,7 @@ static void sched_switch_trace_reset(struct trace_array *tr)
 
 static void sched_switch_trace_start(struct trace_array *tr)
 {
-	sched_switch_reset(tr);
+	tracing_reset_online_cpus(tr);
 	tracing_start_sched_switch();
 }
 

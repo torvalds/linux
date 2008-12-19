@@ -37,16 +37,6 @@ void disable_boot_trace(void)
 		tracing_stop_sched_switch_record();
 }
 
-static void reset_boot_trace(struct trace_array *tr)
-{
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
-}
-
 static int boot_trace_init(struct trace_array *tr)
 {
 	int cpu;
@@ -130,7 +120,7 @@ struct tracer boot_tracer __read_mostly =
 {
 	.name		= "initcall",
 	.init		= boot_trace_init,
-	.reset		= reset_boot_trace,
+	.reset		= tracing_reset_online_cpus,
 	.print_line	= initcall_print_line,
 };
 

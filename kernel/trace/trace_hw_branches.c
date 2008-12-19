@@ -25,16 +25,6 @@ static DEFINE_PER_CPU(unsigned char[SIZEOF_BTS], buffer);
 #define this_buffer per_cpu(buffer, smp_processor_id())
 
 
-static void bts_trace_reset(struct trace_array *tr)
-{
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
-}
-
 static void bts_trace_start_cpu(void *arg)
 {
 	if (this_tracer)
@@ -54,7 +44,7 @@ static void bts_trace_start(struct trace_array *tr)
 {
 	int cpu;
 
-	bts_trace_reset(tr);
+	tracing_reset_online_cpus(tr);
 
 	for_each_cpu_mask(cpu, cpu_possible_map)
 		smp_call_function_single(cpu, bts_trace_start_cpu, NULL, 1);
@@ -78,7 +68,7 @@ static void bts_trace_stop(struct trace_array *tr)
 
 static int bts_trace_init(struct trace_array *tr)
 {
-	bts_trace_reset(tr);
+	tracing_reset_online_cpus(tr);
 	bts_trace_start(tr);
 
 	return 0;

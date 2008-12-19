@@ -234,20 +234,10 @@ static void stop_stack_timers(void)
 		stop_stack_timer(cpu);
 }
 
-static void stack_reset(struct trace_array *tr)
-{
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
-}
-
 static void start_stack_trace(struct trace_array *tr)
 {
 	mutex_lock(&sample_timer_lock);
-	stack_reset(tr);
+	tracing_reset_online_cpus(tr);
 	start_stack_timers();
 	tracer_enabled = 1;
 	mutex_unlock(&sample_timer_lock);
