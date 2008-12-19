@@ -233,7 +233,7 @@ struct iwl3945_clip_group {
 	const s8 clip_powers[IWL_MAX_RATES];
 };
 
-#include "iwl-3945-rs.h"
+#include "iwl-agn-rs.h"
 
 #define IWL_TX_FIFO_AC0	0
 #define IWL_TX_FIFO_AC1	1

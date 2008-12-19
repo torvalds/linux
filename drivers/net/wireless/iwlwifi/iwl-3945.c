@@ -43,7 +43,7 @@
 #include "iwl-commands.h"
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
-#include "iwl-3945-rs.h"
+#include "iwl-agn-rs.h"
 
 #define IWL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,   \
@@ -65,7 +65,7 @@
  * maps to IWL_RATE_INVALID
  *
  */
-const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT] = {
+const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT_3945] = {
 	IWL_DECLARE_RATE_INFO(1, INV, 2, INV, 2, INV, 2),    /*  1mbps */
 	IWL_DECLARE_RATE_INFO(2, 1, 5, 1, 5, 1, 5),          /*  2mbps */
 	IWL_DECLARE_RATE_INFO(5, 2, 6, 2, 11, 2, 11),        /*5.5mbps */
@@ -1700,7 +1700,7 @@ int iwl3945_hw_reg_send_txpower(struct iwl3945_priv *priv)
 	/* fill cmd with power settings for all rates for current channel */
 	/* Fill OFDM rate */
 	for (rate_idx = IWL_FIRST_OFDM_RATE, i = 0;
-	     rate_idx <= IWL_LAST_OFDM_RATE; rate_idx++, i++) {
+	     rate_idx <= IWL39_LAST_OFDM_RATE; rate_idx++, i++) {
 
 		txpower.power[i].tpc = ch_info->power_info[i].tpc;
 		txpower.power[i].rate = iwl3945_rates[rate_idx].plcp;

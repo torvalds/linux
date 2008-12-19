@@ -4843,7 +4843,7 @@ static void iwl3945_init_hw_rates(struct iwl3945_priv *priv,
 		rates[i].hw_value = i; /* Rate scaling will work on indexes */
 		rates[i].hw_value_short = i;
 		rates[i].flags = 0;
-		if ((i > IWL_LAST_OFDM_RATE) || (i < IWL_FIRST_OFDM_RATE)) {
+		if ((i > IWL39_LAST_OFDM_RATE) || (i < IWL_FIRST_OFDM_RATE)) {
 			/*
 			 * If CCK != 1M then set short preamble rate flag.
 			 */

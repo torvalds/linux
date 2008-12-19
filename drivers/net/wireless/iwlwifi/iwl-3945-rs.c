@@ -64,7 +64,7 @@ struct iwl3945_rs_sta {
 	u8 start_rate;
 	u8 ibss_sta_added;
 	struct timer_list rate_scale_flush;
-	struct iwl3945_rate_scale_data win[IWL_RATE_COUNT];
+	struct iwl3945_rate_scale_data win[IWL_RATE_COUNT_3945];
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_stats_table_file;
 #endif
@@ -73,19 +73,19 @@ struct iwl3945_rs_sta {
 	int last_txrate_idx;
 };
 
-static s32 iwl3945_expected_tpt_g[IWL_RATE_COUNT] = {
+static s32 iwl3945_expected_tpt_g[IWL_RATE_COUNT_3945] = {
 	7, 13, 35, 58, 0, 0, 76, 104, 130, 168, 191, 202
 };
 
-static s32 iwl3945_expected_tpt_g_prot[IWL_RATE_COUNT] = {
+static s32 iwl3945_expected_tpt_g_prot[IWL_RATE_COUNT_3945] = {
 	7, 13, 35, 58, 0, 0, 0, 80, 93, 113, 123, 125
 };
 
-static s32 iwl3945_expected_tpt_a[IWL_RATE_COUNT] = {
+static s32 iwl3945_expected_tpt_a[IWL_RATE_COUNT_3945] = {
 	0, 0, 0, 0, 40, 57, 72, 98, 121, 154, 177, 186
 };
 
-static s32 iwl3945_expected_tpt_b[IWL_RATE_COUNT] = {
+static s32 iwl3945_expected_tpt_b[IWL_RATE_COUNT_3945] = {
 	7, 13, 35, 58, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
@@ -121,7 +121,7 @@ static struct iwl3945_tpt_entry iwl3945_tpt_table_g[] = {
 #define IWL_RATE_MAX_WINDOW          62
 #define IWL_RATE_FLUSH       	 (3*HZ)
 #define IWL_RATE_WIN_FLUSH       (HZ/2)
-#define IWL_RATE_HIGH_TH          11520
+#define IWL39_RATE_HIGH_TH          11520
 #define IWL_SUCCESS_UP_TH	   8960
 #define IWL_SUCCESS_DOWN_TH	  10880
 #define IWL_RATE_MIN_FAILURE_TH       8
@@ -167,7 +167,7 @@ static void iwl3945_clear_window(struct iwl3945_rate_scale_data *window)
 	window->success_counter = 0;
 	window->success_ratio = -1;
 	window->counter = 0;
-	window->average_tpt = IWL_INV_TPT;
+	window->average_tpt = IWL_INVALID_VALUE;
 	window->stamp = 0;
 }
 
@@ -190,7 +190,7 @@ static int iwl3945_rate_scale_flush_windows(struct iwl3945_rs_sta *rs_sta)
 	 * and it has been more than IWL_RATE_WIN_FLUSH
 	 * since we flushed, clear out the gathered statistics
 	 */
-	for (i = 0; i < IWL_RATE_COUNT; i++) {
+	for (i = 0; i < IWL_RATE_COUNT_3945; i++) {
 		if (!rs_sta->win[i].counter)
 			continue;
 
@@ -334,7 +334,7 @@ static void iwl3945_collect_tx_data(struct iwl3945_rs_sta *rs_sta,
 		window->average_tpt = ((window->success_ratio *
 				rs_sta->expected_tpt[index] + 64) / 128);
 	else
-		window->average_tpt = IWL_INV_TPT;
+		window->average_tpt = IWL_INVALID_VALUE;
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
@@ -425,7 +425,7 @@ static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 	rs_sta->rate_scale_flush.data = (unsigned long)rs_sta;
 	rs_sta->rate_scale_flush.function = &iwl3945_bg_rate_scale_flush;
 
-	for (i = 0; i < IWL_RATE_COUNT; i++)
+	for (i = 0; i < IWL_RATE_COUNT_3945; i++)
 		iwl3945_clear_window(&rs_sta->win[i]);
 
 	IWL_DEBUG_RATE("leave\n");
@@ -471,7 +471,7 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 	retries = info->status.rates[0].count;
 
 	first_index = sband->bitrates[info->status.rates[0].idx].hw_value;
-	if ((first_index < 0) || (first_index >= IWL_RATE_COUNT)) {
+	if ((first_index < 0) || (first_index >= IWL_RATE_COUNT_3945)) {
 		IWL_DEBUG_RATE("leave: Rate out of bounds: %d\n", first_index);
 		return;
 	}
@@ -575,7 +575,8 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
 
 		/* Find the next rate that is in the rate mask */
 		i = index + 1;
-		for (mask = (1 << i); i < IWL_RATE_COUNT; i++, mask <<= 1) {
+		for (mask = (1 << i); i < IWL_RATE_COUNT_3945;
+		     i++, mask <<= 1) {
 			if (rate_mask & mask) {
 				high = i;
 				break;
@@ -641,9 +642,9 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	int index;
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
 	struct iwl3945_rate_scale_data *window = NULL;
-	int current_tpt = IWL_INV_TPT;
-	int low_tpt = IWL_INV_TPT;
-	int high_tpt = IWL_INV_TPT;
+	int current_tpt = IWL_INVALID_VALUE;
+	int low_tpt = IWL_INVALID_VALUE;
+	int high_tpt = IWL_INVALID_VALUE;
 	u32 fail_count;
 	s8 scale_action = 0;
 	unsigned long flags;
@@ -674,7 +675,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 		return;
 	}
 
-	index = min(rs_sta->last_txrate_idx & 0xffff, IWL_RATE_COUNT - 1);
+	index = min(rs_sta->last_txrate_idx & 0xffff, IWL_RATE_COUNT_3945 - 1);
 
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		rate_mask = rate_mask << IWL_FIRST_OFDM_RATE;
@@ -744,16 +745,18 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	if ((window->success_ratio < IWL_RATE_DECREASE_TH) || !current_tpt) {
 		IWL_DEBUG_RATE("decrease rate because of low success_ratio\n");
 		scale_action = -1;
-	} else if ((low_tpt == IWL_INV_TPT) && (high_tpt == IWL_INV_TPT))
+	} else if ((low_tpt == IWL_INVALID_VALUE) &&
+		   (high_tpt == IWL_INVALID_VALUE))
 		scale_action = 1;
-	else if ((low_tpt != IWL_INV_TPT) && (high_tpt != IWL_INV_TPT) &&
+	else if ((low_tpt != IWL_INVALID_VALUE) &&
+		 (high_tpt != IWL_INVALID_VALUE) &&
 		 (low_tpt < current_tpt) && (high_tpt < current_tpt)) {
 		IWL_DEBUG_RATE("No action -- low [%d] & high [%d] < "
 			       "current_tpt [%d]\n",
 			       low_tpt, high_tpt, current_tpt);
 		scale_action = 0;
 	} else {
-		if (high_tpt != IWL_INV_TPT) {
+		if (high_tpt != IWL_INVALID_VALUE) {
 			if (high_tpt > current_tpt)
 				scale_action = 1;
 			else {
@@ -761,7 +764,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 				    ("decrease rate because of high tpt\n");
 				scale_action = -1;
 			}
-		} else if (low_tpt != IWL_INV_TPT) {
+		} else if (low_tpt != IWL_INVALID_VALUE) {
 			if (low_tpt > current_tpt) {
 				IWL_DEBUG_RATE
 				    ("decrease rate because of low tpt\n");
@@ -835,7 +838,7 @@ static ssize_t iwl3945_sta_dbgfs_stats_table_read(struct file *file,
 			lq_sta->tx_packets,
 			lq_sta->last_txrate_idx,
 			lq_sta->start_rate, jiffies_to_msecs(lq_sta->flush_time));
-	for (j = 0; j < IWL_RATE_COUNT; j++) {
+	for (j = 0; j < IWL_RATE_COUNT_3945; j++) {
 		desc += sprintf(buff+desc,
 				"counter=%d success=%d %%=%d\n",
 				lq_sta->win[j].counter,
