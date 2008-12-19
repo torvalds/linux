@@ -763,7 +763,8 @@ long long ubifs_get_free_space(struct ubifs_info *c)
 	long long available, outstanding, free;
 
 	spin_lock(&c->space_lock);
-	min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+	min_idx_lebs = c->min_idx_lebs;
+	ubifs_assert(min_idx_lebs == ubifs_calc_min_idx_lebs(c));
 	outstanding = c->budg_data_growth + c->budg_dd_growth;
 
 	/*
