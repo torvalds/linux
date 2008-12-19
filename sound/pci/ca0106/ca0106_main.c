@@ -479,6 +479,15 @@ static const int spi_dacd_bit[] = {
 	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_BIT,
 };
 
+static void restore_spdif_bits(struct snd_ca0106 *chip, int idx)
+{
+	if (chip->spdif_str_bits[idx] != chip->spdif_bits[idx]) {
+		chip->spdif_str_bits[idx] = chip->spdif_bits[idx];
+		snd_ca0106_ptr_write(chip, SPCS0 + idx, 0,
+				     chip->spdif_str_bits[idx]);
+	}
+}
+
 /* open_playback callback */
 static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substream,
 						int channel_id)
@@ -524,6 +533,9 @@ static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substr
 		if (err < 0)
 			return err;
 	}
+
+	restore_spdif_bits(chip, channel_id);
+
 	return 0;
 }
 
@@ -534,6 +546,8 @@ static int snd_ca0106_pcm_close_playback(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
         struct snd_ca0106_pcm *epcm = runtime->private_data;
 	chip->playback_channels[epcm->channel_id].use = 0;
+
+	restore_spdif_bits(chip, epcm->channel_id);
 
 	if (chip->details->spi_dac && epcm->channel_id != PCM_FRONT_CHANNEL) {
 		const int reg = spi_dacd_reg[epcm->channel_id];
@@ -1330,16 +1344,16 @@ static void ca0106_init_chip(struct snd_ca0106 *chip, int resume)
 		SPCS_GENERATIONSTATUS | 0x00001200 |
 		0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT;
 	if (!resume) {
-		chip->spdif_bits[0] = def_bits;
-		chip->spdif_bits[1] = def_bits;
-		chip->spdif_bits[2] = def_bits;
-		chip->spdif_bits[3] = def_bits;
+		chip->spdif_str_bits[0] = chip->spdif_bits[0] = def_bits;
+		chip->spdif_str_bits[1] = chip->spdif_bits[1] = def_bits;
+		chip->spdif_str_bits[2] = chip->spdif_bits[2] = def_bits;
+		chip->spdif_str_bits[3] = chip->spdif_bits[3] = def_bits;
 	}
 	/* Only SPCS1 has been tested */
-	snd_ca0106_ptr_write(chip, SPCS1, 0, chip->spdif_bits[1]);
-	snd_ca0106_ptr_write(chip, SPCS0, 0, chip->spdif_bits[0]);
-	snd_ca0106_ptr_write(chip, SPCS2, 0, chip->spdif_bits[2]);
-	snd_ca0106_ptr_write(chip, SPCS3, 0, chip->spdif_bits[3]);
+	snd_ca0106_ptr_write(chip, SPCS1, 0, chip->spdif_str_bits[1]);
+	snd_ca0106_ptr_write(chip, SPCS0, 0, chip->spdif_str_bits[0]);
+	snd_ca0106_ptr_write(chip, SPCS2, 0, chip->spdif_str_bits[2]);
+	snd_ca0106_ptr_write(chip, SPCS3, 0, chip->spdif_str_bits[3]);
 
         snd_ca0106_ptr_write(chip, PLAYBACK_MUTE, 0, 0x00fc0000);
         snd_ca0106_ptr_write(chip, CAPTURE_MUTE, 0, 0x00fc0000);
