@@ -414,15 +414,14 @@ EXPORT_SYMBOL(intelfb_resize);
 
 static struct drm_mode_set kernelfb_mode;
 
-int intelfb_panic(struct notifier_block *n, unsigned long ununsed,
-		  void *panic_str)
+static int intelfb_panic(struct notifier_block *n, unsigned long ununsed,
+			 void *panic_str)
 {
 	DRM_ERROR("panic occurred, switching back to text console\n");
 
 	intelfb_restore();
 	return 0;
 }
-EXPORT_SYMBOL(intelfb_panic);
 
 static struct notifier_block paniced = {
 	.notifier_call = intelfb_panic,
