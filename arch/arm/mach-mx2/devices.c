@@ -35,6 +35,7 @@
 #include <mach/irqs.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
+#include <mach/mmc.h>
 
 #include "devices.h"
 
@@ -341,6 +342,71 @@ struct platform_device mxc_pwm_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(mxc_pwm_resources),
 	.resource = mxc_pwm_resources
+};
+
+/*
+ * Resource definition for the MXC SDHC
+ */
+static struct resource mxc_sdhc1_resources[] = {
+	[0] = {
+			.start = SDHC1_BASE_ADDR,
+			.end   = SDHC1_BASE_ADDR + SZ_4K - 1,
+			.flags = IORESOURCE_MEM,
+			},
+	[1] = {
+			.start = MXC_INT_SDHC1,
+			.end   = MXC_INT_SDHC1,
+			.flags = IORESOURCE_IRQ,
+			},
+	[2] = {
+			.start  = DMA_REQ_SDHC1,
+			.end    = DMA_REQ_SDHC1,
+			.flags  = IORESOURCE_DMA
+		},
+};
+
+static u64 mxc_sdhc1_dmamask = 0xffffffffUL;
+
+struct platform_device mxc_sdhc_device0 = {
+       .name           = "mxc-mmc",
+       .id             = 0,
+       .dev            = {
+               .dma_mask = &mxc_sdhc1_dmamask,
+               .coherent_dma_mask = 0xffffffff,
+       },
+       .num_resources  = ARRAY_SIZE(mxc_sdhc1_resources),
+       .resource       = mxc_sdhc1_resources,
+};
+
+static struct resource mxc_sdhc2_resources[] = {
+	[0] = {
+			.start = SDHC2_BASE_ADDR,
+			.end   = SDHC2_BASE_ADDR + SZ_4K - 1,
+			.flags = IORESOURCE_MEM,
+			},
+	[1] = {
+			.start = MXC_INT_SDHC2,
+			.end   = MXC_INT_SDHC2,
+			.flags = IORESOURCE_IRQ,
+			},
+	[2] = {
+			.start  = DMA_REQ_SDHC2,
+			.end    = DMA_REQ_SDHC2,
+			.flags  = IORESOURCE_DMA
+		},
+};
+
+static u64 mxc_sdhc2_dmamask = 0xffffffffUL;
+
+struct platform_device mxc_sdhc_device1 = {
+       .name           = "mxc-mmc",
+       .id             = 1,
+       .dev            = {
+               .dma_mask = &mxc_sdhc2_dmamask,
+               .coherent_dma_mask = 0xffffffff,
+       },
+       .num_resources  = ARRAY_SIZE(mxc_sdhc2_resources),
+       .resource       = mxc_sdhc2_resources,
 };
 
 /* GPIO port description */
