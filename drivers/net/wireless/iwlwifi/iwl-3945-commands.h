@@ -144,6 +144,11 @@ enum {
 	REPLY_MAX = 0xff
 };
 
+/* Tx rates */
+#define IWL_CCK_RATES	4
+#define IWL_OFDM_RATES	8
+#define IWL_MAX_RATES	(IWL_CCK_RATES + IWL_OFDM_RATES)
+
 /******************************************************************************
  * (0)
  * Commonly used structures and definitions:

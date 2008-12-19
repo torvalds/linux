@@ -38,8 +38,8 @@
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
 
+#include "iwl-3945-commands.h"
 #include "iwl-3945.h"
-#include "iwl-helpers.h"
 
 
 static const struct {

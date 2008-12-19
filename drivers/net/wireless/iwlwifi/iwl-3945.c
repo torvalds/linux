@@ -40,6 +40,7 @@
 
 #include "iwl-3945-core.h"
 #include "iwl-3945-fh.h"
+#include "iwl-3945-commands.h"
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
 #include "iwl-3945-rs.h"

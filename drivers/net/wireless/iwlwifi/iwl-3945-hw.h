@@ -73,13 +73,7 @@
  * uCode queue management definitions ...
  * Queue #4 is the command queue for 3945 and 4965.
  */
-#define IWL_CMD_QUEUE_NUM       4
-
-/* Tx rates */
-#define IWL_CCK_RATES 4
-#define IWL_OFDM_RATES 8
-#define IWL_HT_RATES 0
-#define IWL_MAX_RATES  (IWL_CCK_RATES+IWL_OFDM_RATES+IWL_HT_RATES)
+#define IWL_CMD_QUEUE_NUM	4
 
 /* Time constants */
 #define SHORT_SLOT_TIME 9
@@ -280,8 +274,6 @@ struct iwl3945_eeprom {
 
 /* End of EEPROM */
 
-
-#include "iwl-3945-commands.h"
 
 #define PCI_LINK_CTRL      0x0F0
 #define PCI_POWER_SOURCE   0x0C8
