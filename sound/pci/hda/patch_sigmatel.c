@@ -157,8 +157,6 @@ struct sigmatel_spec {
 	int board_config;
 	unsigned int eapd_switch: 1;
 	unsigned int surr_switch: 1;
-	unsigned int line_switch: 1;
-	unsigned int mic_switch: 1;
 	unsigned int alt_switch: 1;
 	unsigned int hp_detect: 1;
 	unsigned int spdif_mute: 1;
@@ -195,6 +193,8 @@ struct sigmatel_spec {
 	unsigned int cur_mmux;
 	struct hda_multi_out multiout;
 	hda_nid_t dac_nids[5];
+	hda_nid_t hp_dacs[5];
+	hda_nid_t speaker_dacs[5];
 
 	/* capture */
 	hda_nid_t *adc_nids;
@@ -238,7 +238,9 @@ struct sigmatel_spec {
 	/* i/o switches */
 	unsigned int io_switch[2];
 	unsigned int clfe_swap;
-	unsigned int hp_switch; /* NID of HP as line-out */
+	hda_nid_t line_switch;	/* shared line-in for input and output */
+	hda_nid_t mic_switch;	/* shared mic-in for input and output */
+	hda_nid_t hp_switch; /* NID of HP as line-out */
 	unsigned int aloopback;
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
@@ -289,9 +291,6 @@ static hda_nid_t stac92hd73xx_dmic_nids[STAC92HD73XX_NUM_DMICS + 1] = {
 };
 
 #define STAC92HD73_DAC_COUNT 5
-static hda_nid_t stac92hd73xx_dac_nids[STAC92HD73_DAC_COUNT] = {
-	0x15, 0x16, 0x17, 0x18, 0x19,
-};
 
 static hda_nid_t stac92hd73xx_mux_nids[4] = {
 	0x28, 0x29, 0x2a, 0x2b,
@@ -310,11 +309,7 @@ static hda_nid_t stac92hd83xxx_dmic_nids[STAC92HD83XXX_NUM_DMICS + 1] = {
 	0x11, 0x12, 0
 };
 
-#define STAC92HD81_DAC_COUNT 2
 #define STAC92HD83_DAC_COUNT 3
-static hda_nid_t stac92hd83xxx_dac_nids[STAC92HD73_DAC_COUNT] = {
-	0x13, 0x14, 0x22,
-};
 
 static hda_nid_t stac92hd83xxx_dmux_nids[2] = {
 	0x17, 0x18,
@@ -354,10 +349,6 @@ static hda_nid_t stac92hd71bxx_dmux_nids[2] = {
 
 static hda_nid_t stac92hd71bxx_smux_nids[2] = {
 	0x24, 0x25,
-};
-
-static hda_nid_t stac92hd71bxx_dac_nids[1] = {
-	0x10, /*0x11, */
 };
 
 #define STAC92HD71BXX_NUM_DMICS	2
@@ -761,10 +752,6 @@ static struct hda_verb stac9200_eapd_init[] = {
 static struct hda_verb stac92hd73xx_6ch_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* setup audio connections */
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{ 0x11, AC_VERB_SET_CONNECT_SEL, 0x02},
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
@@ -783,10 +770,6 @@ static struct hda_verb dell_eq_core_init[] = {
 	/* set master volume to max value without distortion
 	 * and direct control */
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xec},
-	/* setup audio connections */
-	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x02},
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x01},
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
@@ -800,10 +783,6 @@ static struct hda_verb dell_eq_core_init[] = {
 
 static struct hda_verb dell_m6_core_init[] = {
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* setup audio connections */
-	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x02},
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
@@ -818,13 +797,6 @@ static struct hda_verb dell_m6_core_init[] = {
 static struct hda_verb stac92hd73xx_8ch_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* setup audio connections */
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{ 0x11, AC_VERB_SET_CONNECT_SEL, 0x02},
-	/* connect hp ports to dac3 */
-	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x03},
-	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x03},
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
@@ -842,15 +814,8 @@ static struct hda_verb stac92hd73xx_8ch_core_init[] = {
 static struct hda_verb stac92hd73xx_10ch_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* setup audio connections */
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
-	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x01 },
-	{ 0x11, AC_VERB_SET_CONNECT_SEL, 0x02 },
 	/* dac3 is connected to import3 mux */
 	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, 0xb07f},
-	/* connect hp ports to dac4 */
-	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x04},
-	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x04},
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
@@ -881,8 +846,6 @@ static struct hda_verb stac92hd83xxx_core_init[] = {
 static struct hda_verb stac92hd71bxx_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x28, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* connect headphone jack to dac1 */
-	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
 	/* unmute right and left channels for nodes 0x0a, 0xd, 0x0f */
 	{ 0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -901,8 +864,6 @@ static struct hda_verb stac92hd71bxx_analog_core_init[] = {
 
 	/* set master volume and direct control */
 	{ 0x28, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* connect headphone jack to dac1 */
-	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
 	/* unmute right and left channels for nodes 0x0a, 0xd */
 	{ 0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -2747,69 +2708,52 @@ static inline int stac92xx_add_control(struct sigmatel_spec *spec, int type,
 	return stac92xx_add_control_idx(spec, type, 0, name, val);
 }
 
-/* flag inputs as additional dynamic lineouts */
-static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cfg *cfg)
+/* check whether the line-input can be used as line-out */
+static hda_nid_t check_line_out_switch(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	unsigned int wcaps, wtype;
-	int i, num_dacs = 0;
-	
-	/* use the wcaps cache to count all DACs available for line-outs */
-	for (i = 0; i < codec->num_nodes; i++) {
-		wcaps = codec->wcaps[i];
-		wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t nid;
+	unsigned int pincap;
 
-		if (wtype == AC_WID_AUD_OUT && !(wcaps & AC_WCAP_DIGITAL))
-			num_dacs++;
-	}
-
-	snd_printdd("%s: total dac count=%d\n", __func__, num_dacs);
-	
-	switch (cfg->line_outs) {
-	case 3:
-		/* add line-in as side */
-		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 3) {
-			cfg->line_out_pins[cfg->line_outs] =
-				cfg->input_pins[AUTO_PIN_LINE];
-			spec->line_switch = 1;
-			cfg->line_outs++;
-		}
-		break;
-	case 2:
-		/* add line-in as clfe and mic as side */
-		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 2) {
-			cfg->line_out_pins[cfg->line_outs] =
-				cfg->input_pins[AUTO_PIN_LINE];
-			spec->line_switch = 1;
-			cfg->line_outs++;
-		}
-		if (cfg->input_pins[AUTO_PIN_MIC] && num_dacs > 3) {
-			cfg->line_out_pins[cfg->line_outs] =
-				cfg->input_pins[AUTO_PIN_MIC];
-			spec->mic_switch = 1;
-			cfg->line_outs++;
-		}
-		break;
-	case 1:
-		/* add line-in as surr and mic as clfe */
-		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 1) {
-			cfg->line_out_pins[cfg->line_outs] =
-				cfg->input_pins[AUTO_PIN_LINE];
-			spec->line_switch = 1;
-			cfg->line_outs++;
-		}
-		if (cfg->input_pins[AUTO_PIN_MIC] && num_dacs > 2) {
-			cfg->line_out_pins[cfg->line_outs] =
-				cfg->input_pins[AUTO_PIN_MIC];
-			spec->mic_switch = 1;
-			cfg->line_outs++;
-		}
-		break;
-	}
-
+	if (cfg->line_out_type != AUTO_PIN_LINE_OUT)
+		return 0;
+	nid = cfg->input_pins[AUTO_PIN_LINE];
+	pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+	if (pincap & AC_PINCAP_OUT)
+		return nid;
 	return 0;
 }
 
+/* check whether the mic-input can be used as line-out */
+static hda_nid_t check_mic_out_switch(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	unsigned int def_conf, pincap;
+	unsigned int mic_pin;
+
+	if (cfg->line_out_type != AUTO_PIN_LINE_OUT)
+		return 0;
+	mic_pin = AUTO_PIN_MIC;
+	for (;;) {
+		hda_nid_t nid = cfg->input_pins[mic_pin];
+		def_conf = snd_hda_codec_read(codec, nid, 0,
+					      AC_VERB_GET_CONFIG_DEFAULT, 0);
+		/* some laptops have an internal analog microphone
+		 * which can't be used as a output */
+		if (get_defcfg_connect(def_conf) != AC_JACK_PORT_FIXED) {
+			pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+			if (pincap & AC_PINCAP_OUT)
+				return nid;
+		}
+		if (mic_pin == AUTO_PIN_MIC)
+			mic_pin = AUTO_PIN_FRONT_MIC;
+		else
+			break;
+	}
+	return 0;
+}
 
 static int is_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
 {
@@ -2823,6 +2767,52 @@ static int is_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
 	return 0;
 }
 
+static int check_all_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
+{
+	int i;
+	if (is_in_dac_nids(spec, nid))
+		return 1;
+	for (i = 0; i < spec->autocfg.hp_outs; i++)
+		if (spec->hp_dacs[i] == nid)
+			return 1;
+	for (i = 0; i < spec->autocfg.speaker_outs; i++)
+		if (spec->speaker_dacs[i] == nid)
+			return 1;
+	return 0;
+}
+
+static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int j, conn_len;
+	hda_nid_t conn[HDA_MAX_CONNECTIONS];
+	unsigned int wcaps, wtype;
+
+	conn_len = snd_hda_get_connections(codec, nid, conn,
+					   HDA_MAX_CONNECTIONS);
+	for (j = 0; j < conn_len; j++) {
+		wcaps = snd_hda_param_read(codec, conn[j],
+					   AC_PAR_AUDIO_WIDGET_CAP);
+		wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		/* we check only analog outputs */
+		if (wtype != AC_WID_AUD_OUT || (wcaps & AC_WCAP_DIGITAL))
+			continue;
+		/* if this route has a free DAC, assign it */
+		if (!check_all_dac_nids(spec, conn[j])) {
+			if (conn_len > 1) {
+				/* select this DAC in the pin's input mux */
+				snd_hda_codec_write_cache(codec, nid, 0,
+						  AC_VERB_SET_CONNECT_SEL, j);
+			}
+			return conn[j];
+		}
+	}
+	return 0;
+}
+
+static int add_spec_dacs(struct sigmatel_spec *spec, hda_nid_t nid);
+static int add_spec_extra_dacs(struct sigmatel_spec *spec, hda_nid_t nid);
+
 /*
  * Fill in the dac_nids table from the parsed pin configuration
  * This function only works when every pin in line_out_pins[]
@@ -2830,31 +2820,17 @@ static int is_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
  * codecs are not connected directly to a DAC, such as the 9200
  * and 9202/925x. For those, dac_nids[] must be hard-coded.
  */
-static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec,
-				       struct auto_pin_cfg *cfg)
+static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	int i, j, conn_len = 0; 
-	hda_nid_t nid, conn[HDA_MAX_CONNECTIONS];
-	unsigned int wcaps, wtype;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
+	hda_nid_t nid, dac;
 	
 	for (i = 0; i < cfg->line_outs; i++) {
 		nid = cfg->line_out_pins[i];
-		conn_len = snd_hda_get_connections(codec, nid, conn,
-						   HDA_MAX_CONNECTIONS);
-		for (j = 0; j < conn_len; j++) {
-			wcaps = snd_hda_param_read(codec, conn[j],
-						   AC_PAR_AUDIO_WIDGET_CAP);
-			wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
-			if (wtype != AC_WID_AUD_OUT ||
-			    (wcaps & AC_WCAP_DIGITAL))
-				continue;
-			/* conn[j] is a DAC routed to this line-out */
-			if (!is_in_dac_nids(spec, conn[j]))
-				break;
-		}
-
-		if (j == conn_len) {
+		dac = get_unassigned_dac(codec, nid);
+		if (!dac) {
 			if (spec->multiout.num_dacs > 0) {
 				/* we have already working output pins,
 				 * so let's drop the broken ones again
@@ -2868,24 +2844,64 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec,
 				   __func__, nid);
 			return -ENODEV;
 		}
+		add_spec_dacs(spec, dac);
+	}
 
-		spec->multiout.dac_nids[i] = conn[j];
-		spec->multiout.num_dacs++;
-		if (conn_len > 1) {
-			/* select this DAC in the pin's input mux */
-			snd_hda_codec_write_cache(codec, nid, 0,
-						  AC_VERB_SET_CONNECT_SEL, j);
-
+	/* add line-in as output */
+	nid = check_line_out_switch(codec);
+	if (nid) {
+		dac = get_unassigned_dac(codec, nid);
+		if (dac) {
+			snd_printdd("STAC: Add line-in 0x%x as output %d\n",
+				    nid, cfg->line_outs);
+			cfg->line_out_pins[cfg->line_outs] = nid;
+			cfg->line_outs++;
+			spec->line_switch = nid;
+			add_spec_dacs(spec, dac);
+		}
+	}
+	/* add mic as output */
+	nid = check_mic_out_switch(codec);
+	if (nid) {
+		dac = get_unassigned_dac(codec, nid);
+		if (dac) {
+			snd_printdd("STAC: Add mic-in 0x%x as output %d\n",
+				    nid, cfg->line_outs);
+			cfg->line_out_pins[cfg->line_outs] = nid;
+			cfg->line_outs++;
+			spec->mic_switch = nid;
+			add_spec_dacs(spec, dac);
 		}
 	}
 
-	snd_printd("dac_nids=%d (0x%x/0x%x/0x%x/0x%x/0x%x)\n",
+	for (i = 0; i < cfg->hp_outs; i++) {
+		nid = cfg->hp_pins[i];
+		dac = get_unassigned_dac(codec, nid);
+		if (dac) {
+			if (!spec->multiout.hp_nid)
+				spec->multiout.hp_nid = dac;
+			else
+				add_spec_extra_dacs(spec, dac);
+		}
+		spec->hp_dacs[i] = dac;
+	}
+
+	for (i = 0; i < cfg->speaker_outs; i++) {
+		nid = cfg->speaker_pins[i];
+		dac = get_unassigned_dac(codec, nid);
+		if (dac)
+			add_spec_extra_dacs(spec, dac);
+		spec->speaker_dacs[i] = dac;
+	}
+
+	snd_printd("stac92xx: dac_nids=%d (0x%x/0x%x/0x%x/0x%x/0x%x)\n",
 		   spec->multiout.num_dacs,
 		   spec->multiout.dac_nids[0],
 		   spec->multiout.dac_nids[1],
 		   spec->multiout.dac_nids[2],
 		   spec->multiout.dac_nids[3],
 		   spec->multiout.dac_nids[4]);
+
 	return 0;
 }
 
@@ -2910,9 +2926,7 @@ static int create_controls(struct sigmatel_spec *spec, const char *pfx, hda_nid_
 
 static int add_spec_dacs(struct sigmatel_spec *spec, hda_nid_t nid)
 {
-	if (!spec->multiout.hp_nid)
-		spec->multiout.hp_nid = nid;
-	else if (spec->multiout.num_dacs > 4) {
+	if (spec->multiout.num_dacs > 4) {
 		printk(KERN_WARNING "stac92xx: No space for DAC 0x%x\n", nid);
 		return 1;
 	} else {
@@ -2922,35 +2936,47 @@ static int add_spec_dacs(struct sigmatel_spec *spec, hda_nid_t nid)
 	return 0;
 }
 
-static int check_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
+static int add_spec_extra_dacs(struct sigmatel_spec *spec, hda_nid_t nid)
 {
-	if (is_in_dac_nids(spec, nid))
-		return 1;
+	int i;
+	for (i = 0; i < ARRAY_SIZE(spec->multiout.extra_out_nid); i++) {
+		if (!spec->multiout.extra_out_nid[i]) {
+			spec->multiout.extra_out_nid[i] = nid;
+			return 0;
+		}
+	}
+	printk(KERN_WARNING "stac92xx: No space for extra DAC 0x%x\n", nid);
+	return 1;
+}
+
+static int is_unique_dac(struct sigmatel_spec *spec, hda_nid_t nid)
+{
+	int i;
+
+	if (spec->autocfg.line_outs != 1)
+		return 0;
 	if (spec->multiout.hp_nid == nid)
-		return 1;
-	return 0;
+		return 0;
+	for (i = 0; i < ARRAY_SIZE(spec->multiout.extra_out_nid); i++)
+		if (spec->multiout.extra_out_nid[i] == nid)
+			return 0;
+	return 1;
 }
 
 /* add playback controls from the parsed DAC table */
 static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 					       const struct auto_pin_cfg *cfg)
 {
+	struct sigmatel_spec *spec = codec->spec;
 	static const char *chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
 	hda_nid_t nid = 0;
-	int i, err;
-
-	struct sigmatel_spec *spec = codec->spec;
+	int i, err, num_dacs;
 	unsigned int wid_caps, pincap;
 
-
-	for (i = 0; i < cfg->line_outs && i < spec->multiout.num_dacs; i++) {
-		if (!spec->multiout.dac_nids[i])
-			continue;
-
+	for (i = 0; i < cfg->line_outs && spec->multiout.dac_nids[i]; i++) {
 		nid = spec->multiout.dac_nids[i];
-
 		if (i == 2) {
 			/* Center/LFE */
 			err = create_controls(spec, "Center", nid, 1);
@@ -2972,15 +2998,23 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 			}
 
 		} else {
-			err = create_controls(spec, chname[i], nid, 3);
+			const char *name = chname[i];
+			/* if it's a single DAC, assign a better name */
+			if (!i && is_unique_dac(spec, nid)) {
+				switch (cfg->line_out_type) {
+				case AUTO_PIN_HP_OUT:
+					name = "Headphone";
+					break;
+				case AUTO_PIN_SPEAKER_OUT:
+					name = "Speaker";
+					break;
+				}
+			}
+			err = create_controls(spec, name, nid, 3);
 			if (err < 0)
 				return err;
 		}
 	}
-
-	if ((spec->multiout.num_dacs - cfg->line_outs) > 0 &&
-	    cfg->hp_outs == 1 && !spec->multiout.hp_nid)
-		spec->multiout.hp_nid = nid;
 
 	if (cfg->hp_outs > 1 && cfg->line_out_type == AUTO_PIN_LINE_OUT) {
 		err = stac92xx_add_control(spec,
@@ -2992,45 +3026,19 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 	}
 
 	if (spec->line_switch) {
-		nid = cfg->input_pins[AUTO_PIN_LINE];
-		pincap = snd_hda_param_read(codec, nid,
-						AC_PAR_PIN_CAP);
-		if (pincap & AC_PINCAP_OUT) {
-			err = stac92xx_add_control(spec,
-				STAC_CTL_WIDGET_IO_SWITCH,
-				"Line In as Output Switch", nid << 8);
-			if (err < 0)
-				return err;
-		}
+		err = stac92xx_add_control(spec, STAC_CTL_WIDGET_IO_SWITCH,
+					   "Line In as Output Switch",
+					   spec->line_switch << 8);
+		if (err < 0)
+			return err;
 	}
 
 	if (spec->mic_switch) {
-		unsigned int def_conf;
-		unsigned int mic_pin = AUTO_PIN_MIC;
-again:
-		nid = cfg->input_pins[mic_pin];
-		def_conf = snd_hda_codec_read(codec, nid, 0,
-						AC_VERB_GET_CONFIG_DEFAULT, 0);
-		/* some laptops have an internal analog microphone
-		 * which can't be used as a output */
-		if (get_defcfg_connect(def_conf) != AC_JACK_PORT_FIXED) {
-			pincap = snd_hda_param_read(codec, nid,
-							AC_PAR_PIN_CAP);
-			if (pincap & AC_PINCAP_OUT) {
-				err = stac92xx_add_control(spec,
-					STAC_CTL_WIDGET_IO_SWITCH,
-					"Mic as Output Switch", (nid << 8) | 1);
-				nid = snd_hda_codec_read(codec, nid, 0,
-					 AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
-				if (!check_in_dac_nids(spec, nid))
-					add_spec_dacs(spec, nid);
-				if (err < 0)
-					return err;
-			}
-		} else if (mic_pin == AUTO_PIN_MIC) {
-			mic_pin = AUTO_PIN_FRONT_MIC;
-			goto again;
-		}
+		err = stac92xx_add_control(spec, STAC_CTL_WIDGET_IO_SWITCH,
+					   "Mic as Output Switch",
+					   (spec->mic_switch << 8) | 1);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -3042,55 +3050,39 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 {
 	struct sigmatel_spec *spec = codec->spec;
 	hda_nid_t nid;
-	int i, old_num_dacs, err;
+	int i, err, nums;
 
-	old_num_dacs = spec->multiout.num_dacs;
+	nums = 0;
 	for (i = 0; i < cfg->hp_outs; i++) {
+		static const char *pfxs[] = {
+			"Headphone", "Headphone2", "Headphone3",
+		};
 		unsigned int wid_caps = get_wcaps(codec, cfg->hp_pins[i]);
 		if (wid_caps & AC_WCAP_UNSOL_CAP)
 			spec->hp_detect = 1;
-		nid = snd_hda_codec_read(codec, cfg->hp_pins[i], 0,
-					 AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
-		if (check_in_dac_nids(spec, nid))
-			nid = 0;
-		if (! nid)
+		if (nums >= ARRAY_SIZE(pfxs))
 			continue;
-		add_spec_dacs(spec, nid);
+		nid = spec->hp_dacs[i];
+		if (!nid)
+			continue;
+		err = create_controls(spec, pfxs[nums++], nid, 3);
+		if (err < 0)
+			return err;
 	}
+	nums = 0;
 	for (i = 0; i < cfg->speaker_outs; i++) {
-		nid = snd_hda_codec_read(codec, cfg->speaker_pins[i], 0,
-					 AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
-		if (check_in_dac_nids(spec, nid))
-			nid = 0;
-		if (! nid)
-			continue;
-		add_spec_dacs(spec, nid);
-	}
-	for (i = 0; i < cfg->line_outs; i++) {
-		nid = snd_hda_codec_read(codec, cfg->line_out_pins[i], 0,
-					AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
-		if (check_in_dac_nids(spec, nid))
-			nid = 0;
-		if (! nid)
-			continue;
-		add_spec_dacs(spec, nid);
-	}
-	for (i = old_num_dacs; i < spec->multiout.num_dacs; i++) {
 		static const char *pfxs[] = {
 			"Speaker", "External Speaker", "Speaker2",
 		};
-		err = create_controls(spec, pfxs[i - old_num_dacs],
-				      spec->multiout.dac_nids[i], 3);
+		if (nums >= ARRAY_SIZE(pfxs))
+			continue;
+		nid = spec->speaker_dacs[i];
+		if (!nid)
+			continue;
+		err = create_controls(spec, pfxs[nums++], nid, 3);
 		if (err < 0)
 			return err;
 	}
-	if (spec->multiout.hp_nid) {
-		err = create_controls(spec, "Headphone",
-				      spec->multiout.hp_nid, 3);
-		if (err < 0)
-			return err;
-	}
-
 	return 0;
 }
 
@@ -3428,7 +3420,6 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 {
 	struct sigmatel_spec *spec = codec->spec;
 	int err;
-	int hp_speaker_swap = 0;
 
 	if ((err = snd_hda_parse_pin_def_config(codec,
 						&spec->autocfg,
@@ -3446,13 +3437,15 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		 * speaker_outs so that the following routines can handle
 		 * HP pins as primary outputs.
 		 */
+		snd_printdd("stac92xx: Enabling multi-HPs workaround\n");
 		memcpy(spec->autocfg.speaker_pins, spec->autocfg.line_out_pins,
 		       sizeof(spec->autocfg.line_out_pins));
 		spec->autocfg.speaker_outs = spec->autocfg.line_outs;
 		memcpy(spec->autocfg.line_out_pins, spec->autocfg.hp_pins,
 		       sizeof(spec->autocfg.hp_pins));
 		spec->autocfg.line_outs = spec->autocfg.hp_outs;
-		hp_speaker_swap = 1;
+		spec->autocfg.line_out_type = AUTO_PIN_HP_OUT;
+		spec->autocfg.hp_outs = 0;
 	}
 	if (spec->autocfg.mono_out_pin) {
 		int dir = get_wcaps(codec, spec->autocfg.mono_out_pin) &
@@ -3504,11 +3497,11 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 					 AC_PINCTL_OUT_EN);
 	}
 
-	if ((err = stac92xx_add_dyn_out_pins(codec, &spec->autocfg)) < 0)
-		return err;
-	if (spec->multiout.num_dacs == 0)
-		if ((err = stac92xx_auto_fill_dac_nids(codec, &spec->autocfg)) < 0)
+	if (!spec->multiout.num_dacs) {
+		err = stac92xx_auto_fill_dac_nids(codec);
+		if (err < 0)
 			return err;
+	}
 
 	err = stac92xx_auto_create_multi_out_ctls(codec, &spec->autocfg);
 
@@ -3545,19 +3538,6 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		}
 	}
 #endif
-
-	if (hp_speaker_swap == 1) {
-		/* Restore the hp_outs and line_outs */
-		memcpy(spec->autocfg.hp_pins, spec->autocfg.line_out_pins,
-		       sizeof(spec->autocfg.line_out_pins));
-		spec->autocfg.hp_outs = spec->autocfg.line_outs;
-		memcpy(spec->autocfg.line_out_pins, spec->autocfg.speaker_pins,
-		       sizeof(spec->autocfg.speaker_pins));
-		spec->autocfg.line_outs = spec->autocfg.speaker_outs;
-		memset(spec->autocfg.speaker_pins, 0,
-		       sizeof(spec->autocfg.speaker_pins));
-		spec->autocfg.speaker_outs = 0;
-	}
 
 	err = stac92xx_auto_create_hp_ctls(codec, &spec->autocfg);
 
@@ -3870,8 +3850,7 @@ static void stac92xx_power_down(struct hda_codec *codec)
 	/* power down inactive DACs */
 	hda_nid_t *dac;
 	for (dac = spec->dac_list; *dac; dac++)
-		if (!is_in_dac_nids(spec, *dac) &&
-			spec->multiout.hp_nid != *dac)
+		if (!check_all_dac_nids(spec, *dac))
 			snd_hda_codec_write(codec, *dac, 0,
 					AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
 }
@@ -4055,10 +4034,7 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 		 */
 		struct sigmatel_spec *spec = codec->spec;
 		struct auto_pin_cfg *cfg = &spec->autocfg;
-		if ((nid == cfg->input_pins[AUTO_PIN_LINE] &&
-		     spec->line_switch) ||
-		    (nid == cfg->input_pins[AUTO_PIN_MIC] &&
-		     spec->mic_switch))
+		if (nid == spec->line_switch || nid == spec->mic_switch)
 			return;
 	}
 
@@ -4100,11 +4076,9 @@ static int no_hp_sensing(struct sigmatel_spec *spec, int i)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 
 	/* ignore sensing of shared line and mic jacks */
-	if (spec->line_switch &&
-	    cfg->hp_pins[i] == cfg->input_pins[AUTO_PIN_LINE])
+	if (cfg->hp_pins[i] == spec->line_switch)
 		return 1;
-	if (spec->mic_switch &&
-	    cfg->hp_pins[i] == cfg->input_pins[AUTO_PIN_MIC])
+	if (cfg->hp_pins[i] == spec->mic_switch)
 		return 1;
 	/* ignore if the pin is set as line-out */
 	if (cfg->hp_pins[i] == spec->hp_switch)
@@ -4515,6 +4489,7 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 	struct sigmatel_spec *spec;
 	hda_nid_t conn[STAC92HD73_DAC_COUNT + 2];
 	int err = 0;
+	int num_dacs;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -4541,33 +4516,29 @@ again:
 		return err;
 	}
 
-	spec->multiout.num_dacs = snd_hda_get_connections(codec, 0x0a,
+	num_dacs = snd_hda_get_connections(codec, 0x0a,
 			conn, STAC92HD73_DAC_COUNT + 2) - 1;
 
-	if (spec->multiout.num_dacs < 0) {
+	if (num_dacs < 3 || num_dacs > 5) {
 		printk(KERN_WARNING "hda_codec: Could not determine "
 		       "number of channels defaulting to DAC count\n");
-		spec->multiout.num_dacs = STAC92HD73_DAC_COUNT;
+		num_dacs = STAC92HD73_DAC_COUNT;
 	}
-
-	switch (spec->multiout.num_dacs) {
+	switch (num_dacs) {
 	case 0x3: /* 6 Channel */
-		spec->multiout.hp_nid = 0x17;
 		spec->mixer = stac92hd73xx_6ch_mixer;
 		spec->init = stac92hd73xx_6ch_core_init;
 		break;
 	case 0x4: /* 8 Channel */
-		spec->multiout.hp_nid = 0x18;
 		spec->mixer = stac92hd73xx_8ch_mixer;
 		spec->init = stac92hd73xx_8ch_core_init;
 		break;
 	case 0x5: /* 10 Channel */
-		spec->multiout.hp_nid = 0x19;
 		spec->mixer = stac92hd73xx_10ch_mixer;
 		spec->init = stac92hd73xx_10ch_core_init;
-	};
+	}
+	spec->multiout.dac_nids = spec->dac_nids;
 
-	spec->multiout.dac_nids = stac92hd73xx_dac_nids;
 	spec->aloopback_mask = 0x01;
 	spec->aloopback_shift = 8;
 
@@ -4598,9 +4569,8 @@ again:
 		spec->amp_nids = &stac92hd73xx_amp_nids[DELL_M6_AMP];
 		spec->eapd_switch = 0;
 		spec->num_amps = 1;
-		spec->multiout.hp_nid = 0; /* dual HPs */
 
-		if (!spec->init)
+		if (spec->board_config != STAC_DELL_EQ)
 			spec->init = dell_m6_core_init;
 		switch (spec->board_config) {
 		case STAC_DELL_M6_AMIC: /* Analog Mics */
@@ -4691,17 +4661,15 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
 	spec->pwr_mapping = stac92hd83xxx_pwr_mapping;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
-	spec->multiout.dac_nids = stac92hd83xxx_dac_nids;
+	spec->multiout.dac_nids = spec->dac_nids;
 
 	spec->init = stac92hd83xxx_core_init;
 	switch (codec->vendor_id) {
 	case 0x111d7605:
-		spec->multiout.num_dacs = STAC92HD81_DAC_COUNT;
 		break;
 	default:
 		spec->num_pwrs--;
 		spec->init++; /* switch to config #2 */
-		spec->multiout.num_dacs = STAC92HD83_DAC_COUNT;
 	}
 
 	spec->mixer = stac92hd83xxx_mixer;
@@ -4892,9 +4860,7 @@ again:
 		spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
 	};
 
-	spec->multiout.num_dacs = 1;
-	spec->multiout.hp_nid = 0x11;
-	spec->multiout.dac_nids = stac92hd71bxx_dac_nids;
+	spec->multiout.dac_nids = spec->dac_nids;
 	if (spec->dinput_mux)
 		spec->private_dimux.num_items +=
 			spec->num_dmics -
