@@ -17,15 +17,77 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
+#include <linux/irq.h>
 
 #include <asm/mach/arch.h>
 
 #include <mach/hardware.h>
 #include <mach/common.h>
+#include <mach/mmc.h>
 #include <mach/imxfb.h>
 #include <mach/iomux.h>
 
 #include "devices.h"
+
+static int pcm970_sdhc2_get_ro(struct device *dev)
+{
+	return gpio_get_value(GPIO_PORTC + 28);
+}
+
+static int pcm970_sdhc2_pins[] = {
+	PB4_PF_SD2_D0,
+	PB5_PF_SD2_D1,
+	PB6_PF_SD2_D2,
+	PB7_PF_SD2_D3,
+	PB8_PF_SD2_CMD,
+	PB9_PF_SD2_CLK,
+};
+
+static int pcm970_sdhc2_init(struct device *dev, irq_handler_t detect_irq, void *data)
+{
+	int ret;
+
+	ret = mxc_gpio_setup_multiple_pins(pcm970_sdhc2_pins,
+		ARRAY_SIZE(pcm970_sdhc2_pins), "sdhc2");
+	if(ret)
+		return ret;
+
+	ret = request_irq(IRQ_GPIOC(29), detect_irq, 0,
+				"imx-mmc-detect", data);
+	if (ret)
+		goto out_release_gpio;
+
+	set_irq_type(IRQ_GPIOC(29), IRQF_TRIGGER_FALLING);
+
+	ret = gpio_request(GPIO_PORTC + 28, "imx-mmc-ro");
+	if (ret)
+		goto out_release_gpio;
+
+	mxc_gpio_mode((GPIO_PORTC | 28) | GPIO_GPIO | GPIO_IN);
+	gpio_direction_input(GPIO_PORTC + 28);
+
+	return 0;
+
+out_release_gpio:
+	mxc_gpio_release_multiple_pins(pcm970_sdhc2_pins,
+			ARRAY_SIZE(pcm970_sdhc2_pins));
+	return ret;
+}
+
+static void pcm970_sdhc2_exit(struct device *dev, void *data)
+{
+	free_irq(IRQ_GPIOC(29), data);
+	gpio_free(GPIO_PORTC + 28);
+	mxc_gpio_release_multiple_pins(pcm970_sdhc2_pins,
+			ARRAY_SIZE(pcm970_sdhc2_pins));
+}
+
+static struct imxmmc_platform_data sdhc_pdata = {
+	.get_ro = pcm970_sdhc2_get_ro,
+	.init = pcm970_sdhc2_init,
+	.exit = pcm970_sdhc2_exit,
+};
 
 static int mxc_fb_pins[] = {
 	PA5_PF_LSCLK,	PA6_PF_LD0,	PA7_PF_LD1,	PA8_PF_LD2,
@@ -96,4 +158,5 @@ static struct imx_fb_platform_data pcm038_fb_data = {
 void __init pcm970_baseboard_init(void)
 {
 	mxc_register_device(&mxc_fb_device, &pcm038_fb_data);
+	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
 }
