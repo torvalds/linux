@@ -40,9 +40,12 @@ struct gpn_ft_resp_acc {
 	u64 wwpn;
 } __attribute__ ((packed));
 
-#define ZFCP_GPN_FT_ENTRIES ((PAGE_SIZE - sizeof(struct ct_hdr)) \
-				/ sizeof(struct gpn_ft_resp_acc))
+#define ZFCP_CT_SIZE_ONE_PAGE	(PAGE_SIZE - sizeof(struct ct_hdr))
+#define ZFCP_GPN_FT_ENTRIES	(ZFCP_CT_SIZE_ONE_PAGE \
+					/ sizeof(struct gpn_ft_resp_acc))
 #define ZFCP_GPN_FT_BUFFERS 4
+#define ZFCP_GPN_FT_MAX_SIZE (ZFCP_GPN_FT_BUFFERS * PAGE_SIZE \
+				- sizeof(struct ct_hdr))
 #define ZFCP_GPN_FT_MAX_ENTRIES ZFCP_GPN_FT_BUFFERS * (ZFCP_GPN_FT_ENTRIES + 1)
 
 struct ct_iu_gpn_ft_resp {
@@ -282,8 +285,6 @@ int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
 	gid_pn->ct.timeout = ZFCP_NS_GID_PN_TIMEOUT;
 	gid_pn->ct.req = &gid_pn->req;
 	gid_pn->ct.resp = &gid_pn->resp;
-	gid_pn->ct.req_count = 1;
-	gid_pn->ct.resp_count = 1;
 	sg_init_one(&gid_pn->req, &gid_pn->ct_iu_req,
 		    sizeof(struct ct_iu_gid_pn_req));
 	sg_init_one(&gid_pn->resp, &gid_pn->ct_iu_resp,
@@ -295,7 +296,7 @@ int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
 	gid_pn->ct_iu_req.header.gs_subtype = ZFCP_CT_NAME_SERVER;
 	gid_pn->ct_iu_req.header.options = ZFCP_CT_SYNCHRONOUS;
 	gid_pn->ct_iu_req.header.cmd_rsp_code = ZFCP_CT_GID_PN;
-	gid_pn->ct_iu_req.header.max_res_size = ZFCP_CT_MAX_SIZE;
+	gid_pn->ct_iu_req.header.max_res_size = ZFCP_CT_SIZE_ONE_PAGE / 4;
 	gid_pn->ct_iu_req.wwpn = erp_action->port->wwpn;
 
 	init_completion(&compl_rec.done);
@@ -405,8 +406,6 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	sg_init_one(adisc->els.resp, &adisc->ls_adisc_acc,
 		    sizeof(struct zfcp_ls_adisc));
 
-	adisc->els.req_count = 1;
-	adisc->els.resp_count = 1;
 	adisc->els.adapter = adapter;
 	adisc->els.port = port;
 	adisc->els.d_id = port->d_id;
@@ -446,17 +445,17 @@ void zfcp_test_link(struct zfcp_port *port)
 		zfcp_erp_port_forced_reopen(port, 0, 65, NULL);
 }
 
-static void zfcp_free_sg_env(struct zfcp_gpn_ft *gpn_ft)
+static void zfcp_free_sg_env(struct zfcp_gpn_ft *gpn_ft, int buf_num)
 {
 	struct scatterlist *sg = &gpn_ft->sg_req;
 
 	kfree(sg_virt(sg)); /* free request buffer */
-	zfcp_sg_free_table(gpn_ft->sg_resp, ZFCP_GPN_FT_BUFFERS);
+	zfcp_sg_free_table(gpn_ft->sg_resp, buf_num);
 
 	kfree(gpn_ft);
 }
 
-static struct zfcp_gpn_ft *zfcp_alloc_sg_env(void)
+static struct zfcp_gpn_ft *zfcp_alloc_sg_env(int buf_num)
 {
 	struct zfcp_gpn_ft *gpn_ft;
 	struct ct_iu_gpn_ft_req *req;
@@ -473,8 +472,8 @@ static struct zfcp_gpn_ft *zfcp_alloc_sg_env(void)
 	}
 	sg_init_one(&gpn_ft->sg_req, req, sizeof(*req));
 
-	if (zfcp_sg_setup_table(gpn_ft->sg_resp, ZFCP_GPN_FT_BUFFERS)) {
-		zfcp_free_sg_env(gpn_ft);
+	if (zfcp_sg_setup_table(gpn_ft->sg_resp, buf_num)) {
+		zfcp_free_sg_env(gpn_ft, buf_num);
 		gpn_ft = NULL;
 	}
 out:
@@ -483,7 +482,8 @@ out:
 
 
 static int zfcp_scan_issue_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
-				  struct zfcp_adapter *adapter)
+				  struct zfcp_adapter *adapter,
+				  int max_bytes)
 {
 	struct zfcp_send_ct *ct = &gpn_ft->ct;
 	struct ct_iu_gpn_ft_req *req = sg_virt(&gpn_ft->sg_req);
@@ -496,8 +496,7 @@ static int zfcp_scan_issue_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
 	req->header.gs_subtype = ZFCP_CT_NAME_SERVER;
 	req->header.options = ZFCP_CT_SYNCHRONOUS;
 	req->header.cmd_rsp_code = ZFCP_CT_GPN_FT;
-	req->header.max_res_size = (sizeof(struct gpn_ft_resp_acc) *
-					(ZFCP_GPN_FT_MAX_ENTRIES - 1)) >> 2;
+	req->header.max_res_size = max_bytes / 4;
 	req->flags = 0;
 	req->domain_id_scope = 0;
 	req->area_id_scope = 0;
@@ -510,8 +509,6 @@ static int zfcp_scan_issue_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
 	ct->timeout = 10;
 	ct->req = &gpn_ft->sg_req;
 	ct->resp = gpn_ft->sg_resp;
-	ct->req_count = 1;
-	ct->resp_count = ZFCP_GPN_FT_BUFFERS;
 
 	init_completion(&compl_rec.done);
 	compl_rec.handler = NULL;
@@ -538,7 +535,7 @@ static void zfcp_validate_port(struct zfcp_port *port)
 	zfcp_port_dequeue(port);
 }
 
-static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
+static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 {
 	struct zfcp_send_ct *ct = &gpn_ft->ct;
 	struct scatterlist *sg = gpn_ft->sg_resp;
@@ -558,13 +555,17 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 		return -EIO;
 	}
 
-	if (hdr->max_res_size)
+	if (hdr->max_res_size) {
+		dev_warn(&adapter->ccw_device->dev,
+			 "The name server reported %d words residual data\n",
+			 hdr->max_res_size);
 		return -E2BIG;
+	}
 
 	down(&zfcp_data.config_sema);
 
 	/* first entry is the header */
-	for (x = 1; x < ZFCP_GPN_FT_MAX_ENTRIES && !last; x++) {
+	for (x = 1; x < max_entries && !last; x++) {
 		if (x % (ZFCP_GPN_FT_ENTRIES + 1))
 			acc++;
 		else
@@ -609,6 +610,12 @@ int zfcp_scan_ports(struct zfcp_adapter *adapter)
 {
 	int ret, i;
 	struct zfcp_gpn_ft *gpn_ft;
+	int chain, max_entries, buf_num, max_bytes;
+
+	chain = adapter->adapter_features & FSF_FEATURE_ELS_CT_CHAINED_SBALS;
+	buf_num = chain ? ZFCP_GPN_FT_BUFFERS : 1;
+	max_entries = chain ? ZFCP_GPN_FT_MAX_ENTRIES : ZFCP_GPN_FT_ENTRIES;
+	max_bytes = chain ? ZFCP_GPN_FT_MAX_SIZE : ZFCP_CT_SIZE_ONE_PAGE;
 
 	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT)
 		return 0;
@@ -617,23 +624,23 @@ int zfcp_scan_ports(struct zfcp_adapter *adapter)
 	if (ret)
 		return ret;
 
-	gpn_ft = zfcp_alloc_sg_env();
+	gpn_ft = zfcp_alloc_sg_env(buf_num);
 	if (!gpn_ft) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	for (i = 0; i < 3; i++) {
-		ret = zfcp_scan_issue_gpn_ft(gpn_ft, adapter);
+		ret = zfcp_scan_issue_gpn_ft(gpn_ft, adapter, max_bytes);
 		if (!ret) {
-			ret = zfcp_scan_eval_gpn_ft(gpn_ft);
+			ret = zfcp_scan_eval_gpn_ft(gpn_ft, max_entries);
 			if (ret == -EAGAIN)
 				ssleep(1);
 			else
 				break;
 		}
 	}
-	zfcp_free_sg_env(gpn_ft);
+	zfcp_free_sg_env(gpn_ft, buf_num);
 out:
 	zfcp_wka_port_put(&adapter->nsp);
 	return ret;
