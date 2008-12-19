@@ -306,14 +306,14 @@ static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IWL_ERROR("EEPROM size is not multiple of 16.\n");
+		IWL_ERR(priv, "EEPROM size is not multiple of 16.\n");
 		return -ENODATA;
 	}
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERROR("Can not allocate Buffer\n");
+		IWL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -370,7 +370,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERROR("Can not allocate Buffer\n");
+		IWL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -474,7 +474,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	return 0;
 
 err:
-	IWL_ERROR("Can't open the debugfs directory\n");
+	IWL_ERR(priv, "Can't open the debugfs directory\n");
 	iwl_dbgfs_unregister(priv);
 	return ret;
 }

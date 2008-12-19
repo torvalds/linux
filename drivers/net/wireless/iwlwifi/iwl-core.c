@@ -211,7 +211,7 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 	if (!rxq->bd) {
 		ret = iwl_rx_queue_alloc(priv);
 		if (ret) {
-			IWL_ERROR("Unable to initialize Rx queue\n");
+			IWL_ERR(priv, "Unable to initialize Rx queue\n");
 			return -ENOMEM;
 		}
 	} else
@@ -678,7 +678,7 @@ static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 		break;
 	case WLAN_HT_CAP_SM_PS_INVALID:
 	default:
-		IWL_ERROR("invalid mimo ps mode %d\n",
+		IWL_ERR(priv, "invalid mimo ps mode %d\n",
 			   priv->current_ht_config.sm_ps);
 		WARN_ON(1);
 		idle_cnt = -1;
@@ -830,7 +830,7 @@ int iwl_setup_mac(struct iwl_priv *priv)
 
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
-		IWL_ERROR("Failed to register hw (error %d)\n", ret);
+		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);
 		return ret;
 	}
 	priv->mac80211_registered = 1;
@@ -901,13 +901,13 @@ int iwl_init_drv(struct iwl_priv *priv)
 
 	ret = iwl_init_channel_map(priv);
 	if (ret) {
-		IWL_ERROR("initializing regulatory failed: %d\n", ret);
+		IWL_ERR(priv, "initializing regulatory failed: %d\n", ret);
 		goto err;
 	}
 
 	ret = iwlcore_init_geos(priv);
 	if (ret) {
-		IWL_ERROR("initializing geos failed: %d\n", ret);
+		IWL_ERR(priv, "initializing geos failed: %d\n", ret);
 		goto err_free_channel_map;
 	}
 
@@ -1059,7 +1059,7 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
 		 * if IWL_DL_IO is set */
 		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
-			IWL_ERROR("uCode INST section is invalid at "
+			IWL_ERR(priv, "uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
 				  save_len - len, val, le32_to_cpu(*image));
 			ret = -EIO;
@@ -1115,7 +1115,7 @@ int iwl_verify_ucode(struct iwl_priv *priv)
 		return 0;
 	}
 
-	IWL_ERROR("NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
+	IWL_ERR(priv, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
 
 	/* Since nothing seems to match, show first several data entries in
 	 * instruction SRAM, so maybe visual inspection will give a clue.
@@ -1187,7 +1187,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		IWL_ERROR("Not valid error log pointer 0x%08X\n", base);
+		IWL_ERR(priv, "Not valid error log pointer 0x%08X\n", base);
 		return;
 	}
 
@@ -1200,8 +1200,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	count = iwl_read_targ_mem(priv, base);
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
-		IWL_ERROR("Start IWL Error Log Dump:\n");
-		IWL_ERROR("Status: 0x%08lX, count: %d\n", priv->status, count);
+		IWL_ERR(priv, "Start IWL Error Log Dump:\n");
+		IWL_ERR(priv, "Status: 0x%08lX, count: %d\n",
+			priv->status, count);
 	}
 
 	desc = iwl_read_targ_mem(priv, base + 1 * sizeof(u32));
@@ -1214,12 +1215,12 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	line = iwl_read_targ_mem(priv, base + 9 * sizeof(u32));
 	time = iwl_read_targ_mem(priv, base + 11 * sizeof(u32));
 
-	IWL_ERROR("Desc                               Time       "
+	IWL_ERR(priv, "Desc                               Time       "
 		"data1      data2      line\n");
-	IWL_ERROR("%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
+	IWL_ERR(priv, "%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
 		desc_lookup(desc), desc, time, data1, data2, line);
-	IWL_ERROR("blink1  blink2  ilink1  ilink2\n");
-	IWL_ERROR("0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
+	IWL_ERR(priv, "blink1  blink2  ilink1  ilink2\n");
+	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
 		ilink1, ilink2);
 
 	iwl_release_nic_access(priv);
@@ -1265,11 +1266,11 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		ptr += sizeof(u32);
 		if (mode == 0) {
 			/* data, ev */
-			IWL_ERROR("EVT_LOG:0x%08x:%04u\n", time, ev);
+			IWL_ERR(priv, "EVT_LOG:0x%08x:%04u\n", time, ev);
 		} else {
 			data = iwl_read_targ_mem(priv, ptr);
 			ptr += sizeof(u32);
-			IWL_ERROR("EVT_LOGT:%010u:0x%08x:%04u\n",
+			IWL_ERR(priv, "EVT_LOGT:%010u:0x%08x:%04u\n",
 					time, data, ev);
 		}
 	}
@@ -1291,7 +1292,7 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		IWL_ERROR("Invalid event log pointer 0x%08X\n", base);
+		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
 		return;
 	}
 
@@ -1311,12 +1312,12 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 
 	/* bail out if nothing in log */
 	if (size == 0) {
-		IWL_ERROR("Start IWL Event Log Dump: nothing in log\n");
+		IWL_ERR(priv, "Start IWL Event Log Dump: nothing in log\n");
 		iwl_release_nic_access(priv);
 		return;
 	}
 
-	IWL_ERROR("Start IWL Event Log Dump: display count %d, wraps %d\n",
+	IWL_ERR(priv, "Start IWL Event Log Dump: display count %d, wraps %d\n",
 			size, num_wraps);
 
 	/* if uCode has wrapped back to top of log, start at the oldest entry,
@@ -1348,7 +1349,7 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
 			       sizeof(cmd), &cmd);
 	if (ret)
-		IWL_ERROR("REPLY_CT_KILL_CONFIG_CMD failed\n");
+		IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 	else
 		IWL_DEBUG_INFO("REPLY_CT_KILL_CONFIG_CMD succeeded, "
 			"critical temperature is %d\n",

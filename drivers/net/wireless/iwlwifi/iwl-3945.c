@@ -152,7 +152,7 @@ void iwl3945_disable_events(struct iwl_priv *priv)
 
 	base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 	if (!iwl3945_hw_valid_rtc_data_addr(base)) {
-		IWL_ERROR("Invalid event log pointer 0x%08X\n", base);
+		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
 		return;
 	}
 
@@ -224,7 +224,7 @@ __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv)
 	}
 
 	/* bad antenna selector value */
-	IWL_ERROR("Bad antenna selector value (0x%x)\n", priv->antenna);
+	IWL_ERR(priv, "Bad antenna selector value (0x%x)\n", priv->antenna);
 	return 0;		/* "diversity" is default if error */
 }
 
@@ -344,7 +344,7 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
 	int fail;
 
 	if ((index >= txq->q.n_bd) || (iwl3945_x2_queue_used(&txq->q, index) == 0)) {
-		IWL_ERROR("Read index for DMA queue txq_id (%d) index %d "
+		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
@@ -376,7 +376,7 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
 	iwl3945_tx_queue_reclaim(priv, txq_id, index);
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
-		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
+		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
 
@@ -734,7 +734,7 @@ int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 	pad = TFD_CTL_PAD_GET(le32_to_cpu(tfd->control_flags));
 
 	if ((count >= NUM_TFD_CHUNKS) || (count < 0)) {
-		IWL_ERROR("Error can not send more than %d chunks\n",
+		IWL_ERR(priv, "Error can not send more than %d chunks\n",
 			  NUM_TFD_CHUNKS);
 		return -EINVAL;
 	}
@@ -771,7 +771,7 @@ int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl3945_tx_queue *txq)
 	/* sanity check */
 	counter = TFD_CTL_COUNT_GET(le32_to_cpu(bd->control_flags));
 	if (counter > NUM_TFD_CHUNKS) {
-		IWL_ERROR("Too many chunks: %i\n", counter);
+		IWL_ERR(priv, "Too many chunks: %i\n", counter);
 		/* @todo issue fatal error, it is quite serious situation */
 		return 0;
 	}
@@ -1065,7 +1065,7 @@ static int iwl3945_txq_ctx_reset(struct iwl_priv *priv)
 		rc = iwl3945_tx_queue_init(priv, &priv->txq39[txq_id], slots_num,
 				txq_id);
 		if (rc) {
-			IWL_ERROR("Tx %d queue init failed\n", txq_id);
+			IWL_ERR(priv, "Tx %d queue init failed\n", txq_id);
 			goto error;
 		}
 	}
@@ -1177,7 +1177,7 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 	if (!rxq->bd) {
 		rc = iwl3945_rx_queue_alloc(priv);
 		if (rc) {
-			IWL_ERROR("Unable to initialize Rx queue\n");
+			IWL_ERR(priv, "Unable to initialize Rx queue\n");
 			return -ENOMEM;
 		}
 	} else
@@ -1377,7 +1377,7 @@ static int iwl3945_hw_reg_txpower_get_temperature(struct iwl_priv *priv)
 
 	/* handle insane temp reading */
 	if (iwl3945_hw_reg_temp_out_of_range(temperature)) {
-		IWL_ERROR("Error bad temperature value  %d\n", temperature);
+		IWL_ERR(priv, "Error bad temperature value  %d\n", temperature);
 
 		/* if really really hot(?),
 		 *   substitute the 3rd band/group's temp measured at factory */
@@ -1685,9 +1685,9 @@ int iwl3945_hw_reg_send_txpower(struct iwl_priv *priv)
 				       priv->band,
 				       le16_to_cpu(priv->active39_rxon.channel));
 	if (!ch_info) {
-		IWL_ERROR
-		    ("Failed to get channel info for channel %d [%d]\n",
-		     le16_to_cpu(priv->active39_rxon.channel), priv->band);
+		IWL_ERR(priv,
+			"Failed to get channel info for channel %d [%d]\n",
+			le16_to_cpu(priv->active39_rxon.channel), priv->band);
 		return -EINVAL;
 	}
 
@@ -2224,7 +2224,7 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 							 ch_info->group_index,
 							 &power_idx);
 			if (rc) {
-				IWL_ERROR("Invalid power index\n");
+				IWL_ERR(priv, "Invalid power index\n");
 				return rc;
 			}
 			pwr_info->base_power_index = (u8) power_idx;
@@ -2300,7 +2300,7 @@ int iwl3945_hw_rxq_stop(struct iwl_priv *priv)
 	rc = iwl_poll_direct_bit(priv, FH39_RSSR_STATUS,
 			FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 	if (rc < 0)
-		IWL_ERROR("Can't stop Rx DMA.\n");
+		IWL_ERR(priv, "Can't stop Rx DMA.\n");
 
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -2440,7 +2440,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 				 &priv->shared_phys);
 
 	if (!priv->shared_virt) {
-		IWL_ERROR("failed to allocate pci memory\n");
+		IWL_ERR(priv, "failed to allocate pci memory\n");
 		mutex_unlock(&priv->mutex);
 		return -ENOMEM;
 	}

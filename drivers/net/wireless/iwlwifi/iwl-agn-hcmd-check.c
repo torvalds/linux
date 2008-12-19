@@ -101,7 +101,7 @@ int iwl_agn_check_rxon_cmd(struct iwl_priv *priv)
 			    le16_to_cpu(rxon->channel));
 
 	if (error) {
-		IWL_ERROR("Not a valid iwl4965_rxon_assoc_cmd field values\n");
+		IWL_ERR(priv, "Not a valid iwl_rxon_assoc_cmd field values\n");
 		return -1;
 	}
 	return 0;

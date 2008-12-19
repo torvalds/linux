@@ -145,7 +145,7 @@ int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 {
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
 	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
-		IWL_ERROR("EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		return -ENOENT;
 	}
 	return 0;
@@ -223,7 +223,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 
 	ret = priv->cfg->ops->lib->eeprom_ops.verify_signature(priv);
 	if (ret < 0) {
-		IWL_ERROR("EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
 		goto err;
 	}
@@ -231,7 +231,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
 	ret = priv->cfg->ops->lib->eeprom_ops.acquire_semaphore(priv);
 	if (ret < 0) {
-		IWL_ERROR("Failed to acquire EEPROM semaphore.\n");
+		IWL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
 		goto err;
 	}
@@ -247,7 +247,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 					  CSR_EEPROM_REG_READ_VALID_MSK,
 					  IWL_EEPROM_ACCESS_TIMEOUT);
 		if (ret < 0) {
-			IWL_ERROR("Time out reading EEPROM[%d]\n", addr);
+			IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
 			goto done;
 		}
 		r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
@@ -285,7 +285,7 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 
 	return 0;
 err:
-	IWL_ERROR("Unsupported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
+	IWL_ERR(priv, "Unsupported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
 		  eeprom_ver, priv->cfg->eeprom_ver,
 		  calib_ver,  priv->cfg->eeprom_calib_ver);
 	return -EINVAL;
@@ -450,7 +450,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	priv->channel_info = kzalloc(sizeof(struct iwl_channel_info) *
 				     priv->channel_count, GFP_KERNEL);
 	if (!priv->channel_info) {
-		IWL_ERROR("Could not allocate channel_info\n");
+		IWL_ERR(priv, "Could not allocate channel_info\n");
 		priv->channel_count = 0;
 		return -ENOMEM;
 	}

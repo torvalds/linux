@@ -254,7 +254,7 @@ static int iwl_leds_register_led(struct iwl_priv *priv, struct iwl_led *led,
 
 	ret = led_classdev_register(device, &led->led_dev);
 	if (ret) {
-		IWL_ERROR("Error: failed to register led handler.\n");
+		IWL_ERR(priv, "Error: failed to register led handler.\n");
 		return ret;
 	}
 

@@ -146,7 +146,7 @@ static int iwl_get_measurement(struct iwl_priv *priv,
 
 	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_RX_ON_ASSOC command\n");
+		IWL_ERR(priv, "Bad return from REPLY_RX_ON_ASSOC command\n");
 		rc = -EIO;
 	}
 

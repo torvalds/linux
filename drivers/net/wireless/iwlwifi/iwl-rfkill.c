@@ -82,7 +82,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 	IWL_DEBUG_RF_KILL("Initializing RFKILL.\n");
 	priv->rfkill = rfkill_allocate(device, RFKILL_TYPE_WLAN);
 	if (!priv->rfkill) {
-		IWL_ERROR("Unable to allocate RFKILL device.\n");
+		IWL_ERR(priv, "Unable to allocate RFKILL device.\n");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -98,7 +98,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 
 	ret = rfkill_register(priv->rfkill);
 	if (ret) {
-		IWL_ERROR("Unable to register RFKILL: %d\n", ret);
+		IWL_ERR(priv, "Unable to register RFKILL: %d\n", ret);
 		goto free_rfkill;
 	}
 

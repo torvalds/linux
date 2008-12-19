@@ -185,7 +185,7 @@ static int iwl3945_tx_queue_alloc(struct iwl_priv *priv,
 		txq->txb = kmalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
-			IWL_ERROR("kmalloc for auxiliary BD "
+			IWL_ERR(priv, "kmalloc for auxiliary BD "
 				  "structures failed\n");
 			goto error;
 		}
@@ -199,7 +199,7 @@ static int iwl3945_tx_queue_alloc(struct iwl_priv *priv,
 			&txq->q.dma_addr);
 
 	if (!txq->bd) {
-		IWL_ERROR("pci_alloc_consistent(%zd) failed\n",
+		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n",
 			  sizeof(txq->bd[0]) * TFD_QUEUE_SIZE_MAX);
 		goto error;
 	}
@@ -528,7 +528,7 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl3945_host_cmd *
 	}
 
 	if (iwl_queue_space(q) < ((cmd->meta.flags & CMD_ASYNC) ? 2 : 1)) {
-		IWL_ERROR("No space for Tx\n");
+		IWL_ERR(priv, "No space for Tx\n");
 		return -ENOSPC;
 	}
 
@@ -596,8 +596,9 @@ static int iwl3945_send_cmd_async(struct iwl_priv *priv, struct iwl3945_host_cmd
 
 	ret = iwl3945_enqueue_hcmd(priv, cmd);
 	if (ret < 0) {
-		IWL_ERROR("Error sending %s: iwl3945_enqueue_hcmd failed: %d\n",
-			  get_cmd_string(cmd->id), ret);
+		IWL_ERR(priv,
+			"Error sending %s: iwl3945_enqueue_hcmd failed: %d\n",
+			get_cmd_string(cmd->id), ret);
 		return ret;
 	}
 	return 0;
@@ -614,8 +615,9 @@ static int iwl3945_send_cmd_sync(struct iwl_priv *priv, struct iwl3945_host_cmd 
 	BUG_ON(cmd->meta.u.callback != NULL);
 
 	if (test_and_set_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status)) {
-		IWL_ERROR("Error sending %s: Already sending a host command\n",
-			  get_cmd_string(cmd->id));
+		IWL_ERR(priv,
+			"Error sending %s: Already sending a host command\n",
+			get_cmd_string(cmd->id));
 		ret = -EBUSY;
 		goto out;
 	}
@@ -628,8 +630,9 @@ static int iwl3945_send_cmd_sync(struct iwl_priv *priv, struct iwl3945_host_cmd 
 	cmd_idx = iwl3945_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
-		IWL_ERROR("Error sending %s: iwl3945_enqueue_hcmd failed: %d\n",
-			  get_cmd_string(cmd->id), ret);
+		IWL_ERR(priv,
+			"Error sending %s: iwl3945_enqueue_hcmd failed: %d\n",
+			get_cmd_string(cmd->id), ret);
 		goto out;
 	}
 
@@ -638,7 +641,7 @@ static int iwl3945_send_cmd_sync(struct iwl_priv *priv, struct iwl3945_host_cmd 
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &priv->status)) {
-			IWL_ERROR("Error sending %s: time out after %dms.\n",
+			IWL_ERR(priv, "Error sending %s: time out after %dms\n",
 				  get_cmd_string(cmd->id),
 				  jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
@@ -661,7 +664,7 @@ static int iwl3945_send_cmd_sync(struct iwl_priv *priv, struct iwl3945_host_cmd 
 		goto fail;
 	}
 	if ((cmd->meta.flags & CMD_WANT_SKB) && !cmd->meta.u.skb) {
-		IWL_ERROR("Error: Response NULL in '%s'\n",
+		IWL_ERR(priv, "Error: Response NULL in '%s'\n",
 			  get_cmd_string(cmd->id));
 		ret = -EIO;
 		goto cancel;
@@ -837,7 +840,7 @@ static int iwl3945_check_rxon_cmd(struct iwl_priv *priv)
 			    le16_to_cpu(rxon->channel));
 
 	if (error) {
-		IWL_ERROR("Not a valid iwl3945_rxon_assoc_cmd field values\n");
+		IWL_ERR(priv, "Not a valid rxon_assoc_cmd field values\n");
 		return -1;
 	}
 	return 0;
@@ -920,7 +923,7 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 
 	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_RXON_ASSOC command\n");
+		IWL_ERR(priv, "Bad return from REPLY_RXON_ASSOC command\n");
 		rc = -EIO;
 	}
 
@@ -957,7 +960,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 
 	rc = iwl3945_check_rxon_cmd(priv);
 	if (rc) {
-		IWL_ERROR("Invalid RXON configuration.  Not committing.\n");
+		IWL_ERR(priv, "Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
 	}
 
@@ -967,7 +970,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	if (!iwl3945_full_rxon_required(priv)) {
 		rc = iwl3945_send_rxon_assoc(priv);
 		if (rc) {
-			IWL_ERROR("Error setting RXON_ASSOC "
+			IWL_ERR(priv, "Error setting RXON_ASSOC "
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
@@ -994,7 +997,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 		 * active_rxon back to what it was previously */
 		if (rc) {
 			active_rxon->filter_flags |= RXON_FILTER_ASSOC_MSK;
-			IWL_ERROR("Error clearing ASSOC_MSK on current "
+			IWL_ERR(priv, "Error clearing ASSOC_MSK on current "
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
@@ -1013,7 +1016,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	rc = iwl3945_send_cmd_pdu(priv, REPLY_RXON,
 			      sizeof(struct iwl3945_rxon_cmd), &priv->staging39_rxon);
 	if (rc) {
-		IWL_ERROR("Error setting new configuration (%d).\n", rc);
+		IWL_ERR(priv, "Error setting new configuration (%d).\n", rc);
 		return rc;
 	}
 
@@ -1025,14 +1028,14 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
 	rc = iwl3945_hw_reg_send_txpower(priv);
 	if (rc) {
-		IWL_ERROR("Error setting Tx power (%d).\n", rc);
+		IWL_ERR(priv, "Error setting Tx power (%d).\n", rc);
 		return rc;
 	}
 
 	/* Add the broadcast address so we can send broadcast frames */
 	if (iwl3945_add_station(priv, iwl_bcast_addr, 0, 0) ==
 	    IWL_INVALID_STATION) {
-		IWL_ERROR("Error adding BROADCAST address for transmit.\n");
+		IWL_ERR(priv, "Error adding BROADCAST address for transmit.\n");
 		return -EIO;
 	}
 
@@ -1042,14 +1045,14 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	    (priv->iw_mode == NL80211_IFTYPE_STATION))
 		if (iwl3945_add_station(priv, priv->active39_rxon.bssid_addr, 1, 0)
 		    == IWL_INVALID_STATION) {
-			IWL_ERROR("Error adding AP address for transmit.\n");
+			IWL_ERR(priv, "Error adding AP address for transmit\n");
 			return -EIO;
 		}
 
 	/* Init the hardware's rate fallback order based on the band */
 	rc = iwl3945_init_hw_rate_table(priv);
 	if (rc) {
-		IWL_ERROR("Error setting HW rate table: %02X\n", rc);
+		IWL_ERR(priv, "Error setting HW rate table: %02X\n", rc);
 		return -EIO;
 	}
 
@@ -1149,13 +1152,13 @@ static int iwl3945_add_sta_sync_callback(struct iwl_priv *priv,
 	struct iwl_rx_packet *res = NULL;
 
 	if (!skb) {
-		IWL_ERROR("Error: Response NULL in REPLY_ADD_STA.\n");
+		IWL_ERR(priv, "Error: Response NULL in REPLY_ADD_STA.\n");
 		return 1;
 	}
 
 	res = (struct iwl_rx_packet *)skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_ADD_STA (0x%08X)\n",
+		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
 			  res->hdr.flags);
 		return 1;
 	}
@@ -1195,7 +1198,7 @@ int iwl3945_send_add_station(struct iwl_priv *priv,
 
 	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_ADD_STA (0x%08X)\n",
+		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
 			  res->hdr.flags);
 		rc = -EIO;
 	}
@@ -1302,7 +1305,7 @@ static struct iwl3945_frame *iwl3945_get_free_frame(struct iwl_priv *priv)
 	if (list_empty(&priv->free_frames)) {
 		frame = kzalloc(sizeof(*frame), GFP_KERNEL);
 		if (!frame) {
-			IWL_ERROR("Could not allocate frame!\n");
+			IWL_ERR(priv, "Could not allocate frame!\n");
 			return NULL;
 		}
 
@@ -1373,7 +1376,7 @@ static int iwl3945_send_beacon_cmd(struct iwl_priv *priv)
 	frame = iwl3945_get_free_frame(priv);
 
 	if (!frame) {
-		IWL_ERROR("Could not obtain free frame buffer for beacon "
+		IWL_ERR(priv, "Could not obtain free frame buffer for beacon "
 			  "command.\n");
 		return -ENOMEM;
 	}
@@ -1437,14 +1440,14 @@ int iwl3945_eeprom_init(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(priv->eeprom39) != IWL_EEPROM_IMAGE_SIZE);
 
 	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
-		IWL_ERROR("EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		return -ENOENT;
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
 	ret = iwl3945_eeprom_acquire_semaphore(priv);
 	if (ret < 0) {
-		IWL_ERROR("Failed to acquire EEPROM semaphore.\n");
+		IWL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
 		return -ENOENT;
 	}
 
@@ -1459,7 +1462,7 @@ int iwl3945_eeprom_init(struct iwl_priv *priv)
 					      CSR_EEPROM_REG_READ_VALID_MSK,
 					      IWL_EEPROM_ACCESS_TIMEOUT);
 		if (ret < 0) {
-			IWL_ERROR("Time out reading EEPROM[%d]\n", addr);
+			IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
 			return ret;
 		}
 
@@ -2120,7 +2123,7 @@ static void iwl3945_connection_init_rx_config(struct iwl_priv *priv,
 		    RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 	default:
-		IWL_ERROR("Unsupported interface type %d\n", mode);
+		IWL_ERR(priv, "Unsupported interface type %d\n", mode);
 		break;
 	}
 
@@ -2170,7 +2173,7 @@ static int iwl3945_set_mode(struct iwl_priv *priv, int mode)
 			le16_to_cpu(priv->staging39_rxon.channel));
 
 		if (!ch_info || !is_channel_ibss(ch_info)) {
-			IWL_ERROR("channel %d not IBSS channel\n",
+			IWL_ERR(priv, "channel %d not IBSS channel\n",
 				  le16_to_cpu(priv->staging39_rxon.channel));
 			return -EINVAL;
 		}
@@ -2403,7 +2406,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 
 	if ((ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xFF) == IWL_INVALID_RATE) {
-		IWL_ERROR("ERROR: No TX rate available.\n");
+		IWL_ERR(priv, "ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}
 
@@ -2603,7 +2606,7 @@ static void iwl3945_set_rate(struct iwl_priv *priv)
 
 	sband = iwl3945_get_band(priv, priv->band);
 	if (!sband) {
-		IWL_ERROR("Failed to set rate: unable to get hw mode\n");
+		IWL_ERR(priv, "Failed to set rate: unable to get hw mode\n");
 		return;
 	}
 
@@ -2836,7 +2839,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 
 	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_RX_ON_ASSOC command\n");
+		IWL_ERR(priv, "Bad return from REPLY_RX_ON_ASSOC command\n");
 		rc = -EIO;
 	}
 
@@ -2913,7 +2916,7 @@ static void iwl3945_rx_reply_error(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 
-	IWL_ERROR("Error Reply type 0x%08X cmd %s (0x%02X) "
+	IWL_ERR(priv, "Error Reply type 0x%08X cmd %s (0x%02X) "
 		"seq 0x%04X ser 0x%08X\n",
 		le32_to_cpu(pkt->u.err_resp.error_type),
 		get_cmd_string(pkt->u.err_resp.cmd_id),
@@ -2985,7 +2988,7 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 	beacon = ieee80211_beacon_get(priv->hw, priv->vif);
 
 	if (!beacon) {
-		IWL_ERROR("update beacon failed\n");
+		IWL_ERR(priv, "update beacon failed\n");
 		return;
 	}
 
@@ -3232,7 +3235,7 @@ static void iwl3945_cmd_queue_reclaim(struct iwl_priv *priv,
 	int nfreed = 0;
 
 	if ((index >= q->n_bd) || (iwl3945_x2_queue_used(q, index) == 0)) {
-		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
+		IWL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  index, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
@@ -3241,7 +3244,7 @@ static void iwl3945_cmd_queue_reclaim(struct iwl_priv *priv,
 	for (index = iwl_queue_inc_wrap(index, q->n_bd); q->read_ptr != index;
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 		if (nfreed > 1) {
-			IWL_ERROR("HCMD skipped: index (%d) %d %d\n", index,
+			IWL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", index,
 					q->write_ptr, q->read_ptr);
 			queue_work(priv->workqueue, &priv->restart);
 			break;
@@ -3955,7 +3958,7 @@ static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 	base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
 
 	if (!iwl3945_hw_valid_rtc_data_addr(base)) {
-		IWL_ERROR("Not valid error log pointer 0x%08X\n", base);
+		IWL_ERR(priv, "Not valid error log pointer 0x%08X\n", base);
 		return;
 	}
 
@@ -3968,11 +3971,12 @@ static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 	count = iwl_read_targ_mem(priv, base);
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
-		IWL_ERROR("Start IWL Error Log Dump:\n");
-		IWL_ERROR("Status: 0x%08lX, count: %d\n", priv->status, count);
+		IWL_ERR(priv, "Start IWL Error Log Dump:\n");
+		IWL_ERR(priv, "Status: 0x%08lX, count: %d\n",
+			priv->status, count);
 	}
 
-	IWL_ERROR("Desc       Time       asrtPC  blink2 "
+	IWL_ERR(priv, "Desc       Time       asrtPC  blink2 "
 		  "ilink1  nmiPC   Line\n");
 	for (i = ERROR_START_OFFSET;
 	     i < (count * ERROR_ELEM_SIZE) + ERROR_START_OFFSET;
@@ -3991,10 +3995,10 @@ static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 		data1 =
 		    iwl_read_targ_mem(priv, base + i + 6 * sizeof(u32));
 
-		IWL_ERROR
-		    ("%-13s (#%d) %010u 0x%05X 0x%05X 0x%05X 0x%05X %u\n\n",
-		     desc_lookup(desc), desc, time, blink1, blink2,
-		     ilink1, ilink2, data1);
+		IWL_ERR(priv,
+			"%-13s (#%d) %010u 0x%05X 0x%05X 0x%05X 0x%05X %u\n\n",
+			desc_lookup(desc), desc, time, blink1, blink2,
+			ilink1, ilink2, data1);
 	}
 
 	iwl_release_nic_access(priv);
@@ -4036,12 +4040,13 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		ptr += sizeof(u32);
 		time = iwl_read_targ_mem(priv, ptr);
 		ptr += sizeof(u32);
-		if (mode == 0)
-			IWL_ERROR("0x%08x\t%04u\n", time, ev); /* data, ev */
-		else {
+		if (mode == 0) {
+			/* data, ev */
+			IWL_ERR(priv, "0x%08x\t%04u\n", time, ev);
+		} else {
 			data = iwl_read_targ_mem(priv, ptr);
 			ptr += sizeof(u32);
-			IWL_ERROR("%010u\t0x%08x\t%04u\n", time, data, ev);
+			IWL_ERR(priv, "%010u\t0x%08x\t%04u\n", time, data, ev);
 		}
 	}
 }
@@ -4058,7 +4063,7 @@ static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 
 	base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 	if (!iwl3945_hw_valid_rtc_data_addr(base)) {
-		IWL_ERROR("Invalid event log pointer 0x%08X\n", base);
+		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
 		return;
 	}
 
@@ -4078,12 +4083,12 @@ static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 
 	/* bail out if nothing in log */
 	if (size == 0) {
-		IWL_ERROR("Start IWL Event Log Dump: nothing in log\n");
+		IWL_ERR(priv, "Start IWL Event Log Dump: nothing in log\n");
 		iwl_release_nic_access(priv);
 		return;
 	}
 
-	IWL_ERROR("Start IWL Event Log Dump: display count %d, wraps %d\n",
+	IWL_ERR(priv, "Start IWL Event Log Dump: display count %d, wraps %d\n",
 		  size, num_wraps);
 
 	/* if uCode has wrapped back to top of log, start at the oldest entry,
@@ -4196,7 +4201,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IWL_ERROR("Microcode HW error detected.  Restarting.\n");
+		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		iwl3945_disable_interrupts(priv);
@@ -4227,8 +4232,8 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 
 	/* Error detected by uCode */
 	if (inta & CSR_INT_BIT_SW_ERR) {
-		IWL_ERROR("Microcode SW error detected.  Restarting 0x%X.\n",
-			  inta);
+		IWL_ERR(priv, "Microcode SW error detected. "
+			"Restarting 0x%X.\n", inta);
 		iwl3945_irq_handle_error(priv);
 		handled |= CSR_INT_BIT_SW_ERR;
 	}
@@ -4268,7 +4273,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	}
 
 	if (inta & ~handled)
-		IWL_ERROR("Unhandled INTA bits 0x%08x\n", inta & ~handled);
+		IWL_ERR(priv, "Unhandled INTA bits 0x%08x\n", inta & ~handled);
 
 	if (inta & ~CSR_INI_SET_MASK) {
 		IWL_WARN(priv, "Disabled INTA bits 0x%08x were pending\n",
@@ -4510,7 +4515,7 @@ static int iwl3945_init_channel_map(struct iwl_priv *priv)
 	priv->channel_info = kzalloc(sizeof(struct iwl_channel_info) *
 				     priv->channel_count, GFP_KERNEL);
 	if (!priv->channel_info) {
-		IWL_ERROR("Could not allocate channel_info\n");
+		IWL_ERR(priv, "Could not allocate channel_info\n");
 		priv->channel_count = 0;
 		return -ENOMEM;
 	}
@@ -4949,7 +4954,7 @@ static int iwl3945_verify_inst_full(struct iwl_priv *priv, __le32 *image, u32 le
 		 * if IWL_DL_IO is set */
 		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
-			IWL_ERROR("uCode INST section is invalid at "
+			IWL_ERR(priv, "uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
 				  save_len - len, val, le32_to_cpu(*image));
 			rc = -EIO;
@@ -4995,7 +5000,7 @@ static int iwl3945_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 #if 0 /* Enable this if you want to see details */
-			IWL_ERROR("uCode INST section is invalid at "
+			IWL_ERR(priv, "uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
 				  i, val, *image);
 #endif
@@ -5049,7 +5054,7 @@ static int iwl3945_verify_ucode(struct iwl_priv *priv)
 		return 0;
 	}
 
-	IWL_ERROR("NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
+	IWL_ERR(priv, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
 
 	/* Since nothing seems to match, show first several data entries in
 	 * instruction SRAM, so maybe visual inspection will give a clue.
@@ -5079,7 +5084,7 @@ static int iwl3945_verify_bsm(struct iwl_priv *priv)
 	     reg += sizeof(u32), image++) {
 		val = iwl_read_prph(priv, reg);
 		if (val != le32_to_cpu(*image)) {
-			IWL_ERROR("BSM uCode verification failed at "
+			IWL_ERR(priv, "BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
 				  BSM_SRAM_LOWER_BOUND,
 				  reg - BSM_SRAM_LOWER_BOUND, len,
@@ -5197,7 +5202,7 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	if (i < 100)
 		IWL_DEBUG_INFO("BSM write complete, poll %d iterations\n", i);
 	else {
-		IWL_ERROR("BSM write did not complete!\n");
+		IWL_ERR(priv, "BSM write did not complete!\n");
 		return -EIO;
 	}
 
@@ -5242,7 +5247,7 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 		sprintf(buf, "%s%u%s", name_pre, index, ".ucode");
 		ret = request_firmware(&ucode_raw, buf, &priv->pci_dev->dev);
 		if (ret < 0) {
-			IWL_ERROR("%s firmware file req failed: Reason %d\n",
+			IWL_ERR(priv, "%s firmware file req failed: %d\n",
 				  buf, ret);
 			if (ret == -ENOENT)
 				continue;
@@ -5250,7 +5255,9 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 				goto error;
 		} else {
 			if (index < api_max)
-				IWL_ERROR("Loaded firmware %s, which is deprecated. Please use API v%u instead.\n",
+				IWL_ERR(priv, "Loaded firmware %s, "
+					"which is deprecated. "
+					" Please use API v%u instead.\n",
 					  buf, api_max);
 			IWL_DEBUG_INFO("Got firmware '%s' file (%zd bytes) from disk\n",
 				       buf, ucode_raw->size);
@@ -5263,7 +5270,7 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 
 	/* Make sure that we got at least our header! */
 	if (ucode_raw->size < sizeof(*ucode)) {
-		IWL_ERROR("File size way too small!\n");
+		IWL_ERR(priv, "File size way too small!\n");
 		ret = -EINVAL;
 		goto err_release;
 	}
@@ -5284,7 +5291,7 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 	 * on the API version read from firware header from here on forward */
 
 	if (api_ver < api_min || api_ver > api_max) {
-		IWL_ERROR("Driver unable to support your firmware API. "
+		IWL_ERR(priv, "Driver unable to support your firmware API. "
 			  "Driver supports v%u, firmware is v%u.\n",
 			  api_max, api_ver);
 		priv->ucode_ver = 0;
@@ -5292,7 +5299,7 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 		goto err_release;
 	}
 	if (api_ver != api_max)
-		IWL_ERROR("Firmware has old API version. Expected %u, "
+		IWL_ERR(priv, "Firmware has old API version. Expected %u, "
 			  "got %u. New firmware can be obtained "
 			  "from http://www.intellinuxwireless.org.\n",
 			  api_max, api_ver);
@@ -5443,7 +5450,7 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 	return 0;
 
  err_pci_alloc:
-	IWL_ERROR("failed to allocate pci memory\n");
+	IWL_ERR(priv, "failed to allocate pci memory\n");
 	ret = -ENOMEM;
 	iwl3945_dealloc_ucode_pci(priv);
 
@@ -5795,7 +5802,7 @@ static int __iwl3945_up(struct iwl_priv *priv)
 	}
 
 	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
-		IWL_ERROR("ucode not available for device bring up\n");
+		IWL_ERR(priv, "ucode not available for device bring up\n");
 		return -EIO;
 	}
 
@@ -5815,7 +5822,7 @@ static int __iwl3945_up(struct iwl_priv *priv)
 
 	rc = iwl3945_hw_nic_init(priv);
 	if (rc) {
-		IWL_ERROR("Unable to int nic\n");
+		IWL_ERR(priv, "Unable to int nic\n");
 		return rc;
 	}
 
@@ -5852,7 +5859,8 @@ static int __iwl3945_up(struct iwl_priv *priv)
 		rc = iwl3945_load_bsm(priv);
 
 		if (rc) {
-			IWL_ERROR("Unable to set up bootstrap uCode: %d\n", rc);
+			IWL_ERR(priv,
+				"Unable to set up bootstrap uCode: %d\n", rc);
 			continue;
 		}
 
@@ -5870,7 +5878,7 @@ static int __iwl3945_up(struct iwl_priv *priv)
 
 	/* tried to restart and config the device for as long as our
 	 * patience could withstand */
-	IWL_ERROR("Unable to initialize device after %d attempts.\n", i);
+	IWL_ERR(priv, "Unable to initialize device after %d attempts.\n", i);
 	return -EIO;
 }
 
@@ -6203,7 +6211,7 @@ static void iwl3945_post_associate(struct iwl_priv *priv)
 	struct ieee80211_conf *conf = NULL;
 
 	if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		IWL_ERROR("%s Should not be called in AP mode\n", __func__);
+		IWL_ERR(priv, "%s Should not be called in AP mode\n", __func__);
 		return;
 	}
 
@@ -6276,7 +6284,7 @@ static void iwl3945_post_associate(struct iwl_priv *priv)
 		break;
 
 	default:
-		 IWL_ERROR("%s Should not be called in %d mode\n",
+		 IWL_ERR(priv, "%s Should not be called in %d mode\n",
 			   __func__, priv->iw_mode);
 		break;
 	}
@@ -6342,7 +6350,7 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211("enter\n");
 
 	if (pci_enable_device(priv->pci_dev)) {
-		IWL_ERROR("Fail to pci_enable_device\n");
+		IWL_ERR(priv, "Fail to pci_enable_device\n");
 		return -ENODEV;
 	}
 	pci_restore_state(priv->pci_dev);
@@ -6351,7 +6359,7 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 	ret = request_irq(priv->pci_dev->irq, iwl3945_isr, IRQF_SHARED,
 			  DRV_NAME, priv);
 	if (ret) {
-		IWL_ERROR("Error allocating IRQ %d\n", priv->pci_dev->irq);
+		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->pci_dev->irq);
 		goto out_disable_msi;
 	}
 
@@ -6365,7 +6373,7 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 	if (!priv->ucode_code.len) {
 		ret = iwl3945_read_ucode(priv);
 		if (ret) {
-			IWL_ERROR("Could not read microcode: %d\n", ret);
+			IWL_ERR(priv, "Could not read microcode: %d\n", ret);
 			mutex_unlock(&priv->mutex);
 			goto out_release_irq;
 		}
@@ -6392,8 +6400,9 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 			UCODE_READY_TIMEOUT);
 	if (!ret) {
 		if (!test_bit(STATUS_READY, &priv->status)) {
-			IWL_ERROR("Wait for START_ALIVE timeout after %dms.\n",
-				  jiffies_to_msecs(UCODE_READY_TIMEOUT));
+			IWL_ERR(priv,
+				"Wait for START_ALIVE timeout after %dms.\n",
+				jiffies_to_msecs(UCODE_READY_TIMEOUT));
 			ret = -ETIMEDOUT;
 			goto out_release_irq;
 		}
@@ -7738,8 +7747,9 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	if ((iwl3945_param_queues_num > IWL39_MAX_NUM_QUEUES) ||
 	    (iwl3945_param_queues_num < IWL_MIN_NUM_QUEUES)) {
-		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
-			  IWL_MIN_NUM_QUEUES, IWL39_MAX_NUM_QUEUES);
+		IWL_ERR(priv,
+			"invalid queues_num, should be between %d and %d\n",
+			IWL_MIN_NUM_QUEUES, IWL39_MAX_NUM_QUEUES);
 		err = -EINVAL;
 		goto out;
 	}
@@ -7833,7 +7843,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* Read the EEPROM */
 	err = iwl3945_eeprom_init(priv);
 	if (err) {
-		IWL_ERROR("Unable to init EEPROM\n");
+		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_remove_sysfs;
 	}
 	/* MAC Address location in EEPROM same for 3945/4965 */
@@ -7846,7 +7856,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * ********************/
 	/* Device-specific setup */
 	if (iwl3945_hw_set_hw_params(priv)) {
-		IWL_ERROR("failed to set hw settings\n");
+		IWL_ERR(priv, "failed to set hw settings\n");
 		goto out_iounmap;
 	}
 
@@ -7887,13 +7897,13 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	err = iwl3945_init_channel_map(priv);
 	if (err) {
-		IWL_ERROR("initializing regulatory failed: %d\n", err);
+		IWL_ERR(priv, "initializing regulatory failed: %d\n", err);
 		goto out_release_irq;
 	}
 
 	err = iwl3945_init_geos(priv);
 	if (err) {
-		IWL_ERROR("initializing geos failed: %d\n", err);
+		IWL_ERR(priv, "initializing geos failed: %d\n", err);
 		goto out_free_channel_map;
 	}
 
@@ -7922,7 +7932,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	err = sysfs_create_group(&pdev->dev.kobj, &iwl3945_attribute_group);
 	if (err) {
-		IWL_ERROR("failed to create sysfs device attributes\n");
+		IWL_ERR(priv, "failed to create sysfs device attributes\n");
 		goto out_free_geos;
 	}
 
@@ -7942,7 +7952,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	err = ieee80211_register_hw(priv->hw);
 	if (err) {
-		IWL_ERROR("Failed to register network device (error %d)\n", err);
+		IWL_ERR(priv, "Failed to register network device: %d\n", err);
 		goto  out_remove_sysfs;
 	}
 
@@ -7952,7 +7962,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	err = iwl3945_rfkill_init(priv);
 	if (err)
-		IWL_ERROR("Unable to initialize RFKILL system. "
+		IWL_ERR(priv, "Unable to initialize RFKILL system. "
 				  "Ignoring error: %d\n", err);
 
 	return 0;
@@ -8124,7 +8134,7 @@ int iwl3945_rfkill_init(struct iwl_priv *priv)
 	IWL_DEBUG_RF_KILL("Initializing RFKILL.\n");
 	priv->rfkill = rfkill_allocate(device, RFKILL_TYPE_WLAN);
 	if (!priv->rfkill) {
-		IWL_ERROR("Unable to allocate rfkill device.\n");
+		IWL_ERR(priv, "Unable to allocate rfkill device.\n");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -8140,7 +8150,7 @@ int iwl3945_rfkill_init(struct iwl_priv *priv)
 
 	ret = rfkill_register(priv->rfkill);
 	if (ret) {
-		IWL_ERROR("Unable to register rfkill: %d\n", ret);
+		IWL_ERR(priv, "Unable to register rfkill: %d\n", ret);
 		goto freed_rfkill;
 	}
 

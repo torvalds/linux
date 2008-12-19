@@ -102,7 +102,7 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 
 	return 0;
 err:
-	IWL_ERROR("Error %d iteration %d\n", ret, i);
+	IWL_ERR(priv, "Error %d iteration %d\n", ret, i);
 	return ret;
 }
 EXPORT_SYMBOL(iwl_send_calib_results);
@@ -483,7 +483,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 
 	ret = iwl_send_cmd(priv, &cmd_out);
 	if (ret)
-		IWL_ERROR("SENSITIVITY_CMD failed\n");
+		IWL_ERR(priv, "SENSITIVITY_CMD failed\n");
 
 	return ret;
 }

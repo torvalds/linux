@@ -1431,7 +1431,8 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 				if (!tbl->is_SGI)
 					break;
 				else
-					IWL_ERROR("SGI was set in GF+SISO\n");
+					IWL_ERR(priv,
+						"SGI was set in GF+SISO\n");
 			}
 			search_tbl->is_SGI = !tbl->is_SGI;
 			rs_set_expected_tpt_table(lq_sta, search_tbl);
@@ -1748,13 +1749,13 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		rate_scale_index_msk = rate_mask;
 
 	if (!((1 << index) & rate_scale_index_msk)) {
-		IWL_ERROR("Current Rate is not valid\n");
+		IWL_ERR(priv, "Current Rate is not valid\n");
 		return;
 	}
 
 	/* Get expected throughput table and history window for current rate */
 	if (!tbl->expected_tpt) {
-		IWL_ERROR("tbl->expected_tpt is NULL\n");
+		IWL_ERR(priv, "tbl->expected_tpt is NULL\n");
 		return;
 	}
 

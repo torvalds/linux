@@ -85,7 +85,7 @@ static int iwl4965_verify_bsm(struct iwl_priv *priv)
 	     reg += sizeof(u32), image++) {
 		val = iwl_read_prph(priv, reg);
 		if (val != le32_to_cpu(*image)) {
-			IWL_ERROR("BSM uCode verification failed at "
+			IWL_ERR(priv, "BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
 				  BSM_SRAM_LOWER_BOUND,
 				  reg - BSM_SRAM_LOWER_BOUND, len,
@@ -203,7 +203,7 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	if (i < 100)
 		IWL_DEBUG_INFO("BSM write complete, poll %d iterations\n", i);
 	else {
-		IWL_ERROR("BSM write did not complete!\n");
+		IWL_ERR(priv, "BSM write did not complete!\n");
 		return -EIO;
 	}
 
@@ -523,7 +523,8 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 		cmd.diff_gain_c = 0;
 		if (iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
 				 sizeof(cmd), &cmd))
-			IWL_ERROR("Could not send REPLY_PHY_CALIBRATION_CMD\n");
+			IWL_ERR(priv,
+				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
 		IWL_DEBUG_CALIB("Run chain_noise_calibrate\n");
 	}
@@ -804,8 +805,9 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 
 	if ((priv->cfg->mod_params->num_of_queues > IWL49_NUM_QUEUES) ||
 	    (priv->cfg->mod_params->num_of_queues < IWL_MIN_NUM_QUEUES)) {
-		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
-			  IWL_MIN_NUM_QUEUES, IWL49_NUM_QUEUES);
+		IWL_ERR(priv,
+			"invalid queues_num, should be between %d and %d\n",
+			IWL_MIN_NUM_QUEUES, IWL49_NUM_QUEUES);
 		return -EINVAL;
 	}
 
@@ -955,7 +957,7 @@ static int iwl4965_interpolate_chan(struct iwl_priv *priv, u32 channel,
 
 	s = iwl4965_get_sub_band(priv, channel);
 	if (s >= EEPROM_TX_POWER_BANDS) {
-		IWL_ERROR("Tx Power can not find channel %d\n", channel);
+		IWL_ERR(priv, "Tx Power can not find channel %d\n", channel);
 		return -1;
 	}
 
@@ -1319,7 +1321,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	 *   and 2) mimo txpower balance between Tx chains. */
 	txatten_grp = iwl4965_get_tx_atten_grp(channel);
 	if (txatten_grp < 0) {
-		IWL_ERROR("Can't find txatten group for channel %d.\n",
+		IWL_ERR(priv, "Can't find txatten group for channel %d.\n",
 			  channel);
 		return -EINVAL;
 	}
@@ -1727,7 +1729,7 @@ static int iwl4965_hw_get_temperature(const struct iwl_priv *priv)
 	IWL_DEBUG_TEMP("Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
 	if (R3 == R1) {
-		IWL_ERROR("Calibration conflict R1 == R3\n");
+		IWL_ERR(priv, "Calibration conflict R1 == R3\n");
 		return -1;
 	}
 
@@ -2071,10 +2073,10 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
-				IWL_ERROR("BUG_ON idx doesn't match seq control"
-					  " idx=%d, seq_idx=%d, seq=%d\n",
-					  idx, SEQ_TO_SN(sc),
-					  hdr->seq_ctrl);
+				IWL_ERR(priv,
+					"BUG_ON idx doesn't match seq control"
+					" idx=%d, seq_idx=%d, seq=%d\n",
+					idx, SEQ_TO_SN(sc), hdr->seq_ctrl);
 				return -1;
 			}
 
@@ -2133,7 +2135,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	u8 *qc = NULL;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
-		IWL_ERROR("Read index for DMA queue txq_id (%d) index %d "
+		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
@@ -2151,7 +2153,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 	sta_id = iwl_get_ra_sta_id(priv, hdr);
 	if (txq->sched_retry && unlikely(sta_id == IWL_INVALID_STATION)) {
-		IWL_ERROR("Station not known\n");
+		IWL_ERR(priv, "Station not known\n");
 		return;
 	}
 
@@ -2214,7 +2216,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		iwl_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
-		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
+		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
 static int iwl4965_calc_rssi(struct iwl_priv *priv,

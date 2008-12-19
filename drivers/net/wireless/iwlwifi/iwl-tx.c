@@ -138,7 +138,7 @@ static void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	num_tbs = iwl_tfd_get_num_tbs(tfd);
 
 	if (num_tbs >= IWL_NUM_OF_TBS) {
-		IWL_ERROR("Too many chunks: %i\n", num_tbs);
+		IWL_ERR(priv, "Too many chunks: %i\n", num_tbs);
 		/* @todo issue fatal error, it is quite serious situation */
 		return;
 	}
@@ -171,14 +171,14 @@ static int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 
 	/* Each TFD can point to a maximum 20 Tx buffers */
 	if (num_tbs >= IWL_NUM_OF_TBS) {
-		IWL_ERROR("Error can not send more than %d chunks\n",
+		IWL_ERR(priv, "Error can not send more than %d chunks\n",
 			  IWL_NUM_OF_TBS);
 		return -EINVAL;
 	}
 
 	BUG_ON(addr & ~DMA_BIT_MASK(36));
 	if (unlikely(addr & ~IWL_TX_DMA_MASK))
-		IWL_ERROR("Unaligned address = %llx\n",
+		IWL_ERR(priv, "Unaligned address = %llx\n",
 			  (unsigned long long)addr);
 
 	iwl_tfd_set_tb(tfd, num_tbs, addr, len);
@@ -395,7 +395,7 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 		txq->txb = kmalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
-			IWL_ERROR("kmalloc for auxiliary BD "
+			IWL_ERR(priv, "kmalloc for auxiliary BD "
 				  "structures failed\n");
 			goto error;
 		}
@@ -409,7 +409,7 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 			&txq->q.dma_addr);
 
 	if (!txq->tfds) {
-		IWL_ERROR("pci_alloc_consistent(%zd) failed\n",
+		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n",
 			  sizeof(txq->tfds[0]) * TFD_QUEUE_SIZE_MAX);
 		goto error;
 	}
@@ -557,13 +557,13 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 	ret = iwl_alloc_dma_ptr(priv, &priv->scd_bc_tbls,
 				priv->hw_params.scd_bc_tbls_size);
 	if (ret) {
-		IWL_ERROR("Scheduler BC Table allocation failed\n");
+		IWL_ERR(priv, "Scheduler BC Table allocation failed\n");
 		goto error_bc_tbls;
 	}
 	/* Alloc keep-warm buffer */
 	ret = iwl_alloc_dma_ptr(priv, &priv->kw, IWL_KW_SIZE);
 	if (ret) {
-		IWL_ERROR("Keep Warm allocation failed\n");
+		IWL_ERR(priv, "Keep Warm allocation failed\n");
 		goto error_kw;
 	}
 	spin_lock_irqsave(&priv->lock, flags);
@@ -589,7 +589,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 		ret = iwl_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
 				       txq_id);
 		if (ret) {
-			IWL_ERROR("Tx %d queue init failed\n", txq_id);
+			IWL_ERR(priv, "Tx %d queue init failed\n", txq_id);
 			goto error;
 		}
 	}
@@ -850,7 +850,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	if ((ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xFF) ==
 	     IWL_INVALID_RATE) {
-		IWL_ERROR("ERROR: No TX rate available.\n");
+		IWL_ERR(priv, "ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}
 
@@ -1086,7 +1086,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	}
 
 	if (iwl_queue_space(q) < ((cmd->meta.flags & CMD_ASYNC) ? 2 : 1)) {
-		IWL_ERROR("No space for Tx\n");
+		IWL_ERR(priv, "No space for Tx\n");
 		return -ENOSPC;
 	}
 
@@ -1163,7 +1163,7 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 	int nfreed = 0;
 
 	if ((index >= q->n_bd) || (iwl_queue_used(q, index) == 0)) {
-		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
+		IWL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  index, q->n_bd, q->write_ptr, q->read_ptr);
 		return 0;
@@ -1203,7 +1203,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
 	int nfreed = 0;
 
 	if ((idx >= q->n_bd) || (iwl_queue_used(q, idx) == 0)) {
-		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
+		IWL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
@@ -1218,7 +1218,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		if (nfreed++ > 0) {
-			IWL_ERROR("HCMD skipped: index (%d) %d %d\n", idx,
+			IWL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
 			queue_work(priv->workqueue, &priv->restart);
 		}
@@ -1314,7 +1314,7 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 		return -ENXIO;
 
 	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_OFF) {
-		IWL_ERROR("Start AGG when state is not IWL_AGG_OFF !\n");
+		IWL_ERR(priv, "Start AGG when state is not IWL_AGG_OFF !\n");
 		return -ENXIO;
 	}
 
@@ -1354,7 +1354,7 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 	unsigned long flags;
 
 	if (!ra) {
-		IWL_ERROR("ra = NULL\n");
+		IWL_ERR(priv, "ra = NULL\n");
 		return -EINVAL;
 	}
 
@@ -1455,7 +1455,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	struct ieee80211_tx_info *info;
 
 	if (unlikely(!agg->wait_for_ba))  {
-		IWL_ERROR("Received BA when not expected\n");
+		IWL_ERR(priv, "Received BA when not expected\n");
 		return -EINVAL;
 	}
 
@@ -1528,7 +1528,8 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
 	if (scd_flow >= priv->hw_params.max_txq_num) {
-		IWL_ERROR("BUG_ON scd_flow is bigger than number of queues\n");
+		IWL_ERR(priv,
+			"BUG_ON scd_flow is bigger than number of queues\n");
 		return;
 	}
 
