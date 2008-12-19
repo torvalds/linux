@@ -265,7 +265,6 @@ static void zfcp_fc_ns_gid_pn_eval(unsigned long data)
 		return;
 	/* looks like a valid d_id */
 	port->d_id = ct_iu_resp->d_id & ZFCP_DID_MASK;
-	atomic_set_mask(ZFCP_STATUS_PORT_DID_DID, &port->status);
 }
 
 int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
@@ -588,7 +587,6 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 		}
 
 		port = zfcp_port_enqueue(adapter, acc->wwpn,
-					 ZFCP_STATUS_PORT_DID_DID |
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
 		if (IS_ERR(port))
 			ret = PTR_ERR(port);

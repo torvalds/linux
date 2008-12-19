@@ -1442,8 +1442,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		plogi = (struct fsf_plogi *) req->qtcb->bottom.support.els;
 		if (req->qtcb->bottom.support.els1_length >= sizeof(*plogi)) {
 			if (plogi->serv_param.wwpn != port->wwpn)
-				atomic_clear_mask(ZFCP_STATUS_PORT_DID_DID,
-						  &port->status);
+				port->d_id = 0;
 			else {
 				port->wwnn = plogi->serv_param.wwnn;
 				zfcp_fc_plogi_evaluate(port, plogi);

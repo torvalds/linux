@@ -840,7 +840,6 @@ static int zfcp_erp_open_ptp_port(struct zfcp_erp_action *act)
 		return ZFCP_ERP_FAILED;
 	}
 	port->d_id = adapter->peer_d_id;
-	atomic_set_mask(ZFCP_STATUS_PORT_DID_DID, &port->status);
 	return zfcp_erp_port_strategy_open_port(act);
 }
 
@@ -871,12 +870,12 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 	case ZFCP_ERP_STEP_PORT_CLOSING:
 		if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_PTP)
 			return zfcp_erp_open_ptp_port(act);
-		if (!(p_status & ZFCP_STATUS_PORT_DID_DID)) {
+		if (!port->d_id) {
 			queue_work(zfcp_data.work_queue, &port->gid_pn_work);
 			return ZFCP_ERP_CONTINUES;
 		}
 	case ZFCP_ERP_STEP_NAMESERVER_LOOKUP:
-		if (!(p_status & ZFCP_STATUS_PORT_DID_DID)) {
+		if (!port->d_id) {
 			if (p_status & (ZFCP_STATUS_PORT_INVALID_WWPN)) {
 				zfcp_erp_port_failed(port, 26, NULL);
 				return ZFCP_ERP_EXIT;
@@ -888,7 +887,7 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 	case ZFCP_ERP_STEP_PORT_OPENING:
 		/* D_ID might have changed during open */
 		if (p_status & ZFCP_STATUS_COMMON_OPEN) {
-			if (p_status & ZFCP_STATUS_PORT_DID_DID)
+			if (port->d_id)
 				return ZFCP_ERP_SUCCEEDED;
 			else {
 				act->step = ZFCP_ERP_STEP_PORT_CLOSING;
