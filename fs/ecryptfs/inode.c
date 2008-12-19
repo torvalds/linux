@@ -673,10 +673,11 @@ static void *ecryptfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	ecryptfs_printk(KERN_DEBUG, "Calling readlink w/ "
 			"dentry->d_name.name = [%s]\n", dentry->d_name.name);
 	rc = dentry->d_inode->i_op->readlink(dentry, (char __user *)buf, len);
-	buf[rc] = '\0';
 	set_fs(old_fs);
 	if (rc < 0)
 		goto out_free;
+	else
+		buf[rc] = '\0';
 	rc = 0;
 	nd_set_link(nd, buf);
 	goto out;
