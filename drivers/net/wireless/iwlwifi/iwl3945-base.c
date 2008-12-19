@@ -2863,7 +2863,7 @@ static int iwl3945_get_measurement(struct iwl3945_priv *priv,
 #endif
 
 static void iwl3945_rx_reply_alive(struct iwl3945_priv *priv,
-			       struct iwl3945_rx_mem_buffer *rxb)
+			       struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_alive_resp *palive;
@@ -2899,7 +2899,7 @@ static void iwl3945_rx_reply_alive(struct iwl3945_priv *priv,
 }
 
 static void iwl3945_rx_reply_add_sta(struct iwl3945_priv *priv,
-				 struct iwl3945_rx_mem_buffer *rxb)
+				 struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 
@@ -2908,7 +2908,7 @@ static void iwl3945_rx_reply_add_sta(struct iwl3945_priv *priv,
 }
 
 static void iwl3945_rx_reply_error(struct iwl3945_priv *priv,
-			       struct iwl3945_rx_mem_buffer *rxb)
+			       struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 
@@ -2923,7 +2923,7 @@ static void iwl3945_rx_reply_error(struct iwl3945_priv *priv,
 
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
 
-static void iwl3945_rx_csa(struct iwl3945_priv *priv, struct iwl3945_rx_mem_buffer *rxb)
+static void iwl3945_rx_csa(struct iwl3945_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl3945_rxon_cmd *rxon = (void *)&priv->active_rxon;
@@ -2935,7 +2935,7 @@ static void iwl3945_rx_csa(struct iwl3945_priv *priv, struct iwl3945_rx_mem_buff
 }
 
 static void iwl3945_rx_spectrum_measure_notif(struct iwl3945_priv *priv,
-					  struct iwl3945_rx_mem_buffer *rxb)
+					  struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
@@ -2953,7 +2953,7 @@ static void iwl3945_rx_spectrum_measure_notif(struct iwl3945_priv *priv,
 }
 
 static void iwl3945_rx_pm_sleep_notif(struct iwl3945_priv *priv,
-				  struct iwl3945_rx_mem_buffer *rxb)
+				  struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWL3945_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
@@ -2964,7 +2964,7 @@ static void iwl3945_rx_pm_sleep_notif(struct iwl3945_priv *priv,
 }
 
 static void iwl3945_rx_pm_debug_statistics_notif(struct iwl3945_priv *priv,
-					     struct iwl3945_rx_mem_buffer *rxb)
+					     struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	IWL_DEBUG_RADIO("Dumping %d bytes of unhandled "
@@ -3000,7 +3000,7 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 }
 
 static void iwl3945_rx_beacon_notif(struct iwl3945_priv *priv,
-				struct iwl3945_rx_mem_buffer *rxb)
+				struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWL3945_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
@@ -3023,7 +3023,7 @@ static void iwl3945_rx_beacon_notif(struct iwl3945_priv *priv,
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
 static void iwl3945_rx_reply_scan(struct iwl3945_priv *priv,
-			      struct iwl3945_rx_mem_buffer *rxb)
+			      struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWL3945_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
@@ -3036,7 +3036,7 @@ static void iwl3945_rx_reply_scan(struct iwl3945_priv *priv,
 
 /* Service SCAN_START_NOTIFICATION (0x82) */
 static void iwl3945_rx_scan_start_notif(struct iwl3945_priv *priv,
-				    struct iwl3945_rx_mem_buffer *rxb)
+				    struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_scanstart_notification *notif =
@@ -3053,7 +3053,7 @@ static void iwl3945_rx_scan_start_notif(struct iwl3945_priv *priv,
 
 /* Service SCAN_RESULTS_NOTIFICATION (0x83) */
 static void iwl3945_rx_scan_results_notif(struct iwl3945_priv *priv,
-				      struct iwl3945_rx_mem_buffer *rxb)
+				      struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_scanresults_notification *notif =
@@ -3078,7 +3078,7 @@ static void iwl3945_rx_scan_results_notif(struct iwl3945_priv *priv,
 
 /* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
 static void iwl3945_rx_scan_complete_notif(struct iwl3945_priv *priv,
-				       struct iwl3945_rx_mem_buffer *rxb)
+				       struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
@@ -3141,7 +3141,7 @@ reschedule:
 /* Handle notification from uCode that card's power state is changing
  * due to software, hardware, or critical temperature RFKILL */
 static void iwl3945_rx_card_state_notif(struct iwl3945_priv *priv,
-				    struct iwl3945_rx_mem_buffer *rxb)
+				    struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
@@ -3259,7 +3259,7 @@ static void iwl3945_cmd_queue_reclaim(struct iwl3945_priv *priv,
  * if the callback returns 1
  */
 static void iwl3945_tx_cmd_complete(struct iwl3945_priv *priv,
-				struct iwl3945_rx_mem_buffer *rxb)
+				struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -3346,7 +3346,7 @@ static void iwl3945_tx_cmd_complete(struct iwl3945_priv *priv,
  *                            are available, schedules iwl3945_rx_replenish
  *
  * -- enable interrupts --
- * ISR - iwl3945_rx()         Detach iwl3945_rx_mem_buffers from pool up to the
+ * ISR - iwl3945_rx()         Detach iwl_rx_mem_buffers from pool up to the
  *                            READ INDEX, detaching the SKB from the pool.
  *                            Moves the packet buffer from queue to rx_used.
  *                            Calls iwl3945_rx_queue_restock to refill any empty
@@ -3440,7 +3440,7 @@ static int iwl3945_rx_queue_restock(struct iwl3945_priv *priv)
 {
 	struct iwl3945_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
-	struct iwl3945_rx_mem_buffer *rxb;
+	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
 	int write, rc;
 
@@ -3449,11 +3449,11 @@ static int iwl3945_rx_queue_restock(struct iwl3945_priv *priv)
 	while ((iwl3945_rx_queue_space(rxq) > 0) && (rxq->free_count)) {
 		/* Get next free Rx buffer, remove from free list */
 		element = rxq->rx_free.next;
-		rxb = list_entry(element, struct iwl3945_rx_mem_buffer, list);
+		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
 		list_del(element);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
-		rxq->bd[rxq->write] = iwl3945_dma_addr2rbd_ptr(priv, rxb->dma_addr);
+		rxq->bd[rxq->write] = iwl3945_dma_addr2rbd_ptr(priv, rxb->real_dma_addr);
 		rxq->queue[rxq->write] = rxb;
 		rxq->write = (rxq->write + 1) & RX_QUEUE_MASK;
 		rxq->free_count--;
@@ -3492,12 +3492,12 @@ static void iwl3945_rx_allocate(struct iwl3945_priv *priv)
 {
 	struct iwl3945_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
-	struct iwl3945_rx_mem_buffer *rxb;
+	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
 	spin_lock_irqsave(&rxq->lock, flags);
 	while (!list_empty(&rxq->rx_used)) {
 		element = rxq->rx_used.next;
-		rxb = list_entry(element, struct iwl3945_rx_mem_buffer, list);
+		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
 
 		/* Alloc a new receive buffer */
 		rxb->skb =
@@ -3524,7 +3524,7 @@ static void iwl3945_rx_allocate(struct iwl3945_priv *priv)
 		list_del(element);
 
 		/* Get physical address of RB/SKB */
-		rxb->dma_addr =
+		rxb->real_dma_addr =
 		    pci_map_single(priv->pci_dev, rxb->skb->data,
 				   IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 		list_add_tail(&rxb->list, &rxq->rx_free);
@@ -3568,7 +3568,7 @@ static void iwl3945_rx_queue_free(struct iwl3945_priv *priv, struct iwl3945_rx_q
 	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
 		if (rxq->pool[i].skb != NULL) {
 			pci_unmap_single(priv->pci_dev,
-					 rxq->pool[i].dma_addr,
+					 rxq->pool[i].real_dma_addr,
 					 IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(rxq->pool[i].skb);
 		}
@@ -3619,7 +3619,7 @@ void iwl3945_rx_queue_reset(struct iwl3945_priv *priv, struct iwl3945_rx_queue *
 		 * to an SKB, so we need to unmap and free potential storage */
 		if (rxq->pool[i].skb != NULL) {
 			pci_unmap_single(priv->pci_dev,
-					 rxq->pool[i].dma_addr,
+					 rxq->pool[i].real_dma_addr,
 					 IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			priv->alloc_rxb_skb--;
 			dev_kfree_skb(rxq->pool[i].skb);
@@ -3722,7 +3722,7 @@ int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm)
  */
 static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 {
-	struct iwl3945_rx_mem_buffer *rxb;
+	struct iwl_rx_mem_buffer *rxb;
 	struct iwl_rx_packet *pkt;
 	struct iwl3945_rx_queue *rxq = &priv->rxq;
 	u32 r, i;
@@ -3752,7 +3752,7 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 
 		rxq->queue[i] = NULL;
 
-		pci_dma_sync_single_for_cpu(priv->pci_dev, rxb->dma_addr,
+		pci_dma_sync_single_for_cpu(priv->pci_dev, rxb->real_dma_addr,
 					    IWL_RX_BUF_SIZE,
 					    PCI_DMA_FROMDEVICE);
 		pkt = (struct iwl_rx_packet *)rxb->skb->data;
@@ -3802,7 +3802,7 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 			rxb->skb = NULL;
 		}
 
-		pci_unmap_single(priv->pci_dev, rxb->dma_addr,
+		pci_unmap_single(priv->pci_dev, rxb->real_dma_addr,
 				 IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 		spin_lock_irqsave(&rxq->lock, flags);
 		list_add_tail(&rxb->list, &priv->rxq.rx_used);

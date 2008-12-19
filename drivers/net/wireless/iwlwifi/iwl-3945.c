@@ -330,7 +330,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv,
  * iwl3945_rx_reply_tx - Handle Tx response
  */
 static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
-			    struct iwl3945_rx_mem_buffer *rxb)
+			    struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -389,7 +389,7 @@ static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
  *
  *****************************************************************************/
 
-void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv, struct iwl3945_rx_mem_buffer *rxb)
+void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	IWL_DEBUG_RX("Statistics notification received (%d vs %d).\n",
@@ -571,7 +571,7 @@ static int iwl3945_is_network_packet(struct iwl3945_priv *priv,
 }
 
 static void iwl3945_pass_packet_to_mac80211(struct iwl3945_priv *priv,
-				   struct iwl3945_rx_mem_buffer *rxb,
+				   struct iwl_rx_mem_buffer *rxb,
 				   struct ieee80211_rx_status *stats)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
@@ -614,7 +614,7 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl3945_priv *priv,
 #define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 
 static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
-				struct iwl3945_rx_mem_buffer *rxb)
+				struct iwl_rx_mem_buffer *rxb)
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;

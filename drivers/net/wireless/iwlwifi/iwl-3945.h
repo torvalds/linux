@@ -106,12 +106,6 @@ enum iwl3945_antenna {
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-struct iwl3945_rx_mem_buffer {
-	dma_addr_t dma_addr;
-	struct sk_buff *skb;
-	struct list_head list;
-};
-
 int iwl3945_x2_queue_used(const struct iwl_queue *q, int i);
 
 #define MAX_NUM_OF_TBS          (20)
@@ -229,13 +223,13 @@ struct iwl3945_host_cmd {
  * @rx_used: List of Rx buffers with no SKB
  * @need_update: flag to indicate we need to update read/write index
  *
- * NOTE:  rx_free and rx_used are used as a FIFO for iwl3945_rx_mem_buffers
+ * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
  */
 struct iwl3945_rx_queue {
 	__le32 *bd;
 	dma_addr_t dma_addr;
-	struct iwl3945_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
-	struct iwl3945_rx_mem_buffer *queue[RX_QUEUE_SIZE];
+	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
+	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
 	u32 processed;
 	u32 read;
 	u32 write;
@@ -409,7 +403,7 @@ extern void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 extern int iwl3945_hw_reg_send_txpower(struct iwl3945_priv *priv);
 extern int iwl3945_hw_reg_set_txpower(struct iwl3945_priv *priv, s8 power);
 extern void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv,
-				 struct iwl3945_rx_mem_buffer *rxb);
+				 struct iwl_rx_mem_buffer *rxb);
 extern void iwl3945_disable_events(struct iwl3945_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl3945_priv *priv);
 
@@ -464,7 +458,7 @@ struct iwl3945_priv {
 	int alloc_rxb_skb;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl3945_priv *priv,
-				       struct iwl3945_rx_mem_buffer *rxb);
+				       struct iwl_rx_mem_buffer *rxb);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
