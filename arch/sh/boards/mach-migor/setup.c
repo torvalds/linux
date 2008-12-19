@@ -262,6 +262,8 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
 		.sys_bus_cfg = {
 			.ldmt2r = 0x06000a09,
 			.ldmt3r = 0x180e3418,
+			/* set 1s delay to encourage fsync() */
+			.deferred_io_msec = 1000,
 		},
 	}
 #endif
