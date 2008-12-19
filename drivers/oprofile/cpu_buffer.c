@@ -347,17 +347,11 @@ void oprofile_add_ibs_sample(struct pt_regs * const regs,
 		fail = fail || add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
 	}
 
-	if (fail)
-		goto fail;
-
-	if (oprofile_backtrace_depth)
-		oprofile_ops.backtrace(regs, oprofile_backtrace_depth);
-
-	return;
+	if (!fail)
+		return;
 
 fail:
 	cpu_buf->sample_lost_overflow++;
-	return;
 }
 
 #endif

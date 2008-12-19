@@ -557,11 +557,9 @@ void sync_buffer(int cpu)
 				break;
 #ifdef CONFIG_OPROFILE_IBS
 			case IBS_FETCH_BEGIN:
-				state = sb_bt_start;
 				add_ibs_begin(cpu, IBS_FETCH_CODE, mm);
 				break;
 			case IBS_OP_BEGIN:
-				state = sb_bt_start;
 				add_ibs_begin(cpu, IBS_OP_CODE, mm);
 				break;
 #endif
