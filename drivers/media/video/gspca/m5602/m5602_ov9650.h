@@ -344,7 +344,7 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_COM24, 0x00},
 	/* Enable HREF and some out of spec things */
 	{SENSOR, OV9650_COM12, 0x73},
-		/* Set all DBLC offset signs to positive and
+	/* Set all DBLC offset signs to positive and
 	do some out of spec stuff */
 	{SENSOR, OV9650_DBLC1, 0xdf},
 	{SENSOR, OV9650_COM21, 0x06},
@@ -356,7 +356,7 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_RSVD96, 0x04},
 	/* Enable full range output */
 	{SENSOR, OV9650_COM15, 0x0},
-		/* Enable HREF at optical black, enable ADBLC bias,
+	/* Enable HREF at optical black, enable ADBLC bias,
 	enable ADBLC, reset timings at format change */
 	{SENSOR, OV9650_COM6, 0x4b},
 	/* Subtract 32 from the B channel bias */
@@ -377,7 +377,7 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_AEB, 0x5c},
 	/* Set the high and low limit nibbles to 3 */
 	{SENSOR, OV9650_VPT, 0xc3},
-		/* Set the Automatic Gain Ceiling (AGC) to 128x,
+	/* Set the Automatic Gain Ceiling (AGC) to 128x,
 	drop VSYNC at frame drop,
 	limit exposure timing,
 	drop frame when the AEC step is larger than the exposure gap */
@@ -386,9 +386,9 @@ static const unsigned char init_ov9650[][3] =
 	and set PWDN to SLVS (slave mode vertical sync) */
 	{SENSOR, OV9650_COM10, 0x42},
 	/* Set horizontal column start high to default value */
-	{SENSOR, OV9650_HSTART, 0x1a},
+	{SENSOR, OV9650_HSTART, 0x1a}, /* 210 */
 	/* Set horizontal column end */
-	{SENSOR, OV9650_HSTOP, 0xbf},
+	{SENSOR, OV9650_HSTOP, 0xbf}, /* 1534 */
 	/* Complementing register to the two writes above */
 	{SENSOR, OV9650_HREF, 0xb2},
 	/* Set vertical row start high bits */
@@ -428,11 +428,12 @@ static const unsigned char init_ov9650[][3] =
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x09},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0xe0},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0xe0}, /* 480 */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x5e},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x5e}, /* 94 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 734 */
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0xde}
 };
 
