@@ -2972,8 +2972,8 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
 	hda_nid_t nid = 0;
-	int i, err, num_dacs;
-	unsigned int wid_caps, pincap;
+	int i, err;
+	unsigned int wid_caps;
 
 	for (i = 0; i < cfg->line_outs && spec->multiout.dac_nids[i]; i++) {
 		nid = spec->multiout.dac_nids[i];
@@ -4033,7 +4033,6 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 		 * "xxx as Output" mixer switch
 		 */
 		struct sigmatel_spec *spec = codec->spec;
-		struct auto_pin_cfg *cfg = &spec->autocfg;
 		if (nid == spec->line_switch || nid == spec->mic_switch)
 			return;
 	}
