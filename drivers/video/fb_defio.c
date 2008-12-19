@@ -60,6 +60,10 @@ int fb_deferred_io_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct fb_info *info = file->private_data;
 
+	/* Skip if deferred io is complied-in but disabled on this fbdev */
+	if (!info->fbdefio)
+		return 0;
+
 	/* Kill off the delayed work */
 	cancel_rearming_delayed_work(&info->deferred_work);
 
