@@ -156,6 +156,12 @@ struct iwl4965_channel_tgh_info {
 
 #define IWL4965_MAX_RATE (33)
 
+struct iwl3945_clip_group {
+	/* maximum power level to prevent clipping for each rate, derived by
+	 *   us from this band's saturation power in EEPROM */
+	const s8 clip_powers[IWL_MAX_RATES];
+};
+
 /* current Tx power values to use, one for each rate for each channel.
  * requested power is limited by:
  * -- regulatory EEPROM limits for this channel
@@ -218,6 +224,27 @@ struct iwl_channel_info {
 	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
+/**
+ * struct iwl3945_tx_queue - Tx Queue for DMA
+ * @q: generic Rx/Tx queue descriptor
+ * @bd: base of circular buffer of TFDs
+ * @cmd: array of command/Tx buffers
+ * @dma_addr_cmd: physical address of cmd/tx buffer array
+ * @txb: array of per-TFD driver data
+ * @need_update: indicates need to update read/write index
+ *
+ * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
+ * descriptors) and required locking structures.
+ */
+struct iwl3945_tx_queue {
+	struct iwl_queue q;
+	struct iwl3945_tfd_frame *bd;
+	struct iwl3945_cmd *cmd;
+	dma_addr_t dma_addr_cmd;
+	struct iwl3945_tx_info *txb;
+	int need_update;
+	int active;
+};
 
 #define IWL_TX_FIFO_AC0	0
 #define IWL_TX_FIFO_AC1	1
@@ -461,6 +488,24 @@ struct iwl_qos_info {
 
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
+
+struct iwl3945_tid_data {
+	u16 seq_number;
+};
+
+struct iwl3945_hw_key {
+	enum ieee80211_key_alg alg;
+	int keylen;
+	u8 key[32];
+};
+
+struct iwl3945_station_entry {
+	struct iwl3945_addsta_cmd sta;
+	struct iwl3945_tid_data tid[MAX_TID_COUNT];
+	u8 used;
+	u8 ps_status;
+	struct iwl3945_hw_key keyinfo;
+};
 
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
@@ -799,6 +844,10 @@ struct iwl_priv {
 	 *    Access via channel # using indirect index array */
 	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
+
+	/* each calibration channel group in the EEPROM has a derived
+	 * clip setting for each rate. 3945 only.*/
+	const struct iwl3945_clip_group clip39_groups[5];
 
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */
