@@ -38,11 +38,11 @@
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
 
-#include "iwl-3945-core.h"
 #include "iwl-3945-fh.h"
 #include "iwl-commands.h"
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
+#include "iwl-core.h"
 #include "iwl-agn-rs.h"
 
 #define IWL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
