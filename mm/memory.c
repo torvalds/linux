@@ -99,50 +99,6 @@ int randomize_va_space __read_mostly =
 					2;
 #endif
 
-#ifndef track_pfn_vma_new
-/*
- * Interface that can be used by architecture code to keep track of
- * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
- *
- * track_pfn_vma_new is called when a _new_ pfn mapping is being established
- * for physical range indicated by pfn and size.
- */
-int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t prot,
-			unsigned long pfn, unsigned long size)
-{
-	return 0;
-}
-#endif
-
-#ifndef track_pfn_vma_copy
-/*
- * Interface that can be used by architecture code to keep track of
- * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
- *
- * track_pfn_vma_copy is called when vma that is covering the pfnmap gets
- * copied through copy_page_range().
- */
-int track_pfn_vma_copy(struct vm_area_struct *vma)
-{
-	return 0;
-}
-#endif
-
-#ifndef untrack_pfn_vma
-/*
- * Interface that can be used by architecture code to keep track of
- * memory type of pfn mappings (remap_pfn_range, vm_insert_pfn)
- *
- * untrack_pfn_vma is called while unmapping a pfnmap for a region.
- * untrack can be called for a specific region indicated by pfn and size or
- * can be for the entire vma (in which case size can be zero).
- */
-void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
-			unsigned long size)
-{
-}
-#endif
-
 static int __init disable_randmaps(char *s)
 {
 	randomize_va_space = 0;
@@ -713,7 +669,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	if (is_vm_hugetlb_page(vma))
 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
 
-	if (is_pfn_mapping(vma)) {
+	if (unlikely(is_pfn_mapping(vma))) {
 		/*
 		 * We do not free on error cases below as remove_vma
 		 * gets called on error from higher level routine
@@ -969,7 +925,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 		if (vma->vm_flags & VM_ACCOUNT)
 			*nr_accounted += (end - start) >> PAGE_SHIFT;
 
-		if (is_pfn_mapping(vma))
+		if (unlikely(is_pfn_mapping(vma)))
 			untrack_pfn_vma(vma, 0, 0);
 
 		while (start != end) {

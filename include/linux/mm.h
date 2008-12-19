@@ -163,12 +163,6 @@ static inline int is_pfn_mapping(struct vm_area_struct *vma)
 	return (vma->vm_flags & VM_PFNMAP);
 }
 
-extern int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t prot,
-				unsigned long pfn, unsigned long size);
-extern int track_pfn_vma_copy(struct vm_area_struct *vma);
-extern void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
-				unsigned long size);
-
 /*
  * vm_fault is filled by the the pagefault handler and passed to the vma's
  * ->fault function. The vma's ->fault is responsible for returning a bitmask

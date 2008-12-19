@@ -339,12 +339,10 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 
 #define canon_pgprot(p) __pgprot(pgprot_val(p) & __supported_pte_mask)
 
-/* Indicate that x86 has its own track and untrack pfn vma functions */
-#define track_pfn_vma_new track_pfn_vma_new
-#define track_pfn_vma_copy track_pfn_vma_copy
-#define untrack_pfn_vma untrack_pfn_vma
-
 #ifndef __ASSEMBLY__
+/* Indicate that x86 has its own track and untrack pfn vma functions */
+#define __HAVE_PFNMAP_TRACKING
+
 #define __HAVE_PHYS_MEM_ACCESS_PROT
 struct file;
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
