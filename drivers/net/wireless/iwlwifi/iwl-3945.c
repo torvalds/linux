@@ -919,7 +919,7 @@ u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 	return sta_id;
 }
 
-static int iwl3945_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
+static int iwl3945_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 {
 	int rc;
 	unsigned long flags;
@@ -931,7 +931,7 @@ static int iwl3945_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 		return rc;
 	}
 
-	if (!pwr_max) {
+	if (src == IWL_PWR_SRC_VAUX) {
 		u32 val;
 
 		rc = pci_read_config_dword(priv->pci_dev,
@@ -1195,7 +1195,10 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 		return rc;
 	IWL_DEBUG_INFO("HW Revision ID = 0x%X\n", rev_id);
 
-	iwl3945_nic_set_pwr_src(priv, 1);
+	rc = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
+	if(rc)
+		return rc;
+
 	priv->cfg->ops->lib->apm_ops.config(priv);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
@@ -2694,6 +2697,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 		.reset = iwl3945_apm_reset,
 		.stop = iwl3945_apm_stop,
 		.config = iwl3945_nic_config,
+		.set_pwr_src = iwl3945_set_pwr_src,
 	},
 };
 
