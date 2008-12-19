@@ -274,6 +274,10 @@ static struct resource migor_lcdc_resources[] = {
 		.end	= 0xfe941fff,
 		.flags	= IORESOURCE_MEM,
 	},
+	[1] = {
+		.start	= 28,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device migor_lcdc_device = {
