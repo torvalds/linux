@@ -43,7 +43,6 @@
 			 X86_EFLAGS_ZF | X86_EFLAGS_AF | X86_EFLAGS_PF | \
 			 X86_EFLAGS_CF)
 
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset);
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 
 int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
