@@ -1112,7 +1112,9 @@ static int tuner_resume(struct i2c_client *c)
 static const struct v4l2_subdev_core_ops tuner_core_ops = {
 	.log_status = tuner_log_status,
 	.s_standby = tuner_s_standby,
+#ifdef CONFIG_VIDEO_ALLOW_V4L1
 	.ioctl = tuner_ioctl,
+#endif
 };
 
 static const struct v4l2_subdev_tuner_ops tuner_tuner_ops = {
