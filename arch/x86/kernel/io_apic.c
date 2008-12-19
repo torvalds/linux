@@ -2471,7 +2471,7 @@ static void irq_complete_move(struct irq_desc **descp)
 		if (likely(!cfg->move_desc_pending))
 			return;
 
-		/* domain is not change, but affinity is changed */
+		/* domain has not changed, but affinity did */
 		me = smp_processor_id();
 		if (cpu_isset(me, desc->affinity)) {
 			*descp = desc = move_irq_desc(desc, me);

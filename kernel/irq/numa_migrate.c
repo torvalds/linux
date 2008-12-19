@@ -1,13 +1,8 @@
 /*
- * linux/kernel/irq/handle.c
+ * NUMA irq-desc migration code
  *
- * Copyright (C) 1992, 1998-2006 Linus Torvalds, Ingo Molnar
- * Copyright (C) 2005-2006, Thomas Gleixner, Russell King
- *
- * This file contains the core interrupt handling code.
- *
- * Detailed information is available in Documentation/DocBook/genericirq
- *
+ * Migrate IRQ data structures (irq_desc, chip_data, etc.) over to
+ * the new "home node" of the IRQ.
  */
 
 #include <linux/irq.h>
