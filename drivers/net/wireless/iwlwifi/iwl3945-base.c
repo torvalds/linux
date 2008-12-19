@@ -4483,7 +4483,7 @@ static const u8 iwl3945_eeprom_band_5[] = {	/* 5725-5825MHz */
 
 static void iwl3945_init_band_reference(const struct iwl3945_priv *priv, int band,
 				    int *eeprom_ch_count,
-				    const struct iwl3945_eeprom_channel
+				    const struct iwl_eeprom_channel
 				    **eeprom_ch_info,
 				    const u8 **eeprom_ch_index)
 {
@@ -4558,7 +4558,7 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 {
 	int eeprom_ch_count = 0;
 	const u8 *eeprom_ch_index = NULL;
-	const struct iwl3945_eeprom_channel *eeprom_ch_info = NULL;
+	const struct iwl_eeprom_channel *eeprom_ch_info = NULL;
 	int band, ch;
 	struct iwl3945_channel_info *ch_info;
 

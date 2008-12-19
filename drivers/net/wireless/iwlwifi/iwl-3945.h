@@ -203,8 +203,8 @@ struct iwl3945_scan_power_info {
 struct iwl3945_channel_info {
 	struct iwl3945_channel_tgd_info tgd;
 	struct iwl3945_channel_tgh_info tgh;
-	struct iwl3945_eeprom_channel eeprom;	/* EEPROM regulatory limit */
-	struct iwl3945_eeprom_channel fat_eeprom;	/* EEPROM regulatory limit for
+	struct iwl_eeprom_channel eeprom;	/* EEPROM regulatory limit */
+	struct iwl_eeprom_channel fat_eeprom;	/* EEPROM regulatory limit for
 						 * FAT channel */
 
 	u8 channel;	  /* channel number */
