@@ -25,6 +25,8 @@ static inline unsigned int gfs2_jindex_size(struct gfs2_sbd *sdp)
 	return x;
 }
 
+void gfs2_jindex_free(struct gfs2_sbd *sdp);
+
 struct gfs2_jdesc *gfs2_jdesc_find(struct gfs2_sbd *sdp, unsigned int jid);
 int gfs2_jdesc_check(struct gfs2_jdesc *jd);
 
@@ -32,7 +34,6 @@ int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
 			      struct gfs2_inode **ipp);
 
 int gfs2_make_fs_rw(struct gfs2_sbd *sdp);
-int gfs2_make_fs_ro(struct gfs2_sbd *sdp);
 
 int gfs2_statfs_init(struct gfs2_sbd *sdp);
 void gfs2_statfs_change(struct gfs2_sbd *sdp,

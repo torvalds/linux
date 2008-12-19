@@ -705,40 +705,6 @@ static int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 	return error;
 }
 
-/**
- * gfs2_jindex_free - Clear all the journal index information
- * @sdp: The GFS2 superblock
- *
- */
-
-static void gfs2_jindex_free(struct gfs2_sbd *sdp)
-{
-	struct list_head list, *head;
-	struct gfs2_jdesc *jd;
-	struct gfs2_journal_extent *jext;
-
-	spin_lock(&sdp->sd_jindex_spin);
-	list_add(&list, &sdp->sd_jindex_list);
-	list_del_init(&sdp->sd_jindex_list);
-	sdp->sd_journals = 0;
-	spin_unlock(&sdp->sd_jindex_spin);
-
-	while (!list_empty(&list)) {
-		jd = list_entry(list.next, struct gfs2_jdesc, jd_list);
-		head = &jd->extent_list;
-		while (!list_empty(head)) {
-			jext = list_entry(head->next,
-					  struct gfs2_journal_extent,
-					  extent_list);
-			list_del(&jext->extent_list);
-			kfree(jext);
-		}
-		list_del(&jd->jd_list);
-		iput(jd->jd_inode);
-		kfree(jd);
-	}
-}
-
 static int init_journal(struct gfs2_sbd *sdp, int undo)
 {
 	struct inode *master = sdp->sd_master_dir->d_inode;
@@ -1237,7 +1203,7 @@ fail_sb:
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
-	gfs2_gl_hash_clear(sb);
+	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
 	while (invalidate_inodes(sb))
 		yield();
@@ -1297,61 +1263,17 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 static void gfs2_kill_sb(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-
-	if (sdp == NULL) {
-		kill_block_super(sb);
-		return;
+	if (sdp) {
+		gfs2_meta_syncfs(sdp);
+		dput(sdp->sd_root_dir);
+		dput(sdp->sd_master_dir);
+		sdp->sd_root_dir = NULL;
+		sdp->sd_master_dir = NULL;
 	}
-	gfs2_meta_syncfs(sdp);
-	dput(sdp->sd_root_dir);
-	dput(sdp->sd_master_dir);
-	sdp->sd_root_dir = NULL;
-	sdp->sd_master_dir = NULL;
-
-	/*  Unfreeze the filesystem, if we need to  */
-	mutex_lock(&sdp->sd_freeze_lock);
-	if (sdp->sd_freeze_count)
-		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
-	mutex_unlock(&sdp->sd_freeze_lock);
-
-	kthread_stop(sdp->sd_quotad_process);
-	kthread_stop(sdp->sd_logd_process);
-	kthread_stop(sdp->sd_recoverd_process);
-
-	if (!(sb->s_flags & MS_RDONLY)) {
-		int error = gfs2_make_fs_ro(sdp);
-		if (error)
-			gfs2_io_error(sdp);
-	}
-
-	/* At this point, we're through modifying the disk */
-	gfs2_jindex_free(sdp);
-	gfs2_clear_rgrpd(sdp);
-	iput(sdp->sd_jindex);
-	iput(sdp->sd_inum_inode);
-	iput(sdp->sd_statfs_inode);
-	iput(sdp->sd_rindex);
-	iput(sdp->sd_quota_inode);
-
-	gfs2_glock_put(sdp->sd_rename_gl);
-	gfs2_glock_put(sdp->sd_trans_gl);
-
-	if (!sdp->sd_args.ar_spectator) {
-		gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
-		gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
-		gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
-		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
-		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
-		iput(sdp->sd_ir_inode);
-		iput(sdp->sd_sc_inode);
-		iput(sdp->sd_qc_inode);
-	}
-	gfs2_glock_dq_uninit(&sdp->sd_live_gh);
+	shrink_dcache_sb(sb);
 	kill_block_super(sb);
-	gfs2_lm_unmount(sdp);
-	gfs2_sys_fs_del(sdp);
-	gfs2_delete_debugfs_file(sdp);
-	kfree(sdp);
+	if (sdp)
+		gfs2_delete_debugfs_file(sdp);
 }
 
 struct file_system_type gfs2_fs_type = {

@@ -33,6 +33,40 @@
 #include "trans.h"
 #include "util.h"
 
+/**
+ * gfs2_jindex_free - Clear all the journal index information
+ * @sdp: The GFS2 superblock
+ *
+ */
+
+void gfs2_jindex_free(struct gfs2_sbd *sdp)
+{
+	struct list_head list, *head;
+	struct gfs2_jdesc *jd;
+	struct gfs2_journal_extent *jext;
+
+	spin_lock(&sdp->sd_jindex_spin);
+	list_add(&list, &sdp->sd_jindex_list);
+	list_del_init(&sdp->sd_jindex_list);
+	sdp->sd_journals = 0;
+	spin_unlock(&sdp->sd_jindex_spin);
+
+	while (!list_empty(&list)) {
+		jd = list_entry(list.next, struct gfs2_jdesc, jd_list);
+		head = &jd->extent_list;
+		while (!list_empty(head)) {
+			jext = list_entry(head->next,
+					  struct gfs2_journal_extent,
+					  extent_list);
+			list_del(&jext->extent_list);
+			kfree(jext);
+		}
+		list_del(&jd->jd_list);
+		iput(jd->jd_inode);
+		kfree(jd);
+	}
+}
+
 static struct gfs2_jdesc *jdesc_find_i(struct list_head *head, unsigned int jid)
 {
 	struct gfs2_jdesc *jd;

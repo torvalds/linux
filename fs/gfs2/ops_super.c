@@ -95,7 +95,7 @@ do_flush:
  * Returns: errno
  */
 
-int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
+static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 {
 	struct gfs2_holder t_gh;
 	int error;
@@ -119,6 +119,70 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	gfs2_quota_cleanup(sdp);
 
 	return error;
+}
+
+/**
+ * gfs2_put_super - Unmount the filesystem
+ * @sb: The VFS superblock
+ *
+ */
+
+static void gfs2_put_super(struct super_block *sb)
+{
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	int error;
+
+	/*  Unfreeze the filesystem, if we need to  */
+
+	mutex_lock(&sdp->sd_freeze_lock);
+	if (sdp->sd_freeze_count)
+		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
+	mutex_unlock(&sdp->sd_freeze_lock);
+
+	kthread_stop(sdp->sd_quotad_process);
+	kthread_stop(sdp->sd_logd_process);
+	kthread_stop(sdp->sd_recoverd_process);
+
+	if (!(sb->s_flags & MS_RDONLY)) {
+		error = gfs2_make_fs_ro(sdp);
+		if (error)
+			gfs2_io_error(sdp);
+	}
+	/*  At this point, we're through modifying the disk  */
+
+	/*  Release stuff  */
+
+	iput(sdp->sd_jindex);
+	iput(sdp->sd_inum_inode);
+	iput(sdp->sd_statfs_inode);
+	iput(sdp->sd_rindex);
+	iput(sdp->sd_quota_inode);
+
+	gfs2_glock_put(sdp->sd_rename_gl);
+	gfs2_glock_put(sdp->sd_trans_gl);
+
+	if (!sdp->sd_args.ar_spectator) {
+		gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
+		gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
+		gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
+		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
+		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
+		iput(sdp->sd_ir_inode);
+		iput(sdp->sd_sc_inode);
+		iput(sdp->sd_qc_inode);
+	}
+
+	gfs2_glock_dq_uninit(&sdp->sd_live_gh);
+	gfs2_clear_rgrpd(sdp);
+	gfs2_jindex_free(sdp);
+	/*  Take apart glock structures and buffer lists  */
+	gfs2_gl_hash_clear(sdp);
+	/*  Unmount the locking protocol  */
+	gfs2_lm_unmount(sdp);
+
+	/*  At this point, we're through participating in the lockspace  */
+	gfs2_sys_fs_del(sdp);
+	kfree(sdp);
 }
 
 /**
@@ -622,7 +686,7 @@ const struct super_operations gfs2_super_ops = {
 	.destroy_inode		= gfs2_destroy_inode,
 	.write_inode		= gfs2_write_inode,
 	.delete_inode		= gfs2_delete_inode,
-	.put_super		= gfs2_gl_hash_clear,
+	.put_super		= gfs2_put_super,
 	.write_super		= gfs2_write_super,
 	.sync_fs		= gfs2_sync_fs,
 	.write_super_lockfs 	= gfs2_write_super_lockfs,

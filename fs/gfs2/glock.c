@@ -1547,9 +1547,8 @@ static void clear_glock(struct gfs2_glock *gl)
  * Called when unmounting the filesystem.
  */
 
-void gfs2_gl_hash_clear(struct super_block *sb)
+void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 {
-	struct gfs2_sbd *sdp = sb->s_fs_info;
 	unsigned long t;
 	unsigned int x;
 	int cont;
