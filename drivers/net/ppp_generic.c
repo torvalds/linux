@@ -179,7 +179,7 @@ struct channel {
  */
 static DEFINE_MUTEX(all_ppp_mutex);
 static atomic_t ppp_unit_count = ATOMIC_INIT(0);
-static struct idr ppp_units_idr;
+static DEFINE_IDR(ppp_units_idr);
 
 /*
  * all_channels_lock protects all_channels and last_channel_index,
@@ -851,8 +851,6 @@ static int __init ppp_init(void)
 		device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL,
 			      "ppp");
 	}
-
-	idr_init(&ppp_units_idr);
 
 out:
 	if (err)
@@ -2435,7 +2433,7 @@ ppp_create_interface(int unit, int *retp)
 		if (unit_find(&ppp_units_idr, unit))
 			goto out2; /* unit already exists */
 		else {
-			/* darn, someone is cheatting us? */
+			/* darn, someone is cheating us? */
 			*retp = -EINVAL;
 			goto out2;
 		}
