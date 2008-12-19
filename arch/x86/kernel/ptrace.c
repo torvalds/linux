@@ -769,7 +769,46 @@ static int ptrace_bts_size(struct task_struct *child)
 
 	return (trace->ds.top - trace->ds.begin) / trace->ds.size;
 }
+
+static void ptrace_bts_fork(struct task_struct *tsk)
+{
+	tsk->bts = NULL;
+	tsk->bts_buffer = NULL;
+	tsk->bts_size = 0;
+	tsk->thread.bts_ovfl_signal = 0;
+}
+
+static void ptrace_bts_untrace(struct task_struct *child)
+{
+	if (unlikely(child->bts)) {
+		ds_release_bts(child->bts);
+		child->bts = NULL;
+
+		kfree(child->bts_buffer);
+		child->bts_buffer = NULL;
+		child->bts_size = 0;
+	}
+}
+
+static void ptrace_bts_detach(struct task_struct *child)
+{
+	ptrace_bts_untrace(child);
+}
+#else
+static inline void ptrace_bts_fork(struct task_struct *tsk) {}
+static inline void ptrace_bts_detach(struct task_struct *child) {}
+static inline void ptrace_bts_untrace(struct task_struct *child) {}
 #endif /* CONFIG_X86_PTRACE_BTS */
+
+void x86_ptrace_fork(struct task_struct *child, unsigned long clone_flags)
+{
+	ptrace_bts_fork(child);
+}
+
+void x86_ptrace_untrace(struct task_struct *child)
+{
+	ptrace_bts_untrace(child);
+}
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -782,16 +821,7 @@ void ptrace_disable(struct task_struct *child)
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
-#ifdef CONFIG_X86_PTRACE_BTS
-	if (child->bts) {
-		ds_release_bts(child->bts);
-		child->bts = NULL;
-
-		kfree(child->bts_buffer);
-		child->bts_buffer = NULL;
-		child->bts_size = 0;
-	}
-#endif /* CONFIG_X86_PTRACE_BTS */
+	ptrace_bts_detach(child);
 }
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
