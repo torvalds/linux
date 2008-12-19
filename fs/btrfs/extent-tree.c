@@ -3994,10 +3994,10 @@ again:
 		}
 		set_page_extent_mapped(page);
 
-		btrfs_set_extent_delalloc(inode, page_start, page_end);
 		if (i == first_index)
 			set_extent_bits(io_tree, page_start, page_end,
 					EXTENT_BOUNDARY, GFP_NOFS);
+		btrfs_set_extent_delalloc(inode, page_start, page_end);
 
 		set_page_dirty(page);
 		total_dirty++;
@@ -4405,7 +4405,7 @@ static int noinline get_new_locations(struct inode *reloc_inode,
 		path->slots[0]++;
 	}
 
-	WARN_ON(cur_pos + offset > last_byte);
+	BUG_ON(cur_pos + offset > last_byte);
 	if (cur_pos + offset < last_byte) {
 		ret = -ENOENT;
 		goto out;
@@ -5712,7 +5712,6 @@ next:
 	if (pass == 0) {
 		btrfs_wait_ordered_range(reloc_inode, 0, (u64)-1);
 		invalidate_mapping_pages(reloc_inode->i_mapping, 0, -1);
-		WARN_ON(reloc_inode->i_mapping->nrpages);
 	}
 
 	if (total_found > 0) {
