@@ -650,6 +650,24 @@ static int ptrace_bts_drain(struct task_struct *child,
 	return drained;
 }
 
+static int ptrace_bts_allocate_buffer(struct task_struct *child, size_t size)
+{
+	child->bts_buffer = alloc_locked_buffer(size);
+	if (!child->bts_buffer)
+		return -ENOMEM;
+
+	child->bts_size = size;
+
+	return 0;
+}
+
+static void ptrace_bts_free_buffer(struct task_struct *child)
+{
+	free_locked_buffer(child->bts_buffer, child->bts_size);
+	child->bts_buffer = NULL;
+	child->bts_size = 0;
+}
+
 static int ptrace_bts_config(struct task_struct *child,
 			     long cfg_size,
 			     const struct ptrace_bts_config __user *ucfg)
@@ -679,14 +697,13 @@ static int ptrace_bts_config(struct task_struct *child,
 
 	if ((cfg.flags & PTRACE_BTS_O_ALLOC) &&
 	    (cfg.size != child->bts_size)) {
-		kfree(child->bts_buffer);
+		int error;
 
-		child->bts_size = cfg.size;
-		child->bts_buffer = kzalloc(cfg.size, GFP_KERNEL);
-		if (!child->bts_buffer) {
-			child->bts_size = 0;
-			return -ENOMEM;
-		}
+		ptrace_bts_free_buffer(child);
+
+		error = ptrace_bts_allocate_buffer(child, cfg.size);
+		if (error < 0)
+			return error;
 	}
 
 	if (cfg.flags & PTRACE_BTS_O_TRACE)
@@ -701,10 +718,8 @@ static int ptrace_bts_config(struct task_struct *child,
 	if (IS_ERR(child->bts)) {
 		int error = PTR_ERR(child->bts);
 
-		kfree(child->bts_buffer);
+		ptrace_bts_free_buffer(child);
 		child->bts = NULL;
-		child->bts_buffer = NULL;
-		child->bts_size = 0;
 
 		return error;
 	}
@@ -784,6 +799,9 @@ static void ptrace_bts_untrace(struct task_struct *child)
 		ds_release_bts(child->bts);
 		child->bts = NULL;
 
+		/* We cannot update total_vm and locked_vm since
+		   child's mm is already gone. But we can reclaim the
+		   memory. */
 		kfree(child->bts_buffer);
 		child->bts_buffer = NULL;
 		child->bts_size = 0;
@@ -792,7 +810,12 @@ static void ptrace_bts_untrace(struct task_struct *child)
 
 static void ptrace_bts_detach(struct task_struct *child)
 {
-	ptrace_bts_untrace(child);
+	if (unlikely(child->bts)) {
+		ds_release_bts(child->bts);
+		child->bts = NULL;
+
+		ptrace_bts_free_buffer(child);
+	}
 }
 #else
 static inline void ptrace_bts_fork(struct task_struct *tsk) {}
