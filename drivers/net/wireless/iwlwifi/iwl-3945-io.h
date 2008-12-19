@@ -61,7 +61,7 @@
 
 #define _iwl3945_write32(priv, ofs, val) iowrite32((val), (priv)->hw_base + (ofs))
 #ifdef CONFIG_IWL3945_DEBUG
-static inline void __iwl3945_write32(const char *f, u32 l, struct iwl3945_priv *priv,
+static inline void __iwl3945_write32(const char *f, u32 l, struct iwl_priv *priv,
 				 u32 ofs, u32 val)
 {
 	IWL_DEBUG_IO("write32(0x%08X, 0x%08X) - %s %d\n", ofs, val, f, l);
@@ -75,7 +75,7 @@ static inline void __iwl3945_write32(const char *f, u32 l, struct iwl3945_priv *
 
 #define _iwl3945_read32(priv, ofs) ioread32((priv)->hw_base + (ofs))
 #ifdef CONFIG_IWL3945_DEBUG
-static inline u32 __iwl3945_read32(char *f, u32 l, struct iwl3945_priv *priv, u32 ofs)
+static inline u32 __iwl3945_read32(char *f, u32 l, struct iwl_priv *priv, u32 ofs)
 {
 	IWL_DEBUG_IO("read_direct32(0x%08X) - %s %d\n", ofs, f, l);
 	return _iwl3945_read32(priv, ofs);
@@ -85,7 +85,7 @@ static inline u32 __iwl3945_read32(char *f, u32 l, struct iwl3945_priv *priv, u3
 #define iwl3945_read32(p, o) _iwl3945_read32(p, o)
 #endif
 
-static inline int _iwl3945_poll_bit(struct iwl3945_priv *priv, u32 addr,
+static inline int _iwl3945_poll_bit(struct iwl_priv *priv, u32 addr,
 				u32 bits, u32 mask, int timeout)
 {
 	int i = 0;
@@ -101,7 +101,7 @@ static inline int _iwl3945_poll_bit(struct iwl3945_priv *priv, u32 addr,
 }
 #ifdef CONFIG_IWL3945_DEBUG
 static inline int __iwl3945_poll_bit(const char *f, u32 l,
-				 struct iwl3945_priv *priv, u32 addr,
+				 struct iwl_priv *priv, u32 addr,
 				 u32 bits, u32 mask, int timeout)
 {
 	int ret = _iwl3945_poll_bit(priv, addr, bits, mask, timeout);
@@ -116,13 +116,13 @@ static inline int __iwl3945_poll_bit(const char *f, u32 l,
 #define iwl3945_poll_bit(p, a, b, m, t) _iwl3945_poll_bit(p, a, b, m, t)
 #endif
 
-static inline void _iwl3945_set_bit(struct iwl3945_priv *priv, u32 reg, u32 mask)
+static inline void _iwl3945_set_bit(struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	_iwl3945_write32(priv, reg, _iwl3945_read32(priv, reg) | mask);
 }
 #ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl3945_set_bit(const char *f, u32 l,
-				 struct iwl3945_priv *priv, u32 reg, u32 mask)
+				 struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	u32 val = _iwl3945_read32(priv, reg) | mask;
 	IWL_DEBUG_IO("set_bit(0x%08X, 0x%08X) = 0x%08X\n", reg, mask, val);
@@ -133,13 +133,13 @@ static inline void __iwl3945_set_bit(const char *f, u32 l,
 #define iwl3945_set_bit(p, r, m) _iwl3945_set_bit(p, r, m)
 #endif
 
-static inline void _iwl3945_clear_bit(struct iwl3945_priv *priv, u32 reg, u32 mask)
+static inline void _iwl3945_clear_bit(struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	_iwl3945_write32(priv, reg, _iwl3945_read32(priv, reg) & ~mask);
 }
 #ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl3945_clear_bit(const char *f, u32 l,
-				   struct iwl3945_priv *priv, u32 reg, u32 mask)
+				   struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	u32 val = _iwl3945_read32(priv, reg) & ~mask;
 	IWL_DEBUG_IO("clear_bit(0x%08X, 0x%08X) = 0x%08X\n", reg, mask, val);
@@ -150,7 +150,7 @@ static inline void __iwl3945_clear_bit(const char *f, u32 l,
 #define iwl3945_clear_bit(p, r, m) _iwl3945_clear_bit(p, r, m)
 #endif
 
-static inline int _iwl3945_grab_nic_access(struct iwl3945_priv *priv)
+static inline int _iwl3945_grab_nic_access(struct iwl_priv *priv)
 {
 	int ret;
 #ifdef CONFIG_IWL3945_DEBUG
@@ -176,7 +176,7 @@ static inline int _iwl3945_grab_nic_access(struct iwl3945_priv *priv)
 
 #ifdef CONFIG_IWL3945_DEBUG
 static inline int __iwl3945_grab_nic_access(const char *f, u32 l,
-					       struct iwl3945_priv *priv)
+					       struct iwl_priv *priv)
 {
 	if (atomic_read(&priv->restrict_refcnt))
 		IWL_DEBUG_INFO("Grabbing access while already held at "
@@ -192,7 +192,7 @@ static inline int __iwl3945_grab_nic_access(const char *f, u32 l,
 	_iwl3945_grab_nic_access(priv)
 #endif
 
-static inline void _iwl3945_release_nic_access(struct iwl3945_priv *priv)
+static inline void _iwl3945_release_nic_access(struct iwl_priv *priv)
 {
 #ifdef CONFIG_IWL3945_DEBUG
 	if (atomic_dec_and_test(&priv->restrict_refcnt))
@@ -202,7 +202,7 @@ static inline void _iwl3945_release_nic_access(struct iwl3945_priv *priv)
 }
 #ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl3945_release_nic_access(const char *f, u32 l,
-					    struct iwl3945_priv *priv)
+					    struct iwl_priv *priv)
 {
 	if (atomic_read(&priv->restrict_refcnt) <= 0)
 		IWL_ERROR("Release unheld nic access at line %d.\n", l);
@@ -217,13 +217,13 @@ static inline void __iwl3945_release_nic_access(const char *f, u32 l,
 	_iwl3945_release_nic_access(priv)
 #endif
 
-static inline u32 _iwl3945_read_direct32(struct iwl3945_priv *priv, u32 reg)
+static inline u32 _iwl3945_read_direct32(struct iwl_priv *priv, u32 reg)
 {
 	return _iwl3945_read32(priv, reg);
 }
 #ifdef CONFIG_IWL3945_DEBUG
 static inline u32 __iwl3945_read_direct32(const char *f, u32 l,
-					struct iwl3945_priv *priv, u32 reg)
+					struct iwl_priv *priv, u32 reg)
 {
 	u32 value = _iwl3945_read_direct32(priv, reg);
 	if (!atomic_read(&priv->restrict_refcnt))
@@ -238,14 +238,14 @@ static inline u32 __iwl3945_read_direct32(const char *f, u32 l,
 #define iwl3945_read_direct32 _iwl3945_read_direct32
 #endif
 
-static inline void _iwl3945_write_direct32(struct iwl3945_priv *priv,
+static inline void _iwl3945_write_direct32(struct iwl_priv *priv,
 					 u32 reg, u32 value)
 {
 	_iwl3945_write32(priv, reg, value);
 }
 #ifdef CONFIG_IWL3945_DEBUG
 static void __iwl3945_write_direct32(u32 line,
-				   struct iwl3945_priv *priv, u32 reg, u32 value)
+				   struct iwl_priv *priv, u32 reg, u32 value)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Nic access not held from line %d\n", line);
@@ -257,7 +257,7 @@ static void __iwl3945_write_direct32(u32 line,
 #define iwl3945_write_direct32 _iwl3945_write_direct32
 #endif
 
-static inline void iwl3945_write_reg_buf(struct iwl3945_priv *priv,
+static inline void iwl3945_write_reg_buf(struct iwl_priv *priv,
 					       u32 reg, u32 len, u32 *values)
 {
 	u32 count = sizeof(u32);
@@ -268,7 +268,7 @@ static inline void iwl3945_write_reg_buf(struct iwl3945_priv *priv,
 	}
 }
 
-static inline int _iwl3945_poll_direct_bit(struct iwl3945_priv *priv,
+static inline int _iwl3945_poll_direct_bit(struct iwl_priv *priv,
 					   u32 addr, u32 mask, int timeout)
 {
 	return _iwl3945_poll_bit(priv, addr, mask, mask, timeout);
@@ -276,7 +276,7 @@ static inline int _iwl3945_poll_direct_bit(struct iwl3945_priv *priv,
 
 #ifdef CONFIG_IWL3945_DEBUG
 static inline int __iwl3945_poll_direct_bit(const char *f, u32 l,
-					    struct iwl3945_priv *priv,
+					    struct iwl_priv *priv,
 					    u32 addr, u32 mask, int timeout)
 {
 	int ret  = _iwl3945_poll_direct_bit(priv, addr, mask, timeout);
@@ -295,14 +295,14 @@ static inline int __iwl3945_poll_direct_bit(const char *f, u32 l,
 #define iwl3945_poll_direct_bit _iwl3945_poll_direct_bit
 #endif
 
-static inline u32 _iwl3945_read_prph(struct iwl3945_priv *priv, u32 reg)
+static inline u32 _iwl3945_read_prph(struct iwl_priv *priv, u32 reg)
 {
 	_iwl3945_write_direct32(priv, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
 	rmb();
 	return _iwl3945_read_direct32(priv, HBUS_TARG_PRPH_RDAT);
 }
 #ifdef CONFIG_IWL3945_DEBUG
-static inline u32 __iwl3945_read_prph(u32 line, struct iwl3945_priv *priv, u32 reg)
+static inline u32 __iwl3945_read_prph(u32 line, struct iwl_priv *priv, u32 reg)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Nic access not held from line %d\n", line);
@@ -315,7 +315,7 @@ static inline u32 __iwl3945_read_prph(u32 line, struct iwl3945_priv *priv, u32 r
 #define iwl3945_read_prph _iwl3945_read_prph
 #endif
 
-static inline void _iwl3945_write_prph(struct iwl3945_priv *priv,
+static inline void _iwl3945_write_prph(struct iwl_priv *priv,
 					     u32 addr, u32 val)
 {
 	_iwl3945_write_direct32(priv, HBUS_TARG_PRPH_WADDR,
@@ -324,7 +324,7 @@ static inline void _iwl3945_write_prph(struct iwl3945_priv *priv,
 	_iwl3945_write_direct32(priv, HBUS_TARG_PRPH_WDAT, val);
 }
 #ifdef CONFIG_IWL3945_DEBUG
-static inline void __iwl3945_write_prph(u32 line, struct iwl3945_priv *priv,
+static inline void __iwl3945_write_prph(u32 line, struct iwl_priv *priv,
 					      u32 addr, u32 val)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
@@ -341,7 +341,7 @@ static inline void __iwl3945_write_prph(u32 line, struct iwl3945_priv *priv,
 #define _iwl3945_set_bits_prph(priv, reg, mask) \
 	_iwl3945_write_prph(priv, reg, (_iwl3945_read_prph(priv, reg) | mask))
 #ifdef CONFIG_IWL3945_DEBUG
-static inline void __iwl3945_set_bits_prph(u32 line, struct iwl3945_priv *priv,
+static inline void __iwl3945_set_bits_prph(u32 line, struct iwl_priv *priv,
 					u32 reg, u32 mask)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
@@ -360,7 +360,7 @@ static inline void __iwl3945_set_bits_prph(u32 line, struct iwl3945_priv *priv,
 
 #ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl3945_set_bits_mask_prph(u32 line,
-		struct iwl3945_priv *priv, u32 reg, u32 bits, u32 mask)
+		struct iwl_priv *priv, u32 reg, u32 bits, u32 mask)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Nic access not held from line %d\n", line);
@@ -372,28 +372,28 @@ static inline void __iwl3945_set_bits_mask_prph(u32 line,
 #define iwl3945_set_bits_mask_prph _iwl3945_set_bits_mask_prph
 #endif
 
-static inline void iwl3945_clear_bits_prph(struct iwl3945_priv
+static inline void iwl3945_clear_bits_prph(struct iwl_priv
 						 *priv, u32 reg, u32 mask)
 {
 	u32 val = _iwl3945_read_prph(priv, reg);
 	_iwl3945_write_prph(priv, reg, (val & ~mask));
 }
 
-static inline u32 iwl3945_read_targ_mem(struct iwl3945_priv *priv, u32 addr)
+static inline u32 iwl3945_read_targ_mem(struct iwl_priv *priv, u32 addr)
 {
 	iwl3945_write_direct32(priv, HBUS_TARG_MEM_RADDR, addr);
 	rmb();
 	return iwl3945_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 }
 
-static inline void iwl3945_write_targ_mem(struct iwl3945_priv *priv, u32 addr, u32 val)
+static inline void iwl3945_write_targ_mem(struct iwl_priv *priv, u32 addr, u32 val)
 {
 	iwl3945_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
 	wmb();
 	iwl3945_write_direct32(priv, HBUS_TARG_MEM_WDAT, val);
 }
 
-static inline void iwl3945_write_targ_mem_buf(struct iwl3945_priv *priv, u32 addr,
+static inline void iwl3945_write_targ_mem_buf(struct iwl_priv *priv, u32 addr,
 					  u32 len, u32 *values)
 {
 	iwl3945_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);

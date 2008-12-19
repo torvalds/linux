@@ -52,7 +52,7 @@ struct iwl3945_rate_scale_data {
 
 struct iwl3945_rs_sta {
 	spinlock_t lock;
-	struct iwl3945_priv *priv;
+	struct iwl_priv *priv;
 	s32 *expected_tpt;
 	unsigned long last_partial_flush;
 	unsigned long last_flush;
@@ -183,7 +183,7 @@ static int iwl3945_rate_scale_flush_windows(struct iwl3945_rs_sta *rs_sta)
 	int unflushed = 0;
 	int i;
 	unsigned long flags;
-	struct iwl3945_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv = rs_sta->priv;
 
 	/*
 	 * For each rate, if we have collected data on that rate
@@ -216,7 +216,7 @@ static int iwl3945_rate_scale_flush_windows(struct iwl3945_rs_sta *rs_sta)
 static void iwl3945_bg_rate_scale_flush(unsigned long data)
 {
 	struct iwl3945_rs_sta *rs_sta = (void *)data;
-	struct iwl3945_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv = rs_sta->priv;
 	int unflushed = 0;
 	unsigned long flags;
 	u32 packet_count, duration, pps;
@@ -290,7 +290,7 @@ static void iwl3945_collect_tx_data(struct iwl3945_rs_sta *rs_sta,
 {
 	unsigned long flags;
 	s32 fail_count;
-	struct iwl3945_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv = rs_sta->priv;
 
 	if (!retries) {
 		IWL_DEBUG_RATE("leave: retries == 0 -- should be at least 1\n");
@@ -344,7 +344,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 			 struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
-	struct iwl3945_priv *priv = (struct iwl3945_priv *)priv_r;
+	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	int i;
 
 	IWL_DEBUG_RATE("enter\n");
@@ -388,7 +388,7 @@ static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
 	struct iwl3945_rs_sta *rs_sta;
 	struct iwl3945_sta_priv *psta = (void *) sta->drv_priv;
-	struct iwl3945_priv *priv = iwl_priv;
+	struct iwl_priv *priv = iwl_priv;
 	int i;
 
 	/*
@@ -438,7 +438,7 @@ static void rs_free_sta(void *iwl_priv, struct ieee80211_sta *sta,
 {
 	struct iwl3945_sta_priv *psta = (void *) sta->drv_priv;
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
-	struct iwl3945_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv = rs_sta->priv;
 
 	psta->rs_sta = NULL;
 
@@ -452,7 +452,7 @@ static void rs_free_sta(void *iwl_priv, struct ieee80211_sta *sta,
 /**
  * rs_tx_status - Update rate control values based on Tx results
  *
- * NOTE: Uses iwl3945_priv->retry_rate for the # of retries attempted by
+ * NOTE: Uses iwl_priv->retry_rate for the # of retries attempted by
  * the hardware for each rate.
  */
 static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband,
@@ -462,7 +462,7 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 	s8 retries = 0, current_count;
 	int scale_rate_index, first_index, last_index;
 	unsigned long flags;
-	struct iwl3945_priv *priv = (struct iwl3945_priv *)priv_rate;
+	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
@@ -556,7 +556,7 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
 {
 	u8 high = IWL_RATE_INVALID;
 	u8 low = IWL_RATE_INVALID;
-	struct iwl3945_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv = rs_sta->priv;
 
 	/* 802.11A walks to the next literal adjacent rate in
 	 * the rate table */
@@ -651,7 +651,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	u16 fc;
 	u16 rate_mask = 0;
-	struct iwl3945_priv *priv = (struct iwl3945_priv *)priv_r;
+	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	IWL_DEBUG_RATE("enter\n");
@@ -890,7 +890,7 @@ static struct rate_control_ops rs_ops = {
 
 void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 {
-	struct iwl3945_priv *priv = hw->priv;
+	struct iwl_priv *priv = hw->priv;
 	s32 rssi = 0;
 	unsigned long flags;
 	struct iwl3945_rs_sta *rs_sta;

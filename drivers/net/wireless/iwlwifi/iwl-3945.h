@@ -148,13 +148,13 @@ struct iwl3945_frame {
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
 
 struct iwl3945_cmd;
-struct iwl3945_priv;
+struct iwl_priv;
 
 struct iwl3945_cmd_meta {
 	struct iwl3945_cmd_meta *source;
 	union {
 		struct sk_buff *skb;
-		int (*callback)(struct iwl3945_priv *priv,
+		int (*callback)(struct iwl_priv *priv,
 				struct iwl3945_cmd *cmd, struct sk_buff *skb);
 	} __attribute__ ((packed)) u;
 
@@ -270,31 +270,31 @@ struct iwl3945_ibss_seq {
  *
  *****************************************************************************/
 struct iwl3945_addsta_cmd;
-extern int iwl3945_send_add_station(struct iwl3945_priv *priv,
+extern int iwl3945_send_add_station(struct iwl_priv *priv,
 				struct iwl3945_addsta_cmd *sta, u8 flags);
-extern u8 iwl3945_add_station(struct iwl3945_priv *priv, const u8 *bssid,
+extern u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *bssid,
 			  int is_ap, u8 flags);
-extern int iwl3945_power_init_handle(struct iwl3945_priv *priv);
-extern int iwl3945_eeprom_init(struct iwl3945_priv *priv);
-extern int iwl3945_rx_queue_alloc(struct iwl3945_priv *priv);
-extern void iwl3945_rx_queue_reset(struct iwl3945_priv *priv,
+extern int iwl3945_power_init_handle(struct iwl_priv *priv);
+extern int iwl3945_eeprom_init(struct iwl_priv *priv);
+extern int iwl3945_rx_queue_alloc(struct iwl_priv *priv);
+extern void iwl3945_rx_queue_reset(struct iwl_priv *priv,
 			       struct iwl_rx_queue *rxq);
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);
 extern int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm);
-extern int iwl3945_tx_queue_init(struct iwl3945_priv *priv,
+extern int iwl3945_tx_queue_init(struct iwl_priv *priv,
 			     struct iwl3945_tx_queue *txq, int count, u32 id);
 extern void iwl3945_rx_replenish(void *data);
-extern void iwl3945_tx_queue_free(struct iwl3945_priv *priv, struct iwl3945_tx_queue *txq);
-extern int iwl3945_send_cmd_pdu(struct iwl3945_priv *priv, u8 id, u16 len,
+extern void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl3945_tx_queue *txq);
+extern int iwl3945_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len,
 			    const void *data);
-extern int __must_check iwl3945_send_cmd(struct iwl3945_priv *priv,
+extern int __must_check iwl3945_send_cmd(struct iwl_priv *priv,
 		struct iwl3945_host_cmd *cmd);
-extern unsigned int iwl3945_fill_beacon_frame(struct iwl3945_priv *priv,
+extern unsigned int iwl3945_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,int left);
-extern int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv,
+extern int iwl3945_rx_queue_update_write_ptr(struct iwl_priv *priv,
 					 struct iwl_rx_queue *q);
-extern int iwl3945_send_statistics_request(struct iwl3945_priv *priv);
-extern void iwl3945_set_decrypted_flag(struct iwl3945_priv *priv, struct sk_buff *skb,
+extern int iwl3945_send_statistics_request(struct iwl_priv *priv);
+extern void iwl3945_set_decrypted_flag(struct iwl_priv *priv, struct sk_buff *skb,
 				   u32 decrypt_res,
 				   struct ieee80211_rx_status *stats);
 
@@ -302,7 +302,7 @@ extern void iwl3945_set_decrypted_flag(struct iwl3945_priv *priv, struct sk_buff
  * Currently used by iwl-3945-rs... look at restructuring so that it doesn't
  * call this... todo... fix that.
 */
-extern u8 iwl3945_sync_station(struct iwl3945_priv *priv, int sta_id,
+extern u8 iwl3945_sync_station(struct iwl_priv *priv, int sta_id,
 			   u16 tx_rate, u8 flags);
 
 /******************************************************************************
@@ -321,36 +321,36 @@ extern u8 iwl3945_sync_station(struct iwl3945_priv *priv, int sta_id,
  * iwl3945_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
-extern void iwl3945_hw_rx_handler_setup(struct iwl3945_priv *priv);
-extern void iwl3945_hw_setup_deferred_work(struct iwl3945_priv *priv);
-extern void iwl3945_hw_cancel_deferred_work(struct iwl3945_priv *priv);
-extern int iwl3945_hw_rxq_stop(struct iwl3945_priv *priv);
-extern int iwl3945_hw_set_hw_params(struct iwl3945_priv *priv);
-extern int iwl3945_hw_nic_init(struct iwl3945_priv *priv);
-extern int iwl3945_hw_nic_stop_master(struct iwl3945_priv *priv);
-extern void iwl3945_hw_txq_ctx_free(struct iwl3945_priv *priv);
-extern void iwl3945_hw_txq_ctx_stop(struct iwl3945_priv *priv);
-extern int iwl3945_hw_nic_reset(struct iwl3945_priv *priv);
-extern int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl3945_priv *priv, void *tfd,
+extern void iwl3945_hw_rx_handler_setup(struct iwl_priv *priv);
+extern void iwl3945_hw_setup_deferred_work(struct iwl_priv *priv);
+extern void iwl3945_hw_cancel_deferred_work(struct iwl_priv *priv);
+extern int iwl3945_hw_rxq_stop(struct iwl_priv *priv);
+extern int iwl3945_hw_set_hw_params(struct iwl_priv *priv);
+extern int iwl3945_hw_nic_init(struct iwl_priv *priv);
+extern int iwl3945_hw_nic_stop_master(struct iwl_priv *priv);
+extern void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv);
+extern void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv);
+extern int iwl3945_hw_nic_reset(struct iwl_priv *priv);
+extern int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
 					dma_addr_t addr, u16 len);
-extern int iwl3945_hw_txq_free_tfd(struct iwl3945_priv *priv, struct iwl3945_tx_queue *txq);
-extern int iwl3945_hw_get_temperature(struct iwl3945_priv *priv);
-extern int iwl3945_hw_tx_queue_init(struct iwl3945_priv *priv,
+extern int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl3945_tx_queue *txq);
+extern int iwl3945_hw_get_temperature(struct iwl_priv *priv);
+extern int iwl3945_hw_tx_queue_init(struct iwl_priv *priv,
 				struct iwl3945_tx_queue *txq);
-extern unsigned int iwl3945_hw_get_beacon_cmd(struct iwl3945_priv *priv,
+extern unsigned int iwl3945_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl3945_frame *frame, u8 rate);
-extern int iwl3945_hw_get_rx_read(struct iwl3945_priv *priv);
-extern void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
+extern int iwl3945_hw_get_rx_read(struct iwl_priv *priv);
+extern void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 				     struct iwl3945_cmd *cmd,
 				     struct ieee80211_tx_info *info,
 				     struct ieee80211_hdr *hdr,
 				     int sta_id, int tx_id);
-extern int iwl3945_hw_reg_send_txpower(struct iwl3945_priv *priv);
-extern int iwl3945_hw_reg_set_txpower(struct iwl3945_priv *priv, s8 power);
-extern void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv,
+extern int iwl3945_hw_reg_send_txpower(struct iwl_priv *priv);
+extern int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power);
+extern void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb);
-extern void iwl3945_disable_events(struct iwl3945_priv *priv);
-extern int iwl4965_get_temperature(const struct iwl3945_priv *priv);
+extern void iwl3945_disable_events(struct iwl_priv *priv);
+extern int iwl4965_get_temperature(const struct iwl_priv *priv);
 
 /**
  * iwl3945_hw_find_station - Find station id for a given BSSID
@@ -360,262 +360,43 @@ extern int iwl4965_get_temperature(const struct iwl3945_priv *priv);
  * not yet been merged into a single common layer for managing the
  * station tables.
  */
-extern u8 iwl3945_hw_find_station(struct iwl3945_priv *priv, const u8 *bssid);
+extern u8 iwl3945_hw_find_station(struct iwl_priv *priv, const u8 *bssid);
 
-extern int iwl3945_hw_channel_switch(struct iwl3945_priv *priv, u16 channel);
+extern int iwl3945_hw_channel_switch(struct iwl_priv *priv, u16 channel);
 
 /*
  * Forward declare iwl-3945.c functions for iwl-base.c
  */
-extern __le32 iwl3945_get_antenna_flags(const struct iwl3945_priv *priv);
-extern int iwl3945_init_hw_rate_table(struct iwl3945_priv *priv);
-extern void iwl3945_reg_txpower_periodic(struct iwl3945_priv *priv);
-extern int iwl3945_txpower_set_from_eeprom(struct iwl3945_priv *priv);
-extern u8 iwl3945_sync_sta(struct iwl3945_priv *priv, int sta_id,
+extern __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv);
+extern int iwl3945_init_hw_rate_table(struct iwl_priv *priv);
+extern void iwl3945_reg_txpower_periodic(struct iwl_priv *priv);
+extern int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv);
+extern u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id,
 		 u16 tx_rate, u8 flags);
 
 #ifdef CONFIG_IWL3945_RFKILL
-struct iwl3945_priv;
+struct iwl_priv;
 
-void iwl3945_rfkill_set_hw_state(struct iwl3945_priv *priv);
-void iwl3945_rfkill_unregister(struct iwl3945_priv *priv);
-int iwl3945_rfkill_init(struct iwl3945_priv *priv);
+void iwl3945_rfkill_set_hw_state(struct iwl_priv *priv);
+void iwl3945_rfkill_unregister(struct iwl_priv *priv);
+int iwl3945_rfkill_init(struct iwl_priv *priv);
 #else
-static inline void iwl3945_rfkill_set_hw_state(struct iwl3945_priv *priv) {}
-static inline void iwl3945_rfkill_unregister(struct iwl3945_priv *priv) {}
-static inline int iwl3945_rfkill_init(struct iwl3945_priv *priv) { return 0; }
+static inline void iwl3945_rfkill_set_hw_state(struct iwl_priv *priv) {}
+static inline void iwl3945_rfkill_unregister(struct iwl_priv *priv) {}
+static inline int iwl3945_rfkill_init(struct iwl_priv *priv) { return 0; }
 #endif
 
-
-struct iwl3945_priv {
-
-	/* ieee device used by generic ieee processing code */
-	struct ieee80211_hw *hw;
-	struct ieee80211_channel *ieee_channels;
-	struct ieee80211_rate *ieee_rates;
-	struct iwl_cfg *cfg; /* device configuration */
-
-	/* temporary frame storage list */
-	struct list_head free_frames;
-	int frames_count;
-
-	enum ieee80211_band band;
-	int alloc_rxb_skb;
-
-	void (*rx_handlers[REPLY_MAX])(struct iwl3945_priv *priv,
-				       struct iwl_rx_mem_buffer *rxb);
-
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
-
-#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
-	/* spectrum measurement report caching */
-	struct iwl_spectrum_notification measure_report;
-	u8 measurement_status;
-#endif
-	/* ucode beacon time */
-	u32 ucode_beacon_time;
-
-	/* we allocate array of iwl3945_channel_info for NIC's valid channels.
-	 *    Access via channel # using indirect index array */
-	struct iwl_channel_info *channel_info;	/* channel info array */
-	u8 channel_count;	/* # of channels */
-
-	/* each calibration channel group in the EEPROM has a derived
-	 * clip setting for each rate. */
-	const struct iwl3945_clip_group clip39_groups[5];
-
-	/* thermal calibration */
-	s32 temperature;	/* degrees Kelvin */
-	s32 last_temperature;
-
-	/* Scan related variables */
-	unsigned long last_scan_jiffies;
-	unsigned long next_scan_jiffies;
-	unsigned long scan_start;
-	unsigned long scan_pass_start;
-	unsigned long scan_start_tsf;
-	int scan_bands;
-	int one_direct_scan;
-	u8 direct_ssid_len;
-	u8 direct_ssid[IW_ESSID_MAX_SIZE];
-	struct iwl3945_scan_cmd *scan39;
-
-	/* spinlock */
-	spinlock_t lock;	/* protect general shared data */
-	spinlock_t hcmd_lock;	/* protect hcmd */
-	struct mutex mutex;
-
-	/* basic pci-network driver stuff */
-	struct pci_dev *pci_dev;
-
-	/* pci hardware address support */
-	void __iomem *hw_base;
-
-	/* uCode images, save to reload in case of failure */
-	u32 ucode_ver;			/* ucode version, copy of
-					   iwl_ucode.ver */
-	struct fw_desc ucode_code;	/* runtime inst */
-	struct fw_desc ucode_data;	/* runtime data original */
-	struct fw_desc ucode_data_backup;	/* runtime data save/restore */
-	struct fw_desc ucode_init;	/* initialization inst */
-	struct fw_desc ucode_init_data;	/* initialization data */
-	struct fw_desc ucode_boot;	/* bootstrap inst */
-
-
-	struct iwl_rxon_time_cmd rxon_timing;
-
-	/* We declare this const so it can only be
-	 * changed via explicit cast within the
-	 * routines that actually update the physical
-	 * hardware */
-	const struct iwl3945_rxon_cmd active39_rxon;
-	struct iwl3945_rxon_cmd staging39_rxon;
-
-	int error_recovering;
-	struct iwl3945_rxon_cmd recovery39_rxon;
-
-	/* 1st responses from initialize and runtime uCode images.
-	 * 4965's initialize alive response contains some calibration data. */
-	/* FIXME: 4965 uses bigger structure for init */
-	struct iwl_alive_resp card_alive_init;
-	struct iwl_alive_resp card_alive;
-
-#ifdef CONFIG_IWL3945_RFKILL
-	struct rfkill *rfkill;
-#endif
-
-#ifdef CONFIG_IWL3945_LEDS
-	struct iwl3945_led led39[IWL_LED_TRG_MAX];
-	unsigned long last_blink_time;
-	u8 last_blink_rate;
-	u8 allow_blinking;
-	unsigned int rxtxpackets;
-	u64 led_tpt;
-#endif
-
-
-	u16 active_rate;
-	u16 active_rate_basic;
-
-	u32 sta_supp_rates;
-
-	u8 call_post_assoc_from_beacon;
-	/* Rate scaling data */
-	s8 data_retry_limit;
-	u8 retry_rate;
-
-	wait_queue_head_t wait_command_queue;
-
-	int activity_timer_active;
-
-	/* Rx and Tx DMA processing queues */
-	struct iwl_rx_queue rxq;
-	struct iwl3945_tx_queue txq39[IWL39_MAX_NUM_QUEUES];
-
-	unsigned long status;
-
-	int last_rx_rssi;	/* From Rx packet statisitics */
-	int last_rx_noise;	/* From beacon statistics */
-
-	struct iwl3945_power_mgr power_data_39;
-
-	struct iwl3945_notif_statistics statistics_39;
-	unsigned long last_statistics_time;
-
-	/* context information */
-	u16 rates_mask;
-
-	u32 power_mode;
-	u32 antenna;
-	u8 bssid[ETH_ALEN];
-	u16 rts_threshold;
-	u8 mac_addr[ETH_ALEN];
-
-	/*station table variables */
-	spinlock_t sta_lock;
-	int num_stations;
-	struct iwl3945_station_entry stations_39[IWL_STATION_COUNT];
-
-	/* Indication if ieee80211_ops->open has been called */
-	u8 is_open;
-
-	u8 mac80211_registered;
-
-	/* Rx'd packet timing information */
-	u32 last_beacon_time;
-	u64 last_tsf;
-
-	/* eeprom */
-	struct iwl3945_eeprom eeprom39;
-
-	enum nl80211_iftype iw_mode;
-
-	struct sk_buff *ibss_beacon;
-
-	/* Last Rx'd beacon timestamp */
-	u64 timestamp;
-	u16 beacon_int;
-	void *shared_virt;
-	dma_addr_t shared_phys;
-	struct iwl_hw_params hw_params;
-	struct ieee80211_vif *vif;
-
-	/* Current association information needed to configure the
-	 * hardware */
-	u16 assoc_id;
-	u16 assoc_capability;
-	u8 ps_mode;
-
-	struct iwl_qos_info qos_data;
-
-	struct workqueue_struct *workqueue;
-
-	struct work_struct up;
-	struct work_struct restart;
-	struct work_struct calibrated_work;
-	struct work_struct scan_completed;
-	struct work_struct rx_replenish;
-	struct work_struct rf_kill;
-	struct work_struct abort_scan;
-	struct work_struct update_link_led;
-	struct work_struct auth_work;
-	struct work_struct report_work;
-	struct work_struct request_scan;
-	struct work_struct beacon_update;
-
-	struct tasklet_struct irq_tasklet;
-
-	struct delayed_work init_alive_start;
-	struct delayed_work alive_start;
-	struct delayed_work activity_timer;
-	struct delayed_work thermal_periodic;
-	struct delayed_work gather_stats;
-	struct delayed_work scan_check;
-
-#define IWL_DEFAULT_TX_POWER 0x0F
-	s8 user_txpower_limit;
-	s8 max_channel_txpower_limit;
-
-
-#ifdef CONFIG_IWL3945_DEBUG
-	/* debugging info */
-	u32 debug_level;
-	u32 framecnt_to_us;
-	atomic_t restrict_refcnt;
-#endif
-};				/*iwl3945_priv */
-
-static inline int iwl3945_is_associated(struct iwl3945_priv *priv)
+static inline int iwl3945_is_associated(struct iwl_priv *priv)
 {
 	return (priv->active39_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 extern const struct iwl_channel_info *iwl3945_get_channel_info(
-	const struct iwl3945_priv *priv, enum ieee80211_band band, u16 channel);
+	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);
 
-extern int iwl3945_rs_next_rate(struct iwl3945_priv *priv, int rate);
+extern int iwl3945_rs_next_rate(struct iwl_priv *priv, int rate);
 
-/* Requires full declaration of iwl3945_priv before including */
+/* Requires full declaration of iwl_priv before including */
 #include "iwl-3945-io.h"
 
 #endif

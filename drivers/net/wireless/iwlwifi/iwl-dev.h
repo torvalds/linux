@@ -40,6 +40,7 @@
 #include "iwl-eeprom.h"
 #include "iwl-4965-hw.h"
 #include "iwl-3945-hw.h"
+#include "iwl-3945-led.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-debug.h"
@@ -835,7 +836,7 @@ struct iwl_priv {
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
-#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
+#if defined(CONFIG_IWLAGN_SPECTRUM_MEASUREMENT) || defined(CONFIG_IWL3945_SPECTRUM_MEASUREMENT)
 	/* spectrum measurement report caching */
 	struct iwl_spectrum_notification measure_report;
 	u8 measurement_status;
@@ -916,18 +917,25 @@ struct iwl_priv {
 	 * 4965's initialize alive response contains some calibration data. */
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
-#ifdef CONFIG_IWLWIFI_RFKILL
+#if defined(CONFIG_IWLWIFI_RFKILL) || defined(CONFIG_IWL3945_RFKILL)
 	struct rfkill *rfkill;
 #endif
 
-#ifdef CONFIG_IWLWIFI_LEDS
-	struct iwl_led led[IWL_LED_TRG_MAX];
+#if defined(CONFIG_IWLWIFI_LEDS) || defined(CONFIG_IWL3945_LEDS)
 	unsigned long last_blink_time;
 	u8 last_blink_rate;
 	u8 allow_blinking;
 	u64 led_tpt;
 #endif
 
+#ifdef CONFIG_IWLWIFI_LEDS
+	struct iwl_led led[IWL_LED_TRG_MAX];
+#endif
+
+#ifdef CONFIG_IWL3945_LEDS
+	struct iwl3945_led led39[IWL_LED_TRG_MAX];
+	unsigned int rxtxpackets;
+#endif
 	u16 active_rate;
 	u16 active_rate_basic;
 
@@ -1048,12 +1056,16 @@ struct iwl_priv {
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
+
+	/*For 3945 only*/
+	struct delayed_work thermal_periodic;
+
 	/* TX Power */
 	s8 tx_power_user_lmt;
 	s8 tx_power_channel_lmt;
 
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWL3945_DEBUG)
 	/* debugging info */
 	u32 debug_level;
 	u32 framecnt_to_us;
@@ -1070,6 +1082,35 @@ struct iwl_priv {
 	u32 disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
+
+	/*For 3945*/
+#define IWL_DEFAULT_TX_POWER 0x0F
+	s8 user_txpower_limit;
+	s8 max_channel_txpower_limit;
+
+	struct iwl3945_scan_cmd *scan39;
+
+	/* We declare this const so it can only be
+	 * changed via explicit cast within the
+	 * routines that actually update the physical
+	 * hardware */
+	const struct iwl3945_rxon_cmd active39_rxon;
+	struct iwl3945_rxon_cmd staging39_rxon;
+	struct iwl3945_rxon_cmd recovery39_rxon;
+
+	struct iwl3945_tx_queue txq39[IWL39_MAX_NUM_QUEUES];
+
+	struct iwl3945_power_mgr power_data_39;
+	struct iwl3945_notif_statistics statistics_39;
+
+	struct iwl3945_station_entry stations_39[IWL_STATION_COUNT];
+
+	/* eeprom */
+	struct iwl3945_eeprom eeprom39;
+
+	u32 sta_supp_rates;
+	u8 call_post_assoc_from_beacon;
+
 }; /*iwl_priv */
 
 static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)
