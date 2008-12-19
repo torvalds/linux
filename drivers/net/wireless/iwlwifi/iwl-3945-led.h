@@ -30,22 +30,8 @@
 struct iwl3945_priv;
 
 #ifdef CONFIG_IWL3945_LEDS
-#define IWL_LED_SOLID 11
-#define IWL_LED_NAME_LEN 31
-#define IWL_DEF_LED_INTRVL __constant_cpu_to_le32(1000)
 
-#define IWL_LED_ACTIVITY       (0<<1)
-#define IWL_LED_LINK           (1<<1)
-
-enum led_type {
-	IWL_LED_TRG_TX,
-	IWL_LED_TRG_RX,
-	IWL_LED_TRG_ASSOC,
-	IWL_LED_TRG_RADIO,
-	IWL_LED_TRG_MAX,
-};
-
-#include <linux/leds.h>
+#include "iwl-led.h"
 
 struct iwl3945_led {
 	struct iwl3945_priv *priv;
