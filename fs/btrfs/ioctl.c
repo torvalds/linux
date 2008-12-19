@@ -646,6 +646,7 @@ static int btrfs_ioctl_defrag(struct file *file)
 		break;
 	}
 
+	mnt_drop_write(file->f_path.mnt);
 	return 0;
 }
 
@@ -730,8 +731,10 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		return ret;
 
 	src_file = fget(srcfd);
-	if (!src_file)
-		return -EBADF;
+	if (!src_file) {
+		ret = -EBADF;
+		goto out_drop_write;
+	}
 	src = src_file->f_dentry->d_inode;
 
 	ret = -EINVAL;
@@ -982,6 +985,8 @@ out_unlock:
 	btrfs_free_path(path);
 out_fput:
 	fput(src_file);
+out_drop_write:
+	mnt_drop_write(file->f_path.mnt);
 	return ret;
 }
 
