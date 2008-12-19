@@ -47,6 +47,7 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 #include "iwl-prph.h"
 #include "iwl-3945-hw.h"
 #include "iwl-debug.h"
+#include "iwl-power.h"
 #include "iwl-3945-led.h"
 
 /* Highest firmware API version supported */
@@ -245,33 +246,6 @@ struct iwl3945_clip_group {
 
 /* Minimum number of queues. MAX_NUM is defined in hw specific files */
 #define IWL_MIN_NUM_QUEUES	4
-
-/* Power management (not Tx power) structures */
-
-struct iwl3945_power_vec_entry {
-	struct iwl_powertable_cmd cmd;
-	u8 no_dtim;
-};
-#define IWL_POWER_RANGE_0  (0)
-#define IWL_POWER_RANGE_1  (1)
-
-#define IWL_POWER_MODE_CAM	0x00	/* Continuously Aware Mode, always on */
-#define IWL_POWER_INDEX_3	0x03
-#define IWL_POWER_INDEX_5	0x05
-#define IWL_POWER_AC		0x06
-#define IWL_POWER_BATTERY	0x07
-#define IWL_POWER_LIMIT		0x07
-#define IWL_POWER_MASK		0x0F
-#define IWL_POWER_ENABLED	0x10
-#define IWL_POWER_LEVEL(x)	((x) & IWL_POWER_MASK)
-
-struct iwl3945_power_mgr {
-	spinlock_t lock;
-	struct iwl3945_power_vec_entry pwr_range_0[IWL_POWER_AC];
-	struct iwl3945_power_vec_entry pwr_range_1[IWL_POWER_AC];
-	u8 active_index;
-	u32 dtim_val;
-};
 
 #define IEEE80211_DATA_LEN              2304
 #define IEEE80211_4ADDR_LEN             30

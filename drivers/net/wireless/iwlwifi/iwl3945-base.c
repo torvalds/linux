@@ -1815,7 +1815,7 @@ static void iwl3945_activate_qos(struct iwl3945_priv *priv, u8 force)
 
 /* default power management (not Tx power) table values */
 /* for TIM  0-10 */
-static struct iwl3945_power_vec_entry range_0[IWL_POWER_AC] = {
+static struct iwl_power_vec_entry range_0[IWL39_POWER_AC] = {
 	{{NOSLP, SLP_TIMEOUT(0), SLP_TIMEOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
 	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(300), SLP_VEC(2, 4, 6, 7, 7)}, 0},
@@ -1825,7 +1825,7 @@ static struct iwl3945_power_vec_entry range_0[IWL_POWER_AC] = {
 };
 
 /* for TIM > 10 */
-static struct iwl3945_power_vec_entry range_1[IWL_POWER_AC] = {
+static struct iwl_power_vec_entry range_1[IWL39_POWER_AC] = {
 	{{NOSLP, SLP_TIMEOUT(0), SLP_TIMEOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(500),
 		 SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
@@ -1842,7 +1842,7 @@ int iwl3945_power_init_handle(struct iwl3945_priv *priv)
 {
 	int rc = 0, i;
 	struct iwl3945_power_mgr *pow_data;
-	int size = sizeof(struct iwl3945_power_vec_entry) * IWL_POWER_AC;
+	int size = sizeof(struct iwl_power_vec_entry) * IWL39_POWER_AC;
 	u16 pci_pm;
 
 	IWL_DEBUG_POWER("Initialize power \n");
@@ -1865,7 +1865,7 @@ int iwl3945_power_init_handle(struct iwl3945_priv *priv)
 
 		IWL_DEBUG_POWER("adjust power command flags\n");
 
-		for (i = 0; i < IWL_POWER_AC; i++) {
+		for (i = 0; i < IWL39_POWER_AC; i++) {
 			cmd = &pow_data->pwr_range_0[i].cmd;
 
 			if (pci_pm & 0x1)
@@ -1883,7 +1883,7 @@ static int iwl3945_update_power_cmd(struct iwl3945_priv *priv,
 	int rc = 0, i;
 	u8 skip;
 	u32 max_sleep = 0;
-	struct iwl3945_power_vec_entry *range;
+	struct iwl_power_vec_entry *range;
 	u8 period = 0;
 	struct iwl3945_power_mgr *pow_data;
 
@@ -1951,10 +1951,10 @@ static int iwl3945_send_power_mode(struct iwl3945_priv *priv, u32 mode)
 	 * if plugged into AC power, set to CAM ("continuously aware mode"),
 	 * else user level */
 	switch (mode) {
-	case IWL_POWER_BATTERY:
+	case IWL39_POWER_BATTERY:
 		final_mode = IWL_POWER_INDEX_3;
 		break;
-	case IWL_POWER_AC:
+	case IWL39_POWER_AC:
 		final_mode = IWL_POWER_MODE_CAM;
 		break;
 	default:
@@ -7511,8 +7511,9 @@ static ssize_t store_power_level(struct device *d,
 		goto out;
 	}
 
-	if ((mode < 1) || (mode > IWL_POWER_LIMIT) || (mode == IWL_POWER_AC))
-		mode = IWL_POWER_AC;
+	if ((mode < 1) || (mode > IWL39_POWER_LIMIT) ||
+	    (mode == IWL39_POWER_AC))
+		mode = IWL39_POWER_AC;
 	else
 		mode |= IWL_POWER_ENABLED;
 
@@ -7560,10 +7561,10 @@ static ssize_t show_power_level(struct device *d,
 	p += sprintf(p, "%d ", level);
 	switch (level) {
 	case IWL_POWER_MODE_CAM:
-	case IWL_POWER_AC:
+	case IWL39_POWER_AC:
 		p += sprintf(p, "(AC)");
 		break;
-	case IWL_POWER_BATTERY:
+	case IWL39_POWER_BATTERY:
 		p += sprintf(p, "(BATTERY)");
 		break;
 	default:
@@ -7968,7 +7969,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	priv->rates_mask = IWL_RATES_MASK;
 	/* If power management is turned on, default to AC mode */
-	priv->power_mode = IWL_POWER_AC;
+	priv->power_mode = IWL39_POWER_AC;
 	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
 
 	err = iwl3945_init_channel_map(priv);
