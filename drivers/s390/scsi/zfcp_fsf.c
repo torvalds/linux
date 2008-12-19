@@ -1907,7 +1907,7 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 				dev_err(&adapter->ccw_device->dev,
 					"Shared read-write access not "
 					"supported (unit 0x%016Lx, port "
-					"0x%016Lx\n)",
+					"0x%016Lx)\n",
 					(unsigned long long)unit->fcp_lun,
 					(unsigned long long)unit->port->wwpn);
 				zfcp_erp_unit_failed(unit, 36, req);
