@@ -597,10 +597,6 @@ struct zfcp_data {
 						       lists */
 	struct semaphore        config_sema;        /* serialises configuration
 						       changes */
-	atomic_t		loglevel;            /* current loglevel */
-	char			init_busid[20];
-	u64			init_wwpn;
-	u64			init_fcp_lun;
 	struct kmem_cache	*fsf_req_qtcb_cache;
 	struct kmem_cache	*sr_buffer_cache;
 	struct kmem_cache	*gid_pn_cache;

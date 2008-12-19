@@ -34,13 +34,12 @@
 
 #define ZFCP_BUS_ID_SIZE	20
 
-static char *device;
-
 MODULE_AUTHOR("IBM Deutschland Entwicklung GmbH - linux390@de.ibm.com");
 MODULE_DESCRIPTION("FCP HBA driver");
 MODULE_LICENSE("GPL");
 
-module_param(device, charp, 0400);
+static char *init_device;
+module_param_named(device, init_device, charp, 0400);
 MODULE_PARM_DESC(device, "specify initial device");
 
 static int zfcp_reqlist_alloc(struct zfcp_adapter *adapter)
@@ -73,46 +72,7 @@ int zfcp_reqlist_isempty(struct zfcp_adapter *adapter)
 	return 1;
 }
 
-static int __init zfcp_device_setup(char *devstr)
-{
-	char *token;
-	char *str;
-
-	if (!devstr)
-		return 0;
-
-	/* duplicate devstr and keep the original for sysfs presentation*/
-	str = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
-	if (!str)
-		return 0;
-
-	strcpy(str, devstr);
-
-	token = strsep(&str, ",");
-	if (!token || strlen(token) >= ZFCP_BUS_ID_SIZE)
-		goto err_out;
-	strncpy(zfcp_data.init_busid, token, ZFCP_BUS_ID_SIZE);
-
-	token = strsep(&str, ",");
-	if (!token || strict_strtoull(token, 0,
-				(unsigned long long *) &zfcp_data.init_wwpn))
-		goto err_out;
-
-	token = strsep(&str, ",");
-	if (!token || strict_strtoull(token, 0,
-				(unsigned long long *) &zfcp_data.init_fcp_lun))
-		goto err_out;
-
-	kfree(str);
-	return 1;
-
- err_out:
-	kfree(str);
-	pr_err("%s is not a valid SCSI device\n", devstr);
-	return 0;
-}
-
-static void __init zfcp_init_device_configure(void)
+static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 {
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
@@ -120,17 +80,17 @@ static void __init zfcp_init_device_configure(void)
 
 	down(&zfcp_data.config_sema);
 	read_lock_irq(&zfcp_data.config_lock);
-	adapter = zfcp_get_adapter_by_busid(zfcp_data.init_busid);
+	adapter = zfcp_get_adapter_by_busid(busid);
 	if (adapter)
 		zfcp_adapter_get(adapter);
 	read_unlock_irq(&zfcp_data.config_lock);
 
 	if (!adapter)
 		goto out_adapter;
-	port = zfcp_port_enqueue(adapter, zfcp_data.init_wwpn, 0, 0);
+	port = zfcp_port_enqueue(adapter, wwpn, 0, 0);
 	if (IS_ERR(port))
 		goto out_port;
-	unit = zfcp_unit_enqueue(port, zfcp_data.init_fcp_lun);
+	unit = zfcp_unit_enqueue(port, lun);
 	if (IS_ERR(unit))
 		goto out_unit;
 	up(&zfcp_data.config_sema);
@@ -158,6 +118,42 @@ static struct kmem_cache *zfcp_cache_create(int size, char *name)
 	while ((size - align) > 0)
 		align <<= 1;
 	return kmem_cache_create(name , size, align, 0, NULL);
+}
+
+static void __init zfcp_init_device_setup(char *devstr)
+{
+	char *token;
+	char *str;
+	char busid[ZFCP_BUS_ID_SIZE];
+	u64 wwpn, lun;
+
+	/* duplicate devstr and keep the original for sysfs presentation*/
+	str = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
+	if (!str)
+		return;
+
+	strcpy(str, devstr);
+
+	token = strsep(&str, ",");
+	if (!token || strlen(token) >= ZFCP_BUS_ID_SIZE)
+		goto err_out;
+	strncpy(busid, token, ZFCP_BUS_ID_SIZE);
+
+	token = strsep(&str, ",");
+	if (!token || strict_strtoull(token, 0, (unsigned long long *) &wwpn))
+		goto err_out;
+
+	token = strsep(&str, ",");
+	if (!token || strict_strtoull(token, 0, (unsigned long long *) &lun))
+		goto err_out;
+
+	kfree(str);
+	zfcp_init_device_configure(busid, wwpn, lun);
+	return;
+
+ err_out:
+	kfree(str);
+	pr_err("%s is not a valid SCSI device\n", devstr);
 }
 
 static int __init zfcp_module_init(void)
@@ -202,10 +198,9 @@ static int __init zfcp_module_init(void)
 		goto out_ccw_register;
 	}
 
-	if (zfcp_device_setup(device))
-		zfcp_init_device_configure();
-
-	goto out;
+	if (init_device)
+		zfcp_init_device_setup(init_device);
+	return 0;
 
 out_ccw_register:
 	misc_deregister(&zfcp_cfdc_misc);
