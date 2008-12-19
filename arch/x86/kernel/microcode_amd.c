@@ -160,7 +160,7 @@ static void apply_microcode_amd(int cpu)
 		return;
 
 	spin_lock_irqsave(&microcode_update_lock, flags);
-	wrmsrl(MSR_AMD64_PATCH_LOADER, &mc_amd->hdr.data_code);
+	wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc_amd->hdr.data_code);
 	/* get patch id after patching */
 	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 	spin_unlock_irqrestore(&microcode_update_lock, flags);
@@ -372,3 +372,4 @@ struct microcode_ops * __init init_amd_microcode(void)
 {
 	return &microcode_amd_ops;
 }
+
