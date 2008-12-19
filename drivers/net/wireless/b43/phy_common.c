@@ -296,8 +296,10 @@ void b43_software_rfkill(struct b43_wldev *dev, enum rfkill_state state)
 		state = RFKILL_STATE_SOFT_BLOCKED;
 	}
 
+	b43_mac_suspend(dev);
 	phy->ops->software_rfkill(dev, state);
 	phy->radio_on = (state == RFKILL_STATE_UNBLOCKED);
+	b43_mac_enable(dev);
 }
 
 /**
