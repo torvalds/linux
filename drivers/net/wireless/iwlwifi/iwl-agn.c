@@ -1634,16 +1634,16 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 		goto err_release;
 	}
 	if (api_ver != api_max)
-		IWL_ERROR("Firmware has old API version. Expected v%u, "
+		IWL_ERR(priv, "Firmware has old API version. Expected v%u, "
 			  "got v%u. New firmware can be obtained "
 			  "from http://www.intellinuxwireless.org.\n",
 			  api_max, api_ver);
 
-	printk(KERN_INFO DRV_NAME " loaded firmware version %u.%u.%u.%u\n",
-		       IWL_UCODE_MAJOR(priv->ucode_ver),
-		       IWL_UCODE_MINOR(priv->ucode_ver),
-		       IWL_UCODE_API(priv->ucode_ver),
-		       IWL_UCODE_SERIAL(priv->ucode_ver));
+	IWL_INFO(priv, "loaded firmware version %u.%u.%u.%u\n",
+	       IWL_UCODE_MAJOR(priv->ucode_ver),
+	       IWL_UCODE_MINOR(priv->ucode_ver),
+	       IWL_UCODE_API(priv->ucode_ver),
+	       IWL_UCODE_SERIAL(priv->ucode_ver));
 
 	IWL_DEBUG_INFO("f/w package hdr ucode version raw = 0x%x\n",
 		       priv->ucode_ver);
@@ -3355,8 +3355,7 @@ static ssize_t store_debug_level(struct device *d,
 
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
-		printk(KERN_INFO DRV_NAME
-		       ": %s is not in hex or decimal form.\n", buf);
+		IWL_ERR(priv, "%s is not in hex or decimal form.\n", buf);
 	else
 		priv->debug_level = val;
 
@@ -3435,8 +3434,7 @@ static ssize_t store_tx_power(struct device *d,
 
 	ret = strict_strtoul(buf, 10, &val);
 	if (ret)
-		printk(KERN_INFO DRV_NAME
-		       ": %s is not in decimal form.\n", buf);
+		IWL_INFO(priv, "%s is not in decimal form.\n", buf);
 	else
 		iwl_set_tx_power(priv, val, false);
 
@@ -3775,8 +3773,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		/* both attempts failed: */
 		if (err) {
-			printk(KERN_WARNING "%s: No suitable DMA available.\n",
-				DRV_NAME);
+			IWL_WARN(priv, "No suitable DMA available.\n");
 			goto out_pci_disable_device;
 		}
 	}
@@ -3802,8 +3799,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	IWL_DEBUG_INFO("pci_resource_base = %p\n", priv->hw_base);
 
 	iwl_hw_detect(priv);
-	printk(KERN_INFO DRV_NAME
-		": Detected Intel Wireless WiFi Link %s REV=0x%X\n",
+	IWL_INFO(priv, "Detected Intel Wireless WiFi Link %s REV=0x%X\n",
 		priv->cfg->name, priv->hw_rev);
 
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep

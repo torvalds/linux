@@ -2239,7 +2239,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	default:
-		printk(KERN_ERR "Unknown encode alg %d\n", keyinfo->alg);
+		IWL_ERR(priv, "Unknown encode alg %d\n", keyinfo->alg);
 		break;
 	}
 }
@@ -3504,8 +3504,7 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv)
 		    alloc_skb(IWL_RX_BUF_SIZE, __GFP_NOWARN | GFP_ATOMIC);
 		if (!rxb->skb) {
 			if (net_ratelimit())
-				printk(KERN_CRIT DRV_NAME
-				       ": Can not allocate SKB buffers\n");
+				IWL_CRIT(priv, ": Can not allocate SKB buffers\n");
 			/* We don't reschedule replenish work here -- we will
 			 * call the restock method and if it still needs
 			 * more buffers it will schedule replenish */
@@ -4874,15 +4873,13 @@ static int iwl3945_init_geos(struct iwl_priv *priv)
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & IWL_SKU_A) {
-		printk(KERN_INFO DRV_NAME
-		       ": Incorrectly detected BG card as ABG.  Please send "
-		       "your PCI ID 0x%04X:0x%04X to maintainer.\n",
-		       priv->pci_dev->device, priv->pci_dev->subsystem_device);
+		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
+			"Please send your PCI ID 0x%04X:0x%04X to maintainer.\n",
+			priv->pci_dev->device, priv->pci_dev->subsystem_device);
 		 priv->cfg->sku &= ~IWL_SKU_A;
 	}
 
-	printk(KERN_INFO DRV_NAME
-	       ": Tunable channels: %d 802.11bg, %d 802.11a channels\n",
+	IWL_INFO(priv, "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
 	       priv->bands[IEEE80211_BAND_2GHZ].n_channels,
 	       priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 
@@ -5299,11 +5296,12 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 			  "from http://www.intellinuxwireless.org.\n",
 			  api_max, api_ver);
 
-	printk(KERN_INFO DRV_NAME " loaded firmware version %u.%u.%u.%u\n",
-		       IWL_UCODE_MAJOR(priv->ucode_ver),
-		       IWL_UCODE_MINOR(priv->ucode_ver),
-		       IWL_UCODE_API(priv->ucode_ver),
-		       IWL_UCODE_SERIAL(priv->ucode_ver));
+	IWL_INFO(priv, "loaded firmware version %u.%u.%u.%u\n",
+		IWL_UCODE_MAJOR(priv->ucode_ver),
+		IWL_UCODE_MINOR(priv->ucode_ver),
+		IWL_UCODE_API(priv->ucode_ver),
+		IWL_UCODE_SERIAL(priv->ucode_ver));
+
 	IWL_DEBUG_INFO("f/w package hdr ucode version raw = 0x%x\n",
 		       priv->ucode_ver);
 	IWL_DEBUG_INFO("f/w package hdr runtime inst size = %u\n", inst_size);
@@ -7192,8 +7190,7 @@ static ssize_t store_debug_level(struct device *d,
 
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
-		printk(KERN_INFO DRV_NAME
-		       ": %s is not in hex or decimal form.\n", buf);
+		IWL_INFO(priv, "%s is not in hex or decimal form.\n", buf);
 	else
 		priv->debug_level = val;
 
@@ -7235,8 +7232,7 @@ static ssize_t store_tx_power(struct device *d,
 
 	val = simple_strtoul(p, &p, 10);
 	if (p == buf)
-		printk(KERN_INFO DRV_NAME
-		       ": %s is not in decimal form.\n", buf);
+		IWL_INFO(priv, ": %s is not in decimal form.\n", buf);
 	else
 		iwl3945_hw_reg_set_txpower(priv, val);
 
@@ -7792,7 +7788,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	if (!err)
 		err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (err) {
-		printk(KERN_WARNING DRV_NAME ": No suitable DMA available.\n");
+		IWL_WARN(priv, "No suitable DMA available.\n");
 		goto out_pci_disable_device;
 	}
 
@@ -7900,8 +7896,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		goto out_free_channel_map;
 	}
 
-	printk(KERN_INFO DRV_NAME
-		": Detected Intel Wireless WiFi Link %s\n", priv->cfg->name);
+	IWL_INFO(priv, "Detected Intel Wireless WiFi Link %s\n",
+		priv->cfg->name);
 
 	/***********************************
 	 * 7. Initialize Module Parameters

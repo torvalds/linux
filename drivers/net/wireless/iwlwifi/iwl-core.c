@@ -511,16 +511,14 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & IWL_SKU_A) {
-		dev_printk(KERN_INFO, &(priv->hw->wiphy->dev),
-			   "Incorrectly detected BG card as ABG.  Please send "
-			   "your PCI ID 0x%04X:0x%04X to maintainer.\n",
+		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
+			"Please send your PCI ID 0x%04X:0x%04X to maintainer.\n",
 			   priv->pci_dev->device,
 			   priv->pci_dev->subsystem_device);
 		priv->cfg->sku &= ~IWL_SKU_A;
 	}
 
-	dev_printk(KERN_INFO, &(priv->hw->wiphy->dev),
-		   "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
+	IWL_INFO(priv, "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
 		   priv->bands[IEEE80211_BAND_2GHZ].n_channels,
 		   priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 

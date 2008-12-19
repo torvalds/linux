@@ -172,9 +172,6 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
 	const size_t bufsz = sizeof(buf);
 
-	printk(KERN_DEBUG "offset is: 0x%x\tlen is: 0x%x\n",
-	priv->dbgfs->sram_offset, priv->dbgfs->sram_len);
-
 	iwl_grab_nic_access(priv);
 	for (i = priv->dbgfs->sram_len; i > 0; i -= 4) {
 		val = iwl_read_targ_mem(priv, priv->dbgfs->sram_offset + \

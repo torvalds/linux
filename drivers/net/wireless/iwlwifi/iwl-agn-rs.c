@@ -463,8 +463,9 @@ static int rs_collect_tx_data(struct iwl_rate_scale_data *windows,
  * Fill uCode API rate_n_flags field, based on "search" or "active" table.
  */
 /* FIXME:RS:remove this function and put the flags statically in the table */
-static u32 rate_n_flags_from_tbl(struct iwl_scale_tbl_info *tbl,
-				       int index, u8 use_green)
+static u32 rate_n_flags_from_tbl(struct iwl_priv *priv,
+				 struct iwl_scale_tbl_info *tbl,
+				 int index, u8 use_green)
 {
 	u32 rate_n_flags = 0;
 
@@ -475,8 +476,7 @@ static u32 rate_n_flags_from_tbl(struct iwl_scale_tbl_info *tbl,
 
 	} else if (is_Ht(tbl->lq_type)) {
 		if (index > IWL_LAST_OFDM_RATE) {
-			printk(KERN_ERR RS_NAME": Invalid HT rate index %d\n",
-			       index);
+			IWL_ERR(priv, "Invalid HT rate index %d\n", index);
 			index = IWL_LAST_OFDM_RATE;
 		}
 		rate_n_flags = RATE_MCS_HT_MSK;
@@ -488,8 +488,7 @@ static u32 rate_n_flags_from_tbl(struct iwl_scale_tbl_info *tbl,
 		else
 			rate_n_flags |=	iwl_rates[index].plcp_mimo3;
 	} else {
-		printk(KERN_ERR RS_NAME": Invalid tbl->lq_type %d\n",
-		       tbl->lq_type);
+		IWL_ERR(priv, "Invalid tbl->lq_type %d\n", tbl->lq_type);
 	}
 
 	rate_n_flags |= ((tbl->ant_type << RATE_MCS_ANT_POS) &
@@ -509,8 +508,7 @@ static u32 rate_n_flags_from_tbl(struct iwl_scale_tbl_info *tbl,
 			rate_n_flags |= RATE_MCS_GF_MSK;
 			if (is_siso(tbl->lq_type) && tbl->is_SGI) {
 				rate_n_flags &= ~RATE_MCS_SGI_MSK;
-				printk(KERN_ERR RS_NAME
-				       ": GF was set with SGI:SISO\n");
+				IWL_ERR(priv, "GF was set with SGI:SISO\n");
 			}
 		}
 	}
@@ -761,7 +759,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 		low = scale_index;
 
 out:
-	return rate_n_flags_from_tbl(tbl, low, is_green);
+	return rate_n_flags_from_tbl(lq_sta->drv, tbl, low, is_green);
 }
 
 /*
@@ -1179,7 +1177,7 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 						rate, rate_mask);
 		return -1;
 	}
-	tbl->current_rate = rate_n_flags_from_tbl(tbl, rate, is_green);
+	tbl->current_rate = rate_n_flags_from_tbl(priv, tbl, rate, is_green);
 
 	IWL_DEBUG_RATE("LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate, is_green);
@@ -1239,7 +1237,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 			     rate, rate_mask);
 		return -1;
 	}
-	tbl->current_rate = rate_n_flags_from_tbl(tbl, rate, is_green);
+	tbl->current_rate = rate_n_flags_from_tbl(priv, tbl, rate, is_green);
 	IWL_DEBUG_RATE("LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate, is_green);
 	return 0;
@@ -1442,8 +1440,9 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 				if (tpt >= search_tbl->expected_tpt[index])
 					break;
 			}
-			search_tbl->current_rate = rate_n_flags_from_tbl(
-						search_tbl, index, is_green);
+			search_tbl->current_rate =
+				rate_n_flags_from_tbl(priv, search_tbl,
+						      index, is_green);
 			goto out;
 		}
 		tbl->action++;
@@ -1554,8 +1553,9 @@ static int rs_move_mimo_to_other(struct iwl_priv *priv,
 				if (tpt >= search_tbl->expected_tpt[index])
 					break;
 			}
-			search_tbl->current_rate = rate_n_flags_from_tbl(
-						search_tbl, index, is_green);
+			search_tbl->current_rate =
+				rate_n_flags_from_tbl(priv, search_tbl,
+						      index, is_green);
 			goto out;
 
 		}
@@ -1947,7 +1947,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq) {
-		rate = rate_n_flags_from_tbl(tbl, index, is_green);
+		rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
 		rs_fill_link_cmd(priv, lq_sta, rate);
 		iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
 	}
@@ -2031,7 +2031,7 @@ lq_update:
 	}
 
 out:
-	tbl->current_rate = rate_n_flags_from_tbl(tbl, index, is_green);
+	tbl->current_rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
 	i = index;
 	lq_sta->last_txrate_idx = i;
 
@@ -2084,7 +2084,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	if (!rs_is_valid_ant(valid_tx_ant, tbl->ant_type))
 	    rs_toggle_antenna(valid_tx_ant, &rate, tbl);
 
-	rate = rate_n_flags_from_tbl(tbl, rate_idx, use_green);
+	rate = rate_n_flags_from_tbl(priv, tbl, rate_idx, use_green);
 	tbl->current_rate = rate;
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_link_cmd(NULL, lq_sta, rate);

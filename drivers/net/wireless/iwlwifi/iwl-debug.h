@@ -31,6 +31,13 @@
 
 struct iwl_priv;
 
+#define IWL_ERROR(f, a...) dev_err(&(priv->pci_dev->dev), f, ## a)
+#define IWL_WARNING(f, a...) dev_warn(&(priv->pci_dev->dev), f, ## a)
+#define IWL_ERR(p, f, a...) dev_err(&((p)->pci_dev->dev), f, ## a)
+#define IWL_WARN(p, f, a...) dev_warn(&((p)->pci_dev->dev), f, ## a)
+#define IWL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)
+#define IWL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG(level, fmt, args...)					    \
 do {									    \
@@ -163,11 +170,6 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DL_STATS		(1 << 29)
 #define IWL_DL_TX_REPLY		(1 << 30)
 #define IWL_DL_QOS		(1 << 31)
-
-#define IWL_ERROR(f, a...)		\
-		dev_printk(KERN_ERR, &(priv->hw->wiphy->dev), f, ## a)
-#define IWL_WARNING(f, a...)		\
-		dev_printk(KERN_WARNING, &(priv->hw->wiphy->dev), f, ## a)
 
 #define IWL_DEBUG_INFO(f, a...)		IWL_DEBUG(IWL_DL_INFO, f, ## a)
 #define IWL_DEBUG_MAC80211(f, a...)	IWL_DEBUG(IWL_DL_MAC80211, f, ## a)

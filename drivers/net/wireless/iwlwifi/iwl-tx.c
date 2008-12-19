@@ -802,7 +802,7 @@ static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	default:
-		printk(KERN_ERR "Unknown encode alg %d\n", keyconf->alg);
+		IWL_ERR(priv, "Unknown encode alg %d\n", keyconf->alg);
 		break;
 	}
 }
@@ -1334,7 +1334,7 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 		return ret;
 
 	if (tid_data->tfds_in_queue == 0) {
-		printk(KERN_ERR "HW queue is empty\n");
+		IWL_ERR(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
 		ieee80211_start_tx_ba_cb_irqsafe(priv->hw, ra, tid);
 	} else {
