@@ -1385,6 +1385,7 @@ static int zfcp_erp_thread(void *data)
 	struct list_head *next;
 	struct zfcp_erp_action *act;
 	unsigned long flags;
+	int ignore;
 
 	daemonize("zfcperp%s", dev_name(&adapter->ccw_device->dev));
 	/* Block all signals */
@@ -1407,7 +1408,7 @@ static int zfcp_erp_thread(void *data)
 		}
 
 		zfcp_rec_dbf_event_thread_lock(4, adapter);
-		down_interruptible(&adapter->erp_ready_sem);
+		ignore = down_interruptible(&adapter->erp_ready_sem);
 		zfcp_rec_dbf_event_thread_lock(5, adapter);
 	}
 
