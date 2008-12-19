@@ -233,7 +233,7 @@ static int omap_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		goto out;
 
-	prtd = kzalloc(sizeof(prtd), GFP_KERNEL);
+	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (prtd == NULL) {
 		ret = -ENOMEM;
 		goto out;
