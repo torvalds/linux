@@ -804,7 +804,6 @@ void drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.num_connector = 0;
 	dev->mode_config.num_crtc = 0;
 	dev->mode_config.num_encoder = 0;
-	dev->mode_config.hotplug_counter = 0;
 }
 EXPORT_SYMBOL(drm_mode_config_init);
 
@@ -899,16 +898,6 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
-
-int drm_mode_hotplug_ioctl(struct drm_device *dev,
-			   void *data, struct drm_file *file_priv)
-{
-	struct drm_mode_hotplug *arg = data;
-
-	arg->counter = dev->mode_config.hotplug_counter;
-
-	return 0;
-}
 
 /**
  * drm_crtc_convert_to_umode - convert a drm_display_mode into a modeinfo
@@ -1543,9 +1532,9 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	}
 
 	mutex_lock(&dev->mode_config.mutex);
-	obj = drm_mode_object_find(dev, req->crtc, DRM_MODE_OBJECT_CRTC);
+	obj = drm_mode_object_find(dev, req->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
-		DRM_DEBUG("Unknown CRTC ID %d\n", req->crtc);
+		DRM_DEBUG("Unknown CRTC ID %d\n", req->crtc_id);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1622,7 +1611,7 @@ int drm_mode_addfb(struct drm_device *dev,
 		goto out;
 	}
 
-	r->buffer_id = fb->base.id;
+	r->fb_id = fb->base.id;
 	list_add(&fb->filp_head, &file_priv->fbs);
 
 out:
@@ -1714,7 +1703,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	int ret = 0;
 
 	mutex_lock(&dev->mode_config.mutex);
-	obj = drm_mode_object_find(dev, r->buffer_id, DRM_MODE_OBJECT_FB);
+	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
 		DRM_ERROR("invalid framebuffer id\n");
 		ret = -EINVAL;
@@ -2326,7 +2315,7 @@ int drm_mode_replacefb(struct drm_device *dev,
 
 	/* right replace the current bo attached to this fb with a new bo */
 	mutex_lock(&dev->mode_config.mutex);
-	obj = drm_mode_object_find(dev, r->buffer_id, DRM_MODE_OBJECT_FB);
+	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
 		ret = -EINVAL;
 		goto out;

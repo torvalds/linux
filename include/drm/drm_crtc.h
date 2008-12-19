@@ -573,9 +573,6 @@ struct drm_mode_config {
 	/* Optional properties */
 	struct drm_property *scaling_mode_property;
 	struct drm_property *dithering_mode_property;
-
-	/* hotplug */
-	uint32_t hotplug_counter;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)

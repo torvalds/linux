@@ -780,8 +780,6 @@ EXPORT_SYMBOL(drm_helper_initial_config);
  */
 int drm_helper_hotplug_stage_two(struct drm_device *dev)
 {
-	dev->mode_config.hotplug_counter++;
-
 	drm_helper_plugged_event(dev);
 
 	return 0;

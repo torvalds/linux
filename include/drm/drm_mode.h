@@ -33,10 +33,10 @@
 #include <linux/kernel.h>
 #endif
 
-#define DRM_DISPLAY_INFO_LEN 32
-#define DRM_CONNECTOR_NAME_LEN 32
-#define DRM_DISPLAY_MODE_LEN 32
-#define DRM_PROP_NAME_LEN 32
+#define DRM_DISPLAY_INFO_LEN	32
+#define DRM_CONNECTOR_NAME_LEN	32
+#define DRM_DISPLAY_MODE_LEN	32
+#define DRM_PROP_NAME_LEN	32
 
 #define DRM_MODE_TYPE_BUILTIN	(1<<0)
 #define DRM_MODE_TYPE_CLOCK_C	((1<<1) | DRM_MODE_TYPE_BUILTIN)
@@ -65,30 +65,30 @@
 
 /* DPMS flags */
 /* bit compatible with the xorg definitions. */
-#define DRM_MODE_DPMS_ON 0
-#define DRM_MODE_DPMS_STANDBY 1
-#define DRM_MODE_DPMS_SUSPEND 2
-#define DRM_MODE_DPMS_OFF 3
+#define DRM_MODE_DPMS_ON	0
+#define DRM_MODE_DPMS_STANDBY	1
+#define DRM_MODE_DPMS_SUSPEND	2
+#define DRM_MODE_DPMS_OFF	3
 
 /* Scaling mode options */
-#define DRM_MODE_SCALE_NON_GPU 0
-#define DRM_MODE_SCALE_FULLSCREEN 1
-#define DRM_MODE_SCALE_NO_SCALE 2
-#define DRM_MODE_SCALE_ASPECT 3
+#define DRM_MODE_SCALE_NON_GPU		0
+#define DRM_MODE_SCALE_FULLSCREEN	1
+#define DRM_MODE_SCALE_NO_SCALE		2
+#define DRM_MODE_SCALE_ASPECT		3
 
 /* Dithering mode options */
-#define DRM_MODE_DITHERING_OFF 0
-#define DRM_MODE_DITHERING_ON 1
+#define DRM_MODE_DITHERING_OFF	0
+#define DRM_MODE_DITHERING_ON	1
 
 struct drm_mode_modeinfo {
-	unsigned int clock;
-	unsigned short hdisplay, hsync_start, hsync_end, htotal, hskew;
-	unsigned short vdisplay, vsync_start, vsync_end, vtotal, vscan;
+	uint32_t clock;
+	uint16_t hdisplay, hsync_start, hsync_end, htotal, hskew;
+	uint16_t vdisplay, vsync_start, vsync_end, vtotal, vscan;
 
-	unsigned int vrefresh; /* vertical refresh * 1000 */
+	uint32_t vrefresh; /* vertical refresh * 1000 */
 
-	unsigned int flags;
-	unsigned int type;
+	uint32_t flags;
+	uint32_t type;
 	char name[DRM_DISPLAY_MODE_LEN];
 };
 
@@ -97,39 +97,39 @@ struct drm_mode_card_res {
 	uint64_t crtc_id_ptr;
 	uint64_t connector_id_ptr;
 	uint64_t encoder_id_ptr;
-	int count_fbs;
-	int count_crtcs;
-	int count_connectors;
-	int count_encoders;
-	int min_width, max_width;
-	int min_height, max_height;
+	uint32_t count_fbs;
+	uint32_t count_crtcs;
+	uint32_t count_connectors;
+	uint32_t count_encoders;
+	uint32_t min_width, max_width;
+	uint32_t min_height, max_height;
 };
 
 struct drm_mode_crtc {
 	uint64_t set_connectors_ptr;
-	int count_connectors;
+	uint32_t count_connectors;
 
-	unsigned int crtc_id; /**< Id */
-	unsigned int fb_id; /**< Id of framebuffer */
+	uint32_t crtc_id; /**< Id */
+	uint32_t fb_id; /**< Id of framebuffer */
 
-	int x, y; /**< Position on the frameuffer */
+	uint32_t x, y; /**< Position on the frameuffer */
 
 	uint32_t gamma_size;
-	int mode_valid;
+	uint32_t mode_valid;
 	struct drm_mode_modeinfo mode;
 };
 
-#define DRM_MODE_ENCODER_NONE 0
-#define DRM_MODE_ENCODER_DAC  1
-#define DRM_MODE_ENCODER_TMDS 2
-#define DRM_MODE_ENCODER_LVDS 3
-#define DRM_MODE_ENCODER_TVDAC 4
+#define DRM_MODE_ENCODER_NONE	0
+#define DRM_MODE_ENCODER_DAC	1
+#define DRM_MODE_ENCODER_TMDS	2
+#define DRM_MODE_ENCODER_LVDS	3
+#define DRM_MODE_ENCODER_TVDAC	4
 
 struct drm_mode_get_encoder {
-	unsigned int encoder_id;
-	unsigned int encoder_type;
+	uint32_t encoder_id;
+	uint32_t encoder_type;
 
-	unsigned int crtc_id; /**< Id of crtc */
+	uint32_t crtc_id; /**< Id of crtc */
 
 	uint32_t possible_crtcs;
 	uint32_t possible_clones;
@@ -137,27 +137,27 @@ struct drm_mode_get_encoder {
 
 /* This is for connectors with multiple signal types. */
 /* Try to match DRM_MODE_CONNECTOR_X as closely as possible. */
-#define DRM_MODE_SUBCONNECTOR_Automatic 0
-#define DRM_MODE_SUBCONNECTOR_Unknown 0
-#define DRM_MODE_SUBCONNECTOR_DVID 3
-#define DRM_MODE_SUBCONNECTOR_DVIA 4
-#define DRM_MODE_SUBCONNECTOR_Composite 5
-#define DRM_MODE_SUBCONNECTOR_SVIDEO 6
-#define DRM_MODE_SUBCONNECTOR_Component 8
+#define DRM_MODE_SUBCONNECTOR_Automatic	0
+#define DRM_MODE_SUBCONNECTOR_Unknown	0
+#define DRM_MODE_SUBCONNECTOR_DVID	3
+#define DRM_MODE_SUBCONNECTOR_DVIA	4
+#define DRM_MODE_SUBCONNECTOR_Composite	5
+#define DRM_MODE_SUBCONNECTOR_SVIDEO	6
+#define DRM_MODE_SUBCONNECTOR_Component	8
 
-#define DRM_MODE_CONNECTOR_Unknown 0
-#define DRM_MODE_CONNECTOR_VGA 1
-#define DRM_MODE_CONNECTOR_DVII 2
-#define DRM_MODE_CONNECTOR_DVID 3
-#define DRM_MODE_CONNECTOR_DVIA 4
-#define DRM_MODE_CONNECTOR_Composite 5
-#define DRM_MODE_CONNECTOR_SVIDEO 6
-#define DRM_MODE_CONNECTOR_LVDS 7
-#define DRM_MODE_CONNECTOR_Component 8
-#define DRM_MODE_CONNECTOR_9PinDIN 9
-#define DRM_MODE_CONNECTOR_DisplayPort 10
-#define DRM_MODE_CONNECTOR_HDMIA 11
-#define DRM_MODE_CONNECTOR_HDMIB 12
+#define DRM_MODE_CONNECTOR_Unknown	0
+#define DRM_MODE_CONNECTOR_VGA		1
+#define DRM_MODE_CONNECTOR_DVII		2
+#define DRM_MODE_CONNECTOR_DVID		3
+#define DRM_MODE_CONNECTOR_DVIA		4
+#define DRM_MODE_CONNECTOR_Composite	5
+#define DRM_MODE_CONNECTOR_SVIDEO	6
+#define DRM_MODE_CONNECTOR_LVDS		7
+#define DRM_MODE_CONNECTOR_Component	8
+#define DRM_MODE_CONNECTOR_9PinDIN	9
+#define DRM_MODE_CONNECTOR_DisplayPort	10
+#define DRM_MODE_CONNECTOR_HDMIA	11
+#define DRM_MODE_CONNECTOR_HDMIB	12
 
 struct drm_mode_get_connector {
 
@@ -166,47 +166,47 @@ struct drm_mode_get_connector {
 	uint64_t props_ptr;
 	uint64_t prop_values_ptr;
 
-	int count_modes;
-	int count_props;
-	int count_encoders;
+	uint32_t count_modes;
+	uint32_t count_props;
+	uint32_t count_encoders;
 
-	unsigned int encoder_id; /**< Current Encoder */
-	unsigned int connector_id; /**< Id */
-	unsigned int connector_type;
-	unsigned int connector_type_id;
+	uint32_t encoder_id; /**< Current Encoder */
+	uint32_t connector_id; /**< Id */
+	uint32_t connector_type;
+	uint32_t connector_type_id;
 
-	unsigned int connection;
-	unsigned int mm_width, mm_height; /**< HxW in millimeters */
-	unsigned int subpixel;
+	uint32_t connection;
+	uint32_t mm_width, mm_height; /**< HxW in millimeters */
+	uint32_t subpixel;
 };
 
-#define DRM_MODE_PROP_PENDING (1<<0)
-#define DRM_MODE_PROP_RANGE (1<<1)
-#define DRM_MODE_PROP_IMMUTABLE (1<<2)
-#define DRM_MODE_PROP_ENUM (1<<3) /* enumerated type with text strings */
-#define DRM_MODE_PROP_BLOB (1<<4)
+#define DRM_MODE_PROP_PENDING	(1<<0)
+#define DRM_MODE_PROP_RANGE	(1<<1)
+#define DRM_MODE_PROP_IMMUTABLE	(1<<2)
+#define DRM_MODE_PROP_ENUM	(1<<3) /* enumerated type with text strings */
+#define DRM_MODE_PROP_BLOB	(1<<4)
 
 struct drm_mode_property_enum {
 	uint64_t value;
-	unsigned char name[DRM_PROP_NAME_LEN];
+	char name[DRM_PROP_NAME_LEN];
 };
 
 struct drm_mode_get_property {
 	uint64_t values_ptr; /* values and blob lengths */
 	uint64_t enum_blob_ptr; /* enum and blob id ptrs */
 
-	unsigned int prop_id;
-	unsigned int flags;
-	unsigned char name[DRM_PROP_NAME_LEN];
+	uint32_t prop_id;
+	uint32_t flags;
+	char name[DRM_PROP_NAME_LEN];
 
-	int count_values;
-	int count_enum_blobs;
+	uint32_t count_values;
+	uint32_t count_enum_blobs;
 };
 
 struct drm_mode_connector_set_property {
 	uint64_t value;
-	unsigned int prop_id;
-	unsigned int connector_id;
+	uint32_t prop_id;
+	uint32_t connector_id;
 };
 
 struct drm_mode_get_blob {
@@ -216,22 +216,22 @@ struct drm_mode_get_blob {
 };
 
 struct drm_mode_fb_cmd {
-	unsigned int buffer_id;
-	unsigned int width, height;
-	unsigned int pitch;
-	unsigned int bpp;
-	unsigned int depth;
-
-	unsigned int handle;
+	uint32_t fb_id;
+	uint32_t width, height;
+	uint32_t pitch;
+	uint32_t bpp;
+	uint32_t depth;
+	/* driver specific handle */
+	uint32_t handle;
 };
 
 struct drm_mode_mode_cmd {
-	unsigned int connector_id;
+	uint32_t connector_id;
 	struct drm_mode_modeinfo mode;
 };
 
-#define DRM_MODE_CURSOR_BO   0x01
-#define DRM_MODE_CURSOR_MOVE 0x02
+#define DRM_MODE_CURSOR_BO	(1<<0)
+#define DRM_MODE_CURSOR_MOVE	(1<<1)
 
 /*
  * depending on the value in flags diffrent members are used.
@@ -248,24 +248,17 @@ struct drm_mode_mode_cmd {
  *    y
  */
 struct drm_mode_cursor {
-	unsigned int flags;
-	unsigned int crtc;
-	int x;
-	int y;
+	uint32_t flags;
+	uint32_t crtc_id;
+	int32_t x;
+	int32_t y;
 	uint32_t width;
 	uint32_t height;
-	unsigned int handle;
-};
-
-/*
- * oh so ugly hotplug
- */
-struct drm_mode_hotplug {
-	uint32_t counter;
+	/* driver specific handle */
+	uint32_t handle;
 };
 
 struct drm_mode_crtc_lut {
-
 	uint32_t crtc_id;
 	uint32_t gamma_size;
 
