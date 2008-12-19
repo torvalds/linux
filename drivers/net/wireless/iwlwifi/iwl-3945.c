@@ -199,7 +199,7 @@ static int iwl3945_hwrate_to_plcp_idx(u8 plcp)
  * iwl3945_get_antenna_flags - Get antenna flags for RXON command
  * @priv: eeprom and antenna fields are used to determine antenna flags
  *
- * priv->eeprom  is used to determine if antenna AUX/MAIN are reversed
+ * priv->eeprom39  is used to determine if antenna AUX/MAIN are reversed
  * priv->antenna specifies the antenna diversity mode:
  *
  * IWL_ANTENNA_DIVERSITY - NIC selects best antenna by itself
@@ -213,12 +213,12 @@ __le32 iwl3945_get_antenna_flags(const struct iwl3945_priv *priv)
 		return 0;
 
 	case IWL_ANTENNA_MAIN:
-		if (priv->eeprom.antenna_switch_type)
+		if (priv->eeprom39.antenna_switch_type)
 			return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_B_MSK;
 		return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_A_MSK;
 
 	case IWL_ANTENNA_AUX:
-		if (priv->eeprom.antenna_switch_type)
+		if (priv->eeprom39.antenna_switch_type)
 			return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_A_MSK;
 		return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_B_MSK;
 	}
@@ -305,7 +305,7 @@ int iwl3945_rs_next_rate(struct iwl3945_priv *priv, int rate)
 static void iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv,
 				     int txq_id, int index)
 {
-	struct iwl3945_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl3945_tx_queue *txq = &priv->txq39[txq_id];
 	struct iwl_queue *q = &txq->q;
 	struct iwl3945_tx_info *tx_info;
 
@@ -336,7 +336,7 @@ static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
-	struct iwl3945_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl3945_tx_queue *txq = &priv->txq39[txq_id];
 	struct ieee80211_tx_info *info;
 	struct iwl3945_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->status);
@@ -396,7 +396,7 @@ void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv, struct iwl_rx_mem_buffe
 		     (int)sizeof(struct iwl3945_notif_statistics),
 		     le32_to_cpu(pkt->len));
 
-	memcpy(&priv->statistics, pkt->u.raw, sizeof(priv->statistics));
+	memcpy(&priv->statistics_39, pkt->u.raw, sizeof(priv->statistics_39));
 
 	iwl3945_led_background(priv);
 
@@ -808,9 +808,9 @@ u8 iwl3945_hw_find_station(struct iwl3945_priv *priv, const u8 *addr)
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	for (i = start; i < priv->hw_params.max_stations; i++)
-		if ((priv->stations[i].used) &&
+		if ((priv->stations_39[i].used) &&
 		    (!compare_ether_addr
-		     (priv->stations[i].sta.sta.addr, addr))) {
+		     (priv->stations_39[i].sta.sta.addr, addr))) {
 			ret = i;
 			goto out;
 		}
@@ -905,7 +905,7 @@ u8 iwl3945_sync_sta(struct iwl3945_priv *priv, int sta_id, u16 tx_rate, u8 flags
 		return IWL_INVALID_STATION;
 
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	station = &priv->stations[sta_id];
+	station = &priv->stations_39[sta_id];
 
 	station->sta.sta.modify_mask = STA_MODIFY_TX_RATE_MSK;
 	station->sta.rate_n_flags = cpu_to_le16(tx_rate);
@@ -1062,7 +1062,7 @@ static int iwl3945_txq_ctx_reset(struct iwl3945_priv *priv)
 	for (txq_id = 0; txq_id < TFD_QUEUE_MAX; txq_id++) {
 		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
 				TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		rc = iwl3945_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
+		rc = iwl3945_tx_queue_init(priv, &priv->txq39[txq_id], slots_num,
 				txq_id);
 		if (rc) {
 			IWL_ERROR("Tx %d queue init failed\n", txq_id);
@@ -1135,42 +1135,42 @@ int iwl3945_hw_nic_init(struct iwl3945_priv *priv)
 			    CSR39_HW_IF_CONFIG_REG_BIT_3945_MM);
 	}
 
-	if (EEPROM_SKU_CAP_OP_MODE_MRC == priv->eeprom.sku_cap) {
+	if (EEPROM_SKU_CAP_OP_MODE_MRC == priv->eeprom39.sku_cap) {
 		IWL_DEBUG_INFO("SKU OP mode is mrc\n");
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    CSR39_HW_IF_CONFIG_REG_BIT_SKU_MRC);
 	} else
 		IWL_DEBUG_INFO("SKU OP mode is basic\n");
 
-	if ((priv->eeprom.board_revision & 0xF0) == 0xD0) {
+	if ((priv->eeprom39.board_revision & 0xF0) == 0xD0) {
 		IWL_DEBUG_INFO("3945ABG revision is 0x%X\n",
-			       priv->eeprom.board_revision);
+			       priv->eeprom39.board_revision);
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
 	} else {
 		IWL_DEBUG_INFO("3945ABG revision is 0x%X\n",
-			       priv->eeprom.board_revision);
+			       priv->eeprom39.board_revision);
 		iwl3945_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
 			      CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
 	}
 
-	if (priv->eeprom.almgor_m_version <= 1) {
+	if (priv->eeprom39.almgor_m_version <= 1) {
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A);
 		IWL_DEBUG_INFO("Card M type A version is 0x%X\n",
-			       priv->eeprom.almgor_m_version);
+			       priv->eeprom39.almgor_m_version);
 	} else {
 		IWL_DEBUG_INFO("Card M type B version is 0x%X\n",
-			       priv->eeprom.almgor_m_version);
+			       priv->eeprom39.almgor_m_version);
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (priv->eeprom.sku_cap & EEPROM_SKU_CAP_SW_RF_KILL_ENABLE)
+	if (priv->eeprom39.sku_cap & EEPROM_SKU_CAP_SW_RF_KILL_ENABLE)
 		IWL_DEBUG_RF_KILL("SW RF KILL supported in EEPROM.\n");
 
-	if (priv->eeprom.sku_cap & EEPROM_SKU_CAP_HW_RF_KILL_ENABLE)
+	if (priv->eeprom39.sku_cap & EEPROM_SKU_CAP_HW_RF_KILL_ENABLE)
 		IWL_DEBUG_RF_KILL("HW RF KILL supported in EEPROM.\n");
 
 	/* Allocate the RX queue, or reset if it is already allocated */
@@ -1224,7 +1224,7 @@ void iwl3945_hw_txq_ctx_free(struct iwl3945_priv *priv)
 
 	/* Tx queues */
 	for (txq_id = 0; txq_id < TFD_QUEUE_MAX; txq_id++)
-		iwl3945_tx_queue_free(priv, &priv->txq[txq_id]);
+		iwl3945_tx_queue_free(priv, &priv->txq39[txq_id]);
 }
 
 void iwl3945_hw_txq_ctx_stop(struct iwl3945_priv *priv)
@@ -1382,7 +1382,7 @@ static int iwl3945_hw_reg_txpower_get_temperature(struct iwl3945_priv *priv)
 		/* if really really hot(?),
 		 *   substitute the 3rd band/group's temp measured at factory */
 		if (priv->last_temperature > 100)
-			temperature = priv->eeprom.groups[2].temperature;
+			temperature = priv->eeprom39.groups[2].temperature;
 		else /* else use most recent "sane" value from driver */
 			temperature = priv->last_temperature;
 	}
@@ -1677,17 +1677,17 @@ int iwl3945_hw_reg_send_txpower(struct iwl3945_priv *priv)
 	int rate_idx, i;
 	const struct iwl_channel_info *ch_info = NULL;
 	struct iwl3945_txpowertable_cmd txpower = {
-		.channel = priv->active_rxon.channel,
+		.channel = priv->active39_rxon.channel,
 	};
 
 	txpower.band = (priv->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
 	ch_info = iwl3945_get_channel_info(priv,
 				       priv->band,
-				       le16_to_cpu(priv->active_rxon.channel));
+				       le16_to_cpu(priv->active39_rxon.channel));
 	if (!ch_info) {
 		IWL_ERROR
 		    ("Failed to get channel info for channel %d [%d]\n",
-		     le16_to_cpu(priv->active_rxon.channel), priv->band);
+		     le16_to_cpu(priv->active39_rxon.channel), priv->band);
 		return -EINVAL;
 	}
 
@@ -1757,7 +1757,7 @@ static int iwl3945_hw_reg_set_new_power(struct iwl3945_priv *priv,
 	int power;
 
 	/* Get this chnlgrp's rate-to-max/clip-powers table */
-	clip_pwrs = priv->clip_groups[ch_info->group_index].clip_powers;
+	clip_pwrs = priv->clip39_groups[ch_info->group_index].clip_powers;
 
 	/* Get this channel's rate-to-current-power settings table */
 	power_info = ch_info->power_info;
@@ -1856,7 +1856,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl3945_priv *priv)
 		a_band = is_channel_a_band(ch_info);
 
 		/* Get this chnlgrp's factory calibration temperature */
-		ref_temp = (s16)priv->eeprom.groups[ch_info->group_index].
+		ref_temp = (s16)priv->eeprom39.groups[ch_info->group_index].
 		    temperature;
 
 		/* get power index adjustment based on current and factory
@@ -1882,7 +1882,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl3945_priv *priv)
 		}
 
 		/* Get this chnlgrp's rate-to-max/clip-powers table */
-		clip_pwrs = priv->clip_groups[ch_info->group_index].clip_powers;
+		clip_pwrs = priv->clip39_groups[ch_info->group_index].clip_powers;
 
 		/* set scan tx power, 1Mbit for CCK, 6Mbit for OFDM */
 		for (scan_tbl_index = 0;
@@ -2001,7 +2001,7 @@ static void iwl3945_bg_reg_txpower_periodic(struct work_struct *work)
 static u16 iwl3945_hw_reg_get_ch_grp_index(struct iwl3945_priv *priv,
 				       const struct iwl_channel_info *ch_info)
 {
-	struct iwl3945_eeprom_txpower_group *ch_grp = &priv->eeprom.groups[0];
+	struct iwl3945_eeprom_txpower_group *ch_grp = &priv->eeprom39.groups[0];
 	u8 group;
 	u16 group_index = 0;	/* based on factory calib frequencies */
 	u8 grp_channel;
@@ -2045,7 +2045,7 @@ static int iwl3945_hw_reg_get_matched_power_index(struct iwl3945_priv *priv,
 	s32 res;
 	s32 denominator;
 
-	chnl_grp = &priv->eeprom.groups[setting_index];
+	chnl_grp = &priv->eeprom39.groups[setting_index];
 	samples = chnl_grp->samples;
 	for (i = 0; i < 5; i++) {
 		if (power == samples[i].power) {
@@ -2091,7 +2091,7 @@ static void iwl3945_hw_reg_init_channel_groups(struct iwl3945_priv *priv)
 	for (i = 0; i < IWL_NUM_TX_CALIB_GROUPS; i++) {
 		s8 *clip_pwrs;	/* table of power levels for each rate */
 		s8 satur_pwr;	/* saturation power for each chnl group */
-		group = &priv->eeprom.groups[i];
+		group = &priv->eeprom39.groups[i];
 
 		/* sanity check on factory saturation power value */
 		if (group->saturation_power < 40) {
@@ -2110,7 +2110,7 @@ static void iwl3945_hw_reg_init_channel_groups(struct iwl3945_priv *priv)
 		 *   power peaks, without too much distortion (clipping).
 		 */
 		/* we'll fill in this array with h/w max power levels */
-		clip_pwrs = (s8 *) priv->clip_groups[i].clip_powers;
+		clip_pwrs = (s8 *) priv->clip39_groups[i].clip_powers;
 
 		/* divide factory saturation power by 2 to find -3dB level */
 		satur_pwr = (s8) (group->saturation_power >> 1);
@@ -2193,12 +2193,12 @@ int iwl3945_txpower_set_from_eeprom(struct iwl3945_priv *priv)
 			iwl3945_hw_reg_get_ch_grp_index(priv, ch_info);
 
 		/* Get this chnlgrp's rate->max/clip-powers table */
-		clip_pwrs = priv->clip_groups[ch_info->group_index].clip_powers;
+		clip_pwrs = priv->clip39_groups[ch_info->group_index].clip_powers;
 
 		/* calculate power index *adjustment* value according to
 		 *  diff between current temperature and factory temperature */
 		delta_index = iwl3945_hw_reg_adjust_power_by_temp(temperature,
-				priv->eeprom.groups[ch_info->group_index].
+				priv->eeprom39.groups[ch_info->group_index].
 				temperature);
 
 		IWL_DEBUG_POWER("Delta index for channel %d: %d [%d]\n",

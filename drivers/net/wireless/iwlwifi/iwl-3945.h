@@ -422,7 +422,7 @@ struct iwl3945_priv {
 
 	/* each calibration channel group in the EEPROM has a derived
 	 * clip setting for each rate. */
-	const struct iwl3945_clip_group clip_groups[5];
+	const struct iwl3945_clip_group clip39_groups[5];
 
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */
@@ -438,7 +438,7 @@ struct iwl3945_priv {
 	int one_direct_scan;
 	u8 direct_ssid_len;
 	u8 direct_ssid[IW_ESSID_MAX_SIZE];
-	struct iwl3945_scan_cmd *scan;
+	struct iwl3945_scan_cmd *scan39;
 
 	/* spinlock */
 	spinlock_t lock;	/* protect general shared data */
@@ -468,11 +468,11 @@ struct iwl3945_priv {
 	 * changed via explicit cast within the
 	 * routines that actually update the physical
 	 * hardware */
-	const struct iwl3945_rxon_cmd active_rxon;
-	struct iwl3945_rxon_cmd staging_rxon;
+	const struct iwl3945_rxon_cmd active39_rxon;
+	struct iwl3945_rxon_cmd staging39_rxon;
 
 	int error_recovering;
-	struct iwl3945_rxon_cmd recovery_rxon;
+	struct iwl3945_rxon_cmd recovery39_rxon;
 
 	/* 1st responses from initialize and runtime uCode images.
 	 * 4965's initialize alive response contains some calibration data. */
@@ -485,7 +485,7 @@ struct iwl3945_priv {
 #endif
 
 #ifdef CONFIG_IWL3945_LEDS
-	struct iwl3945_led led[IWL_LED_TRG_MAX];
+	struct iwl3945_led led39[IWL_LED_TRG_MAX];
 	unsigned long last_blink_time;
 	u8 last_blink_rate;
 	u8 allow_blinking;
@@ -510,16 +510,16 @@ struct iwl3945_priv {
 
 	/* Rx and Tx DMA processing queues */
 	struct iwl_rx_queue rxq;
-	struct iwl3945_tx_queue txq[IWL39_MAX_NUM_QUEUES];
+	struct iwl3945_tx_queue txq39[IWL39_MAX_NUM_QUEUES];
 
 	unsigned long status;
 
 	int last_rx_rssi;	/* From Rx packet statisitics */
 	int last_rx_noise;	/* From beacon statistics */
 
-	struct iwl3945_power_mgr power_data;
+	struct iwl3945_power_mgr power_data_39;
 
-	struct iwl3945_notif_statistics statistics;
+	struct iwl3945_notif_statistics statistics_39;
 	unsigned long last_statistics_time;
 
 	/* context information */
@@ -534,7 +534,7 @@ struct iwl3945_priv {
 	/*station table variables */
 	spinlock_t sta_lock;
 	int num_stations;
-	struct iwl3945_station_entry stations[IWL_STATION_COUNT];
+	struct iwl3945_station_entry stations_39[IWL_STATION_COUNT];
 
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
@@ -546,7 +546,7 @@ struct iwl3945_priv {
 	u64 last_tsf;
 
 	/* eeprom */
-	struct iwl3945_eeprom eeprom;
+	struct iwl3945_eeprom eeprom39;
 
 	enum nl80211_iftype iw_mode;
 
@@ -607,7 +607,7 @@ struct iwl3945_priv {
 
 static inline int iwl3945_is_associated(struct iwl3945_priv *priv)
 {
-	return (priv->active_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+	return (priv->active39_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 extern const struct iwl_channel_info *iwl3945_get_channel_info(
