@@ -48,6 +48,7 @@
 
 #include "iwl-3945-core.h"
 #include "iwl-3945.h"
+#include "iwl-3945-fh.h"
 #include "iwl-helpers.h"
 
 #ifdef CONFIG_IWL3945_DEBUG
@@ -3479,14 +3480,14 @@ int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv, struct iwl3945_
 			goto exit_unlock;
 
 		/* Device expects a multiple of 8 */
-		iwl3945_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
+		iwl3945_write_direct32(priv, FH39_RSCSR_CHNL0_WPTR,
 				     q->write & ~0x7);
 		iwl3945_release_nic_access(priv);
 
 	/* Else device is assumed to be awake */
 	} else
 		/* Device expects a multiple of 8 */
-		iwl3945_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write & ~0x7);
+		iwl3945_write32(priv, FH39_RSCSR_CHNL0_WPTR, q->write & ~0x7);
 
 
 	q->need_update = 0;
@@ -4339,9 +4340,8 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 
 		iwl3945_write32(priv, CSR_FH_INT_STATUS, (1 << 6));
 		if (!iwl3945_grab_nic_access(priv)) {
-			iwl3945_write_direct32(priv,
-					     FH_TCSR_CREDIT
-					     (ALM_FH_SRVC_CHNL), 0x0);
+			iwl3945_write_direct32(priv, FH39_TCSR_CREDIT
+					     (FH39_SRVC_CHNL), 0x0);
 			iwl3945_release_nic_access(priv);
 		}
 		handled |= CSR_INT_BIT_FH_TX;

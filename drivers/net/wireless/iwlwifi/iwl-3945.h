@@ -691,7 +691,6 @@ static inline void iwl3945_rfkill_unregister(struct iwl3945_priv *priv) {}
 static inline int iwl3945_rfkill_init(struct iwl3945_priv *priv) { return 0; }
 #endif
 
-#define IWL_MAX_NUM_QUEUES IWL39_MAX_NUM_QUEUES
 
 struct iwl3945_priv {
 
@@ -815,7 +814,7 @@ struct iwl3945_priv {
 
 	/* Rx and Tx DMA processing queues */
 	struct iwl3945_rx_queue rxq;
-	struct iwl3945_tx_queue txq[IWL_MAX_NUM_QUEUES];
+	struct iwl3945_tx_queue txq[IWL39_MAX_NUM_QUEUES];
 
 	unsigned long status;
 
