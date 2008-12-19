@@ -43,7 +43,6 @@
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 extern struct pci_device_id iwl3945_hw_card_ids[];
 
-#define DRV_NAME	"iwl3945"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-3945-hw.h"

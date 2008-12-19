@@ -46,6 +46,8 @@
 
 #include <asm/div64.h>
 
+#define DRV_NAME	"iwl3945"
+
 #include "iwl-3945-core.h"
 #include "iwl-commands.h"
 #include "iwl-3945.h"
@@ -71,7 +73,6 @@ int iwl3945_param_queues_num = IWL39_MAX_NUM_QUEUES; /* def: 8 Tx queues */
 
 /*
  * module name, copyright, version, etc.
- * NOTE: DRV_NAME is defined in iwlwifi.h for use by iwl-debug.h and printk
  */
 
 #define DRV_DESCRIPTION	\
@@ -847,10 +848,11 @@ static int iwl3945_set_rxon_channel(struct iwl3945_priv *priv,
  * be #ifdef'd out once the driver is stable and folks aren't actively
  * making changes
  */
-static int iwl3945_check_rxon_cmd(struct iwl3945_rxon_cmd *rxon)
+static int iwl3945_check_rxon_cmd(struct iwl3945_priv *priv)
 {
 	int error = 0;
 	int counter = 1;
+	struct iwl3945_rxon_cmd *rxon = &priv->staging_rxon;
 
 	if (rxon->flags & RXON_FLG_BAND_24G_MSK) {
 		error |= le32_to_cpu(rxon->flags &
@@ -1031,7 +1033,7 @@ static int iwl3945_commit_rxon(struct iwl3945_priv *priv)
 	    ~(RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_SEL_MSK);
 	priv->staging_rxon.flags |= iwl3945_get_antenna_flags(priv);
 
-	rc = iwl3945_check_rxon_cmd(&priv->staging_rxon);
+	rc = iwl3945_check_rxon_cmd(priv);
 	if (rc) {
 		IWL_ERROR("Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
@@ -7803,19 +7805,11 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * 1. Allocating HW data
 	 * ********************/
 
-	if ((iwl3945_param_queues_num > IWL39_MAX_NUM_QUEUES) ||
-	    (iwl3945_param_queues_num < IWL_MIN_NUM_QUEUES)) {
-		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
-			  IWL_MIN_NUM_QUEUES, IWL39_MAX_NUM_QUEUES);
-		err = -EINVAL;
-		goto out;
-	}
-
 	/* mac80211 allocates memory for this device instance, including
 	 *   space for this driver's private structure */
 	hw = ieee80211_alloc_hw(sizeof(struct iwl3945_priv), &iwl3945_hw_ops);
 	if (hw == NULL) {
-		IWL_ERROR("Can not allocate network device\n");
+		printk(KERN_ERR DRV_NAME "Can not allocate network device\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -7826,6 +7820,14 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->hw = hw;
 	priv->pci_dev = pdev;
 	priv->cfg = cfg;
+
+	if ((iwl3945_param_queues_num > IWL39_MAX_NUM_QUEUES) ||
+	    (iwl3945_param_queues_num < IWL_MIN_NUM_QUEUES)) {
+		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
+			  IWL_MIN_NUM_QUEUES, IWL39_MAX_NUM_QUEUES);
+		err = -EINVAL;
+		goto out;
+	}
 
 	/* Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan. */
@@ -8293,13 +8295,14 @@ static int __init iwl3945_init(void)
 
 	ret = iwl3945_rate_control_register();
 	if (ret) {
-		IWL_ERROR("Unable to register rate control algorithm: %d\n", ret);
+		printk(KERN_ERR DRV_NAME
+		       "Unable to register rate control algorithm: %d\n", ret);
 		return ret;
 	}
 
 	ret = pci_register_driver(&iwl3945_driver);
 	if (ret) {
-		IWL_ERROR("Unable to initialize PCI module\n");
+		printk(KERN_ERR DRV_NAME "Unable to initialize PCI module\n");
 		goto error_register;
 	}
 

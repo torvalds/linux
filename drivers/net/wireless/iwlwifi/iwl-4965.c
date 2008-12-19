@@ -902,7 +902,6 @@ static s32 iwl4965_get_tx_atten_grp(u16 channel)
 	    channel <= CALIB_IWL_TX_ATTEN_GR4_LCH)
 		return CALIB_CH_GROUP_4;
 
-	IWL_ERROR("Can't find txatten group for channel %d.\n", channel);
 	return -1;
 }
 
@@ -1319,8 +1318,11 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	/* get txatten group, used to select 1) thermal txpower adjustment
 	 *   and 2) mimo txpower balance between Tx chains. */
 	txatten_grp = iwl4965_get_tx_atten_grp(channel);
-	if (txatten_grp < 0)
+	if (txatten_grp < 0) {
+		IWL_ERROR("Can't find txatten group for channel %d.\n",
+			  channel);
 		return -EINVAL;
+	}
 
 	IWL_DEBUG_TXPOWER("channel %d belongs to txatten group %d\n",
 			  channel, txatten_grp);

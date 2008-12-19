@@ -170,7 +170,8 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 	struct ieee80211_hw *hw =
 		ieee80211_alloc_hw(sizeof(struct iwl_priv), hw_ops);
 	if (hw == NULL) {
-		IWL_ERROR("Can not allocate network device\n");
+		printk(KERN_ERR "%s: Can not allocate network device\n",
+		       cfg->name);
 		goto out;
 	}
 
@@ -510,18 +511,18 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & IWL_SKU_A) {
-		printk(KERN_INFO DRV_NAME
-		       ": Incorrectly detected BG card as ABG.  Please send "
-		       "your PCI ID 0x%04X:0x%04X to maintainer.\n",
-		       priv->pci_dev->device, priv->pci_dev->subsystem_device);
+		dev_printk(KERN_INFO, &(priv->hw->wiphy->dev),
+			   "Incorrectly detected BG card as ABG.  Please send "
+			   "your PCI ID 0x%04X:0x%04X to maintainer.\n",
+			   priv->pci_dev->device,
+			   priv->pci_dev->subsystem_device);
 		priv->cfg->sku &= ~IWL_SKU_A;
 	}
 
-	printk(KERN_INFO DRV_NAME
-	       ": Tunable channels: %d 802.11bg, %d 802.11a channels\n",
-	       priv->bands[IEEE80211_BAND_2GHZ].n_channels,
-	       priv->bands[IEEE80211_BAND_5GHZ].n_channels);
-
+	dev_printk(KERN_INFO, &(priv->hw->wiphy->dev),
+		   "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
+		   priv->bands[IEEE80211_BAND_2GHZ].n_channels,
+		   priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 
 	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 

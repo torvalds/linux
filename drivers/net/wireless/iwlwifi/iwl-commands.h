@@ -69,6 +69,8 @@
 #ifndef __iwl_commands_h__
 #define __iwl_commands_h__
 
+struct iwl_priv;
+
 /* uCode version contains 4 values: Major/Minor/API/Serial */
 #define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
 #define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
@@ -3455,6 +3457,6 @@ struct iwl_rx_packet {
 	} u;
 } __attribute__ ((packed));
 
-int iwl_agn_check_rxon_cmd(struct iwl_rxon_cmd *rxon);
+int iwl_agn_check_rxon_cmd(struct iwl_priv *priv);
 
 #endif				/* __iwl_commands_h__ */

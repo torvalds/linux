@@ -44,6 +44,8 @@
 
 #include <asm/div64.h>
 
+#define DRV_NAME        "iwlagn"
+
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
@@ -61,9 +63,7 @@
 
 /*
  * module name, copyright, version, etc.
- * NOTE: DRV_NAME is defined in iwlwifi.h for use by iwl-debug.h and printk
  */
-
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -179,7 +179,7 @@ static int iwl_commit_rxon(struct iwl_priv *priv)
 	 * 5000, but will not damage 4965 */
 	priv->staging_rxon.flags |= RXON_FLG_SELF_CTS_EN;
 
-	ret = iwl_agn_check_rxon_cmd(&priv->staging_rxon);
+	ret = iwl_agn_check_rxon_cmd(priv);
 	if (ret) {
 		IWL_ERROR("Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
@@ -4077,13 +4077,14 @@ static int __init iwl_init(void)
 
 	ret = iwlagn_rate_control_register();
 	if (ret) {
-		IWL_ERROR("Unable to register rate control algorithm: %d\n", ret);
+		printk(KERN_ERR DRV_NAME
+		       "Unable to register rate control algorithm: %d\n", ret);
 		return ret;
 	}
 
 	ret = pci_register_driver(&iwl_driver);
 	if (ret) {
-		IWL_ERROR("Unable to initialize PCI module\n");
+		printk(KERN_ERR DRV_NAME "Unable to initialize PCI module\n");
 		goto error_register;
 	}
 

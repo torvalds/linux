@@ -40,10 +40,11 @@
  * be #ifdef'd out once the driver is stable and folks aren't actively
  * making changes
  */
-int iwl_agn_check_rxon_cmd(struct iwl_rxon_cmd *rxon)
+int iwl_agn_check_rxon_cmd(struct iwl_priv *priv)
 {
 	int error = 0;
 	int counter = 1;
+	struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
 
 	if (rxon->flags & RXON_FLG_BAND_24G_MSK) {
 		error |= le32_to_cpu(rxon->flags &

@@ -160,8 +160,10 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DL_TX_REPLY      (1 << 30)
 #define IWL_DL_QOS           (1 << 31)
 
-#define IWL_ERROR(f, a...) printk(KERN_ERR DRV_NAME ": " f, ## a)
-#define IWL_WARNING(f, a...) printk(KERN_WARNING DRV_NAME ": " f, ## a)
+#define IWL_ERROR(f, a...) dev_printk(KERN_ERR, \
+			&(priv->hw->wiphy->dev), f, ## a)
+#define IWL_WARNING(f, a...) dev_printk(KERN_WARNING, \
+			&(priv->hw->wiphy->dev), f, ## a)
 #define IWL_DEBUG_INFO(f, a...)    IWL_DEBUG(IWL_DL_INFO, f, ## a)
 
 #define IWL_DEBUG_MAC80211(f, a...)     IWL_DEBUG(IWL_DL_MAC80211, f, ## a)
