@@ -937,8 +937,7 @@ static int b43_key_write(struct b43_wldev *dev,
 		B43_WARN_ON(dev->key[i].keyconf == keyconf);
 	}
 	if (index < 0) {
-		/* Either pairwise key or address is 00:00:00:00:00:00
-		 * for transmit-only keys. Search the index. */
+		/* Pairwise key. Get an empty slot for the key. */
 		if (b43_new_kidx_api(dev))
 			sta_keys_start = 4;
 		else
@@ -951,7 +950,7 @@ static int b43_key_write(struct b43_wldev *dev,
 			}
 		}
 		if (index < 0) {
-			b43err(dev->wl, "Out of hardware key memory\n");
+			b43warn(dev->wl, "Out of hardware key memory\n");
 			return -ENOSPC;
 		}
 	} else
@@ -3525,7 +3524,6 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
-	unsigned long flags;
 	u8 algorithm;
 	u8 index;
 	int err;
@@ -3534,7 +3532,15 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return -ENOSPC; /* User disabled HW-crypto */
 
 	mutex_lock(&wl->mutex);
-	spin_lock_irqsave(&wl->irq_lock, flags);
+	spin_lock_irq(&wl->irq_lock);
+	write_lock(&wl->tx_lock);
+	/* Why do we need all this locking here?
+	 * mutex     -> Every config operation must take it.
+	 * irq_lock  -> We modify the dev->key array, which is accessed
+	 *              in the IRQ handlers.
+	 * tx_lock   -> We modify the dev->key array, which is accessed
+	 *              in the TX handler.
+	 */
 
 	dev = wl->current_dev;
 	err = -ENODEV;
@@ -3551,7 +3557,7 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	err = -EINVAL;
 	switch (key->alg) {
 	case ALG_WEP:
-		if (key->keylen == 5)
+		if (key->keylen == LEN_WEP40)
 			algorithm = B43_SEC_ALGO_WEP40;
 		else
 			algorithm = B43_SEC_ALGO_WEP104;
@@ -3578,17 +3584,14 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			goto out_unlock;
 		}
 
-		if (is_broadcast_ether_addr(addr)) {
-			/* addr is FF:FF:FF:FF:FF:FF for default keys */
-			err = b43_key_write(dev, index, algorithm,
-					    key->key, key->keylen, NULL, key);
-		} else {
-			/*
-			 * either pairwise key or address is 00:00:00:00:00:00
-			 * for transmit-only keys
-			 */
+		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
+			/* Pairwise key with an assigned MAC address. */
 			err = b43_key_write(dev, -1, algorithm,
 					    key->key, key->keylen, addr, key);
+		} else {
+			/* Group key */
+			err = b43_key_write(dev, index, algorithm,
+					    key->key, key->keylen, NULL, key);
 		}
 		if (err)
 			goto out_unlock;
@@ -3620,7 +3623,8 @@ out_unlock:
 		       addr);
 		b43_dump_keymemory(dev);
 	}
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
+	write_unlock(&wl->tx_lock);
+	spin_unlock_irq(&wl->irq_lock);
 	mutex_unlock(&wl->mutex);
 
 	return err;
