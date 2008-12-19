@@ -1226,7 +1226,8 @@ static int vidioc_streamon(struct file *file, void *priv,
 		ret = -ENODEV;
 		goto out;
 	}
-	if (gspca_dev->nframes == 0) {
+	if (gspca_dev->nframes == 0
+	    || !(gspca_dev->frame[0].v4l2_buf.flags & V4L2_BUF_FLAG_QUEUED)) {
 		ret = -EINVAL;
 		goto out;
 	}
