@@ -48,6 +48,7 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 #include "iwl-3945-hw.h"
 #include "iwl-debug.h"
 #include "iwl-power.h"
+#include "iwl-dev.h"
 #include "iwl-3945-led.h"
 
 /* Highest firmware API version supported */
@@ -111,26 +112,7 @@ struct iwl3945_rx_mem_buffer {
 	struct list_head list;
 };
 
-/*
- * Generic queue structure
- *
- * Contains common data for Rx and Tx queues
- */
-struct iwl3945_queue {
-	int n_bd;              /* number of BDs in this queue */
-	int write_ptr;       /* 1-st empty entry (index) host_w*/
-	int read_ptr;         /* last used entry (index) host_r*/
-	dma_addr_t dma_addr;   /* physical addr for BD's */
-	int n_window;	       /* safe queue window */
-	u32 id;
-	int low_mark;	       /* low watermark, resume queue if free
-				* space more than this */
-	int high_mark;         /* high watermark, stop queue if free
-				* space less than this */
-} __attribute__ ((packed));
-
-int iwl3945_queue_space(const struct iwl3945_queue *q);
-int iwl3945_x2_queue_used(const struct iwl3945_queue *q, int i);
+int iwl3945_x2_queue_used(const struct iwl_queue *q, int i);
 
 #define MAX_NUM_OF_TBS          (20)
 
@@ -152,80 +134,13 @@ struct iwl3945_tx_info {
  * descriptors) and required locking structures.
  */
 struct iwl3945_tx_queue {
-	struct iwl3945_queue q;
+	struct iwl_queue q;
 	struct iwl3945_tfd_frame *bd;
 	struct iwl3945_cmd *cmd;
 	dma_addr_t dma_addr_cmd;
 	struct iwl3945_tx_info *txb;
 	int need_update;
 	int active;
-};
-
-#define IWL_NUM_SCAN_RATES         (2)
-
-struct iwl3945_channel_tgd_info {
-	u8 type;
-	s8 max_power;
-};
-
-struct iwl3945_channel_tgh_info {
-	s64 last_radar_time;
-};
-
-/* current Tx power values to use, one for each rate for each channel.
- * requested power is limited by:
- * -- regulatory EEPROM limits for this channel
- * -- hardware capabilities (clip-powers)
- * -- spectrum management
- * -- user preference (e.g. iwconfig)
- * when requested power is set, base power index must also be set. */
-struct iwl3945_channel_power_info {
-	struct iwl3945_tx_power tpc;	/* actual radio and DSP gain settings */
-	s8 power_table_index;	/* actual (compenst'd) index into gain table */
-	s8 base_power_index;	/* gain index for power at factory temp. */
-	s8 requested_power;	/* power (dBm) requested for this chnl/rate */
-};
-
-/* current scan Tx power values to use, one for each scan rate for each
- * channel. */
-struct iwl3945_scan_power_info {
-	struct iwl3945_tx_power tpc;	/* actual radio and DSP gain settings */
-	s8 power_table_index;	/* actual (compenst'd) index into gain table */
-	s8 requested_power;	/* scan pwr (dBm) requested for chnl/rate */
-};
-
-/*
- * One for each channel, holds all channel setup data
- * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
- *     with one another!
- */
-#define IWL4965_MAX_RATE (33)
-
-struct iwl3945_channel_info {
-	struct iwl3945_channel_tgd_info tgd;
-	struct iwl3945_channel_tgh_info tgh;
-	struct iwl_eeprom_channel eeprom;	/* EEPROM regulatory limit */
-	struct iwl_eeprom_channel fat_eeprom;	/* EEPROM regulatory limit for
-						 * FAT channel */
-
-	u8 channel;	  /* channel number */
-	u8 flags;	  /* flags copied from EEPROM */
-	s8 max_power_avg; /* (dBm) regul. eeprom, normal Tx, any rate */
-	s8 curr_txpow;	  /* (dBm) regulatory/spectrum/user (not h/w) */
-	s8 min_power;	  /* always 0 */
-	s8 scan_power;	  /* (dBm) regul. eeprom, direct scans, any rate */
-
-	u8 group_index;	  /* 0-4, maps channel to group1/2/3/4/5 */
-	u8 band_index;	  /* 0-4, maps channel to band1/2/3/4/5 */
-	enum ieee80211_band band;
-
-	/* Radio/DSP gain settings for each "normal" data Tx rate.
-	 * These include, in addition to RF and DSP gain, a few fields for
-	 *   remembering/modifying gain settings (indexes). */
-	struct iwl3945_channel_power_info power_info[IWL4965_MAX_RATE];
-
-	/* Radio/DSP gain settings for each scan rate, for directed scans. */
-	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
 struct iwl3945_clip_group {
@@ -265,15 +180,6 @@ struct iwl3945_frame {
 #define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
 #define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
-
-enum {
-	/* CMD_SIZE_NORMAL = 0, */
-	CMD_SIZE_HUGE = (1 << 0),
-	/* CMD_SYNC = 0, */
-	CMD_ASYNC = (1 << 1),
-	/* CMD_NO_SKB = 0, */
-	CMD_WANT_SKB = (1 << 2),
-};
 
 struct iwl3945_cmd;
 struct iwl3945_priv;
@@ -328,7 +234,7 @@ struct iwl3945_host_cmd {
 	const void *data;
 };
 
-#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl3945_cmd) - \
+#define TFD39_MAX_PAYLOAD_SIZE (sizeof(struct iwl3945_cmd) - \
 			      sizeof(struct iwl3945_cmd_meta))
 
 /*
@@ -451,13 +357,6 @@ struct iwl3945_station_entry {
 	u8 used;
 	u8 ps_status;
 	struct iwl3945_hw_key keyinfo;
-};
-
-/* one for each uCode image (inst/data, boot/init/runtime) */
-struct fw_desc {
-	void *v_addr;		/* access by driver */
-	dma_addr_t p_addr;	/* access by card's busmaster DMA */
-	u32 len;		/* bytes */
 };
 
 /* uCode file layout */
@@ -629,16 +528,6 @@ extern int iwl3945_txpower_set_from_eeprom(struct iwl3945_priv *priv);
 extern u8 iwl3945_sync_sta(struct iwl3945_priv *priv, int sta_id,
 		 u16 tx_rate, u8 flags);
 
-
-#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
-
-enum {
-	MEASUREMENT_READY = (1 << 0),
-	MEASUREMENT_ACTIVE = (1 << 1),
-};
-
-#endif
-
 #ifdef CONFIG_IWL3945_RFKILL
 struct iwl3945_priv;
 
@@ -682,7 +571,7 @@ struct iwl3945_priv {
 
 	/* we allocate array of iwl3945_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */
-	struct iwl3945_channel_info *channel_info;	/* channel info array */
+	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
 
 	/* each calibration channel group in the EEPROM has a derived
@@ -873,39 +762,7 @@ static inline int iwl3945_is_associated(struct iwl3945_priv *priv)
 	return (priv->active_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
-static inline int is_channel_valid(const struct iwl3945_channel_info *ch_info)
-{
-	if (ch_info == NULL)
-		return 0;
-	return (ch_info->flags & EEPROM_CHANNEL_VALID) ? 1 : 0;
-}
-
-static inline int is_channel_radar(const struct iwl3945_channel_info *ch_info)
-{
-	return (ch_info->flags & EEPROM_CHANNEL_RADAR) ? 1 : 0;
-}
-
-static inline u8 is_channel_a_band(const struct iwl3945_channel_info *ch_info)
-{
-	return ch_info->band == IEEE80211_BAND_5GHZ;
-}
-
-static inline u8 is_channel_bg_band(const struct iwl3945_channel_info *ch_info)
-{
-	return ch_info->band == IEEE80211_BAND_2GHZ;
-}
-
-static inline int is_channel_passive(const struct iwl3945_channel_info *ch)
-{
-	return (!(ch->flags & EEPROM_CHANNEL_ACTIVE)) ? 1 : 0;
-}
-
-static inline int is_channel_ibss(const struct iwl3945_channel_info *ch)
-{
-	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
-}
-
-extern const struct iwl3945_channel_info *iwl3945_get_channel_info(
+extern const struct iwl_channel_info *iwl3945_get_channel_info(
 	const struct iwl3945_priv *priv, enum ieee80211_band band, u16 channel);
 
 extern int iwl3945_rs_next_rate(struct iwl3945_priv *priv, int rate);

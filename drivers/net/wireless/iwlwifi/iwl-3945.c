@@ -306,7 +306,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv,
 				     int txq_id, int index)
 {
 	struct iwl3945_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl3945_queue *q = &txq->q;
+	struct iwl_queue *q = &txq->q;
 	struct iwl3945_tx_info *tx_info;
 
 	BUG_ON(txq_id == IWL_CMD_QUEUE_NUM);
@@ -320,7 +320,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv,
 		iwl3945_hw_txq_free_tfd(priv, txq);
 	}
 
-	if (iwl3945_queue_space(q) > q->low_mark && (txq_id >= 0) &&
+	if (iwl_queue_space(q) > q->low_mark && (txq_id >= 0) &&
 			(txq_id != IWL_CMD_QUEUE_NUM) &&
 			priv->mac80211_registered)
 		ieee80211_wake_queue(priv->hw, txq_id);
@@ -1618,7 +1618,7 @@ static inline u8 iwl3945_hw_reg_fix_power_index(int index)
  */
 static void iwl3945_hw_reg_set_scan_power(struct iwl3945_priv *priv, u32 scan_tbl_index,
 			       s32 rate_index, const s8 *clip_pwrs,
-			       struct iwl3945_channel_info *ch_info,
+			       struct iwl_channel_info *ch_info,
 			       int band_index)
 {
 	struct iwl3945_scan_power_info *scan_power_info;
@@ -1675,7 +1675,7 @@ static void iwl3945_hw_reg_set_scan_power(struct iwl3945_priv *priv, u32 scan_tb
 int iwl3945_hw_reg_send_txpower(struct iwl3945_priv *priv)
 {
 	int rate_idx, i;
-	const struct iwl3945_channel_info *ch_info = NULL;
+	const struct iwl_channel_info *ch_info = NULL;
 	struct iwl3945_txpowertable_cmd txpower = {
 		.channel = priv->active_rxon.channel,
 	};
@@ -1748,7 +1748,7 @@ int iwl3945_hw_reg_send_txpower(struct iwl3945_priv *priv)
  *	 and send changes to NIC
  */
 static int iwl3945_hw_reg_set_new_power(struct iwl3945_priv *priv,
-			     struct iwl3945_channel_info *ch_info)
+			     struct iwl_channel_info *ch_info)
 {
 	struct iwl3945_channel_power_info *power_info;
 	int power_changed = 0;
@@ -1810,7 +1810,7 @@ static int iwl3945_hw_reg_set_new_power(struct iwl3945_priv *priv,
  *	 based strictly on regulatory (eeprom and spectrum mgt) limitations
  *	 (no consideration for h/w clipping limitations).
  */
-static int iwl3945_hw_reg_get_ch_txpower_limit(struct iwl3945_channel_info *ch_info)
+static int iwl3945_hw_reg_get_ch_txpower_limit(struct iwl_channel_info *ch_info)
 {
 	s8 max_power;
 
@@ -1840,7 +1840,7 @@ static int iwl3945_hw_reg_get_ch_txpower_limit(struct iwl3945_channel_info *ch_i
  */
 static int iwl3945_hw_reg_comp_txpower_temp(struct iwl3945_priv *priv)
 {
-	struct iwl3945_channel_info *ch_info = NULL;
+	struct iwl_channel_info *ch_info = NULL;
 	int delta_index;
 	const s8 *clip_pwrs; /* array of h/w max power levels for each rate */
 	u8 a_band;
@@ -1901,7 +1901,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl3945_priv *priv)
 
 int iwl3945_hw_reg_set_txpower(struct iwl3945_priv *priv, s8 power)
 {
-	struct iwl3945_channel_info *ch_info;
+	struct iwl_channel_info *ch_info;
 	s8 max_power;
 	u8 a_band;
 	u8 i;
@@ -1999,7 +1999,7 @@ static void iwl3945_bg_reg_txpower_periodic(struct work_struct *work)
  *	 channel in each group 1-4.  Group 5 All B/G channels are in group 0.
  */
 static u16 iwl3945_hw_reg_get_ch_grp_index(struct iwl3945_priv *priv,
-				       const struct iwl3945_channel_info *ch_info)
+				       const struct iwl_channel_info *ch_info)
 {
 	struct iwl3945_eeprom_txpower_group *ch_grp = &priv->eeprom.groups[0];
 	u8 group;
@@ -2162,7 +2162,7 @@ static void iwl3945_hw_reg_init_channel_groups(struct iwl3945_priv *priv)
  */
 int iwl3945_txpower_set_from_eeprom(struct iwl3945_priv *priv)
 {
-	struct iwl3945_channel_info *ch_info = NULL;
+	struct iwl_channel_info *ch_info = NULL;
 	struct iwl3945_channel_power_info *pwr_info;
 	int delta_index;
 	u8 rate_index;

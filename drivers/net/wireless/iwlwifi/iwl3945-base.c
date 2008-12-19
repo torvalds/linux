@@ -53,6 +53,7 @@
 #include "iwl-3945.h"
 #include "iwl-3945-fh.h"
 #include "iwl-helpers.h"
+#include "iwl-dev.h"
 
 static int iwl3945_tx_queue_update_write_ptr(struct iwl3945_priv *priv,
 				  struct iwl3945_tx_queue *txq);
@@ -132,44 +133,17 @@ static const struct ieee80211_supported_band *iwl3945_get_band(
  * (#0-3) for data tx via EDCA.  An additional 2 HCCA queues are unused.
  ***************************************************/
 
-int iwl3945_queue_space(const struct iwl3945_queue *q)
-{
-	int s = q->read_ptr - q->write_ptr;
-
-	if (q->read_ptr > q->write_ptr)
-		s -= q->n_bd;
-
-	if (s <= 0)
-		s += q->n_window;
-	/* keep some reserve to not confuse empty and full situations */
-	s -= 2;
-	if (s < 0)
-		s = 0;
-	return s;
-}
-
-int iwl3945_x2_queue_used(const struct iwl3945_queue *q, int i)
+int iwl3945_x2_queue_used(const struct iwl_queue *q, int i)
 {
 	return q->write_ptr > q->read_ptr ?
 		(i >= q->read_ptr && i < q->write_ptr) :
 		!(i < q->read_ptr && i >= q->write_ptr);
 }
 
-
-static inline u8 get_cmd_index(struct iwl3945_queue *q, u32 index, int is_huge)
-{
-	/* This is for scan command, the big buffer at end of command array */
-	if (is_huge)
-		return q->n_window;	/* must be power of 2 */
-
-	/* Otherwise, use normal size buffers */
-	return index & (q->n_window - 1);
-}
-
 /**
  * iwl3945_queue_init - Initialize queue's high/low-water and read/write indexes
  */
-static int iwl3945_queue_init(struct iwl3945_priv *priv, struct iwl3945_queue *q,
+static int iwl3945_queue_init(struct iwl3945_priv *priv, struct iwl_queue *q,
 			  int count, int slots_num, u32 id)
 {
 	q->n_bd = count;
@@ -297,7 +271,7 @@ int iwl3945_tx_queue_init(struct iwl3945_priv *priv,
  */
 void iwl3945_tx_queue_free(struct iwl3945_priv *priv, struct iwl3945_tx_queue *txq)
 {
-	struct iwl3945_queue *q = &txq->q;
+	struct iwl_queue *q = &txq->q;
 	struct pci_dev *dev = priv->pci_dev;
 	int len;
 
@@ -581,7 +555,7 @@ static const char *get_cmd_string(u8 cmd)
 static int iwl3945_enqueue_hcmd(struct iwl3945_priv *priv, struct iwl3945_host_cmd *cmd)
 {
 	struct iwl3945_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
-	struct iwl3945_queue *q = &txq->q;
+	struct iwl_queue *q = &txq->q;
 	struct iwl3945_tfd_frame *tfd;
 	u32 *control_flags;
 	struct iwl3945_cmd *out_cmd;
@@ -596,7 +570,7 @@ static int iwl3945_enqueue_hcmd(struct iwl3945_priv *priv, struct iwl3945_host_c
 	/* If any of the command structures end up being larger than
 	 * the TFD_MAX_PAYLOAD_SIZE, and it sent as a 'small' command then
 	 * we will need to increase the size of the TFD entries */
-	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
+	BUG_ON((fix_size > TFD39_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->meta.flags & CMD_SIZE_HUGE));
 
 
@@ -605,7 +579,7 @@ static int iwl3945_enqueue_hcmd(struct iwl3945_priv *priv, struct iwl3945_host_c
 		return -EIO;
 	}
 
-	if (iwl3945_queue_space(q) < ((cmd->meta.flags & CMD_ASYNC) ? 2 : 1)) {
+	if (iwl_queue_space(q) < ((cmd->meta.flags & CMD_ASYNC) ? 2 : 1)) {
 		IWL_ERROR("No space for Tx\n");
 		return -ENOSPC;
 	}
@@ -2171,7 +2145,7 @@ static void iwl3945_set_flags_for_phymode(struct iwl3945_priv *priv,
 static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv,
 					      int mode)
 {
-	const struct iwl3945_channel_info *ch_info;
+	const struct iwl_channel_info *ch_info;
 
 	memset(&priv->staging_rxon, 0, sizeof(priv->staging_rxon));
 
@@ -2241,7 +2215,7 @@ static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv,
 static int iwl3945_set_mode(struct iwl3945_priv *priv, int mode)
 {
 	if (mode == NL80211_IFTYPE_ADHOC) {
-		const struct iwl3945_channel_info *ch_info;
+		const struct iwl_channel_info *ch_info;
 
 		ch_info = iwl3945_get_channel_info(priv,
 			priv->band,
@@ -2457,7 +2431,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 	u32 *control_flags;
 	int txq_id = skb_get_queue_mapping(skb);
 	struct iwl3945_tx_queue *txq = NULL;
-	struct iwl3945_queue *q = NULL;
+	struct iwl_queue *q = NULL;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	struct iwl3945_cmd *out_cmd = NULL;
@@ -2652,7 +2626,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 	if (rc)
 		return rc;
 
-	if ((iwl3945_queue_space(q) < q->high_mark)
+	if ((iwl_queue_space(q) < q->high_mark)
 	    && priv->mac80211_registered) {
 		if (wait_write_ptr) {
 			spin_lock_irqsave(&priv->lock, flags);
@@ -3305,7 +3279,7 @@ static void iwl3945_cmd_queue_reclaim(struct iwl3945_priv *priv,
 				      int txq_id, int index)
 {
 	struct iwl3945_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl3945_queue *q = &txq->q;
+	struct iwl_queue *q = &txq->q;
 	int nfreed = 0;
 
 	if ((index >= q->n_bd) || (iwl3945_x2_queue_used(q, index) == 0)) {
@@ -4524,8 +4498,9 @@ static void iwl3945_init_band_reference(const struct iwl3945_priv *priv, int ban
  *
  * Based on band and channel number.
  */
-const struct iwl3945_channel_info *iwl3945_get_channel_info(const struct iwl3945_priv *priv,
-						    enum ieee80211_band band, u16 channel)
+const struct iwl_channel_info *
+iwl3945_get_channel_info(const struct iwl3945_priv *priv,
+			 enum ieee80211_band band, u16 channel)
 {
 	int i;
 
@@ -4560,7 +4535,7 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 	const u8 *eeprom_ch_index = NULL;
 	const struct iwl_eeprom_channel *eeprom_ch_info = NULL;
 	int band, ch;
-	struct iwl3945_channel_info *ch_info;
+	struct iwl_channel_info *ch_info;
 
 	if (priv->channel_count) {
 		IWL_DEBUG_INFO("Channel map already initialized.\n");
@@ -4584,7 +4559,7 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 
 	IWL_DEBUG_INFO("Parsing data for %d channels.\n", priv->channel_count);
 
-	priv->channel_info = kzalloc(sizeof(struct iwl3945_channel_info) *
+	priv->channel_info = kzalloc(sizeof(struct iwl_channel_info) *
 				     priv->channel_count, GFP_KERNEL);
 	if (!priv->channel_info) {
 		IWL_ERROR("Could not allocate channel_info\n");
@@ -4746,7 +4721,7 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
 {
 	const struct ieee80211_channel *channels = NULL;
 	const struct ieee80211_supported_band *sband;
-	const struct iwl3945_channel_info *ch_info;
+	const struct iwl_channel_info *ch_info;
 	u16 passive_dwell = 0;
 	u16 active_dwell = 0;
 	int added, i;
@@ -4858,7 +4833,7 @@ static void iwl3945_init_hw_rates(struct iwl3945_priv *priv,
  */
 static int iwl3945_init_geos(struct iwl3945_priv *priv)
 {
-	struct iwl3945_channel_info *ch;
+	struct iwl_channel_info *ch;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *channels;
 	struct ieee80211_channel *geo_ch;
@@ -6585,7 +6560,7 @@ static int iwl3945_mac_add_interface(struct ieee80211_hw *hw,
 static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct iwl3945_priv *priv = hw->priv;
-	const struct iwl3945_channel_info *ch_info;
+	const struct iwl_channel_info *ch_info;
 	struct ieee80211_conf *conf = &hw->conf;
 	unsigned long flags;
 	int ret = 0;
@@ -7112,7 +7087,7 @@ static int iwl3945_mac_get_tx_stats(struct ieee80211_hw *hw,
 	struct iwl3945_priv *priv = hw->priv;
 	int i, avail;
 	struct iwl3945_tx_queue *txq;
-	struct iwl3945_queue *q;
+	struct iwl_queue *q;
 	unsigned long flags;
 
 	IWL_DEBUG_MAC80211("enter\n");
@@ -7127,7 +7102,7 @@ static int iwl3945_mac_get_tx_stats(struct ieee80211_hw *hw,
 	for (i = 0; i < AC_NUM; i++) {
 		txq = &priv->txq[i];
 		q = &txq->q;
-		avail = iwl3945_queue_space(q);
+		avail = iwl_queue_space(q);
 
 		stats[i].len = q->n_window - avail;
 		stats[i].limit = q->n_window - q->high_mark;

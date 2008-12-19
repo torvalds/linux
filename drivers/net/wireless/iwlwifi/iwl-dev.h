@@ -39,6 +39,7 @@
 #include "iwl-rfkill.h"
 #include "iwl-eeprom.h"
 #include "iwl-4965-hw.h"
+#include "iwl-3945-hw.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-debug.h"
@@ -153,6 +154,30 @@ struct iwl4965_channel_tgh_info {
 	s64 last_radar_time;
 };
 
+#define IWL4965_MAX_RATE (33)
+
+/* current Tx power values to use, one for each rate for each channel.
+ * requested power is limited by:
+ * -- regulatory EEPROM limits for this channel
+ * -- hardware capabilities (clip-powers)
+ * -- spectrum management
+ * -- user preference (e.g. iwconfig)
+ * when requested power is set, base power index must also be set. */
+struct iwl3945_channel_power_info {
+	struct iwl3945_tx_power tpc;	/* actual radio and DSP gain settings */
+	s8 power_table_index;	/* actual (compenst'd) index into gain table */
+	s8 base_power_index;	/* gain index for power at factory temp. */
+	s8 requested_power;	/* power (dBm) requested for this chnl/rate */
+};
+
+/* current scan Tx power values to use, one for each scan rate for each
+ * channel. */
+struct iwl3945_scan_power_info {
+	struct iwl3945_tx_power tpc;	/* actual radio and DSP gain settings */
+	s8 power_table_index;	/* actual (compenst'd) index into gain table */
+	s8 requested_power;	/* scan pwr (dBm) requested for chnl/rate */
+};
+
 /*
  * One for each channel, holds all channel setup data
  * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
@@ -183,6 +208,14 @@ struct iwl_channel_info {
 	s8 fat_scan_power;	/* (dBm) eeprom, direct scans, any rate */
 	u8 fat_flags;		/* flags copied from EEPROM */
 	u8 fat_extension_channel; /* HT_IE_EXT_CHANNEL_* */
+
+	/* Radio/DSP gain settings for each "normal" data Tx rate.
+	 * These include, in addition to RF and DSP gain, a few fields for
+	 *   remembering/modifying gain settings (indexes). */
+	struct iwl3945_channel_power_info power_info[IWL4965_MAX_RATE];
+
+	/* Radio/DSP gain settings for each scan rate, for directed scans. */
+	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
 
