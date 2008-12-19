@@ -429,7 +429,7 @@ struct iwl_hw_key {
 	u8 key[32];
 };
 
-union iwl4965_ht_rate_supp {
+union iwl_ht_rate_supp {
 	u16 rates;
 	struct {
 		u8 siso_rate;

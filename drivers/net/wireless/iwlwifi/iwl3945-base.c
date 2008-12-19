@@ -5228,7 +5228,7 @@ static void iwl3945_nic_start(struct iwl3945_priv *priv)
  */
 static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 {
-	struct iwl3945_ucode *ucode;
+	struct iwl_ucode *ucode;
 	int ret = -EINVAL, index;
 	const struct firmware *ucode_raw;
 	/* firmware file name contains uCode/driver compatibility version */

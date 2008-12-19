@@ -275,54 +275,8 @@ struct iwl3945_rx_queue {
 #define IWL_INVALID_RATE     0xFF
 #define IWL_INVALID_VALUE    -1
 
-union iwl3945_ht_rate_supp {
-	u16 rates;
-	struct {
-		u8 siso_rate;
-		u8 mimo_rate;
-	};
-};
-
-union iwl3945_qos_capabity {
-	struct {
-		u8 edca_count:4;	/* bit 0-3 */
-		u8 q_ack:1;		/* bit 4 */
-		u8 queue_request:1;	/* bit 5 */
-		u8 txop_request:1;	/* bit 6 */
-		u8 reserved:1;		/* bit 7 */
-	} q_AP;
-	struct {
-		u8 acvo_APSD:1;		/* bit 0 */
-		u8 acvi_APSD:1;		/* bit 1 */
-		u8 ac_bk_APSD:1;	/* bit 2 */
-		u8 ac_be_APSD:1;	/* bit 3 */
-		u8 q_ack:1;		/* bit 4 */
-		u8 max_len:2;		/* bit 5-6 */
-		u8 more_data_ack:1;	/* bit 7 */
-	} q_STA;
-	u8 val;
-};
-
-/* QoS structures */
-struct iwl3945_qos_info {
-	int qos_active;
-	union iwl3945_qos_capabity qos_cap;
-	struct iwl_qosparam_cmd def_qos_parm;
-};
-
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
-
-/* uCode file layout */
-struct iwl3945_ucode {
-	__le32 ver;		/* major/minor/API/serial */
-	__le32 inst_size;	/* bytes of runtime instructions */
-	__le32 data_size;	/* bytes of runtime data */
-	__le32 init_size;	/* bytes of initialization instructions */
-	__le32 init_data_size;	/* bytes of initialization data */
-	__le32 boot_size;	/* bytes of bootstrap instructions */
-	u8 data[0];		/* data in same order as "size" elements */
-};
 
 struct iwl3945_ibss_seq {
 	u8 mac[ETH_ALEN];
@@ -561,7 +515,7 @@ struct iwl3945_priv {
 
 	/* uCode images, save to reload in case of failure */
 	u32 ucode_ver;			/* ucode version, copy of
-					   iwl3945_ucode.ver */
+					   iwl_ucode.ver */
 	struct fw_desc ucode_code;	/* runtime inst */
 	struct fw_desc ucode_data;	/* runtime data original */
 	struct fw_desc ucode_data_backup;	/* runtime data save/restore */
@@ -672,7 +626,7 @@ struct iwl3945_priv {
 	u16 assoc_capability;
 	u8 ps_mode;
 
-	struct iwl3945_qos_info qos_data;
+	struct iwl_qos_info qos_data;
 
 	struct workqueue_struct *workqueue;
 
