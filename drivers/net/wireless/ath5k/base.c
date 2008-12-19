@@ -1762,8 +1762,8 @@ accept:
 		 * not try to remove padding from short control frames that do
 		 * not have payload. */
 		hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-		padsize = hdrlen & 3;
-		if (padsize && hdrlen >= 24) {
+		padsize = ath5k_pad_size(hdrlen);
+		if (padsize) {
 			memmove(skb->data + padsize, skb->data, hdrlen);
 			skb_pull(skb, padsize);
 		}
@@ -2638,8 +2638,8 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * if this is not the case we add the padding after the header
 	 */
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	padsize = hdrlen & 3;
-	if (padsize && hdrlen >= 24) {
+	padsize = ath5k_pad_size(hdrlen);
+	if (padsize) {
 
 		if (skb_headroom(skb) < padsize) {
 			ATH5K_ERR(sc, "tx hdrlen not %%4: %d not enough"
