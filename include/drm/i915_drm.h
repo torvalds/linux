@@ -113,7 +113,30 @@ typedef struct _drm_i915_sarea {
 	int pipeB_y;
 	int pipeB_w;
 	int pipeB_h;
+
+	/* fill out some space for old userspace triple buffer */
+	drm_handle_t unused_handle;
+	uint32_t unused1, unused2, unused3;
+
+	/* buffer object handles for static buffers. May change
+	 * over the lifetime of the client.
+	 */
+	uint32_t front_bo_handle;
+	uint32_t back_bo_handle;
+	uint32_t unused_bo_handle;
+	uint32_t depth_bo_handle;
+
 } drm_i915_sarea_t;
+
+/* due to userspace building against these headers we need some compat here */
+#define planeA_x pipeA_x
+#define planeA_y pipeA_y
+#define planeA_w pipeA_w
+#define planeA_h pipeA_h
+#define planeB_x pipeB_x
+#define planeB_y pipeB_y
+#define planeB_w pipeB_w
+#define planeB_h pipeB_h
 
 /* Flags for perf_boxes
  */
