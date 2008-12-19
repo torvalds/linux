@@ -75,6 +75,12 @@
 #define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 #define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
 
+
+/* Tx rates */
+#define IWL_CCK_RATES	4
+#define IWL_OFDM_RATES	8
+#define IWL_MAX_RATES	(IWL_CCK_RATES + IWL_OFDM_RATES)
+
 enum {
 	REPLY_ALIVE = 0x1,
 	REPLY_ERROR = 0x2,
@@ -784,6 +790,8 @@ struct iwl_qosparam_cmd {
 #define	IWL_AP_ID		0
 #define IWL_MULTICAST_ID	1
 #define	IWL_STA_ID		2
+#define	IWL3945_BROADCAST_ID	24
+#define IWL3945_STATION_COUNT	25
 #define IWL4965_BROADCAST_ID	31
 #define	IWL4965_STATION_COUNT	32
 #define IWL5000_BROADCAST_ID	15
@@ -792,6 +800,8 @@ struct iwl_qosparam_cmd {
 #define	IWL_STATION_COUNT	32 	/* MAX(3945,4965)*/
 #define	IWL_INVALID_STATION 	255
 
+#define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2);
+#define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8);
 #define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8);
 #define STA_FLG_RTS_MIMO_PROT_MSK	cpu_to_le32(1 << 17)
 #define STA_FLG_AGG_MPDU_8US_MSK	cpu_to_le32(1 << 18)
@@ -2181,6 +2191,7 @@ struct iwl_ssid_ie {
 	u8 ssid[32];
 } __attribute__ ((packed));
 
+#define PROBE_OPTION_MAX_API1		0x4
 #define PROBE_OPTION_MAX        	0x14
 #define TX_CMD_LIFE_TIME_INFINITE	cpu_to_le32(0xFFFFFFFF)
 #define IWL_GOOD_CRC_TH			cpu_to_le16(1)

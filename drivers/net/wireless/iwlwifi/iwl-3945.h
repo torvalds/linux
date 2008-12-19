@@ -328,18 +328,18 @@ struct iwl3945_cmd_meta {
  */
 struct iwl3945_cmd {
 	struct iwl3945_cmd_meta meta;
-	struct iwl3945_cmd_header hdr;
+	struct iwl_cmd_header hdr;
 	union {
 		struct iwl3945_addsta_cmd addsta;
-		struct iwl3945_led_cmd led;
+		struct iwl_led_cmd led;
 		u32 flags;
 		u8 val8;
 		u16 val16;
 		u32 val32;
-		struct iwl3945_bt_cmd bt;
+		struct iwl_bt_cmd bt;
 		struct iwl3945_rxon_time_cmd rxon_time;
 		struct iwl_powertable_cmd powertable;
-		struct iwl3945_qosparam_cmd qosparam;
+		struct iwl_qosparam_cmd qosparam;
 		struct iwl3945_tx_cmd tx;
 		struct iwl3945_tx_beacon_cmd tx_beacon;
 		struct iwl3945_rxon_assoc_cmd rxon_assoc;
@@ -466,7 +466,7 @@ union iwl3945_qos_capabity {
 struct iwl3945_qos_info {
 	int qos_active;
 	union iwl3945_qos_capabity qos_cap;
-	struct iwl3945_qosparam_cmd def_qos_parm;
+	struct iwl_qosparam_cmd def_qos_parm;
 };
 
 #define STA_PS_STATUS_WAKE             0

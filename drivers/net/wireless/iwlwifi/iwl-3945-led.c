@@ -82,11 +82,11 @@ static inline int iwl3945_brightness_to_idx(enum led_brightness brightness)
 
 /* Send led command */
 static int iwl_send_led_cmd(struct iwl3945_priv *priv,
-			    struct iwl3945_led_cmd *led_cmd)
+			    struct iwl_led_cmd *led_cmd)
 {
 	struct iwl3945_host_cmd cmd = {
 		.id = REPLY_LEDS_CMD,
-		.len = sizeof(struct iwl3945_led_cmd),
+		.len = sizeof(struct iwl_led_cmd),
 		.data = led_cmd,
 		.meta.flags = CMD_ASYNC,
 		.meta.u.callback = iwl3945_led_cmd_callback,
@@ -101,7 +101,7 @@ static int iwl_send_led_cmd(struct iwl3945_priv *priv,
 static int iwl3945_led_pattern(struct iwl3945_priv *priv, int led_id,
 			       unsigned int idx)
 {
-	struct iwl3945_led_cmd led_cmd = {
+	struct iwl_led_cmd led_cmd = {
 		.id = led_id,
 		.interval = IWL_DEF_LED_INTRVL
 	};
@@ -115,11 +115,10 @@ static int iwl3945_led_pattern(struct iwl3945_priv *priv, int led_id,
 }
 
 
-#if 1
 /* Set led on command */
 static int iwl3945_led_on(struct iwl3945_priv *priv, int led_id)
 {
-	struct iwl3945_led_cmd led_cmd = {
+	struct iwl_led_cmd led_cmd = {
 		.id = led_id,
 		.on = IWL_LED_SOLID,
 		.off = 0,
@@ -131,7 +130,7 @@ static int iwl3945_led_on(struct iwl3945_priv *priv, int led_id)
 /* Set led off command */
 static int iwl3945_led_off(struct iwl3945_priv *priv, int led_id)
 {
-	struct iwl3945_led_cmd led_cmd = {
+	struct iwl_led_cmd led_cmd = {
 		.id = led_id,
 		.on = 0,
 		.off = 0,
@@ -140,8 +139,6 @@ static int iwl3945_led_off(struct iwl3945_priv *priv, int led_id)
 	IWL_DEBUG_LED("led off %d\n", led_id);
 	return iwl_send_led_cmd(priv, &led_cmd);
 }
-#endif
-
 
 /*
  * brightness call back function for Tx/Rx LED
