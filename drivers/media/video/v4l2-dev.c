@@ -162,6 +162,10 @@ static int get_index(struct video_device *vdev, int num)
 		return -EINVAL;
 	}
 
+	/* Some drivers do not set the parent. In that case always return 0. */
+	if (vdev->parent == NULL)
+		return 0;
+
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
 		if (video_device[i] != NULL &&
 		    video_device[i] != vdev &&
