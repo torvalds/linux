@@ -328,6 +328,28 @@
 #define NETX_PFIFO_FILL_LEVEL(pfifo)  NETX_PFIFO_REG(0x180 + ((pfifo)<<2))
 #define NETX_PFIFO_XPEC_ISR(xpec)     NETX_PFIFO_REG(0x400 + ((xpec) << 2))
 
+
+/*******************************
+ * Memory Controller           *
+ *******************************/
+
+/* Registers */
+#define NETX_MEMCR_REG(ofs)               __io(NETX_VA_MEMCR + (ofs))
+#define NETX_MEMCR_SRAM_CTRL(cs)      NETX_MEMCR_REG(0x0 + 4 * (cs)) /* SRAM for CS 0..2 */
+#define NETX_MEMCR_SDRAM_CFG_CTRL     NETX_MEMCR_REG(0x40)
+#define NETX_MEMCR_SDRAM_TIMING_CTRL  NETX_MEMCR_REG(0x44)
+#define NETX_MEMCR_SDRAM_MODE         NETX_MEMCR_REG(0x48)
+#define NETX_MEMCR_SDRAM_EXT_MODE     NETX_MEMCR_REG(0x4c)
+#define NETX_MEMCR_PRIO_TIMESLOT_CTRL NETX_MEMCR_REG(0x80)
+#define NETX_MEMCR_PRIO_ACCESS_CTRL   NETX_MEMCR_REG(0x84)
+
+/* Bits */
+#define NETX_MEMCR_SRAM_CTRL_WIDTHEXTMEM(x)       (((x) & 0x3)  << 24)
+#define NETX_MEMCR_SRAM_CTRL_WSPOSTPAUSEEXTMEM(x) (((x) & 0x3)  << 16)
+#define NETX_MEMCR_SRAM_CTRL_WSPREPASEEXTMEM(x)   (((x) & 0x3)  << 8)
+#define NETX_MEMCR_SRAM_CTRL_WSEXTMEM(x)          (((x) & 0x1f) << 0)
+
+
 /*******************************
  * Dual Port Memory            *
  *******************************/

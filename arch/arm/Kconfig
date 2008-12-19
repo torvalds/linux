@@ -156,7 +156,6 @@ config ARCH_MTD_XIP
 	bool
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
 	def_bool y
 
 if OPROFILE
@@ -288,6 +287,8 @@ config ARCH_NETX
 	bool "Hilscher NetX based"
 	select CPU_ARM926T
 	select ARM_VIC
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_TIME
 	help
 	  This enables support for systems based on the Hilscher NetX Soc
 
