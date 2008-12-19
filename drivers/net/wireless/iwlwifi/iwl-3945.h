@@ -47,7 +47,7 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-3945-hw.h"
-#include "iwl-3945-debug.h"
+#include "iwl-debug.h"
 #include "iwl-3945-led.h"
 
 /* Highest firmware API version supported */
@@ -889,6 +889,7 @@ struct iwl3945_priv {
 
 #ifdef CONFIG_IWL3945_DEBUG
 	/* debugging info */
+	u32 debug_level;
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
 #endif

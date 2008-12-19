@@ -29,6 +29,8 @@
 #ifndef __iwl_debug_h__
 #define __iwl_debug_h__
 
+struct iwl_priv;
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG(level, fmt, args...) \
 do { if (priv->debug_level & (level)) \

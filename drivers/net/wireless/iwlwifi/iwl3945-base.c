@@ -52,10 +52,6 @@
 #include "iwl-3945-fh.h"
 #include "iwl-helpers.h"
 
-#ifdef CONFIG_IWL3945_DEBUG
-u32 iwl3945_debug_level;
-#endif
-
 static int iwl3945_tx_queue_update_write_ptr(struct iwl3945_priv *priv,
 				  struct iwl3945_tx_queue *txq);
 
@@ -2434,7 +2430,7 @@ static int iwl3945_get_sta_id(struct iwl3945_priv *priv, struct ieee80211_hdr *h
 		IWL_DEBUG_DROP("Station %pM not in station map. "
 			       "Defaulting to broadcast...\n",
 			       hdr->addr1);
-		iwl3945_print_hex_dump(IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
+		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
 		return priv->hw_setting.bcast_sta_id;
 	}
 	/* If we are in monitor mode, use BCAST. This is required for
@@ -2640,10 +2636,10 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 		txq->need_update = 0;
 	}
 
-	iwl3945_print_hex_dump(IWL_DL_TX, out_cmd->cmd.payload,
+	iwl_print_hex_dump(priv, IWL_DL_TX, out_cmd->cmd.payload,
 			   sizeof(out_cmd->cmd.tx));
 
-	iwl3945_print_hex_dump(IWL_DL_TX, (u8 *)out_cmd->cmd.tx.hdr,
+	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)out_cmd->cmd.tx.hdr,
 			   ieee80211_hdrlen(fc));
 
 	/* Tell device the write index *just past* this latest filled TFD */
@@ -3050,7 +3046,8 @@ static void iwl3945_rx_pm_debug_statistics_notif(struct iwl3945_priv *priv,
 	IWL_DEBUG_RADIO("Dumping %d bytes of unhandled "
 			"notification for %s:\n",
 			le32_to_cpu(pkt->len), get_cmd_string(pkt->hdr.cmd));
-	iwl3945_print_hex_dump(IWL_DL_RADIO, pkt->u.raw, le32_to_cpu(pkt->len));
+	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->u.raw,
+			   le32_to_cpu(pkt->len));
 }
 
 static void iwl3945_bg_beacon_update(struct work_struct *work)
@@ -3850,13 +3847,13 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 		 *   handle those that need handling via function in
 		 *   rx_handlers table.  See iwl3945_setup_rx_handlers() */
 		if (priv->rx_handlers[pkt->hdr.cmd]) {
-			IWL_DEBUG(IWL_DL_HOST_COMMAND | IWL_DL_RX | IWL_DL_ISR,
+			IWL_DEBUG(IWL_DL_HCMD | IWL_DL_RX | IWL_DL_ISR,
 				"r = %d, i = %d, %s, 0x%02x\n", r, i,
 				get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
 			priv->rx_handlers[pkt->hdr.cmd] (priv, rxb);
 		} else {
 			/* No handling needed */
-			IWL_DEBUG(IWL_DL_HOST_COMMAND | IWL_DL_RX | IWL_DL_ISR,
+			IWL_DEBUG(IWL_DL_HCMD | IWL_DL_RX | IWL_DL_ISR,
 				"r %d i %d No handler needed for %s, 0x%02x\n",
 				r, i, get_cmd_string(pkt->hdr.cmd),
 				pkt->hdr.cmd);
@@ -3951,10 +3948,11 @@ static int iwl3945_tx_queue_update_write_ptr(struct iwl3945_priv *priv,
 }
 
 #ifdef CONFIG_IWL3945_DEBUG
-static void iwl3945_print_rx_config_cmd(struct iwl3945_rxon_cmd *rxon)
+static void iwl3945_print_rx_config_cmd(struct iwl3945_priv *priv,
+					struct iwl3945_rxon_cmd *rxon)
 {
 	IWL_DEBUG_RADIO("RX CONFIG:\n");
-	iwl3945_print_hex_dump(IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
+	iwl_print_hex_dump(priv, IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
 	IWL_DEBUG_RADIO("u16 channel: 0x%x\n", le16_to_cpu(rxon->channel));
 	IWL_DEBUG_RADIO("u32 flags: 0x%08X\n", le32_to_cpu(rxon->flags));
 	IWL_DEBUG_RADIO("u32 filter_flags: 0x%08x\n",
@@ -4188,10 +4186,10 @@ static void iwl3945_irq_handle_error(struct iwl3945_priv *priv)
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
 #ifdef CONFIG_IWL3945_DEBUG
-	if (iwl3945_debug_level & IWL_DL_FW_ERRORS) {
+	if (priv->debug_level & IWL_DL_FW_ERRORS) {
 		iwl3945_dump_nic_error_log(priv);
 		iwl3945_dump_nic_event_log(priv);
-		iwl3945_print_rx_config_cmd(&priv->staging_rxon);
+		iwl3945_print_rx_config_cmd(priv, &priv->staging_rxon);
 	}
 #endif
 
@@ -4255,7 +4253,7 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 	iwl3945_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWL3945_DEBUG
-	if (iwl3945_debug_level & IWL_DL_ISR) {
+	if (priv->debug_level & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl3945_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -4289,7 +4287,7 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 	}
 
 #ifdef CONFIG_IWL3945_DEBUG
-	if (iwl3945_debug_level & (IWL_DL_ISR)) {
+	if (priv->debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD)
 			IWL_DEBUG_ISR("Scheduler finished to transmit "
@@ -4360,7 +4358,7 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 		iwl3945_enable_interrupts(priv);
 
 #ifdef CONFIG_IWL3945_DEBUG
-	if (iwl3945_debug_level & (IWL_DL_ISR)) {
+	if (priv->debug_level & (IWL_DL_ISR)) {
 		inta = iwl3945_read32(priv, CSR_INT);
 		inta_mask = iwl3945_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl3945_read32(priv, CSR_FH_INT_STATUS);
@@ -7143,9 +7141,6 @@ static int iwl3945_mac_get_tx_stats(struct ieee80211_hw *hw,
 static int iwl3945_mac_get_stats(struct ieee80211_hw *hw,
 			     struct ieee80211_low_level_stats *stats)
 {
-	IWL_DEBUG_MAC80211("enter\n");
-	IWL_DEBUG_MAC80211("leave\n");
-
 	return 0;
 }
 
@@ -7260,29 +7255,33 @@ static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
  *
  * See the level definitions in iwl for details.
  */
-
-static ssize_t show_debug_level(struct device_driver *d, char *buf)
+static ssize_t show_debug_level(struct device *d,
+				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%08X\n", iwl3945_debug_level);
+	struct iwl3945_priv *priv = d->driver_data;
+
+	return sprintf(buf, "0x%08X\n", priv->debug_level);
 }
-static ssize_t store_debug_level(struct device_driver *d,
+static ssize_t store_debug_level(struct device *d,
+				struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	char *p = (char *)buf;
-	u32 val;
+	struct iwl3945_priv *priv = d->driver_data;
+	unsigned long val;
+	int ret;
 
-	val = simple_strtoul(p, &p, 0);
-	if (p == buf)
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret)
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in hex or decimal form.\n", buf);
 	else
-		iwl3945_debug_level = val;
+		priv->debug_level = val;
 
 	return strnlen(buf, count);
 }
 
-static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
-		   show_debug_level, store_debug_level);
+static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
+			show_debug_level, store_debug_level);
 
 #endif /* CONFIG_IWL3945_DEBUG */
 
@@ -7763,7 +7762,9 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
-
+#ifdef CONFIG_IWL3945_DEBUG
+	&dev_attr_debug_level.attr,
+#endif
 	NULL
 };
 
@@ -7802,13 +7803,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * 1. Allocating HW data
 	 * ********************/
 
-	/* Disabling hardware scan means that mac80211 will perform scans
-	 * "the hard way", rather than using device's scan. */
-	if (iwl3945_param_disable_hw_scan) {
-		IWL_DEBUG_INFO("Disabling hw_scan\n");
-		iwl3945_hw_ops.hw_scan = NULL;
-	}
-
 	if ((iwl3945_param_queues_num > IWL39_MAX_NUM_QUEUES) ||
 	    (iwl3945_param_queues_num < IWL_MIN_NUM_QUEUES)) {
 		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
@@ -7833,6 +7827,13 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->pci_dev = pdev;
 	priv->cfg = cfg;
 
+	/* Disabling hardware scan means that mac80211 will perform scans
+	 * "the hard way", rather than using device's scan. */
+	if (iwl3945_param_disable_hw_scan) {
+		IWL_DEBUG_INFO("Disabling hw_scan\n");
+		iwl3945_hw_ops.hw_scan = NULL;
+	}
+
 	IWL_DEBUG_INFO("*** LOAD DRIVER ***\n");
 	hw->rate_control_algorithm = "iwl-3945-rs";
 	hw->sta_data_size = sizeof(struct iwl3945_sta_priv);
@@ -7840,7 +7841,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* Select antenna (may be helpful if only one antenna is connected) */
 	priv->antenna = (enum iwl3945_antenna)iwl3945_param_antenna;
 #ifdef CONFIG_IWL3945_DEBUG
-	iwl3945_debug_level = iwl3945_param_debug;
+	priv->debug_level = iwl3945_param_debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
 
@@ -8301,20 +8302,9 @@ static int __init iwl3945_init(void)
 		IWL_ERROR("Unable to initialize PCI module\n");
 		goto error_register;
 	}
-#ifdef CONFIG_IWL3945_DEBUG
-	ret = driver_create_file(&iwl3945_driver.driver, &driver_attr_debug_level);
-	if (ret) {
-		IWL_ERROR("Unable to create driver sysfs file\n");
-		goto error_debug;
-	}
-#endif
 
 	return ret;
 
-#ifdef CONFIG_IWL3945_DEBUG
-error_debug:
-	pci_unregister_driver(&iwl3945_driver);
-#endif
 error_register:
 	iwl3945_rate_control_unregister();
 	return ret;
@@ -8322,9 +8312,6 @@ error_register:
 
 static void __exit iwl3945_exit(void)
 {
-#ifdef CONFIG_IWL3945_DEBUG
-	driver_remove_file(&iwl3945_driver.driver, &driver_attr_debug_level);
-#endif
 	pci_unregister_driver(&iwl3945_driver);
 	iwl3945_rate_control_unregister();
 }

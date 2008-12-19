@@ -542,7 +542,7 @@ static void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
 		}
 	}
 	if (print_dump)
-		iwl3945_print_hex_dump(IWL_DL_RX, data, length);
+		iwl_print_hex_dump(priv, IWL_DL_RX, data, length);
 }
 #else
 static inline void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
@@ -708,7 +708,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 			      rx_status.noise, rx_status.rate_idx);
 
 #ifdef CONFIG_IWL3945_DEBUG
-	if (iwl3945_debug_level & (IWL_DL_RX))
+	if (priv->debug_level & (IWL_DL_RX))
 		/* Set "1" to report good data frames in groups of 100 */
 		iwl3945_dbg_report_frame(priv, pkt, header, 1);
 #endif

@@ -52,6 +52,7 @@ struct iwl3945_rate_scale_data {
 
 struct iwl3945_rs_sta {
 	spinlock_t lock;
+	struct iwl3945_priv *priv;
 	s32 *expected_tpt;
 	unsigned long last_partial_flush;
 	unsigned long last_flush;
@@ -182,6 +183,7 @@ static int iwl3945_rate_scale_flush_windows(struct iwl3945_rs_sta *rs_sta)
 	int unflushed = 0;
 	int i;
 	unsigned long flags;
+	struct iwl3945_priv *priv = rs_sta->priv;
 
 	/*
 	 * For each rate, if we have collected data on that rate
@@ -214,6 +216,7 @@ static int iwl3945_rate_scale_flush_windows(struct iwl3945_rs_sta *rs_sta)
 static void iwl3945_bg_rate_scale_flush(unsigned long data)
 {
 	struct iwl3945_rs_sta *rs_sta = (void *)data;
+	struct iwl3945_priv *priv = rs_sta->priv;
 	int unflushed = 0;
 	unsigned long flags;
 	u32 packet_count, duration, pps;
@@ -287,6 +290,7 @@ static void iwl3945_collect_tx_data(struct iwl3945_rs_sta *rs_sta,
 {
 	unsigned long flags;
 	s32 fail_count;
+	struct iwl3945_priv *priv = rs_sta->priv;
 
 	if (!retries) {
 		IWL_DEBUG_RATE("leave: retries == 0 -- should be at least 1\n");
@@ -380,10 +384,11 @@ static void rs_free(void *priv)
 	return;
 }
 
-static void *rs_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
+static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
 	struct iwl3945_rs_sta *rs_sta;
 	struct iwl3945_sta_priv *psta = (void *) sta->drv_priv;
+	struct iwl3945_priv *priv = iwl_priv;
 	int i;
 
 	/*
@@ -402,6 +407,8 @@ static void *rs_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 	psta->rs_sta = rs_sta;
 
 	spin_lock_init(&rs_sta->lock);
+
+	rs_sta->priv = priv;
 
 	rs_sta->start_rate = IWL_RATE_INVALID;
 
@@ -426,11 +433,12 @@ static void *rs_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 	return rs_sta;
 }
 
-static void rs_free_sta(void *priv, struct ieee80211_sta *sta,
+static void rs_free_sta(void *iwl_priv, struct ieee80211_sta *sta,
 			void *priv_sta)
 {
 	struct iwl3945_sta_priv *psta = (void *) sta->drv_priv;
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
+	struct iwl3945_priv *priv = rs_sta->priv;
 
 	psta->rs_sta = NULL;
 
@@ -548,6 +556,7 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
 {
 	u8 high = IWL_RATE_INVALID;
 	u8 low = IWL_RATE_INVALID;
+	struct iwl3945_priv *priv = rs_sta->priv;
 
 	/* 802.11A walks to the next literal adjacent rate in
 	 * the rate table */
