@@ -294,8 +294,6 @@ EXPORT_SYMBOL(drm_init);
  */
 static void drm_cleanup(struct drm_device * dev)
 {
-	struct drm_driver *driver = dev->driver;
-
 	DRM_DEBUG("\n");
 
 	if (!dev) {
@@ -330,7 +328,7 @@ static void drm_cleanup(struct drm_device * dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);
 
-	if (driver->driver_features & DRIVER_GEM)
+	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);
 
 	drm_put_minor(&dev->primary);
