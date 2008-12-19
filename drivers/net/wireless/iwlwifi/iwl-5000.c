@@ -676,7 +676,8 @@ static void iwl5000_init_alive_start(struct iwl_priv *priv)
 	iwl_clear_stations_table(priv);
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
-		IWL_WARNING("Could not complete ALIVE transition: %d\n", ret);
+		IWL_WARN(priv,
+			"Could not complete ALIVE transition: %d\n", ret);
 		goto restart;
 	}
 
@@ -1012,7 +1013,8 @@ static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 
 	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES <= txq_id)) {
-		IWL_WARNING("queue number out of range: %d, must be %d to %d\n",
+		IWL_WARN(priv,
+			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL50_FIRST_AMPDU_QUEUE,
 			IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;
@@ -1077,7 +1079,8 @@ static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES <= txq_id)) {
-		IWL_WARNING("queue number out of range: %d, must be %d to %d\n",
+		IWL_WARN(priv,
+			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL50_FIRST_AMPDU_QUEUE,
 			IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;

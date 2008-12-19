@@ -1306,7 +1306,7 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 	else
 		return -EINVAL;
 
-	IWL_WARNING("%s on ra = %pM tid = %d\n",
+	IWL_WARN(priv, "%s on ra = %pM tid = %d\n",
 			__func__, ra, tid);
 
 	sta_id = iwl_find_station(priv, ra);
@@ -1369,7 +1369,7 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 		return -ENXIO;
 
 	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_ON)
-		IWL_WARNING("Stopping AGG while state not IWL_AGG_ON\n");
+		IWL_WARN(priv, "Stopping AGG while state not IWL_AGG_ON\n");
 
 	tid_data = &priv->stations[sta_id].tid[tid];
 	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;

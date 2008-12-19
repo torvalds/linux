@@ -32,7 +32,6 @@
 struct iwl_priv;
 
 #define IWL_ERROR(f, a...) dev_err(&(priv->pci_dev->dev), f, ## a)
-#define IWL_WARNING(f, a...) dev_warn(&(priv->pci_dev->dev), f, ## a)
 #define IWL_ERR(p, f, a...) dev_err(&((p)->pci_dev->dev), f, ## a)
 #define IWL_WARN(p, f, a...) dev_warn(&((p)->pci_dev->dev), f, ## a)
 #define IWL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)

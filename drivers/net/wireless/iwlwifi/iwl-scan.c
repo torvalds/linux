@@ -650,7 +650,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	mutex_lock(&priv->mutex);
 
 	if (!iwl_is_ready(priv)) {
-		IWL_WARNING("request scan called when driver not ready.\n");
+		IWL_WARN(priv, "request scan called when driver not ready.\n");
 		goto done;
 	}
 
@@ -773,7 +773,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
 			rx_chain = 0x6;
 	} else {
-		IWL_WARNING("Invalid scan band count\n");
+		IWL_WARN(priv, "Invalid scan band count\n");
 		goto done;
 	}
 

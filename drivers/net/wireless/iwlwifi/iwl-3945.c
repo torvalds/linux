@@ -158,7 +158,7 @@ void iwl3945_disable_events(struct iwl_priv *priv)
 
 	ret = iwl_grab_nic_access(priv);
 	if (ret) {
-		IWL_WARNING("Can not read from adapter at this time.\n");
+		IWL_WARN(priv, "Can not read from adapter at this time.\n");
 		return;
 	}
 
@@ -2095,7 +2095,7 @@ static void iwl3945_hw_reg_init_channel_groups(struct iwl_priv *priv)
 
 		/* sanity check on factory saturation power value */
 		if (group->saturation_power < 40) {
-			IWL_WARNING("Error: saturation power is %d, "
+			IWL_WARN(priv, "Error: saturation power is %d, "
 				    "less than minimum expected 40\n",
 				    group->saturation_power);
 			return;

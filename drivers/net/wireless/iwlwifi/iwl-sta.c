@@ -168,7 +168,7 @@ static int iwl_send_add_sta(struct iwl_priv *priv,
 			break;
 		default:
 			ret = -EIO;
-			IWL_WARNING("REPLY_ADD_STA failed\n");
+			IWL_WARN(priv, "REPLY_ADD_STA failed\n");
 			break;
 		}
 	}
@@ -204,7 +204,7 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 	case WLAN_HT_CAP_SM_PS_DISABLED:
 		break;
 	default:
-		IWL_WARNING("Invalid MIMO PS mode %d\n", mimo_ps_mode);
+		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", mimo_ps_mode);
 		break;
 	}
 
@@ -812,7 +812,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	}
 
 	if (priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET) {
-		IWL_WARNING("Removing wrong key %d 0x%x\n",
+		IWL_WARN(priv, "Removing wrong key %d 0x%x\n",
 			    keyconf->keyidx, key_flags);
 		spin_unlock_irqrestore(&priv->sta_lock, flags);
 		return 0;
@@ -1069,7 +1069,8 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 		return priv->hw_params.bcast_sta_id;
 
 	default:
-		IWL_WARNING("Unknown mode of operation: %d\n", priv->iw_mode);
+		IWL_WARN(priv, "Unknown mode of operation: %d\n",
+			priv->iw_mode);
 		return priv->hw_params.bcast_sta_id;
 	}
 }

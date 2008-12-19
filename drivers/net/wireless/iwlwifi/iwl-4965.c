@@ -1485,12 +1485,12 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 
 			/* stay within the table! */
 			if (power_index > 107) {
-				IWL_WARNING("txpower index %d > 107\n",
+				IWL_WARN(priv, "txpower index %d > 107\n",
 					    power_index);
 				power_index = 107;
 			}
 			if (power_index < 0) {
-				IWL_WARNING("txpower index %d < 0\n",
+				IWL_WARN(priv, "txpower index %d < 0\n",
 					    power_index);
 				power_index = 0;
 			}
@@ -1533,7 +1533,7 @@ static int iwl4965_send_tx_power(struct iwl_priv *priv)
 		/* If this gets hit a lot, switch it to a BUG() and catch
 		 * the stack trace to find out who is calling this during
 		 * a scan. */
-		IWL_WARNING("TX Power requested while scanning!\n");
+		IWL_WARN(priv, "TX Power requested while scanning!\n");
 		return -EAGAIN;
 	}
 
@@ -1839,7 +1839,8 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES <= txq_id)) {
-		IWL_WARNING("queue number out of range: %d, must be %d to %d\n",
+		IWL_WARN(priv,
+			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
 			IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;
@@ -1910,7 +1911,8 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES <= txq_id)) {
-		IWL_WARNING("queue number out of range: %d, must be %d to %d\n",
+		IWL_WARN(priv,
+			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
 			IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;

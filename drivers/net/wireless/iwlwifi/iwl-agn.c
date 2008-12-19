@@ -337,7 +337,7 @@ static void iwl_clear_free_frames(struct iwl_priv *priv)
 	}
 
 	if (priv->frames_count) {
-		IWL_WARNING("%d frames still in use.  Did we lose one?\n",
+		IWL_WARN(priv, "%d frames still in use.  Did we lose one?\n",
 			    priv->frames_count);
 		priv->frames_count = 0;
 	}
@@ -745,7 +745,7 @@ static int iwl_set_mode(struct iwl_priv *priv, int mode)
 
 	cancel_delayed_work(&priv->scan_check);
 	if (iwl_scan_cancel_timeout(priv, 100)) {
-		IWL_WARNING("Aborted scan still in progress after 100ms\n");
+		IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
 		IWL_DEBUG_MAC80211("leaving - scan abort failed.\n");
 		return -EAGAIN;
 	}
@@ -841,7 +841,7 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 		queue_delayed_work(priv->workqueue, pwork,
 				   msecs_to_jiffies(5));
 	else
-		IWL_WARNING("uCode did not respond OK.\n");
+		IWL_WARN(priv, "uCode did not respond OK.\n");
 }
 
 static void iwl_rx_reply_error(struct iwl_priv *priv,
@@ -1193,7 +1193,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 			if (rxb && rxb->skb)
 				iwl_tx_cmd_complete(priv, rxb);
 			else
-				IWL_WARNING("Claim null rxb?\n");
+				IWL_WARN(priv, "Claim null rxb?\n");
 		}
 
 		/* For now we just don't re-use anything.  We can tweak this
@@ -1457,9 +1457,9 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		IWL_ERROR("Unhandled INTA bits 0x%08x\n", inta & ~handled);
 
 	if (inta & ~CSR_INI_SET_MASK) {
-		IWL_WARNING("Disabled INTA bits 0x%08x were pending\n",
+		IWL_WARN(priv, "Disabled INTA bits 0x%08x were pending\n",
 			 inta & ~CSR_INI_SET_MASK);
-		IWL_WARNING("   with FH_INT = 0x%08x\n", inta_fh);
+		IWL_WARN(priv, "   with FH_INT = 0x%08x\n", inta_fh);
 	}
 
 	/* Re-enable all interrupts */
@@ -1511,7 +1511,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
 		/* Hardware disappeared. It might have already raised
 		 * an interrupt */
-		IWL_WARNING("HARDWARE GONE?? INTA == 0x%08x\n", inta);
+		IWL_WARN(priv, "HARDWARE GONE?? INTA == 0x%08x\n", inta);
 		goto unplugged;
 	}
 
@@ -1833,8 +1833,8 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	iwl_clear_stations_table(priv);
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
-		IWL_WARNING("Could not complete ALIVE transition [ntf]: %d\n",
-			    ret);
+		IWL_WARN(priv,
+			"Could not complete ALIVE transition [ntf]: %d\n", ret);
 		goto restart;
 	}
 
@@ -2020,7 +2020,7 @@ static int __iwl_up(struct iwl_priv *priv)
 	int ret;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		IWL_WARNING("Exit pending; will not bring the NIC up\n");
+		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
 		return -EIO;
 	}
 
@@ -2037,7 +2037,7 @@ static int __iwl_up(struct iwl_priv *priv)
 
 	if (iwl_is_rfkill(priv)) {
 		iwl_enable_interrupts(priv);
-		IWL_WARNING("Radio disabled by %s RF Kill switch\n",
+		IWL_WARN(priv, "Radio disabled by %s RF Kill switch\n",
 		    test_bit(STATUS_RF_KILL_HW, &priv->status) ? "HW" : "SW");
 		return 0;
 	}
@@ -2163,7 +2163,7 @@ static void iwl_bg_rf_kill(struct work_struct *work)
 			IWL_DEBUG_RF_KILL("Can not turn radio back on - "
 					  "disabled by SW switch\n");
 		else
-			IWL_WARNING("Radio Frequency Kill Switch is On:\n"
+			IWL_WARN(priv, "Radio Frequency Kill Switch is On:\n"
 				    "Kill switch must be turned off for "
 				    "wireless networking to work.\n");
 	}
@@ -2267,7 +2267,7 @@ static void iwl_post_associate(struct iwl_priv *priv)
 	ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 			      sizeof(priv->rxon_timing), &priv->rxon_timing);
 	if (ret)
-		IWL_WARNING("REPLY_RXON_TIMING failed - "
+		IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 			    "Attempting to continue.\n");
 
 	priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
@@ -2668,7 +2668,7 @@ static void iwl_config_ap(struct iwl_priv *priv)
 		ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 				sizeof(priv->rxon_timing), &priv->rxon_timing);
 		if (ret)
-			IWL_WARNING("REPLY_RXON_TIMING failed - "
+			IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 					"Attempting to continue.\n");
 
 		iwl_set_rxon_chain(priv);
@@ -2774,7 +2774,7 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw,
 		/* If there is currently a HW scan going on in the background
 		 * then we need to cancel it else the RXON below will fail. */
 		if (iwl_scan_cancel_timeout(priv, 100)) {
-			IWL_WARNING("Aborted scan still in progress "
+			IWL_WARN(priv, "Aborted scan still in progress "
 				    "after 100ms\n");
 			IWL_DEBUG_MAC80211("leaving - scan abort failed.\n");
 			mutex_unlock(&priv->mutex);
@@ -3467,7 +3467,7 @@ static ssize_t store_flags(struct device *d,
 	if (le32_to_cpu(priv->staging_rxon.flags) != flags) {
 		/* Cancel any currently running scans... */
 		if (iwl_scan_cancel_timeout(priv, 100))
-			IWL_WARNING("Could not cancel scan.\n");
+			IWL_WARN(priv, "Could not cancel scan.\n");
 		else {
 			IWL_DEBUG_INFO("Commit rxon.flags = 0x%04X\n", flags);
 			priv->staging_rxon.flags = cpu_to_le32(flags);
@@ -3506,7 +3506,7 @@ static ssize_t store_filter_flags(struct device *d,
 	if (le32_to_cpu(priv->staging_rxon.filter_flags) != filter_flags) {
 		/* Cancel any currently running scans... */
 		if (iwl_scan_cancel_timeout(priv, 100))
-			IWL_WARNING("Could not cancel scan.\n");
+			IWL_WARN(priv, "Could not cancel scan.\n");
 		else {
 			IWL_DEBUG_INFO("Committing rxon.filter_flags = "
 				       "0x%04X\n", filter_flags);
