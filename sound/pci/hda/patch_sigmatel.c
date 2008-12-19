@@ -2949,17 +2949,30 @@ static int add_spec_extra_dacs(struct sigmatel_spec *spec, hda_nid_t nid)
 	return 1;
 }
 
+static int is_unique_dac(struct sigmatel_spec *spec, hda_nid_t nid)
+{
+	int i;
+
+	if (spec->autocfg.line_outs != 1)
+		return 0;
+	if (spec->multiout.hp_nid == nid)
+		return 0;
+	for (i = 0; i < ARRAY_SIZE(spec->multiout.extra_out_nid); i++)
+		if (spec->multiout.extra_out_nid[i] == nid)
+			return 0;
+	return 1;
+}
+
 /* add playback controls from the parsed DAC table */
 static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 					       const struct auto_pin_cfg *cfg)
 {
+	struct sigmatel_spec *spec = codec->spec;
 	static const char *chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
 	hda_nid_t nid = 0;
-	int i, err;
-
-	struct sigmatel_spec *spec = codec->spec;
+	int i, err, num_dacs;
 	unsigned int wid_caps, pincap;
 
 	for (i = 0; i < cfg->line_outs && spec->multiout.dac_nids[i]; i++) {
@@ -2985,7 +2998,19 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 			}
 
 		} else {
-			err = create_controls(spec, chname[i], nid, 3);
+			const char *name = chname[i];
+			/* if it's a single DAC, assign a better name */
+			if (!i && is_unique_dac(spec, nid)) {
+				switch (cfg->line_out_type) {
+				case AUTO_PIN_HP_OUT:
+					name = "Headphone";
+					break;
+				case AUTO_PIN_SPEAKER_OUT:
+					name = "Speaker";
+					break;
+				}
+			}
+			err = create_controls(spec, name, nid, 3);
 			if (err < 0)
 				return err;
 		}
