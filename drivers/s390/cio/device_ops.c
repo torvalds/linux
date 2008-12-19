@@ -498,7 +498,7 @@ ccw_device_stlck(struct ccw_device *cdev)
 	sch = to_subchannel(cdev->dev.parent);
 	
 	CIO_TRACE_EVENT(2, "stl lock");
-	CIO_TRACE_EVENT(2, cdev->dev.bus_id);
+	CIO_TRACE_EVENT(2, dev_name(&cdev->dev));
 
 	buf = kmalloc(32*sizeof(char), GFP_DMA|GFP_KERNEL);
 	if (!buf)

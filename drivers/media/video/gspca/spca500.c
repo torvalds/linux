@@ -660,7 +660,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int err;
@@ -867,6 +867,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		write_vector(gspca_dev, Clicksmart510_defaults);
 		break;
 	}
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

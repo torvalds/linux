@@ -1980,7 +1980,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int mode;
@@ -2012,6 +2012,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
 	setcolors(gspca_dev);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -2021,8 +2022,11 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_write(gspca_dev->dev, SPCA501_REG_CTLRL, 0x01, 0x00);
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
+	if (!gspca_dev->present)
+		return;
 	reg_write(gspca_dev->dev, SPCA501_REG_CTLRL, 0x05, 0x00);
 }
 

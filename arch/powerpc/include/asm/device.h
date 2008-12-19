@@ -16,9 +16,6 @@ struct dev_archdata {
 	/* DMA operations on that device */
 	struct dma_mapping_ops	*dma_ops;
 	void			*dma_data;
-
-	/* NUMA node if applicable */
-	int			numa_node;
 };
 
 #endif /* _ASM_POWERPC_DEVICE_H */

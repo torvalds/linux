@@ -63,7 +63,7 @@
 #include "vg468.h"
 #include "ricoh.h"
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 static const char version[] =
 "i82365.c 1.265 1999/11/10 18:36:21 (David Hinds)";
 

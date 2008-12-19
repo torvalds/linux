@@ -13,7 +13,6 @@
 
 #include <linux/io.h>
 #include <linux/spinlock.h>
-#include "net_driver.h"
 
 /**************************************************************************
  *

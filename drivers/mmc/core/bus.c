@@ -216,8 +216,7 @@ int mmc_add_card(struct mmc_card *card)
 	int ret;
 	const char *type;
 
-	snprintf(card->dev.bus_id, sizeof(card->dev.bus_id),
-		 "%s:%04x", mmc_hostname(card->host), card->rca);
+	dev_set_name(&card->dev, "%s:%04x", mmc_hostname(card->host), card->rca);
 
 	switch (card->type) {
 	case MMC_TYPE_MMC:

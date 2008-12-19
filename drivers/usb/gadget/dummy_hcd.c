@@ -82,6 +82,7 @@ struct dummy_ep {
 	const struct usb_endpoint_descriptor *desc;
 	struct usb_ep			ep;
 	unsigned			halted : 1;
+	unsigned			wedged : 1;
 	unsigned			already_seen : 1;
 	unsigned			setup_stage : 1;
 };
@@ -436,6 +437,7 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	/* at this point real hardware should be NAKing transfers
 	 * to that endpoint, until a buffer is queued to it.
 	 */
+	ep->halted = ep->wedged = 0;
 	retval = 0;
 done:
 	return retval;
@@ -597,7 +599,7 @@ static int dummy_dequeue (struct usb_ep *_ep, struct usb_request *_req)
 }
 
 static int
-dummy_set_halt (struct usb_ep *_ep, int value)
+dummy_set_halt_and_wedge(struct usb_ep *_ep, int value, int wedged)
 {
 	struct dummy_ep		*ep;
 	struct dummy		*dum;
@@ -609,14 +611,30 @@ dummy_set_halt (struct usb_ep *_ep, int value)
 	if (!dum->driver)
 		return -ESHUTDOWN;
 	if (!value)
-		ep->halted = 0;
+		ep->halted = ep->wedged = 0;
 	else if (ep->desc && (ep->desc->bEndpointAddress & USB_DIR_IN) &&
 			!list_empty (&ep->queue))
 		return -EAGAIN;
-	else
+	else {
 		ep->halted = 1;
+		if (wedged)
+			ep->wedged = 1;
+	}
 	/* FIXME clear emulated data toggle too */
 	return 0;
+}
+
+static int
+dummy_set_halt(struct usb_ep *_ep, int value)
+{
+	return dummy_set_halt_and_wedge(_ep, value, 0);
+}
+
+static int dummy_set_wedge(struct usb_ep *_ep)
+{
+	if (!_ep || _ep->name == ep0name)
+		return -EINVAL;
+	return dummy_set_halt_and_wedge(_ep, 1, 1);
 }
 
 static const struct usb_ep_ops dummy_ep_ops = {
@@ -630,6 +648,7 @@ static const struct usb_ep_ops dummy_ep_ops = {
 	.dequeue	= dummy_dequeue,
 
 	.set_halt	= dummy_set_halt,
+	.set_wedge	= dummy_set_wedge,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -760,7 +779,8 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		ep->ep.name = ep_name [i];
 		ep->ep.ops = &dummy_ep_ops;
 		list_add_tail (&ep->ep.ep_list, &dum->gadget.ep_list);
-		ep->halted = ep->already_seen = ep->setup_stage = 0;
+		ep->halted = ep->wedged = ep->already_seen =
+				ep->setup_stage = 0;
 		ep->ep.maxpacket = ~0;
 		ep->last_io = jiffies;
 		ep->gadget = &dum->gadget;
@@ -1351,7 +1371,7 @@ restart:
 				} else if (setup.bRequestType == Ep_Request) {
 					// endpoint halt
 					ep2 = find_endpoint (dum, w_index);
-					if (!ep2) {
+					if (!ep2 || ep2->ep.name == ep0name) {
 						value = -EOPNOTSUPP;
 						break;
 					}
@@ -1380,7 +1400,8 @@ restart:
 						value = -EOPNOTSUPP;
 						break;
 					}
-					ep2->halted = 0;
+					if (!ep2->wedged)
+						ep2->halted = 0;
 					value = 0;
 					status = 0;
 				}

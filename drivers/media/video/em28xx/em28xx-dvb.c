@@ -249,7 +249,6 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.i2c_adap  = &dev->i2c_adap;
 	cfg.i2c_addr  = addr;
-	cfg.callback  = em28xx_tuner_callback;
 
 	if (!dev->dvb->frontend) {
 		printk(KERN_ERR "%s/2: dvb frontend not attached. "
@@ -274,7 +273,7 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 
 /* ------------------------------------------------------------------ */
 
-int register_dvb(struct em28xx_dvb *dvb,
+static int register_dvb(struct em28xx_dvb *dvb,
 		 struct module *module,
 		 struct em28xx *dev,
 		 struct device *device)
@@ -422,6 +421,8 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2880_BOARD_KWORLD_DVB_310U:
 		dvb->frontend = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_with_xc3028,
 					   &dev->i2c_adap);
@@ -443,24 +444,6 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 #endif
-	case EM2880_BOARD_TERRATEC_HYBRID_XS:
-		dvb->frontend = dvb_attach(zl10353_attach,
-						&em28xx_zl10353_with_xc3028,
-						&dev->i2c_adap);
-		if (attach_xc3028(0x61, dev) < 0) {
-			 result = -EINVAL;
-			goto out_free;
-		}
-		break;
-	case EM2880_BOARD_KWORLD_DVB_310U:
-		dvb->frontend = dvb_attach(zl10353_attach,
-						&em28xx_zl10353_with_xc3028,
-						&dev->i2c_adap);
-		if (attach_xc3028(0x61, dev) < 0) {
-			result = -EINVAL;
-			goto out_free;
-		}
-		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card"
 				" isn't supported yet\n",
@@ -474,6 +457,8 @@ static int dvb_init(struct em28xx *dev)
 		result = -EINVAL;
 		goto out_free;
 	}
+	/* define general-purpose callback pointer */
+	dvb->frontend->callback = em28xx_tuner_callback;
 
 	/* register everything */
 	result = register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);

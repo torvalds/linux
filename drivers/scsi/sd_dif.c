@@ -311,25 +311,26 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 	struct scsi_device *sdp = sdkp->device;
 	struct gendisk *disk = sdkp->disk;
 	u8 type = sdkp->protection_type;
+	int dif, dix;
 
-	/* If this HBA doesn't support DIX, resort to normal I/O or DIF */
-	if (scsi_host_dix_capable(sdp->host, type) == 0) {
+	dif = scsi_host_dif_capable(sdp->host, type);
+	dix = scsi_host_dix_capable(sdp->host, type);
 
-		if (type == SD_DIF_TYPE0_PROTECTION)
-			return;
-
-		if (scsi_host_dif_capable(sdp->host, type) == 0) {
-			sd_printk(KERN_INFO, sdkp, "Type %d protection " \
-				  "unsupported by HBA. Disabling DIF.\n", type);
-			sdkp->protection_type = 0;
-			return;
-		}
-
-		sd_printk(KERN_INFO, sdkp, "Enabling DIF Type %d protection\n",
-			  type);
-
-		return;
+	if (!dix && scsi_host_dix_capable(sdp->host, 0)) {
+		dif = 0; dix = 1;
 	}
+
+	if (type) {
+		if (dif)
+			sd_printk(KERN_NOTICE, sdkp,
+				  "Enabling DIF Type %d protection\n", type);
+		else
+			sd_printk(KERN_NOTICE, sdkp,
+				  "Disabling DIF Type %d protection\n", type);
+	}
+
+	if (!dix)
+		return;
 
 	/* Enable DMA of protection information */
 	if (scsi_host_get_guard(sdkp->device->host) & SHOST_DIX_GUARD_IP)
@@ -343,17 +344,17 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		else
 			blk_integrity_register(disk, &dif_type1_integrity_crc);
 
-	sd_printk(KERN_INFO, sdkp,
-		  "Enabling %s integrity protection\n", disk->integrity->name);
+	sd_printk(KERN_NOTICE, sdkp,
+		  "Enabling DIX %s protection\n", disk->integrity->name);
 
 	/* Signal to block layer that we support sector tagging */
-	if (type && sdkp->ATO) {
+	if (dif && type && sdkp->ATO) {
 		if (type == SD_DIF_TYPE3_PROTECTION)
 			disk->integrity->tag_size = sizeof(u16) + sizeof(u32);
 		else
 			disk->integrity->tag_size = sizeof(u16);
 
-		sd_printk(KERN_INFO, sdkp, "DIF application tag size %u\n",
+		sd_printk(KERN_NOTICE, sdkp, "DIF application tag size %u\n",
 			  disk->integrity->tag_size);
 	}
 }
@@ -361,7 +362,7 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 /*
  * DIF DMA operation magic decoder ring.
  */
-void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix)
+void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsigned int type)
 {
 	int csum_convert, prot_op;
 
@@ -406,7 +407,8 @@ void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix)
 	}
 
 	scsi_set_prot_op(scmd, prot_op);
-	scsi_set_prot_type(scmd, dif);
+	if (dif)
+		scsi_set_prot_type(scmd, type);
 }
 
 /*

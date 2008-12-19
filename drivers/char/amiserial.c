@@ -837,9 +837,6 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 	struct async_struct *info;
 	unsigned long flags;
 
-	if (!tty)
-		return 0;
-
 	info = tty->driver_data;
 
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
@@ -891,9 +888,6 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	int	c, ret = 0;
 	struct async_struct *info;
 	unsigned long flags;
-
-	if (!tty)
-		return 0;
 
 	info = tty->driver_data;
 
@@ -2077,12 +2071,13 @@ module_init(rs_init)
 module_exit(rs_exit)
 
 
+#if defined(CONFIG_SERIAL_CONSOLE) && !defined(MODULE)
+
 /*
  * ------------------------------------------------------------
  * Serial console driver
  * ------------------------------------------------------------
  */
-#ifdef CONFIG_SERIAL_CONSOLE
 
 static void amiga_serial_putc(char c)
 {
@@ -2136,6 +2131,7 @@ static int __init amiserial_console_init(void)
 	return 0;
 }
 console_initcall(amiserial_console_init);
-#endif
+
+#endif /* CONFIG_SERIAL_CONSOLE && !MODULE */
 
 MODULE_LICENSE("GPL");

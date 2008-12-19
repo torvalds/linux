@@ -202,7 +202,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	if (p->set_tc_index) {
 		switch (skb->protocol) {
-		case __constant_htons(ETH_P_IP):
+		case htons(ETH_P_IP):
 			if (skb_cow_head(skb, sizeof(struct iphdr)))
 				goto drop;
 
@@ -210,7 +210,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 				& ~INET_ECN_MASK;
 			break;
 
-		case __constant_htons(ETH_P_IPV6):
+		case htons(ETH_P_IPV6):
 			if (skb_cow_head(skb, sizeof(struct ipv6hdr)))
 				goto drop;
 
@@ -289,11 +289,11 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 	pr_debug("index %d->%d\n", skb->tc_index, index);
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		ipv4_change_dsfield(ip_hdr(skb), p->mask[index],
 				    p->value[index]);
 			break;
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		ipv6_change_dsfield(ipv6_hdr(skb), p->mask[index],
 				    p->value[index]);
 			break;

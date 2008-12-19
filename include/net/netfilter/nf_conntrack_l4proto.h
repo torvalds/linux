@@ -39,7 +39,7 @@ struct nf_conntrack_l4proto
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
-		      int pf,
+		      u_int8_t pf,
 		      unsigned int hooknum);
 
 	/* Called when a new connection for this protocol found;
@@ -50,9 +50,9 @@ struct nf_conntrack_l4proto
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);
 
-	int (*error)(struct sk_buff *skb, unsigned int dataoff,
+	int (*error)(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 		     enum ip_conntrack_info *ctinfo,
-		     int pf, unsigned int hooknum);
+		     u_int8_t pf, unsigned int hooknum);
 
 	/* Print out the per-protocol part of the tuple. Return like seq_* */
 	int (*print_tuple)(struct seq_file *s,
@@ -117,20 +117,19 @@ extern int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 				      struct nf_conntrack_tuple *t);
 extern const struct nla_policy nf_ct_port_nla_policy[];
 
-/* Log invalid packets */
-extern unsigned int nf_ct_log_invalid;
-
 #ifdef CONFIG_SYSCTL
 #ifdef DEBUG_INVALID_PACKETS
-#define LOG_INVALID(proto) \
-	(nf_ct_log_invalid == (proto) || nf_ct_log_invalid == IPPROTO_RAW)
+#define LOG_INVALID(net, proto)				\
+	((net)->ct.sysctl_log_invalid == (proto) ||	\
+	 (net)->ct.sysctl_log_invalid == IPPROTO_RAW)
 #else
-#define LOG_INVALID(proto) \
-	((nf_ct_log_invalid == (proto) || nf_ct_log_invalid == IPPROTO_RAW) \
+#define LOG_INVALID(net, proto)				\
+	(((net)->ct.sysctl_log_invalid == (proto) ||	\
+	  (net)->ct.sysctl_log_invalid == IPPROTO_RAW)	\
 	 && net_ratelimit())
 #endif
 #else
-#define LOG_INVALID(proto) 0
+#define LOG_INVALID(net, proto) 0
 #endif /* CONFIG_SYSCTL */
 
 #endif /*_NF_CONNTRACK_PROTOCOL_H*/

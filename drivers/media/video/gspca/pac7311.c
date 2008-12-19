@@ -675,7 +675,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -724,6 +724,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x78, 0x01);
 	else
 		reg_w(gspca_dev, 0x78, 0x05);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -748,10 +749,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (!gspca_dev->present)
+		return;
 	if (sd->sensor == SENSOR_PAC7302) {
 		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x78, 0x40);

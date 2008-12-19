@@ -27,6 +27,7 @@
 #include <linux/gfp.h>
 #include <linux/percpu.h>
 #include <linux/kmod.h>
+#include <linux/vmalloc.h>
 #include <linux/kernel_stat.h>
 #include <linux/start_kernel.h>
 #include <linux/security.h>
@@ -51,6 +52,7 @@
 #include <linux/key.h>
 #include <linux/unwind.h>
 #include <linux/buffer_head.h>
+#include <linux/page_cgroup.h>
 #include <linux/debug_locks.h>
 #include <linux/debugobjects.h>
 #include <linux/lockdep.h>
@@ -60,6 +62,7 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/idr.h>
+#include <linux/ftrace.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -642,8 +645,10 @@ asmlinkage void __init start_kernel(void)
 		initrd_start = 0;
 	}
 #endif
+	vmalloc_init();
 	vfs_caches_init_early();
 	cpuset_init_early();
+	page_cgroup_init();
 	mem_init();
 	enable_debug_pagealloc();
 	cpu_hotplug_init();
@@ -667,7 +672,6 @@ asmlinkage void __init start_kernel(void)
 	fork_init(num_physpages);
 	proc_caches_init();
 	buffer_init();
-	unnamed_dev_init();
 	key_init();
 	security_init();
 	vfs_caches_init(num_physpages);
@@ -687,46 +691,43 @@ asmlinkage void __init start_kernel(void)
 
 	acpi_early_init(); /* before LAPIC and SMP init */
 
+	ftrace_init();
+
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
 }
 
 static int initcall_debug;
-
-static int __init initcall_debug_setup(char *str)
-{
-	initcall_debug = 1;
-	return 1;
-}
-__setup("initcall_debug", initcall_debug_setup);
+core_param(initcall_debug, initcall_debug, bool, 0644);
 
 int do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
-	ktime_t t0, t1, delta;
+	ktime_t delta;
 	char msgbuf[64];
-	int result;
+	struct boot_trace it;
 
 	if (initcall_debug) {
-		printk("calling  %pF\n", fn);
-		t0 = ktime_get();
+		it.caller = task_pid_nr(current);
+		printk("calling  %pF @ %i\n", fn, it.caller);
+		it.calltime = ktime_get();
 	}
 
-	result = fn();
+	it.result = fn();
 
 	if (initcall_debug) {
-		t1 = ktime_get();
-		delta = ktime_sub(t1, t0);
-
-		printk("initcall %pF returned %d after %Ld msecs\n",
-			fn, result,
-			(unsigned long long) delta.tv64 >> 20);
+		it.rettime = ktime_get();
+		delta = ktime_sub(it.rettime, it.calltime);
+		it.duration = (unsigned long long) delta.tv64 >> 10;
+		printk("initcall %pF returned %d after %Ld usecs\n", fn,
+			it.result, it.duration);
+		trace_boot(&it, fn);
 	}
 
 	msgbuf[0] = 0;
 
-	if (result && result != -ENODEV && initcall_debug)
-		sprintf(msgbuf, "error code %d ", result);
+	if (it.result && it.result != -ENODEV && initcall_debug)
+		sprintf(msgbuf, "error code %d ", it.result);
 
 	if (preempt_count() != count) {
 		strlcat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
@@ -740,7 +741,7 @@ int do_one_initcall(initcall_t fn)
 		printk("initcall %pF returned with %s\n", fn, msgbuf);
 	}
 
-	return result;
+	return it.result;
 }
 
 
@@ -767,7 +768,6 @@ static void __init do_initcalls(void)
 static void __init do_basic_setup(void)
 {
 	rcu_init_sched(); /* needed by module_init stage. */
-	/* drivers will send hotplug events */
 	init_workqueues();
 	usermodehelper_init();
 	driver_init();
@@ -855,6 +855,7 @@ static int __init kernel_init(void * unused)
 	smp_prepare_cpus(setup_max_cpus);
 
 	do_pre_smp_initcalls();
+	start_boot_trace();
 
 	smp_init();
 	sched_init_smp();
@@ -881,6 +882,7 @@ static int __init kernel_init(void * unused)
 	 * we're essentially up and running. Get rid of the
 	 * initmem segments and start the user-mode stuff..
 	 */
+	stop_boot_trace();
 	init_post();
 	return 0;
 }

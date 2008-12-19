@@ -161,7 +161,7 @@ EXPORT_SYMBOL(get_empty_filp);
  * code should be moved into this function.
  */
 struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-		mode_t mode, const struct file_operations *fop)
+		fmode_t mode, const struct file_operations *fop)
 {
 	struct file *file;
 	struct path;
@@ -193,7 +193,7 @@ EXPORT_SYMBOL(alloc_file);
  * of this should be moving to alloc_file().
  */
 int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
-	   mode_t mode, const struct file_operations *fop)
+	   fmode_t mode, const struct file_operations *fop)
 {
 	int error = 0;
 	file->f_path.dentry = dentry;
@@ -269,6 +269,10 @@ void __fput(struct file *file)
 	eventpoll_release(file);
 	locks_remove_flock(file);
 
+	if (unlikely(file->f_flags & FASYNC)) {
+		if (file->f_op && file->f_op->fasync)
+			file->f_op->fasync(-1, file, 0);
+	}
 	if (file->f_op && file->f_op->release)
 		file->f_op->release(inode, file);
 	security_file_free(file);

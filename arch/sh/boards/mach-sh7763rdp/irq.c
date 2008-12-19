@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/sh7763rdp.h>
+#include <mach/sh7763rdp.h>
 
 #define INTC_BASE		(0xFFD00000)
 #define INTC_INT2PRI7   (INTC_BASE+0x4001C)

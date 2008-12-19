@@ -233,6 +233,7 @@ struct lpfc_sli {
 #define LPFC_SLI2_ACTIVE          0x200	/* SLI2 overlay in firmware is active */
 #define LPFC_PROCESS_LA           0x400	/* Able to process link attention */
 #define LPFC_BLOCK_MGMT_IO        0x800	/* Don't allow mgmt mbx or iocb cmds */
+#define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
 
 	struct lpfc_sli_ring ring[LPFC_MAX_RING];
 	int fcp_ring;		/* ring used for FCP initiator commands */

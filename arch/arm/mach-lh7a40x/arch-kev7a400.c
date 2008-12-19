@@ -77,7 +77,7 @@ static void kev7a400_cpld_handler (unsigned int irq, struct irq_desc *desc)
 	irq = IRQ_KEV7A400_CPLD;
 	for (; mask; mask >>= 1, ++irq)
 		if (mask & 1)
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 }
 
 void __init lh7a40x_init_board_irq (void)

@@ -378,6 +378,9 @@ struct l2_fhdr {
  *  pci_config_l definition
  *  offset: 0000
  */
+#define BNX2_PCICFG_MSI_CONTROL				0x00000058
+#define BNX2_PCICFG_MSI_CONTROL_ENABLE			 (1L<<16)
+
 #define BNX2_PCICFG_MISC_CONFIG				0x00000068
 #define BNX2_PCICFG_MISC_CONFIG_TARGET_BYTE_SWAP	 (1L<<2)
 #define BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP	 (1L<<3)
@@ -6526,10 +6529,14 @@ struct sw_pg {
 	DECLARE_PCI_UNMAP_ADDR(mapping)
 };
 
+struct sw_tx_bd {
+	struct sk_buff		*skb;
+};
+
 #define SW_RXBD_RING_SIZE (sizeof(struct sw_bd) * RX_DESC_CNT)
 #define SW_RXPG_RING_SIZE (sizeof(struct sw_pg) * RX_DESC_CNT)
 #define RXBD_RING_SIZE (sizeof(struct rx_bd) * RX_DESC_CNT)
-#define SW_TXBD_RING_SIZE (sizeof(struct sw_bd) * TX_DESC_CNT)
+#define SW_TXBD_RING_SIZE (sizeof(struct sw_tx_bd) * TX_DESC_CNT)
 #define TXBD_RING_SIZE (sizeof(struct tx_bd) * TX_DESC_CNT)
 
 /* Buffered flash (Atmel: AT45DB011B) specific information */
@@ -6609,7 +6616,7 @@ struct bnx2_tx_ring_info {
 	u32			tx_bseq_addr;
 
 	struct tx_bd		*tx_desc_ring;
-	struct sw_bd		*tx_buf_ring;
+	struct sw_tx_bd		*tx_buf_ring;
 
 	u16			tx_cons;
 	u16			hw_tx_cons;
@@ -6653,6 +6660,8 @@ struct bnx2_napi {
 	struct bnx2_rx_ring_info	rx_ring;
 	struct bnx2_tx_ring_info	tx_ring;
 };
+
+#define BNX2_TIMER_INTERVAL			HZ
 
 struct bnx2 {
 	/* Fields used in the tx and intr/napi performance paths are grouped */
@@ -6701,9 +6710,6 @@ struct bnx2 {
 
 	/* End of fields used in the performance code paths. */
 
-	char			*name;
-
-	int			timer_interval;
 	int			current_interval;
 	struct			timer_list timer;
 	struct work_struct	reset_task;
@@ -6860,6 +6866,9 @@ struct bnx2 {
 
 	u8			num_tx_rings;
 	u8			num_rx_rings;
+
+	u32			idle_chk_status_idx;
+
 };
 
 #define REG_RD(bp, offset)					\

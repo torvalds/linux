@@ -55,7 +55,7 @@ void sas_unregister_phys(struct sas_ha_struct *sas_ha);
 int  sas_register_ports(struct sas_ha_struct *sas_ha);
 void sas_unregister_ports(struct sas_ha_struct *sas_ha);
 
-enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *);
+enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *);
 
 int  sas_init_queue(struct sas_ha_struct *sas_ha);
 int  sas_init_events(struct sas_ha_struct *sas_ha);

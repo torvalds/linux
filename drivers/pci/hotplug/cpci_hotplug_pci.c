@@ -209,7 +209,7 @@ int cpci_led_on(struct slot* slot)
 					      hs_cap + 2,
 					      hs_csr)) {
 			err("Could not set LOO for slot %s",
-			    slot->hotplug_slot->name);
+			    hotplug_slot_name(slot->hotplug_slot));
 			return -ENODEV;
 		}
 	}
@@ -238,7 +238,7 @@ int cpci_led_off(struct slot* slot)
 					      hs_cap + 2,
 					      hs_csr)) {
 			err("Could not clear LOO for slot %s",
-			    slot->hotplug_slot->name);
+			    hotplug_slot_name(slot->hotplug_slot));
 			return -ENODEV;
 		}
 	}

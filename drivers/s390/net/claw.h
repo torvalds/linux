@@ -85,7 +85,7 @@
 #define CLAW_MAX_DEV            256        /*      max claw devices          */
 #define MAX_NAME_LEN            8          /* host name, adapter name length */
 #define CLAW_FRAME_SIZE         4096
-#define CLAW_ID_SIZE            BUS_ID_SIZE+3
+#define CLAW_ID_SIZE		20+3
 
 /* state machine codes used in claw_irq_handler */
 

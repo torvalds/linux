@@ -89,8 +89,8 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 	u64 offset = file->f_pos;
 	int error;
 
-	gfs2_holder_init(dip->i_gl, LM_ST_SHARED, GL_ATIME, &d_gh);
-	error = gfs2_glock_nq_atime(&d_gh);
+	gfs2_holder_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
+	error = gfs2_glock_nq(&d_gh);
 	if (error) {
 		gfs2_holder_uninit(&d_gh);
 		return error;
@@ -153,8 +153,8 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 	int error;
 	u32 fsflags;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
-	error = gfs2_glock_nq_atime(&gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+	error = gfs2_glock_nq(&gh);
 	if (error)
 		return error;
 
@@ -351,8 +351,8 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	struct gfs2_alloc *al;
 	int ret;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME, &gh);
-	ret = gfs2_glock_nq_atime(&gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	ret = gfs2_glock_nq(&gh);
 	if (ret)
 		goto out;
 
@@ -434,8 +434,8 @@ static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 	struct gfs2_holder i_gh;
 	int error;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &i_gh);
-	error = gfs2_glock_nq_atime(&i_gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
+	error = gfs2_glock_nq(&i_gh);
 	if (error) {
 		gfs2_holder_uninit(&i_gh);
 		return error;

@@ -405,9 +405,9 @@ static int mtrr_seq_show(struct seq_file *seq, void *offset)
 			}
 			/* RED-PEN: base can be > 32bit */ 
 			len += seq_printf(seq, 
-				   "reg%02i: base=0x%05lx000 (%4luMB), size=%4lu%cB: %s, count=%d\n",
+				   "reg%02i: base=0x%06lx000 (%5luMB), size=%5lu%cB, count=%d: %s\n",
 			     i, base, base >> (20 - PAGE_SHIFT), size, factor,
-			     mtrr_attrib_to_str(type), mtrr_usage_table[i]);
+			     mtrr_usage_table[i], mtrr_attrib_to_str(type));
 		}
 	}
 	return 0;

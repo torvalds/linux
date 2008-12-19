@@ -34,14 +34,14 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <asm/system.h>
 #include <linux/delay.h>
 
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 
 /* non-arch dependent serial structures are in linux/serial.h */
 #include <linux/serial.h>
 /* while we keep our own stuff (struct e100_serial) in a local .h file */
 #include "crisv10.h"
 #include <asm/fasttimer.h>
-#include <asm/arch/io_interface_mux.h>
+#include <arch/io_interface_mux.h>
 
 #ifdef CONFIG_ETRAX_SERIAL_FAST_TIMER
 #ifndef CONFIG_ETRAX_FAST_TIMER
@@ -457,7 +457,6 @@ static struct e100_serial rs_table[] = {
 #define NR_PORTS (sizeof(rs_table)/sizeof(struct e100_serial))
 
 static struct ktermios *serial_termios[NR_PORTS];
-static struct ktermios *serial_termios_locked[NR_PORTS];
 #ifdef CONFIG_ETRAX_SERIAL_FAST_TIMER
 static struct fast_timer fast_timers[NR_PORTS];
 #endif
@@ -4419,6 +4418,7 @@ rs_init(void)
 			rs485_pa_bit)) {
 		printk(KERN_CRIT "ETRAX100LX serial: Could not allocate "
 			"RS485 pin\n");
+		put_tty_driver(driver);
 		return -EBUSY;
 	}
 #endif
@@ -4427,6 +4427,7 @@ rs_init(void)
 			rs485_port_g_bit)) {
 		printk(KERN_CRIT "ETRAX100LX serial: Could not allocate "
 			"RS485 pin\n");
+		put_tty_driver(driver);
 		return -EBUSY;
 	}
 #endif
@@ -4446,8 +4447,6 @@ rs_init(void)
 	driver->init_termios.c_ispeed = 115200;
 	driver->init_termios.c_ospeed = 115200;
 	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
-	driver->termios = serial_termios;
-	driver->termios_locked = serial_termios_locked;
 
 	tty_set_operations(driver, &rs_ops);
         serial_driver = driver;

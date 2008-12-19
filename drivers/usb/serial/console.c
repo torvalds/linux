@@ -117,7 +117,7 @@ static int usb_console_setup(struct console *co, char *options)
 	}
 
 	port = serial->port[0];
-	port->port.tty = NULL;
+	tty_port_tty_set(&port->port, NULL);
 
 	info->port = port;
 
@@ -135,6 +135,7 @@ static int usb_console_setup(struct console *co, char *options)
 				err("no more memory");
 				goto reset_open_count;
 			}
+			kref_init(&tty->kref);
 			termios = kzalloc(sizeof(*termios), GFP_KERNEL);
 			if (!termios) {
 				retval = -ENOMEM;
@@ -143,7 +144,7 @@ static int usb_console_setup(struct console *co, char *options)
 			}
 			memset(&dummy, 0, sizeof(struct ktermios));
 			tty->termios = termios;
-			port->port.tty = tty;
+			tty_port_tty_set(&port->port, tty);
 		}
 
 		/* only call the device specific open if this
@@ -163,7 +164,7 @@ static int usb_console_setup(struct console *co, char *options)
 			tty_termios_encode_baud_rate(termios, baud, baud);
 			serial->type->set_termios(tty, port, &dummy);
 
-			port->port.tty = NULL;
+			tty_port_tty_set(&port->port, NULL);
 			kfree(termios);
 			kfree(tty);
 		}
@@ -176,7 +177,7 @@ out:
 	return retval;
 free_termios:
 	kfree(termios);
-	port->port.tty = NULL;
+	tty_port_tty_set(&port->port, NULL);
 free_tty:
 	kfree(tty);
 reset_open_count:

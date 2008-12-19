@@ -261,7 +261,7 @@ void flush_dcache_page(struct page *page)
 }
 
 /* TODO: Selective icache invalidation through IC address array.. */
-static inline void __uses_jump_to_uncached flush_icache_all(void)
+static void __uses_jump_to_uncached flush_icache_all(void)
 {
 	unsigned long flags, ccr;
 

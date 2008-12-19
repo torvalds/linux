@@ -814,6 +814,7 @@ ahc_intr(struct ahc_softc *ahc)
 static void
 ahc_restart(struct ahc_softc *ahc)
 {
+	uint8_t	sblkctl;
 
 	ahc_pause(ahc);
 
@@ -867,6 +868,12 @@ ahc_restart(struct ahc_softc *ahc)
 	ahc_outb(ahc, SEQCTL, ahc->seqctl);
 	ahc_outb(ahc, SEQADDR0, 0);
 	ahc_outb(ahc, SEQADDR1, 0);
+
+	/*
+	 * Take the LED out of diagnostic mode on PM resume, too
+	 */
+	sblkctl = ahc_inb(ahc, SBLKCTL);
+	ahc_outb(ahc, SBLKCTL, (sblkctl & ~(DIAGLEDEN|DIAGLEDON)));
 
 	ahc_unpause(ahc);
 }

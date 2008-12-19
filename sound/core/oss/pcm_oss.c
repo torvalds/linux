@@ -2283,7 +2283,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 	int idx, err;
 	struct snd_pcm_oss_file *pcm_oss_file;
 	struct snd_pcm_substream *substream;
-	unsigned int f_mode = file->f_mode;
+	fmode_t f_mode = file->f_mode;
 
 	if (rpcm_oss_file)
 		*rpcm_oss_file = NULL;

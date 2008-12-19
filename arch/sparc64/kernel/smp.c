@@ -21,6 +21,7 @@
 #include <linux/jiffies.h>
 #include <linux/profile.h>
 #include <linux/lmb.h>
+#include <linux/cpu.h>
 
 #include <asm/head.h>
 #include <asm/ptrace.h>
@@ -114,6 +115,9 @@ void __cpuinit smp_callin(void)
 	/* Attach to the address space of init_task. */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
+
+	/* inform the notifiers about the new cpu */
+	notify_cpu_starting(cpuid);
 
 	while (!cpu_isset(cpuid, smp_commenced_mask))
 		rmb();
@@ -278,7 +282,7 @@ static unsigned long kimage_addr_to_ra(void *p)
 	return kern_base + (val - KERNBASE);
 }
 
-static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
+static void __cpuinit ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
 {
 	extern unsigned long sparc64_ttable_tl0;
 	extern unsigned long kern_locked_tte_data;
@@ -339,7 +343,7 @@ extern unsigned long sparc64_cpu_startup;
  */
 static struct thread_info *cpu_new_thread = NULL;
 
-static int __devinit smp_boot_one_cpu(unsigned int cpu)
+static int __cpuinit smp_boot_one_cpu(unsigned int cpu)
 {
 	struct trap_per_cpu *tb = &trap_block[cpu];
 	unsigned long entry =

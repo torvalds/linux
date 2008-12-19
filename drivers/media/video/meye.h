@@ -311,6 +311,7 @@ struct meye {
 	struct video_device *video_dev;	/* video device parameters */
 	struct video_picture picture;	/* video picture parameters */
 	struct meye_params params;	/* additional parameters */
+	unsigned long in_use;		/* set to 1 if the device is in use */
 #ifdef CONFIG_PM
 	u8 pm_mchip_mode;		/* old mchip mode */
 #endif

@@ -40,7 +40,7 @@
  *
  *
  * Alan Cox	     :  security fixes.
- *			<Alan.Cox@linux.org>
+ *			<alan@lxorguk.ukuu.org.uk>
  *
  * Al Viro           :  safe handling of mm_struct
  *
@@ -85,11 +85,6 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include "internal.h"
-
-/* Gcc optimizes away "strlen(x)" for constant x */
-#define ADDBUF(buffer, string) \
-do { memcpy(buffer, string, strlen(string)); \
-     buffer += strlen(string); } while (0)
 
 static inline void task_name(struct seq_file *m, struct task_struct *p)
 {
@@ -261,7 +256,6 @@ static inline void task_sig(struct seq_file *m, struct task_struct *p)
 	sigemptyset(&ignored);
 	sigemptyset(&caught);
 
-	rcu_read_lock();
 	if (lock_task_sighand(p, &flags)) {
 		pending = p->pending.signal;
 		shpending = p->signal->shared_pending.signal;
@@ -272,7 +266,6 @@ static inline void task_sig(struct seq_file *m, struct task_struct *p)
 		qlim = p->signal->rlim[RLIMIT_SIGPENDING].rlim_cur;
 		unlock_task_sighand(p, &flags);
 	}
-	rcu_read_unlock();
 
 	seq_printf(m, "Threads:\t%d\n", num_threads);
 	seq_printf(m, "SigQ:\t%lu/%lu\n", qsize, qlim);
@@ -395,20 +388,20 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 
 		/* add up live thread stats at the group level */
 		if (whole) {
+			struct task_cputime cputime;
 			struct task_struct *t = task;
 			do {
 				min_flt += t->min_flt;
 				maj_flt += t->maj_flt;
-				utime = cputime_add(utime, task_utime(t));
-				stime = cputime_add(stime, task_stime(t));
 				gtime = cputime_add(gtime, task_gtime(t));
 				t = next_thread(t);
 			} while (t != task);
 
 			min_flt += sig->min_flt;
 			maj_flt += sig->maj_flt;
-			utime = cputime_add(utime, sig->utime);
-			stime = cputime_add(stime, sig->stime);
+			thread_group_cputime(task, &cputime);
+			utime = cputime.utime;
+			stime = cputime.stime;
 			gtime = cputime_add(gtime, sig->gtime);
 		}
 

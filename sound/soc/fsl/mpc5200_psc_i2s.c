@@ -277,7 +277,7 @@ static int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct mpc52xx_psc __iomem *regs = psc_i2s->psc_regs;
 	u16 imr;
 	u8 psc_cmd;
-	long flags;
+	unsigned long flags;
 
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
 		s = &psc_i2s->capture;
@@ -699,9 +699,11 @@ static ssize_t psc_i2s_stat_store(struct device *dev,
 	return count;
 }
 
-DEVICE_ATTR(status, 0644, psc_i2s_status_show, NULL);
-DEVICE_ATTR(playback_underrun, 0644, psc_i2s_stat_show, psc_i2s_stat_store);
-DEVICE_ATTR(capture_overrun, 0644, psc_i2s_stat_show, psc_i2s_stat_store);
+static DEVICE_ATTR(status, 0644, psc_i2s_status_show, NULL);
+static DEVICE_ATTR(playback_underrun, 0644, psc_i2s_stat_show,
+			psc_i2s_stat_store);
+static DEVICE_ATTR(capture_overrun, 0644, psc_i2s_stat_show,
+			psc_i2s_stat_store);
 
 /* ---------------------------------------------------------------------
  * OF platform bus binding code:
@@ -819,8 +821,8 @@ static int __devinit psc_i2s_of_probe(struct of_device *op,
 
 	/* Register the SYSFS files */
 	rc = device_create_file(psc_i2s->dev, &dev_attr_status);
-	rc = device_create_file(psc_i2s->dev, &dev_attr_capture_overrun);
-	rc = device_create_file(psc_i2s->dev, &dev_attr_playback_underrun);
+	rc |= device_create_file(psc_i2s->dev, &dev_attr_capture_overrun);
+	rc |= device_create_file(psc_i2s->dev, &dev_attr_playback_underrun);
 	if (rc)
 		dev_info(psc_i2s->dev, "error creating sysfs files\n");
 

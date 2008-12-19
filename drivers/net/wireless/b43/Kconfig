@@ -80,6 +80,18 @@ config B43_NPHY
 
 	  SAY N.
 
+config B43_PHY_LP
+	bool "IEEE 802.11g LP-PHY support (BROKEN)"
+	depends on B43 && EXPERIMENTAL && BROKEN
+	---help---
+	  Support for the LP-PHY.
+	  The LP-PHY is an IEEE 802.11g based PHY built into some notebooks
+	  and embedded devices.
+
+	  THIS IS BROKEN AND DOES NOT WORK YET.
+
+	  SAY N.
+
 # This config option automatically enables b43 LEDS support,
 # if it's possible.
 config B43_LEDS

@@ -908,12 +908,12 @@ int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime, unsigned int cond,
 EXPORT_SYMBOL(snd_pcm_hw_rule_add);
 
 /**
- * snd_pcm_hw_constraint_mask
+ * snd_pcm_hw_constraint_mask - apply the given bitmap mask constraint
  * @runtime: PCM runtime instance
  * @var: hw_params variable to apply the mask
  * @mask: the bitmap mask
  *
- * Apply the constraint of the given bitmap mask to a mask parameter.
+ * Apply the constraint of the given bitmap mask to a 32-bit mask parameter.
  */
 int snd_pcm_hw_constraint_mask(struct snd_pcm_runtime *runtime, snd_pcm_hw_param_t var,
 			       u_int32_t mask)
@@ -928,12 +928,12 @@ int snd_pcm_hw_constraint_mask(struct snd_pcm_runtime *runtime, snd_pcm_hw_param
 }
 
 /**
- * snd_pcm_hw_constraint_mask64
+ * snd_pcm_hw_constraint_mask64 - apply the given bitmap mask constraint
  * @runtime: PCM runtime instance
  * @var: hw_params variable to apply the mask
  * @mask: the 64bit bitmap mask
  *
- * Apply the constraint of the given bitmap mask to a mask parameter.
+ * Apply the constraint of the given bitmap mask to a 64-bit mask parameter.
  */
 int snd_pcm_hw_constraint_mask64(struct snd_pcm_runtime *runtime, snd_pcm_hw_param_t var,
 				 u_int64_t mask)
@@ -949,7 +949,7 @@ int snd_pcm_hw_constraint_mask64(struct snd_pcm_runtime *runtime, snd_pcm_hw_par
 }
 
 /**
- * snd_pcm_hw_constraint_integer
+ * snd_pcm_hw_constraint_integer - apply an integer constraint to an interval
  * @runtime: PCM runtime instance
  * @var: hw_params variable to apply the integer constraint
  *
@@ -964,7 +964,7 @@ int snd_pcm_hw_constraint_integer(struct snd_pcm_runtime *runtime, snd_pcm_hw_pa
 EXPORT_SYMBOL(snd_pcm_hw_constraint_integer);
 
 /**
- * snd_pcm_hw_constraint_minmax
+ * snd_pcm_hw_constraint_minmax - apply a min/max range constraint to an interval
  * @runtime: PCM runtime instance
  * @var: hw_params variable to apply the range
  * @min: the minimal value
@@ -995,7 +995,7 @@ static int snd_pcm_hw_rule_list(struct snd_pcm_hw_params *params,
 
 
 /**
- * snd_pcm_hw_constraint_list
+ * snd_pcm_hw_constraint_list - apply a list of constraints to a parameter
  * @runtime: PCM runtime instance
  * @cond: condition bits
  * @var: hw_params variable to apply the list constraint
@@ -1031,7 +1031,7 @@ static int snd_pcm_hw_rule_ratnums(struct snd_pcm_hw_params *params,
 }
 
 /**
- * snd_pcm_hw_constraint_ratnums
+ * snd_pcm_hw_constraint_ratnums - apply ratnums constraint to a parameter
  * @runtime: PCM runtime instance
  * @cond: condition bits
  * @var: hw_params variable to apply the ratnums constraint
@@ -1064,7 +1064,7 @@ static int snd_pcm_hw_rule_ratdens(struct snd_pcm_hw_params *params,
 }
 
 /**
- * snd_pcm_hw_constraint_ratdens
+ * snd_pcm_hw_constraint_ratdens - apply ratdens constraint to a parameter
  * @runtime: PCM runtime instance
  * @cond: condition bits
  * @var: hw_params variable to apply the ratdens constraint
@@ -1095,7 +1095,7 @@ static int snd_pcm_hw_rule_msbits(struct snd_pcm_hw_params *params,
 }
 
 /**
- * snd_pcm_hw_constraint_msbits
+ * snd_pcm_hw_constraint_msbits - add a hw constraint msbits rule
  * @runtime: PCM runtime instance
  * @cond: condition bits
  * @width: sample bits width
@@ -1123,7 +1123,7 @@ static int snd_pcm_hw_rule_step(struct snd_pcm_hw_params *params,
 }
 
 /**
- * snd_pcm_hw_constraint_step
+ * snd_pcm_hw_constraint_step - add a hw constraint step rule
  * @runtime: PCM runtime instance
  * @cond: condition bits
  * @var: hw_params variable to apply the step constraint
@@ -1154,7 +1154,7 @@ static int snd_pcm_hw_rule_pow2(struct snd_pcm_hw_params *params, struct snd_pcm
 }		
 
 /**
- * snd_pcm_hw_constraint_pow2
+ * snd_pcm_hw_constraint_pow2 - add a hw constraint power-of-2 rule
  * @runtime: PCM runtime instance
  * @cond: condition bits
  * @var: hw_params variable to apply the power-of-2 constraint
@@ -1202,13 +1202,13 @@ void _snd_pcm_hw_params_any(struct snd_pcm_hw_params *params)
 EXPORT_SYMBOL(_snd_pcm_hw_params_any);
 
 /**
- * snd_pcm_hw_param_value
+ * snd_pcm_hw_param_value - return @params field @var value
  * @params: the hw_params instance
  * @var: parameter to retrieve
- * @dir: pointer to the direction (-1,0,1) or NULL
+ * @dir: pointer to the direction (-1,0,1) or %NULL
  *
- * Return the value for field PAR if it's fixed in configuration space 
- *  defined by PARAMS. Return -EINVAL otherwise
+ * Return the value for field @var if it's fixed in configuration space
+ * defined by @params. Return -%EINVAL otherwise.
  */
 int snd_pcm_hw_param_value(const struct snd_pcm_hw_params *params,
 			   snd_pcm_hw_param_t var, int *dir)
@@ -1271,13 +1271,13 @@ static int _snd_pcm_hw_param_first(struct snd_pcm_hw_params *params,
 
 
 /**
- * snd_pcm_hw_param_first
+ * snd_pcm_hw_param_first - refine config space and return minimum value
  * @pcm: PCM instance
  * @params: the hw_params instance
  * @var: parameter to retrieve
- * @dir: pointer to the direction (-1,0,1) or NULL
+ * @dir: pointer to the direction (-1,0,1) or %NULL
  *
- * Inside configuration space defined by PARAMS remove from PAR all 
+ * Inside configuration space defined by @params remove from @var all
  * values > minimum. Reduce configuration space accordingly.
  * Return the minimum.
  */
@@ -1317,13 +1317,13 @@ static int _snd_pcm_hw_param_last(struct snd_pcm_hw_params *params,
 
 
 /**
- * snd_pcm_hw_param_last
+ * snd_pcm_hw_param_last - refine config space and return maximum value
  * @pcm: PCM instance
  * @params: the hw_params instance
  * @var: parameter to retrieve
- * @dir: pointer to the direction (-1,0,1) or NULL
+ * @dir: pointer to the direction (-1,0,1) or %NULL
  *
- * Inside configuration space defined by PARAMS remove from PAR all 
+ * Inside configuration space defined by @params remove from @var all
  * values < maximum. Reduce configuration space accordingly.
  * Return the maximum.
  */
@@ -1345,11 +1345,11 @@ int snd_pcm_hw_param_last(struct snd_pcm_substream *pcm,
 EXPORT_SYMBOL(snd_pcm_hw_param_last);
 
 /**
- * snd_pcm_hw_param_choose
+ * snd_pcm_hw_param_choose - choose a configuration defined by @params
  * @pcm: PCM instance
  * @params: the hw_params instance
  *
- * Choose one configuration from configuration space defined by PARAMS
+ * Choose one configuration from configuration space defined by @params.
  * The configuration chosen is that obtained fixing in this order:
  * first access, first format, first subformat, min channels,
  * min rate, min period time, max buffer size, min tick time

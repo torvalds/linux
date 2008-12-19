@@ -2,8 +2,7 @@
  * soc-dapm.c  --  ALSA SoC Dynamic Audio Power Management
  *
  * Copyright 2005 Wolfson Microelectronics PLC.
- * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -832,7 +831,7 @@ int snd_soc_dapm_sys_add(struct device *dev)
 		return ret;
 
 	asoc_debugfs = debugfs_create_dir("asoc", NULL);
-	if (!IS_ERR(asoc_debugfs))
+	if (!IS_ERR(asoc_debugfs) && asoc_debugfs)
 		debugfs_create_u32("dapm_pop_time", 0744, asoc_debugfs,
 				   &pop_time);
 	else
@@ -1484,6 +1483,26 @@ int snd_soc_dapm_disable_pin(struct snd_soc_codec *codec, char *pin)
 EXPORT_SYMBOL_GPL(snd_soc_dapm_disable_pin);
 
 /**
+ * snd_soc_dapm_nc_pin - permanently disable pin.
+ * @codec: SoC codec
+ * @pin: pin name
+ *
+ * Marks the specified pin as being not connected, disabling it along
+ * any parent or child widgets.  At present this is identical to
+ * snd_soc_dapm_disable_pin() but in future it will be extended to do
+ * additional things such as disabling controls which only affect
+ * paths through the pin.
+ *
+ * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
+ * do any widget power switching.
+ */
+int snd_soc_dapm_nc_pin(struct snd_soc_codec *codec, char *pin)
+{
+	return snd_soc_dapm_set_pin(codec, pin, 0);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_nc_pin);
+
+/**
  * snd_soc_dapm_get_pin_status - get audio pin status
  * @codec: audio codec
  * @pin: audio signal pin endpoint (or start point)
@@ -1521,6 +1540,6 @@ void snd_soc_dapm_free(struct snd_soc_device *socdev)
 EXPORT_SYMBOL_GPL(snd_soc_dapm_free);
 
 /* Module information */
-MODULE_AUTHOR("Liam Girdwood, liam.girdwood@wolfsonmicro.com, www.wolfsonmicro.com");
+MODULE_AUTHOR("Liam Girdwood, lrg@slimlogic.co.uk");
 MODULE_DESCRIPTION("Dynamic Audio Power Management core for ALSA SoC");
 MODULE_LICENSE("GPL");

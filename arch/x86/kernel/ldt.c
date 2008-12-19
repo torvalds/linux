@@ -18,6 +18,7 @@
 #include <asm/ldt.h>
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
+#include <asm/syscalls.h>
 
 #ifdef CONFIG_SMP
 static void flush_ldt(void *current_mm)
@@ -51,6 +52,8 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 	memset(newldt + oldsize * LDT_ENTRY_SIZE, 0,
 	       (mincount - oldsize) * LDT_ENTRY_SIZE);
 
+	paravirt_alloc_ldt(newldt, mincount);
+
 #ifdef CONFIG_X86_64
 	/* CHECKME: Do we really need this ? */
 	wmb();
@@ -73,6 +76,7 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 #endif
 	}
 	if (oldsize) {
+		paravirt_free_ldt(oldldt, oldsize);
 		if (oldsize * LDT_ENTRY_SIZE > PAGE_SIZE)
 			vfree(oldldt);
 		else
@@ -84,10 +88,13 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 static inline int copy_ldt(mm_context_t *new, mm_context_t *old)
 {
 	int err = alloc_ldt(new, old->size, 0);
+	int i;
 
 	if (err < 0)
 		return err;
-	memcpy(new->ldt, old->ldt, old->size * LDT_ENTRY_SIZE);
+
+	for(i = 0; i < old->size; i++)
+		write_ldt_entry(new->ldt, i, old->ldt + i * LDT_ENTRY_SIZE);
 	return 0;
 }
 
@@ -124,6 +131,7 @@ void destroy_context(struct mm_struct *mm)
 		if (mm == current->active_mm)
 			clear_LDT();
 #endif
+		paravirt_free_ldt(mm->context.ldt, mm->context.size);
 		if (mm->context.size * LDT_ENTRY_SIZE > PAGE_SIZE)
 			vfree(mm->context.ldt);
 		else

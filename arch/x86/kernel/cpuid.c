@@ -36,7 +36,6 @@
 #include <linux/smp_lock.h>
 #include <linux/major.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
@@ -148,8 +147,8 @@ static __cpuinit int cpuid_device_create(int cpu)
 {
 	struct device *dev;
 
-	dev = device_create_drvdata(cpuid_class, NULL, MKDEV(CPUID_MAJOR, cpu),
-				    NULL, "cpu%d", cpu);
+	dev = device_create(cpuid_class, NULL, MKDEV(CPUID_MAJOR, cpu), NULL,
+			    "cpu%d", cpu);
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
 

@@ -92,7 +92,6 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 
 	spin_lock_init(&dev->count_lock);
 	spin_lock_init(&dev->drw_lock);
-	spin_lock_init(&dev->tasklet_lock);
 	spin_lock_init(&dev->lock.spinlock);
 	init_timer(&dev->timer);
 	mutex_init(&dev->struct_mutex);
@@ -107,7 +106,6 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
 #endif
-	dev->irq = pdev->irq;
 
 	if (drm_ht_create(&dev->map_hash, 12)) {
 		return -ENOMEM;
@@ -150,6 +148,15 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 	if (retcode) {
 		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
 		goto error_out_unreg;
+	}
+
+	if (driver->driver_features & DRIVER_GEM) {
+		retcode = drm_gem_init(dev);
+		if (retcode) {
+			DRM_ERROR("Cannot initialize graphics execution "
+				  "manager (GEM)\n");
+			goto error_out_unreg;
+		}
 	}
 
 	return 0;
@@ -317,6 +324,7 @@ int drm_put_dev(struct drm_device * dev)
 int drm_put_minor(struct drm_minor **minor_p)
 {
 	struct drm_minor *minor = *minor_p;
+
 	DRM_DEBUG("release secondary minor %d\n", minor->index);
 
 	if (minor->type == DRM_MINOR_LEGACY)

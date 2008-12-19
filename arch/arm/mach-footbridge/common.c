@@ -13,11 +13,11 @@
 #include <linux/ioport.h>
 #include <linux/list.h>
 #include <linux/init.h>
+#include <linux/io.h>
  
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/hardware/dec21285.h>

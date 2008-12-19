@@ -53,8 +53,8 @@ static int jffs2_is_best_compression(struct jffs2_compressor *this,
 }
 
 /* jffs2_compress:
- * @data: Pointer to uncompressed data
- * @cdata: Pointer to returned pointer to buffer for compressed data
+ * @data_in: Pointer to uncompressed data
+ * @cpage_out: Pointer to returned pointer to buffer for compressed data
  * @datalen: On entry, holds the amount of data available for compression.
  *	On exit, expected to hold the amount of data actually compressed.
  * @cdatalen: On entry, holds the amount of space available for compressed

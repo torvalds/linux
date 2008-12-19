@@ -21,31 +21,13 @@ char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *fcp_rsp_iu)
 	return fcp_sns_info_ptr;
 }
 
-void zfcp_set_fcp_dl(struct fcp_cmnd_iu *fcp_cmd, fcp_dl_t fcp_dl)
-{
-	fcp_dl_t *fcp_dl_ptr;
-
-	/*
-	 * fcp_dl_addr = start address of fcp_cmnd structure +
-	 * size of fixed part + size of dynamically sized add_dcp_cdb field
-	 * SEE FCP-2 documentation
-	 */
-	fcp_dl_ptr = (fcp_dl_t *) ((unsigned char *) &fcp_cmd[1] +
-				   (fcp_cmd->add_fcp_cdb_length << 2));
-	*fcp_dl_ptr = fcp_dl;
-}
-
 static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
-	WARN_ON(!unit);
-	if (unit) {
-		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
-		sdpnt->hostdata = NULL;
-		unit->device = NULL;
-		zfcp_erp_unit_failed(unit, 12, NULL);
-		zfcp_unit_put(unit);
-	}
+	atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
+	unit->device = NULL;
+	zfcp_erp_unit_failed(unit, 12, NULL);
+	zfcp_unit_put(unit);
 }
 
 static int zfcp_scsi_slave_configure(struct scsi_device *sdp)
@@ -106,7 +88,7 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 	ret = zfcp_fsf_send_fcp_command_task(adapter, unit, scpnt, 0,
 					     ZFCP_REQ_AUTO_CLEANUP);
 	if (unlikely(ret == -EBUSY))
-		zfcp_scsi_command_fail(scpnt, DID_NO_CONNECT);
+		return SCSI_MLQUEUE_DEVICE_BUSY;
 	else if (unlikely(ret < 0))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
@@ -119,13 +101,17 @@ static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *adapter,
 {
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
+	int scsi_lun;
 
 	list_for_each_entry(port, &adapter->port_list_head, list) {
 		if (!port->rport || (id != port->rport->scsi_target_id))
 			continue;
-		list_for_each_entry(unit, &port->unit_list_head, list)
-			if (lun == unit->scsi_lun)
+		list_for_each_entry(unit, &port->unit_list_head, list) {
+			scsi_lun = scsilun_to_int(
+				(struct scsi_lun *)&unit->fcp_lun);
+			if (lun == scsi_lun)
 				return unit;
+		}
 	}
 
 	return NULL;
@@ -183,7 +169,6 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		return retval;
 	}
 	fsf_req->data = NULL;
-	fsf_req->status |= ZFCP_STATUS_FSFREQ_ABORTING;
 
 	/* don't access old fsf_req after releasing the abort_lock */
 	write_unlock_irqrestore(&adapter->abort_lock, flags);
@@ -294,7 +279,8 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 					     sizeof (struct zfcp_adapter *));
 	if (!adapter->scsi_host) {
 		dev_err(&adapter->ccw_device->dev,
-			"registration with SCSI stack failed.");
+			"Registering the FCP device with the "
+			"SCSI stack failed\n");
 		return -EIO;
 	}
 
@@ -312,7 +298,6 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 		scsi_host_put(adapter->scsi_host);
 		return -EIO;
 	}
-	atomic_set_mask(ZFCP_STATUS_ADAPTER_REGISTERED, &adapter->status);
 
 	return 0;
 }
@@ -336,7 +321,6 @@ void zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
 	adapter->scsi_host = NULL;
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_REGISTERED, &adapter->status);
 
 	return;
 }

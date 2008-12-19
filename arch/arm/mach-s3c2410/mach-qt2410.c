@@ -32,7 +32,7 @@
 #include <linux/serial_core.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
-
+#include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
@@ -43,23 +43,22 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/leds-gpio.h>
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/fb.h>
 #include <asm/plat-s3c/nand.h>
 #include <asm/plat-s3c24xx/udc.h>
 #include <mach/spi.h>
 #include <mach/spi-gpio.h>
 
-#include <asm/plat-s3c24xx/common-smdk.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/common-smdk.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
 
 static struct map_desc qt2410_iodesc[] __initdata = {
 	{ 0xe0000000, __phys_to_pfn(S3C2410_CS3+0x01000000), SZ_1M, MT_DEVICE }

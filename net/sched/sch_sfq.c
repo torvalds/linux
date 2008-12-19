@@ -119,7 +119,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	u32 h, h2;
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 	{
 		const struct iphdr *iph = ip_hdr(skb);
 		h = iph->daddr;
@@ -134,7 +134,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 			h2 ^= *(((u32*)iph) + iph->ihl);
 		break;
 	}
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 	{
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 		h = iph->daddr.s6_addr32[3];

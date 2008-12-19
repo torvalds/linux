@@ -67,6 +67,16 @@ obj-$(CONFIG_DVB_USB_ANYSEE) += dvb-usb-anysee.o
 dvb-usb-dw2102-objs = dw2102.o
 obj-$(CONFIG_DVB_USB_DW2102) += dvb-usb-dw2102.o
 
+dvb-usb-dtv5100-objs = dtv5100.o
+obj-$(CONFIG_DVB_USB_DTV5100) += dvb-usb-dtv5100.o
+
+dvb-usb-af9015-objs = af9015.o
+obj-$(CONFIG_DVB_USB_AF9015) += dvb-usb-af9015.o
+
+dvb-usb-cinergyT2-objs = cinergyT2-core.o cinergyT2-fe.o
+obj-$(CONFIG_DVB_USB_CINERGY_T2) += dvb-usb-cinergyT2.o
+
+
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
 # due to tuner-xc3028
 EXTRA_CFLAGS += -Idrivers/media/common/tuners

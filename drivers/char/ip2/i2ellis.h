@@ -511,7 +511,6 @@ typedef void (*delayFunc_t)(unsigned int);
 //
 // Initialization of a board & structure is in four (five!) parts:
 //
-// 0) iiEllisInit()  - Initialize iiEllis subsystem.
 // 1) iiSetAddress() - Define the board address & delay function for a board.
 // 2) iiReset()      - Reset the board   (provided it exists)
 //       -- Note you may do this to several boards --
@@ -523,7 +522,6 @@ typedef void (*delayFunc_t)(unsigned int);
 // loadware.  To change loadware, you must begin again with step 2, resetting
 // the board again (step 1 not needed).
 
-static void iiEllisInit(void);
 static int iiSetAddress(i2eBordStrPtr, int, delayFunc_t );
 static int iiReset(i2eBordStrPtr);
 static int iiResetDelay(i2eBordStrPtr);

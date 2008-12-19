@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <mach/akita.h>
 #include <mach/corgi.h>
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>

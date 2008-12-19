@@ -179,16 +179,22 @@
 #define HERMES_802_11_OFFSET		(14)
 #define HERMES_802_3_OFFSET		(14+32)
 #define HERMES_802_2_OFFSET		(14+32+14)
+#define HERMES_TXCNTL2_OFFSET		(HERMES_802_3_OFFSET - 2)
 
 #define HERMES_RXSTAT_ERR		(0x0003)
 #define	HERMES_RXSTAT_BADCRC		(0x0001)
 #define	HERMES_RXSTAT_UNDECRYPTABLE	(0x0002)
+#define	HERMES_RXSTAT_MIC		(0x0010)	/* Frame contains MIC */
 #define	HERMES_RXSTAT_MACPORT		(0x0700)
 #define HERMES_RXSTAT_PCF		(0x1000)	/* Frame was received in CF period */
+#define	HERMES_RXSTAT_MIC_KEY_ID	(0x1800)	/* MIC key used */
 #define	HERMES_RXSTAT_MSGTYPE		(0xE000)
 #define	HERMES_RXSTAT_1042		(0x2000)	/* RFC-1042 frame */
 #define	HERMES_RXSTAT_TUNNEL		(0x4000)	/* bridge-tunnel encoded frame */
 #define	HERMES_RXSTAT_WMP		(0x6000)	/* Wavelan-II Management Protocol frame */
+
+/* Shift amount for key ID in RXSTAT and TXCTRL */
+#define	HERMES_MIC_KEY_ID_SHIFT		11
 
 struct hermes_tx_descriptor {
 	__le16 status;
@@ -208,6 +214,8 @@ struct hermes_tx_descriptor {
 #define HERMES_TXCTRL_TX_OK		(0x0002)	/* ?? interrupt on Tx complete */
 #define HERMES_TXCTRL_TX_EX		(0x0004)	/* ?? interrupt on Tx exception */
 #define HERMES_TXCTRL_802_11		(0x0008)	/* We supply 802.11 header */
+#define HERMES_TXCTRL_MIC		(0x0010)	/* 802.3 + TKIP */
+#define HERMES_TXCTRL_MIC_KEY_ID	(0x1800)	/* MIC Key ID mask */
 #define HERMES_TXCTRL_ALT_RTRY		(0x0020)
 
 /* Inquiry constants and data types */
@@ -302,6 +310,40 @@ union hermes_scan_info {
 	struct symbol_scan_apinfo	s;
 };
 
+/* Extended scan struct for HERMES_INQ_CHANNELINFO.
+ * wl_lkm calls this an ACS scan (Automatic Channel Select).
+ * Keep out of union hermes_scan_info because it is much bigger than
+ * the older scan structures. */
+struct agere_ext_scan_info {
+	__le16	reserved0;
+
+	u8	noise;
+	u8	level;
+	u8	rx_flow;
+	u8	rate;
+	__le16	reserved1[2];
+
+	__le16	frame_control;
+	__le16	dur_id;
+	u8	addr1[ETH_ALEN];
+	u8	addr2[ETH_ALEN];
+	u8	bssid[ETH_ALEN];
+	__le16	sequence;
+	u8	addr4[ETH_ALEN];
+
+	__le16	data_length;
+
+	/* Next 3 fields do not get filled in. */
+	u8	daddr[ETH_ALEN];
+	u8	saddr[ETH_ALEN];
+	__le16	len_type;
+
+	__le64	timestamp;
+	__le16	beacon_interval;
+	__le16	capabilities;
+	u8	data[316];
+} __attribute__ ((packed));
+
 #define HERMES_LINKSTATUS_NOT_CONNECTED   (0x0000)  
 #define HERMES_LINKSTATUS_CONNECTED       (0x0001)
 #define HERMES_LINKSTATUS_DISCONNECTED    (0x0002)
@@ -353,6 +395,9 @@ void hermes_struct_init(hermes_t *hw, void __iomem *address, int reg_spacing);
 int hermes_init(hermes_t *hw);
 int hermes_docmd_wait(hermes_t *hw, u16 cmd, u16 parm0,
 		      struct hermes_response *resp);
+int hermes_doicmd_wait(hermes_t *hw, u16 cmd,
+		       u16 parm0, u16 parm1, u16 parm2,
+		       struct hermes_response *resp);
 int hermes_allocate(hermes_t *hw, u16 size, u16 *fid);
 
 int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,

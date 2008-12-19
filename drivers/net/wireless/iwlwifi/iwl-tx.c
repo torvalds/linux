@@ -63,7 +63,7 @@ static const u16 default_tid_to_tx_fifo[] = {
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+static int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl_tfd_frame *bd_tmp = (struct iwl_tfd_frame *)&txq->bd[0];
 	struct iwl_tfd_frame *bd = &bd_tmp[txq->q.read_ptr];
@@ -115,10 +115,8 @@ int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iwl_hw_txq_free_tfd);
 
-
-int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
+static int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 				 dma_addr_t addr, u16 len)
 {
 	int index, is_odd;
@@ -126,7 +124,7 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 	u32 num_tbs = IWL_GET_BITS(*tfd, num_tbs);
 
 	/* Each TFD can point to a maximum 20 Tx buffers */
-	if ((num_tbs >= MAX_NUM_OF_TBS) || (num_tbs < 0)) {
+	if (num_tbs >= MAX_NUM_OF_TBS) {
 		IWL_ERROR("Error can not send more than %d chunks\n",
 			  MAX_NUM_OF_TBS);
 		return -EINVAL;
@@ -151,7 +149,6 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_hw_txq_attach_buf_to_tfd);
 
 /**
  * iwl_txq_update_write_ptr - Send new write index to hardware
@@ -478,7 +475,6 @@ void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_hw_txq_ctx_free);
 
-
 /**
  * iwl_txq_ctx_reset - Reset TX queue context
  * Destroys all DMA structures and initialise them again
@@ -545,6 +541,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
  error_kw:
 	return ret;
 }
+
 /**
  * iwl_txq_ctx_stop - Stop all Tx DMA channels, free Tx queue memory
  */
@@ -796,11 +793,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		goto drop_unlock;
 	}
 
-	if (!priv->vif) {
-		IWL_DEBUG_DROP("Dropping - !priv->vif\n");
-		goto drop_unlock;
-	}
-
 	if ((ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xFF) ==
 	     IWL_INVALID_RATE) {
 		IWL_ERROR("ERROR: No TX rate available.\n");
@@ -822,16 +814,18 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* drop all data frame if we are not associated */
 	if (ieee80211_is_data(fc) &&
-	   (!iwl_is_associated(priv) ||
-	    ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && !priv->assoc_id) ||
-	    !priv->assoc_station_added)) {
+	    (priv->iw_mode != NL80211_IFTYPE_MONITOR ||
+	    !(info->flags & IEEE80211_TX_CTL_INJECTED)) && /* packet injection */
+	    (!iwl_is_associated(priv) ||
+	     ((priv->iw_mode == NL80211_IFTYPE_STATION) && !priv->assoc_id) ||
+	     !priv->assoc_station_added)) {
 		IWL_DEBUG_DROP("Dropping - !iwl_is_associated\n");
 		goto drop_unlock;
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	hdr_len = ieee80211_get_hdrlen(le16_to_cpu(fc));
+	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find (or create) index into station table for destination station */
 	sta_id = iwl_get_sta_id(priv, hdr);
@@ -849,7 +843,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	txq_id = swq_id;
 	if (ieee80211_is_data_qos(fc)) {
 		qc = ieee80211_get_qos_ctl(hdr);
-		tid = qc[0] & 0xf;
+		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 		seq_number = priv->stations[sta_id].tid[tid].seq_number;
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = hdr->seq_ctrl &
@@ -1064,7 +1058,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(IWL_CMD_QUEUE_NUM) |
 			INDEX_TO_SEQ(q->write_ptr));
 	if (out_cmd->meta.flags & CMD_SIZE_HUGE)
-		out_cmd->hdr.sequence |= cpu_to_le16(SEQ_HUGE_FRAME);
+		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
 	len = (idx == TFD_CMD_SLOTS) ?
 			IWL_MAX_SCAN_SIZE : sizeof(struct iwl_cmd);
 	phys_addr = pci_map_single(priv->pci_dev, out_cmd, len,
@@ -1072,12 +1066,26 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	phys_addr += offsetof(struct iwl_cmd, hdr);
 	iwl_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, fix_size);
 
-	IWL_DEBUG_HC("Sending command %s (#%x), seq: 0x%04X, "
-		     "%d bytes at %d[%d]:%d\n",
-		     get_cmd_string(out_cmd->hdr.cmd),
-		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
-		     fix_size, q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
-
+#ifdef CONFIG_IWLWIFI_DEBUG
+	switch (out_cmd->hdr.cmd) {
+	case REPLY_TX_LINK_QUALITY_CMD:
+	case SENSITIVITY_CMD:
+		IWL_DEBUG_HC_DUMP("Sending command %s (#%x), seq: 0x%04X, "
+				"%d bytes at %d[%d]:%d\n",
+				get_cmd_string(out_cmd->hdr.cmd),
+				out_cmd->hdr.cmd,
+				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
+				q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
+				break;
+	default:
+		IWL_DEBUG_HC("Sending command %s (#%x), seq: 0x%04X, "
+				"%d bytes at %d[%d]:%d\n",
+				get_cmd_string(out_cmd->hdr.cmd),
+				out_cmd->hdr.cmd,
+				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
+				q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
+	}
+#endif
 	txq->need_update = 1;
 
 	/* Set up entry in queue's byte count circular buffer */
@@ -1185,17 +1193,16 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
-	int huge = sequence & SEQ_HUGE_FRAME;
 	int cmd_index;
+	bool huge = !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	struct iwl_cmd *cmd;
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
 	 * in the queue management code. */
-	if (txq_id != IWL_CMD_QUEUE_NUM)
-		IWL_ERROR("Error wrong command queue %d command id 0x%X\n",
-			  txq_id, pkt->hdr.cmd);
-	BUG_ON(txq_id != IWL_CMD_QUEUE_NUM);
+	if (WARN(txq_id != IWL_CMD_QUEUE_NUM,
+		 "wrong command queue %d, command id 0x%X\n", txq_id, pkt->hdr.cmd))
+		return;
 
 	cmd_index = get_cmd_index(&priv->txq[IWL_CMD_QUEUE_NUM].q, index, huge);
 	cmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_index];

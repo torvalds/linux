@@ -15,13 +15,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-
-#if defined(CONFIG_PPC_MERGE)
 #include <linux/of_platform.h>
-#else
-#include <linux/platform_device.h>
-#endif
-
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/io.h>
@@ -108,13 +102,13 @@ static void mpc52xx_psc_spi_activate_cs(struct spi_device *spi)
 	 * Because psc->ccr is defined as 16bit register instead of 32bit
 	 * just set the lower byte of BitClkDiv
 	 */
-	ccr = in_be16(&psc->ccr);
+	ccr = in_be16((u16 __iomem *)&psc->ccr);
 	ccr &= 0xFF00;
 	if (cs->speed_hz)
 		ccr |= (MCLK / cs->speed_hz - 1) & 0xFF;
 	else /* by default SPI Clk 1MHz */
 		ccr |= (MCLK / 1000000 - 1) & 0xFF;
-	out_be16(&psc->ccr, ccr);
+	out_be16((u16 __iomem *)&psc->ccr, ccr);
 	mps->bits_per_word = cs->bits_per_word;
 
 	if (mps->activate_cs)
@@ -148,6 +142,7 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 	unsigned rfalarm;
 	unsigned send_at_once = MPC52xx_PSC_BUFSIZE;
 	unsigned recv_at_once;
+	int last_block = 0;
 
 	if (!t->tx_buf && !t->rx_buf && t->len)
 		return -EINVAL;
@@ -157,15 +152,17 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 	while (rb < t->len) {
 		if (t->len - rb > MPC52xx_PSC_BUFSIZE) {
 			rfalarm = MPC52xx_PSC_RFALARM;
+			last_block = 0;
 		} else {
 			send_at_once = t->len - sb;
 			rfalarm = MPC52xx_PSC_BUFSIZE - (t->len - rb);
+			last_block = 1;
 		}
 
 		dev_dbg(&spi->dev, "send %d bytes...\n", send_at_once);
 		for (; send_at_once; sb++, send_at_once--) {
 			/* set EOF flag before the last word is sent */
-			if (send_at_once == 1)
+			if (send_at_once == 1 && last_block)
 				out_8(&psc->ircr2, 0x01);
 
 			if (tx_buf)
@@ -347,7 +344,7 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	/* Configure 8bit codec mode as a SPI master and use EOF flags */
 	/* SICR_SIM_CODEC8|SICR_GENCLK|SICR_SPI|SICR_MSTR|SICR_USEEOF */
 	out_be32(&psc->sicr, 0x0180C800);
-	out_be16(&psc->ccr, 0x070F); /* by default SPI Clk 1MHz */
+	out_be16((u16 __iomem *)&psc->ccr, 0x070F); /* default SPI Clk 1MHz */
 
 	/* Set 2ms DTL delay */
 	out_8(&psc->ctur, 0x00);
@@ -471,53 +468,6 @@ static int __exit mpc52xx_psc_spi_do_remove(struct device *dev)
 	return 0;
 }
 
-#if !defined(CONFIG_PPC_MERGE)
-static int __init mpc52xx_psc_spi_probe(struct platform_device *dev)
-{
-	switch(dev->id) {
-	case 1:
-	case 2:
-	case 3:
-	case 6:
-		return mpc52xx_psc_spi_do_probe(&dev->dev,
-			MPC52xx_PA(MPC52xx_PSCx_OFFSET(dev->id)),
-			MPC52xx_PSC_SIZE, platform_get_irq(dev, 0), dev->id);
-	default:
-		return -EINVAL;
-	}
-}
-
-static int __exit mpc52xx_psc_spi_remove(struct platform_device *dev)
-{
-	return mpc52xx_psc_spi_do_remove(&dev->dev);
-}
-
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:mpc52xx-psc-spi");
-
-static struct platform_driver mpc52xx_psc_spi_platform_driver = {
-	.remove = __exit_p(mpc52xx_psc_spi_remove),
-	.driver = {
-		.name = "mpc52xx-psc-spi",
-		.owner = THIS_MODULE,
-	},
-};
-
-static int __init mpc52xx_psc_spi_init(void)
-{
-	return platform_driver_probe(&mpc52xx_psc_spi_platform_driver,
-			mpc52xx_psc_spi_probe);
-}
-module_init(mpc52xx_psc_spi_init);
-
-static void __exit mpc52xx_psc_spi_exit(void)
-{
-	platform_driver_unregister(&mpc52xx_psc_spi_platform_driver);
-}
-module_exit(mpc52xx_psc_spi_exit);
-
-#else	/* defined(CONFIG_PPC_MERGE) */
-
 static int __init mpc52xx_psc_spi_of_probe(struct of_device *op,
 	const struct of_device_id *match)
 {
@@ -585,8 +535,6 @@ static void __exit mpc52xx_psc_spi_exit(void)
 	of_unregister_platform_driver(&mpc52xx_psc_spi_of_driver);
 }
 module_exit(mpc52xx_psc_spi_exit);
-
-#endif	/* defined(CONFIG_PPC_MERGE) */
 
 MODULE_AUTHOR("Dragos Carp");
 MODULE_DESCRIPTION("MPC52xx PSC SPI Driver");

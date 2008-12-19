@@ -73,6 +73,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 static LIST_HEAD(em28xx_devlist);
+static DEFINE_MUTEX(em28xx_devlist_mutex);
 
 static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 static unsigned int video_nr[] = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
@@ -513,10 +514,17 @@ static struct videobuf_queue_ops em28xx_video_qops = {
  */
 static int em28xx_config(struct em28xx *dev)
 {
+	int retval;
 
 	/* Sets I2C speed to 100 KHz */
-	if (!dev->is_em2800)
-		em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
+	if (!dev->is_em2800) {
+		retval = em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
+		if (retval < 0) {
+			em28xx_errdev("%s: em28xx_write_regs_req failed! retval [%d]\n",
+				__func__, retval);
+			return retval;
+		}
+	}
 
 	/* enable vbi capturing */
 
@@ -1512,6 +1520,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	struct em28xx_fh *fh;
 	enum v4l2_buf_type fh_type = 0;
 
+	mutex_lock(&em28xx_devlist_mutex);
 	list_for_each_entry(h, &em28xx_devlist, devlist) {
 		if (h->vdev->minor == minor) {
 			dev  = h;
@@ -1527,8 +1536,11 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 			dev   = h;
 		}
 	}
+	mutex_unlock(&em28xx_devlist_mutex);
 	if (NULL == dev)
 		return -ENODEV;
+
+	mutex_lock(&dev->lock);
 
 	em28xx_videodbg("open minor=%d type=%s users=%d\n",
 				minor, v4l2_type_names[fh_type], dev->users);
@@ -1537,9 +1549,9 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
 	if (!fh) {
 		em28xx_errdev("em28xx-video.c: Out of memory?!\n");
+		mutex_unlock(&dev->lock);
 		return -ENOMEM;
 	}
-	mutex_lock(&dev->lock);
 	fh->dev = dev;
 	fh->radio = radio;
 	fh->type = fh_type;
@@ -1588,8 +1600,7 @@ static void em28xx_release_resources(struct em28xx *dev)
 	/*FIXME: I2C IR should be disconnected */
 
 	em28xx_info("V4L2 devices /dev/video%d and /dev/vbi%d deregistered\n",
-				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
-				dev->vbi_dev->minor-MINOR_VFL_TYPE_VBI_MIN);
+				dev->vdev->num, dev->vbi_dev->num);
 	list_del(&dev->devlist);
 	if (dev->sbutton_input_dev)
 		em28xx_deregister_snapshot_button(dev);
@@ -1860,6 +1871,7 @@ int em28xx_register_extension(struct em28xx_ops *ops)
 {
 	struct em28xx *dev = NULL;
 
+	mutex_lock(&em28xx_devlist_mutex);
 	mutex_lock(&em28xx_extension_devlist_lock);
 	list_add_tail(&ops->next, &em28xx_extension_devlist);
 	list_for_each_entry(dev, &em28xx_devlist, devlist) {
@@ -1868,6 +1880,7 @@ int em28xx_register_extension(struct em28xx_ops *ops)
 	}
 	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
 	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(em28xx_register_extension);
@@ -1876,6 +1889,7 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 {
 	struct em28xx *dev = NULL;
 
+	mutex_lock(&em28xx_devlist_mutex);
 	list_for_each_entry(dev, &em28xx_devlist, devlist) {
 		if (dev)
 			ops->fini(dev);
@@ -1885,6 +1899,7 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
 	list_del(&ops->next);
 	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
 }
 EXPORT_SYMBOL(em28xx_unregister_extension);
 
@@ -1910,6 +1925,60 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 }
 
 
+static int register_analog_devices(struct em28xx *dev)
+{
+	int ret;
+
+	/* allocate and fill video video_device struct */
+	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");
+	if (!dev->vdev) {
+		em28xx_errdev("cannot allocate video_device.\n");
+		return -ENODEV;
+	}
+
+	/* register v4l2 video video_device */
+	ret = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
+				       video_nr[dev->devno]);
+	if (ret) {
+		em28xx_errdev("unable to register video device (error=%i).\n",
+			      ret);
+		return ret;
+	}
+
+	/* Allocate and fill vbi video_device struct */
+	dev->vbi_dev = em28xx_vdev_init(dev, &em28xx_video_template, "vbi");
+
+	/* register v4l2 vbi video_device */
+	ret = video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
+					vbi_nr[dev->devno]);
+	if (ret < 0) {
+		em28xx_errdev("unable to register vbi device\n");
+		return ret;
+	}
+
+	if (em28xx_boards[dev->model].radio.type == EM28XX_RADIO) {
+		dev->radio_dev = em28xx_vdev_init(dev, &em28xx_radio_template, "radio");
+		if (!dev->radio_dev) {
+			em28xx_errdev("cannot allocate video_device.\n");
+			return -ENODEV;
+		}
+		ret = video_register_device(dev->radio_dev, VFL_TYPE_RADIO,
+					    radio_nr[dev->devno]);
+		if (ret < 0) {
+			em28xx_errdev("can't register radio device\n");
+			return ret;
+		}
+		em28xx_info("Registered radio device as /dev/radio%d\n",
+			    dev->radio_dev->num);
+	}
+
+	em28xx_info("V4L2 device registered as /dev/video%d and /dev/vbi%d\n",
+				dev->vdev->num, dev->vbi_dev->num);
+
+	return 0;
+}
+
+
 /*
  * em28xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
@@ -1925,6 +1994,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	dev->udev = udev;
 	mutex_init(&dev->lock);
+	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
 	init_waitqueue_head(&dev->open);
 	init_waitqueue_head(&dev->wait_frame);
@@ -1942,19 +2012,27 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	errCode = em28xx_config(dev);
 	if (errCode) {
 		em28xx_errdev("error configuring device\n");
-		em28xx_devused &= ~(1<<dev->devno);
-		kfree(dev);
 		return -ENOMEM;
 	}
 
 	/* register i2c bus */
-	em28xx_i2c_register(dev);
+	errCode = em28xx_i2c_register(dev);
+	if (errCode < 0) {
+		em28xx_errdev("%s: em28xx_i2c_register - errCode [%d]!\n",
+			__func__, errCode);
+		return errCode;
+	}
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
 
 	/* Configure audio */
-	em28xx_audio_analog_set(dev);
+	errCode = em28xx_audio_analog_set(dev);
+	if (errCode < 0) {
+		em28xx_errdev("%s: em28xx_audio_analog_set - errCode [%d]!\n",
+			__func__, errCode);
+		return errCode;
+	}
 
 	/* configure the device */
 	em28xx_config_i2c(dev);
@@ -1974,49 +2052,10 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->ctl_input = 2;
 
 	errCode = em28xx_config(dev);
-
-	list_add_tail(&dev->devlist, &em28xx_devlist);
-
-	/* allocate and fill video video_device struct */
-	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");
-	if (NULL == dev->vdev) {
-		em28xx_errdev("cannot allocate video_device.\n");
-		goto fail_unreg;
-	}
-
-	/* register v4l2 video video_device */
-	retval = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
-				       video_nr[dev->devno]);
-	if (retval) {
-		em28xx_errdev("unable to register video device (error=%i).\n",
-			      retval);
-		goto fail_unreg;
-	}
-
-	/* Allocate and fill vbi video_device struct */
-	dev->vbi_dev = em28xx_vdev_init(dev, &em28xx_video_template, "vbi");
-	/* register v4l2 vbi video_device */
-	if (video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
-					vbi_nr[dev->devno]) < 0) {
-		em28xx_errdev("unable to register vbi device\n");
-		retval = -ENODEV;
-		goto fail_unreg;
-	}
-
-	if (em28xx_boards[dev->model].radio.type == EM28XX_RADIO) {
-		dev->radio_dev = em28xx_vdev_init(dev, &em28xx_radio_template, "radio");
-		if (NULL == dev->radio_dev) {
-			em28xx_errdev("cannot allocate video_device.\n");
-			goto fail_unreg;
-		}
-		retval = video_register_device(dev->radio_dev, VFL_TYPE_RADIO,
-					    radio_nr[dev->devno]);
-		if (retval < 0) {
-			em28xx_errdev("can't register radio device\n");
-			goto fail_unreg;
-		}
-		em28xx_info("Registered radio device as /dev/radio%d\n",
-			    dev->radio_dev->minor & 0x1f);
+	if (errCode < 0) {
+		em28xx_errdev("%s: em28xx_config - errCode [%d]!\n",
+			__func__, errCode);
+		return errCode;
 	}
 
 	/* init video dma queues */
@@ -2026,17 +2065,33 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	if (dev->has_msp34xx) {
 		/* Send a reset to other chips via gpio */
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\xf7", 1);
+		errCode = em28xx_write_regs_req(dev, 0x00, 0x08, "\xf7", 1);
+		if (errCode < 0) {
+			em28xx_errdev("%s: em28xx_write_regs_req - msp34xx(1) failed! errCode [%d]\n",
+				__func__, errCode);
+			return errCode;
+		}
 		msleep(3);
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\xff", 1);
+
+		errCode = em28xx_write_regs_req(dev, 0x00, 0x08, "\xff", 1);
+		if (errCode < 0) {
+			em28xx_errdev("%s: em28xx_write_regs_req - msp34xx(2) failed! errCode [%d]\n",
+				__func__, errCode);
+			return errCode;
+		}
 		msleep(3);
 	}
 
 	video_mux(dev, 0);
 
-	em28xx_info("V4L2 device registered as /dev/video%d and /dev/vbi%d\n",
-				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
-				dev->vbi_dev->minor-MINOR_VFL_TYPE_VBI_MIN);
+	mutex_lock(&em28xx_devlist_mutex);
+	list_add_tail(&dev->devlist, &em28xx_devlist);
+	retval = register_analog_devices(dev);
+	if (retval < 0) {
+		em28xx_release_resources(dev);
+		mutex_unlock(&em28xx_devlist_mutex);
+		goto fail_reg_devices;
+	}
 
 	mutex_lock(&em28xx_extension_devlist_lock);
 	if (!list_empty(&em28xx_extension_devlist)) {
@@ -2046,13 +2101,12 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		}
 	}
 	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
 
 	return 0;
 
-fail_unreg:
-	em28xx_release_resources(dev);
+fail_reg_devices:
 	mutex_unlock(&dev->lock);
-	kfree(dev);
 	return retval;
 }
 
@@ -2195,8 +2249,12 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* allocate device struct */
 	retval = em28xx_init_dev(&dev, udev, nr);
-	if (retval)
+	if (retval) {
+		em28xx_devused &= ~(1<<dev->devno);
+		kfree(dev);
+
 		return retval;
+	}
 
 	em28xx_info("Found %s\n", em28xx_boards[dev->model].name);
 
@@ -2236,7 +2294,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		em28xx_warn
 		    ("device /dev/video%d is open! Deregistration and memory "
 		     "deallocation are deferred on close.\n",
-				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN);
+				dev->vdev->num);
 
 		dev->state |= DEV_MISCONFIGURED;
 		em28xx_uninit_isoc(dev);

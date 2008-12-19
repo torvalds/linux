@@ -431,7 +431,7 @@ static void getlinktype(struct net_device *dev);
 static void getlinkstatus(struct net_device *dev);
 static void netdev_timer(unsigned long data);
 static void reset_timer(unsigned long data);
-static void tx_timeout(struct net_device *dev);
+static void fealnx_tx_timeout(struct net_device *dev);
 static void init_ring(struct net_device *dev);
 static int start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t intr_handler(int irq, void *dev_instance);
@@ -658,7 +658,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	dev->set_multicast_list = &set_rx_mode;
 	dev->do_ioctl = &mii_ioctl;
 	dev->ethtool_ops = &netdev_ethtool_ops;
-	dev->tx_timeout = &tx_timeout;
+	dev->tx_timeout = &fealnx_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	err = register_netdev(dev);
@@ -1198,7 +1198,7 @@ static void reset_timer(unsigned long data)
 }
 
 
-static void tx_timeout(struct net_device *dev)
+static void fealnx_tx_timeout(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->mem;

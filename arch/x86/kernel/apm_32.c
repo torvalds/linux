@@ -228,7 +228,6 @@
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/jiffies.h>
-#include <linux/smp_lock.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>

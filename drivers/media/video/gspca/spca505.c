@@ -688,7 +688,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int ret;
@@ -733,6 +733,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 /*	reg_write(dev, 0x5, 0x0, 0x0); */
 /*	reg_write(dev, 0x5, 0x0, 0x1); */
 /*	reg_write(dev, 0x5, 0x11, 0x2); */
+	return ret;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -741,8 +742,12 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_write(gspca_dev->dev, 0x02, 0x00, 0x00);
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
+	if (!gspca_dev->present)
+		return;
+
 	/* This maybe reset or power control */
 	reg_write(gspca_dev->dev, 0x03, 0x03, 0x20);
 	reg_write(gspca_dev->dev, 0x03, 0x01, 0x0);

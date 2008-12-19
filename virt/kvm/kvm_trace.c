@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/relay.h>
 #include <linux/debugfs.h>
+#include <linux/ktime.h>
 
 #include <linux/kvm_host.h>
 
@@ -35,16 +36,16 @@ static struct kvm_trace *kvm_trace;
 struct kvm_trace_probe {
 	const char *name;
 	const char *format;
-	u32 cycle_in;
+	u32 timestamp_in;
 	marker_probe_func *probe_func;
 };
 
-static inline int calc_rec_size(int cycle, int extra)
+static inline int calc_rec_size(int timestamp, int extra)
 {
 	int rec_size = KVM_TRC_HEAD_SIZE;
 
 	rec_size += extra;
-	return cycle ? rec_size += KVM_TRC_CYCLE_SIZE : rec_size;
+	return timestamp ? rec_size += KVM_TRC_CYCLE_SIZE : rec_size;
 }
 
 static void kvm_add_trace(void *probe_private, void *call_data,
@@ -54,12 +55,13 @@ static void kvm_add_trace(void *probe_private, void *call_data,
 	struct kvm_trace *kt = kvm_trace;
 	struct kvm_trace_rec rec;
 	struct kvm_vcpu *vcpu;
-	int    i, extra, size;
+	int    i, size;
+	u32    extra;
 
 	if (unlikely(kt->trace_state != KVM_TRACE_STATE_RUNNING))
 		return;
 
-	rec.event	= va_arg(*args, u32);
+	rec.rec_val	= TRACE_REC_EVENT_ID(va_arg(*args, u32));
 	vcpu		= va_arg(*args, struct kvm_vcpu *);
 	rec.pid		= current->tgid;
 	rec.vcpu_id	= vcpu->vcpu_id;
@@ -67,21 +69,21 @@ static void kvm_add_trace(void *probe_private, void *call_data,
 	extra   	= va_arg(*args, u32);
 	WARN_ON(!(extra <= KVM_TRC_EXTRA_MAX));
 	extra 		= min_t(u32, extra, KVM_TRC_EXTRA_MAX);
-	rec.extra_u32   = extra;
 
-	rec.cycle_in 	= p->cycle_in;
+	rec.rec_val |= TRACE_REC_TCS(p->timestamp_in)
+			| TRACE_REC_NUM_DATA_ARGS(extra);
 
-	if (rec.cycle_in) {
-		rec.u.cycle.cycle_u64 = get_cycles();
+	if (p->timestamp_in) {
+		rec.u.timestamp.timestamp = ktime_to_ns(ktime_get());
 
-		for (i = 0; i < rec.extra_u32; i++)
-			rec.u.cycle.extra_u32[i] = va_arg(*args, u32);
+		for (i = 0; i < extra; i++)
+			rec.u.timestamp.extra_u32[i] = va_arg(*args, u32);
 	} else {
-		for (i = 0; i < rec.extra_u32; i++)
-			rec.u.nocycle.extra_u32[i] = va_arg(*args, u32);
+		for (i = 0; i < extra; i++)
+			rec.u.notimestamp.extra_u32[i] = va_arg(*args, u32);
 	}
 
-	size = calc_rec_size(rec.cycle_in, rec.extra_u32 * sizeof(u32));
+	size = calc_rec_size(p->timestamp_in, extra * sizeof(u32));
 	relay_write(kt->rchan, &rec, size);
 }
 

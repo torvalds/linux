@@ -35,6 +35,7 @@ void __init reserve_ebda_region(void)
 
 	/* start of EBDA area */
 	ebda_addr = get_bios_ebda();
+	printk(KERN_INFO "BIOS EBDA/lowmem at: %08x/%08x\n", ebda_addr, lowmem);
 
 	/* Fixup: bios puts an EBDA in the top 64K segment */
 	/* of conventional memory, but does not adjust lowmem. */

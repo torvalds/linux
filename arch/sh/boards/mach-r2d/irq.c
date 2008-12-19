@@ -13,7 +13,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <asm/rts7751r2d.h>
+#include <mach/r2d.h>
 
 #define R2D_NR_IRL 13
 

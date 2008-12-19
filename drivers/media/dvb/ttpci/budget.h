@@ -109,7 +109,7 @@ static struct saa7146_pci_extension_data x_var = { \
 
 extern int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 			     struct saa7146_pci_extension_data *info,
-			     struct module *owner);
+			     struct module *owner, short *adapter_nums);
 extern void ttpci_budget_init_hooks(struct budget *budget);
 extern int ttpci_budget_deinit(struct budget *budget);
 extern void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 * isr);

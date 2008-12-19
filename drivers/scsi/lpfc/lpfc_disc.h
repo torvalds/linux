@@ -37,6 +37,7 @@ enum lpfc_work_type {
 	LPFC_EVT_KILL,
 	LPFC_EVT_ELS_RETRY,
 	LPFC_EVT_DEV_LOSS,
+	LPFC_EVT_FASTPATH_MGMT_EVT,
 };
 
 /* structure used to queue event to the discovery tasklet */
@@ -47,6 +48,24 @@ struct lpfc_work_evt {
 	enum lpfc_work_type   evt;
 };
 
+struct lpfc_scsi_check_condition_event;
+struct lpfc_scsi_varqueuedepth_event;
+struct lpfc_scsi_event_header;
+struct lpfc_fabric_event_header;
+struct lpfc_fcprdchkerr_event;
+
+/* structure used for sending events from fast path */
+struct lpfc_fast_path_event {
+	struct lpfc_work_evt work_evt;
+	struct lpfc_vport     *vport;
+	union {
+		struct lpfc_scsi_check_condition_event check_cond_evt;
+		struct lpfc_scsi_varqueuedepth_event queue_depth_evt;
+		struct lpfc_scsi_event_header scsi_evt;
+		struct lpfc_fabric_event_header fabric_evt;
+		struct lpfc_fcprdchkerr_event read_check_error;
+	} un;
+};
 
 struct lpfc_nodelist {
 	struct list_head nlp_listp;
@@ -88,6 +107,10 @@ struct lpfc_nodelist {
 	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
 	unsigned long last_q_full_time;		/* jiffy of last queue full */
 	struct kref     kref;
+	atomic_t cmd_pending;
+	uint32_t cmd_qdepth;
+	unsigned long last_change_time;
+	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
 };
 
 /* Defines for nlp_flag (uint32) */

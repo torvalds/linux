@@ -29,7 +29,6 @@
 
 #include "wm8971.h"
 
-#define AUDIO_NAME "wm8971"
 #define WM8971_VERSION "0.9"
 
 #define	WM8971_REG_COUNT		43

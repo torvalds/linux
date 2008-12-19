@@ -15,8 +15,8 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/spinlock.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <mach/hardware.h>
 #include <asm/system.h>
 #include <asm/irq.h>

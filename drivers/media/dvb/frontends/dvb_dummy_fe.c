@@ -75,9 +75,10 @@ static int dvb_dummy_fe_get_frontend(struct dvb_frontend* fe, struct dvb_fronten
 
 static int dvb_dummy_fe_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
-	if (fe->ops->tuner_ops->set_params) {
-		fe->ops->tuner_ops->set_params(fe, p);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	return 0;
@@ -131,7 +132,7 @@ error:
 
 static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops;
 
-struct dvb_frontend* dvb_dummy_fe_qpsk_attach()
+struct dvb_frontend *dvb_dummy_fe_qpsk_attach(void)
 {
 	struct dvb_dummy_fe_state* state = NULL;
 
@@ -151,7 +152,7 @@ error:
 
 static struct dvb_frontend_ops dvb_dummy_fe_qam_ops;
 
-struct dvb_frontend* dvb_dummy_fe_qam_attach()
+struct dvb_frontend *dvb_dummy_fe_qam_attach(void)
 {
 	struct dvb_dummy_fe_state* state = NULL;
 

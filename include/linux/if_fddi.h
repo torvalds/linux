@@ -12,7 +12,7 @@
  *		if_fddi.h is based on previous if_ether.h and if_tr.h work by
  *			Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *			Donald Becker, <becker@super.org>
- *			Alan Cox, <alan@redhat.com>
+ *			Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *			Steve Whitehouse, <gw7rrm@eeshack3.swan.ac.uk>
  *			Peter De Schrijver, <stud11@cc4.kuleuven.ac.be>
  *

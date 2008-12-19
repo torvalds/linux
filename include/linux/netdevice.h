@@ -11,7 +11,7 @@
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Corey Minyard <wf-rch!minyard@relay.EU.net>
  *		Donald J. Becker, <becker@cesdis.gsfc.nasa.gov>
- *		Alan Cox, <Alan.Cox@linux.org>
+ *		Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *		Bjorn Ekwall. <bj0rn@blox.se>
  *              Pekka Riikonen <priikone@poseidon.pspt.fi>
  *
@@ -42,6 +42,7 @@
 #include <linux/workqueue.h>
 
 #include <net/net_namespace.h>
+#include <net/dsa.h>
 
 struct vlan_group;
 struct ethtool_ops;
@@ -318,6 +319,7 @@ enum
 {
 	NAPI_STATE_SCHED,	/* Poll is scheduled */
 	NAPI_STATE_DISABLE,	/* Disable pending */
+	NAPI_STATE_NPSVC,	/* Netpoll - don't dequeue from poll_list */
 };
 
 extern void __napi_schedule(struct napi_struct *n);
@@ -471,6 +473,8 @@ struct net_device
 	char			name[IFNAMSIZ];
 	/* device name hash chain */
 	struct hlist_node	name_hlist;
+	/* snmp alias */
+	char 			*ifalias;
 
 	/*
 	 *	I/O specific fields
@@ -537,6 +541,14 @@ struct net_device
 #define NETIF_F_V4_CSUM		(NETIF_F_GEN_CSUM | NETIF_F_IP_CSUM)
 #define NETIF_F_V6_CSUM		(NETIF_F_GEN_CSUM | NETIF_F_IPV6_CSUM)
 #define NETIF_F_ALL_CSUM	(NETIF_F_V4_CSUM | NETIF_F_V6_CSUM)
+
+	/*
+	 * If one device supports one of these features, then enable them
+	 * for all in netdev_increment_features.
+	 */
+#define NETIF_F_ONE_FOR_ALL	(NETIF_F_GSO_SOFTWARE | NETIF_F_GSO_ROBUST | \
+				 NETIF_F_SG | NETIF_F_HIGHDMA | \
+				 NETIF_F_FRAGLIST)
 
 	/* Interface index. Unique device identifier	*/
 	int			ifindex;
@@ -605,6 +617,9 @@ struct net_device
 
 	/* Protocol specific pointers */
 	
+#ifdef CONFIG_NET_DSA
+	void			*dsa_ptr;	/* dsa specific data */
+#endif
 	void 			*atalk_ptr;	/* AppleTalk link 	*/
 	void			*ip_ptr;	/* IPv4 specific data	*/  
 	void                    *dn_ptr;        /* DECnet specific data */
@@ -794,6 +809,26 @@ void dev_net_set(struct net_device *dev, struct net *net)
 	release_net(dev->nd_net);
 	dev->nd_net = hold_net(net);
 #endif
+}
+
+static inline bool netdev_uses_dsa_tags(struct net_device *dev)
+{
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_dsa_tags(dev->dsa_ptr);
+#endif
+
+	return 0;
+}
+
+static inline bool netdev_uses_trailer_tags(struct net_device *dev)
+{
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_trailer_tags(dev->dsa_ptr);
+#endif
+
+	return 0;
 }
 
 /**
@@ -1223,7 +1258,8 @@ extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
 extern int		dev_ethtool(struct net *net, struct ifreq *);
 extern unsigned		dev_get_flags(const struct net_device *);
 extern int		dev_change_flags(struct net_device *, unsigned);
-extern int		dev_change_name(struct net_device *, char *);
+extern int		dev_change_name(struct net_device *, const char *);
+extern int		dev_set_alias(struct net_device *, const char *, size_t);
 extern int		dev_change_net_namespace(struct net_device *,
 						 struct net *, const char *);
 extern int		dev_set_mtu(struct net_device *, int);
@@ -1462,6 +1498,12 @@ static inline void netif_rx_complete(struct net_device *dev,
 {
 	unsigned long flags;
 
+	/*
+	 * don't let napi dequeue from the cpu poll list
+	 * just in case its running on a different cpu
+	 */
+	if (unlikely(test_bit(NAPI_STATE_NPSVC, &napi->state)))
+		return;
 	local_irq_save(flags);
 	__netif_rx_complete(dev, napi);
 	local_irq_restore(flags);
@@ -1502,7 +1544,6 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 /**
  *	netif_tx_lock - grab network device transmit lock
  *	@dev: network device
- *	@cpu: cpu number of lock owner
  *
  * Get network device transmit lock
  */
@@ -1667,11 +1708,13 @@ extern void dev_seq_stop(struct seq_file *seq, void *v);
 extern int netdev_class_create_file(struct class_attribute *class_attr);
 extern void netdev_class_remove_file(struct class_attribute *class_attr);
 
-extern char *netdev_drivername(struct net_device *dev, char *buffer, int len);
+extern char *netdev_drivername(const struct net_device *dev, char *buffer, int len);
 
 extern void linkwatch_run_queue(void);
 
-extern int netdev_compute_features(unsigned long all, unsigned long one);
+unsigned long netdev_increment_features(unsigned long all, unsigned long one,
+					unsigned long mask);
+unsigned long netdev_fix_features(unsigned long features, const char *name);
 
 static inline int net_gso_ok(int features, int gso_type)
 {

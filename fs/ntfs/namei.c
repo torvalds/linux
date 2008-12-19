@@ -304,8 +304,6 @@ static struct dentry *ntfs_get_parent(struct dentry *child_dent)
 	ntfs_attr_search_ctx *ctx;
 	ATTR_RECORD *attr;
 	FILE_NAME_ATTR *fn;
-	struct inode *parent_vi;
-	struct dentry *parent_dent;
 	unsigned long parent_ino;
 	int err;
 
@@ -345,24 +343,8 @@ try_next:
 	/* Release the search context and the mft record of the child. */
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(ni);
-	/* Get the inode of the parent directory. */
-	parent_vi = ntfs_iget(vi->i_sb, parent_ino);
-	if (IS_ERR(parent_vi) || unlikely(is_bad_inode(parent_vi))) {
-		if (!IS_ERR(parent_vi))
-			iput(parent_vi);
-		ntfs_error(vi->i_sb, "Failed to get parent directory inode "
-				"0x%lx of child inode 0x%lx.", parent_ino,
-				vi->i_ino);
-		return ERR_PTR(-EACCES);
-	}
-	/* Finally get a dentry for the parent directory and return it. */
-	parent_dent = d_alloc_anon(parent_vi);
-	if (unlikely(!parent_dent)) {
-		iput(parent_vi);
-		return ERR_PTR(-ENOMEM);
-	}
-	ntfs_debug("Done for inode 0x%lx.", vi->i_ino);
-	return parent_dent;
+
+	return d_obtain_alias(ntfs_iget(vi->i_sb, parent_ino));
 }
 
 static struct inode *ntfs_nfs_get_inode(struct super_block *sb,

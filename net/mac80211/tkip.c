@@ -304,7 +304,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 			key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 			u8 bcast[ETH_ALEN] =
 				{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-			u8 *sta_addr = key->sta->addr;
+			u8 *sta_addr = key->sta->sta.addr;
 
 			if (is_multicast_ether_addr(ra))
 				sta_addr = bcast;

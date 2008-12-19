@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/io.h>
-#include <asm/lboxre2.h>
+#include <mach/lboxre2.h>
 #include "pci-sh4.h"
 
 static char lboxre2_irq_tab[] __initdata = {

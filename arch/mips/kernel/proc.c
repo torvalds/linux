@@ -23,6 +23,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned int version = cpu_data[n].processor_id;
 	unsigned int fp_vers = cpu_data[n].fpu_id;
 	char fmt [64];
+	int i;
 
 #ifdef CONFIG_SMP
 	if (!cpu_isset(n, cpu_online_map))
@@ -38,7 +39,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "processor\t\t: %ld\n", n);
 	sprintf(fmt, "cpu model\t\t: %%s V%%d.%%d%s\n",
 	        cpu_data[n].options & MIPS_CPU_FPU ? "  FPU V%d.%d" : "");
-	seq_printf(m, fmt, __cpu_name[smp_processor_id()],
+	seq_printf(m, fmt, __cpu_name[n],
 	                           (version >> 4) & 0x0f, version & 0x0f,
 	                           (fp_vers >> 4) & 0x0f, fp_vers & 0x0f);
 	seq_printf(m, "BogoMIPS\t\t: %lu.%02lu\n",
@@ -50,8 +51,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "tlb_entries\t\t: %d\n", cpu_data[n].tlbsize);
 	seq_printf(m, "extra interrupt vector\t: %s\n",
 	              cpu_has_divec ? "yes" : "no");
-	seq_printf(m, "hardware watchpoint\t: %s\n",
-	              cpu_has_watch ? "yes" : "no");
+	seq_printf(m, "hardware watchpoint\t: %s",
+		   cpu_has_watch ? "yes, " : "no\n");
+	if (cpu_has_watch) {
+		seq_printf(m, "count: %d, address/irw mask: [",
+			   cpu_data[n].watch_reg_count);
+		for (i = 0; i < cpu_data[n].watch_reg_count; i++)
+			seq_printf(m, "%s0x%04x", i ? ", " : "" ,
+				   cpu_data[n].watch_reg_masks[i]);
+		seq_printf(m, "]\n");
+	}
 	seq_printf(m, "ASEs implemented\t:%s%s%s%s%s%s\n",
 		      cpu_has_mips16 ? " mips16" : "",
 		      cpu_has_mdmx ? " mdmx" : "",

@@ -231,6 +231,7 @@ static void gameport_find_driver(struct gameport *gameport)
 enum gameport_event_type {
 	GAMEPORT_REGISTER_PORT,
 	GAMEPORT_REGISTER_DRIVER,
+	GAMEPORT_ATTACH_DRIVER,
 };
 
 struct gameport_event {
@@ -245,11 +246,12 @@ static LIST_HEAD(gameport_event_list);
 static DECLARE_WAIT_QUEUE_HEAD(gameport_wait);
 static struct task_struct *gameport_task;
 
-static void gameport_queue_event(void *object, struct module *owner,
-			      enum gameport_event_type event_type)
+static int gameport_queue_event(void *object, struct module *owner,
+				enum gameport_event_type event_type)
 {
 	unsigned long flags;
 	struct gameport_event *event;
+	int retval = 0;
 
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
@@ -268,24 +270,34 @@ static void gameport_queue_event(void *object, struct module *owner,
 		}
 	}
 
-	if ((event = kmalloc(sizeof(struct gameport_event), GFP_ATOMIC))) {
-		if (!try_module_get(owner)) {
-			printk(KERN_WARNING "gameport: Can't get module reference, dropping event %d\n", event_type);
-			kfree(event);
-			goto out;
-		}
-
-		event->type = event_type;
-		event->object = object;
-		event->owner = owner;
-
-		list_add_tail(&event->node, &gameport_event_list);
-		wake_up(&gameport_wait);
-	} else {
-		printk(KERN_ERR "gameport: Not enough memory to queue event %d\n", event_type);
+	event = kmalloc(sizeof(struct gameport_event), GFP_ATOMIC);
+	if (!event) {
+		printk(KERN_ERR
+			"gameport: Not enough memory to queue event %d\n",
+			event_type);
+		retval = -ENOMEM;
+		goto out;
 	}
+
+	if (!try_module_get(owner)) {
+		printk(KERN_WARNING
+			"gameport: Can't get module reference, dropping event %d\n",
+			event_type);
+		kfree(event);
+		retval = -EINVAL;
+		goto out;
+	}
+
+	event->type = event_type;
+	event->object = object;
+	event->owner = owner;
+
+	list_add_tail(&event->node, &gameport_event_list);
+	wake_up(&gameport_wait);
+
 out:
 	spin_unlock_irqrestore(&gameport_event_lock, flags);
+	return retval;
 }
 
 static void gameport_free_event(struct gameport_event *event)
@@ -378,9 +390,10 @@ static void gameport_handle_event(void)
 }
 
 /*
- * Remove all events that have been submitted for a given gameport port.
+ * Remove all events that have been submitted for a given object,
+ * be it a gameport port or a driver.
  */
-static void gameport_remove_pending_events(struct gameport *gameport)
+static void gameport_remove_pending_events(void *object)
 {
 	struct list_head *node, *next;
 	struct gameport_event *event;
@@ -390,7 +403,7 @@ static void gameport_remove_pending_events(struct gameport *gameport)
 
 	list_for_each_safe(node, next, &gameport_event_list) {
 		event = list_entry(node, struct gameport_event, node);
-		if (event->object == gameport) {
+		if (event->object == object) {
 			list_del_init(node);
 			gameport_free_event(event);
 		}
@@ -705,10 +718,40 @@ static void gameport_add_driver(struct gameport_driver *drv)
 			drv->driver.name, error);
 }
 
-void __gameport_register_driver(struct gameport_driver *drv, struct module *owner)
+int __gameport_register_driver(struct gameport_driver *drv, struct module *owner,
+				const char *mod_name)
 {
+	int error;
+
 	drv->driver.bus = &gameport_bus;
-	gameport_queue_event(drv, owner, GAMEPORT_REGISTER_DRIVER);
+	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
+
+	/*
+	 * Temporarily disable automatic binding because probing
+	 * takes long time and we are better off doing it in kgameportd
+	 */
+	drv->ignore = 1;
+
+	error = driver_register(&drv->driver);
+	if (error) {
+		printk(KERN_ERR
+			"gameport: driver_register() failed for %s, error: %d\n",
+			drv->driver.name, error);
+		return error;
+	}
+
+	/*
+	 * Reset ignore flag and let kgameportd bind the driver to free ports
+	 */
+	drv->ignore = 0;
+	error = gameport_queue_event(drv, NULL, GAMEPORT_ATTACH_DRIVER);
+	if (error) {
+		driver_unregister(&drv->driver);
+		return error;
+	}
+
+	return 0;
 }
 
 void gameport_unregister_driver(struct gameport_driver *drv)
@@ -716,7 +759,9 @@ void gameport_unregister_driver(struct gameport_driver *drv)
 	struct gameport *gameport;
 
 	mutex_lock(&gameport_mutex);
+
 	drv->ignore = 1;	/* so gameport_find_driver ignores it */
+	gameport_remove_pending_events(drv);
 
 start_over:
 	list_for_each_entry(gameport, &gameport_list, node) {
@@ -729,6 +774,7 @@ start_over:
 	}
 
 	driver_unregister(&drv->driver);
+
 	mutex_unlock(&gameport_mutex);
 }
 

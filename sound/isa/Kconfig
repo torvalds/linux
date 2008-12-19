@@ -211,7 +211,7 @@ config SND_GUSCLASSIC
 
 config SND_GUSEXTREME
 	tristate "Gravis UltraSound Extreme"
-	select SND_HWDEP
+	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
 	help

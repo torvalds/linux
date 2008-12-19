@@ -14,10 +14,10 @@
 #include <linux/interrupt.h>
 #include <linux/serial_8250.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>

@@ -18,6 +18,7 @@
 #include <linux/log2.h>
 #include <linux/pci-aspm.h>
 #include <linux/pm_wakeup.h>
+#include <linux/interrupt.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -213,10 +214,13 @@ int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 int pci_find_ext_capability(struct pci_dev *dev, int cap)
 {
 	u32 header;
-	int ttl = 480; /* 3840 bytes, minimum 8 bytes per capability */
-	int pos = 0x100;
+	int ttl;
+	int pos = PCI_CFG_SPACE_SIZE;
 
-	if (dev->cfg_size <= 256)
+	/* minimum 8 bytes per capability */
+	ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;
+
+	if (dev->cfg_size <= PCI_CFG_SPACE_SIZE)
 		return 0;
 
 	if (pci_read_config_dword(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
@@ -234,7 +238,7 @@ int pci_find_ext_capability(struct pci_dev *dev, int cap)
 			return pos;
 
 		pos = PCI_EXT_CAP_NEXT(header);
-		if (pos < 0x100)
+		if (pos < PCI_CFG_SPACE_SIZE)
 			break;
 
 		if (pci_read_config_dword(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
@@ -1127,6 +1131,27 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 }
 
 /**
+ * pci_wake_from_d3 - enable/disable device to wake up from D3_hot or D3_cold
+ * @dev: PCI device to prepare
+ * @enable: True to enable wake-up event generation; false to disable
+ *
+ * Many drivers want the device to wake up the system from D3_hot or D3_cold
+ * and this function allows them to set that up cleanly - pci_enable_wake()
+ * should not be called twice in a row to enable wake-up due to PCI PM vs ACPI
+ * ordering constraints.
+ *
+ * This function only returns error code if the device is not capable of
+ * generating PME# from both D3_hot and D3_cold, and the platform is unable to
+ * enable wake-up power for it.
+ */
+int pci_wake_from_d3(struct pci_dev *dev, bool enable)
+{
+	return pci_pme_capable(dev, PCI_D3cold) ?
+			pci_enable_wake(dev, PCI_D3cold, enable) :
+			pci_enable_wake(dev, PCI_D3hot, enable);
+}
+
+/**
  * pci_target_state - find an appropriate low power state for a given PCI dev
  * @dev: PCI device
  *
@@ -1242,25 +1267,25 @@ void pci_pm_init(struct pci_dev *dev)
 	dev->d1_support = false;
 	dev->d2_support = false;
 	if (!pci_no_d1d2(dev)) {
-		if (pmc & PCI_PM_CAP_D1) {
-			dev_printk(KERN_DEBUG, &dev->dev, "supports D1\n");
+		if (pmc & PCI_PM_CAP_D1)
 			dev->d1_support = true;
-		}
-		if (pmc & PCI_PM_CAP_D2) {
-			dev_printk(KERN_DEBUG, &dev->dev, "supports D2\n");
+		if (pmc & PCI_PM_CAP_D2)
 			dev->d2_support = true;
-		}
+
+		if (dev->d1_support || dev->d2_support)
+			dev_printk(KERN_DEBUG, &dev->dev, "supports%s%s\n",
+				   dev->d1_support ? " D1" : "",
+				   dev->d2_support ? " D2" : "");
 	}
 
 	pmc &= PCI_PM_CAP_PME_MASK;
 	if (pmc) {
-		dev_printk(KERN_INFO, &dev->dev,
-			"PME# supported from%s%s%s%s%s\n",
-			(pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
-			(pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
-			(pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
-			(pmc & PCI_PM_CAP_PME_D3) ? " D3hot" : "",
-			(pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
+		dev_info(&dev->dev, "PME# supported from%s%s%s%s%s\n",
+			 (pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
+			 (pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
+			 (pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
+			 (pmc & PCI_PM_CAP_PME_D3) ? " D3hot" : "",
+			 (pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
 		dev->pme_support = pmc >> PCI_PM_CAP_PME_SHIFT;
 		/*
 		 * Make device's PM flags reflect the wake-up capability, but
@@ -1273,6 +1298,43 @@ void pci_pm_init(struct pci_dev *dev)
 	} else {
 		dev->pme_support = 0;
 	}
+}
+
+/**
+ * pci_enable_ari - enable ARI forwarding if hardware support it
+ * @dev: the PCI device
+ */
+void pci_enable_ari(struct pci_dev *dev)
+{
+	int pos;
+	u32 cap;
+	u16 ctrl;
+	struct pci_dev *bridge;
+
+	if (!dev->is_pcie || dev->devfn)
+		return;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI);
+	if (!pos)
+		return;
+
+	bridge = dev->bus->self;
+	if (!bridge || !bridge->is_pcie)
+		return;
+
+	pos = pci_find_capability(bridge, PCI_CAP_ID_EXP);
+	if (!pos)
+		return;
+
+	pci_read_config_dword(bridge, pos + PCI_EXP_DEVCAP2, &cap);
+	if (!(cap & PCI_EXP_DEVCAP2_ARI))
+		return;
+
+	pci_read_config_word(bridge, pos + PCI_EXP_DEVCTL2, &ctrl);
+	ctrl |= PCI_EXP_DEVCTL2_ARI;
+	pci_write_config_word(bridge, pos + PCI_EXP_DEVCTL2, ctrl);
+
+	bridge->ari_enabled = 1;
 }
 
 int
@@ -1358,11 +1420,10 @@ int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 	return 0;
 
 err_out:
-	dev_warn(&pdev->dev, "BAR %d: can't reserve %s region [%#llx-%#llx]\n",
+	dev_warn(&pdev->dev, "BAR %d: can't reserve %s region %pR\n",
 		 bar,
 		 pci_resource_flags(pdev, bar) & IORESOURCE_IO ? "I/O" : "mem",
-		 (unsigned long long)pci_resource_start(pdev, bar),
-		 (unsigned long long)pci_resource_end(pdev, bar));
+		 &pdev->resource[bar]);
 	return -EBUSY;
 }
 
@@ -1691,6 +1752,103 @@ EXPORT_SYMBOL(pci_set_dma_seg_boundary);
 #endif
 
 /**
+ * pci_execute_reset_function() - Reset a PCI device function
+ * @dev: Device function to reset
+ *
+ * Some devices allow an individual function to be reset without affecting
+ * other functions in the same device.  The PCI device must be responsive
+ * to PCI config space in order to use this function.
+ *
+ * The device function is presumed to be unused when this function is called.
+ * Resetting the device will make the contents of PCI configuration space
+ * random, so any caller of this must be prepared to reinitialise the
+ * device including MSI, bus mastering, BARs, decoding IO and memory spaces,
+ * etc.
+ *
+ * Returns 0 if the device function was successfully reset or -ENOTTY if the
+ * device doesn't support resetting a single function.
+ */
+int pci_execute_reset_function(struct pci_dev *dev)
+{
+	u16 status;
+	u32 cap;
+	int exppos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+
+	if (!exppos)
+		return -ENOTTY;
+	pci_read_config_dword(dev, exppos + PCI_EXP_DEVCAP, &cap);
+	if (!(cap & PCI_EXP_DEVCAP_FLR))
+		return -ENOTTY;
+
+	pci_block_user_cfg_access(dev);
+
+	/* Wait for Transaction Pending bit clean */
+	msleep(100);
+	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
+	if (status & PCI_EXP_DEVSTA_TRPND) {
+		dev_info(&dev->dev, "Busy after 100ms while trying to reset; "
+			"sleeping for 1 second\n");
+		ssleep(1);
+		pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
+		if (status & PCI_EXP_DEVSTA_TRPND)
+			dev_info(&dev->dev, "Still busy after 1s; "
+				"proceeding with reset anyway\n");
+	}
+
+	pci_write_config_word(dev, exppos + PCI_EXP_DEVCTL,
+				PCI_EXP_DEVCTL_BCR_FLR);
+	mdelay(100);
+
+	pci_unblock_user_cfg_access(dev);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_execute_reset_function);
+
+/**
+ * pci_reset_function() - quiesce and reset a PCI device function
+ * @dev: Device function to reset
+ *
+ * Some devices allow an individual function to be reset without affecting
+ * other functions in the same device.  The PCI device must be responsive
+ * to PCI config space in order to use this function.
+ *
+ * This function does not just reset the PCI portion of a device, but
+ * clears all the state associated with the device.  This function differs
+ * from pci_execute_reset_function in that it saves and restores device state
+ * over the reset.
+ *
+ * Returns 0 if the device function was successfully reset or -ENOTTY if the
+ * device doesn't support resetting a single function.
+ */
+int pci_reset_function(struct pci_dev *dev)
+{
+	u32 cap;
+	int exppos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	int r;
+
+	if (!exppos)
+		return -ENOTTY;
+	pci_read_config_dword(dev, exppos + PCI_EXP_DEVCAP, &cap);
+	if (!(cap & PCI_EXP_DEVCAP_FLR))
+		return -ENOTTY;
+
+	if (!dev->msi_enabled && !dev->msix_enabled && dev->irq != 0)
+		disable_irq(dev->irq);
+	pci_save_state(dev);
+
+	pci_write_config_word(dev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
+
+	r = pci_execute_reset_function(dev);
+
+	pci_restore_state(dev);
+	if (!dev->msi_enabled && !dev->msix_enabled && dev->irq != 0)
+		enable_irq(dev->irq);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(pci_reset_function);
+
+/**
  * pcix_get_max_mmrbc - get PCI-X maximum designed memory read byte count
  * @dev: PCI device to query
  *
@@ -1878,10 +2036,13 @@ static int __devinit pci_init(void)
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
 		pci_fixup_device(pci_fixup_final, dev);
 	}
+
+	msi_init();
+
 	return 0;
 }
 
-static int __devinit pci_setup(char *str)
+static int __init pci_setup(char *str)
 {
 	while (str) {
 		char *k = strchr(str, ',');
@@ -1943,6 +2104,7 @@ EXPORT_SYMBOL(pci_restore_state);
 EXPORT_SYMBOL(pci_pme_capable);
 EXPORT_SYMBOL(pci_pme_active);
 EXPORT_SYMBOL(pci_enable_wake);
+EXPORT_SYMBOL(pci_wake_from_d3);
 EXPORT_SYMBOL(pci_target_state);
 EXPORT_SYMBOL(pci_prepare_to_sleep);
 EXPORT_SYMBOL(pci_back_from_sleep);

@@ -14,6 +14,8 @@
 #include "mt2060.h"
 #include "mt2266.h"
 #include "tuner-xc2028.h"
+#include "xc5000.h"
+#include "s5h1411.h"
 #include "dib0070.h"
 
 static int force_lna_activation;
@@ -35,6 +37,7 @@ static struct mt2060_config bristol_mt2060_config[2] = {
 		.i2c_address = 0x61,
 	}
 };
+
 
 static struct dibx000_agc_config bristol_dib3000p_mt2060_agc_config = {
 	.band_caps = BAND_VHF | BAND_UHF,
@@ -366,7 +369,8 @@ static struct dib7000p_config stk7700ph_dib7700_xc3028_config = {
 	.gpio_pwm_pos = DIB7000P_GPIO_DEFAULT_PWM_POS,
 };
 
-static int stk7700ph_xc3028_callback(void *ptr, int command, int arg)
+static int stk7700ph_xc3028_callback(void *ptr, int component,
+				     int command, int arg)
 {
 	struct dvb_usb_adapter *adap = ptr;
 
@@ -394,7 +398,6 @@ static struct xc2028_ctrl stk7700ph_xc3028_ctrl = {
 
 static struct xc2028_config stk7700ph_xc3028_config = {
 	.i2c_addr = 0x61,
-	.callback = stk7700ph_xc3028_callback,
 	.ctrl = &stk7700ph_xc3028_ctrl,
 };
 
@@ -435,7 +438,9 @@ static int stk7700ph_tuner_attach(struct dvb_usb_adapter *adap)
 		DIBX000_I2C_INTERFACE_TUNER, 1);
 
 	stk7700ph_xc3028_config.i2c_adap = tun_i2c;
-	stk7700ph_xc3028_config.video_dev = adap;
+
+	/* FIXME: generalize & move to common area */
+	adap->fe->callback = stk7700ph_xc3028_callback;
 
 	return dvb_attach(xc2028_attach, adap->fe, &stk7700ph_xc3028_config)
 		== NULL ? -ENODEV : 0;
@@ -447,8 +452,13 @@ static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
 
 /* Number of keypresses to ignore before start repeating */
 #define RC_REPEAT_DELAY 2
+#define RC_REPEAT_DELAY_V1_20 5
 
-static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+
+
+/* Used by firmware versions < 1.20 (deprecated) */
+static int dib0700_rc_query_legacy(struct dvb_usb_device *d, u32 *event,
+				   int *state)
 {
 	u8 key[4];
 	int i;
@@ -523,6 +533,137 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	err("Unknown remote controller key: %2X %2X %2X %2X", (int) key[3-2], (int) key[3-3], (int) key[3-1], (int) key[3]);
 	d->last_event = 0;
 	return 0;
+}
+
+/* This is the structure of the RC response packet starting in firmware 1.20 */
+struct dib0700_rc_response {
+	u8 report_id;
+	u8 data_state;
+	u8 system_msb;
+	u8 system_lsb;
+	u8 data;
+	u8 not_data;
+};
+
+/* This supports the new IR response format for firmware v1.20 */
+static int dib0700_rc_query_v1_20(struct dvb_usb_device *d, u32 *event,
+				  int *state)
+{
+	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct dib0700_state *st = d->priv;
+	struct dib0700_rc_response poll_reply;
+	u8 buf[6];
+	int i;
+	int status;
+	int actlen;
+	int found = 0;
+
+	/* Set initial results in case we exit the function early */
+	*event = 0;
+	*state = REMOTE_NO_KEY_PRESSED;
+
+	/* Firmware v1.20 provides RC data via bulk endpoint 1 */
+	status = usb_bulk_msg(d->udev, usb_rcvbulkpipe(d->udev, 1), buf,
+			      sizeof(buf), &actlen, 50);
+	if (status < 0) {
+		/* No data available (meaning no key press) */
+		return 0;
+	}
+
+	if (actlen != sizeof(buf)) {
+		/* We didn't get back the 6 byte message we expected */
+		err("Unexpected RC response size [%d]", actlen);
+		return -1;
+	}
+
+	poll_reply.report_id  = buf[0];
+	poll_reply.data_state = buf[1];
+	poll_reply.system_msb = buf[2];
+	poll_reply.system_lsb = buf[3];
+	poll_reply.data       = buf[4];
+	poll_reply.not_data   = buf[5];
+
+	/*
+	info("rid=%02x ds=%02x sm=%02x sl=%02x d=%02x nd=%02x\n",
+	     poll_reply.report_id, poll_reply.data_state,
+	     poll_reply.system_msb, poll_reply.system_lsb,
+	     poll_reply.data, poll_reply.not_data);
+	*/
+
+	if ((poll_reply.data + poll_reply.not_data) != 0xff) {
+		/* Key failed integrity check */
+		err("key failed integrity check: %02x %02x %02x %02x",
+		    poll_reply.system_msb, poll_reply.system_lsb,
+		    poll_reply.data, poll_reply.not_data);
+		return -1;
+	}
+
+	/* Find the key in the map */
+	for (i = 0; i < d->props.rc_key_map_size; i++) {
+		if (keymap[i].custom == poll_reply.system_lsb &&
+		    keymap[i].data == poll_reply.data) {
+			*event = keymap[i].event;
+			found = 1;
+			break;
+		}
+	}
+
+	if (found == 0) {
+		err("Unknown remote controller key: %02x %02x %02x %02x",
+		    poll_reply.system_msb, poll_reply.system_lsb,
+		    poll_reply.data, poll_reply.not_data);
+		d->last_event = 0;
+		return 0;
+	}
+
+	if (poll_reply.data_state == 1) {
+		/* New key hit */
+		st->rc_counter = 0;
+		*event = keymap[i].event;
+		*state = REMOTE_KEY_PRESSED;
+		d->last_event = keymap[i].event;
+	} else if (poll_reply.data_state == 2) {
+		/* Key repeated */
+		st->rc_counter++;
+
+		/* prevents unwanted double hits */
+		if (st->rc_counter > RC_REPEAT_DELAY_V1_20) {
+			*event = d->last_event;
+			*state = REMOTE_KEY_PRESSED;
+			st->rc_counter = RC_REPEAT_DELAY_V1_20;
+		}
+	} else {
+		err("Unknown data state [%d]", poll_reply.data_state);
+	}
+
+	return 0;
+}
+
+static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+{
+	struct dib0700_state *st = d->priv;
+
+	/* Because some people may have improperly named firmware files,
+	   let's figure out whether to use the new firmware call or the legacy
+	   call based on the firmware version embedded in the file */
+	if (st->rc_func_version == 0) {
+		u32 hwver, romver, ramver, fwtype;
+		int ret = dib0700_get_version(d, &hwver, &romver, &ramver,
+					      &fwtype);
+		if (ret < 0) {
+			err("Could not determine version info");
+			return -1;
+		}
+		if (ramver < 0x10200)
+			st->rc_func_version = 1;
+		else
+			st->rc_func_version = 2;
+	}
+
+	if (st->rc_func_version == 2)
+		return dib0700_rc_query_v1_20(d, event, state);
+	else
+		return dib0700_rc_query_legacy(d, event, state);
 }
 
 static struct dvb_usb_rc_key dib0700_rc_keys[] = {
@@ -677,6 +818,43 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 	{ 0x01, 0x7d, KEY_VOLUMEDOWN },
 	{ 0x02, 0x42, KEY_CHANNELUP },
 	{ 0x00, 0x7d, KEY_CHANNELDOWN },
+
+	/* Key codes for Nova-TD "credit card" remote control. */
+	{ 0x1d, 0x00, KEY_0 },
+	{ 0x1d, 0x01, KEY_1 },
+	{ 0x1d, 0x02, KEY_2 },
+	{ 0x1d, 0x03, KEY_3 },
+	{ 0x1d, 0x04, KEY_4 },
+	{ 0x1d, 0x05, KEY_5 },
+	{ 0x1d, 0x06, KEY_6 },
+	{ 0x1d, 0x07, KEY_7 },
+	{ 0x1d, 0x08, KEY_8 },
+	{ 0x1d, 0x09, KEY_9 },
+	{ 0x1d, 0x0a, KEY_TEXT },
+	{ 0x1d, 0x0d, KEY_MENU },
+	{ 0x1d, 0x0f, KEY_MUTE },
+	{ 0x1d, 0x10, KEY_VOLUMEUP },
+	{ 0x1d, 0x11, KEY_VOLUMEDOWN },
+	{ 0x1d, 0x12, KEY_CHANNEL },
+	{ 0x1d, 0x14, KEY_UP },
+	{ 0x1d, 0x15, KEY_DOWN },
+	{ 0x1d, 0x16, KEY_LEFT },
+	{ 0x1d, 0x17, KEY_RIGHT },
+	{ 0x1d, 0x1c, KEY_TV },
+	{ 0x1d, 0x1e, KEY_NEXT },
+	{ 0x1d, 0x1f, KEY_BACK },
+	{ 0x1d, 0x20, KEY_CHANNELUP },
+	{ 0x1d, 0x21, KEY_CHANNELDOWN },
+	{ 0x1d, 0x24, KEY_LAST },
+	{ 0x1d, 0x25, KEY_OK },
+	{ 0x1d, 0x30, KEY_PAUSE },
+	{ 0x1d, 0x32, KEY_REWIND },
+	{ 0x1d, 0x34, KEY_FASTFORWARD },
+	{ 0x1d, 0x35, KEY_PLAY },
+	{ 0x1d, 0x36, KEY_STOP },
+	{ 0x1d, 0x37, KEY_RECORD },
+	{ 0x1d, 0x3b, KEY_GOTO },
+	{ 0x1d, 0x3d, KEY_POWER },
 };
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
@@ -1078,6 +1256,97 @@ static int stk7070pd_frontend_attach1(struct dvb_usb_adapter *adap)
 	return adap->fe == NULL ? -ENODEV : 0;
 }
 
+/* S5H1411 */
+static struct s5h1411_config pinnacle_801e_config = {
+	.output_mode   = S5H1411_PARALLEL_OUTPUT,
+	.gpio          = S5H1411_GPIO_OFF,
+	.mpeg_timing   = S5H1411_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK,
+	.qam_if        = S5H1411_IF_44000,
+	.vsb_if        = S5H1411_IF_44000,
+	.inversion     = S5H1411_INVERSION_OFF,
+	.status_mode   = S5H1411_DEMODLOCKING
+};
+
+/* Pinnacle PCTV HD Pro 801e GPIOs map:
+   GPIO0  - currently unknown
+   GPIO1  - xc5000 tuner reset
+   GPIO2  - CX25843 sleep
+   GPIO3  - currently unknown
+   GPIO4  - currently unknown
+   GPIO6  - currently unknown
+   GPIO7  - currently unknown
+   GPIO9  - currently unknown
+   GPIO10 - CX25843 reset
+ */
+static int s5h1411_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dib0700_state *st = adap->dev->priv;
+
+	/* Make use of the new i2c functions from FW 1.20 */
+	st->fw_use_new_i2c_api = 1;
+
+	/* The s5h1411 requires the dib0700 to not be in master mode */
+	st->disable_streaming_master_mode = 1;
+
+	/* All msleep values taken from Windows USB trace */
+	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 0);
+	dib0700_set_gpio(adap->dev, GPIO3, GPIO_OUT, 0);
+	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+	msleep(400);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+	msleep(60);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO2, GPIO_OUT, 0);
+	msleep(30);
+
+	/* Put the CX25843 to sleep for now since we're in digital mode */
+	dib0700_set_gpio(adap->dev, GPIO2, GPIO_OUT, 1);
+
+	/* GPIOs are initialized, do the attach */
+	adap->fe = dvb_attach(s5h1411_attach, &pinnacle_801e_config,
+			      &adap->dev->i2c_adap);
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
+static int dib0700_xc5000_tuner_callback(void *priv, int component,
+					 int command, int arg)
+{
+	struct dvb_usb_adapter *adap = priv;
+
+	if (command == XC5000_TUNER_RESET) {
+		/* Reset the tuner */
+		dib0700_set_gpio(adap->dev, GPIO1, GPIO_OUT, 0);
+		msleep(330); /* from Windows USB trace */
+		dib0700_set_gpio(adap->dev, GPIO1, GPIO_OUT, 1);
+		msleep(330); /* from Windows USB trace */
+	} else {
+		err("xc5000: unknown tuner callback command: %d\n", command);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static struct xc5000_config s5h1411_xc5000_tunerconfig = {
+	.i2c_address      = 0x64,
+	.if_khz           = 5380,
+};
+
+static int xc5000_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	/* FIXME: generalize & move to common area */
+	adap->fe->callback = dib0700_xc5000_tuner_callback;
+
+	return dvb_attach(xc5000_attach, adap->fe, &adap->dev->i2c_adap,
+			  &s5h1411_xc5000_tunerconfig)
+		== NULL ? -ENODEV : 0;
+}
+
 /* DVB-USB and USB stuff follows */
 struct usb_device_id dib0700_usb_id_table[] = {
 /* 0 */	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P) },
@@ -1119,6 +1388,11 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_STK7700P_2) },
 /* 35 */{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_TD_STICK_52009) },
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_3) },
+	{ USB_DEVICE(USB_VID_GIGABYTE,  USB_PID_GIGABYTE_U8000) },
+	{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_STK7700PH) },
+	{ USB_DEVICE(USB_VID_ASUS,	USB_PID_ASUS_U3000H) },
+/* 40 */{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV801E) },
+	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV801E_SE) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1126,7 +1400,7 @@ MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
 #define DIB0700_DEFAULT_DEVICE_PROPERTIES \
 	.caps              = DVB_USB_IS_AN_I2C_ADAPTER, \
 	.usb_ctrl          = DEVICE_SPECIFIC, \
-	.firmware          = "dvb-usb-dib0700-1.10.fw", \
+	.firmware          = "dvb-usb-dib0700-1.20.fw", \
 	.download_firmware = dib0700_download_firmware, \
 	.no_reconnect      = 1, \
 	.size_of_priv      = sizeof(struct dib0700_state), \
@@ -1293,7 +1567,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[31], NULL },
 				{ NULL },
 			}
-		}
+		},
+
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -1408,7 +1687,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 3,
+		.num_device_descs = 5,
 		.devices = {
 			{   "Terratec Cinergy HT USB XE",
 				{ &dib0700_usb_id_table[27], NULL },
@@ -1420,6 +1699,47 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Terratec Cinergy HT Express",
 				{ &dib0700_usb_id_table[32], NULL },
+				{ NULL },
+			},
+			{   "Gigabyte U8000-RH",
+				{ &dib0700_usb_id_table[37], NULL },
+				{ NULL },
+			},
+			{   "YUAN High-Tech STK7700PH",
+				{ &dib0700_usb_id_table[38], NULL },
+				{ NULL },
+			},
+			{   "Asus My Cinema-U3000Hybrid",
+				{ &dib0700_usb_id_table[39], NULL },
+				{ NULL },
+			},
+		},
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.frontend_attach  = s5h1411_frontend_attach,
+				.tuner_attach     = xc5000_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv = sizeof(struct
+						dib0700_adapter_state),
+			},
+		},
+
+		.num_device_descs = 2,
+		.devices = {
+			{   "Pinnacle PCTV HD Pro USB Stick",
+				{ &dib0700_usb_id_table[40], NULL },
+				{ NULL },
+			},
+			{   "Pinnacle PCTV HD USB Stick",
+				{ &dib0700_usb_id_table[41], NULL },
 				{ NULL },
 			},
 		},

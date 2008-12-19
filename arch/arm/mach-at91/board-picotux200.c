@@ -105,7 +105,7 @@ static struct at91_mmc_data __initdata picotux200_mmc_data = {
 // };
 
 #define PICOTUX200_FLASH_BASE	AT91_CHIPSELECT_0
-#define PICOTUX200_FLASH_SIZE	0x400000
+#define PICOTUX200_FLASH_SIZE	SZ_4M
 
 static struct physmap_flash_data picotux200_flash_data = {
 	.width	= 2,

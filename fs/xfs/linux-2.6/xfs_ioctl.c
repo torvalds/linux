@@ -311,11 +311,10 @@ xfs_open_by_handle(
 		return new_fd;
 	}
 
-	dentry = d_alloc_anon(inode);
-	if (dentry == NULL) {
-		iput(inode);
+	dentry = d_obtain_alias(inode);
+	if (IS_ERR(dentry)) {
 		put_unused_fd(new_fd);
-		return -XFS_ERROR(ENOMEM);
+		return PTR_ERR(dentry);
 	}
 
 	/* Ensure umount returns EBUSY on umounts while this file is open. */

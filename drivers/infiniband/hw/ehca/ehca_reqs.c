@@ -53,9 +53,25 @@
 /* in RC traffic, insert an empty RDMA READ every this many packets */
 #define ACK_CIRC_THRESHOLD 2000000
 
+static u64 replace_wr_id(u64 wr_id, u16 idx)
+{
+	u64 ret;
+
+	ret = wr_id & ~QMAP_IDX_MASK;
+	ret |= idx & QMAP_IDX_MASK;
+
+	return ret;
+}
+
+static u16 get_app_wr_id(u64 wr_id)
+{
+	return wr_id & QMAP_IDX_MASK;
+}
+
 static inline int ehca_write_rwqe(struct ipz_queue *ipz_rqueue,
 				  struct ehca_wqe *wqe_p,
-				  struct ib_recv_wr *recv_wr)
+				  struct ib_recv_wr *recv_wr,
+				  u32 rq_map_idx)
 {
 	u8 cnt_ds;
 	if (unlikely((recv_wr->num_sge < 0) ||
@@ -69,7 +85,7 @@ static inline int ehca_write_rwqe(struct ipz_queue *ipz_rqueue,
 	/* clear wqe header until sglist */
 	memset(wqe_p, 0, offsetof(struct ehca_wqe, u.ud_av.sg_list));
 
-	wqe_p->work_request_id = recv_wr->wr_id;
+	wqe_p->work_request_id = replace_wr_id(recv_wr->wr_id, rq_map_idx);
 	wqe_p->nr_of_data_seg = recv_wr->num_sge;
 
 	for (cnt_ds = 0; cnt_ds < recv_wr->num_sge; cnt_ds++) {
@@ -146,6 +162,7 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 	u64 dma_length;
 	struct ehca_av *my_av;
 	u32 remote_qkey = send_wr->wr.ud.remote_qkey;
+	struct ehca_qmap_entry *qmap_entry = &qp->sq_map.map[sq_map_idx];
 
 	if (unlikely((send_wr->num_sge < 0) ||
 		     (send_wr->num_sge > qp->ipz_squeue.act_nr_of_sg))) {
@@ -158,11 +175,11 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 	/* clear wqe header until sglist */
 	memset(wqe_p, 0, offsetof(struct ehca_wqe, u.ud_av.sg_list));
 
-	wqe_p->work_request_id = send_wr->wr_id & ~QMAP_IDX_MASK;
-	wqe_p->work_request_id |= sq_map_idx & QMAP_IDX_MASK;
+	wqe_p->work_request_id = replace_wr_id(send_wr->wr_id, sq_map_idx);
 
-	qp->sq_map[sq_map_idx].app_wr_id = send_wr->wr_id & QMAP_IDX_MASK;
-	qp->sq_map[sq_map_idx].reported = 0;
+	qmap_entry->app_wr_id = get_app_wr_id(send_wr->wr_id);
+	qmap_entry->reported = 0;
+	qmap_entry->cqe_req = 0;
 
 	switch (send_wr->opcode) {
 	case IB_WR_SEND:
@@ -187,8 +204,10 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 
 	if ((send_wr->send_flags & IB_SEND_SIGNALED ||
 	    qp->init_attr.sq_sig_type == IB_SIGNAL_ALL_WR)
-	    && !hidden)
+	    && !hidden) {
 		wqe_p->wr_flag |= WQE_WRFLAG_REQ_SIGNAL_COM;
+		qmap_entry->cqe_req = 1;
+	}
 
 	if (send_wr->opcode == IB_WR_SEND_WITH_IMM ||
 	    send_wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM) {
@@ -496,7 +515,9 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 	struct ehca_wqe *wqe_p;
 	int wqe_cnt = 0;
 	int ret = 0;
+	u32 rq_map_idx;
 	unsigned long flags;
+	struct ehca_qmap_entry *qmap_entry;
 
 	if (unlikely(!HAS_RQ(my_qp))) {
 		ehca_err(dev, "QP has no RQ  ehca_qp=%p qp_num=%x ext_type=%d",
@@ -524,8 +545,15 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 			}
 			goto post_recv_exit0;
 		}
+		/*
+		 * Get the index of the WQE in the recv queue. The same index
+		 * is used for writing into the rq_map.
+		 */
+		rq_map_idx = start_offset / my_qp->ipz_rqueue.qe_size;
+
 		/* write a RECV WQE into the QUEUE */
-		ret = ehca_write_rwqe(&my_qp->ipz_rqueue, wqe_p, cur_recv_wr);
+		ret = ehca_write_rwqe(&my_qp->ipz_rqueue, wqe_p, cur_recv_wr,
+				rq_map_idx);
 		/*
 		 * if something failed,
 		 * reset the free entry pointer to the start value
@@ -540,6 +568,12 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 			}
 			goto post_recv_exit0;
 		}
+
+		qmap_entry = &my_qp->rq_map.map[rq_map_idx];
+		qmap_entry->app_wr_id = get_app_wr_id(cur_recv_wr->wr_id);
+		qmap_entry->reported = 0;
+		qmap_entry->cqe_req = 1;
+
 		wqe_cnt++;
 	} /* eof for cur_recv_wr */
 
@@ -596,10 +630,12 @@ static const u8 ib_wc_opcode[255] = {
 /* internal function to poll one entry of cq */
 static inline int ehca_poll_cq_one(struct ib_cq *cq, struct ib_wc *wc)
 {
-	int ret = 0;
+	int ret = 0, qmap_tail_idx;
 	struct ehca_cq *my_cq = container_of(cq, struct ehca_cq, ib_cq);
 	struct ehca_cqe *cqe;
 	struct ehca_qp *my_qp;
+	struct ehca_qmap_entry *qmap_entry;
+	struct ehca_queue_map *qmap;
 	int cqe_count = 0, is_error;
 
 repoll:
@@ -674,27 +710,55 @@ repoll:
 		goto repoll;
 	wc->qp = &my_qp->ib_qp;
 
-	if (!(cqe->w_completion_flags & WC_SEND_RECEIVE_BIT)) {
-		struct ehca_qmap_entry *qmap_entry;
-		/*
-		 * We got a send completion and need to restore the original
-		 * wr_id.
-		 */
-		qmap_entry = &my_qp->sq_map[cqe->work_request_id &
-					    QMAP_IDX_MASK];
-
-		if (qmap_entry->reported) {
-			ehca_warn(cq->device, "Double cqe on qp_num=%#x",
-				  my_qp->real_qp_num);
-			/* found a double cqe, discard it and read next one */
-			goto repoll;
-		}
-		wc->wr_id = cqe->work_request_id & ~QMAP_IDX_MASK;
-		wc->wr_id |= qmap_entry->app_wr_id;
-		qmap_entry->reported = 1;
-	} else
+	qmap_tail_idx = get_app_wr_id(cqe->work_request_id);
+	if (!(cqe->w_completion_flags & WC_SEND_RECEIVE_BIT))
+		/* We got a send completion. */
+		qmap = &my_qp->sq_map;
+	else
 		/* We got a receive completion. */
-		wc->wr_id = cqe->work_request_id;
+		qmap = &my_qp->rq_map;
+
+	/* advance the tail pointer */
+	qmap->tail = qmap_tail_idx;
+
+	if (is_error) {
+		/*
+		 * set left_to_poll to 0 because in error state, we will not
+		 * get any additional CQEs
+		 */
+		my_qp->sq_map.next_wqe_idx = (my_qp->sq_map.tail + 1) %
+						my_qp->sq_map.entries;
+		my_qp->sq_map.left_to_poll = 0;
+		ehca_add_to_err_list(my_qp, 1);
+
+		my_qp->rq_map.next_wqe_idx = (my_qp->rq_map.tail + 1) %
+						my_qp->rq_map.entries;
+		my_qp->rq_map.left_to_poll = 0;
+		if (HAS_RQ(my_qp))
+			ehca_add_to_err_list(my_qp, 0);
+	}
+
+	qmap_entry = &qmap->map[qmap_tail_idx];
+	if (qmap_entry->reported) {
+		ehca_warn(cq->device, "Double cqe on qp_num=%#x",
+				my_qp->real_qp_num);
+		/* found a double cqe, discard it and read next one */
+		goto repoll;
+	}
+
+	wc->wr_id = replace_wr_id(cqe->work_request_id, qmap_entry->app_wr_id);
+	qmap_entry->reported = 1;
+
+	/* if left_to_poll is decremented to 0, add the QP to the error list */
+	if (qmap->left_to_poll > 0) {
+		qmap->left_to_poll--;
+		if ((my_qp->sq_map.left_to_poll == 0) &&
+				(my_qp->rq_map.left_to_poll == 0)) {
+			ehca_add_to_err_list(my_qp, 1);
+			if (HAS_RQ(my_qp))
+				ehca_add_to_err_list(my_qp, 0);
+		}
+	}
 
 	/* eval ib_wc_opcode */
 	wc->opcode = ib_wc_opcode[cqe->optype]-1;
@@ -733,13 +797,90 @@ poll_cq_one_exit0:
 	return ret;
 }
 
+static int generate_flush_cqes(struct ehca_qp *my_qp, struct ib_cq *cq,
+			       struct ib_wc *wc, int num_entries,
+			       struct ipz_queue *ipz_queue, int on_sq)
+{
+	int nr = 0;
+	struct ehca_wqe *wqe;
+	u64 offset;
+	struct ehca_queue_map *qmap;
+	struct ehca_qmap_entry *qmap_entry;
+
+	if (on_sq)
+		qmap = &my_qp->sq_map;
+	else
+		qmap = &my_qp->rq_map;
+
+	qmap_entry = &qmap->map[qmap->next_wqe_idx];
+
+	while ((nr < num_entries) && (qmap_entry->reported == 0)) {
+		/* generate flush CQE */
+
+		memset(wc, 0, sizeof(*wc));
+
+		offset = qmap->next_wqe_idx * ipz_queue->qe_size;
+		wqe = (struct ehca_wqe *)ipz_qeit_calc(ipz_queue, offset);
+		if (!wqe) {
+			ehca_err(cq->device, "Invalid wqe offset=%#lx on "
+				 "qp_num=%#x", offset, my_qp->real_qp_num);
+			return nr;
+		}
+
+		wc->wr_id = replace_wr_id(wqe->work_request_id,
+					  qmap_entry->app_wr_id);
+
+		if (on_sq) {
+			switch (wqe->optype) {
+			case WQE_OPTYPE_SEND:
+				wc->opcode = IB_WC_SEND;
+				break;
+			case WQE_OPTYPE_RDMAWRITE:
+				wc->opcode = IB_WC_RDMA_WRITE;
+				break;
+			case WQE_OPTYPE_RDMAREAD:
+				wc->opcode = IB_WC_RDMA_READ;
+				break;
+			default:
+				ehca_err(cq->device, "Invalid optype=%x",
+						wqe->optype);
+				return nr;
+			}
+		} else
+			wc->opcode = IB_WC_RECV;
+
+		if (wqe->wr_flag & WQE_WRFLAG_IMM_DATA_PRESENT) {
+			wc->ex.imm_data = wqe->immediate_data;
+			wc->wc_flags |= IB_WC_WITH_IMM;
+		}
+
+		wc->status = IB_WC_WR_FLUSH_ERR;
+
+		wc->qp = &my_qp->ib_qp;
+
+		/* mark as reported and advance next_wqe pointer */
+		qmap_entry->reported = 1;
+		qmap->next_wqe_idx++;
+		if (qmap->next_wqe_idx == qmap->entries)
+			qmap->next_wqe_idx = 0;
+		qmap_entry = &qmap->map[qmap->next_wqe_idx];
+
+		wc++; nr++;
+	}
+
+	return nr;
+
+}
+
 int ehca_poll_cq(struct ib_cq *cq, int num_entries, struct ib_wc *wc)
 {
 	struct ehca_cq *my_cq = container_of(cq, struct ehca_cq, ib_cq);
 	int nr;
+	struct ehca_qp *err_qp;
 	struct ib_wc *current_wc = wc;
 	int ret = 0;
 	unsigned long flags;
+	int entries_left = num_entries;
 
 	if (num_entries < 1) {
 		ehca_err(cq->device, "Invalid num_entries=%d ehca_cq=%p "
@@ -749,15 +890,40 @@ int ehca_poll_cq(struct ib_cq *cq, int num_entries, struct ib_wc *wc)
 	}
 
 	spin_lock_irqsave(&my_cq->spinlock, flags);
-	for (nr = 0; nr < num_entries; nr++) {
+
+	/* generate flush cqes for send queues */
+	list_for_each_entry(err_qp, &my_cq->sqp_err_list, sq_err_node) {
+		nr = generate_flush_cqes(err_qp, cq, current_wc, entries_left,
+				&err_qp->ipz_squeue, 1);
+		entries_left -= nr;
+		current_wc += nr;
+
+		if (entries_left == 0)
+			break;
+	}
+
+	/* generate flush cqes for receive queues */
+	list_for_each_entry(err_qp, &my_cq->rqp_err_list, rq_err_node) {
+		nr = generate_flush_cqes(err_qp, cq, current_wc, entries_left,
+				&err_qp->ipz_rqueue, 0);
+		entries_left -= nr;
+		current_wc += nr;
+
+		if (entries_left == 0)
+			break;
+	}
+
+	for (nr = 0; nr < entries_left; nr++) {
 		ret = ehca_poll_cq_one(cq, current_wc);
 		if (ret)
 			break;
 		current_wc++;
 	} /* eof for nr */
+	entries_left -= nr;
+
 	spin_unlock_irqrestore(&my_cq->spinlock, flags);
 	if (ret == -EAGAIN  || !ret)
-		ret = nr;
+		ret = num_entries - entries_left;
 
 poll_cq_exit0:
 	return ret;

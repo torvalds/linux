@@ -13,6 +13,9 @@
 #define MODULE_PARAM_PREFIX KBUILD_MODNAME "."
 #endif
 
+/* Chosen so that structs with an unsigned long line up. */
+#define MAX_PARAM_PREFIX_LEN (64 - sizeof(unsigned long))
+
 #ifdef MODULE
 #define ___module_cat(a,b) __mod_ ## a ## b
 #define __module_cat(a,b) ___module_cat(a,b)
@@ -79,7 +82,8 @@ struct kparam_array
 #define __module_param_call(prefix, name, set, get, arg, perm)		\
 	/* Default value instead of permissions? */			\
 	static int __param_perm_check_##name __attribute__((unused)) =	\
-	BUILD_BUG_ON_ZERO((perm) < 0 || (perm) > 0777 || ((perm) & 2));	\
+	BUILD_BUG_ON_ZERO((perm) < 0 || (perm) > 0777 || ((perm) & 2))	\
+	+ BUILD_BUG_ON_ZERO(sizeof(""prefix) > MAX_PARAM_PREFIX_LEN);	\
 	static const char __param_str_##name[] = prefix #name;		\
 	static struct kernel_param __moduleparam_const __param_##name	\
 	__used								\
@@ -99,6 +103,25 @@ struct kparam_array
 
 #define module_param(name, type, perm)				\
 	module_param_named(name, name, type, perm)
+
+#ifndef MODULE
+/**
+ * core_param - define a historical core kernel parameter.
+ * @name: the name of the cmdline and sysfs parameter (often the same as var)
+ * @var: the variable
+ * @type: the type (for param_set_##type and param_get_##type)
+ * @perm: visibility in sysfs
+ *
+ * core_param is just like module_param(), but cannot be modular and
+ * doesn't add a prefix (such as "printk.").  This is for compatibility
+ * with __setup(), and it makes sense as truly core parameters aren't
+ * tied to the particular file they're in.
+ */
+#define core_param(name, var, type, perm)				\
+	param_check_##type(name, &(var));				\
+	__module_param_call("", name, param_set_##type, param_get_##type, \
+			    &var, perm)
+#endif /* !MODULE */
 
 /* Actually copy string: maxlen param is usually sizeof(string). */
 #define module_param_string(name, string, len, perm)			\

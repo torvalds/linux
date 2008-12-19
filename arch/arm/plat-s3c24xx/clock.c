@@ -39,16 +39,16 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
 /* clock information */
 

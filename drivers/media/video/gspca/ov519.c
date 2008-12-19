@@ -1854,7 +1854,7 @@ static int set_ov_sensor_window(struct sd *sd)
 }
 
 /* -- start the camera -- */
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
@@ -1871,9 +1871,10 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		goto out;
 	PDEBUG(D_STREAM, "camera started alt: 0x%02x", gspca_dev->alt);
 	ov51x_led_control(sd, 1);
-	return;
+	return 0;
 out:
 	PDEBUG(D_ERR, "camera start error:%d", ret);
+	return ret;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

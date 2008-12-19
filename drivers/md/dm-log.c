@@ -12,7 +12,7 @@
 #include <linux/dm-io.h>
 #include <linux/dm-dirty-log.h>
 
-#include "dm.h"
+#include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "dirty region log"
 

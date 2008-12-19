@@ -33,6 +33,23 @@ void blk_queue_prep_rq(struct request_queue *q, prep_rq_fn *pfn)
 EXPORT_SYMBOL(blk_queue_prep_rq);
 
 /**
+ * blk_queue_set_discard - set a discard_sectors function for queue
+ * @q:		queue
+ * @dfn:	prepare_discard function
+ *
+ * It's possible for a queue to register a discard callback which is used
+ * to transform a discard request into the appropriate type for the
+ * hardware. If none is registered, then discard requests are failed
+ * with %EOPNOTSUPP.
+ *
+ */
+void blk_queue_set_discard(struct request_queue *q, prepare_discard_fn *dfn)
+{
+	q->prepare_discard_fn = dfn;
+}
+EXPORT_SYMBOL(blk_queue_set_discard);
+
+/**
  * blk_queue_merge_bvec - set a merge_bvec function for queue
  * @q:		queue
  * @mbfn:	merge_bvec_fn
@@ -59,6 +76,24 @@ void blk_queue_softirq_done(struct request_queue *q, softirq_done_fn *fn)
 	q->softirq_done_fn = fn;
 }
 EXPORT_SYMBOL(blk_queue_softirq_done);
+
+void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
+{
+	q->rq_timeout = timeout;
+}
+EXPORT_SYMBOL_GPL(blk_queue_rq_timeout);
+
+void blk_queue_rq_timed_out(struct request_queue *q, rq_timed_out_fn *fn)
+{
+	q->rq_timed_out_fn = fn;
+}
+EXPORT_SYMBOL_GPL(blk_queue_rq_timed_out);
+
+void blk_queue_lld_busy(struct request_queue *q, lld_busy_fn *fn)
+{
+	q->lld_busy_fn = fn;
+}
+EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 
 /**
  * blk_queue_make_request - define an alternate make_request function for a device
@@ -90,6 +125,9 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->nr_requests = BLKDEV_MAX_RQ;
 	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
 	blk_queue_max_hw_segments(q, MAX_HW_SEGMENTS);
+	blk_queue_segment_boundary(q, BLK_SEG_BOUNDARY_MASK);
+	blk_queue_max_segment_size(q, MAX_SEGMENT_SIZE);
+
 	q->make_request_fn = mfn;
 	q->backing_dev_info.ra_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
@@ -105,8 +143,6 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->unplug_delay = (3 * HZ) / 1000;	/* 3 milliseconds */
 	if (q->unplug_delay == 0)
 		q->unplug_delay = 1;
-
-	INIT_WORK(&q->unplug_work, blk_unplug_work);
 
 	q->unplug_timer.function = blk_unplug_timeout;
 	q->unplug_timer.data = (unsigned long)q;
@@ -127,7 +163,7 @@ EXPORT_SYMBOL(blk_queue_make_request);
  *    Different hardware can have different requirements as to what pages
  *    it can do I/O directly to. A low level driver can call
  *    blk_queue_bounce_limit to have lower memory pages allocated as bounce
- *    buffers for doing I/O to pages residing above @page.
+ *    buffers for doing I/O to pages residing above @dma_addr.
  **/
 void blk_queue_bounce_limit(struct request_queue *q, u64 dma_addr)
 {
@@ -212,7 +248,7 @@ EXPORT_SYMBOL(blk_queue_max_phys_segments);
  * Description:
  *    Enables a low level driver to set an upper limit on the number of
  *    hw data segments in a request.  This would be the largest number of
- *    address/length pairs the host adapter can actually give as once
+ *    address/length pairs the host adapter can actually give at once
  *    to the device.
  **/
 void blk_queue_max_hw_segments(struct request_queue *q,
@@ -281,6 +317,7 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	/* zero is "infinity" */
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
+	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask, b->seg_boundary_mask);
 
 	t->max_phys_segments = min(t->max_phys_segments, b->max_phys_segments);
 	t->max_hw_segments = min(t->max_hw_segments, b->max_hw_segments);
@@ -393,7 +430,7 @@ EXPORT_SYMBOL(blk_queue_segment_boundary);
  * @mask:  alignment mask
  *
  * description:
- *    set required memory and length aligment for direct dma transactions.
+ *    set required memory and length alignment for direct dma transactions.
  *    this is used when buiding direct io requests for the queue.
  *
  **/
@@ -409,7 +446,7 @@ EXPORT_SYMBOL(blk_queue_dma_alignment);
  * @mask:  alignment mask
  *
  * description:
- *    update required memory and length aligment for direct dma transactions.
+ *    update required memory and length alignment for direct dma transactions.
  *    If the requested alignment is larger than the current alignment, then
  *    the current queue alignment is updated to the new value, otherwise it
  *    is left alone.  The design of this is to allow multiple objects

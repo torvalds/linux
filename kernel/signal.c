@@ -27,6 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/pid_namespace.h>
 #include <linux/nsproxy.h>
+#include <trace/sched.h>
 
 #include <asm/param.h>
 #include <asm/uaccess.h>
@@ -803,6 +804,8 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	struct sigpending *pending;
 	struct sigqueue *q;
 
+	trace_sched_signal_send(sig, t);
+
 	assert_spin_locked(&t->sighand->siglock);
 	if (!prepare_signal(sig, t))
 		return 0;
@@ -1141,7 +1144,8 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
 		struct task_struct * p;
 
 		for_each_process(p) {
-			if (p->pid > 1 && !same_thread_group(p, current)) {
+			if (task_pid_vnr(p) > 1 &&
+					!same_thread_group(p, current)) {
 				int err = group_send_sig_info(sig, info, p);
 				++count;
 				if (err != -EPERM)
@@ -1338,6 +1342,7 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 	struct siginfo info;
 	unsigned long flags;
 	struct sighand_struct *psig;
+	struct task_cputime cputime;
 	int ret = sig;
 
 	BUG_ON(sig == -1);
@@ -1368,10 +1373,9 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 
 	info.si_uid = tsk->uid;
 
-	info.si_utime = cputime_to_clock_t(cputime_add(tsk->utime,
-						       tsk->signal->utime));
-	info.si_stime = cputime_to_clock_t(cputime_add(tsk->stime,
-						       tsk->signal->stime));
+	thread_group_cputime(tsk, &cputime);
+	info.si_utime = cputime_to_jiffies(cputime.utime);
+	info.si_stime = cputime_to_jiffies(cputime.stime);
 
 	info.si_status = tsk->exit_code & 0x7f;
 	if (tsk->exit_code & 0x80)

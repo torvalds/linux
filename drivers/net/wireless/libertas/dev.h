@@ -58,6 +58,7 @@ struct lbs_802_11_security {
 	u8 WPA2enabled;
 	u8 wep_enabled;
 	u8 auth_mode;
+	u32 key_mgmt;
 };
 
 /** Current Basic Service Set State Structure */
@@ -240,9 +241,6 @@ struct lbs_private {
 	uint16_t enablehwauto;
 	uint16_t ratebitmap;
 
-	u32 fragthsd;
-	u32 rtsthsd;
-
 	u8 txretrycount;
 
 	/** Tx-related variables (for single packet tx) */
@@ -253,7 +251,9 @@ struct lbs_private {
 	u32 connect_status;
 	u32 mesh_connect_status;
 	u16 regioncode;
-	u16 txpowerlevel;
+	s16 txpower_cur;
+	s16 txpower_min;
+	s16 txpower_max;
 
 	/** POWER MANAGEMENT AND PnP SUPPORT */
 	u8 surpriseremoved;
@@ -291,8 +291,7 @@ struct lbs_private {
 	u16 nextSNRNF;
 	u16 numSNRNF;
 
-	u8 radioon;
-	u32 preamble;
+	u8 radio_on;
 
 	/** data rate stuff */
 	u8 cur_rate;

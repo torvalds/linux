@@ -1,6 +1,6 @@
 /*
- * Athlon/Hammer specific Machine Check Exception Reporting
- * (C) Copyright 2002 Dave Jones <davej@codemonkey.org.uk>
+ * Athlon specific Machine Check Exception Reporting
+ * (C) Copyright 2002 Dave Jones <davej@redhat.com>
  */
 
 #include <linux/init.h>

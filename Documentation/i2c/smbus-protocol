@@ -109,8 +109,8 @@ specified through the Comm byte.
 S Addr Wr [A] Comm [A] DataLow [A] DataHigh [A] P
 
 
-SMBus Process Call
-==================
+SMBus Process Call:  i2c_smbus_process_call()
+=============================================
 
 This command selects a device register (through the Comm byte), sends
 16 bits of data to it, and reads 16 bits of data in return.

@@ -192,3 +192,18 @@ static int __init sgi_button_devinit(void)
 }
 
 device_initcall(sgi_button_devinit);
+
+static int __init sgi_ds1286_devinit(void)
+{
+	struct resource res;
+
+	memset(&res, 0, sizeof(res));
+	res.start = HPC3_CHIP0_BASE + offsetof(struct hpc3_regs, rtcregs);
+	res.end = res.start + sizeof(hpc3c0->rtcregs) - 1;
+	res.flags = IORESOURCE_MEM;
+
+	return IS_ERR(platform_device_register_simple("rtc-ds1286", -1,
+						      &res, 1));
+}
+
+device_initcall(sgi_ds1286_devinit);

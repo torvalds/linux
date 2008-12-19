@@ -28,15 +28,21 @@ extern void efx_wake_queue(struct efx_nic *efx);
 /* RX */
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 extern void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
-			  unsigned int len, int checksummed, int discard);
+			  unsigned int len, bool checksummed, bool discard);
 extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay);
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);
-extern int efx_flush_queues(struct efx_nic *efx);
+extern void efx_flush_queues(struct efx_nic *efx);
 
 /* Ports */
 extern void efx_reconfigure_port(struct efx_nic *efx);
+extern void __efx_reconfigure_port(struct efx_nic *efx);
+
+/* Reset handling */
+extern void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd);
+extern int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd,
+			bool ok);
 
 /* Global */
 extern void efx_schedule_reset(struct efx_nic *efx, enum reset_type type);
@@ -50,7 +56,7 @@ extern void efx_hex_dump(const u8 *, unsigned int, const char *);
 /* Dummy PHY ops for PHY drivers */
 extern int efx_port_dummy_op_int(struct efx_nic *efx);
 extern void efx_port_dummy_op_void(struct efx_nic *efx);
-extern void efx_port_dummy_op_blink(struct efx_nic *efx, int blink);
+extern void efx_port_dummy_op_blink(struct efx_nic *efx, bool blink);
 
 
 extern unsigned int efx_monitor_interval;
@@ -59,7 +65,7 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 {
 	EFX_TRACE(channel->efx, "channel %d scheduling NAPI poll on CPU%d\n",
 		  channel->channel, raw_smp_processor_id());
-	channel->work_pending = 1;
+	channel->work_pending = true;
 
 	netif_rx_schedule(channel->napi_dev, &channel->napi_str);
 }

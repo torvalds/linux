@@ -3,7 +3,7 @@
  *
  * Copyright 2006 Wolfson Microelectronics PLC.
  *
- * Author: Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -27,7 +28,6 @@
 
 #include "wm8510.h"
 
-#define AUDIO_NAME "wm8510"
 #define WM8510_VERSION "0.6"
 
 struct snd_soc_codec_device soc_codec_dev_wm8510;
@@ -54,6 +54,9 @@ static const u16 wm8510_reg[WM8510_CACHEREGNUM] = {
 	0x0000, 0x0000, 0x0039, 0x0000,
 	0x0001,
 };
+
+#define WM8510_POWER1_BIASEN  0x08
+#define WM8510_POWER1_BUFIOEN 0x10
 
 /*
  * read wm8510 register cache
@@ -224,9 +227,9 @@ SND_SOC_DAPM_PGA("SpkN Out", WM8510_POWER3, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SpkP Out", WM8510_POWER3, 6, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Mono Out", WM8510_POWER3, 7, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA("Mic PGA", WM8510_POWER2, 2, 0,
-		 &wm8510_micpga_controls[0],
-		 ARRAY_SIZE(wm8510_micpga_controls)),
+SND_SOC_DAPM_MIXER("Mic PGA", WM8510_POWER2, 2, 0,
+		   &wm8510_micpga_controls[0],
+		   ARRAY_SIZE(wm8510_micpga_controls)),
 SND_SOC_DAPM_MIXER("Boost Mixer", WM8510_POWER2, 4, 0,
 	&wm8510_boost_controls[0],
 	ARRAY_SIZE(wm8510_boost_controls)),
@@ -526,23 +529,35 @@ static int wm8510_mute(struct snd_soc_dai *dai, int mute)
 static int wm8510_set_bias_level(struct snd_soc_codec *codec,
 	enum snd_soc_bias_level level)
 {
+	u16 power1 = wm8510_read_reg_cache(codec, WM8510_POWER1) & ~0x3;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		wm8510_write(codec, WM8510_POWER1, 0x1ff);
-		wm8510_write(codec, WM8510_POWER2, 0x1ff);
-		wm8510_write(codec, WM8510_POWER3, 0x1ff);
-		break;
 	case SND_SOC_BIAS_PREPARE:
-	case SND_SOC_BIAS_STANDBY:
+		power1 |= 0x1;  /* VMID 50k */
+		wm8510_write(codec, WM8510_POWER1, power1);
 		break;
+
+	case SND_SOC_BIAS_STANDBY:
+		power1 |= WM8510_POWER1_BIASEN | WM8510_POWER1_BUFIOEN;
+
+		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			/* Initial cap charge at VMID 5k */
+			wm8510_write(codec, WM8510_POWER1, power1 | 0x3);
+			mdelay(100);
+		}
+
+		power1 |= 0x2;  /* VMID 500k */
+		wm8510_write(codec, WM8510_POWER1, power1);
+		break;
+
 	case SND_SOC_BIAS_OFF:
-		/* everything off, dac mute, inactive */
-		wm8510_write(codec, WM8510_POWER1, 0x0);
-		wm8510_write(codec, WM8510_POWER2, 0x0);
-		wm8510_write(codec, WM8510_POWER3, 0x0);
+		wm8510_write(codec, WM8510_POWER1, 0);
+		wm8510_write(codec, WM8510_POWER2, 0);
+		wm8510_write(codec, WM8510_POWER3, 0);
 		break;
 	}
+
 	codec->bias_level = level;
 	return 0;
 }
@@ -640,6 +655,7 @@ static int wm8510_init(struct snd_soc_device *socdev)
 	}
 
 	/* power on device */
+	codec->bias_level = SND_SOC_BIAS_OFF;
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	wm8510_add_controls(codec);
 	wm8510_add_widgets(codec);
@@ -747,6 +763,62 @@ err_driver:
 }
 #endif
 
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8510_spi_probe(struct spi_device *spi)
+{
+	struct snd_soc_device *socdev = wm8510_socdev;
+	struct snd_soc_codec *codec = socdev->codec;
+	int ret;
+
+	codec->control_data = spi;
+
+	ret = wm8510_init(socdev);
+	if (ret < 0)
+		dev_err(&spi->dev, "failed to initialise WM8510\n");
+
+	return ret;
+}
+
+static int __devexit wm8510_spi_remove(struct spi_device *spi)
+{
+	return 0;
+}
+
+static struct spi_driver wm8510_spi_driver = {
+	.driver = {
+		.name	= "wm8510",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8510_spi_probe,
+	.remove		= __devexit_p(wm8510_spi_remove),
+};
+
+static int wm8510_spi_write(struct spi_device *spi, const char *data, int len)
+{
+	struct spi_transfer t;
+	struct spi_message m;
+	u8 msg[2];
+
+	if (len <= 0)
+		return 0;
+
+	msg[0] = data[0];
+	msg[1] = data[1];
+
+	spi_message_init(&m);
+	memset(&t, 0, (sizeof t));
+
+	t.tx_buf = &msg[0];
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+#endif /* CONFIG_SPI_MASTER */
+
 static int wm8510_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -772,8 +844,14 @@ static int wm8510_probe(struct platform_device *pdev)
 		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = wm8510_add_i2c_device(pdev, setup);
 	}
-#else
-	/* Add other interfaces here */
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	if (setup->spi) {
+		codec->hw_write = (hw_write_t)wm8510_spi_write;
+		ret = spi_register_driver(&wm8510_spi_driver);
+		if (ret != 0)
+			printk(KERN_ERR "can't add spi driver");
+	}
 #endif
 
 	if (ret != 0)
@@ -795,6 +873,9 @@ static int wm8510_remove(struct platform_device *pdev)
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&wm8510_i2c_driver);
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&wm8510_spi_driver);
 #endif
 	kfree(codec);
 

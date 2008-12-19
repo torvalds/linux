@@ -432,7 +432,22 @@ static inline long gru_copy_handle(void *d, void *s)
 	return GRU_HANDLE_BYTES;
 }
 
-/* rewrite in assembly & use lots of prefetch */
+static void gru_prefetch_context(void *gseg, void *cb, void *cbe, unsigned long cbrmap,
+				unsigned long length)
+{
+	int i, scr;
+
+	prefetch_data(gseg + GRU_DS_BASE, length / GRU_CACHE_LINE_BYTES,
+		      GRU_CACHE_LINE_BYTES);
+
+	for_each_cbr_in_allocation_map(i, &cbrmap, scr) {
+		prefetch_data(cb, 1, GRU_CACHE_LINE_BYTES);
+		prefetch_data(cbe + i * GRU_HANDLE_STRIDE, 1,
+			      GRU_CACHE_LINE_BYTES);
+		cb += GRU_HANDLE_STRIDE;
+	}
+}
+
 static void gru_load_context_data(void *save, void *grubase, int ctxnum,
 				  unsigned long cbrmap, unsigned long dsrmap)
 {
@@ -441,20 +456,11 @@ static void gru_load_context_data(void *save, void *grubase, int ctxnum,
 	int i, scr;
 
 	gseg = grubase + ctxnum * GRU_GSEG_STRIDE;
-	length = hweight64(dsrmap) * GRU_DSR_AU_BYTES;
-	prefetch_data(gseg + GRU_DS_BASE, length / GRU_CACHE_LINE_BYTES,
-		      GRU_CACHE_LINE_BYTES);
-
 	cb = gseg + GRU_CB_BASE;
 	cbe = grubase + GRU_CBE_BASE;
-	for_each_cbr_in_allocation_map(i, &cbrmap, scr) {
-		prefetch_data(cb, 1, GRU_CACHE_LINE_BYTES);
-		prefetch_data(cbe + i * GRU_HANDLE_STRIDE, 1,
-			      GRU_CACHE_LINE_BYTES);
-		cb += GRU_HANDLE_STRIDE;
-	}
+	length = hweight64(dsrmap) * GRU_DSR_AU_BYTES;
+	gru_prefetch_context(gseg, cb, cbe, cbrmap, length);
 
-	cb = gseg + GRU_CB_BASE;
 	for_each_cbr_in_allocation_map(i, &cbrmap, scr) {
 		save += gru_copy_handle(cb, save);
 		save += gru_copy_handle(cbe + i * GRU_HANDLE_STRIDE, save);
@@ -472,15 +478,16 @@ static void gru_unload_context_data(void *save, void *grubase, int ctxnum,
 	int i, scr;
 
 	gseg = grubase + ctxnum * GRU_GSEG_STRIDE;
-
 	cb = gseg + GRU_CB_BASE;
 	cbe = grubase + GRU_CBE_BASE;
+	length = hweight64(dsrmap) * GRU_DSR_AU_BYTES;
+	gru_prefetch_context(gseg, cb, cbe, cbrmap, length);
+
 	for_each_cbr_in_allocation_map(i, &cbrmap, scr) {
 		save += gru_copy_handle(save, cb);
 		save += gru_copy_handle(save, cbe + i * GRU_HANDLE_STRIDE);
 		cb += GRU_HANDLE_STRIDE;
 	}
-	length = hweight64(dsrmap) * GRU_DSR_AU_BYTES;
 	memcpy(save, gseg + GRU_DS_BASE, length);
 }
 

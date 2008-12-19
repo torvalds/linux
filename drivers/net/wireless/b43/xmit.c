@@ -28,7 +28,7 @@
 */
 
 #include "xmit.h"
-#include "phy.h"
+#include "phy_common.h"
 #include "dma.h"
 #include "pio.h"
 
@@ -208,7 +208,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	txrate = ieee80211_get_tx_rate(dev->wl->hw, info);
 	rate = txrate ? txrate->hw_value : B43_CCK_RATE_1MB;
 	rate_ofdm = b43_is_ofdm_rate(rate);
-	fbrate = ieee80211_get_alt_retry_rate(dev->wl->hw, info) ? : txrate;
+	fbrate = ieee80211_get_alt_retry_rate(dev->wl->hw, info, 0) ? : txrate;
 	rate_fb = fbrate->hw_value;
 	rate_fb_ofdm = b43_is_ofdm_rate(rate_fb);
 
@@ -252,7 +252,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		}
 
 		/* Hardware appends ICV. */
-		plcp_fragment_len += info->control.icv_len;
+		plcp_fragment_len += info->control.hw_key->icv_len;
 
 		key_idx = b43_kidx_to_fw(dev, key_idx);
 		mac_ctl |= (key_idx << B43_TXH_MAC_KEYIDX_SHIFT) &
@@ -260,7 +260,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		mac_ctl |= (key->algorithm << B43_TXH_MAC_KEYALG_SHIFT) &
 			   B43_TXH_MAC_KEYALG;
 		wlhdr_len = ieee80211_hdrlen(fctl);
-		iv_len = min((size_t) info->control.iv_len,
+		iv_len = min((size_t) info->control.hw_key->iv_len,
 			     ARRAY_SIZE(txhdr->iv));
 		memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
 	}
@@ -431,6 +431,7 @@ static s8 b43_rssi_postprocess(struct b43_wldev *dev,
 			       int adjust_2053, int adjust_2050)
 {
 	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
 	s32 tmp;
 
 	switch (phy->radio_ver) {
@@ -450,7 +451,8 @@ static s8 b43_rssi_postprocess(struct b43_wldev *dev,
 			    boardflags_lo & B43_BFL_RSSI) {
 				if (in_rssi > 63)
 					in_rssi = 63;
-				tmp = phy->nrssi_lt[in_rssi];
+				B43_WARN_ON(phy->type != B43_PHYTYPE_G);
+				tmp = gphy->nrssi_lt[in_rssi];
 				tmp = 31 - tmp;
 				tmp *= -131;
 				tmp /= 128;
@@ -678,6 +680,8 @@ void b43_handle_txstatus(struct b43_wldev *dev,
 		b43_pio_handle_txstatus(dev, status);
 	else
 		b43_dma_handle_txstatus(dev, status);
+
+	b43_phy_txpower_check(dev, 0);
 }
 
 /* Fill out the mac80211 TXstatus report based on the b43-specific

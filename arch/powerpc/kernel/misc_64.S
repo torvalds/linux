@@ -426,8 +426,10 @@ _GLOBAL(kernel_thread)
 	li	r4,0		/* new sp (unused) */
 	li	r0,__NR_clone
 	sc
-	cmpdi	0,r3,0		/* parent or child? */
-	bne	1f		/* return if parent */
+	bns+	1f		/* did system call indicate error? */
+	neg	r3,r3		/* if so, make return code negative */
+1:	cmpdi	0,r3,0		/* parent or child? */
+	bne	2f		/* return if parent */
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 	ld	r2,8(r29)
@@ -438,7 +440,7 @@ _GLOBAL(kernel_thread)
 	li	r0,__NR_exit	/* exit after child exits */
         li	r3,0
 	sc
-1:	addi	r1,r1,STACK_FRAME_OVERHEAD	
+2:	addi	r1,r1,STACK_FRAME_OVERHEAD
 	ld	r29,-24(r1)
 	ld	r30,-16(r1)
 	blr

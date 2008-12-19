@@ -899,12 +899,6 @@ enum {
 #define AR_GPIO_OUTPUT_MUX2                      0x4064
 #define AR_GPIO_OUTPUT_MUX3                      0x4068
 
-#define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
-#define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
-#define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
-#define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
-#define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
-
 #define AR_INPUT_STATE                           0x406c
 
 #define AR_EEPROM_STATUS_DATA                    0x407c

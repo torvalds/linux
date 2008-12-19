@@ -824,7 +824,7 @@ static void atkbd_disconnect(struct serio *serio)
 	atkbd_disable(atkbd);
 
 	/* make sure we don't have a command in flight */
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&atkbd->event_work);
 
 	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
 	input_unregister_device(atkbd->dev);
@@ -834,10 +834,10 @@ static void atkbd_disconnect(struct serio *serio)
 }
 
 /*
- * Most special keys (Fn+F?) on Dell Latitudes do not generate release
+ * Most special keys (Fn+F?) on Dell laptops do not generate release
  * events so we have to do it ourselves.
  */
-static void atkbd_latitude_keymap_fixup(struct atkbd *atkbd)
+static void atkbd_dell_laptop_keymap_fixup(struct atkbd *atkbd)
 {
 	const unsigned int forced_release_keys[] = {
 		0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8f, 0x93,
@@ -865,6 +865,22 @@ static void atkbd_hp_keymap_fixup(struct atkbd *atkbd)
 		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
 			__set_bit(forced_release_keys[i],
 					atkbd->force_release_mask);
+}
+
+/*
+ * Inventec system with broken key release on volume keys
+ */
+static void atkbd_inventec_keymap_fixup(struct atkbd *atkbd)
+{
+	const unsigned int forced_release_keys[] = {
+		0xae, 0xb0,
+	};
+	int i;
+
+	if (atkbd->set == 2)
+		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
+			__set_bit(forced_release_keys[i],
+				  atkbd->force_release_mask);
 }
 
 /*
@@ -1207,15 +1223,13 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 {
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
-	char *rest;
 	int err;
 	unsigned char old_extra, old_set;
 
 	if (!atkbd->write)
 		return -EIO;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest || value > 1)
+	if (strict_strtoul(buf, 10, &value) || value > 1)
 		return -EINVAL;
 
 	if (atkbd->extra != value) {
@@ -1264,12 +1278,10 @@ static ssize_t atkbd_set_scroll(struct atkbd *atkbd, const char *buf, size_t cou
 {
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
-	char *rest;
 	int err;
 	unsigned char old_scroll;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest || value > 1)
+	if (strict_strtoul(buf, 10, &value) || value > 1)
 		return -EINVAL;
 
 	if (atkbd->scroll != value) {
@@ -1310,15 +1322,13 @@ static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 {
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
-	char *rest;
 	int err;
 	unsigned char old_set, old_extra;
 
 	if (!atkbd->write)
 		return -EIO;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest || (value != 2 && value != 3))
+	if (strict_strtoul(buf, 10, &value) || (value != 2 && value != 3))
 		return -EINVAL;
 
 	if (atkbd->set != value) {
@@ -1361,15 +1371,13 @@ static ssize_t atkbd_set_softrepeat(struct atkbd *atkbd, const char *buf, size_t
 {
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
-	char *rest;
 	int err;
 	unsigned char old_softrepeat, old_softraw;
 
 	if (!atkbd->write)
 		return -EIO;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest || value > 1)
+	if (strict_strtoul(buf, 10, &value) || value > 1)
 		return -EINVAL;
 
 	if (atkbd->softrepeat != value) {
@@ -1413,12 +1421,10 @@ static ssize_t atkbd_set_softraw(struct atkbd *atkbd, const char *buf, size_t co
 {
 	struct input_dev *old_dev, *new_dev;
 	unsigned long value;
-	char *rest;
 	int err;
 	unsigned char old_softraw;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest || value > 1)
+	if (strict_strtoul(buf, 10, &value) || value > 1)
 		return -EINVAL;
 
 	if (atkbd->softraw != value) {
@@ -1461,13 +1467,13 @@ static int __init atkbd_setup_fixup(const struct dmi_system_id *id)
 
 static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 	{
-		.ident = "Dell Latitude series",
+		.ident = "Dell Laptop",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude"),
+			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
 		},
 		.callback = atkbd_setup_fixup,
-		.driver_data = atkbd_latitude_keymap_fixup,
+		.driver_data = atkbd_dell_laptop_keymap_fixup,
 	},
 	{
 		.ident = "HP 2133",
@@ -1477,6 +1483,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_fixup,
 		.driver_data = atkbd_hp_keymap_fixup,
+	},
+	{
+		.ident = "Inventec Symphony",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "INVENTEC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SYMPHONY 6.0/7.0"),
+		},
+		.callback = atkbd_setup_fixup,
+		.driver_data = atkbd_inventec_keymap_fixup,
 	},
 	{ }
 };

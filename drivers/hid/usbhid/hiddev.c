@@ -242,8 +242,6 @@ static int hiddev_release(struct inode * inode, struct file * file)
 	struct hiddev_list *list = file->private_data;
 	unsigned long flags;
 
-	hiddev_fasync(-1, file, 0);
-
 	spin_lock_irqsave(&list->hiddev->list_lock, flags);
 	list_del(&list->node);
 	spin_unlock_irqrestore(&list->hiddev->list_lock, flags);
@@ -436,8 +434,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 		if (copy_to_user(user_arg, uref, sizeof(*uref)))
 			goto fault;
 
-		kfree(uref_multi);
-		return 0;
+		goto goodreturn;
 
 	default:
 		if (cmd != HIDIOCGUSAGE &&
@@ -790,21 +787,23 @@ static struct usb_class_driver hiddev_class = {
 /*
  * This is where hid.c calls us to connect a hid device to the hiddev driver
  */
-int hiddev_connect(struct hid_device *hid)
+int hiddev_connect(struct hid_device *hid, unsigned int force)
 {
 	struct hiddev *hiddev;
 	struct usbhid_device *usbhid = hid->driver_data;
-	int i;
 	int retval;
 
-	for (i = 0; i < hid->maxcollection; i++)
-		if (hid->collection[i].type ==
-		    HID_COLLECTION_APPLICATION &&
-		    !IS_INPUT_APPLICATION(hid->collection[i].usage))
-			break;
+	if (!force) {
+		unsigned int i;
+		for (i = 0; i < hid->maxcollection; i++)
+			if (hid->collection[i].type ==
+			    HID_COLLECTION_APPLICATION &&
+			    !IS_INPUT_APPLICATION(hid->collection[i].usage))
+				break;
 
-	if (i == hid->maxcollection && (hid->quirks & HID_QUIRK_HIDDEV) == 0)
-		return -1;
+		if (i == hid->maxcollection)
+			return -1;
+	}
 
 	if (!(hiddev = kzalloc(sizeof(struct hiddev), GFP_KERNEL)))
 		return -1;

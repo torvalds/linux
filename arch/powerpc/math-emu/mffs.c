@@ -2,7 +2,8 @@
 #include <linux/errno.h>
 #include <asm/uaccess.h>
 
-#include "soft-fp.h"
+#include <asm/sfp-machine.h>
+#include <math-emu/soft-fp.h>
 
 int
 mffs(u32 *frD)

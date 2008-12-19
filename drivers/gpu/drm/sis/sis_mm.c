@@ -41,7 +41,7 @@
 #define AGP_TYPE 1
 
 
-#if defined(CONFIG_FB_SIS)
+#if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
 /* fb management via fb device */
 
 #define SIS_MM_ALIGN_SHIFT 0
@@ -57,7 +57,7 @@ static void *sis_sman_mm_allocate(void *private, unsigned long size,
 	if (req.size == 0)
 		return NULL;
 	else
-		return (void *)~req.offset;
+		return (void *)(unsigned long)~req.offset;
 }
 
 static void sis_sman_mm_free(void *private, void *ref)
@@ -75,12 +75,12 @@ static unsigned long sis_sman_mm_offset(void *private, void *ref)
 	return ~((unsigned long)ref);
 }
 
-#else /* CONFIG_FB_SIS */
+#else /* CONFIG_FB_SIS[_MODULE] */
 
 #define SIS_MM_ALIGN_SHIFT 4
 #define SIS_MM_ALIGN_MASK ( (1 << SIS_MM_ALIGN_SHIFT) - 1)
 
-#endif /* CONFIG_FB_SIS */
+#endif /* CONFIG_FB_SIS[_MODULE] */
 
 static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
@@ -89,7 +89,7 @@ static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-#if defined(CONFIG_FB_SIS)
+#if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
 	{
 		struct drm_sman_mm sman_mm;
 		sman_mm.private = (void *)0xFFFFFFFF;

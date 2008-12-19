@@ -12,6 +12,7 @@
 #include <linux/rtnetlink.h>
 #include "rate.h"
 #include "ieee80211_i.h"
+#include "debugfs.h"
 
 struct rate_control_alg {
 	struct list_head list;
@@ -127,19 +128,46 @@ static void ieee80211_rate_control_ops_put(struct rate_control_ops *ops)
 	module_put(ops->module);
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+static ssize_t rcname_read(struct file *file, char __user *userbuf,
+			   size_t count, loff_t *ppos)
+{
+	struct rate_control_ref *ref = file->private_data;
+	int len = strlen(ref->ops->name);
+
+	return simple_read_from_buffer(userbuf, count, ppos,
+				       ref->ops->name, len);
+}
+
+static const struct file_operations rcname_ops = {
+	.read = rcname_read,
+	.open = mac80211_open_file_generic,
+};
+#endif
+
 struct rate_control_ref *rate_control_alloc(const char *name,
 					    struct ieee80211_local *local)
 {
+	struct dentry *debugfsdir = NULL;
 	struct rate_control_ref *ref;
 
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
 	if (!ref)
 		goto fail_ref;
 	kref_init(&ref->kref);
+	ref->local = local;
 	ref->ops = ieee80211_rate_control_ops_get(name);
 	if (!ref->ops)
 		goto fail_ops;
-	ref->priv = ref->ops->alloc(local);
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
+	local->debugfs.rcdir = debugfsdir;
+	local->debugfs.rcname = debugfs_create_file("name", 0400, debugfsdir,
+						    ref, &rcname_ops);
+#endif
+
+	ref->priv = ref->ops->alloc(&local->hw, debugfsdir);
 	if (!ref->priv)
 		goto fail_priv;
 	return ref;
@@ -158,29 +186,46 @@ static void rate_control_release(struct kref *kref)
 
 	ctrl_ref = container_of(kref, struct rate_control_ref, kref);
 	ctrl_ref->ops->free(ctrl_ref->priv);
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	debugfs_remove(ctrl_ref->local->debugfs.rcname);
+	ctrl_ref->local->debugfs.rcname = NULL;
+	debugfs_remove(ctrl_ref->local->debugfs.rcdir);
+	ctrl_ref->local->debugfs.rcdir = NULL;
+#endif
+
 	ieee80211_rate_control_ops_put(ctrl_ref->ops);
 	kfree(ctrl_ref);
 }
 
-void rate_control_get_rate(struct net_device *dev,
+void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 			   struct ieee80211_supported_band *sband,
-			   struct sk_buff *skb,
+			   struct sta_info *sta, struct sk_buff *skb,
 			   struct rate_selection *sel)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct rate_control_ref *ref = local->rate_ctrl;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	struct sta_info *sta;
+	struct rate_control_ref *ref = sdata->local->rate_ctrl;
+	void *priv_sta = NULL;
+	struct ieee80211_sta *ista = NULL;
 	int i;
-
-	rcu_read_lock();
-	sta = sta_info_get(local, hdr->addr1);
 
 	sel->rate_idx = -1;
 	sel->nonerp_idx = -1;
 	sel->probe_idx = -1;
+	sel->max_rate_idx = sdata->max_ratectrl_rateidx;
 
-	ref->ops->get_rate(ref->priv, dev, sband, skb, sel);
+	if (sta) {
+		ista = &sta->sta;
+		priv_sta = sta->rate_ctrl_priv;
+	}
+
+	if (sta && sdata->force_unicast_rateidx > -1)
+		sel->rate_idx = sdata->force_unicast_rateidx;
+	else
+		ref->ops->get_rate(ref->priv, sband, ista, priv_sta, skb, sel);
+
+	if (sdata->max_ratectrl_rateidx > -1 &&
+	    sel->rate_idx > sdata->max_ratectrl_rateidx)
+		sel->rate_idx = sdata->max_ratectrl_rateidx;
 
 	BUG_ON(sel->rate_idx < 0);
 
@@ -191,13 +236,11 @@ void rate_control_get_rate(struct net_device *dev,
 			if (sband->bitrates[sel->rate_idx].bitrate < rate->bitrate)
 				break;
 
-			if (rate_supported(sta, sband->band, i) &&
+			if (rate_supported(ista, sband->band, i) &&
 			    !(rate->flags & IEEE80211_RATE_ERP_G))
 				sel->nonerp_idx = i;
 		}
 	}
-
-	rcu_read_unlock();
 }
 
 struct rate_control_ref *rate_control_get(struct rate_control_ref *ref)

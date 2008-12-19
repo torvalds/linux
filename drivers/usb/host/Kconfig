@@ -110,35 +110,23 @@ config USB_ISP116X_HCD
 
 config USB_ISP1760_HCD
 	tristate "ISP 1760 HCD support"
-	depends on USB && EXPERIMENTAL
+	depends on USB && EXPERIMENTAL && (PCI || PPC_OF)
 	---help---
 	  The ISP1760 chip is a USB 2.0 host controller.
 
 	  This driver does not support isochronous transfers or OTG.
+	  This USB controller is usually attached to a non-DMA-Master
+	  capable bus. NXP's eval kit brings this chip on PCI card
+	  where the chip itself is behind a PLB to simulate such
+	  a bus.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called isp1760-hcd.
-
-config USB_ISP1760_PCI
-	bool "Support for the PCI bus"
-	depends on USB_ISP1760_HCD && PCI
-	---help---
-	  Enables support for the device present on the PCI bus.
-	  This should only be required if you happen to have the eval kit from
-	  NXP and you are going to test it.
-
-config USB_ISP1760_OF
-	bool "Support for the OF platform bus"
-	depends on USB_ISP1760_HCD && PPC_OF
-	---help---
-	  Enables support for the device present on the PowerPC
-	  OpenFirmware platform bus.
+	  module will be called isp1760.
 
 config USB_OHCI_HCD
 	tristate "OHCI HCD support"
 	depends on USB && USB_ARCH_HAS_OHCI
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
-	select I2C if ARCH_PNX4008
 	---help---
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
@@ -305,3 +293,31 @@ config SUPERH_ON_CHIP_R8A66597
 	help
 	   This driver enables support for the on-chip R8A66597 in the
 	   SH7366 and SH7723 processors.
+
+config USB_WHCI_HCD
+	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on PCI && USB
+	select USB_WUSB
+	select UWB_WHCI
+	help
+	  A driver for PCI-based Wireless USB Host Controllers that are
+	  compliant with the WHCI specification.
+
+	  To compile this driver a module, choose M here: the module
+	  will be called "whci-hcd".
+
+config USB_HWA_HCD
+	tristate "Host Wire Adapter (HWA) driver (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on USB
+	select USB_WUSB
+	select UWB_HWA
+	help
+	  This driver enables you to connect Wireless USB devices to
+	  your system using a Host Wire Adaptor USB dongle. This is an
+	  UWB Radio Controller and WUSB Host Controller connected to
+	  your machine via USB (specified in WUSB1.0).
+
+	  To compile this driver a module, choose M here: the module
+	  will be called "hwa-hc".

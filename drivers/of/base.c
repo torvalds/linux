@@ -410,7 +410,7 @@ struct of_modalias_table {
 	char *modalias;
 };
 static struct of_modalias_table of_modalias_table[] = {
-	/* Empty for now; add entries as needed */
+	{ "fsl,mcu-mpc8349emitx", "mcu-mpc8349emitx" },
 };
 
 /**
@@ -420,13 +420,12 @@ static struct of_modalias_table of_modalias_table[] = {
  * @len:	Length of modalias value
  *
  * Based on the value of the compatible property, this routine will determine
- * an appropriate modalias value for a particular device tree node.  Three
- * separate methods are used to derive a modalias value.
+ * an appropriate modalias value for a particular device tree node.  Two
+ * separate methods are attempted to derive a modalias value.
  *
  * First method is to lookup the compatible value in of_modalias_table.
- * Second is to look for a "linux,<modalias>" entry in the compatible list
- * and used that for modalias.  Third is to strip off the manufacturer
- * prefix from the first compatible entry and use the remainder as modalias
+ * Second is to strip off the manufacturer prefix from the first
+ * compatible entry and use the remainder as modalias
  *
  * This routine returns 0 on success
  */
@@ -449,21 +448,7 @@ int of_modalias_node(struct device_node *node, char *modalias, int len)
 	if (!compatible)
 		return -ENODEV;
 
-	/* 2. search for linux,<modalias> entry */
-	p = compatible;
-	while (cplen > 0) {
-		if (!strncmp(p, "linux,", 6)) {
-			p += 6;
-			strlcpy(modalias, p, len);
-			return 0;
-		}
-
-		i = strlen(p) + 1;
-		p += i;
-		cplen -= i;
-	}
-
-	/* 3. take first compatible entry and strip manufacturer */
+	/* 2. take first compatible entry and strip manufacturer */
 	p = strchr(compatible, ',');
 	if (!p)
 		return -ENODEV;
@@ -473,3 +458,112 @@ int of_modalias_node(struct device_node *node, char *modalias, int len)
 }
 EXPORT_SYMBOL_GPL(of_modalias_node);
 
+/**
+ * of_parse_phandles_with_args - Find a node pointed by phandle in a list
+ * @np:		pointer to a device tree node containing a list
+ * @list_name:	property name that contains a list
+ * @cells_name:	property name that specifies phandles' arguments count
+ * @index:	index of a phandle to parse out
+ * @out_node:	pointer to device_node struct pointer (will be filled)
+ * @out_args:	pointer to arguments pointer (will be filled)
+ *
+ * This function is useful to parse lists of phandles and their arguments.
+ * Returns 0 on success and fills out_node and out_args, on error returns
+ * appropriate errno value.
+ *
+ * Example:
+ *
+ * phandle1: node1 {
+ * 	#list-cells = <2>;
+ * }
+ *
+ * phandle2: node2 {
+ * 	#list-cells = <1>;
+ * }
+ *
+ * node3 {
+ * 	list = <&phandle1 1 2 &phandle2 3>;
+ * }
+ *
+ * To get a device_node of the `node2' node you may call this:
+ * of_parse_phandles_with_args(node3, "list", "#list-cells", 2, &node2, &args);
+ */
+int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
+				const char *cells_name, int index,
+				struct device_node **out_node,
+				const void **out_args)
+{
+	int ret = -EINVAL;
+	const u32 *list;
+	const u32 *list_end;
+	int size;
+	int cur_index = 0;
+	struct device_node *node = NULL;
+	const void *args;
+
+	list = of_get_property(np, list_name, &size);
+	if (!list) {
+		ret = -ENOENT;
+		goto err0;
+	}
+	list_end = list + size / sizeof(*list);
+
+	while (list < list_end) {
+		const u32 *cells;
+		const phandle *phandle;
+
+		phandle = list;
+		args = list + 1;
+
+		/* one cell hole in the list = <>; */
+		if (!*phandle) {
+			list++;
+			goto next;
+		}
+
+		node = of_find_node_by_phandle(*phandle);
+		if (!node) {
+			pr_debug("%s: could not find phandle\n",
+				 np->full_name);
+			goto err0;
+		}
+
+		cells = of_get_property(node, cells_name, &size);
+		if (!cells || size != sizeof(*cells)) {
+			pr_debug("%s: could not get %s for %s\n",
+				 np->full_name, cells_name, node->full_name);
+			goto err1;
+		}
+
+		/* Next phandle is at offset of one phandle cell + #cells */
+		list += 1 + *cells;
+		if (list > list_end) {
+			pr_debug("%s: insufficient arguments length\n",
+				 np->full_name);
+			goto err1;
+		}
+next:
+		if (cur_index == index)
+			break;
+
+		of_node_put(node);
+		node = NULL;
+		cur_index++;
+	}
+
+	if (!node) {
+		ret = -ENOENT;
+		goto err0;
+	}
+
+	*out_node = node;
+	*out_args = args;
+
+	return 0;
+err1:
+	of_node_put(node);
+err0:
+	pr_debug("%s failed with status %d\n", __func__, ret);
+	return ret;
+}
+EXPORT_SYMBOL(of_parse_phandles_with_args);

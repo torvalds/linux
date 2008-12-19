@@ -240,6 +240,7 @@ int snd_soc_dapm_sys_add(struct device *dev);
 /* dapm audio pin control and status */
 int snd_soc_dapm_enable_pin(struct snd_soc_codec *codec, char *pin);
 int snd_soc_dapm_disable_pin(struct snd_soc_codec *codec, char *pin);
+int snd_soc_dapm_nc_pin(struct snd_soc_codec *codec, char *pin);
 int snd_soc_dapm_get_pin_status(struct snd_soc_codec *codec, char *pin);
 int snd_soc_dapm_sync(struct snd_soc_codec *codec);
 

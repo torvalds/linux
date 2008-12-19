@@ -652,25 +652,11 @@ static int mthca_map_reg(struct mthca_dev *dev,
 {
 	unsigned long base = pci_resource_start(dev->pdev, 0);
 
-	if (!request_mem_region(base + offset, size, DRV_NAME))
-		return -EBUSY;
-
 	*map = ioremap(base + offset, size);
-	if (!*map) {
-		release_mem_region(base + offset, size);
+	if (!*map)
 		return -ENOMEM;
-	}
 
 	return 0;
-}
-
-static void mthca_unmap_reg(struct mthca_dev *dev, unsigned long offset,
-			    unsigned long size, void __iomem *map)
-{
-	unsigned long base = pci_resource_start(dev->pdev, 0);
-
-	release_mem_region(base + offset, size);
-	iounmap(map);
 }
 
 static int mthca_map_eq_regs(struct mthca_dev *dev)
@@ -699,9 +685,7 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 					dev->fw.arbel.eq_arm_base) + 4, 4,
 				  &dev->eq_regs.arbel.eq_arm)) {
 			mthca_err(dev, "Couldn't map EQ arm register, aborting.\n");
-			mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
-					dev->fw.arbel.clr_int_base, MTHCA_CLR_INT_SIZE,
-					dev->clr_base);
+			iounmap(dev->clr_base);
 			return -ENOMEM;
 		}
 
@@ -710,12 +694,8 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 				  MTHCA_EQ_SET_CI_SIZE,
 				  &dev->eq_regs.arbel.eq_set_ci_base)) {
 			mthca_err(dev, "Couldn't map EQ CI register, aborting.\n");
-			mthca_unmap_reg(dev, ((pci_resource_len(dev->pdev, 0) - 1) &
-					      dev->fw.arbel.eq_arm_base) + 4, 4,
-					dev->eq_regs.arbel.eq_arm);
-			mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
-					dev->fw.arbel.clr_int_base, MTHCA_CLR_INT_SIZE,
-					dev->clr_base);
+			iounmap(dev->eq_regs.arbel.eq_arm);
+			iounmap(dev->clr_base);
 			return -ENOMEM;
 		}
 	} else {
@@ -731,8 +711,7 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 				  &dev->eq_regs.tavor.ecr_base)) {
 			mthca_err(dev, "Couldn't map ecr register, "
 				  "aborting.\n");
-			mthca_unmap_reg(dev, MTHCA_CLR_INT_BASE, MTHCA_CLR_INT_SIZE,
-					dev->clr_base);
+			iounmap(dev->clr_base);
 			return -ENOMEM;
 		}
 	}
@@ -744,22 +723,12 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 static void mthca_unmap_eq_regs(struct mthca_dev *dev)
 {
 	if (mthca_is_memfree(dev)) {
-		mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
-				dev->fw.arbel.eq_set_ci_base,
-				MTHCA_EQ_SET_CI_SIZE,
-				dev->eq_regs.arbel.eq_set_ci_base);
-		mthca_unmap_reg(dev, ((pci_resource_len(dev->pdev, 0) - 1) &
-				      dev->fw.arbel.eq_arm_base) + 4, 4,
-				dev->eq_regs.arbel.eq_arm);
-		mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
-				dev->fw.arbel.clr_int_base, MTHCA_CLR_INT_SIZE,
-				dev->clr_base);
+		iounmap(dev->eq_regs.arbel.eq_set_ci_base);
+		iounmap(dev->eq_regs.arbel.eq_arm);
+		iounmap(dev->clr_base);
 	} else {
-		mthca_unmap_reg(dev, MTHCA_ECR_BASE,
-				MTHCA_ECR_SIZE + MTHCA_ECR_CLR_SIZE,
-				dev->eq_regs.tavor.ecr_base);
-		mthca_unmap_reg(dev, MTHCA_CLR_INT_BASE, MTHCA_CLR_INT_SIZE,
-				dev->clr_base);
+		iounmap(dev->eq_regs.tavor.ecr_base);
+		iounmap(dev->clr_base);
 	}
 }
 

@@ -19,9 +19,15 @@ struct notifier_block;
 
 #if defined(CONFIG_PROFILING) && defined(CONFIG_PROC_FS)
 void create_prof_cpu_mask(struct proc_dir_entry *de);
+int create_proc_profile(void);
 #else
 static inline void create_prof_cpu_mask(struct proc_dir_entry *de)
 {
+}
+
+static inline int create_proc_profile(void)
+{
+	return 0;
 }
 #endif
 
@@ -35,7 +41,8 @@ enum profile_type {
 extern int prof_on __read_mostly;
 
 /* init basic kernel profiler */
-void __init profile_init(void);
+int profile_init(void);
+int profile_setup(char *str);
 void profile_tick(int type);
 
 /*
@@ -84,9 +91,9 @@ struct pt_regs;
 
 #define prof_on 0
 
-static inline void profile_init(void)
+static inline int profile_init(void)
 {
-	return;
+	return 0;
 }
 
 static inline void profile_tick(int type)

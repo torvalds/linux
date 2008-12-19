@@ -397,7 +397,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
        generic_bigsmp_probe();
 #endif
 
+#ifdef CONFIG_X86_32
 	setup_apic_routing();
+#endif
 	if (!num_processors)
 		printk(KERN_ERR "MPTABLE: no processors registered!\n");
 	return num_processors;
@@ -601,6 +603,9 @@ static void __init __get_smp_config(unsigned int early)
 	} else if (acpi_lapic)
 		printk(KERN_INFO "Using ACPI for processor (LAPIC) "
 		       "configuration information\n");
+
+	if (!mpf)
+		return;
 
 	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
 	       mpf->mpf_specification);

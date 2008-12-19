@@ -1357,7 +1357,7 @@ static int hw_supports(struct device *dev, __be32 desc_hdr_template)
 	return ret;
 }
 
-static int __devexit talitos_remove(struct of_device *ofdev)
+static int talitos_remove(struct of_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct talitos_private *priv = dev_get_drvdata(dev);
@@ -1622,7 +1622,7 @@ static struct of_platform_driver talitos_driver = {
 	.name = "talitos",
 	.match_table = talitos_match,
 	.probe = talitos_probe,
-	.remove = __devexit_p(talitos_remove),
+	.remove = talitos_remove,
 };
 
 static int __init talitos_init(void)

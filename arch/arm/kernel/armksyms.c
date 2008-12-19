@@ -13,11 +13,11 @@
 #include <linux/delay.h>
 #include <linux/in6.h>
 #include <linux/syscalls.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include <asm/checksum.h>
-#include <asm/io.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/ftrace.h>
 
 /*
@@ -115,6 +115,8 @@ EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 
 #ifdef CONFIG_MMU
+EXPORT_SYMBOL(copy_page);
+
 EXPORT_SYMBOL(__copy_from_user);
 EXPORT_SYMBOL(__copy_to_user);
 EXPORT_SYMBOL(__clear_user);
@@ -181,8 +183,6 @@ EXPORT_SYMBOL(_find_first_bit_be);
 EXPORT_SYMBOL(_find_next_bit_be);
 #endif
 
-EXPORT_SYMBOL(copy_page);
-
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 EXPORT_SYMBOL(mcount);
 #endif

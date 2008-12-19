@@ -203,6 +203,7 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 		eeh_add_device_tree_early(dn);
 
 	scan_phb(phb);
+	pcibios_allocate_bus_resources(phb->bus);
 	pcibios_fixup_new_pci_devices(phb->bus);
 	pci_bus_add_devices(phb->bus);
 	eeh_add_device_tree_late(phb->bus);

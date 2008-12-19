@@ -691,7 +691,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 }
 
 /* -- start the camera -- */
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -704,6 +704,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 	reg_w_val(gspca_dev, ET_RESET_ALL, 0x08);
 	et_video(gspca_dev, 1);		/* video on */
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

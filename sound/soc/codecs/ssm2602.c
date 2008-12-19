@@ -42,7 +42,6 @@
 
 #include "ssm2602.h"
 
-#define AUDIO_NAME "ssm2602"
 #define SSM2602_VERSION "0.1"
 
 struct snd_soc_codec_device soc_codec_dev_ssm2602;

@@ -40,7 +40,7 @@ void xfp_set_led(struct efx_nic *p, int led, int mode)
 }
 
 struct xfp_phy_data {
-	int tx_disabled;
+	enum efx_phy_mode phy_mode;
 };
 
 #define XFP_MAX_RESET_TIME 500
@@ -93,7 +93,7 @@ static int xfp_phy_init(struct efx_nic *efx)
 		 " %x)\n", devid, MDIO_ID_OUI(devid), MDIO_ID_MODEL(devid),
 		 MDIO_ID_REV(devid));
 
-	phy_data->tx_disabled = efx->tx_disabled;
+	phy_data->phy_mode = efx->phy_mode;
 
 	rc = xfp_reset_phy(efx);
 
@@ -136,13 +136,14 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 	struct xfp_phy_data *phy_data = efx->phy_data;
 
 	/* Reset the PHY when moving from tx off to tx on */
-	if (phy_data->tx_disabled && !efx->tx_disabled)
+	if (!(efx->phy_mode & PHY_MODE_TX_DISABLED) &&
+	    (phy_data->phy_mode & PHY_MODE_TX_DISABLED))
 		xfp_reset_phy(efx);
 
 	mdio_clause45_transmit_disable(efx);
 	mdio_clause45_phy_reconfigure(efx);
 
-	phy_data->tx_disabled = efx->tx_disabled;
+	phy_data->phy_mode = efx->phy_mode;
 	efx->link_up = xfp_link_ok(efx);
 	efx->link_options = GM_LPA_10000FULL;
 }
@@ -151,7 +152,7 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 static void xfp_phy_fini(struct efx_nic *efx)
 {
 	/* Clobber the LED if it was blinking */
-	efx->board_info.blink(efx, 0);
+	efx->board_info.blink(efx, false);
 
 	/* Free the context block */
 	kfree(efx->phy_data);
@@ -164,7 +165,6 @@ struct efx_phy_operations falcon_xfp_phy_ops = {
 	.check_hw        = xfp_phy_check_hw,
 	.fini            = xfp_phy_fini,
 	.clear_interrupt = xfp_phy_clear_interrupt,
-	.reset_xaui      = efx_port_dummy_op_void,
 	.mmds            = XFP_REQUIRED_DEVS,
 	.loopbacks       = XFP_LOOPBACKS,
 };

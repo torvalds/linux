@@ -604,7 +604,9 @@ static void digi_wakeup_write_lock(struct work_struct *work)
 
 static void digi_wakeup_write(struct usb_serial_port *port)
 {
-	tty_wakeup(port->port.tty);
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
+	tty_wakeup(tty);
+	tty_kref_put(tty);
 }
 
 
@@ -659,7 +661,8 @@ static int digi_write_oob_command(struct usb_serial_port *port,
 	}
 	spin_unlock_irqrestore(&oob_priv->dp_port_lock, flags);
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d", __func__, ret);
+		dev_err(&port->dev, "%s: usb_submit_urb failed, ret=%d\n",
+			__func__, ret);
 	return ret;
 
 }
@@ -741,7 +744,8 @@ static int digi_write_inb_command(struct usb_serial_port *port,
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d, port=%d",
+		dev_err(&port->dev,
+			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 	return ret;
 }
@@ -810,7 +814,8 @@ static int digi_set_modem_signals(struct usb_serial_port *port,
 	spin_unlock(&port_priv->dp_port_lock);
 	spin_unlock_irqrestore(&oob_priv->dp_port_lock, flags);
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d", __func__, ret);
+		dev_err(&port->dev, "%s: usb_submit_urb failed, ret=%d\n",
+			__func__, ret);
 	return ret;
 }
 
@@ -905,7 +910,8 @@ static void digi_rx_unthrottle(struct tty_struct *tty)
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d, port=%d",
+		dev_err(&port->dev,
+			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 }
 
@@ -1212,7 +1218,8 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* return length of new data written, or error */
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 	if (ret < 0)
-		err("%s: usb_submit_urb failed, ret=%d, port=%d",
+		dev_err(&port->dev,
+			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 	dbg("digi_write: returning %d", ret);
 	return ret;
@@ -1233,14 +1240,16 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	/* port and serial sanity check */
 	if (port == NULL || (priv = usb_get_serial_port_data(port)) == NULL) {
-		err("%s: port or port->private is NULL, status=%d",
-		    __func__, status);
+		dev_err(&port->dev,
+			"%s: port or port->private is NULL, status=%d\n",
+			__func__, status);
 		return;
 	}
 	serial = port->serial;
 	if (serial == NULL || (serial_priv = usb_get_serial_data(serial)) == NULL) {
-		err("%s: serial or serial->private is NULL, status=%d",
-		    __func__, status);
+		dev_err(&port->dev,
+			"%s: serial or serial->private is NULL, status=%d\n",
+			__func__, status);
 		return;
 	}
 
@@ -1282,7 +1291,8 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	spin_unlock(&priv->dp_port_lock);
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d, port=%d",
+		dev_err(&port->dev,
+			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 }
 
@@ -1516,8 +1526,9 @@ static int digi_startup_device(struct usb_serial *serial)
 		port->write_urb->dev = port->serial->dev;
 		ret = usb_submit_urb(port->read_urb, GFP_KERNEL);
 		if (ret != 0) {
-			err("%s: usb_submit_urb failed, ret=%d, port=%d",
-					__func__, ret, i);
+			dev_err(&port->dev,
+				"%s: usb_submit_urb failed, ret=%d, port=%d\n",
+				__func__, ret, i);
 			break;
 		}
 	}
@@ -1616,22 +1627,26 @@ static void digi_read_bulk_callback(struct urb *urb)
 	dbg("digi_read_bulk_callback: TOP");
 
 	/* port sanity check, do not resubmit if port is not valid */
-	if (port == NULL || (priv = usb_get_serial_port_data(port)) == NULL) {
-		err("%s: port or port->private is NULL, status=%d",
-		    __func__, status);
+	if (port == NULL)
+		return;
+	priv = usb_get_serial_port_data(port);
+	if (priv == NULL) {
+		dev_err(&port->dev, "%s: port->private is NULL, status=%d\n",
+			__func__, status);
 		return;
 	}
 	if (port->serial == NULL ||
 		(serial_priv = usb_get_serial_data(port->serial)) == NULL) {
-		err("%s: serial is bad or serial->private is NULL, status=%d",
-			__func__, status);
+		dev_err(&port->dev, "%s: serial is bad or serial->private "
+			"is NULL, status=%d\n", __func__, status);
 		return;
 	}
 
 	/* do not resubmit urb if it has any status error */
 	if (status) {
-		err("%s: nonzero read bulk status: status=%d, port=%d",
-		    __func__, status, priv->dp_port_num);
+		dev_err(&port->dev,
+			"%s: nonzero read bulk status: status=%d, port=%d\n",
+			__func__, status, priv->dp_port_num);
 		return;
 	}
 
@@ -1648,8 +1663,9 @@ static void digi_read_bulk_callback(struct urb *urb)
 	urb->dev = port->serial->dev;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret != 0) {
-		err("%s: failed resubmitting urb, ret=%d, port=%d",
-		    __func__, ret, priv->dp_port_num);
+		dev_err(&port->dev,
+			"%s: failed resubmitting urb, ret=%d, port=%d\n",
+			__func__, ret, priv->dp_port_num);
 	}
 
 }
@@ -1668,7 +1684,7 @@ static int digi_read_inb_callback(struct urb *urb)
 {
 
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty = port->port.tty;
+	struct tty_struct *tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode = ((unsigned char *)urb->transfer_buffer)[0];
 	int len = ((unsigned char *)urb->transfer_buffer)[1];
@@ -1685,13 +1701,15 @@ static int digi_read_inb_callback(struct urb *urb)
 
 	/* short/multiple packet check */
 	if (urb->actual_length != len + 2) {
-		err("%s: INCOMPLETE OR MULTIPLE PACKET, urb->status=%d, "
-		    "port=%d, opcode=%d, len=%d, actual_length=%d, "
-		    "status=%d", __func__, status, priv->dp_port_num,
-		    opcode, len, urb->actual_length, port_status);
+		dev_err(&port->dev, "%s: INCOMPLETE OR MULTIPLE PACKET, "
+			"urb->status=%d, port=%d, opcode=%d, len=%d, "
+			"actual_length=%d, status=%d\n", __func__, status,
+			priv->dp_port_num, opcode, len, urb->actual_length,
+			port_status);
 		return -1;
 	}
 
+	tty = tty_port_tty_get(&port->port);
 	spin_lock(&priv->dp_port_lock);
 
 	/* check for throttle; if set, do not resubmit read urb */
@@ -1735,6 +1753,7 @@ static int digi_read_inb_callback(struct urb *urb)
 		}
 	}
 	spin_unlock(&priv->dp_port_lock);
+	tty_kref_put(tty);
 
 	if (opcode == DIGI_CMD_RECEIVE_DISABLE)
 		dbg("%s: got RECEIVE_DISABLE", __func__);
@@ -1760,6 +1779,7 @@ static int digi_read_oob_callback(struct urb *urb)
 
 	struct usb_serial_port *port = urb->context;
 	struct usb_serial *serial = port->serial;
+	struct tty_struct *tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode, line, status, val;
 	int i;
@@ -1787,10 +1807,11 @@ static int digi_read_oob_callback(struct urb *urb)
 		if (priv == NULL)
 			return -1;
 
+		tty = tty_port_tty_get(&port->port);
 		rts = 0;
 		if (port->port.count)
-			rts = port->port.tty->termios->c_cflag & CRTSCTS;
-
+			rts = tty->termios->c_cflag & CRTSCTS;
+		
 		if (opcode == DIGI_CMD_READ_INPUT_SIGNALS) {
 			spin_lock(&priv->dp_port_lock);
 			/* convert from digi flags to termiox flags */
@@ -1798,14 +1819,14 @@ static int digi_read_oob_callback(struct urb *urb)
 				priv->dp_modem_signals |= TIOCM_CTS;
 				/* port must be open to use tty struct */
 				if (rts) {
-					port->port.tty->hw_stopped = 0;
+					tty->hw_stopped = 0;
 					digi_wakeup_write(port);
 				}
 			} else {
 				priv->dp_modem_signals &= ~TIOCM_CTS;
 				/* port must be open to use tty struct */
 				if (rts)
-					port->port.tty->hw_stopped = 1;
+					tty->hw_stopped = 1;
 			}
 			if (val & DIGI_READ_INPUT_SIGNALS_DSR)
 				priv->dp_modem_signals |= TIOCM_DSR;
@@ -1830,6 +1851,7 @@ static int digi_read_oob_callback(struct urb *urb)
 		} else if (opcode == DIGI_CMD_IFLUSH_FIFO) {
 			wake_up_interruptible(&priv->dp_flush_wait);
 		}
+		tty_kref_put(tty);
 	}
 	return 0;
 
@@ -1847,7 +1869,8 @@ static int __init digi_init(void)
 	retval = usb_register(&digi_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&digi_acceleport_4_device);

@@ -18,12 +18,9 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("Xtables: IPv4 TTL field match");
 MODULE_LICENSE("GPL");
 
-static bool
-ttl_mt(const struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, const struct xt_match *match,
-       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool ttl_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ipt_ttl_info *info = matchinfo;
+	const struct ipt_ttl_info *info = par->matchinfo;
 	const u8 ttl = ip_hdr(skb)->ttl;
 
 	switch (info->mode) {
@@ -46,7 +43,7 @@ ttl_mt(const struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_match ttl_mt_reg __read_mostly = {
 	.name		= "ttl",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.match		= ttl_mt,
 	.matchsize	= sizeof(struct ipt_ttl_info),
 	.me		= THIS_MODULE,

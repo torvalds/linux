@@ -35,7 +35,6 @@
 
 #include <video/atmel_lcdc.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -44,6 +43,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91sam9_smc.h>
@@ -168,11 +168,11 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
 		.name	= "Partition 1",
 		.offset	= 0,
-		.size	= 256 * 1024,
+		.size	= SZ_256K,
 	},
 	{
 		.name	= "Partition 2",
-		.offset	= 256 * 1024 ,
+		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };
@@ -435,24 +435,28 @@ static struct gpio_keys_button ek_buttons[] = {
 		.code		= BTN_0,
 		.desc		= "Button 0",
 		.active_low	= 1,
+		.wakeup		= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA26,
 		.code		= BTN_1,
 		.desc		= "Button 1",
 		.active_low	= 1,
+		.wakeup		= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA25,
 		.code		= BTN_2,
 		.desc		= "Button 2",
 		.active_low	= 1,
+		.wakeup		= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA24,
 		.code		= BTN_3,
 		.desc		= "Button 3",
 		.active_low	= 1,
+		.wakeup		= 1,
 	}
 };
 
@@ -472,13 +476,13 @@ static struct platform_device ek_button_device = {
 
 static void __init ek_add_device_buttons(void)
 {
-	at91_set_gpio_input(AT91_PIN_PA27, 0);	/* btn0 */
+	at91_set_gpio_input(AT91_PIN_PA27, 1);	/* btn0 */
 	at91_set_deglitch(AT91_PIN_PA27, 1);
-	at91_set_gpio_input(AT91_PIN_PA26, 0);	/* btn1 */
+	at91_set_gpio_input(AT91_PIN_PA26, 1);	/* btn1 */
 	at91_set_deglitch(AT91_PIN_PA26, 1);
-	at91_set_gpio_input(AT91_PIN_PA25, 0);	/* btn2 */
+	at91_set_gpio_input(AT91_PIN_PA25, 1);	/* btn2 */
 	at91_set_deglitch(AT91_PIN_PA25, 1);
-	at91_set_gpio_input(AT91_PIN_PA24, 0);	/* btn3 */
+	at91_set_gpio_input(AT91_PIN_PA24, 1);	/* btn3 */
 	at91_set_deglitch(AT91_PIN_PA24, 1);
 
 	platform_device_register(&ek_button_device);

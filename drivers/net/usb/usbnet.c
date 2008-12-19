@@ -512,14 +512,13 @@ static int unlink_urbs (struct usbnet *dev, struct sk_buff_head *q)
 	int			count = 0;
 
 	spin_lock_irqsave (&q->lock, flags);
-	for (skb = q->next; skb != (struct sk_buff *) q; skb = skbnext) {
+	skb_queue_walk_safe(q, skb, skbnext) {
 		struct skb_data		*entry;
 		struct urb		*urb;
 		int			retval;
 
 		entry = (struct skb_data *) skb->cb;
 		urb = entry->urb;
-		skbnext = skb->next;
 
 		// during some PM-driven resume scenarios,
 		// these (async) unlinks complete immediately

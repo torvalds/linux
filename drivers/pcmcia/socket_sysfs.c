@@ -316,27 +316,18 @@ static ssize_t pccard_store_cis(struct kobject *kobj,
 				char *buf, loff_t off, size_t count)
 {
 	struct pcmcia_socket *s = to_socket(container_of(kobj, struct device, kobj));
-	cisdump_t *cis;
 	int error;
 
 	if (off)
 		return -EINVAL;
 
-	if (count >= 0x200)
+	if (count >= CISTPL_MAX_CIS_SIZE)
 		return -EINVAL;
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
 
-	cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
-	if (!cis)
-		return -ENOMEM;
-
-	cis->Length = count + 1;
-	memcpy(cis->Data, buf, count);
-
-	error = pcmcia_replace_cis(s, cis);
-	kfree(cis);
+	error = pcmcia_replace_cis(s, buf, count);
 	if (error)
 		return -EIO;
 

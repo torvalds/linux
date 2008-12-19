@@ -70,6 +70,25 @@ static struct sport_param sport_params[2] = {
 	}
 };
 
+/*
+ * Setting the TFS pin selector for SPORT 0 based on whether the selected
+ * port id F or G. If the port is F then no conflict should exist for the
+ * TFS. When Port G is selected and EMAC then there is a conflict between
+ * the PHY interrupt line and TFS.  Current settings prevent the conflict
+ * by ignoring the TFS pin when Port G is selected. This allows both
+ * ssm2602 using Port G and EMAC concurrently.
+ */
+#ifdef CONFIG_BF527_SPORT0_PORTF
+#define LOCAL_SPORT0_TFS (P_SPORT0_TFS)
+#else
+#define LOCAL_SPORT0_TFS (0)
+#endif
+
+static u16 sport_req[][7] = { {P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
+		P_SPORT0_DRPRI, P_SPORT0_RSCLK, LOCAL_SPORT0_TFS, 0},
+		{P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS, P_SPORT1_DRPRI,
+		P_SPORT1_RSCLK, P_SPORT1_TFS, 0} };
+
 static int bf5xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
@@ -78,28 +97,34 @@ static int bf5xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	/* interface format:support I2S,slave mode */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
+		bf5xx_i2s.tcr1 |= TFSR | TCKFE;
+		bf5xx_i2s.rcr1 |= RFSR | RCKFE;
+		bf5xx_i2s.tcr2 |= TSFSE;
+		bf5xx_i2s.rcr2 |= RSFSE;
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		bf5xx_i2s.tcr1 |= TFSR;
+		bf5xx_i2s.rcr1 |= RFSR;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		ret = -EINVAL;
 		break;
 	default:
+		printk(KERN_ERR "%s: Unknown DAI format type\n", __func__);
 		ret = -EINVAL;
 		break;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		ret = -EINVAL;
-		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-		ret = -EINVAL;
-		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBM_CFS:
 	case SND_SOC_DAIFMT_CBS_CFM:
 		ret = -EINVAL;
 		break;
 	default:
+		printk(KERN_ERR "%s: Unknown DAI master type\n", __func__);
 		ret = -EINVAL;
 		break;
 	}
@@ -127,14 +152,17 @@ static int bf5xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		bf5xx_i2s.tcr2 |= 15;
 		bf5xx_i2s.rcr2 |= 15;
+		sport_handle->wdsize = 2;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		bf5xx_i2s.tcr2 |= 23;
 		bf5xx_i2s.rcr2 |= 23;
+		sport_handle->wdsize = 3;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		bf5xx_i2s.tcr2 |= 31;
 		bf5xx_i2s.rcr2 |= 31;
+		sport_handle->wdsize = 4;
 		break;
 	}
 
@@ -145,17 +173,17 @@ static int bf5xx_i2s_hw_params(struct snd_pcm_substream *substream,
 		 * need to configure both of them at the time when the first
 		 * stream is opened.
 		 *
-		 * CPU DAI format:I2S, slave mode.
+		 * CPU DAI:slave mode.
 		 */
-		ret = sport_config_rx(sport_handle, RFSR | RCKFE,
-				      RSFSE|bf5xx_i2s.rcr2, 0, 0);
+		ret = sport_config_rx(sport_handle, bf5xx_i2s.rcr1,
+				      bf5xx_i2s.rcr2, 0, 0);
 		if (ret) {
 			pr_err("SPORT is busy!\n");
 			return -EBUSY;
 		}
 
-		ret = sport_config_tx(sport_handle, TFSR | TCKFE,
-				      TSFSE|bf5xx_i2s.tcr2, 0, 0);
+		ret = sport_config_tx(sport_handle, bf5xx_i2s.tcr1,
+				      bf5xx_i2s.tcr2, 0, 0);
 		if (ret) {
 			pr_err("SPORT is busy!\n");
 			return -EBUSY;
@@ -174,13 +202,6 @@ static void bf5xx_i2s_shutdown(struct snd_pcm_substream *substream)
 static int bf5xx_i2s_probe(struct platform_device *pdev,
 			   struct snd_soc_dai *dai)
 {
-	u16 sport_req[][7] = {
-		{ P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
-		  P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0},
-		{ P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS,
-		  P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0},
-	};
-
 	pr_debug("%s enter\n", __func__);
 	if (peripheral_request_list(&sport_req[sport_num][0], "soc-audio")) {
 		pr_err("Requesting Peripherals failed\n");
@@ -196,6 +217,13 @@ static int bf5xx_i2s_probe(struct platform_device *pdev,
 	}
 
 	return 0;
+}
+
+static void bf5xx_i2s_remove(struct platform_device *pdev,
+			   struct snd_soc_dai *dai)
+{
+	pr_debug("%s enter\n", __func__);
+	peripheral_free_list(&sport_req[sport_num][0]);
 }
 
 #ifdef CONFIG_PM
@@ -263,15 +291,16 @@ struct snd_soc_dai bf5xx_i2s_dai = {
 	.id = 0,
 	.type = SND_SOC_DAI_I2S,
 	.probe = bf5xx_i2s_probe,
+	.remove = bf5xx_i2s_remove,
 	.suspend = bf5xx_i2s_suspend,
 	.resume = bf5xx_i2s_resume,
 	.playback = {
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = BF5XX_I2S_RATES,
 		.formats = BF5XX_I2S_FORMATS,},
 	.capture = {
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = BF5XX_I2S_RATES,
 		.formats = BF5XX_I2S_FORMATS,},

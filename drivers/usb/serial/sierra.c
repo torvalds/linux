@@ -247,7 +247,7 @@ static int sierra_send_setup(struct tty_struct *tty,
 	struct sierra_port_private *portdata;
 	__u16 interface = 0;
 
-	dbg("%s", __func__);
+	dev_dbg(&port->dev, "%s", __func__);
 
 	portdata = usb_get_serial_port_data(port);
 
@@ -284,7 +284,7 @@ static int sierra_send_setup(struct tty_struct *tty,
 static void sierra_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	dbg("%s", __func__);
+	dev_dbg(&port->dev, "%s", __func__);
 	tty_termios_copy_hw(tty->termios, old_termios);
 	sierra_send_setup(tty, port);
 }
@@ -295,6 +295,7 @@ static int sierra_tiocmget(struct tty_struct *tty, struct file *file)
 	unsigned int value;
 	struct sierra_port_private *portdata;
 
+	dev_dbg(&port->dev, "%s", __func__);
 	portdata = usb_get_serial_port_data(port);
 
 	value = ((portdata->rts_state) ? TIOCM_RTS : 0) |
@@ -334,14 +335,14 @@ static void sierra_outdat_callback(struct urb *urb)
 	int status = urb->status;
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
+	dev_dbg(&port->dev, "%s - port %d", __func__, port->number);
 
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree(urb->transfer_buffer);
 
 	if (status)
-		dbg("%s - nonzero write bulk status received: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - nonzero write bulk status "
+		    "received: %d", __func__, status);
 
 	spin_lock_irqsave(&portdata->lock, flags);
 	--portdata->outstanding_urbs;
@@ -363,12 +364,12 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	portdata = usb_get_serial_port_data(port);
 
-	dbg("%s: write (%d chars)", __func__, count);
+	dev_dbg(&port->dev, "%s: write (%d chars)", __func__, count);
 
 	spin_lock_irqsave(&portdata->lock, flags);
 	if (portdata->outstanding_urbs > N_OUT_URB) {
 		spin_unlock_irqrestore(&portdata->lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dev_dbg(&port->dev, "%s - write limit hit\n", __func__);
 		return 0;
 	}
 	portdata->outstanding_urbs++;
@@ -437,17 +438,18 @@ static void sierra_indat_callback(struct urb *urb)
 	port =  urb->context;
 
 	if (status) {
-		dbg("%s: nonzero status: %d on endpoint %02x.",
-		    __func__, status, endpoint);
+		dev_dbg(&port->dev, "%s: nonzero status: %d on"
+		    " endpoint %02x.", __func__, status, endpoint);
 	} else {
-		tty = port->port.tty;
 		if (urb->actual_length) {
+		tty = tty_port_tty_get(&port->port);
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
-		} else {
-			dbg("%s: empty read urb received", __func__);
-		}
+			tty_kref_put(tty);
+		} else
+			dev_dbg(&port->dev, "%s: empty read urb"
+				" received", __func__);
 
 		/* Resubmit urb so we continue receiving */
 		if (port->port.count && status != -ESHUTDOWN) {
@@ -468,15 +470,17 @@ static void sierra_instat_callback(struct urb *urb)
 	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 
-	dbg("%s", __func__);
-	dbg("%s: urb %p port %p has data %p", __func__, urb, port, portdata);
+	dev_dbg(&port->dev, "%s", __func__);
+	dev_dbg(&port->dev, "%s: urb %p port %p has data %p", __func__,
+		urb, port, portdata);
 
 	if (status == 0) {
 		struct usb_ctrlrequest *req_pkt =
 				(struct usb_ctrlrequest *)urb->transfer_buffer;
 
 		if (!req_pkt) {
-			dbg("%s: NULL req_pkt\n", __func__);
+			dev_dbg(&port->dev, "%s: NULL req_pkt\n",
+				__func__);
 			return;
 		}
 		if ((req_pkt->bRequestType == 0xA1) &&
@@ -485,8 +489,10 @@ static void sierra_instat_callback(struct urb *urb)
 			unsigned char signals = *((unsigned char *)
 					urb->transfer_buffer +
 					sizeof(struct usb_ctrlrequest));
+			struct tty_struct *tty;
 
-			dbg("%s: signal x%x", __func__, signals);
+			dev_dbg(&port->dev, "%s: signal x%x", __func__,
+				signals);
 
 			old_dcd_state = portdata->dcd_state;
 			portdata->cts_state = 1;
@@ -494,23 +500,26 @@ static void sierra_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			if (port->port.tty && !C_CLOCAL(port->port.tty) &&
+			tty = tty_port_tty_get(&port->port);
+			if (tty && !C_CLOCAL(tty) &&
 					old_dcd_state && !portdata->dcd_state)
-				tty_hangup(port->port.tty);
+				tty_hangup(tty);
+			tty_kref_put(tty);
 		} else {
-			dbg("%s: type %x req %x", __func__,
-				req_pkt->bRequestType, req_pkt->bRequest);
+			dev_dbg(&port->dev, "%s: type %x req %x",
+				__func__, req_pkt->bRequestType,
+				req_pkt->bRequest);
 		}
 	} else
-		dbg("%s: error %d", __func__, status);
+		dev_dbg(&port->dev, "%s: error %d", __func__, status);
 
 	/* Resubmit urb so we continue receiving IRQ data */
 	if (status != -ESHUTDOWN) {
 		urb->dev = serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err)
-			dbg("%s: resubmit intr urb failed. (%d)",
-				__func__, err);
+			dev_dbg(&port->dev, "%s: resubmit intr urb "
+				"failed. (%d)",	__func__, err);
 	}
 }
 
@@ -520,14 +529,14 @@ static int sierra_write_room(struct tty_struct *tty)
 	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
+	dev_dbg(&port->dev, "%s - port %d", __func__, port->number);
 
 	/* try to give a good number back based on if we have any free urbs at
 	 * this point in time */
 	spin_lock_irqsave(&portdata->lock, flags);
 	if (portdata->outstanding_urbs > N_OUT_URB * 2 / 3) {
 		spin_unlock_irqrestore(&portdata->lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dev_dbg(&port->dev, "%s - write limit hit\n", __func__);
 		return 0;
 	}
 	spin_unlock_irqrestore(&portdata->lock, flags);
@@ -546,7 +555,7 @@ static int sierra_open(struct tty_struct *tty,
 
 	portdata = usb_get_serial_port_data(port);
 
-	dbg("%s", __func__);
+	dev_dbg(&port->dev, "%s", __func__);
 
 	/* Set some sane defaults */
 	portdata->rts_state = 1;
@@ -558,8 +567,8 @@ static int sierra_open(struct tty_struct *tty,
 		if (!urb)
 			continue;
 		if (urb->dev != serial->dev) {
-			dbg("%s: dev %p != %p", __func__,
-				urb->dev, serial->dev);
+			dev_dbg(&port->dev, "%s: dev %p != %p",
+				 __func__, urb->dev, serial->dev);
 			continue;
 		}
 
@@ -598,7 +607,7 @@ static void sierra_close(struct tty_struct *tty,
 	struct usb_serial *serial = port->serial;
 	struct sierra_port_private *portdata;
 
-	dbg("%s", __func__);
+	dev_dbg(&port->dev, "%s", __func__);
 	portdata = usb_get_serial_port_data(port);
 
 	portdata->rts_state = 0;
@@ -616,8 +625,7 @@ static void sierra_close(struct tty_struct *tty,
 	}
 
 	usb_kill_urb(port->interrupt_in_urb);
-
-	port->port.tty = NULL;	/* FIXME */
+	tty_port_tty_set(&port->port, NULL);
 }
 
 static int sierra_startup(struct usb_serial *serial)
@@ -628,7 +636,7 @@ static int sierra_startup(struct usb_serial *serial)
 	int i;
 	int j;
 
-	dbg("%s", __func__);
+	dev_dbg(&serial->dev->dev, "%s", __func__);
 
 	/* Set Device mode to D0 */
 	sierra_set_power_state(serial->dev, 0x0000);
@@ -642,8 +650,9 @@ static int sierra_startup(struct usb_serial *serial)
 		port = serial->port[i];
 		portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
 		if (!portdata) {
-			dbg("%s: kmalloc for sierra_port_private (%d) failed!.",
-					__func__, i);
+			dev_dbg(&port->dev, "%s: kmalloc for "
+				"sierra_port_private (%d) failed!.",
+				__func__, i);
 			return -ENOMEM;
 		}
 		spin_lock_init(&portdata->lock);
@@ -663,8 +672,8 @@ static int sierra_startup(struct usb_serial *serial)
 		for (j = 0; j < N_IN_URB; ++j) {
 			urb = usb_alloc_urb(0, GFP_KERNEL);
 			if (urb == NULL) {
-				dbg("%s: alloc for in port failed.",
-				    __func__);
+				dev_dbg(&port->dev, "%s: alloc for in "
+					"port failed.", __func__);
 				continue;
 			}
 			/* Fill URB using supplied data. */
@@ -686,7 +695,7 @@ static void sierra_shutdown(struct usb_serial *serial)
 	struct usb_serial_port *port;
 	struct sierra_port_private *portdata;
 
-	dbg("%s", __func__);
+	dev_dbg(&serial->dev->dev, "%s", __func__);
 
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
@@ -741,7 +750,8 @@ static int __init sierra_init(void)
 	if (retval)
 		goto failed_driver_register;
 
-	info(DRIVER_DESC ": " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	return 0;
 

@@ -11,13 +11,14 @@
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/mm.h>
+#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/kprobes.h>
+#include <linux/uaccess.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
 
 #include "fault.h"
 
@@ -72,9 +73,8 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		}
 
 		pmd = pmd_offset(pgd, addr);
-#if PTRS_PER_PMD != 1
-		printk(", *pmd=%08lx", pmd_val(*pmd));
-#endif
+		if (PTRS_PER_PMD != 1)
+			printk(", *pmd=%08lx", pmd_val(*pmd));
 
 		if (pmd_none(*pmd))
 			break;

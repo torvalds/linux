@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/seq_file.h>
 #include <linux/console.h>
 #include <linux/init.h>
 
@@ -31,16 +32,9 @@ void sun3_leds(unsigned int i)
 
 }
 
-static int sun3x_get_hardware_list(char *buffer)
+static void sun3x_get_hardware_list(struct seq_file *m)
 {
-
-	int len = 0;
-
-	len += sprintf(buffer + len, "PROM Revision:\t%s\n",
-		       romvec->pv_monid);
-
-	return len;
-
+	seq_printf(m, "PROM Revision:\t%s\n", romvec->pv_monid);
 }
 
 /*

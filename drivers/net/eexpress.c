@@ -8,7 +8,7 @@
  *
  * Many modifications, and currently maintained, by
  *  Philip Blundell <philb@gnu.org>
- * Added the Compaq LTE  Alan Cox <alan@redhat.com>
+ * Added the Compaq LTE  Alan Cox <alan@lxorguk.ukuu.org.uk>
  * Added MCA support Adam Fritzler
  *
  * Note - this driver is experimental still - it has problems on faster

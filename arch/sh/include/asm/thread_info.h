@@ -33,20 +33,12 @@ struct thread_info {
 #define PREEMPT_ACTIVE		0x10000000
 
 #if defined(CONFIG_4KSTACKS)
-#define THREAD_SIZE_ORDER	(0)
-#elif defined(CONFIG_PAGE_SIZE_4KB)
-#define THREAD_SIZE_ORDER	(1)
-#elif defined(CONFIG_PAGE_SIZE_8KB)
-#define THREAD_SIZE_ORDER	(1)
-#elif defined(CONFIG_PAGE_SIZE_16KB)
-#define THREAD_SIZE_ORDER	(0)
-#elif defined(CONFIG_PAGE_SIZE_64KB)
-#define THREAD_SIZE_ORDER	(0)
+#define THREAD_SHIFT	12
 #else
-#error "Unknown thread size"
+#define THREAD_SHIFT	13
 #endif
 
-#define THREAD_SIZE	(PAGE_SIZE << THREAD_SIZE_ORDER)
+#define THREAD_SIZE	(1 << THREAD_SHIFT)
 #define STACK_WARN	(THREAD_SIZE >> 3)
 
 /*
@@ -94,15 +86,19 @@ static inline struct thread_info *current_thread_info(void)
 	return ti;
 }
 
+/* thread information allocation */
+#if THREAD_SHIFT >= PAGE_SHIFT
+
+#define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
+
+#else /* THREAD_SHIFT < PAGE_SHIFT */
+
 #define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 
-/* thread information allocation */
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(ti)	kzalloc(THREAD_SIZE, GFP_KERNEL)
-#else
-#define alloc_thread_info(ti)	kmalloc(THREAD_SIZE, GFP_KERNEL)
-#endif
-#define free_thread_info(ti)	kfree(ti)
+extern struct thread_info *alloc_thread_info(struct task_struct *tsk);
+extern void free_thread_info(struct thread_info *ti);
+ 
+#endif /* THREAD_SHIFT < PAGE_SHIFT */
 
 #endif /* __ASSEMBLY__ */
 

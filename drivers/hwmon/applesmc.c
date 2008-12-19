@@ -49,6 +49,9 @@
 
 #define APPLESMC_MAX_DATA_LENGTH 32
 
+#define APPLESMC_MIN_WAIT	0x0040
+#define APPLESMC_MAX_WAIT	0x8000
+
 #define APPLESMC_STATUS_MASK	0x0f
 #define APPLESMC_READ_CMD	0x10
 #define APPLESMC_WRITE_CMD	0x11
@@ -57,8 +60,8 @@
 
 #define KEY_COUNT_KEY		"#KEY" /* r-o ui32 */
 
-#define LIGHT_SENSOR_LEFT_KEY	"ALV0" /* r-o {alv (6 bytes) */
-#define LIGHT_SENSOR_RIGHT_KEY	"ALV1" /* r-o {alv (6 bytes) */
+#define LIGHT_SENSOR_LEFT_KEY	"ALV0" /* r-o {alv (6-10 bytes) */
+#define LIGHT_SENSOR_RIGHT_KEY	"ALV1" /* r-o {alv (6-10 bytes) */
 #define BACKLIGHT_KEY		"LKSB" /* w-o {lkb (2 bytes) */
 
 #define CLAMSHELL_KEY		"MSLD" /* r-o ui8 (unused) */
@@ -104,6 +107,30 @@ static const char* temperature_sensors_sets[][36] = {
 /* Set 6: Macbook3 set */
 	{ "TB0T", "TC0D", "TC0P", "TM0P", "TN0P", "TTF0", "TW0P", "Th0H",
 	  "Th0S", "Th1H", NULL },
+/* Set 7: Macbook Air */
+	{ "TB0T", "TB1S", "TB1T", "TB2S", "TB2T", "TC0D", "TC0P", "TCFP",
+	  "TTF0", "TW0P", "Th0H", "Tp0P", "TpFP", "Ts0P", "Ts0S", NULL },
+/* Set 8: Macbook Pro 4,1 (Penryn) */
+	{ "TB0T", "TC0D", "TC0P", "TG0D", "TG0H", "TTF0", "TW0P", "Th0H",
+	  "Th1H", "Th2H", "Tm0P", "Ts0P", NULL },
+/* Set 9: Macbook Pro 3,1 (Santa Rosa) */
+	{ "TALP", "TB0T", "TC0D", "TC0P", "TG0D", "TG0H", "TTF0", "TW0P",
+	  "Th0H", "Th1H", "Th2H", "Tm0P", "Ts0P", NULL },
+/* Set 10: iMac 5,1 */
+	{ "TA0P", "TC0D", "TC0P", "TG0D", "TH0P", "TO0P", "Tm0P", NULL },
+/* Set 11: Macbook 5,1 */
+	{ "TB0T", "TB1T", "TB2T", "TB3T", "TC0D", "TC0P", "TN0D", "TN0P",
+	  "TTF0", "Th0H", "Th1H", "ThFH", "Ts0P", "Ts0S", NULL },
+/* Set 12: Macbook Pro 5,1 */
+	{ "TB0T", "TB1T", "TB2T", "TB3T", "TC0D", "TC0F", "TC0P", "TG0D",
+	  "TG0F", "TG0H", "TG0P", "TG0T", "TG1H", "TN0D", "TN0P", "TTF0",
+	  "Th2H", "Tm0P", "Ts0P", "Ts0S", NULL },
+/* Set 13: iMac 8,1 */
+	{ "TA0P", "TC0D", "TC0H", "TC0P", "TG0D", "TG0H", "TG0P", "TH0P",
+	  "TL0P", "TO0P", "TW0P", "Tm0P", "Tp0P", NULL },
+/* Set 14: iMac 6,1 */
+	{ "TA0P", "TC0D", "TC0H", "TC0P", "TG0D", "TG0H", "TG0P", "TH0P",
+	  "TO0P", "Tp0P", NULL },
 };
 
 /* List of keys used to read/write fan speeds */
@@ -163,30 +190,49 @@ static unsigned int key_at_index;
 static struct workqueue_struct *applesmc_led_wq;
 
 /*
- * __wait_status - Wait up to 2ms for the status port to get a certain value
+ * __wait_status - Wait up to 32ms for the status port to get a certain value
  * (masked with 0x0f), returning zero if the value is obtained.  Callers must
  * hold applesmc_lock.
  */
 static int __wait_status(u8 val)
 {
-	unsigned int i;
+	int us;
 
 	val = val & APPLESMC_STATUS_MASK;
 
-	for (i = 0; i < 200; i++) {
+	for (us = APPLESMC_MIN_WAIT; us < APPLESMC_MAX_WAIT; us <<= 1) {
+		udelay(us);
 		if ((inb(APPLESMC_CMD_PORT) & APPLESMC_STATUS_MASK) == val) {
 			if (debug)
 				printk(KERN_DEBUG
-						"Waited %d us for status %x\n",
-						i*10, val);
+					"Waited %d us for status %x\n",
+					2 * us - APPLESMC_MIN_WAIT, val);
 			return 0;
 		}
-		udelay(10);
 	}
 
 	printk(KERN_WARNING "applesmc: wait status failed: %x != %x\n",
 						val, inb(APPLESMC_CMD_PORT));
 
+	return -EIO;
+}
+
+/*
+ * special treatment of command port - on newer macbooks, it seems necessary
+ * to resend the command byte before polling the status again. Callers must
+ * hold applesmc_lock.
+ */
+static int send_command(u8 cmd)
+{
+	int us;
+	for (us = APPLESMC_MIN_WAIT; us < APPLESMC_MAX_WAIT; us <<= 1) {
+		outb(cmd, APPLESMC_CMD_PORT);
+		udelay(us);
+		if ((inb(APPLESMC_CMD_PORT) & APPLESMC_STATUS_MASK) == 0x0c)
+			return 0;
+	}
+	printk(KERN_WARNING "applesmc: command failed: %x -> %x\n",
+		cmd, inb(APPLESMC_CMD_PORT));
 	return -EIO;
 }
 
@@ -205,8 +251,7 @@ static int applesmc_read_key(const char* key, u8* buffer, u8 len)
 		return -EINVAL;
 	}
 
-	outb(APPLESMC_READ_CMD, APPLESMC_CMD_PORT);
-	if (__wait_status(0x0c))
+	if (send_command(APPLESMC_READ_CMD))
 		return -EIO;
 
 	for (i = 0; i < 4; i++) {
@@ -249,8 +294,7 @@ static int applesmc_write_key(const char* key, u8* buffer, u8 len)
 		return -EINVAL;
 	}
 
-	outb(APPLESMC_WRITE_CMD, APPLESMC_CMD_PORT);
-	if (__wait_status(0x0c))
+	if (send_command(APPLESMC_WRITE_CMD))
 		return -EIO;
 
 	for (i = 0; i < 4; i++) {
@@ -284,8 +328,7 @@ static int applesmc_get_key_at_index(int index, char* key)
 	readkey[2] = index >> 8;
 	readkey[3] = index;
 
-	outb(APPLESMC_GET_KEY_BY_INDEX_CMD, APPLESMC_CMD_PORT);
-	if (__wait_status(0x0c))
+	if (send_command(APPLESMC_GET_KEY_BY_INDEX_CMD))
 		return -EIO;
 
 	for (i = 0; i < 4; i++) {
@@ -315,8 +358,7 @@ static int applesmc_get_key_type(char* key, char* type)
 {
 	int i;
 
-	outb(APPLESMC_GET_KEY_TYPE_CMD, APPLESMC_CMD_PORT);
-	if (__wait_status(0x0c))
+	if (send_command(APPLESMC_GET_KEY_TYPE_CMD))
 		return -EIO;
 
 	for (i = 0; i < 4; i++) {
@@ -325,7 +367,7 @@ static int applesmc_get_key_type(char* key, char* type)
 			return -EIO;
 	}
 
-	outb(5, APPLESMC_DATA_PORT);
+	outb(6, APPLESMC_DATA_PORT);
 
 	for (i = 0; i < 6; i++) {
 		if (__wait_status(0x05))
@@ -527,17 +569,27 @@ out:
 static ssize_t applesmc_light_show(struct device *dev,
 				struct device_attribute *attr, char *sysfsbuf)
 {
+	static int data_length;
 	int ret;
 	u8 left = 0, right = 0;
-	u8 buffer[6];
+	u8 buffer[10], query[6];
 
 	mutex_lock(&applesmc_lock);
 
-	ret = applesmc_read_key(LIGHT_SENSOR_LEFT_KEY, buffer, 6);
+	if (!data_length) {
+		ret = applesmc_get_key_type(LIGHT_SENSOR_LEFT_KEY, query);
+		if (ret)
+			goto out;
+		data_length = clamp_val(query[0], 0, 10);
+		printk(KERN_INFO "applesmc: light sensor data length set to "
+			"%d\n", data_length);
+	}
+
+	ret = applesmc_read_key(LIGHT_SENSOR_LEFT_KEY, buffer, data_length);
 	left = buffer[2];
 	if (ret)
 		goto out;
-	ret = applesmc_read_key(LIGHT_SENSOR_RIGHT_KEY, buffer, 6);
+	ret = applesmc_read_key(LIGHT_SENSOR_RIGHT_KEY, buffer, data_length);
 	right = buffer[2];
 
 out:
@@ -1231,41 +1283,97 @@ static __initdata struct dmi_match_data applesmc_dmi_data[] = {
 	{ .accelerometer = 0, .light = 0, .temperature_set = 4 },
 /* iMac: temperature set 5 */
 	{ .accelerometer = 0, .light = 0, .temperature_set = 5 },
-/* MacBook3: accelerometer and temperature set 6 */
+/* MacBook3, MacBook4: accelerometer and temperature set 6 */
 	{ .accelerometer = 1, .light = 0, .temperature_set = 6 },
+/* MacBook Air: accelerometer, backlight and temperature set 7 */
+	{ .accelerometer = 1, .light = 1, .temperature_set = 7 },
+/* MacBook Pro 4: accelerometer, backlight and temperature set 8 */
+	{ .accelerometer = 1, .light = 1, .temperature_set = 8 },
+/* MacBook Pro 3: accelerometer, backlight and temperature set 9 */
+	{ .accelerometer = 1, .light = 1, .temperature_set = 9 },
+/* iMac 5: light sensor only, temperature set 10 */
+	{ .accelerometer = 0, .light = 0, .temperature_set = 10 },
+/* MacBook 5: accelerometer, backlight and temperature set 11 */
+	{ .accelerometer = 1, .light = 1, .temperature_set = 11 },
+/* MacBook Pro 5: accelerometer, backlight and temperature set 12 */
+	{ .accelerometer = 1, .light = 1, .temperature_set = 12 },
+/* iMac 8: light sensor only, temperature set 13 */
+	{ .accelerometer = 0, .light = 0, .temperature_set = 13 },
+/* iMac 6: light sensor only, temperature set 14 */
+	{ .accelerometer = 0, .light = 0, .temperature_set = 14 },
 };
 
 /* Note that DMI_MATCH(...,"MacBook") will match "MacBookPro1,1".
  * So we need to put "Apple MacBook Pro" before "Apple MacBook". */
 static __initdata struct dmi_system_id applesmc_whitelist[] = {
+	{ applesmc_dmi_match, "Apple MacBook Air", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir") },
+		&applesmc_dmi_data[7]},
+	{ applesmc_dmi_match, "Apple MacBook Pro 5", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5") },
+		&applesmc_dmi_data[12]},
+	{ applesmc_dmi_match, "Apple MacBook Pro 4", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro4") },
+		&applesmc_dmi_data[8]},
+	{ applesmc_dmi_match, "Apple MacBook Pro 3", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro3") },
+		&applesmc_dmi_data[9]},
 	{ applesmc_dmi_match, "Apple MacBook Pro", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBookPro") },
-		(void*)&applesmc_dmi_data[0]},
+		&applesmc_dmi_data[0]},
 	{ applesmc_dmi_match, "Apple MacBook (v2)", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook2") },
-		(void*)&applesmc_dmi_data[1]},
+		&applesmc_dmi_data[1]},
 	{ applesmc_dmi_match, "Apple MacBook (v3)", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook3") },
-		(void*)&applesmc_dmi_data[6]},
+		&applesmc_dmi_data[6]},
+	{ applesmc_dmi_match, "Apple MacBook 4", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBook4") },
+		&applesmc_dmi_data[6]},
+	{ applesmc_dmi_match, "Apple MacBook 5", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBook5") },
+		&applesmc_dmi_data[11]},
 	{ applesmc_dmi_match, "Apple MacBook", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook") },
-		(void*)&applesmc_dmi_data[2]},
+		&applesmc_dmi_data[2]},
 	{ applesmc_dmi_match, "Apple Macmini", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"Macmini") },
-		(void*)&applesmc_dmi_data[3]},
+		&applesmc_dmi_data[3]},
 	{ applesmc_dmi_match, "Apple MacPro2", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacPro2") },
-		(void*)&applesmc_dmi_data[4]},
+		&applesmc_dmi_data[4]},
+	{ applesmc_dmi_match, "Apple MacPro", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacPro") },
+		&applesmc_dmi_data[4]},
+	{ applesmc_dmi_match, "Apple iMac 8", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "iMac8") },
+		&applesmc_dmi_data[13]},
+	{ applesmc_dmi_match, "Apple iMac 6", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "iMac6") },
+		&applesmc_dmi_data[14]},
+	{ applesmc_dmi_match, "Apple iMac 5", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "iMac5") },
+		&applesmc_dmi_data[10]},
 	{ applesmc_dmi_match, "Apple iMac", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"iMac") },
-		(void*)&applesmc_dmi_data[5]},
+		&applesmc_dmi_data[5]},
 	{ .ident = NULL }
 };
 
@@ -1456,3 +1564,4 @@ module_exit(applesmc_exit);
 MODULE_AUTHOR("Nicolas Boichat");
 MODULE_DESCRIPTION("Apple SMC");
 MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(dmi, applesmc_whitelist);

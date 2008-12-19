@@ -1,7 +1,7 @@
 /*
  * NET4:	Implementation of BSD Unix domain sockets.
  *
- * Authors:	Alan Cox, <alan.cox@linux.org>
+ * Authors:	Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -711,28 +711,30 @@ static struct sock *unix_find_other(struct net *net,
 				    int type, unsigned hash, int *error)
 {
 	struct sock *u;
-	struct nameidata nd;
+	struct path path;
 	int err = 0;
 
 	if (sunname->sun_path[0]) {
-		err = path_lookup(sunname->sun_path, LOOKUP_FOLLOW, &nd);
+		struct inode *inode;
+		err = kern_path(sunname->sun_path, LOOKUP_FOLLOW, &path);
 		if (err)
 			goto fail;
-		err = vfs_permission(&nd, MAY_WRITE);
+		inode = path.dentry->d_inode;
+		err = inode_permission(inode, MAY_WRITE);
 		if (err)
 			goto put_fail;
 
 		err = -ECONNREFUSED;
-		if (!S_ISSOCK(nd.path.dentry->d_inode->i_mode))
+		if (!S_ISSOCK(inode->i_mode))
 			goto put_fail;
-		u = unix_find_socket_byinode(net, nd.path.dentry->d_inode);
+		u = unix_find_socket_byinode(net, inode);
 		if (!u)
 			goto put_fail;
 
 		if (u->sk_type == type)
-			touch_atime(nd.path.mnt, nd.path.dentry);
+			touch_atime(path.mnt, path.dentry);
 
-		path_put(&nd.path);
+		path_put(&path);
 
 		err=-EPROTOTYPE;
 		if (u->sk_type != type) {
@@ -753,7 +755,7 @@ static struct sock *unix_find_other(struct net *net,
 	return u;
 
 put_fail:
-	path_put(&nd.path);
+	path_put(&path);
 fail:
 	*error=err;
 	return NULL;
@@ -1300,14 +1302,23 @@ static void unix_destruct_fds(struct sk_buff *skb)
 	sock_wfree(skb);
 }
 
-static void unix_attach_fds(struct scm_cookie *scm, struct sk_buff *skb)
+static int unix_attach_fds(struct scm_cookie *scm, struct sk_buff *skb)
 {
 	int i;
+
+	/*
+	 * Need to duplicate file references for the sake of garbage
+	 * collection.  Otherwise a socket in the fps might become a
+	 * candidate for GC while the skb is not yet queued.
+	 */
+	UNIXCB(skb).fp = scm_fp_dup(scm->fp);
+	if (!UNIXCB(skb).fp)
+		return -ENOMEM;
+
 	for (i=scm->fp->count-1; i>=0; i--)
 		unix_inflight(scm->fp->fp[i]);
-	UNIXCB(skb).fp = scm->fp;
 	skb->destructor = unix_destruct_fds;
-	scm->fp = NULL;
+	return 0;
 }
 
 /*
@@ -1332,6 +1343,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
+	wait_for_unix_gc();
 	err = scm_send(sock, msg, siocb->scm);
 	if (err < 0)
 		return err;
@@ -1366,8 +1378,11 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto out;
 
 	memcpy(UNIXCREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
-	if (siocb->scm->fp)
-		unix_attach_fds(siocb->scm, skb);
+	if (siocb->scm->fp) {
+		err = unix_attach_fds(siocb->scm, skb);
+		if (err)
+			goto out_free;
+	}
 	unix_get_secdata(siocb->scm, skb);
 
 	skb_reset_transport_header(skb);
@@ -1479,6 +1494,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
+	wait_for_unix_gc();
 	err = scm_send(sock, msg, siocb->scm);
 	if (err < 0)
 		return err;
@@ -1536,8 +1552,13 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		size = min_t(int, size, skb_tailroom(skb));
 
 		memcpy(UNIXCREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
-		if (siocb->scm->fp)
-			unix_attach_fds(siocb->scm, skb);
+		if (siocb->scm->fp) {
+			err = unix_attach_fds(siocb->scm, skb);
+			if (err) {
+				kfree_skb(skb);
+				goto out_err;
+			}
+		}
 
 		if ((err = memcpy_fromiovec(skb_put(skb,size), msg->msg_iov, size)) != 0) {
 			kfree_skb(skb);
@@ -2211,7 +2232,7 @@ static int unix_net_init(struct net *net)
 #endif
 	error = 0;
 out:
-	return 0;
+	return error;
 }
 
 static void unix_net_exit(struct net *net)

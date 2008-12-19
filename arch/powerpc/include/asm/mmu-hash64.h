@@ -280,7 +280,6 @@ extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long prot,
 			     int psize, int ssize);
-extern void set_huge_psize(int psize);
 extern void add_gpage(unsigned long addr, unsigned long page_size,
 			  unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
@@ -437,7 +436,7 @@ typedef struct {
 	})
 #endif /* 1 */
 
-/* This is only valid for addresses >= KERNELBASE */
+/* This is only valid for addresses >= PAGE_OFFSET */
 static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 {
 	if (ssize == MMU_SEGSIZE_256M)

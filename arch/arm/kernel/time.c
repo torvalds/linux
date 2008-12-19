@@ -59,7 +59,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 
 	if (in_lock_functions(pc)) {
 		fp = regs->ARM_fp;
-		pc = pc_pointer(((unsigned long *)fp)[-1]);
+		pc = ((unsigned long *)fp)[-1];
 	}
 
 	return pc;

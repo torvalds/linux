@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <asm/r7780rp.h>
+#include <mach/highlander.h>
 
 enum {
 	UNUSED = 0,

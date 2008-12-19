@@ -18,8 +18,7 @@ struct pxa2xx_udc_mach_info {
 	/* Boards following the design guidelines in the developer's manual,
 	 * with on-chip GPIOs not Lubbock's weird hardware, can have a sane
 	 * VBUS IRQ and omit the methods above.  Store the GPIO number
-	 * here; for GPIO 0, also mask in one of the pxa_gpio_mode() bits.
-	 * Note that sometimes the signals go through inverters...
+	 * here.  Note that sometimes the signals go through inverters...
 	 */
 	bool	gpio_vbus_inverted;
 	u16	gpio_vbus;			/* high == vbus present */

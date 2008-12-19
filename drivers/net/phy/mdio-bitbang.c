@@ -165,7 +165,7 @@ struct mii_bus *alloc_mdio_bitbang(struct mdiobb_ctrl *ctrl)
 {
 	struct mii_bus *bus;
 
-	bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
+	bus = mdiobus_alloc();
 	if (!bus)
 		return NULL;
 
@@ -184,7 +184,7 @@ void free_mdio_bitbang(struct mii_bus *bus)
 	struct mdiobb_ctrl *ctrl = bus->priv;
 
 	module_put(ctrl->ops->owner);
-	kfree(bus);
+	mdiobus_free(bus);
 }
 EXPORT_SYMBOL(free_mdio_bitbang);
 

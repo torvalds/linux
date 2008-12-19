@@ -25,6 +25,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -32,7 +33,6 @@
 
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 
 #include <mach/regs-gpio.h>
@@ -40,9 +40,9 @@
 
 #include <asm/plat-s3c/nand.h>
 
-#include <asm/plat-s3c24xx/common-smdk.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/common-smdk.h>
+#include <plat/devs.h>
+#include <plat/pm.h>
 
 /* LED devices */
 

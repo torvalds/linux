@@ -39,6 +39,7 @@ struct clk {
 
 /* Should be defined by processor-specific code */
 void arch_init_clk_ops(struct clk_ops **, int type);
+int __init arch_clk_init(void);
 
 /* arch/sh/kernel/cpu/clock.c */
 int clk_init(void);

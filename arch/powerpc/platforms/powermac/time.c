@@ -93,11 +93,14 @@ static void to_rtc_time(unsigned long now, struct rtc_time *tm)
 }
 #endif
 
+#if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU) || \
+    defined(CONFIG_PMAC_SMU)
 static unsigned long from_rtc_time(struct rtc_time *tm)
 {
 	return mktime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
 		      tm->tm_hour, tm->tm_min, tm->tm_sec);
 }
+#endif
 
 #ifdef CONFIG_ADB_CUDA
 static unsigned long cuda_get_time(void)

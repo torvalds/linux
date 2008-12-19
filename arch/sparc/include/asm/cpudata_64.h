@@ -86,7 +86,6 @@ extern struct trap_per_cpu trap_block[NR_CPUS];
 extern void init_cur_cpu_trap(struct thread_info *);
 extern void setup_tba(void);
 extern int ncpus_probed;
-extern void __init cpu_probe(void);
 extern const struct seq_operations cpuinfo_op;
 
 extern unsigned long real_hard_smp_processor_id(void);

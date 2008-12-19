@@ -276,6 +276,7 @@ static int ipw_write_room(struct tty_struct *linux_tty)
 	struct ipw_tty *tty = linux_tty->driver_data;
 	int room;
 
+	/* FIXME: Exactly how is the tty object locked here .. */
 	if (!tty)
 		return -ENODEV;
 
@@ -397,6 +398,7 @@ static int set_control_lines(struct ipw_tty *tty, unsigned int set,
 static int ipw_tiocmget(struct tty_struct *linux_tty, struct file *file)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
+	/* FIXME: Exactly how is the tty object locked here .. */
 
 	if (!tty)
 		return -ENODEV;
@@ -412,6 +414,7 @@ ipw_tiocmset(struct tty_struct *linux_tty, struct file *file,
 	     unsigned int set, unsigned int clear)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
+	/* FIXME: Exactly how is the tty object locked here .. */
 
 	if (!tty)
 		return -ENODEV;
@@ -432,6 +435,8 @@ static int ipw_ioctl(struct tty_struct *linux_tty, struct file *file,
 
 	if (!tty->open_count)
 		return -EINVAL;
+
+	/* FIXME: Exactly how is the tty object locked here .. */
 
 	switch (cmd) {
 	case TIOCGSERIAL:
@@ -467,13 +472,6 @@ static int ipw_ioctl(struct tty_struct *linux_tty, struct file *file,
 			}
 			return 0;
 
-		case TCGETS:
-		case TCGETA:
-			return n_tty_ioctl(linux_tty, file, cmd, arg);
-
-		case TCFLSH:
-			return n_tty_ioctl(linux_tty, file, cmd, arg);
-
 		case FIONREAD:
 			{
 				int val = 0;
@@ -482,10 +480,11 @@ static int ipw_ioctl(struct tty_struct *linux_tty, struct file *file,
 					return -EFAULT;
 			}
 			return 0;
+		case TCFLSH:
+			return tty_perform_flush(linux_tty, arg);
 		}
 	}
-
-	return -ENOIOCTLCMD;
+	return tty_mode_ioctl(linux_tty, file, cmd , arg);
 }
 
 static int add_tty(dev_node_t *nodesp, int j,
@@ -588,6 +587,8 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 				tty_hangup(ttyj->linux_tty);
 				/* Wait till the tty_hangup has completed */
 				flush_scheduled_work();
+				/* FIXME: Exactly how is the tty object locked here
+				   against a parallel ioctl etc */
 				mutex_lock(&ttyj->ipw_tty_mutex);
 			}
 			while (ttyj->open_count)

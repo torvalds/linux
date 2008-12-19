@@ -1808,9 +1808,7 @@ static inline u32 jedec_read_mfr(struct map_info *map, uint32_t base,
 	 * several first banks can contain 0x7f instead of actual ID
 	 */
 	do {
-		uint32_t ofs = cfi_build_cmd_addr(0 + (bank << 8),
-						  cfi_interleave(cfi),
-						  cfi->device_type);
+		uint32_t ofs = cfi_build_cmd_addr(0 + (bank << 8), map, cfi);
 		mask = (1 << (cfi->device_type * 8)) - 1;
 		result = map_read(map, base + ofs);
 		bank++;
@@ -1824,7 +1822,7 @@ static inline u32 jedec_read_id(struct map_info *map, uint32_t base,
 {
 	map_word result;
 	unsigned long mask;
-	u32 ofs = cfi_build_cmd_addr(1, cfi_interleave(cfi), cfi->device_type);
+	u32 ofs = cfi_build_cmd_addr(1, map, cfi);
 	mask = (1 << (cfi->device_type * 8)) -1;
 	result = map_read(map, base + ofs);
 	return result.x[0] & mask;
@@ -2067,8 +2065,8 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 
 	}
 	/* Ensure the unlock addresses we try stay inside the map */
-	probe_offset1 = cfi_build_cmd_addr(cfi->addr_unlock1, cfi_interleave(cfi), cfi->device_type);
-	probe_offset2 = cfi_build_cmd_addr(cfi->addr_unlock2, cfi_interleave(cfi), cfi->device_type);
+	probe_offset1 = cfi_build_cmd_addr(cfi->addr_unlock1, map, cfi);
+	probe_offset2 = cfi_build_cmd_addr(cfi->addr_unlock2, map, cfi);
 	if (	((base + probe_offset1 + map_bankwidth(map)) >= map->size) ||
 		((base + probe_offset2 + map_bankwidth(map)) >= map->size))
 		goto retry;

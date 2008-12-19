@@ -45,18 +45,6 @@ static irqreturn_t pl031_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int pl031_open(struct device *dev)
-{
-	/*
-	 * We request IRQ in pl031_probe, so nothing to do here...
-	 */
-	return 0;
-}
-
-static void pl031_release(struct device *dev)
-{
-}
-
 static int pl031_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	struct pl031_local *ldata = dev_get_drvdata(dev);
@@ -118,8 +106,6 @@ static int pl031_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 }
 
 static const struct rtc_class_ops pl031_ops = {
-	.open = pl031_open,
-	.release = pl031_release,
 	.ioctl = pl031_ioctl,
 	.read_time = pl031_read_time,
 	.set_time = pl031_set_time,

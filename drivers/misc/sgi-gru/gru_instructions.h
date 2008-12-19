@@ -26,7 +26,7 @@
  * Architecture dependent functions
  */
 
-#if defined CONFIG_IA64
+#if defined(CONFIG_IA64)
 #include <linux/compiler.h>
 #include <asm/intrinsics.h>
 #define __flush_cache(p)		ia64_fc(p)
@@ -36,7 +36,7 @@
 			barrier();					\
 			*((volatile int *)(p)) = v; /* force st.rel */	\
 		} while (0)
-#elif defined CONFIG_X86_64
+#elif defined(CONFIG_X86_64)
 #define __flush_cache(p)		clflush(p)
 #define gru_ordered_store_int(p,v)					\
 		do {							\
@@ -299,6 +299,7 @@ static inline void gru_flush_cache(void *p)
 static inline void gru_start_instruction(struct gru_instruction *ins, int op32)
 {
 	gru_ordered_store_int(ins, op32);
+	gru_flush_cache(ins);
 }
 
 
@@ -604,8 +605,9 @@ static inline int gru_get_cb_substatus(void *cb)
 static inline int gru_check_status(void *cb)
 {
 	struct gru_control_block_status *cbs = (void *)cb;
-	int ret = cbs->istatus;
+	int ret;
 
+	ret = cbs->istatus;
 	if (ret == CBS_CALL_OS)
 		ret = gru_check_status_proc(cb);
 	return ret;
@@ -617,7 +619,7 @@ static inline int gru_check_status(void *cb)
 static inline int gru_wait(void *cb)
 {
 	struct gru_control_block_status *cbs = (void *)cb;
-	int ret = cbs->istatus;;
+	int ret = cbs->istatus;
 
 	if (ret != CBS_IDLE)
 		ret = gru_wait_proc(cb);

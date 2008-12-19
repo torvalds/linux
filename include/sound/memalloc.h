@@ -37,7 +37,6 @@ struct snd_dma_device {
 #ifndef snd_dma_pci_data
 #define snd_dma_pci_data(pci)	(&(pci)->dev)
 #define snd_dma_isa_data()	NULL
-#define snd_dma_sbus_data(sbus)	((struct device *)(sbus))
 #define snd_dma_continuous_data(x)	((struct device *)(unsigned long)(x))
 #endif
 
@@ -49,7 +48,6 @@ struct snd_dma_device {
 #define SNDRV_DMA_TYPE_CONTINUOUS	1	/* continuous no-DMA memory */
 #define SNDRV_DMA_TYPE_DEV		2	/* generic device continuous */
 #define SNDRV_DMA_TYPE_DEV_SG		3	/* generic device SG-buffer */
-#define SNDRV_DMA_TYPE_SBUS		4	/* SBUS continuous */
 
 /*
  * info for buffer allocation

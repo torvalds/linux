@@ -18,7 +18,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -36,7 +35,6 @@
 
 #include "wm8580.h"
 
-#define AUDIO_NAME "wm8580"
 #define WM8580_VERSION "0.1"
 
 struct pll_state {

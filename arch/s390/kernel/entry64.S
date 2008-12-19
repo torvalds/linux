@@ -46,34 +46,37 @@ SP_R14	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 112
 SP_R15	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 120
 SP_ORIG_R2   =	STACK_FRAME_OVERHEAD + __PT_ORIG_GPR2
 SP_ILC	     =	STACK_FRAME_OVERHEAD + __PT_ILC
-SP_TRAP      =	STACK_FRAME_OVERHEAD + __PT_TRAP
+SP_SVCNR      =	STACK_FRAME_OVERHEAD + __PT_SVCNR
 SP_SIZE      =	STACK_FRAME_OVERHEAD + __PT_SIZE
 
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
 
-_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
+_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING | _TIF_RESTART_SVC | _TIF_SINGLE_STEP )
-_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
+_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING)
 
 #define BASED(name) name-system_call(%r13)
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.macro	TRACE_IRQS_ON
-	 brasl	%r14,trace_hardirqs_on
+	 basr	%r2,%r0
+	 brasl	%r14,trace_hardirqs_on_caller
 	.endm
 
 	.macro	TRACE_IRQS_OFF
-	 brasl	%r14,trace_hardirqs_off
+	 basr	%r2,%r0
+	 brasl	%r14,trace_hardirqs_off_caller
 	.endm
 
 	.macro TRACE_IRQS_CHECK
+	basr	%r2,%r0
 	tm	SP_PSW(%r15),0x03	# irqs enabled?
 	jz	0f
-	brasl	%r14,trace_hardirqs_on
+	brasl	%r14,trace_hardirqs_on_caller
 	j	1f
-0:	brasl	%r14,trace_hardirqs_off
+0:	brasl	%r14,trace_hardirqs_off_caller
 1:
 	.endm
 #else
@@ -168,11 +171,10 @@ _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
 	.macro	CREATE_STACK_FRAME psworg,savearea
 	aghi	%r15,-SP_SIZE		# make room for registers & psw
 	mvc	SP_PSW(16,%r15),0(%r12)	# move user PSW to stack
-	la	%r12,\psworg
 	stg	%r2,SP_ORIG_R2(%r15)	# store original content of gpr 2
-	icm	%r12,12,__LC_SVC_ILC
+	icm	%r12,3,__LC_SVC_ILC
 	stmg	%r0,%r11,SP_R0(%r15)	# store gprs %r0-%r11 to kernel stack
-	st	%r12,SP_ILC(%r15)
+	st	%r12,SP_SVCNR(%r15)
 	mvc	SP_R12(32,%r15),\savearea # move %r12-%r15 to stack
 	la	%r12,0
 	stg	%r12,__SF_BACKCHAIN(%r15)
@@ -247,16 +249,17 @@ sysc_update:
 #endif
 sysc_do_svc:
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
-	slag	%r7,%r7,2	# *4 and test for svc 0
+	ltgr	%r7,%r7		# test for svc 0
 	jnz	sysc_nr_ok
 	# svc 0: system call number in %r1
 	cl	%r1,BASED(.Lnr_syscalls)
 	jnl	sysc_nr_ok
 	lgfr	%r7,%r1 	# clear high word in r1
-	slag	%r7,%r7,2	# svc 0: system call number in %r1
 sysc_nr_ok:
 	mvc	SP_ARGS(8,%r15),SP_R7(%r15)
 sysc_do_restart:
+	sth	%r7,SP_SVCNR(%r15)
+	sllg	%r7,%r7,2	# svc number * 4
 	larl	%r10,sys_call_table
 #ifdef CONFIG_COMPAT
 	tm	__TI_flags+5(%r9),(_TIF_31BIT>>16)  # running in 31 bit mode ?
@@ -310,6 +313,8 @@ sysc_work:
 	jo	sysc_reschedule
 	tm	__TI_flags+7(%r9),_TIF_SIGPENDING
 	jnz	sysc_sigpending
+	tm	__TI_flags+7(%r9),_TIF_NOTIFY_RESUME
+	jnz	sysc_notify_resume
 	tm	__TI_flags+7(%r9),_TIF_RESTART_SVC
 	jo	sysc_restart
 	tm	__TI_flags+7(%r9),_TIF_SINGLE_STEP
@@ -345,12 +350,19 @@ sysc_sigpending:
 	j	sysc_work_loop
 
 #
+# _TIF_NOTIFY_RESUME is set, call do_notify_resume
+#
+sysc_notify_resume:
+	la	%r2,SP_PTREGS(%r15)	# load pt_regs
+	larl	%r14,sysc_work_loop
+	jg	do_notify_resume	# call do_notify_resume
+
+#
 # _TIF_RESTART_SVC is set, set up registers and restart svc
 #
 sysc_restart:
 	ni	__TI_flags+7(%r9),255-_TIF_RESTART_SVC # clear TIF_RESTART_SVC
 	lg	%r7,SP_R2(%r15)		# load new svc number
-	slag	%r7,%r7,2		# *4
 	mvc	SP_R2(8,%r15),SP_ORIG_R2(%r15) # restore first argument
 	lmg	%r2,%r6,SP_R2(%r15)	# load svc arguments
 	j	sysc_do_restart 	# restart svc
@@ -359,28 +371,26 @@ sysc_restart:
 # _TIF_SINGLE_STEP is set, call do_single_step
 #
 sysc_singlestep:
-	ni	__TI_flags+7(%r9),255-_TIF_SINGLE_STEP # clear TIF_SINGLE_STEP
-	lhi	%r0,__LC_PGM_OLD_PSW
-	sth	%r0,SP_TRAP(%r15)	# set trap indication to pgm check
+	ni	__TI_flags+7(%r9),255-_TIF_SINGLE_STEP	# clear TIF_SINGLE_STEP
+	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)		# clear svc number
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	larl	%r14,sysc_return	# load adr. of system return
 	jg	do_single_step		# branch to do_sigtrap
 
 #
-# call syscall_trace before and after system call
-# special linkage: %r12 contains the return address for trace_svc
+# call tracehook_report_syscall_entry/tracehook_report_syscall_exit before
+# and after the system call
 #
 sysc_tracesys:
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	la	%r3,0
 	srl	%r7,2
 	stg	%r7,SP_R2(%r15)
-	brasl	%r14,syscall_trace
+	brasl	%r14,do_syscall_trace_enter
 	lghi	%r0,NR_syscalls
-	clg	%r0,SP_R2(%r15)
+	clgr	%r0,%r2
 	jnh	sysc_tracenogo
-	lg	%r7,SP_R2(%r15)		# strace might have changed the
-	sll	%r7,2			# system call
+	sllg	%r7,%r2,2		# svc number *4
 	lgf	%r8,0(%r7,%r10)
 sysc_tracego:
 	lmg	%r3,%r6,SP_R3(%r15)
@@ -391,9 +401,8 @@ sysc_tracenogo:
 	tm	__TI_flags+7(%r9),(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT)
 	jz	sysc_return
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	la	%r3,1
 	larl	%r14,sysc_return	# return point is sysc_return
-	jg	syscall_trace
+	jg	do_syscall_trace_exit
 
 #
 # a new process exits the kernel with ret_from_fork
@@ -556,8 +565,7 @@ pgm_svcper:
 # per was called from kernel, must be kprobes
 #
 kernel_per:
-	lhi	%r0,__LC_PGM_OLD_PSW
-	sth	%r0,SP_TRAP(%r15)	# set trap indication to pgm check
+	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)	# clear svc number
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	larl	%r14,sysc_restore	# load adr. of system ret, no work
 	jg	do_single_step		# branch to do_single_step
@@ -672,6 +680,8 @@ io_work_loop:
 	jo	io_reschedule
 	tm	__TI_flags+7(%r9),_TIF_SIGPENDING
 	jnz	io_sigpending
+	tm	__TI_flags+7(%r9),_TIF_NOTIFY_RESUME
+	jnz	io_notify_resume
 	j	io_restore
 io_work_done:
 
@@ -708,6 +718,18 @@ io_sigpending:
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	brasl	%r14,do_signal		# call do_signal
+	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
+	TRACE_IRQS_OFF
+	j	io_work_loop
+
+#
+# _TIF_NOTIFY_RESUME or is set, call do_notify_resume
+#
+io_notify_resume:
+	TRACE_IRQS_ON
+	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
+	la	%r2,SP_PTREGS(%r15)	# load pt_regs
+	brasl	%r14,do_notify_resume	# call do_notify_resume
 	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
 	TRACE_IRQS_OFF
 	j	io_work_loop

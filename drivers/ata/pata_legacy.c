@@ -1,6 +1,6 @@
 /*
  *   pata-legacy.c - Legacy port PATA/SATA controller driver.
- *   Copyright 2005/2006 Red Hat <alan@redhat.com>, all rights reserved.
+ *   Copyright 2005/2006 Red Hat, all rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

@@ -106,7 +106,7 @@ op_axp_stop(void)
 }
 
 static int
-op_axp_create_files(struct super_block * sb, struct dentry * root)
+op_axp_create_files(struct super_block *sb, struct dentry *root)
 {
 	int i;
 

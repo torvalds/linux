@@ -113,6 +113,8 @@ struct sparc_trapf {
 
 #ifdef __KERNEL__
 
+#include <linux/threads.h>
+
 static inline int pt_regs_trap_type(struct pt_regs *regs)
 {
 	return regs->magic & 0x1ff;
@@ -138,8 +140,7 @@ struct global_reg_snapshot {
 	struct thread_info	*thread;
 	unsigned long		pad1;
 };
-
-#define __ARCH_WANT_COMPAT_SYS_PTRACE
+extern struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
 
 #define force_successful_syscall_return()	    \
 do {	current_thread_info()->syscall_noerror = 1; \

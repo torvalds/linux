@@ -1,0 +1,35 @@
+# NGW100 customization
+
+if BOARD_ATNGW100
+
+config BOARD_ATNGW100_EVKLCD10X
+	bool "Add support for EVKLCD10X addon board"
+	help
+	  This enables support for the EVKLCD100 (QVGA) or EVKLCD101 (VGA)
+	  addon board for the NGW100. By enabling this the LCD controller and
+	  AC97 controller is added as platform devices.
+
+	  This choice disables the detect pin and the write-protect pin for the
+	  MCI platform device, since it conflicts with the LCD platform device.
+	  The MCI pins can be reenabled by editing the "add device function" but
+	  this may break the setup for other displays that use these pins.
+
+	  Choose 'Y' here if you have a EVKLCD100/101 connected to the NGW100.
+
+choice
+	prompt "LCD panel resolution on EVKLCD10X"
+	depends on BOARD_ATNGW100_EVKLCD10X
+	default BOARD_ATNGW100_EVKLCD10X_VGA
+
+config BOARD_ATNGW100_EVKLCD10X_QVGA
+	bool "QVGA (320x240)"
+
+config BOARD_ATNGW100_EVKLCD10X_VGA
+	bool "VGA (640x480)"
+
+config BOARD_ATNGW100_EVKLCD10X_POW_QVGA
+	bool "Powertip QVGA (320x240)"
+
+endchoice
+
+endif	# BOARD_ATNGW100

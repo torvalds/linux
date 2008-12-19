@@ -171,6 +171,7 @@ void intelfb_create_i2c_busses(struct intelfb_info *dinfo)
 		/* has some LVDS + tv-out */
 	case INTEL_945G:
 	case INTEL_945GM:
+	case INTEL_945GME:
 	case INTEL_965G:
 	case INTEL_965GM:
 		/* SDVO ports have a single control bus - 2 devices */

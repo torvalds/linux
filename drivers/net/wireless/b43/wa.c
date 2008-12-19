@@ -27,7 +27,7 @@
 #include "b43.h"
 #include "main.h"
 #include "tables.h"
-#include "phy.h"
+#include "phy_common.h"
 #include "wa.h"
 
 static void b43_wa_papd(struct b43_wldev *dev)

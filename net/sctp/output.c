@@ -699,7 +699,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 	 *    When a Fast Retransmit is being performed the sender SHOULD
 	 *    ignore the value of cwnd and SHOULD NOT delay retransmission.
 	 */
-	if (chunk->fast_retransmit <= 0)
+	if (chunk->fast_retransmit != SCTP_NEED_FRTX)
 		if (transport->flight_size >= transport->cwnd) {
 			retval = SCTP_XMIT_RWND_FULL;
 			goto finish;

@@ -41,7 +41,7 @@
 		Made the tunnels use dev->name not tunnel: when error reporting.
 		Added tx_dropped stat
 
-		-Alan Cox	(Alan.Cox@linux.org) 21 March 95
+		-Alan Cox	(alan@lxorguk.ukuu.org.uk) 21 March 95
 
 	Reworked:
 		Changed to tunnel to destination gateway in addition to the

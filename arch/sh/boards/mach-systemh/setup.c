@@ -16,7 +16,7 @@
  */
 #include <linux/init.h>
 #include <asm/machvec.h>
-#include <asm/systemh7751.h>
+#include <mach/systemh7751.h>
 
 extern void make_systemh_irq(unsigned int irq);
 

@@ -589,8 +589,8 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	case 1000000:
 			buf[0] = 0x0b;	break;
 	default:
-		err("spcp825 driver does not support the baudrate "
-		    "requested, using default of 9600.");
+		dev_err(&port->dev, "spcp825 driver does not support the "
+			"baudrate requested, using default of 9600.\n");
 	}
 
 	/* Set Data Length : 00:5bit, 01:6bit, 10:7bit, 11:8bit */
@@ -629,7 +629,8 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 			    SET_UART_FORMAT_TYPE, SET_UART_FORMAT,
 			    uartdata, 0, NULL, 0, 100);
 	if (i < 0)
-		err("Set UART format %#x failed (error = %d)", uartdata, i);
+		dev_err(&port->dev, "Set UART format %#x failed (error = %d)\n",
+			uartdata, i);
 	dbg("0x21:0x40:0:0  %d\n", i);
 
 	if (cflag & CRTSCTS) {
@@ -755,7 +756,7 @@ static void spcp8x5_read_bulk_callback(struct urb *urb)
 		tty_flag = TTY_FRAME;
 	dev_dbg(&port->dev, "tty_flag = %d\n", tty_flag);
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (tty && urb->actual_length) {
 		tty_buffer_request_room(tty, urb->actual_length + 1);
 		/* overrun is special, not associated with a char */
@@ -765,6 +766,7 @@ static void spcp8x5_read_bulk_callback(struct urb *urb)
 			tty_insert_flip_char(tty, data[i], tty_flag);
 		tty_flip_buffer_push(tty);
 	}
+	tty_kref_put(tty);
 
 	/* Schedule the next read _if_ we are still open */
 	if (port->port.count) {
@@ -1053,7 +1055,8 @@ static int __init spcp8x5_init(void)
 	retval = usb_register(&spcp8x5_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&spcp8x5_device);

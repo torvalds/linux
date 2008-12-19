@@ -7,6 +7,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/types.h>
 #include <linux/list.h>
 #include <linux/cpumask.h>
 
@@ -16,7 +17,8 @@ struct call_single_data {
 	struct list_head list;
 	void (*func) (void *info);
 	void *info;
-	unsigned int flags;
+	u16 flags;
+	u16 priv;
 };
 
 #ifdef CONFIG_SMP
@@ -62,8 +64,17 @@ extern void smp_cpus_done(unsigned int max_cpus);
  * Call a function on all other processors
  */
 int smp_call_function(void(*func)(void *info), void *info, int wait);
+/* Deprecated: use smp_call_function_many() which uses a cpumask ptr. */
 int smp_call_function_mask(cpumask_t mask, void(*func)(void *info), void *info,
 				int wait);
+
+static inline void smp_call_function_many(const struct cpumask *mask,
+					  void (*func)(void *info), void *info,
+					  int wait)
+{
+	smp_call_function_mask(*mask, func, info, wait);
+}
+
 int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
 				int wait);
 void __smp_call_function_single(int cpuid, struct call_single_data *data);
@@ -134,6 +145,8 @@ static inline void smp_send_reschedule(int cpu) { }
 	0;			\
 })
 #define smp_call_function_mask(mask, func, info, wait) \
+			(up_smp_call_function(func, info))
+#define smp_call_function_many(mask, func, info, wait) \
 			(up_smp_call_function(func, info))
 static inline void init_call_single_data(void)
 {

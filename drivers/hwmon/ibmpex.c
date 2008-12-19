@@ -608,3 +608,9 @@ MODULE_LICENSE("GPL");
 
 module_init(ibmpex_init);
 module_exit(ibmpex_exit);
+
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3350-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3550-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3650-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3655-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3755-*");

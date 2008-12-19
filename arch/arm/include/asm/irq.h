@@ -22,6 +22,10 @@
 #ifndef __ASSEMBLY__
 struct irqaction;
 extern void migrate_irqs(void);
+
+extern void asm_do_IRQ(unsigned int, struct pt_regs *);
+void init_IRQ(void);
+
 #endif
 
 #endif

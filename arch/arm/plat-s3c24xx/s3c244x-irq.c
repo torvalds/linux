@@ -24,19 +24,19 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <asm/mach/irq.h>
 
 #include <mach/regs-irq.h>
 #include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
-#include <asm/plat-s3c24xx/irq.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
+#include <plat/irq.h>
 
 /* camera irq */
 
@@ -44,7 +44,6 @@ static void s3c_irq_demux_cam(unsigned int irq,
 			      struct irq_desc *desc)
 {
 	unsigned int subsrc, submsk;
-	struct irq_desc *mydesc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -58,12 +57,10 @@ static void s3c_irq_demux_cam(unsigned int irq,
 
 	if (subsrc != 0) {
 		if (subsrc & 1) {
-			mydesc = irq_desc + IRQ_S3C2440_CAM_C;
-			desc_handle_irq(IRQ_S3C2440_CAM_C, mydesc);
+			generic_handle_irq(IRQ_S3C2440_CAM_C);
 		}
 		if (subsrc & 2) {
-			mydesc = irq_desc + IRQ_S3C2440_CAM_P;
-			desc_handle_irq(IRQ_S3C2440_CAM_P, mydesc);
+			generic_handle_irq(IRQ_S3C2440_CAM_P);
 		}
 	}
 }

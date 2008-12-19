@@ -477,7 +477,7 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *attr,
 	if (reg & (1 << nr))
 		return sprintf(buf, "3\n");  /* thermal diode */
 	if (reg & (8 << nr))
-		return sprintf(buf, "2\n");  /* thermistor */
+		return sprintf(buf, "4\n");  /* thermistor */
 	return sprintf(buf, "0\n");      /* disabled */
 }
 static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
@@ -493,10 +493,15 @@ static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
 
 	data->sensor &= ~(1 << nr);
 	data->sensor &= ~(8 << nr);
-	/* 3 = thermal diode; 2 = thermistor; 0 = disabled */
+	if (val == 2) {	/* backwards compatibility */
+		dev_warn(dev, "Sensor type 2 is deprecated, please use 4 "
+			 "instead\n");
+		val = 4;
+	}
+	/* 3 = thermal diode; 4 = thermistor; 0 = disabled */
 	if (val == 3)
 	    data->sensor |= 1 << nr;
-	else if (val == 2)
+	else if (val == 4)
 	    data->sensor |= 8 << nr;
 	else if (val != 0) {
 		mutex_unlock(&data->update_lock);

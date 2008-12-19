@@ -14,7 +14,7 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <mach/regs-uart.h>
 
 static void putc(char c)

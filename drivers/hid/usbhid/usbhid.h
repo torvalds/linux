@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -67,7 +68,7 @@ struct usbhid_device {
 	spinlock_t ctrllock;                                            /* Control fifo spinlock */
 
 	struct urb *urbout;                                             /* Output URB */
-	struct hid_report *out[HID_CONTROL_FIFO_SIZE];                  /* Output pipe fifo */
+	struct hid_output_fifo out[HID_CONTROL_FIFO_SIZE];              /* Output pipe fifo */
 	unsigned char outhead, outtail;                                 /* Output pipe fifo head & tail */
 	char *outbuf;                                                   /* Output buffer */
 	dma_addr_t outbuf_dma;                                          /* Output buffer dma */
@@ -82,7 +83,7 @@ struct usbhid_device {
 };
 
 #define	hid_to_usb_dev(hid_dev) \
-	container_of(hid_dev->dev->parent, struct usb_device, dev)
+	container_of(hid_dev->dev.parent->parent, struct usb_device, dev)
 
 #endif
 

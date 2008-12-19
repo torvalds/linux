@@ -115,7 +115,7 @@ int tcp_set_default_congestion_control(const char *name)
 
 	spin_lock(&tcp_cong_list_lock);
 	ca = tcp_ca_find(name);
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	if (!ca && capable(CAP_SYS_MODULE)) {
 		spin_unlock(&tcp_cong_list_lock);
 
@@ -244,7 +244,7 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	if (ca == icsk->icsk_ca_ops)
 		goto out;
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	/* not found attempt to autoload module */
 	if (!ca && capable(CAP_SYS_MODULE)) {
 		rcu_read_unlock();

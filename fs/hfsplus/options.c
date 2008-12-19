@@ -25,7 +25,7 @@ enum {
 	opt_force, opt_err
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{ opt_creator, "creator=%s" },
 	{ opt_type, "type=%s" },
 	{ opt_umask, "umask=%o" },

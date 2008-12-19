@@ -589,6 +589,7 @@ static struct video_device cadet_radio = {
 	.name		= "Cadet radio",
 	.fops           = &cadet_fops,
 	.ioctl_ops 	= &cadet_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 #ifdef CONFIG_PNP

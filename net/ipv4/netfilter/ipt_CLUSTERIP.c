@@ -281,11 +281,9 @@ clusterip_responsible(const struct clusterip_config *config, u_int32_t hash)
  ***********************************************************************/
 
 static unsigned int
-clusterip_tg(struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, unsigned int hooknum,
-             const struct xt_target *target, const void *targinfo)
+clusterip_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ipt_clusterip_tgt_info *cipinfo = targinfo;
+	const struct ipt_clusterip_tgt_info *cipinfo = par->targinfo;
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	u_int32_t hash;
@@ -349,13 +347,10 @@ clusterip_tg(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static bool
-clusterip_tg_check(const char *tablename, const void *e_void,
-                   const struct xt_target *target, void *targinfo,
-                   unsigned int hook_mask)
+static bool clusterip_tg_check(const struct xt_tgchk_param *par)
 {
-	struct ipt_clusterip_tgt_info *cipinfo = targinfo;
-	const struct ipt_entry *e = e_void;
+	struct ipt_clusterip_tgt_info *cipinfo = par->targinfo;
+	const struct ipt_entry *e = par->entryinfo;
 
 	struct clusterip_config *config;
 
@@ -406,9 +401,9 @@ clusterip_tg_check(const char *tablename, const void *e_void,
 	}
 	cipinfo->config = config;
 
-	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->target->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", target->family);
+				    "proto=%u\n", par->target->family);
 		return false;
 	}
 
@@ -416,9 +411,9 @@ clusterip_tg_check(const char *tablename, const void *e_void,
 }
 
 /* drop reference count of cluster config when rule is deleted */
-static void clusterip_tg_destroy(const struct xt_target *target, void *targinfo)
+static void clusterip_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	const struct ipt_clusterip_tgt_info *cipinfo = targinfo;
+	const struct ipt_clusterip_tgt_info *cipinfo = par->targinfo;
 
 	/* if no more entries are referencing the config, remove it
 	 * from the list and destroy the proc entry */
@@ -426,7 +421,7 @@ static void clusterip_tg_destroy(const struct xt_target *target, void *targinfo)
 
 	clusterip_config_put(cipinfo->config);
 
-	nf_ct_l3proto_module_put(target->family);
+	nf_ct_l3proto_module_put(par->target->family);
 }
 
 #ifdef CONFIG_COMPAT
@@ -445,7 +440,7 @@ struct compat_ipt_clusterip_tgt_info
 
 static struct xt_target clusterip_tg_reg __read_mostly = {
 	.name		= "CLUSTERIP",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target		= clusterip_tg,
 	.checkentry	= clusterip_tg_check,
 	.destroy	= clusterip_tg_destroy,
@@ -546,7 +541,7 @@ arp_mangle(unsigned int hook,
 
 static struct nf_hook_ops cip_arp_ops __read_mostly = {
 	.hook = arp_mangle,
-	.pf = NF_ARP,
+	.pf = NFPROTO_ARP,
 	.hooknum = NF_ARP_OUT,
 	.priority = -1
 };

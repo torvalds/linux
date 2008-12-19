@@ -46,12 +46,12 @@ SP_R14	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 56
 SP_R15	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 60
 SP_ORIG_R2   =	STACK_FRAME_OVERHEAD + __PT_ORIG_GPR2
 SP_ILC	     =	STACK_FRAME_OVERHEAD + __PT_ILC
-SP_TRAP      =	STACK_FRAME_OVERHEAD + __PT_TRAP
+SP_SVCNR     =	STACK_FRAME_OVERHEAD + __PT_SVCNR
 SP_SIZE      =	STACK_FRAME_OVERHEAD + __PT_SIZE
 
-_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
+_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING | _TIF_RESTART_SVC | _TIF_SINGLE_STEP )
-_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
+_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING)
 
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
@@ -61,22 +61,25 @@ STACK_SIZE  = 1 << STACK_SHIFT
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.macro	TRACE_IRQS_ON
-	l	%r1,BASED(.Ltrace_irq_on)
+	basr	%r2,%r0
+	l	%r1,BASED(.Ltrace_irq_on_caller)
 	basr	%r14,%r1
 	.endm
 
 	.macro	TRACE_IRQS_OFF
-	l	%r1,BASED(.Ltrace_irq_off)
+	basr	%r2,%r0
+	l	%r1,BASED(.Ltrace_irq_off_caller)
 	basr	%r14,%r1
 	.endm
 
 	.macro	TRACE_IRQS_CHECK
+	basr	%r2,%r0
 	tm	SP_PSW(%r15),0x03	# irqs enabled?
 	jz	0f
-	l	%r1,BASED(.Ltrace_irq_on)
+	l	%r1,BASED(.Ltrace_irq_on_caller)
 	basr	%r14,%r1
 	j	1f
-0:	l	%r1,BASED(.Ltrace_irq_off)
+0:	l	%r1,BASED(.Ltrace_irq_off_caller)
 	basr	%r14,%r1
 1:
 	.endm
@@ -180,11 +183,10 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	.macro	CREATE_STACK_FRAME psworg,savearea
 	s	%r15,BASED(.Lc_spsize)	# make room for registers & psw
 	mvc	SP_PSW(8,%r15),0(%r12)	# move user PSW to stack
-	la	%r12,\psworg
 	st	%r2,SP_ORIG_R2(%r15)	# store original content of gpr 2
-	icm	%r12,12,__LC_SVC_ILC
+	icm	%r12,3,__LC_SVC_ILC
 	stm	%r0,%r11,SP_R0(%r15)	# store gprs %r0-%r11 to kernel stack
-	st	%r12,SP_ILC(%r15)
+	st	%r12,SP_SVCNR(%r15)
 	mvc	SP_R12(16,%r15),\savearea # move %r12-%r15 to stack
 	la	%r12,0
 	st	%r12,__SF_BACKCHAIN(%r15)	# clear back chain
@@ -261,16 +263,17 @@ sysc_update:
 #endif
 sysc_do_svc:
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
-	sla	%r7,2			# *4 and test for svc 0
+	ltr	%r7,%r7			# test for svc 0
 	bnz	BASED(sysc_nr_ok)	# svc number > 0
 	# svc 0: system call number in %r1
 	cl	%r1,BASED(.Lnr_syscalls)
 	bnl	BASED(sysc_nr_ok)
 	lr	%r7,%r1 	  # copy svc number to %r7
-	sla	%r7,2		  # *4
 sysc_nr_ok:
 	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
 sysc_do_restart:
+	sth	%r7,SP_SVCNR(%r15)
+	sll	%r7,2		  # svc number *4
 	l	%r8,BASED(.Lsysc_table)
 	tm	__TI_flags+3(%r9),(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT)
 	l	%r8,0(%r7,%r8)	  # get system call addr.
@@ -318,6 +321,8 @@ sysc_work:
 	bo	BASED(sysc_reschedule)
 	tm	__TI_flags+3(%r9),_TIF_SIGPENDING
 	bnz	BASED(sysc_sigpending)
+	tm	__TI_flags+3(%r9),_TIF_NOTIFY_RESUME
+	bnz	BASED(sysc_notify_resume)
 	tm	__TI_flags+3(%r9),_TIF_RESTART_SVC
 	bo	BASED(sysc_restart)
 	tm	__TI_flags+3(%r9),_TIF_SINGLE_STEP
@@ -356,12 +361,21 @@ sysc_sigpending:
 	b	BASED(sysc_work_loop)
 
 #
+# _TIF_NOTIFY_RESUME is set, call do_notify_resume
+#
+sysc_notify_resume:
+	la	%r2,SP_PTREGS(%r15)	# load pt_regs
+	l	%r1,BASED(.Ldo_notify_resume)
+	la	%r14,BASED(sysc_work_loop)
+	br	%r1			# call do_notify_resume
+
+
+#
 # _TIF_RESTART_SVC is set, set up registers and restart svc
 #
 sysc_restart:
 	ni	__TI_flags+3(%r9),255-_TIF_RESTART_SVC # clear TIF_RESTART_SVC
 	l	%r7,SP_R2(%r15) 	# load new svc number
-	sla	%r7,2
 	mvc	SP_R2(4,%r15),SP_ORIG_R2(%r15) # restore first argument
 	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
 	b	BASED(sysc_do_restart)	# restart svc
@@ -371,27 +385,29 @@ sysc_restart:
 #
 sysc_singlestep:
 	ni	__TI_flags+3(%r9),255-_TIF_SINGLE_STEP # clear TIF_SINGLE_STEP
-	mvi	SP_TRAP+1(%r15),0x28	# set trap indication to pgm check
+	mvi	SP_SVCNR(%r15),0xff	# set trap indication to pgm check
+	mvi	SP_SVCNR+1(%r15),0xff
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	la	%r14,BASED(sysc_return)	# load adr. of system return
 	br	%r1			# branch to do_single_step
 
 #
-# call trace before and after sys_call
+# call tracehook_report_syscall_entry/tracehook_report_syscall_exit before
+# and after the system call
 #
 sysc_tracesys:
-	l	%r1,BASED(.Ltrace)
+	l	%r1,BASED(.Ltrace_entry)
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	la	%r3,0
 	srl	%r7,2
 	st	%r7,SP_R2(%r15)
 	basr	%r14,%r1
-	clc	SP_R2(4,%r15),BASED(.Lnr_syscalls)
+	cl	%r2,BASED(.Lnr_syscalls)
 	bnl	BASED(sysc_tracenogo)
 	l	%r8,BASED(.Lsysc_table)
-	l	%r7,SP_R2(%r15) 	# strace might have changed the
-	sll	%r7,2			#  system call
+	lr	%r7,%r2
+	sll	%r7,2			# svc number *4
 	l	%r8,0(%r7,%r8)
 sysc_tracego:
 	lm	%r3,%r6,SP_R3(%r15)
@@ -401,9 +417,8 @@ sysc_tracego:
 sysc_tracenogo:
 	tm	__TI_flags+3(%r9),(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT)
 	bz	BASED(sysc_return)
-	l	%r1,BASED(.Ltrace)
+	l	%r1,BASED(.Ltrace_exit)
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	la	%r3,1
 	la	%r14,BASED(sysc_return)
 	br	%r1
 
@@ -571,7 +586,8 @@ pgm_svcper:
 # per was called from kernel, must be kprobes
 #
 kernel_per:
-	mvi	SP_TRAP+1(%r15),0x28	# set trap indication to pgm check
+	mvi	SP_SVCNR(%r15),0xff	# set trap indication to pgm check
+	mvi	SP_SVCNR+1(%r15),0xff
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	la	%r14,BASED(sysc_restore)# load adr. of system return
@@ -666,6 +682,8 @@ io_work_loop:
 	bo	BASED(io_reschedule)
 	tm	__TI_flags+3(%r9),_TIF_SIGPENDING
 	bnz	BASED(io_sigpending)
+	tm	__TI_flags+3(%r9),_TIF_NOTIFY_RESUME
+	bnz	BASED(io_notify_resume)
 	b	BASED(io_restore)
 io_work_done:
 
@@ -699,6 +717,19 @@ io_sigpending:
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	l	%r1,BASED(.Ldo_signal)
+	basr	%r14,%r1		# call do_signal
+	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
+	TRACE_IRQS_OFF
+	b	BASED(io_work_loop)
+
+#
+# _TIF_SIGPENDING is set, call do_signal
+#
+io_notify_resume:
+	TRACE_IRQS_ON
+	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
+	la	%r2,SP_PTREGS(%r15)	# load pt_regs
+	l	%r1,BASED(.Ldo_notify_resume)
 	basr	%r14,%r1		# call do_signal
 	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
 	TRACE_IRQS_OFF
@@ -1070,6 +1101,8 @@ cleanup_io_leave_insn:
 .Ldo_IRQ:	.long	do_IRQ
 .Ldo_extint:	.long	do_extint
 .Ldo_signal:	.long	do_signal
+.Ldo_notify_resume:
+		.long	do_notify_resume
 .Lhandle_per:	.long	do_single_step
 .Ldo_execve:	.long	do_execve
 .Lexecve_tail:	.long	execve_tail
@@ -1079,13 +1112,17 @@ cleanup_io_leave_insn:
 .Lpreempt_schedule_irq:
 		.long	preempt_schedule_irq
 #endif
-.Ltrace:	.long	syscall_trace
+.Ltrace_entry:	.long	do_syscall_trace_enter
+.Ltrace_exit:	.long	do_syscall_trace_exit
 .Lschedtail:	.long	schedule_tail
 .Lsysc_table:	.long	sys_call_table
 #ifdef CONFIG_TRACE_IRQFLAGS
-.Ltrace_irq_on: .long	trace_hardirqs_on
-.Ltrace_irq_off:
-		.long	trace_hardirqs_off
+.Ltrace_irq_on_caller:
+		.long	trace_hardirqs_on_caller
+.Ltrace_irq_off_caller:
+		.long	trace_hardirqs_off_caller
+#endif
+#ifdef CONFIG_LOCKDEP
 .Llockdep_sys_exit:
 		.long	lockdep_sys_exit
 #endif

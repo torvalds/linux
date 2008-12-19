@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/console.h>
-#include <linux/kallsyms.h>
 #include <linux/bug.h>
 
 #include <asm/assembly.h>
@@ -51,7 +50,7 @@
 DEFINE_SPINLOCK(pa_dbit_lock);
 #endif
 
-void parisc_show_stack(struct task_struct *t, unsigned long *sp,
+static void parisc_show_stack(struct task_struct *task, unsigned long *sp,
 	struct pt_regs *regs);
 
 static int printbinary(char *buf, unsigned long x, int nbits)
@@ -121,18 +120,19 @@ static void print_fr(char *level, struct pt_regs *regs)
 
 void show_regs(struct pt_regs *regs)
 {
-	int i;
+	int i, user;
 	char *level;
 	unsigned long cr30, cr31;
 
-	level = user_mode(regs) ? KERN_DEBUG : KERN_CRIT;
+	user = user_mode(regs);
+	level = user ? KERN_DEBUG : KERN_CRIT;
 
 	print_gr(level, regs);
 
 	for (i = 0; i < 8; i += 4)
 		PRINTREGS(level, regs->sr, "sr", RFMT, i);
 
-	if (user_mode(regs))
+	if (user)
 		print_fr(level, regs);
 
 	cr30 = mfctl(30);
@@ -145,14 +145,18 @@ void show_regs(struct pt_regs *regs)
 	printk("%s CPU: %8d   CR30: " RFMT " CR31: " RFMT "\n",
 	       level, current_thread_info()->cpu, cr30, cr31);
 	printk("%s ORIG_R28: " RFMT "\n", level, regs->orig_r28);
-	printk(level);
-	print_symbol(" IAOQ[0]: %s\n", regs->iaoq[0]);
-	printk(level);
-	print_symbol(" IAOQ[1]: %s\n", regs->iaoq[1]);
-	printk(level);
-	print_symbol(" RP(r2): %s\n", regs->gr[2]);
 
-	parisc_show_stack(current, NULL, regs);
+	if (user) {
+		printk("%s IAOQ[0]: " RFMT "\n", level, regs->iaoq[0]);
+		printk("%s IAOQ[1]: " RFMT "\n", level, regs->iaoq[1]);
+		printk("%s RP(r2): " RFMT "\n", level, regs->gr[2]);
+	} else {
+		printk("%s IAOQ[0]: %pS\n", level, (void *) regs->iaoq[0]);
+		printk("%s IAOQ[1]: %pS\n", level, (void *) regs->iaoq[1]);
+		printk("%s RP(r2): %pS\n", level, (void *) regs->gr[2]);
+
+		parisc_show_stack(current, NULL, regs);
+	}
 }
 
 
@@ -173,20 +177,15 @@ static void do_show_stack(struct unwind_frame_info *info)
 			break;
 
 		if (__kernel_text_address(info->ip)) {
-			printk("%s [<" RFMT ">] ", (i&0x3)==1 ? KERN_CRIT : "", info->ip);
-#ifdef CONFIG_KALLSYMS
-			print_symbol("%s\n", info->ip);
-#else
-			if ((i & 0x03) == 0)
-				printk("\n");
-#endif
+			printk(KERN_CRIT " [<" RFMT ">] %pS\n",
+				info->ip, (void *) info->ip);
 			i++;
 		}
 	}
-	printk("\n");
+	printk(KERN_CRIT "\n");
 }
 
-void parisc_show_stack(struct task_struct *task, unsigned long *sp,
+static void parisc_show_stack(struct task_struct *task, unsigned long *sp,
 	struct pt_regs *regs)
 {
 	struct unwind_frame_info info;

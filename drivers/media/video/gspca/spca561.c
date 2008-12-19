@@ -152,7 +152,7 @@ static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			      0,		/* request */
-			      USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      value, index, NULL, 0, 500);
 	PDEBUG(D_USBO, "reg write: 0x%02x:0x%02x", index, value);
 	if (ret < 0)
@@ -699,7 +699,7 @@ static void setautogain(struct gspca_dev *gspca_dev)
 		sd->ag_cnt = -1;
 }
 
-static void sd_start_12a(struct gspca_dev *gspca_dev)
+static int sd_start_12a(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int Clck = 0x8a; /* lower 0x8X values lead to fps > 30 */
@@ -725,8 +725,9 @@ static void sd_start_12a(struct gspca_dev *gspca_dev)
 	setwhite(gspca_dev);
 	setautogain(gspca_dev);
 	setexposure(gspca_dev);
+	return 0;
 }
-static void sd_start_72a(struct gspca_dev *gspca_dev)
+static int sd_start_72a(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int Clck;
@@ -750,6 +751,7 @@ static void sd_start_72a(struct gspca_dev *gspca_dev)
 	reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
 	reg_w_val(dev, 0x8112, 0x10 | 0x20);
 	setautogain(gspca_dev);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -764,10 +766,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	}
 }
 
+/* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (!gspca_dev->present)
+		return;
 	if (sd->chip_revision == Rev012A) {
 		reg_w_val(gspca_dev->dev, 0x8118, 0x29);
 		reg_w_val(gspca_dev->dev, 0x8114, 0x08);
@@ -1064,7 +1069,7 @@ static struct ctrl sd_ctrls_12a[] = {
 	    {
 		.id = V4L2_CID_DO_WHITE_BALANCE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "While Balance",
+		.name = "White Balance",
 		.minimum = WHITE_MIN,
 		.maximum = WHITE_MAX,
 		.step = 1,

@@ -3263,7 +3263,8 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 	 * may try and take the device offline, in which case all further
 	 * access to the device is prohibited.
 	 */
-	retval = scsi_nonblockable_ioctl(STp->device, cmd_in, p, file);
+	retval = scsi_nonblockable_ioctl(STp->device, cmd_in, p,
+					file->f_flags & O_NDELAY);
 	if (!scsi_block_when_processing_errors(STp->device) || retval != -ENODEV)
 		goto out;
 	retval = 0;
@@ -3567,8 +3568,8 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 			    !capable(CAP_SYS_RAWIO))
 				i = -EPERM;
 			else
-				i = scsi_cmd_ioctl(file, STp->disk->queue,
-						   STp->disk, cmd_in, p);
+				i = scsi_cmd_ioctl(STp->disk->queue, STp->disk,
+						   file->f_mode, cmd_in, p);
 			if (i != -ENOTTY)
 				return i;
 			break;
@@ -4428,13 +4429,10 @@ static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
 			 STp->disk->disk_name, st_formats[i]);
 		st_class_member =
-			device_create_drvdata(st_sysfs_class,
-					      &STp->device->sdev_gendev,
-					      MKDEV(SCSI_TAPE_MAJOR,
-						    TAPE_MINOR(dev_num,
-							      mode, rew)),
-					      &STp->modes[mode],
-					      "%s", name);
+			device_create(st_sysfs_class, &STp->device->sdev_gendev,
+				      MKDEV(SCSI_TAPE_MAJOR,
+					    TAPE_MINOR(dev_num, mode, rew)),
+				      &STp->modes[mode], "%s", name);
 		if (IS_ERR(st_class_member)) {
 			printk(KERN_WARNING "st%d: device_create failed\n",
 			       dev_num);

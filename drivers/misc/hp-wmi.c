@@ -82,6 +82,7 @@ static struct key_entry hp_wmi_keymap[] = {
 	{KE_KEY, 0x03, KEY_BRIGHTNESSDOWN},
 	{KE_KEY, 0x20e6, KEY_PROG1},
 	{KE_KEY, 0x2142, KEY_MEDIA},
+	{KE_KEY, 0x213b, KEY_INFO},
 	{KE_KEY, 0x231b, KEY_HELP},
 	{KE_END, 0}
 };
@@ -309,7 +310,7 @@ static int hp_wmi_setkeycode(struct input_dev *dev, int scancode, int keycode)
 	return -EINVAL;
 }
 
-void hp_wmi_notify(u32 value, void *context)
+static void hp_wmi_notify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	static struct key_entry *key;

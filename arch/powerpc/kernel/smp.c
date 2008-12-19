@@ -101,8 +101,7 @@ void smp_message_recv(int msg)
 		generic_smp_call_function_interrupt();
 		break;
 	case PPC_MSG_RESCHEDULE:
-		/* XXX Do we have to do this? */
-		set_need_resched();
+		/* we notice need_resched on exit */
 		break;
 	case PPC_MSG_CALL_FUNC_SINGLE:
 		generic_smp_call_function_single_interrupt();
@@ -453,6 +452,7 @@ int __devinit start_secondary(void *unused)
 	secondary_cpu_time_init();
 
 	ipi_call_lock();
+	notify_cpu_starting(cpu);
 	cpu_set(cpu, cpu_online_map);
 	/* Update sibling maps */
 	base = cpu_first_thread_in_core(cpu);

@@ -5,12 +5,12 @@
  */
 
 #include "dm.h"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/bio.h>
 #include <linux/slab.h>
+#include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "linear"
 
@@ -110,20 +110,11 @@ static int linear_status(struct dm_target *ti, status_type_t type,
 	return 0;
 }
 
-static int linear_ioctl(struct dm_target *ti, struct inode *inode,
-			struct file *filp, unsigned int cmd,
+static int linear_ioctl(struct dm_target *ti, unsigned int cmd,
 			unsigned long arg)
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;
-	struct block_device *bdev = lc->dev->bdev;
-	struct file fake_file = {};
-	struct dentry fake_dentry = {};
-
-	fake_file.f_mode = lc->dev->mode;
-	fake_file.f_path.dentry = &fake_dentry;
-	fake_dentry.d_inode = bdev->bd_inode;
-
-	return blkdev_driver_ioctl(bdev->bd_inode, &fake_file, bdev->bd_disk, cmd, arg);
+	return __blkdev_driver_ioctl(lc->dev->bdev, lc->dev->mode, cmd, arg);
 }
 
 static int linear_merge(struct dm_target *ti, struct bvec_merge_data *bvm,

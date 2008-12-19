@@ -80,9 +80,14 @@
 #define IRQ_MV78XX0_DB_OUT	61
 
 /*
+ * MV78xx0 Error Interrupt Controller
+ */
+#define IRQ_MV78XX0_GE_ERR	70
+
+/*
  * MV78XX0 General Purpose Pins
  */
-#define IRQ_MV78XX0_GPIO_START	64
+#define IRQ_MV78XX0_GPIO_START	96
 #define NR_GPIO_IRQS		GPIO_MAX
 
 #define NR_IRQS			(IRQ_MV78XX0_GPIO_START + NR_GPIO_IRQS)

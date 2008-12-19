@@ -133,7 +133,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 	cmpdi	r12,0
 	beq-	nothing_to_copy
-	li	r15,512
+	li	r15,PAGE_SIZE>>3
 copyloop:
 	ld	r13,pbe_address(r12)
 	ld	r14,pbe_orig_address(r12)

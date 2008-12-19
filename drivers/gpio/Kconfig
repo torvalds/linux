@@ -65,6 +65,14 @@ config GPIO_SYSFS
 
 # put expanders in the right section, in alphabetical order
 
+comment "Memory mapped GPIO expanders:"
+
+config GPIO_XILINX
+	bool "Xilinx GPIO support"
+	depends on PPC_OF
+	help
+	  Say yes here to support the Xilinx FPGA GPIO device
+
 comment "I2C GPIO expanders:"
 
 config GPIO_MAX732X
@@ -126,6 +134,13 @@ config GPIO_PCF857X
 
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
+
+config GPIO_TWL4030
+	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
+	depends on TWL4030_CORE
+	help
+	  Say yes here to access the GPIO signals of various multi-function
+	  power management chips from Texas Instruments.
 
 comment "PCI GPIO expanders:"
 

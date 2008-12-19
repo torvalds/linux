@@ -185,16 +185,16 @@ void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 	__set_bit(GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL, filter->write_ok);
 	__set_bit(GPCMD_LOAD_UNLOAD, filter->write_ok);
 	__set_bit(GPCMD_SET_STREAMING, filter->write_ok);
+	__set_bit(GPCMD_SET_READ_AHEAD, filter->write_ok);
 }
 EXPORT_SYMBOL_GPL(blk_set_cmd_filter_defaults);
 
 static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
-			     struct sg_io_hdr *hdr, struct file *file)
+			     struct sg_io_hdr *hdr, fmode_t mode)
 {
 	if (copy_from_user(rq->cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
-	if (blk_verify_command(&q->cmd_filter, rq->cmd,
-			       file->f_mode & FMODE_WRITE))
+	if (blk_verify_command(&q->cmd_filter, rq->cmd, mode & FMODE_WRITE))
 		return -EPERM;
 
 	/*
@@ -208,6 +208,8 @@ static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 		rq->timeout = q->sg_timeout;
 	if (!rq->timeout)
 		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
+	if (rq->timeout < BLK_MIN_SG_TIMEOUT)
+		rq->timeout = BLK_MIN_SG_TIMEOUT;
 
 	return 0;
 }
@@ -259,8 +261,8 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	return r;
 }
 
-static int sg_io(struct file *file, struct request_queue *q,
-		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
+static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
+		struct sg_io_hdr *hdr, fmode_t mode)
 {
 	unsigned long start_time;
 	int writing = 0, ret = 0;
@@ -292,7 +294,7 @@ static int sg_io(struct file *file, struct request_queue *q,
 	if (!rq)
 		return -ENOMEM;
 
-	if (blk_fill_sghdr_rq(q, rq, hdr, file)) {
+	if (blk_fill_sghdr_rq(q, rq, hdr, mode)) {
 		blk_put_request(rq);
 		return -EFAULT;
 	}
@@ -313,11 +315,12 @@ static int sg_io(struct file *file, struct request_queue *q,
 			goto out;
 		}
 
-		ret = blk_rq_map_user_iov(q, rq, iov, hdr->iovec_count,
-					  hdr->dxfer_len);
+		ret = blk_rq_map_user_iov(q, rq, NULL, iov, hdr->iovec_count,
+					  hdr->dxfer_len, GFP_KERNEL);
 		kfree(iov);
 	} else if (hdr->dxfer_len)
-		ret = blk_rq_map_user(q, rq, hdr->dxferp, hdr->dxfer_len);
+		ret = blk_rq_map_user(q, rq, NULL, hdr->dxferp, hdr->dxfer_len,
+				      GFP_KERNEL);
 
 	if (ret)
 		goto out;
@@ -378,11 +381,11 @@ out:
  *      bytes in one int) where the lowest byte is the SCSI status.
  */
 #define OMAX_SB_LEN 16          /* For backward compatibility */
-int sg_scsi_ioctl(struct file *file, struct request_queue *q,
-		  struct gendisk *disk, struct scsi_ioctl_command __user *sic)
+int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
+		struct scsi_ioctl_command __user *sic)
 {
 	struct request *rq;
-	int err, write_perm = 0;
+	int err;
 	unsigned int in_len, out_len, bytes, opcode, cmdlen;
 	char *buffer = NULL, sense[SCSI_SENSE_BUFFERSIZE];
 
@@ -424,11 +427,7 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
-	/* scsi_ioctl passes NULL */
-	if (file && (file->f_mode & FMODE_WRITE))
-		write_perm = 1;
-
-	err = blk_verify_command(&q->cmd_filter, rq->cmd, write_perm);
+	err = blk_verify_command(&q->cmd_filter, rq->cmd, mode & FMODE_WRITE);
 	if (err)
 		goto error;
 
@@ -520,8 +519,8 @@ static inline int blk_send_start_stop(struct request_queue *q,
 	return __blk_send_generic(q, bd_disk, GPCMD_START_STOP_UNIT, data);
 }
 
-int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
-		   struct gendisk *bd_disk, unsigned int cmd, void __user *arg)
+int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mode,
+		   unsigned int cmd, void __user *arg)
 {
 	int err;
 
@@ -562,7 +561,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			err = -EFAULT;
 			if (copy_from_user(&hdr, arg, sizeof(hdr)))
 				break;
-			err = sg_io(file, q, bd_disk, &hdr);
+			err = sg_io(q, bd_disk, &hdr, mode);
 			if (err == -EFAULT)
 				break;
 
@@ -610,7 +609,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			hdr.cmdp = ((struct cdrom_generic_command __user*) arg)->cmd;
 			hdr.cmd_len = sizeof(cgc.cmd);
 
-			err = sg_io(file, q, bd_disk, &hdr);
+			err = sg_io(q, bd_disk, &hdr, mode);
 			if (err == -EFAULT)
 				break;
 
@@ -634,7 +633,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			if (!arg)
 				break;
 
-			err = sg_scsi_ioctl(file, q, bd_disk, arg);
+			err = sg_scsi_ioctl(q, bd_disk, mode, arg);
 			break;
 		case CDROMCLOSETRAY:
 			err = blk_send_start_stop(q, bd_disk, 0x03);

@@ -319,6 +319,7 @@ EXPORT_SYMBOL(snd_pcm_format_physical_width);
 /**
  * snd_pcm_format_size - return the byte size of samples on the given format
  * @format: the format to check
+ * @samples: sampling rate
  *
  * Returns the byte size of the given samples for the format, or a
  * negative error code if unknown format.

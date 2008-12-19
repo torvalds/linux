@@ -772,7 +772,7 @@ CONFIG_UNIX98_PTYS=y
 #
 # CONFIG_CAN4LINUX is not set
 # CONFIG_IPMI_HANDLER is not set
-CONFIG_HW_RANDOM=y
+# CONFIG_HW_RANDOM is not set
 # CONFIG_GEN_RTC is not set
 # CONFIG_R3964 is not set
 # CONFIG_RAW_DRIVER is not set

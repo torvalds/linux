@@ -624,8 +624,10 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 					 ses, nls_cp);
 
 ssetup_exit:
-	if (spnego_key)
+	if (spnego_key) {
+		key_revoke(spnego_key);
 		key_put(spnego_key);
+	}
 	kfree(str_area);
 	if (resp_buf_type == CIFS_SMALL_BUFFER) {
 		cFYI(1, ("ssetup freeing small buf %p", iov[0].iov_base));

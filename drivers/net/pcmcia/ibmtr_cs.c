@@ -238,7 +238,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     /* Try PRIMARY card at 0xA20-0xA23 */
     link->io.BasePort1 = 0xA20;
     i = pcmcia_request_io(link, &link->io);
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	/* Couldn't get 0xA20-0xA23.  Try ALTERNATE at 0xA24-0xA27. */
 	link->io.BasePort1 = 0xA24;
 	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
@@ -349,7 +349,7 @@ static int ibmtr_suspend(struct pcmcia_device *link)
 	return 0;
 }
 
-static int ibmtr_resume(struct pcmcia_device *link)
+static int __devinit ibmtr_resume(struct pcmcia_device *link)
 {
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;

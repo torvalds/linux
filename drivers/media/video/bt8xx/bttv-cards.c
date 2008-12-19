@@ -305,7 +305,7 @@ static struct CARD {
 	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,	"DNTV Live! Mini "},
 	{ 0xd200dbc0, BTTV_BOARD_DVICO_FUSIONHDTV_2,	"DViCO FusionHDTV 2" },
 	{ 0x763c008a, BTTV_BOARD_GEOVISION_GV600,	"GeoVision GV-600" },
-
+	{ 0x18011000, BTTV_BOARD_ENLTV_FM_2,	"Encore ENL TV-FM-2" },
 	{ 0, -1, NULL }
 };
 
@@ -3037,6 +3037,31 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio      = 1,
 		.has_remote     = 1,
 	},
+	[BTTV_BOARD_ENLTV_FM_2] = {
+		/* Encore TV Tuner Pro ENL TV-FM-2
+		   Mauro Carvalho Chehab <mchehab@infradead.org */
+		.name           = "Encore ENL TV-FM-2",
+		.video_inputs   = 3,
+		.audio_inputs   = 1,
+		.tuner          = 0,
+		.svhs           = 2,
+		/* bit 6          -> IR disabled
+		   bit 18/17 = 00 -> mute
+			       01 -> enable external audio input
+			       10 -> internal audio input (mono?)
+			       11 -> internal audio input
+		 */
+		.gpiomask       = 0x060040,
+		.muxsel         = { 2, 3, 3 },
+		.gpiomux        = { 0x60000, 0x60000, 0x20000, 0x20000 },
+		.gpiomute 	= 0,
+		.tuner_type	= TUNER_TCL_MF02GIP_5N,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.pll            = PLL_28,
+		.has_radio      = 1,
+		.has_remote     = 1,
+	}
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);

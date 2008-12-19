@@ -235,33 +235,33 @@ static int rs5c313_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	data = rs5c313_read_reg(RS5C313_ADDR_SEC);
 	data |= (rs5c313_read_reg(RS5C313_ADDR_SEC10) << 4);
-	tm->tm_sec = BCD2BIN(data);
+	tm->tm_sec = bcd2bin(data);
 
 	data = rs5c313_read_reg(RS5C313_ADDR_MIN);
 	data |= (rs5c313_read_reg(RS5C313_ADDR_MIN10) << 4);
-	tm->tm_min = BCD2BIN(data);
+	tm->tm_min = bcd2bin(data);
 
 	data = rs5c313_read_reg(RS5C313_ADDR_HOUR);
 	data |= (rs5c313_read_reg(RS5C313_ADDR_HOUR10) << 4);
-	tm->tm_hour = BCD2BIN(data);
+	tm->tm_hour = bcd2bin(data);
 
 	data = rs5c313_read_reg(RS5C313_ADDR_DAY);
 	data |= (rs5c313_read_reg(RS5C313_ADDR_DAY10) << 4);
-	tm->tm_mday = BCD2BIN(data);
+	tm->tm_mday = bcd2bin(data);
 
 	data = rs5c313_read_reg(RS5C313_ADDR_MON);
 	data |= (rs5c313_read_reg(RS5C313_ADDR_MON10) << 4);
-	tm->tm_mon = BCD2BIN(data) - 1;
+	tm->tm_mon = bcd2bin(data) - 1;
 
 	data = rs5c313_read_reg(RS5C313_ADDR_YEAR);
 	data |= (rs5c313_read_reg(RS5C313_ADDR_YEAR10) << 4);
-	tm->tm_year = BCD2BIN(data);
+	tm->tm_year = bcd2bin(data);
 
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;
 
 	data = rs5c313_read_reg(RS5C313_ADDR_WEEK);
-	tm->tm_wday = BCD2BIN(data);
+	tm->tm_wday = bcd2bin(data);
 
 	RS5C313_CEDISABLE;
 	ndelay(700);		/* CE:L */
@@ -294,31 +294,31 @@ static int rs5c313_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		}
 	}
 
-	data = BIN2BCD(tm->tm_sec);
+	data = bin2bcd(tm->tm_sec);
 	rs5c313_write_reg(RS5C313_ADDR_SEC, data);
 	rs5c313_write_reg(RS5C313_ADDR_SEC10, (data >> 4));
 
-	data = BIN2BCD(tm->tm_min);
+	data = bin2bcd(tm->tm_min);
 	rs5c313_write_reg(RS5C313_ADDR_MIN, data );
 	rs5c313_write_reg(RS5C313_ADDR_MIN10, (data >> 4));
 
-	data = BIN2BCD(tm->tm_hour);
+	data = bin2bcd(tm->tm_hour);
 	rs5c313_write_reg(RS5C313_ADDR_HOUR, data);
 	rs5c313_write_reg(RS5C313_ADDR_HOUR10, (data >> 4));
 
-	data = BIN2BCD(tm->tm_mday);
+	data = bin2bcd(tm->tm_mday);
 	rs5c313_write_reg(RS5C313_ADDR_DAY, data);
 	rs5c313_write_reg(RS5C313_ADDR_DAY10, (data>> 4));
 
-	data = BIN2BCD(tm->tm_mon + 1);
+	data = bin2bcd(tm->tm_mon + 1);
 	rs5c313_write_reg(RS5C313_ADDR_MON, data);
 	rs5c313_write_reg(RS5C313_ADDR_MON10, (data >> 4));
 
-	data = BIN2BCD(tm->tm_year % 100);
+	data = bin2bcd(tm->tm_year % 100);
 	rs5c313_write_reg(RS5C313_ADDR_YEAR, data);
 	rs5c313_write_reg(RS5C313_ADDR_YEAR10, (data >> 4));
 
-	data = BIN2BCD(tm->tm_wday);
+	data = bin2bcd(tm->tm_wday);
 	rs5c313_write_reg(RS5C313_ADDR_WEEK, data);
 
 	RS5C313_CEDISABLE;	/* CE:H */

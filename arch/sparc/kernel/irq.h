@@ -13,7 +13,6 @@ BTFIXUPDEF_CALL(void, enable_irq, unsigned int)
 BTFIXUPDEF_CALL(void, disable_pil_irq, unsigned int)
 BTFIXUPDEF_CALL(void, enable_pil_irq, unsigned int)
 BTFIXUPDEF_CALL(void, clear_clock_irq, void)
-BTFIXUPDEF_CALL(void, clear_profile_irq, int)
 BTFIXUPDEF_CALL(void, load_profile_irq, int, unsigned int)
 
 static inline void __disable_irq(unsigned int irq)
@@ -39,11 +38,6 @@ static inline void enable_pil_irq(unsigned int irq)
 static inline void clear_clock_irq(void)
 {
 	BTFIXUP_CALL(clear_clock_irq)();
-}
-
-static inline void clear_profile_irq(int irq)
-{
-	BTFIXUP_CALL(clear_profile_irq)(irq);
 }
 
 static inline void load_profile_irq(int cpu, int limit)

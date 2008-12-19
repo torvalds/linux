@@ -110,7 +110,6 @@ acpi_status
 acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 {
 	u32 i;
-	u32 length;
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(tb_add_table);
@@ -145,25 +144,64 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 			}
 		}
 
-		length = ACPI_MIN(table_desc->length,
-				  acpi_gbl_root_table_list.tables[i].length);
-		if (ACPI_MEMCMP(table_desc->pointer,
-				acpi_gbl_root_table_list.tables[i].pointer,
-				length)) {
+		/*
+		 * Check for a table match on the entire table length,
+		 * not just the header.
+		 */
+		if (table_desc->length !=
+		    acpi_gbl_root_table_list.tables[i].length) {
 			continue;
 		}
 
-		/* Table is already registered */
+		if (ACPI_MEMCMP(table_desc->pointer,
+				acpi_gbl_root_table_list.tables[i].pointer,
+				acpi_gbl_root_table_list.tables[i].length)) {
+			continue;
+		}
 
+		/*
+		 * Note: the current mechanism does not unregister a table if it is
+		 * dynamically unloaded. The related namespace entries are deleted,
+		 * but the table remains in the root table list.
+		 *
+		 * The assumption here is that the number of different tables that
+		 * will be loaded is actually small, and there is minimal overhead
+		 * in just keeping the table in case it is needed again.
+		 *
+		 * If this assumption changes in the future (perhaps on large
+		 * machines with many table load/unload operations), tables will
+		 * need to be unregistered when they are unloaded, and slots in the
+		 * root table list should be reused when empty.
+		 */
+
+		/*
+		 * Table is already registered.
+		 * We can delete the table that was passed as a parameter.
+		 */
 		acpi_tb_delete_table(table_desc);
 		*table_index = i;
-		status = AE_ALREADY_EXISTS;
-		goto release;
+
+		if (acpi_gbl_root_table_list.tables[i].
+		    flags & ACPI_TABLE_IS_LOADED) {
+
+			/* Table is still loaded, this is an error */
+
+			status = AE_ALREADY_EXISTS;
+			goto release;
+		} else {
+			/* Table was unloaded, allow it to be reloaded */
+
+			table_desc->pointer =
+			    acpi_gbl_root_table_list.tables[i].pointer;
+			table_desc->address =
+			    acpi_gbl_root_table_list.tables[i].address;
+			status = AE_OK;
+			goto print_header;
+		}
 	}
 
-	/*
-	 * Add the table to the global table list
-	 */
+	/* Add the table to the global root table list */
+
 	status = acpi_tb_store_table(table_desc->address, table_desc->pointer,
 				     table_desc->length, table_desc->flags,
 				     table_index);
@@ -171,6 +209,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		goto release;
 	}
 
+      print_header:
 	acpi_tb_print_table_header(table_desc->address, table_desc->pointer);
 
       release:

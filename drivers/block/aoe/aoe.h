@@ -159,11 +159,8 @@ struct aoedev {
 	sector_t ssize;
 	struct timer_list timer;
 	spinlock_t lock;
-	struct sk_buff *sendq_hd; /* packets needing to be sent, list head */
-	struct sk_buff *sendq_tl;
-	struct sk_buff *skbpool_hd;
-	struct sk_buff *skbpool_tl;
-	int nskbpool;
+	struct sk_buff_head sendq;
+	struct sk_buff_head skbpool;
 	mempool_t *bufpool;	/* for deadlock-free Buf allocation */
 	struct list_head bufq;	/* queue of bios to work on */
 	struct buf *inprocess;	/* the one we're currently working on */
@@ -199,7 +196,7 @@ int aoedev_flush(const char __user *str, size_t size);
 
 int aoenet_init(void);
 void aoenet_exit(void);
-void aoenet_xmit(struct sk_buff *);
+void aoenet_xmit(struct sk_buff_head *);
 int is_aoe_netif(struct net_device *ifp);
 int set_aoe_iflist(const char __user *str, size_t size);
 

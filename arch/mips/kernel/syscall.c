@@ -7,7 +7,6 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2001 MIPS Technologies, Inc.
  */
-#include <linux/a.out.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>

@@ -5,7 +5,7 @@
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/adc.h>
-#include <asm/hp6xx.h>
+#include <mach/hp6xx.h>
 
 #define MODNAME "hp680_ts_input"
 

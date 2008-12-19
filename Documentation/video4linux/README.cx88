@@ -27,8 +27,8 @@ audio
 	  sound card) should be possible, but there is no code yet ...
 
 vbi
-	- some code present.  Doesn't crash any more, but also doesn't
-	  work yet ...
+	- Code present. Works for NTSC closed caption. PAL and other
+	  TV norms may or may not work.
 
 
 how to add support for new cards

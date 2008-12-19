@@ -15,9 +15,9 @@
 #include <linux/workqueue.h>
 #include <linux/cache.h>
 #include <linux/sched.h>
- 
+
 struct task_struct;
- 
+
 int alloc_cpu_buffers(void);
 void free_cpu_buffers(void);
 
@@ -31,15 +31,15 @@ struct op_sample {
 	unsigned long eip;
 	unsigned long event;
 };
- 
+
 struct oprofile_cpu_buffer {
 	volatile unsigned long head_pos;
 	volatile unsigned long tail_pos;
 	unsigned long buffer_size;
-	struct task_struct * last_task;
+	struct task_struct *last_task;
 	int last_is_kernel;
 	int tracing;
-	struct op_sample * buffer;
+	struct op_sample *buffer;
 	unsigned long sample_received;
 	unsigned long sample_lost_overflow;
 	unsigned long backtrace_aborted;
@@ -50,10 +50,12 @@ struct oprofile_cpu_buffer {
 
 DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
-void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf);
+void cpu_buffer_reset(struct oprofile_cpu_buffer *cpu_buf);
 
 /* transient events for the CPU buffer -> event buffer */
 #define CPU_IS_KERNEL 1
 #define CPU_TRACE_BEGIN 2
+#define IBS_FETCH_BEGIN 3
+#define IBS_OP_BEGIN    4
 
 #endif /* OPROFILE_CPU_BUFFER_H */

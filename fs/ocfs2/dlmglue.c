@@ -2024,8 +2024,7 @@ static int ocfs2_inode_lock_update(struct inode *inode,
 	} else {
 		/* Boo, we have to go to disk. */
 		/* read bh, cast, ocfs2_refresh_inode */
-		status = ocfs2_read_block(OCFS2_SB(inode->i_sb), oi->ip_blkno,
-					  bh, OCFS2_BH_CACHED, inode);
+		status = ocfs2_read_block(inode, oi->ip_blkno, bh);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail_refresh;
@@ -2086,11 +2085,7 @@ static int ocfs2_assign_bh(struct inode *inode,
 		return 0;
 	}
 
-	status = ocfs2_read_block(OCFS2_SB(inode->i_sb),
-				  OCFS2_I(inode)->ip_blkno,
-				  ret_bh,
-				  OCFS2_BH_CACHED,
-				  inode);
+	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, ret_bh);
 	if (status < 0)
 		mlog_errno(status);
 
@@ -2846,9 +2841,8 @@ static void ocfs2_unlock_ast(void *opaque, int error)
 
 	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
 	lockres->l_unlock_action = OCFS2_UNLOCK_INVALID;
-	spin_unlock_irqrestore(&lockres->l_lock, flags);
-
 	wake_up(&lockres->l_event);
+	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	mlog_exit_void();
 }

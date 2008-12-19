@@ -14,16 +14,16 @@
 #include "../core/hcd.h"
 #include "isp1760-hcd.h"
 
-#ifdef CONFIG_USB_ISP1760_OF
+#ifdef CONFIG_PPC_OF
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #endif
 
-#ifdef CONFIG_USB_ISP1760_PCI
+#ifdef CONFIG_PCI
 #include <linux/pci.h>
 #endif
 
-#ifdef CONFIG_USB_ISP1760_OF
+#ifdef CONFIG_PPC_OF
 static int of_isp1760_probe(struct of_device *dev,
 		const struct of_device_id *match)
 {
@@ -128,7 +128,7 @@ static struct of_platform_driver isp1760_of_driver = {
 };
 #endif
 
-#ifdef CONFIG_USB_ISP1760_PCI
+#ifdef CONFIG_PCI
 static u32 nxp_pci_io_base;
 static u32 iolength;
 static u32 pci_mem_phy0;
@@ -218,7 +218,7 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 	 * and reading back and checking the contents are same or not
 	 */
 	if (reg_data != 0xFACE) {
-		err("scratch register mismatch %x", reg_data);
+		dev_err(&dev->dev, "scratch register mismatch %x\n", reg_data);
 		goto clean;
 	}
 
@@ -232,9 +232,10 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 	hcd = isp1760_register(pci_mem_phy0, length, dev->irq,
 		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev),
 		devflags);
-	pci_set_drvdata(dev, hcd);
-	if (!hcd)
+	if (!IS_ERR(hcd)) {
+		pci_set_drvdata(dev, hcd);
 		return 0;
+	}
 clean:
 	status = -ENODEV;
 	iounmap(iobase);
@@ -287,28 +288,28 @@ static struct pci_driver isp1761_pci_driver = {
 
 static int __init isp1760_init(void)
 {
-	int ret = -ENODEV;
+	int ret;
 
 	init_kmem_once();
 
-#ifdef CONFIG_USB_ISP1760_OF
+#ifdef CONFIG_PPC_OF
 	ret = of_register_platform_driver(&isp1760_of_driver);
 	if (ret) {
 		deinit_kmem_cache();
 		return ret;
 	}
 #endif
-#ifdef CONFIG_USB_ISP1760_PCI
+#ifdef CONFIG_PCI
 	ret = pci_register_driver(&isp1761_pci_driver);
 	if (ret)
 		goto unreg_of;
 #endif
 	return ret;
 
-#ifdef CONFIG_USB_ISP1760_PCI
+#ifdef CONFIG_PCI
 unreg_of:
 #endif
-#ifdef CONFIG_USB_ISP1760_OF
+#ifdef CONFIG_PPC_OF
 	of_unregister_platform_driver(&isp1760_of_driver);
 #endif
 	deinit_kmem_cache();
@@ -318,10 +319,10 @@ module_init(isp1760_init);
 
 static void __exit isp1760_exit(void)
 {
-#ifdef CONFIG_USB_ISP1760_OF
+#ifdef CONFIG_PPC_OF
 	of_unregister_platform_driver(&isp1760_of_driver);
 #endif
-#ifdef CONFIG_USB_ISP1760_PCI
+#ifdef CONFIG_PCI
 	pci_unregister_driver(&isp1761_pci_driver);
 #endif
 	deinit_kmem_cache();

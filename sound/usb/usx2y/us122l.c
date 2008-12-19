@@ -118,12 +118,11 @@ static int usb_stream_hwdep_vm_fault(struct vm_area_struct *area,
 	void *vaddr;
 	struct us122l *us122l = area->vm_private_data;
 	struct usb_stream *s;
-	int vm_f = VM_FAULT_SIGBUS;
 
 	mutex_lock(&us122l->mutex);
 	s = us122l->sk.s;
 	if (!s)
-		goto out;
+		goto unlock;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
 	if (offset < PAGE_ALIGN(s->read_size))
@@ -131,7 +130,7 @@ static int usb_stream_hwdep_vm_fault(struct vm_area_struct *area,
 	else {
 		offset -= PAGE_ALIGN(s->read_size);
 		if (offset >= PAGE_ALIGN(s->write_size))
-			goto out;
+			goto unlock;
 
 		vaddr = us122l->sk.write_page + offset;
 	}
@@ -141,9 +140,11 @@ static int usb_stream_hwdep_vm_fault(struct vm_area_struct *area,
 	mutex_unlock(&us122l->mutex);
 
 	vmf->page = page;
-	vm_f = 0;
-out:
-	return vm_f;
+
+	return 0;
+unlock:
+	mutex_unlock(&us122l->mutex);
+	return VM_FAULT_SIGBUS;
 }
 
 static void usb_stream_hwdep_vm_close(struct vm_area_struct *area)

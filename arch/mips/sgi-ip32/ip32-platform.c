@@ -90,6 +90,22 @@ static __init int sgio2btns_devinit(void)
 
 device_initcall(sgio2btns_devinit);
 
+static struct resource sgio2_cmos_rsrc[] = {
+	{
+		.start = 0x70,
+		.end   = 0x71,
+		.flags = IORESOURCE_IO
+	}
+};
+
+static __init int sgio2_cmos_devinit(void)
+{
+	return IS_ERR(platform_device_register_simple("rtc_cmos", -1,
+						      sgio2_cmos_rsrc, 1));
+}
+
+device_initcall(sgio2_cmos_devinit);
+
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("8250 UART probe driver for SGI IP32 aka O2");
