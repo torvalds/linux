@@ -58,6 +58,7 @@ static char *model[SNDRV_CARDS];
 static int position_fix[SNDRV_CARDS];
 static int bdl_pos_adj[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
+static int probe_only[SNDRV_CARDS];
 static int single_cmd;
 static int enable_msi;
 
@@ -76,6 +77,8 @@ module_param_array(bdl_pos_adj, int, NULL, 0644);
 MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
+module_param_array(probe_only, bool, NULL, 0444);
+MODULE_PARM_DESC(probe_only, "Only probing and no codec initialization.");
 module_param(single_cmd, bool, 0444);
 MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 		 "(for debugging only).");
@@ -1224,7 +1227,8 @@ static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
 };
 
 static int __devinit azx_codec_create(struct azx *chip, const char *model,
-				      unsigned int codec_probe_mask)
+				      unsigned int codec_probe_mask,
+				      int no_init)
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, err;
@@ -1282,7 +1286,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(chip->bus, c, &codec);
+			err = snd_hda_codec_new(chip->bus, c, !no_init, &codec);
 			if (err < 0)
 				continue;
 			codecs++;
@@ -2340,7 +2344,8 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	card->private_data = chip;
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model[dev], probe_mask[dev]);
+	err = azx_codec_create(chip, model[dev], probe_mask[dev],
+			       probe_only[dev]);
 	if (err < 0)
 		goto out_free;
 

@@ -709,7 +709,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
  * Returns 0 if successful, or a negative error code.
  */
 int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
-				struct hda_codec **codecp)
+				    int do_init, struct hda_codec **codecp)
 {
 	struct hda_codec *codec;
 	char component[31];
@@ -793,10 +793,12 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	if (bus->modelname)
 		codec->modelname = kstrdup(bus->modelname, GFP_KERNEL);
 
-	err = snd_hda_codec_configure(codec);
-	if (err < 0) {
-		snd_hda_codec_free(codec);
-		return err;
+	if (do_init) {
+		err = snd_hda_codec_configure(codec);
+		if (err < 0) {
+			snd_hda_codec_free(codec);
+			return err;
+		}
 	}
 	snd_hda_codec_proc_new(codec);
 
