@@ -115,8 +115,14 @@ static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
 	return error;
 }
 
+#define OUI_FREECOM_TECHNOLOGIES_GMBH 0x0001db
+
 static int nodemgr_get_max_rom(quadlet_t *bus_info_data, void *__ci)
 {
+	/* Freecom FireWire Hard Drive firmware bug */
+	if (be32_to_cpu(bus_info_data[3]) >> 8 == OUI_FREECOM_TECHNOLOGIES_GMBH)
+		return 0;
+
 	return (be32_to_cpu(bus_info_data[2]) >> 8) & 0x3;
 }
 
@@ -1685,6 +1691,7 @@ static int nodemgr_host_thread(void *data)
 		g = get_hpsb_generation(host);
 		for (i = 0; i < 4 ; i++) {
 			msleep_interruptible(63);
+			try_to_freeze();
 			if (kthread_should_stop())
 				goto exit;
 
@@ -1725,6 +1732,7 @@ static int nodemgr_host_thread(void *data)
 		/* Sleep 3 seconds */
 		for (i = 3000/200; i; i--) {
 			msleep_interruptible(200);
+			try_to_freeze();
 			if (kthread_should_stop())
 				goto exit;
 

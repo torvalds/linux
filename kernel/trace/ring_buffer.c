@@ -258,7 +258,6 @@ struct ring_buffer_per_cpu {
 };
 
 struct ring_buffer {
-	unsigned long			size;
 	unsigned			pages;
 	unsigned			flags;
 	int				cpus;
@@ -2210,8 +2209,7 @@ int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 		return -EINVAL;
 
 	/* At least make sure the two buffers are somewhat the same */
-	if (buffer_a->size != buffer_b->size ||
-	    buffer_a->pages != buffer_b->pages)
+	if (buffer_a->pages != buffer_b->pages)
 		return -EINVAL;
 
 	cpu_buffer_a = buffer_a->buffers[cpu];

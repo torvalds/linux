@@ -1135,12 +1135,15 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	if (res)
 		return res;
 
-	if (!(filp->f_mode & FMODE_EXCL))
-		return 0;
+	if (filp->f_mode & FMODE_EXCL) {
+		res = bd_claim(bdev, filp);
+		if (res)
+			goto out_blkdev_put;
+	}
 
-	if (!(res = bd_claim(bdev, filp)))
-		return 0;
+	return 0;
 
+ out_blkdev_put:
 	blkdev_put(bdev, filp->f_mode);
 	return res;
 }
@@ -1203,8 +1206,16 @@ static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct block_device *bdev = I_BDEV(file->f_mapping->host);
 	fmode_t mode = file->f_mode;
+
+	/*
+	 * O_NDELAY can be altered using fcntl(.., F_SETFL, ..), so we have
+	 * to updated it before every ioctl.
+	 */
 	if (file->f_flags & O_NDELAY)
-		mode |= FMODE_NDELAY_NOW;
+		mode |= FMODE_NDELAY;
+	else
+		mode &= ~FMODE_NDELAY;
+
 	return blkdev_ioctl(bdev, mode, cmd, arg);
 }
 

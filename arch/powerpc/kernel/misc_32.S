@@ -479,17 +479,20 @@ _GLOBAL(_tlbil_pid)
  * (no broadcast)
  */
 _GLOBAL(_tlbil_va)
+	mfmsr	r10
+	wrteei	0
 	slwi	r4,r4,16
 	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
 	tlbsx	0,r3
 	mfspr	r4,SPRN_MAS1		/* check valid */
 	andis.	r3,r4,MAS1_VALID@h
-	beqlr
+	beq	1f
 	rlwinm	r4,r4,0,1,31
 	mtspr	SPRN_MAS1,r4
 	tlbwe
 	msync
 	isync
+1:	wrtee	r10
 	blr
 #endif /* CONFIG_FSL_BOOKE */
 

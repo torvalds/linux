@@ -1527,10 +1527,10 @@ W:	http://ebtables.sourceforge.net/
 S:	Maintained
 
 ECRYPT FILE SYSTEM
-P:	Mike Halcrow, Phillip Hellewell
-M:	mhalcrow@us.ibm.com, phillip@hellewell.homeip.net
-L:	ecryptfs-devel@lists.sourceforge.net
-W:	http://ecryptfs.sourceforge.net/
+P:	Tyler Hicks, Dustin Kirkland
+M:	tyhicks@linux.vnet.ibm.com, kirkland@canonical.com
+L:	ecryptfs-devel@lists.launchpad.net
+W:	https://launchpad.net/ecryptfs
 S:	Supported
 
 EDAC-CORE
@@ -3758,6 +3758,15 @@ P:	Pierre Ossman
 M:	drzeus-sdhci@drzeus.cx
 L:	sdhci-devel@list.drzeus.cx
 S:	Maintained
+
+SECURITY SUBSYSTEM
+F:	security/
+P:	James Morris
+M:	jmorris@namei.org
+L:	linux-kernel@vger.kernel.org
+L:	linux-security-module@vger.kernel.org (suggested Cc:)
+T:	git kernel.org:pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+S:	Supported
 
 SECURITY CONTACT
 P:	Security Officers

@@ -824,32 +824,36 @@ static int __init toshiba_acpi_init(void)
 			toshiba_acpi_exit();
 			return -ENOMEM;
 		}
-	}
 
-	/* Register input device for kill switch */
-	toshiba_acpi.poll_dev = input_allocate_polled_device();
-	if (!toshiba_acpi.poll_dev) {
-		printk(MY_ERR "unable to allocate kill-switch input device\n");
-		toshiba_acpi_exit();
-		return -ENOMEM;
-	}
-	toshiba_acpi.poll_dev->private = &toshiba_acpi;
-	toshiba_acpi.poll_dev->poll = bt_poll_rfkill;
-	toshiba_acpi.poll_dev->poll_interval = 1000; /* msecs */
+		/* Register input device for kill switch */
+		toshiba_acpi.poll_dev = input_allocate_polled_device();
+		if (!toshiba_acpi.poll_dev) {
+			printk(MY_ERR
+			       "unable to allocate kill-switch input device\n");
+			toshiba_acpi_exit();
+			return -ENOMEM;
+		}
+		toshiba_acpi.poll_dev->private = &toshiba_acpi;
+		toshiba_acpi.poll_dev->poll = bt_poll_rfkill;
+		toshiba_acpi.poll_dev->poll_interval = 1000; /* msecs */
 
-	toshiba_acpi.poll_dev->input->name = toshiba_acpi.rfk_name;
-	toshiba_acpi.poll_dev->input->id.bustype = BUS_HOST;
-	toshiba_acpi.poll_dev->input->id.vendor = 0x0930; /* Toshiba USB ID */
-	set_bit(EV_SW, toshiba_acpi.poll_dev->input->evbit);
-	set_bit(SW_RFKILL_ALL, toshiba_acpi.poll_dev->input->swbit);
-	input_report_switch(toshiba_acpi.poll_dev->input, SW_RFKILL_ALL, TRUE);
-	input_sync(toshiba_acpi.poll_dev->input);
+		toshiba_acpi.poll_dev->input->name = toshiba_acpi.rfk_name;
+		toshiba_acpi.poll_dev->input->id.bustype = BUS_HOST;
+		/* Toshiba USB ID */
+		toshiba_acpi.poll_dev->input->id.vendor = 0x0930;
+		set_bit(EV_SW, toshiba_acpi.poll_dev->input->evbit);
+		set_bit(SW_RFKILL_ALL, toshiba_acpi.poll_dev->input->swbit);
+		input_report_switch(toshiba_acpi.poll_dev->input,
+				    SW_RFKILL_ALL, TRUE);
+		input_sync(toshiba_acpi.poll_dev->input);
 
-	ret = input_register_polled_device(toshiba_acpi.poll_dev);
-	if (ret) {
-		printk(MY_ERR "unable to register kill-switch input device\n");
-		toshiba_acpi_exit();
-		return ret;
+		ret = input_register_polled_device(toshiba_acpi.poll_dev);
+		if (ret) {
+			printk(MY_ERR
+			       "unable to register kill-switch input device\n");
+			toshiba_acpi_exit();
+			return ret;
+		}
 	}
 
 	return 0;

@@ -158,8 +158,12 @@ struct usb_ctrlrequest {
  * (rarely) accepted by SET_DESCRIPTOR.
  *
  * Note that all multi-byte values here are encoded in little endian
- * byte order "on the wire".  But when exposed through Linux-USB APIs,
- * they've been converted to cpu byte order.
+ * byte order "on the wire".  Within the kernel and when exposed
+ * through the Linux-USB APIs, they are not converted to cpu byte
+ * order; it is the responsibility of the client code to do this.
+ * The single exception is when device and configuration descriptors (but
+ * not other descriptors) are read from usbfs (i.e. /proc/bus/usb/BBB/DDD);
+ * in this case the fields are converted to host endianness by the kernel.
  */
 
 /*
