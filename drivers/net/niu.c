@@ -3618,7 +3618,9 @@ static int niu_rx_work(struct niu *np, struct rx_ring_info *rp, int budget)
 
 	nw64(RX_DMA_CTL_STAT(rp->rx_channel), stat);
 
-	niu_sync_rx_discard_stats(np, rp, 0x7FFF);
+	/* Only sync discards stats when qlen indicate potential for drops */
+	if (qlen > 10)
+		niu_sync_rx_discard_stats(np, rp, 0x7FFF);
 
 	return work_done;
 }
