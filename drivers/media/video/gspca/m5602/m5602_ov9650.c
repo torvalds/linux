@@ -58,6 +58,13 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "A6Kt")
 		}
 	},
+	{
+		.ident = "Alienware Aurora m9700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aurora m9700")
+		}
+	},
 	{ }
 };
 
