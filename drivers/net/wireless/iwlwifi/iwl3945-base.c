@@ -303,8 +303,6 @@ void iwl3945_tx_queue_free(struct iwl3945_priv *priv, struct iwl3945_tx_queue *t
 	memset(txq, 0, sizeof(*txq));
 }
 
-const u8 iwl3945_broadcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-
 /*************** STATION TABLE MANAGEMENT ****
  * mac80211 should be examined to determine if sta_info is duplicating
  * the functionality provided here
@@ -1032,7 +1030,7 @@ static int iwl3945_commit_rxon(struct iwl3945_priv *priv)
 	}
 
 	/* Add the broadcast address so we can send broadcast frames */
-	if (iwl3945_add_station(priv, iwl3945_broadcast_addr, 0, 0) ==
+	if (iwl3945_add_station(priv, iwl_bcast_addr, 0, 0) ==
 	    IWL_INVALID_STATION) {
 		IWL_ERROR("Error adding BROADCAST address for transmit.\n");
 		return -EIO;
@@ -1529,9 +1527,9 @@ static u16 iwl3945_fill_probe_req(struct iwl3945_priv *priv,
 	len += 24;
 
 	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-	memcpy(frame->da, iwl3945_broadcast_addr, ETH_ALEN);
+	memcpy(frame->da, iwl_bcast_addr, ETH_ALEN);
 	memcpy(frame->sa, priv->mac_addr, ETH_ALEN);
-	memcpy(frame->bssid, iwl3945_broadcast_addr, ETH_ALEN);
+	memcpy(frame->bssid, iwl_bcast_addr, ETH_ALEN);
 	frame->seq_ctrl = 0;
 
 	/* fill in our indirect SSID IE */
@@ -6640,7 +6638,7 @@ static void iwl3945_config_ap(struct iwl3945_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwl3945_commit_rxon(priv);
-		iwl3945_add_station(priv, iwl3945_broadcast_addr, 0, 0);
+		iwl3945_add_station(priv, iwl_bcast_addr, 0, 0);
 	}
 	iwl3945_send_beacon_cmd(priv);
 

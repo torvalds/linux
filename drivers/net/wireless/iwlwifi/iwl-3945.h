@@ -358,7 +358,6 @@ extern int iwl3945_send_statistics_request(struct iwl3945_priv *priv);
 extern void iwl3945_set_decrypted_flag(struct iwl3945_priv *priv, struct sk_buff *skb,
 				   u32 decrypt_res,
 				   struct ieee80211_rx_status *stats);
-extern const u8 iwl3945_broadcast_addr[ETH_ALEN];
 
 /*
  * Currently used by iwl-3945-rs... look at restructuring so that it doesn't
