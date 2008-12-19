@@ -481,13 +481,6 @@ struct iwl3945_qos_info {
 struct iwl3945_station_entry {
 	struct iwl3945_addsta_cmd sta;
 	struct iwl3945_tid_data tid[MAX_TID_COUNT];
-	union {
-		struct {
-			u8 rate;
-			u8 flags;
-		} s;
-		u16 rate_n_flags;
-	} current_rate;
 	u8 used;
 	u8 ps_status;
 	struct iwl3945_hw_key keyinfo;

@@ -462,8 +462,6 @@ u8 iwl3945_add_station(struct iwl3945_priv *priv, const u8 *addr, int is_ap, u8 
 	/* Turn on both antennas for the station... */
 	station->sta.rate_n_flags =
 			iwl3945_hw_set_rate_n_flags(rate, RATE_MCS_ANT_AB_MSK);
-	station->current_rate.rate_n_flags =
-			le16_to_cpu(station->sta.rate_n_flags);
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 

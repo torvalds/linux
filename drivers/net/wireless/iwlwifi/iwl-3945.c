@@ -831,7 +831,6 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 			      struct ieee80211_tx_info *info,
 			      struct ieee80211_hdr *hdr, int sta_id, int tx_id)
 {
-	unsigned long flags;
 	u16 hw_value = ieee80211_get_tx_rate(priv->hw, info)->hw_value;
 	u16 rate_index = min(hw_value & 0xffff, IWL_RATE_COUNT - 1);
 	u16 rate_mask;
@@ -847,17 +846,6 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 	/* We need to figure out how to get the sta->supp_rates while
 	 * in this running context */
 	rate_mask = IWL_RATES_MASK;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-
-	priv->stations[sta_id].current_rate.rate_n_flags = rate;
-
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
-	    (sta_id != priv->hw_setting.bcast_sta_id) &&
-		(sta_id != IWL_MULTICAST_ID))
-		priv->stations[IWL_STA_ID].current_rate.rate_n_flags = rate;
-
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	if (tx_id >= IWL_CMD_QUEUE_NUM)
 		rts_retry_limit = 3;
@@ -921,7 +909,6 @@ u8 iwl3945_sync_sta(struct iwl3945_priv *priv, int sta_id, u16 tx_rate, u8 flags
 
 	station->sta.sta.modify_mask = STA_MODIFY_TX_RATE_MSK;
 	station->sta.rate_n_flags = cpu_to_le16(tx_rate);
-	station->current_rate.rate_n_flags = tx_rate;
 	station->sta.mode = STA_CONTROL_MODIFY_MSK;
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
