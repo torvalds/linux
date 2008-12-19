@@ -451,7 +451,6 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 
 /*
  * called with dp->dl_count inc'ed.
- * nfs4_lock_state() may or may not have been called.
  */
 void
 nfsd4_cb_recall(struct nfs4_delegation *dp)
@@ -491,7 +490,9 @@ out_put_cred:
 	 * Success or failure, now we're either waiting for lease expiration
 	 * or deleg_return.
 	 */
+	nfs4_lock_state();
 	put_nfs4_client(clp);
 	nfs4_put_delegation(dp);
+	nfs4_unlock_state();
 	return;
 }
