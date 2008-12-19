@@ -11,6 +11,20 @@
 
 #include "zfcp_ext.h"
 
+enum rscn_address_format {
+	RSCN_PORT_ADDRESS	= 0x0,
+	RSCN_AREA_ADDRESS	= 0x1,
+	RSCN_DOMAIN_ADDRESS	= 0x2,
+	RSCN_FABRIC_ADDRESS	= 0x3,
+};
+
+static u32 rscn_range_mask[] = {
+	[RSCN_PORT_ADDRESS]		= 0xFFFFFF,
+	[RSCN_AREA_ADDRESS]		= 0xFFFF00,
+	[RSCN_DOMAIN_ADDRESS]		= 0xFF0000,
+	[RSCN_FABRIC_ADDRESS]		= 0x000000,
+};
+
 struct ct_iu_gpn_ft_req {
 	struct ct_hdr header;
 	u8 flags;
@@ -160,22 +174,7 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 	for (i = 1; i < no_entries; i++) {
 		/* skip head and start with 1st element */
 		fcp_rscn_element++;
-		switch (fcp_rscn_element->addr_format) {
-		case ZFCP_PORT_ADDRESS:
-			range_mask = ZFCP_PORTS_RANGE_PORT;
-			break;
-		case ZFCP_AREA_ADDRESS:
-			range_mask = ZFCP_PORTS_RANGE_AREA;
-			break;
-		case ZFCP_DOMAIN_ADDRESS:
-			range_mask = ZFCP_PORTS_RANGE_DOMAIN;
-			break;
-		case ZFCP_FABRIC_ADDRESS:
-			range_mask = ZFCP_PORTS_RANGE_FABRIC;
-			break;
-		default:
-			continue;
-		}
+		range_mask = rscn_range_mask[fcp_rscn_element->addr_format];
 		_zfcp_fc_incoming_rscn(fsf_req, range_mask, fcp_rscn_element);
 	}
 	schedule_work(&fsf_req->adapter->scan_work);

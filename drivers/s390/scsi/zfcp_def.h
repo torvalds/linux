@@ -159,20 +159,6 @@ struct fcp_rscn_element {
         u32 nport_did:24;
 } __attribute__((packed));
 
-#define ZFCP_PORT_ADDRESS   0x0
-#define ZFCP_AREA_ADDRESS   0x1
-#define ZFCP_DOMAIN_ADDRESS 0x2
-#define ZFCP_FABRIC_ADDRESS 0x3
-
-#define ZFCP_PORTS_RANGE_PORT   0xFFFFFF
-#define ZFCP_PORTS_RANGE_AREA   0xFFFF00
-#define ZFCP_PORTS_RANGE_DOMAIN 0xFF0000
-#define ZFCP_PORTS_RANGE_FABRIC 0x000000
-
-#define ZFCP_NO_PORTS_PER_AREA    0x100
-#define ZFCP_NO_PORTS_PER_DOMAIN  0x10000
-#define ZFCP_NO_PORTS_PER_FABRIC  0x1000000
-
 /* see fc-ph */
 struct fcp_logo {
         u32 command;
