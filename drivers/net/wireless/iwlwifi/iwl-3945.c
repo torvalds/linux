@@ -599,7 +599,7 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 	/* Set the size of the skb to the size of the frame */
 	skb_put(rxb->skb, le16_to_cpu(rx_hdr->len));
 
-	if (iwl3945_param_hwcrypto)
+	if (iwl3945_mod_params.sw_crypto)
 		iwl3945_set_decrypted_flag(priv, rxb->skb,
 				       le32_to_cpu(rx_end->status), stats);
 
@@ -2512,6 +2512,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.ucode_api_max = IWL3945_UCODE_API_MAX,
 	.ucode_api_min = IWL3945_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
+	.mod_params = &iwl3945_mod_params
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2520,6 +2521,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.ucode_api_max = IWL3945_UCODE_API_MAX,
 	.ucode_api_min = IWL3945_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
+	.mod_params = &iwl3945_mod_params
 };
 
 struct pci_device_id iwl3945_hw_card_ids[] = {
