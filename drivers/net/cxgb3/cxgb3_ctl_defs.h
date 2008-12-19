@@ -57,6 +57,7 @@ enum {
 	RDMA_GET_MIB		= 19,
 
 	GET_RX_PAGE_INFO	= 50,
+	GET_ISCSI_IPV4ADDR	= 51,
 };
 
 /*
@@ -84,6 +85,12 @@ struct iff_mac {
 	struct net_device *dev;	/* the net_device */
 	const unsigned char *mac_addr;	/* MAC address to lookup */
 	u16 vlan_tag;
+};
+
+/* Structure used to request a port's iSCSI IPv4 address */
+struct iscsi_ipv4addr {
+	struct net_device *dev;	/* the net_device */
+	__be32 ipv4addr;	/* the return iSCSI IPv4 address */
 };
 
 struct pci_dev;
