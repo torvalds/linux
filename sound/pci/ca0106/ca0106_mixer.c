@@ -806,8 +806,8 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 
 #ifdef CONFIG_PM
 struct ca0106_vol_tbl {
-	unsigned int reg;
 	unsigned int channel_id;
+	unsigned int reg;
 };
 
 static struct ca0106_vol_tbl saved_volumes[NUM_SAVED_VOLUMES] = {
