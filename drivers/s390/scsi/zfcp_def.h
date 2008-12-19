@@ -602,8 +602,6 @@ struct zfcp_fsf_req_qtcb {
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
 
-#define zfcp_get_busid_by_adapter(adapter) (dev_name(&adapter->ccw_device->dev))
-
 /*
  * Helper functions for request ID management.
  */
