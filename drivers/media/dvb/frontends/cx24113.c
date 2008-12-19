@@ -345,12 +345,12 @@ static void cx24113_calc_pll_nf(struct cx24113_state *state, u16 *n, s32 *f)
 	}
 	F = freq_hz;
 	F *= (u64) (R * vcodiv * 262144);
-	dprintk("1 N: %d, F: %lld, R: %d\n", N, F, R);
+	dprintk("1 N: %d, F: %lld, R: %d\n", N, (long long)F, R);
 	do_div(F, state->config->xtal_khz*1000 * factor * 2);
-	dprintk("2 N: %d, F: %lld, R: %d\n", N, F, R);
+	dprintk("2 N: %d, F: %lld, R: %d\n", N, (long long)F, R);
 	F -= (N + 32) * 262144;
 
-	dprintk("3 N: %d, F: %lld, R: %d\n", N, F, R);
+	dprintk("3 N: %d, F: %lld, R: %d\n", N, (long long)F, R);
 
 	if (state->Fwindow_enabled) {
 		if (F > (262144 / 2 - 1638))
@@ -363,7 +363,7 @@ static void cx24113_calc_pll_nf(struct cx24113_state *state, u16 *n, s32 *f)
 			cx24113_writereg(state, 0x10, r | (1 << 6));
 		}
 	}
-	dprintk("4 N: %d, F: %lld, R: %d\n", N, F, R);
+	dprintk("4 N: %d, F: %lld, R: %d\n", N, (long long)F, R);
 
 	*n = (u16) N;
 	*f = (s32) F;
