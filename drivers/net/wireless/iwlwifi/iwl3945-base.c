@@ -3358,7 +3358,7 @@ static void iwl3945_tx_cmd_complete(struct iwl3945_priv *priv,
 /**
  * iwl3945_rx_queue_space - Return number of free slots available in queue.
  */
-static int iwl3945_rx_queue_space(const struct iwl3945_rx_queue *q)
+static int iwl3945_rx_queue_space(const struct iwl_rx_queue *q)
 {
 	int s = q->read - q->write;
 	if (s <= 0)
@@ -3373,7 +3373,7 @@ static int iwl3945_rx_queue_space(const struct iwl3945_rx_queue *q)
 /**
  * iwl3945_rx_queue_update_write_ptr - Update the write pointer for the RX queue
  */
-int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv, struct iwl3945_rx_queue *q)
+int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv, struct iwl_rx_queue *q)
 {
 	u32 reg = 0;
 	int rc = 0;
@@ -3438,7 +3438,7 @@ static inline __le32 iwl3945_dma_addr2rbd_ptr(struct iwl3945_priv *priv,
  */
 static int iwl3945_rx_queue_restock(struct iwl3945_priv *priv)
 {
-	struct iwl3945_rx_queue *rxq = &priv->rxq;
+	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
@@ -3490,7 +3490,7 @@ static int iwl3945_rx_queue_restock(struct iwl3945_priv *priv)
  */
 static void iwl3945_rx_allocate(struct iwl3945_priv *priv)
 {
-	struct iwl3945_rx_queue *rxq = &priv->rxq;
+	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
@@ -3562,7 +3562,7 @@ void iwl3945_rx_replenish(void *data)
  * This free routine walks the list of POOL entries and if SKB is set to
  * non NULL it is unmapped and freed
  */
-static void iwl3945_rx_queue_free(struct iwl3945_priv *priv, struct iwl3945_rx_queue *rxq)
+static void iwl3945_rx_queue_free(struct iwl3945_priv *priv, struct iwl_rx_queue *rxq)
 {
 	int i;
 	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
@@ -3581,7 +3581,7 @@ static void iwl3945_rx_queue_free(struct iwl3945_priv *priv, struct iwl3945_rx_q
 
 int iwl3945_rx_queue_alloc(struct iwl3945_priv *priv)
 {
-	struct iwl3945_rx_queue *rxq = &priv->rxq;
+	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct pci_dev *dev = priv->pci_dev;
 	int i;
 
@@ -3606,7 +3606,7 @@ int iwl3945_rx_queue_alloc(struct iwl3945_priv *priv)
 	return 0;
 }
 
-void iwl3945_rx_queue_reset(struct iwl3945_priv *priv, struct iwl3945_rx_queue *rxq)
+void iwl3945_rx_queue_reset(struct iwl3945_priv *priv, struct iwl_rx_queue *rxq)
 {
 	unsigned long flags;
 	int i;
@@ -3724,7 +3724,7 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 {
 	struct iwl_rx_mem_buffer *rxb;
 	struct iwl_rx_packet *pkt;
-	struct iwl3945_rx_queue *rxq = &priv->rxq;
+	struct iwl_rx_queue *rxq = &priv->rxq;
 	u32 r, i;
 	int reclaim;
 	unsigned long flags;

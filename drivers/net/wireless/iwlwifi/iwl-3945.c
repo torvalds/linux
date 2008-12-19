@@ -961,7 +961,7 @@ static int iwl3945_nic_set_pwr_src(struct iwl3945_priv *priv, int pwr_max)
 	return rc;
 }
 
-static int iwl3945_rx_init(struct iwl3945_priv *priv, struct iwl3945_rx_queue *rxq)
+static int iwl3945_rx_init(struct iwl3945_priv *priv, struct iwl_rx_queue *rxq)
 {
 	int rc;
 	unsigned long flags;
@@ -1082,7 +1082,7 @@ int iwl3945_hw_nic_init(struct iwl3945_priv *priv)
 	u8 rev_id;
 	int rc;
 	unsigned long flags;
-	struct iwl3945_rx_queue *rxq = &priv->rxq;
+	struct iwl_rx_queue *rxq = &priv->rxq;
 
 	iwl3945_power_init_handle(priv);
 

@@ -213,33 +213,6 @@ struct iwl3945_host_cmd {
 #define SUP_RATE_11B_MAX_NUM_CHANNELS  4
 #define SUP_RATE_11G_MAX_NUM_CHANNELS  12
 
-/**
- * struct iwl3945_rx_queue - Rx queue
- * @processed: Internal index to last handled Rx packet
- * @read: Shared index to newest available Rx buffer
- * @write: Shared index to oldest written Rx packet
- * @free_count: Number of pre-allocated buffers in rx_free
- * @rx_free: list of free SKBs for use
- * @rx_used: List of Rx buffers with no SKB
- * @need_update: flag to indicate we need to update read/write index
- *
- * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
- */
-struct iwl3945_rx_queue {
-	__le32 *bd;
-	dma_addr_t dma_addr;
-	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
-	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
-	u32 processed;
-	u32 read;
-	u32 write;
-	u32 free_count;
-	struct list_head rx_free;
-	struct list_head rx_used;
-	int need_update;
-	spinlock_t lock;
-};
-
 #define IWL_SUPPORTED_RATES_IE_LEN         8
 
 #define SCAN_INTERVAL 100
@@ -333,7 +306,7 @@ extern int iwl3945_power_init_handle(struct iwl3945_priv *priv);
 extern int iwl3945_eeprom_init(struct iwl3945_priv *priv);
 extern int iwl3945_rx_queue_alloc(struct iwl3945_priv *priv);
 extern void iwl3945_rx_queue_reset(struct iwl3945_priv *priv,
-			       struct iwl3945_rx_queue *rxq);
+			       struct iwl_rx_queue *rxq);
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);
 extern int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern int iwl3945_tx_queue_init(struct iwl3945_priv *priv,
@@ -347,7 +320,7 @@ extern int __must_check iwl3945_send_cmd(struct iwl3945_priv *priv,
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl3945_priv *priv,
 					struct ieee80211_hdr *hdr,int left);
 extern int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv,
-					 struct iwl3945_rx_queue *q);
+					 struct iwl_rx_queue *q);
 extern int iwl3945_send_statistics_request(struct iwl3945_priv *priv);
 extern void iwl3945_set_decrypted_flag(struct iwl3945_priv *priv, struct sk_buff *skb,
 				   u32 decrypt_res,
@@ -564,7 +537,7 @@ struct iwl3945_priv {
 	int activity_timer_active;
 
 	/* Rx and Tx DMA processing queues */
-	struct iwl3945_rx_queue rxq;
+	struct iwl_rx_queue rxq;
 	struct iwl3945_tx_queue txq[IWL39_MAX_NUM_QUEUES];
 
 	unsigned long status;
