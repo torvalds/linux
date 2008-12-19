@@ -91,5 +91,7 @@ source "drivers/staging/mimio/Kconfig"
 
 source "drivers/staging/frontier/Kconfig"
 
+source "drivers/staging/epl/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
