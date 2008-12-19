@@ -611,6 +611,9 @@ struct iwl_hw_params {
 	u32 ct_kill_threshold; /* value in hw-dependent units */
 	u32 calib_init_cfg;
 	const struct iwl_sensitivity_ranges *sens;
+
+	/* for 3945 */
+	u16 tx_ant_num;
 };
 
 
@@ -1010,6 +1013,10 @@ struct iwl_priv {
 	u16 beacon_int;
 	struct ieee80211_vif *vif;
 
+	/*Added	for 3945 */
+	void *shared_virt;
+	dma_addr_t shared_phys;
+	/*End*/
 	struct iwl_hw_params hw_params;
 
 

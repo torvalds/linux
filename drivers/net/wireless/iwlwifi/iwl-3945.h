@@ -253,34 +253,6 @@ struct iwl3945_ibss_seq {
 	struct list_head list;
 };
 
-/**
- * struct iwl3945_driver_hw_info
- * @max_txq_num: Max # Tx queues supported
- * @tx_cmd_len: Size of Tx command (but not including frame itself)
- * @tx_ant_num: Number of TX antennas
- * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
- * @rx_buf_size:
- * @max_pkt_size:
- * @max_rxq_log: Log-base-2 of max_rxq_size
- * @max_stations:
- * @bcast_sta_id:
- * @shared_virt: Pointer to driver/uCode shared Tx Byte Counts and Rx status
- * @shared_phys: Physical Pointer to Tx Byte Counts and Rx status
- */
-struct iwl3945_driver_hw_info {
-	u16 max_txq_num;
-	u16 tx_cmd_len;
-	u16 tx_ant_num;
-	u16 max_rxq_size;
-	u32 rx_buf_size;
-	u32 max_pkt_size;
-	u16 max_rxq_log;
-	u8  max_stations;
-	u8  bcast_sta_id;
-	void *shared_virt;
-	dma_addr_t shared_phys;
-};
-
 #define IWL_RX_HDR(x) ((struct iwl3945_rx_frame_hdr *)(\
 		       x->u.rx_frame.stats.payload + \
 		       x->u.rx_frame.stats.phy_count))
@@ -353,7 +325,7 @@ extern void iwl3945_hw_rx_handler_setup(struct iwl3945_priv *priv);
 extern void iwl3945_hw_setup_deferred_work(struct iwl3945_priv *priv);
 extern void iwl3945_hw_cancel_deferred_work(struct iwl3945_priv *priv);
 extern int iwl3945_hw_rxq_stop(struct iwl3945_priv *priv);
-extern int iwl3945_hw_set_hw_setting(struct iwl3945_priv *priv);
+extern int iwl3945_hw_set_hw_params(struct iwl3945_priv *priv);
 extern int iwl3945_hw_nic_init(struct iwl3945_priv *priv);
 extern int iwl3945_hw_nic_stop_master(struct iwl3945_priv *priv);
 extern void iwl3945_hw_txq_ctx_free(struct iwl3945_priv *priv);
@@ -583,7 +555,9 @@ struct iwl3945_priv {
 	/* Last Rx'd beacon timestamp */
 	u64 timestamp;
 	u16 beacon_int;
-	struct iwl3945_driver_hw_info hw_setting;
+	void *shared_virt;
+	dma_addr_t shared_phys;
+	struct iwl_hw_params hw_params;
 	struct ieee80211_vif *vif;
 
 	/* Current association information needed to configure the

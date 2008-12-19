@@ -804,10 +804,10 @@ u8 iwl3945_hw_find_station(struct iwl3945_priv *priv, const u8 *addr)
 		start = IWL_STA_ID;
 
 	if (is_broadcast_ether_addr(addr))
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	for (i = start; i < priv->hw_setting.max_stations; i++)
+	for (i = start; i < priv->hw_params.max_stations; i++)
 		if ((priv->stations[i].used) &&
 		    (!compare_ether_addr
 		     (priv->stations[i].sta.sta.addr, addr))) {
@@ -975,7 +975,7 @@ static int iwl3945_rx_init(struct iwl3945_priv *priv, struct iwl_rx_queue *rxq)
 
 	iwl3945_write_direct32(priv, FH39_RCSR_RBD_BASE(0), rxq->dma_addr);
 	iwl3945_write_direct32(priv, FH39_RCSR_RPTR_ADDR(0),
-			     priv->hw_setting.shared_phys +
+			     priv->shared_phys +
 			     offsetof(struct iwl3945_shared, rx_read_ptr[0]));
 	iwl3945_write_direct32(priv, FH39_RCSR_WPTR(0), 0);
 	iwl3945_write_direct32(priv, FH39_RCSR_CONFIG(0),
@@ -1024,7 +1024,7 @@ static int iwl3945_tx_reset(struct iwl3945_priv *priv)
 	iwl3945_write_prph(priv, ALM_SCD_TXF5MF_REG, 0x000005);
 
 	iwl3945_write_direct32(priv, FH39_TSSR_CBB_BASE,
-			     priv->hw_setting.shared_phys);
+			     priv->shared_phys);
 
 	iwl3945_write_direct32(priv, FH39_TSSR_MSG_CONFIG,
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TXPD_ON |
@@ -2314,7 +2314,7 @@ int iwl3945_hw_tx_queue_init(struct iwl3945_priv *priv, struct iwl3945_tx_queue 
 	unsigned long flags;
 	int txq_id = txq->q.id;
 
-	struct iwl3945_shared *shared_data = priv->hw_setting.shared_virt;
+	struct iwl3945_shared *shared_data = priv->shared_virt;
 
 	shared_data->tx_base_ptr[txq_id] = cpu_to_le32((u32)txq->q.dma_addr);
 
@@ -2344,7 +2344,7 @@ int iwl3945_hw_tx_queue_init(struct iwl3945_priv *priv, struct iwl3945_tx_queue 
 
 int iwl3945_hw_get_rx_read(struct iwl3945_priv *priv)
 {
-	struct iwl3945_shared *shared_data = priv->hw_setting.shared_virt;
+	struct iwl3945_shared *shared_data = priv->shared_virt;
 
 	return le32_to_cpu(shared_data->rx_read_ptr[0]);
 }
@@ -2429,31 +2429,30 @@ int iwl3945_init_hw_rate_table(struct iwl3945_priv *priv)
 }
 
 /* Called when initializing driver */
-int iwl3945_hw_set_hw_setting(struct iwl3945_priv *priv)
+int iwl3945_hw_set_hw_params(struct iwl3945_priv *priv)
 {
-	memset((void *)&priv->hw_setting, 0,
-	       sizeof(struct iwl3945_driver_hw_info));
+	memset((void *)&priv->hw_params, 0,
+	       sizeof(struct iwl_hw_params));
 
-	priv->hw_setting.shared_virt =
+	priv->shared_virt =
 	    pci_alloc_consistent(priv->pci_dev,
 				 sizeof(struct iwl3945_shared),
-				 &priv->hw_setting.shared_phys);
+				 &priv->shared_phys);
 
-	if (!priv->hw_setting.shared_virt) {
+	if (!priv->shared_virt) {
 		IWL_ERROR("failed to allocate pci memory\n");
 		mutex_unlock(&priv->mutex);
 		return -ENOMEM;
 	}
 
-	priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE;
-	priv->hw_setting.max_pkt_size = 2342;
-	priv->hw_setting.tx_cmd_len = sizeof(struct iwl3945_tx_cmd);
-	priv->hw_setting.max_rxq_size = RX_QUEUE_SIZE;
-	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;
-	priv->hw_setting.max_stations = IWL3945_STATION_COUNT;
-	priv->hw_setting.bcast_sta_id = IWL3945_BROADCAST_ID;
+	priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE;
+	priv->hw_params.max_pkt_size = 2342;
+	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
+	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
+	priv->hw_params.max_stations = IWL3945_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWL3945_BROADCAST_ID;
 
-	priv->hw_setting.tx_ant_num = 2;
+	priv->hw_params.tx_ant_num = 2;
 	return 0;
 }
 
@@ -2466,7 +2465,7 @@ unsigned int iwl3945_hw_get_beacon_cmd(struct iwl3945_priv *priv,
 	tx_beacon_cmd = (struct iwl3945_tx_beacon_cmd *)&frame->u;
 	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
 
-	tx_beacon_cmd->tx.sta_id = priv->hw_setting.bcast_sta_id;
+	tx_beacon_cmd->tx.sta_id = priv->hw_params.bcast_sta_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	frame_size = iwl3945_fill_beacon_frame(priv,

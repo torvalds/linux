@@ -326,9 +326,9 @@ static u8 iwl3945_remove_station(struct iwl3945_priv *priv, const u8 *addr, int 
 	if (is_ap)
 		index = IWL_AP_ID;
 	else if (is_broadcast_ether_addr(addr))
-		index = priv->hw_setting.bcast_sta_id;
+		index = priv->hw_params.bcast_sta_id;
 	else
-		for (i = IWL_STA_ID; i < priv->hw_setting.max_stations; i++)
+		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++)
 			if (priv->stations[i].used &&
 			    !compare_ether_addr(priv->stations[i].sta.sta.addr,
 						addr)) {
@@ -384,9 +384,9 @@ u8 iwl3945_add_station(struct iwl3945_priv *priv, const u8 *addr, int is_ap, u8 
 	if (is_ap)
 		index = IWL_AP_ID;
 	else if (is_broadcast_ether_addr(addr))
-		index = priv->hw_setting.bcast_sta_id;
+		index = priv->hw_params.bcast_sta_id;
 	else
-		for (i = IWL_STA_ID; i < priv->hw_setting.max_stations; i++) {
+		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++) {
 			if (!compare_ether_addr(priv->stations[i].sta.sta.addr,
 						addr)) {
 				index = i;
@@ -1470,13 +1470,13 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 	return 0;
 }
 
-static void iwl3945_unset_hw_setting(struct iwl3945_priv *priv)
+static void iwl3945_unset_hw_params(struct iwl3945_priv *priv)
 {
-	if (priv->hw_setting.shared_virt)
+	if (priv->shared_virt)
 		pci_free_consistent(priv->pci_dev,
 				    sizeof(struct iwl3945_shared),
-				    priv->hw_setting.shared_virt,
-				    priv->hw_setting.shared_phys);
+				    priv->shared_virt,
+				    priv->shared_phys);
 }
 
 /**
@@ -2322,7 +2322,7 @@ static int iwl3945_get_sta_id(struct iwl3945_priv *priv, struct ieee80211_hdr *h
 	/* If this frame is broadcast or management, use broadcast station id */
 	if (((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA) ||
 	    is_multicast_ether_addr(hdr->addr1))
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 
 	switch (priv->iw_mode) {
 
@@ -2336,7 +2336,7 @@ static int iwl3945_get_sta_id(struct iwl3945_priv *priv, struct ieee80211_hdr *h
 		sta_id = iwl3945_hw_find_station(priv, hdr->addr1);
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 
 	/* If this frame is going out to an IBSS network, find the station,
 	 * or create a new station table entry */
@@ -2355,16 +2355,16 @@ static int iwl3945_get_sta_id(struct iwl3945_priv *priv, struct ieee80211_hdr *h
 			       "Defaulting to broadcast...\n",
 			       hdr->addr1);
 		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 	}
 	/* If we are in monitor mode, use BCAST. This is required for
 	 * packet injection. */
 	case NL80211_IFTYPE_MONITOR:
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 
 	default:
 		IWL_WARNING("Unknown mode of operation: %d\n", priv->iw_mode);
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 	}
 }
 
@@ -2497,7 +2497,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 	 * of the MAC header (device reads on dword boundaries).
 	 * We'll tell device about this padding later.
 	 */
-	len = priv->hw_setting.tx_cmd_len +
+	len = sizeof(struct iwl3945_tx_cmd) +
 			sizeof(struct iwl_cmd_header) + hdr_len;
 
 	len_org = len;
@@ -6094,7 +6094,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		iwl3945_fill_probe_req(priv, (struct ieee80211_mgmt *)scan->data,
 			IWL_MAX_SCAN_SIZE - sizeof(*scan)));
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
-	scan->tx_cmd.sta_id = priv->hw_setting.bcast_sta_id;
+	scan->tx_cmd.sta_id = priv->hw_params.bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	/* flags + rate selection */
@@ -7848,7 +7848,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * 5. Setup HW Constants
 	 * ********************/
 	/* Device-specific setup */
-	if (iwl3945_hw_set_hw_setting(priv)) {
+	if (iwl3945_hw_set_hw_params(priv)) {
 		IWL_ERROR("failed to set hw settings\n");
 		goto out_iounmap;
 	}
@@ -7971,7 +7971,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
  out_release_irq:
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
-	iwl3945_unset_hw_setting(priv);
+	iwl3945_unset_hw_params(priv);
 
  out_iounmap:
 	pci_iounmap(pdev, priv->hw_base);
@@ -8018,7 +8018,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 		iwl3945_rx_queue_free(priv, &priv->rxq);
 	iwl3945_hw_txq_ctx_free(priv);
 
-	iwl3945_unset_hw_setting(priv);
+	iwl3945_unset_hw_params(priv);
 	iwl3945_clear_stations_table(priv);
 
 	if (priv->mac80211_registered)
