@@ -1051,11 +1051,11 @@ search:
 		super_used = btrfs_super_bytes_used(&info->super_copy);
 		btrfs_set_super_bytes_used(&info->super_copy,
 					   super_used - bytes_freed);
-		spin_unlock(&info->delalloc_lock);
 
 		root_used = btrfs_root_used(&extent_root->root_item);
 		btrfs_set_root_used(&extent_root->root_item,
 				    root_used - bytes_freed);
+		spin_unlock(&info->delalloc_lock);
 
 		/* delete the items */
 		ret = btrfs_del_items(trans, extent_root, path,
@@ -2242,6 +2242,7 @@ again:
 				  extent_op->bytenr + extent_op->num_bytes - 1,
 				  EXTENT_WRITEBACK, GFP_NOFS);
 		if (extent_op->del) {
+			u64 used;
 			list_del_init(&extent_op->list);
 			unlock_extent(&info->extent_ins, extent_op->bytenr,
 				      extent_op->bytenr + extent_op->num_bytes
@@ -2252,6 +2253,15 @@ again:
 					     extent_op->bytenr,
 					     extent_op->num_bytes, 0);
 			mutex_unlock(&extent_root->fs_info->pinned_mutex);
+
+			spin_lock(&info->delalloc_lock);
+			used = btrfs_super_bytes_used(&info->super_copy);
+			btrfs_set_super_bytes_used(&info->super_copy,
+					used - extent_op->num_bytes);
+			used = btrfs_root_used(&extent_root->root_item);
+			btrfs_set_root_used(&extent_root->root_item,
+					used - extent_op->num_bytes);
+			spin_unlock(&info->delalloc_lock);
 
 			ret = update_block_group(trans, extent_root,
 						 extent_op->bytenr,
@@ -2467,12 +2477,12 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 		super_used = btrfs_super_bytes_used(&info->super_copy);
 		btrfs_set_super_bytes_used(&info->super_copy,
 					   super_used - num_bytes);
-		spin_unlock(&info->delalloc_lock);
 
 		/* block accounting for root item */
 		root_used = btrfs_root_used(&root->root_item);
 		btrfs_set_root_used(&root->root_item,
 					   root_used - num_bytes);
+		spin_unlock(&info->delalloc_lock);
 		ret = btrfs_del_items(trans, extent_root, path, path->slots[0],
 				      num_to_del);
 		BUG_ON(ret);
@@ -3154,11 +3164,11 @@ static int __btrfs_alloc_reserved_extent(struct btrfs_trans_handle *trans,
 	spin_lock(&info->delalloc_lock);
 	super_used = btrfs_super_bytes_used(&info->super_copy);
 	btrfs_set_super_bytes_used(&info->super_copy, super_used + num_bytes);
-	spin_unlock(&info->delalloc_lock);
 
 	/* block accounting for root item */
 	root_used = btrfs_root_used(&root->root_item);
 	btrfs_set_root_used(&root->root_item, root_used + num_bytes);
+	spin_unlock(&info->delalloc_lock);
 
 	if (root == extent_root) {
 		struct pending_extent_op *extent_op;
