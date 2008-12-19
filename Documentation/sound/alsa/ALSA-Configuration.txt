@@ -778,6 +778,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     specify a certain model in such a case.  There are different
     models depending on the codec chip.
 
+    See Documentation/sound/alsa/HD-Audio.txt for some details.
+
 	  Model name	Description
 	  ----------    -----------
 	ALC880
@@ -1098,8 +1100,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     "codec-patch".  It's sometimes good for testing and debugging.
 
     If the default configuration doesn't work and one of the above
-    matches with your device, report it together with the PCI
-    subsystem ID (output of "lspci -nv") to ALSA BTS or alsa-devel
+    matches with your device, report it together with alsa-info.sh
+    output (with --no-upload option) to kernel bugzilla or alsa-devel
     ML (see the section "Links and Addresses").
 
     power_save and power_save_controller options are for power-saving
@@ -2416,8 +2418,11 @@ Links and Addresses
   ALSA project homepage
        http://www.alsa-project.org
 
-  ALSA Bug Tracking System
-       https://bugtrack.alsa-project.org/bugs/
+  Kernel Bugzilla
+       http://bugzilla.kernel.org/
 
   ALSA Developers ML
        mailto:alsa-devel@alsa-project.org
+
+  alsa-info.sh script
+       http://www.alsa-project.org/alsa-info.sh
