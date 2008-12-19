@@ -1006,14 +1006,6 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	master->driver_priv = NULL;
 }
 
-
-static int i915_driver_firstopen(struct drm_device *dev)
-{
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return 0;
-	return 0;
-}
-
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
