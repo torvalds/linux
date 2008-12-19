@@ -489,12 +489,6 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		if (!__kfifo_get(session->cmdpool.queue,
 				 (void*)&task, sizeof(void*)))
 			return NULL;
-
-		if ((hdr->opcode == (ISCSI_OP_NOOP_OUT | ISCSI_OP_IMMEDIATE)) &&
-		     hdr->ttt == RESERVED_ITT) {
-			conn->ping_task = task;
-			conn->last_ping = jiffies;
-		}
 	}
 	/*
 	 * released in complete pdu for task we expect a response for, and
@@ -703,6 +697,11 @@ static void iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
 	task = __iscsi_conn_send_pdu(conn, (struct iscsi_hdr *)&hdr, NULL, 0);
 	if (!task)
 		iscsi_conn_printk(KERN_ERR, conn, "Could not send nopout\n");
+	else if (!rhdr) {
+		/* only track our nops */
+		conn->ping_task = task;
+		conn->last_ping = jiffies;
+	}
 }
 
 static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
