@@ -82,7 +82,7 @@
 #define LONG_SLOT_TIME 20
 
 /* RSSI to dBm */
-#define IWL_RSSI_OFFSET	95
+#define IWL39_RSSI_OFFSET	95
 
 /*
  * EEPROM related constants, enums, and structures.
@@ -276,27 +276,29 @@ struct iwl3945_eeprom {
 
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 3945's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
-#define RTC_INST_LOWER_BOUND			(0x000000)
-#define ALM_RTC_INST_UPPER_BOUND		(0x014000)
+#define IWL39_RTC_INST_LOWER_BOUND		(0x000000)
+#define IWL39_RTC_INST_UPPER_BOUND		(0x014000)
 
-#define RTC_DATA_LOWER_BOUND			(0x800000)
-#define ALM_RTC_DATA_UPPER_BOUND		(0x808000)
+#define IWL39_RTC_DATA_LOWER_BOUND		(0x800000)
+#define IWL39_RTC_DATA_UPPER_BOUND		(0x808000)
 
-#define ALM_RTC_INST_SIZE (ALM_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
-#define ALM_RTC_DATA_SIZE (ALM_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
+#define IWL39_RTC_INST_SIZE (IWL39_RTC_INST_UPPER_BOUND - \
+				IWL39_RTC_INST_LOWER_BOUND)
+#define IWL39_RTC_DATA_SIZE (IWL39_RTC_DATA_UPPER_BOUND - \
+				IWL39_RTC_DATA_LOWER_BOUND)
 
-#define IWL_MAX_INST_SIZE ALM_RTC_INST_SIZE
-#define IWL_MAX_DATA_SIZE ALM_RTC_DATA_SIZE
+#define IWL39_MAX_INST_SIZE IWL39_RTC_INST_SIZE
+#define IWL39_MAX_DATA_SIZE IWL39_RTC_DATA_SIZE
 
 /* Size of uCode instruction memory in bootstrap state machine */
-#define IWL_MAX_BSM_SIZE ALM_RTC_INST_SIZE
+#define IWL39_MAX_BSM_SIZE IWL39_RTC_INST_SIZE
 
 #define IWL39_MAX_NUM_QUEUES	8
 
 static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= RTC_DATA_LOWER_BOUND) &&
-	       (addr < ALM_RTC_DATA_UPPER_BOUND);
+	return (addr >= IWL39_RTC_DATA_LOWER_BOUND) &&
+	       (addr < IWL39_RTC_DATA_UPPER_BOUND);
 }
 
 /* Base physical address of iwl3945_shared is provided to FH_TSSR_CBB_BASE

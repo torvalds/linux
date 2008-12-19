@@ -89,7 +89,7 @@
 #define LONG_SLOT_TIME 20
 
 /* RSSI to dBm */
-#define IWL_RSSI_OFFSET	44
+#define IWL49_RSSI_OFFSET	44
 
 
 
@@ -129,24 +129,26 @@
 
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 4965's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
-#define RTC_INST_LOWER_BOUND			(0x000000)
+#define IWL49_RTC_INST_LOWER_BOUND		(0x000000)
 #define IWL49_RTC_INST_UPPER_BOUND		(0x018000)
 
-#define RTC_DATA_LOWER_BOUND			(0x800000)
+#define IWL49_RTC_DATA_LOWER_BOUND		(0x800000)
 #define IWL49_RTC_DATA_UPPER_BOUND		(0x80A000)
 
-#define IWL49_RTC_INST_SIZE  (IWL49_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
-#define IWL49_RTC_DATA_SIZE  (IWL49_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
+#define IWL49_RTC_INST_SIZE  (IWL49_RTC_INST_UPPER_BOUND - \
+				IWL49_RTC_INST_LOWER_BOUND)
+#define IWL49_RTC_DATA_SIZE  (IWL49_RTC_DATA_UPPER_BOUND - \
+				IWL49_RTC_DATA_LOWER_BOUND)
 
-#define IWL_MAX_INST_SIZE IWL49_RTC_INST_SIZE
-#define IWL_MAX_DATA_SIZE IWL49_RTC_DATA_SIZE
+#define IWL49_MAX_INST_SIZE IWL49_RTC_INST_SIZE
+#define IWL49_MAX_DATA_SIZE IWL49_RTC_DATA_SIZE
 
 /* Size of uCode instruction memory in bootstrap state machine */
-#define IWL_MAX_BSM_SIZE BSM_SRAM_SIZE
+#define IWL49_MAX_BSM_SIZE BSM_SRAM_SIZE
 
 static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= RTC_DATA_LOWER_BOUND) &&
+	return (addr >= IWL49_RTC_DATA_LOWER_BOUND) &&
 	       (addr < IWL49_RTC_DATA_UPPER_BOUND);
 }
 

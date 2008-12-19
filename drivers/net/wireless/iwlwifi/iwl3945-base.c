@@ -5018,7 +5018,8 @@ static int iwl3945_verify_inst_full(struct iwl3945_priv *priv, __le32 *image, u3
 	if (rc)
 		return rc;
 
-	iwl3945_write_direct32(priv, HBUS_TARG_MEM_RADDR, RTC_INST_LOWER_BOUND);
+	iwl3945_write_direct32(priv, HBUS_TARG_MEM_RADDR,
+			       IWL39_RTC_INST_LOWER_BOUND);
 
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {
@@ -5069,7 +5070,7 @@ static int iwl3945_verify_inst_sparse(struct iwl3945_priv *priv, __le32 *image, 
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
 		iwl3945_write_direct32(priv, HBUS_TARG_MEM_RADDR,
-			i + RTC_INST_LOWER_BOUND);
+			i + IWL39_RTC_INST_LOWER_BOUND);
 		val = _iwl3945_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 #if 0 /* Enable this if you want to see details */
@@ -5219,7 +5220,7 @@ static int iwl3945_load_bsm(struct iwl3945_priv *priv)
 	IWL_DEBUG_INFO("Begin load bsm\n");
 
 	/* make sure bootstrap program is no larger than BSM's SRAM size */
-	if (len > IWL_MAX_BSM_SIZE)
+	if (len > IWL39_MAX_BSM_SIZE)
 		return -EINVAL;
 
 	/* Tell bootstrap uCode where to find the "Initialize" uCode
@@ -5257,7 +5258,7 @@ static int iwl3945_load_bsm(struct iwl3945_priv *priv)
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	iwl3945_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
 	iwl3945_write_prph(priv, BSM_WR_MEM_DST_REG,
-				 RTC_INST_LOWER_BOUND);
+				 IWL39_RTC_INST_LOWER_BOUND);
 	iwl3945_write_prph(priv, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
@@ -5401,32 +5402,32 @@ static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 	}
 
 	/* Verify that uCode images will fit in card's SRAM */
-	if (inst_size > IWL_MAX_INST_SIZE) {
+	if (inst_size > IWL39_MAX_INST_SIZE) {
 		IWL_DEBUG_INFO("uCode instr len %d too large to fit in\n",
 			       inst_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
 
-	if (data_size > IWL_MAX_DATA_SIZE) {
+	if (data_size > IWL39_MAX_DATA_SIZE) {
 		IWL_DEBUG_INFO("uCode data len %d too large to fit in\n",
 			       data_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (init_size > IWL_MAX_INST_SIZE) {
+	if (init_size > IWL39_MAX_INST_SIZE) {
 		IWL_DEBUG_INFO("uCode init instr len %d too large to fit in\n",
 				init_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (init_data_size > IWL_MAX_DATA_SIZE) {
+	if (init_data_size > IWL39_MAX_DATA_SIZE) {
 		IWL_DEBUG_INFO("uCode init data len %d too large to fit in\n",
 				init_data_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (boot_size > IWL_MAX_BSM_SIZE) {
+	if (boot_size > IWL39_MAX_BSM_SIZE) {
 		IWL_DEBUG_INFO("uCode boot instr len %d too large to fit in\n",
 				boot_size);
 		ret = -EINVAL;

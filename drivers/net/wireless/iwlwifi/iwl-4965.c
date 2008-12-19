@@ -149,7 +149,7 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	priv->ucode_type = UCODE_RT;
 
 	/* make sure bootstrap program is no larger than BSM's SRAM size */
-	if (len > IWL_MAX_BSM_SIZE)
+	if (len > IWL49_MAX_BSM_SIZE)
 		return -EINVAL;
 
 	/* Tell bootstrap uCode where to find the "Initialize" uCode
@@ -186,7 +186,7 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	iwl_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
-	iwl_write_prph(priv, BSM_WR_MEM_DST_REG, RTC_INST_LOWER_BOUND);
+	iwl_write_prph(priv, BSM_WR_MEM_DST_REG, IWL49_RTC_INST_LOWER_BOUND);
 	iwl_write_prph(priv, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
@@ -2246,7 +2246,7 @@ static int iwl4965_calc_rssi(struct iwl_priv *priv,
 
 	/* dBm = max_rssi dB - agc dB - constant.
 	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc - IWL_RSSI_OFFSET;
+	return max_rssi - agc - IWL49_RSSI_OFFSET;
 }
 
 

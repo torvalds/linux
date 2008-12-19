@@ -1018,7 +1018,7 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
 		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
-			i + RTC_INST_LOWER_BOUND);
+			i + IWL49_RTC_INST_LOWER_BOUND);
 		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			ret = -EIO;
@@ -1051,7 +1051,8 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
 	if (ret)
 		return ret;
 
-	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, RTC_INST_LOWER_BOUND);
+	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
+			   IWL49_RTC_INST_LOWER_BOUND);
 
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {

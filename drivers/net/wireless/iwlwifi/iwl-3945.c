@@ -661,7 +661,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 
 
 	/* Convert 3945's rssi indicator to dBm */
-	rx_status.signal = rx_stats->rssi - IWL_RSSI_OFFSET;
+	rx_status.signal = rx_stats->rssi - IWL39_RSSI_OFFSET;
 
 	/* Set default noise value to -127 */
 	if (priv->last_rx_noise == 0)

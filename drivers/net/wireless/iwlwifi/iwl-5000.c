@@ -580,7 +580,8 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 {
 	int ret = 0;
 
-	ret = iwl5000_load_section(priv, inst_image, RTC_INST_LOWER_BOUND);
+	ret = iwl5000_load_section(priv, inst_image,
+				   IWL50_RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
@@ -600,7 +601,7 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 	priv->ucode_write_complete = 0;
 
 	ret = iwl5000_load_section(
-		priv, data_image, RTC_DATA_LOWER_BOUND);
+		priv, data_image, IWL50_RTC_DATA_LOWER_BOUND);
 	if (ret)
 		return ret;
 
@@ -1356,7 +1357,7 @@ static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
 
 static int iwl5000_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= RTC_DATA_LOWER_BOUND) &&
+	return (addr >= IWL50_RTC_DATA_LOWER_BOUND) &&
 		(addr < IWL50_RTC_DATA_UPPER_BOUND);
 }
 
@@ -1460,7 +1461,7 @@ static int iwl5000_calc_rssi(struct iwl_priv *priv,
 
 	/* dBm = max_rssi dB - agc dB - constant.
 	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc - IWL_RSSI_OFFSET;
+	return max_rssi - agc - IWL49_RSSI_OFFSET;
 }
 
 static struct iwl_hcmd_ops iwl5000_hcmd = {
