@@ -337,7 +337,7 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 	slot->hotplug_slot->info->cur_bus_speed = PCI_SPEED_UNKNOWN;
 
 	acpiphp_slot->slot = slot;
-	snprintf(name, SLOT_NAME_SIZE, "%u", slot->acpi_slot->sun);
+	snprintf(name, SLOT_NAME_SIZE, "%llu", slot->acpi_slot->sun);
 
 	retval = pci_hp_register(slot->hotplug_slot,
 					acpiphp_slot->bridge->pci_bus,

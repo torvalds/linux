@@ -255,13 +255,13 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 		bridge->nr_slots++;
 
-		dbg("found ACPI PCI Hotplug slot %d at PCI %04x:%02x:%02x\n",
+		dbg("found ACPI PCI Hotplug slot %llu at PCI %04x:%02x:%02x\n",
 				slot->sun, pci_domain_nr(bridge->pci_bus),
 				bridge->pci_bus->number, slot->device);
 		retval = acpiphp_register_hotplug_slot(slot);
 		if (retval) {
 			if (retval == -EBUSY)
-				warn("Slot %d already registered by another "
+				warn("Slot %llu already registered by another "
 					"hotplug driver\n", slot->sun);
 			else
 				warn("acpiphp_register_hotplug_slot failed "
