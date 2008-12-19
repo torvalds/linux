@@ -41,7 +41,7 @@ struct cpu_hw_counters {
  */
 static DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters);
 
-const int intel_perfmon_event_map[] =
+static const int intel_perfmon_event_map[] =
 {
   [PERF_COUNT_CYCLES]			= 0x003c,
   [PERF_COUNT_INSTRUCTIONS]		= 0x00c0,
@@ -51,7 +51,7 @@ const int intel_perfmon_event_map[] =
   [PERF_COUNT_BRANCH_MISSES]		= 0x00c5,
 };
 
-const int max_intel_perfmon_events = ARRAY_SIZE(intel_perfmon_event_map);
+static const int max_intel_perfmon_events = ARRAY_SIZE(intel_perfmon_event_map);
 
 /*
  * Propagate counter elapsed time into the generic counter.
