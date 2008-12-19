@@ -245,6 +245,46 @@ struct platform_device mxc_i2c_device2 = {
 	.resource = mxc_i2c2_resources,
 };
 
+#ifdef CONFIG_ARCH_MX31
+static struct resource mxcsdhc0_resources[] = {
+	{
+		.start = MMC_SDHC1_BASE_ADDR,
+		.end = MMC_SDHC1_BASE_ADDR + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_MMC_SDHC1,
+		.end = MXC_INT_MMC_SDHC1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct resource mxcsdhc1_resources[] = {
+	{
+		.start = MMC_SDHC2_BASE_ADDR,
+		.end = MMC_SDHC2_BASE_ADDR + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_MMC_SDHC2,
+		.end = MXC_INT_MMC_SDHC2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxcsdhc_device0 = {
+	.name = "mxc-mmc",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxcsdhc0_resources),
+	.resource = mxcsdhc0_resources,
+};
+
+struct platform_device mxcsdhc_device1 = {
+	.name = "mxc-mmc",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(mxcsdhc1_resources),
+	.resource = mxcsdhc1_resources,
+};
+#endif /* CONFIG_ARCH_MX31 */
+
 /* i.MX31 Image Processing Unit */
 
 /* The resource order is important! */
