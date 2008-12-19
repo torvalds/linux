@@ -133,30 +133,32 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DL_MACDUMP		(1 << 4)
 #define IWL_DL_HCMD_DUMP	(1 << 5)
 #define IWL_DL_RADIO		(1 << 7)
-
+/* 0x00000F00 - 0x00000100 */
 #define IWL_DL_POWER		(1 << 8)
 #define IWL_DL_TEMP		(1 << 9)
 #define IWL_DL_NOTIF		(1 << 10)
 #define IWL_DL_SCAN		(1 << 11)
-
+/* 0x0000F000 - 0x00001000 */
 #define IWL_DL_ASSOC		(1 << 12)
 #define IWL_DL_DROP		(1 << 13)
 #define IWL_DL_TXPOWER		(1 << 14)
 #define IWL_DL_AP		(1 << 15)
-
+/* 0x000F0000 - 0x00010000 */
 #define IWL_DL_FW		(1 << 16)
 #define IWL_DL_RF_KILL		(1 << 17)
 #define IWL_DL_FW_ERRORS	(1 << 18)
 #define IWL_DL_LED		(1 << 19)
-
+/* 0x00F00000 - 0x00100000 */
 #define IWL_DL_RATE		(1 << 20)
 #define IWL_DL_CALIB		(1 << 21)
 #define IWL_DL_WEP		(1 << 22)
 #define IWL_DL_TX		(1 << 23)
+/* 0x0F000000 - 0x01000000 */
 #define IWL_DL_RX		(1 << 24)
 #define IWL_DL_ISR		(1 << 25)
 #define IWL_DL_HT		(1 << 26)
 #define IWL_DL_IO		(1 << 27)
+/* 0xF0000000 - 0x10000000 */
 #define IWL_DL_11H		(1 << 28)
 #define IWL_DL_STATS		(1 << 29)
 #define IWL_DL_TX_REPLY		(1 << 30)
