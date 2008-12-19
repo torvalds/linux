@@ -82,23 +82,23 @@ pci proc               |    --    |    --      |       WC         |
 
 Advanced APIs for drivers
 -------------------------
-A. Exporting pages to user with remap_pfn_range, io_remap_pfn_range,
+A. Exporting pages to users with remap_pfn_range, io_remap_pfn_range,
 vm_insert_pfn
 
-Drivers wanting to export some pages to userspace, do it by using mmap
+Drivers wanting to export some pages to userspace do it by using mmap
 interface and a combination of
 1) pgprot_noncached()
 2) io_remap_pfn_range() or remap_pfn_range() or vm_insert_pfn()
 
-With pat support, a new API pgprot_writecombine is being added. So, driver can
+With PAT support, a new API pgprot_writecombine is being added. So, drivers can
 continue to use the above sequence, with either pgprot_noncached() or
 pgprot_writecombine() in step 1, followed by step 2.
 
 In addition, step 2 internally tracks the region as UC or WC in memtype
 list in order to ensure no conflicting mapping.
 
-Note that this set of APIs only work with IO (non RAM) regions. If driver
-wants to export RAM region, it has to do set_memory_uc() or set_memory_wc()
+Note that this set of APIs only works with IO (non RAM) regions. If driver
+wants to export a RAM region, it has to do set_memory_uc() or set_memory_wc()
 as step 0 above and also track the usage of those pages and use set_memory_wb()
 before the page is freed to free pool.
 
