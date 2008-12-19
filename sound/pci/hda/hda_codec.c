@@ -1288,6 +1288,8 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 	codec->spec = NULL;
 	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
+	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
+	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 	codec->num_pcms = 0;
 	codec->pcm_info = NULL;
 	codec->preset = NULL;
