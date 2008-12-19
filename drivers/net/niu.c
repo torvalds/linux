@@ -3527,6 +3527,51 @@ out:
 	}
 }
 
+static inline void niu_sync_rx_discard_stats(struct niu *np,
+					     struct rx_ring_info *rp,
+					     const int limit)
+{
+	/* This elaborate scheme is needed for reading the RX discard
+	 * counters, as they are only 16-bit and can overflow quickly,
+	 * and because the overflow indication bit is not usable as
+	 * the counter value does not wrap, but remains at max value
+	 * 0xFFFF.
+	 *
+	 * In theory and in practice counters can be lost in between
+	 * reading nr64() and clearing the counter nw64().  For this
+	 * reason, the number of counter clearings nw64() is
+	 * limited/reduced though the limit parameter.
+	 */
+	int rx_channel = rp->rx_channel;
+	u32 misc, wred;
+
+	/* RXMISC (Receive Miscellaneous Discard Count), covers the
+	 * following discard events: IPP (Input Port Process),
+	 * FFLP/TCAM, Full RCR (Receive Completion Ring) RBR (Receive
+	 * Block Ring) prefetch buffer is empty.
+	 */
+	misc = nr64(RXMISC(rx_channel));
+	if (unlikely((misc & RXMISC_COUNT) > limit)) {
+		nw64(RXMISC(rx_channel), 0);
+		rp->rx_errors += misc & RXMISC_COUNT;
+
+		if (unlikely(misc & RXMISC_OFLOW))
+			dev_err(np->device, "rx-%d: Counter overflow "
+				"RXMISC discard\n", rx_channel);
+	}
+
+	/* WRED (Weighted Random Early Discard) by hardware */
+	wred = nr64(RED_DIS_CNT(rx_channel));
+	if (unlikely((wred & RED_DIS_CNT_COUNT) > limit)) {
+		nw64(RED_DIS_CNT(rx_channel), 0);
+		rp->rx_dropped += wred & RED_DIS_CNT_COUNT;
+
+		if (unlikely(wred & RED_DIS_CNT_OFLOW))
+			dev_err(np->device, "rx-%d: Counter overflow "
+				"WRED discard\n", rx_channel);
+	}
+}
+
 static int niu_rx_work(struct niu *np, struct rx_ring_info *rp, int budget)
 {
 	int qlen, rcr_done = 0, work_done = 0;
@@ -3566,6 +3611,8 @@ static int niu_rx_work(struct niu *np, struct rx_ring_info *rp, int budget)
 		((u64)rcr_done << RX_DMA_CTL_STAT_PTRREAD_SHIFT));
 
 	nw64(RX_DMA_CTL_STAT(rp->rx_channel), stat);
+
+	niu_sync_rx_discard_stats(np, rp, 0x7FFF);
 
 	return work_done;
 }
@@ -6073,6 +6120,8 @@ static void niu_get_rx_stats(struct niu *np)
 	for (i = 0; i < np->num_rx_rings; i++) {
 		struct rx_ring_info *rp = &np->rx_rings[i];
 
+		niu_sync_rx_discard_stats(np, rp, 0);
+
 		pkts += rp->rx_packets;
 		bytes += rp->rx_bytes;
 		dropped += rp->rx_dropped;
@@ -7013,6 +7062,8 @@ static void niu_get_ethtool_stats(struct net_device *dev,
 	}
 	for (i = 0; i < np->num_rx_rings; i++) {
 		struct rx_ring_info *rp = &np->rx_rings[i];
+
+		niu_sync_rx_discard_stats(np, rp, 0);
 
 		data[0] = rp->rx_channel;
 		data[1] = rp->rx_packets;
