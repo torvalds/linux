@@ -1816,7 +1816,6 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	char *comm;
 	int S, T;
 	int i;
-	unsigned state;
 
 	if (entry->type == TRACE_CONT)
 		return TRACE_TYPE_HANDLED;
