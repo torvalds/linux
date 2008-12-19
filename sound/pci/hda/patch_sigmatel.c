@@ -2903,7 +2903,7 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 	}
 
 	if ((spec->multiout.num_dacs - cfg->line_outs) > 0 &&
-			cfg->hp_outs && !spec->multiout.hp_nid)
+	    cfg->hp_outs == 1 && !spec->multiout.hp_nid)
 		spec->multiout.hp_nid = nid;
 
 	if (cfg->hp_outs > 1 && cfg->line_out_type == AUTO_PIN_LINE_OUT) {
@@ -4307,6 +4307,7 @@ again:
 		spec->amp_nids = &stac92hd73xx_amp_nids[DELL_M6_AMP];
 		spec->eapd_switch = 0;
 		spec->num_amps = 1;
+		spec->multiout.hp_nid = 0; /* dual HPs */
 
 		if (!spec->init)
 			spec->init = dell_m6_core_init;
