@@ -147,62 +147,6 @@ struct iwl3945_frame {
 #define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
 
-struct iwl3945_cmd;
-struct iwl_priv;
-
-struct iwl3945_cmd_meta {
-	struct iwl3945_cmd_meta *source;
-	union {
-		struct sk_buff *skb;
-		int (*callback)(struct iwl_priv *priv,
-				struct iwl3945_cmd *cmd, struct sk_buff *skb);
-	} __attribute__ ((packed)) u;
-
-	/* The CMD_SIZE_HUGE flag bit indicates that the command
-	 * structure is stored at the end of the shared queue memory. */
-	u32 flags;
-
-} __attribute__ ((packed));
-
-/**
- * struct iwl3945_cmd
- *
- * For allocation of the command and tx queues, this establishes the overall
- * size of the largest command we send to uCode, except for a scan command
- * (which is relatively huge; space is allocated separately).
- */
-struct iwl3945_cmd {
-	struct iwl3945_cmd_meta meta;
-	struct iwl_cmd_header hdr;
-	union {
-		struct iwl3945_addsta_cmd addsta;
-		struct iwl_led_cmd led;
-		u32 flags;
-		u8 val8;
-		u16 val16;
-		u32 val32;
-		struct iwl_bt_cmd bt;
-		struct iwl_rxon_time_cmd rxon_time;
-		struct iwl_powertable_cmd powertable;
-		struct iwl_qosparam_cmd qosparam;
-		struct iwl3945_tx_cmd tx;
-		struct iwl3945_tx_beacon_cmd tx_beacon;
-		struct iwl3945_rxon_assoc_cmd rxon_assoc;
-		u8 *indirect;
-		u8 payload[360];
-	} __attribute__ ((packed)) cmd;
-} __attribute__ ((packed));
-
-struct iwl3945_host_cmd {
-	u8 id;
-	u16 len;
-	struct iwl3945_cmd_meta meta;
-	const void *data;
-};
-
-#define TFD39_MAX_PAYLOAD_SIZE (sizeof(struct iwl3945_cmd) - \
-			      sizeof(struct iwl3945_cmd_meta))
-
 /*
  * RX related structures and functions
  */
@@ -288,7 +232,7 @@ extern void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl3945_tx_queue
 extern int iwl3945_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len,
 			    const void *data);
 extern int __must_check iwl3945_send_cmd(struct iwl_priv *priv,
-		struct iwl3945_host_cmd *cmd);
+					 struct iwl_host_cmd *cmd);
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,int left);
 extern int iwl3945_rx_queue_update_write_ptr(struct iwl_priv *priv,
@@ -340,8 +284,7 @@ extern int iwl3945_hw_tx_queue_init(struct iwl_priv *priv,
 extern unsigned int iwl3945_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl3945_frame *frame, u8 rate);
 extern int iwl3945_hw_get_rx_read(struct iwl_priv *priv);
-extern void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
-				     struct iwl3945_cmd *cmd,
+void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv, struct iwl_cmd *cmd,
 				     struct ieee80211_tx_info *info,
 				     struct ieee80211_hdr *hdr,
 				     int sta_id, int tx_id);

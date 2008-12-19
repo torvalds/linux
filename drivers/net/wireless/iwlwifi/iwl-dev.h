@@ -240,7 +240,7 @@ struct iwl_channel_info {
 struct iwl3945_tx_queue {
 	struct iwl_queue q;
 	struct iwl3945_tfd_frame *bd;
-	struct iwl3945_cmd *cmd;
+	struct iwl_cmd *cmd;
 	dma_addr_t dma_addr_cmd;
 	struct iwl3945_tx_info *txb;
 	int need_update;

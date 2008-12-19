@@ -232,7 +232,7 @@ int iwl3945_tx_queue_init(struct iwl_priv *priv,
 	 * For data Tx queues (all other queues), no super-size command
 	 * space is needed.
 	 */
-	len = sizeof(struct iwl3945_cmd) * slots_num;
+	len = sizeof(struct iwl_cmd) * slots_num;
 	if (txq_id == IWL_CMD_QUEUE_NUM)
 		len +=  IWL_MAX_SCAN_SIZE;
 	txq->cmd = pci_alloc_consistent(dev, len, &txq->dma_addr_cmd);
@@ -283,7 +283,7 @@ void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl3945_tx_queue *txq)
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
 		iwl3945_hw_txq_free_tfd(priv, txq);
 
-	len = sizeof(struct iwl3945_cmd) * q->n_window;
+	len = sizeof(struct iwl_cmd) * q->n_window;
 	if (q->id == IWL_CMD_QUEUE_NUM)
 		len += IWL_MAX_SCAN_SIZE;
 
@@ -500,13 +500,13 @@ static inline int iwl3945_is_ready_rf(struct iwl_priv *priv)
  * failed. On success, it turns the index (> 0) of command in the
  * command queue.
  */
-static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl3945_host_cmd *cmd)
+static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	struct iwl3945_tx_queue *txq = &priv->txq39[IWL_CMD_QUEUE_NUM];
 	struct iwl_queue *q = &txq->q;
 	struct iwl3945_tfd_frame *tfd;
 	u32 *control_flags;
-	struct iwl3945_cmd *out_cmd;
+	struct iwl_cmd *out_cmd;
 	u32 idx;
 	u16 fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
 	dma_addr_t phys_addr;
@@ -518,7 +518,7 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl3945_host_cmd *
 	/* If any of the command structures end up being larger than
 	 * the TFD_MAX_PAYLOAD_SIZE, and it sent as a 'small' command then
 	 * we will need to increase the size of the TFD entries */
-	BUG_ON((fix_size > TFD39_MAX_PAYLOAD_SIZE) &&
+	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->meta.flags & CMD_SIZE_HUGE));
 
 
@@ -556,7 +556,7 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl3945_host_cmd *
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
 
 	phys_addr = txq->dma_addr_cmd + sizeof(txq->cmd[0]) * idx +
-			offsetof(struct iwl3945_cmd, hdr);
+			offsetof(struct iwl_cmd, hdr);
 	iwl3945_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, fix_size);
 
 	pad = U32_PAD(cmd->len);
@@ -579,7 +579,8 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl3945_host_cmd *
 	return ret ? ret : idx;
 }
 
-static int iwl3945_send_cmd_async(struct iwl_priv *priv, struct iwl3945_host_cmd *cmd)
+static int iwl3945_send_cmd_async(struct iwl_priv *priv,
+				  struct iwl_host_cmd *cmd)
 {
 	int ret;
 
@@ -604,7 +605,8 @@ static int iwl3945_send_cmd_async(struct iwl_priv *priv, struct iwl3945_host_cmd
 	return 0;
 }
 
-static int iwl3945_send_cmd_sync(struct iwl_priv *priv, struct iwl3945_host_cmd *cmd)
+static int iwl3945_send_cmd_sync(struct iwl_priv *priv,
+				 struct iwl_host_cmd *cmd)
 {
 	int cmd_idx;
 	int ret;
@@ -675,7 +677,7 @@ static int iwl3945_send_cmd_sync(struct iwl_priv *priv, struct iwl3945_host_cmd 
 
 cancel:
 	if (cmd->meta.flags & CMD_WANT_SKB) {
-		struct iwl3945_cmd *qcmd;
+		struct iwl_cmd *qcmd;
 
 		/* Cancel the CMD_WANT_SKB flag for the cmd in the
 		 * TX cmd queue. Otherwise in case the cmd comes
@@ -694,7 +696,7 @@ out:
 	return ret;
 }
 
-int iwl3945_send_cmd(struct iwl_priv *priv, struct iwl3945_host_cmd *cmd)
+int iwl3945_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	if (cmd->meta.flags & CMD_ASYNC)
 		return iwl3945_send_cmd_async(priv, cmd);
@@ -704,7 +706,7 @@ int iwl3945_send_cmd(struct iwl_priv *priv, struct iwl3945_host_cmd *cmd)
 
 int iwl3945_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len, const void *data)
 {
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = id,
 		.len = len,
 		.data = data,
@@ -715,7 +717,7 @@ int iwl3945_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len, const void *data
 
 static int __must_check iwl3945_send_cmd_u32(struct iwl_priv *priv, u8 id, u32 val)
 {
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = id,
 		.len = sizeof(val),
 		.data = &val,
@@ -894,7 +896,7 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 	int rc = 0;
 	struct iwl_rx_packet *res = NULL;
 	struct iwl3945_rxon_assoc_cmd rxon_assoc;
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_RXON_ASSOC,
 		.len = sizeof(rxon_assoc),
 		.meta.flags = CMD_WANT_SKB,
@@ -1077,7 +1079,7 @@ static int iwl3945_send_scan_abort(struct iwl_priv *priv)
 {
 	int rc = 0;
 	struct iwl_rx_packet *res;
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
 		.meta.flags = CMD_WANT_SKB,
 	};
@@ -1115,7 +1117,7 @@ static int iwl3945_send_scan_abort(struct iwl_priv *priv)
 }
 
 static int iwl3945_card_state_sync_callback(struct iwl_priv *priv,
-					struct iwl3945_cmd *cmd,
+					struct iwl_cmd *cmd,
 					struct sk_buff *skb)
 {
 	return 1;
@@ -1133,7 +1135,7 @@ static int iwl3945_card_state_sync_callback(struct iwl_priv *priv,
  */
 static int iwl3945_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
 {
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_CARD_STATE_CMD,
 		.len = sizeof(u32),
 		.data = &flags,
@@ -1147,7 +1149,7 @@ static int iwl3945_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_fla
 }
 
 static int iwl3945_add_sta_sync_callback(struct iwl_priv *priv,
-				     struct iwl3945_cmd *cmd, struct sk_buff *skb)
+				     struct iwl_cmd *cmd, struct sk_buff *skb)
 {
 	struct iwl_rx_packet *res = NULL;
 
@@ -1179,7 +1181,7 @@ int iwl3945_send_add_station(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *res = NULL;
 	int rc = 0;
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_ADD_STA,
 		.len = sizeof(struct iwl3945_addsta_cmd),
 		.meta.flags = flags,
@@ -2202,7 +2204,7 @@ static int iwl3945_set_mode(struct iwl_priv *priv, int mode)
 
 static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      struct ieee80211_tx_info *info,
-				      struct iwl3945_cmd *cmd,
+				      struct iwl_cmd *cmd,
 				      struct sk_buff *skb_frag,
 				      int last_frag)
 {
@@ -2251,7 +2253,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
  * handle build REPLY_TX command notification.
  */
 static void iwl3945_build_tx_cmd_basic(struct iwl_priv *priv,
-				  struct iwl3945_cmd *cmd,
+				  struct iwl_cmd *cmd,
 				  struct ieee80211_tx_info *info,
 				  struct ieee80211_hdr *hdr,
 				  int is_unicast, u8 std_id)
@@ -2386,7 +2388,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct iwl_queue *q = NULL;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
-	struct iwl3945_cmd *out_cmd = NULL;
+	struct iwl_cmd *out_cmd = NULL;
 	u16 len, idx, len_org, hdr_len;
 	u8 id;
 	u8 unicast;
@@ -2514,8 +2516,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
-	txcmd_phys = txq->dma_addr_cmd + sizeof(struct iwl3945_cmd) * idx +
-		     offsetof(struct iwl3945_cmd, hdr);
+	txcmd_phys = txq->dma_addr_cmd + sizeof(struct iwl_cmd) * idx +
+		     offsetof(struct iwl_cmd, hdr);
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
@@ -2793,7 +2795,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 {
 	struct iwl_spectrum_cmd spectrum;
 	struct iwl_rx_packet *res;
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_SPECTRUM_MEASUREMENT_CMD,
 		.data = (void *)&spectrum,
 		.meta.flags = CMD_WANT_SKB,
@@ -3271,7 +3273,7 @@ static void iwl3945_tx_cmd_complete(struct iwl_priv *priv,
 	int index = SEQ_TO_INDEX(sequence);
 	int huge =  !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	int cmd_index;
-	struct iwl3945_cmd *cmd;
+	struct iwl_cmd *cmd;
 
 	BUG_ON(txq_id != IWL_CMD_QUEUE_NUM);
 
@@ -5974,7 +5976,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 {
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, request_scan);
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
 		.len = sizeof(struct iwl3945_scan_cmd),
 		.meta.flags = CMD_SIZE_HUGE,
