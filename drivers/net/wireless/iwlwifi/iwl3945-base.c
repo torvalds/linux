@@ -7116,12 +7116,6 @@ static int iwl3945_mac_get_tx_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int iwl3945_mac_get_stats(struct ieee80211_hw *hw,
-			     struct ieee80211_low_level_stats *stats)
-{
-	return 0;
-}
-
 static void iwl3945_mac_reset_tsf(struct ieee80211_hw *hw)
 {
 	struct iwl3945_priv *priv = hw->priv;
@@ -7762,7 +7756,6 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.config_interface = iwl3945_mac_config_interface,
 	.configure_filter = iwl3945_configure_filter,
 	.set_key = iwl3945_mac_set_key,
-	.get_stats = iwl3945_mac_get_stats,
 	.get_tx_stats = iwl3945_mac_get_tx_stats,
 	.conf_tx = iwl3945_mac_conf_tx,
 	.reset_tsf = iwl3945_mac_reset_tsf,
