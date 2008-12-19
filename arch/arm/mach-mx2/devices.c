@@ -40,6 +40,74 @@
 #include "devices.h"
 
 /*
+ * SPI master controller
+ *
+ * - i.MX1: 2 channel (slighly different register setting)
+ * - i.MX21: 2 channel
+ * - i.MX27: 3 channel
+ */
+static struct resource mxc_spi_resources0[] = {
+	{
+	       .start = CSPI1_BASE_ADDR,
+	       .end = CSPI1_BASE_ADDR + SZ_4K - 1,
+	       .flags = IORESOURCE_MEM,
+	}, {
+	       .start = MXC_INT_CSPI1,
+	       .end = MXC_INT_CSPI1,
+	       .flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct resource mxc_spi_resources1[] = {
+	{
+		.start = CSPI2_BASE_ADDR,
+		.end = CSPI2_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_CSPI2,
+		.end = MXC_INT_CSPI2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+#ifdef CONFIG_MACH_MX27
+static struct resource mxc_spi_resources2[] = {
+	{
+		.start = CSPI3_BASE_ADDR,
+		.end = CSPI3_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_CSPI3,
+		.end = MXC_INT_CSPI3,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+#endif
+
+struct platform_device mxc_spi_device0 = {
+	.name = "spi_imx",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_spi_resources0),
+	.resource = mxc_spi_resources0,
+};
+
+struct platform_device mxc_spi_device1 = {
+	.name = "spi_imx",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(mxc_spi_resources1),
+	.resource = mxc_spi_resources1,
+};
+
+#ifdef CONFIG_MACH_MX27
+struct platform_device mxc_spi_device2 = {
+	.name = "spi_imx",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(mxc_spi_resources2),
+	.resource = mxc_spi_resources2,
+};
+#endif
+
+/*
  * General Purpose Timer
  * - i.MX21: 3 timers
  * - i.MX27: 6 timers
