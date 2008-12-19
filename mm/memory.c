@@ -1168,49 +1168,6 @@ no_page_table:
 	return page;
 }
 
-int follow_pfnmap_pte(struct vm_area_struct *vma, unsigned long address,
-			pte_t *ret_ptep)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *ptep, pte;
-	spinlock_t *ptl;
-	struct page *page;
-	struct mm_struct *mm = vma->vm_mm;
-
-	if (!is_pfn_mapping(vma))
-		goto err;
-
-	page = NULL;
-	pgd = pgd_offset(mm, address);
-	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		goto err;
-
-	pud = pud_offset(pgd, address);
-	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-		goto err;
-
-	pmd = pmd_offset(pud, address);
-	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		goto err;
-
-	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-
-	pte = *ptep;
-	if (!pte_present(pte))
-		goto err_unlock;
-
-	*ret_ptep = pte;
-	pte_unmap_unlock(ptep, ptl);
-	return 0;
-
-err_unlock:
-	pte_unmap_unlock(ptep, ptl);
-err:
-	return -EINVAL;
-}
-
 /* Can we do the FOLL_ANON optimization? */
 static inline int use_zero_page(struct vm_area_struct *vma)
 {

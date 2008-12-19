@@ -230,11 +230,6 @@ static inline unsigned long pte_pfn(pte_t pte)
 	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
-static inline u64 pte_pa(pte_t pte)
-{
-	return pte_val(pte) & PTE_PFN_MASK;
-}
-
 #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
 
 static inline int pmd_large(pmd_t pte)

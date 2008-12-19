@@ -685,8 +685,7 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 	int retval = 0;
 	unsigned long i, j;
 	u64 paddr;
-	pgprot_t prot;
-	pte_t pte;
+	unsigned long prot;
 	unsigned long vma_start = vma->vm_start;
 	unsigned long vma_end = vma->vm_end;
 	unsigned long vma_size = vma_end - vma_start;
@@ -696,26 +695,22 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 
 	if (is_linear_pfn_mapping(vma)) {
 		/*
-		 * reserve the whole chunk starting from vm_pgoff,
-		 * But, we have to get the protection from pte.
+		 * reserve the whole chunk covered by vma. We need the
+		 * starting address and protection from pte.
 		 */
-		if (follow_pfnmap_pte(vma, vma_start, &pte)) {
+		if (follow_phys(vma, vma_start, 0, &prot, &paddr)) {
 			WARN_ON_ONCE(1);
-			return -1;
+			return -EINVAL;
 		}
-		prot = pte_pgprot(pte);
-		paddr = (u64)vma->vm_pgoff << PAGE_SHIFT;
-		return reserve_pfn_range(paddr, vma_size, prot);
+		return reserve_pfn_range(paddr, vma_size, __pgprot(prot));
 	}
 
 	/* reserve entire vma page by page, using pfn and prot from pte */
 	for (i = 0; i < vma_size; i += PAGE_SIZE) {
-		if (follow_pfnmap_pte(vma, vma_start + i, &pte))
+		if (follow_phys(vma, vma_start + i, 0, &prot, &paddr))
 			continue;
 
-		paddr = pte_pa(pte);
-		prot = pte_pgprot(pte);
-		retval = reserve_pfn_range(paddr, PAGE_SIZE, prot);
+		retval = reserve_pfn_range(paddr, PAGE_SIZE, __pgprot(prot));
 		if (retval)
 			goto cleanup_ret;
 	}
@@ -724,10 +719,9 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 cleanup_ret:
 	/* Reserve error: Cleanup partial reservation and return error */
 	for (j = 0; j < i; j += PAGE_SIZE) {
-		if (follow_pfnmap_pte(vma, vma_start + j, &pte))
+		if (follow_phys(vma, vma_start + j, 0, &prot, &paddr))
 			continue;
 
-		paddr = pte_pa(pte);
 		free_pfn_range(paddr, PAGE_SIZE);
 	}
 
@@ -797,6 +791,7 @@ void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 {
 	unsigned long i;
 	u64 paddr;
+	unsigned long prot;
 	unsigned long vma_start = vma->vm_start;
 	unsigned long vma_end = vma->vm_end;
 	unsigned long vma_size = vma_end - vma_start;
@@ -821,12 +816,9 @@ void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 	} else {
 		/* free entire vma, page by page, using the pfn from pte */
 		for (i = 0; i < vma_size; i += PAGE_SIZE) {
-			pte_t pte;
-
-			if (follow_pfnmap_pte(vma, vma_start + i, &pte))
+			if (follow_phys(vma, vma_start + i, 0, &prot, &paddr))
 				continue;
 
-			paddr = pte_pa(pte);
 			free_pfn_range(paddr, PAGE_SIZE);
 		}
 	}
