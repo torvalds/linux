@@ -3946,7 +3946,13 @@ static int stac92xx_init(struct hda_codec *codec)
 		hda_nid_t nid = spec->pwr_nids[i];
 		int pinctl, def_conf;
 
-		if (is_nid_hp_pin(cfg, nid) && spec->hp_detect)
+		/* power on when no jack detection is available */
+		if (!spec->hp_detect) {
+			stac_toggle_power_map(codec, nid, 1);
+			continue;
+		}
+
+		if (is_nid_hp_pin(cfg, nid))
 			continue; /* already has an unsol event */
 
 		pinctl = snd_hda_codec_read(codec, nid, 0,
@@ -3955,8 +3961,10 @@ static int stac92xx_init(struct hda_codec *codec)
 		 * any attempts on powering down a input port cause the
 		 * referenced VREF to act quirky.
 		 */
-		if (pinctl & AC_PINCTL_IN_EN)
+		if (pinctl & AC_PINCTL_IN_EN) {
+			stac_toggle_power_map(codec, nid, 1);
 			continue;
+		}
 		def_conf = snd_hda_codec_read(codec, nid, 0,
 					      AC_VERB_GET_CONFIG_DEFAULT, 0);
 		def_conf = get_defcfg_connect(def_conf);
