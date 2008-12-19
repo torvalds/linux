@@ -44,7 +44,6 @@
 
 /* fwd decl */
 static void boot_msp34xx(struct bttv *btv, int pin);
-static void boot_bt832(struct bttv *btv);
 static void hauppauge_eeprom(struct bttv *btv);
 static void avermedia_eeprom(struct bttv *btv);
 static void osprey_eeprom(struct bttv *btv, const u8 ee[256]);
@@ -3721,13 +3720,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (bttv_tvcards[btv->c.type].audio_mode_gpio)
 		btv->audio_mode_gpio=bttv_tvcards[btv->c.type].audio_mode_gpio;
 
-	if (bttv_tvcards[btv->c.type].digital_mode == DIGITAL_MODE_CAMERA) {
-		/* detect Bt832 chip for quartzsight digital camera */
-		if ((bttv_I2CRead(btv, I2C_ADDR_BT832_ALT1, "Bt832") >=0) ||
-		    (bttv_I2CRead(btv, I2C_ADDR_BT832_ALT2, "Bt832") >=0))
-			boot_bt832(btv);
-	}
-
 	if (!autoload)
 		return;
 
@@ -4121,10 +4113,6 @@ static void __devinit boot_msp34xx(struct bttv *btv, int pin)
 	if (bttv_verbose)
 		printk(KERN_INFO "bttv%d: Hauppauge/Voodoo msp34xx: reset line "
 		       "init [%d]\n", btv->c.nr, pin);
-}
-
-static void __devinit boot_bt832(struct bttv *btv)
-{
 }
 
 /* ----------------------------------------------------------------------- */
