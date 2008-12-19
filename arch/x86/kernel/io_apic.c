@@ -1326,13 +1326,10 @@ next:
 		}
 		if (unlikely(current_vector == vector))
 			continue;
-#ifdef CONFIG_X86_64
-		if (vector == IA32_SYSCALL_VECTOR)
+
+		if (test_bit(vector, used_vectors))
 			goto next;
-#else
-		if (vector == SYSCALL_VECTOR)
-			goto next;
-#endif
+
 		for_each_cpu_and(new_cpu, tmp_mask, cpu_online_mask)
 			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
 				goto next;

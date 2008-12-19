@@ -46,5 +46,6 @@ extern void native_init_IRQ(void);
 
 /* Interrupt vector management */
 extern DECLARE_BITMAP(used_vectors, NR_VECTORS);
+extern int vector_used_by_percpu_irq(unsigned int vector);
 
 #endif /* _ASM_X86_IRQ_H */
