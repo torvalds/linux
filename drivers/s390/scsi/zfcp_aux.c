@@ -534,7 +534,8 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	zfcp_fc_nameserver_init(adapter);
 
-	return 0;
+	if (!zfcp_adapter_scsi_register(adapter))
+		return 0;
 
 sysfs_failed:
 	zfcp_adapter_debug_unregister(adapter);
