@@ -432,9 +432,9 @@ static const unsigned char init_ov9650[][3] =
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
 	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x5e}, /* 94 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 734 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0xde}
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x64}, /* 100 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 640 + 100 */
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe4}
 };
 
 static const unsigned char power_down_ov9650[][3] =
