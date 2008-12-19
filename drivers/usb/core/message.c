@@ -18,6 +18,8 @@
 #include "hcd.h"	/* for usbcore internals */
 #include "usb.h"
 
+static void cancel_async_set_config(struct usb_device *udev);
+
 struct api_context {
 	struct completion	done;
 	int			status;
@@ -1636,6 +1638,9 @@ free_interfaces:
 	if (dev->state != USB_STATE_ADDRESS)
 		usb_disable_device(dev, 1);	/* Skip ep0 */
 
+	/* Get rid of pending async Set-Config requests for this device */
+	cancel_async_set_config(dev);
+
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			      USB_REQ_SET_CONFIGURATION, 0, configuration, 0,
 			      NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -1725,10 +1730,14 @@ free_interfaces:
 	return 0;
 }
 
+static LIST_HEAD(set_config_list);
+static DEFINE_SPINLOCK(set_config_lock);
+
 struct set_config_request {
 	struct usb_device	*udev;
 	int			config;
 	struct work_struct	work;
+	struct list_head	node;
 };
 
 /* Worker routine for usb_driver_set_configuration() */
@@ -1736,12 +1745,33 @@ static void driver_set_config_work(struct work_struct *work)
 {
 	struct set_config_request *req =
 		container_of(work, struct set_config_request, work);
+	struct usb_device *udev = req->udev;
 
-	usb_lock_device(req->udev);
-	usb_set_configuration(req->udev, req->config);
-	usb_unlock_device(req->udev);
-	usb_put_dev(req->udev);
+	usb_lock_device(udev);
+	spin_lock(&set_config_lock);
+	list_del(&req->node);
+	spin_unlock(&set_config_lock);
+
+	if (req->config >= -1)		/* Is req still valid? */
+		usb_set_configuration(udev, req->config);
+	usb_unlock_device(udev);
+	usb_put_dev(udev);
 	kfree(req);
+}
+
+/* Cancel pending Set-Config requests for a device whose configuration
+ * was just changed
+ */
+static void cancel_async_set_config(struct usb_device *udev)
+{
+	struct set_config_request *req;
+
+	spin_lock(&set_config_lock);
+	list_for_each_entry(req, &set_config_list, node) {
+		if (req->udev == udev)
+			req->config = -999;	/* Mark as cancelled */
+	}
+	spin_unlock(&set_config_lock);
 }
 
 /**
@@ -1774,6 +1804,10 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 	req->udev = udev;
 	req->config = config;
 	INIT_WORK(&req->work, driver_set_config_work);
+
+	spin_lock(&set_config_lock);
+	list_add(&req->node, &set_config_list);
+	spin_unlock(&set_config_lock);
 
 	usb_get_dev(udev);
 	schedule_work(&req->work);
