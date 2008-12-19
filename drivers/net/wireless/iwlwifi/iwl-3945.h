@@ -547,7 +547,7 @@ struct iwl3945_priv {
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
-	struct iwl_3945_cfg *cfg; /* device configuration */
+	struct iwl_cfg *cfg; /* device configuration */
 
 	/* temporary frame storage list */
 	struct list_head free_frames;

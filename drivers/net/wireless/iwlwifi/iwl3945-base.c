@@ -7718,7 +7718,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	int err = 0;
 	struct iwl3945_priv *priv;
 	struct ieee80211_hw *hw;
-	struct iwl_3945_cfg *cfg = (struct iwl_3945_cfg *)(ent->driver_data);
+	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	unsigned long flags;
 
 	/***********************
