@@ -300,11 +300,12 @@ struct iwl_cmd_header {
  * 5350 has 3 transmitters
  * bit14:16
  */
-#define RATE_MCS_ANT_POS      14
-#define RATE_MCS_ANT_A_MSK    0x04000
-#define RATE_MCS_ANT_B_MSK    0x08000
-#define RATE_MCS_ANT_C_MSK    0x10000
-#define RATE_MCS_ANT_ABC_MSK  0x1C000
+#define RATE_MCS_ANT_POS	14
+#define RATE_MCS_ANT_A_MSK	0x04000
+#define RATE_MCS_ANT_B_MSK	0x08000
+#define RATE_MCS_ANT_C_MSK	0x10000
+#define RATE_MCS_ANT_AB_MSK	(RATE_MCS_ANT_A_MSK | RATE_MCS_ANT_B_MSK)
+#define RATE_MCS_ANT_ABC_MSK	(RATE_MCS_ANT_AB_MSK | RATE_MCS_ANT_C_MSK)
 #define RATE_ANT_NUM 3
 
 #define POWER_TABLE_NUM_ENTRIES			33
@@ -2044,15 +2045,23 @@ struct iwl_spectrum_notification {
  */
 #define IWL_POWER_VEC_SIZE 5
 
-#define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	cpu_to_le16(1 << 0)
-#define IWL_POWER_SLEEP_OVER_DTIM_MSK		cpu_to_le16(1 << 2)
-#define IWL_POWER_PCI_PM_MSK			cpu_to_le16(1 << 3)
-#define IWL_POWER_FAST_PD			cpu_to_le16(1 << 4)
+#define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	cpu_to_le16(BIT(0))
+#define IWL_POWER_SLEEP_OVER_DTIM_MSK		cpu_to_le16(BIT(2))
+#define IWL_POWER_PCI_PM_MSK			cpu_to_le16(BIT(3))
+#define IWL_POWER_FAST_PD			cpu_to_le16(BIT(4))
+
+struct iwl3945_powertable_cmd {
+	__le16 flags;
+	u8 reserved[2];
+	__le32 rx_data_timeout;
+	__le32 tx_data_timeout;
+	__le32 sleep_interval[IWL_POWER_VEC_SIZE];
+} __attribute__ ((packed));
 
 struct iwl_powertable_cmd {
 	__le16 flags;
-	u8 keep_alive_seconds;
-	u8 debug_flags;
+	u8 keep_alive_seconds;		/* 3945 reserved */
+	u8 debug_flags;			/* 3945 reserved */
 	__le32 rx_data_timeout;
 	__le32 tx_data_timeout;
 	__le32 sleep_interval[IWL_POWER_VEC_SIZE];

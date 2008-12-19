@@ -250,7 +250,7 @@ struct iwl3945_clip_group {
 /* Power management (not Tx power) structures */
 
 struct iwl3945_power_vec_entry {
-	struct iwl3945_powertable_cmd cmd;
+	struct iwl_powertable_cmd cmd;
 	u8 no_dtim;
 };
 #define IWL_POWER_RANGE_0  (0)
@@ -289,12 +289,6 @@ struct iwl3945_frame {
 	struct list_head list;
 };
 
-#define SEQ_TO_QUEUE(x)  ((x >> 8) & 0xbf)
-#define QUEUE_TO_SEQ(x)  ((x & 0xbf) << 8)
-#define SEQ_TO_INDEX(x) ((u8)(x & 0xff))
-#define INDEX_TO_SEQ(x) ((u8)(x & 0xff))
-#define SEQ_HUGE_FRAME  (0x4000)
-#define SEQ_RX_FRAME    __constant_cpu_to_le16(0x8000)
 #define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
 #define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
@@ -344,7 +338,7 @@ struct iwl3945_cmd {
 		u32 val32;
 		struct iwl3945_bt_cmd bt;
 		struct iwl3945_rxon_time_cmd rxon_time;
-		struct iwl3945_powertable_cmd powertable;
+		struct iwl_powertable_cmd powertable;
 		struct iwl3945_qosparam_cmd qosparam;
 		struct iwl3945_tx_cmd tx;
 		struct iwl3945_tx_beacon_cmd tx_beacon;
@@ -707,7 +701,7 @@ struct iwl3945_priv {
 
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	/* spectrum measurement report caching */
-	struct iwl3945_spectrum_notification measure_report;
+	struct iwl_spectrum_notification measure_report;
 	u8 measurement_status;
 #endif
 	/* ucode beacon time */

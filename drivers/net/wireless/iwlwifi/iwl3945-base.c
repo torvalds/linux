@@ -47,6 +47,7 @@
 #include <asm/div64.h>
 
 #include "iwl-3945-core.h"
+#include "iwl-commands.h"
 #include "iwl-3945-commands.h"
 #include "iwl-3945.h"
 #include "iwl-3945-fh.h"
@@ -634,7 +635,7 @@ static int iwl3945_enqueue_hcmd(struct iwl3945_priv *priv, struct iwl3945_host_c
 	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(IWL_CMD_QUEUE_NUM) |
 			INDEX_TO_SEQ(q->write_ptr));
 	if (out_cmd->meta.flags & CMD_SIZE_HUGE)
-		out_cmd->hdr.sequence |= cpu_to_le16(SEQ_HUGE_FRAME);
+		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
 
 	phys_addr = txq->dma_addr_cmd + sizeof(txq->cmd[0]) * idx +
 			offsetof(struct iwl3945_cmd, hdr);
@@ -1804,15 +1805,15 @@ static void iwl3945_activate_qos(struct iwl3945_priv *priv, u8 force)
  */
 #define MSEC_TO_USEC 1024
 
-#define NOSLP __constant_cpu_to_le32(0)
-#define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK
+
+#define NOSLP __constant_cpu_to_le16(0), 0, 0
+#define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
 #define SLP_TIMEOUT(T) __constant_cpu_to_le32((T) * MSEC_TO_USEC)
 #define SLP_VEC(X0, X1, X2, X3, X4) {__constant_cpu_to_le32(X0), \
 				     __constant_cpu_to_le32(X1), \
 				     __constant_cpu_to_le32(X2), \
 				     __constant_cpu_to_le32(X3), \
 				     __constant_cpu_to_le32(X4)}
-
 
 /* default power management (not Tx power) table values */
 /* for TIM  0-10 */
@@ -1862,7 +1863,7 @@ int iwl3945_power_init_handle(struct iwl3945_priv *priv)
 	if (rc != 0)
 		return 0;
 	else {
-		struct iwl3945_powertable_cmd *cmd;
+		struct iwl_powertable_cmd *cmd;
 
 		IWL_DEBUG_POWER("adjust power command flags\n");
 
@@ -1879,7 +1880,7 @@ int iwl3945_power_init_handle(struct iwl3945_priv *priv)
 }
 
 static int iwl3945_update_power_cmd(struct iwl3945_priv *priv,
-				struct iwl3945_powertable_cmd *cmd, u32 mode)
+				struct iwl_powertable_cmd *cmd, u32 mode)
 {
 	int rc = 0, i;
 	u8 skip;
@@ -1946,7 +1947,7 @@ static int iwl3945_send_power_mode(struct iwl3945_priv *priv, u32 mode)
 {
 	u32 uninitialized_var(final_mode);
 	int rc;
-	struct iwl3945_powertable_cmd cmd;
+	struct iwl_powertable_cmd cmd;
 
 	/* If on battery, set to 3,
 	 * if plugged into AC power, set to CAM ("continuously aware mode"),
@@ -1965,7 +1966,9 @@ static int iwl3945_send_power_mode(struct iwl3945_priv *priv, u32 mode)
 
 	iwl3945_update_power_cmd(priv, &cmd, final_mode);
 
-	rc = iwl3945_send_cmd_pdu(priv, POWER_TABLE_CMD, sizeof(cmd), &cmd);
+	/* FIXME use get_hcmd_size 3945 command is 4 bytes shorter */
+	rc = iwl3945_send_cmd_pdu(priv, POWER_TABLE_CMD,
+				sizeof(struct iwl3945_powertable_cmd), &cmd);
 
 	if (final_mode == IWL_POWER_MODE_CAM)
 		clear_bit(STATUS_POWER_PMI, &priv->status);
@@ -2867,7 +2870,7 @@ static int iwl3945_get_measurement(struct iwl3945_priv *priv,
 			       struct ieee80211_measurement_params *params,
 			       u8 type)
 {
-	struct iwl3945_spectrum_cmd spectrum;
+	struct iwl_spectrum_cmd spectrum;
 	struct iwl3945_rx_packet *res;
 	struct iwl3945_host_cmd cmd = {
 		.id = REPLY_SPECTRUM_MEASUREMENT_CMD,
@@ -3008,7 +3011,7 @@ static void iwl3945_rx_csa(struct iwl3945_priv *priv, struct iwl3945_rx_mem_buff
 {
 	struct iwl3945_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl3945_rxon_cmd *rxon = (void *)&priv->active_rxon;
-	struct iwl3945_csa_notification *csa = &(pkt->u.csa_notif);
+	struct iwl_csa_notification *csa = &(pkt->u.csa_notif);
 	IWL_DEBUG_11H("CSA notif: channel %d, status %d\n",
 		      le16_to_cpu(csa->channel), le32_to_cpu(csa->status));
 	rxon->channel = csa->channel;
@@ -3020,7 +3023,7 @@ static void iwl3945_rx_spectrum_measure_notif(struct iwl3945_priv *priv,
 {
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	struct iwl3945_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl3945_spectrum_notification *report = &(pkt->u.spectrum_notif);
+	struct iwl_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
 	if (!report->state) {
 		IWL_DEBUG(IWL_DL_11H | IWL_DL_INFO,
@@ -3038,7 +3041,7 @@ static void iwl3945_rx_pm_sleep_notif(struct iwl3945_priv *priv,
 {
 #ifdef CONFIG_IWL3945_DEBUG
 	struct iwl3945_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl3945_sleep_notification *sleep = &(pkt->u.sleep_notif);
+	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	IWL_DEBUG_RX("sleep mode: %d, src: %d\n",
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
@@ -3345,7 +3348,7 @@ static void iwl3945_tx_cmd_complete(struct iwl3945_priv *priv,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
-	int huge = sequence & SEQ_HUGE_FRAME;
+	int huge =  !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	int cmd_index;
 	struct iwl3945_cmd *cmd;
 
@@ -7407,7 +7410,7 @@ static ssize_t show_measurement(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
 	struct iwl3945_priv *priv = dev_get_drvdata(d);
-	struct iwl3945_spectrum_notification measure_report;
+	struct iwl_spectrum_notification measure_report;
 	u32 size = sizeof(measure_report), len = 0, ofs = 0;
 	u8 *data = (u8 *)&measure_report;
 	unsigned long flags;
