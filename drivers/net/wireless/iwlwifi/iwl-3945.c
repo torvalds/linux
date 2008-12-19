@@ -2506,12 +2506,170 @@ void iwl3945_hw_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work(&priv->thermal_periodic);
 }
 
+/* check contents of special bootstrap uCode SRAM */
+static int iwl3945_verify_bsm(struct iwl_priv *priv)
+ {
+	__le32 *image = priv->ucode_boot.v_addr;
+	u32 len = priv->ucode_boot.len;
+	u32 reg;
+	u32 val;
+
+	IWL_DEBUG_INFO("Begin verify bsm\n");
+
+	/* verify BSM SRAM contents */
+	val = iwl_read_prph(priv, BSM_WR_DWCOUNT_REG);
+	for (reg = BSM_SRAM_LOWER_BOUND;
+	     reg < BSM_SRAM_LOWER_BOUND + len;
+	     reg += sizeof(u32), image++) {
+		val = iwl_read_prph(priv, reg);
+		if (val != le32_to_cpu(*image)) {
+			IWL_ERR(priv, "BSM uCode verification failed at "
+				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
+				  BSM_SRAM_LOWER_BOUND,
+				  reg - BSM_SRAM_LOWER_BOUND, len,
+				  val, le32_to_cpu(*image));
+			return -EIO;
+		}
+	}
+
+	IWL_DEBUG_INFO("BSM bootstrap uCode image OK\n");
+
+	return 0;
+}
+
+ /**
+  * iwl3945_load_bsm - Load bootstrap instructions
+  *
+  * BSM operation:
+  *
+  * The Bootstrap State Machine (BSM) stores a short bootstrap uCode program
+  * in special SRAM that does not power down during RFKILL.  When powering back
+  * up after power-saving sleeps (or during initial uCode load), the BSM loads
+  * the bootstrap program into the on-board processor, and starts it.
+  *
+  * The bootstrap program loads (via DMA) instructions and data for a new
+  * program from host DRAM locations indicated by the host driver in the
+  * BSM_DRAM_* registers.  Once the new program is loaded, it starts
+  * automatically.
+  *
+  * When initializing the NIC, the host driver points the BSM to the
+  * "initialize" uCode image.  This uCode sets up some internal data, then
+  * notifies host via "initialize alive" that it is complete.
+  *
+  * The host then replaces the BSM_DRAM_* pointer values to point to the
+  * normal runtime uCode instructions and a backup uCode data cache buffer
+  * (filled initially with starting data values for the on-board processor),
+  * then triggers the "initialize" uCode to load and launch the runtime uCode,
+  * which begins normal operation.
+  *
+  * When doing a power-save shutdown, runtime uCode saves data SRAM into
+  * the backup data cache in DRAM before SRAM is powered down.
+  *
+  * When powering back up, the BSM loads the bootstrap program.  This reloads
+  * the runtime uCode instructions and the backup data cache into SRAM,
+  * and re-launches the runtime uCode from where it left off.
+  */
+static int iwl3945_load_bsm(struct iwl_priv *priv)
+{
+	__le32 *image = priv->ucode_boot.v_addr;
+	u32 len = priv->ucode_boot.len;
+	dma_addr_t pinst;
+	dma_addr_t pdata;
+	u32 inst_len;
+	u32 data_len;
+	int rc;
+	int i;
+	u32 done;
+	u32 reg_offset;
+
+	IWL_DEBUG_INFO("Begin load bsm\n");
+
+	/* make sure bootstrap program is no larger than BSM's SRAM size */
+	if (len > IWL39_MAX_BSM_SIZE)
+		return -EINVAL;
+
+	/* Tell bootstrap uCode where to find the "Initialize" uCode
+	*   in host DRAM ... host DRAM physical address bits 31:0 for 3945.
+	* NOTE:  iwl3945_initialize_alive_start() will replace these values,
+	*        after the "initialize" uCode has run, to point to
+	*        runtime/protocol instructions and backup data cache. */
+	pinst = priv->ucode_init.p_addr;
+	pdata = priv->ucode_init_data.p_addr;
+	inst_len = priv->ucode_init.len;
+	data_len = priv->ucode_init_data.len;
+
+	rc = iwl_grab_nic_access(priv);
+	if (rc)
+		return rc;
+
+	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
+	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
+	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
+	iwl_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
+
+	/* Fill BSM memory with bootstrap instructions */
+	for (reg_offset = BSM_SRAM_LOWER_BOUND;
+	     reg_offset < BSM_SRAM_LOWER_BOUND + len;
+	     reg_offset += sizeof(u32), image++)
+		_iwl_write_prph(priv, reg_offset,
+					  le32_to_cpu(*image));
+
+	rc = iwl3945_verify_bsm(priv);
+	if (rc) {
+		iwl_release_nic_access(priv);
+		return rc;
+	}
+
+	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
+	iwl_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
+	iwl_write_prph(priv, BSM_WR_MEM_DST_REG,
+				 IWL39_RTC_INST_LOWER_BOUND);
+	iwl_write_prph(priv, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
+
+	/* Load bootstrap code into instruction SRAM now,
+	 *   to prepare to load "initialize" uCode */
+	iwl_write_prph(priv, BSM_WR_CTRL_REG,
+		BSM_WR_CTRL_REG_BIT_START);
+
+	/* Wait for load of bootstrap uCode to finish */
+	for (i = 0; i < 100; i++) {
+		done = iwl_read_prph(priv, BSM_WR_CTRL_REG);
+		if (!(done & BSM_WR_CTRL_REG_BIT_START))
+			break;
+		udelay(10);
+	}
+	if (i < 100)
+		IWL_DEBUG_INFO("BSM write complete, poll %d iterations\n", i);
+	else {
+		IWL_ERR(priv, "BSM write did not complete!\n");
+		return -EIO;
+	}
+
+	/* Enable future boot loads whenever power management unit triggers it
+	 *   (e.g. when powering back up after power-save shutdown) */
+	iwl_write_prph(priv, BSM_WR_CTRL_REG,
+		BSM_WR_CTRL_REG_BIT_START_EN);
+
+	iwl_release_nic_access(priv);
+
+	return 0;
+}
+
+static struct iwl_lib_ops iwl3945_lib = {
+	.load_ucode = iwl3945_load_bsm,
+};
+
+static struct iwl_ops iwl3945_ops = {
+	.lib = &iwl3945_lib,
+};
+
 static struct iwl_cfg iwl3945_bg_cfg = {
 	.name = "3945BG",
 	.fw_name_pre = IWL3945_FW_PRE,
 	.ucode_api_max = IWL3945_UCODE_API_MAX,
 	.ucode_api_min = IWL3945_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
+	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params
 };
 
@@ -2521,6 +2679,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.ucode_api_max = IWL3945_UCODE_API_MAX,
 	.ucode_api_min = IWL3945_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
+	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params
 };
 
