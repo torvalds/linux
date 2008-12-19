@@ -337,7 +337,7 @@ struct iwl3945_cmd {
 		u16 val16;
 		u32 val32;
 		struct iwl_bt_cmd bt;
-		struct iwl3945_rxon_time_cmd rxon_time;
+		struct iwl_rxon_time_cmd rxon_time;
 		struct iwl_powertable_cmd powertable;
 		struct iwl_qosparam_cmd qosparam;
 		struct iwl3945_tx_cmd tx;
@@ -754,7 +754,7 @@ struct iwl3945_priv {
 	struct fw_desc ucode_boot;	/* bootstrap inst */
 
 
-	struct iwl3945_rxon_time_cmd rxon_timing;
+	struct iwl_rxon_time_cmd rxon_timing;
 
 	/* We declare this const so it can only be
 	 * changed via explicit cast within the
@@ -844,8 +844,7 @@ struct iwl3945_priv {
 	struct sk_buff *ibss_beacon;
 
 	/* Last Rx'd beacon timestamp */
-	u32 timestamp0;
-	u32 timestamp1;
+	u64 timestamp;
 	u16 beacon_int;
 	struct iwl3945_driver_hw_info hw_setting;
 	struct ieee80211_vif *vif;

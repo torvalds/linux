@@ -173,25 +173,6 @@ struct iwl3945_alive_resp {
 	__le32 is_valid;
 } __attribute__ ((packed));
 
-union tsf {
-	u8 byte[8];
-	__le16 word[4];
-	__le32 dw[2];
-};
-
-/*
- * REPLY_ERROR = 0x2 (response only, not a command)
- */
-struct iwl3945_error_resp {
-	__le32 error_type;
-	u8 cmd_id;
-	u8 reserved1;
-	__le16 bad_cmd_seq_num;
-	__le16 reserved2;
-	__le32 error_info;
-	union tsf timestamp;
-} __attribute__ ((packed));
-
 /******************************************************************************
  * (1)
  * RXON Commands & Responses:
@@ -242,18 +223,6 @@ struct iwl3945_rxon_assoc_cmd {
 	__le32 filter_flags;
 	u8 ofdm_basic_rates;
 	u8 cck_basic_rates;
-	__le16 reserved;
-} __attribute__ ((packed));
-
-/*
- * REPLY_RXON_TIMING = 0x14 (command, has simple generic response)
- */
-struct iwl3945_rxon_time_cmd {
-	union tsf timestamp;
-	__le16 beacon_interval;
-	__le16 atim_window;
-	__le32 beacon_init_val;
-	__le16 listen_interval;
 	__le16 reserved;
 } __attribute__ ((packed));
 
@@ -783,7 +752,7 @@ struct iwl3945_rx_packet {
 		struct iwl3945_tx_resp tx_resp;
 		struct iwl_spectrum_notification spectrum_notif;
 		struct iwl_csa_notification csa_notif;
-		struct iwl3945_error_resp err_resp;
+		struct iwl_error_resp err_resp;
 		struct iwl_card_state_notif card_state_notif;
 		struct iwl3945_beacon_notif beacon_status;
 		struct iwl_add_sta_resp add_sta;
