@@ -21,8 +21,8 @@ DECLARE_TRACE(sched_wakeup,
 		TPARGS(rq, p));
 
 DECLARE_TRACE(sched_wakeup_new,
-	TPPROTO(struct rq *rq, struct task_struct *p),
-		TPARGS(rq, p));
+	TPPROTO(struct rq *rq, struct task_struct *p, int success),
+		TPARGS(rq, p, success));
 
 DECLARE_TRACE(sched_switch,
 	TPPROTO(struct rq *rq, struct task_struct *prev,
