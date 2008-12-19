@@ -63,6 +63,14 @@
 #define SQNUM_WARN_WATERMARK 0xFFFFFFFF00000000ULL
 #define SQNUM_WATERMARK      0xFFFFFFFFFF000000ULL
 
+/*
+ * Minimum amount of LEBs reserved for the index. At present the index needs at
+ * least 2 LEBs: one for the index head and one for in-the-gaps method (which
+ * currently does not cater for the index head and so excludes it from
+ * consideration).
+ */
+#define MIN_INDEX_LEBS 2
+
 /* Minimum amount of data UBIFS writes to the flash */
 #define MIN_WRITE_SZ (UBIFS_DATA_NODE_SZ + 8)
 

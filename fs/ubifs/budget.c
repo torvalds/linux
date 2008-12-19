@@ -280,13 +280,8 @@ int ubifs_calc_min_idx_lebs(struct ubifs_info *c)
 	 * extra LEB to compensate.
 	 */
 	ret += 1;
-	/*
-	 * At present the index needs at least 2 LEBs: one for the index head
-	 * and one for in-the-gaps method (which currently does not cater for
-	 * the index head and so excludes it from consideration).
-	 */
-	if (ret < 2)
-		ret = 2;
+	if (ret < MIN_INDEX_LEBS)
+		ret = MIN_INDEX_LEBS;
 	return ret;
 }
 

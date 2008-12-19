@@ -695,9 +695,10 @@ static int init_constants_late(struct ubifs_info *c)
 	 * necessary to report something for the 'statfs()' call.
 	 *
 	 * Subtract the LEB reserved for GC, the LEB which is reserved for
-	 * deletions, and assume only one journal head is available.
+	 * deletions, minimum LEBs for the index, and assume only one journal
+	 * head is available.
 	 */
-	tmp64 = c->main_lebs - 2 - c->jhead_cnt + 1;
+	tmp64 = c->main_lebs - 1 - 1 - MIN_INDEX_LEBS - c->jhead_cnt + 1;
 	tmp64 *= (uint64_t)c->leb_size - c->leb_overhead;
 	tmp64 = ubifs_reported_space(c, tmp64);
 	c->block_cnt = tmp64 >> UBIFS_BLOCK_SHIFT;
