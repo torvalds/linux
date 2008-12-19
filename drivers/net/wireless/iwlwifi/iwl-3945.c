@@ -41,7 +41,6 @@
 #include "iwl-3945-core.h"
 #include "iwl-3945-fh.h"
 #include "iwl-commands.h"
-#include "iwl-3945-commands.h"
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
 #include "iwl-3945-rs.h"
@@ -333,7 +332,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv,
 static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
 			    struct iwl3945_rx_mem_buffer *rxb)
 {
-	struct iwl3945_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
@@ -392,7 +391,7 @@ static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
 
 void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv, struct iwl3945_rx_mem_buffer *rxb)
 {
-	struct iwl3945_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	IWL_DEBUG_RX("Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct iwl3945_notif_statistics),
 		     le32_to_cpu(pkt->len));
@@ -419,7 +418,7 @@ void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv, struct iwl3945_rx_mem_b
  * group100 parameter selects whether to show 1 out of 100 good frames.
  */
 static void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
-		      struct iwl3945_rx_packet *pkt,
+		      struct iwl_rx_packet *pkt,
 		      struct ieee80211_hdr *header, int group100)
 {
 	u32 to_us;
@@ -547,7 +546,7 @@ static void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
 }
 #else
 static inline void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
-		      struct iwl3945_rx_packet *pkt,
+		      struct iwl_rx_packet *pkt,
 		      struct ieee80211_hdr *header, int group100)
 {
 }
@@ -575,7 +574,7 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl3945_priv *priv,
 				   struct iwl3945_rx_mem_buffer *rxb,
 				   struct ieee80211_rx_status *stats)
 {
-	struct iwl3945_rx_packet *pkt = (struct iwl3945_rx_packet *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 #ifdef CONFIG_IWL3945_LEDS
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
 #endif
@@ -584,7 +583,7 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl3945_priv *priv,
 	short len = le16_to_cpu(rx_hdr->len);
 
 	/* We received data from the HW, so stop the watchdog */
-	if (unlikely((len + IWL_RX_FRAME_SIZE) > skb_tailroom(rxb->skb))) {
+	if (unlikely((len + IWL39_RX_FRAME_SIZE) > skb_tailroom(rxb->skb))) {
 		IWL_DEBUG_DROP("Corruption detected!\n");
 		return;
 	}
@@ -619,7 +618,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;
-	struct iwl3945_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl3945_rx_frame_stats *rx_stats = IWL_RX_STATS(pkt);
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);

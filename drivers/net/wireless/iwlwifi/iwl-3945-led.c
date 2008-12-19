@@ -39,7 +39,6 @@
 #include <asm/unaligned.h>
 
 #include "iwl-commands.h"
-#include "iwl-3945-commands.h"
 #include "iwl-3945.h"
 
 

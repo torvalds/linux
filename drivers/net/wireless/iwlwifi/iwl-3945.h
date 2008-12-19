@@ -768,8 +768,9 @@ struct iwl3945_priv {
 
 	/* 1st responses from initialize and runtime uCode images.
 	 * 4965's initialize alive response contains some calibration data. */
-	struct iwl3945_init_alive_resp card_alive_init;
-	struct iwl3945_alive_resp card_alive;
+	/* FIXME: 4965 uses bigger structure for init */
+	struct iwl_alive_resp card_alive_init;
+	struct iwl_alive_resp card_alive;
 
 #ifdef CONFIG_IWL3945_RFKILL
 	struct rfkill *rfkill;

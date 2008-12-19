@@ -37,7 +37,6 @@
 #include <linux/workqueue.h>
 
 #include "iwl-commands.h"
-#include "iwl-3945-commands.h"
 #include "iwl-3945.h"
 
 #define RS_NAME "iwl-3945-rs"
