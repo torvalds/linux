@@ -393,7 +393,9 @@ struct kvm_trace_rec {
 #ifdef __KVM_HAVE_USER_NMI
 #define KVM_CAP_USER_NMI 22
 #endif
+#if defined(CONFIG_X86)
 #define KVM_CAP_SET_GUEST_DEBUG 23
+#endif
 
 /*
  * ioctls for VM fds
