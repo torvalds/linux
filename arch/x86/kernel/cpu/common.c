@@ -862,7 +862,7 @@ EXPORT_SYMBOL(_cpu_pda);
 
 struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
-char boot_cpu_stack[IRQSTACKSIZE] __page_aligned_bss;
+static char boot_cpu_stack[IRQSTACKSIZE] __page_aligned_bss;
 
 void __cpuinit pda_init(int cpu)
 {
@@ -903,8 +903,8 @@ void __cpuinit pda_init(int cpu)
 	}
 }
 
-char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ +
-			   DEBUG_STKSZ] __page_aligned_bss;
+static char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ +
+				  DEBUG_STKSZ] __page_aligned_bss;
 
 extern asmlinkage void ignore_sysret(void);
 
