@@ -974,9 +974,7 @@ static int iwl3945_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	}
 
 	iwl_write_direct32(priv, FH39_RCSR_RBD_BASE(0), rxq->dma_addr);
-	iwl_write_direct32(priv, FH39_RCSR_RPTR_ADDR(0),
-			     priv->shared_phys +
-			     offsetof(struct iwl3945_shared, rx_read_ptr[0]));
+	iwl_write_direct32(priv, FH39_RCSR_RPTR_ADDR(0), rxq->rb_stts_dma);
 	iwl_write_direct32(priv, FH39_RCSR_WPTR(0), 0);
 	iwl_write_direct32(priv, FH39_RCSR_CONFIG(0),
 		FH39_RCSR_RX_CONFIG_REG_VAL_DMA_CHNL_EN_ENABLE |
@@ -2375,13 +2373,6 @@ int iwl3945_hw_tx_queue_init(struct iwl_priv *priv, struct iwl3945_tx_queue *txq
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
-}
-
-int iwl3945_hw_get_rx_read(struct iwl_priv *priv)
-{
-	struct iwl3945_shared *shared_data = priv->shared_virt;
-
-	return le32_to_cpu(shared_data->rx_read_ptr[0]);
 }
 
 /**

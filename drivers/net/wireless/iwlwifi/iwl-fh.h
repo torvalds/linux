@@ -414,6 +414,7 @@ struct iwl_rb_status {
 	__le16 closed_fr_num;
 	__le16 finished_rb_num;
 	__le16 finished_fr_nam;
+	__le32 __unused; /* 3945 only */
 } __attribute__ ((packed));
 
 

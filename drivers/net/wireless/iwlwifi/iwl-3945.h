@@ -282,7 +282,6 @@ extern int iwl3945_hw_tx_queue_init(struct iwl_priv *priv,
 				struct iwl3945_tx_queue *txq);
 extern unsigned int iwl3945_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl3945_frame *frame, u8 rate);
-extern int iwl3945_hw_get_rx_read(struct iwl_priv *priv);
 void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv, struct iwl_cmd *cmd,
 				     struct ieee80211_tx_info *info,
 				     struct ieee80211_hdr *hdr,

@@ -302,7 +302,6 @@ static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
  * and &iwl3945_shared.rx_read_ptr[0] is provided to FH_RCSR_RPTR_ADDR(0) */
 struct iwl3945_shared {
 	__le32 tx_base_ptr[8];
-	__le32 rx_read_ptr[3];
 } __attribute__ ((packed));
 
 struct iwl3945_tfd_frame_data {

@@ -1021,7 +1021,7 @@ struct iwl_priv {
 	u16 beacon_int;
 	struct ieee80211_vif *vif;
 
-	/*Added	for 3945 */
+	/*Added for 3945 */
 	void *shared_virt;
 	dma_addr_t shared_phys;
 	/*End*/

@@ -3588,7 +3588,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
-	r = iwl3945_hw_get_rx_read(priv);
+	r = le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF;
 	i = rxq->read;
 
 	if (iwl3945_rx_queue_space(rxq) > (RX_QUEUE_SIZE / 2))
