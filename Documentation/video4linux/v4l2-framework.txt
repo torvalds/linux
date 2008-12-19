@@ -86,6 +86,9 @@ to v4l2_dev. Registration will also set v4l2_dev->name to a value derived from
 dev (driver name followed by the bus_id, to be precise). You may change the
 name after registration if you want.
 
+The first 'dev' argument is normally the struct device pointer of a pci_dev,
+usb_device or platform_device.
+
 You unregister with:
 
 	v4l2_device_unregister(struct v4l2_device *v4l2_dev);
@@ -359,4 +362,159 @@ Both functions return NULL if something went wrong.
 struct video_device
 -------------------
 
-Not yet documented.
+The actual device nodes in the /dev directory are created using the
+video_device struct (v4l2-dev.h). This struct can either be allocated
+dynamically or embedded in a larger struct.
+
+To allocate it dynamically use:
+
+	struct video_device *vdev = video_device_alloc();
+
+	if (vdev == NULL)
+		return -ENOMEM;
+
+	vdev->release = video_device_release;
+
+If you embed it in a larger struct, then you must set the release()
+callback to your own function:
+
+	struct video_device *vdev = &my_vdev->vdev;
+
+	vdev->release = my_vdev_release;
+
+The release callback must be set and it is called when the last user
+of the video device exits.
+
+The default video_device_release() callback just calls kfree to free the
+allocated memory.
+
+You should also set these fields:
+
+- parent: set to the parent device (same device as was used to register
+  v4l2_device).
+- name: set to something descriptive and unique.
+- fops: set to the file_operations struct.
+- ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
+  (highly recommended to use this and it might become compulsory in the
+  future!), then set this to your v4l2_ioctl_ops struct.
+
+If you use v4l2_ioctl_ops, then you should set .unlocked_ioctl to
+__video_ioctl2 or .ioctl to video_ioctl2 in your file_operations struct.
+
+
+video_device registration
+-------------------------
+
+Next you register the video device: this will create the character device
+for you.
+
+	err = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	if (err) {
+		video_device_release(vdev); // or kfree(my_vdev);
+		return err;
+	}
+
+Which device is registered depends on the type argument. The following
+types exist:
+
+VFL_TYPE_GRABBER: videoX for video input/output devices
+VFL_TYPE_VBI: vbiX for vertical blank data (i.e. closed captions, teletext)
+VFL_TYPE_RADIO: radioX for radio tuners
+VFL_TYPE_VTX: vtxX for teletext devices (deprecated, don't use)
+
+The last argument gives you a certain amount of control over the device
+kernel number used (i.e. the X in videoX). Normally you will pass -1 to
+let the v4l2 framework pick the first free number. But if a driver creates
+many devices, then it can be useful to have different video devices in
+separate ranges. For example, video capture devices start at 0, video
+output devices start at 16.
+
+So you can use the last argument to specify a minimum kernel number and
+the v4l2 framework will try to pick the first free number that is equal
+or higher to what you passed. If that fails, then it will just pick the
+first free number.
+
+Whenever a device node is created some attributes are also created for you.
+If you look in /sys/class/video4linux you see the devices. Go into e.g.
+video0 and you will see 'name' and 'index' attributes. The 'name' attribute
+is the 'name' field of the video_device struct. The 'index' attribute is
+a device node index that can be assigned by the driver, or that is calculated
+for you.
+
+If you call video_register_device(), then the index is just increased by
+1 for each device node you register. The first video device node you register
+always starts off with 0.
+
+Alternatively you can call video_register_device_index() which is identical
+to video_register_device(), but with an extra index argument. Here you can
+pass a specific index value (between 0 and 31) that should be used.
+
+Users can setup udev rules that utilize the index attribute to make fancy
+device names (e.g. 'mpegX' for MPEG video capture device nodes).
+
+After the device was successfully registered, then you can use these fields:
+
+- vfl_type: the device type passed to video_register_device.
+- minor: the assigned device minor number.
+- num: the device kernel number (i.e. the X in videoX).
+- index: the device index number (calculated or set explicitly using
+  video_register_device_index).
+
+If the registration failed, then you need to call video_device_release()
+to free the allocated video_device struct, or free your own struct if the
+video_device was embedded in it. The vdev->release() callback will never
+be called if the registration failed, nor should you ever attempt to
+unregister the device if the registration failed.
+
+
+video_device cleanup
+--------------------
+
+When the video device nodes have to be removed, either during the unload
+of the driver or because the USB device was disconnected, then you should
+unregister them:
+
+	video_unregister_device(vdev);
+
+This will remove the device nodes from sysfs (causing udev to remove them
+from /dev).
+
+After video_unregister_device() returns no new opens can be done.
+
+However, in the case of USB devices some application might still have one
+of these device nodes open. You should block all new accesses to read,
+write, poll, etc. except possibly for certain ioctl operations like
+queueing buffers.
+
+When the last user of the video device node exits, then the vdev->release()
+callback is called and you can do the final cleanup there.
+
+
+video_device helper functions
+-----------------------------
+
+There are a few useful helper functions:
+
+You can set/get driver private data in the video_device struct using:
+
+void *video_get_drvdata(struct video_device *dev);
+void video_set_drvdata(struct video_device *dev, void *data);
+
+Note that you can safely call video_set_drvdata() before calling
+video_register_device().
+
+And this function:
+
+struct video_device *video_devdata(struct file *file);
+
+returns the video_device belonging to the file struct.
+
+The final helper function combines video_get_drvdata with
+video_devdata:
+
+void *video_drvdata(struct file *file);
+
+You can go from a video_device struct to the v4l2_device struct using:
+
+struct v4l2_device *v4l2_dev = dev_get_drvdata(vdev->parent);
+
