@@ -451,7 +451,6 @@ struct zfcp_latencies {
 };
 
 struct zfcp_adapter {
-	struct list_head	list;              /* list of adapters */
 	atomic_t                refcount;          /* reference count */
 	wait_queue_head_t	remove_wq;         /* can be used to wait for
 						      refcount drop to zero */
@@ -593,7 +592,6 @@ struct zfcp_fsf_req {
 struct zfcp_data {
 	struct scsi_host_template scsi_host_template;
 	struct scsi_transport_template *scsi_transport_template;
-	struct list_head	adapter_list_head;  /* head of adapter list */
 	rwlock_t                config_lock;        /* serialises changes
 						       to adapter/port/unit
 						       lists */

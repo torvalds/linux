@@ -181,7 +181,6 @@ static int __init zfcp_module_init(void)
 
 	zfcp_data.work_queue = create_singlethread_workqueue("zfcp_wq");
 
-	INIT_LIST_HEAD(&zfcp_data.adapter_list_head);
 	sema_init(&zfcp_data.config_sema, 1);
 	rwlock_init(&zfcp_data.config_lock);
 
@@ -527,11 +526,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 			       &zfcp_sysfs_adapter_attrs))
 		goto sysfs_failed;
 
-	write_lock_irq(&zfcp_data.config_lock);
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
-	list_add_tail(&adapter->list, &zfcp_data.adapter_list_head);
-	write_unlock_irq(&zfcp_data.config_lock);
-
 	zfcp_fc_nameserver_init(adapter);
 
 	if (!zfcp_adapter_scsi_register(adapter))
@@ -574,14 +569,7 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 		return;
 
 	zfcp_adapter_debug_unregister(adapter);
-
-	/* remove specified adapter data structure from list */
-	write_lock_irq(&zfcp_data.config_lock);
-	list_del(&adapter->list);
-	write_unlock_irq(&zfcp_data.config_lock);
-
 	zfcp_qdio_free(adapter);
-
 	zfcp_free_low_mem_buffers(adapter);
 	kfree(adapter->req_list);
 	kfree(adapter->fc_stats);
