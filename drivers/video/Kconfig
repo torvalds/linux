@@ -1893,6 +1893,7 @@ config FB_SH_MOBILE_LCDC
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
 	---help---
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
 
