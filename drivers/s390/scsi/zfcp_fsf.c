@@ -1423,13 +1423,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		switch (header->fsf_status_qual.word[0]) {
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
-			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-			break;
 		case FSF_SQ_NO_RETRY_POSSIBLE:
-			dev_warn(&req->adapter->ccw_device->dev,
-				 "Remote port 0x%016Lx could not be opened\n",
-				 (unsigned long long)port->wwpn);
-			zfcp_erp_port_failed(port, 32, req);
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
 		}
