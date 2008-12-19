@@ -202,6 +202,9 @@ void fb_deferred_io_cleanup(struct fb_info *info)
 		page = vmalloc_to_page(screen_base + i);
 		page->mapping = NULL;
 	}
+
+	info->fbops->fb_mmap = NULL;
+	mutex_destroy(&fbdefio->lock);
 }
 EXPORT_SYMBOL_GPL(fb_deferred_io_cleanup);
 
