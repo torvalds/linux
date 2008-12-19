@@ -2491,7 +2491,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 		/* error other than GTT full, or we've already tried again */
 		if (ret != -ENOMEM || pin_tries >= 1) {
-			DRM_ERROR("Failed to pin buffers %d\n", ret);
+			if (ret != -ERESTARTSYS)
+				DRM_ERROR("Failed to pin buffers %d\n", ret);
 			goto err;
 		}
 
@@ -2641,7 +2642,8 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	if (obj_priv->gtt_space == NULL) {
 		ret = i915_gem_object_bind_to_gtt(obj, alignment);
 		if (ret != 0) {
-			DRM_ERROR("Failure to bind: %d", ret);
+			if (ret != -ERESTARTSYS)
+				DRM_ERROR("Failure to bind: %d", ret);
 			return ret;
 		}
 	}
