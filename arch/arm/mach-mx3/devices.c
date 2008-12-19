@@ -455,6 +455,67 @@ struct platform_device mxc_usbh2 = {
 	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
 };
 
+/*
+ * SPI master controller
+ * 3 channels
+ */
+static struct resource imx_spi_0_resources[] = {
+	{
+	       .start = CSPI1_BASE_ADDR,
+	       .end = CSPI1_BASE_ADDR + SZ_4K - 1,
+	       .flags = IORESOURCE_MEM,
+	}, {
+	       .start = MXC_INT_CSPI1,
+	       .end = MXC_INT_CSPI1,
+	       .flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct resource imx_spi_1_resources[] = {
+	{
+		.start = CSPI2_BASE_ADDR,
+		.end = CSPI2_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_CSPI2,
+		.end = MXC_INT_CSPI2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct resource imx_spi_2_resources[] = {
+	{
+		.start = CSPI3_BASE_ADDR,
+		.end = CSPI3_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_CSPI3,
+		.end = MXC_INT_CSPI3,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device imx_spi_device0 = {
+	.name = "spi_imx",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(imx_spi_0_resources),
+	.resource = imx_spi_0_resources,
+};
+
+struct platform_device imx_spi_device1 = {
+	.name = "spi_imx",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(imx_spi_1_resources),
+	.resource = imx_spi_1_resources,
+};
+
+struct platform_device imx_spi_device2 = {
+	.name = "spi_imx",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(imx_spi_2_resources),
+	.resource = imx_spi_2_resources,
+};
+
 #ifdef CONFIG_ARCH_MX35
 static struct resource mxc_fec_resources[] = {
 	{
