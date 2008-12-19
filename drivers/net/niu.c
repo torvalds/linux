@@ -3558,6 +3558,9 @@ static inline void niu_sync_rx_discard_stats(struct niu *np,
 		if (unlikely(misc & RXMISC_OFLOW))
 			dev_err(np->device, "rx-%d: Counter overflow "
 				"RXMISC discard\n", rx_channel);
+
+		niudbg(RX_ERR, "%s-rx-%d: MISC drop=%u over=%u\n",
+		       np->dev->name, rx_channel, misc, misc-limit);
 	}
 
 	/* WRED (Weighted Random Early Discard) by hardware */
@@ -3569,6 +3572,9 @@ static inline void niu_sync_rx_discard_stats(struct niu *np,
 		if (unlikely(wred & RED_DIS_CNT_OFLOW))
 			dev_err(np->device, "rx-%d: Counter overflow "
 				"WRED discard\n", rx_channel);
+
+		niudbg(RX_ERR, "%s-rx-%d: WRED drop=%u over=%u\n",
+		       np->dev->name, rx_channel, wred, wred-limit);
 	}
 }
 
