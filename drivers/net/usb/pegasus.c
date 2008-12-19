@@ -99,11 +99,12 @@ static int update_eth_regs_async(pegasus_t *);
 static void ctrl_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
+	int status = urb->status;
 
 	if (!pegasus)
 		return;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		if (pegasus->flags & ETH_REGS_CHANGE) {
 			pegasus->flags &= ~ETH_REGS_CHANGE;
@@ -119,7 +120,7 @@ static void ctrl_callback(struct urb *urb)
 	default:
 		if (netif_msg_drv(pegasus) && printk_ratelimit())
 			dev_dbg(&pegasus->intf->dev, "%s, status %d\n",
-				__func__, urb->status);
+				__func__, status);
 	}
 	pegasus->flags &= ~ETH_REGS_CHANGED;
 	wake_up(&pegasus->ctrl_wait);
@@ -611,6 +612,7 @@ static void read_bulk_callback(struct urb *urb)
 	pegasus_t *pegasus = urb->context;
 	struct net_device *net;
 	int rx_status, count = urb->actual_length;
+	int status = urb->status;
 	u8 *buf = urb->transfer_buffer;
 	__u16 pkt_len;
 
@@ -621,7 +623,7 @@ static void read_bulk_callback(struct urb *urb)
 	if (!netif_device_present(net) || !netif_running(net))
 		return;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		break;
 	case -ETIME:
@@ -639,11 +641,11 @@ static void read_bulk_callback(struct urb *urb)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		if (netif_msg_ifdown(pegasus))
-			pr_debug("%s: rx unlink, %d\n", net->name, urb->status);
+			pr_debug("%s: rx unlink, %d\n", net->name, status);
 		return;
 	default:
 		if (netif_msg_rx_err(pegasus))
-			pr_debug("%s: RX status %d\n", net->name, urb->status);
+			pr_debug("%s: RX status %d\n", net->name, status);
 		goto goon;
 	}
 
@@ -769,6 +771,7 @@ static void write_bulk_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
 	struct net_device *net;
+	int status = urb->status;
 
 	if (!pegasus)
 		return;
@@ -778,7 +781,7 @@ static void write_bulk_callback(struct urb *urb)
 	if (!netif_device_present(net) || !netif_running(net))
 		return;
 
-	switch (urb->status) {
+	switch (status) {
 	case -EPIPE:
 		/* FIXME schedule_work() to clear the tx halt */
 		netif_stop_queue(net);
@@ -790,11 +793,11 @@ static void write_bulk_callback(struct urb *urb)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		if (netif_msg_ifdown(pegasus))
-			pr_debug("%s: tx unlink, %d\n", net->name, urb->status);
+			pr_debug("%s: tx unlink, %d\n", net->name, status);
 		return;
 	default:
 		if (netif_msg_tx_err(pegasus))
-			pr_info("%s: TX status %d\n", net->name, urb->status);
+			pr_info("%s: TX status %d\n", net->name, status);
 		/* FALL THROUGH */
 	case 0:
 		break;
@@ -808,13 +811,13 @@ static void intr_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
 	struct net_device *net;
-	int status;
+	int res, status = urb->status;
 
 	if (!pegasus)
 		return;
 	net = pegasus->net;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		break;
 	case -ECONNRESET:	/* unlink */
@@ -827,7 +830,7 @@ static void intr_callback(struct urb *urb)
 		 */
 		if (netif_msg_timer(pegasus))
 			pr_debug("%s: intr status %d\n", net->name,
-					urb->status);
+					status);
 	}
 
 	if (urb->actual_length >= 6) {
@@ -854,12 +857,12 @@ static void intr_callback(struct urb *urb)
 		pegasus->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
 	}
 
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status == -ENODEV)
+	res = usb_submit_urb(urb, GFP_ATOMIC);
+	if (res == -ENODEV)
 		netif_device_detach(pegasus->net);
-	if (status && netif_msg_timer(pegasus))
+	if (res && netif_msg_timer(pegasus))
 		printk(KERN_ERR "%s: can't resubmit interrupt urb, %d\n",
-				net->name, status);
+				net->name, res);
 }
 
 static void pegasus_tx_timeout(struct net_device *net)

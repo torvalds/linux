@@ -115,10 +115,11 @@ static int mcs7830_set_reg(struct usbnet *dev, u16 index, u16 size, void *data)
 static void mcs7830_async_cmd_callback(struct urb *urb)
 {
 	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
+	int status = urb->status;
 
-	if (urb->status < 0)
+	if (status < 0)
 		printk(KERN_DEBUG "%s() failed with %d\n",
-		       __func__, urb->status);
+		       __func__, status);
 
 	kfree(req);
 	usb_free_urb(urb);

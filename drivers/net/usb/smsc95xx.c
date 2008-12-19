@@ -311,9 +311,10 @@ static void smsc95xx_async_cmd_callback(struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_context *usb_context = urb->context;
 	struct usbnet *dev = usb_context->dev;
+	int status = urb->status;
 
-	if (urb->status < 0)
-		devwarn(dev, "async callback failed with %d", urb->status);
+	if (status < 0)
+		devwarn(dev, "async callback failed with %d", status);
 
 	complete(&usb_context->notify);
 

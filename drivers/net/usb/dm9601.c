@@ -123,10 +123,11 @@ static int dm_write_reg(struct usbnet *dev, u8 reg, u8 value)
 static void dm_write_async_callback(struct urb *urb)
 {
 	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
+	int status = urb->status;
 
-	if (urb->status < 0)
+	if (status < 0)
 		printk(KERN_DEBUG "dm_write_async_callback() failed with %d\n",
-		       urb->status);
+		       status);
 
 	kfree(req);
 	usb_free_urb(urb);
