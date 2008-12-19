@@ -196,16 +196,32 @@ static void enc28j60_soft_reset(struct enc28j60_net *priv)
  */
 static void enc28j60_set_bank(struct enc28j60_net *priv, u8 addr)
 {
-	if ((addr & BANK_MASK) != priv->bank) {
-		u8 b = (addr & BANK_MASK) >> 5;
+	u8 b = (addr & BANK_MASK) >> 5;
 
-		if (b != (ECON1_BSEL1 | ECON1_BSEL0))
+	/* These registers (EIE, EIR, ESTAT, ECON2, ECON1)
+	 * are present in all banks, no need to switch bank
+	 */
+	if (addr >= EIE && addr <= ECON1)
+		return;
+
+	/* Clear or set each bank selection bit as needed */
+	if ((b & ECON1_BSEL0) != (priv->bank & ECON1_BSEL0)) {
+		if (b & ECON1_BSEL0)
+			spi_write_op(priv, ENC28J60_BIT_FIELD_SET, ECON1,
+					ECON1_BSEL0);
+		else
 			spi_write_op(priv, ENC28J60_BIT_FIELD_CLR, ECON1,
-				     ECON1_BSEL1 | ECON1_BSEL0);
-		if (b != 0)
-			spi_write_op(priv, ENC28J60_BIT_FIELD_SET, ECON1, b);
-		priv->bank = (addr & BANK_MASK);
+					ECON1_BSEL0);
 	}
+	if ((b & ECON1_BSEL1) != (priv->bank & ECON1_BSEL1)) {
+		if (b & ECON1_BSEL1)
+			spi_write_op(priv, ENC28J60_BIT_FIELD_SET, ECON1,
+					ECON1_BSEL1);
+		else
+			spi_write_op(priv, ENC28J60_BIT_FIELD_CLR, ECON1,
+					ECON1_BSEL1);
+	}
+	priv->bank = b;
 }
 
 /*
