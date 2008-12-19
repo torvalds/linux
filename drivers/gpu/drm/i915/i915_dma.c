@@ -717,7 +717,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev->pci_device;
 		break;
 	case I915_PARAM_HAS_GEM:
-		value = 1;
+		value = dev_priv->has_gem;
 		break;
 	default:
 		DRM_ERROR("Unknown parameter %d\n", param->param);
@@ -829,6 +829,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	size = drm_get_resource_len(dev, mmio_bar);
 
 	dev_priv->regs = ioremap(base, size);
+
+#ifdef CONFIG_HIGHMEM64G
+	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
+	dev_priv->has_gem = 0;
+#else
+	/* enable GEM by default */
+	dev_priv->has_gem = 1;
+#endif
 
 	i915_gem_load(dev);
 
