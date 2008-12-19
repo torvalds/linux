@@ -28,8 +28,8 @@
 
 #define EVM_CODEC_CLOCK 22579200
 
-#define AUDIO_FORMAT (SND_SOC_DAIFMT_I2S | \
-		SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_NB_NF)
+#define AUDIO_FORMAT (SND_SOC_DAIFMT_DSP_B | \
+		SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF)
 static int evm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params)
 {
