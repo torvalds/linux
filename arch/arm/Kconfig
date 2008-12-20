@@ -387,6 +387,7 @@ config ARCH_KIRKWOOD
 	bool "Marvell Kirkwood"
 	select CPU_FEROCEON
 	select PCI
+	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
@@ -429,6 +430,7 @@ config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	select CPU_FEROCEON
 	select PCI
+	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
