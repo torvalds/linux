@@ -280,6 +280,18 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
+#ifdef CONFIG_RT2X00_LIB_RFKILL
+static int rt2500usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
+{
+	u16 reg;
+
+	rt2500usb_register_read(rt2x00dev, MAC_CSR19, &reg);
+	return rt2x00_get_field32(reg, MAC_CSR19_BIT7);
+}
+#else
+#define rt2500usb_rfkill_poll	NULL
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
+
 #ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt2500usb_brightness_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)
@@ -1597,6 +1609,14 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 #endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	/*
+	 * Detect if this device has an hardware controlled radio.
+	 */
+#ifdef CONFIG_RT2X00_LIB_RFKILL
+	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
+		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
+
+	/*
 	 * Check if the BBP tuning should be disabled.
 	 */
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
@@ -1902,6 +1922,7 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.uninitialize		= rt2x00usb_uninitialize,
 	.clear_entry		= rt2x00usb_clear_entry,
 	.set_device_state	= rt2500usb_set_device_state,
+	.rfkill_poll		= rt2500usb_rfkill_poll,
 	.link_stats		= rt2500usb_link_stats,
 	.reset_tuner		= rt2500usb_reset_tuner,
 	.link_tuner		= rt2500usb_link_tuner,

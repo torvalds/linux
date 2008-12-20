@@ -186,6 +186,18 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
+#ifdef CONFIG_RT2X00_LIB_RFKILL
+static int rt73usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+
+	rt2x00usb_register_read(rt2x00dev, MAC_CSR13, &reg);
+	return rt2x00_get_field32(reg, MAC_CSR13_BIT7);
+}
+#else
+#define rt73usb_rfkill_poll	NULL
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
+
 #ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt73usb_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
@@ -1853,6 +1865,14 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		__set_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags);
 
 	/*
+	 * Detect if this device has an hardware controlled radio.
+	 */
+#ifdef CONFIG_RT2X00_LIB_RFKILL
+	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
+		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
+
+	/*
 	 * Read frequency offset.
 	 */
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &eeprom);
@@ -2257,6 +2277,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.uninitialize		= rt2x00usb_uninitialize,
 	.clear_entry		= rt2x00usb_clear_entry,
 	.set_device_state	= rt73usb_set_device_state,
+	.rfkill_poll		= rt73usb_rfkill_poll,
 	.link_stats		= rt73usb_link_stats,
 	.reset_tuner		= rt73usb_reset_tuner,
 	.link_tuner		= rt73usb_link_tuner,
