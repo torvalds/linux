@@ -177,52 +177,41 @@ struct antenna_setup {
  */
 struct link_qual {
 	/*
-	 * Statistics required for Link tuning.
-	 * For the average RSSI value we use the "Walking average" approach.
-	 * When adding RSSI to the average value the following calculation
-	 * is needed:
-	 *
-	 *        avg_rssi = ((avg_rssi * 7) + rssi) / 8;
-	 *
-	 * The advantage of this approach is that we only need 1 variable
-	 * to store the average in (No need for a count and a total).
-	 * But more importantly, normal average values will over time
-	 * move less and less towards newly added values this results
-	 * that with link tuning, the device can have a very good RSSI
-	 * for a few minutes but when the device is moved away from the AP
-	 * the average will not decrease fast enough to compensate.
-	 * The walking average compensates this and will move towards
-	 * the new values correctly allowing a effective link tuning.
+	 * Statistics required for Link tuning by driver
+	 * The rssi value is provided by rt2x00lib during the
+	 * link_tuner() callback function.
+	 * The false_cca field is filled during the link_stats()
+	 * callback function and could be used during the
+	 * link_tuner() callback function.
 	 */
-	int avg_rssi;
+	int rssi;
 	int false_cca;
 
 	/*
-	 * Statistics required for Signal quality calculation.
-	 * For calculating the Signal quality we have to determine
-	 * the total number of success and failed RX and TX frames.
-	 * After that we also use the average RSSI value to help
-	 * determining the signal quality.
-	 * For the calculation we will use the following algorithm:
+	 * VGC levels
+	 * Hardware driver will tune the VGC level during each call
+	 * to the link_tuner() callback function. This vgc_level is
+	 * is determined based on the link quality statistics like
+	 * average RSSI and the false CCA count.
 	 *
-	 *         rssi_percentage = (avg_rssi * 100) / rssi_offset
-	 *         rx_percentage = (rx_success * 100) / rx_total
-	 *         tx_percentage = (tx_success * 100) / tx_total
-	 *         avg_signal = ((WEIGHT_RSSI * avg_rssi) +
-	 *                       (WEIGHT_TX * tx_percentage) +
-	 *                       (WEIGHT_RX * rx_percentage)) / 100
-	 *
-	 * This value should then be checked to not be greater then 100.
+	 * In some cases the drivers need to differentiate between
+	 * the currently "desired" VGC level and the level configured
+	 * in the hardware. The latter is important to reduce the
+	 * number of BBP register reads to reduce register access
+	 * overhead. For this reason we store both values here.
 	 */
-	int rx_percentage;
+	u8 vgc_level;
+	u8 vgc_level_reg;
+
+	/*
+	 * Statistics required for Signal quality calculation.
+	 * These fields might be changed during the link_stats()
+	 * callback function.
+	 */
 	int rx_success;
 	int rx_failed;
-	int tx_percentage;
 	int tx_success;
 	int tx_failed;
-#define WEIGHT_RSSI	20
-#define WEIGHT_RX	40
-#define WEIGHT_TX	40
 };
 
 /*
@@ -286,42 +275,22 @@ struct link {
 	struct link_ant ant;
 
 	/*
-	 * Active VGC level (for false cca tuning)
+	 * Currently active average RSSI value
 	 */
-	u8 vgc_level;
+	int avg_rssi;
 
 	/*
-	 * VGC level as configured in register
+	 * Currently precalculated percentages of successful
+	 * TX and RX frames.
 	 */
-	u8 vgc_level_reg;
+	int rx_percentage;
+	int tx_percentage;
 
 	/*
 	 * Work structure for scheduling periodic link tuning.
 	 */
 	struct delayed_work work;
 };
-
-/*
- * Small helper macro to work with moving/walking averages.
- */
-#define MOVING_AVERAGE(__avg, __val, __samples) \
-	( (((__avg) * ((__samples) - 1)) + (__val)) / (__samples) )
-
-/*
- * When we lack RSSI information return something less then -80 to
- * tell the driver to tune the device to maximum sensitivity.
- */
-#define DEFAULT_RSSI	( -128 )
-
-/*
- * Link quality access functions.
- */
-static inline int rt2x00_get_link_rssi(struct link *link)
-{
-	if (link->qual.avg_rssi && link->qual.rx_success)
-		return link->qual.avg_rssi;
-	return DEFAULT_RSSI;
-}
 
 /*
  * Interface structure
@@ -522,8 +491,10 @@ struct rt2x00lib_ops {
 	int (*rfkill_poll) (struct rt2x00_dev *rt2x00dev);
 	void (*link_stats) (struct rt2x00_dev *rt2x00dev,
 			    struct link_qual *qual);
-	void (*reset_tuner) (struct rt2x00_dev *rt2x00dev);
-	void (*link_tuner) (struct rt2x00_dev *rt2x00dev);
+	void (*reset_tuner) (struct rt2x00_dev *rt2x00dev,
+			     struct link_qual *qual);
+	void (*link_tuner) (struct rt2x00_dev *rt2x00dev,
+			    struct link_qual *qual, const u32 count);
 
 	/*
 	 * TX control handlers

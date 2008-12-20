@@ -29,6 +29,71 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
+/*
+ * When we lack RSSI information return something less then -80 to
+ * tell the driver to tune the device to maximum sensitivity.
+ */
+#define DEFAULT_RSSI		-128
+
+/*
+ * When no TX/RX percentage could be calculated due to lack of
+ * frames on the air, we fallback to a percentage of 50%.
+ * This will assure we will get at least get some decent value
+ * when the link tuner starts.
+ * The value will be dropped and overwritten with the correct (measured)
+ * value anyway during the first run of the link tuner.
+ */
+#define DEFAULT_PERCENTAGE	50
+
+/*
+ * Small helper macro to work with moving/walking averages.
+ * When adding a value to the average value the following calculation
+ * is needed:
+ *
+ *        avg_rssi = ((avg_rssi * 7) + rssi) / 8;
+ *
+ * The advantage of this approach is that we only need 1 variable
+ * to store the average in (No need for a count and a total).
+ * But more importantly, normal average values will over time
+ * move less and less towards newly added values this results
+ * that with link tuning, the device can have a very good RSSI
+ * for a few minutes but when the device is moved away from the AP
+ * the average will not decrease fast enough to compensate.
+ * The walking average compensates this and will move towards
+ * the new values correctly allowing a effective link tuning.
+ */
+#define MOVING_AVERAGE(__avg, __val, __samples) \
+	( (((__avg) * ((__samples) - 1)) + (__val)) / (__samples) )
+
+/*
+ * Small helper macro for percentage calculation
+ * This is a very simple macro with the only catch that it will
+ * produce a default value in case no total value was provided.
+ */
+#define PERCENTAGE(__value, __total) \
+	( (__total) ? (((__value) * 100) / (__total)) : (DEFAULT_PERCENTAGE) )
+
+/*
+ * For calculating the Signal quality we have determined
+ * the total number of success and failed RX and TX frames.
+ * With the addition of the average RSSI value we can determine
+ * the link quality using the following algorithm:
+ *
+ *         rssi_percentage = (avg_rssi * 100) / rssi_offset
+ *         rx_percentage = (rx_success * 100) / rx_total
+ *         tx_percentage = (tx_success * 100) / tx_total
+ *         avg_signal = ((WEIGHT_RSSI * avg_rssi) +
+ *                       (WEIGHT_TX * tx_percentage) +
+ *                       (WEIGHT_RX * rx_percentage)) / 100
+ *
+ * This value should then be checked to not be greater then 100.
+ * This means the values of WEIGHT_RSSI, WEIGHT_RX, WEIGHT_TX must
+ * sum up to 100 as well.
+ */
+#define WEIGHT_RSSI	20
+#define WEIGHT_RX	40
+#define WEIGHT_TX	40
+
 static int rt2x00link_antenna_get_link_rssi(struct rt2x00_dev *rt2x00dev)
 {
 	struct link_ant *ant = &rt2x00dev->link.ant;
@@ -191,6 +256,7 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 			     struct sk_buff *skb,
 			     struct rxdone_entry_desc *rxdesc)
 {
+	struct link *link = &rt2x00dev->link;
 	struct link_qual *qual = &rt2x00dev->link.qual;
 	struct link_ant *ant = &rt2x00dev->link.ant;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -215,9 +281,9 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Update global RSSI
 	 */
-	if (qual->avg_rssi)
-		avg_rssi = MOVING_AVERAGE(qual->avg_rssi, rxdesc->rssi, 8);
-	qual->avg_rssi = avg_rssi;
+	if (link->avg_rssi)
+		avg_rssi = MOVING_AVERAGE(link->avg_rssi, rxdesc->rssi, 8);
+	link->avg_rssi = avg_rssi;
 
 	/*
 	 * Update antenna RSSI
@@ -229,21 +295,13 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 
 static void rt2x00link_precalculate_signal(struct rt2x00_dev *rt2x00dev)
 {
+	struct link *link = &rt2x00dev->link;
 	struct link_qual *qual = &rt2x00dev->link.qual;
 
-	if (qual->rx_failed || qual->rx_success)
-		qual->rx_percentage =
-		    (qual->rx_success * 100) /
-		    (qual->rx_failed + qual->rx_success);
-	else
-		qual->rx_percentage = 50;
-
-	if (qual->tx_failed || qual->tx_success)
-		qual->tx_percentage =
-		    (qual->tx_success * 100) /
-		    (qual->tx_failed + qual->tx_success);
-	else
-		qual->tx_percentage = 50;
+	link->rx_percentage =
+	    PERCENTAGE(qual->rx_success, qual->rx_failed + qual->rx_success);
+	link->tx_percentage =
+	    PERCENTAGE(qual->tx_success, qual->tx_failed + qual->tx_success);
 
 	qual->rx_success = 0;
 	qual->rx_failed = 0;
@@ -253,7 +311,7 @@ static void rt2x00link_precalculate_signal(struct rt2x00_dev *rt2x00dev)
 
 int rt2x00link_calculate_signal(struct rt2x00_dev *rt2x00dev, int rssi)
 {
-	struct link_qual *qual = &rt2x00dev->link.qual;
+	struct link *link = &rt2x00dev->link;
 	int rssi_percentage = 0;
 	int signal;
 
@@ -267,22 +325,22 @@ int rt2x00link_calculate_signal(struct rt2x00_dev *rt2x00dev, int rssi)
 	 * Calculate the different percentages,
 	 * which will be used for the signal.
 	 */
-	rssi_percentage = (rssi * 100) / rt2x00dev->rssi_offset;
+	rssi_percentage = PERCENTAGE(rssi, rt2x00dev->rssi_offset);
 
 	/*
 	 * Add the individual percentages and use the WEIGHT
 	 * defines to calculate the current link signal.
 	 */
 	signal = ((WEIGHT_RSSI * rssi_percentage) +
-		  (WEIGHT_TX * qual->tx_percentage) +
-		  (WEIGHT_RX * qual->rx_percentage)) / 100;
+		  (WEIGHT_TX * link->tx_percentage) +
+		  (WEIGHT_RX * link->rx_percentage)) / 100;
 
 	return max_t(int, signal, 100);
 }
 
 void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 {
-	struct link_qual *qual = &rt2x00dev->link.qual;
+	struct link *link = &rt2x00dev->link;
 
 	/*
 	 * Link tuning should only be performed when
@@ -293,26 +351,13 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 	if (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count)
 		return;
 
-	/*
-	 * Clear all (possibly) pre-existing quality statistics.
-	 */
-	memset(qual, 0, sizeof(*qual));
-
-	/*
-	 * The RX and TX percentage should start at 50%
-	 * this will assure we will get at least get some
-	 * decent value when the link tuner starts.
-	 * The value will be dropped and overwritten with
-	 * the correct (measured) value anyway during the
-	 * first run of the link tuner.
-	 */
-	qual->rx_percentage = 50;
-	qual->tx_percentage = 50;
+	link->rx_percentage = DEFAULT_PERCENTAGE;
+	link->tx_percentage = DEFAULT_PERCENTAGE;
 
 	rt2x00link_reset_tuner(rt2x00dev, false);
 
 	queue_delayed_work(rt2x00dev->hw->workqueue,
-			   &rt2x00dev->link.work, LINK_TUNE_INTERVAL);
+			   &link->work, LINK_TUNE_INTERVAL);
 }
 
 void rt2x00link_stop_tuner(struct rt2x00_dev *rt2x00dev)
@@ -322,6 +367,8 @@ void rt2x00link_stop_tuner(struct rt2x00_dev *rt2x00dev)
 
 void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 {
+	struct link_qual *qual = &rt2x00dev->link.qual;
+
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
@@ -334,12 +381,12 @@ void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 	 * first minute after being enabled.
 	 */
 	rt2x00dev->link.count = 0;
-	rt2x00dev->link.vgc_level = 0;
+	memset(qual, 0, sizeof(*qual));
 
 	/*
 	 * Reset the link tuner.
 	 */
-	rt2x00dev->ops->lib->reset_tuner(rt2x00dev);
+	rt2x00dev->ops->lib->reset_tuner(rt2x00dev, qual);
 
 	if (antenna)
 		rt2x00link_antenna_reset(rt2x00dev);
@@ -349,6 +396,7 @@ static void rt2x00link_tuner(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, link.work.work);
+	struct link *link = &rt2x00dev->link;
 	struct link_qual *qual = &rt2x00dev->link.qual;
 
 	/*
@@ -365,11 +413,22 @@ static void rt2x00link_tuner(struct work_struct *work)
 	rt2x00dev->low_level_stats.dot11FCSErrorCount += qual->rx_failed;
 
 	/*
+	 * Update quality RSSI for link tuning,
+	 * when we have received some frames and we managed to
+	 * collect the RSSI data we could use this. Otherwise we
+	 * must fallback to the default RSSI value.
+	 */
+	if (!link->avg_rssi || !qual->rx_success)
+		qual->rssi = DEFAULT_RSSI;
+	else
+		qual->rssi = link->avg_rssi;
+
+	/*
 	 * Only perform the link tuning when Link tuning
 	 * has been enabled (This could have been disabled from the EEPROM).
 	 */
 	if (!test_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags))
-		rt2x00dev->ops->lib->link_tuner(rt2x00dev);
+		rt2x00dev->ops->lib->link_tuner(rt2x00dev, qual, link->count);
 
 	/*
 	 * Precalculate a portion of the link signal which is
@@ -380,7 +439,7 @@ static void rt2x00link_tuner(struct work_struct *work)
 	/*
 	 * Send a signal to the led to update the led signal strength.
 	 */
-	rt2x00leds_led_quality(rt2x00dev, qual->avg_rssi);
+	rt2x00leds_led_quality(rt2x00dev, link->avg_rssi);
 
 	/*
 	 * Evaluate antenna setup, make this the last step since this could
@@ -391,9 +450,9 @@ static void rt2x00link_tuner(struct work_struct *work)
 	/*
 	 * Increase tuner counter, and reschedule the next link tuner run.
 	 */
-	rt2x00dev->link.count++;
+	link->count++;
 	queue_delayed_work(rt2x00dev->hw->workqueue,
-			   &rt2x00dev->link.work, LINK_TUNE_INTERVAL);
+			   &link->work, LINK_TUNE_INTERVAL);
 }
 
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)

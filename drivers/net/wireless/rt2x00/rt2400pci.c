@@ -600,36 +600,37 @@ static void rt2400pci_link_stats(struct rt2x00_dev *rt2x00dev,
 	qual->false_cca = bbp;
 }
 
-static inline void rt2400pci_set_vgc(struct rt2x00_dev *rt2x00dev, u8 vgc_level)
+static inline void rt2400pci_set_vgc(struct rt2x00_dev *rt2x00dev,
+				     struct link_qual *qual, u8 vgc_level)
 {
 	rt2400pci_bbp_write(rt2x00dev, 13, vgc_level);
-	rt2x00dev->link.vgc_level = vgc_level;
-	rt2x00dev->link.vgc_level_reg = vgc_level;
+	qual->vgc_level = vgc_level;
+	qual->vgc_level_reg = vgc_level;
 }
 
-static void rt2400pci_reset_tuner(struct rt2x00_dev *rt2x00dev)
+static void rt2400pci_reset_tuner(struct rt2x00_dev *rt2x00dev,
+				  struct link_qual *qual)
 {
-	rt2400pci_set_vgc(rt2x00dev, 0x08);
+	rt2400pci_set_vgc(rt2x00dev, qual, 0x08);
 }
 
-static void rt2400pci_link_tuner(struct rt2x00_dev *rt2x00dev)
+static void rt2400pci_link_tuner(struct rt2x00_dev *rt2x00dev,
+				 struct link_qual *qual, const u32 count)
 {
-	struct link *link = &rt2x00dev->link;
-
 	/*
 	 * The link tuner should not run longer then 60 seconds,
 	 * and should run once every 2 seconds.
 	 */
-	if (link->count > 60 || !(link->count & 1))
+	if (count > 60 || !(count & 1))
 		return;
 
 	/*
 	 * Base r13 link tuning on the false cca count.
 	 */
-	if ((link->qual.false_cca > 512) && (link->vgc_level < 0x20))
-		rt2400pci_set_vgc(rt2x00dev, ++link->vgc_level);
-	else if ((link->qual.false_cca < 100) && (link->vgc_level > 0x08))
-		rt2400pci_set_vgc(rt2x00dev, --link->vgc_level);
+	if ((qual->false_cca > 512) && (qual->vgc_level < 0x20))
+		rt2400pci_set_vgc(rt2x00dev, qual, ++qual->vgc_level);
+	else if ((qual->false_cca < 100) && (qual->vgc_level > 0x08))
+		rt2400pci_set_vgc(rt2x00dev, qual, --qual->vgc_level);
 }
 
 /*
