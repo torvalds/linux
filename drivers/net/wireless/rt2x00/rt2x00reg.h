@@ -125,6 +125,16 @@ enum cipher {
 };
 
 /*
+ * Rate modulations
+ */
+enum rate_modulation {
+	RATE_MODE_CCK = 0,
+	RATE_MODE_OFDM = 1,
+	RATE_MODE_HT_MIX = 2,
+	RATE_MODE_HT_GREENFIELD = 3,
+};
+
+/*
  * Register handlers.
  * We store the position of a register field inside a field structure,
  * This will simplify the process of setting and reading a certain field
