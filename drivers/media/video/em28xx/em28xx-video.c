@@ -393,9 +393,10 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	if (*count < EM28XX_MIN_BUF)
 		*count = EM28XX_MIN_BUF;
 
-	/* Ask tuner to go to analog mode */
+	/* Ask tuner to go to analog or radio mode */
 	memset(&f, 0, sizeof(f));
 	f.frequency = dev->ctl_freq;
+	f.type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 
 	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
 
