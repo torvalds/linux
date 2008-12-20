@@ -1752,7 +1752,8 @@ static int snd_ca0106_suspend(struct pci_dev *pci, pm_message_t state)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for (i = 0; i < 4; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
-	snd_ac97_suspend(chip->ac97);
+	if (chip->details->ac97)
+		snd_ac97_suspend(chip->ac97);
 	snd_ca0106_mixer_suspend(chip);
 
 	ca0106_stop_chip(chip);
@@ -1781,7 +1782,8 @@ static int snd_ca0106_resume(struct pci_dev *pci)
 
 	ca0106_init_chip(chip, 1);
 
-	snd_ac97_resume(chip->ac97);
+	if (chip->details->ac97)
+		snd_ac97_resume(chip->ac97);
 	snd_ca0106_mixer_resume(chip);
 	if (chip->details->spi_dac) {
 		for (i = 0; i < ARRAY_SIZE(chip->spi_dac_reg); i++)
