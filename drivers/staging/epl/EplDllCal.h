@@ -66,12 +66,10 @@
 
   2006/06/20 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_DLLCAL_H_
 #define _EPL_DLLCAL_H_
-
 
 //---------------------------------------------------------------------------
 // const defines
@@ -105,18 +103,16 @@
 // typedef
 //---------------------------------------------------------------------------
 
-typedef struct
-{
-    tEplDllAsndServiceId    m_ServiceId;
-    tEplDllAsndFilter       m_Filter;
+typedef struct {
+	tEplDllAsndServiceId m_ServiceId;
+	tEplDllAsndFilter m_Filter;
 
 } tEplDllCalAsndServiceIdFilter;
 
-typedef struct
-{
-    tEplDllReqServiceId     m_Service;
-    unsigned int            m_uiNodeId;
-    BYTE                    m_bSoaFlag1;
+typedef struct {
+	tEplDllReqServiceId m_Service;
+	unsigned int m_uiNodeId;
+	BYTE m_bSoaFlag1;
 
 } tEplDllCalIssueRequest;
 
@@ -124,8 +120,4 @@ typedef struct
 // function prototypes
 //---------------------------------------------------------------------------
 
-
-
-#endif  // #ifndef _EPL_DLLKCAL_H_
-
-
+#endif // #ifndef _EPL_DLLKCAL_H_

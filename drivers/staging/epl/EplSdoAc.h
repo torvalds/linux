@@ -71,7 +71,6 @@
 #ifndef _EPLSDOAC_H_
 #define _EPLSDOAC_H_
 
-
 // =========================================================================
 // SDO abort codes
 // =========================================================================
@@ -105,7 +104,6 @@
 #define    EPL_SDOAC_DATA_NOT_TRANSF_DUE_DEVICE_STATE    0x08000022L
 #define    EPL_SDOAC_OBJECT_DICTIONARY_NOT_EXIST         0x08000023L
 #define    EPL_SDOAC_CONFIG_DATA_EMPTY                   0x08000024L
-
 
 #endif // _EPLSDOAC_H_
 

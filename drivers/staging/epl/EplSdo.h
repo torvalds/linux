@@ -66,7 +66,6 @@
 
  2006/06/26 k.t.:   start of the implementation
 
-
 ****************************************************************************/
 
 #include "EplInc.h"
@@ -75,7 +74,6 @@
 
 #ifndef _EPLSDO_H_
 #define _EPLSDO_H_
-
 
 //---------------------------------------------------------------------------
 // const defines
@@ -118,64 +116,58 @@ typedef unsigned int tEplSdoConHdl;
 
 // callback function pointer for Protocol Abstraction Layer to call
 // asynchronuus SDO Sequence Layer
-typedef tEplKernel (PUBLIC* tEplSequLayerReceiveCb ) (
-    tEplSdoConHdl       ConHdl_p,
-    tEplAsySdoSeq*      pSdoSeqData_p,
-    unsigned int        uiDataSize_p);
+typedef tEplKernel(PUBLIC * tEplSequLayerReceiveCb) (tEplSdoConHdl ConHdl_p,
+						     tEplAsySdoSeq *
+						     pSdoSeqData_p,
+						     unsigned int uiDataSize_p);
 
 // handle between asynchronuus SDO Sequence Layer and SDO Command layer
 typedef unsigned int tEplSdoSeqConHdl;
 
 // callback function pointer for asynchronuus SDO Sequence Layer to call
 // SDO Command layer for received data
-typedef tEplKernel (PUBLIC* tEplSdoComReceiveCb) (
-    tEplSdoSeqConHdl    SdoSeqConHdl_p,
-    tEplAsySdoCom*      pAsySdoCom_p,
-    unsigned int        uiDataSize_p);
+typedef tEplKernel(PUBLIC *
+		   tEplSdoComReceiveCb) (tEplSdoSeqConHdl SdoSeqConHdl_p,
+					 tEplAsySdoCom * pAsySdoCom_p,
+					 unsigned int uiDataSize_p);
 
 // status of connection
-typedef enum
-{
-    kAsySdoConStateConnected    = 0x00,
-    kAsySdoConStateInitError    = 0x01,
-    kAsySdoConStateConClosed    = 0x02,
-    kAsySdoConStateAckReceived  = 0x03,
-    kAsySdoConStateFrameSended  = 0x04,
-    kAsySdoConStateTimeout      = 0x05
-
-}tEplAsySdoConState;
+typedef enum {
+	kAsySdoConStateConnected = 0x00,
+	kAsySdoConStateInitError = 0x01,
+	kAsySdoConStateConClosed = 0x02,
+	kAsySdoConStateAckReceived = 0x03,
+	kAsySdoConStateFrameSended = 0x04,
+	kAsySdoConStateTimeout = 0x05
+} tEplAsySdoConState;
 
 // callback function pointer for asynchronuus SDO Sequence Layer to call
 // SDO Command layer for connection status
-typedef tEplKernel (PUBLIC* tEplSdoComConCb) (
-    tEplSdoSeqConHdl    SdoSeqConHdl_p,
-    tEplAsySdoConState  AsySdoConState_p);
+typedef tEplKernel(PUBLIC * tEplSdoComConCb) (tEplSdoSeqConHdl SdoSeqConHdl_p,
+					      tEplAsySdoConState
+					      AsySdoConState_p);
 
 // handle between  SDO Command layer and application
 typedef unsigned int tEplSdoComConHdl;
 
 // status of connection
-typedef enum
-{
-    kEplSdoComTransferNotActive         =   0x00,
-    kEplSdoComTransferRunning           =   0x01,
-    kEplSdoComTransferTxAborted         =   0x02,
-    kEplSdoComTransferRxAborted         =   0x03,
-    kEplSdoComTransferFinished          =   0x04,
-    kEplSdoComTransferLowerLayerAbort   =   0x05
-
+typedef enum {
+	kEplSdoComTransferNotActive = 0x00,
+	kEplSdoComTransferRunning = 0x01,
+	kEplSdoComTransferTxAborted = 0x02,
+	kEplSdoComTransferRxAborted = 0x03,
+	kEplSdoComTransferFinished = 0x04,
+	kEplSdoComTransferLowerLayerAbort = 0x05
 } tEplSdoComConState;
 
 // SDO Services and Command-Ids from DS 1.0.0 p.152
-typedef enum
-{
-    kEplSdoServiceNIL               = 0x00,
-    kEplSdoServiceWriteByIndex      = 0x01,
-    kEplSdoServiceReadByIndex       = 0x02
-
-    //--------------------------------
-    // the following services are optional and
-    // not supported now
+typedef enum {
+	kEplSdoServiceNIL = 0x00,
+	kEplSdoServiceWriteByIndex = 0x01,
+	kEplSdoServiceReadByIndex = 0x02
+	    //--------------------------------
+	    // the following services are optional and
+	    // not supported now
 /*
     kEplSdoServiceWriteAllByIndex   = 0x03,
     kEplSdoServiceReadAllByIndex    = 0x04,
@@ -196,76 +188,58 @@ typedef enum
 } tEplSdoServiceType;
 
 // describes if read or write access
-typedef enum
-{
-    kEplSdoAccessTypeRead   = 0x00,
-    kEplSdoAccessTypeWrite  = 0x01
-
+typedef enum {
+	kEplSdoAccessTypeRead = 0x00,
+	kEplSdoAccessTypeWrite = 0x01
 } tEplSdoAccessType;
 
-typedef enum
-{
-    kEplSdoTypeAuto  =   0x00,
-    kEplSdoTypeUdp   =   0x01,
-    kEplSdoTypeAsnd  =   0x02,
-    kEplSdoTypePdo   =   0x03
+typedef enum {
+	kEplSdoTypeAuto = 0x00,
+	kEplSdoTypeUdp = 0x01,
+	kEplSdoTypeAsnd = 0x02,
+	kEplSdoTypePdo = 0x03
+} tEplSdoType;
 
-}tEplSdoType;
-
-typedef enum
-{
-    kEplSdoTransAuto             =   0x00,
-    kEplSdoTransExpedited        =   0x01,
-    kEplSdoTransSegmented        =   0x02
-
-
+typedef enum {
+	kEplSdoTransAuto = 0x00,
+	kEplSdoTransExpedited = 0x01,
+	kEplSdoTransSegmented = 0x02
 } tEplSdoTransType;
 
-
 // structure to inform application about finish of SDO transfer
-typedef struct
-{
-    tEplSdoComConHdl    m_SdoComConHdl;
-    tEplSdoComConState  m_SdoComConState;
-    DWORD               m_dwAbortCode;
-    tEplSdoAccessType   m_SdoAccessType;
-    unsigned int        m_uiNodeId;         // NodeId of the target
-    unsigned int        m_uiTargetIndex;    // index which was accessed
-    unsigned int        m_uiTargetSubIndex; // subindex which was accessed
-    unsigned int        m_uiTransferredByte; // number of bytes transferred
-    void*               m_pUserArg;         // user definable argument pointer
+typedef struct {
+	tEplSdoComConHdl m_SdoComConHdl;
+	tEplSdoComConState m_SdoComConState;
+	DWORD m_dwAbortCode;
+	tEplSdoAccessType m_SdoAccessType;
+	unsigned int m_uiNodeId;	// NodeId of the target
+	unsigned int m_uiTargetIndex;	// index which was accessed
+	unsigned int m_uiTargetSubIndex;	// subindex which was accessed
+	unsigned int m_uiTransferredByte;	// number of bytes transferred
+	void *m_pUserArg;	// user definable argument pointer
 
 } tEplSdoComFinished;
 
-
 // callback function pointer to inform application about connection
-typedef tEplKernel (PUBLIC* tEplSdoFinishedCb) (
-    tEplSdoComFinished* pSdoComFinished_p);
-
+typedef tEplKernel(PUBLIC * tEplSdoFinishedCb) (tEplSdoComFinished *
+						pSdoComFinished_p);
 
 // structure to init SDO transfer to Read or Write by Index
-typedef struct
-{
-    tEplSdoComConHdl    m_SdoComConHdl;
-    unsigned int        m_uiIndex;
-    unsigned int        m_uiSubindex;
-    void*               m_pData;
-    unsigned int        m_uiDataSize;
-    unsigned int        m_uiTimeout;    // not used in this version
-    tEplSdoAccessType   m_SdoAccessType;
-    tEplSdoFinishedCb   m_pfnSdoFinishedCb;
-    void*               m_pUserArg;         // user definable argument pointer
+typedef struct {
+	tEplSdoComConHdl m_SdoComConHdl;
+	unsigned int m_uiIndex;
+	unsigned int m_uiSubindex;
+	void *m_pData;
+	unsigned int m_uiDataSize;
+	unsigned int m_uiTimeout;	// not used in this version
+	tEplSdoAccessType m_SdoAccessType;
+	tEplSdoFinishedCb m_pfnSdoFinishedCb;
+	void *m_pUserArg;	// user definable argument pointer
 
 } tEplSdoComTransParamByIndex;
-
-
-
 
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
 
-
-#endif  // #ifndef _EPLSDO_H_
-
-
+#endif // #ifndef _EPLSDO_H_

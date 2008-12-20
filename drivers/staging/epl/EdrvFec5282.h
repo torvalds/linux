@@ -73,94 +73,93 @@
 #ifndef _EDRVFEC_H_
 #define _EDRVFEC_H_
 
-
 //---------------------------------------------------------------------------
 // const defines
 //---------------------------------------------------------------------------
 // base addresses
 #define FEC0_ADDR 0x0000
-#define FEC1_ADDR 0x0000 //tbd
+#define FEC1_ADDR 0x0000	//tbd
 
 // control / status registers
-#define FEC_EIR                 0x1004  // interrupt event register
-#define FEC_EIMR                0x1008  // interrupt mask register
-#define FEC_RDAR                0x1010  // receive descriptor active register
-#define FEC_TDAR                0x1014  // transmit descriptor active register
-#define FEC_ECR                 0x1024  // ethernet control register
-#define FEC_MMFR                0x1040  // MII data register
-#define FEC_MSCR                0x1044  // MII speed register
-#define FEC_MIBC                0x1064  // MIB control/status register
-#define FEC_RCR                 0x1084  // receive control register
-#define FEC_TCR                 0x10C4  // transmit control register
-#define FEC_PALR                0x10E4  // physical address low register
-#define FEC_PAUR                0x10E8  // physical address high + type register
-#define FEC_OPD                 0x10EC  // opcode + pause register
-#define FEC_IAUR                0x1118  // upper 32 bit of individual hash table
-#define FEC_IALR                0x111C  // lower 32 bit of individual hash table
-#define FEC_GAUR                0x1120  // upper 32 bit of group hash table
-#define FEC_GALR                0x1124  // lower 32 bit of group hash table
-#define FEC_TFWR                0x1144  // transmit FIFO watermark
-#define FEC_FRBR                0x114C  // FIFO receive bound register
-#define FEC_FRSR                0x1150  // FIFO receive FIFO start register
-#define FEC_ERDSR               0x1180  // pointer to receive descriptor ring
-#define FEC_ETDSR               0x1184  // pointer to transmit descriptor ring
-#define FEC_EMRBR               0x1188  // maximum receive buffer size
+#define FEC_EIR                 0x1004	// interrupt event register
+#define FEC_EIMR                0x1008	// interrupt mask register
+#define FEC_RDAR                0x1010	// receive descriptor active register
+#define FEC_TDAR                0x1014	// transmit descriptor active register
+#define FEC_ECR                 0x1024	// ethernet control register
+#define FEC_MMFR                0x1040	// MII data register
+#define FEC_MSCR                0x1044	// MII speed register
+#define FEC_MIBC                0x1064	// MIB control/status register
+#define FEC_RCR                 0x1084	// receive control register
+#define FEC_TCR                 0x10C4	// transmit control register
+#define FEC_PALR                0x10E4	// physical address low register
+#define FEC_PAUR                0x10E8	// physical address high + type register
+#define FEC_OPD                 0x10EC	// opcode + pause register
+#define FEC_IAUR                0x1118	// upper 32 bit of individual hash table
+#define FEC_IALR                0x111C	// lower 32 bit of individual hash table
+#define FEC_GAUR                0x1120	// upper 32 bit of group hash table
+#define FEC_GALR                0x1124	// lower 32 bit of group hash table
+#define FEC_TFWR                0x1144	// transmit FIFO watermark
+#define FEC_FRBR                0x114C	// FIFO receive bound register
+#define FEC_FRSR                0x1150	// FIFO receive FIFO start register
+#define FEC_ERDSR               0x1180	// pointer to receive descriptor ring
+#define FEC_ETDSR               0x1184	// pointer to transmit descriptor ring
+#define FEC_EMRBR               0x1188	// maximum receive buffer size
 
 // mib block counters memory map
-#define FEC_RMON_T_DROP         0x1200  // count of frames not counted correctly
-#define FEC_RMON_T_PACKETS      0x1204  // RMON tx packet count
-#define FEC_RMON_T_BC_PKT       0x1208  // RMON tx broadcast packets
-#define FEC_RMON_T_MC_PKT       0x120C  // RMON tx multicast packets
-#define FEC_RMON_T_CRC_ALIGN    0x1210  // RMON tx packets w CRC/align error
-#define FEC_RMON_T_UNDERSIZE    0x1214  // RMON tx packets < 64 bytes, good CRC
-#define FEC_RMON_T_OVERSIZE     0x1218  // RMON tx packets > MAX_FL bytes, good CRC
-#define FEC_RMON_T_FRAG         0x121C  // RMON tx packets < 64 bytes, bad CRC
-#define FEC_RMON_T_JAB          0x1220  // RMON tx packets > MAX_FL bytes, bad CRC
-#define FEC_RMON_T_COL          0x1224  // RMON tx collision count
-#define FEC_RMON_T_P64          0x1228  // RMON tx           64 byte packets
-#define FEC_RMON_T_P65TO127     0x122C  // RMON tx   65 to  127 byte packets
-#define FEC_RMON_T_P128TO255    0x1230  // RMON tx  128 to  255 byte packets
-#define FEC_RMON_T_P256TO511    0x1234  // RMON tx  256 to  511 byte packets
-#define FEC_RMON_T_P512TO1023   0x1238  // RMON tx  512 to 1023 byte packets
-#define FEC_RMON_T_P1024TO2047  0x123C  // RMON tx 1024 to 2047 byte packets
-#define FEC_RMON_T_P_GTE2048    0x1240  // RMON tx w > 2048 bytes
-#define FEC_RMON_T_OCTETS       0x1244  // RMON tx octets
-#define FEC_IEEE_T_DROP         0x1248  // count of frames not counted correctly
-#define FEC_IEEE_T_FRAME_OK     0x124C  // frames transmitted OK
-#define FEC_IEEE_T_1COL         0x1250  // frames transmitted with single collision
-#define FEC_IEEE_T_MCOL         0x1254  // frames transmitted with multiple collisions
-#define FEC_IEEE_T_DEF          0x1258  // frames transmitted after deferral delay
-#define FEC_IEEE_T_LCOL         0x125C  // frames transmitted with late collisions
-#define FEC_IEEE_T_EXCOL        0x1260  // frames transmitted with excessive collisions
-#define FEC_IEEE_T_MACERR       0x1264  // frames transmitted with tx-FIFO underrun
-#define FEC_IEEE_T_CSERR        0x1268  // frames transmitted with carrier sense error
-#define FEC_IEEE_T_SQE          0x126C  // frames transmitted with SQE error
-#define FEC_IEEE_T_FDXFC        0x1270  // flow control pause frames transmitted
-#define FEC_IEEE_T_OCTETS_OK    0x1274  // octet count for frames transmitted w/o error
-#define FEC_RMON_R_PACKETS      0x1284  // RMON rx packet count
-#define FEC_RMON_R_BC_PKT       0x1288  // RMON rx broadcast packets
-#define FEC_RMON_R_MC_PKT       0x128C  // RMON rx multicast packets
-#define FEC_RMON_R_CRC_ALIGN    0x1290  // RMON rx packets w CRC/align error
-#define FEC_RMON_R_UNDERSIZE    0x1294  // RMON rx packets < 64 bytes, good CRC
-#define FEC_RMON_R_OVERSIZE     0x1298  // RMON rx packets > MAX_FL bytes, good CRC
-#define FEC_RMON_R_FRAG         0x129C  // RMON rx packets < 64 bytes, bad CRC
-#define FEC_RMON_R_JAB          0x12A0  // RMON rx packets > MAX_FL bytes, bad CRC
-#define FEC_RMON_R_RESVD_0      0x12A4  //
-#define FEC_RMON_R_P64          0x12A8  // RMON rx           64 byte packets
-#define FEC_RMON_R_P65T0127     0x12AC  // RMON rx   65 to  127 byte packets
-#define FEC_RMON_R_P128TO255    0x12B0  // RMON rx  128 to  255 byte packets
-#define FEC_RMON_R_P256TO511    0x12B4  // RMON rx  256 to  511 byte packets
-#define FEC_RMON_R_P512TO1023   0x12B8  // RMON rx  512 to 1023 byte packets
-#define FEC_RMON_R_P1024TO2047  0x12BC  // RMON rx 1024 to 2047 byte packets
-#define FEC_RMON_R_GTE2048      0x12C0  // RMON rx w > 2048 bytes
-#define FEC_RMON_R_OCTETS       0x12C4  // RMON rx octets
-#define FEC_IEEE_R_DROP         0x12C8  // count of frames not counted correctly
-#define FEC_IEEE_R_FRAME_OK     0x12CC  // frames received OK
-#define FEC_IEEE_R_CRC          0x12D0  // frames received with CRC error
-#define FEC_IEEE_R_ALIGN        0x12D4  // frames received with alignment error
-#define FEC_IEEE_R_MACERR       0x12D8  // receive FIFO overflow count
-#define FEC_IEEE_R_FDXFC        0x12DC  // flow control pause frames received
-#define FEC_IEEE_R_OCTETS_OK    0x12E0  // octet count for frames rcvd w/o error
+#define FEC_RMON_T_DROP         0x1200	// count of frames not counted correctly
+#define FEC_RMON_T_PACKETS      0x1204	// RMON tx packet count
+#define FEC_RMON_T_BC_PKT       0x1208	// RMON tx broadcast packets
+#define FEC_RMON_T_MC_PKT       0x120C	// RMON tx multicast packets
+#define FEC_RMON_T_CRC_ALIGN    0x1210	// RMON tx packets w CRC/align error
+#define FEC_RMON_T_UNDERSIZE    0x1214	// RMON tx packets < 64 bytes, good CRC
+#define FEC_RMON_T_OVERSIZE     0x1218	// RMON tx packets > MAX_FL bytes, good CRC
+#define FEC_RMON_T_FRAG         0x121C	// RMON tx packets < 64 bytes, bad CRC
+#define FEC_RMON_T_JAB          0x1220	// RMON tx packets > MAX_FL bytes, bad CRC
+#define FEC_RMON_T_COL          0x1224	// RMON tx collision count
+#define FEC_RMON_T_P64          0x1228	// RMON tx           64 byte packets
+#define FEC_RMON_T_P65TO127     0x122C	// RMON tx   65 to  127 byte packets
+#define FEC_RMON_T_P128TO255    0x1230	// RMON tx  128 to  255 byte packets
+#define FEC_RMON_T_P256TO511    0x1234	// RMON tx  256 to  511 byte packets
+#define FEC_RMON_T_P512TO1023   0x1238	// RMON tx  512 to 1023 byte packets
+#define FEC_RMON_T_P1024TO2047  0x123C	// RMON tx 1024 to 2047 byte packets
+#define FEC_RMON_T_P_GTE2048    0x1240	// RMON tx w > 2048 bytes
+#define FEC_RMON_T_OCTETS       0x1244	// RMON tx octets
+#define FEC_IEEE_T_DROP         0x1248	// count of frames not counted correctly
+#define FEC_IEEE_T_FRAME_OK     0x124C	// frames transmitted OK
+#define FEC_IEEE_T_1COL         0x1250	// frames transmitted with single collision
+#define FEC_IEEE_T_MCOL         0x1254	// frames transmitted with multiple collisions
+#define FEC_IEEE_T_DEF          0x1258	// frames transmitted after deferral delay
+#define FEC_IEEE_T_LCOL         0x125C	// frames transmitted with late collisions
+#define FEC_IEEE_T_EXCOL        0x1260	// frames transmitted with excessive collisions
+#define FEC_IEEE_T_MACERR       0x1264	// frames transmitted with tx-FIFO underrun
+#define FEC_IEEE_T_CSERR        0x1268	// frames transmitted with carrier sense error
+#define FEC_IEEE_T_SQE          0x126C	// frames transmitted with SQE error
+#define FEC_IEEE_T_FDXFC        0x1270	// flow control pause frames transmitted
+#define FEC_IEEE_T_OCTETS_OK    0x1274	// octet count for frames transmitted w/o error
+#define FEC_RMON_R_PACKETS      0x1284	// RMON rx packet count
+#define FEC_RMON_R_BC_PKT       0x1288	// RMON rx broadcast packets
+#define FEC_RMON_R_MC_PKT       0x128C	// RMON rx multicast packets
+#define FEC_RMON_R_CRC_ALIGN    0x1290	// RMON rx packets w CRC/align error
+#define FEC_RMON_R_UNDERSIZE    0x1294	// RMON rx packets < 64 bytes, good CRC
+#define FEC_RMON_R_OVERSIZE     0x1298	// RMON rx packets > MAX_FL bytes, good CRC
+#define FEC_RMON_R_FRAG         0x129C	// RMON rx packets < 64 bytes, bad CRC
+#define FEC_RMON_R_JAB          0x12A0	// RMON rx packets > MAX_FL bytes, bad CRC
+#define FEC_RMON_R_RESVD_0      0x12A4	//
+#define FEC_RMON_R_P64          0x12A8	// RMON rx           64 byte packets
+#define FEC_RMON_R_P65T0127     0x12AC	// RMON rx   65 to  127 byte packets
+#define FEC_RMON_R_P128TO255    0x12B0	// RMON rx  128 to  255 byte packets
+#define FEC_RMON_R_P256TO511    0x12B4	// RMON rx  256 to  511 byte packets
+#define FEC_RMON_R_P512TO1023   0x12B8	// RMON rx  512 to 1023 byte packets
+#define FEC_RMON_R_P1024TO2047  0x12BC	// RMON rx 1024 to 2047 byte packets
+#define FEC_RMON_R_GTE2048      0x12C0	// RMON rx w > 2048 bytes
+#define FEC_RMON_R_OCTETS       0x12C4	// RMON rx octets
+#define FEC_IEEE_R_DROP         0x12C8	// count of frames not counted correctly
+#define FEC_IEEE_R_FRAME_OK     0x12CC	// frames received OK
+#define FEC_IEEE_R_CRC          0x12D0	// frames received with CRC error
+#define FEC_IEEE_R_ALIGN        0x12D4	// frames received with alignment error
+#define FEC_IEEE_R_MACERR       0x12D8	// receive FIFO overflow count
+#define FEC_IEEE_R_FDXFC        0x12DC	// flow control pause frames received
+#define FEC_IEEE_R_OCTETS_OK    0x12E0	// octet count for frames rcvd w/o error
 
 // register bit definitions and macros
 #define FEC_EIR_UN              (0x00080000)
@@ -315,11 +314,10 @@
 //---------------------------------------------------------------------------
 
 // Rx and Tx buffer descriptor format
-typedef struct
-{
-	WORD   m_wStatus;	// control / status  ---  used by edrv, do not change in application
-	WORD   m_wLength;	// transfer length
-	BYTE * m_pbData;	// buffer address
+typedef struct {
+	WORD m_wStatus;		// control / status  ---  used by edrv, do not change in application
+	WORD m_wLength;		// transfer length
+	BYTE *m_pbData;		// buffer address
 } tBufferDescr;
 
 //---------------------------------------------------------------------------
@@ -327,21 +325,16 @@ typedef struct
 //---------------------------------------------------------------------------
 
 #if (NO_OF_INSTANCES > 1)
-    #define ECI_WRITE_DW_REG(off,val)       (*(DWORD *)(void *)(&__IPSBAR[off]) = val)
-    #define ECI_READ_DW_REG(off)            (*(DWORD *)(void *)(&__IPSBAR[off]))
+#define ECI_WRITE_DW_REG(off,val)       (*(DWORD *)(void *)(&__IPSBAR[off]) = val)
+#define ECI_READ_DW_REG(off)            (*(DWORD *)(void *)(&__IPSBAR[off]))
 #else
-    #if (EDRV_USED_ETH_CTRL == 0)
-        #define ECI_WRITE_DW_REG(off,val)       (*(DWORD *)(void *)(&__IPSBAR[FEC0_ADDR+off]) = val)
-        #define ECI_READ_DW_REG(off)            (*(DWORD *)(void *)(&__IPSBAR[FEC0_ADDR+off]))
-    #else
-        #define ECI_WRITE_DW_REG(off,val)       (*(DWORD *)(void *)(&__IPSBAR[FEC1_ADDR+off]) = val)
-        #define ECI_READ_DW_REG(off)            (*(DWORD *)(void *)(&__IPSBAR[FEC1_ADDR+off]))
-    #endif
+#if (EDRV_USED_ETH_CTRL == 0)
+#define ECI_WRITE_DW_REG(off,val)       (*(DWORD *)(void *)(&__IPSBAR[FEC0_ADDR+off]) = val)
+#define ECI_READ_DW_REG(off)            (*(DWORD *)(void *)(&__IPSBAR[FEC0_ADDR+off]))
+#else
+#define ECI_WRITE_DW_REG(off,val)       (*(DWORD *)(void *)(&__IPSBAR[FEC1_ADDR+off]) = val)
+#define ECI_READ_DW_REG(off)            (*(DWORD *)(void *)(&__IPSBAR[FEC1_ADDR+off]))
+#endif
 #endif
 
-
-
-
-#endif  // #ifndef _EDRV_FEC_H_
-
-
+#endif // #ifndef _EDRV_FEC_H_

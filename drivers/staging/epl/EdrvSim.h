@@ -71,7 +71,6 @@
 #ifndef _EDRVSIM_H_
 #define _EDRVSIM_H_
 
-
 //---------------------------------------------------------------------------
 // const defines
 //---------------------------------------------------------------------------
@@ -80,15 +79,11 @@
 // types
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
 
-void EdrvRxInterruptHandler (BYTE bBufferInFrame_p, BYTE * pbEthernetData_p, WORD wDataLen_p);
+void EdrvRxInterruptHandler(BYTE bBufferInFrame_p, BYTE * pbEthernetData_p,
+			    WORD wDataLen_p);
 
-
-
-#endif  // #ifndef _EDRVSIM_H_
-
-
+#endif // #ifndef _EDRVSIM_H_

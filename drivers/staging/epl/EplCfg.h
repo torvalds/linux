@@ -71,9 +71,6 @@
 #ifndef _EPLCFG_H_
 #define _EPLCFG_H_
 
-
-
-
 // =========================================================================
 // generic defines which for whole EPL Stack
 // =========================================================================
@@ -100,7 +97,7 @@
 #define EPL_NO_USER_KERNEL
 
 #ifndef BENCHMARK_MODULES
-#define BENCHMARK_MODULES       0 //0xEE800042L
+#define BENCHMARK_MODULES       0	//0xEE800042L
 #endif
 
 // Default defug level:
@@ -112,7 +109,6 @@
 // * EPL_DBGLVL_ASSERT      =   0x20000000L
 // * EPL_DBGLVL_ERROR       =   0x40000000L
 // * EPL_DBGLVL_ALWAYS      =   0x80000000L
-
 
 // EPL_MODULE_INTEGRATION defines all modules which are included in
 // EPL application. Please add or delete modules for your application.
@@ -155,7 +151,6 @@
 // number of used ethernet controller
 //#define EDRV_USED_ETH_CTRL              1
 
-
 // =========================================================================
 // Data Link Layer (DLL) specific defines
 // =========================================================================
@@ -169,7 +164,6 @@
 // and DLL shall pass PRes as ready to Edrv after SoA
 #define EPL_DLL_PRES_READY_AFTER_SOA    FALSE
 //#define EPL_DLL_PRES_READY_AFTER_SOA    TRUE
-
 
 // =========================================================================
 // OBD specific defines
@@ -188,7 +182,6 @@
 
 #define EPL_OBD_USE_VARIABLE_SUBINDEX_TAB TRUE
 
-
 // =========================================================================
 // Timer module specific defines
 // =========================================================================
@@ -200,8 +193,4 @@
 #define EPL_TIMER_USE_HIGHRES              TRUE
 //#define EPL_TIMER_USE_HIGHRES              FALSE
 
-
 #endif //_EPLCFG_H_
-
-
-

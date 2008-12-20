@@ -86,46 +86,43 @@
 #ifndef _EPLAMI_H_
 #define _EPLAMI_H_
 
-
 #if ((DEV_SYSTEM & _DEV_64BIT_SUPPORT_) == 0)
 //    #ifdef USE_VAR64
-        #error 'ERROR: development system does not support 64 bit operations!'
+#error 'ERROR: development system does not support 64 bit operations!'
 //    #endif
 #endif
-
 
 //---------------------------------------------------------------------------
 //  types
 //---------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------
 //  Prototypen
 //---------------------------------------------------------------------------
 
 #ifdef __cplusplus
-    extern "C" {
+extern "C" {
 #endif
 
 #if (TARGET_SYSTEM == _WIN32_)
-    #if defined(INLINE_FUNCTION_DEF)
-        #undef  INLINE_FUNCTION
-        #define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-        #define INLINE_ENABLED      TRUE
-        #define EPL_AMI_INLINED
-        #include "../EplStack/amix86.c"
-    #endif
+#if defined(INLINE_FUNCTION_DEF)
+#undef  INLINE_FUNCTION
+#define INLINE_FUNCTION     INLINE_FUNCTION_DEF
+#define INLINE_ENABLED      TRUE
+#define EPL_AMI_INLINED
+#include "../EplStack/amix86.c"
+#endif
 
 #elif (TARGET_SYSTEM == _LINUX_)
-    #if defined(__m68k__)   // it is an big endian machine
-        #if defined(INLINE_FUNCTION_DEF)
-            #undef  INLINE_FUNCTION
-            #define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-            #define INLINE_ENABLED      TRUE
-            #define EPL_AMI_INLINED
-            #include "../EplStack/amibe.c"
-        #endif
-    #endif
+#if defined(__m68k__)		// it is an big endian machine
+#if defined(INLINE_FUNCTION_DEF)
+#undef  INLINE_FUNCTION
+#define INLINE_FUNCTION     INLINE_FUNCTION_DEF
+#define INLINE_ENABLED      TRUE
+#define EPL_AMI_INLINED
+#include "../EplStack/amibe.c"
+#endif
+#endif
 #endif
 
 //---------------------------------------------------------------------------
@@ -140,12 +137,11 @@
 #define AmiSetByteToLe(pAddr_p, bByteVal_p)  {*(BYTE FAR*)(pAddr_p) = (bByteVal_p);}
 
 #if !defined(INLINE_ENABLED)
-void   PUBLIC  AmiSetWordToBe  (void FAR* pAddr_p, WORD wWordVal_p);
-void   PUBLIC  AmiSetDwordToBe (void FAR* pAddr_p, DWORD dwDwordVal_p);
-void   PUBLIC  AmiSetWordToLe  (void FAR* pAddr_p, WORD wWordVal_p);
-void   PUBLIC  AmiSetDwordToLe (void FAR* pAddr_p, DWORD dwDwordVal_p);
+	void PUBLIC AmiSetWordToBe(void FAR * pAddr_p, WORD wWordVal_p);
+	void PUBLIC AmiSetDwordToBe(void FAR * pAddr_p, DWORD dwDwordVal_p);
+	void PUBLIC AmiSetWordToLe(void FAR * pAddr_p, WORD wWordVal_p);
+	void PUBLIC AmiSetDwordToLe(void FAR * pAddr_p, DWORD dwDwordVal_p);
 #endif
-
 
 //---------------------------------------------------------------------------
 //
@@ -160,10 +156,10 @@ void   PUBLIC  AmiSetDwordToLe (void FAR* pAddr_p, DWORD dwDwordVal_p);
 
 #if !defined(INLINE_ENABLED)
 
-WORD   PUBLIC  AmiGetWordFromBe  (void FAR* pAddr_p);
-DWORD  PUBLIC  AmiGetDwordFromBe (void FAR* pAddr_p);
-WORD   PUBLIC  AmiGetWordFromLe  (void FAR* pAddr_p);
-DWORD  PUBLIC  AmiGetDwordFromLe (void FAR* pAddr_p);
+	WORD PUBLIC AmiGetWordFromBe(void FAR * pAddr_p);
+	DWORD PUBLIC AmiGetDwordFromBe(void FAR * pAddr_p);
+	WORD PUBLIC AmiGetWordFromLe(void FAR * pAddr_p);
+	DWORD PUBLIC AmiGetDwordFromLe(void FAR * pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -178,9 +174,8 @@ DWORD  PUBLIC  AmiGetDwordFromLe (void FAR* pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void PUBLIC AmiSetDword24ToBe (void FAR* pAddr_p, DWORD dwDwordVal_p);
-void PUBLIC AmiSetDword24ToLe (void FAR* pAddr_p, DWORD dwDwordVal_p);
-
+	void PUBLIC AmiSetDword24ToBe(void FAR * pAddr_p, DWORD dwDwordVal_p);
+	void PUBLIC AmiSetDword24ToLe(void FAR * pAddr_p, DWORD dwDwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -194,9 +189,8 @@ void PUBLIC AmiSetDword24ToLe (void FAR* pAddr_p, DWORD dwDwordVal_p);
 //
 //---------------------------------------------------------------------------
 
-DWORD PUBLIC AmiGetDword24FromBe (void FAR* pAddr_p);
-DWORD PUBLIC AmiGetDword24FromLe (void FAR* pAddr_p);
-
+	DWORD PUBLIC AmiGetDword24FromBe(void FAR * pAddr_p);
+	DWORD PUBLIC AmiGetDword24FromLe(void FAR * pAddr_p);
 
 //#ifdef USE_VAR64
 
@@ -213,9 +207,8 @@ DWORD PUBLIC AmiGetDword24FromLe (void FAR* pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void PUBLIC AmiSetQword40ToBe (void FAR* pAddr_p, QWORD qwQwordVal_p);
-void PUBLIC AmiSetQword40ToLe (void FAR* pAddr_p, QWORD qwQwordVal_p);
-
+	void PUBLIC AmiSetQword40ToBe(void FAR * pAddr_p, QWORD qwQwordVal_p);
+	void PUBLIC AmiSetQword40ToLe(void FAR * pAddr_p, QWORD qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -229,9 +222,8 @@ void PUBLIC AmiSetQword40ToLe (void FAR* pAddr_p, QWORD qwQwordVal_p);
 //
 //---------------------------------------------------------------------------
 
-QWORD PUBLIC AmiGetQword40FromBe (void FAR* pAddr_p);
-QWORD PUBLIC AmiGetQword40FromLe (void FAR* pAddr_p);
-
+	QWORD PUBLIC AmiGetQword40FromBe(void FAR * pAddr_p);
+	QWORD PUBLIC AmiGetQword40FromLe(void FAR * pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -246,9 +238,8 @@ QWORD PUBLIC AmiGetQword40FromLe (void FAR* pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void PUBLIC AmiSetQword48ToBe (void FAR* pAddr_p, QWORD qwQwordVal_p);
-void PUBLIC AmiSetQword48ToLe (void FAR* pAddr_p, QWORD qwQwordVal_p);
-
+	void PUBLIC AmiSetQword48ToBe(void FAR * pAddr_p, QWORD qwQwordVal_p);
+	void PUBLIC AmiSetQword48ToLe(void FAR * pAddr_p, QWORD qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -262,9 +253,8 @@ void PUBLIC AmiSetQword48ToLe (void FAR* pAddr_p, QWORD qwQwordVal_p);
 //
 //---------------------------------------------------------------------------
 
-QWORD PUBLIC AmiGetQword48FromBe (void FAR* pAddr_p);
-QWORD PUBLIC AmiGetQword48FromLe (void FAR* pAddr_p);
-
+	QWORD PUBLIC AmiGetQword48FromBe(void FAR * pAddr_p);
+	QWORD PUBLIC AmiGetQword48FromLe(void FAR * pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -279,9 +269,8 @@ QWORD PUBLIC AmiGetQword48FromLe (void FAR* pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void PUBLIC AmiSetQword56ToBe (void FAR* pAddr_p, QWORD qwQwordVal_p);
-void PUBLIC AmiSetQword56ToLe (void FAR* pAddr_p, QWORD qwQwordVal_p);
-
+	void PUBLIC AmiSetQword56ToBe(void FAR * pAddr_p, QWORD qwQwordVal_p);
+	void PUBLIC AmiSetQword56ToLe(void FAR * pAddr_p, QWORD qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -295,9 +284,8 @@ void PUBLIC AmiSetQword56ToLe (void FAR* pAddr_p, QWORD qwQwordVal_p);
 //
 //---------------------------------------------------------------------------
 
-QWORD PUBLIC AmiGetQword56FromBe (void FAR* pAddr_p);
-QWORD PUBLIC AmiGetQword56FromLe (void FAR* pAddr_p);
-
+	QWORD PUBLIC AmiGetQword56FromBe(void FAR * pAddr_p);
+	QWORD PUBLIC AmiGetQword56FromLe(void FAR * pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -312,9 +300,8 @@ QWORD PUBLIC AmiGetQword56FromLe (void FAR* pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void PUBLIC AmiSetQword64ToBe (void FAR* pAddr_p, QWORD qwQwordVal_p);
-void PUBLIC AmiSetQword64ToLe (void FAR* pAddr_p, QWORD qwQwordVal_p);
-
+	void PUBLIC AmiSetQword64ToBe(void FAR * pAddr_p, QWORD qwQwordVal_p);
+	void PUBLIC AmiSetQword64ToLe(void FAR * pAddr_p, QWORD qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -328,9 +315,8 @@ void PUBLIC AmiSetQword64ToLe (void FAR* pAddr_p, QWORD qwQwordVal_p);
 //
 //---------------------------------------------------------------------------
 
-QWORD PUBLIC AmiGetQword64FromBe (void FAR* pAddr_p);
-QWORD PUBLIC AmiGetQword64FromLe (void FAR* pAddr_p);
-
+	QWORD PUBLIC AmiGetQword64FromBe(void FAR * pAddr_p);
+	QWORD PUBLIC AmiGetQword64FromLe(void FAR * pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -345,8 +331,8 @@ QWORD PUBLIC AmiGetQword64FromLe (void FAR* pAddr_p);
 //
 //---------------------------------------------------------------------------
 
-void PUBLIC AmiSetTimeOfDay (void FAR* pAddr_p, tTimeOfDay FAR* pTimeOfDay_p);
-
+	void PUBLIC AmiSetTimeOfDay(void FAR * pAddr_p,
+				    tTimeOfDay FAR * pTimeOfDay_p);
 
 //---------------------------------------------------------------------------
 //
@@ -361,20 +347,16 @@ void PUBLIC AmiSetTimeOfDay (void FAR* pAddr_p, tTimeOfDay FAR* pTimeOfDay_p);
 //
 //---------------------------------------------------------------------------
 
-void PUBLIC AmiGetTimeOfDay (void FAR* pAddr_p, tTimeOfDay FAR* pTimeOfDay_p);
+	void PUBLIC AmiGetTimeOfDay(void FAR * pAddr_p,
+				    tTimeOfDay FAR * pTimeOfDay_p);
 
 #endif
 
-
-#undef  INLINE_ENABLED              // disable actual inlining of functions
+#undef  INLINE_ENABLED		// disable actual inlining of functions
 #define EPL_AMI_INCLUDED
 
 #ifdef __cplusplus
-    }
+}
 #endif
-
-
-#endif  // ifndef _EPLAMI_H_
-
-// Die letzte Zeile muﬂ unbedingt eine leere Zeile sein, weil manche Compiler
-// damit ein Problem haben, wenn das nicht so ist (z.B. GNU oder Borland C++ Builder).
+#endif				// ifndef _EPLAMI_H_
+// Die letzte Zeile muﬂ unbedingt eine leere Zeile sein, weil manche Compiler// damit ein Problem haben, wenn das nicht so ist (z.B. GNU oder Borland C++ Builder).
