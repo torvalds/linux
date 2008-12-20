@@ -72,4 +72,9 @@ config ANDROID_RAM_CONSOLE_EARLY_SIZE
 	default 0
 	depends on ANDROID_RAM_CONSOLE_EARLY_INIT
 
+config ANDROID_TIMED_GPIO
+	tristate "Android timed gpio driver"
+	depends on GENERIC_GPIO
+	default n
+
 endmenu
