@@ -809,6 +809,16 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 		info->status.ack_signal = p54_rssi_to_dbm(dev,
 				(int)payload->ack_rssi);
+
+		if (entry_data->key_type == P54_CRYPTO_TKIPMICHAEL) {
+			u8 *iv = (u8 *)(entry_data->align + pad +
+				        entry_data->crypt_offset);
+
+			/* Restore the original TKIP IV. */
+			iv[2] = iv[0];
+			iv[0] = iv[1];
+			iv[1] = (iv[0] | 0x20) & 0x7f;	/* WEPSeed - 8.3.2.2 */
+		}
 		skb_pull(entry, sizeof(*hdr) + pad + sizeof(*entry_data));
 		ieee80211_tx_status_irqsafe(dev, entry);
 		goto out;
@@ -1394,7 +1404,6 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	hdr->tries = ridx;
 	txhdr->rts_rate_idx = 0;
 	if (info->control.hw_key) {
-		crypt_offset += info->control.hw_key->iv_len;
 		txhdr->key_type = p54_convert_algo(info->control.hw_key->alg);
 		txhdr->key_len = min((u8)16, info->control.hw_key->keylen);
 		memcpy(txhdr->key, info->control.hw_key->key, txhdr->key_len);
@@ -1408,6 +1417,8 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		}
 		/* reserve some space for ICV */
 		len += info->control.hw_key->icv_len;
+		memset(skb_put(skb, info->control.hw_key->icv_len), 0,
+		       info->control.hw_key->icv_len);
 	} else {
 		txhdr->key_type = 0;
 		txhdr->key_len = 0;
