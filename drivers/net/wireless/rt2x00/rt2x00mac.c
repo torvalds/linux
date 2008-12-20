@@ -79,8 +79,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	 * RTS/CTS frame should use the length of the frame plus any
 	 * encryption overhead that will be added by the hardware.
 	 */
-	if (!frag_skb->do_not_encrypt)
-		data_length += rt2x00crypto_tx_overhead(tx_info);
+	data_length += rt2x00crypto_tx_overhead(rt2x00dev, skb);
 
 	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		ieee80211_ctstoself_get(rt2x00dev->hw, tx_info->control.vif,
@@ -484,6 +483,24 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 EXPORT_SYMBOL_GPL(rt2x00mac_configure_filter);
 
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
+static void memcpy_tkip(struct rt2x00lib_crypto *crypto, u8 *key, u8 key_len)
+{
+	if (key_len > NL80211_TKIP_DATA_OFFSET_ENCR_KEY)
+		memcpy(&crypto->key,
+		       &key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY],
+		       sizeof(crypto->key));
+
+	if (key_len > NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY)
+		memcpy(&crypto->tx_mic,
+		       &key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
+		       sizeof(crypto->tx_mic));
+
+	if (key_len > NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY)
+		memcpy(&crypto->rx_mic,
+		       &key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
+		       sizeof(crypto->rx_mic));
+}
+
 int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      const u8 *local_address, const u8 *address,
 		      struct ieee80211_key_conf *key)
@@ -521,22 +538,9 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	crypto.cmd = cmd;
 	crypto.address = address;
 
-	if (crypto.cipher == CIPHER_TKIP) {
-		if (key->keylen > NL80211_TKIP_DATA_OFFSET_ENCR_KEY)
-			memcpy(&crypto.key,
-			       &key->key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY],
-			       sizeof(crypto.key));
-
-		if (key->keylen > NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY)
-			memcpy(&crypto.tx_mic,
-			       &key->key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
-			       sizeof(crypto.tx_mic));
-
-		if (key->keylen > NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY)
-			memcpy(&crypto.rx_mic,
-			       &key->key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
-			       sizeof(crypto.rx_mic));
-	} else
+	if (crypto.cipher == CIPHER_TKIP)
+		memcpy_tkip(&crypto, &key->key[0], key->keylen);
+	else
 		memcpy(&crypto.key, &key->key[0], key->keylen);
 
 	/*

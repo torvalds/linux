@@ -282,7 +282,8 @@ static inline void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
 enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key);
 void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 				       struct txentry_desc *txdesc);
-unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info);
+unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
+				      struct sk_buff *skb);
 void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, unsigned int iv_len);
 void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len);
 void rt2x00crypto_tx_insert_iv(struct sk_buff *skb);
@@ -300,7 +301,8 @@ static inline void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 {
 }
 
-static inline unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info)
+static inline unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
+						    struct sk_buff *skb)
 {
 	return 0;
 }
