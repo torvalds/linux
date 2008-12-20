@@ -2230,7 +2230,8 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_NIC_ENABLE_DIVERSITY, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_TX_DIVERSITY, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_TX_RX_FIXED, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_RX_FIXED, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_TX_FIXED, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_EXTERNAL_LNA_BG, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_CARDBUS_ACCEL, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_EXTERNAL_LNA_A, 0);
@@ -2374,24 +2375,10 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	if (rt2x00_rf(&rt2x00dev->chip, RF2529) &&
 	    !test_bit(CONFIG_DOUBLE_ANTENNA, &rt2x00dev->flags)) {
-		switch (rt2x00_get_field16(eeprom, EEPROM_NIC_TX_RX_FIXED)) {
-		case 0:
-			rt2x00dev->default_ant.tx = ANTENNA_B;
-			rt2x00dev->default_ant.rx = ANTENNA_A;
-			break;
-		case 1:
-			rt2x00dev->default_ant.tx = ANTENNA_B;
-			rt2x00dev->default_ant.rx = ANTENNA_B;
-			break;
-		case 2:
-			rt2x00dev->default_ant.tx = ANTENNA_A;
-			rt2x00dev->default_ant.rx = ANTENNA_A;
-			break;
-		case 3:
-			rt2x00dev->default_ant.tx = ANTENNA_A;
-			rt2x00dev->default_ant.rx = ANTENNA_B;
-			break;
-		}
+		rt2x00dev->default_ant.rx =
+		    ANTENNA_A + rt2x00_get_field16(eeprom, EEPROM_NIC_RX_FIXED);
+		rt2x00dev->default_ant.tx =
+		    ANTENNA_B - rt2x00_get_field16(eeprom, EEPROM_NIC_TX_FIXED);
 
 		if (rt2x00_get_field16(eeprom, EEPROM_NIC_TX_DIVERSITY))
 			rt2x00dev->default_ant.tx = ANTENNA_SW_DIVERSITY;
