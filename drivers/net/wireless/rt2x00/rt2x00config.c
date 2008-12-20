@@ -152,8 +152,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00dev->ops->lib->config_ant(rt2x00dev, ant);
 
-	rt2x00lib_reset_link_tuner(rt2x00dev);
-	rt2x00_reset_link_ant_rssi(&rt2x00dev->link);
+	rt2x00link_reset_tuner(rt2x00dev, true);
 
 	memcpy(active, ant, sizeof(*ant));
 
@@ -191,7 +190,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	 * which means we need to reset the link tuner.
 	 */
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL)
-		rt2x00lib_reset_link_tuner(rt2x00dev);
+		rt2x00link_reset_tuner(rt2x00dev, false);
 
 	rt2x00dev->curr_band = conf->channel->band;
 	rt2x00dev->tx_power = conf->power_level;

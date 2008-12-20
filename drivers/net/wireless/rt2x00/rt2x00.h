@@ -212,7 +212,7 @@ struct link_qual {
 	 *                       (WEIGHT_TX * tx_percentage) +
 	 *                       (WEIGHT_RX * rx_percentage)) / 100
 	 *
-	 * This value should then be checked to not be greated then 100.
+	 * This value should then be checked to not be greater then 100.
 	 */
 	int rx_percentage;
 	int rx_success;
@@ -316,33 +316,6 @@ static inline int rt2x00_get_link_rssi(struct link *link)
 	if (link->qual.avg_rssi && link->qual.rx_success)
 		return link->qual.avg_rssi;
 	return DEFAULT_RSSI;
-}
-
-static inline int rt2x00_get_link_ant_rssi(struct link *link)
-{
-	if (link->ant.rssi_ant && link->qual.rx_success)
-		return link->ant.rssi_ant;
-	return DEFAULT_RSSI;
-}
-
-static inline void rt2x00_reset_link_ant_rssi(struct link *link)
-{
-	link->ant.rssi_ant = 0;
-}
-
-static inline int rt2x00_get_link_ant_rssi_history(struct link *link,
-						   enum antenna ant)
-{
-	if (link->ant.rssi_history[ant - ANTENNA_A])
-		return link->ant.rssi_history[ant - ANTENNA_A];
-	return DEFAULT_RSSI;
-}
-
-static inline int rt2x00_update_ant_rssi(struct link *link, int rssi)
-{
-	int old_rssi = link->ant.rssi_history[link->ant.active.rx - ANTENNA_A];
-	link->ant.rssi_history[link->ant.active.rx - ANTENNA_A] = rssi;
-	return old_rssi;
 }
 
 /*

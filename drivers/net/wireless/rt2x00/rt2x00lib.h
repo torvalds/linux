@@ -63,7 +63,6 @@ static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state);
-void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev);
 
 /*
  * Initialization handlers.
@@ -154,6 +153,81 @@ void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev);
 int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev);
 void rt2x00queue_free(struct rt2x00_dev *rt2x00dev);
 
+/**
+ * rt2x00link_update_stats - Update link statistics from RX frame
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @skb: Received frame
+ * @rxdesc: Received frame descriptor
+ *
+ * Update link statistics based on the information from the
+ * received frame descriptor.
+ */
+void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
+			     struct sk_buff *skb,
+			     struct rxdone_entry_desc *rxdesc);
+
+/**
+ * rt2x00link_calculate_signal - Calculate signal quality
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @rssi: RX Frame RSSI
+ *
+ * Calculate the signal quality of a frame based on the rssi
+ * measured during the receiving of the frame and the global
+ * link quality statistics measured since the start of the
+ * link tuning. The result is a value between 0 and 100 which
+ * is an indication of the signal quality.
+ */
+int rt2x00link_calculate_signal(struct rt2x00_dev *rt2x00dev, int rssi);
+
+/**
+ * rt2x00link_start_tuner - Start periodic link tuner work
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * This start the link tuner periodic work, this work will
+ * be executed periodically until &rt2x00link_stop_tuner has
+ * been called.
+ */
+void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00link_stop_tuner - Stop periodic link tuner work
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * After this function completed the link tuner will not
+ * be running until &rt2x00link_start_tuner is called.
+ */
+void rt2x00link_stop_tuner(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00link_reset_tuner - Reset periodic link tuner work
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @antenna: Should the antenna tuning also be reset
+ *
+ * The VGC limit configured in the hardware will be reset to 0
+ * which forces the driver to rediscover the correct value for
+ * the current association. This is needed when configuration
+ * options have changed which could drastically change the
+ * SNR level or link quality (i.e. changing the antenna setting).
+ *
+ * Resetting the link tuner will also cause the periodic work counter
+ * to be reset. Any driver which has a fixed limit on the number
+ * of rounds the link tuner is supposed to work will accept the
+ * tuner actions again if this limit was previously reached.
+ *
+ * If @antenna is set to true a the software antenna diversity
+ * tuning will also be reset.
+ */
+void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna);
+
+/**
+ * rt2x00link_register - Initialize link tuning functionality
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * Initialize work structure and all link tuning related
+ * paramters. This will not start the link tuning process itself.
+ */
+void rt2x00link_register(struct rt2x00_dev *rt2x00dev);
+
 /*
  * Firmware handlers.
  */
@@ -179,7 +253,7 @@ void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev);
 void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 			    enum rt2x00_dump_type type, struct sk_buff *skb);
 void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
-			       enum cipher cipher, enum rx_crypto status);
+			       struct rxdone_entry_desc *rxdesc);
 #else
 static inline void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 {
@@ -196,8 +270,7 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 }
 
 static inline void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
-					     enum cipher cipher,
-					     enum rx_crypto status)
+					     struct rxdone_entry_desc *rxdesc)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
