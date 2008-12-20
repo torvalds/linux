@@ -407,6 +407,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	rx_status->rate_idx = idx;
 	rx_status->qual = rt2x00link_calculate_signal(rt2x00dev, rxdesc.rssi);
 	rx_status->signal = rxdesc.rssi;
+	rx_status->noise = rxdesc.noise;
 	rx_status->flag = rxdesc.flags;
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
