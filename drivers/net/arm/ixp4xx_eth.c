@@ -788,9 +788,11 @@ static void eth_set_mcast_list(struct net_device *dev)
 
 static int eth_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
+	struct port *port = netdev_priv(dev);
+
 	if (!netif_running(dev))
 		return -EINVAL;
-	return -EINVAL;
+	return phy_mii_ioctl(port->phydev, if_mii(req), cmd);
 }
 
 
