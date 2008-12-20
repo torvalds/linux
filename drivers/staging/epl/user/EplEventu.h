@@ -66,14 +66,12 @@
 
   2006/06/12 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_EVENTU_H_
 #define _EPL_EVENTU_H_
 
 #include "../EplEvent.h"
-
 
 //---------------------------------------------------------------------------
 // const defines
@@ -83,7 +81,6 @@
 // typedef
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
@@ -91,7 +88,8 @@
 tEplKernel PUBLIC EplEventuInit(tEplProcessEventCb pfnApiProcessEventCb_p);
 
 // add instance
-tEplKernel PUBLIC EplEventuAddInstance(tEplProcessEventCb pfnApiProcessEventCb_p);
+tEplKernel PUBLIC EplEventuAddInstance(tEplProcessEventCb
+				       pfnApiProcessEventCb_p);
 
 // delete instance
 tEplKernel PUBLIC EplEventuDelInstance(void);
@@ -104,12 +102,7 @@ tEplKernel PUBLIC EplEventuPost(tEplEvent * pEvent_p);
 
 // post errorevents from userspace
 tEplKernel PUBLIC EplEventuPostError(tEplEventSource EventSource_p,
-                                     tEplKernel      EplError_p,
-                                     unsigned int    uiArgSize_p,
-                                     void*           pArg_p);
+				     tEplKernel EplError_p,
+				     unsigned int uiArgSize_p, void *pArg_p);
 
-
-
-#endif  // #ifndef _EPL_EVENTU_H_
-
-
+#endif // #ifndef _EPL_EVENTU_H_

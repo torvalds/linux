@@ -66,7 +66,6 @@
 
   2006/06/20 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_DLLUCAL_H_
@@ -83,7 +82,7 @@
 // typedef
 //---------------------------------------------------------------------------
 
-typedef tEplKernel (PUBLIC * tEplDlluCbAsnd) (tEplFrameInfo * pFrameInfo_p);
+typedef tEplKernel(PUBLIC * tEplDlluCbAsnd) (tEplFrameInfo * pFrameInfo_p);
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -94,13 +93,13 @@ tEplKernel EplDlluCalAddInstance(void);
 tEplKernel EplDlluCalDelInstance(void);
 
 tEplKernel EplDlluCalRegAsndService(tEplDllAsndServiceId ServiceId_p,
-                                    tEplDlluCbAsnd pfnDlluCbAsnd_p,
-                                    tEplDllAsndFilter Filter_p);
+				    tEplDlluCbAsnd pfnDlluCbAsnd_p,
+				    tEplDllAsndFilter Filter_p);
 
-tEplKernel EplDlluCalAsyncSend(tEplFrameInfo * pFrameInfo, tEplDllAsyncReqPriority Priority_p);
+tEplKernel EplDlluCalAsyncSend(tEplFrameInfo * pFrameInfo,
+			       tEplDllAsyncReqPriority Priority_p);
 
 tEplKernel EplDlluCalProcess(tEplEvent * pEvent_p);
-
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 
@@ -110,11 +109,9 @@ tEplKernel EplDlluCalDeleteNode(unsigned int uiNodeId_p);
 
 tEplKernel EplDlluCalSoftDeleteNode(unsigned int uiNodeId_p);
 
-tEplKernel EplDlluCalIssueRequest(tEplDllReqServiceId Service_p, unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
+tEplKernel EplDlluCalIssueRequest(tEplDllReqServiceId Service_p,
+				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
 
 #endif
 
-
-#endif  // #ifndef _EPL_DLLUCAL_H_
-
-
+#endif // #ifndef _EPL_DLLUCAL_H_

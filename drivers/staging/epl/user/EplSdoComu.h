@@ -66,7 +66,6 @@
 
   2006/06/26 k.t.:   start of the implementation
 
-
 ****************************************************************************/
 
 #include "../EplSdo.h"
@@ -78,16 +77,13 @@
 #ifndef _EPLSDOCOMU_H_
 #define _EPLSDOCOMU_H_
 
-
 //---------------------------------------------------------------------------
 // const defines
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // typedef
 //---------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -100,19 +96,20 @@ tEplKernel PUBLIC EplSdoComDelInstance(void);
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
 
-tEplKernel PUBLIC EplSdoComDefineCon(tEplSdoComConHdl*  pSdoComConHdl_p,
-                                      unsigned int      uiTargetNodeId_p,
-                                      tEplSdoType        ProtType_p);
+tEplKernel PUBLIC EplSdoComDefineCon(tEplSdoComConHdl * pSdoComConHdl_p,
+				     unsigned int uiTargetNodeId_p,
+				     tEplSdoType ProtType_p);
 
-tEplKernel PUBLIC EplSdoComInitTransferByIndex(tEplSdoComTransParamByIndex* pSdoComTransParam_p);
+tEplKernel PUBLIC EplSdoComInitTransferByIndex(tEplSdoComTransParamByIndex *
+					       pSdoComTransParam_p);
 
-tEplKernel PUBLIC EplSdoComUndefineCon(tEplSdoComConHdl  SdoComConHdl_p);
+tEplKernel PUBLIC EplSdoComUndefineCon(tEplSdoComConHdl SdoComConHdl_p);
 
 tEplKernel PUBLIC EplSdoComGetState(tEplSdoComConHdl SdoComConHdl_p,
-                                    tEplSdoComFinished* pSdoComFinished_p);
+				    tEplSdoComFinished * pSdoComFinished_p);
 
 tEplKernel PUBLIC EplSdoComSdoAbort(tEplSdoComConHdl SdoComConHdl_p,
-                              DWORD           dwAbortCode_p);
+				    DWORD dwAbortCode_p);
 
 #endif
 
@@ -126,10 +123,4 @@ tEplKernel PUBLIC EplSdoComInitTransferFile(tEplSdoComTransParamFile* pSdoComTra
 
 */
 
-
-
-
-
-#endif  // #ifndef _EPLSDOCOMU_H_
-
-
+#endif // #ifndef _EPLSDOCOMU_H_

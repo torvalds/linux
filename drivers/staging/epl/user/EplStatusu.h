@@ -66,7 +66,6 @@
 
   2006/11/15 d.k.:   start of the implementation
 
-
 ****************************************************************************/
 
 #include "../EplDll.h"
@@ -74,19 +73,17 @@
 #ifndef _EPLSTATUSU_H_
 #define _EPLSTATUSU_H_
 
-
 //---------------------------------------------------------------------------
 // const defines
 //---------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------
 // typedef
 //---------------------------------------------------------------------------
 
-typedef tEplKernel (PUBLIC * tEplStatusuCbResponse) (
-                                  unsigned int        uiNodeId_p,
-                                  tEplStatusResponse* pStatusResponse_p);
+typedef tEplKernel(PUBLIC * tEplStatusuCbResponse) (unsigned int uiNodeId_p,
+						    tEplStatusResponse *
+						    pStatusResponse_p);
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -100,10 +97,8 @@ tEplKernel PUBLIC EplStatusuDelInstance(void);
 
 tEplKernel PUBLIC EplStatusuReset(void);
 
-tEplKernel PUBLIC EplStatusuRequestStatusResponse(
-                                  unsigned int        uiNodeId_p,
-                                  tEplStatusuCbResponse pfnCbResponse_p);
+tEplKernel PUBLIC EplStatusuRequestStatusResponse(unsigned int uiNodeId_p,
+						  tEplStatusuCbResponse
+						  pfnCbResponse_p);
 
-#endif  // #ifndef _EPLSTATUSU_H_
-
-
+#endif // #ifndef _EPLSTATUSU_H_

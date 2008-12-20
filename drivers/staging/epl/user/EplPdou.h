@@ -65,7 +65,6 @@
 
   2006/05/22 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_PDOU_H_
@@ -73,16 +72,13 @@
 
 #include "../EplPdo.h"
 
-
 //---------------------------------------------------------------------------
 // const defines
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // typedef
 //---------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -93,7 +89,7 @@ tEplKernel EplPdouAddInstance(void);
 tEplKernel EplPdouDelInstance(void);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_PDOU)) != 0)
-tEplKernel PUBLIC EplPdouCbObdAccess(tEplObdCbParam MEM* pParam_p);
+tEplKernel PUBLIC EplPdouCbObdAccess(tEplObdCbParam MEM * pParam_p);
 #else
 #define EplPdouCbObdAccess		NULL
 #endif
@@ -109,6 +105,4 @@ tEplKernel EplPdouGetMapping(
     tEplPdoMapping * pMapping_p, BYTE * pbMaxEntries_p);
 */
 
-#endif  // #ifndef _EPL_PDOU_H_
-
-
+#endif // #ifndef _EPL_PDOU_H_

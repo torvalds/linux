@@ -66,7 +66,6 @@
 
   2006/06/09 k.t.:   start of the implementation
 
-
 ****************************************************************************/
 
 #include "EplNmtu.h"
@@ -76,16 +75,13 @@
 #ifndef _EPLNMTCNU_H_
 #define _EPLNMTCNU_H_
 
-
 //---------------------------------------------------------------------------
 // const defines
 //---------------------------------------------------------------------------
 
-
 //---------------------------------------------------------------------------
 // typedef
 //---------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -99,14 +95,14 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuAddInstance(unsigned int uiNodeId_p);
 
 EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuDelInstance(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest (unsigned int uiNodeId_p,
-                                    tEplNmtCommand  NmtCommand_p);
+EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
+						       tEplNmtCommand
+						       NmtCommand_p);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuRegisterCheckEventCb(
-            tEplNmtuCheckEventCallback pfnEplNmtCheckEventCb_p);
+EPLDLLEXPORT tEplKernel PUBLIC
+EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback
+			      pfnEplNmtCheckEventCb_p);
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_CN)) != 0)
 
-#endif  // #ifndef _EPLNMTCNU_H_
-
-
+#endif // #ifndef _EPLNMTCNU_H_

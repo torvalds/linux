@@ -66,7 +66,6 @@
 
   2008/11/17 d.k.:   start of the implementation
 
-
 ****************************************************************************/
 
 #include "../EplLed.h"
@@ -76,20 +75,16 @@
 #ifndef _EPLLEDU_H_
 #define _EPLLEDU_H_
 
-
 //---------------------------------------------------------------------------
 // const defines
 //---------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------
 // typedef
 //---------------------------------------------------------------------------
 
-
-typedef tEplKernel (PUBLIC * tEplLeduStateChangeCallback) (
-    tEplLedType LedType_p, BOOL fOn_p);
-
+typedef tEplKernel(PUBLIC * tEplLeduStateChangeCallback) (tEplLedType LedType_p,
+							  BOOL fOn_p);
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -99,18 +94,16 @@ typedef tEplKernel (PUBLIC * tEplLeduStateChangeCallback) (
 
 tEplKernel PUBLIC EplLeduInit(tEplLeduStateChangeCallback pfnCbStateChange_p);
 
-tEplKernel PUBLIC EplLeduAddInstance(tEplLeduStateChangeCallback pfnCbStateChange_p);
+tEplKernel PUBLIC EplLeduAddInstance(tEplLeduStateChangeCallback
+				     pfnCbStateChange_p);
 
 tEplKernel PUBLIC EplLeduDelInstance(void);
 
-tEplKernel PUBLIC EplLeduCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p);
+tEplKernel PUBLIC EplLeduCbNmtStateChange(tEplEventNmtStateChange
+					  NmtStateChange_p);
 
-tEplKernel PUBLIC EplLeduProcessEvent(
-                                tEplEvent* pEplEvent_p);
-
+tEplKernel PUBLIC EplLeduProcessEvent(tEplEvent * pEplEvent_p);
 
 #endif // #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
 
-#endif  // #ifndef _EPLLEDU_H_
-
-
+#endif // #ifndef _EPLLEDU_H_

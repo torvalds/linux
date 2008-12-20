@@ -66,7 +66,6 @@
 
   2006/06/20 d.k.:   start of the implementation, version 1.00
 
-
 ****************************************************************************/
 
 #ifndef _EPL_DLLU_H_
@@ -82,7 +81,7 @@
 // typedef
 //---------------------------------------------------------------------------
 
-typedef tEplKernel (PUBLIC * tEplDlluCbAsnd) (tEplFrameInfo * pFrameInfo_p);
+typedef tEplKernel(PUBLIC * tEplDlluCbAsnd) (tEplFrameInfo * pFrameInfo_p);
 
 //---------------------------------------------------------------------------
 // function prototypes
@@ -94,15 +93,16 @@ tEplKernel EplDlluAddInstance(void);
 
 tEplKernel EplDlluDelInstance(void);
 
-tEplKernel EplDlluRegAsndService(tEplDllAsndServiceId ServiceId_p, tEplDlluCbAsnd pfnDlluCbAsnd_p, tEplDllAsndFilter Filter_p);
+tEplKernel EplDlluRegAsndService(tEplDllAsndServiceId ServiceId_p,
+				 tEplDlluCbAsnd pfnDlluCbAsnd_p,
+				 tEplDllAsndFilter Filter_p);
 
-tEplKernel EplDlluAsyncSend(tEplFrameInfo * pFrameInfo_p, tEplDllAsyncReqPriority Priority_p);
+tEplKernel EplDlluAsyncSend(tEplFrameInfo * pFrameInfo_p,
+			    tEplDllAsyncReqPriority Priority_p);
 
 // processes asynch frames
 tEplKernel EplDlluProcess(tEplFrameInfo * pFrameInfo_p);
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLU)) != 0)
 
-#endif  // #ifndef _EPL_DLLU_H_
-
-
+#endif // #ifndef _EPL_DLLU_H_
