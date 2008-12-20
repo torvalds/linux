@@ -639,16 +639,23 @@ static void rt2500pci_link_stats(struct rt2x00_dev *rt2x00dev,
 	qual->false_cca = rt2x00_get_field32(reg, CNT3_FALSE_CCA);
 }
 
+static inline void rt2500pci_set_vgc(struct rt2x00_dev *rt2x00dev, u8 vgc_level)
+{
+	if (rt2x00dev->link.vgc_level_reg != vgc_level) {
+		rt2500pci_bbp_write(rt2x00dev, 17, vgc_level);
+		rt2x00dev->link.vgc_level_reg = vgc_level;
+	}
+}
+
 static void rt2500pci_reset_tuner(struct rt2x00_dev *rt2x00dev)
 {
-	rt2500pci_bbp_write(rt2x00dev, 17, 0x48);
-	rt2x00dev->link.vgc_level = 0x48;
+	rt2500pci_set_vgc(rt2x00dev, 0x48);
 }
 
 static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
-	int rssi = rt2x00_get_link_rssi(&rt2x00dev->link);
-	u8 r17;
+	struct link *link = &rt2x00dev->link;
+	int rssi = rt2x00_get_link_rssi(link);
 
 	/*
 	 * To prevent collisions with MAC ASIC on chipsets
@@ -656,11 +663,8 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * seconds while being associated.
 	 */
 	if (rt2x00_rev(&rt2x00dev->chip) < RT2560_VERSION_D &&
-	    rt2x00dev->intf_associated &&
-	    rt2x00dev->link.count > 20)
+	    rt2x00dev->intf_associated && link->count > 20)
 		return;
-
-	rt2500pci_bbp_read(rt2x00dev, 17, &r17);
 
 	/*
 	 * Chipset versions C and lower should directly continue
@@ -677,11 +681,9 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * then corrupt the R17 tuning. To remidy this the tuning should
 	 * be stopped (While making sure the R17 value will not exceed limits)
 	 */
-	if (rssi < -80 && rt2x00dev->link.count > 20) {
-		if (r17 >= 0x41) {
-			r17 = rt2x00dev->link.vgc_level;
-			rt2500pci_bbp_write(rt2x00dev, 17, r17);
-		}
+	if (rssi < -80 && link->count > 20) {
+		if (link->vgc_level_reg >= 0x41)
+			rt2500pci_set_vgc(rt2x00dev, link->vgc_level);
 		return;
 	}
 
@@ -689,8 +691,7 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Special big-R17 for short distance
 	 */
 	if (rssi >= -58) {
-		if (r17 != 0x50)
-			rt2500pci_bbp_write(rt2x00dev, 17, 0x50);
+		rt2500pci_set_vgc(rt2x00dev, 0x50);
 		return;
 	}
 
@@ -698,8 +699,7 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Special mid-R17 for middle distance
 	 */
 	if (rssi >= -74) {
-		if (r17 != 0x41)
-			rt2500pci_bbp_write(rt2x00dev, 17, 0x41);
+		rt2500pci_set_vgc(rt2x00dev, 0x41);
 		return;
 	}
 
@@ -707,8 +707,8 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Leave short or middle distance condition, restore r17
 	 * to the dynamic tuning range.
 	 */
-	if (r17 >= 0x41) {
-		rt2500pci_bbp_write(rt2x00dev, 17, rt2x00dev->link.vgc_level);
+	if (link->vgc_level_reg >= 0x41) {
+		rt2500pci_set_vgc(rt2x00dev, link->vgc_level);
 		return;
 	}
 
@@ -718,12 +718,12 @@ dynamic_cca_tune:
 	 * R17 is inside the dynamic tuning range,
 	 * start tuning the link based on the false cca counter.
 	 */
-	if (rt2x00dev->link.qual.false_cca > 512 && r17 < 0x40) {
-		rt2500pci_bbp_write(rt2x00dev, 17, ++r17);
-		rt2x00dev->link.vgc_level = r17;
-	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > 0x32) {
-		rt2500pci_bbp_write(rt2x00dev, 17, --r17);
-		rt2x00dev->link.vgc_level = r17;
+	if (link->qual.false_cca > 512 && link->vgc_level_reg < 0x40) {
+		rt2500pci_set_vgc(rt2x00dev, ++link->vgc_level_reg);
+		link->vgc_level = link->vgc_level_reg;
+	} else if (link->qual.false_cca < 100 && link->vgc_level_reg > 0x32) {
+		rt2500pci_set_vgc(rt2x00dev, --link->vgc_level_reg);
+		link->vgc_level = link->vgc_level_reg;
 	}
 }
 

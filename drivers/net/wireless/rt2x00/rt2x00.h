@@ -286,9 +286,14 @@ struct link {
 	struct link_ant ant;
 
 	/*
-	 * Active VGC level
+	 * Active VGC level (for false cca tuning)
 	 */
-	int vgc_level;
+	u8 vgc_level;
+
+	/*
+	 * VGC level as configured in register
+	 */
+	u8 vgc_level_reg;
 
 	/*
 	 * Work structure for scheduling periodic link tuning.

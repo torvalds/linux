@@ -1046,20 +1046,26 @@ static void rt61pci_link_stats(struct rt2x00_dev *rt2x00dev,
 	qual->false_cca = rt2x00_get_field32(reg, STA_CSR1_FALSE_CCA_ERROR);
 }
 
+static inline void rt61pci_set_vgc(struct rt2x00_dev *rt2x00dev, u8 vgc_level)
+{
+	if (rt2x00dev->link.vgc_level != vgc_level) {
+		rt61pci_bbp_write(rt2x00dev, 17, vgc_level);
+		rt2x00dev->link.vgc_level = vgc_level;
+		rt2x00dev->link.vgc_level_reg = vgc_level;
+	}
+}
+
 static void rt61pci_reset_tuner(struct rt2x00_dev *rt2x00dev)
 {
-	rt61pci_bbp_write(rt2x00dev, 17, 0x20);
-	rt2x00dev->link.vgc_level = 0x20;
+	rt61pci_set_vgc(rt2x00dev, 0x20);
 }
 
 static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
-	int rssi = rt2x00_get_link_rssi(&rt2x00dev->link);
-	u8 r17;
+	struct link *link = &rt2x00dev->link;
+	int rssi = rt2x00_get_link_rssi(link);
 	u8 up_bound;
 	u8 low_bound;
-
-	rt61pci_bbp_read(rt2x00dev, 17, &r17);
 
 	/*
 	 * Determine r17 bounds.
@@ -1091,8 +1097,7 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Special big-R17 for very short distance
 	 */
 	if (rssi >= -35) {
-		if (r17 != 0x60)
-			rt61pci_bbp_write(rt2x00dev, 17, 0x60);
+		rt61pci_set_vgc(rt2x00dev, 0x60);
 		return;
 	}
 
@@ -1100,8 +1105,7 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Special big-R17 for short distance
 	 */
 	if (rssi >= -58) {
-		if (r17 != up_bound)
-			rt61pci_bbp_write(rt2x00dev, 17, up_bound);
+		rt61pci_set_vgc(rt2x00dev, up_bound);
 		return;
 	}
 
@@ -1109,9 +1113,7 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Special big-R17 for middle-short distance
 	 */
 	if (rssi >= -66) {
-		low_bound += 0x10;
-		if (r17 != low_bound)
-			rt61pci_bbp_write(rt2x00dev, 17, low_bound);
+		rt61pci_set_vgc(rt2x00dev, low_bound + 0x10);
 		return;
 	}
 
@@ -1119,9 +1121,7 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Special mid-R17 for middle distance
 	 */
 	if (rssi >= -74) {
-		low_bound += 0x08;
-		if (r17 != low_bound)
-			rt61pci_bbp_write(rt2x00dev, 17, low_bound);
+		rt61pci_set_vgc(rt2x00dev, low_bound + 0x08);
 		return;
 	}
 
@@ -1133,8 +1133,8 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	if (low_bound > up_bound)
 		up_bound = low_bound;
 
-	if (r17 > up_bound) {
-		rt61pci_bbp_write(rt2x00dev, 17, up_bound);
+	if (link->vgc_level > up_bound) {
+		rt61pci_set_vgc(rt2x00dev, up_bound);
 		return;
 	}
 
@@ -1144,15 +1144,10 @@ dynamic_cca_tune:
 	 * r17 does not yet exceed upper limit, continue and base
 	 * the r17 tuning on the false CCA count.
 	 */
-	if (rt2x00dev->link.qual.false_cca > 512 && r17 < up_bound) {
-		if (++r17 > up_bound)
-			r17 = up_bound;
-		rt61pci_bbp_write(rt2x00dev, 17, r17);
-	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > low_bound) {
-		if (--r17 < low_bound)
-			r17 = low_bound;
-		rt61pci_bbp_write(rt2x00dev, 17, r17);
-	}
+	if ((link->qual.false_cca > 512) && (link->vgc_level < up_bound))
+		rt61pci_set_vgc(rt2x00dev, ++link->vgc_level);
+	else if ((link->qual.false_cca < 100) && (link->vgc_level > low_bound))
+		rt61pci_set_vgc(rt2x00dev, --link->vgc_level);
 }
 
 /*
