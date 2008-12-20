@@ -1888,7 +1888,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
 	if (!modparam_nohwcrypt) {
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
-		__set_bit(CONFIG_CRYPTO_COPY_IV, &rt2x00dev->flags);
+		__set_bit(DRIVER_REQUIRE_COPY_IV, &rt2x00dev->flags);
 	}
 	__set_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags);
 

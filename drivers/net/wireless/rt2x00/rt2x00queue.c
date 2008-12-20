@@ -403,7 +403,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	 */
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
 	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {
-		if (test_bit(CONFIG_CRYPTO_COPY_IV, &queue->rt2x00dev->flags))
+		if (test_bit(DRIVER_REQUIRE_COPY_IV, &queue->rt2x00dev->flags))
 			rt2x00crypto_tx_copy_iv(skb, iv_len);
 		else
 			rt2x00crypto_tx_remove_iv(skb, iv_len);
