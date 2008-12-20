@@ -529,6 +529,7 @@ static const struct sd_desc sd_desc = {
 static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4028)},
 	{USB_DEVICE(0x093a, 0x2460)},
+	{USB_DEVICE(0x093a, 0x2461)},
 	{USB_DEVICE(0x093a, 0x2463)},
 	{USB_DEVICE(0x093a, 0x2464)},
 	{USB_DEVICE(0x093a, 0x2468)},
